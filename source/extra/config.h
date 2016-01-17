@@ -8,6 +8,7 @@
 // --- 協力詰めエンジンとして実行ファイルを公開するとき用の設定集
 
 #ifdef HELP_MATE_ENGINE
+#define ENGINE_NAME "YaneuraOu help mate solver"
 #undef ASSERT_LV
 #define KEEP_LAST_MOVE
 #undef  MAX_PLY_
@@ -22,6 +23,7 @@
 // --- 通常の思考エンジンとして実行ファイルを公開するとき用の設定集
 
 #ifdef YANEURAOU_NANO_ENGINE
+#define ENGINE_NAME "YaneuraOu nano"
 #undef ASSERT_LV
 #undef KEEP_LAST_MOVE
 #undef MATE_1PLY
@@ -29,6 +31,7 @@
 #endif
 
 #ifdef YANEURAOU_MINI_ENGINE
+#define ENGINE_NAME "YaneuraOu mini"
 #undef ASSERT_LV
 #undef KEEP_LAST_MOVE
 #undef MATE_1PLY
@@ -36,8 +39,28 @@
 #endif
 
 #ifdef YANEURAOU_CLASSIC_ENGINE
+#define ENGINE_NAME "YaneuraOu classic"
 #undef ASSERT_LV
 #undef KEEP_LAST_MOVE
+#endif
+
+#ifdef YANEURAOU_2016_ENGINE
+#define ENGINE_NAME "YaneuraOu 2016"
+#undef ASSERT_LV
+#undef KEEP_LAST_MOVE
+#endif
+
+#ifdef RANDOM_PLAYER_ENGINE
+#define ENGINE_NAME "YaneuraOu random player"
+#undef ASSERT_LV
+#undef KEEP_LAST_MOVE
+#undef MATE_1PLY
+#undef LONG_EFFECT
+#undef USE_EVAL_TABLE
+#endif
+
+#ifdef USER_ENGINE
+#define ENGINE_NAME "YaneuraOu user engine"
 #endif
 
 // --------------------

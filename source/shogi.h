@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define Version "0.91"
+#define Version "0.93"
 
 // --------------------
 // コンパイル時の設定
@@ -82,15 +82,16 @@
 // --------------------
 
 // やねうら王の思考エンジンとしてリリースする場合、以下から選択。(どれか一つは必ず選択しなければならない)
-// オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE をdefineして user-engine/ フォルダの中身を書くべし。
+// オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE を defineして 他のエンジンのソースコードを参考に
+//  engine/user-engine/ フォルダの中身を書くべし。
 
 //#define YANEURAOU_NANO_ENGINE      // やねうら王nano
 //#define YANEURAOU_MINI_ENGINE      // やねうら王mini
 //#define YANEURAOU_CLASSIC_ENGINE   // やねうら王classic
 //#define YANEURAOU_2016_ENGINE      // やねうら王2016
-#define HELP_MATE_ENGINE           // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
+#define RANDOM_PLAYER_ENGINE       // ランダムプレイヤー
+//#define HELP_MATE_ENGINE           // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
 //#define USER_ENGINE                // ユーザーの思考エンジン
-
 
 // --------------------
 // release configurations

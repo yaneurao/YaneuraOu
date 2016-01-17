@@ -1,8 +1,8 @@
-﻿#include "../shogi.h"
+﻿#include "../../shogi.h"
 #ifdef HELP_MATE_ENGINE
 
 #include <atomic>
-#include "../position.h"
+#include "../../position.h"
 
 // --- 協力詰め探索
 

@@ -1,15 +1,15 @@
-﻿#include "../shogi.h"
+﻿#include "../../shogi.h"
 
 #ifdef YANEURAOU_CLASSIC_ENGINE
 
 #include <sstream>
 #include <iostream>
 
-#include "../position.h"
-#include "../search.h"
-#include "../thread.h"
-#include "../misc.h"
-#include "../tt.h"
+#include "../../position.h"
+#include "../../search.h"
+#include "../../thread.h"
+#include "../../misc.h"
+#include "../../tt.h"
 
 using namespace std;
 using namespace Search;

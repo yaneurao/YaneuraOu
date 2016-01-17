@@ -1,7 +1,7 @@
-﻿#include "../shogi.h"
+﻿#include "../../shogi.h"
 #ifdef HELP_MATE_ENGINE
 
-#include "../extra/all.h"
+#include "../../extra/all.h"
 #include "help_mate_engine.h" 
 
 using namespace std;

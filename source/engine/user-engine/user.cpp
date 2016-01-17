@@ -1,4 +1,4 @@
-﻿#include "../extra/all.h"
+﻿#include "../../extra/all.h"
 
 // USI拡張コマンド"user"が送られてくるとこの関数が呼び出される。実験に使ってください。
 void user_test(Position& pos, istringstream& is)

@@ -16,12 +16,7 @@ const string engine_info() {
 
   stringstream ss;
   
-  ss <<
-#ifdef    COOPERATIVE_MATE_SOLVER
-      "YaneuraOu_CoopMateSolver "
-#else
-      "YaneuraOuMini "
-#endif
+  ss << ENGINE_NAME << ' '
      << Version << setfill('0')
      << (Is64Bit ? " 64" : "32")
      << (use_avx2 ? " AVX2" : (use_sse42 ? " SSE4.2" : "")) << endl

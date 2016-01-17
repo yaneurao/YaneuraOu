@@ -65,7 +65,15 @@ inline void sleep(int ms)
 struct PRNG {
   PRNG(uint64_t seed) : s(seed) { ASSERT_LV1(seed); }
 
+  // 乱数seedを指定しなければ現在時刻をseedとする。ただし、自己対戦のときに同じ乱数seedになる可能性が濃厚になるので
+  // このときにthisのアドレスなどを加味してそれを乱数seedとする。(by yaneurao)
+  PRNG() : s(now() ^ uint64_t(this)) {}
+
+  // 乱数を一つ取り出す。
   template<typename T> T rand() { return T(rand64()); }
+
+  // 0からn-1までの乱数を返す。(一様分布ではないが現実的にはこれで十分)
+  uint64_t rand(size_t n) { return rand<uint64_t>() % n; }
 
 private:
   uint64_t s;
