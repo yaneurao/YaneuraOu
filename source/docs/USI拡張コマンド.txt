@@ -1,0 +1,33 @@
+﻿
+USIプロトコルの独自拡張コマンド
+
+	d       : Debug デバッグ用に現在の局面を表示する。
+	s       : Sashite 指し手生成のスピードテストを行なう。
+	         王手がかかっているときはEVASIONS,かかっていないときはNON_EVASIONS
+	eval    : 現在の局面に対して評価関数を呼び出して評価値を出力する。
+	matsuri : 指し手生成祭りの局面を現在の局面としてセットする。
+	moves   : 現在の局面の合法手(LEGAL_ALL)をすべて出力する。
+	sfen    : 現在の局面のsfen文字列を出力する。
+
+	test    : テスト用コマンド
+		test unit           : unit test
+		test perft [depth]  : perft(パフォーマンステスト)。深さを指定できる。
+		test rp    [回数]   : random playerのテスト。回数を指定できる。
+		test checks [回数]	: ランダムプレイヤーで対局させて、王手の指し手生成ルーチンで指し手が
+								正しく生成出来ているかをテストする。
+
+	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。
+
+	mated   : 現在の局面に対して詰み判定を呼び出す。詰んでいれば1。さもなくば0。
+	key		: 現在の局面に対して局面のhash keyを出力
+
+set option name XXX value ...で設定できるoption
+
+	注意) USI_Hash , USI_Ponderで設定された値は無視されます。
+
+	Threads			: 思考するスレッド数
+	Hash			: 置換表のサイズ(単位[MB])
+	Ponder			: ponder(相手番での思考) on/off
+	WriteDebugLog   : 標準入出力をファイル("io_log.txt")にリダイレクトする(logコマンドでonには出来る)
+
+	CM_Hash			: 協力詰め時の置換表サイズ(単位[MB])

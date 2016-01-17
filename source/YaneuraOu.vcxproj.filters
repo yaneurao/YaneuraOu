@@ -1,0 +1,123 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="リソース ファイル">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="doc">
+      <UniqueIdentifier>{78a792d9-1341-4be9-9084-5c5e3a10e8ce}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\extra">
+      <UniqueIdentifier>{bfdca085-939e-4c22-831c-b8eab41b4440}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\cooperate_mate">
+      <UniqueIdentifier>{ebbeb323-9a42-44ea-92dd-6149fc280fd7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\mini">
+      <UniqueIdentifier>{3ca3b263-73a3-4ba3-8eff-255515ceb6d9}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="evaluate.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="bitboard.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="position.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="shogi.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="search.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="thread.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="misc.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\all.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\key128.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\mate1ply.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\bitop.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\config.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\long_effect.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
+    <ClInclude Include="cooperate_mate\cooperative_mate_solver.h">
+      <Filter>リソース ファイル\cooperate_mate</Filter>
+    </ClInclude>
+    <ClInclude Include="tt.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="movegen.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="bitboard.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="shogi.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="position.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluate.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="usi.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="thread.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="misc.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\test_cmd.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\user.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\mate1ply.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\long_effect.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="cooperate_mate\cooperative_mate_solver.cpp">
+      <Filter>リソース ファイル\cooperate_mate</Filter>
+    </ClCompile>
+    <ClCompile Include="mini\search.cpp">
+      <Filter>リソース ファイル\mini</Filter>
+    </ClCompile>
+    <ClCompile Include="tt.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="docs\バージョン履歴.txt">
+      <Filter>doc</Filter>
+    </Text>
+    <Text Include="docs\USI拡張コマンド.txt">
+      <Filter>doc</Filter>
+    </Text>
+  </ItemGroup>
+</Project>
