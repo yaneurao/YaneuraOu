@@ -31,7 +31,10 @@ struct TTEntry {
     if ((k >> 48) != key16)
       move16 = (uint16_t)m;
 
-    if ((k >> 16) != key16)
+    // かきかけ
+
+    // このエントリーの現在の内容のほうが価値があるなら上書きしない。
+    if ((k >> 48) != key16 )
     {
       key16   = (int16_t)(k >> 48);
       value16 = (int16_t)v;
