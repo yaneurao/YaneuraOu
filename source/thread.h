@@ -18,9 +18,12 @@
 typedef std::mutex Mutex;
 typedef std::condition_variable ConditionVariable;
 
-// スレッドの基底クラス。std::threadのwrapper
+// スレッドの基底クラス。std::threadのwrapper。
 struct alignas(16) ThreadBase : public std::thread
 {
+  // 探索開始局面(alignasが利くように先頭に書いておく)
+  Position rootPos;
+
   // idle_loop()で待機しているスレッドに通知して処理を進められる状態にする。
   void notify_one();
 
@@ -29,7 +32,8 @@ struct alignas(16) ThreadBase : public std::thread
 
   // 派生クラス側でoverrideして使う。sleepCondition待ちにして待機させておく。
   // exitフラグが立ったら終了するように書く。
-  virtual void idle_loop() = 0;
+  // 継承を使うとvtableが必要になってalignするのが難しくなるので使わない。
+  void idle_loop() {}
 
   ThreadBase() { exit = false; }
 
@@ -46,7 +50,6 @@ struct alignas(16) ThreadBase : public std::thread
     std::unique_lock<Mutex> lk(mutex);
     sleepCondition.wait(lk, [&] { return !b; });
   }
-
 
 protected:
 
@@ -65,11 +68,8 @@ struct alignas(16) Thread : public ThreadBase
 {
   Thread();
 
-  // 探索開始の局面
-  Position rootPos;
-
   // slave用のidle_loop。
-  virtual void idle_loop();
+  void idle_loop();
 
   // slaveは、main threadから
   // for(auto th : Threads.slavle) th->search_start();のようにされると
@@ -109,7 +109,7 @@ struct alignas(16) MainThread : public Thread
   // スレッドが思考を停止するのを待つ
   void join() { wait_while(thinking); }
 
-  virtual void idle_loop();
+  void idle_loop();
 
   // 思考を開始する。search.cppで定義されているthink()が呼び出される。
   void think();

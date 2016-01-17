@@ -9,37 +9,22 @@ using namespace Search;
 
 namespace {
 
-  std::map<void*,void*> alloced_ptrs;
-  template<typename T>
-  inline T* aligned_new()
-  {
-    const auto ptr_alloc = sizeof(void*); // この分余分に確保して[-1]のところに元のポインターを保存しておく。
-    const auto align_size = alignof(T);
-    size_t request_size = sizeof(T) + align_size;
-    const auto needed = ptr_alloc + request_size;
-    auto alloc = ::operator new(needed);
-    void* alloc2 = (uint8_t*)alloc + ptr_alloc;
-    auto ptr = std::align(align_size, sizeof(T), alloc2, request_size);
-    ((void**)ptr)[-1] = alloc;
-    return  new((void*)ptr) T();
-  }
-  inline void aligned_free(void *ptr)
-  {
-    if (ptr)
-    {
-      void* alloc = ((void**)ptr)[-1];
-      ::operator delete(alloc);
-    }
-  }
-
   // std::thread派生型であるT型のthreadを一つ作って、そのidle_loopを実行するためのマクロ。
   // 生成されたスレッドはidle_loop()で仕事が来るのを待機している。
   template<typename T> T* new_thread() {
 
-    std::thread* th = aligned_new<T>(); // new T();
+    std::thread* th = aligned_new<T>();
 
-    // ToDo: [要調査] ↑のalgned_new<T>()を用いるとして、x86だと実行時にここでランタイムエラー(代入前に)
-    *th = std::thread(&T::idle_loop, (T*)th); // Tの基底クラスはstd::threadなのでスライシングされて正しく代入されるはずだが..
+    //std::thread([&] {});
+
+    //auto mt = aligned_new<MainThread>();
+    //auto th = (std::thread*)mt;
+
+    //std::thread([&] {});
+
+    // Tの基底クラスはstd::threadなのでスライシングされて正しく代入されるはず。
+    *th = std::thread([&] {((T*)th)->idle_loop(); });
+    
     return (T*)th;
   }
 
