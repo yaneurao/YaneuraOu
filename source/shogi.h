@@ -868,16 +868,16 @@ ENABLE_RANGE_OPERATORS_ON(Piece, NO_PIECE, PIECE_NB)
 // Bitboardのそれぞれの升に対して処理を行なうためのマクロ。
 // p[0]側とp[1]側との両方で同じコードが生成されるので生成されるコードサイズに注意。
 
-#define FOREACH_BB(BB_, SQ_, Statement_)					\
-  do {										      \
-    while (BB_.p[0]) {					\
-      SQ_ = BB_.pop_from_p0();	\
-      Statement_;								\
-    }										        \
-    while (BB_.p[1]) {					\
-      SQ_ = BB_.pop_from_p1();	\
-      Statement_;								\
-    }										        \
+#define FOREACH_BB(BB_, SQ_, Statement_) \
+  do {                          \
+    while (BB_.p[0]) {          \
+      SQ_ = BB_.pop_from_p0();  \
+      Statement_;               \
+    }                           \
+    while (BB_.p[1]) {          \
+      SQ_ = BB_.pop_from_p1();  \
+      Statement_;               \
+    }                           \
   } while (false)
 
 #endif // of #ifndef _SHOGI_H_
