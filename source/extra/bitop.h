@@ -19,15 +19,15 @@
 #define IS_64BIT
 #endif
 
+// ----------------------------
+//      PEXT(AVX2の命令)
+// ----------------------------
+
 #ifdef USE_AVX2
 const bool use_avx2 = true;
 
 // for SSE,AVX,AVX2
 #include <immintrin.h>
-
-// ----------------------------
-//      PEXT(AVX2の命令)
-// ----------------------------
 
 // for AVX2 : hardwareによるpext実装
 #define PEXT32(a,b) _pext_u32(a,b)
@@ -36,6 +36,29 @@ const bool use_avx2 = true;
 #else
 // PEXT32を2回使った64bitのPEXTのemulation
 #define PEXT64(a,b) ( uint64_t(PEXT32(uint32_t((a)>>32),uint32_t((b)>>32)) << POPCNT32(b)) | uint64_t(PEXT32(uint32_t(a),uint32_t(b))) )
+#endif
+
+#else
+
+const bool use_avx2 = false;
+
+// for non-AVX2 : software emulationによるpext実装(やや遅い。とりあえず動くというだけ。)
+inline uint64_t pext(uint64_t val, uint64_t mask)
+{
+  uint64_t res = 0;
+  for (uint64_t bb = 1; mask; bb += bb) {
+    if ((int64_t)val & (int64_t)mask & -(int64_t)mask)
+      res |= bb;
+    // マスクを1bitずつ剥がしていく実装なので処理時間がbit長に依存しない。
+    // ゆえに、32bit用のpextを別途用意する必要がない。
+    mask &= mask - 1;
+  }
+  return res;
+}
+
+inline uint32_t PEXT32(uint32_t a, uint32_t b) { return (uint32_t)pext(a, b); }
+inline uint64_t PEXT64(uint64_t a, uint64_t b) { return pext(a, b); }
+
 #endif
 
 // ----------------------------
@@ -125,6 +148,8 @@ inline T* aligned_new() { return new ((void*)(size_t(malloc(sizeof(T) + 32)) & ~
 //  ymm(256bit register class)
 // ----------------------------
 
+#ifdef USE_AVX2
+
 // Byteboardの直列化で使うAVX2命令
 struct ymm
 {
@@ -146,28 +171,7 @@ struct ymm
   ymm cmp(const ymm& rhs) const { ymm t; t.m = _mm256_cmpgt_epi8(m, rhs.m); return t; }
 };
 
-// 24近傍で8近傍に利く長い利きの方向。
-//static const ymm ymm_direct_around8 = ymm_zero;
-
 #else
-const bool use_avx2 = false;
-
-// for non-AVX2 : software emulationによるpext実装(やや遅い。とりあえず動くというだけ。)
-inline uint64_t pext(uint64_t val, uint64_t mask)
-{
-  uint64_t res = 0;
-  for (uint64_t bb = 1; mask; bb += bb) {
-    if ((int64_t)val & (int64_t)mask & -(int64_t)mask)
-      res |= bb;
-    // マスクを1bitずつ剥がしていく実装なので処理時間がbit長に依存しない。
-    // ゆえに、32bit用のpextを別途用意する必要がない。
-    mask &= mask - 1;
-  }
-  return res;
-}
-
-inline uint32_t PEXT32(uint32_t a, uint32_t b) { return (uint32_t)pext(a, b); }
-inline uint64_t PEXT64(uint64_t a, uint64_t b) { return pext(a, b); }
 
 struct ymm
 {
@@ -215,6 +219,10 @@ struct ymm
 };
 
 #endif
+
+// 24近傍で8近傍に利く長い利きの方向。
+//static const ymm ymm_direct_around8 = ymm_zero;
+
 
 static const ymm ymm_zero = ymm(uint8_t(0));
 static const ymm ymm_one = ymm(uint8_t(1));

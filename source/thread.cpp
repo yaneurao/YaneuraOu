@@ -6,24 +6,39 @@ ThreadPool Threads;
 
 using namespace std;
 using namespace Search;
+#include <map>
 
 namespace {
 
+  /*
+  std::map<void*,void*> alloced_ptrs;
   template<typename T>
   inline T* aligned_new()
   {
     auto mask = alignof(T) - 1;
     auto size = sizeof(T) + mask;
-    auto ptr = size_t(malloc(size)) & ~mask;
+    auto ptr0 = malloc(size);
+    auto ptr = size_t(ptr0) & ~mask;
+    alloced_ptrs.insert(pair<void*,void*>((void*)ptr, ptr0)); // freeするときのために格納しておく。
     return  new((void*)ptr) T();
   }
-  // 2016/1/18 3:00 x86用に↑のようなaligned_new()が必要だと思うのだが、これを使ってもランタイムで落ちる。なんで？
+  inline void aligned_free(void *ptr)
+  {
+    auto it = alloced_ptrs.find(ptr);
+    ASSERT_LV1(it != alloced_ptrs.end());
+    free(it->second);
+    alloced_ptrs.erase(it);
+  }
+  */
 
   // std::thread派生型であるT型のthreadを一つ作って、そのidle_loopを実行するためのマクロ。
   // 生成されたスレッドはidle_loop()で仕事が来るのを待機している。
   template<typename T> T* new_thread() {
-    std::thread* th = new T(); // aligned_new<T>();
-    *th = std::thread(&T::idle_loop, (T*)th);
+
+    std::thread* th = new T(); //  aligned_new<T>(); // new T();
+
+    // ToDo: [要調査] ↑のalgned_new<T>()を用いるとして、x86だと実行時にここでランタイムエラー(代入前に)
+    *th = std::thread(&T::idle_loop, (T*)th); // Tの基底クラスはstd::threadなのでスライシングされて正しく代入されるはず..
     return (T*)th;
   }
 
@@ -31,6 +46,7 @@ namespace {
   void delete_thread(ThreadBase *th) {
     th->terminate();
     delete th;
+//    aligned_free(th);                  // delete th;
   }
 }
 
