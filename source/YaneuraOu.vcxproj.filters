@@ -5,9 +5,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="doc">
-      <UniqueIdentifier>{78a792d9-1341-4be9-9084-5c5e3a10e8ce}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\extra">
       <UniqueIdentifier>{bfdca085-939e-4c22-831c-b8eab41b4440}</UniqueIdentifier>
     </Filter>
@@ -111,13 +108,5 @@
     <ClCompile Include="tt.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="docs\バージョン履歴.txt">
-      <Filter>doc</Filter>
-    </Text>
-    <Text Include="docs\USI拡張コマンド.txt">
-      <Filter>doc</Filter>
-    </Text>
   </ItemGroup>
 </Project>

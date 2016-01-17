@@ -223,10 +223,6 @@
     <ClCompile Include="tt.cpp" />
     <ClCompile Include="usi.cpp" />
   </ItemGroup>
-  <ItemGroup>
-    <Text Include="docs\USI拡張コマンド.txt" />
-    <Text Include="docs\バージョン履歴.txt" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
