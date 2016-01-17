@@ -6,47 +6,48 @@ ThreadPool Threads;
 
 using namespace std;
 using namespace Search;
-#include <map>
 
 namespace {
 
-  /*
   std::map<void*,void*> alloced_ptrs;
   template<typename T>
   inline T* aligned_new()
   {
-    auto mask = alignof(T) - 1;
-    auto size = sizeof(T) + mask;
-    auto ptr0 = malloc(size);
-    auto ptr = size_t(ptr0) & ~mask;
-    alloced_ptrs.insert(pair<void*,void*>((void*)ptr, ptr0)); // freeするときのために格納しておく。
+    const auto ptr_alloc = sizeof(void*); // この分余分に確保して[-1]のところに元のポインターを保存しておく。
+    const auto align_size = alignof(T);
+    size_t request_size = sizeof(T) + align_size;
+    const auto needed = ptr_alloc + request_size;
+    auto alloc = ::operator new(needed);
+    void* alloc2 = (uint8_t*)alloc + ptr_alloc;
+    auto ptr = std::align(align_size, sizeof(T), alloc2, request_size);
+    ((void**)ptr)[-1] = alloc;
     return  new((void*)ptr) T();
   }
   inline void aligned_free(void *ptr)
   {
-    auto it = alloced_ptrs.find(ptr);
-    ASSERT_LV1(it != alloced_ptrs.end());
-    free(it->second);
-    alloced_ptrs.erase(it);
+    if (ptr)
+    {
+      void* alloc = ((void**)ptr)[-1];
+      ::operator delete(alloc);
+    }
   }
-  */
 
   // std::thread派生型であるT型のthreadを一つ作って、そのidle_loopを実行するためのマクロ。
   // 生成されたスレッドはidle_loop()で仕事が来るのを待機している。
   template<typename T> T* new_thread() {
 
-    std::thread* th = new T(); //  aligned_new<T>(); // new T();
+    std::thread* th = aligned_new<T>(); // new T();
 
     // ToDo: [要調査] ↑のalgned_new<T>()を用いるとして、x86だと実行時にここでランタイムエラー(代入前に)
-    *th = std::thread(&T::idle_loop, (T*)th); // Tの基底クラスはstd::threadなのでスライシングされて正しく代入されるはず..
+    *th = std::thread(&T::idle_loop, (T*)th); // Tの基底クラスはstd::threadなのでスライシングされて正しく代入されるはずだが..
     return (T*)th;
   }
 
   // new_thread()の逆。エンジン終了時に呼び出される。
   void delete_thread(ThreadBase *th) {
     th->terminate();
-    delete th;
-//    aligned_free(th);                  // delete th;
+//    delete th;
+    aligned_free(th);                  // delete th;
   }
 }
 
