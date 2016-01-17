@@ -225,6 +225,14 @@
     <ClCompile Include="user-engine\user.cpp" />
     <ClCompile Include="usi.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\docs\USI拡張コマンド.txt" />
+    <Text Include="..\docs\YaneuraOuMini_ja.txt" />
+    <Text Include="..\docs\更新履歴.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\README.md" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

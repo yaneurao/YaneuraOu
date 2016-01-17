@@ -88,7 +88,7 @@
 //#define YANEURAOU_MINI_ENGINE      // やねうら王mini
 //#define YANEURAOU_CLASSIC_ENGINE   // やねうら王classic
 //#define YANEURAOU_2016_ENGINE      // やねうら王2016
-#define HELP_MATE_ENGINE           // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
+#define HELP_MATE_ENGINE           // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
 //#define USER_ENGINE                // ユーザーの思考エンジン
 
 

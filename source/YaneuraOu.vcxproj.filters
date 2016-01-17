@@ -23,6 +23,9 @@
     <Filter Include="リソース ファイル\help-mate-engine">
       <UniqueIdentifier>{ebbeb323-9a42-44ea-92dd-6149fc280fd7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\doc">
+      <UniqueIdentifier>{8bb34244-8e89-49f6-a303-c043ef5d8647}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -123,5 +126,21 @@
     <ClCompile Include="help-mate-engine\help_engine.cpp">
       <Filter>リソース ファイル\help-mate-engine</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\docs\USI拡張コマンド.txt">
+      <Filter>リソース ファイル\doc</Filter>
+    </Text>
+    <Text Include="..\docs\YaneuraOuMini_ja.txt">
+      <Filter>リソース ファイル\doc</Filter>
+    </Text>
+    <Text Include="..\docs\更新履歴.txt">
+      <Filter>リソース ファイル\doc</Filter>
+    </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\README.md">
+      <Filter>リソース ファイル\doc</Filter>
+    </None>
   </ItemGroup>
 </Project>
