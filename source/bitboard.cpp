@@ -131,7 +131,7 @@ void Bitboards::init()
     auto result = ZERO_BB;
 
     // 角の利きのrayと飛車の利きのray
-    const Square deltaArray[2][4] = { { DELTA_NE, DELTA_SE, DELTA_SW, DELTA_NW },{ DELTA_N, DELTA_S, DELTA_E, DELTA_W } };
+    const Square deltaArray[2][4] = { { SQ_RU, SQ_RD, SQ_LU, SQ_LD },{ SQ_UP, SQ_DOWN, SQ_RIGHT, SQ_LEFT } };
     for (auto delta : deltaArray[(piece == BISHOP) ? 0 : 1])
       // sqを利き方向に伸ばしていく。
       // rayを次の升に延長したときに筋がワープしちゃうなら、これはNG
@@ -362,9 +362,9 @@ void Bitboards::init()
       if (enemy_field(Us) & ksq)
       {
         if (file_of(ksq) != FILE_1)
-          target |= lanceStepEffect(them, ksq + DELTA_E);
+          target |= lanceStepEffect(them, ksq + SQ_RIGHT);
         if (file_of(ksq) != FILE_9)
-          target |= lanceStepEffect(them, ksq + DELTA_W);
+          target |= lanceStepEffect(them, ksq + SQ_LEFT );
       }
       CheckCandidateBB[ksq][LANCE - 1][Us] = target;
 

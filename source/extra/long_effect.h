@@ -33,7 +33,7 @@ namespace Effect8
   // Directionsに相当するものを引数に渡して1つ方角を取り出す。
   inline Direct pop_directions(uint32_t& d) { return (Direct)pop_lsb(d); }
 
-  const Square DirectToDelta_[DIRECT_NB] = { DELTA_SE,DELTA_E,DELTA_NE,DELTA_S,DELTA_N,DELTA_SW,DELTA_W,DELTA_NW, };
+  const Square DirectToDelta_[DIRECT_NB] = { SQ_RU,SQ_RIGHT,SQ_RD,SQ_UP,SQ_DOWN,SQ_LU,SQ_LEFT,SQ_LD, };
 
   // DirectをSquare型の差分値で表現したもの。
   inline Square DirectToDelta(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDelta_[d]; }
@@ -80,11 +80,12 @@ namespace Effect24
   inline Direct pop_directions(uint32_t& d) { return (Direct)pop_lsb(d); }
 
   const Square DirectToDelta_[DIRECT_NB] = {
-    DELTA_SE + DELTA_SE , DELTA_SE + DELTA_E , DELTA_E + DELTA_E , DELTA_E + DELTA_NE , DELTA_NE + DELTA_NE ,
-    DELTA_SE + DELTA_S  , DELTA_SE           , DELTA_E           , DELTA_NE           , DELTA_NE + DELTA_N  ,
-    DELTA_S  + DELTA_S  , DELTA_S            ,                     DELTA_N            , DELTA_N + DELTA_N  ,
-    DELTA_SW + DELTA_S  , DELTA_SW           , DELTA_W           , DELTA_NW           , DELTA_NW + DELTA_N  ,
-    DELTA_SW + DELTA_SW , DELTA_SW + DELTA_W , DELTA_W + DELTA_W , DELTA_W + DELTA_NW , DELTA_NW + DELTA_NW , };
+    SQ_RU + SQ_RU    , SQ_RIGHT + SQ_RU   , SQ_RIGHT + SQ_RIGHT , SQ_RIGHT + SQ_RD , SQ_RD + SQ_RD    ,
+    SQ_RU + SQ_UP    , SQ_RU              , SQ_RIGHT            , SQ_RD            , SQ_RD + SQ_DOWN  ,
+    SQ_UP + SQ_UP    , SQ_UP                                    , SQ_DOWN          , SQ_DOWN + SQ_DOWN,
+    SQ_LU + SQ_UP    , SQ_LU              , SQ_LEFT             , SQ_LD            , SQ_LD + SQ_DOWN  ,
+    SQ_LU + SQ_LU    , SQ_LEFT  + SQ_LU   , SQ_LEFT + SQ_LEFT   , SQ_LEFT + SQ_LD  , SQ_LD + SQ_LD    ,
+  };
 
   // DirectをSquare型の差分値で表現したもの。
   inline Square DirectToDelta(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDelta_[d]; }

@@ -40,7 +40,7 @@ template <Piece Pt, Color Us, bool All> struct make_move_target {
     case PAWN:
       if (target)
       {
-        to = from + (Us == BLACK ? DELTA_S : DELTA_N); // to = target.pop(); より少し速い
+        to = from + (Us == BLACK ? SQ_UP : SQ_DOWN ); // to = target.pop(); より少し速い
         if (canPromote(Us, to))
         {
           mlist++->move = make_move_promote(from, to);
@@ -154,7 +154,7 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
     while (target2)
     {
       auto to = target2.pop();
-      auto from = to + (Us == BLACK ? DELTA_N : DELTA_S);
+      auto from = to + (Us == BLACK ? SQ_DOWN : SQ_UP );
       // 歩が成れるときは成る指し手しか生成しない。
       if (canPromote(Us, to))
       {

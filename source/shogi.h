@@ -198,18 +198,16 @@ enum Square : int32_t
   SQ_NB_PLUS1 = SQ_NB + 1, // 玉がいない場合、SQ_NBに移動したものとして扱うため、配列をSQ_NB+1で確保しないといけないときがあるのでこの定数を用いる。
 
   // 方角に関する定数。N=北=盤面の下を意味する。
-  DELTA_N = +1, // 下
-  DELTA_E = -9, // 右
-  DELTA_S = -1, // 上
-  DELTA_W = +9, // 左
+  SQ_DOWN  = +1, // 下
+  SQ_RIGHT = -9, // 右
+  SQ_UP    = -1, // 上
+  SQ_LEFT  = +9, // 左
 
   // 斜めの方角などを意味する定数。
-  DELTA_NN = int(DELTA_N) + int(DELTA_N),
-  DELTA_NE = int(DELTA_N) + int(DELTA_E),
-  DELTA_SE = int(DELTA_S) + int(DELTA_E),
-  DELTA_SS = int(DELTA_S) + int(DELTA_S),
-  DELTA_SW = int(DELTA_S) + int(DELTA_W),
-  DELTA_NW = int(DELTA_N) + int(DELTA_W)
+  SQ_RU = int(SQ_UP)   + int(SQ_RIGHT), // 右上(Right Up)
+  SQ_RD = int(SQ_DOWN) + int(SQ_RIGHT), // 右下(Right Down)
+  SQ_LU = int(SQ_UP)   + int(SQ_LEFT) , // 左上(Left Up)
+  SQ_LD = int(SQ_DOWN) + int(SQ_LEFT) , // 左下(Left Down)
 };
 
 // sqが盤面の内側を指しているかを判定する。assert()などで使う用。
@@ -871,15 +869,15 @@ ENABLE_RANGE_OPERATORS_ON(Piece, NO_PIECE, PIECE_NB)
 // p[0]側とp[1]側との両方で同じコードが生成されるので生成されるコードサイズに注意。
 
 #define FOREACH_BB(BB_, SQ_, Statement_)					\
-	do {										      \
-		while (BB_.p[0]) {					\
-			SQ_ = BB_.pop_from_p0();	\
-			Statement_;								\
-		}										        \
-		while (BB_.p[1]) {					\
-			SQ_ = BB_.pop_from_p1();	\
-			Statement_;								\
-		}										        \
-	} while (false)
+  do {										      \
+    while (BB_.p[0]) {					\
+      SQ_ = BB_.pop_from_p0();	\
+      Statement_;								\
+    }										        \
+    while (BB_.p[1]) {					\
+      SQ_ = BB_.pop_from_p1();	\
+      Statement_;								\
+    }										        \
+  } while (false)
 
 #endif // of #ifndef _SHOGI_H_
