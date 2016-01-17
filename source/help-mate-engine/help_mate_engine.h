@@ -25,11 +25,11 @@ namespace HelpMate
     void set_generation(uint16_t g) { gen16 = g; }
 
     // 置換表のエントリーに対して与えられたデータを保存する。上書き動作
-    void save(Key128 key_, uint32_t depth, Move move)
+    void save(const Key128& key_, uint32_t depth, Move move)
     { depth16 = depth & 0xffff; depth_high8 = depth >> 16; key64 = key_.p(1); move16 = (uint16_t)move; }
 
     // 与えられたkey_がこのTTEntryに格納されているかを判定する。
-    bool found(Key128 key_) const { return key64 == key_.p(1); }
+    bool found(const Key128& key_) const { return key64 == key_.p(1); }
 
   private:
     friend struct TranspositionTable;
@@ -53,7 +53,7 @@ namespace HelpMate
     // 置換表により深いdepthのentryはなかったけどこのnodeのentryがあったならその指し手を
     //   引数のtt_moveに反映させてtrueを返す。
     // 置換表にこのnodeのentryが見つからない場合はfalseを返す。
-    bool probe(const Key128 key, uint32_t& depth , Move& tt_move)
+    bool probe(const Key128& key, uint32_t& depth , Move& tt_move)
     {
       auto& cluster = table[(size_t)key.p(0) % clusterCount];
       TTEntry* const tte = &cluster.entry[0];
@@ -87,7 +87,7 @@ namespace HelpMate
       return false;
     }
 
-    void save(const Key128 key,uint32_t depth,Move move)
+    void save(const Key128& key,uint32_t depth,Move move)
     {
       auto& cluster = table[(size_t)key.p(0) % clusterCount];
       TTEntry* const tte = &cluster.entry[0];

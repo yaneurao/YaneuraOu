@@ -29,7 +29,6 @@ struct alignas(16) Bitboard
     __m128i m;
   };
 
-  // 代入等においてはSSEを使ったコピーがなされて欲しい
   Bitboard& operator = (const Bitboard& rhs) { _mm_store_si128(&this->m, rhs.m); return *this; }
 
   // --- ctor

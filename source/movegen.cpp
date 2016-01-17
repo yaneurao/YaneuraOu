@@ -28,9 +28,10 @@ using namespace std;
 // fromにあるpcをtargetの升に移動させる指し手の生成。
 // 遅いので駒王手の指し手生成のときにしか使わない。
 template <Piece Pt, Color Us, bool All> struct make_move_target {
-  ExtMove* operator()(Square from, Bitboard target, ExtMove* mlist)
+  ExtMove* operator()(Square from, const Bitboard& target_, ExtMove* mlist)
   {
     Square to;
+    Bitboard target = target_;
     Bitboard target2;
 
     switch (Pt)

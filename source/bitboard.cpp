@@ -111,8 +111,9 @@ void Bitboards::init()
 
   // 引数のindexをbits桁の2進数としてみなす。すなわちindex(0から2^bits-1)。
   // 与えられたmask(1の数がbitsだけある)に対して、1のbitのいくつかを(indexの値に従って)0にする。
-  auto indexToOccupied = [](const int index, const int bits, Bitboard mask)
+  auto indexToOccupied = [](const int index, const int bits, const Bitboard& mask_)
   {
+    auto mask = mask_;
     auto result = ZERO_BB;
     for (int i = 0; i < bits; ++i)
     {
