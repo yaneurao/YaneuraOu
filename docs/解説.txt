@@ -1,0 +1,40 @@
+﻿
+■　ファイルの説明
+
+docs/
+source/
+  nano-engine/			やねうら王nano関連の探索部
+  mini-engine/			やねうら王mini関連の探索部
+  classic-engine/		やねうら王classic関連の探索部
+  2016-engine/			やねうら王2016の探索部(非公開)
+  user-engine/			ユーザーが独自のエンジンを作るときの作業用フォルダ
+  help-mate-engine/		やねうら王 協力詰めsolver関連
+
+  shogi.h/.cpp			コンパイル時の設定や、各種構造体の定義。
+  bitboard.h/.cpp		Bitboard(盤面の駒のある場所や、ある駒による利きなどを表現するのに使う)
+  evaluate.h/.cpp		評価関数
+  misc.h/.cpp			バージョン情報など
+  movegen.cpp			指し手生成器(おそらく世界最速)
+  position.h/.cpp		盤面クラス
+  search.h/.cpp			探索部
+  thread.h/.cpp			スレッド関係
+  tt.h/.cpp				置換表
+  usi.cpp				USIプロトコルによる入出力
+
+  extra/				やねうら王nanoでは削除する予定の拡張クラス
+	all.h				すべてのheaderをincludeする横着なheader
+	bitop.h				SSE、AVXの命令をsoftwareでemulationするためのマクロ群
+	config.h			shogi.hで設定されたコンパイルオプションに基づき、configurationを行なう。
+	key128.h			128bit,256bitのhash key。(実験用)
+	long_effect.h/.cpp	遠方駒による長い利きとBitboardなどへの変換子
+	mate1ply.h/.cpp		超高速1手詰め判定関数(おそらく世界最速)
+	test_cmd.cpp		UnitTestなど。USI拡張コマンドの"test"コマンド関係。
+
+■ 解説記事等
+
+やねうら王mini公式より解説記事が一通り読めます。
+http://yaneuraou.yaneu.com/YaneuraOu_Mini/ 
+
+やねうら王公式には、コンピューター将棋関係の記事・資料が盛りだくさん！
+http://yaneuraou.yaneu.com/
+

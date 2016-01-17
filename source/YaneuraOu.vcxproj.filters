@@ -137,6 +137,9 @@
     <Text Include="..\docs\更新履歴.txt">
       <Filter>リソース ファイル\doc</Filter>
     </Text>
+    <Text Include="..\docs\解説.txt">
+      <Filter>リソース ファイル\doc</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md">

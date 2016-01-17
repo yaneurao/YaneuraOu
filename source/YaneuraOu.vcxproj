@@ -229,6 +229,7 @@
     <Text Include="..\docs\USI拡張コマンド.txt" />
     <Text Include="..\docs\YaneuraOuMini_ja.txt" />
     <Text Include="..\docs\更新履歴.txt" />
+    <Text Include="..\docs\解説.txt" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md" />
