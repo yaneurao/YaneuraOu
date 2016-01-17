@@ -9,6 +9,7 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 やねうら王miniは、将棋の思考エンジンです。Bonanza6より強く、教育的かつ短いコードで書かれています。(2500行程度) USI準拠の思考エンジンで、VC++2015でコンパイル可能です。
 
 やねうら王mini 公式サイト (解説記事等) : http://yaneuraou.yaneu.com/YaneuraOu_Mini/
+
 やねうら王公式 : http://yaneuraou.yaneu.com/
 
 ■　やねうら王classic
