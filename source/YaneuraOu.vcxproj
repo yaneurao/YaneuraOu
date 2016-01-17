@@ -191,7 +191,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="bitboard.h" />
-    <ClInclude Include="cooperate_mate\cooperative_mate_solver.h" />
     <ClInclude Include="evaluate.h" />
     <ClInclude Include="extra\all.h" />
     <ClInclude Include="extra\bitop.h" />
@@ -199,6 +198,7 @@
     <ClInclude Include="extra\long_effect.h" />
     <ClInclude Include="extra\key128.h" />
     <ClInclude Include="extra\mate1ply.h" />
+    <ClInclude Include="help-mate-engine\help_mate_engine.h" />
     <ClInclude Include="misc.h" />
     <ClInclude Include="search.h" />
     <ClInclude Include="shogi.h" />
@@ -208,19 +208,21 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bitboard.cpp" />
-    <ClCompile Include="cooperate_mate\cooperative_mate_solver.cpp" />
+    <ClCompile Include="classic-engine\classic_search.cpp" />
     <ClCompile Include="evaluate.cpp" />
     <ClCompile Include="extra\long_effect.cpp" />
     <ClCompile Include="extra\mate1ply.cpp" />
     <ClCompile Include="extra\test_cmd.cpp" />
-    <ClCompile Include="extra\user.cpp" />
-    <ClCompile Include="mini\search.cpp" />
+    <ClCompile Include="help-mate-engine\help_engine.cpp" />
+    <ClCompile Include="mini-engine\mini_search.cpp" />
     <ClCompile Include="misc.cpp" />
     <ClCompile Include="movegen.cpp" />
+    <ClCompile Include="nano-engine\nano_search.cpp" />
     <ClCompile Include="shogi.cpp" />
     <ClCompile Include="position.cpp" />
     <ClCompile Include="thread.cpp" />
     <ClCompile Include="tt.cpp" />
+    <ClCompile Include="user-engine\user.cpp" />
     <ClCompile Include="usi.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

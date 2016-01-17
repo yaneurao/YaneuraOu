@@ -1,7 +1,10 @@
-﻿#include <sstream>
+﻿#include "../shogi.h"
+
+#ifdef YANEURAOU_MINI_ENGINE
+
+#include <sstream>
 #include <iostream>
 
-#include "../shogi.h"
 #include "../position.h"
 #include "../search.h"
 #include "../thread.h"
@@ -12,8 +15,6 @@ using namespace std;
 using namespace Search;
 
 // --- 以下に好きなように探索のプログラムを書くべし。
-
-#ifdef YANEURAOU_MINI
 
 // 起動時に呼び出される。時間のかからない探索関係の初期化処理はここに書くこと。
 void Search::init()
@@ -110,4 +111,4 @@ Value search(Position& pos, Value alpha, Value beta,Depth depth)
 
   return score;
 }
-#endif
+#endif // YANEURAOU_MINI_ENGINE

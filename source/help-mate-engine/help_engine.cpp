@@ -1,15 +1,15 @@
 ﻿#include "../shogi.h"
-#ifdef COOPERATIVE_MATE_SOLVER
+#ifdef HELP_MATE_ENGINE
 
 #include "../extra/all.h"
-#include "cooperative_mate_solver.h" 
+#include "help_mate_engine.h" 
 
 using namespace std;
 using namespace Search;
 
 // --- 協力詰め探索
 
-namespace CooperativeMate
+namespace HelpMate
 {
   // 協力詰め用のMovePicker
   struct MovePicker
@@ -214,14 +214,14 @@ namespace CooperativeMate
 // --- Search
 
 void Search::init() {}
-void Search::clear() { CooperativeMate::TT.clear(); }
+void Search::clear() { HelpMate::TT.clear(); }
 void MainThread::think() {
-  CooperativeMate::init();
+  HelpMate::init();
   for (auto th : Threads.slaves) th->search_start();
   search();
   for (auto th : Threads.slaves) th->join();
-  CooperativeMate::finalize();
+  HelpMate::finalize();
 }
-void Thread::search() { CooperativeMate::id_loop(rootPos, (int)thread_id(), (int)Options["Threads"]); }
+void Thread::search() { HelpMate::id_loop(rootPos, (int)thread_id(), (int)Options["Threads"]); }
 
 #endif

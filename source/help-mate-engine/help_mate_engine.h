@@ -1,12 +1,12 @@
 ﻿#include "../shogi.h"
-#ifdef COOPERATIVE_MATE_SOLVER
+#ifdef HELP_MATE_ENGINE
 
 #include <atomic>
 #include "../position.h"
 
 // --- 協力詰め探索
 
-namespace CooperativeMate
+namespace HelpMate
 {
   struct TranspositionTable;
 

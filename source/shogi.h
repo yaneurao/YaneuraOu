@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define Version "0.88"
+#define Version "0.90"
 
 // --------------------
 // コンパイル時の設定
@@ -69,20 +69,27 @@
 // 通常探索時の最大探索深さ
 #define MAX_PLY_ 128
 
+// 長い利き(遠方駒の利き)のライブラリを用いるか。
+// 超高速1手詰め判定などではこのライブラリが必要。
+#define LONG_EFFECT
+
 // 超高速1手詰め判定ルーチンを用いるか。
 #define MATE_1PLY
+
 
 // --------------------
 //  思考エンジンの種類
 // --------------------
 
-// やねうら王の思考エンジンとしてリリースする場合、以下から選択
+// やねうら王の思考エンジンとしてリリースする場合、以下から選択。(どれか一つは必ず選択しなければならない)
+// オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE をdefineして user-engine/ フォルダの中身を書くべし。
 
-//#define YANEURAOU_NANO           // やねうら王nano
-  #define YANEURAOU_MINI           // やねうら王mini
-//#define YANEURAOU_CLASSIC        // やねうら王classic
-//#define YANEURAOU_2016           // やねうら王2016
-//#define COOPERATIVE_MATE_SOLVER  // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
+//#define YANEURAOU_NANO_ENGINE      // やねうら王nano
+//#define YANEURAOU_MINI_ENGINE      // やねうら王mini
+//#define YANEURAOU_CLASSIC_ENGINE   // やねうら王classic
+//#define YANEURAOU_2016_ENGINE      // やねうら王2016
+#define HELP_MATE_ENGINE           // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
+//#define USER_ENGINE                // ユーザーの思考エンジン
 
 
 // --------------------
@@ -90,76 +97,6 @@
 // --------------------
 
 #include "extra/config.h"
-
-// --------------------
-// include & configure
-// --------------------
-
-#include <algorithm>
-#include <cstdint>
-#include <string>
-#include <vector>
-#include <stack>
-#include <memory>
-#include <map>
-#include <iostream>
-
-// --- うざいので無効化するwarning
-// C4800 : 'unsigned int': ブール値を 'true' または 'false' に強制的に設定します
-// →　static_cast<bool>(...)において出る。
-#pragma warning(disable : 4800)
-
-// --- assertion tools
-
-// DEBUGビルドでないとassertが無効化されてしまうので無効化されないASSERT
-// 故意にメモリアクセス違反を起こすコード。
-#define ASSERT(X) { if (!(X)) *(int*)0 =0; }
-
-// ASSERT LVに応じたassert
-#ifndef ASSERT_LV
-#define ASSERT_LV 0
-#endif
-
-#define ASSERT_LV_EX(L, X) { if (L <= ASSERT_LV) ASSERT(X); }
-#define ASSERT_LV1(X) ASSERT_LV_EX(1, X)
-#define ASSERT_LV2(X) ASSERT_LV_EX(2, X)
-#define ASSERT_LV3(X) ASSERT_LV_EX(3, X)
-#define ASSERT_LV4(X) ASSERT_LV_EX(4, X)
-#define ASSERT_LV5(X) ASSERT_LV_EX(5, X)
-
-// --- switchにおいてdefaultに到達しないことを明示して高速化させる
-#ifdef _DEBUG
-// デバッグ時は普通にしとかないと変なアドレスにジャンプして原因究明に時間がかかる。
-#define UNREACHABLE ASSERT_LV1(false);
-#elif defined(_MSC_VER)
-#define UNREACHABLE ASSERT_LV1(false); __assume(0);
-#elif defined(__GNUC__)
-#define UNREACHABLE __builtin_unreachable();
-#else
-#define UNREACHABLE ASSERT_LV1(false);
-#endif
-
-// PRETTY_JPが定義されているかどうかによって三項演算子などを使いたいので。
-#ifdef PRETTY_JP
-const bool pretty_jp = true;
-#else
-const bool pretty_jp = false;
-#endif
-
-#if HASH_KEY_BITS <= 64
-#define HASH_KEY Key64
-#elif HASH_KEY_BITS <= 128
-#define HASH_KEY Key128
-#else
-#define HASH_KEY Key256
-#endif
-
-// ターゲットが64bitOSかどうか
-#if defined(_WIN64) && defined(_MSC_VER)
-const bool Is64Bit = true;
-#else
-const bool Is64Bit = false;
-#endif
 
 // --------------------
 //    bit operations

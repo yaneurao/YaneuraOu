@@ -862,7 +862,7 @@ template ExtMove* generateMoves<CAPTURES_PRO_PLUS     >(const Position& pos, Ext
 
 template ExtMove* generateMoves<EVASIONS              >(const Position& pos, ExtMove* mlist);
 
-#ifdef COOPERATIVE_MATE_SOLVER
+#ifdef HELP_MATE_ENGINE
 // 協力詰めのときは必要
 template ExtMove* generateMoves<EVASIONS_ALL          >(const Position& pos, ExtMove* mlist);
 #else

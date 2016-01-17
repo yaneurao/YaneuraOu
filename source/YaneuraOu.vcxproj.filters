@@ -8,11 +8,20 @@
     <Filter Include="リソース ファイル\extra">
       <UniqueIdentifier>{bfdca085-939e-4c22-831c-b8eab41b4440}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\cooperate_mate">
-      <UniqueIdentifier>{ebbeb323-9a42-44ea-92dd-6149fc280fd7}</UniqueIdentifier>
+    <Filter Include="リソース ファイル\user-engine">
+      <UniqueIdentifier>{2c2311db-d47b-44d5-8fbf-7783e7a608a8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\mini">
+    <Filter Include="リソース ファイル\nano-engine">
+      <UniqueIdentifier>{f1794beb-1b65-446b-94db-2cb961e68790}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\classic-engine">
+      <UniqueIdentifier>{6a45153e-f034-489a-b47b-7079878d0daa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\mini-engine">
       <UniqueIdentifier>{3ca3b263-73a3-4ba3-8eff-255515ceb6d9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\help-mate-engine">
+      <UniqueIdentifier>{ebbeb323-9a42-44ea-92dd-6149fc280fd7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -55,11 +64,11 @@
     <ClInclude Include="extra\long_effect.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
-    <ClInclude Include="cooperate_mate\cooperative_mate_solver.h">
-      <Filter>リソース ファイル\cooperate_mate</Filter>
-    </ClInclude>
     <ClInclude Include="tt.h">
       <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="help-mate-engine\help_mate_engine.h">
+      <Filter>リソース ファイル\help-mate-engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -90,23 +99,29 @@
     <ClCompile Include="extra\test_cmd.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
-    <ClCompile Include="extra\user.cpp">
-      <Filter>リソース ファイル\extra</Filter>
-    </ClCompile>
     <ClCompile Include="extra\mate1ply.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
     <ClCompile Include="extra\long_effect.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
-    <ClCompile Include="cooperate_mate\cooperative_mate_solver.cpp">
-      <Filter>リソース ファイル\cooperate_mate</Filter>
-    </ClCompile>
-    <ClCompile Include="mini\search.cpp">
-      <Filter>リソース ファイル\mini</Filter>
-    </ClCompile>
     <ClCompile Include="tt.cpp">
       <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="classic-engine\classic_search.cpp">
+      <Filter>リソース ファイル\classic-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="mini-engine\mini_search.cpp">
+      <Filter>リソース ファイル\mini-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="nano-engine\nano_search.cpp">
+      <Filter>リソース ファイル\nano-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="user-engine\user.cpp">
+      <Filter>リソース ファイル\user-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="help-mate-engine\help_engine.cpp">
+      <Filter>リソース ファイル\help-mate-engine</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
