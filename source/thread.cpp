@@ -9,10 +9,20 @@ using namespace Search;
 
 namespace {
 
+  template<typename T>
+  inline T* aligned_new()
+  {
+    auto mask = alignof(T) - 1;
+    auto size = sizeof(T) + mask;
+    auto ptr = size_t(malloc(size)) & ~mask;
+    return  new((void*)ptr) T();
+  }
+  // 2016/1/18 3:00 x86用に↑のようなaligned_new()が必要だと思うのだが、これを使ってもランタイムで落ちる。なんで？
+
   // std::thread派生型であるT型のthreadを一つ作って、そのidle_loopを実行するためのマクロ。
   // 生成されたスレッドはidle_loop()で仕事が来るのを待機している。
   template<typename T> T* new_thread() {
-    std::thread* th = new T;
+    std::thread* th = new T(); // aligned_new<T>();
     *th = std::thread(&T::idle_loop, (T*)th);
     return (T*)th;
   }

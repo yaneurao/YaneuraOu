@@ -108,15 +108,18 @@ inline int MSB64(uint64_t v) { return uint32_t(v >> 32) ? 32 + MSB32(uint32_t(v 
 #endif
 
 // ----------------------------
-//     struct alignas
+//     aligned alloc
 // ----------------------------
 
-#ifdef IS_64BIT
-#define ALIGNAS(n) alignas(n)
-#else
-// 32bit環境ではstructのalignasがうまく配置されない？
-#define ALIGNAS(n) __declspec(align(n))
-#endif
+// newでヒープから確保するとalignasをつけてもalignmentが合ってない可能性があるので自前でallocしなければならない。
+// (x64ならnewしたときに16byteでalignされたメモリが返るので問題とならないがx86環境では8byteでalignされているので
+// alignas(16)を仮定していると問題となるようだ。
+
+/*
+template <typename T>
+//inline T* aligned_new() { return new ((void*)(size_t(malloc(sizeof(T) + alignof(T))) & ~(size_t(alignof(T))-1) )) T(); }
+inline T* aligned_new() { return new ((void*)(size_t(malloc(sizeof(T) + 32)) & ~31)) T(); }
+*/
 
 // ----------------------------
 //  ymm(256bit register class)

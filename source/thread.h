@@ -19,7 +19,7 @@ typedef std::mutex Mutex;
 typedef std::condition_variable ConditionVariable;
 
 // スレッドの基底クラス。std::threadのwrapper
-struct ThreadBase : public std::thread
+struct alignas(16) ThreadBase : public std::thread
 {
   // idle_loop()で待機しているスレッドに通知して処理を進められる状態にする。
   void notify_one();
@@ -61,7 +61,7 @@ protected:
 
 // 探索時に用いる、それぞれのスレッド
 // これを思考スレッド数だけ確保する。
-struct Thread : public ThreadBase
+struct alignas(16) Thread : public ThreadBase
 {
   Thread();
 
@@ -104,7 +104,7 @@ protected:
 };
 
 // 探索時のmainスレッド(これがmasterであり、これ以外はslaveとみなす)
-struct MainThread : public Thread
+struct alignas(16) MainThread : public Thread
 {
   // スレッドが思考を停止するのを待つ
   void join() { wait_while(thinking); }

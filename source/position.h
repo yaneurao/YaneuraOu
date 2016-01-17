@@ -50,7 +50,7 @@ struct CheckInfo {
 
 // StateInfoは、undo_move()で局面を戻すときに情報を元の状態に戻すのが面倒なものを詰め込んでおくための構造体。
 // do_move()のときは、ブロックコピーで済むのでそこそこ高速。
-struct StateInfo {
+struct alignas(16) StateInfo {
 
   // ---- ここから下のやつは do_move()のときにコピーされる
 
@@ -116,7 +116,7 @@ struct StateInfo {
 // --------------------
 
 // 盤面
-struct Position
+struct alignas(16) Position
 {
   // --- ctor
 
@@ -346,6 +346,38 @@ struct Position
 
 protected:
 
+  // --- Bitboards
+  // alignas(16)を要求するものを先に宣言。
+  
+  // 盤上の先手/後手/両方の駒があるところが1であるBitboard
+  Bitboard occupied[COLOR_NB + 1];
+
+  // 駒が存在する升を表すBitboard
+  Bitboard piece_bb[PIECE_TYPE_BITBOARD_NB][COLOR_NB];
+
+  // stが初期状態で指している、空のStateInfo
+  StateInfo startState;
+
+  // sqの地点にpcを置く/取り除く、したとして内部で保持しているBitboardを更新する。
+  void xor_piece(Piece pc, Square sq);
+
+  // --- 盤面を更新するときにEvalListの更新のために必要なヘルパー関数
+
+  // c側の手駒ptの最後の1枚のBonaPiece番号を返す
+  Eval::BonaPiece bona_piece_of(Color c,Piece pt) const {
+    // c側の手駒ptの枚数
+    int ct = hand_count(hand[c], pt);
+    return (Eval::BonaPiece)(Eval::kpp_hand_index[c][pt].fb + ct - 1);
+  }
+
+  // c側の手駒ptの(最後の1枚の)PieceNoを返す
+  PieceNo piece_no_of(Color c, Piece pt) const { return evalList.piece_no_of(bona_piece_of(c,pt));}
+
+  // 盤上のpcの駒のPieceNoを返す
+  PieceNo piece_no_of(Piece pc, Square sq) const { return evalList.piece_no_of((Eval::BonaPiece)(Eval::kpp_board_index[pc].fb + sq)); }
+
+  // ---
+
   // 盤面、81升分の駒。
   Piece board[SQ_NB];
 
@@ -370,37 +402,8 @@ protected:
   // undo_move()で前の局面に戻るときはStateInfo::previousから辿って戻る。
   StateInfo* st;
 
-  // stが初期状態で指している、空のStateInfo
-  StateInfo startState;
-
   // 評価関数で用いる駒のリスト
   Eval::EvalList evalList;
-
-  // --- Bitboards
-
-  // 盤上の先手/後手/両方の駒があるところが1であるBitboard
-  Bitboard occupied[COLOR_NB + 1];
-
-  // 駒が存在する升を表すBitboard
-  Bitboard piece_bb[PIECE_TYPE_BITBOARD_NB][COLOR_NB];
-
-  // sqの地点にpcを置く/取り除く、したとして内部で保持しているBitboardを更新する。
-  void xor_piece(Piece pc, Square sq);
-
-  // --- 盤面を更新するときにEvalListの更新のために必要なヘルパー関数
-
-  // c側の手駒ptの最後の1枚のBonaPiece番号を返す
-  Eval::BonaPiece bona_piece_of(Color c,Piece pt) const {
-    // c側の手駒ptの枚数
-    int ct = hand_count(hand[c], pt);
-    return (Eval::BonaPiece)(Eval::kpp_hand_index[c][pt].fb + ct - 1);
-  }
-
-  // c側の手駒ptの(最後の1枚の)PieceNoを返す
-  PieceNo piece_no_of(Color c, Piece pt) const { return evalList.piece_no_of(bona_piece_of(c,pt));}
-
-  // 盤上のpcの駒のPieceNoを返す
-  PieceNo piece_no_of(Piece pc, Square sq) const { return evalList.piece_no_of((Eval::BonaPiece)(Eval::kpp_board_index[pc].fb + sq)); }
 
   // ---
 
