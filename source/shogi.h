@@ -84,6 +84,7 @@
 //#define YANEURAOU_2016           // やねうら王2016
 //#define COOPERATIVE_MATE_SOLVER  // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
 
+
 // --------------------
 // release configurations
 // --------------------
