@@ -46,6 +46,17 @@ Visual Studio 2015 Community Edition(無料で使えます)でビルド一発で
 
   YaneuraOu2016Engine/YaneuraOu.exe
 
+★　思考エンジンの種類の選択
+
+ビルドする思考エンジンの種類として、
+・ランダムプレイヤー
+・やねうら王nano
+・やねうら王mini
+・やねうら王classic
+・やねうら王 協力詰めsolver
+のなかから選択することが出来ます。詳しくはshogi.hをご覧ください。
+
+
 ■ よくある質問
 
 ★　AVX2非対応のCPU用の実行ファイルの作り方。
