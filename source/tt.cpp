@@ -5,7 +5,7 @@ TranspositionTable TT; // 置換表をglobalに確保。
 // 置換表のサイズを確保しなおす。
 void TranspositionTable::resize(size_t mbSize) {
 
-  size_t newClusterCount = size_t(1) << msb((mbSize * 1024 * 1024) / sizeof(Cluster));
+  size_t newClusterCount = size_t(1) << MSB64((mbSize * 1024 * 1024) / sizeof(Cluster));
 
   // 同じサイズなら確保しなおす必要はない。
   if (newClusterCount == clusterCount)

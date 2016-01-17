@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define Version "0.90"
+#define Version "0.91"
 
 // --------------------
 // コンパイル時の設定
@@ -672,31 +672,15 @@ private:
 // 1である最下位bitを1bit取り出して、そのbit位置を返す。
 // 0を渡してはならない。
 inline int pop_lsb(uint64_t& b){
-  unsigned long index;
-  _BitScanForward64(&index, b);
+  int index = LSB64(b);
   b &= b - 1;
   return index;
 }
 
 inline int pop_lsb(uint32_t& b) {
-  unsigned long index;
-  _BitScanForward(&index, b);
+  int index = LSB32(b);
   b &= b - 1;
   return index;
-}
-
-// bを破壊しないpop_lsb()
-inline int lsb(uint64_t b) {
-  unsigned long index;
-  _BitScanForward64(&index, b);
-  return index;
-}
-
-// 最上位bitのbit位置を得る。0を渡してはならない。
-inline int msb(uint64_t b) {
-  unsigned long index;
-  _BitScanReverse64(&index, b);
-  return (int)index;
 }
 
 // --------------------

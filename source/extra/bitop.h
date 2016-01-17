@@ -13,15 +13,114 @@
 // USE_AVX2    : AVX2以降で使える命令を使う(Haswell以降からサポートされている)
 //                 PEXT   / MOVEMASK
 
+// 64bit環境のときにはIS_64BITがdefinedになるのでこのシンボルが定義されていなければ
+// 32bit環境用のemulation codeを書く。
+#if defined(_WIN64) && defined(_MSC_VER)
+#define IS_64BIT
+#endif
+
 #ifdef USE_AVX2
 const bool use_avx2 = true;
 
 // for SSE,AVX,AVX2
 #include <immintrin.h>
 
+// ----------------------------
+//      PEXT(AVX2の命令)
+// ----------------------------
+
 // for AVX2 : hardwareによるpext実装
 #define PEXT32(a,b) _pext_u32(a,b)
+#ifdef IS_64BIT
 #define PEXT64(a,b) _pext_u64(a,b)
+#else
+// PEXT32を2回使った64bitのPEXTのemulation
+#define PEXT64(a,b) ( uint64_t(PEXT32(uint32_t((a)>>32),uint32_t((b)>>32)) << POPCNT32(b)) | uint64_t(PEXT32(uint32_t(a),uint32_t(b))) )
+#endif
+
+// ----------------------------
+//     POPCNT(SSE4.2の命令)
+// ----------------------------
+
+#ifdef USE_SSE42
+const bool use_sse42 = true;
+
+// for SSE4.2
+#include <intrin.h>
+#define POPCNT8(a) __popcnt8(a)
+#ifdef IS_64BIT
+#define POPCNT32(a) __popcnt32(a)
+#define POPCNT64(a) __popcnt64(a)
+#else
+// 32bit版だと、何故かこれ関数名に"32"がついてない。
+#define POPCNT32(a) __popcnt(uint32_t(a))
+// 32bit環境では32bitのpop_count 2回でemulation。
+#define POPCNT64(a) (POPCNT32((a)>>32) + POPCNT32(a))
+#endif
+
+#else
+const bool use_sse42 = false;
+
+// software emulationによるpopcnt(やや遅い)
+inline int32_t POPCNT8(uint32_t a) {
+  a = (a & UINT32_C(0x55)) + (a >> 1 & UINT32_C(0x55));
+  a = (a & UINT32_C(0x33)) + (a >> 2 & UINT32_C(0x33));
+  a = (a & UINT32_C(0x0f)) + (a >> 4 & UINT32_C(0x0f));
+  return (int32_t)a;
+}
+inline int32_t POPCNT32(uint32_t a) {
+  a = (a & UINT32_C(0x55555555)) + (a >> 1 & UINT32_C(0x55555555));
+  a = (a & UINT32_C(0x33333333)) + (a >> 2 & UINT32_C(0x33333333));
+  a = (a & UINT32_C(0x0f0f0f0f)) + (a >> 4 & UINT32_C(0x0f0f0f0f));
+  a = (a & UINT32_C(0x00ff00ff)) + (a >> 8 & UINT32_C(0x00ff00ff));
+  a = (a & UINT32_C(0x0000ffff)) + (a >> 16 & UINT32_C(0x0000ffff));
+  return (int32_t)a;
+}
+inline int32_t POPCNT64(uint64_t a) {
+  a = (a & UINT64_C(0x5555555555555555)) + (a >> 1 & UINT64_C(0x5555555555555555));
+  a = (a & UINT64_C(0x3333333333333333)) + (a >> 2 & UINT64_C(0x3333333333333333));
+  a = (a & UINT64_C(0x0f0f0f0f0f0f0f0f)) + (a >> 4 & UINT64_C(0x0f0f0f0f0f0f0f0f));
+  a = (a & UINT64_C(0x00ff00ff00ff00ff)) + (a >> 8 & UINT64_C(0x00ff00ff00ff00ff));
+  a = (a & UINT64_C(0x0000ffff0000ffff)) + (a >> 16 & UINT64_C(0x0000ffff0000ffff));
+  return (int32_t)a + (int32_t)(a >> 32);
+}
+#endif
+
+// ----------------------------
+//     BSF(bitscan forward)
+// ----------------------------
+
+#ifdef IS_64BIT
+// 1である最下位のbitのbit位置を得る。0を渡してはならない。
+inline int LSB32(uint32_t v) { unsigned long index; _BitScanForward(&index, v); return index; }
+inline int LSB64(uint64_t v) { unsigned long index; _BitScanForward64(&index, v); return index; }
+
+// 1である最上位のbitのbit位置を得る。0を渡してはならない。
+inline int MSB32(uint32_t v) { unsigned long index; _BitScanReverse(&index, v); return index; }
+inline int MSB64(uint64_t v) { unsigned long index; _BitScanReverse64(&index, v); return index; }
+#else
+// 32bit環境では64bit版を要求されたら2回に分けて実行。
+inline int LSB32(uint32_t v) { unsigned long index; _BitScanForward(&index, v); return index; }
+inline int LSB64(uint64_t v) { return uint32_t(v) ? LSB32(uint32_t(v)) : 32 + LSB32(uint32_t(v >> 32)); }
+
+inline int MSB32(uint32_t v) { unsigned long index; _BitScanReverse(&index, v); return index; }
+inline int MSB64(uint64_t v) { return uint32_t(v >> 32) ? 32 + MSB32(uint32_t(v >> 32)) : MSB32(uint32_t(v)); }
+#endif
+
+// ----------------------------
+//     struct alignas
+// ----------------------------
+
+#ifdef IS_64BIT
+#define ALIGNAS(n) alignas(n)
+#else
+// 32bit環境ではstructのalignasがうまく配置されない？
+#define ALIGNAS(n) __declspec(align(n))
+#endif
+
+// ----------------------------
+//  ymm(256bit register class)
+// ----------------------------
 
 // Byteboardの直列化で使うAVX2命令
 struct ymm
@@ -107,48 +206,11 @@ struct ymm
   ymm cmp(const ymm& rhs) const {
     ymm t;
     for (int i = 0; i < 32; ++i)
-      t.m8[i]= (m8[i] > rhs.m8[i]) ? 0xff : 0;
+      t.m8[i] = (m8[i] > rhs.m8[i]) ? 0xff : 0;
     return t;
   }
 };
 
-#endif
-
-#ifdef USE_SSE42
-const bool use_sse42 = true;
-
-// for SSE4.2
-#include <intrin.h>
-#define POPCNT8(a) __popcnt8(a)
-#define POPCNT32(a) __popcnt32(a)
-#define POPCNT64(a) __popcnt64(a)
-
-#else
-const bool use_sse42 = false;
-
-// software emulationによるpopcnt(やや遅い)
-inline int32_t POPCNT8(uint32_t a) {
-  a = (a & UINT32_C(0x55)) + (a >> 1 & UINT32_C(0x55));
-  a = (a & UINT32_C(0x33)) + (a >> 2 & UINT32_C(0x33));
-  a = (a & UINT32_C(0x0f)) + (a >> 4 & UINT32_C(0x0f));
-  return (int32_t)a;
-}
-inline int32_t POPCNT32(uint32_t a) {
-  a = (a & UINT32_C(0x55555555)) + (a >> 1 & UINT32_C(0x55555555));
-  a = (a & UINT32_C(0x33333333)) + (a >> 2 & UINT32_C(0x33333333));
-  a = (a & UINT32_C(0x0f0f0f0f)) + (a >> 4 & UINT32_C(0x0f0f0f0f));
-  a = (a & UINT32_C(0x00ff00ff)) + (a >> 8 & UINT32_C(0x00ff00ff));
-  a = (a & UINT32_C(0x0000ffff)) + (a >> 16 & UINT32_C(0x0000ffff));
-  return (int32_t)a;
-}
-inline int32_t POPCNT64(uint64_t a) {
-  a = (a & UINT64_C(0x5555555555555555)) + (a >> 1 & UINT64_C(0x5555555555555555));
-  a = (a & UINT64_C(0x3333333333333333)) + (a >> 2 & UINT64_C(0x3333333333333333));
-  a = (a & UINT64_C(0x0f0f0f0f0f0f0f0f)) + (a >> 4 & UINT64_C(0x0f0f0f0f0f0f0f0f));
-  a = (a & UINT64_C(0x00ff00ff00ff00ff)) + (a >> 8 & UINT64_C(0x00ff00ff00ff00ff));
-  a = (a & UINT64_C(0x0000ffff0000ffff)) + (a >> 16 & UINT64_C(0x0000ffff0000ffff));
-  return (int32_t)a + (int32_t)(a >> 32);
-}
 #endif
 
 static const ymm ymm_zero = ymm(uint8_t(0));

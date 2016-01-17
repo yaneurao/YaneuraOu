@@ -13,6 +13,7 @@ namespace Bitboards{
 
 // Bitboard本体クラス
 // SSE/AVX2専用。
+
 struct alignas(16) Bitboard
 {
   union
@@ -76,7 +77,7 @@ struct alignas(16) Bitboard
   Square pop() { return (p[0] != 0) ? Square(pop_lsb(p[0])) : Square(pop_lsb(p[1]) + 63); }
 
   // このBitboardの値を変えないpop()
-  Square pop_c() const { return (p[0] != 0) ? Square(lsb(p[0])) : Square(lsb(p[1]) + 63); }
+  Square pop_c() const { return (p[0] != 0) ? Square(LSB64(p[0])) : Square(LSB64(p[1]) + 63); }
 
   // pop()をp[0],p[1]に分けて片側ずつする用
   Square pop_from_p0() { ASSERT_LV3(p[0] != 0);  return Square(pop_lsb(p[0])); }
