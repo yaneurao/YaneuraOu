@@ -5,21 +5,6 @@
 // release configurations
 // --------------------
 
-// --- 協力詰めエンジンとして実行ファイルを公開するとき用の設定集
-
-#ifdef HELP_MATE_ENGINE
-#define ENGINE_NAME "YaneuraOu help mate solver"
-#undef ASSERT_LV
-#define KEEP_LAST_MOVE
-#undef  MAX_PLY_
-#define MAX_PLY_ 65000
-#undef HASH_KEY_BITS
-#define HASH_KEY_BITS 128
-#undef USE_EVAL_TABLE
-#undef MATE_1PLY
-#undef LONG_EFFECT
-#endif
-
 // --- 通常の思考エンジンとして実行ファイルを公開するとき用の設定集
 
 #ifdef YANEURAOU_NANO_ENGINE
@@ -66,6 +51,34 @@
 #define KEEP_LAST_MOVE
 #undef USE_EVAL_TABLE
 #endif
+
+// --- 協力詰めエンジンとして実行ファイルを公開するとき用の設定集
+
+#ifdef HELP_MATE_ENGINE
+#define ENGINE_NAME "YaneuraOu help mate solver"
+#undef ASSERT_LV
+#define KEEP_LAST_MOVE
+#undef  MAX_PLY_
+#define MAX_PLY_ 65000
+#undef HASH_KEY_BITS
+#define HASH_KEY_BITS 128
+#undef USE_EVAL_TABLE
+#undef MATE_1PLY
+#undef LONG_EFFECT
+#endif
+
+// --- 詰将棋エンジンとして実行ファイルを公開するとき用の設定集
+#ifdef MATE_ENGINE
+#define ENGINE_NAME "YaneuraOu mate solver"
+#undef ASSERT_LV
+#undef  MAX_PLY_
+#define MAX_PLY_ 2000
+#undef USE_EVAL_TABLE
+#define MATE_1PLY
+#define LONG_EFFECT
+#endif
+
+// --- ユーザーの自作エンジンとして実行ファイルを公開するとき用の設定集
 
 #ifdef USER_ENGINE
 #define ENGINE_NAME "YaneuraOu user engine"

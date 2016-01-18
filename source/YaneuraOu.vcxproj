@@ -198,6 +198,7 @@
   <ItemGroup>
     <ClInclude Include="bitboard.h" />
     <ClInclude Include="engine\help-mate-engine\help_mate_engine.h" />
+    <ClInclude Include="engine\mate-engine\mate_engine.h" />
     <ClInclude Include="evaluate.h" />
     <ClInclude Include="extra\all.h" />
     <ClInclude Include="extra\bitop.h" />
@@ -215,8 +216,9 @@
   <ItemGroup>
     <ClCompile Include="bitboard.cpp" />
     <ClCompile Include="engine\classic-engine\classic_search.cpp" />
-    <ClCompile Include="engine\help-mate-engine\help_engine.cpp" />
+    <ClCompile Include="engine\help-mate-engine\help_mate_engine.cpp" />
     <ClCompile Include="engine\local-game-server\local-game-server.cpp" />
+    <ClCompile Include="engine\mate-engine\mate_engine.cpp" />
     <ClCompile Include="engine\mini-engine\mini_search.cpp" />
     <ClCompile Include="engine\nano-engine\nano_search.cpp" />
     <ClCompile Include="engine\random-player-engine\random_player_search.cpp" />

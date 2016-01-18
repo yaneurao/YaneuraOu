@@ -35,6 +35,9 @@
     <Filter Include="リソース ファイル\engine\local-game-server">
       <UniqueIdentifier>{87ce55d3-78de-45c8-a6b3-a74a54ef2d0b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\engine\mate-engine">
+      <UniqueIdentifier>{4848b7b4-f5f3-4fa3-84f5-a5dd21e63f3c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -82,6 +85,9 @@
     <ClInclude Include="engine\help-mate-engine\help_mate_engine.h">
       <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClInclude>
+    <ClInclude Include="engine\mate-engine\mate_engine.h">
+      <Filter>リソース ファイル\engine\mate-engine</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -123,9 +129,6 @@
     <ClCompile Include="engine\classic-engine\classic_search.cpp">
       <Filter>リソース ファイル\engine\classic-engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\help-mate-engine\help_engine.cpp">
-      <Filter>リソース ファイル\engine\help-mate-engine</Filter>
-    </ClCompile>
     <ClCompile Include="engine\mini-engine\mini_search.cpp">
       <Filter>リソース ファイル\engine\mini-engine</Filter>
     </ClCompile>
@@ -140,6 +143,12 @@
     </ClCompile>
     <ClCompile Include="engine\local-game-server\local-game-server.cpp">
       <Filter>リソース ファイル\engine\local-game-server</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\mate-engine\mate_engine.cpp">
+      <Filter>リソース ファイル\engine\mate-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\help-mate-engine\help_mate_engine.cpp">
+      <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
