@@ -13,14 +13,7 @@ namespace {
   // 生成されたスレッドはidle_loop()で仕事が来るのを待機している。
   template<typename T> T* new_thread() {
 
-    std::thread* th = aligned_new<T>();
-
-    //std::thread([&] {});
-
-    //auto mt = aligned_new<MainThread>();
-    //auto th = (std::thread*)mt;
-
-    //std::thread([&] {});
+    std::thread* th = new (_mm_malloc(sizeof(T),alignof(T))) T();
 
     // Tの基底クラスはstd::threadなのでスライシングされて正しく代入されるはず。
     *th = std::thread([&] {((T*)th)->idle_loop(); });
@@ -31,8 +24,7 @@ namespace {
   // new_thread()の逆。エンジン終了時に呼び出される。
   void delete_thread(ThreadBase *th) {
     th->terminate();
-//    delete th;
-    aligned_free(th);                  // delete th;
+    _mm_free(th);
   }
 }
 

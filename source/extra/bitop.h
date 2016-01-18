@@ -215,43 +215,5 @@ static const ymm ymm_zero = ymm(uint8_t(0));
 static const ymm ymm_one = ymm(uint8_t(1));
 
 
-// ----------------------------
-//   aligned memory allocator
-// ----------------------------
-
-// heapから確保したときにalignasが利かないので自前のallocatorが必要になるという..。
-// x64環境だと16byte単位でalignされたメモリになっているため、alignas(16)をつけておけば、このaloocator自体不要だと思う。
-// 256bit hash keyを使う場合など、32byteでalignasしたいときには要る。
-
-#if (HASH_KEY_BITS <= 128) && defined(IS_64BIT)
-
-template<typename T> inline T* aligned_new() { return new T(); }
-inline void aligned_free(void* ptr) { free(ptr); }
-
-#else
-
-template<typename T>
-inline T* aligned_new()
-{
-  const auto ptr_alloc = sizeof(void*); // この分余分に確保して[-1]のところに元のポインターを保存しておく。
-  const auto align_size = alignof(T);
-  size_t request_size = sizeof(T) + align_size;
-  const auto needed = ptr_alloc + request_size;
-  auto alloc = ::operator new(needed);
-  void* alloc2 = (uint8_t*)alloc + ptr_alloc;
-  auto ptr = std::align(align_size, sizeof(T), alloc2, request_size);
-  ((void**)ptr)[-1] = alloc;
-  return  new((void*)ptr) T();
-}
-inline void aligned_free(void *ptr)
-{
-  if (ptr)
-  {
-    void* alloc = ((void**)ptr)[-1];
-    ::operator delete(alloc);
-  }
-}
-#endif
-
 #endif
 
