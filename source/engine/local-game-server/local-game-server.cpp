@@ -17,8 +17,8 @@ struct ProcessNegotiator
     ZeroMemory(&si, sizeof(si));
 
     si.cb = sizeof(si);
-    //si.hStdInput = in;
-    //si.hStdOutput = out;
+    si.hStdInput = child_std_in_read;
+    si.hStdOutput = child_std_out_write;
     si.dwFlags |= STARTF_USESTDHANDLES;
 
     // Create the child process
@@ -59,6 +59,7 @@ struct ProcessNegotiator
 
   bool write(string str)
   {
+    str += '\n'; // 改行コード付与
     DWORD dwWritten;
     BOOL success = WriteFile(child_std_in_write, str.c_str(), DWORD(str.length() + 1) , &dwWritten, NULL);
     return success;
@@ -76,17 +77,21 @@ protected:
     saAttr.bInheritHandle = TRUE;
     saAttr.lpSecurityDescriptor = NULL;
 
-    if (!CreatePipe(&child_std_out_read, &child_std_out_write, &saAttr, 0))
-    {
-      sync_cout << "error CreatePipe : std out" << sync_endl;
-      return;
-    }
+#define ERROR_MES(mes) { sync_cout << mes << sync_endl; return ; }
 
+    if (!CreatePipe(&child_std_out_read, &child_std_out_write, &saAttr, 0))
+      ERROR_MES("error CreatePipe : std out");
+
+    if (!SetHandleInformation(child_std_out_read, HANDLE_FLAG_INHERIT, 0))
+      ERROR_MES("error SetHandleInformation : std out");
+    
     if (!CreatePipe(&child_std_in_read, &child_std_in_write, &saAttr, 0))
-    {
-      sync_cout << "error CreatePipe : std in" << sync_endl;
-      return;
-    }
+      ERROR_MES("error CreatePipe : std in");
+
+    if (!SetHandleInformation(child_std_in_write, HANDLE_FLAG_INHERIT, 0))
+      ERROR_MES("error SetHandleInformation : std in");
+
+#undef ERROR_MES
   }
 
   PROCESS_INFORMATION pi;
