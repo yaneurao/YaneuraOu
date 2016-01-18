@@ -456,7 +456,7 @@ void test_read_record(Position& pos, istringstream& is)
         sfen += token;
 
     auto& SetupStates = Search::SetupStates;
-    SetupStates = Search::StateStackPtr(new std::stack<StateInfo>());
+    SetupStates = Search::StateStackPtr(new aligned_stack<StateInfo>());
 
     pos.set(sfen);
 

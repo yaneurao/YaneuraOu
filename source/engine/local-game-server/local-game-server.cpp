@@ -303,8 +303,9 @@ protected:
 
 void Search::init() {}
 void Search::clear() {}
+
 void MainThread::think() {
-  
+
   fstream f[2];
   f[0].open("engine-config1.txt");
   f[1].open("engine-config2.txt");
@@ -377,7 +378,7 @@ void MainThread::think() {
   auto game_start = [&] {
     rootPos.set_hirate();
     game_started = true;
-    Search::SetupStates = Search::StateStackPtr(new std::stack<StateInfo>);
+    Search::SetupStates = Search::StateStackPtr(new aligned_stack<StateInfo>);
 
     // 定跡が設定されているならその局面まで進める
     if (book.size())

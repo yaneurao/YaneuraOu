@@ -8,8 +8,33 @@
 ・長手数の詰将棋ルーチン書く。
 
 明日のToDo:
+・1手詰め作っていく。
 ・Positionクラスに利きの差分更新を追加する。
 ・Effect8に各駒の利き追加する
+
+
+■ 2016/01/19 V1.05
+
+・std::stack<StateInfo>を用いるときにpush()に対して内部的にstackがStateInfoをnewするのだが
+　これがalignmentされてなくてまずいのか…。そんな問題があるのか…。
+→　StateInfoにcustom new/delete追加。
+
+  // custom allocator(このクラスはstd::stack<StateInfo>のpush()によって内部的にnewされるが、そのときに
+  // alignasが無視されるので、custom allocatorが必要になる…ようだ。)
+  static void* operator new (std::size_t count){ return _mm_malloc(count,alignof(StateInfo));  }
+  static void operator delete(void* p) { _mm_free(p); }
+
+→　これでも駄目なのか。難しい…。
+
+// C++11では、std::stack<StateInfo>がalignasを無視するために、代わりにstack相当のものを自作。
+template <typename T> struct aligned_stack {
+  void push(const T& t) { auto ptr = (T*)_mm_malloc(sizeof(T), alignof(T)); *ptr = t; container.push(ptr); }
+  T& top() const { return *container.top(); }
+  ~aligned_stack() { while (container.size()) { auto ptr = container.top(); _mm_free(ptr); container.pop(); } }
+private:
+  std::stack<T*> container;
+};
+こうしてみた。
 
 
 ■ 2016/01/19 V1.04

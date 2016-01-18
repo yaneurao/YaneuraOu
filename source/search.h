@@ -76,7 +76,7 @@ namespace Search {
     std::atomic_bool stop; // これがtrueになったら探索を強制終了すること。
   };
 
-  typedef std::unique_ptr<std::stack<StateInfo>> StateStackPtr;
+  typedef std::unique_ptr<aligned_stack<StateInfo>> StateStackPtr;
 
   extern SignalsType Signals;
   extern LimitsType Limits;

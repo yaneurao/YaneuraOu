@@ -112,6 +112,7 @@ struct StateInfo {
   // 一つ前の局面に遡るためのポインタ。
   // NULL MOVEなどでそこより遡って欲しくないときはnullptrを設定しておく。
   StateInfo* previous;
+
 };
 
 // --------------------

@@ -166,7 +166,7 @@ void position_cmd(Position& pos,istringstream& is)
 
   pos.set(sfen);
 
-  SetupStates = Search::StateStackPtr(new std::stack<StateInfo>);
+  SetupStates = Search::StateStackPtr(new aligned_stack<StateInfo>);
 
   // 指し手のリストをパースする(あるなら)
   while (is >> token && (m = move_from_usi(pos, token)) != MOVE_NONE)
