@@ -293,10 +293,12 @@ protected:
   X : engine1負け
   . : 引き分け
 
-  対局回数の指定)
-  go btime [対局回数] wtime [予約1] byoyomi [予約2]
-  　　　　　　↑ここに書くとその回数で停止
+  対局回数の指定など)
+    go btime [対局回数] wtime [定跡の手数] byoyomi [予約]
 
+    定跡はbook.sfenとしてsfen形式のファイルを与える。1行に1局が書かれているものとする。
+    このなかからランダムに1行が選ばれてその手数は上のwtimeのところで指定した手数まで進められる。
+    デフォルトでは対局回数は100回。定跡の手数は32手目から。
 */
 
 void Search::init() {}
@@ -344,11 +346,63 @@ void MainThread::think() {
     max_games = 100; // デフォルトでは100回
   int games = 0;
 
+  // -- 定跡
+
+  // 定跡ファイル(というか単なる棋譜ファイル)の読み込み
+  vector<string> book;
+  fstream fs_book;
+  fs_book.open("book.sfen");
+  if (!fs_book.fail())
+  {
+    cout << "read book.sfen ";
+    string line;
+    while (!fs_book.eof())
+    {
+      getline(fs_book, line);
+      if (!line.empty())
+        book.push_back(line);
+      if ((book.size() % 100) == 0)
+        cout << ".";
+    }
+    cout << endl;
+  }
+  PRNG book_rand; // 定跡用の乱数生成器
+
+  // 定跡の手数
+  int max_book_move = Search::Limits.time[WHITE];
+  if (max_book_move == 0)
+    max_book_move = 32; // デフォルトでは32手目から
+
   // 対局開始時のハンドラ
   auto game_start = [&] {
     rootPos.set_hirate();
     game_started = true;
     Search::SetupStates = Search::StateStackPtr(new std::stack<StateInfo>);
+
+    // 定跡が設定されているならその局面まで進める
+    if (book.size())
+    {
+      int book_number = (int)book_rand.rand(book.size());
+      istringstream is(book[book_number]);
+      string token;
+      while (rootPos.game_ply() < max_book_move)
+      {
+        is >> token;
+        if (token == "startpos" || token == "moves")
+          continue;
+
+        Move m = move_from_usi(rootPos, token);
+        if (m == MOVE_NULL)
+        {
+          sync_cout << "Error book.sfen , line = " << book_number << " , moves = " << token << endl << rootPos << sync_endl;
+          break;
+        } else {
+          Search::SetupStates->push(StateInfo());
+          rootPos.do_move(m, Search::SetupStates->top());
+        }
+      }
+      //cout << rootPos;
+    }
   };
 
   // 対局終了時のハンドラ
