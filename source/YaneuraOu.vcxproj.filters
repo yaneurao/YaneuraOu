@@ -32,6 +32,9 @@
     <Filter Include="リソース ファイル\engine\random-player-engine">
       <UniqueIdentifier>{bdf05885-9d14-44cb-b571-c77256d741ba}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\engine\local-game-server">
+      <UniqueIdentifier>{87ce55d3-78de-45c8-a6b3-a74a54ef2d0b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -134,6 +137,9 @@
     </ClCompile>
     <ClCompile Include="engine\user-engine\user.cpp">
       <Filter>リソース ファイル\engine\user-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\local-game-server\local-game-server.cpp">
+      <Filter>リソース ファイル\engine\local-game-server</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

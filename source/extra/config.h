@@ -59,6 +59,14 @@
 #undef USE_EVAL_TABLE
 #endif
 
+#ifdef LOCAL_GAME_SERVER
+#define ENGINE_NAME "YaneuraOu Local Game Server"
+#undef ASSERT_LV
+#define ASSERT_LV 3
+#undef KEEP_LAST_MOVE
+#undef USE_EVAL_TABLE
+#endif
+
 #ifdef USER_ENGINE
 #define ENGINE_NAME "YaneuraOu user engine"
 #endif

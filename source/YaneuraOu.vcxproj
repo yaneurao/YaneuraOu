@@ -216,6 +216,7 @@
     <ClCompile Include="bitboard.cpp" />
     <ClCompile Include="engine\classic-engine\classic_search.cpp" />
     <ClCompile Include="engine\help-mate-engine\help_engine.cpp" />
+    <ClCompile Include="engine\local-game-server\local-game-server.cpp" />
     <ClCompile Include="engine\mini-engine\mini_search.cpp" />
     <ClCompile Include="engine\nano-engine\nano_search.cpp" />
     <ClCompile Include="engine\random-player-engine\random_player_search.cpp" />
