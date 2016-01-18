@@ -19,11 +19,8 @@ typedef std::mutex Mutex;
 typedef std::condition_variable ConditionVariable;
 
 // スレッドの基底クラス。std::threadのwrapper。
-struct alignas(16) ThreadBase : public std::thread
+struct ThreadBase : public std::thread
 {
-  // 探索開始局面(alignasが利くように先頭に書いておく)
-  Position rootPos;
-
   // idle_loop()で待機しているスレッドに通知して処理を進められる状態にする。
   void notify_one();
 
@@ -64,7 +61,7 @@ protected:
 
 // 探索時に用いる、それぞれのスレッド
 // これを思考スレッド数だけ確保する。
-struct alignas(16) Thread : public ThreadBase
+struct Thread : public ThreadBase
 {
   Thread();
 
@@ -91,6 +88,9 @@ struct alignas(16) Thread : public ThreadBase
   // このスレッドのsearchingフラグがfalseになるのを待つ。(MainThreadがslaveの探索が終了するのを待機するのに使う)
   void join() { wait_while(searching); }
 
+  // 探索開始局面(alignasが利くように先頭に書いておく)
+  Position rootPos;
+
   // 探索開始局面で思考対象とする指し手の集合。
   // goコマンドで渡されていなければ、全合法手(ただし歩の不成などは除く)とする。
   std::vector<Search::RootMove> rootMoves;
@@ -104,7 +104,7 @@ protected:
 };
 
 // 探索時のmainスレッド(これがmasterであり、これ以外はslaveとみなす)
-struct alignas(16) MainThread : public Thread
+struct MainThread : public Thread
 {
   // スレッドが思考を停止するのを待つ
   void join() { wait_while(thinking); }

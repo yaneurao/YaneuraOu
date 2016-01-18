@@ -50,14 +50,19 @@ struct CheckInfo {
 
 // StateInfoは、undo_move()で局面を戻すときに情報を元の状態に戻すのが面倒なものを詰め込んでおくための構造体。
 // do_move()のときは、ブロックコピーで済むのでそこそこ高速。
-struct alignas(16) StateInfo {
+struct StateInfo {
 
   // ---- ここから下のやつは do_move()のときにコピーされる
 
   // ---- ここから下のやつは do_move()のときにコピーされない
 
+  // -- Bitboards alignasの関係で最初のほうに持ってきておく。
+
   // 現局面で手番側に対して王手をしている駒のbitboard。Position::do_move()で更新される。
   Bitboard checkersBB;
+
+  // 王手になる駒等の情報
+  CheckInfo checkInfo;
 
   // この局面のハッシュキー
   // ※　次の局面にdo_move()で進むときに最終的な値が設定される
@@ -104,8 +109,6 @@ struct alignas(16) StateInfo {
   HASH_KEY key_board_;
   HASH_KEY key_hand_;
 
-  CheckInfo checkInfo;
-
   // 一つ前の局面に遡るためのポインタ。
   // NULL MOVEなどでそこより遡って欲しくないときはnullptrを設定しておく。
   StateInfo* previous;
@@ -116,7 +119,7 @@ struct alignas(16) StateInfo {
 // --------------------
 
 // 盤面
-struct alignas(16) Position
+struct Position
 {
   // --- ctor
 

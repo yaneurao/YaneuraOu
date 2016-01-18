@@ -151,11 +151,12 @@ inline T* aligned_new() { return new ((void*)(size_t(malloc(sizeof(T) + 32)) & ~
 #ifdef USE_AVX2
 
 // Byteboardの直列化で使うAVX2命令
-struct ymm
+struct alignas(32) ymm
 {
   __m256i m;
 
-  ymm(const void* p) :m(_mm256_load_si256((__m256i*)p)) {}
+  // アライメント揃っていないところからの読み込みに対応させるためにloadではなくloaduのほうを用いる。
+  ymm(const void* p) :m(_mm256_loadu_si256((__m256i*)p)) {}
   ymm(const uint8_t t) { for (int i = 0; i < 32; ++i) m.m256i_u8[i] = t; }
   ymm() {}
 
@@ -234,9 +235,9 @@ static const ymm ymm_one = ymm(uint8_t(1));
 
 // heapから確保したときにalignasが利かないので自前のallocatorが必要になるという..。
 // x64環境だと16byte単位でalignされたメモリになっているため、alignas(16)をつけておけば、このaloocator自体不要だと思う。
-// 256bit hash keyを使う場合など、32byteでalignasしたいときには要ると思う。
+// 256bit hash keyを使う場合など、32byteでalignasしたいときには要る。
 
-#ifdef IS_64BIT
+#if (HASH_KEY_BITS < 256) && defined(IS_64BIT)
 
 template<typename T> inline T* aligned_new() { return new T(); }
 inline void aligned_free(void* ptr) { free(ptr); }
