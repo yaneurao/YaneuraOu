@@ -90,9 +90,9 @@
 //#define YANEURAOU_MINI_ENGINE      // やねうら王mini
 //#define YANEURAOU_CLASSIC_ENGINE   // やねうら王classic
 //#define YANEURAOU_2016_ENGINE      // やねうら王2016
-#define RANDOM_PLAYER_ENGINE       // ランダムプレイヤー
+//#define RANDOM_PLAYER_ENGINE       // ランダムプレイヤー
 //#define HELP_MATE_ENGINE           // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
-//#define LOCAL_GAME_SERVER          // 連続自己対局フレームワーク
+#define LOCAL_GAME_SERVER          // 連続自己対局フレームワーク
 //#define USER_ENGINE                // ユーザーの思考エンジン
 
 // --------------------
@@ -796,7 +796,7 @@ namespace USI {
 extern USI::OptionsMap Options;
 
 // 局面posとUSIプロトコルによる指し手を与えて
-// もし可能なら等価で合法な指し手を返す。(合法でないときはMOVE_NONEを返す)
+// もし可能なら等価で合法な指し手を返す。(合法でないときはMOVE_NONEを返す。"resign"に対してはMOVE_RESIGNを返す。)
 Move move_from_usi(const Position& pos, const std::string& str);
 
 // --------------------

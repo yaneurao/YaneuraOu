@@ -63,7 +63,7 @@
 #define ENGINE_NAME "YaneuraOu Local Game Server"
 #undef ASSERT_LV
 #define ASSERT_LV 3
-#undef KEEP_LAST_MOVE
+#define KEEP_LAST_MOVE
 #undef USE_EVAL_TABLE
 #endif
 

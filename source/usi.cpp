@@ -369,9 +369,9 @@ Square usi_to_sq(char f, char r)
   return SQ_NB;
 }
 
-// uciから指し手への変換。本来この関数は要らないのだが、
+// usi形式から指し手への変換。本来この関数は要らないのだが、
 // 棋譜を大量に読み込む都合、この部分をそこそこ高速化しておきたい。
-Move uci_to_move(const string& str)
+Move usi_to_move(const string& str)
 {
   // さすがに3文字以下の指し手はおかしいだろ。
   if (str.length() <= 3)
@@ -409,23 +409,22 @@ Move uci_to_move(const string& str)
 // もし可能なら等価で合法な指し手を返す。(合法でないときはMOVE_NONEを返す)
 Move move_from_usi(const Position& pos, const std::string& str)
 {
-  // 全合法手のなかからuci文字列に変換したときにstrと一致する指し手を探してそれを返す
+  // 全合法手のなかからusi文字列に変換したときにstrと一致する指し手を探してそれを返す
   //for (const ExtMove& ms : MoveList<LEGAL_ALL>(pos))
-  //  if (str == move_to_uci(ms.move))
+  //  if (str == move_to_usi(ms.move))
   //    return ms.move;
 
   // ↑のコードは大変美しいコードではあるが、棋譜を大量に読み込むときに時間がかかるうるのでもっと高速な実装をする。
 
-  // uci文字列をmoveに変換するやつがいるがな..
-  Move move = uci_to_move(str);
+  if (str == "resign")
+    return MOVE_RESIGN;
 
-  /*
-  CheckInfo ci(pos);
-  if (pos.pseudo_legal(move) && pos.legal(move, ci.pinned))
-    return move;
-    */
+  // usi文字列をmoveに変換するやつがいるがな..
+  Move move = usi_to_move(str);
 
-  if (true)
+  // pseudo_legal(),legal()チェックのためにはCheckInfoのupdateが必要。
+  const_cast<Position*>(&pos)->check_info_update();
+  if (pos.pseudo_legal(move) && pos.legal(move))
     return move;
 
   // いかなる状況であろうとこのような指し手はエラー表示をして弾いていいと思うが…。

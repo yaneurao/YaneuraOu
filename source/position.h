@@ -149,8 +149,11 @@ struct Position
 
   // --- properties
 
-  // 現局面の手番を返す
+  // 現局面の手番を返す。
   Color side_to_move() const { return sideToMove; }
+
+  // (将棋の)開始局面からの手数を返す。
+  int game_ply() const { return gamePly; }
 
   // 盤面上の駒を返す
   Piece piece_on(Square sq) const { return board[sq]; }

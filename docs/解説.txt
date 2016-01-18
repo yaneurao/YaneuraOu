@@ -117,3 +117,32 @@ SSE4.2非対応ということはAVX2も非対応のはずなので、上のAVX2
 スタックサイズは400MBだとスレッド生成のときにランタイムが落ちるようです。(VC++2015のランタイム側の問題？)
 100MBなら大丈夫のようです。
 
+
+■　連続自動対局フレームワークの使い方
+
+shogi.hの
+#define LOCAL_GAME_SERVER
+を有効にしてビルド。
+
+この実行ファイルと同じフォルダに次の2つのファイルを配置。
+
+  engine-config1.txt : 1つ目の思考エンジン
+  engine-config2.txt : 2つ目の思考エンジン
+  
+    1行目にengineの実行ファイル名(同じフォルダに配置)
+    2行目に思考時のコマンド
+    3行目以降にsetoption等、初期化時に思考エンジンに送りたいコマンドを書く。
+
+  例)
+    test.exe
+    go btime 100 wtime 100 byoyomi 0
+    setoption name Threads value 1
+    setoption name Hash value 1024
+
+  次に
+  goコマンドを打つ。
+  stopもしくはquitで終了するまで対局結果が出力される。
+
+  O : engine1勝ち
+  X : engine1負け
+  . : 引き分け
