@@ -27,7 +27,9 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 
 
 
-■　俺の作業メモ(2016/01/18 8:50現在)
+■　俺の作業メモ(2016/01/18 12:20現在)
+
+・自動対局サーバー機能、追加中。半分ぐらい書けた。← New!!
 
 ・32bit環境用のコード、ちゃんと動くようになった。(手元に32bit環境がないので実際の環境で試してはいない。)
 
