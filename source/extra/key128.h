@@ -52,9 +52,7 @@ struct alignas(16) Key128
 
 };
 
-// 256bit版(実験的コード)
-// これを使うなら、32byteでアライメントされている必要がある。(_mm256_store_si256()を用いるため)
-// ゆえにPosition,StateInfoなどをalignas(32)にしていく必要がある。あとで考える。
+// 256bit版
 struct alignas(32) Key256
 {
   __m256i m;

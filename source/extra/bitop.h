@@ -131,20 +131,6 @@ inline int MSB64(uint64_t v) { return uint32_t(v >> 32) ? 32 + MSB32(uint32_t(v 
 #endif
 
 // ----------------------------
-//     aligned alloc
-// ----------------------------
-
-// newでヒープから確保するとalignasをつけてもalignmentが合ってない可能性があるので自前でallocしなければならない。
-// (x64ならnewしたときに16byteでalignされたメモリが返るので問題とならないがx86環境では8byteでalignされているので
-// alignas(16)を仮定していると問題となるようだ。
-
-/*
-template <typename T>
-//inline T* aligned_new() { return new ((void*)(size_t(malloc(sizeof(T) + alignof(T))) & ~(size_t(alignof(T))-1) )) T(); }
-inline T* aligned_new() { return new ((void*)(size_t(malloc(sizeof(T) + 32)) & ~31)) T(); }
-*/
-
-// ----------------------------
 //  ymm(256bit register class)
 // ----------------------------
 
@@ -237,7 +223,7 @@ static const ymm ymm_one = ymm(uint8_t(1));
 // x64環境だと16byte単位でalignされたメモリになっているため、alignas(16)をつけておけば、このaloocator自体不要だと思う。
 // 256bit hash keyを使う場合など、32byteでalignasしたいときには要る。
 
-#if (HASH_KEY_BITS < 256) && defined(IS_64BIT)
+#if (HASH_KEY_BITS <= 128) && defined(IS_64BIT)
 
 template<typename T> inline T* aligned_new() { return new T(); }
 inline void aligned_free(void* ptr) { free(ptr); }
