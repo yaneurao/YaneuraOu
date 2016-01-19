@@ -245,11 +245,19 @@ void Position::set(std::string sfen)
 
   st->materialValue = Eval::material(*this);
 
+  // --- effect
+
+#ifdef LONG_EFFECT_LIBRARY
+
+  set_effect();
+
+#endif
+
   // --- validation
 
   // これassertにしてしまうと、先手玉のいない局面や駒落ちの局面で落ちて困る。
   if (!is_ok(*this))
-      std::cout << "info string Illigal Position!!" << endl;
+      std::cout << "info string Illigal Position?" << endl;
 }
 
 // 局面のsfen文字列を取得する。

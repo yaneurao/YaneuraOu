@@ -5,6 +5,7 @@
 #include "bitboard.h"
 #include "evaluate.h"
 #include "extra/key128.h"
+#include "extra/long_effect.h"
 
 // --------------------
 //     局面の定数
@@ -412,10 +413,23 @@ protected:
   // 評価関数で用いる駒のリスト
   Eval::EvalList evalList;
 
-  // ---
+  // -- 利き
+#ifdef LONG_EFFECT_LIBRARY
+  // 利きの初期化
+  void set_effect();
 
-  // 初期化するときに内部的に用いる
+  // 各升の利きの数
+  LongEffect::EffectNumBoard board_effect[COLOR_NB];
+
+  // 長い利き。
+  LongEffect::LongEffectBoard long_effect[COLOR_NB];
+#endif
+
+  // --- 
+
+  // StateInfoの初期化(初期化するときに内部的に用いる)
   void set_state(StateInfo* si) const;
+
 };
 
 // PieceからPieceTypeBitboardへの変換テーブル

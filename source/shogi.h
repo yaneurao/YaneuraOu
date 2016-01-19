@@ -56,8 +56,12 @@
 
 // 協力詰め用思考エンジンなどで評価関数を使わないときにまで評価関数用のテーブルを
 // 確保するのはもったいないので、そのテーブルを確保するかどうかを選択するためのオプション。
+// 評価関数を用いるなら、どれか一つを選択すべし。(用いないなら選択不要)
 
-#define USE_EVAL_TABLE
+// #define EVAL_MATERIAL // 駒得のみの評価関数
+// #define EVAL_PP       // ツツカナ型 2駒関係
+// #define EVAL_KPP      // Bonanza型 3駒関係
+// #define EVAL_PPE      // 技巧型 2駒+利き
 
 // 通例hash keyは64bitだが、これを128にするとPosition::state()->long_key()から128bit hash keyが
 // 得られるようになる。研究時に局面が厳密に合致しているかどうかを判定したいときなどに用いる。
@@ -67,11 +71,11 @@
 //#define HASH_KEY_BITS 256
 
 // 通常探索時の最大探索深さ
-#define MAX_PLY_ 128
+#define MAX_PLY_NUM 128
 
 // 長い利き(遠方駒の利き)のライブラリを用いるか。
 // 超高速1手詰め判定などではこのライブラリが必要。
-#define LONG_EFFECT
+#define LONG_EFFECT_LIBRARY
 
 // 超高速1手詰め判定ルーチンを用いるか。
 // 2016/01/18 7:30現在、これはまだ開発中。長い利きの更新処理が必要。今週末ぐらいにきちんと動くようになる予定。
@@ -86,14 +90,14 @@
 // オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE を defineして 他のエンジンのソースコードを参考に
 //  engine/user-engine/ フォルダの中身を書くべし。
 
-//#define YANEURAOU_NANO_ENGINE      // やねうら王nano
-//#define YANEURAOU_MINI_ENGINE      // やねうら王mini
-//#define YANEURAOU_CLASSIC_ENGINE   // やねうら王classic
-//#define YANEURAOU_2016_ENGINE      // やねうら王2016
+//#define YANEURAOU_NANO_ENGINE      // やねうら王nano      (開発中)
+//#define YANEURAOU_MINI_ENGINE      // やねうら王mini      (開発中)
+//#define YANEURAOU_CLASSIC_ENGINE   // やねうら王classic   (開発中)
+//#define YANEURAOU_2016_ENGINE      // やねうら王2016      (開発中)
 //#define RANDOM_PLAYER_ENGINE       // ランダムプレイヤー
-//#define MATE_ENGINE                // 詰め将棋solverとしてリリースする場合。2016/01/19現在、作業中。
+#define MATE_ENGINE                // 詰め将棋solverとしてリリースする場合。(開発中)
 //#define HELP_MATE_ENGINE           // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
-#define LOCAL_GAME_SERVER          // 連続自動対局フレームワーク
+//#define LOCAL_GAME_SERVER          // 連続自動対局フレームワーク
 //#define USER_ENGINE                // ユーザーの思考エンジン
 
 // --------------------
@@ -353,7 +357,7 @@ inline bool is_aligned(Square sq1, Square sq2, Square sq3)
 enum Depth : int16_t{ ONE_PLY = 2 };
 
 // 通常探索時の最大探索深さ
-const int MAX_PLY = MAX_PLY_;
+const int MAX_PLY = MAX_PLY_NUM;
 
 // 静止探索時の最大探索深さ
 const int MAX_QUIET_PLY = 6;

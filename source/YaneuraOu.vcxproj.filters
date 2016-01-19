@@ -138,9 +138,6 @@
     <ClCompile Include="engine\random-player-engine\random_player_search.cpp">
       <Filter>リソース ファイル\engine\random-player-engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\user-engine\user.cpp">
-      <Filter>リソース ファイル\engine\user-engine</Filter>
-    </ClCompile>
     <ClCompile Include="engine\local-game-server\local-game-server.cpp">
       <Filter>リソース ファイル\engine\local-game-server</Filter>
     </ClCompile>
@@ -149,6 +146,9 @@
     </ClCompile>
     <ClCompile Include="engine\help-mate-engine\help_mate_engine.cpp">
       <Filter>リソース ファイル\engine\help-mate-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\user-engine\user-engine.cpp">
+      <Filter>リソース ファイル\engine\user-engine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -7,10 +7,29 @@
 ・定跡部
 ・長手数の詰将棋ルーチン書く。
 
-明日のToDo:
-・1手詰め作っていく。
-・Positionクラスに利きの差分更新を追加する。
+・do_move()での利きの差分更新
 ・Effect8に各駒の利き追加する
+・1手詰め作っていく。
+
+
+■ 2016/01/19 V1.09
+
+・Effect8::directions_of()追加。
+・長い利きの初期化コード書けた。→　正しそう。
+・ByteBoardの出力関数書いた。
+・MAX_PLY_ → MAX_PLY_NUMにリネーム。
+・LONG_EFFECT→LONG_EFFECT_LIBRARYにリネーム。
+・long_effect.h/cpp、ifdef LONG_EFFECT_LIBRARYで囲った。
+
+
+■ 2016/01/19 V1.08
+
+・user.cpp、わかりにくいのでuser-engine.cppにリネーム。
+・Positionクラスに利きを持たせる。
+・利きの初期化コードおよび差分更新コードを追加する。
+・Position::set_effect()書いた。
+・評価関数、shogi.hで選択可能にする。(まずは準備だけ)
+・config.h、書式整えた。
 
 
 ■ 2016/01/19 V1.07

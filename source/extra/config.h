@@ -12,7 +12,7 @@
 #undef ASSERT_LV
 #undef KEEP_LAST_MOVE
 #undef MATE_1PLY
-#undef LONG_EFFECT
+#undef LONG_EFFECT_LIBRARY
 #endif
 
 #ifdef YANEURAOU_MINI_ENGINE
@@ -20,7 +20,7 @@
 #undef ASSERT_LV
 #undef KEEP_LAST_MOVE
 #undef MATE_1PLY
-#undef LONG_EFFECT
+#undef LONG_EFFECT_LIBRARY
 #endif
 
 #ifdef YANEURAOU_CLASSIC_ENGINE
@@ -33,6 +33,7 @@
 #define ENGINE_NAME "YaneuraOu 2016"
 #undef ASSERT_LV
 #undef KEEP_LAST_MOVE
+#define LONG_EFFECT_LIBRARY
 #endif
 
 #ifdef RANDOM_PLAYER_ENGINE
@@ -40,8 +41,7 @@
 #undef ASSERT_LV
 #undef KEEP_LAST_MOVE
 #undef MATE_1PLY
-#undef LONG_EFFECT
-#undef USE_EVAL_TABLE
+#undef LONG_EFFECT_LIBRARY
 #endif
 
 #ifdef LOCAL_GAME_SERVER
@@ -49,7 +49,7 @@
 #undef ASSERT_LV
 #define ASSERT_LV 3
 #define KEEP_LAST_MOVE
-#undef USE_EVAL_TABLE
+#undef LONG_EFFECT_LIBRARY
 #endif
 
 // --- 協力詰めエンジンとして実行ファイルを公開するとき用の設定集
@@ -58,25 +58,24 @@
 #define ENGINE_NAME "YaneuraOu help mate solver"
 #undef ASSERT_LV
 #define KEEP_LAST_MOVE
-#undef  MAX_PLY_
-#define MAX_PLY_ 65000
+#undef  MAX_PLY_NUM
+#define MAX_PLY_NUM 65000
 #undef HASH_KEY_BITS
 #define HASH_KEY_BITS 128
-#undef USE_EVAL_TABLE
 #undef MATE_1PLY
-#undef LONG_EFFECT
+#undef LONG_EFFECT_LIBRARY
 #endif
 
 // --- 詰将棋エンジンとして実行ファイルを公開するとき用の設定集
+
 #ifdef MATE_ENGINE
 #define ENGINE_NAME "YaneuraOu mate solver"
 #undef ASSERT_LV
 #define KEEP_LAST_MOVE
-#undef  MAX_PLY_
-#define MAX_PLY_ 2000
-#undef USE_EVAL_TABLE
+#undef  MAX_PLY_NUM
+#define MAX_PLY_NUM 2000
 #define MATE_1PLY
-#define LONG_EFFECT
+#define LONG_EFFECT_LIBRARY
 #endif
 
 // --- ユーザーの自作エンジンとして実行ファイルを公開するとき用の設定集
@@ -89,6 +88,8 @@
 // include & configure
 // --------------------
 
+// --- includes
+
 #include <algorithm>
 #include <cstdint>
 #include <string>
@@ -98,10 +99,15 @@
 #include <map>
 #include <iostream>
 
-// --- うざいので無効化するwarning
+
+// --- diable warnings
+
+// うざいので無効化するwarning
+
 // C4800 : 'unsigned int': ブール値を 'true' または 'false' に強制的に設定します
 // →　static_cast<bool>(...)において出る。
 #pragma warning(disable : 4800)
+
 
 // --- assertion tools
 
@@ -121,7 +127,11 @@
 #define ASSERT_LV4(X) ASSERT_LV_EX(4, X)
 #define ASSERT_LV5(X) ASSERT_LV_EX(5, X)
 
-// --- switchにおいてdefaultに到達しないことを明示して高速化させる
+
+// --- declaration of unreachablity
+
+// switchにおいてdefaultに到達しないことを明示して高速化させる
+
 #ifdef _DEBUG
 // デバッグ時は普通にしとかないと変なアドレスにジャンプして原因究明に時間がかかる。
 #define UNREACHABLE ASSERT_LV1(false);
@@ -133,12 +143,18 @@
 #define UNREACHABLE ASSERT_LV1(false);
 #endif
 
+
+// --- output for Japanese notation
+
 // PRETTY_JPが定義されているかどうかによって三項演算子などを使いたいので。
 #ifdef PRETTY_JP
 const bool pretty_jp = true;
 #else
 const bool pretty_jp = false;
 #endif
+
+
+// --- hash key bits
 
 #if HASH_KEY_BITS <= 64
 #define HASH_KEY Key64
@@ -148,6 +164,9 @@ const bool pretty_jp = false;
 #define HASH_KEY Key256
 #endif
 
+
+// --- 32-bit OS or 64-bit OS
+
 // ターゲットが64bitOSかどうか
 #if defined(_WIN64) && defined(_MSC_VER)
 const bool Is64Bit = true;
@@ -155,5 +174,30 @@ const bool Is64Bit = true;
 const bool Is64Bit = false;
 #endif
 
-#endif // _CONFIG_H_
 
+// --- evaluate function
+
+// -- 評価関数の種類によりエンジン名に使用する文字列を変更する。
+#if defined(EVAL_MATERIAL)
+#define EVAL_TYPE_NAME "Material"
+#elif defined(EVAL_PP)
+#define EVAL_TYPE_NAME "PP"
+#elif defined(EVAL_KPP)
+#define EVAL_TYPE_NAME "KPP"
+#elif defined(EVAL_PPE)
+#define EVAL_TYPE_NAME "PPE"
+#else
+#define EVAL_TYPE_NAME ""
+#endif
+
+// -- 評価関数の種類により、盤面の利きの更新ときの処理が異なる。(このタイミングで評価関数の差分計算をしたいので)
+
+// 盤面上の利きを更新するときに呼び出したい関数。(評価関数の差分更新などのために差し替え可能にしておく。)
+// color = 手番 , sq = 升 , dir = (LongEffectの)利きの向き
+#define INC_BOARD_EFFECT(color,sq) { ++board_effect[color].e[sq]; }
+#define DEC_BOARD_EFFECT(color,sq) { --board_effect[color].e[sq]; }
+#define INC_LONG_EFFECT(color,sq,dir) { long_effect[color].e[sq] ^= dir; }
+#define DEC_LONG_EFFECT(color,sq,dir) { long_effect[color].e[sq] ^= dir; }
+
+
+#endif // _CONFIG_H_

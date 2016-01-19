@@ -222,7 +222,7 @@
     <ClCompile Include="engine\mini-engine\mini_search.cpp" />
     <ClCompile Include="engine\nano-engine\nano_search.cpp" />
     <ClCompile Include="engine\random-player-engine\random_player_search.cpp" />
-    <ClCompile Include="engine\user-engine\user.cpp" />
+    <ClCompile Include="engine\user-engine\user-engine.cpp" />
     <ClCompile Include="evaluate.cpp" />
     <ClCompile Include="extra\long_effect.cpp" />
     <ClCompile Include="extra\mate1ply.cpp" />

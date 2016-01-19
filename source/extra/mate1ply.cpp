@@ -21,12 +21,6 @@ MateInfo  mate1ply_drop_tbl[0x10000][COLOR_NB];
 // 大駒の利きを遮断してしまう利きの方向。(遮断しても元の駒の利きがそこに到達しているならそれは遮断しているとはみなさない)
 Effect8::Directions cutoff_directions[PIECE_NB][8];
 
-// 各升の利きの数
-LongEffect::EffectNumBoard effect[COLOR_NB];
-
-// 長い利き。
-LongEffect::LongEffectBoard long_effect[COLOR_NB];
-
 // 駒pcを敵玉から見てdirの方向に置いたときの敵玉周辺に対するの利きが届かない場所が1、届く場所が0(普通の利きと逆なので注意)
 Effect8::Directions piece_effect_mask_around8[PIECE_NB][Effect8::DIRECTIONS_NB];
 
@@ -69,7 +63,7 @@ Effect8::Directions piece_check_around8[PIECE_NB];
       while (cut_off) {                                                                             \
         Effect8::Direct cut_direction = Effect8::pop_directions(cut_off);                           \
         Square to2 = to + Effect8::DirectToDelta(cut_direction);                                    \
-          if (effect[Us].count(to2) <= 1)                                                           \
+          if (board_effect[Us].count(to2) <= 1)                                                     \
           goto Next ## DROP_PIECE;                                                                  \
       }                                                                                             \
       return make_move_drop(DROP_PIECE, to);                                                        \
@@ -97,10 +91,10 @@ Move Position::mate1ply_impl() const
   // --- 1手詰め判定テーブルのlook up
 
   // 敵玉周辺の受け方の利きのある升
-  uint8_t a8_effect_them = effect[them].around8_greater_than_one(themKing);
+  uint8_t a8_effect_them = board_effect[them].around8_greater_than_one(themKing);
   
   // 敵玉周辺の攻め方の利きのある升
-  uint8_t a8_effect_us = effect[Us].around8(themKing);
+  uint8_t a8_effect_us = board_effect[Us].around8(themKing);
 
   // 受け方の駒がない升
   uint8_t a8_them_movable = 0; //  ~pieces(them).arunrd8(themKing); あとで
@@ -157,7 +151,7 @@ MOVE_MATE:
     auto drop_target = knightEffect(them, themKing) & ~pieces(Us);
     while (drop_target) {
       to = drop_target.pop();
-      if (!effect[them].count(to))
+      if (!board_effect[them].count(to))
       {
         // 桂馬を持っていて、ここに駒がなければ(自駒は上で除外済みだが)、ここに打って詰み
         if ((ourHand & HAND_KIND_KNIGHT) && !(pieces() & to) ) return make_move_drop(KNIGHT, to);
@@ -185,7 +179,7 @@ MOVE_MATE:
   // 4) そこに馬か龍を置いて詰む場所(これで詰まないなら、詰みようがないので) : mi.directions
   // 移動先の候補の升 = 1) & 2) & 3) & 4)
 
-  uint8_t a8_effect_us_gt1 = effect[Us].around8_greater_than_one(themKing); // 1)
+  uint8_t a8_effect_us_gt1 = board_effect[Us].around8_greater_than_one(themKing); // 1)
   uint32_t to_candicate = a8_effect_us_gt1 & board_mask & a8_us_movable & mi.directions; // 1) & 2) & 3) & 4)
 
   while (to_candicate)
@@ -224,7 +218,7 @@ MOVE_MATE:
       while (cut_off) {
         Effect8::Direct cut_direction = Effect8::pop_directions(cut_off);
         Square to2 = to + Effect8::DirectToDelta(cut_direction);
-        if (effect[Us].count(to2) <= 1)
+        if (board_effect[Us].count(to2) <= 1)
         {
 
         }

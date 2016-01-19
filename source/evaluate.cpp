@@ -17,7 +17,7 @@ namespace Eval {
   typedef int16_t ValueKpp;
   typedef int32_t ValueKkp;
 
-#ifdef USE_EVAL_TABLE
+#ifdef USE_EVAL_KPP
   // KPP
   ValueKpp kpp[SQ_NB_PLUS1][fe_end][fe_end];
 
@@ -125,7 +125,7 @@ namespace Eval {
     return (Value)v;
   }
 
-#ifdef USE_EVAL_TABLE
+#ifdef USE_EVAL_KPP
   // pos.st->BKPP,WKPP,KPPを初期化する。Position::set()で一度だけ呼び出される。(以降は差分計算)
   Value compute_eval(const Position& pos)
   {
