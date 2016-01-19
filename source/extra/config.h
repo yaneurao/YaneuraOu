@@ -71,6 +71,7 @@
 #ifdef MATE_ENGINE
 #define ENGINE_NAME "YaneuraOu mate solver"
 #undef ASSERT_LV
+#define KEEP_LAST_MOVE
 #undef  MAX_PLY_
 #define MAX_PLY_ 2000
 #undef USE_EVAL_TABLE

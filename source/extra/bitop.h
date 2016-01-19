@@ -220,13 +220,12 @@ static const ymm ymm_one = ymm(uint8_t(1));
 
 // C++11では、std::stack<StateInfo>がalignasを無視するために、代わりにstack相当のものを自作。
 template <typename T> struct aligned_stack {
-  void push(const T& t) { auto ptr = (T*)_mm_malloc(sizeof(T), alignof(T)); *ptr = t; container.push(ptr); }
-  T& top() const { return *container.top(); }
-  ~aligned_stack() { while (container.size()) { auto ptr = container.top(); _mm_free(ptr); container.pop(); } }
+  void push(const T& t) { auto ptr = (T*)_mm_malloc(sizeof(T), alignof(T)); *ptr = t; container.push_back(ptr); }
+  T& top() const { return **container.rbegin(); }
+  ~aligned_stack() { for(auto ptr: container) _mm_free(ptr); }
 private:
-  std::stack<T*> container;
+  std::vector<T*> container;
 };
 
 
 #endif
-

@@ -13,6 +13,18 @@
 ・Effect8に各駒の利き追加する
 
 
+■ 2016/01/19 V1.07
+
+・SquareWithWall追加。これを使って利き関係の初期化処理を書き直す。
+・dist、これがあれば不要？ → 不要ではなかった。
+・LongEffectライブラリにSquareWithWallの差分値追加。
+
+
+■ 2016/01/19 V1.06
+
+・aligned_stack、内部的にvectorを使うように変更。
+
+
 ■ 2016/01/19 V1.05
 
 ・std::stack<StateInfo>を用いるときにpush()に対して内部的にstackがStateInfoをnewするのだが

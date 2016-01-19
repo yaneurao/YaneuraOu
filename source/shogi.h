@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "1.03"
+#define ENGINE_VERSION "1.07"
 
 // --------------------
 // コンパイル時の設定
@@ -93,7 +93,7 @@
 //#define RANDOM_PLAYER_ENGINE       // ランダムプレイヤー
 //#define MATE_ENGINE                // 詰め将棋solverとしてリリースする場合。2016/01/19現在、作業中。
 //#define HELP_MATE_ENGINE           // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
-#define LOCAL_GAME_SERVER          // 連続自己対局フレームワーク
+#define LOCAL_GAME_SERVER          // 連続自動対局フレームワーク
 //#define USER_ENGINE                // ユーザーの思考エンジン
 
 // --------------------
@@ -274,6 +274,48 @@ inline std::string pretty(Square sq) { return pretty(file_of(sq)) + pretty(rank_
 
 // USI形式でSquareを出力する
 inline std::ostream& operator<<(std::ostream& os, Square sq) { os << file_of(sq) << rank_of(sq); return os; }
+
+// --------------------
+//   壁つきの升表現
+// --------------------
+
+// This trick is invented by yaneurao in 2016.
+
+// 長い利きを更新するときにある升からある方向に駒にぶつかるまでずっと利きを更新していきたいことがあるが、
+// sqの升が盤外であるかどうかを判定する簡単な方法がない。そこで、Squareの表現を拡張して盤外であることを検出
+// できるようにする。
+
+// bit 0..7   : Squareと同じ意味
+// bit 8      : Squareからのborrow用に1にしておく
+// bit 9..13  : いまの升から盤外まで何升右に升があるか(ここがマイナスになるとborrowでbit13が1になる)
+// bit 14..18 : いまの升から盤外まで何升上に(略
+// bit 19..23 : いまの升から盤外まで何升下に(略
+// bit 24..28 : いまの升から盤外まで何升左に(略
+enum SquareWithWall : int32_t {
+  // 相対移動するときの差分値
+  SQWW_RIGHT = SQ_RIGHT - (1 << 9) + (1 << 24) , SQWW_UP = SQ_UP - (1 << 14) + (1 << 19) , SQWW_DOWN = -SQWW_UP, SQWW_LEFT = -SQWW_RIGHT,
+  SQWW_RU = SQWW_RIGHT + SQWW_UP , SQWW_RD = SQWW_RIGHT + SQWW_DOWN , SQWW_LU = SQWW_LEFT+ SQWW_UP , SQWW_LD = SQWW_LEFT + SQWW_DOWN ,
+
+  // SQ_11の地点に対応する値(他の升はこれ相対で事前に求めテーブルに格納)
+  SQWW_11 = SQ_11 | (1 << 8) /* bit8 is 1 */ | (0 << 9) /*右に0升*/| (0 << 14) /*上に0升*/ | (8 << 19) /*下に8升*/| (8 << 24) /*左に8升*/,
+
+  // SQWW_RIGHTなどを足して行ったときに盤外に行ったときのborrow bitの集合
+  SQWW_BORROW_MASK = (1 << 13) | (1 << 18) | (1 << 23) | (1 << 28) ,
+};
+
+// 型変換。下位8bit == Square
+inline Square to_sq(SquareWithWall sqww) { return Square(sqww & 0xff); }
+
+extern SquareWithWall sqww_table[SQ_NB];
+
+// 型変換。Square型から。
+inline SquareWithWall to_sqww(Square sq) { return sqww_table[sq]; }
+
+// 盤内か。壁(盤外)だとfalseになる。
+inline bool is_ok(SquareWithWall sqww) { return (sqww & SQWW_BORROW_MASK) == 0; }
+
+// 単にSQの升を出力する。
+inline std::ostream& operator<<(std::ostream& os, SquareWithWall sqww) { os << to_sq(sqww); return os; }
 
 // --------------------
 //        方角
@@ -829,6 +871,7 @@ ENABLE_OPERATORS_ON(Color)
 ENABLE_OPERATORS_ON(File)
 ENABLE_OPERATORS_ON(Rank)
 ENABLE_OPERATORS_ON(Square)
+ENABLE_OPERATORS_ON(SquareWithWall)
 ENABLE_OPERATORS_ON(Piece)
 ENABLE_OPERATORS_ON(PieceNo)
 ENABLE_OPERATORS_ON(Value)

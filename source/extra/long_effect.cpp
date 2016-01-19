@@ -22,7 +22,7 @@ namespace Effect8
 {
   Directions to_directions(const Bitboard& b, Square sq)
   {
-    // This algorithm is developed by tanuki- and yaneurao , 2016.
+    // This algorithm is developed by tanuki- and yaneurao in 2016.
    
     // sqがSQ_32(p[1]から見るとSQ_92の左の升)に来るように正規化する。(SQ_22だと後半が64回以上のシフトが必要になる)
     auto t = uint32_t((sq < SQ_32) ? (b.p[0] << int(SQ_32 - sq)) :

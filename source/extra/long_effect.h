@@ -33,10 +33,13 @@ namespace Effect8
   // Directionsに相当するものを引数に渡して1つ方角を取り出す。
   inline Direct pop_directions(uint32_t& d) { return (Direct)pop_lsb(d); }
 
-  const Square DirectToDelta_[DIRECT_NB] = { SQ_RU,SQ_RIGHT,SQ_RD,SQ_UP,SQ_DOWN,SQ_LU,SQ_LEFT,SQ_LD, };
-
   // DirectをSquare型の差分値で表現したもの。
+  const Square DirectToDelta_[DIRECT_NB] = { SQ_RU,SQ_RIGHT,SQ_RD,SQ_UP,SQ_DOWN,SQ_LU,SQ_LEFT,SQ_LD, };
   inline Square DirectToDelta(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDelta_[d]; }
+
+  // DirectをSquareWithWall型の差分値で表現したもの。
+  const SquareWithWall DirectToDeltaWW_[DIRECT_NB] = { SQWW_RU,SQWW_RIGHT,SQWW_RD,SQWW_UP,SQWW_DOWN,SQWW_LU,SQWW_LEFT,SQWW_LD, };
+  inline SquareWithWall DirectToDeltaWW(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDeltaWW_[d]; }
 
   extern Directions board_mask_table[SQ_NB];
 
@@ -79,15 +82,24 @@ namespace Effect24
   // Directionsに相当するものを引数に渡して1つ方角を取り出す。
   inline Direct pop_directions(uint32_t& d) { return (Direct)pop_lsb(d); }
 
+  // DirectをSquare型の差分値で表現したもの。
+  const SquareWithWall DirectToDeltaWW_[DIRECT_NB] = {
+    SQWW_RU + SQWW_RU    , SQWW_RIGHT + SQWW_RU   , SQWW_RIGHT + SQWW_RIGHT , SQWW_RIGHT + SQWW_RD , SQWW_RD   + SQWW_RD    ,
+    SQWW_RU + SQWW_UP    , SQWW_RU                , SQWW_RIGHT              , SQWW_RD              , SQWW_RD   + SQWW_DOWN  ,
+    SQWW_UP + SQWW_UP    , SQWW_UP                                          , SQWW_DOWN            , SQWW_DOWN + SQWW_DOWN  ,
+    SQWW_LU + SQWW_UP    , SQWW_LU                , SQWW_LEFT               , SQWW_LD              , SQWW_LD   + SQWW_DOWN  ,
+    SQWW_LU + SQWW_LU    , SQWW_LEFT  + SQWW_LU   , SQWW_LEFT  + SQWW_LEFT  , SQWW_LEFT  + SQWW_LD , SQWW_LD   + SQWW_LD    ,
+  };
+  inline SquareWithWall DirectToDeltaWW(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDeltaWW_[d]; }
+
+  // DirectをSquare型の差分値で表現したもの。
   const Square DirectToDelta_[DIRECT_NB] = {
     SQ_RU + SQ_RU    , SQ_RIGHT + SQ_RU   , SQ_RIGHT + SQ_RIGHT , SQ_RIGHT + SQ_RD , SQ_RD + SQ_RD    ,
     SQ_RU + SQ_UP    , SQ_RU              , SQ_RIGHT            , SQ_RD            , SQ_RD + SQ_DOWN  ,
     SQ_UP + SQ_UP    , SQ_UP                                    , SQ_DOWN          , SQ_DOWN + SQ_DOWN,
     SQ_LU + SQ_UP    , SQ_LU              , SQ_LEFT             , SQ_LD            , SQ_LD + SQ_DOWN  ,
-    SQ_LU + SQ_LU    , SQ_LEFT  + SQ_LU   , SQ_LEFT + SQ_LEFT   , SQ_LEFT + SQ_LD  , SQ_LD + SQ_LD    ,
+    SQ_LU + SQ_LU    , SQ_LEFT + SQ_LU    , SQ_LEFT + SQ_LEFT   , SQ_LEFT + SQ_LD  , SQ_LD + SQ_LD    ,
   };
-
-  // DirectをSquare型の差分値で表現したもの。
   inline Square DirectToDelta(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDelta_[d]; }
 
   extern Directions board_mask_table[SQ_NB];
@@ -135,7 +147,7 @@ namespace LongEffect
 
     // ある升の周辺8近傍の利きを取得。1以上の値のところが1になる。さもなくば0。ただし壁(盤外)は不定。必要ならEffect8::board_maskでmaskすること。
     Directions around8(Square sq) const {
-      // This algorithm is developed by tanuki- and yaneurao , 2016.
+      // This algorithm is developed by tanuki- and yaneurao in 2016.
 
       // メモリアクセス違反ではあるが、Positionクラスのなかで使うので隣のメモリが
       // ±10bytesぐらい確保されているだろうから問題ない。

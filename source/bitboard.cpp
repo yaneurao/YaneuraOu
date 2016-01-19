@@ -38,6 +38,9 @@ Bitboard BetweenBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
 Bitboard LineBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
 Bitboard CheckCandidateBB[SQ_NB_PLUS1][HDK][COLOR_NB];
 
+// SquareからSquareWithWallへの変換テーブル
+SquareWithWall sqww_table[SQ_NB];
+
 // 2つの升がどの方角であるかを返すテーブル。
 Direction Direc[SQ_NB_PLUS1][SQ_NB_PLUS1];
 
@@ -95,7 +98,13 @@ void Bitboards::init()
   //        Bitboard関係のテーブルの初期化
   // ------------------------------------------------------------
 
-  // 1) Square型のsqの指す升が1であるBitboardがSquareBB。これをまず初期化する。
+  // 1) SquareWithWallテーブルの初期化。
+
+  for (auto sq : SQ)
+    sqww_table[sq] = SquareWithWall(SQWW_11 + (int32_t)file_of(sq) * SQWW_LEFT + (int32_t)rank_of(sq) * SQWW_DOWN);
+
+
+  // 2) Square型のsqの指す升が1であるBitboardがSquareBB。これをまず初期化する。
 
   for (auto sq : SQ)
   {
@@ -106,7 +115,7 @@ void Bitboards::init()
   }
 
 
-  // 2) 遠方利きのテーブルの初期化
+  // 3) 遠方利きのテーブルの初期化
   //  thanks to Apery (Takuya Hiraoka)
 
   // 引数のindexをbits桁の2進数としてみなす。すなわちindex(0から2^bits-1)。
@@ -131,15 +140,14 @@ void Bitboards::init()
     auto result = ZERO_BB;
 
     // 角の利きのrayと飛車の利きのray
-    const Square deltaArray[2][4] = { { SQ_RU, SQ_RD, SQ_LU, SQ_LD },{ SQ_UP, SQ_DOWN, SQ_RIGHT, SQ_LEFT } };
+    const SquareWithWall deltaArray[2][4] = { { SQWW_RU, SQWW_RD, SQWW_LU, SQWW_LD },{ SQWW_UP, SQWW_DOWN, SQWW_RIGHT, SQWW_LEFT } };
     for (auto delta : deltaArray[(piece == BISHOP) ? 0 : 1])
-      // sqを利き方向に伸ばしていく。
-      // rayを次の升に延長したときに筋がワープしちゃうなら、これはNG
-      for (Square sq = square + delta; dist(sq - delta, sq) <= 1; sq += delta)
+      // 壁に当たるまでsqを利き方向に伸ばしていく
+      for (auto sq = to_sqww(square) + delta; is_ok(sq) ; sq += delta)
       {
-        result ^= sq; // まだ障害物に当っていないのでここまでは利きが到達している
+        result ^= to_sq(sq); // まだ障害物に当っていないのでここまでは利きが到達している
 
-        if (occupied & sq) // sqの地点に障害物があればこのrayは終了。
+        if (occupied & to_sq(sq)) // sqの地点に障害物があればこのrayは終了。
           break;
       }
     return result;
@@ -222,7 +230,7 @@ void Bitboards::init()
   }
 
   
-  // 3. 香の利きテーブルの初期化
+  // 4. 香の利きテーブルの初期化
   // 上で初期化した飛車の利きを用いる。
 
   for (auto c : COLOR)
@@ -236,7 +244,7 @@ void Bitboards::init()
       }
     }
 
-  // 4. 近接駒(+盤上の利きを考慮しない駒)のテーブルの初期化。
+  // 5. 近接駒(+盤上の利きを考慮しない駒)のテーブルの初期化。
   // 上で初期化した、香・馬・飛の利きを用いる。
 
   for (auto c : COLOR)
@@ -287,7 +295,7 @@ void Bitboards::init()
       StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_CROSS45] = bishopEffect(sq, ALL_BB);
     }
 
-  // 5) 二歩用のテーブル初期化
+  // 6) 二歩用のテーブル初期化
 
   for (int i = 0; i <= 0x1ff; ++i)
   {
@@ -300,7 +308,7 @@ void Bitboards::init()
     PAWN_DROP_MASK_BB[i][WHITE] = b & rank1_n_bb(BLACK, RANK_8); // 1～8段目まで
   }
 
-  // 6) 方角を表すテーブルの初期化
+  // 7) 方角を表すテーブルの初期化
 
   for (auto s1 : SQ)
     for (auto s2 : SQ)
@@ -329,15 +337,15 @@ void Bitboards::init()
         // 間に挟まれてない升も1に
         LineBB[s1][s2] = BetweenBB[s1][s2];
 
-        // s1から-delta方向に延長
+        // 壁に当たるまでs1から-delta方向に延長
         for (Square s = s1; dist(s, s + delta) <= 1; s -= delta) LineBB[s1][s2] |= s;
 
-        // s2から+delta方向に延長
+        // 壁に当たるまでs2から+delta方向に延長
         for (Square s = s2; dist(s, s - delta) <= 1; s += delta) LineBB[s1][s2] |= s;
       }
     }
 
-  // 7) 王手となる候補の駒のテーブル初期化(王手の指し手生成に必要。やねうら王nanoでは削除予定)
+  // 8) 王手となる候補の駒のテーブル初期化(王手の指し手生成に必要。やねうら王nanoでは削除予定)
 
 #define FOREACH_KING(BB, EFFECT ) { for(auto sq : BB){ target|= EFFECT(sq); } }
 #define FOREACH(BB, EFFECT ) { for(auto sq : BB){ target|= EFFECT(them,sq); } }
@@ -406,7 +414,7 @@ void Bitboards::init()
       CheckCandidateBB[ksq][HDK - 1][Us] = target & ~Bitboard(ksq);
     }
 
-  // 8. 長い利きの初期化
+  // 9. 長い利きの初期化
   
   Effect8::init();
   Effect24::init();
