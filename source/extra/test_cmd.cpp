@@ -498,6 +498,20 @@ void unit_test(Position& pos, istringstream& is)
     success_all &= success;
   };
 
+  // -- 色んな関数
+  {
+    cout << "> verious function ";
+
+    // -- long effect
+    bool success = true;
+    for (auto pc : Piece())
+    {
+      auto pt = type_of(pc);
+      success &= (pt == LANCE || pt == BISHOP || pt == ROOK || pt == HORSE || pt == DRAGON) == (has_long_effect(pc));
+    }
+    check(success);
+  }
+
   // hash key
   // この値が変わると定跡DBがhitしなくなってしまうので変えてはならない。
   {

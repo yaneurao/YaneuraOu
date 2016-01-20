@@ -5,6 +5,7 @@
 #include "misc.h"
 
 using namespace std;
+using namespace Effect8;
 
 // 局面のhash keyを求めるときに用いるZobrist key
 namespace Zobrist {
@@ -491,7 +492,7 @@ bool Position::gives_check(Move m) const {
     // 開き王手になる駒の候補があるとして、fromにあるのがその駒で、fromからtoは玉と直線上にないなら
     if (ci.dcCandidates
       && (ci.dcCandidates & from)
-      && !is_aligned(from, to, ci.ksq))
+      && !is_aligned(ci.ksq , from, to))
       return true;
   }
 
@@ -714,7 +715,8 @@ bool Position::pseudo_legal(const Move m) const {
 // ----------------------------------
 
 // 指し手で盤面を1手進める。
-void Position::do_move(Move m, StateInfo& new_st, bool givesCheck)
+template <Color Us>
+void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 {
   // 現在の局面のhash keyはこれで、これを更新していき、次の局面のhash keyを求めてStateInfo::key_に格納。
   auto k = st->key_board_ ^ Zobrist::side;
@@ -743,8 +745,6 @@ void Position::do_move(Move m, StateInfo& new_st, bool givesCheck)
   // 移動先の升
   Square to = move_to(m);
   ASSERT_LV2(is_ok(to));
-
-  const Color Us = sideToMove;
 
   if (is_drop(m))
   {
@@ -857,19 +857,24 @@ void Position::do_move(Move m, StateInfo& new_st, bool givesCheck)
       const Square ksq = king_square(~Us);
       if (discovered(from, to, ksq, ci.dcCandidates))
       {
-        switch (Direc[from][ksq]) {
-        case DIRECTION_DIAG1:
-        case DIRECTION_DIAG2:
+        auto directions = directions_of(from, ksq);
+        switch (pop_directions(directions)) {
+
           // 斜めに利く遠方駒は角(+馬)しかないので、玉の位置から角の利きを求めてその利きのなかにいる角を足す。
+
+        case DIRECT_RU: case DIRECT_RD: case DIRECT_LU: case DIRECT_LD:
           st->checkersBB |= bishopEffect(ksq, pieces()) & pieces(Us, BISHOP); break;
 
-        case DIRECTION_RANK:
           // 横に利く遠方駒は飛車(+龍)しかないので、玉の位置から飛車の利きを求めてその利きのなかにいる飛車を足す。
+
+        case DIRECT_R: case DIRECT_L:
           st->checkersBB |= rookEffect(ksq,pieces()) & pieces(Us, ROOK); break;
 
-        case DIRECTION_FILE:
           // fromと敵玉とは同じ筋にあり、かつfromから駒を移動させて空き王手になる。
           // つまりfromから上下を見ると、敵玉と、自分の開き王手をしている遠方駒(飛車 or 香)があるはずなのでこれを追加する。
+          // 的玉はpieces(Us)なので含まれないはずであり、結果として自分の開き王手している駒だけが足される。
+
+        case DIRECT_U: case DIRECT_D:
           st->checkersBB |= rookEffectFile(from, pieces()) & pieces(Us); break;
 
         default: UNREACHABLE;
@@ -900,6 +905,16 @@ void Position::do_move(Move m, StateInfo& new_st, bool givesCheck)
   ++gamePly; // 厳密には、これはrootからの手数ではなく、初期盤面からの手数ではあるが。
 
 }
+
+// do_move()を先後分けたdo_move_impl<>()を呼び出す。
+void Position::do_move(Move m, StateInfo& st, bool givesCheck)
+{
+  if (sideToMove == BLACK)
+    do_move_impl<BLACK>(m, st, givesCheck);
+  else
+    do_move_impl<WHITE>(m, st, givesCheck);
+}
+
 
 // 指し手で盤面を1手戻す。do_move()の逆変換。
 void Position::undo_move(Move m)

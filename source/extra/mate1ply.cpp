@@ -6,6 +6,8 @@
 
 #include "../position.h"
 
+using namespace Effect8; // Effect24のほうは必要に応じて書く。
+
 // 1手詰め判定に用いるテーブル。
 // 添字の意味。
 //  bit  0.. 8 : (1) 駒を打つ候補の升(受け方の利きがなく、攻め方の利きがある升) 壁の扱いは0でも1でも問題ない。
@@ -19,13 +21,13 @@ MateInfo  mate1ply_drop_tbl[0x10000][COLOR_NB];
 
 // 玉から見て、dの方向(Directionsの値をpop_lsb()したもの)にpcを置いたときに
 // 大駒の利きを遮断してしまう利きの方向。(遮断しても元の駒の利きがそこに到達しているならそれは遮断しているとはみなさない)
-Effect8::Directions cutoff_directions[PIECE_NB][8];
+Directions cutoff_directions[PIECE_NB][8];
 
 // 駒pcを敵玉から見てdirの方向に置いたときの敵玉周辺に対するの利きが届かない場所が1、届く場所が0(普通の利きと逆なので注意)
-Effect8::Directions piece_effect_mask_around8[PIECE_NB][Effect8::DIRECTIONS_NB];
+Directions piece_effect_mask_around8[PIECE_NB][DIRECTIONS_NB];
 
 // 駒pcを敵玉周辺におくとして、そのときに王手になる升を敵玉から見た方角で表現したbit列
-Effect8::Directions piece_check_around8[PIECE_NB];
+Directions piece_check_around8[PIECE_NB];
 
 // --------------------------------------
 //        超高速1手詰め判定
@@ -54,15 +56,15 @@ Effect8::Directions piece_check_around8[PIECE_NB];
 #define CHECK_PIECE(DROP_PIECE) \
   if (hk & HAND_KIND_ ## DROP_PIECE) {                                                              \
     Piece pc = make_piece(DROP_PIECE, Us);                                                          \
-    uint32_t directions = mi.directions & piece_check_around8[pc] & info1;                          \
+    Directions directions = mi.directions & piece_check_around8[pc] & info1;                        \
     while (directions) {                                                                            \
-      Effect8::Direct to_direct = Effect8::pop_directions(directions);                              \
+      Direct to_direct = pop_directions(directions);                                                \
       if (~piece_effect_mask_around8[pc][to_direct] & info2) continue;                              \
-      to = themKing + Effect8::DirectToDelta(to_direct);                                            \
-      uint32_t cut_off = cutoff_directions[pc][to_direct] & long_effect[Us].directions(to);         \
+      to = themKing + DirectToDelta(to_direct);                                                     \
+      Directions cut_off = cutoff_directions[pc][to_direct] & long_effect[Us].directions(to);       \
       while (cut_off) {                                                                             \
-        Effect8::Direct cut_direction = Effect8::pop_directions(cut_off);                           \
-        Square to2 = to + Effect8::DirectToDelta(cut_direction);                                    \
+        Direct cut_direction = pop_directions(cut_off);                                             \
+        Square to2 = to + DirectToDelta(cut_direction);                                             \
           if (board_effect[Us].count(to2) <= 1)                                                     \
           goto Next ## DROP_PIECE;                                                                  \
       }                                                                                             \
@@ -91,21 +93,21 @@ Move Position::mate1ply_impl() const
   // --- 1手詰め判定テーブルのlook up
 
   // 敵玉周辺の受け方の利きのある升
-  uint8_t a8_effect_them = board_effect[them].around8_greater_than_one(themKing);
+  Directions a8_effect_them = board_effect[them].around8_greater_than_one(themKing);
   
   // 敵玉周辺の攻め方の利きのある升
-  uint8_t a8_effect_us = board_effect[Us].around8(themKing);
+  Directions a8_effect_us = board_effect[Us].around8(themKing);
 
   // 受け方の駒がない升
-  uint8_t a8_them_movable = 0; //  ~pieces(them).arunrd8(themKing); あとで
+  Directions a8_them_movable = DIRECTIONS_ZERO; //  ~pieces(them).arunrd8(themKing); あとで
 
   // 敵玉の8近傍において、盤上が1、壁(盤外)が0であるbitboard
-  uint8_t board_mask = Effect8::board_mask(themKing);
+  Directions board_mask = Effect8::board_mask(themKing);
 
   //  bit  0.. 8 : (1) 駒を打つ候補の升(受け方の玉以外の利きがなく、攻め方の利きがある升) 壁の扱いは0でも1でも問題ない。
   //  bit  9..15 : (2) 王が移動可能な升(攻め方の利きがなく、受け方の駒もない) 壁は0(玉はそこに移動できないので)
-  uint8_t info1 = ~a8_effect_them & a8_effect_us;  // (1)
-  uint8_t info2 = a8_them_movable & ~a8_effect_us & board_mask; // (2)
+  Directions info1 = ~a8_effect_them & a8_effect_us;  // (1)
+  Directions info2 = a8_them_movable & ~a8_effect_us & board_mask; // (2)
 
   uint16_t info = ((uint16_t)info2 << 8) | info1;
 
@@ -170,7 +172,7 @@ MOVE_MATE:
   // 影の利きがあって詰むパターンは最後に追加。
 
   // 受け方の駒がない升
-  uint8_t a8_us_movable = 0; //  ~pieces(Us).arunrd8(themKing); あとで
+  Directions a8_us_movable = DIRECTIONS_ZERO; //  ~pieces(Us).arunrd8(themKing); あとで
   Bitboard froms;
 
   // 1) 敵玉の8近傍で、味方の利きが2つ以上ある升 : effect[Us].around8_larger_than_two(themKing)
@@ -179,13 +181,13 @@ MOVE_MATE:
   // 4) そこに馬か龍を置いて詰む場所(これで詰まないなら、詰みようがないので) : mi.directions
   // 移動先の候補の升 = 1) & 2) & 3) & 4)
 
-  uint8_t a8_effect_us_gt1 = board_effect[Us].around8_greater_than_one(themKing); // 1)
-  uint32_t to_candicate = a8_effect_us_gt1 & board_mask & a8_us_movable & mi.directions; // 1) & 2) & 3) & 4)
+  Directions a8_effect_us_gt1 = board_effect[Us].around8_greater_than_one(themKing); // 1)
+  Directions to_candicate = a8_effect_us_gt1 & board_mask & a8_us_movable & mi.directions; // 1) & 2) & 3) & 4)
 
   while (to_candicate)
   {
-    auto to_direct = Effect8::pop_directions(to_candicate);
-    to = themKing + Effect8::DirectToDelta(to_direct);
+    auto to_direct = pop_directions(to_candicate);
+    to = themKing + DirectToDelta(to_direct);
 
     // toに利かせている駒を列挙して、それぞれについて考える。
     froms = attackers_to(Us, to);
@@ -214,10 +216,10 @@ MOVE_MATE:
         goto PromoteCheck;
 
       // 6)
-      uint32_t cut_off = cutoff_directions[pt][to_direct] & long_effect[Us].directions(to);
+      Directions cut_off = cutoff_directions[pt][to_direct] & long_effect[Us].directions(to);
       while (cut_off) {
-        Effect8::Direct cut_direction = Effect8::pop_directions(cut_off);
-        Square to2 = to + Effect8::DirectToDelta(cut_direction);
+        Direct cut_direction = pop_directions(cut_off);
+        Square to2 = to + DirectToDelta(cut_direction);
         if (board_effect[Us].count(to2) <= 1)
         {
 

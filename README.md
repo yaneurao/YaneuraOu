@@ -4,7 +4,7 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 
 やねうら王nanoは1000行程度で書かれた将棋AIのお手本的となるプログラムです。(予定)
 
-■　やねうら王mini
+■　やねうら王mini (作業中2016年1月下旬完成予定)
 
 やねうら王miniは、将棋の思考エンジンです。Bonanza6より強く、教育的かつ短いコードで書かれています。(2500行程度) USI準拠の思考エンジンで、VC++2015でコンパイル可能です。
 
@@ -20,6 +20,10 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 
 やねうら王 思考エンジン 2016年版(非公開)
 
+■　連続自動対局フレームワーク
+
+連続自動対局を自動化できます。
+
 ■  やねうら王協力詰めsolver
 
 『寿限無3』(49909手)も解ける協力詰めsolver
@@ -27,9 +31,11 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 
 
 
-■　俺の作業メモ(2016/01/20 3:30現在)
+■　俺の作業メモ(2016/01/21 4:30現在)
 
-【作業中】・長い利きの差分更新処理
+【作業中】・Position::do_move()のときの長い利きの差分更新処理
+
+【完成】・Long Effect Library
 
 【完成】・利きの初期化処理
 

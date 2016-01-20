@@ -47,8 +47,9 @@
 #ifdef LOCAL_GAME_SERVER
 #define ENGINE_NAME "YaneuraOu Local Game Server"
 #undef ASSERT_LV
-#define ASSERT_LV 3
+#define ASSERT_LV 3 // ローカルゲームサーバー、host側の速度はそれほど要求されないのでASSERT_LVを3にしておく。
 #define KEEP_LAST_MOVE
+#undef MATE_1PLY
 #undef LONG_EFFECT_LIBRARY
 #endif
 
@@ -175,6 +176,13 @@ const bool Is64Bit = false;
 #endif
 
 
+// --- Long Effect Library
+
+// 1手詰め判定は、LONG_EFFECT_LIBRARYに依存している。
+#ifdef MATE_1PLY
+#define LONG_EFFECT_LIBRARY
+#endif
+
 // --- evaluate function
 
 // -- 評価関数の種類によりエンジン名に使用する文字列を変更する。
@@ -196,8 +204,21 @@ const bool Is64Bit = false;
 // color = 手番 , sq = 升 , dir = (LongEffectの)利きの向き
 #define INC_BOARD_EFFECT(color,sq) { ++board_effect[color].e[sq]; }
 #define DEC_BOARD_EFFECT(color,sq) { --board_effect[color].e[sq]; }
-#define INC_LONG_EFFECT(color,sq,dir) { long_effect[color].e[sq] ^= dir; }
-#define DEC_LONG_EFFECT(color,sq,dir) { long_effect[color].e[sq] ^= dir; }
+#define UPDATE_LONG_EFFECT(color,sq,dir) { long_effect[color].e[sq] ^= dir; }
+
+// pcをsqに置くことによる利きのupdate
+#define UPDATE_EFFECT_BY_PUTTING_PIECE(pc,sq) {   \
+  auto effect = effects_from(pc, sq, pieces());   \
+  Color c = color_of(pc);                         \
+  for (auto to : effect)                          \
+    INC_BOARD_EFFECT(c, to);                      \
+  if (has_long_effect(pc))                        \
+  for (auto to : effect)                          \
+  {                                               \
+    auto dir = Effect8::directions_of(sq, to);    \
+    UPDATE_LONG_EFFECT(c, to, dir);               \
+  }                                               \
+}
 
 
 #endif // _CONFIG_H_

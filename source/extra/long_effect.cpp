@@ -1,5 +1,9 @@
 ﻿#include "long_effect.h"
 
+// これはshogi.hで定義しているのでLONG_EFFECT_LIBRARYがdefineされていないときにも必要。
+namespace Effect8 { Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1]; }
+
+
 #ifdef LONG_EFFECT_LIBRARY
 
 #include "../bitboard.h"
@@ -25,7 +29,6 @@ std::ostream& output_around_n(std::ostream& os, uint32_t d,int n)
 namespace Effect8
 {
   Directions board_mask_table[SQ_NB];
-  Directions direc_table[SQ_NB][SQ_NB];
 
   void init()
   {
@@ -33,16 +36,9 @@ namespace Effect8
     for (auto sq : SQ)
       board_mask_table[sq] = to_directions(kingEffect(sq), sq);
 
-    // -- direct_tableの初期化
-
-    for (auto sq1 : SQ)
-      for (auto dir = DIRECT_ZERO; dir < DIRECT_NB; ++dir)
-      {
-        // dirの方角に壁にぶつかる(盤外)まで延長していく。このとき、sq1から見てsq2のDirectionsは (1 << dir)である。
-        auto delta = DirectToDeltaWW(dir);
-        for (auto sq2 = to_sqww(sq1) + delta ; is_ok(sq2); sq2 += delta)
-          direc_table[sq1][to_sq(sq2)] = to_directions(dir);
-      }
+    //Directions d = Directions(1 + 2 + 8);
+    //for (auto dir : d)
+    //  std::cout << dir;
   }
 
   Directions to_directions(const Bitboard& b, Square sq)
@@ -51,7 +47,7 @@ namespace Effect8
 
     // sqがSQ_32(p[1]から見るとSQ_92の左の升)に来るように正規化する。(SQ_22だと後半が64回以上のシフトが必要になる)
     auto t = uint32_t((sq < SQ_32) ? (b.p[0] << int(SQ_32 - sq)) :
-      ((b.p[0] >> int(sq - SQ_32)) | (b.p[1] << int(SQ_92 + SQ_LEFT - sq)))); // p[1]のSQ_92の左の升は、p[0]のSQ_32相当。
+      ((b.p[0] >> int(sq - SQ_32)) | (b.p[1] << int(SQ_92 + SQ_L - sq)))); // p[1]のSQ_92の左の升は、p[0]のSQ_32相当。
 
                                                                               // PEXTで8近傍の状態を回収。
     return (Directions)PEXT32(t, 0b111000000101000000111000000000);
@@ -76,7 +72,7 @@ namespace Effect24
   {
     // sqがSQ_33に来るように正規化する。
     auto t = (sq < SQ_33) ? (b.p[0] << int(SQ_33 - sq)) :
-      ((b.p[0] >> int(sq - SQ_33)) | (b.p[1] << int(SQ_93 + SQ_LEFT - sq))); // p[1]のSQ_93の左は、p[0]のSQ_33
+      ((b.p[0] >> int(sq - SQ_33)) | (b.p[1] << int(SQ_93 + SQ_L - sq))); // p[1]のSQ_93の左は、p[0]のSQ_33
 
     // PEXTで24近傍の状態を回収。
     return (Directions)PEXT64(t, 0b11111000011111000011011000011111000011111);
@@ -94,20 +90,7 @@ void Position::set_effect()
   for (auto sq : pieces())
   {
     Piece pc = piece_on(sq);
-    auto effect = effects_from(pc, sq, pieces());
-    Color c = color_of(pc);
-    // ある升の利きの総和を更新。
-    for (auto to : effect)
-      INC_BOARD_EFFECT(c, to);
-
-    // ある升の長い利きの更新。
-    Piece pt = type_of(pc);
-    if (pt == LANCE || pt == BISHOP || pt == ROOK)
-      for (auto to : effect)
-      {
-        auto dir = Effect8::directions_of(sq,to);
-        INC_LONG_EFFECT(c, to, dir);
-      }
+    UPDATE_EFFECT_BY_PUTTING_PIECE(pc, sq); // pcをsqに置いて利きを更新する。
   }
 
   // デバッグ用に表示させて確認。
@@ -136,7 +119,7 @@ namespace LongEffect
     {
       for (File f = FILE_9; f >= FILE_1; --f)
       {
-        auto e = (uint32_t)board.e[f | r];
+        auto e = Directions(board.e[f | r]);
         // 方角を表示。複数あるなら3個まで表示
         os << '[';
         int i;
@@ -150,6 +133,13 @@ namespace LongEffect
       os << std::endl;
     }
     return os;
+  }
+
+  // LONG_EFFECT_LIBRARYの初期化
+  void init()
+  {
+    Effect8::init();
+    Effect24::init();
   }
 
 }

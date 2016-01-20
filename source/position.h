@@ -212,7 +212,7 @@ struct Position
   // このバッファはこのdo_move()の呼び出し元の責任において確保されている必要がある。
   // givesCheck = mの指し手によって王手になるかどうか。
   // この呼出までにst.checkInfo.update(pos)が呼び出されている必要がある。
-  void do_move(Move m,StateInfo& st, bool givesCheck);
+  void do_move(Move m, StateInfo& st, bool givesCheck);
 
   // do_move()の4パラメーター版のほうを呼び出すにはgivesCheckも渡さないといけないが、
   // mで王手になるかどうかがわからないときはこちらの関数を用いる。都度CheckInfoのコンストラクタが呼び出されるので遅い。探索中には使わないこと。
@@ -319,7 +319,7 @@ struct Position
     // 3) pinされている駒でも王と(縦横斜において)直線上への移動であれば合法
     return pinned                        // 1)
       && (pinned & from)                 // 2)
-      && !is_aligned(from, to, ourKing); // 3)
+      && !is_aligned(ourKing, from, to); // 3)
   }
 
   // 現局面で指し手がないかをテストする。指し手生成ルーチンを用いるので速くない。探索中には使わないこと。
@@ -353,6 +353,9 @@ struct Position
   friend struct MoveGenerator;
 
 protected:
+
+  // do_move()の先後分けたもの。内部的に呼び出される。
+  template <Color Us> void do_move_impl(Move m, StateInfo& st, bool givesCheck);
 
   // --- Bitboards
   // alignas(16)を要求するものを先に宣言。

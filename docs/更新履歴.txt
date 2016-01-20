@@ -6,13 +6,31 @@
 ・持ち時間管理
 ・定跡部
 ・長手数の詰将棋ルーチン書く。
+・ベンチマーク書く。
 
 ・do_move()での利きの差分更新
 ・Effect8に各駒の利き追加する
 ・1手詰め作っていく。
 
 
-■ 2016/01/19 V1.09
+■ 2016/01/21 V1.10
+
+・has_long_effect()追加。
+・↑をUnitTestに追加。
+・UPDATE_EFFECT_BY_PUTTING_PIECE、マクロ化した。(利きの差分更新のところでも使うため。)
+・LONG_EFFECTにINCもDECも要らんかった。一つにまとめた。
+・Direction削除。Effect8のものを持ってきて、これを使うことにする。
+・SQWW_RIGHT→SQWW_Rとかにリネーム。
+・Position::do_move()を内部的に、先後分ける。
+・pop_lsb(uint8_t)追加。
+・pop_directionsの引数変更。
+・ENABLE_BIT_OPERATORS_ON追加。
+・Directionsにbegin(),end()追加。
+→　あかん。よくなかった。削除。
+・pop_lsb()をbitop.hに移動。templateで書くことにした。
+
+
+■ 2016/01/20 V1.09
 
 ・Effect8::directions_of()追加。
 ・長い利きの初期化コード書けた。→　正しそう。

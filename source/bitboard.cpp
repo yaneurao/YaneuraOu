@@ -41,10 +41,6 @@ Bitboard CheckCandidateBB[SQ_NB_PLUS1][HDK][COLOR_NB];
 // SquareからSquareWithWallへの変換テーブル
 SquareWithWall sqww_table[SQ_NB];
 
-// 2つの升がどの方角であるかを返すテーブル。
-Direction Direc[SQ_NB_PLUS1][SQ_NB_PLUS1];
-
-
 // Bitboardを表示する(USI形式ではない) デバッグ用
 std::ostream& operator<<(std::ostream& os, const Bitboard& board)
 {
@@ -101,10 +97,22 @@ void Bitboards::init()
   // 1) SquareWithWallテーブルの初期化。
 
   for (auto sq : SQ)
-    sqww_table[sq] = SquareWithWall(SQWW_11 + (int32_t)file_of(sq) * SQWW_LEFT + (int32_t)rank_of(sq) * SQWW_DOWN);
+    sqww_table[sq] = SquareWithWall(SQWW_11 + (int32_t)file_of(sq) * SQWW_L + (int32_t)rank_of(sq) * SQWW_D);
 
 
-  // 2) Square型のsqの指す升が1であるBitboardがSquareBB。これをまず初期化する。
+  // 2) direct_tableの初期化
+
+  for (auto sq1 : SQ)
+    for (auto dir = Effect8::DIRECT_ZERO; dir < Effect8::DIRECT_NB; ++dir)
+    {
+      // dirの方角に壁にぶつかる(盤外)まで延長していく。このとき、sq1から見てsq2のDirectionsは (1 << dir)である。
+      auto delta = Effect8::DirectToDeltaWW(dir);
+      for (auto sq2 = to_sqww(sq1) + delta; is_ok(sq2); sq2 += delta)
+        Effect8::direc_table[sq1][to_sq(sq2)] = Effect8::to_directions(dir);
+    }
+
+
+  // 3) Square型のsqの指す升が1であるBitboardがSquareBB。これをまず初期化する。
 
   for (auto sq : SQ)
   {
@@ -115,7 +123,7 @@ void Bitboards::init()
   }
 
 
-  // 3) 遠方利きのテーブルの初期化
+  // 4) 遠方利きのテーブルの初期化
   //  thanks to Apery (Takuya Hiraoka)
 
   // 引数のindexをbits桁の2進数としてみなす。すなわちindex(0から2^bits-1)。
@@ -140,7 +148,7 @@ void Bitboards::init()
     auto result = ZERO_BB;
 
     // 角の利きのrayと飛車の利きのray
-    const SquareWithWall deltaArray[2][4] = { { SQWW_RU, SQWW_RD, SQWW_LU, SQWW_LD },{ SQWW_UP, SQWW_DOWN, SQWW_RIGHT, SQWW_LEFT } };
+    const SquareWithWall deltaArray[2][4] = { { SQWW_RU, SQWW_RD, SQWW_LU, SQWW_LD },{ SQWW_U, SQWW_D, SQWW_R, SQWW_L } };
     for (auto delta : deltaArray[(piece == BISHOP) ? 0 : 1])
       // 壁に当たるまでsqを利き方向に伸ばしていく
       for (auto sq = to_sqww(square) + delta; is_ok(sq) ; sq += delta)
@@ -230,7 +238,7 @@ void Bitboards::init()
   }
 
   
-  // 4. 香の利きテーブルの初期化
+  // 5. 香の利きテーブルの初期化
   // 上で初期化した飛車の利きを用いる。
 
   for (auto c : COLOR)
@@ -244,7 +252,7 @@ void Bitboards::init()
       }
     }
 
-  // 5. 近接駒(+盤上の利きを考慮しない駒)のテーブルの初期化。
+  // 6. 近接駒(+盤上の利きを考慮しない駒)のテーブルの初期化。
   // 上で初期化した、香・馬・飛の利きを用いる。
 
   for (auto c : COLOR)
@@ -295,7 +303,7 @@ void Bitboards::init()
       StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_CROSS45] = bishopEffect(sq, ALL_BB);
     }
 
-  // 6) 二歩用のテーブル初期化
+  // 7) 二歩用のテーブル初期化
 
   for (int i = 0; i <= 0x1ff; ++i)
   {
@@ -308,26 +316,13 @@ void Bitboards::init()
     PAWN_DROP_MASK_BB[i][WHITE] = b & rank1_n_bb(BLACK, RANK_8); // 1～8段目まで
   }
 
-  // 7) 方角を表すテーブルの初期化
-
+  // 8) BetweenBB , LineBBの初期化
+  
   for (auto s1 : SQ)
     for (auto s2 : SQ)
     {
-      // 利きを用いると比較的簡単に初期化できる。
-
-      // 斜め方向に関しては、左上から右上がDIAG1、左上から右下がDIAG2なのでそれを判定して分けておく。
-      // s1,s2の平面座標s1(s1f,s1r),(s2f,s2r)を考えてs1からs2へのベクトル(s2f-s1f,s2r-s1r)がDIAG1なら第1,第3象限にあればいいので
-      // このベクトルを(X,Y)とおくと、X>0,Y>0 もしくは X<0,Y<0。すなわち、X・Y > 0であれば良い。逆にDIAG2なら X・Y < 0。
-
-      Direc[s1][s2] =
-        (bishopStepEffect(s1) & s2     )  ?
-          ( ((int)(rank_of(s2) - rank_of(s1))*(int)(file_of(s2) - file_of(s1)) > 0) ? DIRECTION_DIAG1 : DIRECTION_DIAG2) : // 角の利き上 = 斜め
-        (rookEffectFile(s1,ZERO_BB) & s2) ? DIRECTION_FILE : // 同じ筋にある
-        (rookStepEffect(s1) & s2        ) ? DIRECTION_RANK : // 同じ段にある
-        DIRECTION_MISC;
-
       // 方角を用いるテーブルの初期化
-      if (Direc[s1][s2] != DIRECTION_MISC)
+      if (Effect8::directions_of(s1,s2))
       {
         // 間に挟まれた升を1に
         Square delta = (s2 - s1) / dist(s1 , s2);
@@ -345,7 +340,7 @@ void Bitboards::init()
       }
     }
 
-  // 8) 王手となる候補の駒のテーブル初期化(王手の指し手生成に必要。やねうら王nanoでは削除予定)
+  // 9) 王手となる候補の駒のテーブル初期化(王手の指し手生成に必要。やねうら王nanoでは削除予定)
 
 #define FOREACH_KING(BB, EFFECT ) { for(auto sq : BB){ target|= EFFECT(sq); } }
 #define FOREACH(BB, EFFECT ) { for(auto sq : BB){ target|= EFFECT(them,sq); } }
@@ -370,9 +365,9 @@ void Bitboards::init()
       if (enemy_field(Us) & ksq)
       {
         if (file_of(ksq) != FILE_1)
-          target |= lanceStepEffect(them, ksq + SQ_RIGHT);
+          target |= lanceStepEffect(them, ksq + SQ_R);
         if (file_of(ksq) != FILE_9)
-          target |= lanceStepEffect(them, ksq + SQ_LEFT );
+          target |= lanceStepEffect(them, ksq + SQ_L);
       }
       CheckCandidateBB[ksq][LANCE - 1][Us] = target;
 
@@ -414,10 +409,11 @@ void Bitboards::init()
       CheckCandidateBB[ksq][HDK - 1][Us] = target & ~Bitboard(ksq);
     }
 
-  // 9. 長い利きの初期化
+  // 10. LONG_EFFECT_LIBRARYの初期化
   
-  Effect8::init();
-  Effect24::init();
+#ifdef LONG_EFFECT_LIBRARY
+  LongEffect::init();
+#endif
 
 }
 

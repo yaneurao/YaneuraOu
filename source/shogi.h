@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "1.07"
+#define ENGINE_VERSION "1.10"
 
 // --------------------
 // コンパイル時の設定
@@ -205,16 +205,16 @@ enum Square : int32_t
   SQ_NB_PLUS1 = SQ_NB + 1, // 玉がいない場合、SQ_NBに移動したものとして扱うため、配列をSQ_NB+1で確保しないといけないときがあるのでこの定数を用いる。
 
   // 方角に関する定数。N=北=盤面の下を意味する。
-  SQ_DOWN  = +1, // 下
-  SQ_RIGHT = -9, // 右
-  SQ_UP    = -1, // 上
-  SQ_LEFT  = +9, // 左
+  SQ_D  = +1, // 下(Down)
+  SQ_R  = -9, // 右(Right)
+  SQ_U  = -1, // 上(Up)
+  SQ_L  = +9, // 左(Left)
 
   // 斜めの方角などを意味する定数。
-  SQ_RU = int(SQ_UP)   + int(SQ_RIGHT), // 右上(Right Up)
-  SQ_RD = int(SQ_DOWN) + int(SQ_RIGHT), // 右下(Right Down)
-  SQ_LU = int(SQ_UP)   + int(SQ_LEFT) , // 左上(Left Up)
-  SQ_LD = int(SQ_DOWN) + int(SQ_LEFT) , // 左下(Left Down)
+  SQ_RU = int(SQ_U) + int(SQ_R), // 右上(Right Up)
+  SQ_RD = int(SQ_D) + int(SQ_R), // 右下(Right Down)
+  SQ_LU = int(SQ_U) + int(SQ_L), // 左上(Left Up)
+  SQ_LD = int(SQ_D) + int(SQ_L), // 左下(Left Down)
 };
 
 // sqが盤面の内側を指しているかを判定する。assert()などで使う用。
@@ -297,8 +297,8 @@ inline std::ostream& operator<<(std::ostream& os, Square sq) { os << file_of(sq)
 // bit 24..28 : いまの升から盤外まで何升左に(略
 enum SquareWithWall : int32_t {
   // 相対移動するときの差分値
-  SQWW_RIGHT = SQ_RIGHT - (1 << 9) + (1 << 24) , SQWW_UP = SQ_UP - (1 << 14) + (1 << 19) , SQWW_DOWN = -SQWW_UP, SQWW_LEFT = -SQWW_RIGHT,
-  SQWW_RU = SQWW_RIGHT + SQWW_UP , SQWW_RD = SQWW_RIGHT + SQWW_DOWN , SQWW_LU = SQWW_LEFT+ SQWW_UP , SQWW_LD = SQWW_LEFT + SQWW_DOWN ,
+  SQWW_R  = SQ_R - (1 << 9) + (1 << 24) , SQWW_U = SQ_U - (1 << 14) + (1 << 19) , SQWW_D = -int(SQWW_U), SQWW_L = -int(SQWW_R),
+  SQWW_RU = int(SQWW_R) + int(SQWW_U) , SQWW_RD = int(SQWW_R) + int(SQWW_D) , SQWW_LU = int(SQWW_L) + int(SQWW_U) , SQWW_LD = int(SQWW_L) + int(SQWW_D) ,
 
   // SQ_11の地点に対応する値(他の升はこれ相対で事前に求めテーブルに格納)
   SQWW_11 = SQ_11 | (1 << 8) /* bit8 is 1 */ | (0 << 9) /*右に0升*/| (0 << 14) /*上に0升*/ | (8 << 19) /*下に8升*/| (8 << 24) /*左に8升*/,
@@ -325,28 +325,44 @@ inline std::ostream& operator<<(std::ostream& os, SquareWithWall sqww) { os << t
 //        方角
 // --------------------
 
-// 2つの升の関係が縦横斜めのどれであるかを表すときに使う方角の定数。
-enum Direction : int8_t
+// Long Effect Libraryの一部。これは8近傍、24近傍の利きを直列化したり方角を求めたりするライブラリ。
+// ここではその一部だけを持って来た。(これらは頻繁に用いるので)
+// それ以上を使いたい場合は、LONG_EFFECT_LIBRARYというシンボルをdefineして、extra/long_effect.hをincludeすること。
+namespace Effect8
 {
-  DIRECTION_MISC  = 0, // 縦横斜めの関係にない
-  DIRECTION_DIAG1 = 1, // 斜め その1(左下から右上方向)
-  DIRECTION_DIAG2 = 2, // 斜め その2(左上から右下方向)
-  DIRECTION_RANK  = 3, // 段(横)
-  DIRECTION_FILE  = 4, // 筋(縦)
-};
+  // 方角を表す。遠方駒の利きや、玉から見た方角を表すのに用いる。
+  // bit0..右上、bit1..右、bit2..右下、bit3..上、bit4..下、bit5..左上、bit6..左、bit7..左下
+  // 同時に複数のbitが1であることがありうる。
+  enum Directions : uint8_t { DIRECTIONS_ZERO = 0 };
 
-// 2つの升がどの方角であるかを返すテーブル。
-extern Direction Direc[SQ_NB_PLUS1][SQ_NB_PLUS1];
+  // sq1にとってsq2がどのdirectionにあるか。
+  extern Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1];
+  inline Directions directions_of(Square sq1, Square sq2) { return direc_table[sq1][sq2]; }
+
+  // Directionsをpopしたもの。複数の方角を同時に表すことはない。
+  enum Direct { DIRECT_RU, DIRECT_R, DIRECT_RD, DIRECT_U, DIRECT_D, DIRECT_LU, DIRECT_L, DIRECT_LD, DIRECT_NB, DIRECT_ZERO = 0, };
+
+  // Directionsに相当するものを引数に渡して1つ方角を取り出す。
+  inline Direct pop_directions(Directions& d) { return (Direct)pop_lsb(d); }
+
+  // DirectからDirectionsへの逆変換
+  inline Directions to_directions(Direct d) { return Directions(1 << d); }
+
+  inline bool is_ok(Direct d) { return DIRECT_ZERO <= d && d < DIRECT_NB; }
+
+  // DirectをSquareWithWall型の差分値で表現したもの。
+  const SquareWithWall DirectToDeltaWW_[DIRECT_NB] = { SQWW_RU,SQWW_R,SQWW_RD,SQWW_U,SQWW_D,SQWW_LU,SQWW_L,SQWW_LD, };
+  inline SquareWithWall DirectToDeltaWW(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDeltaWW_[d]; }
+}
 
 // 与えられた3升が縦横斜めの1直線上にあるか。駒を移動させたときに開き王手になるかどうかを判定するのに使う。
 // 例) 王がsq1, pinされている駒がsq2にあるときに、pinされている駒をsq3に移動させたときにis_aligned(sq1,sq2,sq3)であれば、
 //  pinされている方向に沿った移動なので開き王手にはならないと判定できる。
-inline bool is_aligned(Square sq1, Square sq2, Square sq3)
+// ただし玉はsq1として、sq2,sq3は同じ側にいるものとする。(玉を挟んでの一直線は一直線とはみなさない)
+inline bool is_aligned(Square sq1 /* is ksq */, Square sq2, Square sq3)
 {
-  auto d1 = Direc[sq1][sq2];
-  if (d1 == DIRECTION_MISC)
-    return false;
-  return d1 == Direc[sq1][sq3];
+  auto d1 = Effect8::directions_of(sq1, sq2);
+  return d1 ? d1 == Effect8::directions_of(sq1, sq3) : false;
 }
 
 // --------------------
@@ -448,6 +464,9 @@ constexpr Piece raw_type_of(Piece pc) { return (Piece)(pc & 7); }
 
 // pcとして先手の駒を渡し、cが後手なら後手の駒を返す。cが先手なら先手の駒のまま。pcとしてNO_PIECEは渡してはならない。
 inline Piece make_piece(Piece pt, Color c) { ASSERT_LV3(color_of(pt) == BLACK && pt!=NO_PIECE);  return (Piece)(pt + (c << 4)); }
+
+// pcが遠方駒であるかを判定する。LANCE,BISHOP(5),ROOK(6),HORSE(13),DRAGON(14)
+inline bool has_long_effect(Piece pc) { return (type_of(pc) == LANCE) || (((pc+1) & 6)==6); }
 
 // Pieceの整合性の検査。assert用。
 constexpr bool is_ok(Piece pc) { return NO_PIECE <= pc && pc < PIECE_NB; }
@@ -714,24 +733,6 @@ private:
 };
 
 // --------------------
-//    bit operations
-// --------------------
-
-// 1である最下位bitを1bit取り出して、そのbit位置を返す。
-// 0を渡してはならない。
-inline int pop_lsb(uint64_t& b){
-  int index = LSB64(b);
-  b &= b - 1;
-  return index;
-}
-
-inline int pop_lsb(uint32_t& b) {
-  int index = LSB32(b);
-  b &= b - 1;
-  return index;
-}
-
-// --------------------
 //       置換表
 // --------------------
 
@@ -883,6 +884,18 @@ ENABLE_OPERATORS_ON(Depth)
 ENABLE_OPERATORS_ON(Hand)
 ENABLE_OPERATORS_ON(HandKind)
 ENABLE_OPERATORS_ON(Eval::BonaPiece)
+ENABLE_OPERATORS_ON(Effect8::Direct);
+
+
+// enumに対して標準的なビット演算を定義するマクロ
+#define ENABLE_BIT_OPERATORS_ON(T)                                              \
+  inline T operator&(const T d1, const T d2) { return T(int(d1) & int(d2)); }   \
+  inline T operator|(const T d1, const T d2) { return T(int(d1) | int(d2)); }   \
+  inline T operator^(const T d1, const T d2) { return T(int(d1) ^ int(d2)); }   \
+  inline T operator~(const T d1) { return T(~int(d1)); }
+
+ENABLE_BIT_OPERATORS_ON(Effect8::Directions)
+
 
 // enumに対してrange forで回せるようにするためのhack(速度低下があるかも知れないので速度の要求されるところでは使わないこと)
 #define ENABLE_RANGE_OPERATORS_ON(X,ZERO,NB)     \

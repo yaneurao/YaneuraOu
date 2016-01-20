@@ -20,10 +20,10 @@ namespace Effect8
   // 方角を表す。遠方駒の利きや、玉から見た方角を表すのに用いる。
   // bit0..右上、bit1..右、bit2..右下、bit3..上、bit4..下、bit5..左上、bit6..左、bit7..左下
   // 同時に複数のbitが1であることがありうる。
-  enum Directions : uint8_t {};
-  const uint32_t DIRECTIONS_NB = 256; // Directionsの範囲(uint8_t)で表現できない値なので外部に出しておく。
+  //  enum Directions : uint8_t { DIRECTIONS_ZERO = 0 };
+  // →この定義はshogi.hに移動させた。
 
-  inline Directions operator |(const Directions d1, const Directions d2) { return Directions(int(d1) + int(d2)); }
+  const uint32_t DIRECTIONS_NB = 256; // Directionsの範囲(uint8_t)で表現できない値なので外部に出しておく。
 
   // Bitboardのsq周辺の8近傍の状態を8bitに直列化する。
   // ただし盤外に相当するbitの値は不定。盤外を0にしたいのであれば、Effect8::board_mask(sq)と & すること。
@@ -34,9 +34,12 @@ namespace Effect8
   extern Directions board_mask_table[SQ_NB];
   inline Directions board_mask(Square sq) { return board_mask_table[sq]; }
 
+
   // sq1にとってsq2がどのdirectionにあるか。
-  extern Directions direc_table[SQ_NB][SQ_NB];
-  inline Directions directions_of(Square sq1, Square sq2) { return direc_table[sq1][sq2]; }
+  //extern Directions direc_table[SQ_NB][SQ_NB];
+  //inline Directions directions_of(Square sq1, Square sq2) { return direc_table[sq1][sq2]; }
+
+  // →　この定義もshogi.hに移動させた。
 
   // ...
   // .+.  3×3のうち、中央の情報はDirectionsは持っていないので'+'を出力して、
@@ -47,24 +50,26 @@ namespace Effect8
   // --- Direct
 
   // Directionsをpopしたもの。複数の方角を同時に表すことはない。
-  enum Direct{ DIRECT_RU, DIRECT_R, DIRECT_RD, DIRECT_U, DIRECT_D, DIRECT_LU, DIRECT_L, DIRECT_LD, DIRECT_NB, DIRECT_ZERO = 0, };
-  ENABLE_OPERATORS_ON(Direct);
+  // enum Direct { DIRECT_RU, DIRECT_R, DIRECT_RD, DIRECT_U, DIRECT_D, DIRECT_LU, DIRECT_L, DIRECT_LD, DIRECT_NB, DIRECT_ZERO = 0, };
+  // inline bool is_ok(Direct d) { return DIRECT_ZERO <= d && d < DIRECT_NB; }
 
-  inline bool is_ok(Direct d) { return DIRECT_ZERO <= d && d < DIRECT_NB; }
+  // →　以上の定義もshogi.hに移動させた。
 
   // Directionsに相当するものを引数に渡して1つ方角を取り出す。
-  inline Direct pop_directions(uint32_t& d) { return (Direct)pop_lsb(d); }
-
-  // DirectからDirectionsへの逆変換
-  inline Directions to_directions(Direct d) { return Directions(1 << d); }
+  // inline Direct pop_directions(Directions& d) { return (Direct)pop_lsb(*(uint8_t*)&d); }
 
   // DirectをSquare型の差分値で表現したもの。
-  const Square DirectToDelta_[DIRECT_NB] = { SQ_RU,SQ_RIGHT,SQ_RD,SQ_UP,SQ_DOWN,SQ_LU,SQ_LEFT,SQ_LD, };
+  const Square DirectToDelta_[DIRECT_NB] = { SQ_RU,SQ_R,SQ_RD,SQ_U,SQ_D,SQ_LU,SQ_L,SQ_LD, };
   inline Square DirectToDelta(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDelta_[d]; }
 
+  // DirectからDirectionsへの逆変換
+  // inline Directions to_directions(Direct d) { return Directions(1 << d); }
+
   // DirectをSquareWithWall型の差分値で表現したもの。
-  const SquareWithWall DirectToDeltaWW_[DIRECT_NB] = { SQWW_RU,SQWW_RIGHT,SQWW_RD,SQWW_UP,SQWW_DOWN,SQWW_LU,SQWW_LEFT,SQWW_LD, };
-  inline SquareWithWall DirectToDeltaWW(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDeltaWW_[d]; }
+  //const SquareWithWall DirectToDeltaWW_[DIRECT_NB] = { SQWW_RU,SQWW_R,SQWW_RD,SQWW_U,SQWW_D,SQWW_LU,SQWW_L,SQWW_LD, };
+  //inline SquareWithWall DirectToDeltaWW(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDeltaWW_[d]; }
+
+  // → shogi.hに持って行った。
 
   // --- init
 
@@ -119,21 +124,21 @@ namespace Effect24
 
   // DirectをSquare型の差分値で表現したもの。
   const SquareWithWall DirectToDeltaWW_[DIRECT_NB] = {
-    SQWW_RU + SQWW_RU    , SQWW_RIGHT + SQWW_RU   , SQWW_RIGHT + SQWW_RIGHT , SQWW_RIGHT + SQWW_RD , SQWW_RD   + SQWW_RD    ,
-    SQWW_RU + SQWW_UP    , SQWW_RU                , SQWW_RIGHT              , SQWW_RD              , SQWW_RD   + SQWW_DOWN  ,
-    SQWW_UP + SQWW_UP    , SQWW_UP                                          , SQWW_DOWN            , SQWW_DOWN + SQWW_DOWN  ,
-    SQWW_LU + SQWW_UP    , SQWW_LU                , SQWW_LEFT               , SQWW_LD              , SQWW_LD   + SQWW_DOWN  ,
-    SQWW_LU + SQWW_LU    , SQWW_LEFT  + SQWW_LU   , SQWW_LEFT  + SQWW_LEFT  , SQWW_LEFT  + SQWW_LD , SQWW_LD   + SQWW_LD    ,
+    SQWW_RU + SQWW_RU   , SQWW_R  + SQWW_RU   , SQWW_R + SQWW_R , SQWW_R + SQWW_RD  , SQWW_RD   + SQWW_RD    ,
+    SQWW_RU + SQWW_U    , SQWW_RU             , SQWW_R          , SQWW_RD           , SQWW_RD   + SQWW_D     ,
+    SQWW_U  + SQWW_U    , SQWW_U                                , SQWW_D            , SQWW_D    + SQWW_D     ,
+    SQWW_LU + SQWW_U    , SQWW_LU             , SQWW_L          , SQWW_LD           , SQWW_LD   + SQWW_D     ,
+    SQWW_LU + SQWW_LU   , SQWW_L  + SQWW_LU   , SQWW_L + SQWW_L , SQWW_L  + SQWW_LD , SQWW_LD   + SQWW_LD    ,
   };
   inline SquareWithWall DirectToDeltaWW(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDeltaWW_[d]; }
 
   // DirectをSquare型の差分値で表現したもの。
   const Square DirectToDelta_[DIRECT_NB] = {
-    SQ_RU + SQ_RU    , SQ_RIGHT + SQ_RU   , SQ_RIGHT + SQ_RIGHT , SQ_RIGHT + SQ_RD , SQ_RD + SQ_RD    ,
-    SQ_RU + SQ_UP    , SQ_RU              , SQ_RIGHT            , SQ_RD            , SQ_RD + SQ_DOWN  ,
-    SQ_UP + SQ_UP    , SQ_UP                                    , SQ_DOWN          , SQ_DOWN + SQ_DOWN,
-    SQ_LU + SQ_UP    , SQ_LU              , SQ_LEFT             , SQ_LD            , SQ_LD + SQ_DOWN  ,
-    SQ_LU + SQ_LU    , SQ_LEFT + SQ_LU    , SQ_LEFT + SQ_LEFT   , SQ_LEFT + SQ_LD  , SQ_LD + SQ_LD    ,
+    SQ_RU + SQ_RU   , SQ_R + SQ_RU   , SQ_R + SQ_R , SQ_R  + SQ_RD  , SQ_RD + SQ_RD  ,
+    SQ_RU + SQ_U    , SQ_RU          , SQ_R        , SQ_RD          , SQ_RD + SQ_D   ,
+    SQ_U  + SQ_U    , SQ_U                         , SQ_D           , SQ_D  + SQ_D   ,
+    SQ_LU + SQ_U    , SQ_LU          , SQ_L        , SQ_LD          , SQ_LD + SQ_D   ,
+    SQ_LU + SQ_LU   , SQ_L + SQ_LU   , SQ_L + SQ_L , SQ_L  + SQ_LD  , SQ_LD + SQ_LD  ,
   };
   inline Square DirectToDelta(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDelta_[d]; }
 
@@ -202,6 +207,10 @@ namespace LongEffect
   };
 
   std::ostream& operator<<(std::ostream& os, const LongEffectBoard board);
+
+  // --- init for LONG_EFFECT_LIBRARY
+  void init();
+
 }
 
 #endif LONG_EFFECT_LIBRARY
