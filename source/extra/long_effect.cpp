@@ -106,8 +106,8 @@ void Position::set_effect()
   }
 
   // デバッグ用に表示させて確認。
-  std::cout << "BLACK board effect\n" << board_effect[BLACK] << "WHITE board effect\n" << board_effect[WHITE];
-  std::cout << "long effect\n" << long_effect;
+  //std::cout << "BLACK board effect\n" << board_effect[BLACK] << "WHITE board effect\n" << board_effect[WHITE];
+  //std::cout << "long effect\n" << long_effect;
 
 }
 
