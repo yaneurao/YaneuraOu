@@ -336,6 +336,18 @@ struct Position
   template <Color Us> Move mate1ply_impl() const;
 #endif
 
+  // -- 利き
+#ifdef LONG_EFFECT_LIBRARY
+  // 利きの初期化
+  void set_effect();
+
+  // 各升の利きの数
+  LongEffect::ByteBoard board_effect[COLOR_NB];
+
+  // 長い利き(これは先後共用)
+  LongEffect::WordBoard long_effect;
+#endif
+
   // --- デバッグ用の出力
 
 #ifdef KEEP_LAST_MOVE
@@ -415,18 +427,6 @@ protected:
 
   // 評価関数で用いる駒のリスト
   Eval::EvalList evalList;
-
-  // -- 利き
-#ifdef LONG_EFFECT_LIBRARY
-  // 利きの初期化
-  void set_effect();
-
-  // 各升の利きの数
-  LongEffect::EffectNumBoard board_effect[COLOR_NB];
-
-  // 長い利き。
-  LongEffect::LongEffectBoard long_effect[COLOR_NB];
-#endif
 
   // --- 
 

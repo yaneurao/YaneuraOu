@@ -313,7 +313,7 @@ const std::string Position::sfen() const
         if (n != 1)
           ss << n;
 
-        ss << PieceToCharBW[make_piece(p,c)];
+        ss << PieceToCharBW[make_piece(c, p)];
       }
     }
 
@@ -756,7 +756,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
     Piece pr = Piece(move_from(m));
     ASSERT_LV2(PAWN <= pr && pr < PIECE_HAND_NB);
 
-    Piece pc = make_piece(pr, Us);
+    Piece pc = make_piece(Us, pr);
     PieceNo piece_no = piece_no_of(Us, pr);
     put_piece(to, pc , piece_no);
 
@@ -775,6 +775,11 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
     k += Zobrist::psq[to][pc];
 
     materialDiff = 0;
+
+    // 利きの更新
+#ifdef LONG_EFFECT_LIBRARY
+    LongEffect::update_by_dropping_piece<Us>(*this,to,pc);
+#endif
 
   } else {
 
@@ -887,7 +892,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
     } else
       st->checkersBB = ZERO_BB;
   }
-  
+    
   st->materialValue = (Value)(st->previous->materialValue + (Us == BLACK ? materialDiff : -materialDiff));
 
   // 相手番に変更する。
@@ -961,7 +966,7 @@ void Position::undo_move(Move m)
     {
       // 盤面のtoの地点に捕獲されていた駒を復元する
       PieceNo piece_no = piece_no_of(sideToMove, raw_type_of(st->capturedType)); // 捕っていた駒(手駒にある)のpiece_no
-      put_piece(to, make_piece(st->capturedType, ~sideToMove), piece_no);
+      put_piece(to, make_piece(~sideToMove, st->capturedType), piece_no);
 
       // 手駒から減らす
       sub_hand(hand[sideToMove], raw_type_of(st->capturedType));

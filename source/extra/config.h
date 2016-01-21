@@ -204,21 +204,6 @@ const bool Is64Bit = false;
 // color = 手番 , sq = 升 , dir = (LongEffectの)利きの向き
 #define INC_BOARD_EFFECT(color,sq) { ++board_effect[color].e[sq]; }
 #define DEC_BOARD_EFFECT(color,sq) { --board_effect[color].e[sq]; }
-#define UPDATE_LONG_EFFECT(color,sq,dir) { long_effect[color].e[sq] ^= dir; }
-
-// pcをsqに置くことによる利きのupdate
-#define UPDATE_EFFECT_BY_PUTTING_PIECE(pc,sq) {   \
-  auto effect = effects_from(pc, sq, pieces());   \
-  Color c = color_of(pc);                         \
-  for (auto to : effect)                          \
-    INC_BOARD_EFFECT(c, to);                      \
-  if (has_long_effect(pc))                        \
-  for (auto to : effect)                          \
-  {                                               \
-    auto dir = Effect8::directions_of(sq, to);    \
-    UPDATE_LONG_EFFECT(c, to, dir);               \
-  }                                               \
-}
 
 
 #endif // _CONFIG_H_

@@ -333,7 +333,8 @@ namespace Effect8
   // 方角を表す。遠方駒の利きや、玉から見た方角を表すのに用いる。
   // bit0..右上、bit1..右、bit2..右下、bit3..上、bit4..下、bit5..左上、bit6..左、bit7..左下
   // 同時に複数のbitが1であることがありうる。
-  enum Directions : uint8_t { DIRECTIONS_ZERO = 0 };
+  enum Directions : uint8_t { DIRECTIONS_ZERO = 0 , DIRECTIONS_RU = 1, DIRECTIONS_R = 2 , DIRECTIONS_RD = 4,
+    DIRECTIONS_U = 8, DIRECTIONS_D = 16 , DIRECTIONS_LU = 32 , DIRECTIONS_L = 64 , DIRECTIONS_LD = 128 };
 
   // sq1にとってsq2がどのdirectionにあるか。
   extern Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1];
@@ -463,7 +464,7 @@ constexpr Piece type_of(Piece pc) { return (Piece)(pc & 15); }
 constexpr Piece raw_type_of(Piece pc) { return (Piece)(pc & 7); }
 
 // pcとして先手の駒を渡し、cが後手なら後手の駒を返す。cが先手なら先手の駒のまま。pcとしてNO_PIECEは渡してはならない。
-inline Piece make_piece(Piece pt, Color c) { ASSERT_LV3(color_of(pt) == BLACK && pt!=NO_PIECE);  return (Piece)(pt + (c << 4)); }
+inline Piece make_piece(Color c, Piece pt) { ASSERT_LV3(color_of(pt) == BLACK && pt!=NO_PIECE);  return (Piece)(pt + (c << 4)); }
 
 // pcが遠方駒であるかを判定する。LANCE,BISHOP(5),ROOK(6),HORSE(13),DRAGON(14)
 inline bool has_long_effect(Piece pc) { return (type_of(pc) == LANCE) || (((pc+1) & 6)==6); }
@@ -890,8 +891,11 @@ ENABLE_OPERATORS_ON(Effect8::Direct);
 // enumに対して標準的なビット演算を定義するマクロ
 #define ENABLE_BIT_OPERATORS_ON(T)                                              \
   inline T operator&(const T d1, const T d2) { return T(int(d1) & int(d2)); }   \
+  inline T& operator&=(T& d1, const T d2) { return d1 = T(int(d1) & int(d2)); } \
   inline T operator|(const T d1, const T d2) { return T(int(d1) | int(d2)); }   \
+  inline T& operator|=(T& d1, const T d2) { return d1 = T(int(d1) | int(d2)); } \
   inline T operator^(const T d1, const T d2) { return T(int(d1) ^ int(d2)); }   \
+  inline T& operator^=(T& d1, const T d2) { return d1 = T(int(d1) ^ int(d2)); } \
   inline T operator~(const T d1) { return T(~int(d1)); }
 
 ENABLE_BIT_OPERATORS_ON(Effect8::Directions)

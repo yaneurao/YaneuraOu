@@ -13,6 +13,19 @@
 ・1手詰め作っていく。
 
 
+■ 2016/01/22 V1.11
+
+・長い利き、WordBoardでないとまずいのか…。書き直し。
+・make_piece()引数の順番変更。Colorをつねに先に。
+・ENABLE_BIT_OPERATORS_ONに operator &= などを追加。
+・WordBoardの表示修正。
+・利きの初期化部、マクロいくつか削除。
+・LongEffect::dir_bw_of()追加。
+・Directionsのenumに定数追加。
+・Position::do_move()のdropのときの利きの更新処理書けた。
+　あとはcaptureとnon_captureのときの利きの更新処理！
+
+
 ■ 2016/01/21 V1.10
 
 ・has_long_effect()追加。

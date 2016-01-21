@@ -55,17 +55,17 @@ Directions piece_check_around8[PIECE_NB];
 
 #define CHECK_PIECE(DROP_PIECE) \
   if (hk & HAND_KIND_ ## DROP_PIECE) {                                                              \
-    Piece pc = make_piece(DROP_PIECE, Us);                                                          \
+    Piece pc = make_piece(Us,DROP_PIECE);                                                           \
     Directions directions = mi.directions & piece_check_around8[pc] & info1;                        \
     while (directions) {                                                                            \
       Direct to_direct = pop_directions(directions);                                                \
       if (~piece_effect_mask_around8[pc][to_direct] & info2) continue;                              \
       to = themKing + DirectToDelta(to_direct);                                                     \
-      Directions cut_off = cutoff_directions[pc][to_direct] & long_effect[Us].directions(to);       \
+      Directions cut_off = cutoff_directions[pc][to_direct] & long_effect.directions_of(Us,to);     \
       while (cut_off) {                                                                             \
         Direct cut_direction = pop_directions(cut_off);                                             \
         Square to2 = to + DirectToDelta(cut_direction);                                             \
-          if (board_effect[Us].count(to2) <= 1)                                                     \
+          if (board_effect[Us].e[to2] <= 1)                                                         \
           goto Next ## DROP_PIECE;                                                                  \
       }                                                                                             \
       return make_move_drop(DROP_PIECE, to);                                                        \
@@ -153,7 +153,7 @@ MOVE_MATE:
     auto drop_target = knightEffect(them, themKing) & ~pieces(Us);
     while (drop_target) {
       to = drop_target.pop();
-      if (!board_effect[them].count(to))
+      if (!board_effect[them].effect(to))
       {
         // 桂馬を持っていて、ここに駒がなければ(自駒は上で除外済みだが)、ここに打って詰み
         if ((ourHand & HAND_KIND_KNIGHT) && !(pieces() & to) ) return make_move_drop(KNIGHT, to);
@@ -216,11 +216,11 @@ MOVE_MATE:
         goto PromoteCheck;
 
       // 6)
-      Directions cut_off = cutoff_directions[pt][to_direct] & long_effect[Us].directions(to);
+      Directions cut_off = cutoff_directions[pt][to_direct] & long_effect.directions_of(Us,to);
       while (cut_off) {
         Direct cut_direction = pop_directions(cut_off);
         Square to2 = to + DirectToDelta(cut_direction);
-        if (board_effect[Us].count(to2) <= 1)
+        if (board_effect[Us].effect(to2) <= 1)
         {
 
         }

@@ -158,24 +158,12 @@ namespace LongEffect
 
   // -- ByteBoard
 
-  // 利きの数や遠方駒の利きを表現するByteBoard
+  // ある升における利きの数を表現するByteBoard
   // 玉の8近傍を回収するなど、アライメントの合っていないアクセスをするのでこの構造体にはalignasをつけないことにする。
   struct ByteBoard
   {
-    // ゼロクリア
-    void clear() { memset(e, 0, sizeof(e)); }
-
-    // 各升の利きの数 or Directions
-    uint8_t e[SQ_NB];
-  };
-
-  // -- EffectNumBoard
-
-  // ある升における利きの数を表現するByteBoard
-  struct EffectNumBoard : public ByteBoard
-  {
-    // この構造体が利きの数が格納されている構造体だとしてある升の利きの数
-    uint8_t count(Square sq) const { return e[sq]; }
+    // ある升の利きの数
+    uint8_t effect(Square sq) const { return e[sq]; }
 
     // ある升の周辺8近傍の利きを取得。1以上の値のところが1になる。さもなくば0。ただし壁(盤外)は不定。必要ならEffect8::board_maskでmaskすること。
     Directions around8(Square sq) const {
@@ -192,25 +180,71 @@ namespace LongEffect
     {
       return (Directions)PEXT32(ymm(&e[sq - 10]).cmp(ymm_one).to_uint32(), 0b111000000101000000111);
     }
+
+    // ゼロクリア
+    void clear() { memset(e, 0, sizeof(e)); }
+
+    // 各升の利きの数
+    uint8_t e[SQ_NB_PLUS1];
   };
 
-  std::ostream& operator<<(std::ostream& os, const EffectNumBoard& board);
+  // 各升の利きの数を出力する。
+  std::ostream& operator<<(std::ostream& os, const ByteBoard& board);
 
   // --- LongEffectBoard
 
-  // ある升における長い利きを表現するByteBoard
-  struct LongEffectBoard : public ByteBoard
-  {
-    // ある升にある長い利きの方向
-    // この方向に利いている(遠方駒は、この逆方向にいる。sqの駒を取り除いたときにさらにこの方角に利きが伸びる)
-    Directions directions(Square sq) const { return (Directions)e[sq]; }
+  // Directions先後用
+  union DirectionsBW {
+    Directions dirs[COLOR_NB]; // 先後個別に扱いたいとき用
+    uint16_t u16;              // 直接整数として扱いたいとき用
   };
 
-  std::ostream& operator<<(std::ostream& os, const LongEffectBoard board);
+  // 先手の香と角と飛車の長い利きの方向
+  const Directions BISHOP_DIR = DIRECTIONS_LU | DIRECTIONS_LD | DIRECTIONS_RU | DIRECTIONS_RD;
+  const Directions ROOK_DIR = DIRECTIONS_R | DIRECTIONS_U | DIRECTIONS_D | DIRECTIONS_L;
+
+  // ある駒に対する長い利きの方向
+  // 1) 長い利きに関して、馬と龍は角と飛車と同じ。
+  // 2) 後手の駒は (dir << 8)して格納する。(DirectionsBWの定義より。)
+  const uint16_t dir_bw_table[PIECE_NB] = {
+    0,0,DIRECTIONS_U/*香*/,0,0,BISHOP_DIR/*角*/,ROOK_DIR/*飛*/,0,0,0,0,0,0,BISHOP_DIR/*馬*/,ROOK_DIR/*龍*/,0,                                          // 先手
+    0,0,uint16_t(DIRECTIONS_D<<8)/*香*/,0,0,uint16_t(BISHOP_DIR<<8),uint16_t(ROOK_DIR<<8),0,0,0,0,0,0,uint16_t(BISHOP_DIR<<8),uint16_t(ROOK_DIR<<8),0, // 後手
+  };
+  inline uint16_t dir_bw_of(Piece pc) { return dir_bw_table[pc]; }
+
+  // ある升における利きの数を表現するWordBoard
+  // 玉の8近傍を回収するなど、アライメントの合っていないアクセスをするのでこの構造体にはalignasをつけないことにする。
+  struct WordBoard
+  {
+    // ゼロクリア
+    void clear() { memset(dir_bw, 0, sizeof(dir_bw)); }
+
+    // ある升にある長い利きの方向
+    // この方向に利いている(遠方駒は、この逆方向にいる。sqの駒を取り除いたときにさらにこの方角に利きが伸びる)
+    Directions directions_of(Color us , Square sq) const { return dir_bw[sq].dirs[us]; }
+
+    // ある升の長い利きの方向を得る(DirectionsBW型とみなして良い)
+    uint16_t dir_bw_on(Square sq) const { return dir_bw[sq].u16; }
+
+    // 各升のDirections(先後)
+    // 先手のほうは下位8bit。後手のほうは上位8bit
+    DirectionsBW dir_bw[SQ_NB_PLUS1];
+  };
+
+  // 各升の利きの方向を出力する。
+  // 先手の右上方向の長い利き = 0 , 右方向 = 1 , 右下方向 = 2,…,左下方向 = 7,
+  // 後手の右上方向の長い利き = a , 右方向 = b , 右下方向 = c,…,左下方向 = h
+  // で各升最大4つまで。(これ以上表示すると見づらくなるため)
+  std::ostream& operator<<(std::ostream& os, const WordBoard& board);
+
+  // --- do_move()のときに利きを更新するためのヘルパー関数
+
+  // Usの手番で駒pcをtoに配置したときの盤面の利きの更新
+  template <Color Us> void update_by_dropping_piece(Position& pos, Square to, Piece pc);
+
 
   // --- init for LONG_EFFECT_LIBRARY
   void init();
-
 }
 
 #endif LONG_EFFECT_LIBRARY
