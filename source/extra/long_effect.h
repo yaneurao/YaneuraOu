@@ -156,7 +156,9 @@ namespace LongEffect
 {
   using namespace Effect8;
 
-  // -- ByteBoard
+  // ----------------------
+  //  ByteBoard(利きの数を表現)
+  // ----------------------
 
   // ある升における利きの数を表現するByteBoard
   // 玉の8近傍を回収するなど、アライメントの合っていないアクセスをするのでこの構造体にはalignasをつけないことにする。
@@ -191,7 +193,9 @@ namespace LongEffect
   // 各升の利きの数を出力する。
   std::ostream& operator<<(std::ostream& os, const ByteBoard& board);
 
-  // --- LongEffectBoard
+  // ----------------------
+  //  WordBoard(利きの方向を先後同時に表現)
+  // ----------------------
 
   // Directions先後用
   union DirectionsBW {
@@ -237,7 +241,16 @@ namespace LongEffect
   // で各升最大4つまで。(これ以上表示すると見づらくなるため)
   std::ostream& operator<<(std::ostream& os, const WordBoard& board);
 
-  // --- do_move()のときに利きを更新するためのヘルパー関数
+  // ----------------------
+  //  Positionクラスの初期化時の利きの全計算
+  // ----------------------
+
+  // 利きの全計算(Positionクラスの初期化時に呼び出される)
+  void calc_effect(Position& pos);
+
+  // ----------------------
+  //  do_move()での利きの更新用
+  // ----------------------
 
   // Usの手番で駒pcをtoに配置したときの盤面の利きの更新
   template <Color Us> void update_by_dropping_piece(Position& pos, Square to, Piece moved_pc);
@@ -248,6 +261,15 @@ namespace LongEffect
   // Usの手番で駒pcをtoに移動させ、成りがある場合、moved_after_pcになっている(捕獲された駒はない)ときの盤面の利きの更新
   template <Color Us> void update_by_no_capturing_piece(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc);
 
+  // ----------------------
+  //  undo_move()での利きの更新用
+  // ----------------------
+
+  // 上の3つの関数の逆変換を行なう関数
+
+  template <Color Us> void rewind_by_dropping_piece(Position& pos, Square to, Piece moved_pc);
+  template <Color Us> void rewind_by_capturing_piece(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc, Piece captured_pc);
+  template <Color Us> void rewind_by_no_capturing_piece(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc);
 
   // --- initialize for LONG_EFFECT_LIBRARY
   void init();

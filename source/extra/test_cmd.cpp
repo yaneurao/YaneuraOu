@@ -166,8 +166,8 @@ void effect_check(Position& pos)
   ByteBoard bb[2] = { pos.board_effect[0] , pos.board_effect[1] };
   WordBoard wb = pos.long_effect;
 
-  pos.set_effect();
-
+  LongEffect::calc_effect(pos);
+  
   for(auto c : COLOR)
     for(auto sq : SQ)
       if (bb[c].effect(sq) != pos.board_effect[c].effect(sq))
@@ -189,6 +189,9 @@ void effect_check(Position& pos)
 
 // --- "test rp"コマンド
 
+// 利きの整合性のチェック
+//#define EFFECT_CHECK
+
 void random_player(Position& pos,uint64_t loop_max)
 {
   pos.set_hirate();
@@ -200,9 +203,6 @@ void random_player(Position& pos,uint64_t loop_max)
 
   for (int i = 0; i < loop_max; ++i)
   {
-    // undoのテストをしたくないときはここで局面を再度初期化する。
-    //    pos.set_hirate();
-
     for (ply = 0; ply < MAX_PLY; ++ply)
     {
       MoveList<LEGAL_ALL> mg(pos); // 全合法手の生成
@@ -229,12 +229,21 @@ void random_player(Position& pos,uint64_t loop_max)
       pos.do_move(m, state[ply]);
       moves[ply] = m;
 
+#ifdef EFFECT_CHECK
       // 利きの整合性のテスト(重いのでテストが終わったらコメントアウトする)
-//      effect_check(pos);
+      effect_check(pos);
+#endif
     }
     // 局面を巻き戻してみる(undo_moveの動作テストを兼ねて)
     while (ply > 0)
+    {
       pos.undo_move(moves[--ply]);
+
+#ifdef EFFECT_CHECK
+      // 利きの整合性のテスト(重いのでテストが終わったらコメントアウトする)
+      effect_check(pos);
+#endif
+    }
 
     // 100回に1回ごとに'.'を出力(進んでいることがわかるように)
     if ((i % 1000) == 0)

@@ -3,6 +3,9 @@
 // これはshogi.hで定義しているのでLONG_EFFECT_LIBRARYがdefineされていないときにも必要。
 namespace Effect8 { Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1]; }
 
+// ----------------------
+//  長い利きに関するライブラリ
+// ----------------------
 
 #ifdef LONG_EFFECT_LIBRARY
 
@@ -25,6 +28,10 @@ std::ostream& output_around_n(std::ostream& os, uint32_t d,int n)
   }
   return os;
 }
+
+// ----------------------
+//    8近傍ライブラリ
+// ----------------------
 
 namespace Effect8
 {
@@ -57,6 +64,10 @@ namespace Effect8
 
 }
 
+// ----------------------
+//    24近傍ライブラリ
+// ----------------------
+
 namespace Effect24
 {
   Directions board_mask_table[SQ_NB];
@@ -81,57 +92,37 @@ namespace Effect24
   std::ostream& operator<<(std::ostream& os, Directions d) { return output_around_n(os, d, 5); }
 }
 
-// Positionクラスの長い利きの初期化処理
-void Position::set_effect()
-{
-  using namespace Effect8;
-
-  // ゼロクリア
-  for (auto c : COLOR) board_effect[c].clear();
-  long_effect.clear();
-
-  // すべての駒に対して利きを列挙して、その先の升の利きを更新
-  for (auto sq : pieces())
-  {
-    Piece pc = piece_on(sq);
-    // pcをsqに置くことによる利きのupdate
-    auto effect = effects_from(pc, sq, pieces());
-    Color c = color_of(pc);
-    for (auto to : effect)
-      ADD_BOARD_EFFECT(c, to , 1);
-    if (has_long_effect(pc))
-    {
-      // ただし、馬・龍に対しては、長い利きは、角・飛車と同じ方向だけなので成り属性を消して、利きを求め直す。
-      if (type_of(pc) != LANCE)
-        effect = effects_from(Piece(pc & ~PIECE_PROMOTE), sq, pieces());
-
-      for (auto to : effect)
-      {
-        auto dir = directions_of(sq, to);
-        long_effect.dir_bw[to].dirs[c] ^= dir;
-      }
-    }
-  }
-
-  // デバッグ用に表示させて確認。
-  //std::cout << "BLACK board effect\n" << board_effect[BLACK] << "WHITE board effect\n" << board_effect[WHITE];
-  //std::cout << "long effect\n" << long_effect;
-
-}
+// ----------------------
+//  長い利きに関するライブラリ
+// ----------------------
 
 namespace LongEffect
 {
+  // ----------------------
+  //  ByteBoard(利きの数を表現)
+  // ----------------------
+
   std::ostream& operator<<(std::ostream& os, const ByteBoard& board)
   {
-    // 利きの数をそのまま表示。10以上あるところの利きの表示がおかしくなるが、まあそれはレアケースなので良しとする。
+    // 利きの数をそのまま表示。10以上あるところの利きの表示がおかしくなるので16進数表示にしておく。
     for (auto r : Rank())
     {
       for (File f = FILE_9; f >= FILE_1; --f)
-        os << (int)board.e[f | r];
+      {
+        int e = uint8_t(board.e[f | r]);
+        if (e < 16)
+          os << "0123456789ABCDEF"[e];
+        else
+          os << "[" << e << "]"; // プログラムのバグで-1(255)などになっているのだろうが、その値が表示されていて欲しい。
+      }
       os << std::endl;
     }
     return os;
   }
+
+  // ----------------------
+  //  WordBoard(利きの方向を先後同時に表現)
+  // ----------------------
 
   std::ostream& operator<<(std::ostream& os, const WordBoard& board)
   {
@@ -155,14 +146,53 @@ namespace LongEffect
     return os;
   }
 
-  // --- LONG_EFFECT_LIBRARYの初期化
-  void init()
+  // ----------------------
+  //  Positionクラスの初期化時の利きの全計算
+  // ----------------------
+
+  void calc_effect(Position& pos)
   {
-    Effect8::init();
-    Effect24::init();
+    using namespace Effect8;
+
+    auto& board_effect = pos.board_effect;
+    auto& long_effect = pos.long_effect;
+
+    // ゼロクリア
+    for (auto c : COLOR) board_effect[c].clear();
+    long_effect.clear();
+
+    // すべての駒に対して利きを列挙して、その先の升の利きを更新
+    for (auto sq : pos.pieces())
+    {
+      Piece pc = pos.piece_on(sq);
+      // pcをsqに置くことによる利きのupdate
+      auto effect = effects_from(pc, sq, pos.pieces());
+      Color c = color_of(pc);
+      for (auto to : effect)
+        ADD_BOARD_EFFECT(c, to, 1);
+      if (has_long_effect(pc))
+      {
+        // ただし、馬・龍に対しては、長い利きは、角・飛車と同じ方向だけなので成り属性を消して、利きを求め直す。
+        if (type_of(pc) != LANCE)
+          effect = effects_from(Piece(pc & ~PIECE_PROMOTE), sq, pos.pieces());
+
+        for (auto to : effect)
+        {
+          auto dir = directions_of(sq, to);
+          long_effect.dir_bw[to].dirs[c] ^= dir;
+        }
+      }
+    }
+
+    // デバッグ用に表示させて確認。
+    //std::cout << "BLACK board effect\n" << board_effect[BLACK] << "WHITE board effect\n" << board_effect[WHITE];
+    //std::cout << "long effect\n" << long_effect;
+
   }
 
-  // --- do_move()時の利きの更新処理
+  // ----------------------
+  //  do_move()での利きの更新用
+  // ----------------------
 
   using namespace Effect8;
  
@@ -215,7 +245,7 @@ namespace LongEffect
   // 2) toの地点からUsの駒を移動させるなら、toの地点から取り除かれる利き(dir_bw_us)以外は、遮断されていたものが回復する利きであるから、このray上の利きは増えるべき。
   // 1)の状態か2の状態かをpで選択する。1)ならp=+1 ,  2)なら p=-1。
 
-#define UPDATE_LONG_EFFECT_FROM(to,dir_bw_us,dir_bw_others,p) {  \
+#define UPDATE_LONG_EFFECT_FROM_(EFFECT_FUNC,to,dir_bw_us,dir_bw_others,p) {  \
     Square sq;                                                                                       \
     uint16_t dir_bw = dir_bw_us ^ dir_bw_others;  /* trick a) */                                     \
     auto toww = to_sqww(to);                                                                         \
@@ -241,9 +271,15 @@ namespace LongEffect
         sq = to_sq(toww2);                                                                           \
         /* trick b) xorで先後同時にこの方向の利きを更新*/                                            \
         long_effect.dir_bw[sq].u16 ^= value;                                                         \
-        ADD_BOARD_EFFECT_BOTH(Us,sq,e1,e2);                                                          \
+        EFFECT_FUNC(Us,sq,e1,e2);                                                                    \
       } while (pos.piece_on(sq) == NO_PIECE);                                                        \
     }}
+
+// do_move()のときに使う用。
+#define UPDATE_LONG_EFFECT_FROM(to,dir_bw_us,dir_bw_others,p) { UPDATE_LONG_EFFECT_FROM_(ADD_BOARD_EFFECT_BOTH,to,dir_bw_us,dir_bw_others,p); }
+
+// undo_move()で巻き戻すときに使う用。(利きの更新関数が違う)
+#define UPDATE_LONG_EFFECT_FROM_REWIND(to,dir_bw_us,dir_bw_others,p) { UPDATE_LONG_EFFECT_FROM_(ADD_BOARD_EFFECT_BOTH_REWIND,to,dir_bw_us,dir_bw_others,p); }
 
 
   // Usの手番で駒pcをtoに配置したときの盤面の利きの更新
@@ -359,8 +395,6 @@ namespace LongEffect
     while (inc_target) { auto sq = inc_target.pop(); ADD_BOARD_EFFECT(Us, sq , +1); }
     while (dec_target) { auto sq = dec_target.pop(); ADD_BOARD_EFFECT(Us, sq , -1); }
 
-//    std::cout << pos << board_effect[WHITE];
-
     // -- fromの地点での長い利きの更新。(capturesのときと同様)
 
     auto dir = directions_of(from, to);
@@ -379,8 +413,6 @@ namespace LongEffect
     auto dir_bw_others = pos.long_effect.dir_bw_on(from) & dir_mask;
     UPDATE_LONG_EFFECT_FROM(from, dir_bw_us, dir_bw_others, -1);
 
-//    std::cout << pos << board_effect[WHITE];
-
     // -- toの地点での長い利きの更新。
     // ここに移動させた駒からの長い利きと、これにより遮断された長い利きに関する更新
 
@@ -390,14 +422,137 @@ namespace LongEffect
     UPDATE_LONG_EFFECT_FROM(to, dir_bw_us, dir_bw_others, +1);
   }
 
+  // ----------------------
+  //  undo_move()での利きの更新用
+  // ----------------------
 
-  // 関数の明示的な実体化
+  // 上の3つの関数の逆変換を行なう関数。
+
+  template <Color Us> void rewind_by_dropping_piece(Position& pos, Square to, Piece dropped_pc)
+  {
+    auto& board_effect = pos.board_effect;
+
+    auto inc_target = short_effects_from(dropped_pc, to);
+    while (inc_target)
+    {
+      auto sq = inc_target.pop();
+      ADD_BOARD_EFFECT_REWIND(Us, sq, -1); // rewind時には-1
+    }
+
+    auto& long_effect = pos.long_effect;
+
+    auto dir_bw_us = LongEffect::dir_bw_of(dropped_pc);
+    auto dir_bw_others = pos.long_effect.dir_bw_on(to);
+    UPDATE_LONG_EFFECT_FROM_REWIND(to, dir_bw_us, dir_bw_others, -1); // rewind時には-1
+  }
+
+  template <Color Us> void rewind_by_capturing_piece<Us>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc, Piece captured_pc)
+  {
+    auto& board_effect = pos.board_effect;
+    auto& long_effect = pos.long_effect;
+
+    auto inc_target = short_effects_from(moved_pc, from);
+    auto dec_target = short_effects_from(moved_after_pc, to);
+
+    auto and_target = inc_target & dec_target;
+    inc_target ^= and_target;
+    dec_target ^= and_target;
+
+    while (inc_target) { auto sq = inc_target.pop(); ADD_BOARD_EFFECT_REWIND(Us, sq, +1); }
+    while (dec_target) { auto sq = dec_target.pop(); ADD_BOARD_EFFECT_REWIND(Us, sq, -1); }
+
+    // 捕獲された駒の利きの復活
+    inc_target = short_effects_from(captured_pc, to);
+    while (inc_target) { auto sq = inc_target.pop(); ADD_BOARD_EFFECT_REWIND(~Us, sq, +1); }
+
+    // -- toの地点での長い利きの更新。
+
+    auto dir_bw_us = LongEffect::dir_bw_of(moved_after_pc);
+    auto dir_bw_others = LongEffect::dir_bw_of(captured_pc);
+    UPDATE_LONG_EFFECT_FROM_REWIND(to, dir_bw_us, dir_bw_others, -1); // rewind時はこの符号が-1
+                                                                    
+    // -- fromの地点での長い利きの更新。
+
+    auto dir = directions_of(from, to);
+    uint16_t dir_mask;
+    if (dir != 0)
+    {
+      // 桂以外による移動
+      auto dir_cont = uint16_t(1 << (7 - LSB32(dir)));
+      dir_mask = (uint16_t)~(dir_cont | (dir_cont << 8));
+    } else {
+      // 桂による移動(non mask)
+      dir_mask = 0xffff;
+    }
+
+    dir_bw_us = LongEffect::dir_bw_of(moved_pc) & dir_mask;
+    dir_bw_others = pos.long_effect.dir_bw_on(from) & dir_mask;
+    UPDATE_LONG_EFFECT_FROM_REWIND(from, dir_bw_us, dir_bw_others, +1); // rewind時はこの符号が+1
+  }
+
+  template <Color Us> void rewind_by_no_capturing_piece<Us>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc)
+  {
+    auto& board_effect = pos.board_effect;
+    auto& long_effect = pos.long_effect;
+
+    auto inc_target = short_effects_from(moved_pc, from);
+    auto dec_target = short_effects_from(moved_after_pc, to);
+
+    auto and_target = inc_target & dec_target;
+    inc_target ^= and_target;
+    dec_target ^= and_target;
+
+    while (inc_target) { auto sq = inc_target.pop(); ADD_BOARD_EFFECT_REWIND(Us, sq, +1); }
+    while (dec_target) { auto sq = dec_target.pop(); ADD_BOARD_EFFECT_REWIND(Us, sq, -1); }
+
+    // -- toの地点での長い利きの更新。
+
+    auto dir_bw_us = LongEffect::dir_bw_of(moved_after_pc);
+    auto dir_bw_others = pos.long_effect.dir_bw_on(to);
+
+    UPDATE_LONG_EFFECT_FROM_REWIND(to, dir_bw_us, dir_bw_others, -1); // rewind時はこの符号が-1
+                                                                    
+    // -- fromの地点での長い利きの更新。(capturesのときと同様)
+
+    auto dir = directions_of(from, to);
+    uint16_t dir_mask;
+    if (dir != 0)
+    {
+      // 桂以外による移動
+      auto dir_cont = uint16_t(1 << (7 - LSB32(dir)));
+      dir_mask = (uint16_t)~(dir_cont | (dir_cont << 8));
+    } else {
+      // 桂による移動(non mask)
+      dir_mask = 0xffff;
+    }
+
+    dir_bw_us = LongEffect::dir_bw_of(moved_pc) & dir_mask;
+    dir_bw_others = pos.long_effect.dir_bw_on(from) & dir_mask;
+    UPDATE_LONG_EFFECT_FROM_REWIND(from, dir_bw_us, dir_bw_others, +1); // rewind時はこの符号が+1
+  }
+
+  // --- 関数の明示的な実体化
+  
   template void update_by_dropping_piece<BLACK>(Position& pos, Square to, Piece pc);
   template void update_by_dropping_piece<WHITE>(Position& pos, Square to, Piece pc);
   template void update_by_capturing_piece<BLACK>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc, Piece captured_pc);
   template void update_by_capturing_piece<WHITE>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc, Piece captured_pc);
   template void update_by_no_capturing_piece<BLACK>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc);
   template void update_by_no_capturing_piece<WHITE>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc);
+  template void rewind_by_dropping_piece<BLACK>(Position& pos, Square to, Piece pc);
+  template void rewind_by_dropping_piece<WHITE>(Position& pos, Square to, Piece pc);
+  template void rewind_by_capturing_piece<BLACK>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc, Piece captured_pc);
+  template void rewind_by_capturing_piece<WHITE>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc, Piece captured_pc);
+  template void rewind_by_no_capturing_piece<BLACK>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc);
+  template void rewind_by_no_capturing_piece<WHITE>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc);
+
+  // --- LONG_EFFECT_LIBRARYの初期化
+
+  void init()
+  {
+    Effect8::init();
+    Effect24::init();
+  }
 
 }
 

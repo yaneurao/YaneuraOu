@@ -249,9 +249,8 @@ void Position::set(std::string sfen)
   // --- effect
 
 #ifdef LONG_EFFECT_LIBRARY
-
-  set_effect();
-
+  // 利きの全計算による更新
+  LongEffect::calc_effect(*this);
 #endif
 
   // --- validation
@@ -777,7 +776,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
     materialDiff = 0;
 
 #ifdef LONG_EFFECT_LIBRARY
-    // 駒打ちによる利きの更新更新
+    // 駒打ちによる利きの更新処理
     LongEffect::update_by_dropping_piece<Us>(*this,to,pc);
 #endif
 
@@ -921,40 +920,41 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 }
 
-// do_move()を先後分けたdo_move_impl<>()を呼び出す。
-void Position::do_move(Move m, StateInfo& st, bool givesCheck)
-{
-  if (sideToMove == BLACK)
-    do_move_impl<BLACK>(m, st, givesCheck);
-  else
-    do_move_impl<WHITE>(m, st, givesCheck);
-}
-
 
 // 指し手で盤面を1手戻す。do_move()の逆変換。
-void Position::undo_move(Move m)
+template <Color Us>
+void Position::undo_move_impl(Move m)
 {
-  // 相手番に変更
-  sideToMove = ~sideToMove;
+  // Usは1手前の局面での手番(に呼び出し元でしてある)
 
   auto to = move_to(m);
   ASSERT_LV2(is_ok(to));
-  auto to_pc = board[to];
 
-  PieceNo piece_no = piece_no_of(to_pc, to); // 移動元のpiece_no == いまtoの場所にある駒のpiece_no
+  // 移動後の駒
+  auto moved_after_pc = board[to];
+
+  PieceNo piece_no = piece_no_of(moved_after_pc, to); // 移動元のpiece_no == いまtoの場所にある駒のpiece_no
+
+  // 移動前の駒
+  Piece moved_pc = is_promote(m) ? (moved_after_pc - PIECE_PROMOTE) : moved_after_pc;
 
   if (is_drop(m))
   {
     // --- 駒打ち
 
     // toの場所にある駒を手駒に戻す
-    Piece pt = raw_type_of(to_pc);
+    Piece pt = raw_type_of(moved_after_pc);
    
-    evalList.put_piece(piece_no, sideToMove, pt, hand_count(hand[sideToMove], pt));
-    add_hand(hand[sideToMove], pt);
+    evalList.put_piece(piece_no, Us, pt, hand_count(hand[Us], pt));
+    add_hand(hand[Us], pt);
 
     // toの場所から駒を消す
     remove_piece(to);
+
+#ifdef LONG_EFFECT_LIBRARY
+    // 駒打ちのundoによる利きの復元
+    LongEffect::rewind_by_dropping_piece<Us>(*this, to, moved_after_pc);
+#endif
 
   } else {
 
@@ -962,9 +962,6 @@ void Position::undo_move(Move m)
 
     auto from = move_from(m);
     ASSERT_LV2(is_ok(from));
-
-    // 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
-    put_piece(from, is_promote(m) ? (to_pc - PIECE_PROMOTE) : to_pc,piece_no);
 
     // toの場所から駒を消す
     remove_piece(to);
@@ -974,20 +971,63 @@ void Position::undo_move(Move m)
     // (なので駒打ちの場合は、st->capturedTypeを設定していないから参照してはならない)
     if (st->capturedType != NO_PIECE)
     {
+      Piece to_pc = st->capturedType;
+
       // 盤面のtoの地点に捕獲されていた駒を復元する
-      PieceNo piece_no = piece_no_of(sideToMove, raw_type_of(st->capturedType)); // 捕っていた駒(手駒にある)のpiece_no
-      put_piece(to, make_piece(~sideToMove, st->capturedType), piece_no);
+      PieceNo piece_no = piece_no_of(~Us, raw_type_of(to_pc)); // 捕っていた駒(手駒にある)のpiece_no
+      put_piece(to, make_piece(~Us, st->capturedType), piece_no);
 
       // 手駒から減らす
-      sub_hand(hand[sideToMove], raw_type_of(st->capturedType));
+      sub_hand(hand[Us], raw_type_of(st->capturedType));
+
+      // 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
+      put_piece(from, moved_pc, piece_no);
+
+#ifdef LONG_EFFECT_LIBRARY
+      // 移動先で駒を捕獲するときの利きの更新
+      LongEffect::rewind_by_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc, make_piece(~Us, to_pc));
+#endif
+
+    } else {
+
+      // 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
+      put_piece(from, moved_pc, piece_no);
+
+#ifdef LONG_EFFECT_LIBRARY
+      // 移動先で駒を捕獲しないときの利きの更新
+      LongEffect::rewind_by_no_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc);
+#endif
+
     }
   }
+
+  // --- 相手番に変更
+  sideToMove = Us; // Usは先後入れ替えて呼び出されているはず。
 
   // --- StateInfoを巻き戻す
   st = st->previous;
 
   --gamePly;
 }
+
+// do_move()を先後分けたdo_move_impl<>()を呼び出す。
+void Position::do_move(Move m, StateInfo& st, bool givesCheck)
+{
+  if (sideToMove == BLACK)
+    do_move_impl<BLACK>(m, st, givesCheck);
+  else
+    do_move_impl<WHITE>(m, st, givesCheck);
+}
+
+// undo_move()を先後分けたdo_move_impl<>()を呼び出す。
+void Position::undo_move(Move m)
+{
+  if (sideToMove == BLACK)
+    undo_move_impl<WHITE>(m); // 1手前の手番が返らないとややこしいので入れ替えておく。
+  else
+    undo_move_impl<BLACK>(m);
+}
+
 
 // ----------------------------------
 //      内部情報の正当性のテスト

@@ -338,8 +338,6 @@ struct Position
 
   // -- 利き
 #ifdef LONG_EFFECT_LIBRARY
-  // 利きの初期化
-  void set_effect();
 
   // 各升の利きの数
   LongEffect::ByteBoard board_effect[COLOR_NB];
@@ -368,6 +366,9 @@ protected:
 
   // do_move()の先後分けたもの。内部的に呼び出される。
   template <Color Us> void do_move_impl(Move m, StateInfo& st, bool givesCheck);
+
+  // undo_move()の先後分けたもの。内部的に呼び出される。
+  template <Color Us> void Position::undo_move_impl(Move m);
 
   // --- Bitboards
   // alignas(16)を要求するものを先に宣言。
