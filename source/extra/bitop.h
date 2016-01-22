@@ -115,19 +115,19 @@ inline int32_t POPCNT64(uint64_t a) {
 
 #ifdef IS_64BIT
 // 1である最下位のbitのbit位置を得る。0を渡してはならない。
-inline int LSB32(uint32_t v) { unsigned long index; _BitScanForward(&index, v); return index; }
-inline int LSB64(uint64_t v) { unsigned long index; _BitScanForward64(&index, v); return index; }
+inline int LSB32(uint32_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanForward(&index, v); return index; }
+inline int LSB64(uint64_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanForward64(&index, v); return index; }
 
 // 1である最上位のbitのbit位置を得る。0を渡してはならない。
-inline int MSB32(uint32_t v) { unsigned long index; _BitScanReverse(&index, v); return index; }
-inline int MSB64(uint64_t v) { unsigned long index; _BitScanReverse64(&index, v); return index; }
+inline int MSB32(uint32_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanReverse(&index, v); return index; }
+inline int MSB64(uint64_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanReverse64(&index, v); return index; }
 #else
 // 32bit環境では64bit版を要求されたら2回に分けて実行。
-inline int LSB32(uint32_t v) { unsigned long index; _BitScanForward(&index, v); return index; }
-inline int LSB64(uint64_t v) { return uint32_t(v) ? LSB32(uint32_t(v)) : 32 + LSB32(uint32_t(v >> 32)); }
+inline int LSB32(uint32_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanForward(&index, v); return index; }
+inline int LSB64(uint64_t v) { ASSERT_LV3(v != 0); return uint32_t(v) ? LSB32(uint32_t(v)) : 32 + LSB32(uint32_t(v >> 32)); }
 
-inline int MSB32(uint32_t v) { unsigned long index; _BitScanReverse(&index, v); return index; }
-inline int MSB64(uint64_t v) { return uint32_t(v >> 32) ? 32 + MSB32(uint32_t(v >> 32)) : MSB32(uint32_t(v)); }
+inline int MSB32(uint32_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanReverse(&index, v); return index; }
+inline int MSB64(uint64_t v) { ASSERT_LV3(v != 0); return uint32_t(v >> 32) ? 32 + MSB32(uint32_t(v >> 32)) : MSB32(uint32_t(v)); }
 #endif
 
 // ----------------------------

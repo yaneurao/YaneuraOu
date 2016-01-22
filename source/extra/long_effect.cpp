@@ -100,11 +100,17 @@ void Position::set_effect()
     for (auto to : effect)
       ADD_BOARD_EFFECT(c, to , 1);
     if (has_long_effect(pc))
+    {
+      // ただし、馬・龍に対しては、長い利きは、角・飛車と同じ方向だけなので成り属性を消して、利きを求め直す。
+      if (type_of(pc) != LANCE)
+        effect = effects_from(Piece(pc & ~PIECE_PROMOTE), sq, pieces());
+
       for (auto to : effect)
       {
         auto dir = directions_of(sq, to);
         long_effect.dir_bw[to].dirs[c] ^= dir;
       }
+    }
   }
 
   // デバッグ用に表示させて確認。
@@ -174,8 +180,9 @@ namespace LongEffect
     case B_SILVER: return silverEffect(BLACK, sq);
     case W_SILVER: return silverEffect(WHITE, sq);
 
-    case B_GOLD: return goldEffect(BLACK, sq);
-    case W_GOLD: return goldEffect(WHITE, sq);
+      // 金相当の駒
+    case B_GOLD: case B_PRO_PAWN: case B_PRO_LANCE: case B_PRO_KNIGHT: case B_PRO_SILVER: return goldEffect(BLACK, sq);
+    case W_GOLD: case W_PRO_PAWN: case W_PRO_LANCE: case W_PRO_KNIGHT: case W_PRO_SILVER: return goldEffect(WHITE, sq);
       
     // 馬の短い利きは上下左右
     case B_HORSE : case W_HORSE:
@@ -274,58 +281,6 @@ namespace LongEffect
     UPDATE_LONG_EFFECT_FROM(to , dir_bw_us, dir_bw_others, +1);
   }
 
-  // Usの手番で駒pcをfromから移動させるときの盤面の利きの更新(このあと、update_by_capturing_piece()かupdate_by_no_capturing_piece()を呼び出す)
-  template <Color Us> void update_by_moving(Position& pos, Square from, Piece moved_pc)
-  {
-    auto& board_effect = pos.board_effect;
-    auto& long_effect = pos.long_effect;
-
-    // -- fromの地点での長い利きの更新。
-    // この駒が移動することにより、ここに利いていた長い利きが延長されるのと、この駒による長い利きに関する更新。
-
-    // このタイミングでは(captureではない場合)toにまだ駒はない。
-
-    auto dir_bw_us = LongEffect::dir_bw_of(moved_pc);     // 移動させた駒による長い利きは無くなって
-    auto dir_bw_others = pos.long_effect.dir_bw_on(from); // そこで遮断されていた利きの分だけ増える
-
-    std::cout << pos << board_effect[WHITE];
-
-//    UPDATE_LONG_EFFECT_FROM(from, dir_bw_us, dir_bw_others, -1);
-    Square sq;
-    auto to = from;
-    int8_t p = -1;
-    uint16_t dir_bw = dir_bw_us ^ dir_bw_others;  /* trick a) */                                     
-      auto toww = to_sqww(to);                                                                       
-      while (dir_bw)                                                                                 
-      {                                                                                              
-        /* 更新していく方角*/                                                                        
-        int dir = LSB32(dir_bw) & 7; /* Effect8::Direct型*/                                          
-        /* 更新していく値。これは先後の分、同時に扱いたい。*/                                        
-        uint16_t value = uint16_t((1 << dir) | (1 << (dir + 8)));                                    
-        /* valueに関する上記の2つのbitをdir_bwから取り出す */                                        
-        value &= dir_bw;                                                                             
-        dir_bw &= ~value; /* dir_bwのうち、上記の2つのbitをクリア*/                                  
-        auto delta = DirectToDeltaWW((Direct)dir);                                                   
-        /* valueにUs側のrayを含むか */                                                               
-        bool the_same_color = (Us == BLACK && (value & 0xff)) || ((Us == WHITE) && (value & 0xff00));
-        int8_t e1 = (dir_bw_us & value) ? (+(p)) : (the_same_color ? (-(p)) : 0);                    
-        bool not_the_same = (Us == BLACK && (value & 0xff00)) || ((Us == WHITE) && (value & 0xff));  
-        int8_t e2 = not_the_same ? (-(p)) : 0;                                                       
-        auto toww2 = toww;
-        do {
-            toww2 += delta;                                                                           
-            if (!is_ok(toww2)) /* 壁に当たったのでこのrayは更新終了*/                                 
-              break;                                                                                 
-            sq = to_sq(toww2);
-              /* trick b) xorで先後同時にこの方向の利きを更新*/                                      
-              long_effect.dir_bw[sq].u16 ^= value;                                          
-              ADD_BOARD_EFFECT_BOTH(Us, sq, e1, e2);                                        
-        } while (pos.piece_on(sq) == NO_PIECE);                                             
-      }
-
-      std::cout << pos << board_effect[WHITE];
-  }
-
   // Usの手番で駒pcをtoに移動させ、成りがある場合、moved_after_pcになっており、捕獲された駒captured_pcがあるときの盤面の利きの更新
   template <Color Us> void update_by_capturing_piece<Us>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc, Piece captured_pc)
   {
@@ -352,12 +307,37 @@ namespace LongEffect
     dec_target = short_effects_from(captured_pc, to);
     while (dec_target) { auto sq = dec_target.pop(); ADD_BOARD_EFFECT(~Us, sq , -1); }
 
+    // -- fromの地点での長い利きの更新。
+    // この駒が移動することにより、ここに利いていた長い利きが延長されるのと、この駒による長い利きに関する更新。
+
+    // このタイミングでは(captureではない場合)toにまだ駒はない。
+    // fromには駒はあるが、toに駒をおいてもfromより向こう側(toと直線上)の長い利きの状態は変わらない。
+    // (toに移動した駒による長い利きが、移動前もfromから同じように発生していたと考えられるから。)
+    // だから、移動させる方向と反対方向のrayは更新してはならない。(敵も味方も共通で)
+
+    // fromからtoへの反対方向への利きをマスクする(ちょっとこれ求めるの嫌かも..)
+    auto dir = directions_of(from, to);
+    uint16_t dir_mask;
+    if (dir != 0)
+    {
+      // 桂以外による移動
+      auto dir_cont = uint16_t(1 << (7 - LSB32(dir)));
+      dir_mask = (uint16_t)~(dir_cont | (dir_cont << 8));
+    } else {
+      // 桂による移動(non mask)
+      dir_mask = 0xffff;
+    }
+
+    auto dir_bw_us = LongEffect::dir_bw_of(moved_pc) & dir_mask;     // 移動させた駒による長い利きは無くなって
+    auto dir_bw_others = pos.long_effect.dir_bw_on(from) & dir_mask; // そこで遮断されていた利きの分だけ増える
+    UPDATE_LONG_EFFECT_FROM(from, dir_bw_us, dir_bw_others, -1);
+
     // -- toの地点での長い利きの更新。
     // ここはもともと今回捕獲された駒があって利きが遮断されていたので、
     // ここに移動させた駒からの長い利きと、今回捕獲した駒からの長い利きに関する更新だけで十分
 
-    auto dir_bw_us = LongEffect::dir_bw_of(moved_after_pc);
-    auto dir_bw_others = LongEffect::dir_bw_of(captured_pc);
+    dir_bw_us = LongEffect::dir_bw_of(moved_after_pc);
+    dir_bw_others = LongEffect::dir_bw_of(captured_pc);
     UPDATE_LONG_EFFECT_FROM(to, dir_bw_us , dir_bw_others , +1);
   }
 
@@ -379,13 +359,33 @@ namespace LongEffect
     while (inc_target) { auto sq = inc_target.pop(); ADD_BOARD_EFFECT(Us, sq , +1); }
     while (dec_target) { auto sq = dec_target.pop(); ADD_BOARD_EFFECT(Us, sq , -1); }
 
+//    std::cout << pos << board_effect[WHITE];
+
+    // -- fromの地点での長い利きの更新。(capturesのときと同様)
+
+    auto dir = directions_of(from, to);
+    uint16_t dir_mask;
+    if (dir != 0)
+    {
+      // 桂以外による移動
+      auto dir_cont = uint16_t(1 << (7 - LSB32(dir)));
+      dir_mask = (uint16_t)~(dir_cont | (dir_cont << 8));
+    } else {
+      // 桂による移動(non mask)
+      dir_mask = 0xffff;
+    }
+
+    auto dir_bw_us = LongEffect::dir_bw_of(moved_pc) & dir_mask;
+    auto dir_bw_others = pos.long_effect.dir_bw_on(from) & dir_mask;
+    UPDATE_LONG_EFFECT_FROM(from, dir_bw_us, dir_bw_others, -1);
+
+//    std::cout << pos << board_effect[WHITE];
+
     // -- toの地点での長い利きの更新。
     // ここに移動させた駒からの長い利きと、これにより遮断された長い利きに関する更新
-    
-    auto dir_bw_us = LongEffect::dir_bw_of(moved_pc /*moved_after_pc*/);
-    auto dir_bw_others = pos.long_effect.dir_bw_on(to);
-    // →　ここ、moved_after_pcが正しいが、長い利きは成っても特性が変わる駒はないため、moved_pcにしておくことで
-    // 一つ前のコードと同じdir_bw_of()になり、最適化でちょっとだけお得。
+
+    dir_bw_us = LongEffect::dir_bw_of(moved_after_pc);
+    dir_bw_others = pos.long_effect.dir_bw_on(to);
     
     UPDATE_LONG_EFFECT_FROM(to, dir_bw_us, dir_bw_others, +1);
   }
@@ -394,8 +394,6 @@ namespace LongEffect
   // 関数の明示的な実体化
   template void update_by_dropping_piece<BLACK>(Position& pos, Square to, Piece pc);
   template void update_by_dropping_piece<WHITE>(Position& pos, Square to, Piece pc);
-  template void update_by_moving<BLACK>(Position& pos, Square from, Piece moved_pc);
-  template void update_by_moving<WHITE>(Position& pos, Square from, Piece moved_pc);
   template void update_by_capturing_piece<BLACK>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc, Piece captured_pc);
   template void update_by_capturing_piece<WHITE>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc, Piece captured_pc);
   template void update_by_no_capturing_piece<BLACK>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc);

@@ -71,7 +71,7 @@
 
 #ifdef MATE_ENGINE
 #define ENGINE_NAME "YaneuraOu mate solver"
-#undef ASSERT_LV
+//#undef ASSERT_LV
 #define KEEP_LAST_MOVE
 #undef  MAX_PLY_NUM
 #define MAX_PLY_NUM 2000
@@ -133,15 +133,13 @@
 
 // switchにおいてdefaultに到達しないことを明示して高速化させる
 
-#ifdef _DEBUG
 // デバッグ時は普通にしとかないと変なアドレスにジャンプして原因究明に時間がかかる。
-#define UNREACHABLE ASSERT_LV1(false);
-#elif defined(_MSC_VER)
-#define UNREACHABLE ASSERT_LV1(false); __assume(0);
+#if defined(_MSC_VER)
+#define UNREACHABLE ASSERT_LV3(false); __assume(0);
 #elif defined(__GNUC__)
-#define UNREACHABLE __builtin_unreachable();
+#define UNREACHABLE ASSERT_LV3(false); __builtin_unreachable();
 #else
-#define UNREACHABLE ASSERT_LV1(false);
+#define UNREACHABLE ASSERT_LV3(false);
 #endif
 
 

@@ -159,7 +159,7 @@ void perft(Position& pos, istringstream& is)
 // 利きの整合性のチェック
 void effect_check(Position& pos)
 {
-#ifdef LONG_EFFECT_LIBRARY
+#if defined(LONG_EFFECT_LIBRARY) && defined(KEEP_LAST_MOVE)
   // 利きは、Position::set_effect()で全計算され、do_move()のときに差分更新されるが、
   // 差分更新された値がset_effect()の値と一致するかをテストする。
   using namespace LongEffect;
@@ -172,14 +172,14 @@ void effect_check(Position& pos)
     for(auto sq : SQ)
       if (bb[c].effect(sq) != pos.board_effect[c].effect(sq))
       {
-        cout << "Error effect count of " << c << " at " << sq << endl << pos << "wrong\n" << bb[c] << endl << "correct\n" << pos.board_effect[c];
+        cout << "Error effect count of " << c << " at " << sq << endl << pos << "wrong\n" << bb[c] << endl << "correct\n" << pos.board_effect[c] << pos.moves_from_start_pretty();
         ASSERT(false);
       }
 
   for(auto sq : SQ)
     if (wb.dir_bw_on(sq) != pos.long_effect.dir_bw_on(sq))
     {
-      cout << "Error long effect at " << sq << endl << pos << "wrong\n" << wb << endl << "correct\n" << pos.long_effect;
+      cout << "Error long effect at " << sq << endl << pos << "wrong\n" << wb << endl << "correct\n" << pos.long_effect << pos.moves_from_start_pretty();
       ASSERT(false);
     }
 
@@ -200,6 +200,9 @@ void random_player(Position& pos,uint64_t loop_max)
 
   for (int i = 0; i < loop_max; ++i)
   {
+    // undoのテストをしたくないときはここで局面を再度初期化する。
+    //    pos.set_hirate();
+
     for (ply = 0; ply < MAX_PLY; ++ply)
     {
       MoveList<LEGAL_ALL> mg(pos); // 全合法手の生成
@@ -210,9 +213,6 @@ void random_player(Position& pos,uint64_t loop_max)
 
       // 局面がおかしくなっていないかをテストする
       ASSERT_LV3(is_ok(pos));
-
-      // 利きの整合性のテスト(重いのでテストが終わったらコメントアウトする)
-      effect_check(pos);
 
       pos.check_info_update();
 
@@ -228,6 +228,9 @@ void random_player(Position& pos,uint64_t loop_max)
 
       pos.do_move(m, state[ply]);
       moves[ply] = m;
+
+      // 利きの整合性のテスト(重いのでテストが終わったらコメントアウトする)
+//      effect_check(pos);
     }
     // 局面を巻き戻してみる(undo_moveの動作テストを兼ねて)
     while (ply > 0)

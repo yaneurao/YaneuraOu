@@ -791,11 +791,6 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
     Piece moved_pc = piece_on(from);
     ASSERT_LV2(moved_pc != NO_PIECE);
 
-#ifdef LONG_EFFECT_LIBRARY
-    // 移動元から駒が消えるときの長い利きの更新
-    LongEffect::update_by_moving<Us>(*this, from, moved_pc);
-#endif
-
     // 移動先に駒の配置
     // もし成る指し手であるなら、成った後の駒を配置する。
     PieceNo piece_no = piece_no_of(moved_pc, from); // 移動元にあった駒のpiece_noを得る
@@ -814,6 +809,11 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
     if (to_pc != NO_PIECE)
     {
       // --- capture(駒の捕獲)
+
+#ifdef LONG_EFFECT_LIBRARY
+      // 移動先で駒を捕獲するときの利きの更新
+      LongEffect::update_by_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc, to_pc);
+#endif
 
       // 玉を取る指し手が実現することはない。この直前の局面で玉を逃げる指し手しか合法手ではないし、
       // 玉を逃げる指し手がないのだとしたら、それは詰みの局面であるから。
@@ -840,11 +840,6 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
       st->capturedType = type_of(to_pc);
       // 評価関数で使う駒割りの値も更新
       materialDiff += Eval::PieceValueCapture[to_pc];
-
-#ifdef LONG_EFFECT_LIBRARY
-      // 移動先で駒を捕獲するときの利きの更新
-      LongEffect::update_by_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc, to_pc);
-#endif
 
     } else {
       st->capturedType = NO_PIECE;

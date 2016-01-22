@@ -239,18 +239,8 @@ namespace LongEffect
 
   // --- do_move()のときに利きを更新するためのヘルパー関数
 
-  // 1) dropのとき       → update_by_dropping_piece()を呼び出す
-  // 2) no captureのとき → 移動前に(toの地点にまだ駒が移動していない状態で) update_by_movingを呼び出して、
-  //                        そのあとtoの地点に駒を移動させてから、update_by_no_capturing_piece()を呼び出す
-  // 3) captureのとき    → 移動前に(toの地点にまだ駒が移動していない状態で) update_by_movingを呼び出して、
-  //                        そのあとtoの地点に駒を移動させてから、update_by_capturing_piece()を呼び出す
-
-
   // Usの手番で駒pcをtoに配置したときの盤面の利きの更新
   template <Color Us> void update_by_dropping_piece(Position& pos, Square to, Piece moved_pc);
-
-  // Usの手番で駒pcをfromから移動させるときの盤面の利きの更新(このあと、update_by_capturing_piece()かupdate_by_no_capturing_piece()を呼び出す)
-  template <Color Us> void update_by_moving(Position& pos, Square from, Piece moved_pc);
 
   // Usの手番で駒pcをtoに移動させ、成りがある場合、moved_after_pcになっており、捕獲された駒captured_pcがあるときの盤面の利きの更新
   template <Color Us> void update_by_capturing_piece(Position& pos, Square from , Square to, Piece moved_pc, Piece moved_after_pc,Piece captured_pc);
