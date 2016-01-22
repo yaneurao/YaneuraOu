@@ -86,7 +86,9 @@ void Position::set_effect()
 {
   using namespace Effect8;
 
-  // effect,long_effect配列はゼロ初期化されているものとする。
+  // ゼロクリア
+  for (auto c : COLOR) board_effect[c].clear();
+  long_effect.clear();
 
   // すべての駒に対して利きを列挙して、その先の升の利きを更新
   for (auto sq : pieces())
@@ -96,7 +98,7 @@ void Position::set_effect()
     auto effect = effects_from(pc, sq, pieces());
     Color c = color_of(pc);
     for (auto to : effect)
-      INC_BOARD_EFFECT(c, to);
+      ADD_BOARD_EFFECT(c, to , 1);
     if (has_long_effect(pc))
       for (auto to : effect)
       {
@@ -157,20 +159,100 @@ namespace LongEffect
   // --- do_move()時の利きの更新処理
 
   using namespace Effect8;
+ 
+  // 駒pcをsqの地点においたときの短い利きを取得する(長い利きは含まれない)
+  inline Bitboard short_effects_from(Piece pc,Square sq)
+  {
+    switch (pc)
+    {
+    case B_PAWN: return pawnEffect(BLACK, sq);
+    case W_PAWN: return pawnEffect(WHITE, sq);
+
+    case B_KNIGHT: return knightEffect(BLACK, sq);
+    case W_KNIGHT: return knightEffect(WHITE, sq);
+
+    case B_SILVER: return silverEffect(BLACK, sq);
+    case W_SILVER: return silverEffect(WHITE, sq);
+
+    case B_GOLD: return goldEffect(BLACK, sq);
+    case W_GOLD: return goldEffect(WHITE, sq);
+      
+    // 馬の短い利きは上下左右
+    case B_HORSE : case W_HORSE:
+      return cross00StepEffect(sq);
+
+    // 龍の短い利きは斜め長さ1
+    case B_DRAGON : case W_DRAGON:
+      return cross45StepEffect(sq);
+
+    case B_KING : case W_KING:
+      return kingEffect(sq);
+
+      // 短いを持っていないもの
+    case B_LANCE: case B_BISHOP: case B_ROOK:
+    case W_LANCE: case W_BISHOP: case W_ROOK:
+      return ZERO_BB;
+
+    default:
+      UNREACHABLE; return ZERO_BB;
+    }
+  }
+
+  // ある升から8方向のrayに対する長い利きの更新処理。先後同時に更新が行えて、かつ、
+  // 発生と消滅が一つのコードで出来る。
+
+  // dir_bw_usの方角のrayを更新するときはUs側の利きが+pされる。
+  // dir_bw_othersの方角のrayを更新するときはそのrayの手番側の利きが-pされる。
+  // これは
+  // 1) toの地点にUsの駒を移動させるなら、toの地点で発生する利き(dir_bw_us)以外は、遮断された利きであるから、このray上の利きは減るべき。
+  // 2) toの地点からUsの駒を移動させるなら、toの地点から取り除かれる利き(dir_bw_us)以外は、遮断されていたものが回復する利きであるから、このray上の利きは増えるべき。
+  // 1)の状態か2の状態かをpで選択する。1)ならp=+1 ,  2)なら p=-1。
+
+#define UPDATE_LONG_EFFECT_FROM(to,dir_bw_us,dir_bw_others,p) {  \
+    Square sq;                                                                                       \
+    uint16_t dir_bw = dir_bw_us ^ dir_bw_others;  /* trick a) */                                     \
+    auto toww = to_sqww(to);                                                                         \
+    while (dir_bw)                                                                                   \
+    {                                                                                                \
+      /* 更新していく方角*/                                                                          \
+      int dir = LSB32(dir_bw) & 7; /* Effect8::Direct型*/                                            \
+      /* 更新していく値。これは先後の分、同時に扱いたい。*/                                          \
+      uint16_t value = uint16_t((1 << dir) | (1 << (dir + 8)));                                      \
+      /* valueに関する上記の2つのbitをdir_bwから取り出す */                                          \
+      value &= dir_bw;                                                                               \
+      dir_bw &= ~value; /* dir_bwのうち、上記の2つのbitをクリア*/                                    \
+      auto delta = DirectToDeltaWW((Direct)dir);                                                     \
+      /* valueにUs側のrayを含むか */                                                                 \
+      bool the_same_color = (Us == BLACK && (value & 0xff)) || ((Us == WHITE) && (value & 0xff00));  \
+      int8_t e1 = (dir_bw_us & value) ? (+(p)) : (the_same_color ? (-(p)) : 0);                      \
+      bool not_the_same = (Us == BLACK && (value & 0xff00)) || ((Us == WHITE) && (value & 0xff));    \
+      int8_t e2 = not_the_same ? (-(p)) : 0;                                                         \
+      auto toww2 = toww;                                                                             \
+      do {                                                                                           \
+        toww2 += delta;                                                                              \
+        if (!is_ok(toww2)) break; /* 壁に当たったのでこのrayは更新終了*/                             \
+        sq = to_sq(toww2);                                                                           \
+        /* trick b) xorで先後同時にこの方向の利きを更新*/                                            \
+        long_effect.dir_bw[sq].u16 ^= value;                                                         \
+        ADD_BOARD_EFFECT_BOTH(Us,sq,e1,e2);                                                          \
+      } while (pos.piece_on(sq) == NO_PIECE);                                                        \
+    }}
+
 
   // Usの手番で駒pcをtoに配置したときの盤面の利きの更新
-  template <Color Us> void update_by_dropping_piece(Position& pos, Square to, Piece pc)
+  template <Color Us> void update_by_dropping_piece(Position& pos, Square to, Piece dropped_pc)
   {
     auto& board_effect = pos.board_effect;
 
     // 駒打ちなので
     // 1) 打った駒による利きの数の加算処理
-    auto inc_target = effects_from(pc, to, pos.pieces());
+    auto inc_target = short_effects_from(dropped_pc, to);
     while (inc_target)
     {
       auto sq = inc_target.pop();
-      INC_BOARD_EFFECT(Us, sq);
+      ADD_BOARD_EFFECT(Us, sq, +1);
     }
+
     // 2) この駒が遠方駒なら長い利きの加算処理 + この駒によって遮断された利きの減算処理
 
     // これらは実は一度に行なうことが出来る。
@@ -187,35 +269,137 @@ namespace LongEffect
 
     auto& long_effect = pos.long_effect;
 
-    // trick a)
-    auto dir_bw = pos.long_effect.dir_bw_on(to) ^ LongEffect::dir_bw_of(pc);
-    auto toww = to_sqww(to);
-    while (dir_bw)
-    {
-      // 更新していく方角
-      int dir = LSB32(dir_bw) & 7; // Effect8::Direct型
-      
-      // trick b)
-
-      // 更新していく値。
-      // これは先後の分、同時に扱いたいので、先手の分と後手の分。
-      uint16_t value = uint16_t((1 << dir) | (1 << (dir+8)));
-      dir_bw &= ~value; // dir_bwのうち、↑の2つのbitをクリア
-
-      auto delta = DirectToDeltaWW((Direct)dir);
-
-      do {
-        toww += delta;
-        if (!is_ok(toww)) // 壁に当たったのでこのrayは更新終了
-          break;
-        long_effect.dir_bw[to_sq(toww)].u16 ^= value; // xorで先後同時にこの方向の利きを更新
-      } while (pos.piece_on(to_sq(toww)) == NO_PIECE);
-    }
+    auto dir_bw_us = LongEffect::dir_bw_of(dropped_pc); // 自分の打った駒による利きは増えて
+    auto dir_bw_others = pos.long_effect.dir_bw_on(to); // その駒によって遮断された利きは減る
+    UPDATE_LONG_EFFECT_FROM(to , dir_bw_us, dir_bw_others, +1);
   }
 
-  // ↑の関数の明示的な実体化
+  // Usの手番で駒pcをfromから移動させるときの盤面の利きの更新(このあと、update_by_capturing_piece()かupdate_by_no_capturing_piece()を呼び出す)
+  template <Color Us> void update_by_moving(Position& pos, Square from, Piece moved_pc)
+  {
+    auto& board_effect = pos.board_effect;
+    auto& long_effect = pos.long_effect;
+
+    // -- fromの地点での長い利きの更新。
+    // この駒が移動することにより、ここに利いていた長い利きが延長されるのと、この駒による長い利きに関する更新。
+
+    // このタイミングでは(captureではない場合)toにまだ駒はない。
+
+    auto dir_bw_us = LongEffect::dir_bw_of(moved_pc);     // 移動させた駒による長い利きは無くなって
+    auto dir_bw_others = pos.long_effect.dir_bw_on(from); // そこで遮断されていた利きの分だけ増える
+
+    std::cout << pos << board_effect[WHITE];
+
+//    UPDATE_LONG_EFFECT_FROM(from, dir_bw_us, dir_bw_others, -1);
+    Square sq;
+    auto to = from;
+    int8_t p = -1;
+    uint16_t dir_bw = dir_bw_us ^ dir_bw_others;  /* trick a) */                                     
+      auto toww = to_sqww(to);                                                                       
+      while (dir_bw)                                                                                 
+      {                                                                                              
+        /* 更新していく方角*/                                                                        
+        int dir = LSB32(dir_bw) & 7; /* Effect8::Direct型*/                                          
+        /* 更新していく値。これは先後の分、同時に扱いたい。*/                                        
+        uint16_t value = uint16_t((1 << dir) | (1 << (dir + 8)));                                    
+        /* valueに関する上記の2つのbitをdir_bwから取り出す */                                        
+        value &= dir_bw;                                                                             
+        dir_bw &= ~value; /* dir_bwのうち、上記の2つのbitをクリア*/                                  
+        auto delta = DirectToDeltaWW((Direct)dir);                                                   
+        /* valueにUs側のrayを含むか */                                                               
+        bool the_same_color = (Us == BLACK && (value & 0xff)) || ((Us == WHITE) && (value & 0xff00));
+        int8_t e1 = (dir_bw_us & value) ? (+(p)) : (the_same_color ? (-(p)) : 0);                    
+        bool not_the_same = (Us == BLACK && (value & 0xff00)) || ((Us == WHITE) && (value & 0xff));  
+        int8_t e2 = not_the_same ? (-(p)) : 0;                                                       
+        auto toww2 = toww;
+        do {
+            toww2 += delta;                                                                           
+            if (!is_ok(toww2)) /* 壁に当たったのでこのrayは更新終了*/                                 
+              break;                                                                                 
+            sq = to_sq(toww2);
+              /* trick b) xorで先後同時にこの方向の利きを更新*/                                      
+              long_effect.dir_bw[sq].u16 ^= value;                                          
+              ADD_BOARD_EFFECT_BOTH(Us, sq, e1, e2);                                        
+        } while (pos.piece_on(sq) == NO_PIECE);                                             
+      }
+
+      std::cout << pos << board_effect[WHITE];
+  }
+
+  // Usの手番で駒pcをtoに移動させ、成りがある場合、moved_after_pcになっており、捕獲された駒captured_pcがあるときの盤面の利きの更新
+  template <Color Us> void update_by_capturing_piece<Us>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc, Piece captured_pc)
+  {
+    auto& board_effect = pos.board_effect;
+    auto& long_effect = pos.long_effect;
+
+    // -- 移動させた駒と捕獲された駒による利きの更新
+
+    // 利きを減らさなければならない場所 = fromの地点における動かした駒の利き
+    auto dec_target = short_effects_from(moved_pc, from);
+
+    // 利きを増やさなければならない場所 = toの地点における移動後の駒の利き
+    auto inc_target = short_effects_from(moved_after_pc, to);
+
+    // 利きのプラス・マイナスが相殺する部分を消しておく。
+    auto and_target = inc_target & dec_target;
+    inc_target ^= and_target;
+    dec_target ^= and_target;
+
+    while (inc_target) { auto sq = inc_target.pop(); ADD_BOARD_EFFECT( Us, sq , +1); }
+    while (dec_target) { auto sq = dec_target.pop(); ADD_BOARD_EFFECT( Us, sq , -1); }
+
+    // 捕獲された駒の利きの消失
+    dec_target = short_effects_from(captured_pc, to);
+    while (dec_target) { auto sq = dec_target.pop(); ADD_BOARD_EFFECT(~Us, sq , -1); }
+
+    // -- toの地点での長い利きの更新。
+    // ここはもともと今回捕獲された駒があって利きが遮断されていたので、
+    // ここに移動させた駒からの長い利きと、今回捕獲した駒からの長い利きに関する更新だけで十分
+
+    auto dir_bw_us = LongEffect::dir_bw_of(moved_after_pc);
+    auto dir_bw_others = LongEffect::dir_bw_of(captured_pc);
+    UPDATE_LONG_EFFECT_FROM(to, dir_bw_us , dir_bw_others , +1);
+  }
+
+  // Usの手番で駒pcをtoに移動させ、成りがある場合、moved_after_pcになっている(捕獲された駒はない)ときの盤面の利きの更新
+  template <Color Us> void update_by_no_capturing_piece<Us>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc)
+  {
+    auto& board_effect = pos.board_effect;
+    auto& long_effect = pos.long_effect;
+
+    // -- 移動させた駒と捕獲された駒による利きの更新
+
+    auto dec_target = short_effects_from(moved_pc, from);
+    auto inc_target = short_effects_from(moved_after_pc, to);
+
+    auto and_target = inc_target & dec_target;
+    inc_target ^= and_target;
+    dec_target ^= and_target;
+
+    while (inc_target) { auto sq = inc_target.pop(); ADD_BOARD_EFFECT(Us, sq , +1); }
+    while (dec_target) { auto sq = dec_target.pop(); ADD_BOARD_EFFECT(Us, sq , -1); }
+
+    // -- toの地点での長い利きの更新。
+    // ここに移動させた駒からの長い利きと、これにより遮断された長い利きに関する更新
+    
+    auto dir_bw_us = LongEffect::dir_bw_of(moved_pc /*moved_after_pc*/);
+    auto dir_bw_others = pos.long_effect.dir_bw_on(to);
+    // →　ここ、moved_after_pcが正しいが、長い利きは成っても特性が変わる駒はないため、moved_pcにしておくことで
+    // 一つ前のコードと同じdir_bw_of()になり、最適化でちょっとだけお得。
+    
+    UPDATE_LONG_EFFECT_FROM(to, dir_bw_us, dir_bw_others, +1);
+  }
+
+
+  // 関数の明示的な実体化
   template void update_by_dropping_piece<BLACK>(Position& pos, Square to, Piece pc);
   template void update_by_dropping_piece<WHITE>(Position& pos, Square to, Piece pc);
+  template void update_by_moving<BLACK>(Position& pos, Square from, Piece moved_pc);
+  template void update_by_moving<WHITE>(Position& pos, Square from, Piece moved_pc);
+  template void update_by_capturing_piece<BLACK>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc, Piece captured_pc);
+  template void update_by_capturing_piece<WHITE>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc, Piece captured_pc);
+  template void update_by_no_capturing_piece<BLACK>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc);
+  template void update_by_no_capturing_piece<WHITE>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc);
 
 }
 

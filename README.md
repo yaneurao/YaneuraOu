@@ -31,9 +31,11 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 
 
 
-■　俺の作業メモ(2016/01/22 8:40現在)
+■　俺の作業メモ(2016/01/22 10:40現在)
 
-【作業中】・Position::do_move()のときのcaptureとnon_captureのときの利きの差分更新処理
+【作業中】・do_move()での利きの差分更新処理が正しいかをランダムプレイヤーによる自動テストにより確認。
+
+【完成】・Position::do_move()のときのcaptureとnon_captureのときの利きの差分更新処理
 
 【完成】・Position::do_move()のdropのときの利きの差分更新処理
 

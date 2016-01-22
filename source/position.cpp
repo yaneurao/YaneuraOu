@@ -776,8 +776,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
     materialDiff = 0;
 
-    // 利きの更新
 #ifdef LONG_EFFECT_LIBRARY
+    // 駒打ちによる利きの更新更新
     LongEffect::update_by_dropping_piece<Us>(*this,to,pc);
 #endif
 
@@ -790,6 +790,24 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
     // 移動させる駒
     Piece moved_pc = piece_on(from);
     ASSERT_LV2(moved_pc != NO_PIECE);
+
+#ifdef LONG_EFFECT_LIBRARY
+    // 移動元から駒が消えるときの長い利きの更新
+    LongEffect::update_by_moving<Us>(*this, from, moved_pc);
+#endif
+
+    // 移動先に駒の配置
+    // もし成る指し手であるなら、成った後の駒を配置する。
+    PieceNo piece_no = piece_no_of(moved_pc, from); // 移動元にあった駒のpiece_noを得る
+    Piece moved_after_pc;
+    if (is_promote(m))
+    {
+      materialDiff = Eval::ProDiffPieceValue[moved_pc];
+      moved_after_pc = moved_pc + PIECE_PROMOTE;
+    } else {
+      materialDiff = 0;
+      moved_after_pc = moved_pc;
+    }
 
     // 移動先の升にある駒
     Piece to_pc = piece_on(to);
@@ -821,33 +839,30 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
       // 捕獲した駒をStateInfoに保存しておく。(undo_moveのため)
       st->capturedType = type_of(to_pc);
       // 評価関数で使う駒割りの値も更新
-      materialDiff = Eval::PieceValueCapture[to_pc];
+      materialDiff += Eval::PieceValueCapture[to_pc];
+
+#ifdef LONG_EFFECT_LIBRARY
+      // 移動先で駒を捕獲するときの利きの更新
+      LongEffect::update_by_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc, to_pc);
+#endif
 
     } else {
       st->capturedType = NO_PIECE;
-      materialDiff = 0;
+
+#ifdef LONG_EFFECT_LIBRARY
+      // 移動先で駒を捕獲しないときの利きの更新
+      LongEffect::update_by_no_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc);
+#endif
     }
 
     // 移動元の升からの駒の除去
     remove_piece(from);
 
-    // 移動先に駒の配置
-    // もし成る指し手であるなら、成った後の駒を配置する。
-    PieceNo piece_no = piece_no_of( moved_pc, from ); // 移動元にあった駒のpiece_noを得る
-    Piece pc;
-    if (is_promote(m))
-    {
-      materialDiff += Eval::ProDiffPieceValue[moved_pc];
-      pc = moved_pc + PIECE_PROMOTE;
-    } else {
-      pc = moved_pc;
-    }
+    put_piece(to, moved_after_pc,piece_no);
 
-    put_piece(to, pc,piece_no);
-
-    // fromにあったmoved_pcがtoにpcとして移動した。
+    // fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
     k -= Zobrist::psq[from][moved_pc];
-    k += Zobrist::psq[to][pc];
+    k += Zobrist::psq[to][moved_after_pc];
 
     // 王手している駒のbitboardを更新する。
     if (givesCheck)
@@ -856,7 +871,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
       const CheckInfo& ci = st->previous->checkInfo;
 
       // 1) 直接王手であるかどうかは、移動によって王手になる駒別のBitboardを調べればわかる。
-      st->checkersBB = ci.checkSq[type_of(pc)] & to;
+      st->checkersBB = ci.checkSq[type_of(moved_after_pc)] & to;
 
       // 2) 開き王手になるのか
       const Square ksq = king_square(~Us);

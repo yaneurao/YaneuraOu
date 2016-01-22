@@ -156,12 +156,42 @@ void perft(Position& pos, istringstream& is)
 //      USI拡張コマンド "test"
 // ----------------------------------
 
+// 利きの整合性のチェック
+void effect_check(Position& pos)
+{
+#ifdef LONG_EFFECT_LIBRARY
+  // 利きは、Position::set_effect()で全計算され、do_move()のときに差分更新されるが、
+  // 差分更新された値がset_effect()の値と一致するかをテストする。
+  using namespace LongEffect;
+  ByteBoard bb[2] = { pos.board_effect[0] , pos.board_effect[1] };
+  WordBoard wb = pos.long_effect;
+
+  pos.set_effect();
+
+  for(auto c : COLOR)
+    for(auto sq : SQ)
+      if (bb[c].effect(sq) != pos.board_effect[c].effect(sq))
+      {
+        cout << "Error effect count of " << c << " at " << sq << endl << pos << "wrong\n" << bb[c] << endl << "correct\n" << pos.board_effect[c];
+        ASSERT(false);
+      }
+
+  for(auto sq : SQ)
+    if (wb.dir_bw_on(sq) != pos.long_effect.dir_bw_on(sq))
+    {
+      cout << "Error long effect at " << sq << endl << pos << "wrong\n" << wb << endl << "correct\n" << pos.long_effect;
+      ASSERT(false);
+    }
+
+#endif
+}
+
 
 // --- "test rp"コマンド
 
 void random_player(Position& pos,uint64_t loop_max)
 {
-  pos.init();
+  pos.set_hirate();
   const int MAX_PLY = 256; // 256手までテスト
 
   StateInfo state[MAX_PLY]; // StateInfoを最大手数分だけ
@@ -180,6 +210,9 @@ void random_player(Position& pos,uint64_t loop_max)
 
       // 局面がおかしくなっていないかをテストする
       ASSERT_LV3(is_ok(pos));
+
+      // 利きの整合性のテスト(重いのでテストが終わったらコメントアウトする)
+      effect_check(pos);
 
       pos.check_info_update();
 

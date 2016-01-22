@@ -201,9 +201,11 @@ const bool Is64Bit = false;
 // -- 評価関数の種類により、盤面の利きの更新ときの処理が異なる。(このタイミングで評価関数の差分計算をしたいので)
 
 // 盤面上の利きを更新するときに呼び出したい関数。(評価関数の差分更新などのために差し替え可能にしておく。)
-// color = 手番 , sq = 升 , dir = (LongEffectの)利きの向き
-#define INC_BOARD_EFFECT(color,sq) { ++board_effect[color].e[sq]; }
-#define DEC_BOARD_EFFECT(color,sq) { --board_effect[color].e[sq]; }
+
+// color = 手番 , sq = 升 , e = 利きの加算量
+#define ADD_BOARD_EFFECT(color_,sq_,e1_) { board_effect[color_].e[sq_] += (uint8_t)e1_; }
+// e1 = color側の利きの加算量 , e2 = ~color側の利きの加算量
+#define ADD_BOARD_EFFECT_BOTH(color_,sq_,e1_,e2_) { board_effect[color_].e[sq_] += (uint8_t)e1_; board_effect[~color_].e[sq_] += (uint8_t)e2_; }
 
 
 #endif // _CONFIG_H_
