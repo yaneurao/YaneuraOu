@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "1.13"
+#define ENGINE_VERSION "1.14"
 
 // --------------------
 // コンパイル時の設定
@@ -216,6 +216,10 @@ enum Square : int32_t
   SQ_RD = int(SQ_D) + int(SQ_R), // 右下(Right Down)
   SQ_LU = int(SQ_U) + int(SQ_L), // 左上(Left Up)
   SQ_LD = int(SQ_D) + int(SQ_L), // 左下(Left Down)
+  SQ_RUU = int(SQ_RU) + int(SQ_U), // 右上上
+  SQ_LUU = int(SQ_LU) + int(SQ_U), // 左上上
+  SQ_RDD = int(SQ_RD) + int(SQ_D), // 右下下
+  SQ_LDD = int(SQ_LD) + int(SQ_D), // 左下下
 };
 
 // sqが盤面の内側を指しているかを判定する。assert()などで使う用。
@@ -342,7 +346,9 @@ namespace Effect8
   inline Directions directions_of(Square sq1, Square sq2) { return direc_table[sq1][sq2]; }
 
   // Directionsをpopしたもの。複数の方角を同時に表すことはない。
-  enum Direct { DIRECT_RU, DIRECT_R, DIRECT_RD, DIRECT_U, DIRECT_D, DIRECT_LU, DIRECT_L, DIRECT_LD, DIRECT_NB, DIRECT_ZERO = 0, };
+  // おまけで桂馬の移動も追加しておく。
+  enum Direct { DIRECT_RU, DIRECT_R, DIRECT_RD, DIRECT_U, DIRECT_D, DIRECT_LU, DIRECT_L, DIRECT_LD,
+    DIRECT_NB, DIRECT_ZERO = 0, DIRECT_RUU=8,DIRECT_LUU,DIRECT_RDD,DIRECT_LDD,DIRECT_NB_PLUS4 };
 
   // Directionsに相当するものを引数に渡して1つ方角を取り出す。
   inline Direct pop_directions(Directions& d) { return (Direct)pop_lsb(d); }
@@ -350,7 +356,7 @@ namespace Effect8
   // DirectからDirectionsへの逆変換
   inline Directions to_directions(Direct d) { return Directions(1 << d); }
 
-  inline bool is_ok(Direct d) { return DIRECT_ZERO <= d && d < DIRECT_NB; }
+  inline bool is_ok(Direct d) { return DIRECT_ZERO <= d && d < DIRECT_NB_PLUS4; }
 
   // DirectをSquareWithWall型の差分値で表現したもの。
   const SquareWithWall DirectToDeltaWW_[DIRECT_NB] = { SQWW_RU,SQWW_R,SQWW_RD,SQWW_U,SQWW_D,SQWW_LU,SQWW_L,SQWW_LD, };
@@ -425,10 +431,10 @@ enum Piece : int32_t
   // 金の順番を飛の後ろにしておく。KINGを8にしておく。
   // こうすることで、成りを求めるときに pc |= 8;で求まり、かつ、先手の全種類の駒を列挙するときに空きが発生しない。(DRAGONが終端になる)
   NO_PIECE, PAWN/*歩*/, LANCE/*香*/, KNIGHT/*桂*/, SILVER/*銀*/, BISHOP/*角*/, ROOK/*飛*/, GOLD/*金*/ ,
-  KING = 8/*玉*/, PRO_PAWN /*と*/, PRO_LANCE /*成香*/, PRO_KNIGHT /*成桂*/, PRO_SILVER /*成銀*/, HORSE/*馬*/, DRAGON/*龍*/, PRO_GOLD/*未使用*/,
+  KING = 8/*玉*/, PRO_PAWN /*と*/, PRO_LANCE /*成香*/, PRO_KNIGHT /*成桂*/, PRO_SILVER /*成銀*/, HORSE/*馬*/, DRAGON/*龍*/, QUEEN/*未使用*/,
   // 以下、先後の区別のある駒(Bがついているのは先手、Wがついているのは後手)
-  B_PAWN = 1 , B_LANCE, B_KNIGHT, B_SILVER, B_BISHOP, B_ROOK, B_GOLD , B_KING, B_PRO_PAWN, B_PRO_LANCE, B_PRO_KNIGHT, B_PRO_SILVER, B_HORSE, B_DRAGON, B_T_GOLD,
-  W_PAWN = 17, W_LANCE, W_KNIGHT, W_SILVER, W_BISHOP, W_ROOK, W_GOLD , W_KING, W_PRO_PAWN, W_PRO_LANCE, W_PRO_KNIGHT, W_PRO_SILVER, W_HORSE, W_DRAGON, W_T_GOLD,
+  B_PAWN = 1 , B_LANCE, B_KNIGHT, B_SILVER, B_BISHOP, B_ROOK, B_GOLD , B_KING, B_PRO_PAWN, B_PRO_LANCE, B_PRO_KNIGHT, B_PRO_SILVER, B_HORSE, B_DRAGON, B_QUEEN,
+  W_PAWN = 17, W_LANCE, W_KNIGHT, W_SILVER, W_BISHOP, W_ROOK, W_GOLD , W_KING, W_PRO_PAWN, W_PRO_LANCE, W_PRO_KNIGHT, W_PRO_SILVER, W_HORSE, W_DRAGON, W_QUEEN,
   PIECE_NB, // 終端
   PIECE_ZERO = 0,
 
@@ -644,7 +650,7 @@ std::ostream& operator<<(std::ostream& os, Hand hand);
 // bit0..歩を持っているか , bit1..香 , bit2..桂 , bit3..銀 , bit4..角 , bit5..飛 , bit6..金 , bit7..玉(フラグとして用いるため)
 enum HandKind : uint32_t { HAND_KIND_PAWN = 1 << (PAWN-1), HAND_KIND_LANCE=1 << (LANCE-1) , HAND_KIND_KNIGHT = 1 << (KNIGHT-1),
   HAND_KIND_SILVER = 1 << (SILVER-1), HAND_KIND_BISHOP = 1 << (BISHOP-1), HAND_KIND_ROOK = 1 << (ROOK-1) , HAND_KIND_GOLD = 1 << (GOLD-1) ,
-  HAND_KIND_KING = 1 << (KING-1) , };
+  HAND_KIND_KING = 1 << (KING-1) , HAND_KIND_ZERO = 0,};
 
 // Hand型からHandKind型への変換子
 // 例えば歩の枚数であれば5bitで表現できるが、011111bを加算すると1枚でもあれば桁あふれしてbit5が1になる。
@@ -899,6 +905,7 @@ ENABLE_OPERATORS_ON(Effect8::Direct);
   inline T& operator^=(T& d1, const T d2) { return d1 = T(int(d1) ^ int(d2)); } \
   inline T operator~(const T d1) { return T(~int(d1)); }
 
+ENABLE_BIT_OPERATORS_ON(HandKind)
 ENABLE_BIT_OPERATORS_ON(Effect8::Directions)
 
 
@@ -908,10 +915,10 @@ ENABLE_BIT_OPERATORS_ON(Effect8::Directions)
   inline X begin(X x) { return ZERO; }           \
   inline X end(X x) { return NB; }
 
-ENABLE_RANGE_OPERATORS_ON(Square,SQ_ZERO,SQ_NB)
+ENABLE_RANGE_OPERATORS_ON(Square, SQ_ZERO, SQ_NB)
 ENABLE_RANGE_OPERATORS_ON(Color, COLOR_ZERO, COLOR_NB)
-ENABLE_RANGE_OPERATORS_ON(File,FILE_ZERO,FILE_NB)
-ENABLE_RANGE_OPERATORS_ON(Rank,RANK_ZERO,RANK_NB)
+ENABLE_RANGE_OPERATORS_ON(File, FILE_ZERO, FILE_NB)
+ENABLE_RANGE_OPERATORS_ON(Rank, RANK_ZERO, RANK_NB)
 ENABLE_RANGE_OPERATORS_ON(Piece, NO_PIECE, PIECE_NB)
 
 // for(auto sq : Square())ではなく、for(auto sq : SQ) のように書くためのhack

@@ -155,7 +155,7 @@ void Position::set(std::string sfen)
 
   // 先手玉のいない詰将棋とか、駒落ちに対応させるために、存在しない駒はすべてBONA_PIECE_ZEROにいることにする。
   for (PieceNo pn = PIECE_NO_ZERO; pn < PIECE_NO_NB; ++pn)
-    evalList.put_piece(pn, SQ_ZERO , PRO_GOLD); // 金成りはないのでこれでBONA_PIECE_ZEROとなる。
+    evalList.put_piece(pn, SQ_ZERO , QUEEN); // QUEEN(金成り)はないのでこれでBONA_PIECE_ZEROとなる。
   kingSquare[BLACK] = kingSquare[WHITE] = SQ_NB;
 
   while ((ss >> token) && !isspace(token))
@@ -660,15 +660,12 @@ bool Position::pseudo_legal(const Move m) const {
       // --- 成る指し手
 
       // 成れない駒の成りではないことを確かめないといけない。
-      if (pt >= KING)
+      static_assert(GOLD == 7,"GOLD must be 7.");
+      if (pt >= GOLD)
         return false;
 
       // 移動先が敵陣でないと成れない。先手が置換表衝突で後手の指し手を引いてきたら、こういうことになりかねない。
       if (!(enemy_field(us) & (Bitboard(from) | Bitboard(to))))
-        return false;
-
-      // すでに成っているならこれ以上成れないわけで…
-      if (raw_type_of(pt) != pt)
         return false;
 
     } else {

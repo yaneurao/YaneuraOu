@@ -13,6 +13,7 @@ USIプロトコルの独自拡張コマンド
 		test unit           : unit test
 		test perft [depth]  : perft(パフォーマンステスト)。深さを指定できる。
 		test rp    [回数]   : random playerのテスト。回数を指定できる。
+		test rpbench [回数] : ランダムプレイヤーを用いたbenchマーク。
 		test checks [回数]	: ランダムプレイヤーで対局させて、王手の指し手生成ルーチンで指し手が
 								正しく生成出来ているかをテストする。
 

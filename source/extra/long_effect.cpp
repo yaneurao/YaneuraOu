@@ -35,20 +35,70 @@ std::ostream& output_around_n(std::ostream& os, uint32_t d,int n)
 
 namespace Effect8
 {
-  Directions board_mask_table[SQ_NB];
+  Directions board_mask_table[SQ_NB_PLUS1];
+  Directions piece_effect_not_table[PIECE_NB][DIRECT_NB];
+  Directions piece_check_around8_table[PIECE_NB];
+  Directions cutoff_directions_table[DIRECT_NB_PLUS4][DIRECTIONS_NB];
 
   void init()
   {
     // -- board_mask_tableの初期化
+    
     for (auto sq : SQ)
-      board_mask_table[sq] = to_directions(kingEffect(sq), sq);
+      board_mask_table[sq] = around8(kingEffect(sq), sq);
 
-    //Directions d = Directions(1 + 2 + 8);
-    //for (auto dir : d)
-    //  std::cout << dir;
+    // -- piece_effect_not_tableの初期化
+
+    for (auto pc : Piece())
+      for (auto d : Direct())
+      {
+        // SQ_22の地点でその周辺8近傍の状態を使ってテーブルを初期化する
+        auto effect = effects_from(pc, SQ_22 + DirectToDelta(d), ZERO_BB);
+        // 利きがある場所が0、ない場所が1なのでnotしておく。
+        auto effect8_not = ~around8(effect, SQ_22);
+
+        piece_effect_not_table[pc][d] = effect8_not;
+      }
+
+    // -- piece_check_around8_tableの初期化
+
+    for (auto pc : Piece())
+    {
+      // SQ_22に相手の駒を置いたときの利きの場所が、そこに置いてSQ_22に王手になる場所
+      auto effect = effects_from(Piece(pc ^ PIECE_WHITE), SQ_22,ZERO_BB);
+      auto effect8 = around8(effect, SQ_22);
+      piece_check_around8_table[pc] = effect8;
+    }
+
+    // -- cutoff_directions_tableの初期化
+
+    for (int d1 = 0; d1 < DIRECT_NB_PLUS4; ++d1)
+      for (uint16_t d2 = 0; d2 < 0x100; ++d2)
+      {
+        Bitboard bb = ZERO_BB;
+
+        // SQ_55の地点でやってみる。
+
+        auto d2t = Directions(d2);
+        while (d2t)
+        {
+          auto dir = pop_directions(d2t);
+
+          auto sq = to_sqww(SQ_55 + DirectToDelta(Direct(d1)));
+          auto delta = DirectToDeltaWW(dir);
+          sq += delta; bb ^= to_sq(sq);
+          sq += delta; bb ^= to_sq(sq);
+          sq += delta; bb ^= to_sq(sq);
+        }
+        
+        auto effect8 = around8(bb, SQ_55);
+
+        cutoff_directions_table[d1][d2] = effect8;
+      }
+
   }
 
-  Directions to_directions(const Bitboard& b, Square sq)
+  Directions around8(const Bitboard& b, Square sq)
   {
     // This algorithm is developed by tanuki- and yaneurao in 2016.
 
@@ -61,7 +111,6 @@ namespace Effect8
   }
 
   std::ostream& operator<<(std::ostream& os, Directions d) { return output_around_n(os, d, 3); }
-
 }
 
 // ----------------------
@@ -76,10 +125,10 @@ namespace Effect24
   {
     // -- board_mask_tableの初期化
     for (auto sq : SQ)
-      board_mask_table[sq] = to_directions(around24_bb(sq), sq);
+      board_mask_table[sq] = around24(around24_bb(sq), sq);
   }
 
-  Directions to_directions(const Bitboard& b, Square sq)
+  Directions around24(const Bitboard& b, Square sq)
   {
     // sqがSQ_33に来るように正規化する。
     auto t = (sq < SQ_33) ? (b.p[0] << int(SQ_33 - sq)) :

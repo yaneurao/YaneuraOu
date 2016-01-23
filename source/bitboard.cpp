@@ -5,6 +5,7 @@
 #include "shogi.h"
 #include "bitboard.h"
 #include "extra/long_effect.h"
+#include "extra/mate1ply.h"
 
 using namespace std;
 
@@ -65,22 +66,21 @@ Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ)
   case B_KNIGHT: return knightEffect(BLACK, sq);
   case B_SILVER: return silverEffect(BLACK, sq);
   case B_GOLD: case B_PRO_PAWN: case B_PRO_LANCE: case B_PRO_KNIGHT: case B_PRO_SILVER: return goldEffect(BLACK, sq);
-  case B_BISHOP: return bishopEffect(sq, occ);
-  case B_ROOK: return rookEffect(sq, occ);
-  case B_HORSE: return horseEffect(sq, occ);
-  case B_DRAGON: return dragonEffect(sq, occ);
 
   case W_PAWN: return pawnEffect(WHITE, sq);
   case W_LANCE: return lanceEffect(WHITE, sq, occ);
   case W_KNIGHT: return knightEffect(WHITE, sq);
   case W_SILVER: return silverEffect(WHITE, sq);
   case W_GOLD: case W_PRO_PAWN: case W_PRO_LANCE: case W_PRO_KNIGHT: case W_PRO_SILVER: return goldEffect(WHITE, sq);
-  case W_BISHOP: return bishopEffect(sq, occ);
-  case W_ROOK: return rookEffect(sq, occ);
-  case W_HORSE: return horseEffect(sq, occ);
-  case W_DRAGON: return dragonEffect(sq, occ);
 
-  case B_KING: case W_KING: return kingEffect(sq);
+    //　先後同じ移動特性の駒
+  case B_BISHOP: case W_BISHOP: return bishopEffect(sq, occ);
+  case B_ROOK:   case W_ROOK:   return rookEffect(sq, occ);
+  case B_HORSE:  case W_HORSE:  return horseEffect(sq, occ);
+  case B_DRAGON: case W_DRAGON: return dragonEffect(sq, occ);
+  case B_KING:   case W_KING:   return kingEffect(sq);
+  case B_QUEEN:  case W_QUEEN:  return horseEffect(sq, occ) | dragonEffect(sq, occ);
+  case NO_PIECE: case PIECE_WHITE: return ZERO_BB; // これも入れておかないと初期化が面倒になる。
 
   default: UNREACHABLE; return ALL_BB;
   }
@@ -415,5 +415,9 @@ void Bitboards::init()
   LongEffect::init();
 #endif
 
+  // 11. 1手詰めテーブルの初期化
+#ifdef MATE_1PLY
+  Mate1Ply::init();
+#endif
 }
 

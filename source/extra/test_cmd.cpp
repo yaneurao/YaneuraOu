@@ -189,8 +189,13 @@ void effect_check(Position& pos)
 
 // --- "test rp"コマンド
 
-// 利きの整合性のチェック
+// ランダムプレイヤーで行なうテストの種類
+
+// 利きの整合性のテスト
 //#define EFFECT_CHECK
+
+// 1手詰め判定のテスト
+//#define MATE1PLY_CHECK
 
 void random_player(Position& pos,uint64_t loop_max)
 {
@@ -201,6 +206,8 @@ void random_player(Position& pos,uint64_t loop_max)
   Move moves[MAX_PLY]; // 局面の巻き戻し用に指し手を記憶
   int ply; // 初期局面からの手数
 
+  PRNG prng(20160101);
+  
   for (int i = 0; i < loop_max; ++i)
   {
     for (ply = 0; ply < MAX_PLY; ++ply)
@@ -223,8 +230,42 @@ void random_player(Position& pos,uint64_t loop_max)
         ASSERT_LV2(pos.legal(m.move));
       }
 
+#ifdef MATE1PLY_CHECK
+      {
+        // 王手のかかっていない局面においてテスト
+        if (!pos.in_check())
+        {
+          Move m = pos.mate1ply();
+          if (m != MOVE_NONE)
+          {
+  //          cout << pos << m;
+            if (!pos.pseudo_legal(m) || !pos.legal(m))
+            {
+              cout << endl << pos << "not legal , mate1ply() = " << m << endl;
+              m = pos.mate1ply();
+              ASSERT(false);
+            }
+
+            // これで本当に詰んでいるのかテストする
+            pos.do_move(m, state[ply]);
+            if (!pos.is_mated())
+            {
+              pos.undo_move(m);
+              // 局面を戻してから指し手を表示しないと目視で確認できない。
+              cout << endl << pos << "not mate , mate1ply() = " << m << endl;
+              m = pos.mate1ply();
+              ASSERT(false);
+            } else {
+              pos.undo_move(m);
+//              cout << "M"; // mateだったときにこれを表示してpassした個数のチェック
+            }
+          }
+        }
+      }
+#endif
+
       // 生成された指し手のなかからランダムに選び、その指し手で局面を進める。
-      Move m = mg.begin()[rand() % mg.size()].move;
+      Move m = mg.begin()[prng.rand(mg.size())].move;
 
       pos.do_move(m, state[ply]);
       moves[ply] = m;
@@ -245,7 +286,7 @@ void random_player(Position& pos,uint64_t loop_max)
 #endif
     }
 
-    // 100回に1回ごとに'.'を出力(進んでいることがわかるように)
+    // 1000回に1回ごとに'.'を出力(進んでいることがわかるように)
     if ((i % 1000) == 0)
       cout << ".";
   }
@@ -256,12 +297,63 @@ void random_player(Position& pos,uint64_t loop_max)
 
 void random_player_cmd(Position& pos, istringstream& is)
 {
-  uint64_t loop_max = 100000000; // 1000万回
+  uint64_t loop_max = 100000000; // 1億回
   is >> loop_max;
   cout << "Random Player test , loop_max = " << loop_max << endl;
   random_player(pos, loop_max);
   cout << "finished." << endl;
 }
+
+
+// --- "test rpbench"コマンド
+
+// ランダムプレイヤーを用いたベンチマーク
+void random_player_bench_cmd(Position& pos, istringstream& is)
+{
+  uint64_t loop_max = 50000; // default 5万回
+  is >> loop_max;
+  cout << "Random Player bench test , loop_max = " << loop_max << endl;
+
+  pos.set_hirate();
+  const int MAX_PLY = 256; // 256手までテスト
+
+  StateInfo state[MAX_PLY]; // StateInfoを最大手数分だけ
+  Move moves[MAX_PLY]; // 局面の巻き戻し用に指し手を記憶
+  int ply; // 初期局面からの手数
+
+  PRNG prng(20160123); // これ作った日
+
+  auto start = now();
+
+  for (int i = 0; i < loop_max; ++i)
+  {
+    for (ply = 0; ply < MAX_PLY; ++ply)
+    {
+      MoveList<LEGAL_ALL> mg(pos);
+      if (mg.size() == 0)
+        break;
+
+      pos.check_info_update();
+      Move m = mg.begin()[prng.rand(mg.size())].move;
+
+      pos.do_move(m, state[ply]);
+      moves[ply] = m;
+    }
+    // 局面を巻き戻してみる(undo_moveの動作テストを兼ねて)
+    while (ply > 0)
+    {
+      pos.undo_move(moves[--ply]);
+    }
+    // 1000回に1回ごとに'.'を出力(進んでいることがわかるように)
+    if ((i % 1000) == 0)
+      cout << ".";
+  }
+
+  auto end = now();
+  auto gps = ((double)loop_max)*1000/(end - start);
+  cout << endl << "bench done , " << gps << " games/second " << endl;
+}
+
 
 // --- "test genchecks"コマンド
 
@@ -557,6 +649,55 @@ void unit_test(Position& pos, istringstream& is)
     check(success);
   }
 
+  // -- Mate1Ply
+#if defined(MATE_1PLY) && defined(LONG_EFFECT_LIBRARY)
+  {
+    cout << "> mate1ply check ";
+
+    struct MateProblem
+    {
+      string sfen;
+      Move move;
+    };
+
+    // 1手詰め問題集
+    MateProblem mp[] = {
+      // 駒打ちによる詰み
+      { "ln1g1gs1l/1r3p3/pppp1bppp/4pkn+R1/3Ns4/4PP1P1/PPPP1SP1P/5G1B1/L1SGK1L2 b N 1",make_move_drop(KNIGHT,SQ_36) },
+      { "ln1g1gs1l/1r3p1b1/pppp2ppp/4pkn2/3Ns4/4PP1+R1/PPPP1SPPP/5G3/LNSGK4 b BL 1",make_move_drop(LANCE,SQ_45) },
+      { "ln1g1gs1l/1r5b1/pppp1pppp/4pkn2/3Ns4/4PP1R1/PPPP2PPP/5G3/LNSGK1S1L b B 1",make_move_drop(BISHOP,SQ_53) },
+      { "ln1g1gs1l/1r5b1/pppp1pppp/3spkn2/7R1/4PP3/PPPP2PPP/9/LNSGK1SNL b BG 1",make_move_drop(BISHOP,SQ_35) },
+      { "1nsg1+B1n+P/lr1k1s3/1pp3p1p/p2ppp3/9/7R1/PPPPPPP1P/1B7/LNSGKGSNL b PLG 21",make_move_drop(GOLD,SQ_63) },
+      { "ln1g1gsnl/1r5b1/ppppppppp/4sk3/7R1/9/PPPPPPPPP/1B7/LNSGK1SNL b G 1",MOVE_NONE }, // 詰みじゃない局面
+      { "ln1g1gsnl/1r5b1/ppppppppp/4sk3/7R1/4P4/PPPP1PPPP/1B7/LNSGK1SNL b G 1", make_move_drop(GOLD, SQ_35) },
+
+      // 移動による詰み
+      { "ln1g1gs1l/1r3p3/pppp1bppp/4pkn+R1/3Ns4/4PP1P1/PPPP1SPBP/5G1N1/L1SGK1L2 b - 1",make_move(SQ_28,SQ_36) },
+      { "ln1g1gs1l/1r3p3/pppp1bppp/4pkn+R1/3Ns4/4PP1P1/PPPP1SPNP/5GB2/L1SGK1L2 b - 1",make_move(SQ_24,SQ_35) },
+      { "ln1g1gs1l/1r1S1p3/pppp1bppp/4pkn1+R/3Ns4/4PP1P1/PPPP2PNP/5GB2/L1SGK1L2 b - 1",make_move(SQ_62,SQ_53) },
+      { "png1+N4/s4P1s1/2p3R1l/2kSppPpp/lP2P1p2/L2P1+bG1P/2N3+p2/gpPR4L/B1KG3+n1 b 2PS 131",MOVE_NONE },
+      { "1k5+L1/3r2gPS/2p1p4/gP2PPpN1/G1K1gLs1p/LS1P1R1sP/P1+b3Pn1/1p1p3NL/3+b5 w P3pn 212",MOVE_NONE },
+    };
+
+    for (auto& problem : mp)
+    {
+      Move m;
+      pos.set(problem.sfen);
+      m = pos.mate1ply();
+      bool success = m == problem.move;
+      if (!success)
+      {
+        cout << pos << m << " is wrong." << endl;
+        m = pos.mate1ply(); // ここにブレークポイント仕掛けれ。
+      }
+
+      success_all &= success;
+    }
+    check(success_all);
+
+  }
+#endif
+
   // hash key
   // この値が変わると定跡DBがhitしなくなってしまうので変えてはならない。
   {
@@ -601,15 +742,17 @@ void test_cmd(Position& pos, istringstream& is)
 {
   std::string param;
   is >> param;
-  if (param == "unit") unit_test(pos, is); // 単体テスト
-  else if (param == "rp") random_player_cmd(pos,is); // ランダムプレイヤー
-  else if (param == "cm") cooperation_mate_cmd(pos, is); // 協力詰めルーチン
-  else if (param == "checks") test_genchecks(pos, is); // 王手生成ルーチンのテスト
-  else if (param == "hand") test_hand(); // 手駒の優劣関係などのテスト
-  else if (param == "records") test_read_record(pos,is); // 棋譜の読み込みテスト 
+  if (param == "unit") unit_test(pos, is);                         // 単体テスト
+  else if (param == "rp") random_player_cmd(pos,is);               // ランダムプレイヤー
+  else if (param == "rpbench") random_player_bench_cmd(pos, is);   // ランダムプレイヤーベンチ
+  else if (param == "cm") cooperation_mate_cmd(pos, is);           // 協力詰めルーチン
+  else if (param == "checks") test_genchecks(pos, is);             // 王手生成ルーチンのテスト
+  else if (param == "hand") test_hand();                           // 手駒の優劣関係などのテスト
+  else if (param == "records") test_read_record(pos,is);           // 棋譜の読み込みテスト 
   else {
     cout << "test unit               // UnitTest" << endl;
     cout << "test rp                 // Random Player" << endl;
+    cout << "test rpbench            // Random Player bench" << endl;
     cout << "test cm [depth]         // Cooperation Mate" << endl;
     cout << "test checks             // Generate Checks Test" << endl;
     cout << "test records [filename] // read records.sfen Test" << endl;

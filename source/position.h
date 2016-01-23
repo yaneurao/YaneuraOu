@@ -326,7 +326,7 @@ struct Position
   bool is_mated() const;
 
   // --- 超高速1手詰め判定
-#ifdef  MATE_1PLY
+#if defined(MATE_1PLY) && defined(LONG_EFFECT_LIBRARY)
   // 現局面で1手詰めであるかを判定する。1手詰めであればその指し手を返す。
   // ただし1手詰めであれば確実に詰ませられるわけではなく、簡単に判定できそうな近接王手による
   // 1手詰めのみを判定する。(要するに判定に漏れがある。)

@@ -17,21 +17,23 @@ namespace Effect8
 {
   // --- Directions
 
+  // *** shogi.hに持って行ったものはここではコメントアウトしてある。 ***
+
   // 方角を表す。遠方駒の利きや、玉から見た方角を表すのに用いる。
   // bit0..右上、bit1..右、bit2..右下、bit3..上、bit4..下、bit5..左上、bit6..左、bit7..左下
   // 同時に複数のbitが1であることがありうる。
+
   //  enum Directions : uint8_t { DIRECTIONS_ZERO = 0 };
-  // →この定義はshogi.hに移動させた。
 
   const uint32_t DIRECTIONS_NB = 256; // Directionsの範囲(uint8_t)で表現できない値なので外部に出しておく。
 
   // Bitboardのsq周辺の8近傍の状態を8bitに直列化する。
   // ただし盤外に相当するbitの値は不定。盤外を0にしたいのであれば、Effect8::board_mask(sq)と & すること。
-  static Directions to_directions(const Bitboard& b, Square sq);
+  Directions around8(const Bitboard& b, Square sq);
 
   // around8()などである升の8近傍の情報を回収したときに壁の位置のマスクが欲しいときがあるから、そのマスク情報。
   // 壁のところが0、盤面上が1になっている。
-  extern Directions board_mask_table[SQ_NB];
+  extern Directions board_mask_table[SQ_NB_PLUS1];
   inline Directions board_mask(Square sq) { return board_mask_table[sq]; }
 
 
@@ -39,7 +41,10 @@ namespace Effect8
   //extern Directions direc_table[SQ_NB][SQ_NB];
   //inline Directions directions_of(Square sq1, Square sq2) { return direc_table[sq1][sq2]; }
 
-  // →　この定義もshogi.hに移動させた。
+  // sq1とsq2が桂の移動元、移動先の関係にあることがわかっているときにsq1から見たsq2の方角を返す。
+  template <Color c> Direct direct_knight_of(Square sq1, Square sq2) {
+    return Direct(DIRECT_RUU + (( sq1 < sq2 ) ? 1 : 0) + ((c == WHITE) ? 0 : 2));
+  }
 
   // ...
   // .+.  3×3のうち、中央の情報はDirectionsは持っていないので'+'を出力して、
@@ -50,16 +55,22 @@ namespace Effect8
   // --- Direct
 
   // Directionsをpopしたもの。複数の方角を同時に表すことはない。
-  // enum Direct { DIRECT_RU, DIRECT_R, DIRECT_RD, DIRECT_U, DIRECT_D, DIRECT_LU, DIRECT_L, DIRECT_LD, DIRECT_NB, DIRECT_ZERO = 0, };
+  // おまけで桂馬の移動も追加しておく。
+  //enum Direct {
+  //  DIRECT_RU, DIRECT_R, DIRECT_RD, DIRECT_U, DIRECT_D, DIRECT_LU, DIRECT_L, DIRECT_LD,
+  //  DIRECT_NB, DIRECT_ZERO = 0, DIRECT_RUU = 8, DIRECT_LUU, DIRECT_RDD, DIRECT_LDD, DIRECT_NB_PLUS4
+  //};
   // inline bool is_ok(Direct d) { return DIRECT_ZERO <= d && d < DIRECT_NB; }
-
-  // →　以上の定義もshogi.hに移動させた。
 
   // Directionsに相当するものを引数に渡して1つ方角を取り出す。
   // inline Direct pop_directions(Directions& d) { return (Direct)pop_lsb(*(uint8_t*)&d); }
 
+  // dの方角が右上、右下、左上、左下であるか。
+  static_assert(DIRECT_RU == 0 && DIRECT_RD == 2 && DIRECT_LU == 5 && DIRECT_LD == 7, "ERROR , DIRECT_DIAG");
+  inline bool is_diag(Direct d) { return ((d & 1) - (d >> 2))==0; /* (d==0 || d==2 || d==5 || d==7) */}
+
   // DirectをSquare型の差分値で表現したもの。
-  const Square DirectToDelta_[DIRECT_NB] = { SQ_RU,SQ_R,SQ_RD,SQ_U,SQ_D,SQ_LU,SQ_L,SQ_LD, };
+  const Square DirectToDelta_[DIRECT_NB_PLUS4] = { SQ_RU,SQ_R,SQ_RD,SQ_U,SQ_D,SQ_LU,SQ_L,SQ_LD,SQ_RUU,SQ_LUU,SQ_RDD,SQ_LDD, };
   inline Square DirectToDelta(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDelta_[d]; }
 
   // DirectからDirectionsへの逆変換
@@ -70,6 +81,22 @@ namespace Effect8
   //inline SquareWithWall DirectToDeltaWW(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDeltaWW_[d]; }
 
   // → shogi.hに持って行った。
+
+  ENABLE_RANGE_OPERATORS_ON(Effect8::Direct, Effect8::DIRECT_ZERO, Effect8::DIRECT_NB)
+
+  // --- 8近傍に関する利き
+
+  // 駒pcを敵玉から見てdirの方向に置いたときの敵玉周辺に対するの利き。利きがある場所が0、ない場所が1。
+  extern Directions piece_effect_not_table[PIECE_NB][DIRECT_NB];
+  inline Directions piece_effect_not(Piece pc, Direct drop_sq) { return piece_effect_not_table[pc][drop_sq]; }
+
+  // 駒pcを敵玉の8近傍において王手になる場所が1。
+  extern Directions piece_check_around8_table[PIECE_NB];
+  inline Directions piece_check_around8(Piece pc) { return piece_check_around8_table[pc]; }
+
+  // 玉の8近傍、玉から見てd1の方角の升にd2方向の長い利きが発生したとして、その利きを玉から見て。
+  extern Directions cutoff_directions_table[DIRECT_NB_PLUS4][DIRECTIONS_NB];
+  inline Directions cutoff_directions(Direct d1, Directions d2) { return cutoff_directions_table[d1][d2]; }
 
   // --- init
 
@@ -92,9 +119,9 @@ namespace Effect24
   
   inline Directions operator |(const Directions d1, const Directions d2) { return Directions(int(d1) + int(d2)); }
 
-  // Bitboardのsq周辺の8近傍の状態を8bitに直列化する。
+  // Bitboardのsq周辺の24近傍の状態を24bitに直列化する。
   // ただし盤外に相当するbitの値は不定。盤外を0にしたいのであれば、Effect8::board_mask(sq)と & すること。
-  static Directions to_directions(const Bitboard& b, Square sq);
+  static Directions around24(const Bitboard& b, Square sq);
 
   // around24()などである升の24近傍の情報を回収したときに壁の位置のマスクが欲しいときがあるから、そのマスク情報。
   // 壁のところが0、盤面上が1になっている。
