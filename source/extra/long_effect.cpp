@@ -183,7 +183,7 @@ namespace LongEffect
     {
       for (File f = FILE_9; f >= FILE_1; --f)
       {
-        auto e = board.dir_bw[f | r];
+        auto e = board.le16[f | r];
         // 方角を表示。複数あるなら4個まで表示
         os << '[';
         int i;
@@ -232,7 +232,7 @@ namespace LongEffect
         for (auto to : effect)
         {
           auto dir = directions_of(sq, to);
-          long_effect.dir_bw[to].dirs[c] ^= dir;
+          long_effect.le16[to].dirs[c] ^= dir;
         }
       }
     }
@@ -323,7 +323,7 @@ namespace LongEffect
         if (!is_ok(toww2)) break; /* 壁に当たったのでこのrayは更新終了*/                             \
         sq = to_sq(toww2);                                                                           \
         /* trick b) xorで先後同時にこの方向の利きを更新*/                                            \
-        long_effect.dir_bw[sq].u16 ^= value;                                                         \
+        long_effect.le16[sq].u16 ^= value;                                                           \
         EFFECT_FUNC(Us,sq,e1,e2);                                                                    \
       } while (pos.piece_on(sq) == NO_PIECE);                                                        \
     }}
@@ -365,8 +365,8 @@ namespace LongEffect
 
     auto& long_effect = pos.long_effect;
 
-    auto dir_bw_us = LongEffect::dir_bw_of(dropped_pc); // 自分の打った駒による利きは増えて
-    auto dir_bw_others = pos.long_effect.dir_bw_on(to); // その駒によって遮断された利きは減る
+    auto dir_bw_us = LongEffect::long_effect16_of(dropped_pc); // 自分の打った駒による利きは増えて
+    auto dir_bw_others = pos.long_effect.long_effect16(to); // その駒によって遮断された利きは減る
     UPDATE_LONG_EFFECT_FROM(to , dir_bw_us, dir_bw_others, +1);
   }
 
@@ -417,16 +417,16 @@ namespace LongEffect
       dir_mask = 0xffff;
     }
 
-    auto dir_bw_us = LongEffect::dir_bw_of(moved_pc) & dir_mask;     // 移動させた駒による長い利きは無くなって
-    auto dir_bw_others = pos.long_effect.dir_bw_on(from) & dir_mask; // そこで遮断されていた利きの分だけ増える
+    auto dir_bw_us = LongEffect::long_effect16_of(moved_pc) & dir_mask;  // 移動させた駒による長い利きは無くなって
+    auto dir_bw_others = pos.long_effect.long_effect16(from) & dir_mask; // そこで遮断されていた利きの分だけ増える
     UPDATE_LONG_EFFECT_FROM(from, dir_bw_us, dir_bw_others, -1);
 
     // -- toの地点での長い利きの更新。
     // ここはもともと今回捕獲された駒があって利きが遮断されていたので、
     // ここに移動させた駒からの長い利きと、今回捕獲した駒からの長い利きに関する更新だけで十分
 
-    dir_bw_us = LongEffect::dir_bw_of(moved_after_pc);
-    dir_bw_others = LongEffect::dir_bw_of(captured_pc);
+    dir_bw_us = LongEffect::long_effect16_of(moved_after_pc);
+    dir_bw_others = LongEffect::long_effect16_of(captured_pc);
     UPDATE_LONG_EFFECT_FROM(to, dir_bw_us , dir_bw_others , +1);
   }
 
@@ -462,15 +462,15 @@ namespace LongEffect
       dir_mask = 0xffff;
     }
 
-    auto dir_bw_us = LongEffect::dir_bw_of(moved_pc) & dir_mask;
-    auto dir_bw_others = pos.long_effect.dir_bw_on(from) & dir_mask;
+    auto dir_bw_us = LongEffect::long_effect16_of(moved_pc) & dir_mask;
+    auto dir_bw_others = pos.long_effect.long_effect16(from) & dir_mask;
     UPDATE_LONG_EFFECT_FROM(from, dir_bw_us, dir_bw_others, -1);
 
     // -- toの地点での長い利きの更新。
     // ここに移動させた駒からの長い利きと、これにより遮断された長い利きに関する更新
 
-    dir_bw_us = LongEffect::dir_bw_of(moved_after_pc);
-    dir_bw_others = pos.long_effect.dir_bw_on(to);
+    dir_bw_us = LongEffect::long_effect16_of(moved_after_pc);
+    dir_bw_others = pos.long_effect.long_effect16(to);
     
     UPDATE_LONG_EFFECT_FROM(to, dir_bw_us, dir_bw_others, +1);
   }
@@ -494,8 +494,8 @@ namespace LongEffect
 
     auto& long_effect = pos.long_effect;
 
-    auto dir_bw_us = LongEffect::dir_bw_of(dropped_pc);
-    auto dir_bw_others = pos.long_effect.dir_bw_on(to);
+    auto dir_bw_us = LongEffect::long_effect16_of(dropped_pc);
+    auto dir_bw_others = pos.long_effect.long_effect16(to);
     UPDATE_LONG_EFFECT_FROM_REWIND(to, dir_bw_us, dir_bw_others, -1); // rewind時には-1
   }
 
@@ -520,8 +520,8 @@ namespace LongEffect
 
     // -- toの地点での長い利きの更新。
 
-    auto dir_bw_us = LongEffect::dir_bw_of(moved_after_pc);
-    auto dir_bw_others = LongEffect::dir_bw_of(captured_pc);
+    auto dir_bw_us = LongEffect::long_effect16_of(moved_after_pc);
+    auto dir_bw_others = LongEffect::long_effect16_of(captured_pc);
     UPDATE_LONG_EFFECT_FROM_REWIND(to, dir_bw_us, dir_bw_others, -1); // rewind時はこの符号が-1
                                                                     
     // -- fromの地点での長い利きの更新。
@@ -538,8 +538,8 @@ namespace LongEffect
       dir_mask = 0xffff;
     }
 
-    dir_bw_us = LongEffect::dir_bw_of(moved_pc) & dir_mask;
-    dir_bw_others = pos.long_effect.dir_bw_on(from) & dir_mask;
+    dir_bw_us = LongEffect::long_effect16_of(moved_pc) & dir_mask;
+    dir_bw_others = pos.long_effect.long_effect16(from) & dir_mask;
     UPDATE_LONG_EFFECT_FROM_REWIND(from, dir_bw_us, dir_bw_others, +1); // rewind時はこの符号が+1
   }
 
@@ -560,8 +560,8 @@ namespace LongEffect
 
     // -- toの地点での長い利きの更新。
 
-    auto dir_bw_us = LongEffect::dir_bw_of(moved_after_pc);
-    auto dir_bw_others = pos.long_effect.dir_bw_on(to);
+    auto dir_bw_us = LongEffect::long_effect16_of(moved_after_pc);
+    auto dir_bw_others = pos.long_effect.long_effect16(to);
 
     UPDATE_LONG_EFFECT_FROM_REWIND(to, dir_bw_us, dir_bw_others, -1); // rewind時はこの符号が-1
                                                                     
@@ -579,8 +579,8 @@ namespace LongEffect
       dir_mask = 0xffff;
     }
 
-    dir_bw_us = LongEffect::dir_bw_of(moved_pc) & dir_mask;
-    dir_bw_others = pos.long_effect.dir_bw_on(from) & dir_mask;
+    dir_bw_us = LongEffect::long_effect16_of(moved_pc) & dir_mask;
+    dir_bw_others = pos.long_effect.long_effect16(from) & dir_mask;
     UPDATE_LONG_EFFECT_FROM_REWIND(from, dir_bw_us, dir_bw_others, +1); // rewind時はこの符号が+1
   }
 

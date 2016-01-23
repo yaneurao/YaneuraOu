@@ -12,6 +12,40 @@
 ・1手詰めで漏れているケースもう少し追加する。
 
 
+■ 2016/01/23 V1.15
+
+・dirs_bw_of()→long_effect_ofとリネーム
+・mate1plyの判定率、ランダムプレイヤーで計測できるようにした。
+
+Random Player test , loop_max = 100000000
+mate found = 10000 , mate miss = 28848 , mate found rate  = 25.7414%
+mate found = 20000 , mate miss = 58089 , mate found rate  = 25.6118%
+mate found = 30000 , mate miss = 87252 , mate found rate  = 25.5859%
+mate found = 40000 , mate miss = 116252 , mate found rate  = 25.5997%
+mate found = 50000 , mate miss = 146594 , mate found rate  = 25.4331%
+mate found = 60000 , mate miss = 176384 , mate found rate  = 25.3824%
+mate found = 70000 , mate miss = 206668 , mate found rate  = 25.3011%
+mate found = 80000 , mate miss = 237090 , mate found rate  = 25.2294%
+→　おかしい。低すぎ。
+
+・移動による詰み、駒打ち用のdirectionsテーブルではまずいのか…。修正した。
+
+test rp
+Random Player test , loop_max = 100000000
+mate found = 10000 , mate miss = 1590 , mate found rate  = 86.2813%
+mate found = 20000 , mate miss = 3134 , mate found rate  = 86.4528%
+mate found = 30000 , mate miss = 4722 , mate found rate  = 86.4006%
+mate found = 40000 , mate miss = 6296 , mate found rate  = 86.4006%
+mate found = 50000 , mate miss = 7953 , mate found rate  = 86.2768%
+mate found = 60000 , mate miss = 9620 , mate found rate  = 86.1821%
+mate found = 70000 , mate miss = 11028 , mate found rate  = 86.3899%
+mate found = 80000 , mate miss = 12651 , mate found rate  = 86.3455%
+mate found = 90000 , mate miss = 14175 , mate found rate  = 86.3931%
+mate found = 100000 , mate miss = 15725 , mate found rate  = 86.4118%
+→　だいぶ上がった。もう少し上がって欲しい気が。
+
+
+
 ■ 2016/01/23 V1.14
 
 ・do_move()に関するベンチが要るな。

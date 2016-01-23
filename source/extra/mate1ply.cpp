@@ -175,7 +175,7 @@ MOVE_MATE:
         // 桂馬を持っていて、8近傍にかかる長い利きを遮断していなくて
         // ここに駒がなければ(自駒は上で除外済みだが)、ここに打って詰み
         if ((ourHand & HAND_KIND_KNIGHT) && !(pieces() & to)) {
-          auto cut_directions = long_effect.dir_bw[to].dirs[Us];
+          auto cut_directions = long_effect.le16[to].dirs[Us];
           // 遮断していないならこれにて詰み
           if (!cut_directions)
             return make_move_drop(KNIGHT, to);
@@ -202,7 +202,7 @@ MOVE_MATE:
           from = froms.pop();
           if (!(pinned & from))
           {
-            auto cut_directions = long_effect.dir_bw[to].dirs[Us];
+            auto cut_directions = long_effect.le16[to].dirs[Us];
             // 遮断していないならこれにて詰み
             if (!cut_directions)
               return make_move(from, to);
@@ -305,7 +305,7 @@ MOVE_MATE:
         if (effect_us_not & info2)     // 8)
           goto NonProCheck;
 
-        if (directions_of(from, to) & long_effect.dir_bw[from].dirs[~Us])  // 9)
+        if (directions_of(from, to) & long_effect.le16[from].dirs[~Us])  // 9)
           continue; // このとき成ったところでback attackで取られてしまうので次の候補を調べよう。
 
         // themKingから見て移動元から消失する利き
@@ -327,7 +327,7 @@ MOVE_MATE:
           uint8_t dec_num = ((dec_around8 >> cut_direct) & 1) + ((cut_dirs >> cut_direct) & 1);
 
           Square to2 = themKing + DirectToDelta(cut_direct);
-          if (board_effect[Us].effect(to2) > dec_num) // 10),11)
+          if (board_effect[Us].effect(to2) <= dec_num) // 10),11)
             goto NonProCheck;
         }
 
@@ -373,7 +373,7 @@ MOVE_MATE:
         if (effect_us_not & info2)
           goto NextCandidate;
 
-        if (directions_of(from, to) & long_effect.dir_bw[from].dirs[~Us])
+        if (directions_of(from, to) & long_effect.le16[from].dirs[~Us])
           goto NextCandidate;
 
         auto dec_effect = effects_from(pc, from, pieces());
@@ -386,7 +386,7 @@ MOVE_MATE:
           Direct cut_direct = pop_directions(dec);
           uint8_t dec_num = ((dec_around8 >> cut_direct) & 1) + ((cut_dirs >> cut_direct) & 1);
           Square to2 = themKing + DirectToDelta(cut_direct);
-          if (board_effect[Us].effect(to2) > dec_num)
+          if (board_effect[Us].effect(to2) <= dec_num)
             goto NextCandidate;
         }
         return make_move(from, to);
@@ -422,14 +422,21 @@ namespace Mate1Ply
         HandKind hk = HAND_KIND_ZERO;
 
         // info1の場所に駒を打ってみて詰むかどうかを確認
-        while (info1)
+        for (int i = 0; i < 8;++i)
         {
-          Direct dir = pop_directions(info1);
-          
+//          Direct dir = pop_directions(info1);
+          Direct dir = Direct(i);
+          // 駒が打てる場所か
+          bool droppable = (info1 & (1 << i));
+
           // 打つ駒 .. 香、銀、金、角、飛、or Queen
           const Piece drop_pieces[6] = { LANCE,SILVER,GOLD,BISHOP,ROOK,QUEEN };
           for (auto pt : drop_pieces)
           {
+            // 駒が打てない場所ならそこにQUEENを持ってきて詰むかだけチェックする
+            if (!droppable && pt != QUEEN)
+              continue;
+
             // piece_effectは利きのある場所が0。
             Directions effect_not = piece_effect_not(make_piece(c, pt),dir);
 
@@ -444,10 +451,10 @@ namespace Mate1Ply
               else
                 hk |= HandKind(1 << (pt-1));
             }
-            // 王に行き場がないなら桂で詰む
-            if (!info2)
-              hk |= HandKind(1 << (KNIGHT - 1));
           }
+          // 王に行き場がないなら桂で詰む
+          if (!info2)
+            hk |= HandKind(1 << (KNIGHT - 1));
         }
 
         mate1ply_drop_tbl[info][c].hand_kind = hk;

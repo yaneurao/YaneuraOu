@@ -225,9 +225,9 @@ namespace LongEffect
   // ----------------------
 
   // Directions先後用
-  union DirectionsBW {
+  union LongEffect16 {
     Directions dirs[COLOR_NB]; // 先後個別に扱いたいとき用
-    uint16_t u16;              // 直接整数として扱いたいとき用
+    uint16_t u16;              // 直接整数として扱いたいとき用。long_effect_of()で取得可能
   };
 
   // 先手の香と角と飛車の長い利きの方向
@@ -241,25 +241,25 @@ namespace LongEffect
     0,0,DIRECTIONS_U/*香*/,0,0,BISHOP_DIR/*角*/,ROOK_DIR/*飛*/,0,0,0,0,0,0,BISHOP_DIR/*馬*/,ROOK_DIR/*龍*/,0,                                          // 先手
     0,0,uint16_t(DIRECTIONS_D<<8)/*香*/,0,0,uint16_t(BISHOP_DIR<<8),uint16_t(ROOK_DIR<<8),0,0,0,0,0,0,uint16_t(BISHOP_DIR<<8),uint16_t(ROOK_DIR<<8),0, // 後手
   };
-  inline uint16_t dir_bw_of(Piece pc) { return dir_bw_table[pc]; }
+  inline uint16_t long_effect16_of(Piece pc) { return dir_bw_table[pc]; }
 
   // ある升における利きの数を表現するWordBoard
   // 玉の8近傍を回収するなど、アライメントの合っていないアクセスをするのでこの構造体にはalignasをつけないことにする。
   struct WordBoard
   {
     // ゼロクリア
-    void clear() { memset(dir_bw, 0, sizeof(dir_bw)); }
+    void clear() { memset(le16, 0, sizeof(le16)); }
 
     // ある升にある長い利きの方向
     // この方向に利いている(遠方駒は、この逆方向にいる。sqの駒を取り除いたときにさらにこの方角に利きが伸びる)
-    Directions directions_of(Color us , Square sq) const { return dir_bw[sq].dirs[us]; }
+    Directions directions_of(Color us , Square sq) const { return le16[sq].dirs[us]; }
 
     // ある升の長い利きの方向を得る(DirectionsBW型とみなして良い)
-    uint16_t dir_bw_on(Square sq) const { return dir_bw[sq].u16; }
+    uint16_t long_effect16(Square sq) const { return le16[sq].u16; }
 
     // 各升のDirections(先後)
     // 先手のほうは下位8bit。後手のほうは上位8bit
-    DirectionsBW dir_bw[SQ_NB_PLUS1];
+    LongEffect16 le16[SQ_NB_PLUS1];
   };
 
   // 各升の利きの方向を出力する。

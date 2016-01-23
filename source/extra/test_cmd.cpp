@@ -177,7 +177,7 @@ void effect_check(Position& pos)
       }
 
   for(auto sq : SQ)
-    if (wb.dir_bw_on(sq) != pos.long_effect.dir_bw_on(sq))
+    if (wb.long_effect16(sq) != pos.long_effect.long_effect16(sq))
     {
       cout << "Error long effect at " << sq << endl << pos << "wrong\n" << wb << endl << "correct\n" << pos.long_effect << pos.moves_from_start_pretty();
       ASSERT(false);
@@ -197,8 +197,14 @@ void effect_check(Position& pos)
 // 1手詰め判定のテスト
 //#define MATE1PLY_CHECK
 
+
 void random_player(Position& pos,uint64_t loop_max)
 {
+#ifdef MATE1PLY_CHECK
+  uint64_t mate_found = 0;    // 1手詰め判定で見つけた1手詰め局面の数 
+  uint64_t mate_missed = 0;   // 1手詰め判定で見逃した1手詰め局面の数
+#endif
+
   pos.set_hirate();
   const int MAX_PLY = 256; // 256手までテスト
 
@@ -258,7 +264,34 @@ void random_player(Position& pos,uint64_t loop_max)
             } else {
               pos.undo_move(m);
 //              cout << "M"; // mateだったときにこれを表示してpassした個数のチェック
+              ++mate_found;
+
+              // 統計情報の表示
+              if ((mate_found % 10000) == 0)
+              {
+                cout << endl << "mate found = " << mate_found << " , mate miss = " << mate_missed
+                  << " , mate found rate  = " << double(100*mate_found) / (mate_found + mate_missed) << "%"<< endl;
+              }
             }
+          } else {
+
+            // 1手詰め判定で漏れた局面を探す
+            for (auto m : MoveList<LEGAL_ALL>(pos))
+            {
+              pos.do_move(m, state[ply]);
+              if (pos.is_mated())
+              {
+                pos.undo_move(m);
+                // 局面が表示されすぎて統計情報がわかりにくいときはコメントアウトする
+ //               cout << endl << pos << "mated = " << m.move << ", but mate1ply() = MOVE_NONE." << endl;
+                pos.mate1ply();
+
+                ++mate_missed;
+                break;
+              }
+              pos.undo_move(m);
+            }
+
           }
         }
       }
