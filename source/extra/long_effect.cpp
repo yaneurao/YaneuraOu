@@ -86,9 +86,13 @@ namespace Effect8
 
           auto sq = to_sqww(SQ_55 + DirectToDelta(Direct(d1)));
           auto delta = DirectToDeltaWW(dir);
-          sq += delta; bb ^= to_sq(sq);
-          sq += delta; bb ^= to_sq(sq);
-          sq += delta; bb ^= to_sq(sq);
+          
+          for (int i = 0; i < 3; ++i)
+          {
+            sq += delta;
+            if (!is_ok(sq)) break;
+            bb ^= to_sq(sq);
+          }
         }
         
         auto effect8 = around8(bb, SQ_55);
