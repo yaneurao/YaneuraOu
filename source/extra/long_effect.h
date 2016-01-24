@@ -204,6 +204,8 @@ namespace LongEffect
 
       // メモリアクセス違反ではあるが、Positionクラスのなかで使うので隣のメモリが
       // ±10bytesぐらい確保されているだろうから問題ない。
+      // →　念のためpaddingしておくことにする。
+
       // sqの升の右上の升から32升分は取得できたので、これをPEXTで回収する。
       return (Directions)PEXT32(ymm(&e[sq - SQ_22]).cmp(ymm_zero).to_uint32(), 0b111000000101000000111);
     }
@@ -217,8 +219,14 @@ namespace LongEffect
     // ゼロクリア
     void clear() { memset(e, 0, sizeof(e)); }
 
+    // around8で回収するときのpadding
+    uint8_t padding[SQ_22];
+
     // 各升の利きの数
     uint8_t e[SQ_NB_PLUS1];
+
+    // around8で回収するときのpadding
+    uint8_t padding2[32-SQ_22-1];
   };
 
   // 各升の利きの数を出力する。
@@ -275,9 +283,16 @@ namespace LongEffect
       return Effect24::Directions(~(bits0 + (bits1 << 10) + (bits2 << 19)));
     }
 
+    // long_effect24_to_around9で回収するときのpadding
+    LongEffect16 padding[SQ_33];
+
     // 各升のDirections(先後)
     // 先手のほうは下位8bit。後手のほうは上位8bit
     LongEffect16 le16[SQ_NB_PLUS1];
+
+    // long_effect24_to_around9で回収するときのpadding
+    LongEffect16 padding2[48 - SQ_33 - 1];
+
   };
 
   // 各升の利きの方向を出力する。
