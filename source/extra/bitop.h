@@ -13,6 +13,19 @@
 // USE_AVX2    : AVX2以降で使える命令を使う(Haswell以降からサポートされている)
 //                 PEXT   / MOVEMASK
 
+
+// ----------------------------
+//      type define(uint)
+// ----------------------------
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+
+// ----------------------------
+//      64bit environment
+// ----------------------------
+
 // 64bit環境のときにはIS_64BITがdefinedになるのでこのシンボルが定義されていなければ
 // 32bit環境用のemulation codeを書く。
 #if defined(_WIN64) && defined(_MSC_VER)
@@ -154,8 +167,13 @@ struct alignas(32) ymm
   ymm operator & (const ymm& rhs) const { return ymm(*this) &= rhs; }
   ymm operator | (const ymm& rhs) const { return ymm(*this) |= rhs; }
 
-  // packed byte単位で比較してthisのほうが大きければMSBを1にする。(このあとto_uint32()で直列化するだとか)
+  // packed byte単位で符号つき比較してthisのほうが大きければMSBを1にする。(このあとto_uint32()で直列化するだとか)
+  // ※　AVX2には符号つき比較する命令しかない…。
   ymm cmp(const ymm& rhs) const { ymm t; t.m = _mm256_cmpgt_epi8(m, rhs.m); return t; }
+
+  // packed byte単位で比較して、等しいなら0xffにする。(このあとto_uint32()で直列化するだとか)
+  // ※　AVXにはnot equal命令がない…。
+  ymm eq(const ymm& rhs) const { ymm t; t.m = _mm256_cmpeq_epi8(m, rhs.m); return t; }
 };
 
 #else
@@ -164,6 +182,7 @@ struct ymm
 {
   union {
     uint8_t m8[32];
+    uint16_t m16[16];
     uint64_t m64[4];
   };
 
@@ -200,7 +219,15 @@ struct ymm
   ymm cmp(const ymm& rhs) const {
     ymm t;
     for (int i = 0; i < 32; ++i)
-      t.m8[i] = (m8[i] > rhs.m8[i]) ? 0xff : 0;
+      t.m8[i] = ((int8_t)m8[i] > (int8_t)rhs.m8[i]) ? 0xff : 0;
+    return t;
+  }
+
+  // packed byte単位で比較して、等しいなら0xffにする。(このあとto_uint32()で直列化するだとか)
+  ymm eq(const ymm& rhs) const {
+    ymm t;
+    for (int i = 0; i < 32; ++i)
+      t.m8[i] = (m8[i] == rhs.m8[i]) ? 0xff : 0;
     return t;
   }
 };
@@ -209,10 +236,6 @@ struct ymm
 
 static const ymm ymm_zero = ymm(uint8_t(0));
 static const ymm ymm_one = ymm(uint8_t(1));
-
-// 24近傍で8近傍に利く長い利きの方向。
-//static const ymm ymm_direct_around8 = ymm_zero;
-// ToDo:あとで
 
 // ----------------------------
 //    custom allocator

@@ -102,12 +102,12 @@ Move Position::mate1ply_impl() const
 
   // 敵玉周辺の受け方の利きのある升
   Directions a8_effect_them = board_effect[them].around8_greater_than_one(themKing);
-  
+
   // 敵玉周辺の攻め方の利きのある升
   Directions a8_effect_us = board_effect[Us].around8(themKing);
 
   // 敵玉周辺の受け方の駒がない升
-  Directions a8_them_movable = ~around8(pieces(them),themKing);
+  Directions a8_them_movable = ~around8(pieces(them), themKing);
 
   // 敵玉周辺の駒が打てる升 == 駒がない場所
   Directions a8_droppable = around8(~pieces(), themKing);
@@ -163,6 +163,8 @@ MOVE_MATE:
   // 利きが2つ以上ある場所
   Directions a8_effect_us_gt1 = board_effect[Us].around8_greater_than_one(themKing); // 1)
 
+  // 桂の打ちと桂の不成による移動による直接王手による詰み
+
   // 玉の逃げ道がないことはわかっているのであとは桂が打ててかつ、その場所に敵の利きがなければ詰む。
   // あるいは、桂馬を持っていないとしても、その地点に桂馬を跳ねればその桂がpinされていなければ詰む。
   if (mi.hand_kind & HAND_KIND_KNIGHT)
@@ -181,14 +183,14 @@ MOVE_MATE:
             return make_move_drop(KNIGHT, to);
 
           // 敵玉から見てここの利きを損失するのでここの利きが2以上でないといけない
-          auto direct = direct_knight_of<Us>(themKing,to);
+          auto direct = direct_knight_of<Us>(themKing, to);
           auto dec_effect = cutoff_directions(direct, cut_directions);
           // 敵玉の8近傍に影響を及ぼす遮断された利きがないのでこれにて詰み
           if (!dec_effect)
             return make_move_drop(KNIGHT, to);
 
           // dec_effectの各bitに対して2個以上の利きがあるか、敵玉が移動できないか、盤外であればこれにて詰み。
-          if (!( dec_effect & ~(a8_effect_us_gt1 | ~a8_board_mask | ~a8_them_movable)))
+          if (!(dec_effect & ~(a8_effect_us_gt1 | ~a8_board_mask | ~a8_them_movable)))
             return make_move_drop(KNIGHT, to);
 
           // 長い利きを遮断してしまうのでこのtoの地点はよくない。移動によっては詰まない。
@@ -206,14 +208,14 @@ MOVE_MATE:
             // 遮断していないならこれにて詰み
             if (!cut_directions)
               return make_move(from, to);
-            
+
             // 敵玉から見てここの利きを損失するのでここの利きが2以上でないといけない
-            auto direct = direct_knight_of<Us>(themKing,to);
+            auto direct = direct_knight_of<Us>(themKing, to);
             auto dec_effect = cutoff_directions(direct, cut_directions);
             // 敵玉の8近傍に影響を及ぼす遮断された利きがないのでこれにて詰み
             if (!dec_effect)
               return make_move(from, to);
-            
+
             // dec_effectの各bitに対して2個以上の利きがあるか、敵玉が移動できないか、盤外であればこれにて詰み。
             if (!(dec_effect & ~(a8_effect_us_gt1 | ~a8_board_mask | ~a8_them_movable)))
               return make_move(from, to);
@@ -225,14 +227,166 @@ MOVE_MATE:
     }
   }
 
+  auto ourKing = kingSquare[Us];
+
+  // ---------------------------------------------------------------
+  //     fromをtoに移動させて詰むかどうかを判定する関数
+  // ---------------------------------------------------------------
+
   // ここで判定するのは近接王手におる詰みのみ。両王手による詰みは稀なので除外。
   // まず王手の候補となる升を列挙、そのあと、この移動によって本当に王手になるかだとか、
   // 遠方駒の利きを遮断するかどうか等のチェックが必要。
   // 影の利きがあって詰むパターンは最後に追加。
 
-  // 攻め方の駒がない升
-  Directions a8_us_movable = ~around8(pieces(Us),themKing);
-  Bitboard froms;
+  // fromからtoに移動させて詰むかどうかを判定する関数
+  // to_direct = 敵玉から見てtoの升はどの方向か
+  auto is_mated_by_from_to = [&]( Square from, Square to, Direct to_direct)
+  {
+    Piece pc = piece_on(from);
+
+    // ptをfromからtoに持って行って詰むための条件
+    // 6) fromからtoへの移動がpinされていない。
+    // 7) ptをtoに持って行ったときに王手になること   : { piece_check_around8[pt] & (1 << to_direct) } != 0
+    // 8) ptをtoに配置したときに王に行き場所がなくなること
+    //     8a) toに置いたときの利き : piece_effect_mask_around8[pc][to_direct]
+    //     8b) 敵玉の移動できる升(受け方の駒がなく、かつ、攻め方の利きがない) : info2
+    //   toにおいて詰む条件 とは、敵玉の行き場所がなくなることだから、 8a) & 8b) == 0
+
+    // 9) fromの升で、fromからtoの方向の敵の長い利きがないこと。(back attackによりtoに移動させたときに取られてしまう)
+    // 10) toの地点において大駒の利きが遮断されず
+    // 11) 移動元から利きが消失しても敵玉8近傍の攻め方の利きが存在すること。
+    // ※　9),10)は駒打ちのときと同じだが、11)も考慮しないといけないから難しい。
+
+    // 12) 8近傍において、馬の利きは遮断されないが、龍で4隅からの王手は遮断されうる。
+    //  このケースにおいて利きを再計算する必要がある。
+
+    // 13) 桂の成らない(直接)王手で詰むことはない。(桂打ちのときに調査済み)
+    // 14) 玉の移動による(直接)王手で詰むことはない。(自殺手)
+    // 15) 金の成る手は存在しないし、成れない駒、敵陣にない駒による成る王手も存在しない。
+
+    // ---------------------------------------------------------------
+    // 先に成りでの詰みのチェック(こちらのほうが詰む可能性が高いので)
+    // ---------------------------------------------------------------
+
+    {
+      if (type_of(pc) == KING)
+        goto NextCandidate; // 14)
+
+      // 開き王手なら、成らなくとも駄目だから..
+      if (discovered(from, to, ourKing, pinned))          // 6)
+        goto NextCandidate;
+
+      // 成っていない駒でかつ、fromかtoが敵陣なら成りによる王手も調べないといけない。
+      static_assert(GOLD == 7, "GOLD must be 7.");
+      if ((type_of(pc) >= GOLD) || !((Bitboard(from) ^ Bitboard(to)) & enemy_field(Us)))
+        goto NonProCheck2; // 15)
+
+      auto pro_pc = (Piece)(pc + PIECE_PROMOTE);
+
+      if (!(piece_check_around8(pro_pc) & (1 << to_direct))) // 7)
+        goto NonProCheck;
+
+      auto effect_us_not = (type_of(pro_pc) == DRAGON && is_diag(to_direct)) ?
+        ~around8(dragonEffect(to, pieces()), themKing) : piece_effect_not(pro_pc, to_direct); // 12)
+
+      if (effect_us_not & info2)     // 8)
+        goto NonProCheck;
+
+      if (directions_of(from, to) & long_effect.le16[from].dirs[~Us])  // 9)
+        goto NextCandidate; // このとき成ったところでback attackで取られてしまうので次の候補を調べよう。
+
+      // themKingから見て移動元から消失する利き
+      auto dec_effect = effects_from(pc, from, pieces());
+      // ここの利きがマイナス1
+      auto dec_around8 = around8(dec_effect, themKing);
+
+      // これで遮断される方角の利きもマイナス1
+      auto cut_dirs = cutoff_directions(to_direct, long_effect.directions_of(Us, to));
+
+      // 上の2つの条件の升で、toにその駒を移動させたときに利きがない升に対して調べる。
+      // toの地点はすでに条件を満たしているので調べない。(影の利きで王手する場合などがあるので調べてはならない)
+      auto dec = (dec_around8 | cut_dirs) & effect_us_not & a8_board_mask & a8_them_movable & ~to_directions(to_direct);
+
+      while (dec)
+      {
+        Direct cut_direct = pop_directions(dec);
+
+        // ここにおいていくつ利きが減衰しているのか調べる
+        uint8_t dec_num = ((dec_around8 >> cut_direct) & 1) + ((cut_dirs >> cut_direct) & 1);
+
+        Square to2 = themKing + DirectToDelta(cut_direct);
+        if (board_effect[Us].effect(to2) <= dec_num) // 10),11)
+          goto NonProCheck;
+      }
+
+      // 利きが足りていたのでこれにて詰む
+      return make_move_promote(from, to);
+    }
+
+  NonProCheck:;
+
+    {
+      Piece pt = type_of(pc);
+
+      // 歩・角・飛で成って詰まないなら不成で詰むことはない。(1手詰めにおいては)
+      if (pt == PAWN || pt == BISHOP || pt == ROOK)
+        goto NextCandidate;
+
+      // 香で2段目での成で詰まないなら不成で詰むことはない。(1手詰めにおいては)
+      if (pt == LANCE && (rank_of(to) == ((Us == BLACK) ? RANK_2 : RANK_8)))
+        goto NextCandidate;
+    }
+
+  NonProCheck2:;
+  // ---------------------------------------------------------------
+  //          成らない王手による詰みのチェック
+  // ---------------------------------------------------------------
+
+  // 以下、同様。
+
+    {
+      if (type_of(pc) == KNIGHT) // 13)
+        goto NextCandidate;
+
+      if (discovered(from, to, ourKing, pinned))
+        goto NextCandidate;
+
+      if (!(piece_check_around8(pc) & (1 << to_direct)))
+        goto NextCandidate;
+
+      auto effect_us_not = (type_of(pc) == DRAGON && is_diag(to_direct)) ?
+        ~around8(dragonEffect(to, pieces()), themKing) : piece_effect_not(pc, to_direct);
+
+      if (effect_us_not & info2)
+        goto NextCandidate;
+
+      if (directions_of(from, to) & long_effect.le16[from].dirs[~Us])
+        goto NextCandidate;
+
+      auto dec_effect = effects_from(pc, from, pieces());
+      auto dec_around8 = around8(dec_effect, themKing);
+      auto cut_dirs = cutoff_directions(to_direct, long_effect.directions_of(Us, to));
+      auto dec = (dec_around8 | cut_dirs) & effect_us_not & a8_board_mask & a8_them_movable & ~to_directions(to_direct);
+
+      while (dec)
+      {
+        Direct cut_direct = pop_directions(dec);
+        uint8_t dec_num = ((dec_around8 >> cut_direct) & 1) + ((cut_dirs >> cut_direct) & 1);
+        Square to2 = themKing + DirectToDelta(cut_direct);
+        if (board_effect[Us].effect(to2) <= dec_num)
+          goto NextCandidate;
+      }
+      return make_move(from, to);
+    }
+    NextCandidate:;
+
+    return MOVE_NONE;
+  };
+
+
+  // ---------------------------------------------------------------
+  //       利きが２つある箇所へ移動させることによる詰み
+  // ---------------------------------------------------------------
 
   // 1) 敵玉の8近傍で、味方の利きが2つ以上ある升 : effect[Us].around8_larger_than_two(themKing)
   // 2) 盤内である       : a8_board_mask
@@ -241,9 +395,10 @@ MOVE_MATE:
   // 5) 敵の利きがない   : ~a8_effect_them
   // 移動先の候補の升 = 1) & 2) & 3) & 4) & 5)
 
+  // 攻め方の駒がない升
+  Directions a8_us_movable = ~around8(pieces(Us), themKing);
+  Bitboard froms;
   Directions to_candicate = a8_effect_us_gt1 & a8_board_mask & a8_us_movable & mi.directions & ~a8_effect_them; // 1) & 2) & 3) & 4) & 5)
-
-  auto ourKing = kingSquare[Us];
 
   while (to_candicate)
   {
@@ -255,144 +410,59 @@ MOVE_MATE:
     while (froms)
     {
       from = froms.pop();
-      Piece pc = piece_on(from);
+      Move m = is_mated_by_from_to(from, to, to_direct);
+      if (m != MOVE_NONE)
+        return m;
+    }
+  }
 
-      // ptをfromからtoに持って行って詰むための条件
-      // 6) fromからtoへの移動がpinされていない。
-      // 7) ptをtoに持って行ったときに王手になること   : { piece_check_around8[pt] & (1 << to_direct) } != 0
-      // 8) ptをtoに配置したときに王に行き場所がなくなること
-      //     8a) toに置いたときの利き : piece_effect_mask_around8[pc][to_direct]
-      //     8b) 敵玉の移動できる升(受け方の駒がなく、かつ、攻め方の利きがない) : info2
-      //   toにおいて詰む条件 とは、敵玉の行き場所がなくなることだから、 8a) & 8b) == 0
+  // ---------------------------------------------------------------
+  //     影の利きと自分の利きが1つある箇所へ移動させることによる詰み
+  // ---------------------------------------------------------------
+  
+  // 調べるのは利きが1つのところのみで良い。2つ以上あるところは上ですでにチェック済み。
 
-      // 9) fromの升で、fromからtoの方向の敵の長い利きがないこと。(back attackによりtoに移動させたときに取られてしまう)
-      // 10) toの地点において大駒の利きが遮断されず
-      // 11) 移動元から利きが消失しても敵玉8近傍の攻め方の利きが存在すること。
-      // ※　9),10)は駒打ちのときと同じだが、11)も考慮しないといけないから難しい。
+  // 24近傍で長い利きが敵玉の9近傍に掛かっている升
+  auto a24_candidate = long_effect.long_effect24_to_around9<Us>(themKing);
 
-      // 12) 8近傍において、馬の利きは遮断されないが、龍で4隅からの王手は遮断されうる。
-      //  このケースにおいて利きを再計算する必要がある。
+  // 24近傍の自駒のある場所
+  auto a24_us_occ = Effect24::around24(pieces(Us),themKing);
 
-      // 13) 桂の成らない(直接)王手で詰むことはない。(桂打ちのときに調査済み)
-      // 14) 玉の移動による(直接)王手で詰むことはない。(自殺手)
-      // 15) 金の成る手は存在しないし、成れない駒、敵陣にない駒による成る王手も存在しない。
+  // 盤上の24升のmask
+  auto a24_board_mask = Effect24::board_mask(themKing);
 
-      // ---------------------------------------------------------------
-      // 先に成りでの詰みのチェック(こちらのほうが詰む可能性が高いので)
-      // ---------------------------------------------------------------
+  // 移動元の候補となる駒
+  auto froms24 = a24_candidate & a24_us_occ & a24_board_mask;
 
-      {
-        if (type_of(pc) == KING)
-          continue; // 14)
+  while (froms24)
+  {
+    // a) これを玉の8近傍に移動させられるか
 
-        // 開き王手なら、成らなくとも駄目だから..
-        if (discovered(from, to, ourKing , pinned))          // 6)
-          continue;
+    auto from_direct = Effect24::pop_directions(froms24);
+    auto from = themKing + Effect24::DirectToDelta(from_direct);
 
-        // 成っていない駒でかつ、fromかtoが敵陣なら成りによる王手も調べないといけない。
-        static_assert(GOLD == 7,"GOLD must be 7.");
-        if ((type_of(pc) >= GOLD) || !((Bitboard(from) ^ Bitboard(to)) & enemy_field(Us)))
-          goto NonProCheck2; // 15)
+    auto pc = piece_on(from);
 
-        auto pro_pc = (Piece)(pc + PIECE_PROMOTE);
+    // 利きがあってかつ敵玉の8近傍で自駒がない場所
+    auto target = effects_from(pc, from, pieces()) & kingEffect(themKing) & ~pieces(Us);
 
-        if (!(piece_check_around8(pro_pc) & (1 << to_direct))) // 7)
-          goto NonProCheck;
+    while (target)
+    {
+      auto to = target.pop();
 
-        auto effect_us_not = (type_of(pro_pc) == DRAGON && is_diag(to_direct)) ?
-          ~around8(dragonEffect(to, pieces()),themKing) : piece_effect_not(pro_pc, to_direct); // 12)
+      // b) この移動の方向にこの升での長い利きがなければ移動後、toの升に利きが2つにならないのでNG
+      if (!(directions_of(from, to) & long_effect.directions_of(Us,from)))
+        continue;
 
-        if (effect_us_not & info2)     // 8)
-          goto NonProCheck;
+      // c) toの升が利きが1つでなければNG。(2つ以上あるところはチェック済み)
+      // d) toの升に(玉を除く)敵の利きがあってはならない。
+      if (board_effect[Us].effect(to) != 1 || board_effect[them].effect(to) !=1)
+        continue;
 
-        if (directions_of(from, to) & long_effect.le16[from].dirs[~Us])  // 9)
-          continue; // このとき成ったところでback attackで取られてしまうので次の候補を調べよう。
-
-        // themKingから見て移動元から消失する利き
-        auto dec_effect = effects_from(pc, from, pieces());
-        // ここの利きがマイナス1
-        auto dec_around8 = around8(dec_effect, themKing);
-
-        // これで遮断される方角の利きもマイナス1
-        auto cut_dirs = cutoff_directions(to_direct, long_effect.directions_of(Us, to));
-
-        // 上の2つの条件の升で、toにその駒を移動させたときに利きがない升に対して調べる。
-        auto dec = (dec_around8 | cut_dirs) & effect_us_not & a8_board_mask & a8_them_movable;
-
-        while (dec)
-        {
-          Direct cut_direct = pop_directions(dec);
-
-          // ここにおいていくつ利きが減衰しているのか調べる
-          uint8_t dec_num = ((dec_around8 >> cut_direct) & 1) + ((cut_dirs >> cut_direct) & 1);
-
-          Square to2 = themKing + DirectToDelta(cut_direct);
-          if (board_effect[Us].effect(to2) <= dec_num) // 10),11)
-            goto NonProCheck;
-        }
-
-        // 利きが足りていたのでこれにて詰む
-        return make_move_promote(from, to);
-      }
-
-    NonProCheck:;
-
-      {
-        Piece pt = type_of(pc);
-
-        // 歩・角・飛で成って詰まないなら不成で詰むことはない。(1手詰めにおいては)
-        if (pt == PAWN || pt == BISHOP || pt == ROOK)
-          continue;
-
-        // 香で2段目での成で詰まないなら不成で詰むことはない。(1手詰めにおいては)
-        if (pt == LANCE && (rank_of(to) == ((Us == BLACK) ? RANK_2 : RANK_8)))
-          continue;
-
-      }
-
-    NonProCheck2:;
-      // ---------------------------------------------------------------
-      //          成らない王手による詰みのチェック
-      // ---------------------------------------------------------------
-
-      // 以下、同様。
-
-      {
-        if (type_of(pc) == KNIGHT) // 13)
-          goto NextCandidate;
-
-        if (discovered(from, to, ourKing , pinned))
-          goto NextCandidate;
-
-        if (!(piece_check_around8(pc) & (1 << to_direct)))
-          goto NextCandidate;
-
-        auto effect_us_not = (type_of(pc) == DRAGON && is_diag(to_direct)) ?
-          ~around8(dragonEffect(to, pieces()), themKing) : piece_effect_not(pc, to_direct);
-
-        if (effect_us_not & info2)
-          goto NextCandidate;
-
-        if (directions_of(from, to) & long_effect.le16[from].dirs[~Us])
-          goto NextCandidate;
-
-        auto dec_effect = effects_from(pc, from, pieces());
-        auto dec_around8 = around8(dec_effect, themKing);
-        auto cut_dirs = cutoff_directions(to_direct, long_effect.directions_of(Us, to));
-        auto dec = (dec_around8 | cut_dirs) & effect_us_not & a8_board_mask & a8_them_movable;
-
-        while (dec)
-        {
-          Direct cut_direct = pop_directions(dec);
-          uint8_t dec_num = ((dec_around8 >> cut_direct) & 1) + ((cut_dirs >> cut_direct) & 1);
-          Square to2 = themKing + DirectToDelta(cut_direct);
-          if (board_effect[Us].effect(to2) <= dec_num)
-            goto NextCandidate;
-        }
-        return make_move(from, to);
-      }
-    NextCandidate:;
-
+      auto to_direct = (Direct)LSB32(directions_of(themKing, to));
+      Move m = is_mated_by_from_to(from, to, to_direct);
+      if (m != MOVE_NONE)
+        return m;
     }
   }
 
@@ -465,4 +535,3 @@ namespace Mate1Ply
 
 
 #endif
-

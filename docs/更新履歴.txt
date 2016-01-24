@@ -8,8 +8,32 @@
 ・長手数の詰将棋ルーチン書く。
 ・ベンチマーク書く。
 
+
+
+■ 2016/01/24 V1.16
+
 ・1手詰めに影の利きを考慮した詰みも追加。
 ・1手詰めで漏れているケースもう少し追加する。
+・uint8_t -> u8とかtypedefする
+・24近傍の9近傍への長い利きを回収するコード追加。
+・mate1plyの移動による詰みをlambdaに変更。
+・1手詰め判定で影の利き考慮するようにした。
+
+test rp
+Random Player test , loop_max = 100000000
+mate found = 10000 , mate miss = 827 , mate found rate  = 92.3617%
+mate found = 20000 , mate miss = 1590 , mate found rate  = 92.6355%
+mate found = 30000 , mate miss = 2354 , mate found rate  = 92.7242%
+mate found = 40000 , mate miss = 3190 , mate found rate  = 92.614%
+mate found = 50000 , mate miss = 4072 , mate found rate  = 92.4693%
+mate found = 60000 , mate miss = 5015 , mate found rate  = 92.2864%
+mate found = 70000 , mate miss = 5822 , mate found rate  = 92.3215%
+mate found = 80000 , mate miss = 6704 , mate found rate  = 92.2679%
+mate found = 90000 , mate miss = 7435 , mate found rate  = 92.3693%
+mate found = 100000 , mate miss = 8202 , mate found rate  = 92.4197%
+mate found = 110000 , mate miss = 8984 , mate found rate  = 92.4494%
+
+詰み率 92%ちょいぐらいになった。8%ぐらいが影の利きありでの1手詰めなのか。
 
 
 ■ 2016/01/23 V1.15

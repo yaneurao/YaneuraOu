@@ -82,7 +82,8 @@ namespace Effect8
 
   // → shogi.hに持って行った。
 
-  ENABLE_RANGE_OPERATORS_ON(Effect8::Direct, Effect8::DIRECT_ZERO, Effect8::DIRECT_NB)
+  ENABLE_BIT_OPERATORS_ON(Directions)
+  ENABLE_RANGE_OPERATORS_ON(Direct, DIRECT_ZERO, DIRECT_NB)
 
   // --- 8近傍に関する利き
 
@@ -121,7 +122,7 @@ namespace Effect24
 
   // Bitboardのsq周辺の24近傍の状態を24bitに直列化する。
   // ただし盤外に相当するbitの値は不定。盤外を0にしたいのであれば、Effect8::board_mask(sq)と & すること。
-  static Directions around24(const Bitboard& b, Square sq);
+  Directions around24(const Bitboard& b, Square sq);
 
   // around24()などである升の24近傍の情報を回収したときに壁の位置のマスクが欲しいときがあるから、そのマスク情報。
   // 壁のところが0、盤面上が1になっている。
@@ -169,6 +170,9 @@ namespace Effect24
   };
   inline Square DirectToDelta(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDelta_[d]; }
 
+  // 24近傍で8近傍に利く長い利きの方向。24近傍 = 4筋*9段+5升=41升 ≦ 48升*WordBoard = 96byte = ymm(32) * 3
+  extern ymm ymm_direct_to_around8[3];
+
   // --- init
 
   // このnamespaceで用いるテーブルの初期化
@@ -201,13 +205,13 @@ namespace LongEffect
       // メモリアクセス違反ではあるが、Positionクラスのなかで使うので隣のメモリが
       // ±10bytesぐらい確保されているだろうから問題ない。
       // sqの升の右上の升から32升分は取得できたので、これをPEXTで回収する。
-      return (Directions)PEXT32(ymm(&e[sq - 10]).cmp(ymm_zero).to_uint32(), 0b111000000101000000111);
+      return (Directions)PEXT32(ymm(&e[sq - SQ_22]).cmp(ymm_zero).to_uint32(), 0b111000000101000000111);
     }
 
     // ある升の周辺8近傍の利きを取得。2以上の値のところが1になる。さもなくば0。ただし壁(盤外)は不定。必要ならEffect8::board_maskでmaskすること。
     Directions around8_greater_than_one(Square sq) const
     {
-      return (Directions)PEXT32(ymm(&e[sq - 10]).cmp(ymm_one).to_uint32(), 0b111000000101000000111);
+      return (Directions)PEXT32(ymm(&e[sq - SQ_22]).cmp(ymm_one).to_uint32(), 0b111000000101000000111);
     }
 
     // ゼロクリア
@@ -237,11 +241,11 @@ namespace LongEffect
   // ある駒に対する長い利きの方向
   // 1) 長い利きに関して、馬と龍は角と飛車と同じ。
   // 2) 後手の駒は (dir << 8)して格納する。(DirectionsBWの定義より。)
-  const uint16_t dir_bw_table[PIECE_NB] = {
+  const uint16_t long_effect16_table[PIECE_NB] = {
     0,0,DIRECTIONS_U/*香*/,0,0,BISHOP_DIR/*角*/,ROOK_DIR/*飛*/,0,0,0,0,0,0,BISHOP_DIR/*馬*/,ROOK_DIR/*龍*/,0,                                          // 先手
     0,0,uint16_t(DIRECTIONS_D<<8)/*香*/,0,0,uint16_t(BISHOP_DIR<<8),uint16_t(ROOK_DIR<<8),0,0,0,0,0,0,uint16_t(BISHOP_DIR<<8),uint16_t(ROOK_DIR<<8),0, // 後手
   };
-  inline uint16_t long_effect16_of(Piece pc) { return dir_bw_table[pc]; }
+  inline uint16_t long_effect16_of(Piece pc) { return long_effect16_table[pc]; }
 
   // ある升における利きの数を表現するWordBoard
   // 玉の8近傍を回収するなど、アライメントの合っていないアクセスをするのでこの構造体にはalignasをつけないことにする。
@@ -256,6 +260,20 @@ namespace LongEffect
 
     // ある升の長い利きの方向を得る(DirectionsBW型とみなして良い)
     uint16_t long_effect16(Square sq) const { return le16[sq].u16; }
+
+    // sqの升の周辺24近傍に対して、sqの9近傍(sqの地点を含む)への長い利きを持っている升を列挙する
+    template <Color Us> Effect24::Directions long_effect24_to_around9(Square sq) const
+    {
+      // This algorithm is developed by tanuki- and yaneurao in 2016.
+
+      // SQ_33の地点で正規化して(並行移動させて)、24近傍(24bit)分を取り出す。
+
+      const int offset = Us == BLACK ? 0 : 1;
+      u32 bits0 = PEXT32((ymm((u8*)&le16[sq - SQ_33 +  0] + offset) & Effect24::ymm_direct_to_around8[0]).eq(ymm_zero).to_uint32(), 0b00000101010101000000000101010101); // 16升中10升
+      u32 bits1 = PEXT32((ymm((u8*)&le16[sq - SQ_33 + 16] + offset) & Effect24::ymm_direct_to_around8[1]).eq(ymm_zero).to_uint32(), 0b01010101010000000001010001010000); // 16升中 9升
+      u32 bits2 = PEXT32((ymm((u8*)&le16[sq - SQ_33 + 32] + offset) & Effect24::ymm_direct_to_around8[2]).eq(ymm_zero).to_uint32(), 0b00000000000000010101010100000000); // 16升中 5升
+      return Effect24::Directions(~(bits0 + (bits1 << 10) + (bits2 << 19)));
+    }
 
     // 各升のDirections(先後)
     // 先手のほうは下位8bit。後手のほうは上位8bit

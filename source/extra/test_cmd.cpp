@@ -195,7 +195,7 @@ void effect_check(Position& pos)
 //#define EFFECT_CHECK
 
 // 1手詰め判定のテスト
-//#define MATE1PLY_CHECK
+// #define MATE1PLY_CHECK
 
 
 void random_player(Position& pos,uint64_t loop_max)
@@ -283,7 +283,7 @@ void random_player(Position& pos,uint64_t loop_max)
               {
                 pos.undo_move(m);
                 // 局面が表示されすぎて統計情報がわかりにくいときはコメントアウトする
- //               cout << endl << pos << "mated = " << m.move << ", but mate1ply() = MOVE_NONE." << endl;
+//                cout << endl << pos << "mated = " << m.move << ", but mate1ply() = MOVE_NONE." << endl;
                 pos.mate1ply();
 
                 ++mate_missed;
@@ -695,6 +695,9 @@ void unit_test(Position& pos, istringstream& is)
 
     // 1手詰め問題集
     MateProblem mp[] = {
+      // 影の利きによる移動の詰み
+      { "lnsg1gsnl/1r5b1/ppppppppp/5k3/9/5+P3/PPPPP1PPP/1B3R3/LNSGKGSNL b - 1" , make_move(SQ_46,SQ_45)},
+
       // 駒打ちによる詰み
       { "ln1g1gs1l/1r3p3/pppp1bppp/4pkn+R1/3Ns4/4PP1P1/PPPP1SP1P/5G1B1/L1SGK1L2 b N 1",make_move_drop(KNIGHT,SQ_36) },
       { "ln1g1gs1l/1r3p1b1/pppp2ppp/4pkn2/3Ns4/4PP1+R1/PPPP1SPPP/5G3/LNSGK4 b BL 1",make_move_drop(LANCE,SQ_45) },

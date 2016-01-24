@@ -124,12 +124,42 @@ namespace Effect8
 namespace Effect24
 {
   Directions board_mask_table[SQ_NB];
+  ymm ymm_direct_to_around8[3];
 
   void init()
   {
     // -- board_mask_tableの初期化
+
     for (auto sq : SQ)
       board_mask_table[sq] = around24(around24_bb(sq), sq);
+
+    // -- ymm_direct_to_around8[]の初期化
+    {
+      u16 d81[81];
+      memset(d81, 0, sizeof(d81));
+      auto sq33_around9 = kingEffect(SQ_33) ^ SQ_33;
+
+      for (auto sq : SQ)
+      {
+        Effect8::Directions d = Effect8::DIRECTIONS_ZERO;
+        for (int i = 0; i < 8; ++i)
+        {
+          // SQ_33に玉がいるとして、この9近傍に移動できる長い利きの方向。
+          auto dir = Effect8::Direct(i);
+          auto delta = Effect8::DirectToDeltaWW(dir);
+
+          auto sqww = to_sqww(sq) + delta;
+          if (!is_ok(sqww))
+            continue;
+          if (sq33_around9 & to_sq(sqww))
+            d |= Effect8::to_directions(dir);
+        }
+        d81[sq] = d;
+      }
+      for (int i = 0; i < 3; ++i)
+        ymm_direct_to_around8[i] = ymm(&d81[i * 16]); // 32byteずつ
+    }
+
   }
 
   Directions around24(const Bitboard& b, Square sq)

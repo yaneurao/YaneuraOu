@@ -40,7 +40,7 @@ Bitboard LineBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
 Bitboard CheckCandidateBB[SQ_NB_PLUS1][HDK][COLOR_NB];
 
 // SquareからSquareWithWallへの変換テーブル
-SquareWithWall sqww_table[SQ_NB];
+SquareWithWall sqww_table[SQ_NB_PLUS1];
 
 // Bitboardを表示する(USI形式ではない) デバッグ用
 std::ostream& operator<<(std::ostream& os, const Bitboard& board)

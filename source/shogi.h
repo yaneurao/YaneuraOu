@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "1.14"
+#define ENGINE_VERSION "1.16"
 
 // --------------------
 // コンパイル時の設定
@@ -315,7 +315,7 @@ enum SquareWithWall : int32_t {
 // 型変換。下位8bit == Square
 inline Square to_sq(SquareWithWall sqww) { return Square(sqww & 0xff); }
 
-extern SquareWithWall sqww_table[SQ_NB];
+extern SquareWithWall sqww_table[SQ_NB_PLUS1];
 
 // 型変換。Square型から。
 inline SquareWithWall to_sqww(Square sq) { return sqww_table[sq]; }
@@ -906,7 +906,6 @@ ENABLE_OPERATORS_ON(Effect8::Direct);
   inline T operator~(const T d1) { return T(~int(d1)); }
 
 ENABLE_BIT_OPERATORS_ON(HandKind)
-ENABLE_BIT_OPERATORS_ON(Effect8::Directions)
 
 
 // enumに対してrange forで回せるようにするためのhack(速度低下があるかも知れないので速度の要求されるところでは使わないこと)
