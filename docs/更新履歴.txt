@@ -9,10 +9,30 @@
 ・ベンチマーク書く。
 
 
+
+■ 2016/01/28 V1.20
+
+
+■ 2016/01/27 V1.19
+
+・やねうら王nanoとminiの探索部書いていく。
+・評価関数のimportしてくるところから。
+　→　だいたい出来た気がする
+・put_pieceで落ちる。
+  → 王手がかかっているのにEVASIONS呼び出さなかったからか。
+> position startpos moves 3i4h 3c3d
+> position startpos moves 7g7f 3c3d 8h2b
+evalおかしい。何これ。
+
+
+■ 2016/01/27 V1.18
+
+・Bitobardのoperator == () がまさかの高速化。これ、そもそもほとんど使ってないのであまり変わらんが…。
+
+
 ■ 2016/01/25 V1.17
 
 ・ByteBoard、WordBoard、無理やり取ってくるなら端にpaddingしといたほうが無難か…。
-
 
 ■ 2016/01/24 V1.16
 

@@ -195,7 +195,7 @@ void effect_check(Position& pos)
 //#define EFFECT_CHECK
 
 // 1手詰め判定のテスト
-#define MATE1PLY_CHECK
+//#define MATE1PLY_CHECK
 
 
 void random_player(Position& pos,uint64_t loop_max)

@@ -103,8 +103,14 @@ struct alignas(16) Bitboard
   // 比較演算子
 
   bool operator == (const Bitboard& rhs) const {
-    return (_mm_testc_si128(_mm_cmpeq_epi8(this->m, rhs.m), _mm_set1_epi8(static_cast<char>(0xffu))) ? true : false);
+    // 以下のようにすると2命令で済むらしい。
+
+    // testing equality between two __m128i variables
+    // cf.http://stackoverflow.com/questions/26880863/sse-testing-equality-between-two-m128i-variables
+    __m128i neq = _mm_xor_si128(this->m, rhs.m);
+    return _mm_test_all_zeros(neq, neq) ? true : false;
   }
+
   bool operator != (const Bitboard& rhs) const { return !(*this == rhs); }
 
   // 2項演算子

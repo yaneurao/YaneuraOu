@@ -9,10 +9,11 @@
 
 #ifdef YANEURAOU_NANO_ENGINE
 #define ENGINE_NAME "YaneuraOu nano"
-#undef ASSERT_LV
+//#undef ASSERT_LV
 #undef KEEP_LAST_MOVE
 #undef MATE_1PLY
 #undef LONG_EFFECT_LIBRARY
+#define EVAL_KPP
 #endif
 
 #ifdef YANEURAOU_MINI_ENGINE
@@ -71,7 +72,7 @@
 
 #ifdef MATE_ENGINE
 #define ENGINE_NAME "YaneuraOu mate solver"
-//#undef ASSERT_LV
+#undef ASSERT_LV
 #define KEEP_LAST_MOVE
 #undef  MAX_PLY_NUM
 #define MAX_PLY_NUM 2000
