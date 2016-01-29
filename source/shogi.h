@@ -422,6 +422,13 @@ enum Value : int16_t
   VALUE_MATEED_IN_MAX_PLY = -(int)VALUE_MATE + MAX_PLY, // MAX_PLYで詰まされるときのスコア。
 };
 
+// ply手で詰ませるときのスコア
+inline Value mate_in(int ply) {  return (Value)(VALUE_MATE - ply);}
+
+// ply手で詰まされるときのスコア
+inline Value mated_in(int ply) {  return (Value)(-VALUE_MATE + ply);}
+
+
 // --------------------
 //        駒
 // --------------------

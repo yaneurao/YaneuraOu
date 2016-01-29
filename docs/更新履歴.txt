@@ -10,7 +10,12 @@
 
 
 
-■ 2016/01/28 V1.20
+■ 2016/01/29 V1.20
+
+・評価関数、旧バージョンと値の比較。
+・EvalList::set_piece修正。
+
+position sfen lnsgkgsnl/1r5b1/pppppppp1/9/9/2P5p/PP1PPPPP1/LB5R1/1NSGKGSNL w p 8
 
 
 ■ 2016/01/27 V1.19

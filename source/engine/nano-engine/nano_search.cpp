@@ -49,18 +49,28 @@ namespace YaneuraOuNano
   template <bool RootNode>
   Value search(Position& pos, Value alpha, Value beta, Depth depth)
   {
+    ASSERT_LV3(alpha < beta);
+
+    // 残り探索深さがなければ評価関数を呼び出して終了。
     if (depth < ONE_PLY)
+    {
       return Eval::eval(pos);
+      //Value s = Eval::eval(pos);
+      //cout << pos << s << endl;
+      //return s;
+    }
 
     // 指し手して一手ずつ返す
     MovePicker mp(pos);
 
-    // 指し手のなかのベストなスコア
-    Value score = -VALUE_INFINITE;
+    Value score;
     Move m;
 
     StateInfo si;
     pos.check_info_update();
+
+    // do_moveした指し手の数
+    int moveCount = 0;
 
     while (m = mp.nextMove())
     {
@@ -68,20 +78,32 @@ namespace YaneuraOuNano
         continue;
 
       pos.do_move(m, si, pos.gives_check(m));
-      Value s = -YaneuraOuNano::search<false>(pos, -beta, -alpha, depth - ONE_PLY);
-      if (s > score)
+      score = -YaneuraOuNano::search<false>(pos, -beta, -alpha, depth - ONE_PLY);
+      pos.undo_move(m);
+
+      ++moveCount;
+
+      // αを超えたならαを更新
+      if (score > alpha)
       {
-        score = s;
+        alpha = score;
         if (RootNode)
         {
           rootBestMove = m;
 
+          // root nodeでalpha値を更新するごとに
           // GUIに対して歩1枚の価値を100とする評価値と、現在のベストの指し手を読み筋(pv)として出力する。
           sync_cout << "info score cp " << int(score) * 100 / Eval::PAWN_VALUE << " pv " << m << sync_endl;
         }
+        // αがβを上回ったらbeta cut
+        if (alpha >= beta)
+          return alpha;
       }
-      pos.undo_move(m);
     }
+
+    // 合法手がない == 詰まされている ので、rootの局面からの手数で詰まされたという評価値を返す。
+    if (moveCount == 0)
+      return mated_in(pos.game_ply());
 
     return score;
   }
@@ -108,7 +130,7 @@ void  Search::clear(){}
 
 Move rootBestMove;
 void MainThread::think() {
-  YaneuraOuNano::search<true>(rootPos,-VALUE_INFINITE,VALUE_INFINITE,4*ONE_PLY);
+  YaneuraOuNano::search<true>(rootPos,-VALUE_INFINITE,VALUE_INFINITE,7*ONE_PLY);
   sync_cout << "bestmove " << rootBestMove << sync_endl;
 }
 

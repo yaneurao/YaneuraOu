@@ -322,6 +322,7 @@ void USI::loop()
 
     // 現在の局面について評価関数を呼び出して、その値を返す。
     else if (token == "eval") cout << "eval = " << Eval::eval(pos) << endl;
+    else if (token == "evalstat") Eval::print_eval_stat(pos);
 
     // この局面での指し手をすべて出力
     else if (token == "moves") {

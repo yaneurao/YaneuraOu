@@ -165,7 +165,7 @@ namespace Eval {
 
     // c側の手駒ptのi+1枚目の駒のPieceNoを設定する。(1枚目の駒のPieceNoを設定したいならi==0にして呼び出すの意味)
     void put_piece(PieceNo piece_no, Color c,Piece pt, int i){
-      set_piece(piece_no,BonaPiece(kpp_hand_index[c][pt].fb + i),BonaPiece(kpp_hand_index[~c][pt].fw + i));
+      set_piece(piece_no,BonaPiece(kpp_hand_index[c][pt].fb + i),BonaPiece(kpp_hand_index[c][pt].fw + i));
     }
 
     // あるBonaPieceに対応するPieceNoを返す。
@@ -205,6 +205,9 @@ namespace Eval {
 
   // 評価関数本体
   Value eval(const Position& pos);
+
+  // 評価値の内訳表示(デバッグ用)
+  void print_eval_stat(Position& pos);
 
   // 駒の価値
   extern int PieceValue[PIECE_NB];

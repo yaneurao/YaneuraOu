@@ -27,6 +27,9 @@ namespace Eval {
   // [][][fe_end]のところはKK定数にしてあるものとする。
   ValueKkp kkp[SQ_NB_PLUS1][SQ_NB_PLUS1][fe_end + 1];
 
+  ValueKpp kpp2[SQ_NB_PLUS1][fe_end][fe_end];
+  ValueKkp kkp2[SQ_NB_PLUS1][SQ_NB_PLUS1][fe_end + 1];
+
   // 評価関数ファイルを読み込む
   void load_eval()
   {
@@ -144,14 +147,13 @@ namespace Eval {
     sumWKPP = 0;
     sumKKP = kkp[sq_bk0][sq_wk1][fe_end];
 
-    for (i = 0; i < PIECE_NO_NB; i++)
+    for (i = 0; i < PIECE_NO_KING; i++)
     {
       k0 = list[i].fb;
-
       k1 = list[i].fw;
       sumKKP += kkp[sq_bk0][sq_wk1][k0];
 
-      for (j = 0; j <= i; j++)
+      for (j = 0; j < i; j++)
       {
         sumBKPP += kpp[sq_bk0][k0][list[j].fb];
         sumWKPP -= kpp[sq_wk1][k1][list[j].fw];
@@ -185,6 +187,54 @@ namespace Eval {
   Value compute_eval(const Position& pos) { return VALUE_ZERO; }
   Value eval(const Position& pos) { return VALUE_ZERO; }
 #endif
+
+  // 現在の局面の評価値の内訳を表示する。
+  void print_eval_stat(Position& pos)
+  {
+    cout << "--- EVAL STAT\n";
+
+    Square sq_bk0 = pos.king_square(BLACK);
+    Square sq_wk1 = Inv(pos.king_square(WHITE));
+
+    auto list = pos.eval_list().piece_list();
+
+    int i, j;
+    BonaPiece k0, k1;
+
+    int32_t sumBKPP, sumWKPP, sumKKP;
+
+    cout << "KKC : " << sq_bk0 << " " << Inv(sq_wk1) << " = " << kkp[sq_bk0][sq_wk1][fe_end] << "\n";
+
+    sumBKPP = sumWKPP = 0;
+    sumKKP = kkp[sq_bk0][sq_wk1][fe_end];
+
+    for (i = 0; i < PIECE_NO_KING; i++)
+    {
+      k0 = list[i].fb;
+      k1 = list[i].fw;
+
+//      cout << "KKP : " << sq_bk0 << " " << Inv(sq_wk1) << " " << (int)k0 << " = " << kkp[sq_bk0][sq_wk1][k0] << "\n";
+      sumKKP += kkp[sq_bk0][sq_wk1][k0];
+
+      for (j = 0; j <= i; j++)
+      {
+        cout << "BKPP : " << sq_bk0 << " " << (int)k0 << " " << (int)list[j].fb << " = " << kpp[sq_bk0][k0][list[j].fb] << "\n";
+        cout << "WKPP : " << sq_wk1 << " " << (int)k1 << " " << (int)list[j].fw << " = " << kpp[sq_wk1][k1][list[j].fw] << "\n";
+
+        sumBKPP += kpp[sq_bk0][k0][list[j].fb];
+        sumWKPP += kpp[sq_wk1][k1][list[j].fw];
+
+//        cout << "sumWKPP = " << sumWKPP << " sumBKPP " << sumBKPP << " sumWKPP " << sumWKPP << endl;
+
+        // i==jにおいて0以外やったらあかんで!!
+        ASSERT(!(i == j && kpp[sq_bk0][k0][list[j].fb] != 0));
+      }
+    }
+
+    cout << "Material = " << pos.state()->materialValue << endl;
+    cout << "sumWKPP = " << sumWKPP << " sumBKPP " << sumBKPP << " sumWKPP " << sumWKPP << endl;
+    cout << "---\n";
+  }
 
   // BonaPieceの内容を表示する。手駒ならH,盤上の駒なら升目。例) HP3 (3枚目の手駒の歩)
   std::ostream& operator<<(std::ostream& os, BonaPiece bp)
