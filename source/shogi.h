@@ -79,9 +79,10 @@
 #define LONG_EFFECT_LIBRARY
 
 // 超高速1手詰め判定ルーチンを用いるか。
-// 2016/01/18 7:30現在、これはまだ開発中。長い利きの更新処理が必要。今週末ぐらいにきちんと動くようになる予定。
 #define MATE_1PLY
 
+// Position::see()を用いるか。これはSEE(Static Exchange Evaluation : 静的取り合い評価)の値を返す関数。
+#define USE_SEE
 
 // --------------------
 //  思考エンジンの種類

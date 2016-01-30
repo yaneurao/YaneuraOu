@@ -63,55 +63,6 @@ namespace Eval {
   void load_eval() {}
 #endif
 
-  // Bona6の駒割りを初期値に。それぞれの駒の価値。
-  enum {
-    PawnValue = 86,
-    LanceValue = 227,
-    KnightValue = 256,
-    SilverValue = 365,
-    GoldValue = 439,
-    BishopValue = 563,
-    RookValue = 629,
-    ProPawnValue = 540,
-    ProLanceValue = 508,
-    ProKnightValue = 517,
-    ProSilverValue = 502,
-    HorseValue = 826,
-    DragonValue = 942,
-    KingValue = 15000,
-  };
-
-  int PieceValue[PIECE_NB] =
-  {
-    0, PawnValue, LanceValue, KnightValue, SilverValue, BishopValue, RookValue,GoldValue,
-    KingValue, ProPawnValue, ProLanceValue, ProKnightValue, ProSilverValue, HorseValue, DragonValue,0,
-
-    0, -PawnValue, -LanceValue, -KnightValue, -SilverValue, -BishopValue, -RookValue,-GoldValue,
-    -KingValue, -ProPawnValue, -ProLanceValue, -ProKnightValue, -ProSilverValue, -HorseValue, -DragonValue,0,
-  };
-
-  int PieceValueCapture[PIECE_NB] =
-  {
-    VALUE_ZERO             , PawnValue * 2   , LanceValue * 2   , KnightValue * 2   , SilverValue * 2  ,
-    BishopValue * 2, RookValue * 2, GoldValue * 2, KingValue , // SEEで使うので大きな値にしておく。
-    ProPawnValue + PawnValue, ProLanceValue + LanceValue, ProKnightValue + KnightValue, ProSilverValue + SilverValue,
-    HorseValue + BishopValue, DragonValue + RookValue, VALUE_ZERO /* PRO_GOLD */,
-    // KingValueの値は使わない
-    VALUE_ZERO             , PawnValue * 2   , LanceValue * 2   , KnightValue * 2   , SilverValue * 2  ,
-    BishopValue * 2, RookValue * 2, GoldValue * 2, KingValue , // SEEで使うので大きな値にしておく。
-    ProPawnValue + PawnValue, ProLanceValue + LanceValue, ProKnightValue + KnightValue, ProSilverValue + SilverValue,
-    HorseValue + BishopValue, DragonValue + RookValue, VALUE_ZERO /* PRO_GOLD */,
-  };
-
-  int ProDiffPieceValue[PIECE_NB] =
-  {
-    VALUE_ZERO, ProPawnValue - PawnValue, ProLanceValue - LanceValue, ProKnightValue - KnightValue, ProSilverValue - SilverValue,
-    VALUE_ZERO, HorseValue - BishopValue, DragonValue - RookValue,
-
-    VALUE_ZERO, ProPawnValue - PawnValue, ProLanceValue - LanceValue, ProKnightValue - KnightValue, ProSilverValue - SilverValue,
-    VALUE_ZERO, HorseValue - BishopValue, DragonValue - RookValue,
-  };
-
   // 駒得だけの評価関数
   // 手番側から見た評価値
   Value material(const Position& pos)

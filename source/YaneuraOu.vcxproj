@@ -226,6 +226,7 @@
     <ClCompile Include="evaluate.cpp" />
     <ClCompile Include="extra\long_effect.cpp" />
     <ClCompile Include="extra\mate1ply.cpp" />
+    <ClCompile Include="extra\see.cpp" />
     <ClCompile Include="extra\test_cmd.cpp" />
     <ClCompile Include="misc.cpp" />
     <ClCompile Include="movegen.cpp" />

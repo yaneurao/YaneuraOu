@@ -9,10 +9,60 @@
 
 namespace Eval {
 
-  // 歩1枚の価値
-  // USIプロトコルで評価値を送信するときにこれで正規化する必要がある。
-  const int PAWN_VALUE = 86;
-  
+  // Bona6の駒割りを初期値に。それぞれの駒の価値。
+  enum {
+    PawnValue = 86,
+    LanceValue = 227,
+    KnightValue = 256,
+    SilverValue = 365,
+    GoldValue = 439,
+    BishopValue = 563,
+    RookValue = 629,
+    ProPawnValue = 540,
+    ProLanceValue = 508,
+    ProKnightValue = 517,
+    ProSilverValue = 502,
+    HorseValue = 826,
+    DragonValue = 942,
+    KingValue = 15000,
+  };
+
+  // 駒の価値のテーブル
+  static const int PieceValue[PIECE_NB] =
+  {
+    0, PawnValue, LanceValue, KnightValue, SilverValue, BishopValue, RookValue,GoldValue,
+    KingValue, ProPawnValue, ProLanceValue, ProKnightValue, ProSilverValue, HorseValue, DragonValue,0,
+
+    0, -PawnValue, -LanceValue, -KnightValue, -SilverValue, -BishopValue, -RookValue,-GoldValue,
+    -KingValue, -ProPawnValue, -ProLanceValue, -ProKnightValue, -ProSilverValue, -HorseValue, -DragonValue,0,
+  };
+
+  // 駒の交換値(＝捕獲したときの価値の上昇値)
+  // 例)「と」を取ったとき、評価値の変動量は手駒歩+盤面の「と」。
+  // MovePickerとSEEの計算で用いる。
+  static const int PieceValueCapture[PIECE_NB] =
+  {
+    VALUE_ZERO             , PawnValue * 2   , LanceValue * 2   , KnightValue * 2   , SilverValue * 2  ,
+    BishopValue * 2, RookValue * 2, GoldValue * 2, KingValue , // SEEで使うので大きな値にしておく。
+    ProPawnValue + PawnValue, ProLanceValue + LanceValue, ProKnightValue + KnightValue, ProSilverValue + SilverValue,
+    HorseValue + BishopValue, DragonValue + RookValue, VALUE_ZERO /* PRO_GOLD */,
+    // KingValueの値は使わない
+    VALUE_ZERO             , PawnValue * 2   , LanceValue * 2   , KnightValue * 2   , SilverValue * 2  ,
+    BishopValue * 2, RookValue * 2, GoldValue * 2, KingValue , // SEEで使うので大きな値にしておく。
+    ProPawnValue + PawnValue, ProLanceValue + LanceValue, ProKnightValue + KnightValue, ProSilverValue + SilverValue,
+    HorseValue + BishopValue, DragonValue + RookValue, VALUE_ZERO /* PRO_GOLD */,
+  };
+
+  // 駒を成ったときの成る前との価値の差。SEEで用いる。
+  // 駒の成ったものと成っていないものとの価値の差
+  static int ProDiffPieceValue[PIECE_NB] =
+  {
+    VALUE_ZERO, ProPawnValue - PawnValue, ProLanceValue - LanceValue, ProKnightValue - KnightValue, ProSilverValue - SilverValue, HorseValue - BishopValue, DragonValue - RookValue, VALUE_ZERO ,
+    VALUE_ZERO, ProPawnValue - PawnValue, ProLanceValue - LanceValue, ProKnightValue - KnightValue, ProSilverValue - SilverValue, HorseValue - BishopValue, DragonValue - RookValue, VALUE_ZERO ,
+    VALUE_ZERO, ProPawnValue - PawnValue, ProLanceValue - LanceValue, ProKnightValue - KnightValue, ProSilverValue - SilverValue, HorseValue - BishopValue, DragonValue - RookValue, VALUE_ZERO ,
+    VALUE_ZERO, ProPawnValue - PawnValue, ProLanceValue - LanceValue, ProKnightValue - KnightValue, ProSilverValue - SilverValue, HorseValue - BishopValue, DragonValue - RookValue, VALUE_ZERO ,
+  };
+
   // --- 評価関数で使う定数 KPP(玉と任意2駒)のPに相当するenum
 
   // BonanzaのようにKPPを求めるときに、39の地点の歩のように、
@@ -208,18 +258,6 @@ namespace Eval {
 
   // 評価値の内訳表示(デバッグ用)
   void print_eval_stat(Position& pos);
-
-  // 駒の価値
-  extern int PieceValue[PIECE_NB];
-
-  // 「と」を取ったとき、評価値の変動量は手駒歩+盤面の「と」
-  // MovePickerとSEEの計算で用いる。
-  extern int PieceValueCapture[PIECE_NB];
-
-  // 駒を成ったときの成る前との価値の差。SEEで用いる。
-  // 後手の分はPosition::init()で先手の値をコピーして初期化している。
-  extern int ProDiffPieceValue[PIECE_NB];
-
 }
 
 #endif // #ifndef EVALUATE_H

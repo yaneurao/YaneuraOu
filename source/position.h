@@ -280,6 +280,14 @@ struct Position
   // 評価関数で使うための、どの駒番号の駒がどこにあるかなどの情報。
   Eval::EvalList eval_list() { return evalList; }
 
+#ifdef  USE_SEE
+  // 指し手mの(Static Exchange Evaluation : 静的取り合い評価)の値を返す。
+  Value see(Move m) const;
+
+  // SEEの符号だけが欲しい場合はこちらのほうがsee()より速い。
+  Value see_sign(Move m) const;
+#endif
+
   // --- misc
 
   // 現局面で王手がかかっているか

@@ -150,6 +150,9 @@
     <ClCompile Include="engine\user-engine\user-engine.cpp">
       <Filter>リソース ファイル\engine\user-engine</Filter>
     </ClCompile>
+    <ClCompile Include="extra\see.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">
