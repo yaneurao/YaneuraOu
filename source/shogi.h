@@ -410,17 +410,22 @@ enum Bound {
 // --------------------
 
 // 置換表に格納するときにあまりbit数が多いともったいないので16bitで。
-enum Value : int16_t
+enum Value : int
 {
   VALUE_ZERO = 0,
 
-  // Valueの取りうる最大値(最小値はこの符号を反転させた値)
-  VALUE_INFINITE = INT16_MAX - 1, // 最小値として-VALUE_INFINITEを使うときにoverflowしないようにINT16_MAXから1引いておく。
+  // 1手詰めのスコア(例えば、3手詰めならこの値より2少ない)
+  VALUE_MATE = 32000,
 
-  VALUE_MATE = VALUE_INFINITE - 1, // 1手詰めのスコア(例えば、3手詰めならこの値より2少ない)
+  // Valueの取りうる最大値(最小値はこの符号を反転させた値)
+  VALUE_INFINITE = 32001,
+
+  // 無効な値
+  VALUE_NONE = 32002,
 
   VALUE_MATE_IN_MAX_PLY = VALUE_MATE - MAX_PLY,   // MAX_PLYでの詰みのときのスコア。
-  VALUE_MATEED_IN_MAX_PLY = -(int)VALUE_MATE + MAX_PLY, // MAX_PLYで詰まされるときのスコア。
+  VALUE_MATED_IN_MAX_PLY = -(int)VALUE_MATE + MAX_PLY, // MAX_PLYで詰まされるときのスコア。
+  
 };
 
 // ply手で詰ませるときのスコア
@@ -809,15 +814,15 @@ namespace USI {
   struct Option {
     typedef void(*OnChange)(const Option&);
 
-    Option(OnChange f = nullptr): type("button"), min(0), max(0), on_change(f) {}
+    Option(OnChange f = nullptr) : type("button"), min(0), max(0), on_change(f) {}
 
     // bool型のoption デフォルト値が v
     Option(bool v, OnChange f = nullptr) : type("check"),min(0),max(0),on_change(f)
-    {  defaultValue = currentValue = v ? "true" : "false";}
+    { defaultValue = currentValue = v ? "true" : "false"; }
 
     // int型で(min,max)でデフォルトがv
     Option(int v, int min_, int max_, OnChange f = nullptr) : type("spin"),min(min_),max(max_),on_change(f)
-    {  defaultValue = currentValue = std::to_string(v); }
+    { defaultValue = currentValue = std::to_string(v); }
 
     // USIプロトコル経由で値を設定されたときにそれをcurrentValueに反映させる。
     Option& operator=(const std::string&);
@@ -851,6 +856,9 @@ namespace USI {
 
   // optionのdefault値を設定する。
   void init(OptionsMap&);
+
+  // pv(読み筋)をUSIプロトコルに基いて出力する。
+  std::string pv(const Position& pos, Depth depth, Value alpha, Value beta);
 
   // USIプロトコルで、idxの順番でoptionを出力する。
   std::ostream& operator<<(std::ostream& os, const OptionsMap& om);
@@ -900,7 +908,18 @@ ENABLE_OPERATORS_ON(Depth)
 ENABLE_OPERATORS_ON(Hand)
 ENABLE_OPERATORS_ON(HandKind)
 ENABLE_OPERATORS_ON(Eval::BonaPiece)
-ENABLE_OPERATORS_ON(Effect8::Direct);
+ENABLE_OPERATORS_ON(Effect8::Direct)
+
+
+// enumに対してint型との加算と減算を提供するマクロ。Value型など一部の型はこれがないと不便。
+
+#define ENABLE_ADD_SUB_OPERATORS_ON(T)                   \
+inline T operator+(T v, int i) { return T(int(v) + i); } \
+inline T operator-(T v, int i) { return T(int(v) - i); } \
+inline T& operator+=(T& v, int i) { return v = v + i; }  \
+inline T& operator-=(T& v, int i) { return v = v - i; }
+
+ENABLE_ADD_SUB_OPERATORS_ON(Value)
 
 
 // enumに対して標準的なビット演算を定義するマクロ

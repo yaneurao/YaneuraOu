@@ -23,22 +23,33 @@ struct TTEntry {
   void set_generation(uint8_t g) { genBound8 = bound() | g; }
 
   // 置換表のエントリーに対して与えられたデータを保存する。上書き動作
-  //    ToDo:genBound更新
-  void save(Key k, Value v, Move m)
+  //   v    : 探索のスコア
+  //   eval : 評価関数 or 静止探索の値
+  //   m    : ベストな指し手
+  //   gen  : TT.generation()
+  void save(Key k, Value v, Bound b,Depth d, Move m,Value eval,uint8_t gen)
   {
     // hash keyの上位16bitが格納されているkeyと一致していないなら
     // 何も考えずに指し手を上書き(新しいデータのほうが価値があるので)
-    if ((k >> 48) != key16)
+    if (m!=MOVE_NONE || (k >> 48) != key16)
       move16 = (uint16_t)m;
 
-    // かきかけ
-
-
     // このエントリーの現在の内容のほうが価値があるなら上書きしない。
-    if ((k >> 48) != key16 )
+    // 1. hash keyが違うということはTTprobeでここを使うと決めたわけだから、このEntryは無条件に潰して良い
+    // 2. hash keyが同じだとしても今回の情報のほうが残り探索depthが深い(新しい情報にも価値があるので
+    // 　少しの深さのマイナスなら許容)
+    // 3. BOUND_EXACT(これはとても価値のある情報なので無条件で書き込む)
+    // 1. or 2. or 3.
+    if ((k >> 48) != key16
+      || (d > depth8 - 2)
+      || b == BOUND_EXACT
+      )
     {
-      key16   = (int16_t)(k >> 48);
-      value16 = (int16_t)v;
+      key16     = (int16_t)(k >> 48);
+      value16   = (int16_t)v;
+      eval16    = (int16_t)eval;
+      genBound8 = (uint8_t)(gen | b);
+      depth8    = (int8_t)d;
     }
   }
 
@@ -53,10 +64,10 @@ private:
   uint16_t move16;
 
   // このnodeでの探索の結果スコア
-  uint16_t value16;
+  int16_t value16;
 
   // 評価関数の評価値
-  uint16_t eval16;
+  int16_t eval16;
 
   // entryのgeneration上位6bit + Bound下位2bitのpackしたもの。
   // generationはエントリーの世代を表す。TranspositionTableで新しい探索ごとに+4されていく。
@@ -87,10 +98,13 @@ struct TranspositionTable {
   // 新しい探索ごとにこの関数を呼び出す。(generationを加算する。)
   void new_search() { generation8 += 4; } // 下位2bitはTTEntryでBoundに使っているので4ずつ加算。
 
+  // 世代を返す。これはTTEntry.save()のときに使う。
+  uint8_t generation() const { return generation8; }
+
   // 置換表の使用率を1000分率で返す。(USIプロトコルで統計情報として出力するのに使う)
   int hashfull() const;
 
-  TranspositionTable() { mem = nullptr; clusterCount = 0; }
+  TranspositionTable() { mem = nullptr; clusterCount = 0; resize(16);/*デバッグ時ようにデフォルトで16MB確保*/ }
   ~TranspositionTable() { free(mem); }
 
 private:
@@ -117,6 +131,27 @@ private:
 
   uint8_t generation8; // TT_ENTRYのset_gen()で書き込む
 };
+
+// 詰みのスコアは置換表上は、rootからあと何手で詰むかというスコアを格納する。(ことになっている)
+// なので、この局面から3手詰めであることがわかったなら、3手 + rootからの手数を格納しなければならない。
+// つまり、置換表へ格納するときにはこの変換をする関数が必要となる。
+// 詰みにまつわるスコアでないなら関係がないので何の変換も行わない。
+inline Value value_to_tt(Value v, int ply) {
+
+  ASSERT_LV3(v != VALUE_NONE);
+
+  return  v >= VALUE_MATE_IN_MAX_PLY ? v + ply
+    : v <= VALUE_MATED_IN_MAX_PLY ? v - ply : v;
+}
+
+// value_to_tt()の逆関数
+inline Value value_from_tt(Value v, int ply) {
+
+  return  v == VALUE_NONE ? VALUE_NONE
+    : v >= VALUE_MATE_IN_MAX_PLY ? v - ply
+    : v <= VALUE_MATED_IN_MAX_PLY ? v + ply : v;
+}
+
 
 extern TranspositionTable TT;
 

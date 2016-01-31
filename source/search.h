@@ -14,6 +14,9 @@ namespace Search {
   // scoreはnon-pvの指し手では-VALUE_INFINITEで初期化される。
   struct RootMove
   {
+    // sortするときに必要。std::stable_sort()で降順になって欲しいので比較の不等号を逆にしておく。
+    bool operator<(const RootMove& m) const { return score > m.score; }
+
     explicit RootMove(Move m) : pv(1,m) {}
 
     // 今回の(反復深化の)iterationでの探索結果のスコア

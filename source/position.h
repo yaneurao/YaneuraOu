@@ -6,6 +6,7 @@
 #include "evaluate.h"
 #include "extra/key128.h"
 #include "extra/long_effect.h"
+struct Thread;
 
 // --------------------
 //     局面の定数
@@ -156,6 +157,11 @@ struct Position
 
   // (将棋の)開始局面からの手数を返す。
   int game_ply() const { return gamePly; }
+
+  // この局面クラスを用いて探索しているスレッドを返す。 
+  Thread* this_thread() const { return thisThread; }
+  // この局面クラスを用いて探索しているスレッドを設定する。(threads.cppのなかで設定してある。)
+  void set_this_thread(Thread*th) { thisThread = th; }
 
   // 盤面上の駒を返す
   Piece piece_on(Square sq) const { return board[sq]; }
@@ -424,6 +430,9 @@ protected:
 
   // 初期局面からの手数(初期局面 == 1)
   int gamePly;
+
+  // この局面クラスを用いて探索しているスレッド
+  Thread* thisThread;
 
   // 探索ノード数 ≒do_move()の呼び出し回数。
   int64_t nodes;

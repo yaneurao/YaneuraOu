@@ -31,15 +31,56 @@ extern void generate_moves_cmd(Position& pos);
 #include "cooperate_mate/cooperative_mate_solver.h"
 #endif
 
-// --------------------
-//     USI::Option
-// --------------------
-
 // Option設定が格納されたglobal object。
 USI::OptionsMap Options;
 
 namespace USI
 {
+// --------------------
+//    読み筋の出力
+// --------------------
+
+  // スコアを歩の価値を100として正規化して出力する。
+  Value value(Value v)
+  {
+    return v * 100 / Eval::PawnValue;
+  }
+  
+  std::string pv(const Position& pos, Depth depth, Value alpha, Value beta)
+  {
+    std::stringstream ss;
+    int elapsed = int(now()- Search::Limits.startTime + 1);
+    const auto &rootMoves = pos.this_thread()->rootMoves;
+
+    uint64_t nodes_searched = Threads.nodes_searched();
+
+    Depth d = depth;
+    Value v = pos.this_thread()->rootMoves[0].score;
+
+    ss << "info"
+      << " depth " << d / ONE_PLY
+      //       << " seldepth " << 
+      << " score " << USI::value(v);
+
+    ss << " nodes " << nodes_searched
+       << " nps "   << nodes_searched * 1000 / elapsed;
+
+    // 置換表使用率。経過時間が短いときは意味をなさないので出力しない。
+    if (elapsed > 1000)
+      ss << " hashfull " << TT.hashfull();
+
+    ss << " time " << elapsed
+       << " pv";
+
+    for (Move m : rootMoves[0].pv)
+      ss << " " << m;
+  }
+
+
+// --------------------
+//     USI::Option
+// --------------------
+
   // この関数はUSI::init()から起動時に呼び出されるだけ。
   void Option::operator<<(const Option& o)
   {
@@ -209,6 +250,12 @@ void go_cmd(const Position& pos, istringstream& is) {
 
   Search::LimitsType limits;
   string token;
+
+  // goコマンド、デバッグ時に使うが、そのときに"go btime XXX wtime XXX byoyomi XXX"と毎回入力するのが面倒なので
+  // デフォルトで1秒読み状態で呼び出されて欲しい。
+  limits.byoyomi[BLACK] = limits.byoyomi[WHITE] = 1000;
+
+  limits.startTime = now(); // 思考開始時刻。なるべく早い段階でこれを代入しておかないとサーバー時間との誤差が大きくなる。
 
   while (is >> token)
   {

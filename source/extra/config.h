@@ -14,6 +14,7 @@
 #undef MATE_1PLY
 #undef LONG_EFFECT_LIBRARY
 #define EVAL_KPP
+#undef USE_SEE
 #endif
 
 #ifdef YANEURAOU_MINI_ENGINE
@@ -43,6 +44,7 @@
 #undef KEEP_LAST_MOVE
 #undef MATE_1PLY
 #undef LONG_EFFECT_LIBRARY
+#undef USE_SEE
 #endif
 
 #ifdef LOCAL_GAME_SERVER
@@ -52,6 +54,7 @@
 #define KEEP_LAST_MOVE
 #undef MATE_1PLY
 #undef LONG_EFFECT_LIBRARY
+#undef USE_SEE
 #endif
 
 // --- 協力詰めエンジンとして実行ファイルを公開するとき用の設定集
@@ -66,6 +69,7 @@
 #define HASH_KEY_BITS 128
 #undef MATE_1PLY
 #undef LONG_EFFECT_LIBRARY
+#undef USE_SEE
 #endif
 
 // --- 詰将棋エンジンとして実行ファイルを公開するとき用の設定集
@@ -78,6 +82,7 @@
 #define MAX_PLY_NUM 2000
 #define MATE_1PLY
 #define LONG_EFFECT_LIBRARY
+#undef USE_SEE
 #endif
 
 // --- ユーザーの自作エンジンとして実行ファイルを公開するとき用の設定集

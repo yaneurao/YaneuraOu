@@ -123,6 +123,9 @@ void ThreadPool::exit()
 // USIプロトコルで指定されているスレッド数を反映させる。
 void ThreadPool::read_usi_options() {
 
+  // MainThreadが生成されてからしかworker threadを生成してはいけない作りになっているので
+  // USI::Optionsの初期化のタイミングでこの関数を呼び出すわけにはいかない。
+  // ゆえにUSI::Optionを引数に取らず、USI::Options["Threads"]から値をもらうようにする。
   size_t requested = Options["Threads"];
   ASSERT_LV1(requested > 0);
 
@@ -169,6 +172,10 @@ void ThreadPool::start_thinking(const Position& pos, const Search::LimitsType& l
       th->rootPos = Position(main()->rootPos);
       th->rootMoves = main()->rootMoves;
     }
+
+  // Positionクラスに対して、それを探索しているスレッドを設定しておいてやる。
+  for (auto th : *this)
+    th->rootPos.set_this_thread(th);
 
   main()->thinking = true;
   main()->notify_one(); // mainスレッドでの思考を開始させる。このときthinkingフラグは先行してtrueになっていなければならない。

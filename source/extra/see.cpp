@@ -38,42 +38,23 @@ namespace {
       Bitboard b = stmAttackers & bb[Pt-1][stm];
 
       // HDK用の処理なら、KINGを除かないといけないのか…。なんだこりゃ…。
-      if (Pt == KING)
+      if (Pt == HDK)
       {
         // bからKINGの場所を取り除いてHorse/Dragonを得る
         b &= ~(Bitboard(pos.king_square(BLACK)) | Bitboard(pos.king_square(WHITE)));
       }
 
-      if (!b)
-//:      return min_attacker<Pt+1>(bb, to, stmAttackers, occupied, attackers);
-        return min_attacker<Pt + 1>(pos,bb, to, stmAttackers, occupied, attackers,stm,uncapValue);
       // なければ、もうひとつ価値の高い攻撃駒について再帰的に調べる
+      if (!b)
+        return min_attacker<Pt + 1>(pos,bb, to, stmAttackers, occupied, attackers,stm,uncapValue);
 
       // bにあった駒を取り除く
-      //: occupied ^= b & ~(b - 1);
 
-      // →　次のようになおすか…
       Square sq = b.pop();
       occupied ^= sq;
 
       // このときpinされているかの判定を入れられるなら入れたほうが良いのだが…。
-
-      /*
       // この攻撃駒の種類によって場合分け
-      // ※　PAWN,BISHOP,QUEENであるなら、その背後にあるかも知れないBISHOPとQUEENを追加。
-      // ※　ToDO:あれ？PAWNで捕獲したときにその背後にBISHOPがtoに利いていることなんてあるのか？
-      // →　チェスのPAWN、変な動きするのであるのか…。
-      // 将棋だとtoに対して取った方向によってその背後の駒を足すような処理になるが…。
-      if (Pt == PAWN || Pt == BISHOP || Pt == QUEEN)
-        attackers |= attacks_bb<BISHOP>(to, occupied) & (bb[BISHOP] | bb[QUEEN]);
-
-      if (Pt == ROOK || Pt == QUEEN)
-        attackers |= attacks_bb<ROOK>(to, occupied) & (bb[ROOK] | bb[QUEEN]);
-
-      // X-rayすでに処理された駒(上のb)も追加されたかも知れないX-rayのあと処理として、
-      // 再度、occupiedでmaskしておく。
-      */
-      // →　位置関係を調べて足すか..
 
       auto dirs = directions_of(to, sq);
       if (dirs) switch (pop_directions(dirs))
@@ -121,22 +102,19 @@ namespace {
       
       // この駒が成れるなら、成りの値を返すべき。
       // ※　最後にこの地点に残る駒を返すべきなのか。相手が取る/取らないを選択するので。
-      if (Pt != GOLD && Pt != KING // 馬・龍
+      if (Pt != GOLD && Pt != HDK // 馬・龍
         && !(pos.piece_on(sq) & PIECE_PROMOTE)
         && (canPromote(stm, to) || canPromote(stm,sq)))
         // 成りは敵陣へと、敵陣からの二種類あるので…。
       {
         uncapValue = ProDiffPieceValue[Pt]; // この駒が取り返せなかったときこの分、最後に損をする。
 
-      //  return (PieceType)(Pt + PIECE_TYPE_PROMOTION);
-        // →　取り返したときこの成駒の価値ではないのでこのStockfishの計算はおかしいな。生駒を返したほうがいい。
         return (Piece)Pt;
       }
       else
       {
         // GOLDの場合、この駒の実体は成香とかかも知れんし。
         // KINGはHDKを意味するから、馬か龍だし…。馬・龍に関しては成り駒かも知れんし。
-        // return (Pt == GOLD || Pt == KING) ? type_of(pos.piece_on(sq)) : (PieceType)Pt;
         uncapValue = VALUE_ZERO;
         return type_of(pos.piece_on(sq));
       }

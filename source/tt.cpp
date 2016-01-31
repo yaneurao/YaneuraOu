@@ -31,6 +31,8 @@ void TranspositionTable::resize(size_t mbSize) {
 
 TTEntry* TranspositionTable::probe(const Key key, bool& found) const {
 
+  ASSERT_LV3(clusterCount != 0);
+
   // 最初のTT_ENTRYのアドレス(このアドレスからTT_ENTRYがClusterSize分だけ連なっている)
   // keyの下位bitをいくつか使って、このアドレスを求めるので、自ずと下位bitはいくらかは一致していることになる。
   TTEntry* const tte = &table[(size_t)(key) & (clusterCount - 1)].entry[0];
