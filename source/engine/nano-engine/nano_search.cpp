@@ -93,14 +93,19 @@ namespace YaneuraOuNano
     //cout << pos << Eval::eval(pos);
     //return Eval::eval(pos);
 
-    // 静止探索では4手以上は延長しない。
-    if (depth < -4 * ONE_PLY)
+    // 静止探索では5手以上は延長しない。
+    if (depth < -5 * ONE_PLY)
       return Eval::eval(pos);
 
     // 取り合いの指し手だけ生成する
     MovePicker mp(pos,move_to(pos.state()->lastMove));
     Value value;
     Move move;
+
+    // この局面で何も指さないときのスコア。recaptureすると損をする変化もあるのでこのスコアを基準に考える。
+    value = Eval::eval(pos);
+    if (alpha < value)
+      alpha = value;
 
     StateInfo si;
     pos.check_info_update();

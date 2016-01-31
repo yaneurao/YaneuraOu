@@ -133,9 +133,12 @@ private:
 };
 
 // 詰みのスコアは置換表上は、rootからあと何手で詰むかというスコアを格納する。(ことになっている)
+// こうしておかないと、undo_move()するごとに詰みのスコアをデクリメントしたりしないといけなくなって
+// とても面倒くさいからである。
 // なので、この局面から3手詰めであることがわかったなら、3手 + rootからの手数を格納しなければならない。
 // つまり、置換表へ格納するときにはこの変換をする関数が必要となる。
 // 詰みにまつわるスコアでないなら関係がないので何の変換も行わない。
+// ply : root node からの手数。(ply_from_root)
 inline Value value_to_tt(Value v, int ply) {
 
   ASSERT_LV3(v != VALUE_NONE);
@@ -145,6 +148,7 @@ inline Value value_to_tt(Value v, int ply) {
 }
 
 // value_to_tt()の逆関数
+// ply : root node からの手数。(ply_from_root)
 inline Value value_from_tt(Value v, int ply) {
 
   return  v == VALUE_NONE ? VALUE_NONE
