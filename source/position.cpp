@@ -7,6 +7,8 @@
 using namespace std;
 using namespace Effect8;
 
+std::string SFEN_HIRATE = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
+
 // 局面のhash keyを求めるときに用いるZobrist key
 namespace Zobrist {
   HASH_KEY zero; // ゼロ(==0)

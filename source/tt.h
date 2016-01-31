@@ -133,8 +133,8 @@ private:
 };
 
 // 詰みのスコアは置換表上は、rootからあと何手で詰むかというスコアを格納する。(ことになっている)
-// こうしておかないと、undo_move()するごとに詰みのスコアをデクリメントしたりしないといけなくなって
-// とても面倒くさいからである。
+// こうしておかないと、do_move(),undo_move()するごとに詰みのスコアをインクリメントしたりデクリメントしたり
+// しないといけなくなってとても面倒くさいからである。
 // なので、この局面から3手詰めであることがわかったなら、3手 + rootからの手数を格納しなければならない。
 // つまり、置換表へ格納するときにはこの変換をする関数が必要となる。
 // 詰みにまつわるスコアでないなら関係がないので何の変換も行わない。
@@ -143,8 +143,8 @@ inline Value value_to_tt(Value v, int ply) {
 
   ASSERT_LV3(v != VALUE_NONE);
 
-  return  v >= VALUE_MATE_IN_MAX_PLY ? v + ply
-    : v <= VALUE_MATED_IN_MAX_PLY ? v - ply : v;
+  return  v >= VALUE_MATE_IN_MAX_PLY  ? v + ply
+        : v <= VALUE_MATED_IN_MAX_PLY ? v - ply : v;
 }
 
 // value_to_tt()の逆関数
@@ -152,7 +152,7 @@ inline Value value_to_tt(Value v, int ply) {
 inline Value value_from_tt(Value v, int ply) {
 
   return  v == VALUE_NONE ? VALUE_NONE
-    : v >= VALUE_MATE_IN_MAX_PLY ? v - ply
+    : v >= VALUE_MATE_IN_MAX_PLY  ? v - ply
     : v <= VALUE_MATED_IN_MAX_PLY ? v + ply : v;
 }
 

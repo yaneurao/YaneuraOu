@@ -133,10 +133,10 @@ inline Bitboard::Bitboard(Square sq) { *this = SquareBB[sq]; }
 
 // 全升が1であるBitboard
 // p[0]の63bit目は0
-const Bitboard ALL_BB = Bitboard(UINT64_C(0x7FFFFFFFFFFFFFFF), UINT64_C(0x3FFFF));
+extern Bitboard ALL_BB;
 
 // 全升が0であるBitboard
-const Bitboard ZERO_BB = Bitboard(0, 0);
+extern Bitboard ZERO_BB;
 
 // Square型との演算子
 inline Bitboard operator|(const Bitboard& b, Square s) { return b | SquareBB[s]; }
@@ -159,32 +159,32 @@ std::ostream& operator<<(std::ostream& os, const Bitboard& board);
 // --------------------
 
 // 各筋を表現するBitboard定数
-const Bitboard FILE1_BB = Bitboard(UINT64_C(0x1ff) << (9 * 0), 0);
-const Bitboard FILE2_BB = Bitboard(UINT64_C(0x1ff) << (9 * 1), 0);
-const Bitboard FILE3_BB = Bitboard(UINT64_C(0x1ff) << (9 * 2), 0);
-const Bitboard FILE4_BB = Bitboard(UINT64_C(0x1ff) << (9 * 3), 0);
-const Bitboard FILE5_BB = Bitboard(UINT64_C(0x1ff) << (9 * 4), 0);
-const Bitboard FILE6_BB = Bitboard(UINT64_C(0x1ff) << (9 * 5), 0);
-const Bitboard FILE7_BB = Bitboard(UINT64_C(0x1ff) << (9 * 6), 0);
-const Bitboard FILE8_BB = Bitboard(0, 0x1ff << (9 * 0));
-const Bitboard FILE9_BB = Bitboard(0, 0x1ff << (9 * 1));
+extern Bitboard FILE1_BB;
+extern Bitboard FILE2_BB;
+extern Bitboard FILE3_BB;
+extern Bitboard FILE4_BB;
+extern Bitboard FILE5_BB;
+extern Bitboard FILE6_BB;
+extern Bitboard FILE7_BB;
+extern Bitboard FILE8_BB;
+extern Bitboard FILE9_BB;
 
 // 各段を表現するBitboard定数
-const Bitboard RANK1_BB = Bitboard(UINT64_C(0x40201008040201) << 0, 0x201 << 0);
-const Bitboard RANK2_BB = Bitboard(UINT64_C(0x40201008040201) << 1, 0x201 << 1);
-const Bitboard RANK3_BB = Bitboard(UINT64_C(0x40201008040201) << 2, 0x201 << 2);
-const Bitboard RANK4_BB = Bitboard(UINT64_C(0x40201008040201) << 3, 0x201 << 3);
-const Bitboard RANK5_BB = Bitboard(UINT64_C(0x40201008040201) << 4, 0x201 << 4);
-const Bitboard RANK6_BB = Bitboard(UINT64_C(0x40201008040201) << 5, 0x201 << 5);
-const Bitboard RANK7_BB = Bitboard(UINT64_C(0x40201008040201) << 6, 0x201 << 6);
-const Bitboard RANK8_BB = Bitboard(UINT64_C(0x40201008040201) << 7, 0x201 << 7);
-const Bitboard RANK9_BB = Bitboard(UINT64_C(0x40201008040201) << 8, 0x201 << 8);
+extern Bitboard RANK1_BB;
+extern Bitboard RANK2_BB;
+extern Bitboard RANK3_BB;
+extern Bitboard RANK4_BB;
+extern Bitboard RANK5_BB;
+extern Bitboard RANK6_BB;
+extern Bitboard RANK7_BB;
+extern Bitboard RANK8_BB;
+extern Bitboard RANK9_BB;
 
 // 各筋を表現するBitboard配列
-const Bitboard FILE_BB[FILE_NB] = { FILE1_BB,FILE2_BB,FILE3_BB,FILE4_BB,FILE5_BB,FILE6_BB,FILE7_BB,FILE8_BB,FILE9_BB };
+extern Bitboard FILE_BB[FILE_NB];
 
 // 各段を表現するBitboard配列
-const Bitboard RANK_BB[RANK_NB] = { RANK1_BB,RANK2_BB,RANK3_BB,RANK4_BB,RANK5_BB,RANK6_BB,RANK7_BB,RANK8_BB,RANK9_BB }; 
+extern Bitboard RANK_BB[RANK_NB];
 
 // InFrontBBの定義)
 //    c側の香の利き = 飛車の利き & InFrontBB[c][rank_of(sq)]
@@ -193,13 +193,8 @@ const Bitboard RANK_BB[RANK_NB] = { RANK1_BB,RANK2_BB,RANK3_BB,RANK4_BB,RANK5_BB
 // color == BLACKのとき、n段目よりWHITE側(1からn-1段目)を表現するBitboard。
 // color == WHITEのとき、n段目よりBLACK側(n+1から9段目)を表現するBitboard。
 // このアイデアはAperyのもの。
-const Bitboard InFrontBB[COLOR_NB][RANK_NB] = {
-  { ZERO_BB,RANK1_BB, RANK1_BB | RANK2_BB , RANK1_BB | RANK2_BB | RANK3_BB , RANK1_BB | RANK2_BB | RANK3_BB | RANK4_BB,
-  ~(RANK9_BB | RANK8_BB | RANK7_BB | RANK6_BB) , ~(RANK9_BB | RANK8_BB | RANK7_BB),~(RANK9_BB | RANK8_BB),~RANK9_BB },
-  { ~RANK1_BB , ~(RANK1_BB | RANK2_BB) , ~(RANK1_BB | RANK2_BB | RANK3_BB),~(RANK1_BB | RANK2_BB | RANK3_BB | RANK4_BB),
-  RANK9_BB | RANK8_BB | RANK7_BB | RANK6_BB , RANK9_BB | RANK8_BB | RANK7_BB , RANK9_BB | RANK8_BB , RANK9_BB , ZERO_BB }
-};
-
+extern Bitboard InFrontBB[COLOR_NB][RANK_NB];
+  
 // 先手から見て1段目からr段目までを表現するBB(US==WHITEなら、9段目から数える)
 inline const Bitboard rank1_n_bb(const Color US, const Rank r) { ASSERT_LV2(is_ok(r));  return InFrontBB[US][(US == BLACK ? r + 1 : 7 - r)]; }
 
@@ -278,18 +273,7 @@ extern Bitboard LanceEffect[COLOR_NB][SQ_NB_PLUS1][128];
 
 // 指定した位置の属する file の bit を shift し、
 // index を求める為に使用する。(from Apery)
-const int Slide[SQ_NB_PLUS1] = {
-  1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 ,
-  10, 10, 10, 10, 10, 10, 10, 10, 10,
-  19, 19, 19, 19, 19, 19, 19, 19, 19,
-  28, 28, 28, 28, 28, 28, 28, 28, 28,
-  37, 37, 37, 37, 37, 37, 37, 37, 37,
-  46, 46, 46, 46, 46, 46, 46, 46, 46,
-  55, 55, 55, 55, 55, 55, 55, 55, 55,
-  1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 ,
-  10, 10, 10, 10, 10, 10, 10, 10, 10,
-  0 , // SQ_NB用
-};
+extern int Slide[SQ_NB_PLUS1];
 
 // --- 角の利き
 extern Bitboard BishopEffect[20224+1];

@@ -153,6 +153,9 @@
     <ClCompile Include="extra\see.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
+    <ClCompile Include="extra\bitop.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">

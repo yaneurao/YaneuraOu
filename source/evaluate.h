@@ -27,41 +27,17 @@ namespace Eval {
     KingValue = 15000,
   };
 
-  // 駒の価値のテーブル
-  static const int PieceValue[PIECE_NB] =
-  {
-    0, PawnValue, LanceValue, KnightValue, SilverValue, BishopValue, RookValue,GoldValue,
-    KingValue, ProPawnValue, ProLanceValue, ProKnightValue, ProSilverValue, HorseValue, DragonValue,0,
-
-    0, -PawnValue, -LanceValue, -KnightValue, -SilverValue, -BishopValue, -RookValue,-GoldValue,
-    -KingValue, -ProPawnValue, -ProLanceValue, -ProKnightValue, -ProSilverValue, -HorseValue, -DragonValue,0,
-  };
+  // 駒の価値のテーブル(後手の駒は負の値)
+  extern int PieceValue[PIECE_NB];
 
   // 駒の交換値(＝捕獲したときの価値の上昇値)
   // 例)「と」を取ったとき、評価値の変動量は手駒歩+盤面の「と」。
   // MovePickerとSEEの計算で用いる。
-  static const int PieceValueCapture[PIECE_NB] =
-  {
-    VALUE_ZERO             , PawnValue * 2   , LanceValue * 2   , KnightValue * 2   , SilverValue * 2  ,
-    BishopValue * 2, RookValue * 2, GoldValue * 2, KingValue , // SEEで使うので大きな値にしておく。
-    ProPawnValue + PawnValue, ProLanceValue + LanceValue, ProKnightValue + KnightValue, ProSilverValue + SilverValue,
-    HorseValue + BishopValue, DragonValue + RookValue, VALUE_ZERO /* PRO_GOLD */,
-    // KingValueの値は使わない
-    VALUE_ZERO             , PawnValue * 2   , LanceValue * 2   , KnightValue * 2   , SilverValue * 2  ,
-    BishopValue * 2, RookValue * 2, GoldValue * 2, KingValue , // SEEで使うので大きな値にしておく。
-    ProPawnValue + PawnValue, ProLanceValue + LanceValue, ProKnightValue + KnightValue, ProSilverValue + SilverValue,
-    HorseValue + BishopValue, DragonValue + RookValue, VALUE_ZERO /* PRO_GOLD */,
-  };
+  extern int PieceValueCapture[PIECE_NB];
 
   // 駒を成ったときの成る前との価値の差。SEEで用いる。
   // 駒の成ったものと成っていないものとの価値の差
-  static int ProDiffPieceValue[PIECE_NB] =
-  {
-    VALUE_ZERO, ProPawnValue - PawnValue, ProLanceValue - LanceValue, ProKnightValue - KnightValue, ProSilverValue - SilverValue, HorseValue - BishopValue, DragonValue - RookValue, VALUE_ZERO ,
-    VALUE_ZERO, ProPawnValue - PawnValue, ProLanceValue - LanceValue, ProKnightValue - KnightValue, ProSilverValue - SilverValue, HorseValue - BishopValue, DragonValue - RookValue, VALUE_ZERO ,
-    VALUE_ZERO, ProPawnValue - PawnValue, ProLanceValue - LanceValue, ProKnightValue - KnightValue, ProSilverValue - SilverValue, HorseValue - BishopValue, DragonValue - RookValue, VALUE_ZERO ,
-    VALUE_ZERO, ProPawnValue - PawnValue, ProLanceValue - LanceValue, ProKnightValue - KnightValue, ProSilverValue - SilverValue, HorseValue - BishopValue, DragonValue - RookValue, VALUE_ZERO ,
-  };
+  extern int ProDiffPieceValue[PIECE_NB];
 
   // --- 評価関数で使う定数 KPP(玉と任意2駒)のPに相当するenum
 
@@ -141,66 +117,10 @@ namespace Eval {
   // 例)
   // BonaPiece fb = kpp_board_index[pc].fb + sq; // 先手から見たsqにあるpcに対応するBonaPiece
   // BonaPiece fw = kpp_board_index[pc].fw + sq; // 後手から見たsqにあるpcに対応するBonaPiece
-  const ExtBonaPiece kpp_board_index[PIECE_NB] = {
-    { BONA_PIECE_ZERO, BONA_PIECE_ZERO },
-    { f_pawn, e_pawn },
-    { f_lance, e_lance },
-    { f_knight, e_knight },
-    { f_silver, e_silver },
-    { f_bishop, e_bishop },
-    { f_rook, e_rook },
-    { f_gold, e_gold },
-    { f_king, e_king },
-    { f_gold, e_gold }, // 成歩
-    { f_gold, e_gold }, // 成香
-    { f_gold, e_gold }, // 成桂
-    { f_gold, e_gold }, // 成銀
-    { f_horse, e_horse }, // 馬
-    { f_dragon, e_dragon }, // 龍
-    { BONA_PIECE_ZERO, BONA_PIECE_ZERO }, // 金の成りはない
-
-    // 後手から見た場合。fとeが入れ替わる。
-    { BONA_PIECE_ZERO, BONA_PIECE_ZERO },
-    { e_pawn, f_pawn },
-    { e_lance, f_lance },
-    { e_knight, f_knight },
-    { e_silver, f_silver },
-    { e_bishop, f_bishop },
-    { e_rook, f_rook },
-    { e_gold, f_gold },
-    { e_king, f_king },
-    { e_gold, f_gold }, // 成歩
-    { e_gold, f_gold }, // 成香
-    { e_gold, f_gold }, // 成桂
-    { e_gold, f_gold }, // 成銀
-    { e_horse, f_horse }, // 馬
-    { e_dragon, f_dragon }, // 龍
-    { BONA_PIECE_ZERO, BONA_PIECE_ZERO }, // 金の成りはない
-  };
+  extern ExtBonaPiece kpp_board_index[PIECE_NB];
 
   // KPPの手駒テーブル
-  const ExtBonaPiece kpp_hand_index[COLOR_NB][KING] = {
-    {
-      { BONA_PIECE_ZERO, BONA_PIECE_ZERO },
-      { f_hand_pawn, e_hand_pawn },
-      { f_hand_lance, e_hand_lance },
-      { f_hand_knight, e_hand_knight },
-      { f_hand_silver, e_hand_silver },
-      { f_hand_bishop, e_hand_bishop },
-      { f_hand_rook, e_hand_rook },
-      { f_hand_gold, e_hand_gold },
-    },
-    {
-      { BONA_PIECE_ZERO, BONA_PIECE_ZERO },
-      { e_hand_pawn, f_hand_pawn },
-      { e_hand_lance, f_hand_lance },
-      { e_hand_knight, f_hand_knight },
-      { e_hand_silver, f_hand_silver },
-      { e_hand_bishop, f_hand_bishop },
-      { e_hand_rook, f_hand_rook },
-      { e_hand_gold, f_hand_gold },
-    },
-  };
+  extern ExtBonaPiece kpp_hand_index[COLOR_NB][KING];
 
   // 評価関数で用いる駒リスト。どの駒(PieceNo)がどこにあるのか(BonaPiece)を保持している構造体
   struct EvalList {

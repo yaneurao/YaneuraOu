@@ -234,8 +234,8 @@ struct ymm
 
 #endif
 
-static const ymm ymm_zero = ymm(uint8_t(0));
-static const ymm ymm_one = ymm(uint8_t(1));
+extern ymm ymm_zero;  // all packed bytes are 0.
+extern ymm ymm_one;   // all packed bytes are 1.
 
 // ----------------------------
 //    custom allocator

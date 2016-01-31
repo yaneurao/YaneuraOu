@@ -9,6 +9,41 @@
 
 using namespace std;
 
+// ----- Bitboard const
+
+Bitboard ALL_BB = Bitboard(UINT64_C(0x7FFFFFFFFFFFFFFF), UINT64_C(0x3FFFF));
+Bitboard ZERO_BB = Bitboard(0, 0);
+
+Bitboard FILE1_BB = Bitboard(UINT64_C(0x1ff) << (9 * 0), 0);
+Bitboard FILE2_BB = Bitboard(UINT64_C(0x1ff) << (9 * 1), 0);
+Bitboard FILE3_BB = Bitboard(UINT64_C(0x1ff) << (9 * 2), 0);
+Bitboard FILE4_BB = Bitboard(UINT64_C(0x1ff) << (9 * 3), 0);
+Bitboard FILE5_BB = Bitboard(UINT64_C(0x1ff) << (9 * 4), 0);
+Bitboard FILE6_BB = Bitboard(UINT64_C(0x1ff) << (9 * 5), 0);
+Bitboard FILE7_BB = Bitboard(UINT64_C(0x1ff) << (9 * 6), 0);
+Bitboard FILE8_BB = Bitboard(0, 0x1ff << (9 * 0));
+Bitboard FILE9_BB = Bitboard(0, 0x1ff << (9 * 1));
+
+Bitboard RANK1_BB = Bitboard(UINT64_C(0x40201008040201) << 0, 0x201 << 0);
+Bitboard RANK2_BB = Bitboard(UINT64_C(0x40201008040201) << 1, 0x201 << 1);
+Bitboard RANK3_BB = Bitboard(UINT64_C(0x40201008040201) << 2, 0x201 << 2);
+Bitboard RANK4_BB = Bitboard(UINT64_C(0x40201008040201) << 3, 0x201 << 3);
+Bitboard RANK5_BB = Bitboard(UINT64_C(0x40201008040201) << 4, 0x201 << 4);
+Bitboard RANK6_BB = Bitboard(UINT64_C(0x40201008040201) << 5, 0x201 << 5);
+Bitboard RANK7_BB = Bitboard(UINT64_C(0x40201008040201) << 6, 0x201 << 6);
+Bitboard RANK8_BB = Bitboard(UINT64_C(0x40201008040201) << 7, 0x201 << 7);
+Bitboard RANK9_BB = Bitboard(UINT64_C(0x40201008040201) << 8, 0x201 << 8);
+
+Bitboard FILE_BB[FILE_NB] = { FILE1_BB,FILE2_BB,FILE3_BB,FILE4_BB,FILE5_BB,FILE6_BB,FILE7_BB,FILE8_BB,FILE9_BB };
+Bitboard RANK_BB[RANK_NB] = { RANK1_BB,RANK2_BB,RANK3_BB,RANK4_BB,RANK5_BB,RANK6_BB,RANK7_BB,RANK8_BB,RANK9_BB };
+
+Bitboard InFrontBB[COLOR_NB][RANK_NB] = {
+  { ZERO_BB,RANK1_BB, RANK1_BB | RANK2_BB , RANK1_BB | RANK2_BB | RANK3_BB , RANK1_BB | RANK2_BB | RANK3_BB | RANK4_BB,
+  ~(RANK9_BB | RANK8_BB | RANK7_BB | RANK6_BB) , ~(RANK9_BB | RANK8_BB | RANK7_BB),~(RANK9_BB | RANK8_BB),~RANK9_BB },
+  { ~RANK1_BB , ~(RANK1_BB | RANK2_BB) , ~(RANK1_BB | RANK2_BB | RANK3_BB),~(RANK1_BB | RANK2_BB | RANK3_BB | RANK4_BB),
+  RANK9_BB | RANK8_BB | RANK7_BB | RANK6_BB , RANK9_BB | RANK8_BB | RANK7_BB , RANK9_BB | RANK8_BB , RANK9_BB , ZERO_BB }
+};
+
 // ----- Bitboard tables
 
 // sqの升が1であるbitboard
@@ -41,6 +76,19 @@ Bitboard CheckCandidateBB[SQ_NB_PLUS1][HDK][COLOR_NB];
 
 // SquareからSquareWithWallへの変換テーブル
 SquareWithWall sqww_table[SQ_NB_PLUS1];
+
+int Slide[SQ_NB_PLUS1] = {
+  1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 ,
+  10, 10, 10, 10, 10, 10, 10, 10, 10,
+  19, 19, 19, 19, 19, 19, 19, 19, 19,
+  28, 28, 28, 28, 28, 28, 28, 28, 28,
+  37, 37, 37, 37, 37, 37, 37, 37, 37,
+  46, 46, 46, 46, 46, 46, 46, 46, 46,
+  55, 55, 55, 55, 55, 55, 55, 55, 55,
+  1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 ,
+  10, 10, 10, 10, 10, 10, 10, 10, 10,
+  0 , // SQ_NB用
+};
 
 // Bitboardを表示する(USI形式ではない) デバッグ用
 std::ostream& operator<<(std::ostream& os, const Bitboard& board)

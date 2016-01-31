@@ -13,7 +13,7 @@ struct Thread;
 // --------------------
 
 // 平手の開始局面
-const std::string SFEN_HIRATE = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
+extern std::string SFEN_HIRATE;
 
 // --------------------
 //     局面の情報
