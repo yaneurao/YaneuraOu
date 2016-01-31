@@ -2,6 +2,10 @@
 
 #ifdef YANEURAOU_NANO_ENGINE
 
+// -----------------------
+//   やねうら王nano探索部
+// -----------------------
+
 #include <sstream>
 #include <iostream>
 
@@ -13,9 +17,6 @@
 
 using namespace std;
 using namespace Search;
-
-
-// --- やねうら王nano探索部
 
 namespace YaneuraOuNano
 {
@@ -29,13 +30,13 @@ namespace YaneuraOuNano
     MovePicker(const Position& pos_,Move ttMove) : pos(pos_)
     {
       // 王手がかかっているなら回避手(EVASIONS)、さもなくば、すべての指し手(NON_EVASIONS)で指し手を生成する。
-      if (pos_.in_check())
+      if (pos.in_check())
         endMoves = generateMoves<EVASIONS>(pos, currentMoves);
       else
         endMoves = generateMoves<NON_EVASIONS>(pos, currentMoves);
 
       // 置換表の指し手が、この生成された集合のなかにあるなら、その先頭の指し手に置換表の指し手が来るようにしておく。
-      if (ttMove != MOVE_NONE)
+      if (ttMove != MOVE_NONE && pos.pseudo_legal(ttMove))
       {
         auto p = currentMoves;
         for (; p != endMoves;++p)
@@ -48,29 +49,23 @@ namespace YaneuraOuNano
     }
 
     // 静止探索から呼び出される時用。
-    MovePicker(const Position& pos_, Depth depth) : pos(pos_)
+    MovePicker(const Position& pos_, Square recapSq) : pos(pos_)
     {
-      // 王手がかかっているなら回避手(EVASIONS)、さもなくば、取り合いの指し手(CAPTURES_PRO_PLUS)で指し手を生成して
-      // そのなかで直前でcaptureされた駒以上の駒を捕獲する指し手のみを生成する。
-      if (pos_.in_check())
+      // 王手がかかっているなら回避手(EVASIONS)、さもなくば、recaptureのみ生成。
+      if (pos.in_check())
         endMoves = generateMoves<EVASIONS>(pos, currentMoves);
       else
       {
-        endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, currentMoves);
-        Piece lastCaptured = pos.state()->capturedType;
-        int value = Eval::PieceValue[lastCaptured];
-        while (currentMoves != endMoves)
-        {
-          Piece captured = pos.piece_on(move_to(*currentMoves)); // この指し手で捕獲される駒
-          ASSERT_LV3(captured != NO_PIECE);
+        // recapture以外生成しない。recapture用の指し手生成を作るべき。
+        endMoves = generateMoves<CAPTURES>(pos, currentMoves);
 
-          int v = Eval::PieceValue[captured];
-          if (value > v) // 直前での捕獲された駒の価値を下回るのでこの指し手は削除
-          {
-            *currentMoves = *(--endMoves);
-          } else {
-            currentMoves++;
-          }
+        auto cur = currentMoves;
+        while (cur != endMoves)
+        {
+          if (move_to(*cur)!=recapSq)
+            *cur = *(--endMoves);
+          else
+            ++cur;
         }
       }
     }
@@ -100,7 +95,7 @@ namespace YaneuraOuNano
       return Eval::eval(pos);
 
     // 取り合いの指し手だけ生成する
-    MovePicker mp(pos,depth);
+    MovePicker mp(pos,move_to(pos.state()->lastMove));
     Value value;
     Move move;
 
@@ -119,9 +114,12 @@ namespace YaneuraOuNano
       value = -YaneuraOuNano::qsearch(pos, -beta, -alpha, depth - ONE_PLY);
       pos.undo_move(move);
 
+      if (Signals.stop)
+        return VALUE_ZERO;
+
       ++moveCount;
 
-      if (value > alpha)
+      if (value > alpha) // update alpha?
       {
         alpha = value;
         if (alpha >= beta)
@@ -136,7 +134,8 @@ namespace YaneuraOuNano
       if (pos.in_check())
         return mated_in(pos.game_ply());
 
-      // captureの指し手が尽きたということだから、評価関数を呼び出して評価値を返す。
+      // recaptureの指し手が尽きたということだから、評価関数を呼び出して評価値を返す。
+      cout << pos << Eval::eval(pos) << endl;
       return Eval::eval(pos);
     }
 
@@ -250,11 +249,13 @@ namespace YaneuraOuNano
 
         if (moveCount == 1 || value > alpha)
         {
-          // root nodeにおいてα値を更新した場合
-          // PVの指し手もしくはbest moveであるなら、指し手を入れ替える
+          // root nodeにおいてPVの指し手または、α値を更新した場合、スコアをセットしておく。
+          // (iterationの終わりでsortするのでそのときに指し手が入れ替わる。)
 
           rm.score = value;
           rm.pv.resize(1); // PVは変化するはずなのでいったんリセット
+
+          // ここにPVを代入するコードを書く。(か、置換表からPVをかき集めてくるか)
 
         } else {
 

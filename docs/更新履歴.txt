@@ -13,7 +13,12 @@
 ■ 2016/01/31 V1.23
 
 ・nanoのデバッグ進める。
-
+・USI::score_to_usi()追加
+・USI::pv()追加。
+・評価関数の値がおかしい気がしなくもない。
+<< sfen lnsgkgsnl/1r5b1/pppppp1pp/6p2/9/7P1/PPPPPPP1P/1B4GR1/LNSGK1SNL w - 4
+<< 402
+・sfenコマンド追加。
 
 
 ■ 2016/01/31 V1.22

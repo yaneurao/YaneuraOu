@@ -131,13 +131,10 @@ namespace Eval {
   Value eval(const Position& pos)
   {
     auto score = compute_eval(pos) + pos.state()->materialValue;
+    ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));
 
     return pos.side_to_move() == BLACK ? score : -score;
   }
-#else
-  Value compute_eval(const Position& pos) { return VALUE_ZERO; }
-  Value eval(const Position& pos) { return VALUE_ZERO; }
-#endif
 
   // 現在の局面の評価値の内訳を表示する。
   void print_eval_stat(Position& pos)
@@ -164,7 +161,7 @@ namespace Eval {
       k0 = list[i].fb;
       k1 = list[i].fw;
 
-//      cout << "KKP : " << sq_bk0 << " " << Inv(sq_wk1) << " " << (int)k0 << " = " << kkp[sq_bk0][sq_wk1][k0] << "\n";
+      //      cout << "KKP : " << sq_bk0 << " " << Inv(sq_wk1) << " " << (int)k0 << " = " << kkp[sq_bk0][sq_wk1][k0] << "\n";
       sumKKP += kkp[sq_bk0][sq_wk1][k0];
 
       for (j = 0; j <= i; j++)
@@ -175,7 +172,7 @@ namespace Eval {
         sumBKPP += kpp[sq_bk0][k0][list[j].fb];
         sumWKPP += kpp[sq_wk1][k1][list[j].fw];
 
-//        cout << "sumWKPP = " << sumWKPP << " sumBKPP " << sumBKPP << " sumWKPP " << sumWKPP << endl;
+        //        cout << "sumWKPP = " << sumWKPP << " sumBKPP " << sumBKPP << " sumWKPP " << sumWKPP << endl;
 
         // i==jにおいて0以外やったらあかんで!!
         ASSERT(!(i == j && kpp[sq_bk0][k0][list[j].fb] != 0));
@@ -186,6 +183,12 @@ namespace Eval {
     cout << "sumWKPP = " << sumWKPP << " sumBKPP " << sumBKPP << " sumWKPP " << sumWKPP << endl;
     cout << "---\n";
   }
+
+#else
+  Value compute_eval(const Position& pos) { return VALUE_ZERO; }
+  Value eval(const Position& pos) { return VALUE_ZERO; }
+  void print_eval_stat(Position& pos) {}
+#endif
 
   // BonaPieceの内容を表示する。手駒ならH,盤上の駒なら升目。例) HP3 (3枚目の手駒の歩)
   std::ostream& operator<<(std::ostream& os, BonaPiece bp)

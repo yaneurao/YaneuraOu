@@ -2,6 +2,93 @@
 #define _CONFIG_H_
 
 // --------------------
+// コンパイル時設定
+// --------------------
+
+// --- ターゲットCPUの選択
+
+// AVX2(Haswell以降)でサポートされた命令を使うか。
+// このシンボルをdefineしなければ、pext命令をソフトウェアでエミュレートする。
+// 古いCPUのPCで開発をしたていて、遅くてもいいからともかく動いて欲しいときにそうすると良い。
+
+#define USE_AVX2
+
+// SSE4.2以降でサポートされた命令を使うか。
+// このシンボルをdefineしなければ、popcnt命令をソフトウェアでエミュレートする。
+// 古いCPUのPCで開発をしたていて、遅くてもいいからともかく動いて欲しいときにそうすると良い。
+
+#define USE_SSE42
+
+
+// --- assertのレベルを6段階で。
+//  ASSERT_LV 0 : assertなし(全体的な処理が速い)
+//  ASSERT_LV 1 : 軽量なassert
+//  　　　…
+//  ASSERT_LV 5 : 重度のassert(全体的な処理が遅い)
+// あまり重度のassertにすると、探索性能が落ちるので時間当たりに調べられる局面数が低下するから
+// そのへんのバランスをユーザーが決めれるようにこの仕組みを導入。
+
+#define ASSERT_LV 3
+
+
+// --- デバッグ時の標準出力への局面表示などに日本語文字列を用いる。
+
+#define PRETTY_JP
+
+// --- USI拡張コマンドの"test"コマンドを有効にする。
+// 非常にたくさんのテストコードが書かれているのでコードサイズが膨らむため、
+// 思考エンジンとしてリリースするときはコメントアウトしたほうがいいと思う。
+
+#define ENABLE_TEST_CMD
+
+// --- StateInfoに直前の指し手、移動させた駒などの情報を保存しておくのか
+// これが保存されていると詰将棋ルーチンなどを自作する場合においてそこまでの手順を表示するのが簡単になる。
+// (Position::moves_from_start_pretty()などにより、わかりやすい手順が得られる。
+// ただし通常探索においてはやや遅くなるので思考エンジンとしてリリースするときには無効にしておくこと。
+
+#define KEEP_LAST_MOVE
+
+// 協力詰め用思考エンジンなどで評価関数を使わないときにまで評価関数用のテーブルを
+// 確保するのはもったいないので、そのテーブルを確保するかどうかを選択するためのオプション。
+// 評価関数を用いるなら、どれか一つを選択すべし。(用いないなら選択不要)
+
+// #define EVAL_MATERIAL // 駒得のみの評価関数
+// #define EVAL_PP       // ツツカナ型 2駒関係
+// #define EVAL_KPP      // Bonanza型 3駒関係
+// #define EVAL_PPE      // 技巧型 2駒+利き
+
+// 通例hash keyは64bitだが、これを128にするとPosition::state()->long_key()から128bit hash keyが
+// 得られるようになる。研究時に局面が厳密に合致しているかどうかを判定したいときなどに用いる。
+// ※　やねうら王nanoではこの機能は削除する予定。
+#define HASH_KEY_BITS 64
+//#define HASH_KEY_BITS 128
+//#define HASH_KEY_BITS 256
+
+// 通常探索時の最大探索深さ
+#define MAX_PLY_NUM 128
+
+// 長い利き(遠方駒の利き)のライブラリを用いるか。
+// 超高速1手詰め判定などではこのライブラリが必要。
+// do_move()のときに利きの差分更新を行なうので、do_move()は少し遅くなる。(その代わり、利きが使えるようになる)
+#define LONG_EFFECT_LIBRARY
+
+// 超高速1手詰め判定ルーチンを用いるか。
+#define MATE_1PLY
+
+// Position::see()を用いるか。これはSEE(Static Exchange Evaluation : 静的取り合い評価)の値を返す関数。
+#define USE_SEE
+
+// PV(読み筋)を表示するときに置換表の指し手をかき集めてきて表示するか。
+// 自前でPVを管理してRootMoves::pvを更新するなら、この機能を使う必要はない。
+// #define USE_TT_PV
+
+// 生成する指し手の種類(特殊な指し手生成を行なう場合は、ここでdefineすること。)
+// #define USE_GENERATE_NON_CAPTURES
+// #define USE_GENERATE_CAPTURES
+// #define USE_GENERATE_EVASIONS_ALL
+
+
+// --------------------
 // release configurations
 // --------------------
 
@@ -10,11 +97,13 @@
 #ifdef YANEURAOU_NANO_ENGINE
 #define ENGINE_NAME "YaneuraOu nano"
 //#undef ASSERT_LV
-#undef KEEP_LAST_MOVE
+#define KEEP_LAST_MOVE
 #undef MATE_1PLY
 #undef LONG_EFFECT_LIBRARY
 #define EVAL_KPP
 #undef USE_SEE
+#define USE_TT_PV
+#define USE_GENERATE_CAPTURES
 #endif
 
 #ifdef YANEURAOU_MINI_ENGINE
@@ -23,12 +112,14 @@
 #undef KEEP_LAST_MOVE
 #undef MATE_1PLY
 #undef LONG_EFFECT_LIBRARY
+#undef USE_TT_PV
 #endif
 
 #ifdef YANEURAOU_CLASSIC_ENGINE
 #define ENGINE_NAME "YaneuraOu classic"
 #undef ASSERT_LV
 #undef KEEP_LAST_MOVE
+#undef USE_TT_PV
 #endif
 
 #ifdef YANEURAOU_2016_ENGINE
@@ -36,6 +127,7 @@
 #undef ASSERT_LV
 #undef KEEP_LAST_MOVE
 #define LONG_EFFECT_LIBRARY
+#undef USE_TT_PV
 #endif
 
 #ifdef RANDOM_PLAYER_ENGINE
@@ -70,6 +162,7 @@
 #undef MATE_1PLY
 #undef LONG_EFFECT_LIBRARY
 #undef USE_SEE
+#define USE_GENERATE_EVASIONS_ALL
 #endif
 
 // --- 詰将棋エンジンとして実行ファイルを公開するとき用の設定集

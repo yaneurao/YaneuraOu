@@ -7,7 +7,7 @@ USIプロトコルの独自拡張コマンド
 	eval    : 現在の局面に対して評価関数を呼び出して評価値を出力する。
 	matsuri : 指し手生成祭りの局面を現在の局面としてセットする。
 	moves   : 現在の局面の合法手(LEGAL_ALL)をすべて出力する。
-	sfen    : 現在の局面のsfen文字列を出力する。
+	sfen    : "position sfen"の略。"d"コマンドで表示されたsfen文字列をコピペするときに便利。
 
 	test    : テスト用コマンド
 		test unit           : unit test

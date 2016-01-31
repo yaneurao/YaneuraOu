@@ -853,21 +853,20 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist)
 // テンプレートの実体化。これを書いておかないとリンクエラーになる。
 // .h(ヘッダー)ではなく.cppのほうに書くことでコンパイル時間を節約できる。
 
-// template ExtMove* generateMoves<NON_CAPTURES       >(const Position& pos, ExtMove* mlist);
-// template ExtMove* generateMoves<CAPTURES           >(const Position& pos, ExtMove* mlist);
-
-// →　この２つは実はいまどきの探索部では使わず、NON_CAPTURES_PRO_MINUSとCAPTURES_PRO_PLUSを使うので本ソースコードではコメントアウトしておく。
+#ifdef USE_GENERATE_NON_CAPTURES
+template ExtMove* generateMoves<NON_CAPTURES       >(const Position& pos, ExtMove* mlist);
+#endif
+#ifdef USE_GENERATE_CAPTURES
+template ExtMove* generateMoves<CAPTURES           >(const Position& pos, ExtMove* mlist);
+#endif
 
 template ExtMove* generateMoves<NON_CAPTURES_PRO_MINUS>(const Position& pos, ExtMove* mlist);
 template ExtMove* generateMoves<CAPTURES_PRO_PLUS     >(const Position& pos, ExtMove* mlist);
 
 template ExtMove* generateMoves<EVASIONS              >(const Position& pos, ExtMove* mlist);
 
-#ifdef HELP_MATE_ENGINE
-// 協力詰めのときは必要
+#ifdef USE_GENERATE_EVASIONS_ALL
 template ExtMove* generateMoves<EVASIONS_ALL          >(const Position& pos, ExtMove* mlist);
-#else
-//template ExtMove* generateMoves<EVASIONS_ALL          >(const Position& pos, ExtMove* mlist);
 #endif
 template ExtMove* generateMoves<NON_EVASIONS          >(const Position& pos, ExtMove* mlist);
 

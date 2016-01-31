@@ -41,9 +41,22 @@ namespace USI
 // --------------------
 
   // スコアを歩の価値を100として正規化して出力する。
-  Value value(Value v)
+  std::string score_to_usi(Value v, Value alpha, Value beta)
   {
-    return v * 100 / Eval::PawnValue;
+    std::stringstream s;
+
+    // 置換表上、値が確定していないことがある。
+    if (v == VALUE_NONE)
+      s << "none";
+
+    else if (abs(v) < VALUE_MATE_IN_MAX_PLY)
+      s << "cp " << v * 100 / int(Eval::PawnValue);
+    else
+      s << "mate " << (v > 0 ? VALUE_MATE - v - 1 : -VALUE_MATE - v + 1);
+
+    s << (v >= beta ? " lowerbound" : v <= alpha ? " upperbound" : "");
+
+    return s.str();
   }
   
   std::string pv(const Position& pos, Depth depth, Value alpha, Value beta)
@@ -60,7 +73,7 @@ namespace USI
     ss << "info"
       << " depth " << d / ONE_PLY
       //       << " seldepth " << 
-      << " score " << USI::value(v);
+      << " score " << USI::score_to_usi(v,alpha,beta);
 
     ss << " nodes " << nodes_searched
        << " nps "   << nodes_searched * 1000 / elapsed;
@@ -72,8 +85,31 @@ namespace USI
     ss << " time " << elapsed
        << " pv";
 
+#ifdef USE_TT_PV
+    // 置換表からPVをかき集めてくるモード
+    {
+      auto pos_ = const_cast<Position*>(&pos);
+      Move moves[MAX_PLY+1];
+      StateInfo si[MAX_PLY];
+      moves[0] = rootMoves[0].pv[0];
+      int ply = 0;
+      while (ply < MAX_PLY && moves[ply]!=MOVE_NONE)
+      {
+        pos_->check_info_update();
+        pos_->do_move(moves[ply], si[ply]);
+        ss << " " << moves[ply];
+        bool found;
+        auto tte = TT.probe(pos.state()->key(), found);
+        ply++;
+        moves[ply] = found ? tte->move() : MOVE_NONE;
+      }
+      while (ply > 0)
+        pos_->undo_move(moves[--ply]);
+    }
+#else
     for (Move m : rootMoves[0].pv)
       ss << " " << m;
+#endif
 
     return ss.str();
   }
@@ -201,11 +237,13 @@ void position_cmd(Position& pos,istringstream& is)
   }
   // 局面がfen形式で指定されているなら、その局面を読み込む。
   // UCI(チェスプロトコル)ではなくUSI(将棋用プロトコル)だとここの文字列は"fen"ではなく"sfen"
-  else if (token == "sfen")
+  // この"sfen"という文字列は省略可能にしたいので..
+  else {
+    if (token != "sfen")
+      sfen += token + " ";
     while (is >> token && token != "moves")
       sfen += token + " ";
-  else
-    return;
+  }
 
   pos.set(sfen);
 
@@ -363,8 +401,8 @@ void USI::loop()
     // 指し手生成祭りの局面をセットする。
     else if (token == "matsuri") pos.set("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1");
 
-    // 現在の局面のsfen文字列が表示される。(デバッグ用)
-    else if (token == "sfen") cout << pos.sfen() << endl;
+    // "position sfen"の略。
+    else if (token == "sfen") position_cmd(pos,is);
 
     // ログファイルの書き出しのon
     else if (token == "log") start_logger(true);
