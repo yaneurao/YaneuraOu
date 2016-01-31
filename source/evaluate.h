@@ -224,7 +224,8 @@ namespace Eval {
     // pieceListを初期化する。
     // 駒落ちに対応させる時のために、未使用の駒の値はBONA_PIECE_ZEROにしておく。
     // 通常の評価関数を駒落ちの評価関数として流用できる。
-    void clear() { for (auto& p : pieceList) p.fb = p.fw = BONA_PIECE_ZERO; }
+    // piece_no_listのほうはデバッグが捗るように-1で初期化。
+    void clear() { for (auto& p : pieceList) p.fb = p.fw = BONA_PIECE_ZERO; memset(piece_no_list, -1, sizeof(PieceNo)); }
 
   protected:
 

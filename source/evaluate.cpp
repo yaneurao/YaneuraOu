@@ -149,6 +149,10 @@ namespace Eval {
     int i, j;
     BonaPiece k0, k1;
 
+    // 38枚の駒を表示
+    for (i = 0; i < PIECE_NO_KING; ++i)
+      cout << int(list[i].fb) << " = " << list[i].fb << endl;
+
     int32_t sumBKPP, sumWKPP, sumKKP;
 
     cout << "KKC : " << sq_bk0 << " " << Inv(sq_wk1) << " = " << kkp[sq_bk0][sq_wk1][fe_end] << "\n";
@@ -161,13 +165,13 @@ namespace Eval {
       k0 = list[i].fb;
       k1 = list[i].fw;
 
-      //      cout << "KKP : " << sq_bk0 << " " << Inv(sq_wk1) << " " << (int)k0 << " = " << kkp[sq_bk0][sq_wk1][k0] << "\n";
+      cout << "KKP : " << sq_bk0 << " " << Inv(sq_wk1) << " " << k0 << " = " << kkp[sq_bk0][sq_wk1][k0] << "\n";
       sumKKP += kkp[sq_bk0][sq_wk1][k0];
 
       for (j = 0; j <= i; j++)
       {
-        cout << "BKPP : " << sq_bk0 << " " << (int)k0 << " " << (int)list[j].fb << " = " << kpp[sq_bk0][k0][list[j].fb] << "\n";
-        cout << "WKPP : " << sq_wk1 << " " << (int)k1 << " " << (int)list[j].fw << " = " << kpp[sq_wk1][k1][list[j].fw] << "\n";
+        cout << "BKPP : " << sq_bk0 << " " << k0 << " " << list[j].fb << " = " << kpp[sq_bk0][k0][list[j].fb] << "\n";
+        cout << "WKPP : " << sq_wk1 << " " << k1 << " " << list[j].fw << " = " << kpp[sq_wk1][k1][list[j].fw] << "\n";
 
         sumBKPP += kpp[sq_bk0][k0][list[j].fb];
         sumWKPP += kpp[sq_wk1][k1][list[j].fw];
@@ -193,7 +197,31 @@ namespace Eval {
   // BonaPieceの内容を表示する。手駒ならH,盤上の駒なら升目。例) HP3 (3枚目の手駒の歩)
   std::ostream& operator<<(std::ostream& os, BonaPiece bp)
   {
-    // まだ
+    if (bp < fe_hand_end)
+    {
+      for (auto c : COLOR)
+        for (Piece pc = PAWN; pc < KING; ++pc)
+          if (kpp_hand_index[c][pc].fb <= bp && bp < kpp_hand_index[c][pc].fw)
+          {
+#ifdef PRETTY_JP
+            os << "H" << pretty(pc) << int(bp - kpp_hand_index[c][pc].fb + 1); // ex.HP3
+#else
+            os << "H" << pc << int(bp - kpp_hand_index[c][pc].fb + 1); // ex.HP3
+#endif
+            break;
+          }
+    } else {
+      for (auto pc : Piece())
+        if (kpp_board_index[pc].fb <= bp && bp < kpp_board_index[pc].fb + SQ_NB)
+        {
+#ifdef PRETTY_JP
+          os << Square(bp - kpp_board_index[pc].fb) << pretty(pc); // ex.32P
+#else
+          os << Square(bp - kpp_board_index[pc].fb) << pc; // ex.32P
+#endif
+          break;
+        }
+    }
 
     return os;
   }

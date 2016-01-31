@@ -754,6 +754,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
     Piece pc = make_piece(Us, pr);
     PieceNo piece_no = piece_no_of(Us, pr);
+    ASSERT_LV3(is_ok(piece_no));
     put_piece(to, pc , piece_no);
 
     // 駒打ちなので手駒が減る
@@ -789,8 +790,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
     // 移動先に駒の配置
     // もし成る指し手であるなら、成った後の駒を配置する。
-    PieceNo piece_no = piece_no_of(moved_pc, from); // 移動元にあった駒のpiece_noを得る
     Piece moved_after_pc;
+
     if (is_promote(m))
     {
       materialDiff = Eval::ProDiffPieceValue[moved_pc];
@@ -820,6 +821,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
       // このPieceNoの駒が手駒に移動したのでEvalListのほうを更新しておく。
       PieceNo piece_no = piece_no_of(to_pc, to);
+      ASSERT_LV3(is_ok(piece_no));
       evalList.put_piece(piece_no, Us, pr, hand_count(hand[Us], pr));
 
       // 駒取りなら現在の手番側の駒が増える。
@@ -849,7 +851,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
     // 移動元の升からの駒の除去
     remove_piece(from);
 
-    put_piece(to, moved_after_pc,piece_no);
+    PieceNo piece_no2 = piece_no_of(moved_pc, from); // 移動元にあった駒のpiece_noを得る
+    ASSERT_LV3(is_ok(piece_no2));
+    put_piece(to, moved_after_pc,piece_no2);
 
     // fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
     k -= Zobrist::psq[from][moved_pc];
@@ -932,6 +936,7 @@ void Position::undo_move_impl(Move m)
   auto moved_after_pc = board[to];
 
   PieceNo piece_no = piece_no_of(moved_after_pc, to); // 移動元のpiece_no == いまtoの場所にある駒のpiece_no
+  ASSERT_LV3(is_ok(piece_no));
 
   // 移動前の駒
   Piece moved_pc = is_promote(m) ? (moved_after_pc - PIECE_PROMOTE) : moved_after_pc;
@@ -972,11 +977,13 @@ void Position::undo_move_impl(Move m)
       Piece to_pc = st->capturedType;
 
       // 盤面のtoの地点に捕獲されていた駒を復元する
-      PieceNo piece_no = piece_no_of(~Us, raw_type_of(to_pc)); // 捕っていた駒(手駒にある)のpiece_no
-      put_piece(to, make_piece(~Us, st->capturedType), piece_no);
+      PieceNo piece_no2 = piece_no_of(Us, raw_type_of(to_pc)); // 捕っていた駒(手駒にある)のpiece_no
+      ASSERT_LV3(is_ok(piece_no2));
+
+      put_piece(to, make_piece(~Us, to_pc), piece_no2);
 
       // 手駒から減らす
-      sub_hand(hand[Us], raw_type_of(st->capturedType));
+      sub_hand(hand[Us], raw_type_of(to_pc));
 
       // 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
       put_piece(from, moved_pc, piece_no);

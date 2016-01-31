@@ -197,6 +197,9 @@ void effect_check(Position& pos)
 // 1手詰め判定のテスト
 //#define MATE1PLY_CHECK
 
+// 評価関数の差分計算等のチェック
+//#define EVAL_VALUE_CHECK
+
 
 void random_player(Position& pos,uint64_t loop_max)
 {
@@ -228,6 +231,16 @@ void random_player(Position& pos,uint64_t loop_max)
       ASSERT_LV3(is_ok(pos));
 
       pos.check_info_update();
+
+#ifdef EVAL_VALUE_CHECK
+      {
+        // 評価値の差分計算等がsfen文字列をセットしての全計算と一致するかのテスト(すこぶる遅い)
+        auto value = Eval::eval(pos);
+        pos.set(pos.sfen());
+        auto value2 = Eval::eval(pos);
+        ASSERT_LV3(value == value2);
+      }
+#endif
 
       // ここで生成された指し手がすべて合法手であるかテストをする
       for (auto m : mg)
@@ -308,6 +321,10 @@ void random_player(Position& pos,uint64_t loop_max)
       effect_check(pos);
 #endif
     }
+
+#ifdef EVAL_VALUE_CHECK
+    pos.set_hirate(); // Position.set()してしまったので巻き戻せない
+#else
     // 局面を巻き戻してみる(undo_moveの動作テストを兼ねて)
     while (ply > 0)
     {
@@ -318,6 +335,8 @@ void random_player(Position& pos,uint64_t loop_max)
       effect_check(pos);
 #endif
     }
+
+#endif
 
     // 1000回に1回ごとに'.'を出力(進んでいることがわかるように)
     if ((i % 1000) == 0)

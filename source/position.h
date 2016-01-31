@@ -405,6 +405,7 @@ protected:
   Eval::BonaPiece bona_piece_of(Color c,Piece pt) const {
     // c側の手駒ptの枚数
     int ct = hand_count(hand[c], pt);
+    ASSERT_LV3(ct > 0);
     return (Eval::BonaPiece)(Eval::kpp_hand_index[c][pt].fb + ct - 1);
   }
 

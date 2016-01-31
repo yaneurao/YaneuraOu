@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "1.23"
+#define ENGINE_VERSION "1.24"
 
 // --------------------
 // コンパイル時の設定
@@ -354,8 +354,8 @@ enum Value : int
   // 無効な値
   VALUE_NONE = 32002,
 
-  VALUE_MATE_IN_MAX_PLY = VALUE_MATE - MAX_PLY,   // MAX_PLYでの詰みのときのスコア。
-  VALUE_MATED_IN_MAX_PLY = -(int)VALUE_MATE + MAX_PLY, // MAX_PLYで詰まされるときのスコア。
+  VALUE_MATE_IN_MAX_PLY =   VALUE_MATE - MAX_PLY,   // MAX_PLYでの詰みのときのスコア。
+  VALUE_MATED_IN_MAX_PLY = -VALUE_MATE + MAX_PLY, // MAX_PLYで詰まされるときのスコア。
   
 };
 

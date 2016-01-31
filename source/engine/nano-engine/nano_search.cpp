@@ -90,6 +90,9 @@ namespace YaneuraOuNano
 
   Value qsearch(Position& pos, Value alpha, Value beta, Depth depth)
   {
+    //cout << pos << Eval::eval(pos);
+    //return Eval::eval(pos);
+
     // 静止探索では4手以上は延長しない。
     if (depth < -4 * ONE_PLY)
       return Eval::eval(pos);
@@ -132,10 +135,10 @@ namespace YaneuraOuNano
       // 王手がかかっているなら回避手をすべて生成しているはずで、つまりここで詰んでいたということだから
       // 詰みの評価値を返す。
       if (pos.in_check())
-        return mated_in(pos.game_ply());
+        return mated_in(1);
 
       // recaptureの指し手が尽きたということだから、評価関数を呼び出して評価値を返す。
-      cout << pos << Eval::eval(pos) << endl;
+      //cout << pos << Eval::eval(pos) << endl;
       return Eval::eval(pos);
     }
 
@@ -148,6 +151,9 @@ namespace YaneuraOuNano
 
   // 探索しているnodeの種類
   enum NodeType { Root , PV , NonPV };
+
+  // 現在のnodeのrootからの手数。このカウンターあとで用意すべき。
+  const int ply_from_root = 0;
 
   template <NodeType NT>
   Value search(Position& pos, Value alpha, Value beta, Depth depth)
@@ -179,7 +185,7 @@ namespace YaneuraOuNano
 
     // 置換表上のスコア
     // 置換表にhitしなければVALUE_NONE
-    Value ttValue = ttHit ? value_from_tt(tte->value(), pos.game_ply()) : VALUE_NONE;
+    Value ttValue = ttHit ? value_from_tt(tte->value(), ply_from_root) : VALUE_NONE;
 
     auto thisThread = pos.this_thread();
 
@@ -288,13 +294,13 @@ namespace YaneuraOuNano
       
     // 合法手がない == 詰まされている ので、rootの局面からの手数で詰まされたという評価値を返す。
     if (moveCount == 0)
-      alpha = mated_in(pos.game_ply());
+      alpha = mated_in(ply_from_root);
 
     // -----------------------
     //  置換表に保存する
     // -----------------------
 
-    tte->save(key, value_to_tt(alpha, pos.game_ply()),
+    tte->save(key, value_to_tt(alpha, 1),
       alpha >= beta ? BOUND_LOWER : BOUND_EXACT,
       // betaを超えているということはbeta cutされるわけで残りの指し手を調べていないから真の値はまだ大きいと考えられる。
       // すなわち、このとき値は下界と考えられるから、BOUND_LOWER。
