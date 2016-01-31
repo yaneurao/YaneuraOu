@@ -55,19 +55,8 @@ namespace YaneuraOuNano
       if (pos.in_check())
         endMoves = generateMoves<EVASIONS>(pos, currentMoves);
       else
-      {
-        // recapture以外生成しない。recapture用の指し手生成を作るべき。
-        endMoves = generateMoves<CAPTURES>(pos, currentMoves);
-
-        auto cur = currentMoves;
-        while (cur != endMoves)
-        {
-          if (move_to(*cur)!=recapSq)
-            *cur = *(--endMoves);
-          else
-            ++cur;
-        }
-      }
+        // recapture以外生成しない。
+        endMoves = generateMoves<RECAPTURES>(pos, currentMoves,recapSq);
     }
 
     // 次の指し手をひとつ返す

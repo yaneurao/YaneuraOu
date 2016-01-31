@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "1.25"
+#define ENGINE_VERSION "1.26"
 
 // --------------------
 // コンパイル時の設定
@@ -617,16 +617,20 @@ enum MOVE_GEN_TYPE
   // →　被覆させないことで、二段階に指し手生成を分解することが出来る。
 
   EVASIONS ,            // 王手の回避(指し手生成元で王手されている局面であることがわかっているときはこちらを呼び出す)
-  NON_EVASIONS,         // 王手の回避ではない手(指し手生成元で王手されていない局面であることがわかっているときのすべての指し手)
-  EVASIONS_ALL,         // EVASIONS + 歩の不成なども含む
+  EVASIONS_ALL,         // EVASIONS + 歩の不成なども含む。
 
+  NON_EVASIONS,         // 王手の回避ではない手(指し手生成元で王手されていない局面であることがわかっているときのすべての指し手)
+  NON_EVASIONS_ALL,     // NON_EVASIONS + 歩の不成などを含む。
+  
   // 以下の2つは、pos.legalを内部的に呼び出すので生成するのに時間が少しかかる。棋譜の読み込み時などにしか使わない。
   LEGAL,                // 合法手すべて。ただし、2段目の歩・香の不成や角・飛の不成は生成しない。
   LEGAL_ALL,            // 合法手すべて
 
-  // 以下の2つは、やねうら王nanoでは削除予定
   CHECKS,               // 王手となる指し手(歩の不成などは含まない)
   CHECKS_ALL,           // 王手となる指し手(歩の不成なども含む)
+
+  RECAPTURES,           // 指定升への移動の指し手のみを生成する。(歩の不成などは含まない)
+  RECAPTURES_ALL,       // 指定升への移動の指し手のみを生成する。(歩の不成なども含む)
 };
 
 struct Position; // 前方宣言
@@ -636,8 +640,8 @@ struct Position; // 前方宣言
 // mlist : 指し手を返して欲しい指し手生成バッファのアドレス
 // 返し値 : 生成した指し手の終端
 struct CheckInfo;
-template <MOVE_GEN_TYPE gen_type>
-ExtMove* generateMoves(const Position& pos, ExtMove* mlist);
+template <MOVE_GEN_TYPE gen_type> ExtMove* generateMoves(const Position& pos, ExtMove* mlist);
+template <MOVE_GEN_TYPE gen_type> ExtMove* generateMoves(const Position& pos, ExtMove* mlist,Square recapSq); // RECAPTURES,RECAPTURES_ALL専用
 
 // MoveGeneratorのwrapper。範囲forで回すときに便利。
 template<MOVE_GEN_TYPE GenType>

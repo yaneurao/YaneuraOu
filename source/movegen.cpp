@@ -469,7 +469,7 @@ template <Color US> struct GenerateDropMoves {
 // 返し値 : 生成した指し手の終端
 // generateMovesのほうから内部的に呼び出される。(直接呼び出さないこと。)
 template<MOVE_GEN_TYPE GenType,Color Us,bool All>
-ExtMove* generate_general(const Position& pos, ExtMove* mlist)
+ExtMove* generate_general(const Position& pos, ExtMove* mlist,Square recapSq=SQ_NB)
 {
   // --- 駒の移動による指し手
 
@@ -479,6 +479,8 @@ ExtMove* generate_general(const Position& pos, ExtMove* mlist)
   //  CAPTURE_PRO_PLUsならCAPTURES + 歩の成り。
   //   (価値のある成り以外はオーダリングを阻害するので含めない)
 
+  static_assert(GenType != EVASIONS_ALL && GenType != NON_EVASIONS_ALL && GenType != RECAPTURES_ALL , "*_ALL is not allowed.");
+
   // 歩以外の駒の移動先
   const Bitboard target =
     (GenType == NON_CAPTURES) ? pos.empties() : // 捕獲しない指し手 = 移動先の升は駒のない升
@@ -486,6 +488,7 @@ ExtMove* generate_general(const Position& pos, ExtMove* mlist)
     (GenType == NON_CAPTURES_PRO_MINUS) ? pos.empties() : // 捕獲しない指し手 - 歩の成る指し手 = 移動先の升は駒のない升 - 敵陣(歩のときのみ)
     (GenType == CAPTURES_PRO_PLUS) ? pos.pieces(~Us) : // 捕獲 + 歩の成る指し手 = 移動先の升は敵駒のある升 + 敵陣(歩のときのみ)
     (GenType == NON_EVASIONS) ? ~pos.pieces(Us) : // すべて = 移動先の升は自駒のない升
+    (GenType == RECAPTURES) ? Bitboard(recapSq) :  // リキャプチャー用の升(直前で相手の駒が移動したわけだからここには移動できるはず)
     ALL_BB; // error
 
   // 歩の移動先(↑のtargetと違う部分のみをオーバーライド)
@@ -776,10 +779,10 @@ ExtMove* generate_checks(const Position& pos, ExtMove* mlist)
 // ----------------------------------
 
 // generate_general()を先後分けて実体化するための踏み台
-template<MOVE_GEN_TYPE GenType,bool All>
-ExtMove* generateMoves(const Position& pos, ExtMove* mlist)
+template<MOVE_GEN_TYPE GenType, bool All>
+ExtMove* generateMoves(const Position& pos, ExtMove* mlist,Square sq = SQ_NB)
 {
-  return pos.side_to_move() == BLACK ? generate_general<GenType, BLACK, All>(pos, mlist) : generate_general<GenType, WHITE, All>(pos, mlist);
+  return pos.side_to_move() == BLACK ? generate_general<GenType, BLACK, All>(pos, mlist,sq) : generate_general<GenType, WHITE, All>(pos, mlist,sq);
 }
 
 // 同じく、Evasionsの指し手生成を呼ぶための踏み台
@@ -800,10 +803,10 @@ ExtMove* generateChecksMoves(const Position& pos, ExtMove* mlist)
 
 // 一般的な指し手生成
 template<MOVE_GEN_TYPE GenType>
-ExtMove* generateMoves(const Position& pos, ExtMove* mlist)
+ExtMove* generateMoves(const Position& pos, ExtMove* mlist,Square recapSq)
 {
   // すべての指し手を生成するのか。
-  const bool All = (GenType == EVASIONS_ALL) || (GenType == CHECKS_ALL) || (GenType == LEGAL_ALL);
+  const bool All = (GenType == EVASIONS_ALL) || (GenType == CHECKS_ALL) || (GenType == LEGAL_ALL) || (GenType == NON_EVASIONS_ALL) || (GenType == RECAPTURES_ALL);
   if (GenType == LEGAL || GenType == LEGAL_ALL)
   {
     // LEGALだけは特殊な状況で用いるので、呼び出し元でcheck_info_update()は呼び出しされていないはずなのでここで呼び出しておく。
@@ -847,32 +850,44 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist)
     return generateEvasionMoves<All>(pos, mlist);
 
   // 上記のもの以外
-  return generateMoves<GenType, All>(pos, mlist);
+  // ただし、NON_EVASIONS_ALL , RECAPTURES_ALLは、ALLではないほうを呼び出す必要がある。
+  // EVASIONS_ALLは上で呼び出されているが、実際はここでも実体化されたあと、最適化によって削除されるので、ここでも書く必要がある。
+  const auto GenType2 =
+    GenType == NON_EVASIONS_ALL ? NON_EVASIONS :
+    GenType == RECAPTURES_ALL ? RECAPTURES :
+    GenType == EVASIONS_ALL ? EVASIONS :
+    GenType; // さもなくば元のまま。
+  return generateMoves<GenType2, All>(pos, mlist,recapSq);
 }
+
+template<MOVE_GEN_TYPE GenType>
+ExtMove* generateMoves(const Position& pos, ExtMove* mlist)
+{
+  static_assert(GenType != RECAPTURES && GenType != RECAPTURES_ALL , "RECAPTURES , not allowed.");
+  return generateMoves<GenType>(pos, mlist, SQ_NB);
+}
+
 
 // テンプレートの実体化。これを書いておかないとリンクエラーになる。
 // .h(ヘッダー)ではなく.cppのほうに書くことでコンパイル時間を節約できる。
 
-#ifdef USE_GENERATE_NON_CAPTURES
-template ExtMove* generateMoves<NON_CAPTURES       >(const Position& pos, ExtMove* mlist);
-#endif
-#ifdef USE_GENERATE_CAPTURES
-template ExtMove* generateMoves<CAPTURES           >(const Position& pos, ExtMove* mlist);
-#endif
+template ExtMove* generateMoves<NON_CAPTURES          >(const Position& pos, ExtMove* mlist);
+template ExtMove* generateMoves<CAPTURES              >(const Position& pos, ExtMove* mlist);
 
 template ExtMove* generateMoves<NON_CAPTURES_PRO_MINUS>(const Position& pos, ExtMove* mlist);
 template ExtMove* generateMoves<CAPTURES_PRO_PLUS     >(const Position& pos, ExtMove* mlist);
 
 template ExtMove* generateMoves<EVASIONS              >(const Position& pos, ExtMove* mlist);
-
-#ifdef USE_GENERATE_EVASIONS_ALL
 template ExtMove* generateMoves<EVASIONS_ALL          >(const Position& pos, ExtMove* mlist);
-#endif
+
 template ExtMove* generateMoves<NON_EVASIONS          >(const Position& pos, ExtMove* mlist);
+template ExtMove* generateMoves<NON_EVASIONS_ALL      >(const Position& pos, ExtMove* mlist);
 
 template ExtMove* generateMoves<LEGAL                 >(const Position& pos, ExtMove* mlist);
 template ExtMove* generateMoves<LEGAL_ALL             >(const Position& pos, ExtMove* mlist);
 
-// 王手の指し手生成(詰将棋探索等を用いないなら不要)
 template ExtMove* generateMoves<CHECKS                >(const Position& pos, ExtMove* mlist);
 template ExtMove* generateMoves<CHECKS_ALL            >(const Position& pos, ExtMove* mlist);
+
+template ExtMove* generateMoves<RECAPTURES            >(const Position& pos, ExtMove* mlist, Square recapSq);
+template ExtMove* generateMoves<RECAPTURES_ALL        >(const Position& pos, ExtMove* mlist, Square recapSq);

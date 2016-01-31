@@ -82,11 +82,6 @@
 // 自前でPVを管理してRootMoves::pvを更新するなら、この機能を使う必要はない。
 // #define USE_TT_PV
 
-// 生成する指し手の種類(特殊な指し手生成を行なう場合は、ここでdefineすること。)
-// #define USE_GENERATE_NON_CAPTURES
-// #define USE_GENERATE_CAPTURES
-// #define USE_GENERATE_EVASIONS_ALL
-
 
 // --------------------
 // release configurations
@@ -103,7 +98,6 @@
 #define EVAL_KPP
 #undef USE_SEE
 #define USE_TT_PV
-#define USE_GENERATE_CAPTURES
 #endif
 
 #ifdef YANEURAOU_MINI_ENGINE
