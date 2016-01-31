@@ -31,10 +31,12 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 
 
 
-■　俺の作業メモ(2016/01/31 15:00現在)
+■　俺の作業メモ(2016/01/31 22:00現在)
 
 
-【作業中】・やねうら王nanoの探索部
+【作業中】・やねうら王miniの探索部
+
+【完了】・やねうら王nanoの探索部
 
 【完了】・1手詰め判定ルーチン、影の利きを考慮した詰み
 
