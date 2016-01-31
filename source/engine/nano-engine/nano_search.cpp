@@ -90,13 +90,6 @@ namespace YaneuraOuNano
 
   Value qsearch(Position& pos, Value alpha, Value beta, Depth depth)
   {
-    //cout << pos << Eval::eval(pos);
-    //return Eval::eval(pos);
-
-    // 静止探索では5手以上は延長しない。
-    if (depth < -5 * ONE_PLY)
-      return Eval::eval(pos);
-
     // 取り合いの指し手だけ生成する
     MovePicker mp(pos,move_to(pos.state()->lastMove));
     Value value;
@@ -142,9 +135,8 @@ namespace YaneuraOuNano
       if (pos.in_check())
         return mated_in(1);
 
-      // recaptureの指し手が尽きたということだから、評価関数を呼び出して評価値を返す。
-      //cout << pos << Eval::eval(pos) << endl;
-      return Eval::eval(pos);
+      // recaptureの指し手が尽きたということだから、評価関数を呼び出して評価値を返すが、
+      // 評価関数はすでに呼び出した後なので単にalphaを返せば良い。
     }
 
     return alpha;
