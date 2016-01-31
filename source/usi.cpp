@@ -74,6 +74,8 @@ namespace USI
 
     for (Move m : rootMoves[0].pv)
       ss << " " << m;
+
+    return ss.str();
   }
 
 

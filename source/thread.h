@@ -95,6 +95,16 @@ struct Thread : public ThreadBase
   // goコマンドで渡されていなければ、全合法手(ただし歩の不成などは除く)とする。
   std::vector<Search::RootMove> rootMoves;
 
+  // このスレッドでMultiPVを用いているとして、rootMovesの(0から数えて)何番目のPVの指し手を探索中であるか
+  // MultiPVでないときはこの変数の値は0。
+  size_t PVIdx;
+
+  // rootから最大、何手目まで探索したか(選択深さの最大)
+  int maxPly;
+
+  // 反復深化の深さ
+  Depth rootDepth;
+
 protected:
   // 探索中であるかを表すフラグ
   std::atomic_bool searching;

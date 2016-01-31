@@ -17,6 +17,9 @@ namespace Search {
     // sortするときに必要。std::stable_sort()で降順になって欲しいので比較の不等号を逆にしておく。
     bool operator<(const RootMove& m) const { return score > m.score; }
 
+    // std::count(),std::find()などで指し手と比較するときに必要。
+    bool operator==(const Move& m) const { return pv[0] == m; }
+
     explicit RootMove(Move m) : pv(1,m) {}
 
     // 今回の(反復深化の)iterationでの探索結果のスコア

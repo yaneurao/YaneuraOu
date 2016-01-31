@@ -379,7 +379,7 @@ inline bool is_aligned(Square sq1 /* is ksq */, Square sq2, Square sq3)
 // --------------------
 
 // Depthは1手をONE_PLY倍にスケーリングする。
-enum Depth : int16_t{ ONE_PLY = 2 };
+enum Depth : int16_t{ DEPTH_ZERO = 0, ONE_PLY = 2 };
 
 // 通常探索時の最大探索深さ
 const int MAX_PLY = MAX_PLY_NUM;

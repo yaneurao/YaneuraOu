@@ -19,7 +19,10 @@ using namespace Search;
 
 namespace YaneuraOuNano
 {
-  // nano用のMovePicker
+  // -----------------------
+  //   指し手オーダリング
+  // -----------------------
+
   struct MovePicker
   {
     // 通常探索から呼び出されるとき用。
@@ -35,15 +38,12 @@ namespace YaneuraOuNano
       if (ttMove != MOVE_NONE)
       {
         auto p = currentMoves;
-        while (p != endMoves)
-        {
+        for (; p != endMoves;++p)
           if (*p == ttMove)
           {
             swap(*p, *currentMoves);
             break;
           }
-          ++p;
-        }
       }
     }
 
@@ -62,6 +62,8 @@ namespace YaneuraOuNano
         while (currentMoves != endMoves)
         {
           Piece captured = pos.piece_on(move_to(*currentMoves)); // この指し手で捕獲される駒
+          ASSERT_LV3(captured != NO_PIECE);
+
           int v = Eval::PieceValue[captured];
           if (value > v) // 直前での捕獲された駒の価値を下回るのでこの指し手は削除
           {
@@ -87,7 +89,10 @@ namespace YaneuraOuNano
     ExtMove moves[MAX_MOVES], *currentMoves = moves, *endMoves = moves;
   };
 
-  // 静止探索
+  // -----------------------
+  //      静止探索
+  // -----------------------
+
   Value qsearch(Position& pos, Value alpha, Value beta, Depth depth)
   {
     // 静止探索では4手以上は延長しない。
@@ -96,8 +101,8 @@ namespace YaneuraOuNano
 
     // 取り合いの指し手だけ生成する
     MovePicker mp(pos,depth);
-    Value score;
-    Move m;
+    Value value;
+    Move move;
 
     StateInfo si;
     pos.check_info_update();
@@ -105,20 +110,20 @@ namespace YaneuraOuNano
     // この局面でdo_move()された合法手の数
     int moveCount = 0;
 
-    while (m = mp.nextMove())
+    while (move = mp.nextMove())
     {
-      if (!pos.legal(m))
+      if (!pos.legal(move))
         continue;
 
-      pos.do_move(m, si, pos.gives_check(m));
-      score = -YaneuraOuNano::qsearch(pos, -beta, -alpha, depth - ONE_PLY);
-      pos.undo_move(m);
+      pos.do_move(move, si, pos.gives_check(move));
+      value = -YaneuraOuNano::qsearch(pos, -beta, -alpha, depth - ONE_PLY);
+      pos.undo_move(move);
 
       ++moveCount;
 
-      if (score > alpha)
+      if (value > alpha)
       {
-        alpha = score;
+        alpha = value;
         if (alpha >= beta)
           return alpha; // beta cut
       }
@@ -138,13 +143,27 @@ namespace YaneuraOuNano
     return alpha;
   }
 
+  // -----------------------
+  //      通常探索
+  // -----------------------
+
+  // 探索しているnodeの種類
+  enum NodeType { Root , PV , NonPV };
+
+  template <NodeType NT>
   Value search(Position& pos, Value alpha, Value beta, Depth depth)
   {
+    ASSERT_LV3(alpha < beta);
+
+    // root nodeであるか
+    const bool RootNode = NT == Root;
+
+    // PV nodeであるか(root nodeはPV nodeに含まれる)
+    const bool PvNode = NT == PV || NT == Root;
+
     // -----------------------
     // 残り深さがないなら静止探索へ
     // -----------------------
-
-    ASSERT_LV3(alpha < beta);
 
     // 残り探索深さがなければ静止探索を呼び出して評価値を返す。
     if (depth < ONE_PLY)
@@ -163,9 +182,14 @@ namespace YaneuraOuNano
     // 置換表にhitしなければVALUE_NONE
     Value ttValue = ttHit ? value_from_tt(tte->value(), pos.game_ply()) : VALUE_NONE;
 
+    auto thisThread = pos.this_thread();
+
     // 置換表の指し手
     // 置換表にhitしなければMOVE_NONE
-    Move ttMove = ttHit ? tte->move() : MOVE_NONE;
+
+    // RootNodeであるなら、指し手は現在注目している1手だけであるから、それが置換表にあったものとして指し手を進める。
+    Move ttMove = RootNode ? thisThread->rootMoves[thisThread->PVIdx].pv[0]
+      :  ttHit ? tte->move() : MOVE_NONE;
 
     // 置換表の値によるbeta cut
     
@@ -182,11 +206,10 @@ namespace YaneuraOuNano
     // 1手ずつ指し手を試す
     // -----------------------
 
-    // 指し手して一手ずつ返す
     MovePicker mp(pos,ttMove);
 
-    Value score;
-    Move m;
+    Value value;
+    Move move;
 
     StateInfo si;
     pos.check_info_update();
@@ -195,38 +218,80 @@ namespace YaneuraOuNano
     int moveCount = 0;
     Move bestMove = MOVE_NONE;
 
-    while (m = mp.nextMove())
+    while (move = mp.nextMove())
     {
-      if (!pos.legal(m))
+      // root nodeでは、rootMoves()の集合に含まれていない指し手は探索をスキップする。
+      if (RootNode && !std::count(thisThread->rootMoves.begin() + thisThread->PVIdx,
+        thisThread->rootMoves.end(), move))
         continue;
 
-      pos.do_move(m, si, pos.gives_check(m));
-      score = -YaneuraOuNano::search(pos, -beta, -alpha, depth - ONE_PLY);
-      pos.undo_move(m);
+      // legal()のチェック。root nodeだとlegal()だとわかっているのでこのチェックは不要。
+      if (!RootNode && !pos.legal(move))
+        continue;
+
+      pos.do_move(move, si, pos.gives_check(move));
+      value = -YaneuraOuNano::search<PV>(pos, -beta, -alpha, depth - ONE_PLY);
+      pos.undo_move(move);
 
       // 停止シグナルが来たら置換表を汚さずに終了。
       if (Signals.stop)
-        return VALUE_NONE;
+        return VALUE_ZERO;
 
+      // do_moveした指し手の数のインクリメント
       ++moveCount;
 
-      // αを超えたならαを更新
-      if (score > alpha)
+      // -----------------------
+      //  root node用の特別な処理
+      // -----------------------
+
+      if (RootNode)
       {
-        alpha = score;
-        bestMove = m;
+        auto& rm = *std::find(thisThread->rootMoves.begin(), thisThread->rootMoves.end(), move);
+
+        if (moveCount == 1 || value > alpha)
+        {
+          // root nodeにおいてα値を更新した場合
+          // PVの指し手もしくはbest moveであるなら、指し手を入れ替える
+
+          rm.score = value;
+          rm.pv.resize(1); // PVは変化するはずなのでいったんリセット
+
+        } else {
+
+          // root nodeにおいてα値を更新しなかったのであれば、この指し手のスコアを-VALUE_INFINITEにしておく。
+          // こうしておかなければ、stable_sort()しているにもかかわらず、前回の反復深化のときの値との
+          // 大小比較してしまい指し手の順番が入れ替わってしまうことによるオーダリング性能の低下がありうる。
+          rm.score = -VALUE_INFINITE;
+        }
+      }
+
+      // -----------------------
+      //  alpha値の更新処理
+      // -----------------------
+
+      if (value > alpha)
+      {
+        alpha = value;
+        bestMove = move;
 
         // αがβを上回ったらbeta cut
         if (alpha >= beta)
           break;
       }
-    }
 
+    } // end of while
+
+    // -----------------------
+    //  生成された指し手がない？
+    // -----------------------
+      
     // 合法手がない == 詰まされている ので、rootの局面からの手数で詰まされたという評価値を返す。
     if (moveCount == 0)
       alpha = mated_in(pos.game_ply());
 
-    // 置換表に保存する
+    // -----------------------
+    //  置換表に保存する
+    // -----------------------
 
     tte->save(key, value_to_tt(alpha, pos.game_ply()),
       alpha >= beta ? BOUND_LOWER : BOUND_EXACT,
@@ -242,16 +307,7 @@ namespace YaneuraOuNano
 
 using namespace YaneuraOuNano;
 
-/*
-// root nodeでalpha値を更新するごとに
-// GUIに対して歩1枚の価値を100とする評価値と、現在のベストの指し手を読み筋(pv)として出力する。
-sync_cout << "info score cp " << int(score) * 100 / Eval::PawnValue << " pv " << m << sync_endl;
-*/
-
 // --- 以下に好きなように探索のプログラムを書くべし。
-template <bool RootNode>
-Value search(Position& pos, Value alpha, Value beta, Depth depth);
-
 
 // 起動時に呼び出される。時間のかからない探索関係の初期化処理はここに書くこと。
 void Search::init(){}
@@ -275,7 +331,7 @@ void MainThread::think() {
   // TTEntryの世代を進める。
   TT.new_search();
 
-  int rootDepth = 0;
+  rootDepth = DEPTH_ZERO;
   Value alpha,beta;
   StateInfo si;
   auto& pos = rootPos;
@@ -294,37 +350,21 @@ void MainThread::think() {
 
   // --- 反復深化のループ
 
-  while (++rootDepth < MAX_PLY && !Signals.stop && (!Limits.depth || rootDepth <= Limits.depth))
+  while ((rootDepth+=ONE_PLY) < MAX_PLY && !Signals.stop && (!Limits.depth || rootDepth <= Limits.depth))
   {
     // 本当はもっと探索窓を絞ったほうが効率がいいのだが…。
     alpha = -VALUE_INFINITE;
     beta = VALUE_INFINITE;
 
-    // それぞれの指し手について調べていく。これは合法手であることは保証されているので合法手チェックは不要。
-    for (auto& m : rootMoves)
-    {
-      auto move = m.pv[0];
-      pos.do_move(move,si,pos.gives_check(move));
-      m.score = -YaneuraOuNano::search(rootPos, -beta, -alpha , rootDepth * ONE_PLY);
-      pos.undo_move(move);
-
-      // 停止シグナルが来たら終了。
-      if (Signals.stop)
-        break;
-
-      // alpha値を更新
-      if (alpha < m.score)
-        alpha = m.score;
-    }
+    PVIdx = 0; // MultiPVではないのでPVは1つで良い。
+    
+    YaneuraOuNano::search<Root>(rootPos, alpha , beta , rootDepth);
 
     // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
     std::stable_sort(rootMoves.begin(), rootMoves.end());
 
     // 読み筋を出力しておく。
-    sync_cout << "info string depth " << rootDepth << " pv ";
-    for (auto m : rootMoves.at(0).pv)
-      cout << m;
-    cout << " score cp " << rootMoves.at(0).score*100/Eval::PawnValue << sync_endl;
+    sync_cout << USI::pv(pos, rootDepth, alpha, beta) << sync_endl;
   }
   
   Move bestMove = rootMoves.at(0).pv[0];
