@@ -152,12 +152,13 @@ namespace YaneuraOuNano
   // 探索しているnodeの種類
   enum NodeType { Root , PV , NonPV };
 
-  // 現在のnodeのrootからの手数。このカウンターあとで用意すべき。
-  const int ply_from_root = 0;
-
   template <NodeType NT>
   Value search(Position& pos, Value alpha, Value beta, Depth depth)
   {
+    // 現在のnodeのrootからの手数。これカウンターが必要。
+    // nanoだとこのカウンター持ってないので適当にごまかす。
+    const int ply_from_root = (pos.this_thread()->rootDepth - depth) / ONE_PLY;
+
     ASSERT_LV3(alpha < beta);
 
     // root nodeであるか
@@ -300,7 +301,7 @@ namespace YaneuraOuNano
     //  置換表に保存する
     // -----------------------
 
-    tte->save(key, value_to_tt(alpha, 1),
+    tte->save(key, value_to_tt(alpha, ply_from_root),
       alpha >= beta ? BOUND_LOWER : BOUND_EXACT,
       // betaを超えているということはbeta cutされるわけで残りの指し手を調べていないから真の値はまだ大きいと考えられる。
       // すなわち、このとき値は下界と考えられるから、BOUND_LOWER。
