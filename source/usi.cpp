@@ -424,6 +424,11 @@ void USI::loop()
     // この局面のhash keyの値を出力
     else if (token == "key") cout << hex << pos.state()->key() << dec << endl;
 
+#if defined(MATE_1PLY) && defined(LONG_EFFECT_LIBRARY)
+    // この局面での1手詰め判定
+    else if (token == "mate1") cout << pos.mate1ply() << endl;
+#endif
+
 #ifdef ENABLE_TEST_CMD
     // 指し手生成のテスト
     else if (token == "s") generate_moves_cmd(pos);

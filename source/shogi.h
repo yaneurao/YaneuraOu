@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "1.26"
+#define ENGINE_VERSION "1.27"
 
 // --------------------
 // コンパイル時の設定
@@ -468,6 +468,7 @@ constexpr Move make_move(Square from, Square to) { return (Move)(to + (from << 7
 constexpr Move make_move_promote(Square from, Square to) { return (Move)(to + (from << 7) + MOVE_PROMOTE); }
 
 // Pieceをtoに打つ指し手を生成して返す
+// constexpr 
 constexpr Move make_move_drop(Piece pt, Square to) { return (Move)(to + (pt << 7) + MOVE_DROP); }
 
 // 指し手がおかしくないかをテストする

@@ -8,6 +8,9 @@ USIプロトコルの独自拡張コマンド
 	matsuri : 指し手生成祭りの局面を現在の局面としてセットする。
 	moves   : 現在の局面の合法手(LEGAL_ALL)をすべて出力する。
 	sfen    : "position sfen"の略。"d"コマンドで表示されたsfen文字列をコピペするときに便利。
+	key		: 現在の局面に対して局面のhash keyを出力
+	mated   : 現在の局面に対して詰み判定を呼び出す。詰んでいれば1。さもなくば0。
+	mate1   : 現在の局面に対してmate1ply()を呼び出す。
 
 	test    : テスト用コマンド
 		test unit           : unit test
@@ -19,8 +22,6 @@ USIプロトコルの独自拡張コマンド
 
 	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。
 
-	mated   : 現在の局面に対して詰み判定を呼び出す。詰んでいれば1。さもなくば0。
-	key		: 現在の局面に対して局面のhash keyを出力
 
 set option name XXX value ...で設定できるoption
 

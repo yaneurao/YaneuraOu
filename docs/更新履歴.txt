@@ -10,6 +10,33 @@
 ・ベンチマーク書く。
 
 
+■ 2016/02/01 V1.27
+
+・mate1plyで漏れているケースをいくつか修正。
+sfen 1nk3G2/l4+RGb1/s1p5l/n2p3pp/1p1PP4/4KPPP1/NPP1S3P/LR3ppGL/B2+p+n1S2 b 2PSG 123
+→詰むようになった。0.1%ほど詰み発見率が上がった。
+
+sfen +P1+Lg1S+P1b/+P2k4p/1N1l1+R2n/1LG1Gp2L/S5p2/1PPP1g1p1/B3R3n/pp2+n1KsP/1S4P2 b 2P2p 203
+→詰むようにした。0.2%ほど詰み発見率が上がった。
+
+・USI拡張コマンドとして"mate1"コマンド追加。
+
+test rp
+Random Player test , loop_max = 100000000
+mate found = 10000 , mate miss = 793 , mate found rate  = 92.6526%
+mate found = 20000 , mate miss = 1524 , mate found rate  = 92.9195%
+mate found = 30000 , mate miss = 2257 , mate found rate  = 93.0031%
+mate found = 40000 , mate miss = 3035 , mate found rate  = 92.9476%
+mate found = 50000 , mate miss = 3877 , mate found rate  = 92.804%
+mate found = 60000 , mate miss = 4764 , mate found rate  = 92.6441%
+mate found = 70000 , mate miss = 5544 , mate found rate  = 92.6612%
+mate found = 80000 , mate miss = 6376 , mate found rate  = 92.6183%
+mate found = 90000 , mate miss = 7079 , mate found rate  = 92.708%
+mate found = 100000 , mate miss = 7795 , mate found rate  = 92.7687%
+mate found = 110000 , mate miss = 8561 , mate found rate  = 92.7792%
+mate found = 120000 , mate miss = 9318 , mate found rate  = 92.7945%
+
+
 ■ 2016/02/01 V1.26
 
 ・static const排除。実行ファイルのサイズが20KBほど縮んだ。
