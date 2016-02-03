@@ -4,6 +4,8 @@
 #include "shogi.h"
 #include <chrono>
 #include <thread>
+#include <vector>
+#include <string>
 
 // --------------------
 //  engine info
@@ -38,6 +40,14 @@ extern void start_logger(bool b);
 
 
 // --------------------
+//  ファイルの丸読み
+// --------------------
+
+// ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。
+extern void read_all_lines(std::string filename, std::vector<std::string>& lines);
+
+
+// --------------------
 //  Time[ms] wrapper
 // --------------------
 
@@ -62,6 +72,7 @@ inline void sleep(int ms)
 
 // 擬似乱数生成器
 // Stockfishで用いられているもの
+// UniformRandomNumberGenerator互換にして、std::shuffle()等でも使えるようにする。
 struct PRNG {
   PRNG(uint64_t seed) : s(seed) { ASSERT_LV1(seed); }
 

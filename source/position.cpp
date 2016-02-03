@@ -1046,6 +1046,7 @@ bool Position::pos_is_ok() const
 
 #if 0
   // 1) 盤上の駒と手駒を合わせて40駒あるか。
+  // →　駒落ちに対応させたいのでコメントアウト
 
   // それぞれの駒のあるべき枚数
   const int ptc0[KING] = { 2/*玉*/,18/*歩*/,4/*香*/,4/*桂*/,4/*銀*/,2/*角*/,2/*飛*/,4/*金*/};
@@ -1089,6 +1090,10 @@ bool Position::pos_is_ok() const
 
   // 5) occupied bitboardは合っているか
   if ((pieces() != (pieces(BLACK) | pieces(WHITE))) || (pieces(BLACK) & pieces(WHITE)))
+    return false;
+
+  // 6) 王手している駒は敵駒か
+  if (checkers() & pieces(side_to_move()))
     return false;
 
   return true;

@@ -494,7 +494,7 @@ ExtMove* generate_general(const Position& pos, ExtMove* mlist,Square recapSq=SQ_
   // 歩の移動先(↑のtargetと違う部分のみをオーバーライド)
   const Bitboard targetPawn =
     (GenType == NON_CAPTURES_PRO_MINUS) ? (pos.empties() & ~enemy_field(Us)): // 駒を取らない指し手 かつ、歩の成る指し手を引いたもの
-    (GenType == CAPTURES_PRO_PLUS) ? (pos.pieces(~Us) | enemy_field(Us)) : // 歩の場合は敵陣での成りもこれに含める
+    (GenType == CAPTURES_PRO_PLUS) ? (pos.pieces(~Us) | (~pos.pieces(Us) & enemy_field(Us))) : // 歩の場合は敵陣での成りもこれに含める
     target;
 
   // 各駒による移動の指し手の生成

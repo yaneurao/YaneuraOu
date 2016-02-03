@@ -8,6 +8,8 @@
 
 #include <sstream>
 #include <iostream>
+#include <fstream>
+#include <algorithm>
 
 #include "../../position.h"
 #include "../../search.h"
@@ -33,7 +35,12 @@ namespace YaneuraOuNano
       if (pos.in_check())
         endMoves = generateMoves<EVASIONS>(pos, currentMoves);
       else
-        endMoves = generateMoves<NON_EVASIONS>(pos, currentMoves);
+      {
+        // CAPTURESを先に生成しておくことで枝刈り性能をupさせる。
+        // 本当は、CAPTURESの指し手が尽きてから段階的に生成すべきだが、MovePickerが少し複雑になるので簡略しておく。
+        endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, currentMoves);
+        endMoves = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, endMoves);
+      }
 
       // 置換表の指し手が、この生成された集合のなかにあるなら、その先頭の指し手に置換表の指し手が来るようにしておく。
       if (ttMove != MOVE_NONE && pos.pseudo_legal(ttMove))
@@ -79,21 +86,43 @@ namespace YaneuraOuNano
 
   Value qsearch(Position& pos, Value alpha, Value beta, Depth depth)
   {
+    // 現在のnodeのrootからの手数。これカウンターが必要。
+    // nanoだとこのカウンター持ってないので適当にごまかす。
+    const int ply_from_root = (pos.this_thread()->rootDepth - depth) / ONE_PLY;
+
+    // この局面で王手がかかっているのか
+    bool InCheck = pos.checkers();
+
+    Value value;
+    if (InCheck)
+    {
+      // 王手がかかっているならすべての指し手を調べる。
+      alpha = -VALUE_INFINITE;
+
+    } else {
+      // 王手がかかっていないなら置換表の指し手を持ってくる
+
+      // この局面で何も指さないときのスコア。recaptureすると損をする変化もあるのでこのスコアを基準に考える。
+      value = Eval::eval(pos);
+
+      if (alpha < value)
+      {
+        alpha = value;
+        if (alpha >= beta)
+          return alpha; // beta cut
+      }
+
+      // 探索深さが-3以下ならこれ以上延長しない。
+      if (depth < -3 * ONE_PLY)
+        return alpha;
+    }
+
     // 取り合いの指し手だけ生成する
     MovePicker mp(pos,move_to(pos.state()->lastMove));
-    Value value;
     Move move;
-
-    // この局面で何も指さないときのスコア。recaptureすると損をする変化もあるのでこのスコアを基準に考える。
-    value = Eval::eval(pos);
-    if (alpha < value)
-      alpha = value;
 
     StateInfo si;
     pos.check_info_update();
-
-    // この局面でdo_move()された合法手の数
-    int moveCount = 0;
 
     while (move = mp.nextMove())
     {
@@ -101,13 +130,12 @@ namespace YaneuraOuNano
         continue;
 
       pos.do_move(move, si, pos.gives_check(move));
+
       value = -YaneuraOuNano::qsearch(pos, -beta, -alpha, depth - ONE_PLY);
       pos.undo_move(move);
 
       if (Signals.stop)
         return VALUE_ZERO;
-
-      ++moveCount;
 
       if (value > alpha) // update alpha?
       {
@@ -117,16 +145,9 @@ namespace YaneuraOuNano
       }
     }
 
-    if (moveCount == 0)
-    {
-      // 王手がかかっているなら回避手をすべて生成しているはずで、つまりここで詰んでいたということだから
-      // 詰みの評価値を返す。
-      if (pos.in_check())
-        return mated_in(1);
-
-      // recaptureの指し手が尽きたということだから、評価関数を呼び出して評価値を返すが、
-      // 評価関数はすでに呼び出した後なので単にalphaを返せば良い。
-    }
+    // 王手がかかっている状況ですべての指し手を調べたということだから、これは詰みである
+    if (InCheck && alpha == -VALUE_INFINITE)
+      return mated_in(ply_from_root);
 
     return alpha;
   }
@@ -183,12 +204,16 @@ namespace YaneuraOuNano
     Move ttMove = RootNode ? thisThread->rootMoves[thisThread->PVIdx].pv[0]
       :  ttHit ? tte->move() : MOVE_NONE;
 
-    // 置換表の値によるbeta cut
+    // 置換表の値による枝刈り
     
-    if (ttHit                   // 置換表の指し手がhitして
+    if (!PvNode && ttHit                   // 置換表の指し手がhitして
       && tte->depth() >= depth   // 置換表に登録されている探索深さのほうが深くて
       && ttValue != VALUE_NONE   // (他スレッドからTTEntryがこの瞬間に破壊された可能性が..)
-      && (ttValue >= beta && tte->bound() & BOUND_LOWER) // ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値。
+      //&& (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
+      //  : (tte->bound() & BOUND_UPPER)
+      // ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
+      // ttValueが上界(真の評価値はこれより小さい)でttValue < betaならどう頑張ってもbeta cutされることはないので
+      // non PVではこれで枝刈りして良い。(PVではこれで枝刈りするのはちょっと危ない)
       )
     {
       return ttValue;
@@ -303,11 +328,49 @@ using namespace YaneuraOuNano;
 
 // --- 以下に好きなように探索のプログラムを書くべし。
 
+// 定跡ファイル
+vector<string> books;
+
 // 起動時に呼び出される。時間のかからない探索関係の初期化処理はここに書くこと。
-void Search::init(){}
+void Search::init(){ read_all_lines("nano-book.sfen",books); } // 定跡の読み込み
 
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
-void  Search::clear() { TT.clear(); }
+void  Search::clear() {
+  // 置換表のクリア
+  TT.clear();
+
+  // 定跡をシャッフルして置換表に突っ込んでおく
+  PRNG prng;
+  for (int i = 0; i < books.size()-1;++i)
+    std::swap(books[i],books[i+prng.rand(books.size()-i)]); // Fisher-Yates
+
+  for (auto book : books)
+  {
+    stringstream is(book);
+    Position pos;
+    StateInfo si[MAX_PLY];
+    for (int moves = 0; moves < 16; ++moves)
+    {
+      // 1手ずつ取り出す
+      string token;
+      do {
+        is >> token;
+      } while (token == "startpos" || token == "moves");
+      auto m = move_from_usi(pos,token);
+      if (!pos.pseudo_legal(m) || !pos.legal(m))
+        break;
+
+      // この指し手を置換表に書く
+      bool found;
+      auto key = pos.state()->key();
+      auto tte = TT.probe(key, found);
+      tte->save(key, VALUE_ZERO,BOUND_EXACT, (Depth)127, m, VALUE_ZERO, TT.generation());
+
+      // 局面を進める
+      pos.do_move(m,si[moves]);
+    }
+  }
+}
 
 // 探索開始時に呼び出される。
 // この関数内で初期化を終わらせ、slaveスレッドを起動してThread::search()を呼び出す。
@@ -342,6 +405,18 @@ void MainThread::think() {
     Signals.stop = true;
   });
 
+  // --- 置換表に登録されている定跡にhitしたらその指し手を返して終了
+  {
+    bool found;
+    auto tte = TT.probe(pos.state()->key(), found);
+    if (found && tte->depth() == Depth(127) && pos.pseudo_legal(tte->move()) && pos.legal(tte->move()))
+    {
+      auto& rm = *std::find(rootMoves.begin(), rootMoves.end(), tte->move());
+      std::swap(rootMoves[0], rm);
+      goto ID_END;
+    }
+  }
+
   // --- 反復深化のループ
 
   while ((rootDepth+=ONE_PLY) < MAX_PLY && !Signals.stop && (!Limits.depth || rootDepth <= Limits.depth))
@@ -361,6 +436,8 @@ void MainThread::think() {
     sync_cout << USI::pv(pos, rootDepth, alpha, beta) << sync_endl;
   }
   
+ID_END:;
+
   Move bestMove = rootMoves.at(0).pv[0];
   sync_cout << "bestmove " << bestMove << sync_endl;
 

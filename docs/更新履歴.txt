@@ -2,12 +2,68 @@
 やねうら王 更新履歴
 
 残り作業
-・nano、もう少し強く。
-・miniの探索
-・持ち時間管理
-・定跡部
+
+・定跡部、何かフレームワークからのサポートを考える。
+・nanoに並列探索追加。
+・評価関数の差分計算追加
+
+・miniの探索部書く
+
 ・長手数の詰将棋ルーチン書く。
 ・ベンチマーク書く。
+
+
+■ 2016/02/04 V1.28
+
+・nano、floodgateに放流している人を見るとR1700ぐらいらしい。もう少しチューンする。
+・nanoの静止探索で王手がかかっているならalpha = -VALUE_INFINITEにして、
+	あと静止探索の延長は3手までにする。
+	→　少し強くなった気が。
+
+・nanoの静止探索の指し手生成、RECAPTURESからCAPTURES_PRO_PLUSに変更してみる。
+	→　弱くなった。
+・Position::is_ok()にcheckesの検証を追加。
+・CAPTURES_PRO_PLUSで歩の成りに自駒のある場所を除外していなかったのを修正。
+
+position startpos moves 2g2f 3c3d 7g7f 8c8d 2f2e 1c1d 2e2d 2c2d 2h2d
+go btime 169000 wtime 17100000 byoyomi 0
+
+・検証用のコード
+      for (auto p = currentMoves; p != endMoves; ++p)
+        if (!pos.pseudo_legal(*p))
+        {
+          cout << pos << *p;
+          for (auto m : MoveList<CAPTURES_PRO_PLUS>(pos))
+            cout << m.move << " ";
+        }
+
+・nanoに定跡追加。
+　　→　序盤、少しだけマシになった。
+
+・misc.h/cppにread_all_lines()追加。
+・プロジェクトのdoc/nano-book.sfen追加。
+
+・対局中おかしかった局面のテスト
+position startpos moves 7g7f 8b3b 5i6h 5a6b 2g2f 6b7b 2f2e 3c3d 3i4h 3d3e 8h2b+ 3a2b 2e2d 2c2d 7i7h 5c5d 7h7g 2b2c B*6f B*2b 6f2b+ 3b2b 6h7h 2c3d 4g4f 2d2e 4h4g 2e2f B*6f B*3c 6f3c+ 2a3c 4i3h B*4i B*5f 3d2e 4g5h 4i5h+ 6i5h S*5e B*1e 4a3b 5f4g 5e4f 4g5f 5d5e
+go btime 10000000
+
+・nanoの通常探索の指し手生成、CAPTURESさきに生成すると枝刈り性能が上がるはず。→　少し強くなった。
+
+・あと探索の並列化と評価関数の差分更新をやるとR200ぐらい上がるかも。
+
+・2016年1月の作業メモから完了分
+
+【完了】・1手詰め判定ルーチン、影の利きを考慮した詰み
+【完成】・1手詰め判定ルーチン、打ちと移動による簡単な詰み
+【完成】・undo_move()で利きの差分更新処理(戻す処理)、実装完了。ランダムプレイヤーによる自動テストをpassした。
+【完成】・do_move()での利きの差分更新処理が正しいかをランダムプレイヤーによる自動テストにより確認。
+【完成】・Position::do_move()のときのcaptureとnon_captureのときの利きの差分更新処理
+【完成】・Position::do_move()のdropのときの利きの差分更新処理
+【完成】・Long Effect Library
+【完成】・利きの初期化処理
+【完成】・自動対局サーバーの開始局面のランダマイズ機能
+【完成】・自動対局サーバー機能、書けた。
+【完成】・32bit環境用のコード、ちゃんと動くようになった。(手元に32bit環境がないので実際の環境で試してはいない。)
 
 
 ■ 2016/02/01 V1.27
