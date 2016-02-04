@@ -181,5 +181,8 @@
     <None Include="..\README.md">
       <Filter>リソース ファイル\doc</Filter>
     </None>
+    <None Include="..\docs\book.db">
+      <Filter>リソース ファイル\doc</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -246,6 +246,7 @@
     <Text Include="..\docs\解説.txt" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\docs\book.db" />
     <None Include="..\README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
