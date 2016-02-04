@@ -395,7 +395,12 @@ void MainThread::think() {
 
   // 今回に用いる思考時間 = 残り時間の1/60 + 秒読み時間
   auto us = pos.side_to_move();
-  auto availableTime = Limits.time[us] / 60 + Limits.byoyomi[us];
+  // 2秒未満は2秒として問題ない。(CSAルールにおいて)
+  auto availableTime = std::max(2000, Limits.time[us] / 60 + Limits.byoyomi[us]);
+  // 思考時間は秒単位で繰り上げ
+  availableTime = (availableTime / 1000) * 1000;
+  // 50msより小さいと思考自体不可能なので下限を50msに。
+  availableTime  = std::max(50 , availableTime - Options["NetworkDelay"]);
   auto endTime = Limits.startTime + availableTime;
 
   // タイマースレッドを起こして、終了時間を監視させる。

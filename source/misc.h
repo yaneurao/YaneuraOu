@@ -43,7 +43,7 @@ extern void start_logger(bool b);
 //  ファイルの丸読み
 // --------------------
 
-// ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。
+// ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。
 extern void read_all_lines(std::string filename, std::vector<std::string>& lines);
 
 

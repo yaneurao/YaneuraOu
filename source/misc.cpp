@@ -98,14 +98,16 @@ void start_logger(bool b) { Logger::start(b); }
 //  ファイルの丸読み
 // --------------------
 
-// ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。
+// ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。
 void read_all_lines(std::string filename, std::vector<std::string>& lines)
 {
-  fstream fs(filename);
+  fstream fs(filename,ios::in);
   while (!fs.fail() && !fs.eof())
   {
     std::string line;
     getline(fs,line);
-    lines.push_back(line);
+    if (line.length())
+      lines.push_back(line);
   }
+  fs.close();
 }

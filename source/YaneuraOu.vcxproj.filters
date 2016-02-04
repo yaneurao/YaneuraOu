@@ -161,13 +161,13 @@
     <Text Include="..\docs\USI拡張コマンド.txt">
       <Filter>リソース ファイル\doc</Filter>
     </Text>
-    <Text Include="..\docs\YaneuraOuMini_ja.txt">
-      <Filter>リソース ファイル\doc</Filter>
-    </Text>
     <Text Include="..\docs\更新履歴.txt">
       <Filter>リソース ファイル\doc</Filter>
     </Text>
     <Text Include="..\docs\解説.txt">
+      <Filter>リソース ファイル\doc</Filter>
+    </Text>
+    <Text Include="..\docs\YaneuraOu_ja.txt">
       <Filter>リソース ファイル\doc</Filter>
     </Text>
   </ItemGroup>

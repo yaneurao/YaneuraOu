@@ -167,14 +167,30 @@ Visual Studio 2015 Update1で、ときどき内部コンパイルエラーでコ
 
 次のVisual Studioのupdateで直って欲しいですね…。
 
-■　やねうら王nanoの定跡部
 
-"nano-book.sfen"
-というファイルを思考エンジンと同じフォルダに配置します。
+■　定跡の作り方
 
-このファイルは、sfen形式の棋譜であるとします。
-このファイルの棋譜の16手目までの手順をランダムに定跡として指します。
+	[定跡フォーマット]
+	sfen sfen文字列
+	この局面での指し手1 相手の応手1 この指し手を指したときの評価値 そのときの探索深さ
+	この局面での指し手2 相手の応手2 この指し手を指したときの評価値 そのときの探索深さ
+	…
+	sfen xxxx..
+	相手の応手がないときは"none"と書いておく。
 
+	例)
+	sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1
+	7g7f 3c3d 0 32
+	sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/2P6/PP1PPPPPP/1B5R1/LNSGKGSNL w - 2
+	3c3d 2g2f 0 32
 
+ENABLE_TEST_CMDを有効にしてコンパイルして、
+	
+> makebook from_sfen book.sfen book.txt moves 16
+1行1局の棋譜を読み込ませてそれを上のフォーマットに変換する。book.dbになる。
+各局、"moves"のあとに指定した手数までを出力する。このbook.dbを思考エンジンの実行ファイルと同じフォルダに配置する。
+
+floodgateの棋譜をsfenに変換してこのコマンドでbook.dbを作成したものをdoc/book.dbに入れてあります。
+ご自由にお使いください。
 
 

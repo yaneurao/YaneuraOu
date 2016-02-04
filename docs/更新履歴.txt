@@ -3,14 +3,31 @@
 
 残り作業
 
-・定跡部、何かフレームワークからのサポートを考える。
-・nanoに並列探索追加。
 ・評価関数の差分計算追加
-
+・nano plusに並列探索追加。
 ・miniの探索部書く
-
 ・長手数の詰将棋ルーチン書く。
 ・ベンチマーク書く。
+
+
+■ 2016/02/05 V1.30
+
+・定跡部、何かフレームワークからのサポートを考える。
+→　考えた。解説に書いた。nano以外ではこれを使うことにする。
+・read_all_lines()、空行はskipするように。
+・makebookコマンド、sfen→db変換実装した。
+・doc/nano-book.db削除。
+・doc/book.db追加。
+・extra/book.h/cpp追加。
+
+
+
+■ 2016/02/05 V1.29
+
+・nanoの秒読み時の使用時間、もう少し少なくしないとtime upになるので修正。
+・USIオプションに"NetworkDelay"追加。
+・YaneuraOuMini_ja.txt → YaneuraOu_ja.txtにリネーム
+　バイナリは全部YaneuraOu.exeでいいや。
 
 
 ■ 2016/02/04 V1.28

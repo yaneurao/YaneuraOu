@@ -6,9 +6,10 @@
 #ifdef ENABLE_TEST_CMD
 
 #include "all.h"
+using std::cout; // VS2015のIDEでcoutが曖昧ですという警告が出るので抑制のため。
 
 // ----------------------------------
-//      USI拡張コマンド "perft"
+//  USI拡張コマンド "perft"(パフォーマンステスト)
 // ----------------------------------
 
 // perft()で用いるsolver
@@ -813,5 +814,126 @@ void test_cmd(Position& pos, istringstream& is)
     cout << "test records [filename] // read records.sfen Test" << endl;
   }
 }
+
+// ----------------------------------
+// USI拡張コマンド "makebook"(定跡作成)
+// ----------------------------------
+
+// フォーマット等についてはdoc/解説.txt を見ること。
+void makebook_cmd(Position& pos, istringstream& is)
+{
+  string token;
+  is >> token;
+  if (token != "")
+  {
+    // sfen→txtの変換
+
+    string sfen_name = token;
+    string book_name;
+    is >> book_name;
+    is >> token;
+    int moves = 16;
+    if (token == "moves")
+      is >> moves;
+    
+    cout << "read";
+
+    vector<string> sfens;
+    read_all_lines(sfen_name, sfens);
+
+    cout << "..done" << endl;
+    cout << "parse";
+
+    // 局面における指し手
+    struct BookPos
+    {
+      Move bestMove;
+      Move nextMove;
+      Value value;
+      int depth;
+
+      BookPos(Move best, Move next, Value v, int d) : bestMove(best), nextMove(next), value(v), depth(d) {}
+      bool operator == (BookPos& rhs) { return bestMove == rhs.bestMove; }
+    };
+
+    // sfen文字列をkeyとして、局面の指し手へ変換。(重複した指し手は除外するものとする)
+    map<string, vector<BookPos> > books;
+
+    // 各行の局面をparseして読み込む(このときに重複除去も行なう)
+    for (int k = 0; k < sfens.size(); ++k)
+    {
+      auto sfen = sfens[k];
+
+      if (sfen.length() == 0)
+        continue;
+
+      istringstream iss(sfen);
+      token = "";
+      do {
+        iss >> token;
+      } while (token == "startpos" || token == "moves");
+
+      vector<Move> m;
+      m.resize(moves + 1);
+      StateInfo si[MAX_PLY];
+
+      pos.set_hirate();
+      for (int i = 0; i < moves; ++i)
+      {
+        m[i] = move_from_usi(pos,token);
+        if (m[i] == MOVE_NONE || !pos.pseudo_legal(m[i]) || !pos.legal(m[i]))
+        {
+          cout << "ilegal move : line = " << (k + 1) << " , " << sfen << " , move = " << token << endl;
+          break;
+        }
+
+        BookPos bp(m[i], m[i + 1], VALUE_ZERO, 32);
+        auto s = pos.sfen();
+        auto it = books.find(s);
+        if (it == books.end())
+        {
+          vector<BookPos> v;
+          v.push_back(bp);
+          books[s] = v;
+        } else {
+          // すでに格納されているかも知れないので同じ指し手がないかをチェックして、なければ追加
+          for (auto& b : it->second)
+            if (b == bp)
+              goto FOUND_THE_SAME_MOVE;
+
+          it->second.push_back(bp);
+
+        FOUND_THE_SAME_MOVE:;
+        }
+
+        pos.do_move(m[i], si[i]);
+        iss >> token;
+      }
+      if ((k % 1000) == 0)
+        cout << '.';
+    }
+    cout << "done." << endl;
+    cout << "write..";
+
+    fstream fs;
+    fs.open(book_name, ios::out);
+    for (auto it = books.begin(); it != books.end(); ++it)
+    {
+      fs << "sfen " << it->first /* is sfen string */ << endl; // sfen
+      for (auto& bp : it->second)
+        fs << bp.bestMove << ' ' << bp.nextMove << ' ' << bp.value << " " << bp.depth << endl; // 指し手、相手の応手、そのときの評価値、探索深さ
+    }
+
+    fs.close();
+
+    cout << "finished." << endl;
+
+  } else {
+    cout << "usage" << endl;
+    cout << "> makebook book.sfen book.db moves 16" << endl;
+  }
+
+}
+
 
 #endif // ENABLE_TEST_CMD

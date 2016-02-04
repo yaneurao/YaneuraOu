@@ -1,6 +1,24 @@
 ﻿
 USIプロトコルの独自拡張コマンド
 
+・オプション
+
+set option name XXX value ...で設定できるoption
+
+	注意) USI_Hash , USI_Ponderで設定された値は無視されます。
+
+	Threads			: 思考するスレッド数
+	Hash			: 置換表のサイズ(単位[MB])
+	Ponder			: ponder(相手番での思考) on/off
+	WriteDebugLog   : 標準入出力をファイル("io_log.txt")にリダイレクトする(logコマンドでonには出来る)
+	NetworkDelay    : 通信時の遅延時間[ms]
+				これを例えば400に設定しておくと、秒読み10秒のときに9.7秒で指し手を送信します。
+
+	CM_Hash			: 協力詰め時の置換表サイズ(単位[MB])
+
+
+・コマンド
+
 	d       : Debug デバッグ用に現在の局面を表示する。
 	s       : Sashite 指し手生成のスピードテストを行なう。
 	         王手がかかっているときはEVASIONS,かかっていないときはNON_EVASIONS
@@ -22,14 +40,17 @@ USIプロトコルの独自拡張コマンド
 
 	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。
 
+・定跡
 
-set option name XXX value ...で設定できるoption
+	[定跡フォーマット]
+	sfen文字列
+	この局面での指し手1 相手の応手1 この指し手を指したときの評価値
+	この局面での指し手2 相手の応手2 この指し手を指したときの評価値
+	…
+	sfen xxxx..
 
-	注意) USI_Hash , USI_Ponderで設定された値は無視されます。
-
-	Threads			: 思考するスレッド数
-	Hash			: 置換表のサイズ(単位[MB])
-	Ponder			: ponder(相手番での思考) on/off
-	WriteDebugLog   : 標準入出力をファイル("io_log.txt")にリダイレクトする(logコマンドでonには出来る)
-
-	CM_Hash			: 協力詰め時の置換表サイズ(単位[MB])
+	makebook book.txt
+	上の定跡フォーマットを変換してbook.dbに変換する。
+	
+	makebook book.sfen
+	1行1局の棋譜を読み込ませてそれを上のフォーマットに変換する。book.txtになる。

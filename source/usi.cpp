@@ -24,6 +24,7 @@ extern void user_test(Position& pos, std::istringstream& is);
 extern void test_cmd(Position& pos, istringstream& is);
 extern void perft(Position& pos, istringstream& is);
 extern void generate_moves_cmd(Position& pos);
+extern void makebook_cmd(Position& pos, istringstream& is);
 #endif
 
 // 協力詰めsolverモード
@@ -150,6 +151,9 @@ namespace USI
 
     // cin/coutの入出力をファイルにリダイレクトする
     o["WriteDebugLog"] << Option(false, [](auto& o) { start_logger(o); });
+
+    // ネットワーク遅延時間[ms]
+    o["NetworkDelay"] << Option(400, 0, 10000);
 
   }
 
@@ -438,6 +442,9 @@ void USI::loop()
 
     // テストコマンド
     else if (token == "test") test_cmd(pos, is);
+
+    // 定跡を作るコマンド
+    else if (token == "makebook") makebook_cmd(pos, is);
 #endif
 
     ;
