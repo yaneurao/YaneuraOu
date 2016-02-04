@@ -88,6 +88,9 @@
     <ClInclude Include="engine\mate-engine\mate_engine.h">
       <Filter>リソース ファイル\engine\mate-engine</Filter>
     </ClInclude>
+    <ClInclude Include="extra\book.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -154,6 +157,9 @@
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
     <ClCompile Include="extra\bitop.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\book.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
   </ItemGroup>

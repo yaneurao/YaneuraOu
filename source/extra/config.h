@@ -82,6 +82,8 @@
 // 自前でPVを管理してRootMoves::pvを更新するなら、この機能を使う必要はない。
 // #define USE_TT_PV
 
+// 定跡を作るコマンド("makebook")を有効にする。
+#define ENABLE_MAKEBOOK_CMD
 
 // --------------------
 // release configurations

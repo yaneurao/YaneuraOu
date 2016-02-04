@@ -184,13 +184,12 @@ Visual Studio 2015 Update1で、ときどき内部コンパイルエラーでコ
 	sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/2P6/PP1PPPPPP/1B5R1/LNSGKGSNL w - 2
 	3c3d 2g2f 0 32
 
-ENABLE_TEST_CMDを有効にしてコンパイルして、
 	
 > makebook from_sfen book.sfen book.txt moves 16
+
 1行1局の棋譜を読み込ませてそれを上のフォーマットに変換する。book.dbになる。
 各局、"moves"のあとに指定した手数までを出力する。このbook.dbを思考エンジンの実行ファイルと同じフォルダに配置する。
 
-floodgateの棋譜をsfenに変換してこのコマンドでbook.dbを作成したものをdoc/book.dbに入れてあります。
-ご自由にお使いください。
+floodgateの棋譜をsfenに変換してこのコマンドでbook.dbを作成したものをdoc/book.dbに入れてあります。ご自由にお使いください。
 
 

@@ -10,6 +10,15 @@
 ・ベンチマーク書く。
 
 
+■ 2016/02/05 V1.31
+
+・extra/book.hとcpp追加。
+・test_cmd.cppから移動。
+・bookの読み込み、書き込み等の操作を細かくして追加。
+・read_all_lines()でエラーのときに1を返すように。
+・nanoの定跡にbook.dbを用いるように変更した。
+
+
 ■ 2016/02/05 V1.30
 
 ・定跡部、何かフレームワークからのサポートを考える。
@@ -18,8 +27,6 @@
 ・makebookコマンド、sfen→db変換実装した。
 ・doc/nano-book.db削除。
 ・doc/book.db追加。
-・extra/book.h/cpp追加。
-
 
 
 ■ 2016/02/05 V1.29

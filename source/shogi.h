@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "1.29"
+#define ENGINE_VERSION "1.31"
 
 // --------------------
 // コンパイル時の設定
@@ -334,8 +334,8 @@ enum Value : int
   // 無効な値
   VALUE_NONE = 32002,
 
-  VALUE_MATE_IN_MAX_PLY =   VALUE_MATE - MAX_PLY,   // MAX_PLYでの詰みのときのスコア。
-  VALUE_MATED_IN_MAX_PLY = -VALUE_MATE + MAX_PLY, // MAX_PLYで詰まされるときのスコア。
+  VALUE_MATE_IN_MAX_PLY =   int(VALUE_MATE) - MAX_PLY,   // MAX_PLYでの詰みのときのスコア。
+  VALUE_MATED_IN_MAX_PLY = -int(VALUE_MATE) + MAX_PLY, // MAX_PLYで詰まされるときのスコア。
   
 };
 
@@ -774,6 +774,9 @@ extern USI::OptionsMap Options;
 // 局面posとUSIプロトコルによる指し手を与えて
 // もし可能なら等価で合法な指し手を返す。(合法でないときはMOVE_NONEを返す。"resign"に対してはMOVE_RESIGNを返す。)
 Move move_from_usi(const Position& pos, const std::string& str);
+
+// 合法かのテストはせずにともかく変換する版。
+Move move_from_usi(const std::string& str);
 
 // --------------------
 //       misc

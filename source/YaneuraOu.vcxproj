@@ -202,6 +202,7 @@
     <ClInclude Include="evaluate.h" />
     <ClInclude Include="extra\all.h" />
     <ClInclude Include="extra\bitop.h" />
+    <ClInclude Include="extra\book.h" />
     <ClInclude Include="extra\config.h" />
     <ClInclude Include="extra\long_effect.h" />
     <ClInclude Include="extra\key128.h" />
@@ -225,6 +226,7 @@
     <ClCompile Include="engine\user-engine\user-engine.cpp" />
     <ClCompile Include="evaluate.cpp" />
     <ClCompile Include="extra\bitop.cpp" />
+    <ClCompile Include="extra\book.cpp" />
     <ClCompile Include="extra\long_effect.cpp" />
     <ClCompile Include="extra\mate1ply.cpp" />
     <ClCompile Include="extra\see.cpp" />

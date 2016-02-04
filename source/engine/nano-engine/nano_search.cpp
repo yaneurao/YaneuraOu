@@ -16,6 +16,7 @@
 #include "../../thread.h"
 #include "../../misc.h"
 #include "../../tt.h"
+#include "../../extra/book.h"
 
 using namespace std;
 using namespace Search;
@@ -329,48 +330,13 @@ using namespace YaneuraOuNano;
 // --- 以下に好きなように探索のプログラムを書くべし。
 
 // 定跡ファイル
-vector<string> books;
+Book::MemoryBook book;
 
 // 起動時に呼び出される。時間のかからない探索関係の初期化処理はここに書くこと。
-void Search::init(){ read_all_lines("nano-book.sfen",books); } // 定跡の読み込み
+void Search::init() { Book::read_book("book.db", book); } // 定跡の読み込み
 
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
-void  Search::clear() {
-  // 置換表のクリア
-  TT.clear();
-
-  // 定跡をシャッフルして置換表に突っ込んでおく
-  PRNG prng;
-  for (int i = 0; i < books.size()-1;++i)
-    std::swap(books[i],books[i+prng.rand(books.size()-i)]); // Fisher-Yates
-
-  for (auto book : books)
-  {
-    stringstream is(book);
-    Position pos;
-    StateInfo si[MAX_PLY];
-    for (int moves = 0; moves < 16; ++moves)
-    {
-      // 1手ずつ取り出す
-      string token;
-      do {
-        is >> token;
-      } while (token == "startpos" || token == "moves");
-      auto m = move_from_usi(pos,token);
-      if (!pos.pseudo_legal(m) || !pos.legal(m))
-        break;
-
-      // この指し手を置換表に書く
-      bool found;
-      auto key = pos.state()->key();
-      auto tte = TT.probe(key, found);
-      tte->save(key, VALUE_ZERO,BOUND_EXACT, (Depth)127, m, VALUE_ZERO, TT.generation());
-
-      // 局面を進める
-      pos.do_move(m,si[moves]);
-    }
-  }
-}
+void  Search::clear() { TT.clear(); }
 
 // 探索開始時に呼び出される。
 // この関数内で初期化を終わらせ、slaveスレッドを起動してThread::search()を呼び出す。
@@ -383,6 +349,21 @@ void MainThread::think() {
   {
     sync_cout << "bestmove " << MOVE_RESIGN << sync_endl;
     return;
+  }
+
+  // 定跡の選択部
+  {
+    static PRNG prng;
+    auto it = book.find(rootPos.sfen());
+    if (it != book.end()) {
+      // 定跡にhitした
+      for (auto& bp : it->second)
+        sync_cout << "info pv " << bp.bestMove << " " << bp.nextMove << " score cp " << bp.value << " depth " << bp.depth << sync_endl;
+      // このなかの一つをランダムに選択
+      auto& bp = it->second[prng.rand(it->second.size())];
+      sync_cout << "bestmove " << bp.bestMove << /* " ponder " << bp.nextMove << */ sync_endl;
+      return;
+    }
   }
 
   // TTEntryの世代を進める。

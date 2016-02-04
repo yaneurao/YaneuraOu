@@ -24,7 +24,11 @@ extern void user_test(Position& pos, std::istringstream& is);
 extern void test_cmd(Position& pos, istringstream& is);
 extern void perft(Position& pos, istringstream& is);
 extern void generate_moves_cmd(Position& pos);
-extern void makebook_cmd(Position& pos, istringstream& is);
+#endif
+
+// 定跡を作るコマンド
+#ifdef ENABLE_MAKEBOOK_CMD
+namespace Book { extern void makebook_cmd(Position& pos, istringstream& is); }
 #endif
 
 // 協力詰めsolverモード
@@ -442,11 +446,12 @@ void USI::loop()
 
     // テストコマンド
     else if (token == "test") test_cmd(pos, is);
-
-    // 定跡を作るコマンド
-    else if (token == "makebook") makebook_cmd(pos, is);
 #endif
 
+#ifdef ENABLE_MAKEBOOK_CMD
+    // 定跡を作るコマンド
+    else if (token == "makebook") Book::makebook_cmd(pos, is);
+#endif
     ;
 
   }
@@ -471,7 +476,7 @@ Square usi_to_sq(char f, char r)
 
 // usi形式から指し手への変換。本来この関数は要らないのだが、
 // 棋譜を大量に読み込む都合、この部分をそこそこ高速化しておきたい。
-Move usi_to_move(const string& str)
+Move move_from_usi(const string& str)
 {
   // さすがに3文字以下の指し手はおかしいだろ。
   if (str.length() <= 3)
@@ -520,7 +525,7 @@ Move move_from_usi(const Position& pos, const std::string& str)
     return MOVE_RESIGN;
 
   // usi文字列をmoveに変換するやつがいるがな..
-  Move move = usi_to_move(str);
+  Move move = move_from_usi(str);
 
   // pseudo_legal(),legal()チェックのためにはCheckInfoのupdateが必要。
   const_cast<Position*>(&pos)->check_info_update();

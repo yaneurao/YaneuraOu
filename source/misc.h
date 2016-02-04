@@ -44,7 +44,7 @@ extern void start_logger(bool b);
 // --------------------
 
 // ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。
-extern void read_all_lines(std::string filename, std::vector<std::string>& lines);
+extern int read_all_lines(std::string filename, std::vector<std::string>& lines);
 
 
 // --------------------
