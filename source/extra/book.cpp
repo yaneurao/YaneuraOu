@@ -78,7 +78,7 @@ namespace Book
         }
         for (int i = 0; i < moves; ++i)
         {
-          BookPos bp(m[i], m[i + 1], VALUE_ZERO, 32);
+          BookPos bp(m[i], m[i + 1], VALUE_ZERO, 32,1);
           insert_book_pos(book, sf[i], bp);
         }
 
@@ -106,13 +106,28 @@ namespace Book
     if (read_all_lines(filename, lines))
       return 1; // 読み込み失敗
 
+    uint64_t num_sum = 0;
     string sfen;
+
+    auto calc_prob = [&] {
+      auto& move_list = book[sfen];
+      std::stable_sort(move_list.begin(), move_list.end());
+      num_sum = std::max(num_sum, UINT64_C(1)); // ゼロ除算対策
+      for (auto& bp : move_list)
+        bp.prob = float(bp.num) / num_sum;
+      num_sum = 0;
+    };
+
     for (auto line : lines)
     {
       // "sfen "で始まる行は局面のデータであり、sfen文字列が格納されている。
       if (line.length() >= 5 && line.substr(0, 5) == "sfen ")
       {
-        sfen = line.substr(5,line.length()-5); // "sfen "を除去して格納
+        // ひとつ前のsfen文字列に対応するものが終わったということなので採択確率を計算して、かつ、採択回数でsortしておく
+        // (sortはされてるはずだが他のソフトで生成した定跡DBではそうとも限らないので)。
+        calc_prob();
+
+        sfen = line.substr(5,line.length()-5); // 新しいsfen文字列を"sfen "を除去して格納
         continue;
       }
 
@@ -122,7 +137,8 @@ namespace Book
 
       istringstream is(line);
       string bestMove, nextMove;
-      is >> bestMove >> nextMove >> value >> depth;
+      uint64_t num;
+      is >> bestMove >> nextMove >> value >> depth >> num;
 
       // 起動時なので変換に要するオーバーヘッドは最小化したいので合法かのチェックはしない。
       if (bestMove == "none" || bestMove == "resign")
@@ -135,9 +151,12 @@ namespace Book
       else
         next = move_from_usi(nextMove);
 
-      BookPos bp(best,next,value,depth);
+      BookPos bp(best,next,value,depth,num);
       insert_book_pos(book,sfen,bp);
+      num_sum += num;
     }
+    // ファイルが終わるときにも最後の局面に対するcalc_probが必要。
+    calc_prob();
 
     return 0;
   }
@@ -150,8 +169,16 @@ namespace Book
     for (auto it = book.begin(); it != book.end(); ++it)
     {
       fs << "sfen " << it->first /* is sfen string */ << endl; // sfen
-      for (auto& bp : it->second)
-        fs << bp.bestMove << ' ' << bp.nextMove << ' ' << bp.value << " " << bp.depth << endl; // 指し手、相手の応手、そのときの評価値、探索深さ
+
+      // const性を消すためにcopyする
+      auto move_list = it->second;
+
+      // 採択回数でソートしておく。
+      std::stable_sort(move_list.begin(), move_list.end());
+
+      for (auto& bp : move_list)
+        fs << bp.bestMove << ' ' << bp.nextMove << ' ' << bp.value << " " << bp.depth << " " << bp.num << endl;
+      // 指し手、相手の応手、そのときの評価値、探索深さ、採択回数
     }
 
     fs.close();
@@ -165,20 +192,24 @@ namespace Book
     if (it == book.end())
     {
       // 存在しないので要素を作って追加。
-      vector<BookPos> v;
-      v.push_back(bp);
-      book[sfen] = v;
+      vector<BookPos> move_list;
+      move_list.push_back(bp);
+      book[sfen] = move_list;
     } else {
+      // この局面での指し手のリスト
+      auto& move_list = it->second;
       // すでに格納されているかも知れないので同じ指し手がないかをチェックして、なければ追加
-      for (auto& b : it->second)
-        if (b == *(const_cast<BookPos*>(&bp)))
+      for (auto& b : move_list)
+        if (b == bp)
         {
-          // すでに存在していたのでエントリーを置換
+          // すでに存在していたのでエントリーを置換。ただし採択回数はインクリメント
+          auto num = b.num;
           b = bp;
+          b.num += num;
           goto FOUND_THE_SAME_MOVE;
         }
 
-      it->second.push_back(bp);
+      move_list.push_back(bp);
 
     FOUND_THE_SAME_MOVE:;
     }

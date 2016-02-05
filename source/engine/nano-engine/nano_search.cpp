@@ -10,6 +10,7 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
+#include <iomanip>
 
 #include "../../position.h"
 #include "../../search.h"
@@ -356,11 +357,16 @@ void MainThread::think() {
     static PRNG prng;
     auto it = book.find(rootPos.sfen());
     if (it != book.end()) {
-      // 定跡にhitした
-      for (auto& bp : it->second)
-        sync_cout << "info pv " << bp.bestMove << " " << bp.nextMove << " score cp " << bp.value << " depth " << bp.depth << sync_endl;
+      // 定跡にhitした。逆順で出力しないと将棋所だと逆順にならないという問題があるので逆順で出力する。
+      const auto& move_list = it->second;
+      for (auto it = move_list.rbegin(); it != move_list.rend();it++ )
+        sync_cout << "info pv " << it->bestMove << " " << it->nextMove
+        << " (" << fixed << setprecision(2) << (100* it->prob) << "%)" // 採択確率
+        << " score cp " << it->value << " depth " << it->depth << sync_endl;
+
       // このなかの一つをランダムに選択
-      auto& bp = it->second[prng.rand(it->second.size())];
+      // 無難な指し手が選びたければ、採択回数が一番多い、最初の指し手(move_list[0])を選ぶべし。
+      auto& bp = move_list[prng.rand(move_list.size())];
       sync_cout << "bestmove " << bp.bestMove << /* " ponder " << bp.nextMove << */ sync_endl;
       return;
     }

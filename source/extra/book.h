@@ -11,11 +11,14 @@ namespace Book
   {
     Move bestMove; // この局面での指し手
     Move nextMove; // その指し手を指したときの予想される相手の指し手
-    int value;   // bestMoveを指したときの局面の評価値
+    int value;     // bestMoveを指したときの局面の評価値
     int depth;     // bestMoveの探索深さ
+    uint64_t num;  // 何らかの棋譜集において、この指し手が採択された回数。
+    float prob;    // ↑のnumをパーセンテージで表現したもの。(read_bookしたときには反映される。ファイルには書き出していない。)
 
-    BookPos(Move best, Move next, int v, int d) : bestMove(best), nextMove(next), value(v), depth(d) {}
-    bool operator == (BookPos& rhs) { return bestMove == rhs.bestMove; }
+    BookPos(Move best, Move next, int v, int d,uint64_t n) : bestMove(best), nextMove(next), value(v), depth(d),num(n) {}
+    bool operator == (const BookPos& rhs) const { return bestMove == rhs.bestMove; }
+    bool operator < (const BookPos& rhs) const { return num > rhs.num; } // std::sortで降順ソートされて欲しいのでこう定義する。
   };
 
   // メモリ上にある定跡ファイル
