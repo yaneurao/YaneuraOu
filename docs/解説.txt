@@ -184,6 +184,8 @@ Visual Studio 2015 Update1で、ときどき内部コンパイルエラーでコ
 	sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/2P6/PP1PPPPPP/1B5R1/LNSGKGSNL w - 2
 	3c3d 2g2f 0 32 1
 
+	あと、先頭にDBのフォーマットのバージョン識別用の文字列として次の文字列を入れておく。
+	#YANEURAOU-DB2016 1.00
 	
 > makebook from_sfen book.sfen book.txt moves 16
 

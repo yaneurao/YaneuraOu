@@ -120,6 +120,14 @@ namespace Book
 
     for (auto line : lines)
     {
+      // バージョン識別文字列(とりあえず読み飛ばす)
+      if (line.length() >= 1 && line[0] == '#')
+        continue;
+
+      // コメント行(とりあえず読み飛ばす)
+      if (line.length() >= 2 && line.substr(0, 2) == "//")
+        continue;
+
       // "sfen "で始まる行は局面のデータであり、sfen文字列が格納されている。
       if (line.length() >= 5 && line.substr(0, 5) == "sfen ")
       {
@@ -166,6 +174,10 @@ namespace Book
   {
     fstream fs;
     fs.open(filename, ios::out);
+
+    // バージョン識別用文字列
+    fs << "#YANEURAOU-DB2016 1.00" << endl;
+
     for (auto it = book.begin(); it != book.end(); ++it)
     {
       fs << "sfen " << it->first /* is sfen string */ << endl; // sfen
