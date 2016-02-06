@@ -122,6 +122,7 @@ std::string to_usi_string(Move m)
 
 // ----------------------------------------
 // 探索用のglobalな変数
+// ----------------------------------------
 
 namespace Search {
   SignalsType Signals;
@@ -129,6 +130,15 @@ namespace Search {
   StateStackPtr SetupStates;
 }
 
+// ----------------------------------------
+// inlineで書くとVC++2015の内部コンパイルエラーになる
+// ----------------------------------------
+
+int hand_count(Hand hand, Piece pr) { ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); return (hand >> PIECE_BITS[pr]) & PIECE_BIT_MASK[pr]; }
+int hand_exists(Hand hand, Piece pr) { ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); return hand & PIECE_BIT_MASK2[pr]; }
+
+// ----------------------------------------
+//  main()
 // ----------------------------------------
 
 int main(int argc, char* argv[])

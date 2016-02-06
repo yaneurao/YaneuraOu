@@ -38,6 +38,9 @@
     <Filter Include="リソース ファイル\engine\mate-engine">
       <UniqueIdentifier>{4848b7b4-f5f3-4fa3-84f5-a5dd21e63f3c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\eval">
+      <UniqueIdentifier>{74e286a5-5565-4995-9fc2-737328172971}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -105,9 +108,6 @@
     <ClCompile Include="position.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="evaluate.cpp">
-      <Filter>リソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="usi.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
@@ -161,6 +161,18 @@
     </ClCompile>
     <ClCompile Include="extra\book.cpp">
       <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\evaluate_kpp.cpp">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\evaluate_bona_piece.cpp">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\evaluate_no_eval.cpp">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\evaluate_material.cpp">
+      <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

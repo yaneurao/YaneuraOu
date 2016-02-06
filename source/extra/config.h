@@ -50,8 +50,9 @@
 
 // 協力詰め用思考エンジンなどで評価関数を使わないときにまで評価関数用のテーブルを
 // 確保するのはもったいないので、そのテーブルを確保するかどうかを選択するためのオプション。
-// 評価関数を用いるなら、どれか一つを選択すべし。(用いないなら選択不要)
+// 評価関数を用いるなら、どれか一つを選択すべし。
 
+// #define EVAL_NO_USE   // 評価関数を用いないとき。
 // #define EVAL_MATERIAL // 駒得のみの評価関数
 // #define EVAL_PP       // ツツカナ型 2駒関係
 // #define EVAL_KPP      // Bonanza型 3駒関係
@@ -131,6 +132,7 @@
 #undef ASSERT_LV
 #undef KEEP_LAST_MOVE
 #undef MATE_1PLY
+#define EVAL_NO_USE
 #undef LONG_EFFECT_LIBRARY
 #undef USE_SEE
 #endif
@@ -141,6 +143,7 @@
 #define ASSERT_LV 3 // ローカルゲームサーバー、host側の速度はそれほど要求されないのでASSERT_LVを3にしておく。
 #define KEEP_LAST_MOVE
 #undef MATE_1PLY
+#define EVAL_NO_USE
 #undef LONG_EFFECT_LIBRARY
 #undef USE_SEE
 #endif
@@ -156,6 +159,7 @@
 #undef HASH_KEY_BITS
 #define HASH_KEY_BITS 128
 #undef MATE_1PLY
+#define EVAL_NO_USE
 #undef LONG_EFFECT_LIBRARY
 #undef USE_SEE
 #define USE_GENERATE_EVASIONS_ALL
@@ -170,6 +174,7 @@
 #undef  MAX_PLY_NUM
 #define MAX_PLY_NUM 2000
 #define MATE_1PLY
+#define EVAL_NO_USE
 #define LONG_EFFECT_LIBRARY
 #undef USE_SEE
 #endif
@@ -178,6 +183,7 @@
 
 #ifdef USER_ENGINE
 #define ENGINE_NAME "YaneuraOu user engine"
+#define EVAL_KPP
 #endif
 
 // --------------------
@@ -276,6 +282,7 @@ const bool Is64Bit = false;
 #define LONG_EFFECT_LIBRARY
 #endif
 
+
 // --- evaluate function
 
 // -- 評価関数の種類によりエンジン名に使用する文字列を変更する。
@@ -289,6 +296,11 @@ const bool Is64Bit = false;
 #define EVAL_TYPE_NAME "PPE"
 #else
 #define EVAL_TYPE_NAME ""
+#endif
+
+// PP,KPP,PPEならdo_move()のときに移動した駒の管理をして差分計算
+#if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_PPE)
+#define USE_EVAL_DIFF
 #endif
 
 // -- 評価関数の種類により、盤面の利きの更新ときの処理が異なる。(このタイミングで評価関数の差分計算をしたいので)

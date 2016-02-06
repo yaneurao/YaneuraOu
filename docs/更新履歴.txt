@@ -3,11 +3,40 @@
 
 残り作業
 
-・評価関数の差分計算追加
 ・nano plusに並列探索追加。
 ・miniの探索部書く
 ・長手数の詰将棋ルーチン書く。
 ・ベンチマーク書く。
+
+
+■ 2016/02/07 V1.37
+
+・Eval::compute_eval()で全計算して初期化する。
+・差分で遡るの1局面前までに限定する。
+
+position startpos moves 7g7f 8b3b 5i6h 5a6b 2g2f 6b7b 2f2e 3c3d 3i4h 3d3e 8h2b+ 3a2b 2e2d 2c2d 7i7h 5c5d 7h7g 2b2c B*6f B*2b 6f2b+ 3b2b 6h7h 2c3d 4g4f 2d2e 4h4g 2e2f B*6f B*3c 6f3c+ 2a3c 4i3h B*4i B*5f 3d2e 4g5h 4i5h+ 6i5h S*5e B*1e 4a3b 5f4g 5e4f 4g5f 5d5e
+go btime 10000000
+
+・差分計算デバッグ中。
+
+■ 2016/02/07 V1.36
+
+・KPP評価関数の差分計算まわり。
+
+・StateInfoにdirtyPiece追加。
+・Eval/evaluate_kpp分離
+・Eval/evaluate_bona_piece分離
+・shogi.hのほうに
+	int hand_count(Hand hand, Piece pr) { ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); return (hand >> PIECE_BITS[pr]) & PIECE_BIT_MASK[pr]; }
+	int hand_exists(Hand hand, Piece pr) { ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); return hand & PIECE_BIT_MASK2[pr]; }
+を書くと内部コンパイルエラーになるのでshogi.cppのほうに移動。
+・EVAL_KPPのevaluateに差分計算追加。
+・kingSquare、StateInfoに移動させる。
+
+
+■ 2016/02/06 V1.35
+
+・nanoのid_loopまわり、ちょっと整理した。
 
 
 ■ 2016/02/06 V1.34

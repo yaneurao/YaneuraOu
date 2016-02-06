@@ -345,14 +345,22 @@ void  Search::clear() { TT.clear(); }
 
 void MainThread::think() {
 
-  // 合法手がないならここで投了。
+  Move bestMove;
+
+  // ---------------------
+  // 合法手がないならここで投了
+  // ---------------------
+
   if (rootMoves.size() == 0)
   {
-    sync_cout << "bestmove " << MOVE_RESIGN << sync_endl;
-    return;
+    bestMove = MOVE_RESIGN;
+    Signals.stop = true;
+    goto ID_END;
   }
 
-  // 定跡の選択部
+  // ---------------------
+  //     定跡の選択部
+  // ---------------------
   {
     static PRNG prng;
     auto it = book.find(rootPos.sfen());
@@ -366,76 +374,82 @@ void MainThread::think() {
 
       // このなかの一つをランダムに選択
       // 無難な指し手が選びたければ、採択回数が一番多い、最初の指し手(move_list[0])を選ぶべし。
-      auto& bp = move_list[prng.rand(move_list.size())];
-      sync_cout << "bestmove " << bp.bestMove << /* " ponder " << bp.nextMove << */ sync_endl;
-      return;
-    }
-  }
+      bestMove = move_list[prng.rand(move_list.size())].bestMove;
 
-  // TTEntryの世代を進める。
-  TT.new_search();
-
-  rootDepth = DEPTH_ZERO;
-  Value alpha,beta;
-  StateInfo si;
-  auto& pos = rootPos;
-
-  // 今回に用いる思考時間 = 残り時間の1/60 + 秒読み時間
-  auto us = pos.side_to_move();
-  // 2秒未満は2秒として問題ない。(CSAルールにおいて)
-  auto availableTime = std::max(2000, Limits.time[us] / 60 + Limits.byoyomi[us]);
-  // 思考時間は秒単位で繰り上げ
-  availableTime = (availableTime / 1000) * 1000;
-  // 50msより小さいと思考自体不可能なので下限を50msに。
-  availableTime  = std::max(50 , availableTime - Options["NetworkDelay"]);
-  auto endTime = Limits.startTime + availableTime;
-
-  // タイマースレッドを起こして、終了時間を監視させる。
-  auto timerThread = new std::thread([&] {
-    while (now() < endTime && !Signals.stop)
-      sleep(10);
-    Signals.stop = true;
-  });
-
-  // --- 置換表に登録されている定跡にhitしたらその指し手を返して終了
-  {
-    bool found;
-    auto tte = TT.probe(pos.state()->key(), found);
-    if (found && tte->depth() == Depth(127) && pos.pseudo_legal(tte->move()) && pos.legal(tte->move()))
-    {
-      auto& rm = *std::find(rootMoves.begin(), rootMoves.end(), tte->move());
-      std::swap(rootMoves[0], rm);
+      Signals.stop = true;
       goto ID_END;
     }
   }
 
-  // --- 反復深化のループ
-
-  while ((rootDepth+=ONE_PLY) < MAX_PLY && !Signals.stop && (!Limits.depth || rootDepth <= Limits.depth))
+  // ---------------------
+  //    通常の思考処理
+  // ---------------------
   {
-    // 本当はもっと探索窓を絞ったほうが効率がいいのだが…。
-    alpha = -VALUE_INFINITE;
-    beta = VALUE_INFINITE;
-
-    PVIdx = 0; // MultiPVではないのでPVは1つで良い。
     
-    YaneuraOuNano::search<Root>(rootPos, alpha , beta , rootDepth);
+    // TTEntryの世代を進める。
+    TT.new_search();
 
-    // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
-    std::stable_sort(rootMoves.begin(), rootMoves.end());
+    rootDepth = DEPTH_ZERO;
+    Value alpha, beta;
+    StateInfo si;
+    auto& pos = rootPos;
 
-    // 読み筋を出力しておく。
-    sync_cout << USI::pv(pos, rootDepth, alpha, beta) << sync_endl;
+    // 今回に用いる思考時間 = 残り時間の1/60 + 秒読み時間
+    auto us = pos.side_to_move();
+    // 2秒未満は2秒として問題ない。(CSAルールにおいて)
+    auto availableTime = std::max(2000, Limits.time[us] / 60 + Limits.byoyomi[us]);
+    // 思考時間は秒単位で繰り上げ
+    availableTime = (availableTime / 1000) * 1000;
+    // 50msより小さいと思考自体不可能なので下限を50msに。
+    availableTime = std::max(50, availableTime - Options["NetworkDelay"]);
+    auto endTime = Limits.startTime + availableTime;
+
+    // タイマースレッドを起こして、終了時間を監視させる。
+    auto timerThread = new std::thread([&] {
+      while (now() < endTime && !Signals.stop)
+        sleep(10);
+      Signals.stop = true;
+    });
+
+    // --- 反復深化のループ
+
+    while ((rootDepth += ONE_PLY) < MAX_PLY && !Signals.stop && (!Limits.depth || rootDepth <= Limits.depth))
+    {
+      // 本当はもっと探索窓を絞ったほうが効率がいいのだが…。
+      alpha = -VALUE_INFINITE;
+      beta = VALUE_INFINITE;
+
+      PVIdx = 0; // MultiPVではないのでPVは1つで良い。
+
+      YaneuraOuNano::search<Root>(rootPos, alpha, beta, rootDepth);
+
+      // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
+      std::stable_sort(rootMoves.begin(), rootMoves.end());
+
+      // 読み筋を出力しておく。
+      sync_cout << USI::pv(pos, rootDepth, alpha, beta) << sync_endl;
+    }
+
+    bestMove = rootMoves.at(0).pv[0];
+
+    // ---------------------
+    // タイマースレッド終了
+    // ---------------------
+
+    Signals.stop = true;
+    timerThread->join();
+    delete timerThread;
   }
-  
-ID_END:;
 
-  Move bestMove = rootMoves.at(0).pv[0];
+ID_END:; // 反復深化の終了。
+
+  // ---------------------
+  // 指し手をGUIに返す
+  // ---------------------
+
+  // ponder中であるならgoコマンドか何かが送られてきてからのほうがいいのだが、とりあえずponderの処理は後回しで…。
+
   sync_cout << "bestmove " << bestMove << sync_endl;
-
-  Signals.stop = true;
-  timerThread->join();
-  delete timerThread;
 }
 
 // 探索本体。並列化している場合、ここがslaveのエントリーポイント。

@@ -96,7 +96,7 @@ Move Position::mate1ply_impl() const
 {
   Square from, to;
   auto them = ~Us;
-  auto themKing = kingSquare[them];
+  auto themKing = king_square(them);
 
   // --- 1手詰め判定テーブルのlook up
 
@@ -227,7 +227,7 @@ MOVE_MATE:
     }
   }
 
-  auto ourKing = kingSquare[Us];
+  auto ourKing = king_square(Us);
 
   // ---------------------------------------------------------------
   //     fromをtoに移動させて詰むかどうかを判定する関数

@@ -321,7 +321,7 @@ enum Bound {
 // --------------------
 
 // 置換表に格納するときにあまりbit数が多いともったいないので16bitで。
-enum Value : int
+enum Value : int32_t
 {
   VALUE_ZERO = 0,
 
@@ -548,10 +548,10 @@ constexpr int32_t HAND_BIT_MASK = PIECE_BIT_MASK2[PAWN] | PIECE_BIT_MASK2[LANCE]
 constexpr int32_t HAND_BORROW_MASK = (HAND_BIT_MASK << 1) & ~HAND_BIT_MASK;
 
 // 手駒pcの枚数を返す。
-inline int hand_count(Hand hand, Piece pr) { ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); return (hand >> PIECE_BITS[pr]) & PIECE_BIT_MASK[pr]; }
+extern int hand_count(Hand hand, Piece pr);
 
 // 手駒pcを持っているかどうかを返す。
-inline int hand_exists(Hand hand, Piece pr) { ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); return hand & PIECE_BIT_MASK2[pr]; }
+extern int hand_exists(Hand hand, Piece pr);
 
 // 手駒にpcをc枚加える
 inline void add_hand(Hand &hand, Piece pr, int c = 1) { hand = (Hand)(hand + PIECE_TO_HAND[pr] * c); }

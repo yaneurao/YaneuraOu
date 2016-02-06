@@ -224,7 +224,10 @@
     <ClCompile Include="engine\nano-engine\nano_search.cpp" />
     <ClCompile Include="engine\random-player-engine\random_player_search.cpp" />
     <ClCompile Include="engine\user-engine\user-engine.cpp" />
-    <ClCompile Include="evaluate.cpp" />
+    <ClCompile Include="eval\evaluate_bona_piece.cpp" />
+    <ClCompile Include="eval\evaluate_kpp.cpp" />
+    <ClCompile Include="eval\evaluate_material.cpp" />
+    <ClCompile Include="eval\evaluate_no_eval.cpp" />
     <ClCompile Include="extra\bitop.cpp" />
     <ClCompile Include="extra\book.cpp" />
     <ClCompile Include="extra\long_effect.cpp" />

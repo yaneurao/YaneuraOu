@@ -56,9 +56,11 @@ struct StateInfo {
 
   // ---- ここから下のやつは do_move()のときにコピーされる
 
-  // ---- ここから下のやつは do_move()のときにコピーされない
+  // 玉の位置
+  Square kingSquare[COLOR_NB];
+  Square king_square(Color c) const { return kingSquare[c]; }
 
-  // -- Bitboards alignasの関係で最初のほうに持ってきておく。
+  // ---- ここから下のやつは do_move()のときにコピーされない
 
   // 現局面で手番側に対して王手をしている駒のbitboard。Position::do_move()で更新される。
   Bitboard checkersBB;
@@ -93,11 +95,21 @@ struct StateInfo {
 
   // この局面での評価関数の駒割
   Value materialValue;
+
+#ifdef EVAL_KPP
   // 評価値。(次の局面で評価値を差分計算するときに用いる)
-  // まだ計算されていなければsumBKPPの値は、VALUE_NONE
-  Value sumBKPP;
-  Value sumWKPP;
-  Value sumKKP;
+  // まだ計算されていなければsumKPPの値は、VALUE_NONE
+  int sumKKP;
+  int sumBKPP;
+  int sumWKPP;
+#endif
+
+#ifdef USE_EVAL_DIFF
+  // 前の局面から移動した駒番号
+  PieceNo dirtyPieceNo[2];
+  Eval::ExtBonaPiece dirtyPiecePrevious[2];
+  Eval::ExtBonaPiece dirtyPieceNow[2];
+#endif
 
 #ifdef  KEEP_LAST_MOVE
   // 直前の指し手。デバッグ時などにおいてその局面までの手順を表示出来ると便利なことがあるのでそのための機能
@@ -170,7 +182,7 @@ struct Position
   Hand hand_of(Color c) const { return hand[c]; }
 
   // c側の玉の位置を返す
-  Square king_square(Color c) const { return kingSquare[c]; }
+  Square king_square(Color c) const { return st->king_square(c); }
 
   // 保持しているデータに矛盾がないかテストする。
   bool pos_is_ok() const;
@@ -284,7 +296,7 @@ struct Position
   // --- Evaluation
 
   // 評価関数で使うための、どの駒番号の駒がどこにあるかなどの情報。
-  Eval::EvalList eval_list() { return evalList; }
+  Eval::EvalList eval_list() const { return evalList; }
 
 #ifdef  USE_SEE
   // 指し手mの(Static Exchange Evaluation : 静的取り合い評価)の値を返す。
@@ -426,9 +438,6 @@ protected:
   // 手番
   Color sideToMove;
 
-  // 玉の位置
-  Square kingSquare[COLOR_NB];
-
   // 初期局面からの手数(初期局面 == 1)
   int gamePly;
 
@@ -496,7 +505,7 @@ inline void Position::put_piece(Square sq, Piece pc,PieceNo piece_no)
   // 王なら、その升を記憶しておく。
   // (王の升はBitboardなどをみればわかるが、頻繁にアクセスするのでcacheしている。)
   if (type_of(pc) == KING)
-    kingSquare[color_of(pc)] = sq;
+    st->kingSquare[color_of(pc)] = sq;
 }
 
 // 駒を盤面から取り除き、内部的に保持しているBitboardも更新する。
