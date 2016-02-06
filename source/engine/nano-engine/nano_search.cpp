@@ -6,6 +6,15 @@
 //   やねうら王nano探索部
 // -----------------------
 
+// 開発方針
+// ・並列探索をしない(1スレッド動作)
+// ・αβ探索以外の枝刈り手法を極力使わない。
+// ・CAPTURESを優先する以外の指し手オーダリングをしない。
+// ・1手詰め判定を用いない。
+// ・静止探索において置換表に書き出さない。
+// ・静止探索ではRECAPTURESの指し手のみを生成。
+// このあと改造していくためのベースとなる教育的なコードを目指す。
+
 #include <sstream>
 #include <iostream>
 #include <fstream>
@@ -83,9 +92,17 @@ namespace YaneuraOuNano
   };
 
   // -----------------------
+  //      探索用の定数
+  // -----------------------
+
+  // 探索しているnodeの種類
+  enum NodeType { Root, PV, NonPV };
+
+  // -----------------------
   //      静止探索
   // -----------------------
 
+  template <NodeType NT>
   Value qsearch(Position& pos, Value alpha, Value beta, Depth depth)
   {
     // 現在のnodeのrootからの手数。これカウンターが必要。
@@ -132,8 +149,7 @@ namespace YaneuraOuNano
         continue;
 
       pos.do_move(move, si, pos.gives_check(move));
-
-      value = -YaneuraOuNano::qsearch(pos, -beta, -alpha, depth - ONE_PLY);
+      value = -YaneuraOuNano::qsearch<NT>(pos, -beta, -alpha, depth - ONE_PLY);
       pos.undo_move(move);
 
       if (Signals.stop)
@@ -158,17 +174,14 @@ namespace YaneuraOuNano
   //      通常探索
   // -----------------------
 
-  // 探索しているnodeの種類
-  enum NodeType { Root , PV , NonPV };
-
   template <NodeType NT>
   Value search(Position& pos, Value alpha, Value beta, Depth depth)
   {
-    // 現在のnodeのrootからの手数。これカウンターが必要。
-    // nanoだとこのカウンター持ってないので適当にごまかす。
-    const int ply_from_root = (pos.this_thread()->rootDepth - depth) / ONE_PLY;
-
     ASSERT_LV3(alpha < beta);
+
+    // -----------------------
+    //     nodeの種類
+    // -----------------------
 
     // root nodeであるか
     const bool RootNode = NT == Root;
@@ -177,12 +190,12 @@ namespace YaneuraOuNano
     const bool PvNode = NT == PV || NT == Root;
 
     // -----------------------
-    // 残り深さがないなら静止探索へ
+    //     変数宣言
     // -----------------------
 
-    // 残り探索深さがなければ静止探索を呼び出して評価値を返す。
-    if (depth < ONE_PLY)
-      return qsearch(pos, alpha, beta, depth);
+    // 現在のnodeのrootからの手数。これカウンターが必要。
+    // nanoだとこのカウンター持ってないので適当にごまかす。
+    const int ply_from_root = (pos.this_thread()->rootDepth - depth) / ONE_PLY;
 
     // -----------------------
     //   置換表のprobe
@@ -208,14 +221,16 @@ namespace YaneuraOuNano
 
     // 置換表の値による枝刈り
     
-    if (!PvNode && ttHit                   // 置換表の指し手がhitして
+    if (!PvNode        // PV nodeでは置換表の指し手では枝刈りしない(PV nodeはごくわずかしかないので..)
+      && ttHit         // 置換表の指し手がhitして
       && tte->depth() >= depth   // 置換表に登録されている探索深さのほうが深くて
-      && ttValue != VALUE_NONE   // (他スレッドからTTEntryがこの瞬間に破壊された可能性が..)
-      //&& (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
-      //  : (tte->bound() & BOUND_UPPER)
+      && ttValue != VALUE_NONE   // (VALUE_NONEだとすると他スレッドからTTEntryが読みだす直前に破壊された可能性がある)
+      && (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
+                          : (tte->bound() & BOUND_UPPER))
       // ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
-      // ttValueが上界(真の評価値はこれより小さい)でttValue < betaならどう頑張ってもbeta cutされることはないので
-      // non PVではこれで枝刈りして良い。(PVではこれで枝刈りするのはちょっと危ない)
+      // ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
+      // 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
+      // このままこの値でreturnして良い。
       )
     {
       return ttValue;
@@ -248,16 +263,54 @@ namespace YaneuraOuNano
       if (!RootNode && !pos.legal(move))
         continue;
 
+      // -----------------------
+      //      1手進める
+      // -----------------------
+
       pos.do_move(move, si, pos.gives_check(move));
-      value = -YaneuraOuNano::search<PV>(pos, -beta, -alpha, depth - ONE_PLY);
+
+      // do_moveした指し手の数のインクリメント
+      ++moveCount;
+
+      // -----------------------
+      // 再帰的にsearchを呼び出す
+      // -----------------------
+
+      // PV nodeの1つ目の指し手で進めたnodeは、PV node。さもなくば、non PV nodeとして扱い、
+      // alphaの値を1でも超えるかどうかだけが問題なので簡単なチェックで済ませる。
+
+      // また、残り探索深さがなければ静止探索を呼び出して評価値を返す。
+      // (searchを再帰的に呼び出して、その先頭でチェックする呼び出しのオーバーヘッドが嫌なのでここで行なう)
+
+      bool fullDepthSearch = (PV && moveCount == 1);
+
+      if (!fullDepthSearch)
+      {
+        // nonPVならざっくり2手ぐらい深さを削っていいのでは..(本当はもっとちゃんとやるべき)
+        Depth R = ONE_PLY * 2;
+
+        value = depth - R < ONE_PLY ?
+          -qsearch<NonPV>(pos, -beta, -alpha, depth - R) :
+          -YaneuraOuNano::search<NonPV>(pos, -(alpha + 1), -alpha, depth - R);
+
+        // 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす
+        fullDepthSearch = value > alpha;
+      }
+
+      if ( fullDepthSearch)
+        value = depth - ONE_PLY < ONE_PLY ?
+            -qsearch<PV>(pos, -beta, -alpha, depth - ONE_PLY) :
+            -YaneuraOuNano::search<PV>(pos, -beta, -alpha, depth - ONE_PLY);
+
+      // -----------------------
+      //      1手戻す
+      // -----------------------
+
       pos.undo_move(move);
 
       // 停止シグナルが来たら置換表を汚さずに終了。
       if (Signals.stop)
         return VALUE_ZERO;
-
-      // do_moveした指し手の数のインクリメント
-      ++moveCount;
 
       // -----------------------
       //  root node用の特別な処理
@@ -315,10 +368,14 @@ namespace YaneuraOuNano
     // -----------------------
 
     tte->save(key, value_to_tt(alpha, ply_from_root),
-      alpha >= beta ? BOUND_LOWER : BOUND_EXACT,
+      alpha >= beta ? BOUND_LOWER : 
+      PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
       // betaを超えているということはbeta cutされるわけで残りの指し手を調べていないから真の値はまだ大きいと考えられる。
       // すなわち、このとき値は下界と考えられるから、BOUND_LOWER。
-      // さもなくば、枝刈りはしていないので、これが正確な値であるはずだから、BOUND_EXACTを返す。
+      // さもなくば、(PvNodeなら)枝刈りはしていないので、これが正確な値であるはずだから、BOUND_EXACTを返す。
+      // また、PvNodeでないなら、枝刈りをしているので、これは正確な値ではないから、BOUND_UPPERという扱いにする。
+      // ただし、指し手がない場合は、詰まされているスコアなので、これより短い/長い手順の詰みがあるかも知れないから、
+      // すなわち、スコアは変動するかも知れないので、BOUND_UPPERという扱いをする。
       depth, bestMove, VALUE_NONE,TT.generation());
 
     return alpha;
@@ -386,15 +443,17 @@ void MainThread::think() {
   // ---------------------
   {
     
-    // TTEntryの世代を進める。
-    TT.new_search();
-
     rootDepth = DEPTH_ZERO;
     Value alpha, beta;
     StateInfo si;
     auto& pos = rootPos;
 
-    // 今回に用いる思考時間 = 残り時間の1/60 + 秒読み時間
+    // --- 置換表のTTEntryの世代を進める。
+
+    TT.new_search();
+
+    // --- 今回に用いる思考時間 = 残り時間の1/60 + 秒読み時間
+
     auto us = pos.side_to_move();
     // 2秒未満は2秒として問題ない。(CSAルールにおいて)
     auto availableTime = std::max(2000, Limits.time[us] / 60 + Limits.byoyomi[us]);
@@ -404,14 +463,17 @@ void MainThread::think() {
     availableTime = std::max(50, availableTime - Options["NetworkDelay"]);
     auto endTime = Limits.startTime + availableTime;
 
-    // タイマースレッドを起こして、終了時間を監視させる。
+    // --- タイマースレッドを起こして、終了時間を監視させる。
+
     auto timerThread = new std::thread([&] {
       while (now() < endTime && !Signals.stop)
         sleep(10);
       Signals.stop = true;
     });
 
-    // --- 反復深化のループ
+    // ---------------------
+    //   反復深化のループ
+    // ---------------------
 
     while ((rootDepth += ONE_PLY) < MAX_PLY && !Signals.stop && (!Limits.depth || rootDepth <= Limits.depth))
     {

@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "1.32"
+#define ENGINE_VERSION "1.39"
 
 // --------------------
 // コンパイル時の設定
@@ -311,9 +311,9 @@ const int MAX_SEARCH_PLY = MAX_PLY + MAX_QUIET_PLY;
 // である。
 enum Bound {
   BOUND_NONE,  // 探索していない(DEPTH_NONE)ときに、最善手か、静的評価スコアだけを置換表に格納したいときに用いる。
-  BOUND_UPPER, // 上界(真の評価値はこれより小さい)
+  BOUND_UPPER, // 上界(真の評価値はこれより小さい) = 詰みのスコアや、nonPVで評価値があまり信用ならない状態であることを表現する。
   BOUND_LOWER, // 下界(真の評価値はこれより大きい)
-  BOUND_EXACT = BOUND_UPPER | BOUND_LOWER // 真の評価値と一致している。
+  BOUND_EXACT = BOUND_UPPER | BOUND_LOWER // 真の評価値と一致している。PV nodeでかつ詰みのスコアでないことを表現する。
 };
 
 // --------------------

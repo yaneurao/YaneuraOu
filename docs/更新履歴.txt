@@ -3,15 +3,24 @@
 
 残り作業
 
-・nano plusに並列探索追加。
+・nano plus作っていく。
 ・miniの探索部書く
 ・長手数の詰将棋ルーチン書く。
 ・ベンチマーク書く。
 
 
+■ 2016/02/07 V1.39
+
+・やねうら王nanoの探索部、少し改良
+	→　nonPV用の処理を少し書く。
+	→　そこそこうまく書けた気がする。floodgateに投入しておく。
+	これでR2000ぐらいになっているならnanoの開発はこれにて終了。
+
+
 ■ 2016/02/07 V1.38
 
 ・差分計算時のテスト
+isready
 position startpos moves 7g7f 8b3b 5i6h 5a6b 2g2f 6b7b 2f2e 3c3d 3i4h 3d3e 8h2b+ 3a2b 2e2d 2c2d 7i7h 5c5d 7h7g 2b2c B*6f B*2b 6f2b+ 3b2b 6h7h 2c3d 4g4f 2d2e 4h4g 2e2f B*6f B*3c 6f3c+ 2a3c 4i3h B*4i B*5f 3d2e 4g5h 4i5h+ 6i5h S*5e B*1e 4a3b 5f4g 5e4f 4g5f 5d5e
 go btime 10000000
 info depth 8 score cp -1502 nodes 16874114 nps 1063204 hashfull 420 time 15871 pv 5f6e 1c1d 1e3c+ 3b3c 3g3f B*4i 5h6h 2e3f
