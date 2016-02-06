@@ -2,6 +2,7 @@
 #define _BOOK_H_
 
 #include "../shogi.h"
+#include <unordered_map>
 
 // 定跡処理関係
 namespace Book
@@ -23,7 +24,7 @@ namespace Book
 
   // メモリ上にある定跡ファイル
   // sfen文字列をkeyとして、局面の指し手へ変換。(重複した指し手は除外するものとする)
-  typedef std::map<std::string, std::vector<BookPos> > MemoryBook;
+  typedef std::unordered_map<std::string, std::vector<BookPos> > MemoryBook;
 
   // USI拡張コマンド。"makebook"。定跡ファイルを作成する。
   // フォーマット等についてはdoc/解説.txt を見ること。
