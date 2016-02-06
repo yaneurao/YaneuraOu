@@ -101,8 +101,6 @@ namespace Book
   // 定跡ファイルの読み込み(book.db)など。
   int read_book(const std::string& filename, MemoryBook& book)
   {
-    return 0;
-
     vector<string> lines;
     if (read_all_lines(filename, lines))
       return 1; // 読み込み失敗

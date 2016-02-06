@@ -158,7 +158,7 @@ void Position::set(std::string sfen)
   // 先手玉のいない詰将棋とか、駒落ちに対応させるために、存在しない駒はすべてBONA_PIECE_ZEROにいることにする。
   for (PieceNo pn = PIECE_NO_ZERO; pn < PIECE_NO_NB; ++pn)
     evalList.put_piece(pn, SQ_ZERO , QUEEN); // QUEEN(金成り)はないのでこれでBONA_PIECE_ZEROとなる。
-  st->kingSquare[BLACK] = st->kingSquare[WHITE] = SQ_NB;
+  kingSquare[BLACK] = kingSquare[WHITE] = SQ_NB;
 
   while ((ss >> token) && !isspace(token))
   {
@@ -727,7 +727,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
   // StateInfoの構造体のメンバーの上からkeyのところまでは前のを丸ごとコピーしておく。
   // undo_moveで戻すときにこの部分はundo処理が要らないので細かい更新処理が必要なものはここに載せておけばundoが速くなる。
-  std::memcpy(&new_st, st, offsetof(StateInfo, checkersBB));
+
+  // いま、まだコピーしたいものがないのでコメントアウトしておく。
+//  std::memcpy(&new_st, st, offsetof(StateInfo, checkersBB));
 
   // StateInfoを遡れるようにpreviousを設定しておいてやる。
   new_st.previous = st;
@@ -753,7 +755,11 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
   ASSERT_LV2(is_ok(to));
 
   auto piece_list = evalList.piece_list();
-  
+
+#ifdef USE_EVAL_DIFF
+  auto& dp = st->dirtyPiece;
+#endif
+
   if (is_drop(m))
   {
     // --- 駒打ち
@@ -770,15 +776,15 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 #ifdef USE_EVAL_DIFF
     // KPPの差分計算のために移動した駒をStateInfoに記録しておく。
-    st->dirtyPieceNo[0] = piece_no;
-    st->dirtyPieceNo[1] = PIECE_NO_NB; // こちらはない
-    st->dirtyPiecePrevious[0] = piece_list[piece_no];
+    dp.dirty_num = 1; // 動いた駒は1個
+    dp.pieceNo[0] = piece_no;
+    dp.piecePrevious[0] = piece_list[piece_no];
 #endif
 
     put_piece(to, pc, piece_no);
 
 #ifdef USE_EVAL_DIFF
-    st->dirtyPieceNow[0] = piece_list[piece_no];
+    dp.pieceNow[0] = piece_list[piece_no];
 #endif
 
     // 駒打ちなので手駒が減る
@@ -848,14 +854,15 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
       ASSERT_LV3(is_ok(piece_no));
 
 #ifdef USE_EVAL_DIFF
-      st->dirtyPieceNo[1] = piece_no;
-      st->dirtyPiecePrevious[1] = piece_list[piece_no];
+      dp.dirty_num = 2; // 動いた駒は2個
+      dp.pieceNo[1] = piece_no;
+      dp.piecePrevious[1] = piece_list[piece_no];
 #endif
 
       evalList.put_piece(piece_no, Us, pr, hand_count(hand[Us], pr));
 
 #ifdef USE_EVAL_DIFF
-      st->dirtyPieceNow[1] = piece_list[piece_no];
+      dp.pieceNow[1] = piece_list[piece_no];
 #endif
 
       // 駒取りなら現在の手番側の駒が増える。
@@ -881,15 +888,15 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
       LongEffect::update_by_no_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc);
 #endif
 #ifdef USE_EVAL_DIFF
-      st->dirtyPieceNo[1] = PIECE_NO_NB;
+      dp.dirty_num = 1; // 動いた駒は1個
 #endif
     }
 
     PieceNo piece_no2 = piece_no_of(moved_pc, from); // 移動元にあった駒のpiece_noを得る
 
 #ifdef USE_EVAL_DIFF
-    st->dirtyPieceNo[0] = piece_no2;
-    st->dirtyPiecePrevious[0] = piece_list[piece_no2];
+    dp.pieceNo[0] = piece_no2;
+    dp.piecePrevious[0] = piece_list[piece_no2];
 #endif
 
     // 移動元の升からの駒の除去
@@ -898,7 +905,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
     put_piece(to, moved_after_pc,piece_no2);
 
 #ifdef USE_EVAL_DIFF
-    st->dirtyPieceNow[0] = piece_list[piece_no2];
+    dp.pieceNow[0] = piece_list[piece_no2];
 #endif
 
     // fromにあったmoved_pcがtoにmoved_after_pcとして移動した。

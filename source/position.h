@@ -49,16 +49,28 @@ struct CheckInfo {
   Square ksq;
 };
 
+#ifdef USE_EVAL_DIFF
+// 評価値の差分計算の管理用
+// 前の局面から移動した駒番号を管理するための構造体
+struct DirtyPiece
+{
+  // dirtyになった個数。null moveだと0ということもありうる。
+  int dirty_num;
+
+  // dirtyになった駒番号
+  PieceNo pieceNo[2];
+
+  // その駒番号の駒が何から何に変わったのか
+  Eval::ExtBonaPiece piecePrevious[2];
+  Eval::ExtBonaPiece pieceNow[2];
+};
+#endif
 
 // StateInfoは、undo_move()で局面を戻すときに情報を元の状態に戻すのが面倒なものを詰め込んでおくための構造体。
 // do_move()のときは、ブロックコピーで済むのでそこそこ高速。
 struct StateInfo {
 
   // ---- ここから下のやつは do_move()のときにコピーされる
-
-  // 玉の位置
-  Square kingSquare[COLOR_NB];
-  Square king_square(Color c) const { return kingSquare[c]; }
 
   // ---- ここから下のやつは do_move()のときにコピーされない
 
@@ -105,10 +117,8 @@ struct StateInfo {
 #endif
 
 #ifdef USE_EVAL_DIFF
-  // 前の局面から移動した駒番号
-  PieceNo dirtyPieceNo[2];
-  Eval::ExtBonaPiece dirtyPiecePrevious[2];
-  Eval::ExtBonaPiece dirtyPieceNow[2];
+  // 評価値の差分計算の管理用
+  DirtyPiece dirtyPiece;
 #endif
 
 #ifdef  KEEP_LAST_MOVE
@@ -182,7 +192,7 @@ struct Position
   Hand hand_of(Color c) const { return hand[c]; }
 
   // c側の玉の位置を返す
-  Square king_square(Color c) const { return st->king_square(c); }
+  Square king_square(Color c) const { return kingSquare[c]; }
 
   // 保持しているデータに矛盾がないかテストする。
   bool pos_is_ok() const;
@@ -438,6 +448,9 @@ protected:
   // 手番
   Color sideToMove;
 
+  // 玉の位置
+  Square kingSquare[COLOR_NB];
+
   // 初期局面からの手数(初期局面 == 1)
   int gamePly;
 
@@ -505,7 +518,7 @@ inline void Position::put_piece(Square sq, Piece pc,PieceNo piece_no)
   // 王なら、その升を記憶しておく。
   // (王の升はBitboardなどをみればわかるが、頻繁にアクセスするのでcacheしている。)
   if (type_of(pc) == KING)
-    st->kingSquare[color_of(pc)] = sq;
+    kingSquare[color_of(pc)] = sq;
 }
 
 // 駒を盤面から取り除き、内部的に保持しているBitboardも更新する。
