@@ -206,6 +206,9 @@
     <Text Include="..\exe\YaneuraOu-nano-readme.txt">
       <Filter>exe</Filter>
     </Text>
+    <Text Include="..\exe\eval\readme.txt">
+      <Filter>exe\eval</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md">
