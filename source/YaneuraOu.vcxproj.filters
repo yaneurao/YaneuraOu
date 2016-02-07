@@ -8,9 +8,6 @@
     <Filter Include="リソース ファイル\extra">
       <UniqueIdentifier>{bfdca085-939e-4c22-831c-b8eab41b4440}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\doc">
-      <UniqueIdentifier>{8bb34244-8e89-49f6-a303-c043ef5d8647}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\engine">
       <UniqueIdentifier>{e9b3e69c-bd87-41b1-947e-68da1be9443a}</UniqueIdentifier>
     </Filter>
@@ -40,6 +37,21 @@
     </Filter>
     <Filter Include="リソース ファイル\eval">
       <UniqueIdentifier>{74e286a5-5565-4995-9fc2-737328172971}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="exe">
+      <UniqueIdentifier>{a09b95c2-88ed-401e-ab31-7eb93f8fc490}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="doc">
+      <UniqueIdentifier>{8bb34244-8e89-49f6-a303-c043ef5d8647}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="exe\book">
+      <UniqueIdentifier>{31783e68-60c1-4b07-a404-12463d7c1e30}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="exe\eval">
+      <UniqueIdentifier>{022b52fb-a082-4f1e-9418-bfbc59a1c528}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\engine\nano-plus-engine">
+      <UniqueIdentifier>{f3ba1c3a-285c-4fbb-b041-1a46902f2f8c}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -174,27 +186,36 @@
     <ClCompile Include="eval\evaluate_material.cpp">
       <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
+    <ClCompile Include="engine\nano-plus-engine\nano_plus_search.cpp">
+      <Filter>リソース ファイル\engine\nano-plus-engine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">
-      <Filter>リソース ファイル\doc</Filter>
+      <Filter>doc</Filter>
     </Text>
     <Text Include="..\docs\更新履歴.txt">
-      <Filter>リソース ファイル\doc</Filter>
+      <Filter>doc</Filter>
     </Text>
     <Text Include="..\docs\解説.txt">
-      <Filter>リソース ファイル\doc</Filter>
+      <Filter>doc</Filter>
     </Text>
-    <Text Include="..\docs\YaneuraOu_ja.txt">
-      <Filter>リソース ファイル\doc</Filter>
+    <Text Include="..\exe\YaneuraOu-nano_ja.txt">
+      <Filter>exe</Filter>
+    </Text>
+    <Text Include="..\exe\YaneuraOu-nano-readme.txt">
+      <Filter>exe</Filter>
     </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md">
-      <Filter>リソース ファイル\doc</Filter>
+      <Filter>doc</Filter>
     </None>
-    <None Include="..\docs\book.db">
-      <Filter>リソース ファイル\doc</Filter>
+    <None Include="..\exe\YaneuraOu-nano.exe">
+      <Filter>exe</Filter>
+    </None>
+    <None Include="..\exe\book\standard_book.db">
+      <Filter>exe\book</Filter>
     </None>
   </ItemGroup>
 </Project>

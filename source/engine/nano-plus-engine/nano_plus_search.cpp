@@ -1,18 +1,16 @@
 ﻿#include "../../shogi.h"
 
-#ifdef YANEURAOU_NANO_ENGINE
+#ifdef YANEURAOU_NANO_PLUS_ENGINE
 
 // -----------------------
-//   やねうら王nano探索部
+//   やねうら王nano plus探索部
 // -----------------------
 
 // 開発方針
-// ・並列探索をしない(1スレッド動作)
-// ・αβ探索以外の枝刈り手法を極力使わない。
-// ・CAPTURESを優先する以外の指し手オーダリングをしない。
-// ・1手詰め判定を用いない。
-// ・静止探索において置換表に書き出さない。
-// ・静止探索ではRECAPTURESの指し手のみを生成。
+// ・nanoに似た読みやすいソースコード
+// ・nanoからオーダリングを改善。
+// ・超高速1手詰めを使用。
+// ・250行程度のシンプルな探索部でR2500を目指す。
 // このあと改造していくためのベースとなる教育的なコードを目指す。
 
 #include <sstream>
@@ -31,7 +29,7 @@
 using namespace std;
 using namespace Search;
 
-namespace YaneuraOuNano
+namespace YaneuraOuNanoPlus
 {
   // -----------------------
   //   指し手オーダリング
@@ -149,7 +147,7 @@ namespace YaneuraOuNano
         continue;
 
       pos.do_move(move, si, pos.gives_check(move));
-      value = -YaneuraOuNano::qsearch<NT>(pos, -beta, -alpha, depth - ONE_PLY);
+      value = -YaneuraOuNanoPlus::qsearch<NT>(pos, -beta, -alpha, depth - ONE_PLY);
       pos.undo_move(move);
 
       if (Signals.stop)
@@ -291,7 +289,7 @@ namespace YaneuraOuNano
 
         value = depth - R < ONE_PLY ?
           -qsearch<NonPV>(pos, -beta, -alpha, depth - R) :
-          -YaneuraOuNano::search<NonPV>(pos, -(alpha + 1), -alpha, depth - R);
+          -YaneuraOuNanoPlus::search<NonPV>(pos, -(alpha + 1), -alpha, depth - R);
 
         // 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす
         fullDepthSearch = value > alpha;
@@ -300,7 +298,7 @@ namespace YaneuraOuNano
       if ( fullDepthSearch)
         value = depth - ONE_PLY < ONE_PLY ?
             -qsearch<PV>(pos, -beta, -alpha, depth - ONE_PLY) :
-            -YaneuraOuNano::search<PV>(pos, -beta, -alpha, depth - ONE_PLY);
+            -YaneuraOuNanoPlus::search<PV>(pos, -beta, -alpha, depth - ONE_PLY);
 
       // -----------------------
       //      1手戻す
@@ -383,7 +381,7 @@ namespace YaneuraOuNano
 
 }
 
-using namespace YaneuraOuNano;
+using namespace YaneuraOuNanoPlus;
 
 // --- 以下に好きなように探索のプログラムを書くべし。
 
@@ -483,7 +481,7 @@ void MainThread::think() {
 
       PVIdx = 0; // MultiPVではないのでPVは1つで良い。
 
-      YaneuraOuNano::search<Root>(rootPos, alpha, beta, rootDepth);
+      YaneuraOuNanoPlus::search<Root>(rootPos, alpha, beta, rootDepth);
 
       // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
       std::stable_sort(rootMoves.begin(), rootMoves.end());

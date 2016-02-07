@@ -222,6 +222,7 @@
     <ClCompile Include="engine\mate-engine\mate_engine.cpp" />
     <ClCompile Include="engine\mini-engine\mini_search.cpp" />
     <ClCompile Include="engine\nano-engine\nano_search.cpp" />
+    <ClCompile Include="engine\nano-plus-engine\nano_plus_search.cpp" />
     <ClCompile Include="engine\random-player-engine\random_player_search.cpp" />
     <ClCompile Include="engine\user-engine\user-engine.cpp" />
     <ClCompile Include="eval\evaluate_bona_piece.cpp" />
@@ -244,12 +245,14 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt" />
-    <Text Include="..\docs\YaneuraOu_ja.txt" />
     <Text Include="..\docs\更新履歴.txt" />
     <Text Include="..\docs\解説.txt" />
+    <Text Include="..\exe\YaneuraOu-nano-readme.txt" />
+    <Text Include="..\exe\YaneuraOu-nano_ja.txt" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\docs\book.db" />
+    <None Include="..\exe\book\standard_book.db" />
+    <None Include="..\exe\YaneuraOu-nano.exe" />
     <None Include="..\README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -1,12 +1,19 @@
 ﻿
 やねうら王 更新履歴
 
-残り作業
 
-・nano plus作っていく。
-・miniの探索部書く
-・長手数の詰将棋ルーチン書く。
-・ベンチマーク書く。
+■ 2016/02/08 V1.40
+
+・実行ファイルを配布するにあたって、定跡ファイルを移動させて、評価関数バイナリの置き場を変更する。
+	将来的に評価関数バイナリを切り替えられるようにする。また、将来的に定跡を複数から選択可能にする。
+
+	eval/kpp16ap.bin
+	eval/kkp32ap.bin
+	book/standard_book.db
+	→ exe/YaneuraOu-nano-readme.txtに詳しく書いた。
+
+・やねうら王nano plusの開発開始。
+	engine/nano-plus-engine追加。
 
 
 ■ 2016/02/07 V1.39

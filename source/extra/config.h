@@ -94,6 +94,17 @@
 
 #ifdef YANEURAOU_NANO_ENGINE
 #define ENGINE_NAME "YaneuraOu nano"
+#undef ASSERT_LV
+#define KEEP_LAST_MOVE
+#undef MATE_1PLY
+#undef LONG_EFFECT_LIBRARY
+#define EVAL_KPP
+#undef USE_SEE
+#define USE_TT_PV
+#endif
+
+#ifdef YANEURAOU_NANO_PLUS_ENGINE
+#define ENGINE_NAME "YaneuraOu nano plus"
 //#undef ASSERT_LV
 #define KEEP_LAST_MOVE
 #undef MATE_1PLY
