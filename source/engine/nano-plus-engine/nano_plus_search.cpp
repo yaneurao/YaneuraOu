@@ -112,16 +112,30 @@ namespace YaneuraOuNanoPlus
         endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, moves);
         break;
 
-      case GOOD_RECAPTURES:
-        endMoves = generateMoves<RECAPTURES>(pos, moves,recaptureSquare);
+        // あとで実装する(↑で生成して返さなかった指し手を返すフェーズ)
+      case BAD_CAPTURES:
+        endMoves = moves;
+        break;
+
+      case GOOD_QUIETS:
+        endMoves = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, moves);
+        break;
+
+        // あとで実装する(↑で生成して返さなかった指し手を返すフェーズ)
+      case BAD_QUIETS:
+        endMoves = moves;
         break;
 
       case KILLERS:
-        endMoves = currentMoves;
+        endMoves = moves;
         break;
 
       case ALL_EVASIONS:
         endMoves = generateMoves<EVASIONS>(pos, moves);
+        break;
+
+      case GOOD_RECAPTURES:
+        endMoves = generateMoves<RECAPTURES>(pos, moves, recaptureSquare);
         break;
 
         // そのステージの末尾に達したのでMovePickerを終了する。
@@ -151,11 +165,19 @@ namespace YaneuraOuNanoPlus
         case MAIN_SEARCH_START: case EVASION_START:
           ++currentMoves;
           return ttMove;
+
+          // 指し手を一手ずつ返すフェーズ
+        case GOOD_CAPTURES:
+        case BAD_CAPTURES:
+        case KILLERS:
+        case GOOD_QUIETS:
+        case BAD_QUIETS:
+          return *currentMoves++;
+
+        case STOP:
+          return MOVE_NONE;
         }
       }
-      if (currentMoves == endMoves)
-        return MOVE_NONE;
-      return *currentMoves++;
     }
 
   private:
@@ -188,6 +210,8 @@ namespace YaneuraOuNanoPlus
   template <NodeType NT>
   Value qsearch(Position& pos, Value alpha, Value beta, Depth depth)
   {
+    return VALUE_ZERO;
+
     // 現在のnodeのrootからの手数。これカウンターが必要。
     // nanoだとこのカウンター持ってないので適当にごまかす。
     const int ply_from_root = (pos.this_thread()->rootDepth - depth) / ONE_PLY;
@@ -225,11 +249,11 @@ namespace YaneuraOuNanoPlus
     }
 
     // 取り合いの指し手だけ生成する
+    pos.check_info_update();
     MovePicker mp(pos,MOVE_NONE/*ttMoveあとで使う*/,move_to(pos.state()->lastMove));
     Move move;
 
     StateInfo si;
-    pos.check_info_update();
 
     while (move = mp.nextMove())
     {
@@ -328,7 +352,7 @@ namespace YaneuraOuNanoPlus
     //    1手詰みか？
     // -----------------------
 
-    Move bestMove = MOVE_NONE;
+    Move bestMove = pos.mate1ply();
     if (bestMove != MOVE_NONE)
     {
       alpha = mate_in(ply_from_root);
@@ -340,13 +364,13 @@ namespace YaneuraOuNanoPlus
     // -----------------------
 
     {
+      pos.check_info_update();
       MovePicker mp(pos, ttMove);
 
       Value value;
       Move move;
 
       StateInfo si;
-      pos.check_info_update();
 
       // この局面でdo_move()された合法手の数
       int moveCount = 0;

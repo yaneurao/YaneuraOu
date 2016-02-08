@@ -137,11 +137,11 @@ namespace YaneuraOuNano
     }
 
     // 取り合いの指し手だけ生成する
+    pos.check_info_update();
     MovePicker mp(pos,move_to(pos.state()->lastMove));
     Move move;
 
     StateInfo si;
-    pos.check_info_update();
 
     while (move = mp.nextMove())
     {
@@ -240,13 +240,13 @@ namespace YaneuraOuNano
     // 1手ずつ指し手を試す
     // -----------------------
 
+    pos.check_info_update();
     MovePicker mp(pos,ttMove);
 
     Value value;
     Move move;
 
     StateInfo si;
-    pos.check_info_update();
 
     // この局面でdo_move()された合法手の数
     int moveCount = 0;
