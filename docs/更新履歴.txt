@@ -5,6 +5,13 @@
 ■ 2016/02/08 V1.43
 
 ・nano plusのMovePickerで段階的な指し手生成を実装。
+	→　やってみたがnpsほぼほぼ上がってない。(気がする。)
+	mate1入れたせいもあるのか。
+
+・1手詰め、うまく詰ませられない。
+position startpos moves 1g1f 8c8d 7g7f 8d8e 8h7g 7a6b 6g6f 5a4b 2h8h 5c5d 7i7h 4b3b 3i3h 6b5c 5i4h 3c3d 3g3f 5c4d 7h6g 5d5e 4g4f 6a5b 6i5h 7c7d 5h4g 9c9d 1f1e 2b3c 2i3g 8a7c 4h3i 9d9e 3i2h 3c4b 2g2f 8b8d 6f6e 7c6e 7g6f 8d8a 5g5f 5e5f 6g5f 6c6d 4f4e 4d3c P*5d 5b6c 5f5e 3b2b 3g2e 4a3b 3f3e 3d3e 8h5h 8e8f 5e4f 8f8g+ 2e3c 4b3c 6f3c+ 3b3c 5h5i P*5g B*7b 8a8f 7b6c+ 8g7g 6c6d 8f8h+ 6d6e 7g6h 5i5g 8h8i N*2e 3c3b 6e5e N*3c P*3d N*4b 4f3e 8i7i 5d5c+ B*7h 3d3c+ 2a3c 2e3c+ 3b3c N*2e P*3b 5c4c N*3d 4c3c 3b3c 2e3c+ 2b2a G*2b 3a2b
+go btime 0 wtime 0 byoyomi 30000000
+→　修正した。
 
 
 ■ 2016/02/08 V1.42

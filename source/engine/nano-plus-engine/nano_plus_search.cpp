@@ -154,6 +154,8 @@ namespace YaneuraOuNanoPlus
     // 指し手が尽きればMOVE_NONEが返る。
     Move nextMove() {
 
+      Move move;
+
       while (true)
       {
         while (currentMoves == endMoves && stage != STOP)
@@ -172,7 +174,13 @@ namespace YaneuraOuNanoPlus
         case KILLERS:
         case GOOD_QUIETS:
         case BAD_QUIETS:
-          return *currentMoves++;
+        case ALL_EVASIONS:
+        case GOOD_RECAPTURES:
+          move = *currentMoves++;
+          // 置換表の指し手と同じものは返してはならない。
+          if (move != ttMove)
+            return move;
+          break;
 
         case STOP:
           return MOVE_NONE;
@@ -210,11 +218,9 @@ namespace YaneuraOuNanoPlus
   template <NodeType NT>
   Value qsearch(Position& pos, Value alpha, Value beta, Depth depth)
   {
-    return VALUE_ZERO;
-
     // 現在のnodeのrootからの手数。これカウンターが必要。
     // nanoだとこのカウンター持ってないので適当にごまかす。
-    const int ply_from_root = (pos.this_thread()->rootDepth - depth) / ONE_PLY;
+    const int ply_from_root = (pos.this_thread()->rootDepth - depth) / ONE_PLY + 2;
 
     // この局面で王手がかかっているのか
     bool InCheck = pos.checkers();
@@ -307,7 +313,7 @@ namespace YaneuraOuNanoPlus
 
     // 現在のnodeのrootからの手数。これカウンターが必要。
     // nanoだとこのカウンター持ってないので適当にごまかす。
-    const int ply_from_root = (pos.this_thread()->rootDepth - depth) / ONE_PLY;
+    const int ply_from_root = (pos.this_thread()->rootDepth - depth ) / ONE_PLY + 2;
 
     // -----------------------
     //   置換表のprobe
@@ -348,6 +354,7 @@ namespace YaneuraOuNanoPlus
       return ttValue;
     }
 
+
     // -----------------------
     //    1手詰みか？
     // -----------------------
@@ -355,7 +362,14 @@ namespace YaneuraOuNanoPlus
     Move bestMove = pos.mate1ply();
     if (bestMove != MOVE_NONE)
     {
+      // 1手詰めスコアなので確実にvalue > alphaなはず。
       alpha = mate_in(ply_from_root);
+      if (RootNode) // RootNodeならこの指し手を先頭に持ってこないといけないので..
+      {
+        auto& rm = *std::find(thisThread->rootMoves.begin(), thisThread->rootMoves.end(), bestMove);
+        rm.score = alpha;
+        rm.pv.resize(1); // PVは変化するはずなのでいったんリセット
+      }
       goto TT_SAVE;
     }
 
