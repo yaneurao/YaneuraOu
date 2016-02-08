@@ -35,49 +35,124 @@ namespace YaneuraOuNanoPlus
   //   指し手オーダリング
   // -----------------------
 
+  // 指し手を段階的に生成するために現在どの段階にあるかの状態を表す定数
+  enum Stages {
+    // -----------------------------------------------------
+    //   王手がかっていない通常探索時用の指し手生成
+    // -----------------------------------------------------
+    MAIN_SEARCH_START,  // 置換表の指し手を返すフェーズ
+    GOOD_CAPTURES,      // 捕獲する指し手(CAPTURES_PRO_PLUS)を生成して指し手を一つずつ返す
+    KILLERS,            // KILLERの指し手
+    BAD_CAPTURES,       // 捕獲する悪い指し手
+    GOOD_QUIETS,        // CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す
+    BAD_QUIETS,         // ↑で点数悪そうなものを後回しにしていたのでそれを一つずつ返す
+
+    // -----------------------------------------------------
+    //   王手がかっている/静止探索時用の指し手生成
+    // -----------------------------------------------------
+    EVASION_START,      // 置換表の指し手を返すフェーズ
+    ALL_EVASIONS,       // 回避する指し手(EVASIONS)を生成した指し手を一つずつ返す
+    
+    // -----------------------------------------------------
+    //   王手がかっていない静止探索時用の指し手生成
+    // -----------------------------------------------------
+
+    RECAPTURE_START,    // ↓のstageに行くためのラベル
+    GOOD_RECAPTURES,    // 最後の移動した駒を捕獲する指し手(RECAPTURES)を生成した指し手を一つずつ返す
+    STOP,
+  };
+  ENABLE_OPERATORS_ON(Stages); // 次の状態にするためにインクリメントを使いたい。
+
+  // 指し手オーダリング器
   struct MovePicker
   {
     // 通常探索から呼び出されるとき用。
-    MovePicker(const Position& pos_,Move ttMove) : pos(pos_)
+    MovePicker(const Position& pos_,Move ttMove_) : pos(pos_)
     {
-      // 王手がかかっているなら回避手(EVASIONS)、さもなくば、すべての指し手(NON_EVASIONS)で指し手を生成する。
-      if (pos.in_check())
-        endMoves = generateMoves<EVASIONS>(pos, currentMoves);
-      else
-      {
-        // CAPTURESを先に生成しておくことで枝刈り性能をupさせる。
-        // 本当は、CAPTURESの指し手が尽きてから段階的に生成すべきだが、MovePickerが少し複雑になるので簡略しておく。
-        endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, currentMoves);
-        endMoves = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, endMoves);
-      }
+      // 次の指し手生成の段階
+      // 王手がかかっているなら回避手、かかっていないなら通常探索用の指し手生成
+      stage = pos.in_check() ? EVASION_START : MAIN_SEARCH_START;
 
-      // 置換表の指し手が、この生成された集合のなかにあるなら、その先頭の指し手に置換表の指し手が来るようにしておく。
-      if (ttMove != MOVE_NONE && pos.pseudo_legal(ttMove))
-      {
-        auto p = currentMoves;
-        for (; p != endMoves;++p)
-          if (*p == ttMove)
-          {
-            swap(*p, *currentMoves);
-            break;
-          }
-      }
+      // 置換表の指し手があるならそれを最初に返す。ただしpseudo_legalでなければならない。
+      ttMove = ttMove_ && pos.pseudo_legal(ttMove_) ? ttMove_ : MOVE_NONE;
+
+      // 置換表の指し手が引数で渡されていたなら1手生成したことにする。
+      // (currentMoves != endMovesであることを、指し手を生成するかどうかの判定に用いている)
+      endMoves += (ttMove_!= MOVE_NONE);
     }
 
     // 静止探索から呼び出される時用。
-    MovePicker(const Position& pos_, Square recapSq) : pos(pos_)
+    MovePicker(const Position& pos_, Move ttMove_, Square recapSq) : pos(pos_)
     {
-      // 王手がかかっているなら回避手(EVASIONS)、さもなくば、recaptureのみ生成。
       if (pos.in_check())
-        endMoves = generateMoves<EVASIONS>(pos, currentMoves);
-      else
-        // recapture以外生成しない。
-        endMoves = generateMoves<RECAPTURES>(pos, currentMoves,recapSq);
+        stage = EVASION_START;
+      else {
+        stage = RECAPTURE_START;
+        recaptureSquare = recapSq;
+        ttMove = MOVE_NONE; // 置換表の指し手はrecaptureの升に移動させる指し手ではないので忘れる
+        return;
+      }
+
+      ttMove = ttMove_ && pos.pseudo_legal(ttMove_) ? ttMove_ : MOVE_NONE;
+      endMoves += (ttMove_ != MOVE_NONE);
+    }
+
+    // 次のstageにするため、必要なら指し手生成器で指し手を生成する。
+    void generate_next_stage()
+    {
+      ASSERT_LV3(stage != STOP);
+
+      // 指し手生成バッファの先頭を指すように
+      currentMoves = moves;
+
+      // 次のステージに移行して、そのときに指し手生成が必要なステージに達したなら指し手を生成する。
+      switch (++stage)
+      {
+      case GOOD_CAPTURES:
+        endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, moves);
+        break;
+
+      case GOOD_RECAPTURES:
+        endMoves = generateMoves<RECAPTURES>(pos, moves,recaptureSquare);
+        break;
+
+      case KILLERS:
+        endMoves = currentMoves;
+        break;
+
+      case ALL_EVASIONS:
+        endMoves = generateMoves<EVASIONS>(pos, moves);
+        break;
+
+        // そのステージの末尾に達したのでMovePickerを終了する。
+      case EVASION_START: case RECAPTURE_START: case STOP:
+        stage = STOP;
+        break;
+
+      default:
+        UNREACHABLE;
+        break;
+      }
+
     }
 
     // 次の指し手をひとつ返す
     // 指し手が尽きればMOVE_NONEが返る。
     Move nextMove() {
+
+      while (true)
+      {
+        while (currentMoves == endMoves && stage != STOP)
+          generate_next_stage();
+
+        switch (stage)
+        {
+          // 置換表の指し手を返すフェーズ
+        case MAIN_SEARCH_START: case EVASION_START:
+          ++currentMoves;
+          return ttMove;
+        }
+      }
       if (currentMoves == endMoves)
         return MOVE_NONE;
       return *currentMoves++;
@@ -86,6 +161,16 @@ namespace YaneuraOuNanoPlus
   private:
     const Position& pos;
 
+    // 指し手生成の段階
+    Stages stage;
+
+    // RECAPUTREの指し手で移動させる先の升
+    Square recaptureSquare;
+
+    // 置換表の指し手
+    Move ttMove;
+    
+    // 指し手生成バッファと、次に返す指し手、生成された指し手の末尾
     ExtMove moves[MAX_MOVES], *currentMoves = moves, *endMoves = moves;
   };
 
@@ -140,7 +225,7 @@ namespace YaneuraOuNanoPlus
     }
 
     // 取り合いの指し手だけ生成する
-    MovePicker mp(pos,move_to(pos.state()->lastMove));
+    MovePicker mp(pos,MOVE_NONE/*ttMoveあとで使う*/,move_to(pos.state()->lastMove));
     Move move;
 
     StateInfo si;

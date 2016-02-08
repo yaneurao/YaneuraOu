@@ -39,14 +39,16 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 	- CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-##　俺の作業メモ(2016/02/08 9:00現在)
+##　俺の作業メモ(2016/02/08 12:00現在)
 
 - [ ] 長手数の詰将棋ルーチン作る
 - [ ] やねうら王miniの探索部
-- [ ] やねうら王nano plusの探索部
 - [ ] ベンチマーク書く
 - [ ] nano plusで1手詰めなのに探索局面が多すぎるの、mate distance pruningしてないから？調査する。
+- [ ] やねうら王nano plusの探索部
+- [ ] やねうら王nano plusにkillerとLMRの導入。
 
+- [x] 2016/02/08・やねうら王nano plusで1手詰め判定を呼び出すように。
 - [x] 2016/02/08・gcc/Clangでコンパイル通るようにする→Clangは無理。gccは行けそうだが、時間かかりそうなので保留。
 - [x] 2016/02/08・やねうら王nano plusの開発開始。
 - [x] 2016/02/08・やねうら王nano、floodgateでR2000を超えたので、nanoの開発終了。
