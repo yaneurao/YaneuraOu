@@ -443,7 +443,7 @@ void MainThread::think() {
   // ---------------------
   {
     
-    rootDepth = DEPTH_ZERO;
+    rootDepth = 0;
     Value alpha, beta;
     StateInfo si;
     auto& pos = rootPos;
@@ -452,30 +452,41 @@ void MainThread::think() {
 
     TT.new_search();
 
-    // --- 今回に用いる思考時間 = 残り時間の1/60 + 秒読み時間
+    // ---------------------
+    //   思考の終了条件
+    // ---------------------
 
-    auto us = pos.side_to_move();
-    // 2秒未満は2秒として問題ない。(CSAルールにおいて)
-    auto availableTime = std::max(2000, Limits.time[us] / 60 + Limits.byoyomi[us]);
-    // 思考時間は秒単位で繰り上げ
-    availableTime = (availableTime / 1000) * 1000;
-    // 50msより小さいと思考自体不可能なので下限を50msに。
-    availableTime = std::max(50, availableTime - Options["NetworkDelay"]);
-    auto endTime = Limits.startTime + availableTime;
+    std::thread* timerThread = nullptr;
 
-    // --- タイマースレッドを起こして、終了時間を監視させる。
+    // 探索深さ、ノード数、詰み手数が指定されていない == 探索時間による制限
+    if (!(Limits.depth || Limits.nodes || Limits.mate))
+    {
+      // 時間制限があるのでそれに従うために今回の思考時間を計算する。
+      // 今回に用いる思考時間 = 残り時間の1/60 + 秒読み時間
 
-    auto timerThread = new std::thread([&] {
-      while (now() < endTime && !Signals.stop)
-        sleep(10);
-      Signals.stop = true;
-    });
+      auto us = pos.side_to_move();
+      // 2秒未満は2秒として問題ない。(CSAルールにおいて)
+      auto availableTime = std::max(2000, Limits.time[us] / 60 + Limits.byoyomi[us]);
+      // 思考時間は秒単位で繰り上げ
+      availableTime = (availableTime / 1000) * 1000;
+      // 50msより小さいと思考自体不可能なので下限を50msに。
+      availableTime = std::max(50, availableTime - Options["NetworkDelay"]);
+      auto endTime = Limits.startTime + availableTime;
+
+      // タイマースレッドを起こして、終了時間を監視させる。
+
+      timerThread = new std::thread([&] {
+        while (now() < endTime && !Signals.stop)
+          sleep(10);
+        Signals.stop = true;
+      });
+    }
 
     // ---------------------
     //   反復深化のループ
     // ---------------------
 
-    while ((rootDepth += ONE_PLY) < DEPTH_MAX && !Signals.stop && (!Limits.depth || rootDepth <= Limits.depth))
+    while (++rootDepth < MAX_PLY && !Signals.stop && (!Limits.depth || rootDepth <= Limits.depth))
     {
       // 本当はもっと探索窓を絞ったほうが効率がいいのだが…。
       alpha = -VALUE_INFINITE;
@@ -483,7 +494,7 @@ void MainThread::think() {
 
       PVIdx = 0; // MultiPVではないのでPVは1つで良い。
 
-      YaneuraOuNano::search<Root>(rootPos, alpha, beta, rootDepth);
+      YaneuraOuNano::search<Root>(rootPos, alpha, beta, rootDepth*ONE_PLY);
 
       // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
       std::stable_sort(rootMoves.begin(), rootMoves.end());
@@ -499,8 +510,11 @@ void MainThread::think() {
     // ---------------------
 
     Signals.stop = true;
-    timerThread->join();
-    delete timerThread;
+    if (timerThread != nullptr)
+    {
+      timerThread->join();
+      delete timerThread;
+    }
   }
 
 ID_END:; // 反復深化の終了。

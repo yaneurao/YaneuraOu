@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "1.40"
+#define ENGINE_VERSION "1.44"
 
 // --------------------
 // コンパイル時の設定
@@ -294,7 +294,7 @@ inline bool is_aligned(Square sq1 /* is ksq */, Square sq2, Square sq3)
 const int MAX_PLY = MAX_PLY_NUM;
 
 // Depthは1手をONE_PLY倍にスケーリングする。
-enum Depth : int32_t { DEPTH_ZERO = 0, ONE_PLY = 2 , DEPTH_MAX = int(ONE_PLY) * MAX_PLY , };
+enum Depth : int32_t { DEPTH_ZERO = 0, ONE_PLY = 2 , };
 
 // --------------------
 //     評価値の性質
@@ -756,7 +756,8 @@ namespace USI {
   void init(OptionsMap&);
 
   // pv(読み筋)をUSIプロトコルに基いて出力する。
-  std::string pv(const Position& pos, Depth depth, Value alpha, Value beta);
+  // iteration_depth = 反復深化のiteration深さ。
+  std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta);
 
   // USIプロトコルで、idxの順番でoptionを出力する。
   std::ostream& operator<<(std::ostream& os, const OptionsMap& om);

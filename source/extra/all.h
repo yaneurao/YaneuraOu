@@ -14,6 +14,7 @@
 #include "../search.h"
 #include "../thread.h"
 #include "../misc.h"
+#include "../tt.h"
 #include "long_effect.h"
 
 // これもおまけしておく。

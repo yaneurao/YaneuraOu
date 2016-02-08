@@ -18,12 +18,13 @@ Search::StateStackPtr SetupStates;
 // "user"コマンドの後続に指定されている文字列はisのほうに渡される。
 extern void user_test(Position& pos, std::istringstream& is);
 
-// USI拡張コマンドの"test"コマンド。
+// USI拡張コマンドの"test"コマンドなど。
 // サンプル用のコードを含めてtest.cppのほうに色々書いてあるのでそれを呼び出すために使う。
 #ifdef ENABLE_TEST_CMD
 extern void test_cmd(Position& pos, istringstream& is);
 extern void perft(Position& pos, istringstream& is);
 extern void generate_moves_cmd(Position& pos);
+extern void bench_cmd(Position& pos, istringstream& is);
 #endif
 
 // 定跡を作るコマンド
@@ -64,7 +65,7 @@ namespace USI
     return s.str();
   }
   
-  std::string pv(const Position& pos, Depth depth, Value alpha, Value beta)
+  std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta)
   {
     std::stringstream ss;
     int elapsed = int(now()- Search::Limits.startTime + 1);
@@ -72,11 +73,10 @@ namespace USI
 
     uint64_t nodes_searched = Threads.nodes_searched();
 
-    Depth d = depth;
     Value v = pos.this_thread()->rootMoves[0].score;
 
     ss << "info"
-      << " depth " << int(d / ONE_PLY)
+      << " depth " << iteration_depth
       //       << " seldepth " << 
       << " score " << USI::score_to_usi(v,alpha,beta);
 
@@ -209,8 +209,8 @@ namespace USI
 // USI関係のコマンド処理
 // --------------------
 
-// isreadyコマンド処理部
-void is_ready_cmd()
+// is_ready_cmd()を外部から呼び出せるようにしておく。(benchコマンドなどから呼び出したいため)
+void is_ready()
 {
   static bool first = true;
 
@@ -225,7 +225,12 @@ void is_ready_cmd()
   }
 
   Search::clear();
+}
 
+// isreadyコマンド処理部
+void is_ready_cmd()
+{
+  is_ready();
   cout << "readyok" << endl;
 }
 
@@ -446,6 +451,9 @@ void USI::loop()
 
     // テストコマンド
     else if (token == "test") test_cmd(pos, is);
+
+    // ベンチコマンド
+    else if (token == "bench") bench_cmd(pos, is);
 #endif
 
 #ifdef ENABLE_MAKEBOOK_CMD

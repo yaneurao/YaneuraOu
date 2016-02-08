@@ -814,4 +814,111 @@ void test_cmd(Position& pos, istringstream& is)
   }
 }
 
+// ----------------------------------
+//  USI拡張コマンド "bench"(ベンチマーク)
+// ----------------------------------
+
+// benchmark用デフォルトの局面集
+// これを増やすなら、下のほうの fens.assign のところの局面数も増やすこと。
+static const char* BenchSfen[] = {
+
+  // 読めば読むほど後手悪いような局面
+  "l4S2l/4g1gs1/5p1p1/pr2N1pkp/4Gn3/PP3PPPP/2GPP4/1K7/L3r+s2L w BS2N5Pb 1",
+
+  // 57同銀は詰み、みたいな。
+  // 読めば読むほど先手が悪いことがわかってくる局面。
+  "6n1l/2+S1k4/2lp4p/1np1B2b1/3PP4/1N1S3rP/1P2+pPP+p1/1p1G5/3KG2r1 b GSN2L4Pgs2p 1",
+
+  // 指し手生成祭りの局面
+  // cf. http://d.hatena.ne.jp/ak11/20110508/p1
+  "l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1",
+};
+
+extern void is_ready();
+
+void bench_cmd(Position& pos, istringstream& is)
+{
+  string token;
+  Search::LimitsType limits;
+  vector<string> fens;
+
+  // →　デフォルト1024にしておかないと置換表あふれるな。
+  string ttSize = (is >> token) ? token : "1024";
+
+  string threads = (is >> token) ? token : "1";
+  string limit = (is >> token) ? token : "13";  // "7"; // 13
+
+  string fenFile = (is >> token) ? token : "default";
+  string limitType = (is >> token) ? token : "depth";
+  
+  if (ttSize == "d")
+  {
+    // デバッグ用の設定(毎回入力するのが面倒なので)
+    ttSize = "1024";
+    threads = "1";
+    limit = "7";
+    fenFile = "default";
+    limitType = "depth";
+  }
+
+
+  if (limitType == "time")
+    limits.movetime = 1000 * atoi(limit.c_str()); // movetime is in ms
+
+  else if (limitType == "nodes")
+    limits.nodes = atoi(limit.c_str());
+
+  else if (limitType == "mate")
+    limits.mate = atoi(limit.c_str());
+
+  else
+    limits.depth = atoi(limit.c_str());
+
+  Options["Hash"] = ttSize;
+  Options["Threads"] = threads;
+
+  TT.clear();
+
+  // Optionsの影響を受けると嫌なので、その他の条件を固定しておく。
+  limits.enteringKingRule = Search::EKR_NONE;
+
+  // テスト用の局面
+  // "default"=デフォルトの局面、"current"=現在の局面、それ以外 = ファイル名とみなしてそのsfenファイルを読み込む
+  if (fenFile == "default")
+    fens.assign(BenchSfen, BenchSfen + 3);
+  else if (fenFile == "current")
+    fens.push_back(pos.sfen());
+  else
+    read_all_lines(fenFile, fens);
+
+  is_ready();
+
+  int64_t nodes = 0;
+  Search::StateStackPtr st;
+  limits.startTime = now();
+  
+  for (size_t i = 0; i < fens.size(); ++i)
+  {
+    Position pos;
+    pos.set(fens[i]);
+    pos.set_this_thread(Threads.main());
+    
+    sync_cout << "\nPosition: " << (i + 1) << '/' << fens.size() << sync_endl;
+
+    Threads.start_thinking(pos, limits, st);
+    Threads.main()->join(); // 探索の終了を待つ。
+
+    nodes += Threads.main()->rootPos.nodes_searched();
+  }
+
+  auto elapsed = now() - limits.startTime + 1; // 0除算の回避のため
+  
+  sync_cout << "\n==========================="
+    << "\nTotal time (ms) : " << elapsed
+    << "\nNodes searched  : " << nodes
+    << "\nNodes/second    : " << 1000 * nodes / elapsed << sync_endl;
+
+}
+
+
 #endif // ENABLE_TEST_CMD

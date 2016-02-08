@@ -103,7 +103,7 @@ struct Thread : public ThreadBase
   int maxPly;
 
   // 反復深化の深さ
-  Depth rootDepth;
+  int rootDepth;
 
 protected:
   // 探索中であるかを表すフラグ

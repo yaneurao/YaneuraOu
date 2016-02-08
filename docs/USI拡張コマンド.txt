@@ -30,6 +30,19 @@ set option name XXX value ...で設定できるoption
 	mated   : 現在の局面に対して詰み判定を呼び出す。詰んでいれば1。さもなくば0。
 	mate1   : 現在の局面に対してmate1ply()を呼び出す。
 
+	bench   : ベンチマーク
+		bench [置換表サイズ][スレッド数][LimitType = depth , nodes, time][←の指定][局面の指定]
+		例)
+			bench 1024 1 depth 10
+			※　パラメーター省略時は上記の設定
+		
+		[局面の指定]について
+		  "default"=デフォルトの局面、"current"=現在の局面、
+		  それ以外 = ファイル名とみなしてそのsfenファイルを読み込む
+
+		例) bench 1024 1 depth 10 current
+
+
 	test    : テスト用コマンド
 		test unit           : unit test
 		test perft [depth]  : perft(パフォーマンステスト)。深さを指定できる。
