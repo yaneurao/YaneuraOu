@@ -13,6 +13,17 @@ position startpos moves 1g1f 8c8d 7g7f 8d8e 8h7g 7a6b 6g6f 5a4b 2h8h 5c5d 7i7h 4
 go btime 0 wtime 0 byoyomi 30000000
 →　修正した。
 
+・nano-nono plus
+59-1-40
+60-1-39
+47-2-51
+55-5-40
+有意に弱い。
+
+枝刈りが甘い状況ではmate1にそんなに価値がないのかも。
+PV nodeでだけ呼び出すか。
+→　1手詰め判定は通常探索、静止探索ともにPV nodeのみに変更。
+
 
 ■ 2016/02/08 V1.42
 

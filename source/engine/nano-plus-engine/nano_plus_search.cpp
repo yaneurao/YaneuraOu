@@ -218,6 +218,9 @@ namespace YaneuraOuNanoPlus
   template <NodeType NT>
   Value qsearch(Position& pos, Value alpha, Value beta, Depth depth)
   {
+    // PV nodeであるか。
+    const bool PvNode = NT == PV;
+
     // 現在のnodeのrootからの手数。これカウンターが必要。
     // nanoだとこのカウンター持ってないので適当にごまかす。
     const int ply_from_root = (pos.this_thread()->rootDepth - depth) / ONE_PLY + 2;
@@ -234,10 +237,13 @@ namespace YaneuraOuNanoPlus
     } else {
       // 王手がかかっていないなら置換表の指し手を持ってくる
 
-      // 1手詰み
-      Move m = pos.mate1ply();
-      if (m != MOVE_NONE)
-        return mate_in(ply_from_root);
+      if (PvNode)
+      {
+        // 1手詰み
+        Move m = pos.mate1ply();
+        if (m != MOVE_NONE)
+          return mate_in(ply_from_root);
+      }
 
       // この局面で何も指さないときのスコア。recaptureすると損をする変化もあるのでこのスコアを基準に考える。
       value = Eval::eval(pos);
@@ -359,18 +365,23 @@ namespace YaneuraOuNanoPlus
     //    1手詰みか？
     // -----------------------
 
-    Move bestMove = pos.mate1ply();
-    if (bestMove != MOVE_NONE)
+    Move bestMove = MOVE_NONE;
+    
+    if (PvNode)
     {
-      // 1手詰めスコアなので確実にvalue > alphaなはず。
-      alpha = mate_in(ply_from_root);
-      if (RootNode) // RootNodeならこの指し手を先頭に持ってこないといけないので..
+      bestMove = pos.mate1ply();
+      if (bestMove != MOVE_NONE)
       {
-        auto& rm = *std::find(thisThread->rootMoves.begin(), thisThread->rootMoves.end(), bestMove);
-        rm.score = alpha;
-        rm.pv.resize(1); // PVは変化するはずなのでいったんリセット
+        // 1手詰めスコアなので確実にvalue > alphaなはず。
+        alpha = mate_in(ply_from_root);
+        if (RootNode) // RootNodeならこの指し手を先頭に持ってこないといけないので..
+        {
+          auto& rm = *std::find(thisThread->rootMoves.begin(), thisThread->rootMoves.end(), bestMove);
+          rm.score = alpha;
+          rm.pv.resize(1); // PVは変化するはずなのでいったんリセット
+        }
+        goto TT_SAVE;
       }
-      goto TT_SAVE;
     }
 
     // -----------------------
