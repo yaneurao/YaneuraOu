@@ -2,6 +2,31 @@
 やねうら王 更新履歴
 
 
+■ 2016/02/08 V1.41
+
+・materialの計算もifndef EVAL_NO_USE内に分離
+・clangでコンパイルが通るように。
+	http://llvm.org/releases/download.html
+	> Download LLVM 3.7.1
+	> Clang for Windows (64-bit) (.sig)
+	LLVM-3.7.1でコンパイルが通るように頑張る。
+	→ ClangだとAVX関係が色々難しいみたい。gccならいけそうだが…。
+	gccでコンパイル通すのはまた今度にする。
+
+・これコメントアウト
+
+/*
+// 静止探索時の最大探索深さ
+const int MAX_QUIET_PLY = 6;
+
+// 通常探索時の最大手数である128に、静止探索時の最大深さを加えた定数。
+// 局面バッファ(StateInfo)などは、すべてこのサイズで確保する。
+const int MAX_SEARCH_PLY = MAX_PLY + MAX_QUIET_PLY;
+*/
+
+・DEPTH_MAXが必要なので修正。
+
+
 ■ 2016/02/08 V1.40
 
 ・実行ファイルを配布するにあたって、定跡ファイルを移動させて、評価関数バイナリの置き場を変更する。

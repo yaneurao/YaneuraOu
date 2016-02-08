@@ -4,7 +4,11 @@
 
 namespace Eval
 {
-  // 駒得だけの評価関数
+#ifndef EVAL_NO_USE
+  // 何らかの評価関数を用いる以上、駒割りの計算は必須。
+  // すなわち、EVAL_NO_USE以外のときはこの関数が必要。
+
+  // 駒割りの計算
   // 手番側から見た評価値
   Value material(const Position& pos)
   {
@@ -20,8 +24,10 @@ namespace Eval
 
     return (Value)v;
   }
+#endif
 
 #ifdef EVAL_MATERIAL
+  // 駒得のみの評価関数のとき。
 
   void load_eval() {}
   void print_eval_stat(Position& pos) {}

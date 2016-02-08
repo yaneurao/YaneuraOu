@@ -305,8 +305,10 @@ struct Position
 
   // --- Evaluation
 
+#ifndef EVAL_NO_USE
   // 評価関数で使うための、どの駒番号の駒がどこにあるかなどの情報。
   Eval::EvalList eval_list() const { return evalList; }
+#endif
 
 #ifdef  USE_SEE
   // 指し手mの(Static Exchange Evaluation : 静的取り合い評価)の値を返す。
@@ -404,7 +406,7 @@ protected:
   template <Color Us> void do_move_impl(Move m, StateInfo& st, bool givesCheck);
 
   // undo_move()の先後分けたもの。内部的に呼び出される。
-  template <Color Us> void Position::undo_move_impl(Move m);
+  template <Color Us> void undo_move_impl(Move m);
 
   // --- Bitboards
   // alignas(16)を要求するものを先に宣言。
@@ -421,6 +423,7 @@ protected:
   // sqの地点にpcを置く/取り除く、したとして内部で保持しているBitboardを更新する。
   void xor_piece(Piece pc, Square sq);
 
+#ifndef EVAL_NO_USE
   // --- 盤面を更新するときにEvalListの更新のために必要なヘルパー関数
 
   // c側の手駒ptの最後の1枚のBonaPiece番号を返す
@@ -436,7 +439,11 @@ protected:
 
   // 盤上のpcの駒のPieceNoを返す
   PieceNo piece_no_of(Piece pc, Square sq) const { return evalList.piece_no_of((Eval::BonaPiece)(Eval::kpp_board_index[pc].fb + sq)); }
-
+#else
+  // 駒番号を使わないとき用のダミー
+  PieceNo piece_no_of(Color c, Piece pt) const { return PIECE_NO_ZERO; }
+  PieceNo piece_no_of(Piece pc, Square sq) const { return PIECE_NO_ZERO; }
+#endif
   // ---
 
   // 盤面、81升分の駒。
@@ -466,8 +473,10 @@ protected:
   // undo_move()で前の局面に戻るときはStateInfo::previousから辿って戻る。
   StateInfo* st;
 
+#ifndef EVAL_NO_USE
   // 評価関数で用いる駒のリスト
   Eval::EvalList evalList;
+#endif
 
   // --- 
 
@@ -512,8 +521,10 @@ inline void Position::put_piece(Square sq, Piece pc,PieceNo piece_no)
   // 駒番号をセットしておく必要がある。
   ASSERT_LV3(is_ok(piece_no));
   
+#ifndef EVAL_NO_USE
   // evalListのほうを更新しないといけない
   evalList.put_piece(piece_no,sq,pc); // sqの升にpcの駒を配置する
+#endif
 
   // 王なら、その升を記憶しておく。
   // (王の升はBitboardなどをみればわかるが、頻繁にアクセスするのでcacheしている。)

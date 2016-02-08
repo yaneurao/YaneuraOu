@@ -198,10 +198,8 @@
 #endif
 
 // --------------------
-// include & configure
+//      include
 // --------------------
-
-// --- includes
 
 #include <algorithm>
 #include <cstdint>
@@ -212,21 +210,38 @@
 #include <map>
 #include <iostream>
 
-
-// --- diable warnings
+// --------------------
+//   diable warnings
+// --------------------
 
 // うざいので無効化するwarning
 
+// for MSVC or Intel on Windows
+
+#if defined(_MSC_VER)
 // C4800 : 'unsigned int': ブール値を 'true' または 'false' に強制的に設定します
 // →　static_cast<bool>(...)において出る。
 #pragma warning(disable : 4800)
+#endif
 
+// for Clang
+//#pragma clang diagnostic ignored "-Wunused-value"     // 未使用な変数に対する警告
+//#pragma clang diagnostic ignored "-Wnull-dereference" // *(int*)0 = 0; のようにnullptrに対する参照に対する警告
+//#pragma clang diagnostic ignored "-Wparentheses"      // while (m = mp.next()) {.. } みたいな副作用についての警告
+//#pragma clang diagnostic ignored "-Wmicrosoft"        // 括弧のなかからの gotoでの警告
+
+// for GCC
+// かきかけ
+
+// --------------------
+//      configure
+// --------------------
 
 // --- assertion tools
 
 // DEBUGビルドでないとassertが無効化されてしまうので無効化されないASSERT
 // 故意にメモリアクセス違反を起こすコード。
-#define ASSERT(X) { if (!(X)) *(int*)0 =0; }
+#define ASSERT(X) { if (!(X)) *(int*)1 =0; }
 
 // ASSERT LVに応じたassert
 #ifndef ASSERT_LV
@@ -254,6 +269,9 @@
 #define UNREACHABLE ASSERT_LV3(false);
 #endif
 
+// --------------------
+//      configure
+// --------------------
 
 // --- output for Japanese notation
 
@@ -310,6 +328,7 @@ const bool Is64Bit = false;
 #endif
 
 // PP,KPP,PPEならdo_move()のときに移動した駒の管理をして差分計算
+// また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
 #if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_PPE)
 #define USE_EVAL_DIFF
 #endif

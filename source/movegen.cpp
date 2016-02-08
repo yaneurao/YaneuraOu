@@ -706,7 +706,6 @@ ExtMove* generate_checks(const Position& pos, ExtMove* mlist)
   // すなわち、y と (x | y)^y
 
   const Square themKing = pos.king_square(~Us);
-  const Square ourKing = pos.king_square(Us);
 
   // 以下の方法だとxとして飛(龍)は100%含まれる。角・馬は60%ぐらいの確率で含まれる。事前条件でもう少し省ければ良いのだが…。
   const Bitboard x =

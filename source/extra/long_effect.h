@@ -335,7 +335,7 @@ namespace LongEffect
   void init();
 }
 
-#endif LONG_EFFECT_LIBRARY
+#endif // LONG_EFFECT_LIBRARY
 
 #endif // _LONG_EFFECT_H_
 

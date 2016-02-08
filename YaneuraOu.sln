@@ -9,6 +9,8 @@ Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
+		Release_by_LLVM|x64 = Release_by_LLVM|x64
+		Release_by_LLVM|x86 = Release_by_LLVM|x86
 		Release|x64 = Release|x64
 		Release|x86 = Release|x86
 	EndGlobalSection
@@ -17,6 +19,10 @@ Global
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug|x64.Build.0 = Debug|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug|x86.ActiveCfg = Debug|Win32
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug|x86.Build.0 = Debug|Win32
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release_by_LLVM|x64.ActiveCfg = Release|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release_by_LLVM|x64.Build.0 = Release|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release_by_LLVM|x86.ActiveCfg = Release|Win32
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release_by_LLVM|x86.Build.0 = Release|Win32
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release|x64.ActiveCfg = Release|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release|x64.Build.0 = Release|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release|x86.ActiveCfg = Release|Win32

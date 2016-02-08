@@ -148,16 +148,19 @@ void Position::set(std::string sfen)
   bool promote = false;
   size_t idx;
 
-  evalList.clear();
-
+#ifndef EVAL_NO_USE
   // PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
   // それぞれの駒をどこまで使ったかのカウンター
   PieceNo piece_no_count[KING] = { PIECE_NO_ZERO,PIECE_NO_PAWN,PIECE_NO_LANCE,PIECE_NO_KNIGHT,
-    PIECE_NO_SILVER, PIECE_NO_BISHOP, PIECE_NO_ROOK,PIECE_NO_GOLD};
+    PIECE_NO_SILVER, PIECE_NO_BISHOP, PIECE_NO_ROOK,PIECE_NO_GOLD };
+
+  evalList.clear();
 
   // 先手玉のいない詰将棋とか、駒落ちに対応させるために、存在しない駒はすべてBONA_PIECE_ZEROにいることにする。
   for (PieceNo pn = PIECE_NO_ZERO; pn < PIECE_NO_NB; ++pn)
     evalList.put_piece(pn, SQ_ZERO , QUEEN); // QUEEN(金成り)はないのでこれでBONA_PIECE_ZEROとなる。
+#endif
+
   kingSquare[BLACK] = kingSquare[WHITE] = SQ_NB;
 
   while ((ss >> token) && !isspace(token))
@@ -177,10 +180,14 @@ void Position::set(std::string sfen)
     // 駒文字列か？
     else if ((idx = PieceToCharBW.find(token)) != string::npos)
     {
-      PieceNo piece_no = 
+      PieceNo piece_no =
         (idx == B_KING) ? PIECE_NO_BKING : // 先手玉
         (idx == W_KING) ? PIECE_NO_WKING : // 後手玉
+#ifndef EVAL_NO_USE
         piece_no_count[raw_type_of(Piece(idx))]++; // それ以外
+#else
+        PIECE_NO_ZERO; // とりあえず駒番号は使わないので全部ゼロにしておけばいい。
+#endif
 
       // 盤面の(f,r)の駒を設定する
       put_piece(f | r, Piece(idx + (promote ? PIECE_PROMOTE : 0)), piece_no);
@@ -219,6 +226,7 @@ void Position::set(std::string sfen)
       ct = max(ct, 1);
       add_hand(hand[color_of(Piece(idx))],type_of(Piece(idx)), ct);
 
+#ifndef EVAL_NO_USE
       // FV38などではこの個数分だけpieceListに突っ込まないといけない。
       for (int i = 0; i < ct; ++i)
       {
@@ -227,7 +235,7 @@ void Position::set(std::string sfen)
         ASSERT_LV1(is_ok(piece_no));
         evalList.put_piece(piece_no, color_of(Piece(idx)), rpc, i);
       }
-
+#endif
       ct = 0;
     }
   }
@@ -246,7 +254,7 @@ void Position::set(std::string sfen)
 
   // --- evaluate
 
-#ifndef NO_EVAL
+#ifndef EVAL_NO_USE
   st->materialValue = Eval::material(*this);
   Eval::compute_eval(*this);
 #endif
@@ -598,7 +606,6 @@ bool Position::legal_drop(const Square to) const
 bool Position::pseudo_legal(const Move m) const {
 
   const Color us = sideToMove;
-  const Color them = ~us;
   const Square to = move_to(m); // 移動先
 
   if (is_drop(m))
@@ -754,7 +761,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
   Square to = move_to(m);
   ASSERT_LV2(is_ok(to));
 
+#ifndef EVAL_NO_USE
   auto piece_list = evalList.piece_list();
+#endif
 
 #ifdef USE_EVAL_DIFF
   auto& dp = st->dirtyPiece;
@@ -824,7 +833,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
     if (is_promote(m))
     {
+#ifndef EVAL_NO_USE
       materialDiff = Eval::ProDiffPieceValue[moved_pc];
+#endif
       moved_after_pc = moved_pc + PIECE_PROMOTE;
     } else {
       materialDiff = 0;
@@ -859,7 +870,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
       dp.piecePrevious[1] = piece_list[piece_no];
 #endif
 
+#ifndef EVAL_NO_USE
       evalList.put_piece(piece_no, Us, pr, hand_count(hand[Us], pr));
+#endif
 
 #ifdef USE_EVAL_DIFF
       dp.pieceNow[1] = piece_list[piece_no];
@@ -877,8 +890,11 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
       // 捕獲した駒をStateInfoに保存しておく。(undo_moveのため)
       st->capturedType = type_of(to_pc);
+
+#ifndef EVAL_NO_USE
       // 評価関数で使う駒割りの値も更新
       materialDiff += Eval::PieceValueCapture[to_pc];
+#endif
 
     } else {
       st->capturedType = NO_PIECE;
@@ -1001,7 +1017,9 @@ void Position::undo_move_impl(Move m)
     // toの場所にある駒を手駒に戻す
     Piece pt = raw_type_of(moved_after_pc);
    
+#ifndef EVAL_NO_USE
     evalList.put_piece(piece_no, Us, pt, hand_count(hand[Us], pt));
+#endif
     add_hand(hand[Us], pt);
 
     // toの場所から駒を消す

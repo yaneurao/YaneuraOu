@@ -23,8 +23,8 @@
 // オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE を defineして 他のエンジンのソースコードを参考に
 //  engine/user-engine/ フォルダの中身を書くべし。
 
-#define YANEURAOU_NANO_ENGINE      // やねうら王nano
-//#define YANEURAOU_NANO_PLUS_ENGINE   // やねうら王nano plus (開発中)
+//#define YANEURAOU_NANO_ENGINE      // やねうら王nano
+#define YANEURAOU_NANO_PLUS_ENGINE // やねうら王nano plus (開発中)
 //#define YANEURAOU_MINI_ENGINE      // やねうら王mini      (開発中)
 //#define YANEURAOU_CLASSIC_ENGINE   // やねうら王classic   (開発中)
 //#define YANEURAOU_2016_ENGINE      // やねうら王2016      (開発中)
@@ -290,18 +290,11 @@ inline bool is_aligned(Square sq1 /* is ksq */, Square sq2, Square sq3)
 //     探索深さ
 // --------------------
 
-// Depthは1手をONE_PLY倍にスケーリングする。
-enum Depth : int16_t{ DEPTH_ZERO = 0, ONE_PLY = 2 };
-
 // 通常探索時の最大探索深さ
 const int MAX_PLY = MAX_PLY_NUM;
 
-// 静止探索時の最大探索深さ
-const int MAX_QUIET_PLY = 6;
-
-// 通常探索時の最大手数である128に、静止探索時の最大深さを加えた定数。
-// 局面バッファ(StateInfo)などは、すべてこのサイズで確保する。
-const int MAX_SEARCH_PLY = MAX_PLY + MAX_QUIET_PLY;
+// Depthは1手をONE_PLY倍にスケーリングする。
+enum Depth : int16_t { DEPTH_ZERO = 0, ONE_PLY = 2 , DEPTH_MAX = int(ONE_PLY) * MAX_PLY , };
 
 // --------------------
 //     評価値の性質

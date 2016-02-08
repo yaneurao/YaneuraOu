@@ -25,7 +25,7 @@ typedef uint64_t Key64;
 struct alignas(16) Key128
 {
   __m128i m;
-
+  
   Key128() {}
   Key128(const Key128& bb) { _mm_store_si128(&this->m, bb.m); }
   Key128& operator = (const Key128& rhs) { _mm_store_si128(&this->m, rhs.m); return *this; }

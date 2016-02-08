@@ -76,7 +76,7 @@ namespace USI
     Value v = pos.this_thread()->rootMoves[0].score;
 
     ss << "info"
-      << " depth " << d / ONE_PLY
+      << " depth " << int(d / ONE_PLY)
       //       << " seldepth " << 
       << " score " << USI::score_to_usi(v,alpha,beta);
 

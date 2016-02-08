@@ -5,6 +5,8 @@ using namespace std;
 
 namespace Eval
 {
+#ifndef EVAL_NO_USE
+
   int PieceValue[PIECE_NB] =
   {
     0, PawnValue, LanceValue, KnightValue, SilverValue, BishopValue, RookValue,GoldValue,
@@ -126,5 +128,6 @@ namespace Eval
 
     return os;
   }
+#endif
 
 }

@@ -9,6 +9,31 @@
 
 namespace Eval {
 
+  // evaluateの起動時に行なう軽量な初期化はここで行なう。
+  inline void init() {}
+
+  // 評価関数ファイルを読み込む。
+  void load_eval();
+
+  // 駒割りを計算する。Position::set()から呼び出されて、以降do_move()では差分計算されるのでこの関数は呼び出されない。
+  Value material(const Position& pos);
+
+  // 評価関数本体
+  Value eval(const Position& pos);
+
+  // 駒割り以外の全計算して、その合計を返す。Position::set()で一度だけ呼び出される。
+  // あるいは差分計算が不可能なときに呼び出される。
+  Value compute_eval(const Position& pos);
+
+  // 評価値の内訳表示(デバッグ用)
+  void print_eval_stat(Position& pos);
+
+#ifdef EVAL_NO_USE
+
+  // 評価関数を用いないときもValueを正規化するときに歩の価値は必要。
+  enum { PawnValue = 86 };
+
+#else
   // Bona6の駒割りを初期値に。それぞれの駒の価値。
   enum {
     PawnValue = 86,
@@ -164,25 +189,7 @@ namespace Eval {
     // あるBonaPieceに対して、その駒番号(PieceNo)を保持している配列
     PieceNo piece_no_list[fe_end2];
   };
-
-  // evaluateの起動時に行なう軽量な初期化はここで行なう。
-  inline void init() {}
-
-  // 評価関数ファイルを読み込む。
-  void load_eval();
-
-  // 駒割りを計算する。Position::set()から呼び出されて、以降do_move()では差分計算されるのでこの関数は呼び出されない。
-  Value material(const Position& pos);
-
-  // 評価関数本体
-  Value eval(const Position& pos);
-
-  // 駒割り以外の全計算して、その合計を返す。Position::set()で一度だけ呼び出される。
-  // あるいは差分計算が不可能なときに呼び出される。
-  Value compute_eval(const Position& pos);
-
-  // 評価値の内訳表示(デバッグ用)
-  void print_eval_stat(Position& pos);
+#endif
 }
 
 #endif // #ifndef EVALUATE_H
