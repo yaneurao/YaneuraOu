@@ -119,6 +119,11 @@ namespace YaneuraOuNanoPlus
     } else {
       // 王手がかかっていないなら置換表の指し手を持ってくる
 
+      // 1手詰み
+      Move m = pos.mate1ply();
+      if (m != MOVE_NONE)
+        return mate_in(ply_from_root);
+
       // この局面で何も指さないときのスコア。recaptureすると損をする変化もあるのでこのスコアを基準に考える。
       value = Eval::eval(pos);
 
@@ -215,16 +220,16 @@ namespace YaneuraOuNanoPlus
 
     // RootNodeであるなら、指し手は現在注目している1手だけであるから、それが置換表にあったものとして指し手を進める。
     Move ttMove = RootNode ? thisThread->rootMoves[thisThread->PVIdx].pv[0]
-      :  ttHit ? tte->move() : MOVE_NONE;
+      : ttHit ? tte->move() : MOVE_NONE;
 
     // 置換表の値による枝刈り
-    
+
     if (!PvNode        // PV nodeでは置換表の指し手では枝刈りしない(PV nodeはごくわずかしかないので..)
       && ttHit         // 置換表の指し手がhitして
       && tte->depth() >= depth   // 置換表に登録されている探索深さのほうが深くて
       && ttValue != VALUE_NONE   // (VALUE_NONEだとすると他スレッドからTTEntryが読みだす直前に破壊された可能性がある)
       && (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
-                          : (tte->bound() & BOUND_UPPER))
+        : (tte->bound() & BOUND_UPPER))
       // ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
       // ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
       // 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
@@ -235,135 +240,150 @@ namespace YaneuraOuNanoPlus
     }
 
     // -----------------------
+    //    1手詰みか？
+    // -----------------------
+
+    Move bestMove = MOVE_NONE;
+    if (bestMove != MOVE_NONE)
+    {
+      alpha = mate_in(ply_from_root);
+      goto TT_SAVE;
+    }
+
+    // -----------------------
     // 1手ずつ指し手を試す
     // -----------------------
 
-    MovePicker mp(pos,ttMove);
-
-    Value value;
-    Move move;
-
-    StateInfo si;
-    pos.check_info_update();
-
-    // この局面でdo_move()された合法手の数
-    int moveCount = 0;
-    Move bestMove = MOVE_NONE;
-
-    while (move = mp.nextMove())
     {
-      // root nodeでは、rootMoves()の集合に含まれていない指し手は探索をスキップする。
-      if (RootNode && !std::count(thisThread->rootMoves.begin() + thisThread->PVIdx,
-        thisThread->rootMoves.end(), move))
-        continue;
+      MovePicker mp(pos, ttMove);
 
-      // legal()のチェック。root nodeだとlegal()だとわかっているのでこのチェックは不要。
-      if (!RootNode && !pos.legal(move))
-        continue;
+      Value value;
+      Move move;
 
-      // -----------------------
-      //      1手進める
-      // -----------------------
+      StateInfo si;
+      pos.check_info_update();
 
-      pos.do_move(move, si, pos.gives_check(move));
+      // この局面でdo_move()された合法手の数
+      int moveCount = 0;
 
-      // do_moveした指し手の数のインクリメント
-      ++moveCount;
-
-      // -----------------------
-      // 再帰的にsearchを呼び出す
-      // -----------------------
-
-      // PV nodeの1つ目の指し手で進めたnodeは、PV node。さもなくば、non PV nodeとして扱い、
-      // alphaの値を1でも超えるかどうかだけが問題なので簡単なチェックで済ませる。
-
-      // また、残り探索深さがなければ静止探索を呼び出して評価値を返す。
-      // (searchを再帰的に呼び出して、その先頭でチェックする呼び出しのオーバーヘッドが嫌なのでここで行なう)
-
-      bool fullDepthSearch = (PV && moveCount == 1);
-
-      if (!fullDepthSearch)
+      while (move = mp.nextMove())
       {
-        // nonPVならざっくり2手ぐらい深さを削っていいのでは..(本当はもっとちゃんとやるべき)
-        Depth R = ONE_PLY * 2;
+        // root nodeでは、rootMoves()の集合に含まれていない指し手は探索をスキップする。
+        if (RootNode && !std::count(thisThread->rootMoves.begin() + thisThread->PVIdx,
+          thisThread->rootMoves.end(), move))
+          continue;
 
-        value = depth - R < ONE_PLY ?
-          -qsearch<NonPV>(pos, -beta, -alpha, depth - R) :
-          -YaneuraOuNanoPlus::search<NonPV>(pos, -(alpha + 1), -alpha, depth - R);
+        // legal()のチェック。root nodeだとlegal()だとわかっているのでこのチェックは不要。
+        if (!RootNode && !pos.legal(move))
+          continue;
 
-        // 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす
-        fullDepthSearch = value > alpha;
-      }
+        // -----------------------
+        //      1手進める
+        // -----------------------
 
-      if ( fullDepthSearch)
-        value = depth - ONE_PLY < ONE_PLY ?
-            -qsearch<PV>(pos, -beta, -alpha, depth - ONE_PLY) :
-            -YaneuraOuNanoPlus::search<PV>(pos, -beta, -alpha, depth - ONE_PLY);
+        pos.do_move(move, si, pos.gives_check(move));
 
-      // -----------------------
-      //      1手戻す
-      // -----------------------
+        // do_moveした指し手の数のインクリメント
+        ++moveCount;
 
-      pos.undo_move(move);
+        // -----------------------
+        // 再帰的にsearchを呼び出す
+        // -----------------------
 
-      // 停止シグナルが来たら置換表を汚さずに終了。
-      if (Signals.stop)
-        return VALUE_ZERO;
+        // PV nodeの1つ目の指し手で進めたnodeは、PV node。さもなくば、non PV nodeとして扱い、
+        // alphaの値を1でも超えるかどうかだけが問題なので簡単なチェックで済ませる。
 
-      // -----------------------
-      //  root node用の特別な処理
-      // -----------------------
+        // また、残り探索深さがなければ静止探索を呼び出して評価値を返す。
+        // (searchを再帰的に呼び出して、その先頭でチェックする呼び出しのオーバーヘッドが嫌なのでここで行なう)
 
-      if (RootNode)
-      {
-        auto& rm = *std::find(thisThread->rootMoves.begin(), thisThread->rootMoves.end(), move);
+        bool fullDepthSearch = (PV && moveCount == 1);
 
-        if (moveCount == 1 || value > alpha)
+        if (!fullDepthSearch)
         {
-          // root nodeにおいてPVの指し手または、α値を更新した場合、スコアをセットしておく。
-          // (iterationの終わりでsortするのでそのときに指し手が入れ替わる。)
+          // nonPVならざっくり2手ぐらい深さを削っていいのでは..(本当はもっとちゃんとやるべき)
+          Depth R = ONE_PLY * 2;
 
-          rm.score = value;
-          rm.pv.resize(1); // PVは変化するはずなのでいったんリセット
+          value = depth - R < ONE_PLY ?
+            -qsearch<NonPV>(pos, -beta, -alpha, depth - R) :
+            -YaneuraOuNanoPlus::search<NonPV>(pos, -(alpha + 1), -alpha, depth - R);
 
-          // ここにPVを代入するコードを書く。(か、置換表からPVをかき集めてくるか)
-
-        } else {
-
-          // root nodeにおいてα値を更新しなかったのであれば、この指し手のスコアを-VALUE_INFINITEにしておく。
-          // こうしておかなければ、stable_sort()しているにもかかわらず、前回の反復深化のときの値との
-          // 大小比較してしまい指し手の順番が入れ替わってしまうことによるオーダリング性能の低下がありうる。
-          rm.score = -VALUE_INFINITE;
+          // 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす
+          fullDepthSearch = value > alpha;
         }
-      }
+
+        if (fullDepthSearch)
+          value = depth - ONE_PLY < ONE_PLY ?
+          -qsearch<PV>(pos, -beta, -alpha, depth - ONE_PLY) :
+          -YaneuraOuNanoPlus::search<PV>(pos, -beta, -alpha, depth - ONE_PLY);
+
+        // -----------------------
+        //      1手戻す
+        // -----------------------
+
+        pos.undo_move(move);
+
+        // 停止シグナルが来たら置換表を汚さずに終了。
+        if (Signals.stop)
+          return VALUE_ZERO;
+
+        // -----------------------
+        //  root node用の特別な処理
+        // -----------------------
+
+        if (RootNode)
+        {
+          auto& rm = *std::find(thisThread->rootMoves.begin(), thisThread->rootMoves.end(), move);
+
+          if (moveCount == 1 || value > alpha)
+          {
+            // root nodeにおいてPVの指し手または、α値を更新した場合、スコアをセットしておく。
+            // (iterationの終わりでsortするのでそのときに指し手が入れ替わる。)
+
+            rm.score = value;
+            rm.pv.resize(1); // PVは変化するはずなのでいったんリセット
+
+            // ここにPVを代入するコードを書く。(か、置換表からPVをかき集めてくるか)
+
+          } else {
+
+            // root nodeにおいてα値を更新しなかったのであれば、この指し手のスコアを-VALUE_INFINITEにしておく。
+            // こうしておかなければ、stable_sort()しているにもかかわらず、前回の反復深化のときの値との
+            // 大小比較してしまい指し手の順番が入れ替わってしまうことによるオーダリング性能の低下がありうる。
+            rm.score = -VALUE_INFINITE;
+          }
+        }
+
+        // -----------------------
+        //  alpha値の更新処理
+        // -----------------------
+
+        if (value > alpha)
+        {
+          alpha = value;
+          bestMove = move;
+
+          // αがβを上回ったらbeta cut
+          if (alpha >= beta)
+            break;
+        }
+
+      } // end of while
 
       // -----------------------
-      //  alpha値の更新処理
+      //  生成された指し手がない？
       // -----------------------
-
-      if (value > alpha)
-      {
-        alpha = value;
-        bestMove = move;
-
-        // αがβを上回ったらbeta cut
-        if (alpha >= beta)
-          break;
-      }
-
-    } // end of while
-
-    // -----------------------
-    //  生成された指し手がない？
-    // -----------------------
       
-    // 合法手がない == 詰まされている ので、rootの局面からの手数で詰まされたという評価値を返す。
-    if (moveCount == 0)
-      alpha = mated_in(ply_from_root);
+      // 合法手がない == 詰まされている ので、rootの局面からの手数で詰まされたという評価値を返す。
+      if (moveCount == 0)
+        alpha = mated_in(ply_from_root);
+
+    }
 
     // -----------------------
     //  置換表に保存する
     // -----------------------
+
+  TT_SAVE:;
 
     tte->save(key, value_to_tt(alpha, ply_from_root),
       alpha >= beta ? BOUND_LOWER : 

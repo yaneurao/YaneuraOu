@@ -294,7 +294,7 @@ inline bool is_aligned(Square sq1 /* is ksq */, Square sq2, Square sq3)
 const int MAX_PLY = MAX_PLY_NUM;
 
 // Depthは1手をONE_PLY倍にスケーリングする。
-enum Depth : int16_t { DEPTH_ZERO = 0, ONE_PLY = 2 , DEPTH_MAX = int(ONE_PLY) * MAX_PLY , };
+enum Depth : int32_t { DEPTH_ZERO = 0, ONE_PLY = 2 , DEPTH_MAX = int(ONE_PLY) * MAX_PLY , };
 
 // --------------------
 //     評価値の性質
@@ -548,10 +548,10 @@ extern int hand_count(Hand hand, Piece pr);
 extern int hand_exists(Hand hand, Piece pr);
 
 // 手駒にpcをc枚加える
-inline void add_hand(Hand &hand, Piece pr, int c = 1) { hand = (Hand)(hand + PIECE_TO_HAND[pr] * c); }
+extern void add_hand(Hand &hand, Piece pr, int c = 1);
 
 // 手駒からpcをc枚減ずる
-inline void sub_hand(Hand &hand, Piece pr, int c = 1) { hand = (Hand)(hand - PIECE_TO_HAND[pr] * c); }
+extern void sub_hand(Hand &hand, Piece pr, int c = 1);
 
 // 手駒h1のほうがh2より優れているか。(すべての種類の手駒がh2のそれ以上ある)
 // 優等局面の判定のとき、局面のhash key(StateInfo::key() )が一致していなくて、盤面のhash key(StateInfo::key_board() )が

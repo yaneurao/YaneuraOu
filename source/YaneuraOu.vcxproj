@@ -248,6 +248,7 @@
     <Text Include="..\docs\更新履歴.txt" />
     <Text Include="..\docs\解説.txt" />
     <Text Include="..\exe\eval\readme.txt" />
+    <Text Include="..\exe\YaneuraOu-nano-plus_ja.txt" />
     <Text Include="..\exe\YaneuraOu-nano-readme.txt" />
     <Text Include="..\exe\YaneuraOu-nano_ja.txt" />
   </ItemGroup>
