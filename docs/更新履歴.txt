@@ -1,6 +1,22 @@
 ﻿
 やねうら王 更新履歴
 
+
+■ 2016/02/09 V1.49
+
+・スレッドまわり改修して、協力詰めエンジンがコンパイル通らなくなっていたの修正。
+
+	MainThread::searchがvirtualなので単にsearchって書くとthink()が呼び出されてしまうので注意。
+	次のように書く必要がある。
+
+	void MainThread::think() {
+	  for (auto th : Threads.slaves) th->start_searching();
+	  Thread::search();
+	  for (auto th : Threads.slaves) th->wait_for_search_finished();
+	}
+	void Thread::search() { HelpMate::id_loop(rootPos, (int)thread_id(), (int)Options["Threads"]); }
+
+
 ■ 2016/02/09 V1.48
 
 ・Threadまわり全面的に書き直す。

@@ -24,10 +24,10 @@ typedef std::condition_variable ConditionVariable;
 struct Thread
 {
   // slaveは、main threadから
-  // for(auto th : Threads.slavle) th->search_start();のようにされると
+  // for(auto th : Threads.slavle) th->start_searching();のようにされると
   // この関数が呼び出される。
-  // MainThreadのほうからはこの関数は呼び出されない。
-  // MainThread::think()が呼び出される。
+  // MainThread::search()はvirtualになっていてthink()が呼び出されるので、MainThread::think()から
+  // この関数を呼び出したいときは、Thread::search()とすること。
   virtual void search();
 
   // スレッド起動後、この関数が呼び出される。
@@ -127,9 +127,11 @@ protected:
 // 探索時のmainスレッド(これがmasterであり、これ以外はslaveとみなす)
 struct MainThread : public Thread
 {
+  // この関数はvirtualになっていてthink()が呼び出される。
+  // MainThread::think()から呼び出すべきは、Thread::search()
   virtual void search() { think(); }
 
-  // 思考を開始する。search.cppで定義されているthink()が呼び出される。
+  // 思考を開始する。engine/*/*_search.cpp等で定義されているthink()が呼び出される。
   void think();
 };
 

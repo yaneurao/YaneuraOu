@@ -217,9 +217,9 @@ void Search::init() {}
 void Search::clear() { HelpMate::TT.clear(); }
 void MainThread::think() {
   HelpMate::init();
-  for (auto th : Threads.slaves) th->search_start();
-  search();
-  for (auto th : Threads.slaves) th->join();
+  for (auto th : Threads.slaves) th->start_searching();
+  Thread::search();
+  for (auto th : Threads.slaves) th->wait_for_search_finished();
   HelpMate::finalize();
 }
 void Thread::search() { HelpMate::id_loop(rootPos, (int)thread_id(), (int)Options["Threads"]); }

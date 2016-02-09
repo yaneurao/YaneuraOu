@@ -23,12 +23,17 @@ void  Search::clear()
 // そのあとslaveスレッドを終了させ、ベストな指し手を返すこと。
 void MainThread::think()
 {
+  // 例)
+  //  for (auto th : Threads.slaves) th->start_searching();
+  //  Thread::search();
+  //  for (auto th : Threads.slaves) th->wait_for_search_finished();
 }
 
 // 探索本体。並列化している場合、ここがslaveのエントリーポイント。
+// MainThread::search()はvirtualになっていてthink()が呼び出されるので、MainThread::think()から
+// この関数を呼び出したいときは、Thread::search()とすること。
 void Thread::search()
 {
 }
 
 #endif // USER_ENGINE
-
