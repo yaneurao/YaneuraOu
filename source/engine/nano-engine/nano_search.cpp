@@ -107,7 +107,7 @@ namespace YaneuraOuNano
   {
     // 現在のnodeのrootからの手数。これカウンターが必要。
     // nanoだとこのカウンター持ってないので適当にごまかす。
-    const int ply_from_root = (pos.this_thread()->rootDepth - depth) / ONE_PLY;
+    const int ply_from_root = (pos.this_thread()->rootDepth - depth / ONE_PLY) + 1;
 
     // この局面で王手がかかっているのか
     bool InCheck = pos.checkers();
@@ -195,7 +195,7 @@ namespace YaneuraOuNano
 
     // 現在のnodeのrootからの手数。これカウンターが必要。
     // nanoだとこのカウンター持ってないので適当にごまかす。
-    const int ply_from_root = (pos.this_thread()->rootDepth - depth) / ONE_PLY;
+    const int ply_from_root = (pos.this_thread()->rootDepth - depth / ONE_PLY) + 1;
 
     // -----------------------
     //   置換表のprobe

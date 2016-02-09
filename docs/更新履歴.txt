@@ -2,7 +2,125 @@
 やねうら王 更新履歴
 
 
-・自動対戦サーバー、ときどき3つ目ぐらいのインスタンス走らへん。あとで原因調べる。
+■ 2016/02/09 V1.47
+
+・あかん。__mm_mallocが失敗する状況において、newも失敗する。これランタイムおかしいのでは…。
+	revertする。
+
+
+■ 2016/02/09 V1.46
+
+・自動対局サーバー、ときどき3つ目ぐらいのインスタンス走らへん。原因調査。
+	・自己対局サーバーに子プロセスとの通信ログ出力機能追加。
+
+・Position::material、EVAL_NO_USEのときに参照している箇所があったのでifdefで囲んだ。
+
+・デバッガで再現しない。また、local game server自体が落ちることがある。原因調査。
+	→　どうも負荷状態において _mm_malloc()が失敗して未初期化のポインターが返ってきているような感じなのだが…。
+	→　ランタイムが何か共有してて、同時起動時において初期化がされないのではないかな。MSVC、ひどい実装だな。
+		マルチスレッドデバッグDLLに何かバグがある予感。
+	→　VSからCtrl+F5連打でこの現象が起きる。
+	→　_mm_malloc()自前で実装する。
+
+
+// --------------------
+//  __mm_malloc(),__mm_free()
+// --------------------
+
+// MSVCの__mm_malloc(),__mm_free()が高負荷状態において失敗するので自前で用意。
+// 速度的には遅いがそんなに急所でこの関数を呼び出すわけではないので構わない。
+
+// size = 要求メモリ量(byte単位)、align_size = アライメントするサイズ
+inline void* my_mm_malloc(size_t size, size_t align_size)
+{
+  const auto ptr_alloc = sizeof(void*); // この分余分に確保して[-1]のところに元のポインターを保存しておく。
+  size_t request_size = size + align_size;
+  const auto needed = ptr_alloc + request_size;
+  auto alloc = ::operator new(needed);
+  void* alloc2 = (uint8_t*)alloc + ptr_alloc;
+  auto ptr = std::align(align_size, size, alloc2, request_size);
+  ((void**)ptr)[-1] = alloc;
+  return ptr;
+}
+
+inline void my_mm_free(void* ptr)
+{
+  if (ptr)
+  {
+    void* alloc = ((void**)ptr)[-1];
+    ::operator delete(alloc);
+  }
+}
+
+
+■ 2016/02/09 V1.45
+
+・1手詰め見つけたときにスコアおかしいな。
+	mate distance pruning入れないと駄目なのか
+	→　入れたらなおった..よしよし。
+
+・nano plusにnode stackを導入する。
+
+・nanoとnano plusでbenchでの探索node数が合致するようにする。
+
+	nano
+	===========================
+	Total time (ms) : 13332
+	Nodes searched  : 13282757
+	Nodes/second    : 996306
+
+	nano plus、1手詰めなし、mate distance pruningなし。
+	===========================
+	Total time (ms) : 11896
+	Nodes searched  : 10584735
+	Nodes/second    : 889772
+
+	→　合致しない。ソース比較する。
+	MovePickerが原因としか考えられない。うわー。
+
+	MovePicker nanoにものと差し替えたらnode数合致した。
+	===========================
+	Total time (ms) : 14328
+	Nodes searched  : 13282757
+	Nodes/second    : 927048
+	LONG_EFFECTの更新で7%ぐらい遅くなってるのか..これで利きを使わない評価関数だとだいぶ損だな。
+
+	ああ、MovePicker、ttMoveと先頭のをswapするのでオーダリング違うのか。そうか。
+
+	===========================
+	Total time (ms) : 11129
+	Nodes searched  : 10584735
+	Nodes/second    : 951094
+	LONG_EFFECT更新なしにして7%ぐらい上がった。
+	MovePickerで段階生成にしてるので4%ほど損してるのか。
+	いまの状況だとほぼall nodeになるので仕方ないか。
+
+・nano plusにkiller move実装したら枝刈り性能あがった気がする。
+
+	===========================
+	Total time (ms) : 3863
+	Nodes searched  : 4850357
+	Nodes/second    : 1255593
+
+	bench d 時のdepth上げる。
+
+	===========================
+	Total time (ms) : 12855
+	Nodes searched  : 13773887
+	Nodes/second    : 1071480
+
+・nanoと対局させる。
+	nano VS nano plus
+	62-0-38
+	46-1-53
+	48-0-52
+	166-3-131
+	161-4-135
+	---------
+	483/892=0.54
+
+	killerで枝刈り効率が上がっているはずだが、LONG_EFFECTの更新の7%と
+	MovePickerの逐次化による5%ほどとが回収できてないのか…。大変だな。
 
 
 ■ 2016/02/09 V1.44
@@ -50,6 +168,13 @@
 	Total time (ms) : 5016
 	Nodes searched  : 5955513
 	Nodes/second    : 1187303
+
+	nano-nano plus
+	112-4-84
+	103-3-94
+	107-0-93
+	少しの負け越しで済んだが、やはり何かおかしいな。
+	benchの探索node数が同じにならないのはバグだろうから、調査する。
 
 
 ■ 2016/02/08 V1.43

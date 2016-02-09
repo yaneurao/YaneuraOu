@@ -971,9 +971,11 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
     } else
       st->checkersBB = ZERO_BB;
   }
-    
+
+#ifndef EVAL_NO_USE
   st->materialValue = (Value)(st->previous->materialValue + (Us == BLACK ? materialDiff : -materialDiff));
   //ASSERT_LV5(st->materialValue == Eval::material(*this));
+#endif
 
   // 相手番に変更する。
   sideToMove = ~Us;

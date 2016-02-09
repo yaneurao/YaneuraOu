@@ -856,7 +856,7 @@ void bench_cmd(Position& pos, istringstream& is)
     // デバッグ用の設定(毎回入力するのが面倒なので)
     ttSize = "1024";
     threads = "1";
-    limit = "7";
+    limit = "8";
     fenFile = "default";
     limitType = "depth";
   }

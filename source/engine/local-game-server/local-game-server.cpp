@@ -5,10 +5,19 @@
 
 #include <windows.h>
 
+// 子プロセスとの通信ログをデバッグのために表示するオプション
+//#define OUTPUT_PROCESS_LOG
+
+
 // 子プロセスを実行して、子プロセスの標準入出力をリダイレクトするのをお手伝いするクラス。
 struct ProcessNegotiator
 {
   ProcessNegotiator() { init(); }
+
+#ifdef OUTPUT_PROCESS_LOG
+  // 子プロセスとの通信ログを出力するときにプロセス番号を設定する
+  void set_process_id(int pn_) { pn = pn_; }
+#endif
 
   // 子プロセスの実行
   void run(string app_path_)
@@ -85,6 +94,11 @@ struct ProcessNegotiator
     str += "\r\n"; // 改行コードの付与
     DWORD dwWritten;
     BOOL success = ::WriteFile(child_std_in_write, str.c_str(), DWORD(str.length()) , &dwWritten, NULL);
+
+#ifdef OUTPUT_PROCESS_LOG
+    sync_cout << "[" << pn << "] >" << str << sync_endl;
+#endif
+
     return success;
   }
 
@@ -130,6 +144,10 @@ protected:
     // "\r\n"かも知れないので"\r"も除去。
     if (result.size() && result[result.size() - 1] == '\r')
       result = result.substr(0, result.size() - 1);
+
+#ifdef OUTPUT_PROCESS_LOG
+    sync_cout << "[" << pn << "] >" <<  result << sync_endl;
+#endif
     return result;
   }
 
@@ -154,12 +172,20 @@ protected:
 
   // 受信バッファ
   string read_buffer;
+
+#ifdef  OUTPUT_PROCESS_LOG
+  // プロセス番号(ログ出力のときに使う)
+  int pn;
+#endif
 };
 
 struct EngineState
 {
-  void run(string path)
+  void run(string path,int process_id)
   {
+#ifdef  OUTPUT_PROCESS_LOG
+    pn.set_process_id(process_id);
+#endif
     pn.run(path);
     state = START_UP;
   }
@@ -321,8 +347,8 @@ void MainThread::think() {
   getline(f[1], think_cmd[1]);
 
   EngineState es[2];
-  es[0].run(engine_name[0]);
-  es[1].run(engine_name[1]);
+  es[0].run(engine_name[0],0);
+  es[1].run(engine_name[1],1);
 
   for (int i = 0; i < 2; ++i) {
     vector<string> lines;
@@ -458,7 +484,7 @@ void MainThread::think() {
         rootPos.do_move(m, Search::SetupStates->top());
       }
 
-      if (m == MOVE_RESIGN || rootPos.is_mated() || rootPos.game_ply() >= 256)
+      if (m == MOVE_RESIGN || rootPos.is_mated() || rootPos.game_ply() >= MAX_PLY)
       {
         game_over();
         //sync_cout << "game over" << sync_endl;

@@ -231,7 +231,7 @@ void is_ready()
 void is_ready_cmd()
 {
   is_ready();
-  cout << "readyok" << endl;
+  sync_cout << "readyok" << sync_endl;
 }
 
 // "position"コマンド処理部

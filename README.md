@@ -43,15 +43,18 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/02/09 3:30現在)
+#　俺の作業メモ(2016/02/09 8:30現在)
 
 - [ ] 長手数の詰将棋ルーチン作る
 - [ ] やねうら王miniの探索部
-- [ ] nano plusで1手詰めなのに探索局面が多すぎるの、mate distance pruningしてないから？調査する。
-- [ ] やねうら王nano plusの探索部
-- [ ] やねうら王nano plusにkillerとLMRの導入。
-- [ ] ローカルサーバー機能、ときどき対戦が開始しないので原因を調査する。
+- [ ] やねうら王nano plusの探索部の改良
+- [ ] やねうら王nano plusにLMRの導入。
+- [ ] _mm_mallocが失敗する件、さらに調査。
 
+- [x] 2016/02/09・_mm_malloc()自作した。→これでも失敗する。newに失敗しているのか。ランタイム腐ってるのか…。
+- [x] 2016/02/09・ローカルサーバー機能、ときどき対戦が開始しないので原因を調査する。→_mm_mallocが高負荷状態で失敗するようだ…。
+- [x] 2016/02/09 やねうら王nano plusにkiller moveの導入。
+- [x] 2016/02/09・nano plusで1手詰めなのに探索局面が多すぎるのでmate distance pruning追加した。
 - [x] 2016/02/09・ベンチマークコマンド書けた。
 - [x] 2016/02/08・やねうら王nano plusでMovePickerでの指し手生成を逐次生成に変更。
 - [x] 2016/02/08・やねうら王nano plusで1手詰め判定を呼び出すように。

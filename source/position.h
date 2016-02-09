@@ -105,8 +105,10 @@ struct StateInfo {
 
   // --- evaluate
 
+#ifndef EVAL_NO_USE
   // この局面での評価関数の駒割
   Value materialValue;
+#endif
 
 #ifdef EVAL_KPP
   // 評価値。(次の局面で評価値を差分計算するときに用いる)
@@ -362,6 +364,18 @@ struct Position
 
   // 現局面で指し手がないかをテストする。指し手生成ルーチンを用いるので速くない。探索中には使わないこと。
   bool is_mated() const;
+
+  // 捕獲する指し手か、成りの指し手であるかを返す。
+  bool capture_or_promotion(Move m) const { return (m & MOVE_PROMOTE) || capture(m); }
+
+  // 捕獲する指し手であるか。
+  bool capture(Move m) const { return piece_on(move_to(m)) != NO_PIECE; }
+
+  // 捕獲する指し手もしくは歩を成る指し手であるか。
+  bool capture_or_pawn_promotion(Move m) const {
+    return capture(m) ||
+      (type_of(piece_on(move_from(m))) == PAWN && (m & MOVE_PROMOTE));
+  }
 
   // --- 超高速1手詰め判定
 #if defined(MATE_1PLY) && defined(LONG_EFFECT_LIBRARY)

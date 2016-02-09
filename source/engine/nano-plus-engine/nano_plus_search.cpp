@@ -31,6 +31,34 @@ using namespace Search;
 
 namespace YaneuraOuNanoPlus
 {
+
+  // -----------------------
+  //  探索のときに使うStack
+  // -----------------------
+
+  struct Stack {
+    Move killers[2]; // killer move
+    int ply;         // rootからの手数
+  };
+
+  // -----------------------
+  //     Stackのupdate
+  // -----------------------
+
+  // いい探索結果だったときにkiller等を更新する
+
+  void update_stats(const Position& pos, Stack* ss, Move move,
+    Depth depth, Move* quiets, int quietsCnt) {
+
+    // killer 2本しかないので[0]と違うならいまの[0]を[1]に降格させて[0]と差し替え
+    if (ss->killers[0] != move)
+    {
+      ss->killers[1] = ss->killers[0];
+      ss->killers[0] = move;
+    }
+  }
+
+
   // -----------------------
   //   指し手オーダリング
   // -----------------------
@@ -67,7 +95,7 @@ namespace YaneuraOuNanoPlus
   struct MovePicker
   {
     // 通常探索から呼び出されるとき用。
-    MovePicker(const Position& pos_,Move ttMove_) : pos(pos_)
+    MovePicker(const Position& pos_,Move ttMove_,Stack*ss_) : pos(pos_),ss(ss_)
     {
       // 次の指し手生成の段階
       // 王手がかかっているなら回避手、かかっていないなら通常探索用の指し手生成
@@ -82,7 +110,7 @@ namespace YaneuraOuNanoPlus
     }
 
     // 静止探索から呼び出される時用。
-    MovePicker(const Position& pos_, Move ttMove_, Square recapSq) : pos(pos_)
+    MovePicker(const Position& pos_, Move ttMove_, Square recapSq,Stack*ss_) : pos(pos_),ss(ss_)
     {
       if (pos.in_check())
         stage = EVASION_START;
@@ -127,7 +155,10 @@ namespace YaneuraOuNanoPlus
         break;
 
       case KILLERS:
-        endMoves = moves;
+        killers[0] = ss->killers[0];
+        killers[1] = ss->killers[1];
+        currentMoves = killers;
+        endMoves = currentMoves + 2;
         break;
 
       case ALL_EVASIONS:
@@ -168,17 +199,35 @@ namespace YaneuraOuNanoPlus
           ++currentMoves;
           return ttMove;
 
-          // 指し手を一手ずつ返すフェーズ
+          // 捕獲する指し手を返すフェーズ(killer moveの前のフェーズなのでkiller除去は不要)
         case GOOD_CAPTURES:
+          move = *currentMoves++;
+          // 置換表の指し手、killerと同じものは返してはならない。
+          if (move != ttMove)
+            return move;
+          break;
+
+          // 指し手を一手ずつ返すフェーズ
         case BAD_CAPTURES:
-        case KILLERS:
         case GOOD_QUIETS:
         case BAD_QUIETS:
         case ALL_EVASIONS:
         case GOOD_RECAPTURES:
           move = *currentMoves++;
-          // 置換表の指し手と同じものは返してはならない。
-          if (move != ttMove)
+          // 置換表の指し手、killerと同じものは返してはならない。
+          if (move != ttMove
+            && move != killers[0]
+            && move != killers[1])
+            return move;
+          break;
+
+          // killer moveを1手ずつ返すフェーズ
+        case KILLERS:
+          move = *currentMoves++;
+          if (move != MOVE_NONE         // ss->killer[0],[1]からコピーしただけなのでMOVE_NONEの可能性がある
+            &&  move != ttMove          // 置換表の指し手を重複除去しないといけない
+            &&  pos.pseudo_legal(move)
+            && !pos.capture_or_pawn_promotion(move))  // 直前にCAPTURESで生成している指し手を除外
             return move;
           break;
 
@@ -199,6 +248,12 @@ namespace YaneuraOuNanoPlus
 
     // 置換表の指し手
     Move ttMove;
+
+    // killer move
+    ExtMove killers[2];
+
+    // node stack
+    Stack* ss;
     
     // 指し手生成バッファと、次に返す指し手、生成された指し手の末尾
     ExtMove moves[MAX_MOVES], *currentMoves = moves, *endMoves = moves;
@@ -216,14 +271,21 @@ namespace YaneuraOuNanoPlus
   // -----------------------
 
   template <NodeType NT>
-  Value qsearch(Position& pos, Value alpha, Value beta, Depth depth)
+  Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
   {
     // PV nodeであるか。
     const bool PvNode = NT == PV;
 
-    // 現在のnodeのrootからの手数。これカウンターが必要。
-    // nanoだとこのカウンター持ってないので適当にごまかす。
-    const int ply_from_root = (pos.this_thread()->rootDepth - depth) / ONE_PLY + 2;
+    // -----------------------
+    //     nodeの初期化
+    // -----------------------
+
+    // rootからの手数
+    ss->ply = (ss - 1)->ply + 1;
+
+    // -----------------------
+    //     eval呼び出し
+    // -----------------------
 
     // この局面で王手がかかっているのか
     bool InCheck = pos.checkers();
@@ -237,12 +299,11 @@ namespace YaneuraOuNanoPlus
     } else {
       // 王手がかかっていないなら置換表の指し手を持ってくる
 
-      if (true/*PvNode*/)
       {
         // 1手詰み
         Move m = pos.mate1ply();
         if (m != MOVE_NONE)
-          return mate_in(ply_from_root);
+          return mate_in(ss->ply);
       }
 
       // この局面で何も指さないときのスコア。recaptureすると損をする変化もあるのでこのスコアを基準に考える。
@@ -260,9 +321,13 @@ namespace YaneuraOuNanoPlus
         return alpha;
     }
 
+    // -----------------------
+    //     1手ずつ調べる
+    // -----------------------
+
     // 取り合いの指し手だけ生成する
     pos.check_info_update();
-    MovePicker mp(pos,MOVE_NONE/*ttMoveあとで使う*/,move_to(pos.state()->lastMove));
+    MovePicker mp(pos,MOVE_NONE/*ttMoveあとで使う*/,move_to(pos.state()->lastMove),ss);
     Move move;
 
     StateInfo si;
@@ -273,7 +338,7 @@ namespace YaneuraOuNanoPlus
         continue;
 
       pos.do_move(move, si, pos.gives_check(move));
-      value = -YaneuraOuNanoPlus::qsearch<NT>(pos, -beta, -alpha, depth - ONE_PLY);
+      value = -YaneuraOuNanoPlus::qsearch<NT>(pos, ss+1 , -beta, -alpha, depth - ONE_PLY);
       pos.undo_move(move);
 
       if (Signals.stop)
@@ -287,9 +352,13 @@ namespace YaneuraOuNanoPlus
       }
     }
 
+    // -----------------------
+    // 調べる指し手一通り調べた
+    // -----------------------
+
     // 王手がかかっている状況ですべての指し手を調べたということだから、これは詰みである
     if (InCheck && alpha == -VALUE_INFINITE)
-      return mated_in(ply_from_root);
+      return mated_in(ss->ply);
 
     return alpha;
   }
@@ -299,10 +368,8 @@ namespace YaneuraOuNanoPlus
   // -----------------------
 
   template <NodeType NT>
-  Value search(Position& pos, Value alpha, Value beta, Depth depth)
+  Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
   {
-    ASSERT_LV3(alpha < beta);
-
     // -----------------------
     //     nodeの種類
     // -----------------------
@@ -314,12 +381,48 @@ namespace YaneuraOuNanoPlus
     const bool PvNode = NT == PV || NT == Root;
 
     // -----------------------
-    //     変数宣言
+    //     変数の宣言
     // -----------------------
 
-    // 現在のnodeのrootからの手数。これカウンターが必要。
-    // nanoだとこのカウンター持ってないので適当にごまかす。
-    const int ply_from_root = (pos.this_thread()->rootDepth - depth ) / ONE_PLY + 2;
+    // 調べた指し手を残しておいて、statusのupdateを行なうときに使う。
+    Move quietsSearched[64];
+    int quietCount;
+
+    // この局面でdo_move()された合法手の数
+    int moveCount;
+
+    // -----------------------
+    //     nodeの初期化
+    // -----------------------
+
+    ASSERT_LV3(alpha < beta);
+
+    // rootからの手数
+    ss->ply = (ss - 1)->ply + 1;
+
+    // -----------------------
+    //  Mate Distance Pruning
+    // -----------------------
+
+    if (!RootNode)
+    {
+      // rootから5手目の局面だとして、このnodeのスコアが
+      // 5手以内で詰ますときのスコアを上回ることもないし、
+      // 5手以内で詰まさせるときのスコアを下回ることもないので
+      // これを枝刈りする。
+
+      alpha = std::max(mated_in(ss->ply), alpha);
+      beta = std::min(mate_in(ss->ply + 1), beta);
+      if (alpha >= beta)
+        return alpha;
+    }
+
+    // -----------------------
+    //  探索Stackの初期化
+    // -----------------------
+
+    // 2手先のkillerの初期化。
+    (ss + 2)->killers[0] = (ss + 2)->killers[1] = MOVE_NONE;
 
     // -----------------------
     //   置換表のprobe
@@ -332,7 +435,7 @@ namespace YaneuraOuNanoPlus
 
     // 置換表上のスコア
     // 置換表にhitしなければVALUE_NONE
-    Value ttValue = ttHit ? value_from_tt(tte->value(), ply_from_root) : VALUE_NONE;
+    Value ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
 
     auto thisThread = pos.this_thread();
 
@@ -357,6 +460,11 @@ namespace YaneuraOuNanoPlus
       // このままこの値でreturnして良い。
       )
     {
+      // 置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
+      // ただし、捕獲する指し手か成る指し手であればこれはkillerを更新する価値はない。
+      if (ttValue >= beta && ttMove && !pos.capture_or_promotion(ttMove))
+        update_stats(pos, ss, ttMove, depth, nullptr, 0);
+
       return ttValue;
     }
 
@@ -366,20 +474,15 @@ namespace YaneuraOuNanoPlus
     // -----------------------
 
     Move bestMove = MOVE_NONE;
-    
-    if (/*PvNode*/ true)
+
+    // RootNodeでは1手詰め判定、ややこしくなるのでやらない。
+    if (!RootNode)
     {
       bestMove = pos.mate1ply();
       if (bestMove != MOVE_NONE)
       {
         // 1手詰めスコアなので確実にvalue > alphaなはず。
-        alpha = mate_in(ply_from_root);
-        if (RootNode) // RootNodeならこの指し手を先頭に持ってこないといけないので..
-        {
-          auto& rm = *std::find(thisThread->rootMoves.begin(), thisThread->rootMoves.end(), bestMove);
-          rm.score = alpha;
-          rm.pv.resize(1); // PVは変化するはずなのでいったんリセット
-        }
+        alpha = mate_in(ss->ply);
         goto TT_SAVE;
       }
     }
@@ -390,15 +493,12 @@ namespace YaneuraOuNanoPlus
 
     {
       pos.check_info_update();
-      MovePicker mp(pos, ttMove);
+      MovePicker mp(pos, ttMove,ss);
 
       Value value;
       Move move;
-
       StateInfo si;
-
-      // この局面でdo_move()された合法手の数
-      int moveCount = 0;
+      moveCount = quietCount = 0;
 
       while (move = mp.nextMove())
       {
@@ -438,8 +538,8 @@ namespace YaneuraOuNanoPlus
           Depth R = ONE_PLY * 2;
 
           value = depth - R < ONE_PLY ?
-            -qsearch<NonPV>(pos, -beta, -alpha, depth - R) :
-            -YaneuraOuNanoPlus::search<NonPV>(pos, -(alpha + 1), -alpha, depth - R);
+            -qsearch<NonPV>(pos, ss+1, -beta, -alpha, depth - R) :
+            -YaneuraOuNanoPlus::search<NonPV>(pos, ss+1 , -(alpha + 1), -alpha, depth - R);
 
           // 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす
           fullDepthSearch = value > alpha;
@@ -447,8 +547,8 @@ namespace YaneuraOuNanoPlus
 
         if (fullDepthSearch)
           value = depth - ONE_PLY < ONE_PLY ?
-          -qsearch<PV>(pos, -beta, -alpha, depth - ONE_PLY) :
-          -YaneuraOuNanoPlus::search<PV>(pos, -beta, -alpha, depth - ONE_PLY);
+          -qsearch<PV>(pos, ss+1 , -beta, -alpha, depth - ONE_PLY) :
+          -YaneuraOuNanoPlus::search<PV>(pos, ss+1 , -beta, -alpha, depth - ONE_PLY);
 
         // -----------------------
         //      1手戻す
@@ -509,17 +609,20 @@ namespace YaneuraOuNanoPlus
       
       // 合法手がない == 詰まされている ので、rootの局面からの手数で詰まされたという評価値を返す。
       if (moveCount == 0)
-        alpha = mated_in(ply_from_root);
+        alpha = mated_in(ss->ply);
 
+      // 詰まされていない場合、bestMoveがあるならこの指し手をkiller等に登録する。
+      else if (bestMove && !pos.capture_or_promotion(bestMove))
+        update_stats(pos, ss, bestMove, depth, quietsSearched, quietCount);
     }
 
     // -----------------------
     //  置換表に保存する
     // -----------------------
 
-  TT_SAVE:;
+TT_SAVE:;
 
-    tte->save(key, value_to_tt(alpha, ply_from_root),
+    tte->save(key, value_to_tt(alpha, ss->ply),
       alpha >= beta ? BOUND_LOWER : 
       PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
       // betaを超えているということはbeta cutされるわけで残りの指し手を調べていないから真の値はまだ大きいと考えられる。
@@ -554,7 +657,10 @@ void  Search::clear() { TT.clear(); }
 
 void MainThread::think() {
 
+  Stack stack[MAX_PLY + 4], *ss = stack + 2; // (ss-2)と(ss+2)にアクセスしたいので4つ余分に確保しておく。
   Move bestMove;
+
+  memset(stack, 0, 5 * sizeof(Stack)); // 先頭5つを初期化しておけば十分。そのあとはsearchの先頭でss+2を初期化する。
 
   // ---------------------
   // 合法手がないならここで投了
@@ -646,7 +752,7 @@ void MainThread::think() {
 
       PVIdx = 0; // MultiPVではないのでPVは1つで良い。
 
-      YaneuraOuNanoPlus::search<Root>(rootPos, alpha, beta, rootDepth * ONE_PLY);
+      YaneuraOuNanoPlus::search<Root>(rootPos, ss+1 , alpha, beta, rootDepth * ONE_PLY);
 
       // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
       std::stable_sort(rootMoves.begin(), rootMoves.end());
