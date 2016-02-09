@@ -906,7 +906,7 @@ void bench_cmd(Position& pos, istringstream& is)
     sync_cout << "\nPosition: " << (i + 1) << '/' << fens.size() << sync_endl;
 
     Threads.start_thinking(pos, limits, st);
-    Threads.main()->join(); // 探索の終了を待つ。
+    Threads.main()->wait_for_search_finished(); // 探索の終了を待つ。
 
     nodes += Threads.main()->rootPos.nodes_searched();
   }

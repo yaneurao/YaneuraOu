@@ -18,77 +18,67 @@
 typedef std::mutex Mutex;
 typedef std::condition_variable ConditionVariable;
 
-// スレッドの基底クラス。std::threadのwrapper。
-struct ThreadBase : public std::thread
-{
-  // idle_loop()で待機しているスレッドに通知して処理を進められる状態にする。
-  void notify_one();
-
-  // idle_loop()で待機しているスレッドを終了させる。
-  void terminate();
-
-  // 派生クラス側でoverrideして使う。sleepCondition待ちにして待機させておく。
-  // exitフラグが立ったら終了するように書く。
-  // 継承を使うとvtableが必要になってalignするのが難しくなるので使わない。
-  void idle_loop() {}
-
-  ThreadBase() { exit = false; }
-
-  // bの状態がtrueになるのを待つ。
-  // 他のスレッドからは、この待機を解除するには、bをtrueにしてからnotify_one()を呼ぶこと。
-  void wait(std::atomic_bool& b) {
-    std::unique_lock<Mutex> lk(mutex);
-    sleepCondition.wait(lk, [&] { return bool(b); });
-  }
-
-  // bの状態がfalseになるのを待つ。
-  // 他のスレッドからは、この待機を解除するには、bをtrueにしてからnotify_one()を呼ぶこと。
-  void wait_while(std::atomic_bool& b) {
-    std::unique_lock<Mutex> lk(mutex);
-    sleepCondition.wait(lk, [&] { return !b; });
-  }
-
-protected:
-
-  // idle_loop()で待機しているときに待つ対象
-  ConditionVariable sleepCondition;
-  
-  // notify_one()するときに使うmutex
-  Mutex mutex;
-
-  std::atomic_bool exit;
-};
-
 // 探索時に用いる、それぞれのスレッド
 // これを思考スレッド数だけ確保する。
-struct Thread : public ThreadBase
+// ただしメインスレッドはこのclassを継承してMainThreadにして使う。
+struct Thread
 {
-  Thread();
-
-  // slave用のidle_loop。
-  void idle_loop();
-
   // slaveは、main threadから
   // for(auto th : Threads.slavle) th->search_start();のようにされると
   // この関数が呼び出される。
   // MainThreadのほうからはこの関数は呼び出されない。
   // MainThread::think()が呼び出される。
-  void search();
+  virtual void search();
+
+  // スレッド起動後、この関数が呼び出される。
+  void idle_loop();
+
+  // ------------------------------
+  //      同期待ちのwait等
+  // ------------------------------
+
+  // MainThreadがslaveを起こして、Thread::search()を開始させるときに呼び出す。
+  // resume == falseなら(探索中断～再開時でないなら)searchingフラグをtrueにする。
+  // これはstopコマンドかponderhitコマンドを受信したときにスレッドが(すでに思考を終えて)
+  // 寝てるのを起こすときに使う。
+  void start_searching(bool resume = false)
+  {
+    std::unique_lock<Mutex> lk(mutex);
+    if (!resume)
+      searching = true;
+    sleepCondition.notify_one();
+  }
+  
+  // 探索が終わるのを待機する。(searchingフラグがfalseになるのを待つ)
+  void wait_for_search_finished()
+  {
+    std::unique_lock<Mutex> lk(mutex);
+    sleepCondition.wait(lk, [&] { return !searching; });
+  }
+
+  // bの状態がtrueになるのを待つ。
+  // 他のスレッドからは、この待機を解除するには、bをtrueにしてからnotify_one()を呼ぶこと。
+  void wait(std::atomic_bool& condition) {
+    std::unique_lock<Mutex> lk(mutex);
+    sleepCondition.wait(lk, [&] { return bool(condition); });
+  }
+  
+  // ------------------------------
+  //       プロパティ
+  // ------------------------------
 
   // スレッドidが返る。
   // MainThreadなら0、slaveなら1,2,3,...
   size_t thread_id() const { return idx; }
-  
+
   // main threadであるならtrueを返す。
   bool is_main() const { return idx == 0; }
 
-  // MainThreadがslaveを起こして、Thread::search()を開始させるときに呼び出す。
-  void search_start() { searching = true; notify_one(); }
+  // ------------------------------
+  //       探索に必要なもの
+  // ------------------------------
 
-  // このスレッドのsearchingフラグがfalseになるのを待つ。(MainThreadがslaveの探索が終了するのを待機するのに使う)
-  void join() { wait_while(searching); }
-
-  // 探索開始局面(alignasが利くように先頭に書いておく)
+  // 探索開始局面
   Position rootPos;
 
   // 探索開始局面で思考対象とする指し手の集合。
@@ -102,31 +92,45 @@ struct Thread : public ThreadBase
   // rootから最大、何手目まで探索したか(選択深さの最大)
   int maxPly;
 
-  // 反復深化の深さ
+  // 反復深化の深さ(Depth型ではないので注意)
   int rootDepth;
 
+  // ------------------------------
+  //       constructor ..
+  // ------------------------------
+
+  Thread();
+  void terminate();
+
 protected:
+
+  // notify_one()するときに使うmutex
+  Mutex mutex;
+  
+  // idle_loop()で待機しているときに待つ対象
+  ConditionVariable sleepCondition;
+
+  // exitフラグが立ったら終了する。
+  bool exit;
+
   // 探索中であるかを表すフラグ
-  std::atomic_bool searching;
+  bool searching;
 
   // thread id
   size_t idx;
+
+  // wrapしているstd::thread
+  std::thread nativeThread;
 };
+  
 
 // 探索時のmainスレッド(これがmasterであり、これ以外はslaveとみなす)
 struct MainThread : public Thread
 {
-  // スレッドが思考を停止するのを待つ
-  void join() { wait_while(thinking); }
-
-  void idle_loop();
+  virtual void search() { think(); }
 
   // 思考を開始する。search.cppで定義されているthink()が呼び出される。
   void think();
-
-  // 思考中であることを表すフラグ。
-  // これをtrueにしてからnotify_one()でスレッドを起こすと思考を開始する。
-  std::atomic_bool thinking;
 };
 
 struct Slaves

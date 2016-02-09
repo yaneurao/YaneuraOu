@@ -156,7 +156,7 @@ int main(int argc, char* argv[])
   Eval::init(); // 簡単な初期化のみで評価関数の読み込みはisreadyに応じて行なう。
 
   // USIコマンドの応答部
-  USI::loop();
+  USI::loop(argc,argv);
 
   // 生成して、待機させていたスレッドの停止
   Threads.exit();

@@ -4,6 +4,7 @@
 docs/
 source/
   nano-engine/          やねうら王nano関連の探索部
+  nano-plus-engine/     やねうら王nano plus関連の探索部
   mini-engine/          やねうら王mini関連の探索部
   classic-engine/       やねうら王classic関連の探索部
   2016-engine/          やねうら王2016の探索部(非公開)
@@ -23,7 +24,7 @@ source/
   tt.h/.cpp             置換表
   usi.cpp               USIプロトコルによる入出力
 
-  extra/                やねうら王nanoでは削除する予定の拡張クラス
+  extra/                やねうら王nanoでは削除する(or 用いない)予定の拡張クラス
     all.h               すべてのheaderをincludeする横着なheader
     bitop.h             SSE、AVXの命令をsoftwareでemulationするためのマクロ群
     config.h            shogi.hで設定されたコンパイルオプションに基づき、configurationを行なう。
@@ -32,6 +33,12 @@ source/
     mate1ply.h/.cpp     超高速1手詰め判定関数(おそらく世界最速)
     test_cmd.cpp        UnitTestなど。USI拡張コマンドの"test"コマンド関係。
 
+  eval/
+	evaluate_no_eval.cpp      評価関数なしのときのダミーヘッダ
+	evaluate_material.cpp     駒割りに関する評価関数
+    evaluate_bona_piece.cpp   BonaPieceを用いるときの共通ヘッダ
+	evaluate_kpp.cpp          KPP型の3駒の評価関数
+	
 
 ■　解説記事等
 
@@ -56,6 +63,7 @@ Visual Studio 2015 Community Edition(無料で使えます)でビルド一発で
 
 ・ランダムプレイヤー
 ・やねうら王nano
+・やねうら王nano plus
 ・やねうら王mini
 ・やねうら王classic
 ・やねうら王 協力詰めsolver
@@ -156,6 +164,11 @@ shogi.hの
     このなかからランダムに1行が選ばれてその手数は上のwtimeのところで指定した手数まで進められる。
     デフォルトでは対局回数は100回。定跡の手数は32手目から。
 
+　コマンドラインから入力した文字列を連結して、USIコマンドとして実行する機能があるので、
+　これを用いて、次のような.batファイルを作ってそれを実行すれば連続自己対局が簡単に開始できる。
+
+	> local-game-server.exe go btime 500
+
 
 ■　内部コンパイルエラーでコンパイル出来ない件
 
@@ -187,11 +200,10 @@ Visual Studio 2015 Update1で、ときどき内部コンパイルエラーでコ
 	あと、先頭にDBのフォーマットのバージョン識別用の文字列として次の文字列を入れておく。
 	#YANEURAOU-DB2016 1.00
 	
-> makebook from_sfen book.sfen book.txt moves 16
+> makebook from_sfen book.sfen standard_book.db moves 16
 
-1行1局の棋譜を読み込ませてそれを上のフォーマットに変換する。book.dbになる。
-各局、"moves"のあとに指定した手数までを出力する。このbook.dbを思考エンジンの実行ファイルと同じフォルダに配置する。
+1行1局の棋譜を読み込ませてそれを上のフォーマットに変換する。standard_book.dbになる。
+各局、"moves"のあとに指定した手数までを出力する。このファイルを思考エンジンの実行ファイル配下のbookフォルダに配置する。
 
-floodgateの棋譜をsfenに変換してこのコマンドでbook.dbを作成したものをdoc/book.dbに入れてあります。ご自由にお使いください。
-
+floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡を作成したものをexe/book/standard_book.dbに入れてあります。ご自由にお使いください。
 

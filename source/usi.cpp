@@ -368,14 +368,21 @@ void go_cmd(const Position& pos, istringstream& is) {
 // --------------------
 
 // USI応答部本体
-void USI::loop()
+void USI::loop(int argc,char* argv[])
 {
   // 探索開始局面(root)を格納するPositionクラス
   Position pos;
-
   string cmd,token;
-  while (getline(cin, cmd))
+
+  // 引数として指定されたものを一つのコマンドとして実行する機能
+  for (int i = 1; i < argc; ++i)
+    cmd += std::string(argv[i]) + " ";
+
+  do
   {
+    if (argc == 1 && !getline(cin, cmd)) // 入力が来るかEOFがくるまでここで待機する。
+      cmd = "quit";
+
     istringstream is(cmd);
 
     token = "";
@@ -384,9 +391,9 @@ void USI::loop()
     if (token == "quit" || token == "stop")
     {
       Search::Signals.stop = true;
-      Threads.main()->notify_one(); // main threadに受理させる
 
-      if (token == "quit") break;
+      // 思考を終えて寝てるかも知れないのでresume==trueにして呼び出してやる
+      Threads.main()->start_searching(true);
     }
 
     // 与えられた局面について思考するコマンド
@@ -462,7 +469,10 @@ void USI::loop()
 #endif
     ;
 
-  }
+  } while (token != "quit" && argc == 1); // 引数でコマンドが指定された場合は1度限りの実行。
+
+  // quitが来た時点ではまだ探索中かも知れないのでmain threadの停止を待つ。
+  Threads.main()->wait_for_search_finished();
 }
 
 // --------------------

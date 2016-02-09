@@ -12,94 +12,67 @@ namespace {
   // std::thread派生型であるT型のthreadを一つ作って、そのidle_loopを実行するためのマクロ。
   // 生成されたスレッドはidle_loop()で仕事が来るのを待機している。
   template<typename T> T* new_thread() {
-
-    std::thread* th = new (_mm_malloc(sizeof(T),alignof(T))) T();
-
-    // Tの基底クラスはstd::threadなのでスライシングされて正しく代入されるはず。
-    *th = std::thread([&] {((T*)th)->idle_loop(); });
-    
+    T* th = new (_mm_malloc(sizeof(T),alignof(T))) T();
     return (T*)th;
   }
 
   // new_thread()の逆。エンジン終了時に呼び出される。
-  void delete_thread(ThreadBase *th) {
+  void delete_thread(Thread *th) {
     th->terminate();
     _mm_free(th);
   }
 }
 
-void ThreadBase::notify_one() {
+Thread::Thread()
+{
+  exit = false;
+  maxPly = 0;
 
+  idx = Threads.size();  // スレッド番号(MainThreadが0。slaveは1から順番に)
+
+  // スレッドを一度起動してworkerのほう待機状態にさせておく
   std::unique_lock<Mutex> lk(mutex);
-
-  // idle_loopでsleepCondition待ちになっているはずなので、これに通知してidle_loop内での処理を進める。
-  sleepCondition.notify_one();
+  searching = true;
+  nativeThread = std::thread(&Thread::idle_loop, this);
+  sleepCondition.wait(lk, [&] {return !searching; });
 }
 
-void ThreadBase::terminate() {
+// std::threadの終了を待つ(デストラクタに相当する)
+// Threadクラスがnewするときにalignasが利かないので自前でnew_thread(),delete_thread()を
+// 呼び出しているのでデストラクタで書くわけにはいかない。
+void Thread::terminate() {
 
   mutex.lock();
   exit = true; // 探索は終わっているはずなのでこのフラグをセットして待機する。
+  sleepCondition.notify_one();
   mutex.unlock();
-
-  notify_one();
-  join();
+  nativeThread.join();
 }
 
-Thread::Thread()
-{
-  searching = false;
-  idx = Threads.size(); // スレッド番号(MainThreadが0。slaveは1から順番に)
-}
-
-
-// slave用のidle_loop。searching == trueにして、notify_one()で起こされるとThread::search(false)として呼び出す。
-// search.cppのほうでこの関数を定義して探索関係の処理を書くと良い。
+// 探索するときのmaster,slave用のidle_loop。探索開始するまで待っている。
 void Thread::idle_loop() {
 
   while (!exit)
   {
     std::unique_lock<Mutex> lk(mutex);
 
+    searching = false;
+
     while (!searching && !exit)
-      sleepCondition.wait(lk);
-
-    lk.unlock();
-
-    if (!exit && searching)
     {
-      search();
-      searching = false;
-      notify_one(); // searchingの変化を待っているMainThreadを起こしてやる
-    }
-  }
-}
-
-// 探索するときのmasterスレッド。探索開始するまで待っている。
-void MainThread::idle_loop()
-{
-  while (!exit)
-  {
-    std::unique_lock<Mutex> lk(mutex);
-
-    thinking = false;
-
-    // thinkかexitかどちらかがtrueになるのを待つ
-    while (!thinking && !exit)
-    {
-      sleepCondition.notify_one(); // UIスレッドがsleepCondition待ちになっているのを起こすために
+      sleepCondition.notify_one(); // 他のスレッドがこのスレッドを待機待ちしてるならそれを起こす
       sleepCondition.wait(lk);
     }
 
     lk.unlock();
 
-    // ここに抜けてきて!exitでなければthink==true
-    // また、think==trueでもexit==trueなら抜けなければならない。ゆえにthink()を呼び出す条件としては!exitとなる。
+    // !exitで抜けてきたということはsearch == trueというわけだから探索する。
+    // exit == true && search == trueというケースにおいてはsearch()を呼び出してはならないので
+    // こういう書き方をしてある。
     if (!exit)
-      think();
+      search();
   }
 }
-
 
 std::vector<Thread*>::iterator Slaves::begin() const { return Threads.begin() + 1; }
 std::vector<Thread*>::iterator Slaves::end() const { return Threads.end(); }
@@ -114,10 +87,12 @@ void ThreadPool::init() {
 
 void ThreadPool::exit()
 {
-  for (auto th : *this)
-    delete_thread(th);
-
-  clear(); // 念のため使わなくなったポインタを開放しておく。
+  // 逆順で解体する必要がある。
+  while (size())
+  {
+    delete_thread(back());
+    pop_back();
+  }
 }
 
 // USIプロトコルで指定されているスレッド数を反映させる。
@@ -145,7 +120,7 @@ void ThreadPool::read_usi_options() {
 void ThreadPool::start_thinking(const Position& pos, const Search::LimitsType& limits, Search::StateStackPtr& states)
 {
   // 思考中であれば停止するまで待つ。
-  main()->join();
+  main()->wait_for_search_finished();
 
   Signals.stop = false;
 
@@ -177,7 +152,5 @@ void ThreadPool::start_thinking(const Position& pos, const Search::LimitsType& l
   for (auto th : *this)
     th->rootPos.set_this_thread(th);
 
-  main()->thinking = true;
-  main()->notify_one(); // mainスレッドでの思考を開始させる。このときthinkingフラグは先行してtrueになっていなければならない。
-
+  main()->start_searching();
 }

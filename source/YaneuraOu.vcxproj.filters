@@ -106,6 +106,9 @@
     <ClInclude Include="extra\book.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
+    <ClInclude Include="extra\macros.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
