@@ -1,4 +1,5 @@
 ﻿#include <sstream>
+#include <queue>
 
 #include "shogi.h"
 #include "position.h"
@@ -374,14 +375,58 @@ void USI::loop(int argc,char* argv[])
   Position pos;
   string cmd,token;
 
-  // 引数として指定されたものを一つのコマンドとして実行する機能
-  for (int i = 1; i < argc; ++i)
-    cmd += std::string(argv[i]) + " ";
+  // 先行入力されているコマンド
+  // コマンドは前から取り出すのでqueueを用いる。
+  queue<string> cmds;
+
+  // ファイルからコマンドの指定
+  if (argc >= 3 && string(argv[1]) == "file")
+  {
+    vector<string> cmds0;
+    read_all_lines(argv[2], cmds0);
+
+    // queueに変換する。
+    for (auto c : cmds0)
+      cmds.push(c);
+
+  } else {
+
+    // 引数として指定されたものを一つのコマンドとして実行する機能
+    // ただし、','が使われていれば、そこでコマンドが区切れているものとして解釈する。
+
+    for (int i = 1; i < argc; ++i)
+    {
+      string s = argv[i];
+
+      // sから前後のスペースを除去しないといけない。
+      while (*s.rbegin() == ' ') s.pop_back();
+      while (*s.begin() == ' ') s = s.substr(1,s.size()-1);
+
+      if (s != ",")
+        cmd += s + " ";
+      else
+      {
+        cmds.push(cmd);
+        cmd = "";
+      }
+    }
+    if (cmd.size() != 0)
+      cmds.push(cmd);
+  }
 
   do
   {
-    if (argc == 1 && !getline(cin, cmd)) // 入力が来るかEOFがくるまでここで待機する。
-      cmd = "quit";
+    if (cmds.size() == 0)
+    {
+      if (!getline(cin, cmd)) // 入力が来るかEOFがくるまでここで待機する。
+        cmd = "quit";
+    } else {
+      // 積んであるコマンドがあるならそれを実行する。
+      // 尽きれば"quit"だと解釈してdoループを抜ける仕様にすることはできるが、
+      // そうしてしまうとgoコマンド(これはノンブロッキングなので)の最中にquitが送られてしまう。
+      cmd = cmds.front();
+      cmds.pop();
+    }
 
     istringstream is(cmd);
 
@@ -469,8 +514,8 @@ void USI::loop(int argc,char* argv[])
 #endif
     ;
 
-  } while (token != "quit" && argc == 1); // 引数でコマンドが指定された場合は1度限りの実行。
-
+  } while (token != "quit" );
+  
   // quitが来た時点ではまだ探索中かも知れないのでmain threadの停止を待つ。
   Threads.main()->wait_for_search_finished();
 }

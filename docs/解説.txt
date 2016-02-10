@@ -212,3 +212,20 @@ Visual Studio 2015 Update1で、ときどき内部コンパイルエラーでコ
 
 floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡を作成したものをexe/book/standard_book.dbに入れてあります。ご自由にお使いください。
 
+
+■　起動時のコマンドの指定
+
+> YaneuraOu-nano.exe go btime 100 wtime 100 byoyomi 0
+
+のようにUSIコマンドをコマンドライン引数として渡すことが出来る。
+コマンドを実行すると思考エンジンを終了する。
+
+> YaneuraOu-nano.exe posision xxx , go btime 100 wtime 100 byoyomi 0
+
+のようにカンマで区切って複数のコマンドを渡すことができる。
+
+> YaneuraOu-nano.exe file cmd.txt
+
+のようにしてコマンドとして実行したいコマンドをファイルから渡すことが出来る。
+
+※　複数のコマンドを渡せるのでquitしたい場合は最後にquitを手打ちすること。
