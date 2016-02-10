@@ -330,28 +330,50 @@ protected:
 void Search::init() {}
 void Search::clear() {}
 
+namespace
+{
+  // 思考エンジンの実行ファイル名
+  string engine_name[2];
+
+  // usiコマンドに応答として返ってきたエンジン名
+  string usi_engine_name[2];
+
+  // 思考エンジンの設定
+  vector<string> engine_config_lines[2];
+
+  // 思考コマンド
+  string think_cmd[2];
+
+  // 勝数のトータル
+  uint64_t win,draw,lose;
+
+  vector<string> book;
+  PRNG book_rand; // 定跡用の乱数生成器
+  Mutex local_mutex;
+
+  int64_t get_rand(size_t n)
+  {
+    std::unique_lock<Mutex> lk(local_mutex);
+    return book_rand.rand(n);
+  }
+}
+
 void MainThread::think() {
 
+  // 設定の読み込み
   fstream f[2];
   f[0].open("engine-config1.txt");
   f[1].open("engine-config2.txt");
-  
-  // 思考エンジンの実行ファイル名
-  string engine_name[2];
+
   getline(f[0], engine_name[0]);
   getline(f[1], engine_name[1]);
 
-  // 思考時のコマンド
-  string think_cmd[2];
   getline(f[0], think_cmd[0]);
   getline(f[1], think_cmd[1]);
 
-  EngineState es[2];
-  es[0].run(engine_name[0],0);
-  es[1].run(engine_name[1],1);
-
   for (int i = 0; i < 2; ++i) {
-    vector<string> lines;
+    auto& lines = engine_config_lines[i];
+    lines.clear();
     string line;
     while (!f[i].eof())
     {
@@ -359,24 +381,16 @@ void MainThread::think() {
       if (!line.empty())
         lines.push_back(line);
     }
-    es[i].set_engine_config(lines);
+    f[i].close();
   }
 
-  uint64_t win = 0, draw = 0, lose = 0;
-  Color player1_color = BLACK;
 
-  bool game_started = false;
-
-  // 対局回数。btimeの値がmax_games
-  int max_games = Search::Limits.time[BLACK];
-  if (max_games == 0)
-    max_games = 100; // デフォルトでは100回
-  int games = 0;
+  win = draw = lose = 0;
 
   // -- 定跡
+  book.clear();
 
   // 定跡ファイル(というか単なる棋譜ファイル)の読み込み
-  vector<string> book;
   fstream fs_book;
   fs_book.open("book.sfen");
   if (!fs_book.fail())
@@ -393,23 +407,55 @@ void MainThread::think() {
     }
     cout << endl;
   }
-  PRNG book_rand; // 定跡用の乱数生成器
+
+  sync_cout << "local game server start : " << engine_name[0] << " vs " << engine_name[1] << sync_endl;
+
+  // マルチスレッド対応
+  for (auto th : Threads.slaves) th->start_searching();
+  Thread::search();
+  for (auto th : Threads.slaves) th->wait_for_search_finished();
+
+  sync_cout << endl << "local game server end : [" << usi_engine_name[0] << "] vs [" << usi_engine_name[1] << "]" << sync_endl;
+  sync_cout << "GameResult " << win << " - " << draw << " - " << lose << sync_endl;
+
+}
+
+void Thread::search()
+{
+  EngineState es[2];
+  es[0].run(engine_name[0], 0);
+  es[1].run(engine_name[1], 1);
+
+  for (int i = 0; i < 2;++i)
+    es[i].set_engine_config(engine_config_lines[i]);
+
+  Color player1_color = BLACK;
+
+  bool game_started = false;
+
+  // 対局回数。btimeの値がmax_games
+  int max_games = Search::Limits.time[BLACK];
+  if (max_games == 0)
+    max_games = 100; // デフォルトでは100回
+  int games = 0;
 
   // 定跡の手数
   int max_book_move = Search::Limits.time[WHITE];
   if (max_book_move == 0)
     max_book_move = 32; // デフォルトでは32手目から
 
+
+  auto SetupStates = Search::StateStackPtr(new aligned_stack<StateInfo>);
+
   // 対局開始時のハンドラ
   auto game_start = [&] {
     rootPos.set_hirate();
     game_started = true;
-    Search::SetupStates = Search::StateStackPtr(new aligned_stack<StateInfo>);
 
     // 定跡が設定されているならその局面まで進める
     if (book.size())
     {
-      int book_number = (int)book_rand.rand(book.size());
+      int book_number = (int)get_rand(book.size());
       istringstream is(book[book_number]);
       string token;
       while (rootPos.game_ply() < max_book_move)
@@ -424,8 +470,8 @@ void MainThread::think() {
           sync_cout << "Error book.sfen , line = " << book_number << " , moves = " << token << endl << rootPos << sync_endl;
           break;
         } else {
-          Search::SetupStates->push(StateInfo());
-          rootPos.do_move(m, Search::SetupStates->top());
+          SetupStates->push(StateInfo());
+          rootPos.do_move(m, SetupStates->top());
         }
       }
       //cout << rootPos;
@@ -434,31 +480,29 @@ void MainThread::think() {
 
   // 対局終了時のハンドラ
   auto game_over = [&] {
+    std::unique_lock<Mutex> lk(local_mutex);
+
     if (rootPos.game_ply() >= 256) // 長手数につき引き分け
     {
       draw++;
       cout << '.'; // 引き分けマーク
-    }
-    else if (rootPos.side_to_move() == player1_color)
+    } else if (rootPos.side_to_move() == player1_color)
     {
       lose++;
       cout << 'X'; // 負けマーク
-    }
-    else
+    } else
     {
       win++;
       cout << 'O'; // 勝ちマーク
     }
     player1_color = ~player1_color; // 先後入れ替える。
-//    sync_cout << rootPos << sync_endl; // デバッグ用に投了の局面を表示させてみる
+                                    //    sync_cout << rootPos << sync_endl; // デバッグ用に投了の局面を表示させてみる
     game_started = false;
 
     es[0].game_over();
     es[1].game_over();
     games++;
   };
-  
-  sync_cout << "local game server start : " << engine_name[0] << " vs " << engine_name[1] << sync_endl;
 
   string line;
   while (!Search::Signals.stop && games < max_games)
@@ -476,12 +520,13 @@ void MainThread::think() {
     if (game_started)
     {
       int player = (rootPos.side_to_move() == player1_color) ? 0 : 1;
-      Move m = es[player].think(rootPos,think_cmd[player]);
+      Move m = es[player].think(rootPos, think_cmd[player]);
 
       if (m != MOVE_RESIGN)
       {
-        Search::SetupStates->push(StateInfo());
-        rootPos.do_move(m, Search::SetupStates->top());
+        rootPos.check_info_update();
+        SetupStates->push(StateInfo());
+        rootPos.do_move(m, SetupStates->top());
       }
 
       if (m == MOVE_RESIGN || rootPos.is_mated() || rootPos.game_ply() >= MAX_PLY)
@@ -490,12 +535,10 @@ void MainThread::think() {
         //sync_cout << "game over" << sync_endl;
       }
     }
-
   }
+  usi_engine_name[0] = es[0].engine_name();
+  usi_engine_name[1] = es[1].engine_name();
 
-  sync_cout << endl << "local game server end : [" << es[0].engine_name() << "] vs [" << es[1].engine_name() << "]" << sync_endl;
-  sync_cout << "GameResult " << win << " - " << draw << " - " << lose << sync_endl;
 }
-void Thread::search() {}
 
 #endif

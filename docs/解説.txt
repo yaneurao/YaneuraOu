@@ -169,6 +169,11 @@ shogi.hの
 
 	> local-game-server.exe go btime 500
 
+	例えば、
+	setoption name Threads value 6
+	のようにして実行すると6スレッド(×2プロセス)が起動して、6局並列で対局が進行する。
+	btimeで指定した数の6倍の数の対局数が行われる。
+
 
 ■　内部コンパイルエラーでコンパイル出来ない件
 

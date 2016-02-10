@@ -104,7 +104,6 @@ struct Thread
 
 protected:
 
-  // notify_one()するときに使うmutex
   Mutex mutex;
   
   // idle_loop()で待機しているときに待つ対象
