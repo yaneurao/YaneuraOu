@@ -43,7 +43,7 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/02/09 8:30現在)
+#　俺の作業メモ(2016/02/11 5:15現在)
 
 - [ ] 長手数の詰将棋ルーチン作る
 - [ ] やねうら王miniの探索部

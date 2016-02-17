@@ -747,9 +747,6 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
   st->sumKKP = VALUE_NONE;
 #endif
 
-  // 駒割りの差分計算用
-  int materialDiff;
-
 #ifdef KEEP_LAST_MOVE
   st->lastMove = m;
   st->lastMovedPieceType = is_drop(m) ? (Piece)move_from(m) : type_of(piece_on(move_from(m)));
@@ -762,6 +759,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
   ASSERT_LV2(is_ok(to));
 
 #ifndef EVAL_NO_USE
+  // 駒割りの差分計算用
+  int materialDiff;
+
   auto piece_list = evalList.piece_list();
 #endif
 
@@ -810,7 +810,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
     h -= Zobrist::hand[Us][pr];
     k += Zobrist::psq[to][pc];
 
+#ifndef EVAL_NO_USE
     materialDiff = 0;
+#endif
 
 #ifdef LONG_EFFECT_LIBRARY
     // 駒打ちによる利きの更新処理
@@ -838,7 +840,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #endif
       moved_after_pc = moved_pc + PIECE_PROMOTE;
     } else {
+#ifndef EVAL_NO_USE
       materialDiff = 0;
+#endif
       moved_after_pc = moved_pc;
     }
 
