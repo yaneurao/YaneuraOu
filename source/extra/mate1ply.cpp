@@ -77,7 +77,7 @@ namespace {
       if (effect_not & info2) continue; /*玉に逃げ道がある*/                                                  \
       to = themKing + DirectToDelta(to_direct);                                                               \
       Directions cut_dirs_from_king = cutoff_directions(to_direct, long_effect.directions_of(Us, to))         \
-                & effect_not & a8_board_mask;                                                                 \
+                & effect_not & a8_board_mask & a8_them_movable;                                                                 \
       while (cut_dirs_from_king)                                                                              \
       {                                                                                                       \
         Direct cut_dir_from_king = pop_directions(cut_dirs_from_king);                                        \

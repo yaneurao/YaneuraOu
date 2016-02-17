@@ -2,6 +2,28 @@
 やねうら王 更新履歴
 
 
+■ 2016/02/18 V1.53
+
+・mate1で漏れているケースがあったので修正。
+sfen p2g3n1/2gn4g/+P1s1k3s/1ppr2+Lbp/1P1p1K2b/4P1Ppl/3+n1P1RP/LS3p1PL/3P+p2NS w Ppg 160
+
+test rp
+Random Player test , loop_max = 100000000
+mate found = 10000 , mate miss = 746 , mate found rate  = 93.0579%
+mate found = 20000 , mate miss = 1460 , mate found rate  = 93.1966%
+mate found = 30000 , mate miss = 2181 , mate found rate  = 93.2227%
+mate found = 40000 , mate miss = 2939 , mate found rate  = 93.1554%
+mate found = 50000 , mate miss = 3759 , mate found rate  = 93.0077%
+mate found = 60000 , mate miss = 4617 , mate found rate  = 92.8548%
+mate found = 70000 , mate miss = 5387 , mate found rate  = 92.8542%
+mate found = 80000 , mate miss = 6204 , mate found rate  = 92.8031%
+mate found = 90000 , mate miss = 6882 , mate found rate  = 92.8965%
+mate found = 100000 , mate miss = 7561 , mate found rate  = 92.9705%
+mate found = 110000 , mate miss = 8327 , mate found rate  = 92.9627%
+
+→　0.2%ほど詰み発見率が上がった。
+
+
 ■ 2016/02/18 V1.52
 
 Position.cppで評価関数を使わないときに
