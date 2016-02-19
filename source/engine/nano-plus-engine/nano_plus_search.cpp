@@ -303,6 +303,12 @@ namespace YaneuraOuNanoPlus
     } else {
       // 王手がかかっていないなら置換表の指し手を持ってくる
 
+      // -- ただし一手詰め判定
+      Move m;
+      m = pos.mate1ply();
+      if (m != MOVE_NONE)
+        return mate_in(ss->ply);
+
       // この局面で何も指さないときのスコア。recaptureすると損をする変化もあるのでこのスコアを基準に考える。
       value = Eval::eval(pos);
 
@@ -465,7 +471,6 @@ namespace YaneuraOuNanoPlus
       return ttValue;
     }
 
-
     // -----------------------
     //    1手詰みか？
     // -----------------------
@@ -474,15 +479,9 @@ namespace YaneuraOuNanoPlus
 
     // RootNodeでは1手詰め判定、ややこしくなるのでやらない。
     // 置換表にhitしたときも1手詰め判定は行われていると思われるのでこの場合もはしょる
-    if (!RootNode && !ttHit)
+    if (!RootNode && !ttHit & param1)
     {
-      if (( param1 && PvNode && (param1-1) <= depth ) ||
-          (param2 && !PvNode && (param2-1) <= depth)
-        )
-        bestMove = pos.mate1ply();
-      else
-        bestMove = MOVE_NONE;
-
+      bestMove = pos.mate1ply();
       if (bestMove != MOVE_NONE)
       {
         // 1手詰めスコアなので確実にvalue > alphaなはず。
