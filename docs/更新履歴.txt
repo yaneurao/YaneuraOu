@@ -1,28 +1,98 @@
 ﻿
 やねうら王 更新履歴
 
+・lazy SMPで並列化して+R300程度かな？他の最適化してから考えよう。
+・MovePickerで他のオーダリングも導入
+
+
+■ 2016/02/19 V1.56
+
+・nano-plusにLMRを追加。+R150
+・静止探索1手詰め + LMRで +R210ぐらいになるはずだが、実際はnanoからはR+145程度のようだ。
+おそらく静止探索1手詰めで強くなっているように見えたのが0.5手延長で強くなるように見えるのと同じ現象で、まやかし。
+
+・local-game-serverでmainスレッド以外がエンジン名を設定しているの危ないので修正。
+
+
 ■ 2016/02/19 V1.55
 
-・nano-plusで静止探索での1手詰めやめる
+・nano-plusに静止探索でのみ1手詰めを呼び出すようにした。-R20(long effectの更新分)+R70(1手詰めの効果) = +R50(nanoから)
+
+
+■ 2016/02/19 V1.54c
+
+・nano-plusで静止探索での1手詰め
       {
         // 1手詰み
         Move m;
-        if (PvNode && param2)
+        if (PvNode && param1)
           m = pos.mate1ply();
         else
           m = MOVE_NONE;
         if (m != MOVE_NONE)
           return mate_in(ss->ply);
       }
-・nano-plusで通常探索での1手詰め条件を探す
 
+・通常探索での一手詰め判定
+    Move bestMove = MOVE_NONE;
+
+    // RootNodeでは1手詰め判定、ややこしくなるのでやらない。
     // 置換表にhitしたときも1手詰め判定は行われていると思われるのでこの場合もはしょる
-    if (!RootNode && !ttHit)
+    if (!RootNode && !ttHit && (PvNode && param2))
     {
-      if (( param1 && PvNode && (param1-1) <= depth ) ||
-          (param2 && !PvNode && (param2-1) <= depth)
-        )
-        bestMove = pos.mate1ply();
+      bestMove = pos.mate1ply();
+      if (bestMove != MOVE_NONE)
+      {
+        // 1手詰めスコアなので確実にvalue > alphaなはず。
+        alpha = mate_in(ss->ply);
+        goto TT_SAVE;
+      }
+    }
+
+
+50.6%	48.7%	
+56.5%	54.2%	
+#1
+やねうら王nano V140
+やねうら王nanoの最終版1スレッド、0.1秒設定
+#7
+やねうら王nano plus V154c
+やねうら王nano plus、1手詰め呼び出し条件の実験,1スレッド、0.1秒設定
+
+2948-0-2876(17.3% R4.3)	2834-0-2990(98.0% R-9.3)	
+3292-0-2532(0.0% R45.6)	3101-0-2616(0.0% R29.5)	
+
+静止探索では無条件で1手詰めを呼ぶのがよさげ。
+自己対戦だと0.5手延長みたくなって、勝率が上がっているだけかも知れないが。
+
+・1.54d
+
+    // RootNodeでは1手詰め判定、ややこしくなるのでやらない。
+    // 置換表にhitしたときも1手詰め判定は行われていると思われるのでこの場合もはしょる
+    if (!RootNode && !ttHit & param1)
+    {
+      bestMove = pos.mate1ply();
+      if (bestMove != MOVE_NONE)
+      {
+        // 1手詰めスコアなので確実にvalue > alphaなはず。
+        alpha = mate_in(ss->ply);
+        goto TT_SAVE;
+      }
+    }
+
+
+	42.0%	54.4%	
+	#1
+	やねうら王nano V140
+	やねうら王nanoの最終版1スレッド、0.1秒設定
+	#8
+	やねうら王nano plus V154d
+	やねうら王nano plus、通常探索で1手詰め呼び出すか,1スレッド、0.1秒設定
+
+	1397-0-1931(100.0% R-56.2)	1710-0-1432(0.0% R30.8)	
+
+	→　呼び出さないほうが強いようだ。
+
 
 
 
@@ -31,27 +101,6 @@
 ・local server、結果を1行ずつ出力するモード用意。
 ・local server、finish時に子プロセスのエンジン開放するためにquitコマンドを送信するように変更。
 ・nano-plusでの実験用にoptionとしてParam1,Param2追加。
-
-
-52.9%	57.6%	
-42.5%	49.6%	
-やねうら王nano V140
-やねうら王nanoの最終版1スレッド、0.1秒設定
-やねうら王nano plus V154
-やねうら王nano plus、q-mate1/s-mate1,1スレッド、0.1秒設定
-
-2146-0-2009(1.67778835120406 R11.5)	2230-0-1722(2.33146835171283E-13 R44.9)	
-1709-0-2243(100 R-47.2)	1905-0-2047(98.8052369338001 R-12.5)	
-
-・まとめ
-	long effectの更新のため、スピードダウンによるR低下 : R-15
-	通常探索中nonPV,PVでmate1plyを呼び出す : R+65
-	静止探索中PV/nonPVでmate1plyを呼び出す : R-35
-
-だいたいこの計算で合っているみたい。
-nano plusでは、通常探索中PVでmate1plyを呼び出すことにする。
-通常探索中、nonPVでmate1plyを呼び出したほうがいいかだとか、
-残り探索深さが少ないときに呼び出したほうがいいかだとかは今後の研究課題である。
 
 
 ■ 2016/02/18 V1.53

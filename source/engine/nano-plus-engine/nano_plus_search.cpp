@@ -270,6 +270,17 @@ namespace YaneuraOuNanoPlus
   // 探索しているnodeの種類
   enum NodeType { Root, PV, NonPV };
 
+  // 探索深さを減らすためのReductionテーブル
+  // [PvNodeであるか][improvingであるか][このnodeで何手目の指し手であるか][残りdepth]
+  Depth reduction_table[2][2][64][64];
+
+  // 残り探索深さをこの深さだけ減らす。depthとmove_countに関して63以上は63とみなす。
+  // improvingとは、評価値が2手前から上がっているかのフラグ。上がっていないなら
+  // 悪化していく局面なので深く読んでも仕方ないからreduction量を心もち増やす。
+  template <bool PvNode> Depth reduction(bool improving, Depth depth, int move_count) {
+    return reduction_table[PvNode][improving][std::min((int)depth/ONE_PLY, 63 )][std::min(move_count, 63)];
+  }
+
   // -----------------------
   //      静止探索
   // -----------------------
@@ -394,6 +405,12 @@ namespace YaneuraOuNanoPlus
     // この局面でdo_move()された合法手の数
     int moveCount;
 
+    // LMRのときにfail highが起きるなどしたので元の残り探索深さで探索することを示すフラグ
+    bool fullDepthSearch;
+
+    // 指し手で捕獲する指し手、もしくは成りである。
+    bool captureOrPromotion;
+
     // -----------------------
     //     nodeの初期化
     // -----------------------
@@ -477,9 +494,13 @@ namespace YaneuraOuNanoPlus
 
     Move bestMove = MOVE_NONE;
 
+#if 0
+    // 通常探索において1手詰めを発見することはあまりないので
+    // ここで詰将棋探索を呼び出すのはあまり得をしない。
+
     // RootNodeでは1手詰め判定、ややこしくなるのでやらない。
     // 置換表にhitしたときも1手詰め判定は行われていると思われるのでこの場合もはしょる
-    if (!RootNode && !ttHit & param1)
+    if (!RootNode && !ttHit)
     {
       bestMove = pos.mate1ply();
       if (bestMove != MOVE_NONE)
@@ -489,6 +510,7 @@ namespace YaneuraOuNanoPlus
         goto TT_SAVE;
       }
     }
+#endif
 
     // -----------------------
     // 1手ずつ指し手を試す
@@ -514,10 +536,13 @@ namespace YaneuraOuNanoPlus
         if (!RootNode && !pos.legal(move))
           continue;
 
+        captureOrPromotion = pos.capture_or_promotion(move);
+
         // -----------------------
         //      1手進める
         // -----------------------
 
+        // 指し手で1手進める
         pos.do_move(move, si, pos.gives_check(move));
 
         // do_moveした指し手の数のインクリメント
@@ -527,25 +552,23 @@ namespace YaneuraOuNanoPlus
         // 再帰的にsearchを呼び出す
         // -----------------------
 
-        // PV nodeの1つ目の指し手で進めたnodeは、PV node。さもなくば、non PV nodeとして扱い、
-        // alphaの値を1でも超えるかどうかだけが問題なので簡単なチェックで済ませる。
-
-        // また、残り探索深さがなければ静止探索を呼び出して評価値を返す。
-        // (searchを再帰的に呼び出して、その先頭でチェックする呼び出しのオーバーヘッドが嫌なのでここで行なう)
-
-        bool fullDepthSearch = (PV && moveCount == 1);
-
-        if (!fullDepthSearch)
+        // Reduced depth search(LMR)
+        // 探索深さを減らしてざっくり調べる。alpha値を更新しそうなら(fail highが起きたら)、
+        // full depthで探索しなおす。
+        if (depth >= 3 * ONE_PLY && moveCount > 1 && !captureOrPromotion)
         {
-          // nonPVならざっくり2手ぐらい深さを削っていいのでは..(本当はもっとちゃんとやるべき)
-          Depth R = ONE_PLY * 2;
+          // Reduction量
+          Depth r = reduction<PvNode>(false,depth,moveCount);
 
-          value = depth - R < ONE_PLY ?
-            -qsearch<NonPV>(pos, ss+1, -beta, -alpha, depth - R) :
-            -YaneuraOuNanoPlus::search<NonPV>(pos, ss+1 , -(alpha + 1), -alpha, depth - R);
+          // depth >= 3なのでqsearchは呼ばれないし、かつ、
+          // moveCount > 1 すなわち、2手目移行なのでsearch<NonPv>が呼び出されるべき。
+          Depth d = max(depth - r, ONE_PLY);
+          value = -YaneuraOuNanoPlus::search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d);
 
           // 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす
           fullDepthSearch = value > alpha;
+        } else {
+          fullDepthSearch = true;
         }
 
         if (fullDepthSearch)
@@ -623,7 +646,7 @@ namespace YaneuraOuNanoPlus
     //  置換表に保存する
     // -----------------------
 
-TT_SAVE:;
+//TT_SAVE:;
 
     tte->save(key, value_to_tt(alpha, ss->ply),
       alpha >= beta ? BOUND_LOWER : 
@@ -649,7 +672,38 @@ using namespace YaneuraOuNanoPlus;
 Book::MemoryBook book;
 
 // 起動時に呼び出される。時間のかからない探索関係の初期化処理はここに書くこと。
-void Search::init() { Book::read_book("book/standard_book.db", book); } // 定跡の読み込み
+void Search::init() {
+
+  // -----------------------
+  //   定跡の読み込み
+  // -----------------------
+  Book::read_book("book/standard_book.db", book);
+
+  // -----------------------
+  // reduction tableの初期化
+  // -----------------------
+
+  // pvとnon pvのときのreduction定数
+  // とりあえずStockfishに合わせておく。あとで調整する。
+  const double K[][2] = { { 0.799, 2.281 },{ 0.484, 3.023 } };
+
+  for (int pv = 0; pv <= 1; ++pv)
+    for (int imp = 0; imp <= 1; ++imp)
+      for (int d = 1; d < 64; ++d)
+        for (int mc = 1; mc < 64; ++mc)
+        {
+          double r = K[pv][0] + log(d) * log(mc) / K[pv][1];
+
+          if (r >= 1.5)
+            reduction_table[pv][imp][d][mc] = int(r) * ONE_PLY;
+
+          // improving(評価値が2手前から上がっている)でないときはreductionの量を増やす。
+          if (!pv && !imp && reduction_table[pv][imp][d][mc] >= 2 * ONE_PLY)
+            reduction_table[pv][imp][d][mc] += ONE_PLY;
+        }
+
+
+} 
 
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
 void  Search::clear() { TT.clear(); }

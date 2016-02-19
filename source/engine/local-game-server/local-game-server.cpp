@@ -555,8 +555,12 @@ void Thread::search()
       }
     }
   }
-  usi_engine_name[0] = es[0].engine_name();
-  usi_engine_name[1] = es[1].engine_name();
+
+  if (is_main())
+  {
+    usi_engine_name[0] = es[0].engine_name();
+    usi_engine_name[1] = es[1].engine_name();
+  }
 
   es[0].pn.write("quit");
   es[1].pn.write("quit");
