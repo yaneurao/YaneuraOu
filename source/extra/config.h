@@ -90,6 +90,11 @@
 // 定跡を作るコマンド("makebook")を有効にする。
 //#define ENABLE_MAKEBOOK_CMD
 
+// USIのoptionで"Param1","Param2"という名前のオプションを有効にする。
+// これは探索パラメーターなどを外部から自動調整するのに用いる。
+//#define ENABLE_OPTION_PARAM
+
+
 // --------------------
 // release configurations
 // --------------------
@@ -108,6 +113,7 @@
 //#define ASSERT_LV 3  // 開発中なのでASSERT有効に。最終的には無効にしてリリースする。
 #define ENGINE_NAME "YaneuraOu nano plus"
 #define ENABLE_TEST_CMD
+#define ENABLE_OPTION_PARAM
 #define EVAL_KPP
 #define USE_TT_PV
 #define KEEP_LAST_MOVE

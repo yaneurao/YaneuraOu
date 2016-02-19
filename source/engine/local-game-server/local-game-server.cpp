@@ -8,6 +8,9 @@
 // 子プロセスとの通信ログをデバッグのために表示するオプション
 //#define OUTPUT_PROCESS_LOG
 
+// 1行ずつ結果を出力するモード
+//#define ONE_LINE_OUTPUT_MODE
+
 
 // 子プロセスを実行して、子プロセスの標準入出力をリダイレクトするのをお手伝いするクラス。
 struct ProcessNegotiator
@@ -279,8 +282,9 @@ struct EngineState
   // usiコマンドに対して思考エンジンが"is name ..."で返してきたengine名
   string engine_name() const { return engine_name_; }
 
-protected:
   ProcessNegotiator pn;
+
+protected:
 
   // 内部状態
   State state;
@@ -418,6 +422,9 @@ void MainThread::think() {
   sync_cout << endl << "local game server end : [" << usi_engine_name[0] << "] vs [" << usi_engine_name[1] << "]" << sync_endl;
   sync_cout << "GameResult " << win << " - " << draw << " - " << lose << sync_endl;
 
+#ifdef ONE_LINE_OUTPUT_MODE
+  sync_cout << "finish" << sync_endl;
+#endif
 }
 
 void Thread::search()
@@ -485,15 +492,27 @@ void Thread::search()
     if (rootPos.game_ply() >= 256) // 長手数につき引き分け
     {
       draw++;
+#ifdef ONE_LINE_OUTPUT_MODE
+      sync_cout << "draw" << sync_endl;
+#else
       cout << '.'; // 引き分けマーク
+#endif
     } else if (rootPos.side_to_move() == player1_color)
     {
       lose++;
+#ifdef ONE_LINE_OUTPUT_MODE
+      sync_cout << "lose" << sync_endl;
+#else
       cout << 'X'; // 負けマーク
+#endif
     } else
     {
       win++;
+#ifdef ONE_LINE_OUTPUT_MODE
+      sync_cout << "win" << sync_endl;
+#else
       cout << 'O'; // 勝ちマーク
+#endif
     }
     player1_color = ~player1_color; // 先後入れ替える。
                                     //    sync_cout << rootPos << sync_endl; // デバッグ用に投了の局面を表示させてみる
@@ -539,6 +558,8 @@ void Thread::search()
   usi_engine_name[0] = es[0].engine_name();
   usi_engine_name[1] = es[1].engine_name();
 
+  es[0].pn.write("quit");
+  es[1].pn.write("quit");
 }
 
 #endif

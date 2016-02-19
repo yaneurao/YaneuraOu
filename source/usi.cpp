@@ -160,6 +160,11 @@ namespace USI
     // ネットワーク遅延時間[ms]
     o["NetworkDelay"] << Option(400, 0, 10000);
 
+    // パラメーターの外部からの自動調整
+#ifdef ENABLE_OPTION_PARAM
+    o["Param1"] << Option(0, 0, 100000);
+    o["Param2"] << Option(0, 0, 100000);
+#endif
   }
 
   // USIプロトコル経由で値を設定されたときにそれをcurrentValueに反映させる。

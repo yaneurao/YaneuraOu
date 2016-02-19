@@ -32,6 +32,10 @@ using namespace Search;
 namespace YaneuraOuNanoPlus
 {
 
+  // 外部から調整される探索パラメーター
+  int param1 = 0;
+  int param2 = 0;
+
   // -----------------------
   //  探索のときに使うStack
   // -----------------------
@@ -299,13 +303,6 @@ namespace YaneuraOuNanoPlus
     } else {
       // 王手がかかっていないなら置換表の指し手を持ってくる
 
-      {
-        // 1手詰み
-        Move m = pos.mate1ply();
-        if (m != MOVE_NONE)
-          return mate_in(ss->ply);
-      }
-
       // この局面で何も指さないときのスコア。recaptureすると損をする変化もあるのでこのスコアを基準に考える。
       value = Eval::eval(pos);
 
@@ -476,9 +473,16 @@ namespace YaneuraOuNanoPlus
     Move bestMove = MOVE_NONE;
 
     // RootNodeでは1手詰め判定、ややこしくなるのでやらない。
-    if (!RootNode)
+    // 置換表にhitしたときも1手詰め判定は行われていると思われるのでこの場合もはしょる
+    if (!RootNode && !ttHit)
     {
-      bestMove = pos.mate1ply();
+      if (( param1 && PvNode && (param1-1) <= depth ) ||
+          (param2 && !PvNode && (param2-1) <= depth)
+        )
+        bestMove = pos.mate1ply();
+      else
+        bestMove = MOVE_NONE;
+
       if (bestMove != MOVE_NONE)
       {
         // 1手詰めスコアなので確実にvalue > alphaなはず。
@@ -656,6 +660,16 @@ void  Search::clear() { TT.clear(); }
 // そのあとslaveスレッドを終了させ、ベストな指し手を返すこと。
 
 void MainThread::think() {
+
+  // ---------------------
+  // 探索パラメーターの自動調整用
+  // ---------------------
+  param1 = Options["Param1"];
+  param2 = Options["Param2"];
+
+  // ---------------------
+  //      variables
+  // ---------------------
 
   Stack stack[MAX_PLY + 4], *ss = stack + 2; // (ss-2)と(ss+2)にアクセスしたいので4つ余分に確保しておく。
   Move bestMove;

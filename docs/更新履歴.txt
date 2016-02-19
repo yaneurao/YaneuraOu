@@ -1,6 +1,58 @@
 ﻿
 やねうら王 更新履歴
 
+■ 2016/02/19 V1.55
+
+・nano-plusで静止探索での1手詰めやめる
+      {
+        // 1手詰み
+        Move m;
+        if (PvNode && param2)
+          m = pos.mate1ply();
+        else
+          m = MOVE_NONE;
+        if (m != MOVE_NONE)
+          return mate_in(ss->ply);
+      }
+・nano-plusで通常探索での1手詰め条件を探す
+
+    // 置換表にhitしたときも1手詰め判定は行われていると思われるのでこの場合もはしょる
+    if (!RootNode && !ttHit)
+    {
+      if (( param1 && PvNode && (param1-1) <= depth ) ||
+          (param2 && !PvNode && (param2-1) <= depth)
+        )
+        bestMove = pos.mate1ply();
+
+
+
+■ 2016/02/18 V1.54
+
+・local server、結果を1行ずつ出力するモード用意。
+・local server、finish時に子プロセスのエンジン開放するためにquitコマンドを送信するように変更。
+・nano-plusでの実験用にoptionとしてParam1,Param2追加。
+
+
+52.9%	57.6%	
+42.5%	49.6%	
+やねうら王nano V140
+やねうら王nanoの最終版1スレッド、0.1秒設定
+やねうら王nano plus V154
+やねうら王nano plus、q-mate1/s-mate1,1スレッド、0.1秒設定
+
+2146-0-2009(1.67778835120406 R11.5)	2230-0-1722(2.33146835171283E-13 R44.9)	
+1709-0-2243(100 R-47.2)	1905-0-2047(98.8052369338001 R-12.5)	
+
+・まとめ
+	long effectの更新のため、スピードダウンによるR低下 : R-15
+	通常探索中nonPV,PVでmate1plyを呼び出す : R+65
+	静止探索中PV/nonPVでmate1plyを呼び出す : R-35
+
+だいたいこの計算で合っているみたい。
+nano plusでは、通常探索中PVでmate1plyを呼び出すことにする。
+通常探索中、nonPVでmate1plyを呼び出したほうがいいかだとか、
+残り探索深さが少ないときに呼び出したほうがいいかだとかは今後の研究課題である。
+
 
 ■ 2016/02/18 V1.53
 
