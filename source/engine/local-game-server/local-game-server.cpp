@@ -192,6 +192,13 @@ struct EngineState
     pn.run(path);
     state = START_UP;
   }
+ 
+  // エンジンに対する終了処理
+  ~EngineState()
+  {
+    // エンジンはquitコマンドに対して自動的にプロセスを終了させるものと仮定している。
+    pn.write("quit");
+  }
 
   void on_idle()
   {
@@ -548,11 +555,12 @@ void Thread::search()
         rootPos.do_move(m, SetupStates->top());
       }
 
-      if (m == MOVE_RESIGN || rootPos.is_mated() || rootPos.game_ply() >= MAX_PLY)
+      if (m == MOVE_RESIGN || rootPos.is_mated() || rootPos.game_ply() >= 256)
       {
         game_over();
         //sync_cout << "game over" << sync_endl;
       }
+      sleep(5);
     }
   }
 
@@ -561,9 +569,6 @@ void Thread::search()
     usi_engine_name[0] = es[0].engine_name();
     usi_engine_name[1] = es[1].engine_name();
   }
-
-  es[0].pn.write("quit");
-  es[1].pn.write("quit");
 }
 
 #endif

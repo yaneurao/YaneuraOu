@@ -93,7 +93,7 @@ namespace YaneuraOuNanoPlus
 
     QSEARCH_WITH_CHECKS_START,    // 王手がかかっているときはここから開始
     QCAPTURES_1,                  // 捕獲する指し手
-    QCHECKS,                      // 王手となる指し手
+    QCHECKS,                      // 王手となる指し手(上で生成している捕獲の指し手を除外した王手)
 
     QSEARCH_WITHOUT_CHECKS_START, // 王手がかかっていないときはここから開始
     QCAPTURES_2,                  // 捕獲する指し手
@@ -101,7 +101,8 @@ namespace YaneuraOuNanoPlus
     // 静止探索で深さ-2以降は組み合わせ爆発を防ぐためにrecaptureのみを生成
     RECAPTURE_START,              // ↓のstageに行くためのラベル
     GOOD_RECAPTURES,              // 最後の移動した駒を捕獲する指し手(RECAPTURES)を生成した指し手を一つずつ返す
-    STOP,
+
+    STOP,                         // 終端
   };
   ENABLE_OPERATORS_ON(Stages); // 次の状態にするためにインクリメントを使いたい。
 
@@ -129,7 +130,7 @@ namespace YaneuraOuNanoPlus
       if (pos.in_check())
         stage = EVASION_START;
       else if (depth > DEPTH_QS_NO_CHECKS)
-            stage = QSEARCH_WITH_CHECKS_START;
+        stage = QSEARCH_WITH_CHECKS_START;
 
       else if (depth > DEPTH_QS_RECAPTURES)
         stage = QSEARCH_WITHOUT_CHECKS_START;
@@ -230,8 +231,8 @@ namespace YaneuraOuNanoPlus
           // (直前に置換表の指し手を返しているし、CAPTURES_PRO_PLUSでの指し手も返しているのでそれらの指し手は除外されるべき)
         case KILLERS:
           move = *currentMoves++;
-          if (move != MOVE_NONE         // ss->killer[0],[1]からコピーしただけなのでMOVE_NONEの可能性がある
-            &&  move != ttMove          // 置換表の指し手を重複除去しないといけない
+          if (  move != MOVE_NONE         // ss->killer[0],[1]からコピーしただけなのでMOVE_NONEの可能性がある
+            &&  move != ttMove            // 置換表の指し手を重複除去しないといけない
             &&  pos.pseudo_legal(move)
             && !pos.capture_or_pawn_promotion(move))  // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
             return move;
@@ -248,25 +249,35 @@ namespace YaneuraOuNanoPlus
 
           // 指し手を一手ずつ返すフェーズ
           // (置換表の指し手とkillerの指し手は返したあとなのでこれらの指し手は除外する必要がある)
-        case GOOD_RECAPTURES:
         case BAD_CAPTURES: case GOOD_QUIETS: case BAD_QUIETS:
           move = *currentMoves++;
           // 置換表の指し手、killerと同じものは返してはならない。
-          if (move != ttMove
+          if ( move != ttMove
             && move != killers[0]
             && move != killers[1])
             return move;
           break;
 
+          // 王手になる指し手を一手ずつ返すフェーズ
+          // (置換表の指し手とCAPTURES_PRO_PLUSの指し手は返したあとなのでこれらの指し手は除外する必要がある)
         case QCHECKS:
           move = *currentMoves++;
-          if (move != ttMove
+          if (  move != ttMove
             && !pos.capture_or_pawn_promotion(move)) // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
             return move;
           break;
 
+          // 取り返す指し手。これはすでに生成されているのでそのまま返すだけで良い。
+        case GOOD_RECAPTURES:
+          move = *currentMoves++;
+          return move;
+
         case STOP:
           return MOVE_NONE;
+
+        default:
+          UNREACHABLE;
+          break;
         }
       }
     }
@@ -464,17 +475,6 @@ namespace YaneuraOuNanoPlus
         return bestValue;
       }
 
-      // 探索深さが-3以下ならこれ以上延長しない。
-      if (depth < -3 * ONE_PLY)
-      {
-        // せっかくevaluateを呼び出したので置換表にhitしていないなら今回のevaluateの値を保存しておく。
-        if (!ttHit)
-          tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_LOWER,
-            DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
-
-        return bestValue;
-      }
-
       // 王手がかかっていなくてPvNodeでかつ、bestValueがalphaより大きいならそれをalphaの初期値に使う。
       // 王手がかかっているなら全部の指し手を調べたほうがいい。
       if (PvNode && bestValue > alpha)
@@ -490,7 +490,7 @@ namespace YaneuraOuNanoPlus
     // 静止探索の1つ目の深さではrecaptureを生成しないならこれは問題とならない。
     // ToDo: あとでNULL MOVEを実装したときにrecapture以外も生成するように修正する。
     pos.check_info_update();
-    MovePicker mp(pos,ttMove,ttDepth,move_to((ss-1)->currentMove),ss);
+    MovePicker mp(pos,ttMove,depth,move_to((ss-1)->currentMove),ss);
     Move move;
 
     StateInfo si;
@@ -546,8 +546,13 @@ namespace YaneuraOuNanoPlus
     // どうせ指し手がないということだから、次にこのnodeに訪問しても、指し手生成後に詰みであることは
     // わかるわけだから、この種の詰みを置換表に登録する価値があるかは微妙であるが、とりあえず保存しておくことにする。
     if (InCheck && bestValue == -VALUE_INFINITE)
+    {
       bestValue = mated_in(ss->ply); // rootからの手数による詰みである。
-    
+      tte->save(posKey, value_to_tt(bestValue, ss->ply),BOUND_EXACT,
+        DEPTH_MAX, MOVE_NONE, ss->staticEval, TT.generation());
+      return bestValue;
+    }
+
     tte->save(posKey, value_to_tt(bestValue, ss->ply),
       PvNode && bestValue > oldAlpha ? BOUND_EXACT : BOUND_UPPER,
       ttDepth, bestMove, ss->staticEval, TT.generation());
@@ -660,6 +665,8 @@ namespace YaneuraOuNanoPlus
       // このままこの値でreturnして良い。
       )
     {
+      ss->currentMove = ttMove; // この指し手で枝刈りをした。ただしMOVE_NONEでありうる。
+
       // 置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
       // ただし、捕獲する指し手か成る指し手であればこれはkillerを更新する価値はない。
       if (ttValue >= beta && ttMove && !pos.capture_or_promotion(ttMove))

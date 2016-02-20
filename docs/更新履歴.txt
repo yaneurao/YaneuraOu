@@ -4,6 +4,65 @@
 ・MovePickerに他のオーダリングも導入
 ・lazy SMPで並列化して+R300程度かな？他の最適化してから考えよう。
 
+■ 2016/02/21 V1.58
+
+・DEPTH_QS_RECAPTURESとりあえず-10にしておく。この値でそんなに悪くはなさそうなので。
+
+
+■ 2016/02/20 V1.57b
+
+・local server機能で、プロセスが終了しないとき用の修正。
+	→　これでも終了しないことがあるためprocessのkillも行なうようにした。
+	→　これでもプロセス残ることがある。おかしい。ソース、読みなおす。
+	→　local-serverのidle_loopにsleep(5)を追加。
+	→　長手数による引き分け、条件がMAX_PLYになっていたのを256に修正。
+	→　こっちの問題ではなさげ..
+	→　ソースコード、再度整理する。
+
+
+・nano-plusのrecaptureの指し手生成間違っていたのを修正。
+・nano-plusで静止探索での3手以上延長しないほうがいいのか実験。
+      // 探索深さが-3以下ならこれ以上延長しない。
+      if (param1)
+      {
+        if (depth < -3 * ONE_PLY)
+        {
+          // せっかくevaluateを呼び出したので置換表にhitしていないなら今回のevaluateの値を保存しておく。
+          if (!ttHit)
+            tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_LOWER,
+              DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
+
+          return bestValue;
+        }
+      }
+	  →　なぜかR220ほど下がる。
+	  RECAPTURESの指し手生成なにかおかしいのでは..
+
+	  RECAPのフェーズをparam1依存にして、これでパラメーターを変えた実験をしてみる。
+	  延々、同じ升でRECAPするだけのはずなのにレーティング下がるのなんで…。
+
+      else if (depth > /*DEPTH_QS_RECAPTURES*/ (Depth)(-3-param1))
+        stage = QSEARCH_WITHOUT_CHECKS_START;
+		→　MovePickerでttDepth突っ込んでたから延々とCAPTURESが生成されてたくさい。
+		→　これ修正したらずいぶんマシになった気がする。ベストな値を探す。
+
+
+51.8%	56.0%	59.6%	59.8%	64.6%	62.7%	63.9%	
+#
+やねうら王nano plus V157b
+やねうら王nano plus param1!=0なら静止探索で3手以上延長しない,1スレッド、0.1秒設定
+#0
+やねうら王nano plus V157a
+やねうら王nano plus 静止探索のオーダリングいじった,1スレッド、0.1秒設定
+
+489-0-455(12.7% R12.5)	529-0-415(0.0% R42.2)	561-0-381(0.0% R67.2)	536-0-360(0.0% R69.1)	579-0-317(0.0% R104.6)	562-0-334(0.0% R90.4)	470-0-266(0.0% R98.9)	
+
+		↓条件をこう変えてみる
+
+      else if (depth > /*DEPTH_QS_RECAPTURES*/ (Depth)(-7-param1))
+        stage = QSEARCH_WITHOUT_CHECKS_START;
+
+
 
 ■ 2016/02/20 V1.57a
 
