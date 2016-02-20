@@ -116,7 +116,6 @@
 #define ENABLE_OPTION_PARAM
 #define EVAL_KPP
 #define USE_TT_PV
-#define KEEP_LAST_MOVE
 #define LONG_EFFECT_LIBRARY
 #define MATE_1PLY
 #endif

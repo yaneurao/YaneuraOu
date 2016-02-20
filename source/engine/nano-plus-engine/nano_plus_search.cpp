@@ -41,8 +41,10 @@ namespace YaneuraOuNanoPlus
   // -----------------------
 
   struct Stack {
-    Move killers[2]; // killer move
-    int ply;         // rootからの手数
+    Move killers[2];    // killer move
+    Move currentMove;   // そのスレッドの探索においてこの局面で現在選択されている指し手
+    Value staticEval;   // 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
+    int ply;            // rootからの手数
   };
 
   // -----------------------
@@ -285,54 +287,170 @@ namespace YaneuraOuNanoPlus
   //      静止探索
   // -----------------------
 
-  template <NodeType NT>
+  // InCheck : 王手がかかっているか
+  template <NodeType NT,bool InCheck>
   Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
   {
+    // -----------------------
+    //     変数宣言
+    // -----------------------
+
     // PV nodeであるか。
     const bool PvNode = NT == PV;
+
+    // 評価値の最大を求めるために必要なもの
+    Value bestValue;       // この局面での指し手のベストなスコア(alphaとは違う)
+    Move bestMove;         // そのときの指し手
+    Value oldAlpha;        // 関数が呼び出されたときのalpha値
+
+    // hash key関係
+    TTEntry* tte;          // 置換表にhitしたときの置換表のエントリーへのポインタ
+    Key posKey;            // この局面のhash key
+    bool ttHit;            // 置換表にhitしたかのフラグ
+    Move ttMove;           // 置換表に登録されていた指し手
+    Value ttValue;         // 置換表に登録されていたスコア
+    Depth ttDepth;         // このnodeに関して置換表に登録するときの残り探索深さ
+
+    // 王手関係
+    bool givesCheck;       // MovePickerから取り出した指し手で王手になるか
 
     // -----------------------
     //     nodeの初期化
     // -----------------------
 
+    if (PvNode)
+    {
+      // PV nodeではalpha値を上回る指し手が存在した場合は(そこそこ指し手を調べたので)置換表にはBOUND_EXACTで保存したいから、
+      // そのことを示すフラグとして元の値が必要(non PVではこの変数は参照しない)
+      // PV nodeでalpha値を上回る指し手が存在しなかった場合は、調べ足りないのかも知れないからBOUND_UPPERとしてbestValueを保存しておく。
+      oldAlpha = alpha;
+    }
+
+    ss->currentMove = bestMove = MOVE_NONE;
+
     // rootからの手数
     ss->ply = (ss - 1)->ply + 1;
+
+    // -----------------------
+    //  引き分け、および、最大手数到達
+    // -----------------------
+
+    // これ以上探索できない。give up。
+    if (ss->ply >= MAX_PLY)
+      return Eval::eval(pos);
+
+    // -----------------------
+    //     置換表のprobe
+    // -----------------------
+
+    posKey = pos.state()->key();
+    tte = TT.probe(posKey, ttHit);
+    ttMove = ttHit ? tte->move() : MOVE_NONE;
+    ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
+
+    // 置換表に登録するdepthは、あまりマイナスの値が登録されてもおかしいので、
+    // 王手がかかっているときは、DEPTH_QS_CHECKS(=0)、王手がかかっていないときはDEPTH_QS_NO_CHECKSの深さとみなす。
+    ttDepth = InCheck || depth >= DEPTH_QS_CHECKS ? DEPTH_QS_CHECKS
+                                                  : DEPTH_QS_NO_CHECKS;
+
+    // nonPVでは置換表の指し手で枝刈りする
+    // PVでは置換表の指し手では枝刈りしない(前回evaluateした値は使える)
+    if (!PvNode
+      && ttHit
+      && tte->depth() >= ttDepth
+      && ttValue != VALUE_NONE // 置換表から取り出したときに他スレッドが値を潰している可能性があるのでこのチェックが必要
+      && (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
+                          : (tte->bound() & BOUND_UPPER)))
+      // ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
+      // ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
+      // 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
+      // このままこの値でreturnして良い。
+    {
+      ss->currentMove = ttMove; // MOVE_NONEでありうるが
+      return ttValue;
+    }
 
     // -----------------------
     //     eval呼び出し
     // -----------------------
 
-    // この局面で王手がかかっているのか
-    bool InCheck = pos.checkers();
-
     Value value;
     if (InCheck)
     {
-      // 王手がかかっているならすべての指し手を調べる。
-      alpha = -VALUE_INFINITE;
+      // 王手がかかっているならすべての指し手を調べるべきなのでevaluate()は呼び出さない。
+      ss->staticEval = VALUE_NONE;
+
+      // bestValueはalphaとは違う。
+      // 王手がかかっているときは-VALUE_INFINITEを初期値として、すべての指し手を生成してこれを上回るものを探すので
+      // alphaとは区別しなければならない。
+      bestValue = -VALUE_INFINITE;
 
     } else {
+
       // 王手がかかっていないなら置換表の指し手を持ってくる
 
-      // -- ただし一手詰め判定
+      if (ttHit)
+      {
+
+        // 置換表に評価値が格納されているとは限らないのでその場合は評価関数の呼び出しが必要
+        // bestValueの初期値としてこの局面のevaluate()の値を使う。これを上回る指し手があるはずなのだが..
+        if ((ss->staticEval = bestValue = tte->eval()) == VALUE_NONE)
+          ss->staticEval = bestValue = Eval::eval(pos);
+
+        // 置換表に格納されていたスコアは、この局面で今回探索するものと同等か少しだけ劣るぐらいの
+        // 精度で探索されたものであるなら、それをbestValueの初期値として使う。
+        if (ttValue != VALUE_NONE)
+          if (tte->bound() & (ttValue > bestValue ? BOUND_LOWER : BOUND_UPPER))
+            bestValue = ttValue;
+
+      } else {
+
+        // 置換表がhitしなかった場合、bestValueの初期値としてevaluate()を呼び出すしかないが、
+        // NULL_MOVEの場合は前の局面での値を反転させると良い。(手番を考慮しない評価関数であるなら)
+        ss->staticEval = bestValue =
+          (ss - 1)->currentMove != MOVE_NULL ? Eval::eval(pos)
+                                             : -(ss - 1)->staticEval;
+      }
+
+      // Stand pat.
+      // 現在のbestValueは、この局面で何も指さないときのスコア。recaptureすると損をする変化もあるのでこのスコアを基準に考える。
+      // 王手がかかっていないケースにおいては、この時点での静的なevalの値がbetaを上回りそうならこの時点で帰る。
+      if (bestValue >= beta)
+      {
+        if (!ttHit)
+          tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_LOWER,
+            DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
+
+        return bestValue;
+      }
+
+      // 一手詰め判定
       Move m;
       m = pos.mate1ply();
       if (m != MOVE_NONE)
-        return mate_in(ss->ply);
-
-      // この局面で何も指さないときのスコア。recaptureすると損をする変化もあるのでこのスコアを基準に考える。
-      value = Eval::eval(pos);
-
-      if (alpha < value)
       {
-        alpha = value;
-        if (alpha >= beta)
-          return alpha; // beta cut
+        bestValue = mate_in(ss->ply);
+        tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
+          DEPTH_MAX, m , ss->staticEval, TT.generation());
+
+        return bestValue;
       }
 
       // 探索深さが-3以下ならこれ以上延長しない。
       if (depth < -3 * ONE_PLY)
-        return alpha;
+      {
+        // せっかくevaluateを呼び出したので置換表にhitしていないなら今回のevaluateの値を保存しておく。
+        if (!ttHit)
+          tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_LOWER,
+            DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
+
+        return bestValue;
+      }
+
+      // 王手がかかっていなくてPvNodeでかつ、bestValueがalphaより大きいならそれをalphaの初期値に使う。
+      // 王手がかかっているなら全部の指し手を調べたほうがいい。
+      if (PvNode && bestValue > alpha)
+        alpha = bestValue;
     }
 
     // -----------------------
@@ -340,8 +458,11 @@ namespace YaneuraOuNanoPlus
     // -----------------------
 
     // 取り合いの指し手だけ生成する
+    // searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうるが、
+    // 静止探索の1つ目の深さではrecaptureを生成しないならこれは問題とならない。
+    // ToDo: あとでNULL MOVEを実装したときにrecapture以外も生成するように修正する。
     pos.check_info_update();
-    MovePicker mp(pos,MOVE_NONE/*ttMoveあとで使う*/,move_to(pos.state()->lastMove),ss);
+    MovePicker mp(pos,MOVE_NONE/*ttMoveあとで使う*/,move_to((ss-1)->currentMove),ss);
     Move move;
 
     StateInfo si;
@@ -351,30 +472,61 @@ namespace YaneuraOuNanoPlus
       if (!pos.legal(move))
         continue;
 
+      // 現在このスレッドで探索している指し手を保存しておく。
+      ss->currentMove = move;
+
+      givesCheck = pos.gives_check(move);
+
       pos.do_move(move, si, pos.gives_check(move));
-      value = -YaneuraOuNanoPlus::qsearch<NT>(pos, ss+1 , -beta, -alpha, depth - ONE_PLY);
+      value = givesCheck ? -YaneuraOuNanoPlus::qsearch<NT, true>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
+                         : -YaneuraOuNanoPlus::qsearch<NT,false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
       pos.undo_move(move);
 
       if (Signals.stop)
         return VALUE_ZERO;
 
-      if (value > alpha) // update alpha?
+      // bestValue(≒alpha値)を更新するのか
+      if (value > bestValue)
       {
-        alpha = value;
-        if (alpha >= beta)
-          return alpha; // beta cut
+        bestValue = value;
+
+        if (value > alpha)
+        {
+          if (PvNode && value < beta)
+          {
+            // alpha値の更新はこのタイミングで良い。
+            // なぜなら、このタイミング以外だと枝刈りされるから。(else以下を読むこと)
+            alpha = value;
+            bestMove = move;
+          } else
+          {
+            // 1. nonPVでのalpha値の更新 →　もうこの時点でreturnしてしまっていい。(ざっくりした枝刈り)
+            // 2. PVでのvalue >= beta、すなわちfail high
+            tte->save(posKey, value_to_tt(value, ss->ply), BOUND_LOWER,
+              ttDepth, move, ss->staticEval, TT.generation());
+            return value;
+          }
+        }
       }
     }
 
     // -----------------------
-    // 調べる指し手一通り調べた
+    // 指し手を調べ終わった
     // -----------------------
 
-    // 王手がかかっている状況ですべての指し手を調べたということだから、これは詰みである
-    if (InCheck && alpha == -VALUE_INFINITE)
-      return mated_in(ss->ply);
+    // 王手がかかっている状況ではすべての指し手を調べたということだから、これは詰みである
+    // どうせ指し手がないということだから、次にこのnodeに訪問しても、指し手生成後に詰みであることは
+    // わかるわけだから、この種の詰みを置換表に登録する価値があるかは微妙であるが、とりあえず保存しておくことにする。
+    if (InCheck && bestValue == -VALUE_INFINITE)
+      bestValue = mated_in(ss->ply); // rootからの手数による詰みである。
+    
+    tte->save(posKey, value_to_tt(bestValue, ss->ply),
+      PvNode && bestValue > oldAlpha ? BOUND_EXACT : BOUND_UPPER,
+      ttDepth, bestMove, ss->staticEval, TT.generation());
 
-    return alpha;
+    ASSERT_LV3(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
+
+    return bestValue;
   }
 
   // -----------------------
@@ -473,7 +625,7 @@ namespace YaneuraOuNanoPlus
       && tte->depth() >= depth   // 置換表に登録されている探索深さのほうが深くて
       && ttValue != VALUE_NONE   // (VALUE_NONEだとすると他スレッドからTTEntryが読みだす直前に破壊された可能性がある)
       && (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
-        : (tte->bound() & BOUND_UPPER))
+                          : (tte->bound() & BOUND_UPPER))
       // ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
       // ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
       // 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
@@ -523,6 +675,8 @@ namespace YaneuraOuNanoPlus
       Value value;
       Move move;
       StateInfo si;
+      bool givesCheck; // 今回の指し手で王手になるかどうか
+
       moveCount = quietCount = 0;
 
       while (move = mp.nextMove())
@@ -537,13 +691,17 @@ namespace YaneuraOuNanoPlus
           continue;
 
         captureOrPromotion = pos.capture_or_promotion(move);
+        givesCheck = pos.gives_check(move);
 
         // -----------------------
         //      1手進める
         // -----------------------
 
+        // 現在このスレッドで探索している指し手を保存しておく。
+        ss->currentMove = move;
+
         // 指し手で1手進める
-        pos.do_move(move, si, pos.gives_check(move));
+        pos.do_move(move, si, givesCheck);
 
         // do_moveした指し手の数のインクリメント
         ++moveCount;
@@ -573,8 +731,9 @@ namespace YaneuraOuNanoPlus
 
         if (fullDepthSearch)
           value = depth - ONE_PLY < ONE_PLY ?
-          -qsearch<PV>(pos, ss+1 , -beta, -alpha, depth - ONE_PLY) :
-          -YaneuraOuNanoPlus::search<PV>(pos, ss+1 , -beta, -alpha, depth - ONE_PLY);
+                                 givesCheck ? -qsearch<PV , true>(pos, ss+1 , -beta, -alpha, depth - ONE_PLY)
+                                            : -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
+                                            : -YaneuraOuNanoPlus::search<PV>(pos, ss+1 , -beta, -alpha, depth - ONE_PLY);
 
         // -----------------------
         //      1手戻す

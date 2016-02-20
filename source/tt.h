@@ -16,7 +16,7 @@ struct TTEntry {
   Move move() const { return (Move)move16; }
   Value value() const { return (Value)value16; }
   Value eval() const { return (Value)eval16; }
-  Depth depth() const { return (Depth)depth8; }
+  Depth depth() const { return (Depth)depth8 * (int)ONE_PLY; }
   Bound bound() const { return (Bound)(genBound8 & 0x3); }
 
   uint8_t generation() const { return genBound8 & 0xfc; }
@@ -53,7 +53,7 @@ struct TTEntry {
     // 3. BOUND_EXACT(これはPVnodeで探索した結果で、とても価値のある情報なので無条件で書き込む)
     // 1. or 2. or 3.
     if ((k >> 48) != key16
-      || (d > depth8 - 2)
+      || (d > depth() - 2 * ONE_PLY)
       || b == BOUND_EXACT
       )
     {
@@ -61,7 +61,7 @@ struct TTEntry {
       value16   = (int16_t)v;
       eval16    = (int16_t)eval;
       genBound8 = (uint8_t)(gen | b);
-      depth8    = (int8_t)d;
+      depth8    = (int8_t)d / (int)ONE_PLY;
     }
   }
 
@@ -86,6 +86,7 @@ private:
   uint8_t genBound8;
 
   // そのときの残り深さ(これが大きいものほど価値がある)
+  // 1バイトに収めるために、DepthをONE_PLYで割ったものを格納する。
   int8_t depth8;
 };
 

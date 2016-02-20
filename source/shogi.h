@@ -293,8 +293,27 @@ inline bool is_aligned(Square sq1 /* is ksq */, Square sq2, Square sq3)
 // 通常探索時の最大探索深さ
 const int MAX_PLY = MAX_PLY_NUM;
 
-// Depthは1手をONE_PLY倍にスケーリングする。
-enum Depth : int32_t { DEPTH_ZERO = 0, ONE_PLY = 2 , };
+// 探索深さを表現するためのenum
+enum Depth : int32_t
+{
+  // 探索深さ0
+  DEPTH_ZERO = 0,
+
+  // Depthは1手をONE_PLY倍にスケーリングする。
+  ONE_PLY = 2 ,
+
+  // 最大深さ
+  DEPTH_MAX = MAX_PLY*(int)ONE_PLY ,
+
+  // 静止探索で王手がかかっているときにこれより少ない残り探索深さでの探索した結果が置換表にあってもそれは信用しない
+  DEPTH_QS_CHECKS = 0*(int)ONE_PLY,
+  // 静止探索で王手がかかっていないときに。(以下同様)
+  DEPTH_QS_NO_CHECKS = -1*(int)ONE_PLY,
+
+  // DEPTH_NONEは探索せずに値を求めたという意味に使う。
+  // 静止探索で6手以上は延長しないので、-6という定数にしておく。
+  DEPTH_NONE = -6 * (int)ONE_PLY
+};
 
 // --------------------
 //     評価値の性質
