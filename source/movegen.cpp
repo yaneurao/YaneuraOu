@@ -686,7 +686,7 @@ template <Color Us> struct GenerateCheckDropMoves<Us, PAWN> {
 
 
 // 指し手の生成器本体(王手専用)
-template<Color Us, bool All>
+template<MOVE_GEN_TYPE GenType,Color Us, bool All>
 ExtMove* generate_checks(const Position& pos, ExtMove* mlist)
 {
   // --- 駒の移動による王手
@@ -722,8 +722,11 @@ ExtMove* generate_checks(const Position& pos, ExtMove* mlist)
   ASSERT_LV1(is_ok(ci.ksq)); // CheckInfoが初期化されていないときはこれが変な値になっているかも。
 
   const Bitboard y = ci.dcCandidates;
-  const Bitboard target = ~pos.pieces(Us); // 自駒がない場所が移動対象升
-  
+  const Bitboard target =
+    (GenType == CHECKS || GenType == CHECKS_ALL) ? ~pos.pieces(Us) :                     // 自駒がない場所が移動対象升
+    (GenType == QUIET_CHECKS || GenType == QUIET_CHECKS_ALL) ? ~pos.pieces() :           // 捕獲の指し手を除外するため駒がない場所が移動対象升
+      ALL_BB; // Error!
+
   // yのみ。ただしxかつyである可能性もある。
   auto src = y;
   while (src)
@@ -792,10 +795,10 @@ ExtMove* generateEvasionMoves(const Position& pos, ExtMove* mlist)
 }
 
 // 同じく、Checksの指し手生成を呼ぶための踏み台
-template<bool All>
+template<MOVE_GEN_TYPE GenType,bool All>
 ExtMove* generateChecksMoves(const Position& pos, ExtMove* mlist)
 {
-  return pos.side_to_move() == BLACK ? generate_checks<BLACK, All>(pos, mlist) : generate_checks<WHITE, All>(pos, mlist);
+  return pos.side_to_move() == BLACK ? generate_checks<GenType,BLACK, All>(pos, mlist) : generate_checks<GenType,WHITE, All>(pos, mlist);
 }
 
 
@@ -805,7 +808,9 @@ template<MOVE_GEN_TYPE GenType>
 ExtMove* generateMoves(const Position& pos, ExtMove* mlist,Square recapSq)
 {
   // すべての指し手を生成するのか。
-  const bool All = (GenType == EVASIONS_ALL) || (GenType == CHECKS_ALL) || (GenType == LEGAL_ALL) || (GenType == NON_EVASIONS_ALL) || (GenType == RECAPTURES_ALL);
+  const bool All = (GenType == EVASIONS_ALL) || (GenType == CHECKS_ALL) || (GenType == LEGAL_ALL)
+    || (GenType == NON_EVASIONS_ALL) || (GenType == RECAPTURES_ALL) || (GenType == QUIET_CHECKS_ALL);
+
   if (GenType == LEGAL || GenType == LEGAL_ALL)
   {
     // LEGALだけは特殊な状況で用いるので、呼び出し元でcheck_info_update()は呼び出しされていないはずなのでここで呼び出しておく。
@@ -827,9 +832,9 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist,Square recapSq)
   }
 
   // 王手生成
-  if (GenType == CHECKS || GenType == CHECKS_ALL)
+  if (GenType == CHECKS || GenType == CHECKS_ALL || GenType == QUIET_CHECKS || GenType == QUIET_CHECKS_ALL)
   {
-    auto last = generateChecksMoves<All>(pos, mlist);
+    auto last = generateChecksMoves<GenType,All>(pos, mlist);
 
     // 王手がかかっている局面においては王手生成において、回避手になっていない指し手も含まれるので
     // pseudo_legal()でない指し手はここで除外する。これはレアケースなので少々の無駄は許容する。
@@ -887,6 +892,9 @@ template ExtMove* generateMoves<LEGAL_ALL             >(const Position& pos, Ext
 
 template ExtMove* generateMoves<CHECKS                >(const Position& pos, ExtMove* mlist);
 template ExtMove* generateMoves<CHECKS_ALL            >(const Position& pos, ExtMove* mlist);
+
+template ExtMove* generateMoves<QUIET_CHECKS          >(const Position& pos, ExtMove* mlist);
+template ExtMove* generateMoves<QUIET_CHECKS_ALL      >(const Position& pos, ExtMove* mlist);
 
 template ExtMove* generateMoves<RECAPTURES            >(const Position& pos, ExtMove* mlist, Square recapSq);
 template ExtMove* generateMoves<RECAPTURES_ALL        >(const Position& pos, ExtMove* mlist, Square recapSq);

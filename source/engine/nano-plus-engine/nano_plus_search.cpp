@@ -74,25 +74,33 @@ namespace YaneuraOuNanoPlus
     // -----------------------------------------------------
     //   王手がかっていない通常探索時用の指し手生成
     // -----------------------------------------------------
-    MAIN_SEARCH_START,  // 置換表の指し手を返すフェーズ
-    GOOD_CAPTURES,      // 捕獲する指し手(CAPTURES_PRO_PLUS)を生成して指し手を一つずつ返す
-    KILLERS,            // KILLERの指し手
-    BAD_CAPTURES,       // 捕獲する悪い指し手
-    GOOD_QUIETS,        // CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す
-    BAD_QUIETS,         // ↑で点数悪そうなものを後回しにしていたのでそれを一つずつ返す
+    MAIN_SEARCH_START,            // 置換表の指し手を返すフェーズ
+    GOOD_CAPTURES,                // 捕獲する指し手(CAPTURES_PRO_PLUS)を生成して指し手を一つずつ返す
+    KILLERS,                      // KILLERの指し手
+    BAD_CAPTURES,                 // 捕獲する悪い指し手
+    GOOD_QUIETS,                  // CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す
+    BAD_QUIETS,                   // ↑で点数悪そうなものを後回しにしていたのでそれを一つずつ返す
 
     // -----------------------------------------------------
     //   王手がかっている/静止探索時用の指し手生成
     // -----------------------------------------------------
-    EVASION_START,      // 置換表の指し手を返すフェーズ
-    ALL_EVASIONS,       // 回避する指し手(EVASIONS)を生成した指し手を一つずつ返す
+    EVASION_START,                // 置換表の指し手を返すフェーズ
+    ALL_EVASIONS,                 // 回避する指し手(EVASIONS)を生成した指し手を一つずつ返す
     
     // -----------------------------------------------------
     //   王手がかっていない静止探索時用の指し手生成
     // -----------------------------------------------------
 
-    RECAPTURE_START,    // ↓のstageに行くためのラベル
-    GOOD_RECAPTURES,    // 最後の移動した駒を捕獲する指し手(RECAPTURES)を生成した指し手を一つずつ返す
+    QSEARCH_WITH_CHECKS_START,    // 王手がかかっているときはここから開始
+    QCAPTURES_1,                  // 捕獲する指し手
+    QCHECKS,                      // 王手となる指し手
+
+    QSEARCH_WITHOUT_CHECKS_START, // 王手がかかっていないときはここから開始
+    QCAPTURES_2,                  // 捕獲する指し手
+
+    // 静止探索で深さ-2以降は組み合わせ爆発を防ぐためにrecaptureのみを生成
+    RECAPTURE_START,              // ↓のstageに行くためのラベル
+    GOOD_RECAPTURES,              // 最後の移動した駒を捕獲する指し手(RECAPTURES)を生成した指し手を一つずつ返す
     STOP,
   };
   ENABLE_OPERATORS_ON(Stages); // 次の状態にするためにインクリメントを使いたい。
@@ -116,11 +124,18 @@ namespace YaneuraOuNanoPlus
     }
 
     // 静止探索から呼び出される時用。
-    MovePicker(const Position& pos_, Move ttMove_, Square recapSq,Stack*ss_) : pos(pos_),ss(ss_)
+    MovePicker(const Position& pos_, Move ttMove_, Depth depth, Square recapSq, Stack*ss_) : pos(pos_),ss(ss_)
     {
       if (pos.in_check())
         stage = EVASION_START;
-      else {
+      else if (depth > DEPTH_QS_NO_CHECKS)
+            stage = QSEARCH_WITH_CHECKS_START;
+
+      else if (depth > DEPTH_QS_RECAPTURES)
+        stage = QSEARCH_WITHOUT_CHECKS_START;
+
+      else
+      {
         stage = RECAPTURE_START;
         recaptureSquare = recapSq;
         ttMove = MOVE_NONE; // 置換表の指し手はrecaptureの升に移動させる指し手ではないので忘れる
@@ -142,8 +157,12 @@ namespace YaneuraOuNanoPlus
       // 次のステージに移行して、そのときに指し手生成が必要なステージに達したなら指し手を生成する。
       switch (++stage)
       {
-      case GOOD_CAPTURES:
+      case GOOD_CAPTURES: case QCAPTURES_1 : case QCAPTURES_2:
         endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, moves);
+        break;
+
+      case GOOD_RECAPTURES:
+        endMoves = generateMoves<RECAPTURES>(pos, moves, recaptureSquare);
         break;
 
         // あとで実装する(↑で生成して返さなかった指し手を返すフェーズ)
@@ -171,12 +190,13 @@ namespace YaneuraOuNanoPlus
         endMoves = generateMoves<EVASIONS>(pos, moves);
         break;
 
-      case GOOD_RECAPTURES:
-        endMoves = generateMoves<RECAPTURES>(pos, moves, recaptureSquare);
+      case QCHECKS:
+        endMoves = generateMoves<QUIET_CHECKS>(pos, moves);
         break;
 
         // そのステージの末尾に達したのでMovePickerを終了する。
-      case EVASION_START: case RECAPTURE_START: case STOP:
+      case EVASION_START: case QSEARCH_WITH_CHECKS_START: case QSEARCH_WITHOUT_CHECKS_START:
+      case RECAPTURE_START: case STOP:
         stage = STOP;
         break;
 
@@ -202,23 +222,34 @@ namespace YaneuraOuNanoPlus
         {
           // 置換表の指し手を返すフェーズ
         case MAIN_SEARCH_START: case EVASION_START:
+        case QSEARCH_WITH_CHECKS_START: case QSEARCH_WITHOUT_CHECKS_START:
           ++currentMoves;
           return ttMove;
 
-          // 捕獲する指し手を返すフェーズ(killer moveの前のフェーズなのでkiller除去は不要)
-        case GOOD_CAPTURES:
+          // killer moveを1手ずつ返すフェーズ
+          // (直前に置換表の指し手を返しているし、CAPTURES_PRO_PLUSでの指し手も返しているのでそれらの指し手は除外されるべき)
+        case KILLERS:
           move = *currentMoves++;
-          // 置換表の指し手、killerと同じものは返してはならない。
+          if (move != MOVE_NONE         // ss->killer[0],[1]からコピーしただけなのでMOVE_NONEの可能性がある
+            &&  move != ttMove          // 置換表の指し手を重複除去しないといけない
+            &&  pos.pseudo_legal(move)
+            && !pos.capture_or_pawn_promotion(move))  // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
+            return move;
+          break;
+
+          // 置換表の指し手を返したあとのフェーズ
+          // (killer moveの前のフェーズなのでkiller除去は不要)
+        case GOOD_CAPTURES:
+        case ALL_EVASIONS: case QCAPTURES_1: case QCAPTURES_2:
+          move = *currentMoves++;
           if (move != ttMove)
             return move;
           break;
 
           // 指し手を一手ずつ返すフェーズ
-        case BAD_CAPTURES:
-        case GOOD_QUIETS:
-        case BAD_QUIETS:
-        case ALL_EVASIONS:
+          // (置換表の指し手とkillerの指し手は返したあとなのでこれらの指し手は除外する必要がある)
         case GOOD_RECAPTURES:
+        case BAD_CAPTURES: case GOOD_QUIETS: case BAD_QUIETS:
           move = *currentMoves++;
           // 置換表の指し手、killerと同じものは返してはならない。
           if (move != ttMove
@@ -227,13 +258,10 @@ namespace YaneuraOuNanoPlus
             return move;
           break;
 
-          // killer moveを1手ずつ返すフェーズ
-        case KILLERS:
+        case QCHECKS:
           move = *currentMoves++;
-          if (move != MOVE_NONE         // ss->killer[0],[1]からコピーしただけなのでMOVE_NONEの可能性がある
-            &&  move != ttMove          // 置換表の指し手を重複除去しないといけない
-            &&  pos.pseudo_legal(move)
-            && !pos.capture_or_pawn_promotion(move))  // 直前にCAPTURESで生成している指し手を除外
+          if (move != ttMove
+            && !pos.capture_or_pawn_promotion(move)) // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
             return move;
           break;
 
@@ -462,7 +490,7 @@ namespace YaneuraOuNanoPlus
     // 静止探索の1つ目の深さではrecaptureを生成しないならこれは問題とならない。
     // ToDo: あとでNULL MOVEを実装したときにrecapture以外も生成するように修正する。
     pos.check_info_update();
-    MovePicker mp(pos,MOVE_NONE/*ttMoveあとで使う*/,move_to((ss-1)->currentMove),ss);
+    MovePicker mp(pos,ttMove,ttDepth,move_to((ss-1)->currentMove),ss);
     Move move;
 
     StateInfo si;
