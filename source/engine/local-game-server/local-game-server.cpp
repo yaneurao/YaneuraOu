@@ -266,6 +266,9 @@ struct EngineState
       if (now() >= start + 60 * 1000)
       {
         sync_cout << "Error : engine timeout , engine name = " << engine_name << endl << pos << sync_endl;
+        // これ、プロセスが落ちてると思われる。
+        // プロセスを再起動したほうが良いのでは…。
+
         return MOVE_RESIGN;
       }
 
