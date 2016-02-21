@@ -675,9 +675,11 @@ template <Color Us> struct GenerateCheckDropMoves<Us, PAWN> {
     auto bb = target;
     if (bb) // 歩を打って王手になる箇所は1箇所しかないのでwhileである必要はない。
     {
-      auto to = bb.pop();
-      // 二歩と打ち歩詰めの判定
-      if (!(FILE_BB[file_of(to)] & pos.pieces(Us,PAWN)) && pos.legal_drop(to))
+      auto to = bb.pop_c();
+
+      // 二歩と打ち歩詰めでないならこの指し手を生成。
+      if (!(FILE_BB[file_of(to)] & pos.pieces(Us,PAWN)) &&
+        !((pawnEffect(Us, to) == Bitboard(pos.king_square(~Us)) && !pos.legal_drop(to))))
         mlist++->move=make_move_drop(PAWN, to);
     }
     return mlist;

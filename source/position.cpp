@@ -566,23 +566,20 @@ bool Position::is_mated() const
 
 bool Position::legal_drop(const Square to) const
 {
+  const auto us = sideToMove;
 
-  // 相手玉の場所
-  Square sq_king = king_square(~sideToMove);
-
-  // 打とうとする歩の利きに相手玉がいなければ打ち歩詰めではない。
-  if (pawnEffect(sideToMove, to) != Bitboard(sq_king))
-    return true;
+  // 打とうとする歩の利きに相手玉がいることは前提条件としてクリアしているはず。
+  ASSERT_LV3(pawnEffect(us, to) == Bitboard(king_square(~us)));
 
   // この歩に利いている自駒(歩を打つほうの駒)がなければ詰みには程遠いのでtrue
-  if (!effected_to(sideToMove, to))
+  if (!effected_to(us, to))
     return true;
 
   // ここに利いている敵の駒があり、その駒で取れるなら打ち歩詰めではない
   // ここでは玉は除外されるし、香が利いていることもないし、そういう意味では、特化した関数が必要。
-  Bitboard b = attackers_to_pawn(~sideToMove, to);
+  Bitboard b = attackers_to_pawn(~us, to);
   // このpinnedは敵のpinned piecesなのでst->checkInfo.pinnedとは異なる。
-  Bitboard pinned = check_blockers(~sideToMove, ~sideToMove);
+  Bitboard pinned = check_blockers(~us, ~us);
 
   // pinされていない駒が1つでもあるなら、その駒で取って何事もない。
   if (b & ~pinned)
@@ -596,7 +593,9 @@ bool Position::legal_drop(const Square to) const
   // 玉の退路を探す
   // 自駒がなくて、かつ、to(はすでに調べたので)以外の地点
 
-  Bitboard escape_bb = kingEffect(sq_king) & ~pieces(~sideToMove);
+  // 相手玉の場所
+  Square sq_king = king_square(~us);
+  Bitboard escape_bb = kingEffect(sq_king) & ~pieces(~us);
 
 #ifndef LONG_EFFECT_LIBRARY
   // LONG EFFECT LIBRARYがない場合、愚直に8方向のうち逃げられそうな場所を探すしかない。
@@ -606,7 +605,7 @@ bool Position::legal_drop(const Square to) const
   while (escape_bb)
   {
     Square king_to = escape_bb.pop();
-    if (!attackers_to(sideToMove, king_to, occ))
+    if (!attackers_to(us, king_to, occ))
       return true; // 退路が見つかったので打ち歩詰めではない。
   }
 
@@ -615,7 +614,7 @@ bool Position::legal_drop(const Square to) const
 #else
   // LONG EFFECT LIBRARYがあれば、玉の8近傍の利きなどを直列化して逃げ場所があるか調べるだけで良いはず。
 
-  auto a8_effet_us = board_effect[sideToMove].around8(sq_king);
+  auto a8_effet_us = board_effect[us].around8(sq_king);
   auto a8_them_movable = Effect8::around8(escape_bb, sq_king) & Effect8::board_mask(sq_king);
 
   // 打った歩での遮断を考える前の段階ですでにすでに歩を打つ側の利きがない升があり、
@@ -625,10 +624,10 @@ bool Position::legal_drop(const Square to) const
 
   // 困ったことに行けそうな升がなかったので打った歩による利きの遮断を考える。
   // いまから打つ歩による遮断される升の利きが2以上でなければそこに逃げられるはず。
-  auto a8_long_effect_to = long_effect.directions_of(sideToMove, to);
-  auto to_dir = (sideToMove == BLACK) ? DIRECT_D : DIRECT_U;  // 王から見た歩の方角
+  auto a8_long_effect_to = long_effect.directions_of(us, to);
+  auto to_dir = (us == BLACK) ? DIRECT_D : DIRECT_U;  // 王から見た歩の方角
   auto a8_cutoff_dir = Effect8::cutoff_directions(to_dir,a8_long_effect_to);
-  auto a8_target = a8_cutoff_dir & a8_them_movable & ~board_effect[sideToMove].around8_greater_than_one(sq_king);
+  auto a8_target = a8_cutoff_dir & a8_them_movable & ~board_effect[us].around8_greater_than_one(sq_king);
 
   return a8_target != 0;
 #endif
@@ -669,8 +668,8 @@ bool Position::pseudo_legal(const Move m) const {
 
     // 歩のとき
     if (pr == PAWN)
-      if ((pieces(us, PAWN) & FILE_BB[file_of(to)])   // 二歩
-        || !legal_drop(to))                           // 打ち歩詰め
+      if ((pieces(us, PAWN) & FILE_BB[file_of(to)])                                 // 二歩
+        || ((pawnEffect(us, to) == Bitboard(king_square(~us)) && !legal_drop(to)))) // 打ち歩詰め
       return false;
 
     // --- 移動できない升への歩・香・桂打ちについて

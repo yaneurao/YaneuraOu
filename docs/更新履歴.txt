@@ -12,20 +12,43 @@
 
 	・V1.69a
 		legal_dropを呼ぶときにその前に敵玉がいるかの判定が要るんだった…。修正。
+		王手になる打ち歩の指し手生成、修正。
 
 	・V1.69b
 
-  Square pawn_attack = (sideToMove == BLACK) ? to + SQ_U : to + SQ_D;
-  if (sq_king != pawn_attack)
-    return true;
+		  Square pawn_attack = (sideToMove == BLACK) ? to + SQ_U : to + SQ_D;
+		  if (sq_king != pawn_attack)
+			return true;
 
-  // →　この判定の仕方だと、kingが駒落ちでSQ_NBにいるときにSQ_NB - 9の場所に歩を打つとkingの
-  // 行き場所がないから打ち歩詰めと判定されてしまう。
+		  // →　この判定の仕方だと、kingが駒落ちでSQ_NBにいるときにSQ_NB - 9の場所に歩を打つとkingの
+		  // 行き場所がないから打ち歩詰めと判定されてしまう。
 
-	  if (pawnEffect(sideToMove, to) != Bitboard(sq_king))
-		return true;
+		  if (pawnEffect(sideToMove, to) != Bitboard(sq_king))
+			return true;
 
-	こう書くべきなのか…。他はやってなかった。
+	こう書くべきなのか…。同様のミス、他はやってなかった。
+
+	・V1.69c
+
+	pseudo_legal()を以下のように修正。
+
+    // 歩のとき
+    if (pr == PAWN)
+      if ((pieces(us, PAWN) & FILE_BB[file_of(to)])                                 // 二歩
+        || ((pawnEffect(us, to) == Bitboard(king_square(~us)) && !legal_drop(to)))) // 打ち歩詰め
+      return false;
+
+	legal_drop()に玉の位置に関するASSERT追加。
+
+	王手となる打ち歩の指し手生成、以下のように修正。
+
+      // 二歩と打ち歩詰めでないならこの指し手を生成。
+      if (!(FILE_BB[file_of(to)] & pos.pieces(Us,PAWN)) &&
+        !((pawnEffect(Us, to) == Bitboard(king_square(~Us)) && !pos.legal_drop(to))))
+        mlist++->move=make_move_drop(PAWN, to);
+
+		・勝率の偏りはないと思うが、1000局ほどランニングしておく。
+
 
 
 ■ 2016/02/21 V1.68
