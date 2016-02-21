@@ -339,7 +339,7 @@ namespace Eval
   }
 
   // 評価関数
-  Value eval(const Position& pos)
+  Value evaluate(const Position& pos)
   {
     // 差分計算
     auto score = calc_diff_kpp(pos) + pos.state()->materialValue;

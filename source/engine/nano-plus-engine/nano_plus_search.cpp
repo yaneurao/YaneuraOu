@@ -28,6 +28,7 @@
 
 using namespace std;
 using namespace Search;
+using namespace Eval;
 
 namespace YaneuraOuNanoPlus
 {
@@ -309,7 +310,8 @@ namespace YaneuraOuNanoPlus
   // -----------------------
 
   // 探索しているnodeの種類
-  enum NodeType { Root, PV, NonPV };
+  // Rootはここでは用意しない。Rootに特化した関数を用意するのが少し無駄なので。
+  enum NodeType { PV, NonPV };
 
   // 探索深さを減らすためのReductionテーブル
   // [PvNodeであるか][improvingであるか][このnodeで何手目の指し手であるか][残りdepth]
@@ -434,7 +436,7 @@ namespace YaneuraOuNanoPlus
         // 置換表に評価値が格納されているとは限らないのでその場合は評価関数の呼び出しが必要
         // bestValueの初期値としてこの局面のevaluate()の値を使う。これを上回る指し手があるはずなのだが..
         if ((ss->staticEval = bestValue = tte->eval()) == VALUE_NONE)
-          ss->staticEval = bestValue = Eval::eval(pos);
+          ss->staticEval = bestValue = evaluate(pos);
 
         // 置換表に格納されていたスコアは、この局面で今回探索するものと同等か少しだけ劣るぐらいの
         // 精度で探索されたものであるなら、それをbestValueの初期値として使う。
@@ -447,7 +449,7 @@ namespace YaneuraOuNanoPlus
         // 置換表がhitしなかった場合、bestValueの初期値としてevaluate()を呼び出すしかないが、
         // NULL_MOVEの場合は前の局面での値を反転させると良い。(手番を考慮しない評価関数であるなら)
         ss->staticEval = bestValue =
-          (ss - 1)->currentMove != MOVE_NULL ? Eval::eval(pos)
+          (ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
                                              : -(ss - 1)->staticEval;
       }
 
@@ -577,12 +579,13 @@ namespace YaneuraOuNanoPlus
     const bool PvNode = NT == PV;
 
     // root nodeであるか
-    static_assert(NT != Root,"static assert : NT != Root");
     const bool RootNode = PvNode && (ss-1)->ply == 0;
 
     // -----------------------
     //     変数の宣言
     // -----------------------
+
+    Value eval;              // この局面に対する評価値の見積り。
 
     // 調べた指し手を残しておいて、statusのupdateを行なうときに使う。
     Move quietsSearched[64];
@@ -638,10 +641,10 @@ namespace YaneuraOuNanoPlus
     //   置換表のprobe
     // -----------------------
 
-    auto key = pos.state()->key();
+    auto posKey = pos.state()->key();
 
     bool ttHit;    // 置換表がhitしたか
-    TTEntry* tte = TT.probe(key, ttHit);
+    TTEntry* tte = TT.probe(posKey, ttHit);
 
     // 置換表上のスコア
     // 置換表にhitしなければVALUE_NONE
@@ -705,8 +708,53 @@ namespace YaneuraOuNanoPlus
 #endif
 
     // -----------------------
+    //  局面を評価値によって静的に評価
+    // -----------------------
+
+    const bool InCheck = pos.checkers();
+
+    if (InCheck)
+    {
+      // 評価値を置換表から取り出したほうが得だと思うが、反復深化でこのnodeに再訪問したときも
+      // このnodeでは評価値を用いないであろうから、置換表にこのnodeの評価値があることに意味がない。
+
+      ss->staticEval = eval = VALUE_NONE;
+      goto MOVES_LOOP;
+    }
+    else if (ttHit)
+    {
+      // 置換表にhitしたなら、評価値が記録されているはずだから、それを取り出しておく。
+      // あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
+
+      // tte->eval()へのアクセスは1回にしないと他のスレッドが壊してしまう可能性がある。
+      if ((ss->staticEval = eval = tte->eval()) == VALUE_NONE)
+        ss->staticEval = evaluate(pos);
+
+      eval = ss->staticEval;
+
+      // ttValueのほうがこの局面の評価値の見積もりとして適切であるならそれを採用する。
+      // 1. ttValue > evaluate()でかつ、ttValueがBOUND_LOWERなら、真の値はこれより大きいはずだから、
+      //   evalとしてttValueを採用して良い。
+      // 2. ttValue < evaluate()でかつ、ttValueがBOUND_UPPERなら、真の値はこれより小さいはずだから、
+      //   evalとしてttValueを採用したほうがこの局面に対する評価値の見積りとして適切である。
+      if (  ttValue != VALUE_NONE && (tte->bound() & (ttValue > eval ? BOUND_LOWER : BOUND_UPPER)))
+        eval = ttValue;
+
+    } else {
+
+      ss->staticEval = eval =
+        (ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
+                                           : -(ss - 1)->staticEval;
+
+      // 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
+      tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
+    }
+
+    // -----------------------
     // 1手ずつ指し手を試す
     // -----------------------
+
+  MOVES_LOOP:
 
     {
       pos.check_info_update();
@@ -715,7 +763,17 @@ namespace YaneuraOuNanoPlus
       Value value;
       Move move;
       StateInfo si;
-      bool givesCheck; // 今回の指し手で王手になるかどうか
+
+      // 今回の指し手で王手になるかどうか
+      bool givesCheck;
+
+      // 評価値が2手前の局面から上がって行っているのかのフラグ
+      // 上がって行っているなら枝刈りを甘くする。
+      // ※ VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
+      //   枝刈りを甘くして調べないといけないのでimproving扱いとする。
+      bool improving = ss->staticEval >= (ss - 2)->staticEval
+        || ss->staticEval == VALUE_NONE
+        || (ss - 2)->staticEval == VALUE_NONE;
 
       moveCount = quietCount = 0;
 
@@ -750,30 +808,52 @@ namespace YaneuraOuNanoPlus
         // 再帰的にsearchを呼び出す
         // -----------------------
 
+        // 再帰的にsearchを呼び出すとき、search関数に渡す残り探索深さ。
+        Depth newDepth = depth - ONE_PLY;
+
         // Reduced depth search(LMR)
-        // 探索深さを減らしてざっくり調べる。alpha値を更新しそうなら(fail highが起きたら)、
-        // full depthで探索しなおす。
+        // 探索深さを減らしてざっくり調べる。alpha値を更新しそうなら(fail highが起きたら)、full depthで探索しなおす。
+
         if (depth >= 3 * ONE_PLY && moveCount > 1 && !captureOrPromotion)
         {
           // Reduction量
-          Depth r = reduction<PvNode>(false,depth,moveCount);
+          Depth r = reduction<PvNode>(improving,depth,moveCount);
 
           // depth >= 3なのでqsearchは呼ばれないし、かつ、
           // moveCount > 1 すなわち、2手目移行なのでsearch<NonPv>が呼び出されるべき。
-          Depth d = max(depth - r, ONE_PLY);
+          Depth d = max(newDepth - r, ONE_PLY);
           value = -YaneuraOuNanoPlus::search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d);
 
           // 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす
-          fullDepthSearch = value > alpha;
+          fullDepthSearch = (value > alpha) && r != DEPTH_ZERO;
+
         } else {
-          fullDepthSearch = true;
+
+          // non PVか、PVでも2手目以降であればfull depth searchを行なう。
+          fullDepthSearch = !PvNode || moveCount > 1;
+
         }
 
+        // Full depth search
+        // LMRがskipされたか、LMRにおいてfail highを起こしたなら元の探索深さで探索する。
+
+        // ※　静止探索は残り探索深さはDEPTH_ZEROとして開始されるべきである。(端数があるとややこしいため)
         if (fullDepthSearch)
-          value = depth - ONE_PLY < ONE_PLY ?
-                                 givesCheck ? -qsearch<PV , true>(pos, ss+1 , -beta, -alpha, depth - ONE_PLY)
-                                            : -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
-                                            : -YaneuraOuNanoPlus::search<PV>(pos, ss+1 , -beta, -alpha, depth - ONE_PLY);
+          value = depth  < ONE_PLY ?
+                        givesCheck ? -qsearch<NonPV , true>(pos, ss + 1 , -beta, -alpha, DEPTH_ZERO)
+                                   : -qsearch<NonPV, false>(pos, ss + 1 , -beta, -alpha, DEPTH_ZERO)
+                                   : -search <NonPV>       (pos, ss + 1 , -beta, -alpha, newDepth);
+
+        // PV nodeにおいては、full depth searchがfail highしたならPV nodeとしてsearchしなおす。
+        // ただし、value >= betaなら、正確な値を求めることにはあまり意味がないので、これはせずにbeta cutしてしまう。
+        if (PvNode && (moveCount == 1 || (value > alpha && (RootNode || value < beta))))
+        {
+          value = depth <  ONE_PLY ?
+                        givesCheck ? -qsearch<PV, true> (pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
+                                   : -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
+                                   : -search<PV>        (pos, ss + 1, -beta, -alpha, newDepth);
+        }
+
 
         // -----------------------
         //      1手戻す
@@ -847,7 +927,7 @@ namespace YaneuraOuNanoPlus
 
 //TT_SAVE:;
 
-    tte->save(key, value_to_tt(alpha, ss->ply),
+    tte->save(posKey, value_to_tt(alpha, ss->ply),
       alpha >= beta ? BOUND_LOWER : 
       PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
       // betaを超えているということはbeta cutされるわけで残りの指し手を調べていないから真の値はまだ大きいと考えられる。
@@ -856,7 +936,7 @@ namespace YaneuraOuNanoPlus
       // また、PvNodeでないなら、枝刈りをしているので、これは正確な値ではないから、BOUND_UPPERという扱いにする。
       // ただし、指し手がない場合は、詰まされているスコアなので、これより短い/長い手順の詰みがあるかも知れないから、
       // すなわち、スコアは変動するかも知れないので、BOUND_UPPERという扱いをする。
-      depth, bestMove, VALUE_NONE,TT.generation());
+      depth, bestMove, ss->staticEval ,TT.generation());
 
     return alpha;
   }
@@ -897,6 +977,7 @@ void Search::init() {
             reduction_table[pv][imp][d][mc] = int(r) * ONE_PLY;
 
           // improving(評価値が2手前から上がっている)でないときはreductionの量を増やす。
+          // →　これ、ほとんど効果がないようだ…。あとで調整すべき。
           if (!pv && !imp && reduction_table[pv][imp][d][mc] >= 2 * ONE_PLY)
             reduction_table[pv][imp][d][mc] += ONE_PLY;
         }

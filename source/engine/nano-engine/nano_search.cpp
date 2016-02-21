@@ -30,6 +30,7 @@
 
 using namespace std;
 using namespace Search;
+using namespace Eval;
 
 namespace YaneuraOuNano
 {
@@ -122,7 +123,7 @@ namespace YaneuraOuNano
       // 王手がかかっていないなら置換表の指し手を持ってくる
 
       // この局面で何も指さないときのスコア。recaptureすると損をする変化もあるのでこのスコアを基準に考える。
-      value = Eval::eval(pos);
+      value = evaluate(pos);
 
       if (alpha < value)
       {

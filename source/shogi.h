@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "1.64"
+#define ENGINE_VERSION "1.66"
 
 // --------------------
 // コンパイル時の設定
@@ -718,7 +718,7 @@ namespace Search {
 namespace Eval {
   enum BonaPiece : int16_t;
 
-  Value eval(const Position& pos);
+  Value evaluate(const Position& pos);
 }
 
 // --------------------

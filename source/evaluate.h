@@ -19,7 +19,7 @@ namespace Eval {
   Value material(const Position& pos);
 
   // 評価関数本体
-  Value eval(const Position& pos);
+  Value evaluate(const Position& pos);
 
   // 駒割り以外の全計算して、その合計を返す。Position::set()で一度だけ呼び出される。
   // あるいは差分計算が不可能なときに呼び出される。

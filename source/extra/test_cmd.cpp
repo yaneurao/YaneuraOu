@@ -16,6 +16,9 @@
 
 // 通常のPERFTと、置換表を用いる高速なPERFTと選択できる。
 // 後者を用いる場合は、hash keyの衝突を避けるためにHASH_KEY_BITSを128にしておくこと。
+// ※　あと、後者は以下のところで置換表を15GBほど固定で確保しているので、動作環境に応じて修正すること。
+// >  entryCount = 256 * 1024 * 1024; // * sizeof(PerftSolverResult) == 15GBほど
+
 #define NORMAL_PERFT
 
 struct PerftSolverResult {

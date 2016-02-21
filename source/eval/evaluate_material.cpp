@@ -31,7 +31,7 @@ namespace Eval
 
   void load_eval() {}
   void print_eval_stat(Position& pos) {}
-  Value eval(const Position& pos) {
+  Value evaluate(const Position& pos) {
     auto score = pos.state()->materialValue;
     ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));
     return pos.side_to_move() == BLACK ? score : -score;
