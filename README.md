@@ -43,13 +43,14 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/02/21 14:30現在)
+#　俺の作業メモ(2016/02/21 21:30現在)
 
 - [ ] 長手数の詰将棋ルーチン作る
 - [ ] やねうら王miniの探索部
 - [ ] やねうら王nano plusの探索部の改良
 
-- [x] 2016/02/21・やねうら王nano plus、full depth searchの処理修正。
+- [x] 2016/02/21・Position::capture()の処理間違っていたの修正。
+- [x] 2016/02/21・やねうら王nano plus、full depth searchの処理修正と調整。(+R100)
 - [x] 2016/02/21・やねうら王nano plus、improvingフラグ用意。(+R5)
 - [x] 2016/02/21・やねうら王nano plus、通常探索でevaluate()を呼び出すように変更。(+R50)
 - [x] 2016/02/21・local game server、エンジン側から非合法手が送られてきたときにMOVE_RESIGN扱いにするように。

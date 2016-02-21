@@ -5,6 +5,7 @@
 ・MovePickerに他のオーダリングも導入
 ・lazy SMPで並列化して+R300程度かな？他の最適化してから考えよう。
 
+
 ■ 2016/02/21 V1.68
 
 ・nano plus、full depth searchも、nonPVでやるべきでは..
@@ -95,8 +96,14 @@
 
 		わかった。
           value = depth < ONE_PLY ?
+		  は、まちがい。
           value = newDepth < ONE_PLY ?
+		  これが正しい。
 
+		  1.66と対戦させる。結構勝ち越すようだ。
+		  これでcommitしておく。
+
+		  floodgateでR2500以上つくなら、これでnano plusは開発終了。
 
 
 ■ 2016/02/21 V1.67
