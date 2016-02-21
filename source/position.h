@@ -379,7 +379,7 @@ struct Position
   bool capture_or_promotion(Move m) const { return (m & MOVE_PROMOTE) || capture(m); }
 
   // 捕獲する指し手であるか。
-  bool capture(Move m) const { return piece_on(move_to(m)) != NO_PIECE; }
+  bool capture(Move m) const { return !is_drop(m) && piece_on(move_to(m)) != NO_PIECE; }
 
   // 捕獲する指し手もしくは歩を成る指し手であるか。
   bool capture_or_pawn_promotion(Move m) const {

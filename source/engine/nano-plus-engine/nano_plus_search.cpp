@@ -819,6 +819,15 @@ namespace YaneuraOuNanoPlus
           // Reduction量
           Depth r = reduction<PvNode>(improving,depth,moveCount);
 
+          // captureとpromotionに関してはreduction量を減らしてもう少し突っ込んで調べる。
+          // 歩以外の捕獲の指し手は、捕獲から逃れる手があって有利になるかも知れないので
+          // このときの探索を浅くしてしまうと局面の評価の精度が下がる。
+          if (r
+              && pos.capture(move)
+              && type_of(pos.piece_on(move_to(move))) != PAWN // 歩以外の捕獲
+            )
+            r = std::max(DEPTH_ZERO, r - ONE_PLY);
+
           // depth >= 3なのでqsearchは呼ばれないし、かつ、
           // moveCount > 1 すなわち、2手目移行なのでsearch<NonPv>が呼び出されるべき。
           Depth d = max(newDepth - r, ONE_PLY);
@@ -839,19 +848,19 @@ namespace YaneuraOuNanoPlus
 
         // ※　静止探索は残り探索深さはDEPTH_ZEROとして開始されるべきである。(端数があるとややこしいため)
         if (fullDepthSearch)
-          value = depth  < ONE_PLY ?
-                        givesCheck ? -qsearch<NonPV , true>(pos, ss + 1 , -(alpha + 1), -alpha, DEPTH_ZERO)
-                                   : -qsearch<NonPV, false>(pos, ss + 1 , -(alpha + 1), -alpha, DEPTH_ZERO)
-                                   : -search <NonPV>       (pos, ss + 1 , -(alpha + 1), -alpha, newDepth);
+          value = newDepth < ONE_PLY ?
+                          givesCheck ? -qsearch<NonPV , true>(pos, ss + 1 , -(alpha + 1), -alpha, DEPTH_ZERO)
+                                     : -qsearch<NonPV, false>(pos, ss + 1 , -(alpha + 1), -alpha, DEPTH_ZERO)
+                                     : - search<NonPV>       (pos, ss + 1 , -(alpha + 1), -alpha, newDepth);
 
         // PV nodeにおいては、full depth searchがfail highしたならPV nodeとしてsearchしなおす。
         // ただし、value >= betaなら、正確な値を求めることにはあまり意味がないので、これはせずにbeta cutしてしまう。
         if (PvNode && (moveCount == 1 || (value > alpha && (RootNode || value < beta))))
         {
-          value = depth <  ONE_PLY ?
-                        givesCheck ? -qsearch<PV, true> (pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
-                                   : -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
-                                   : -search <PV>       (pos, ss + 1, -beta, -alpha, newDepth);
+          value = newDepth < ONE_PLY ?
+                          givesCheck ? -qsearch<PV,  true>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
+                                     : -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
+                                     : - search<PV>       (pos, ss + 1, -beta, -alpha, newDepth);
         }
 
 
