@@ -661,11 +661,11 @@ bool Position::pseudo_legal(const Move m) const {
         return false;
     }
 
-    // 二歩の判定
-    if (pr == PAWN && (pieces(us, PAWN) & FILE_BB[file_of(to)]))
+    // 歩のとき
+    if (pr == PAWN)
+      if ((pieces(us, PAWN) & FILE_BB[file_of(to)])   // 二歩
+        || !legal_drop(to))                           // 打ち歩詰め
       return false;
-
-    // 打ち歩詰めの判定はlegal()のほうで行なうのでここではしない。
 
     // --- 移動できない升への歩・香・桂打ちについて
 

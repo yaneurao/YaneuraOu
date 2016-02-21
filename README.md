@@ -49,6 +49,7 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 - [ ] やねうら王miniの探索部
 - [ ] やねうら王nano plusの探索部の改良
 
+- [x] 2016/02/21・指し手生成で打ち歩詰め除外したときに、pseudo_legal()に打ち歩詰め判定入れるの忘れていたので修正。
 - [x] 2016/02/21・Position::capture()の処理間違っていたの修正。
 - [x] 2016/02/21・やねうら王nano plus、full depth searchの処理修正と調整。(+R100)
 - [x] 2016/02/21・やねうら王nano plus、improvingフラグ用意。(+R5)
