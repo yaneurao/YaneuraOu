@@ -566,29 +566,35 @@ bool Position::is_mated() const
 
 bool Position::legal_drop(const Square to) const
 {
-  // この歩に利いている自駒がなければ詰みには程遠いのでtrue
+  // この歩に利いている自駒(歩を打つほうの駒)がなければ詰みには程遠いのでtrue
   if (!effected_to(sideToMove, to))
     return true;
 
   // ここに利いている敵の駒があり、その駒で取れるなら打ち歩詰めではない
   // ここでは玉は除外されるし、香が利いていることもないし、そういう意味では、特化した関数が必要。
   Bitboard b = attackers_to_pawn(~sideToMove, to);
+  // このpinnedは敵のpinned piecesなのでst->checkInfo.pinnedとは異なる。
   Bitboard pinned = check_blockers(~sideToMove, ~sideToMove);
 
+  // pinされていない駒が1つでもあるなら、その駒で取って何事もない。
   if (b & ~pinned)
-    return true; // pinされていない駒が1つでもあるなら、その駒で取って何事もない。
+    return true;
 
-    // 攻撃駒はすべてpinされていたということであり、
-    // 王の頭に打たれた打ち歩をpinされている駒で取れるケースは、
-    // いろいろあるが、いずれも玉の頭方向以外のところから頭方向への移動であるから、pinされている方向への移動ということはありえない。
-    // ゆえに、この歩は取れないことが確定した。
+  // 攻撃駒はすべてpinされていたということであり、
+  // 王の頭に打たれた打ち歩をpinされている駒で取れるケースは、
+  // いろいろあるが、いずれも玉の頭方向以外のところから頭方向への移動であるから、pinされている方向への移動ということはありえない。
+  // ゆえに、この歩は取れないことが確定した。
 
-    // 玉の退路を探す
-    // 自駒がなくて、かつ、to(はすでに調べたので)以外の地点
+  // 玉の退路を探す
+  // 自駒がなくて、かつ、to(はすでに調べたので)以外の地点
 
-    // 相手玉の場所
+  // 相手玉の場所
   Square sq_king = king_square(~sideToMove);
   Bitboard escape_bb = kingEffect(sq_king) & ~pieces(~sideToMove);
+
+#ifndef LONG_EFFECT_LIBRARY
+  // LONG EFFECT LIBRARYがない場合、愚直に8方向のうち逃げられそうな場所を探すしかない。
+
   escape_bb ^= to;
   auto occ = pieces() ^ to; // toには歩をおく前提なので、ここには駒があるものとして、これでの利きの遮断は考えないといけない。
   while (escape_bb)
@@ -600,6 +606,26 @@ bool Position::legal_drop(const Square to) const
 
   // すべての検査を抜けてきたのでこれは打ち歩詰めの条件を満たしている。
   return false;
+#else
+  // LONG EFFECT LIBRARYがあれば、玉の8近傍の利きなどを直列化して逃げ場所があるか調べるだけで良いはず。
+
+  auto a8_effet_us = board_effect[sideToMove].around8(sq_king);
+  auto a8_them_movable = Effect8::around8(escape_bb, sq_king) & Effect8::board_mask(sq_king);
+
+  // 打った歩での遮断を考える前の段階ですでにすでに歩を打つ側の利きがない升があり、
+  // そこに移動できるのであれば、これは打ち歩ではない。
+  if (~a8_effet_us & a8_them_movable)
+    return true;
+
+  // 困ったことに行けそうな升がなかったので打った歩による利きの遮断を考える。
+  // いまから打つ歩による遮断される升の利きが2以上でなければそこに逃げられるはず。
+  auto a8_long_effect_to = long_effect.directions_of(sideToMove, to);
+  auto to_dir = (sideToMove == BLACK) ? DIRECT_D : DIRECT_U;  // 王から見た歩の方角
+  auto a8_cutoff_dir = Effect8::cutoff_directions(to_dir,a8_long_effect_to);
+  auto a8_target = a8_cutoff_dir & a8_them_movable & ~board_effect[sideToMove].around8_greater_than_one(sq_king);
+
+  return a8_target != 0;
+#endif
 }
 
 // ※　mがこの局面においてpseudo_legalかどうかを判定するための関数。
@@ -1160,7 +1186,7 @@ bool Position::pos_is_ok() const
     return false;
 
   // 4) 相手玉が取れるということはないか
-  if (attackers_to(sideToMove, king_square(~sideToMove)))
+  if (effected_to(sideToMove, king_square(~sideToMove)))
     return false;
 
   // 5) occupied bitboardは合っているか
