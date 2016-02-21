@@ -4,6 +4,20 @@
 ・MovePickerに他のオーダリングも導入
 ・lazy SMPで並列化して+R300程度かな？他の最適化してから考えよう。
 
+■ 2016/02/21 V1.60
+
+・pos.legal()の判定おかしいのか。
+
+position startpos moves 7i6h 5c5d 6i7h 3c3d 2g2f 8c8d 7g7f 2b8h+ 7h8h 7a6b 6h7g 3a3b 2f2e 3b3c 4i5h 4a3b 5h6h 4c4d 6h7h 5a4a 5i5h 6a5b 7g8f 7c7d 8f7g 5b4c 5h6i 4a3a B*5b 3a2b 5b6a+ B*9d 6a9d 9c9d B*5b 4c4b 5b6a+ B*4c 6a4c 4b4c 6i5h 6b5c 2e2d 3c2d 7g6f 9d9e 6f6e B*8c 8i7g 6c6d 6e5f 7d7e 7f7e P*7f 7g6e 6d6e 9g9f 9e9f P*2e 2d3c 7e7d 8c7d 9i9f 9a9f P*7e 7d8c B*6c N*8e 8g8f 8e9g+ 8h8g 9g8g 7h8g 9f9g+ 8g7f 8c9d 7f6e P*7f P*9e 9d7b N*9d 7b6c 9d8b+ L*2g 2h2g 5d5e 2g2h G*2g 6e7d
+go btime 169000 wtime 29000 byoyomi 10000
+
+	^飛 王 ★
+
+	★の升に移動する指し手はevasionにはならない。
+	ゆえにpos.legal()の判定、これを考慮しないといけない。
+	effected_to()の仕様がおかしいんだな。修正した。
+
+
 ■ 2016/02/21 V1.59
 
 ・local server、応答がなくなる原因わかった。bestmove待ちでエンジンがbestmoveを返さないと

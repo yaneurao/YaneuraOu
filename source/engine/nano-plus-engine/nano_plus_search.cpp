@@ -505,6 +505,11 @@ namespace YaneuraOuNanoPlus
 
       givesCheck = pos.gives_check(move);
 
+      if (pos.piece_on(move_to(move)) == KING)
+      {
+        cout << pos << move << " " << (ss - 1)->currentMove << " " << (ss - 2)->currentMove << endl;
+      }
+
       pos.do_move(move, si, pos.gives_check(move));
       value = givesCheck ? -YaneuraOuNanoPlus::qsearch<NT, true>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
                          : -YaneuraOuNanoPlus::qsearch<NT,false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);

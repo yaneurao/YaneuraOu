@@ -232,7 +232,9 @@ struct Position
   Bitboard attackers_to_pawn(Color c, Square pawn_sq) const;
 
   // attackers_to()で駒があればtrueを返す版。(利きの情報を持っているなら、軽い実装に変更できる)
+  // kingSqの地点からは玉を取り除いての利きの判定を行なう。
   bool effected_to(Color c, Square sq) const { return attackers_to(c, sq, pieces()); }
+  bool effected_to(Color c, Square sq , Square kingSq) const { return attackers_to(c, sq, pieces()^kingSq); }
 
   // --- 局面を進める/戻す
 
@@ -278,7 +280,7 @@ struct Position
       Square from = move_from(m);
 
       // もし移動させる駒が玉であるなら、行き先の升に相手側の利きがないかをチェックする。
-      return (type_of(piece_on(from)) == KING) ? !effected_to(~us, move_to(m)) :
+      return (type_of(piece_on(from)) == KING) ? !effected_to(~us, move_to(m), from) :
         // 玉以外の駒であれば、その駒を動かして自玉が素抜きに合わなければ合法。
         !discovered(from, move_to(m), king_square(us), st->checkInfo.pinned);
     }
