@@ -110,7 +110,7 @@
 #endif
 
 #ifdef YANEURAOU_NANO_PLUS_ENGINE
-//#define ASSERT_LV 3  // 開発中なのでASSERT有効に。最終的には無効にしてリリースする。
+#define ASSERT_LV 3  // 開発中なのでASSERT有効に。最終的には無効にしてリリースする。
 #define ENGINE_NAME "YaneuraOu nano plus"
 #define ENABLE_TEST_CMD
 #define ENABLE_OPTION_PARAM

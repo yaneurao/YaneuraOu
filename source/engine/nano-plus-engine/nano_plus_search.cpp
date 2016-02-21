@@ -573,11 +573,11 @@ namespace YaneuraOuNanoPlus
     //     nodeの種類
     // -----------------------
 
-    // root nodeであるか
-    const bool RootNode = NT == Root;
-
     // PV nodeであるか(root nodeはPV nodeに含まれる)
     const bool PvNode = NT == PV || NT == Root;
+
+    // root nodeであるか
+    const bool RootNode = PvNode && (ss-1)->ply == 0;
 
     // -----------------------
     //     変数の宣言
@@ -604,6 +604,10 @@ namespace YaneuraOuNanoPlus
 
     // rootからの手数
     ss->ply = (ss - 1)->ply + 1;
+
+    // 最大手数を超えている
+    if (ss->ply >= MAX_PLY)
+      return Eval::eval(pos);
 
     // -----------------------
     //  Mate Distance Pruning
@@ -1013,7 +1017,7 @@ void MainThread::think() {
 
       PVIdx = 0; // MultiPVではないのでPVは1つで良い。
 
-      YaneuraOuNanoPlus::search<Root>(rootPos, ss+1 , alpha, beta, rootDepth * ONE_PLY);
+      YaneuraOuNanoPlus::search<PV>(rootPos, ss , alpha, beta, rootDepth * ONE_PLY);
 
       // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
       std::stable_sort(rootMoves.begin(), rootMoves.end());
