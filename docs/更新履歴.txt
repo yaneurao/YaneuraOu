@@ -13,6 +13,21 @@
 	・V1.69a
 		legal_dropを呼ぶときにその前に敵玉がいるかの判定が要るんだった…。修正。
 
+	・V1.69b
+
+  Square pawn_attack = (sideToMove == BLACK) ? to + SQ_U : to + SQ_D;
+  if (sq_king != pawn_attack)
+    return true;
+
+  // →　この判定の仕方だと、kingが駒落ちでSQ_NBにいるときにSQ_NB - 9の場所に歩を打つとkingの
+  // 行き場所がないから打ち歩詰めと判定されてしまう。
+
+	  if (pawnEffect(sideToMove, to) != Bitboard(sq_king))
+		return true;
+
+	こう書くべきなのか…。他はやってなかった。
+
+
 ■ 2016/02/21 V1.68
 
 ・nano plus、full depth searchも、nonPVでやるべきでは..

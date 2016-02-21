@@ -566,12 +566,12 @@ bool Position::is_mated() const
 
 bool Position::legal_drop(const Square to) const
 {
+
   // 相手玉の場所
   Square sq_king = king_square(~sideToMove);
-  Square pawn_attack = (sideToMove == BLACK) ? to + SQ_U : to + SQ_D;
 
   // 打とうとする歩の利きに相手玉がいなければ打ち歩詰めではない。
-  if (sq_king != pawn_attack)
+  if (pawnEffect(sideToMove, to) != Bitboard(sq_king))
     return true;
 
   // この歩に利いている自駒(歩を打つほうの駒)がなければ詰みには程遠いのでtrue
