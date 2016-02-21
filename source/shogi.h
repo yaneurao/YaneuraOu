@@ -310,7 +310,7 @@ enum Depth : int32_t
   // 静止探索で王手がかかっていないとき。
   DEPTH_QS_NO_CHECKS = -1*(int)ONE_PLY,
   // 静止探索でこれより深い(残り探索深さが少ない)ところではRECAPTURESしか生成しない。
-  DEPTH_QS_RECAPTURES = -3*(int)ONE_PLY,
+  DEPTH_QS_RECAPTURES = -2*(int)ONE_PLY,
 
   // DEPTH_NONEは探索せずに値を求めたという意味に使う。
   DEPTH_NONE = -6 * (int)ONE_PLY
