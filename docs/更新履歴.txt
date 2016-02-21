@@ -4,6 +4,37 @@
 ・MovePickerに他のオーダリングも導入
 ・lazy SMPで並列化して+R300程度かな？他の最適化してから考えよう。
 
+■ 2016/02/21 V1.61
+
+・long effectがあるときにeffected_toは高速化できるのでそのコード追加。
+
+	改良前とbenchのnode数が変わらないことを検証する。
+	===========================
+	Total time (ms) : 17606
+	Nodes searched  : 20291524
+	Nodes/second    : 1152534
+
+	→　変更後。nps 0.2%ぐらい上がった？
+	===========================
+	Total time (ms) : 17578
+	Nodes searched  : 20291524
+	Nodes/second    : 1154370
+
+	ASSERT無効にしてベンチ
+
+	===========================
+	Total time (ms) : 17142
+	Nodes searched  : 20291525
+	Nodes/second    : 1183731
+
+	何故かノード数が1だけ変わる…。do_move()するようなASSERTどこかに入っているのか..？あとで調べる。
+
+	とりあえずこれでcommitして、floodgateに放流しておく。
+
+・nanoとnano plusと対局させておく。
+
+
+
 ■ 2016/02/21 V1.60
 
 ・pos.legal()の判定おかしいのか。

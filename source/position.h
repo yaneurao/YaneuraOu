@@ -233,8 +233,16 @@ struct Position
 
   // attackers_to()で駒があればtrueを返す版。(利きの情報を持っているなら、軽い実装に変更できる)
   // kingSqの地点からは玉を取り除いての利きの判定を行なう。
+#ifndef LONG_EFFECT_LIBRARY
   bool effected_to(Color c, Square sq) const { return attackers_to(c, sq, pieces()); }
   bool effected_to(Color c, Square sq , Square kingSq) const { return attackers_to(c, sq, pieces()^kingSq); }
+#else 
+  bool effected_to(Color c, Square sq) const { return board_effect[c].effect(sq) != 0; }
+  bool effected_to(Color c, Square sq, Square kingSq) const {
+    return board_effect[c].effect(sq) != 0 ||
+      ((long_effect.directions_of(c,kingSq) & Effect8::directions_of(kingSq, sq)) != 0); // 影の利きがある
+  }
+#endif
 
   // --- 局面を進める/戻す
 
