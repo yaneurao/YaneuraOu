@@ -5,6 +5,28 @@
 ・MovePickerに他のオーダリングも導入
 ・lazy SMPで並列化して+R300程度かな？他の最適化をしてから考えよう。
 
+■ 2016/02/22 V1.71
+
+・色々いじったので、search()のなかでmate1有効にしてみる。
+
+    // RootNodeでは1手詰め判定、ややこしくなるのでやらない。
+    // 置換表にhitしたときも1手詰め判定は行われていると思われるのでこの場合もはしょる
+    if (!RootNode && !ttHit)
+    {
+      bestMove = pos.mate1ply();
+      if (bestMove != MOVE_NONE)
+      {
+        // 1手詰めスコアなので確実にvalue > alphaなはず。
+        alpha = mate_in(ss->ply);
+        tte->save(posKey, value_to_tt(alpha, ss->ply), BOUND_EXACT,
+          DEPTH_MAX , bestMove, ss->staticEval, TT.generation());
+
+        return alpha;
+      }
+    }
+
+	こうしておく。なんか前のバージョンに有意に勝ち越すな…。一晩放置して様子を見る。
+
 
 ■ 2016/02/22 V1.70
 
@@ -12,7 +34,17 @@
 ・nano-plusに連続王手の千日手の検出コードを追加する。
 ・nano-plusでMAX_PLY到達のときのスコアを引き分けのスコアに変更する。
 	→　変更した。無駄な探索が減った分と、連続王手でMAX_PLYまで延長していたのが
-	解消した分だけ強くなっているような。+R40ぐらい？
+	解消した分だけ強くなっているような…。(+R20)
+
+		53.0%	
+		#25
+		やねうら王nano plus V170
+		千日手判定追加 , 1スレッド、0.1秒設定
+		#0
+		やねうら王nano plus V169c
+		打ち歩詰め関係の修正 , 1スレッド、0.1秒設定
+
+		351-18-311(5.5% R21.0)	
 
 
 ■ 2016/02/21 V1.69

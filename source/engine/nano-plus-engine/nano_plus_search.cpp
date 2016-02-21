@@ -591,7 +591,8 @@ namespace YaneuraOuNanoPlus
     //     変数の宣言
     // -----------------------
 
-    Value eval;              // この局面に対する評価値の見積り。
+    // この局面に対する評価値の見積り。
+    Value eval;
 
     // 調べた指し手を残しておいて、statusのupdateを行なうときに使う。
     Move quietsSearched[64];
@@ -706,11 +707,7 @@ namespace YaneuraOuNanoPlus
 
     Move bestMove = MOVE_NONE;
 
-#if 0
-    // 通常探索において1手詰めを発見することはあまりないので
-    // ここで詰将棋探索を呼び出すのはあまり得をしない。
-
-    // RootNodeでは1手詰め判定、ややこしくなるのでやらない。
+    // RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
     // 置換表にhitしたときも1手詰め判定は行われていると思われるのでこの場合もはしょる
     if (!RootNode && !ttHit)
     {
@@ -719,10 +716,12 @@ namespace YaneuraOuNanoPlus
       {
         // 1手詰めスコアなので確実にvalue > alphaなはず。
         alpha = mate_in(ss->ply);
-        goto TT_SAVE;
+        tte->save(posKey, value_to_tt(alpha, ss->ply), BOUND_EXACT,
+          DEPTH_MAX , bestMove, ss->staticEval, TT.generation());
+
+        return alpha;
       }
     }
-#endif
 
     // -----------------------
     //  局面を評価値によって静的に評価
@@ -774,10 +773,11 @@ namespace YaneuraOuNanoPlus
   MOVES_LOOP:
 
     {
+      Value value;
+
       pos.check_info_update();
       MovePicker mp(pos, ttMove,ss);
 
-      Value value;
       Move move;
       StateInfo si;
 
@@ -846,7 +846,7 @@ namespace YaneuraOuNanoPlus
             r = std::max(DEPTH_ZERO, r - ONE_PLY);
 
           // depth >= 3なのでqsearchは呼ばれないし、かつ、
-          // moveCount > 1 すなわち、2手目移行なのでsearch<NonPv>が呼び出されるべき。
+          // moveCount > 1 すなわち、このnodeの2手目以降なのでsearch<NonPv>が呼び出されるべき。
           Depth d = max(newDepth - r, ONE_PLY);
           value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d);
 
@@ -950,8 +950,6 @@ namespace YaneuraOuNanoPlus
     // -----------------------
     //  置換表に保存する
     // -----------------------
-
-//TT_SAVE:;
 
     tte->save(posKey, value_to_tt(alpha, ss->ply),
       alpha >= beta ? BOUND_LOWER : 
