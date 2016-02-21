@@ -822,10 +822,10 @@ namespace YaneuraOuNanoPlus
           // depth >= 3なのでqsearchは呼ばれないし、かつ、
           // moveCount > 1 すなわち、2手目移行なのでsearch<NonPv>が呼び出されるべき。
           Depth d = max(newDepth - r, ONE_PLY);
-          value = -YaneuraOuNanoPlus::search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d);
+          value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d);
 
           // 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす
-          fullDepthSearch = (value > alpha) && r != DEPTH_ZERO;
+          fullDepthSearch = (value > alpha) && (r != DEPTH_ZERO);
 
         } else {
 
@@ -840,9 +840,9 @@ namespace YaneuraOuNanoPlus
         // ※　静止探索は残り探索深さはDEPTH_ZEROとして開始されるべきである。(端数があるとややこしいため)
         if (fullDepthSearch)
           value = depth  < ONE_PLY ?
-                        givesCheck ? -qsearch<NonPV , true>(pos, ss + 1 , -beta, -alpha, DEPTH_ZERO)
-                                   : -qsearch<NonPV, false>(pos, ss + 1 , -beta, -alpha, DEPTH_ZERO)
-                                   : -search <NonPV>       (pos, ss + 1 , -beta, -alpha, newDepth);
+                        givesCheck ? -qsearch<NonPV , true>(pos, ss + 1 , -(alpha + 1), -alpha, DEPTH_ZERO)
+                                   : -qsearch<NonPV, false>(pos, ss + 1 , -(alpha + 1), -alpha, DEPTH_ZERO)
+                                   : -search <NonPV>       (pos, ss + 1 , -(alpha + 1), -alpha, newDepth);
 
         // PV nodeにおいては、full depth searchがfail highしたならPV nodeとしてsearchしなおす。
         // ただし、value >= betaなら、正確な値を求めることにはあまり意味がないので、これはせずにbeta cutしてしまう。
@@ -851,7 +851,7 @@ namespace YaneuraOuNanoPlus
           value = depth <  ONE_PLY ?
                         givesCheck ? -qsearch<PV, true> (pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
                                    : -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
-                                   : -search<PV>        (pos, ss + 1, -beta, -alpha, newDepth);
+                                   : -search <PV>       (pos, ss + 1, -beta, -alpha, newDepth);
         }
 
 
