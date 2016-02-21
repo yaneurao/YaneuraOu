@@ -883,7 +883,7 @@ void bench_cmd(Position& pos, istringstream& is)
   TT.clear();
 
   // Optionsの影響を受けると嫌なので、その他の条件を固定しておく。
-  limits.enteringKingRule = Search::EKR_NONE;
+  limits.enteringKingRule = EKR_NONE;
 
   // テスト用の局面
   // "default"=デフォルトの局面、"current"=現在の局面、それ以外 = ファイル名とみなしてそのsfenファイルを読み込む

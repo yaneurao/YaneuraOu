@@ -373,12 +373,18 @@ namespace YaneuraOuNanoPlus
     ss->ply = (ss - 1)->ply + 1;
 
     // -----------------------
-    //  引き分け、および、最大手数到達
+    //    千日手等の検出
     // -----------------------
 
-    // これ以上探索できない。give up。
+    // is_draw()は2回目の出現で千日手だと判定するので
+    // RootNodeで千日手が成立しているように見えることがあるが、この場合も
+    // 探索は続行しなければならないので、RootNodeではこの判定は除外する
+    auto draw_type = pos.is_draw();
+    if (draw_type != REPETITION_NONE)
+      return DrawValue[draw_type][pos.side_to_move()];
+
     if (ss->ply >= MAX_PLY)
-      return VALUE_ZERO; // Draw Score
+      return DrawValue[REPETITION_DRAW][pos.side_to_move()];
 
     // -----------------------
     //     置換表のprobe
@@ -609,10 +615,21 @@ namespace YaneuraOuNanoPlus
     // rootからの手数
     ss->ply = (ss - 1)->ply + 1;
 
-    // 最大手数を超えている
-    if (ss->ply >= MAX_PLY)
-      return VALUE_ZERO; // Draw Score
+    // -----------------------
+    //     千日手等の検出
+    // -----------------------
 
+    if (!RootNode)
+    {
+      auto draw_type = pos.is_draw();
+      if (draw_type != REPETITION_NONE)
+        return DrawValue[draw_type][pos.side_to_move()];
+
+      // 最大手数を超えている
+      if (ss->ply >= MAX_PLY)
+        return DrawValue[REPETITION_DRAW][pos.side_to_move()];
+    }
+      
     // -----------------------
     //  Mate Distance Pruning
     // -----------------------

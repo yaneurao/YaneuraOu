@@ -339,6 +339,9 @@ enum Value : int32_t
 {
   VALUE_ZERO = 0,
 
+  // 千日手による優等局面への突入。
+  VALUE_KNOWN_WIN = 30000,
+
   // 1手詰めのスコア(例えば、3手詰めならこの値より2少ない)
   VALUE_MATE = 32000,
 
@@ -698,18 +701,27 @@ typedef uint64_t Key;
 //        探索
 // --------------------
 
-namespace Search {
+// 入玉ルール設定
+enum EnteringKingRule
+{
+  EKR_NONE ,           // 入玉ルールなし
+  EKR_24_POINT,        // 24点法
+  EKR_27_POINT,        // 27点法 = CSAルール
+  EKR_TRY_RULE,        // トライルール
+};
 
-  // 入玉ルール設定
-  enum EnteringKingRule
-  {
-    EKR_NONE ,      // 入玉ルールなし
-    EKR_24_POINT,   // 24点法
-    EKR_27_POINT,   // 27点法 = CSAルール
-    EKR_TRY_RULE,   // トライルール
-  };
-  
-} // end of namespace Search
+// 千日手の状態
+enum RepetitionState
+{
+  REPETITION_NONE,     // 千日手ではない
+  REPETITION_WIN ,     // 連続王手の千日手による勝ち
+  REPETITION_LOSE,     // 連続王手の千日手による負け
+  REPETITION_DRAW,     // 連続王手ではない普通の千日手
+  REPETITION_NB,
+};
+
+// 引き分け時のスコア
+extern Value DrawValue[REPETITION_NB][COLOR_NB];
 
 // --------------------
 //      評価関数

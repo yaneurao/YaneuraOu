@@ -43,12 +43,14 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/02/21 21:30現在)
+#　俺の作業メモ(2016/02/22 2:30現在)
 
 - [ ] 長手数の詰将棋ルーチン作る
 - [ ] やねうら王miniの探索部
-- [ ] やねうら王nano plusの探索部の改良
+- [ ] 2016/02/22・やねうら王nano plusの開発終了。
 
+- [x] 2016/02/22・やねうら王nano plusに千日手判定追加。
+- [x] 2016/02/22・Position::is_draw()実装
 - [x] 2016/02/21・打ち歩詰め関係、ソース整理。
 - [x] 2016/02/21・指し手生成で打ち歩詰め除外したときに、pseudo_legal()に打ち歩詰め判定入れるの忘れていたので修正。
 - [x] 2016/02/21・Position::capture()の処理間違っていたの修正。

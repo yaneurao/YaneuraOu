@@ -72,6 +72,12 @@ struct StateInfo {
 
   // ---- ここから下のやつは do_move()のときにコピーされる
 
+  // 遡り可能な手数(previousポインタを用いて局面を遡るときに用いる)
+  int pliesFromNull;
+
+  // この手番側の連続王手は何手前からやっているのか(連続王手の千日手の検出のときに必要)
+  int continuousCheck[COLOR_NB];
+
   // ---- ここから下のやつは do_move()のときにコピーされない
 
   // 現局面で手番側に対して王手をしている駒のbitboard。Position::do_move()で更新される。
@@ -202,6 +208,9 @@ struct Position
   // 探索したノード数(≒do_move()が呼び出された回数)を設定/取得する
   void set_nodes_searched(uint64_t n) { nodes = n; }
   int64_t nodes_searched() const { return nodes; }
+
+  // 連続王手の千日手等で引き分けかどうかを返す
+  RepetitionState is_draw() const;
 
   // --- Bitboard
 

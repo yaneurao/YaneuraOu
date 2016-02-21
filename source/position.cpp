@@ -757,33 +757,51 @@ bool Position::pseudo_legal(const Move m) const {
 template <Color Us>
 void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 {
+  ASSERT_LV3(&new_st != st);
+
+  ++nodes;
+
+  // ----------------------
+  //  StateInfoの更新
+  // ----------------------
+
+  // hash key
+
   // 現在の局面のhash keyはこれで、これを更新していき、次の局面のhash keyを求めてStateInfo::key_に格納。
   auto k = st->key_board_ ^ Zobrist::side;
   auto h = st->key_hand_;
 
-  // --- StateInfoの更新
-
   // StateInfoの構造体のメンバーの上からkeyのところまでは前のを丸ごとコピーしておく。
   // undo_moveで戻すときにこの部分はundo処理が要らないので細かい更新処理が必要なものはここに載せておけばundoが速くなる。
 
-  // いま、まだコピーしたいものがないのでコメントアウトしておく。
-//  std::memcpy(&new_st, st, offsetof(StateInfo, checkersBB));
+  std::memcpy(&new_st, st, offsetof(StateInfo, checkersBB));
 
   // StateInfoを遡れるようにpreviousを設定しておいてやる。
   new_st.previous = st;
   st = &new_st;
+
+  // 手数がらみのカウンターのインクリメント
+
+  ++gamePly;           // 厳密には、これはrootからの手数ではなく、初期盤面からの手数ではあるが。
+  ++st->pliesFromNull; // st->previousで遡り可能な手数カウンタ
+
+  // 評価値の差分計算用の初期化
 
 #ifdef EVAL_KPP
   // KPPのとき差分計算は遅延させるのでここではKPPの値を未計算であることを意味するVALUE_NONEを代入しておく。
   st->sumKKP = VALUE_NONE;
 #endif
 
+  // 直前の指し手を保存するならばここで行なう。
+
 #ifdef KEEP_LAST_MOVE
   st->lastMove = m;
   st->lastMovedPieceType = is_drop(m) ? (Piece)move_from(m) : type_of(piece_on(move_from(m)));
 #endif
 
-  // --- 盤面の更新処理
+  // ----------------------
+  //    盤面の更新処理
+  // ----------------------
 
   // 移動先の升
   Square to = move_to(m);
@@ -832,8 +850,15 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
     // 王手している駒のbitboardを更新する。
     // 駒打ちなのでこの駒で王手になったに違いない。駒打ちで両王手はありえないので王手している駒はいまtoに置いた駒のみ。
-    st->checkersBB = givesCheck ? Bitboard(to) : ZERO_BB;
-
+    if (givesCheck)
+    {
+      st->checkersBB = Bitboard(to);
+      st->continuousCheck[Us] += 2;
+    } else {
+      st->checkersBB = ZERO_BB;
+      st->continuousCheck[Us] = 0;
+    }
+    
     // 駒打ちは捕獲した駒がない。
     st->capturedType = NO_PIECE;
 
@@ -1001,10 +1026,16 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
         // 差分更新したcheckersBBが正しく更新されているかをテストするためのassert
         ASSERT_LV3(st->checkersBB == attackers_to(Us, king_square(~Us)));
-      }
 
-    } else
+      }
+      st->continuousCheck[Us] += 2;
+
+    } else {
+
       st->checkersBB = ZERO_BB;
+      st->continuousCheck[Us] = 0;
+
+    }
   }
 
 #ifndef EVAL_NO_USE
@@ -1015,16 +1046,11 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
   // 相手番に変更する。
   sideToMove = ~Us;
 
-  // --- 探索ノード数、rootからの手数などを更新。
- 
   // 更新されたhash keyをStateInfoに書き戻す。
   st->key_board_ = k;
   st->key_hand_ = h;
 
   st->hand = hand[sideToMove];
-
-  ++nodes;
-  ++gamePly; // 厳密には、これはrootからの手数ではなく、初期盤面からの手数ではあるが。
 
 }
 
@@ -1141,6 +1167,48 @@ void Position::undo_move(Move m)
     undo_move_impl<BLACK>(m);
 }
 
+// ----------------------------------
+//      千日手判定
+// ----------------------------------
+
+// 連続王手の千日手等で引き分けかどうかを返す
+RepetitionState Position::is_draw() const
+{
+  // 4手かけないと千日手にはならないから、4手前から調べていく。
+  const int Start = 4;
+  int i = 4;
+
+  // 遡り可能な手数。
+  // 探索時は最大でも16手までしか遡らないことにする。(それ以上は現実的にほとんど起きないと考えてよさげ)
+  const int e = min(16,st->pliesFromNull);
+  if (i <= e)
+  {
+    auto stp = st;
+    auto key = st->key();
+
+    do {
+      stp = stp->previous->previous;
+      if (stp->key() == key)
+      {
+        // 同じhash keyの局面が存在していた！
+
+        // 自分が王手をしている連続王手の千日手なのか？
+        if (i <= st->continuousCheck[sideToMove])
+          return REPETITION_LOSE;
+
+        // 相手が王手をしている連続王手の千日手なのか？
+        if (i <= st->continuousCheck[~sideToMove])
+          return REPETITION_WIN;
+
+        return REPETITION_DRAW;
+      }
+      i += 2;
+    } while (i <= e);
+  }
+
+  // 同じhash keyの局面が見つからなかったので…。
+  return REPETITION_NONE;
+}
 
 // ----------------------------------
 //      内部情報の正当性のテスト

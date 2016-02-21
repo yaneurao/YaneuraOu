@@ -130,6 +130,15 @@ namespace Search {
   StateStackPtr SetupStates;
 }
 
+// 引き分け時のスコア
+Value DrawValue[REPETITION_NB][COLOR_NB] =
+{
+  {  VALUE_ZERO ,  VALUE_ZERO }, // REPETITION_NONE
+  {  VALUE_MATE ,  VALUE_MATE }, // REPETITION_WIN
+  { -VALUE_MATE , -VALUE_MATE }, // REPETITION_LOSE
+  {  VALUE_ZERO ,  VALUE_ZERO }, // REPETITION_DRAW  : このスコアはUSIのoptionコマンドで変更可能
+};
+
 // ----------------------------------------
 // inlineで書くとVC++2015の内部コンパイルエラーになる
 // ----------------------------------------
