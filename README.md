@@ -49,6 +49,7 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 - [ ] やねうら王miniの探索部
 - [ ] やねうら王nano plusの探索部の改良
 
+- [x] 2016/02/21・local game server、エンジン側から非合法手が送られてきたときにMOVE_RESIGN扱いにするように。
 - [x] 2016/02/21・打ち歩詰めの判定、高速化。
 - [x] 2016/02/21・pos.legal()、玉の影の利きがあるときの処理間違っていたので修正。
 - [x] 2016/02/21・local game serverでserver側の負荷が高かったのを修正。

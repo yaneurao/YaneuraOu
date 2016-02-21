@@ -1,9 +1,17 @@
 ﻿
 やねうら王 更新履歴
 
-・local server、エンジンを配置するpath変更できて欲しい。
 ・MovePickerに他のオーダリングも導入
 ・lazy SMPで並列化して+R300程度かな？他の最適化してから考えよう。
+
+
+■ 2016/02/21 V1.63
+
+・local server、timeout時にMOVE_RESIGNを返すように変更。
+・local server、非合法手もMOVE_RESIGN扱いするように変更。
+・そのときにエラーを出力するように変更。
+・local server、エンジンを配置するpath変更できるように。
+	→　engine-config.txtのほうでエンジン名にpathが指定されていればいいか…。
 
 
 ■ 2016/02/21 V1.62

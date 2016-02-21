@@ -247,7 +247,7 @@ struct EngineState
 
   }
 
-  Move think(const Position& pos, const string& think_cmd)
+  Move think(const Position& pos, const string& think_cmd,const string& engine_name)
   {
     string sfen;
     sfen = "position startpos moves " + pos.moves_from_start();
@@ -265,8 +265,8 @@ struct EngineState
       // タイムアウトチェック(連続自己対戦で1手に1分以上考えさせない
       if (now() >= start + 60 * 1000)
       {
-        sync_cout << "Error : engine timeout" << endl << pos << sync_endl;
-        return MOVE_NONE;
+        sync_cout << "Error : engine timeout , engine name = " << engine_name << endl << pos << sync_endl;
+        return MOVE_RESIGN;
       }
 
       sleep(5);
@@ -280,6 +280,7 @@ struct EngineState
     if (m == MOVE_NONE)
     {
       sync_cout << "Error : bestmove = " << token << endl << pos << sync_endl;
+      m = MOVE_RESIGN;
     }
     return m;
   }
@@ -557,11 +558,20 @@ void Thread::search()
     if (game_started)
     {
       int player = (rootPos.side_to_move() == player1_color) ? 0 : 1;
-      Move m = es[player].think(rootPos, think_cmd[player]);
+      auto engine_name = es[player].engine_name();
+      Move m = es[player].think(rootPos, think_cmd[player], engine_name);
+
+      // 非合法手を弾く
+      if (m!=MOVE_RESIGN && (!rootPos.pseudo_legal(m) || !rootPos.legal(m)))
+      {
+        sync_cout << "Error : illigal move , move = " << m << " , engine name = " << engine_name << endl << rootPos << sync_endl;
+        m = MOVE_RESIGN;
+      }
 
       if (m != MOVE_RESIGN)
       {
         rootPos.check_info_update();
+
         SetupStates->push(StateInfo());
         rootPos.do_move(m, SetupStates->top());
       }
