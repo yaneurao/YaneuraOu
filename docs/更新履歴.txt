@@ -4,9 +4,29 @@
 ・MovePickerに他のオーダリングも導入
 ・lazy SMPで並列化して+R300程度かな？他の最適化してから考えよう。
 
+■ 2016/02/21 V1.59
+
+・local server、応答がなくなる原因わかった。bestmove待ちでエンジンがbestmoveを返さないと
+　そのまま待ち状態になるのがいけないのか。1分でtimeoutとしよう。
+
+      // タイムアウトチェック(連続自己対戦で1手に1分以上考えさせない
+      if (now() >= start + 60 * 1000)
+      {
+        sync_cout << "Error : engine timeout" << endl << pos << sync_endl;
+        return MOVE_NONE;
+      }
+
+・また、local server、一行ずつ出力するのをデフォルトとしよう。
+　こちらのほうが、外部から自動操作するときに出力をparseするのが簡単だから。
+
+	// 1行ずつ結果を出力するモード
+	#define ONE_LINE_OUTPUT_MODE
+
+
 ■ 2016/02/21 V1.58
 
 ・DEPTH_QS_RECAPTURESとりあえず-10にしておく。この値でそんなに悪くはなさそうなので。
+→　また後日調整する。
 
 
 ■ 2016/02/20 V1.57b
@@ -61,6 +81,17 @@
 
       else if (depth > /*DEPTH_QS_RECAPTURES*/ (Depth)(-7-param1))
         stage = QSEARCH_WITHOUT_CHECKS_START;
+
+
+70.3%	65.9%	72.1%	64.0%	65.3%	64.1%	60.0%	
+#13
+やねうら王nano plus V157b
+やねうら王nano plus param1に応じて静止探索のrecapまでの手数変更,1スレッド、0.1秒設定
+#0
+やねうら王nano plus V157a
+やねうら王nano plus 静止探索のオーダリングいじった,1スレッド、0.1秒設定
+
+270-0-114(0.0% R149.8)	244-6-126(0.0% R114.8)	253-1-98(0.0% R164.8)	224-2-126(0.0% R100.0)	226-6-120(0.0% R110.0)	223-4-125(0.0% R100.6)	210-2-140(0.0% R70.4)	
 
 
 

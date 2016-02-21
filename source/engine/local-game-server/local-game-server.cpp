@@ -9,7 +9,7 @@
 //#define OUTPUT_PROCESS_LOG
 
 // 1行ずつ結果を出力するモード
-//#define ONE_LINE_OUTPUT_MODE
+#define ONE_LINE_OUTPUT_MODE
 
 
 // 子プロセスを実行して、子プロセスの標準入出力をリダイレクトするのをお手伝いするクラス。
@@ -254,11 +254,22 @@ struct EngineState
     pn.write(sfen);
     pn.write(think_cmd);
     string bestmove;
+
+    auto start = now();
     while (true)
     {
       bestmove = pn.read();
       if (bestmove.find("bestmove") != string::npos)
         break;
+
+      // タイムアウトチェック(連続自己対戦で1手に1分以上考えさせない
+      if (now() >= start + 60 * 1000)
+      {
+        sync_cout << "Error : engine timeout" << endl << pos << sync_endl;
+        return MOVE_NONE;
+      }
+
+      sleep(5);
     }
     istringstream is(bestmove);
     string token;
