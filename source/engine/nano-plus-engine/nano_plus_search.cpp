@@ -376,7 +376,7 @@ namespace YaneuraOuNanoPlus
 
     // これ以上探索できない。give up。
     if (ss->ply >= MAX_PLY)
-      return Eval::eval(pos);
+      return VALUE_ZERO; // Draw Score
 
     // -----------------------
     //     置換表のprobe
@@ -574,9 +574,10 @@ namespace YaneuraOuNanoPlus
     // -----------------------
 
     // PV nodeであるか(root nodeはPV nodeに含まれる)
-    const bool PvNode = NT == PV || NT == Root;
+    const bool PvNode = NT == PV;
 
     // root nodeであるか
+    static_assert(NT != Root,"static assert : NT != Root");
     const bool RootNode = PvNode && (ss-1)->ply == 0;
 
     // -----------------------
@@ -607,7 +608,7 @@ namespace YaneuraOuNanoPlus
 
     // 最大手数を超えている
     if (ss->ply >= MAX_PLY)
-      return Eval::eval(pos);
+      return VALUE_ZERO; // Draw Score
 
     // -----------------------
     //  Mate Distance Pruning
