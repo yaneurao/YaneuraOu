@@ -70,15 +70,28 @@ inline void sleep(int ms)
 //       乱数
 // --------------------
 
+// 乱数のseedなどとしてthread idを使いたいが、
+// C++のthread idは文字列しか取り出せないので無理やりcastしてしまう。
+inline uint64_t get_thread_id()
+{
+  auto id = std::this_thread::get_id();
+  if (sizeof(id) >= 8)
+    return *(uint64_t*)(&id);
+  else if (sizeof(id) >= 4)
+    return *(uint32_t*)(&id);
+  else 
+    return 0; // give up
+}
+
 // 擬似乱数生成器
 // Stockfishで用いられているもの
-// UniformRandomNumberGenerator互換にして、std::shuffle()等でも使えるようにする。
+// UniformRandomNumberGenerator互換にして、std::shuffle()等でも使えるようにするべきか？
 struct PRNG {
   PRNG(uint64_t seed) : s(seed) { ASSERT_LV1(seed); }
 
   // 乱数seedを指定しなければ現在時刻をseedとする。ただし、自己対戦のときに同じ乱数seedになる可能性が濃厚になるので
   // このときにthisのアドレスなどを加味してそれを乱数seedとする。(by yaneurao)
-  PRNG() : s(now() ^ uint64_t(this)) {}
+  PRNG() : s(now() ^ uint64_t(this) ^ get_thread_id()) {}
 
   // 乱数を一つ取り出す。
   template<typename T> T rand() { return T(rand64()); }

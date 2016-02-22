@@ -381,10 +381,10 @@ namespace YaneuraOuNanoPlus
     // 探索は続行しなければならないので、RootNodeではこの判定は除外する
     auto draw_type = pos.is_repetition();
     if (draw_type != REPETITION_NONE)
-      return DrawValue[draw_type][pos.side_to_move()];
+      return draw_value(draw_type,pos.side_to_move());
 
     if (ss->ply >= MAX_PLY)
-      return DrawValue[REPETITION_DRAW][pos.side_to_move()];
+      return draw_value(REPETITION_DRAW,pos.side_to_move());
 
     // -----------------------
     //     置換表のprobe
@@ -624,11 +624,11 @@ namespace YaneuraOuNanoPlus
     {
       auto draw_type = pos.is_repetition();
       if (draw_type != REPETITION_NONE)
-        return DrawValue[draw_type][pos.side_to_move()];
+        return draw_value(draw_type,pos.side_to_move());
 
       // 最大手数を超えている
       if (ss->ply >= MAX_PLY)
-        return DrawValue[REPETITION_DRAW][pos.side_to_move()];
+        return draw_value(REPETITION_DRAW,pos.side_to_move());
     }
       
     // -----------------------
@@ -1089,8 +1089,8 @@ void MainThread::think() {
 
     std::thread* timerThread = nullptr;
 
-    // 探索深さ、ノード数、詰み手数が指定されていない == 探索時間による制限
-    if (!(Limits.depth || Limits.nodes || Limits.mate))
+    // 探索時間が指定されているなら監視タイマーを起動しておく。
+    if (Limits.use_time_management())
     {
       // 時間制限があるのでそれに従うために今回の思考時間を計算する。
       // 今回に用いる思考時間 = 残り時間の1/60 + 秒読み時間

@@ -1176,7 +1176,7 @@ RepetitionState Position::is_repetition(const int repPly) const
 {
   // 4手かけないと千日手にはならないから、4手前から調べていく。
   const int Start = 4;
-  int i = 4;
+  int i = Start;
 
   // 遡り可能な手数。
   // 最大でもrepPly手までしか遡らないことにする。

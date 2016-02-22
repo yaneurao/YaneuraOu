@@ -131,7 +131,7 @@ namespace Search {
 }
 
 // 引き分け時のスコア
-Value DrawValue[REPETITION_NB][COLOR_NB] =
+Value drawValueTable[REPETITION_NB][COLOR_NB] =
 {
   {  VALUE_ZERO ,  VALUE_ZERO }, // REPETITION_NONE
   {  VALUE_MATE ,  VALUE_MATE }, // REPETITION_WIN

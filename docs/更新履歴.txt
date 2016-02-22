@@ -6,6 +6,47 @@
 ・lazy SMPで並列化して+R300程度かな？他の最適化をしてから考えよう。
 
 
+■ 2016/02/22 V1.73
+
+・定跡のrandomizeのため、randのrandomizeの性能を上げる。
+	→ thread idもseedに用いるように変更。
+
+・local server、終局時のsfen出力して、同一局面でないことを確認したほうがいいのでは..
+
+・てか、どこをいじった結果かは知らんが落ちなくなってる…。
+	→　と思ったら落ちたようだ。
+
+	sfen ln1g4+L/1s4s1P/p1p1pk3/1P4pp1/P8/1B4n1R/2NS1+p3/3GS3K/L4g1N1 b 5PLBG4pr 103
+
+・DrawValue、関数を通すようにする。→　draw_value()
+
+	同じところで落ちてるな。単体だとここで落ちないんだよな…。
+	→　てかrandom playerでも落ちるんか？それを先に確認しないと原因の絞りようがない。
+	→　random player落ちないな…。test rpで落ちないのだから落ちないか…そうか…。
+	→　nanoも連続自己対局させてみる。
+	→　nanoは4000局で落ちないのか…。
+	つまりpseudo_legal()は正しい。
+
+	nano plusのMovePickerとかis_repetitionとかが怪しいのかな？
+
+	is_repetition、シンプルだし、たぶん合ってる。
+
+	QUIET_CHECKSが怪しい。
+
+      case QCHECKS:
+//        endMoves = generateMoves<QUIET_CHECKS>(pos, moves);
+        endMoves = moves; // 生成しないと？
+        break;
+
+		→　生成しなくとも落ちた。なんなんこれ…。
+	sfen +B+P1S+P1+L2/3+R5/1p1p+Pp+L+R1/1kp6/p6G1/9/P3+p1P2/5+b1K1/L1G6 b 7PL4N3SGg 131
+	sfen 1s3pR+R1/l3kg2P/p1+Np4+P/4pbl2/P2Pn4/L1P1K4/1P7/1sS2PB+p1/3G5 b PLS5p2n2g 151
+
+	nano plusのMovePicker、ちゃんと見なおしたほうがよさげ…。
+
+・nano plus、"go infinite"に対応させる。
+
+
 ■ 2016/02/22 V1.72
 
 ・また落ちる局面があった。
@@ -59,7 +100,7 @@
 	shogi-observer-log.txt(14215): 4<sfen lnS+S4+P/1n2+R3+P/k+B7/1pp3np1/p7K/6P2/P8/1L2+l1G2/LN6+R w 10P2SB3G 180
 	shogi-observer-log.txt(15356): 2<sfen ln4+L2/1r1+S+BG2P/pkp1+B3+N/1p1p5/9/2P6/PP1P2+p2/4K2+p+p/LNSG1S2+p b 4PLNRGpsg 87
 
-	→　同じ局面いっぱいある…。定跡、そんなにバラけてないのか…。それは残念…。
+	→　同じ局面いっぱいある…。定跡、そんなにバラけてないのか…。それは残念…。連続自己対局、思考時間、ランダム化したほうがいいのでは…。
 
 	random playerをしばらく回す。
 	→　検出できない。nano plusが何かバグっているのか…。そうか…。
@@ -71,12 +112,15 @@
 	・is_draw()、最初に2手遡るの忘れていたので修正。
 	・is_repetitionに名前変更。
 
-setoption name Hash value 4
-isready
-test autoplay
+		setoption name Hash value 4
+		isready
+		test autoplay
 
 	これでしばらく回しておく。
+	→　一時間回して落ちない。
+	ASSERT、引っかかるときにメッセージを出すようなASSERT作るべきかも..
 
+	仕方ないので、自己対局で落ちるかのテストをする。
 
 
 ■ 2016/02/22 V1.71

@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "1.69b"
+#define ENGINE_VERSION "1.71"
 
 // --------------------
 // コンパイル時の設定
@@ -720,8 +720,11 @@ enum RepetitionState
   REPETITION_NB,
 };
 
+inline bool is_ok(RepetitionState rs) { return REPETITION_NONE <= rs && rs < REPETITION_NB; }
+
 // 引き分け時のスコア
-extern Value DrawValue[REPETITION_NB][COLOR_NB];
+extern Value drawValueTable[REPETITION_NB][COLOR_NB];
+inline Value draw_value(RepetitionState rs, Color c) { ASSERT_LV3(is_ok(rs)); return drawValueTable[rs][c]; }
 
 // --------------------
 //      評価関数
