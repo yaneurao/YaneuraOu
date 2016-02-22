@@ -985,7 +985,7 @@ void Search::init() {
   Book::read_book("book/standard_book.db", book);
 
   // -----------------------
-  // reduction tableの初期化
+  // LMRで使うreduction tableの初期化
   // -----------------------
 
   // pvとnon pvのときのreduction定数

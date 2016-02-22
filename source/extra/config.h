@@ -47,7 +47,13 @@
 // あまり重度のassertにすると、探索性能が落ちるので時間当たりに調べられる局面数が低下するから
 // そのへんのバランスをユーザーが決めれるようにこの仕組みを導入。
 
-//#define ASSERT_LV 3
+#define ASSERT_LV 3
+
+// --- ASSERTのリダイレクト
+// ASSERTに引っかかったときに、それを"ERROR:x=1"のように標準出力に出力する。
+
+#define USE_DEBUG_ASSERT
+
 
 // --- USI拡張コマンドの"test"コマンドを有効にする。
 // 非常にたくさんのテストコードが書かれているのでコードサイズが膨らむため、
@@ -110,7 +116,6 @@
 #endif
 
 #ifdef YANEURAOU_NANO_PLUS_ENGINE
-#define ASSERT_LV 3  // 開発中なのでASSERT有効に。最終的には無効にしてリリースする。
 #define ENGINE_NAME "YaneuraOu nano plus"
 #define ENABLE_TEST_CMD
 #define ENABLE_OPTION_PARAM
@@ -227,7 +232,11 @@
 
 // DEBUGビルドでないとassertが無効化されてしまうので無効化されないASSERT
 // 故意にメモリアクセス違反を起こすコード。
+#ifndef USE_DEBUG_ASSERT
 #define ASSERT(X) { if (!(X)) *(int*)1 =0; }
+#else
+#define ASSERT(X) { if (!(X)) std::cout << "\nERROR : ASSERT(" << #X << ")\n"; }
+#endif
 
 // ASSERT LVに応じたassert
 #ifndef ASSERT_LV

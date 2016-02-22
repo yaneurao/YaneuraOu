@@ -44,7 +44,28 @@
 
 	nano plusのMovePicker、ちゃんと見なおしたほうがよさげ…。
 
+	sfen 3+P2kp+R/l3gl+r2/pppp1pp2/7sB/9/9/PPP2SPPN/1B3P1G1/L1SG2K2 b 3PL2NGpns 105
+
 ・nano plus、"go infinite"に対応させる。
+
+	is_repetition を 無効化して落ちるかのテスト。
+	→　落ちたか。これはきつい。
+
+・ASSERTに関して、errorでも出力できればいいのだが…。
+
+	local-serverで"ERROR:"というメッセージをリダイレクトするようにして、
+	ASSERTでは"ERROR:xxx"と出力できるようにするか。
+	→　USE_DEBUG_ASSERT追加
+	#define ASSERT(X) { if (!(X)) std::cout << "\nERROR : ASSERT(" << #X << ")\n"; }
+	こうした。
+
+	・local-serverでgame over時にsfenの出力
+	・thread idだと同じ番号なのか…？
+	local-serverの開始タイミングをずらすか。
+	→　こうした。
+	  for (auto th : Threads.slaves)
+	  { th->start_searching(); sleep(10); } // 開始タイミングをずらすことで乱数seedをばらけさせる
+
 
 
 ■ 2016/02/22 V1.72

@@ -263,6 +263,13 @@ struct EngineState
       if (bestmove.find("bestmove") != string::npos)
         break;
 
+      if (bestmove.find("ERROR") != string::npos)
+      {
+        // 何らかエラーが起きたので終了する。
+        sync_cout << bestmove << sync_endl;
+        return MOVE_NULL;
+      }
+
       // タイムアウトチェック(連続自己対戦で1手に1分以上考えさせない
       if (now() >= start + 60 * 1000)
       {
@@ -444,7 +451,8 @@ void MainThread::think() {
   sync_cout << "local game server start : " << engine_name[0] << " vs " << engine_name[1] << sync_endl;
 
   // マルチスレッド対応
-  for (auto th : Threads.slaves) th->start_searching();
+  for (auto th : Threads.slaves)
+  { th->start_searching(); sleep(10); } // 開始タイミングをずらすことで乱数seedをばらけさせる
   Thread::search();
   for (auto th : Threads.slaves) th->wait_for_search_finished();
 
@@ -522,7 +530,7 @@ void Thread::search()
     {
       draw++;
 #ifdef ONE_LINE_OUTPUT_MODE
-      sync_cout << "draw" << sync_endl;
+      sync_cout << "draw," << rootPos.sfen() << sync_endl;
 #else
       cout << '.'; // 引き分けマーク
 #endif
@@ -530,7 +538,7 @@ void Thread::search()
     {
       lose++;
 #ifdef ONE_LINE_OUTPUT_MODE
-      sync_cout << "lose" << sync_endl;
+      sync_cout << "lose," << rootPos.sfen() << sync_endl;
 #else
       cout << 'X'; // 負けマーク
 #endif
@@ -538,7 +546,7 @@ void Thread::search()
     {
       win++;
 #ifdef ONE_LINE_OUTPUT_MODE
-      sync_cout << "win" << sync_endl;
+      sync_cout << "win," << rootPos.sfen() << sync_endl;
 #else
       cout << 'O'; // 勝ちマーク
 #endif
