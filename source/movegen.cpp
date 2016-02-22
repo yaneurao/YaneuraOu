@@ -355,7 +355,7 @@ template <Color Us> struct GenerateDropMoves {
 
       // 打ち歩詰めチェック
       // 敵玉に敵の歩を置いた位置に打つ予定だったのなら、打ち歩詰めチェックして、打ち歩詰めならそこは除外する。
-      Bitboard pe = pawnEffect(Us,pos.king_square(~Us));
+      Bitboard pe = pawnEffect(~Us,pos.king_square(~Us));
       if (pe & target2)
       {
         Square to = pe.pop_c();

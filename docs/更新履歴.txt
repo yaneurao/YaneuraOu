@@ -14,6 +14,7 @@
 
 ・打ち歩詰めの指し手生成、~UsではなくUsか。修正した。
       Bitboard pe = pawnEffect(Us,pos.king_square(~Us));
+	  →　違った。あってた。
 
 
 ■ 2016/02/22 V1.71
