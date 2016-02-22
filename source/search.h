@@ -72,6 +72,9 @@ namespace Search {
     // 入玉ルール設定
     EnteringKingRule enteringKingRule;
 
+    // 画面に出力しないサイレントモード(プロセス内での連続自己対戦のとき用)
+    bool silent;
+
     // ---- ↑ここまでコンストラクタでゼロ初期化↑ ----
 
     // goコマンドで探索を開始した時刻。

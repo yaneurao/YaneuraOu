@@ -379,7 +379,7 @@ namespace YaneuraOuNanoPlus
     // is_draw()は2回目の出現で千日手だと判定するので
     // RootNodeで千日手が成立しているように見えることがあるが、この場合も
     // 探索は続行しなければならないので、RootNodeではこの判定は除外する
-    auto draw_type = pos.is_draw();
+    auto draw_type = pos.is_repetition();
     if (draw_type != REPETITION_NONE)
       return DrawValue[draw_type][pos.side_to_move()];
 
@@ -622,7 +622,7 @@ namespace YaneuraOuNanoPlus
 
     if (!RootNode)
     {
-      auto draw_type = pos.is_draw();
+      auto draw_type = pos.is_repetition();
       if (draw_type != REPETITION_NONE)
         return DrawValue[draw_type][pos.side_to_move()];
 
@@ -707,10 +707,11 @@ namespace YaneuraOuNanoPlus
 
     Move bestMove = MOVE_NONE;
 
-#if 1
     // RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
-    // 置換表にhitしたときも1手詰め判定は行われていると思われるのでこの場合もはしょる
-    if (!RootNode && !ttHit && depth > param1*ONE_PLY)
+    // 置換表にhitしたときも1手詰め判定は行われていると思われるのでこの場合もはしょる。
+    // depthの残りがある程度ないと、1手詰めはどうせこのあとすぐに見つけてしまうわけで1手詰めを
+    // 見つけたときのリターン(見返り)が少ない。
+    if (!RootNode && !ttHit && depth > ONE_PLY)
     {
       bestMove = pos.mate1ply();
       if (bestMove != MOVE_NONE)
@@ -723,7 +724,6 @@ namespace YaneuraOuNanoPlus
         return alpha;
       }
     }
-#endif
 
     // -----------------------
     //  局面を評価値によって静的に評価
@@ -1131,7 +1131,8 @@ void MainThread::think() {
       std::stable_sort(rootMoves.begin(), rootMoves.end());
 
       // 読み筋を出力しておく。
-      sync_cout << USI::pv(pos, rootDepth, alpha, beta) << sync_endl;
+      if (!Limits.silent)
+        sync_cout << USI::pv(pos, rootDepth, alpha, beta) << sync_endl;
     }
 
     bestMove = rootMoves.at(0).pv[0];
@@ -1156,7 +1157,8 @@ ID_END:; // 反復深化の終了。
 
   // ponder中であるならgoコマンドか何かが送られてきてからのほうがいいのだが、とりあえずponderの処理は後回しで…。
 
-  sync_cout << "bestmove " << bestMove << sync_endl;
+  if (!Limits.silent)
+    sync_cout << "bestmove " << bestMove << sync_endl;
 }
 
 // 探索本体。並列化している場合、ここがslaveのエントリーポイント。

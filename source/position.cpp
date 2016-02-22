@@ -595,11 +595,11 @@ bool Position::legal_drop(const Square to) const
 
   // 相手玉の場所
   Square sq_king = king_square(~us);
-  Bitboard escape_bb = kingEffect(sq_king) & ~pieces(~us);
 
 #ifndef LONG_EFFECT_LIBRARY
   // LONG EFFECT LIBRARYがない場合、愚直に8方向のうち逃げられそうな場所を探すしかない。
 
+  Bitboard escape_bb = kingEffect(sq_king) & ~pieces(~us);
   escape_bb ^= to;
   auto occ = pieces() ^ to; // toには歩をおく前提なので、ここには駒があるものとして、これでの利きの遮断は考えないといけない。
   while (escape_bb)
@@ -615,7 +615,9 @@ bool Position::legal_drop(const Square to) const
   // LONG EFFECT LIBRARYがあれば、玉の8近傍の利きなどを直列化して逃げ場所があるか調べるだけで良いはず。
 
   auto a8_effet_us = board_effect[us].around8(sq_king);
-  auto a8_them_movable = Effect8::around8(escape_bb, sq_king) & Effect8::board_mask(sq_king);
+  // 玉の逃げ場所は、本来はEffect8::around8(escape_bb,sq_king)なのだが、どうせaround8が8近傍だけを直列化するので、
+  // これが玉の利きと一致しているからこのkingEffect(sq_king)でマスクする必要がない。
+  auto a8_them_movable = Effect8::around8(~pieces(~us), sq_king) & Effect8::board_mask(sq_king);
 
   // 打った歩での遮断を考える前の段階ですでにすでに歩を打つ側の利きがない升があり、
   // そこに移動できるのであれば、これは打ち歩ではない。
@@ -666,10 +668,8 @@ bool Position::pseudo_legal(const Move m) const {
         return false;
     }
 
-    // 歩のとき
-    if (pr == PAWN)
-      if ((pieces(us, PAWN) & FILE_BB[file_of(to)])                                 // 二歩
-        || ((pawnEffect(us, to) == Bitboard(king_square(~us)) && !legal_drop(to)))) // 打ち歩詰め
+    // 歩のとき、二歩および打ち歩詰めであるなら非合法手
+    if (pr == PAWN && !legal_pawn_drop(us,to))
       return false;
 
     // --- 移動できない升への歩・香・桂打ちについて
@@ -1171,19 +1171,19 @@ void Position::undo_move(Move m)
 //      千日手判定
 // ----------------------------------
 
-// 連続王手の千日手等で引き分けかどうかを返す
-RepetitionState Position::is_draw() const
+// 連続王手の千日手等で引き分けかどうかを返す(repPlyまで遡る)
+RepetitionState Position::is_repetition(const int repPly) const
 {
   // 4手かけないと千日手にはならないから、4手前から調べていく。
   const int Start = 4;
   int i = 4;
 
   // 遡り可能な手数。
-  // 探索時は最大でも16手までしか遡らないことにする。(それ以上は現実的にほとんど起きないと考えてよさげ)
-  const int e = min(16,st->pliesFromNull);
+  // 最大でもrepPly手までしか遡らないことにする。
+  const int e = min(repPly,st->pliesFromNull);
   if (i <= e)
   {
-    auto stp = st;
+    auto stp = st->previous->previous;
     auto key = st->key();
 
     do {

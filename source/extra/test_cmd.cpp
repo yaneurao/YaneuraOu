@@ -676,6 +676,52 @@ void test_read_record(Position& pos, istringstream& is)
   cout << "done." << endl;
 }
 
+void auto_play(Position& pos, istringstream& is)
+{
+  uint64_t loop_max = 50000; // default 5万回
+  is >> loop_max;
+  cout << "Auto Play test , loop_max = " << loop_max << endl;
+
+  const int MAX_PLY = 256; // 256手までテスト
+
+  StateInfo state[MAX_PLY]; // StateInfoを最大手数分だけ
+  Move moves[MAX_PLY]; // 局面の巻き戻し用に指し手を記憶
+  int ply; // 初期局面からの手数
+
+  auto start = now();
+
+  Search::LimitsType lm;
+  lm.silent = true;
+  lm.time[BLACK] = lm.time[WHITE] = 1000;
+  lm.byoyomi[BLACK] = lm.byoyomi[WHITE] = 0;
+  Options["NetworkDelay"] = string("1900"); // どうせこれで2秒-1.9秒 = 0.1秒の思考となる。
+
+  for (int i = 0; i < loop_max; ++i)
+  {
+    pos.set_hirate();
+    for (ply = 0; ply < MAX_PLY; ++ply)
+    {
+      pos.check_info_update();
+      MoveList<LEGAL_ALL> mg(pos);
+      if (mg.size() == 0)
+        break;
+
+      lm.startTime = now();
+      Threads.start_thinking(pos, lm, Search::SetupStates);
+      Threads.main()->wait_for_search_finished();
+      auto rootMoves = Threads.main()->rootMoves;
+      if (rootMoves.size() == 0)
+        break;
+      Move m = rootMoves.at(0).pv[0]; // 1番目に並び変わっているはず。
+
+      pos.do_move(m, state[ply]);
+      moves[ply] = m;
+    }
+    // 1局ごとに'.'を出力(進んでいることがわかるように)
+    cout << ".";
+  }
+}
+
 // --- "test unit"コマンド
 
 // 単体テスト
@@ -807,13 +853,15 @@ void test_cmd(Position& pos, istringstream& is)
   else if (param == "checks") test_genchecks(pos, is);             // 王手生成ルーチンのテスト
   else if (param == "hand") test_hand();                           // 手駒の優劣関係などのテスト
   else if (param == "records") test_read_record(pos,is);           // 棋譜の読み込みテスト 
+  else if (param == "autoplay") auto_play(pos, is);                // 思考ルーチンを呼び出しての連続自己対戦
   else {
     cout << "test unit               // UnitTest" << endl;
     cout << "test rp                 // Random Player" << endl;
     cout << "test rpbench            // Random Player bench" << endl;
     cout << "test cm [depth]         // Cooperation Mate" << endl;
     cout << "test checks             // Generate Checks Test" << endl;
-    cout << "test records [filename] // read records.sfen Test" << endl;
+    cout << "test records [filename] // Read records.sfen Test" << endl;
+    cout << "test autoplay           // Auto Play Test" << endl;
   }
 }
 

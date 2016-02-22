@@ -11,10 +11,72 @@
 ・また落ちる局面があった。
 	sfen l+R2+L3+P/g4P2G/pppp3b1/4+r2bk/4p4/P1PSP4/1P1S1G3/2KG5/LNS5+p w 2N6plns 142
 	→　落ちない。わからん。
-
+	sfen 1G4+L1+S/+r8/1p+S4+P1/2N1+B4/9/4GP2+B/+ln2K2p+R/k5s1p/1g+p1G1+p+p+n w 6PLN4pls 186
+	sfen +R8/5G3/1p2+B+N1+B1/p1ps5/2k4K1/P1+rP1+sP2/4g4/9/+s1G4+p1 b 5P3L2NS6plng 133
+	
 ・打ち歩詰めの指し手生成、~UsではなくUsか。修正した。
       Bitboard pe = pawnEffect(Us,pos.king_square(~Us));
 	  →　違った。あってた。
+
+・歩を打つときの判定、legal_pawn_drop()にまとめた。
+
+・nano-plusのmate1ply()、残り深さがONE_PLYより大きいときにのみ呼ぶようにした。
+
+・local game serverでエンジン名ではなく実行ファイル名を表示するように。
+・local game serverでtime out時(おそらくエンジンが停止した)に、継続できるように修正。
+	→　これで永続的にランニングできる…はず。(暴走したエンジンがに残存しなければ)
+
+・floodgateに投入してあるほう、R2200付近の対戦相手が少なくて正確なレーティングがわからない。
+	たぶんR2200ぐらいなのではあるのだろうけども。もうちょっと強くしないとな。
+
+・この局面の指し手、おかしい
+	>1:position startpos moves 7i6h 3c3d 8h7i 8c8d 6i7h 8d8e 3i4h 8e8f 8g8f 8b8f P*8g 8f8d 5g5f P*8f 8g8f 8d8f P*8g 8f5f 5i6i 2b4d 6h5g 5f5e 5g4f 5e8e 4h5g 5c5d 5g6f 8e2e 3g3f 2a3c 2i3g 2e8e 7g7f 4a5b 8i7g 8e8b 2h5h P*8f 8g8f 8b8f P*8g 8f7f 5h5d 7f7d 5d5f 4d6b 6f6e 7d9d 5f8f P*8b P*5d 7c7d 8f5f 8a7c 4f5e 7d7e 2g2f 6b2f 4i3h 3a4b 3f3e 2f3e 7i3e 3d3e 5f2f B*1d 2f5f 3e3f B*2b 3f3g+ 3h3g 3c4e 3g4f N*3d 4f3f P*3e 5d5c+ 4b5c 2b3c+ 5c4b 3c4b 5a4b S*2e 3e3f 2e1d 1c1d P*5c 5b6b 6e5d 4e3g+ 6i7i B*8c 5d4c+ 4b4c
+
+・local serverで暴走した局面集
+	shogi-observer-log.txt(570): 4<sfen ln1g4+L/1s4s1P/p1p1pk3/1P4pp1/P8/1B4n1R/2NS1+p3/3GS3K/L4g1N1 b 5PLBG4pr 103
+	shogi-observer-log.txt(702): 1<sfen ln1g4+L/1s4s1P/p1p1pk3/1P4pp1/P8/1B4n1R/2NS1+p3/3GS3K/L4g1N1 b 5PLBG4pr 103
+	shogi-observer-log.txt(1425): 4<sfen +S2+N5/8+R/G8/9/3K+R4/9/4+s+p+p+pg/1+p3+b+p2/1k1+b+p+n+p+p+p b 8PLp3l2n2s2g 157
+	shogi-observer-log.txt(1745): 4<sfen ln1g4+L/1s4s1P/p1p1pk3/1P4pp1/P8/1B4n1R/2NS1+p3/3GS3K/L4g1N1 b 5PLBG4pr 103
+	shogi-observer-log.txt(2041): 2<sfen 1b4+LG1/9/2nP1+P2k/1P1+R1K1N1/6PP1/2p2g1+r1/4+p2g1/1S5+p1/+pN4+pb1 b 6PS2p3ln2sg 251
+	shogi-observer-log.txt(2249): 2<sfen l1n3+L1+S/1kr+B1p3/pp1+Sp1+b2/2p6/9/2PG2P2/P1K2P3/4G4/9 w 4PL3N2SR2G5pl 140
+	shogi-observer-log.txt(2606): 1<sfen ln1g4+L/1s4s1P/p1p1pk3/1P4pp1/P8/1B4n1R/2NS1+p3/3GS3K/L4g1N1 b 5PLBG4pr 103
+	shogi-observer-log.txt(2840): 3<sfen lns3+L2/4+R4/ppkpp4/2p3+B2/3N1pK2/8+R/PPPP5/1B4+l2/LNSG2+p2 w 4P2S3G3pn 82
+	shogi-observer-log.txt(2999): 4<sfen ln4+L1+N/k8/1g2G+B1+S1/p8/6K2/1+r2+p4/+p1+p6/7p+p/2+r5+p w 8P2L2S2G3p2nsb 180
+	shogi-observer-log.txt(3888): 4<sfen ln1g4+L/1s4s1P/p1p1pk3/1P4pp1/P8/1B4n1R/2NS1+p3/3GS3K/L4g1N1 b 5PLBG4pr 103
+	shogi-observer-log.txt(4669): 2<sfen 4g1k2/3Ps1p2/R8/2+B3LBL/ppP1SP3/1RN6/6N2/3SK4/3G1GS2 b 5PLN7plng 133
+	shogi-observer-log.txt(4874): 2<sfen 3+P2+L1+S/1+P4+N+B+P/7+S1/4+rlg1P/4P1p2/1P1GS1g1p/P2P+b+p1+p1/LKS3k2/5P+p1+n w 2P2NR2plg 238
+	shogi-observer-log.txt(5108): 3<sfen ln1g4+L/1s4s1P/p1p1pk3/1P4pp1/P8/1B4n1R/2NS1+p3/3GS3K/L4g1N1 b 5PLBG4pr 103
+	shogi-observer-log.txt(5327): 2<sfen lnsg1+L3/9/ppppk4/2N2gpb1/1K4P2/1P4R1s/P1P+r3+p1/2s1p4/L1+b1+n1S2 w P2G6pln 146
+	shogi-observer-log.txt(5723): 4<sfen ln1g4+L/1s4s1P/p1p1pk3/1P4pp1/P8/1B4n1R/2NS1+p3/3GS3K/L4g1N1 b 5PLBG4pr 103
+	shogi-observer-log.txt(6331): 4<sfen ln1g4+L/1s4s1P/p1p1pk3/1P4pp1/P8/1B4n1R/2NS1+p3/3GS3K/L4g1N1 b 5PLBG4pr 103
+	shogi-observer-log.txt(7151): 4<sfen ln1g4+L/1s4s1P/p1p1pk3/1P4pp1/P8/1B4n1R/2NS1+p3/3GS3K/L4g1N1 b 5PLBG4pr 103
+	shogi-observer-log.txt(7569): 4<sfen ln6+L/2ksg4/pppppp3/3rN4/4+b4/2PPS4/PP1K1PN2/6S2/LNSG1G2+p w BR6plg 70
+	shogi-observer-log.txt(8258): 1<sfen 5s1+P+B/1rk6/2nss3+N/1p2p3G/9/2+r6/1+b1P3p+p/2PK2+p1+p/+n+l1G2+p+p+p w 5P2Gp3lns 170
+	shogi-observer-log.txt(9067): 2<sfen ln1g4+L/1s4s1P/p1p1pk3/1P4pp1/P8/1B4n1R/2NS1+p3/3GS3K/L4g1N1 b 5PLBG4pr 103
+	shogi-observer-log.txt(13072): 4<sfen ln1g4+L/1s4s1P/p1p1pk3/1P4pp1/P8/1B4n1R/2NS1+p3/3GS3K/L4g1N1 b 5PLBG4pr 103
+	shogi-observer-log.txt(13169): 2<sfen ln1g4+L/1s4s1P/p1p1pk3/1P4pp1/P8/1B4n1R/2NS1+p3/3GS3K/L4g1N1 b 5PLBG4pr 103
+	shogi-observer-log.txt(13791): 4<sfen ln1g4+L/1s4s1P/p1p1pk3/1P4pp1/P8/1B4n1R/2NS1+p3/3GS3K/L4g1N1 b 5PLBG4pr 103
+	shogi-observer-log.txt(14215): 4<sfen lnS+S4+P/1n2+R3+P/k+B7/1pp3np1/p7K/6P2/P8/1L2+l1G2/LN6+R w 10P2SB3G 180
+	shogi-observer-log.txt(15356): 2<sfen ln4+L2/1r1+S+BG2P/pkp1+B3+N/1p1p5/9/2P6/PP1P2+p2/4K2+p+p/LNSG1S2+p b 4PLNRGpsg 87
+
+	→　同じ局面いっぱいある…。定跡、そんなにバラけてないのか…。それは残念…。
+
+	random playerをしばらく回す。
+	→　検出できない。nano plusが何かバグっているのか…。そうか…。
+	→　nano plusを1プロセス内で連続自己対戦させるか。
+	→　testコマンドにautoplay追加。
+	・LimitTypeにサイレントモード追加。
+	・nano plusにサイレントモード追加。
+	
+	・is_draw()、最初に2手遡るの忘れていたので修正。
+	・is_repetitionに名前変更。
+
+setoption name Hash value 4
+isready
+test autoplay
+
+	これでしばらく回しておく。
+
 
 
 ■ 2016/02/22 V1.71
@@ -44,6 +106,21 @@
 	    if (!RootNode && !ttHit && depth > param1*ONE_PLY)
 
 		こうして、param1 = 0 .. 8ぐらいで最適値を調べてみる。PVとnon PVで違ってくるのか..まあいいか…。
+
+
+
+		49.1%	50.4%	50.7%	50.8%	51.1%	
+		#27
+		やねうら王nano plus V171a
+		search()でmate1呼び出すように param1でそのdepth変更 , 1スレッド、0.1秒設定
+		#0
+		やねうら王nano plus V170
+		千日手判定追加 , 1スレッド、0.1秒設定
+
+		1613-37-1672(84.8% R-6.2)	1658-51-1630(31.3% R3.0)	1596-47-1550(20.6% R5.1)	1571-45-1521(18.4% R5.6)	1579-31-1511(11.1% R7.6)	
+
+		depth > ONE_PLY
+		これぐらいで呼び出さないとリターン小さすぎなのか。そうか。
 
 
 ■ 2016/02/22 V1.70

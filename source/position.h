@@ -210,7 +210,7 @@ struct Position
   int64_t nodes_searched() const { return nodes; }
 
   // 連続王手の千日手等で引き分けかどうかを返す
-  RepetitionState is_draw() const;
+  RepetitionState is_repetition(const int repPly = 16) const;
 
   // --- Bitboard
 
@@ -290,7 +290,7 @@ struct Position
 
     if (is_drop(m))
       // 打ち歩詰めは指し手生成で除外されている。
-      return true; //  move_dropped_piece(m) != PAWN || legal_drop(m);
+      return true;
     else
     {
       Color us = sideToMove;
@@ -303,10 +303,6 @@ struct Position
     }
   }
 
-  // toの地点に歩を打ったときに打ち歩詰めにならないならtrue。
-  // 歩をtoに打つことと、二歩でないこと、toの前に敵玉がいることまでは確定しているものとする。
-  bool legal_drop(const Square to) const;
-
   // mがpseudo_legalな指し手であるかを判定する。
   // ※　pseudo_legalとは、擬似合法手(自殺手が含まれていて良い)
   // 置換表の指し手でdo_move()して良いのかの事前判定のために使われる。
@@ -315,6 +311,18 @@ struct Position
   // ※　置換表の検査だが、pseudo_legal()で擬似合法手かどうかを判定したあとlegal()で自殺手でないことを
   // 確認しなくてはならない。このためpseudo_legal()とlegal()とで重複する自殺手チェックはしていない。
   bool pseudo_legal(const Move m) const;
+
+  // toの地点に歩を打ったときに打ち歩詰めにならないならtrue。
+  // 歩をtoに打つことと、二歩でないこと、toの前に敵玉がいることまでは確定しているものとする。
+  // 二歩の判定もしたいなら、legal_pawn_drop()のほうを使ったほうがいい。
+  bool legal_drop(const Square to) const;
+
+  // 二歩でなく、かつ打ち歩詰めでないならtrueを返す。
+  bool legal_pawn_drop(const Color us, const Square to) const
+  {
+    return !((pieces(us, PAWN) & FILE_BB[file_of(to)])                             // 二歩
+      || ((pawnEffect(us, to) == Bitboard(king_square(~us)) && !legal_drop(to)))); // 打ち歩詰め
+  }
 
   // --- StateInfo
 

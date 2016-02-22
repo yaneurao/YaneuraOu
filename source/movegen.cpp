@@ -678,8 +678,7 @@ template <Color Us> struct GenerateCheckDropMoves<Us, PAWN> {
       auto to = bb.pop_c();
 
       // 二歩と打ち歩詰めでないならこの指し手を生成。
-      if (!(FILE_BB[file_of(to)] & pos.pieces(Us,PAWN)) &&
-        !((pawnEffect(Us, to) == Bitboard(pos.king_square(~Us)) && !pos.legal_drop(to))))
+      if (pos.legal_pawn_drop(Us, to))
         mlist++->move=make_move_drop(PAWN, to);
     }
     return mlist;

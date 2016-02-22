@@ -191,6 +191,7 @@ struct EngineState
 #endif
     pn.run(path);
     state = START_UP;
+    engine_exe_name_ = path;
   }
  
   // エンジンに対する終了処理
@@ -269,7 +270,7 @@ struct EngineState
         // これ、プロセスが落ちてると思われる。
         // プロセスを再起動したほうが良いのでは…。
 
-        return MOVE_RESIGN;
+        return MOVE_NULL; // これを返して、終了してもらう。
       }
 
       sleep(5);
@@ -304,6 +305,9 @@ struct EngineState
   // usiコマンドに対して思考エンジンが"is name ..."で返してきたengine名
   string engine_name() const { return engine_name_; }
 
+  // 実行したエンジンのバイナリ名
+  string engine_exe_name() const { return engine_exe_name_; }
+
   ProcessNegotiator pn;
 
 protected:
@@ -316,6 +320,9 @@ protected:
 
   // usiコマンドに対して思考エンジンが"is name ..."で返してきたengine名
   string engine_name_;
+
+  // 実行したエンジンのバイナリ名
+  string engine_exe_name_;
 
 };
 
@@ -441,7 +448,7 @@ void MainThread::think() {
   Thread::search();
   for (auto th : Threads.slaves) th->wait_for_search_finished();
 
-  sync_cout << endl << "local game server end : [" << usi_engine_name[0] << "] vs [" << usi_engine_name[1] << "]" << sync_endl;
+  sync_cout << endl << "local game server end : [" << engine_name[0] << "] vs [" << engine_name[1] << "]" << sync_endl;
   sync_cout << "GameResult " << win << " - " << draw << " - " << lose << sync_endl;
 
 #ifdef ONE_LINE_OUTPUT_MODE
@@ -561,8 +568,12 @@ void Thread::search()
     if (game_started)
     {
       int player = (rootPos.side_to_move() == player1_color) ? 0 : 1;
-      auto engine_name = es[player].engine_name();
+      auto engine_name = es[player].engine_exe_name(); // engine_name()だとエラーが起きたときにどれだかわからない可能性がある。
       Move m = es[player].think(rootPos, think_cmd[player], engine_name);
+
+      // timeoutしたので終了させてしまう。
+      if (m == MOVE_NULL)
+        break;
 
       // 非合法手を弾く
       if (m!=MOVE_RESIGN && (!rootPos.pseudo_legal(m) || !rootPos.legal(m)))
