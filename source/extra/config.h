@@ -47,12 +47,12 @@
 // あまり重度のassertにすると、探索性能が落ちるので時間当たりに調べられる局面数が低下するから
 // そのへんのバランスをユーザーが決めれるようにこの仕組みを導入。
 
-#define ASSERT_LV 3
+//#define ASSERT_LV 3
 
 // --- ASSERTのリダイレクト
 // ASSERTに引っかかったときに、それを"ERROR:x=1"のように標準出力に出力する。
 
-#define USE_DEBUG_ASSERT
+//#define USE_DEBUG_ASSERT
 
 
 // --- USI拡張コマンドの"test"コマンドを有効にする。

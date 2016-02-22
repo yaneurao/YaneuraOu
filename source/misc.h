@@ -91,7 +91,7 @@ struct PRNG {
 
   // 乱数seedを指定しなければ現在時刻をseedとする。ただし、自己対戦のときに同じ乱数seedになる可能性が濃厚になるので
   // このときにthisのアドレスなどを加味してそれを乱数seedとする。(by yaneurao)
-  PRNG() : s(now() ^ uint64_t(this) ^ get_thread_id()) {}
+  PRNG() : s(now() ^ uint64_t(this) + get_thread_id() * 77777) {}
 
   // 乱数を一つ取り出す。
   template<typename T> T rand() { return T(rand64()); }

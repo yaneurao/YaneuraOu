@@ -65,6 +65,31 @@
 	→　こうした。
 	  for (auto th : Threads.slaves)
 	  { th->start_searching(); sleep(10); } // 開始タイミングをずらすことで乱数seedをばらけさせる
+	→　これでもまだ乱数偏るな…なんなの…。
+	→　thread_idが同じ値なのか？うむむ？
+	乱数seed調整してみた。
+	  PRNG() : s(now() ^ uint64_t(this) + get_thread_id()*1234567) {}
+	  →　これでも駄目か..
+
+	// 乱数のseedなどとしてthread idを使いたいが、
+	// C++のthread idは文字列しか取り出せないので無理やりcastしてしまう。
+	inline uint64_t get_thread_id()
+	{
+	  auto id = std::this_thread::get_id();
+	  if (sizeof(id) >= 8)
+		return *(uint64_t*)(&id);
+	  else if (sizeof(id) >= 4)
+		return *(uint32_t*)(&id);
+	  else 
+		return 0; // give up
+	}
+	別マシンと同じthread idを引いてくることってありえるのか？わからん..
+	→　そうでもなさげなのでこれはいいや。
+
+・ASSERTでエラーが出力されるようにしたnano plus、1300局でやっと落ちたが、
+	ASSERTにはかからず。
+
+	sfen ln1g4+L/1s4s1P/p1p1pk3/1P4pp1/P8/1B4n1R/2NS1+p3/3GS3K/L4g1N1 b 5PLBG4pr 103
 
 
 
