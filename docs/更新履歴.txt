@@ -5,13 +5,24 @@
 ・MovePickerに他のオーダリングも導入
 ・lazy SMPで並列化して+R300程度かな？他の最適化をしてから考えよう。
 
+
+■ 2016/02/22 V1.72
+
+・また落ちる局面があった。
+	sfen l+R2+L3+P/g4P2G/pppp3b1/4+r2bk/4p4/P1PSP4/1P1S1G3/2KG5/LNS5+p w 2N6plns 142
+	→　落ちない。わからん。
+
+・打ち歩詰めの指し手生成、~UsではなくUsか。修正した。
+      Bitboard pe = pawnEffect(Us,pos.king_square(~Us));
+
+
 ■ 2016/02/22 V1.71
 
 ・色々いじったので、search()のなかでmate1有効にしてみる。
 
     // RootNodeでは1手詰め判定、ややこしくなるのでやらない。
     // 置換表にhitしたときも1手詰め判定は行われていると思われるのでこの場合もはしょる
-    if (!RootNode && !ttHit)
+    if (!RootNode && !ttHit )
     {
       bestMove = pos.mate1ply();
       if (bestMove != MOVE_NONE)
@@ -25,7 +36,13 @@
       }
     }
 
-	こうしておく。なんか前のバージョンに有意に勝ち越すな…。一晩放置して様子を見る。
+	こうしておく。なんか前のバージョンに有意に勝ち越す気がしなくもない…。
+
+	・V1.71a
+		
+	    if (!RootNode && !ttHit && depth > param1*ONE_PLY)
+
+		こうして、param1 = 0 .. 8ぐらいで最適値を調べてみる。PVとnon PVで違ってくるのか..まあいいか…。
 
 
 ■ 2016/02/22 V1.70

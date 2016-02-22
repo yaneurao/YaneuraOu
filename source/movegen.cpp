@@ -317,10 +317,10 @@ template<Color US, bool All>
 // ----------------------------------
 
 // 駒打ちの指し手生成
-template <Color US> struct GenerateDropMoves {
+template <Color Us> struct GenerateDropMoves {
   ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target) {
 
-    const Hand hand = pos.hand_of(US);
+    const Hand hand = pos.hand_of(Us);
     // 手駒を持っていないならば終了
     if (hand == 0)
       return mlist;
@@ -345,17 +345,17 @@ template <Color US> struct GenerateDropMoves {
       // 各筋に1つしか歩はないので1～8段目が1になっているbitboardを歩の升のbitboardに加算すると9段目に情報が集まる。これをpextで回収する。
 
       // これにより、RANK9のところに歩の情報がかき集められた。
-      Bitboard a = pos.pieces(US, PAWN) + rank1_n_bb(BLACK, RANK_8); // 1～8段目を意味するbitboard
+      Bitboard a = pos.pieces(Us, PAWN) + rank1_n_bb(BLACK, RANK_8); // 1～8段目を意味するbitboard
 
       // このRANK9に集まった情報をpextで回収。後者はPEXT32でもいいがlatencyたぶん変わらないので…。
       uint32_t index = uint32_t(PEXT64(a.p[0], RANK9_BB.p[0]) + (PEXT64(a.p[1],RANK9_BB.p[1]) << 7));
 
       // 駒の打てる場所
-      Bitboard target2 = PAWN_DROP_MASK_BB[index][US] & target;
+      Bitboard target2 = PAWN_DROP_MASK_BB[index][Us] & target;
 
       // 打ち歩詰めチェック
       // 敵玉に敵の歩を置いた位置に打つ予定だったのなら、打ち歩詰めチェックして、打ち歩詰めならそこは除外する。
-      Bitboard pe = pawnEffect(~pos.side_to_move(),pos.king_square(~pos.side_to_move()));
+      Bitboard pe = pawnEffect(Us,pos.king_square(~Us));
       if (pe & target2)
       {
         Square to = pe.pop_c();
@@ -415,9 +415,9 @@ template <Color US> struct GenerateDropMoves {
       } else {
         // それ以外のケース
 
-        Bitboard target1 = target & rank1_n_bb(US, RANK_1); // 1段目
-        Bitboard target2 = target & (US == BLACK ? RANK2_BB : RANK8_BB); // 2段目
-        Bitboard target3 = target & rank1_n_bb(~US, RANK_7); // 3～9段目( == 後手から見たときの1～7段目)
+        Bitboard target1 = target & rank1_n_bb(Us, RANK_1); // 1段目
+        Bitboard target2 = target & (Us == BLACK ? RANK2_BB : RANK8_BB); // 2段目
+        Bitboard target3 = target & rank1_n_bb(~Us, RANK_7); // 3～9段目( == 後手から見たときの1～7段目)
         
         switch (num -  nextToLance) // 1段目に対する香・桂以外の駒打ちの指し手生成(最大で4種の駒)
         {

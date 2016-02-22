@@ -707,9 +707,10 @@ namespace YaneuraOuNanoPlus
 
     Move bestMove = MOVE_NONE;
 
+#if 1
     // RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
     // 置換表にhitしたときも1手詰め判定は行われていると思われるのでこの場合もはしょる
-    if (!RootNode && !ttHit)
+    if (!RootNode && !ttHit && depth > param1*ONE_PLY)
     {
       bestMove = pos.mate1ply();
       if (bestMove != MOVE_NONE)
@@ -722,6 +723,7 @@ namespace YaneuraOuNanoPlus
         return alpha;
       }
     }
+#endif
 
     // -----------------------
     //  局面を評価値によって静的に評価
