@@ -837,7 +837,7 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist,Square recapSq)
   {
     auto last = generateChecksMoves<GenType,All>(pos, mlist);
 
-    // 王手がかかっている局面においては王手生成において、回避手になっていない指し手も含まれるので
+    // 王手がかかっている局面においては王手生成において、回避手になっていない指し手も含まれるので(王手放置での駒打ち等)
     // pseudo_legal()でない指し手はここで除外する。これはレアケースなので少々の無駄は許容する。
     if (pos.in_check())
       while (mlist != last)

@@ -145,7 +145,7 @@ namespace YaneuraOuNanoPlus
       }
 
       ttMove = ttMove_ && pos.pseudo_legal(ttMove_) ? ttMove_ : MOVE_NONE;
-      endMoves += (ttMove_ != MOVE_NONE);
+      endMoves += (ttMove != MOVE_NONE);
     }
 
     // 次のstageにするため、必要なら指し手生成器で指し手を生成する。
