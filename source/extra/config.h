@@ -50,7 +50,7 @@
 //#define ASSERT_LV 3
 
 // --- ASSERTのリダイレクト
-// ASSERTに引っかかったときに、それを"ERROR:x=1"のように標準出力に出力する。
+// ASSERTに引っかかったときに、それを"Error : x=1"のように標準出力に出力する。
 
 //#define USE_DEBUG_ASSERT
 
@@ -235,7 +235,7 @@
 #ifndef USE_DEBUG_ASSERT
 #define ASSERT(X) { if (!(X)) *(int*)1 =0; }
 #else
-#define ASSERT(X) { if (!(X)) std::cout << "\nERROR : ASSERT(" << #X << ")\n"; }
+#define ASSERT(X) { if (!(X)) std::cout << "\nError : ASSERT(" << #X << ")\n"; }
 #endif
 
 // ASSERT LVに応じたassert

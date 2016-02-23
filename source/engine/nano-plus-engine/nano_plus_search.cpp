@@ -122,7 +122,7 @@ namespace YaneuraOuNanoPlus
 
       // 置換表の指し手が引数で渡されていたなら1手生成したことにする。
       // (currentMoves != endMovesであることを、指し手を生成するかどうかの判定に用いている)
-      endMoves += (ttMove_!= MOVE_NONE);
+      endMoves += (ttMove!= MOVE_NONE);
     }
 
     // 静止探索から呼び出される時用。
@@ -630,7 +630,7 @@ namespace YaneuraOuNanoPlus
       if (ss->ply >= MAX_PLY)
         return draw_value(REPETITION_DRAW,pos.side_to_move());
     }
-      
+
     // -----------------------
     //  Mate Distance Pruning
     // -----------------------
@@ -672,8 +672,9 @@ namespace YaneuraOuNanoPlus
 
     // 置換表の指し手
     // 置換表にhitしなければMOVE_NONE
-
-    // RootNodeであるなら、指し手は現在注目している1手だけであるから、それが置換表にあったものとして指し手を進める。
+                   
+    // RootNodeであるなら、(MultiPVなどでも)現在注目している1手だけがベストの指し手と仮定できるから、
+    // それが置換表にあったものとして指し手を進める。
     Move ttMove = RootNode ? thisThread->rootMoves[thisThread->PVIdx].pv[0]
       : ttHit ? tte->move() : MOVE_NONE;
 
@@ -778,7 +779,7 @@ namespace YaneuraOuNanoPlus
       Value value;
 
       pos.check_info_update();
-      MovePicker mp(pos, ttMove,ss);
+      MovePicker mp(pos, ttMove ,ss);
 
       Move move;
       StateInfo si;

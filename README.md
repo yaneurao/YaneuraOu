@@ -50,6 +50,7 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 - [ ] やねうら王nano plus、そろそろ開発終了。
 
 
+- [x] 2016/02/23・nano plusのMovePickerで置換表の指し手がpseudo-legalでないときに落ちていたの修正。
 - [x] 2016/02/23・local game serverの子プロセスの起動タイミングをばらつかせる。(乱数seedをばらけさせるため)
 - [x] 2016/02/22・nano plus、"go infinite"に対応させる。
 - [x] 2016/02/22・PRNGのデフォルトの乱数seedの精度を上げる。

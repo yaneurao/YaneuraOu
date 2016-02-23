@@ -151,6 +151,13 @@ protected:
 #ifdef OUTPUT_PROCESS_LOG
     sync_cout << "[" << pn << "] >" <<  result << sync_endl;
 #endif
+
+    if (result.find("Error") != string::npos)
+    {
+      // 何らかエラーが起きたので表示させておく。
+      sync_cout << "Error : " << result << sync_endl;
+    }
+
     return result;
   }
 
@@ -198,6 +205,7 @@ struct EngineState
   ~EngineState()
   {
     // エンジンはquitコマンドに対して自動的にプロセスを終了させるものと仮定している。
+    // 暴走した場合は知らん…。
     pn.write("quit");
   }
 
@@ -262,13 +270,6 @@ struct EngineState
       bestmove = pn.read();
       if (bestmove.find("bestmove") != string::npos)
         break;
-
-      if (bestmove.find("ERROR") != string::npos)
-      {
-        // 何らかエラーが起きたので終了する。
-        sync_cout << bestmove << sync_endl;
-        return MOVE_NULL;
-      }
 
       // タイムアウトチェック(連続自己対戦で1手に1分以上考えさせない
       if (now() >= start + 60 * 1000)
@@ -451,8 +452,7 @@ void MainThread::think() {
   sync_cout << "local game server start : " << engine_name[0] << " vs " << engine_name[1] << sync_endl;
 
   // マルチスレッド対応
-  for (auto th : Threads.slaves)
-  { th->start_searching(); sleep(10); } // 開始タイミングをずらすことで乱数seedをばらけさせる
+  for (auto th : Threads.slaves) th->start_searching(); 
   Thread::search();
   for (auto th : Threads.slaves) th->wait_for_search_finished();
 

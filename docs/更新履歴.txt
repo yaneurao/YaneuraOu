@@ -5,6 +5,106 @@
 ・MovePickerに他のオーダリングも導入
 ・lazy SMPで並列化して+R300程度かな？他の最適化をしてから考えよう。
 
+■ 2016/02/23 V1.74
+
+・乱数seed、外部から読み込めるようにしたほうがよさげ。
+  thread idではなくprocess idにしたら解消するか？
+  →　まあいいや。
+・0.1秒で3万局やって47回落ちてた。26並列対局において1時間で6回ぐらい落ちるわけか。10分で1回落ちるな。
+	対局ログサイズ2.7MB
+	ASSERTに引っかかったケースなし。うわぁぁぁ。
+	思考エンジンからログを書きだそうにもバッティングするしな..
+	local server、思考エンジンからのエラーは先頭にErrorの文字を入れるように。
+・ランダマイズやはり何かおかしい気がする。子プロセスだとthread idが固定化されているとしか思えない。
+  process IDにするか..。定跡局面で定期的にランダム思考させるか。うむむ..
+  →　thread IDでバラけてた。うわぁぁぁ。
+ ・PRNG、初期化時に乱数まわすようにした。
+  int n = (int)get_thread_id() & 1024; // 最大1024回、乱数を回してみる
+    for (int i = 0; i < n; ++i) rand<uint64_t>();
+・local serverにメッセージをbypassする仕組みが要るのでは…。
+  Redirectorのread()で"Error"の文字列をbypassするようにした。
+  文字列はERRORではなくErrorで統一することにした。
+・定跡早い段階で抜けると同じ展開になるというのはあるのか…。
+	MultiPVで思考するとかしないと同じ展開を抜けられないな。まあ、仕方ないか。
+	local serverで開始タイミングばらけさせるの意味ないな。
+・nano plus、静止探索をreturn evaluate(pos);にしてどうなるかやろう。
+	→　これでも落ちるのか..
+
+	・置換表の指し手、無効化してみる。
+//    ttMove = ttHit ? tte->move() : MOVE_NONE;
+    ttMove = MOVE_NONE;
+	→　これでもないのか。なんなのだ…。
+
+	・killerも無効化してみる。	
+
+        case KILLERS:
+          move = *currentMoves++;
+
+		#if 0
+				  if (  move != MOVE_NONE         // ss->killer[0],[1]からコピーしただけなのでMOVE_NONEの可能性がある
+					&&  move != ttMove            // 置換表の指し手を重複除去しないといけない
+					&&  pos.pseudo_legal(move)
+					&& !pos.capture_or_pawn_promotion(move))  // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
+					return move;
+		#endif
+				  break;
+
+	→　これも違うのか..
+
+	mate1消す
+	LONG_EFFECT_LIBRARYも使わない。
+	→　これでもあかんのか。なんなん…。
+
+		//    (ss + 2)->killers[0] = (ss + 2)->killers[1] = MOVE_NONE;
+
+		#if 0
+			  auto draw_type = pos.is_repetition();
+			  if (draw_type != REPETITION_NONE)
+				return draw_value(draw_type,pos.side_to_move());
+		#endif
+
+	これでどうか。→　あかん。
+
+		MovePicker、これでどうか。
+		//    KILLERS,                      // KILLERの指し手
+	//    BAD_CAPTURES,                 // 捕獲する悪い指し手
+		GOOD_QUIETS,                  // CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す
+	//    BAD_QUIETS,                   // ↑で点数悪そうなものを後回しにしていたのでそれを一つずつ返す
+
+	これもあかんのか。probeの直後、
+
+	    ttHit = false; // 置換表にhitしていないことにする。
+
+	これでどうか。→　落ちない？
+
+		// -----------------------
+		//  局面を評価値によって静的に評価
+		// -----------------------
+
+		ttHit = false; // 置換表にhitしていないことにする。
+
+	ここならどうか。→　落ちる
+
+		Move ttMove = RootNode ? thisThread->rootMoves[thisThread->PVIdx].pv[0]
+		  : ttHit ? tte->move() : MOVE_NONE;
+
+		ttHit = false; // 置換表にhitしていないことにする。
+
+	ここは？ →　落ちる
+
+	      MovePicker mp(pos, MOVE_NONE /*ttMove*/ ,ss);
+
+	これは？ →　落ちないくさい。MovePickerの置換表絡み怪しげ。
+
+	      endMoves += (ttMove_!= MOVE_NONE);
+	これか。
+      endMoves += (ttMove != MOVE_NONE);
+	こうやん..。
+
+	→　2000局やって、落ちない。これだった…。やっと改良に戻れる。
+	→　V1.70と対局させてみる。
+	→　弱くはなってなさげ。
+
 
 ■ 2016/02/22 V1.73
 
