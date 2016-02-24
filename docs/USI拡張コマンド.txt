@@ -55,3 +55,7 @@ set option name XXX value ...で設定できるoption
 	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。
 
 	makebook : 定跡作成コマンド。詳しくは doc/解説.txt のほうを参考に。
+
+拡張コマンド
+	go rtime 100
+	とすると、今回の思考時間として、100～300[ms]を使って思考する。

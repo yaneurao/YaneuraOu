@@ -403,6 +403,7 @@ void  Search::clear() { TT.clear(); }
 
 void MainThread::think() {
 
+  static PRNG prng;
   Move bestMove;
 
   // ---------------------
@@ -419,8 +420,8 @@ void MainThread::think() {
   // ---------------------
   //     定跡の選択部
   // ---------------------
+
   {
-    static PRNG prng;
     auto it = book.find(rootPos.sfen());
     if (it != book.end()) {
       // 定跡にhitした。逆順で出力しないと将棋所だと逆順にならないという問題があるので逆順で出力する。
@@ -467,11 +468,20 @@ void MainThread::think() {
 
       auto us = pos.side_to_move();
       // 2秒未満は2秒として問題ない。(CSAルールにおいて)
-      auto availableTime = std::max(2000, Limits.time[us] / 60 + Limits.byoyomi[us]);
-      // 思考時間は秒単位で繰り上げ
-      availableTime = (availableTime / 1000) * 1000;
-      // 50msより小さいと思考自体不可能なので下限を50msに。
-      availableTime = std::max(50, availableTime - Options["NetworkDelay"]);
+
+      int availableTime;
+      if (!Limits.rtime)
+      {
+        availableTime = std::max(2000, Limits.time[us] / 60 + Limits.byoyomi[us]);
+        // 思考時間は秒単位で繰り上げ
+        availableTime = (availableTime / 1000) * 1000;
+        // 50msより小さいと思考自体不可能なので下限を50msに。
+        availableTime = std::max(50, availableTime - Options["NetworkDelay"]);
+      } else {
+        // 1～3倍の範囲でランダム化する。
+        availableTime = Limits.rtime + (int)prng.rand(Limits.rtime * 2);
+      }
+
       auto endTime = Limits.startTime + availableTime;
 
       // タイマースレッドを起こして、終了時間を監視させる。

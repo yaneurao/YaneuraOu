@@ -313,6 +313,14 @@ namespace YaneuraOuNanoPlus
   // Rootはここでは用意しない。Rootに特化した関数を用意するのが少し無駄なので。
   enum NodeType { PV, NonPV };
 
+  // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
+  Value futility_margin(Depth d,int game_ply) {
+    // 80手目を終盤と定義して、終盤に近づくほどmarginの幅を上げるように調整する。
+//    game_ply = min(80, game_ply);
+//    return Value(d * ((param1+1) * 30 + game_ply * param2 / 2));
+    return Value(d * 90);
+  }
+
   // 探索深さを減らすためのReductionテーブル
   // [PvNodeであるか][improvingであるか][このnodeで何手目の指し手であるか][残りdepth]
   Depth reduction_table[2][2][64][64];
@@ -770,6 +778,28 @@ namespace YaneuraOuNanoPlus
     }
 
     // -----------------------
+    //   evalベースの枝刈り
+    // -----------------------
+
+    // 局面の静的評価値(eval)が得られたので、以下ではこの評価値を用いて各種枝刈りを行なう。
+
+    //
+    //   Futility pruning
+    //
+
+    // このあとの残り探索深さによって、評価値が変動する幅はfutility_margin(depth)だと見積れるので
+    // evalからこれを引いてbetaより大きいなら、beta cutが出来る。
+    // ただし、将棋の終盤では評価値の変動の幅は大きくなっていくので、進行度に応じたfutility_marginが必要となる。
+    // ここでは進行度としてgamePly()を用いる。このへんはあとで調整すべき。
+    
+    if (!RootNode
+      &&  depth < 7 * ONE_PLY
+      &&  eval - futility_margin(depth, pos.game_ply()) >= beta
+      &&  eval < VALUE_KNOWN_WIN ) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
+      return eval - futility_margin(depth , pos.game_ply());
+
+
+    // -----------------------
     // 1手ずつ指し手を試す
     // -----------------------
 
@@ -1031,6 +1061,8 @@ void MainThread::think() {
   //      variables
   // ---------------------
 
+  static PRNG prng;
+
   Stack stack[MAX_PLY + 4], *ss = stack + 2; // (ss-2)と(ss+2)にアクセスしたいので4つ余分に確保しておく。
   Move bestMove;
 
@@ -1050,8 +1082,8 @@ void MainThread::think() {
   // ---------------------
   //     定跡の選択部
   // ---------------------
+
   {
-    static PRNG prng;
     auto it = book.find(rootPos.sfen());
     if (it != book.end()) {
       // 定跡にhitした。逆順で出力しないと将棋所だと逆順にならないという問題があるので逆順で出力する。
@@ -1098,11 +1130,20 @@ void MainThread::think() {
 
       auto us = pos.side_to_move();
       // 2秒未満は2秒として問題ない。(CSAルールにおいて)
-      auto availableTime = std::max(2000, Limits.time[us] / 60 + Limits.byoyomi[us]);
-      // 思考時間は秒単位で繰り上げ
-      availableTime = (availableTime / 1000) * 1000;
-      // 50msより小さいと思考自体不可能なので下限を50msに。
-      availableTime = std::max(50, availableTime - Options["NetworkDelay"]);
+      int availableTime;
+
+      if (!Limits.rtime)
+      {
+        availableTime = std::max(2000, Limits.time[us] / 60 + Limits.byoyomi[us]);
+        // 思考時間は秒単位で繰り上げ
+        availableTime = (availableTime / 1000) * 1000;
+        // 50msより小さいと思考自体不可能なので下限を50msに。
+        availableTime = std::max(50, availableTime - Options["NetworkDelay"]);
+      } else {
+        // 1～3倍の範囲でランダム化する。
+        availableTime = Limits.rtime + (int)prng.rand(Limits.rtime * 2);
+      }
+
       auto endTime = Limits.startTime + availableTime;
 
       // タイマースレッドを起こして、終了時間を監視させる。

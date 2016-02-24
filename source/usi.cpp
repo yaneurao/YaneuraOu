@@ -328,6 +328,9 @@ void go_cmd(const Position& pos, istringstream& is) {
     else if (token == "wtime")     is >> limits.time[WHITE];
     else if (token == "btime")     is >> limits.time[BLACK];
 
+    // "go rtime 100"だと100～300[ms]思考する。
+    else if (token == "rtime")     is >> limits.rtime;
+
     // 秒読み設定。
     else if (token == "byoyomi") {
       int t = 0;

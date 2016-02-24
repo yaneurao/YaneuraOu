@@ -66,6 +66,9 @@ namespace Search {
     //  ※ ただし今回用の探索時間を超えていれば、stopOnPonderhitフラグをtrueにしてあるのでponderhitに対して即座に停止する。
     int depth, movetime, mate, infinite, ponder;
 
+    // "go rtime 100"とすると100～300msぐらい考える。
+    int rtime;
+
     // 今回のgoコマンドでの探索ノード数
     int64_t nodes;
 
