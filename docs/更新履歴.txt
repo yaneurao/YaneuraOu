@@ -3,7 +3,26 @@
 
 ToDo:
 ・MovePickerに他のオーダリングも導入
-・lazy SMPで並列化して+R300程度かな？他の最適化をしてから考えよう。
+・lazy SMPで並列化して+R400程度かな？他の最適化をしてから考えよう。
+
+
+■ 2016/02/24 V1.78
+
+・nano plusにCounterStats追加。
+・nano plusのMovePickerファイルを分離する。
+・Position::moved_piece()追加。
+・ThreadにCounterMoveHistoryStatsを持たさないといけないのに..これうまく分離できないな…。
+
+#ifdef USE_MOVE_PICKER
+  // スレッドごとにhistoryとcounter movesのtableを持たないといけない。
+
+  CounterMoveHistoryStats history;
+  MoveStats counterMoves;
+#endif
+	これ、仕方ないな…。
+
+・nano plusのkillerにcountermoveを入れるようにする。
+・historyのupdate()の処理入れる。
 
 
 ■ 2016/02/24 V1.77

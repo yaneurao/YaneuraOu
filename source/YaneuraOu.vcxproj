@@ -209,6 +209,7 @@
     <ClInclude Include="extra\macros.h" />
     <ClInclude Include="extra\mate1ply.h" />
     <ClInclude Include="misc.h" />
+    <ClInclude Include="move_picker.h" />
     <ClInclude Include="search.h" />
     <ClInclude Include="shogi.h" />
     <ClInclude Include="position.h" />

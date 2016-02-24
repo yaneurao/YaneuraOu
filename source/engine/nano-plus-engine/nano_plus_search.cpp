@@ -25,6 +25,7 @@
 #include "../../misc.h"
 #include "../../tt.h"
 #include "../../extra/book.h"
+#include "../../move_picker.h"
 
 using namespace std;
 using namespace Search;
@@ -36,274 +37,6 @@ namespace YaneuraOuNanoPlus
   // 外部から調整される探索パラメーター
   int param1 = 0;
   int param2 = 0;
-
-  // -----------------------
-  //  探索のときに使うStack
-  // -----------------------
-
-  struct Stack {
-    Move killers[2];    // killer move
-    Move currentMove;   // そのスレッドの探索においてこの局面で現在選択されている指し手
-    Value staticEval;   // 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
-    int ply;            // rootからの手数
-  };
-
-  // -----------------------
-  //     Stackのupdate
-  // -----------------------
-
-  // いい探索結果だったときにkiller等を更新する
-
-  void update_stats(const Position& pos, Stack* ss, Move move,
-    Depth depth, Move* quiets, int quietsCnt) {
-
-    // killer 2本しかないので[0]と違うならいまの[0]を[1]に降格させて[0]と差し替え
-    if (ss->killers[0] != move)
-    {
-      ss->killers[1] = ss->killers[0];
-      ss->killers[0] = move;
-    }
-  }
-
-
-  // -----------------------
-  //   指し手オーダリング
-  // -----------------------
-
-  // 指し手を段階的に生成するために現在どの段階にあるかの状態を表す定数
-  enum Stages {
-    // -----------------------------------------------------
-    //   王手がかっていない通常探索時用の指し手生成
-    // -----------------------------------------------------
-    MAIN_SEARCH_START,            // 置換表の指し手を返すフェーズ
-    GOOD_CAPTURES,                // 捕獲する指し手(CAPTURES_PRO_PLUS)を生成して指し手を一つずつ返す
-    KILLERS,                      // KILLERの指し手
-    BAD_CAPTURES,                 // 捕獲する悪い指し手
-    GOOD_QUIETS,                  // CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す
-    BAD_QUIETS,                   // ↑で点数悪そうなものを後回しにしていたのでそれを一つずつ返す
-
-    // -----------------------------------------------------
-    //   王手がかっている/静止探索時用の指し手生成
-    // -----------------------------------------------------
-    EVASION_START,                // 置換表の指し手を返すフェーズ
-    ALL_EVASIONS,                 // 回避する指し手(EVASIONS)を生成した指し手を一つずつ返す
-    
-    // -----------------------------------------------------
-    //   王手がかっていない静止探索時用の指し手生成
-    // -----------------------------------------------------
-
-    QSEARCH_WITH_CHECKS_START,    // 王手がかかっているときはここから開始
-    QCAPTURES_1,                  // 捕獲する指し手
-    QCHECKS,                      // 王手となる指し手(上で生成している捕獲の指し手を除外した王手)
-
-    QSEARCH_WITHOUT_CHECKS_START, // 王手がかかっていないときはここから開始
-    QCAPTURES_2,                  // 捕獲する指し手
-
-    // 静止探索で深さ-2以降は組み合わせ爆発を防ぐためにrecaptureのみを生成
-    RECAPTURE_START,              // ↓のstageに行くためのラベル
-    GOOD_RECAPTURES,              // 最後の移動した駒を捕獲する指し手(RECAPTURES)を生成した指し手を一つずつ返す
-
-    STOP,                         // 終端
-  };
-  ENABLE_OPERATORS_ON(Stages); // 次の状態にするためにインクリメントを使いたい。
-
-  // 指し手オーダリング器
-  struct MovePicker
-  {
-    // 通常探索から呼び出されるとき用。
-    MovePicker(const Position& pos_,Move ttMove_,Stack*ss_) : pos(pos_),ss(ss_)
-    {
-      // 次の指し手生成の段階
-      // 王手がかかっているなら回避手、かかっていないなら通常探索用の指し手生成
-      stage = pos.in_check() ? EVASION_START : MAIN_SEARCH_START;
-
-      // 置換表の指し手があるならそれを最初に返す。ただしpseudo_legalでなければならない。
-      ttMove = ttMove_ && pos.pseudo_legal(ttMove_) ? ttMove_ : MOVE_NONE;
-
-      // 置換表の指し手が引数で渡されていたなら1手生成したことにする。
-      // (currentMoves != endMovesであることを、指し手を生成するかどうかの判定に用いている)
-      endMoves += (ttMove!= MOVE_NONE);
-    }
-
-    // 静止探索から呼び出される時用。
-    MovePicker(const Position& pos_, Move ttMove_, Depth depth, Square recapSq, Stack*ss_) : pos(pos_),ss(ss_)
-    {
-      if (pos.in_check())
-        stage = EVASION_START;
-      else if (depth > DEPTH_QS_NO_CHECKS)
-        stage = QSEARCH_WITH_CHECKS_START;
-
-      else if (depth > DEPTH_QS_RECAPTURES)
-        stage = QSEARCH_WITHOUT_CHECKS_START;
-
-      else
-      {
-        stage = RECAPTURE_START;
-        recaptureSquare = recapSq;
-        ttMove = MOVE_NONE; // 置換表の指し手はrecaptureの升に移動させる指し手ではないので忘れる
-        return;
-      }
-
-      ttMove = ttMove_ && pos.pseudo_legal(ttMove_) ? ttMove_ : MOVE_NONE;
-      endMoves += (ttMove != MOVE_NONE);
-    }
-
-    // 次のstageにするため、必要なら指し手生成器で指し手を生成する。
-    void generate_next_stage()
-    {
-      ASSERT_LV3(stage != STOP);
-
-      // 指し手生成バッファの先頭を指すように
-      currentMoves = moves;
-
-      // 次のステージに移行して、そのときに指し手生成が必要なステージに達したなら指し手を生成する。
-      switch (++stage)
-      {
-      case GOOD_CAPTURES: case QCAPTURES_1 : case QCAPTURES_2:
-        endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, moves);
-        break;
-
-      case GOOD_RECAPTURES:
-        endMoves = generateMoves<RECAPTURES>(pos, moves, recaptureSquare);
-        break;
-
-        // あとで実装する(↑で生成して返さなかった指し手を返すフェーズ)
-      case BAD_CAPTURES:
-        endMoves = moves;
-        break;
-
-      case GOOD_QUIETS:
-        endMoves = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, moves);
-        break;
-
-        // あとで実装する(↑で生成して返さなかった指し手を返すフェーズ)
-      case BAD_QUIETS:
-        endMoves = moves;
-        break;
-
-      case KILLERS:
-        killers[0] = ss->killers[0];
-        killers[1] = ss->killers[1];
-        currentMoves = killers;
-        endMoves = currentMoves + 2;
-        break;
-
-      case ALL_EVASIONS:
-        endMoves = generateMoves<EVASIONS>(pos, moves);
-        break;
-
-      case QCHECKS:
-        endMoves = generateMoves<QUIET_CHECKS>(pos, moves);
-        break;
-
-        // そのステージの末尾に達したのでMovePickerを終了する。
-      case EVASION_START: case QSEARCH_WITH_CHECKS_START: case QSEARCH_WITHOUT_CHECKS_START:
-      case RECAPTURE_START: case STOP:
-        stage = STOP;
-        break;
-
-      default:
-        UNREACHABLE;
-        break;
-      }
-
-    }
-
-    // 次の指し手をひとつ返す
-    // 指し手が尽きればMOVE_NONEが返る。
-    Move nextMove() {
-
-      Move move;
-
-      while (true)
-      {
-        while (currentMoves == endMoves && stage != STOP)
-          generate_next_stage();
-
-        switch (stage)
-        {
-          // 置換表の指し手を返すフェーズ
-        case MAIN_SEARCH_START: case EVASION_START:
-        case QSEARCH_WITH_CHECKS_START: case QSEARCH_WITHOUT_CHECKS_START:
-          ++currentMoves;
-          return ttMove;
-
-          // killer moveを1手ずつ返すフェーズ
-          // (直前に置換表の指し手を返しているし、CAPTURES_PRO_PLUSでの指し手も返しているのでそれらの指し手は除外されるべき)
-        case KILLERS:
-          move = *currentMoves++;
-          if (  move != MOVE_NONE         // ss->killer[0],[1]からコピーしただけなのでMOVE_NONEの可能性がある
-            &&  move != ttMove            // 置換表の指し手を重複除去しないといけない
-            &&  pos.pseudo_legal(move)
-            && !pos.capture_or_pawn_promotion(move))  // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
-            return move;
-          break;
-
-          // 置換表の指し手を返したあとのフェーズ
-          // (killer moveの前のフェーズなのでkiller除去は不要)
-        case GOOD_CAPTURES:
-        case ALL_EVASIONS: case QCAPTURES_1: case QCAPTURES_2:
-          move = *currentMoves++;
-          if (move != ttMove)
-            return move;
-          break;
-
-          // 指し手を一手ずつ返すフェーズ
-          // (置換表の指し手とkillerの指し手は返したあとなのでこれらの指し手は除外する必要がある)
-        case BAD_CAPTURES: case GOOD_QUIETS: case BAD_QUIETS:
-          move = *currentMoves++;
-          // 置換表の指し手、killerと同じものは返してはならない。
-          if ( move != ttMove
-            && move != killers[0]
-            && move != killers[1])
-            return move;
-          break;
-
-          // 王手になる指し手を一手ずつ返すフェーズ
-          // (置換表の指し手とCAPTURES_PRO_PLUSの指し手は返したあとなのでこれらの指し手は除外する必要がある)
-        case QCHECKS:
-          move = *currentMoves++;
-          if (  move != ttMove
-            && !pos.capture_or_pawn_promotion(move)) // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
-            return move;
-          break;
-
-          // 取り返す指し手。これはすでに生成されているのでそのまま返すだけで良い。
-        case GOOD_RECAPTURES:
-          move = *currentMoves++;
-          return move;
-
-        case STOP:
-          return MOVE_NONE;
-
-        default:
-          UNREACHABLE;
-          break;
-        }
-      }
-    }
-
-  private:
-    const Position& pos;
-
-    // 指し手生成の段階
-    Stages stage;
-
-    // RECAPUTREの指し手で移動させる先の升
-    Square recaptureSquare;
-
-    // 置換表の指し手
-    Move ttMove;
-
-    // killer move
-    ExtMove killers[2];
-
-    // node stack
-    Stack* ss;
-    
-    // 指し手生成バッファと、次に返す指し手、生成された指し手の末尾
-    ExtMove moves[MAX_MOVES], *currentMoves = moves, *endMoves = moves;
-  };
 
   // -----------------------
   //      探索用の定数
@@ -331,6 +64,74 @@ namespace YaneuraOuNanoPlus
   template <bool PvNode> Depth reduction(bool improving, Depth depth, int move_count) {
     return reduction_table[PvNode][improving][std::min((int)depth/ONE_PLY, 63 )][std::min(move_count, 63)];
   }
+
+  // -----------------------
+  //     Statsのupdate
+  // -----------------------
+
+  // MovePickerで用いる直前の指し手に対するそれぞれの指し手のスコア
+  CounterMoveHistoryStats CounterMoveHistory;
+
+  // いい探索結果だったときにkiller等を更新する
+
+  // move      = これが良かった指し手
+  // quiets    = 悪かった指し手(このnodeで生成した指し手)
+  // quietsCnt = ↑の数
+  inline void update_stats(const Position& pos, Stack* ss, Move move,
+    Depth depth, Move* quiets, int quietsCnt)
+  {
+
+    //   killerのupdate
+
+    // killer 2本しかないので[0]と違うならいまの[0]を[1]に降格させて[0]と差し替え
+    if (ss->killers[0] != move)
+    {
+      ss->killers[1] = ss->killers[0];
+      ss->killers[0] = move;
+    }
+
+    //   historyのupdate
+
+    // depthの二乗に比例したbonusをhistory tableに加算する。
+    Value bonus = Value(depth*(int)depth + (int)depth + 1);
+
+    // 直前に移動させた升(その升に移動させた駒がある)
+    Square prevSq = move_to((ss - 1)->currentMove);
+    auto& cmh = CounterMoveHistory.get(pos.piece_on(prevSq),prevSq);
+    auto thisThread = pos.this_thread();
+
+    thisThread->history.update(pos.moved_piece(move), move_to(move), bonus);
+
+    // 前の局面の指し手がMOVE_NULLでないならcounter moveもupdateしておく。
+    if (is_ok((ss - 1)->currentMove))
+    {
+      thisThread->counterMoves.update(pos.piece_on(prevSq), prevSq, move);
+      cmh.update(pos.moved_piece(move), move_to(move), bonus);
+    }
+
+    // このnodeのベストの指し手以外の指し手はボーナス分を減らす
+    for (int i = 0; i < quietsCnt; ++i)
+    {
+      thisThread->history.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
+
+      if (is_ok((ss - 1)->currentMove))
+        cmh.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
+    }
+
+    // さらに、1手前で置換表の指し手が反駁されたときは、追加でペナルティを与える。
+    if ((ss - 1)->moveCount == 1
+      && !pos.captured_piece_type()
+      && is_ok((ss - 2)->currentMove))
+    {
+      // 直前がcaptureではないから、2手前に動かした駒は捕獲されずに盤上にあるはずであり、
+      // その升の駒を盤から取り出すことが出来る。
+      Square prevPrevSq = move_to((ss - 2)->currentMove);
+      CounterMoveStats& prevCmh = CounterMoveHistory.get(pos.piece_on(prevPrevSq),prevPrevSq);
+      prevCmh.update(pos.piece_on(prevSq), prevSq, -bonus - 2 * (depth + 1) / ONE_PLY);
+    }
+
+  }
+
 
   // -----------------------
   //      静止探索
@@ -506,7 +307,7 @@ namespace YaneuraOuNanoPlus
     // 静止探索の1つ目の深さではrecaptureを生成しないならこれは問題とならない。
     // ToDo: あとでNULL MOVEを実装したときにrecapture以外も生成するように修正する。
     pos.check_info_update();
-    MovePicker mp(pos,ttMove,depth,move_to((ss-1)->currentMove),ss);
+    MovePicker mp(pos,ttMove,depth,pos.this_thread()->history,move_to((ss-1)->currentMove));
     Move move;
 
     StateInfo si;
@@ -516,10 +317,10 @@ namespace YaneuraOuNanoPlus
       if (!pos.legal(move))
         continue;
 
+      givesCheck = pos.gives_check(move);
+
       // 現在このスレッドで探索している指し手を保存しておく。
       ss->currentMove = move;
-
-      givesCheck = pos.gives_check(move);
 
       pos.do_move(move, si, pos.gives_check(move));
       value = givesCheck ? -YaneuraOuNanoPlus::qsearch<NT, true>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
@@ -578,6 +379,7 @@ namespace YaneuraOuNanoPlus
     return bestValue;
   }
 
+
   // -----------------------
   //      通常探索
   // -----------------------
@@ -615,11 +417,16 @@ namespace YaneuraOuNanoPlus
     // 指し手で捕獲する指し手、もしくは成りである。
     bool captureOrPromotion;
 
+    // この局面でのベストのスコア
+    Value bestValue;
+
     // -----------------------
     //     nodeの初期化
     // -----------------------
 
     ASSERT_LV3(alpha < beta);
+
+    bestValue = -VALUE_INFINITE;
 
     // rootからの手数
     ss->ply = (ss - 1)->ply + 1;
@@ -659,6 +466,9 @@ namespace YaneuraOuNanoPlus
     // -----------------------
     //  探索Stackの初期化
     // -----------------------
+
+    // 1手先のskipEarlyPruningフラグの初期化。
+    (ss + 1)->skipEarlyPruning = false;
 
     // 2手先のkillerの初期化。
     (ss + 2)->killers[0] = (ss + 2)->killers[1] = MOVE_NONE;
@@ -777,11 +587,16 @@ namespace YaneuraOuNanoPlus
       tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
     }
 
+    // このnodeで指し手生成前の枝刈りを省略するなら指し手生成ループへ。
+    if (ss->skipEarlyPruning)
+      goto MOVES_LOOP;
+
     // -----------------------
     //   evalベースの枝刈り
     // -----------------------
 
     // 局面の静的評価値(eval)が得られたので、以下ではこの評価値を用いて各種枝刈りを行なう。
+    // 王手のときはここにはこない。(上のInCheckのなかでMOVES_LOOPに突入。)
 
     //
     //   Futility pruning
@@ -806,11 +621,7 @@ namespace YaneuraOuNanoPlus
   MOVES_LOOP:
 
     {
-      Value value;
-
-      pos.check_info_update();
-      MovePicker mp(pos, ttMove ,ss);
-
+      Value value = bestValue; // gccの初期化されていないwarningの抑制
       Move move;
       StateInfo si;
 
@@ -826,6 +637,24 @@ namespace YaneuraOuNanoPlus
         || (ss - 2)->staticEval == VALUE_NONE;
 
       moveCount = quietCount = 0;
+
+
+      //  MovePickerでのオーダリングのためにhistory tableなどを渡す
+
+      // 親nodeでの指し手でのtoの升
+      auto prevSq = move_to((ss - 1)->currentMove);
+      // その升へ移動させた駒
+      auto prevPc = pos.piece_on(prevSq);
+      // toの升に駒pcを動かしたことに対する応手
+      auto cm = thisThread->counterMoves.get(prevPc, prevSq);
+      // counter history
+      const auto& cmh = CounterMoveHistory.get(prevPc, prevSq);
+
+      pos.check_info_update();
+      MovePicker mp(pos, ttMove, depth, thisThread->history, cmh, cm, ss);
+
+
+      //  一手ずつ調べていく
 
       while (move = mp.nextMove())
       {
@@ -955,15 +784,31 @@ namespace YaneuraOuNanoPlus
         //  alpha値の更新処理
         // -----------------------
 
-        if (value > alpha)
+        if (value > bestValue)
         {
-          alpha = value;
-          bestMove = move;
+          bestValue = value;
 
-          // αがβを上回ったらbeta cut
-          if (alpha >= beta)
-            break;
+          if (value > alpha)
+          {
+            bestMove = move;
+
+            if (PvNode && value < beta) // alpha値を更新したので更新しておく
+              alpha = value;
+            else
+            {
+              // value >= beta なら fail high(beta cut)
+              // また、non PVであるなら探索窓の幅が0なのでalphaを更新した時点で、value >= betaが言えて、
+              // beta cutである。
+              break;
+            }
+          }
         }
+
+        // 探索した指し手を64手目までquietsSearchedに登録しておく。
+        // あとでhistoryなどのテーブルに加点/減点するときに使う。
+
+        if (!captureOrPromotion && move != bestMove && quietCount < 64)
+          quietsSearched[quietCount++] = move;
 
       } // end of while
 
@@ -972,8 +817,8 @@ namespace YaneuraOuNanoPlus
       // -----------------------
       
       // 合法手がない == 詰まされている ので、rootの局面からの手数で詰まされたという評価値を返す。
-      if (moveCount == 0)
-        alpha = mated_in(ss->ply);
+      if (!moveCount)
+        bestValue = mated_in(ss->ply);
 
       // 詰まされていない場合、bestMoveがあるならこの指し手をkiller等に登録する。
       else if (bestMove && !pos.capture_or_promotion(bestMove))
@@ -984,8 +829,8 @@ namespace YaneuraOuNanoPlus
     //  置換表に保存する
     // -----------------------
 
-    tte->save(posKey, value_to_tt(alpha, ss->ply),
-      alpha >= beta ? BOUND_LOWER : 
+    tte->save(posKey, value_to_tt(bestValue, ss->ply),
+      bestValue >= beta ? BOUND_LOWER : 
       PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
       // betaを超えているということはbeta cutされるわけで残りの指し手を調べていないから真の値はまだ大きいと考えられる。
       // すなわち、このとき値は下界と考えられるから、BOUND_LOWER。
@@ -995,7 +840,7 @@ namespace YaneuraOuNanoPlus
       // すなわち、スコアは変動するかも知れないので、BOUND_UPPERという扱いをする。
       depth, bestMove, ss->staticEval ,TT.generation());
 
-    return alpha;
+    return bestValue;
   }
 
 }
@@ -1043,14 +888,18 @@ void Search::init() {
 } 
 
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
-void Search::clear() { TT.clear(); }
+void Search::clear()
+{
+  TT.clear();
+  CounterMoveHistory.clear();
+}
 
 // 探索開始時に呼び出される。
 // この関数内で初期化を終わらせ、slaveスレッドを起動してThread::search()を呼び出す。
 // そのあとslaveスレッドを終了させ、ベストな指し手を返すこと。
 
-void MainThread::think() {
-
+void MainThread::think()
+{
   // ---------------------
   // 探索パラメーターの自動調整用
   // ---------------------

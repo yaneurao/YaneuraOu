@@ -109,6 +109,9 @@
     <ClInclude Include="extra\macros.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
+    <ClInclude Include="move_picker.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">

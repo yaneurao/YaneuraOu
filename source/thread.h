@@ -9,6 +9,7 @@
 
 #include "position.h"
 #include "search.h"
+#include "move_picker.h"
 
 // --------------------
 // 探索時に用いるスレッド
@@ -94,6 +95,13 @@ struct Thread
 
   // 反復深化の深さ(Depth型ではないので注意)
   int rootDepth;
+
+#ifdef USE_MOVE_PICKER
+  // スレッドごとにhistoryとcounter movesのtableを持たないといけない。
+
+  HistoryStats history;
+  MoveStats counterMoves;
+#endif
 
   // ------------------------------
   //       constructor ..

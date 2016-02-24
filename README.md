@@ -43,13 +43,15 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/02/23 03:00現在)
+#　俺の作業メモ(2016/02/25 01:45現在)
 
 - [ ] 長手数の詰将棋ルーチン作る
 - [ ] やねうら王miniの探索部
 - [ ] やねうら王nano plus、そろそろ開発終了。
 
-- [x] 2016/02/24・劣等局面の判定追加。
+- [x] 2016/02/24・nano plusにhistory,counter move,counter move historyを追加。(+R110)
+- [x] 2016/02/24・nano plusのMovePicker、別ファイルに分離。
+- [x] 2016/02/24・劣等局面の判定追加。(+R5)
 - [x] 2016/02/24・nano plusの枝刈りにfutility pruning追加。
 - [x] 2016/02/24・nano plusのMovePickerで静止探索時に置換表の指し手がpseudo-legalでないときに落ちていたの修正。
 - [x] 2016/02/23・nano plusのMovePickerで置換表の指し手がpseudo-legalでないときに落ちていたの修正。

@@ -94,7 +94,10 @@
 // #define USE_TT_PV
 
 // 定跡を作るコマンド("makebook")を有効にする。
-//#define ENABLE_MAKEBOOK_CMD
+// #define ENABLE_MAKEBOOK_CMD
+
+// 標準で用意されているMovePickerを用いるか
+// #define USE_MOVE_PICKER
 
 // USIのoptionで"Param1","Param2"という名前のオプションを有効にする。
 // これは探索パラメーターなどを外部から自動調整するのに用いる。
@@ -121,6 +124,7 @@
 #define ENABLE_OPTION_PARAM
 #define EVAL_KPP
 #define USE_TT_PV
+#define USE_MOVE_PICKER
 #define LONG_EFFECT_LIBRARY
 #define MATE_1PLY
 #endif

@@ -101,6 +101,19 @@ namespace Search {
   // 置換表のクリアなど時間のかかる探索の初期化処理をここでやる。isreadyに対して呼び出される。
   void clear();
 
+  // -----------------------
+  //  探索のときに使うStack
+  // -----------------------
+
+  struct Stack {
+    int ply;               // rootからの手数
+    Move currentMove;      // そのスレッドの探索においてこの局面で現在選択されている指し手
+    Move killers[2];       // killer move
+    Value staticEval;      // 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
+    bool skipEarlyPruning; // 指し手生成前に行なう枝刈りを省略するか。(NULL MOVEの直後など)
+    int moveCount;         // このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
+  };
+
 } // end of namespace Search
 
 #endif // _SEARCH_H_

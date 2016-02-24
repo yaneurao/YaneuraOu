@@ -209,6 +209,9 @@ struct Position
   void set_nodes_searched(uint64_t n) { nodes = n; }
   int64_t nodes_searched() const { return nodes; }
 
+  // この指し手によって移動させる駒を返す
+  Piece moved_piece(Move m) const { return is_drop(m) ? move_dropped_piece(m) : piece_on(move_from(m)); }
+
   // 連続王手の千日手等で引き分けかどうかを返す
   RepetitionState is_repetition(const int repPly = 16) const;
 
@@ -392,6 +395,9 @@ struct Position
 
   // 現局面で指し手がないかをテストする。指し手生成ルーチンを用いるので速くない。探索中には使わないこと。
   bool is_mated() const;
+
+  // 直前の指し手によって捕獲した駒。
+  Piece captured_piece_type() const { return st->capturedType; }
 
   // 捕獲する指し手か、成りの指し手であるかを返す。
   bool capture_or_promotion(Move m) const { return (m & MOVE_PROMOTE) || capture(m); }
