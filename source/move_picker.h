@@ -174,6 +174,7 @@ struct MovePicker
     {
     case GOOD_CAPTURES: case QCAPTURES_1 : case QCAPTURES_2:
       endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, moves);
+      score_capture(); // CAPTUREの指し手の並べ替え。
       break;
 
     case GOOD_RECAPTURES:
@@ -255,7 +256,7 @@ struct MovePicker
         // (直前に置換表の指し手を返しているし、CAPTURES_PRO_PLUSでの指し手も返しているのでそれらの指し手は除外されるべき)
       case KILLERS:
         move = *currentMoves++;
-        if (  move != MOVE_NONE         // ss->killer[0],[1]からコピーしただけなのでMOVE_NONEの可能性がある
+        if (move != MOVE_NONE         // ss->killer[0],[1]からコピーしただけなのでMOVE_NONEの可能性がある
           &&  move != ttMove            // 置換表の指し手を重複除去しないといけない
           &&  pos.pseudo_legal(move)
           && !pos.capture_or_pawn_promotion(move))  // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
@@ -264,7 +265,21 @@ struct MovePicker
 
         // 置換表の指し手を返したあとのフェーズ
         // (killer moveの前のフェーズなのでkiller除去は不要)
+        // SSEの符号がマイナスのものはbad captureのほうに回す。
       case GOOD_CAPTURES:
+        move = pick_best(currentMoves++, endMoves);
+        if (move != ttMove)
+        {
+          // ここでSSEの符号がマイナスならbad captureのほうに回す。
+          // その処理はあとで書く。
+          return move;
+        }
+        break;      
+
+        // 置換表の指し手を返したあとのフェーズ
+        // (killer moveの前のフェーズなのでkiller除去は不要)
+        // また、SSEの符号がマイナスのものもbad captureのほうに回す処理は不要なのでこのまま
+        // 置換表の指し手と異なるなら指し手を返していけば良い。
       case ALL_EVASIONS: case QCAPTURES_1: case QCAPTURES_2:
         move = *currentMoves++;
         if (move != ttMove)
@@ -318,11 +333,39 @@ private:
   ExtMove* begin() { return moves; }
   ExtMove* end() { return endMoves; }
 
+  // beginからendのなかでベストのスコアのものを先頭(begin)に移動させる。
+  Move pick_best(ExtMove* begin, ExtMove* end)
+  {
+    std::swap(*begin, *std::max_element(begin, end));
+    return *begin;
+  }
+
   // QUIETの指し手をスコアリングする。
-  void score_quiet(){
+  void score_quiet()
+  {
     for (auto& m : *this)
       m.value = history.get(pos.moved_piece(m), move_to(m))
       + counterMoveHistory->get(pos.moved_piece(m), move_to(m));
+  }
+
+  // CAPTUREの指し手をオーダリング
+  void score_capture() 
+  {
+    // Position::SSE()を用いると遅い。単に取る駒の価値順に調べたほうがパフォーマンス的にもいい。
+    // 歩が成る指し手もあるのでこれはある程度優先されないといけない。
+    // CAPTURE系である以上、打つ指し手は除外されている。
+    for (auto& m : *this)
+    {
+      // CAPTURES_PRO_PLUSで生成しているので歩の成りに対しては金と歩の価値の差の点数とする。
+      bool pawn_promo = (m & MOVE_PROMOTE) && type_of(pos.piece_on(move_from(m))) == PAWN;
+      m.value = pawn_promo ?
+        (Value)(Eval::GoldValue - Eval::PawnValue) :
+        (Value)Eval::PieceValueCapture[pos.piece_on(move_to(m))];
+
+      // 盤の上のほうの段にあるほど価値があるので下の方の段に対して小さなペナルティを課す。
+      // (基本的には取る駒の価値が大きいほど優先であるから..)
+      m.value -= Value(1 * relative_rank(pos.side_to_move(), rank_of(move_to(m))));
+    }
   }
 
   const Position& pos;

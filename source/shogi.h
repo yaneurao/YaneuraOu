@@ -102,6 +102,10 @@ inline bool canPromote(const Color c, const Rank fromOrToRank) {
   return static_cast<bool>(0x1c00007u & (1u << ((c << 4) + fromOrToRank)));
 }
 
+// 後手の段なら先手から見た段を返す。
+// 例) relative_rank(WHITE,RANK_1) == RANK_9
+inline Rank relative_rank(Color c, Rank r) { return c == BLACK ? r : (Rank)(8 - r); }
+
 // USIの指し手文字列などで段を表す文字列をここで定義されたRankに変換する。
 inline Rank toRank(char c) { return (Rank)(c - 'a'); }
 

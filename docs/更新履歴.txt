@@ -2,11 +2,29 @@
 やねうら王 更新履歴
 
 ToDo:
-・MovePickerに他のオーダリングも導入
 ・lazy SMPで並列化して+R400程度かな？他の最適化をしてから考えよう。
 
 
-■ 2016/02/24 V1.78
+■ 2016/02/25 V1.79
+
+・MovePickerに他のオーダリングも導入
+	captureのときのオーダリング追加。
+	score_capture()追加。
+
+		55.7%	
+		#36
+		やねうら王nano plus V179
+		CAPTUREのオーダリング追加, 1スレッド、0.1秒設定
+		#0
+		やねうら王nano plus V178
+		counter move追加, 1スレッド、0.1秒設定
+
+		152-25-121(2.6% R39.6)	
+
+		+R40程度？
+
+
+■ 2016/02/25 V1.78
 
 ・nano plusにCounterStats追加。
 ・nano plusのMovePickerファイルを分離する。
@@ -23,6 +41,20 @@ ToDo:
 
 ・nano plusのkillerにcountermoveを入れるようにする。
 ・historyのupdate()の処理入れる。
+
+		67.1%	
+		#35
+		やねうら王nano plus V178
+		counter move追加, 1スレッド、0.1秒設定
+		#0
+		やねうら王nano plus V176b
+		思考時間0.1～0.3秒, 1スレッド、0.1秒設定
+
+		420-19-206(0.0% R123.8)	
+
+
+・プロセスが落ちないか、26コアで一晩回しておく。
+・このバージョンをfloodgateに投入しておく。
 
 
 ■ 2016/02/24 V1.77
