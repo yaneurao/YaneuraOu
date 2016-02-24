@@ -174,7 +174,7 @@ struct MovePicker
     {
     case GOOD_CAPTURES: case QCAPTURES_1 : case QCAPTURES_2:
       endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, moves);
-      score_capture(); // CAPTUREの指し手の並べ替え。
+      score_captures(); // CAPTUREの指し手の並べ替え。
       break;
 
     case GOOD_RECAPTURES:
@@ -188,7 +188,7 @@ struct MovePicker
 
     case GOOD_QUIETS:
       endQuiets = endMoves = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, moves);
-      score_quiet();
+      score_quiets();
       // プラスの符号のものだけ前方に移動させて、今回のフェーズではそれを返す。
       endMoves = std::partition(currentMoves, endMoves, [](const ExtMove& m) { return m.value > VALUE_ZERO; });
       // その移動させたものは少数のはずなので、sortしても遅くない。
@@ -214,6 +214,9 @@ struct MovePicker
 
     case ALL_EVASIONS:
       endMoves = generateMoves<EVASIONS>(pos, moves);
+      // 生成された指し手が2手以上あるならオーダリングする。
+      if (endMoves - moves > 1)
+        score_evasions();
       break;
 
     case QCHECKS:
@@ -281,7 +284,7 @@ struct MovePicker
         // また、SSEの符号がマイナスのものもbad captureのほうに回す処理は不要なのでこのまま
         // 置換表の指し手と異なるなら指し手を返していけば良い。
       case ALL_EVASIONS: case QCAPTURES_1: case QCAPTURES_2:
-        move = *currentMoves++;
+        move = pick_best(currentMoves++, endMoves);
         if (move != ttMove)
           return move;
         break;
@@ -341,7 +344,7 @@ private:
   }
 
   // QUIETの指し手をスコアリングする。
-  void score_quiet()
+  void score_quiets()
   {
     for (auto& m : *this)
       m.value = history.get(pos.moved_piece(m), move_to(m))
@@ -349,7 +352,7 @@ private:
   }
 
   // CAPTUREの指し手をオーダリング
-  void score_capture() 
+  void score_captures() 
   {
     // Position::SSE()を用いると遅い。単に取る駒の価値順に調べたほうがパフォーマンス的にもいい。
     // 歩が成る指し手もあるのでこれはある程度優先されないといけない。
@@ -366,6 +369,30 @@ private:
       // (基本的には取る駒の価値が大きいほど優先であるから..)
       m.value -= Value(1 * relative_rank(pos.side_to_move(), rank_of(move_to(m))));
     }
+  }
+
+  void score_evasions()
+  {
+    Value see;
+
+    for (auto& m : *this)
+
+      // 駒を打つ指し手であるならゼロ扱い
+      if (is_drop(m))
+        m.value = VALUE_ZERO;
+
+      // seeが負の指し手ならマイナスの値を突っ込んで後回しにする
+      else if ((see = pos.see(m)) < VALUE_ZERO)
+        m.value = see - HistoryStats::Max; // At the bottom
+
+      // 駒を取る指し手ならseeがプラスだったということなのでプラスの符号になるようにStats::Maxを足す。
+      // あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
+      // 価値が高いので(例えば合駒に安い駒を使う的な…)
+      else if (pos.capture(m))
+        m.value = (Value)Eval::PieceValueCapture[pos.piece_on(move_to(m))]
+        - Value(type_of(pos.moved_piece(m))) + HistoryStats::Max;
+      else
+        m.value = history.get(pos.moved_piece(m),move_to(m));
   }
 
   const Position& pos;

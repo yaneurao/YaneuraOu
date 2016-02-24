@@ -49,7 +49,8 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 - [ ] やねうら王miniの探索部
 - [ ] やねうら王nano plus、そろそろ開発終了。
 
-- [x] 2016/02/25・nano plusのMovePickerにCAPTUREのオーダリング追加。(+R40)
+- [x] 2016/02/25・nano plusのMovePickerにEVASIONSのオーダリング追加。
+- [x] 2016/02/25・nano plusのMovePickerにCAPTURESのオーダリング追加。(+R30)
 - [x] 2016/02/25・nano plusにhistory,counter move,counter move historyを追加。(+R120)
 - [x] 2016/02/24・nano plusのMovePicker、別ファイルに分離。
 - [x] 2016/02/24・劣等局面の判定追加。(+R5)

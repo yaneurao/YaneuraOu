@@ -124,6 +124,7 @@
 #define ENABLE_OPTION_PARAM
 #define EVAL_KPP
 #define USE_TT_PV
+#define USE_SEE
 #define USE_MOVE_PICKER
 #define LONG_EFFECT_LIBRARY
 #define MATE_1PLY
