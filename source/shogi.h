@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "1.72"
+#define ENGINE_VERSION "1.77"
 
 // --------------------
 // コンパイル時の設定
@@ -717,6 +717,8 @@ enum RepetitionState
   REPETITION_WIN ,     // 連続王手の千日手による勝ち
   REPETITION_LOSE,     // 連続王手の千日手による負け
   REPETITION_DRAW,     // 連続王手ではない普通の千日手
+  REPETITION_SUPERIOR, // 優等局面(盤上の駒が同じで手駒が相手より優れている)
+  REPETITION_INFERIOR, // 劣等局面(盤上の駒が同じで手駒が相手より優れている)
   REPETITION_NB,
 };
 

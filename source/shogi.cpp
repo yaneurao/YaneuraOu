@@ -133,10 +133,12 @@ namespace Search {
 // 引き分け時のスコア
 Value drawValueTable[REPETITION_NB][COLOR_NB] =
 {
-  {  VALUE_ZERO ,  VALUE_ZERO }, // REPETITION_NONE
-  {  VALUE_MATE ,  VALUE_MATE }, // REPETITION_WIN
-  { -VALUE_MATE , -VALUE_MATE }, // REPETITION_LOSE
-  {  VALUE_ZERO ,  VALUE_ZERO }, // REPETITION_DRAW  : このスコアはUSIのoptionコマンドで変更可能
+  {  VALUE_ZERO      ,  VALUE_ZERO      }, // REPETITION_NONE
+  {  VALUE_MATE      ,  VALUE_MATE      }, // REPETITION_WIN
+  { -VALUE_MATE      , -VALUE_MATE      }, // REPETITION_LOSE
+  {  VALUE_ZERO      ,  VALUE_ZERO      }, // REPETITION_DRAW  : このスコアはUSIのoptionコマンドで変更可能
+  {  VALUE_KNOWN_WIN ,  VALUE_KNOWN_WIN }, // REPETITION_SUPERIOR
+  { -VALUE_KNOWN_WIN , -VALUE_KNOWN_WIN }, // REPETITION_INFERIOR
 };
 
 // ----------------------------------------

@@ -49,7 +49,8 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 - [ ] やねうら王miniの探索部
 - [ ] やねうら王nano plus、そろそろ開発終了。
 
-
+- [x] 2016/02/24・劣等局面の判定追加。
+- [x] 2016/02/24・nano plusの枝刈りにfutility pruning追加。
 - [x] 2016/02/24・nano plusのMovePickerで静止探索時に置換表の指し手がpseudo-legalでないときに落ちていたの修正。
 - [x] 2016/02/23・nano plusのMovePickerで置換表の指し手がpseudo-legalでないときに落ちていたの修正。
 - [x] 2016/02/23・local game serverの子プロセスの起動タイミングをばらつかせる。(乱数seedをばらけさせるため)

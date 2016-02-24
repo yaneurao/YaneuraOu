@@ -1184,23 +1184,33 @@ RepetitionState Position::is_repetition(const int repPly) const
   if (i <= e)
   {
     auto stp = st->previous->previous;
-    auto key = st->key();
+    auto key = st->key_board(); // 盤上の駒のみのhash(手駒を除く)
 
     do {
       stp = stp->previous->previous;
-      if (stp->key() == key)
+
+      // 同じboard hash keyの局面であるか？
+      if (stp->key_board() == key)
       {
-        // 同じhash keyの局面が存在していた！
+        // 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
+        if (stp->hand == st->hand)
+        {
+          // 自分が王手をしている連続王手の千日手なのか？
+          if (i <= st->continuousCheck[sideToMove])
+            return REPETITION_LOSE;
 
-        // 自分が王手をしている連続王手の千日手なのか？
-        if (i <= st->continuousCheck[sideToMove])
-          return REPETITION_LOSE;
+          // 相手が王手をしている連続王手の千日手なのか？
+          if (i <= st->continuousCheck[~sideToMove])
+            return REPETITION_WIN;
 
-        // 相手が王手をしている連続王手の千日手なのか？
-        if (i <= st->continuousCheck[~sideToMove])
-          return REPETITION_WIN;
-
-        return REPETITION_DRAW;
+          return REPETITION_DRAW;
+        } else {
+          // 優等局面か劣等局面であるか。(手番が相手番になっている場合はいま考えない)
+          if (hand_is_equal_or_superior(st->hand, stp->hand))
+            return REPETITION_SUPERIOR;
+          if (hand_is_equal_or_superior(stp->hand, st->hand))
+            return REPETITION_INFERIOR;
+        }
       }
       i += 2;
     } while (i <= e);
