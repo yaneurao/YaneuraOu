@@ -38,15 +38,21 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 	
 『寿限無3』(49909手)も解ける協力詰めsolver →　[解説ページ](http://yaneuraou.yaneu.com/2016/01/02/%E5%8D%94%E5%8A%9B%E8%A9%B0%E3%82%81solver%E3%82%92%E5%85%AC%E9%96%8B%E3%81%97%E3%81%BE%E3%81%99/)
 
+## やねうら王詰め将棋solver (気が向いたら製作します)
+
+長手数の詰将棋が解けるsolverです。
+
 ## やねうら王評価関数バイナリ
 
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/02/25 19:00現在)
+#　俺の作業メモ(2016/02/26 3:15現在)
 
-- [ ] 長手数の詰将棋ルーチン作る
+- [] ・やねうら王miniに思考時間のマネージメント実装
+- [] ・やねうら王miniにponder実装
 
+- [x] 2016/02/26・やねうら王miniにlazy SMP実装。
 - [x] 2016/02/26・やねうら王miniにPV line実装。(-R10)
 - [x] 2016/02/26・やねうら王miniにss->moveCount追加。これによるhistoryへのbonus追加。(+R30)
 - [x] 2016/02/26・やねうら王miniにaspiration windows search実装。(+R10)

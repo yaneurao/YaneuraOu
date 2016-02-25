@@ -69,6 +69,50 @@ namespace YaneuraOuMini
   }
 
   // -----------------------
+  //  lazy SMPで用いるテーブル
+  // -----------------------
+
+  // 各行のうち、半分のbitを1にして、残り半分を1にする。
+  // これは探索スレッドごとの反復深化のときのiteration深さを割り当てるのに用いる。
+
+  // 16個のスレッドがあるとして、このスレッドをそれぞれ、
+  // depth   : 8個
+  // depth+1 : 4個
+  // depth+2 : 2個
+  // depth+3 : 1個
+  // のように先細るように割り当てたい。
+
+  // ゆえに、反復深化のループで
+  //   if (table[thread_id][ rootDepth ]) このdepthをskip;
+  // のように書けるテーブルがあると都合が良い。
+
+  typedef std::vector<int> Row;
+  const Row HalfDensity[] = {
+    { 0, 1 },        // 1番目のスレッド用
+    { 1, 0 },        // 2番目のスレッド用
+    { 0, 0, 1, 1 },  // 3番目のスレッド用
+    { 0, 1, 1, 0 },  //    (以下略)
+    { 1, 1, 0, 0 },
+    { 1, 0, 0, 1 },
+    { 0, 0, 0, 1, 1, 1 },
+    { 0, 0, 1, 1, 1, 0 },
+    { 0, 1, 1, 1, 0, 0 },
+    { 1, 1, 1, 0, 0, 0 },
+    { 1, 1, 0, 0, 0, 1 },
+    { 1, 0, 0, 0, 1, 1 },
+    { 0, 0, 0, 0, 1, 1, 1, 1 },
+    { 0, 0, 0, 1, 1, 1, 1, 0 },
+    { 0, 0, 1, 1, 1, 1, 0 ,0 },
+    { 0, 1, 1, 1, 1, 0, 0 ,0 },
+    { 1, 1, 1, 1, 0, 0, 0 ,0 },
+    { 1, 1, 1, 0, 0, 0, 0 ,1 },
+    { 1, 1, 0, 0, 0, 0, 1 ,1 },
+    { 1, 0, 0, 0, 0, 1, 1 ,1 },
+  };
+
+  const size_t HalfDensitySize = std::extent<decltype(HalfDensity)>::value;
+
+  // -----------------------
   //     Statsのupdate
   // -----------------------
 
@@ -949,6 +993,7 @@ void Search::clear()
 {
   TT.clear();
   CounterMoveHistory.clear();
+  Threads.main()->previousScore = VALUE_INFINITE;
 }
 
 
@@ -1004,6 +1049,21 @@ void Thread::search()
     for (PVIdx = 0; PVIdx < multiPV && !Signals.stop; ++PVIdx)
     {
       // ------------------------
+      // lazy SMPのための初期化
+      // ------------------------
+
+      // slaveであれば、これはヘルパースレッドという扱いなので条件を満たしたとき
+      // 探索深さを次の深さにする。
+      if (!mainThread)
+      {
+        // これにはhalf density matrixを用いる。
+        // 詳しくは、このmatrixの定義部の説明を読むこと。
+        const Row& row = HalfDensity[(idx - 1) % HalfDensitySize];
+        if (row[(rootDepth + rootPos.game_ply()) % row.size()])
+          continue;
+      }
+
+      // ------------------------
       // Aspiration window search
       // ------------------------
 
@@ -1022,10 +1082,10 @@ void Thread::search()
         // aspiration windowの幅
         // 精度の良い評価関数ならばこの幅を小さくすると探索効率が上がるのだが、
         // 精度の悪い評価関数だとこの幅を小さくしすぎると再探索が増えて探索効率が低下する。
-        delta = Value(param1 * 5);
+        delta = Value(30);
 
         alpha = std::max(rootMoves[PVIdx].previousScore - delta, -VALUE_INFINITE);
-        beta = std::min(rootMoves[PVIdx].previousScore + delta, VALUE_INFINITE);
+        beta  = std::min(rootMoves[PVIdx].previousScore + delta, VALUE_INFINITE);
       }
 
       while (true)
@@ -1074,8 +1134,9 @@ void Thread::search()
       // (二番目だと思っていたほうの指し手のほうが評価値が良い可能性があるので…)
       std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
 
-      // silentモードでないならば読み筋を出力しておく。
-      if (!Limits.silent)
+      // メインスレッド以外はPVを出力しない。
+      // また、silentモードの場合もPVは出力しない。
+      if (mainThread && !Limits.silent)
       {
         // 停止するときに探索node数と経過時間を出力すべき。
         // (そうしないと正確な探索node数がわからなくなってしまう)
@@ -1110,7 +1171,9 @@ void MainThread::think()
 
   // root nodeにおける自分の手番
   auto us = rootPos.side_to_move();
-  Move bestMove;
+
+  // 定跡の指し手
+  Move bookMove = MOVE_NONE;
 
   // ---------------------
   // 合法手がないならここで投了
@@ -1118,7 +1181,7 @@ void MainThread::think()
 
   if (rootMoves.size() == 0)
   {
-    bestMove = MOVE_RESIGN;
+    bookMove = MOVE_RESIGN;
     Signals.stop = true;
     goto ID_END;
   }
@@ -1139,7 +1202,7 @@ void MainThread::think()
 
       // このなかの一つをランダムに選択
       // 無難な指し手が選びたければ、採択回数が一番多い、最初の指し手(move_list[0])を選ぶべし。
-      bestMove = move_list[prng.rand(move_list.size())].bestMove;
+      bookMove = move_list[prng.rand(move_list.size())].bestMove;
 
       Signals.stop = true;
       goto ID_END;
@@ -1151,7 +1214,6 @@ void MainThread::think()
   // ---------------------
   {
 
-    rootDepth = 0;
     StateInfo si;
     auto& pos = rootPos;
 
@@ -1207,9 +1269,15 @@ void MainThread::think()
     // 各スレッドがsearch()を実行する
     // ---------------------
 
-    Thread::search();
+    for (Thread* th : Threads)
+    {
+      th->maxPly = 0;
+      th->rootDepth = 0;
+      if (th != this)
+        th->start_searching();
+    }
 
-    bestMove = rootMoves.at(0).pv[0];
+    Thread::search();
 
     // ---------------------
     // タイマースレッド終了
@@ -1223,7 +1291,40 @@ void MainThread::think()
     }
   }
 
-ID_END:; // 反復深化の終了。
+  // 反復深化の終了。
+ID_END:;
+
+  // ---------------------
+  // lazy SMPの結果を取り出す
+  // ---------------------
+
+  // まだ他のスレッドが停止していない可能性があるので停止させてやる
+  Signals.stop = true;
+
+  // 各スレッドが終了するのを待機する
+  for (Thread* th : Threads.slaves)
+      th->wait_for_search_finished();
+
+  // 並列して探索させていたスレッドのうち、ベストのスレッドの結果を選出する。
+  Thread* bestThread = this;
+  if (Options["MultiPV"] == 1)
+  {
+    // 深くまで探索できていて、かつそっちの評価値のほうが優れているならそのスレッドの指し手を採用する
+    // 単にcompleteDepthが深いほうのスレッドを採用しても良さそうだが、スコアが良いほうの探索深さのほうが
+    // いい指し手を発見している可能性があって悩ましい。いろいろ条件を変えて実験すべき。
+    for (Thread* th : Threads)
+      if (th->completedDepth > bestThread->completedDepth
+        && th->rootMoves[0].score > bestThread->rootMoves[0].score)
+        bestThread = th;
+  }
+
+  // 次回の探索のときに何らか使えるのでベストな指し手の評価値を保存しておく。
+  previousScore = bestThread->rootMoves[0].score;
+
+  // ベストな指し手として返すスレッドがmain threadではないのなら、その読み筋は出力していなかったはずなので
+  // ここで読み筋を出力しておく。
+  if (bestThread != this)
+    sync_cout << USI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
 
   // ---------------------
   // 指し手をGUIに返す
@@ -1231,8 +1332,10 @@ ID_END:; // 反復深化の終了。
 
   // ponder中であるならgoコマンドか何かが送られてきてからのほうがいいのだが、とりあえずponderの処理は後回しで…。
 
+  // 定跡の指し手があるならそれを指す。さもなくばベストなスレッドの指し手を返す。
   if (!Limits.silent)
-    sync_cout << "bestmove " << bestMove << sync_endl;
+    sync_cout << "bestmove " << ((bookMove != MOVE_NONE) ? bookMove : bestThread->rootMoves[0].pv[0]) << sync_endl;
+
 }
 
 #endif // YANEURAOU_MINI_ENGINE

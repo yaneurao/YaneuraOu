@@ -96,6 +96,9 @@ struct Thread
   // 反復深化の深さ(Depth型ではないので注意)
   int rootDepth;
 
+  // このスレッドに関して、終了した反復深化の深さ(Depth型ではないので注意)
+  int completedDepth;
+
 #ifdef USE_MOVE_PICKER
   // スレッドごとにhistoryとcounter movesのtableを持たないといけない。
 
@@ -140,6 +143,10 @@ struct MainThread : public Thread
 
   // 思考を開始する。engine/*/*_search.cpp等で定義されているthink()が呼び出される。
   void think();
+
+  // 前回の探索時のスコア。
+  // 次回の探索のときに何らか使えるかも。
+  Value previousScore;
 };
 
 struct Slaves
