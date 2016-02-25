@@ -183,7 +183,9 @@ struct MovePicker
 
       // あとで実装する(↑で生成して返さなかった指し手を返すフェーズ)
     case BAD_CAPTURES:
-      endMoves = moves;
+      // SEE<0の指し手を指し手生成バッファの末尾に回していたのでそれを順番に返す。
+      currentMoves = moves + MAX_MOVES - 1; // 指し手生成バッファの末尾
+      endMoves = endBadCaptures;
       break;
 
     case GOOD_QUIETS:
@@ -273,9 +275,17 @@ struct MovePicker
         move = pick_best(currentMoves++, endMoves);
         if (move != ttMove)
         {
+#ifdef USE_SEE
           // ここでSSEの符号がマイナスならbad captureのほうに回す。
-          // その処理はあとで書く。
+          if (pos.see_sign(move) >= VALUE_ZERO)
+            return move;
+
+          // 損をするCAPTUREの指し手は、後回しにする。
+          // これは指し手生成バッファの末尾から使っていく。
+          *endBadCaptures-- = move;
+#else
           return move;
+#endif
         }
         break;      
 
@@ -381,9 +391,12 @@ private:
       if (is_drop(m))
         m.value = VALUE_ZERO;
 
+#ifdef USE_SEE
+
       // seeが負の指し手ならマイナスの値を突っ込んで後回しにする
       else if ((see = pos.see(m)) < VALUE_ZERO)
         m.value = see - HistoryStats::Max; // At the bottom
+#endif
 
       // 駒を取る指し手ならseeがプラスだったということなのでプラスの符号になるようにStats::Maxを足す。
       // あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
