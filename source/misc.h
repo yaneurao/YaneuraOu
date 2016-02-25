@@ -1,11 +1,12 @@
 ﻿#ifndef _MISC_H_
 #define _MISC_H_
 
-#include "shogi.h"
 #include <chrono>
 #include <thread>
 #include <vector>
 #include <string>
+
+#include "shogi.h"
 
 // --------------------
 //  engine info
@@ -65,6 +66,7 @@ inline void sleep(int ms)
 {
   std::this_thread::sleep_for(std::chrono::microseconds(ms));
 }
+
 
 // --------------------
 //       乱数

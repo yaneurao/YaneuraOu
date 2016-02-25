@@ -43,10 +43,13 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/02/25 12:00現在)
+#　俺の作業メモ(2016/02/25 19:00現在)
 
 - [ ] 長手数の詰将棋ルーチン作る
 
+
+- [x] 2016/02/25・やねうら王miniの思考オプションにMultiPV追加。
+- [x] 2016/02/25・やねうら王miniの思考オプションにContempt(引き分け時スコアの設定)追加。
 - [x] 2016/02/25・nano plusをベースにしてやねうら王miniの探索部書いていく。
 - [x] 2016/02/25・nano plus、開発終了。(R2500相当)
 - [x] 2016/02/25・nano plus、bad captureをkillerの直後に。(+R25)

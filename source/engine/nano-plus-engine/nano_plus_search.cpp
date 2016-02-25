@@ -118,6 +118,8 @@ namespace YaneuraOuNanoPlus
         cmh.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
     }
 
+    // nano plusではss->moveCount、更新してないんだ…。
+#if 0
     // さらに、1手前で置換表の指し手が反駁されたときは、追加でペナルティを与える。
     if ((ss - 1)->moveCount == 1
       && !pos.captured_piece_type()
@@ -129,7 +131,7 @@ namespace YaneuraOuNanoPlus
       CounterMoveStats& prevCmh = CounterMoveHistory.get(pos.piece_on(prevPrevSq),prevPrevSq);
       prevCmh.update(pos.piece_on(prevSq), prevSq, -bonus - 2 * (depth + 1) / ONE_PLY);
     }
-
+#endif
   }
 
 

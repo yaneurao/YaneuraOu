@@ -2,10 +2,46 @@
 やねうら王 更新履歴
 
 
-■ 2016/02/25
+■ 2016/02/25 V1.82
 
 ・やねうら王mini開発開始
 ・やねうら王nano plusの思考エンジンの実行ファイルをGitHubにcommit。
+・local-server、CreateProcessするときにデバッグ有効にしとくべきか…。
+	DEBUG_PROCESS
+	→　これではないのか。うーむ..
+
+	デバッガを自動的に起動する
+	https://msdn.microsoft.com/ja-jp/library/a329t4ed(VS.80).aspx
+
+	レジストリエディタを開き
+HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\currentversion\image file execution options
+に、
+	新しいキーでデバッグ対象の実行ファイルの名前を入れる。"YaneuraOu-mini.exe"とか。
+		> 新しい文字列値を右クリックし、ショートカット メニューの [名前の変更] をクリックします。
+		> 名前を debugger に変更します。
+		> 新しい文字列値を右クリックし、ショートカット メニューの [変更] をクリックします。
+		> [文字列の編集] ダイアログ ボックスが表示されます。
+		> [値のデータ] ボックスに、「vsjitdebugger.exe」と入力します。
+
+	→　ビンゴ！これでやっとデバッグできる。4コアで24時間ほど回しておく。
+
+・miniに引き分け時スコア)Contenpt)を設定できるようにした。
+・miniの日本語化ファイル
+	YaneuraOu-mini_ja.txt
+	をexe/に追加。
+
+・miniをMultiPVに対応
+	isready
+	setoption name MultiPV value 5
+	go
+	→ PVの表示できた。指し手がないように見えるからmateになってしまうので修正。
+	→　表示がおかしいだけだった。修正した。
+
+・miscにTimeManagementクラス追加。
+・nano plusのss->moveCountの初期化してないな…。まあ、nano plusではあんまり影響ないからいいか。
+	nano plusで親nodeのss->moveCountを参照しているところコメントアウトしておく。
+	→　この効果があるのか調べるために前バージョンと対戦させておく。
+
 
 
 ■ 2016/02/25 V1.81 nano plus (final)

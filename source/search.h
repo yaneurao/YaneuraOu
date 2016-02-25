@@ -116,4 +116,28 @@ namespace Search {
 
 } // end of namespace Search
 
+// -----------------------
+//  探索のときに使う時間管理用
+// -----------------------
+
+// Searchの名前空間に入れると使いにくそうなので外に出しておく。
+
+struct TimeManagement {
+  void init(Search::LimitsType& limits, Color us, int ply);
+  int optimum() const { return optimumTime; }
+  int maximum() const { return maximumTime; }
+
+  // 探索開始からの経過時刻
+  int elapsed() const { return int(now() - startTime); }
+
+  int64_t availableNodes; // When in 'nodes as time' mode
+
+private:
+  TimePoint startTime;
+  int optimumTime;
+  int maximumTime;
+};
+
+extern TimeManagement Time;
+
 #endif // _SEARCH_H_

@@ -48,7 +48,7 @@ namespace USI
 // --------------------
 
   // スコアを歩の価値を100として正規化して出力する。
-  std::string score_to_usi(Value v, Value alpha, Value beta)
+  std::string score_to_usi(Value v)
   {
     std::stringstream s;
 
@@ -61,61 +61,79 @@ namespace USI
     else
       s << "mate " << (v > 0 ? VALUE_MATE - v - 1 : -VALUE_MATE - v + 1);
 
-    s << (v >= beta ? " lowerbound" : v <= alpha ? " upperbound" : "");
-
     return s.str();
   }
   
   std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta)
   {
     std::stringstream ss;
-    int elapsed = int(now()- Search::Limits.startTime + 1);
-    const auto &rootMoves = pos.this_thread()->rootMoves;
+    int elapsed = Time.elapsed();
+    
+    const auto& rootMoves = pos.this_thread()->rootMoves;
+    size_t PVIdx = pos.this_thread()->PVIdx;
+    size_t multiPV = std::min((size_t)Options["MultiPV"], rootMoves.size());
 
     uint64_t nodes_searched = Threads.nodes_searched();
 
-    Value v = pos.this_thread()->rootMoves[0].score;
+    // MultiPVでは上位N個の候補手と読み筋を出力する必要がある。
+    for (size_t i = 0; i < multiPV; ++i)
+    {
+      Value v = pos.this_thread()->rootMoves[i].score;
 
-    ss << "info"
-      << " depth " << iteration_depth
-      //       << " seldepth " << 
-      << " score " << USI::score_to_usi(v,alpha,beta);
+      if (ss.rdbuf()->in_avail()) // 1行目でないなら連結のための改行を出力
+        ss << endl;
 
-    ss << " nodes " << nodes_searched
-       << " nps "   << nodes_searched * 1000 / elapsed;
+      ss << "info"
+        << " depth " << iteration_depth
+        //       << " seldepth " << 
+        << " score " << USI::score_to_usi(v);
 
-    // 置換表使用率。経過時間が短いときは意味をなさないので出力しない。
-    if (elapsed > 1000)
-      ss << " hashfull " << TT.hashfull();
+      // これが現在探索中の指し手であるなら、それがlowerboundかupperboundかは表示させる
+      if (i == PVIdx)
+        ss << (v >= beta ? " lowerbound" : v <= alpha ? " upperbound" : "");
 
-    ss << " time " << elapsed
-       << " pv";
+      // 将棋所はmultipvに対応していないが、とりあえず出力はしておく。
+      if (multiPV > 1)
+        ss << " multipv " << (i + 1);
+
+      ss << " nodes " << nodes_searched
+        << " nps " << nodes_searched * 1000 / elapsed;
+
+      // 置換表使用率。経過時間が短いときは意味をなさないので出力しない。
+      if (elapsed > 1000)
+        ss << " hashfull " << TT.hashfull();
+
+      ss << " time " << elapsed
+         << " pv";
 
 #ifdef USE_TT_PV
-    // 置換表からPVをかき集めてくるモード
-    {
-      auto pos_ = const_cast<Position*>(&pos);
-      Move moves[MAX_PLY+1];
-      StateInfo si[MAX_PLY];
-      moves[0] = rootMoves[0].pv[0];
-      int ply = 0;
-      while (ply < MAX_PLY && moves[ply]!=MOVE_NONE)
+      // 置換表からPVをかき集めてくるモード
       {
-        pos_->check_info_update();
-        pos_->do_move(moves[ply], si[ply]);
-        ss << " " << moves[ply];
-        bool found;
-        auto tte = TT.probe(pos.state()->key(), found);
-        ply++;
-        moves[ply] = found ? tte->move() : MOVE_NONE;
+        auto pos_ = const_cast<Position*>(&pos);
+        Move moves[MAX_PLY + 1];
+        StateInfo si[MAX_PLY];
+        moves[0] = rootMoves[i].pv[0];
+        int ply = 0;
+        while (ply < MAX_PLY && moves[ply] != MOVE_NONE)
+        {
+          pos_->check_info_update();
+          pos_->do_move(moves[ply], si[ply]);
+          ss << " " << moves[ply];
+          bool found;
+          auto tte = TT.probe(pos.state()->key(), found);
+          ply++;
+          moves[ply] = found ? tte->move() : MOVE_NONE;
+        }
+        while (ply > 0)
+          pos_->undo_move(moves[--ply]);
       }
-      while (ply > 0)
-        pos_->undo_move(moves[--ply]);
-    }
 #else
-    for (Move m : rootMoves[0].pv)
-      ss << " " << m;
+      // rootMovesが自らPVを持っているモード
+
+      for (Move m : rootMoves[i].pv)
+        ss << " " << m;
 #endif
+    }
 
     return ss.str();
   }
@@ -149,6 +167,9 @@ namespace USI
     o["Hash"]    << Option(16, 1, MaxHashMB, [](auto&o) { TT.resize(o); });
     o["Ponder"]  << Option(false);
 
+    // その局面での上位N個の候補手を調べる機能
+    o["MultiPV"] << Option(1, 1, 800);
+
     // 協力詰めsolver
 #ifdef    COOPERATIVE_MATE_SOLVER
     o["CM_Hash"] << Option(16, 1, MaxHashMB, [](auto&o) { CooperativeMate::TT.resize(o); });
@@ -159,6 +180,9 @@ namespace USI
 
     // ネットワーク遅延時間[ms]
     o["NetworkDelay"] << Option(400, 0, 10000);
+
+    // 引き分けを受け入れるスコア
+    o["Contempt"] << Option(0, -30000, 30000);
 
     // パラメーターの外部からの自動調整
 #ifdef ENABLE_OPTION_PARAM

@@ -31,7 +31,7 @@ using namespace std;
 using namespace Search;
 using namespace Eval;
 
-namespace YaneuraOuNanoPlus
+namespace YaneuraOuMini
 {
 
   // 外部から調整される探索パラメーター
@@ -153,7 +153,7 @@ namespace YaneuraOuNanoPlus
     Move bestMove;         // そのときの指し手
     Value oldAlpha;        // 関数が呼び出されたときのalpha値
 
-                           // hash key関係
+    // hash key関係
     TTEntry* tte;          // 置換表にhitしたときの置換表のエントリーへのポインタ
     Key posKey;            // この局面のhash key
     bool ttHit;            // 置換表にhitしたかのフラグ
@@ -161,12 +161,12 @@ namespace YaneuraOuNanoPlus
     Value ttValue;         // 置換表に登録されていたスコア
     Depth ttDepth;         // このnodeに関して置換表に登録するときの残り探索深さ
 
-                           // 王手関係
+    // 王手関係
     bool givesCheck;       // MovePickerから取り出した指し手で王手になるか
 
-                           // -----------------------
-                           //     nodeの初期化
-                           // -----------------------
+    // -----------------------
+    //     nodeの初期化
+    // -----------------------
 
     if (PvNode)
     {
@@ -201,7 +201,7 @@ namespace YaneuraOuNanoPlus
 
     posKey = pos.state()->key();
     tte = TT.probe(posKey, ttHit);
-    ttMove = ttHit ? tte->move() : MOVE_NONE;
+    ttMove  = ttHit ? tte->move() : MOVE_NONE;
     ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
 
     // 置換表に登録するdepthは、あまりマイナスの値が登録されてもおかしいので、
@@ -216,7 +216,7 @@ namespace YaneuraOuNanoPlus
       && tte->depth() >= ttDepth
       && ttValue != VALUE_NONE // 置換表から取り出したときに他スレッドが値を潰している可能性があるのでこのチェックが必要
       && (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
-        : (tte->bound() & BOUND_UPPER)))
+                          : (tte->bound() & BOUND_UPPER)))
       // ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
       // ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
       // 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
@@ -264,8 +264,8 @@ namespace YaneuraOuNanoPlus
         // 置換表がhitしなかった場合、bestValueの初期値としてevaluate()を呼び出すしかないが、
         // NULL_MOVEの場合は前の局面での値を反転させると良い。(手番を考慮しない評価関数であるなら)
         ss->staticEval = bestValue =
-          (ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
-          : -(ss - 1)->staticEval;
+         (ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
+                                            : -(ss - 1)->staticEval;
       }
 
       // Stand pat.
@@ -323,8 +323,8 @@ namespace YaneuraOuNanoPlus
       ss->currentMove = move;
 
       pos.do_move(move, si, pos.gives_check(move));
-      value = givesCheck ? -YaneuraOuNanoPlus::qsearch<NT, true>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
-        : -YaneuraOuNanoPlus::qsearch<NT, false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
+      value = givesCheck ? -qsearch<NT, true >(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
+                         : -qsearch<NT, false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
       pos.undo_move(move);
 
       if (Signals.stop)
@@ -428,6 +428,13 @@ namespace YaneuraOuNanoPlus
 
     bestValue = -VALUE_INFINITE;
 
+    // ss->moveCountはこのあとMovePickerがこのnodeの指し手を生成するより前に
+    // 枝刈り等でsearch()を再帰的に呼び出すことがあり、そのときに親局面のmoveCountベースで
+    // 枝刈り等を行ないたいのでこのタイミングで初期化しなければならない。
+    // ss->moveCountではなく、moveCountのほうはMovePickerで指し手を生成するとき以降で良い。
+
+    ss->moveCount = 0;
+
     // rootからの手数
     ss->ply = (ss - 1)->ply + 1;
 
@@ -494,7 +501,7 @@ namespace YaneuraOuNanoPlus
     // RootNodeであるなら、(MultiPVなどでも)現在注目している1手だけがベストの指し手と仮定できるから、
     // それが置換表にあったものとして指し手を進める。
     Move ttMove = RootNode ? thisThread->rootMoves[thisThread->PVIdx].pv[0]
-      : ttHit ? tte->move() : MOVE_NONE;
+                : ttHit    ? tte->move() : MOVE_NONE;
 
     // 置換表の値による枝刈り
 
@@ -503,7 +510,7 @@ namespace YaneuraOuNanoPlus
       && tte->depth() >= depth   // 置換表に登録されている探索深さのほうが深くて
       && ttValue != VALUE_NONE   // (VALUE_NONEだとすると他スレッドからTTEntryが読みだす直前に破壊された可能性がある)
       && (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
-        : (tte->bound() & BOUND_UPPER))
+                          : (tte->bound() & BOUND_UPPER))
       // ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
       // ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
       // 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
@@ -512,8 +519,8 @@ namespace YaneuraOuNanoPlus
     {
       ss->currentMove = ttMove; // この指し手で枝刈りをした。ただしMOVE_NONEでありうる。
 
-                                // 置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
-                                // ただし、捕獲する指し手か成る指し手であればこれはkillerを更新する価値はない。
+      // 置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
+      // ただし、捕獲する指し手か成る指し手であればこれはkillerを更新する価値はない。
       if (ttValue >= beta && ttMove && !pos.capture_or_promotion(ttMove))
         update_stats(pos, ss, ttMove, depth, nullptr, 0);
 
@@ -557,7 +564,8 @@ namespace YaneuraOuNanoPlus
 
       ss->staticEval = eval = VALUE_NONE;
       goto MOVES_LOOP;
-    } else if (ttHit)
+    }
+    else if (ttHit)
     {
       // 置換表にhitしたなら、評価値が記録されているはずだから、それを取り出しておく。
       // あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
@@ -659,12 +667,21 @@ namespace YaneuraOuNanoPlus
       {
         // root nodeでは、rootMoves()の集合に含まれていない指し手は探索をスキップする。
         if (RootNode && !std::count(thisThread->rootMoves.begin() + thisThread->PVIdx,
-          thisThread->rootMoves.end(), move))
+                                    thisThread->rootMoves.end(), move))
           continue;
+
+        // do_move()した指し手の数のインクリメント
+        // このあとdo_move()の前で枝刈りのためにsearchを呼び出す可能性があるので
+        // このタイミングでやっておき、legalでなければ、この値を減らす
+        ss->moveCount = ++moveCount;
 
         // legal()のチェック。root nodeだとlegal()だとわかっているのでこのチェックは不要。
         if (!RootNode && !pos.legal(move))
+        {
+          // 足してしまったmoveCountを元に戻す。
+          ss->moveCount = ++moveCount;
           continue;
+        }
 
         captureOrPromotion = pos.capture_or_promotion(move);
         givesCheck = pos.gives_check(move);
@@ -678,9 +695,6 @@ namespace YaneuraOuNanoPlus
 
         // 指し手で1手進める
         pos.do_move(move, si, givesCheck);
-
-        // do_moveした指し手の数のインクリメント
-        ++moveCount;
 
         // -----------------------
         // 再帰的にsearchを呼び出す
@@ -727,18 +741,18 @@ namespace YaneuraOuNanoPlus
         // ※　静止探索は残り探索深さはDEPTH_ZEROとして開始されるべきである。(端数があるとややこしいため)
         if (fullDepthSearch)
           value = newDepth < ONE_PLY ?
-          givesCheck ? -qsearch<NonPV, true>(pos, ss + 1, -(alpha + 1), -alpha, DEPTH_ZERO)
-          : -qsearch<NonPV, false>(pos, ss + 1, -(alpha + 1), -alpha, DEPTH_ZERO)
-          : -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth);
+          givesCheck ? -qsearch<NonPV, true> (pos, ss + 1, -(alpha + 1), -alpha, DEPTH_ZERO)
+                     : -qsearch<NonPV, false>(pos, ss + 1, -(alpha + 1), -alpha, DEPTH_ZERO)
+                     : - search<NonPV>       (pos, ss + 1, -(alpha + 1), -alpha, newDepth  );
 
         // PV nodeにおいては、full depth searchがfail highしたならPV nodeとしてsearchしなおす。
         // ただし、value >= betaなら、正確な値を求めることにはあまり意味がないので、これはせずにbeta cutしてしまう。
         if (PvNode && (moveCount == 1 || (value > alpha && (RootNode || value < beta))))
         {
           value = newDepth < ONE_PLY ?
-            givesCheck ? -qsearch<PV, true>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
-            : -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
-            : -search<PV>(pos, ss + 1, -beta, -alpha, newDepth);
+            givesCheck ? -qsearch<PV, true> (pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
+                       : -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
+                       : - search<PV>       (pos, ss + 1, -beta, -alpha, newDepth  );
         }
 
 
@@ -844,7 +858,7 @@ namespace YaneuraOuNanoPlus
 
 }
 
-using namespace YaneuraOuNanoPlus;
+using namespace YaneuraOuMini;
 
 // --- 以下に好きなように探索のプログラムを書くべし。
 
@@ -902,6 +916,7 @@ void MainThread::think()
   // ---------------------
   // 探索パラメーターの自動調整用
   // ---------------------
+
   param1 = Options["Param1"];
   param2 = Options["Param2"];
 
@@ -914,11 +929,15 @@ void MainThread::think()
   Stack stack[MAX_PLY + 4], *ss = stack + 2; // (ss-2)と(ss+2)にアクセスしたいので4つ余分に確保しておく。
   Move bestMove;
 
-  memset(stack, 0, 5 * sizeof(Stack)); // 先頭5つを初期化しておけば十分。そのあとはsearchの先頭でss+2を初期化する。
+  // 先頭5つを初期化しておけば十分。そのあとはsearchの先頭でss+2を初期化する。
+  memset(stack, 0, 5 * sizeof(Stack));
 
-                                       // ---------------------
-                                       // 合法手がないならここで投了
-                                       // ---------------------
+  // root nodeにおける自分の手番
+  auto us = rootPos.side_to_move();
+
+  // ---------------------
+  // 合法手がないならここで投了
+  // ---------------------
 
   if (rootMoves.size() == 0)
   {
@@ -964,6 +983,22 @@ void MainThread::think()
 
     TT.new_search();
 
+    // --- contempt factor(引き分けのスコア)
+
+    // Contempt: 引き分けを受け入れるスコア。歩を100とする。例えば、この値を100にすると引き分けの局面は
+    // 評価値が - 100とみなされる。(互角と思っている局面であるなら引き分けを選ばずに他の指し手を選ぶ)
+
+    int contempt = Options["Contempt"] * PawnValue / 100;
+    drawValueTable[REPETITION_DRAW][ us] = VALUE_ZERO - Value(contempt);
+    drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
+
+    // --- MultiPV
+
+    // bestmoveとしてしこの局面の上位N個を探索する機能
+    size_t multiPV = Options["MultiPV"];
+    // この局面での指し手の数を上回ってはいけない
+    multiPV = std::min(multiPV, rootMoves.size());
+
     // ---------------------
     //   思考の終了条件
     // ---------------------
@@ -976,7 +1011,6 @@ void MainThread::think()
       // 時間制限があるのでそれに従うために今回の思考時間を計算する。
       // 今回に用いる思考時間 = 残り時間の1/60 + 秒読み時間
 
-      auto us = pos.side_to_move();
       // 2秒未満は2秒として問題ない。(CSAルールにおいて)
       int availableTime;
 
@@ -1013,15 +1047,40 @@ void MainThread::think()
       alpha = -VALUE_INFINITE;
       beta = VALUE_INFINITE;
 
-      PVIdx = 0; // MultiPVではないのでPVは1つで良い。
+      // MultiPVのためにこの局面の候補手をN個選出する。
+      for (PVIdx = 0; PVIdx < multiPV && !Signals.stop; ++PVIdx)
+      {
 
-      YaneuraOuNanoPlus::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY);
+        YaneuraOuMini::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY);
 
-      // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
-      std::stable_sort(rootMoves.begin(), rootMoves.end());
+        // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
+        // 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
+        // 用いないと前回の反復深化の結果によって得た並び順を変えてしまうことになるのでまずい。
+        std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
 
-      // 読み筋を出力しておく。
-      if (!Limits.silent)
+        // stopに対して抜けるのはここでPVを置換表に書き戻してからのほうが良い。
+
+        if (Signals.stop)
+          break;
+
+      }
+
+      // MultiPVの候補手をスコア順に再度並び替えておく。
+      // (二番目だと思っていたほうの指し手のほうが評価値が良い可能性があるので…)
+      std::stable_sort(rootMoves.begin() , rootMoves.begin() + PVIdx + 1);
+
+      // 停止するときに探索node数と経過時間を出力すべき。
+      // (そうしないと正確な探索node数がわからなくなってしまう)
+
+      if (Signals.stop)
+        sync_cout << "info nodes " << Threads.nodes_searched()
+                  << " time " << Time.elapsed() << sync_endl;
+
+      // silentモードでないならば読み筋を出力しておく。
+      // MultiPVのときは最後の候補手を求めた直後とする。
+      // ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
+      
+      else if (!Limits.silent && (PVIdx + 1 == multiPV || Time.elapsed() > 3000))
         sync_cout << USI::pv(pos, rootDepth, alpha, beta) << sync_endl;
     }
 
@@ -1041,11 +1100,11 @@ void MainThread::think()
 
 ID_END:; // 反復深化の終了。
 
-         // ---------------------
-         // 指し手をGUIに返す
-         // ---------------------
+  // ---------------------
+  // 指し手をGUIに返す
+  // ---------------------
 
-         // ponder中であるならgoコマンドか何かが送られてきてからのほうがいいのだが、とりあえずponderの処理は後回しで…。
+  // ponder中であるならgoコマンドか何かが送られてきてからのほうがいいのだが、とりあえずponderの処理は後回しで…。
 
   if (!Limits.silent)
     sync_cout << "bestmove " << bestMove << sync_endl;
