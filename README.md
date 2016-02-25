@@ -47,8 +47,9 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 
 - [ ] 長手数の詰将棋ルーチン作る
 
-- [x] 2016/02/26・やねうら王miniにPV line実装。
-- [x] 2016/02/26・やねうら王miniにaspiration windows search実装。
+- [x] 2016/02/26・やねうら王miniにPV line実装。(-R10)
+- [x] 2016/02/26・やねうら王miniにss->moveCount追加。これによるhistoryへのbonus追加。(+R30)
+- [x] 2016/02/26・やねうら王miniにaspiration windows search実装。(+R10)
 - [x] 2016/02/25・やねうら王miniの思考オプションにMultiPV追加。
 - [x] 2016/02/25・やねうら王miniの思考オプションにContempt(引き分け時スコアの設定)追加。
 - [x] 2016/02/25・nano plusをベースにしてやねうら王miniの探索部書いていく。

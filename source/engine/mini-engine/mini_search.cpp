@@ -1019,7 +1019,11 @@ void Thread::search()
 
       if (rootDepth >= 5 * ONE_PLY)
       {
-        delta = Value(18);
+        // aspiration windowの幅
+        // 精度の良い評価関数ならばこの幅を小さくすると探索効率が上がるのだが、
+        // 精度の悪い評価関数だとこの幅を小さくしすぎると再探索が増えて探索効率が低下する。
+        delta = Value(param1 * 5);
+
         alpha = std::max(rootMoves[PVIdx].previousScore - delta, -VALUE_INFINITE);
         beta = std::min(rootMoves[PVIdx].previousScore + delta, VALUE_INFINITE);
       }
@@ -1055,8 +1059,10 @@ void Thread::search()
         else if (bestValue >= beta)
         {
           // fails high
-        } else
+        } else {
+          // 正常な探索結果なのでこれにてaspiration window searchは終了
           break;
+        }
 
         // delta を等比級数的に大きくしていく
         delta += delta / 4 + 5;
