@@ -229,5 +229,8 @@
     <None Include="..\exe\book\standard_book.db">
       <Filter>exe\book</Filter>
     </None>
+    <None Include="..\exe\YaneuraOu-nano-plus.exe">
+      <Filter>exe</Filter>
+    </None>
   </ItemGroup>
 </Project>
