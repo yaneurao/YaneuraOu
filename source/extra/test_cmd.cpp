@@ -706,7 +706,7 @@ void auto_play(Position& pos, istringstream& is)
       if (mg.size() == 0)
         break;
 
-      lm.startTime = now();
+      Time.init();
       Threads.start_thinking(pos, lm, Search::SetupStates);
       Threads.main()->wait_for_search_finished();
       auto rootMoves = Threads.main()->rootMoves;
@@ -946,7 +946,7 @@ void bench_cmd(Position& pos, istringstream& is)
 
   int64_t nodes = 0;
   Search::StateStackPtr st;
-  limits.startTime = now();
+  Time.init();
   
   for (size_t i = 0; i < fens.size(); ++i)
   {
@@ -962,7 +962,7 @@ void bench_cmd(Position& pos, istringstream& is)
     nodes += Threads.main()->rootPos.nodes_searched();
   }
 
-  auto elapsed = now() - limits.startTime + 1; // 0除算の回避のため
+  auto elapsed = Time.elapsed() + 1; // 0除算の回避のため
   
   sync_cout << "\n==========================="
     << "\nTotal time (ms) : " << elapsed

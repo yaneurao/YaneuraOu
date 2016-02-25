@@ -8,6 +8,8 @@
 
 using namespace std;
 
+Timer Time;
+
 // --------------------
 //  engine info
 // --------------------

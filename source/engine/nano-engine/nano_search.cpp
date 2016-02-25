@@ -482,12 +482,12 @@ void MainThread::think() {
         availableTime = Limits.rtime + (int)prng.rand(Limits.rtime * 2);
       }
 
-      auto endTime = Limits.startTime + availableTime;
+      auto endTime = availableTime;
 
       // タイマースレッドを起こして、終了時間を監視させる。
 
       timerThread = new std::thread([&] {
-        while (now() < endTime && !Signals.stop)
+        while (Time.elapsed() < endTime && !Signals.stop)
           sleep(10);
         Signals.stop = true;
       });

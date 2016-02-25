@@ -67,6 +67,28 @@ inline void sleep(int ms)
   std::this_thread::sleep_for(std::chrono::microseconds(ms));
 }
 
+// -----------------------
+//  探索のときに使う時間管理用
+// -----------------------
+
+struct Timer
+{
+  // タイマーを初期化する。以降、elapsed()でinit()してからの経過時間が得られる。
+  void init() { startTime = now(); }
+
+  // 探索開始からの経過時間。単位は[ms]
+  // 探索node数に縛りがある場合、elapsed()で探索node数が返ってくる仕様にすることにより、一元管理できる。
+  int elapsed() const { return int(now() - startTime); }
+
+  // node数を指定して探索するとき、探索できる残りnode数。
+  int64_t availableNodes;
+
+private:
+  // 探索開始時間
+  TimePoint startTime;
+};
+
+extern Timer Time;
 
 // --------------------
 //       乱数

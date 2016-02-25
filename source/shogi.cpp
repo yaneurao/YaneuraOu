@@ -129,7 +129,6 @@ namespace Search {
   LimitsType Limits;
   StateStackPtr SetupStates;
 }
-TimeManagement Time;
 
 // 引き分け時のスコア(とそのdefault値)
 Value drawValueTable[REPETITION_NB][COLOR_NB] =

@@ -67,7 +67,7 @@ namespace USI
   std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta)
   {
     std::stringstream ss;
-    int elapsed = Time.elapsed();
+    int elapsed = Time.elapsed() + 1;
     
     const auto& rootMoves = pos.this_thread()->rootMoves;
     size_t PVIdx = pos.this_thread()->PVIdx;
@@ -334,11 +334,12 @@ void go_cmd(const Position& pos, istringstream& is) {
   Search::LimitsType limits;
   string token;
 
+  // 思考開始時刻の初期化。なるべく早い段階でこれを代入しておかないとサーバー時間との誤差が大きくなる。
+  Time.init();
+  
   // goコマンド、デバッグ時に使うが、そのときに"go btime XXX wtime XXX byoyomi XXX"と毎回入力するのが面倒なので
   // デフォルトで1秒読み状態で呼び出されて欲しい。
   limits.byoyomi[BLACK] = limits.byoyomi[WHITE] = 1000;
-
-  limits.startTime = now(); // 思考開始時刻。なるべく早い段階でこれを代入しておかないとサーバー時間との誤差が大きくなる。
 
   while (is >> token)
   {

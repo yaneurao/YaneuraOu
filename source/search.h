@@ -36,8 +36,12 @@ namespace Search {
   // goコマンドでの探索時に用いる、持ち時間設定などが入った構造体
   struct LimitsType {
 
-    // コンストラクタで明示的にゼロクリア(MSVCがPODでないと破壊することがあるため)
-    LimitsType() { memset(this, 0, offsetof(LimitsType, startTime)); }
+    // PODでない型をmemsetでゼロクリアするとMSVCは破壊してしまうので明示的に初期化する。
+    LimitsType() {
+       nodes = time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = npmsec = movestogo
+         = depth = movetime = mate = infinite = ponder = rtime = 0;
+       silent = false;
+    }
 
     // 時間制御を行うのか。
     // 詰み専用探索、思考時間0、探索深さが指定されている、探索ノードが指定されている、思考時間無制限
@@ -54,6 +58,17 @@ namespace Search {
 
     // 秒読み(ms換算で)
     int byoyomi[COLOR_NB];
+
+    // 1手ごとに増加する時間(フィッシャールール)
+    int inc[COLOR_NB];
+
+    // 探索node数を思考経過時間の代わりに用いるモードであるかのフラグ(from UCI)
+    int npmsec;
+
+    // movestogo : 次の時間制御までx手あるという意味。
+    //    これが指定されておらず、"wtime"と"btime"を受信したのならば切れ負けの意味。
+    //    これが指定されているときは、手数制限的な意味だと思われる。(100手で引き分け、など)
+    int movestogo;
 
     // depth    : 探索深さ固定(0以外を指定してあるなら)
     // movetime : 思考時間固定(0以外が指定してあるなら) : 単位は[ms]
@@ -79,9 +94,6 @@ namespace Search {
     bool silent;
 
     // ---- ↑ここまでコンストラクタでゼロ初期化↑ ----
-
-    // goコマンドで探索を開始した時刻。
-    TimePoint startTime;
   };
 
   struct SignalsType {
@@ -115,29 +127,5 @@ namespace Search {
   };
 
 } // end of namespace Search
-
-// -----------------------
-//  探索のときに使う時間管理用
-// -----------------------
-
-// Searchの名前空間に入れると使いにくそうなので外に出しておく。
-
-struct TimeManagement {
-  void init(Search::LimitsType& limits, Color us, int ply);
-  int optimum() const { return optimumTime; }
-  int maximum() const { return maximumTime; }
-
-  // 探索開始からの経過時刻
-  int elapsed() const { return int(now() - startTime); }
-
-  int64_t availableNodes; // When in 'nodes as time' mode
-
-private:
-  TimePoint startTime;
-  int optimumTime;
-  int maximumTime;
-};
-
-extern TimeManagement Time;
 
 #endif // _SEARCH_H_

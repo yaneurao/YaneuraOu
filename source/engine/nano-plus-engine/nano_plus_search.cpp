@@ -118,20 +118,6 @@ namespace YaneuraOuNanoPlus
         cmh.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
     }
 
-    // nano plusではss->moveCount、更新してないんだ…。
-#if 0
-    // さらに、1手前で置換表の指し手が反駁されたときは、追加でペナルティを与える。
-    if ((ss - 1)->moveCount == 1
-      && !pos.captured_piece_type()
-      && is_ok((ss - 2)->currentMove))
-    {
-      // 直前がcaptureではないから、2手前に動かした駒は捕獲されずに盤上にあるはずであり、
-      // その升の駒を盤から取り出すことが出来る。
-      Square prevPrevSq = move_to((ss - 2)->currentMove);
-      CounterMoveStats& prevCmh = CounterMoveHistory.get(pos.piece_on(prevPrevSq),prevPrevSq);
-      prevCmh.update(pos.piece_on(prevSq), prevSq, -bonus - 2 * (depth + 1) / ONE_PLY);
-    }
-#endif
   }
 
 
@@ -995,12 +981,12 @@ void MainThread::think()
         availableTime = Limits.rtime + (int)prng.rand(Limits.rtime * 2);
       }
 
-      auto endTime = Limits.startTime + availableTime;
+      auto endTime = availableTime;
 
       // タイマースレッドを起こして、終了時間を監視させる。
 
       timerThread = new std::thread([&] {
-        while (now() < endTime && !Signals.stop)
+        while (Time.elapsed() < endTime && !Signals.stop)
           sleep(10);
         Signals.stop = true;
       });

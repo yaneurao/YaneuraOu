@@ -365,16 +365,19 @@ namespace YaneuraOuMini
     if (InCheck && bestValue == -VALUE_INFINITE)
     {
       bestValue = mated_in(ss->ply); // rootからの手数による詰みである。
-      tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
+      tte->save(posKey, value_to_tt(bestValue,ss->ply) , BOUND_EXACT,
         DEPTH_MAX, MOVE_NONE, ss->staticEval, TT.generation());
-      return bestValue;
+
+    } else {
+      // 詰みではなかったのでこれを書き出す。
+
+      tte->save(posKey, value_to_tt(bestValue, ss->ply),
+        PvNode && bestValue > oldAlpha ? BOUND_EXACT : BOUND_UPPER,
+        ttDepth, bestMove, ss->staticEval, TT.generation());
     }
 
-    tte->save(posKey, value_to_tt(bestValue, ss->ply),
-      PvNode && bestValue > oldAlpha ? BOUND_EXACT : BOUND_UPPER,
-      ttDepth, bestMove, ss->staticEval, TT.generation());
-
-    ASSERT_LV3(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
+    // 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
+    ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
 
     return bestValue;
   }
@@ -571,10 +574,10 @@ namespace YaneuraOuMini
       // あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
 
       // tte->eval()へのアクセスは1回にしないと他のスレッドが壊してしまう可能性がある。
-      if ((ss->staticEval = eval = tte->eval()) == VALUE_NONE)
-        ss->staticEval = evaluate(pos);
+      if ((eval = tte->eval()) == VALUE_NONE)
+        eval = evaluate(pos);
 
-      eval = ss->staticEval;
+      ss->staticEval = eval;
 
       // ttValueのほうがこの局面の評価値の見積もりとして適切であるならそれを採用する。
       // 1. ttValue > evaluate()でかつ、ttValueがBOUND_LOWERなら、真の値はこれより大きいはずだから、
@@ -588,7 +591,7 @@ namespace YaneuraOuMini
 
       ss->staticEval = eval =
         (ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
-        : -(ss - 1)->staticEval;
+                                           : -(ss - 1)->staticEval;
 
       // 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
       tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
@@ -640,8 +643,8 @@ namespace YaneuraOuMini
       // ※ VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
       //   枝刈りを甘くして調べないといけないのでimproving扱いとする。
       bool improving = ss->staticEval >= (ss - 2)->staticEval
-        || ss->staticEval == VALUE_NONE
-        || (ss - 2)->staticEval == VALUE_NONE;
+                    || (ss    )->staticEval == VALUE_NONE
+                    || (ss - 2)->staticEval == VALUE_NONE;
 
       moveCount = quietCount = 0;
 
@@ -679,7 +682,7 @@ namespace YaneuraOuMini
         if (!RootNode && !pos.legal(move))
         {
           // 足してしまったmoveCountを元に戻す。
-          ss->moveCount = ++moveCount;
+          ss->moveCount = --moveCount;
           continue;
         }
 
@@ -754,7 +757,6 @@ namespace YaneuraOuMini
                        : -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
                        : - search<PV>       (pos, ss + 1, -beta, -alpha, newDepth  );
         }
-
 
         // -----------------------
         //      1手戻す
@@ -852,6 +854,9 @@ namespace YaneuraOuMini
       // ただし、指し手がない場合は、詰まされているスコアなので、これより短い/長い手順の詰みがあるかも知れないから、
       // すなわち、スコアは変動するかも知れないので、BOUND_UPPERという扱いをする。
       depth, bestMove, ss->staticEval, TT.generation());
+
+    // 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
+    ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
 
     return bestValue;
   }
@@ -975,7 +980,7 @@ void MainThread::think()
   {
 
     rootDepth = 0;
-    Value alpha, beta;
+    Value alpha, beta, bestValue;
     StateInfo si;
     auto& pos = rootPos;
 
@@ -1026,12 +1031,12 @@ void MainThread::think()
         availableTime = Limits.rtime + (int)prng.rand(Limits.rtime * 2);
       }
 
-      auto endTime = Limits.startTime + availableTime;
+      auto endTime = availableTime;
 
       // タイマースレッドを起こして、終了時間を監視させる。
 
       timerThread = new std::thread([&] {
-        while (now() < endTime && !Signals.stop)
+        while (Time.elapsed() < endTime && !Signals.stop)
           sleep(10);
         Signals.stop = true;
       });
@@ -1046,42 +1051,64 @@ void MainThread::think()
       // 本当はもっと探索窓を絞ったほうが効率がいいのだが…。
       alpha = -VALUE_INFINITE;
       beta = VALUE_INFINITE;
+      bestValue = -VALUE_INFINITE;
 
       // MultiPVのためにこの局面の候補手をN個選出する。
       for (PVIdx = 0; PVIdx < multiPV && !Signals.stop; ++PVIdx)
       {
 
-        YaneuraOuMini::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY);
+        // ------------------------
+        // Aspiration window search
+        // ------------------------
 
-        // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
-        // 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
-        // 用いないと前回の反復深化の結果によって得た並び順を変えてしまうことになるのでまずい。
-        std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
+        // 探索窓を狭めてこの範囲で探索して、この窓の範囲のscoreが返ってきたらラッキー、みたいな探索。
+        while (true)
+        {
+          bestValue = YaneuraOuMini::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY);
 
-        // stopに対して抜けるのはここでPVを置換表に書き戻してからのほうが良い。
+          // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
+          // 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
+          // 用いないと前回の反復深化の結果によって得た並び順を変えてしまうことになるのでまずい。
+          std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
 
-        if (Signals.stop)
-          break;
+          // stopに対して抜けるのはここでPVを置換表に書き戻してからのほうが良い。
 
+          if (Signals.stop)
+            break;
+
+          // aspiration窓の範囲外
+          if (bestValue <= alpha)
+          {
+            // fails low
+
+          } else if (bestValue >= beta)
+          {
+            // fails high
+          } else
+            break;
+
+        }
+
+        // MultiPVの候補手をスコア順に再度並び替えておく。
+        // (二番目だと思っていたほうの指し手のほうが評価値が良い可能性があるので…)
+        std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
+
+        // silentモードでないならば読み筋を出力しておく。
+        if (!Limits.silent)
+        {
+          // 停止するときに探索node数と経過時間を出力すべき。
+          // (そうしないと正確な探索node数がわからなくなってしまう)
+          if (Signals.stop)
+            sync_cout << "info nodes " << Threads.nodes_searched()
+            << " time " << Time.elapsed() << sync_endl;
+
+          // MultiPVのときは最後の候補手を求めた直後とする。
+          // ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
+          else if (PVIdx + 1 == multiPV || Time.elapsed() > 3000)
+            sync_cout << USI::pv(pos, rootDepth, alpha, beta) << sync_endl;
+        }
       }
 
-      // MultiPVの候補手をスコア順に再度並び替えておく。
-      // (二番目だと思っていたほうの指し手のほうが評価値が良い可能性があるので…)
-      std::stable_sort(rootMoves.begin() , rootMoves.begin() + PVIdx + 1);
-
-      // 停止するときに探索node数と経過時間を出力すべき。
-      // (そうしないと正確な探索node数がわからなくなってしまう)
-
-      if (Signals.stop)
-        sync_cout << "info nodes " << Threads.nodes_searched()
-                  << " time " << Time.elapsed() << sync_endl;
-
-      // silentモードでないならば読み筋を出力しておく。
-      // MultiPVのときは最後の候補手を求めた直後とする。
-      // ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
-      
-      else if (!Limits.silent && (PVIdx + 1 == multiPV || Time.elapsed() > 3000))
-        sync_cout << USI::pv(pos, rootDepth, alpha, beta) << sync_endl;
     }
 
     bestMove = rootMoves.at(0).pv[0];

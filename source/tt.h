@@ -29,6 +29,8 @@ struct TTEntry {
   //   gen  : TT.generation()
   void save(Key k, Value v, Bound b,Depth d, Move m,Value eval,uint8_t gen)
   {
+    ASSERT_LV3(-VALUE_INFINITE != v && v != VALUE_INFINITE);
+
     // このif式だが、
     // A = m!=MOVE_NONE
     // B = (k >> 48) != key16)
@@ -154,7 +156,7 @@ private:
 // ply : root node からの手数。(ply_from_root)
 inline Value value_to_tt(Value v, int ply) {
 
-  ASSERT_LV3(v != VALUE_NONE);
+  ASSERT_LV3(-VALUE_INFINITE < v && v < VALUE_INFINITE);
 
   return  v >= VALUE_MATE_IN_MAX_PLY  ? v + ply
         : v <= VALUE_MATED_IN_MAX_PLY ? v - ply : v;

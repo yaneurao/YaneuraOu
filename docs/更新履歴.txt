@@ -2,6 +2,22 @@
 やねうら王 更新履歴
 
 
+■ 2016/02/25 V1.84
+
+
+■ 2016/02/25 V1.83
+
+・mini、思考開始時にTimerリセットしないと。
+・StockfishのSearch::LimitsがstartTime持っているの仕様としておかしい気がする。
+ 　→ やねうら王ではTimerクラスに持たせる。
+ ・Timer.init()でstartTimeを初期化するようにして、明示的にはこれをアクセスしないように変更する。
+
+・searchなどの返し値に次のassert入れた。
+	  ASSERT_LV3(-VALUE_INFINITE < v && v < VALUE_INFINITE);
+
+・aspiration windows search、原型だけ書く。
+
+
 ■ 2016/02/25 V1.82
 
 ・やねうら王mini開発開始

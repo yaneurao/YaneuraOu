@@ -47,7 +47,7 @@
 // あまり重度のassertにすると、探索性能が落ちるので時間当たりに調べられる局面数が低下するから
 // そのへんのバランスをユーザーが決めれるようにこの仕組みを導入。
 
-#define ASSERT_LV 3
+//#define ASSERT_LV 3
 
 // --- ASSERTのリダイレクト
 // ASSERTに引っかかったときに、それを"Error : x=1"のように標準出力に出力する。
@@ -132,6 +132,8 @@
 
 #ifdef YANEURAOU_MINI_ENGINE
 #define ENGINE_NAME "YaneuraOu mini"
+// 開発中なのでassertを有効に。
+#define ASSERT_LV 3
 #define ENABLE_TEST_CMD
 #define ENABLE_OPTION_PARAM
 #define EVAL_KPP

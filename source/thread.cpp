@@ -127,7 +127,7 @@ void ThreadPool::start_thinking(const Position& pos, const Search::LimitsType& l
   main()->rootMoves.clear();
   main()->rootPos = pos;
   Limits = limits;
-
+  
   // statesが呼び出し元から渡されているならこの所有権をSearch::SetupStatesに移しておく。
   if (states.get())
     SetupStates = std::move(states);
