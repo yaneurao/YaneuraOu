@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "1.80"
+#define ENGINE_VERSION "1.81"
 
 // --------------------
 // コンパイル時の設定
@@ -23,8 +23,8 @@
 // オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE を defineして 他のエンジンのソースコードを参考に
 //  engine/user-engine/ フォルダの中身を書くべし。
 
-//#define YANEURAOU_NANO_ENGINE      // やねうら王nano
-#define YANEURAOU_NANO_PLUS_ENGINE // やねうら王nano plus (開発中)
+//#define YANEURAOU_NANO_ENGINE      // やねうら王nano(完成2016/01/31)
+#define YANEURAOU_NANO_PLUS_ENGINE // やねうら王nano plus(完成2016/02/25)
 //#define YANEURAOU_MINI_ENGINE      // やねうら王mini      (開発中)
 //#define YANEURAOU_CLASSIC_ENGINE   // やねうら王classic   (開発中)
 //#define YANEURAOU_2016_ENGINE      // やねうら王2016      (開発中)
