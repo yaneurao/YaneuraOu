@@ -171,6 +171,15 @@ inline Value value_from_tt(Value v, int ply) {
     : v <= VALUE_MATED_IN_MAX_PLY ? v + ply : v;
 }
 
+// PV lineをコピーする。
+// pv に move(1手) + childPv(複数手,末尾MOVE_NONE)をコピーする。
+// 番兵として末尾はMOVE_NONEにすることになっている。
+inline void update_pv(Move* pv, Move move, Move* childPv) {
+
+  for (*pv++ = move; childPv && *childPv != MOVE_NONE; )
+    *pv++ = *childPv++;
+  *pv = MOVE_NONE;
+}
 
 extern TranspositionTable TT;
 

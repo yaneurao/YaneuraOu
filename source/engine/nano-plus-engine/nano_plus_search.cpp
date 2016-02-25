@@ -355,12 +355,13 @@ namespace YaneuraOuNanoPlus
       bestValue = mated_in(ss->ply); // rootからの手数による詰みである。
       tte->save(posKey, value_to_tt(bestValue, ss->ply),BOUND_EXACT,
         DEPTH_MAX, MOVE_NONE, ss->staticEval, TT.generation());
-      return bestValue;
-    }
 
-    tte->save(posKey, value_to_tt(bestValue, ss->ply),
-      PvNode && bestValue > oldAlpha ? BOUND_EXACT : BOUND_UPPER,
-      ttDepth, bestMove, ss->staticEval, TT.generation());
+    } else {
+
+      tte->save(posKey, value_to_tt(bestValue, ss->ply),
+        PvNode && bestValue > oldAlpha ? BOUND_EXACT : BOUND_UPPER,
+        ttDepth, bestMove, ss->staticEval, TT.generation());
+    }
 
     ASSERT_LV3(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
 

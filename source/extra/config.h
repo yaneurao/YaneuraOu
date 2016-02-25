@@ -91,6 +91,8 @@
 
 // PV(読み筋)を表示するときに置換表の指し手をかき集めてきて表示するか。
 // 自前でPVを管理してRootMoves::pvを更新するなら、この機能を使う必要はない。
+// これはPVの更新が不要なので実装が簡単だが、Ponderの指し手を返すためには
+// PVが常に正常に更新されていないといけないので最近はこの方法は好まれない。
 // #define USE_TT_PV
 
 // 定跡を作るコマンド("makebook")を有効にする。
@@ -137,7 +139,6 @@
 #define ENABLE_TEST_CMD
 #define ENABLE_OPTION_PARAM
 #define EVAL_KPP
-#define USE_TT_PV
 #define USE_SEE
 #define USE_MOVE_PICKER
 #define LONG_EFFECT_LIBRARY

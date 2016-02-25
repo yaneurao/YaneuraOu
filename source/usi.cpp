@@ -78,13 +78,20 @@ namespace USI
     // MultiPVでは上位N個の候補手と読み筋を出力する必要がある。
     for (size_t i = 0; i < multiPV; ++i)
     {
-      Value v = pos.this_thread()->rootMoves[i].score;
+      // この指し手のpvの更新が終わっているのか
+      bool updated = (i <= PVIdx);
+
+      if (iteration_depth == ONE_PLY && !updated)
+        continue;
+
+      int d   = updated ? iteration_depth : iteration_depth - 1;
+      Value v = updated ? rootMoves[i].score : rootMoves[i].previousScore;
 
       if (ss.rdbuf()->in_avail()) // 1行目でないなら連結のための改行を出力
         ss << endl;
 
       ss << "info"
-        << " depth " << iteration_depth
+        << " depth " << d
         //       << " seldepth " << 
         << " score " << USI::score_to_usi(v);
 

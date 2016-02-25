@@ -22,6 +22,10 @@ namespace Search {
 
     explicit RootMove(Move m) : pv(1,m) {}
 
+    // this->pvに読み筋(PV)が保存されているとして、
+    // これを置換表に保存する。
+    void insert_pv_in_tt(Position& pos);
+
     // 今回の(反復深化の)iterationでの探索結果のスコア
     Value score = -VALUE_INFINITE;
 
@@ -118,6 +122,7 @@ namespace Search {
   // -----------------------
 
   struct Stack {
+    Move* pv;              // PVへのポインター。RootMovesのvector<Move> pvを指している。
     int ply;               // rootからの手数
     Move currentMove;      // そのスレッドの探索においてこの局面で現在選択されている指し手
     Move killers[2];       // killer move

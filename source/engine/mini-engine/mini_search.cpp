@@ -38,6 +38,9 @@ namespace YaneuraOuMini
   int param1 = 0;
   int param2 = 0;
 
+  // 定跡等で用いる乱数
+  PRNG prng;
+
   // -----------------------
   //      探索用の定数
   // -----------------------
@@ -132,7 +135,6 @@ namespace YaneuraOuMini
 
   }
 
-
   // -----------------------
   //      静止探索
   // -----------------------
@@ -147,6 +149,10 @@ namespace YaneuraOuMini
 
     // PV nodeであるか。
     const bool PvNode = NT == PV;
+    
+    // PV求める用のbuffer
+    // (これnonPVでは不要なので、nonPVでは参照していないの削除される。)
+    Move pv[MAX_PLY + 1];
 
     // 評価値の最大を求めるために必要なもの
     Value bestValue;       // この局面での指し手のベストなスコア(alphaとは違う)
@@ -174,6 +180,9 @@ namespace YaneuraOuMini
       // そのことを示すフラグとして元の値が必要(non PVではこの変数は参照しない)
       // PV nodeでalpha値を上回る指し手が存在しなかった場合は、調べ足りないのかも知れないからBOUND_UPPERとしてbestValueを保存しておく。
       oldAlpha = alpha;
+
+      (ss + 1)->pv = pv;
+      ss->pv[0] = MOVE_NONE;
     }
 
     ss->currentMove = bestMove = MOVE_NONE;
@@ -337,6 +346,10 @@ namespace YaneuraOuMini
 
         if (value > alpha)
         {
+          // fail-highの場合もPVは更新する。
+          if (PvNode)
+            update_pv(ss->pv, move, (ss + 1)->pv);
+
           if (PvNode && value < beta)
           {
             // alpha値の更新はこのタイミングで良い。
@@ -406,6 +419,9 @@ namespace YaneuraOuMini
 
     // この局面に対する評価値の見積り。
     Value eval;
+
+    // このnodeからのPV line(読み筋)
+    Move pv[MAX_PLY + 1];
 
     // 調べた指し手を残しておいて、statusのupdateを行なうときに使う。
     Move quietsSearched[64];
@@ -678,6 +694,17 @@ namespace YaneuraOuMini
         // このタイミングでやっておき、legalでなければ、この値を減らす
         ss->moveCount = ++moveCount;
 
+        // 次のnodeのpvをクリアしておく。
+        if (PvNode)
+          (ss + 1)->pv = nullptr;
+
+        // -----------------------
+        //   1手進める前の枝刈り
+        // -----------------------
+
+        //
+        //
+
         // legal()のチェック。root nodeだとlegal()だとわかっているのでこのチェックは不要。
         if (!RootNode && !pos.legal(move))
         {
@@ -752,6 +779,10 @@ namespace YaneuraOuMini
         // ただし、value >= betaなら、正確な値を求めることにはあまり意味がないので、これはせずにbeta cutしてしまう。
         if (PvNode && (moveCount == 1 || (value > alpha && (RootNode || value < beta))))
         {
+          // 次のnodeのPVポインターはこのnodeのpvバッファを指すようにしておく。
+          pv[0] = MOVE_NONE;
+          (ss+1)->pv = pv;
+
           value = newDepth < ONE_PLY ?
             givesCheck ? -qsearch<PV, true> (pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
                        : -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
@@ -784,7 +815,10 @@ namespace YaneuraOuMini
             rm.score = value;
             rm.pv.resize(1); // PVは変化するはずなのでいったんリセット
 
-                             // ここにPVを代入するコードを書く。(か、置換表からPVをかき集めてくるか)
+            // RootでPVが変わるのは稀なのでここがちょっとぐらい重くても問題ない。
+            // 新しく変わった指し手の後続のpvをRootMoves::pvにコピーしてくる。
+            for (Move* m = (ss+1)->pv; *m != MOVE_NONE; ++m)
+              rm.pv.push_back(*m);
 
           } else {
 
@@ -807,7 +841,12 @@ namespace YaneuraOuMini
           {
             bestMove = move;
 
-            if (PvNode && value < beta) // alpha値を更新したので更新しておく
+            // fail highのときにもPVをupdateする。
+            if (PvNode && !RootNode)
+              update_pv(ss->pv, move, (ss + 1)->pv);
+
+            // alpha値を更新したので更新しておく
+            if (PvNode && value < beta)
               alpha = value;
             else
             {
@@ -912,6 +951,144 @@ void Search::clear()
   CounterMoveHistory.clear();
 }
 
+
+// 探索本体。並列化している場合、ここがslaveのエントリーポイント。
+// lazy SMPなので、それぞれのスレッドが勝手に探索しているだけ。
+void Thread::search()
+{
+  // ---------------------
+  //      variables
+  // ---------------------
+
+  // (ss-2)と(ss+2)にアクセスしたいので4つ余分に確保しておく。
+  Stack stack[MAX_PLY + 4], *ss = stack + 2;
+
+  // aspiration searchの窓の範囲(alpha,beta)
+  // apritation searchで窓を動かす大きさdelta
+  Value bestValue, alpha, beta, delta;
+
+  // 反復深化のiterationが浅いうちはaspiration searchを使わない。
+  // 探索窓を (-VALUE_INFINITE , +VALUE_INFINITE)とする。
+  bestValue = delta = alpha = -VALUE_INFINITE;
+  beta = VALUE_INFINITE;
+
+  // もし自分がメインスレッドであるならmainThreadにそのポインタを入れる。
+  // 自分がスレーブのときはnullptrになる。
+  MainThread* mainThread = (this == Threads.main() ? Threads.main() : nullptr);
+
+  // 先頭5つを初期化しておけば十分。そのあとはsearchの先頭でss+2を初期化する。
+  memset(stack, 0, 5 * sizeof(Stack));
+
+  // メインスレッド用の処理
+  if (mainThread)
+  {
+    // --- 置換表のTTEntryの世代を進める。
+    TT.new_search();
+  }
+
+  // --- MultiPV
+
+  // bestmoveとしてしこの局面の上位N個を探索する機能
+  size_t multiPV = Options["MultiPV"];
+  // この局面での指し手の数を上回ってはいけない
+  multiPV = std::min(multiPV, rootMoves.size());
+
+  // ---------------------
+  //   反復深化のループ
+  // ---------------------
+
+  while (++rootDepth < MAX_PLY && !Signals.stop && (!Limits.depth || rootDepth <= Limits.depth))
+  {
+
+    // MultiPVのためにこの局面の候補手をN個選出する。
+    for (PVIdx = 0; PVIdx < multiPV && !Signals.stop; ++PVIdx)
+    {
+      // ------------------------
+      // Aspiration window search
+      // ------------------------
+
+      // 探索窓を狭めてこの範囲で探索して、この窓の範囲のscoreが返ってきたらラッキー、みたいな探索。
+
+      // 反復深化の前回のiterationのスコアをコピーしておく
+      for (RootMove& rm : rootMoves)
+        rm.previousScore = rm.score;
+
+      // 探索が浅いときは (-VALUE_INFINITE,+VALUE_INFINITE)の範囲で探索する。
+      // 探索深さが一定以上あるなら前回の反復深化のiteration時の最小値と最大値
+      // より少し幅を広げたぐらいの探索窓をデフォルトとする。
+
+      if (rootDepth >= 5 * ONE_PLY)
+      {
+        delta = Value(18);
+        alpha = std::max(rootMoves[PVIdx].previousScore - delta, -VALUE_INFINITE);
+        beta = std::min(rootMoves[PVIdx].previousScore + delta, VALUE_INFINITE);
+      }
+
+      while (true)
+      {
+        bestValue = YaneuraOuMini::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY);
+
+        // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
+        // 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
+        // 用いないと前回の反復深化の結果によって得た並び順を変えてしまうことになるのでまずい。
+        std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
+
+        // 探索中に置換表のPV lineを破壊した可能性があるので、PVを置換表に
+        // 書き戻しておいたほうが良い。(PV lineが一番価値があるので)
+
+        for (size_t i = 0; i <= PVIdx; ++i)
+          rootMoves[i].insert_pv_in_tt(rootPos);
+
+        if (Signals.stop)
+          break;
+
+        // aspiration窓の範囲外
+        if (bestValue <= alpha)
+        {
+          // fails low
+          
+          // betaをalphaにまで寄せてしまうと今度はfail highする可能性があるので
+          // betaをalphaのほうに少しだけ寄せる程度に留める。
+          beta = (alpha + beta) / 2;
+          alpha = max(bestValue - delta, -VALUE_INFINITE);
+        }
+        else if (bestValue >= beta)
+        {
+          // fails high
+        } else
+          break;
+
+        // delta を等比級数的に大きくしていく
+        delta += delta / 4 + 5;
+
+        ASSERT_LV3( -VALUE_INFINITE <= alpha && beta <= VALUE_INFINITE);
+      }
+
+      // MultiPVの候補手をスコア順に再度並び替えておく。
+      // (二番目だと思っていたほうの指し手のほうが評価値が良い可能性があるので…)
+      std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
+
+      // silentモードでないならば読み筋を出力しておく。
+      if (!Limits.silent)
+      {
+        // 停止するときに探索node数と経過時間を出力すべき。
+        // (そうしないと正確な探索node数がわからなくなってしまう)
+        if (Signals.stop)
+          sync_cout << "info nodes " << Threads.nodes_searched()
+          << " time " << Time.elapsed() << sync_endl;
+
+        // MultiPVのときは最後の候補手を求めた直後とする。
+        // ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
+        else if (PVIdx + 1 == multiPV || Time.elapsed() > 3000)
+          sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
+      }
+    }
+
+  }
+
+}
+
+
 // 探索開始時に呼び出される。
 // この関数内で初期化を終わらせ、slaveスレッドを起動してThread::search()を呼び出す。
 // そのあとslaveスレッドを終了させ、ベストな指し手を返すこと。
@@ -925,20 +1102,9 @@ void MainThread::think()
   param1 = Options["Param1"];
   param2 = Options["Param2"];
 
-  // ---------------------
-  //      variables
-  // ---------------------
-
-  static PRNG prng;
-
-  Stack stack[MAX_PLY + 4], *ss = stack + 2; // (ss-2)と(ss+2)にアクセスしたいので4つ余分に確保しておく。
-  Move bestMove;
-
-  // 先頭5つを初期化しておけば十分。そのあとはsearchの先頭でss+2を初期化する。
-  memset(stack, 0, 5 * sizeof(Stack));
-
   // root nodeにおける自分の手番
   auto us = rootPos.side_to_move();
+  Move bestMove;
 
   // ---------------------
   // 合法手がないならここで投了
@@ -980,13 +1146,8 @@ void MainThread::think()
   {
 
     rootDepth = 0;
-    Value alpha, beta, bestValue;
     StateInfo si;
     auto& pos = rootPos;
-
-    // --- 置換表のTTEntryの世代を進める。
-
-    TT.new_search();
 
     // --- contempt factor(引き分けのスコア)
 
@@ -997,12 +1158,6 @@ void MainThread::think()
     drawValueTable[REPETITION_DRAW][ us] = VALUE_ZERO - Value(contempt);
     drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
 
-    // --- MultiPV
-
-    // bestmoveとしてしこの局面の上位N個を探索する機能
-    size_t multiPV = Options["MultiPV"];
-    // この局面での指し手の数を上回ってはいけない
-    multiPV = std::min(multiPV, rootMoves.size());
 
     // ---------------------
     //   思考の終了条件
@@ -1043,73 +1198,10 @@ void MainThread::think()
     }
 
     // ---------------------
-    //   反復深化のループ
+    // 各スレッドがsearch()を実行する
     // ---------------------
 
-    while (++rootDepth < MAX_PLY && !Signals.stop && (!Limits.depth || rootDepth <= Limits.depth))
-    {
-      // 本当はもっと探索窓を絞ったほうが効率がいいのだが…。
-      alpha = -VALUE_INFINITE;
-      beta = VALUE_INFINITE;
-      bestValue = -VALUE_INFINITE;
-
-      // MultiPVのためにこの局面の候補手をN個選出する。
-      for (PVIdx = 0; PVIdx < multiPV && !Signals.stop; ++PVIdx)
-      {
-
-        // ------------------------
-        // Aspiration window search
-        // ------------------------
-
-        // 探索窓を狭めてこの範囲で探索して、この窓の範囲のscoreが返ってきたらラッキー、みたいな探索。
-        while (true)
-        {
-          bestValue = YaneuraOuMini::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY);
-
-          // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
-          // 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
-          // 用いないと前回の反復深化の結果によって得た並び順を変えてしまうことになるのでまずい。
-          std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
-
-          // stopに対して抜けるのはここでPVを置換表に書き戻してからのほうが良い。
-
-          if (Signals.stop)
-            break;
-
-          // aspiration窓の範囲外
-          if (bestValue <= alpha)
-          {
-            // fails low
-
-          } else if (bestValue >= beta)
-          {
-            // fails high
-          } else
-            break;
-
-        }
-
-        // MultiPVの候補手をスコア順に再度並び替えておく。
-        // (二番目だと思っていたほうの指し手のほうが評価値が良い可能性があるので…)
-        std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
-
-        // silentモードでないならば読み筋を出力しておく。
-        if (!Limits.silent)
-        {
-          // 停止するときに探索node数と経過時間を出力すべき。
-          // (そうしないと正確な探索node数がわからなくなってしまう)
-          if (Signals.stop)
-            sync_cout << "info nodes " << Threads.nodes_searched()
-            << " time " << Time.elapsed() << sync_endl;
-
-          // MultiPVのときは最後の候補手を求めた直後とする。
-          // ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
-          else if (PVIdx + 1 == multiPV || Time.elapsed() > 3000)
-            sync_cout << USI::pv(pos, rootDepth, alpha, beta) << sync_endl;
-        }
-      }
-
-    }
+    Thread::search();
 
     bestMove = rootMoves.at(0).pv[0];
 
@@ -1136,8 +1228,5 @@ ID_END:; // 反復深化の終了。
   if (!Limits.silent)
     sync_cout << "bestmove " << bestMove << sync_endl;
 }
-
-// 探索本体。並列化している場合、ここがslaveのエントリーポイント。
-void Thread::search() {}
 
 #endif // YANEURAOU_MINI_ENGINE
