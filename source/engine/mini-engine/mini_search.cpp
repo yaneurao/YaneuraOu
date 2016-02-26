@@ -428,11 +428,9 @@ namespace YaneuraOuMini
     {
       bestValue = mated_in(ss->ply); // rootからの手数による詰みである。
 
-      // これ保存したほうがいいかどうかは比較実験が必要。
-      /*
+      // これ保存したほうがよさげ。
       tte->save(posKey, value_to_tt(bestValue,ss->ply) , BOUND_EXACT,
         DEPTH_MAX, MOVE_NONE, ss->staticEval, TT.generation());
-      */
 
     } else {
       // 詰みではなかったのでこれを書き出す。

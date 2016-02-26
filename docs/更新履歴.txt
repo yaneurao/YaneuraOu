@@ -4,6 +4,7 @@
 
 ・実現確率の低い定跡の指し手は指さないオプションを用意しないと糞定跡掴まされて死にそう…。
 
+
 ■ 2016/02/26 V1.89
 
 ・miniでmain threadでfail high/lowが起きたときにGUIに読み筋を出力するようにした。
@@ -15,6 +16,20 @@
       tte->save(posKey, value_to_tt(bestValue,ss->ply) , BOUND_EXACT,
         DEPTH_MAX, MOVE_NONE, ss->staticEval, TT.generation());
       */
+
+
+		42.7%	
+		#47
+		やねうら王mini V189
+		並列化版 1スレッド設定, 1スレッド、0.1秒設定
+		#0
+		やねうら王mini V188
+		並列化版 1スレッド設定, 1スレッド、0.1秒設定
+
+		205-18-275(99.9% R-51.0)	
+
+		V1.89a
+		よくわからんけど、勝率悪いので戻す。
 
 
 ■ 2016/02/26 V1.88
