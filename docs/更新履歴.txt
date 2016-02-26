@@ -7,6 +7,12 @@
 
 ■ 2016/02/26 V1.87
 
+・miniでseldepthを出力するためにmaxPlyを更新するようにした。
+・miniのsearch(),qsearch()に次のassert追加
+    ASSERT_LV3(-VALUE_INFINITE<=alpha && alpha < beta && beta <= VALUE_INFINITE);
+    ASSERT_LV3((PvNode || alpha == beta - 1);
+・miniでbookMoveがあるときにRootMoves[0]を参照していたの修正。
+・将棋所でminiのDebug buildとランダムプレイヤーとを連続対局させておく。
 
 
 ■ 2016/02/26 V1.86

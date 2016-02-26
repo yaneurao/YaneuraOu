@@ -90,9 +90,12 @@ namespace USI
       if (ss.rdbuf()->in_avail()) // 1行目でないなら連結のための改行を出力
         ss << endl;
 
+      // maxPlyは更新しない思考エンジンがあるので、0で初期化しておき、
+      // dのほうが大きければそれをそのまま表示することで回避する。
+
       ss << "info"
         << " depth " << d
-        //       << " seldepth " << 
+        << " seldepth " << max(d, pos.this_thread()->maxPly)
         << " score " << USI::score_to_usi(v);
 
       // これが現在探索中の指し手であるなら、それがlowerboundかupperboundかは表示させる

@@ -193,6 +193,9 @@ namespace YaneuraOuMini
     // PV nodeであるか。
     const bool PvNode = NT == PV;
     
+    ASSERT_LV3(-VALUE_INFINITE<=alpha && alpha < beta && beta <= VALUE_INFINITE);
+    ASSERT_LV3(PvNode || alpha == beta - 1);
+
     // PV求める用のbuffer
     // (これnonPVでは不要なので、nonPVでは参照していないの削除される。)
     Move pv[MAX_PLY + 1];
@@ -486,7 +489,10 @@ namespace YaneuraOuMini
     //     nodeの初期化
     // -----------------------
 
-    ASSERT_LV3(alpha < beta);
+    ASSERT_LV3(-VALUE_INFINITE <= alpha && alpha < beta && beta <= VALUE_INFINITE);
+    ASSERT_LV3(PvNode || alpha == beta - 1);
+
+    Thread* thisThread = pos.this_thread();
 
     bestValue = -VALUE_INFINITE;
 
@@ -499,6 +505,10 @@ namespace YaneuraOuMini
 
     // rootからの手数
     ss->ply = (ss - 1)->ply + 1;
+
+    // seldepthをGUIに出力するために、PVnodeであるならmaxPlyを更新してやる。
+    if (PvNode && thisThread->maxPly < ss->ply)
+      thisThread->maxPly = ss->ply;
 
     // -----------------------
     //     千日手等の検出
@@ -554,8 +564,6 @@ namespace YaneuraOuMini
     // 置換表上のスコア
     // 置換表にhitしなければVALUE_NONE
     Value ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
-
-    auto thisThread = pos.this_thread();
 
     // 置換表の指し手
     // 置換表にhitしなければMOVE_NONE
@@ -1302,6 +1310,13 @@ void MainThread::think()
     }
   }
 
+  // まだ他のスレッドが停止していない可能性があるので停止させてやる
+  Signals.stop = true;
+
+  // 各スレッドが終了するのを待機する
+  for (Thread* th : Threads.slaves)
+    th->wait_for_search_finished();
+
   // 反復深化の終了。
 ID_END:;
 
@@ -1309,33 +1324,29 @@ ID_END:;
   // lazy SMPの結果を取り出す
   // ---------------------
 
-  // まだ他のスレッドが停止していない可能性があるので停止させてやる
-  Signals.stop = true;
-
-  // 各スレッドが終了するのを待機する
-  for (Thread* th : Threads.slaves)
-      th->wait_for_search_finished();
-
-  // 並列して探索させていたスレッドのうち、ベストのスレッドの結果を選出する。
   Thread* bestThread = this;
-  if (Options["MultiPV"] == 1)
+  if (bookMove == MOVE_NONE)
   {
-    // 深くまで探索できていて、かつそっちの評価値のほうが優れているならそのスレッドの指し手を採用する
-    // 単にcompleteDepthが深いほうのスレッドを採用しても良さそうだが、スコアが良いほうの探索深さのほうが
-    // いい指し手を発見している可能性があって悩ましい。いろいろ条件を変えて実験すべき。
-    for (Thread* th : Threads)
-      if (th->completedDepth > bestThread->completedDepth
-        && th->rootMoves[0].score > bestThread->rootMoves[0].score)
-        bestThread = th;
+    // 並列して探索させていたスレッドのうち、ベストのスレッドの結果を選出する。
+    if (Options["MultiPV"] == 1)
+    {
+      // 深くまで探索できていて、かつそっちの評価値のほうが優れているならそのスレッドの指し手を採用する
+      // 単にcompleteDepthが深いほうのスレッドを採用しても良さそうだが、スコアが良いほうの探索深さのほうが
+      // いい指し手を発見している可能性があって悩ましい。いろいろ条件を変えて実験すべき。
+      for (Thread* th : Threads)
+        if (th->completedDepth > bestThread->completedDepth
+          && th->rootMoves[0].score > bestThread->rootMoves[0].score)
+          bestThread = th;
+    }
+
+    // 次回の探索のときに何らか使えるのでベストな指し手の評価値を保存しておく。
+    previousScore = bestThread->rootMoves[0].score;
+
+    // ベストな指し手として返すスレッドがmain threadではないのなら、その読み筋は出力していなかったはずなので
+    // ここで読み筋を出力しておく。
+    if (bestThread != this && !Limits.silent)
+      sync_cout << USI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
   }
-
-  // 次回の探索のときに何らか使えるのでベストな指し手の評価値を保存しておく。
-  previousScore = bestThread->rootMoves[0].score;
-
-  // ベストな指し手として返すスレッドがmain threadではないのなら、その読み筋は出力していなかったはずなので
-  // ここで読み筋を出力しておく。
-  if (bestThread != this && !Limits.silent)
-    sync_cout << USI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
 
   // ---------------------
   // 指し手をGUIに返す
