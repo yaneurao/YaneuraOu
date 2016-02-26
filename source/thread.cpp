@@ -116,22 +116,8 @@ void ThreadPool::read_usi_options() {
   }
 }
 
-
-void ThreadPool::start_thinking(const Position& pos, const Search::LimitsType& limits, Search::StateStackPtr& states)
+void ThreadPool::init_for_slave(const Position& pos, const Search::LimitsType& limits)
 {
-  // 思考中であれば停止するまで待つ。
-  main()->wait_for_search_finished();
-
-  Signals.stop = false;
-
-  main()->rootMoves.clear();
-  main()->rootPos = pos;
-  Limits = limits;
-  
-  // statesが呼び出し元から渡されているならこの所有権をSearch::SetupStatesに移しておく。
-  if (states.get())
-    SetupStates = std::move(states);
-
   // 初期局面では合法手すべてを生成してそれをrootMovesに設定しておいてやる。
   // このとき、歩の不成などの指し手は除く。(そのほうが勝率が上がるので)
   // また、goコマンドでsearchmovesが指定されているなら、そこに含まれていないものは除く。
@@ -151,6 +137,24 @@ void ThreadPool::start_thinking(const Position& pos, const Search::LimitsType& l
   // Positionクラスに対して、それを探索しているスレッドを設定しておいてやる。
   for (auto th : *this)
     th->rootPos.set_this_thread(th);
+}
+
+void ThreadPool::start_thinking(const Position& pos, const Search::LimitsType& limits, Search::StateStackPtr& states)
+{
+  // 思考中であれば停止するまで待つ。
+  main()->wait_for_search_finished();
+
+  Signals.stop = false;
+
+  main()->rootMoves.clear();
+  main()->rootPos = pos;
+  Limits = limits;
+  
+  // statesが呼び出し元から渡されているならこの所有権をSearch::SetupStatesに移しておく。
+  if (states.get())
+    SetupStates = std::move(states);
+
+  init_for_slave(pos, limits);
 
   main()->start_searching();
 }

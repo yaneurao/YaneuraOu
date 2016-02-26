@@ -47,11 +47,13 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/02/26 3:15現在)
+#　俺の作業メモ(2016/02/26 14:43現在)
 
-- [] ・やねうら王miniに思考時間のマネージメント実装
-- [] ・やねうら王miniにponder実装
+- [] ・思考時間のマネージメントを実装する
+- [] ・ponder実装する
+- [] ・やねうら王miniの並列化時のバグ修正中。
 
+- [x] 2016/02/26・やねうら王miniのaspirationのdelta調整。(+R20)
 - [x] 2016/02/26・やねうら王miniにlazy SMP実装。
 - [x] 2016/02/26・やねうら王miniにPV line実装。(-R10)
 - [x] 2016/02/26・やねうら王miniにss->moveCount追加。これによるhistoryへのbonus追加。(+R30)

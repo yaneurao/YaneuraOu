@@ -179,6 +179,18 @@ struct ThreadPool : public std::vector<Thread*>
 
   // USIプロトコルで指定されているスレッド数を反映させる。
   void read_usi_options();
+
+  // 探索開始前のslaveの初期化
+  // 探索部を単体でどこかから呼び出したいときに用いる。
+  /*
+  例)
+    Search::clear();                                      // isreadyが呼び出されたものとする。
+    Time.init();                                          // 思考開始時刻の初期化
+    Threads.init_for_slave(pos, lm);                      // 局面をslaveにもコピーする
+    Threads.start_thinking(pos, lm, Search::SetupStates); // 思考させる
+    Threads.main()->wait_for_search_finished();           // 思考の終了を待つ
+  */
+  void init_for_slave(const Position& pos, const Search::LimitsType& limits);
 };
 
 // ThreadPoolのglobalな実体

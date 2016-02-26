@@ -881,6 +881,11 @@ void Search::clear()
 {
   TT.clear();
   CounterMoveHistory.clear();
+  for (Thread* th : Threads)
+  {
+    th->history.clear();
+    th->counterMoves.clear();
+  }
 }
 
 // 探索開始時に呼び出される。

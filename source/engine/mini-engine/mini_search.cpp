@@ -7,10 +7,9 @@
 // -----------------------
 
 // 開発方針
-// ・nanoに似た読みやすいソースコード
-// ・nanoからオーダリングを改善。
-// ・超高速1手詰めを使用。
-// ・250行程度のシンプルな探索部でR2500を目指す。
+// ・nano plusに似た読みやすいソースコード
+// ・lazy SMPで並列化
+// ・300行程度のシンプルな探索部でR3000を目指す。
 // このあと改造していくためのベースとなる教育的なコードを目指す。
 
 #include <sstream>
@@ -993,6 +992,13 @@ void Search::clear()
 {
   TT.clear();
   CounterMoveHistory.clear();
+
+  for (Thread* th : Threads)
+  {
+    th->history.clear();
+    th->counterMoves.clear();
+  }
+
   Threads.main()->previousScore = VALUE_INFINITE;
 }
 
@@ -1082,7 +1088,8 @@ void Thread::search()
         // aspiration windowの幅
         // 精度の良い評価関数ならばこの幅を小さくすると探索効率が上がるのだが、
         // 精度の悪い評価関数だとこの幅を小さくしすぎると再探索が増えて探索効率が低下する。
-        delta = Value(30);
+        // やねうら王のKPP評価関数では35～40ぐらいがベスト。もっと精度の高い評価関数を用意すべき。
+        delta = Value(40);
 
         alpha = std::max(rootMoves[PVIdx].previousScore - delta, -VALUE_INFINITE);
         beta  = std::min(rootMoves[PVIdx].previousScore + delta, VALUE_INFINITE);
@@ -1149,9 +1156,13 @@ void Thread::search()
         else if (PVIdx + 1 == multiPV || Time.elapsed() > 3000)
           sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
       }
-    }
+    } // multi PV
 
-  }
+    // ここでこの反復深化の1回分は終了したのでcompleteDepthに反映させておく。
+    if (!Signals.stop)
+      completedDepth = rootDepth;
+
+  } // iterative deeping
 
 }
 
@@ -1323,7 +1334,7 @@ ID_END:;
 
   // ベストな指し手として返すスレッドがmain threadではないのなら、その読み筋は出力していなかったはずなので
   // ここで読み筋を出力しておく。
-  if (bestThread != this)
+  if (bestThread != this && !Limits.silent)
     sync_cout << USI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
 
   // ---------------------

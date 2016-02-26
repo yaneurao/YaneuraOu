@@ -696,6 +696,9 @@ void auto_play(Position& pos, istringstream& is)
   lm.byoyomi[BLACK] = lm.byoyomi[WHITE] = 0;
   Options["NetworkDelay"] = string("1900"); // どうせこれで2秒-1.9秒 = 0.1秒の思考となる。
 
+  // isreadyが呼び出されたものとする。
+  Search::clear();
+
   for (int i = 0; i < loop_max; ++i)
   {
     pos.set_hirate();
@@ -707,6 +710,7 @@ void auto_play(Position& pos, istringstream& is)
         break;
 
       Time.init();
+      Threads.init_for_slave(pos, lm);
       Threads.start_thinking(pos, lm, Search::SetupStates);
       Threads.main()->wait_for_search_finished();
       auto rootMoves = Threads.main()->rootMoves;
