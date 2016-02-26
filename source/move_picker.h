@@ -143,6 +143,7 @@ struct MovePicker
   {
     if (pos.in_check())
       stage = EVASION_START;
+
     else if (depth > DEPTH_QS_NO_CHECKS)
       stage = QSEARCH_WITH_CHECKS_START;
 
@@ -177,6 +178,14 @@ struct MovePicker
       score_captures(); // CAPTUREの指し手の並べ替え。
       break;
 
+    case KILLERS:
+      killers[0] = ss->killers[0];
+      killers[1] = ss->killers[1];
+      killers[2] = counterMove;
+      currentMoves = killers;
+      endMoves = currentMoves + 2 + (counterMove != killers[0] && counterMove != killers[1]);
+      break;
+
     case GOOD_RECAPTURES:
       endMoves = generateMoves<RECAPTURES>(pos, moves, recaptureSquare);
       break;
@@ -204,14 +213,6 @@ struct MovePicker
       // 残り探索深さがある程度あるなら、ソートする時間は相対的に無視できる。
       if (depth >= 3 * ONE_PLY)
         insertion_sort(currentMoves, endMoves);
-      break;
-
-    case KILLERS:
-      killers[0] = ss->killers[0];
-      killers[1] = ss->killers[1];
-      killers[2] = counterMove;
-      currentMoves = killers;
-      endMoves = currentMoves + 2 + (counterMove != killers[0] && counterMove != killers[1]);
       break;
 
     case ALL_EVASIONS:
@@ -326,6 +327,7 @@ struct MovePicker
         break;
 
         // 取り返す指し手。これはすでに生成されているのでそのまま返すだけで良い。
+        // オーダリングもしない。(移動させる駒の価値が低い順に並べたほうがいいのかも知れない)
       case GOOD_RECAPTURES:
         move = *currentMoves++;
         return move;

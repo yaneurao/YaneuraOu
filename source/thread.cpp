@@ -131,15 +131,15 @@ void ThreadPool::init_for_slave(const Position& pos, const Search::LimitsType& l
 
   // おまけでslaveの初期局面も同じにしておいてやる。
   for (auto th : *this)
+  {
     if (th != main())
     {
       th->rootPos = Position(main()->rootPos);
       th->rootMoves = main()->rootMoves;
     }
-
-  // Positionクラスに対して、それを探索しているスレッドを設定しておいてやる。
-  for (auto th : *this)
+    // Positionクラスに対して、それを探索しているスレッドを設定しておいてやる。
     th->rootPos.set_this_thread(th);
+  }
 }
 
 void ThreadPool::start_thinking(const Position& pos, const Search::LimitsType& limits, Search::StateStackPtr& states)

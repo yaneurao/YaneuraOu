@@ -53,8 +53,9 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 - [] ・ponder実装する
 - [] ・やねうら王miniの並列化時のバグ修正中。
 
+- [x] 2016/02/26・やねうら王miniでmain threadでfail high/lowが起きたときにGUIに読み筋を出力するようにした。
 - [x] 2016/02/26・やねうら王miniのaspirationのdelta調整。(+R20)
-- [x] 2016/02/26・やねうら王miniにlazy SMP実装。
+- [x] 2016/02/26・やねうら王miniにlazy SMP実装。(4コア時+R220程度)
 - [x] 2016/02/26・やねうら王miniにPV line実装。(-R10)
 - [x] 2016/02/26・やねうら王miniにss->moveCount追加。これによるhistoryへのbonus追加。(+R30)
 - [x] 2016/02/26・やねうら王miniにaspiration windows search実装。(+R10)

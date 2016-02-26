@@ -20,6 +20,7 @@ namespace Search {
     // std::count(),std::find()などで指し手と比較するときに必要。
     bool operator==(const Move& m) const { return pv[0] == m; }
 
+    // pv[0]には、このコンストラクタの引数で渡されたmを設定する。
     explicit RootMove(Move m) : pv(1,m) {}
 
     // this->pvに読み筋(PV)が保存されているとして、

@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "1.83"
+#define ENGINE_VERSION "1.87"
 
 // --------------------
 // コンパイル時の設定
@@ -812,6 +812,11 @@ namespace USI {
 
   // USIプロトコルで、idxの順番でoptionを出力する。
   std::ostream& operator<<(std::ostream& os, const OptionsMap& om);
+
+  // USIプロトコルの形式でValue型を出力する。
+  // 歩が100になるように正規化するので、operator <<()をこういう仕様にすると
+  // 実際の値と異なる表示になりデバッグがしにくくなるから、そうはしていない。
+  std::string score_to_usi(Value v);
 }
 
 // USIのoption設定はここに保持されている。
