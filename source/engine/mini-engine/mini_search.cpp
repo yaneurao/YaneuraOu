@@ -1104,7 +1104,7 @@ void Thread::search()
         delta = Value(40);
 
         alpha = std::max(rootMoves[PVIdx].previousScore - delta, -VALUE_INFINITE);
-        beta  = std::min(rootMoves[PVIdx].previousScore + delta, VALUE_INFINITE);
+        beta  = std::min(rootMoves[PVIdx].previousScore + delta,  VALUE_INFINITE);
       }
 
       while (true)
@@ -1141,7 +1141,7 @@ void Thread::search()
           // betaをalphaにまで寄せてしまうと今度はfail highする可能性があるので
           // betaをalphaのほうに少しだけ寄せる程度に留める。
           beta = (alpha + beta) / 2;
-          alpha = max(bestValue - delta, -VALUE_INFINITE);
+          alpha = std::max(bestValue - delta, -VALUE_INFINITE);
         }
         else if (bestValue >= beta)
         {
