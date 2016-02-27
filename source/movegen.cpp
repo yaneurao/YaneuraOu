@@ -565,9 +565,12 @@ template <Piece Pt,Color Us, bool All,bool Promote>
       mlist++->move = make_move_promote(from, to);
     else
     {
-      if (((Pt == PAWN || Pt == LANCE) &&
-        ((!All && ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_7))) ||
-          (All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_9))))
+      if (((Pt == PAWN) &&
+          ((!All && !canPromote(Us,to)) ||
+            (All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_9))))
+        || ((Pt == LANCE) &&
+          ((!All && ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_7))) ||
+            (All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_9))))
         || (Pt == KNIGHT && ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_7)))
         || (Pt == SILVER)
         || ((Pt == BISHOP || Pt == ROOK) && (!(canPromote(Us,from) || canPromote(Us,to)) || All) )

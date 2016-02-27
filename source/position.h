@@ -210,7 +210,8 @@ struct Position
   int64_t nodes_searched() const { return nodes; }
 
   // この指し手によって移動させる駒を返す
-  Piece moved_piece(Move m) const { return is_drop(m) ? move_dropped_piece(m) : piece_on(move_from(m)); }
+  // 後手の駒打ちは後手の駒が返る。
+  Piece moved_piece(Move m) const { return is_drop(m) ? (move_dropped_piece(m) + (sideToMove==WHITE ? PIECE_WHITE : NO_PIECE)) : piece_on(move_from(m)); }
 
   // 連続王手の千日手等で引き分けかどうかを返す
   RepetitionState is_repetition(const int repPly = 16) const;
@@ -313,7 +314,11 @@ struct Position
   // killerのような兄弟局面の指し手がこの局面において合法かどうかにも使う。
   // ※　置換表の検査だが、pseudo_legal()で擬似合法手かどうかを判定したあとlegal()で自殺手でないことを
   // 確認しなくてはならない。このためpseudo_legal()とlegal()とで重複する自殺手チェックはしていない。
-  bool pseudo_legal(const Move m) const;
+  // 注意 : 事前にcheck_info_update()が呼び出されていること。
+  bool pseudo_legal(const Move m) const { return pseudo_legal_s<true>(m); }
+
+  // All == true  : 歩や大駒の不成に対してはfalseを返すpseudo_legal()
+  template <bool All> bool pseudo_legal_s(const Move m) const;
 
   // toの地点に歩を打ったときに打ち歩詰めにならないならtrue。
   // 歩をtoに打つことと、二歩でないこと、toの前に敵玉がいることまでは確定しているものとする。

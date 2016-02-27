@@ -583,16 +583,14 @@ void Thread::search()
       if (m == MOVE_NULL)
         break;
 
+      rootPos.check_info_update();
+
       // 非合法手を弾く
       if (m!=MOVE_RESIGN && (!rootPos.pseudo_legal(m) || !rootPos.legal(m)))
       {
         sync_cout << "Error : illigal move , move = " << m << " , engine name = " << engine_name << endl << rootPos << sync_endl;
         m = MOVE_RESIGN;
-      }
-
-      if (m != MOVE_RESIGN)
-      {
-        rootPos.check_info_update();
+      } else {
 
         SetupStates->push(StateInfo());
         rootPos.do_move(m, SetupStates->top());

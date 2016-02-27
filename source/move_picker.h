@@ -45,13 +45,26 @@ struct Stats {
   void clear() { std::memset(table, 0, sizeof(table)); }
 
   // tableの要素の値を取り出す
-  T get(Piece pc, Square sq) const { return table[sq][pc]; }
+  T get(Piece pc, Square to) const
+  {
+    ASSERT_LV4(is_ok(pc));
+    ASSERT_LV4(is_ok(to));
+    return table[to][pc];
+  }
 
   // tableに指し手を格納する。(Tの型がMoveのとき)
-  void update(Piece pc, Square to, Move m) { table[to][pc] = m; }
+  void update(Piece pc, Square to, Move m)
+  {
+    ASSERT_LV4(is_ok(pc));
+    ASSERT_LV4(is_ok(to));
+    table[to][pc] = m;
+  }
 
   // tableに値を格納する(Tの型がValueのとき)
   void update(Piece pc, Square to, Value v) {
+
+    ASSERT_LV4(is_ok(pc));
+    ASSERT_LV4(is_ok(to));
 
     // abs(v) <= 324に制限する。
     v = max((Value)-324, v);
@@ -158,7 +171,8 @@ struct MovePicker
       return;
     }
 
-    ttMove = ttMove_ && pos.pseudo_legal(ttMove_) ? ttMove_ : MOVE_NONE;
+    // 歩の不成、香の2段目への不成、大駒の不成を除外
+    ttMove = ttMove_ && pos.pseudo_legal_s<false>(ttMove_) ? ttMove_ : MOVE_NONE;
     endMoves += (ttMove != MOVE_NONE);
   }
 
@@ -262,9 +276,9 @@ struct MovePicker
         // (直前に置換表の指し手を返しているし、CAPTURES_PRO_PLUSでの指し手も返しているのでそれらの指し手は除外されるべき)
       case KILLERS:
         move = *currentMoves++;
-        if (move != MOVE_NONE         // ss->killer[0],[1]からコピーしただけなのでMOVE_NONEの可能性がある
-          &&  move != ttMove            // 置換表の指し手を重複除去しないといけない
-          &&  pos.pseudo_legal(move)
+        if (move != MOVE_NONE                       // ss->killer[0],[1]からコピーしただけなのでMOVE_NONEの可能性がある
+          &&  move != ttMove                        // 置換表の指し手を重複除去しないといけない
+          &&  pos.pseudo_legal_s<false>(move)       // pseudo_legalでない指し手以外に歩や大駒の不成なども除外
           && !pos.capture_or_pawn_promotion(move))  // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
           return move;
         break;

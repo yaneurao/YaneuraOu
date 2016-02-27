@@ -5,6 +5,103 @@
 ・実現確率の低い定跡の指し手は指さないオプションを用意しないと糞定跡掴まされて死にそう…。
 
 
+
+■ 2016/02/27 V1.91
+
+・0.1秒自己対局で4000局で1回落ちたようだ。やはりinsert_pv_in_tt()以外で何かやらかしている。
+・リリースビルドであれ、デバッガでアタッチさえできればウォッチでpos.sfen()としてsfen文字列を取り出したり、
+	to_usi_string(move)とかで、指し手文字列を得たりできるので、デバッグは出来るのだが…。	
+
+	sfen lnsg1k3/9/pppp+N1G2/4pppp1/3l5/2P6/PPS1PPP2/1Kl1G1S2/LN3S+r2 w BRG4pnb 86
+
+・2PCで8時間回して落ちない。
+・残りのPCにもVS入れてテストする。
+・local server、pseudo-legalのチェック入れるべきか…。
+	→　すでに入ってた
+・MovePickerがpseudo legalの判定するのだが、check_info_update()が呼び出されていないのでは…。
+	→　と思ったが、呼びだされていた。
+・本格的に原因がわからんので、5PCでlocal-server回しておく。
+　↓
+  6時間で1回落ちた。
+	sfen 2bK1G3/7+L1/6+R2/1G6s/1G7/9/1P7/5ps2/2r1pks1+B w 10P3NG5p3lns 247
+	→　この局面100%落ちるわ..やったー！
+	59の歩が一歩進んで61の玉をcaptureしてる…。
+	ああ、置換表に58->59銀みたいな指し手があると、次にkillerでこれが歩に適用されて
+	59歩不成みたいな指し手が生成されるということなのか。なるほど、駒種を持っていないとこういうことが起こりえるのか…。
+	動かす駒を持っていればpseudo-legalの判定でその駒でなければ弾かれるのか。うーん、なるほど…。
+	→　調べてみたら、counte moveに登録されてこの手が生じたようだ。counter moveって駒が違うと適用されるべきではないのか..そうか..
+	pseudo_legal拡張して、かつ、駒種は持つべきなのか…そうか…。
+	置換表サイズ足りない..。
+
+    // これ、駒種を持っておいて、駒種が違うときは適用しないほうがオーダリング効率は上がる。
+    auto cm = thisThread->counterMoves.get(prevPc, prevSq);
+	Moveが32bitになるとCounterMoveの配列も倍になるしな…。
+	そもそもそんなに都合よく別の駒が来ていることって現実的にはほとんどない気もするしな…。
+
+・insert_pv_in_tt()のところ戻して、もう一度、変な指し手が生成されていないか確認する。
+
+・Position::legal<bool All>(),pseudo_legal<bool All>()
+　みたいなチェック入れたほうがいいのか…。うーん..
+  // All == true  : 歩や大駒の不成に対してはfalseを返すpseudo_legal()
+  template <bool All> bool pseudo_legal_s(const Move m) const;
+	追加した。
+
+・どこで不成の指し手が出てくるのか以下のコードを追加して調べる。
+
+          if (pos.pseudo_legal_s<false>(move) == false)
+          {
+            std::cout << pos << move << std::endl;
+            pos.pseudo_legal_s<false>(move);
+          }
+
+	"ln4s2/1k5b1/p1pgppp1n/1P2l2g1/1G5p1/4P4/P2P1PP1P/2S2S1R1/+n2K1G3 b S5p2lnbr 75"
+	この局面に対してQCHECKで歩の不成が生成されている。
+
+  case PAWN:   GEN_MOVE_NONPRO_CHECK(PAWN, pawnEffect, goldEffect); break;
+  case LANCE:  GEN_MOVE_LANCE_CHECK (LANCE, lanceEffect, goldEffect); break;
+
+  このへんが怪しい。
+
+      if (((Pt == PAWN || Pt == LANCE) &&
+        ((!All && ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_7))) ||
+          (All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_9))))
+		この条件が間違っている。
+		↓こうではないかと。
+      if (((Pt == PAWN) &&
+          ((!All && !canPromote(Us,to)) ||
+            (All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_9))))
+        || ((Pt == LANCE) &&
+          ((!All && ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_7))) ||
+            (All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_9))))
+
+			↓
+  rootPos.set("ln4s2/1k5b1/p1pgppp1n/1P2l2g1/1G5p1/4P4/P2P1PP1P/2S2S1R1/+n2K1G3 b S5p2lnbr 75");
+  cout << rootPos;
+  for (auto m : MoveList<QUIET_CHECKS>(rootPos))
+    cout << " " << m;
+		うまく動いた
+
+  Piece moved_piece(Move m) const { return is_drop(m) ? move_dropped_piece(m) : piece_on(move_from(m)); }
+	これが後手のときに後手の指し手でないのがおかしいのか。
+	→　これ修正した。駒打ちに関するオーダリングが少し改善されるかも。
+
+・statのupdateにassert追加した。
+
+・Threadsが変更になってからisreadyが送られてこないとisreadyでthread数だけ初期化しているものはこれではまずいのか…。
+
+sfen ln5nl/6gk1/p1sp1g1s1/1P2ppppp/1p1P5/1bP1PPPPP/PRNSBGNS1/6GK1/L2r4L b p 67
+setoption name Threads value 1
+isready
+go infinite
+
+test autoplay
+
+→　わかった。飛車を成って、その成った駒を動かした指し手がcounter moveに登録されている。
+　これがまずいので、MovePickerではpseudo_legal_s<false>()を呼び出すようにする。
+
+・これで修正できたと思うのでV1.88と対戦回してみる。
+
+
 ■ 2016/02/27 V1.90
 
 ・value_to_tt()の説明間違っていたので修正。
@@ -46,7 +143,11 @@
 	このままランニングさせておく。
 
 ・pseudo_legalにASSERT少し追加。
+・MovePicker
+          ASSERT_LV3(pos.pseudo_legal_s<false>(move));
+こうしてランニングしてみる。
 
+・miniのsilent modeで定跡のcoutへの出力抑制する。
 
 
 ■ 2016/02/26 V1.89

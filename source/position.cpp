@@ -636,7 +636,8 @@ bool Position::legal_drop(const Square to) const
 }
 
 // ※　mがこの局面においてpseudo_legalかどうかを判定するための関数。
-bool Position::pseudo_legal(const Move m) const {
+template <bool All>
+bool Position::pseudo_legal_s(const Move m) const {
 
   const Color us = sideToMove;
   const Square to = move_to(m); // 移動先
@@ -718,6 +719,42 @@ bool Position::pseudo_legal(const Move m) const {
       // --- 成らない指し手
 
       // 駒打ちのところに書いた理由により、不成で進めない升への指し手のチェックも不要。
+      // 間違い　→　駒種をmoveに含めていないのでこのチェック必要だわ。
+      // 52から51銀のような指し手がkillerやcountermoveに登録されていたとして、52に歩があると
+      // 51歩不成という指し手を生成してしまう…。
+      // あと、歩や大駒が敵陣において成らない指し手も不要なのでは..。
+
+      if (All)
+      {
+        // 歩と香に関しては1段目への不成は不可。桂は、桂飛びが出来る駒は桂しかないので
+        // 移動元と移動先がこれであるかぎり、それは桂の指し手生成によって生成されたものだから
+        // これが非合法手であることはない。
+
+        if (pt == PAWN || pt == LANCE)
+          if ((us == BLACK && rank_of(to) == RANK_1) || (us == WHITE && rank_of(to) == RANK_9))
+            return false;
+      } else {
+        // 歩の不成と香の2段目への不成を禁止。
+        // 大駒の不成を禁止
+        switch (pt)
+        {
+        case PAWN:
+          if (enemy_field(us) & to)
+            return false;
+          break;
+
+        case LANCE:
+          if ((us == BLACK && rank_of(to) <= RANK_2) || (us == WHITE && rank_of(to) >= RANK_8))
+            return false;
+          break;
+
+        case BISHOP:
+        case ROOK:
+          if (enemy_field(us) & (Bitboard(from) | Bitboard(to)))
+            return false;
+          break;
+        }
+      }
 
     }
 
@@ -1284,3 +1321,7 @@ bool Position::pos_is_ok() const
 
   return true;
 }
+
+// 明示的な実体化
+template bool Position::pseudo_legal_s<false>(const Move m) const;
+template bool Position::pseudo_legal_s< true>(const Move m) const;

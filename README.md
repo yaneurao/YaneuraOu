@@ -47,12 +47,15 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/02/26 14:43現在)
+#　俺の作業メモ(2016/02/28 2:15現在)
 
 - [] ・思考時間のマネージメントを実装する
 - [] ・ponder実装する
-- [] ・やねうら王miniの並列化時のバグ修正中。
 
+- [x] 2016/02/28・MovePickerで置換表の指し手とcounter moveにおいて歩や大駒の不成などを除外するようにした。
+- [x] 2016/02/28・Position::moved_piece()で後手の駒打ちのときに後手の駒が返るように変更。
+- [x] 2016/02/28・QUITE_CHECKで歩の不成が生成されていた問題を修正。
+- [x] 2016/02/27・Position::pseudo_legal()修正。
 - [x] 2016/02/26・やねうら王miniでmain threadでfail high/lowが起きたときにGUIに読み筋を出力するようにした。
 - [x] 2016/02/26・やねうら王miniのaspirationのdelta調整。(+R20)
 - [x] 2016/02/26・やねうら王miniにlazy SMP実装。(4コア時+R220程度)

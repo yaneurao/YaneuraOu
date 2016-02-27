@@ -126,7 +126,6 @@ namespace YaneuraOuMini
   inline void update_stats(const Position& pos, Stack* ss, Move move,
     Depth depth, Move* quiets, int quietsCnt)
   {
-
     //   killerのupdate
 
     // killer 2本しかないので[0]と違うならいまの[0]を[1]に降格させて[0]と差し替え
@@ -723,14 +722,15 @@ namespace YaneuraOuMini
     auto prevSq = move_to((ss - 1)->currentMove);
     // その升へ移動させた駒
     auto prevPc = pos.piece_on(prevSq);
+
     // toの升に駒pcを動かしたことに対する応手
     auto cm = thisThread->counterMoves.get(prevPc, prevSq);
+
     // counter history
     const auto& cmh = CounterMoveHistory.get(prevPc, prevSq);
 
     pos.check_info_update();
     MovePicker mp(pos, ttMove, depth, thisThread->history, cmh, cm, ss);
-
 
     //  一手ずつ調べていく
 
@@ -1002,6 +1002,7 @@ void Search::clear()
   TT.clear();
   CounterMoveHistory.clear();
 
+  // Threadsが変更になってからisreadyが送られてこないとisreadyでthread数だけ初期化しているものはこれではまずいの
   for (Thread* th : Threads)
   {
     th->history.clear();
@@ -1232,10 +1233,11 @@ void MainThread::think()
     if (it != book.end()) {
       // 定跡にhitした。逆順で出力しないと将棋所だと逆順にならないという問題があるので逆順で出力する。
       const auto& move_list = it->second;
-      for (auto it = move_list.rbegin(); it != move_list.rend(); it++)
-        sync_cout << "info pv " << it->bestMove << " " << it->nextMove
-        << " (" << fixed << setprecision(2) << (100 * it->prob) << "%)" // 採択確率
-        << " score cp " << it->value << " depth " << it->depth << sync_endl;
+      if (!Limits.silent)
+        for (auto it = move_list.rbegin(); it != move_list.rend(); it++)
+          sync_cout << "info pv " << it->bestMove << " " << it->nextMove
+            << " (" << fixed << setprecision(2) << (100 * it->prob) << "%)" // 採択確率
+            << " score cp " << it->value << " depth " << it->depth << sync_endl;
 
       // このなかの一つをランダムに選択
       // 無難な指し手が選びたければ、採択回数が一番多い、最初の指し手(move_list[0])を選ぶべし。
