@@ -48,6 +48,15 @@ namespace YaneuraOuMini
   // Rootはここでは用意しない。Rootに特化した関数を用意するのが少し無駄なので。
   enum NodeType { PV, NonPV };
 
+  // Razoringのdepthに応じたマージン値
+  // ※　この値、あとで調整すべき。
+  const Value razor_margin(Depth d)
+  {
+    static_assert(ONE_PLY == 2,"static_assert ONE_PLY == 2");
+    ASSERT_LV3(DEPTH_ZERO <= d && d < 4 * ONE_PLY);
+    return (Value)(512 + 16 * static_cast<int>(d));
+  }
+
   // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
   Value futility_margin(Depth d, int game_ply) {
     // 80手目を終盤と定義して、終盤に近づくほどmarginの幅を上げるように調整する。
@@ -680,6 +689,43 @@ namespace YaneuraOuMini
     // 王手のときはここにはこない。(上のInCheckのなかでMOVES_LOOPに突入。)
 
     //
+    //   Razoring
+    //
+
+#if 0
+    // 残り探索深さが少ないときに、その手数でalphaを上回りそうにないとき用の枝刈り。
+    if (!PvNode
+      &&  depth < 4 * ONE_PLY
+      &&  eval + razor_margin(depth) <= alpha
+      &&  ttMove == MOVE_NONE)
+    {
+      // 残り探索深さがONE_PLY以下で、alphaを確実に下回りそうなら、ここで静止探索を呼び出してしまう。
+      if (depth <= ONE_PLY
+        && eval + razor_margin(3 * ONE_PLY) <= alpha)
+        return  qsearch<NonPV, false>(pos, ss, alpha,  beta     , DEPTH_ZERO);
+
+      // 残り探索深さが1～3手ぐらいあるときに、alpha - razor_marginを上回るかだけ調べて
+      // 上回りそうにないならもうリターンする。
+      Value ralpha = alpha - razor_margin(depth);
+      Value v = qsearch<NonPV, false>(pos, ss, ralpha, ralpha + 1, DEPTH_ZERO);
+      if (v <= ralpha)
+        return v;
+    }
+#endif
+
+    if (!PvNode
+      && depth < 4 * ONE_PLY
+      && eval + razor_margin(depth) < beta
+      && ttMove == MOVE_NONE
+      && abs(beta) < VALUE_MATE_IN_MAX_PLY)
+    {
+      const Value rbeta = beta - razor_margin(depth);
+      const Value s = qsearch<NonPV, false>(pos, ss, rbeta - 1, rbeta, DEPTH_ZERO);
+      if (s < rbeta)
+        return s;
+    }
+
+    //
     //   Futility pruning
     //
 
@@ -720,6 +766,9 @@ namespace YaneuraOuMini
 
       if (nullValue >= beta)
       {
+        // 1手パスしてもbetaを上回りそうであることがわかったので
+        // これをもう少しちゃんと検証しなおす。
+
         // 証明されていないmate scoreの場合はリターンしない。
         if (nullValue >= VALUE_MATE_IN_MAX_PLY)
           nullValue = beta;
@@ -727,7 +776,7 @@ namespace YaneuraOuMini
         if (depth < 12 * ONE_PLY && abs(beta) < VALUE_KNOWN_WIN)
           return nullValue;
 
-        // nullMoveせずに同じ深さで探索しなおして本当にbetaを超えるか検証する。cutNodeにしない。
+        // nullMoveせずに(現在のnodeと同じ手番で)同じ深さで探索しなおして本当にbetaを超えるか検証する。cutNodeにしない。
         ss->skipEarlyPruning = true;
         Value v = depth - R < ONE_PLY ? qsearch<NonPV, false>(pos, ss, beta - 1, beta, DEPTH_ZERO       )
                                       :  search<NonPV       >(pos, ss, beta - 1, beta, depth - R , false);

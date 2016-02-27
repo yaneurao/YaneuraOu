@@ -47,11 +47,12 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/02/28 2:15現在)
+#　俺の作業メモ(2016/02/28 7:00現在)
 
 - [] ・思考時間のマネージメントを実装する
 - [] ・ponder実装する
 
+- [x] 2016/02/28・やねうら王miniにrazoring追加。(+R20)
 - [x] 2016/02/28・やねうら王miniにnull move search追加。(+R60)
 - [x] 2016/02/28・Position::do_null_move()/undo_null_move()追加。
 - [x] 2016/02/28・MovePickerで置換表の指し手とcounter moveにおいて歩や大駒の不成などを除外するようにした。

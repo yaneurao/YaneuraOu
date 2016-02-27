@@ -5,11 +5,84 @@
 ・実現確率の低い定跡の指し手は指さないオプションを用意しないと糞定跡掴まされて死にそう…。
 
 
+■ 2016/02/28 V1.93
+
+・miniにrazoring追加。
+
+	  const int razor_margin_table[4] = { 483, 570, 603, 554 };
+	  const Value razor_margin(Depth d)
+	  {
+		ASSERT_LV3(DEPTH_ZERO <= d && d < 4 * ONE_PLY);
+		return (Value)(512 + 16 * static_cast<int>(d));
+		return (Value)razor_margin_table[d / ONE_PLY];
+	  }
+
+	53.4%	
+	#52
+	やねうら王mini V193
+	razoring追加, 1スレッド、0.1秒設定
+	#0
+	やねうら王mini V192
+	null move追加, 1スレッド、0.1秒設定
+
+	205-10-179(8.4% R23.6)	
+	→　あまり強くなってない。
+
+	V1.93a
+	Apery風のrazoringにしてみる。
+
+		inline Value razor_margin(const Depth d) {
+			return (Value)(512 + 16 * static_cast<int>(d));
+		}
+
+		if (!PvNode
+			&& depth < 4 * ONE_PLY
+			&& eval + razor_margin(depth) < beta
+			&& ttMove == MOVE_NONE
+			&& abs(beta) < VALUE_MATE_IN_MAX_PLY)
+		{
+			const Value rbeta = beta - razor_margin(depth);
+			const Value s = qsearch<NonPV, false>(pos, ss, rbeta - 1, rbeta, DEPTH_ZERO);
+			if (s < rbeta)
+			return s;
+		}
+
+		47.9%	
+		#53
+		やねうら王mini V193a
+		razoring apery風追加, 1スレッド、0.1秒設定
+		#52
+		やねうら王mini V193
+		razoring追加, 1スレッド、0.1秒設定
+
+		236-13-257(83.9% R-14.8)	
+
+	V1.93b
+		margin、線形にしてみる。
+
+		  const Value razor_margin(Depth d)
+		  {
+			static_assert(ONE_PLY == 2,"static_assert ONE_PLY == 2");
+			ASSERT_LV3(DEPTH_ZERO <= d && d < 4 * ONE_PLY);
+			return (Value)(512 + 16 * static_cast<int>(d));
+		  }
+
+
 ■ 2016/02/28 V1.92
 
 ・miniにnull move pruning追加。
 ・Position::do_null_move()/undo_null_move()追加。
 	→　iterationだいぶ回るようになった。
+
+		61.9%	
+		#51
+		やねうら王mini V192
+		null move追加, 1スレッド、0.1秒設定
+		#50
+		やねうら王mini V191
+		pseudo_legal修正, 1スレッド、0.1秒設定
+
+		166-3-102(0.0% R84.6)	
 
 
 ■ 2016/02/27 V1.91
