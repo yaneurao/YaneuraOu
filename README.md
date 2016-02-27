@@ -52,6 +52,7 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 - [] ・思考時間のマネージメントを実装する
 - [] ・ponder実装する
 
+- [x] 2016/02/28・やねうら王miniで定跡の指し手が指せていなかったの修正。
 - [x] 2016/02/28・やねうら王miniにrazoring追加。(+R20)
 - [x] 2016/02/28・やねうら王miniにnull move search追加。(+R60)
 - [x] 2016/02/28・Position::do_null_move()/undo_null_move()追加。

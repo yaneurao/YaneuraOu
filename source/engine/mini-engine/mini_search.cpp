@@ -1336,9 +1336,16 @@ void MainThread::think()
 
       // このなかの一つをランダムに選択
       // 無難な指し手が選びたければ、採択回数が一番多い、最初の指し手(move_list[0])を選ぶべし。
-      rootMoves.push_back(RootMove(move_list[prng.rand(move_list.size())].bestMove));
 
-      goto ID_END;
+      // 不成の指し手がRootMovesに含まれていると正しく指せない。
+      auto bestMove = move_list[prng.rand(move_list.size())].bestMove;
+      auto it_move = std::find(rootMoves.begin(), rootMoves.end(),bestMove);
+      if (it_move != rootMoves.end())
+      {
+        std::swap(rootMoves[0], *it_move);
+        goto ID_END;
+      }
+      // 合法手のなかに含まれていなかったので定跡の指し手は指さない。
     }
   }
 
