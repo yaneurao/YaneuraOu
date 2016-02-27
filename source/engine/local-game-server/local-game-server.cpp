@@ -37,7 +37,7 @@ struct ProcessNegotiator
 
     // Create the child process
 
-    BOOL success = ::CreateProcess(app_path.c_str(), // ApplicationName
+    success = ::CreateProcess(app_path.c_str(), // ApplicationName
       NULL, // CmdLine
       NULL, // security attributes
       NULL, // primary thread security attributes
@@ -50,8 +50,9 @@ struct ProcessNegotiator
       );
 
     if (!success)
-      sync_cout << "CreateProcessに失敗" << endl;
+      sync_cout << "CreateProcessに失敗" << sync_endl;
   }
+  bool success;
 
   // 長手数になるかも知れないので…。
   static const int BUF_SIZE = 4096;
@@ -207,6 +208,8 @@ struct EngineState
     // エンジンはquitコマンドに対して自動的にプロセスを終了させるものと仮定している。
     // 暴走した場合は知らん…。
     pn.write("quit");
+
+    sleep(100);
   }
 
   void on_idle()
@@ -469,6 +472,10 @@ void Thread::search()
   EngineState es[2];
   es[0].run(engine_name[0], 0);
   es[1].run(engine_name[1], 1);
+
+  // プロセスの生成に失敗しているなら終了。
+  if (!es[0].pn.success || !es[1].pn.success)
+    return;
 
   for (int i = 0; i < 2;++i)
     es[i].set_engine_config(engine_config_lines[i]);
