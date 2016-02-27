@@ -134,8 +134,6 @@
 
 #ifdef YANEURAOU_MINI_ENGINE
 #define ENGINE_NAME "YaneuraOu mini"
-// 開発中なのでassertを有効に。
-#define ASSERT_LV 3
 #define ENABLE_TEST_CMD
 #define ENABLE_OPTION_PARAM
 #define EVAL_KPP
@@ -147,8 +145,15 @@
 
 #ifdef YANEURAOU_CLASSIC_ENGINE
 #define ENGINE_NAME "YaneuraOu classic"
+// 開発中なのでassertを有効に。
+#define ASSERT_LV 3
+#define ENABLE_TEST_CMD
+#define ENABLE_OPTION_PARAM
 #define EVAL_KPP
-#define USE_TT_PV
+#define USE_SEE
+#define USE_MOVE_PICKER
+#define LONG_EFFECT_LIBRARY
+#define MATE_1PLY
 #endif
 
 #ifdef YANEURAOU_2016_ENGINE

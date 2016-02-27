@@ -250,6 +250,8 @@
     <Text Include="..\docs\更新履歴.txt" />
     <Text Include="..\docs\解説.txt" />
     <Text Include="..\exe\eval\readme.txt" />
+    <Text Include="..\exe\YaneuraOu-mini-readme.txt" />
+    <Text Include="..\exe\YaneuraOu-mini_ja.txt" />
     <Text Include="..\exe\YaneuraOu-nano-plus-readme.txt" />
     <Text Include="..\exe\YaneuraOu-nano-plus_ja.txt" />
     <Text Include="..\exe\YaneuraOu-nano-readme.txt" />
@@ -257,6 +259,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\exe\book\standard_book.db" />
+    <None Include="..\exe\YaneuraOu-mini.exe" />
     <None Include="..\exe\YaneuraOu-nano-plus.exe" />
     <None Include="..\exe\YaneuraOu-nano.exe" />
     <None Include="..\README.md" />

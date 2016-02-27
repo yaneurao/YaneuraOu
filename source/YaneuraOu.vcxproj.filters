@@ -221,6 +221,12 @@
     <Text Include="..\exe\YaneuraOu-nano-plus-readme.txt">
       <Filter>exe</Filter>
     </Text>
+    <Text Include="..\exe\YaneuraOu-mini_ja.txt">
+      <Filter>exe</Filter>
+    </Text>
+    <Text Include="..\exe\YaneuraOu-mini-readme.txt">
+      <Filter>exe</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md">
@@ -233,6 +239,9 @@
       <Filter>exe\book</Filter>
     </None>
     <None Include="..\exe\YaneuraOu-nano-plus.exe">
+      <Filter>exe</Filter>
+    </None>
+    <None Include="..\exe\YaneuraOu-mini.exe">
       <Filter>exe</Filter>
     </None>
   </ItemGroup>

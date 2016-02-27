@@ -18,13 +18,13 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 
 やねうら王nano plusは、探索部300行程度で、オーダリングなどを改善した非常にシンプルでかつそこそこ強い思考エンジンです。(R2500程度)
 	
-## やねうら王mini (作業中2016年2月下旬完成予定)
+## やねうら王mini
 
 やねうら王miniは、やねうら王nano plusを並列化して、将棋ソフトとしての体裁を整えたものです。Bonanza6より強く、教育的かつ短いコードで書かれています。全体で3000行程度、探索部500行程度。(R2800程度の予定)
 
 ## やねうら王classic 
 
-やねうら王classicは、やねうら王miniのソースコードを改良する形で、Aperyと同等の棋力を実現するプロジェクトです。(予定)
+やねうら王classicは、やねうら王miniのソースコードを改良する形で、Apery(WCSC 2015)ぐらいの強さを目指します。
 
 ## やねうら王2016 
 
@@ -47,11 +47,13 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/02/28 7:00現在)
+#　俺の作業メモ(2016/02/28 8:00現在)
 
-- [] ・思考時間のマネージメントを実装する
-- [] ・ponder実装する
+- [] ・やねうら王classicの探索部を実装する。
 
+- [x] 2016/02/28・やねうら王classicの開発開始。
+- [x] 2016/02/28・やねうら王miniの思考エンジンの実行ファイルを公開。
+- [x] 2016/02/28・やねうら王miniの開発終了。
 - [x] 2016/02/28・local game serverでCreateProcessに失敗したときに復帰できるように修正。
 - [x] 2016/02/28・やねうら王miniで定跡の指し手が指せていなかったの修正。
 - [x] 2016/02/28・やねうら王miniにrazoring追加。(+R20)

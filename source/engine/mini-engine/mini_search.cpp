@@ -9,7 +9,7 @@
 // 開発方針
 // ・nano plusに似た読みやすいソースコード
 // ・lazy SMPで並列化
-// ・300行程度のシンプルな探索部でR3000を目指す。
+// ・500行程度(コメント行除く)のシンプルな探索部でR2800を目指す。
 // このあと改造していくためのベースとなる教育的なコードを目指す。
 
 #include <sstream>
@@ -418,7 +418,8 @@ namespace YaneuraOuMini
             // 1. nonPVでのalpha値の更新 →　もうこの時点でreturnしてしまっていい。(ざっくりした枝刈り)
             // 2. PVでのvalue >= beta、すなわちfail high
             tte->save(posKey, value_to_tt(value, ss->ply), BOUND_LOWER,
-              ttDepth, move, ss->staticEval, TT.generation());
+                      ttDepth, move, ss->staticEval, TT.generation());
+            
             return value;
           }
         }
@@ -507,14 +508,14 @@ namespace YaneuraOuMini
 
     Thread* thisThread = pos.this_thread();
 
-    bestValue = -VALUE_INFINITE;
-
     // ss->moveCountはこのあとMovePickerがこのnodeの指し手を生成するより前に
     // 枝刈り等でsearch()を再帰的に呼び出すことがあり、そのときに親局面のmoveCountベースで
     // 枝刈り等を行ないたいのでこのタイミングで初期化しなければならない。
     // ss->moveCountではなく、moveCountのほうはMovePickerで指し手を生成するとき以降で良い。
 
     ss->moveCount = 0;
+
+    bestValue = -VALUE_INFINITE;
 
     // rootからの手数
     ss->ply = (ss - 1)->ply + 1;
@@ -653,7 +654,7 @@ namespace YaneuraOuMini
       // 置換表にhitしたなら、評価値が記録されているはずだから、それを取り出しておく。
       // あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
 
-      // tte->eval()へのアクセスは1回にしないと他のスレッドが壊してしまう可能性がある。
+      // tte->eval()へのアクセスは1回にしないと他のスレッドが壊してしまう可能性があるので気をつける。
       if ((eval = tte->eval()) == VALUE_NONE)
         eval = evaluate(pos);
 
@@ -692,7 +693,6 @@ namespace YaneuraOuMini
     //   Razoring
     //
 
-#if 0
     // 残り探索深さが少ないときに、その手数でalphaを上回りそうにないとき用の枝刈り。
     if (!PvNode
       &&  depth < 4 * ONE_PLY
@@ -710,19 +710,6 @@ namespace YaneuraOuMini
       Value v = qsearch<NonPV, false>(pos, ss, ralpha, ralpha + 1, DEPTH_ZERO);
       if (v <= ralpha)
         return v;
-    }
-#endif
-
-    if (!PvNode
-      && depth < 4 * ONE_PLY
-      && eval + razor_margin(depth) < beta
-      && ttMove == MOVE_NONE
-      && abs(beta) < VALUE_MATE_IN_MAX_PLY)
-    {
-      const Value rbeta = beta - razor_margin(depth);
-      const Value s = qsearch<NonPV, false>(pos, ss, rbeta - 1, rbeta, DEPTH_ZERO);
-      if (s < rbeta)
-        return s;
     }
 
     //
@@ -839,6 +826,12 @@ namespace YaneuraOuMini
       // このあとdo_move()の前で枝刈りのためにsearchを呼び出す可能性があるので
       // このタイミングでやっておき、legalでなければ、この値を減らす
       ss->moveCount = ++moveCount;
+
+      // 3秒以上経過しているなら現在探索している指し手をGUIに出力する。
+      if (RootNode && !Limits.silent && thisThread == Threads.main() && Time.elapsed() > 3000)
+        sync_cout << "info depth " << depth / ONE_PLY
+        << " currmove " << move
+        << " currmovenumber " << moveCount + thisThread->PVIdx << sync_endl;
 
       // 次のnodeのpvをクリアしておく。
       if (PvNode)
