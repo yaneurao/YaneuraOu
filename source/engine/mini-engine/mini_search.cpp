@@ -447,8 +447,9 @@ namespace YaneuraOuMini
   //      通常探索
   // -----------------------
 
+  // cutNode = LMRで悪そうな指し手に対してreduction量を増やすnode
   template <NodeType NT>
-  Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
+  Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth,bool cutNode)
   {
     // -----------------------
     //     nodeの種類
@@ -485,6 +486,8 @@ namespace YaneuraOuMini
 
     // この局面でのベストのスコア
     Value bestValue;
+
+    StateInfo si;
 
     // -----------------------
     //     nodeの初期化
@@ -691,6 +694,49 @@ namespace YaneuraOuMini
       &&  eval < VALUE_KNOWN_WIN) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
       return eval - futility_margin(depth, pos.game_ply());
 
+    //
+    //   Null move search with verification search
+    //
+
+    //  null move探索。PV nodeではやらない。
+    //  evalの見積りがbetaを超えているので1手パスしてもbetaは超えそう。
+    if (!PvNode
+      &&  depth >= 2 * ONE_PLY
+      &&  eval >= beta)
+    {
+      ss->currentMove = MOVE_NULL;
+
+      // 残り探索深さと評価値によるnull moveの深さを動的に減らす
+      Depth R = ((823 + 67 * depth) / 256 + std::min((int)((eval - beta) / PawnValue), 3)) * ONE_PLY;
+
+      pos.do_null_move(si);
+      (ss + 1)->skipEarlyPruning = true;
+
+      //  王手がかかっているときはここに来ていないのでqsearchはInCheck == falseのほうを呼ぶ。
+      Value nullValue = depth - R < ONE_PLY ? -qsearch<NonPV, false>(pos, ss + 1, -beta, -beta + 1, DEPTH_ZERO          )
+                                            : - search<NonPV       >(pos, ss + 1, -beta, -beta + 1, depth - R , !cutNode);
+      (ss + 1)->skipEarlyPruning = false;
+      pos.undo_null_move();
+
+      if (nullValue >= beta)
+      {
+        // 証明されていないmate scoreの場合はリターンしない。
+        if (nullValue >= VALUE_MATE_IN_MAX_PLY)
+          nullValue = beta;
+
+        if (depth < 12 * ONE_PLY && abs(beta) < VALUE_KNOWN_WIN)
+          return nullValue;
+
+        // nullMoveせずに同じ深さで探索しなおして本当にbetaを超えるか検証する。cutNodeにしない。
+        ss->skipEarlyPruning = true;
+        Value v = depth - R < ONE_PLY ? qsearch<NonPV, false>(pos, ss, beta - 1, beta, DEPTH_ZERO       )
+                                      :  search<NonPV       >(pos, ss, beta - 1, beta, depth - R , false);
+        ss->skipEarlyPruning = false;
+
+        if (v >= beta)
+          return nullValue;
+      }
+    }
 
     // -----------------------
     // 1手ずつ指し手を試す
@@ -700,7 +746,6 @@ namespace YaneuraOuMini
 
     Value value = bestValue; // gccの初期化されていないwarningの抑制
     Move move;
-    StateInfo si;
 
     // 今回の指し手で王手になるかどうか
     bool givesCheck;
@@ -804,8 +849,8 @@ namespace YaneuraOuMini
 
         // depth >= 3なのでqsearchは呼ばれないし、かつ、
         // moveCount > 1 すなわち、このnodeの2手目以降なのでsearch<NonPv>が呼び出されるべき。
-        Depth d = max(newDepth - r, ONE_PLY);
-        value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d);
+        Depth d = std::max(newDepth - r, ONE_PLY);
+        value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, true);
 
         // 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす
         doFullDepthSearch = (value > alpha) && (r != DEPTH_ZERO);
@@ -825,7 +870,7 @@ namespace YaneuraOuMini
         value = newDepth < ONE_PLY ?
                         givesCheck ? -qsearch<NonPV, true> (pos, ss + 1, -(alpha + 1), -alpha, DEPTH_ZERO)
                                    : -qsearch<NonPV, false>(pos, ss + 1, -(alpha + 1), -alpha, DEPTH_ZERO)
-                                   : - search<NonPV>       (pos, ss + 1, -(alpha + 1), -alpha, newDepth  );
+                                   : - search<NonPV>       (pos, ss + 1, -(alpha + 1), -alpha, newDepth  ,!cutNode);
 
       // PV nodeにおいては、full depth searchがfail highしたならPV nodeとしてsearchしなおす。
       // ただし、value >= betaなら、正確な値を求めることにはあまり意味がないので、これはせずにbeta cutしてしまう。
@@ -835,10 +880,11 @@ namespace YaneuraOuMini
         pv[0] = MOVE_NONE;
         (ss+1)->pv = pv;
 
+        // full depthで探索するときはcutNodeにしてはいけない。
         value = newDepth < ONE_PLY ?
                         givesCheck ? -qsearch<PV, true> (pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
                                    : -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
-                                   : - search<PV>       (pos, ss + 1, -beta, -alpha, newDepth  );
+                                   : - search<PV>       (pos, ss + 1, -beta, -alpha, newDepth  ,false);
       }
 
       // -----------------------
@@ -1107,7 +1153,7 @@ void Thread::search()
 
       while (true)
       {
-        bestValue = YaneuraOuMini::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY);
+        bestValue = YaneuraOuMini::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false);
 
         // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
         // 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを

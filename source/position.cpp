@@ -1206,6 +1206,31 @@ void Position::undo_move(Move m)
     undo_move_impl<BLACK>(m);
 }
 
+// null move searchに使われる。手番だけ変更する。
+void Position::do_null_move(StateInfo& newSt) {
+
+  ASSERT_LV3(!checkers());
+  ASSERT_LV3(&newSt != st);
+
+  // StateInfo自体は丸ごとコピーしておかないといけない。(他の初期化をしないので)
+  std::memcpy(&newSt, st, sizeof(StateInfo));
+  newSt.previous = st;
+  st = &newSt;
+
+  st->key_board_ ^= Zobrist::side;
+  st->pliesFromNull = 0;
+
+  sideToMove = ~sideToMove;
+}
+
+void Position::undo_null_move() {
+
+  ASSERT_LV3(!checkers());
+
+  st = st->previous;
+  sideToMove = ~sideToMove;
+}
+
 // ----------------------------------
 //      千日手判定
 // ----------------------------------

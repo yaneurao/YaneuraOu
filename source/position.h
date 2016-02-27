@@ -274,6 +274,11 @@ struct Position
   // 指し手で盤面を1手戻す
   void undo_move(Move m);
 
+  // null move用のdo_move()
+  void do_null_move(StateInfo& st);
+  // null move用のundo_move()
+  void undo_null_move();
+
   // --- legality(指し手の合法性)のチェック
 
   // 生成した指し手(CAPTUREとかNON_CAPTUREとか)が、合法であるかどうかをテストする。

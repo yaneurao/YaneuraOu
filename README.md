@@ -52,6 +52,8 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 - [] ・思考時間のマネージメントを実装する
 - [] ・ponder実装する
 
+- [x] 2016/02/28・やねうら王miniにnull move search追加。(+R60)
+- [x] 2016/02/28・Position::do_null_move()/undo_null_move()追加。
 - [x] 2016/02/28・MovePickerで置換表の指し手とcounter moveにおいて歩や大駒の不成などを除外するようにした。
 - [x] 2016/02/28・Position::moved_piece()で後手の駒打ちのときに後手の駒が返るように変更。
 - [x] 2016/02/28・QUITE_CHECKで歩の不成が生成されていた問題を修正。
