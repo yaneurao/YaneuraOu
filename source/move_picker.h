@@ -288,7 +288,7 @@ struct MovePicker
           return move;
 #endif
         }
-        break;      
+        break;
 
         // 置換表の指し手を返したあとのフェーズ
         // (killer moveの前のフェーズなのでkiller除去は不要)

@@ -647,9 +647,11 @@ bool Position::pseudo_legal(const Move m) const {
     // 置換表から取り出してきている以上、一度は指し手生成ルーチンで生成した指し手のはずであり、
     // KING打ちのような値であることはないものとする。
 
+    ASSERT_LV3(PAWN <= pr && pr < KING);
+
     // 打つ先の升が埋まっていたり、その手駒を持っていなかったりしたら駄目。
     if (piece_on(to) != NO_PIECE || hand_count(hand[us], pr) == 0)
-      return 0;
+      return false;
 
     if (in_check())
     {

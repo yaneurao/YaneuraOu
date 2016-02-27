@@ -421,16 +421,13 @@ namespace YaneuraOuMini
     // 指し手を調べ終わった
     // -----------------------
 
-    // 王手がかかっている状況ではすべての指し手を調べたということだから、これは詰みである
+    // 王手がかかっている状況ではすべての指し手を調べたということだから、これは詰みである。
     // どうせ指し手がないということだから、次にこのnodeに訪問しても、指し手生成後に詰みであることは
-    // わかるわけだから、この種の詰みを置換表に登録する価値があるかは微妙であるが、とりあえず保存しておくことにする。
+    // わかるわけだし、そもそもこのnodeが詰みだとわかるとこのnodeに再訪問する確率は極めて低く、
+    // 置換表に保存しても得しない。
     if (InCheck && bestValue == -VALUE_INFINITE)
     {
       bestValue = mated_in(ss->ply); // rootからの手数による詰みである。
-
-      // これ保存したほうがよさげ。
-      tte->save(posKey, value_to_tt(bestValue,ss->ply) , BOUND_EXACT,
-        DEPTH_MAX, MOVE_NONE, ss->staticEval, TT.generation());
 
     } else {
       // 詰みではなかったのでこれを書き出す。
