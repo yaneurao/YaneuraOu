@@ -47,12 +47,25 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/02/29 01:00現在)
+#　俺の作業メモ(2016/02/29 04:00現在)
+
+- [ ]・やねうら王classicにponder機能入れる。
+- [ ]・やねうら王classicに持ち時間制御入れる。
+- [ ]・やねうら王classicに定跡の選択機能入れる。
+- [ ]・やねうら王classicに定跡のnarrow book機能入れる。
+- [ ]・やねうら王classicの探索部、もう少し調整する。
+
 
 ※　括弧のなかの+Rは、自己対局時の勝率から計算されるもので、0.5手延長などは顕著に勝率が上がりますが、自己対局以外では効果に乏しいです。
 
 - [ ] ・やねうら王classicの探索部を改良する。
 
+- [x] 2016/02/29・やねうら王miniの静止探索で駒取りにならないevasionの枝刈り追加。(+R100)
+- [x] 2016/02/29・やねうら王classicの静止探索で駒取りにならないevasionの枝刈り追加。(+R100)
+- [x] 2016/02/29・やねうら王miniの静止探索にfutilityによる枝刈り追加。(+R70)
+- [x] 2016/02/29・やねうら王classicの静止探索にfutilityによる枝刈り追加。(+R70)
+- [x] 2016/02/29・やねうら王classicに親nodeでSEE負の指し手を枝刈り追加。(+R40)
+- [x] 2016/02/29・やねうら王classicに親nodeでのfutility枝刈り追加。(+R40)
 - [x] 2016/02/29・やねうら王miniにhistoryに基づく枝刈り追加。(+R20)
 - [x] 2016/02/29・やねうら王miniで通常探索時の1手詰め判定削除。
 - [x] 2016/02/29・やねうら王classicにhistoryに基づく枝刈り追加。(+R150)

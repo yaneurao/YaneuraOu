@@ -103,6 +103,9 @@ namespace YaneuraOuNano
   //      静止探索
   // -----------------------
 
+  // search()で残り探索深さが0以下になったときに呼び出される。
+  // (より正確に言うなら、残り探索深さがONE_PLY未満になったときに呼び出される)
+
   template <NodeType NT>
   Value qsearch(Position& pos, Value alpha, Value beta, Depth depth)
   {

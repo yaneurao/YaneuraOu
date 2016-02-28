@@ -3,10 +3,139 @@
 
 やねうら王classicで入れる予定
 ・ponder
-・定跡の調整機能
-・実現確率の低い定跡の指し手は指さないオプションを用意しないと糞定跡掴まされて死にそう…。
 ・持ち時間制御
+・定跡の選択機能
 
+
+■ 2016/02/29 V2.08
+
+・classicの静止探索で駒得しない王手回避と、なんやかや枝刈りするコード追加。
+      →　Detect non-capture evasions
+
+		62.9%	
+		#74
+		やねうら王classic V208
+		静止探索での駒得しないevasion枝刈り追加, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic V207
+		静止探索でのfutility追加, 1スレッド、0.1秒設定
+
+		90-1-53(0.1% R92.0)	
+
+		よくはわからないが、とても効果があるみたい。
+		miniのほうもこの修正入れる。
+
+			64.1%	
+			#75
+			やねうら王mini V208
+			静止探索での駒得しないevasion枝刈り追加, 1スレッド、0.1秒設定
+			#73
+			やねうら王mini V207a
+			静止探索の1手詰め復活, 1スレッド、0.1秒設定
+
+			166-8-93(0.0% R100.7)	
+
+
+■ 2016/02/29 V2.07
+
+・classicの静止探索にfutility追加。
+
+	60.4%	
+	#71
+	やねうら王classic V207
+	静止探索でのfutility追加, 1スレッド、0.1秒設定
+	#0
+	やねうら王classic V206
+	futility at parent node3, 1スレッド、0.1秒設定
+
+	110-9-72(0.2% R73.6)	
+
+	→　これずいぶん効果がある。自己対局だからかも知れないが。
+
+	この枝刈りをminiに入れて、静止探索の一手詰めを削除するとどうなのか。
+
+		43.8%	
+		#72
+		やねうら王mini V207
+		静止探索のfutility追加。1手詰め削除, 1スレッド、0.1秒設定
+		#67
+		やねうら王mini V204b
+		miniから静止探索の1手詰めだけ復活, 1スレッド、0.1秒設定
+
+		81-6-104(96.1% R-43.4)	
+
+		1手詰めないと散々だな…。
+
+		V2.07a
+		→　miniの一手詰め戻す
+		これで2.04bに勝ち越すようなら、これで最終とする。
+
+			57.2%	
+			#73
+			やねうら王mini V207a
+			静止探索の1手詰め復活, 1スレッド、0.1秒設定
+			#67
+			やねうら王mini V204b
+			miniから静止探索の1手詰めだけ復活, 1スレッド、0.1秒設定
+
+			91-7-68(2.8% R50.6)	
+
+			弱くはなってなさそう。
+			→　exeフォルダのminiを差し替え	
+
+
+
+■ 2016/02/29 V2.06
+
+・classicに親nodeで負のSEE値を持つ指し手の枝刈りも入れてみる。
+
+        // 次の子nodeにおいて浅い深さになる場合、負のSSE値を持つ指し手の枝刈り
+        if (predictedDepth < 4 * ONE_PLY && pos.see_sign(move) < VALUE_ZERO)
+          continue;
+
+				56.1%	
+				#70
+				やねうら王classic V206
+				futility at parent node3, 1スレッド、0.1秒設定
+				#0
+				やねうら王classic V205a
+				futility at parent node2, 1スレッド、0.1秒設定
+
+				351-16-275(0.1% R42.4)	
+
+・qsearchにコメント追加。
+
+
+■ 2016/02/29 V2.05
+
+・classicに親nodeでのfutility追加。
+
+        // Futility pruning: 親nodeに関して
+        if (predictedDepth < 7 * ONE_PLY)
+        {
+          futilityValue = ss->staticEval + futility_margin(predictedDepth,pos.game_ply()) + param1 * 85;
+
+          if (futilityValue <= alpha)
+          {
+            bestValue = std::max(bestValue, futilityValue);
+            continue;
+          }
+        }
+		こうやってparam1 == 0..4ぐらいで前バージョンと対局させてみる。
+
+		46.0%	51.9%	55.4%	53.7%	54.5%	
+		#68
+		やねうら王classic V205
+		futility at parent node, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic V204
+		classicにhistoryに基づく枝刈り追加, 1スレッド、0.1秒設定
+
+		144-7-169(92.9% R-27.8)	160-12-148(22.9% R13.5)	173-8-139(2.4% R38.0)	169-5-146(8.8% R25.4)	168-12-140(4.9% R31.7)	
+
+		V2.05a
+		X=2,すなわち170か。とりあえずそうしとく。
+		
 
 ■ 2016/02/29 V2.04
 

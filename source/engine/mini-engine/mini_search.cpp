@@ -218,6 +218,7 @@ namespace YaneuraOuMini
     Value bestValue;       // この局面での指し手のベストなスコア(alphaとは違う)
     Move bestMove;         // そのときの指し手
     Value oldAlpha;        // 関数が呼び出されたときのalpha値
+    Value futilityBase;    // futility pruningの基準となる値
 
     // hash key関係
     TTEntry* tte;          // 置換表にhitしたときの置換表のエントリーへのポインタ
@@ -254,9 +255,7 @@ namespace YaneuraOuMini
     //    千日手等の検出
     // -----------------------
 
-    // is_draw()は2回目の出現で千日手だと判定するので
-    // RootNodeで千日手が成立しているように見えることがあるが、この場合も
-    // 探索は続行しなければならないので、RootNodeではこの判定は除外する
+    // 連続王手による千日手、および通常の千日手、優等局面・劣等局面。
     auto draw_type = pos.is_repetition();
     if (draw_type != REPETITION_NONE)
       return draw_value(draw_type, pos.side_to_move());
@@ -307,7 +306,7 @@ namespace YaneuraOuMini
       // bestValueはalphaとは違う。
       // 王手がかかっているときは-VALUE_INFINITEを初期値として、すべての指し手を生成してこれを上回るものを探すので
       // alphaとは区別しなければならない。
-      bestValue = -VALUE_INFINITE;
+      bestValue = futilityBase = -VALUE_INFINITE;
 
     } else {
 
@@ -368,6 +367,10 @@ namespace YaneuraOuMini
       // 王手がかかっているなら全部の指し手を調べたほうがいい。
       if (PvNode && bestValue > alpha)
         alpha = bestValue;
+
+      // futilityの基準となる値をbestValueにmargin値を加算したものとして、
+      // これを下回るようであれば枝刈りする。
+      futilityBase = bestValue + 128;
     }
 
     // -----------------------
@@ -391,6 +394,54 @@ namespace YaneuraOuMini
         continue;
 
       givesCheck = pos.gives_check(move);
+
+      //
+      //  Futility pruning
+      // 
+
+      // 王手がかかっていなくて王手ではない指し手なら、今回捕獲されるであろう駒による評価値の上昇分を
+      // 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
+      if (!InCheck
+        && !givesCheck
+        &&  futilityBase > -VALUE_KNOWN_WIN)
+      {
+        // moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになるのだが…。
+
+        Value futilityValue = futilityBase + (Value)PieceValueCapture[pos.piece_on(move_to(move))];
+
+        // futilityValueは今回捕獲するであろう駒の価値の分を上乗せしているのに
+        // それでもalpha値を超えないというとってもひどい指し手なので枝刈りする。
+        if (futilityValue <= alpha)
+        {
+          bestValue = std::max(bestValue, futilityValue);
+          continue;
+        }
+
+        // futilityBaseはこの局面のevalにmargin値を加算しているのだが、それがalphaを超えないし、
+        // かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
+        if (futilityBase <= alpha && pos.see(move) <= VALUE_ZERO)
+        {
+          bestValue = std::max(bestValue, futilityBase);
+          continue;
+        }
+      }
+
+      //
+      //  Detect non-capture evasions
+      // 
+
+      // 駒を取らない王手回避の指し手はよろしくない可能性が高いのでこれは枝刈りしてしまう。
+      // 成りでない && seeが負の指し手はNG。王手回避でなくとも、同様。
+
+      bool evasionPrunable = InCheck
+        &&  bestValue > VALUE_MATED_IN_MAX_PLY
+        && !pos.capture(move);
+
+      if ((!InCheck || evasionPrunable)
+        && !(move & MOVE_PROMOTE)
+        && pos.see_sign(move) < VALUE_ZERO)
+        continue;
+
 
       // 現在このスレッドで探索している指し手を保存しておく。
       ss->currentMove = move;
@@ -853,11 +904,14 @@ namespace YaneuraOuMini
       // このタイミングでやっておき、legalでなければ、この値を減らす
       ss->moveCount = ++moveCount;
 
+      // この読み筋の出力、細かすぎるので時間をロスする。しないほうがいいと思う。
+#if 0
       // 3秒以上経過しているなら現在探索している指し手をGUIに出力する。
       if (RootNode && !Limits.silent && thisThread == Threads.main() && Time.elapsed() > 3000)
         sync_cout << "info depth " << depth / ONE_PLY
         << " currmove " << move
         << " currmovenumber " << moveCount + thisThread->PVIdx << sync_endl;
+#endif
 
       // 次のnodeのpvをクリアしておく。
       if (PvNode)

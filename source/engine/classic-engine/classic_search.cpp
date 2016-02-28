@@ -194,6 +194,9 @@ namespace YaneuraOuClassic
   //      静止探索
   // -----------------------
 
+  // search()で残り探索深さが0以下になったときに呼び出される。
+  // (より正確に言うなら、残り探索深さがONE_PLY未満になったときに呼び出される)
+
   // InCheck : 王手がかかっているか
   template <NodeType NT, bool InCheck>
   Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
@@ -205,6 +208,7 @@ namespace YaneuraOuClassic
     // PV nodeであるか。
     const bool PvNode = NT == PV;
     
+    ASSERT_LV3(InCheck == !!pos.checkers());
     ASSERT_LV3(-VALUE_INFINITE<=alpha && alpha < beta && beta <= VALUE_INFINITE);
     ASSERT_LV3(PvNode || alpha == beta - 1);
     ASSERT_LV3(depth <= DEPTH_ZERO);
@@ -217,6 +221,7 @@ namespace YaneuraOuClassic
     Value bestValue;       // この局面での指し手のベストなスコア(alphaとは違う)
     Move bestMove;         // そのときの指し手
     Value oldAlpha;        // 関数が呼び出されたときのalpha値
+    Value futilityBase;    // futility pruningの基準となる値
 
     // hash key関係
     TTEntry* tte;          // 置換表にhitしたときの置換表のエントリーへのポインタ
@@ -253,9 +258,7 @@ namespace YaneuraOuClassic
     //    千日手等の検出
     // -----------------------
 
-    // is_draw()は2回目の出現で千日手だと判定するので
-    // RootNodeで千日手が成立しているように見えることがあるが、この場合も
-    // 探索は続行しなければならないので、RootNodeではこの判定は除外する
+    // 連続王手による千日手、および通常の千日手、優等局面・劣等局面。
     auto draw_type = pos.is_repetition();
     if (draw_type != REPETITION_NONE)
       return draw_value(draw_type, pos.side_to_move());
@@ -306,7 +309,7 @@ namespace YaneuraOuClassic
       // bestValueはalphaとは違う。
       // 王手がかかっているときは-VALUE_INFINITEを初期値として、すべての指し手を生成してこれを上回るものを探すので
       // alphaとは区別しなければならない。
-      bestValue = -VALUE_INFINITE;
+      bestValue = futilityBase = -VALUE_INFINITE;
 
     } else {
 
@@ -367,6 +370,10 @@ namespace YaneuraOuClassic
       // 王手がかかっているなら全部の指し手を調べたほうがいい。
       if (PvNode && bestValue > alpha)
         alpha = bestValue;
+
+      // futilityの基準となる値をbestValueにmargin値を加算したものとして、
+      // これを下回るようであれば枝刈りする。
+      futilityBase = bestValue + 128;
     }
 
     // -----------------------
@@ -386,10 +393,67 @@ namespace YaneuraOuClassic
 
     while ((move = mp.next_move()) != MOVE_NONE)
     {
-      if (!pos.legal(move))
-        continue;
+      // -----------------------
+      //  局面を進める前の枝刈り
+      // -----------------------
 
       givesCheck = pos.gives_check(move);
+
+      //
+      //  Futility pruning
+      // 
+
+      // 王手がかかっていなくて王手ではない指し手なら、今回捕獲されるであろう駒による評価値の上昇分を
+      // 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
+      if (!InCheck
+        && !givesCheck
+        &&  futilityBase > -VALUE_KNOWN_WIN)
+      {
+        // moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになるのだが…。
+
+        Value futilityValue = futilityBase + (Value)PieceValueCapture[pos.piece_on(move_to(move))];
+
+        // futilityValueは今回捕獲するであろう駒の価値の分を上乗せしているのに
+        // それでもalpha値を超えないというとってもひどい指し手なので枝刈りする。
+        if (futilityValue <= alpha)
+        {
+          bestValue = std::max(bestValue, futilityValue);
+          continue;
+        }
+
+        // futilityBaseはこの局面のevalにmargin値を加算しているのだが、それがalphaを超えないし、
+        // かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
+        if (futilityBase <= alpha && pos.see(move) <= VALUE_ZERO)
+        {
+          bestValue = std::max(bestValue, futilityBase);
+          continue;
+        }
+      }
+
+      //
+      //  Detect non-capture evasions
+      // 
+
+      // 駒を取らない王手回避の指し手はよろしくない可能性が高いのでこれは枝刈りしてしまう。
+      // 成りでない && seeが負の指し手はNG。王手回避でなくとも、同様。
+
+      bool evasionPrunable = InCheck
+        &&  bestValue > VALUE_MATED_IN_MAX_PLY
+        && !pos.capture(move);
+
+      if (  (!InCheck || evasionPrunable)
+          &&  !(move & MOVE_PROMOTE)
+          &&  pos.see_sign(move) < VALUE_ZERO)
+          continue;
+
+      // -----------------------
+      //     局面を1手進める
+      // -----------------------
+
+      // 指し手の合法性の判定は直前まで遅延させたほうが得。
+      // (これが非合法手である可能性はかなり低いので他の判定によりskipされたほうが得)
+      if (!pos.legal(move))
+        continue;
 
       // 現在このスレッドで探索している指し手を保存しておく。
       ss->currentMove = move;
@@ -397,6 +461,7 @@ namespace YaneuraOuClassic
       pos.do_move(move, st, pos.gives_check(move));
       value = givesCheck ? -qsearch<NT, true>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
                          : -qsearch<NT,false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
+
       pos.undo_move(move);
 
       // bestValue(≒alpha値)を更新するのか
@@ -535,9 +600,6 @@ namespace YaneuraOuClassic
     if (PvNode && thisThread->maxPly < ss->ply)
       thisThread->maxPly = ss->ply;
 
-    // このnodeで指し手を進めずにリターンしたときにこの局面でのcurrnetMoveにゴミが入っていると困る。
-    ss->currentMove = MOVE_NONE;
-
     // -----------------------
     //     千日手等の検出
     // -----------------------
@@ -573,6 +635,10 @@ namespace YaneuraOuClassic
     // -----------------------
     //  探索Stackの初期化
     // -----------------------
+
+    // この初期化、もう少し早めにしたほうがいい可能性が..
+    // このnodeで指し手を進めずにリターンしたときにこの局面でのcurrnetMoveにゴミが入っていると困るような？
+    ss->currentMove = MOVE_NONE;
 
     // 1手先のexcludedMoveの初期化
     (ss + 1)->excludedMove = MOVE_NONE;
@@ -912,11 +978,14 @@ namespace YaneuraOuClassic
       // このタイミングでやっておき、legalでなければ、この値を減らす
       ss->moveCount = ++moveCount;
 
+      // この読み筋の出力、細かすぎるので時間をロスする。しないほうがいいと思う。
+#if 0
       // 3秒以上経過しているなら現在探索している指し手をGUIに出力する。
       if (RootNode && !Limits.silent && thisThread == Threads.main() && Time.elapsed() > 3000)
         sync_cout << "info depth " << depth / ONE_PLY
         << " currmove " << move
         << " currmovenumber " << moveCount + thisThread->PVIdx << sync_endl;
+#endif
 
       // 次のnodeのpvをクリアしておく。
       if (PvNode)
@@ -1001,13 +1070,16 @@ namespace YaneuraOuClassic
           && cmh.get(pos.moved_piece(move), move_to(move)) < VALUE_ZERO)
           continue;
 
-#if 0
-        predictedDepth = std::max(newDepth - reduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO);
+        // Futility pruning: at parent node
+        // 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
 
-        // Futility pruning: 親nodeに関して
+        // 次の子node(do_move()で進めたあとのnode)でのLMR後の予想depth
+        Depth predictedDepth = std::max(newDepth - reduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO);
+
         if (predictedDepth < 7 * ONE_PLY)
         {
-          futilityValue = ss->staticEval + futility_margin(predictedDepth) + 256;
+          // このmargin値はあとでもっと厳密に調整すべき。
+          Value futilityValue = ss->staticEval + futility_margin(predictedDepth,pos.game_ply()) + 170;
 
           if (futilityValue <= alpha)
           {
@@ -1016,11 +1088,9 @@ namespace YaneuraOuClassic
           }
         }
 
-        // 浅い深さにおける負のSSE値を持つ指し手の枝刈り
-        // Prune moves with negative SEE at low depths
+        // 次の子nodeにおいて浅い深さになる場合、負のSSE値を持つ指し手の枝刈り
         if (predictedDepth < 4 * ONE_PLY && pos.see_sign(move) < VALUE_ZERO)
           continue;
-#endif
       }
 
       // -----------------------

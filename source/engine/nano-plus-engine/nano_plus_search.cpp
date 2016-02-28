@@ -125,6 +125,9 @@ namespace YaneuraOuNanoPlus
   //      静止探索
   // -----------------------
 
+  // search()で残り探索深さが0以下になったときに呼び出される。
+  // (より正確に言うなら、残り探索深さがONE_PLY未満になったときに呼び出される)
+
   // InCheck : 王手がかかっているか
   template <NodeType NT,bool InCheck>
   Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
@@ -173,9 +176,7 @@ namespace YaneuraOuNanoPlus
     //    千日手等の検出
     // -----------------------
 
-    // is_draw()は2回目の出現で千日手だと判定するので
-    // RootNodeで千日手が成立しているように見えることがあるが、この場合も
-    // 探索は続行しなければならないので、RootNodeではこの判定は除外する
+    // 連続王手による千日手、および通常の千日手、優等局面・劣等局面。
     auto draw_type = pos.is_repetition();
     if (draw_type != REPETITION_NONE)
       return draw_value(draw_type,pos.side_to_move());
