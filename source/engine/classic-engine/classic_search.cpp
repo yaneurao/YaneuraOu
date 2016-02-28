@@ -63,7 +63,12 @@ namespace YaneuraOuClassic
     return Value(d * 90);
   }
 
-  // 探索深さを減らすためのReductionテーブル
+  // 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
+  // 枝刈りしてしまうためのmoveCountベースのfutilityで用いるテーブル
+  // [improving][残りdepth]
+  int FutilityMoveCounts[2][16 * (int)ONE_PLY];
+                                  
+// 探索深さを減らすためのReductionテーブル
   // [PvNodeであるか][improvingであるか][このnodeで何手目の指し手であるか][残りdepth]
   Depth reduction_table[2][2][64][64];
 
@@ -73,6 +78,7 @@ namespace YaneuraOuClassic
   template <bool PvNode> Depth reduction(bool improving, Depth depth, int move_count) {
     return reduction_table[PvNode][improving][std::min((int)depth / ONE_PLY, 63)][std::min(move_count, 63)];
   }
+
 
   // -----------------------
   //  lazy SMPで用いるテーブル
@@ -917,27 +923,17 @@ namespace YaneuraOuClassic
         (ss + 1)->pv = nullptr;
 
       // -----------------------
-      //   1手進める前の枝刈り
-      // -----------------------
-
-      //
-      //
-
-      captureOrPromotion = pos.capture_or_promotion(move);
-
-      // 今回の指し手で王手になるかどうか
-      bool givesCheck = pos.gives_check(move);
-
-
-      // -----------------------
       //      extension
       // -----------------------
-
-      Depth extension = DEPTH_ZERO;
 
       //
       // Extend checks
       //
+
+      // 今回の指し手で王手になるかどうか
+      bool givesCheck = pos.gives_check(move);
+
+      Depth extension = DEPTH_ZERO;
 
       // 王手となる指し手でSEE >= 0であれば残り探索深さに1手分だけ足す。
       if (givesCheck && pos.see_sign(move) >= VALUE_ZERO)
@@ -947,6 +943,7 @@ namespace YaneuraOuClassic
       // Singular extension search.
       //
 
+#if 0
       // (alpha-s,beta-s)の探索において1手以外がfail lowして、1手が(alpha,beta)において
       // fail highしたなら、指し手はsingularであり、延長されるべきである。
       // これを調べるために、ttMove以外の探索深さを減らして探索して、
@@ -965,6 +962,62 @@ namespace YaneuraOuClassic
 
         if (value < rBeta)
           extension = ONE_PLY;
+      }
+#endif
+
+      // 再帰的にsearchを呼び出すとき、search関数に渡す残り探索深さ。
+      Depth newDepth = depth - ONE_PLY + extension;
+
+      captureOrPromotion = pos.capture_or_promotion(move);
+
+      // -----------------------
+      //   1手進める前の枝刈り
+      // -----------------------
+
+      //
+      // Pruning at shallow depth
+      //
+
+      // 浅い深さでの枝刈り
+
+      if (!RootNode
+        && !captureOrPromotion
+        && !InCheck
+        && !givesCheck
+        && bestValue > VALUE_MATED_IN_MAX_PLY)
+      {
+        // Move countに基づいた枝刈り(futility)
+
+        if (depth < 16 * ONE_PLY
+          && moveCount >= FutilityMoveCounts[improving][depth])
+          continue;
+#if 0
+        // Historyに基づいた枝刈り
+        if (depth <= 4 * ONE_PLY
+          && move != ss->killers[0]
+          && thisThread->history[pos.moved_piece(move)][to_sq(move)] < VALUE_ZERO
+          && cmh[pos.moved_piece(move)][to_sq(move)] < VALUE_ZERO)
+          continue;
+
+        predictedDepth = std::max(newDepth - reduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO);
+
+        // Futility pruning: 親nodeに関して
+        if (predictedDepth < 7 * ONE_PLY)
+        {
+          futilityValue = ss->staticEval + futility_margin(predictedDepth) + 256;
+
+          if (futilityValue <= alpha)
+          {
+            bestValue = std::max(bestValue, futilityValue);
+            continue;
+          }
+        }
+
+        // 浅い深さにおける負のSSE値を持つ指し手の枝刈り
+        // Prune moves with negative SEE at low depths
+        if (predictedDepth < 4 * ONE_PLY && pos.see_sign(move) < VALUE_ZERO)
+          continue;
+#endif
       }
 
       // -----------------------
@@ -985,13 +1038,9 @@ namespace YaneuraOuClassic
       // 指し手で1手進める
       pos.do_move(move, st, givesCheck);
 
-
       // -----------------------
       // LMR(Late Move Reduction)
       // -----------------------
-
-      // 再帰的にsearchを呼び出すとき、search関数に渡す残り探索深さ。
-      Depth newDepth = depth - ONE_PLY + extension;
 
       // moveCountが大きいものなどは探索深さを減らしてざっくり調べる。
       // alpha値を更新しそうなら(fail highが起きたら)、full depthで探索しなおす。
@@ -1001,7 +1050,8 @@ namespace YaneuraOuClassic
         // Reduction量
         Depth r = reduction<PvNode>(improving, depth, moveCount);
 
-        // captureとpromotionに関してはreduction量を減らしてもう少し突っ込んで調べる。
+#if 0
+        // captureから逃れる手に関してはreduction量を減らしてもう少し突っ込んで調べる。
         // 歩以外の捕獲の指し手は、捕獲から逃れる手があって有利になるかも知れないので
         // このときの探索を浅くしてしまうと局面の評価の精度が下がる。
         if (r
@@ -1009,6 +1059,7 @@ namespace YaneuraOuClassic
           && type_of(pos.piece_on(move_to(move))) != PAWN // 歩以外の捕獲
           )
           r = std::max(DEPTH_ZERO, r - ONE_PLY);
+#endif
 
         // depth >= 3なのでqsearchは呼ばれないし、かつ、
         // moveCount > 1 すなわち、このnodeの2手目以降なのでsearch<NonPv>が呼び出されるべき。
@@ -1203,6 +1254,15 @@ void Search::init() {
             reduction_table[pv][imp][d][mc] += ONE_PLY;
         }
 
+  // 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
+  // 枝刈りしてしまうためのmoveCountベースのfutilityで用いるテーブル。
+  // FutilityMoveCounts[improving][残りdepth]
+  // ONE_PLY = 2にしたいので、それに合わせてテーブルを持つことにする。
+  for (int d = 0; d < 16 * (int)ONE_PLY; ++d)
+  {
+    FutilityMoveCounts[0][d] = int(2.4 + 0.773 * pow((float)d/ONE_PLY + 0.00, 1.8));
+    FutilityMoveCounts[1][d] = int(2.9 + 1.045 * pow((float)d/ONE_PLY + 0.49, 1.8));
+  }
 
 }
 

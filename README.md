@@ -20,7 +20,7 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 	
 ## やねうら王mini
 
-やねうら王miniは、やねうら王nano plusを並列化して、将棋ソフトとしての体裁を整えたものです。Bonanza6より強く、教育的かつ短いコードで書かれています。全体で3000行程度、探索部500行程度。(R2700程度の予定)
+やねうら王miniは、やねうら王nano plusを並列化して、将棋ソフトとしての体裁を整えたものです。Bonanza6より強く、教育的かつ短いコードで書かれています。全体で3000行程度、探索部500行程度。(R2750程度)
 
 ## やねうら王classic 
 
@@ -47,10 +47,13 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/02/28 20:00現在)
+#　俺の作業メモ(2016/02/29 01:00現在)
 
 - [ ] ・やねうら王classicの探索部を改良する。
 
+- [x] 2016/02/29・やねうら王miniのソースコード、整理。効果の薄い枝刈り削除。
+- [x] 2016/02/29・やねうら王miniにmoveCountベースのfutility追加。(+R200?)
+- [x] 2016/02/29・やねうら王classicにmoveCountベースのfutility追加。(+R200?)
 - [x] 2016/02/28・やねうら王classicに王手延長追加。(+R50)
 - [x] 2016/02/28・やねうら王classicに多重反復深化追加。(+R12)
 - [x] 2016/02/28・やねうら王classicにProbCut追加。(+R70)

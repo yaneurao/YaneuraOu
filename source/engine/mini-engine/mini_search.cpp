@@ -65,6 +65,11 @@ namespace YaneuraOuMini
     return Value(d * 90);
   }
 
+  // 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
+  // 枝刈りしてしまうためのmoveCountベースのfutilityで用いるテーブル
+  // [improving][残りdepth]
+  int FutilityMoveCounts[2][16 * (int)ONE_PLY];
+
   // 探索深さを減らすためのReductionテーブル
   // [PvNodeであるか][improvingであるか][このnodeで何手目の指し手であるか][残りdepth]
   Depth reduction_table[2][2][64][64];
@@ -885,8 +890,31 @@ namespace YaneuraOuMini
       //   1手進める前の枝刈り
       // -----------------------
 
+      givesCheck = pos.gives_check(move);
+      captureOrPromotion = pos.capture_or_promotion(move);
+
       //
+      // Pruning at shallow depth
       //
+
+      // 浅い深さでの枝刈り
+
+      if (!RootNode
+        && !captureOrPromotion
+        && !InCheck
+        && !givesCheck
+        && bestValue > VALUE_MATED_IN_MAX_PLY)
+      {
+        // Move countに基づいた枝刈り(futility)
+
+        if (depth < 16 * ONE_PLY
+          && moveCount >= FutilityMoveCounts[improving][depth])
+          continue;
+      }
+
+      // -----------------------
+      //      1手進める
+      // -----------------------
 
       // legal()のチェック。root nodeだとlegal()だとわかっているのでこのチェックは不要。
       if (!RootNode && !pos.legal(move))
@@ -895,13 +923,6 @@ namespace YaneuraOuMini
         ss->moveCount = --moveCount;
         continue;
       }
-
-      captureOrPromotion = pos.capture_or_promotion(move);
-      givesCheck = pos.gives_check(move);
-
-      // -----------------------
-      //      1手進める
-      // -----------------------
 
       // 現在このスレッドで探索している指し手を保存しておく。
       ss->currentMove = move;
@@ -923,15 +944,6 @@ namespace YaneuraOuMini
       {
         // Reduction量
         Depth r = reduction<PvNode>(improving, depth, moveCount);
-
-        // captureとpromotionに関してはreduction量を減らしてもう少し突っ込んで調べる。
-        // 歩以外の捕獲の指し手は、捕獲から逃れる手があって有利になるかも知れないので
-        // このときの探索を浅くしてしまうと局面の評価の精度が下がる。
-        if (r
-          && pos.capture(move)
-          && type_of(pos.piece_on(move_to(move))) != PAWN // 歩以外の捕獲
-          )
-          r = std::max(DEPTH_ZERO, r - ONE_PLY);
 
         // depth >= 3なのでqsearchは呼ばれないし、かつ、
         // moveCount > 1 すなわち、このnodeの2手目以降なのでsearch<NonPv>が呼び出されるべき。
@@ -1125,6 +1137,15 @@ void Search::init() {
             reduction_table[pv][imp][d][mc] += ONE_PLY;
         }
 
+  // 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
+  // 枝刈りしてしまうためのmoveCountベースのfutilityで用いるテーブル。
+  // FutilityMoveCounts[improving][残りdepth]
+  // ONE_PLY = 2にしたいので、それに合わせてテーブルを持つことにする。
+  for (int d = 0; d < 16 * (int)ONE_PLY; ++d)
+  {
+    FutilityMoveCounts[0][d] = int(2.4 + 0.773 * pow((float)d / ONE_PLY + 0.00, 1.8));
+    FutilityMoveCounts[1][d] = int(2.9 + 1.045 * pow((float)d / ONE_PLY + 0.49, 1.8));
+  }
 
 }
 
