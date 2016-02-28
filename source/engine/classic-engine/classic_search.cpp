@@ -1119,6 +1119,8 @@ void Thread::search()
   bestValue = delta = alpha = -VALUE_INFINITE;
   beta = VALUE_INFINITE;
 
+  completedDepth = 0;
+
   // もし自分がメインスレッドであるならmainThreadにそのポインタを入れる。
   // 自分がスレーブのときはnullptrになる。
   MainThread* mainThread = (this == Threads.main() ? Threads.main() : nullptr);
@@ -1269,9 +1271,10 @@ void Thread::search()
         else if (PVIdx + 1 == multiPV || Time.elapsed() > 3000)
           sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
       }
+    
     } // multi PV
 
-    // ここでこの反復深化の1回分は終了したのでcompleteDepthに反映させておく。
+    // ここでこの反復深化の1回分は終了したのでcompletedDepthに反映させておく。
     if (!Signals.stop)
       completedDepth = rootDepth;
 

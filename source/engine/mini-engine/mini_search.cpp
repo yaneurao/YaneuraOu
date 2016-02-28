@@ -1271,9 +1271,10 @@ void Thread::search()
         else if (PVIdx + 1 == multiPV || Time.elapsed() > 3000)
           sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
       }
+
     } // multi PV
 
-    // ここでこの反復深化の1回分は終了したのでcompleteDepthに反映させておく。
+    // ここでこの反復深化の1回分は終了したのでcompletedDepthに反映させておく。
     if (!Signals.stop)
       completedDepth = rootDepth;
 
@@ -1298,6 +1299,11 @@ void MainThread::think()
   // ---------------------
   // 合法手がないならここで投了
   // ---------------------
+
+  // lazy SMPではcompletedDepthを最後に比較するのでこれをゼロ初期化しておかないと
+  // 探索しないときにThreads.main()の指し手が選ばれない。
+  for (Thread* th : Threads)
+    th->completedDepth = 0;
 
   if (rootMoves.size() == 0)
   {
