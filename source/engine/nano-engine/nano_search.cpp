@@ -80,7 +80,7 @@ namespace YaneuraOuNano
 
     // 次の指し手をひとつ返す
     // 指し手が尽きればMOVE_NONEが返る。
-    Move nextMove() {
+    Move next_move() {
       if (currentMoves == endMoves)
         return MOVE_NONE;
       return *currentMoves++;
@@ -144,7 +144,7 @@ namespace YaneuraOuNano
 
     StateInfo si;
 
-    while (move = mp.nextMove())
+    while (move = mp.next_move())
     {
       if (!pos.legal(move))
         continue;
@@ -253,7 +253,7 @@ namespace YaneuraOuNano
     int moveCount = 0;
     Move bestMove = MOVE_NONE;
 
-    while (move = mp.nextMove())
+    while (move = mp.next_move())
     {
       // root nodeでは、rootMoves()の集合に含まれていない指し手は探索をスキップする。
       if (RootNode && !std::count(thisThread->rootMoves.begin() + thisThread->PVIdx,

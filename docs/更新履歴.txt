@@ -2,13 +2,119 @@
 やねうら王 更新履歴
 
 やねうら王classicで入れる予定
-・ProbCut
-・Singular Extension
 ・ponder
 ・MovePicker後のfutility pruning
 ・定跡の調整機能
 ・実現確率の低い定跡の指し手は指さないオプションを用意しないと糞定跡掴まされて死にそう…。
 ・持ち時間制御
+
+
+■ 2016/02/28 V2.02
+
+・classicにSingular Extension追加。
+
+	50.8%	
+	#62
+	やねうら王mini V202
+	singluar extension追加, 1スレッド、0.1秒設定
+	#0
+	やねうら王mini V201
+	extend check追加, 1スレッド、0.1秒設定
+
+	215-17-208(34.9% R5.8)	
+
+	おかしい。excludedMove = MOVE_NONEにしていないからか。初期化追加。
+
+
+■ 2016/02/28 V2.01
+
+・classicに王手による1手延長を追加。
+
+		57.5%	
+		#61
+		やねうら王mini V201
+		extend check追加, 1スレッド、0.1秒設定
+		#0
+		やねうら王mini V200
+		IID追加, 1スレッド、0.1秒設定
+
+		168-9-124(0.4% R52.8)	
+
+	見かけ上のRはずいぶん上がるが…。
+
+
+■ 2016/02/28 V2.00
+
+・classicに多重反復深化を入れてみる。
+	メモリが潤沢にある(or 指し手が1手0.1秒なら)、これによる勝率の変化はほとんどないはず。
+
+		51.7%	
+		#60
+		やねうら王mini V200
+		ProbCut追加, 1スレッド、0.1秒設定
+		#59
+		やねうら王mini V199
+		ProbCut追加, 1スレッド、0.1秒設定
+
+		1153-59-1076(5.1% R12.0)	
+
+	→　思ったより変わった。
+
+
+■ 2016/02/28 V1.99
+
+・classic開発開始。
+	・ProbCut入れてみる。
+	・StateInfoの変数名siではなくstにしてStockfishに合わせておく。
+	・MovePicker::nextMoveではなくnext_move()のほうがいいのでは…。
+・MovePickerにProbCut用の指し手生成を追加。
+
+		60.0%	
+		#58
+		やねうら王mini V199
+		ProbCut追加, 1スレッド、0.1秒設定
+		#0
+		やねうら王mini V192
+		null move追加, 1スレッド、0.1秒設定
+
+		150-7-100(0.1% R70.4)	
+
+・miniにもProbCutは入れる。ProbCut 10行程度のわりにR70ぐらい増えるのでお得だ。
+
+
+■ 2016/02/28 V1.98
+
+・miniのlazy SMP条件を調整。
+
+    for (Thread* th : Threads)
+      if (th->completedDepth > bestThread->completedDepth
+        && th->rootMoves[0].score > bestThread->rootMoves[0].score)
+        bestThread = th;
+		↓
+    for (Thread* th : Threads)
+      if (th->completedDepth  > bestThread->completedDepth ||
+         (th->completedDepth == bestThread->completedDepth &&  th->rootMoves[0].score > bestThread->rootMoves[0].score))
+        bestThread = th;
+
+	どう考えてもこっちのほうがいいと思うのだが…。
+	これでV1.95と4スレッド1秒で対戦させてみる。
+
+
+		48.2%	
+		#58
+		やねうら王mini V198
+		lazySMP改良, 4スレッド、0.1秒設定
+		#57
+		やねうら王mini V195
+		4スレッド設定, 4スレッド、0.1秒設定
+
+		477-42-513(88.0% R-12.6)	
+
+		この改良は駄目なのか。スコアがいいほうが楽観合議のような効果があるのだろうか。
+		→　元に戻す。
+
+	exeフォルダのminiを差し替える。
+	classicのほうの開発進める。
 
 
 ■ 2016/02/28 V1.97
@@ -19,6 +125,16 @@
 　Stockfishのコードがおかしいんだな…。
 	→　修正した。
 ・4スレッド設定と対局させておく。
+
+		75.7%	
+		#57
+		やねうら王mini V195
+		4スレッド設定, 4スレッド、0.1秒設定
+		#56
+		やねうら王mini V195
+		razoring戻す, 1スレッド、0.1秒設定
+
+		667-15-214(0.0% R197.5)	
 
 
 ■ 2016/02/28 V1.96

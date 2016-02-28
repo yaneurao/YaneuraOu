@@ -126,6 +126,13 @@ enum Stages {
   RECAPTURE_START,              // ↓のstageに行くためのラベル
   GOOD_RECAPTURES,              // 最後の移動した駒を捕獲する指し手(RECAPTURES)を生成した指し手を一つずつ返す
 
+  // -----------------------------------------------------
+  //   通常探索のProbCutの処理のなかから呼び出される用
+  // -----------------------------------------------------
+
+  PROBCUT_START,                // 置換表の指し手を返すフェーズ
+  PROBCUT_CAPTURES,             // 直前の指し手での駒の価値を上回る駒取りの指し手のみを生成するフェーズ
+
   STOP,                         // 終端
 };
 ENABLE_OPERATORS_ON(Stages); // 次の状態にするためにインクリメントを使いたい。
@@ -175,6 +182,23 @@ struct MovePicker
     ttMove = ttMove_ && pos.pseudo_legal_s<false>(ttMove_) ? ttMove_ : MOVE_NONE;
     endMoves += (ttMove != MOVE_NONE);
   }
+  
+  // 通常探索時にProbCutの処理から呼び出されるの専用
+  MovePicker(const Position& p, Move ttMove_, const HistoryStats& h, Value threshold_)
+    : pos(p), history(h), counterMoveHistory(nullptr), threshold(threshold_) {
+
+    ASSERT_LV3(!pos.checkers());
+
+    stage = PROBCUT_START;
+
+    // In ProbCut we generate captures with SEE higher than the given threshold
+    ttMove = ttMove_
+      && pos.pseudo_legal(ttMove_)
+      && pos.capture(ttMove_)
+      && pos.see(ttMove_) > threshold ? ttMove_ : MOVE_NONE;
+
+    endMoves += (ttMove != MOVE_NONE);
+  }
 
   // 次のstageにするため、必要なら指し手生成器で指し手を生成する。
   void generate_next_stage()
@@ -187,7 +211,7 @@ struct MovePicker
     // 次のステージに移行して、そのときに指し手生成が必要なステージに達したなら指し手を生成する。
     switch (++stage)
     {
-    case GOOD_CAPTURES: case QCAPTURES_1 : case QCAPTURES_2:
+    case GOOD_CAPTURES: case QCAPTURES_1: case QCAPTURES_2: case PROBCUT_CAPTURES:
       endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, moves);
       score_captures(); // CAPTUREの指し手の並べ替え。
       break;
@@ -242,7 +266,7 @@ struct MovePicker
 
       // そのステージの末尾に達したのでMovePickerを終了する。
     case EVASION_START: case QSEARCH_WITH_CHECKS_START: case QSEARCH_WITHOUT_CHECKS_START:
-    case RECAPTURE_START: case STOP:
+    case PROBCUT_START: case RECAPTURE_START: case STOP:
       stage = STOP;
       break;
 
@@ -255,7 +279,7 @@ struct MovePicker
 
   // 次の指し手をひとつ返す
   // 指し手が尽きればMOVE_NONEが返る。
-  Move nextMove() {
+  Move next_move() {
 
     Move move;
 
@@ -269,6 +293,7 @@ struct MovePicker
         // 置換表の指し手を返すフェーズ
       case MAIN_SEARCH_START: case EVASION_START:
       case QSEARCH_WITH_CHECKS_START: case QSEARCH_WITHOUT_CHECKS_START:
+      case PROBCUT_START:
         ++currentMoves;
         return ttMove;
 
@@ -337,6 +362,14 @@ struct MovePicker
         move = *currentMoves++;
         if (  move != ttMove
           && !pos.capture_or_pawn_promotion(move)) // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
+          return move;
+        break;
+
+        // 通常探索のProbCutの処理から呼び出されるとき用。
+        // 直前に捕獲された駒の価値を上回るようなcaptureの指し手のみを生成する。
+      case PROBCUT_CAPTURES:
+        move = pick_best(currentMoves++, endMoves);
+        if (move != ttMove && pos.see(move) > threshold)
           return move;
         break;
 
@@ -446,6 +479,9 @@ private:
 
   // killer move 2個 + counter move 1個 = 3個
   ExtMove killers[3];
+
+  // ProbCut用の指し手生成に用いる、直前の指し手で捕獲された駒の価値
+  Value threshold;
 
   // 指し手生成の段階
   Stages stage;

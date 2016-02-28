@@ -16,6 +16,7 @@ namespace Zobrist {
   HASH_KEY psq[SQ_NB][PIECE_NB]; // 駒pcが盤上sqに配置されているときのZobrist Key
   HASH_KEY hand[COLOR_NB][PIECE_HAND_NB]; // c側の手駒prが一枚増えるごとにこれを加算するZobristKey
   HASH_KEY depth[MAX_PLY]; // 深さも考慮に入れたHASH KEYを作りたいときに用いる(実験用)
+  HASH_KEY exclusion;  // singular extensionのときにttMoveが除外されているので通常のkeyに加算するオフセット値
 }
 
 // ----------------------------------
@@ -88,12 +89,16 @@ void Position::init() {
     for (Piece pr = PIECE_ZERO ; pr < PIECE_HAND_NB;++pr)
       SET_HASH(Zobrist::hand[c][pr],rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>());
 
-  for (int i = 0; i < MAX_PLY;++i)
-    SET_HASH(Zobrist::depth[i], rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>())
+  SET_HASH(Zobrist::exclusion, rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>());
+
+  for (int i = 0; i < MAX_PLY; ++i)
+    SET_HASH(Zobrist::depth[i], rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>());
 }
 
 // depthに応じたZobrist Hashを得る。depthを含めてhash keyを求めたいときに用いる。
 HASH_KEY DepthHash(int depth) { return Zobrist::depth[depth]; }
+
+HASH_KEY StateInfo::long_key_exclusion() const { return long_key() + Zobrist::exclusion; }
 
 // ----------------------------------
 //  Position::set()とその逆変換sfen()

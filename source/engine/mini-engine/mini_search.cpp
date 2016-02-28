@@ -378,9 +378,9 @@ namespace YaneuraOuMini
     Move move;
     Value value;
 
-    StateInfo si;
+    StateInfo st;
 
-    while ((move = mp.nextMove()) != MOVE_NONE)
+    while ((move = mp.next_move()) != MOVE_NONE)
     {
       if (!pos.legal(move))
         continue;
@@ -390,7 +390,7 @@ namespace YaneuraOuMini
       // 現在このスレッドで探索している指し手を保存しておく。
       ss->currentMove = move;
 
-      pos.do_move(move, si, pos.gives_check(move));
+      pos.do_move(move, st, pos.gives_check(move));
       value = givesCheck ? -qsearch<NT, true>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
                          : -qsearch<NT,false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
       pos.undo_move(move);
@@ -481,9 +481,15 @@ namespace YaneuraOuMini
     // このnodeからのPV line(読み筋)
     Move pv[MAX_PLY + 1];
 
+    // do_move()するときに必要
+    StateInfo st;
+
     // 調べた指し手を残しておいて、statusのupdateを行なうときに使う。
     Move quietsSearched[64];
     int quietCount;
+
+    // MovePickerから1手ずつもらうときの一時変数
+    Move move;
 
     // この局面でdo_move()された合法手の数
     int moveCount;
@@ -497,7 +503,9 @@ namespace YaneuraOuMini
     // この局面でのベストのスコア
     Value bestValue;
 
-    StateInfo si;
+    // search()の戻り値を受ける一時変数
+    Value value;
+
 
     // -----------------------
     //     nodeの初期化
@@ -742,7 +750,7 @@ namespace YaneuraOuMini
       // 残り探索深さと評価値によるnull moveの深さを動的に減らす
       Depth R = ((823 + 67 * depth) / 256 + std::min((int)((eval - beta) / PawnValue), 3)) * ONE_PLY;
 
-      pos.do_null_move(si);
+      pos.do_null_move(st);
       (ss + 1)->skipEarlyPruning = true;
 
       //  王手がかかっているときはここに来ていないのでqsearchはInCheck == falseのほうを呼ぶ。
@@ -774,14 +782,50 @@ namespace YaneuraOuMini
       }
     }
 
+    //
+    //   ProbCut
+    //
+
+    // もし、このnodeで非常に良いcaptureの指し手があり(例えば、SEEの値が動かす駒の価値を上回るようなもの)
+    // 探索深さを減らしてざっくり見てもbetaを非常に上回る値を返すようなら、このnodeをほぼ安全に枝刈りすることが出来る。
+
+    if (!PvNode
+      &&  depth >= 5 * ONE_PLY
+      &&  abs(beta) < VALUE_MATE_IN_MAX_PLY)
+    {
+      Value rbeta = std::min(beta + 200, VALUE_INFINITE);
+
+      // 大胆に探索depthを減らす
+      Depth rdepth = depth - 4 * ONE_PLY;
+
+      ASSERT_LV3(rdepth >= ONE_PLY);
+      ASSERT_LV3((ss - 1)->currentMove != MOVE_NONE);
+      ASSERT_LV3((ss - 1)->currentMove != MOVE_NULL);
+
+      pos.check_info_update();
+      // このnodeの指し手としては置換表の指し手を返したあとは、直前の指し手で捕獲された駒による評価値の上昇を
+      // 上回るようなcaptureの指し手のみを生成する。
+      MovePicker mp(pos, ttMove, thisThread->history, (Value)Eval::PieceValueCapture[pos.captured_piece_type()]);
+
+      while ((move = mp.next_move()) != MOVE_NONE)
+        if (pos.legal(move))
+        {
+          ss->currentMove = move;
+          pos.do_move(move, st, pos.gives_check(move));
+          value = -search<NonPV>(pos, ss + 1, -rbeta, -rbeta + 1, rdepth, !cutNode);
+          pos.undo_move(move);
+          if (value >= rbeta)
+            return value;
+        }
+    }
+
     // -----------------------
     // 1手ずつ指し手を試す
     // -----------------------
 
   MOVES_LOOP:
 
-    Value value = bestValue; // gccの初期化されていないwarningの抑制
-    Move move;
+    value = bestValue; // gccの初期化されていないwarningの抑制
 
     // 今回の指し手で王手になるかどうか
     bool givesCheck;
@@ -815,7 +859,7 @@ namespace YaneuraOuMini
 
     //  一手ずつ調べていく
 
-    while ((move = mp.nextMove()) !=MOVE_NONE)
+    while ((move = mp.next_move()) !=MOVE_NONE)
     {
       // root nodeでは、rootMoves()の集合に含まれていない指し手は探索をスキップする。
       if (RootNode && !std::count(thisThread->rootMoves.begin() + thisThread->PVIdx,
@@ -863,7 +907,7 @@ namespace YaneuraOuMini
       ss->currentMove = move;
 
       // 指し手で1手進める
-      pos.do_move(move, si, givesCheck);
+      pos.do_move(move, st, givesCheck);
 
       // -----------------------
       // 再帰的にsearchを呼び出す
@@ -1453,7 +1497,7 @@ ID_END:;
   {
     // 深くまで探索できていて、かつそっちの評価値のほうが優れているならそのスレッドの指し手を採用する
     // 単にcompleteDepthが深いほうのスレッドを採用しても良さそうだが、スコアが良いほうの探索深さのほうが
-    // いい指し手を発見している可能性があって悩ましい。いろいろ条件を変えて実験すべき。
+    // いい指し手を発見している可能性があって楽観合議のような効果があるようだ。
     for (Thread* th : Threads)
       if (th->completedDepth > bestThread->completedDepth
         && th->rootMoves[0].score > bestThread->rootMoves[0].score)

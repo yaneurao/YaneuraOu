@@ -300,7 +300,7 @@ namespace YaneuraOuNanoPlus
 
     StateInfo si;
 
-    while (move = mp.nextMove())
+    while (move = mp.next_move())
     {
       if (!pos.legal(move))
         continue;
@@ -645,7 +645,7 @@ namespace YaneuraOuNanoPlus
 
       //  一手ずつ調べていく
 
-      while (move = mp.nextMove())
+      while (move = mp.next_move())
       {
         // root nodeでは、rootMoves()の集合に含まれていない指し手は探索をスキップする。
         if (RootNode && !std::count(thisThread->rootMoves.begin() + thisThread->PVIdx,
