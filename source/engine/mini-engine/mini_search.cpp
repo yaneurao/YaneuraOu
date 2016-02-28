@@ -625,30 +625,6 @@ namespace YaneuraOuMini
     }
 
     // -----------------------
-    //    1手詰みか？
-    // -----------------------
-
-    Move bestMove = MOVE_NONE;
-
-    // RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
-    // 置換表にhitしたときも1手詰め判定は行われていると思われるのでこの場合もはしょる。
-    // depthの残りがある程度ないと、1手詰めはどうせこのあとすぐに見つけてしまうわけで1手詰めを
-    // 見つけたときのリターン(見返り)が少ない。
-    if (!RootNode && !ttHit && depth > ONE_PLY)
-    {
-      bestMove = pos.mate1ply();
-      if (bestMove != MOVE_NONE)
-      {
-        // 1手詰めスコアなので確実にvalue > alphaなはず。
-        alpha = mate_in(ss->ply);
-        tte->save(posKey, value_to_tt(alpha, ss->ply), BOUND_EXACT,
-          DEPTH_MAX, bestMove, ss->staticEval, TT.generation());
-
-        return alpha;
-      }
-    }
-
-    // -----------------------
     //  局面を評価値によって静的に評価
     // -----------------------
 
@@ -831,6 +807,7 @@ namespace YaneuraOuMini
   MOVES_LOOP:
 
     value = bestValue; // gccの初期化されていないwarningの抑制
+    Move bestMove = MOVE_NONE;
 
     // 今回の指し手で王手になるかどうか
     bool givesCheck;
@@ -909,6 +886,20 @@ namespace YaneuraOuMini
 
         if (depth < 16 * ONE_PLY
           && moveCount >= FutilityMoveCounts[improving][depth])
+          continue;
+
+        // Move countに基づいた枝刈り(futilityの亜種)
+
+        if (depth < 16 * ONE_PLY
+          && moveCount >= FutilityMoveCounts[improving][depth])
+          continue;
+
+        // Historyに基づいた枝刈り(history && counter moveの値が悪いものに関してはskip)
+
+        if (depth <= 4 * ONE_PLY
+          && move != ss->killers[0]
+          && thisThread->history.get(pos.moved_piece(move),move_to(move)) < VALUE_ZERO
+          && cmh.get(pos.moved_piece(move), move_to(move)) < VALUE_ZERO)
           continue;
 
         // 他、色々すべき
