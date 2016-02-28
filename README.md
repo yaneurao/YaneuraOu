@@ -51,9 +51,10 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 
 - [ ] ・やねうら王classicの探索部を改良する。
 
+- [x] 2016/02/29・やねうら王classicにhistoryに基づく枝刈り追加。(+R150)
 - [x] 2016/02/29・やねうら王miniのソースコード、整理。効果の薄い枝刈り削除。
-- [x] 2016/02/29・やねうら王miniにmoveCountベースのfutility追加。(+R200?)
-- [x] 2016/02/29・やねうら王classicにmoveCountベースのfutility追加。(+R200?)
+- [x] 2016/02/29・やねうら王miniにmoveCountベースのfutility追加。(+R150)
+- [x] 2016/02/29・やねうら王classicにmoveCountベースのfutility追加。(+R150)
 - [x] 2016/02/28・やねうら王classicに王手延長追加。(+R50)
 - [x] 2016/02/28・やねうら王classicに多重反復深化追加。(+R12)
 - [x] 2016/02/28・やねうら王classicにProbCut追加。(+R70)

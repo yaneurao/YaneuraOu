@@ -3,15 +3,29 @@
 
 やねうら王classicで入れる予定
 ・ponder
-・MovePicker後のfutility pruning
 ・定跡の調整機能
 ・実現確率の低い定跡の指し手は指さないオプションを用意しないと糞定跡掴まされて死にそう…。
 ・持ち時間制御
 
-・classicに浅い深さの枝刈りいくつか追加。
+
+■ 2016/02/29 V2.04
+
+・classicにHistoryに基づいた枝刈り追加。
+
+		77.9%	
+		#64
+		やねうら王mini V203a
+		miniのほうmoveCountベースのfutility追加, 1スレッド、0.1秒設定
+		#0
+		やねうら王mini V202
+		singluar extension追加, 1スレッド、0.1秒設定
+
+		102-3-29(0.0% R218.5)	
+
+・miniにこの枝刈り入れて、1手詰め、削除するとどうか。
 
 
-■ 2016/02/28 V2.03
+■ 2016/02/29 V2.03
 
 ・classicにmoveCountベースのfutility追加
 
@@ -31,7 +45,7 @@
 ・やねうら王mini、ソースコード整理して、exeフォルダの中身差し替えた。
 
 
-■ 2016/02/28 V2.02
+■ 2016/02/29 V2.02
 
 ・classicにSingular Extension追加。
 

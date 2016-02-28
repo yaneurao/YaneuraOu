@@ -910,6 +910,8 @@ namespace YaneuraOuMini
         if (depth < 16 * ONE_PLY
           && moveCount >= FutilityMoveCounts[improving][depth])
           continue;
+
+        // 他、色々すべき
       }
 
       // -----------------------

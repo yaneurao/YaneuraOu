@@ -986,19 +986,22 @@ namespace YaneuraOuClassic
         && !givesCheck
         && bestValue > VALUE_MATED_IN_MAX_PLY)
       {
-        // Move countに基づいた枝刈り(futility)
+
+        // Move countに基づいた枝刈り(futilityの亜種)
 
         if (depth < 16 * ONE_PLY
           && moveCount >= FutilityMoveCounts[improving][depth])
           continue;
-#if 0
-        // Historyに基づいた枝刈り
+
+        // Historyに基づいた枝刈り(history && counter moveの値が悪いものに関してはskip)
+
         if (depth <= 4 * ONE_PLY
           && move != ss->killers[0]
-          && thisThread->history[pos.moved_piece(move)][to_sq(move)] < VALUE_ZERO
-          && cmh[pos.moved_piece(move)][to_sq(move)] < VALUE_ZERO)
+          && thisThread->history.get(pos.moved_piece(move),move_to(move)) < VALUE_ZERO
+          && cmh.get(pos.moved_piece(move), move_to(move)) < VALUE_ZERO)
           continue;
 
+#if 0
         predictedDepth = std::max(newDepth - reduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO);
 
         // Futility pruning: 親nodeに関して
