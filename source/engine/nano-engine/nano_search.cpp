@@ -32,6 +32,10 @@ using namespace std;
 using namespace Search;
 using namespace Eval;
 
+// USIに追加オプションを設定したいときは、この関数を定義すること。
+// USI::init()のなかからコールバックされる。
+void USI::extra_option(USI::OptionsMap & o) {}
+
 namespace YaneuraOuNano
 {
   // -----------------------

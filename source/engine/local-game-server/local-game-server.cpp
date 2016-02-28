@@ -11,6 +11,9 @@
 // 1行ずつ結果を出力するモード
 #define ONE_LINE_OUTPUT_MODE
 
+// USIに追加オプションを設定したいときは、この関数を定義すること。
+// USI::init()のなかからコールバックされる。
+void USI::extra_option(USI::OptionsMap & o) {}
 
 // 子プロセスを実行して、子プロセスの標準入出力をリダイレクトするのをお手伝いするクラス。
 struct ProcessNegotiator

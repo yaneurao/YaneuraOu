@@ -8,6 +8,12 @@ void user_test(Position& pos, istringstream& is)
 
 #ifdef USER_ENGINE
 
+// USIに追加オプションを設定したいときは、この関数を定義すること。
+// USI::init()のなかからコールバックされる。
+void USI::extra_option(USI::OptionsMap & o)
+{
+}
+
 // 起動時に呼び出される。時間のかからない探索関係の初期化処理はここに書くこと。
 void Search::init()
 {

@@ -101,10 +101,6 @@
 // 標準で用意されているMovePickerを用いるか
 // #define USE_MOVE_PICKER
 
-// USIのoptionで"Param1","Param2"という名前のオプションを有効にする。
-// これは探索パラメーターなどを外部から自動調整するのに用いる。
-//#define ENABLE_OPTION_PARAM
-
 
 // --------------------
 // release configurations
@@ -123,7 +119,6 @@
 #ifdef YANEURAOU_NANO_PLUS_ENGINE
 #define ENGINE_NAME "YaneuraOu nano plus"
 #define ENABLE_TEST_CMD
-#define ENABLE_OPTION_PARAM
 #define EVAL_KPP
 #define USE_TT_PV
 #define USE_SEE
@@ -135,7 +130,6 @@
 #ifdef YANEURAOU_MINI_ENGINE
 #define ENGINE_NAME "YaneuraOu mini"
 #define ENABLE_TEST_CMD
-#define ENABLE_OPTION_PARAM
 #define EVAL_KPP
 #define USE_SEE
 #define USE_MOVE_PICKER
@@ -148,7 +142,6 @@
 // 開発中なのでassertを有効に。
 #define ASSERT_LV 3
 #define ENABLE_TEST_CMD
-#define ENABLE_OPTION_PARAM
 #define EVAL_KPP
 #define USE_SEE
 #define USE_MOVE_PICKER

@@ -13,6 +13,8 @@ namespace MateEngine
 {
 }
 
+void USI::extra_option(USI::OptionsMap & o) {}
+
 // --- Search
 
 void Search::init() {}

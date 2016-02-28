@@ -180,11 +180,6 @@ namespace USI
     // その局面での上位N個の候補手を調べる機能
     o["MultiPV"] << Option(1, 1, 800);
 
-    // 協力詰めsolver
-#ifdef    COOPERATIVE_MATE_SOLVER
-    o["CM_Hash"] << Option(16, 1, MaxHashMB, [](auto&o) { CooperativeMate::TT.resize(o); });
-#endif
-
     // cin/coutの入出力をファイルにリダイレクトする
     o["WriteDebugLog"] << Option(false, [](auto& o) { start_logger(o); });
 
@@ -194,11 +189,8 @@ namespace USI
     // 引き分けを受け入れるスコア
     o["Contempt"] << Option(0, -30000, 30000);
 
-    // パラメーターの外部からの自動調整
-#ifdef ENABLE_OPTION_PARAM
-    o["Param1"] << Option(0, 0, 100000);
-    o["Param2"] << Option(0, 0, 100000);
-#endif
+    // 各エンジンがOptionを追加したいだろうから、コールバックする。
+    USI::extra_option(o);
   }
 
   // USIプロトコル経由で値を設定されたときにそれをcurrentValueに反映させる。

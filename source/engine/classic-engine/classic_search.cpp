@@ -28,6 +28,25 @@ using namespace std;
 using namespace Search;
 using namespace Eval;
 
+// USIに追加オプションを設定したいときは、この関数を定義すること。
+// USI::init()のなかからコールバックされる。
+void USI::extra_option(USI::OptionsMap & o)
+{
+  // 
+  //   定跡
+  //
+
+  // 実現確率の低い狭い定跡を選択しない
+  o["NarrowBook"] << Option(false);
+
+  //
+  //   パラメーターの外部からの自動調整
+  //
+
+  o["Param1"] << Option(0, 0, 100000);
+  o["Param2"] << Option(0, 0, 100000);
+}
+
 namespace YaneuraOuClassic
 {
 
@@ -1580,8 +1599,9 @@ void MainThread::think()
 
   {
     auto it = book.find(rootPos.sfen());
-    if (it != book.end()) {
+    if (it != book.end() && it->second.size()!=0) {
       // 定跡にhitした。逆順で出力しないと将棋所だと逆順にならないという問題があるので逆順で出力する。
+      // また、it->second->size()!=0をチェックしておかないと指し手のない定跡が登録されていたときに困る。
       const auto& move_list = it->second;
       if (!Limits.silent)
         for (auto it = move_list.rbegin(); it != move_list.rend(); it++)
@@ -1592,8 +1612,27 @@ void MainThread::think()
       // このなかの一つをランダムに選択
       // 無難な指し手が選びたければ、採択回数が一番多い、最初の指し手(move_list[0])を選ぶべし。
 
+      // 狭い定跡を用いるのか？
+      bool narrowBook = Options["NarrowBook"];
+      size_t book_move_max = move_list.size();
+      if (narrowBook)
+      {
+        // 出現確率10%未満のものを取り除く。
+        for (int i = 0; i < move_list.size();++i)
+        {
+          if (move_list[i].prob < 0.1)
+          {
+            book_move_max = (size_t) max(i,1);
+            // 定跡から取り除いたことをGUIに出力
+            if (!Limits.silent)
+              sync_cout << "info string narrow book moves to " << book_move_max << " moves " <<  sync_endl;
+            break;
+          }
+        }
+      }
+
       // 不成の指し手がRootMovesに含まれていると正しく指せない。
-      auto bestMove = move_list[prng.rand(move_list.size())].bestMove;
+      auto bestMove = move_list[prng.rand(book_move_max)].bestMove;
       auto it_move = std::find(rootMoves.begin(), rootMoves.end(),bestMove);
       if (it_move != rootMoves.end())
       {

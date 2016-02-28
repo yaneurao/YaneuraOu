@@ -9,6 +9,17 @@ using namespace Search;
 
 // --- 協力詰め探索
 
+// USIに追加オプションを設定したいときは、この関数を定義すること。
+// USI::init()のなかからコールバックされる。
+void USI::extra_option(USI::OptionsMap & o)
+{
+  // Hash上限。32bitモードなら2GB、64bitモードなら1024GB
+  const int MaxHashMB = Is64Bit ? 1024 * 1024 : 2048;
+
+  // 協力詰めで確保する置換表
+  o["CM_Hash"] << Option(16, 1, MaxHashMB, [](auto&o) { HelpMate::TT.resize(o); });
+}
+
 namespace HelpMate
 {
   // 協力詰め用のMovePicker

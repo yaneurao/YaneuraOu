@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "2.08"
+#define ENGINE_VERSION "2.09"
 
 // --------------------
 // コンパイル時の設定
@@ -817,6 +817,10 @@ namespace USI {
   // 歩が100になるように正規化するので、operator <<()をこういう仕様にすると
   // 実際の値と異なる表示になりデバッグがしにくくなるから、そうはしていない。
   std::string score_to_usi(Value v);
+
+  // USIに追加オプションを設定したいときは、この関数を定義すること。
+  // USI::init()のなかからコールバックされる。
+  void extra_option(USI::OptionsMap& o);
 }
 
 // USIのoption設定はここに保持されている。

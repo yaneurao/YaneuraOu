@@ -6,6 +6,7 @@
 // --- Search
 
 PRNG my_rand; // 乱数生成器。引数なしなら自動的にrandomizeされる。
+void USI::extra_option(USI::OptionsMap & o) {}
 void Search::init() {}
 void Search::clear() {}
 void MainThread::think() {
