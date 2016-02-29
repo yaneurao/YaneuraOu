@@ -940,6 +940,9 @@ namespace YaneuraOuClassic
 
   MOVES_LOOP:
 
+    // 現局面での手番
+//    auto us = pos.side_to_move();
+
     // value = bestValue; // gccの初期化されていないwarningの抑制
 
     // 評価値が2手前の局面から上がって行っているのかのフラグ
@@ -1040,12 +1043,19 @@ namespace YaneuraOuClassic
       // これを調べるために、ttMove以外の探索深さを減らして探索して、
       // その結果がttValue - margin以下ならttMoveの指し手を延長する。
 
+      // Stockfishの実装だとmargin = 2 * depthだが、(ONE_PLY==1として)、
+      // 将棋だと1手以外はすべてそれぐらい悪いことは多々あり、
+      // ほとんどの指し手がsingularと判定されてしまう。
+      // これでは効果がないので、1割ぐらいの指し手がsingularとなるぐらいの係数に調整する。
+
       else if (singularExtensionNode
         &&  move == ttMove
         &&  pos.legal(move))
       {
-        Value rBeta = ttValue - 2 * depth / ONE_PLY;   // margin = 2 * depth / ONE_PLY
-        ss->excludedMove = move;                       // ttMoveの指し手を探索から除外
+        // param1 == 2のとき最大になるっぽいが、あまり効果がなかったので保留。
+        // あとでまた検証する。
+        Value rBeta = ttValue - (param1 + 1) * depth / ONE_PLY;   // margin = 2 * depth / ONE_PLY
+        ss->excludedMove = move;                                  // ttMoveの指し手を探索から除外
         ss->skipEarlyPruning = true;
         // 局面はdo_move()で進めずにこのnodeから浅い探索深さで探索しなおす。
         value = search<NonPV>(pos, ss, rBeta - 1, rBeta, depth / 2, cutNode);
@@ -1161,16 +1171,18 @@ namespace YaneuraOuClassic
         r = std::max(DEPTH_ZERO, r - rHist * ONE_PLY);
 
 #if 0
-        // captureから逃れる手に関してはreduction量を減らしてもう少し突っ込んで調べる。
-        // 歩以外の捕獲の指し手は、捕獲から逃れる手があって有利になるかも知れないので
-        // このときの探索を浅くしてしまうと局面の評価の精度が下がる。
+        // 捕獲から逃れるための指し手に関してはreduction量を減らしてやる。
+        // 捕獲から逃れるとそれによって局面の優劣が反転することが多いためである。
+
         if (r
           && !(move & MOVE_PROMOTE)
-          && type_of(pos.piece_on(move_to(move))) != PAWN // 歩以外の捕獲
-          && pos.see(make_move(move_to(move), from_sq(move))) < VALUE_ZERO)
-          )
+          && pos.effected_to(~us,move_from(move))) // 敵の利きがこの移動元の駒にあるか
           r = std::max(DEPTH_ZERO, r - ONE_PLY);
 #endif
+
+        //
+        // ここにその他の枝刈り、何か入れるべき
+        //
 
         // depth >= 3なのでqsearchは呼ばれないし、かつ、
         // moveCount > 1 すなわち、このnodeの2手目以降なのでsearch<NonPv>が呼び出されるべき。

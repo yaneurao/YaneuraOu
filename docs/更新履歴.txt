@@ -6,6 +6,84 @@
 - [ ] ・Recaptureのオーダリング考える。
 
 
+■ 2016/03/01 V2.14
+
+・classic
+
+        // 捕獲から逃れるための指し手に関してはreduction量を減らしてやる。
+        // 捕獲から逃れるとそれによって局面の優劣が反転することが多いためである。
+
+        if (r
+          && !(move & MOVE_PROMOTE)
+          && pos.effected_to(~us,move_from(move))) // 敵の利きがこの移動元の駒にあるか
+          r = std::max(DEPTH_ZERO, r - ONE_PLY);
+
+		  こういう枝刈り(枝刈らない？)を入れてみた。
+
+			50.0%	
+			#82
+			やねうら王classic V214
+			捕獲から逃れる手のreduction減らす, 1スレッド、0.1秒設定
+			#0
+			やねうら王classic V213
+			悪いhistoryにreduction追加, 1スレッド、0.1秒設定
+
+			185-13-185(52.1% R0.0)	
+
+	→　効果乏しい。コメントアウトしておく。
+
+	V2.14a
+	singularのmargin調整してみる。
+	        Value rBeta = ttValue - (param1 + 1) * depth / ONE_PLY;   // margin = 2 * depth / ONE_PLY
+	param1 = 0..4ぐらいで。
+
+			47.1%	49.0%	51.2%	40.6%	50.5%	
+			#83
+			やねうら王classic V214a
+			singular margin=(param1+1)*depth, 1スレッド、0.1秒設定
+			#0
+			やねうら王classic V213
+			悪いhistoryにreduction追加, 1スレッド、0.1秒設定
+
+			140-8-157(85.2% R-19.9)	98-8-102(63.8% R-6.9)	103-7-98(33.6% R8.6)	80-11-117(99.7% R-66.0)	100-10-98(41.6% R3.5)	
+	
+		X=2 だからmargin = depth*15/ONE_PLYで最大になっているがあまり他と差がないので
+		singularは保留しておく。
+
+	・npsそもそもいつこんなに下がったのか。
+	V1.93で1割ほどダウン
+	V2.07で1割ほどダウン。→静止探索でfutility入れたからか…。
+
+	・枝刈り一通り入れたのに、予想外に弱いな。評価値の差分計算が間違ってないか検証する。
+	→　差分計算は合ってた。
+
+	・やねうら王2015とやってみる。
+	やねうら王1手0.1秒固定で..
+	
+			100.0%	0.0%	0.0%	0.0%	0.0%	
+			#84
+			やねうら王2015
+			1スレッド、0.1秒設定
+			#0
+			やねうら王classic V213
+			悪いhistoryにreduction追加, 1スレッド、0.1秒設定
+
+			100-0-0(0.0% R∞)	0-0-0(100.0% RNaN)	0-0-0(100.0% RNaN)	0-0-0(100.0% RNaN)	0-0-0(100.0% RNaN)	
+
+	100戦100敗だった。なにこれ。やはり評価関数か何かがおかしいとしか考えられない。
+	evalstat同じなのにeval違うだと…？
+
+	isready
+	position startpos
+	eval
+	これが正しいのか。
+	positionをセットしたタイミングでevalの全計算をするが、そのときに評価関数が読み込まれていないとまずくて…。
+
+	悔しいがevalも差分も完璧なのに…。
+	1スレッドで負けてるから、lazy SMP悪くないしな。
+	やねうら王2015とソース見比べるしかないな。
+
+
 ■ 2016/03/01 V2.13
 
 ・classic 
@@ -13,6 +91,39 @@
         int rHist = (thisThread->history.get(pos.piece_on(move_to(move)),move_to(move))
           + cmh.get(pos.piece_on(move_to(move)),move_to(move))) / 14980;
         r = std::max(DEPTH_ZERO, r - rHist * ONE_PLY);
+
+		53.2%	
+		#81
+		やねうら王classic V213
+		悪いhistoryにreduction追加, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic V212
+		悪いhistoryにreduction追加, 1スレッド、0.1秒設定
+
+		201-15-177(9.9% R22.1)	
+
+	1回落ちた。なんで…。
+	sfen l3k2r1/p1g5l/1p1ss2g1/+b4pppp/2+bp5/2N2PPPP/+n1PPP2R1/2S1K4/4SG1NL w PN3plg 134
+	→　よくわからない。
+	local-server.exe
+	で対戦させておくか。
+	→  3PCで一晩回したが落ちなかった。前プロセスが悪さしてたのかな…。
+	
+・miniの最終とclassicと対戦させてみる。
+
+		55.5%	
+		#81
+		やねうら王classic V213
+		悪いhistoryにreduction追加, 1スレッド、0.1秒設定
+		#75
+		やねうら王mini V208
+		静止探索での駒得しないevasion枝刈り追加, 1スレッド、0.1秒設定
+
+		182-7-146(2.0% R38.3)	
+
+	あまり強くなっていないが、弱くもなっていないので良しとする。
+	もうちょっと強くなっているはずだったのだが…。
+
 
 
 ■ 2016/03/01 V2.12

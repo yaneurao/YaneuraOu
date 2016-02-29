@@ -55,7 +55,7 @@ struct TTEntry {
     // 3. BOUND_EXACT(これはPVnodeで探索した結果で、とても価値のある情報なので無条件で書き込む)
     // 1. or 2. or 3.
     if ((k >> 48) != key16
-      || (d > depth() - 2 * ONE_PLY)
+      || (d > depth() - 4 * ONE_PLY)
       || b == BOUND_EXACT
       )
     {
