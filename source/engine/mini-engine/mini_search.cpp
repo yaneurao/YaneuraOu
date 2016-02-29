@@ -267,13 +267,13 @@ namespace YaneuraOuMini
     //    千日手等の検出
     // -----------------------
 
-    // 連続王手による千日手、および通常の千日手、優等局面・劣等局面。
     auto draw_type = pos.is_repetition();
     if (draw_type != REPETITION_NONE)
-      return draw_value(draw_type, pos.side_to_move());
+      return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 
-    if (ss->ply >= MAX_PLY)
-      return draw_value(REPETITION_DRAW, pos.side_to_move());
+    // 最大手数を超えている、もしくは停止命令が来ている。
+    if (Signals.stop.load(std::memory_order_relaxed) || ss->ply >= MAX_PLY)
+      return value_from_tt(draw_value(REPETITION_DRAW, pos.side_to_move()), ss->ply);
 
     // -----------------------
     //     置換表のprobe
@@ -368,7 +368,7 @@ namespace YaneuraOuMini
       Move m = pos.mate1ply();
       if (m != MOVE_NONE)
       {
-        bestValue = mate_in(ss->ply);
+        bestValue = mate_in(ss->ply + 1); // 1手詰めなのでこの次のnodeで詰むという解釈
         tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
                   DEPTH_MAX, m, ss->staticEval, TT.generation());
 
@@ -458,7 +458,7 @@ namespace YaneuraOuMini
       // 現在このスレッドで探索している指し手を保存しておく。
       ss->currentMove = move;
 
-      pos.do_move(move, st, pos.gives_check(move));
+      pos.do_move(move, st, givesCheck);
       value = givesCheck ? -qsearch<NT, true>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
                          : -qsearch<NT,false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
       pos.undo_move(move);
@@ -608,11 +608,10 @@ namespace YaneuraOuMini
     {
       auto draw_type = pos.is_repetition();
       if (draw_type != REPETITION_NONE)
-        return draw_value(draw_type, pos.side_to_move());
+        return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 
-      // 最大手数を超えている
       if (ss->ply >= MAX_PLY)
-        return draw_value(REPETITION_DRAW, pos.side_to_move());
+        return value_from_tt(draw_value(REPETITION_DRAW, pos.side_to_move()), ss->ply);
     }
 
     // -----------------------

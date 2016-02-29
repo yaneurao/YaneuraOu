@@ -202,8 +202,8 @@ namespace YaneuraOuClassic
     {
       // 直前がcaptureではないから、2手前に動かした駒は捕獲されずに盤上にあるはずであり、
       // その升の駒を盤から取り出すことが出来る。
-      Square prevPrevSq = move_to((ss - 2)->currentMove);
-      CounterMoveStats& prevCmh = CounterMoveHistory.get(pos.piece_on(prevPrevSq), prevPrevSq);
+      auto prevPrevSq = move_to((ss - 2)->currentMove);
+      auto& prevCmh = CounterMoveHistory.get(pos.piece_on(prevPrevSq), prevPrevSq);
       prevCmh.update(pos.piece_on(prevSq), prevSq, -bonus - 2 * (depth + 1) / ONE_PLY);
     }
 
@@ -278,12 +278,16 @@ namespace YaneuraOuClassic
     // -----------------------
 
     // 連続王手による千日手、および通常の千日手、優等局面・劣等局面。
+
     auto draw_type = pos.is_repetition();
     if (draw_type != REPETITION_NONE)
-      return draw_value(draw_type, pos.side_to_move());
+      return value_from_tt(draw_value(draw_type, pos.side_to_move()),ss->ply);
+
+    // 詰みのスコアに対して、rootからの手数を考慮したスコアに変換する必要があるので、
+    // value_from_ttで変換してから返すのが正解。
 
     if (ss->ply >= MAX_PLY)
-      return draw_value(REPETITION_DRAW, pos.side_to_move());
+      return value_from_tt(draw_value(REPETITION_DRAW, pos.side_to_move()),ss->ply);
 
     // -----------------------
     //     置換表のprobe
@@ -378,7 +382,7 @@ namespace YaneuraOuClassic
       Move m = pos.mate1ply();
       if (m != MOVE_NONE)
       {
-        bestValue = mate_in(ss->ply);
+        bestValue = mate_in(ss->ply+1); // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
         tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
                   DEPTH_MAX, m, ss->staticEval, TT.generation());
 
@@ -477,11 +481,13 @@ namespace YaneuraOuClassic
       // 現在このスレッドで探索している指し手を保存しておく。
       ss->currentMove = move;
 
-      pos.do_move(move, st, pos.gives_check(move));
+      pos.do_move(move, st, givesCheck);
       value = givesCheck ? -qsearch<NT, true>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
                          : -qsearch<NT,false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
 
       pos.undo_move(move);
+
+      ASSERT_LV3(-VALUE_INFINITE < value && value < VALUE_INFINITE);
 
       // bestValue(≒alpha値)を更新するのか
       if (value > bestValue)
@@ -563,30 +569,17 @@ namespace YaneuraOuClassic
     //     変数の宣言
     // -----------------------
 
-    // この局面に対する評価値の見積り。
-    Value eval;
-
     // このnodeからのPV line(読み筋)
     Move pv[MAX_PLY + 1];
     
     // do_move()するときに必要
     StateInfo st;
 
-    // 調べた指し手を残しておいて、statusのupdateを行なうときに使う。
-    Move quietsSearched[64];
-    int quietCount;
-
     // MovePickerから1手ずつもらうときの一時変数
     Move move;
 
-    // この局面でdo_move()された合法手の数
-    int moveCount;
-
     // LMRのときにfail highが起きるなどしたので元の残り探索深さで探索することを示すフラグ
     bool doFullDepthSearch;
-
-    // 指し手で捕獲する指し手、もしくは成りである。
-    bool captureOrPromotion;
 
     // この局面でのベストのスコア
     Value bestValue;
@@ -594,12 +587,16 @@ namespace YaneuraOuClassic
     // search()の戻り値を受ける一時変数
     Value value;
 
+    // この局面に対する評価値の見積り。
+    Value eval;
+
     // -----------------------
     //     nodeの初期化
     // -----------------------
 
     ASSERT_LV3(-VALUE_INFINITE <= alpha && alpha < beta && beta <= VALUE_INFINITE);
-    ASSERT_LV3(PvNode || alpha == beta - 1);
+    ASSERT_LV3(PvNode || (alpha == beta - 1));
+    ASSERT_LV3(DEPTH_ZERO < depth && depth < DEPTH_MAX);
 
     Thread* thisThread = pos.this_thread();
 
@@ -620,26 +617,27 @@ namespace YaneuraOuClassic
       thisThread->maxPly = ss->ply;
 
     // -----------------------
-    //     千日手等の検出
+    //  RootNode以外での処理
     // -----------------------
 
     if (!RootNode)
     {
+      // -----------------------
+      //     千日手等の検出
+      // -----------------------
+
       auto draw_type = pos.is_repetition();
       if (draw_type != REPETITION_NONE)
-        return draw_value(draw_type, pos.side_to_move());
+        return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 
-      // 最大手数を超えている
-      if (ss->ply >= MAX_PLY)
-        return draw_value(REPETITION_DRAW, pos.side_to_move());
-    }
+      // 最大手数を超えている、もしくは停止命令が来ている。
+      if (Signals.stop.load(std::memory_order_relaxed) || ss->ply >= MAX_PLY)
+        return value_from_tt(draw_value(REPETITION_DRAW, pos.side_to_move()),ss->ply);
 
-    // -----------------------
-    //  Mate Distance Pruning
-    // -----------------------
+      // -----------------------
+      //  Mate Distance Pruning
+      // -----------------------
 
-    if (!RootNode)
-    {
       // rootから5手目の局面だとして、このnodeのスコアが
       // 5手以内で詰ますときのスコアを上回ることもないし、
       // 5手以内で詰まさせるときのスコアを下回ることもないので
@@ -731,11 +729,11 @@ namespace YaneuraOuClassic
       if (bestMove != MOVE_NONE)
       {
         // 1手詰めスコアなので確実にvalue > alphaなはず。
-        alpha = mate_in(ss->ply);
-        tte->save(posKey, value_to_tt(alpha, ss->ply), BOUND_EXACT,
+        bestValue = mate_in(ss->ply + 1); // 1手詰めは次のnodeで詰むという解釈
+        tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
           DEPTH_MAX, bestMove, ss->staticEval, TT.generation());
 
-        return alpha;
+        return bestValue;
       }
     }
 
@@ -806,7 +804,7 @@ namespace YaneuraOuClassic
       // 残り探索深さがONE_PLY以下で、alphaを確実に下回りそうなら、ここで静止探索を呼び出してしまう。
       if (depth <= ONE_PLY
         && eval + razor_margin(3 * ONE_PLY) <= alpha)
-        return  qsearch<NonPV, false>(pos, ss, alpha,  beta     , DEPTH_ZERO);
+        return  qsearch<NonPV, false>(pos, ss, alpha,  beta      , DEPTH_ZERO);
 
       // 残り探索深さが1～3手ぐらいあるときに、alpha - razor_marginを上回るかだけ調べて
       // 上回りそうにないならもうリターンする。
@@ -962,7 +960,12 @@ namespace YaneuraOuClassic
       && (tte->bound() & BOUND_LOWER)
       && tte->depth() >= depth - 3 * ONE_PLY;
 
-    moveCount = quietCount = 0;
+    // 調べた指し手を残しておいて、statusのupdateを行なうときに使う。
+    Move quietsSearched[64];
+    int quietCount = 0;
+
+    // このnodeでdo_move()された合法手の数
+    int moveCount = 0;
 
     //  MovePickerでのオーダリングのためにhistory tableなどを渡す
 
@@ -1044,6 +1047,7 @@ namespace YaneuraOuClassic
         Value rBeta = ttValue - 2 * depth / ONE_PLY;   // margin = 2 * depth / ONE_PLY
         ss->excludedMove = move;                       // ttMoveの指し手を探索から除外
         ss->skipEarlyPruning = true;
+        // 局面はdo_move()で進めずにこのnodeから浅い探索深さで探索しなおす。
         value = search<NonPV>(pos, ss, rBeta - 1, rBeta, depth / 2, cutNode);
         ss->skipEarlyPruning = false;
         ss->excludedMove = MOVE_NONE;
@@ -1053,14 +1057,16 @@ namespace YaneuraOuClassic
       }
 #endif
 
-      // 再帰的にsearchを呼び出すとき、search関数に渡す残り探索深さ。
-      Depth newDepth = depth - ONE_PLY + extension;
-
-      captureOrPromotion = pos.capture_or_promotion(move);
-
       // -----------------------
       //   1手進める前の枝刈り
       // -----------------------
+
+      // 再帰的にsearchを呼び出すとき、search関数に渡す残り探索深さ。
+      // これはsingluar extensionの探索が終わってから決めなければならない。(singularなら延長したいので)
+      Depth newDepth = depth - ONE_PLY + extension;
+
+      // 指し手で捕獲する指し手、もしくは成りである。
+      bool captureOrPromotion = pos.capture_or_promotion(move);
 
       //
       // Pruning at shallow depth
@@ -1117,6 +1123,7 @@ namespace YaneuraOuClassic
       // -----------------------
 
       // legal()のチェック。root nodeだとlegal()だとわかっているのでこのチェックは不要。
+      // 非合法手はほとんど含まれていないからこの判定はdo_move()の直前まで遅延させたほうが得。
       if (!RootNode && !pos.legal(move))
       {
         // 足してしまったmoveCountを元に戻す。
@@ -1142,13 +1149,25 @@ namespace YaneuraOuClassic
         // Reduction量
         Depth r = reduction<PvNode>(improving, depth, moveCount);
 
+        // cut nodeや、historyの値が悪い指し手に対してはreduction量を増やす。
+        if ((!PvNode && cutNode)
+          || (thisThread->history.get(pos.piece_on(move_to(move)),move_to(move)) < VALUE_ZERO
+            && cmh.get(pos.piece_on(move_to(move)),move_to(move)) <= VALUE_ZERO))
+          r += ONE_PLY;
+
+        // historyの値に応じて指し手のreduction量を増減する。
+        int rHist = (thisThread->history.get(pos.piece_on(move_to(move)),move_to(move))
+          + cmh.get(pos.piece_on(move_to(move)),move_to(move))) / 14980;
+        r = std::max(DEPTH_ZERO, r - rHist * ONE_PLY);
+
 #if 0
         // captureから逃れる手に関してはreduction量を減らしてもう少し突っ込んで調べる。
         // 歩以外の捕獲の指し手は、捕獲から逃れる手があって有利になるかも知れないので
         // このときの探索を浅くしてしまうと局面の評価の精度が下がる。
         if (r
-          && pos.capture(move)
+          && !(move & MOVE_PROMOTE)
           && type_of(pos.piece_on(move_to(move))) != PAWN // 歩以外の捕獲
+          && pos.see(make_move(move_to(move), from_sq(move))) < VALUE_ZERO)
           )
           r = std::max(DEPTH_ZERO, r - ONE_PLY);
 #endif
@@ -1200,7 +1219,7 @@ namespace YaneuraOuClassic
       pos.undo_move(move);
 
       // 停止シグナルが来たら置換表を汚さずに終了。
-      if (Signals.stop)
+      if (Signals.stop.load(std::memory_order_relaxed))
         return VALUE_ZERO;
 
       // -----------------------
@@ -1218,6 +1237,9 @@ namespace YaneuraOuClassic
 
           rm.score = value;
           rm.pv.resize(1); // PVは変化するはずなのでいったんリセット
+
+          // 1手進めたのだから、何らかPVを持っているはずなのだが。
+          ASSERT_LV3((ss + 1)->pv);
 
           // RootでPVが変わるのは稀なのでここがちょっとぐらい重くても問題ない。
           // 新しく変わった指し手の後続のpvをRootMoves::pvにコピーしてくる。
@@ -1282,6 +1304,22 @@ namespace YaneuraOuClassic
     // 詰まされていない場合、bestMoveがあるならこの指し手をkiller等に登録する。
     else if (bestMove && !pos.capture_or_promotion(bestMove))
       update_stats(pos, ss, bestMove, depth, quietsSearched, quietCount);
+
+    // fail lowを引き起こした前nodeでのcounter moveに対してボーナスを加点する。
+    else if (depth >= 3 * ONE_PLY
+      && !bestMove                        // bestMoveが無い == fail low
+      && !InCheck
+      && !pos.captured_piece_type()
+      && is_ok((ss - 1)->currentMove)
+      && is_ok((ss - 2)->currentMove))
+    {
+      // 残り探索depthの3乗ぐらいのボーナスを与えてもええやろ。
+      // Valueはint32なのでdepthが256までだから、3乗してもオーバーフローはすぐにはしない。
+      Value bonus = Value(((int)depth * (int)depth * (int)depth) / ((int)ONE_PLY*(int)ONE_PLY*(int)ONE_PLY) - 1);
+      auto prevPrevSq = move_to((ss - 2)->currentMove);
+      auto& prevCmh = CounterMoveHistory.get(pos.piece_on(prevPrevSq),prevPrevSq);
+      prevCmh.update(pos.piece_on(prevSq), prevSq, bonus);
+    }
 
     // -----------------------
     //  置換表に保存する

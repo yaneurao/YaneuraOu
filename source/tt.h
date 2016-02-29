@@ -29,7 +29,7 @@ struct TTEntry {
   //   gen  : TT.generation()
   void save(Key k, Value v, Bound b,Depth d, Move m,Value eval,uint8_t gen)
   {
-    ASSERT_LV3(-VALUE_INFINITE != v && v != VALUE_INFINITE);
+    ASSERT_LV3((-VALUE_INFINITE < v && v < VALUE_INFINITE) || v == VALUE_NONE);
 
     // このif式だが、
     // A = m!=MOVE_NONE

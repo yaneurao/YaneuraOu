@@ -20,7 +20,7 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 	
 ## やねうら王mini
 
-やねうら王miniは、やねうら王nano plusを並列化して、将棋ソフトとしての体裁を整えたものです。Bonanza6より強く、教育的かつ短いコードで書かれています。全体で3000行程度、探索部500行程度。(R2800程度)
+やねうら王miniは、やねうら王nano plusを並列化して、将棋ソフトとしての体裁を整えたものです。Bonanza6より強く、教育的かつ短いコードで書かれています。全体で3000行程度、探索部500行程度。(R2700程度)
 
 ## やねうら王classic 
 
@@ -47,7 +47,7 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/02/29 04:00現在)
+#　俺の作業メモ(2016/03/01 03:00現在)
 
 - [ ] ・やねうら王classicにponder機能入れる。
 - [ ] ・やねうら王classicに持ち時間制御入れる。
@@ -57,6 +57,11 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 
 - [ ] ・やねうら王classicの探索部を改良する。
 
+- [x] 2016/03/01・やねうら王classic、悪いhistoryにreduction量を増やす枝刈り追加。
+- [x] 2016/03/01・やねうら王classic、引き分け時のスコア、value_from_tt()を通すようにした。
+- [x] 2016/03/01・やねうら王mini、引き分け時のスコア、value_from_tt()を通すようにした。
+- [x] 2016/02/29・fail lowを引き起こした直前のcounter moveに加点するようにした。
+- [x] 2016/02/29・1手詰めを見つけたときのスコアがおかしかったの修正。
 - [x] 2016/02/29・やねうら王miniに定跡のnarrow book機能入れた。
 - [x] 2016/02/29・やねうら王classicに定跡のnarrow book機能入れた。
 - [x] 2016/02/29・思考エンジンごとにUSIのOptionを追加できるようにした。

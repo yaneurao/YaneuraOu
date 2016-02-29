@@ -373,10 +373,10 @@ struct MovePicker
           return move;
         break;
 
-        // 取り返す指し手。これはすでに生成されているのでそのまま返すだけで良い。
-        // オーダリングもしない。(移動させる駒の価値が低い順に並べたほうがいいのかも知れない)
+        // 取り返す指し手。これはすでにrecaptureの指し手だけが生成されているのでそのまま返す。
       case GOOD_RECAPTURES:
         move = *currentMoves++;
+        //        move = pick_best(currentMoves++, endMoves);
         return move;
 
       case STOP:
@@ -402,14 +402,6 @@ private:
     return *begin;
   }
 
-  // QUIETの指し手をスコアリングする。
-  void score_quiets()
-  {
-    for (auto& m : *this)
-      m.value = history.get(pos.moved_piece(m), move_to(m))
-      + counterMoveHistory->get(pos.moved_piece(m), move_to(m));
-  }
-
   // CAPTUREの指し手をオーダリング
   void score_captures() 
   {
@@ -428,6 +420,14 @@ private:
       // (基本的には取る駒の価値が大きいほど優先であるから..)
       m.value -= Value(1 * relative_rank(pos.side_to_move(), rank_of(move_to(m))));
     }
+  }
+
+  // QUIETの指し手をスコアリングする。
+  void score_quiets()
+  {
+    for (auto& m : *this)
+      m.value = history.get(pos.moved_piece(m), move_to(m))
+      + counterMoveHistory->get(pos.moved_piece(m), move_to(m));
   }
 
   void score_evasions()

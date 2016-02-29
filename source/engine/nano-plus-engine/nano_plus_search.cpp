@@ -278,7 +278,7 @@ namespace YaneuraOuNanoPlus
       m = pos.mate1ply();
       if (m != MOVE_NONE)
       {
-        bestValue = mate_in(ss->ply);
+        bestValue = mate_in(ss->ply + 1); // 1手詰めなのでこの次のnodeで詰むという解釈
         tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
           DEPTH_MAX, m , ss->staticEval, TT.generation());
 
@@ -315,7 +315,7 @@ namespace YaneuraOuNanoPlus
       // 現在このスレッドで探索している指し手を保存しておく。
       ss->currentMove = move;
 
-      pos.do_move(move, si, pos.gives_check(move));
+      pos.do_move(move, si, givesCheck);
       value = givesCheck ? -YaneuraOuNanoPlus::qsearch<NT, true>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
                          : -YaneuraOuNanoPlus::qsearch<NT,false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
       pos.undo_move(move);
@@ -530,11 +530,11 @@ namespace YaneuraOuNanoPlus
       if (bestMove != MOVE_NONE)
       {
         // 1手詰めスコアなので確実にvalue > alphaなはず。
-        alpha = mate_in(ss->ply);
-        tte->save(posKey, value_to_tt(alpha, ss->ply), BOUND_EXACT,
+        bestValue = mate_in(ss->ply);
+        tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
           DEPTH_MAX , bestMove, ss->staticEval, TT.generation());
 
-        return alpha;
+        return bestValue;
       }
     }
 

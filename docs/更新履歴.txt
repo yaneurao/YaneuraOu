@@ -3,7 +3,115 @@
 
 気が向いたらやるリスト
 - [ ] ・やねうら王classicに定跡の選択機能入れる。
+- [ ] ・Recaptureのオーダリング考える。
 
+
+■ 2016/03/01 V2.13
+
+・classic 
+        // historyの値に応じて指し手のreduction量を増減する。
+        int rHist = (thisThread->history.get(pos.piece_on(move_to(move)),move_to(move))
+          + cmh.get(pos.piece_on(move_to(move)),move_to(move))) / 14980;
+        r = std::max(DEPTH_ZERO, r - rHist * ONE_PLY);
+
+
+■ 2016/03/01 V2.12
+
+・classic 悪いhistoryにreduction量を増やす枝刈り追加してみる。
+
+        // cut nodeや、historyの値が悪い指し手に対してはreduction量を増やす。
+        if ((!PvNode && cutNode)
+          || (thisThread->history.get(pos.piece_on(move_to(move)),move_to(move)) < VALUE_ZERO
+            && cmh.get(pos.piece_on(move_to(move)),move_to(move)) <= VALUE_ZERO))
+          r += ONE_PLY;
+
+
+			61.3%	
+			#80
+			やねうら王classic V212
+			悪いhistoryにreduction追加, 1スレッド、0.1秒設定
+			#0
+			やねうら王classic V208
+			静止探索での駒得しないevasion枝刈り追加, 1スレッド、0.1秒設定
+
+			92-1-58(0.2% R80.1)	
+
+
+■ 2016/03/01 V2.11
+
+・singularもっかい試す
+
+		46.0%	
+		#78
+		やねうら王classic V211
+		singular追加, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic V208
+		静止探索での駒得しないevasion枝刈り追加, 1スレッド、0.1秒設定
+
+		426-33-501(99.4% R-28.2)	
+	→　どう見ても悪い。原因よく調べる。
+
+・Signals.stop、探索中にこれを調べるなら、Signals.stop.load(std::memory_order_relaxed)とすべき。修正。
+・Signals.stop、searchの前のほうでもやるように。
+・静止探索でpos.givesCheck()になっていたところ、givesCheckに修正。
+
+	V2.11a
+・fail lowを引き起こした直前のcounter moveに加点するようにした。
+・searchのなかにassertいくつか追加した。
+	sfen ln1gk3p/1rs1s4/p2ps1N+B+L/lp3p3/+Rn5P1/2G1PPPl1/3P5/P+b1G1S3/4KG3 b 4P3pn 79
+	静止探索でassertに引っかかった。
+	      ASSERT_LV3(-VALUE_INFINITE < value && value < VALUE_INFINITE);
+	おかしい…。
+	value == -32004
+	置換表に32004を書き込んだ奴がいる。
+
+	TTEntry::saveに次のassertを追加。
+    ASSERT_LV3((-VALUE_INFINITE < v && v < VALUE_INFINITE) || v == VALUE_NONE);
+
+      if (!(-VALUE_INFINITE + ss->ply < value && value < VALUE_INFINITE - ss->ply))
+      {
+        pos.do_move(move, st, givesCheck);
+        value = givesCheck ? -qsearch<NT, true>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
+          : -qsearch<NT, false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
+
+        pos.undo_move(move);
+      }
+	こう書くと原因わかった。
+	draw scoreにvalue_from_tt()みたいな変換していないからか…。
+	連続王手での千日手での負け、詰みスコアより低くするのは違う気がするので
+	やはりvalue_from_ttみたいなことしないといけないのか。
+
+      // -----------------------
+      //     千日手等の検出
+      // -----------------------
+
+      auto draw_type = pos.is_repetition();
+      if (draw_type != REPETITION_NONE)
+        return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
+
+      // 最大手数を超えている、もしくは停止命令が来ている。
+      if (Signals.stop.load(std::memory_order_relaxed) || ss->ply >= MAX_PLY)
+        return value_from_tt(draw_value(REPETITION_DRAW, pos.side_to_move()),ss->ply);
+
+	こうだ。miniも同様の修正をしておく。
+
+
+■ 2016/02/29 V2.10
+
+・1手詰めのときmate_in(ply + 1)でないとおかしいのか。忘れてた。修正した。
+	この修正で弱くなっていないことを確認しておく。
+
+		48.5%	
+		#77
+		やねうら王classic V210
+		1手詰めスコア修正, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic V208
+		静止探索での駒得しないevasion枝刈り追加, 1スレッド、0.1秒設定
+
+		199-14-211(74.0% R-10.2)	
+	→　たぶん弱くはなってなさげ。
 
 ■ 2016/02/29 V2.09
 
@@ -17,7 +125,20 @@
 
 ・やねうら王classic、NarrowBookにしたものと対戦させてみる。
 	終局図までが同じになることが多々あってあまり意味があるとも思えないが…。
-	→　わりと戦績が偏っている。miniにもこの機能入れて、floodgateにはそれを投入する。
+	→　miniにもこの機能入れて、floodgateにはそれを投入する。
+
+		51.8%	
+		#76
+		やねうら王classic V209
+		NarrowBook有効, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic V208
+		静止探索での駒得しないevasion枝刈り追加, 1スレッド、0.1秒設定
+
+		174-10-162(23.9% R12.4)	
+
+	あまり偏ってなかった。持ち時間が短いと序盤のミスを咎めるのが難しいからか…。
+	そもそも大悪手は含まれてないだろうしな…。
 
 
 ■ 2016/02/29 V2.08
