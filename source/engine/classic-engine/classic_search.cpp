@@ -5,6 +5,7 @@
 // -----------------------
 //   やねうら王classic探索部
 // -----------------------
+// #define NEW_TT
 
 // 開発方針
 // やねうら王miniからの改造
@@ -243,7 +244,11 @@ namespace YaneuraOuClassic
     Value futilityBase;    // futility pruningの基準となる値
 
     // hash key関係
+#ifdef NEW_TT
     TTEntry* tte;          // 置換表にhitしたときの置換表のエントリーへのポインタ
+#else
+    const TTEntry* tte;
+#endif
     Key posKey;            // この局面のhash key
     bool ttHit;            // 置換表にhitしたかのフラグ
     Move ttMove;           // 置換表に登録されていた指し手
@@ -263,6 +268,8 @@ namespace YaneuraOuClassic
       // そのことを示すフラグとして元の値が必要(non PVではこの変数は参照しない)
       // PV nodeでalpha値を上回る指し手が存在しなかった場合は、調べ足りないのかも知れないからBOUND_UPPERとしてbestValueを保存しておく。
       oldAlpha = alpha;
+
+      // PvNodeのときしかoldAlphaを初期化していないが、PvNodeのときしか使わないのでこれは問題ない。
 
       (ss + 1)->pv = pv;
       ss->pv[0] = MOVE_NONE;
@@ -299,7 +306,12 @@ namespace YaneuraOuClassic
                                                   : DEPTH_QS_NO_CHECKS;
 
     posKey  = pos.state()->key();
+#ifdef NEW_TT
     tte     = TT.probe(posKey, ttHit);
+#else
+    tte = TT.probe(posKey);
+    ttHit = (tte != nullptr);
+#endif
     ttMove  = ttHit ? tte->move() : MOVE_NONE;
     ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
 
@@ -369,8 +381,13 @@ namespace YaneuraOuClassic
       if (bestValue >= beta)
       {
         if (!ttHit)
+#ifdef NEW_TT
           tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_LOWER,
                     DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
+#else
+          TT.store(posKey, value_to_tt(bestValue, ss->ply), BOUND_LOWER,
+            DEPTH_NONE, MOVE_NONE, ss->staticEval);
+#endif
 
         return bestValue;
       }
@@ -383,8 +400,13 @@ namespace YaneuraOuClassic
       if (m != MOVE_NONE)
       {
         bestValue = mate_in(ss->ply+1); // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
+#ifdef NEW_TT
         tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
                   DEPTH_MAX, m, ss->staticEval, TT.generation());
+#else
+        TT.store(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
+          DEPTH_MAX, m, ss->staticEval);
+#endif
 
         return bestValue;
       }
@@ -511,9 +533,13 @@ namespace YaneuraOuClassic
           {
             // 1. nonPVでのalpha値の更新 →　もうこの時点でreturnしてしまっていい。(ざっくりした枝刈り)
             // 2. PVでのvalue >= beta、すなわちfail high
+#ifdef NEW_TT
             tte->save(posKey, value_to_tt(value, ss->ply), BOUND_LOWER,
                       ttDepth, move, ss->staticEval, TT.generation());
-            
+#else
+            TT.store(posKey, value_to_tt(value, ss->ply), BOUND_LOWER,
+              ttDepth, move, ss->staticEval);
+#endif
             return value;
           }
         }
@@ -535,9 +561,15 @@ namespace YaneuraOuClassic
     } else {
       // 詰みではなかったのでこれを書き出す。
 
+#ifdef NEW_TT
       tte->save(posKey, value_to_tt(bestValue, ss->ply),
         PvNode && bestValue > oldAlpha ? BOUND_EXACT : BOUND_UPPER,
         ttDepth, bestMove, ss->staticEval, TT.generation());
+#else
+      TT.store(posKey, value_to_tt(bestValue, ss->ply),
+        PvNode && bestValue > oldAlpha ? BOUND_EXACT : BOUND_UPPER,
+        ttDepth, bestMove, ss->staticEval);
+#endif
     }
 
     // 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
@@ -675,7 +707,12 @@ namespace YaneuraOuClassic
     auto posKey = excludedMove ? pos.state()->key_exclusion() : pos.state()->key();
 
     bool ttHit;    // 置換表がhitしたか
+#ifdef NEW_TT
     TTEntry* tte = TT.probe(posKey, ttHit);
+#else
+    const TTEntry* tte = TT.probe(posKey);
+    ttHit = (tte != nullptr);
+#endif
 
     // 置換表上のスコア
     // 置換表にhitしなければVALUE_NONE
@@ -730,8 +767,13 @@ namespace YaneuraOuClassic
       {
         // 1手詰めスコアなので確実にvalue > alphaなはず。
         bestValue = mate_in(ss->ply + 1); // 1手詰めは次のnodeで詰むという解釈
+#ifdef NEW_TT
         tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
           DEPTH_MAX, bestMove, ss->staticEval, TT.generation());
+#else
+        TT.store(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
+          DEPTH_MAX, bestMove, ss->staticEval);
+#endif
 
         return bestValue;
       }
@@ -776,8 +818,12 @@ namespace YaneuraOuClassic
         (ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
                                            : -(ss - 1)->staticEval;
 
+#ifdef NEW_TT
       // 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
       tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
+#else
+      TT.store(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->staticEval);
+#endif
     }
 
     // このnodeで指し手生成前の枝刈りを省略するなら指し手生成ループへ。
@@ -930,7 +976,12 @@ namespace YaneuraOuClassic
       search<NT>(pos, ss, alpha, beta, d, true);
       ss->skipEarlyPruning = false;
 
+#ifdef NEW_TT
       tte = TT.probe(posKey, ttHit);
+#else
+      tte = TT.probe(posKey);
+      ttHit = (tte != nullptr);
+#endif
       ttMove = ttHit ? tte->move() : MOVE_NONE;
     }
 
@@ -1344,10 +1395,17 @@ namespace YaneuraOuClassic
     // ただし、指し手がない場合は、詰まされているスコアなので、これより短い/長い手順の詰みがあるかも知れないから、
     // すなわち、スコアは変動するかも知れないので、BOUND_UPPERという扱いをする。
 
+#ifdef NEW_TT
     tte->save(posKey, value_to_tt(bestValue, ss->ply),
               bestValue >= beta ? BOUND_LOWER :
               PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
               depth, bestMove, ss->staticEval, TT.generation());
+#else
+    TT.store(posKey, value_to_tt(bestValue, ss->ply),
+      bestValue >= beta ? BOUND_LOWER :
+      PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
+      depth, bestMove, ss->staticEval);
+#endif
 
     // 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
     ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);

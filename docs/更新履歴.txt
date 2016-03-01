@@ -6,6 +6,17 @@
 - [ ] ・Recaptureのオーダリング考える。
 
 
+■ 2016/03/01 V2.15
+
+・比較実験用に古いStockfishの置換表のコード持ってきた。
+	sfen lns3snl/1r1gk1gb1/pppp1p3/6pRp/4pN3/6P1P/PPPPPP3/1B3S3/LNSGKG2L w Pp 20
+	→　insert_pvなんとかで落ちた。
+	勝率めっちゃ悪い。詰みを読みきったあと、逆転負け。何これ。
+	insert_pv絡みで何か壊しているのか。そんな馬鹿な…。
+	probe()のときにgenerationをrefreshするように追加したが、関係なかった。何なのこれ。
+	見たことのない症例。
+
+
 ■ 2016/03/01 V2.14
 
 ・classic
