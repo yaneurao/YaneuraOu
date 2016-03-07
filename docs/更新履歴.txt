@@ -6,6 +6,17 @@
 - [ ] ・Recaptureのオーダリング考える。
 
 
+■ 2016/03/07 V2.17
+
+・古いほうの置換表
+-  uint64_t size = ClusterSize << MSB64((mbSize << 20) / sizeof(TTEntry[ClusterSize]));
++  uint64_t size = size_t(ClusterSize) << MSB64((mbSize << 20) / sizeof(TTEntry[ClusterSize]));
+	こんなコードになってた。uint64_tに拡張したときに拡張できてなかった。
+	やねうら王(2014)で4GB以上の置換表の確保に問題があったのこれか。(いまごろ)
+
+	ただ、今回の問題はこれとは関係ない。(確保は出来ている状況で新しいほうの置換表より明らかに弱いというものだから)
+
+
 ■ 2016/03/04 V2.16
 
 ・打ち歩詰めの判定、間違っていたようだ。(tanuki-さんよりバグ報告があった。)

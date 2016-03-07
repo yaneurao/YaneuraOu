@@ -140,7 +140,7 @@ void TranspositionTable::resize(uint64_t mbSize) {
   // clusterを確保する。
 
   //:  uint32_t size = ClusterSize << msb((mbSize << 20) / sizeof(TTEntry[ClusterSize]));
-  uint64_t size = ClusterSize << MSB64((mbSize << 20) / sizeof(TTEntry[ClusterSize]));
+  uint64_t size = size_t(ClusterSize) << MSB64((mbSize << 20) / sizeof(TTEntry[ClusterSize]));
 
   // 現在確保中の置換表用のメモリと等しいならば再確保は行わない
   if (hashMask == size - ClusterSize)
