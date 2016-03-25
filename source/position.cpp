@@ -23,50 +23,63 @@ namespace Zobrist {
 //           CheckInfo
 // ----------------------------------
 
+template <CheckInfoUpdate ciu>
 void CheckInfo::update(const Position& pos) {
 
   // このクラスのメンバー変数は、このコンストラクタで適切な値をセットしてやる必要がある。
 
-  // 相手の手番
-  Color them = ~pos.side_to_move();
+  if (ciu == CHECK_INFO_UPDATE_ALL || ciu == CHECK_INFO_UPDATE_PINNED)
+  {
+    // 手番側のpinされている駒
+    pinned = pos.pinned_pieces(pos.side_to_move());
+  }
 
-  // 敵玉の位置
-  ksq = pos.king_square(them);
+  if (ciu == CHECK_INFO_UPDATE_ALL || ciu == CHECK_INFO_UPDATE_WITHOUT_PINNED)
+  {
 
-  // 手番側のpinされている駒
-  pinned = pos.pinned_pieces(pos.side_to_move());
+    // 相手の手番
+    Color them = ~pos.side_to_move();
 
-  // 動かすと開き王手になる自駒の候補
-  dcCandidates = pos.discovered_check_candidates();
+    // 敵玉の位置
+    ksq = pos.king_square(them);
 
-  // 駒種Xによって敵玉に王手となる升のbitboard
+    // 動かすと開き王手になる自駒の候補
+    dcCandidates = pos.discovered_check_candidates();
 
-  // 歩であれば、自玉に敵の歩を置いたときの利きにある場所に自分の歩があればそれは敵玉に対して王手になるので、
-  // そういう意味で(ksq,them)となっている。
+    // 駒種Xによって敵玉に王手となる升のbitboard
 
-  Bitboard occ = pos.pieces();
+    // 歩であれば、自玉に敵の歩を置いたときの利きにある場所に自分の歩があればそれは敵玉に対して王手になるので、
+    // そういう意味で(ksq,them)となっている。
 
-  // この指し手が二歩でないかは、この時点でテストしない。指し手生成で除外する。なるべくこの手のチェックは遅延させる。
-  checkSq[PAWN  ] = pawnEffect(them, ksq);
-  checkSq[LANCE ] = lanceEffect(them, ksq,occ);
-  checkSq[KNIGHT] = knightEffect(them, ksq);
-  checkSq[SILVER] = silverEffect(them, ksq);
-  checkSq[BISHOP] = bishopEffect(ksq,occ);
-  checkSq[ROOK  ] = rookEffect(ksq,occ);
-  checkSq[GOLD  ] = goldEffect(them, ksq);
+    Bitboard occ = pos.pieces();
 
-  // 王を移動させて直接王手になることはない。それは自殺手である。
-  checkSq[KING  ] = ZERO_BB;
+    // この指し手が二歩でないかは、この時点でテストしない。指し手生成で除外する。なるべくこの手のチェックは遅延させる。
+    checkSq[PAWN] = pawnEffect(them, ksq);
+    checkSq[LANCE] = lanceEffect(them, ksq, occ);
+    checkSq[KNIGHT] = knightEffect(them, ksq);
+    checkSq[SILVER] = silverEffect(them, ksq);
+    checkSq[BISHOP] = bishopEffect(ksq, occ);
+    checkSq[ROOK] = rookEffect(ksq, occ);
+    checkSq[GOLD] = goldEffect(them, ksq);
 
-  // 成り駒。この初期化は馬鹿らしいようだが、gives_check()は指し手ごとに呼び出されるので、その処理を軽くしたいので
-  // ここでの初期化は許容できる。(このコードはノードの最初に1回呼び出されるだけなので)
-  checkSq[PRO_PAWN  ] = checkSq[GOLD];
-  checkSq[PRO_LANCE ] = checkSq[GOLD];
-  checkSq[PRO_KNIGHT] = checkSq[GOLD];
-  checkSq[PRO_SILVER] = checkSq[GOLD];
-  checkSq[HORSE     ] = checkSq[BISHOP] | kingEffect(ksq);
-  checkSq[DRAGON    ] = checkSq[ROOK  ] | kingEffect(ksq);
+    // 王を移動させて直接王手になることはない。それは自殺手である。
+    checkSq[KING] = ZERO_BB;
+
+    // 成り駒。この初期化は馬鹿らしいようだが、gives_check()は指し手ごとに呼び出されるので、その処理を軽くしたいので
+    // ここでの初期化は許容できる。(このコードはノードの最初に1回呼び出されるだけなので)
+    checkSq[PRO_PAWN] = checkSq[GOLD];
+    checkSq[PRO_LANCE] = checkSq[GOLD];
+    checkSq[PRO_KNIGHT] = checkSq[GOLD];
+    checkSq[PRO_SILVER] = checkSq[GOLD];
+    checkSq[HORSE] = checkSq[BISHOP] | kingEffect(ksq);
+    checkSq[DRAGON] = checkSq[ROOK] | kingEffect(ksq);
+  }
 }
+
+template void CheckInfo::update<CHECK_INFO_UPDATE_ALL           >(const Position& pos);
+template void CheckInfo::update<CHECK_INFO_UPDATE_PINNED        >(const Position& pos);
+template void CheckInfo::update<CHECK_INFO_UPDATE_WITHOUT_PINNED>(const Position& pos);
+
 
 // ----------------------------------
 //       Zorbrist keyの初期化
@@ -660,7 +673,7 @@ bool Position::legal_drop(const Square to) const
 }
 
 // ※　mがこの局面においてpseudo_legalかどうかを判定するための関数。
-template <bool All>
+template <bool All,bool CounterMove>
 bool Position::pseudo_legal_s(const Move m) const {
 
   const Color us = sideToMove;
@@ -696,7 +709,7 @@ bool Position::pseudo_legal_s(const Move m) const {
     }
 
     // 歩のとき、二歩および打ち歩詰めであるなら非合法手
-    if (pr == PAWN && !legal_pawn_drop(us,to))
+    if (pr==PAWN && !legal_pawn_drop(us,to))
       return false;
 
     // --- 移動できない升への歩・香・桂打ちについて
@@ -705,7 +718,23 @@ bool Position::pseudo_legal_s(const Move m) const {
     // 置換表のhash衝突で、後手の指し手が先手の指し手にならないことは保証されている。
     // (先手の手番の局面と後手の手番の局面とのhash keyはbit0で区別しているので)
 
-    // ゆえに、ここではこれ以上のチェックは不要なのである。
+    // しかし、Counter Moveの手は手番に関係ないので取り違える可能性が高いため
+    // 違法手のチェックをする必要がある
+    if (CounterMove)
+    {
+      switch (pr)
+      {
+      case PAWN:
+      case LANCE:
+        if ((us == BLACK && rank_of(to) == RANK_1) || (us == WHITE && rank_of(to) == RANK_9))
+          return false;
+        break;
+      case KNIGHT:
+        if ((us == BLACK && rank_of(to) < RANK_3) || (us == WHITE && rank_of(to) > RANK_7))
+          return false;
+        break;
+      }
+    }
 
   } else {
 
@@ -1372,5 +1401,7 @@ bool Position::pos_is_ok() const
 }
 
 // 明示的な実体化
-template bool Position::pseudo_legal_s<false>(const Move m) const;
-template bool Position::pseudo_legal_s< true>(const Move m) const;
+template bool Position::pseudo_legal_s<false,false>(const Move m) const;
+template bool Position::pseudo_legal_s<false, true>(const Move m) const;
+template bool Position::pseudo_legal_s< true,false>(const Move m) const;
+template bool Position::pseudo_legal_s< true, true>(const Move m) const;

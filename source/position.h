@@ -19,6 +19,13 @@ extern std::string SFEN_HIRATE;
 //     局面の情報
 // --------------------
 
+enum CheckInfoUpdate
+{
+  CHECK_INFO_UPDATE_ALL,            // 以下の2つともupdate
+  CHECK_INFO_UPDATE_PINNED,         // pinnedの情報だけupdate
+  CHECK_INFO_UPDATE_WITHOUT_PINNED, // pinned以外の情報だけupdate
+};
+
 // 駒を動かしたときに王手になるかどうかに関係する情報構造体。
 // 指し手が王手になるかどうかを調べるときに使う。やや遅い。
 // コンストラクタで必ず局面を渡して、この構造体の情報を初期化させて使う。参照透明。
@@ -31,6 +38,7 @@ struct CheckInfo {
 
   // 盤面を与えると、この構造体のメンバー変数を適切な値にセットする。
   // 局面探索前などにこのupdateを呼び出して初期化して使う。
+  template <CheckInfoUpdate>
   void update(const Position&);
 
   // 動かすと敵玉に対して空き王手になるかも知れない自駒の候補
@@ -323,10 +331,13 @@ struct Position
   // ※　置換表の検査だが、pseudo_legal()で擬似合法手かどうかを判定したあとlegal()で自殺手でないことを
   // 確認しなくてはならない。このためpseudo_legal()とlegal()とで重複する自殺手チェックはしていない。
   // 注意 : 事前にcheck_info_update()が呼び出されていること。
-  bool pseudo_legal(const Move m) const { return pseudo_legal_s<true>(m); }
+  bool pseudo_legal(const Move m) const { return pseudo_legal_s<true,false>(m); }
 
-  // All == true  : 歩や大駒の不成に対してはfalseを返すpseudo_legal()
-  template <bool All> bool pseudo_legal_s(const Move m) const;
+  // All == false        : 歩や大駒の不成に対してはfalseを返すpseudo_legal()
+  // CounterMove == true : CounterMoveでは先後の指し手を区別していないので先手(後手)の指し手として後手(先手)の指し手が混じることがある。
+  //    例) 2段目への先手の桂打ち。
+  // これをチェックするモード
+  template <bool All , bool CounterMove > bool pseudo_legal_s(const Move m) const;
 
   // toの地点に歩を打ったときに打ち歩詰めにならないならtrue。
   // 歩をtoに打つことと、二歩でないこと、toの前に敵玉がいることまでは確定しているものとする。
@@ -347,7 +358,12 @@ struct Position
   StateInfo* state() const { return st; }
 
   // gives_check()やlegal()、do_move()を呼び出すときは事前にこれを呼び出しておくこと。
-  void check_info_update() { st->checkInfo.update(*this); }
+  void check_info_update() { st->checkInfo.update<CHECK_INFO_UPDATE_ALL>(*this); }
+
+  // CheckInfoのpinnedだけ更新したいとき(mate1ply()で必要なので)
+  void check_info_update_pinned() { st->checkInfo.update<CHECK_INFO_UPDATE_PINNED>(*this); }
+  // CheckInfoのpinned以外を更新したいとき(mate1ply()のあとに初期化するときに必要なので)
+  void check_info_update_without_pinned() { st->checkInfo.update<CHECK_INFO_UPDATE_WITHOUT_PINNED>(*this); }
 
   // --- Evaluation
 
@@ -429,6 +445,8 @@ struct Position
   // 現局面で1手詰めであるかを判定する。1手詰めであればその指し手を返す。
   // ただし1手詰めであれば確実に詰ませられるわけではなく、簡単に判定できそうな近接王手による
   // 1手詰めのみを判定する。(要するに判定に漏れがある。)
+  // 先行して、CheckInfo.pinnedを更新しておく必要がある。
+  // →　check_info_update_pinned()を利用するのが吉。
   Move mate1ply() const;
 
   // ↑の先後別のバージョン。(内部的に用いる)

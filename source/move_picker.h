@@ -150,7 +150,7 @@ struct MovePicker
     stage = pos.in_check() ? EVASION_START : MAIN_SEARCH_START;
 
     // 置換表の指し手があるならそれを最初に返す。ただしpseudo_legalでなければならない。
-    ttMove = ttMove_ && pos.pseudo_legal(ttMove_) ? ttMove_ : MOVE_NONE;
+    ttMove = ttMove_ && pos.pseudo_legal_s<false,false>(ttMove_) ? ttMove_ : MOVE_NONE;
 
     // 置換表の指し手が引数で渡されていたなら1手生成したことにする。
     // (currentMoves != endMovesであることを、指し手を生成するかどうかの判定に用いている)
@@ -179,7 +179,7 @@ struct MovePicker
     }
 
     // 歩の不成、香の2段目への不成、大駒の不成を除外
-    ttMove = ttMove_ && pos.pseudo_legal_s<false>(ttMove_) ? ttMove_ : MOVE_NONE;
+    ttMove = ttMove_ && pos.pseudo_legal_s<false,false>(ttMove_) ? ttMove_ : MOVE_NONE;
     endMoves += (ttMove != MOVE_NONE);
   }
   
@@ -193,7 +193,7 @@ struct MovePicker
 
     // In ProbCut we generate captures with SEE higher than the given threshold
     ttMove = ttMove_
-      && pos.pseudo_legal(ttMove_)
+      && pos.pseudo_legal_s<false,false>(ttMove_)
       && pos.capture(ttMove_)
       && pos.see(ttMove_) > threshold ? ttMove_ : MOVE_NONE;
 
@@ -299,11 +299,12 @@ struct MovePicker
 
         // killer moveを1手ずつ返すフェーズ
         // (直前に置換表の指し手を返しているし、CAPTURES_PRO_PLUSでの指し手も返しているのでそれらの指し手は除外されるべき)
+        // また、killerの3つ目はcounter moveでこれは先後の区別がないのでpseudo_legal_s<X,true>()を呼び出す必要がある。
       case KILLERS:
         move = *currentMoves++;
         if (move != MOVE_NONE                       // ss->killer[0],[1]からコピーしただけなのでMOVE_NONEの可能性がある
           &&  move != ttMove                        // 置換表の指し手を重複除去しないといけない
-          &&  pos.pseudo_legal_s<false>(move)       // pseudo_legalでない指し手以外に歩や大駒の不成なども除外
+          &&  pos.pseudo_legal_s<false,true>(move)  // pseudo_legalでない指し手以外に歩や大駒の不成なども除外
           && !pos.capture_or_pawn_promotion(move))  // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
           return move;
         break;

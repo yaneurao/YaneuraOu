@@ -335,6 +335,8 @@ namespace YaneuraOuClassic
       // 王手がかかっているときは-VALUE_INFINITEを初期値として、すべての指し手を生成してこれを上回るものを探すので
       // alphaとは区別しなければならない。
       bestValue = futilityBase = -VALUE_INFINITE;
+     
+      pos.check_info_update();
 
     } else {
 
@@ -381,6 +383,8 @@ namespace YaneuraOuClassic
       //      一手詰め判定
       // -----------------------
 
+      // mate1ply()の呼び出しのためにCheckInfo.pinnedの更新が必要。
+      pos.check_info_update_pinned();
       Move m = pos.mate1ply();
       if (m != MOVE_NONE)
       {
@@ -399,6 +403,9 @@ namespace YaneuraOuClassic
       // futilityの基準となる値をbestValueにmargin値を加算したものとして、
       // これを下回るようであれば枝刈りする。
       futilityBase = bestValue + 128;
+
+      // pinnedは更新したのでCheckInfoのそれ以外を更新。
+      pos.check_info_update_without_pinned();
     }
 
     // -----------------------
@@ -409,7 +416,6 @@ namespace YaneuraOuClassic
     // searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうるが、
     // 静止探索の1つ目の深さではrecaptureを生成しないならこれは問題とならない。
     // ToDo: あとでNULL MOVEを実装したときにrecapture以外も生成するように修正する。
-    pos.check_info_update();
     MovePicker mp(pos, ttMove, depth, pos.this_thread()->history, move_to((ss - 1)->currentMove));
     Move move;
     Value value;
@@ -719,12 +725,13 @@ namespace YaneuraOuClassic
     // -----------------------
 
     Move bestMove = MOVE_NONE;
+    const bool InCheck = pos.checkers();
 
     // RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
     // 置換表にhitしたときも1手詰め判定は行われていると思われるのでこの場合もはしょる。
     // depthの残りがある程度ないと、1手詰めはどうせこのあとすぐに見つけてしまうわけで1手詰めを
     // 見つけたときのリターン(見返り)が少ない。
-    if (!RootNode && !ttHit && depth > ONE_PLY)
+    if (!RootNode && !ttHit && depth > ONE_PLY && !InCheck)
     {
       bestMove = pos.mate1ply();
       if (bestMove != MOVE_NONE)
@@ -741,8 +748,6 @@ namespace YaneuraOuClassic
     // -----------------------
     //  局面を評価値によって静的に評価
     // -----------------------
-
-    const bool InCheck = pos.checkers();
 
     if (InCheck)
     {

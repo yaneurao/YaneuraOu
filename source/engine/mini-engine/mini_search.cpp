@@ -310,6 +310,9 @@ namespace YaneuraOuMini
     //     eval呼び出し
     // -----------------------
 
+    // mate1ply()でCheckInfo.pinnedを使うのでここで初期化しておく。
+    pos.check_info_update();
+
     if (InCheck)
     {
       // 王手がかかっているならすべての指し手を調べるべきなのでevaluate()は呼び出さない。
@@ -393,7 +396,6 @@ namespace YaneuraOuMini
     // searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうるが、
     // 静止探索の1つ目の深さではrecaptureを生成しないならこれは問題とならない。
     // ToDo: あとでNULL MOVEを実装したときにrecapture以外も生成するように修正する。
-    pos.check_info_update();
     MovePicker mp(pos, ttMove, depth, pos.this_thread()->history, move_to((ss - 1)->currentMove));
     Move move;
     Value value;

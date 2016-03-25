@@ -63,7 +63,7 @@ struct TTEntry {
       value16   = (int16_t)v;
       eval16    = (int16_t)eval;
       genBound8 = (uint8_t)(gen | b);
-      depth8    = (int8_t)d / (int)ONE_PLY;
+      depth8    = (int8_t)(d / ONE_PLY);
     }
   }
 

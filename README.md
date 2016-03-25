@@ -55,9 +55,17 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 
 ※　括弧のなかの+Rは、自己対局時の勝率から計算されるもので、0.5手延長などは顕著に勝率が上がりますが、自己対局以外では効果に乏しいです。
 
-- [ ] ・やねうら王classicの探索部を改良する。
-
-- [x] 2016/03/04・打ち歩詰めの判定修正。(thanks to tanuki-)
+- [x] 2016/03/25・置換表にDEPTH_MAX書き出せなくなってた件、修正。(thx. tさん)
+- [x] 2016/03/25・mate1ply()でpinnedを使っているので先行してcheck_info_update()が必要なので修正。(thx. tさん)
+- [x] 2016/03/25・pseudo-legalのチェックで、counter moveの手は手番に関係ない(ような実装になっている)ので、
+	違法手のチェックが必要だったのでその修正。(thx. woodyringさん)
+- [x] 2016/03/25・mate1ply()でpinnedを使っているので先行してcheck_info_update()が必要。(thx. tさん)
+	・classic、mini、nano plus修正。
+- [x] 2016/03/25・classicで1手詰めを呼び出すときに王手がかかっているかのチェックするの忘れていたの修正。(thx. woodyringさん)
+- [x] 2016/03/25・古いほうの置換表実装削除。(置換表が弱くなる原因ではなかったようなので)
+- [x] 2016/03/25・nanoでつねにfull depth searchになっていたバグを修正。(thx. kazuさん)
+- [x] 2016/03/25・seeのバグ修正。(thx. tさん、woodyringさん) (+R15)
+- [x] 2016/03/04・打ち歩詰めの判定修正。(thanks to tanuki-さん)
 - [x] 2016/03/01・やねうら王classic、悪いhistoryにreduction量を増やす枝刈り追加。
 - [x] 2016/03/01・やねうら王classic、引き分け時のスコア、value_from_tt()を通すようにした。
 - [x] 2016/03/01・やねうら王mini、引き分け時のスコア、value_from_tt()を通すようにした。

@@ -6,6 +6,74 @@
 - [ ] ・Recaptureのオーダリング考える。
 
 
+■ 2016/03/25 V2.20
+
+・置換表にDEPTH_MAX書き出せなくなってた。
+
+	例)
+	  bool hit;
+	  auto key = pos.state()->key();
+	  auto tte = TT.probe(key, hit);
+	  tte->save(key, VALUE_ZERO, BOUND_EXACT, DEPTH_MAX, MOVE_NONE, VALUE_ZERO, 0);
+	  auto tte2 = TT.probe(key, hit);
+	  std::cout << tte2->depth();
+
+
+	-      depth8    = (int8_t)d / (int)ONE_PLY;
+	+      depth8    = (int8_t)(d / (int)ONE_PLY);
+	こうしないとd==256だと0になってからONE_PLY(==2)で割られて0が書き出されてしまう。(しまっていた)
+	あと、int8_tだから、128以上だと-128扱いされてしまうので、MAX_DEPTHを127*ONE_PLYに変更。
+
+	- #define MAX_PLY_NUM 128
+	+ #define MAX_PLY_NUM 127
+
+	→　これで1手詰めの値を置換表に書き出したときに効果が変わるかも。
+
+		V2.20 vs V2.18
+			110-7-101
+				R14.8 up?誤差?
+
+・local serverで対戦させてたら落ちた。打ち歩詰めではないから、たぶん古いlocal serverのバグ。
+
+	1<Error : bestmove = P*1b
+	1<^香^桂^銀 □ □ □ □ 銀^玉
+	1< □ □ □ □ と □ 馬^銀 □
+	1<^歩 □^歩^歩 □^歩^歩^歩^金
+	1< □ □ □ □ □ □ □ □ 龍
+	1< □^歩 □ □ □ □ □ □ □
+	1< □ □ □ □ 玉 □ □ □ □
+	1< 歩 歩 歩 歩 □ 歩 □ □ □
+	1< □ 角 □ □^金 □ □^龍 □
+	1< 香 桂 □ 銀^金 □ □^金 □
+	1<先手 手駒 :  歩 香 桂 , 後手 手駒 :  歩4 香 桂
+	1<手番 = 先手
+	1<sfen lns4Sk/4+P1+Bs1/p1pp1pppg/8+R/1p7/4K4/PPPP1P3/1B2g2+r1/LN1Sg2g1 b PLN4pln 107
+			
+
+
+■ 2016/03/25 V2.19
+
+・pseudo-legalのチェックで、counter moveの手は手番に関係ない(ような実装になっている)ので、
+	違法手のチェックが必要だったのでその修正。(thx. woodyringさん)
+
+	https://github.com/woodyring/YaneuraOu/commit/43a8770ab77f215e53d1d895d8954091a6fe3534
+
+	-  template <bool All> bool pseudo_legal_s(const Move m) const;
+	+  template <bool All , bool CounterMove > bool pseudo_legal_s(const Move m) const;
+
+・classicで1手詰めを呼び出すときに王手がかかっているかのチェックするの忘れていたの修正。(thx. woodyringさん)
+
+	https://github.com/woodyring/YaneuraOu/commit/fd2faf079063e2abea6790310bb4ec307386b7f7
+
+・mate1ply()でpinnedを使っているので先行してcheck_info_update()が必要。(thx. tさん)
+	・classic、mini、nano plus修正。
+
+			V2.19 vs V2.18
+				221-24-234
+					-R10
+			少し遅くなった分だけ弱くなった？誤差？
+			
+
 ■ 2016/03/25 V2.18
 
 ・CODEVS5.0が終わったので作業再開。
@@ -18,13 +86,13 @@
 ・古いほうの置換表実装削除。(置換表が弱くなる原因ではなかったようなので)
 
 ・nanoでつねにfull depth searchになっていたバグを修正。(thx. kazuさん)
--      bool fullDepthSearch = (PV && moveCount == 1);
-+      bool fullDepthSearch = (PVNode && moveCount == 1);
+	-      bool fullDepthSearch = (PV && moveCount == 1);
+	+      bool fullDepthSearch = (PVNode && moveCount == 1);
 ・exe/フォルダのnanoの実行ファイル差し替え。
 
 ・seeのバグ修正。(thx. tさん、woodyringさん)
 	https://github.com/woodyring/YaneuraOu/commit/67a49c9e0420fbc43cbd25d00b7f46bb7c0fc1e2
-		200-8-182	R16程度up
+		200-8-182	R15程度up
 
 
 ■ 2016/03/07 V2.17
