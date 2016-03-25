@@ -6,6 +6,27 @@
 - [ ] ・Recaptureのオーダリング考える。
 
 
+■ 2016/03/25 V2.18
+
+・CODEVS5.0が終わったので作業再開。
+・古い置換表でバグる件
+	https://github.com/woodyring/YaneuraOu/commit/e20edfccb16b384beb0de4b0604d740b1c5c20e3
+	→　古い置換表では table[key & hashMask]から4要素をclusterとして使っていたので
+	keyが1bit違う要素が隣り合って格納されることになり、null moveのときに相手番にするときに
+	bit0を使うのでここでhash衝突のようなことが起きていた。
+
+・古いほうの置換表実装削除。(置換表が弱くなる原因ではなかったようなので)
+
+・nanoでつねにfull depth searchになっていたバグを修正。(thx. kazuさん)
+-      bool fullDepthSearch = (PV && moveCount == 1);
++      bool fullDepthSearch = (PVNode && moveCount == 1);
+・exe/フォルダのnanoの実行ファイル差し替え。
+
+・seeのバグ修正。(thx. tさん、woodyringさん)
+	https://github.com/woodyring/YaneuraOu/commit/67a49c9e0420fbc43cbd25d00b7f46bb7c0fc1e2
+		200-8-182	R16程度up
+
+
 ■ 2016/03/07 V2.17
 
 ・古いほうの置換表

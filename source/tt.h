@@ -8,7 +8,6 @@
 //       置換表
 // --------------------
 
-#ifdef NEW_TT
 // 置換表エントリー
 // 本エントリーは10bytesに収まるようになっている。3つのエントリーを並べたときに32bytesに収まるので
 // CPUのcache lineに一発で載るというミラクル。
@@ -147,246 +146,6 @@ private:
   uint8_t generation8; // TT_ENTRYのset_gen()で書き込む
 };
 
-#else
-// 昔のStockfish風の置換表
-
-
-/// The TTEntry is the 128 bit transposition table entry, defined as below:
-// TTEntryは、128bitの置換表上の1エントリーで、以下のように定義されている。
-///
-// 局面のハッシュキーの上位16bit
-/// key: 32 bit
-
-// 指し手
-/// move: 16 bit
-
-// BOUND_LOWERとかUPPERとか
-/// bound type: 8 bit
-
-// 置換表エントリーの世代
-/// generation: 8 bit
-
-// 探索をした結果の評価値
-/// value: 16 bit
-
-// そのときの探索深さ
-/// depth: 16 bit
-
-// 静的評価値
-/// static value: 16 bit
-
-// ？　現在、未使用。以前のソースで使ってあった。
-/// static margin: 16 bit
-//　→　ここ使わないなら、valueを32bitに変更する。
-
-struct TTEntry {
-
-  // このクラスのインスタンスはcallocで確保されるので、コンストラクタが呼び出されることはない。
-  // TTEntry*を得て、そこに対してsave()などで値を書き込んだりする。
-
-  // k : 局面のハッシュキーの上位16bit
-  // v : 探索したときの結果の評価値
-  // b : BOUND
-  // d : 残り探索depth
-  // m : このnodeのベストの指し手
-  // g : このentryの世代
-  // ev : 静的評価値
-  //:  void save(uint32_t k, Value v, Bound b, Depth d, Move m, int g, Value ev) {
-  void save(uint64_t k, Value v, Bound b, Depth d, Move m, int g, Value ev) {
-
-    key32 = (uint32_t)k;
-    key16 = (uint16_t)(k >> 32);
-    // kは48bitに変更。
-    // 上位から見て16bit(0) - 16bit(key16) - 32bit(key32)
-    // となっているはず。
-
-    move16 = (uint16_t)m;
-    bound8 = (uint8_t)b;
-    generation8 = (uint8_t)g;
-    value16 = (int16_t)v;
-    depth16 = (int16_t)d;
-    evalValue = (int16_t)ev;
-  }
-
-  // 世代の設定用
-  void set_generation(uint8_t g) { generation8 = g; }
-
-  // --- 以下、getter
-
-  // 局面のhashkeyの上位32bit
-  // 置換表サイズが小さいときはもう少しbitを詰めておかないと危険かも知れない…。
-  //:  uint32_t key() const      { return key32; }
-
-  // 上位48bit
-  uint64_t key() const { return (uint64_t)key32 | ((uint64_t)key16 << 32); }
-
-
-  // 探索残り深さ
-  Depth depth() const { return (Depth)depth16; }
-
-  // このnodeのベストの指し手
-  Move move() const { return (Move)move16; }
-
-  // 探索の結果の評価値
-  Value value() const { return (Value)value16; }
-
-  Value eval() const { return (Value)evalValue; }
-
-  // BOUND_LOWERとかUPPERとか
-  Bound bound() const { return (Bound)bound8; }
-
-  // 世代(8bit)
-  int generation() const { return (int)generation8; }
-
-private:
-  // 局面のハッシュキーの上位32bit
-  uint32_t key32;
-  uint16_t key16; // 怖いのでさらに16bit。
-
-                  // 指し手16bit
-  uint16_t move16;
-
-  // BOUNDを表現する1バイト、置換表のentryの世代用カウンター
-  uint8_t bound8, generation8;
-
-  // 評価値、そのときの探索残り深さ
-  // その局面での静的評価スコア
-  int16_t value16, depth16, evalValue;
-};
-
-
-/// A TranspositionTable consists of a power of 2 number of clusters and each
-/// cluster consists of ClusterSize number of TTEntry. Each non-empty entry
-/// contains information of exactly one position. The size of a cluster should
-/// not be bigger than a cache line size. In case it is less, it should be padded
-/// to guarantee always aligned accesses.
-
-// 置換表
-// TranspositionTableは、2の累乗のclusterからなる。それぞれのclusterは、
-// TTEntry(置換表のエントリーひとつを表す構造体)のClusterSizeの数によって決まる。
-// それぞれのclusterはcache lineサイズを上回るべきではない。
-// 逆に、それを下回るケースにおいては、alignされたアクセスを常に保証するために
-// パディングされるべきである。
-
-const int CACHE_LINE_SIZE = 64;
-
-class TranspositionTable {
-
-  // 一つのclusterは、16バイト(= sizeof(TTEntry))×ClusterSize = 64バイト。
-  // Clusterは、rehashのための連続したTTEntryの塊のこと。
-  static const unsigned ClusterSize = 4; // A cluster is 64 Bytes
-
-public:
-  TranspositionTable() { mem = nullptr; resize(1024); }
-  ~TranspositionTable() { free(mem); }
-
-  // 置換表を新しい探索のために掃除する。(generationを進める)
-  void new_search() { ++gen; }
-
-  // 置換表を調べる。置換表のエントリーへのポインター(TTEntry*)が返る。
-  // エントリーが登録されていなければNULLが返る。
-  const TTEntry* probe(const Key key) const;
-
-  // TranspositionTable::first_entry()は、与えられた局面(のハッシュキー)に該当する
-  // 置換表上のclusterの最初のエントリーへのポインターを返す。
-  // 引数として渡されたkey(ハッシュキー)の下位ビットがclusterへのindexとして使われる。
-  TTEntry* first_entry(const Key key) const;
-
-  // 置換表上のtteのエントリーの世代を現在の世代(this->generation)にする。
-  void refresh(const TTEntry* tte) const;
-
-  // TranspositionTable::set_size()は、置換表のサイズをMB(メガバイト)単位で設定する。
-  // 置換表は2の累乗のclusterで構成されており、それぞれのclusterはTTEnteryのClusterSizeで決まる。
-  // (1つのClusterは、TTEntry::ClusterSize×16バイト)
-  //:void set_size(uint64_t mbSize);
-  // →　Stockfish 2014/10で名前が変わっていたので関数名だけ変更しておく。
-  void resize(uint64_t mbSize);
-
-  // 置換表のサイズを取得する。(学習時にサイズをランダマイズさせたいため)
-  uint64_t size() const { return hashSize; }
-
-  // TranspositionTable::clear()は、ゼロで置換表全体をクリアする。
-  // テーブルがリサイズされたときや、ユーザーがUCI interface経由でテーブルのクリアを
-  // 要求したときに行われる。
-  void clear();
-
-  // 置換表に値を格納する。
-  // key : この局面のハッシュキー。
-  // v : この局面の探索の結果得たスコア
-  // b : このスコアの性質。
-  //  BOUND_NONE →　探索していない(DEPTH_NONE)ときに、最善手か、静的評価スコアだけ置換表に突っ込みたいときに使う。
-  //  BOUND_LOWER →　fail-low
-  //  BOUND_UPPER → fail-high
-  //  BOUND_EXACT →　正確なスコア
-  // d : このスコア・指し手を得たときの残り探索深さ
-  // m : 最善手
-  // statV : 静的評価(この局面で評価関数を呼び出して得た値)
-  void store(const Key key, Value v, Bound type, Depth d, Move m, Value statV);
-
-  // 使用率を計算する関数。Stockfishにはないが、参考のために作った。
-  // 1000分率で返す。
-  int hashfull() const;
-
-  int generation() { return gen; }
-
-private:
-
-  // 置換表のindexのmask用。
-  // table[hashMask & 局面のhashkey] がその局面の最初のentry
-  // hashMask + 1 が確保されたTTEntryの数
-  //:  uint32_t hashMask;
-  uint64_t hashMask;
-
-  // 置換表の先頭を示すポインター(確保したメモリを64バイトでアラインしたもの)
-  TTEntry* table;
-
-  // 置換表のために確保した生のメモリへのポインター。開放するときに必要。
-  void* mem;
-
-  // resize()で指定されたサイズ
-  uint64_t hashSize;
-
-  // 置換表のEntryの、いま使っている世代。
-  // これをroot局面が進むごとにインクリメントしていく。
-  uint8_t gen; // Size must be not bigger than TTEntry::generation8
-};
-
-//: extern TranspositionTable TT;
-// globalな置換表
-// →　globalに確保しないように変更。
-
-
-/// TranspositionTable::first_entry() returns a pointer to the first entry of
-/// a cluster given a position. The lowest order bits of the key are used to
-/// get the index of the cluster.
-
-// TranspositionTable::first_entry()は、与えられた局面(のハッシュキー)に該当する
-// 置換表上のclusterの最初のエントリーへのポインターを返す。
-// 引数として渡されたkey(ハッシュキー)の下位ビットがclusterへのindexとして使われる。
-
-inline TTEntry* TranspositionTable::first_entry(const Key key) const {
-
-  //:  return table + ((uint32_t)key & hashMask);
-  return table + ((uint64_t)key & hashMask);
-}
-
-
-/// TranspositionTable::refresh() updates the 'generation' value of the TTEntry
-/// to avoid aging. It is normally called after a TT hit.
-
-// TranspositionTable::refresh()は、TTEntryが年をとる(世代が進む)のを回避するため
-// generationの値を更新する。普通、置換表にhitしたあとに呼び出される。
-// TranspositionTable::generationの値が引数で指定したTTEntryの世代として設定される。
-
-inline void TranspositionTable::refresh(const TTEntry* tte) const {
-
-  const_cast<TTEntry*>(tte)->set_generation(gen);
-}
-#endif
-
-
-
-
 // 詰みのスコアは置換表上は、このnodeからあと何手で詰むかというスコアを格納する。
 // しかし、search()の返し値は、rootからあと何手で詰むかというスコアを使っている。
 // (こうしておかないと、do_move(),undo_move()するごとに詰みのスコアをインクリメントしたりデクリメントしたり
@@ -398,8 +157,8 @@ inline Value value_to_tt(Value v, int ply) {
 
   ASSERT_LV3(-VALUE_INFINITE < v && v < VALUE_INFINITE);
 
-  return  v >= VALUE_MATE_IN_MAX_PLY  ? v + ply
-        : v <= VALUE_MATED_IN_MAX_PLY ? v - ply : v;
+  return  v >= VALUE_MATE_IN_MAX_PLY ? v + ply
+    : v <= VALUE_MATED_IN_MAX_PLY ? v - ply : v;
 }
 
 // value_to_tt()の逆関数
@@ -407,7 +166,7 @@ inline Value value_to_tt(Value v, int ply) {
 inline Value value_from_tt(Value v, int ply) {
 
   return  v == VALUE_NONE ? VALUE_NONE
-    : v >= VALUE_MATE_IN_MAX_PLY  ? v - ply
+    : v >= VALUE_MATE_IN_MAX_PLY ? v - ply
     : v <= VALUE_MATED_IN_MAX_PLY ? v + ply : v;
 }
 

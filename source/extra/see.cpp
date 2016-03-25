@@ -29,8 +29,8 @@ namespace {
   // 返し値は今回発見されたtoに利く最小の攻撃駒。これがtoの地点において成れるなら成ったあとの駒を返すべき。
 
   template<int Pt> inline
-    Piece min_attacker(const Position& pos,const Bitboard(&bb)[8][2], const Square& to, const Bitboard& stmAttackers,
-    Bitboard& occupied, Bitboard& attackers, Color stm,int& uncapValue) {
+    Piece min_attacker(const Position& pos,const Bitboard(&bb)[PIECE_TYPE_BITBOARD_NB][COLOR_NB],const Square& to
+      , const Bitboard& stmAttackers, Bitboard& occupied, Bitboard& attackers, Color stm,int& uncapValue) {
 
       // 駒種ごとのbitboardのうち、攻撃駒の候補を調べる
 //:      Bitboard b = stmAttackers & bb[Pt];
@@ -61,7 +61,7 @@ namespace {
       {
       case DIRECT_RU: case DIRECT_RD: case DIRECT_LU: case DIRECT_LD:
         // 斜め方向なら斜め方向の升をスキャンしてその上にある角・馬を足す
-        attackers |= bishopEffect(to, occupied) & (bb[BLACK][PIECE_TYPE_BITBOARD_BISHOP] | bb[WHITE][PIECE_TYPE_BITBOARD_BISHOP]);
+        attackers |= bishopEffect(to, occupied) & (bb[PIECE_TYPE_BITBOARD_BISHOP][BLACK] | bb[PIECE_TYPE_BITBOARD_BISHOP][WHITE]);
 
         ASSERT_LV3((bishopStepEffect(to) & sq));
         break;
@@ -69,7 +69,7 @@ namespace {
       case DIRECT_U:
         // 後手の香 + 先後の飛車
         attackers |= rookEffect(to, occupied) & lanceStepEffect(BLACK, to)
-          & (bb[BLACK][PIECE_TYPE_BITBOARD_ROOK] | bb[WHITE][PIECE_TYPE_BITBOARD_ROOK] | bb[WHITE][PIECE_TYPE_BITBOARD_LANCE]);
+          & (bb[PIECE_TYPE_BITBOARD_ROOK][BLACK] | bb[PIECE_TYPE_BITBOARD_ROOK][WHITE] | bb[PIECE_TYPE_BITBOARD_LANCE][WHITE]);
 
         ASSERT_LV3((lanceStepEffect(BLACK, to) & sq));
         break;
@@ -77,7 +77,7 @@ namespace {
       case DIRECT_D:
         // 先手の香 + 先後の飛車
         attackers |= rookEffect(to, occupied) & lanceStepEffect(WHITE, to)
-          & (bb[BLACK][PIECE_TYPE_BITBOARD_ROOK] | bb[WHITE][PIECE_TYPE_BITBOARD_ROOK] | bb[BLACK][PIECE_TYPE_BITBOARD_LANCE]);
+          & (bb[PIECE_TYPE_BITBOARD_ROOK][BLACK] | bb[PIECE_TYPE_BITBOARD_ROOK][WHITE] | bb[PIECE_TYPE_BITBOARD_LANCE][BLACK]);
 
         ASSERT_LV3((lanceStepEffect(WHITE, to) & sq));
         break;
@@ -85,7 +85,7 @@ namespace {
       case DIRECT_L: case DIRECT_R:
         // 左右なので先後の飛車
         attackers |= rookEffect(to, occupied)
-          & (bb[BLACK][PIECE_TYPE_BITBOARD_ROOK] | bb[WHITE][PIECE_TYPE_BITBOARD_ROOK]);
+          & (bb[PIECE_TYPE_BITBOARD_ROOK][BLACK] | bb[PIECE_TYPE_BITBOARD_ROOK][WHITE]);
 
         ASSERT_LV3(((rookStepEffect(to) & sq)));
         break;
@@ -122,8 +122,8 @@ namespace {
 
   template<> inline
     // 馬、龍もHDKに含めて、KINGの処理もしたいのでこの処理はKING+1としておく。
-    Piece min_attacker<KING + 1>(const Position& pos, const Bitboard(&)[8][2], const Square&, const Bitboard&
-    , Bitboard&, Bitboard& occ, Color, int& uncapValue) {
+    Piece min_attacker<KING + 1>(const Position& pos, const Bitboard(&)[PIECE_TYPE_BITBOARD_NB][COLOR_NB], const Square&
+      , const Bitboard& , Bitboard&, Bitboard& occ, Color, int& uncapValue) {
       uncapValue = VALUE_ZERO;
       return Piece(KING + 1);
 

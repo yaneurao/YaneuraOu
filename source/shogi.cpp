@@ -144,22 +144,12 @@ namespace Search {
       // 銀の不成の指し手をcounter moveとして登録して、この位置に角が来ると
       // 角の不成の指し手を生成することになるからLEGALではなくLEGAL_ALLで判定しないといけない。
       ASSERT_LV3(MoveList<LEGAL_ALL>(pos).contains(m));
-#ifdef NEW_TT
       TTEntry* tte = TT.probe(pos.state()->key(), ttHit);
 
       // 正しいエントリーは書き換えない。
       if (!ttHit || tte->move() != m)
         tte->save(pos.state()->key(), VALUE_NONE, BOUND_NONE, DEPTH_NONE,
           m, VALUE_NONE, TT.generation());
-#else
-      const TTEntry* tte = TT.probe(pos.state()->key());
-      ttHit = tte != nullptr;
-
-      // 正しいエントリーは書き換えない。
-      if (!ttHit || tte->move() != m)
-        TT.store(pos.state()->key(), VALUE_NONE, BOUND_NONE, DEPTH_NONE,
-          m, VALUE_NONE);
-#endif
 
       pos.do_move(m, *st++);
     }
