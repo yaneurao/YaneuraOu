@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "2.20"
+#define ENGINE_VERSION "2.21"
 
 // --------------------
 // コンパイル時の設定
@@ -24,9 +24,9 @@
 //  engine/user-engine/ フォルダの中身を書くべし。
 
 //#define YANEURAOU_NANO_ENGINE      // やねうら王nano(完成2016/01/31)
-//#define YANEURAOU_NANO_PLUS_ENGINE // やねうら王nano plus(完成2016/02/25)
+#define YANEURAOU_NANO_PLUS_ENGINE // やねうら王nano plus(完成2016/02/25)
 //#define YANEURAOU_MINI_ENGINE      // やねうら王mini      (完成2016/02/29)
-#define YANEURAOU_CLASSIC_ENGINE   // やねうら王classic   (開発中)
+//#define YANEURAOU_CLASSIC_ENGINE   // やねうら王classic   (開発中)
 //#define YANEURAOU_2016_ENGINE      // やねうら王2016      (開発中)
 //#define RANDOM_PLAYER_ENGINE       // ランダムプレイヤー
 //#define MATE_ENGINE                // 詰め将棋solverとしてリリースする場合。(開発中)

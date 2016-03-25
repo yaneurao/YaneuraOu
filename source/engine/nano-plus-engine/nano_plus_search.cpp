@@ -101,7 +101,7 @@ namespace YaneuraOuNanoPlus
 
     // 直前に移動させた升(その升に移動させた駒がある)
     Square prevSq = move_to((ss - 1)->currentMove);
-    auto& cmh = CounterMoveHistory.get(pos.piece_on(prevSq),prevSq);
+    auto& cmh = CounterMoveHistory[prevSq][pos.piece_on(prevSq)];
     auto thisThread = pos.this_thread();
 
     thisThread->history.update(pos.moved_piece(move), move_to(move), bonus);
@@ -642,9 +642,9 @@ namespace YaneuraOuNanoPlus
       // その升へ移動させた駒
       auto prevPc = pos.piece_on(prevSq);
       // toの升に駒pcを動かしたことに対する応手
-      auto cm = thisThread->counterMoves.get(prevPc, prevSq);
+      auto cm = thisThread->counterMoves[prevSq][prevPc];
       // counter history
-      const auto& cmh = CounterMoveHistory.get(prevPc, prevSq);
+      const auto& cmh = CounterMoveHistory[prevSq][prevPc];
 
       pos.check_info_update();
       MovePicker mp(pos, ttMove, depth, thisThread->history, cmh, cm, ss);

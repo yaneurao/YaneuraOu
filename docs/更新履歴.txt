@@ -6,9 +6,21 @@
 - [ ] ・Recaptureのオーダリング考える。
 
 
+■ 2016/03/25 V2.21
+
+・CounterMoveHistoryStateの更新と取得に失敗していた件、修正。(thx. tさん)
+	MovePickerのStatsまわり色々修正した。
+・miniも同様の修正をしてビルドしなおしてexe/フォルダにコピー。
+・nano plusも。
+
+	V2.21 vs V2.18
+		157-14-114
+			R55up
+
+
 ■ 2016/03/25 V2.20
 
-・置換表にDEPTH_MAX書き出せなくなってた。
+・置換表にDEPTH_MAX書き出せなくなってた。(thx. tさん)
 
 	例)
 	  bool hit;

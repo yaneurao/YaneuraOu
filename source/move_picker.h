@@ -41,16 +41,18 @@ struct Stats {
   // このtableの要素の最大値
   static const Value Max = Value(1 << 28);
 
+  // tableの要素の値を取り出す
+  const T* operator[](Square to) const {
+    ASSERT_LV4(is_ok(to));
+    return table[to];
+  }
+  T* operator[](Square to) {
+    ASSERT_LV4(is_ok(to));
+    return table[to];
+  }
+
   // tableのclear
   void clear() { std::memset(table, 0, sizeof(table)); }
-
-  // tableの要素の値を取り出す
-  T get(Piece pc, Square to) const
-  {
-    ASSERT_LV4(is_ok(pc));
-    ASSERT_LV4(is_ok(to));
-    return table[to][pc];
-  }
 
   // tableに指し手を格納する。(Tの型がMoveのとき)
   void update(Piece pc, Square to, Move m)
@@ -70,12 +72,15 @@ struct Stats {
     v = max((Value)-324, v);
     v = min((Value)+324, v);
 
+    // if (abs(int(v) >= 324) return ; のほうが良いのでは..
+
     table[to][pc] -= table[to][pc] * abs(int(v)) / (CM ? 512 : 324);
     table[to][pc] += int(v) * (CM ? 64 : 32);
   }
 
 private:
   // Pieceを升sqに移動させるときの値
+  // ※　Stockfishとは添字が逆順だが、将棋ではPIECE_NBのほうだけが2^Nなので仕方がない。
   T table[SQ_NB_PLUS1][PIECE_NB];
 };
 
@@ -427,8 +432,8 @@ private:
   void score_quiets()
   {
     for (auto& m : *this)
-      m.value = history.get(pos.moved_piece(m), move_to(m))
-      + counterMoveHistory->get(pos.moved_piece(m), move_to(m));
+      m.value = history[move_to(m)][pos.moved_piece(m)]
+      + (*counterMoveHistory)[move_to(m)][pos.moved_piece(m)];
   }
 
   void score_evasions()
@@ -455,7 +460,7 @@ private:
         m.value = (Value)Eval::PieceValueCapture[pos.piece_on(move_to(m))]
         - Value(type_of(pos.moved_piece(m))) + HistoryStats::Max;
       else
-        m.value = history.get(pos.moved_piece(m),move_to(m));
+        m.value = history[move_to(m)][pos.moved_piece(m)];
   }
 
   const Position& pos;
