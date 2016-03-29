@@ -127,9 +127,9 @@ namespace Eval
       goto CALC_DIFF_END;
     }
 
-    // 遡る一つだけ
+    // 遡るのは一つだけ
     // ひとつずつ遡りながらsumKPPがVALUE_NONEでないところまで探してそこからの差分を計算することは出来るが
-    // レアケースだし、StateInfoのEvalListを持たせる必要が出てきて、あまり得しない。
+    // レアケースだし、StateInfoにEvalListを持たせる必要が出てきて、あまり得しない。
     auto now = st;
     auto prev = st->previous;
     if (prev->sumKKP == VALUE_NONE)
