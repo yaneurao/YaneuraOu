@@ -47,7 +47,7 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/03/25 21:30現在)
+#　俺の作業メモ(2016/03/30 4:00現在)
 
 - [ ] ・やねうら王classicにponder機能入れる。
 - [ ] ・やねうら王classicに持ち時間制御入れる。

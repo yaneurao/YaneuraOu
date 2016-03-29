@@ -78,7 +78,7 @@ namespace Eval
     Square sq_wk1 = Inv(pos.king_square(WHITE));
 
     auto& pos_ = *const_cast<Position*>(&pos);
-    auto list = pos_.eval_list().piece_list();
+    auto list = pos_.eval_list()->piece_list();
 
     int i, j;
     BonaPiece k0, k1;
@@ -152,7 +152,7 @@ namespace Eval
       auto sq_bk0 = pos.king_square(BLACK);
       auto sq_wk1 = Inv(pos.king_square(WHITE));
 
-      auto now_list = pos.eval_list().piece_list();
+      auto now_list = pos.eval_list()->piece_list();
 
       int i, j;
       auto& dp = now->dirtyPiece;
@@ -363,7 +363,7 @@ namespace Eval
     Square sq_bk0 = pos.king_square(BLACK);
     Square sq_wk1 = Inv(pos.king_square(WHITE));
 
-    auto list = pos.eval_list().piece_list();
+    auto list = pos.eval_list()->piece_list();
 
     int i, j;
     BonaPiece k0, k1;
