@@ -55,6 +55,11 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 
 ※　括弧のなかの+Rは、自己対局時の勝率から計算されるもので、0.5手延長などは顕著に勝率が上がりますが、自己対局以外では効果に乏しいです。
 
+- [x] 2016/03/30・mini,classicでNULL MOVEの前のcheck_info_update()が抜けていたので修正。
+- [x] 2016/03/30・classicでcheckinfoのupdateが抜けている経路があったので修正。
+- [x] 2016/03/30・depth 4手浅いものより大きいなら置換表のエントリー書き換えるように変更。
+- [x] 2016/03/30・置換表格納のときにkeyのcastが間違っていたの修正。(棋力に影響なし)
+- [x] 2016/03/30・Positionクラス、eval_list()関数は、戻り値はEval::EvalList型ではなくEval::EvalList*型を返すように修正。(thx. わるおさん)(+R15)
 - [x] 2016/03/25・CounterMoveHistoryStateの更新と取得に失敗していた件、修正。(thx. tさん) (+R55)
 - [x] 2016/03/25・置換表にDEPTH_MAX書き出せなくなってた件、修正。(thx. tさん)
 - [x] 2016/03/25・mate1ply()でpinnedを使っているので先行してcheck_info_update()が必要なので修正。(thx. tさん)
@@ -64,7 +69,7 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 	・classic、mini、nano plus修正。
 - [x] 2016/03/25・classicで1手詰めを呼び出すときに王手がかかっているかのチェックするの忘れていたの修正。(thx. woodyringさん)
 - [x] 2016/03/25・古いほうの置換表実装削除。(置換表が弱くなる原因ではなかったようなので)
-- [x] 2016/03/25・nanoでつねにfull depth searchになっていたバグを修正。(thx. kazuさん)
+- [x] 2016/03/25・nanoで常にfull depth searchになっていたバグを修正。(thx. kazuさん)
 - [x] 2016/03/25・seeのバグ修正。(thx. tさん、woodyringさん) (+R15)
 - [x] 2016/03/04・打ち歩詰めの判定修正。(thanks to tanuki-さん)
 - [x] 2016/03/01・やねうら王classic、悪いhistoryにreduction量を増やす枝刈り追加。

@@ -795,6 +795,9 @@ namespace YaneuraOuMini
       // 残り探索深さと評価値によるnull moveの深さを動的に減らす
       Depth R = ((823 + 67 * depth) / 256 + std::min((int)((eval - beta) / PawnValue), 3)) * ONE_PLY;
 
+      // このタイミングでcheck_infoをupdateしないと、null_moveのときにStateInfo(含むCheckInfo)をコピーされてしまい、まずい。
+      pos.check_info_update();
+
       pos.do_null_move(st);
       (ss + 1)->skipEarlyPruning = true;
 

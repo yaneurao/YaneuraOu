@@ -26,6 +26,8 @@ namespace Zobrist {
 template <CheckInfoUpdate ciu>
 void CheckInfo::update(const Position& pos) {
 
+  ASSERT_LV1(ciu != CHECK_INFO_UPDATE_NONE);
+
   // このクラスのメンバー変数は、このコンストラクタで適切な値をセットしてやる必要がある。
 
   if (ciu == CHECK_INFO_UPDATE_ALL || ciu == CHECK_INFO_UPDATE_PINNED)
