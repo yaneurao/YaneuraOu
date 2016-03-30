@@ -5,6 +5,69 @@
 - [ ] ・やねうら王classicに定跡の選択機能入れる。
 - [ ] ・Recaptureのオーダリング考える。
 
+■ 2016/03/31 V2.27
+
+・mate1ply修正。(thx. woodyringさん)
+
+-      auto cut_dirs = cutoff_directions(to_direct, long_effect.directions_of(Us, to) & (Effect8::Directions)~LongEffect::long_effect16_of(type_of(pc)));
++      auto cut_dirs = cutoff_directions(to_direct, long_effect.directions_of(Us, to) & (Effect8::Directions)~LongEffect::long_effect16_of(pc));
+	二箇所。
+
+
+■ 2016/03/31 V2.26
+
+・やねうら王2015とくらべてnps2割ぐらい低くてhashの使用率が1/3ぐらいしかない。
+	hashまわり、何かやらかしているのでは。
+・やねうら王2015、思考時間0.1秒になってなかった疑惑。
+	やねうら王2015 vs V2.25 , 1手3秒、1スレッド、256MBでの勝負。将棋所。
+		31-7-41
+		勝ち越しとる…。
+	V2.25だけ定跡使ってるのもあるのかも。
+
+・やねうら王2015と1.7秒設定で対戦させる。
+
+	#95
+	やねうら王classic V225
+	evaluate修正, 1スレッド、1.7秒固定設定
+	YaneuraOu-classicV225.exe
+	go btime 2000 wtime 2000 byoyomi 0
+	setoption name Hash value 1024
+	setoption name Threads value 1
+	setoption name NetworkDelay value 300
+
+	#94
+	やねうら王2015
+	1スレッド、1.7秒固定設定
+	YaneuraOu2015.exe
+	go btime 100 wtime 100 byoyomi 0
+	setoption name USI_Hash value 1024
+	setoption name Threads value 1
+	setoption name TimeLimitMs value 700
+	setoption name MinimumThinkingTime value 1700
+
+		1-0-50
+	local-serverを使うと圧倒的に負け越す。なぜ？
+	何かがおかしい…。
+	btimeで指定しているから、そこ60で割り算した分しか思考時間使ってないからか。
+
+	go btime 0 wtime 0 byoyomi 10000
+	に変更して1手10秒固定
+		0-0-42
+	これでも圧倒的に負け。なんでだろ…。原因よく調べる。
+	
+	やねうら王2015 0.1秒 vs V2.25 1秒
+		0-0-90
+	おかしい。
+	いくらなんでもおかしすぎる。やねうら王2015がカレントフォルダを変更するから、V2.25で評価関数が読み込めていないのか？
+	→　ビンゴくさい。そうか。そうだったのか…。
+
+	やねうら王2015 vs V2.25 0.1秒
+			→	よし、互角ぐらい。問題ない。
+			→　これにてやねうら王2015の作業は終了。
+
+・historyなどのbonus、レーティングの簡易計算法のほうがいいかも…。
+	 cf. http://www.computer-shogi.org/wcsc26/appeal/NineDayFever/NDF-2016.txt
+
 
 ■ 2016/03/30 V2.25
 

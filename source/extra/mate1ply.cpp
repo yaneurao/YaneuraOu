@@ -302,7 +302,7 @@ MOVE_MATE:
 
       // これで遮断される方角の利きもマイナス1
       // ただし、ここに駒を置いて発生した長い利きの方角は免除される。
-      auto cut_dirs = cutoff_directions(to_direct, long_effect.directions_of(Us, to) & (Effect8::Directions)~LongEffect::long_effect16_of(type_of(pc)));
+      auto cut_dirs = cutoff_directions(to_direct, long_effect.directions_of(Us, to) & (Effect8::Directions)~LongEffect::long_effect16_of(pc));
 
       // 上の2つの条件の升で、toにその駒を移動させたときに利きがない升に対して調べる。
       // toの地点はすでに条件を満たしているので調べない。(影の利きで王手する場合などがあるので調べてはならない)
@@ -366,7 +366,7 @@ MOVE_MATE:
 
       auto dec_effect = effects_from(pc, from, pieces());
       auto dec_around8 = around8(dec_effect, themKing);
-      auto cut_dirs = cutoff_directions(to_direct, long_effect.directions_of(Us, to) & (Effect8::Directions)~LongEffect::long_effect16_of(type_of(pc)));
+      auto cut_dirs = cutoff_directions(to_direct, long_effect.directions_of(Us, to) & (Effect8::Directions)~LongEffect::long_effect16_of(pc));
       auto dec = (dec_around8 | cut_dirs) & effect_us_not & a8_board_mask & a8_them_movable & ~to_directions(to_direct);
 
       while (dec)
