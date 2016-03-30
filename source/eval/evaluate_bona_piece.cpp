@@ -104,15 +104,22 @@ namespace Eval
     {
       for (auto c : COLOR)
         for (Piece pc = PAWN; pc < KING; ++pc)
-          if (kpp_hand_index[c][pc].fb <= bp && bp < kpp_hand_index[c][pc].fw)
+        {
+          // ‚±‚Ì‹îŽí‚ÌãŒÀ(e.g. •à = 18)
+          int kind_num = kpp_hand_index[c][pc].fw - kpp_hand_index[c][pc].fb;
+          int start = kpp_hand_index[c][pc].fb;
+          if (start <= bp && bp < start+kind_num * 2)
           {
+            bool is_black = bp < start + kind_num;
+            if (!is_black) bp = (BonaPiece)(bp - kind_num);
 #ifdef PRETTY_JP
-            os << "H" << pretty(pc) << int(bp - kpp_hand_index[c][pc].fb + 1); // ex.HP3
+            os << "Žè" << (is_black ? "æ" : "Œã") << pretty(pc) << int(bp - start + 1); // ex.Žèæ•à3
 #else
-            os << "H" << pc << int(bp - kpp_hand_index[c][pc].fb + 1); // ex.HP3
+            os << "H" << (is_black ? "B" : "W") << pc << int(bp - kpp_hand_index[c][pc].fb + 1); // ex.HBP3
 #endif
             break;
           }
+        }
     } else {
       for (auto pc : Piece())
         if (kpp_board_index[pc].fb <= bp && bp < kpp_board_index[pc].fb + SQ_NB)

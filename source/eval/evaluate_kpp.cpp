@@ -57,6 +57,25 @@ namespace Eval
       goto Error;
     fs.close();
 
+    // 手駒の添字、コンバートするときにひとつ間違えてた。(๑´ڡ`๑)
+    for (int k = 0; k < SQ_NB_PLUS1; ++k)
+      for (int i = 1; i < fe_end; ++i)
+        for (int j = 1; j < fe_end; ++j)
+        {
+          int i2 = i < fe_hand_end ? i - 1 : i;
+          int j2 = j < fe_hand_end ? j - 1 : j;
+          kpp2[k][i][j] = kpp[k][i2][j2];
+        }
+    for (int k1 = 0; k1 < SQ_NB_PLUS1; ++k1)
+      for (int k2 = 0; k2 < SQ_NB_PLUS1; ++k2)
+        for (int j = 1; j < fe_end + 1; ++j)
+        {
+          int j2 = j < fe_hand_end ? j - 1 : j;
+          kkp2[k1][k2][j] = kkp[k1][k2][j2];
+        }
+    memcpy(kkp, kkp2, sizeof(kkp));
+    memcpy(kpp, kpp2, sizeof(kpp));
+
     return;
 
   Error:;
@@ -370,7 +389,7 @@ namespace Eval
 
     // 38枚の駒を表示
     for (i = 0; i < PIECE_NO_KING; ++i)
-      cout << int(list[i].fb) << " = " << list[i].fb << endl;
+      cout << int(list[i].fb) << " = " << list[i].fb << " , " << int(list[i].fw) << " =  " << list[i].fw << endl;
 
     int32_t sumBKPP, sumWKPP, sumKKP;
 
@@ -403,7 +422,7 @@ namespace Eval
     }
 
     cout << "Material = " << pos.state()->materialValue << endl;
-    cout << "sumWKPP = " << sumWKPP << " sumBKPP " << sumBKPP << " sumWKPP " << sumWKPP << endl;
+    cout << "sumKKP = " << sumKKP << " sumBKPP " << sumBKPP << " sumWKPP " << sumWKPP << endl;
     cout << "---\n";
   }
 

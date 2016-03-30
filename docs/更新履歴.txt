@@ -6,6 +6,80 @@
 - [ ] ・Recaptureのオーダリング考える。
 
 
+■ 2016/03/30 V2.25
+
+・やねうら王2015に色々portingして比較実験してみる。
+・perftコマンドにEVAL_PERFTモード追加。
+・isreadyコマンドに対してPosition.set(HIRATE_SFEN)で初期化するように。
+・やねうら王2015にperftとEVAL_PERFT、porting完了。
+・perft 3においてeval(sum)の値が一致しない。たぶん成り駒関係で何かおかしい。
+	あと、perftの速度が違いすぎ。evalの速度差がひどい。evaluate()で何かやらかしてる。
+	sfenとevalの値を書き出してcompareするか。
+	→　指し手生成の順番が異なるから比較しにくい。
+	→　sfenでsortして調べるか…。
+
+	歩を手持ちにしている局面の評価値がおかしいことがわかった。
+	e.g. sfen 1nsgkgsnl/lr5b1/pppppp+Bpp/9/9/2P6/PP1PPPPPP/7R1/LNSGKGSNL w P 4
+	-1002
+	あれ？全計算において一致する。やねうら王2015の差分計算がバグっている可能性が微レ存。
+	違うな。やねうら王2015の全計算こそがbugっていて、これと等価になるように今回portingしたからおかしいのか。
+	全計算は、そのあとすべてが差分計算がなされるのであれば(相対的な比較は出来るから)bugってようが関係がないのか。そうか…。
+	よくこれで動いてたな。
+	ああ、evalで差分計算をretireしたときに、compute_eval()呼び出してないから関係なかったのか。そうか。
+
+・なんとなくわかってきた。
+　BonaPieceで先手の手駒の歩1と、それを相手の駒にしたときに後手の歩1にならないといけないのに
+　そうなっていない。
+	→　eval_list自体が間違っているのか。
+	→　やねうら王2015のPosition::set()がバグっていた。
+-        st->pieceList[piece_no].fb = BonaPiece(kpp_hand_index[color][raw_piece].fb + i + 1);
+-        st->pieceList[piece_no].fw = BonaPiece(kpp_hand_index[color][raw_piece].fw + i + 1);
++        st->pieceList[piece_no].fb = BonaPiece(kpp_hand_index[color][raw_piece].fb + i);
++        st->pieceList[piece_no].fw = BonaPiece(kpp_hand_index[color][raw_piece].fw + i);
+	これにより駒番号がおかしくなっていたのか。これを基準に評価関数をコンバートしたからおかしかったのか。
+	ということは上の局面は-1075が正しいわけか。
+
+・BonaPiece、後手の駒を正しく << で表示できてなかったのを修正。
+・evaluate、コンバーター書く。
+
+    // 手駒の添字、コンバートするときにひとつ間違えてた。(๑´ڡ`๑)
+    for (int k = 0; k < SQ_NB_PLUS1; ++k)
+      for (int i = 1; i < fe_end; ++i)
+        for (int j = 1; j < fe_end; ++j)
+        {
+          int i2 = i < fe_hand_end ? i - 1 : i;
+          int j2 = j < fe_hand_end ? j - 1 : j;
+          kpp2[k][i][j] = kpp[k][i2][j2];
+        }
+    for (int k1 = 0; k1 < SQ_NB_PLUS1; ++k1)
+      for (int k2 = 0; k2 < SQ_NB_PLUS1; ++k2)
+        for (int j = 1; j < fe_end + 1; ++j)
+        {
+          int j2 = j < fe_hand_end ? j - 1 : j;
+          kkp2[k1][k2][j] = kkp[k1][k2][j2];
+        }
+    memcpy(kkp, kkp2, sizeof(kkp));
+    memcpy(kpp, kpp2, sizeof(kpp));
+
+	これ書いたら、evalぴったり合った…。
+
+	→　やねうら王2015とperft 5でevalの合計合致した。
+	→　perft6の合計も念のために確認する。
+	→　合致していた。
+
+・上の評価関数ファイルの読み込み時の変換、デバッグモードだと時間がかかるので新たに書きだして、更新したほうがよさげ。
+　次のWCSCが終わったタイミングでライブラリ更新してCSAのサイトに新しい評価関数バイナリ上げよう。
+
+・評価関数を修正したのに、思ったほどはレーティング上がってない。
+
+	217-25-174(+R38.4)
+
+・差分計算が出来てないケースがあるのがおかしいのか。いくらなんでもnpsが低すぎるのであとで調査する。
+・あとはmate1、呼ばないほうがいい可能性も…。
+・これで勝率にまだ差が開くなら、やねうら王2015の対局設定、0.1秒思考にはなっていない可能性を疑ったほうが良いのでは…。
+　あとで普通に将棋所を使って対局させておく。
+
+
 ■ 2016/03/30 V2.24
 
 ・evaluate()毎回呼ばないと差分計算できないケースがある？(thx. tさん、わるおさん)
@@ -18,7 +92,7 @@
 変更後(静止探索、通常探索に追加)
 			733knps
 
-			167-13-127 (+R48.6)
+			331-27-265 (+R38.6)
 
 →　やねうら王2014では1Mnpsぐらい出ていたのでまだ何かやらかしている可能性が微レ存。
 

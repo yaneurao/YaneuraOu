@@ -21,14 +21,25 @@
 
 #define NORMAL_PERFT
 
+// perftのときにeval値も加算していくモード。評価関数のテスト用。
+#define EVAL_PERFT
+
+
 struct PerftSolverResult {
   uint64_t nodes, captures, promotions, checks, mates;
+#ifdef EVAL_PERFT
+  int64_t eval;
+#endif
+
   void operator+=(const PerftSolverResult& other) {
     nodes += other.nodes;
     captures += other.captures;
     promotions += other.promotions;
     checks += other.checks;
     mates += other.mates;
+#ifdef EVAL_PERFT
+    eval += other.eval;
+#endif
   }
 };
 
@@ -79,6 +90,17 @@ struct PerftSolver {
       if (pos.state()->capturedType != NO_PIECE) result.captures++;
 #ifdef KEEP_LAST_MOVE
       if (is_promote(pos.state()->lastMove)) result.promotions++;
+#endif
+#ifdef EVAL_PERFT
+//      cout << pos.sfen() << " , eval = " << Eval::evaluate(pos) << endl;
+      /*
+      if (pos.sfen() == "1nsgkgsnl/lr5b1/pppppp+Bpp/9/9/2P6/PP1PPPPPP/7R1/LNSGKGSNL w P 4")
+      {
+//        cout << Eval::evaluate(pos);
+        Eval::print_eval_stat(pos);
+      }
+      */
+      result.eval += Eval::evaluate(pos);
 #endif
       if (pos.checkers()) {
         result.checks++;
@@ -149,10 +171,13 @@ void perft(Position& pos, istringstream& is)
   auto result = solver.Perft<true>(pos, depth);
 
   cout << endl << "nodes = " << result.nodes << " , captures = " << result.captures <<
-#ifdef        KEEP_LAST_MOVE
+#ifdef KEEP_LAST_MOVE
     " , promotion = " << result.promotions <<
 #endif
-    " , checks = " << result.checks << " checkmates = " << result.mates << endl;
+#ifdef EVAL_PERFT
+    " , eval(sum) = " << result.eval <<
+#endif
+    " , checks = " << result.checks << " , checkmates = " << result.mates << endl;
 }
 
 // ----------------------------------
@@ -889,7 +914,7 @@ static const char* BenchSfen[] = {
   "l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1",
 };
 
-extern void is_ready();
+extern void is_ready(Position& pos);
 
 void bench_cmd(Position& pos, istringstream& is)
 {
@@ -946,7 +971,7 @@ void bench_cmd(Position& pos, istringstream& is)
   else
     read_all_lines(fenFile, fens);
 
-  is_ready();
+  is_ready(pos);
 
   int64_t nodes = 0;
   Search::StateStackPtr st;

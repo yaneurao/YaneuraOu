@@ -242,7 +242,7 @@ namespace USI
 // --------------------
 
 // is_ready_cmd()を外部から呼び出せるようにしておく。(benchコマンドなどから呼び出したいため)
-void is_ready()
+void is_ready(Position& pos)
 {
   static bool first = true;
 
@@ -256,13 +256,17 @@ void is_ready()
     first = false;
   }
 
+  // Positionコマンドが送られてくるまで評価値の全計算をしていないの気持ち悪いのでisreadyコマンドに対して
+  // evalの値を返せるようにこのタイミングで平手局面で初期化してしまう。
+  pos.set(SFEN_HIRATE);
+
   Search::clear();
 }
 
 // isreadyコマンド処理部
-void is_ready_cmd()
+void is_ready_cmd(Position& pos)
 {
-  is_ready();
+  is_ready(pos);
   sync_cout << "readyok" << sync_endl;
 }
 
@@ -408,6 +412,7 @@ void USI::loop(int argc,char* argv[])
 {
   // 探索開始局面(root)を格納するPositionクラス
   Position pos;
+
   string cmd,token;
 
   // 先行入力されているコマンド
@@ -490,7 +495,7 @@ void USI::loop(int argc,char* argv[])
     else if (token == "setoption") setoption_cmd(is);
 
     // 思考エンジンの準備が出来たかの確認
-    else if (token == "isready") is_ready_cmd();
+    else if (token == "isready") is_ready_cmd(pos);
 
     // ユーザーによる実験用コマンド。user.cppのuser()が呼び出される。
     else if (token == "user") user_test(pos,is);

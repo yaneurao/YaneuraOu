@@ -47,7 +47,7 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/03/30 7:00現在)
+#　俺の作業メモ(2016/03/30 11:30現在)
 
 - [ ] ・やねうら王classicにponder機能入れる。
 - [ ] ・やねうら王classicに持ち時間制御入れる。
@@ -55,7 +55,8 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 
 ※　括弧のなかの+Rは、自己対局時の勝率から計算されるもので、0.5手延長などは顕著に勝率が上がりますが、自己対局以外では効果に乏しいです。
 
-- [x] 2016/03/30・classicでevaluate()を毎node呼び出しておかないとevaluate()の差分計算がなされないので修正。(thx. tさん、わるおさん) (+R50)
+- [x] 2016/03/30・やねうら王2015から評価関数ファイルの変換に失敗していたので読み込み時に修正するコード追加した。(+R40)
+- [x] 2016/03/30・classicでevaluate()を毎node呼び出しておかないとevaluate()の差分計算がなされないので修正。(thx. tさん、わるおさん) (+R40)
 - [x] 2016/03/30・mini,classicでNULL MOVEの前のcheck_info_update()が抜けていたので修正。
 - [x] 2016/03/30・classicでcheckinfoのupdateが抜けている経路があったので修正。
 - [x] 2016/03/30・depth 4手浅いものより大きいなら置換表のエントリー書き換えるように変更。
