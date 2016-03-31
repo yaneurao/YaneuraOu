@@ -148,6 +148,8 @@
       <SDLCheck>
       </SDLCheck>
       <StructMemberAlignment>Default</StructMemberAlignment>
+      <OmitFramePointers>false</OmitFramePointers>
+      <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -180,6 +182,9 @@
       <FloatingPointModel>Fast</FloatingPointModel>
       <SDLCheck>
       </SDLCheck>
+      <StructMemberAlignment>Default</StructMemberAlignment>
+      <OmitFramePointers>false</OmitFramePointers>
+      <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

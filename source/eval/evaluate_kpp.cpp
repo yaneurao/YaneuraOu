@@ -151,6 +151,7 @@ namespace Eval
     // レアケースだし、StateInfoにEvalListを持たせる必要が出てきて、あまり得しない。
     auto now = st;
     auto prev = st->previous;
+
     if (prev->sumKKP == VALUE_NONE)
     {
       // 全計算

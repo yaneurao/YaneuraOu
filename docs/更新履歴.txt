@@ -2,6 +2,74 @@
 やねうら王 更新履歴
 
 
+■　2016/04/01 V2.31
+
+・update_stats()でのボーナス、ONE_PLYで正規化すべき。
+
+    // depthの二乗に比例したbonusをhistory tableに加算する。
+-    Value bonus = Value(depth*(int)depth + (int)depth + 1);
++    Value bonus = Value(depth*(int)depth / (int)(ONE_PLY*ONE_PLY) + (int)depth/ONE_PLY + 1);
+
+
+■　2016/04/01 V2.30
+
+・Visual Studio 2015 Update2が出たので以前、内部エラーが出てコンパイルできなかったものをshogi.hに移動させる。
+
+inline int hand_count(Hand hand, Piece pr) { ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); return (hand >> PIECE_BITS[pr]) & PIECE_BIT_MASK[pr]; }
+inline int hand_exists(Hand hand, Piece pr) { ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); return hand & PIECE_BIT_MASK2[pr]; }
+inline void add_hand(Hand &hand, Piece pr, int c = 1) { hand = (Hand)(hand + PIECE_TO_HAND[pr] * c); }
+inline void sub_hand(Hand &hand, Piece pr, int c = 1) { hand = (Hand)(hand - PIECE_TO_HAND[pr] * c); }
+
+→　Update2ではコンパイルできた！！
+
+・LONG_EFFECT_LIBRARYをオフにして1手詰めをオフ、ASSERT_LV 0にするとclassicでbenchが960Knps程度。
+・LONG_EFFECT_LIBRARYをオフにして1手詰めをオフ、ASSERT_LV 0にするとclassicでbenchが800Knps程度。
+
+	LONG_EFFECT、なぜにこんなに遅いのか…。evaluate()の差分計算の何かを潰している可能性すらある。
+	前実験したときこんな遅くなかったはず…。
+
+	benchにおけるevaluate()の全計算 / 呼びだされたい回数
+		109940 / 19000000
+	→　LONG_EFFECTありでもなしでも変わらなかった。うむむ？
+
+	例)
+			static u64 c1 = 0;
+			static u64 c2 = 0;
+
+			c1++;
+			if ((c1 % 100000) == 0)
+			  cout << c2 << " / " << c1 << endl;
+
+			if (...)
+			{
+				c2++;
+			}
+
+	さすがにおかしい。LONG_EFFECT有りの時にどこがボトルネックになっているのかプロファイラで調べる。
+
+	LongEffect::update_by_capture..()で、先後、2%ぐらい食ってる。
+	このrewindでも2%。captureだけで8%。うーん。遅すぎ。rewind()やめたほうが良いのでは…。
+	てか、これならLONG_EFFECTなしにしてmate1なしのほうが強い可能性が…。
+	最終的に利きを評価関数に使いたいので、そのときは仕方ないとしても。
+
+		100-8-140
+	一応、long effectの分ぐらいは回収できとるのか…。そうか…。
+
+	rewind()無くすと利きのある評価関数使うときに戻すのに困るのか。なら仕方ないか…。
+	以前計測したときはrewind()含んでなかったのか。そうか。
+
+・やねうら王classicのRecaptureのオーダリング考える。
+
+		V2.30a
+-       move = *currentMoves++;
++       move = pick_best(currentMoves++, endMoves);
+
+	どうせrecapの指し手が2つ以上あることは稀なのでここでオーダリングしてもあまり意味をなさない気もするが。
+	生成される指し手が少ないなら、pick_best()のコストはほぼ無視できるのでやらないよりはマシのような。
+
+		V2.30a vs V2.30
+			
+
 ■ 2016/03/31 V2.29
 
 ・see()のコード、Position::effected_to()を使ったほうが簡潔になるのか。修正。

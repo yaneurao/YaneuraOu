@@ -47,20 +47,20 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/03/31 9:00現在)
+#　俺の作業メモ(2016/04/01 9:00現在)
 
+- [ ] ・やねうら王classicに持ち時間制御入れる。
 - [ ] ・やねうら王classic、フィッシャールールに対応
 - [ ] ・やねうら王classic、入玉宣言勝ちに対応
 - [ ] ・やねうら王classicにponder機能入れる。
-- [ ] ・やねうら王classicに持ち時間制御入れる。
 - [ ] ・やねうら王classicの探索部、もう少し調整する。
 - [ ] ・やねうら王classicに定跡の選択機能入れる。
-- [ ] ・やねうら王classicのRecaptureのオーダリング考える。
-- [ ] ・やねうら王classicのhistory bonus考えなおす。
 - [ ] ・AperyTwigの評価関数バイナリの読み込みにも対応
+- [ ] ・やねうら王classicのhistory bonus考えなおす。
 
 ※　括弧のなかの+Rは、自己対局時の勝率から計算されるもので、0.5手延長などは顕著に勝率が上がりますが、自己対局以外では効果に乏しいです。
 
+- [x] 2016/04/01・やねうら王classicのRecaptureのオーダリング調整。(+R25)
 - [x] 2016/03/31・see()高速化。(thx. tさん) (+R5)
 - [x] 2016/03/31・mate1ply修正。(thx. woodyringさん) (+R15)
 - [x] 2016/03/30・やねうら王2015から評価関数ファイルの変換に失敗していたので読み込み時に修正するコード追加した。(+R40)

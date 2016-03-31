@@ -568,17 +568,19 @@ constexpr int32_t HAND_BIT_MASK = PIECE_BIT_MASK2[PAWN] | PIECE_BIT_MASK2[LANCE]
 // 余らせてあるbitの集合。
 constexpr int32_t HAND_BORROW_MASK = (HAND_BIT_MASK << 1) & ~HAND_BIT_MASK;
 
+
 // 手駒pcの枚数を返す。
-extern int hand_count(Hand hand, Piece pr);
+inline int hand_count(Hand hand, Piece pr) { ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); return (hand >> PIECE_BITS[pr]) & PIECE_BIT_MASK[pr]; }
 
 // 手駒pcを持っているかどうかを返す。
-extern int hand_exists(Hand hand, Piece pr);
+inline int hand_exists(Hand hand, Piece pr) { ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); return hand & PIECE_BIT_MASK2[pr]; }
 
 // 手駒にpcをc枚加える
-extern void add_hand(Hand &hand, Piece pr, int c = 1);
+inline void add_hand(Hand &hand, Piece pr, int c = 1) { hand = (Hand)(hand + PIECE_TO_HAND[pr] * c); }
 
 // 手駒からpcをc枚減ずる
-extern void sub_hand(Hand &hand, Piece pr, int c = 1);
+inline void sub_hand(Hand &hand, Piece pr, int c = 1) { hand = (Hand)(hand - PIECE_TO_HAND[pr] * c); }
+
 
 // 手駒h1のほうがh2より優れているか。(すべての種類の手駒がh2のそれ以上ある)
 // 優等局面の判定のとき、局面のhash key(StateInfo::key() )が一致していなくて、盤面のhash key(StateInfo::key_board() )が

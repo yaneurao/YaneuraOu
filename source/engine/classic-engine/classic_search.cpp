@@ -175,7 +175,7 @@ namespace YaneuraOuClassic
     //   historyのupdate
 
     // depthの二乗に比例したbonusをhistory tableに加算する。
-    Value bonus = Value(depth*(int)depth + (int)depth + 1);
+    Value bonus = Value((int)depth*(int)depth / ((int)ONE_PLY*(int)ONE_PLY) + (int)depth / (int)ONE_PLY + 1);
 
     // 直前に移動させた升(その升に移動させた駒がある)
     Square prevSq = move_to((ss - 1)->currentMove);

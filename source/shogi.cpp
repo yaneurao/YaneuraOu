@@ -171,17 +171,6 @@ Value drawValueTable[REPETITION_NB][COLOR_NB] =
 };
 
 // ----------------------------------------
-// inlineで書くとVC++2015の内部コンパイルエラーになる
-// ----------------------------------------
-
-// VC++のupdateで内部コンパイルエラーにならないように修正されたら、これをまたshogi.hに移動させる。
-
-int hand_count(Hand hand, Piece pr) { ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); return (hand >> PIECE_BITS[pr]) & PIECE_BIT_MASK[pr]; }
-int hand_exists(Hand hand, Piece pr) { ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); return hand & PIECE_BIT_MASK2[pr]; }
-void add_hand(Hand &hand, Piece pr, int c) { hand = (Hand)(hand + PIECE_TO_HAND[pr] * c); }
-void sub_hand(Hand &hand, Piece pr, int c) { hand = (Hand)(hand - PIECE_TO_HAND[pr] * c); }
-
-// ----------------------------------------
 //  main()
 // ----------------------------------------
 
