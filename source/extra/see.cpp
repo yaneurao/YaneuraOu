@@ -231,7 +231,7 @@ Value Position::see(Move m) const {
 
 #ifdef LONG_EFFECT_LIBRARY
     // 移動させる升に相手からの利きがないなら、seeが負であることはない。
-    if (board_effect[stm].e[to] == 0)
+    if (!effected_to(stm,to))
       return VALUE_ZERO;
 
     // 手番側(相手番)の攻撃駒
@@ -241,7 +241,7 @@ Value Position::see(Move m) const {
     // このとき、味方の駒もtoに利いているなら、その両方を列挙。
     // さもなくば、敵の駒だけ列挙。
     stmAttackers = attackers_to(stm, to, occupied);
-    if (board_effect[~stm].e[to] != 0)
+    if (effected_to(~stm,to))
       attackers = stmAttackers | attackers_to(~stm, to, occupied);
     else
       attackers = stmAttackers;
@@ -277,8 +277,7 @@ Value Position::see(Move m) const {
      // 移動させる升に相手からの利きがないなら、seeが負であることはない。
      // fromから移動させているのでfromに相手のlong effectがあるとこのfromの駒をtoに移動させたときに
      // 取られてしまうのでそこは注意が必要。
-     if (board_effect[stm].e[to] == 0 &&
-       !(long_effect.directions_of(stm,from) & Effect8::directions_of(from,to)))
+     if (!effected_to(stm,to,from))
        return Value(swapList[0] + uncapValue[0]);
 
      // fromの駒がないものとして考える。
@@ -318,8 +317,7 @@ Value Position::see(Move m) const {
      //　→　fromは自駒であるのでこの時点で取り除く必要はない。
 
 #ifdef LONG_EFFECT_LIBRARY
-     if (board_effect[stm].e[to] == 0 &&
-       !(long_effect.directions_of(stm, from) & Effect8::directions_of(from, to)))
+     if (!effected_to(stm,to,from))
        return Value(swapList[0]);
 
      // fromの駒がないものとして考える。
