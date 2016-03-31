@@ -22,7 +22,7 @@
 #define NORMAL_PERFT
 
 // perftのときにeval値も加算していくモード。評価関数のテスト用。
-#define EVAL_PERFT
+//#define EVAL_PERFT
 
 
 struct PerftSolverResult {
@@ -918,6 +918,8 @@ extern void is_ready(Position& pos);
 
 void bench_cmd(Position& pos, istringstream& is)
 {
+  is_ready(pos);
+
   string token;
   Search::LimitsType limits;
   vector<string> fens;
@@ -926,7 +928,7 @@ void bench_cmd(Position& pos, istringstream& is)
   string ttSize = (is >> token) ? token : "1024";
 
   string threads = (is >> token) ? token : "1";
-  string limit = (is >> token) ? token : "13";  // "7"; // 13
+  string limit = (is >> token) ? token : "15";
 
   string fenFile = (is >> token) ? token : "default";
   string limitType = (is >> token) ? token : "depth";
@@ -938,9 +940,8 @@ void bench_cmd(Position& pos, istringstream& is)
     threads = "1";
     fenFile = "default";
     limitType = "depth";
-    limit = "5";
+    limit = "6";
   }
-
 
   if (limitType == "time")
     limits.movetime = 1000 * atoi(limit.c_str()); // movetime is in ms

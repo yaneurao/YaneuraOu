@@ -1,9 +1,34 @@
 ﻿
 やねうら王 更新履歴
 
-気が向いたらやるリスト
-- [ ] ・やねうら王classicに定跡の選択機能入れる。
-- [ ] ・Recaptureのオーダリング考える。
+
+
+■ 2016/03/31 V2.28
+
+・benchコマンドのdefaultのdepthを15に変更。
+・benchコマンドで内部的にis_ready()を呼び出すように変更。
+	740knps // ASSERT_LV 3
+	775knps // ASSERT_LV 0
+	750knps // ASSERT_LV 3 , mate1ply()呼び出さない。
+
+・LONG_EFFECT_LIBRARYがあるときのSEE高速化。(thx. tさん)
+
+	===========================
+	Total time (ms) : 32204
+	Nodes searched  : 23523154
+	Nodes/second    : 730441
+
+	↓
+
+	===========================
+	Total time (ms) : 31058
+	Nodes searched  : 23523154
+	Nodes/second    : 757394
+
+	2,3%ぐらい高速化した？ほぼ変わらない気もする。
+
+	see()のコード、少し整理した。
+
 
 ■ 2016/03/31 V2.27
 
@@ -12,6 +37,8 @@
 -      auto cut_dirs = cutoff_directions(to_direct, long_effect.directions_of(Us, to) & (Effect8::Directions)~LongEffect::long_effect16_of(type_of(pc)));
 +      auto cut_dirs = cutoff_directions(to_direct, long_effect.directions_of(Us, to) & (Effect8::Directions)~LongEffect::long_effect16_of(pc));
 	二箇所。
+
+		225-22-206(+R15.3)
 
 
 ■ 2016/03/31 V2.26

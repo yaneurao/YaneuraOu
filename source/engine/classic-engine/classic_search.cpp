@@ -10,6 +10,11 @@
 // やねうら王miniからの改造
 // Apery(WCSC 2015)ぐらいの強さを目指す。
 
+
+// mate1ply()を呼び出すのか
+#define USE_MATE_1PLY
+
+
 #include <sstream>
 #include <iostream>
 #include <fstream>
@@ -385,6 +390,8 @@ namespace YaneuraOuClassic
 
       // mate1ply()の呼び出しのためにCheckInfo.pinnedの更新が必要。
       pos.check_info_update_pinned();
+
+#ifdef USE_MATE_1PLY
       Move m = pos.mate1ply();
       if (m != MOVE_NONE)
       {
@@ -394,6 +401,7 @@ namespace YaneuraOuClassic
 
         return bestValue;
       }
+#endif
 
       // 王手がかかっていなくてPvNodeでかつ、bestValueがalphaより大きいならそれをalphaの初期値に使う。
       // 王手がかかっているなら全部の指し手を調べたほうがいい。
@@ -744,6 +752,7 @@ namespace YaneuraOuClassic
       pos.check_info_update_pinned();
       ciu = CHECK_INFO_UPDATE_PINNED; // pinnedのupdateだけ終わったとマークしておく。
 
+#ifdef USE_MATE_1PLY
       bestMove = pos.mate1ply();
       if (bestMove != MOVE_NONE)
       {
@@ -754,6 +763,7 @@ namespace YaneuraOuClassic
 
         return bestValue;
       }
+#endif
     }
 
     // -----------------------
