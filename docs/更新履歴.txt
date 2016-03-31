@@ -8,7 +8,28 @@
 
     // depthの二乗に比例したbonusをhistory tableに加算する。
 -    Value bonus = Value(depth*(int)depth + (int)depth + 1);
-+    Value bonus = Value(depth*(int)depth / (int)(ONE_PLY*ONE_PLY) + (int)depth/ONE_PLY + 1);
++    Value bonus = Value((int)depth*(int)depth / ((int)ONE_PLY*(int)ONE_PLY) + (int)depth / (int)ONE_PLY + 1);
+
+	V2.31 vs V2.30
+		250-42-250
+		ほぼ変わらず。
+
+・update_stats()、1手前がNULL MOVEかどうかで場合分けしたほうがソースコードがすっきりするので修正。
+
+・bench走らせるごとにnode数が変わるようになってしまった…。
+　何かやらかしている。
+	→　今回の修正コメントアウトしても一致しない。
+	→　benchで何かクリアしていないものがあるのでは。
+	→　そうでもなさげ。
+	→　mate1も関係なさげ。
+	→ recaptureでスコアつけてないのにpick_best()してた。
+
+    case GOOD_RECAPTURES:
+      endMoves = generateMoves<RECAPTURES>(pos, moves, recaptureSquare);
++     score_captures(); // CAPTUREの指し手の並べ替え
+      break;
+
+	→　よし、修正できた。再度、V2.30と対戦。
 
 
 ■　2016/04/01 V2.30
@@ -68,7 +89,9 @@ inline void sub_hand(Hand &hand, Piece pr, int c = 1) { hand = (Hand)(hand - PIE
 	生成される指し手が少ないなら、pick_best()のコストはほぼ無視できるのでやらないよりはマシのような。
 
 		V2.30a vs V2.30
-			
+			295-32-295
+			変わらず。
+
 
 ■ 2016/03/31 V2.29
 

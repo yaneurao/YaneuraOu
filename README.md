@@ -1,8 +1,8 @@
 # About this project
 
-shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(about 2500 lines) , USI compliant engine , capable of being compiled by VC++2015
+shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(about 2500 lines) , USI compliant engine , capable of being compiled by VC++2015 Update2
 
-将棋の思考エンジンで、Bonanza6より強く、教育的で短いコード(2500行程度)で書かれたUSIプロトコル準拠の思考エンジンで、VC++2015でコンパイル可能です。
+将棋の思考エンジンで、Bonanza6より強く、教育的で短いコード(2500行程度)で書かれたUSIプロトコル準拠の思考エンジンで、VC++2015 Update2でコンパイル可能です。
 
 [やねうら王mini 公式サイト (解説記事等)](http://yaneuraou.yaneu.com/YaneuraOu_Mini/)
 
@@ -60,7 +60,7 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 
 ※　括弧のなかの+Rは、自己対局時の勝率から計算されるもので、0.5手延長などは顕著に勝率が上がりますが、自己対局以外では効果に乏しいです。
 
-- [x] 2016/04/01・やねうら王classicのRecaptureのオーダリング調整。(+R25)
+- [x] 2016/04/01・やねうら王classicのRecaptureのオーダリング調整。
 - [x] 2016/03/31・see()高速化。(thx. tさん) (+R5)
 - [x] 2016/03/31・mate1ply修正。(thx. woodyringさん) (+R15)
 - [x] 2016/03/30・やねうら王2015から評価関数ファイルの変換に失敗していたので読み込み時に修正するコード追加した。(+R40)

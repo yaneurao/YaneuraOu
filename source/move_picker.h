@@ -231,6 +231,7 @@ struct MovePicker
 
     case GOOD_RECAPTURES:
       endMoves = generateMoves<RECAPTURES>(pos, moves, recaptureSquare);
+      score_captures(); // CAPTUREの指し手の並べ替え
       break;
 
       // あとで実装する(↑で生成して返さなかった指し手を返すフェーズ)

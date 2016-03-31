@@ -14,7 +14,6 @@
 // mate1ply()を呼び出すのか
 #define USE_MATE_1PLY
 
-
 #include <sstream>
 #include <iostream>
 #include <fstream>
@@ -177,39 +176,45 @@ namespace YaneuraOuClassic
     // depthの二乗に比例したbonusをhistory tableに加算する。
     Value bonus = Value((int)depth*(int)depth / ((int)ONE_PLY*(int)ONE_PLY) + (int)depth / (int)ONE_PLY + 1);
 
-    // 直前に移動させた升(その升に移動させた駒がある)
-    Square prevSq = move_to((ss - 1)->currentMove);
-    auto& cmh = CounterMoveHistory[prevSq][pos.piece_on(prevSq)];
     auto thisThread = pos.this_thread();
-
     thisThread->history.update(pos.moved_piece(move), move_to(move), bonus);
 
-    // 前の局面の指し手がMOVE_NULLでないならcounter moveもupdateしておく。
+    // 1手前がNULL MOVEかどうかで場合分け。
     if (is_ok((ss - 1)->currentMove))
     {
+      // 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
+      Square prevSq = move_to((ss - 1)->currentMove);
+      auto& cmh = CounterMoveHistory[prevSq][pos.piece_on(prevSq)];
+
+      // 前の局面の指し手がMOVE_NULLでないならcounter moveもupdateしておく。
       thisThread->counterMoves.update(pos.piece_on(prevSq), prevSq, move);
       cmh.update(pos.moved_piece(move), move_to(move), bonus);
-    }
 
-    // このnodeのベストの指し手以外の指し手はボーナス分を減らす
-    for (int i = 0; i < quietsCnt; ++i)
-    {
-      thisThread->history.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
-
-      if (is_ok((ss - 1)->currentMove))
+      // このnodeのベストの指し手以外の指し手はボーナス分を減らす
+      for (int i = 0; i < quietsCnt; ++i)
+      {
+        thisThread->history.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
         cmh.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
-    }
+      }
 
-    // さらに、1手前で置換表の指し手が反駁されたときは、追加でペナルティを与える。
-    if ((ss - 1)->moveCount == 1
-      && !pos.captured_piece_type()
-      && is_ok((ss - 2)->currentMove))
-    {
-      // 直前がcaptureではないから、2手前に動かした駒は捕獲されずに盤上にあるはずであり、
-      // その升の駒を盤から取り出すことが出来る。
-      auto prevPrevSq = move_to((ss - 2)->currentMove);
-      auto& prevCmh = CounterMoveHistory[prevPrevSq][pos.piece_on(prevPrevSq)];
-      prevCmh.update(pos.piece_on(prevSq), prevSq, -bonus - 2 * (depth + 1) / ONE_PLY);
+      // さらに、1手前で置換表の指し手が反駁されたときは、追加でペナルティを与える。
+      // 1手前は置換表の指し手であるのでNULL MOVEではありえない。
+      if ((ss - 1)->moveCount == 1
+        && !pos.captured_piece_type()
+        && is_ok((ss - 2)->currentMove))
+      {
+        // 直前がcaptureではないから、2手前に動かした駒は捕獲されずに盤上にあるはずであり、
+        // その升の駒を盤から取り出すことが出来る。
+        auto prevPrevSq = move_to((ss - 2)->currentMove);
+        auto& prevCmh = CounterMoveHistory[prevPrevSq][pos.piece_on(prevPrevSq)];
+        prevCmh.update(pos.piece_on(prevSq), prevSq, -bonus - 2 * (depth + 1) / ONE_PLY);
+      }
+
+    } else {
+
+      // このnodeのベストの指し手以外の指し手はボーナス分を減らす
+      for (int i = 0; i < quietsCnt; ++i)
+        thisThread->history.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
     }
 
   }
