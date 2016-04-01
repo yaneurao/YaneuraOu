@@ -643,11 +643,15 @@ namespace YaneuraOuNanoPlus
       auto prevPc = pos.piece_on(prevSq);
       // toの升に駒pcを動かしたことに対する応手
       auto cm = thisThread->counterMoves[prevSq][prevPc];
+      // 親nodeの親nodeの指し手でのtoの升
+      auto ownPrevSq = move_to((ss - 2)->currentMove);
+
       // counter history
       const auto& cmh = CounterMoveHistory[prevSq][prevPc];
+      const auto& fmh = CounterMoveHistory[ownPrevSq][pos.piece_on(ownPrevSq)];
 
       pos.check_info_update();
-      MovePicker mp(pos, ttMove, depth, thisThread->history, cmh, cm, ss);
+      MovePicker mp(pos, ttMove, depth, thisThread->history, cmh, fmh , cm, ss);
 
 
       //  一手ずつ調べていく

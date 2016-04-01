@@ -145,10 +145,16 @@ ENABLE_OPERATORS_ON(Stages); // 次の状態にするためにインクリメン
 // 指し手オーダリング器
 struct MovePicker
 {
+  // このクラスは指し手生成バッファが大きいので、コピーして使うような使い方は禁止。
+  MovePicker(const MovePicker&) = delete;
+  MovePicker& operator=(const MovePicker&) = delete;
+
   // 通常探索から呼び出されるとき用。
   MovePicker(const Position& pos_,Move ttMove_,Depth depth_, const HistoryStats& history_,
-    const CounterMoveStats& cms,Move counterMove_, Search::Stack*ss_)
-    : pos(pos_),history(history_),counterMoveHistory(&cms), ss(ss_),counterMove(counterMove_),depth(depth_)
+    const CounterMoveStats& cmh, const CounterMoveStats& fmh,
+    Move counterMove_, Search::Stack*ss_)
+    : pos(pos_),history(history_),counterMoveHistory(&cmh), followupMoveHistory(&fmh),
+      ss(ss_),counterMove(counterMove_),depth(depth_)
   {
     // 次の指し手生成の段階
     // 王手がかかっているなら回避手、かかっていないなら通常探索用の指し手生成
@@ -164,7 +170,7 @@ struct MovePicker
 
   // 静止探索から呼び出される時用。
   MovePicker(const Position& pos_, Move ttMove_, Depth depth, const HistoryStats& history_, Square recapSq)
-    : pos(pos_),history(history_),counterMoveHistory(nullptr)
+    : pos(pos_),history(history_)
   {
     if (pos.in_check())
       stage = EVASION_START;
@@ -190,7 +196,7 @@ struct MovePicker
   
   // 通常探索時にProbCutの処理から呼び出されるの専用
   MovePicker(const Position& p, Move ttMove_, const HistoryStats& h, Value threshold_)
-    : pos(p), history(h), counterMoveHistory(nullptr), threshold(threshold_) {
+    : pos(p), history(h), threshold(threshold_) {
 
     ASSERT_LV3(!pos.checkers());
 
@@ -413,16 +419,15 @@ private:
   // CAPTUREの指し手をオーダリング
   void score_captures() 
   {
-    // Position::SSE()を用いると遅い。単に取る駒の価値順に調べたほうがパフォーマンス的にもいい。
+    // Position::see()を用いると遅い。単に取る駒の価値順に調べたほうがパフォーマンス的にもいい。
     // 歩が成る指し手もあるのでこれはある程度優先されないといけない。
     // CAPTURE系である以上、打つ指し手は除外されている。
     for (auto& m : *this)
     {
-      // CAPTURES_PRO_PLUSで生成しているので歩の成りに対しては金と歩の価値の差の点数とする。
-      bool pawn_promo = (m & MOVE_PROMOTE) && type_of(pos.piece_on(move_from(m))) == PAWN;
-      m.value = pawn_promo ?
-        (Value)(Eval::GoldValue - Eval::PawnValue) :
-        (Value)Eval::PieceValueCapture[pos.piece_on(move_to(m))];
+      // CAPTURES_PRO_PLUSで生成しているので歩の成る指し手が混じる。これは金と歩の価値の差の点数とする。
+      bool pawn_promo = is_promote(m) && type_of(pos.piece_on(move_from(m))) == PAWN;
+      m.value = (pawn_promo ? (Value)(Eval::GoldValue - Eval::PawnValue) : VALUE_ZERO)
+        + (Value)Eval::PieceValueCapture[pos.piece_on(move_to(m))];
 
       // 盤の上のほうの段にあるほど価値があるので下の方の段に対して小さなペナルティを課す。
       // (基本的には取る駒の価値が大きいほど優先であるから..)
@@ -435,7 +440,8 @@ private:
   {
     for (auto& m : *this)
       m.value = history[move_to(m)][pos.moved_piece(m)]
-      + (*counterMoveHistory)[move_to(m)][pos.moved_piece(m)];
+              + (*counterMoveHistory )[move_to(m)][pos.moved_piece(m)]
+              + (*followupMoveHistory)[move_to(m)][pos.moved_piece(m)];
   }
 
   void score_evasions()
@@ -444,23 +450,27 @@ private:
 
     for (auto& m : *this)
 
-      // 駒を打つ指し手であるならゼロ扱い
-      if (is_drop(m))
-        m.value = VALUE_ZERO;
-
 #ifdef USE_SEE
 
-      // seeが負の指し手ならマイナスの値を突っ込んで後回しにする
-      else if ((see = pos.see(m)) < VALUE_ZERO)
+      // see()が負の指し手ならマイナスの値を突っ込んで後回しにする
+      // 王手を防ぐためだけのただで取られてしまう駒打ちとかがここに含まれるであろうから。
+      // evasion自体は指し手の数が少ないのでここでsee()を呼び出すコストは無視できる。
+      // ただで取られる指し手を後回しに出来るメリットのほうが大きい。
+
+      if ((see = pos.see(m)) < VALUE_ZERO)
         m.value = see - HistoryStats::Max; // At the bottom
+
+      else
+        // ↓のifがぶら下がっている。
+
 #endif
 
-      // 駒を取る指し手ならseeがプラスだったということなのでプラスの符号になるようにStats::Maxを足す。
+        // 駒を取る指し手ならseeがプラスだったということなのでプラスの符号になるようにStats::Maxを足す。
       // あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
       // 価値が高いので(例えば合駒に安い駒を使う的な…)
-      else if (pos.capture(m))
+      if (pos.capture(m))
         m.value = (Value)Eval::PieceValueCapture[pos.piece_on(move_to(m))]
-        - Value(type_of(pos.moved_piece(m))) + HistoryStats::Max;
+                  - Value(type_of(pos.moved_piece(m))) + HistoryStats::Max;
       else
         m.value = history[move_to(m)][pos.moved_piece(m)];
   }
@@ -469,6 +479,7 @@ private:
 
   const HistoryStats& history;
   const CounterMoveStats* counterMoveHistory;
+  const CounterMoveStats* followupMoveHistory;
 
   // node stack
   Search::Stack* ss;

@@ -176,45 +176,49 @@ namespace YaneuraOuClassic
     // depthの二乗に比例したbonusをhistory tableに加算する。
     Value bonus = Value((int)depth*(int)depth / ((int)ONE_PLY*(int)ONE_PLY) + (int)depth / (int)ONE_PLY + 1);
 
+    // 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
+    Square prevSq = move_to((ss - 1)->currentMove);
+    Square ownPrevSq = move_to((ss - 2)->currentMove);
+    auto& cmh = CounterMoveHistory[prevSq][pos.piece_on(prevSq)];
+    auto& fmh = CounterMoveHistory[ownPrevSq][pos.piece_on(ownPrevSq)];
+
     auto thisThread = pos.this_thread();
     thisThread->history.update(pos.moved_piece(move), move_to(move), bonus);
 
-    // 1手前がNULL MOVEかどうかで場合分け。
     if (is_ok((ss - 1)->currentMove))
     {
-      // 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
-      Square prevSq = move_to((ss - 1)->currentMove);
-      auto& cmh = CounterMoveHistory[prevSq][pos.piece_on(prevSq)];
-
-      // 前の局面の指し手がMOVE_NULLでないならcounter moveもupdateしておく。
       thisThread->counterMoves.update(pos.piece_on(prevSq), prevSq, move);
       cmh.update(pos.moved_piece(move), move_to(move), bonus);
+    }
 
-      // このnodeのベストの指し手以外の指し手はボーナス分を減らす
-      for (int i = 0; i < quietsCnt; ++i)
-      {
-        thisThread->history.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
+    if (is_ok((ss - 2)->currentMove))
+      fmh.update(pos.moved_piece(move), move_to(move), bonus);
+
+    // このnodeのベストの指し手以外の指し手はボーナス分を減らす
+    for (int i = 0; i < quietsCnt; ++i)
+    {
+      thisThread->history.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
+
+      // 前の局面の指し手がMOVE_NULLでないならcounter moveもupdateしておく。
+
+      if (is_ok((ss - 1)->currentMove))
         cmh.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
-      }
 
-      // さらに、1手前で置換表の指し手が反駁されたときは、追加でペナルティを与える。
-      // 1手前は置換表の指し手であるのでNULL MOVEではありえない。
-      if ((ss - 1)->moveCount == 1
-        && !pos.captured_piece_type()
-        && is_ok((ss - 2)->currentMove))
-      {
-        // 直前がcaptureではないから、2手前に動かした駒は捕獲されずに盤上にあるはずであり、
-        // その升の駒を盤から取り出すことが出来る。
-        auto prevPrevSq = move_to((ss - 2)->currentMove);
-        auto& prevCmh = CounterMoveHistory[prevPrevSq][pos.piece_on(prevPrevSq)];
-        prevCmh.update(pos.piece_on(prevSq), prevSq, -bonus - 2 * (depth + 1) / ONE_PLY);
-      }
+      if (is_ok((ss - 2)->currentMove))
+        fmh.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
+    }
 
-    } else {
-
-      // このnodeのベストの指し手以外の指し手はボーナス分を減らす
-      for (int i = 0; i < quietsCnt; ++i)
-        thisThread->history.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
+    // さらに、1手前で置換表の指し手が反駁されたときは、追加でペナルティを与える。
+    // 1手前は置換表の指し手であるのでNULL MOVEではありえない。
+    if ((ss - 1)->moveCount == 1
+      && !pos.captured_piece_type()
+      && is_ok((ss - 2)->currentMove))
+    {
+      // 直前がcaptureではないから、2手前に動かした駒は捕獲されずに盤上にあるはずであり、
+      // その升の駒を盤から取り出すことが出来る。
+      auto prevPrevSq = move_to((ss - 2)->currentMove);
+      auto& prevCmh = CounterMoveHistory[prevPrevSq][pos.piece_on(prevPrevSq)];
+      prevCmh.update(pos.piece_on(prevSq), prevSq, -bonus - 2 * (depth + 1) / ONE_PLY);
     }
 
   }
@@ -1015,12 +1019,17 @@ namespace YaneuraOuClassic
     auto prevSq = move_to((ss - 1)->currentMove);
     // その升へ移動させた駒
     auto prevPc = pos.piece_on(prevSq);
+    // 親nodeの親nodeの指し手でのtoの升
+    auto ownPrevSq = move_to((ss - 2)->currentMove);
 
     // toの升に駒pcを動かしたことに対する応手
     auto cm = thisThread->counterMoves[prevSq][prevPc];
 
     // counter history
     const auto& cmh = CounterMoveHistory[prevSq][prevPc];
+    const auto& fmh = CounterMoveHistory[ownPrevSq][pos.piece_on(ownPrevSq)];
+    // 2手前のtoの駒、1手前の指し手によって捕獲されている場合があるが、それはcaptureであるから
+    // ここでは対象とならない…はず…。
 
     // CheckInfoのうち、残りのものをupdateしてやる。
     pos.check_info_update(ciu);
@@ -1030,7 +1039,7 @@ namespace YaneuraOuClassic
     if (pos.state()->sumKKP == VALUE_NONE)
       evaluate(pos);
 
-    MovePicker mp(pos, ttMove, depth, thisThread->history, cmh, cm, ss);
+    MovePicker mp(pos, ttMove, depth, thisThread->history, cmh, fmh, cm, ss);
 
     //  一手ずつ調べていく
 
@@ -1084,10 +1093,10 @@ namespace YaneuraOuClassic
       //
 
 #if 0
-      // (alpha-s,beta-s)の探索において1手以外がfail lowして、1手が(alpha,beta)において
-      // fail highしたなら、指し手はsingularであり、延長されるべきである。
+      // (alpha-s,beta-s)の探索(sはマージン値)において1手以外がすべてfail lowして、
+      // 1手のみが(alpha,beta)においてfail highしたなら、指し手はsingularであり、延長されるべきである。
       // これを調べるために、ttMove以外の探索深さを減らして探索して、
-      // その結果がttValue - margin以下ならttMoveの指し手を延長する。
+      // その結果がttValue-s 以下ならttMoveの指し手を延長する。
 
       // Stockfishの実装だとmargin = 2 * depthだが、(ONE_PLY==1として)、
       // 将棋だと1手以外はすべてそれぐらい悪いことは多々あり、
@@ -1096,18 +1105,24 @@ namespace YaneuraOuClassic
 
       else if (singularExtensionNode
         &&  move == ttMove
+//      && !extension        // 延長が確定しているところはこれ以上調べても仕方がない。しかしこの条件はelse ifなので暗に含む。
         &&  pos.legal(move))
       {
-        // param1 == 2のとき最大になるっぽいが、あまり効果がなかったので保留。
-        // あとでまた検証する。
-        Value rBeta = ttValue - (param1 + 1) * depth / ONE_PLY;   // margin = 2 * depth / ONE_PLY
-        ss->excludedMove = move;                                  // ttMoveの指し手を探索から除外
+        // このmargin値は評価関数の性質に合わせて調整されるべき。
+        // margin = 8 * depth / ONE_PLY
+        Value rBeta = ttValue - 8 * depth / ONE_PLY;
+        
+        // ttMoveの指し手を以下のsearch()での探索から除外
+        ss->excludedMove = move;
         ss->skipEarlyPruning = true;
         // 局面はdo_move()で進めずにこのnodeから浅い探索深さで探索しなおす。
         value = search<NonPV>(pos, ss, rBeta - 1, rBeta, depth / 2, cutNode);
         ss->skipEarlyPruning = false;
         ss->excludedMove = MOVE_NONE;
 
+        ss->moveCount = moveCount; // 破壊したと思うので修復しておく。
+
+        // 置換表の指し手以外がすべてfail lowしているならsingular延長確定。
         if (value < rBeta)
           extension = ONE_PLY;
       }
@@ -1204,16 +1219,16 @@ namespace YaneuraOuClassic
       {
         // Reduction量
         Depth r = reduction<PvNode>(improving, depth, moveCount);
+        Value hValue = thisThread->history[move_to(move)][pos.piece_on(move_to(move))];
+        Value cmhValue = cmh[move_to(move)][pos.piece_on(move_to(move))];
 
         // cut nodeや、historyの値が悪い指し手に対してはreduction量を増やす。
         if ((!PvNode && cutNode)
-          || (thisThread->history[move_to(move)][pos.piece_on(move_to(move))] < VALUE_ZERO
-            && cmh[move_to(move)][pos.piece_on(move_to(move))] <= VALUE_ZERO))
+          || (hValue < VALUE_ZERO && cmhValue <= VALUE_ZERO))
           r += ONE_PLY;
 
         // historyの値に応じて指し手のreduction量を増減する。
-        int rHist = (thisThread->history[move_to(move)][pos.piece_on(move_to(move))]
-          + cmh[move_to(move)][pos.piece_on(move_to(move))]) / 14980;
+        int rHist = (hValue + cmhValue) / 14980;
         r = std::max(DEPTH_ZERO, r - rHist * ONE_PLY);
 
 #if 0
@@ -1423,20 +1438,22 @@ void Search::init() {
   // -----------------------
 
   // pvとnon pvのときのreduction定数
-  // とりあえずStockfishに合わせておく。あとで調整する。
-  const double K[][2] = { { 0.799, 2.281 },{ 0.484, 3.023 } };
+  // 0.05とか変更するだけで勝率えらく変わる
+  // K[][2] = { nonPV時 }、{ PV時 }
+  double K[][2] = { { 0.799, 2.281 },{ 0.484 + 0.1 , 3.023 + 0.05 } };
 
   for (int pv = 0; pv <= 1; ++pv)
     for (int imp = 0; imp <= 1; ++imp)
       for (int d = 1; d < 64; ++d)
         for (int mc = 1; mc < 64; ++mc)
         {
+          // 基本的なアイデアとしては、log(depth) × log(moveCount)に比例した分だけreductionさせるというもの。
           double r = K[pv][0] + log(d) * log(mc) / K[pv][1];
 
           if (r >= 1.5)
             reduction_table[pv][imp][d][mc] = int(r) * ONE_PLY;
 
-          // improving(評価値が2手前から上がっている)でないときはreductionの量を増やす。
+          // nonPVでimproving(評価値が2手前から上がっている)でないときはreductionの量を増やす。
           // →　これ、ほとんど効果がないようだ…。あとで調整すべき。
           if (!pv && !imp && reduction_table[pv][imp][d][mc] >= 2 * ONE_PLY)
             reduction_table[pv][imp][d][mc] += ONE_PLY;
@@ -1475,6 +1492,7 @@ void Search::clear()
 // lazy SMPなので、それぞれのスレッドが勝手に探索しているだけ。
 void Thread::search()
 {
+
   // ---------------------
   //      variables
   // ---------------------
@@ -1666,6 +1684,7 @@ void MainThread::think()
 
   param1 = Options["Param1"];
   param2 = Options["Param2"];
+
 
   // ---------------------
   // 合法手がないならここで投了
