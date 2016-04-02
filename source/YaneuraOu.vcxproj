@@ -231,6 +231,7 @@
     <ClCompile Include="engine\nano-engine\nano_search.cpp" />
     <ClCompile Include="engine\nano-plus-engine\nano_plus_search.cpp" />
     <ClCompile Include="engine\random-player-engine\random_player_search.cpp" />
+    <ClCompile Include="engine\twig-engine\twig_search.cpp" />
     <ClCompile Include="engine\user-engine\user-engine.cpp" />
     <ClCompile Include="eval\evaluate_bona_piece.cpp" />
     <ClCompile Include="eval\evaluate_kpp.cpp" />

@@ -158,6 +158,32 @@ namespace Search {
     for (size_t i = pv.size(); i > 0; )
       pos.undo_move(pv[--i]);
   }
+
+  // 探索を抜ける前にponderの指し手がないとき(rootでfail highしているだとか)にこの関数を呼び出す。
+  // ponderの指し手として何かを指定したほうが、その分、相手の手番において考えられて得なので。
+
+  bool RootMove::extract_ponder_from_tt(Position& pos)
+  {
+    StateInfo st;
+    bool ttHit;
+
+    ASSERT_LV3(pv.size() == 1);
+    
+    pos.check_info_update();
+    pos.do_move(pv[0], st, pos.gives_check(pv[0]));
+    TTEntry* tte = TT.probe(pos.state()->key(), ttHit);
+    pos.undo_move(pv[0]);
+
+    if (ttHit)
+    {
+      Move m = tte->move(); // SMP safeにするためlocal copy
+      if (MoveList<LEGAL_ALL>(pos).contains(m))
+        return pv.push_back(m), true;
+    }
+
+    return false;
+  }
+
 }
 
 // 引き分け時のスコア(とそのdefault値)

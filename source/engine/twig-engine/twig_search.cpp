@@ -1,14 +1,14 @@
 ﻿#include "../../shogi.h"
 
-#ifdef YANEURAOU_CLASSIC_ENGINE
+#ifdef YANEURAOU_TWIG_ENGINE
 
 // -----------------------
-//   やねうら王classic探索部
+//   やねうら王twig探索部
 // -----------------------
 
 // 開発方針
-// やねうら王miniからの改造
-// Apery(WCSC 2015)ぐらいの強さを目指す。
+// やねうら王classicからの改造
+// 評価関数にAepry Twig(電王トーナメントバージョン 2015)を用いて、Apery Twig以上の強さを目指す。
 
 
 // mate1ply()を呼び出すのか
@@ -51,7 +51,7 @@ void USI::extra_option(USI::OptionsMap & o)
   o["Param2"] << Option(0, 0, 100000);
 }
 
-namespace YaneuraOuClassic
+namespace YaneuraOuTwig
 {
 
   // 外部から調整される探索パラメーター
@@ -1459,7 +1459,7 @@ namespace YaneuraOuClassic
 
 }
 
-using namespace YaneuraOuClassic;
+using namespace YaneuraOuTwig;
 
 // --- 以下に好きなように探索のプログラムを書くべし。
 
@@ -1625,7 +1625,7 @@ void Thread::search()
 
       while (true)
       {
-        bestValue = YaneuraOuClassic::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false);
+        bestValue = YaneuraOuTwig::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false);
 
         // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
         // 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
@@ -1903,6 +1903,19 @@ void MainThread::think()
   // 反復深化の終了。
 ID_END:;
 
+  // 最大depth深さに到達したときに、ここまで実行が到達するが、
+  // まだSignals.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
+  // USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまで
+  // best moveを出力すべきではない。
+  // それゆえ、単にここでGUIからそれらのいずれかのコマンドが送られてくるまで待つ。
+  if (!Signals.stop && (Limits.ponder || Limits.infinite))
+  {
+    // "ponderhit"が送られてきたらSignals.stopをtrueにしてくれるように依頼。
+    Signals.stopOnPonderhit = true;
+
+    wait(Signals.stop);
+  }
+
   Signals.stop = true;
 
   // 各スレッドが終了するのを待機する(開始していなければいないで構わない)
@@ -1939,12 +1952,23 @@ ID_END:;
   // 指し手をGUIに返す
   // ---------------------
 
-  // ponder中であるならgoコマンドか何かが送られてきてからのほうがいいのだが、とりあえずponderの処理は後回しで…。
-
-  // 定跡の指し手があるならそれを指す。さもなくばベストなスレッドの指し手を返す。
+  // サイレントモードでないならbestな指し手を出力
   if (!Limits.silent)
-    sync_cout << "bestmove " << bestThread->rootMoves[0].pv[0] << sync_endl;
+  {
+    // sync_cout～sync_endlで全体を挟んでいるのでここを実行中に他スレッドの出力が割り込んでくる余地はない。
+
+    // ベストなスレッドの指し手を返す。
+    sync_cout << "bestmove " << bestThread->rootMoves[0].pv[0];
+
+    // pomderの指し手の出力。
+    // pvにはbestmoveのときの読み筋(PV)が格納されているので、ponderとしてpv[1]があればそれを出力してやる。
+    // また、pv[1]がない場合(rootでfail highを起こしたなど)、置換表からひねり出してみる。
+    if (bestThread->rootMoves[0].pv.size() > 1 || bestThread->rootMoves[0].extract_ponder_from_tt(rootPos))
+      std::cout << " ponder " << bestThread->rootMoves[0].pv[1];
+
+    std::cout << sync_endl;
+  }
 
 }
 
-#endif // YANEURAOU_CLASSIC_ENGINE
+#endif // YANEURAOU_TWIG_ENGINE

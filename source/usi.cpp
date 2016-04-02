@@ -187,6 +187,9 @@ namespace USI
     // Hash上限。32bitモードなら2GB、64bitモードなら1024GB
     const int MaxHashMB = Is64Bit ? 1024 * 1024 : 2048;
 
+    // 並列探索するときのスレッド数
+    // CPUの搭載コア数をデフォルトとすべきかも知れないが余計なお世話のような気もするのでしていない。
+
     o["Threads"] << Option(4, 1, 128, [](auto& o) { Threads.read_usi_options(); });
 
     // USIプロトコルでは、"USI_Hash"と"USI_Ponder"なのだが、
@@ -194,6 +197,7 @@ namespace USI
     // 片方だけ変更できなければならない。
     // ゆえにGUIでの対局設定は無視して、思考エンジンの設定ダイアログのところで
     // 個別設定が出来るようにする。
+
     o["Hash"]    << Option(16, 1, MaxHashMB, [](auto&o) { TT.resize(o); });
     o["Ponder"]  << Option(false);
 
@@ -207,6 +211,7 @@ namespace USI
     o["NetworkDelay"] << Option(400, 0, 10000);
 
     // 引き分けを受け入れるスコア
+    // 歩を100とする。例えば、この値を100にすると引き分けの局面は評価値が -100とみなされる。
     o["Contempt"] << Option(0, -30000, 30000);
 
 #ifdef USE_ENTERING_KING_WIN
@@ -508,13 +513,15 @@ void USI::loop(int argc,char* argv[])
     token = "";
     is >> skipws >> token;
 
-    if (token == "quit" || token == "stop")
+    if (token == "quit" || token == "stop" || (token == "ponderhit" && Search::Signals.stopOnPonderhit))
     {
       Search::Signals.stop = true;
 
       // 思考を終えて寝てるかも知れないのでresume==trueにして呼び出してやる
       Threads.main()->start_searching(true);
-    }
+
+    } else if (token == "ponderhit")
+      Search::Limits.ponder = 0; // 通常探索に切り替える。
 
     // 与えられた局面について思考するコマンド
     else if (token == "go") go_cmd(pos, is);

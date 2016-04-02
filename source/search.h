@@ -27,6 +27,10 @@ namespace Search {
     // これを置換表に保存する。
     void insert_pv_in_tt(Position& pos);
 
+    // ponderの指し手がないときにponderの指し手を置換表からひねり出す。
+    // pv[1]に格納される。なかった場合は、この関数はfalseを返す。
+    bool extract_ponder_from_tt(Position& pos);
+
     // 今回の(反復深化の)iterationでの探索結果のスコア
     Value score = -VALUE_INFINITE;
 
@@ -102,7 +106,11 @@ namespace Search {
   };
 
   struct SignalsType {
-    std::atomic_bool stop; // これがtrueになったら探索を強制終了すること。
+    // これがtrueになったら探索を即座に終了すること。
+    std::atomic_bool stop;
+    
+    // 思考は終了しているからponderhitが送られてきたらSignals.stopをtrueにして欲しいときに使う。
+    std::atomic_bool stopOnPonderhit;
   };
 
   typedef std::unique_ptr<aligned_stack<StateInfo>> StateStackPtr;

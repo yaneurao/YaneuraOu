@@ -97,19 +97,19 @@ struct StateInfo {
 
   // この局面のハッシュキー
   // ※　次の局面にdo_move()で進むときに最終的な値が設定される
-  // key_board()は盤面のhash。key_hand()は手駒のhash。それぞれ加算したのがkey() 盤面のhash。
-  // key_board()のほうは、手番も込み。
-  // key_exclusion()は、singular extensionのために現在のkey()に一定の値を足したものを返す。
-  Key key() const { return long_key(); }
-  Key key_board() const { return long_key_board(); }
-  Key key_hand() const { return long_key_hand(); }
-  Key key_exclusion() const { return long_key_exclusion(); }
+  // board_key()は盤面のhash。hand_key()は手駒のhash。それぞれ加算したのがkey() 盤面のhash。
+  // board_key()のほうは、手番も込み。
+  // exclusion_key()は、singular extensionのために現在のkey()に一定の値を足したものを返す。
+  Key key()                     const { return long_key(); }
+  Key board_key()               const { return board_long_key(); }
+  Key hand_key()                const { return hand_long_key(); }
+  Key exclusion_key()           const { return exclusion_long_key(); }
 
   // HASH_KEY_BITSが128のときはKey128が返るhash key,256のときはKey256
-  HASH_KEY long_key() const { return key_board_ + key_hand_; }
-  HASH_KEY long_key_board() const { return key_board_; }
-  HASH_KEY long_key_hand() const { return key_hand_; }
-  HASH_KEY long_key_exclusion() const;
+  HASH_KEY long_key()           const { return board_key_ + hand_key_; }
+  HASH_KEY board_long_key()     const { return board_key_; }
+  HASH_KEY hand_long_key()      const { return hand_key_; }
+  HASH_KEY exclusion_long_key() const;
   
   // この局面における手番側の持ち駒。優等局面の判定のために必要。
   Hand hand;
@@ -150,8 +150,8 @@ struct StateInfo {
 #endif
 
   // HASH_KEY_BITSで128を指定した場合はBitboardにHashKeyが入っている。
-  HASH_KEY key_board_;
-  HASH_KEY key_hand_;
+  HASH_KEY board_key_;
+  HASH_KEY hand_key_;
 
   // 一つ前の局面に遡るためのポインタ。
   // NULL MOVEなどでそこより遡って欲しくないときはnullptrを設定しておく。

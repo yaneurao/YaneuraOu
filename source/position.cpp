@@ -113,7 +113,7 @@ void Position::init() {
 // depthに応じたZobrist Hashを得る。depthを含めてhash keyを求めたいときに用いる。
 HASH_KEY DepthHash(int depth) { return Zobrist::depth[depth]; }
 
-HASH_KEY StateInfo::long_key_exclusion() const { return long_key() + Zobrist::exclusion; }
+HASH_KEY StateInfo::exclusion_long_key() const { return long_key() + Zobrist::exclusion; }
 
 // ----------------------------------
 //  Position::set()とその逆変換sfen()
@@ -366,16 +366,16 @@ void Position::set_state(StateInfo* si) const {
   st->checkersBB = attackers_to(~sideToMove, king_square(sideToMove));
 
   // --- hash keyの計算
-  si->key_board_ = sideToMove == BLACK ? Zobrist::zero : Zobrist::side;
-  si->key_hand_ = Zobrist::zero;
+  si->board_key_ = sideToMove == BLACK ? Zobrist::zero : Zobrist::side;
+  si->hand_key_ = Zobrist::zero;
   for (auto sq : pieces())
   {
     auto pc = piece_on(sq);
-    si->key_board_ += Zobrist::psq[sq][pc];
+    si->board_key_ += Zobrist::psq[sq][pc];
   }
   for (auto c : COLOR)
     for (Piece pr = PAWN; pr < PIECE_HAND_NB; ++pr)
-      si->key_hand_ += Zobrist::hand[c][pr] * (int64_t)hand_count(hand[c], pr) ; // 手駒はaddにする(差分計算が楽になるため)
+      si->hand_key_ += Zobrist::hand[c][pr] * (int64_t)hand_count(hand[c], pr) ; // 手駒はaddにする(差分計算が楽になるため)
 
   // --- hand
   si->hand = hand[sideToMove];
@@ -862,8 +862,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
   // hash key
 
   // 現在の局面のhash keyはこれで、これを更新していき、次の局面のhash keyを求めてStateInfo::key_に格納。
-  auto k = st->key_board_ ^ Zobrist::side;
-  auto h = st->key_hand_;
+  auto k = st->board_key_ ^ Zobrist::side;
+  auto h = st->hand_key_;
 
   // StateInfoの構造体のメンバーの上からkeyのところまでは前のを丸ごとコピーしておく。
   // undo_moveで戻すときにこの部分はundo処理が要らないので細かい更新処理が必要なものはここに載せておけばundoが速くなる。
@@ -1141,8 +1141,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
   sideToMove = ~Us;
 
   // 更新されたhash keyをStateInfoに書き戻す。
-  st->key_board_ = k;
-  st->key_hand_ = h;
+  st->board_key_ = k;
+  st->hand_key_ = h;
 
   st->hand = hand[sideToMove];
 
@@ -1272,7 +1272,7 @@ void Position::do_null_move(StateInfo& newSt) {
   newSt.previous = st;
   st = &newSt;
 
-  st->key_board_ ^= Zobrist::side;
+  st->board_key_ ^= Zobrist::side;
   st->pliesFromNull = 0;
 
   sideToMove = ~sideToMove;
@@ -1303,13 +1303,13 @@ RepetitionState Position::is_repetition(const int repPly) const
   if (i <= e)
   {
     auto stp = st->previous->previous;
-    auto key = st->key_board(); // 盤上の駒のみのhash(手駒を除く)
+    auto key = st->board_key(); // 盤上の駒のみのhash(手駒を除く)
 
     do {
       stp = stp->previous->previous;
 
       // 同じboard hash keyの局面であるか？
-      if (stp->key_board() == key)
+      if (stp->board_key() == key)
       {
         // 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
         if (stp->hand == st->hand)

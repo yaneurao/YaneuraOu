@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "2.36"
+#define ENGINE_VERSION "2.40"
 
 // --------------------
 // コンパイル時の設定
@@ -26,7 +26,8 @@
 //#define YANEURAOU_NANO_ENGINE      // やねうら王nano      (完成2016/01/31)
 //#define YANEURAOU_NANO_PLUS_ENGINE // やねうら王nano plus (完成2016/02/25)
 //#define YANEURAOU_MINI_ENGINE      // やねうら王mini      (完成2016/02/29)
-#define YANEURAOU_CLASSIC_ENGINE   // やねうら王classic   (開発中)
+//#define YANEURAOU_CLASSIC_ENGINE   // やねうら王classic   (完成2016/04/03)
+#define YANEURAOU_TWIG_ENGINE      // やねうら王twig      (開発中)
 //#define YANEURAOU_2016_ENGINE      // やねうら王2016      (開発中)
 //#define RANDOM_PLAYER_ENGINE       // ランダムプレイヤー
 //#define MATE_ENGINE                // 詰め将棋solverとしてリリースする場合。(開発中)
@@ -586,7 +587,7 @@ inline void sub_hand(Hand &hand, Piece pr, int c = 1) { hand = (Hand)(hand - PIE
 
 
 // 手駒h1のほうがh2より優れているか。(すべての種類の手駒がh2のそれ以上ある)
-// 優等局面の判定のとき、局面のhash key(StateInfo::key() )が一致していなくて、盤面のhash key(StateInfo::key_board() )が
+// 優等局面の判定のとき、局面のhash key(StateInfo::key() )が一致していなくて、盤面のhash key(StateInfo::board_key() )が
 // 一致しているときに手駒の比較に用いるので、手駒がequalというケースは前提により除外されているから、この関数を以ってsuperiorであるという判定が出来る。
 inline bool hand_is_equal_or_superior(Hand h1, Hand h2) { return ((h1-h2) & HAND_BORROW_MASK) == 0; }
 
