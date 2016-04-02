@@ -337,6 +337,23 @@ namespace YaneuraOuClassic
     }
 
     // -----------------------
+    //     宣言勝ち
+    // -----------------------
+
+    {
+      // 王手がかかってようがかかってまいが、宣言勝ちの判定は正しい。
+      // (トライルールのとき王手を回避しながら入玉することはありうるので)
+      Move m = pos.DeclarationWin();
+      if (m != MOVE_NONE)
+      {
+        bestValue = mate_in(ss->ply + 1); // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
+        tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
+          DEPTH_MAX, m, ss->staticEval, TT.generation());
+        return bestValue;
+      }
+    }
+
+    // -----------------------
     //     eval呼び出し
     // -----------------------
 
@@ -740,6 +757,23 @@ namespace YaneuraOuClassic
         update_stats(pos, ss, ttMove, depth, nullptr, 0);
 
       return ttValue;
+    }
+
+    // -----------------------
+    //     宣言勝ち
+    // -----------------------
+
+    {
+      // 王手がかかってようがかかってまいが、宣言勝ちの判定は正しい。
+      // (トライルールのとき王手を回避しながら入玉することはありうるので)
+      Move m = pos.DeclarationWin();
+      if (m != MOVE_NONE)
+      {
+        bestValue = mate_in(ss->ply + 1); // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
+        tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
+          DEPTH_MAX, m, ss->staticEval, TT.generation());
+        return bestValue;
+      }
     }
 
     // -----------------------
@@ -1755,6 +1789,23 @@ void MainThread::think()
         goto ID_END;
       }
       // 合法手のなかに含まれていなかったので定跡の指し手は指さない。
+    }
+  }
+
+  // ---------------------
+  //    宣言勝ち判定
+  // ---------------------
+
+  {
+    // 宣言勝ちもあるのでこのは局面で1手勝ちならその指し手を選択
+    // 王手がかかっていても、回避しながらトライすることもあるので王手がかかっていようが
+    // Position::DeclarationWin()で判定して良い。
+    auto bestMove = rootPos.DeclarationWin();
+    if (bestMove != MOVE_NONE)
+    {
+      // 宣言勝ちなのでroot movesの集合にはないかも知れない。強制的に書き換える。
+      rootMoves[0] = RootMove(bestMove);
+      goto ID_END;
     }
   }
 

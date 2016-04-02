@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "2.34"
+#define ENGINE_VERSION "2.35"
 
 // --------------------
 // コンパイル時の設定
@@ -23,8 +23,8 @@
 // オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE を defineして 他のエンジンのソースコードを参考に
 //  engine/user-engine/ フォルダの中身を書くべし。
 
-//#define YANEURAOU_NANO_ENGINE      // やねうら王nano(完成2016/01/31)
-//#define YANEURAOU_NANO_PLUS_ENGINE // やねうら王nano plus(完成2016/02/25)
+//#define YANEURAOU_NANO_ENGINE      // やねうら王nano      (完成2016/01/31)
+//#define YANEURAOU_NANO_PLUS_ENGINE // やねうら王nano plus (完成2016/02/25)
 //#define YANEURAOU_MINI_ENGINE      // やねうら王mini      (完成2016/02/29)
 #define YANEURAOU_CLASSIC_ENGINE   // やねうら王classic   (開発中)
 //#define YANEURAOU_2016_ENGINE      // やねうら王2016      (開発中)
@@ -460,11 +460,14 @@ constexpr bool is_ok(PieceNo pn) { return PIECE_NO_ZERO <= pn && pn < PIECE_NO_N
 // 指し手 bit0..6 = 移動先のSquare、bit7..13 = 移動元のSquare(駒打ちのときは駒種)、bit14..駒打ちか、bit15..成りか
 enum Move : uint16_t {
 
-  MOVE_NONE = 0, // 無効な移動
-  MOVE_NULL = (1 << 7) + 1, // NULL MOVEを意味する指し手。Square(1)からSquare(1)への移動は存在しないのでここを特殊な記号として使う。
-  MOVE_RESIGN = (2 << 7) + 2,// << で出力したときに"resign"と表示する投了を意味する指し手。
-  MOVE_DROP = 1 << 14, // 駒打ちフラグ
-  MOVE_PROMOTE = 1 << 15, // 駒成りフラグ
+  MOVE_NONE    = 0,             // 無効な移動
+
+  MOVE_NULL    = (1 << 7) + 1,  // NULL MOVEを意味する指し手。Square(1)からSquare(1)への移動は存在しないのでここを特殊な記号として使う。
+  MOVE_RESIGN  = (2 << 7) + 2,  // << で出力したときに"resign"と表示する投了を意味する指し手。
+  MOVE_WIN     = (3 << 7) + 3,  // 入玉時の宣言勝ちのために使う特殊な指し手
+
+  MOVE_DROP    = 1 << 14,       // 駒打ちフラグ
+  MOVE_PROMOTE = 1 << 15,       // 駒成りフラグ
 };
 
 // 指し手の移動元の升を返す
@@ -718,7 +721,7 @@ typedef uint64_t Key;
 enum EnteringKingRule
 {
   EKR_NONE ,           // 入玉ルールなし
-  EKR_24_POINT,        // 24点法
+  EKR_24_POINT,        // 24点法(31点以上で宣言勝ち)
   EKR_27_POINT,        // 27点法 = CSAルール
   EKR_TRY_RULE,        // トライルール
 };
@@ -775,6 +778,11 @@ namespace USI {
     Option(int v, int min_, int max_, OnChange f = nullptr) : type("spin"),min(min_),max(max_),on_change(f)
     { defaultValue = currentValue = std::to_string(v); }
 
+    // combo型。内容的には、string型と同等。
+    // list = コンボボックスに表示する値。v = デフォルト値かつ現在の値
+    Option(const std::vector<std::string>&list, const std::string& v, OnChange f = nullptr) : type("combo"), on_change(f) ,list(list)
+    { defaultValue = currentValue = v; }
+
     // USIプロトコル経由で値を設定されたときにそれをcurrentValueに反映させる。
     Option& operator=(const std::string&);
 
@@ -788,18 +796,24 @@ namespace USI {
     }
 
     // string型への暗黙の変換子
-    operator std::string() const { ASSERT_LV1(type == "string");  return currentValue; }
+    operator std::string() const { ASSERT_LV1(type == "string" || type == "combo");  return currentValue; }
 
   private:
     friend std::ostream& operator<<(std::ostream& os, const OptionsMap& om);
 
-    size_t idx; // 出力するときの順番。この順番に従ってGUIの設定ダイアログに反映されるので順番重要！
+    // 出力するときの順番。この順番に従ってGUIの設定ダイアログに反映されるので順番重要！
+    size_t idx;
 
     std::string defaultValue, currentValue, type;
 
-    int min, max; // int型のときの最小と最大
+    // int型のときの最小と最大
+    int min, max;
 
-    OnChange on_change; // 値が変わったときに呼び出されるハンドラ
+    // combo boxのときの表示する文字列リスト
+    std::vector<std::string> list;
+
+    // 値が変わったときに呼び出されるハンドラ
+    OnChange on_change;
   };
 
   // USIメッセージ応答部(起動時に、各種初期化のあとに呼び出される)

@@ -31,6 +31,7 @@ source/
     key128.h            128bit,256bitのhash key。(実験用)
     long_effect.h/.cpp  遠方駒による長い利きとBitboardなどへの変換子
     mate1ply.h/.cpp     超高速1手詰め判定関数(おそらく世界最速)
+	entering_king_win.cpp 宣言勝ち(入玉判定)
     test_cmd.cpp        UnitTestなど。USI拡張コマンドの"test"コマンド関係。
 
   eval/

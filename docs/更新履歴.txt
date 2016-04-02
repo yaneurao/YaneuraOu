@@ -1,6 +1,49 @@
 ﻿
 やねうら王 更新履歴
 
+■　2016/04/02 V2.35
+
+・入玉宣言勝ちまわりの処理
+	・MOVE_WIN追加
+	・extra/entring_king_win.cpp追加。
+	・local-server、入玉判定に対応。
+
+	・mate1ply()で宣言勝ちを1手詰めの指し手として返すように。
+	#ifdef USE_ENTERING_KING_WIN
+	  // 宣言勝ちであるならそれを1手詰めの指し手として返す。
+	  return DeclarationWin();
+	#else
+	→　mate1ply毎nodeで呼ばないから、これは良くない。
+
+	classicで、宣言勝ち、毎node調べるように変更。
+
+・入玉宣言勝ちのテスト
+	position sfen Kn1g1gsnl/+Pl7/2ppppppp/9/9/9/P+p+p+p+p+p+p+p+p/3g1+bs+rk/+l+nsg2+s+n+l w rbp 1
+
+	宣言勝ちを含むmate 3
+	position sfen K+N+S3+S+N+L/+P+R5+B1/1+P+P+Pppppp/9/9/2P6/PPBPPPPPP/9/LNSG1GSNk b RL2gl 1
+
+・classicでrootで1手詰め判定を呼び出すように変更。
+
+・3駒のテーブル、コンバート間違えてた件で、読み込み時に変換するために
+　確保している配列、動的に確保するように変更。(メモリがもったいないため)
+
+・宣言勝ちによって勝率が変わっているかどうか調べる。
+	いままで宣言勝ちを逃していた局面において効果が出るはず…。
+
+		V2.35 vs V2.34b
+
+			54.0%	
+			#111
+			やねうら王classic V235
+			宣言勝ち, 1スレッド、0.1秒設定
+			#0
+			やねうら王classic V234b
+			captureのオーダリング修正, 1スレッド、0.1秒設定
+
+			257-45-219(3.7% R27.8)	
+
+
 
 ■　2016/04/02 V2.34
 
@@ -21,6 +64,19 @@
       m.value = (pawn_promo ? (Value)(Eval::GoldValue - Eval::PawnValue) : VALUE_ZERO)
         + (Value)Eval::PieceValueCapture[pos.piece_on(move_to(m))];
 
+		これもレアケースなので勝率に影響はなさげ。
+
+			51.8%	
+			#110
+			やねうら王classic V234b
+			captureのオーダリング修正, 1スレッド、0.1秒設定
+			#0
+			やねうら王classic V234
+			reduction定数調整後, 1スレッド、0.1秒設定
+
+			780-154-725(7.8% R12.7)	
+
+		そこそこ上がってた。
 
 ■　2016/04/01 V2.33
 

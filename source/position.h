@@ -473,6 +473,14 @@ struct Position
   template <Color Us> Move mate1ply_impl() const;
 #endif
 
+  // 入玉時の宣言勝ち
+#ifdef USE_ENTERING_KING_WIN
+  // Search::Limits.enteringKingRuleに基いて、宣言勝ちを行なう。
+  // 条件を満たしているとき、MOVE_WINや、玉を移動する指し手(トライルール時)が返る。さもなくば、MOVE_NONEが返る。
+  // mate1ply()から内部的に呼び出す。(そうするとついでに処理出来て良い)
+  Move DeclarationWin() const;
+#endif
+
   // -- 利き
 #ifdef LONG_EFFECT_LIBRARY
 

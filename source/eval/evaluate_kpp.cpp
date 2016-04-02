@@ -31,9 +31,6 @@ namespace Eval
   // [][][fe_end]のところはKK定数にしてあるものとする。
   ValueKkp kkp[SQ_NB_PLUS1][SQ_NB_PLUS1][fe_end + 1];
 
-  ValueKpp kpp2[SQ_NB_PLUS1][fe_end][fe_end];
-  ValueKkp kkp2[SQ_NB_PLUS1][SQ_NB_PLUS1][fe_end + 1];
-
   // 評価関数ファイルを読み込む
   void load_eval()
   {
@@ -57,24 +54,41 @@ namespace Eval
       goto Error;
     fs.close();
 
-    // 手駒の添字、コンバートするときにひとつ間違えてた。(๑´ڡ`๑)
-    for (int k = 0; k < SQ_NB_PLUS1; ++k)
-      for (int i = 1; i < fe_end; ++i)
-        for (int j = 1; j < fe_end; ++j)
-        {
-          int i2 = i < fe_hand_end ? i - 1 : i;
-          int j2 = j < fe_hand_end ? j - 1 : j;
-          kpp2[k][i][j] = kpp[k][i2][j2];
-        }
-    for (int k1 = 0; k1 < SQ_NB_PLUS1; ++k1)
-      for (int k2 = 0; k2 < SQ_NB_PLUS1; ++k2)
-        for (int j = 1; j < fe_end + 1; ++j)
-        {
-          int j2 = j < fe_hand_end ? j - 1 : j;
-          kkp2[k1][k2][j] = kkp[k1][k2][j2];
-        }
-    memcpy(kkp, kkp2, sizeof(kkp));
-    memcpy(kpp, kpp2, sizeof(kpp));
+    {
+      // 手駒の添字、コンバートするときにひとつ間違えてた。(๑´ڡ`๑)
+      //ValueKpp kpp2[SQ_NB_PLUS1][fe_end][fe_end];
+      //ValueKkp kkp2[SQ_NB_PLUS1][SQ_NB_PLUS1][fe_end + 1];
+
+      ValueKkp* kkp2 = new ValueKkp[SQ_NB_PLUS1*(int)SQ_NB_PLUS1*(int)(fe_end + 1)];
+      ValueKpp* kpp2 = new ValueKpp[SQ_NB_PLUS1*(int)fe_end*(int)fe_end];
+      #define KKP2(k1,k2,p) kkp2[k1 * (int)SQ_NB_PLUS1*(int)(fe_end + 1) + k2 * (int)(fe_end + 1) + p ]
+      #define KPP2(k,p1,p2) kpp2[k * (int)fe_end*(int)fe_end + p1 * (int)fe_end + p2 ]
+      memset(kkp2, 0, sizeof(kkp));
+      memset(kpp2, 0, sizeof(kpp));
+
+      for (int k1 = 0; k1 < SQ_NB_PLUS1; ++k1)
+        for (int k2 = 0; k2 < SQ_NB_PLUS1; ++k2)
+          for (int j = 1; j < fe_end + 1; ++j)
+          {
+            int j2 = j < fe_hand_end ? j - 1 : j;
+            KKP2(k1, k2, j) = kkp[k1][k2][j2];
+          }
+
+      for (int k = 0; k < SQ_NB_PLUS1; ++k)
+        for (int i = 1; i < fe_end; ++i)
+          for (int j = 1; j < fe_end; ++j)
+          {
+            int i2 = i < fe_hand_end ? i - 1 : i;
+            int j2 = j < fe_hand_end ? j - 1 : j;
+            KPP2(k,i,j) = kpp[k][i2][j2];
+          }
+
+      memcpy(kkp, kkp2, sizeof(kkp));
+      memcpy(kpp, kpp2, sizeof(kpp));
+
+      delete[] kkp2;
+      delete[] kpp2;
+    }
 
     return;
 

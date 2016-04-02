@@ -102,8 +102,9 @@ std::string to_usi_string(Move m)
   if (!is_ok(m))
   {
     ss <<((m == MOVE_RESIGN) ? "resign" :
-          (m == MOVE_NULL  ) ? "null" :
-          (m == MOVE_NONE  ) ? "none" :
+          (m == MOVE_WIN   ) ? "win"    :
+          (m == MOVE_NULL  ) ? "null"   :
+          (m == MOVE_NONE  ) ? "none"   :
           "");
   }
   else if (is_drop(m))

@@ -16,11 +16,11 @@ SmartPvOutput コンソールへの出力を減らす
 MaxMovesToDraw 引き分けまでの手数(0なら無制限)
 SlowMover 序盤重視[%]40～150ぐらいの間で
 
-NyuuGyokuRule 入玉ルール
+EnteringKingRule 入玉ルール
 # このコンボボックスの値
-NoNyuuGyokuRule 入玉ルールを用いない
+NoEnteringKing 入玉ルールを用いない
+CSARule24 24点法(31点勝ち)
 CSARule27 CSAの入玉ルール
-CSARule24 24点法
 TryRule トライルール
 
 BookMoves 基本定跡を用いる手数(0=未使用)

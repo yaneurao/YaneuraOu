@@ -49,7 +49,6 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 
 #　俺の作業メモ(2016/04/02 9:00現在)
 
-- [ ] ・やねうら王classic、入玉宣言勝ちに対応
 - [ ] ・やねうら王classicに持ち時間制御入れる。
 - [ ] ・やねうら王classic、フィッシャールールに対応
 - [ ] ・やねうら王classicにponder機能入れる。
@@ -58,7 +57,9 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 
 ※　括弧のなかの+Rは、自己対局時の勝率から計算されるもので、0.5手延長などは顕著に勝率が上がりますが、自己対局以外では効果に乏しいです。
 
-- [x] 2016/04/02・MovePickerのevasion、capture時のordering調整。(+R5)
+- [x] 2016/04/02・kppファイル読み込み時の変換するためのメモリを動的に確保するように変更。
+- [x] 2016/04/02・やねうら王classic、local-game-server、入玉宣言勝ちに対応。(+R25)
+- [x] 2016/04/02・MovePickerのevasion、capture時のordering調整。(+R13)
 - [x] 2016/04/02・やねうら王classicのPV時のreduction定数、調整。(+R20)
 - [x] 2016/04/01・MovePickerにfollowup move追加。
 - [x] 2016/04/01・やねうら王classicのhistory bonus考えなおす。

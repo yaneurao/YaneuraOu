@@ -101,6 +101,8 @@
 // 標準で用意されているMovePickerを用いるか
 // #define USE_MOVE_PICKER
 
+// 入玉時の宣言勝ちを用いるか
+// #define USE_ENTERING_KING_WIN
 
 // --------------------
 // release configurations
@@ -147,6 +149,7 @@
 #define USE_MOVE_PICKER
 #define LONG_EFFECT_LIBRARY
 #define MATE_1PLY
+#define USE_ENTERING_KING_WIN
 #endif
 
 #ifdef YANEURAOU_2016_ENGINE
@@ -167,6 +170,7 @@
 #define ASSERT_LV 3 // ローカルゲームサーバー、host側の速度はそれほど要求されないのでASSERT_LVを3にしておく。
 #define KEEP_LAST_MOVE
 #define EVAL_NO_USE
+#define USE_ENTERING_KING_WIN
 #endif
 
 // --- 協力詰めエンジンとして実行ファイルを公開するとき用の設定集

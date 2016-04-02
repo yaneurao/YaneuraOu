@@ -43,6 +43,26 @@ USI::OptionsMap Options;
 
 namespace USI
 {
+  // 入玉ルール
+#ifdef USE_ENTERING_KING_WIN
+  EnteringKingRule ekr = EKR_27_POINT;
+  // 入玉ルールのUSI文字列
+  std::vector<std::string> ekr_rules = { "NoEnteringKing", "CSARule24" , "CSARule27" , "TryRule" };
+
+  // 入玉ルールがGUIから変更されたときのハンドラ
+  void set_entering_king_rule(const std::string& rule)
+  {
+    for (int i = 0; i < ekr_rules.size(); ++i)
+      if (ekr_rules[i] == rule)
+      {
+        ekr = (EnteringKingRule)i;
+        break;
+      }
+  }
+#else
+  EnteringKingRule ekr = EKR_NONE;
+#endif
+
 // --------------------
 //    読み筋の出力
 // --------------------
@@ -189,6 +209,11 @@ namespace USI
     // 引き分けを受け入れるスコア
     o["Contempt"] << Option(0, -30000, 30000);
 
+#ifdef USE_ENTERING_KING_WIN
+    // 入玉ルール
+    o["EnteringKingRule"] << Option(ekr_rules, ekr_rules[EKR_27_POINT], [](auto& o) { set_entering_king_rule(o); });
+#endif
+
     // 各エンジンがOptionを追加したいだろうから、コールバックする。
     USI::extra_option(o);
   }
@@ -225,8 +250,15 @@ namespace USI
         {
           const Option& o = it.second;
           os << "option name " << it.first << " type " << o.type;
+
           if (o.type != "button")
             os << " default " << o.defaultValue;
+
+          // コンボボックス
+          if (o.list.size())
+            for (auto v : o.list)
+              os << " var " << v;
+
           if (o.type == "spin")
             os << " min " << o.min << " max " << o.max;
           os << endl;
@@ -346,6 +378,9 @@ void go_cmd(const Position& pos, istringstream& is) {
   // goコマンド、デバッグ時に使うが、そのときに"go btime XXX wtime XXX byoyomi XXX"と毎回入力するのが面倒なので
   // デフォルトで1秒読み状態で呼び出されて欲しい。
   limits.byoyomi[BLACK] = limits.byoyomi[WHITE] = 1000;
+
+  // 入玉ルール
+  limits.enteringKingRule = USI::ekr;
 
   while (is >> token)
   {

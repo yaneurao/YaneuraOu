@@ -15,10 +15,18 @@ set option name XXX value ...で設定できるoption
 				これを例えば400に設定しておくと、秒読み10秒のときに9.7秒で指し手を送信します。
 	Contempt        : 引き分けを受け入れるスコア。歩を100とする。例えば、この値を100にすると引き分けの局面は
 	                  評価値が -100とみなされる。(互角と思っている局面であるなら引き分けを選ばずに他の指し手を選ぶ)
-	MultiPV         : その局面での上位N個の候補手を調べる機能
+
+	// やねうら王classic、local-game-server時。
+
+	EnteringKingRule: 入玉ルール
+		NoEnteringKing
+		CSARule27
+		CSARule24
+		TryRule
 
 	// やねうら王classic時
 
+	MultiPV         : その局面での上位N個の候補手を調べる機能
 	NarrowBook		: 実現確率の低い定跡を採用しない
 	Param1			: パラメーターの自動調整用X軸
 	Param2			: パラメーターの自動調整用Y軸

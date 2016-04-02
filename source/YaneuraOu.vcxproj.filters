@@ -195,6 +195,9 @@
     <ClCompile Include="engine\nano-plus-engine\nano_plus_search.cpp">
       <Filter>リソース ファイル\engine\nano-plus-engine</Filter>
     </ClCompile>
+    <ClCompile Include="extra\entering_king_win.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">

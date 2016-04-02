@@ -238,6 +238,7 @@
     <ClCompile Include="eval\evaluate_no_eval.cpp" />
     <ClCompile Include="extra\bitop.cpp" />
     <ClCompile Include="extra\book.cpp" />
+    <ClCompile Include="extra\entering_king_win.cpp" />
     <ClCompile Include="extra\long_effect.cpp" />
     <ClCompile Include="extra\mate1ply.cpp" />
     <ClCompile Include="extra\see.cpp" />
