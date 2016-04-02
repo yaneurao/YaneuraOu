@@ -662,6 +662,9 @@ Move move_from_usi(const Position& pos, const std::string& str)
   if (str == "resign")
     return MOVE_RESIGN;
 
+  if (str == "win")
+    return MOVE_WIN;
+
   // usi文字列をmoveに変換するやつがいるがな..
   Move move = move_from_usi(str);
 

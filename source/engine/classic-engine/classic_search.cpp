@@ -1474,7 +1474,7 @@ void Search::init() {
   // pvとnon pvのときのreduction定数
   // 0.05とか変更するだけで勝率えらく変わる
   // K[][2] = { nonPV時 }、{ PV時 }
-  double K[][2] = { { 0.799, 2.281 },{ 0.484 + 0.1 , 3.023 + 0.05 } };
+  double K[][2] = { { 0.799 - 0.1 , 2.281 + 0.1 },{ 0.484 + 0.1 , 3.023 + 0.05 } };
 
   for (int pv = 0; pv <= 1; ++pv)
     for (int imp = 0; imp <= 1; ++imp)
@@ -1718,7 +1718,6 @@ void MainThread::think()
 
   param1 = Options["Param1"];
   param2 = Options["Param2"];
-
 
   // ---------------------
   // 合法手がないならここで投了
