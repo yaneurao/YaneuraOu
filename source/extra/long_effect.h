@@ -255,6 +255,13 @@ namespace LongEffect
   };
   inline uint16_t long_effect16_of(Piece pc) { return long_effect16_table[pc]; }
 
+  // ↑の先後、どちらの駒に対してもDirections(8-bit)が返る仕様の関数。
+  const uint8_t long_effect8_table[PIECE_NB] = {
+    0,0,DIRECTIONS_U/*香*/,0,0,BISHOP_DIR/*角*/,ROOK_DIR/*飛*/,0,0,0,0,0,0,BISHOP_DIR/*馬*/,ROOK_DIR/*龍*/,0,                                          // 先手
+    0,0,DIRECTIONS_D/*香*/,0,0,BISHOP_DIR,ROOK_DIR,0,0,0,0,0,0,BISHOP_DIR,ROOK_DIR,0, // 後手
+  };
+  inline Directions long_effect_of(Piece pc) { return (Directions)long_effect8_table[pc]; }
+
   // ある升における利きの数を表現するWordBoard
   // 玉の8近傍を回収するなど、アライメントの合っていないアクセスをするのでこの構造体にはalignasをつけないことにする。
   struct WordBoard

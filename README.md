@@ -47,7 +47,7 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/04/02 17:00現在)
+#　俺の作業メモ(2016/04/03 9:00現在)
 
 - [ ] ・やねうら王classicに持ち時間制御入れる。
 - [ ] ・やねうら王classic、フィッシャールールに対応
@@ -57,6 +57,8 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 
 ※　括弧のなかの+Rは、自己対局時の勝率から計算されるもので、0.5手延長などは顕著に勝率が上がりますが、自己対局以外では効果に乏しいです。
 
+- [x] 2016/04/03・mate1ply修正。(thx. tさん) (+R3)
+- [x] 2016/04/02・やねうら王classicのnonPV時のreduction定数、調整。(+R10)
 - [x] 2016/04/02・kppファイル読み込み時の変換するためのメモリを動的に確保するように変更。
 - [x] 2016/04/02・やねうら王classic、local-game-server、入玉宣言勝ちに対応。
 - [x] 2016/04/02・MovePickerのevasion、capture時のordering調整。(+R13)

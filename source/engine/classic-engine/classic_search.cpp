@@ -1032,7 +1032,7 @@ namespace YaneuraOuClassic
 
     // singular延長をするnodeであるか。
     bool singularExtensionNode = !RootNode
-      &&  depth >= 8 * ONE_PLY
+      &&  depth >= 10 * ONE_PLY // Stockfish , Apreyは、8 * ONE_PLY
       &&  ttMove != MOVE_NONE
       /*  &&  ttValue != VALUE_NONE これは次行の条件に暗に含まれている */
       &&  abs(ttValue) < VALUE_KNOWN_WIN
@@ -1143,7 +1143,6 @@ namespace YaneuraOuClassic
         &&  pos.legal(move))
       {
         // このmargin値は評価関数の性質に合わせて調整されるべき。
-        // margin = 8 * depth / ONE_PLY
         Value rBeta = ttValue - 8 * depth / ONE_PLY;
         
         // ttMoveの指し手を以下のsearch()での探索から除外

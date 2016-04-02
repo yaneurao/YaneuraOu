@@ -2,6 +2,86 @@
 やねうら王 更新履歴
 
 
+■　2016/04/03 V2.38
+
+・mate1ply修正。(thx.tさん)
+
+  const uint8_t long_effect8_table[PIECE_NB] = {
+    0,0,DIRECTIONS_U/*香*/,0,0,BISHOP_DIR/*角*/,ROOK_DIR/*飛*/,0,0,0,0,0,0,BISHOP_DIR/*馬*/,ROOK_DIR/*龍*/,0,                                          // 先手
+    0,0,DIRECTIONS_D/*香*/,0,0,BISHOP_DIR,ROOK_DIR,0,0,0,0,0,0,BISHOP_DIR,ROOK_DIR,0, // 後手
+  };
+  inline Directions long_effect_of(Piece pc) { return (Directions)long_effect8_table[pc]; }
+
+  追加。mate1ply()では、long_effect16_of()ではなく、こちらを呼び出すように修正。
+
+	修正前
+		> test rp
+		Random Player test , loop_max = 100000000
+		mate found = 10000 , mate miss = 747 , mate found rate  = 93.0492%
+		mate found = 20000 , mate miss = 1471 , mate found rate  = 93.1489%
+		mate found = 30000 , mate miss = 2201 , mate found rate  = 93.1648%
+		mate found = 40000 , mate miss = 2969 , mate found rate  = 93.0904%
+		mate found = 50000 , mate miss = 3792 , mate found rate  = 92.9506%
+		mate found = 60000 , mate miss = 4659 , mate found rate  = 92.7945%
+		mate found = 70000 , mate miss = 5444 , mate found rate  = 92.7841%
+		mate found = 80000 , mate miss = 6270 , mate found rate  = 92.7321%
+		mate found = 90000 , mate miss = 6959 , mate found rate  = 92.8227%
+		mate found = 100000 , mate miss = 7754 , mate found rate  = 92.804%
+
+	修正後
+		> test rp
+		Random Player test , loop_max = 100000000
+		mate found = 10000 , mate miss = 745 , mate found rate  = 93.0665%
+		mate found = 20000 , mate miss = 1460 , mate found rate  = 93.1966%
+		mate found = 30000 , mate miss = 2180 , mate found rate  = 93.2256%
+		mate found = 40000 , mate miss = 2937 , mate found rate  = 93.1597%
+		mate found = 50000 , mate miss = 3755 , mate found rate  = 93.0146%
+		mate found = 60000 , mate miss = 4612 , mate found rate  = 92.862%
+		mate found = 70000 , mate miss = 5379 , mate found rate  = 92.8641%
+		mate found = 80000 , mate miss = 6197 , mate found rate  = 92.8107%
+		mate found = 90000 , mate miss = 6876 , mate found rate  = 92.9023%
+		mate found = 100000 , mate miss = 7665 , mate found rate  = 92.8807%
+
+		詰み発見率が0.1%弱増加
+
+
+			50.5%	
+			#115
+			やねうら王classic V238
+			mate1ply()修正, 1スレッド、0.1秒設定
+			#0
+			やねうら王classic V237
+			nonPVのreduction調整, 1スレッド、0.1秒設定
+
+			767-141-753(36.0% R3.2)	
+
+
+
+■　2016/04/02 V2.37
+
+・singularのテスト
+
+     bool singularExtensionNode = !RootNode
++      &&  depth >= (param1 + 2)*2 * ONE_PLY // 8 * ONE_PLY
+
+	singularの条件を調べる。param1 = 0..3で。
+
+		35.8%	44.6%	43.9%	51.4%	
+		#114
+		やねうら王classic V237b
+		singularの調整, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic V237
+		nonPVのreduction調整, 1スレッド、0.1秒設定
+
+		343-83-614(100.0% R-101.1)	346-96-430(99.9% R-37.8)	325-92-415(100.0% R-42.5)	392-69-371(21.3% R9.6)	
+
+	depth >= 10 * ONE_PLY
+	のときにはわずかに効果がありそうだが、効果が乏しすぎるので怪しい。
+	何か他の条件がおかしいのかも。
+	singularについては、もう少し他の部分を作りこんでからさらにテストすべき。
+
+
 ■　2016/04/02 V2.36
 
 ・non PV時のreduction調整。
