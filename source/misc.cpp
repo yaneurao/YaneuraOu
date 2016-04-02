@@ -8,7 +8,13 @@
 
 using namespace std;
 
+// --------------------
+//  Timer
+// --------------------
+
 Timer Time;
+
+int Timer::elapsed() const { return int(Search::Limits.npmsec ? Threads.nodes_searched() : now() - startTime); }
 
 // --------------------
 //  engine info

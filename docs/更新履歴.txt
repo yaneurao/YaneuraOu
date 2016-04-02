@@ -2,6 +2,26 @@
 やねうら王 更新履歴
 
 
+■　2016/04/03 V2.41
+
+・やねうら王twig、タイマースレッドの廃止。
+
+・Timerクラス、reset()とinit()と分ける。
+	従来のinit()→reset()
+	init()→理想的な思考時間を得るためのTimeManger。
+
+・config.hにUSE_TIME_MANAGEMENT追加
+
+・benchコマンド時に2個目以降の局面で正しくnpsが表示されなかった問題を修正。
+
+・解説.txtに書いてなかったファイルの説明追加。
+
+・TimeManagerのテスト用のコマンドを追加
+	> test timeman
+	→　そこそこうまく使っているように見える。
+
+・SlowMoverどう反映させよか…。ちょっと考える。
+
 
 ■　2016/04/03 V2.40
 

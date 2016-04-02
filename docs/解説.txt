@@ -7,6 +7,7 @@ source/
   nano-plus-engine/     やねうら王nano plus関連の探索部
   mini-engine/          やねうら王mini関連の探索部
   classic-engine/       やねうら王classic関連の探索部
+  twig-engine/          やねうら王twig関連の探索部
   2016-engine/          やねうら王2016の探索部(非公開)
   help-mate-engine/     やねうら王 協力詰めsolver関連
   random-player-engine/ ランダムプレイヤー
@@ -27,11 +28,15 @@ source/
   extra/                やねうら王nanoでは削除する(or 用いない)予定の拡張クラス
     all.h               すべてのheaderをincludeする横着なheader
     bitop.h             SSE、AVXの命令をsoftwareでemulationするためのマクロ群
+	book.h/cpp          定跡関連の処理
     config.h            shogi.hで設定されたコンパイルオプションに基づき、configurationを行なう。
+	entering_king_win.cpp 宣言勝ち(入玉判定)
     key128.h            128bit,256bitのhash key。(実験用)
     long_effect.h/.cpp  遠方駒による長い利きとBitboardなどへの変換子
+	macros.h            マクロ集
     mate1ply.h/.cpp     超高速1手詰め判定関数(おそらく世界最速)
-	entering_king_win.cpp 宣言勝ち(入玉判定)
+	see.cpp             PositionクラスのSEEの計算用。
+	timeman.cpp         思考時間計算用。
     test_cmd.cpp        UnitTestなど。USI拡張コマンドの"test"コマンド関係。
 
   eval/

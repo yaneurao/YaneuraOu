@@ -16,7 +16,7 @@ set option name XXX value ...で設定できるoption
 	Contempt        : 引き分けを受け入れるスコア。歩を100とする。例えば、この値を100にすると引き分けの局面は
 	                  評価値が -100とみなされる。(互角と思っている局面であるなら引き分けを選ばずに他の指し手を選ぶ)
 
-	// やねうら王classic、local-game-server時。
+	// やねうら王classic、twig、local-game-server時。
 
 	EnteringKingRule: 入玉ルール
 		NoEnteringKing
@@ -24,12 +24,19 @@ set option name XXX value ...で設定できるoption
 		CSARule24
 		TryRule
 
-	// やねうら王classic時
+	// やねうら王classic,twig時
 
 	MultiPV         : その局面での上位N個の候補手を調べる機能
 	NarrowBook		: 実現確率の低い定跡を採用しない
 	Param1			: パラメーターの自動調整用X軸
 	Param2			: パラメーターの自動調整用Y軸
+
+	// やねうら王twig時
+
+	MinimumThinkingTime : 最小思考時間。2秒以内に指すと計測1秒となる場合、2000を指定すべき。
+					このとき、NetworkDelayの分は減じて思考する。
+	SlowMover       : 序盤重視率。これを大きくすると序盤にたくさんの時間を使うようになる。
+	MaxGamePly      : 終局までの手数。256手ルールなら256と設定する。
 
 
 	// 協力詰めsolver時
@@ -71,6 +78,7 @@ set option name XXX value ...で設定できるoption
 		test checks [回数]	 : ランダムプレイヤーで対局させて、王手の指し手生成ルーチンで指し手が
 								正しく生成出来ているかをテストする。
 		test autoplay [回数] : 思考ルーチンを呼び出して連続自己対戦をさせる。
+		test timeman         : TimeManagerで消費する時間のテスト結果を表示する。(やねうら王twigのみ)
 
 	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。
 

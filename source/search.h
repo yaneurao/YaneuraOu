@@ -47,9 +47,10 @@ namespace Search {
 
     // PODでない型をmemsetでゼロクリアするとMSVCは破壊してしまうので明示的に初期化する。
     LimitsType() {
-       nodes = time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = npmsec = movestogo
+       nodes = time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = npmsec
          = depth = movetime = mate = infinite = ponder = rtime = 0;
        silent = false;
+       max_game_ply = 100000;
     }
 
     // 時間制御を行うのか。
@@ -74,10 +75,8 @@ namespace Search {
     // 探索node数を思考経過時間の代わりに用いるモードであるかのフラグ(from UCI)
     int npmsec;
 
-    // movestogo : 次の時間制御までx手あるという意味。
-    //    これが指定されておらず、"wtime"と"btime"を受信したのならば切れ負けの意味。
-    //    これが指定されているときは、手数制限的な意味だと思われる。(100手で引き分け、など)
-    int movestogo;
+    // この手数で引き分けとなる。
+    int max_game_ply;
 
     // depth    : 探索深さ固定(0以外を指定してあるなら)
     // movetime : 思考時間固定(0以外が指定してあるなら) : 単位は[ms]
@@ -95,6 +94,9 @@ namespace Search {
 
     // 今回のgoコマンドでの探索ノード数
     int64_t nodes;
+
+    // 探索を開始した時刻
+    TimePoint startTime;
 
     // 入玉ルール設定
     EnteringKingRule enteringKingRule;

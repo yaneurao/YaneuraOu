@@ -1,9 +1,9 @@
 ﻿
-・やねうら王miniとは？
+・やねうら王classicとは？
 
-やねうら王miniはやねうら王nano plusの探索部を並列化したもので500行程度(コメント行を除く)の探索部からなる、教育的なコードで書かれた思考エンジンです。(R2700程度)
+やねうら王classicはやねうら王miniの探索部を並列化して、各種枝刈りを追加したもので、そこそこまともな探索部からなる、教育的なコードで書かれた思考エンジンです。(R3000程度)
 
-・やねうら王miniの遊び方
+・やねうら王classicの遊び方
 
     将棋所かShogiGUIから思考エンジンとして登録して使ってください。
     実行ファイルはWindows 64bit版、CPUはAVX2用にコンパイルされています。
@@ -11,8 +11,8 @@
 
     以下のようにファイルを配置します。
 
-    YaneuraOu-mini.exe      : やねうら王mini本体
-    YaneuraOu-mini_ja.txt   : これを用いると思考エンジンの設定項目の表示が日本語化される。
+    YaneuraOu-classic.exe     : やねうら王classic本体
+    YaneuraOu-classic_ja.txt  : これを用いると思考エンジンの設定項目の表示が日本語化される。
     book/standard_book.db   : 基本定跡
     eval/kkp32ap.bin        : 3駒関係の評価関数で用いるファイル(KKP)
     eval/kpp16ap.bin        : 3駒関係の評価関数で用いるファイル(KPP)

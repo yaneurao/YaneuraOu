@@ -204,6 +204,9 @@
     <ClCompile Include="engine\twig-engine\twig_search.cpp">
       <Filter>リソース ファイル\engine\twig-engine</Filter>
     </ClCompile>
+    <ClCompile Include="extra\timeman.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">

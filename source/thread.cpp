@@ -25,11 +25,11 @@ namespace {
 
 Thread::Thread()
 {
-  exit = false;
+  resetCalls = exit = false;
 
   // maxPlyを更新しない思考エンジンでseldepthの出力がおかしくなるのを防止するために
   // ここでとりあえず初期化しておいてやる。
-  maxPly = 0;
+  maxPly = callsCnt = 0;
 
   idx = Threads.size();  // スレッド番号(MainThreadが0。slaveは1から順番に)
 

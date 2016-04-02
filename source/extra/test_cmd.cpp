@@ -734,7 +734,7 @@ void auto_play(Position& pos, istringstream& is)
       if (mg.size() == 0)
         break;
 
-      Time.init();
+      Time.reset();
       Threads.init_for_slave(pos, lm);
       Threads.start_thinking(pos, lm, Search::SetupStates);
       Threads.main()->wait_for_search_finished();
@@ -750,6 +750,103 @@ void auto_play(Position& pos, istringstream& is)
     cout << ".";
   }
 }
+
+void test_timeman()
+{
+#ifdef USE_TIME_MANAGEMENT
+
+  // Time Managerの動作テストをする。(思考時間の消費量を調整するときに使う)
+
+  auto simulate = [](Search::LimitsType limits)
+  {
+    int delay = Options["NetworkDelay"];
+
+    cout << "initial setting "
+      << " time = " << limits.time[BLACK]
+      << ", byoyomi = " << limits.byoyomi[BLACK]
+      << ", inc = " << limits.inc[BLACK]
+      << ", NetworkDelay = " << delay
+      << ", SlowMover = " << Options["SlowMover"]
+      << ", max_game_ply = " << limits.max_game_ply
+      << endl;
+
+    Timer time;
+
+    int remain = limits.time[BLACK];
+
+    for (int ply = 1; ply <= limits.max_game_ply; ply += 2)
+    {
+      limits.time[BLACK] = remain;
+      time.init(limits, BLACK, ply);
+      cout << "ply = " << ply
+        << " , minimum = " << time.minimum()
+        << " , optimum = " << time.optimum()
+        << " , maximum = " << time.maximum()
+        ;
+
+      // optimum分使ったとしてremainから引いてやる。
+      int used_time = time.optimum();
+      // 1秒未満繰り上げ。ただし、2秒は計測1秒扱い。
+      used_time = ((used_time + delay + 999) / 1000) * 1000;
+      if (used_time <= 2000)
+        used_time = 1000;
+
+      remain -= used_time;
+      if (remain < 0)
+      {
+        remain += limits.byoyomi[BLACK];
+        if (remain < 0)
+        {
+          // 思考時間がマイナスになった。
+          cout << "\nERROR! TIME OVER!" << endl;
+          break;
+        }
+      }
+
+      cout << " , remain = " << remain << endl;
+      remain += limits.inc[BLACK];
+    }
+  };
+
+  Search::LimitsType limits;
+
+  limits.max_game_ply = 256;
+
+  // 5分切れ負けのテスト
+  limits.time[BLACK] = 5 * 60 * 1000;
+  limits.byoyomi[BLACK] = 0;
+  simulate(limits);
+
+  // 10分切れ負けのテスト
+  limits.time[BLACK] = 10 * 60 * 1000;
+  limits.byoyomi[BLACK] = 0;
+  simulate(limits);
+
+  // 10分+秒読み10秒のテスト
+  limits.time[BLACK] = 10 * 60 * 1000;
+  limits.byoyomi[BLACK] = 10 * 1000;
+  simulate(limits);
+
+  // 2時間+秒読み60秒のテスト
+  limits.time[BLACK] = 2 * 60 * 60 * 1000;
+  limits.byoyomi[BLACK] = 60 * 1000;
+  simulate(limits);
+
+  // 10分 + inc 10秒のテスト
+  limits.time[BLACK] = 10 * 60 * 1000;
+  limits.byoyomi[BLACK] = 0;
+  limits.inc[BLACK] = 10 * 1000;
+  simulate(limits);
+
+  // 30分 + inc 10秒のテスト
+  limits.time[BLACK] = 30 * 60 * 1000;
+  limits.byoyomi[BLACK] = 0;
+  limits.inc[BLACK] = 10 * 1000;
+  simulate(limits);
+
+#endif
+}
+
 
 // --- "test unit"コマンド
 
@@ -883,6 +980,7 @@ void test_cmd(Position& pos, istringstream& is)
   else if (param == "hand") test_hand();                           // 手駒の優劣関係などのテスト
   else if (param == "records") test_read_record(pos,is);           // 棋譜の読み込みテスト 
   else if (param == "autoplay") auto_play(pos, is);                // 思考ルーチンを呼び出しての連続自己対戦
+  else if (param == "timeman") test_timeman();                     // TimeManagerのテスト
   else {
     cout << "test unit               // UnitTest" << endl;
     cout << "test rp                 // Random Player" << endl;
@@ -891,6 +989,7 @@ void test_cmd(Position& pos, istringstream& is)
     cout << "test checks             // Generate Checks Test" << endl;
     cout << "test records [filename] // Read records.sfen Test" << endl;
     cout << "test autoplay           // Auto Play Test" << endl;
+    cout << "test timeman            // Time Manager Test" << endl;
   }
 }
 
@@ -976,7 +1075,10 @@ void bench_cmd(Position& pos, istringstream& is)
 
   int64_t nodes = 0;
   Search::StateStackPtr st;
-  Time.init();
+  
+  // ベンチの計測用タイマー
+  Timer time;
+  time.reset();
   
   for (size_t i = 0; i < fens.size(); ++i)
   {
@@ -986,13 +1088,16 @@ void bench_cmd(Position& pos, istringstream& is)
     
     sync_cout << "\nPosition: " << (i + 1) << '/' << fens.size() << sync_endl;
 
+    // 探索時にnpsが表示されるが、それはこのglobalなTimerに基づくので探索ごとにリセットを行なうようにする。
+    Time.reset();
+
     Threads.start_thinking(pos, limits, st);
     Threads.main()->wait_for_search_finished(); // 探索の終了を待つ。
 
     nodes += Threads.main()->rootPos.nodes_searched();
   }
 
-  auto elapsed = Time.elapsed() + 1; // 0除算の回避のため
+  auto elapsed = time.elapsed() + 1; // 0除算の回避のため
   
   sync_cout << "\n==========================="
     << "\nTotal time (ms) : " << elapsed

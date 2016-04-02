@@ -104,6 +104,9 @@
 // 入玉時の宣言勝ちを用いるか
 // #define USE_ENTERING_KING_WIN
 
+// TimeMangementクラスに、今回の思考時間を計算する機能を追加するか。
+// #define USE_TIME_MANAGEMENT
+
 // --------------------
 // release configurations
 // --------------------
@@ -162,6 +165,7 @@
 #define LONG_EFFECT_LIBRARY
 #define MATE_1PLY
 #define USE_ENTERING_KING_WIN
+#define USE_TIME_MANAGEMENT
 #endif
 
 #ifdef YANEURAOU_2016_ENGINE

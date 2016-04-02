@@ -71,17 +71,37 @@ inline void sleep(int ms)
 //  探索のときに使う時間管理用
 // -----------------------
 
+namespace Search { struct LimitsType; }
+
 struct Timer
 {
   // タイマーを初期化する。以降、elapsed()でinit()してからの経過時間が得られる。
-  void init() { startTime = now(); }
+  void reset() { startTime = now(); }
 
   // 探索開始からの経過時間。単位は[ms]
   // 探索node数に縛りがある場合、elapsed()で探索node数が返ってくる仕様にすることにより、一元管理できる。
-  int elapsed() const { return int(now() - startTime); }
+  int elapsed() const;
 
+  // 探索node数を経過時間の代わりに使う。(こうするとタイマーに左右されない思考が出来るので、思考に再現性を持たせることが出来る)
   // node数を指定して探索するとき、探索できる残りnode数。
   int64_t availableNodes;
+
+
+  // このシンボルが定義されていると、今回の思考時間を計算する機能が有効になる。
+#ifdef  USE_TIME_MANAGEMENT
+
+  // 今回の思考時間を計算して、optimum(),maximum()が値をきちんと返せるようにする。
+  void init(Search::LimitsType& limits, Color us, int ply);
+
+  int minimum() const { return minimumTime; }
+  int optimum() const { return optimumTime; }
+  int maximum() const { return maximumTime; }
+
+private:
+  int minimumTime;
+  int optimumTime;
+  int maximumTime;
+#endif
 
 private:
   // 探索開始時間

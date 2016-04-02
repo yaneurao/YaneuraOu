@@ -220,7 +220,35 @@ namespace YaneuraOuTwig
       auto& prevCmh = CounterMoveHistory[prevPrevSq][pos.piece_on(prevPrevSq)];
       prevCmh.update(pos.piece_on(prevSq), prevSq, -bonus - 2 * (depth + 1) / ONE_PLY);
     }
+  }
 
+  // 残り時間をチェックして、時間になっていればSignals.stopをtrueにする。
+  void check_time()
+  {
+    static TimePoint lastInfoTime = now();
+
+    int elapsed = Time.elapsed();
+    TimePoint tick = Limits.startTime + elapsed;
+
+#if 0
+    // 1秒ごとにdbg_print()を呼び出して統計情報などを出力する用。
+    if (tick - lastInfoTime >= 1000)
+    {
+      lastInfoTime = tick;
+      dbg_print();
+    }
+#endif
+
+    // ponder中においては、GUIがstopとかponderhitとか言ってくるまでは止まるべきではない。
+    if (Limits.ponder)
+      return;
+
+    // 今回のための思考時間を完璧超えているかの判定。
+    // これより緩い条件での終了判定はここではしない。
+    if ((Limits.use_time_management() && elapsed > Time.maximum() - 10)
+      || (Limits.movetime && elapsed >= Limits.movetime)
+      || (Limits.nodes && Threads.nodes_searched() >= Limits.nodes))
+      Signals.stop = true;
   }
 
   // -----------------------
@@ -661,6 +689,27 @@ namespace YaneuraOuTwig
     // seldepthをGUIに出力するために、PVnodeであるならmaxPlyを更新してやる。
     if (PvNode && thisThread->maxPly < ss->ply)
       thisThread->maxPly = ss->ply;
+
+    // -----------------------
+    //  Timerの監視
+    // -----------------------
+
+    // タイマースレッドを使うとCPU負荷的にちょっと損なので
+    // 自分で呼び出し回数をカウントして一定回数ごとにタイマーのチェックを行なう。
+
+    if (thisThread->resetCalls.load(std::memory_order_relaxed))
+    {
+      thisThread->resetCalls = false;
+      thisThread->callsCnt = 0;
+    }
+    // nps 1コア時でも800kぐらい出るから、20knodeごとに調べれば0.02秒程度の精度は出るはず。
+    if (++thisThread->callsCnt > 20000)
+    {
+      for (Thread* th : Threads)
+        th->resetCalls = true;
+
+      check_time();
+    }
 
     // -----------------------
     //  RootNode以外での処理
@@ -1835,6 +1884,8 @@ void MainThread::think()
     drawValueTable[REPETITION_DRAW][ us] = VALUE_ZERO - Value(contempt);
     drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
 
+    // 今回の思考時間の設定。
+    Time.init(Limits, us, rootPos.game_ply());
 
     // ---------------------
     //   思考の終了条件
@@ -1887,17 +1938,6 @@ void MainThread::think()
     }
 
     Thread::search();
-
-    // ---------------------
-    // タイマースレッド終了
-    // ---------------------
-
-    Signals.stop = true;
-    if (timerThread != nullptr)
-    {
-      timerThread->join();
-      delete timerThread;
-    }
   }
 
   // 反復深化の終了。

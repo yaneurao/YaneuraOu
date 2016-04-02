@@ -210,6 +210,15 @@ namespace USI
     // ネットワーク遅延時間[ms]
     o["NetworkDelay"] << Option(400, 0, 10000);
 
+    // 最小思考時間[ms]
+    o["MinimumThinkingTime"] << Option(2000, 0, 100000);
+
+    // 序盤重視率
+    o["SlowMover"] << Option(89, 10, 1000);
+
+    // 引き分けまでの最大手数。256手ルールのときに256。0なら無制限。
+    o["MaxGamePly"] << Option(100000, 0, 100000, [](auto& o) { Search::Limits.max_game_ply = o; });
+
     // 引き分けを受け入れるスコア
     // 歩を100とする。例えば、この値を100にすると引き分けの局面は評価値が -100とみなされる。
     o["Contempt"] << Option(0, -30000, 30000);
@@ -378,11 +387,8 @@ void go_cmd(const Position& pos, istringstream& is) {
   string token;
 
   // 思考開始時刻の初期化。なるべく早い段階でこれを代入しておかないとサーバー時間との誤差が大きくなる。
-  Time.init();
-  
-  // goコマンド、デバッグ時に使うが、そのときに"go btime XXX wtime XXX byoyomi XXX"と毎回入力するのが面倒なので
-  // デフォルトで1秒読み状態で呼び出されて欲しい。
-  limits.byoyomi[BLACK] = limits.byoyomi[WHITE] = 1000;
+  limits.startTime = now();
+  Time.reset();
 
   // 入玉ルール
   limits.enteringKingRule = USI::ekr;
@@ -398,6 +404,10 @@ void go_cmd(const Position& pos, istringstream& is) {
     // 先手、後手の残り時間。[ms]
     else if (token == "wtime")     is >> limits.time[WHITE];
     else if (token == "btime")     is >> limits.time[BLACK];
+
+    // フィッシャールール時における時間
+    else if (token == "winc")      is >> limits.inc[WHITE];
+    else if (token == "binc")      is >> limits.inc[BLACK];
 
     // "go rtime 100"だと100～300[ms]思考する。
     else if (token == "rtime")     is >> limits.rtime;
@@ -437,6 +447,11 @@ void go_cmd(const Position& pos, istringstream& is) {
     // ponderモードでの思考。
     else if (token == "ponder")    limits.ponder = 1;
   }
+
+  // goコマンド、デバッグ時に使うが、そのときに"go btime XXX wtime XXX byoyomi XXX"と毎回入力するのが面倒なので
+  // デフォルトで1秒読み状態で呼び出されて欲しい。
+  if (limits.byoyomi[BLACK] == 0 && limits.inc[BLACK] == 0)
+    limits.byoyomi[BLACK] = limits.byoyomi[WHITE] = 1000;
 
   Threads.start_thinking(pos, limits, Search::SetupStates);
 }
