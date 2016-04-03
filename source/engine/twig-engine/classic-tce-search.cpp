@@ -1,15 +1,15 @@
 ﻿#include "../../shogi.h"
 
-#ifdef YANEURAOU_TWIG_ENGINE
+#ifdef YANEURAOU_CLASSIC_TCE_ENGINE
 
 // -----------------------
-//   やねうら王twig探索部
+//   やねうら王classic-tce探索部
 // -----------------------
 
 // 開発方針
 // やねうら王classicからの改造
-// 評価関数にAepry Twig(電王トーナメントバージョン 2015)を用いて、Apery Twig以上の強さを目指す。
-
+// 持ち時間制御(秒読み、フィッシャールールに対応)、ponderの機能を追加したものです。
+// tce = time control enabledの意味
 
 // mate1ply()を呼び出すのか
 #define USE_MATE_1PLY
@@ -51,7 +51,7 @@ void USI::extra_option(USI::OptionsMap & o)
   o["Param2"] << Option(0, 0, 100000);
 }
 
-namespace YaneuraOuTwig
+namespace YaneuraOuClassicTce
 {
 
   // 外部から調整される探索パラメーター
@@ -1544,7 +1544,7 @@ namespace YaneuraOuTwig
 
 }
 
-using namespace YaneuraOuTwig;
+using namespace YaneuraOuClassicTce;
 
 // --- 以下に好きなように探索のプログラムを書くべし。
 
@@ -1723,7 +1723,7 @@ void Thread::search()
 
       while (true)
       {
-        bestValue = YaneuraOuTwig::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false);
+        bestValue = YaneuraOuClassicTce::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false);
 
         // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
         // 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
@@ -2112,4 +2112,4 @@ ID_END:;
 
 }
 
-#endif // YANEURAOU_TWIG_ENGINE
+#endif // YANEURAOU_CLASSIC_TCE_ENGINE

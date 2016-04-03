@@ -538,8 +538,15 @@ void USI::loop(int argc,char* argv[])
     token = "";
     is >> skipws >> token;
 
-    if (token == "quit" || token == "stop")
+    if (token == "quit" || token == "stop" || token == "gameover")
     {
+      // USIプロトコルにはUCIプロトコルから、
+      // gameover win | lose | draw
+      // が追加されているが、stopと同じ扱いをして良いと思う。
+      // これハンドルしておかないとponderが停止しなくて困る。
+      // gameoverに対してbestmoveは返すべきではないのかも知れないが、
+      // それを言えばstopにだって…。
+
       Search::Signals.stop = true;
 
       // 思考を終えて寝てるかも知れないのでresume==trueにして呼び出してやる

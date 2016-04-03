@@ -53,7 +53,7 @@
     <Filter Include="リソース ファイル\engine\nano-plus-engine">
       <UniqueIdentifier>{f3ba1c3a-285c-4fbb-b041-1a46902f2f8c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\engine\twig-engine">
+    <Filter Include="リソース ファイル\engine\classic-tce-engine">
       <UniqueIdentifier>{c572f93f-e4d8-4d96-ad1f-2f6a5a11d108}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -201,11 +201,11 @@
     <ClCompile Include="extra\entering_king_win.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
-    <ClCompile Include="engine\twig-engine\twig_search.cpp">
-      <Filter>リソース ファイル\engine\twig-engine</Filter>
-    </ClCompile>
     <ClCompile Include="extra\timeman.cpp">
       <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\twig-engine\classic-tce-search.cpp">
+      <Filter>リソース ファイル\engine\classic-tce-engine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

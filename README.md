@@ -24,11 +24,15 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 
 ## やねうら王classic 
 
-やねうら王classicは、やねうら王miniのソースコードを改良する形で、Apery(WCSC 2015)ぐらいの強さを目指しました。(R3000程度)
+やねうら王classicは、やねうら王miniのソースコードを改良する形で、Apery(WCSC 2015)ぐらいの強さを目指しました。入玉宣言機能も追加しました。(R3000程度)
+
+## やねうら王classic-tce
+
+やねうら王classic-tceは、やねうら王classicのソースコードに持ち時間制御(秒読み、フィッシャールールに対応)、ponderの機能を追加したものです。(R3150程度)
 
 ## やねうら王twig
 
-やねうら王twigは、やねうら王classicのソースコードを改良し、AperyTwig(2015)の評価関数を利用する形で、AperyTwig(2015)と同等以上の強さを目指します。(R3250程度の予定)
+やねうら王twigは、やねうら王classic-tceのソースコードをベースに、AperyTwig(2015)風の評価関数にすることで、AperyTwig(2015)と同等以上の強さを目指します。(R3250程度の予定)
 
 ## やねうら王2016 
 
@@ -54,13 +58,16 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 
 #　俺の作業メモ(2016/04/04 9:00現在)
 
-- [ ] ・AperyTwigの評価関数バイナリの読み込みにも対応。
-- [ ] ・local-game-serverに、持ち時間の管理機能入れる。
+- [ ] ・やねうら王classic-TCE(TimeControlEnabled)版を公開する。
 - [ ] ・やねうら王2016用の定跡を自動生成する。
+- [ ] ・local-game-serverに、持ち時間の管理機能入れる。
+- [ ] ・やねうら王twig、AperyTwigの評価関数バイナリの読み込みに対応。
 - [ ] ・やねうら王twigに定跡の選択機能入れる。
+
 
 ※　括弧のなかの+Rは、自己対局時の勝率から計算されるもので、0.5手延長などは顕著に勝率が上がりますが、自己対局以外では効果に乏しいです。
 
+- [x] 2016/04/04・やねうら王twig→やねうら王classic-tceに名前変更。
 - [x] 2016/04/04・やねうら王twigに持ち時間制御入れる。(+R50)
 - [x] 2016/04/04・やねうら王twigにEasyMoveの判定追加。
 - [x] 2016/04/03・やねうら王twig、終局までの手数に対応。

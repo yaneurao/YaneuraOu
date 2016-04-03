@@ -2,11 +2,67 @@
 やねうら王 更新履歴
 
 
+■　2016/04/04 V2.44
+
+・あるところから思考時間が倍になったときのレーティング上昇がゆるやかになっていくだろうから、
+	持ち時間が長い場合、ponderとか時間制御とかが勝率に及ぼす影響は軽微になっていくはず。
+
+・時間制御うまく動いてるなら、classic-TCE版として別途公開するか。
+・TCEでR100上がったとしてR3170ぐらいなのか…。評価関数に手番がない分だけ低そう。R70ぐらい損しているのかな。
+	そして、TCEでR100も上がってなさげ…。
+
+		8-3-14
+		9-1-12
+		5-1-13
+		------
+		22-5-39
+
+	AperyTwigでR3250ぐらいなので計算合うな。手番入れるとR50-70ぐらい上がるということで…。
+
+・持ち時間制御のハイパーパラメーター、実験で改善するのはちょっときついような。
+　短い持ち時間だと正確ではないし、定跡の質にも左右されるし…。
+　定跡部もう少し作ってからにする。
+
+・将棋所でhangしていたログ
+	<1:readyok
+	>1:usinewgame
+	>2:usinewgame
+	>1:position startpos
+	>1:go btime 480000 wtime 480000 byoyomi 0
+	<1:info pv 4g4f 4c4d (0.00%) score cp 0 depth 32
+	<1:info pv 4i5h 8c8d (0.00%) score cp 0 depth 32
+	// omit
+	<1:bestmove 3g3f
+	>2:position startpos moves 3g3f
+	>2:go btime 479000 wtime 480000 byoyomi 0
+	<2:info depth 22 seldepth 23 score cp -2162 nodes 4302298 nps 15875638 time 271 pv G*3c 2c3c 3b3c 1d2e 3c8h 4e4f P*4d 4f4g+ 4d4c+ 2f2g 8h3c 1g2f 4c4d 3e4d 3c4d 2f4f 5c5d G*4e 4d5c 4f5f 5c8f 5f8f
+	<2:info depth 23 seldepth 26 score cp -2069 lowerbound nodes 7153667 nps 1405988 hashfull 30 time 5088 pv 1b2c+
+
+	前の探索が終わってない感じ？
+
+	>2:position startpos moves 7g7f 8b5b 3i4h 5c5d 5i6h 5a6b 6h7h 3c3d 8h2b+ 3a2b 9g9f 6b7b 7h8h 2b3c 7i7h 7b8b 9f9e 9a9b 4h5i 8b9a 5i6h 7a8b 6g6f 4a5a 2g2f 3c4d 2f2e 4d3e B*4e 5b3b 4e5d 5a5b 5d4e 4c4d 4e5f 2a3c 2e2d 3e2d 5f3d 3b2b 4i5h 6a7a 4g4f 5b5c 3d6g 5c4c 6h7g 2d2e 8g8f 2c2d 2h4h B*2g 4f4e 2g4e+ 6g4e 3c4e P*4f 4e3g+ 2i3g 2e2f B*6e B*5d 6e5d 4c5d B*3c 2b3b 3c1a+ 3b3g+ 1a2a 5d5c N*9d 9c9d 9e9d P*9f L*9c 8a9c 9i9f N*8d 9f9e P*5f 9d9c+ 9b9c 9e9c 8b9c L*9e P*9d N*8e L*9b 2a6e 9c8b 6e5f N*6d P*9c 9b9c 5f8c 8d7f 8h9h L*9b 8e9c+ 9b9c P*9b 9a8a L*8e 9d9e 8c9c L*9f L*9g 8a7b 8e8b+ 7a8b 9c8b 7b8b 9b9a+ 9f9g+ 8i9g L*9f L*8e 8b7b S*8g N*7e P*7d 7e8g+ 7h8g 3g4h 8e8c+ 7b8c N*7e 8c7b 5h4h 9f9g+ 9h9g R*9i L*9h 9i6i+ R*9b L*8b 7d7c+ 7b7c P*7d 7c7d G*6e 7d7c P*7d 7c6b 9b8b+ 6b5a 8b8a 5a4b 8a9b 4b3c 9b9e B*5i 7d7c+ 5i7g+ 9g9f 7g8g 9f8e 6i1i 7e6c+ 5c6c 7c6c S*8c 8e7e P*6b 6c7c P*9d 9e8e S*8d 8e8d 8c8d 7e8d R*6h 6e5d 6h4h+ S*4c 3c2c G*1f 4h4f S*3b 2c1d 4c3d G*2b 1f2f 4f2f L*1f 2f1f 1g1f 1i1f R*4b B*6g 3b4c S*3c 4b6b+ 3c3d 6b2b G*2c 2b5b 8g8f 8d9c 3d3e 6f6e P*3f 6e6d 3f3g+ 6d6c+ 1d2e 9c9b 7f8h+ 4c3b G*3c P*8d 8f7f 8d8c+ 3c3b N*2i S*2h P*1g 2h1g+ S*5f 6g5f+ 5g5f 3b3c 2i1g 1f1g P*4c S*4e 5d5c 8h9h 4c4b+ S*3d B*4a L*2f 4b3b L*5a 5b5a 3c3b L*7h 7f6e 6c6d 6e6d 4a3b+ 9h8h G*5e 6d8f 7h7d 2f2h+ 9b8a 2e2f 5e4e 4d4e S*1b G*3c 1b2c 3c2c S*1b S*1d
+	>2:go ponder btime 105000 wtime 149000 byoyomi 0
+	<1:bestmove S*1d
+	>1:gameover draw
+	>2:gameover draw
+	<2:info depth 20 seldepth 20 score cp -2196 nodes 1310050 nps 600389 hashfull 13 time 2182 pv 1b2c+ 1d2c 3b5d 2f2g G*3c 2g3h G*4d S*2e 4d4e 3d4e 5d4e G*3d 4e5e 3e4d 3c3d 4d5e 3d2c 5e4d 2c2d 8h8g 2d2e
+
+	ponder中に引き分けが確定したときにgameover drawが送られてくるが、これに対して探索が終了していないのか。
+	USIではgameoverの前にstop送らなくて良いことになっているのか…。
+
+	修正。
++    if (token == "quit" || token == "stop" || token == "gameover")
+
+・AperyTwigの評価関数portingしてくるのは、あとにしよう。5月の選手権終わったら新しいバイナリが公開されるかも知れないし。
+
+・twig-engine名前変えよう。classic-tce-engineに変更。
+
+
 ■　2016/04/04 V2.43
 
 ・USI拡張コマンド.txtの説明間違っていたの色々修正。
 
-・やねうら王classic、floodgate、6コアPCにてR3064。もう少し放流しておく。あとで正式に公開する。
+・やねうら王classic、floodgate、6コアPCにてR3072。もう少し放流しておく。あとで正式に公開する。
 
 ・ponderが解除された瞬間、elapsed > Time.maximum()の条件を満たすのか…。修正。
 
@@ -66,7 +122,10 @@ ponderhit
 
 	条件間違ってた。切れ負けを、秒読み1秒と解釈してた。
 
-以上の修正をして5分切れ負け、ponder有りでclassicと対戦させておく。
+・以上の修正をして5分切れ負け、ponder有りでclassicと対戦させておく。
+
+・floodgateにclassicのTCE(Time-Control Enabled)版として放流しておく。
+	6スレッド、narrow book、ponder有り。hash = 4096MB。
 
 
 ■　2016/04/03 V2.42

@@ -7,7 +7,7 @@ source/
   nano-plus-engine/     やねうら王nano plus関連の探索部
   mini-engine/          やねうら王mini関連の探索部
   classic-engine/       やねうら王classic関連の探索部
-  twig-engine/          やねうら王twig関連の探索部
+  classic-tce-engine/   やねうら王classic-tce関連の探索部
   2016-engine/          やねうら王2016の探索部(非公開)
   help-mate-engine/     やねうら王 協力詰めsolver関連
   random-player-engine/ ランダムプレイヤー

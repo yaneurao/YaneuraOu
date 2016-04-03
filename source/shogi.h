@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "2.42"
+#define ENGINE_VERSION "2.44"
 
 // --------------------
 // コンパイル時の設定
@@ -23,17 +23,17 @@
 // オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE を defineして 他のエンジンのソースコードを参考に
 //  engine/user-engine/ フォルダの中身を書くべし。
 
-//#define YANEURAOU_NANO_ENGINE      // やねうら王nano      (完成2016/01/31)
-//#define YANEURAOU_NANO_PLUS_ENGINE // やねうら王nano plus (完成2016/02/25)
-//#define YANEURAOU_MINI_ENGINE      // やねうら王mini      (完成2016/02/29)
-//#define YANEURAOU_CLASSIC_ENGINE   // やねうら王classic   (完成2016/04/03)
-#define YANEURAOU_TWIG_ENGINE      // やねうら王twig      (開発中)
-//#define YANEURAOU_2016_ENGINE      // やねうら王2016      (開発中)
-//#define RANDOM_PLAYER_ENGINE       // ランダムプレイヤー
-//#define MATE_ENGINE                // 詰め将棋solverとしてリリースする場合。(開発中)
-//#define HELP_MATE_ENGINE           // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
-//#define LOCAL_GAME_SERVER          // 連続自動対局フレームワーク
-//#define USER_ENGINE                // ユーザーの思考エンジン
+//#define YANEURAOU_NANO_ENGINE        // やねうら王nano        (完成2016/01/31)
+//#define YANEURAOU_NANO_PLUS_ENGINE   // やねうら王nano plus   (完成2016/02/25)
+//#define YANEURAOU_MINI_ENGINE        // やねうら王mini        (完成2016/02/29)
+//#define YANEURAOU_CLASSIC_ENGINE     // やねうら王classic     (完成2016/04/03)
+#define YANEURAOU_CLASSIC_TCE_ENGINE // やねうら王classic tce (開発中)
+//#define YANEURAOU_2016_ENGINE        // やねうら王2016        (開発中)
+//#define RANDOM_PLAYER_ENGINE         // ランダムプレイヤー
+//#define MATE_ENGINE                  // 詰め将棋solverとしてリリースする場合。(開発中)
+//#define HELP_MATE_ENGINE             // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
+//#define LOCAL_GAME_SERVER            // 連続自動対局フレームワーク
+//#define USER_ENGINE                  // ユーザーの思考エンジン
 
 // --------------------
 // release configurations

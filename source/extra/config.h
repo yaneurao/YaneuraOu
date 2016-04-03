@@ -154,8 +154,8 @@
 #define USE_ENTERING_KING_WIN
 #endif
 
-#ifdef YANEURAOU_TWIG_ENGINE
-#define ENGINE_NAME "YaneuraOu twig"
+#ifdef YANEURAOU_CLASSIC_TCE_ENGINE
+#define ENGINE_NAME "YaneuraOu classic-tce"
 // 開発中なのでassertを有効に。
 #define ASSERT_LV 3
 #define ENABLE_TEST_CMD
