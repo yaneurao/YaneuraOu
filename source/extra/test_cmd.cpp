@@ -766,7 +766,6 @@ void test_timeman()
       << ", byoyomi = " << limits.byoyomi[BLACK]
       << ", inc = " << limits.inc[BLACK]
       << ", NetworkDelay = " << delay
-      << ", SlowMover = " << Options["SlowMover"]
       << ", max_game_ply = " << limits.max_game_ply
       << endl;
 

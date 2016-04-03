@@ -76,11 +76,16 @@ namespace Search { struct LimitsType; }
 struct Timer
 {
   // タイマーを初期化する。以降、elapsed()でinit()してからの経過時間が得られる。
-  void reset() { startTime = now(); }
+  void reset() { startTime = startTimeFromPonderhit = now(); }
+
+  // "ponderhit"からの時刻を計測する用
+  void reset_for_ponderhit() { startTimeFromPonderhit = now(); }
 
   // 探索開始からの経過時間。単位は[ms]
   // 探索node数に縛りがある場合、elapsed()で探索node数が返ってくる仕様にすることにより、一元管理できる。
   int elapsed() const;
+
+  int elapsed_from_ponderhit() const;
 
   // 探索node数を経過時間の代わりに使う。(こうするとタイマーに左右されない思考が出来るので、思考に再現性を持たせることが出来る)
   // node数を指定して探索するとき、探索できる残りnode数。
@@ -97,15 +102,27 @@ struct Timer
   int optimum() const { return optimumTime; }
   int maximum() const { return maximumTime; }
 
+  // 1秒単位で繰り上げてdelayを引く。
+  int round_up(int t) { return ((t + 999) / 1000) * 1000 - network_delay; }
+
+  // 探索終了の時間(startTime + search_end >= now()になったら停止)
+  int search_end;
+
 private:
   int minimumTime;
   int optimumTime;
   int maximumTime;
+
+  // Options["NetworkDelay"]の値
+  int network_delay;
+
 #endif
 
 private:
   // 探索開始時間
   TimePoint startTime;
+
+  TimePoint startTimeFromPonderhit;
 };
 
 extern Timer Time;

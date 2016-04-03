@@ -2,6 +2,46 @@
 やねうら王 更新履歴
 
 
+■　2016/04/03 V2.42
+
+・将棋ではstopOnPonderhit自体がおかしい。ponderhitしても2秒は思考したほうが良いのだから…。
+
+-    // 思考は終了しているからponderhitが送られてきたらSignals.stopをtrueにして欲しいときに使う。
+-    std::atomic_bool stopOnPonderhit;
+
+-    // 一応、思考はいつ止めても良いのだが、キリの良い時間(最小思考時間を超えた瞬間だとか、
+-    // ちょうど一秒として計測される手前とか)になったら停止させたいの意味。
+-    std::atomic_bool weak_stop;
+
+          /*
+          // もしponder中であるなら、ponderhitが来れば停止。
+          if (Limits.ponder)
+            Signals.stopOnPonderhit = true;
+          else
+            Signals.stop = true;
+          */
+
+・check_time()で統計情報みたいなのを出力する機能、要るかなぁ…。
+
+		#if 0
+			static TimePoint lastInfoTime = now();
+			int elapsed = Time.elapsed();
+			TimePoint tick = Limits.startTime + elapsed;
+			// 1秒ごとにdbg_print()を呼び出して統計情報などを出力する用。
+			if (tick - lastInfoTime >= 1000)
+			{
+			  lastInfoTime = tick;
+			  dbg_print();
+			}
+		#endif
+
+・ponderhitまわり、きちんと書けた(気がする)
+	それにしてもStockfishのコード、相変わらずバグっていて、ponderhit待ちになった瞬間にponderhitすると(極めてレアケースだが)
+	ハングするような…。このコード、2年も経つのにまだなおってないのか…。
+
+・ponder、独自にやっても将棋所がponderの局面を送ってこない…。そうか…。
+
+
 ■　2016/04/03 V2.41
 
 ・やねうら王twig、タイマースレッドの廃止。
@@ -19,8 +59,6 @@
 ・TimeManagerのテスト用のコマンドを追加
 	> test timeman
 	→　そこそこうまく使っているように見える。
-
-・SlowMoverどう反映させよか…。ちょっと考える。
 
 
 ■　2016/04/03 V2.40

@@ -22,10 +22,21 @@ namespace {
 
 void Timer::init(Search::LimitsType& limits, Color us, int ply)
 {
+  // ネットワークのDelayを考慮して少し減らすべき。
+  // かつ、minimumとmaximumは端数をなくすべき
+  network_delay = Options["NetworkDelay"];
+  search_end = 0; // このタイミングで初期化しておく。
+
   int mtt = Options["MinimumThinkingTime"];
   minimumTime = mtt;
   int moveOverhead = 30; // Options["Move Overhead"];
+
+  /*
+  // 序盤重視率
+  // →　これはこんなパラメーターとして手で調整するべきではなく、探索パラメーターの一種として
+  //     別の方法で調整すべき。
   int slowMover = Options["SlowMover"];
+  */
 
   if (limits.rtime)
   {
@@ -103,7 +114,7 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 
 
     // Ponderが有効になっている場合、思考時間を心持ち多めにとっておく。
-    if (Options["Ponder"])
+    if (Options["USI_Ponder"])
       optimumTime += optimumTime / 4;
   }
 
@@ -118,19 +129,9 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 
 CalcDelay:;
 
-  // ネットワークのDelayを考慮して少し減らすべき。
-  // かつ、minimumとmaximumは端数をなくすべき
-  int delay = Options["NetworkDelay"];
-  auto round = [&](int t)
-  {
-    // 1秒単位で繰り上げてdelayを引く。
-    t = ((t + 999) / 1000) * 1000 - delay;
-    return t;
-  };
-
-  minimumTime = std::max(mtt - delay,round(minimumTime));
-  optimumTime = std::max(mtt - delay,optimumTime - delay);
-  maximumTime = std::max(mtt - delay,round(maximumTime));
+  minimumTime = std::max(mtt - network_delay,round_up(minimumTime));
+  optimumTime = std::max(mtt - network_delay,optimumTime - network_delay);
+  maximumTime = std::max(mtt - network_delay, round_up(maximumTime));
 
 }
 

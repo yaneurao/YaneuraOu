@@ -184,6 +184,9 @@ namespace USI
   // optionのdefault値を設定する。
   void init(OptionsMap& o)
   {
+    // ponder設定。
+    o["USI_Ponder"] << Option(false);
+
     // Hash上限。32bitモードなら2GB、64bitモードなら1024GB
     const int MaxHashMB = Is64Bit ? 1024 * 1024 : 2048;
 
@@ -192,14 +195,13 @@ namespace USI
 
     o["Threads"] << Option(4, 1, 128, [](auto& o) { Threads.read_usi_options(); });
 
-    // USIプロトコルでは、"USI_Hash"と"USI_Ponder"なのだが、
+    // USIプロトコルでは、"USI_Hash"なのだが、
     // 置換表サイズを変更しての自己対戦などをさせたいので、
     // 片方だけ変更できなければならない。
     // ゆえにGUIでの対局設定は無視して、思考エンジンの設定ダイアログのところで
     // 個別設定が出来るようにする。
 
     o["Hash"]    << Option(16, 1, MaxHashMB, [](auto&o) { TT.resize(o); });
-    o["Ponder"]  << Option(false);
 
     // その局面での上位N個の候補手を調べる機能
     o["MultiPV"] << Option(1, 1, 800);
@@ -213,11 +215,8 @@ namespace USI
     // 最小思考時間[ms]
     o["MinimumThinkingTime"] << Option(2000, 0, 100000);
 
-    // 序盤重視率
-    o["SlowMover"] << Option(89, 10, 1000);
-
     // 引き分けまでの最大手数。256手ルールのときに256。0なら無制限。
-    o["MaxGamePly"] << Option(100000, 0, 100000, [](auto& o) { Search::Limits.max_game_ply = o; });
+    o["MaxMovesToDraw"] << Option(0, 0, 100000, [](auto& o) { Search::Limits.max_game_ply = (o == 0) ? INT_MAX : o; });
 
     // 引き分けを受け入れるスコア
     // 歩を100とする。例えば、この値を100にすると引き分けの局面は評価値が -100とみなされる。
@@ -528,7 +527,7 @@ void USI::loop(int argc,char* argv[])
     token = "";
     is >> skipws >> token;
 
-    if (token == "quit" || token == "stop" || (token == "ponderhit" && Search::Signals.stopOnPonderhit))
+    if (token == "quit" || token == "stop")
     {
       Search::Signals.stop = true;
 
@@ -536,7 +535,10 @@ void USI::loop(int argc,char* argv[])
       Threads.main()->start_searching(true);
 
     } else if (token == "ponderhit")
+    {
+      Time.reset_for_ponderhit(); // ponderhitから計測しなおすべきである。
       Search::Limits.ponder = 0; // 通常探索に切り替える。
+    }
 
     // 与えられた局面について思考するコマンド
     else if (token == "go") go_cmd(pos, is);

@@ -151,6 +151,15 @@ struct MainThread : public Thread
   // 前回の探索時のスコア。
   // 次回の探索のときに何らか使えるかも。
   Value previousScore;
+
+  bool easyMovePlayed;
+
+  // root nodeでfail lowが起きているのか
+  bool failedLow;
+
+  // 反復深化においてbestMoveが変わった回数。nodeの安定性の指標として使う。
+  double bestMoveChanges;
+
 };
 
 struct Slaves

@@ -5,11 +5,11 @@ USIプロトコルの独自拡張コマンド
 
 set option name XXX value ...で設定できるoption
 
-	注意) USI_Hash , USI_Ponderで設定された値は無視されます。
+	注意) USI_Hash で設定された値は無視されます。
 
 	Threads			: 思考するスレッド数
 	Hash			: 置換表のサイズ(単位[MB])
-	Ponder			: ponder(相手番での思考) on/off
+	USI_Ponder		: ponder(相手番での思考) on/off
 	WriteDebugLog   : 標準入出力をファイル("io_log.txt")にリダイレクトする(logコマンドでonには出来る)
 	NetworkDelay    : 通信時の遅延時間[ms]
 				これを例えば400に設定しておくと、秒読み10秒のときに9.7秒で指し手を送信します。
@@ -35,8 +35,7 @@ set option name XXX value ...で設定できるoption
 
 	MinimumThinkingTime : 最小思考時間。2秒以内に指すと計測1秒となる場合、2000を指定すべき。
 					このとき、NetworkDelayの分は減じて思考する。
-	SlowMover       : 序盤重視率。これを大きくすると序盤にたくさんの時間を使うようになる。
-	MaxGamePly      : 終局までの手数。256手ルールなら256と設定する。
+	MaxMovesToDraw      : 終局までの手数。256手ルールなら256と設定する。0なら無制限。
 
 
 	// 協力詰めsolver時

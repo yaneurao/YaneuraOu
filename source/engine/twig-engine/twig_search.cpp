@@ -102,6 +102,51 @@ namespace YaneuraOuTwig
     return reduction_table[PvNode][improving][std::min((int)depth / ONE_PLY, 63)][std::min(move_count, 63)];
   }
 
+  // -----------------------
+  //  EasyMoveの判定用
+  // -----------------------
+
+  // EasyMoveManagerは、"easy move"を検出するのに用いられる。
+  // PVが、複数の探索iterationにおいて安定しているとき、即座にbest moveを返すことが出来る。
+  struct EasyMoveManager {
+
+    void clear() {
+      stableCnt = 0;
+      expectedPosKey = 0;
+      pv[0] = pv[1] = pv[2] = MOVE_NONE;
+    }
+
+    // 前回の探索からPVで2手進んだ局面であるかを判定するのに用いる。
+    Move get(Key key) const {
+      return expectedPosKey == key ? pv[2] : MOVE_NONE;
+    }
+
+    void update(Position& pos, const std::vector<Move>& newPv) {
+
+      ASSERT_LV3(newPv.size() >= 3);
+
+      // pvの3手目以降が変化がない回数をカウントしておく。
+      stableCnt = (newPv[2] == pv[2]) ? stableCnt + 1 : 0;
+
+      if (!std::equal(newPv.begin(), newPv.begin() + 3, pv))
+      {
+        std::copy(newPv.begin(), newPv.begin() + 3, pv);
+
+        StateInfo st[2];
+        pos.do_move(newPv[0], st[0]);
+        pos.do_move(newPv[1], st[1]);
+        expectedPosKey = pos.state()->key();
+        pos.undo_move(newPv[1]);
+        pos.undo_move(newPv[0]);
+      }
+    }
+
+    int stableCnt;
+    Key expectedPosKey;
+    Move pv[3];
+  };
+
+  EasyMoveManager EasyMove;
 
   // -----------------------
   //  lazy SMPで用いるテーブル
@@ -225,27 +270,19 @@ namespace YaneuraOuTwig
   // 残り時間をチェックして、時間になっていればSignals.stopをtrueにする。
   void check_time()
   {
-    static TimePoint lastInfoTime = now();
-
-    int elapsed = Time.elapsed();
-    TimePoint tick = Limits.startTime + elapsed;
-
-#if 0
-    // 1秒ごとにdbg_print()を呼び出して統計情報などを出力する用。
-    if (tick - lastInfoTime >= 1000)
-    {
-      lastInfoTime = tick;
-      dbg_print();
-    }
-#endif
-
     // ponder中においては、GUIがstopとかponderhitとか言ってくるまでは止まるべきではない。
     if (Limits.ponder)
       return;
 
+    // 以下の２つの時間のうち、小さいほうが本当の時間である(と考えるべきだ)
+    // これを基準に停止を判断する。
+    // 反復深化のループのほうでは、これではなく、どれだけ考えたかに力点を置きたいので、Time.elapsed()のほうを用いて判定する。
+    int elapsed = std::min(Time.elapsed() , Time.elapsed_from_ponderhit());
+
     // 今回のための思考時間を完璧超えているかの判定。
-    // これより緩い条件での終了判定はここではしない。
-    if ((Limits.use_time_management() && elapsed > Time.maximum() - 10)
+    // 反復深化のループ内で、そろそろ終了して良い頃合いになると、Time.search_endに停止させて欲しい時間が代入される。
+    if ((Limits.use_time_management() &&
+        ( elapsed > Time.maximum() - 10 || elapsed > Time.search_end - 10))
       || (Limits.movetime && elapsed >= Limits.movetime)
       || (Limits.nodes && Threads.nodes_searched() >= Limits.nodes))
       Signals.stop = true;
@@ -1594,6 +1631,9 @@ void Thread::search()
   // apritation searchで窓を動かす大きさdelta
   Value bestValue, alpha, beta, delta;
 
+  // 安定したnodeのときに返す指し手
+  Move easyMove = MOVE_NONE;
+
   // 反復深化のiterationが浅いうちはaspiration searchを使わない。
   // 探索窓を (-VALUE_INFINITE , +VALUE_INFINITE)とする。
   bestValue = delta = alpha = -VALUE_INFINITE;
@@ -1607,9 +1647,15 @@ void Thread::search()
   // 先頭5つを初期化しておけば十分。そのあとはsearchの先頭でss+2を初期化する。
   memset(stack, 0, 5 * sizeof(Stack));
 
-  // メインスレッド用の処理
+  // メインスレッド用の初期化処理
   if (mainThread)
   {
+    // 前回の局面からPVの指し手で2手進んだ局面であるかを判定する。
+    easyMove = EasyMove.get(rootPos.state()->key());
+    EasyMove.clear();
+    mainThread->easyMovePlayed = mainThread->failedLow = false;
+    mainThread->bestMoveChanges = 0;
+
     // --- 置換表のTTEntryの世代を進める。
     TT.new_search();
   }
@@ -1627,6 +1673,25 @@ void Thread::search()
 
   while (++rootDepth < MAX_PLY && !Signals.stop && (!Limits.depth || rootDepth <= Limits.depth))
   {
+    // ------------------------
+    // lazy SMPのための初期化
+    // ------------------------
+
+    // slaveであれば、これはヘルパースレッドという扱いなので条件を満たしたとき
+    // 探索深さを次の深さにする。
+    if (!mainThread)
+    {
+      // これにはhalf density matrixを用いる。
+      // 詳しくは、このmatrixの定義部の説明を読むこと。
+      const Row& row = HalfDensity[(idx - 1) % HalfDensitySize];
+      if (row[(rootDepth + rootPos.game_ply()) % row.size()])
+        continue;
+    }
+
+    // bestMoveが変化した回数を記録しているが、反復深化の世代が一つ進むので、
+    // 古い世代の情報として重みを低くしていく。
+    if (mainThread)
+      mainThread->bestMoveChanges *= 0.505, mainThread->failedLow = false;
 
     // aspiration window searchのために反復深化の前回のiterationのスコアをコピーしておく
     for (RootMove& rm : rootMoves)
@@ -1635,21 +1700,6 @@ void Thread::search()
     // MultiPVのためにこの局面の候補手をN個選出する。
     for (PVIdx = 0; PVIdx < multiPV && !Signals.stop; ++PVIdx)
     {
-      // ------------------------
-      // lazy SMPのための初期化
-      // ------------------------
-
-      // slaveであれば、これはヘルパースレッドという扱いなので条件を満たしたとき
-      // 探索深さを次の深さにする。
-      if (!mainThread)
-      {
-        // これにはhalf density matrixを用いる。
-        // 詳しくは、このmatrixの定義部の説明を読むこと。
-        const Row& row = HalfDensity[(idx - 1) % HalfDensitySize];
-        if (row[(rootDepth + rootPos.game_ply()) % row.size()])
-          continue;
-      }
-
       // ------------------------
       // Aspiration window search
       // ------------------------
@@ -1707,6 +1757,10 @@ void Thread::search()
           // betaをalphaのほうに少しだけ寄せる程度に留める。
           beta = (alpha + beta) / 2;
           alpha = std::max(bestValue - delta, -VALUE_INFINITE);
+
+          // fail lowを起こしていて、いま探索を中断するのは危険。
+          if (mainThread)
+            mainThread->failedLow = true;
         }
         else if (bestValue >= beta)
         {
@@ -1757,7 +1811,69 @@ void Thread::search()
     if (!Signals.stop)
       completedDepth = rootDepth;
 
+    if (!mainThread)
+      continue;
+
+    //
+    // main threadのときは探索の停止判定が必要
+    //
+
+    // go mateで詰み探索として呼び出されていた場合、その手数以内の詰みが見つかっていれば終了。
+    if (Limits.mate
+      && bestValue >= VALUE_MATE_IN_MAX_PLY
+      && VALUE_MATE - bestValue <= Limits.mate)
+      Signals.stop = true;
+
+    // 残り時間的に、次のiterationに行って良いのか、あるいは、探索をいますぐここでやめるべきか？
+    if (Limits.use_time_management())
+    {
+      if (!Signals.stop && !Time.search_end)
+      {
+        // 1つしか合法手がない(one reply)であるだとか、利用できる時間を使いきっているだとか、
+        // easyMoveに合致しただとか…。
+        const bool F[] = { !mainThread->failedLow,
+          bestValue >= mainThread->previousScore };
+
+        int improvingFactor = 640 - 160 * F[0] - 126 * F[1] - 124 * F[0] * F[1];
+        double unstablePvFactor = 1 + mainThread->bestMoveChanges;
+
+        auto elapsed = Time.elapsed();
+
+        bool doEasyMove = rootMoves[0].pv[0] == easyMove
+          && mainThread->bestMoveChanges < 0.03
+          && elapsed > Time.optimum() * 25 / 204;
+
+        if (rootMoves.size() == 1
+          || Time.elapsed() > Time.optimum() * unstablePvFactor * improvingFactor / 634
+          || (mainThread->easyMovePlayed = doEasyMove))
+        {
+          // 停止条件を満たした
+
+          // 将棋の場合、フィッシャールールではないのでこの時点でも最小思考時間分だけは
+          // 思考を継続したほうが得なので、思考自体は継続して、キリの良い時間になったらcheck_time()にて停止する。
+          Time.search_end = std::max(Time.round_up(elapsed), Time.minimum());
+        }
+      }
+
+      // pvが3手以上あるならEasyMoveに記録しておく。
+      if (rootMoves[0].pv.size() >= 3)
+        EasyMove.update(rootPos, rootMoves[0].pv);
+      else
+        EasyMove.clear();
+    }
+
+
   } // iterative deeping
+
+  if (!mainThread)
+    return;
+
+  // 最後の反復深化のiterationにおいて、easy moveの候補が安定していないならクリアしてしまう。
+  // ifの2つ目の条件は連続したeasy moveを行わないようにするためのもの。
+  // (どんどんeasy moveで局面が進むといずれわずかにしか読んでいない指し手を指してしまうため。)
+  if (EasyMove.stableCnt < 6 || mainThread->easyMovePlayed)
+    EasyMove.clear();
+
 
 }
 
@@ -1836,11 +1952,20 @@ void MainThread::think()
       }
 
       // 不成の指し手がRootMovesに含まれていると正しく指せない。
-      auto bestMove = move_list[prng.rand(book_move_max)].bestMove;
+      const auto& move = move_list[prng.rand(book_move_max)];
+      auto bestMove = move.bestMove;
       auto it_move = std::find(rootMoves.begin(), rootMoves.end(),bestMove);
       if (it_move != rootMoves.end())
       {
         std::swap(rootMoves[0], *it_move);
+
+        // 2手目の指し手も与えないとponder出来ない。
+        if (move.nextMove != MOVE_NONE)
+        {
+          if (rootMoves[0].pv.size() <= 1)
+            rootMoves[0].pv.push_back(MOVE_NONE);
+          rootMoves[0].pv[1] = move.nextMove; // これが合法手でなかったら将棋所が弾くと思う。
+        }
         goto ID_END;
       }
       // 合法手のなかに含まれていなかったので定跡の指し手は指さない。
@@ -1884,46 +2009,9 @@ void MainThread::think()
     drawValueTable[REPETITION_DRAW][ us] = VALUE_ZERO - Value(contempt);
     drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
 
-    // 今回の思考時間の設定。
+    // --- 今回の思考時間の設定。
+
     Time.init(Limits, us, rootPos.game_ply());
-
-    // ---------------------
-    //   思考の終了条件
-    // ---------------------
-
-    std::thread* timerThread = nullptr;
-
-    // 探索時間が指定されているなら監視タイマーを起動しておく。
-    if (Limits.use_time_management())
-    {
-      // 時間制限があるのでそれに従うために今回の思考時間を計算する。
-      // 今回に用いる思考時間 = 残り時間の1/60 + 秒読み時間
-
-      // 2秒未満は2秒として問題ない。(CSAルールにおいて)
-      int availableTime;
-
-      if (!Limits.rtime)
-      {
-        availableTime = std::max(2000, Limits.time[us] / 60 + Limits.byoyomi[us]);
-        // 思考時間は秒単位で繰り上げ
-        availableTime = (availableTime / 1000) * 1000;
-        // 50msより小さいと思考自体不可能なので下限を50msに。
-        availableTime = std::max(50, availableTime - Options["NetworkDelay"]);
-      } else {
-        // 1～3倍の範囲でランダム化する。
-        availableTime = Limits.rtime + (int)prng.rand(Limits.rtime * 2);
-      }
-
-      auto endTime = availableTime;
-
-      // タイマースレッドを起こして、終了時間を監視させる。
-
-      timerThread = new std::thread([&] {
-        while (Time.elapsed() < endTime && !Signals.stop)
-          sleep(10);
-        Signals.stop = true;
-      });
-    }
 
     // ---------------------
     // 各スレッドがsearch()を実行する
@@ -1950,10 +2038,10 @@ ID_END:;
   // それゆえ、単にここでGUIからそれらのいずれかのコマンドが送られてくるまで待つ。
   if (!Signals.stop && (Limits.ponder || Limits.infinite))
   {
-    // "ponderhit"が送られてきたらSignals.stopをtrueにしてくれるように依頼。
-    Signals.stopOnPonderhit = true;
-
-    wait(Signals.stop);
+    // "stop"が送られてきたらSignals.stop == trueになる。
+    // "ponderhit"が送られてきたらLimits.ponder == 0になるのでそれを待つ。
+    while (!Signals.stop && Search::Limits.ponder)
+      sleep(10);
   }
 
   Signals.stop = true;

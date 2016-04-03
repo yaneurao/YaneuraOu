@@ -12,8 +12,7 @@ Param1 パラメータ自動調整用X軸
 Param2 パラメータ自動調整用Y軸
 
 MinimumThinkingTime 最小思考時間[ms]
-SlowMover 序盤重視[%]40～150ぐらいの間で
-MaxPly 引き分けまでの手数(0なら無制限)
+MaxMovesToDraw 引き分けまでの手数(0なら無制限)
 
 EnteringKingRule 入玉ルール
 # このコンボボックスの値

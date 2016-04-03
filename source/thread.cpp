@@ -147,7 +147,7 @@ void ThreadPool::start_thinking(const Position& pos, const Search::LimitsType& l
   // 思考中であれば停止するまで待つ。
   main()->wait_for_search_finished();
 
-  Signals.stopOnPonderhit = Signals.stop = false;
+  Signals.stop = false;
 
   main()->rootMoves.clear();
   main()->rootPos = pos;

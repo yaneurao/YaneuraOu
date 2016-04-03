@@ -15,6 +15,7 @@ using namespace std;
 Timer Time;
 
 int Timer::elapsed() const { return int(Search::Limits.npmsec ? Threads.nodes_searched() : now() - startTime); }
+int Timer::elapsed_from_ponderhit() const { return int(Search::Limits.npmsec ? Threads.nodes_searched() : now() - startTimeFromPonderhit); }
 
 // --------------------
 //  engine info

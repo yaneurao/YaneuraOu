@@ -76,6 +76,7 @@ namespace Search {
     int npmsec;
 
     // この手数で引き分けとなる。
+    // USIのoption["MaxMovesToDraw"]の値。引き分けなしならINT_MAX。
     int max_game_ply;
 
     // depth    : 探索深さ固定(0以外を指定してあるなら)
@@ -110,9 +111,6 @@ namespace Search {
   struct SignalsType {
     // これがtrueになったら探索を即座に終了すること。
     std::atomic_bool stop;
-    
-    // 思考は終了しているからponderhitが送られてきたらSignals.stopをtrueにして欲しいときに使う。
-    std::atomic_bool stopOnPonderhit;
   };
 
   typedef std::unique_ptr<aligned_stack<StateInfo>> StateStackPtr;
