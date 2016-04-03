@@ -85,12 +85,16 @@ struct Timer
   // 探索node数に縛りがある場合、elapsed()で探索node数が返ってくる仕様にすることにより、一元管理できる。
   int elapsed() const;
 
+  // reset_for_ponderhit()からの経過時間。その関数は"ponderhit"したときに呼び出される。
+  // reset_for_ponderhit()が呼び出されていないときは、reset()からの経過時間。その関数は"go"コマンドでの探索開始時に呼び出される。
   int elapsed_from_ponderhit() const;
+
+  // reset()されてからreset_for_ponderhit()までの時間
+  int elapsed_from_start_to_ponderhit() const { return (int)(startTimeFromPonderhit - startTime); }
 
   // 探索node数を経過時間の代わりに使う。(こうするとタイマーに左右されない思考が出来るので、思考に再現性を持たせることが出来る)
   // node数を指定して探索するとき、探索できる残りnode数。
   int64_t availableNodes;
-
 
   // このシンボルが定義されていると、今回の思考時間を計算する機能が有効になる。
 #ifdef  USE_TIME_MANAGEMENT
@@ -103,9 +107,10 @@ struct Timer
   int maximum() const { return maximumTime; }
 
   // 1秒単位で繰り上げてdelayを引く。
-  int round_up(int t) { return ((t + 999) / 1000) * 1000 - network_delay; }
+  int round_up(int t) const { return ((t + 999) / 1000) * 1000 - network_delay; }
 
   // 探索終了の時間(startTime + search_end >= now()になったら停止)
+  // この値がマイナスのときは、startTimeFromPonderhit - (search_end) >= now() になったら停止。
   int search_end;
 
 private:

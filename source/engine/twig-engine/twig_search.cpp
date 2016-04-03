@@ -274,15 +274,14 @@ namespace YaneuraOuTwig
     if (Limits.ponder)
       return;
 
-    // 以下の２つの時間のうち、小さいほうが本当の時間である(と考えるべきだ)
-    // これを基準に停止を判断する。
-    // 反復深化のループのほうでは、これではなく、どれだけ考えたかに力点を置きたいので、Time.elapsed()のほうを用いて判定する。
-    int elapsed = std::min(Time.elapsed() , Time.elapsed_from_ponderhit());
+    // "ponderhit"時は、そこからの経過時間で考えないと、elapsed > Time.maximum()になってしまう。
+    // elapsed_from_ponderhit()は、"ponderhit"していないときは"go"コマンドからの経過時間を返すのでちょうど良い。
+    int elapsed = Time.elapsed_from_ponderhit();
 
     // 今回のための思考時間を完璧超えているかの判定。
     // 反復深化のループ内で、そろそろ終了して良い頃合いになると、Time.search_endに停止させて欲しい時間が代入される。
     if ((Limits.use_time_management() &&
-        ( elapsed > Time.maximum() - 10 || elapsed > Time.search_end - 10))
+        ( elapsed > Time.maximum() - 10 || (Time.search_end > 0 && elapsed > Time.search_end - 10)))
       || (Limits.movetime && elapsed >= Limits.movetime)
       || (Limits.nodes && Threads.nodes_searched() >= Limits.nodes))
       Signals.stop = true;
@@ -1827,8 +1826,10 @@ void Thread::search()
     // 残り時間的に、次のiterationに行って良いのか、あるいは、探索をいますぐここでやめるべきか？
     if (Limits.use_time_management())
     {
+      // まだ停止が確定していない
       if (!Signals.stop && !Time.search_end)
       {
+
         // 1つしか合法手がない(one reply)であるだとか、利用できる時間を使いきっているだとか、
         // easyMoveに合致しただとか…。
         const bool F[] = { !mainThread->failedLow,
@@ -1843,18 +1844,30 @@ void Thread::search()
           && mainThread->bestMoveChanges < 0.03
           && elapsed > Time.optimum() * 25 / 204;
 
+        // bestMoveが何度も変更になっているならunstablePvFactorが大きくなる。
+        // failLowが起きてなかったり、1つ前の反復深化から値がよくなってたりするとimprovingFactorが小さくなる。
         if (rootMoves.size() == 1
-          || Time.elapsed() > Time.optimum() * unstablePvFactor * improvingFactor / 634
+          || elapsed > Time.optimum() * unstablePvFactor * improvingFactor / 634
           || (mainThread->easyMovePlayed = doEasyMove))
         {
           // 停止条件を満たした
 
           // 将棋の場合、フィッシャールールではないのでこの時点でも最小思考時間分だけは
           // 思考を継続したほうが得なので、思考自体は継続して、キリの良い時間になったらcheck_time()にて停止する。
-          Time.search_end = std::max(Time.round_up(elapsed), Time.minimum());
+
+          // ponder中なら、終了時刻はponderhit後から計算して、Time.minimum()。
+          if (Limits.ponder)
+            Time.search_end = Time.minimum();
+          else
+          {
+            // "ponderhit"しているときは、そこからの経過時間を丸める。
+            // "ponderhit"していないときは開始からの経過時間を丸める。
+            // そのいずれもTime.elapsed_from_ponderhit()で良い。
+            Time.search_end = std::max(Time.round_up(Time.elapsed_from_ponderhit()), Time.minimum());
+          }
         }
       }
-
+    
       // pvが3手以上あるならEasyMoveに記録しておく。
       if (rootMoves[0].pv.size() >= 3)
         EasyMove.update(rootPos, rootMoves[0].pv);

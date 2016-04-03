@@ -51,6 +51,7 @@ namespace Search {
          = depth = movetime = mate = infinite = ponder = rtime = 0;
        silent = false;
        max_game_ply = 100000;
+       ponder_mode = false;
     }
 
     // 時間制御を行うのか。
@@ -96,16 +97,14 @@ namespace Search {
     // 今回のgoコマンドでの探索ノード数
     int64_t nodes;
 
-    // 探索を開始した時刻
-    TimePoint startTime;
-
     // 入玉ルール設定
     EnteringKingRule enteringKingRule;
 
     // 画面に出力しないサイレントモード(プロセス内での連続自己対戦のとき用)
     bool silent;
 
-    // ---- ↑ここまでコンストラクタでゼロ初期化↑ ----
+    // 試合開始後、ponderが一度でも送られてきたか
+    bool ponder_mode;
   };
 
   struct SignalsType {

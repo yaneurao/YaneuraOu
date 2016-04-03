@@ -8,7 +8,7 @@
 namespace {
 
   // これぐらい自分が指すと終局すると考えて計画を練る。
-  const int MoveHorizon = 70;
+  const int MoveHorizon = 80;
 
   // 思考時間のrtimeが指定されたときに用いる乱数
   PRNG prng;
@@ -62,9 +62,6 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
   }
 #endif
 
-  // このTimeクラスの開始時刻をlimitsで与えられた時刻にしてやる。
-  startTime = limits.startTime;
-
   optimumTime = maximumTime = std::max(limits.time[us], minimumTime);
 
   // 残り手数
@@ -102,8 +99,20 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
     remain_estimate -= (MTG + 1) * 1000;
     remain_estimate = std::max(0, remain_estimate);
 
+    // -- optimumTime
     int t1 = minimumTime + remain_estimate / MTG;
-    int t2 = minimumTime + remain_estimate * 4 / MTG;
+
+    // -- maximumTime
+    float max_ratio = 5.0f;
+    // 切れ負けルールにおいては、5分を切っていたら、このratioを抑制する。
+    if (limits.inc[us] == 0 && limits.byoyomi[us] == 0)
+    {
+      // 3分     : ratio = 3.0
+      // 2分     : ratio = 2.0
+      // 1分以下 : ratio = 1.0固定
+      max_ratio = std::min(max_ratio, std::max(float(limits.time[us])/(60*1000),1.0f));
+    }
+    int t2 = minimumTime + (int)(remain_estimate * max_ratio / MTG);
 
     // ただしmaximumは残り時間の30%以上は使わないものとする。
     // optimumが超える分にはいい。それは残り手数が少ないときとかなので構わない。
@@ -113,8 +122,8 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
     maximumTime = std::min(t2, maximumTime);
 
 
-    // Ponderが有効になっている場合、思考時間を心持ち多めにとっておく。
-    if (Options["USI_Ponder"])
+    // Ponderが有効になっている場合、ponderhitすると時間が本来の予測より余っていくので思考時間を心持ち多めにとっておく。
+    if (limits.ponder_mode)
       optimumTime += optimumTime / 4;
   }
 

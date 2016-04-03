@@ -41,6 +41,12 @@ namespace Book { extern void makebook_cmd(Position& pos, istringstream& is); }
 // Option設定が格納されたglobal object。
 USI::OptionsMap Options;
 
+// 試合開始後、一度でも"go ponder"が送られてきたかのフラグ
+// 本来は、Options["Ponder"]で設定すべきだが(UCIではそうなっている)、
+// USIプロトコルだとGUIが勝手に設定するので、思考エンジン側からPonder有りのモードなのかどうかが取得できない。
+// ゆえに、このようにして判定している。
+bool ponder_mode;
+
 namespace USI
 {
   // 入玉ルール
@@ -184,9 +190,6 @@ namespace USI
   // optionのdefault値を設定する。
   void init(OptionsMap& o)
   {
-    // ponder設定。
-    o["USI_Ponder"] << Option(false);
-
     // Hash上限。32bitモードなら2GB、64bitモードなら1024GB
     const int MaxHashMB = Is64Bit ? 1024 * 1024 : 2048;
 
@@ -312,6 +315,7 @@ void is_ready(Position& pos)
 void is_ready_cmd(Position& pos)
 {
   is_ready(pos);
+  ponder_mode = false;
   sync_cout << "readyok" << sync_endl;
 }
 
@@ -385,8 +389,7 @@ void go_cmd(const Position& pos, istringstream& is) {
   Search::LimitsType limits;
   string token;
 
-  // 思考開始時刻の初期化。なるべく早い段階でこれを代入しておかないとサーバー時間との誤差が大きくなる。
-  limits.startTime = now();
+  // 思考開始時刻の初期化。なるべく早い段階でこれをしておかないとサーバー時間との誤差が大きくなる。
   Time.reset();
 
   // 入玉ルール
@@ -444,13 +447,21 @@ void go_cmd(const Position& pos, istringstream& is) {
     else if (token == "infinite")  limits.infinite = 1;
 
     // ponderモードでの思考。
-    else if (token == "ponder")    limits.ponder = 1;
+    else if (token == "ponder")
+    {
+      limits.ponder = 1;
+
+      // 試合開始後、一度でも"go ponder"が送られてきたら、それを記録しておく。
+      ponder_mode = true;
+    }
   }
 
   // goコマンド、デバッグ時に使うが、そのときに"go btime XXX wtime XXX byoyomi XXX"と毎回入力するのが面倒なので
   // デフォルトで1秒読み状態で呼び出されて欲しい。
-  if (limits.byoyomi[BLACK] == 0 && limits.inc[BLACK] == 0)
+  if (limits.byoyomi[BLACK] == 0 && limits.inc[BLACK] == 0 && limits.time[BLACK] == 0)
     limits.byoyomi[BLACK] = limits.byoyomi[WHITE] = 1000;
+
+  limits.ponder_mode = ponder_mode;
 
   Threads.start_thinking(pos, limits, Search::SetupStates);
 }

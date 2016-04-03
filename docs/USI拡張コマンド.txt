@@ -12,17 +12,17 @@ set option name XXX value ...で設定できるoption
 	USI_Ponder		: ponder(相手番での思考) on/off
 	WriteDebugLog   : 標準入出力をファイル("io_log.txt")にリダイレクトする(logコマンドでonには出来る)
 	NetworkDelay    : 通信時の遅延時間[ms]
-				これを例えば400に設定しておくと、秒読み10秒のときに9.7秒で指し手を送信します。
+				これを例えば400に設定しておくと、秒読み10秒のときに9.6秒で指し手を送信します。
 	Contempt        : 引き分けを受け入れるスコア。歩を100とする。例えば、この値を100にすると引き分けの局面は
 	                  評価値が -100とみなされる。(互角と思っている局面であるなら引き分けを選ばずに他の指し手を選ぶ)
 
 	// やねうら王classic、twig、local-game-server時。
 
 	EnteringKingRule: 入玉ルール
-		NoEnteringKing
-		CSARule27
-		CSARule24
-		TryRule
+		NoEnteringKing  : 入玉ルールなし
+		CSARule27       : 27点法(CSAルール)
+		CSARule24       : 24点法。31点で宣言勝ちなので31点にならないと宣言勝ちはしない。
+		TryRule         : トライルール
 
 	// やねうら王classic,twig時
 
@@ -33,8 +33,8 @@ set option name XXX value ...で設定できるoption
 
 	// やねうら王twig時
 
-	MinimumThinkingTime : 最小思考時間。2秒以内に指すと計測1秒となる場合、2000を指定すべき。
-					このとき、NetworkDelayの分は減じて思考する。
+	MinimumThinkingTime : 最小思考時間。2秒以内に指すと計測1秒となる場合、2000を指定すべき。(CSAルールなど)
+					このとき、NetworkDelayの分は減じて思考するので計測1秒となるはず。
 	MaxMovesToDraw      : 終局までの手数。256手ルールなら256と設定する。0なら無制限。
 
 

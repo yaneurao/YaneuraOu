@@ -24,7 +24,7 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 
 ## やねうら王classic 
 
-やねうら王classicは、やねうら王miniのソースコードを改良する形で、Apery(WCSC 2015)ぐらいの強さを目指します。(R3000程度)
+やねうら王classicは、やねうら王miniのソースコードを改良する形で、Apery(WCSC 2015)ぐらいの強さを目指しました。(R3000程度)
 
 ## やねうら王twig
 
@@ -52,15 +52,18 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/04/03 9:00現在)
+#　俺の作業メモ(2016/04/04 9:00現在)
 
-- [ ] ・AperyTwigの評価関数バイナリの読み込みにも対応
+- [ ] ・AperyTwigの評価関数バイナリの読み込みにも対応。
+- [ ] ・local-game-serverに、持ち時間の管理機能入れる。
+- [ ] ・やねうら王2016用の定跡を自動生成する。
 - [ ] ・やねうら王twigに定跡の選択機能入れる。
 
 ※　括弧のなかの+Rは、自己対局時の勝率から計算されるもので、0.5手延長などは顕著に勝率が上がりますが、自己対局以外では効果に乏しいです。
 
+- [x] 2016/04/04・やねうら王twigに持ち時間制御入れる。(+R50)
+- [x] 2016/04/04・やねうら王twigにEasyMoveの判定追加。
 - [x] 2016/04/03・やねうら王twig、終局までの手数に対応。
-- [x] 2016/04/03・やねうら王twigに持ち時間制御入れる。(+R50)
 - [x] 2016/04/03・やねうら王twig、フィッシャールールに対応
 - [x] 2016/04/03・やねうら王twigにponder対応。(+R50)
 - [x] 2016/04/03・思考時間の計算用のクラス追加。
