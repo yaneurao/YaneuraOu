@@ -760,13 +760,16 @@ void test_timeman()
   auto simulate = [](Search::LimitsType limits)
   {
     int delay = Options["NetworkDelay"];
+    int delay2 = Options["NetworkDelay2"];
 
     cout << "initial setting "
       << " time = " << limits.time[BLACK]
       << ", byoyomi = " << limits.byoyomi[BLACK]
       << ", inc = " << limits.inc[BLACK]
       << ", NetworkDelay = " << delay
+      << ", NetworkDelay2 = " << delay2
       << ", max_game_ply = " << limits.max_game_ply
+      << ", rtime = " << limits.rtime
       << endl;
 
     Timer time;
@@ -783,12 +786,14 @@ void test_timeman()
         << " , maximum = " << time.maximum()
         ;
 
-      // optimum分使ったとしてremainから引いてやる。
-      int used_time = time.optimum();
+      // 4回に1回はtime.minimum()ぶんだけ使ったとみなす。残り3回はtime.optimum()だけ使ったとみなす。
+      int used_time = ((ply % 8) == 1) ?  time.minimum() : time.optimum();
       // 1秒未満繰り上げ。ただし、2秒は計測1秒扱い。
       used_time = ((used_time + delay + 999) / 1000) * 1000;
       if (used_time <= 2000)
         used_time = 1000;
+
+      cout << " , used_time = " << used_time;
 
       remain -= used_time;
       if (remain < 0)
@@ -831,6 +836,12 @@ void test_timeman()
   limits.byoyomi[BLACK] = 60 * 1000;
   simulate(limits);
 
+  // 3秒 + inc 3秒のテスト
+  limits.time[BLACK] = 3 * 1000;
+  limits.byoyomi[BLACK] = 0;
+  limits.inc[BLACK] = 3 * 1000;
+  simulate(limits);
+
   // 10分 + inc 10秒のテスト
   limits.time[BLACK] = 10 * 60 * 1000;
   limits.byoyomi[BLACK] = 0;
@@ -842,6 +853,15 @@ void test_timeman()
   limits.byoyomi[BLACK] = 0;
   limits.inc[BLACK] = 10 * 1000;
   simulate(limits);
+
+  /*
+  // rtime = 100のテスト
+  limits.time[BLACK] = 0;
+  limits.byoyomi[BLACK] = 0;
+  limits.inc[BLACK] = 0;
+  limits.rtime = 100;
+  simulate(limits);
+  */
 
 #endif
 }

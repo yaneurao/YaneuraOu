@@ -2,6 +2,56 @@
 やねうら王 更新履歴
 
 
+■　2016/04/04 V2.46
+
+・go ponderなのにbestmove返してる…。修正。
+position startpos moves 7g7f 1c1d 2g2f 7a6b 3g3f 8c8d 2f2e 4a3b 3i4h 8d8e 8h7g 3c3d 7i8h 6c6d 2e2d 2c2d 2h2d 6b6c 6i7h 6c5d 2d3d P*2h 3d2d 2h2i+ 2d2i 2b7g 8h7g 3a2b 5i6h 9c9d P*2d 4c4d B*2c 3b3c 2c5f+ 4d4e 5f6f B*5e 6f5f 6d6e 5f5e 5d5e 2d2c+ 3c2c B*4c 2a1c 4c6e+ 5e4d 6e6f 2c3c P*2c 2b3a 4g4f B*5d 4i3h 4e4f 3h3g 8b6b 3g4f 8e8f 8g8f 6b6f 7g6f B*3h 2i3i 3h2g+ 2c2b+ 3a2b 4f5e 4d5e 6f5e 5d3f S*4g P*3h 4g3f 2g3f 3i2i P*2h 2i2h P*2f 2h3h P*3g 4h3g 3f4g 3h3i N*6e 5e6f 1c2e 3g2f S*3h B*9f 7c7d 3i5i 8a7c 6h7i 4g4h 9f7d G*3a R*8a 4h5i 7d6c+ 5a4b 2f2e 4b3b P*3d R*2i 8a8b+ 3b2a 3d3c+ 5i1e 7i8h 1e3c P*3d 3c6f 6g6f P*3b N*4c 2i2e+ 4c3a+ 2b3a 3d3c+ S*5b 6c5b 6a5b 8b5b S*2b B*4c 2b3c 4c2e+ P*8g 8h8g N*9e 8g9h B*4e R*6a 4e3d 2e3d 3c3d
+go ponder btime 0 wtime 38000 byoyomi 10000
+
+    if (!Limits.mate
+      && bestValue >= VALUE_MATE_IN_MAX_PLY
+      && (VALUE_MATE - bestValue) * 2 < rootDepth)
+-		Signals.stop = true;
++       break;
+
+
+■　2016/04/04 V2.45
+
+・floodgateに投入している版、time upで負けた。
+	勝ちを読みきっているが、将棋所の表示が追いつかずに、将棋所がフリーズしていて、その間の時間ロスで
+	負けてる感じ。これはひどい。
+	mateを読みきったとき、そのmateの倍以上、iterationを回しても仕方ないのでは…。
+
+	position startpos moves 2g2f 4a3b 7g7f 8c8d 2f2e 8d8e 6i7h 8e8f 8g8f 8b8f 2e2d 2c2d 2h2d P*2c 2d2f 8f8b P*8g 7a7b 3i3h 3c3d 1g1f 7c7d 3g3f 7b7c 3h3g 7c6d 4i3h 8a7c 5i5h 6a7b P*2d 2c2d 2f2d 5a5b 3g4f 8b8a 1f1e P*2c 2d3d 2b8h+ 7i8h 4c4d 8h7g 2a3c 3d4d 3a4b P*2d 4b4c B*1f P*3d 4d3d 4c3d 1f3d 5b6b 2d2c+ 3b2c 3d2c+ R*2e P*2g 2e2c S*3d 2c2a 3d3c+ P*2f 2g2f 2a2f G*2g 2f2d P*2f 6d6e 2i3g P*8h 7h8h 7c8e 3g4e 8e7g+ 8i7g 6e5d N*6e 5d4e 4f4e 6c6d 3c3d 2d2b 3d4c 6d6e N*6d 6e6f 6g6f S*6g 5h4h N*7c 6d7b+ 6b7b 4c5c N*7a 1e1d B*6d 1d1c+ 2b2a 1c1b 2a4a 1b1a 4a4e L*8f 8a8f 8g8f 6d5c S*5d S*5i 4h3i S*4h 3i2i L*3g 2g3g 4h3g+ 3h3g 5c2f R*2b N*6b 2b2f+ G*2e L*8d P*8b B*3d 7b8a 5d6c+ 7a6c 3d6a+ S*7a
+	go btime 0 wtime 0 byoyomi 10000
+
+・秒読み10秒として、
+	9.4秒で指すけど、切れ負けの瞬間でないなら、X.8秒ぐらいまで思考するのは有りなのでは…。
+	NetworkDelayMinとNetworkDelayMaxみたいな感じで前者として200、後者として600を指定する、みたいな？
+
+		NetworkDelay    : 通信時の平均遅延時間[ms]
+					これを例えば200に設定しておくと、4.2秒で指さずに、4.8秒(200ms早め)まで考えるようになります。
+		NetworkDelay2   : 通信時の最大置換時間[ms]
+					これを例えば600に設定しておくと秒読み10秒で、切れたら負けという瞬間に限り、9.4秒(600ms早め)に指し手を返します。
+
+	こう変更する。
+
+・exeフォルダにclassic-tce関連のファイル追加。
+
+・goでrtimeが指定されているときにbyoyomiを設定するのまずいのか..修正。
+
+・
+> test timeman
+	そこそこうまく動いているように見える。
+	もっかいfloodgateに投入しておく。
+
+・詰まされている形でiteration回し過ぎ。
+    if (!Limits.mate
+      && bestValue <= VALUE_MATED_IN_MAX_PLY
+      && (bestValue - (-VALUE_MATE)) * 3 > rootDepth)
+      Signals.stop = true;
+
+
 ■　2016/04/04 V2.44
 
 ・あるところから思考時間が倍になったときのレーティング上昇がゆるやかになっていくだろうから、
@@ -14,8 +64,11 @@
 		8-3-14
 		9-1-12
 		5-1-13
+		4-1-3
+		1-0-11
+		3-0-5
 		------
-		22-5-39
+		58-6-88 0.65%
 
 	AperyTwigでR3250ぐらいなので計算合うな。手番入れるとR50-70ぐらい上がるということで…。
 

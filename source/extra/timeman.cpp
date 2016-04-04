@@ -25,11 +25,15 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
   // ネットワークのDelayを考慮して少し減らすべき。
   // かつ、minimumとmaximumは端数をなくすべき
   network_delay = Options["NetworkDelay"];
-  search_end = 0; // このタイミングで初期化しておく。
 
-  int mtt = Options["MinimumThinkingTime"];
-  minimumTime = mtt;
-  int moveOverhead = 30; // Options["Move Overhead"];
+  // 探索終了予定時刻。このタイミングで初期化しておく。
+  search_end = 0;
+
+  // 今回の最大残り時間(これを超えてはならない)
+  remain_time = limits.time[us] + limits.byoyomi[us] - Options["NetworkDelay2"];
+
+  // 最小思考時間
+  minimal_thinking_time = Options["MinimumThinkingTime"];
 
   /*
   // 序盤重視率
@@ -42,9 +46,10 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
   {
     // これが指定されているときは1～3倍の範囲で最小思考時間をランダム化する。
     // 連続自己対戦時に最小思考時間をばらつかせるためのもの。
-    minimumTime = limits.rtime + (int)prng.rand(limits.rtime * 2);
+    minimumTime = optimumTime = maximumTime = limits.rtime + (int)prng.rand(limits.rtime * 2);
+    return;
   }
-
+  
 #if 0
   // npmsecがUSI optionで指定されていれば、時間の代わりに、ここで指定されたnode数をベースに思考を行なう。
   // nodes per milli secondの意味。
@@ -62,8 +67,6 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
   }
 #endif
 
-  optimumTime = maximumTime = std::max(limits.time[us], minimumTime);
-
   // 残り手数
   // plyは開始局面が1。
   // なので、256手ルールとして、max_game_ply == 256
@@ -72,7 +75,7 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
   // これらのときにMTGが1にならないといけない。
   // だから2足しておくのが正解。
   const int MTG = std::min((limits.max_game_ply - ply + 2)/2, MoveHorizon);
-  
+
   if (MTG <= 0)
   {
     // 本来、終局までの最大手数が指定されているわけだから、この条件で呼び出されるはずはないのだが…。
@@ -82,13 +85,23 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
   if (MTG == 1)
   {
     // この手番で終了なので使いきれば良い。
-    minimumTime = optimumTime = maximumTime = limits.time[us] + limits.byoyomi[us];
-    goto CalcDelay;
+    minimumTime = optimumTime = maximumTime = remain_time;
+    return;
   }
-
-  // minimumとoptimumな時間を適当に計算する。
   
+  // minimumとoptimumな時間を適当に計算する。
+
   {
+    // 最小思考時間
+    minimumTime = minimal_thinking_time - network_delay;
+
+    // 最適思考時間と、最大思考時間には、まずは上限値を設定しておく。
+    optimumTime = maximumTime = remain_time;
+
+    // optimumTime = min ( minimumTime + α     , remain_time)
+    // maximumTime = min ( minimumTime + α * 5 , remain_time)
+    // みたいな感じで考える
+
     // 残り手数において残り時間はあとどれくらいあるのか。
     int remain_estimate = limits.time[us]
       + limits.inc[us] * MTG
@@ -121,7 +134,6 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
     optimumTime = std::min(t1, optimumTime);
     maximumTime = std::min(t2, maximumTime);
 
-
     // Ponderが有効になっている場合、ponderhitすると時間が本来の予測より余っていくので思考時間を心持ち多めにとっておく。
     if (limits.ponder_mode)
       optimumTime += optimumTime / 4;
@@ -136,11 +148,10 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
       minimumTime = optimumTime = maximumTime = limits.byoyomi[us] + limits.time[us];
   }
 
-CalcDelay:;
-
-  minimumTime = std::max(mtt - network_delay,round_up(minimumTime));
-  optimumTime = std::max(mtt - network_delay,optimumTime - network_delay);
-  maximumTime = std::max(mtt - network_delay, round_up(maximumTime));
+  // 残り時間 - network_delay2よりは短くしないと切れ負けになる可能性が出てくる。
+  minimumTime = std::min(round_up(minimumTime), remain_time);
+  optimumTime = std::min(optimumTime          , remain_time);
+  maximumTime = std::min(round_up(maximumTime), remain_time);
 
 }
 

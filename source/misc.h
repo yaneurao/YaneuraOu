@@ -107,7 +107,14 @@ struct Timer
   int maximum() const { return maximumTime; }
 
   // 1秒単位で繰り上げてdelayを引く。
-  int round_up(int t) const { return ((t + 999) / 1000) * 1000 - network_delay; }
+  // ただし、remain_timeよりは小さくなるように制限する。
+  int round_up(int t) const {
+    // 1000で繰り上げる。Options["MinimalThinkingTime"]が最低値。
+    t = std::max(((t + 999) / 1000) * 1000 , minimal_thinking_time );
+    // そこから、Options["NetworkDelay"]の値を引くが、remain_timeを上回ってはならない。
+    t = std::min(t - network_delay , remain_time);
+    return t;
+  }
 
   // 探索終了の時間(startTime + search_end >= now()になったら停止)
   // この値がマイナスのときは、startTimeFromPonderhit - (search_end) >= now() になったら停止。
@@ -120,6 +127,11 @@ private:
 
   // Options["NetworkDelay"]の値
   int network_delay;
+  // Options["MinimalThinkingTime"]の値
+  int minimal_thinking_time;
+
+  // 今回の残り時間 - Options["NetworkDelay2"]
+  int remain_time;
 
 #endif
 

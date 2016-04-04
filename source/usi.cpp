@@ -212,8 +212,13 @@ namespace USI
     // cin/coutの入出力をファイルにリダイレクトする
     o["WriteDebugLog"] << Option(false, [](auto& o) { start_logger(o); });
 
-    // ネットワーク遅延時間[ms]
-    o["NetworkDelay"] << Option(400, 0, 10000);
+    // ネットワークの平均遅延時間[ms]
+    // この時間だけ早めに指せばだいたい間に合う。
+    o["NetworkDelay"] << Option(200, 0, 10000);
+
+    // ネットワークの最大遅延時間[ms]
+    // 切れ負けの瞬間だけはこの時間だけ早めに指す。
+    o["NetworkDelay2"] << Option(600, 0, 10000);
 
     // 最小思考時間[ms]
     o["MinimumThinkingTime"] << Option(2000, 0, 100000);
@@ -458,7 +463,7 @@ void go_cmd(const Position& pos, istringstream& is) {
 
   // goコマンド、デバッグ時に使うが、そのときに"go btime XXX wtime XXX byoyomi XXX"と毎回入力するのが面倒なので
   // デフォルトで1秒読み状態で呼び出されて欲しい。
-  if (limits.byoyomi[BLACK] == 0 && limits.inc[BLACK] == 0 && limits.time[BLACK] == 0)
+  if (limits.byoyomi[BLACK] == 0 && limits.inc[BLACK] == 0 && limits.time[BLACK] == 0 && limits.rtime == 0)
     limits.byoyomi[BLACK] = limits.byoyomi[WHITE] = 1000;
 
   limits.ponder_mode = ponder_mode;

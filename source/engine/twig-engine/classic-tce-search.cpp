@@ -1823,6 +1823,20 @@ void Thread::search()
       && VALUE_MATE - bestValue <= Limits.mate)
       Signals.stop = true;
 
+    // 勝ちを読みきっているのに将棋所の表示が追いつかずに、将棋所がフリーズしていて、その間の時間ロスで
+    // 時間切れで負けることがある。
+    // mateを読みきったとき、そのmateの倍以上、iterationを回しても仕方ない気がするので探索を打ち切るようにする。
+    if (!Limits.mate
+      && bestValue >= VALUE_MATE_IN_MAX_PLY
+      && (VALUE_MATE - bestValue) * 2 < rootDepth)
+      break;
+
+    // 詰まされる形についても同様。こちらはmateの3倍以上、iterationを回したなら探索を打ち切る。
+    if (!Limits.mate
+      && bestValue <= VALUE_MATED_IN_MAX_PLY
+      && (bestValue - (-VALUE_MATE)) * 3 > rootDepth)
+      break;
+
     // 残り時間的に、次のiterationに行って良いのか、あるいは、探索をいますぐここでやめるべきか？
     if (Limits.use_time_management())
     {
