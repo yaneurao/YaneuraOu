@@ -759,8 +759,13 @@ void test_timeman()
 
   auto simulate = [](Search::LimitsType limits)
   {
+//    Options["NetworkDelay2"] = "1200";
+
     int delay = Options["NetworkDelay"];
     int delay2 = Options["NetworkDelay2"];
+
+    // 最小思考時間が1秒設定でもうまく動くかな？
+//    Options["MinimumThinkingTime"] = "1000";
 
     cout << "initial setting "
       << " time = " << limits.time[BLACK]
@@ -768,6 +773,7 @@ void test_timeman()
       << ", inc = " << limits.inc[BLACK]
       << ", NetworkDelay = " << delay
       << ", NetworkDelay2 = " << delay2
+      << ", MinimumThinkingTime = " << Options["MinimumThinkingTime"]
       << ", max_game_ply = " << limits.max_game_ply
       << ", rtime = " << limits.rtime
       << endl;
@@ -805,6 +811,8 @@ void test_timeman()
           cout << "\nERROR! TIME OVER!" << endl;
           break;
         }
+        // 秒読み状態なので次回の持ち時間はゼロ。
+        remain = 0;
       }
 
       cout << " , remain = " << remain << endl;

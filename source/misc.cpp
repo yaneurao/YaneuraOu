@@ -9,6 +9,26 @@
 using namespace std;
 
 // --------------------
+//  統計情報
+// --------------------
+
+static int64_t hits[2], means[2];
+
+void dbg_hit_on(bool b) { ++hits[0]; if (b) ++hits[1]; }
+void dbg_mean_of(int v) { ++means[0]; means[1] += v; }
+
+void dbg_print() {
+
+  if (hits[0])
+    cerr << "Total " << hits[0] << " Hits " << hits[1]
+    << " hit rate (%) " << fixed << setprecision(3) << (100.0f * hits[1] / hits[0]) << endl;
+
+  if (means[0])
+    cerr << "Total " << means[0] << " Mean "
+    << (double)means[1] / means[0] << endl;
+}
+
+// --------------------
 //  Timer
 // --------------------
 

@@ -786,6 +786,7 @@ namespace USI {
 
     // USIプロトコル経由で値を設定されたときにそれをcurrentValueに反映させる。
     Option& operator=(const std::string&);
+    Option& operator=(const char* ptr) { return *this = std::string(ptr); };
 
     // 起動時に設定を代入する。
     void operator<<(const Option&);

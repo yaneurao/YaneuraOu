@@ -48,6 +48,23 @@ extern void start_logger(bool b);
 extern int read_all_lines(std::string filename, std::vector<std::string>& lines);
 
 
+
+// --------------------
+//  統計情報
+// --------------------
+
+// 1秒おきにdbg_print()が呼び出される(やねうら王classic-tceなど)とする。
+// このとき、以下の関数を呼び出すと、その統計情報をcerrに出力する。
+
+extern void dbg_print();
+
+// bがtrueであった回数 / dbg_hit_on()が呼び出された回数 を調べるためのもの。
+// (どれくらいの割合でXが成り立つか、みたいなのを調べるときに用いる)
+extern void dbg_hit_on(bool b);
+
+// vの合計 / 呼びだされた回数 ( = vの平均) みたいなのを求めるときに調べるためのもの。
+extern void dbg_mean_of(int v);
+
 // --------------------
 //  Time[ms] wrapper
 // --------------------
@@ -110,7 +127,7 @@ struct Timer
   // ただし、remain_timeよりは小さくなるように制限する。
   int round_up(int t) const {
     // 1000で繰り上げる。Options["MinimalThinkingTime"]が最低値。
-    t = std::max(((t + 999) / 1000) * 1000 , minimal_thinking_time );
+    t = std::max(((t + 999) / 1000) * 1000 , minimum_thinking_time );
     // そこから、Options["NetworkDelay"]の値を引くが、remain_timeを上回ってはならない。
     t = std::min(t - network_delay , remain_time);
     return t;
@@ -128,7 +145,7 @@ private:
   // Options["NetworkDelay"]の値
   int network_delay;
   // Options["MinimalThinkingTime"]の値
-  int minimal_thinking_time;
+  int minimum_thinking_time;
 
   // 今回の残り時間 - Options["NetworkDelay2"]
   int remain_time;

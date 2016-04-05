@@ -270,6 +270,18 @@ namespace YaneuraOuClassicTce
   // 残り時間をチェックして、時間になっていればSignals.stopをtrueにする。
   void check_time()
   {
+    // 1秒ごとにdbg_print()を呼び出す処理。
+    // dbg_print()は、dbg_hit_on()呼び出しによる統計情報を表示する。
+    static TimePoint lastInfoTime = now();
+    TimePoint tick = now();
+
+    // 1秒ごとに
+    if (tick - lastInfoTime >= 1000)
+    {
+      lastInfoTime = tick;
+      dbg_print();
+    }
+
     // ponder中においては、GUIがstopとかponderhitとか言ってくるまでは止まるべきではない。
     if (Limits.ponder)
       return;
@@ -1111,7 +1123,7 @@ namespace YaneuraOuClassicTce
     // 上がって行っているなら枝刈りを甘くする。
     // ※ VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
     //   枝刈りを甘くして調べないといけないのでimproving扱いとする。
-    bool improving = ss->staticEval >= (ss - 2)->staticEval
+    bool improving = (ss    )->staticEval >= (ss - 2)->staticEval
                   || (ss    )->staticEval == VALUE_NONE
                   || (ss - 2)->staticEval == VALUE_NONE;
 
@@ -1236,7 +1248,7 @@ namespace YaneuraOuClassicTce
         &&  pos.legal(move))
       {
         // このmargin値は評価関数の性質に合わせて調整されるべき。
-        Value rBeta = ttValue - 8 * depth / ONE_PLY;
+        Value rBeta = ttValue - 2 * depth / ONE_PLY;
         
         // ttMoveの指し手を以下のsearch()での探索から除外
         ss->excludedMove = move;
@@ -1251,6 +1263,9 @@ namespace YaneuraOuClassicTce
         // 置換表の指し手以外がすべてfail lowしているならsingular延長確定。
         if (value < rBeta)
           extension = ONE_PLY;
+
+        // singular extentionが生じた回数の統計を取ってみる。
+        // dbg_hit_on(extension == ONE_PLY);
       }
 #endif
 

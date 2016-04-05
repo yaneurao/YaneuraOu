@@ -1,6 +1,74 @@
 ﻿
 やねうら王 更新履歴
 
+ToDo
+・定跡の指し手数の制限機能
+・reduction、int(r)にしてしまうとONE_PLY==2にしている意味がないのでは…。
+            reduction_table[pv][imp][d][mc] = int(r) * ONE_PLY;
+
+・singular、1秒の持ち時間で試す。
+
+
+■　2016/04/06 V2.48
+
+・rtime指定しているのにtce版のほうがR50ほど高い。タイマーの判定の問題？
+
+	V2.48a
+
+・秒読み、ゼロ初期化忘れていた。これが送られてこないときにおかしくなっていた。
+
+		LimitsType() {
+	-       nodes = time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = npmsec
+	+       nodes = time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = byoyomi[WHITE] = byoyomi[BLACK] = npmsec
+			 = depth = movetime = mate = infinite = ponder = rtime = 0;
+
+	timeman.cpp
+	+    // remain_timeにもこれを代入しておかないとround_up()が正常に出来なくて困る。
+	-    minimumTime = optimumTime = maximumTime = limits.rtime + (int)prng.rand(limits.rtime * 2);
+	+    remain_time = minimumTime = optimumTime = maximumTime = limits.rtime + (int)prng.rand(limits.rtime * 2);
+
+
+
+■　2016/04/04 V2.47
+
+・singular率、表示させてみる。
+
+・check_time()に統計情報を表示するためのdbg_print()追加する。
+
+        // singular extentionが生じた回数の統計を取ってみる。
+        dbg_hit_on(extension == ONE_PLY);
+
+	とか書くと1秒ごとに統計情報が表示されるようになった。これは便利。
+
+        Value rBeta = ttValue - 8 * depth / ONE_PLY;
+
+	においてsingular率は10%程度のようだ。
+	なんでこれで意味ないんやろか…。わけわからん…。
+
+・定跡抜けたところでいきなり悪くなってる局面ありすぎ。なんなの、この定跡。
+	定跡の指し手、16手ぐらいまでにすべき。
+
+・最小思考時間設定1秒において、Time.minimum()の値がマイナスになっている？修正。
+	・ minimumを間違えて minimalって書いてたの修正。
+	・MinimumThinkingTimeの最小値を1000に変更。
+	・合ってた。Options[".."] = "1000"; って書くとboolの代入になるのか…なにこれ。 
+		Options[".."] = std::string(1000);
+		って書かないといけない。マジか。なんなのこれ。
+
+		怖いからコピーコンストラクタ追加しておく。
+	    Option& operator=(const char* ptr) { return *this = std::string(ptr); };
+
+
+・singular extensionもっと原因を調べる
+・singular率 以下のようにした場合20%程度。
+
+	-        Value rBeta = ttValue - 8 * depth / ONE_PLY;
+	+        Value rBeta = ttValue - 2 * depth / ONE_PLY;
+
+	正しく動いているようだが…。
+
+・floodgate、NetworkDelay2 = 1000ぐらいにしないと切れ負けする。なにこれ。
+
 
 ■　2016/04/04 V2.46
 

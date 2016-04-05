@@ -31,9 +31,11 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 
   // 今回の最大残り時間(これを超えてはならない)
   remain_time = limits.time[us] + limits.byoyomi[us] - Options["NetworkDelay2"];
+  // ここを0にすると時間切れのあと自爆するのでとりあえず100にしておく。
+  remain_time = std::max(remain_time, 100);
 
   // 最小思考時間
-  minimal_thinking_time = Options["MinimumThinkingTime"];
+  minimum_thinking_time = Options["MinimumThinkingTime"];
 
   /*
   // 序盤重視率
@@ -46,7 +48,8 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
   {
     // これが指定されているときは1～3倍の範囲で最小思考時間をランダム化する。
     // 連続自己対戦時に最小思考時間をばらつかせるためのもの。
-    minimumTime = optimumTime = maximumTime = limits.rtime + (int)prng.rand(limits.rtime * 2);
+    // remain_timeにもこれを代入しておかないとround_up()が正常に出来なくて困る。
+    remain_time = minimumTime = optimumTime = maximumTime = limits.rtime + (int)prng.rand(limits.rtime * 2);
     return;
   }
   
@@ -92,8 +95,8 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
   // minimumとoptimumな時間を適当に計算する。
 
   {
-    // 最小思考時間
-    minimumTime = minimal_thinking_time - network_delay;
+    // 最小思考時間(これが1000より短く設定されることはないはず..)
+    minimumTime = std::max(minimum_thinking_time - network_delay, 1000);
 
     // 最適思考時間と、最大思考時間には、まずは上限値を設定しておく。
     optimumTime = maximumTime = remain_time;
@@ -110,7 +113,7 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 
     // 1秒ずつは絶対消費していくねんで！
     remain_estimate -= (MTG + 1) * 1000;
-    remain_estimate = std::max(0, remain_estimate);
+    remain_estimate = std::max(remain_estimate , 0);
 
     // -- optimumTime
     int t1 = minimumTime + remain_estimate / MTG;

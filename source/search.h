@@ -47,7 +47,7 @@ namespace Search {
 
     // PODでない型をmemsetでゼロクリアするとMSVCは破壊してしまうので明示的に初期化する。
     LimitsType() {
-       nodes = time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = npmsec
+       nodes = time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = byoyomi[WHITE] = byoyomi[BLACK] = npmsec
          = depth = movetime = mate = infinite = ponder = rtime = 0;
        silent = false;
        max_game_ply = 100000;
