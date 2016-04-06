@@ -158,8 +158,8 @@ inline Value value_to_tt(Value v, int ply) {
 
   ASSERT_LV3(-VALUE_INFINITE < v && v < VALUE_INFINITE);
 
-  return  v >= VALUE_MATE_IN_MAX_PLY ? v + ply
-    : v <= VALUE_MATED_IN_MAX_PLY ? v - ply : v;
+  return  v >= VALUE_KNOWN_WIN_IN_MAX_PLY ? v + ply
+    : v <= VALUE_KNOWN_LOSE_IN_MAX_PLY    ? v - ply : v;
 }
 
 // value_to_tt()の逆関数
@@ -167,8 +167,8 @@ inline Value value_to_tt(Value v, int ply) {
 inline Value value_from_tt(Value v, int ply) {
 
   return  v == VALUE_NONE ? VALUE_NONE
-    : v >= VALUE_MATE_IN_MAX_PLY ? v - ply
-    : v <= VALUE_MATED_IN_MAX_PLY ? v + ply : v;
+    : v >= VALUE_KNOWN_WIN_IN_MAX_PLY  ? v - ply
+    : v <= VALUE_KNOWN_LOSE_IN_MAX_PLY ? v + ply : v;
 }
 
 // PV lineをコピーする。

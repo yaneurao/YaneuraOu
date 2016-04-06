@@ -88,6 +88,7 @@ struct StateInfo {
   int continuousCheck[COLOR_NB];
 
   // ---- ここから下のやつは do_move()のときにコピーされない
+  // ※　ただし、do_null_move()のときは丸ごとコピーされる。
 
   // 現局面で手番側に対して王手をしている駒のbitboard。Position::do_move()で更新される。
   Bitboard checkersBB;

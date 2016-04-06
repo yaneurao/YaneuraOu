@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "2.46"
+#define ENGINE_VERSION "2.50"
 
 // --------------------
 // コンパイル時の設定
@@ -344,9 +344,6 @@ enum Value : int32_t
 {
   VALUE_ZERO = 0,
 
-  // 千日手による優等局面への突入。
-  VALUE_KNOWN_WIN = 30000,
-
   // 1手詰めのスコア(例えば、3手詰めならこの値より2少ない)
   VALUE_MATE = 32000,
 
@@ -357,8 +354,12 @@ enum Value : int32_t
   VALUE_NONE = 32002,
 
   VALUE_MATE_IN_MAX_PLY =   int(VALUE_MATE) - MAX_PLY,   // MAX_PLYでの詰みのときのスコア。
-  VALUE_MATED_IN_MAX_PLY = -int(VALUE_MATE) + MAX_PLY, // MAX_PLYで詰まされるときのスコア。
+  VALUE_MATED_IN_MAX_PLY =  -int(VALUE_MATE_IN_MAX_PLY), // MAX_PLYで詰まされるときのスコア。
   
+  // 千日手による優等局面への突入したときのスコア
+  VALUE_KNOWN_WIN            = int(VALUE_MATE_IN_MAX_PLY) - 1,
+  VALUE_KNOWN_WIN_IN_MAX_PLY = int(VALUE_KNOWN_WIN) - MAX_PLY,
+  VALUE_KNOWN_LOSE_IN_MAX_PLY = -int(VALUE_KNOWN_WIN_IN_MAX_PLY),
 };
 
 // ply手で詰ませるときのスコア

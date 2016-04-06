@@ -37,11 +37,14 @@ using namespace Eval;
 void USI::extra_option(USI::OptionsMap & o)
 {
   // 
-  //   定跡
+  //   定跡設定
   //
 
   // 実現確率の低い狭い定跡を選択しない
   o["NarrowBook"] << Option(false);
+
+  // 定跡の指し手を何手目まで用いるか
+  o["BookMoves"] << Option(16, 0, 1000);
 
   //
   //   パラメーターの外部からの自動調整
@@ -219,20 +222,27 @@ namespace YaneuraOuClassicTce
     //   historyのupdate
 
     // depthの二乗に比例したbonusをhistory tableに加算する。
-    Value bonus = Value((int)depth*(int)depth / ((int)ONE_PLY*(int)ONE_PLY) + (int)depth / (int)ONE_PLY + 1);
+    Value bonus = Value((int)(depth / ONE_PLY) * (depth / ONE_PLY) + depth / ONE_PLY - 1);
 
-    // 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
+    // 直前に移動させた升と駒
     Square prevSq = move_to((ss - 1)->currentMove);
+    Piece prevPc = pos.moved_piece((ss - 1)->currentMove);
+
+    // 2手前に移動させた升とその駒
+    //その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
+    
     Square ownPrevSq = move_to((ss - 2)->currentMove);
-    auto& cmh = CounterMoveHistory[prevSq][pos.piece_on(prevSq)];
-    auto& fmh = CounterMoveHistory[ownPrevSq][pos.piece_on(ownPrevSq)];
+    Piece ownPrevPc = pos.moved_piece((ss - 2)->currentMove);
+
+    auto& cmh = CounterMoveHistory[prevSq][prevPc];
+    auto& fmh = CounterMoveHistory[ownPrevSq][ownPrevPc];
 
     auto thisThread = pos.this_thread();
     thisThread->history.update(pos.moved_piece(move), move_to(move), bonus);
 
     if (is_ok((ss - 1)->currentMove))
     {
-      thisThread->counterMoves.update(pos.piece_on(prevSq), prevSq, move);
+      thisThread->counterMoves.update(prevPc, prevSq, move);
       cmh.update(pos.moved_piece(move), move_to(move), bonus);
     }
 
@@ -259,11 +269,8 @@ namespace YaneuraOuClassicTce
       && !pos.captured_piece_type()
       && is_ok((ss - 2)->currentMove))
     {
-      // 直前がcaptureではないから、2手前に動かした駒は捕獲されずに盤上にあるはずであり、
-      // その升の駒を盤から取り出すことが出来る。
-      auto prevPrevSq = move_to((ss - 2)->currentMove);
-      auto& prevCmh = CounterMoveHistory[prevPrevSq][pos.piece_on(prevPrevSq)];
-      prevCmh.update(pos.piece_on(prevSq), prevSq, -bonus - 2 * (depth + 1) / ONE_PLY);
+      auto& prevCmh = CounterMoveHistory[ownPrevSq][ownPrevPc];
+      prevCmh.update(prevPc, prevSq, -bonus - 2 * (depth + 1) / ONE_PLY);
     }
   }
 
@@ -371,14 +378,14 @@ namespace YaneuraOuClassicTce
 
     // 連続王手による千日手、および通常の千日手、優等局面・劣等局面。
 
+    // 詰みのスコアに対して、rootからの手数を考慮したスコアに変換する必要があるので、
+    // value_from_tt()で変換してから返すのが正解。
+
     auto draw_type = pos.is_repetition();
     if (draw_type != REPETITION_NONE)
       return value_from_tt(draw_value(draw_type, pos.side_to_move()),ss->ply);
 
-    // 詰みのスコアに対して、rootからの手数を考慮したスコアに変換する必要があるので、
-    // value_from_ttで変換してから返すのが正解。
-
-    if (ss->ply >= MAX_PLY)
+    if (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
       return value_from_tt(draw_value(REPETITION_DRAW, pos.side_to_move()),ss->ply);
 
     // -----------------------
@@ -553,11 +560,12 @@ namespace YaneuraOuClassicTce
       // 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
       if (!InCheck
         && !givesCheck
-        &&  futilityBase > -VALUE_KNOWN_WIN)
+        &&  futilityBase > -VALUE_KNOWN_WIN_IN_MAX_PLY)
       {
-        // moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになるのだが…。
+        // moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになる。
 
-        Value futilityValue = futilityBase + (Value)PieceValueCapture[pos.piece_on(move_to(move))];
+        Value futilityValue = futilityBase + (Value)PieceValueCapture[pos.piece_on(move_to(move))]
+          + (is_promote(move) ? (Value)ProDiffPieceValue[pos.moved_piece(move)]  : VALUE_ZERO) ;
 
         // futilityValueは今回捕獲するであろう駒の価値の分を上乗せしているのに
         // それでもalpha値を超えないというとってもひどい指し手なので枝刈りする。
@@ -588,7 +596,7 @@ namespace YaneuraOuClassicTce
         && !pos.capture(move);
 
       if (  (!InCheck || evasionPrunable)
-          &&  !(move & MOVE_PROMOTE)
+          &&  !is_promote(move)
           &&  pos.see_sign(move) < VALUE_ZERO)
           continue;
 
@@ -774,7 +782,7 @@ namespace YaneuraOuClassicTce
         return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 
       // 最大手数を超えている、もしくは停止命令が来ている。
-      if (Signals.stop.load(std::memory_order_relaxed) || ss->ply >= MAX_PLY)
+      if (Signals.stop.load(std::memory_order_relaxed) || ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
         return value_from_tt(draw_value(REPETITION_DRAW, pos.side_to_move()),ss->ply);
 
       // -----------------------
@@ -882,8 +890,10 @@ namespace YaneuraOuClassicTce
 
     CheckInfoUpdate ciu = CHECK_INFO_UPDATE_NONE;
 
+#ifdef USE_MATE_1PLY
+
     // RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
-    // 置換表にhitしたときも1手詰め判定は行われていると思われるのでこの場合もはしょる。
+    // 置換表にhitしたときも1手詰め判定はすでに行われていると思われるのでこの場合もはしょる。
     // depthの残りがある程度ないと、1手詰めはどうせこのあとすぐに見つけてしまうわけで1手詰めを
     // 見つけたときのリターン(見返り)が少ない。
     if (!RootNode && !ttHit && depth > ONE_PLY && !InCheck)
@@ -892,7 +902,6 @@ namespace YaneuraOuClassicTce
       pos.check_info_update_pinned();
       ciu = CHECK_INFO_UPDATE_PINNED; // pinnedのupdateだけ終わったとマークしておく。
 
-#ifdef USE_MATE_1PLY
       bestMove = pos.mate1ply();
       if (bestMove != MOVE_NONE)
       {
@@ -903,8 +912,8 @@ namespace YaneuraOuClassicTce
 
         return bestValue;
       }
-#endif
     }
+#endif
 
     // -----------------------
     //  局面を評価値によって静的に評価
@@ -993,7 +1002,7 @@ namespace YaneuraOuClassicTce
     if (!RootNode
       &&  depth < 7 * ONE_PLY
       &&  eval - futility_margin(depth, pos.game_ply()) >= beta
-      &&  eval < VALUE_KNOWN_WIN) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
+      &&  eval < VALUE_KNOWN_WIN_IN_MAX_PLY) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
       return eval - futility_margin(depth, pos.game_ply());
 
     //
@@ -1033,7 +1042,7 @@ namespace YaneuraOuClassicTce
         if (nullValue >= VALUE_MATE_IN_MAX_PLY)
           nullValue = beta;
 
-        if (depth < 12 * ONE_PLY && abs(beta) < VALUE_KNOWN_WIN)
+        if (depth < 12 * ONE_PLY && abs(beta) < VALUE_KNOWN_WIN_IN_MAX_PLY)
           return nullValue;
 
         // nullMoveせずに(現在のnodeと同じ手番で)同じ深さで探索しなおして本当にbetaを超えるか検証する。cutNodeにしない。
@@ -1114,11 +1123,6 @@ namespace YaneuraOuClassicTce
 
   MOVES_LOOP:
 
-    // 現局面での手番
-//    auto us = pos.side_to_move();
-
-    // value = bestValue; // gccの初期化されていないwarningの抑制
-
     // 評価値が2手前の局面から上がって行っているのかのフラグ
     // 上がって行っているなら枝刈りを甘くする。
     // ※ VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
@@ -1132,7 +1136,7 @@ namespace YaneuraOuClassicTce
       &&  depth >= 10 * ONE_PLY // Stockfish , Apreyは、8 * ONE_PLY
       &&  ttMove != MOVE_NONE
       /*  &&  ttValue != VALUE_NONE これは次行の条件に暗に含まれている */
-      &&  abs(ttValue) < VALUE_KNOWN_WIN
+      &&  abs(ttValue) < VALUE_KNOWN_WIN_IN_MAX_PLY
       && !excludedMove // 再帰的なsingular延長はすべきではない
       && (tte->bound() & BOUND_LOWER)
       && tte->depth() >= depth - 3 * ONE_PLY;
@@ -1149,16 +1153,17 @@ namespace YaneuraOuClassicTce
     // 親nodeでの指し手でのtoの升
     auto prevSq = move_to((ss - 1)->currentMove);
     // その升へ移動させた駒
-    auto prevPc = pos.piece_on(prevSq);
+    auto prevPc = pos.moved_piece((ss -1)->currentMove);
     // 親nodeの親nodeの指し手でのtoの升
     auto ownPrevSq = move_to((ss - 2)->currentMove);
+    auto ownPrevPc = pos.moved_piece((ss - 2)->currentMove);
 
     // toの升に駒pcを動かしたことに対する応手
     auto cm = thisThread->counterMoves[prevSq][prevPc];
 
     // counter history
     const auto& cmh = CounterMoveHistory[prevSq][prevPc];
-    const auto& fmh = CounterMoveHistory[ownPrevSq][pos.piece_on(ownPrevSq)];
+    const auto& fmh = CounterMoveHistory[ownPrevSq][ownPrevPc];
     // 2手前のtoの駒、1手前の指し手によって捕獲されている場合があるが、それはcaptureであるから
     // ここでは対象とならない…はず…。
 
@@ -1248,8 +1253,9 @@ namespace YaneuraOuClassicTce
         &&  pos.legal(move))
       {
         // このmargin値は評価関数の性質に合わせて調整されるべき。
-        Value rBeta = ttValue - 2 * depth / ONE_PLY;
-        
+//        Value rBeta = ttValue - 2 * depth / ONE_PLY;
+        Value rBeta = ttValue - 8 * depth / ONE_PLY;
+
         // ttMoveの指し手を以下のsearch()での探索から除外
         ss->excludedMove = move;
         ss->skipEarlyPruning = true;
@@ -1356,12 +1362,14 @@ namespace YaneuraOuClassicTce
       // moveCountが大きいものなどは探索深さを減らしてざっくり調べる。
       // alpha値を更新しそうなら(fail highが起きたら)、full depthで探索しなおす。
 
-      if (depth >= 3 * ONE_PLY && moveCount > 1 && !captureOrPromotion)
+      if (depth >= 3 * ONE_PLY
+        && moveCount > 1
+        && !captureOrPromotion)
       {
         // Reduction量
         Depth r = reduction<PvNode>(improving, depth, moveCount);
-        Value hValue = thisThread->history[move_to(move)][pos.piece_on(move_to(move))];
-        Value cmhValue = cmh[move_to(move)][pos.piece_on(move_to(move))];
+        Value hValue = thisThread->history[move_to(move)][pos.moved_piece(move)];
+        Value cmhValue = cmh[move_to(move)][pos.moved_piece(move)];
 
         // cut nodeや、historyの値が悪い指し手に対してはreduction量を増やす。
         if ((!PvNode && cutNode)
@@ -1460,6 +1468,9 @@ namespace YaneuraOuClassicTce
           for (Move* m = (ss+1)->pv; *m != MOVE_NONE; ++m)
             rm.pv.push_back(*m);
 
+          if (moveCount > 1 && thisThread == Threads.main())
+            ++static_cast<MainThread*>(thisThread)->bestMoveChanges;
+
         } else {
 
           // root nodeにおいてα値を更新しなかったのであれば、この指し手のスコアを-VALUE_INFINITEにしておく。
@@ -1479,6 +1490,16 @@ namespace YaneuraOuClassicTce
 
         if (value > alpha)
         {
+          // 不安定なnodeにおいてeasy moveをクリアする。
+          // ※　　posKeyは、excludedMoveが指定されていると本来のkeyとは異なることになるが、それは
+          // singular extensionのときにしか関係なくて、singular extensionは深いdepthでしかやらないので、
+          // EasyMove.get()で返す2手目のkeyには影響を及ぼさない。
+          if (PvNode
+            &&  thisThread == Threads.main()
+            && EasyMove.get(posKey)
+            && (move != EasyMove.get(posKey) || moveCount > 1))
+            EasyMove.clear();
+
           bestMove = move;
 
           // fail highのときにもPVをupdateする。
@@ -1528,11 +1549,10 @@ namespace YaneuraOuClassicTce
       && is_ok((ss - 2)->currentMove))
     {
       // 残り探索depthの3乗ぐらいのボーナスを与えてもええやろ。
-      // Valueはint32なのでdepthが256までだから、3乗してもオーバーフローはすぐにはしない。
-      Value bonus = Value(((int)depth * (int)depth * (int)depth) / ((int)ONE_PLY*(int)ONE_PLY*(int)ONE_PLY) - 1);
-      auto prevPrevSq = move_to((ss - 2)->currentMove);
-      auto& prevCmh = CounterMoveHistory[prevPrevSq][pos.piece_on(prevPrevSq)];
-      prevCmh.update(pos.piece_on(prevSq), prevSq, bonus);
+      Value bonus = Value((int)(depth / ONE_PLY) * (depth / ONE_PLY) + depth / ONE_PLY - 1);
+
+      auto& prevCmh = CounterMoveHistory[ownPrevSq][ownPrevPc];
+      prevCmh.update(prevPc, prevSq, bonus);
     }
 
     // -----------------------
@@ -1960,57 +1980,64 @@ void MainThread::think()
   // ---------------------
 
   {
-    auto it = book.find(rootPos.sfen());
-    if (it != book.end() && it->second.size()!=0) {
-      // 定跡にhitした。逆順で出力しないと将棋所だと逆順にならないという問題があるので逆順で出力する。
-      // また、it->second->size()!=0をチェックしておかないと指し手のない定跡が登録されていたときに困る。
-      const auto& move_list = it->second;
-      if (!Limits.silent)
-        for (auto it = move_list.rbegin(); it != move_list.rend(); it++)
-          sync_cout << "info pv " << it->bestMove << " " << it->nextMove
+    // 定跡を用いる手数
+    int book_ply = Options["BookMoves"];
+    if (book_ply == 0)
+      book_ply = INT_MAX;
+    if (rootPos.game_ply() <= book_ply)
+    {
+      auto it = book.find(rootPos.sfen());
+      if (it != book.end() && it->second.size() != 0) {
+        // 定跡にhitした。逆順で出力しないと将棋所だと逆順にならないという問題があるので逆順で出力する。
+        // また、it->second->size()!=0をチェックしておかないと指し手のない定跡が登録されていたときに困る。
+        const auto& move_list = it->second;
+        if (!Limits.silent)
+          for (auto it = move_list.rbegin(); it != move_list.rend(); it++)
+            sync_cout << "info pv " << it->bestMove << " " << it->nextMove
             << " (" << fixed << setprecision(2) << (100 * it->prob) << "%)" // 採択確率
             << " score cp " << it->value << " depth " << it->depth << sync_endl;
 
-      // このなかの一つをランダムに選択
-      // 無難な指し手が選びたければ、採択回数が一番多い、最初の指し手(move_list[0])を選ぶべし。
+        // このなかの一つをランダムに選択
+        // 無難な指し手が選びたければ、採択回数が一番多い、最初の指し手(move_list[0])を選ぶべし。
 
-      // 狭い定跡を用いるのか？
-      bool narrowBook = Options["NarrowBook"];
-      size_t book_move_max = move_list.size();
-      if (narrowBook)
-      {
-        // 出現確率10%未満のものを取り除く。
-        for (int i = 0; i < move_list.size();++i)
+        // 狭い定跡を用いるのか？
+        bool narrowBook = Options["NarrowBook"];
+        size_t book_move_max = move_list.size();
+        if (narrowBook)
         {
-          if (move_list[i].prob < 0.1)
+          // 出現確率10%未満のものを取り除く。
+          for (int i = 0; i < move_list.size(); ++i)
           {
-            book_move_max = (size_t) max(i,1);
-            // 定跡から取り除いたことをGUIに出力
-            if (!Limits.silent)
-              sync_cout << "info string narrow book moves to " << book_move_max << " moves " <<  sync_endl;
-            break;
+            if (move_list[i].prob < 0.1)
+            {
+              book_move_max = (size_t)max(i, 1);
+              // 定跡から取り除いたことをGUIに出力
+              if (!Limits.silent)
+                sync_cout << "info string narrow book moves to " << book_move_max << " moves " << sync_endl;
+              break;
+            }
           }
         }
-      }
 
-      // 不成の指し手がRootMovesに含まれていると正しく指せない。
-      const auto& move = move_list[prng.rand(book_move_max)];
-      auto bestMove = move.bestMove;
-      auto it_move = std::find(rootMoves.begin(), rootMoves.end(),bestMove);
-      if (it_move != rootMoves.end())
-      {
-        std::swap(rootMoves[0], *it_move);
-
-        // 2手目の指し手も与えないとponder出来ない。
-        if (move.nextMove != MOVE_NONE)
+        // 不成の指し手がRootMovesに含まれていると正しく指せない。
+        const auto& move = move_list[prng.rand(book_move_max)];
+        auto bestMove = move.bestMove;
+        auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
+        if (it_move != rootMoves.end())
         {
-          if (rootMoves[0].pv.size() <= 1)
-            rootMoves[0].pv.push_back(MOVE_NONE);
-          rootMoves[0].pv[1] = move.nextMove; // これが合法手でなかったら将棋所が弾くと思う。
+          std::swap(rootMoves[0], *it_move);
+
+          // 2手目の指し手も与えないとponder出来ない。
+          if (move.nextMove != MOVE_NONE)
+          {
+            if (rootMoves[0].pv.size() <= 1)
+              rootMoves[0].pv.push_back(MOVE_NONE);
+            rootMoves[0].pv[1] = move.nextMove; // これが合法手でなかったら将棋所が弾くと思う。
+          }
+          goto ID_END;
         }
-        goto ID_END;
+        // 合法手のなかに含まれていなかったので定跡の指し手は指さない。
       }
-      // 合法手のなかに含まれていなかったので定跡の指し手は指さない。
     }
   }
 

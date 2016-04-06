@@ -18,7 +18,7 @@ set option name XXX value ...で設定できるoption
 	Contempt        : 引き分けを受け入れるスコア。歩を100とする。例えば、この値を100にすると引き分けの局面は
 	                  評価値が -100とみなされる。(互角と思っている局面であるなら引き分けを選ばずに他の指し手を選ぶ)
 
-	// やねうら王classic、twig、local-game-server時。
+	// やねうら王classic、tce、local-game-server時。
 
 	EnteringKingRule: 入玉ルール
 		NoEnteringKing  : 入玉ルールなし
@@ -26,18 +26,20 @@ set option name XXX value ...で設定できるoption
 		CSARule24       : 24点法。31点で宣言勝ちなので31点にならないと宣言勝ちはしない。
 		TryRule         : トライルール
 
-	// やねうら王classic,twig時
+	// やねうら王classic,tce時
 
 	MultiPV         : その局面での上位N個の候補手を調べる機能
 	NarrowBook		: 実現確率の低い定跡を採用しない
 	Param1			: パラメーターの自動調整用X軸
 	Param2			: パラメーターの自動調整用Y軸
 
-	// やねうら王twig時
+	// やねうら王tce時
 
 	MinimumThinkingTime : 最小思考時間。2秒以内に指すと計測1秒となる場合、2000を指定すべき。(CSAルールなど)
 					このとき、NetworkDelayの分は減じて思考するので計測1秒となるはず。
 	MaxMovesToDraw      : 終局までの手数。256手ルールなら256と設定する。0なら無制限。
+
+	BookMoves		: 定跡を用いる手数(0=未使用)
 
 
 	// 協力詰めsolver時
