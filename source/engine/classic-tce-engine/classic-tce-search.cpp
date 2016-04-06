@@ -44,7 +44,7 @@ void USI::extra_option(USI::OptionsMap & o)
   o["NarrowBook"] << Option(false);
 
   // 定跡の指し手を何手目まで用いるか
-  o["BookMoves"] << Option(16, 0, 1000);
+  o["BookMoves"] << Option(16, 0, 10000);
 
   //
   //   パラメーターの外部からの自動調整
@@ -1229,7 +1229,7 @@ namespace YaneuraOuClassicTce
       // Singular extension search.
       //
 
-#if 0
+#if 1
       // (alpha-s,beta-s)の探索(sはマージン値)において1手以外がすべてfail lowして、
       // 1手のみが(alpha,beta)においてfail highしたなら、指し手はsingularであり、延長されるべきである。
       // これを調べるために、ttMove以外の探索深さを減らして探索して、
@@ -1985,8 +1985,6 @@ void MainThread::think()
   {
     // 定跡を用いる手数
     int book_ply = Options["BookMoves"];
-    if (book_ply == 0)
-      book_ply = INT_MAX;
     if (rootPos.game_ply() <= book_ply)
     {
       auto it = book.find(rootPos.sfen());
