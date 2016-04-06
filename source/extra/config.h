@@ -107,6 +107,10 @@
 // TimeMangementクラスに、今回の思考時間を計算する機能を追加するか。
 // #define USE_TIME_MANAGEMENT
 
+// MovePickerのなかで使っているCounterMoveにおいて、移動させる駒種も含めるか。
+// (これを含めると同じ移動をする別の駒をCounterMoveとしてみなさなくなり、ちょっと枝刈り性能が上がるはず)
+#define KEEP_PIECE_IN_COUNTER_MOVE
+
 // --------------------
 // release configurations
 // --------------------
@@ -166,6 +170,7 @@
 #define MATE_1PLY
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
+#define KEEP_PIECE_IN_COUNTER_MOVE
 #endif
 
 #ifdef YANEURAOU_2016_ENGINE
@@ -330,6 +335,20 @@ const bool Is64Bit = true;
 const bool Is64Bit = false;
 #endif
 
+
+// --- Counter Move
+
+// KEEP_PIECE_IN_COUNTER_MOVEがdefineされていたなら、
+// 移動させた駒を上位16bitに格納しておく。
+// bit24...16 = 移動させた駒(Piece。後手の駒含む)
+// bit15... 0 = 本来のMove
+
+#ifdef KEEP_PIECE_IN_COUNTER_MOVE
+typedef uint32_t Move32;
+#define COUNTER_MOVE Move32
+#else
+#define COUNTER_MOVE Move 
+#endif
 
 // --- Long Effect Library
 

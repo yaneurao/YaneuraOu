@@ -2,27 +2,88 @@
 やねうら王 更新履歴
 
 ToDo
-・定跡の指し手数の制限機能
-・counterの指し手、移動させる駒種入れるとどうか。
+・定跡16手までに制限してfloodgateに投入しておく。
 ・reduction、int(r)にしてしまうとONE_PLY==2にしている意味がないのでは…。
 > reduction_table[pv][imp][d][mc] = int(r) * ONE_PLY;
 
 
+■　2016/04/06 V2.53
+
+・counterの指し手、移動させる駒種入れるとどうか。
+
+	+	// MovePickerのなかで使っているCounterMoveにおいて、移動させる駒種も含めるか。
+	+	// (これを含めると同じ移動をする別の駒をCounterMoveとしてみなさなくなり、ちょっと枝刈り性能が上がるはず)
+	+	#define KEEP_PIECE_IN_COUNTER_MOVE
+
+・これに伴い、config.hに
+	KEEP_PIECE_IN_COUNTER_MOVE
+	追加。
+
+	いやー、これをやるならkillerもやらないといけないのか..
+	効果があるようなら考えるか..
+
+・MovePickerでkillerの指し手もチェックするように。
+
+	#ifdef KEEP_PIECE_IN_COUNTER_MOVE
+        Move32 m = (Move32)*currentMoves;
+        move = (Move)m;
+        // 移動させる駒種が一致するかを確認する。
+        if (!is_drop(move)
+          && pos.piece_on(move_from(move)) != (Piece)(m >> 16))
+          break;
+	#else
+			move = *currentMoves++;
+	#endif
+
+・これに伴い、Position::pseudo_legalのほう、簡略化。
+
+	→　R150も下がった。何かバグっている…。
+
+-	          && make_move32(move) != (Move)ss->killers[0]
++	          && make_move32(move) != ss->killers[0]
+	これかな？
+	→　勝率、まともになった気がする。
+	互角ぐらいのようなのでしばらく放置。
+	
+		49.7%	
+		#124
+		やねうら王classic-tce V253a
+		counter moveにpiece入れる, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V252
+		piece_on()→moved_piece(), 1スレッド、0.1秒設定
+
+		214-38-217(57.6% R-2.4)	
+
+	ほぼ互角。
+
+
 ■　2016/04/06 V2.52
 
-・historyなどの指し手で、piece_on()ではなく、moved_piece()で判定しなといけない。(駒打ちのときにおかしくなっている)　修正。
-
-	例)
-	-    auto& cmh = CounterMoveHistory[prevSq][pos.piece_on(prevSq)];
-	+    auto& cmh = CounterMoveHistory[prevSq][pos.moved_piece(prevSq)];
-
-	piece_on()、captureされる駒以外に使ってるところ全部修正。
-	とりあえず、弱くなっていなければok。
+・historyなどの指し手で、以前の指し手以外はpiece_on()ではなく、moved_piece()で判定しないといけない。(駒打ちのときにおかしくなっている)　修正。
+	→　合ってた？
+	→　下手に変更すると実行時間が余計にかかるようになって弱くなる。
 
 ・定跡を採用する手数制限が出来るようにする。
 	BookMoves のオプション追加。
 
-・定跡16手までに制限してfloodgateに投入しておく。
+・tceエンジン、フォルダ変更してなかった。
+
+・何か弱くなっている気がするのでrollbackする。
+	3乗bonus、ONE_PLYで割りながらにしているのとか、どうも怪しい気がする。
+	→　なんかこのへん怪しい。bonus、慎重に調整すべき。
+	
+		52.1%	
+		#122
+		やねうら王classic-tce V252
+		piece_on()→moved_piece(), 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V251
+		bestMoveChanged修正, 1スレッド、0.1秒設定
+
+		596-93-548(7.8% R14.6)	
+
+	今度は弱くなってなかった。よしよし。
 
 
 ■　2016/04/06 V2.51

@@ -534,6 +534,11 @@ struct ExtMove {
 
   operator Move() const { return move; }
   void operator=(Move m) { move = m; }
+
+#ifdef KEEP_PIECE_IN_COUNTER_MOVE
+  // killerやcounter moveを32bit(Move32)で扱うときに、無理やりExtMoveに代入するためのhack
+  void operator=(Move32 m) { *(Move32*)this = m; }
+#endif
 };
 
 // ExtMoveの並べ替えを行なうので比較オペレーターを定義しておく。

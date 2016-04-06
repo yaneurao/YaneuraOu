@@ -333,13 +333,10 @@ struct Position
   // ※　置換表の検査だが、pseudo_legal()で擬似合法手かどうかを判定したあとlegal()で自殺手でないことを
   // 確認しなくてはならない。このためpseudo_legal()とlegal()とで重複する自殺手チェックはしていない。
   // 注意 : 事前にcheck_info_update()が呼び出されていること。
-  bool pseudo_legal(const Move m) const { return pseudo_legal_s<true,false>(m); }
+  bool pseudo_legal(const Move m) const { return pseudo_legal_s<true>(m); }
 
   // All == false        : 歩や大駒の不成に対してはfalseを返すpseudo_legal()
-  // CounterMove == true : CounterMoveでは先後の指し手を区別していないので先手(後手)の指し手として後手(先手)の指し手が混じることがある。
-  //    例) 2段目への先手の桂打ち。
-  // これをチェックするモード
-  template <bool All , bool CounterMove > bool pseudo_legal_s(const Move m) const;
+  template <bool All> bool pseudo_legal_s(const Move m) const;
 
   // toの地点に歩を打ったときに打ち歩詰めにならないならtrue。
   // 歩をtoに打つことと、二歩でないこと、toの前に敵玉がいることまでは確定しているものとする。

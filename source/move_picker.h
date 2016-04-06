@@ -55,7 +55,7 @@ struct Stats {
   void clear() { std::memset(table, 0, sizeof(table)); }
 
   // tableに指し手を格納する。(Tの型がMoveのとき)
-  void update(Piece pc, Square to, Move m)
+  void update(Piece pc, Square to, COUNTER_MOVE m)
   {
     ASSERT_LV4(is_ok(pc));
     ASSERT_LV4(is_ok(to));
@@ -89,7 +89,7 @@ private:
 // TがValueのときは指し手に対するスコアとなる。これがhistory table(HistoryStatsとCounterMoveStats)
 // このStats<CounterMoveStats>は、直前の指し手に対する、あらゆる指し手に対するスコアである。
 
-typedef Stats<Move            > MoveStats;
+typedef Stats<COUNTER_MOVE    > MoveStats;
 typedef Stats<Value, false    > HistoryStats;
 typedef Stats<Value, true     > CounterMoveStats;
 typedef Stats<CounterMoveStats> CounterMoveHistoryStats;
@@ -152,7 +152,7 @@ struct MovePicker
   // 通常探索から呼び出されるとき用。
   MovePicker(const Position& pos_,Move ttMove_,Depth depth_, const HistoryStats& history_,
     const CounterMoveStats& cmh, const CounterMoveStats& fmh,
-    Move counterMove_, Search::Stack*ss_)
+    COUNTER_MOVE counterMove_, Search::Stack*ss_)
     : pos(pos_),history(history_),counterMoveHistory(&cmh), followupMoveHistory(&fmh),
       ss(ss_),counterMove(counterMove_),depth(depth_)
   {
@@ -161,7 +161,7 @@ struct MovePicker
     stage = pos.in_check() ? EVASION_START : MAIN_SEARCH_START;
 
     // 置換表の指し手があるならそれを最初に返す。ただしpseudo_legalでなければならない。
-    ttMove = ttMove_ && pos.pseudo_legal_s<false,false>(ttMove_) ? ttMove_ : MOVE_NONE;
+    ttMove = ttMove_ && pos.pseudo_legal_s<false>(ttMove_) ? ttMove_ : MOVE_NONE;
 
     // 置換表の指し手が引数で渡されていたなら1手生成したことにする。
     // (currentMoves != endMovesであることを、指し手を生成するかどうかの判定に用いている)
@@ -190,7 +190,7 @@ struct MovePicker
     }
 
     // 歩の不成、香の2段目への不成、大駒の不成を除外
-    ttMove = ttMove_ && pos.pseudo_legal_s<false,false>(ttMove_) ? ttMove_ : MOVE_NONE;
+    ttMove = ttMove_ && pos.pseudo_legal_s<false>(ttMove_) ? ttMove_ : MOVE_NONE;
     endMoves += (ttMove != MOVE_NONE);
   }
   
@@ -204,7 +204,7 @@ struct MovePicker
 
     // In ProbCut we generate captures with SEE higher than the given threshold
     ttMove = ttMove_
-      && pos.pseudo_legal_s<false,false>(ttMove_)
+      && pos.pseudo_legal_s<false>(ttMove_)
       && pos.capture(ttMove_)
       && pos.see(ttMove_) > threshold ? ttMove_ : MOVE_NONE;
 
@@ -228,6 +228,8 @@ struct MovePicker
       break;
 
     case KILLERS:
+      // killer,counter moveを32bitで持つとき、ExtMoveの上位に駒種を格納しておき、取り出したときにチェックする。
+      // killerはオーダリングしないのでこれは可能なはず。
       killers[0] = ss->killers[0];
       killers[1] = ss->killers[1];
       killers[2] = counterMove;
@@ -313,10 +315,22 @@ struct MovePicker
         // (直前に置換表の指し手を返しているし、CAPTURES_PRO_PLUSでの指し手も返しているのでそれらの指し手は除外されるべき)
         // また、killerの3つ目はcounter moveでこれは先後の区別がないのでpseudo_legal_s<X,true>()を呼び出す必要がある。
       case KILLERS:
+#ifdef KEEP_PIECE_IN_COUNTER_MOVE
+        {
+          Move32 move32 = *(Move32*)currentMoves++;
+          move = (Move)move32;
+          // 移動させる駒種が一致するかを確認する。
+          if (!is_drop(move)
+            && pos.piece_on(move_from(move)) != (Piece)(move32 >> 16))
+            break;
+        }
+#else
         move = *currentMoves++;
+#endif
+
         if (move != MOVE_NONE                       // ss->killer[0],[1]からコピーしただけなのでMOVE_NONEの可能性がある
           &&  move != ttMove                        // 置換表の指し手を重複除去しないといけない
-          &&  pos.pseudo_legal_s<false,true>(move)  // pseudo_legalでない指し手以外に歩や大駒の不成なども除外
+          &&  pos.pseudo_legal_s<false>(move)       // pseudo_legalでない指し手以外に歩や大駒の不成なども除外
           && !pos.capture_or_pawn_promotion(move))  // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
           return move;
         break;
@@ -485,7 +499,7 @@ private:
   Search::Stack* ss;
 
   // コンストラクタで渡された、前の局面の指し手に対する応手
-  Move counterMove;
+  COUNTER_MOVE counterMove;
 
   // コンストラクタで渡された探索深さ
   Depth depth;

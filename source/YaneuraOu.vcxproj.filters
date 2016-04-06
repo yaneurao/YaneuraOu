@@ -204,7 +204,7 @@
     <ClCompile Include="extra\timeman.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
-    <ClCompile Include="engine\twig-engine\classic-tce-search.cpp">
+    <ClCompile Include="engine\classic-tce-engine\classic-tce-search.cpp">
       <Filter>リソース ファイル\engine\classic-tce-engine</Filter>
     </ClCompile>
   </ItemGroup>

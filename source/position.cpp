@@ -675,7 +675,7 @@ bool Position::legal_drop(const Square to) const
 }
 
 // ※　mがこの局面においてpseudo_legalかどうかを判定するための関数。
-template <bool All,bool CounterMove>
+template <bool All>
 bool Position::pseudo_legal_s(const Move m) const {
 
   const Color us = sideToMove;
@@ -720,23 +720,22 @@ bool Position::pseudo_legal_s(const Move m) const {
     // 置換表のhash衝突で、後手の指し手が先手の指し手にならないことは保証されている。
     // (先手の手番の局面と後手の手番の局面とのhash keyはbit0で区別しているので)
 
-    // しかし、Counter Moveの手は手番に関係ないので取り違える可能性が高いため
-    // 違法手のチェックをする必要がある
-    if (CounterMove)
+#ifndef KEEP_PIECE_IN_COUNTER_MOVE
+    // しかし、Counter Moveの手は手番に関係ないので(駒種を保持していないなら)取り違える可能性が高いため
+    // 違法手のチェックをする必要がある。
+    switch (pr)
     {
-      switch (pr)
-      {
-      case PAWN:
-      case LANCE:
-        if ((us == BLACK && rank_of(to) == RANK_1) || (us == WHITE && rank_of(to) == RANK_9))
-          return false;
-        break;
-      case KNIGHT:
-        if ((us == BLACK && rank_of(to) < RANK_3) || (us == WHITE && rank_of(to) > RANK_7))
-          return false;
-        break;
-      }
+    case PAWN:
+    case LANCE:
+      if ((us == BLACK && rank_of(to) == RANK_1) || (us == WHITE && rank_of(to) == RANK_9))
+        return false;
+      break;
+    case KNIGHT:
+      if ((us == BLACK && rank_of(to) < RANK_3) || (us == WHITE && rank_of(to) > RANK_7))
+        return false;
+      break;
     }
+#endif
 
   } else {
 
@@ -774,7 +773,7 @@ bool Position::pseudo_legal_s(const Move m) const {
       // --- 成らない指し手
 
       // 駒打ちのところに書いた理由により、不成で進めない升への指し手のチェックも不要。
-      // 間違い　→　駒種をmoveに含めていないのでこのチェック必要だわ。
+      // 間違い　→　駒種をmoveに含めていないならこのチェック必要だわ。
       // 52から51銀のような指し手がkillerやcountermoveに登録されていたとして、52に歩があると
       // 51歩不成という指し手を生成してしまう…。
       // あと、歩や大駒が敵陣において成らない指し手も不要なのでは..。
@@ -1403,7 +1402,5 @@ bool Position::pos_is_ok() const
 }
 
 // 明示的な実体化
-template bool Position::pseudo_legal_s<false,false>(const Move m) const;
-template bool Position::pseudo_legal_s<false, true>(const Move m) const;
-template bool Position::pseudo_legal_s< true,false>(const Move m) const;
-template bool Position::pseudo_legal_s< true, true>(const Move m) const;
+template bool Position::pseudo_legal_s<false>(const Move m) const;
+template bool Position::pseudo_legal_s< true>(const Move m) const;

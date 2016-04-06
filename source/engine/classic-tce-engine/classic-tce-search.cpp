@@ -202,6 +202,9 @@ namespace YaneuraOuClassicTce
   // MovePickerで用いる直前の指し手に対するそれぞれの指し手のスコア
   CounterMoveHistoryStats CounterMoveHistory;
 
+  // 指し手の上位に駒種を格納してMove32化する。
+  #define make_move32(move) ((Move32)(move + (pos.moved_piece(move) << 16)))
+
   // いい探索結果だったときにkiller等を更新する
 
   // move      = これが良かった指し手
@@ -213,36 +216,32 @@ namespace YaneuraOuClassicTce
     //   killerのupdate
 
     // killer 2本しかないので[0]と違うならいまの[0]を[1]に降格させて[0]と差し替え
-    if (ss->killers[0] != move)
+    Move32 move32 = make_move32(move);
+    if (ss->killers[0] != move32)
     {
       ss->killers[1] = ss->killers[0];
-      ss->killers[0] = move;
+      ss->killers[0] = move32;
     }
 
     //   historyのupdate
 
     // depthの二乗に比例したbonusをhistory tableに加算する。
-    Value bonus = Value((int)(depth / ONE_PLY) * (depth / ONE_PLY) + depth / ONE_PLY - 1);
+    Value bonus = Value((int)depth*(int)depth / ((int)ONE_PLY*(int)ONE_PLY) + (int)depth / (int)ONE_PLY + 1);
 
-    // 直前に移動させた升と駒
+    // 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
     Square prevSq = move_to((ss - 1)->currentMove);
-    Piece prevPc = pos.moved_piece((ss - 1)->currentMove);
-
-    // 2手前に移動させた升とその駒
-    //その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
     
     Square ownPrevSq = move_to((ss - 2)->currentMove);
-    Piece ownPrevPc = pos.moved_piece((ss - 2)->currentMove);
-
-    auto& cmh = CounterMoveHistory[prevSq][prevPc];
-    auto& fmh = CounterMoveHistory[ownPrevSq][ownPrevPc];
+    auto& cmh = CounterMoveHistory[prevSq][pos.piece_on(prevSq)];
+    auto& fmh = CounterMoveHistory[ownPrevSq][pos.piece_on(ownPrevSq)];
 
     auto thisThread = pos.this_thread();
     thisThread->history.update(pos.moved_piece(move), move_to(move), bonus);
 
     if (is_ok((ss - 1)->currentMove))
     {
-      thisThread->counterMoves.update(prevPc, prevSq, move);
+      // counter moveだが、移動させた駒を上位16バイトのほうに保持しておく。
+      thisThread->counterMoves.update(pos.piece_on(prevSq), prevSq, move32 );
       cmh.update(pos.moved_piece(move), move_to(move), bonus);
     }
 
@@ -269,8 +268,11 @@ namespace YaneuraOuClassicTce
       && !pos.captured_piece_type()
       && is_ok((ss - 2)->currentMove))
     {
-      auto& prevCmh = CounterMoveHistory[ownPrevSq][ownPrevPc];
-      prevCmh.update(prevPc, prevSq, -bonus - 2 * (depth + 1) / ONE_PLY);
+      // 直前がcaptureではないから、2手前に動かした駒は捕獲されずに盤上にあるはずであり、
+      // その升の駒を盤から取り出すことが出来る。
+      auto prevPrevSq = move_to((ss - 2)->currentMove);
+      auto& prevCmh = CounterMoveHistory[prevPrevSq][pos.piece_on(prevPrevSq)];
+      prevCmh.update(pos.piece_on(prevSq), prevSq, -bonus - 2 * (depth + 1) / ONE_PLY);
     }
   }
 
@@ -565,7 +567,7 @@ namespace YaneuraOuClassicTce
         // moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになる。
 
         Value futilityValue = futilityBase + (Value)PieceValueCapture[pos.piece_on(move_to(move))]
-          + (is_promote(move) ? (Value)ProDiffPieceValue[pos.moved_piece(move)]  : VALUE_ZERO) ;
+          + (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(move_from(move))]  : VALUE_ZERO) ;
 
         // futilityValueは今回捕獲するであろう駒の価値の分を上乗せしているのに
         // それでもalpha値を超えないというとってもひどい指し手なので枝刈りする。
@@ -1153,17 +1155,16 @@ namespace YaneuraOuClassicTce
     // 親nodeでの指し手でのtoの升
     auto prevSq = move_to((ss - 1)->currentMove);
     // その升へ移動させた駒
-    auto prevPc = pos.moved_piece((ss -1)->currentMove);
+    auto prevPc = pos.piece_on(prevSq);
     // 親nodeの親nodeの指し手でのtoの升
     auto ownPrevSq = move_to((ss - 2)->currentMove);
-    auto ownPrevPc = pos.moved_piece((ss - 2)->currentMove);
 
     // toの升に駒pcを動かしたことに対する応手
     auto cm = thisThread->counterMoves[prevSq][prevPc];
 
     // counter history
     const auto& cmh = CounterMoveHistory[prevSq][prevPc];
-    const auto& fmh = CounterMoveHistory[ownPrevSq][ownPrevPc];
+    const auto& fmh = CounterMoveHistory[ownPrevSq][pos.piece_on(ownPrevSq)];
     // 2手前のtoの駒、1手前の指し手によって捕獲されている場合があるが、それはcaptureであるから
     // ここでは対象とならない…はず…。
 
@@ -1308,7 +1309,7 @@ namespace YaneuraOuClassicTce
         // Historyに基づいた枝刈り(history && counter moveの値が悪いものに関してはskip)
 
         if (depth <= 4 * ONE_PLY
-          && move != ss->killers[0]
+          && make_move32(move) != ss->killers[0]
           && thisThread->history[move_to(move)][pos.moved_piece(move)] < VALUE_ZERO
           && cmh[move_to(move)][pos.moved_piece(move)] < VALUE_ZERO)
           continue;
@@ -1367,9 +1368,10 @@ namespace YaneuraOuClassicTce
         && !captureOrPromotion)
       {
         // Reduction量
+        // do_move()で駒を移動させたあとなので、pos.moved_piece()ではなくpiece_on(to)で判定すれば十分。
         Depth r = reduction<PvNode>(improving, depth, moveCount);
-        Value hValue = thisThread->history[move_to(move)][pos.moved_piece(move)];
-        Value cmhValue = cmh[move_to(move)][pos.moved_piece(move)];
+        Value hValue = thisThread->history[move_to(move)][pos.piece_on(move_to(move))];
+        Value cmhValue = cmh[move_to(move)][pos.piece_on(move_to(move))];
 
         // cut nodeや、historyの値が悪い指し手に対してはreduction量を増やす。
         if ((!PvNode && cutNode)
@@ -1549,10 +1551,11 @@ namespace YaneuraOuClassicTce
       && is_ok((ss - 2)->currentMove))
     {
       // 残り探索depthの3乗ぐらいのボーナスを与えてもええやろ。
-      Value bonus = Value((int)(depth / ONE_PLY) * (depth / ONE_PLY) + depth / ONE_PLY - 1);
-
-      auto& prevCmh = CounterMoveHistory[ownPrevSq][ownPrevPc];
-      prevCmh.update(prevPc, prevSq, bonus);
+      // Valueはint32なのでdepthが256までだから、3乗してもオーバーフローはすぐにはしない。
+      Value bonus = Value(((int)depth * (int)depth * (int)depth) / ((int)ONE_PLY*(int)ONE_PLY*(int)ONE_PLY) - 1);
+      auto prevPrevSq = move_to((ss - 2)->currentMove);
+      auto& prevCmh = CounterMoveHistory[prevPrevSq][pos.piece_on(prevPrevSq)];
+      prevCmh.update(pos.piece_on(prevSq), prevSq, bonus);
     }
 
     // -----------------------
