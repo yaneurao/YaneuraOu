@@ -109,7 +109,7 @@
 
 // MovePickerのなかで使っているCounterMoveにおいて、移動させる駒種も含めるか。
 // (これを含めると同じ移動をする別の駒をCounterMoveとしてみなさなくなり、ちょっと枝刈り性能が上がるはず)
-#define KEEP_PIECE_IN_COUNTER_MOVE
+// #define KEEP_PIECE_IN_COUNTER_MOVE
 
 // --------------------
 // release configurations

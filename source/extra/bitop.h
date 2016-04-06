@@ -245,7 +245,8 @@ extern ymm ymm_one;   // all packed bytes are 1.
 template <typename T> struct aligned_stack {
   void push(const T& t) { auto ptr = (T*)_mm_malloc(sizeof(T), alignof(T)); *ptr = t; container.push_back(ptr); }
   T& top() const { return **container.rbegin(); }
-  ~aligned_stack() { for(auto ptr: container) _mm_free(ptr); }
+  void clear() { for (auto ptr : container) _mm_free(ptr); container.clear(); }
+  ~aligned_stack() { clear(); }
 private:
   std::vector<T*> container;
 };

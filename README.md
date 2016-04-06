@@ -67,6 +67,8 @@ CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.
 
 ※　括弧のなかの+Rは、自己対局時の勝率から計算されるもので、0.5手延長などは顕著に勝率が上がりますが、自己対局以外では効果に乏しいです。
 
+- [x] 2016/04/07・自己対戦サーバーでStateStack、1局ごとにクリアするように修正。
+- [x] 2016/04/07・MaxMovesToDrawの設定が無視されていた問題を修正。
 - [x] 2016/04/06・やねうら王classic-tceにsingular extension追加。(+R40)
 - [x] 2016/04/06・やねうら王classic-tce。counter moveに駒種を入れる。
 - [x] 2016/04/06・やねうら王classic-tceに。bestmove changed のカウンター、インクリメントしてなかったの修正。(+R20)

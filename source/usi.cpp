@@ -47,6 +47,10 @@ USI::OptionsMap Options;
 // ゆえに、このようにして判定している。
 bool ponder_mode;
 
+// 引き分けになるまでの手数。(MaxMovesToDrawとして定義される)
+// これは、"go"コマンドのときにLimits.max_game_plyに反映される。
+int max_game_ply = INT_MAX;
+
 namespace USI
 {
   // 入玉ルール
@@ -226,7 +230,7 @@ namespace USI
     o["MinimumThinkingTime"] << Option(2000, 1000, 100000);
 
     // 引き分けまでの最大手数。256手ルールのときに256。0なら無制限。
-    o["MaxMovesToDraw"] << Option(0, 0, 100000, [](auto& o) { Search::Limits.max_game_ply = (o == 0) ? INT_MAX : o; });
+    o["MaxMovesToDraw"] << Option(0, 0, 100000, [](auto& o) { max_game_ply = (o == 0) ? INT_MAX : o; });
 
     // 引き分けを受け入れるスコア
     // 歩を100とする。例えば、この値を100にすると引き分けの局面は評価値が -100とみなされる。
@@ -401,6 +405,9 @@ void go_cmd(const Position& pos, istringstream& is) {
 
   // 入玉ルール
   limits.enteringKingRule = USI::ekr;
+
+  // 終局(引き分け)になるまでの手数
+  limits.max_game_ply = max_game_ply;
 
   while (is >> token)
   {

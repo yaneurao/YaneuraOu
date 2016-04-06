@@ -1,6 +1,62 @@
 ﻿
 やねうら王 更新履歴
 
+
+■　2016/04/07 V2.58
+
+・自己対戦サーバー、256手到達でその次がタイムアウトになっとる..なんでなの..
+
+	4<draw,ln1k1g1nl/2gsp3r/pppp1pbs1/4P1ppp/3P1P3/P5PPP/1PP1S1NG1/1BG4K1/LNS1R3L w - 256
+	4<Error : engine timeout , engine name = engines\YaneuraOu-classic-tceV257.exe
+
+	・MaxMovesToDraw、きちんと機能してない
+	→　修正した。
+
+	sfen ln1k1g1nl/2gsp3r/pppp1pbs1/4P1ppp/3P1P3/P5PPP/1PP1S1NG1/1BG4K1/LNS1R3L w - 255
+
+・自己対戦サーバーでStateStack、1局ごとにクリアするように修正。
+
+・4台のPC、一晩で自己対戦させたときに2局落ちてる。
+　CounterMoveのpseudo-legalまわりか？
+	
+	・KEEP_PIECE_IN_COUNTER_MOVEをデフォルトでdefineしたままになっていたの修正。
+	・他、原因よくわからん…。
+
+・lazySMP有効時に物理6コアに対して何スレッドが最大強さになるのかテストする。
+
+
+■　2016/04/06 V2.57
+
+・futility margin、わからん。こっちのほうが良いのでは..
+
+  // futilityは深さに比例するより、少し減衰したほうがいいと思う。
+  // 実戦では連続して大きな損をしないから。
+  // f(a,depth) = Σ pow(a ,depth) ≒ integral pow( a , depth ) = a ** depth / log(a) + c
+  // depth == 1において1になって欲しいから、
+  //  a / log(a) + c = 1
+  // 積分定数c = 1 - a / log(a)
+  {
+    const float a = 0.98f - param1 * 0.2f;
+    for (int i = 0; i < MAX_PLY; ++i)
+      futility_rate[i] = pow(a, i) / log(a) + (1 - a / log(a));
+  }
+
+  param1 = 0..4で一晩放置。
+
+		49.6%	46.8%	44.8%	39.5%	39.0%	
+		#131
+		やねうら王classic-tce V257
+		dynamic-futility margin, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V253s
+		singular再テスト, 1スレッド、0.1秒設定
+
+		737-197-750(63.2% R-3.0)	675-159-766(99.2% R-22.0)	646-157-795(100.0% R-36.1)	560-182-858(100.0% R-74.1)	564-148-881(100.0% R-77.5)	
+
+	全く強くならんかった。要らんことしたようであった…。そうなのか…。
+	dynamic marginで、もっかい調整しよ。
+
+
 ■　2016/04/06 V2.56
 
 ・dynamic futility marginの計算、直近の値を重視したいから線形加重移動平均にしたほうがいいな。
@@ -42,6 +98,18 @@
           && alpha < value  // fail lowしている値は参考にならないので除外
 
 		  こうして、depth = ONE_PLYをサンプリングして、これにdepth掛け算するだとか..。
+
+
+
+			47.6%	46.4%	55.5%	50.7%	
+			#130
+			やねうら王classic-tce V256
+			dynamic-futility margin, 1スレッド、0.1秒設定
+			#0
+			やねうら王classic-tce V253s
+			singular再テスト, 1スレッド、0.1秒設定
+
+			140-24-154(80.9% R-16.6)	65-20-75(82.4% R-24.9)	76-23-61(8.6% R38.2)	70-22-68(39.9% R5.0)	
 
 
 ・統計的にはfutilityのmargin、depthに比例しない感じだな..

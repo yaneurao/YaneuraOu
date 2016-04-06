@@ -81,31 +81,17 @@ namespace YaneuraOuClassicTce
     return (Value)(512 + 16 * static_cast<int>(d));
   }
 
-  // dynamic futility margin ( inspired by 読み太 )
-  // 探索したときに abs(staticEval-value)をサンプリングしてその平均らへんをmargin値として用いる
-  Value futility_margin_table[MAX_PLY];
-  int futility_margin_count[MAX_PLY];
-  Value futility_margin_sum[MAX_PLY];
-
-  // margin値をサンプリングする周期
-  const int futility_margin_update_interval = 16;
-  // futility_margin_sum[]は、futility_margin_update_interval×futility_margin_update_countの個数がサンプリングされていると考える。
-  const int futility_margin_update_count = 8;
-
   // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
   Value futility_margin(Depth d, int game_ply) {
 
-    // depthに比例したmargin(普通)
-#if 0
-    // return Value(d * 90);
-#endif
+    // futility margin with game_ply
 
-    // dynamic futility margin
-#if 1
-//    return futility_margin_table[d / ONE_PLY];
-    return futility_margin_table[0] * (int)d/ONE_PLY;
-#endif
-
+    // 序盤で小さめの数値。
+    // 40手以降はd * 90固定でいいや。
+    // rを進行度とみなして、これで70と90を内分する。
+    game_ply = min(40, game_ply);
+    float r = game_ply / 40.0f;
+    return Value(d * int(((1 - r) * 70 + 90 * r)));
   }
 
   // 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
@@ -1454,34 +1440,6 @@ namespace YaneuraOuClassicTce
                                    : -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
                                    : - search<PV>       (pos, ss + 1, -beta, -alpha, newDepth  ,false);
 
-        // このときにdynamic futility marginの値をサンプリングする
-        if (newDepth == 1 * ONE_PLY
-          && eval!=VALUE_NONE && abs(value) <= VALUE_MAX_EVAL
-          && value < beta   // fail highしている値は信用ならないので除外
-          && alpha < value  // fail lowしている値は参考にならないので除外
-          
-          )
-        {
-//          int d = newDepth / ONE_PLY;
-//          futility_margin_sum[d] += (eval >= beta) ? (eval - value) * d : eval - value;
-          futility_margin_sum[0] += abs(eval - value);
-
-          if (futility_margin_count[0]++ == futility_margin_update_interval)
-          {
-            // futility_sampling_intervalのfutility_margin_update_count倍の要素の合計がfutility_margin_sum[d]
-            futility_margin_table[0] = ((param1 + 4) * futility_margin_sum[0] / 4)
-              / (futility_margin_update_count * futility_margin_update_interval);
-#if 0
-            futility_margin_table[d] = ((5 + 3) * futility_margin_sum[d] / 4)
-              / (futility_margin_update_count * futility_margin_update_interval);
-#endif
-            //  1/futility_margin_update_count が入れ替わったという考え。
-            // (本当は古い部分を入れ替えたほうがいいかも知れないが…)
-            futility_margin_sum[0] = futility_margin_sum[0] * (futility_margin_update_count - 1)/ futility_margin_update_count;
-            futility_margin_count[0] = 0;
-    //        cout << "futility_margin[" << 0 << "] = " << futility_margin_table[0] << endl;
-          }
-        }
       }
 
       // -----------------------
@@ -1681,25 +1639,6 @@ void Search::init() {
     FutilityMoveCounts[1][d] = int(2.9 + 1.045 * pow((float)d/ONE_PLY + 0.49, 1.8));
   }
 
-  // -----------------------
-  // dynamic futility margin
-  // -----------------------
-
-  for (int i = 0; i < DEPTH_MAX; ++i)
-  {
-    // depth * 90
-    futility_margin_table[i] = (Value)(i*90);
-    futility_margin_count[i] = 0;
-
-    futility_margin_table[0] = (Value)(1 * 90);
-
-    // 初期状態ではfutility_margin_sum[i]には、futility_margin_update_intervalの
-    // (futility_margin_update_count-1)倍の個数のabs(eval-value)の合計が格納されていると考える。
-    // ここにfutility_margin_update_interval個さらに突っ込んで、futility_margin_update_intervalの
-    // futility_margin_update_count倍の個数になったときに
-    // (futility_margin_update_interval*futility_margin_update_count)で割って平均を出す。(移動平均みたいなの)
-    futility_margin_sum[i] = futility_margin_table[i] * futility_margin_update_interval * (futility_margin_update_count - 1);
-  }
 
 }
 
@@ -2006,7 +1945,6 @@ void Thread::search()
   // (どんどんeasy moveで局面が進むといずれわずかにしか読んでいない指し手を指してしまうため。)
   if (EasyMove.stableCnt < 6 || mainThread->easyMovePlayed)
     EasyMove.clear();
-
 
 }
 

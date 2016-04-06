@@ -721,8 +721,8 @@ bool Position::pseudo_legal_s(const Move m) const {
     // (先手の手番の局面と後手の手番の局面とのhash keyはbit0で区別しているので)
 
 #ifndef KEEP_PIECE_IN_COUNTER_MOVE
-    // しかし、Counter Moveの手は手番に関係ないので(駒種を保持していないなら)取り違える可能性が高いため
-    // 違法手のチェックをする必要がある。
+    // しかし、Counter Moveの手は手番に関係ないので(駒種を保持していないなら)取り違える可能性があるため
+    // (しかも、その可能性はそこそこ高い)、ここで合法性をチェックする必要がある。
     switch (pr)
     {
     case PAWN:

@@ -571,6 +571,9 @@ void Thread::search()
     es[0].game_over();
     es[1].game_over();
     games++;
+
+    // これクリアしておかないとメモリを消費し続けてもったいない。
+    SetupStates->clear();
   };
 
   string line;
