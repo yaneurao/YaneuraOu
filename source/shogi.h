@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "2.50"
+#define ENGINE_VERSION "2.56"
 
 // --------------------
 // コンパイル時の設定
@@ -339,7 +339,7 @@ enum Bound {
 //        評価値
 // --------------------
 
-// 置換表に格納するときにあまりbit数が多いともったいないので16bitで。
+// 置換表に格納するときにあまりbit数が多いともったいないので値自体は16bitで収まる範囲で。
 enum Value : int32_t
 {
   VALUE_ZERO = 0,
@@ -360,6 +360,9 @@ enum Value : int32_t
   VALUE_KNOWN_WIN            = int(VALUE_MATE_IN_MAX_PLY) - 1,
   VALUE_KNOWN_WIN_IN_MAX_PLY = int(VALUE_KNOWN_WIN) - MAX_PLY,
   VALUE_KNOWN_LOSE_IN_MAX_PLY = -int(VALUE_KNOWN_WIN_IN_MAX_PLY),
+
+  // 評価関数が返すであろう最大値
+  VALUE_MAX_EVAL             = int(VALUE_KNOWN_WIN_IN_MAX_PLY) - 1,
 };
 
 // ply手で詰ませるときのスコア

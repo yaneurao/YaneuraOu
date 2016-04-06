@@ -1,10 +1,201 @@
 ﻿
 やねうら王 更新履歴
 
-ToDo
-・定跡16手までに制限してfloodgateに投入しておく。
+■　2016/04/06 V2.56
+
+・dynamic futility marginの計算、直近の値を重視したいから線形加重移動平均にしたほうがいいな。
+	もう少し当たりをつけてから変更してみる。
+	→　実装が少し面倒なわりに効果あまりない気がしてきたので、もう少し簡単な方法でいいや。
+
+	再度調整してみる。
+
+        // このときにdynamic futility marginの値をサンプリングする
+        if (newDepth >= ONE_PLY
+          && eval!=VALUE_NONE && abs(value) < VALUE_KNOWN_WIN_IN_MAX_PLY
+          && value < beta   // fail highしている値は信用ならないので除外
+          && value < eval   // 静的評価値が探索したスコアより大きく出ている局面(楽観視)を対象とする
+          )
+        {
+          int d = newDepth / ONE_PLY;
+          futility_margin_sum[d] += (eval >= beta) ? (eval - value) * d : eval - value;
+
+          if (futility_margin_count[d]++ == futility_margin_update_interval)
+          {
+            // futility_sampling_intervalのfutility_margin_update_count倍の要素の合計がfutility_margin_sum[d]
+            futility_margin_table[d] = ((param1 + 4) * futility_margin_sum[d] / 4)
+              / (futility_margin_update_count * futility_margin_update_interval);
+
+            // 1/4が入れ替わったという考え。(本当は古い部分を入れ替えたほうがいいかも知れないが…)
+            futility_margin_sum[d] = futility_margin_sum[d] * (futility_margin_update_count - 1)/ futility_margin_update_count;
+            futility_margin_count[d] = 0;
+            cout << "futility_margin[" << d << "] = " << futility_margin_table[d] << endl;
+          }
+        }
+
+		param1 = 0..2とかで。
+		→　ぜんぜんあかん..
+
+        // このときにdynamic futility marginの値をサンプリングする
+        if (newDepth == 1 * ONE_PLY
+          && eval!=VALUE_NONE && abs(value) <= VALUE_MAX_EVAL
+          && value < beta   // fail highしている値は信用ならないので除外
+          && alpha < value  // fail lowしている値は参考にならないので除外
+
+		  こうして、depth = ONE_PLYをサンプリングして、これにdepth掛け算するだとか..。
+
+
+・統計的にはfutilityのmargin、depthに比例しない感じだな..
+	3手あれば何らか被害を小さくできたりするが、1手だと取られるものはとられるわけで…。
+
+
+■　2016/04/06 V2.55
+
+・dynamic futility margin(案) , inspired by 読み太
+
+	最初、
+	sample_count[depth] = 100; // 100個のサンプルがすでにあるという体裁
+	sample_sum[depth] = 90 * sample_count[depth];   // 初期futility margin
+	とかにしといて、
+
+	search<PV>(..)
+	で探索したときに残りdepthとeval-valueをここに突っ込む。
+	sample_count[depth] ++;
+	sample_sum[depth] += abs(eval - value);
+
+	んで、
+	futility_margin(depth) { return  sample_sum[depth] / sample_count[depth]; }
+	みたいなことで。
+
+	sample_countがある程度大きくなったら、次のようにgarbageすると良さそう
+	if (sample_count[depth] > 1000)
+	{
+	  sample_count[depth] >>= 1;
+	  sample_sum[depth] >>= 1;
+	}
+
+	↓書けた。
+
+
+        // このときにdynamic futility marginの値をサンプリングする
+        if (newDepth >= ONE_PLY)
+        {
+          futility_margin_sum[newDepth] += abs(eval - value);
+          if (futility_margin_count[newDepth]++ == 4096)
+          {
+            // 4096 / 2個ごとにmargin値を計算しなおす。
+            futility_margin_table[newDepth] = futility_margin_sum[newDepth] / 4096;
+            futility_margin_sum[newDepth] /= 2;
+            futility_margin_count[newDepth] = 4096/2;
+          }
+        }
+
+	  // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
+	  Value futility_margin(Depth d, int game_ply) {
+		// dynamic futility margin
+		return futility_margin_table[d];
+	  }
+
+・dynamic futility margin、変動幅の平均で本当に良いのかどうかはよくわからない。
+	値を変えながら勝率を見るべき..
+
+	            futility_margin_table[d] = (param1 + 3) * futility_margin_sum[d] / 4 / sampling_interval;
+				
+				param1 = 0..7ぐらいで対戦させてみる。
+				param1 == 2あたりがmax。平均より25%増しぐらいがベスト。感覚に合致する。
+				もうちょっと細かく分割して調整してみる。
+
+		38.0%	42.4%	53.1%	44.3%	46.5%	53.8%	42.7%	45.3%	
+		#129
+		やねうら王classic-tce V255
+		dynamic-futility margin, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V253s
+		singular再テスト, 1スレッド、0.1秒設定
+
+		73-20-119(100.0% R-84.9)	59-21-80(96.9% R-52.9)	77-15-68(20.3% R21.6)	62-20-78(92.5% R-39.9)	66-18-76(82.2% R-24.5)	77-17-66(15.8% R26.8)	61-17-82(96.7% R-51.4)	67-12-81(89.1% R-33.0)	
+
+		→　あまりよくない。条件自体を検討すべき。
+
+・評価値計算した以上、ss->staticEvalに保存したほうが得なような気がする。
+
+    if (pos.state()->sumKKP == VALUE_NONE)
+-      evaluate(pos);
++      ss->staticEval = eval = evaluate(pos);
+
+
+■　2016/04/06 V2.54
+
+・定跡12手までに制限してfloodgateに投入しておく。
+
 ・reduction、int(r)にしてしまうとONE_PLY==2にしている意味がないのでは…。
-> reduction_table[pv][imp][d][mc] = int(r) * ONE_PLY;
+	> reduction_table[pv][imp][d][mc] = int(r) * ONE_PLY;
+	比較してみる。
+
+    +          reduction_table[pv][imp][d][mc] = Depth((int)(r * (double)ONE_PLY));
+
+		44.9%	
+		#126
+		やねうら王classic-tce V254
+		reductionテスト, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V253s
+		singular再テスト, 1スレッド、0.1秒設定
+
+		343-111-421(99.8% R-35.6)	
+
+	こんなんぐらいでこんなに勝率落ちるのか…。うわわぁぁぁ。
+
+・dynamic futility marginの実験
+
+  // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
+  Value futility_margin(Depth d, int game_ply) {
+    // 序盤で小さめの数値。
+    // 40手以降はd * 90固定でいいや。
+    // rを進行度とみなして、これで30と90を内分する。
+    game_ply = min(40, game_ply);
+    float r = game_ply / 40.0f;
+    return Value(d * int((1 - r) * (30 + param1 * 10) + 90 * r));
+  }
+
+  param1 = 0..5ぐらいでひたすら回しておく。
+
+		47.7%	47.0%	47.2%	48.1%	54.8%	46.9%	
+		#127
+		やねうら王classic-tce V254a
+		dynamic-futility margin, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V253s
+		singular再テスト, 1スレッド、0.1秒設定
+
+		142-45-156(80.8% R-16.3)	139-24-157(86.5% R-21.2)	141-21-158(85.1% R-19.8)	137-35-148(76.1% R-13.4)	154-39-127(4.7% R33.5)	134-34-152(86.9% R-21.9)	
+
+	param1 = 4がベストっぽい
+
+		V2.54b
+    return Value(d * int((1 - r) * (30 + 4 * 10) + 90 * r));
+	これでしばらく回してみる。
+
+			// 進行度に応じたmargin
+		#if 0
+			// 序盤で小さめの数値。
+			// 40手以降はd * 90固定でいいや。
+			// rを進行度とみなして、これで30と90を内分する。
+			game_ply = min(40, game_ply);
+			float r = game_ply / 40.0f;
+			return Value(d * int((1 - r) * (30 + 4 * 10) + 90 * r));
+		#endif
+
+	↓何も良くなかった。とほほほほ。
+		49.3%	
+		#128
+		やねうら王classic-tce V254b
+		dynamic-futility margin, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V253s
+		singular再テスト, 1スレッド、0.1秒設定
+
+		174-38-179(62.5% R-4.9)	
+
 
 
 ■　2016/04/06 V2.53
