@@ -234,8 +234,11 @@ struct MovePicker
       killers[0] = ss->killers[0];
       killers[1] = ss->killers[1];
       killers[2] = counterMove;
+#ifdef KEEP_PIECE_IN_COUNTER_MOVE
+      counterMove = (Move)counterMove; // 駒種が上位に格納されているのならマスクする。
+#endif
       currentMoves = killers;
-      endMoves = currentMoves + 2 + (counterMove != killers[0] && counterMove != killers[1]);
+      endMoves = currentMoves + 2 + (counterMove != (Move)killers[0] && counterMove != (Move)killers[1]);
       break;
 
     case GOOD_RECAPTURES:

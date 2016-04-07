@@ -140,8 +140,47 @@
 
 	-	// 詰みのスコアに対して、rootからの手数を考慮したスコアに変換する必要があるので、
 	-	// value_from_tt()で変換してから返すのが正解。
-
+	→　そうか。連続王手の千日手は詰みのスコアなのでこの処理、正しい。
 	
+・これで500対戦ほどさせて勝率がまだ落ちているようなら、色々元に戻していく。
+
+・
+      endMoves = currentMoves + 2 + (counterMove != killers[0] && counterMove != killers[1]);
+	  ここ、counterMoveがu32なのにkillers[0]はu32として比較していないのでは..
+
+		#ifdef KEEP_PIECE_IN_COUNTER_MOVE
+			  counterMove = (Move)counterMove; // 駒種が上位に格納されているのならマスクする。
+		#endif
+
+		これが要るような？
+
+・NULL_MOVEに対してcounterどうせ登録されてないから、このときMOVE_NONEにしておくほうが
+	オーダリング改善されるのでは…
+
+		#define sq_pc_from_move(sq,pc,move,color)                          \
+			if (!is_ok(move))                                              \
+			{                                                              \
+			  sq = (Square)(color);                                        \
+			  pc = NO_PIECE;                                               \
+			} else {                                                       \
+			  sq = move_to(move);                                          \
+			  pc = pos.piece_on(sq);                                       \
+			}
+
+    // toの升に駒pcを動かしたことに対する応手
+    auto cm =
+      is_ok((ss - 1)->currentMove)
+      ? thisThread->counterMoves[prevSq][prevPc]
+      : MOVE_NONE
+      ;
+
+	こうしたほうがマシなのでは..。
+	これでしばらく放置しておく。
+
+	NULL MOVEのあと、糞みたいな指し手がcounter moveに挙がってくると
+	オーダリングを阻害する(気がする)
+
+
 ■　2016/04/07 V2.59
 
 ・Position::pseudo_legal_s()に、countermove関連のassert追加。

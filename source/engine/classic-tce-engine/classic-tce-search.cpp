@@ -219,12 +219,9 @@ namespace YaneuraOuClassicTce
 
 // 直前のnoddの指し手で動かした駒とその移動先の升を返す。
 // ただしNULL_MOVE(or MOVE_NONE)のときは、sq = + 0か + 1の地点にNO_PIECEを動かしたことにする。
-#define sq_pc_from_move(sq,pc,move,color)                          \
-    if (!is_ok(move))                                              \
+  // しかしこれ、どうせこれに対応するcounterが登録されていないのでMOVE_NONEをcounter moveにしたほうが良いのでは。
+#define sq_pc_from_move(sq,pc,move)                                \
     {                                                              \
-      sq = (Square)(color);                                        \
-      pc = NO_PIECE;                                               \
-    } else {                                                       \
       sq = move_to(move);                                          \
       pc = pos.piece_on(sq);                                       \
     }
@@ -256,8 +253,8 @@ namespace YaneuraOuClassicTce
     Square prevSq, prevPrevSq;
     Piece prevPc, prevPrevPc;
 
-    sq_pc_from_move(prevSq    , prevPc    , (ss - 1)->currentMove, ~pos.side_to_move());
-    sq_pc_from_move(prevPrevSq, prevPrevPc, (ss - 2)->currentMove,  pos.side_to_move());
+    sq_pc_from_move(prevSq    , prevPc    , (ss - 1)->currentMove);
+    sq_pc_from_move(prevPrevSq, prevPrevPc, (ss - 2)->currentMove);
 
     ASSERT_LV3(move != MOVE_NULL);
 
@@ -408,9 +405,12 @@ namespace YaneuraOuClassicTce
 
     // 連続王手による千日手、および通常の千日手、優等局面・劣等局面。
 
+    // 連続王手による千日手に対してdraw_value()は、詰みのスコアを返すので、rootからの手数を考慮したスコアに変換する必要がある。
+    // そこで、value_from_tt()で変換してから返すのが正解。
+
     auto draw_type = pos.is_repetition();
     if (draw_type != REPETITION_NONE)
-      return draw_value(draw_type, pos.side_to_move());
+      return value_from_tt(draw_value(draw_type, pos.side_to_move()),ss->ply);
 
     if (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
       return draw_value(REPETITION_DRAW, pos.side_to_move());
@@ -587,7 +587,7 @@ namespace YaneuraOuClassicTce
       // 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
       if (!InCheck
         && !givesCheck
-        &&  futilityBase > -VALUE_MATE_IN_MAX_PLY)
+        &&  futilityBase > -VALUE_KNOWN_WIN)
       {
         // moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになる。
 
@@ -806,7 +806,7 @@ namespace YaneuraOuClassicTce
 
       auto draw_type = pos.is_repetition();
       if (draw_type != REPETITION_NONE)
-        return draw_value(draw_type, pos.side_to_move());
+        return value_from_tt(draw_value(draw_type, pos.side_to_move()),ss->ply);
 
       // 最大手数を超えている、もしくは停止命令が来ている。
       if (Signals.stop.load(std::memory_order_relaxed) || ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
@@ -1029,7 +1029,7 @@ namespace YaneuraOuClassicTce
     if (!RootNode
       &&  depth < 7 * ONE_PLY
       &&  eval - futility_margin(depth, pos.game_ply()) >= beta
-      &&  eval < VALUE_MATE_IN_MAX_PLY) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
+      &&  eval < VALUE_KNOWN_WIN) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
       return eval - futility_margin(depth, pos.game_ply());
 
     //
@@ -1069,7 +1069,7 @@ namespace YaneuraOuClassicTce
         if (nullValue >= VALUE_MATE_IN_MAX_PLY)
           nullValue = beta;
 
-        if (depth < 12 * ONE_PLY && abs(beta) < VALUE_MATE_IN_MAX_PLY)
+        if (depth < 12 * ONE_PLY && abs(beta) < VALUE_KNOWN_WIN)
           return nullValue;
 
         // nullMoveせずに(現在のnodeと同じ手番で)同じ深さで探索しなおして本当にbetaを超えるか検証する。cutNodeにしない。
@@ -1163,7 +1163,7 @@ namespace YaneuraOuClassicTce
       &&  depth >= 10 * ONE_PLY // Stockfish , Apreyは、8 * ONE_PLY
       &&  ttMove != MOVE_NONE
       /*  &&  ttValue != VALUE_NONE これは次行の条件に暗に含まれている */
-      &&  abs(ttValue) < VALUE_MATE_IN_MAX_PLY
+      &&  abs(ttValue) < VALUE_KNOWN_WIN
       && !excludedMove // 再帰的なsingular延長はすべきではない
       && (tte->bound() & BOUND_LOWER)
       && tte->depth() >= depth - 3 * ONE_PLY;
@@ -1183,11 +1183,15 @@ namespace YaneuraOuClassicTce
     // その升へ移動させた駒
     Piece prevPc,prevPrevPc;
 
-    sq_pc_from_move(prevSq    , prevPc    , (ss - 1)->currentMove , ~pos.side_to_move());
-    sq_pc_from_move(prevPrevSq, prevPrevPc, (ss - 2)->currentMove ,  pos.side_to_move());
+    sq_pc_from_move(prevSq    , prevPc    , (ss - 1)->currentMove);
+    sq_pc_from_move(prevPrevSq, prevPrevPc, (ss - 2)->currentMove);
 
     // toの升に駒pcを動かしたことに対する応手
-    auto cm = thisThread->counterMoves[prevSq][prevPc];
+    auto cm =
+      is_ok((ss - 1)->currentMove)
+      ? thisThread->counterMoves[prevSq][prevPc]
+      : MOVE_NONE
+      ;
 
     // counter history
     const auto& cmh = CounterMoveHistory[prevSq][prevPc];
