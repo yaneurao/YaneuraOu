@@ -43,11 +43,11 @@ struct Stats {
 
   // tableの要素の値を取り出す
   const T* operator[](Square to) const {
-    ASSERT_LV4(is_ok(to));
+    ASSERT_LV4(to < SQ_NB_PLUS1 + 2);
     return table[to];
   }
   T* operator[](Square to) {
-    ASSERT_LV4(is_ok(to));
+    ASSERT_LV4(to < SQ_NB_PLUS1 + 2);
     return table[to];
   }
 
@@ -81,7 +81,8 @@ struct Stats {
 private:
   // Pieceを升sqに移動させるときの値
   // ※　Stockfishとは添字が逆順だが、将棋ではPIECE_NBのほうだけが2^Nなので仕方がない。
-  T table[SQ_NB_PLUS1][PIECE_NB];
+  // SQ_NB_PLUS1+2になっているのは、NULL_MOVEのときに、駒をここに移動させたことにしたいため。
+  T table[SQ_NB_PLUS1+2][PIECE_NB];
 };
 
 // Statsは、pcをsqの升に移動させる指し手に対してT型の値を保存する。

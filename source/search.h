@@ -52,6 +52,7 @@ namespace Search {
        silent = false;
        max_game_ply = 100000;
        ponder_mode = false;
+       enteringKingRule = EKR_NONE;
     }
 
     // 時間制御を行うのか。

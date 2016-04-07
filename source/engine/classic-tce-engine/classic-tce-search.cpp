@@ -208,7 +208,19 @@ namespace YaneuraOuClassicTce
   CounterMoveHistoryStats CounterMoveHistory;
 
   // 指し手の上位に駒種を格納してMove32化する。
-  #define make_move32(move) ((Move32)(move + (pos.moved_piece(move) << 16)))
+#define make_move32(move) ((Move32)(move + (pos.moved_piece(move) << 16)))
+
+// 直前のnoddの指し手で動かした駒とその移動先の升を返す。
+// ただしNULL_MOVE(or MOVE_NONE)のときは、SQ_NB_PLUS1 + 0か + 1の地点に動かしたことにする。
+#define sq_pc_from_move(sq,pc,move,color)                          \
+    if (!is_ok(move))                                              \
+    {                                                              \
+      sq = (Square)(SQ_NB_PLUS1 + ((color == BLACK) ? 0 : 1));     \
+      pc = NO_PIECE;                                               \
+    } else {                                                       \
+      sq = move_to(move);                                          \
+      pc = pos.piece_on(sq);                                       \
+    }
 
   // いい探索結果だったときにkiller等を更新する
 
@@ -234,11 +246,16 @@ namespace YaneuraOuClassicTce
     Value bonus = Value((int)depth*(int)depth / ((int)ONE_PLY*(int)ONE_PLY) + (int)depth / (int)ONE_PLY + 1);
 
     // 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
-    Square prevSq = move_to((ss - 1)->currentMove);
-    
-    Square ownPrevSq = move_to((ss - 2)->currentMove);
-    auto& cmh = CounterMoveHistory[prevSq][pos.piece_on(prevSq)];
-    auto& fmh = CounterMoveHistory[ownPrevSq][pos.piece_on(ownPrevSq)];
+    Square prevSq, prevPrevSq;
+    Piece prevPc, prevPrevPc;
+
+    sq_pc_from_move(prevSq    , prevPc    , (ss - 1)->currentMove, ~pos.side_to_move());
+    sq_pc_from_move(prevPrevSq, prevPrevPc, (ss - 2)->currentMove,  pos.side_to_move());
+
+    ASSERT_LV3(move != MOVE_NULL);
+
+    auto& cmh = CounterMoveHistory[prevSq][prevSq];
+    auto& fmh = CounterMoveHistory[prevPrevSq][prevPrevSq];
 
     auto thisThread = pos.this_thread();
     thisThread->history.update(pos.moved_piece(move), move_to(move), bonus);
@@ -275,9 +292,8 @@ namespace YaneuraOuClassicTce
     {
       // 直前がcaptureではないから、2手前に動かした駒は捕獲されずに盤上にあるはずであり、
       // その升の駒を盤から取り出すことが出来る。
-      auto prevPrevSq = move_to((ss - 2)->currentMove);
-      auto& prevCmh = CounterMoveHistory[prevPrevSq][pos.piece_on(prevPrevSq)];
-      prevCmh.update(pos.piece_on(prevSq), prevSq, -bonus - 2 * (depth + 1) / ONE_PLY);
+      auto& prevCmh = CounterMoveHistory[prevPrevSq][prevPrevPc];
+      prevCmh.update(prevPc, prevSq, -bonus - 2 * (depth + 1) / ONE_PLY);
     }
   }
 
@@ -1157,19 +1173,21 @@ namespace YaneuraOuClassicTce
 
     //  MovePickerでのオーダリングのためにhistory tableなどを渡す
 
-    // 親nodeでの指し手でのtoの升
-    auto prevSq = move_to((ss - 1)->currentMove);
+    // 親nodeとその親nodeでの指し手でのtoの升
+    Square prevSq,prevPrevSq;
+    
     // その升へ移動させた駒
-    auto prevPc = pos.piece_on(prevSq);
-    // 親nodeの親nodeの指し手でのtoの升
-    auto ownPrevSq = move_to((ss - 2)->currentMove);
+    Piece prevPc,prevPrevPc;
+
+    sq_pc_from_move(prevSq    , prevPc    , (ss - 1)->currentMove , ~pos.side_to_move());
+    sq_pc_from_move(prevPrevSq, prevPrevPc, (ss - 2)->currentMove ,  pos.side_to_move());
 
     // toの升に駒pcを動かしたことに対する応手
     auto cm = thisThread->counterMoves[prevSq][prevPc];
 
     // counter history
     const auto& cmh = CounterMoveHistory[prevSq][prevPc];
-    const auto& fmh = CounterMoveHistory[ownPrevSq][pos.piece_on(ownPrevSq)];
+    const auto& fmh = CounterMoveHistory[prevPrevSq][prevPrevPc];
     // 2手前のtoの駒、1手前の指し手によって捕獲されている場合があるが、それはcaptureであるから
     // ここでは対象とならない…はず…。
 

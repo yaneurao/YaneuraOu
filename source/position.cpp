@@ -735,6 +735,20 @@ bool Position::pseudo_legal_s(const Move m) const {
         return false;
       break;
     }
+#else
+    // 変な指し手を渡していないか、assertを入れて調べておく。(ASSERT_LV4以上のとき用)
+    switch (pr)
+    {
+    case PAWN:
+    case LANCE:
+      if ((us == BLACK && rank_of(to) == RANK_1) || (us == WHITE && rank_of(to) == RANK_9))
+        ASSERT_LV4(false);
+      break;
+    case KNIGHT:
+      if ((us == BLACK && rank_of(to) < RANK_3) || (us == WHITE && rank_of(to) > RANK_7))
+        ASSERT_LV4(false);
+      break;
+    }
 #endif
 
   } else {

@@ -2,6 +2,55 @@
 やねうら王 更新履歴
 
 
+■　2016/04/07 V2.59
+
+・Position::pseudo_legal_s()に、countermove関連のassert追加。
+
+・ASSERT_LV 4　にして、
+	> test autoplay
+で回しておく。
+
+・ああ、落ちる原因わかった。
+　dropのときも駒種を入れておいて、それが手番側の駒であるかを確認しないといけないのか…。そうか。
+　てか、countermove、移動元の駒だけでなく移動元の駒種もあるほうが良いのでは…。
+　いやー、そもそも後手の駒を動かす指し手に対するcounter moveに対して何故後手の指し手が登録されているのか？
+
+・counter moveに関して次のassert追加。
+    ASSERT_LV3(color_of(prevPc) == ~pos.side_to_move());
+
+・Limitsのコンストラクタに
+       enteringKingRule = EKR_NONE;
+	追加。(test autoplayなどで困るため)
+
+・counter move
+
+    auto prevSq = move_to((ss - 1)->currentMove);
+    auto prevPc = pos.piece_on(prevSq);
+
+	こうなっているが、null moveのこと考えてないな、このコード。Stockfishのコード自体がおかしい。
+	チェスでは駒が上下対称に動くから顕在化しないのだと思うが…。
+
+		// 直前のnoddの指し手で動かした駒とその移動先の升を返す。
+		// ただしNULL_MOVEのときは、SQ_NB_PLUS1 + 0か + 1の地点に動かしたことにする。
+		#define sq_pc_from_move(sq,pc,move,color)                          \
+			if (move == MOVE_NULL)                                         \
+			{                                                              \
+			  sq = (Square)(SQ_NB_PLUS1 + ((color == BLACK) ? 0 : 1));     \
+			  pc = NO_PIECE;                                               \
+			} else {                                                       \
+			  sq = move_to(move);                                          \
+			  pc = pos.piece_on(sq);                                       \
+			}
+
+　こういうマクロを作って、先手用のcounter moveとして後手の指し手が混じらないようにした。
+
+	→　root nodeだと(ss - 1)->currentMove == MOVE_NONEなのであった…。
+	上の処理、!is_ok(move)と書かないと駄目なのか..
+
+	これでしばらく回しておいて問題なさげなら、自己対戦してテスト。
+
+
+
 ■　2016/04/07 V2.58
 
 ・自己対戦サーバー、256手到達でその次がタイムアウトになっとる..なんでなの..
