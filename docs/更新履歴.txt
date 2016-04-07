@@ -2,6 +2,71 @@
 やねうら王 更新履歴
 
 
+■ 2016/04/07 V2.64
+
+・evaluateの値、置換表に放り込む価値はないのでは...
+
+
+
+■ 2016/04/07 V2.63
+
+・singular実験やりなおし。
+        Value rBeta = ttValue - (param1+1) * 4 * depth / ONE_PLY;
+		param1 = 0..3ぐらいで。
+
+	singularのmargin値、少しぐらい変えても強くも弱くもならないということなのか？
+
+・VALUE_SUPERIORとかの関係か、以前と同じ値のはずなのにR10ぐらい強くなってる気が..
+	1000局ほど対局させとくか。
+
+	singular 0.1秒だといまひとつはっきりしないな…。
+
+			52.4%	51.2%	52.3%	52.8%	
+			#138
+			やねうら王classic-tce V263
+			singular調べ直し, 1スレッド、0.1秒設定
+			#0
+			やねうら王classic-tce V261
+			VALUE_WINの値変更, 1スレッド、0.1秒設定
+
+			196-42-178(16.3% R16.7)	193-39-184(30.3% R8.3)	190-53-173(17.2% R16.3)	182-41-163(14.1% R19.2)	
+
+
+        Value rBeta = ttValue - (param1+1) * 2 * depth / ONE_PLY;
+		param1 = 0..10ぐらいで2,3日まわしとくか..
+
+		一応、param1=0(2*depth*ONE_PLY)での勝率を確認しておく。
+		Stockfishがこの設定のはず。
+
+			51.1%	
+			#138
+			やねうら王classic-tce V263
+			singular調べ直し, 1スレッド、0.1秒設定
+			#0
+			やねうら王classic-tce V261
+			VALUE_WINの値変更, 1スレッド、0.1秒設定
+
+			255-65-244(29.6% R7.7)	
+
+	変わらないのか…。
+
+	        Value rBeta = ttValue - 40 * depth / ONE_PLY;
+
+	これはどうなの。
+
+		47.0%	
+		#138
+		やねうら王classic-tce V263
+		singular調べ直し, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V261
+		VALUE_WINの値変更, 1スレッド、0.1秒設定
+
+		171-51-193(88.6% R-21.0)	
+
+・結論的にはよくわからない。
+
+
 ■ 2016/04/07 V2.62
 
 ・DYNAMIC_FUTILITY_MARGINの実験やりなおし。
@@ -12,6 +77,33 @@
 
 		+  // 評価関数の返す値の最大値
 		+  VALUE_MAX_EVAL             = int(VALUE_KNOWN_WIN) -1,
+
+		49.5%	54.3%	42.2%	47.7%	48.1%	
+		#136
+		やねうら王classic-tce V262
+		dynamic futility調べ直し, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V261
+		VALUE_WINの値変更, 1スレッド、0.1秒設定
+
+		180-52-184(60.3% R-3.8)	102-20-86(10.7% R29.6)	79-21-108(98.6% R-54.3)	94-11-103(76.2% R-15.9)	91-19-98(72.0% R-12.9)	
+
+		param1 = 1で最大
+
+	return (20 + (param1-1)*2) * futility_margin_sum * (int)d / ONE_PLY / (64 * 8);
+		param1 = 0..2ぐらいで
+
+		49.2%	49.5%	50.8%	
+		#137
+		やねうら王classic-tce V262a
+		dynamic futility調べ直し, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V261
+		VALUE_WINの値変更, 1スレッド、0.1秒設定
+
+		92-21-95(61.5% R-5.6)	96-14-98(58.5% R-3.6)	94-21-91(38.4% R5.6)	
+
+		強くなってないな…。この実験はまた今度。
 
 ・めっさ落ちる。なにこれ。
 	 sfen l+R2lbnnl/3skp1s1/pppp3p1/4pPG1p/3N5/2P1G3P/PP1PP2P1/6S2/+s2G1K1RL b PGpnb 75
@@ -25,6 +117,15 @@
 	dynamic marginでおかしくなってたの、これが一因にあるのか。
 
 ・dynamic margin、なんか以前のものより勝率よさげ？
+
+・色々考えた結果、優等局面のスコア変更することにする。
+  {  VALUE_SUPERIOR  ,  VALUE_SUPERIOR  }, // REPETITION_SUPERIOR
+  { -VALUE_SUPERIOR  , -VALUE_SUPERIOR  }, // REPETITION_INFERIOR
+
+  そしてこう変更する。
+	  VALUE_SUPERIOR             = 28000,
+	  VALUE_MAX_EVAL             = 25000,
+
 
 
 ■ 2016/04/07 V2.61

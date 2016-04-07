@@ -15,7 +15,7 @@
 #define USE_MATE_1PLY
 
 // futilityのmarginを動的に決定するのか
-//#define DYNAMIC_FUTILITY_MARGIN
+// #define DYNAMIC_FUTILITY_MARGIN
 
 #include <sstream>
 #include <iostream>
@@ -90,8 +90,11 @@ namespace YaneuraOuClassicTce
 
   // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
   Value futility_margin(Depth d, int game_ply) {
-    // 平均値に 24/8 を掛け算しとく。
-    return (16+param1*4) * futility_margin_sum * (int)d / ONE_PLY / (64 * 8);
+    // 64は64個のサンプリングをしているから。
+    // 平均値をmaringとすると小さすぎるので(40%ぐらいが危険な枝刈りになる)
+    // そこから分散をσとして3σぐらいの範囲にしたいが、分散は平均に比例すると仮定して、
+    // 結局、3σ≒ 平均(= futility_margin_sum/64 )×適当な係数。
+    return (20 + (param1 - 1) * 2) * futility_margin_sum * (int)d / ONE_PLY / (64 * 8);
   }
 #else
   // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
@@ -1293,6 +1296,7 @@ namespace YaneuraOuClassicTce
         ss->excludedMove = move;
         ss->skipEarlyPruning = true;
         // 局面はdo_move()で進めずにこのnodeから浅い探索深さで探索しなおす。
+        // 浅いdepthでnull windowなので、すぐに探索は終わるはず。
         value = search<NonPV>(pos, ss, rBeta - 1, rBeta, depth / 2, cutNode);
         ss->skipEarlyPruning = false;
         ss->excludedMove = MOVE_NONE;

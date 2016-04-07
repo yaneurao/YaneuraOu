@@ -353,17 +353,20 @@ enum Value : int32_t
   // 無効な値
   VALUE_NONE = 32002,
 
-  VALUE_MATE_IN_MAX_PLY =   int(VALUE_MATE) - MAX_PLY,   // MAX_PLYでの詰みのときのスコア。
+  VALUE_MATE_IN_MAX_PLY  =   int(VALUE_MATE) - MAX_PLY,   // MAX_PLYでの詰みのときのスコア。
   VALUE_MATED_IN_MAX_PLY =  -int(VALUE_MATE_IN_MAX_PLY), // MAX_PLYで詰まされるときのスコア。
-  
+
+  // 勝ち手順が何らか証明されているときのスコア下限値
+  VALUE_KNOWN_WIN        =   int(VALUE_MATE_IN_MAX_PLY) - 1000,
+
   // 千日手による優等局面への突入したときのスコア
   // これある程度離しておかないと、置換表に書き込んで、相手番から見て、これから
   // singularの判定なんかをしようと思ったときに
   // -VALUE_KNOWN_WIN - margin が、VALUE_MATED_IN_MAX_PLYを下回るとまずいので…。
-  VALUE_KNOWN_WIN            = int(VALUE_MATE_IN_MAX_PLY) - 1000,
+  VALUE_SUPERIOR             = 28000,
 
-  // 評価関数の返す値の最大値
-  VALUE_MAX_EVAL             = int(VALUE_KNOWN_WIN) -1000,
+  // 評価関数の返す値の最大値(2**14ぐらいに収まっていて欲しいところだが..)
+  VALUE_MAX_EVAL             = 25000,
 };
 
 // ply手で詰ませるときのスコア

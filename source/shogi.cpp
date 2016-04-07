@@ -197,8 +197,8 @@ Value drawValueTable[REPETITION_NB][COLOR_NB] =
   {  VALUE_MATE        ,  VALUE_MATE        }, // REPETITION_WIN
   { -VALUE_MATE        , -VALUE_MATE        }, // REPETITION_LOSE
   {  VALUE_ZERO        ,  VALUE_ZERO        }, // REPETITION_DRAW  : このスコアはUSIのoptionコマンドで変更可能
-  {  VALUE_KNOWN_WIN-1 ,  VALUE_KNOWN_WIN-1 }, // REPETITION_SUPERIOR
-  { -VALUE_KNOWN_WIN+1 , -VALUE_KNOWN_WIN+1 }, // REPETITION_INFERIOR
+  {  VALUE_SUPERIOR    ,  VALUE_SUPERIOR    }, // REPETITION_SUPERIOR
+  { -VALUE_SUPERIOR    , -VALUE_SUPERIOR    }, // REPETITION_INFERIOR
 };
 
 // ----------------------------------------
