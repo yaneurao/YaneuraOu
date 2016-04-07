@@ -1070,7 +1070,7 @@ namespace YaneuraOuClassic
     
     // このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
     // evaluate()を呼び出していないなら呼び出しておく。
-    if (pos.state()->sumKKP == VALUE_NONE)
+    if (pos.state()->sumKKP == INT_MAX)
       evaluate(pos);
 
     MovePicker mp(pos, ttMove, depth, thisThread->history, cmh, fmh, cm, ss);
