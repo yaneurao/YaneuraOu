@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "2.59"
+#define ENGINE_VERSION "2.60"
 
 // --------------------
 // コンパイル時の設定
@@ -357,12 +357,7 @@ enum Value : int32_t
   VALUE_MATED_IN_MAX_PLY =  -int(VALUE_MATE_IN_MAX_PLY), // MAX_PLYで詰まされるときのスコア。
   
   // 千日手による優等局面への突入したときのスコア
-  VALUE_KNOWN_WIN            = int(VALUE_MATE_IN_MAX_PLY) - 1,
-  VALUE_KNOWN_WIN_IN_MAX_PLY = int(VALUE_KNOWN_WIN) - MAX_PLY,
-  VALUE_KNOWN_LOSE_IN_MAX_PLY = -int(VALUE_KNOWN_WIN_IN_MAX_PLY),
-
-  // 評価関数が返すであろう最大値
-  VALUE_MAX_EVAL             = int(VALUE_KNOWN_WIN_IN_MAX_PLY) - 1,
+  VALUE_KNOWN_WIN            = int(VALUE_MATE_IN_MAX_PLY) - 100,
 };
 
 // ply手で詰ませるときのスコア

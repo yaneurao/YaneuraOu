@@ -259,6 +259,8 @@
     <Text Include="..\docs\解説.txt" />
     <Text Include="..\exe\eval\readme.txt" />
     <Text Include="..\exe\YaneuraOu-classic-readme.txt" />
+    <Text Include="..\exe\YaneuraOu-classic-tce-readme.txt" />
+    <Text Include="..\exe\YaneuraOu-classic-tce_ja.txt" />
     <Text Include="..\exe\YaneuraOu-classic_ja.txt" />
     <Text Include="..\exe\YaneuraOu-mini-readme.txt" />
     <Text Include="..\exe\YaneuraOu-mini_ja.txt" />
@@ -266,11 +268,10 @@
     <Text Include="..\exe\YaneuraOu-nano-plus_ja.txt" />
     <Text Include="..\exe\YaneuraOu-nano-readme.txt" />
     <Text Include="..\exe\YaneuraOu-nano_ja.txt" />
-    <Text Include="..\exe\YaneuraOu-twig-readme.txt" />
-    <Text Include="..\exe\YaneuraOu-twig_ja.txt" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\exe\book\standard_book.db" />
+    <None Include="..\exe\YaneuraOu-classic-tce.exe" />
     <None Include="..\exe\YaneuraOu-classic.exe" />
     <None Include="..\exe\YaneuraOu-mini.exe" />
     <None Include="..\exe\YaneuraOu-nano-plus.exe" />

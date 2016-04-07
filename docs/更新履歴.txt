@@ -2,6 +2,146 @@
 やねうら王 更新履歴
 
 
+■　2016/04/07 V2.60
+
+
+・若干弱くなっているのが気になる。
+
+		46.8%	
+		#132
+		やねうら王classic-tce V259
+		counter move修正, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V253s
+		singular再テスト, 1スレッド、0.1秒設定
+
+		265-42-301(94.0% R-22.1)	
+
+・counter move、82,83を使うことない気がしてきた。ちょっと修正。
+    if (!is_ok(move))                                              \
+    {                                                              \
++     sq = (Square)color;                                          \
+      pc = NO_PIECE;                                               \
+    } else {                                                       \
+
+	→　修正完了。
+
+・これで弱くなってるんではない気がする。
+	futility margin、やはり変なことするといかんのだな…。
+
+	// futility margin with game_ply
+    // 序盤で小さめの数値。
+    // 40手以降はd * 90固定でいいや。
+    // rを進行度とみなして、これで70と90を内分する。
+    game_ply = min(40, game_ply);
+    float r = game_ply / 40.0f;
+    return Value(d * int(((1 - r) * 70 + 90 * r)));
+
+	→　これやめて、再度練り直す。
+
+	V2.60a
+・dynamic futility marginのsampling次のような条件でどうか。
+        if (newDepth == ONE_PLY
+          && eval != VALUE_NONE             // evalutate()を呼び出していて
+          && !captureOrPromotion            // futilityはcaptureとpromotionのときは行わないのでこの値は参考にならない
+          && !InCheck                       // 王手がかかっていなくて
+          && abs(value) < VALUE_MAX_EVAL    // evalのスコア
+          && alpha < value && value < beta  // fail low/highしていると参考にならない
+          )
+        {
+          // 移動平均みたいなものを求める
+          futility_margin_sum = futility_margin_sum * 63 / 64;
+          futility_margin_sum += abs(value - eval);
+
+          static int count = 0;
+          if ((++count & 0x100) == 0)
+            sync_cout << "futility_margin = " << futility_margin_sum / 64 << sync_endl;
+        }
+
+		// 14/8ぐらいかけとかないといけない(気がする)
+		  // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
+		  Value futility_margin(Depth d, int game_ply) {
+			// 平均値に 14/8 を掛け算しとく。
+			return 14 * futility_margin_sum * (int)d / ONE_PLY / (64 * 8);
+		  }
+
+・DYNAMIC_FUTILITY_MARGINはifdefで書くように変更
+	もうちょっと実験の余地がありそう。
+
+・V2.53sと対戦。なんかちょっと負けてる予感。
+	ソースコード、差分取って調べるべき。
+	→　比較してみたがほぼ変わらない。
+	staticEval = evaluate()するのでimprovingには影響があるかも。
+
+			45.6%	
+			#133
+			やねうら王classic-tce V260a
+			counter move修正, 1スレッド、0.1秒設定
+			#0
+			やねうら王classic-tce V253s
+			singular再テスト, 1スレッド、0.1秒設定
+
+			182-43-217(96.4% R-30.6)	
+
+
+・VALUE_WIN絡み、MATEスコアとして表示してしまうバグ。
+	もしかして、VALUE_MATE_IN_MAX_PLY超えてるのか？
+
+-	  VALUE_KNOWN_WIN            = int(VALUE_MATE_IN_MAX_PLY) - 1,
++	  VALUE_KNOWN_WIN            = int(VALUE_MATE_IN_MAX_PLY) - 100,
+
+	こう修正しとく。
+
+・
+    // 評価値が2手前の局面から上がって行っているのかのフラグ
+    // 上がって行っているなら枝刈りを甘くする。
+    // ※ VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
+    //   枝刈りを甘くして調べないといけないのでimproving扱いとする。
+    bool improving = (ss    )->staticEval >= (ss - 2)->staticEval
+                  || (ss    )->staticEval == VALUE_NONE
+                  || (ss - 2)->staticEval == VALUE_NONE;
+
+	これ、evaluateを毎回呼び出すようにして、staticEvalに格納するようにしたから
+	王手がかかっているときにこの条件満たさなくなってしまったのか…。
+	こんなことで弱くなるのか…。
+
+	staticEvalに代入するのやめるか。
+
+	これでしばらく回す。
+	→　勝率めっさ落ちた。どうなってんの…。
+	2.53sともう少し厳密に違いを調べていくべき。
+
+		44.8%	
+		#133
+		やねうら王classic-tce V260a
+		counter move修正, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V253s
+		singular再テスト, 1スレッド、0.1秒設定
+
+		296-75-365(99.7% R-36.4)	
+
+・
+	V2.60b
+
+	VALUE_WIN、やっぱり戻す。
+	レアケースだし、要らん変換が入るし、
+	置換表に書き出せなくなるし…。
+
+		  VALUE_KNOWN_WIN_IN_MAX_PLY = int(VALUE_KNOWN_WIN) - MAX_PLY,
+		  VALUE_KNOWN_LOSE_IN_MAX_PLY = -int(VALUE_KNOWN_WIN_IN_MAX_PLY),
+
+		  // 評価関数が返すであろう最大値
+		  VALUE_MAX_EVAL             = int(VALUE_KNOWN_WIN_IN_MAX_PLY) - 1,
+→　削除
+
+	-        return value_from_tt(draw_value(REPETITION_DRAW, pos.side_to_move()),ss->ply);
+	+        return draw_value(REPETITION_DRAW, pos.side_to_move());
+
+	-	// 詰みのスコアに対して、rootからの手数を考慮したスコアに変換する必要があるので、
+	-	// value_from_tt()で変換してから返すのが正解。
+
+	
 ■　2016/04/07 V2.59
 
 ・Position::pseudo_legal_s()に、countermove関連のassert追加。
@@ -49,6 +189,7 @@
 
 	これでしばらく回しておいて問題なさげなら、自己対戦してテスト。
 
+・exe/フォルダのtce版、差し替え。
 
 
 ■　2016/04/07 V2.58

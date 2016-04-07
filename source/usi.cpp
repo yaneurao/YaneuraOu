@@ -49,7 +49,8 @@ bool ponder_mode;
 
 // 引き分けになるまでの手数。(MaxMovesToDrawとして定義される)
 // これは、"go"コマンドのときにLimits.max_game_plyに反映される。
-int max_game_ply = INT_MAX;
+// INT_MAXにすると残り手数を計算するときにあふれかねない。
+int max_game_ply = 100000;
 
 namespace USI
 {

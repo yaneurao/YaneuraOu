@@ -245,10 +245,10 @@
     <Text Include="..\exe\YaneuraOu-classic-readme.txt">
       <Filter>exe</Filter>
     </Text>
-    <Text Include="..\exe\YaneuraOu-twig_ja.txt">
+    <Text Include="..\exe\YaneuraOu-classic-tce_ja.txt">
       <Filter>exe</Filter>
     </Text>
-    <Text Include="..\exe\YaneuraOu-twig-readme.txt">
+    <Text Include="..\exe\YaneuraOu-classic-tce-readme.txt">
       <Filter>exe</Filter>
     </Text>
   </ItemGroup>
@@ -269,6 +269,9 @@
       <Filter>exe</Filter>
     </None>
     <None Include="..\exe\YaneuraOu-classic.exe">
+      <Filter>exe</Filter>
+    </None>
+    <None Include="..\exe\YaneuraOu-classic-tce.exe">
       <Filter>exe</Filter>
     </None>
   </ItemGroup>

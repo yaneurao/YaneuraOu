@@ -14,6 +14,9 @@
 // mate1ply()を呼び出すのか
 #define USE_MATE_1PLY
 
+// futilityのmarginを動的に決定するのか
+//#define DYNAMIC_FUTILITY_MARGIN
+
 #include <sstream>
 #include <iostream>
 #include <fstream>
@@ -81,18 +84,22 @@ namespace YaneuraOuClassicTce
     return (Value)(512 + 16 * static_cast<int>(d));
   }
 
+#ifdef DYNAMIC_FUTILITY_MARGIN
+  // 64個分のfutility marginを足したもの
+  Value futility_margin_sum;
+
   // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
   Value futility_margin(Depth d, int game_ply) {
-
-    // futility margin with game_ply
-
-    // 序盤で小さめの数値。
-    // 40手以降はd * 90固定でいいや。
-    // rを進行度とみなして、これで70と90を内分する。
-    game_ply = min(40, game_ply);
-    float r = game_ply / 40.0f;
-    return Value(d * int(((1 - r) * 70 + 90 * r)));
+    // 平均値に 24/8 を掛け算しとく。
+    return 24 * futility_margin_sum * (int)d / ONE_PLY / (64 * 8);
   }
+#else
+  // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
+  Value futility_margin(Depth d, int game_ply) {
+    return Value(d * 90);
+  }
+#endif
+
 
   // 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
   // 枝刈りしてしまうためのmoveCountベースのfutilityで用いるテーブル
@@ -211,11 +218,11 @@ namespace YaneuraOuClassicTce
 #define make_move32(move) ((Move32)(move + (pos.moved_piece(move) << 16)))
 
 // 直前のnoddの指し手で動かした駒とその移動先の升を返す。
-// ただしNULL_MOVE(or MOVE_NONE)のときは、SQ_NB_PLUS1 + 0か + 1の地点に動かしたことにする。
+// ただしNULL_MOVE(or MOVE_NONE)のときは、sq = + 0か + 1の地点にNO_PIECEを動かしたことにする。
 #define sq_pc_from_move(sq,pc,move,color)                          \
     if (!is_ok(move))                                              \
     {                                                              \
-      sq = (Square)(SQ_NB_PLUS1 + ((color == BLACK) ? 0 : 1));     \
+      sq = (Square)(color);                                        \
       pc = NO_PIECE;                                               \
     } else {                                                       \
       sq = move_to(move);                                          \
@@ -401,15 +408,12 @@ namespace YaneuraOuClassicTce
 
     // 連続王手による千日手、および通常の千日手、優等局面・劣等局面。
 
-    // 詰みのスコアに対して、rootからの手数を考慮したスコアに変換する必要があるので、
-    // value_from_tt()で変換してから返すのが正解。
-
     auto draw_type = pos.is_repetition();
     if (draw_type != REPETITION_NONE)
-      return value_from_tt(draw_value(draw_type, pos.side_to_move()),ss->ply);
+      return draw_value(draw_type, pos.side_to_move());
 
     if (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
-      return value_from_tt(draw_value(REPETITION_DRAW, pos.side_to_move()),ss->ply);
+      return draw_value(REPETITION_DRAW, pos.side_to_move());
 
     // -----------------------
     //     置換表のprobe
@@ -583,7 +587,7 @@ namespace YaneuraOuClassicTce
       // 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
       if (!InCheck
         && !givesCheck
-        &&  futilityBase > -VALUE_KNOWN_WIN_IN_MAX_PLY)
+        &&  futilityBase > -VALUE_MATE_IN_MAX_PLY)
       {
         // moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになる。
 
@@ -802,11 +806,11 @@ namespace YaneuraOuClassicTce
 
       auto draw_type = pos.is_repetition();
       if (draw_type != REPETITION_NONE)
-        return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
+        return draw_value(draw_type, pos.side_to_move());
 
       // 最大手数を超えている、もしくは停止命令が来ている。
       if (Signals.stop.load(std::memory_order_relaxed) || ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
-        return value_from_tt(draw_value(REPETITION_DRAW, pos.side_to_move()),ss->ply);
+        return draw_value(REPETITION_DRAW, pos.side_to_move());
 
       // -----------------------
       //  Mate Distance Pruning
@@ -1025,7 +1029,7 @@ namespace YaneuraOuClassicTce
     if (!RootNode
       &&  depth < 7 * ONE_PLY
       &&  eval - futility_margin(depth, pos.game_ply()) >= beta
-      &&  eval < VALUE_KNOWN_WIN_IN_MAX_PLY) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
+      &&  eval < VALUE_MATE_IN_MAX_PLY) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
       return eval - futility_margin(depth, pos.game_ply());
 
     //
@@ -1065,7 +1069,7 @@ namespace YaneuraOuClassicTce
         if (nullValue >= VALUE_MATE_IN_MAX_PLY)
           nullValue = beta;
 
-        if (depth < 12 * ONE_PLY && abs(beta) < VALUE_KNOWN_WIN_IN_MAX_PLY)
+        if (depth < 12 * ONE_PLY && abs(beta) < VALUE_MATE_IN_MAX_PLY)
           return nullValue;
 
         // nullMoveせずに(現在のnodeと同じ手番で)同じ深さで探索しなおして本当にbetaを超えるか検証する。cutNodeにしない。
@@ -1150,16 +1154,16 @@ namespace YaneuraOuClassicTce
     // 上がって行っているなら枝刈りを甘くする。
     // ※ VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
     //   枝刈りを甘くして調べないといけないのでimproving扱いとする。
-    bool improving = (ss    )->staticEval >= (ss - 2)->staticEval
-                  || (ss    )->staticEval == VALUE_NONE
-                  || (ss - 2)->staticEval == VALUE_NONE;
-
+    bool improving = (ss)->staticEval >= (ss - 2)->staticEval
+      || (ss    )->staticEval == VALUE_NONE
+      || (ss - 2)->staticEval == VALUE_NONE;
+    
     // singular延長をするnodeであるか。
     bool singularExtensionNode = !RootNode
       &&  depth >= 10 * ONE_PLY // Stockfish , Apreyは、8 * ONE_PLY
       &&  ttMove != MOVE_NONE
       /*  &&  ttValue != VALUE_NONE これは次行の条件に暗に含まれている */
-      &&  abs(ttValue) < VALUE_KNOWN_WIN_IN_MAX_PLY
+      &&  abs(ttValue) < VALUE_MATE_IN_MAX_PLY
       && !excludedMove // 再帰的なsingular延長はすべきではない
       && (tte->bound() & BOUND_LOWER)
       && tte->depth() >= depth - 3 * ONE_PLY;
@@ -1193,11 +1197,12 @@ namespace YaneuraOuClassicTce
 
     // CheckInfoのうち、残りのものをupdateしてやる。
     pos.check_info_update(ciu);
-    
+
     // このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
     // evaluate()を呼び出していないなら呼び出しておく。
+    // ss->staticEvalに代入するとimprovingの判定間違うのでそれはしないほうがよさげ。
     if (pos.state()->sumKKP == VALUE_NONE)
-      ss->staticEval = eval = evaluate(pos);
+      evaluate(pos);
 
     MovePicker mp(pos, ttMove, depth, thisThread->history, cmh, fmh, cm, ss);
 
@@ -1458,6 +1463,34 @@ namespace YaneuraOuClassicTce
                                    : -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
                                    : - search<PV>       (pos, ss + 1, -beta, -alpha, newDepth  ,false);
 
+#ifdef DYNAMIC_FUTILITY_MARGIN
+
+        // 普通にfull depth searchしたのでこのときのeval-valueをサンプリングして
+        // futilty marginを動的に変更してやる。
+
+        // sampling対象はONE_PLYのときのもののみ。
+        // あまり深いものを使うと、途中で枝刈りされて、小さな値が返ってきたりして困る。
+        // あくまで1手でどれくらいの変動があるかを知りたくて、
+        // その変動値 × depth　みたいなものを計算したい。
+
+        if (newDepth == ONE_PLY
+          && eval != VALUE_NONE             // evalutate()を呼び出していて
+          && !captureOrPromotion            // futilityはcaptureとpromotionのときは行わないのでこの値は参考にならない
+          && !InCheck                       // 王手がかかっていなくて
+          && abs(value) < VALUE_MAX_EVAL    // 詰み絡みのスコアではない
+          && alpha < value && value < beta  // fail low/highしていると参考にならない
+          )
+        {
+          // 移動平均みたいなものを求める
+          futility_margin_sum = futility_margin_sum * 63 / 64;
+          futility_margin_sum += abs(value - eval);
+
+          //static int count = 0;
+          //if ((++count & 0x100) == 0)
+          //  sync_cout << "futility_margin = " << futility_margin(ONE_PLY,0) << sync_endl;
+        }
+#endif
+
       }
 
       // -----------------------
@@ -1657,6 +1690,10 @@ void Search::init() {
     FutilityMoveCounts[1][d] = int(2.9 + 1.045 * pow((float)d/ONE_PLY + 0.49, 1.8));
   }
 
+#ifdef DYNAMIC_FUTILITY_MARGIN
+  // 64個分のmarginの合計
+  futility_margin_sum = Value(int(int(90 * ONE_PLY) / (14.0/8.0) * 64));
+#endif
 
 }
 
