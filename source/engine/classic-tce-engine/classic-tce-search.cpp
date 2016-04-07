@@ -91,7 +91,7 @@ namespace YaneuraOuClassicTce
   // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
   Value futility_margin(Depth d, int game_ply) {
     // 平均値に 24/8 を掛け算しとく。
-    return 24 * futility_margin_sum * (int)d / ONE_PLY / (64 * 8);
+    return (16+param1*4) * futility_margin_sum * (int)d / ONE_PLY / (64 * 8);
   }
 #else
   // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
@@ -1481,7 +1481,7 @@ namespace YaneuraOuClassicTce
           && eval != VALUE_NONE             // evalutate()を呼び出していて
           && !captureOrPromotion            // futilityはcaptureとpromotionのときは行わないのでこの値は参考にならない
           && !InCheck                       // 王手がかかっていなくて
-          && abs(value) < VALUE_MAX_EVAL    // 詰み絡みのスコアではない
+          && abs(value) <= VALUE_MAX_EVAL   // 評価関数の返してきた値
           && alpha < value && value < beta  // fail low/highしていると参考にならない
           )
         {
@@ -1935,10 +1935,10 @@ void Thread::search()
       && (VALUE_MATE - bestValue) * 2 < rootDepth)
       break;
 
-    // 詰まされる形についても同様。こちらはmateの3倍以上、iterationを回したなら探索を打ち切る。
+    // 詰まされる形についても同様。こちらはmateの2倍以上、iterationを回したなら探索を打ち切る。
     if (!Limits.mate
       && bestValue <= VALUE_MATED_IN_MAX_PLY
-      && (bestValue - (-VALUE_MATE)) * 3 > rootDepth)
+      && (bestValue - (-VALUE_MATE)) * 2 < rootDepth)
       break;
 
     // 残り時間的に、次のiterationに行って良いのか、あるいは、探索をいますぐここでやめるべきか？
@@ -2175,7 +2175,8 @@ ID_END:;
   {
     // "stop"が送られてきたらSignals.stop == trueになる。
     // "ponderhit"が送られてきたらLimits.ponder == 0になるのでそれを待つ。
-    while (!Signals.stop && Search::Limits.ponder)
+    // "go infinite"に対してはstopが送られてくるまで待つ。
+    while (!Signals.stop && (Limits.ponder || Limits.infinite))
       sleep(10);
   }
 

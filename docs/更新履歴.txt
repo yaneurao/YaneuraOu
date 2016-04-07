@@ -2,6 +2,31 @@
 やねうら王 更新履歴
 
 
+■ 2016/04/07 V2.62
+
+・DYNAMIC_FUTILITY_MARGINの実験やりなおし。
+
+    return (16+param1*4) * futility_margin_sum * (int)d / ONE_PLY / (64 * 8);
+	
+	これくらいに設定して、param1 = 0..4ぐらいで比較。
+
+		+  // 評価関数の返す値の最大値
+		+  VALUE_MAX_EVAL             = int(VALUE_KNOWN_WIN) -1,
+
+・めっさ落ちる。なにこれ。
+	 sfen l+R2lbnnl/3skp1s1/pppp3p1/4pPG1p/3N5/2P1G3P/PP1PP2P1/6S2/+s2G1K1RL b PGpnb 75
+
+	>  VALUE_KNOWN_WIN            = int(VALUE_MATE_IN_MAX_PLY) - 1,
+	こんな近いと置換表に書き込んで、相手番から見ると
+		- VALUE_KNOWN_WIN
+	になって、ここにsingularの判定などでmarginを引くと
+		VALUE_MATE_IN_MAX_PLY
+	より下回るのでまずいのか…。そうなのか…。
+	dynamic marginでおかしくなってたの、これが一因にあるのか。
+
+・dynamic margin、なんか以前のものより勝率よさげ？
+
+
 ■ 2016/04/07 V2.61
 
   {  VALUE_KNOWN_WIN ,  VALUE_KNOWN_WIN }, // REPETITION_SUPERIOR
@@ -13,6 +38,43 @@
   {  VALUE_KNOWN_WIN-1 ,  VALUE_KNOWN_WIN-1 }, // REPETITION_SUPERIOR
   { -VALUE_KNOWN_WIN+1 , -VALUE_KNOWN_WIN+1 }, // REPETITION_INFERIOR
 こう変更して比較。
+
+少し強くなってる…気がする。500戦ほどさせておく。
+
+		51.2%	
+		#135
+		やねうら王classic-tce V261
+		revert, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V260b
+		revert, 1スレッド、0.1秒設定
+
+		306-66-292(27.0% R8.1)	
+
+・自己対戦で落ちた模様
+	sfen ln1l1+R2+P/1k3p3/1pps5/p2p2p1P/2g1p3p/KPsP1rg2/P3P+s3/1B7/LNSG4L b 2PB2p2ng 153
+
+・詰まされる形、投げるタイミング早すぎ。
+    -      && (bestValue - (-VALUE_MATE)) * 3 > rootDepth)
+	+      && (bestValue - (-VALUE_MATE)) * 2 < rootDepth)
+
+・go infiniteに対して、stopが来ていないのにbestmoveを返してしまう。
+	-    while (!Signals.stop && Search::Limits.ponder)
+    +    // "go infinite"に対してはstopが送られてくるまで待つ。
+    +    while (!Signals.stop && (Limits.ponder || Limits.infinite))
+	
+	→　一応、意図通りになった模様。
+
+・とりあえず結論的には自己対戦の回数もっとやらないとバグを仕込んで弱くなったときの原因究明に時間がかかる
+	ということ。
+
+・6c6tと6c12t比較
+		14-8-22 // 8分切れ負け
+		28-9-31 // 5分切れ負け
+	時間が長いと大差？
+	スレッド数増やしても弱くはならないみたい。R30か40ぐらい上がるのかな？
+	弱くならないということがわかったからそれでいいや。細かい比較はいまできないし。
+
 
 
 ■　2016/04/07 V2.60
