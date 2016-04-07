@@ -895,8 +895,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
   // 評価値の差分計算用の初期化
 
 #ifdef EVAL_KPP
-  // KPPのとき差分計算は遅延させるのでここではKPPの値を未計算であることを意味するVALUE_NONEを代入しておく。
-  st->sumKKP = VALUE_NONE;
+  // KPPのとき差分計算は遅延させるのでここではKPPの値を未計算であることを意味するINT_MAXを代入しておく。
+  // これVALUNE_NONEにするとsumKKPが32bitなので偶然一致することがある。
+  st->sumKKP = INT_MAX;
 #endif
 
   // 直前の指し手を保存するならばここで行なう。

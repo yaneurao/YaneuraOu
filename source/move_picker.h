@@ -65,7 +65,8 @@ struct Stats {
   // tableに値を格納する(Tの型がValueのとき)
   void update(Piece pc, Square to, Value v) {
 
-    ASSERT_LV4(is_ok(pc));
+    // USE_DROPBIT_IN_STATSが有効なときはpcとして +32したものを駒打ちとして格納する。
+//    ASSERT_LV4(is_ok(pc));
     ASSERT_LV4(is_ok(to));
 
     // abs(v) <= 324に制限する。
@@ -82,7 +83,11 @@ private:
   // Pieceを升sqに移動させるときの値
   // ※　Stockfishとは添字が逆順だが、将棋ではPIECE_NBのほうだけが2^Nなので仕方がない。
   // NULL_MOVEのときは、[color][NO_PIECE]を用いる
+#ifndef USE_DROPBIT_IN_STATS
   T table[SQ_NB_PLUS1][PIECE_NB];
+#else
+  T table[SQ_NB_PLUS1][(int)PIECE_NB*2];
+#endif
 };
 
 // Statsは、pcをsqの升に移動させる指し手に対してT型の値を保存する。
@@ -457,9 +462,16 @@ private:
   void score_quiets()
   {
     for (auto& m : *this)
-      m.value = history[move_to(m)][pos.moved_piece(m)]
-              + (*counterMoveHistory )[move_to(m)][pos.moved_piece(m)]
-              + (*followupMoveHistory)[move_to(m)][pos.moved_piece(m)];
+    {
+#ifndef USE_DROPBIT_IN_STATS
+      Piece mpc = pos.moved_piece(m);
+#else
+      Piece mpc = pos.moved_piece_ex(m);
+#endif
+      m.value = history[move_to(m)][mpc]
+        + (*counterMoveHistory)[move_to(m)][mpc]
+        + (*followupMoveHistory)[move_to(m)][mpc];
+    }
   }
 
   void score_evasions()
@@ -490,7 +502,11 @@ private:
         m.value = (Value)Eval::PieceValueCapture[pos.piece_on(move_to(m))]
                   - Value(type_of(pos.moved_piece(m))) + HistoryStats::Max;
       else
+#ifndef USE_DROPBIT_IN_STATS
         m.value = history[move_to(m)][pos.moved_piece(m)];
+#else
+        m.value = history[move_to(m)][pos.moved_piece_ex(m)];
+#endif
   }
 
   const Position& pos;

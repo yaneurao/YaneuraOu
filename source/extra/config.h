@@ -111,6 +111,13 @@
 // (これを含めると同じ移動をする別の駒をCounterMoveとしてみなさなくなり、ちょっと枝刈り性能が上がるはず)
 // #define KEEP_PIECE_IN_COUNTER_MOVE
 
+// 置換表のなかでevalを持たない
+// #define NO_EVAL_IN_TT
+
+// オーダリングに使っているStatsの配列のなかで駒打ちのためのbitを持つ。
+// #define USE_DROPBIT_IN_STATS
+
+
 // --------------------
 // release configurations
 // --------------------
@@ -171,6 +178,7 @@
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
 #define KEEP_PIECE_IN_COUNTER_MOVE
+#define USE_DROPBIT_IN_STATS
 #endif
 
 #ifdef YANEURAOU_2016_ENGINE

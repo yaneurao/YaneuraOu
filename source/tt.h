@@ -15,7 +15,9 @@ struct TTEntry {
 
   Move move() const { return (Move)move16; }
   Value value() const { return (Value)value16; }
+#ifndef  NO_EVAL_IN_TT
   Value eval() const { return (Value)eval16; }
+#endif
   Depth depth() const { return (Depth)((int)depth8 * ONE_PLY); }
   Bound bound() const { return (Bound)(genBound8 & 0x3); }
 
@@ -27,7 +29,11 @@ struct TTEntry {
   //   eval : 評価関数 or 静止探索の値
   //   m    : ベストな指し手
   //   gen  : TT.generation()
-  void save(Key k, Value v, Bound b,Depth d, Move m,Value eval,uint8_t gen)
+  void save(Key k, Value v, Bound b,Depth d, Move m,
+#ifndef NO_EVAL_IN_TT
+    Value eval,
+#endif
+    uint8_t gen)
   {
     ASSERT_LV3((-VALUE_INFINITE < v && v < VALUE_INFINITE) || v == VALUE_NONE);
 
@@ -62,7 +68,9 @@ struct TTEntry {
     {
       key16     = (uint16_t)(k >> 48);
       value16   = (int16_t)v;
+#ifndef NO_EVAL_IN_TT
       eval16    = (int16_t)eval;
+#endif
       genBound8 = (uint8_t)(gen | b);
       depth8    = (int8_t)(d / ONE_PLY);
     }
@@ -81,8 +89,10 @@ private:
   // このnodeでの探索の結果スコア
   int16_t value16;
 
+#ifndef NO_EVAL_IN_TT
   // 評価関数の評価値
   int16_t eval16;
+#endif
 
   // entryのgeneration上位6bit + Bound下位2bitのpackしたもの。
   // generationはエントリーの世代を表す。TranspositionTableで新しい探索ごとに+4されていく。
@@ -126,13 +136,22 @@ private:
   // TTEntryはこのサイズでalignされたメモリに配置する。(される)
   static const int CacheLineSize = 64;
 
+#ifndef  NO_EVAL_IN_TT
   // 1クラスターにおけるTTEntryの数
+  // TTEntry 10bytes×3つ + 2(padding) = 32bytes
   static const int ClusterSize = 3;
+#else
+  // TTEntry 8bytes×4つ = 32bytes
+  static const int ClusterSize = 4;
+#endif
 
   struct Cluster {
     TTEntry entry[ClusterSize];
+#ifndef  NO_EVAL_IN_TT
     int8_t padding[2]; // 全体を32byteぴったりにするためのpadding
+#endif
   };
+
   static_assert(sizeof(Cluster) == CacheLineSize /2 , "Cluster size incorrect");
 
   // この置換表が保持しているクラスター数。2の累乗。

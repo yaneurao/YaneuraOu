@@ -226,6 +226,14 @@ struct Position
   // 後手の駒打ちは後手の駒が返る。
   Piece moved_piece(Move m) const { return is_drop(m) ? (move_dropped_piece(m) + (sideToMove==WHITE ? PIECE_WHITE : NO_PIECE)) : piece_on(move_from(m)); }
 
+  // moved_pieceの拡張版。駒打ちのときは、打ち駒(+32)を加算した駒種を返す。
+  // historyなどでUSE_DROPBIT_IN_STATSを有効にするときに用いる。
+  Piece moved_piece_ex(Move m) const {
+    return is_drop(m)
+      ? Piece((move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE)) + 32)
+      : piece_on(move_from(m));
+  }
+
   // 連続王手の千日手等で引き分けかどうかを返す
   RepetitionState is_repetition(const int repPly = 16) const;
 

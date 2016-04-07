@@ -223,10 +223,11 @@ namespace YaneuraOuClassicTce
 // 直前のnoddの指し手で動かした駒とその移動先の升を返す。
 // ただしNULL_MOVE(or MOVE_NONE)のときは、sq = + 0か + 1の地点にNO_PIECEを動かしたことにする。
   // しかしこれ、どうせこれに対応するcounterが登録されていないのでMOVE_NONEをcounter moveにしたほうが良いのでは。
+  // この実装においてmoved_piece()は使えない。これは現在のPosition::side_to_move()の駒が返るからである。
 #define sq_pc_from_move(sq,pc,move)                                \
     {                                                              \
       sq = move_to(move);                                          \
-      pc = pos.piece_on(sq);                                       \
+      pc = Piece(pos.piece_on(sq) + (is_drop(move) ? 32 : 0));     \
     }
 
   // いい探索結果だったときにkiller等を更新する
@@ -265,30 +266,32 @@ namespace YaneuraOuClassicTce
     auto& fmh = CounterMoveHistory[prevPrevSq][prevPrevPc];
 
     auto thisThread = pos.this_thread();
-    thisThread->history.update(pos.moved_piece(move), move_to(move), bonus);
+    Piece mpc = pos.moved_piece_ex(move);
+    thisThread->history.update(mpc, move_to(move), bonus);
 
     if (is_ok((ss - 1)->currentMove))
     {
       // counter moveだが、移動させた駒を上位16バイトのほうに保持しておく。
       thisThread->counterMoves.update(prevPc, prevSq, move32 );
-      cmh.update(pos.moved_piece(move), move_to(move), bonus);
+      cmh.update(mpc, move_to(move), bonus);
     }
 
     if (is_ok((ss - 2)->currentMove))
-      fmh.update(pos.moved_piece(move), move_to(move), bonus);
+      fmh.update(mpc, move_to(move), bonus);
 
     // このnodeのベストの指し手以外の指し手はボーナス分を減らす
     for (int i = 0; i < quietsCnt; ++i)
     {
-      thisThread->history.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
+      Piece qpc = pos.moved_piece_ex(quiets[i]);
+      thisThread->history.update(qpc, move_to(quiets[i]), -bonus);
 
       // 前の局面の指し手がMOVE_NULLでないならcounter moveもupdateしておく。
 
       if (is_ok((ss - 1)->currentMove))
-        cmh.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
+        cmh.update(qpc, move_to(quiets[i]), -bonus);
 
       if (is_ok((ss - 2)->currentMove))
-        fmh.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
+        fmh.update(qpc, move_to(quiets[i]), -bonus);
     }
 
     // さらに、1手前で置換表の指し手が反駁されたときは、追加でペナルティを与える。
@@ -1208,7 +1211,7 @@ namespace YaneuraOuClassicTce
     // このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
     // evaluate()を呼び出していないなら呼び出しておく。
     // ss->staticEvalに代入するとimprovingの判定間違うのでそれはしないほうがよさげ。
-    if (pos.state()->sumKKP == VALUE_NONE)
+    if (pos.state()->sumKKP == INT_MAX)
       evaluate(pos);
 
     MovePicker mp(pos, ttMove, depth, thisThread->history, cmh, fmh, cm, ss);
@@ -1328,7 +1331,8 @@ namespace YaneuraOuClassicTce
       //
 
       // 浅い深さでの枝刈り
-
+      Piece mpc = pos.moved_piece_ex(move);
+      
       if (!RootNode
         && !captureOrPromotion
         && !InCheck
@@ -1346,8 +1350,8 @@ namespace YaneuraOuClassicTce
 
         if (depth <= 4 * ONE_PLY
           && move != (Move)(ss->killers[0])
-          && thisThread->history[move_to(move)][pos.moved_piece(move)] < VALUE_ZERO
-          && cmh[move_to(move)][pos.moved_piece(move)] < VALUE_ZERO)
+          && thisThread->history[move_to(move)][mpc] < VALUE_ZERO
+          && cmh[move_to(move)][mpc] < VALUE_ZERO)
           continue;
 
         // Futility pruning: at parent node
@@ -1404,10 +1408,9 @@ namespace YaneuraOuClassicTce
         && !captureOrPromotion)
       {
         // Reduction量
-        // do_move()で駒を移動させたあとなので、pos.moved_piece()ではなくpiece_on(to)で判定すれば十分。
         Depth r = reduction<PvNode>(improving, depth, moveCount);
-        Value hValue = thisThread->history[move_to(move)][pos.piece_on(move_to(move))];
-        Value cmhValue = cmh[move_to(move)][pos.piece_on(move_to(move))];
+        Value hValue = thisThread->history[move_to(move)][mpc];
+        Value cmhValue = cmh[move_to(move)][mpc];
 
         // cut nodeや、historyの値が悪い指し手に対してはreduction量を増やす。
         if ((!PvNode && cutNode)
@@ -1618,9 +1621,8 @@ namespace YaneuraOuClassicTce
       // 残り探索depthの3乗ぐらいのボーナスを与えてもええやろ。
       // Valueはint32なのでdepthが256までだから、3乗してもオーバーフローはすぐにはしない。
       Value bonus = Value(((int)depth * (int)depth * (int)depth) / ((int)ONE_PLY*(int)ONE_PLY*(int)ONE_PLY) - 1);
-      auto prevPrevSq = move_to((ss - 2)->currentMove);
-      auto& prevCmh = CounterMoveHistory[prevPrevSq][pos.piece_on(prevPrevSq)];
-      prevCmh.update(pos.piece_on(prevSq), prevSq, bonus);
+      auto& prevCmh = CounterMoveHistory[prevPrevSq][prevPrevPc];
+      prevCmh.update(prevPc,prevSq, bonus);
     }
 
     // -----------------------

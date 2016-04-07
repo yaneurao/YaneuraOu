@@ -152,7 +152,7 @@ namespace Eval
 
     // すでに計算されている。rootか？
     int sumKKP, sumBKPP, sumWKPP;
-    if (st->sumKKP != VALUE_NONE)
+    if (st->sumKKP != INT_MAX)
     {
       sumKKP = st->sumKKP;
       sumBKPP = st->sumBKPP;
@@ -166,7 +166,7 @@ namespace Eval
     auto now = st;
     auto prev = st->previous;
 
-    if (prev->sumKKP == VALUE_NONE)
+    if (prev->sumKKP == INT_MAX)
     {
       // 全計算
       compute_eval(pos);
