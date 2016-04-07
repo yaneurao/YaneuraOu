@@ -2,9 +2,17 @@
 やねうら王 更新履歴
 
 
+■ 2016/04/07 V2.61
+
   {  VALUE_KNOWN_WIN ,  VALUE_KNOWN_WIN }, // REPETITION_SUPERIOR
   { -VALUE_KNOWN_WIN , -VALUE_KNOWN_WIN }, // REPETITION_INFERIOR
-	-1にしたほうが良いのでは..
+
+これ、-1にしたほうが良いのでは..
+	VALUE_KNOWN_WIN自体はEVALの最大値としてつこてるから…。
+
+  {  VALUE_KNOWN_WIN-1 ,  VALUE_KNOWN_WIN-1 }, // REPETITION_SUPERIOR
+  { -VALUE_KNOWN_WIN+1 , -VALUE_KNOWN_WIN+1 }, // REPETITION_INFERIOR
+こう変更して比較。
 
 
 ■　2016/04/07 V2.60
@@ -210,6 +218,7 @@
 
 	うわわわわあああ。
 	→　直った気がする。
+	やっと互角に戻った。もっかい実験やりなおし…。
 
 
 ■　2016/04/07 V2.59
