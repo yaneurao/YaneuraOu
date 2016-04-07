@@ -258,8 +258,8 @@ namespace YaneuraOuClassicTce
 
     ASSERT_LV3(move != MOVE_NULL);
 
-    auto& cmh = CounterMoveHistory[prevSq][prevSq];
-    auto& fmh = CounterMoveHistory[prevPrevSq][prevPrevSq];
+    auto& cmh = CounterMoveHistory[prevSq][prevPc];
+    auto& fmh = CounterMoveHistory[prevPrevSq][prevPrevPc];
 
     auto thisThread = pos.this_thread();
     thisThread->history.update(pos.moved_piece(move), move_to(move), bonus);
@@ -267,7 +267,7 @@ namespace YaneuraOuClassicTce
     if (is_ok((ss - 1)->currentMove))
     {
       // counter moveだが、移動させた駒を上位16バイトのほうに保持しておく。
-      thisThread->counterMoves.update(pos.piece_on(prevSq), prevSq, move32 );
+      thisThread->counterMoves.update(prevPc, prevSq, move32 );
       cmh.update(pos.moved_piece(move), move_to(move), bonus);
     }
 
@@ -1341,7 +1341,7 @@ namespace YaneuraOuClassicTce
         // Historyに基づいた枝刈り(history && counter moveの値が悪いものに関してはskip)
 
         if (depth <= 4 * ONE_PLY
-          && make_move32(move) != ss->killers[0]
+          && move != (Move)(ss->killers[0])
           && thisThread->history[move_to(move)][pos.moved_piece(move)] < VALUE_ZERO
           && cmh[move_to(move)][pos.moved_piece(move)] < VALUE_ZERO)
           continue;

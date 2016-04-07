@@ -2,8 +2,12 @@
 やねうら王 更新履歴
 
 
-■　2016/04/07 V2.60
+  {  VALUE_KNOWN_WIN ,  VALUE_KNOWN_WIN }, // REPETITION_SUPERIOR
+  { -VALUE_KNOWN_WIN , -VALUE_KNOWN_WIN }, // REPETITION_INFERIOR
+	-1にしたほうが良いのでは..
 
+
+■　2016/04/07 V2.60
 
 ・若干弱くなっているのが気になる。
 
@@ -179,6 +183,33 @@
 
 	NULL MOVEのあと、糞みたいな指し手がcounter moveに挙がってくると
 	オーダリングを阻害する(気がする)
+	
+		43.4%	
+		#134
+		やねうら王classic-tce V260b
+		revert, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V253s
+		singular再テスト, 1スレッド、0.1秒設定
+
+		192-36-250(99.8% R-45.9)	
+
+	それでも負けとる…。
+
+・KEEP_PIECE_IN_COUNTER_MOVEをundefにして比較する。
+→　同様に負けとる..
+・もしかしてsingularが悪さしてるのか？
+	singularオフにしたらもっと大差になった。なんなんこれ…。
+
+原因わかった。
+	-    auto& cmh = CounterMoveHistory[prevSq][prevSq];
+	-    auto& fmh = CounterMoveHistory[prevPrevSq][prevPrevSq];
+
+	+    auto& cmh = CounterMoveHistory[prevSq][prevPc];
+	+    auto& fmh = CounterMoveHistory[prevPrevSq][prevPrevPc];
+
+	うわわわわあああ。
+	→　直った気がする。
 
 
 ■　2016/04/07 V2.59
