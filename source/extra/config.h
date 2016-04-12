@@ -354,6 +354,8 @@ const bool Is64Bit = false;
 #ifdef KEEP_PIECE_IN_COUNTER_MOVE
 typedef uint32_t Move32;
 #define COUNTER_MOVE Move32
+// 指し手の上位に駒種(移動前の駒)を格納してMove32化する。
+#define make_move32(move) ((Move32)((move) + (pos.moved_piece_before(move) << 16)))
 #else
 #define COUNTER_MOVE Move 
 #endif

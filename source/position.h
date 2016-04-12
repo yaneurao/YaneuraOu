@@ -222,16 +222,28 @@ struct Position
   void set_nodes_searched(uint64_t n) { nodes = n; }
   int64_t nodes_searched() const { return nodes; }
 
-  // この指し手によって移動させる駒を返す
+  // この指し手によって移動させる駒を返す。(移動前の駒)
   // 後手の駒打ちは後手の駒が返る。
-  Piece moved_piece(Move m) const { return is_drop(m) ? (move_dropped_piece(m) + (sideToMove==WHITE ? PIECE_WHITE : NO_PIECE)) : piece_on(move_from(m)); }
+  Piece moved_piece_before(Move m) const {
+    return is_drop(m)
+      ? (move_dropped_piece(m) + (sideToMove==WHITE ? PIECE_WHITE : NO_PIECE))
+      : piece_on(move_from(m));
+  }
+
+  // moved_piece_before()の移動後の駒が返る版。
+  Piece moved_piece_after(Move m) const {
+    return is_drop(m)
+      ? (move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE))
+      : is_promote(m) ? Piece(piece_on(move_from(m)) + PIECE_PROMOTE) : piece_on(move_from(m));
+  }
 
   // moved_pieceの拡張版。駒打ちのときは、打ち駒(+32)を加算した駒種を返す。
   // historyなどでUSE_DROPBIT_IN_STATSを有効にするときに用いる。
-  Piece moved_piece_ex(Move m) const {
+  // 成りの指し手のときは成りの指し手を返す。(移動後の駒)
+  Piece moved_piece_after_ex(Move m) const {
     return is_drop(m)
-      ? Piece((move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE)) + 32)
-      : piece_on(move_from(m));
+      ? Piece(move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE) + 32)
+      : is_promote(m) ? Piece(piece_on(move_from(m)) + PIECE_PROMOTE) : piece_on(move_from(m));
   }
 
   // 連続王手の千日手等で引き分けかどうかを返す

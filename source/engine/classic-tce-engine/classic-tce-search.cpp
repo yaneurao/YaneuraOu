@@ -217,13 +217,9 @@ namespace YaneuraOuClassicTce
   // MovePickerで用いる直前の指し手に対するそれぞれの指し手のスコア
   CounterMoveHistoryStats CounterMoveHistory;
 
-  // 指し手の上位に駒種を格納してMove32化する。
-#define make_move32(move) ((Move32)(move + (pos.moved_piece(move) << 16)))
-
-// 直前のnoddの指し手で動かした駒とその移動先の升を返す。
-// ただしNULL_MOVE(or MOVE_NONE)のときは、sq = + 0か + 1の地点にNO_PIECEを動かしたことにする。
-  // しかしこれ、どうせこれに対応するcounterが登録されていないのでMOVE_NONEをcounter moveにしたほうが良いのでは。
+  // 直前のnodeの指し手で動かした駒(移動後の駒)とその移動先の升を返す。
   // この実装においてmoved_piece()は使えない。これは現在のPosition::side_to_move()の駒が返るからである。
+  // 駒打ちのときは、駒打ちの駒(+32した駒)が返る。
 #define sq_pc_from_move(sq,pc,move)                                \
     {                                                              \
       sq = move_to(move);                                          \
@@ -254,6 +250,7 @@ namespace YaneuraOuClassicTce
     Value bonus = Value((int)depth*(int)depth / ((int)ONE_PLY*(int)ONE_PLY) + (int)depth / (int)ONE_PLY + 1);
 
     // 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
+    // 駒打ちの場合は+32した駒
     Square prevSq, prevPrevSq;
     Piece prevPc, prevPrevPc;
 
@@ -266,7 +263,7 @@ namespace YaneuraOuClassicTce
     auto& fmh = CounterMoveHistory[prevPrevSq][prevPrevPc];
 
     auto thisThread = pos.this_thread();
-    Piece mpc = pos.moved_piece_ex(move);
+    Piece mpc = pos.moved_piece_after_ex(move);
     thisThread->history.update(mpc, move_to(move), bonus);
 
     if (is_ok((ss - 1)->currentMove))
@@ -282,7 +279,7 @@ namespace YaneuraOuClassicTce
     // このnodeのベストの指し手以外の指し手はボーナス分を減らす
     for (int i = 0; i < quietsCnt; ++i)
     {
-      Piece qpc = pos.moved_piece_ex(quiets[i]);
+      Piece qpc = pos.moved_piece_after_ex(quiets[i]);
       thisThread->history.update(qpc, move_to(quiets[i]), -bonus);
 
       // 前の局面の指し手がMOVE_NULLでないならcounter moveもupdateしておく。
@@ -1100,7 +1097,7 @@ namespace YaneuraOuClassicTce
       &&  depth >= 5 * ONE_PLY
       &&  abs(beta) < VALUE_MATE_IN_MAX_PLY)
     {
-      Value rbeta = std::min(beta + 200, VALUE_INFINITE);
+      Value rbeta = std::min(beta + 200 , VALUE_INFINITE);
 
       // 大胆に探索depthを減らす
       Depth rdepth = depth - 4 * ONE_PLY;
@@ -1331,8 +1328,8 @@ namespace YaneuraOuClassicTce
       //
 
       // 浅い深さでの枝刈り
-      Piece mpc = pos.moved_piece_ex(move);
-      
+      Piece mpc = pos.moved_piece_after_ex(move);
+
       if (!RootNode
         && !captureOrPromotion
         && !InCheck
@@ -1819,7 +1816,8 @@ void Thread::search()
       // 探索深さが一定以上あるなら前回の反復深化のiteration時の最小値と最大値
       // より少し幅を広げたぐらいの探索窓をデフォルトとする。
 
-      if (rootDepth >= 5 * ONE_PLY)
+      // この値は 6～10ぐらいがベスト。Stockfish7では、5 * ONE_PLY。
+      if (rootDepth >= 7)
       {
         // aspiration windowの幅
         // 精度の良い評価関数ならばこの幅を小さくすると探索効率が上がるのだが、

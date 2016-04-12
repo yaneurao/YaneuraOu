@@ -171,22 +171,22 @@ namespace YaneuraOuMini
     auto& cmh = CounterMoveHistory[prevSq][pos.piece_on(prevSq)];
     auto thisThread = pos.this_thread();
 
-    thisThread->history.update(pos.moved_piece(move), move_to(move), bonus);
+    thisThread->history.update(pos.moved_piece_after(move), move_to(move), bonus);
 
     // 前の局面の指し手がMOVE_NULLでないならcounter moveもupdateしておく。
     if (is_ok((ss - 1)->currentMove))
     {
       thisThread->counterMoves.update(pos.piece_on(prevSq), prevSq, move);
-      cmh.update(pos.moved_piece(move), move_to(move), bonus);
+      cmh.update(pos.moved_piece_after(move), move_to(move), bonus);
     }
 
     // このnodeのベストの指し手以外の指し手はボーナス分を減らす
     for (int i = 0; i < quietsCnt; ++i)
     {
-      thisThread->history.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
+      thisThread->history.update(pos.moved_piece_after(quiets[i]), move_to(quiets[i]), -bonus);
 
       if (is_ok((ss - 1)->currentMove))
-        cmh.update(pos.moved_piece(quiets[i]), move_to(quiets[i]), -bonus);
+        cmh.update(pos.moved_piece_after(quiets[i]), move_to(quiets[i]), -bonus);
     }
 
     // さらに、1手前で置換表の指し手が反駁されたときは、追加でペナルティを与える。
@@ -972,8 +972,8 @@ namespace YaneuraOuMini
 
         if (depth <= 4 * ONE_PLY
           && move != ss->killers[0]
-          && thisThread->history[move_to(move)][pos.moved_piece(move)] < VALUE_ZERO
-          && cmh[move_to(move)][pos.moved_piece(move)] < VALUE_ZERO)
+          && thisThread->history[move_to(move)][pos.moved_piece_after(move)] < VALUE_ZERO
+          && cmh[move_to(move)][pos.moved_piece_after(move)] < VALUE_ZERO)
           continue;
 
         // 他、色々すべき

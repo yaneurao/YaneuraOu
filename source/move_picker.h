@@ -328,9 +328,9 @@ struct MovePicker
         {
           Move32 move32 = *(Move32*)currentMoves++;
           move = (Move)move32;
-          // 移動させる駒種が一致するかを確認する。
-          if (!is_drop(move)
-            && pos.piece_on(move_from(move)) != (Piece)(move32 >> 16))
+          // 今回移動させる駒種が一致するかを確認する。
+          // このチェックにより先手/後手の指し手であることが担保される。
+          if (move32 != make_move32(move))
             break;
         }
 #else
@@ -464,9 +464,9 @@ private:
     for (auto& m : *this)
     {
 #ifndef USE_DROPBIT_IN_STATS
-      Piece mpc = pos.moved_piece(m);
+      Piece mpc = pos.moved_piece_after(m);
 #else
-      Piece mpc = pos.moved_piece_ex(m);
+      Piece mpc = pos.moved_piece_after_ex(m);
 #endif
       m.value = history[move_to(m)][mpc]
         + (*counterMoveHistory)[move_to(m)][mpc]
@@ -495,17 +495,17 @@ private:
 
 #endif
 
-        // 駒を取る指し手ならseeがプラスだったということなのでプラスの符号になるようにStats::Maxを足す。
+      // 駒を取る指し手ならseeがプラスだったということなのでプラスの符号になるようにStats::Maxを足す。
       // あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
       // 価値が高いので(例えば合駒に安い駒を使う的な…)
       if (pos.capture(m))
         m.value = (Value)Eval::PieceValueCapture[pos.piece_on(move_to(m))]
-                  - Value(type_of(pos.moved_piece(m))) + HistoryStats::Max;
+                  - Value(type_of(pos.moved_piece_before(m))) + HistoryStats::Max;
       else
 #ifndef USE_DROPBIT_IN_STATS
-        m.value = history[move_to(m)][pos.moved_piece(m)];
+        m.value = history[move_to(m)][pos.moved_piece_after(m)];
 #else
-        m.value = history[move_to(m)][pos.moved_piece_ex(m)];
+        m.value = history[move_to(m)][pos.moved_piece_after_ex(m)];
 #endif
   }
 
