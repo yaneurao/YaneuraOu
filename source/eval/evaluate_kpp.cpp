@@ -10,6 +10,9 @@
 
 using namespace std;
 
+// eval cacheを用いるか。
+//#define USE_EHASH
+
 namespace Eval
 {
 
@@ -103,6 +106,33 @@ namespace Eval
   // KPP,KPのスケール
   const int FV_SCALE = 32;
 
+#ifdef USE_EHASH
+  // 評価値をcacheしておくための仕組み
+  struct alignas(32) EvalHash
+  {
+    union {
+      struct {
+        HASH_KEY key;
+        Value sumKKP;
+        Value sumBKPP;
+        Value sumWKPP;
+        // 8 + 4 + 4 + 4 = 20bytes
+        u8 padding[12];
+      };
+      ymm m;
+    };
+
+    EvalHash(){}
+
+    // copyがatomicでないと困るのでAVX2の命令でコピーしてしまう。
+    EvalHash& operator = (const EvalHash& rhs) { this->m = rhs.m; return *this; }
+  };
+  
+  // あまり大きくしすぎるとCPU cacheの汚染がひどくなる。
+  const u32 EHASH_SIZE = 1024 * 128;
+  EvalHash ehash[EHASH_SIZE];
+#endif
+
   // 駒割り以外の全計算
   // pos.st->BKPP,WKPP,KPPを初期化する。Position::set()で一度だけ呼び出される。(以降は差分計算)
   Value compute_eval(const Position& pos)
@@ -139,6 +169,18 @@ namespace Eval
     info.sumBKPP = Value(sumBKPP);
     info.sumWKPP = Value(sumWKPP);
 
+#ifdef USE_EHASH
+
+    // eval cacheに保存しておく。
+    EvalHash e;
+    e.sumKKP = Value(sumKKP);
+    e.sumBKPP = Value(sumBKPP);
+    e.sumWKPP = Value(sumWKPP);
+    e.key = info.key();
+    ehash[e.key & (EHASH_SIZE - 1)] = e;
+
+#endif
+
     // KKP配列の32bit化に伴い、KKP用だけ512倍しておく。(それくらいの計算精度はあるはず..)
     // 最終的なKKP = sumKKP / (FV_SCALE * FV_SCALE_KKP)
 
@@ -160,6 +202,22 @@ namespace Eval
       goto CALC_DIFF_END;
     }
 
+#ifdef USE_EHASH
+    HASH_KEY key = st->key();
+    {
+      auto e = ehash[key & (EHASH_SIZE - 1)];
+      if (e.key == key)
+      {
+        // hitしたのでこのまま返す
+        st->sumKKP = sumKKP = e.sumKKP;
+        st->sumBKPP = sumBKPP = e.sumBKPP;
+        st->sumWKPP = sumWKPP = e.sumWKPP;
+        
+        goto CALC_DIFF_END;
+      }
+    }
+#endif
+
     // 遡るのは一つだけ
     // ひとつずつ遡りながらsumKPPがVALUE_NONEでないところまで探してそこからの差分を計算することは出来るが
     // レアケースだし、StateInfoにEvalListを持たせる必要が出てきて、あまり得しない。
@@ -168,12 +226,27 @@ namespace Eval
 
     if (prev->sumKKP == INT_MAX)
     {
-      // 全計算
-      compute_eval(pos);
-      sumKKP = now->sumKKP;
-      sumBKPP = now->sumBKPP;
-      sumWKPP = now->sumWKPP;
-      goto CALC_DIFF_END;
+#ifdef USE_EHASH
+      HASH_KEY key2 = prev->key();
+      auto e = ehash[key2 & (EHASH_SIZE - 1)];
+      if (e.key == key2)
+      {
+        // hitしたのでここからの差分計算を行なう。
+        prev->sumKKP = e.sumKKP;
+        prev->sumBKPP = e.sumBKPP;
+        prev->sumWKPP = e.sumWKPP;
+        ASSERT_LV3(e.sumKKP != INT_MAX);
+      }
+      else
+#endif
+      {
+        // 全計算
+        compute_eval(pos);
+        sumKKP = now->sumKKP;
+        sumBKPP = now->sumBKPP;
+        sumWKPP = now->sumWKPP;
+        goto CALC_DIFF_END;
+      }
     }
 
     // この差分を求める
@@ -366,6 +439,18 @@ namespace Eval
     now->sumKKP = sumKKP;
     now->sumBKPP = sumBKPP;
     now->sumWKPP = sumWKPP;
+
+#ifdef USE_EHASH
+    // せっかく計算したのでehashに保存しておく。
+    {
+      EvalHash e;
+      e.sumKKP = Value(sumKKP);
+      e.sumBKPP = Value(sumBKPP);
+      e.sumWKPP = Value(sumWKPP);
+      e.key = key;
+      ehash[key & (EHASH_SIZE - 1)] = e;
+    }
+#endif
 
     // 差分計算終わり
   CALC_DIFF_END:;

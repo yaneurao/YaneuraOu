@@ -56,17 +56,19 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 
-#　俺の作業メモ(2016/04/12 17:00現在)
+#　俺の作業メモ(2016/04/13 5:00現在)
 
 - [ ] ・やねうら王classic-TCE(TimeControlEnabled)版を正式に公開する。
+- [ ] ・clangでコンパイル通るようにしてUbuntu×AWSで動くようにする。
 - [ ] ・やねうら王2016用の定跡を自動生成する。
 - [ ] ・local-game-serverに、持ち時間の管理機能入れる。
-- [ ] ・やねうら王twig、AperyTwigの評価関数バイナリの読み込みに対応。
-- [ ] ・やねうら王twigに定跡の選択機能入れる。
+- [ ] ・やねうら王twig、AperyTwigの評価関数バイナリの読み込みに対応させる。
+- [ ] ・定跡の選択機能入れる。
 
 
 ※　括弧のなかの+Rは、自己対局時の勝率から計算されるもので、0.5手延長などは顕著に勝率が上がりますが、自己対局以外では効果に乏しいです。
 
+- [x] 2016/04/13・ehashの仕組み追加したが速くならなかった。
 - [x] 2016/04/12・historyとか、成りの指し手のときは、成り駒のhistoryを見ないといけないのに
 　そういう処理になってなかった。(thx. 読み太の作者さん)
 - [x] 2016/04/11・classic-tce、aspiration depth間違っていたの修正＆調整。(+R8)

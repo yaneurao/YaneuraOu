@@ -131,7 +131,7 @@ struct StateInfo {
 
 #ifdef EVAL_KPP
   // 評価値。(次の局面で評価値を差分計算するときに用いる)
-  // まだ計算されていなければsumKPPの値は、VALUE_NONE
+  // まだ計算されていなければsumKPPの値は、INT_MAX
   int sumKKP;
   int sumBKPP;
   int sumWKPP;

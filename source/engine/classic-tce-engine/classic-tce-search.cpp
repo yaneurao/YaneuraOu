@@ -234,6 +234,11 @@ namespace YaneuraOuClassicTce
   inline void update_stats(const Position& pos, Stack* ss, Move move,
     Depth depth, Move* quiets, int quietsCnt)
   {
+    // 特定の指し手を除外して探索したなら、今回の指し手がこのnodeでのベストな指し手ではないから
+    // このときにkiller等を更新するのは有害である。
+    if (ss->excludedMove != MOVE_NONE)
+      return;
+
     //   killerのupdate
 
     // killer 2本しかないので[0]と違うならいまの[0]を[1]に降格させて[0]と差し替え
@@ -506,6 +511,7 @@ namespace YaneuraOuClassicTce
 
         // 置換表がhitしなかった場合、bestValueの初期値としてevaluate()を呼び出すしかないが、
         // NULL_MOVEの場合は前の局面での値を反転させると良い。(手番を考慮しない評価関数であるなら)
+        // NULL_MOVEしているということは王手がかかっていないということであり、staticEvalの値は取り出せるはず。
         ss->staticEval = bestValue =
          (ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
                                             : -(ss - 1)->staticEval;
@@ -572,7 +578,7 @@ namespace YaneuraOuClassicTce
     // このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
     // evaluate()を呼び出していないなら呼び出しておく。
     if (pos.state()->sumKKP == INT_MAX)
-      ss->staticEval = evaluate(pos);
+      evaluate(pos);
 
     while ((move = mp.next_move()) != MOVE_NONE)
     {
@@ -1789,6 +1795,7 @@ void Thread::search()
     {
       // これにはhalf density matrixを用いる。
       // 詳しくは、このmatrixの定義部の説明を読むこと。
+      // game_ply()は加算すべきではない気がする。あとで実験する。
       const Row& row = HalfDensity[(idx - 1) % HalfDensitySize];
       if (row[(rootDepth + rootPos.game_ply()) % row.size()])
         continue;

@@ -150,7 +150,11 @@ namespace Search {
       // 正しいエントリーは書き換えない。
       if (!ttHit || tte->move() != m)
         tte->save(pos.state()->key(), VALUE_NONE, BOUND_NONE, DEPTH_NONE,
-          m,  VALUE_NONE, TT.generation());
+          m, 
+#ifndef NO_EVAL_IN_TT         
+          VALUE_NONE,
+#endif
+          TT.generation());
 
       pos.do_move(m, *st++);
     }

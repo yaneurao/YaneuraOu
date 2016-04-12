@@ -2,9 +2,119 @@
 やねうら王 更新履歴
 
 ToDo:
-・ehash実装するの忘れてた。(thx.平岡さん)
 ・一括パラメーター調整の仕組み、何か考える。
+・HalfDensity、おかしい気がする。
+      // game_ply()は加算すべきではない気がする。あとで実験する。
+      const Row& row = HalfDensity[(idx - 1) % HalfDensitySize];
+      if (row[(rootDepth + rootPos.game_ply()) % row.size()])
 
+
+■ 2016/04/13 V2.72
+
+・singular extension等では現在のkillerを更新すべきではない説の検証。(thx.読み太の作者)
+	exclusion nodeでkiller更新とか、やったらあかんのちゃう仮説。
+
+  inline void update_stats(const Position& pos, Stack* ss, Move move,
+    Depth depth, Move* quiets, int quietsCnt)
+  {
++    // 特定の指し手を除外して探索したなら、今回の指し手がこのnodeでのベストな指し手ではないから
++    // このときにkiller等を更新するのは有害である。
++    if (ss->excludedMove != MOVE_NONE)
++      return;
+	
+	→　何らか現実的な効果があるくさい。singularとの兼ね合いかも知れないが。
+		これ、効果があるならこのアイデアは本家Stockfishにも取り込まれるべき。
+
+			51.4%	
+			#148
+			やねうら王classic-tce V272
+			exclusion moveがあるときupdate_statしない, 1スレッド、0.1秒設定
+			#0
+			やねうら王classic-tce V271a
+			revertした, 1スレッド、0.1秒設定
+
+			241-49-228(25.9% R9.6)	
+
+	V2.72a
+    if (ss->excludedMove != MOVE_NONE)
+    {
+      // ただしkillerがないなら、ないよりはマシだろうから今回の指し手を登録する。
++     if (ss->killers[0] == MOVE_NONE)
++       ss->killers[0] = make_move32(move);
+      return;
+    }
+
+			50.9%	
+			#149
+			やねうら王classic-tce V272a
+			exclusion moveあってもupdate_stat,killerは更新する, 1スレッド、0.1秒設定
+			#0
+			やねうら王classic-tce V271a
+			revertした, 1スレッド、0.1秒設定
+
+			226-56-218(33.5% R6.3)	
+
+
+	V2.72b
+
+		// このnodeでは、singular extensionをしているので、置換表の指し手がbestのはずで、
+		// 二番目の指し手が今回の指し手のはずだから、兄弟nodeのためには、以下のように
+		// killerを設定してやるのが適切。
+
+      if (ss->killers[0] == MOVE_NONE)
+      {
++        ss->killers[0] = make_move32(ss->excludedMove);
++        ss->killers[1] = make_move32(move);
+      }
+
+			49.0%	
+			#150
+			やねうら王classic-tce V272b
+			exclusion moveあってもupdate_stat,killerは更新する, 1スレッド、0.1秒設定
+			#0
+			やねうら王classic-tce V271a
+			revertした, 1スレッド、0.1秒設定
+
+			216-50-225(68.3% R-7.1)	
+
+	よくわからないが勝率下がったので取り入れない。
+	対局、3000局ぐらいやらないとわからない。
+
+
+■ 2016/04/13 V2.71
+
+・ehash実装するの忘れてた。(thx.平岡さん)
+→　何も速くならんかった…。
+
+・置換表にstaticEval保存しなくてもnpsほとんど変わらない。
+　staticEval、置換表が壊れてておかしい値拾ってくるリスクを考えると
+　保存しないほうがいいような気すらする。勝率変わるかテストする。
+	
+			49.3%	
+			#146
+			やねうら王classic-tce V271
+			置換表にstaticEval保存しない, 1スレッド、0.1秒設定
+			#0
+			やねうら王classic-tce V265
+			駒打ちを Statsに含めてみる実験, 1スレッド、0.1秒設定
+
+			138-31-142(61.7% R-5.0)	
+	V2.65とやってほぼ互角。
+
+V2.71a
+・revertしてV2.65と対戦。
+
+		52.8%	
+		#147
+		やねうら王classic-tce V271a
+		revertした, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V265
+		駒打ちを Statsに含めてみる実験, 1スレッド、0.1秒設定
+
+		142-32-127(16.5% R19.4)	
+
+ということでrevertする。
 
 ■ 2016/04/11 V2.70
 
