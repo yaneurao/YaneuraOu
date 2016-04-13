@@ -519,9 +519,10 @@ void Thread::search()
           continue;
 
         Move m = move_from_usi(rootPos, token);
-        if (m == MOVE_NULL)
+        if (!is_ok(m))
         {
-          sync_cout << "Error book.sfen , line = " << book_number << " , moves = " << token << endl << rootPos << sync_endl;
+          //  sync_cout << "Error book.sfen , line = " << book_number << " , moves = " << token << endl << rootPos << sync_endl;
+          // →　エラー扱いはしない。
           break;
         } else {
           SetupStates->push(StateInfo());

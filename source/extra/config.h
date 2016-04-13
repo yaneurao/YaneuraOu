@@ -181,11 +181,18 @@
 #define USE_DROPBIT_IN_STATS
 #endif
 
-#ifdef YANEURAOU_2016_ENGINE
-#define ENGINE_NAME "YaneuraOu 2016"
+#ifdef YANEURAOU_2016_MID_ENGINE
+#define ENGINE_NAME "YaneuraOu 2016 Mid"
 #define LONG_EFFECT_LIBRARY
 #undef USE_TT_PV
 #endif
+
+#ifdef YANEURAOU_2016_LATE_ENGINE
+#define ENGINE_NAME "YaneuraOu 2016 Late"
+#define LONG_EFFECT_LIBRARY
+#undef USE_TT_PV
+#endif
+
 
 #ifdef RANDOM_PLAYER_ENGINE
 #define ENGINE_NAME "YaneuraOu random player"
