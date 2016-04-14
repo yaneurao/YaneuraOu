@@ -56,6 +56,9 @@
     <Filter Include="リソース ファイル\engine\classic-tce-engine">
       <UniqueIdentifier>{c572f93f-e4d8-4d96-ad1f-2f6a5a11d108}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\engine\2016-mid-engine">
+      <UniqueIdentifier>{307735dd-d642-4bb7-a1c0-4b578152201a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -114,6 +117,9 @@
     </ClInclude>
     <ClInclude Include="move_picker.h">
       <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\2016-mid-engine\parameters.h">
+      <Filter>リソース ファイル\engine\2016-mid-engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -206,6 +212,9 @@
     </ClCompile>
     <ClCompile Include="engine\classic-tce-engine\classic-tce-search.cpp">
       <Filter>リソース ファイル\engine\classic-tce-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\2016-mid-engine\2016-mid-search.cpp">
+      <Filter>リソース ファイル\engine\2016-mid-engine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

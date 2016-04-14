@@ -2,11 +2,93 @@
 やねうら王 更新履歴
 
 ToDo:
+・local-serverから起動したときにparamteres.hが読み込めてない。根が深そう。あとで調べる。
+・local-game-serverに、持ち時間の管理機能入れる。(現状、思考時間関係のパラメーター調整が出来ないため)
+
+・clangでのコンパイル通るようにしてUbuntu×AWSで動くようにする。→　tanuki-さんにお願いする。
+・評価関数のAVX2化。→　tanuki-さんにお願いする。
+・やねうら王2016用の定跡を作成する。→　評価関数バイナリ、新しくなってから。
+・定跡の選択機能入れる。→　定跡出来てから。
+
+
+■ 2016/04/14 V2.78
+
+・parameters.hから実行時の読み込みルーチンを書く。
+	→　読み込み部書けた。
+
+・razoring marginもparameters.hに追加する。
+
+・local-serverから起動したときにparamteres.hが読み込めてない。根が深そう。あとで調べる。
+
+
+■ 2016/04/14 V2.77
+
+・2016-mid-engine追加。
 
 ・一括パラメーター調整の仕組み、何か考える。
+・parameters.h追加。
+	//
+	// Internal iterative deepening
+	//
 
-・clangでのコンパイル。→　tanuki-さんにお願いする。
-・評価関数のAVX2化。→　tanuki-さんにお願いする。
+	// IIDの条件
+	//if (depth >= (PvNode ? PARAM_IID_DEPTH_PV * ONE_PLY : PARAM_IID_DEPTH_NONPV * ONE_PLY)
+	//  && !ttMove
+	//  && (PvNode || ss->staticEval + PARAM_IID_ALPHA >= beta))
+
+	// [PARAM] min:3,max:10,step:1
+	PARAM_DEFINE(int) PARAM_IID_DEPTH_PV = 5;
+	// [PARAM] min:5,max:12,step:1
+	PARAM_DEFINE(int) PARAM_IID_DEPTH_NONPV = 8;
+
+	// [PARAM] min:100,max:400,step:16
+	PARAM_DEFINE(int) PARAM_IID_ALPHA = 256;
+
+	こんな感じで書いていく。てかIIDは、メモリが潤沢にあれば関係ないのでこの調整はしない。
+
+・ざっと書けた。他の細かい探索パラメーターは調整が難しいので評価関数を書きなおしてからにする。
+　とりあえずコンセプトプルーフだけでも。
+
+・3乗ボーナスやりすぎであったか…。(thx.woodyringさん)
+-      Value bonus = Value(((int)depth * (int)depth * (int)depth) / ((int)ONE_PLY*(int)ONE_PLY*(int)ONE_PLY) - 1);
++      Value bonus = Value((depth / ONE_PLY) * (depth / ONE_PLY) + depth / ONE_PLY - 1);
+
+		51.4%	
+		#153
+		やねうら王classic-tce V277
+		3乗ボーナスを2乗に, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V276
+		skip-early-pruningでもkillerがないなら更新, 1スレッド、0.1秒設定
+
+		357-79-337(21.3% R10.0)	
+
+
+
+■ 2016/04/14 V2.76
+
+・浅い探索のときでもkillerぐらい更新したほうが得なのでは。(thx.読み太の作者)
+
+    if (ss->skipEarlyPruning)
++    {
++      // しかしkillerがないときはkillerぐらいは登録したほうが少しだけ得かも。
++      if (ss->killers[0] == MOVE_NONE)
++        ss->killers[0] = move32;
++      else if (ss->killers[1] == MOVE_NONE)
++        ss->killers[1] = move32;
+
+      return;
++    }
+
+		54.7%	
+		#152
+		やねうら王classic-tce V276
+		skip-early-pruningでもkillerがないなら更新, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V273
+		skip-early-pruningにおいてhistory,killerを更新しない, 1スレッド、0.1秒設定
+
+		519-81-429(0.2% R33.1)	
 
 
 ■ 2016/04/14 V2.75

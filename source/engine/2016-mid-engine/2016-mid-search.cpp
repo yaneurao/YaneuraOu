@@ -1,21 +1,28 @@
 ﻿#include "../../shogi.h"
 
-#ifdef YANEURAOU_CLASSIC_TCE_ENGINE
+#ifdef YANEURAOU_2016_MID_ENGINE
 
 // -----------------------
-//   やねうら王classic-tce探索部
+//   やねうら王2016(mid)設定部
 // -----------------------
 
 // 開発方針
-// やねうら王classicからの改造
-// 持ち時間制御(秒読み、フィッシャールールに対応)、ponderの機能を追加したものです。
-// tce = time control enabledの意味
+// やねうら王classic-tceからの改造。
+// 探索のためのハイパーパラメーターの完全自動調整。
+
+// パラメーターを自動調整するのか
+// 自動調整が終われば、ファイルを固定してincludeしたほうが良い。
+#define USE_AUTO_TUNE_PARAMETERS
 
 // mate1ply()を呼び出すのか
 #define USE_MATE_1PLY
 
 // futilityのmarginを動的に決定するのか
 // #define DYNAMIC_FUTILITY_MARGIN
+
+// -----------------------
+//   includes
+// -----------------------
 
 #include <sstream>
 #include <iostream>
@@ -30,6 +37,15 @@
 #include "../../tt.h"
 #include "../../extra/book.h"
 #include "../../move_picker.h"
+
+// ハイパーパラメーターを自動調整するときはstatic変数にしておいて変更できるようにする。
+#ifdef USE_AUTO_TUNE_PARAMETERS
+#define PARAM_DEFINE static int
+#else
+#define PARAM_DEFINE constexpr int
+#endif
+
+#include "parameters.h"
 
 using namespace std;
 using namespace Search;
@@ -57,7 +73,11 @@ void USI::extra_option(USI::OptionsMap & o)
   o["Param2"] << Option(0, 0, 100000);
 }
 
-namespace YaneuraOuClassicTce
+// -----------------------
+//   やねうら王2016(mid)探索部
+// -----------------------
+
+namespace YaneuraOu2016Mid
 {
 
   // 外部から調整される探索パラメーター
@@ -84,7 +104,7 @@ namespace YaneuraOuClassicTce
   {
     static_assert(ONE_PLY == 2,"static_assert ONE_PLY == 2");
     ASSERT_LV3(DEPTH_ZERO <= d && d < 4 * ONE_PLY);
-    return (Value)(512 + 16 * static_cast<int>(d));
+    return (Value)(PARAM_RAZORING_MARGIN + PARAM_RAZORING_ALPHA * static_cast<int>(d));
   }
 
 #ifdef DYNAMIC_FUTILITY_MARGIN
@@ -102,7 +122,8 @@ namespace YaneuraOuClassicTce
 #else
   // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
   Value futility_margin(Depth d, int game_ply) {
-    return Value(d * 90);
+    // ここ、本当はONE_PLY掛けてからのほうがいいような気がするがパラメーターが調整しにくくなるのでこれでいく。
+    return Value(d * PARAM_FUTILITY_MARGIN_DEPTH);
   }
 #endif
 
@@ -569,7 +590,7 @@ namespace YaneuraOuClassicTce
 
       // futilityの基準となる値をbestValueにmargin値を加算したものとして、
       // これを下回るようであれば枝刈りする。
-      futilityBase = bestValue + 128;
+      futilityBase = bestValue + PARAM_FUTILITY_MARGIN_QUIET;
 
       // pinnedは更新したのでCheckInfoのそれ以外を更新。
       pos.check_info_update_without_pinned();
@@ -1050,7 +1071,7 @@ namespace YaneuraOuClassicTce
     // ここでは進行度としてgamePly()を用いる。このへんはあとで調整すべき。
 
     if (!RootNode
-      &&  depth < 7 * ONE_PLY
+      &&  depth < PARAM_FUTILITY_RETURN_DEPTH * ONE_PLY
       &&  eval - futility_margin(depth, pos.game_ply()) >= beta
       &&  eval < VALUE_KNOWN_WIN) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
       return eval - futility_margin(depth, pos.game_ply());
@@ -1068,7 +1089,7 @@ namespace YaneuraOuClassicTce
       ss->currentMove = MOVE_NULL;
 
       // 残り探索深さと評価値によるnull moveの深さを動的に減らす
-      Depth R = ((823 + 67 * depth) / 256 + std::min((int)((eval - beta) / PawnValue), 3)) * ONE_PLY;
+      Depth R = ((PARAM_NULL_MOVE_DYNAMIC_ALPHA + PARAM_NULL_MOVE_DYNAMIC_BETA * depth) / 256 + std::min((int)((eval - beta) / PawnValue), 3)) * ONE_PLY;
 
       // このタイミングでcheck_infoをupdateしないと、null_moveのときにStateInfo(含むCheckInfo)をコピーされてしまい、まずい。
       pos.check_info_update(ciu);
@@ -1092,7 +1113,7 @@ namespace YaneuraOuClassicTce
         if (nullValue >= VALUE_MATE_IN_MAX_PLY)
           nullValue = beta;
 
-        if (depth < 12 * ONE_PLY && abs(beta) < VALUE_KNOWN_WIN)
+        if (depth < PARAM_NULL_MOVE_RETURN_DEPTH * ONE_PLY && abs(beta) < VALUE_KNOWN_WIN)
           return nullValue;
 
         // nullMoveせずに(現在のnodeと同じ手番で)同じ深さで探索しなおして本当にbetaを超えるか検証する。cutNodeにしない。
@@ -1114,7 +1135,7 @@ namespace YaneuraOuClassicTce
     // 探索深さを減らしてざっくり見てもbetaを非常に上回る値を返すようなら、このnodeをほぼ安全に枝刈りすることが出来る。
 
     if (!PvNode
-      &&  depth >= 5 * ONE_PLY
+      &&  depth >= PARAM_PROBCUT_DEPTH * ONE_PLY
       &&  abs(beta) < VALUE_MATE_IN_MAX_PLY)
     {
       Value rbeta = std::min(beta + 200 , VALUE_INFINITE);
@@ -1183,7 +1204,7 @@ namespace YaneuraOuClassicTce
     
     // singular延長をするnodeであるか。
     bool singularExtensionNode = !RootNode
-      &&  depth >= 10 * ONE_PLY // Stockfish , Apreyは、8 * ONE_PLY
+      &&  depth >= PARAM_SINGULAR_EXTENSION_DEPTH * ONE_PLY // Stockfish , Apreyは、8 * ONE_PLY
       &&  ttMove != MOVE_NONE
       /*  &&  ttValue != VALUE_NONE これは次行の条件に暗に含まれている */
       &&  abs(ttValue) < VALUE_KNOWN_WIN
@@ -1192,7 +1213,14 @@ namespace YaneuraOuClassicTce
       && tte->depth() >= depth - 3 * ONE_PLY;
 
     // 調べた指し手を残しておいて、statusのupdateを行なうときに使う。
-    Move quietsSearched[64];
+    // ここ、PARAM_QUIET_SEARCH_COUNTにしたいが、これは自動調整時はstatic変数なので指定できない。
+    Move quietsSearched[
+#ifdef USE_AUTO_TUNE_PARAMETERS
+      128
+#else
+      PARAM_QUIET_SEARCH_COUNT
+#endif
+    ];
     int quietCount = 0;
 
     // このnodeでdo_move()された合法手の数
@@ -1309,15 +1337,14 @@ namespace YaneuraOuClassicTce
         &&  pos.legal(move))
       {
         // このmargin値は評価関数の性質に合わせて調整されるべき。
-//        Value rBeta = ttValue - 2 * depth / ONE_PLY;
-        Value rBeta = ttValue - 8 * depth / ONE_PLY;
+        Value rBeta = ttValue - PARAM_SINGULAR_MARGIN * depth / ONE_PLY;
 
         // ttMoveの指し手を以下のsearch()での探索から除外
         ss->excludedMove = move;
         ss->skipEarlyPruning = true;
         // 局面はdo_move()で進めずにこのnodeから浅い探索深さで探索しなおす。
         // 浅いdepthでnull windowなので、すぐに探索は終わるはず。
-        value = search<NonPV>(pos, ss, rBeta - 1, rBeta, depth / 2, cutNode);
+        value = search<NonPV>(pos, ss, rBeta - 1, rBeta, depth * PARAM_SINGULAR_SEARCH_DEPTH / 256, cutNode);
         ss->skipEarlyPruning = false;
         ss->excludedMove = MOVE_NONE;
 
@@ -1359,13 +1386,13 @@ namespace YaneuraOuClassicTce
 
         // Move countに基づいた枝刈り(futilityの亜種)
 
-        if (depth < 16 * ONE_PLY
+        if (depth < PARAM_PRUNING_BY_MOVE_COUNT_DEPTH * ONE_PLY
           && moveCount >= FutilityMoveCounts[improving][depth])
           continue;
 
         // Historyに基づいた枝刈り(history && counter moveの値が悪いものに関してはskip)
 
-        if (depth <= 4 * ONE_PLY
+        if (depth <= PARAM_PRUNING_BY_HISTORY_DEPTH * ONE_PLY
           && move != (Move)(ss->killers[0])
           && thisThread->history[move_to(move)][mpc] < VALUE_ZERO
           && cmh[move_to(move)][mpc] < VALUE_ZERO)
@@ -1377,10 +1404,9 @@ namespace YaneuraOuClassicTce
         // 次の子node(do_move()で進めたあとのnode)でのLMR後の予想depth
         Depth predictedDepth = std::max(newDepth - reduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO);
 
-        if (predictedDepth < 7 * ONE_PLY)
+        if (predictedDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH * ONE_PLY)
         {
-          // このmargin値はあとでもっと厳密に調整すべき。
-          Value futilityValue = ss->staticEval + futility_margin(predictedDepth,pos.game_ply()) + 170;
+          Value futilityValue = ss->staticEval + futility_margin(predictedDepth,pos.game_ply()) + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN;
 
           if (futilityValue <= alpha)
           {
@@ -1390,7 +1416,7 @@ namespace YaneuraOuClassicTce
         }
 
         // 次の子nodeにおいて浅い深さになる場合、負のSSE値を持つ指し手の枝刈り
-        if (predictedDepth < 4 * ONE_PLY && pos.see_sign(move) < VALUE_ZERO)
+        if (predictedDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH * ONE_PLY && pos.see_sign(move) < VALUE_ZERO)
           continue;
       }
 
@@ -1435,7 +1461,7 @@ namespace YaneuraOuClassicTce
           r += ONE_PLY;
 
         // historyの値に応じて指し手のreduction量を増減する。
-        int rHist = (hValue + cmhValue) / 14980;
+        int rHist = (hValue + cmhValue) / PARAM_REDUCTION_BY_HISTORY;
         r = std::max(DEPTH_ZERO, r - rHist * ONE_PLY);
 
 #if 0
@@ -1609,7 +1635,7 @@ namespace YaneuraOuClassicTce
       // 探索した指し手を64手目までquietsSearchedに登録しておく。
       // あとでhistoryなどのテーブルに加点/減点するときに使う。
 
-      if (!captureOrPromotion && move != bestMove && quietCount < 64)
+      if (!captureOrPromotion && move != bestMove && quietCount < PARAM_QUIET_SEARCH_COUNT)
         quietsSearched[quietCount++] = move;
 
     } // end of while
@@ -1665,7 +1691,7 @@ namespace YaneuraOuClassicTce
 
 }
 
-using namespace YaneuraOuClassicTce;
+using namespace YaneuraOu2016Mid;
 
 // --- 以下に好きなように探索のプログラムを書くべし。
 
@@ -1712,15 +1738,66 @@ void Search::init() {
   // ONE_PLY = 2にしたいので、それに合わせてテーブルを持つことにする。
   for (int d = 0; d < 16 * (int)ONE_PLY; ++d)
   {
-    FutilityMoveCounts[0][d] = int(2.4 + 0.773 * pow((float)d/ONE_PLY + 0.00, 1.8));
-    FutilityMoveCounts[1][d] = int(2.9 + 1.045 * pow((float)d/ONE_PLY + 0.49, 1.8));
+    FutilityMoveCounts[0][d] = int(2.4 + 0.773 * pow((float)d / ONE_PLY + 0.00, 1.8));
+    FutilityMoveCounts[1][d] = int(2.9 + 1.045 * pow((float)d / ONE_PLY + 0.49, 1.8));
   }
 
 #ifdef DYNAMIC_FUTILITY_MARGIN
   // 64個分のmarginの合計
-  futility_margin_sum = Value(int(int(90 * ONE_PLY) / (14.0/8.0) * 64));
+  futility_margin_sum = Value(int(int(90 * ONE_PLY) / (14.0 / 8.0) * 64));
 #endif
 
+  // -----------------------
+  //   parameters.hの動的な読み込み
+  // -----------------------
+#ifdef  USE_AUTO_TUNE_PARAMETERS
+  {
+    vector<string> param_names = {
+      "PARAM_FUTILITY_MARGIN_DEPTH" , "PARAM_FUTILITY_MARGIN_QUIET" , "PARAM_FUTILITY_RETURN_DEPTH",
+      "PARAM_FUTILITY_AT_PARENT_NODE_DEPTH","PARAM_FUTILITY_AT_PARENT_NODE_MARGIN","PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH",
+      "PARAM_NULL_MOVE_DYNAMIC_ALPHA","PARAM_NULL_MOVE_DYNAMIC_BETA","PARAM_NULL_MOVE_RETURN_DEPTH",
+      "PARAM_PROBCUT_DEPTH","PARAM_SINGULAR_EXTENSION_DEPTH","PARAM_SINGULAR_MARGIN",
+      "PARAM_SINGULAR_SEARCH_DEPTH","PARAM_PRUNING_BY_MOVE_COUNT_DEPTH","PARAM_PRUNING_BY_HISTORY_DEPTH",
+      "PARAM_REDUCTION_BY_HISTORY","PARAM_RAZORING_MARGIN","PARAM_RAZORING_ALPHA",
+      "PARAM_QUIET_SEARCH_COUNT"
+    };
+    vector<int*> param_vars = {
+      &PARAM_FUTILITY_MARGIN_DEPTH , &PARAM_FUTILITY_MARGIN_QUIET , &PARAM_FUTILITY_RETURN_DEPTH,
+      &PARAM_FUTILITY_AT_PARENT_NODE_DEPTH, &PARAM_FUTILITY_AT_PARENT_NODE_MARGIN, &PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH,
+      &PARAM_NULL_MOVE_DYNAMIC_ALPHA, &PARAM_NULL_MOVE_DYNAMIC_BETA, &PARAM_NULL_MOVE_RETURN_DEPTH,
+      &PARAM_PROBCUT_DEPTH, &PARAM_SINGULAR_EXTENSION_DEPTH, &PARAM_SINGULAR_MARGIN,
+      &PARAM_SINGULAR_SEARCH_DEPTH, &PARAM_PRUNING_BY_MOVE_COUNT_DEPTH, &PARAM_PRUNING_BY_HISTORY_DEPTH,
+      &PARAM_REDUCTION_BY_HISTORY, &PARAM_RAZORING_MARGIN , &PARAM_RAZORING_ALPHA,
+      &PARAM_QUIET_SEARCH_COUNT
+    };
+
+    fstream fs;
+    fs.open("param/parameters.h", ios::in);
+    if (fs.fail())
+      cout << "ERROR:can't read parameters.h" << endl;
+
+    int count = 0;
+    string line;
+    while (!fs.eof())
+    {
+      getline(fs, line);
+      if (line.find("PARAM_DEFINE") != -1)
+        for (int i = 0; i < param_names.size(); ++i)
+          if (line.find(param_names[i]) != -1)
+          {
+            count++;
+            // "="の右側にある数値を読む。
+            auto pos = line.find("=");
+            ASSERT_LV3(pos != -1);
+            int n = stoi(line.substr(pos + 1));
+            *param_vars[i] = stoi(line.substr(pos + 1));
+          }
+    }
+    fs.close();
+    // 読み込んだパラメーターの数が合致しないといけない。
+    ASSERT_LV3(count == param_names.size());
+    }
+#endif
 }
 
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
@@ -1854,7 +1931,7 @@ void Thread::search()
 
       while (true)
       {
-        bestValue = YaneuraOuClassicTce::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false);
+        bestValue = YaneuraOu2016Mid::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false);
 
         // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
         // 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
@@ -2277,4 +2354,4 @@ ID_END:;
 
 }
 
-#endif // YANEURAOU_CLASSIC_TCE_ENGINE
+#endif // YANEURAOU_2016_MID_ENGINE

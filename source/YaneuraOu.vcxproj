@@ -202,6 +202,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="bitboard.h" />
+    <ClInclude Include="engine\2016-mid-engine\parameters.h" />
     <ClInclude Include="engine\help-mate-engine\help_mate_engine.h" />
     <ClInclude Include="engine\mate-engine\mate_engine.h" />
     <ClInclude Include="evaluate.h" />
@@ -223,6 +224,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bitboard.cpp" />
+    <ClCompile Include="engine\2016-mid-engine\2016-mid-search.cpp" />
     <ClCompile Include="engine\classic-engine\classic_search.cpp" />
     <ClCompile Include="engine\classic-tce-engine\classic-tce-search.cpp" />
     <ClCompile Include="engine\help-mate-engine\help_mate_engine.cpp" />
