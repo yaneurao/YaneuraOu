@@ -167,8 +167,6 @@
 
 #ifdef YANEURAOU_CLASSIC_TCE_ENGINE
 #define ENGINE_NAME "YaneuraOu classic-tce"
-// 開発中なのでassertを有効に。
-#define ASSERT_LV 3
 #define ENABLE_TEST_CMD
 #define EVAL_KPP
 #define USE_SEE
@@ -183,14 +181,34 @@
 
 #ifdef YANEURAOU_2016_MID_ENGINE
 #define ENGINE_NAME "YaneuraOu 2016 Mid"
+// 開発中なのでassertを有効に。
+#define ASSERT_LV 3
+#define ENABLE_TEST_CMD
+#define EVAL_KPP
+#define USE_SEE
+#define USE_MOVE_PICKER
 #define LONG_EFFECT_LIBRARY
-#undef USE_TT_PV
+#define MATE_1PLY
+#define USE_ENTERING_KING_WIN
+#define USE_TIME_MANAGEMENT
+#define KEEP_PIECE_IN_COUNTER_MOVE
+#define USE_DROPBIT_IN_STATS
 #endif
 
 #ifdef YANEURAOU_2016_LATE_ENGINE
 #define ENGINE_NAME "YaneuraOu 2016 Late"
+// 開発中なのでassertを有効に。
+#define ASSERT_LV 3
+#define ENABLE_TEST_CMD
+#define EVAL_KPP
+#define USE_SEE
+#define USE_MOVE_PICKER
 #define LONG_EFFECT_LIBRARY
-#undef USE_TT_PV
+#define MATE_1PLY
+#define USE_ENTERING_KING_WIN
+#define USE_TIME_MANAGEMENT
+#define KEEP_PIECE_IN_COUNTER_MOVE
+#define USE_DROPBIT_IN_STATS
 #endif
 
 

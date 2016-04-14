@@ -27,9 +27,10 @@ namespace Search {
     // これを置換表に保存する。
     void insert_pv_in_tt(Position& pos);
 
-    // ponderの指し手がないときにponderの指し手を置換表からひねり出す。
-    // pv[1]に格納される。なかった場合は、この関数はfalseを返す。
-    bool extract_ponder_from_tt(Position& pos);
+    // ponderの指し手がないときにponderの指し手を置換表からひねり出す。pv[1]に格納する。
+    // ponder_candidateが2手目の局面で合法手なら、それをpv[1]に格納する。
+    // それすらなかった場合はfalseを返す。
+    bool extract_ponder_from_tt(Position& pos,Move ponder_candidate);
 
     // 今回の(反復深化の)iterationでの探索結果のスコア
     Value score = -VALUE_INFINITE;

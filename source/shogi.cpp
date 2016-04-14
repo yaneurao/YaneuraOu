@@ -166,12 +166,12 @@ namespace Search {
   // 探索を抜ける前にponderの指し手がないとき(rootでfail highしているだとか)にこの関数を呼び出す。
   // ponderの指し手として何かを指定したほうが、その分、相手の手番において考えられて得なので。
 
-  bool RootMove::extract_ponder_from_tt(Position& pos)
+  bool RootMove::extract_ponder_from_tt(Position& pos,Move ponder_candidate)
   {
     StateInfo st;
     bool ttHit;
 
-    ASSERT_LV3(pv.size() == 1);
+//    ASSERT_LV3(pv.size() == 1);
 
     // 詰みの局面が"ponderhit"で返ってくることがあるので、ここでのpv[0] == MOVE_RESIGNであることがありうる。
     if (!is_ok(pv[0]))
@@ -180,16 +180,25 @@ namespace Search {
     pos.check_info_update();
     pos.do_move(pv[0], st, pos.gives_check(pv[0]));
     TTEntry* tte = TT.probe(pos.state()->key(), ttHit);
-    pos.undo_move(pv[0]);
-
+    Move m;
     if (ttHit)
     {
-      Move m = tte->move(); // SMP safeにするためlocal copy
+      m = tte->move(); // SMP safeにするためlocal copy
       if (MoveList<LEGAL_ALL>(pos).contains(m))
-        return pv.push_back(m), true;
+        goto FOUND;
     }
+    // 置換表にもなかったので以前のiteration時のpv[1]をほじくり返す。
+    m = ponder_candidate;
+    if (MoveList<LEGAL_ALL>(pos).contains(m))
+      goto FOUND;
 
+    pos.undo_move(pv[0]);
     return false;
+  FOUND:;
+    pos.undo_move(pv[0]);
+    pv.push_back(m);
+//    std::cout << m << std::endl;
+    return true;
   }
 
 }

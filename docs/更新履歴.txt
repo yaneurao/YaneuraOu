@@ -2,13 +2,75 @@
 やねうら王 更新履歴
 
 ToDo:
-・ponder消失問題に対処。
+
 ・一括パラメーター調整の仕組み、何か考える。
+
+・clangでのコンパイル。→　tanuki-さんにお願いする。
+・評価関数のAVX2化。→　tanuki-さんにお願いする。
+
+
+■ 2016/04/14 V2.75
+
+・tce vs Apery(WCSC25) 1スレッド5秒固定。62-3-50。
+	1スレッドもしくは短い持ち時間ではあまり差がつかない。
+
+・MAX_PLYでの引き分け判定、1本化する。
+      if (Signals.stop.load(std::memory_order_relaxed) || ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
+
+	  →
+    Limits.max_game_ply = std::min(Limits.max_game_ply, rootPos.game_ply() + MAX_PLY -1);
+			こないして、ss->ply >= MAX_PLYの判定を消す。
+
+		-    if (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
+		+    if (pos.game_ply() > Limits.max_game_ply)
+
+		-    if (Signals.stop.load(std::memory_order_relaxed) || ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
+		+    if (Signals.stop.load(std::memory_order_relaxed) || pos.game_ply() > Limits.max_game_ply)
+
+・singular extensionを行うかどうかのsearch()の他に、do_moveせずに呼び出すsearch()が2カ所あって（nullmoveの後ろと、iid)
+	その内部でも同様にkillerとhistoryを更新しないように抑制する。(その部分で更新されるkiller手はもともと登録されてあったkiller手よりは価値が低いので。)
+	(thx. 読み太の作者)
+
+    // IID、null move、singular extensionの判定のときは浅い探索なのでこのときに
+    // killer等を更新するのは有害である。
+    if (ss->skipEarlyPruning)
+      return;
+
+	こう変更してみる。
+
+		54.7%	
+		#151
+		やねうら王classic-tce V273
+		skip-early-pruningにおいてhistory,killerを更新しない, 1スレッド、0.1秒設定
+		#0
+		やねうら王classic-tce V271a
+		revertした, 1スレッド、0.1秒設定
+
+		271-34-224(1.5% R33.1)	
+
+		効果あがあるっぽい。採用。
+		Stockfish7でも(本家がこれを採用すれば)たぶん効果があるばす。
+		
+・これにてtceの開発終了。
+	exeフォルダに最新のビルドを入れる。
+	次はやねうら王2016(Mid)の開発に着手。
+
+
+■ 2016/04/14 V2.74
+
+・ponder消失問題に対処。
+	fail low時など、置換表にも2手目がないのイクナイ。
+	→　追加した。
+・ponder、extract_ponder_from_tt()で置換表あさって返すとき、1手目の合法手集合からcontainsで調べてるの、
+	Stockfishのコードは、バグだな。なんなのこれ。修正した。
+
+	しばらくランニングさせておく。
+
 ・HalfDensity、おかしい気がする。
       // game_ply()は加算すべきではない気がする。あとで実験する。
       const Row& row = HalfDensity[(idx - 1) % HalfDensitySize];
       if (row[(rootDepth + rootPos.game_ply()) % row.size()])
-・clangでのコンパイル。→　tanuki-さんにお願いする。
+	  →　よくわからないが少なくとも足す必要はないように思えるのだが…。
 
 
 ■ 2016/04/14 V2.73

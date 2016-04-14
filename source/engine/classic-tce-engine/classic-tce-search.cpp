@@ -67,6 +67,9 @@ namespace YaneuraOuClassicTce
   // 定跡等で用いる乱数
   PRNG prng;
 
+  // Ponder用の指し手
+  Move ponder_candidate;
+
   // -----------------------
   //      探索用の定数
   // -----------------------
@@ -186,6 +189,7 @@ namespace YaneuraOuClassicTce
 
   typedef std::vector<int> Row;
   const Row HalfDensity[] = {
+    // 0番目のスレッドはmain threadだとして。
     { 0, 1 },        // 1番目のスレッド用
     { 1, 0 },        // 2番目のスレッド用
     { 0, 0, 1, 1 },  // 3番目のスレッド用
@@ -234,9 +238,9 @@ namespace YaneuraOuClassicTce
   inline void update_stats(const Position& pos, Stack* ss, Move move,
     Depth depth, Move* quiets, int quietsCnt)
   {
-    // 特定の指し手を除外して探索したなら、今回の指し手がこのnodeでのベストな指し手ではないから
-    // このときにkiller等を更新するのは有害である。
-    if (ss->excludedMove != MOVE_NONE)
+    // IID、null move、singular extensionの判定のときは浅い探索なのでこのときに
+    // killer等を更新するのは有害である。
+    if (ss->skipEarlyPruning)
       return;
 
     //   killerのupdate
@@ -420,7 +424,7 @@ namespace YaneuraOuClassicTce
     if (draw_type != REPETITION_NONE)
       return value_from_tt(draw_value(draw_type, pos.side_to_move()),ss->ply);
 
-    if (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
+    if (pos.game_ply() > Limits.max_game_ply)
       return draw_value(REPETITION_DRAW, pos.side_to_move());
 
     // -----------------------
@@ -818,7 +822,7 @@ namespace YaneuraOuClassicTce
         return value_from_tt(draw_value(draw_type, pos.side_to_move()),ss->ply);
 
       // 最大手数を超えている、もしくは停止命令が来ている。
-      if (Signals.stop.load(std::memory_order_relaxed) || ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
+      if (Signals.stop.load(std::memory_order_relaxed) || pos.game_ply() > Limits.max_game_ply)
         return draw_value(REPETITION_DRAW, pos.side_to_move());
 
       // -----------------------
@@ -1768,6 +1772,9 @@ void Thread::search()
     mainThread->easyMovePlayed = mainThread->failedLow = false;
     mainThread->bestMoveChanges = 0;
 
+    // ponder用の指し手の初期化
+    ponder_candidate = MOVE_NONE;
+
     // --- 置換表のTTEntryの世代を進める。
     TT.new_search();
   }
@@ -1927,6 +1934,12 @@ void Thread::search()
 
     if (!mainThread)
       continue;
+
+    // ponder用の指し手として、2手目の指し手を保存しておく。
+    // これがmain threadのものだけでいいかどうかはよくわからないが。
+    // とりあえず、無いよりマシだろう。
+    if (mainThread->rootMoves[0].pv.size() > 1)
+      ponder_candidate = mainThread->rootMoves[0].pv[1];
 
     //
     // main threadのときは探索の停止判定が必要
@@ -2146,6 +2159,12 @@ void MainThread::think()
     StateInfo si;
     auto& pos = rootPos;
 
+    // -- MAX_PLYに到達したかの判定が面倒なのでLimits.max_game_plyに一本化する。
+
+    // あとで戻す用
+    auto max_game_ply = Limits.max_game_ply;
+    Limits.max_game_ply = std::min(Limits.max_game_ply, rootPos.game_ply() + MAX_PLY -1);
+
     // --- contempt factor(引き分けのスコア)
 
     // Contempt: 引き分けを受け入れるスコア。歩を100とする。例えば、この値を100にすると引き分けの局面は
@@ -2172,6 +2191,9 @@ void MainThread::think()
     }
 
     Thread::search();
+
+    // 復元する。
+    Limits.max_game_ply = max_game_ply;
   }
 
   // 反復深化の終了。
@@ -2238,7 +2260,7 @@ ID_END:;
     // pomderの指し手の出力。
     // pvにはbestmoveのときの読み筋(PV)が格納されているので、ponderとしてpv[1]があればそれを出力してやる。
     // また、pv[1]がない場合(rootでfail highを起こしたなど)、置換表からひねり出してみる。
-    if (bestThread->rootMoves[0].pv.size() > 1 || bestThread->rootMoves[0].extract_ponder_from_tt(rootPos))
+    if (bestThread->rootMoves[0].pv.size() > 1 || bestThread->rootMoves[0].extract_ponder_from_tt(rootPos, ponder_candidate))
       std::cout << " ponder " << bestThread->rootMoves[0].pv[1];
 
     std::cout << sync_endl;
