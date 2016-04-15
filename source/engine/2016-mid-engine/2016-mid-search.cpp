@@ -14,6 +14,12 @@
 // 自動調整が終われば、ファイルを固定してincludeしたほうが良い。
 #define USE_AUTO_TUNE_PARAMETERS
 
+// 読み込むパラメーターファイル名
+// これがdefineされていると"parameters_master.h"
+// defineされていなければ"parameters_slave.h"
+// を(実行時に)読み込む。
+#define PARAMETERS_MASTER
+
 // mate1ply()を呼び出すのか
 #define USE_MATE_1PLY
 
@@ -45,7 +51,14 @@
 #define PARAM_DEFINE constexpr int
 #endif
 
+// 実行時に読み込むパラメーターファイルの名前
+#ifdef PARAMETERS_MASTER
+#define PARAM_FILE "parameters_master.h"
+#else
+#define PARAM_FILE "parameters_slave.h"
+#endif
 #include "parameters.h"
+
 
 using namespace std;
 using namespace Search;
@@ -1702,6 +1715,58 @@ Book::MemoryBook book;
 void Search::init() {
 
   // -----------------------
+  //   parameters.hの動的な読み込み
+  // -----------------------
+#ifdef  USE_AUTO_TUNE_PARAMETERS
+  {
+    vector<string> param_names = {
+      "PARAM_FUTILITY_MARGIN_DEPTH" , "PARAM_FUTILITY_MARGIN_QUIET" , "PARAM_FUTILITY_RETURN_DEPTH",
+      "PARAM_FUTILITY_AT_PARENT_NODE_DEPTH","PARAM_FUTILITY_AT_PARENT_NODE_MARGIN","PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH",
+      "PARAM_NULL_MOVE_DYNAMIC_ALPHA","PARAM_NULL_MOVE_DYNAMIC_BETA","PARAM_NULL_MOVE_RETURN_DEPTH",
+      "PARAM_PROBCUT_DEPTH","PARAM_SINGULAR_EXTENSION_DEPTH","PARAM_SINGULAR_MARGIN",
+      "PARAM_SINGULAR_SEARCH_DEPTH","PARAM_PRUNING_BY_MOVE_COUNT_DEPTH","PARAM_PRUNING_BY_HISTORY_DEPTH",
+      "PARAM_REDUCTION_BY_HISTORY","PARAM_RAZORING_MARGIN","PARAM_RAZORING_ALPHA",
+      "PARAM_QUIET_SEARCH_COUNT"
+    };
+    vector<int*> param_vars = {
+      &PARAM_FUTILITY_MARGIN_DEPTH , &PARAM_FUTILITY_MARGIN_QUIET , &PARAM_FUTILITY_RETURN_DEPTH,
+      &PARAM_FUTILITY_AT_PARENT_NODE_DEPTH, &PARAM_FUTILITY_AT_PARENT_NODE_MARGIN, &PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH,
+      &PARAM_NULL_MOVE_DYNAMIC_ALPHA, &PARAM_NULL_MOVE_DYNAMIC_BETA, &PARAM_NULL_MOVE_RETURN_DEPTH,
+      &PARAM_PROBCUT_DEPTH, &PARAM_SINGULAR_EXTENSION_DEPTH, &PARAM_SINGULAR_MARGIN,
+      &PARAM_SINGULAR_SEARCH_DEPTH, &PARAM_PRUNING_BY_MOVE_COUNT_DEPTH, &PARAM_PRUNING_BY_HISTORY_DEPTH,
+      &PARAM_REDUCTION_BY_HISTORY, &PARAM_RAZORING_MARGIN , &PARAM_RAZORING_ALPHA,
+      &PARAM_QUIET_SEARCH_COUNT
+    };
+
+    fstream fs;
+    fs.open("param\\" PARAM_FILE, ios::in);
+    if (fs.fail())
+      cout << "ERROR:can't read " PARAM_FILE << endl;
+
+    int count = 0;
+    string line;
+    while (!fs.eof())
+    {
+      getline(fs, line);
+      if (line.find("PARAM_DEFINE") != -1)
+        for (int i = 0; i < param_names.size(); ++i)
+          if (line.find(param_names[i]) != -1)
+          {
+            count++;
+            // "="の右側にある数値を読む。
+            auto pos = line.find("=");
+            ASSERT_LV3(pos != -1);
+            int n = stoi(line.substr(pos + 1));
+            *param_vars[i] = stoi(line.substr(pos + 1));
+          }
+    }
+    fs.close();
+    // 読み込んだパラメーターの数が合致しないといけない。
+    ASSERT_LV3(count == param_names.size());
+  }
+#endif
+
+  // -----------------------
   //   定跡の読み込み
   // -----------------------
   Book::read_book("book/standard_book.db", book);
@@ -1747,57 +1812,6 @@ void Search::init() {
   futility_margin_sum = Value(int(int(90 * ONE_PLY) / (14.0 / 8.0) * 64));
 #endif
 
-  // -----------------------
-  //   parameters.hの動的な読み込み
-  // -----------------------
-#ifdef  USE_AUTO_TUNE_PARAMETERS
-  {
-    vector<string> param_names = {
-      "PARAM_FUTILITY_MARGIN_DEPTH" , "PARAM_FUTILITY_MARGIN_QUIET" , "PARAM_FUTILITY_RETURN_DEPTH",
-      "PARAM_FUTILITY_AT_PARENT_NODE_DEPTH","PARAM_FUTILITY_AT_PARENT_NODE_MARGIN","PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH",
-      "PARAM_NULL_MOVE_DYNAMIC_ALPHA","PARAM_NULL_MOVE_DYNAMIC_BETA","PARAM_NULL_MOVE_RETURN_DEPTH",
-      "PARAM_PROBCUT_DEPTH","PARAM_SINGULAR_EXTENSION_DEPTH","PARAM_SINGULAR_MARGIN",
-      "PARAM_SINGULAR_SEARCH_DEPTH","PARAM_PRUNING_BY_MOVE_COUNT_DEPTH","PARAM_PRUNING_BY_HISTORY_DEPTH",
-      "PARAM_REDUCTION_BY_HISTORY","PARAM_RAZORING_MARGIN","PARAM_RAZORING_ALPHA",
-      "PARAM_QUIET_SEARCH_COUNT"
-    };
-    vector<int*> param_vars = {
-      &PARAM_FUTILITY_MARGIN_DEPTH , &PARAM_FUTILITY_MARGIN_QUIET , &PARAM_FUTILITY_RETURN_DEPTH,
-      &PARAM_FUTILITY_AT_PARENT_NODE_DEPTH, &PARAM_FUTILITY_AT_PARENT_NODE_MARGIN, &PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH,
-      &PARAM_NULL_MOVE_DYNAMIC_ALPHA, &PARAM_NULL_MOVE_DYNAMIC_BETA, &PARAM_NULL_MOVE_RETURN_DEPTH,
-      &PARAM_PROBCUT_DEPTH, &PARAM_SINGULAR_EXTENSION_DEPTH, &PARAM_SINGULAR_MARGIN,
-      &PARAM_SINGULAR_SEARCH_DEPTH, &PARAM_PRUNING_BY_MOVE_COUNT_DEPTH, &PARAM_PRUNING_BY_HISTORY_DEPTH,
-      &PARAM_REDUCTION_BY_HISTORY, &PARAM_RAZORING_MARGIN , &PARAM_RAZORING_ALPHA,
-      &PARAM_QUIET_SEARCH_COUNT
-    };
-
-    fstream fs;
-    fs.open("param/parameters.h", ios::in);
-    if (fs.fail())
-      cout << "ERROR:can't read parameters.h" << endl;
-
-    int count = 0;
-    string line;
-    while (!fs.eof())
-    {
-      getline(fs, line);
-      if (line.find("PARAM_DEFINE") != -1)
-        for (int i = 0; i < param_names.size(); ++i)
-          if (line.find(param_names[i]) != -1)
-          {
-            count++;
-            // "="の右側にある数値を読む。
-            auto pos = line.find("=");
-            ASSERT_LV3(pos != -1);
-            int n = stoi(line.substr(pos + 1));
-            *param_vars[i] = stoi(line.substr(pos + 1));
-          }
-    }
-    fs.close();
-    // 読み込んだパラメーターの数が合致しないといけない。
-    ASSERT_LV3(count == param_names.size());
-    }
-#endif
 }
 
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。

@@ -28,7 +28,7 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 
 ## やねうら王classic-tce
 
-やねうら王classic-tceは、やねうら王classicのソースコードに持ち時間制御(秒読み、フィッシャールールに対応)、ponderの機能を追加したものです。(R3300程度の予定)
+やねうら王classic-tceは、やねうら王classicのソースコードに持ち時間制御(秒読み、フィッシャールールに対応)、ponderの機能を追加したものです。(R3250程度)
 
 ## やねうら王2016 Mid
 

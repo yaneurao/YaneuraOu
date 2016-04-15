@@ -48,6 +48,9 @@ struct ProcessNegotiator
       0,    // creation flags
       NULL, // use parent's environment
       NULL, // use parent's current directory
+      // ここにカレントディレクトリを指定する。
+      // engine/xxx.exe を起動するなら engine/ を指定するほうがいいような気は少しする。
+      
       &si,  // STARTUPINFO pointer
       &pi   // receives PROCESS_INFOMATION
       );
