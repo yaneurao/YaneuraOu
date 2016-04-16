@@ -34,9 +34,18 @@ ToDo:
 		PARAM_FUTILITY_AT_PARENT_NODE_MARGIN : 180 → 190(53.13%) : ← 47.85% , → 53.13%
 		PARAM_FUTILITY_MARGIN_QUIET : 128 → 123(51.66%) : ← 51.66% , → 49.31%
 		PARAM_FUTILITY_MARGIN_ALPHA : 95 → 91(50.89%) : ← 50.89% , → 49.40%
+		PARAM_SINGULAR_SEARCH_DEPTH : 169 → 169(50.00%) : ← 48.03% , → 48.04%
+		PARAM_SINGULAR_MARGIN : 6 → 6(50.00%) : ← 47.95% , → 49.21%
+		PARAM_SINGULAR_EXTENSION_DEPTH : 10 → 10(50.00%) : ← 50.00% , → 48.72%
+		PARAM_PROBCUT_DEPTH : 5 → 5(50.00%) : ← 48.13% , → 47.83%
 
-		tce版のfinalといまのところ互角ぐらい。
+		tce版のfinalといまのところ互角ぐらい。2,3周回してからまた対戦させてみる。
 
+・思考時間 1手、80ms-120ms、平均100msにして倍ぐらいの速度で対戦させたほうがいいような気がしてきた。
+	→　とりあえずrtime 50でいいや。
+
+	持ち時間長くで調べたほうがいいパラメーターは長い時間を対局させる機能が必要だな。
+	前のバージョンと対戦させると-R10ぐらい低い。なんなんこれ。
 
 
 ■ 2016/04/15 V2.79
