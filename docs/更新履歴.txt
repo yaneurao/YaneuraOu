@@ -18,6 +18,26 @@ ToDo:
 
 ・PARAM_FUTILITY_MARGIN_DEPTHはPARAM_FUTILITY_MARGIN_ALPHAのほうが名前変更。
 
+	パラメーター自動調整中。
+
+	//
+	// history of changed parameters
+	//
+	ここに過去の変更履歴が自動的に書き込まれる。
+	右側にある「←」は値を減らしたときの勝率。「→」は値を増やしたときの勝率。
+
+		[HISTORY]
+		PARAM_NULL_MOVE_RETURN_DEPTH : 6 → 5(50.69%) : ← 50.69% , → 49.90%
+		PARAM_NULL_MOVE_DYNAMIC_BETA : 63 → 63(50.00%) : ← 47.76% , → 47.95%
+		PARAM_NULL_MOVE_DYNAMIC_ALPHA : 823 → 823(50.00%) : ← 49.60% , → 44.47%
+		PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH : 4 → 4(50.00%) : ← 49.51% , → 46.64%
+		PARAM_FUTILITY_AT_PARENT_NODE_MARGIN : 180 → 190(53.13%) : ← 47.85% , → 53.13%
+		PARAM_FUTILITY_MARGIN_QUIET : 128 → 123(51.66%) : ← 51.66% , → 49.31%
+		PARAM_FUTILITY_MARGIN_ALPHA : 95 → 91(50.89%) : ← 50.89% , → 49.40%
+
+		tce版のfinalといまのところ互角ぐらい。
+
+
 
 ■ 2016/04/15 V2.79
 

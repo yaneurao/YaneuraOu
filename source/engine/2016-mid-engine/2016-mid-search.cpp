@@ -1154,7 +1154,7 @@ namespace YaneuraOu2016Mid
       Value rbeta = std::min(beta + 200 , VALUE_INFINITE);
 
       // 大胆に探索depthを減らす
-      Depth rdepth = depth - 4 * ONE_PLY;
+      Depth rdepth = depth - (PARAM_PROBCUT_DEPTH-1) * ONE_PLY;
 
       ASSERT_LV3(rdepth >= ONE_PLY);
       ASSERT_LV3((ss - 1)->currentMove != MOVE_NONE);
