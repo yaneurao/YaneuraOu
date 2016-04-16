@@ -2,12 +2,21 @@
 やねうら王 更新履歴
 
 ToDo:
+
+・null moveのときだけはkillerは必ず更新したほうがいい。
+	null moveしたノードでのkiller手は理想的なkiller手なので、価値が高い。(読み太の作者さん)
+
 ・local-game-serverに、持ち時間の管理機能入れる。(現状、思考時間関係のパラメーター調整が出来ないため)
 
 ・clangでのコンパイル通るようにしてUbuntu×AWSで動くようにする。→　tanuki-さんにお願いする。
 ・評価関数のAVX2化。→　tanuki-さんにお願いする。
 ・やねうら王2016用の定跡を作成する。→　評価関数バイナリ、新しくなってから。
 ・定跡の選択機能入れる。→　定跡出来てから。
+
+
+■ 2016/04/16 V2.80
+
+・PARAM_FUTILITY_MARGIN_DEPTHはPARAM_FUTILITY_MARGIN_ALPHAのほうが名前変更。
 
 
 ■ 2016/04/15 V2.79
