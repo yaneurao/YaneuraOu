@@ -46,10 +46,10 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 
   if (limits.rtime)
   {
-    // これが指定されているときは1～3倍の範囲で最小思考時間をランダム化する。
+    // これが指定されているときは1～1.5倍の範囲で最小思考時間をランダム化する。
     // 連続自己対戦時に最小思考時間をばらつかせるためのもの。
     // remain_timeにもこれを代入しておかないとround_up()が正常に出来なくて困る。
-    remain_time = minimumTime = optimumTime = maximumTime = limits.rtime + (int)prng.rand(limits.rtime * 2);
+    remain_time = minimumTime = optimumTime = maximumTime = limits.rtime + (int)prng.rand(limits.rtime/2);
     return;
   }
   

@@ -22,7 +22,7 @@
 // 深さに比例したfutility pruning
 // depth手先で評価値が変動する幅が = depth * PARAM_FUTILITY_MARGIN_ALPHA
 // [PARAM] min:50,max:120,step:4,interval:1,trial_rate:1,time_rate:1
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 87;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 95;
 
 // 静止探索でのfutility pruning
 // [PARAM] min:50,max:150,step:5,interval:1,trial_rate:1,time_rate:1
@@ -30,17 +30,17 @@ PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 123;
 
 // futility pruningが適用されるdepth。これ以下のdepthに対して適用される。
 // [PARAM] min:5,max:13,step:1,interval:2,trial_rate:2,time_rate:1
-PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 9;
+PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 8;
 
 // 親nodeでのfutilityを行なうdepthとそのmarginと、seeが負の指し手の枝刈りをするdepth
 
 // [PARAM] min:5,max:13,step:1,interval:2,trial_rate:2,time_rate:1
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 7;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 6;
 
 // [PARAM] min:100,max:200,step:10,interval:1,trial_rate:1,time_rate:1
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN = 190;
 
-// [PARAM] min:2,max:10,step:1,interval:1,trial_rate:1,time_rate:1
+// [PARAM] min:2,max:10,step:1,interval:2,trial_rate:1,time_rate:1
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH = 4;
 
 //
@@ -51,13 +51,13 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH = 4;
 //  Reduction = (α + β * depth ) / 256 + ...みたいなαとβ
 
 // [PARAM] min:500,max:1500,step:8,interval:1,trial_rate:1,time_rate:1
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_ALPHA = 815;
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_ALPHA = 823;
 
 // [PARAM] min:50,max:100,step:4,interval:1,trial_rate:1,time_rate:1
 PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 59;
 
 // null moveの前提depthと、beta値を上回ったときにreturnするdepth,time_rate:1
-// [PARAM] min:4,max:10,step:1,interval:1,trial_rate:1,time_rate:1
+// [PARAM] min:4,max:10,step:1,interval:2,trial_rate:1,time_rate:1
 PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 6;
 
 //
@@ -65,7 +65,7 @@ PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 6;
 //
 
 // probcutの前提depth
-// [PARAM] min:3,max:10,step:1,interval:1,trial_rate:1,time_rate:1
+// [PARAM] min:3,max:10,step:1,interval:2,trial_rate:1,time_rate:1
 PARAM_DEFINE PARAM_PROBCUT_DEPTH = 5;
 
 //
@@ -74,18 +74,18 @@ PARAM_DEFINE PARAM_PROBCUT_DEPTH = 5;
 
 // singular extensionの前提depth
 // [PARAM] min:6,max:13,step:1,interval:2,trial_rate:1,time_rate:5
-PARAM_DEFINE PARAM_SINGULAR_EXTENSION_DEPTH = 10;
+PARAM_DEFINE PARAM_SINGULAR_EXTENSION_DEPTH = 9;
 
 // singular extensionのmarginを計算するときの係数
 // Value rBeta = ttValue - PARAM_SINGULAR_MARGIN * depth / ONE_PLY;
 
 // [PARAM] min:2,max:20,step:1,interval:1,trial_rate:1,time_rate:1
-PARAM_DEFINE PARAM_SINGULAR_MARGIN = 5;
+PARAM_DEFINE PARAM_SINGULAR_MARGIN = 4;
 
 // singular extensionで浅い探索をするときの深さに関する係数
 // depth * PARAM_SINGULAR_SEARCH_DEPTH / 256
 
-// [PARAM] min:64,max:230,step:28,interval:1,trial_rate:1,time_rate:1
+// [PARAM] min:64,max:230,step:28,interval:2,trial_rate:1,time_rate:5
 PARAM_DEFINE PARAM_SINGULAR_SEARCH_DEPTH = 192;
 
 //
@@ -93,16 +93,16 @@ PARAM_DEFINE PARAM_SINGULAR_SEARCH_DEPTH = 192;
 //
 
 // move countによる枝刈りをする深さ
-// [PARAM] min:8,max:32,step:1,interval:1,trial_rate:1,time_rate:5
+// [PARAM] min:8,max:32,step:1,interval:2,trial_rate:1,time_rate:5
 PARAM_DEFINE PARAM_PRUNING_BY_MOVE_COUNT_DEPTH = 15;
 
 // historyによる枝刈りをする深さ
-// [PARAM] min:2,max:32,step:1,interval:1,trial_rate:1,time_rate:1
+// [PARAM] min:2,max:32,step:1,interval:2,trial_rate:1,time_rate:1
 PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 4;
 
 // historyの値によってreductionするときの係数
-// [PARAM] min:4000,max:32000,step:256,interval:1,trial_rate:1,time_rate:1
-PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 14980;
+// [PARAM] min:4000,max:32000,step:256,interval:1,trial_rate:2,time_rate:1
+PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 14724;
 
 //
 // razoring pruning
@@ -111,7 +111,7 @@ PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 14980;
 
 // return (Value)(PARAM_RAZORING_MARGIN + PARAM_RAZORING_ALPHA * static_cast<int>(d));
 
-// [PARAM] min:64,max:1024,step:16,interval:1,trial_rate:1,time_rate:1
+// [PARAM] min:64,max:1024,step:16,interval:2,trial_rate:1,time_rate:1
 PARAM_DEFINE PARAM_RAZORING_MARGIN = 512;
 
 // [PARAM] min:4,max:32,step:2,interval:2,trial_rate:2,time_rate:1
@@ -122,8 +122,8 @@ PARAM_DEFINE PARAM_RAZORING_ALPHA = 16;
 // 
 
 // この個数までquietの指し手を登録してhistoryなどを増減させる。
-// [PARAM] min:32,max:128,step:4,interval:1,trial_rate:1,time_rate:1
-PARAM_DEFINE PARAM_QUIET_SEARCH_COUNT = 56;
+// [PARAM] min:32,max:128,step:4,interval:1,trial_rate:2,time_rate:1
+PARAM_DEFINE PARAM_QUIET_SEARCH_COUNT = 60;
 
 //
 // history of changed parameters
@@ -132,6 +132,20 @@ PARAM_DEFINE PARAM_QUIET_SEARCH_COUNT = 56;
 ここに過去の変更履歴が自動的に書き込まれる。
 右側にある「←」は値を減らしたときの勝率。「→」は値を増やしたときの勝率。
 [HISTORY]
+PARAM_FUTILITY_AT_PARENT_NODE_MARGIN : 180 → 190(51.10%) : ← 50.85%(170) , → 51.10%(190)
+PARAM_FUTILITY_AT_PARENT_NODE_DEPTH : 7 → 6(51.47%) : ← 51.47%(6) , → 48.30%(8)
+PARAM_FUTILITY_RETURN_DEPTH : 9 → 8(52.32%) : ← 52.32%(8) , → 52.09%(10)
+PARAM_FUTILITY_MARGIN_QUIET : 118 → 123(52.11%) : ← 50.59%(113) , → 52.11%(123)
+PARAM_FUTILITY_MARGIN_ALPHA : 91 → 95(50.85%) : ← 50.20%(87) , → 50.85%(95)
+PARAM_QUIET_SEARCH_COUNT : 56 → 60(52.67%) : ← 50.16%(52) , → 52.67%(60)
+PARAM_REDUCTION_BY_HISTORY : 14980 → 14724(51.70%) : ← 51.70%(14724) , → 48.13%(15236)
+PARAM_SINGULAR_MARGIN : 5 → 4(51.25%) : ← 51.25%(4) , → 50.78%(6)
+PARAM_SINGULAR_EXTENSION_DEPTH : 10 → 9(53.07%) : ← 53.07%(9) , → 51.90%(11)
+PARAM_NULL_MOVE_DYNAMIC_BETA : 59 → 59(50.00%) : ← 47.52%(55) , → 46.81%(63)
+PARAM_NULL_MOVE_DYNAMIC_ALPHA : 815 → 823(52.93%) : ← 49.80%(807) , → 52.93%(823)
+PARAM_FUTILITY_AT_PARENT_NODE_MARGIN : 190 → 180(51.71%) : ← 51.71% , → 47.27%
+PARAM_FUTILITY_MARGIN_QUIET : 123 → 118(50.26%) : ← 50.26% , → 49.87%
+PARAM_FUTILITY_MARGIN_ALPHA : 87 → 91(53.07%) : ← 48.72%(83) , → 53.07%(91)
 PARAM_QUIET_SEARCH_COUNT : 56 → 56(50.00%) : ← 46.29%(52) , → 46.88%(60)
 PARAM_RAZORING_MARGIN : 496 → 512(51.96%) : ← 49.03%(480) , → 51.96%(512)
 PARAM_REDUCTION_BY_HISTORY : 14980 → 14980(50.00%) : ← 49.02%(14724) , → 49.80%(15236)
