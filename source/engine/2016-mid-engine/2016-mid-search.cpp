@@ -18,7 +18,7 @@
 // これがdefineされていると"parameters_master.h"
 // defineされていなければ"parameters_slave.h"
 // を(実行時に)読み込む。
-#define PARAMETERS_MASTER
+//#define PARAMETERS_MASTER
 
 // mate1ply()を呼び出すのか
 #define USE_MATE_1PLY
@@ -1741,7 +1741,10 @@ void Search::init() {
     fstream fs;
     fs.open("param\\" PARAM_FILE, ios::in);
     if (fs.fail())
-      cout << "ERROR:can't read " PARAM_FILE << endl;
+    {
+      cout << "info string Error! : can't read " PARAM_FILE << endl;
+      exit(EXIT_FAILURE);
+    }
 
     int count = 0;
     string line;

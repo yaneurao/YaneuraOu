@@ -103,7 +103,11 @@ namespace Book
   {
     vector<string> lines;
     if (read_all_lines(filename, lines))
+    {
+      cout << "info string Error! : can't read " + filename << endl;
+//      exit(EXIT_FAILURE);
       return 1; // 読み込み失敗
+    }
 
     uint64_t num_sum = 0;
     string sfen;
