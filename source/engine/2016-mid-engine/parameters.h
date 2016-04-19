@@ -43,8 +43,8 @@ PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_ALPHA = 823;
 PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 69;
 
 // null moveの前提depthと、beta値を上回ったときにreturnするdepth
-// [PARAM] min:4,max:10,step:1,interval:2,time_rate:1
-PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 7;
+// [PARAM] min:4,max:10,step:1,interval:3,time_rate:1
+PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 6;
 
 //
 // probcut
@@ -72,7 +72,7 @@ PARAM_DEFINE PARAM_SINGULAR_MARGIN = 8;
 // depth * PARAM_SINGULAR_SEARCH_DEPTH / 256
 
 // [PARAM] min:64,max:192,step:32,interval:2,time_rate:1
-PARAM_DEFINE PARAM_SINGULAR_SEARCH_DEPTH = 128;
+PARAM_DEFINE PARAM_SINGULAR_SEARCH_DEPTH = 96;
 
 //
 // pruning by move count,history,etc..
@@ -83,7 +83,7 @@ PARAM_DEFINE PARAM_SINGULAR_SEARCH_DEPTH = 128;
 PARAM_DEFINE PARAM_PRUNING_BY_MOVE_COUNT_DEPTH = 16;
 
 // historyによる枝刈りをする深さ
-// [PARAM] min:8,max:32,step:1,interval:2,time_rate:1
+// [PARAM] min:2,max:32,step:1,interval:2,time_rate:1
 PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 4;
 
 // historyの値によってreductionするときの係数
@@ -118,6 +118,12 @@ PARAM_DEFINE PARAM_QUIET_SEARCH_COUNT = 64;
 ここに過去の変更履歴が自動的に書き込まれる。
 右側にある「←」は値を減らしたときの勝率。「→」は値を増やしたときの勝率。
 [HISTORY]
+PARAM_QUIET_SEARCH_COUNT : 64 → 64(50.00%) : ←←(値56,勝率49.78%,1728局,有意55.91%) ,←(値60,勝率49.69%,1728局,有意58.23%) ,→(値68,勝率48.71%,3456局,有意85.68%) ,→→(値72,勝率46.30%,576局,有意96.44%) ,
+PARAM_PRUNING_BY_HISTORY_DEPTH : 4 → 4(50.00%) : ←←(値8,勝率0.00%,0局,有意50.00%) ,←(値8,勝率46.10%,576局,有意97.10%) ,→(値8,勝率47.97%,3456局,有意95.29%) ,→→(値8,勝率48.70%,3456局,有意85.72%) ,
+PARAM_SINGULAR_SEARCH_DEPTH : 128 → 96(52.22%) : ←←(値64,勝率49.02%,3456局,有意78.91%) ,←(値96,勝率52.22%,1728局,有意6.79%) ,→(値160,勝率49.43%,1728局,有意65.02%) ,→→(値192,勝率46.96%,1728局,有意97.97%) ,
+PARAM_SINGULAR_EXTENSION_DEPTH : 10 → 10(50.00%) : ←←(値8,勝率49.05%,3456局,有意78.17%) ,←(値9,勝率49.24%,1728局,有意69.39%) ,→(値11,勝率47.05%,1728局,有意97.66%) ,→→(値12,勝率49.65%,1728局,有意59.41%) ,
+PARAM_PROBCUT_DEPTH : 5 → 5(50.00%) : ←←(値3,勝率38.90%,576局,有意100.00%) ,←(値4,勝率46.78%,1728局,有意98.49%) ,→(値6,勝率47.25%,1728局,有意96.76%) ,→→(値7,勝率46.10%,576局,有意97.10%) ,
+PARAM_NULL_MOVE_RETURN_DEPTH : 7 → 6(52.18%) : ←←(値5,勝率49.03%,1728局,有意74.34%) ,←(値6,勝率52.18%,1728局,有意7.20%) ,→(値8,勝率47.73%,3456局,有意96.92%) ,→→(値9,勝率49.60%,1728局,有意60.54%) ,
 PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH : 4 → 4(50.00%) : ←←(値2,勝率50.31%,1728局,有意41.76%) ,←(値3,勝率51.15%,1728局,有意21.94%) ,→(値5,勝率51.30%,3456局,有意14.24%) ,→→(値6,勝率44.60%,576局,有意99.55%) ,
 PARAM_FUTILITY_AT_PARENT_NODE_DEPTH : 7 → 7(50.00%) : ←←(値5,勝率49.44%,3456局,有意67.74%) ,←(値6,勝率49.42%,1728局,有意65.07%) ,→(値8,勝率50.31%,1728局,有意41.78%) ,→→(値9,勝率49.85%,3456局,有意54.84%) ,
 PARAM_FUTILITY_RETURN_DEPTH : 7 → 7(50.00%) : ←←(値5,勝率48.91%,3456局,有意81.59%) ,←(値6,勝率47.50%,3456局,有意98.03%) ,→(値8,勝率50.26%,1728局,有意42.94%) ,→→(値9,勝率50.31%,1728局,有意41.76%) ,
