@@ -628,8 +628,8 @@ void Thread::search()
         game_over(true);
         //sync_cout << "game over" << sync_endl;
       }
-      sleep(5);
     }
+    sleep(5);
   }
 
   if (is_main())

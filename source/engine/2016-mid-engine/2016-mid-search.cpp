@@ -18,7 +18,7 @@
 // これがdefineされていると"parameters_master.h"
 // defineされていなければ"parameters_slave.h"
 // を(実行時に)読み込む。
-//#define PARAMETERS_MASTER
+#define PARAMETERS_MASTER
 
 // mate1ply()を呼び出すのか
 #define USE_MATE_1PLY
@@ -1743,7 +1743,7 @@ void Search::init() {
     if (fs.fail())
     {
       cout << "info string Error! : can't read " PARAM_FILE << endl;
-      exit(EXIT_FAILURE);
+      return;
     }
 
     int count = 0;
@@ -1759,8 +1759,8 @@ void Search::init() {
             // "="の右側にある数値を読む。
             auto pos = line.find("=");
             ASSERT_LV3(pos != -1);
-            int n = stoi(line.substr(pos + 1));
             *param_vars[i] = stoi(line.substr(pos + 1));
+//            cout << param_names[i] << " = " << *param_vars[i] << endl;
           }
     }
     fs.close();
