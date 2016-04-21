@@ -9,12 +9,12 @@
 // depth手先で評価値が変動する幅が = depth * PARAM_FUTILITY_MARGIN_DEPTH
 // 元の値 = 90
 // [PARAM] min:50,max:120,step:5,interval:1,time_rate:1
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 90;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 100;
 
 // 静止探索でのfutility pruning
 // 元の値 = 128
 // [PARAM] min:50,max:150,step:5,interval:1,time_rate:1
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 128;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 133;
 
 // futility pruningが適用されるdepth。これ以下のdepthに対して適用される。
 // 元の値 = 7
@@ -29,7 +29,7 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 7;
 
 // 元の値 = 170
 // [PARAM] min:100,max:200,step:10,interval:1,time_rate:1
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN = 170;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN = 150;
 
 // 元の値 = 4
 // [PARAM] min:2,max:10,step:1,interval:2,time_rate:1
@@ -44,11 +44,11 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH = 4;
 
 // 元の値 = 823
 // [PARAM] min:500,max:1500,step:16,interval:1,time_rate:1
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_ALPHA = 823;
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_ALPHA = 839;
 
 // 元の値 = 67
 // [PARAM] min:50,max:100,step:4,interval:1,time_rate:1
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 67;
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 59;
 
 // null moveの前提depthと、beta値を上回ったときにreturnするdepth
 // 元の値 = 12
