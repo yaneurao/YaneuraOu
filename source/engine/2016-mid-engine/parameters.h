@@ -8,13 +8,13 @@
 // 深さに比例したfutility pruning
 // depth手先で評価値が変動する幅が = depth * PARAM_FUTILITY_MARGIN_DEPTH
 // 元の値 = 90
-// [PARAM] min:50,max:120,step:5,interval:1,time_rate:1
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 100;
+// [PARAM] min:50,max:120,step:3,interval:1,time_rate:1
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 90;
 
 // 静止探索でのfutility pruning
 // 元の値 = 128
-// [PARAM] min:50,max:150,step:5,interval:1,time_rate:1
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 133;
+// [PARAM] min:50,max:150,step:3,interval:1,time_rate:1
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 123;
 
 // futility pruningが適用されるdepth。これ以下のdepthに対して適用される。
 // 元の値 = 7
@@ -28,8 +28,8 @@ PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 7;
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 7;
 
 // 元の値 = 170
-// [PARAM] min:100,max:200,step:10,interval:1,time_rate:1
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN = 150;
+// [PARAM] min:100,max:200,step:3,interval:1,time_rate:1
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN = 170;
 
 // 元の値 = 4
 // [PARAM] min:2,max:10,step:1,interval:2,time_rate:1
@@ -44,11 +44,11 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH = 4;
 
 // 元の値 = 823
 // [PARAM] min:500,max:1500,step:16,interval:1,time_rate:1
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_ALPHA = 839;
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_ALPHA = 823;
 
 // 元の値 = 67
-// [PARAM] min:50,max:100,step:4,interval:1,time_rate:1
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 59;
+// [PARAM] min:50,max:100,step:3,interval:1,time_rate:1
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 67;
 
 // null moveの前提depthと、beta値を上回ったときにreturnするdepth
 // 元の値 = 12
@@ -77,7 +77,7 @@ PARAM_DEFINE PARAM_SINGULAR_EXTENSION_DEPTH = 10;
 // Value rBeta = ttValue - PARAM_SINGULAR_MARGIN * depth / ONE_PLY;
 
 // 元の値 = 8
-// [PARAM] min:2,max:20,step:2,interval:1,time_rate:1
+// [PARAM] min:2,max:20,step:1,interval:1,time_rate:1
 PARAM_DEFINE PARAM_SINGULAR_MARGIN = 8;
 
 // singular extensionで浅い探索をするときの深さに関する係数
@@ -105,7 +105,7 @@ PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 4;
 // historyの値によってreductionするときの係数
 // 元の値 = 14980
 // [PARAM] min:4000,max:32000,step:256,interval:1,time_rate:1
-PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 14980;
+PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 14724;
 
 //
 // razoring pruning
@@ -129,7 +129,7 @@ PARAM_DEFINE PARAM_RAZORING_ALPHA = 16;
 // この個数までquietの指し手を登録してhistoryなどを増減させる。
 // 元の値 = 64
 // [PARAM] min:32,max:128,step:4,interval:2,time_rate:2
-PARAM_DEFINE PARAM_QUIET_SEARCH_COUNT = 72;
+PARAM_DEFINE PARAM_QUIET_SEARCH_COUNT = 64;
 
 //
 // history of changed parameters
