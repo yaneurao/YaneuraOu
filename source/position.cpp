@@ -134,6 +134,7 @@ Position& Position::operator=(const Position& pos){
 
 void Position::clear()
 {
+  // このゼロクリアによりstateStateもゼロクリアされる
   std::memset(this, 0, sizeof(Position));
   st = &startState;
 }
@@ -1314,6 +1315,10 @@ RepetitionState Position::is_repetition(const int repPly) const
   // 遡り可能な手数。
   // 最大でもrepPly手までしか遡らないことにする。
   const int e = min(repPly,st->pliesFromNull);
+  
+  // pliesFromNullが未初期化になっていないかのチェックのためのassert
+  ASSERT_LV3(st->pliesFromNull >= 0);
+
   if (i <= e)
   {
     auto stp = st->previous->previous;

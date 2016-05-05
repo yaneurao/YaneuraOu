@@ -1044,8 +1044,6 @@ extern void is_ready(Position& pos);
 
 void bench_cmd(Position& pos, istringstream& is)
 {
-  is_ready(pos);
-
   string token;
   Search::LimitsType limits;
   vector<string> fens;
@@ -1098,6 +1096,7 @@ void bench_cmd(Position& pos, istringstream& is)
   else
     read_all_lines(fenFile, fens);
 
+  // 評価関数の読み込み等
   is_ready(pos);
 
   int64_t nodes = 0;

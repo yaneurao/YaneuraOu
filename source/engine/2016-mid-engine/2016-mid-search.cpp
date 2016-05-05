@@ -12,7 +12,7 @@
 
 // パラメーターを自動調整するのか
 // 自動調整が終われば、ファイルを固定してincludeしたほうが良い。
-#define USE_AUTO_TUNE_PARAMETERS
+//#define USE_AUTO_TUNE_PARAMETERS
 
 // 読み込むパラメーターファイル名
 // これがdefineされていると"parameters_master.h"
@@ -279,11 +279,31 @@ namespace YaneuraOu2016Mid
     // killer等を更新するのは有害である。
     if (ss->skipEarlyPruning)
     {
-      // しかしkillerがないときはkillerぐらいは登録したほうが少しだけ得かも。
-      if (ss->killers[0] == MOVE_NONE)
-        ss->killers[0] = move32;
-      else if (ss->killers[1] == MOVE_NONE)
-        ss->killers[1] = move32;
+      // ただし、null move時のkillerは理想的な(浅い深さの探索ではない)killerなので有効だと考えられる。
+      // →　しかし弱くなったのでコメントアウト
+#if 0
+      if ((ss - 1)->currentMove == MOVE_NULL)
+      {
+
+        // 普通にkillerのupdateを行なう。
+        if (ss->killers[0] != move32)
+        {
+          ss->killers[1] = ss->killers[0];
+          ss->killers[0] = move32;
+        }
+
+      } else
+#endif      
+      {
+
+        // IID、singular extension時であっても
+        // killerがないときはkillerぐらいは登録したほうが少しだけ得。
+
+        if (ss->killers[0] == MOVE_NONE)
+          ss->killers[0] = move32;
+        else if (ss->killers[1] == MOVE_NONE)
+          ss->killers[1] = move32;
+      }
 
       return;
     }
@@ -616,7 +636,6 @@ namespace YaneuraOu2016Mid
     // 取り合いの指し手だけ生成する
     // searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうるが、
     // 静止探索の1つ目の深さではrecaptureを生成しないならこれは問題とならない。
-    // ToDo: あとでNULL MOVEを実装したときにrecapture以外も生成するように修正する。
     MovePicker mp(pos, ttMove, depth, pos.this_thread()->history, move_to((ss - 1)->currentMove));
     Move move;
     Value value;
@@ -1846,6 +1865,9 @@ void Thread::search()
   // (ss-2)と(ss+2)にアクセスしたいので4つ余分に確保しておく。
   Stack stack[MAX_PLY + 4], *ss = stack + 2;
 
+  // 先頭5つを初期化しておけば十分。そのあとはsearchの先頭でss+2を初期化する。
+  memset(stack, 0, 5 * sizeof(Stack));
+
   // aspiration searchの窓の範囲(alpha,beta)
   // apritation searchで窓を動かす大きさdelta
   Value bestValue, alpha, beta, delta;
@@ -1858,13 +1880,13 @@ void Thread::search()
   bestValue = delta = alpha = -VALUE_INFINITE;
   beta = VALUE_INFINITE;
 
+  // この初期化は、Thread::MainThread()のほうで行なっている。
+  // (この関数を直接呼び出すときには注意が必要)
+//  completedDepth = DEPTH_ZERO;
 
   // もし自分がメインスレッドであるならmainThreadにそのポインタを入れる。
   // 自分がスレーブのときはnullptrになる。
   MainThread* mainThread = (this == Threads.main() ? Threads.main() : nullptr);
-
-  // 先頭5つを初期化しておけば十分。そのあとはsearchの先頭でss+2を初期化する。
-  memset(stack, 0, 5 * sizeof(Stack));
 
   // メインスレッド用の初期化処理
   if (mainThread)
