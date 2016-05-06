@@ -399,10 +399,10 @@ using namespace YaneuraOuNano;
 Book::MemoryBook book;
 
 // 起動時に呼び出される。時間のかからない探索関係の初期化処理はここに書くこと。
-void Search::init() { Book::read_book("book/standard_book.db", book); } // 定跡の読み込み
+void Search::init() {}
 
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
-void  Search::clear() { TT.clear(); }
+void  Search::clear() { Book::read_book("book/standard_book.db", book); TT.clear(); }
 
 // 探索開始時に呼び出される。
 // この関数内で初期化を終わらせ、slaveスレッドを起動してThread::search()を呼び出す。

@@ -1676,11 +1676,6 @@ Book::MemoryBook book;
 void Search::init() {
 
   // -----------------------
-  //   定跡の読み込み
-  // -----------------------
-  Book::read_book("book/standard_book.db", book);
-
-  // -----------------------
   // LMRで使うreduction tableの初期化
   // -----------------------
 
@@ -1726,6 +1721,14 @@ void Search::init() {
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
 void Search::clear()
 {
+  // -----------------------
+  //   定跡の読み込み
+  // -----------------------
+  Book::read_book("book/standard_book.db", book);
+
+  // -----------------------
+  //   置換表のクリアなど
+  // -----------------------
   TT.clear();
   CounterMoveHistory.clear();
 
