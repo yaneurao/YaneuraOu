@@ -1837,7 +1837,12 @@ void Search::clear()
   // -----------------------
   //   定跡の読み込み
   // -----------------------
-  Book::read_book("book/standard_book.db", book);
+  static bool first = true;
+  if (first)
+  {
+    Book::read_book("book/standard_book.db", book);
+    first = false;
+  }
 
   // -----------------------
   //   置換表のクリアなど
