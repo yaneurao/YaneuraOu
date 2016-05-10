@@ -24,6 +24,16 @@ struct ProcessNegotiator
 {
   ProcessNegotiator() { init(); }
 
+  virtual ~ProcessNegotiator() {
+    if (pi.hProcess) {
+      if (::WaitForSingleObject(pi.hProcess, 1000) != WAIT_OBJECT_0) {
+        ::TerminateProcess(pi.hProcess, 0);
+      }
+      ::CloseHandle(pi.hProcess);
+      pi.hProcess = nullptr;
+    }
+  }
+
 #ifdef OUTPUT_PROCESS_LOG
   // 子プロセスとの通信ログを出力するときにプロセス番号を設定する
   void set_process_id(int pn_) { pn = pn_; }
@@ -61,6 +71,11 @@ struct ProcessNegotiator
 
     if (!success)
       sync_cout << "CreateProcessに失敗" << sync_endl;
+
+    if (pi.hThread) {
+      ::CloseHandle(pi.hThread);
+      pi.hThread = nullptr;
+    }
   }
   bool success;
 
@@ -215,11 +230,10 @@ struct EngineState
   // エンジンに対する終了処理
   ~EngineState()
   {
-    // エンジンはquitコマンドに対して自動的にプロセスを終了させるものと仮定している。
-    // 暴走した場合は知らん…。
+    // 思考エンジンにquitコマンドを送り終了する
+    // プロセスの終了は~ProcessNegotiator()で待機し、
+    // 終了しなかった場合はTerminateProcess()で強制終了する。
     pn.write("quit");
-
-    sleep(100);
   }
 
   void on_idle()
