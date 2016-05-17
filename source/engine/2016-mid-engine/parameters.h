@@ -99,7 +99,7 @@ PARAM_DEFINE PARAM_PRUNING_BY_MOVE_COUNT_DEPTH = 16;
 // historyによる枝刈りをする深さ
 
 // 元の値 = 4
-// [PARAM] min:8,max:32,step:1,interval:2,time_rate:1
+// [PARAM] min:2,max:32,step:1,interval:2,time_rate:1
 PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 4;
 
 // historyの値によってreductionするときの係数

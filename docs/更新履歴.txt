@@ -12,6 +12,24 @@ ToDo:
 ・やねうら王2016用の定跡を作成する。→　評価関数バイナリ、新しくなってから。
 ・定跡の選択機能入れる。→　定跡出来てから。
 
+
+■ 2016/05/17
+
+・MaxMovesToDrawが256を指定したときに256手目が指されない？
+
+	setoption name MaxMovesToDraw value 4
+	position startpos moves 7g7f 3c3d 2g2f
+	go btime 1000 wtime 1000 byoyomi 0
+
+指せている気が？
+floodgateでの設定に問題があるのだと思うので、解説.txtに追記。
+
+
+■ 2016/05/11 V2.88
+
+・tanuki-さんのlocal-game-serverのプロセスの終了まわりのコードをmerge。
+
+
 ■ 2016/05/06 V2.87
 
 ・定跡ファイルの読み込みは
