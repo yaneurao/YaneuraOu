@@ -151,7 +151,17 @@ namespace Eval {
   struct EvalList {
 
     // 評価関数(FV38型)で用いる駒番号のリスト
-    inline ExtBonaPiece* piece_list() const { return const_cast<ExtBonaPiece*>(pieceList); }
+    inline BonaPiece* piece_list_fb() const { return const_cast<BonaPiece*>(pieceListFb); }
+    inline BonaPiece* piece_list_fw() const { return const_cast<BonaPiece*>(pieceListFw); }
+
+    // 指定されたpiece_noの駒をExtBonaPiece型に変換して返す。
+    ExtBonaPiece bona_piece(PieceNo piece_no) const
+    { 
+      ExtBonaPiece bp;
+      bp.fb = pieceListFb[piece_no];
+      bp.fw = pieceListFw[piece_no];
+      return bp;
+    }
 
     // 盤上のsqの升にpiece_noのpcの駒を配置する
     void put_piece(PieceNo piece_no, Square sq, Piece pc) {
@@ -170,7 +180,14 @@ namespace Eval {
     // 駒落ちに対応させる時のために、未使用の駒の値はBONA_PIECE_ZEROにしておく。
     // 通常の評価関数を駒落ちの評価関数として流用できる。
     // piece_no_listのほうはデバッグが捗るように-1で初期化。
-    void clear() { for (auto& p : pieceList) p.fb = p.fw = BONA_PIECE_ZERO; memset(piece_no_list, -1, sizeof(PieceNo)); }
+    void clear()
+    {
+      for (auto& p : pieceListFb)
+        p = BONA_PIECE_ZERO;
+      for (auto& p : pieceListFw)
+        p = BONA_PIECE_ZERO;
+      memset(piece_no_list, -1, sizeof(PieceNo));
+    }
 
   protected:
 
@@ -178,13 +195,14 @@ namespace Eval {
     inline void set_piece(PieceNo piece_no, BonaPiece fb, BonaPiece fw)
     {
       ASSERT_LV3(is_ok(piece_no));
-      pieceList[piece_no].fb = fb;
-      pieceList[piece_no].fw = fw;
+      pieceListFb[piece_no] = fb;
+      pieceListFw[piece_no] = fw;
       piece_no_list[fb] = piece_no;
     }
 
     // 駒リスト。駒番号(PieceNo)いくつの駒がどこにあるのか(BonaPiece)を示す。FV38などで用いる。
-    ExtBonaPiece pieceList[PIECE_NO_NB];
+    BonaPiece pieceListFb[PIECE_NO_NB];
+    BonaPiece pieceListFw[PIECE_NO_NB];
 
     // あるBonaPieceに対して、その駒番号(PieceNo)を保持している配列
     PieceNo piece_no_list[fe_end2];
