@@ -1,0 +1,121 @@
+#ifndef EVAL_SUM_H
+#define EVAL_SUM_H
+
+#include <array>
+
+namespace Eval {
+
+  // std::array<T,2>に対して += と -= を提供する。
+  template <typename Tl, typename Tr>
+  inline std::array<Tl, 2> operator += (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
+    lhs[0] += rhs[0];
+    lhs[1] += rhs[1];
+    return lhs;
+  }
+  template <typename Tl, typename Tr>
+  inline std::array<Tl, 2> operator -= (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
+    lhs[0] -= rhs[0];
+    lhs[1] -= rhs[1];
+    return lhs;
+  }
+
+
+  //
+  // 手番つきの評価値を足していくときに使うclass
+  //
+
+  // EvalSum sum;
+  // に対して
+  // sum.p[0] = ΣBKKP
+  // sum.p[1] = ΣWKPP
+  // sum.p[2] = ΣKK
+  // (それぞれに手番は加味されているものとする)
+  // sum.sum() == ΣBKPP - ΣWKPP + ΣKK
+
+  struct EvalSum {
+
+#if defined USE_AVX2_EVAL
+    EvalSum(const EvalSum& es) {
+      _mm256_store_si256(&mm, es.mm);
+    }
+    EvalSum& operator = (const EvalSum& rhs) {
+      _mm256_store_si256(&mm, rhs.mm);
+      return *this;
+    }
+#elif defined USE_SSE_EVAL
+    EvalSum(const EvalSum& es) {
+      _mm_store_si128(&m[0], es.m[0]);
+      _mm_store_si128(&m[1], es.m[1]);
+    }
+    EvalSum& operator = (const EvalSum& rhs) {
+      _mm_store_si128(&m[0], rhs.m[0]);
+      _mm_store_si128(&m[1], rhs.m[1]);
+      return *this;
+    }
+#endif
+    EvalSum() {}
+
+    // 先手から見た評価値を返す。この局面の手番は c側にあるものとする。c側から見た評価値を返す。
+    int32_t sum(const Color c) const {
+
+      // NDF(2014)の手番評価の手法。
+      // cf. http://www.computer-shogi.org/wcsc24/appeal/NineDayFever/NDF.txt
+
+      // 手番に依存しない評価値合計
+      // p[1][0]はΣWKPPなので符号はマイナス。
+      const int32_t scoreBoard = p[0][0] - p[1][0] + p[2][0];
+      // 手番に依存する評価値合計
+      const int32_t scoreTurn = p[0][1] + p[1][1] + p[2][1];
+
+      // この関数は手番側から見た評価値を返すのでscoreTurnは必ずプラス
+
+      return (c == BLACK ? scoreBoard : -scoreBoard) + scoreTurn;
+    }
+    EvalSum& operator += (const EvalSum& rhs) {
+#if defined USE_AVX2
+      mm = _mm256_add_epi32(mm, rhs.mm);
+#else
+      m[0] = _mm_add_epi32(m[0], rhs.m[0]);
+      m[1] = _mm_add_epi32(m[1], rhs.m[1]);
+#endif
+      return *this;
+    }
+    EvalSum& operator -= (const EvalSum& rhs) {
+#ifdef USE_AVX2
+      mm = _mm256_sub_epi32(mm, rhs.mm);
+#else
+      m[0] = _mm_sub_epi32(m[0], rhs.m[0]);
+      m[1] = _mm_sub_epi32(m[1], rhs.m[1]);
+#endif
+      return *this;
+    }
+    EvalSum operator + (const EvalSum& rhs) const { return EvalSum(*this) += rhs; }
+    EvalSum operator - (const EvalSum& rhs) const { return EvalSum(*this) -= rhs; }
+    union {
+      std::array<std::array<int32_t, 2>, 3> p;
+      struct {
+        uint64_t data[3];
+        uint64_t key; // ehash用。
+      };
+#if defined USE_AVX2
+      __m256i mm;
+      __m128i m[2];
+#else // SSE2はあるものとする。
+      __m128i m[2];
+#endif
+    };
+  };
+
+  // 出力用　デバッグ用。
+  static std::ostream& operator<<(std::ostream& os, const EvalSum& sum)
+  {
+    os << "sum BKPP = " << sum.p[0][0] << " + " << sum.p[0][1] << std::endl;
+    os << "sum WKPP = " << sum.p[1][0] << " + " << sum.p[1][1] << std::endl;
+    os << "sum KK   = " << sum.p[2][0] << " + " << sum.p[2][1] << std::endl;
+    return os;
+  }
+
+} // namespace Eval
+
+#endif // EVAL_SUM_H
+

@@ -76,7 +76,8 @@
 // #define EVAL_MATERIAL // 駒得のみの評価関数
 // #define EVAL_PP       // ツツカナ型 2駒関係
 // #define EVAL_KPP      // Bonanza型 3駒関係
-// #define EVAL_PPE      // 技巧型 2駒+利き
+// #define EVAL_KPPT     // Bonanza型 3駒関係、手番つき(Apery WCSC26相当)
+// #define EVAL_PPET     // 技巧型 2駒+利き+手番
 
 // 長い利き(遠方駒の利き)のライブラリを用いるか。
 // 超高速1手詰め判定などではこのライブラリが必要。
@@ -185,7 +186,7 @@
 // 開発中なのでassertを有効に。
 #define ASSERT_LV 3
 #define ENABLE_TEST_CMD
-#define EVAL_KPP
+#define EVAL_KPPT
 #define USE_SEE
 #define USE_MOVE_PICKER
 #define LONG_EFFECT_LIBRARY
@@ -409,9 +410,9 @@ typedef uint32_t Move32;
 #define EVAL_TYPE_NAME ""
 #endif
 
-// PP,KPP,PPEならdo_move()のときに移動した駒の管理をして差分計算
+// PP,KPP,KPPT,PPEならdo_move()のときに移動した駒の管理をして差分計算
 // また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
-#if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_PPE)
+#if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_KPPT) || defined(EVAL_PPE)
 #define USE_EVAL_DIFF
 #endif
 

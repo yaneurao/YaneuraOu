@@ -900,6 +900,10 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
   // これVALUNE_NONEにするとsumKKPが32bitなので偶然一致することがある。
   st->sumKKP = INT_MAX;
 #endif
+#ifdef EVAL_KPPT
+  // 上と同じ意味。
+  st->sum.p[2][0] = INT_MAX;
+#endif
 
   // 直前の指し手を保存するならばここで行なう。
 

@@ -1,7 +1,7 @@
 ﻿
 ・やねうら王classic-tceとは？
 
-やねうら王classic-tceはやねうら王classicにPonderの処理、思考時間制御(秒読み、フィッシャールール対応)などを追加した思考エンジンです。(R3300程度)
+やねうら王classic-tceはやねうら王classicにPonderの処理、思考時間制御(秒読み、フィッシャールール対応)などを追加した思考エンジンです。(R3250程度)
 
 ちなみに、tceとはtime control enabledの略です。
 
@@ -16,8 +16,6 @@
     YaneuraOu-classic-tce.exe      : やねうら王classic-tce本体
     YaneuraOu-classic-tce_ja.txt   : これを用いると思考エンジンの設定項目の表示が日本語化される。
     book/standard_book.db   : 基本定跡
-
-// 以下、書きかけ。
 
     eval/kkp32ap.bin        : 3駒関係の評価関数で用いるファイル(KKP)
     eval/kpp16ap.bin        : 3駒関係の評価関数で用いるファイル(KPP)

@@ -121,6 +121,9 @@
     <ClInclude Include="engine\2016-mid-engine\parameters.h">
       <Filter>リソース ファイル\engine\2016-mid-engine</Filter>
     </ClInclude>
+    <ClInclude Include="extra\evalsum.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -216,6 +219,9 @@
     <ClCompile Include="engine\2016-mid-engine\2016-mid-search.cpp">
       <Filter>リソース ファイル\engine\2016-mid-engine</Filter>
     </ClCompile>
+    <ClCompile Include="eval\evaluate_kppt.cpp">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">
@@ -258,6 +264,9 @@
       <Filter>exe</Filter>
     </Text>
     <Text Include="..\exe\YaneuraOu-classic-tce-readme.txt">
+      <Filter>exe</Filter>
+    </Text>
+    <Text Include="..\exe\YaneuraOu-classic-2016-mid.txt">
       <Filter>exe</Filter>
     </Text>
   </ItemGroup>

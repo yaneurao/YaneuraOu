@@ -210,6 +210,7 @@
     <ClInclude Include="extra\bitop.h" />
     <ClInclude Include="extra\book.h" />
     <ClInclude Include="extra\config.h" />
+    <ClInclude Include="extra\evalsum.h" />
     <ClInclude Include="extra\long_effect.h" />
     <ClInclude Include="extra\key128.h" />
     <ClInclude Include="extra\macros.h" />
@@ -237,6 +238,7 @@
     <ClCompile Include="engine\user-engine\user-engine.cpp" />
     <ClCompile Include="eval\evaluate_bona_piece.cpp" />
     <ClCompile Include="eval\evaluate_kpp.cpp" />
+    <ClCompile Include="eval\evaluate_kppt.cpp" />
     <ClCompile Include="eval\evaluate_material.cpp" />
     <ClCompile Include="eval\evaluate_no_eval.cpp" />
     <ClCompile Include="extra\bitop.cpp" />
@@ -260,6 +262,7 @@
     <Text Include="..\docs\更新履歴.txt" />
     <Text Include="..\docs\解説.txt" />
     <Text Include="..\exe\eval\readme.txt" />
+    <Text Include="..\exe\YaneuraOu-classic-2016-mid.txt" />
     <Text Include="..\exe\YaneuraOu-classic-readme.txt" />
     <Text Include="..\exe\YaneuraOu-classic-tce-readme.txt" />
     <Text Include="..\exe\YaneuraOu-classic-tce_ja.txt" />
