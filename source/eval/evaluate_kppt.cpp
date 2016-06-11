@@ -1,5 +1,6 @@
 ﻿#include "../shogi.h"
 
+// Apery WCSC26の評価関数バイナリを読み込むための仕組み
 #ifdef EVAL_KPPT
 
 #include <fstream>
@@ -380,6 +381,20 @@ namespace Eval
     // ASSERT_LV5(score == compute_eval(pos));
 
     return score;
+  }
+
+  // null move後のevaluate()
+  // 手番を反転させたときの評価値を返す。
+  Value evaluate_nullmove(const Position& pos)
+  {
+    auto sum = pos.state()->sum;
+    if (sum.p[2][0] != INT_MAX)
+    {
+      // 計算済みなので現在の手番から計算して計算終了。
+      sum.p[2][0] += pos.state()->materialValue * FV_SCALE;
+      return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
+    }
+    return compute_eval(pos);
   }
 
   // 現在の局面の評価値の内訳を表示する。

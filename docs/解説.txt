@@ -8,7 +8,7 @@ source/
   mini-engine/          やねうら王mini関連の探索部
   classic-engine/       やねうら王classic関連の探索部
   classic-tce-engine/   やねうら王classic-tce関連の探索部
-  2016-engine/          やねうら王2016の探索部(非公開)
+  2016-mid-engine/      やねうら王2016 Midの探索部
   help-mate-engine/     やねうら王 協力詰めsolver関連
   random-player-engine/ ランダムプレイヤー
   local-game-server/    自動対局フレームワーク
@@ -162,7 +162,12 @@ shogi.hの
   O : engine1勝ち
   X : engine1負け
   . : 引き分け
-
+  ※　engine/local-game-server/local-game-server.cppで ONE_LINE_OUTPUT_MODE がdefineされているときは、
+	WIN
+	LOSE
+	DRAW
+	という表記に変わる。
+    
   対局回数の指定など)
     go btime [対局回数] wtime [定跡の手数] byoyomi [予約]
 
@@ -240,3 +245,16 @@ floodgateでは通信遅延が起こりうるので以下の思考エンジン�
 	NetworkDelay 通信の平均遅延時間[ms]
 	NetworkDelay2 通信の最大遅延時間[ms]
 
+■　他のソフトとの対局のときの設定
+
+公平な条件にするため、
+	NetworkDelay 通信の平均遅延時間[ms]
+	NetworkDelay2 通信の最大遅延時間[ms]
+は、0 を指定するべきでしょう。
+
+あと、定跡はNarrowBookをオンにしておいたほうが悪い定跡をつかみにくいので
+そちらのほうが勝率は上がるはずです。
+
+
+
+	

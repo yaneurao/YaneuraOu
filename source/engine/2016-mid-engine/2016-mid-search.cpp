@@ -583,9 +583,8 @@ namespace YaneuraOu2016Mid
         // StateInfo.sumは更新されていて、そのあとdo_null_move()ではStateInfoが丸ごとコピーされるから、現在のpos.state().sumは
         // 正しい値のはず。
         ss->staticEval = bestValue =
-         (ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
-                                            : -(ss - 1)->staticEval;
-
+          (ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
+                                             : -(ss - 1)->staticEval;
       }
 
       // Stand pat.
@@ -1057,7 +1056,7 @@ namespace YaneuraOu2016Mid
       ss->staticEval = eval =
         (ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
                                            : -(ss - 1)->staticEval;
-
+      
       // 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
       tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
     }

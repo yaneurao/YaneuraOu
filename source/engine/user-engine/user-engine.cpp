@@ -1,9 +1,8 @@
 ﻿#include "../../extra/all.h"
 
 // USI拡張コマンド"user"が送られてくるとこの関数が呼び出される。実験に使ってください。
-void user_test(Position& pos, istringstream& is)
+void user_test(Position& pos_, istringstream& is)
 {
-
 }
 
 #ifdef USER_ENGINE
