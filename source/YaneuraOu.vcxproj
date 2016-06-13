@@ -22,7 +22,6 @@
     <ProjectGuid>{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>YaneuraOu</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.10240.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -278,6 +277,7 @@
     <None Include="..\exe\book\standard_book.db" />
     <None Include="..\exe\YaneuraOu-classic-tce.exe" />
     <None Include="..\exe\YaneuraOu-classic.exe" />
+    <None Include="..\exe\YaneuraOu-local-server.exe" />
     <None Include="..\exe\YaneuraOu-mini.exe" />
     <None Include="..\exe\YaneuraOu-nano-plus.exe" />
     <None Include="..\exe\YaneuraOu-nano.exe" />

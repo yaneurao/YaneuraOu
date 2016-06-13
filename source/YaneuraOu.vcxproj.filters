@@ -292,5 +292,8 @@
     <None Include="..\exe\YaneuraOu-classic-tce.exe">
       <Filter>exe</Filter>
     </None>
+    <None Include="..\exe\YaneuraOu-local-server.exe">
+      <Filter>exe</Filter>
+    </None>
   </ItemGroup>
 </Project>

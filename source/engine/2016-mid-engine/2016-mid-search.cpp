@@ -120,6 +120,9 @@ namespace YaneuraOu2016Mid
     return (Value)(PARAM_RAZORING_MARGIN + PARAM_RAZORING_ALPHA * static_cast<int>(d));
   }
 
+  // 手番の価値
+  const Value Tempo = Value(20);
+
 #ifdef DYNAMIC_FUTILITY_MARGIN
   // 64個分のfutility marginを足したもの
   Value futility_margin_sum;
@@ -553,8 +556,6 @@ namespace YaneuraOu2016Mid
       // alphaとは区別しなければならない。
       bestValue = futilityBase = -VALUE_INFINITE;
      
-      pos.check_info_update();
-
     } else {
 
       // 王手がかかっていないなら置換表の指し手を持ってくる
@@ -584,7 +585,7 @@ namespace YaneuraOu2016Mid
         // 正しい値のはず。
         ss->staticEval = bestValue =
           (ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
-                                             : -(ss - 1)->staticEval;
+                                             : -(ss - 1)->staticEval + 2 * Tempo;
       }
 
       // Stand pat.
@@ -599,25 +600,6 @@ namespace YaneuraOu2016Mid
         return bestValue;
       }
 
-      // -----------------------
-      //      一手詰め判定
-      // -----------------------
-
-      // mate1ply()の呼び出しのためにCheckInfo.pinnedの更新が必要。
-      pos.check_info_update_pinned();
-
-#ifdef USE_MATE_1PLY
-      Move m = pos.mate1ply();
-      if (m != MOVE_NONE)
-      {
-        bestValue = mate_in(ss->ply+1); // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
-        tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
-                  DEPTH_MAX, m, ss->staticEval, TT.generation());
-
-        return bestValue;
-      }
-#endif
-
       // 王手がかかっていなくてPvNodeでかつ、bestValueがalphaより大きいならそれをalphaの初期値に使う。
       // 王手がかかっているなら全部の指し手を調べたほうがいい。
       if (PvNode && bestValue > alpha)
@@ -627,13 +609,13 @@ namespace YaneuraOu2016Mid
       // これを下回るようであれば枝刈りする。
       futilityBase = bestValue + PARAM_FUTILITY_MARGIN_QUIET;
 
-      // pinnedは更新したのでCheckInfoのそれ以外を更新。
-      pos.check_info_update_without_pinned();
     }
 
     // -----------------------
     //     1手ずつ調べる
     // -----------------------
+
+    pos.check_info_update();
 
     // 取り合いの指し手だけ生成する
     // searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうるが、
@@ -663,9 +645,11 @@ namespace YaneuraOu2016Mid
 
       // 王手がかかっていなくて王手ではない指し手なら、今回捕獲されるであろう駒による評価値の上昇分を
       // 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
+
       if (!InCheck
         && !givesCheck
         &&  futilityBase > -VALUE_KNOWN_WIN)
+        // ToDo:ここ本当に-VALUE_INFINITTEでなくて良いのか？
       {
         // moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになる。
 
@@ -682,6 +666,8 @@ namespace YaneuraOu2016Mid
 
         // futilityBaseはこの局面のevalにmargin値を加算しているのだが、それがalphaを超えないし、
         // かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
+
+        // ToDo:MovePickerのなかでsee()を呼び出しているなら、ここで２重にsee()するのもったいないが…。
         if (futilityBase <= alpha && pos.see(move) <= VALUE_ZERO)
         {
           bestValue = std::max(bestValue, futilityBase);
@@ -698,10 +684,12 @@ namespace YaneuraOu2016Mid
 
       bool evasionPrunable = InCheck
         &&  bestValue > VALUE_MATED_IN_MAX_PLY
-        && !pos.capture(move);
-
+        && !pos.capture_or_pawn_promotion(move);
+      // ここ、captureだけでなく、歩の成りもevasionPrunableから除外したほうが良い。
+      
       if (  (!InCheck || evasionPrunable)
-          &&  !is_promote(move)
+          // 「歩が成る」指し手
+          &&  (!(is_promote(move) && type_of(pos.moved_piece_before(move)) == PAWN))
           &&  pos.see_sign(move) < VALUE_ZERO)
           continue;
 
@@ -1055,7 +1043,7 @@ namespace YaneuraOu2016Mid
 
       ss->staticEval = eval =
         (ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
-                                           : -(ss - 1)->staticEval;
+                                           : -(ss - 1)->staticEval + 2 * Tempo;
       
       // 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
       tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());

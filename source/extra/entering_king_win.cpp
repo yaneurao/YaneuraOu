@@ -76,7 +76,7 @@ Move Position::DeclarationWin() const
       Hand h = hand[us];
       int score = p1 + p2 * 4 - 1
         + hand_count(h,PAWN) + hand_count(h,LANCE) + hand_count(h,KNIGHT) + hand_count(h,SILVER)
-        + (hand_count(h,BISHOP) + hand_count(h,ROOK)) * 5;
+        + hand_count(h,GOLD) + (hand_count(h,BISHOP) + hand_count(h,ROOK)) * 5;
 
       // rule==EKR_27_POINTならCSAルール。rule==EKR_24_POINTなら24点法(30点以下引き分けなので31点以上あるときのみ勝ち扱いとする)
       if (score < (rule == EKR_27_POINT ? (us == BLACK ? 28 : 27) : 31))

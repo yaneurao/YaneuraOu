@@ -8,9 +8,161 @@
 	(現状だと、思考時間関係のパラメーター調整が出来ないため)
 	→　1手の考慮時間をNNを用いて調整したいからこの機能はもう少しあとでいいや。
 ・clangでのコンパイル通るようにしてUbuntu×AWSで動くようにする。→　tanuki-さんにお願い中。
-・評価関数のAVX2化。→　tanuki-さんにお願い中 →　評価関数に手番を入れてから
+・評価関数のAVX2化。→　tanuki-さんにお願い中 →　評価関数に手番を入れてから →　AVX2化考える
 ・やねうら王2016用の定跡を作成する。→　評価関数バイナリ、新しくなってから。
 ・定跡の選択機能入れる。→　定跡出来てから。
+・利きを用いない1手詰め判定を用意するべきか…。
+
+
+■ 2016/06/13 V2.94
+
+・開発環境が整理できたので、
+　Silent Majority V1.1と1スレッド2秒/5秒/10秒対局において同じぐらいの勝率になるところまでチューニングする。
+
+	cf.
+	コンピュータ将棋ソフトウェアの時間制御
+	http://woodyring.blog.so-net.ne.jp/2016-06-05
+
+	woodyringさんの上の記事の内容を引き継いで、長い持ち時間におい
+	てSilent Majorityの棋力が伸びる原因について深く調べる。
+
+	まず2秒設定にてやねうら王V2.92と対局させる。
+
+	エンジン設定)
+
+	#0
+	やねうら王2016mid V290
+	Apery(WCSC26) evaluate(), 1スレッド、2秒設定
+	YaneuraOu-2016-midV290.exe
+	go btime 0 wtime 0 byoyomi 2000
+	setoption name Hash value 256
+	setoption name Threads value 1
+	setoption name NetworkDelay value 0
+	setoption name NetworkDelay2 value 0
+
+	#169
+	silent_majority_V1.1公式
+	1スレッド、2秒設定
+	SILENT_MAJORITY_AVX2_x64_V110.exe
+	go btime 0 wtime 0 byoyomi 2000
+	setoption name Hash value 256
+	setoption name USI_Hash value 256
+	setoption name Threads value 1
+
+	思考コマンド
+	>	go btime 0 wtime 0 byoyomi 2000
+
+		49.7%	
+		#169
+		silent_majority_V1.1公式
+		1スレッド、2秒設定
+		#0
+		やねうら王2016mid V290
+		Apery(WCSC26) evaluate(), 1スレッド、2秒設定
+
+		281-31-284(56.7% R-1.8)	
+
+		→　ほぼ互角。
+
+	>	go btime 0 wtime 0 byoyomi 5000
+
+
+		58.9%	
+		#169
+		silent_majority_V1.1公式
+		1スレッド、5秒設定
+		#0
+		やねうら王2016mid V290
+		Apery(WCSC26) evaluate(), 1スレッド、5秒設定
+
+		312-19-218(0.0% R62.3)	
+
+		→　だいぶ負け越した
+
+	2秒→5秒にして負け越すようになるということは、
+	singular extension絡みなどでないなら、これは
+	短い持ち時間においては終盤絡みで逆転して勝っているだけだと考えられる。
+
+	1手詰めが怪しいが、魔女のほうもmateMoveIn1Ply()は呼び出している模様。
+	やねうら王のほうは、利きの更新で損しているのかも知れない。
+
+・短い持ち時間での対局のときに、リソース削減のためにHashを極力小さく設定しているが
+　これにより、CPU cacheが少しでも汚染されるようなチューニング(例:nodeのquietの指し手バッファ=64を大きな値に変更するなど)
+  に対して極めてパフォーマンスが低下する傾向があり、間違ったチューニングとなる可能性がある。
+
+・魔女とqsearch()を比較してみる。
+	・やねうら王側、宣言勝ちの判定をqsearch()でやっているのがどうなのか。
+		→　まあいいか。
+	・やねうら王側、null moveのときの見積りにTempoを加算するように変更。
+		 -        : -(ss-1)->staticEval;
+		 +        : -(ss-1)->staticEval + 2 * Tempo;
+	・やねうら王側、qsearch()では1手詰め呼び出さないように変更。
+	・やねうら王側、evasionPrunableのフラグ、歩の成りは対象外とする。
+      bool evasionPrunable = InCheck
+        &&  bestValue > VALUE_MATED_IN_MAX_PLY
+-        && !pos.capture(move);
++        && !pos.capture_or_pawn_promotion(move);
+
+	0.1秒で前バージョンと対局。
+
+		45.3%	
+		#170
+		やねうら王2016mid V294
+		qsearch、魔女化(), 1スレッド、0.1秒設定
+		#0
+		やねうら王2016mid V290
+		Apery(WCSC26) evaluate(), 1スレッド、0.1設定
+
+		228-12-275(98.4% R-32.6)	
+
+
+		50.0%	
+		#171
+		やねうら王2016mid V294
+		qsearch、魔女化(), 1スレッド、5秒設定
+		#0
+		やねうら王2016mid V290
+		Apery(WCSC26) evaluate(), 1スレッド、5設定
+
+		104-13-104(52.8% R0.0)	
+
+
+	→　長い持ち時間においては静止探索での1手詰め判定の効果が
+		相対的に薄れるということなのだと思う。
+
+		静止探索中に1手詰めを見つけたところでそれによって
+		(通常探索時に見つけた1手詰めとは異なり)探索すべきnode数が減るという
+		効果に乏しく、singular extensionのような効果しかないから。
+
+		1手詰め判定を通常探索でしか呼び出さないなら、現状のように
+		利きを評価関数で使わないのに利きの更新を行うと、そのコスト面において
+		魔女とくらべてかなり損をしてしまう。利きを用いない1手詰め判定関数を
+		作成して、かつ、利きの更新を用いないのが得策か。
+
+
+■ 2016/06/10 V2.93
+
+・魔女が宣言勝ちした局面、やねうら王の自己対戦フレームワークで認められなかった。おかしい。
+
+	4<Error : illigal move , move = win , engine name = engines\SILENT_MAJORITY_AVX2_x64_V110.exe
+	4< □ □ □ □ □ □ □ 飛 □
+	4< 玉 と □ 馬 □ □ 圭 □ □
+	4< 圭 と と と □ 歩 と □ □
+	4< □ □ □ □ □ □ □ 全 □
+	4< □ □^龍 □ □^と □ 金 □
+	4< □ □ □^圭^圭^馬 □ □ □
+	4< □ □ □ □ □ □ □^と^杏
+	4< □ □ □ □ □ □ □^全^玉
+	4< □ □ □ □ □ □ □ □ □
+	4<先手 手駒 :
+	  歩2 香3 銀2 金3 , 後手 手駒 :  歩8
+	4<手番 = 先手
+	4<sfen 7R1/K+P1+B2+N2/+N+P+P+P1P+P2/7+S1/2+r2+p1G1/3+n+n+b3/7+p+l/7+sk/9 b 2P3L2S3G8p 243
+
+	→　入玉判定のときに手駒の金を足してなかった。修正した。
+-	        + (hand_count(h,BISHOP) + hand_count(h,ROOK)) * 5;
++	        + hand_count(h,GOLD) + (hand_count(h,BISHOP) + hand_count(h,ROOK)) * 5;
+
 
 
 ■ 2016/06/10 V2.92
