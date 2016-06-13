@@ -33,7 +33,7 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN = 170;
 
 // 元の値 = 4
 // [PARAM] min:2,max:10,step:1,interval:2,time_rate:1
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH = 2;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH = 4;
 
 //
 // null move dynamic pruning
@@ -71,21 +71,21 @@ PARAM_DEFINE PARAM_PROBCUT_DEPTH = 5;
 // singular extensionの前提depth
 // 元の値 = 10
 // [PARAM] min:6,max:13,step:1,interval:2,time_rate:3
-PARAM_DEFINE PARAM_SINGULAR_EXTENSION_DEPTH = 8;
+PARAM_DEFINE PARAM_SINGULAR_EXTENSION_DEPTH = 10;
 
 // singular extensionのmarginを計算するときの係数
 // Value rBeta = ttValue - PARAM_SINGULAR_MARGIN * depth / ONE_PLY;
 
-// 元の値 = 8
+// 元の値 = 2
 // [PARAM] min:2,max:20,step:1,interval:1,time_rate:1
-PARAM_DEFINE PARAM_SINGULAR_MARGIN = 6;
+PARAM_DEFINE PARAM_SINGULAR_MARGIN = 2;
 
 // singular extensionで浅い探索をするときの深さに関する係数
 // depth * PARAM_SINGULAR_SEARCH_DEPTH / 256
 
 // 元の値 = 128
 // [PARAM] min:64,max:192,step:32,interval:2,time_rate:1
-PARAM_DEFINE PARAM_SINGULAR_SEARCH_DEPTH = 64;
+PARAM_DEFINE PARAM_SINGULAR_SEARCH_DEPTH = 128;
 
 //
 // pruning by move count,history,etc..

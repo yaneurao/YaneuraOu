@@ -21,7 +21,8 @@
 #define PARAMETERS_MASTER
 
 // mate1ply()を呼び出すのか
-#define USE_MATE_1PLY
+#define USE_MATE_1PLY_IN_SEARCH
+#define USE_MATE_1PLY_IN_QSEARCH
 
 // futilityのmarginを動的に決定するのか
 // #define DYNAMIC_FUTILITY_MARGIN
@@ -609,7 +610,7 @@ namespace YaneuraOu2016Mid
       // mate1ply()の呼び出しのためにCheckInfo.pinnedの更新が必要。
       pos.check_info_update_pinned();
 
-#ifdef USE_MATE_1PLY
+#ifdef USE_MATE_1PLY_IN_QSEARCH
       Move m = pos.mate1ply();
       if (m != MOVE_NONE)
       {
@@ -874,8 +875,8 @@ namespace YaneuraOu2016Mid
       thisThread->resetCalls = false;
       thisThread->callsCnt = 0;
     }
-    // nps 1コア時でも800kぐらい出るから、20knodeごとに調べれば0.02秒程度の精度は出るはず。
-    if (++thisThread->callsCnt > 20000)
+    // nps 1コア時でも600kぐらい出るから、10knodeごとに調べれば0.02秒程度の精度は出るはず。
+    if (++thisThread->callsCnt > 4096)
     {
       for (Thread* th : Threads)
         th->resetCalls = true;
@@ -1006,7 +1007,7 @@ namespace YaneuraOu2016Mid
 
     CheckInfoUpdate ciu = CHECK_INFO_UPDATE_NONE;
 
-#ifdef USE_MATE_1PLY
+#ifdef USE_MATE_1PLY_IN_SEARCH
 
     // RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
     // 置換表にhitしたときも1手詰め判定はすでに行われていると思われるのでこの場合もはしょる。
