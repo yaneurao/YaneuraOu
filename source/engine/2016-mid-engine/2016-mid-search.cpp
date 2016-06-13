@@ -556,6 +556,8 @@ namespace YaneuraOu2016Mid
       // alphaとは区別しなければならない。
       bestValue = futilityBase = -VALUE_INFINITE;
      
+      pos.check_info_update();
+
     } else {
 
       // 王手がかかっていないなら置換表の指し手を持ってくる
@@ -595,10 +597,29 @@ namespace YaneuraOu2016Mid
       {
         if (!ttHit)
           tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_LOWER,
-                    DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
+            DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
 
         return bestValue;
       }
+
+      // -----------------------
+      //      一手詰め判定
+      // -----------------------
+
+      // mate1ply()の呼び出しのためにCheckInfo.pinnedの更新が必要。
+      pos.check_info_update_pinned();
+
+#ifdef USE_MATE_1PLY
+      Move m = pos.mate1ply();
+      if (m != MOVE_NONE)
+      {
+        bestValue = mate_in(ss->ply + 1); // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
+        tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
+          DEPTH_MAX, m, ss->staticEval, TT.generation());
+
+        return bestValue;
+      }
+#endif
 
       // 王手がかかっていなくてPvNodeでかつ、bestValueがalphaより大きいならそれをalphaの初期値に使う。
       // 王手がかかっているなら全部の指し手を調べたほうがいい。
@@ -609,6 +630,8 @@ namespace YaneuraOu2016Mid
       // これを下回るようであれば枝刈りする。
       futilityBase = bestValue + PARAM_FUTILITY_MARGIN_QUIET;
 
+      // pinnedは更新したのでCheckInfoのそれ以外を更新。
+      pos.check_info_update_without_pinned();
     }
 
     // -----------------------

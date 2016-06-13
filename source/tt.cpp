@@ -46,13 +46,12 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found) const {
     // returnする条件
     // 1. keyが合致しているentryを見つけた。(found==trueにしてそのTT_ENTRYのアドレスを返す)
     // 2. 空のエントリーを見つけた(そこまではkeyが合致していないので、found==falseにして新規TT_ENTRYのアドレスとして返す)
-    if (!tte[i].key16)
-      return found = false, &tte[i];
-
-    if (tte[i].key16 == key16)
+    if (!tte[i].key16 || tte[i].key16 == key16)
     {
-      tte[i].set_generation(generation8); // Refresh
-      return found = true, &tte[i];
+      // 1.に対してはこのタイミングでrefresh
+      // 2.に対してはこのタイミングでgenerationを設定しておいてやる。
+      tte[i].set_generation(generation8);
+      return found = (bool)tte[i].key16, &tte[i];
     }
   }
 
