@@ -11,6 +11,15 @@
 
 #include "search.h"
 
+// 被害が小さいように、LVA(価値の低い駒)を動かして取るほうが優先されたほうが良いので駒に価値の低い順に番号をつける。そのためのテーブル。
+// ※ LVA = Least Valuable Aggressor。cf.MVV-LVA
+
+static const Value LVATable[PIECE_WHITE] = {
+  Value(0), Value(1) /*歩*/, Value(2)/*香*/, Value(3)/*桂*/, Value(4)/*銀*/, Value(7)/*角*/, Value(8)/*飛*/, Value(6)/*金*/,
+  Value(10000)/*王*/, Value(5)/*と*/, Value(5)/*杏*/, Value(5)/*圭*/, Value(5)/*全*/, Value(9)/*馬*/, Value(10)/*龍*/,Value(11)/*成金*/
+};
+inline Value LVA(const Piece pt) { return LVATable[pt]; }
+
 // -----------------------
 //   insertion sort
 // -----------------------
@@ -112,7 +121,7 @@ enum Stages {
   MAIN_SEARCH_START,            // 置換表の指し手を返すフェーズ
   GOOD_CAPTURES,                // 捕獲する指し手(CAPTURES_PRO_PLUS)を生成して指し手を一つずつ返す
   KILLERS,                      // KILLERの指し手
-  BAD_CAPTURES,                 // 捕獲する悪い指し手
+  BAD_CAPTURES,                 // 捕獲する悪い指し手(SEE < 0 の指し手だが、将棋においてそこまで悪い手とは限らない)
   GOOD_QUIETS,                  // CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す
   BAD_QUIETS,                   // ↑で点数悪そうなものを後回しにしていたのでそれを一つずつ返す
 
@@ -208,7 +217,8 @@ struct MovePicker
 
     stage = PROBCUT_START;
 
-    // In ProbCut we generate captures with SEE higher than the given threshold
+    // ProbCutにおいて、SEEが与えられたthresholdの値より大きな指し手のみ生成する。
+    // (置換表の指しても、この条件を満たさなければならない)
     ttMove = ttMove_
       && pos.pseudo_legal_s<false>(ttMove_)
       && pos.capture(ttMove_)
@@ -353,6 +363,7 @@ struct MovePicker
         {
 #ifdef USE_SEE
           // ここでSSEの符号がマイナスならbad captureのほうに回す。
+          // ToDo: moveは駒打ちではないからsee()の内部での駒打ち判定不要なのだが。
           if (pos.see_sign(move) >= VALUE_ZERO)
             return move;
 
@@ -448,13 +459,20 @@ private:
     for (auto& m : *this)
     {
       // CAPTURES_PRO_PLUSで生成しているので歩の成る指し手が混じる。これは金と歩の価値の差の点数とする。
-      bool pawn_promo = is_promote(m) && type_of(pos.piece_on(move_from(m))) == PAWN;
+
+      // 移動させる駒の駒種
+      auto pt = type_of(pos.piece_on(move_from(m)));
+      bool pawn_promo = is_promote(m) && pt == PAWN;
+
+      // MVV-LVAに、歩の成りに加点する形にしておく。
       m.value = (pawn_promo ? (Value)(Eval::GoldValue - Eval::PawnValue) : VALUE_ZERO)
-        + (Value)Eval::PieceValueCapture[pos.piece_on(move_to(m))];
+        + (Value)Eval::PieceValueCapture[pos.piece_on(move_to(m))]
+        - LVA(pt);
 
       // 盤の上のほうの段にあるほど価値があるので下の方の段に対して小さなペナルティを課す。
       // (基本的には取る駒の価値が大きいほど優先であるから..)
-      m.value -= Value(1 * relative_rank(pos.side_to_move(), rank_of(move_to(m))));
+      // m.value -= Value(1 * relative_rank(pos.side_to_move(), rank_of(move_to(m))));
+      // →　将棋ではあまりよくないアイデア。
     }
   }
 

@@ -3,7 +3,6 @@
 
 ToDo:
 ・search()を最新のStockfishと見比べる。
-・MovePickerを魔女と見比べる。
 
 予定)
 ・利きを用いない1手詰め判定ルーチンを用意する。
@@ -23,12 +22,25 @@ ToDo:
 
 ■ 2016/06/13 V2.97
 
+・MovePicker、よく考える。
+	いま、Pieceの金の位置が角、飛車の後ろにあるからLVA_Table用意したほうがいいのか…。
+
+	以下のように変更。
+      // MVV-LVAに、歩の成りに加点する形にしておく。
+      m.value = (pawn_promo ? (Value)(Eval::GoldValue - Eval::PawnValue) : VALUE_ZERO)
+        + (Value)Eval::PieceValueCapture[pos.piece_on(move_to(m))]
+        - LVA(pt);
+
+・MovePickerにコメント少し追加。
+
 
 ■ 2016/06/13 V2.96
 
 ・search()を魔女とくらべてみる。
 	・check_timeを呼び出す周期、もう少し細かくする。
 	思ったよりnps出ないので、20000 nodeに1回だと0.1秒程度の誤差がでかねないようだ。
+	→　ここで0.1秒も誤差が出ると、NetworkDelayで0.1秒損をする。
+	ここをシビアにして、代わりにNetworkDelay,NetworkDelay2のデフォルト値を-80[ms]しておく。
 
 	・魔女のprobe()のあとのコード、おかしくないかな。
 	    ttScore = (tte != nullptr ? scoreFromTT(tte->score(), ss->ply) : ScoreNone);
@@ -53,6 +65,22 @@ ToDo:
 
 ・短い持ち時間でパラメーターを自動調整するとsingularのパラメーターは縮小される方向(singularを使わない方向)に一方的に向かうが、
 　　これは良くない調整だと思う。singular絡みのパラメーター、持ち時間を大きくしないと調整は危険。
+
+		46.8%	
+		#175
+		やねうら王2016mid V296
+		search、魔女化(), 1スレッド、5秒設定
+		#0
+		silent_majority_V1.1公式
+		1スレッド、5秒設定
+
+		96-5-109(83.6% R-22.1)	
+
+	魔女にだいぶ並んできた。-R22はあまり正確な数値ではないだろうけども、これが仮に正確な数値だとしたら
+	利きの更新で損をしている15%(R30相当)が利いて来ている可能性がある。
+
+	同じ条件で10秒でもやってみる。これで同程度の差であるなら、探索部、最新のStockfishの良いところを取り込む。
+
 
 
 ■ 2016/06/13 V2.95
