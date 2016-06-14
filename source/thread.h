@@ -99,7 +99,8 @@ struct Thread
   // このスレッドに関して、終了した反復深化の深さ(Depth型ではないので注意)
   int completedDepth;
 
-#ifdef USE_MOVE_PICKER
+#if defined(USE_MOVE_PICKER_2015) || defined( USE_MOVE_PICKER_2016Q2 )
+  // ある種のMovePickerではオーダリングのために、
   // スレッドごとにhistoryとcounter movesのtableを持たないといけない。
 
   HistoryStats history;

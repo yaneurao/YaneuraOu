@@ -214,6 +214,8 @@
     <ClInclude Include="extra\key128.h" />
     <ClInclude Include="extra\macros.h" />
     <ClInclude Include="extra\mate1ply.h" />
+    <ClInclude Include="extra\move_picker_2015.h" />
+    <ClInclude Include="extra\move_picker_2016Q2.h" />
     <ClInclude Include="misc.h" />
     <ClInclude Include="move_picker.h" />
     <ClInclude Include="search.h" />
@@ -244,7 +246,9 @@
     <ClCompile Include="extra\book.cpp" />
     <ClCompile Include="extra\entering_king_win.cpp" />
     <ClCompile Include="extra\long_effect.cpp" />
-    <ClCompile Include="extra\mate1ply.cpp" />
+    <ClCompile Include="extra\mate1ply_with_effect.cpp" />
+    <ClCompile Include="extra\mate1ply_without_effect.cpp" />
+    <ClCompile Include="extra\move_picker_2016Q2.cpp" />
     <ClCompile Include="extra\see.cpp" />
     <ClCompile Include="extra\test_cmd.cpp" />
     <ClCompile Include="extra\timeman.cpp" />

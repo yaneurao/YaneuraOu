@@ -484,12 +484,12 @@ struct Position
       (type_of(piece_on(move_from(m))) == PAWN && (m & MOVE_PROMOTE));
   }
 
-  // --- 超高速1手詰め判定
-#if defined(MATE_1PLY) && defined(LONG_EFFECT_LIBRARY)
+  // --- 1手詰め判定
+#ifdef USE_MATE_1PLY
   // 現局面で1手詰めであるかを判定する。1手詰めであればその指し手を返す。
   // ただし1手詰めであれば確実に詰ませられるわけではなく、簡単に判定できそうな近接王手による
   // 1手詰めのみを判定する。(要するに判定に漏れがある。)
-  // 先行して、CheckInfo.pinnedを更新しておく必要がある。
+  // 先行して、CheckInfo.pinnedを更新しておく必要がある。(LONG_EFFECT_LIBRARYを用いる場合)
   // →　check_info_update_pinned()を利用するのが吉。
   Move mate1ply() const;
 

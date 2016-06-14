@@ -25,7 +25,7 @@ PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 5;
 
 // 元の値 = 7
 // [PARAM] min:5,max:13,step:1,interval:2,time_rate:1
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 8;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 7;
 
 // 元の値 = 170
 // [PARAM] min:100,max:200,step:3,interval:1,time_rate:1
@@ -69,16 +69,16 @@ PARAM_DEFINE PARAM_PROBCUT_DEPTH = 5;
 //
 
 // singular extensionの前提depth
-// 元の値 = 10
+// 元の値 = 8
 // [PARAM] min:6,max:13,step:1,interval:2,time_rate:3
-PARAM_DEFINE PARAM_SINGULAR_EXTENSION_DEPTH = 10;
+PARAM_DEFINE PARAM_SINGULAR_EXTENSION_DEPTH = 8;
 
 // singular extensionのmarginを計算するときの係数
-// Value rBeta = ttValue - PARAM_SINGULAR_MARGIN * depth / ONE_PLY;
+// Value rBeta = ttValue - (PARAM_SINGULAR_MARGIN / 8) * depth / ONE_PLY;
 
-// 元の値 = 2
-// [PARAM] min:2,max:20,step:1,interval:1,time_rate:1
-PARAM_DEFINE PARAM_SINGULAR_MARGIN = 2;
+// 元の値 = 16
+// [PARAM] min:2,max:20,step:1,interval:1,time_rate:10
+PARAM_DEFINE PARAM_SINGULAR_MARGIN = 16;
 
 // singular extensionで浅い探索をするときの深さに関する係数
 // depth * PARAM_SINGULAR_SEARCH_DEPTH / 256
@@ -103,24 +103,27 @@ PARAM_DEFINE PARAM_PRUNING_BY_MOVE_COUNT_DEPTH = 16;
 PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 4;
 
 // historyの値によってreductionするときの係数
-// 元の値 = 14980
-// [PARAM] min:4000,max:32000,step:256,interval:1,time_rate:1
-PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 14724;
+// 元の値 = 20000
+// [PARAM] min:5000,max:30000,step:256,interval:1,time_rate:1
+PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 20000;
 
 //
 // razoring pruning
 // 
 
+// 元の値 = 483, 570, 603, 554
 
-// return (Value)(PARAM_RAZORING_MARGIN + PARAM_RAZORING_ALPHA * static_cast<int>(d));
+// [PARAM] min:400,max:700,step:8,interval:1,time_rate:1
+PARAM_DEFINE PARAM_RAZORING_MARGIN1 = 483;
 
-// 元の値 = 512
-// [PARAM] min:64,max:1024,step:32,interval:1,time_rate:1
-PARAM_DEFINE PARAM_RAZORING_MARGIN = 448;
+// [PARAM] min:400,max:700,step:8,interval:1,time_rate:1
+PARAM_DEFINE PARAM_RAZORING_MARGIN2 = 570;
 
-// 元の値 = 16
-// [PARAM] min:4,max:32,step:2,interval:1,time_rate:1
-PARAM_DEFINE PARAM_RAZORING_ALPHA = 16;
+// [PARAM] min:400,max:700,step:8,interval:1,time_rate:1
+PARAM_DEFINE PARAM_RAZORING_MARGIN3 = 603;
+
+// [PARAM] min:400,max:700,step:8,interval:1,time_rate:1
+PARAM_DEFINE PARAM_RAZORING_MARGIN4 = 554;
 
 //
 // etc..
@@ -129,7 +132,7 @@ PARAM_DEFINE PARAM_RAZORING_ALPHA = 16;
 // この個数までquietの指し手を登録してhistoryなどを増減させる。
 // 元の値 = 64
 // [PARAM] min:32,max:128,step:4,interval:2,time_rate:2
-PARAM_DEFINE PARAM_QUIET_SEARCH_COUNT = 72;
+PARAM_DEFINE PARAM_QUIET_SEARCH_COUNT = 64;
 
 //
 // history of changed parameters

@@ -1,8 +1,9 @@
 ﻿#include "mate1ply.h"
 
 // 超高速1手詰め判定ライブラリ
+// 利きを用いる場合の実装
 
-#if defined(MATE_1PLY) && defined(LONG_EFFECT_LIBRARY)
+#if defined(USE_MATE_1PLY) && defined(LONG_EFFECT_LIBRARY)
 
 #include "../position.h"
 #include "long_effect.h"

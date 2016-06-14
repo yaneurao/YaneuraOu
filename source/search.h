@@ -6,6 +6,12 @@
 #include "position.h"
 #include "misc.h"
 
+#ifdef USE_MOVE_PICKER_2016Q2
+// CounterMoveStatsの前方宣言。
+template<typename T, bool CM> struct Stats;
+typedef Stats<Value, true> CounterMoveStats;
+#endif
+
 // 探索関係
 namespace Search {
 
@@ -140,6 +146,9 @@ namespace Search {
     Value staticEval;        // 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
     bool skipEarlyPruning;   // 指し手生成前に行なう枝刈りを省略するか。(NULL MOVEの直後など)
     int moveCount;           // このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
+#ifdef USE_MOVE_PICKER_2016Q2
+    CounterMoveStats* counterMoves; // MovePickerから使いたいのでここにCounterMoveStatsを格納することになった。
+#endif
   };
 
 } // end of namespace Search

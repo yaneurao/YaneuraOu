@@ -124,6 +124,12 @@
     <ClInclude Include="extra\evalsum.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
+    <ClInclude Include="extra\move_picker_2015.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\move_picker_2016Q2.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -148,9 +154,6 @@
       <Filter>リソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="extra\test_cmd.cpp">
-      <Filter>リソース ファイル\extra</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\mate1ply.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
     <ClCompile Include="extra\long_effect.cpp">
@@ -221,6 +224,15 @@
     </ClCompile>
     <ClCompile Include="eval\evaluate_kppt.cpp">
       <Filter>リソース ファイル\eval</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\move_picker_2016Q2.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\mate1ply_with_effect.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\mate1ply_without_effect.cpp">
+      <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

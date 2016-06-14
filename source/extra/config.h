@@ -84,8 +84,10 @@
 // do_move()のときに利きの差分更新を行なうので、do_move()は少し遅くなる。(その代わり、利きが使えるようになる)
 //#define LONG_EFFECT_LIBRARY
 
-// 超高速1手詰め判定ルーチンを用いるか。
-//#define MATE_1PLY
+// 1手詰め判定ルーチンを用いるか。
+// LONG_EFFECT_LIBRARYが有効なときは、利きを利用した高速な一手詰め。
+// LONG_EFFECT_LIBRARYが無効なときは、Bonanza6風の一手詰め。
+//#define USE_MATE_1PLY
 
 // Position::see()を用いるか。これはSEE(Static Exchange Evaluation : 静的取り合い評価)の値を返す関数。
 //#define USE_SEE
@@ -100,7 +102,7 @@
 // #define ENABLE_MAKEBOOK_CMD
 
 // 標準で用意されているMovePickerを用いるか
-// #define USE_MOVE_PICKER
+// #define USE_MOVE_PICKER_2016Q2
 
 // 入玉時の宣言勝ちを用いるか
 // #define USE_ENTERING_KING_WIN
@@ -139,9 +141,9 @@
 #define EVAL_KPP
 #define USE_TT_PV
 #define USE_SEE
-#define USE_MOVE_PICKER
+#define USE_MOVE_PICKER_2015
 #define LONG_EFFECT_LIBRARY
-#define MATE_1PLY
+#define USE_MATE_1PLY
 #endif
 
 #ifdef YANEURAOU_MINI_ENGINE
@@ -149,9 +151,9 @@
 #define ENABLE_TEST_CMD
 #define EVAL_KPP
 #define USE_SEE
-#define USE_MOVE_PICKER
+#define USE_MOVE_PICKER_2015
 #define LONG_EFFECT_LIBRARY
-#define MATE_1PLY
+#define USE_MATE_1PLY
 #endif
 
 #ifdef YANEURAOU_CLASSIC_ENGINE
@@ -160,7 +162,7 @@
 #define ENABLE_TEST_CMD
 #define EVAL_KPP
 #define USE_SEE
-#define USE_MOVE_PICKER
+#define USE_MOVE_PICKER_2015
 #define LONG_EFFECT_LIBRARY
 #define MATE_1PLY
 #define USE_ENTERING_KING_WIN
@@ -172,9 +174,9 @@
 #define ENABLE_TEST_CMD
 #define EVAL_KPP
 #define USE_SEE
-#define USE_MOVE_PICKER
+#define USE_MOVE_PICKER_2015
 #define LONG_EFFECT_LIBRARY
-#define MATE_1PLY
+#define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
 #define KEEP_PIECE_IN_COUNTER_MOVE
@@ -188,9 +190,9 @@
 #define ENABLE_TEST_CMD
 #define EVAL_KPPT
 #define USE_SEE
-#define USE_MOVE_PICKER
-#define LONG_EFFECT_LIBRARY
-#define MATE_1PLY
+#define USE_MOVE_PICKER_2016Q2
+//#define LONG_EFFECT_LIBRARY
+#define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
 #define KEEP_PIECE_IN_COUNTER_MOVE
@@ -206,7 +208,7 @@
 #define USE_SEE
 #define USE_MOVE_PICKER
 #define LONG_EFFECT_LIBRARY
-#define MATE_1PLY
+#define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
 #define KEEP_PIECE_IN_COUNTER_MOVE
@@ -248,7 +250,7 @@
 #define KEEP_LAST_MOVE
 #undef  MAX_PLY_NUM
 #define MAX_PLY_NUM 2000
-#define MATE_1PLY
+#define USE_MATE_1PLY
 #define EVAL_NO_USE
 #define LONG_EFFECT_LIBRARY
 #endif
@@ -386,14 +388,6 @@ typedef uint32_t Move32;
 #else
 #define COUNTER_MOVE Move 
 #endif
-
-// --- Long Effect Library
-
-// 1手詰め判定は、LONG_EFFECT_LIBRARYに依存している。
-#ifdef MATE_1PLY
-#define LONG_EFFECT_LIBRARY
-#endif
-
 
 // --- evaluate function
 

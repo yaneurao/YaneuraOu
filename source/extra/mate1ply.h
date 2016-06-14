@@ -2,9 +2,7 @@
 #define _MATE1PLY_H_
 
 #include "../shogi.h"
-#if defined(MATE_1PLY) && defined(LONG_EFFECT_LIBRARY)
-
-#include "long_effect.h"
+#ifdef USE_MATE_1PLY
 
 namespace Mate1Ply
 {
@@ -13,4 +11,5 @@ namespace Mate1Ply
 }
 
 #endif // MATE_1PLY
+
 #endif // _MATE1PLY_H_
