@@ -131,38 +131,6 @@ namespace Search {
   LimitsType Limits;
   StateStackPtr SetupStates;
 
-  void RootMove::insert_pv_in_tt(Position& pos) {
-
-    StateInfo state[MAX_PLY], *st = state;
-    bool ttHit;
-
-    // 細かいことだがpvのtailから前方に向かって置換表に書き込んでいくほうが、
-    // pvの前のほうがエントリーの価値が高いので上書きされてしまう場合にわずかに得ではある。
-    // ただ、現実的にはほとんど起こりえないので気にしないことにする。
-    
-    for (Move m : pv)
-    {
-      // 銀の不成の指し手をcounter moveとして登録して、この位置に角が来ると
-      // 角の不成の指し手を生成することになるからLEGALではなくLEGAL_ALLで判定しないといけない。
-      ASSERT_LV3(MoveList<LEGAL_ALL>(pos).contains(m));
-      TTEntry* tte = TT.probe(pos.state()->key(), ttHit);
-
-      // 正しいエントリーは書き換えない。
-      if (!ttHit || tte->move() != m)
-        tte->save(pos.state()->key(), VALUE_NONE, BOUND_NONE, DEPTH_NONE,
-          m, 
-#ifndef NO_EVAL_IN_TT         
-          VALUE_NONE,
-#endif
-          TT.generation());
-
-      pos.do_move(m, *st++);
-    }
-
-    for (size_t i = pv.size(); i > 0; )
-      pos.undo_move(pv[--i]);
-  }
-
   // 探索を抜ける前にponderの指し手がないとき(rootでfail highしているだとか)にこの関数を呼び出す。
   // ponderの指し手として何かを指定したほうが、その分、相手の手番において考えられて得なので。
 

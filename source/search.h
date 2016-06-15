@@ -29,10 +29,6 @@ namespace Search {
     // pv[0]には、このコンストラクタの引数で渡されたmを設定する。
     explicit RootMove(Move m) : pv(1,m) {}
 
-    // this->pvに読み筋(PV)が保存されているとして、
-    // これを置換表に保存する。
-    void insert_pv_in_tt(Position& pos);
-
     // ponderの指し手がないときにponderの指し手を置換表からひねり出す。pv[1]に格納する。
     // ponder_candidateが2手目の局面で合法手なら、それをpv[1]に格納する。
     // それすらなかった場合はfalseを返す。

@@ -1021,7 +1021,7 @@ void MainThread::think()
     //   反復深化のループ
     // ---------------------
 
-    while (++rootDepth < MAX_PLY && !Signals.stop && (!Limits.depth || rootDepth <= Limits.depth))
+    while (++rootDepth < MAX_PLY && !Signals.stop && (!Limits.depth || Threads.main()->rootDepth <= Limits.depth))
     {
       // 本当はもっと探索窓を絞ったほうが効率がいいのだが…。
       alpha = -VALUE_INFINITE;

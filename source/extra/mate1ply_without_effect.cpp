@@ -5,11 +5,177 @@
 // 利きを用いない1手詰め判定用。(Bonanza6風)
 // やねうら王2014からの移植。
 
-#include <iostream>
-
 #include "../position.h"
 
-using std::cout;
+//#include <iostream>
+//using std::cout;
+
+namespace {
+
+// 王手になる候補の駒の位置を示すBitboard
+Bitboard CHECK_CAND_BB[SQ_NB_PLUS1][PIECE_NB][COLOR_NB];
+
+// 移動により王手になるbitboardを返す。
+static Bitboard check_cand_bb(Color us, Piece pc, Square sq_king)
+{
+  return CHECK_CAND_BB[sq_king][pc][us];
+}
+
+}
+
+namespace Mate1Ply
+{
+  // Mate1Ply関係のテーブル初期化
+  void init()
+  {
+    // Bitboard CHECK_CAND_BB[PIECE_TYPE_CHECK_NB][SQUARE_NB][COLOR_NB];
+    // の初期化
+
+    for (auto p : Piece())
+      for (auto sq : SQ)
+        for (auto c : COLOR)
+        {
+          Bitboard bb = ZERO_BB, tmp = ZERO_BB;
+          Square to;
+
+          // 敵陣
+          Bitboard enemyBB = enemy_field(c);
+          
+          // 敵陣+1段
+          // Bitboard enemy4BB = c == BLACK ? RANK1_4BB : RANK6_9BB;
+
+          switch ((int)p)
+          {
+          case PIECE_TYPE_CHECK_PAWN_WITH_NO_PRO:
+            // 歩が不成りで王手になるところだけ。
+
+            bb = pawnEffect(~c, sq) & ~enemyBB;
+            if (!bb)
+              break;
+            to = bb.pop();
+            bb = pawnEffect(~c, to);
+            break;
+
+          case PIECE_TYPE_CHECK_PAWN_WITH_PRO:
+
+            bb = goldEffect(~c, sq);
+            if (c == BLACK)
+            {
+              bb &= RANK1_3BB;
+              bb = bb << 1; // その1段前にある歩
+            } else
+            {
+              bb &= RANK7_9BB;
+              bb = bb >> 1; // その1段後ろにある歩
+            }
+            break;
+
+          case PIECE_TYPE_CHECK_LANCE:
+
+            // 成りによるものもあるからな..候補だけ列挙しておくか。
+            bb = lanceStepEffect(~c, sq);
+            if (is_enemy_field(c, sq))
+            {
+              // 敵陣なので成りで王手できるから、sqより下段の香も足さないと。
+              if (file_of(sq) != FILE_1)
+                bb |= lanceStepEffect(~c, sq + DELTA_E);
+              if (file_of(sq) != FILE_9)
+                bb |= lanceStepEffect(~c, sq + DELTA_W);
+            }
+
+            break;
+
+          case PIECE_TYPE_CHECK_KNIGHT:
+
+            // 敵玉から桂の桂にある駒
+            tmp = knightEffect(~c, sq);
+            while (tmp)
+            {
+              to = pop_lsb(&tmp);
+              bb |= knightEffect(~c, to);
+            }
+            // 成って王手(金)になる移動元
+            tmp = goldEffect(~c, sq) & enemyBB;
+            while (tmp)
+            {
+              to = pop_lsb(&tmp);
+              bb |= knightEffect(~c, to);
+            }
+            break;
+
+          case PIECE_TYPE_CHECK_SILVER:
+
+            // 敵玉から銀の銀にある駒。
+            tmp = silverEffect(~c, sq);
+            while (tmp)
+            {
+              to = pop_lsb(&tmp);
+              bb |= silverEffect(~c, to);
+            }
+            // 成って王手の場合、敵玉から金の銀にある駒
+            tmp = goldEffect(~c, sq) & enemyBB;
+            while (tmp)
+            {
+              to = pop_lsb(&tmp);
+              bb |= silverEffect(~c, to);
+            }
+            // あと4段目の玉に3段目から成っての王手。玉のひとつ下の升とその斜めおよび、
+            // 玉のひとつ下の升の2つとなりの升
+            {
+              Rank r = (c == BLACK ? RANK_4 : RANK_6);
+              if (r == rank_of(sq))
+              {
+                r = (c == BLACK ? RANK_3 : RANK_7);
+                to = (file_of(sq) | r);
+                bb |= to;
+                bb |= cross45StepEffect(to);
+
+                // 2升隣。もう少し綺麗に書けないものか…
+                if (rank_of(to + DELTA_E * 2) == r)
+                  bb |= (to + DELTA_E * 2);
+                if (rank_of(to + DELTA_W * 2) == r)
+                  bb |= (to + DELTA_W * 2);
+              }
+
+              // 5段目の玉に成りでのバックアタック的な..
+              if (rank_of(sq) == RANK_5)
+                bb |= knightEffect(c, sq);
+            }
+            break;
+
+          case PIECE_TYPE_CHECK_GOLD:
+            // 敵玉から金の金にある駒
+            tmp = goldEffect(~c, sq);
+            while (tmp)
+            {
+              to = pop_lsb(&tmp);
+              bb |= goldEffect(~c, to);
+            }
+            break;
+
+            // この4枚、どうせいないときもあるわけで、効果に乏しいので要らないのでは…。
+          case PIECE_TYPE_CHECK_BISHOP:
+          case PIECE_TYPE_CHECK_PRO_BISHOP:
+          case PIECE_TYPE_CHECK_ROOK:
+          case PIECE_TYPE_CHECK_PRO_ROOK:
+            // 王の8近傍の8近傍(24近傍)か、王の3列、3行か。結構の範囲なのでこれ無駄になるな…。
+            break;
+
+            // 非遠方駒の合体bitboard。ちょっとぐらい速くなるんだろう…。
+          case PIECE_TYPE_CHECK_NON_SLIDER:
+            bb = CHECK_CAND_BB[PIECE_TYPE_CHECK_GOLD][sq][c]
+              | CHECK_CAND_BB[PIECE_TYPE_CHECK_KNIGHT][sq][c]
+              | CHECK_CAND_BB[PIECE_TYPE_CHECK_SILVER][sq][c]
+              | CHECK_CAND_BB[PIECE_TYPE_CHECK_PAWN_WITH_NO_PRO][sq][c]
+              | CHECK_CAND_BB[PIECE_TYPE_CHECK_PAWN_WITH_PRO][sq][c];
+            break;
+          }
+          bb &= ~Bitboard(sq); // sqの地点邪魔なので消しておく。
+          CHECK_CAND_BB[p][sq][c] = bb;
+        }
+
+  }
+}
 
 namespace {
 
@@ -405,7 +571,7 @@ SILVER_DROP_END:;
       if (!(pos.attackers_to(us, to, slide) ^ from)) { continue; }
 
       // 敵陣へ/から の移動であれば成りなので
-      if (is_enemy_field(us, from,to))
+      if (canPromote(us, from,to))
       {
         if (cross45StepEffect(sq_king) & to)
           bb_attacks = dragonEffect(to, slide);
@@ -426,7 +592,7 @@ SILVER_DROP_END:;
         ;
       else if (can_piece_capture(pos, them, to, new_pin, slide))   { continue; }
 
-      if (!is_enemy_field(us, from ,to))
+      if (!canPromote(us, from ,to))
         return make_move(from, to);
       else
         return make_move_promote(from, to);
@@ -495,7 +661,7 @@ SILVER_DROP_END:;
         if (!(pos.attackers_to(us, to, slide) ^ from)) { continue; }
 
         // 敵陣へ/から の移動であれば成りなので
-        if (is_enemy_field(us, from,to))
+        if (canPromote(us, from,to))
           bb_attacks = bishopStepEffect(to) | kingEffect(to);
         else
           bb_attacks = bishopStepEffect(to);
@@ -509,7 +675,7 @@ SILVER_DROP_END:;
           ;
         else if (can_piece_capture(pos, them, to, new_pin, slide))   { continue; }
 
-        if (!is_enemy_field(us, from, to))
+        if (!canPromote(us, from, to))
           return make_move(from, to);
         else
           return make_move_promote(from, to);
@@ -518,7 +684,7 @@ SILVER_DROP_END:;
   }
 
   // 香の移動王手
-  bb = pos.check_cand_bb(us, PIECE_TYPE_CHECK_LANCE, sq_king) & pos.pieces(us, PIECE_TYPE_BITBOARD_LANCE);
+  bb = pos.check_cand_bb(us, PIECE_TYPE_CHECK_LANCE, sq_king) & pos.pieces(us, LANCE);
   while (bb)
   {
     from = bb.pop();
@@ -534,7 +700,7 @@ SILVER_DROP_END:;
     {
       to = bb_check.pop();
 
-      if (is_enemy_field(us, to))
+      if (canPromote(us, to))
         bb_attacks = goldEffect(us, to);
       else
         bb_attacks = lanceStepEffect(us, to);
@@ -548,14 +714,14 @@ SILVER_DROP_END:;
         ;
       else if (can_piece_capture(pos, them, to, pinned, slide))   { goto LANCE_NO_PRO; }
 
-      if (!is_enemy_field(us, to))
+      if (!canPromote(us, to))
         return make_move(from, to);
       else
         return make_move_promote(from, to);
 
       // 敵陣で不成りで串刺しにする王手も入れなきゃ..
     LANCE_NO_PRO:;
-      if ((us == BLACK ? RANK3BB : RANK7BB) & to)
+      if ((us == BLACK ? RANK3_BB : RANK7_BB) & to)
       {
         bb_attacks = lanceStepEffect(us,to);
         if (!(bb_attacks & sq_king)) { continue; }
@@ -770,7 +936,7 @@ SILVER_DROP_END:;
               // 貫通で考えておこう。裏の退路もいけないので。
               // 1升以上離れているので王手にするには不成りでいくしかなく、これは飛車利きに等しい
             }
-            else if (is_enemy_field(us, from,to) || type_of(pos.piece_on(from)) == DRAGON)
+            else if (canPromote(us, from,to) || type_of(pos.piece_on(from)) == DRAGON)
             {
               bb_attacks = queenStepEffect(to);
             }
@@ -788,7 +954,7 @@ SILVER_DROP_END:;
             {
               // これで詰みが確定した
               // 香は不成りでの王手
-              if (type_of(pos.piece_on(from)) != LANCE && is_enemy_field(us, from, to) && !is_pro_piece(pos.piece_on(from)))
+              if (type_of(pos.piece_on(from)) != LANCE && canPromote(us, from, to) && !(pos.piece_on(from) & PIECE_PROMOTE))
                 return make_move_promote(from, to);
               else
                 return make_move(from, to);
@@ -843,7 +1009,7 @@ SILVER_DROP_END:;
               // 貫通で考えておく
             {
               // これで詰みが確定した
-              if (is_enemy_field(us, from,to) && !is_pro_piece(pos.piece_on(from)))
+              if (canPromote(us, from,to) && !(pos.piece_on(from) & PIECE_PROMOTE))
                 return make_move_promote(from, to);
               else
                 return make_move(from, to);
@@ -892,9 +1058,11 @@ NEXT1:;
     }
   }
 
+  // check candicate bb
+  auto& cc = pos.state()->checkInfo.checkSq;
+
   // 銀は成りと不成が選択できるので少し嫌らしい
-  bb = pos.check_cand_bb(us, PIECE_TYPE_CHECK_SILVER, sq_king)  & pos.pieces(us, PIECE_TYPE_BITBOARD_SILVER);
-//  cout << pos.check_cand_bb(us, PIECE_TYPE_CHECK_SILVER, sq_king);
+  bb = cc[SILVER] & pos.pieces(us, SILVER);
   while (bb)
   {
     from = bb.pop();
@@ -928,7 +1096,7 @@ NEXT1:;
       // 銀成りでの王手
 
       // 敵陣へ/から の移動であれば成りを選択できるので..
-      if (!(is_enemy_field(us, from , to)))
+      if (!(canPromote(us, from , to)))
         continue;
 
       bb_attacks = goldEffect(us,to);
@@ -944,7 +1112,7 @@ NEXT1:;
   }
 
   // 桂も成りと不成が選択できるので少し嫌らしい
-  bb = pos.check_cand_bb(us, PIECE_TYPE_CHECK_KNIGHT, sq_king)  & pos.pieces(us, PIECE_TYPE_BITBOARD_KNIGHT);
+  bb = cc[KNIGHT] & pos.pieces(us, KNIGHT);
   while (bb)
   {
     from = bb.pop();
@@ -975,7 +1143,7 @@ NEXT1:;
     PRO_KNIGHT:;
       // 桂成りでの王手
 
-      if (!(is_enemy_field(us, from,to))) { continue; }
+      if (!(canPromote(us, from,to))) { continue; }
       bb_attacks = goldEffect(us,to);
       if (!(bb_attacks & sq_king)) { continue; }
       if (!(pos.attackers_to(us, to, slide) ^ from)) { continue; }
@@ -990,14 +1158,15 @@ NEXT1:;
   }
 
   // 歩の移動による詰み
-  if (pos.check_cand_bb(us, PIECE_TYPE_CHECK_PAWN_WITH_NO_PRO, sq_king) & pos.pieces(us, PAWN))
+  // todo なおす ↓歩の利き
+  if (cc[PAWN] & pos.pieces(us, PAWN))
   {
-    to = sq_king + (us == BLACK ? DELTA_N : DELTA_S);
+    to = sq_king + (us == BLACK ? SQ_U : SQ_D);
     if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) != ~us) { goto SKIP_PAWN; }
-    from = to + (us == BLACK ? DELTA_N : DELTA_S);
+    from = to + (us == BLACK ? SQ_U : SQ_D);
 
     // 敵陣であれば成りによる詰みチェックで引っかかるだろう。
-    if (is_enemy_field(us, to)) { goto SKIP_PAWN; }
+    if (canPromote(us, to)) { goto SKIP_PAWN; }
 
     Bitboard slide = pos.pieces() ^ from;
     if (!(pos.attackers_to(us, to, slide) ^ from)) { goto SKIP_PAWN; }
@@ -1010,13 +1179,14 @@ NEXT1:;
 SKIP_PAWN:;
 
   // 歩の成りによる詰み
-  bb = pos.check_cand_bb(us, PIECE_TYPE_CHECK_PAWN_WITH_PRO, sq_king) & pos.pieces(us,PAWN);
+  // todo なおす
+  bb = cc[GOLD] & pos.pieces(us,PAWN);
   while (bb)
   {
     from = bb.pop();
-    to = from + (us == BLACK ? DELTA_S : DELTA_N);
+    to = from + (us == BLACK ? SQ_D : SQ_U);
     if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) != ~us) { continue; }
-    bb_attacks =goldEffect(us, to);
+    bb_attacks = goldEffect(us, to);
 
     if (!(bb_attacks & sq_king)) { continue; }
 
@@ -1052,14 +1222,14 @@ DC_CHECK:;
       case PAWN:
       {
         // 同じ筋だとpin方向と違う方向の移動にならない。
-        if (is_same_file(from,sq_king)) { continue; }
+        if (file_of(from) == file_of(sq_king)) { continue; }
 
         // 移動性の保証
-        to = from + (us == BLACK ? DELTA_S : DELTA_N);
+        to = from + (us == BLACK ? SQ_D : SQ_U);
         if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) != ~us) { continue; }
 
         // toの地点で成れないと駄目
-        if (!is_enemy_field(us, to)) continue;
+        if (!canPromote(us, to)) continue;
 
         // toの地点に敵の利きがあるか、もしくは自分の利きがないなら、
         // この変化で1手詰めにならないことはすでに調べているので除外すべきだが、除外するコストも馬鹿にならないので
@@ -1091,7 +1261,7 @@ DC_CHECK:;
         while (bb)
         {
           to = bb.pop();
-          if (aligned(from, to, sq_king)) { continue; }
+          if (is_aligned(sq_king,from, to)) { continue; }
           bb_attacks =knightEffect(us, to);
           if (bb_attacks & sq_king) { continue; }
           if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
@@ -1104,8 +1274,8 @@ DC_CHECK:;
         while (bb)
         {
           to = bb.pop();
-          if (aligned(from, to, sq_king)) { continue; }
-          if (!(is_enemy_field(us, from,to))) { continue; }
+          if (is_aligned(sq_king,from, to)) { continue; }
+          if (!(canPromote(us, from,to))) { continue; }
           bb_attacks = goldEffect(us, to);
           if (bb_attacks & sq_king) { continue; }
           if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
@@ -1125,7 +1295,7 @@ DC_CHECK:;
         while (bb)
         {
           to = bb.pop();
-          if (aligned(from, to, sq_king)) { continue; }
+          if (is_aligned(sq_king,from, to)) { continue; }
           bb_attacks =silverEffect(us, to);
           if (bb_attacks & sq_king) { continue; }
           if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
@@ -1138,8 +1308,8 @@ DC_CHECK:;
         while (bb)
         {
           to = bb.pop();
-          if (aligned(from, to, sq_king)) { continue; }
-          if (!(is_enemy_field(us, from,to))) { continue; }
+          if (is_aligned(sq_king,from, to)) { continue; }
+          if (!(canPromote(us, from,to))) { continue; }
           bb_attacks =goldEffect(us, to);
           if (bb_attacks & sq_king) { continue; }
           if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
@@ -1166,7 +1336,7 @@ DC_CHECK:;
       case BISHOP:
 
         bb = bishopEffect(sq_king, pos.pieces()) |
-          (kingEffect(sq_king) & (is_enemy_field(us,from) ? ALL_BB : enemyBB));
+          (kingEffect(sq_king) & (canPromote(us,from) ? ALL_BB : enemyBB));
         // 敵陣8近傍、王からの角の利き、fromが敵陣であれば、敵陣にかぎらず玉8近傍も。
         // ここが角が移動してくれば王手になる升
         // これと角の利きとの交差をとって、そこを移動の候補とする。
@@ -1186,7 +1356,7 @@ DC_CHECK:;
       case ROOK:
         // 角のときと同様
         bb = rookEffect(sq_king, pos.pieces()) |
-        (kingEffect(sq_king) & (is_enemy_field(us, from) ? ALL_BB : enemyBB));
+        (kingEffect(sq_king) & (canPromote(us, from) ? ALL_BB : enemyBB));
         bb &= rookEffect(from, pos.pieces());
 
         // いやー。龍がpinされているということは背後にいるのはたぶん角であって、
@@ -1212,13 +1382,13 @@ DC_CHECK:;
 
       bb &= bb_move;
 
-      bool is_enemy_from = is_enemy_field(us,from);
+      bool is_enemy_from = canPromote(us,from);
 
       // 候補はほとんどないはずだが。
       while (bb)
       {
         to = bb.pop();
-        bool promo = is_enemy_from || is_enemy_field(us, to);
+        bool promo = is_enemy_from || canPromote(us, to);
 
         // これ、開き王手になってないと駄目
         if (is_aligned(sq_king,from, to)) { continue;  }
@@ -1255,7 +1425,7 @@ DC_CHECK:;
 
         if (!can_king_escape_cangoto(pos, them, from, to, bb_attacks, slide))
         {
-          if (promo && !is_pro_piece(Piece(pt)) && pt != GOLD)
+          if (promo && !(pt & PIECE_PROMOTE) && pt != GOLD)
             return make_move_promote(from, to);
           return make_move(from, to);
         }
@@ -1421,7 +1591,7 @@ DC_CHECK:;
           // 成り不成りがある。成りは、ここで調べ、不成りはあとで調べる。
 
           // 成れないならば不成りの判定へ
-          if (!is_enemy_field(us, from, to))
+          if (!canPromote(us, from, to))
             goto DISCOVER_ATTACK_CONTINUE_SILVER;
           bb_attacks =goldEffect(us, to);
           break;
@@ -1433,7 +1603,7 @@ DC_CHECK:;
           break;
 
         case BISHOP:
-          if (is_enemy_field(us, from,to))
+          if (canPromote(us, from,to))
             bb_attacks = horseEffect(to, new_slide);
           else
             bb_attacks = bishopEffect(to, new_slide);
@@ -1444,7 +1614,7 @@ DC_CHECK:;
           break;
 
         case ROOK:
-          if (is_enemy_field(us, from, to))
+          if (canPromote(us, from, to))
             bb_attacks = dragonEffect(to, new_slide);
           else
             bb_attacks = rookEffect(to, new_slide);
@@ -1508,7 +1678,7 @@ DC_CHECK:;
           // これで詰みが確定した
           // 桂→成りしか調べてないので成れるなら成りで。
           // 銀→不成と成りと選択できる。
-          if (is_enemy_field(us, from ,to) && !is_pro_piece(pos.piece_on(from)) && pt != GOLD)
+          if (canPromote(us, from ,to) && !(pos.piece_on(from) & PIECE_PROMOTE) && pt != GOLD)
             return make_move_promote(from, to);
           else
             return make_move(from, to);

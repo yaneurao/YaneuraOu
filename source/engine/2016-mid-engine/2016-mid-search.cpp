@@ -315,6 +315,7 @@ namespace YaneuraOu2016Mid
     //   historyのupdate
 
     // depthの二乗に比例したbonusをhistory tableに加算する。
+    // d*d + 2*d - 2 のほうが d*d + d - 1より良いらしい。
     Value bonus = Value((int)(depth / ONE_PLY) * (int)(depth / ONE_PLY) + 2 * (int)depth / ONE_PLY - 2);
 
     // 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
@@ -1439,8 +1440,8 @@ namespace YaneuraOu2016Mid
 
         if (depth <= PARAM_PRUNING_BY_HISTORY_DEPTH * ONE_PLY
           && move != (Move)(ss->killers[0])
-          && (!cmh || (*cmh)[move_to(move)][moved_pc] < VALUE_ZERO)
-          && (!fmh || (*fmh)[move_to(move)][moved_pc] < VALUE_ZERO)
+          && (!cmh  || (*cmh )[move_to(move)][moved_pc] < VALUE_ZERO)
+          && (!fmh  || (*fmh )[move_to(move)][moved_pc] < VALUE_ZERO)
           && (!fmh2 || (*fmh2)[move_to(move)][moved_pc] < VALUE_ZERO || (cmh && fmh)))
           continue;
 
@@ -1495,9 +1496,9 @@ namespace YaneuraOu2016Mid
         // Reduction量
         Depth r = reduction<PvNode>(improving, depth, moveCount);
         Value val = thisThread->history[moved_sq][moved_pc]
-          + (cmh ? (*cmh)[moved_sq][moved_pc] : VALUE_ZERO)
-          + (fmh ? (*fmh)[moved_sq][moved_pc] : VALUE_ZERO)
-          + (fmh2 ? (*fmh2)[moved_sq][moved_pc] : VALUE_ZERO);
+                      + (cmh  ? (*cmh )[moved_sq][moved_pc] : VALUE_ZERO)
+                      + (fmh  ? (*fmh )[moved_sq][moved_pc] : VALUE_ZERO)
+                      + (fmh2 ? (*fmh2)[moved_sq][moved_pc] : VALUE_ZERO);
 
         // cut nodeや、historyの値が悪い指し手に対してはreduction量を増やす。
         if (!PvNode && cutNode)
@@ -1939,7 +1940,7 @@ void Thread::search()
   //   反復深化のループ
   // ---------------------
 
-  while (++rootDepth < MAX_PLY && !Signals.stop && (!Limits.depth || rootDepth <= Limits.depth))
+  while (++rootDepth < MAX_PLY && !Signals.stop && (!Limits.depth || Threads.main()->rootDepth <= Limits.depth))
   {
     // ------------------------
     // lazy SMPのための初期化
@@ -2001,12 +2002,6 @@ void Thread::search()
         // 用いないと前回の反復深化の結果によって得た並び順を変えてしまうことになるのでまずい。
         std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
 
-        // 探索中に置換表のPV lineを破壊した可能性があるので、PVを置換表に
-        // 書き戻しておいたほうが良い。(PV lineが一番価値があるので)
-
-        for (size_t i = 0; i <= PVIdx; ++i)
-          rootMoves[i].insert_pv_in_tt(rootPos);
-
         if (Signals.stop)
           break;
 
@@ -2055,9 +2050,8 @@ void Thread::search()
       // (二番目だと思っていたほうの指し手のほうが評価値が良い可能性があるので…)
       std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
 
-      // メインスレッド以外はMultiPVの2番目以降の指し手の探索には加わらない。
       if (!mainThread)
-        break;
+        continue;
 
       // メインスレッド以外はPVを出力しない。
       // また、silentモードの場合もPVは出力しない。
@@ -2123,22 +2117,22 @@ void Thread::search()
 
         // 1つしか合法手がない(one reply)であるだとか、利用できる時間を使いきっているだとか、
         // easyMoveに合致しただとか…。
-        const bool F[] = { !mainThread->failedLow,
-          bestValue >= mainThread->previousScore };
+        const int F[] = { mainThread->failedLow,
+                          bestValue - mainThread->previousScore };
 
-        int improvingFactor = 640 - 160 * F[0] - 126 * F[1] - 124 * F[0] * F[1];
+        int improvingFactor = std::max(229, std::min(715, 357 + 119 * F[0] - 6 * F[1]));
         double unstablePvFactor = 1 + mainThread->bestMoveChanges;
 
         auto elapsed = Time.elapsed();
 
         bool doEasyMove = rootMoves[0].pv[0] == easyMove
           && mainThread->bestMoveChanges < 0.03
-          && elapsed > Time.optimum() * 25 / 204;
+          && elapsed > Time.optimum() * 5 / 42;
 
         // bestMoveが何度も変更になっているならunstablePvFactorが大きくなる。
         // failLowが起きてなかったり、1つ前の反復深化から値がよくなってたりするとimprovingFactorが小さくなる。
         if (rootMoves.size() == 1
-          || elapsed > Time.optimum() * unstablePvFactor * improvingFactor / 634
+          || elapsed > Time.optimum() * unstablePvFactor * improvingFactor / 628
           || (mainThread->easyMovePlayed = doEasyMove))
         {
           // 停止条件を満たした

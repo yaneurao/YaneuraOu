@@ -1807,7 +1807,7 @@ void Thread::search()
   //   反復深化のループ
   // ---------------------
 
-  while (++rootDepth < MAX_PLY && !Signals.stop && (!Limits.depth || rootDepth <= Limits.depth))
+  while (++rootDepth < MAX_PLY && !Signals.stop && (!Limits.depth || Threads.main()->rootDepth <= Limits.depth))
   {
     // ------------------------
     // lazy SMPのための初期化
@@ -1869,12 +1869,6 @@ void Thread::search()
         // 用いないと前回の反復深化の結果によって得た並び順を変えてしまうことになるのでまずい。
         std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
 
-        // 探索中に置換表のPV lineを破壊した可能性があるので、PVを置換表に
-        // 書き戻しておいたほうが良い。(PV lineが一番価値があるので)
-
-        for (size_t i = 0; i <= PVIdx; ++i)
-          rootMoves[i].insert_pv_in_tt(rootPos);
-
         if (Signals.stop)
           break;
 
@@ -1923,9 +1917,8 @@ void Thread::search()
       // (二番目だと思っていたほうの指し手のほうが評価値が良い可能性があるので…)
       std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
 
-      // メインスレッド以外はMultiPVの2番目以降の指し手の探索には加わらない。
       if (!mainThread)
-        break;
+        continue;
 
       // メインスレッド以外はPVを出力しない。
       // また、silentモードの場合もPVは出力しない。

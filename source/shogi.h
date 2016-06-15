@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "2.99"
+#define ENGINE_VERSION "3.01"
 
 // --------------------
 // コンパイル時の設定
@@ -144,7 +144,7 @@ enum Square : int32_t
   SQ_ZERO = 0, SQ_NB = 81,
   SQ_NB_PLUS1 = SQ_NB + 1, // 玉がいない場合、SQ_NBに移動したものとして扱うため、配列をSQ_NB+1で確保しないといけないときがあるのでこの定数を用いる。
 
-  // 方角に関する定数。N=北=盤面の下を意味する。
+  // 方角に関する定数。StockfishだとN=北=盤面の下を意味するようだが…。
   SQ_D  = +1, // 下(Down)
   SQ_R  = -9, // 右(Right)
   SQ_U  = -1, // 上(Up)
@@ -190,6 +190,13 @@ inline int dist(Square sq1, Square sq2) { return (!is_ok(sq1) || !is_ok(sq2)) ? 
 inline bool canPromote(const Color c, const Square fromOrTo) {
   ASSERT_LV2(is_ok(fromOrTo));
   return canPromote(c, rank_of(fromOrTo));
+}
+
+// 移動元と移動先の升を与えて、成れるかどうかを判定する。
+// (移動元か移動先かのどちらかが敵陣であれば成れる)
+inline bool canPromote(const Color c, const Square from, const Square to)
+{
+  return canPromote(c, from) || canPromote(c, to);
 }
 
 // 盤面を180°回したときの升目を返す

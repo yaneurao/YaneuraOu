@@ -168,8 +168,8 @@ private:
   // 指し手生成の段階
   Stages stage;
 
-  // QUIETの終端、BadCaptureの終端(これはメモリの前方に向かって使っていく)。
-  ExtMove *endQuiets, *endBadCaptures = moves + MAX_MOVES - 1;
+  // BadCaptureの終端(これはメモリの前方に向かって使っていく)。
+  ExtMove *endBadCaptures = moves + MAX_MOVES - 1;
   // 指し手生成バッファと、次に返す指し手、生成された指し手の末尾
   ExtMove moves[MAX_MOVES], *currentMoves = moves, *endMoves = moves;
 };

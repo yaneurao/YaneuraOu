@@ -444,6 +444,14 @@ struct Position
   // c側のpinされている駒(その駒を動かすとc側の玉がとられる)
   Bitboard pinned_pieces(Color c) const { return check_blockers(c, c);  }
 
+  // avoidで指定されている遠方駒は除外して、pinされている駒のbitboardを得る。
+  // ※利きのない1手詰め判定のときに必要。
+  Bitboard pinned_pieces(Color c, Square avoid) const;
+
+  // fromからtoに駒が移動したものと仮定して、pinを得る
+  // ※利きのない1手詰め判定のときに必要。
+  Bitboard pinned_pieces(Color c, Square from, Square to) const;
+
   // 駒を配置して、内部的に保持しているBitboardなどを更新する。
   void put_piece( Square sq , Piece pc, PieceNo piece_no);
 

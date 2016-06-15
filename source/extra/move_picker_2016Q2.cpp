@@ -51,8 +51,7 @@ enum Stages {
   GOOD_CAPTURES,                // 捕獲する指し手(CAPTURES_PRO_PLUS)を生成して指し手を一つずつ返す
   KILLERS,                      // KILLERの指し手
   BAD_CAPTURES,                 // 捕獲する悪い指し手(SEE < 0 の指し手だが、将棋においてそこまで悪い手とは限らない)
-  GOOD_QUIETS,                  // CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す
-  BAD_QUIETS,                   // ↑で点数悪そうなものを後回しにしていたのでそれを一つずつ返す
+  QUIETS,                       // CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す。SEE値の悪い手は後回し。
 
   // -----------------------------------------------------
   //   王手がかっている/静止探索時用の指し手生成
@@ -204,22 +203,19 @@ void MovePicker::generate_next_stage()
     endMoves = endBadCaptures;
     break;
 
-  case GOOD_QUIETS:
-    endQuiets = endMoves = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, moves);
+  case QUIETS:
+    endMoves = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, moves);
     score_quiets();
-    // プラスの符号のものだけ前方に移動させて、今回のフェーズではそれを返す。
-    endMoves = std::partition(currentMoves, endMoves, [](const ExtMove& m) { return m.value > VALUE_ZERO; });
-    // その移動させたものは少数のはずなので、sortしても遅くない。
-    insertion_sort(currentMoves, endMoves);
-    break;
-
-    // ↑で生成して返さなかった指し手を返すフェーズ
-  case BAD_QUIETS:
-    currentMoves = endMoves;
-    endMoves = endQuiets; // 生成自体は前のフェーズで完了している。
-    // 残り探索深さがある程度あるなら、ソートする時間は相対的に無視できる。
-    if (depth >= 3 * ONE_PLY)
+    // プラスの符号のものだけ前方に移動させてソート
+    if (depth < 3 * ONE_PLY)
+    {
+      auto goodQuiet = std::partition(currentMoves, endMoves, [](const ExtMove& m) { return m.value > VALUE_ZERO; });
+      // その移動させたものは少数のはずなので、sortしても遅くない。
+      insertion_sort(currentMoves, goodQuiet);
+    } else {
+      // 残り探索深さがある程度あるなら、ソートする時間は相対的に無視できる。
       insertion_sort(currentMoves, endMoves);
+    }
     break;
 
   case ALL_EVASIONS:
@@ -324,14 +320,14 @@ Move MovePicker::next_move() {
 
       // 指し手を一手ずつ返すフェーズ
       // (置換表の指し手とkillerの指し手は返したあとなのでこれらの指し手は除外する必要がある)
-    case GOOD_QUIETS: case BAD_QUIETS:
+    case QUIETS:
       move = *currentMoves++;
       // 置換表の指し手、killerと同じものは返してはならない。
       // ※　これ、指し手の数が多い場合、AVXを使って一気に削除しておいたほうが良いのでは..
       if ( move != ttMove
-        && move != killers[0]
-        && move != killers[1]
-        && move != killers[2])
+        && move != (Move)killers[0]
+        && move != (Move)killers[1]
+        && move != (Move)killers[2])
         return move;
       break;
 
