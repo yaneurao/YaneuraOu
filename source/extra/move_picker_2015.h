@@ -248,7 +248,7 @@ struct MovePicker
       killers[0] = ss->killers[0];
       killers[1] = ss->killers[1];
       killers[2] = counterMove;
-      currentMoves = killers;
+      currentMoves = (ExtMove*)killers;
       endMoves = currentMoves + 2 + (counterMove != killers[0] && counterMove != killers[1]);
       break;
 
@@ -334,8 +334,12 @@ struct MovePicker
           // 今回移動させる駒種が一致するかを確認する。
           // このチェックにより先手/後手の指し手であることが担保される。
           if (move32 != make_move32(move))
+          {
+            // このkiller、非適用なのであとでquietsのときに除外されると困るからnullを書き込んでおく。
+            *((Move32*)currentMoves - 1) = 0;
             break;
-        }
+          }
+          
 #else
         move = *currentMoves++;
 #endif
@@ -542,7 +546,8 @@ private:
   Move ttMove;
 
   // killer move 2個 + counter move 1個 = 3個
-  ExtMove killers[3];
+  // これはオーダリングしないのでExtMoveである必要はない。
+  COUNTER_MOVE killers[3];
 
   // ProbCut用の指し手生成に用いる、直前の指し手で捕獲された駒の価値
   Value threshold;

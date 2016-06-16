@@ -383,6 +383,14 @@ namespace Eval
     return score;
   }
 
+  void evaluate_with_no_return(const Position& pos)
+  {
+    // まだ評価値が計算されていないなら
+    if (pos.state()->sum.p[2][0] == INT_MAX)
+      evaluate(pos);
+  }
+
+
   // null move後のevaluate()
   // 手番を反転させたときの評価値を返す。
   Value evaluate_nullmove(const Position& pos)

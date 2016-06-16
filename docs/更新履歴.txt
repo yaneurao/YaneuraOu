@@ -6,9 +6,11 @@
 >          && pos.see(make_move(move_to(move), move_from(move))) < VALUE_ZERO)
 	このSEE値、ちゃんと自分側から見た値が返るのか？
 	あとで確かめる。
-・moved_piece_after_exがいいどうか検討すべき。
 
+・evalのフォルダを変更できるように。
 ・qsearch()を直接呼び出せるようにする。(学習で用いるので)
+
+・moved_piece_after_exがいいどうか検討すべき。
 ・棋譜の自動生成ルーチンを書く。(新学習メソッドで用いるので)
 
 ・local-game-serverに、持ち時間の管理機能入れる。
@@ -20,6 +22,142 @@
 ・定跡の選択機能入れる。→　定跡出来てから。
 
 
+■　2016/06/17 V3.06
+
+
+・MovePickerのkillers、COUNTER_MOVEにしないと下位16bitしか入ってなくて
+　killer、除外できてなかった。なんだこれ。そら弱くなるわ…。
+
+	これで再度futilityのチェックを行う。
+
+・千日手の検出等を、静止探索でやるのはコスト的に無駄なのでは…。これ結構重い気がする。
+
+    // 連続王手による千日手、および通常の千日手、優等局面・劣等局面。
+
+    // 連続王手による千日手に対してdraw_value()は、詰みのスコアを返すので、rootからの手数を考慮したスコアに変換する必要がある。
+    // そこで、value_from_tt()で変換してから返すのが正解。
+
+-    auto draw_type = pos.is_repetition();
+-    if (draw_type != REPETITION_NONE)
+-      return value_from_tt(draw_value(draw_type, pos.side_to_move()),ss->ply);
+
+	→　やねうら王 classic-tceにもこの修正を反映させる。
+
+・killer、非適用になったときに、そのあとのquietsの指し手から除外してなかった。
+
+        // 今回移動させる駒種が一致するかを確認する。
+        // このチェックにより先手/後手の指し手であることが担保される。
+        if (move32 != make_move32(move))
+        {
++          // このkiller、非適用なのであとでquietsのときに除外されると困るからnullを書き込んでおく。
++          *((Move32*)currentMoves - 1) = 0;
+          break;
+		}
+
+　上のひどいバグだな…。V3.03aとテスト。
+
+		秒読み500[ms]
+
+		49.1%	
+		#187
+		やねうら王2016mid V306
+		futility marginテスト。1スレッド
+		#184
+		やねうら王2016mid V303a
+		0.5手延長, mateなし。1スレッド
+
+		104-7-108(63.4% R-6.6)	
+
+　こんなに致命的なバグを取ったのに、少し負け越した。まあ、短い時間ではあまり関係ないのだろう…。
+
+・これで魔女と10秒で対戦させておく。
+	・futility marginのテスト
+		return Value(d * (90 + param1*27) );
+
+
+
+■　2016/06/16 V3.05
+
+・depthボーナスおかしくないか？
+	          (ss - 2)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + 1) / ONE_PLY - 1);
+
+			  depth + 1って、ONE_PLY = 2のときこれでいいのだろうか..
+
+	          (ss - 2)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + ONE_PLY) / ONE_PLY - 1);
+			  こうが正しい気もするのだが..
+
+・assertなし、利きなし、mate1plyなし
+	===========================
+	Total time (ms) : 113506
+	Nodes searched  : 78131111
+	Nodes/second    : 688343
+
+	遅すぎ。仮想環境だからか…。にしても遅いな…。
+
+・futility marginのテスト
+    return Value(d * (90 + param1*27) );
+
+	長い時間でパラメーター再考。
+
+	param1 = 0..4
+	3秒でテスト。
+
+・参考記録
+		秒読み3000[ms]
+
+		36.8%	39.1%	36.8%	28.3%	31.3%	
+		#186
+		やねうら王2016mid V305
+		futility marginテスト。1スレッド
+		#0
+		silent_majority_V1.1公式
+		1スレッド
+
+		56-4-96(100.0% R-93.6)	59-5-92(99.7% R-77.2)	56-4-96(100.0% R-93.6)	43-4-109(100.0% R-161.6)	47-5-103(100.0% R-136.3)	
+
+
+
+■　2016/06/16 V3.04
+
+・静止探索のrecap、5までに変更。
+
+-  DEPTH_QS_RECAPTURES = -3*(int)ONE_PLY,
++  DEPTH_QS_RECAPTURES = -5*(int)ONE_PLY,
+
+・evasion、LVA通したほうがいいような…。
+
+    if (pos.capture(m))
+      m.value = (Value)Eval::PieceValueCapture[pos.piece_on(move_to(m))]
+-                - Value(type_of(pos.moved_piece_before(m))) + HistoryStats::Max;
++                - Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
+
+・ここ、prevPcだわ。間違えてた。駒打ちのときに違ってくる。
+
+      if ((ss - 2)->counterMoves)
+-          (ss - 2)->counterMoves->update(pos.piece_on(prevSq), prevSq, -bonus - 2 * (depth + 1) / ONE_PLY - 1);
++          (ss - 2)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + 1) / ONE_PLY - 1);
+
+・どの探索部でもすべての評価関数が使えるように抽象化。
+
+  void evaluate_with_no_return(const Position& pos);
+  を追加。
+
+
+		秒読み1000[ms]
+
+		45.7%	
+		#185
+		やねうら王2016mid V304
+		オーダリング改善, mateなし。1スレッド
+		#184
+		やねうら王2016mid V303a
+		0.5手延長, mateなし。1スレッド
+
+		134-8-159(93.6% R-29.7)	
+
+なんか弱くなっとる。よく考える。
+
+
 ■　2016/06/16 V3.03
 
 ・moveCount == 1(置換表)の指し手、必ず延長したほうがいいな。YSSの0.5手延長と同じ。
@@ -27,6 +165,8 @@
       // 王手となる指し手でSEE >= 0であれば残り探索深さに1手分だけ足す。
       if (givesCheck
 +        && (moveCount == 1
+	→　これ、Stockfishでなんでやってなかったんだろう。はてはて。
+
 
 ・popcnt8()とか使わないから削除
 	・popcnt16()
@@ -45,6 +185,61 @@
 			return BSFTable[(b * 0x3F79D71B4CB0A89ULL) >> 58];
 			みたいな？遅そう..。bsf使えない環境向けだな。
 
+
+		秒読み5000[ms]
+
+		36.8%	
+		#183
+		やねうら王2016mid V303
+		0.5手延長, 1スレッド
+		#0
+		silent_majority_V1.1公式
+		1スレッド
+
+		25-0-43(99.0% R-94.2)	
+		
+	V3.03a mate1plyなし、利きなし。
+
+		秒読み10000[ms]
+
+		29.2%	
+		#184
+		やねうら王2016mid V303a
+		0.5手延長, mateなし。1スレッド
+		#0
+		silent_majority_V1.1公式
+		1スレッド
+
+		33-2-80(100.0% R-153.8)	
+
+	なんか弱くなった気がする。おかしい。
+
+		秒読み1000[ms]
+
+		46.2%	
+		#184
+		やねうら王2016mid V303a
+		0.5手延長, mateなし。1スレッド
+		#180
+		やねうら王2016mid V299c
+		search、魔女化(), 1スレッド
+
+		72-6-84(85.1% R-26.8)	
+
+
+		秒読み3000[ms]
+
+		47.5%	
+		#184
+		やねうら王2016mid V303a
+		0.5手延長, mateなし。1スレッド
+		#180
+		やねうら王2016mid V299c
+		search、魔女化(), 1スレッド
+
+		201-12-222(85.8% R-17.3)	
+
+		なんか弱くなってる感。
 
 
 

@@ -5,6 +5,19 @@
 #include "../thread.h"
 
 // -----------------------
+//   misc.
+// -----------------------
+
+// 直前のnodeの指し手で動かした駒(移動後の駒)とその移動先の升を返す。
+// この実装においてmoved_piece()は使えない。これは現在のPosition::side_to_move()の駒が返るからである。
+// 駒打ちのときは、駒打ちの駒(+32した駒)が返る。
+#define sq_pc_from_move(sq,pc,move)                                \
+    {                                                              \
+      sq = move_to(move);                                          \
+      pc = Piece(pos.piece_on(sq) + (is_drop(move) ? 32 : 0));     \
+    }
+
+// -----------------------
 //   LVA
 // -----------------------
 
@@ -187,7 +200,7 @@ void MovePicker::generate_next_stage()
     killers[0] = ss->killers[0];
     killers[1] = ss->killers[1];
     killers[2] = countermove;
-    currentMoves = killers;
+    currentMoves = (ExtMove*)killers;
     endMoves = currentMoves + 2 + (countermove != killers[0] && countermove != killers[1]);
     break;
 
@@ -273,7 +286,11 @@ Move MovePicker::next_move() {
         // 今回移動させる駒種が一致するかを確認する。
         // このチェックにより先手/後手の指し手であることが担保される。
         if (move32 != make_move32(move))
+        {
+          // このkiller、非適用なのであとでquietsのときに除外されると困るからnullを書き込んでおく。
+          *((Move32*)currentMoves - 1) = 0;
           break;
+        }
       }
 #else
       move = *currentMoves++;
@@ -386,14 +403,15 @@ void MovePicker::score_captures()
   for (auto& m : *this)
   {
     // CAPTURES_PRO_PLUSで生成しているので歩の成る指し手が混じる。これは金と歩の価値の差の点数とする。
+    const Move move = m.move;
 
     // 移動させる駒の駒種
-    auto pt = type_of(pos.piece_on(move_from(m)));
-    bool pawn_promo = is_promote(m) && pt == PAWN;
+    auto pt = type_of(pos.piece_on(move_from(move)));
+    bool pawn_promo = is_promote(move) && pt == PAWN;
 
     // MVV-LVAに、歩の成りに加点する形にしておく。
     m.value = (pawn_promo ? (Value)(Eval::GoldValue - Eval::PawnValue) : VALUE_ZERO)
-      + (Value)Eval::PieceValueCapture[pos.piece_on(move_to(m))]
+      + (Value)Eval::PieceValueCapture[pos.piece_on(move_to(move))]
       - LVA(pt);
 
     // 盤の上のほうの段にあるほど価値があるので下の方の段に対して小さなペナルティを課す。
@@ -414,15 +432,17 @@ void MovePicker::score_quiets()
 
   for (auto& m : *this)
   {
+    const Move move = m.move;
+
 #ifndef USE_DROPBIT_IN_STATS
-    Piece mpc = pos.moved_piece_after(m);
+    Piece mpc = pos.moved_piece_after(move);
 #else
-    Piece mpc = pos.moved_piece_after_ex(m);
+    Piece mpc = pos.moved_piece_after_ex(move);
 #endif
-    m.value = history[move_to(m)][mpc]
-        + (cm ? (*cm)[move_to(m)][mpc] : VALUE_ZERO)
-        + (fm ? (*fm)[move_to(m)][mpc] : VALUE_ZERO)
-        + (f2 ? (*f2)[move_to(m)][mpc] : VALUE_ZERO);
+    m.value = history[move_to(move)][mpc]
+        + (cm ? (*cm)[move_to(move)][mpc] : VALUE_ZERO)
+        + (fm ? (*fm)[move_to(move)][mpc] : VALUE_ZERO)
+        + (f2 ? (*f2)[move_to(move)][mpc] : VALUE_ZERO);
   }
 }
 
@@ -454,7 +474,7 @@ void MovePicker::score_evasions()
     // 価値が高いので(例えば合駒に安い駒を使う的な…)
     if (pos.capture(m))
       m.value = (Value)Eval::PieceValueCapture[pos.piece_on(move_to(m))]
-                - Value(type_of(pos.moved_piece_before(m))) + HistoryStats::Max;
+                - Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
     else
 #ifndef USE_DROPBIT_IN_STATS
       m.value = history[move_to(m)][pos.moved_piece_after(m)];

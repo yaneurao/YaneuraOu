@@ -477,6 +477,12 @@ namespace Eval
     return pos.side_to_move() == BLACK ? score : -score;
   }
 
+  void evaluate_with_no_return(const Position& pos)
+  {
+    if (pos.state()->sumKKP == INT_MAX)
+      evaluate(pos);
+  }
+
   // 現在の局面の評価値の内訳を表示する。
   void print_eval_stat(Position& pos)
   {

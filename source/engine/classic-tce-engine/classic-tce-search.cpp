@@ -422,17 +422,8 @@ namespace YaneuraOuClassicTce
     ss->ply = (ss - 1)->ply + 1;
 
     // -----------------------
-    //    千日手等の検出
+    //    最大手数へ到達したか？
     // -----------------------
-
-    // 連続王手による千日手、および通常の千日手、優等局面・劣等局面。
-
-    // 連続王手による千日手に対してdraw_value()は、詰みのスコアを返すので、rootからの手数を考慮したスコアに変換する必要がある。
-    // そこで、value_from_tt()で変換してから返すのが正解。
-
-    auto draw_type = pos.is_repetition();
-    if (draw_type != REPETITION_NONE)
-      return value_from_tt(draw_value(draw_type, pos.side_to_move()),ss->ply);
 
     if (pos.game_ply() > Limits.max_game_ply)
       return draw_value(REPETITION_DRAW, pos.side_to_move());
@@ -591,8 +582,7 @@ namespace YaneuraOuClassicTce
 
     // このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
     // evaluate()を呼び出していないなら呼び出しておく。
-    if (pos.state()->sumKKP == INT_MAX)
-      evaluate(pos);
+    evaluate_with_no_return(pos);
 
     while ((move = mp.next_move()) != MOVE_NONE)
     {
@@ -826,6 +816,11 @@ namespace YaneuraOuClassicTce
       // -----------------------
       //     千日手等の検出
       // -----------------------
+
+      // 連続王手による千日手、および通常の千日手、優等局面・劣等局面。
+
+      // 連続王手による千日手に対してdraw_value()は、詰みのスコアを返すので、rootからの手数を考慮したスコアに変換する必要がある。
+      // そこで、value_from_tt()で変換してから返すのが正解。
 
       auto draw_type = pos.is_repetition();
       if (draw_type != REPETITION_NONE)
@@ -1228,8 +1223,7 @@ namespace YaneuraOuClassicTce
     // このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
     // evaluate()を呼び出していないなら呼び出しておく。
     // ss->staticEvalに代入するとimprovingの判定間違うのでそれはしないほうがよさげ。
-    if (pos.state()->sumKKP == INT_MAX)
-      evaluate(pos);
+    evaluate_with_no_return(pos);
 
     MovePicker mp(pos, ttMove, depth, thisThread->history, cmh, fmh, cm, ss);
 

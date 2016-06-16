@@ -12,20 +12,6 @@
 #include "../search.h"
 
 // -----------------------
-//   misc.
-// -----------------------
-
-// 直前のnodeの指し手で動かした駒(移動後の駒)とその移動先の升を返す。
-// この実装においてmoved_piece()は使えない。これは現在のPosition::side_to_move()の駒が返るからである。
-// 駒打ちのときは、駒打ちの駒(+32した駒)が返る。
-#define sq_pc_from_move(sq,pc,move)                                \
-    {                                                              \
-      sq = move_to(move);                                          \
-      pc = Piece(pos.piece_on(sq) + (is_drop(move) ? 32 : 0));     \
-    }
-
-
-// -----------------------
 //  history , counter move
 // -----------------------
 
@@ -53,7 +39,6 @@ struct Stats {
   // tableに指し手を格納する。(Tの型がMoveのとき)
   void update(Piece pc, Square to, COUNTER_MOVE m)
   {
-    ASSERT_LV4(is_ok(pc));
     ASSERT_LV4(is_ok(to));
     table[to][pc] = m;
   }
@@ -62,7 +47,8 @@ struct Stats {
   void update(Piece pc, Square to, Value v) {
 
     // USE_DROPBIT_IN_STATSが有効なときはpcとして +32したものを駒打ちとして格納する。
-//    ASSERT_LV4(is_ok(pc));
+    // なので is_ok(pc)というassertは書けない。
+
     ASSERT_LV4(is_ok(to));
 
     // abs(v) <= 324に制限する。
@@ -160,7 +146,8 @@ private:
   Move ttMove;
 
   // killer move 2個 + counter move 1個 = 3個
-  ExtMove killers[3];
+  // これはオーダリングしないからExtMoveである必要はない。
+  Move32 killers[3];
 
   // ProbCut用の指し手生成に用いる、直前の指し手で捕獲された駒の価値
   Value threshold;

@@ -21,8 +21,8 @@
 #define PARAMETERS_MASTER
 
 // mate1ply()を呼び出すのか
-#define USE_MATE_1PLY_IN_SEARCH
-#define USE_MATE_1PLY_IN_QSEARCH
+//#define USE_MATE_1PLY_IN_SEARCH
+//#define USE_MATE_1PLY_IN_QSEARCH
 
 // futilityのmarginを動的に決定するのか
 // #define DYNAMIC_FUTILITY_MARGIN
@@ -141,7 +141,8 @@ namespace YaneuraOu2016Mid
   // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
   Value futility_margin(Depth d, int game_ply) {
     // ここ、本当はONE_PLY掛けてからのほうがいいような気がするがパラメーターが調整しにくくなるのでこれでいく。
-    return Value(d * PARAM_FUTILITY_MARGIN_ALPHA);
+//    return Value(d * PARAM_FUTILITY_MARGIN_ALPHA);
+    return Value(d * (90 + param1*27) );
   }
 #endif
 
@@ -257,6 +258,15 @@ namespace YaneuraOu2016Mid
   //     Statsのupdate
   // -----------------------
 
+  // 直前のnodeの指し手で動かした駒(移動後の駒)とその移動先の升を返す。
+  // この実装においてmoved_piece()は使えない。これは現在のPosition::side_to_move()の駒が返るからである。
+  // 駒打ちのときは、駒打ちの駒(+32した駒)が返る。
+#define sq_pc_from_move(sq,pc,move)                                \
+    {                                                              \
+      sq = move_to(move);                                          \
+      pc = Piece(pos.piece_on(sq) + (is_drop(move) ? 32 : 0));     \
+    }
+
   CounterMoveHistoryStats CounterMoveHistory;
 
   // いい探索結果だったときにkiller等を更新する
@@ -316,7 +326,7 @@ namespace YaneuraOu2016Mid
 
     // depthの二乗に比例したbonusをhistory tableに加算する。
     // d*d + 2*d - 2 のほうが d*d + d - 1より良いらしい。
-    Value bonus = Value((int)(depth / ONE_PLY) * (int)(depth / ONE_PLY) + 2 * (int)depth / ONE_PLY - 2);
+    Value bonus = Value((int)(depth / ONE_PLY) * (int)(depth / ONE_PLY) + 2 * (int)(depth / ONE_PLY) - 2);
 
     // 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
     // 駒打ちの場合は+32した駒
@@ -327,8 +337,8 @@ namespace YaneuraOu2016Mid
 
     ASSERT_LV3(move != MOVE_NULL);
 
-    CounterMoveStats* cmh = (ss - 1)->counterMoves;
-    CounterMoveStats* fmh = (ss - 2)->counterMoves;
+    CounterMoveStats* cmh  = (ss - 1)->counterMoves;
+    CounterMoveStats* fmh  = (ss - 2)->counterMoves;
     CounterMoveStats* fmh2 = (ss - 4)->counterMoves;
 
     auto thisThread = pos.this_thread();
@@ -356,11 +366,11 @@ namespace YaneuraOu2016Mid
 
       // 前の局面の指し手がMOVE_NULLでないならcounter moveもupdateしておく。
 
-      if (cmh)
-        cmh->update(qpc, move_to(quiets[i]), -bonus);
+      if (cmh )
+        cmh ->update(qpc, move_to(quiets[i]), -bonus);
 
-      if (fmh)
-        fmh->update(qpc, move_to(quiets[i]), -bonus);
+      if (fmh )
+        fmh ->update(qpc, move_to(quiets[i]), -bonus);
 
       if (fmh2)
         fmh2->update(qpc, move_to(quiets[i]), -bonus);
@@ -372,16 +382,20 @@ namespace YaneuraOu2016Mid
       && !pos.captured_piece_type())
     {
       // 直前がcaptureではないから、2手前に動かした駒は捕獲されずに盤上にあるはずであり、
-      // その升の駒を盤から取り出すことが出来る。
+      // その升の駒を盤から取り出すことが出来る。それ以上前の駒はあるかどうかわからないが…。
+
+      // ※　ここ、Stockfishでは
+      //    -bonus -2 * (depth + 1) / ONE_PLY -1 
+      //    だが、ONE_PLY = 2においてはおかしいような気が..
 
       if ((ss - 2)->counterMoves)
-          (ss - 2)->counterMoves->update(pos.piece_on(prevSq), prevSq, -bonus - 2 * (depth + 1) / ONE_PLY - 1);
+          (ss - 2)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + ONE_PLY) / ONE_PLY - 1);
 
       if ((ss - 3)->counterMoves)
-          (ss - 3)->counterMoves->update(pos.piece_on(prevSq), prevSq, -bonus - 2 * (depth + 1) / ONE_PLY - 1);
+          (ss - 3)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + ONE_PLY) / ONE_PLY - 1);
 
       if ((ss - 5)->counterMoves)
-          (ss - 5)->counterMoves->update(pos.piece_on(prevSq), prevSq, -bonus - 2 * (depth + 1) / ONE_PLY - 1);
+          (ss - 5)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + ONE_PLY) / ONE_PLY - 1);
     }
   }
 
@@ -484,17 +498,8 @@ namespace YaneuraOu2016Mid
     ss->ply = (ss - 1)->ply + 1;
 
     // -----------------------
-    //    千日手等の検出
+    //    最大手数へ到達したか？
     // -----------------------
-
-    // 連続王手による千日手、および通常の千日手、優等局面・劣等局面。
-
-    // 連続王手による千日手に対してdraw_value()は、詰みのスコアを返すので、rootからの手数を考慮したスコアに変換する必要がある。
-    // そこで、value_from_tt()で変換してから返すのが正解。
-
-    auto draw_type = pos.is_repetition();
-    if (draw_type != REPETITION_NONE)
-      return value_from_tt(draw_value(draw_type, pos.side_to_move()),ss->ply);
 
     if (pos.game_ply() > Limits.max_game_ply)
       return draw_value(REPETITION_DRAW, pos.side_to_move());
@@ -656,8 +661,7 @@ namespace YaneuraOu2016Mid
 
     // このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
     // evaluate()を呼び出していないなら呼び出しておく。
-    if (pos.state()->sum.p[2][0] == INT_MAX)
-      evaluate(pos);
+    evaluate_with_no_return(pos);
 
     while ((move = mp.next_move()) != MOVE_NONE)
     {
@@ -897,6 +901,11 @@ namespace YaneuraOu2016Mid
       // -----------------------
       //     千日手等の検出
       // -----------------------
+
+      // 連続王手による千日手、および通常の千日手、優等局面・劣等局面。
+
+      // 連続王手による千日手に対してdraw_value()は、詰みのスコアを返すので、rootからの手数を考慮したスコアに変換する必要がある。
+      // そこで、value_from_tt()で変換してから返すのが正解。
 
       auto draw_type = pos.is_repetition();
       if (draw_type != REPETITION_NONE)
@@ -1249,8 +1258,9 @@ namespace YaneuraOu2016Mid
   MOVES_LOOP:
 
     const Square prevSq = move_to((ss - 1)->currentMove);
-    const CounterMoveStats* cmh = (ss - 1)->counterMoves;
-    const CounterMoveStats* fmh = (ss - 2)->counterMoves;
+
+    const CounterMoveStats* cmh  = (ss - 1)->counterMoves;
+    const CounterMoveStats* fmh  = (ss - 2)->counterMoves;
     const CounterMoveStats* fmh2 = (ss - 4)->counterMoves;
 
     // 評価値が2手前の局面から上がって行っているのかのフラグ
@@ -1295,8 +1305,7 @@ namespace YaneuraOu2016Mid
     // このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
     // evaluate()を呼び出していないなら呼び出しておく。
     // ss->staticEvalに代入するとimprovingの判定間違うのでそれはしないほうがよさげ。
-    if (pos.state()->sum.p[2][0] == INT_MAX)
-      evaluate(pos);
+    evaluate_with_no_return(pos);
 
     MovePicker mp(pos, ttMove, depth, ss);
 
@@ -1348,6 +1357,7 @@ namespace YaneuraOu2016Mid
         && moveCount >= FutilityMoveCounts[improving][depth/ONE_PLY];
 
       // 王手となる指し手でSEE >= 0であれば残り探索深さに1手分だけ足す。
+      // また、置換表の指し手も延長対象。これはYSSの0.5手延長に似たもの。
       if (givesCheck
         && (moveCount == 1
           || ( !moveCountPruning && pos.see_sign(move) >= VALUE_ZERO)))
@@ -1523,13 +1533,11 @@ namespace YaneuraOu2016Mid
         Depth d = std::max(newDepth - r, ONE_PLY);
         value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, true);
 
-        doFullDepthSearch = (value > alpha && r != DEPTH_ZERO);
-
         //
         // ここにその他の枝刈り、何か入れるべき(かも)
         //
 
-        // 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす
+        // 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす。
         doFullDepthSearch = (value > alpha) && (r != DEPTH_ZERO);
 
       } else {
@@ -1709,14 +1717,15 @@ namespace YaneuraOu2016Mid
     {
       // 残り探索depthの2乗ぐらいのボーナスを与える。
       Value bonus = Value((int)(depth / ONE_PLY) * (int)(depth / ONE_PLY) + 2 * depth / ONE_PLY - 2);
+      Piece prevPc = pos.piece_on(prevSq);
       if ((ss - 2)->counterMoves)
-          (ss - 2)->counterMoves->update(pos.piece_on(prevSq), prevSq, bonus);
+          (ss - 2)->counterMoves->update(prevPc, prevSq, bonus);
 
       if ((ss - 3)->counterMoves)
-          (ss - 3)->counterMoves->update(pos.piece_on(prevSq), prevSq, bonus);
+          (ss - 3)->counterMoves->update(prevPc, prevSq, bonus);
 
       if ((ss - 5)->counterMoves)
-          (ss - 5)->counterMoves->update(pos.piece_on(prevSq), prevSq, bonus);
+          (ss - 5)->counterMoves->update(prevPc, prevSq, bonus);
     }
 
     // -----------------------

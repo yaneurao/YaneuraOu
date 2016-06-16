@@ -26,6 +26,12 @@ namespace Eval {
   // 評価関数本体
   Value evaluate(const Position& pos);
 
+  // 評価関数本体
+  // このあとのdo_move()のあとのevaluate()で差分計算ができるように、
+  // 現在の前局面から差分計算ができるときだけ計算しておく。
+  // 評価値自体は返さない。
+  void evaluate_with_no_return(const Position& pos);
+
   // 駒割り以外の全計算して、その合計を返す。Position::set()で一度だけ呼び出される。
   // あるいは差分計算が不可能なときに呼び出される。
   Value compute_eval(const Position& pos);
