@@ -381,7 +381,7 @@ struct MovePicker
 
         // 指し手を一手ずつ返すフェーズ
         // (置換表の指し手とkillerの指し手は返したあとなのでこれらの指し手は除外する必要がある)
-      case GOOD_QUIETS: case BAD_QUIETS:
+      case QUIETS:
         move = *currentMoves++;
         // 置換表の指し手、killerと同じものは返してはならない。
         // ※　これ、指し手の数が多い場合、AVXを使って一気に削除しておいたほうが良いのでは..

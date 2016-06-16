@@ -22,7 +22,7 @@
 
 // mate1ply()を呼び出すのか
 #define USE_MATE_1PLY_IN_SEARCH
-//#define USE_MATE_1PLY_IN_QSEARCH
+#define USE_MATE_1PLY_IN_QSEARCH
 
 // futilityのmarginを動的に決定するのか
 // #define DYNAMIC_FUTILITY_MARGIN
@@ -1348,7 +1348,9 @@ namespace YaneuraOu2016Mid
         && moveCount >= FutilityMoveCounts[improving][depth/ONE_PLY];
 
       // 王手となる指し手でSEE >= 0であれば残り探索深さに1手分だけ足す。
-      if (givesCheck && (!moveCountPruning && pos.see_sign(move) >= VALUE_ZERO))
+      if (givesCheck
+        && (moveCount == 1
+          || ( !moveCountPruning && pos.see_sign(move) >= VALUE_ZERO)))
         extension = ONE_PLY;
 
       //

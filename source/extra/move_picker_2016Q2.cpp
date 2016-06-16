@@ -324,6 +324,7 @@ Move MovePicker::next_move() {
       move = *currentMoves++;
       // 置換表の指し手、killerと同じものは返してはならない。
       // ※　これ、指し手の数が多い場合、AVXを使って一気に削除しておいたほうが良いのでは..
+      // killerが32bit化されている可能性があって、Moveにcastして比較しないと合致しない。
       if ( move != ttMove
         && move != (Move)killers[0]
         && move != (Move)killers[1]

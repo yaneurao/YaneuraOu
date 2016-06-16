@@ -6,6 +6,8 @@
 >          && pos.see(make_move(move_to(move), move_from(move))) < VALUE_ZERO)
 	このSEE値、ちゃんと自分側から見た値が返るのか？
 	あとで確かめる。
+・moved_piece_after_exがいいどうか検討すべき。
+
 ・qsearch()を直接呼び出せるようにする。(学習で用いるので)
 ・棋譜の自動生成ルーチンを書く。(新学習メソッドで用いるので)
 
@@ -18,9 +20,65 @@
 ・定跡の選択機能入れる。→　定跡出来てから。
 
 
+■　2016/06/16 V3.03
+
+・moveCount == 1(置換表)の指し手、必ず延長したほうがいいな。YSSの0.5手延長と同じ。
+
+      // 王手となる指し手でSEE >= 0であれば残り探索深さに1手分だけ足す。
+      if (givesCheck
++        && (moveCount == 1
+
+・popcnt8()とか使わないから削除
+	・popcnt16()
+		  // popcount16() counts the non-zero bits using SWAR-Popcount algorithm
+
+		  unsigned popcount16(unsigned u) {
+			u -= (u >> 1) & 0x5555U;
+			u = ((u >> 2) & 0x3333U) + (u & 0x3333U);
+			u = ((u >> 4) + u) & 0x0F0FU;
+			return (u * 0x0101U) >> 8;
+		  }
+		これも使わないから要らないや。
+
+・bsf、テーブル使うと速いのか？
+	  // De Bruijn sequences. See chessprogramming.wikispaces.com/BitScan
+			return BSFTable[(b * 0x3F79D71B4CB0A89ULL) >> 58];
+			みたいな？遅そう..。bsf使えない環境向けだな。
+
+
+
+
 ■　2016/06/16 V3.02
 
+
 ・Limits.depthだけ回るとき、Threads.main()->rootDepthと比較すればいいのか..そうか..
+
+
+	・利きあり MATE1PLYあり。静止探索でのmate1plyなし。
+
+		秒読み20000[ms]
+		29.9%	
+		#181
+		やねうら王2016mid V301
+		MovePickerバグ修正, 1スレッド
+		#0
+		silent_majority_V1.1公式
+		1スレッド
+		107-15-251(100.0% R-148.1)	
+
+	まあ、こんなものなのか…。静止探索でのmate1plyありにして20秒で。
+
+		秒読み20000[ms]
+
+		26.8%	
+		#182
+		やねうら王2016mid V301a
+		MovePickerバグ修正、Qmateあり, 1スレッド
+		#0
+		silent_majority_V1.1公式
+		1スレッド
+
+		56-13-153(100.0% R-174.6)	
 
 
 ■　2016/06/16 V3.01

@@ -83,7 +83,6 @@ const bool use_sse42 = true;
 
 // for SSE4.2
 #include <intrin.h>
-#define POPCNT8(a) __popcnt8(a)
 #ifdef IS_64BIT
 #define POPCNT32(a) __popcnt32(a)
 #define POPCNT64(a) __popcnt64(a)
@@ -98,12 +97,7 @@ const bool use_sse42 = true;
 const bool use_sse42 = false;
 
 // software emulationによるpopcnt(やや遅い)
-inline int32_t POPCNT8(uint32_t a) {
-  a = (a & UINT32_C(0x55)) + (a >> 1 & UINT32_C(0x55));
-  a = (a & UINT32_C(0x33)) + (a >> 2 & UINT32_C(0x33));
-  a = (a & UINT32_C(0x0f)) + (a >> 4 & UINT32_C(0x0f));
-  return (int32_t)a;
-}
+
 inline int32_t POPCNT32(uint32_t a) {
   a = (a & UINT32_C(0x55555555)) + (a >> 1 & UINT32_C(0x55555555));
   a = (a & UINT32_C(0x33333333)) + (a >> 2 & UINT32_C(0x33333333));
