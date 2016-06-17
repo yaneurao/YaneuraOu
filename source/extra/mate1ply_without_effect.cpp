@@ -422,6 +422,15 @@ inline Bitboard AttacksAroundKingInAvoiding(const Position& pos,Color us, Square
   return AttacksAroundKingNonSliderInAvoiding(pos,us, from, occ) | AttacksSlider(pos,~us, from, occ);
 }
 
+// 歩が打てるかの判定用。(わけあってmovegen.cppに書いてある)
+// 歩を持っているかの判定も含む。
+inline bool can_pawn_drop(const Position& pos,Color us, Square sq)
+{
+  // 歩を持っていて、二歩ではない。
+  return hand_count(pos.hand_of(us), PAWN) > 0 && !((pos.pieces(us, PAWN) & FILE_BB[file_of(sq)]));
+}
+
+
 
 }
 
@@ -1831,7 +1840,7 @@ DC_CHECK:;
           continue;
 
         // fromに歩が打てない
-        if (pos.legal_pawn_drop(them, from))
+        if (can_pawn_drop(pos,them, from))
           continue;
 
         // ただし、toが歩のcaptureだとfromに歩が打ててしまう可能性があるのでskip。
@@ -1942,7 +1951,7 @@ DC_CHECK:;
               break;
 
             // s2に合駒ができない。
-            if (pos.legal_pawn_drop(them, s2) || (capPawn && file_of(s2)==file_of(to)))
+            if (can_pawn_drop(pos,them, s2) || (capPawn && file_of(s2)==file_of(to)))
               goto DISCOVER_ATTACK_CONTINUE_SILVER;
 
             Square s3 = NextSquare[s1][s2];
@@ -1981,7 +1990,7 @@ DC_CHECK:;
               goto DISCOVER_ATTACK_CONTINUE;
             if (s2 != from && pos.piece_on(s2))
               break;
-            if (pos.legal_pawn_drop(them, s2) || (capPawn && file_of(s2)==file_of(to)))
+            if (can_pawn_drop(pos,them, s2) || (capPawn && file_of(s2)==file_of(to)))
               goto DISCOVER_ATTACK_CONTINUE;
             Square s3 = NextSquare[s1][s2];
             s1 = s2;
