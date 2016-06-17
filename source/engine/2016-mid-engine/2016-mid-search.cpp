@@ -21,8 +21,8 @@
 #define PARAMETERS_MASTER
 
 // mate1ply()を呼び出すのか
-//#define USE_MATE_1PLY_IN_SEARCH
-//#define USE_MATE_1PLY_IN_QSEARCH
+#define USE_MATE_1PLY_IN_SEARCH
+#define USE_MATE_1PLY_IN_QSEARCH
 
 // futilityのmarginを動的に決定するのか
 // #define DYNAMIC_FUTILITY_MARGIN
@@ -141,8 +141,7 @@ namespace YaneuraOu2016Mid
   // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
   Value futility_margin(Depth d, int game_ply) {
     // ここ、本当はONE_PLY掛けてからのほうがいいような気がするがパラメーターが調整しにくくなるのでこれでいく。
-//    return Value(d * PARAM_FUTILITY_MARGIN_ALPHA);
-    return Value(d * (90 + param1*27) );
+    return Value(d * PARAM_FUTILITY_MARGIN_ALPHA);
   }
 #endif
 
@@ -1131,7 +1130,8 @@ namespace YaneuraOu2016Mid
     // ここでは進行度としてgamePly()を用いる。このへんはあとで調整すべき。
 
     if (!RootNode
-      &&  depth < PARAM_FUTILITY_RETURN_DEPTH * ONE_PLY
+//      &&  depth < PARAM_FUTILITY_RETURN_DEPTH * ONE_PLY
+      &&  depth < 5 * ONE_PLY
       &&  eval - futility_margin(depth, pos.game_ply()) >= beta
       &&  eval < VALUE_KNOWN_WIN) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
       return eval - futility_margin(depth, pos.game_ply());

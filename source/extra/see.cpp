@@ -146,6 +146,8 @@ namespace {
 // Position::see()は静的交換評価器(SEE)である。これは、指し手による駒による得失の結果
 // を見積ろうと試みる。
 
+// 最初に動かす駒側の手番から見た値が返る。
+
 // ※　SEEの解説についてはググれ。
 //
 // ある升での駒の取り合いの結果、どれくらい駒得/駒損するかを評価する。
@@ -202,8 +204,7 @@ Value Position::see(Move m) const {
 
   // 与えられた指し手の移動元、移動先
 
-   to = move_to(m);
-
+  to = move_to(m);
 
   // toの地点にある駒を格納(最初に捕獲できるであろう駒)
   // 捕獲する駒がない場合はNO_PIECEとなり、PieceValue[NO_PIECE] == 0である。
@@ -227,12 +228,16 @@ Value Position::see(Move m) const {
 
   // 最初に捕獲される駒はfromにあった駒である
 
-  // 相手番の攻撃駒
-   stm = ~sideToMove;
+  // fromに駒のあった側から見たseeの値を返す。
 
-   if (is_drop(m))
-   {
-     // 駒打ちの場合、敵駒が利いていなければ0は確定する。
+  stm = is_drop(m) ? sideToMove : color_of(piece_on(move_from(m)));
+
+  // 相手番(stm側の攻撃駒を列挙していく)
+  stm = ~stm;
+
+  if (is_drop(m))
+  {
+    // 駒打ちの場合、敵駒が利いていなければ0は確定する。
 
 #ifdef LONG_EFFECT_LIBRARY
     // 移動させる升に相手からの利きがないなら、seeが負であることはない。
@@ -252,104 +257,105 @@ Value Position::see(Move m) const {
       attackers = stmAttackers;
 
 #else
-     occupied = pieces();
-     stmAttackers = attackers_to(stm, to, occupied);
-     if (!stmAttackers)
-       return VALUE_ZERO;
+    occupied = pieces();
+    stmAttackers = attackers_to(stm, to, occupied);
+    if (!stmAttackers)
+      return VALUE_ZERO;
 
-     // 自駒のうちtoに利く駒も足したものをattackersとする。
-     attackers = stmAttackers | attackers_to(~stm, to, occupied);
+    // 自駒のうちtoに利く駒も足したものをattackersとする。
+    attackers = stmAttackers | attackers_to(~stm, to, occupied);
 #endif
 
-     swapList[0] = VALUE_ZERO;
-     uncapValue[0] = VALUE_ZERO;
+    swapList[0] = VALUE_ZERO;
+    uncapValue[0] = VALUE_ZERO;
 
-     captured = move_dropped_piece(m);
+    captured = move_dropped_piece(m);
 
    } else if (is_promote(m)) {
 
-     // 成りの処理も上の処理とほぼ同様だが、駒を取り返されないときの値が成りのスコア分だけ大きい
+    // 成りの処理も上の処理とほぼ同様だが、駒を取り返されないときの値が成りのスコア分だけ大きい
 
-     from = move_from(m);
+    from = move_from(m);
      
-     // 最初に捕獲する駒
-     swapList[0] = PieceValueCapture[piece_on(to)];
+    // 最初に捕獲する駒
+    swapList[0] = PieceValueCapture[piece_on(to)];
 
-     // この駒を取り返されなかったときに成りの分だけ儲かる。
-     uncapValue[0] = ProDiffPieceValue[piece_on(from)];
+    // この駒を取り返されなかったときに成りの分だけ儲かる。
+    uncapValue[0] = ProDiffPieceValue[piece_on(from)];
 
 #ifdef LONG_EFFECT_LIBRARY
-     // 移動させる升に相手からの利きがないなら、seeが負であることはない。
-     // fromから移動させているのでfromに相手のlong effectがあるとこのfromの駒をtoに移動させたときに
-     // 取られてしまうのでそこは注意が必要。
-     if (!effected_to(stm,to,from))
-       return Value(swapList[0] + uncapValue[0]);
 
-     // fromの駒がないものとして考える。
-     occupied = pieces() ^ from;
+    // 移動させる升に相手からの利きがないなら、seeが負であることはない。
+    // fromから移動させているのでfromに相手のlong effectがあるとこのfromの駒をtoに移動させたときに
+    // 取られてしまうのでそこは注意が必要。
+    if (!effected_to(stm,to,from))
+      return Value(swapList[0] + uncapValue[0]);
 
-     // 手番側(相手番)の攻撃駒
-     // ※　"stm"はSideToMoveの略。
-     stmAttackers = attackers_to(stm, to, occupied);
+    // fromの駒がないものとして考える。
+    occupied = pieces() ^ from;
+
+    // 手番側(相手番)の攻撃駒
+    // ※　"stm"はSideToMoveの略。
+    stmAttackers = attackers_to(stm, to, occupied);
 
 #else
 
-     occupied = pieces() ^ from;
-     stmAttackers = attackers_to(stm, to, occupied);
+    occupied = pieces() ^ from;
+    stmAttackers = attackers_to(stm, to, occupied);
 
-     // なくなったので最初に手番側が捕獲した駒の価値をSEE値として返す
-     if (!stmAttackers)
-       return Value(swapList[0] + uncapValue[0]);
-     //  ↑ここが不成りのときと違う。その2。
+    // なくなったので最初に手番側が捕獲した駒の価値をSEE値として返す
+    if (!stmAttackers)
+      return Value(swapList[0] + uncapValue[0]);
+    //  ↑ここが不成りのときと違う。その2。
 
 #endif
 
-     // fromの駒を取り除いて自駒のうちtoに利く駒も足したものをattackersとする。
-     attackers = (stmAttackers | attackers_to(~stm, to, occupied)) & occupied;
+    // fromの駒を取り除いて自駒のうちtoに利く駒も足したものをattackersとする。
+    attackers = (stmAttackers | attackers_to(~stm, to, occupied)) & occupied;
 
-     captured = type_of(piece_on(from));
-     // ↑このSEEの処理ルーチンではPROMOTEのときも生駒にしてしまっていい。
+    captured = type_of(piece_on(from));
+    // ↑このSEEの処理ルーチンではPROMOTEのときも生駒にしてしまっていい。
 
    } else {
 
-     // 成る手と成らない指し手とで処理をわける。
-     // 成る手である場合、それが玉である可能性はないのでそのへんの処理が違うし…。
+    // 成る手と成らない指し手とで処理をわける。
+    // 成る手である場合、それが玉である可能性はないのでそのへんの処理が違うし…。
      
-     from = move_from(m);
-     swapList[0] = PieceValueCapture[piece_on(to)]; // 最初に捕獲する駒
+    from = move_from(m);
+    swapList[0] = PieceValueCapture[piece_on(to)]; // 最初に捕獲する駒
 
-     //      attackers = attackers_to(stm, to, slide) & occupied;
-     //　→　fromは自駒であるのでこの時点で取り除く必要はない。
+    //      attackers = attackers_to(stm, to, slide) & occupied;
+    //　→　fromは自駒であるのでこの時点で取り除く必要はない。
 
 #ifdef LONG_EFFECT_LIBRARY
-     if (!effected_to(stm,to,from))
-       return Value(swapList[0]);
+    if (!effected_to(stm,to,from))
+      return Value(swapList[0]);
 
-     // fromの駒がないものとして考える。
-     occupied = pieces() ^ from;
-     stmAttackers = attackers_to(stm, to, occupied);
+    // fromの駒がないものとして考える。
+    occupied = pieces() ^ from;
+    stmAttackers = attackers_to(stm, to, occupied);
 
 #else
-     occupied = pieces() ^ from;
-     stmAttackers = attackers_to(stm, to, occupied);
+    occupied = pieces() ^ from;
+    stmAttackers = attackers_to(stm, to, occupied);
 
-     // なくなったので最初に手番側が捕獲した駒の価値をSEE値として返す
-     if (!stmAttackers)
-       return Value(swapList[0]);
+    // なくなったので最初に手番側が捕獲した駒の価値をSEE値として返す
+    if (!stmAttackers)
+      return Value(swapList[0]);
 
 #endif
 
-     // fromの駒を取り除いて自駒のうちtoに利く駒も足したものをattackersとする。
-     attackers = (stmAttackers | attackers_to(~stm, to, occupied)) & occupied;
+    // fromの駒を取り除いて自駒のうちtoに利く駒も足したものをattackersとする。
+    attackers = (stmAttackers | attackers_to(~stm, to, occupied)) & occupied;
 
-     captured = type_of(piece_on(from));
+    captured = type_of(piece_on(from));
 
-     // 自殺手だったので大きな負の値を返しておく。
-     if (captured == KING)
-       return Value(-PieceValueCapture[KING]);
+    // 自殺手だったので大きな負の値を返しておく。
+    if (captured == KING)
+      return Value(-PieceValueCapture[KING]);
 
-     uncapValue[0] = VALUE_ZERO;
-   }
+    uncapValue[0] = VALUE_ZERO;
+  }
 
   int slIndex = 1;
 

@@ -464,7 +464,7 @@ void Bitboards::init()
 #endif
 
   // 11. 1手詰めテーブルの初期化
-#ifdef MATE_1PLY
+#ifdef USE_MATE_1PLY
   Mate1Ply::init();
 #endif
 }

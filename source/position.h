@@ -179,6 +179,7 @@ struct Position
   Position() { clear(); set_hirate(); }
 
   // コピー。startStateもコピーして、外部のデータに依存しないように(detach)する。
+  // 積極的に使うべきではない。探索開始時にslaveに局面をコピーするときに仕方なく使っているだけ。
   Position& operator=(const Position& pos);
 
   // 初期化
