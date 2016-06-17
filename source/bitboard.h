@@ -380,11 +380,4 @@ Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ);
 // この関係にある場合、Bitboard::merge()によって被覆しないことがBitboardのレイアウトから保証されている。
 inline bool more_than_one(const Bitboard& bb) { ASSERT_LV2(!bb.cross_over()); return POPCNT64(bb.merge()) > 1; }
 
-// ↑のcross_over()しててもいい版
-inline bool more_than_one_cr(const Bitboard& b) {
-  //  return b & (b - 1);
-  return POPCNT64(b.p[0]) + POPCNT64(b.p[1]) >= 2;
-}
-
-
 #endif // #ifndef _BITBOARD_H_

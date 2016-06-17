@@ -342,6 +342,35 @@ static Bitboard RANK5_7BB = RANK5_BB | RANK6_BB | RANK7_BB;
 //　以下、本当ならPositionに用意すべきヘルパ関数
 // 
 
+
+// 上の関数群とは異なる。usのSliderの利きを列挙する。
+// avoid升にいる駒の利きは除外される。
+Bitboard AttacksSlider(const Position& pos , Color us, const Bitboard& slide)
+{
+  Bitboard bb, sum = ZERO_BB;
+  Square from;
+
+  bb = pos.pieces(us, LANCE);
+  while (bb)
+  {
+    from = bb.pop();
+    sum |= lanceEffect(us, from, slide);
+  }
+  bb = pos.pieces(us, BISHOP);
+  while (bb)
+  {
+    from = bb.pop();
+    sum |= bishopEffect(from, slide);
+  }
+  bb = pos.pieces(us, ROOK);
+  while (bb)
+  {
+    from = bb.pop();
+    sum |= rookEffect(from, slide);
+  }
+  return sum;
+}
+
 // usのSliderの利きを列挙する
 // avoid升にいる駒の利きは除外される。
 Bitboard AttacksSlider(const Position& pos,Color us, Square avoid_from, const Bitboard& occ)
@@ -367,6 +396,76 @@ Bitboard AttacksSlider(const Position& pos,Color us, Square avoid_from, const Bi
   {
     from = bb.pop();
     sum |= rookEffect(from, occ);
+  }
+  return sum;
+}
+
+// NonSliderの利きのみ列挙
+Bitboard AttacksAroundKingNonSlider(const Position& pos , Color ourKing)
+{
+  Square sq_king = pos.king_square(ourKing);
+  Color them = ~ourKing;
+  Square from;
+  Bitboard bb;
+
+  // 歩は普通でいい
+  Bitboard sum =
+    them == BLACK ? (pos.pieces(them, PAWN) >> 1) : (pos.pieces(them, PAWN) << 1);
+
+  // ほとんどのケースにおいて候補になる駒はなく、whileで回らずに抜けると期待している。
+  bb = pos.pieces(them, KNIGHT) & check_around_bb(them, KNIGHT, sq_king);
+  while (bb)
+  {
+    from = bb.pop();
+    sum |= knightEffect(them, from);
+  }
+  bb = pos.pieces(them, SILVER) & check_around_bb(them, SILVER, sq_king);
+  while (bb)
+  {
+    from = bb.pop();
+    sum |= silverEffect(them, from);
+  }
+  bb = pos.pieces(them, GOLD) & check_around_bb(them, GOLD, sq_king);
+  while (bb)
+  {
+    from = bb.pop();
+    sum |= goldEffect(them, from);
+  }
+  bb = pos.pieces(them, KING) & check_around_bb(them, KING, sq_king);
+  while (bb)
+  {
+    from = bb.pop();
+    sum |= kingEffect(from);
+  }
+  return sum;
+}
+
+// Sliderの利きのみ列挙
+Bitboard AttacksAroundKingSlider(const Position& pos , Color ourKing)
+{
+  Square sq_king = pos.king_square(ourKing);
+  Color them = ~ourKing;
+  Square from;
+  Bitboard bb;
+  Bitboard sum = ZERO_BB;
+
+  bb = pos.pieces(them, LANCE) & check_around_bb(them, LANCE, sq_king);
+  while (bb)
+  {
+    from = bb.pop();
+    sum |= lanceEffect(them, from, pos.pieces());
+  }
+  bb = pos.pieces(them, BISHOP) & check_around_bb(them, BISHOP, sq_king);
+  while (bb)
+  {
+    from = bb.pop();
+    sum |= bishopEffect(from, pos.pieces());
+  }
+  bb = pos.pieces(them, ROOK) & check_around_bb(them, ROOK, sq_king);
+  while (bb)
+  {
+    from = bb.pop();
+    sum |= rookEffect(from, pos.pieces());
   }
   return sum;
 }
@@ -430,9 +529,9 @@ inline bool can_pawn_drop(const Position& pos,Color us, Square sq)
   return hand_count(pos.hand_of(us), PAWN) > 0 && !((pos.pieces(us, PAWN) & FILE_BB[file_of(sq)]));
 }
 
-
-
 }
+
+using namespace Effect8;
 
 namespace Mate1Ply
 {
@@ -623,6 +722,7 @@ Move is_mate_in_1ply(const Position& pos /*, const CheckInfo& ci */)
   Bitboard bb_attacks;
 
   Hand ourHand = pos.hand_of(us);
+  Hand themHand = pos.hand_of(them);
 
   // 飛車を短く打つ場合
   if (hand_count(ourHand,ROOK))
@@ -1011,7 +1111,7 @@ SILVER_DROP_END:;
   
   // 離し角・飛車等で詰むかどうか。
   // これ、レアケースなのでportingしてくるの面倒だし、判定できなくていいや。
-#if 0
+#if 1
 
   // 離し角・離し飛車、移動飛車・龍での合い効かずで詰むかも知れん。
   // Bonanzaにはないが、これを入れておかないと普通の1手詰め判定と判定される集合が違って気持ち悪い。
@@ -1034,8 +1134,8 @@ SILVER_DROP_END:;
   
     // 玉周辺の利きを列挙。(これ、せっかく求めたならできればあとで使いまわしたいが…)
     // これ王手のかかっていない局面で呼び出すことを想定しているので貫通でなくてもいいか。
-    Bitboard aakns = pos.AttacksAroundKingNonSlider(them); // これはあとで使いまわす
-    Bitboard aaks = pos.AttacksAroundKingSlider(them);
+    Bitboard aakns = AttacksAroundKingNonSlider(pos,them); // これはあとで使いまわす
+    Bitboard aaks = AttacksAroundKingSlider(pos,them);
     Bitboard aak = aakns | aaks;
 
     Bitboard escape_bb = bb_king_movable & ~aak; // 利きがない場所が退路の候補
@@ -1043,7 +1143,7 @@ SILVER_DROP_END:;
     // 利きが正しく生成できているかのテスト
 //    sync_cout << aak << sync_endl;
 
-    int esc_count = popcount_bb<Full>(escape_bb);
+    int esc_count = escape_bb.pop_count();
     if (esc_count >= 4)
       goto NEXT1; // 残念ながら退路がありすぎて話にならんかった。詰む可能性低いので調べなくていいや。
     // 退路3個はまだ許せる…。としよう。
@@ -1082,27 +1182,27 @@ SILVER_DROP_END:;
       // toの地点が盤外
       // このチェックが惜しいのなら最初玉の8近傍ではなく、toが盤外にならない8近傍を列挙すべきだが。
       to = NextSquare[sq_king][one];
-      if (to == SQUARE_NB) continue; // もう駄目
+      if (to == SQ_NB) continue; // もう駄目
 
       // toが自駒だとここに移動できないし..
       if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) == us) continue;
 
       // oneが二歩で打てないことを確認しよう。
-      if (pos.can_pawn_drop(them, one)) continue; // もう駄目
+      if (can_pawn_drop(pos,them, one)) continue; // もう駄目
 
       // toの地点にあるのが歩だと、このtoの地点とoneが同じ筋だと
       // このtoの歩を取ってoneに打てるようになってしまう。
-      if (type_of(pos.piece_on(to)) == PAWN && is_same_file(to,one) && pos.hand_count(them, PAWN) >= 1) continue;
+      if (type_of(pos.piece_on(to)) == PAWN && file_of(to) == file_of(one) && hand_count(themHand, PAWN) >= 1) continue;
 
-      Direction dr = Direc[sq_king][one];
-      PieceType pt;
+      auto dr = directions_of(sq_king,one);
+      Piece pt;
       bool canLanceAttack = false;
-      if (dr == DIRECTION_DIAG)
+      if (dr & DIRECTIONS_DIAG)
       {
         pt = BISHOP;
 
         // 斜めなら角を持ってなきゃ
-        if (pos.hand_count(us, BISHOP) == 0)
+        if (hand_count(ourHand, BISHOP) == 0)
           goto NEXT2;
       }
       else {
@@ -1110,16 +1210,16 @@ SILVER_DROP_END:;
 
         // 十字なら飛車を持ってなきゃ
         // 上からなら香でもいいのか。
-        canLanceAttack = (us == BLACK ? dr == DIRECTION_DOWN : dr == DIRECTION_UP);
-        if (canLanceAttack && pos.hand_count(us, LANCE) >= 1)
+        canLanceAttack = (us == BLACK ? dr == DIRECTIONS_D : dr == DIRECTIONS_U);
+        if (canLanceAttack && hand_count(ourHand, LANCE) >= 1)
         {
           pt = LANCE;
         }
-        else if (pos.hand_count(us, ROOK) == 0)
+        else if (hand_count(ourHand, ROOK) == 0)
           goto NEXT2;
       }
 
-      if (!pos.empty(to)) goto NEXT2;
+      if (pos.piece_on(to)) goto NEXT2;
       // このケースはtoの駒を取ればいけるかも知れん。盤上の駒ptを移動できないか調べろ
 
       // oneに駒の移動合いができない
@@ -1134,9 +1234,9 @@ SILVER_DROP_END:;
       // 退路が2個以上ある場合は、これで詰むとは限らない。
       // escape_bbが打った駒の利きによって遮断されているかを調べる。
       // あ、しまった。toを打ったことによってescape_bbのどこかがまた状態が変わるのか…。
-      escape_bb = bb_king_movable & ~(aakns | pos.AttacksSlider(us, pos.pieces() | to));
+      escape_bb = bb_king_movable & ~(aakns | AttacksSlider(pos , us, pos.pieces() | to));
 
-      if (dr == DIRECTION_DIAG) // pt == BISHOP
+      if (dr & DIRECTIONS_DIAG) // pt == BISHOP
       {
         if (!(~bishopStepEffect(to) & escape_bb))
           return make_move_drop(pt, to);
@@ -1153,14 +1253,14 @@ SILVER_DROP_END:;
       if (esc_count <= 2)
       {
           Square nextTo = NextSquare[one][to];
-          if (nextTo == SQUARE_NB) goto NEXT2;
-          if (!pos.empty(nextTo)) goto NEXT2;
-          if (pos.can_pawn_drop(them, to)) goto NEXT2;
+          if (nextTo == SQ_NB) goto NEXT2;
+          if (pos.piece_on(nextTo)) goto NEXT2;
+          if (can_pawn_drop(pos,them, to)) goto NEXT2;
           if (can_piece_capture(pos, them, nextTo, pinned, pos.pieces())) goto NEXT2;
 
-          escape_bb = bb_king_movable & ~(aakns | pos.AttacksSlider(us, pos.pieces() | nextTo));
+          escape_bb = bb_king_movable & ~(aakns | AttacksSlider(pos, us, pos.pieces() | nextTo));
 
-          if (dr == DIRECTION_DIAG) // pt == BISHOP
+          if (dr & DIRECTIONS_DIAG) // pt == BISHOP
           {
             if (!(~bishopStepEffect(nextTo) & escape_bb))
               return make_move_drop(pt, nextTo);
@@ -1175,7 +1275,7 @@ SILVER_DROP_END:;
     NEXT2:;
       // この場合、toの地点に遠方駒を移動させてcapれば、高い確率で詰みなのだが。
 
-      if (dr != DIRECTION_DIAG) // (pt == ROOK || pt == LANCE)
+      if (!(dr & DIRECTIONS_DIAG)) // (pt == ROOK || pt == LANCE)
       {
         // どこかtoの近くに飛車は落ちてないかね..
         // 飛車を移動させた結果、oneに敵の利きが生じるかも知らんけど。
@@ -1232,7 +1332,7 @@ SILVER_DROP_END:;
             // aakns使わない実装にしよう..
 
             if (!(kingEffect(sq_king)
-              & ~(pos.pieces(them) | pos.AttacksAroundKingInAvoiding(them, from, new_slide) | bb_attacks)))
+              & ~(pos.pieces(them) | AttacksAroundKingInAvoiding(pos , them, from, new_slide) | bb_attacks)))
             {
               // これで詰みが確定した
               // 香は不成りでの王手
@@ -1286,7 +1386,7 @@ SILVER_DROP_END:;
             Bitboard new_slide = (pos.pieces() ^ from) | to;
 
             if (!(kingEffect(sq_king)
-              &  ~(pos.pieces(them) | pos.AttacksAroundKingInAvoiding(them, from, new_slide) | queenStepEffect(to)
+              &  ~(pos.pieces(them) | AttacksAroundKingInAvoiding(pos , them, from, new_slide) | queenStepEffect(to)
               )))
               // 貫通で考えておく
             {
@@ -1731,7 +1831,6 @@ DC_CHECK:;
   // 歩以外を持っていないか。
   // これは、 歩の枚数 == hand であることと等価。(いまの手駒のbit layoutにおいて)
 
-  Hand themHand = pos.hand_of(them);
   if (dcCandidates && hand_count(themHand,PAWN) == (int)themHand)
   {
     // 玉の8近傍にある開き王手可能駒について
@@ -1753,7 +1852,7 @@ DC_CHECK:;
       Bitboard atk = pos.attackers_to(them, from) & ~Bitboard(sq_king);
       if (atk)
       {
-        if (more_than_one_cr(atk))
+        if (atk.pop_count() >= 2)
           continue; // 2つ以上利きがあるなら消せないわ
 
         // 1つしかないので、その場所への移動を中心に考えよう。そこは敵駒なのでbb_moveを見るまでもなく
