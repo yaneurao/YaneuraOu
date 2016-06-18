@@ -442,6 +442,96 @@
 	SEE直したはずなのだが、勝率に影響がない。そんなもんなのか…。
 	
 	min_attacker()さらになおした。orderingも改善したはず…だが？
+
 	V3.10l
+
+		// 歩、香、桂、銀、金、角、飛…の順で取るのに使う駒を調べる。
+
+		Bitboard b;
+		b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_PAWN  ][stm]; if (b) goto found;
+		b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_LANCE ][stm]; if (b) goto found;
+		b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_KNIGHT][stm]; if (b) goto found;
+		b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_SILVER][stm]; if (b) goto found;
+		b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_GOLD  ][stm]; if (b) goto found;
+		b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_BISHOP][stm]; if (b) goto found;
+		b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_ROOK  ][stm]; if (b) goto found;
+		b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_HDK][stm] & ~(pos.piece_bb[PIECE_TYPE_BITBOARD_ROOK  ][stm] | pos.king_square(stm)); if (b) goto found;
+		b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_HDK][stm] & ~(pos.piece_bb[PIECE_TYPE_BITBOARD_BISHOP][stm] | pos.king_square(stm)); if (b) goto found;
+
+		// ここでサイクルは停止するのだ。
+	#ifndef USE_SIMPLE_SEE
+		uncapValue = VALUE_ZERO;
+	#endif
+		return KING;
+
+	わりとわかりやすい気がする。
+
+
+		秒読み300[ms]
+
+		48.7%	
+		#204
+		やねうら王2016mid V310l
+		see() fix。1スレッド
+		#200
+		やねうら王2016mid V310h
+		update_stats()呼び出し修正。1スレッド
+
+		364-13-383(76.8% R-8.8)	
+
+	わずかに遅くなった分、回収できていないのか…？
+
+	// この駒が成れるなら、成りの値を返すべき。
+	// ※　最後にこの地点に残る駒を返すべきなのか。相手が取る/取らないを選択するので。
+	Piece pt = type_of(pos.piece_on(sq));
+	if (!(pt & PIECE_PROMOTE) && (pt != GOLD)
+		&& (canPromote(stm, to) || canPromote(stm,sq)))
+		// 成りは敵陣へと、敵陣からの二種類あるので…。
+	{
+
+#ifndef USE_SIMPLE_SEE
+		uncapValue = ProDiffPieceValue[pt]; // この駒が取り返せなかったときこの分、最後に損をする。
+#endif
+		return pt;
+	}
+
+	→　ちゃんと書いた。
+
+		秒読み300[ms]
+
+		50.0%	
+		#204
+		やねうら王2016mid V310l
+		see() fix。1スレッド
+		#200
+		やねうら王2016mid V310h
+		update_stats()呼び出し修正。1スレッド
+
+		525-19-524(48.8% R0.3)	
+
+	やっと前のものと等価ぐらいになった。
+
+	新see()なおってたりしないのか。
+	V3.10m
+
+		秒読み300[ms]
+
+		41.8%	
+		#205
+		やねうら王2016mid V310m
+		see() fix。1スレッド
+		#200
+		やねうら王2016mid V310h
+		update_stats()呼び出し修正。1スレッド
+
+		147-5-205(99.9% R-57.8)	
+
+	落ちなくはなったが弱い。まだ何かバグがある模様。
+	まあいいや。これはまた時間あるときにデバッグしよう。
+	
+	V3.10n
+	futility margin = 200など
+
+
 
 

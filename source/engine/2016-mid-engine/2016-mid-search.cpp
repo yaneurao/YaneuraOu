@@ -1007,16 +1007,19 @@ namespace YaneuraOu2016Mid
     if (!RootNode && !ttHit && depth > ONE_PLY && !InCheck)
     {
       // mate1ply()の呼び出しのためにCheckInfo.pinnedの更新が必要。
-      pos.check_info_update_pinned();
-      ciu = CHECK_INFO_UPDATE_PINNED; // pinnedのupdateだけ終わったとマークしておく。
+//      pos.check_info_update_pinned();
+//      ciu = CHECK_INFO_UPDATE_PINNED; // pinnedのupdateだけ終わったとマークしておく。
+      // →　利きを使わないならこの初期化は不要
 
-      bestMove = pos.mate1ply();
-      if (bestMove != MOVE_NONE)
+      move = pos.mate1ply();
+      if (move != MOVE_NONE)
       {
         // 1手詰めスコアなので確実にvalue > alphaなはず。
         bestValue = mate_in(ss->ply + 1); // 1手詰めは次のnodeで詰むという解釈
+
+        // staticEvalの代わりに詰みのスコア書いてもいいのでは..
         tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
-          DEPTH_MAX, bestMove, ss->staticEval, TT.generation());
+          DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT.generation());
 
         return bestValue;
       }
@@ -1026,6 +1029,9 @@ namespace YaneuraOu2016Mid
     // -----------------------
     //  局面を評価値によって静的に評価
     // -----------------------
+
+    // 差分計算の都合、毎回evaluate()を呼ぶ。
+    ss->staticEval = eval = evaluate(pos);
 
     if (InCheck)
     {
@@ -1040,12 +1046,6 @@ namespace YaneuraOu2016Mid
       // 置換表にhitしたなら、評価値が記録されているはずだから、それを取り出しておく。
       // あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
 
-      // tte->eval()へのアクセスは1回にしないと他のスレッドが壊してしまう可能性があるので気をつける。
-      if ((eval = tte->eval()) == VALUE_NONE)
-        eval = evaluate(pos);
-
-      ss->staticEval = eval;
-
       // ttValueのほうがこの局面の評価値の見積もりとして適切であるならそれを採用する。
       // 1. ttValue > evaluate()でかつ、ttValueがBOUND_LOWERなら、真の値はこれより大きいはずだから、
       //   evalとしてttValueを採用して良い。
@@ -1056,9 +1056,8 @@ namespace YaneuraOu2016Mid
 
     } else {
 
-      ss->staticEval = eval =
-        (ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
-                                           : -(ss - 1)->staticEval + 2 * Tempo;
+      if ((ss - 1)->currentMove == MOVE_NULL)
+        eval = ss->staticEval = -(ss - 1)->staticEval + 2 * Tempo;
       
       // 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
       tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
@@ -1108,8 +1107,7 @@ namespace YaneuraOu2016Mid
     // ここでは進行度としてgamePly()を用いる。このへんはあとで調整すべき。
 
     if (!RootNode
-//      &&  depth < PARAM_FUTILITY_RETURN_DEPTH * ONE_PLY
-      &&  depth < 5 * ONE_PLY
+      &&  depth < PARAM_FUTILITY_RETURN_DEPTH * ONE_PLY
       &&  eval - futility_margin(depth, pos.game_ply()) >= beta
       &&  eval < VALUE_KNOWN_WIN) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
       return eval - futility_margin(depth, pos.game_ply());
@@ -1280,10 +1278,12 @@ namespace YaneuraOu2016Mid
     // CheckInfoのうち、残りのものをupdateしてやる。
     pos.check_info_update(ciu);
 
+#if 0
     // このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
     // evaluate()を呼び出していないなら呼び出しておく。
     // ss->staticEvalに代入するとimprovingの判定間違うのでそれはしないほうがよさげ。
     evaluate_with_no_return(pos);
+#endif
 
     MovePicker mp(pos, ttMove, depth, ss);
 

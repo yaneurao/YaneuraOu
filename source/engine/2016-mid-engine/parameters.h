@@ -9,7 +9,8 @@
 // depth手先で評価値が変動する幅が = depth * PARAM_FUTILITY_MARGIN_DEPTH
 // 元の値 = 200
 // [PARAM] min:50,max:120,step:3,interval:1,time_rate:1
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 174;
+//PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 174;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 200;
 
 // 静止探索でのfutility pruning
 // 元の値 = 128
@@ -19,7 +20,7 @@ PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 128;
 // futility pruningが適用されるdepth。これ以下のdepthに対して適用される。
 // 元の値 = 7
 // [PARAM] min:5,max:13,step:1,interval:2,time_rate:1
-PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 5;
+PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 7;
 
 // 親nodeでのfutilityを行なうdepthとそのmarginと、seeが負の指し手の枝刈りをするdepth
 

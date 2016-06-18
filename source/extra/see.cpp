@@ -36,31 +36,24 @@ namespace {
     // 駒種ごとのbitboardのうち、攻撃駒の候補を調べる
 //:      Bitboard b = stmAttackers & bb[Pt];
 
-    Bitboard b;
-    Bitboard king_bb;
     // 歩、香、桂、銀、金、角、飛…の順で取るのに使う駒を調べる。
-    {
-      b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_PAWN][stm]; if (b) goto found;
-      b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_LANCE][stm]; if (b) goto found;
-      b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_KNIGHT][stm]; if (b) goto found;
-      b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_SILVER][stm]; if (b) goto found;
-      b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_GOLD][stm]; if (b) goto found;
-      b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_BISHOP][stm]; if (b) goto found;
 
-      // ここでサイクルは停止するのだ。
+    Bitboard b;
+    b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_PAWN  ][stm]; if (b) goto found;
+    b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_LANCE ][stm]; if (b) goto found;
+    b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_KNIGHT][stm]; if (b) goto found;
+    b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_SILVER][stm]; if (b) goto found;
+    b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_GOLD  ][stm]; if (b) goto found;
+    b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_BISHOP][stm]; if (b) goto found;
+    b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_ROOK  ][stm]; if (b) goto found;
+    b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_HDK][stm] & ~(pos.piece_bb[PIECE_TYPE_BITBOARD_ROOK  ][stm] | pos.king_square(stm)); if (b) goto found;
+    b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_HDK][stm] & ~(pos.piece_bb[PIECE_TYPE_BITBOARD_BISHOP][stm] | pos.king_square(stm)); if (b) goto found;
+
+    // ここでサイクルは停止するのだ。
 #ifndef USE_SIMPLE_SEE
-      uncapValue = VALUE_ZERO;
+    uncapValue = VALUE_ZERO;
 #endif
-      return KING;
-    }
-
-    // 馬、龍、玉
-    {
-      king_bb = Bitboard(pos.king_square(BLACK)) | Bitboard(pos.king_square(WHITE));
-      b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_HDK][stm] & ~(king_bb | pos.piece_bb[PIECE_TYPE_BITBOARD_ROOK][stm]); if (b) goto found;
-      b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_HDK][stm] & ~(king_bb | pos.piece_bb[PIECE_TYPE_BITBOARD_BISHOP][stm]); if (b) goto found;
-      b = stmAttackers & pos.king_square(stm); // これは最後のサイクルであり、絶対に見つかるはず..
-    }
+    return KING;
 
   found:;
 
@@ -118,11 +111,10 @@ namespace {
 
     attackers &= occupied;
 
-    /*
     // この駒が成れるなら、成りの値を返すべき。
     // ※　最後にこの地点に残る駒を返すべきなのか。相手が取る/取らないを選択するので。
-    if (Pt != GOLD && Pt != HDK // 馬・龍
-      && !(pos.piece_on(sq) & PIECE_PROMOTE)
+    Piece pt = type_of(pos.piece_on(sq));
+    if (!(pt & PIECE_PROMOTE) && (pt != GOLD)
       && (canPromote(stm, to) || canPromote(stm,sq)))
       // 成りは敵陣へと、敵陣からの二種類あるので…。
     {
@@ -130,18 +122,16 @@ namespace {
 #ifndef USE_SIMPLE_SEE
       uncapValue = ProDiffPieceValue[pt]; // この駒が取り返せなかったときこの分、最後に損をする。
 #endif
-      return (Piece)pt;
+      return pt;
     }
     else
-    */
-
     {
       // GOLDの場合、この駒の実体は成香とかかも知れんし。
       // KINGはHDKを意味するから、馬か龍だし…。馬・龍に関しては成り駒かも知れんし。
 #ifndef USE_SIMPLE_SEE
       uncapValue = VALUE_ZERO;
 #endif
-      return type_of(pos.piece_on(sq));
+      return pt;
     }
 }
 
