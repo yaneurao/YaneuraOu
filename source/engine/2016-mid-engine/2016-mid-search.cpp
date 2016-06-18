@@ -117,7 +117,6 @@ namespace YaneuraOu2016Mid
 
   const Value razor_margin(Depth d)
   {
-    static_assert(ONE_PLY == 2,"static_assert ONE_PLY == 2");
     ASSERT_LV3(DEPTH_ZERO <= d && d < 4 * ONE_PLY);
     return (Value)razor_margin_table[d / ONE_PLY];
   }
@@ -140,8 +139,7 @@ namespace YaneuraOu2016Mid
 #else
   // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
   Value futility_margin(Depth d, int game_ply) {
-    // ここ、本当はONE_PLY掛けてからのほうがいいような気がするがパラメーターが調整しにくくなるのでこれでいく。
-    return Value(d * PARAM_FUTILITY_MARGIN_ALPHA);
+    return Value(d * PARAM_FUTILITY_MARGIN_ALPHA / ONE_PLY);
   }
 #endif
 
@@ -548,9 +546,22 @@ namespace YaneuraOu2016Mid
       // alphaとは区別しなければならない。
       bestValue = futilityBase = -VALUE_INFINITE;
      
-      pos.check_info_update();
-
     } else {
+
+      // -----------------------
+      //      一手詰め判定
+      // -----------------------
+
+      // 王手がかかっていないとき、このタイミングで1手詰め判定を呼び出す
+
+#ifdef USE_MATE_1PLY_IN_QSEARCH
+
+      // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
+      if (pos.mate1ply() != MOVE_NONE)
+        return mate_in(ss->ply + 1);
+
+      // このnodeに再訪問することはまずないだろうから、置換表に保存する価値はない。
+#endif
 
       // 王手がかかっていないなら置換表の指し手を持ってくる
 
@@ -559,10 +570,8 @@ namespace YaneuraOu2016Mid
 
         // 置換表に評価値が格納されているとは限らないのでその場合は評価関数の呼び出しが必要
         // bestValueの初期値としてこの局面のevaluate()の値を使う。これを上回る指し手があるはずなのだが..
-        if ((bestValue = tte->eval()) == VALUE_NONE)
-          bestValue = evaluate(pos);
-
-        ss->staticEval = bestValue;
+        if ((ss->staticEval = bestValue = tte->eval()) == VALUE_NONE)
+          ss->staticEval = bestValue = evaluate(pos);
 
         // 置換表に格納されていたスコアは、この局面で今回探索するものと同等か少しだけ劣るぐらいの
         // 精度で探索されたものであるなら、それをbestValueの初期値として使う。
@@ -594,25 +603,6 @@ namespace YaneuraOu2016Mid
         return bestValue;
       }
 
-      // -----------------------
-      //      一手詰め判定
-      // -----------------------
-
-      // mate1ply()の呼び出しのためにCheckInfo.pinnedの更新が必要。
-      pos.check_info_update_pinned();
-
-#ifdef USE_MATE_1PLY_IN_QSEARCH
-      Move m = pos.mate1ply();
-      if (m != MOVE_NONE)
-      {
-        bestValue = mate_in(ss->ply + 1); // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
-        tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
-          DEPTH_MAX, m, ss->staticEval, TT.generation());
-
-        return bestValue;
-      }
-#endif
-
       // 王手がかかっていなくてPvNodeでかつ、bestValueがalphaより大きいならそれをalphaの初期値に使う。
       // 王手がかかっているなら全部の指し手を調べたほうがいい。
       if (PvNode && bestValue > alpha)
@@ -621,15 +611,14 @@ namespace YaneuraOu2016Mid
       // futilityの基準となる値をbestValueにmargin値を加算したものとして、
       // これを下回るようであれば枝刈りする。
       futilityBase = bestValue + PARAM_FUTILITY_MARGIN_QUIET;
-
-      // pinnedは更新したのでCheckInfoのそれ以外を更新。
-      pos.check_info_update_without_pinned();
     }
 
     // -----------------------
     //     1手ずつ調べる
     // -----------------------
 
+    // 利きを用いるmate1ply()は、呼び出し前にpinを更新する必要があるが、
+    // 利きを用いないmate1ply()なら、このタイミングで呼び出しておけば十分。
     pos.check_info_update();
 
     // 取り合いの指し手だけ生成する
@@ -657,17 +646,18 @@ namespace YaneuraOu2016Mid
       //  Futility pruning
       // 
 
-      // 王手がかかっていなくて王手ではない指し手なら、今回捕獲されるであろう駒による評価値の上昇分を
+      // 自玉に王手がかかっていなくて、敵玉に王手にならない指し手であるとき、
+      // 今回捕獲されるであろう駒による評価値の上昇分を
       // 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
 
       if (!InCheck
         && !givesCheck
         &&  futilityBase > -VALUE_KNOWN_WIN)
-        // ToDo:ここ本当に-VALUE_INFINITTEでなくて良いのか？
+        // ToDo:ここ本当に-VALUE_INFINITEでなくて良いのか？
       {
         // moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになる。
 
-        Value futilityValue = futilityBase + (Value)PieceValueCapture[pos.piece_on(move_to(move))]
+        Value futilityValue = futilityBase + (Value)CapturePieceValue[pos.piece_on(move_to(move))]
           + (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(move_from(move))]  : VALUE_ZERO) ;
 
         // futilityValueは今回捕獲するであろう駒の価値の分を上乗せしているのに
@@ -682,6 +672,7 @@ namespace YaneuraOu2016Mid
         // かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
 
         // ToDo:MovePickerのなかでsee()を呼び出しているなら、ここで２重にsee()するのもったいないが…。
+        // ToDo: pos.see(move, beta - futilityBase) <= VALUE_ZEORのほうが良い可能性。
         if (futilityBase <= alpha && pos.see(move) <= VALUE_ZERO)
         {
           bestValue = std::max(bestValue, futilityBase);
@@ -773,7 +764,7 @@ namespace YaneuraOu2016Mid
       // 詰みではなかったのでこれを書き出す。
 
       tte->save(posKey, value_to_tt(bestValue, ss->ply),
-        PvNode && bestValue > oldAlpha ? BOUND_EXACT : BOUND_UPPER,
+        (PvNode && bestValue > oldAlpha) ? BOUND_EXACT : BOUND_UPPER,
         ttDepth, bestMove, ss->staticEval, TT.generation());
     }
 
@@ -819,7 +810,7 @@ namespace YaneuraOu2016Mid
     bool doFullDepthSearch;
 
     // この局面でのベストのスコア
-    Value bestValue;
+    Value bestValue = -VALUE_INFINITE;
 
     // search()の戻り値を受ける一時変数
     Value value;
@@ -844,8 +835,6 @@ namespace YaneuraOu2016Mid
 
     ss->moveCount = 0;
 
-    bestValue = -VALUE_INFINITE;
-
     // rootからの手数
     ss->ply = (ss - 1)->ply + 1;
 
@@ -859,6 +848,10 @@ namespace YaneuraOu2016Mid
 
     // タイマースレッドを使うとCPU負荷的にちょっと損なので
     // 自分で呼び出し回数をカウントして一定回数ごとにタイマーのチェックを行なう。
+
+    // いずれかのスレッドが4096カウントしたところで全スレッドのカウントをリセットして
+    // check_time()を行う。main threadだけが集計してcheck_time()を呼び出せば良さそうなものだが、
+    // そうするとmain threadだけがタイマー監視処理が必要になって、負荷分散上の観点から損であるようだ。
 
     if (thisThread->resetCalls.load(std::memory_order_relaxed))
     {
@@ -971,7 +964,7 @@ namespace YaneuraOu2016Mid
 
       // 置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
       // ただし、捕獲する指し手か成る指し手であればこれはkillerを更新する価値はない。
-      if (ttValue >= beta && ttMove && !pos.capture_or_promotion(ttMove))
+      if (ttValue >= beta && ttMove && !pos.capture_or_pawn_promotion(ttMove))
         update_stats(pos, ss, ttMove, depth, nullptr, 0);
 
       return ttValue;
@@ -1197,7 +1190,7 @@ namespace YaneuraOu2016Mid
 
       // このnodeの指し手としては置換表の指し手を返したあとは、直前の指し手で捕獲された駒による評価値の上昇を
       // 上回るようなcaptureの指し手のみを生成する。
-      MovePicker mp(pos, ttMove, (Value)Eval::PieceValueCapture[pos.captured_piece_type()]);
+      MovePicker mp(pos, ttMove, (Value)Eval::CapturePieceValue[pos.captured_piece_type()]);
 
       while ((move = mp.next_move()) != MOVE_NONE)
         if (pos.legal(move))
@@ -1806,6 +1799,8 @@ void Search::init() {
 
   // pvとnon pvのときのreduction定数
   // 0.05とか変更するだけで勝率えらく変わる
+
+#if 0
   // K[][2] = { nonPV時 }、{ PV時 }
   double K[][2] = { { 0.799 - 0.1 , 2.281 + 0.1 },{ 0.484 + 0.1 , 3.023 + 0.05 } };
 
@@ -1825,6 +1820,29 @@ void Search::init() {
           if (!pv && !imp && reduction_table[pv][imp][d][mc] >= 2 * ONE_PLY)
             reduction_table[pv][imp][d][mc] += ONE_PLY;
         }
+#else
+
+  // K[][2] = { nonPV時 }、{ PV時 }
+
+  for (int imp = 0; imp <= 1; ++imp)
+    for (int d = 1; d < 64; ++d)
+      for (int mc = 1; mc < 64; ++mc)
+      {
+        // 基本的なアイデアとしては、log(depth) × log(moveCount)に比例した分だけreductionさせるというもの。
+        double r = log(d) * log(mc) / 2;
+        if (r < 0.80)
+          continue;
+
+        reduction_table[NonPV][imp][d][mc] = int(std::round(r)) * ONE_PLY;
+        reduction_table[PV][imp][d][mc] = std::max(reduction_table[NonPV][imp][d][mc] - ONE_PLY, DEPTH_ZERO);
+
+        // nonPVでimproving(評価値が2手前から上がっている)でないときはreductionの量を増やす。
+        // →　これ、ほとんど効果がないようだ…。あとで調整すべき。
+        if (!imp && reduction_table[NonPV][imp][d][mc] >= 2 * ONE_PLY)
+          reduction_table[NonPV][imp][d][mc] += ONE_PLY;
+      }
+
+#endif
 
   // 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
   // 枝刈りしてしまうためのmoveCountベースのfutilityで用いるテーブル。
@@ -1901,7 +1919,7 @@ void Thread::search()
 
   // この初期化は、Thread::MainThread()のほうで行なっている。
   // (この関数を直接呼び出すときには注意が必要)
-//  completedDepth = DEPTH_ZERO;
+  completedDepth = DEPTH_ZERO;
 
   // もし自分がメインスレッドであるならmainThreadにそのポインタを入れる。
   // 自分がスレーブのときはnullptrになる。
@@ -1934,6 +1952,8 @@ void Thread::search()
   //   反復深化のループ
   // ---------------------
 
+  // 二度目のrootDepthは深さで探索量を制限するときの条件。main threadのrootDepthがLimits.depthを超えた時点で、
+  // salve threadはこのループを抜けて良いので。
   while (++rootDepth < MAX_PLY && !Signals.stop && (!Limits.depth || Threads.main()->rootDepth <= Limits.depth))
   {
     // ------------------------
@@ -1975,13 +1995,15 @@ void Thread::search()
       // より少し幅を広げたぐらいの探索窓をデフォルトとする。
 
       // この値は 6～10ぐらいがベスト。Stockfish7では、5 * ONE_PLY。
-      if (rootDepth >= 7)
+      if (rootDepth >= 5)
       {
         // aspiration windowの幅
         // 精度の良い評価関数ならばこの幅を小さくすると探索効率が上がるのだが、
         // 精度の悪い評価関数だとこの幅を小さくしすぎると再探索が増えて探索効率が低下する。
-        // やねうら王のKPP評価関数では35～40ぐらいがベスト。もっと精度の高い評価関数を用意すべき。
-        delta = Value(40);
+        // やねうら王のKPP評価関数では35～40ぐらいがベスト。
+        // やねうら王のKPPT(Apery WCSC26)ではもう少し小さいほうが良いか。
+        // もっと精度の高い評価関数を用意すべき。
+        delta = Value(18);
 
         alpha = std::max(rootMoves[PVIdx].previousScore - delta, -VALUE_INFINITE);
         beta  = std::min(rootMoves[PVIdx].previousScore + delta,  VALUE_INFINITE);
@@ -1989,6 +2011,7 @@ void Thread::search()
 
       while (true)
       {
+        // Stockfish、ここrootDepthにONE_PLY掛けてない。Stockfishのbug。
         bestValue = YaneuraOu2016Mid::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false);
 
         // それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
@@ -2003,7 +2026,7 @@ void Thread::search()
         // ただし出力を散らかさないように思考開始から3秒経ってないときは抑制する。
         if (mainThread && !Limits.silent
           && multiPV == 1 
-          && (bestValue <= alpha || bestValue >= beta)
+          && (bestValue <= alpha || beta <= bestValue)
           && Time.elapsed() > 3000)
           sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
 

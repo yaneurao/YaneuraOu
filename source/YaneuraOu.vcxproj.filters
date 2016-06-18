@@ -59,6 +59,9 @@
     <Filter Include="リソース ファイル\engine\2016-mid-engine">
       <UniqueIdentifier>{307735dd-d642-4bb7-a1c0-4b578152201a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="doc\old">
+      <UniqueIdentifier>{aefbe5b2-c4db-408d-b69f-3084701e0753}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -280,6 +283,15 @@
     </Text>
     <Text Include="..\exe\YaneuraOu-classic-2016-mid.txt">
       <Filter>exe</Filter>
+    </Text>
+    <Text Include="..\docs\実験記録.txt">
+      <Filter>doc</Filter>
+    </Text>
+    <Text Include="..\docs\old\更新履歴2016Q2まで.txt">
+      <Filter>doc\old</Filter>
+    </Text>
+    <Text Include="..\docs\ToDoのリスト.txt">
+      <Filter>doc</Filter>
     </Text>
   </ItemGroup>
   <ItemGroup>

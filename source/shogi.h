@@ -316,7 +316,11 @@ enum Depth : int32_t
   DEPTH_ZERO = 0,
 
   // Depthは1手をONE_PLY倍にスケーリングする。
+#ifdef ONE_PLY_EQ_1
+  ONE_PLY = 1 ,
+#else
   ONE_PLY = 2 ,
+#endif
 
   // 最大深さ
   DEPTH_MAX = MAX_PLY*(int)ONE_PLY ,

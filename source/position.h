@@ -484,14 +484,12 @@ struct Position
   // 捕獲する指し手か、成りの指し手であるかを返す。
   bool capture_or_promotion(Move m) const { return (m & MOVE_PROMOTE) || capture(m); }
 
+  // 捕獲する指し手か、歩の成りの指し手であるかを返す。
+  bool capture_or_pawn_promotion(Move m) const
+  { return ((m & MOVE_PROMOTE) && type_of(piece_on(move_from(m)))==PAWN) || capture(m); }
+
   // 捕獲する指し手であるか。
   bool capture(Move m) const { return !is_drop(m) && piece_on(move_to(m)) != NO_PIECE; }
-
-  // 捕獲する指し手もしくは歩を成る指し手であるか。
-  bool capture_or_pawn_promotion(Move m) const {
-    return capture(m) ||
-      (type_of(piece_on(move_from(m))) == PAWN && (m & MOVE_PROMOTE));
-  }
 
   // --- 1手詰め判定
 #ifdef USE_MATE_1PLY

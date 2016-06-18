@@ -95,7 +95,7 @@ namespace Eval {
   // 駒の交換値(＝捕獲したときの価値の上昇値)
   // 例)「と」を取ったとき、評価値の変動量は手駒歩+盤面の「と」。
   // MovePickerとSEEの計算で用いる。
-  extern int PieceValueCapture[PIECE_NB];
+  extern int CapturePieceValue[PIECE_NB];
 
   // 駒を成ったときの成る前との価値の差。SEEで用いる。
   // 駒の成ったものと成っていないものとの価値の差

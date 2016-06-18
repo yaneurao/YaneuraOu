@@ -16,7 +16,7 @@ namespace Eval
     -KingValue, -ProPawnValue, -ProLanceValue, -ProKnightValue, -ProSilverValue, -HorseValue, -DragonValue,0,
   };
 
-  int PieceValueCapture[PIECE_NB] =
+  int CapturePieceValue[PIECE_NB] =
   {
     VALUE_ZERO             , PawnValue * 2   , LanceValue * 2   , KnightValue * 2   , SilverValue * 2  ,
     BishopValue * 2, RookValue * 2, GoldValue * 2, KingValue , // SEEÇ≈égÇ§ÇÃÇ≈ëÂÇ´Ç»ílÇ…ÇµÇƒÇ®Ç≠ÅB

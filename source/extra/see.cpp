@@ -278,7 +278,7 @@ Value Position::see(Move m) const {
     from = move_from(m);
      
     // 最初に捕獲する駒
-    swapList[0] = PieceValueCapture[piece_on(to)];
+    swapList[0] = CapturePieceValue[piece_on(to)];
 
     // この駒を取り返されなかったときに成りの分だけ儲かる。
     uncapValue[0] = ProDiffPieceValue[piece_on(from)];
@@ -322,7 +322,7 @@ Value Position::see(Move m) const {
     // 成る手である場合、それが玉である可能性はないのでそのへんの処理が違うし…。
      
     from = move_from(m);
-    swapList[0] = PieceValueCapture[piece_on(to)]; // 最初に捕獲する駒
+    swapList[0] = CapturePieceValue[piece_on(to)]; // 最初に捕獲する駒
 
     //      attackers = attackers_to(stm, to, slide) & occupied;
     //　→　fromは自駒であるのでこの時点で取り除く必要はない。
@@ -352,7 +352,7 @@ Value Position::see(Move m) const {
 
     // 自殺手だったので大きな負の値を返しておく。
     if (captured == KING)
-      return Value(-PieceValueCapture[KING]);
+      return Value(-CapturePieceValue[KING]);
 
     uncapValue[0] = VALUE_ZERO;
   }
@@ -373,7 +373,7 @@ Value Position::see(Move m) const {
     //:    swapList[slIndex] = -swapList[slIndex - 1] + PieceValue[MG][captured];
     // swapList[slIndex] = -swapList[slIndex - 1] + PieceValue[captured];
     // →　これ累積されると最後の処理わかりにくいな..
-    swapList[slIndex] = PieceValueCapture[captured];
+    swapList[slIndex] = CapturePieceValue[captured];
 
     // Locate and remove the next least valuable attacker
     // 次のもっとも価値の低い攻撃駒の位置を示し、取り除く
@@ -397,7 +397,7 @@ Value Position::see(Move m) const {
     {
       // 王を取ったみたいなので相手は直前の指し手は指さないはず。
       // ゆえにループをもう抜けてもいいはず。
-      swapList[slIndex] = PieceValueCapture[KING];
+      swapList[slIndex] = CapturePieceValue[KING];
       uncapValue[slIndex] = VALUE_ZERO;
       ++slIndex;
       break;

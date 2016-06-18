@@ -7,14 +7,14 @@
 
 // 深さに比例したfutility pruning
 // depth手先で評価値が変動する幅が = depth * PARAM_FUTILITY_MARGIN_DEPTH
-// 元の値 = 90
+// 元の値 = 200
 // [PARAM] min:50,max:120,step:3,interval:1,time_rate:1
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 87;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 174;
 
 // 静止探索でのfutility pruning
 // 元の値 = 128
 // [PARAM] min:50,max:150,step:3,interval:1,time_rate:1
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 129;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 128;
 
 // futility pruningが適用されるdepth。これ以下のdepthに対して適用される。
 // 元の値 = 7

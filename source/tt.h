@@ -18,6 +18,8 @@ struct TTEntry {
 #ifndef  NO_EVAL_IN_TT
   Value eval() const { return (Value)eval16; }
 #endif
+
+  // Stockfish、ここONE_PLY掛かってなくておかしい。掛けるべき。
   Depth depth() const { return (Depth)((int)depth8 * ONE_PLY); }
   Bound bound() const { return (Bound)(genBound8 & 0x3); }
 
@@ -61,7 +63,7 @@ struct TTEntry {
     // 3. BOUND_EXACT(これはPVnodeで探索した結果で、とても価値のある情報なので無条件で書き込む)
     // 1. or 2. or 3.
     if ((k >> 48) != key16
-      || (d > depth() - 4 * ONE_PLY)
+      || (d / ONE_PLY > depth8 - 4)
     /*|| g != generation() // probe()において非0のkeyとマッチした場合、その瞬間に世代はrefreshされている。　*/
       || b == BOUND_EXACT
       )

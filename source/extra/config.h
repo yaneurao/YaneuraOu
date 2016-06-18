@@ -120,6 +120,9 @@
 // オーダリングに使っているStatsの配列のなかで駒打ちのためのbitを持つ。
 // #define USE_DROPBIT_IN_STATS
 
+// ONE_PLY == 1にするためのモード。これを指定していなければONE_PLY == 2
+// #define ONE_PLY_EQ_1
+
 
 // --------------------
 // release configurations
@@ -184,7 +187,7 @@
 #ifdef YANEURAOU_2016_MID_ENGINE
 #define ENGINE_NAME "YaneuraOu 2016 Mid"
 // 開発中なのでassertを有効に。
-//#define ASSERT_LV 3
+#define ASSERT_LV 3
 #define ENABLE_TEST_CMD
 #define EVAL_KPPT
 #define USE_SEE
@@ -195,6 +198,7 @@
 #define USE_TIME_MANAGEMENT
 #define KEEP_PIECE_IN_COUNTER_MOVE
 #define USE_DROPBIT_IN_STATS
+#define ONE_PLY_EQ_1
 #endif
 
 #ifdef YANEURAOU_2016_LATE_ENGINE

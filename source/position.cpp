@@ -1111,7 +1111,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 #ifndef EVAL_NO_USE
       // 評価関数で使う駒割りの値も更新
-      materialDiff += Eval::PieceValueCapture[to_pc];
+      materialDiff += Eval::CapturePieceValue[to_pc];
 #endif
 
     } else {

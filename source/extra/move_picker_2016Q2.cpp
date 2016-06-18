@@ -411,7 +411,7 @@ void MovePicker::score_captures()
 
     // MVV-LVAに、歩の成りに加点する形にしておく。
     m.value = (pawn_promo ? (Value)(Eval::GoldValue - Eval::PawnValue) : VALUE_ZERO)
-      + (Value)Eval::PieceValueCapture[pos.piece_on(move_to(move))]
+      + (Value)Eval::CapturePieceValue[pos.piece_on(move_to(move))]
       - LVA(pt);
 
     // 盤の上のほうの段にあるほど価値があるので下の方の段に対して小さなペナルティを課す。
@@ -473,7 +473,7 @@ void MovePicker::score_evasions()
     // あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
     // 価値が高いので(例えば合駒に安い駒を使う的な…)
     if (pos.capture(m))
-      m.value = (Value)Eval::PieceValueCapture[pos.piece_on(move_to(m))]
+      m.value = (Value)Eval::CapturePieceValue[pos.piece_on(move_to(m))]
                 - Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
     else
 #ifndef USE_DROPBIT_IN_STATS
