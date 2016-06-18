@@ -551,9 +551,29 @@
 	// 捕獲から逃れる指し手はreduction量を減らす。
 	→　これ意味不明だった。どういうトリックかよくわからない。
 	これ、コメントアウトしたほうがよさげ。
+	see()の仕様がこちらの想定と違うのだが、それを考慮しても、
+	Stockfishのコードはバグっているとしか思えない。
 
 	null moveのreduction等を戻す。
+
+	V3.10p
+
+-        pv[0] = MOVE_NONE;
++        (ss+1)->pv[0] = MOVE_NONE;
+
+	なんぞこれ。間違えてた。
+
+	魔女、fail lowたときに直前の指し手にボーナスを与える条件、間違っているような…。
+		else if (depth >= 3 * OnePly
+		  && bestMove.isNone() //!bestMove
+		  && !inCheck
+-		  && !ttMove.isCapture()//!move.cap()
++		  && !pos.captured_piece_type()
+		  && (ss-1)->currentMove.is_ok())
+
+	historyのupdateで打ち駒を+32してないところがあった。修正した。
 	
+
 
 
 

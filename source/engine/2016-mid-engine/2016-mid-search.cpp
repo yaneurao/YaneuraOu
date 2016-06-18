@@ -1550,7 +1550,7 @@ namespace YaneuraOu2016Mid
       if (PvNode && (moveCount == 1 || (value > alpha && (RootNode || value < beta))))
       {
         // 次のnodeのPVポインターはこのnodeのpvバッファを指すようにしておく。
-        pv[0] = MOVE_NONE;
+        (ss+1)->pv[0] = MOVE_NONE;
         (ss+1)->pv = pv;
 
         // full depthで探索するときはcutNodeにしてはいけない。
@@ -1705,7 +1705,7 @@ namespace YaneuraOu2016Mid
     {
       // 残り探索depthの2乗ぐらいのボーナスを与える。
       Value bonus = Value((int)(depth / ONE_PLY) * (int)(depth / ONE_PLY) + 2 * depth / ONE_PLY - 2);
-      Piece prevPc = pos.piece_on(prevSq);
+      Piece prevPc = pos.piece_on(prevSq) + Piece(is_drop((ss - 1)->currentMove) ? 32 : 0);
       if ((ss - 2)->counterMoves)
           (ss - 2)->counterMoves->update(prevPc, prevSq, bonus);
 
