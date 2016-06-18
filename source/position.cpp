@@ -983,7 +983,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
     // 移動先の升は空のはず
     ASSERT_LV2(piece_on(to) == NO_PIECE);
 
-    Piece pr = Piece(move_from(m));
+    Piece pr = move_dropped_piece(m);
     ASSERT_LV2(PAWN <= pr && pr < PIECE_HAND_NB);
 
     Piece pc = make_piece(Us, pr);

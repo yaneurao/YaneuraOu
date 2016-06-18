@@ -495,7 +495,11 @@ enum Move : uint16_t {
 };
 
 // 指し手の移動元の升を返す
-constexpr Square move_from(Move m) { return Square((m >> 7) & 0x7f); }
+constexpr Square move_from(Move m) {
+  // 駒打ちに対するmove_from()の呼び出しは不正。
+  // ASSERT_LV3(!(MOVE_DROP & m));
+  // ↑これを入れたいが、constexprにできなくなるのでやめておく。
+  return Square((m >> 7) & 0x7f); }
   
 // 指し手の移動先の升を返す
 constexpr Square move_to(Move m) { return Square(m & 0x7f); }
@@ -507,7 +511,7 @@ constexpr bool is_drop(Move m){ return (m & MOVE_DROP)!=0; }
 constexpr bool is_promote(Move m) { return (m & MOVE_PROMOTE)!=0; }
 
 // 駒打ち(is_drop()==true)のときの打った駒
-constexpr Piece move_dropped_piece(Move m) { return (Piece)move_from(m); }
+constexpr Piece move_dropped_piece(Move m) { return (Piece)((m >> 7) & 0x7f); }
 
 // fromからtoに移動する指し手を生成して返す
 constexpr Move make_move(Square from, Square to) { return (Move)(to + (from << 7)); }

@@ -99,6 +99,7 @@ namespace Eval {
 
   // 駒を成ったときの成る前との価値の差。SEEで用いる。
   // 駒の成ったものと成っていないものとの価値の差
+  // ※　PAWNでもPRO_PAWNでも　と金 - 歩 の価値が返る。
   extern int ProDiffPieceValue[PIECE_NB];
 
   // --- 評価関数で使う定数 KPP(玉と任意2駒)のPに相当するenum

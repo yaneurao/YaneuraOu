@@ -16,8 +16,6 @@ namespace {
   // またこの関数はmin_attacker<PAWN>()として最初呼び出され、PAWNの攻撃駒がなければ次に
   // KNIGHTの..というように徐々に攻撃駒をアップグレードしていく。
 
-  // bb = byTypeBB
-  // byTypeBBは駒の価値の低い順に並んでいるものとする。
   // occupied = 駒のある場所のbitboard。今回発見された駒は取り除かれる。
   // stmAttackers = 手番側の攻撃駒
   // attackers = toに利く駒(先後両方)。min_attacker(toに利く最小の攻撃駒)を見つけたら、その駒を除去して
@@ -28,114 +26,125 @@ namespace {
 
   // 返し値は今回発見されたtoに利く最小の攻撃駒。これがtoの地点において成れるなら成ったあとの駒を返すべき。
 
-  template<int Pt> inline
-    Piece min_attacker(const Position& pos,const Bitboard(&bb)[PIECE_TYPE_BITBOARD_NB][COLOR_NB],const Square& to
-      , const Bitboard& stmAttackers, Bitboard& occupied, Bitboard& attackers, Color stm,int& uncapValue) {
+  Piece min_attacker(const Position& pos,const Square& to
+    , const Bitboard& stmAttackers, Bitboard& occupied, Bitboard& attackers, Color stm
+#ifndef USE_SIMPLE_SEE
+    ,int& uncapValue
+#endif
+  ) {
 
-      // 駒種ごとのbitboardのうち、攻撃駒の候補を調べる
+    // 駒種ごとのbitboardのうち、攻撃駒の候補を調べる
 //:      Bitboard b = stmAttackers & bb[Pt];
 
-      Bitboard b = stmAttackers & bb[Pt-1][stm];
+    Bitboard b;
+    Bitboard king_bb;
+    // 歩、香、桂、銀、金、角、飛…の順で取るのに使う駒を調べる。
+    {
+      b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_PAWN][stm]; if (b) goto found;
+      b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_LANCE][stm]; if (b) goto found;
+      b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_KNIGHT][stm]; if (b) goto found;
+      b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_SILVER][stm]; if (b) goto found;
+      b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_GOLD][stm]; if (b) goto found;
+      b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_BISHOP][stm]; if (b) goto found;
 
-      // HDK用の処理なら、KINGを除かないといけないのか…。なんだこりゃ…。
-      if (Pt == HDK)
-      {
-        // bからKINGの場所を取り除いてHorse/Dragonを得る
-        b &= ~(Bitboard(pos.king_square(BLACK)) | Bitboard(pos.king_square(WHITE)));
-      }
-
-      // なければ、もうひとつ価値の高い攻撃駒について再帰的に調べる
-      if (!b)
-        return min_attacker<Pt + 1>(pos,bb, to, stmAttackers, occupied, attackers,stm,uncapValue);
-
-      // bにあった駒を取り除く
-
-      Square sq = b.pop();
-      occupied ^= sq;
-
-      // このときpinされているかの判定を入れられるなら入れたほうが良いのだが…。
-      // この攻撃駒の種類によって場合分け
-
-      auto dirs = directions_of(to, sq);
-      if (dirs) switch (pop_directions(dirs))
-      {
-      case DIRECT_RU: case DIRECT_RD: case DIRECT_LU: case DIRECT_LD:
-        // 斜め方向なら斜め方向の升をスキャンしてその上にある角・馬を足す
-        attackers |= bishopEffect(to, occupied) & (bb[PIECE_TYPE_BITBOARD_BISHOP][BLACK] | bb[PIECE_TYPE_BITBOARD_BISHOP][WHITE]);
-
-        ASSERT_LV3((bishopStepEffect(to) & sq));
-        break;
-
-      case DIRECT_U:
-        // 後手の香 + 先後の飛車
-        attackers |= rookEffect(to, occupied) & lanceStepEffect(BLACK, to)
-          & (bb[PIECE_TYPE_BITBOARD_ROOK][BLACK] | bb[PIECE_TYPE_BITBOARD_ROOK][WHITE] | bb[PIECE_TYPE_BITBOARD_LANCE][WHITE]);
-
-        ASSERT_LV3((lanceStepEffect(BLACK, to) & sq));
-        break;
-
-      case DIRECT_D:
-        // 先手の香 + 先後の飛車
-        attackers |= rookEffect(to, occupied) & lanceStepEffect(WHITE, to)
-          & (bb[PIECE_TYPE_BITBOARD_ROOK][BLACK] | bb[PIECE_TYPE_BITBOARD_ROOK][WHITE] | bb[PIECE_TYPE_BITBOARD_LANCE][BLACK]);
-
-        ASSERT_LV3((lanceStepEffect(WHITE, to) & sq));
-        break;
-
-      case DIRECT_L: case DIRECT_R:
-        // 左右なので先後の飛車
-        attackers |= rookEffect(to, occupied)
-          & (bb[PIECE_TYPE_BITBOARD_ROOK][BLACK] | bb[PIECE_TYPE_BITBOARD_ROOK][WHITE]);
-
-        ASSERT_LV3(((rookStepEffect(to) & sq)));
-        break;
-
-      default:
-        UNREACHABLE;
-      } else {
-        // DIRECT_MISC
-        ASSERT_LV3(!(bishopStepEffect(to) & sq));
-        ASSERT_LV3(!((rookStepEffect(to) & sq)));
-      }
-
-      attackers &= occupied;
-      
-      // この駒が成れるなら、成りの値を返すべき。
-      // ※　最後にこの地点に残る駒を返すべきなのか。相手が取る/取らないを選択するので。
-      if (Pt != GOLD && Pt != HDK // 馬・龍
-        && !(pos.piece_on(sq) & PIECE_PROMOTE)
-        && (canPromote(stm, to) || canPromote(stm,sq)))
-        // 成りは敵陣へと、敵陣からの二種類あるので…。
-      {
-        uncapValue = ProDiffPieceValue[Pt]; // この駒が取り返せなかったときこの分、最後に損をする。
-
-        return (Piece)Pt;
-      }
-      else
-      {
-        // GOLDの場合、この駒の実体は成香とかかも知れんし。
-        // KINGはHDKを意味するから、馬か龍だし…。馬・龍に関しては成り駒かも知れんし。
-        uncapValue = VALUE_ZERO;
-        return type_of(pos.piece_on(sq));
-      }
-  }
-
-  template<> inline
-    // 馬、龍もHDKに含めて、KINGの処理もしたいのでこの処理はKING+1としておく。
-    Piece min_attacker<KING + 1>(const Position& pos, const Bitboard(&)[PIECE_TYPE_BITBOARD_NB][COLOR_NB], const Square&
-      , const Bitboard& , Bitboard&, Bitboard& occ, Color, int& uncapValue) {
+      // ここでサイクルは停止するのだ。
+#ifndef USE_SIMPLE_SEE
       uncapValue = VALUE_ZERO;
-      return Piece(KING + 1);
+#endif
+      return KING;
+    }
 
-      // bitboardを更新する必要はない。これが最後のサイクルである。
+    // 馬、龍、玉
+    {
+      king_bb = Bitboard(pos.king_square(BLACK)) | Bitboard(pos.king_square(WHITE));
+      b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_HDK][stm] & ~(king_bb | pos.piece_bb[PIECE_TYPE_BITBOARD_ROOK][stm]); if (b) goto found;
+      b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_HDK][stm] & ~(king_bb | pos.piece_bb[PIECE_TYPE_BITBOARD_BISHOP][stm]); if (b) goto found;
+      b = stmAttackers & pos.king_square(stm); // これは最後のサイクルであり、絶対に見つかるはず..
+    }
 
-      // KINGの背後から利いていた駒を足す必要はないわけで…
-      // (次に敵駒があればKINGを取られるし、自駒がこれ以上toに利いていても意味がない)
+  found:;
 
-      // min_attacker<>()は、stmAttackers(手番側の攻撃駒)がnon zeroであるときに呼び出されることが
-      // 呼び出し側で保証されているから、ここに来たということはtoにKINGが利いていたということを意味するので
-      // KINGでtoの駒が取れる。
-  }
+    // bにあった駒を取り除く
+
+    Square sq = b.pop();
+    occupied ^= sq;
+
+    // このときpinされているかの判定を入れられるなら入れたほうが良いのだが…。
+    // この攻撃駒の種類によって場合分け
+
+    const auto& bb = pos.piece_bb;
+
+    auto dirs = directions_of(to, sq);
+    if (dirs) switch (pop_directions(dirs))
+    {
+    case DIRECT_RU: case DIRECT_RD: case DIRECT_LU: case DIRECT_LD:
+      // 斜め方向なら斜め方向の升をスキャンしてその上にある角・馬を足す
+      attackers |= bishopEffect(to, occupied) & (bb[PIECE_TYPE_BITBOARD_BISHOP][BLACK] | bb[PIECE_TYPE_BITBOARD_BISHOP][WHITE]);
+
+      ASSERT_LV3((bishopStepEffect(to) & sq));
+      break;
+
+    case DIRECT_U:
+      // 後手の香 + 先後の飛車
+      attackers |= rookEffect(to, occupied) & lanceStepEffect(BLACK, to)
+        & (bb[PIECE_TYPE_BITBOARD_ROOK][BLACK] | bb[PIECE_TYPE_BITBOARD_ROOK][WHITE] | bb[PIECE_TYPE_BITBOARD_LANCE][WHITE]);
+
+      ASSERT_LV3((lanceStepEffect(BLACK, to) & sq));
+      break;
+
+    case DIRECT_D:
+      // 先手の香 + 先後の飛車
+      attackers |= rookEffect(to, occupied) & lanceStepEffect(WHITE, to)
+        & (bb[PIECE_TYPE_BITBOARD_ROOK][BLACK] | bb[PIECE_TYPE_BITBOARD_ROOK][WHITE] | bb[PIECE_TYPE_BITBOARD_LANCE][BLACK]);
+
+      ASSERT_LV3((lanceStepEffect(WHITE, to) & sq));
+      break;
+
+    case DIRECT_L: case DIRECT_R:
+      // 左右なので先後の飛車
+      attackers |= rookEffect(to, occupied)
+        & (bb[PIECE_TYPE_BITBOARD_ROOK][BLACK] | bb[PIECE_TYPE_BITBOARD_ROOK][WHITE]);
+
+      ASSERT_LV3(((rookStepEffect(to) & sq)));
+      break;
+
+    default:
+      UNREACHABLE;
+    } else {
+      // DIRECT_MISC
+      ASSERT_LV3(!(bishopStepEffect(to) & sq));
+      ASSERT_LV3(!((rookStepEffect(to) & sq)));
+    }
+
+    attackers &= occupied;
+
+    /*
+    // この駒が成れるなら、成りの値を返すべき。
+    // ※　最後にこの地点に残る駒を返すべきなのか。相手が取る/取らないを選択するので。
+    if (Pt != GOLD && Pt != HDK // 馬・龍
+      && !(pos.piece_on(sq) & PIECE_PROMOTE)
+      && (canPromote(stm, to) || canPromote(stm,sq)))
+      // 成りは敵陣へと、敵陣からの二種類あるので…。
+    {
+
+#ifndef USE_SIMPLE_SEE
+      uncapValue = ProDiffPieceValue[pt]; // この駒が取り返せなかったときこの分、最後に損をする。
+#endif
+      return (Piece)pt;
+    }
+    else
+    */
+
+    {
+      // GOLDの場合、この駒の実体は成香とかかも知れんし。
+      // KINGはHDKを意味するから、馬か龍だし…。馬・龍に関しては成り駒かも知れんし。
+#ifndef USE_SIMPLE_SEE
+      uncapValue = VALUE_ZERO;
+#endif
+      return type_of(pos.piece_on(sq));
+    }
+}
+
 
 } // namespace
 
@@ -157,6 +166,8 @@ namespace {
 
 // ※　KINGを敵の利きに移動させる手は非合法手なので、ここで与えられる指し手にはそのような指し手は含まないものとする。
 // また、SEEの地点(to)の駒をKINGで取る手は含まれるが、そのKINGを取られることは考慮しなければならない。
+
+#ifndef USE_SIMPLE_SEE
 
 // seeの符号だけわかればいいときに使う。
 // 正か、0か負かが返る。
@@ -381,7 +392,7 @@ Value Position::see(Move m) const {
     // 最も価値の低い駒
     // ※　この関数が呼び出されたあと、occupied,attackersは更新されている。影にあった遠方駒はこのとき追加されている。
     //:      captured = min_attacker<PAWN>(byTypeBB, to, stmAttackers, occupied, attackers);
-    captured = min_attacker<PAWN>(*this, piece_bb, to, stmAttackers, occupied, attackers, stm, uncapValue[slIndex]);
+    captured = min_attacker(*this, to, stmAttackers, occupied, attackers, stm, uncapValue[slIndex]);
 
     ++slIndex;
 
@@ -393,7 +404,7 @@ Value Position::see(Move m) const {
 
     // KINGの捕獲が処理される前に停止する。
 
-    if (captured == (KING + 1) && stmAttackers)
+    if (captured == KING && stmAttackers)
     {
       // 王を取ったみたいなので相手は直前の指し手は指さないはず。
       // ゆえにループをもう抜けてもいいはず。
@@ -438,6 +449,103 @@ Value Position::see(Move m) const {
 
   return Value(swapList[0] + uncapValue[0]);
 }
+
+#else // USE_SIMPLE_SEE
+
+// もっと単純化されたsee()
+// 最後になった駒による成りの上昇値は考えない。
+
+Value Position::see_sign(const Move move) const
+{
+  if (capture(move))
+  {
+    // 捕獲する指し手で、移動元の駒の価値のほうが移動先の駒の価値より低い場合、これでプラスになるはず。
+    // (取り返されたあとの成りを考慮しなければ)
+    const Piece ptFrom = type_of(piece_on(move_from(move)));
+    const Piece ptTo = type_of(piece_on(move_to(move)));
+    if (CapturePieceValue[ptFrom] <= CapturePieceValue[ptTo])
+      return static_cast<Value>(1);
+  }
+  return see(move);
+}
+
+Value Position::see(const Move move /*, const int asymmThreshold*/) const
+{
+  Square to = move_to(move);
+  Square from;
+
+  // 次にtoの升で捕獲される駒
+  Piece captured;
+
+  Bitboard occupied;
+  
+  // 手番側の攻撃駒
+  Bitboard stmAttackers;
+
+  // 先後の攻撃駒
+  Bitboard attackers;
+
+  // 移動させる駒側のturnから始まるものとする。
+  // 次に列挙すべきは、この駒を取れる敵の駒なので、相手番に。
+  Color stm;
+  Value swapList[32];
+
+  if (is_drop(move))
+  {
+    stm = ~sideToMove;
+    occupied = pieces();
+    stmAttackers = attackers_to(stm, to, occupied);
+    if (!stmAttackers)
+      return VALUE_ZERO;
+    attackers = stmAttackers | attackers_to(~stm, to, occupied);
+    swapList[0] = VALUE_ZERO;
+    captured = move_dropped_piece(move);
+  } else {
+    from = move_from(move);
+    stm = ~color_of(piece_on(from));
+    occupied ^= from;
+    stmAttackers = attackers_to(stm, to, occupied);
+    if (!stmAttackers) {
+      if (is_promote(move)) {
+        const Piece ptFrom = type_of(piece_on(from));
+        return (Value)(CapturePieceValue[piece_on(to)] + ProDiffPieceValue[ptFrom]);
+      }
+      return (Value)CapturePieceValue[piece_on(to)];
+    }
+    attackers = (stmAttackers | attackers_to(~stm, to, occupied)) & occupied;
+    swapList[0] = (Value)CapturePieceValue[piece_on(to)];
+    captured = type_of(piece_on(from));
+    if (captured == KING)
+      return Value(-CapturePieceValue[KING]);
+
+    if (is_promote(move)) {
+      const Piece ptFrom = type_of(piece_on(from));
+      swapList[0] += ProDiffPieceValue[ptFrom];
+      captured += PIECE_PROMOTE;
+    }
+  }
+
+  int slIndex = 1;
+  do {
+    ASSERT_LV3(slIndex < 32);
+
+    swapList[slIndex] = -swapList[slIndex - 1] + CapturePieceValue[captured];
+    captured = min_attacker(*this, to, stmAttackers, occupied , attackers, stm);
+
+    stm = ~stm;
+    stmAttackers = attackers & pieces(stm);
+    ++slIndex;
+
+  } while (stmAttackers && (captured != KING || (--slIndex, false)));
+  // kingを捕獲する前にslIndexをデクリメントして停止する。
+
+  while (--slIndex)
+    swapList[slIndex - 1] = std::min(-swapList[slIndex], swapList[slIndex - 1]);
+
+  return swapList[0];
+}
+
+#endif // USE_SIMPLE_SEE
 
 
 #endif // USE_SEE

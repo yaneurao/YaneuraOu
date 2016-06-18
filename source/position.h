@@ -274,6 +274,11 @@ struct Position
   // 駒に対応するBitboardを得る。
   Bitboard pieces(Color c,Piece pr) const { ASSERT_LV3(PAWN <= pr && pr <= KING);  return piece_bb[(PieceTypeBitboard)(pr - 1)][c]; }
 
+  // 駒が存在する升を表すBitboard
+  // 高速化したいときだけ用いる。普段は使うべきではない。
+  // ※　see()の高速化のために用いている。
+  Bitboard piece_bb[PIECE_TYPE_BITBOARD_NB][COLOR_NB];
+
   // --- 利き
 
   // sに利きのあるc側の駒を列挙する。
@@ -551,9 +556,6 @@ protected:
   
   // 盤上の先手/後手/両方の駒があるところが1であるBitboard
   Bitboard occupied[COLOR_NB + 1];
-
-  // 駒が存在する升を表すBitboard
-  Bitboard piece_bb[PIECE_TYPE_BITBOARD_NB][COLOR_NB];
 
   // stが初期状態で指している、空のStateInfo
   StateInfo startState;

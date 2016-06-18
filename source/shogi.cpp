@@ -109,7 +109,7 @@ std::string to_usi_string(Move m)
   }
   else if (is_drop(m))
   {
-    ss << Piece(move_from(m));
+    ss << move_dropped_piece(m);
     ss << '*';
     ss << move_to(m);
   }

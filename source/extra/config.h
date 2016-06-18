@@ -92,6 +92,10 @@
 // Position::see()を用いるか。これはSEE(Static Exchange Evaluation : 静的取り合い評価)の値を返す関数。
 //#define USE_SEE
 
+// Apery風の単純化されたSEE()を用いる場合
+// これを指定しないときは、厳密な計算を行うSEE()で、そちらのほうが少し重い。
+// #define USE_SIMPLE_SEE
+
 // PV(読み筋)を表示するときに置換表の指し手をかき集めてきて表示するか。
 // 自前でPVを管理してRootMoves::pvを更新するなら、この機能を使う必要はない。
 // これはPVの更新が不要なので実装が簡単だが、Ponderの指し手を返すためには
@@ -122,6 +126,7 @@
 
 // ONE_PLY == 1にするためのモード。これを指定していなければONE_PLY == 2
 // #define ONE_PLY_EQ_1
+
 
 
 // --------------------
@@ -191,6 +196,7 @@
 #define ENABLE_TEST_CMD
 #define EVAL_KPPT
 #define USE_SEE
+//#define USE_SIMPLE_SEE
 #define USE_MOVE_PICKER_2016Q2
 //#define LONG_EFFECT_LIBRARY
 #define USE_MATE_1PLY

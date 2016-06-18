@@ -161,8 +161,8 @@ MovePicker::MovePicker(const Position& pos_, Move ttMove_, Depth depth_, Square 
 }
   
 // 通常探索時にProbCutの処理から呼び出されるの専用
-MovePicker::MovePicker(const Position& p, Move ttMove_, Value threshold_)
-  : pos(p), threshold(threshold_) {
+MovePicker::MovePicker(const Position& pos_, Move ttMove_, Value threshold_)
+  : pos(pos_), threshold(threshold_) {
 
   ASSERT_LV3(!pos.checkers());
 
@@ -375,6 +375,7 @@ Move MovePicker::next_move() {
       // recaptureの指し手が2つ以上あることは稀なのでここでオーダリングしてもあまり意味をなさないが、
       // 生成される指し手自体が少ないなら、pick_best()のコストはほぼ無視できるのでこれはやらないよりはマシ。
       move = pick_best(currentMoves++, endMoves);
+      ASSERT_LV3(move_to(move) == recaptureSquare);
       return move;
 
     case STOP:
@@ -405,12 +406,12 @@ void MovePicker::score_captures()
     // CAPTURES_PRO_PLUSで生成しているので歩の成る指し手が混じる。これは金と歩の価値の差の点数とする。
     const Move move = m.move;
 
-    // 移動させる駒の駒種
+    // 移動させる駒の駒種。駒取りなので移動元は盤上であることは保証されている。
     auto pt = type_of(pos.piece_on(move_from(move)));
     bool pawn_promo = is_promote(move) && pt == PAWN;
 
     // MVV-LVAに、歩の成りに加点する形にしておく。
-    m.value = (pawn_promo ? (Value)(Eval::GoldValue - Eval::PawnValue) : VALUE_ZERO)
+    m.value = (pawn_promo ? (Value)(Eval::ProDiffPieceValue[PAWN]) : VALUE_ZERO)
       + (Value)Eval::CapturePieceValue[pos.piece_on(move_to(move))]
       - LVA(pt);
 
@@ -461,7 +462,7 @@ void MovePicker::score_evasions()
     // evasion自体は指し手の数が少ないのでここでsee()を呼び出すコストは無視できる。
     // ただで取られる指し手を後回しに出来るメリットのほうが大きい。
 
-    if ((see = pos.see(m)) < VALUE_ZERO)
+    if ((see = pos.see_sign(m)) < VALUE_ZERO)
       m.value = see - HistoryStats::Max; // At the bottom
 
     else
@@ -472,9 +473,16 @@ void MovePicker::score_evasions()
     // 駒を取る指し手ならseeがプラスだったということなのでプラスの符号になるようにStats::Maxを足す。
     // あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
     // 価値が高いので(例えば合駒に安い駒を使う的な…)
-    if (pos.capture(m))
+    // LVAするときに王が10000だから、これが大きすぎる可能性がなくはないが…。
+    if (pos.capture_or_promotion(m))
+    {
       m.value = (Value)Eval::CapturePieceValue[pos.piece_on(move_to(m))]
-                - Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
+        - Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
+
+      // 成るなら、その成りの価値を加算
+      if (is_promote(m))
+        m.value += (Eval::ProDiffPieceValue[pos.piece_on(move_from(m))]);
+    }
     else
 #ifndef USE_DROPBIT_IN_STATS
       m.value = history[move_to(m)][pos.moved_piece_after(m)];

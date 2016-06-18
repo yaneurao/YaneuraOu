@@ -536,6 +536,8 @@ namespace YaneuraOu2016Mid
     //     eval呼び出し
     // -----------------------
 
+    pos.check_info_update();
+
     if (InCheck)
     {
       // 王手がかかっているならすべての指し手を調べるべきなのでevaluate()は呼び出さない。
@@ -619,7 +621,7 @@ namespace YaneuraOu2016Mid
 
     // 利きを用いるmate1ply()は、呼び出し前にpinを更新する必要があるが、
     // 利きを用いないmate1ply()なら、このタイミングで呼び出しておけば十分。
-    pos.check_info_update();
+//    pos.check_info_update();
 
     // 取り合いの指し手だけ生成する
     // searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうるが、
@@ -673,7 +675,7 @@ namespace YaneuraOu2016Mid
 
         // ToDo:MovePickerのなかでsee()を呼び出しているなら、ここで２重にsee()するのもったいないが…。
         // ToDo: pos.see(move, beta - futilityBase) <= VALUE_ZEORのほうが良い可能性。
-        if (futilityBase <= alpha && pos.see(move) <= VALUE_ZERO)
+        if (futilityBase <= alpha && pos.see_sign(move) <= VALUE_ZERO)
         {
           bestValue = std::max(bestValue, futilityBase);
           continue;
@@ -1398,8 +1400,8 @@ namespace YaneuraOu2016Mid
       // これはsingluar extensionの探索が終わってから決めなければならない。(singularなら延長したいので)
       Depth newDepth = depth - ONE_PLY + extension;
 
-      // 指し手で捕獲する指し手、もしくは成りである。
-      bool captureOrPromotion = pos.capture_or_promotion(move);
+      // 指し手で捕獲する指し手、もしくは歩の成りである。
+      bool captureOrPawnPromotion = pos.capture_or_pawn_promotion(move);
 
       //
       // Pruning at shallow depth
@@ -1413,7 +1415,7 @@ namespace YaneuraOu2016Mid
       Piece moved_pc = pos.moved_piece_after_ex(move);
 
       if (!RootNode
-        && !captureOrPromotion
+        && !captureOrPawnPromotion
         && !InCheck
         && !givesCheck
         && bestValue > VALUE_MATED_IN_MAX_PLY)
@@ -1479,7 +1481,7 @@ namespace YaneuraOu2016Mid
 
       if (depth >= 3 * ONE_PLY
         && moveCount > 1
-        && !captureOrPromotion)
+        && !captureOrPawnPromotion)
       {
         // Reduction量
         Depth r = reduction<PvNode>(improving, depth, moveCount);
@@ -1497,7 +1499,7 @@ namespace YaneuraOu2016Mid
         //    すなわち、moveのfromとtoを入れ替えて、その指し手でsee() < 0
         else if (!is_drop(move) // type_of(move)== NORMAL
           && type_of(pos.piece_on(move_to(move))) != PAWN
-          && pos.see(make_move(move_to(move), move_from(move))) < VALUE_ZERO)
+          && pos.see_sign(make_move(move_to(move), move_from(move))) < VALUE_ZERO)
           r -= 2 * ONE_PLY;
 
         // historyの値に応じて指し手のreduction量を増減する。
@@ -1665,7 +1667,7 @@ namespace YaneuraOu2016Mid
       // 探索した指し手を64手目までquietsSearchedに登録しておく。
       // あとでhistoryなどのテーブルに加点/減点するときに使う。
 
-      if (!captureOrPromotion && move != bestMove && quietCount < PARAM_QUIET_SEARCH_COUNT)
+      if (!captureOrPawnPromotion && move != bestMove && quietCount < PARAM_QUIET_SEARCH_COUNT)
         quietsSearched[quietCount++] = move;
 
     } // end of while
@@ -1680,7 +1682,7 @@ namespace YaneuraOu2016Mid
       bestValue = excludedMove ? alpha : mated_in(ss->ply);
 
     // 詰まされていない場合、bestMoveがあるならこの指し手をkiller等に登録する。
-    else if (bestMove && !pos.capture_or_promotion(bestMove))
+    else if (bestMove && !pos.capture_or_pawn_promotion(bestMove))
       update_stats(pos, ss, bestMove, depth, quietsSearched, quietCount);
 
     // fail lowを引き起こした前nodeでのcounter moveに対してボーナスを加点する。

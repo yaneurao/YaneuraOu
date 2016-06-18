@@ -12,5 +12,12 @@
 ・静止探索でのmate1ply()のタイミング少し早めにする。
 ・PieceValueCapture名前おかしいのでCapturePieceValueに変更。
 ・update_stats()するの、capture or pawn promotionであるべきか…。そうか。
+・駒打ちに対するmove_from()にassert追加。
+・駒打ちの駒を得るのにmove_from()を使っていたところ、move_dropped_piece()を使うように変更。
+・MovePickerのGOOD_RECAPTURESにassert追加。
+・Apery風のSEE()も実装した。USE_SIMPLE_SEEをdefineすると使える。
+・min_attackerの引数からpiece_bb削除。
+・SEE()で、と金で駒を取るときにそれがKING+1で王がとられる扱いになっていたの修正。
+・SEE()のordering修正。
 
 
