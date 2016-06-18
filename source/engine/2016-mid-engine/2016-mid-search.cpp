@@ -1126,7 +1126,8 @@ namespace YaneuraOu2016Mid
       ss->counterMoves = nullptr;
 
       // 残り探索深さと評価値によるnull moveの深さを動的に減らす
-      Depth R = ((PARAM_NULL_MOVE_DYNAMIC_ALPHA + PARAM_NULL_MOVE_DYNAMIC_BETA * depth) / 256 + std::min((int)((eval - beta) / PawnValue), 3)) * ONE_PLY;
+      Depth R = ((PARAM_NULL_MOVE_DYNAMIC_ALPHA + PARAM_NULL_MOVE_DYNAMIC_BETA * depth) / 256
+        + std::min((int)((eval - beta) / PawnValue), 3)) * ONE_PLY;
 
       // このタイミングでcheck_infoをupdateしないと、null_moveのときにStateInfo(含むCheckInfo)をコピーされてしまい、まずい。
       pos.check_info_update(ciu);
@@ -1243,9 +1244,9 @@ namespace YaneuraOu2016Mid
     // 上がって行っているなら枝刈りを甘くする。
     // ※ VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
     //   枝刈りを甘くして調べないといけないのでimproving扱いとする。
-    bool improving = (ss)->staticEval >= (ss - 2)->staticEval
-      || (ss    )->staticEval == VALUE_NONE
-      || (ss - 2)->staticEval == VALUE_NONE;
+    bool improving = (ss    )->staticEval >= (ss - 2)->staticEval
+                  || (ss    )->staticEval == VALUE_NONE
+                  || (ss - 2)->staticEval == VALUE_NONE;
     
     // singular延長をするnodeであるか。
     bool singularExtensionNode = !RootNode
@@ -1253,6 +1254,7 @@ namespace YaneuraOu2016Mid
       &&  ttMove != MOVE_NONE
       /*  &&  ttValue != VALUE_NONE これは次行の条件に暗に含まれている */
       &&  abs(ttValue) < VALUE_KNOWN_WIN
+      // ↑ここ、abs(beta) < VALUE_KNOWN_WINのほうがいいか？
       && !excludedMove // 再帰的なsingular延長はすべきではない
       && (tte->bound() & BOUND_LOWER)
       && tte->depth() >= depth - 3 * ONE_PLY;
@@ -1336,6 +1338,7 @@ namespace YaneuraOu2016Mid
 
       // 王手となる指し手でSEE >= 0であれば残り探索深さに1手分だけ足す。
       // また、置換表の指し手も延長対象。これはYSSの0.5手延長に似たもの。
+      // ※　将棋においてはこれはやりすぎの可能性も..
       if (givesCheck
         && (moveCount == 1
           || ( !moveCountPruning && pos.see_sign(move) >= VALUE_ZERO)))
@@ -1428,11 +1431,12 @@ namespace YaneuraOu2016Mid
         
         // Historyに基づいた枝刈り(history && counter moveの値が悪いものに関してはskip)
 
+        // ToDo : このへん、fmh,fmh2を調べるほうが良いかは微妙
         if (depth <= PARAM_PRUNING_BY_HISTORY_DEPTH * ONE_PLY
-          && move != (Move)(ss->killers[0])
-          && (!cmh  || (*cmh )[move_to(move)][moved_pc] < VALUE_ZERO)
-          && (!fmh  || (*fmh )[move_to(move)][moved_pc] < VALUE_ZERO)
-          && (!fmh2 || (*fmh2)[move_to(move)][moved_pc] < VALUE_ZERO || (cmh && fmh)))
+          && make_move32(move) != ss->killers[0]
+          && (!cmh  || (*cmh )[moved_sq][moved_pc] < VALUE_ZERO)
+          && (!fmh  || (*fmh )[moved_sq][moved_pc] < VALUE_ZERO)
+          && (!fmh2 || (*fmh2)[moved_sq][moved_pc] < VALUE_ZERO || (cmh && fmh)))
           continue;
 
         // Futility pruning: at parent node
@@ -1485,6 +1489,8 @@ namespace YaneuraOu2016Mid
       {
         // Reduction量
         Depth r = reduction<PvNode>(improving, depth, moveCount);
+
+        // ToDo:ここ、fmh,fmh2を見たほうがいいかは微妙。
         Value val = thisThread->history[moved_sq][moved_pc]
                       + (cmh  ? (*cmh )[moved_sq][moved_pc] : VALUE_ZERO)
                       + (fmh  ? (*fmh )[moved_sq][moved_pc] : VALUE_ZERO)
@@ -1494,13 +1500,17 @@ namespace YaneuraOu2016Mid
         if (!PvNode && cutNode)
           r += 2 * ONE_PLY;
 
-        // 歩以外が捕獲から逃れる指し手はreduction量を減らす。
+#if 0
+        // 捕獲から逃れる指し手はreduction量を減らす。
         // ※　捕獲から逃れる = この移動先にある駒で移動元の駒が取れる。
         //    すなわち、moveのfromとtoを入れ替えて、その指し手でsee() < 0
         else if (!is_drop(move) // type_of(move)== NORMAL
           && type_of(pos.piece_on(move_to(move))) != PAWN
+// →　captureOrPawnPromotionではないので、移動先に歩があるはずはなく、
+// これは、チェスのキャスリング判定絡み？
           && pos.see_sign(make_move(move_to(move), move_from(move))) < VALUE_ZERO)
           r -= 2 * ONE_PLY;
+#endif
 
         // historyの値に応じて指し手のreduction量を増減する。
         int rHist = (val - (PARAM_REDUCTION_BY_HISTORY/2)) / PARAM_REDUCTION_BY_HISTORY;

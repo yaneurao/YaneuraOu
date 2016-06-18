@@ -45,16 +45,16 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH = 4;
 
 // 元の値 = 823
 // [PARAM] min:500,max:1500,step:16,interval:1,time_rate:1
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_ALPHA = 871;
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_ALPHA = 823;
 
 // 元の値 = 67
 // [PARAM] min:50,max:100,step:3,interval:1,time_rate:1
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 64;
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 67;
 
 // null moveの前提depthと、beta値を上回ったときにreturnするdepth
 // 元の値 = 12
 // [PARAM] min:4,max:10,step:1,interval:2,time_rate:1
-PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 11;
+PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 12;
 
 //
 // probcut
