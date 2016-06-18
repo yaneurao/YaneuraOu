@@ -139,7 +139,7 @@ namespace YaneuraOu2016Mid
 #else
   // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
   Value futility_margin(Depth d, int game_ply) {
-    return Value(d * PARAM_FUTILITY_MARGIN_ALPHA / ONE_PLY);
+    return Value(d * (PARAM_FUTILITY_MARGIN_ALPHA + param1 * 10 - 20) / ONE_PLY);
   }
 #endif
 
@@ -1550,8 +1550,8 @@ namespace YaneuraOu2016Mid
       if (PvNode && (moveCount == 1 || (value > alpha && (RootNode || value < beta))))
       {
         // 次のnodeのPVポインターはこのnodeのpvバッファを指すようにしておく。
+        (ss + 1)->pv = pv;
         (ss+1)->pv[0] = MOVE_NONE;
-        (ss+1)->pv = pv;
 
         // full depthで探索するときはcutNodeにしてはいけない。
         value = newDepth < ONE_PLY ?

@@ -19,5 +19,7 @@
 ・min_attackerの引数からpiece_bb削除。
 ・SEE()で、と金で駒を取るときにそれがKING+1で王がとられる扱いになっていたの修正。
 ・SEE()のordering修正。
+・historyのupdate()を呼び出すときに打ち駒で+32していないところがあったのを修正。
+
 
 

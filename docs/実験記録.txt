@@ -556,6 +556,19 @@
 
 	null moveのreduction等を戻す。
 
+		秒読み3000[ms]
+
+		41.8%	
+		#207
+		やねうら王2016mid V310o
+		see() fix。1スレッド
+		#0
+		silent_majority_V1.1公式
+		1スレッド
+
+		46-2-64(96.5% R-57.4)	
+
+
 	V3.10p
 
 -        pv[0] = MOVE_NONE;
@@ -573,7 +586,28 @@
 
 	historyのupdateで打ち駒を+32してないところがあった。修正した。
 	
+	魔女より15%ぐらい遅いのかも知れない。(R40相当？)
+	評価関数の差分計算とMoveの構造体、考えなおしたほうがよさ気。
 
+		秒読み3000[ms]
+
+		43.9%	
+		#208
+		やねうら王2016mid V310p
+		see() fix。1スレッド
+		#0
+		silent_majority_V1.1公式
+		1スレッド
+
+		47-5-60(91.2% R-42.4)	
+
+	npsの差程度に落ち着いてきた？寝る前に10秒で回しておく。
+	せっかくなのでfutilityの幅を変える実験でもしておく。
+
+	V3.10q
+		  Value futility_margin(Depth d, int game_ply) {
+			return Value(d * (PARAM_FUTILITY_MARGIN_ALPHA + param1 * 10 - 20) / ONE_PLY);
+		  }
 
 
 
