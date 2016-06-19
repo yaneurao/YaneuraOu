@@ -9,8 +9,7 @@
 // depth手先で評価値が変動する幅が = depth * PARAM_FUTILITY_MARGIN_DEPTH
 // 元の値 = 200
 // [PARAM] min:50,max:120,step:3,interval:1,time_rate:1
-//PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 174;
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 200;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 180;
 
 // 静止探索でのfutility pruning
 // 元の値 = 128

@@ -1,4 +1,22 @@
 ﻿
+
+■　2016/06/20
+
+] V3.11
+
+      // 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
++      // tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
++      // →　どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないからこれをやめる。
+
+
+	Core i7 4771k
+	===========================
+	Total time (ms) : 150870
+	Nodes searched  : 92242005
+	Nodes/second    : 611400
+
+
+
 ■　2016/06/18
 
 ] PGO
@@ -303,13 +321,6 @@
 	10秒でもそんなにRは下がらなくなってきた。よしよし。
 
 
-	Apery/魔女のProbCutの条件逆だな。平岡さんに報告しとこう。
-    ttMove = !ttm.isNone()
-      && pos.moveIsPseudoLegal(ttm)
--      && !ttMove.isCapture()
-+      && ttMove.isCapture()
-
-
 	USE_DROPBIT_IN_STATS、もしかして無駄である可能性…。
 	まあいいや。いまそこが問題ではない。
 
@@ -609,6 +620,24 @@
 			return Value(d * (PARAM_FUTILITY_MARGIN_ALPHA + param1 * 10 - 20) / ONE_PLY);
 		  }
 
+	Move32bit化、bit layout考えなおしたほうがよさ気。
+	移動させる駒、上位16bitに格納するなら、駒打ちをそのbit5に格納したほうがいいような。
+	historyで打ち駒を本当に分けたほうがいいのかはよくわからないが。
+	historyにおいて、移動させる元の駒でorderingすべきなのか、そのあとの駒でorderingすべきか。
+	指し手生成のときにそこまで生成すべきかどうか悩むな。
 
 
+		秒読み10000[ms]
+
+		41.1%	37.2%	37.5%	36.3%	39.6%	
+		#209
+		やねうら王2016mid V310q
+		futility実験。1スレッド
+		#0
+		silent_majority_V1.1公式
+		1スレッド
+
+		129-18-185(99.9% R-62.6)	110-16-186(100.0% R-91.2)	112-13-187(100.0% R-89.0)	110-9-193(100.0% R-97.7)	120-9-183(100.0% R-73.3)	
+
+	futility margin 180にしておくか。
 

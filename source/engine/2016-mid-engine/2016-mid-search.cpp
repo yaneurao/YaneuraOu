@@ -139,7 +139,7 @@ namespace YaneuraOu2016Mid
 #else
   // game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
   Value futility_margin(Depth d, int game_ply) {
-    return Value(d * (PARAM_FUTILITY_MARGIN_ALPHA + param1 * 10 - 20) / ONE_PLY);
+    return Value(d * PARAM_FUTILITY_MARGIN_ALPHA / ONE_PLY);
   }
 #endif
 
@@ -1060,7 +1060,8 @@ namespace YaneuraOu2016Mid
         eval = ss->staticEval = -(ss - 1)->staticEval + 2 * Tempo;
       
       // 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
-      tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
+      // tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
+      // →　どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないからこれをやめる。
     }
 
     // このnodeで指し手生成前の枝刈りを省略するなら指し手生成ループへ。
@@ -1134,6 +1135,7 @@ namespace YaneuraOu2016Mid
       ciu = CHECK_INFO_UPDATE_ALL; // updateはすべて終わったとマークしておく。
 
       pos.do_null_move(st);
+
       (ss + 1)->skipEarlyPruning = true;
 
       //  王手がかかっているときはここに来ていないのでqsearchはInCheck == falseのほうを呼ぶ。
@@ -1280,12 +1282,10 @@ namespace YaneuraOu2016Mid
     // CheckInfoのうち、残りのものをupdateしてやる。
     pos.check_info_update(ciu);
 
-#if 0
     // このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
     // evaluate()を呼び出していないなら呼び出しておく。
     // ss->staticEvalに代入するとimprovingの判定間違うのでそれはしないほうがよさげ。
     evaluate_with_no_return(pos);
-#endif
 
     MovePicker mp(pos, ttMove, depth, ss);
 
