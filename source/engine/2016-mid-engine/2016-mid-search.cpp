@@ -319,7 +319,11 @@ namespace YaneuraOu2016Mid
 
     // 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
     Square prevSq = move_to((ss - 1)->currentMove);
+#ifndef    USE_DROPBIT_IN_STATS
     Piece prevPc = pos.piece_on(prevSq);
+#else
+    Piece prevPc = pos.piece_on(prevSq) + Piece(is_drop((ss - 1)->currentMove) ? 32 : 0);
+#endif
 
     ASSERT_LV3(move != MOVE_NULL);
 
@@ -332,7 +336,11 @@ namespace YaneuraOu2016Mid
     // 今回のmoveで動かした局面ではないので、pos.piece_on()では移動後の駒は得られない。
 
     Square sq = move_to(move);
+#ifndef    USE_DROPBIT_IN_STATS
     Piece mpc = pos.moved_piece_after(move);
+#else
+    Piece mpc = pos.moved_piece_after_ex(move);
+#endif
     thisThread->history.update(mpc, sq , bonus);
 
     if (cmh)
@@ -352,7 +360,11 @@ namespace YaneuraOu2016Mid
     for (int i = 0; i < quietsCnt; ++i)
     {
       Square qto = move_to(quiets[i]);
+#ifndef    USE_DROPBIT_IN_STATS
       Piece qpc = pos.moved_piece_after(quiets[i]);
+#else
+      Piece qpc = pos.moved_piece_after_ex(quiets[i]);
+#endif
       thisThread->history.update(qpc, qto , -bonus);
 
       // 前の局面の指し手がMOVE_NULLでないならcounter moveもupdateしておく。
@@ -1054,8 +1066,9 @@ namespace YaneuraOu2016Mid
         eval = ss->staticEval = -(ss - 1)->staticEval + 2 * Tempo;
       
       // 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
-      // tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
-      // →　どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないからこれをやめる。
+      tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
+      // どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないのだが、mate1ply()を
+      // 実行したという証にはなるので意味がある。
     }
 
     // このnodeで指し手生成前の枝刈りを省略するなら指し手生成ループへ。
@@ -1193,7 +1206,11 @@ namespace YaneuraOu2016Mid
         if (pos.legal(move))
         {
           ss->currentMove = move;
+#ifndef    USE_DROPBIT_IN_STATS
           ss->counterMoves = &CounterMoveHistory[move_to(move)][pos.moved_piece_after(move)];
+#else
+          ss->counterMoves = &CounterMoveHistory[move_to(move)][pos.moved_piece_after_ex(move)];
+#endif
 
           pos.do_move(move, st, pos.gives_check(move));
           value = -search<NonPV>(pos, ss + 1, -rbeta, -rbeta + 1, rdepth, !cutNode);
@@ -1409,7 +1426,11 @@ namespace YaneuraOu2016Mid
 
       // このあと、この指し手のhistoryの値などを調べたいのでいま求めてしまう。
       Square moved_sq = move_to(move);
+#ifndef    USE_DROPBIT_IN_STATS
       Piece moved_pc = pos.moved_piece_after(move);
+#else
+      Piece moved_pc = pos.moved_piece_after_ex(move);
+#endif
 
       if (!RootNode
         && !captureOrPawnPromotion
@@ -1699,8 +1720,13 @@ namespace YaneuraOu2016Mid
     {
       // 残り探索depthの2乗ぐらいのボーナスを与える。
       Value bonus = Value((int)(depth / ONE_PLY) * (int)(depth / ONE_PLY) + 2 * depth / ONE_PLY - 2);
-//      Piece prevPc = pos.piece_on(prevSq) + Piece(is_drop((ss - 1)->currentMove) ? 32 : 0);
+
+#ifndef    USE_DROPBIT_IN_STATS
       Piece prevPc = pos.piece_on(prevSq);
+#else
+      Piece prevPc = pos.piece_on(prevSq) + Piece(is_drop((ss - 1)->currentMove) ? 32 : 0);
+#endif
+
       if ((ss - 2)->counterMoves)
           (ss - 2)->counterMoves->update(prevPc, prevSq, bonus);
 

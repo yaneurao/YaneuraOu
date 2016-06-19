@@ -229,6 +229,7 @@ struct Position
   void set_nodes_searched(uint64_t n) { nodes = n; }
   int64_t nodes_searched() const { return nodes; }
 
+  // 現局面に対して
   // この指し手によって移動させる駒を返す。(移動前の駒)
   // 後手の駒打ちは後手の駒が返る。
   Piece moved_piece_before(Move m) const {

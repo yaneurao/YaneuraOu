@@ -96,11 +96,11 @@ MovePicker::MovePicker(const Position& pos_,Move ttMove_,Depth depth_, Search::S
   ASSERT_LV3(depth_ > DEPTH_ZERO);
 
   Square prevSq = move_to((ss - 1)->currentMove);
-  Piece prevPc = 
+  Piece prevPc =
 #ifndef USE_DROPBIT_IN_STATS   
-    pos.moved_piece_after((ss - 1)->currentMove);
+      pos.piece_on(prevSq);
 #else
-    pos.moved_piece_after_ex((ss - 1)->currentMove);
+      pos.piece_on(prevSq) + Piece(is_drop((ss-1)->currentMove) ? 32 : 0);
 #endif
 
   countermove =
