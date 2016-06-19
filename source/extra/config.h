@@ -15,7 +15,8 @@
 
 // SSE4.2以降でサポートされた命令を使うか。
 // このシンボルをdefineしなければ、popcnt命令をソフトウェアでエミュレートする。
-// 古いCPUのPCで開発をしたていて、遅くてもいいからともかく動いて欲しいときにそうすると良い。
+// (ただしSSE2は必要)
+// 古いCPUのPCで開発をしていて、遅くてもいいからともかく動いて欲しいときにそうすると良い。
 
 #define USE_SSE42
 
@@ -203,7 +204,7 @@
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
 #define KEEP_PIECE_IN_COUNTER_MOVE
-#define USE_DROPBIT_IN_STATS
+//#define USE_DROPBIT_IN_STATS
 #define ONE_PLY_EQ_1
 #endif
 

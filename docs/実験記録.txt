@@ -16,6 +16,109 @@
 	Nodes/second    : 611400
 
 
+		秒読み1000[ms]
+
+		59.5%	
+		#210
+		やねうら王2016mid V311
+		新基準。1スレッド
+		#0
+		silent_majority_V1.1公式
+		1スレッド
+
+		94-5-64(0.7% R66.8)	
+
+
+		秒読み3000[ms]
+
+		41.4%	
+		#210
+		やねうら王2016mid V311
+		新基準。1スレッド
+		#0
+		silent_majority_V1.1公式
+		1スレッド
+
+		96-10-136(99.7% R-60.5)	
+
+
+	V3.11a
+	historyでdropの+32をやめると？
+
+		-      pc = Piece(pos.piece_on(sq) + (is_drop(move) ? 32 : 0));     \
+		+      pc = Piece(pos.piece_on(sq) );     \
+
+  Piece moved_piece_after_ex(Move m) const {
+    return is_drop(m)
+-      ? Piece(move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE) + 32)
++      ? Piece(move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE) /*+ 32*/)
+      : is_promote(m) ? Piece(piece_on(move_from(m)) + PIECE_PROMOTE) : piece_on(move_from(m));
+  }
+
+-        Piece prevPc = pos.piece_on(prevSq) + Piece(is_drop((ss - 1)->currentMove) ? 32 : 0);
++       Piece prevPc = pos.piece_on(prevSq);
+
+
+  これで互角なら、この処理なくしたい。
+  Moveに移動させる駒が入っていれば、親nodeの移動させる駒が得られて、移動前の駒種でhistoryが
+  引けて便利なのかも知れない。(cf. Apery)
+  そこで強さに差が出ないなら、そのほうがシンプル。
+
+		秒読み1000[ms]
+
+		48.6%	
+		#211
+		やねうら王2016mid V311a
+		history駒打ち削除。1スレッド
+		#210
+		やねうら王2016mid V311
+		新基準。1スレッド
+
+		297-13-314(76.7% R-9.7)	
+
+	誤差ぐらい。ここでわずかに良くとも、CPU cache汚染とかの問題があるので
+	誤差ぐらいしか変わらないなら採用したくないのだが…。
+
+		秒読み3000[ms]
+
+		49.7%	
+		#211
+		やねうら王2016mid V311a
+		history駒打ち削除。1スレッド
+		#210
+		やねうら王2016mid V311
+		新基準。1スレッド
+
+		292-17-295(56.6% R-1.8)	
+
+	ほぼ誤差だな。これは削除すべきか。そうか。
+
+		  // 直前のnodeの指し手で動かした駒(移動後の駒)とその移動先の升を返す。
+		  // この実装においてmoved_piece()は使えない。これは現在のPosition::side_to_move()の駒が返るからである。
+		  // 駒打ちのときは、駒打ちの駒(+32した駒)が返る。
+		#define sq_pc_from_move(sq,pc,move)                                \
+			{                                                              \
+			  sq = move_to(move);                                          \
+			  pc = Piece(pos.piece_on(sq);     \
+			}
+
+	V3.11b
+	ソースコード整理して、やねうら王2016 MidではUSE_DROPBIT_IN_STATSを使わないようにした。
+	以前のバージョンより弱くなっていないかをテスト。
+
+	history、移動前の駒で評価しても棋力変わらないのかも。
+	指し手生成のときにmoveの上位bitを移動後の駒にするのは難しくはないのだが。
+	というか、成りはquietではないのでhistoryからそもそも除外されているのか？
+	除外は歩の成りだけか。うーん。角とか飛車の成り、本当に除外していいのか？
+	価値上昇値が、歩の成りよりは低いか。	
+
+
+	//
+
+	MovePicker、killerの数に応じて、QUIET0,1,2,3とか分岐してはダメか？そこそこ意味があるような？
+	KPPTは、ehash実装したほうが速いのかも。
+
+
 
 ■　2016/06/18
 

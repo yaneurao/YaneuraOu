@@ -255,14 +255,6 @@ namespace YaneuraOu2016Mid
   //     Statsのupdate
   // -----------------------
 
-  // 直前のnodeの指し手で動かした駒(移動後の駒)とその移動先の升を返す。
-  // この実装においてmoved_piece()は使えない。これは現在のPosition::side_to_move()の駒が返るからである。
-  // 駒打ちのときは、駒打ちの駒(+32した駒)が返る。
-#define sq_pc_from_move(sq,pc,move)                                \
-    {                                                              \
-      sq = move_to(move);                                          \
-      pc = Piece(pos.piece_on(sq) + (is_drop(move) ? 32 : 0));     \
-    }
 
   CounterMoveHistoryStats CounterMoveHistory;
 
@@ -326,11 +318,8 @@ namespace YaneuraOu2016Mid
     Value bonus = Value((int)(depth / ONE_PLY) * (int)(depth / ONE_PLY) + 2 * (int)(depth / ONE_PLY) - 2);
 
     // 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
-    // 駒打ちの場合は+32した駒
-    Square prevSq;
-    Piece prevPc;
-
-    sq_pc_from_move(prevSq    , prevPc    , (ss - 1)->currentMove);
+    Square prevSq = move_to((ss - 1)->currentMove);
+    Piece prevPc = pos.piece_on(prevSq);
 
     ASSERT_LV3(move != MOVE_NULL);
 
@@ -339,38 +328,43 @@ namespace YaneuraOu2016Mid
     CounterMoveStats* fmh2 = (ss - 4)->counterMoves;
 
     auto thisThread = pos.this_thread();
-    Piece mpc = pos.moved_piece_after_ex(move);
-    thisThread->history.update(mpc, move_to(move), bonus);
+
+    // 今回のmoveで動かした局面ではないので、pos.piece_on()では移動後の駒は得られない。
+
+    Square sq = move_to(move);
+    Piece mpc = pos.moved_piece_after(move);
+    thisThread->history.update(mpc, sq , bonus);
 
     if (cmh)
     {
       // counter moveだが、移動させた駒を上位16バイトのほうに保持しておく。
       thisThread->counterMoves.update(prevPc, prevSq, move32 );
-      cmh->update(mpc, move_to(move), bonus);
+      cmh->update(mpc,sq, bonus);
     }
 
     if (fmh)
-      fmh->update(mpc, move_to(move), bonus);
+      fmh->update(mpc,sq, bonus);
 
     if (fmh2)
-      fmh2->update(mpc, move_to(move), bonus);
+      fmh2->update(mpc, sq, bonus);
 
     // このnodeのベストの指し手以外の指し手はボーナス分を減らす
     for (int i = 0; i < quietsCnt; ++i)
     {
-      Piece qpc = pos.moved_piece_after_ex(quiets[i]);
-      thisThread->history.update(qpc, move_to(quiets[i]), -bonus);
+      Square qto = move_to(quiets[i]);
+      Piece qpc = pos.moved_piece_after(quiets[i]);
+      thisThread->history.update(qpc, qto , -bonus);
 
       // 前の局面の指し手がMOVE_NULLでないならcounter moveもupdateしておく。
 
       if (cmh )
-        cmh ->update(qpc, move_to(quiets[i]), -bonus);
+        cmh ->update(qpc, qto , -bonus);
 
       if (fmh )
-        fmh ->update(qpc, move_to(quiets[i]), -bonus);
+        fmh ->update(qpc, qto , -bonus);
 
       if (fmh2)
-        fmh2->update(qpc, move_to(quiets[i]), -bonus);
+        fmh2->update(qpc, qto , -bonus);
     }
 
     // さらに、1手前で置換表の指し手が反駁されたときは、追加でペナルティを与える。
@@ -1199,7 +1193,7 @@ namespace YaneuraOu2016Mid
         if (pos.legal(move))
         {
           ss->currentMove = move;
-          ss->counterMoves = &CounterMoveHistory[move_to(move)][pos.moved_piece_after_ex(move)];
+          ss->counterMoves = &CounterMoveHistory[move_to(move)][pos.moved_piece_after(move)];
 
           pos.do_move(move, st, pos.gives_check(move));
           value = -search<NonPV>(pos, ss + 1, -rbeta, -rbeta + 1, rdepth, !cutNode);
@@ -1415,7 +1409,7 @@ namespace YaneuraOu2016Mid
 
       // このあと、この指し手のhistoryの値などを調べたいのでいま求めてしまう。
       Square moved_sq = move_to(move);
-      Piece moved_pc = pos.moved_piece_after_ex(move);
+      Piece moved_pc = pos.moved_piece_after(move);
 
       if (!RootNode
         && !captureOrPawnPromotion
@@ -1705,7 +1699,8 @@ namespace YaneuraOu2016Mid
     {
       // 残り探索depthの2乗ぐらいのボーナスを与える。
       Value bonus = Value((int)(depth / ONE_PLY) * (int)(depth / ONE_PLY) + 2 * depth / ONE_PLY - 2);
-      Piece prevPc = pos.piece_on(prevSq) + Piece(is_drop((ss - 1)->currentMove) ? 32 : 0);
+//      Piece prevPc = pos.piece_on(prevSq) + Piece(is_drop((ss - 1)->currentMove) ? 32 : 0);
+      Piece prevPc = pos.piece_on(prevSq);
       if ((ss - 2)->counterMoves)
           (ss - 2)->counterMoves->update(prevPc, prevSq, bonus);
 

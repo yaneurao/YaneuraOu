@@ -5,19 +5,6 @@
 #include "../thread.h"
 
 // -----------------------
-//   misc.
-// -----------------------
-
-// 直前のnodeの指し手で動かした駒(移動後の駒)とその移動先の升を返す。
-// この実装においてmoved_piece()は使えない。これは現在のPosition::side_to_move()の駒が返るからである。
-// 駒打ちのときは、駒打ちの駒(+32した駒)が返る。
-#define sq_pc_from_move(sq,pc,move)                                \
-    {                                                              \
-      sq = move_to(move);                                          \
-      pc = Piece(pos.piece_on(sq) + (is_drop(move) ? 32 : 0));     \
-    }
-
-// -----------------------
 //   LVA
 // -----------------------
 
@@ -108,9 +95,13 @@ MovePicker::MovePicker(const Position& pos_,Move ttMove_,Depth depth_, Search::S
   // 通常探索から呼び出されているので残り深さはゼロより大きい。
   ASSERT_LV3(depth_ > DEPTH_ZERO);
 
-  Square prevSq;
-  Piece prevPc;
-  sq_pc_from_move(prevSq, prevPc, (ss - 1)->currentMove);
+  Square prevSq = move_to((ss - 1)->currentMove);
+  Piece prevPc = 
+#ifndef USE_DROPBIT_IN_STATS   
+    pos.moved_piece_after((ss - 1)->currentMove);
+#else
+    pos.moved_piece_after_ex((ss - 1)->currentMove);
+#endif
 
   countermove =
     is_ok((ss - 1)->currentMove)

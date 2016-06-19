@@ -249,7 +249,7 @@ struct Position
   // 成りの指し手のときは成りの指し手を返す。(移動後の駒)
   Piece moved_piece_after_ex(Move m) const {
     return is_drop(m)
-      ? Piece(move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE) + 32)
+      ? Piece(move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE) + 32 )
       : is_promote(m) ? Piece(piece_on(move_from(m)) + PIECE_PROMOTE) : piece_on(move_from(m));
   }
 
