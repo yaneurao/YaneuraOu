@@ -316,7 +316,7 @@ namespace YaneuraOuClassic
 
     posKey  = pos.state()->key();
     tte     = TT.probe(posKey, ttHit);
-    ttMove  = ttHit ? tte->move() : MOVE_NONE;
+    ttMove  = ttHit ? pos.move16_to_move(tte->move()) : MOVE_NONE;
     ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
 
     // nonPVでは置換表の指し手で枝刈りする
@@ -732,7 +732,7 @@ namespace YaneuraOuClassic
     // RootNodeであるなら、(MultiPVなどでも)現在注目している1手だけがベストの指し手と仮定できるから、
     // それが置換表にあったものとして指し手を進める。
     Move ttMove = RootNode ? thisThread->rootMoves[thisThread->PVIdx].pv[0]
-                : ttHit    ? tte->move() : MOVE_NONE;
+                : ttHit    ? pos.move16_to_move(tte->move()) : MOVE_NONE;
 
     // 置換表の値による枝刈り
 
@@ -1007,7 +1007,7 @@ namespace YaneuraOuClassic
       ss->skipEarlyPruning = false;
 
       tte = TT.probe(posKey, ttHit);
-      ttMove = ttHit ? tte->move() : MOVE_NONE;
+      ttMove = ttHit ? pos.move16_to_move(tte->move()) : MOVE_NONE;
     }
 
     // -----------------------

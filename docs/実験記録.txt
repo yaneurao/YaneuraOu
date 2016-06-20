@@ -268,6 +268,20 @@
 	delta = Value(18 - 2 + 1 * param1);
 	param1 = 0..4
 
+		秒読み3000[ms]
+
+		46.7%	48.0%	45.2%	51.3%	41.9%	
+		#217
+		やねうら王2016mid V311g
+		aspiration調整。1スレッド
+		#0
+		silent_majority_V1.1公式
+		1スレッド
+
+		70-6-80(81.5% R-23.2)	72-6-78(71.6% R-13.9)	66-10-80(89.3% R-33.4)	78-4-74(34.3% R9.1)	62-4-86(98.0% R-56.8)	
+
+	回数が少なくてよくわからない。
+
 
 		// --- Counter Move
 
@@ -285,6 +299,84 @@
 		#endif
 
 	このコード完全に削除して、Moveは32bit固定したほうがいいな。
+
+		#ifndef KEEP_PIECE_IN_COUNTER_MOVE
+			// しかし、Counter Moveの手は手番に関係ないので(駒種を保持していないなら)取り違える可能性があるため
+			// (しかも、その可能性はそこそこ高い)、ここで合法性をチェックする必要がある。
+			switch (pr)
+			{
+			case PAWN:
+			case LANCE:
+			  if ((us == BLACK && rank_of(to) == RANK_1) || (us == WHITE && rank_of(to) == RANK_9))
+				return false;
+			  break;
+			case KNIGHT:
+			  if ((us == BLACK && rank_of(to) < RANK_3) || (us == WHITE && rank_of(to) > RANK_7))
+				return false;
+			  break;
+			}
+		#else
+			// 変な指し手を渡していないか、assertを入れて調べておく。(ASSERT_LV4以上のとき用)
+			switch (pr)
+			{
+			case PAWN:
+			case LANCE:
+			  if ((us == BLACK && rank_of(to) == RANK_1) || (us == WHITE && rank_of(to) == RANK_9))
+				ASSERT_LV4(false);
+			  break;
+			case KNIGHT:
+			  if ((us == BLACK && rank_of(to) < RANK_3) || (us == WHITE && rank_of(to) > RANK_7))
+				ASSERT_LV4(false);
+			  break;
+			}
+		#endif
+
+	V3.11h
+
+	===========================
+	Total time (ms) : 110191
+	Nodes searched  : 62019533
+	Nodes/second    : 562836
+
+	何も速くなってない。なんなん…。
+
+	まだいろいろ指し手生成にバグがあるようだ。
+	random playerでデバッグ。
+
+		#if 0
+			  cout << pos;
+			  for (auto m : mg)
+			  {
+				auto pc = pos.moved_piece_after_ex(m);
+				cout << (Move)m << " " << pc << endl;
+			  }
+			  cout << endl;
+		#endif
+
+		  // ここで生成された指し手がすべて合法手であるかテストをする
+		  for (auto m : mg)
+		  {
+			if (!pos.pseudo_legal(m))
+			{
+			  auto pc = pos.moved_piece_after_ex(m);
+			  cout << pos << (Move)m << " " << pc;
+			  pos.pseudo_legal(m);
+			}
+
+			ASSERT_LV3(pos.pseudo_legal(m));
+			ASSERT_LV2(pos.legal(m));
+		  }
+		  →　やっとtest通った。
+
+	===========================
+	Total time (ms) : 185363
+	Nodes searched  : 106442741
+	Nodes/second    : 574239
+
+	ほぼ高速化していないというのは指し手生成で余分なコストがかかった分を
+	回収できていないのか。MovePickerはシンプルになったが…。
+
+
 
 
 ■　2016/06/18

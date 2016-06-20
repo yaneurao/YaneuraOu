@@ -27,8 +27,8 @@
 //#define YANEURAOU_NANO_PLUS_ENGINE   // やねうら王nano plus   (完成2016/02/25)
 //#define YANEURAOU_MINI_ENGINE        // やねうら王mini        (完成2016/02/29)
 //#define YANEURAOU_CLASSIC_ENGINE     // やねうら王classic     (完成2016/04/03)
-#define YANEURAOU_CLASSIC_TCE_ENGINE // やねうら王classic tce (完成2016/04/15)
-//#define YANEURAOU_2016_MID_ENGINE    // やねうら王2016(MID)   (開発中)
+//#define YANEURAOU_CLASSIC_TCE_ENGINE // やねうら王classic tce (完成2016/04/15)
+#define YANEURAOU_2016_MID_ENGINE    // やねうら王2016(MID)   (開発中)
 //#define YANEURAOU_2016_LATE_ENGINE   // やねうら王2016(LATE)  (開発中)
 //#define RANDOM_PLAYER_ENGINE         // ランダムプレイヤー
 //#define MATE_ENGINE                  // 詰め将棋solverとしてリリースする場合。(開発中)
@@ -426,7 +426,9 @@ enum Piece : int32_t
 };
 
 // USIプロトコルで駒を表す文字列を返す。
-inline std::string usi_piece(Piece pc) { return std::string(". P L N S B R G K +P+L+N+S+B+R+G+.p l n s b r g k +p+l+n+s+b+r+g+k").substr(pc * 2, 2); }
+// 駒打ちの駒なら先頭に"D"。
+inline std::string usi_piece(Piece pc) { return std::string((pc & 32) ? "D":"")
+  + std::string(". P L N S B R G K +P+L+N+S+B+R+G+.p l n s b r g k +p+l+n+s+b+r+g+k").substr((pc & 31) * 2, 2); }
 
 // 駒に対して、それが先後、どちらの手番の駒であるかを返す。
 constexpr Color color_of(Piece pc) { return (pc & PIECE_WHITE) ? WHITE : BLACK; }
@@ -559,7 +561,7 @@ struct ExtMove {
 
   // Move型とは暗黙で変換できていい。
 
-  operator Move() const { return (Move)move; }
+  operator Move() const { return move; }
   void operator=(Move m) { move = m; }
 };
 
@@ -881,6 +883,8 @@ extern USI::OptionsMap Options;
 Move move_from_usi(const Position& pos, const std::string& str);
 
 // 合法かのテストはせずにともかく変換する版。
+// 返ってくるのは16bitのMoveなので、これを32bitのMoveに変換するには
+// Position::move16_to_move()を呼び出す必要がある。
 Move move_from_usi(const std::string& str);
 
 // --------------------

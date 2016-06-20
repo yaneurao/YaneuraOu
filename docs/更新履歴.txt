@@ -9,7 +9,9 @@
 ・MovePickerのkillerまわり修正。
 ・evalのフォルダをUSIのsetoptionで変更できるように。
 ・指し手生成段階で移動先での駒種 + 打ち駒なら32 をしたものを上位bitに格納するように変更。Moveの32bit化
-・MovePicker_2015.h削除
+・#define KEEP_PIECE_IN_COUNTER_MOVE　削除。
+・駒打ちの駒(+32)を cout << pc;のようにして表示できるように拡張。
+・Move move_from_usi(const std::string& str)に、Move16が返るというコメント追加。
 
 
 ■　2016/06/18 V3.10

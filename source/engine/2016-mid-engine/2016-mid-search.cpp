@@ -515,7 +515,7 @@ namespace YaneuraOu2016Mid
 
     posKey  = pos.state()->key();
     tte     = TT.probe(posKey, ttHit);
-    ttMove  = ttHit ? tte->move() : MOVE_NONE;
+    ttMove  = ttHit ? pos.move16_to_move(tte->move()) : MOVE_NONE;
     ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
 
     // nonPVでは置換表の指し手で枝刈りする
@@ -949,7 +949,7 @@ namespace YaneuraOu2016Mid
     // RootNodeであるなら、(MultiPVなどでも)現在注目している1手だけがベストの指し手と仮定できるから、
     // それが置換表にあったものとして指し手を進める。
     Move ttMove = RootNode ? thisThread->rootMoves[thisThread->PVIdx].pv[0]
-                : ttHit    ? tte->move() : MOVE_NONE;
+                : ttHit    ? pos.move16_to_move(tte->move()) : MOVE_NONE;
 
     // 置換表の値による枝刈り
 
@@ -1235,7 +1235,7 @@ namespace YaneuraOu2016Mid
       ss->skipEarlyPruning = false;
 
       tte = TT.probe(posKey, ttHit);
-      ttMove = ttHit ? tte->move() : MOVE_NONE;
+      ttMove = ttHit ? pos.move16_to_move(tte->move()) : MOVE_NONE;
     }
 
     // -----------------------
@@ -2033,7 +2033,7 @@ void Thread::search()
         // やねうら王のKPP評価関数では35～40ぐらいがベスト。
         // やねうら王のKPPT(Apery WCSC26)ではもう少し小さいほうが良いか。
         // もっと精度の高い評価関数を用意すべき。
-        delta = Value(18 - 2 + 1 * param1);
+        delta = Value(18);
 
         alpha = std::max(rootMoves[PVIdx].previousScore - delta, -VALUE_INFINITE);
         beta  = std::min(rootMoves[PVIdx].previousScore + delta,  VALUE_INFINITE);

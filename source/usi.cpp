@@ -163,7 +163,7 @@ namespace USI
           bool found;
           auto tte = TT.probe(pos.state()->key(), found);
           ply++;
-          moves[ply] = found ? tte->move() : MOVE_NONE;
+          moves[ply] = found ? pos.move16_to_move((tte->move()) : MOVE_NONE;
         }
         while (ply > 0)
           pos_->undo_move(moves[--ply]);
@@ -726,6 +726,9 @@ Move move_from_usi(const Position& pos, const std::string& str)
 
   // usi文字列をmoveに変換するやつがいるがな..
   Move move = move_from_usi(str);
+
+  // 上位bitに駒種を入れておかないとpseudo_legal()で引っかかる。
+  move = pos.move16_to_move(move);
 
   // pseudo_legal(),legal()チェックのためにはCheckInfoのupdateが必要。
   const_cast<Position*>(&pos)->check_info_update();

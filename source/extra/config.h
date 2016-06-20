@@ -121,10 +121,6 @@
 // ONE_PLY == 1にするためのモード。これを指定していなければONE_PLY == 2
 // #define ONE_PLY_EQ_1
 
-// MovePickerのなかで使っているCounterMoveにおいて、移動させる駒種も含めるか。
-// (これを含めると同じ移動をする別の駒をCounterMoveとしてみなさなくなり、ちょっと枝刈り性能が上がるはず)
-// #define KEEP_PIECE_IN_COUNTER_MOVE
-
 // オーダリングに使っているStatsの配列のなかで駒打ちのためのbitを持つ。
 // #define USE_DROPBIT_IN_STATS
 
@@ -144,6 +140,7 @@
 #define EVAL_KPP
 #define USE_TT_PV
 #define KEEP_LAST_MOVE
+#define KEEP_PIECE_IN_GENERATE_MOVES
 #endif
 
 #ifdef YANEURAOU_NANO_PLUS_ENGINE
@@ -152,9 +149,10 @@
 #define EVAL_KPP
 #define USE_TT_PV
 #define USE_SEE
-#define USE_MOVE_PICKER_2016Q2
+#define USE_MOVE_PICKER_2015
 #define LONG_EFFECT_LIBRARY
 #define USE_MATE_1PLY
+#define KEEP_PIECE_IN_GENERATE_MOVES
 #endif
 
 #ifdef YANEURAOU_MINI_ENGINE
@@ -162,9 +160,11 @@
 #define ENABLE_TEST_CMD
 #define EVAL_KPP
 #define USE_SEE
-#define USE_MOVE_PICKER_2016Q2
+#define USE_MOVE_PICKER_2015
 #define LONG_EFFECT_LIBRARY
 #define USE_MATE_1PLY
+#define USE_DROPBIT_IN_STATS
+#define KEEP_PIECE_IN_GENERATE_MOVES
 #endif
 
 #ifdef YANEURAOU_CLASSIC_ENGINE
@@ -172,10 +172,12 @@
 #define ENABLE_TEST_CMD
 #define EVAL_KPP
 #define USE_SEE
-#define USE_MOVE_PICKER_2016Q2
+#define USE_MOVE_PICKER_2015
 #define LONG_EFFECT_LIBRARY
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
+#define USE_DROPBIT_IN_STATS
+#define KEEP_PIECE_IN_GENERATE_MOVES
 #endif
 
 #ifdef YANEURAOU_CLASSIC_TCE_ENGINE
@@ -183,13 +185,13 @@
 #define ENABLE_TEST_CMD
 #define EVAL_KPP
 #define USE_SEE
-#define USE_MOVE_PICKER_2016Q2
+#define USE_MOVE_PICKER_2015
 #define LONG_EFFECT_LIBRARY
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
-#define KEEP_PIECE_IN_COUNTER_MOVE
 #define USE_DROPBIT_IN_STATS
+#define KEEP_PIECE_IN_GENERATE_MOVES
 #endif
 
 #ifdef YANEURAOU_2016_MID_ENGINE
@@ -205,7 +207,6 @@
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
-#define KEEP_PIECE_IN_COUNTER_MOVE
 #define USE_DROPBIT_IN_STATS
 #define KEEP_PIECE_IN_GENERATE_MOVES
 #define ONE_PLY_EQ_1
@@ -223,7 +224,6 @@
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
-#define KEEP_PIECE_IN_COUNTER_MOVE
 #define USE_DROPBIT_IN_STATS
 #endif
 
