@@ -115,19 +115,21 @@
 // TimeMangementクラスに、今回の思考時間を計算する機能を追加するか。
 // #define USE_TIME_MANAGEMENT
 
-// MovePickerのなかで使っているCounterMoveにおいて、移動させる駒種も含めるか。
-// (これを含めると同じ移動をする別の駒をCounterMoveとしてみなさなくなり、ちょっと枝刈り性能が上がるはず)
-// #define KEEP_PIECE_IN_COUNTER_MOVE
-
 // 置換表のなかでevalを持たない
 // #define NO_EVAL_IN_TT
-
-// オーダリングに使っているStatsの配列のなかで駒打ちのためのbitを持つ。
-// #define USE_DROPBIT_IN_STATS
 
 // ONE_PLY == 1にするためのモード。これを指定していなければONE_PLY == 2
 // #define ONE_PLY_EQ_1
 
+// MovePickerのなかで使っているCounterMoveにおいて、移動させる駒種も含めるか。
+// (これを含めると同じ移動をする別の駒をCounterMoveとしてみなさなくなり、ちょっと枝刈り性能が上がるはず)
+// #define KEEP_PIECE_IN_COUNTER_MOVE
+
+// オーダリングに使っているStatsの配列のなかで駒打ちのためのbitを持つ。
+// #define USE_DROPBIT_IN_STATS
+
+// 指し手生成のときに上位16bitにto(移動後の升)に来る駒を格納する。
+// #define KEEP_PIECE_IN_GENERATE_MOVES
 
 
 // --------------------
@@ -150,7 +152,7 @@
 #define EVAL_KPP
 #define USE_TT_PV
 #define USE_SEE
-#define USE_MOVE_PICKER_2015
+#define USE_MOVE_PICKER_2016Q2
 #define LONG_EFFECT_LIBRARY
 #define USE_MATE_1PLY
 #endif
@@ -160,7 +162,7 @@
 #define ENABLE_TEST_CMD
 #define EVAL_KPP
 #define USE_SEE
-#define USE_MOVE_PICKER_2015
+#define USE_MOVE_PICKER_2016Q2
 #define LONG_EFFECT_LIBRARY
 #define USE_MATE_1PLY
 #endif
@@ -170,7 +172,7 @@
 #define ENABLE_TEST_CMD
 #define EVAL_KPP
 #define USE_SEE
-#define USE_MOVE_PICKER_2015
+#define USE_MOVE_PICKER_2016Q2
 #define LONG_EFFECT_LIBRARY
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
@@ -181,7 +183,7 @@
 #define ENABLE_TEST_CMD
 #define EVAL_KPP
 #define USE_SEE
-#define USE_MOVE_PICKER_2015
+#define USE_MOVE_PICKER_2016Q2
 #define LONG_EFFECT_LIBRARY
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
@@ -205,6 +207,7 @@
 #define USE_TIME_MANAGEMENT
 #define KEEP_PIECE_IN_COUNTER_MOVE
 #define USE_DROPBIT_IN_STATS
+#define KEEP_PIECE_IN_GENERATE_MOVES
 #define ONE_PLY_EQ_1
 #endif
 
@@ -381,22 +384,6 @@ const bool Is64Bit = true;
 const bool Is64Bit = false;
 #endif
 
-
-// --- Counter Move
-
-// KEEP_PIECE_IN_COUNTER_MOVEがdefineされていたなら、
-// 移動させた駒を上位16bitに格納しておく。
-// bit24...16 = 移動させた駒(Piece。後手の駒含む)
-// bit15... 0 = 本来のMove
-
-#ifdef KEEP_PIECE_IN_COUNTER_MOVE
-typedef uint32_t Move32;
-#define COUNTER_MOVE Move32
-// 指し手の上位に駒種(移動前の駒)を格納してMove32化する。
-#define make_move32(move) ((Move32)((move) + (pos.moved_piece_before(move) << 16)))
-#else
-#define COUNTER_MOVE Move 
-#endif
 
 // --- evaluate function
 

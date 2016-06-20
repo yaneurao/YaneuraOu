@@ -27,8 +27,8 @@
 //#define YANEURAOU_NANO_PLUS_ENGINE   // やねうら王nano plus   (完成2016/02/25)
 //#define YANEURAOU_MINI_ENGINE        // やねうら王mini        (完成2016/02/29)
 //#define YANEURAOU_CLASSIC_ENGINE     // やねうら王classic     (完成2016/04/03)
-//#define YANEURAOU_CLASSIC_TCE_ENGINE // やねうら王classic tce (完成2016/04/15)
-#define YANEURAOU_2016_MID_ENGINE    // やねうら王2016(MID)   (開発中)
+#define YANEURAOU_CLASSIC_TCE_ENGINE // やねうら王classic tce (完成2016/04/15)
+//#define YANEURAOU_2016_MID_ENGINE    // やねうら王2016(MID)   (開発中)
 //#define YANEURAOU_2016_LATE_ENGINE   // やねうら王2016(LATE)  (開発中)
 //#define RANDOM_PLAYER_ENGINE         // ランダムプレイヤー
 //#define MATE_ENGINE                  // 詰め将棋solverとしてリリースする場合。(開発中)
@@ -482,7 +482,8 @@ constexpr bool is_ok(PieceNo pn) { return PIECE_NO_ZERO <= pn && pn < PIECE_NO_N
 // --------------------
 
 // 指し手 bit0..6 = 移動先のSquare、bit7..13 = 移動元のSquare(駒打ちのときは駒種)、bit14..駒打ちか、bit15..成りか
-enum Move : uint16_t {
+// 上位16bitには、この指し手によってto(移動後の升)に来る駒。駒打ちのときは、さらに+32。
+enum Move : uint32_t {
 
   MOVE_NONE    = 0,             // 無効な移動
 
@@ -553,19 +554,13 @@ inline std::ostream& operator<<(std::ostream& os, Move m) { os << to_usi_string(
 // オーダリングのときにスコアで並べ替えしたいが、一つになっているほうが並び替えがしやすいのでこうしてある。
 struct ExtMove {
 
-  Move32 move;   // 指し手
+  Move move;   // 指し手(32bit)
   Value value; // これはMovePickerが指し手オーダリングのために並び替えるときに用いる値(≠評価値)。
 
   // Move型とは暗黙で変換できていい。
 
   operator Move() const { return (Move)move; }
   void operator=(Move m) { move = m; }
-  Move32 move32() const { return move; }
-
-#ifdef KEEP_PIECE_IN_COUNTER_MOVE
-  // killerやcounter moveを32bit(Move32)で扱うときに、無理やりExtMoveに代入するためのhack
-  void operator=(Move32 m) { move = m; }
-#endif
 };
 
 // ExtMoveの並べ替えを行なうので比較オペレーターを定義しておく。

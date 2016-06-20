@@ -238,18 +238,15 @@ namespace YaneuraOuClassicTce
   inline void update_stats(const Position& pos, Stack* ss, Move move,
     Depth depth, Move* quiets, int quietsCnt)
   {
-    // 今回の指し手の32bit化
-    Move32 move32 = make_move32(move);
-
     // IID、null move、singular extensionの判定のときは浅い探索なのでこのときに
     // killer等を更新するのは有害である。
     if (ss->skipEarlyPruning)
     {
       // しかしkillerがないときはkillerぐらいは登録したほうが少しだけ得かも。
       if (ss->killers[0] == MOVE_NONE)
-        ss->killers[0] = move32;
+        ss->killers[0] = move;
       else if (ss->killers[1] == MOVE_NONE)
-        ss->killers[1] = move32;
+        ss->killers[1] = move;
 
       return;
     }
@@ -257,10 +254,10 @@ namespace YaneuraOuClassicTce
     //   killerのupdate
 
     // killer 2本しかないので[0]と違うならいまの[0]を[1]に降格させて[0]と差し替え
-    if (ss->killers[0] != move32)
+    if (ss->killers[0] != move)
     {
       ss->killers[1] = ss->killers[0];
-      ss->killers[0] = move32;
+      ss->killers[0] = move;
     }
 
     //   historyのupdate
@@ -288,7 +285,7 @@ namespace YaneuraOuClassicTce
     if (is_ok((ss - 1)->currentMove))
     {
       // counter moveだが、移動させた駒を上位16バイトのほうに保持しておく。
-      thisThread->counterMoves.update(prevPc, prevSq, move32 );
+      thisThread->counterMoves.update(prevPc, prevSq, move );
       cmh.update(mpc, move_to(move), bonus);
     }
 

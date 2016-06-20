@@ -127,9 +127,6 @@
     <ClInclude Include="extra\evalsum.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
-    <ClInclude Include="extra\move_picker_2015.h">
-      <Filter>リソース ファイル\extra</Filter>
-    </ClInclude>
     <ClInclude Include="extra\move_picker_2016Q2.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>

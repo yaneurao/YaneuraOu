@@ -4,10 +4,6 @@
 
 #include "../thread.h"
 
-// QUIETSの指し手を返すときに、分岐させて、少し高速化する…かと思ったが、
-// ほとんどのnodeにおいてkillerとcountermoveが設定されているので、無駄だった。
-// #define FAST_QUIETS
-
 // -----------------------
 //   LVA
 // -----------------------
@@ -56,10 +52,6 @@ enum Stages {
   KILLERS,                      // KILLERの指し手
   BAD_CAPTURES,                 // 捕獲する悪い指し手(SEE < 0 の指し手だが、将棋においてそこまで悪い手とは限らない)
   QUIETS,                       // CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す。SEE値の悪い手は後回し。
-#ifdef FAST_QUIETS
-  QUIETS0, QUIETS1, QUIETS2, QUIETS3, QUIETS4,
-                                // ttMove + killerの数に応じた分岐
-#endif
 
   // -----------------------------------------------------
   //   王手がかっている/静止探索時用の指し手生成
@@ -199,7 +191,7 @@ void MovePicker::generate_next_stage()
     killers[0] = ss->killers[0];
     killers[1] = ss->killers[1];
     killers[2] = countermove;
-    currentMoves = (ExtMove*)killers;
+    currentMoves = killers;
     endMoves = currentMoves + 2 + (countermove != killers[0] && countermove != killers[1]);
     break;
 
@@ -228,20 +220,6 @@ void MovePicker::generate_next_stage()
       // 残り探索深さがある程度あるなら、ソートする時間は相対的に無視できる。
       insertion_sort(currentMoves, endMoves);
     }
-
-#ifdef FAST_QUIETS
-    // killerにttMove + killersの指し手を詰めて、QUIETS0～QUIETS4に分岐
-    {
-
-      int move_count = 0;
-      if (killers[0]) move_count++;
-      if (killers[1]) killers[move_count++] = killers[1];
-      if (killers[2]) killers[move_count++] = killers[2];
-      if (ttMove) killers[move_count++] = ttMove;
-
-      stage = (Stages)(QUIETS0 + move_count);
-    }
-#endif
     break;
 
   case ALL_EVASIONS:
@@ -256,9 +234,6 @@ void MovePicker::generate_next_stage()
     break;
 
     // そのステージの末尾に達したのでMovePickerを終了する。
-#ifdef FAST_QUIETS
-  case QUIETS1: case QUIETS2: case QUIETS3: case QUIETS4:
-#endif
   case EVASION_START: case QSEARCH_WITH_CHECKS_START: case QSEARCH_WITHOUT_CHECKS_START:
   case PROBCUT_START: case RECAPTURE_START: case STOP:
     stage = STOP;
@@ -295,31 +270,13 @@ Move MovePicker::next_move() {
       // (直前に置換表の指し手を返しているし、CAPTURES_PRO_PLUSでの指し手も返しているのでそれらの指し手は除外されるべき)
       // また、killerの3つ目はcounter moveでこれは先後の区別がないのでpseudo_legal_s<X,true>()を呼び出す必要がある。
     case KILLERS:
-#ifdef KEEP_PIECE_IN_COUNTER_MOVE
-      {
-        Move32 move32 = currentMoves++->move;
-        move = (Move)move32;
-        // 今回移動させる駒種が一致するかを確認する。
-        // このチェックにより先手/後手の指し手であることが担保される。
-        if (move32 != make_move32(move))
-        {
-          // このkiller、非適用なのであとでquietsのときに除外されると困るからnullを書き込んでおく。
-          (currentMoves - 1)->move = 0;
-          break;
-        }
-      }
-#else
       move = *currentMoves++;
-#endif
 
       if (move != MOVE_NONE                       // ss->killer[0],[1]からコピーしただけなのでMOVE_NONEの可能性がある
         &&  move != ttMove                        // 置換表の指し手を重複除去しないといけない
         &&  pos.pseudo_legal_s<false>(move)       // pseudo_legalでない指し手以外に歩や大駒の不成なども除外
         && !pos.capture_or_pawn_promotion(move))  // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
         return move;
-
-      // このkiller、非適用なのであとでquietsのときに除外されると困るからnullを書き込んでおく。
-      (currentMoves - 1)->move = 0;
 
       break;
 

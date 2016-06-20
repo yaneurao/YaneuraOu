@@ -37,7 +37,7 @@ struct Stats {
   void clear() { std::memset(table, 0, sizeof(table)); }
 
   // tableに指し手を格納する。(Tの型がMoveのとき)
-  void update(Piece pc, Square to, COUNTER_MOVE m)
+  void update(Piece pc, Square to, Move m)
   {
     ASSERT_LV4(is_ok(to));
     table[to][pc] = m;
@@ -80,7 +80,7 @@ private:
 // TがValueのときは指し手に対するスコアとなる。これがhistory table(HistoryStatsとCounterMoveStats)
 // このStats<CounterMoveStats>は、直前の指し手に対する、あらゆる指し手に対するスコアである。
 
-typedef Stats<COUNTER_MOVE    > MoveStats;
+typedef Stats<Move            > MoveStats;
 typedef Stats<Value, false    > HistoryStats;
 typedef Stats<Value, true     > CounterMoveStats;
 typedef Stats<CounterMoveStats> CounterMoveHistoryStats;
@@ -134,7 +134,7 @@ private:
   Search::Stack* ss;
 
   // コンストラクタで渡された、前の局面の指し手に対する応手
-  COUNTER_MOVE countermove;
+  Move countermove;
 
   // コンストラクタで渡された探索深さ
   Depth depth;

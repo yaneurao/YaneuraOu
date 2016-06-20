@@ -13,6 +13,8 @@ using namespace std;
 //      移動による指し手
 // ----------------------------------
 
+#ifndef KEEP_PIECE_IN_GENERATE_MOVES
+
 // 成らない指し手生成を生成する
 #define MAKE_MOVE_TARGET(target_) { FOREACH_BB(target_,to,{ mlist++->move = make_move(from,to); }); }
 
@@ -24,6 +26,49 @@ using namespace std;
 
 // 成れることが確定しているときにAllのときだけ不成の指し手を生成する指し手生成(角、飛車用)
 #define MAKE_MOVE_TARGET_PRO_BR(target_) { FOREACH_BB(target_,to,{ mlist++->move = make_move_promote(from,to); if (All) mlist++->move = make_move(from,to); }); }
+
+// 駒打ち
+#define MAKE_MOVE_TARGET_DROP(target_,Pt) FOREACH_BB(target_, sq, { mlist++->move = make_move_drop(Pt,sq); });
+
+
+
+#else
+// -----------------------------------------------
+// 上位16bitに移動後の駒を格納しながらの指し手生成
+// -----------------------------------------------
+
+// 成らない指し手生成を生成する
+#define MAKE_MOVE_TARGET(target_) { FOREACH_BB(target_,to,{                                           \
+  mlist++->move = Move(make_move(from,to) + (((Us ? WHITE:0)+Pt) << 16));                             \
+});}
+
+// 成りと不成の指し手を生成する
+#define MAKE_MOVE_TARGET_PRO(target_) { FOREACH_BB(target_,to,{                                       \
+  mlist++->move = Move(make_move_promote(from,to) + (((Us ? WHITE : 0) + Pt + PIECE_PROMOTE) << 16)); \
+  mlist++->move = Move(make_move(from,to) + (((Us ? WHITE : 0) + Pt) << 16));                         \
+});}
+
+// 成りの指し手のみを生成する
+#define MAKE_MOVE_TARGET_PRO_ONLY(target_) { FOREACH_BB(target_,to,{                                  \
+  mlist++->move = Move(make_move_promote(from,to) + (((Us ? WHITE : 0) + Pt + PIECE_PROMOTE) << 16)); \
+});}
+
+// 成れることが確定しているときにAllのときだけ不成の指し手を生成する指し手生成(角、飛車用)
+#define MAKE_MOVE_TARGET_PRO_BR(target_) { FOREACH_BB(target_,to,{                                    \
+  mlist++->move = Move(make_move_promote(from,to) + (((Us ? WHITE : 0) + Pt + PIECE_PROMOTE) << 16)); \
+  if (All) mlist++->move = Move(make_move(from,to) + (((Us ? WHITE : 0) + Pt) << 16));                \
+});}
+
+// 駒打ち
+#define MAKE_MOVE_TARGET_DROP(target_,Pt) { FOREACH_BB(target_, sq, {                                 \
+  mlist++->move = Move(make_move_drop(Pt,sq) + (((Us ? WHITE : 0) + Pt + 32) << 16));                 \
+});}
+
+
+
+#endif
+
+
 
 // fromにあるpcをtargetの升に移動させる指し手の生成。
 // 遅いので駒王手の指し手生成のときにしか使わない。
@@ -225,7 +270,9 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
     {
       auto from = pieces.pop();
       // fromの升にある駒をfromの升においたときの利き
-      auto target2 = effects_from(pos.piece_on(from), from, occ) & target;
+      const auto Pt0 = pos.piece_on(from);
+      const auto Pt = type_of(Pt0);
+      auto target2 = effects_from(Pt0, from, occ) & target;
 
       MAKE_MOVE_TARGET(target2);
     }
@@ -364,7 +411,7 @@ template <Color Us> struct GenerateDropMoves {
       }
 
       // targetで表現される升に歩を打つ指し手の生成。
-      FOREACH_BB(target2, sq, { mlist++->move = make_move_drop(PAWN,sq); });
+      MAKE_MOVE_TARGET_DROP(target2, PAWN);
     }
 
     // --- 歩以外を打つ指し手生成
@@ -382,6 +429,8 @@ template <Color Us> struct GenerateDropMoves {
       // という3つの場合分けによるループで構成される。
       // そのため、手駒から香・桂を除いた駒と、桂を除いた駒が必要となる。
 
+#ifndef KEEP_PIECE_IN_GENERATE_MOVES
+
       int num = 0;
       if (hand_exists(hk, KNIGHT)) drops[num++] = make_move_drop(KNIGHT,SQ_ZERO);
 
@@ -394,6 +443,23 @@ template <Color Us> struct GenerateDropMoves {
       if (hand_exists(hk, GOLD)) drops[num++] = make_move_drop(GOLD,SQ_ZERO);
       if (hand_exists(hk, BISHOP)) drops[num++] = make_move_drop(BISHOP,SQ_ZERO);
       if (hand_exists(hk, ROOK)) drops[num++] = make_move_drop(ROOK,SQ_ZERO);
+
+#else
+
+      int num = 0;
+      if (hand_exists(hk, KNIGHT)) drops[num++] = Move(make_move_drop(KNIGHT, SQ_ZERO) + (((Us ? WHITE : 0) + KNIGHT + 32) << 16));
+
+      int nextToKnight = num; // 桂を除いたdropsのindex
+      if (hand_exists(hk, LANCE )) drops[num++] = Move(make_move_drop(LANCE, SQ_ZERO)  + (((Us ? WHITE : 0) + LANCE  + 32) << 16));
+
+      int nextToLance = num; // 香・桂を除いたdropsのindex
+
+      if (hand_exists(hk, SILVER)) drops[num++] = Move(make_move_drop(SILVER, SQ_ZERO) + (((Us ? WHITE : 0) + SILVER + 32) << 16));
+      if (hand_exists(hk, GOLD  )) drops[num++] = Move(make_move_drop(GOLD, SQ_ZERO)   + (((Us ? WHITE : 0) + GOLD   + 32) << 16));
+      if (hand_exists(hk, BISHOP)) drops[num++] = Move(make_move_drop(BISHOP, SQ_ZERO) + (((Us ? WHITE : 0) + BISHOP + 32) << 16));
+      if (hand_exists(hk, ROOK  )) drops[num++] = Move(make_move_drop(ROOK, SQ_ZERO)   + (((Us ? WHITE : 0) + ROOK   + 32) << 16));
+
+#endif
 
       // 以下、コードが膨れ上がるが、dropは比較的、数が多く時間がわりとかかるので展開しておく価値があるかと思う。
       // 動作ターゲットとするプロセッサにおいてbenchを取りながら進めるべき。

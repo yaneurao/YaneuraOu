@@ -266,8 +266,6 @@ namespace YaneuraOu2016Mid
   inline void update_stats(const Position& pos, Stack* ss, Move move,
     Depth depth, Move* quiets, int quietsCnt)
   {
-    // 今回の指し手の32bit化
-    Move32 move32 = make_move32(move);
 
     // IID、null move、singular extensionの判定のときは浅い探索なのでこのときに
     // killer等を更新するのは有害である。
@@ -280,10 +278,10 @@ namespace YaneuraOu2016Mid
       {
 
         // 普通にkillerのupdateを行なう。
-        if (ss->killers[0] != move32)
+        if (ss->killers[0] != move)
         {
           ss->killers[1] = ss->killers[0];
-          ss->killers[0] = move32;
+          ss->killers[0] = move;
         }
 
       } else
@@ -294,9 +292,9 @@ namespace YaneuraOu2016Mid
         // killerがないときはkillerぐらいは登録したほうが少しだけ得。
 
         if (ss->killers[0] == MOVE_NONE)
-          ss->killers[0] = move32;
+          ss->killers[0] = move;
         else if (ss->killers[1] == MOVE_NONE)
-          ss->killers[1] = move32;
+          ss->killers[1] = move;
       }
 
       return;
@@ -305,10 +303,10 @@ namespace YaneuraOu2016Mid
     //   killerのupdate
 
     // killer 2本しかないので[0]と違うならいまの[0]を[1]に降格させて[0]と差し替え
-    if (ss->killers[0] != move32)
+    if (ss->killers[0] != move)
     {
       ss->killers[1] = ss->killers[0];
-      ss->killers[0] = move32;
+      ss->killers[0] = move;
     }
 
     //   historyのupdate
@@ -345,8 +343,7 @@ namespace YaneuraOu2016Mid
 
     if (cmh)
     {
-      // counter moveだが、移動させた駒を上位16バイトのほうに保持しておく。
-      thisThread->counterMoves.update(prevPc, prevSq, move32 );
+      thisThread->counterMoves.update(prevPc, prevSq, move );
       cmh->update(mpc,sq, bonus);
     }
 
@@ -1448,7 +1445,7 @@ namespace YaneuraOu2016Mid
 
         // ToDo : このへん、fmh,fmh2を調べるほうが良いかは微妙
         if (depth <= PARAM_PRUNING_BY_HISTORY_DEPTH * ONE_PLY
-          && make_move32(move) != ss->killers[0]
+          && move != ss->killers[0]
           && (!cmh  || (*cmh )[moved_sq][moved_pc] < VALUE_ZERO)
           && (!fmh  || (*fmh )[moved_sq][moved_pc] < VALUE_ZERO)
           && (!fmh2 || (*fmh2)[moved_sq][moved_pc] < VALUE_ZERO || (cmh && fmh)))
@@ -2036,7 +2033,7 @@ void Thread::search()
         // やねうら王のKPP評価関数では35～40ぐらいがベスト。
         // やねうら王のKPPT(Apery WCSC26)ではもう少し小さいほうが良いか。
         // もっと精度の高い評価関数を用意すべき。
-        delta = Value(18);
+        delta = Value(18 - 2 + 1 * param1);
 
         alpha = std::max(rootMoves[PVIdx].previousScore - delta, -VALUE_INFINITE);
         beta  = std::min(rootMoves[PVIdx].previousScore + delta,  VALUE_INFINITE);

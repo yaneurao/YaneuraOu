@@ -245,6 +245,47 @@
 ・moved_piece_after_exがいいどうか検討すべき。
 	→　これやはり、それで正しい気がする。
 
+	V3.11f
+	aspirationのマージンを3秒で自動調整。
+
+	        delta = Value(18 - 6 + 3 * param1);
+
+	param1 = 0..4ぐらいで勝率を見る
+
+		秒読み3000[ms]
+
+		40.9%	46.8%	48.7%	47.4%	44.7%	
+		#216
+		やねうら王2016mid V311f
+		aspiration調整。1スレッド
+		#0
+		silent_majority_V1.1公式
+		1スレッド
+
+		61-5-88(98.9% R-63.7)	36-1-41(75.3% R-22.6)	37-2-39(63.4% R-9.1)	36-2-40(71.7% R-18.3)	34-2-42(84.9% R-36.7)	
+
+	V3.11g
+	delta = Value(18 - 2 + 1 * param1);
+	param1 = 0..4
+
+
+		// --- Counter Move
+
+		// KEEP_PIECE_IN_COUNTER_MOVEがdefineされていたなら、
+		// 移動させた駒を上位16bitに格納しておく。
+		// bit24...16 = 移動させた駒(Piece。後手の駒含む)
+		// bit15... 0 = 本来のMove
+
+		#ifdef KEEP_PIECE_IN_COUNTER_MOVE
+		#define COUNTER_MOVE Move32
+		// 指し手の上位に駒種(移動前の駒)を格納してMove32化する。
+		#define make_move32(move) ((Move32)((move) + (pos.moved_piece_after_ex(move) << 16)))
+		#else
+		#define COUNTER_MOVE Move 
+		#endif
+
+	このコード完全に削除して、Moveは32bit固定したほうがいいな。
+
 
 ■　2016/06/18
 
