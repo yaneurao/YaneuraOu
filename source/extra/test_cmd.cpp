@@ -110,9 +110,9 @@ struct PerftSolver {
       for (auto m : MoveList<LEGAL_ALL>(pos)) {
         if (Root)
           cout << ".";
-        pos.do_move(m.move, st);
+        pos.do_move(m, st);
         result += Perft<false>(pos, depth - 1);
-        pos.undo_move(m.move);
+        pos.undo_move(m);
       }
     }
     return result;
@@ -273,8 +273,8 @@ void random_player(Position& pos,uint64_t loop_max)
       // ここで生成された指し手がすべて合法手であるかテストをする
       for (auto m : mg)
       {
-        ASSERT_LV3(pos.pseudo_legal(m.move));
-        ASSERT_LV2(pos.legal(m.move));
+        ASSERT_LV3(pos.pseudo_legal(m));
+        ASSERT_LV2(pos.legal(m));
       }
 
 #ifdef MATE1PLY_CHECK
@@ -339,7 +339,7 @@ void random_player(Position& pos,uint64_t loop_max)
 #endif
 
       // 生成された指し手のなかからランダムに選び、その指し手で局面を進める。
-      Move m = mg.begin()[prng.rand(mg.size())].move;
+      Move m = mg.begin()[prng.rand(mg.size())];
 
       pos.do_move(m, state[ply]);
       moves[ply] = m;
@@ -414,7 +414,7 @@ void random_player_bench_cmd(Position& pos, istringstream& is)
         break;
 
       pos.check_info_update();
-      Move m = mg.begin()[prng.rand(mg.size())].move;
+      Move m = mg.begin()[prng.rand(mg.size())];
 
       pos.do_move(m, state[ply]);
       moves[ply] = m;
@@ -493,7 +493,7 @@ void test_genchecks(Position& pos, uint64_t loop_max)
 
 
       // 生成された指し手のなかからランダムに選び、その指し手で局面を進める。
-      Move m = mg.begin()[rand() % mg.size()].move;
+      Move m = mg.begin()[rand() % mg.size()];
 
       pos.do_move(m, state[ply]);
       moves[ply] = m;

@@ -16,13 +16,13 @@ namespace Eval
 {
 
 // KKファイル名
-#define KK_BIN "eval\\KK_synthesized.bin"
+#define KK_BIN "\\KK_synthesized.bin"
   
 // KKPファイル名
-#define KKP_BIN "eval\\KKP_synthesized.bin"
+#define KKP_BIN "\\KKP_synthesized.bin"
 
 // KPPファイル名
-#define KPP_BIN "eval\\KPP_synthesized.bin"
+#define KPP_BIN "\\KPP_synthesized.bin"
 
   // 手番込みの評価値。[0]が手番に無縁な部分。[1]が手番があるときの上乗せ
   //  (これは先手から見たものではなく先後に依存しないボーナス)。
@@ -50,17 +50,17 @@ namespace Eval
   {
     {
       // KK
-      std::ifstream ifsKK(KK_BIN, std::ios::binary);
+      std::ifstream ifsKK((string)Options["EvalDir"] + KK_BIN, std::ios::binary);
       if (ifsKK) ifsKK.read(reinterpret_cast<char*>(kk), sizeof(kk));
       else goto Error;
 
       // KKP
-      std::ifstream ifsKKP(KKP_BIN, std::ios::binary);
+      std::ifstream ifsKKP((string)Options["EvalDir"] + KKP_BIN, std::ios::binary);
       if (ifsKKP) ifsKKP.read(reinterpret_cast<char*>(kkp), sizeof(kkp));
       else goto Error;
 
       // KPP
-      std::ifstream ifsKPP(KPP_BIN, std::ios::binary);
+      std::ifstream ifsKPP((string)Options["EvalDir"] + KPP_BIN, std::ios::binary);
       if (ifsKPP) ifsKPP.read(reinterpret_cast<char*>(kpp), sizeof(kpp));
       else goto Error;
     }

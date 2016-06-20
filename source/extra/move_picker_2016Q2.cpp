@@ -4,6 +4,10 @@
 
 #include "../thread.h"
 
+// QUIETSの指し手を返すときに、分岐させて、少し高速化する…かと思ったが、
+// ほとんどのnodeにおいてkillerとcountermoveが設定されているので、無駄だった。
+// #define FAST_QUIETS
+
 // -----------------------
 //   LVA
 // -----------------------
@@ -52,6 +56,10 @@ enum Stages {
   KILLERS,                      // KILLERの指し手
   BAD_CAPTURES,                 // 捕獲する悪い指し手(SEE < 0 の指し手だが、将棋においてそこまで悪い手とは限らない)
   QUIETS,                       // CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す。SEE値の悪い手は後回し。
+#ifdef FAST_QUIETS
+  QUIETS0, QUIETS1, QUIETS2, QUIETS3, QUIETS4,
+                                // ttMove + killerの数に応じた分岐
+#endif
 
   // -----------------------------------------------------
   //   王手がかっている/静止探索時用の指し手生成
@@ -220,6 +228,20 @@ void MovePicker::generate_next_stage()
       // 残り探索深さがある程度あるなら、ソートする時間は相対的に無視できる。
       insertion_sort(currentMoves, endMoves);
     }
+
+#ifdef FAST_QUIETS
+    // killerにttMove + killersの指し手を詰めて、QUIETS0～QUIETS4に分岐
+    {
+
+      int move_count = 0;
+      if (killers[0]) move_count++;
+      if (killers[1]) killers[move_count++] = killers[1];
+      if (killers[2]) killers[move_count++] = killers[2];
+      if (ttMove) killers[move_count++] = ttMove;
+
+      stage = (Stages)(QUIETS0 + move_count);
+    }
+#endif
     break;
 
   case ALL_EVASIONS:
@@ -234,6 +256,9 @@ void MovePicker::generate_next_stage()
     break;
 
     // そのステージの末尾に達したのでMovePickerを終了する。
+#ifdef FAST_QUIETS
+  case QUIETS1: case QUIETS2: case QUIETS3: case QUIETS4:
+#endif
   case EVASION_START: case QSEARCH_WITH_CHECKS_START: case QSEARCH_WITHOUT_CHECKS_START:
   case PROBCUT_START: case RECAPTURE_START: case STOP:
     stage = STOP;
@@ -272,14 +297,14 @@ Move MovePicker::next_move() {
     case KILLERS:
 #ifdef KEEP_PIECE_IN_COUNTER_MOVE
       {
-        Move32 move32 = *(Move32*)currentMoves++;
+        Move32 move32 = currentMoves++->move;
         move = (Move)move32;
         // 今回移動させる駒種が一致するかを確認する。
         // このチェックにより先手/後手の指し手であることが担保される。
         if (move32 != make_move32(move))
         {
           // このkiller、非適用なのであとでquietsのときに除外されると困るからnullを書き込んでおく。
-          *((Move32*)currentMoves - 1) = 0;
+          (currentMoves - 1)->move = 0;
           break;
         }
       }
@@ -292,6 +317,10 @@ Move MovePicker::next_move() {
         &&  pos.pseudo_legal_s<false>(move)       // pseudo_legalでない指し手以外に歩や大駒の不成なども除外
         && !pos.capture_or_pawn_promotion(move))  // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
         return move;
+
+      // このkiller、非適用なのであとでquietsのときに除外されると困るからnullを書き込んでおく。
+      (currentMoves - 1)->move = 0;
+
       break;
 
       // 置換表の指し手を返したあとのフェーズ
@@ -328,6 +357,7 @@ Move MovePicker::next_move() {
 
       // 指し手を一手ずつ返すフェーズ
       // (置換表の指し手とkillerの指し手は返したあとなのでこれらの指し手は除外する必要がある)
+#ifndef FAST_QUIETS
     case QUIETS:
       move = *currentMoves++;
       // 置換表の指し手、killerと同じものは返してはならない。
@@ -339,6 +369,37 @@ Move MovePicker::next_move() {
         && move != (Move)killers[2])
         return move;
       break;
+#else
+      // killerの個数に応じて分岐
+    case QUIETS0:
+      return *currentMoves++;
+    case QUIETS1:
+      move = *currentMoves++;
+      if (move != (Move)killers[0])
+        return move;
+      break;
+    case QUIETS2:
+      move = *currentMoves++;
+      if (move != (Move)killers[0]
+        && move != (Move)killers[1])
+        return move;
+      break;
+    case QUIETS3:
+      move = *currentMoves++;
+      if (move != (Move)killers[0]
+        && move != (Move)killers[1]
+        && move != (Move)killers[2])
+        return move;
+      break;
+    case QUIETS4:
+      move = *currentMoves++;
+      if (move != (Move)killers[0]
+        && move != (Move)killers[1]
+        && move != (Move)killers[2]
+        && move != (Move)killers[3])
+        return move;
+      break;
+#endif
 
       // BAD CAPTURESは、指し手生成バッファの終端から先頭方向に向かって使う。
     case BAD_CAPTURES:
@@ -395,15 +456,14 @@ void MovePicker::score_captures()
   for (auto& m : *this)
   {
     // CAPTURES_PRO_PLUSで生成しているので歩の成る指し手が混じる。これは金と歩の価値の差の点数とする。
-    const Move move = m.move;
 
     // 移動させる駒の駒種。駒取りなので移動元は盤上であることは保証されている。
-    auto pt = type_of(pos.piece_on(move_from(move)));
-    bool pawn_promo = is_promote(move) && pt == PAWN;
+    auto pt = type_of(pos.piece_on(move_from(m)));
+    bool pawn_promo = is_promote(m) && pt == PAWN;
 
     // MVV-LVAに、歩の成りに加点する形にしておく。
     m.value = (pawn_promo ? (Value)(Eval::ProDiffPieceValue[PAWN]) : VALUE_ZERO)
-      + (Value)Eval::CapturePieceValue[pos.piece_on(move_to(move))]
+      + (Value)Eval::CapturePieceValue[pos.piece_on(move_to(m))]
       - LVA(pt);
 
     // 盤の上のほうの段にあるほど価値があるので下の方の段に対して小さなペナルティを課す。
@@ -424,7 +484,7 @@ void MovePicker::score_quiets()
 
   for (auto& m : *this)
   {
-    const Move move = m.move;
+    const Move move = m;
 
 #ifndef USE_DROPBIT_IN_STATS
     Piece mpc = pos.moved_piece_after(move);

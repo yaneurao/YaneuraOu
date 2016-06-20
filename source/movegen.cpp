@@ -827,7 +827,7 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist,Square recapSq)
     // 合法ではない指し手を末尾の指し手と入れ替え
     while (mlist != last)
     {
-      if (!pos.legal(mlist->move))
+      if (!pos.legal(*mlist))
         mlist->move = (--last)->move;
       else
         ++mlist;
@@ -845,7 +845,7 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist,Square recapSq)
     if (pos.in_check())
       while (mlist != last)
       {
-        if (!pos.pseudo_legal(mlist->move))
+        if (!pos.pseudo_legal(*mlist))
           mlist->move = (--last)->move;
         else
           ++mlist;

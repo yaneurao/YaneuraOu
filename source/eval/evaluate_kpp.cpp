@@ -17,10 +17,10 @@ namespace Eval
 {
 
 // KKPファイル名
-#define KKP_BIN "eval\\kkp32ap.bin"
+#define KKP_BIN "\\kkp32ap.bin"
 
 // KPPファイル名
-#define KPP_BIN "eval\\kpp16ap.bin"
+#define KPP_BIN "\\kpp16ap.bin"
 
   typedef int16_t ValueKpp;
   typedef int32_t ValueKkp;
@@ -40,7 +40,7 @@ namespace Eval
     fstream fs;
     size_t size;
 
-    fs.open(KPP_BIN, ios::in | ios::binary);
+    fs.open((string)Options["EvalDir"] + KPP_BIN, ios::in | ios::binary);
     if (fs.fail())
       goto Error;
     size = SQ_NB_PLUS1 * (int)fe_end * (int)fe_end * (int)sizeof(ValueKpp);
@@ -49,7 +49,7 @@ namespace Eval
       goto Error;
     fs.close();
     size = SQ_NB_PLUS1 * (int)SQ_NB_PLUS1 * ((int)(fe_end)+1) * (int)sizeof(ValueKkp);
-    fs.open(KKP_BIN, ios::in | ios::binary);
+    fs.open((string)Options["EvalDir"] + KKP_BIN, ios::in | ios::binary);
     if (fs.fail())
       goto Error;
     fs.read((char*)&kkp, size);

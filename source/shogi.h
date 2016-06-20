@@ -553,17 +553,18 @@ inline std::ostream& operator<<(std::ostream& os, Move m) { os << to_usi_string(
 // オーダリングのときにスコアで並べ替えしたいが、一つになっているほうが並び替えがしやすいのでこうしてある。
 struct ExtMove {
 
-  Move move;   // 指し手
+  Move32 move;   // 指し手
   Value value; // これはMovePickerが指し手オーダリングのために並び替えるときに用いる値(≠評価値)。
 
   // Move型とは暗黙で変換できていい。
 
-  operator Move() const { return move; }
+  operator Move() const { return (Move)move; }
   void operator=(Move m) { move = m; }
+  Move32 move32() const { return move; }
 
 #ifdef KEEP_PIECE_IN_COUNTER_MOVE
   // killerやcounter moveを32bit(Move32)で扱うときに、無理やりExtMoveに代入するためのhack
-  void operator=(Move32 m) { *(Move32*)this = m; }
+  void operator=(Move32 m) { move = m; }
 #endif
 };
 
@@ -802,6 +803,10 @@ namespace USI {
     typedef void(*OnChange)(const Option&);
 
     Option(OnChange f = nullptr) : type("button"), min(0), max(0), on_change(f) {}
+
+    // 文字列
+    Option(const char* v, OnChange f = nullptr) : type("string"), min(0), max(0), on_change(f)
+    { defaultValue = currentValue = v; }
 
     // bool型のoption デフォルト値が v
     Option(bool v, OnChange f = nullptr) : type("check"),min(0),max(0),on_change(f)

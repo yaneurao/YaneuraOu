@@ -28,3 +28,5 @@ BookEvalDiff 基本定跡の幅(0=無,30=狭,100=広)
 BookLowLimitBlack 基本定跡で採用する評価値下限(先手)
 BookLowLimitWhite 基本定跡で採用する評価値下限(後手)
 BookOnlyThinkingMove 定跡では思考した指し手のみ用いる
+
+EvalDir 評価関数格納フォルダ

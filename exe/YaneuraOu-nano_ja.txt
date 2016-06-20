@@ -25,3 +25,5 @@ BookLowLimitWhite 基本定跡で採用する評価値下限(後手)
 BookOnlyThinkingMove 定跡では思考した指し手のみ用いる
 
 ByoyomiMinus 秒読みのときの思考時間を何ms短縮するか
+
+EvalDir 評価関数格納フォルダ

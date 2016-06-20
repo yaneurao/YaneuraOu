@@ -242,6 +242,8 @@ namespace USI
     o["EnteringKingRule"] << Option(ekr_rules, ekr_rules[EKR_27_POINT], [](auto& o) { set_entering_king_rule(o); });
 #endif
 
+    o["EvalDir"] << Option("eval");
+
     // 各エンジンがOptionを追加したいだろうから、コールバックする。
     USI::extra_option(o);
   }

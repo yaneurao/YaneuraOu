@@ -281,9 +281,6 @@
     <Text Include="..\exe\YaneuraOu-classic-tce-readme.txt">
       <Filter>exe</Filter>
     </Text>
-    <Text Include="..\exe\YaneuraOu-classic-2016-mid.txt">
-      <Filter>exe</Filter>
-    </Text>
     <Text Include="..\docs\実験記録.txt">
       <Filter>doc</Filter>
     </Text>
@@ -292,6 +289,12 @@
     </Text>
     <Text Include="..\docs\ToDoのリスト.txt">
       <Filter>doc</Filter>
+    </Text>
+    <Text Include="..\exe\YaneuraOu-2016-mid.txt">
+      <Filter>exe</Filter>
+    </Text>
+    <Text Include="..\exe\YaneuraOu-2016-mid_ja.txt">
+      <Filter>exe</Filter>
     </Text>
   </ItemGroup>
   <ItemGroup>

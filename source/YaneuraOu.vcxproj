@@ -269,7 +269,8 @@
     <Text Include="..\docs\更新履歴.txt" />
     <Text Include="..\docs\解説.txt" />
     <Text Include="..\exe\eval\readme.txt" />
-    <Text Include="..\exe\YaneuraOu-classic-2016-mid.txt" />
+    <Text Include="..\exe\YaneuraOu-2016-mid.txt" />
+    <Text Include="..\exe\YaneuraOu-2016-mid_ja.txt" />
     <Text Include="..\exe\YaneuraOu-classic-readme.txt" />
     <Text Include="..\exe\YaneuraOu-classic-tce-readme.txt" />
     <Text Include="..\exe\YaneuraOu-classic-tce_ja.txt" />

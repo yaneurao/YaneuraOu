@@ -145,9 +145,9 @@ private:
   // 置換表の指し手
   Move ttMove;
 
-  // killer move 2個 + counter move 1個 = 3個
+  // killer move 2個 + counter move 1個 + ttMove(QUIETS時) = 3個
   // これはオーダリングしないからExtMoveである必要はない。
-  Move32 killers[3];
+  ExtMove killers[4];
 
   // ProbCut用の指し手生成に用いる、直前の指し手で捕獲された駒の価値
   Value threshold;
