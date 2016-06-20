@@ -317,11 +317,13 @@ namespace YaneuraOu2016Mid
 
     // 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
     Square prevSq = move_to((ss - 1)->currentMove);
-#ifndef    USE_DROPBIT_IN_STATS
-    Piece prevPc = pos.piece_on(prevSq);
-#else
-    Piece prevPc = pos.piece_on(prevSq) + Piece(is_drop((ss - 1)->currentMove) ? 32 : 0);
-#endif
+//#ifndef    USE_DROPBIT_IN_STATS
+//    Piece prevPc = pos.piece_on(prevSq);
+//#else
+//    Piece prevPc = pos.piece_on(prevSq) + Piece(is_drop((ss - 1)->currentMove) ? 32 : 0);
+//#endif
+    // Moveのなかに移動後の駒が格納されているからそれを取り出すだけ。
+    Piece prevPc = pos.moved_piece_after_ex((ss - 1)->currentMove);
 
     ASSERT_LV3(move != MOVE_NULL);
 
@@ -1718,11 +1720,13 @@ namespace YaneuraOu2016Mid
       // 残り探索depthの2乗ぐらいのボーナスを与える。
       Value bonus = Value((int)(depth / ONE_PLY) * (int)(depth / ONE_PLY) + 2 * depth / ONE_PLY - 2);
 
-#ifndef    USE_DROPBIT_IN_STATS
-      Piece prevPc = pos.piece_on(prevSq);
-#else
-      Piece prevPc = pos.piece_on(prevSq) + Piece(is_drop((ss - 1)->currentMove) ? 32 : 0);
-#endif
+//#ifndef    USE_DROPBIT_IN_STATS
+//      Piece prevPc = pos.piece_on(prevSq);
+//#else
+//      Piece prevPc = pos.piece_on(prevSq) + Piece(is_drop((ss - 1)->currentMove) ? 32 : 0);
+//#endif
+       // ↓指し手のなかに移動後の駒が格納されているのでこれで取得できる。
+      Piece prevPc = pos.moved_piece_after_ex((ss - 1)->currentMove);
 
       if ((ss - 2)->counterMoves)
           (ss - 2)->counterMoves->update(prevPc, prevSq, bonus);
