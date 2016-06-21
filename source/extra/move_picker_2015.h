@@ -61,7 +61,7 @@ struct Stats {
   }
 
   // tableのclear
-  void clear() { std::memset(table, 0, sizeof(table)); }
+  void clear() { memset(table, 0, sizeof(table)); }
 
   // tableに指し手を格納する。(Tの型がMoveのとき)
   void update(Piece pc, Square to, Move m)
@@ -114,7 +114,7 @@ typedef Stats<CounterMoveStats> CounterMoveHistoryStats;
 // -----------------------
 
 // 指し手を段階的に生成するために現在どの段階にあるかの状態を表す定数
-enum Stages {
+enum Stages : int {
   // -----------------------------------------------------
   //   王手がかっていない通常探索時用の指し手生成
   // -----------------------------------------------------

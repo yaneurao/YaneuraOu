@@ -247,7 +247,7 @@ void random_player(Position& pos,uint64_t loop_max)
 
   PRNG prng(20160101);
   
-  for (int i = 0; i < loop_max; ++i)
+  for (uint64_t i = 0; i < loop_max; ++i)
   {
     for (ply = 0; ply < MAX_PLY; ++ply)
     {
@@ -407,7 +407,7 @@ void random_player_bench_cmd(Position& pos, istringstream& is)
 
   auto start = now();
 
-  for (int i = 0; i < loop_max; ++i)
+  for (uint64_t i = 0; i < loop_max; ++i)
   {
     for (ply = 0; ply < MAX_PLY; ++ply)
     {
@@ -450,7 +450,7 @@ void test_genchecks(Position& pos, uint64_t loop_max)
   Move moves[MAX_PLY]; // 局面の巻き戻し用に指し手を記憶
   int ply; // 初期局面からの手数
 
-  for (int i = 0; i < loop_max; ++i)
+  for (uint64_t i = 0; i < loop_max; ++i)
   {
     for (ply = 0; ply < MAX_PLY; ++ply)
     {
@@ -726,7 +726,7 @@ void auto_play(Position& pos, istringstream& is)
   // isreadyが呼び出されたものとする。
   Search::clear();
 
-  for (int i = 0; i < loop_max; ++i)
+  for (uint64_t i = 0; i < loop_max; ++i)
   {
     pos.set_hirate();
     for (ply = 0; ply < MAX_PLY; ++ply)

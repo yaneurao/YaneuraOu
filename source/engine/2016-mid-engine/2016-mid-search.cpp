@@ -115,7 +115,7 @@ namespace YaneuraOu2016Mid
   // Razoringのdepthに応じたマージン値
   const int razor_margin_table[4] = { PARAM_RAZORING_MARGIN1 , PARAM_RAZORING_MARGIN2 , PARAM_RAZORING_MARGIN3 , PARAM_RAZORING_MARGIN4 };
 
-  const Value razor_margin(Depth d)
+  Value razor_margin(Depth d)
   {
     ASSERT_LV3(DEPTH_ZERO <= d && d < 4 * ONE_PLY);
     return (Value)razor_margin_table[d / ONE_PLY];
@@ -1733,7 +1733,7 @@ void Search::init() {
       "PARAM_NULL_MOVE_DYNAMIC_ALPHA","PARAM_NULL_MOVE_DYNAMIC_BETA","PARAM_NULL_MOVE_RETURN_DEPTH",
       "PARAM_PROBCUT_DEPTH","PARAM_SINGULAR_EXTENSION_DEPTH","PARAM_SINGULAR_MARGIN",
       "PARAM_SINGULAR_SEARCH_DEPTH","PARAM_PRUNING_BY_MOVE_COUNT_DEPTH","PARAM_PRUNING_BY_HISTORY_DEPTH",
-      "PARAM_REDUCTION_BY_HISTORY","PARAM_RAZORING_MARGIN1","PARAM_RAZORING_MARGIN2","PARAM_RAZORING_MARGIN3","PARAM_RAZORING_MARGIN4"
+      "PARAM_REDUCTION_BY_HISTORY","PARAM_RAZORING_MARGIN1","PARAM_RAZORING_MARGIN2","PARAM_RAZORING_MARGIN3","PARAM_RAZORING_MARGIN4",
       "PARAM_QUIET_SEARCH_COUNT"
     };
     vector<int*> param_vars = {
@@ -1742,7 +1742,7 @@ void Search::init() {
       &PARAM_NULL_MOVE_DYNAMIC_ALPHA, &PARAM_NULL_MOVE_DYNAMIC_BETA, &PARAM_NULL_MOVE_RETURN_DEPTH,
       &PARAM_PROBCUT_DEPTH, &PARAM_SINGULAR_EXTENSION_DEPTH, &PARAM_SINGULAR_MARGIN,
       &PARAM_SINGULAR_SEARCH_DEPTH, &PARAM_PRUNING_BY_MOVE_COUNT_DEPTH, &PARAM_PRUNING_BY_HISTORY_DEPTH,
-      &PARAM_REDUCTION_BY_HISTORY, &PARAM_RAZORING_MARGIN1 , &PARAM_RAZORING_MARGIN2,PARAM_RAZORING_MARGIN3,PARAM_RAZORING_MARGIN4
+      &PARAM_REDUCTION_BY_HISTORY, &PARAM_RAZORING_MARGIN1 , &PARAM_RAZORING_MARGIN2,&PARAM_RAZORING_MARGIN3,&PARAM_RAZORING_MARGIN4,
       &PARAM_QUIET_SEARCH_COUNT
     };
 
@@ -1756,10 +1756,14 @@ void Search::init() {
 
     int count = 0;
     string line;
+
+    vector<bool> founds(param_vars.size());
+
     while (!fs.eof())
     {
       getline(fs, line);
       if (line.find("PARAM_DEFINE") != -1)
+      {
         for (int i = 0; i < param_names.size(); ++i)
           if (line.find(param_names[i]) != -1)
           {
@@ -1768,12 +1772,26 @@ void Search::init() {
             auto pos = line.find("=");
             ASSERT_LV3(pos != -1);
             *param_vars[i] = stoi(line.substr(pos + 1));
-//            cout << param_names[i] << " = " << *param_vars[i] << endl;
+            founds[i] = true; // 見つかった
+            //            cout << param_names[i] << " = " << *param_vars[i] << endl;
+            goto NEXT;
           }
+        cout << "Error : param not found! in parameters.h -> " << line << endl;
+
+      NEXT:;
+      }
     }
     fs.close();
+
     // 読み込んだパラメーターの数が合致しないといけない。
-    ASSERT_LV3(count == param_names.size());
+    // 見つかっていなかったパラメーターを表示させる。
+    if (count != param_names.size())
+    {
+      for (int i = 0; i < founds.size(); ++i)
+        if (!founds[i])
+          cout << "Error : param not found in " << PARAM_FILE << " -> " << param_names[i] << endl;
+    }
+
   }
 #endif
 
@@ -2240,11 +2258,11 @@ void MainThread::think()
         if (narrowBook)
         {
           // 出現確率10%未満のものを取り除く。
-          for (int i = 0; i < move_list.size(); ++i)
+          for (size_t i = 0; i < move_list.size(); ++i)
           {
             if (move_list[i].prob < 0.1)
             {
-              book_move_max = (size_t)max(i, 1);
+              book_move_max = max(i, size_t(1));
               // 定跡から取り除いたことをGUIに出力
               if (!Limits.silent)
                 sync_cout << "info string narrow book moves to " << book_move_max << " moves " << sync_endl;
@@ -2296,10 +2314,10 @@ void MainThread::think()
   //    通常の思考処理
   // ---------------------
 
-  // root nodeにおける自分の手番
-  auto us = rootPos.side_to_move();
-
   {
+    // root nodeにおける自分の手番
+    auto us = rootPos.side_to_move();
+
     StateInfo si;
     auto& pos = rootPos;
 

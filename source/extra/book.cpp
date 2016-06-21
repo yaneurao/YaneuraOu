@@ -42,7 +42,7 @@ namespace Book
       MemoryBook book;
 
       // 各行の局面をparseして読み込む(このときに重複除去も行なう)
-      for (int k = 0; k < sfens.size(); ++k)
+      for (size_t k = 0; k < sfens.size(); ++k)
       {
         auto sfen = sfens[k];
 

@@ -63,7 +63,7 @@ namespace USI
   // 入玉ルールがGUIから変更されたときのハンドラ
   void set_entering_king_rule(const std::string& rule)
   {
-    for (int i = 0; i < ekr_rules.size(); ++i)
+    for (size_t i = 0; i < ekr_rules.size(); ++i)
       if (ekr_rules[i] == rule)
       {
         ekr = (EnteringKingRule)i;
@@ -231,7 +231,7 @@ namespace USI
     o["MinimumThinkingTime"] << Option(2000, 1000, 100000);
 
     // 引き分けまでの最大手数。256手ルールのときに256。0なら無制限。
-    o["MaxMovesToDraw"] << Option(0, 0, 100000, [](auto& o) { max_game_ply = (o == 0) ? INT_MAX : o; });
+    o["MaxMovesToDraw"] << Option(0, 0, 100000, [](const Option& o) { max_game_ply = (o == 0) ? INT_MAX : (int)o; });
 
     // 引き分けを受け入れるスコア
     // 歩を100とする。例えば、この値を100にすると引き分けの局面は評価値が -100とみなされる。

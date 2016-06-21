@@ -34,7 +34,7 @@ struct Stats {
   }
 
   // tableのclear
-  void clear() { std::memset(table, 0, sizeof(table)); }
+  void clear() { memset(table, 0, sizeof(table)); }
 
   // tableに指し手を格納する。(Tの型がMoveのとき)
   void update(Piece pc, Square to, Move m)
@@ -84,8 +84,9 @@ typedef Stats<Move            > MoveStats;
 typedef Stats<Value, false    > HistoryStats;
 typedef Stats<Value, true     > CounterMoveStats;
 typedef Stats<CounterMoveStats> CounterMoveHistoryStats;
- 
-enum Stages;
+
+
+enum Stages : int;
 
 // 指し手オーダリング器
 struct MovePicker

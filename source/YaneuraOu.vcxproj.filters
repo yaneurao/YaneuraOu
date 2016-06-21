@@ -322,5 +322,8 @@
     <None Include="..\exe\YaneuraOu-local-server.exe">
       <Filter>exe</Filter>
     </None>
+    <None Include="Makefile">
+      <Filter>doc</Filter>
+    </None>
   </ItemGroup>
 </Project>

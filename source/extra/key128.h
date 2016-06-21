@@ -21,25 +21,30 @@
 // 64bit版
 typedef uint64_t Key64;
 
+#ifdef USE_AVX2
+
 // 128bit版
 struct alignas(16) Key128
 {
-  __m128i m;
-  
+  union {
+    __m128i m;
+    u64 _u64[2];
+  };
+   
   Key128() {}
   Key128(const Key128& bb) { _mm_store_si128(&this->m, bb.m); }
   Key128& operator = (const Key128& rhs) { _mm_store_si128(&this->m, rhs.m); return *this; }
 
-  void set(Key k0, Key k1) { m.m128i_u64[0] = k0; m.m128i_u64[1] = k1; }
-  operator Key() const { return m.m128i_u64[0]; }
+  void set(Key k0, Key k1) { _u64[0] = k0; _u64[1] = k1; }
+  operator Key() const { return _u64[0]; }
 
-  uint64_t p(int i) const { return m.m128i_u64[i]; }
+  uint64_t p(int i) const { return _u64[i]; }
 
   Key128& operator += (const Key128& b1) { this->m = _mm_add_epi64(m, b1.m); return *this; }
   Key128& operator -= (const Key128& b1) { this->m = _mm_sub_epi64(m, b1.m); return *this; }
   Key128& operator ^= (const Key128& b1) { this->m = _mm_xor_si128(m, b1.m); return *this; }
 
-  Key128& operator *= (int64_t i) { m.m128i_u64[0] *= i; m.m128i_u64[1] *= i; return *this; }
+  Key128& operator *= (int64_t i) { _u64[0] *= i; _u64[1] *= i; return *this; }
   bool operator == (const Key128& rhs) const {
     return (_mm_testc_si128(_mm_cmpeq_epi8(this->m, rhs.m), _mm_set1_epi8(static_cast<char>(0xffu))) ? true : false);
   }
@@ -55,22 +60,25 @@ struct alignas(16) Key128
 // 256bit版
 struct alignas(32) Key256
 {
-  __m256i m;
+  union {
+    __m256i m;
+    u64 _u64[4];
+  };
 
   Key256() {}
   Key256(const Key256& bb) { _mm256_store_si256(&this->m, bb.m); }
   Key256& operator = (const Key256& rhs) { _mm256_store_si256(&this->m, rhs.m); return *this; }
 
-  void set(Key k0,Key k1, Key k2, Key k3) { m.m256i_u64[0] = k0; m.m256i_u64[1] = k1; m.m256i_u64[2] = k2; m.m256i_u64[3] = k3;}
-  operator Key() const { return m.m256i_u64[0]; }
+  void set(Key k0,Key k1, Key k2, Key k3) { _u64[0] = k0; _u64[1] = k1; _u64[2] = k2; _u64[3] = k3;}
+  operator Key() const { return _u64[0]; }
 
-  uint64_t p(int i) const { return m.m256i_u64[i]; }
+  uint64_t p(int i) const { return _u64[i]; }
 
   Key256& operator += (const Key256& b1) { this->m = _mm256_add_epi64(m, b1.m); return *this; }
   Key256& operator -= (const Key256& b1) { this->m = _mm256_sub_epi64(m, b1.m); return *this; }
   Key256& operator ^= (const Key256& b1) { this->m = _mm256_xor_si256(m, b1.m); return *this; }
 
-  Key256& operator *= (int64_t i) { m.m256i_u64[0] *= i; m.m256i_u64[1] *= i; m.m256i_u64[2] *= i; m.m256i_u64[3] *= i; return *this; }
+  Key256& operator *= (int64_t i) { _u64[0] *= i; _u64[1] *= i; _u64[2] *= i; _u64[3] *= i; return *this; }
   bool operator == (const Key256& rhs) const {
     return (_mm256_testc_si256(_mm256_cmpeq_epi8(this->m, rhs.m), _mm256_set1_epi8(static_cast<char>(0xffu))) ? true : false);
   }
@@ -82,5 +90,7 @@ struct alignas(32) Key256
   Key256 operator ^ (const Key256& rhs) const { return Key256(*this) ^= rhs; }
 
 };
+
+#endif
 
 #endif // _KEY128_H_

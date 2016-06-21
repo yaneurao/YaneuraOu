@@ -290,6 +290,8 @@
 #include <memory>
 #include <map>
 #include <iostream>
+#include <cstring>  // std::memcpy()
+#include <cmath>    // log()
 
 // --------------------
 //   diable warnings

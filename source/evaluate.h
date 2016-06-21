@@ -249,7 +249,8 @@ namespace Eval {
         p = BONA_PIECE_ZERO;
       for (auto& p : pieceListFw)
         p = BONA_PIECE_ZERO;
-      memset(piece_no_list, -1, sizeof(PieceNo));
+      for (auto& v : piece_no_list)
+        v = PieceNo(-1);
     }
 
   protected:

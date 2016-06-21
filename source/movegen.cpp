@@ -337,6 +337,155 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
   }
 };
 
+
+// ----------------------------------
+//      駒打ちによる指し手
+// ----------------------------------
+
+// 駒打ちの指し手生成
+template <Color Us> struct GenerateDropMoves {
+  ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target) {
+
+    const Hand hand = pos.hand_of(Us);
+    // 手駒を持っていないならば終了
+    if (hand == 0)
+      return mlist;
+
+    // 扱いにくいのでbit情報にしてしまう。
+    const HandKind hk = toHandKind(hand);
+    Square sq;
+
+    // --- 歩を打つ指し手生成
+    if (hand_exists(hk, PAWN))
+    {
+      // 歩の駒打ちの基本戦略
+      // 1) 一段目以外に打てる
+      // 2) 二歩のところには打てない
+      // 3) 打ち歩詰め回避
+
+      // ここでは2)のためにソフトウェア飽和加算に似たテクニックを用いる
+      // cf. http://yaneuraou.yaneu.com/2015/10/15/%E7%B8%A6%E5%9E%8Bbitboard%E3%81%AE%E5%94%AF%E4%B8%80%E3%81%AE%E5%BC%B1%E7%82%B9%E3%82%92%E5%85%8B%E6%9C%8D%E3%81%99%E3%82%8B/
+      // このときにテーブルを引くので、用意するテーブルのほうで先に1)の処理をしておく。
+
+      // 縦型Squareにおける二歩のmaskの取得。
+      // 各筋に1つしか歩はないので1～8段目が1になっているbitboardを歩の升のbitboardに加算すると9段目に情報が集まる。これをpextで回収する。
+
+      // これにより、RANK9のところに歩の情報がかき集められた。
+      Bitboard a = pos.pieces(Us, PAWN) + rank1_n_bb(BLACK, RANK_8); // 1～8段目を意味するbitboard
+
+                                                                     // このRANK9に集まった情報をpextで回収。後者はPEXT32でもいいがlatencyたぶん変わらないので…。
+      uint32_t index = uint32_t(PEXT64(a.p[0], RANK9_BB.p[0]) + (PEXT64(a.p[1], RANK9_BB.p[1]) << 7));
+
+      // 駒の打てる場所
+      Bitboard target2 = PAWN_DROP_MASK_BB[index][Us] & target;
+
+      // 打ち歩詰めチェック
+      // 敵玉に敵の歩を置いた位置に打つ予定だったのなら、打ち歩詰めチェックして、打ち歩詰めならそこは除外する。
+      Bitboard pe = pawnEffect(~Us, pos.king_square(~Us));
+      if (pe & target2)
+      {
+        Square to = pe.pop_c();
+        if (!pos.legal_drop(to))
+          target2 ^= pe;
+      }
+
+      // targetで表現される升に歩を打つ指し手の生成。
+      MAKE_MOVE_TARGET_DROP(target2, PAWN);
+    }
+
+    // --- 歩以外を打つ指し手生成
+
+    // 歩以外の手駒を持っているか
+    if (hand_exceptPawnExists(hk))
+    {
+      Move drops[6];
+
+      // 打つ先の升を埋めればいいだけの指し手を事前に生成しておく。
+      // 基本的な戦略としては、(先手から見て)
+      // 1) 1段目に打てない駒( = 香・桂)を除いたループ
+      // 2) 2段目に打てない駒( = 桂)を除いたループ
+      // 3) 3～9段目に打てる駒( = すべての駒)のループ
+      // という3つの場合分けによるループで構成される。
+      // そのため、手駒から香・桂を除いた駒と、桂を除いた駒が必要となる。
+
+      int num = 0;
+      if (hand_exists(hk, KNIGHT)) drops[num++] = make_move_drop(KNIGHT, SQ_ZERO) + OurDropPt(Us, KNIGHT);
+
+      int nextToKnight = num; // 桂を除いたdropsのindex
+      if (hand_exists(hk, LANCE)) drops[num++] = make_move_drop(LANCE, SQ_ZERO) + OurDropPt(Us, LANCE);
+
+      int nextToLance = num; // 香・桂を除いたdropsのindex
+
+      if (hand_exists(hk, SILVER)) drops[num++] = make_move_drop(SILVER, SQ_ZERO) + OurDropPt(Us, SILVER);
+      if (hand_exists(hk, GOLD)) drops[num++] = make_move_drop(GOLD, SQ_ZERO) + OurDropPt(Us, GOLD);
+      if (hand_exists(hk, BISHOP)) drops[num++] = make_move_drop(BISHOP, SQ_ZERO) + OurDropPt(Us, BISHOP);
+      if (hand_exists(hk, ROOK)) drops[num++] = make_move_drop(ROOK, SQ_ZERO) + OurDropPt(Us, ROOK);
+
+
+      // 以下、コードが膨れ上がるが、dropは比較的、数が多く時間がわりとかかるので展開しておく価値があるかと思う。
+      // 動作ターゲットとするプロセッサにおいてbenchを取りながら進めるべき。
+      // SSEを用いた高速化など色々考えられるところではあるが、とりあえず速度的に許容できる範囲で、最低限のコードを示す。
+
+      if (nextToLance == 0)
+      {
+        // 香と桂を持っていないので駒を打てる全域に対して何も考えずに指し手を生成。
+        Bitboard target2 = target;
+
+        switch (num)
+        {
+        case 1: FOREACH_BB(target2, sq, { UNROLLER1({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
+        case 2: FOREACH_BB(target2, sq, { UNROLLER2({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
+        case 3: FOREACH_BB(target2, sq, { UNROLLER3({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
+        case 4: FOREACH_BB(target2, sq, { UNROLLER4({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
+        default: UNREACHABLE;
+        }
+      } else {
+        // それ以外のケース
+
+        Bitboard target1 = target & rank1_n_bb(Us, RANK_1); // 1段目
+        Bitboard target2 = target & (Us == BLACK ? RANK2_BB : RANK8_BB); // 2段目
+        Bitboard target3 = target & rank1_n_bb(~Us, RANK_7); // 3～9段目( == 後手から見たときの1～7段目)
+
+        switch (num - nextToLance) // 1段目に対する香・桂以外の駒打ちの指し手生成(最大で4種の駒)
+        {
+        case 0: break; // 香・桂以外の持ち駒がないケース
+        case 1: FOREACH_BB(target1, sq, { UNROLLER1({ mlist++->move = (Move)(drops[i + nextToLance] + sq); }); }); break;
+        case 2: FOREACH_BB(target1, sq, { UNROLLER2({ mlist++->move = (Move)(drops[i + nextToLance] + sq); }); }); break;
+        case 3: FOREACH_BB(target1, sq, { UNROLLER3({ mlist++->move = (Move)(drops[i + nextToLance] + sq); }); }); break;
+        case 4: FOREACH_BB(target1, sq, { UNROLLER4({ mlist++->move = (Move)(drops[i + nextToLance] + sq); }); }); break;
+        default: UNREACHABLE;
+        }
+
+        switch (num - nextToKnight) // 2段目に対する桂以外の駒打ちの指し手の生成(最大で5種の駒)
+        {
+        case 0: break; // 桂以外の持ち駒がないケース
+        case 1: FOREACH_BB(target2, sq, { UNROLLER1({ mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
+        case 2: FOREACH_BB(target2, sq, { UNROLLER2({ mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
+        case 3: FOREACH_BB(target2, sq, { UNROLLER3({ mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
+        case 4: FOREACH_BB(target2, sq, { UNROLLER4({ mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
+        case 5: FOREACH_BB(target2, sq, { UNROLLER5({ mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
+        default: UNREACHABLE;
+        }
+
+        switch (num) // 3～9段目に対する香を含めた指し手生成(最大で6種の駒)
+        {
+        case 1: FOREACH_BB(target3, sq, { UNROLLER1({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
+        case 2: FOREACH_BB(target3, sq, { UNROLLER2({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
+        case 3: FOREACH_BB(target3, sq, { UNROLLER3({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
+        case 4: FOREACH_BB(target3, sq, { UNROLLER4({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
+        case 5: FOREACH_BB(target3, sq, { UNROLLER5({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
+        case 6: FOREACH_BB(target3, sq, { UNROLLER6({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
+        default: UNREACHABLE;
+        }
+      }
+
+    }
+
+    return mlist;
+  }
+};
+
+
 // 手番側が王手がかかっているときに、王手を回避する手を生成する。
 template<Color Us, bool All>
   ExtMove* generate_evasions(const Position& pos, ExtMove* mlist)
@@ -415,153 +564,6 @@ template<Color Us, bool All>
     return mlist;
 }
 
-
-// ----------------------------------
-//      駒打ちによる指し手
-// ----------------------------------
-
-// 駒打ちの指し手生成
-template <Color Us> struct GenerateDropMoves {
-  ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target) {
-
-    const Hand hand = pos.hand_of(Us);
-    // 手駒を持っていないならば終了
-    if (hand == 0)
-      return mlist;
-
-    // 扱いにくいのでbit情報にしてしまう。
-    const HandKind hk = toHandKind(hand);
-    Square sq;
-
-    // --- 歩を打つ指し手生成
-    if (hand_exists(hk, PAWN))
-    {
-      // 歩の駒打ちの基本戦略
-      // 1) 一段目以外に打てる
-      // 2) 二歩のところには打てない
-      // 3) 打ち歩詰め回避
-
-      // ここでは2)のためにソフトウェア飽和加算に似たテクニックを用いる
-      // cf. http://yaneuraou.yaneu.com/2015/10/15/%E7%B8%A6%E5%9E%8Bbitboard%E3%81%AE%E5%94%AF%E4%B8%80%E3%81%AE%E5%BC%B1%E7%82%B9%E3%82%92%E5%85%8B%E6%9C%8D%E3%81%99%E3%82%8B/
-      // このときにテーブルを引くので、用意するテーブルのほうで先に1)の処理をしておく。
-
-      // 縦型Squareにおける二歩のmaskの取得。
-      // 各筋に1つしか歩はないので1～8段目が1になっているbitboardを歩の升のbitboardに加算すると9段目に情報が集まる。これをpextで回収する。
-
-      // これにより、RANK9のところに歩の情報がかき集められた。
-      Bitboard a = pos.pieces(Us, PAWN) + rank1_n_bb(BLACK, RANK_8); // 1～8段目を意味するbitboard
-
-      // このRANK9に集まった情報をpextで回収。後者はPEXT32でもいいがlatencyたぶん変わらないので…。
-      uint32_t index = uint32_t(PEXT64(a.p[0], RANK9_BB.p[0]) + (PEXT64(a.p[1],RANK9_BB.p[1]) << 7));
-
-      // 駒の打てる場所
-      Bitboard target2 = PAWN_DROP_MASK_BB[index][Us] & target;
-
-      // 打ち歩詰めチェック
-      // 敵玉に敵の歩を置いた位置に打つ予定だったのなら、打ち歩詰めチェックして、打ち歩詰めならそこは除外する。
-      Bitboard pe = pawnEffect(~Us,pos.king_square(~Us));
-      if (pe & target2)
-      {
-        Square to = pe.pop_c();
-        if (!pos.legal_drop(to))
-          target2 ^= pe;
-      }
-
-      // targetで表現される升に歩を打つ指し手の生成。
-      MAKE_MOVE_TARGET_DROP(target2, PAWN);
-    }
-
-    // --- 歩以外を打つ指し手生成
-
-    // 歩以外の手駒を持っているか
-    if (hand_exceptPawnExists(hk))
-    {
-      Move drops[6];
-
-      // 打つ先の升を埋めればいいだけの指し手を事前に生成しておく。
-      // 基本的な戦略としては、(先手から見て)
-      // 1) 1段目に打てない駒( = 香・桂)を除いたループ
-      // 2) 2段目に打てない駒( = 桂)を除いたループ
-      // 3) 3～9段目に打てる駒( = すべての駒)のループ
-      // という3つの場合分けによるループで構成される。
-      // そのため、手駒から香・桂を除いた駒と、桂を除いた駒が必要となる。
-
-      int num = 0;
-      if (hand_exists(hk, KNIGHT)) drops[num++] = make_move_drop(KNIGHT,SQ_ZERO) + OurDropPt(Us,KNIGHT);
-
-      int nextToKnight = num; // 桂を除いたdropsのindex
-      if (hand_exists(hk, LANCE )) drops[num++] = make_move_drop(LANCE,SQ_ZERO)  + OurDropPt(Us,LANCE);
-
-      int nextToLance = num; // 香・桂を除いたdropsのindex
-
-      if (hand_exists(hk, SILVER)) drops[num++] = make_move_drop(SILVER,SQ_ZERO) + OurDropPt(Us,SILVER);
-      if (hand_exists(hk, GOLD  )) drops[num++] = make_move_drop(GOLD,SQ_ZERO)   + OurDropPt(Us,GOLD);
-      if (hand_exists(hk, BISHOP)) drops[num++] = make_move_drop(BISHOP,SQ_ZERO) + OurDropPt(Us,BISHOP);
-      if (hand_exists(hk, ROOK  )) drops[num++] = make_move_drop(ROOK,SQ_ZERO)   + OurDropPt(Us,ROOK);
-
-
-      // 以下、コードが膨れ上がるが、dropは比較的、数が多く時間がわりとかかるので展開しておく価値があるかと思う。
-      // 動作ターゲットとするプロセッサにおいてbenchを取りながら進めるべき。
-      // SSEを用いた高速化など色々考えられるところではあるが、とりあえず速度的に許容できる範囲で、最低限のコードを示す。
-
-      if (nextToLance == 0)
-      {
-        // 香と桂を持っていないので駒を打てる全域に対して何も考えずに指し手を生成。
-        Bitboard target2 = target;
-          
-        switch (num)
-        {
-        case 1: FOREACH_BB(target2, sq, { UNROLLER1({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
-        case 2: FOREACH_BB(target2, sq, { UNROLLER2({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
-        case 3: FOREACH_BB(target2, sq, { UNROLLER3({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
-        case 4: FOREACH_BB(target2, sq, { UNROLLER4({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
-        default: UNREACHABLE;
-        }
-      } else {
-        // それ以外のケース
-
-        Bitboard target1 = target & rank1_n_bb(Us, RANK_1); // 1段目
-        Bitboard target2 = target & (Us == BLACK ? RANK2_BB : RANK8_BB); // 2段目
-        Bitboard target3 = target & rank1_n_bb(~Us, RANK_7); // 3～9段目( == 後手から見たときの1～7段目)
-        
-        switch (num -  nextToLance) // 1段目に対する香・桂以外の駒打ちの指し手生成(最大で4種の駒)
-        {
-        case 0: break; // 香・桂以外の持ち駒がないケース
-        case 1: FOREACH_BB(target1, sq, { UNROLLER1({ mlist++->move = (Move)(drops[i + nextToLance] + sq); }); }); break;
-        case 2: FOREACH_BB(target1, sq, { UNROLLER2({ mlist++->move = (Move)(drops[i + nextToLance] + sq); }); }); break;
-        case 3: FOREACH_BB(target1, sq, { UNROLLER3({ mlist++->move = (Move)(drops[i + nextToLance] + sq); }); }); break;
-        case 4: FOREACH_BB(target1, sq, { UNROLLER4({ mlist++->move = (Move)(drops[i + nextToLance] + sq); }); }); break;
-        default: UNREACHABLE;
-        }
-
-        switch (num - nextToKnight) // 2段目に対する桂以外の駒打ちの指し手の生成(最大で5種の駒)
-        {
-        case 0: break; // 桂以外の持ち駒がないケース
-        case 1: FOREACH_BB(target2, sq, { UNROLLER1({ mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
-        case 2: FOREACH_BB(target2, sq, { UNROLLER2({ mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
-        case 3: FOREACH_BB(target2, sq, { UNROLLER3({ mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
-        case 4: FOREACH_BB(target2, sq, { UNROLLER4({ mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
-        case 5: FOREACH_BB(target2, sq, { UNROLLER5({ mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
-        default: UNREACHABLE;
-        }
-
-        switch (num) // 3～9段目に対する香を含めた指し手生成(最大で6種の駒)
-        {
-        case 1: FOREACH_BB(target3, sq, { UNROLLER1({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
-        case 2: FOREACH_BB(target3, sq, { UNROLLER2({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
-        case 3: FOREACH_BB(target3, sq, { UNROLLER3({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
-        case 4: FOREACH_BB(target3, sq, { UNROLLER4({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
-        case 5: FOREACH_BB(target3, sq, { UNROLLER5({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
-        case 6: FOREACH_BB(target3, sq, { UNROLLER6({ mlist++->move = (Move)(drops[i] + sq); }); }); break;
-        default: UNREACHABLE;
-        }
-      }
-
-    }
-
-    return mlist;
-  }
-};
 
 // ----------------------------------
 //      指し手生成器本体
