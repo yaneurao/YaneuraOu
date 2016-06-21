@@ -127,6 +127,9 @@
 // 指し手生成のときに上位16bitにto(移動後の升)に来る駒を格納する。
 // #define KEEP_PIECE_IN_GENERATE_MOVES
 
+// 評価関数を計算したときに、それをHashTableに記憶しておく機能。KPPT評価関数においてのみサポート。
+// #define USE_EVAL_HASH
+
 
 // --------------------
 // release configurations
@@ -200,6 +203,7 @@
 #define ASSERT_LV 3
 #define ENABLE_TEST_CMD
 #define EVAL_KPPT
+//#define USE_EVAL_HASH
 #define USE_SEE
 //#define USE_SIMPLE_SEE
 #define USE_MOVE_PICKER_2016Q2

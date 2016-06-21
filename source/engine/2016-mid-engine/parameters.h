@@ -131,8 +131,9 @@ PARAM_DEFINE PARAM_RAZORING_MARGIN4 = 554;
 
 // この個数までquietの指し手を登録してhistoryなどを増減させる。
 // 元の値 = 64
+// 将棋では駒打ちがあるから少し増やしたほうがよさ気。
 // [PARAM] min:32,max:128,step:4,interval:2,time_rate:2
-PARAM_DEFINE PARAM_QUIET_SEARCH_COUNT = 64;
+PARAM_DEFINE PARAM_QUIET_SEARCH_COUNT = 68;
 
 //
 // history of changed parameters

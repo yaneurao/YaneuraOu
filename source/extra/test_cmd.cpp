@@ -7,6 +7,8 @@
 
 #include "all.h"
 
+extern void is_ready(Position& pos);
+
 // ----------------------------------
 //  USI拡張コマンド "perft"(パフォーマンステスト)
 // ----------------------------------
@@ -995,6 +997,87 @@ void unit_test(Position& pos, istringstream& is)
   cout << "UnitTest end : " << (success_all ? "success" : "failed") << endl;
 }
 
+// いまのところ、やねうら王2016Midしか、このスタブを持っていない。
+#if defined (YANEURAOU_2016_MID_ENGINE)
+namespace Learner
+{
+  extern pair<Move, Value> search(Position& pos, Value alpha, Value beta, int depth);
+  extern pair<Move, Value> qsearch(Position& pos, Value alpha, Value beta);
+}
+#endif
+
+void gen_sfen(Position& pos, istringstream& is)
+{
+#if defined (YANEURAOU_2016_MID_ENGINE)
+  int loop_max = 1;
+  is >> loop_max;
+
+  cout << "gen_sfen : loop_max = " << loop_max << endl;
+
+  // 評価関数の読み込み等
+  is_ready(pos);
+
+  pos.set_hirate();
+  const int MAX_PLY = 256; // 256手までテスト
+
+  StateInfo state[MAX_PLY]; // StateInfoを最大手数分だけ
+  Move moves[MAX_PLY]; // 局面の巻き戻し用に指し手を記憶
+  int ply; // 初期局面からの手数
+
+  PRNG prng(20160101);
+
+  for (int i = 0; i < loop_max; ++i)
+  {
+    for (ply = 0; ply < MAX_PLY; ++ply)
+    {
+
+      // Positionに対して従属スレッドの設定が必要。
+      // 並列化するときは、Threads (これが実体が vector<Thread*>なので、Threads[0]...Threads[thread_num-1]までに対して
+      // 同じようにすれば良い。
+      auto th = Threads.main();
+      pos.set_this_thread(th);
+      th->rootMoves.clear();
+      for (auto m : MoveList<LEGAL>(pos))
+        th->rootMoves.push_back(Search::RootMove(m));
+
+      // 合法な指し手がなかった == 詰み
+      if (th->rootMoves.size() == 0)
+        break;
+
+//      cout << pos;
+
+      pos.check_info_update();
+
+      // 3手読み
+      auto mv1 = Learner::search(pos, -VALUE_INFINITE, VALUE_INFINITE, 3);
+      // 0手読み(静止探索のみ)
+      auto mv2 = Learner::qsearch(pos, -VALUE_INFINITE, VALUE_INFINITE);
+
+      // 局面のsfen,3手読みでの最善手,3手読みでの評価値、0手読みでの評価値
+      cout << pos.sfen() << "," << mv1.first << "," << mv1.second << "," << mv2.second << endl;
+
+      // 3手読みの指し手で局面を進める。
+      auto m = mv1.first;
+
+      pos.do_move(m, state[ply]);
+      moves[ply] = m;
+    }
+
+    // 局面を巻き戻してみる(undo_moveの動作テストを兼ねて)
+    while (ply > 0)
+    {
+      pos.undo_move(moves[--ply]);
+    }
+
+    // 1000回に1回ごとに'.'を出力(進んでいることがわかるように)
+    if ((i % 1000) == 0)
+      cout << ".";
+  }
+
+  cout << "gen_sfen finished." << endl;
+#endif
+}
+
 void test_cmd(Position& pos, istringstream& is)
 {
   std::string param;
@@ -1008,6 +1091,7 @@ void test_cmd(Position& pos, istringstream& is)
   else if (param == "records") test_read_record(pos,is);           // 棋譜の読み込みテスト 
   else if (param == "autoplay") auto_play(pos, is);                // 思考ルーチンを呼び出しての連続自己対戦
   else if (param == "timeman") test_timeman();                     // TimeManagerのテスト
+  else if (param == "gensfen") gen_sfen(pos,is);                   // 学習用の教師棋譜生成
   else {
     cout << "test unit               // UnitTest" << endl;
     cout << "test rp                 // Random Player" << endl;
@@ -1017,6 +1101,7 @@ void test_cmd(Position& pos, istringstream& is)
     cout << "test records [filename] // Read records.sfen Test" << endl;
     cout << "test autoplay           // Auto Play Test" << endl;
     cout << "test timeman            // Time Manager Test" << endl;
+    cout << "test gensfen            // generate sfen" << endl;
   }
 }
 
@@ -1039,8 +1124,6 @@ static const char* BenchSfen[] = {
   // cf. http://d.hatena.ne.jp/ak11/20110508/p1
   "l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1",
 };
-
-extern void is_ready(Position& pos);
 
 void bench_cmd(Position& pos, istringstream& is)
 {

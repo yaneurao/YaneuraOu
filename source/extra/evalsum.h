@@ -91,6 +91,18 @@ namespace Eval {
     }
     EvalSum operator + (const EvalSum& rhs) const { return EvalSum(*this) += rhs; }
     EvalSum operator - (const EvalSum& rhs) const { return EvalSum(*this) -= rhs; }
+
+    // evaluate hashでatomicに操作できる必要があるのでそのための操作子
+    void encode() {
+#if defined USE_AVX2
+      // EvalSum は atomic にコピーされるので key が合っていればデータも合っている。
+#else
+      key ^= data[0] ^ data[1] ^ data[2];
+#endif
+    }
+    // decode()はencode()の逆変換だが、xorなので逆変換も同じ変換。
+    void decode() { encode(); }
+
     union {
       std::array<std::array<int32_t, 2>, 3> p;
       struct {
@@ -114,6 +126,30 @@ namespace Eval {
     os << "sum KK   = " << sum.p[2][0] << " + " << sum.p[2][1] << std::endl;
     return os;
   }
+
+#ifdef USE_EVAL_HASH
+  // シンプルなHashTableの実装。
+  // Sizeは2のべき乗。
+  template <typename T, size_t Size>
+  struct HashTable
+  {
+    HashTable() { clear(); }
+    T* operator [] (const Key k) { return entries_ + (static_cast<size_t>(k) & (Size - 1)); }
+    void clear() { memset(entries_, 0, sizeof(T)*Size); }
+
+    // Size が 2のべき乗であることのチェック
+    static_assert((Size & (Size - 1)) == 0, "");
+
+  private:
+    T entries_[Size];
+  };
+
+  // evaluateしたものを保存しておくHashTable(俗にいうehash)
+
+  // 134MB(魔女設定)
+  struct EvaluateHashTable: HashTable<EvalSum, 0x400000> {};
+  extern EvaluateHashTable g_evalTable;
+#endif
 
 } // namespace Eval
 

@@ -270,35 +270,7 @@ namespace YaneuraOu2016Mid
     // IID、null move、singular extensionの判定のときは浅い探索なのでこのときに
     // killer等を更新するのは有害である。
     if (ss->skipEarlyPruning)
-    {
-      // ただし、null move時のkillerは理想的な(浅い深さの探索ではない)killerなので有効だと考えられる。
-      // →　しかし弱くなったのでコメントアウト
-#if 0
-      if ((ss - 1)->currentMove == MOVE_NULL)
-      {
-
-        // 普通にkillerのupdateを行なう。
-        if (ss->killers[0] != move)
-        {
-          ss->killers[1] = ss->killers[0];
-          ss->killers[0] = move;
-        }
-
-      } else
-#endif      
-      {
-
-        // IID、singular extension時であっても
-        // killerがないときはkillerぐらいは登録したほうが少しだけ得。
-
-        if (ss->killers[0] == MOVE_NONE)
-          ss->killers[0] = move;
-        else if (ss->killers[1] == MOVE_NONE)
-          ss->killers[1] = move;
-      }
-
       return;
-    }
 
     //   killerのupdate
 
@@ -317,11 +289,7 @@ namespace YaneuraOu2016Mid
 
     // 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
     Square prevSq = move_to((ss - 1)->currentMove);
-//#ifndef    USE_DROPBIT_IN_STATS
-//    Piece prevPc = pos.piece_on(prevSq);
-//#else
-//    Piece prevPc = pos.piece_on(prevSq) + Piece(is_drop((ss - 1)->currentMove) ? 32 : 0);
-//#endif
+
     // Moveのなかに移動後の駒が格納されているからそれを取り出すだけ。
     Piece prevPc = pos.moved_piece_after_ex((ss - 1)->currentMove);
 
@@ -333,14 +301,12 @@ namespace YaneuraOu2016Mid
 
     auto thisThread = pos.this_thread();
 
-    // 今回のmoveで動かした局面ではないので、pos.piece_on()では移動後の駒は得られない。
+    // 今回のmoveで動かした局面ではないので、pos.piece_on()では移動後の駒は得られないが、
+    // moveの上位16bitに移動させたあとの駒が入っているので、それをmoved_piece_after_ex()で取り出す。
 
     Square sq = move_to(move);
-#ifndef    USE_DROPBIT_IN_STATS
-    Piece mpc = pos.moved_piece_after(move);
-#else
     Piece mpc = pos.moved_piece_after_ex(move);
-#endif
+
     thisThread->history.update(mpc, sq , bonus);
 
     if (cmh)
@@ -359,11 +325,8 @@ namespace YaneuraOu2016Mid
     for (int i = 0; i < quietsCnt; ++i)
     {
       Square qto = move_to(quiets[i]);
-#ifndef    USE_DROPBIT_IN_STATS
-      Piece qpc = pos.moved_piece_after(quiets[i]);
-#else
       Piece qpc = pos.moved_piece_after_ex(quiets[i]);
-#endif
+
       thisThread->history.update(qpc, qto , -bonus);
 
       // 前の局面の指し手がMOVE_NULLでないならcounter moveもupdateしておく。
@@ -1205,11 +1168,7 @@ namespace YaneuraOu2016Mid
         if (pos.legal(move))
         {
           ss->currentMove = move;
-#ifndef    USE_DROPBIT_IN_STATS
-          ss->counterMoves = &CounterMoveHistory[move_to(move)][pos.moved_piece_after(move)];
-#else
           ss->counterMoves = &CounterMoveHistory[move_to(move)][pos.moved_piece_after_ex(move)];
-#endif
 
           pos.do_move(move, st, pos.gives_check(move));
           value = -search<NonPV>(pos, ss + 1, -rbeta, -rbeta + 1, rdepth, !cutNode);
@@ -1425,11 +1384,7 @@ namespace YaneuraOu2016Mid
 
       // このあと、この指し手のhistoryの値などを調べたいのでいま求めてしまう。
       Square moved_sq = move_to(move);
-#ifndef    USE_DROPBIT_IN_STATS
-      Piece moved_pc = pos.moved_piece_after(move);
-#else
       Piece moved_pc = pos.moved_piece_after_ex(move);
-#endif
 
       if (!RootNode
         && !captureOrPawnPromotion
@@ -1720,12 +1675,7 @@ namespace YaneuraOu2016Mid
       // 残り探索depthの2乗ぐらいのボーナスを与える。
       Value bonus = Value((int)(depth / ONE_PLY) * (int)(depth / ONE_PLY) + 2 * depth / ONE_PLY - 2);
 
-//#ifndef    USE_DROPBIT_IN_STATS
-//      Piece prevPc = pos.piece_on(prevSq);
-//#else
-//      Piece prevPc = pos.piece_on(prevSq) + Piece(is_drop((ss - 1)->currentMove) ? 32 : 0);
-//#endif
-       // ↓指し手のなかに移動後の駒が格納されているのでこれで取得できる。
+       // 指し手のなかに移動後の駒が格納されているのでこれで取得できる。
       Piece prevPc = pos.moved_piece_after_ex((ss - 1)->currentMove);
 
       if ((ss - 2)->counterMoves)
@@ -2028,14 +1978,14 @@ void Thread::search()
       // 探索深さが一定以上あるなら前回の反復深化のiteration時の最小値と最大値
       // より少し幅を広げたぐらいの探索窓をデフォルトとする。
 
-      // この値は 6～10ぐらいがベスト。Stockfish7では、5 * ONE_PLY。
+      // この値は 5～10ぐらいがベスト？ Stockfish7では、5 * ONE_PLY。
       if (rootDepth >= 5)
       {
         // aspiration windowの幅
         // 精度の良い評価関数ならばこの幅を小さくすると探索効率が上がるのだが、
         // 精度の悪い評価関数だとこの幅を小さくしすぎると再探索が増えて探索効率が低下する。
         // やねうら王のKPP評価関数では35～40ぐらいがベスト。
-        // やねうら王のKPPT(Apery WCSC26)ではもう少し小さいほうが良いか。
+        // やねうら王のKPPT(Apery WCSC26)ではStockfishのまま(18付近)がベスト。
         // もっと精度の高い評価関数を用意すべき。
         delta = Value(18);
 
@@ -2461,5 +2411,57 @@ ID_END:;
   }
 
 }
+
+namespace Learner
+{
+  // 学習用に、1つのスレッドからsearch,qsearch()を呼び出せるようなスタブを用意する。
+
+  // 通常探索。深さdepth(整数で指定)。aspiration searchはしない。
+  // 3手読み時のスコアが欲しいなら、
+  //   v = search(pos,-VALUE_INFINITE,+VALUE_INFINITE,3);
+  // のようにすべし。
+  pair< Move, Value> search(Position& pos,Value alpha , Value beta , int depth)
+  {
+    Stack stack[MAX_PLY + 7], *ss = stack + 5;
+    memset(ss - 5, 0, 8 * sizeof(Stack));
+
+    pos.check_info_update();
+
+    auto th = pos.this_thread();
+    auto& rootMoves = th->rootMoves;
+    th->rootDepth = 0;
+
+    while (++th->rootDepth <= depth)
+    {
+      YaneuraOu2016Mid::search<PV>(pos, ss, alpha, beta, th->rootDepth * ONE_PLY, false);
+      std::stable_sort(rootMoves.begin(), rootMoves.end());
+    }
+
+    auto bestMove = rootMoves[0].pv[0];
+    auto bestValue = rootMoves[0].score;
+    return pair<Move,Value>(bestMove , bestValue);
+  }
+
+  pair<Move, Value> qsearch(Position& pos, Value alpha, Value beta)
+  {
+    Stack stack[MAX_PLY + 7], *ss = stack + 5;
+    memset(ss - 5, 0, 8 * sizeof(Stack));
+
+    Move pv[MAX_PLY + 1];
+    ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
+
+    pos.check_info_update();
+
+    // 現局面で王手がかかっているかで場合分け。
+    const bool inCheck = pos.in_check();
+    auto bestValue = inCheck ?
+      YaneuraOu2016Mid::qsearch<PV, true>(pos, ss, alpha, beta, DEPTH_ZERO) :
+      YaneuraOu2016Mid::qsearch<PV, false>(pos, ss, alpha, beta, DEPTH_ZERO);
+
+    auto bestMove = pos.this_thread()->rootMoves[0].pv[0];
+    return pair<Move,Value>(bestMove , bestValue);
+  }
+}
+
 
 #endif // YANEURAOU_2016_MID_ENGINE

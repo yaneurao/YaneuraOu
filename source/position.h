@@ -332,7 +332,8 @@ struct Position
   void do_move(Move m, StateInfo& st, bool givesCheck);
 
   // do_move()の4パラメーター版のほうを呼び出すにはgivesCheckも渡さないといけないが、
-  // mで王手になるかどうかがわからないときはこちらの関数を用いる。都度CheckInfoのコンストラクタが呼び出されるので遅い。探索中には使わないこと。
+  // mで王手になるかどうかがわからないときはこちらの関数を用いる。
+  // 都度CheckInfoのコンストラクタが呼び出されるので遅い。探索中には使わないこと。
   void do_move(Move m, StateInfo& st) { check_info_update(); do_move(m, st, gives_check(m)); }
 
   // 指し手で盤面を1手戻す
