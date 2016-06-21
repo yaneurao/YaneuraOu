@@ -21,7 +21,7 @@ void TranspositionTable::resize(size_t mbSize) {
   if (!mem)
   {
     std::cout << "info string Error : Failed to allocate " << mbSize
-      << "MB for transposition table." << std::endl;
+      << "MB for transposition table. ClusterCount = " << newClusterCount << std::endl;
     exit(EXIT_FAILURE);
   }
 

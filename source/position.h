@@ -220,7 +220,7 @@ struct Position
   Hand hand_of(Color c) const { return hand[c]; }
 
   // c側の玉の位置を返す
-  Square king_square(Color c) const { return kingSquare[c]; }
+  FORCE_INLINE Square king_square(Color c) const { return kingSquare[c]; }
 
   // 保持しているデータに矛盾がないかテストする。
   bool pos_is_ok() const;

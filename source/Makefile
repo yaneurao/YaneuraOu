@@ -1,12 +1,12 @@
 COMPILER = g++
 #COMPILER = mpicxx
-CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fopenmp -fpermissive
+CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fopenmp -fpermissive -D_WIN64
 CFLAGS   += -march=native
 LDFLAGS  = -lpthread #-lboost_mpi -lboost_serialization
 LIBS     =
 INCLUDE  = #-I../include
 ifeq ($(OS),Windows_NT)
-  TARGET = YaneuraOu.exe
+  TARGET = YaneuraOu-2016-Mid_gcc.exe
   LDFLAGS += -static
 else
   TARGET = yaneuraou
@@ -27,12 +27,14 @@ SOURCES  = bitboard.cpp misc.cpp movegen.cpp position.cpp shogi.cpp \
 	extra\move_picker_2016Q2.cpp \
 	extra\test_cmd.cpp \
 	extra\timeman.cpp \
+	extra\see.cpp \
 	eval\evaluate_bona_piece.cpp \
 	eval\evaluate_kpp.cpp \
 	eval\evaluate_kppt.cpp \
 	eval\evaluate_material.cpp \
 	eval\evaluate_no_eval.cpp \
-	engine\2016-mid-engine\2016-mid-search.cpp
+	engine\2016-mid-engine\2016-mid-search.cpp \
+	engine\user-engine\user-engine.cpp
 
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
 DEPENDS  = $(OBJECTS:.o=.d)
@@ -50,18 +52,21 @@ avx2:
 	mkdir -p ../obj/extra
 	mkdir -p ../obj/eval
 	mkdir -p ../obj/engine/2016-mid-engine/
+	mkdir -p ../obj/engine/user-engine/
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -mbmi2 -mavx2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 sse4:
 	mkdir -p ../obj/extra
 	mkdir -p ../obj/eval
 	mkdir -p ../obj/engine/2016-mid-engine/
+	mkdir -p ../obj/engine/user-engine/
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -msse4.2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 sse2:
 	mkdir -p ../obj/extra
 	mkdir -p ../obj/eval
 	mkdir -p ../obj/engine/2016-mid-engine/
+	mkdir -p ../obj/engine/user-engine/
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -msse2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 prof:

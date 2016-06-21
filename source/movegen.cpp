@@ -98,7 +98,6 @@ using namespace std;
 });}
 
 
-
 #endif
 
 
@@ -106,7 +105,7 @@ using namespace std;
 // fromにあるpcをtargetの升に移動させる指し手の生成。
 // 遅いので駒王手の指し手生成のときにしか使わない。
 template <Piece Pt, Color Us, bool All> struct make_move_target {
-  ExtMove* operator()(const Position& pos,Square from, const Bitboard& target_, ExtMove* mlist)
+  FORCE_INLINE ExtMove* operator()(const Position& pos,Square from, const Bitboard& target_, ExtMove* mlist)
   {
     Square to;
     Bitboard target = target_;
@@ -216,7 +215,7 @@ template <Piece Pt, Color Us, bool All> struct make_move_target {
 
 // 指し手生成のうち、一般化されたもの。香・桂・銀はこの指し手生成を用いる。
 template <MOVE_GEN_TYPE GenType, Piece Pt, Color Us, bool All> struct GeneratePieceMoves {
-  ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target) {
+  FORCE_INLINE ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target) {
     // 盤上の駒pc(香・桂・銀)に対して
     auto pieces = pos.pieces(Us, Pt);
     const auto occ = pos.pieces();
@@ -242,7 +241,7 @@ template <MOVE_GEN_TYPE GenType, Piece Pt, Color Us, bool All> struct GeneratePi
 
 // 歩の移動による指し手生成
 template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<GenType, PAWN, Us, All> {
-  ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target)
+  FORCE_INLINE ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target)
   {
     // 盤上の自駒の歩に対して
     auto pieces = pos.pieces(Us, PAWN);
@@ -275,7 +274,7 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
 
 // 角・飛による移動による指し手生成。これらの駒は成れるなら絶対に成る
 template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<GenType, GPM_BR, Us, All> {
-  ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target)
+  FORCE_INLINE ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target)
   {
     // 角と飛に対して(馬と龍は除く)
     auto pieces = (pos.pieces(Us, BISHOP) | pos.pieces(Us, ROOK)) & ~pos.pieces(Us, HDK);
@@ -296,7 +295,7 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
 
 // 成れない駒による移動による指し手。(金相当の駒・馬・龍・王)
 template <MOVE_GEN_TYPE GenType, Color Us,bool All> struct GeneratePieceMoves<GenType, GPM_GHDK, Us, All> {
-  ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target)
+  FORCE_INLINE ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target)
   {
     // 金相当の駒・馬・龍・玉に対して
     auto pieces = pos.pieces(Us, HDK) | pos.pieces(Us, GOLD);
@@ -316,7 +315,7 @@ template <MOVE_GEN_TYPE GenType, Color Us,bool All> struct GeneratePieceMoves<Ge
 
 // 玉を除く成れない駒による移動による指し手。(金相当の駒・馬・龍)
 template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<GenType, GPM_GHD, Us, All> {
-  ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target)
+  FORCE_INLINE ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target)
   {
     // 金相当の駒・馬・龍に対して
     auto pieces = (pos.pieces(Us, HDK) | pos.pieces(Us, GOLD)) ^ pos.king_square(Us);

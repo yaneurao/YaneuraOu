@@ -9,6 +9,48 @@ gcc 対応。__popcnt →　mm_popcnt_u64を使うと良いらしい。
 	#define POPCNT32(a) _mm_popcnt_u64(a)
 	#define POPCNT64(a) _mm_popcnt_u64(a)
 
+		gcc
+		===========================
+		Total time (ms) : 128211
+		Nodes searched  : 80011406
+		Nodes/second    : 624060
+
+		VC2015
+		===========================
+		Total time (ms) : 128684
+		Nodes searched  : 80011406
+		Nodes/second    : 621766
+
+		何も変わってなかった。あれれ…。そして速くなっているな。
+		FORCE_INLINEをつけた影響で少し速くなったのか？はてはて。
+
+		BitboardのpopまわりにFORCE_INLINE追加した。
+		movegen.cppにもFORCE_INLINE追加した。→　コンパイルがめっちゃ遅くなった。
+		→　少し減らした。
+
+		VC2015
+		===========================
+		Total time (ms) : 131980
+		Nodes searched  : 80011406
+		Nodes/second    : 606238
+
+		gcc
+		===========================
+		Total time (ms) : 126935
+		Nodes searched  : 80011406
+		Nodes/second    : 630333
+
+		gcc 仮想環境の外。4771
+		===========================
+		Total time (ms) : 122866
+		Nodes searched  : 80011406
+		Nodes/second    : 651208
+
+		VC2015 仮想環境の外。4771
+		===========================
+		Total time (ms) : 125457
+		Nodes searched  : 80011406
+		Nodes/second    : 637759
 
 
 ] V3.14

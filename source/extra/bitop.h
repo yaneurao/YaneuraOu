@@ -158,8 +158,8 @@ FORCE_INLINE int MSB64(uint64_t v) { ASSERT_LV3(v != 0); return uint32_t(v >> 32
 
 FORCE_INLINE int LSB32(const u32 v) { ASSERT_LV3(v != 0); return __builtin_ctzll(v); }
 FORCE_INLINE int LSB64(const u64 v) { ASSERT_LV3(v != 0); return __builtin_ctzll(v); }
-FORCE_INLINE int MSB32(const u32 v) { ASSERT_LV3(v != 0); return __builtin_clzll(v); }
-FORCE_INLINE int MSB64(const u64 v) { ASSERT_LV3(v != 0); return __builtin_clzll(v); }
+FORCE_INLINE int MSB32(const u32 v) { ASSERT_LV3(v != 0); return 63 - __builtin_clzll(v); }
+FORCE_INLINE int MSB64(const u64 v) { ASSERT_LV3(v != 0); return 63 - __builtin_clzll(v); }
 
 #endif
 
@@ -280,7 +280,7 @@ private:
 // 1である最下位bitを1bit取り出して、そのbit位置を返す。0を渡してはならない。
 // sizeof(T)<=4 なら LSB32(b)で済むのだが、これをコンパイル時に評価させるの、どう書いていいのかわからん…。
 // デフォルトでLSB32()を呼ぶようにしてuint64_tのときだけ64bit版を用意しておく。
-template <typename T> int pop_lsb(T& b) {  int index = LSB32(b);  b = T(b & (b - 1)); return index; }
-inline int pop_lsb(uint64_t & b) { int index = LSB64(b);  b &= b - 1; return index; }
+template <typename T> FORCE_INLINE int pop_lsb(T& b) {  int index = LSB32(b);  b = T(b & (b - 1)); return index; }
+FORCE_INLINE int pop_lsb(uint64_t & b) { int index = LSB64(b);  b &= b - 1; return index; }
 
 #endif
