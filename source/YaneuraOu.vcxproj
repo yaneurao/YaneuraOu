@@ -284,6 +284,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\exe\book\standard_book.db" />
+    <None Include="..\exe\YaneuraOu-2016-mid.exe" />
     <None Include="..\exe\YaneuraOu-classic-tce.exe" />
     <None Include="..\exe\YaneuraOu-classic.exe" />
     <None Include="..\exe\YaneuraOu-local-server.exe" />

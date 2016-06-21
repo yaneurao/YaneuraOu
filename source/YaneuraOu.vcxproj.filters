@@ -325,5 +325,8 @@
     <None Include="Makefile">
       <Filter>doc</Filter>
     </None>
+    <None Include="..\exe\YaneuraOu-2016-mid.exe">
+      <Filter>exe</Filter>
+    </None>
   </ItemGroup>
 </Project>
