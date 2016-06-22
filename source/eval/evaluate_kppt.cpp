@@ -8,7 +8,6 @@
 
 #include "../evaluate.h"
 #include "../position.h"
-#include "../extra/evalsum.h"
 
 using namespace std;
 
@@ -97,10 +96,13 @@ namespace Eval
     // 評価値の合計
     EvalSum sum;
 
-    // SSE2は少なくとも有るという前提で。
 
+#if defined(USE_SSE2)
     // sum.p[0](BKPP)とsum.p[1](WKPP)をゼロクリア
     sum.m[0] = _mm_setzero_si128();
+#else
+    sum.p[0][0] = sum.p[0][1] = sum.p[1][0] = sum.p[1][1] = 0;
+#endif
 
     // KK
     sum.p[2] = kk[sq_bk][sq_wk];
@@ -116,10 +118,7 @@ namespace Eval
         l0 = list_fb[j];
         l1 = list_fw[j];
 
-#if 0
-        sum.p[0] += pkppb[l0];
-        sum.p[1] += pkppw[l1];
-#else
+#if defined(SSE2)
         // SSEによる実装
 
         // pkppw[l1][0],pkppw[l1][1],pkppb[l0][0],pkppb[l0][1]の16bit変数4つを整数拡張で32bit化して足し合わせる
@@ -127,6 +126,9 @@ namespace Eval
         tmp = _mm_set_epi32(0, 0, *reinterpret_cast<const int32_t*>(&pkppw[l1][0]), *reinterpret_cast<const int32_t*>(&pkppb[l0][0]));
         tmp = _mm_cvtepi16_epi32(tmp);
         sum.m[0] = _mm_add_epi32(sum.m[0], tmp);
+#else
+        sum.p[0] += pkppb[l0];
+        sum.p[1] += pkppw[l1];
 #endif
       }
       sum.p[2] += kkp[sq_bk][sq_wk][k0];
@@ -456,10 +458,12 @@ namespace Eval
     // 評価値の合計
     EvalSum sum;
 
-    // SSE2は少なくとも有るという前提で。
-
+#if defined(USE_SSE2)
     // sum.p[0](BKPP)とsum.p[1](WKPP)をゼロクリア
     sum.m[0] = _mm_setzero_si128();
+#else
+    sum.p[0][0] = sum.p[0][1] = sum.p[1][0] = sum.p[1][1] = 0;
+#endif
 
     // KK
     sum.p[2] = kk[sq_bk][sq_wk];
@@ -476,10 +480,7 @@ namespace Eval
         l0 = list_fb[j];
         l1 = list_fw[j];
 
-#if 0
-        sum.p[0] += pkppb[l0];
-        sum.p[1] += pkppw[l1];
-#else
+#if defined(USE_SSE2)
         // SSEによる実装
 
         // pkppw[l1][0],pkppw[l1][1],pkppb[l0][0],pkppb[l0][1]の16bit変数4つを整数拡張で32bit化して足し合わせる
@@ -491,6 +492,9 @@ namespace Eval
         cout << "BKPP : " << sq_bk << " " << k0 << " " << l0 << " = " << pkppb[l0][0] << " + " << pkppb[l0][1] << "\n";
         cout << "WKPP : " << sq_wk << " " << k1 << " " << l1 << " = " << pkppw[l1][0] << " + " << pkppw[l1][1] << "\n";
 
+#else
+        sum.p[0] += pkppb[l0];
+        sum.p[1] += pkppw[l1];
 #endif
       }
       sum.p[2] += kkp[sq_bk][sq_wk][k0];

@@ -23,16 +23,6 @@ typedef uint32_t u32;
 typedef uint64_t u64;
 
 // ----------------------------
-//      64bit environment
-// ----------------------------
-
-// 64bit環境のときにはIS_64BITがdefinedになるのでこのシンボルが定義されていなければ
-// 32bit環境用のemulation codeを書く。
-#if defined(_WIN64) && defined(_MSC_VER)
-#define IS_64BIT
-#endif
-
-// ----------------------------
 //      inline化の強制
 // ----------------------------
 
@@ -51,7 +41,6 @@ typedef uint64_t u64;
 // ----------------------------
 
 #ifdef USE_AVX2
-const bool use_avx2 = true;
 
 // for SSE,AVX,AVX2
 #include <immintrin.h>
@@ -66,8 +55,6 @@ const bool use_avx2 = true;
 #endif
 
 #else
-
-const bool use_avx2 = false;
 
 // for non-AVX2 : software emulationによるpext実装(やや遅い。とりあえず動くというだけ。)
 inline uint64_t pext(uint64_t val, uint64_t mask)
@@ -93,7 +80,6 @@ inline uint64_t PEXT64(uint64_t a, uint64_t b) { return pext(a, b); }
 // ----------------------------
 
 #ifdef USE_SSE42
-const bool use_sse42 = true;
 
 // for SSE4.2
 #include <nmmintrin.h>
@@ -108,7 +94,6 @@ const bool use_sse42 = true;
 #endif
 
 #else
-const bool use_sse42 = false;
 
 // software emulationによるpopcnt(やや遅い)
 

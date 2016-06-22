@@ -504,7 +504,7 @@ namespace YaneuraOu2016Mid
     //     eval呼び出し
     // -----------------------
 
-    pos.check_info_update();
+//    pos.check_info_update();
 
     if (InCheck)
     {
@@ -589,7 +589,7 @@ namespace YaneuraOu2016Mid
 
     // 利きを用いるmate1ply()は、呼び出し前にpinを更新する必要があるが、
     // 利きを用いないmate1ply()なら、このタイミングで呼び出しておけば十分。
-//    pos.check_info_update();
+    pos.check_info_update();
 
     // 取り合いの指し手だけ生成する
     // searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうるが、
@@ -2473,7 +2473,7 @@ namespace Learner
     // 現局面で王手がかかっているかで場合分け。
     const bool inCheck = pos.in_check();
     auto bestValue = inCheck ?
-      YaneuraOu2016Mid::qsearch<PV, true>(pos, ss, alpha, beta, DEPTH_ZERO) :
+      YaneuraOu2016Mid::qsearch<PV, true >(pos, ss, alpha, beta, DEPTH_ZERO) :
       YaneuraOu2016Mid::qsearch<PV, false>(pos, ss, alpha, beta, DEPTH_ZERO);
 
     auto bestMove = pos.this_thread()->rootMoves[0].pv[0];

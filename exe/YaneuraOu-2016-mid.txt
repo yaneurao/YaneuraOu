@@ -16,6 +16,18 @@
     YaneuraOu-2016-mid_ja.txt   : これを用いると思考エンジンの設定項目の表示が日本語化される。
     book/standard_book.db   : 基本定跡
 
+	※　AVX2に対応していないCPUの場合、以下のなかから
+　　　　　　ターゲット環境のCPUのものを選択して、それを
+	    YaneuraOu-2016-mid.exeとリネームしてお使いください。
+
+		YaneuraOu-2016-mid-sse42.exe : SSE4.2以降用
+		YaneuraOu-2016-mid-sse4.exe  : SSE4  以降用
+		YaneuraOu-2016-mid-sse2.exe  : SSE2  以降用
+		YaneuraOu-2016-mid-nosse.exe : SSEなし
+
+	※　YaneuraOu-2016-Mid_gcc.exeは、Msys2のg++でコンパイルした
+	AVX2用の実行ファイルです。Visual C++2015でコンパイルしたものより
+	数%だけ速いようです。
 
     eval/KK_synthesized.bin        : 3駒関係の評価関数で用いるファイル(KK)
     eval/KKP_synthesized.bin       : 3駒関係の評価関数で用いるファイル(KKP)

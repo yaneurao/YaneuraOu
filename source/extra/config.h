@@ -7,18 +7,21 @@
 
 // --- ターゲットCPUの選択
 
-// AVX2(Haswell以降)でサポートされた命令を使うか。
-// このシンボルをdefineしなければ、pext命令をソフトウェアでエミュレートする。
-// 古いCPUのPCで開発をしたていて、遅くてもいいからともかく動いて欲しいときにそうすると良い。
+// ターゲットCPUを選ぶ。
+
+// USE_AVX2  : AVX2(Haswell以降)でサポートされた命令を使うか。pextなど。
+// USE_SSE42 : SSE4.2でサポートされた命令を使うか。popcnt命令など。
+// USE_SSE4  : SSE4　でサポートされた命令を使うか。_mm_testz_si128など。
+// USE_SSE2  : SSE2  でサポートされた命令を使うか。
+
+// noSSE ⊂ SSE2 ⊂ SSE4 ⊂ SSE4.2 ⊂ AVX2
+// なので、例えば、SSE4.2を選択するときは、
+// USE_SSE4.2をdefineして、そこ以降である、USE_SSE4とUSE_SSE2もdefineしてください。
 
 #define USE_AVX2
-
-// SSE4.2以降でサポートされた命令を使うか。
-// このシンボルをdefineしなければ、popcnt命令をソフトウェアでエミュレートする。
-// (ただしSSE2は必要)
-// 古いCPUのPCで開発をしていて、遅くてもいいからともかく動いて欲しいときにそうすると良い。
-
 #define USE_SSE42
+#define USE_SSE4
+#define USE_SSE2
 
 
 // 通例hash keyは64bitだが、これを128にするとPosition::state()->long_key()から128bit hash keyが
@@ -200,7 +203,7 @@
 #ifdef YANEURAOU_2016_MID_ENGINE
 #define ENGINE_NAME "YaneuraOu 2016 Mid"
 // 開発中なのでassertを有効に。
-#define ASSERT_LV 3
+//#define ASSERT_LV 3
 #define ENABLE_TEST_CMD
 #define EVAL_KPPT
 //#define USE_EVAL_HASH
@@ -342,7 +345,6 @@
 #define ASSERT_LV4(X) ASSERT_LV_EX(4, X)
 #define ASSERT_LV5(X) ASSERT_LV_EX(5, X)
 
-
 // --- declaration of unreachablity
 
 // switchにおいてdefaultに到達しないことを明示して高速化させる
@@ -381,17 +383,33 @@ const bool pretty_jp = false;
 #endif
 
 
-// --- 32-bit OS or 64-bit OS
+// ----------------------------
+//      CPU environment
+// ----------------------------
 
 // ターゲットが64bitOSかどうか
 #if (defined(_WIN64) && defined(_MSC_VER)) || (defined(__GNUC__) && defined(__x86_64__))
 const bool Is64Bit = true;
+#define IS_64BIT
 #else
 const bool Is64Bit = false;
 #endif
 
+#if defined(USE_AVX2)
+#define TARGET_CPU "AVX2"
+#elif defined(USE_SSE41)
+#define TARGET_CPU "SSE4.2"
+#elif defined(USE_SSE4)
+#define TARGET_CPU "SSE4"
+#elif defined(USE_SSE2)
+#define TARGET_CPU "SSE2"
+#else
+#define TARGET_CPU "noSSE"
+#endif
 
-// --- evaluate function
+// ----------------------------
+//     evaluate function
+// ----------------------------
 
 // -- 評価関数の種類によりエンジン名に使用する文字列を変更する。
 #if defined(EVAL_MATERIAL)

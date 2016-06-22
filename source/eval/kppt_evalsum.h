@@ -1,7 +1,9 @@
-#ifndef EVAL_SUM_H
-#define EVAL_SUM_H
+#ifndef _KPPT_EVAL_SUM_H_
+#define _KPPT_EVAL_SUM_H_
 
 #include <array>
+
+// KPPTで使うためのヘルパクラス
 
 namespace Eval {
 
@@ -34,7 +36,7 @@ namespace Eval {
 
   struct EvalSum {
 
-#if defined USE_AVX2_EVAL
+#if defined(USE_AVX2)
     EvalSum(const EvalSum& es) {
       _mm256_store_si256(&mm, es.mm);
     }
@@ -42,7 +44,7 @@ namespace Eval {
       _mm256_store_si256(&mm, rhs.mm);
       return *this;
     }
-#elif defined USE_SSE_EVAL
+#elif defined(USE_SSE2)
     EvalSum(const EvalSum& es) {
       _mm_store_si128(&m[0], es.m[0]);
       _mm_store_si128(&m[1], es.m[1]);
@@ -53,6 +55,7 @@ namespace Eval {
       return *this;
     }
 #endif
+
     EvalSum() {}
 
     // 先手から見た評価値を返す。この局面の手番は c側にあるものとする。c側から見た評価値を返す。
@@ -72,20 +75,34 @@ namespace Eval {
       return (c == BLACK ? scoreBoard : -scoreBoard) + scoreTurn;
     }
     EvalSum& operator += (const EvalSum& rhs) {
-#if defined USE_AVX2
+#if defined(USE_AVX2)
       mm = _mm256_add_epi32(mm, rhs.mm);
-#else
+#elif defined(USE_SSE2)
       m[0] = _mm_add_epi32(m[0], rhs.m[0]);
       m[1] = _mm_add_epi32(m[1], rhs.m[1]);
+#else
+      p[0][0] += rhs.p[0][0];
+      p[0][1] += rhs.p[0][1];
+      p[1][0] += rhs.p[1][0];
+      p[1][1] += rhs.p[1][1];
+      p[2][0] += rhs.p[2][0];
+      p[2][1] += rhs.p[2][1];
 #endif
       return *this;
     }
     EvalSum& operator -= (const EvalSum& rhs) {
-#ifdef USE_AVX2
+#if defined(USE_AVX2)
       mm = _mm256_sub_epi32(mm, rhs.mm);
-#else
+#elif defined(USE_SSE2)
       m[0] = _mm_sub_epi32(m[0], rhs.m[0]);
       m[1] = _mm_sub_epi32(m[1], rhs.m[1]);
+#else
+      p[0][0] -= rhs.p[0][0];
+      p[0][1] -= rhs.p[0][1];
+      p[1][0] -= rhs.p[1][0];
+      p[1][1] -= rhs.p[1][1];
+      p[2][0] -= rhs.p[2][0];
+      p[2][1] -= rhs.p[2][1];
 #endif
       return *this;
     }
@@ -109,10 +126,10 @@ namespace Eval {
         uint64_t data[3];
         uint64_t key; // ehash用。
       };
-#if defined USE_AVX2
+#if defined(USE_AVX2)
       __m256i mm;
       __m128i m[2];
-#else // SSE2はあるものとする。
+#elif defined(USE_SSE2)
       __m128i m[2];
 #endif
     };

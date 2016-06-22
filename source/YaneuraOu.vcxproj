@@ -206,11 +206,11 @@
     <ClInclude Include="engine\help-mate-engine\help_mate_engine.h" />
     <ClInclude Include="engine\mate-engine\mate_engine.h" />
     <ClInclude Include="evaluate.h" />
+    <ClInclude Include="eval\kppt_evalsum.h" />
     <ClInclude Include="extra\all.h" />
     <ClInclude Include="extra\bitop.h" />
     <ClInclude Include="extra\book.h" />
     <ClInclude Include="extra\config.h" />
-    <ClInclude Include="extra\evalsum.h" />
     <ClInclude Include="extra\long_effect.h" />
     <ClInclude Include="extra\key128.h" />
     <ClInclude Include="extra\macros.h" />
@@ -284,7 +284,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\exe\book\standard_book.db" />
+    <None Include="..\exe\YaneuraOu-2016-mid-nosse.exe" />
+    <None Include="..\exe\YaneuraOu-2016-mid-sse2.exe" />
+    <None Include="..\exe\YaneuraOu-2016-mid-sse4.exe" />
+    <None Include="..\exe\YaneuraOu-2016-mid-sse42.exe" />
     <None Include="..\exe\YaneuraOu-2016-mid.exe" />
+    <None Include="..\exe\YaneuraOu-2016-Mid_gcc.exe" />
     <None Include="..\exe\YaneuraOu-classic-tce.exe" />
     <None Include="..\exe\YaneuraOu-classic.exe" />
     <None Include="..\exe\YaneuraOu-local-server.exe" />

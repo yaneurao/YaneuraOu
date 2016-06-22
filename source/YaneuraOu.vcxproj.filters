@@ -124,14 +124,14 @@
     <ClInclude Include="engine\2016-mid-engine\parameters.h">
       <Filter>リソース ファイル\engine\2016-mid-engine</Filter>
     </ClInclude>
-    <ClInclude Include="extra\evalsum.h">
-      <Filter>リソース ファイル\extra</Filter>
-    </ClInclude>
     <ClInclude Include="extra\move_picker_2016Q2.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
     <ClInclude Include="extra\move_picker_2015.h">
       <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\kppt_evalsum.h">
+      <Filter>リソース ファイル\eval</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -326,6 +326,21 @@
       <Filter>doc</Filter>
     </None>
     <None Include="..\exe\YaneuraOu-2016-mid.exe">
+      <Filter>exe</Filter>
+    </None>
+    <None Include="..\exe\YaneuraOu-2016-Mid_gcc.exe">
+      <Filter>exe</Filter>
+    </None>
+    <None Include="..\exe\YaneuraOu-2016-mid-nosse.exe">
+      <Filter>exe</Filter>
+    </None>
+    <None Include="..\exe\YaneuraOu-2016-mid-sse2.exe">
+      <Filter>exe</Filter>
+    </None>
+    <None Include="..\exe\YaneuraOu-2016-mid-sse4.exe">
+      <Filter>exe</Filter>
+    </None>
+    <None Include="..\exe\YaneuraOu-2016-mid-sse42.exe">
       <Filter>exe</Filter>
     </None>
   </ItemGroup>

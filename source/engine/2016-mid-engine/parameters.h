@@ -8,7 +8,7 @@
 // 深さに比例したfutility pruning
 // depth手先で評価値が変動する幅が = depth * PARAM_FUTILITY_MARGIN_DEPTH
 // 元の値 = 200
-// [PARAM] min:50,max:120,step:3,interval:9999,time_rate:1
+// [PARAM] min:100,max:240,step:3,interval:9999,time_rate:1
 PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 180;
 
 // 静止探索でのfutility pruning
@@ -117,13 +117,13 @@ PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 20000;
 PARAM_DEFINE PARAM_RAZORING_MARGIN1 = 483;
 
 // [PARAM] min:400,max:700,step:8,interval:1,time_rate:1
-PARAM_DEFINE PARAM_RAZORING_MARGIN2 = 570;
+PARAM_DEFINE PARAM_RAZORING_MARGIN2 = 578;
 
 // [PARAM] min:400,max:700,step:8,interval:1,time_rate:1
 PARAM_DEFINE PARAM_RAZORING_MARGIN3 = 603;
 
 // [PARAM] min:400,max:700,step:8,interval:1,time_rate:1
-PARAM_DEFINE PARAM_RAZORING_MARGIN4 = 554;
+PARAM_DEFINE PARAM_RAZORING_MARGIN4 = 570;
 
 //
 // etc..
