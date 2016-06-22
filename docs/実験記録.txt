@@ -1,5 +1,42 @@
 ﻿
 
+■　2016/06/23
+
+] V3.18
+
+・mate間違う局面を見つけた。
+
+	position startpos moves 7g7f 3c3d 6g6f 8c8d 7i6h 7a6b 5g5f 5c5d 3i4h 3a4b 4i5h 4a3b 5h6g 5a4a 6i7h 7c7d 6h7g 6b5c 2g2f 5d5e 5f5e 2b5e 2f2e 5c5d 5i6i 4b3c 4h5g 8b5b 6f6e 5d6e 5g6f 6e6f 7g6f 5e8b P*5e 4a3a S*8c 8b7a 8c7d+ 6a7b 6i7i 3a2b 8h7g 7b7c 7d7c 8a7c 7g6h 7c8e 8g8f P*7g 8i7g 8e7g+ 6h7g 7a3e G*4f 3e7a N*4e 3c4d 5e5d 5b5d 6f5e 5d7d 5e4d 4c4d S*6e 7d7b P*6b 7a6b 6e5d P*7e P*5c S*4c 5d4c 3b4c S*6a 7b7a 6a5b 4c5d 5b6c 7e7f 6g7f 7a7f 6c5d+ N*6f 2e2d 2c2d 7g6f 7f6f 5d4d B*5g P*6h P*6g 2h2d P*2c G*3c 2b3a N*4c 3a4a 3c3b 4a3b 2d3d
+
+	静止探索絡みだな、これ。
+	evasionですべての指し手を生成していない可能性とかも…。
+
+	setoption name Threads value 1
+	position startpos moves 7g7f 3c3d 6g6f 8c8d 7i6h 7a6b 5g5f 5c5d 3i4h 3a4b 4i5h 4a3b 5h6g 5a4a 6i7h 7c7d 6h7g 6b5c 2g2f 5d5e 5f5e 2b5e 2f2e 5c5d 5i6i 4b3c 4h5g 8b5b 6f6e 5d6e 5g6f 6e6f 7g6f 5e8b P*5e 4a3a S*8c 8b7a 8c7d+ 6a7b 6i7i 3a2b 8h7g 7b7c 7d7c 8a7c 7g6h 7c8e 8g8f P*7g 8i7g 8e7g+ 6h7g 7a3e G*4f 3e7a N*4e 3c4d 5e5d 5b5d 6f5e 5d7d 5e4d 4c4d S*6e 7d7b P*6b 7a6b 6e5d P*7e P*5c S*4c 5d4c 3b4c S*6a 7b7a 6a5b 4c5d 5b6c 7e7f 6g7f 7a7f 6c5d+ N*6f 2e2d 2c2d 7g6f 7f6f 5d4d B*5g P*6h P*6g 2h2d P*2c G*3c 2b3a N*4c 3a4a 3c3b 4a3b 2d3d
+	go infinite
+
+	利きを使わない1手詰め判定、バグがあった。とほほ。
+
+	敵の合駒が歩以外にないという条件を間違えて自駒が歩以外ないという条件になっていた。とほほ。
+	-  if (hand_count(ourHand , PAWN) == (int)ourHand)
+
+		秒読み300[ms]
+
+		48.4%	
+		#231
+		やねうら王2016mid V318
+		mate1ply()バグ修正。
+		#228
+		やねうら王2016mid V317
+		基準。
+
+		266-7-284(79.1% R-11.4)	
+
+	バグ取ったのに弱くなった気がする。
+	razor margin変えたのとcheck_info_update()のタイミングが早くなったからか…。つらい..。
+
+
+
 ■　2016/06/22
 
 ] V3.17

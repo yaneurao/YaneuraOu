@@ -692,14 +692,14 @@ namespace {
 
 }
 
-// 1手で積むならばその指し手を返す。なければMOVE_NONEを返す
+// 1手で詰むならばその指し手を返す。なければMOVE_NONEを返す
+// 前提条件) check_info_update()を事前に行なってあること。
 Move is_mate_in_1ply(const Position& pos /*, const CheckInfo& ci */)
 {
   ASSERT_LV3(! pos.checkers() );
 
-  // CheckInfoから取れるのだが、search関数のほうではCheckInfoを初期化する前に
-  // この値が知りたいので、仕方ない。二重初期化になってしまうが…まあ…。
-  Bitboard dcCandidates = pos.discovered_check_candidates();
+  // check_info_update()をやってあると仮定できるなら、直接取得できる。
+  Bitboard dcCandidates = pos.state()->checkInfo.dcCandidates; // pos.discovered_check_candidates();
 
   Color us = pos.side_to_move();
   Color them = ~us;
@@ -1124,10 +1124,10 @@ SILVER_DROP_END:;
 
   // 合い駒なしである可能性が高い
 
-  // 歩以外を持っていないか。
+  // 敵は歩以外を持っていないか。
   // これは、 歩の枚数 == hand であることと等価。(いまの手駒のbit layoutにおいて)
 
-  if (hand_count(ourHand , PAWN) == (int)ourHand)
+  if (hand_count(themHand , PAWN) == (int)themHand)
   {
     // 玉の8近傍の移動可能箇所の列挙
     Bitboard bb_king_movable = ~pos.pieces(them) & kingEffect(sq_king);

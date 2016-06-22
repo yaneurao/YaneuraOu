@@ -1,13 +1,13 @@
-#ifndef _KPPT_EVAL_SUM_H_
+ï»¿#ifndef _KPPT_EVAL_SUM_H_
 #define _KPPT_EVAL_SUM_H_
 
 #include <array>
 
-// KPPT‚Åg‚¤‚½‚ß‚Ìƒwƒ‹ƒpƒNƒ‰ƒX
+// KPPTã§ä½¿ã†ãŸã‚ã®ãƒ˜ãƒ«ãƒ‘ã‚¯ãƒ©ã‚¹
 
 namespace Eval {
 
-  // std::array<T,2>‚É‘Î‚µ‚Ä += ‚Æ -= ‚ğ’ñ‹Ÿ‚·‚éB
+  // std::array<T,2>ã«å¯¾ã—ã¦ += ã¨ -= ã‚’æä¾›ã™ã‚‹ã€‚
   template <typename Tl, typename Tr>
   inline std::array<Tl, 2> operator += (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
     lhs[0] += rhs[0];
@@ -23,16 +23,16 @@ namespace Eval {
 
 
   //
-  // è”Ô‚Â‚«‚Ì•]‰¿’l‚ğ‘«‚µ‚Ä‚¢‚­‚Æ‚«‚Ég‚¤class
+  // æ‰‹ç•ªã¤ãã®è©•ä¾¡å€¤ã‚’è¶³ã—ã¦ã„ãã¨ãã«ä½¿ã†class
   //
 
   // EvalSum sum;
-  // ‚É‘Î‚µ‚Ä
-  // sum.p[0] = ƒ°BKKP
-  // sum.p[1] = ƒ°WKPP
-  // sum.p[2] = ƒ°KK
-  // (‚»‚ê‚¼‚ê‚Éè”Ô‚Í‰Á–¡‚³‚ê‚Ä‚¢‚é‚à‚Ì‚Æ‚·‚é)
-  // sum.sum() == ƒ°BKPP - ƒ°WKPP + ƒ°KK
+  // ã«å¯¾ã—ã¦
+  // sum.p[0] = Î£BKKP
+  // sum.p[1] = Î£WKPP
+  // sum.p[2] = Î£KK
+  // (ãã‚Œãã‚Œã«æ‰‹ç•ªã¯åŠ å‘³ã•ã‚Œã¦ã„ã‚‹ã‚‚ã®ã¨ã™ã‚‹)
+  // sum.sum() == Î£BKPP - Î£WKPP + Î£KK
 
   struct EvalSum {
 
@@ -58,19 +58,19 @@ namespace Eval {
 
     EvalSum() {}
 
-    // æè‚©‚çŒ©‚½•]‰¿’l‚ğ•Ô‚·B‚±‚Ì‹Ç–Ê‚Ìè”Ô‚Í c‘¤‚É‚ ‚é‚à‚Ì‚Æ‚·‚éBc‘¤‚©‚çŒ©‚½•]‰¿’l‚ğ•Ô‚·B
+    // å…ˆæ‰‹ã‹ã‚‰è¦‹ãŸè©•ä¾¡å€¤ã‚’è¿”ã™ã€‚ã“ã®å±€é¢ã®æ‰‹ç•ªã¯ cå´ã«ã‚ã‚‹ã‚‚ã®ã¨ã™ã‚‹ã€‚cå´ã‹ã‚‰è¦‹ãŸè©•ä¾¡å€¤ã‚’è¿”ã™ã€‚
     int32_t sum(const Color c) const {
 
-      // NDF(2014)‚Ìè”Ô•]‰¿‚Ìè–@B
+      // NDF(2014)ã®æ‰‹ç•ªè©•ä¾¡ã®æ‰‹æ³•ã€‚
       // cf. http://www.computer-shogi.org/wcsc24/appeal/NineDayFever/NDF.txt
 
-      // è”Ô‚ÉˆË‘¶‚µ‚È‚¢•]‰¿’l‡Œv
-      // p[1][0]‚Íƒ°WKPP‚È‚Ì‚Å•„†‚Íƒ}ƒCƒiƒXB
+      // æ‰‹ç•ªã«ä¾å­˜ã—ãªã„è©•ä¾¡å€¤åˆè¨ˆ
+      // p[1][0]ã¯Î£WKPPãªã®ã§ç¬¦å·ã¯ãƒã‚¤ãƒŠã‚¹ã€‚
       const int32_t scoreBoard = p[0][0] - p[1][0] + p[2][0];
-      // è”Ô‚ÉˆË‘¶‚·‚é•]‰¿’l‡Œv
+      // æ‰‹ç•ªã«ä¾å­˜ã™ã‚‹è©•ä¾¡å€¤åˆè¨ˆ
       const int32_t scoreTurn = p[0][1] + p[1][1] + p[2][1];
 
-      // ‚±‚ÌŠÖ”‚Íè”Ô‘¤‚©‚çŒ©‚½•]‰¿’l‚ğ•Ô‚·‚Ì‚ÅscoreTurn‚Í•K‚¸ƒvƒ‰ƒX
+      // ã“ã®é–¢æ•°ã¯æ‰‹ç•ªå´ã‹ã‚‰è¦‹ãŸè©•ä¾¡å€¤ã‚’è¿”ã™ã®ã§scoreTurnã¯å¿…ãšãƒ—ãƒ©ã‚¹
 
       return (c == BLACK ? scoreBoard : -scoreBoard) + scoreTurn;
     }
@@ -109,22 +109,22 @@ namespace Eval {
     EvalSum operator + (const EvalSum& rhs) const { return EvalSum(*this) += rhs; }
     EvalSum operator - (const EvalSum& rhs) const { return EvalSum(*this) -= rhs; }
 
-    // evaluate hash‚Åatomic‚É‘€ì‚Å‚«‚é•K—v‚ª‚ ‚é‚Ì‚Å‚»‚Ì‚½‚ß‚Ì‘€ìq
+    // evaluate hashã§atomicã«æ“ä½œã§ãã‚‹å¿…è¦ãŒã‚ã‚‹ã®ã§ãã®ãŸã‚ã®æ“ä½œå­
     void encode() {
 #if defined USE_AVX2
-      // EvalSum ‚Í atomic ‚ÉƒRƒs[‚³‚ê‚é‚Ì‚Å key ‚ª‡‚Á‚Ä‚¢‚ê‚Îƒf[ƒ^‚à‡‚Á‚Ä‚¢‚éB
+      // EvalSum ã¯ atomic ã«ã‚³ãƒ”ãƒ¼ã•ã‚Œã‚‹ã®ã§ key ãŒåˆã£ã¦ã„ã‚Œã°ãƒ‡ãƒ¼ã‚¿ã‚‚åˆã£ã¦ã„ã‚‹ã€‚
 #else
       key ^= data[0] ^ data[1] ^ data[2];
 #endif
     }
-    // decode()‚Íencode()‚Ì‹t•ÏŠ·‚¾‚ªAxor‚È‚Ì‚Å‹t•ÏŠ·‚à“¯‚¶•ÏŠ·B
+    // decode()ã¯encode()ã®é€†å¤‰æ›ã ãŒã€xorãªã®ã§é€†å¤‰æ›ã‚‚åŒã˜å¤‰æ›ã€‚
     void decode() { encode(); }
 
     union {
       std::array<std::array<int32_t, 2>, 3> p;
       struct {
         uint64_t data[3];
-        uint64_t key; // ehash—pB
+        uint64_t key; // ehashç”¨ã€‚
       };
 #if defined(USE_AVX2)
       __m256i mm;
@@ -135,7 +135,7 @@ namespace Eval {
     };
   };
 
-  // o—Í—p@ƒfƒoƒbƒO—pB
+  // å‡ºåŠ›ç”¨ã€€ãƒ‡ãƒãƒƒã‚°ç”¨ã€‚
   static std::ostream& operator<<(std::ostream& os, const EvalSum& sum)
   {
     os << "sum BKPP = " << sum.p[0][0] << " + " << sum.p[0][1] << std::endl;
@@ -145,8 +145,8 @@ namespace Eval {
   }
 
 #ifdef USE_EVAL_HASH
-  // ƒVƒ“ƒvƒ‹‚ÈHashTable‚ÌÀ‘•B
-  // Size‚Í2‚Ì‚×‚«æB
+  // ã‚·ãƒ³ãƒ—ãƒ«ãªHashTableã®å®Ÿè£…ã€‚
+  // Sizeã¯2ã®ã¹ãä¹—ã€‚
   template <typename T, size_t Size>
   struct HashTable
   {
@@ -154,16 +154,16 @@ namespace Eval {
     T* operator [] (const Key k) { return entries_ + (static_cast<size_t>(k) & (Size - 1)); }
     void clear() { memset(entries_, 0, sizeof(T)*Size); }
 
-    // Size ‚ª 2‚Ì‚×‚«æ‚Å‚ ‚é‚±‚Æ‚Ìƒ`ƒFƒbƒN
+    // Size ãŒ 2ã®ã¹ãä¹—ã§ã‚ã‚‹ã“ã¨ã®ãƒã‚§ãƒƒã‚¯
     static_assert((Size & (Size - 1)) == 0, "");
 
   private:
     T entries_[Size];
   };
 
-  // evaluate‚µ‚½‚à‚Ì‚ğ•Û‘¶‚µ‚Ä‚¨‚­HashTable(‘­‚É‚¢‚¤ehash)
+  // evaluateã—ãŸã‚‚ã®ã‚’ä¿å­˜ã—ã¦ãŠãHashTable(ä¿—ã«ã„ã†ehash)
 
-  // 134MB(–‚—İ’è)
+  // 134MB(é­”å¥³è¨­å®š)
   struct EvaluateHashTable: HashTable<EvalSum, 0x400000> {};
   extern EvaluateHashTable g_evalTable;
 #endif

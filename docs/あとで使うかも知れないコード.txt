@@ -1,16 +1,16 @@
+ï»¿
+â– ã€€dynamic futility margin
 
-¡@dynamic futility margin
 
-
-  // dynamic futility margin ( inspired by “Ç‚İ‘¾ )
-  // ’Tõ‚µ‚½‚Æ‚«‚É abs(staticEval-value)‚ğƒTƒ“ƒvƒŠƒ“ƒO‚µ‚Ä‚»‚Ì•½‹Ï‚ç‚Ö‚ñ‚ğmargin’l‚Æ‚µ‚Ä—p‚¢‚é
+  // dynamic futility margin ( inspired by èª­ã¿å¤ª )
+  // æ¢ç´¢ã—ãŸã¨ãã« abs(staticEval-value)ã‚’ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ã—ã¦ãã®å¹³å‡ã‚‰ã¸ã‚“ã‚’marginå€¤ã¨ã—ã¦ç”¨ã„ã‚‹
   Value futility_margin_table[MAX_PLY];
   int futility_margin_count[MAX_PLY];
   Value futility_margin_sum[MAX_PLY];
 
-  // margin’l‚ğƒTƒ“ƒvƒŠƒ“ƒO‚·‚éüŠú
+  // marginå€¤ã‚’ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ã™ã‚‹å‘¨æœŸ
   const int futility_margin_update_interval = 16;
-  // futility_margin_sum[]‚ÍAfutility_margin_update_interval~futility_margin_update_count‚ÌŒÂ”‚ªƒTƒ“ƒvƒŠƒ“ƒO‚³‚ê‚Ä‚¢‚é‚Æl‚¦‚éB
+  // futility_margin_sum[]ã¯ã€futility_margin_update_intervalÃ—futility_margin_update_countã®å€‹æ•°ãŒã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ã•ã‚Œã¦ã„ã‚‹ã¨è€ƒãˆã‚‹ã€‚
   const int futility_margin_update_count = 8;
 
 
@@ -33,21 +33,21 @@
 
     futility_margin_table[0] = (Value)(1 * 90);
 
-    // ‰Šúó‘Ô‚Å‚Ífutility_margin_sum[i]‚É‚ÍAfutility_margin_update_interval‚Ì
-    // (futility_margin_update_count-1)”{‚ÌŒÂ”‚Ìabs(eval-value)‚Ì‡Œv‚ªŠi”[‚³‚ê‚Ä‚¢‚é‚Æl‚¦‚éB
-    // ‚±‚±‚Éfutility_margin_update_intervalŒÂ‚³‚ç‚É“Ë‚Á‚ñ‚ÅAfutility_margin_update_interval‚Ì
-    // futility_margin_update_count”{‚ÌŒÂ”‚É‚È‚Á‚½‚Æ‚«‚É
-    // (futility_margin_update_interval*futility_margin_update_count)‚ÅŠ„‚Á‚Ä•½‹Ï‚ğo‚·B(ˆÚ“®•½‹Ï‚İ‚½‚¢‚È‚Ì)
+    // åˆæœŸçŠ¶æ…‹ã§ã¯futility_margin_sum[i]ã«ã¯ã€futility_margin_update_intervalã®
+    // (futility_margin_update_count-1)å€ã®å€‹æ•°ã®abs(eval-value)ã®åˆè¨ˆãŒæ ¼ç´ã•ã‚Œã¦ã„ã‚‹ã¨è€ƒãˆã‚‹ã€‚
+    // ã“ã“ã«futility_margin_update_intervalå€‹ã•ã‚‰ã«çªã£è¾¼ã‚“ã§ã€futility_margin_update_intervalã®
+    // futility_margin_update_countå€ã®å€‹æ•°ã«ãªã£ãŸã¨ãã«
+    // (futility_margin_update_interval*futility_margin_update_count)ã§å‰²ã£ã¦å¹³å‡ã‚’å‡ºã™ã€‚(ç§»å‹•å¹³å‡ã¿ãŸã„ãªã®)
     futility_margin_sum[i] = futility_margin_table[i] * futility_margin_update_interval * (futility_margin_update_count - 1);
   }
 
 
 
-        // ‚±‚Ì‚Æ‚«‚Édynamic futility margin‚Ì’l‚ğƒTƒ“ƒvƒŠƒ“ƒO‚·‚é
+        // ã“ã®ã¨ãã«dynamic futility marginã®å€¤ã‚’ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ã™ã‚‹
         if (newDepth == 1 * ONE_PLY
           && eval!=VALUE_NONE && abs(value) <= VALUE_MAX_EVAL
-          && value < beta   // fail high‚µ‚Ä‚¢‚é’l‚ÍM—p‚È‚ç‚È‚¢‚Ì‚ÅœŠO
-          && alpha < value  // fail low‚µ‚Ä‚¢‚é’l‚ÍQl‚É‚È‚ç‚È‚¢‚Ì‚ÅœŠO
+          && value < beta   // fail highã—ã¦ã„ã‚‹å€¤ã¯ä¿¡ç”¨ãªã‚‰ãªã„ã®ã§é™¤å¤–
+          && alpha < value  // fail lowã—ã¦ã„ã‚‹å€¤ã¯å‚è€ƒã«ãªã‚‰ãªã„ã®ã§é™¤å¤–
           
           )
         {
@@ -57,15 +57,15 @@
 
           if (futility_margin_count[0]++ == futility_margin_update_interval)
           {
-            // futility_sampling_interval‚Ìfutility_margin_update_count”{‚Ì—v‘f‚Ì‡Œv‚ªfutility_margin_sum[d]
+            // futility_sampling_intervalã®futility_margin_update_countå€ã®è¦ç´ ã®åˆè¨ˆãŒfutility_margin_sum[d]
             futility_margin_table[0] = ((param1 + 4) * futility_margin_sum[0] / 4)
               / (futility_margin_update_count * futility_margin_update_interval);
 #if 0
             futility_margin_table[d] = ((5 + 3) * futility_margin_sum[d] / 4)
               / (futility_margin_update_count * futility_margin_update_interval);
 #endif
-            //  1/futility_margin_update_count ‚ª“ü‚ê‘Ö‚í‚Á‚½‚Æ‚¢‚¤l‚¦B
-            // (–{“–‚ÍŒÃ‚¢•”•ª‚ğ“ü‚ê‘Ö‚¦‚½‚Ù‚¤‚ª‚¢‚¢‚©‚à’m‚ê‚È‚¢‚ªc)
+            //  1/futility_margin_update_count ãŒå…¥ã‚Œæ›¿ã‚ã£ãŸã¨ã„ã†è€ƒãˆã€‚
+            // (æœ¬å½“ã¯å¤ã„éƒ¨åˆ†ã‚’å…¥ã‚Œæ›¿ãˆãŸã»ã†ãŒã„ã„ã‹ã‚‚çŸ¥ã‚Œãªã„ãŒâ€¦)
             futility_margin_sum[0] = futility_margin_sum[0] * (futility_margin_update_count - 1)/ futility_margin_update_count;
             futility_margin_count[0] = 0;
     //        cout << "futility_margin[" << 0 << "] = " << futility_margin_table[0] << endl;

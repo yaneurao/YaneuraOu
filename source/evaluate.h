@@ -5,7 +5,7 @@
 
 // 手番込みの評価関数であれば手番を込みで値を計算するhelper classを使う。
 #ifdef EVAL_KPPT
-#include "eval\kppt_evalsum.h"
+#include "eval/kppt_evalsum.h"
 #endif
 
 // --------------------

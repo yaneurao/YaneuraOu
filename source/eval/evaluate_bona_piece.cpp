@@ -1,4 +1,4 @@
-#include "../evaluate.h"
+ï»¿#include "../evaluate.h"
 #include "../position.h"
 
 using namespace std;
@@ -19,12 +19,12 @@ namespace Eval
   int CapturePieceValue[PIECE_NB] =
   {
     VALUE_ZERO             , PawnValue * 2   , LanceValue * 2   , KnightValue * 2   , SilverValue * 2  ,
-    BishopValue * 2, RookValue * 2, GoldValue * 2, KingValue , // SEE‚Åg‚¤‚Ì‚Å‘å‚«‚È’l‚É‚µ‚Ä‚¨‚­B
+    BishopValue * 2, RookValue * 2, GoldValue * 2, KingValue , // SEEã§ä½¿ã†ã®ã§å¤§ããªå€¤ã«ã—ã¦ãŠãã€‚
     ProPawnValue + PawnValue, ProLanceValue + LanceValue, ProKnightValue + KnightValue, ProSilverValue + SilverValue,
     HorseValue + BishopValue, DragonValue + RookValue, VALUE_ZERO /* PRO_GOLD */,
-    // KingValue‚Ì’l‚Íg‚í‚È‚¢
+    // KingValueã®å€¤ã¯ä½¿ã‚ãªã„
     VALUE_ZERO             , PawnValue * 2   , LanceValue * 2   , KnightValue * 2   , SilverValue * 2  ,
-    BishopValue * 2, RookValue * 2, GoldValue * 2, KingValue , // SEE‚Åg‚¤‚Ì‚Å‘å‚«‚È’l‚É‚µ‚Ä‚¨‚­B
+    BishopValue * 2, RookValue * 2, GoldValue * 2, KingValue , // SEEã§ä½¿ã†ã®ã§å¤§ããªå€¤ã«ã—ã¦ãŠãã€‚
     ProPawnValue + PawnValue, ProLanceValue + LanceValue, ProKnightValue + KnightValue, ProSilverValue + SilverValue,
     HorseValue + BishopValue, DragonValue + RookValue, VALUE_ZERO /* PRO_GOLD */,
   };
@@ -47,15 +47,15 @@ namespace Eval
     { f_rook, e_rook },
     { f_gold, e_gold },
     { f_king, e_king },
-    { f_gold, e_gold }, // ¬•à
-    { f_gold, e_gold }, // ¬
-    { f_gold, e_gold }, // ¬Œj
-    { f_gold, e_gold }, // ¬‹â
-    { f_horse, e_horse }, // ”n
-    { f_dragon, e_dragon }, // —´
-    { BONA_PIECE_ZERO, BONA_PIECE_ZERO }, // ‹à‚Ì¬‚è‚Í‚È‚¢
+    { f_gold, e_gold }, // æˆæ­©
+    { f_gold, e_gold }, // æˆé¦™
+    { f_gold, e_gold }, // æˆæ¡‚
+    { f_gold, e_gold }, // æˆéŠ€
+    { f_horse, e_horse }, // é¦¬
+    { f_dragon, e_dragon }, // é¾
+    { BONA_PIECE_ZERO, BONA_PIECE_ZERO }, // é‡‘ã®æˆã‚Šã¯ãªã„
 
-                                          // Œãè‚©‚çŒ©‚½ê‡Bf‚Æe‚ª“ü‚ê‘Ö‚í‚éB
+                                          // å¾Œæ‰‹ã‹ã‚‰è¦‹ãŸå ´åˆã€‚fã¨eãŒå…¥ã‚Œæ›¿ã‚ã‚‹ã€‚
     { BONA_PIECE_ZERO, BONA_PIECE_ZERO },
     { e_pawn, f_pawn },
     { e_lance, f_lance },
@@ -65,13 +65,13 @@ namespace Eval
     { e_rook, f_rook },
     { e_gold, f_gold },
     { e_king, f_king },
-    { e_gold, f_gold }, // ¬•à
-    { e_gold, f_gold }, // ¬
-    { e_gold, f_gold }, // ¬Œj
-    { e_gold, f_gold }, // ¬‹â
-    { e_horse, f_horse }, // ”n
-    { e_dragon, f_dragon }, // —´
-    { BONA_PIECE_ZERO, BONA_PIECE_ZERO }, // ‹à‚Ì¬‚è‚Í‚È‚¢
+    { e_gold, f_gold }, // æˆæ­©
+    { e_gold, f_gold }, // æˆé¦™
+    { e_gold, f_gold }, // æˆæ¡‚
+    { e_gold, f_gold }, // æˆéŠ€
+    { e_horse, f_horse }, // é¦¬
+    { e_dragon, f_dragon }, // é¾
+    { BONA_PIECE_ZERO, BONA_PIECE_ZERO }, // é‡‘ã®æˆã‚Šã¯ãªã„
   };
 
   ExtBonaPiece kpp_hand_index[COLOR_NB][KING] = {
@@ -97,7 +97,7 @@ namespace Eval
     },
   };
 
-  // BonaPiece‚Ì“à—e‚ğ•\¦‚·‚éBè‹î‚È‚çH,”Õã‚Ì‹î‚È‚ç¡–ÚB—á) HP3 (3–‡–Ú‚Ìè‹î‚Ì•à)
+  // BonaPieceã®å†…å®¹ã‚’è¡¨ç¤ºã™ã‚‹ã€‚æ‰‹é§’ãªã‚‰H,ç›¤ä¸Šã®é§’ãªã‚‰å‡ç›®ã€‚ä¾‹) HP3 (3æšç›®ã®æ‰‹é§’ã®æ­©)
   std::ostream& operator<<(std::ostream& os, BonaPiece bp)
   {
     if (bp < fe_hand_end)
@@ -105,7 +105,7 @@ namespace Eval
       for (auto c : COLOR)
         for (Piece pc = PAWN; pc < KING; ++pc)
         {
-          // ‚±‚Ì‹îí‚ÌãŒÀ(e.g. •à = 18)
+          // ã“ã®é§’ç¨®ã®ä¸Šé™(e.g. æ­© = 18)
           int kind_num = kpp_hand_index[c][pc].fw - kpp_hand_index[c][pc].fb;
           int start = kpp_hand_index[c][pc].fb;
           if (start <= bp && bp < start+kind_num * 2)
@@ -113,7 +113,7 @@ namespace Eval
             bool is_black = bp < start + kind_num;
             if (!is_black) bp = (BonaPiece)(bp - kind_num);
 #ifdef PRETTY_JP
-            os << "è" << (is_black ? "æ" : "Œã") << pretty(pc) << int(bp - start + 1); // ex.èæ•à3
+            os << "æ‰‹" << (is_black ? "å…ˆ" : "å¾Œ") << pretty(pc) << int(bp - start + 1); // ex.æ‰‹å…ˆæ­©3
 #else
             os << "H" << (is_black ? "B" : "W") << pc << int(bp - kpp_hand_index[c][pc].fb + 1); // ex.HBP3
 #endif
