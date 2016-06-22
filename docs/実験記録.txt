@@ -35,6 +35,58 @@
 	バグ取ったのに弱くなった気がする。
 	razor margin変えたのとcheck_info_update()のタイミングが早くなったからか…。つらい..。
 
+		秒読み300[ms]
+
+		51.2%	
+		#231
+		やねうら王2016mid V318
+		mate1ply()バグ修正。
+		#228
+		やねうら王2016mid V317
+		基準。
+
+		262-4-250(28.3% R8.1)	
+
+	まあいいや、ほぼ互角ということで。
+
+	V3.18a
+	mate1ply()、ランダムプレイヤーでテストする。
+
+	歩の移動による不成の王手による詰み、間違えてた。
+		-    to = sq_king + (us == BLACK ? SQ_U : SQ_D);
+		+    to = sq_king + (us == BLACK ? SQ_D : SQ_U);
+
+	歩の移動による成りの王手による詰み、間違えてた。
+
+		mate found = 10000 , mate miss = 89 , mate found rate  = 99.1179%
+		mate found = 20000 , mate miss = 154 , mate found rate  = 99.2359%
+		mate found = 30000 , mate miss = 235 , mate found rate  = 99.2228%
+		mate found = 40000 , mate miss = 322 , mate found rate  = 99.2014%
+		mate found = 50000 , mate miss = 438 , mate found rate  = 99.1316%
+		mate found = 60000 , mate miss = 536 , mate found rate  = 99.1146%
+		mate found = 70000 , mate miss = 632 , mate found rate  = 99.1052%
+		mate found = 80000 , mate miss = 746 , mate found rate  = 99.0761%
+		mate found = 90000 , mate miss = 854 , mate found rate  = 99.06%
+		mate found = 100000 , mate miss = 940 , mate found rate  = 99.0688%
+
+	いっぱい引っかかってワロタ。
+	mate foundは99%付近か。利きによる詰みmate1ply()は93%ちょいだったのでかなりいいみたい…。
+
+	こんな重大なバグ修正したのに0.3秒では差がほとんどつかない…。不思議なものだ。
+
+		秒読み300[ms]
+
+		50.5%	
+		#232
+		やねうら王2016mid V318a
+		mate1ply()バグ修正。
+		#230
+		やねうら王2016mid V317b
+		razoring改善。
+
+		196-2-192(40.0% R3.6)	
+
+
 
 
 ■　2016/06/22

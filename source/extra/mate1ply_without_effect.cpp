@@ -568,6 +568,7 @@ namespace {
     while (bb)
     {
       Square escape = bb.pop();
+
       if (! pos.attackers_to(~us, escape,slide))
         return true;
       // 何も破壊していないので即座に返って良い。
@@ -1541,9 +1542,10 @@ NEXT1:;
   // 歩の移動による詰み
   if (check_cand_bb(us, PIECE_TYPE_CHECK_PAWN_WITH_NO_PRO, sq_king) & pos.pieces(us, PAWN))
   {
-    to = sq_king + (us == BLACK ? SQ_U : SQ_D);
+    // 先手の歩による敵玉の王手だとすると、敵玉の一升下(SQ_D)が歩の移動先。
+    to = sq_king + (us == BLACK ? SQ_D : SQ_U);
     if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) != ~us) { goto SKIP_PAWN; }
-    from = to + (us == BLACK ? SQ_U : SQ_D);
+    from = to + (us == BLACK ? SQ_D : SQ_U);
 
     // 敵陣であれば成りによる詰みチェックで引っかかるだろう。
     if (canPromote(us, to)) { goto SKIP_PAWN; }
@@ -1563,7 +1565,7 @@ SKIP_PAWN:;
   while (bb)
   {
     from = bb.pop();
-    to = from + (us == BLACK ? SQ_D : SQ_U);
+    to = from + (us == BLACK ? SQ_U : SQ_D);
     if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) != ~us) { continue; }
     bb_attacks = goldEffect(us, to);
 
@@ -1604,7 +1606,7 @@ DC_CHECK:;
         if (file_of(from) == file_of(sq_king)) { continue; }
 
         // 移動性の保証
-        to = from + (us == BLACK ? SQ_D : SQ_U);
+        to = from + (us == BLACK ? SQ_U : SQ_D);
         if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) != ~us) { continue; }
 
         // toの地点で成れないと駄目

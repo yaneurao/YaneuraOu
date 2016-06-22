@@ -528,6 +528,10 @@ struct Position
   // 2) LONG_EFFECT_LIBRARYを用いない場合、CheckInfo.dcCandidatesを更新しておく必要がある。
   // →　素直にcheck_info_update()を呼び出すのが吉。
   // 
+
+  // 返し値は、16bitのMove。このあとpseudo_legal()等を使いたいなら、
+  // pos.move16_to_move()を使って32bitのMoveに変換すること。
+
   Move mate1ply() const;
 
   // ↑の先後別のバージョン。(内部的に用いる)

@@ -225,7 +225,7 @@ void effect_check(Position& pos)
 //#define EFFECT_CHECK
 
 // 1手詰め判定のテスト
-//#define MATE1PLY_CHECK
+// #define MATE1PLY_CHECK
 
 // 評価関数の差分計算等のチェック
 //#define EVAL_VALUE_CHECK
@@ -288,6 +288,8 @@ void random_player(Position& pos,uint64_t loop_max)
           if (m != MOVE_NONE)
           {
   //          cout << pos << m;
+            m = pos.move16_to_move(m);
+
             if (!pos.pseudo_legal(m) || !pos.legal(m))
             {
               cout << endl << pos << "not legal , mate1ply() = " << m << endl;
