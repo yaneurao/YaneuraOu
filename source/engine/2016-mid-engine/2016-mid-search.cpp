@@ -1192,7 +1192,7 @@ namespace YaneuraOu2016Mid
     {
       Depth d = depth - 2 * ONE_PLY - (PvNode ? DEPTH_ZERO : depth / 4);
       ss->skipEarlyPruning = true;
-      search<NT>(pos, ss, alpha, beta, d, true);
+      search<NT>(pos, ss, alpha, beta, d, cutNode);
       ss->skipEarlyPruning = false;
 
       tte = TT.probe(posKey, ttHit);
@@ -1309,8 +1309,8 @@ namespace YaneuraOu2016Mid
       // また、置換表の指し手も延長対象。これはYSSの0.5手延長に似たもの。
       // ※　将棋においてはこれはやりすぎの可能性も..
       if (givesCheck
-        && (moveCount == 1
-          || ( !moveCountPruning && pos.see_sign(move) >= VALUE_ZERO)))
+        && moveCount == 1
+        && pos.see_sign(move) >= VALUE_ZERO)
         extension = ONE_PLY;
 
       //

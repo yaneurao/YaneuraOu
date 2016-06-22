@@ -2,14 +2,14 @@
 やねうら王 更新履歴
 
 
-■　2016/06/22 V3.17
+■　2016/06/22 V3.16～V3.17
 
+・razoring margin調整。
+・王手延長の単純化	
+・IIDのとき、常にcut nodeにするのではなく、そのnodeのcutNodeを伝播させる
+・Makefile、フォルダを自動的に掘るように修正。(thx. tanuki-さん)
 ・Moveが32bitにともない、MemoryBookが16bitでMoveを持っていると合致しないことになる。
 	MemoryBookをstructに変更して、なんとかする。
-
-
-■　2016/06/22 V3.16
-
 ・noSSE/SSE2/SSE4/SSE4.1/AVXの命令を分けた。SSEなしでも動くはず。
 ・gcc用の64bit環境の判定、一箇所抜けてた。そこを使わないようにリファクタリングした。
 
