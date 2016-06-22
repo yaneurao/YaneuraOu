@@ -6,7 +6,7 @@ LDFLAGS  = -lpthread #-lboost_mpi -lboost_serialization
 LIBS     =
 INCLUDE  = #-I../include
 ifeq ($(OS),Windows_NT)
-  TARGET = YaneuraOu-2016-Mid_gcc.exe
+  TARGET = YaneuraOu-2016-mid_gcc.exe
   LDFLAGS += -static
 else
   TARGET = yaneuraou

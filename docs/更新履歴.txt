@@ -2,6 +2,12 @@
 やねうら王 更新履歴
 
 
+■　2016/06/22 V3.17
+
+・Moveが32bitにともない、MemoryBookが16bitでMoveを持っていると合致しないことになる。
+	MemoryBookをstructに変更して、なんとかする。
+
+
 ■　2016/06/22 V3.16
 
 ・noSSE/SSE2/SSE4/SSE4.1/AVXの命令を分けた。SSEなしでも動くはず。

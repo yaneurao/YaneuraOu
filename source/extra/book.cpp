@@ -113,7 +113,7 @@ namespace Book
     string sfen;
 
     auto calc_prob = [&] {
-      auto& move_list = book[sfen];
+      auto& move_list = book.book_body[sfen];
       std::stable_sort(move_list.begin(), move_list.end());
       num_sum = std::max(num_sum, UINT64_C(1)); // ゼロ除算対策
       for (auto& bp : move_list)
@@ -181,12 +181,12 @@ namespace Book
     // バージョン識別用文字列
     fs << "#YANEURAOU-DB2016 1.00" << endl;
 
-    for (auto it = book.begin(); it != book.end(); ++it)
+    for (auto& it : book.book_body )
     {
-      fs << "sfen " << it->first /* is sfen string */ << endl; // sfen
+      fs << "sfen " << it.first /* is sfen string */ << endl; // sfen
 
       // const性を消すためにcopyする
-      auto move_list = it->second;
+      auto move_list = it.second;
 
       // 採択回数でソートしておく。
       std::stable_sort(move_list.begin(), move_list.end());
@@ -203,13 +203,13 @@ namespace Book
 
   void insert_book_pos(MemoryBook& book, const std::string sfen,const BookPos& bp)
   {
-    auto it = book.find(sfen);
+    auto it = book.book_body.find(sfen);
     if (it == book.end())
     {
       // 存在しないので要素を作って追加。
       vector<BookPos> move_list;
       move_list.push_back(bp);
-      book[sfen] = move_list;
+      book.book_body[sfen] = move_list;
     } else {
       // この局面での指し手のリスト
       auto& move_list = it->second;

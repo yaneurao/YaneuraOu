@@ -1456,7 +1456,7 @@ void MainThread::think()
   // ---------------------
 
   {
-    auto it = book.find(rootPos.sfen());
+    auto it = book.find(rootPos);
     if (it != book.end() && it->second.size() != 0) {
       // 定跡にhitした。逆順で出力しないと将棋所だと逆順にならないという問題があるので逆順で出力する。
       // また、it->second->size()!=0をチェックしておかないと指し手のない定跡が登録されていたときに困る。

@@ -2,6 +2,7 @@
 #define _BOOK_H_
 
 #include "../shogi.h"
+#include "../position.h"
 #include <unordered_map>
 
 // 定跡処理関係
@@ -24,7 +25,24 @@ namespace Book
 
   // メモリ上にある定跡ファイル
   // sfen文字列をkeyとして、局面の指し手へ変換。(重複した指し手は除外するものとする)
-  typedef std::unordered_map<std::string, std::vector<BookPos> > MemoryBook;
+  struct MemoryBook
+  {
+    typedef std::unordered_map<std::string, std::vector<BookPos> > BookType;
+    BookType::iterator find(const Position& pos)
+    {
+      auto it = book_body.find(pos.sfen());
+      if (it != book_body.end())
+      {
+        // 定跡のMoveは16bitであり、rootMovesは32bitのMoveであるからこのタイミングで補正する。
+        for (auto& m : it->second)
+          m.bestMove = pos.move16_to_move(m.bestMove);
+      }
+      return it;
+    }
+    const BookType::iterator end() { return book_body.end(); }
+
+    BookType book_body;
+  };
 
   // USI拡張コマンド。"makebook"。定跡ファイルを作成する。
   // フォーマット等についてはdoc/解説.txt を見ること。

@@ -266,7 +266,7 @@ struct Position
 
   // 置換表から取り出したMoveを32bit化する。
   Move move16_to_move(Move m) const {
-    return Move(m +
+    return Move(u16(m) +
       (( is_drop(m) ? Piece(move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE) + 32)
       : is_promote(m) ? Piece(piece_on(move_from(m)) + PIECE_PROMOTE) : piece_on(move_from(m))) << 16)
     );

@@ -2238,11 +2238,13 @@ void MainThread::think()
     int book_ply = Options["BookMoves"];
     if (rootPos.game_ply() <= book_ply)
     {
-      auto it = book.find(rootPos.sfen());
+      auto it = book.find(rootPos);
       if (it != book.end() && it->second.size() != 0) {
         // 定跡にhitした。逆順で出力しないと将棋所だと逆順にならないという問題があるので逆順で出力する。
         // また、it->second->size()!=0をチェックしておかないと指し手のない定跡が登録されていたときに困る。
+
         const auto& move_list = it->second;
+
         if (!Limits.silent)
           for (auto it = move_list.rbegin(); it != move_list.rend(); it++)
             sync_cout << "info pv " << it->bestMove << " " << it->nextMove
@@ -2273,7 +2275,7 @@ void MainThread::think()
 
         // 不成の指し手がRootMovesに含まれていると正しく指せない。
         const auto& move = move_list[prng.rand(book_move_max)];
-        auto bestMove = move.bestMove;
+        auto bestMove = move.bestMove; 
         auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
         if (it_move != rootMoves.end())
         {
