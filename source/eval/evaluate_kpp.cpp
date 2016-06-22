@@ -17,10 +17,10 @@ namespace Eval
 {
 
 // KKPファイル名
-#define KKP_BIN "\\kkp32ap.bin"
+#define KKP_BIN "/kkp32ap.bin"
 
 // KPPファイル名
-#define KPP_BIN "\\kpp16ap.bin"
+#define KPP_BIN "/kpp16ap.bin"
 
   typedef int16_t ValueKpp;
   typedef int32_t ValueKkp;

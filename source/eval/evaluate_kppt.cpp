@@ -15,13 +15,13 @@ namespace Eval
 {
 
 // KKファイル名
-#define KK_BIN "\\KK_synthesized.bin"
+#define KK_BIN "/KK_synthesized.bin"
   
 // KKPファイル名
-#define KKP_BIN "\\KKP_synthesized.bin"
+#define KKP_BIN "/KKP_synthesized.bin"
 
 // KPPファイル名
-#define KPP_BIN "\\KPP_synthesized.bin"
+#define KPP_BIN "/KPP_synthesized.bin"
 
   // 手番込みの評価値。[0]が手番に無縁な部分。[1]が手番があるときの上乗せ
   //  (これは先手から見たものではなく先後に依存しないボーナス)。
