@@ -13,10 +13,17 @@
 // USE_SSE42 : SSE4.2でサポートされた命令を使うか。popcnt命令など。
 // USE_SSE4  : SSE4　でサポートされた命令を使うか。_mm_testz_si128など。
 // USE_SSE2  : SSE2  でサポートされた命令を使うか。
+// すべてdefineしなければSSEは使用しない。
+// (Windowsの64bit環境だと自動的にSSE2は使えるはず？)
+
+// Visual Studioのプロジェクト設定で
+// 「構成のプロパティ」→「C / C++」→「コード生成」→「拡張命令セットを有効にする」
+// のところの設定の変更も忘れずに。
 
 // noSSE ⊂ SSE2 ⊂ SSE4 ⊂ SSE4.2 ⊂ AVX2
 // なので、例えば、SSE4.2を選択するときは、
 // USE_SSE4.2をdefineして、そこ以降である、USE_SSE4とUSE_SSE2もdefineしてください。
+
 
 #define USE_AVX2
 #define USE_SSE42
