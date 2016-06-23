@@ -10,6 +10,8 @@
 ・文字コードがcp932になっていたファイルをutf8に修正。(thx.もりたにさん)
 ・INT_MAXにclimits、offsetofにはcstddefが必要だそうで追加。
 ・評価関数の未計算値をINT_MAXにしているの、VALUE_NOT_INITとかにしたほうがわかりやすい気はしなくもないが..。まあいいか。
+・g++でvalueが未初期化かもというwarningが出るのを回避するコードを追加。
+・Ubuntu16.04でmake avx2が通ることは確認した。
 
 
 ■　2016/06/22 V3.16～V3.17

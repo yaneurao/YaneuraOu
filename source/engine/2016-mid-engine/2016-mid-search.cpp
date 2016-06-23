@@ -1243,6 +1243,11 @@ namespace YaneuraOu2016Mid
 
     MovePicker mp(pos, ttMove, depth, ss);
 
+#if defined(__GNUC__)
+    // g++でコンパイルするときにvalueが未初期化かも知れないという警告が出るのでその回避策。
+    value = bestValue;
+#endif
+
     //  一手ずつ調べていく
 
     while ((move = mp.next_move()) !=MOVE_NONE)

@@ -319,14 +319,16 @@
 #pragma warning(disable : 4800)
 #endif
 
+// for GCC
+#if defined(__GNUC__)
+#endif
+
 // for Clang
 //#pragma clang diagnostic ignored "-Wunused-value"     // 未使用な変数に対する警告
 //#pragma clang diagnostic ignored "-Wnull-dereference" // *(int*)0 = 0; のようにnullptrに対する参照に対する警告
 //#pragma clang diagnostic ignored "-Wparentheses"      // while (m = mp.next()) {.. } みたいな副作用についての警告
 //#pragma clang diagnostic ignored "-Wmicrosoft"        // 括弧のなかからの gotoでの警告
 
-// for GCC
-// かきかけ
 
 // --------------------
 //      configure
