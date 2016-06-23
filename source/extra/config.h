@@ -302,6 +302,8 @@
 #include <iostream>
 #include <cstring>  // std::memcpy()
 #include <cmath>    // log()
+#include <climits>  // INT_MAX
+#include <cstddef>  // offsetof
 
 // --------------------
 //   diable warnings
