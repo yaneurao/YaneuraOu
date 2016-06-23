@@ -6,13 +6,19 @@
 //
 
 // ターゲット環境でSSE,AVX,AVX2が搭載されていない場合はこれらの命令をsoftware emulationにより実行する。
-// software emulationなので多少遅いが、SSE,AVX,AVX2の使えない環境でそれに合わせたコードを書く労力が省ける。
+// software emulationなので多少遅いが、SSE2,SSE4,SSE4.2,AVX,AVX2の使えない環境でそれに合わせたコードを書く労力が省ける。
 
-// USE_SSE42   : SSE4.2以降で使える命令を使う
-//                 POPCNT /
-// USE_AVX2    : AVX2以降で使える命令を使う(Haswell以降からサポートされている)
-//                 PEXT   / MOVEMASK
+// ----------------------------
+//   include intrinsic header
+// ----------------------------
 
+#if defined(USE_AVX2)
+#include <immintrin.h>
+#elif defined(USE_SSE41)
+#include <smmintrin.h>
+#elif defined (USE_SSE2)
+#include <emmintrin.h>
+#endif
 
 // ----------------------------
 //      type define(uint)
@@ -41,9 +47,6 @@ typedef uint64_t u64;
 // ----------------------------
 
 #ifdef USE_AVX2
-
-// for SSE,AVX,AVX2
-#include <immintrin.h>
 
 // for AVX2 : hardwareによるpext実装
 #define PEXT32(a,b) _pext_u32(a,b)

@@ -51,8 +51,11 @@ all: clean $(TARGET)
 avx2:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -mbmi2 -mavx2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
-sse4:
+sse42:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -msse4.2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+
+sse41:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -msse4.1' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 sse2:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -msse2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)

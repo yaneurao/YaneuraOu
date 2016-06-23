@@ -118,12 +118,13 @@ namespace Eval
         l0 = list_fb[j];
         l1 = list_fw[j];
 
-#if defined(SSE2)
+#if defined(USE_SSE41)
         // SSEによる実装
 
         // pkppw[l1][0],pkppw[l1][1],pkppb[l0][0],pkppb[l0][1]の16bit変数4つを整数拡張で32bit化して足し合わせる
         __m128i tmp;
         tmp = _mm_set_epi32(0, 0, *reinterpret_cast<const int32_t*>(&pkppw[l1][0]), *reinterpret_cast<const int32_t*>(&pkppb[l0][0]));
+        // この命令SSE4.1の命令のはず..
         tmp = _mm_cvtepi16_epi32(tmp);
         sum.m[0] = _mm_add_epi32(sum.m[0], tmp);
 #else
@@ -480,12 +481,13 @@ namespace Eval
         l0 = list_fb[j];
         l1 = list_fw[j];
 
-#if defined(USE_SSE2)
+#if defined(USE_SSE41)
         // SSEによる実装
 
         // pkppw[l1][0],pkppw[l1][1],pkppb[l0][0],pkppb[l0][1]の16bit変数4つを整数拡張で32bit化して足し合わせる
         __m128i tmp;
         tmp = _mm_set_epi32(0, 0, *reinterpret_cast<const int32_t*>(&pkppw[l1][0]), *reinterpret_cast<const int32_t*>(&pkppb[l0][0]));
+        // この命令SSE4.1の命令のはず
         tmp = _mm_cvtepi16_epi32(tmp);
         sum.m[0] = _mm_add_epi32(sum.m[0], tmp);
 

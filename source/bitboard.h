@@ -12,7 +12,6 @@ namespace Bitboards{
 }
 
 // Bitboard本体クラス
-// SSE/AVX2専用。
 
 struct alignas(16) Bitboard
 {
@@ -59,7 +58,7 @@ struct alignas(16) Bitboard
 
   // Stockfishのソースとの互換性がよくなるようにboolへの暗黙の型変換書いておく。
   operator bool() const {
-#ifdef USE_SSE4
+#ifdef USE_SSE41
     return !(_mm_testz_si128(m, _mm_set1_epi8(static_cast<char>(0xffu))));
 #else
     return (this->merge() ? true : false);
@@ -129,7 +128,7 @@ struct alignas(16) Bitboard
   // 比較演算子
 
   bool operator == (const Bitboard& rhs) const {
-#ifdef USE_SSE4
+#ifdef USE_SSE41
     // 以下のようにすると2命令で済むらしい。
     // testing equality between two __m128i variables
     // cf.http://stackoverflow.com/questions/26880863/sse-testing-equality-between-two-m128i-variables
