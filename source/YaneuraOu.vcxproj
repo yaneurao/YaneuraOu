@@ -203,8 +203,8 @@
   <ItemGroup>
     <ClInclude Include="bitboard.h" />
     <ClInclude Include="engine\2016-mid-engine\2016-mid-param.h" />
-    <ClInclude Include="engine\help-mate-engine\help_mate_engine.h" />
-    <ClInclude Include="engine\mate-engine\mate_engine.h" />
+    <ClInclude Include="engine\help-mate-engine\help-mate-search.h" />
+    <ClInclude Include="engine\mate-engine\mate-search.h" />
     <ClInclude Include="evaluate.h" />
     <ClInclude Include="eval\kppt_evalsum.h" />
     <ClInclude Include="extra\all.h" />
@@ -229,16 +229,16 @@
     <ClCompile Include="bitboard.cpp" />
     <ClCompile Include="engine\2016-late-engine\2016-late-search.cpp" />
     <ClCompile Include="engine\2016-mid-engine\2016-mid-search.cpp" />
-    <ClCompile Include="engine\classic-engine\classic_search.cpp" />
+    <ClCompile Include="engine\classic-engine\classic-search.cpp" />
     <ClCompile Include="engine\classic-tce-engine\classic-tce-search.cpp" />
-    <ClCompile Include="engine\help-mate-engine\help_mate_engine.cpp" />
+    <ClCompile Include="engine\help-mate-engine\help-mate-search.cpp" />
     <ClCompile Include="engine\local-game-server\local-game-server.cpp" />
-    <ClCompile Include="engine\mate-engine\mate_engine.cpp" />
-    <ClCompile Include="engine\mini-engine\mini_search.cpp" />
-    <ClCompile Include="engine\nano-engine\nano_search.cpp" />
-    <ClCompile Include="engine\nano-plus-engine\nano_plus_search.cpp" />
-    <ClCompile Include="engine\random-player-engine\random_player_search.cpp" />
-    <ClCompile Include="engine\user-engine\user-engine.cpp" />
+    <ClCompile Include="engine\mate-engine\mate-search.cpp" />
+    <ClCompile Include="engine\mini-engine\mini-search.cpp" />
+    <ClCompile Include="engine\nano-engine\nano-search.cpp" />
+    <ClCompile Include="engine\nano-plus-engine\nano-plus-search.cpp" />
+    <ClCompile Include="engine\random-player-engine\random-player-search.cpp" />
+    <ClCompile Include="engine\user-engine\user-search.cpp" />
     <ClCompile Include="eval\evaluate_bona_piece.cpp" />
     <ClCompile Include="eval\evaluate_kpp.cpp" />
     <ClCompile Include="eval\evaluate_kppt.cpp" />

@@ -23,6 +23,8 @@
 // オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE を defineして 他のエンジンのソースコードを参考に
 //  engine/user-engine/ フォルダの中身を書くべし。
 
+#ifndef USE_MAKEFILE
+
 //#define YANEURAOU_NANO_ENGINE        // やねうら王nano        (完成2016/01/31)
 //#define YANEURAOU_NANO_PLUS_ENGINE   // やねうら王nano plus   (完成2016/02/25)
 //#define YANEURAOU_MINI_ENGINE        // やねうら王mini        (完成2016/02/29)
@@ -35,6 +37,12 @@
 //#define HELP_MATE_ENGINE             // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
 //#define LOCAL_GAME_SERVER            // 連続自動対局フレームワーク
 //#define USER_ENGINE                  // ユーザーの思考エンジン
+
+#else
+
+// Makefileを使ってビルドをするときは、Makefile側で選択する。
+
+#endif
 
 // --------------------
 // release configurations

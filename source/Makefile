@@ -1,3 +1,14 @@
+# > Select YaneuraOu edition below.
+
+#YANEURAOU_EDITION = RANDOM_PLAYER_ENGINE
+#YANEURAOU_EDITION = HELP_MATE_ENGINE
+#YANEURAOU_EDITION = YANEURAOU_NANO_ENGINE
+#YANEURAOU_EDITION = YANEURAOU_NANO_PLUS_ENGINE
+#YANEURAOU_EDITION = YANEURAOU_MINI_ENGINE
+#YANEURAOU_EDITION = YANEURAOU_CLASSIC_ENGINE
+#YANEURAOU_EDITION = YANEURAOU_CLASSIC_TCE_ENGINE
+YANEURAOU_EDITION = YANEURAOU_2016_MID_ENGINE
+
 COMPILER = g++
 #COMPILER = mpicxx
 CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fopenmp -fpermissive -D_WIN64
@@ -5,11 +16,10 @@ CFLAGS   += -march=native
 LDFLAGS  = -lpthread #-lboost_mpi -lboost_serialization
 LIBS     =
 INCLUDE  = #-I../include
+TARGET = YaneuraOu-by-gcc.exe
+
 ifeq ($(OS),Windows_NT)
-  TARGET = YaneuraOu-2016-mid_gcc.exe
   LDFLAGS += -static
-else
-  TARGET = yaneuraou
 endif
 OBJDIR   = ../obj
 ifeq "$(strip $(OBJDIR))" ""
@@ -33,8 +43,15 @@ SOURCES  = bitboard.cpp misc.cpp movegen.cpp position.cpp shogi.cpp \
 	eval/evaluate_kppt.cpp \
 	eval/evaluate_material.cpp \
 	eval/evaluate_no_eval.cpp \
+	engine/random-player-engine/random-player-search.cpp \
+	engine/help-mate-engine/help-mate-search.cpp \
+	engine/nano-engine/nano-search.cpp \
+	engine/nano-plus-engine/nano-plus-search.cpp \
+	engine/mini-engine/mini-search.cpp \
+	engine/classic-engine/classic-search.cpp \
+	engine/classic-tce-engine/classic-tce-search.cpp \
 	engine/2016-mid-engine/2016-mid-search.cpp \
-	engine/user-engine/user-engine.cpp
+	engine/user-engine/user-search.cpp
 
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
 DEPENDS  = $(OBJECTS:.o=.d)
@@ -49,16 +66,20 @@ $(OBJDIR)/%.o: %.cpp
 all: clean $(TARGET)
 
 avx2:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -mbmi2 -mavx2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -msse4.2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 sse41:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -msse4.1' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE41 -msse4.1' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 sse2:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -msse2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION)-DUSE_SSE2 -msse2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+
+nosse:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION)' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+
 
 prof:
 	$(MAKE) CFLAGS='$(CFLAGS) -pg' bmi2

@@ -2,7 +2,7 @@
 #ifdef HELP_MATE_ENGINE
 
 #include "../../extra/all.h"
-#include "help_mate_engine.h" 
+#include "help-mate-search.h" 
 
 using namespace std;
 using namespace Search;

@@ -109,12 +109,6 @@
     <ClInclude Include="tt.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="engine\help-mate-engine\help_mate_engine.h">
-      <Filter>リソース ファイル\engine\help-mate-engine</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\mate-engine\mate_engine.h">
-      <Filter>リソース ファイル\engine\mate-engine</Filter>
-    </ClInclude>
     <ClInclude Include="extra\book.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
@@ -135,6 +129,12 @@
     </ClInclude>
     <ClInclude Include="engine\2016-mid-engine\2016-mid-param.h">
       <Filter>リソース ファイル\engine\2016-mid-engine</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\mate-engine\mate-search.h">
+      <Filter>リソース ファイル\engine\mate-engine</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\help-mate-engine\help-mate-search.h">
+      <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -168,29 +168,8 @@
     <ClCompile Include="tt.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="engine\classic-engine\classic_search.cpp">
-      <Filter>リソース ファイル\engine\classic-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\mini-engine\mini_search.cpp">
-      <Filter>リソース ファイル\engine\mini-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\nano-engine\nano_search.cpp">
-      <Filter>リソース ファイル\engine\nano-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\random-player-engine\random_player_search.cpp">
-      <Filter>リソース ファイル\engine\random-player-engine</Filter>
-    </ClCompile>
     <ClCompile Include="engine\local-game-server\local-game-server.cpp">
       <Filter>リソース ファイル\engine\local-game-server</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\mate-engine\mate_engine.cpp">
-      <Filter>リソース ファイル\engine\mate-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\help-mate-engine\help_mate_engine.cpp">
-      <Filter>リソース ファイル\engine\help-mate-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\user-engine\user-engine.cpp">
-      <Filter>リソース ファイル\engine\user-engine</Filter>
     </ClCompile>
     <ClCompile Include="extra\see.cpp">
       <Filter>リソース ファイル\extra</Filter>
@@ -212,9 +191,6 @@
     </ClCompile>
     <ClCompile Include="eval\evaluate_material.cpp">
       <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\nano-plus-engine\nano_plus_search.cpp">
-      <Filter>リソース ファイル\engine\nano-plus-engine</Filter>
     </ClCompile>
     <ClCompile Include="extra\entering_king_win.cpp">
       <Filter>リソース ファイル\extra</Filter>
@@ -242,6 +218,30 @@
     </ClCompile>
     <ClCompile Include="engine\2016-late-engine\2016-late-search.cpp">
       <Filter>リソース ファイル\engine\2016-late-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\nano-engine\nano-search.cpp">
+      <Filter>リソース ファイル\engine\nano-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\nano-plus-engine\nano-plus-search.cpp">
+      <Filter>リソース ファイル\engine\nano-plus-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\mini-engine\mini-search.cpp">
+      <Filter>リソース ファイル\engine\mini-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\classic-engine\classic-search.cpp">
+      <Filter>リソース ファイル\engine\classic-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\random-player-engine\random-player-search.cpp">
+      <Filter>リソース ファイル\engine\random-player-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\user-engine\user-search.cpp">
+      <Filter>リソース ファイル\engine\user-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\mate-engine\mate-search.cpp">
+      <Filter>リソース ファイル\engine\mate-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\help-mate-engine\help-mate-search.cpp">
+      <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

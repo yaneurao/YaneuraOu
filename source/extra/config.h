@@ -7,7 +7,7 @@
 
 // --- ターゲットCPUの選択
 
-// ターゲットCPUを選ぶ。
+#ifndef USE_MAKEFILE
 
 // USE_AVX512 : AVX-512(サーバー向けSkylake以降)でサポートされた命令を使うか。
 // USE_AVX2   : AVX2(Haswell以降)でサポートされた命令を使うか。pextなど。
@@ -15,21 +15,27 @@
 // USE_SSE41  : SSE4.1でサポートされた命令を使うか。_mm_testz_si128など。
 // USE_SSE2   : SSE2  でサポートされた命令を使うか。
 // すべてdefineしなければSSEは使用しない。
-// (Windowsの64bit環境だと自動的にSSE2は使えるはず？)
+// (Windowsの64bit環境だと自動的にSSE2は使えるはず)
+// noSSE ⊂ SSE2 ⊂ SSE4.1 ⊂ SSE4.2 ⊂ AVX2 ⊂  AVX-512
 
-// Visual Studioのプロジェクト設定で
-// 「構成のプロパティ」→「C / C++」→「コード生成」→「拡張命令セットを有効にする」
+// Visual Studioのプロジェクト設定で「構成のプロパティ」→「C / C++」→「コード生成」→「拡張命令セットを有効にする」
 // のところの設定の変更も忘れずに。
 
-// noSSE ⊂ SSE2 ⊂ SSE4.1 ⊂ SSE4.2 ⊂ AVX2 ⊂  AVX-512
-// なので、例えば、SSE4.2を選択するときは、
-// USE_SSE42をdefineして、そこ以降である、USE_SSE41 , とUSE_SSE2もdefineしてください。
+// ターゲットCPUのところだけdefineしてください。(残りは自動的にdefineされます。)
 
-// #define USE_AVX512
+//#define USE_AVX512
 #define USE_AVX2
-#define USE_SSE42
-#define USE_SSE41
-#define USE_SSE2
+//#define USE_SSE42
+//#define USE_SSE41
+//#define USE_SSE2
+
+#else
+
+// Makefileを使ってbuildするときは、
+// $ make avx2
+// のようにしてビルドすれば自動的にAVX2用がビルドされます。
+
+#endif
 
 
 // 通例hash keyは64bitだが、これを128にするとPosition::state()->long_key()から128bit hash keyが
@@ -210,8 +216,6 @@
 
 #ifdef YANEURAOU_2016_MID_ENGINE
 #define ENGINE_NAME "YaneuraOu 2016 Mid"
-// 開発中なのでassertを有効に。
-//#define ASSERT_LV 3
 #define ENABLE_TEST_CMD
 #define EVAL_KPPT
 //#define USE_EVAL_HASH
@@ -411,7 +415,9 @@ const bool Is64Bit = true;
 const bool Is64Bit = false;
 #endif
 
-#if defined(USE_AVX2)
+#if defined(USE_AVX512)
+#define TARGET_CPU "AVX-512"
+#elif defined(USE_AVX2)
 #define TARGET_CPU "AVX2"
 #elif defined(USE_SSE42)
 #define TARGET_CPU "SSE4.2"
@@ -421,6 +427,24 @@ const bool Is64Bit = false;
 #define TARGET_CPU "SSE2"
 #else
 #define TARGET_CPU "noSSE"
+#endif
+
+// 上位のCPUをターゲットとするなら、その下位CPUの命令はすべて使えるはずなので…。
+
+#ifdef USE_AVX512
+#define USE_AVX2
+#endif
+
+#ifdef USE_AVX2
+#define USE_SSE42
+#endif
+
+#ifdef USE_SSE42
+#define USE_SSE41
+#endif
+
+#ifdef USE_SSE41
+#define USE_SSE2
 #endif
 
 // ----------------------------

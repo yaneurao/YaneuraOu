@@ -6,7 +6,7 @@
 //
 
 // ターゲット環境でSSE,AVX,AVX2が搭載されていない場合はこれらの命令をsoftware emulationにより実行する。
-// software emulationなので多少遅いが、SSE2,SSE4,SSE4.2,AVX,AVX2の使えない環境でそれに合わせたコードを書く労力が省ける。
+// software emulationなので多少遅いが、SSE2,SSE4.1,SSE4.2,AVX,AVX2,AVX-512の使えない環境でそれに合わせたコードを書く労力が省ける。
 
 // ----------------------------
 //   include intrinsic header
