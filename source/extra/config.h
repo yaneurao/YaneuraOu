@@ -305,7 +305,7 @@
 #include <map>
 #include <iostream>
 #include <cstring>  // std::memcpy()
-#include <cmath>    // log()
+#include <cmath>    // log(),std::round()
 #include <climits>  // INT_MAX
 #include <cstddef>  // offsetof
 

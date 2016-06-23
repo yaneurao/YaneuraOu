@@ -1825,7 +1825,8 @@ void Search::init() {
         if (r < 0.80)
           continue;
 
-        reduction_table[NonPV][imp][d][mc] = int(std::round(r)) * ONE_PLY;
+        // std::round()、C++11では使えるがg++でC++14だと使えない？
+        reduction_table[NonPV][imp][d][mc] = int(/*std::*/round(r)) * ONE_PLY;
         reduction_table[PV][imp][d][mc] = std::max(reduction_table[NonPV][imp][d][mc] - ONE_PLY, DEPTH_ZERO);
 
         // nonPVでimproving(評価値が2手前から上がっている)でないときはreductionの量を増やす。

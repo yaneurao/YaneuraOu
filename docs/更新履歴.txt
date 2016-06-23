@@ -7,6 +7,7 @@
 ・Macのg++でbuild出来るようにbitop.hにSSE/AVX用のincludeを集めた。
 ・USE_SSE4廃止。USE_SSE41追加。
 ・kpptのevaluate()でSSE4の命令をUSE_SSE2で使っていたの修正。
+・std::round()、C++11では使えるが、C++14だと使えない…？！
 
 
 ■　2016/06/23 V3.18
