@@ -58,7 +58,7 @@
 #else
 #define PARAM_FILE "parameters_slave.h"
 #endif
-#include "parameters.h"
+#include "2016-mid-param.h"
 
 
 using namespace std;

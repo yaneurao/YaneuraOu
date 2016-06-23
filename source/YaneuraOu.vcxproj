@@ -202,7 +202,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="bitboard.h" />
-    <ClInclude Include="engine\2016-mid-engine\parameters.h" />
+    <ClInclude Include="engine\2016-mid-engine\2016-mid-param.h" />
     <ClInclude Include="engine\help-mate-engine\help_mate_engine.h" />
     <ClInclude Include="engine\mate-engine\mate_engine.h" />
     <ClInclude Include="evaluate.h" />

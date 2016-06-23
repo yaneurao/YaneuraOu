@@ -9,6 +9,9 @@
 *.rb
 YaneuraOu_backup*.lnk
 バージョン履歴.txt
+*.bak
+2016-late*.*
+*Private.*
 
 # cf. https://twitter.com/496_/status/673758920846917632
 YaneuraOu.VC.opendb

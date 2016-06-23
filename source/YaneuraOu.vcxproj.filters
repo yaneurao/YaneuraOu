@@ -62,6 +62,9 @@
     <Filter Include="doc\old">
       <UniqueIdentifier>{aefbe5b2-c4db-408d-b69f-3084701e0753}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\engine\2016-late-engine">
+      <UniqueIdentifier>{340f8b93-a0de-4836-a164-61971b2d3ce6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -121,9 +124,6 @@
     <ClInclude Include="move_picker.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="engine\2016-mid-engine\parameters.h">
-      <Filter>リソース ファイル\engine\2016-mid-engine</Filter>
-    </ClInclude>
     <ClInclude Include="extra\move_picker_2016Q2.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
@@ -132,6 +132,9 @@
     </ClInclude>
     <ClInclude Include="eval\kppt_evalsum.h">
       <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\2016-mid-engine\2016-mid-param.h">
+      <Filter>リソース ファイル\engine\2016-mid-engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
