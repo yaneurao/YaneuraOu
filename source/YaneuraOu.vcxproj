@@ -227,6 +227,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bitboard.cpp" />
+    <ClCompile Include="engine\2016-late-engine\2016-late-search.cpp" />
     <ClCompile Include="engine\2016-mid-engine\2016-mid-search.cpp" />
     <ClCompile Include="engine\classic-engine\classic_search.cpp" />
     <ClCompile Include="engine\classic-tce-engine\classic-tce-search.cpp" />
