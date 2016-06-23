@@ -12,8 +12,12 @@
 //   include intrinsic header
 // ----------------------------
 
-#if defined(USE_AVX2)
+#if defined(USE_AVX512)
+#include <zmmintrin.h>
+#elif defined(USE_AVX2)
 #include <immintrin.h>
+#elif defined(USE_SSE42)
+#include <nmmintrin.h>
 #elif defined(USE_SSE41)
 #include <smmintrin.h>
 #elif defined (USE_SSE2)

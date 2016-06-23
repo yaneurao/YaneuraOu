@@ -9,10 +9,11 @@
 
 // ターゲットCPUを選ぶ。
 
-// USE_AVX2  : AVX2(Haswell以降)でサポートされた命令を使うか。pextなど。
-// USE_SSE42 : SSE4.2でサポートされた命令を使うか。popcnt命令など。
-// USE_SSE41 : SSE41　でサポートされた命令を使うか。_mm_testz_si128など。
-// USE_SSE2  : SSE2  でサポートされた命令を使うか。
+// USE_AVX512 : AVX-512(サーバー向けSkylake以降)でサポートされた命令を使うか。
+// USE_AVX2   : AVX2(Haswell以降)でサポートされた命令を使うか。pextなど。
+// USE_SSE42  : SSE4.2でサポートされた命令を使うか。popcnt命令など。
+// USE_SSE41  : SSE4.1でサポートされた命令を使うか。_mm_testz_si128など。
+// USE_SSE2   : SSE2  でサポートされた命令を使うか。
 // すべてdefineしなければSSEは使用しない。
 // (Windowsの64bit環境だと自動的にSSE2は使えるはず？)
 
@@ -20,11 +21,11 @@
 // 「構成のプロパティ」→「C / C++」→「コード生成」→「拡張命令セットを有効にする」
 // のところの設定の変更も忘れずに。
 
-// noSSE ⊂ SSE2 ⊂ SSE4.1 ⊂ SSE4.2 ⊂ AVX2
+// noSSE ⊂ SSE2 ⊂ SSE4.1 ⊂ SSE4.2 ⊂ AVX2 ⊂  AVX-512
 // なので、例えば、SSE4.2を選択するときは、
-// USE_SSE4.2をdefineして、そこ以降である、USE_SSE41 , とUSE_SSE2もdefineしてください。
+// USE_SSE42をdefineして、そこ以降である、USE_SSE41 , とUSE_SSE2もdefineしてください。
 
-
+// #define USE_AVX512
 #define USE_AVX2
 #define USE_SSE42
 #define USE_SSE41
