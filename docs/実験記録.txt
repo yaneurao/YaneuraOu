@@ -1,10 +1,23 @@
 ﻿
 
-■　2016/06/23
+■　2016/06/24
 
 ] V3.19
 
-	razoring、長い時間で調整。
+	gccでコンパイル
+	===========================
+	Total time (ms) : 48419
+	Nodes searched  : 34145554
+	Nodes/second    : 705209
+
+	めっちゃ速くなった。AVX用のinclude header整理したのが良かったのか…？
+	evaluate()でcompute_evalのときにSSE使えてなかったとか？	うーん。それが原因ではなさげなのだが。
+
+	VC++2015
+	===========================
+	Total time (ms) : 52424
+	Nodes searched  : 34145554
+	Nodes/second    : 651334
 
 
 

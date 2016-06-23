@@ -26,8 +26,8 @@
 		YaneuraOu-2016-mid-nosse.exe : SSEなし
 
 	※　YaneuraOu-2016-Mid_gcc.exeは、Msys2のg++でコンパイルした
-	AVX2用の実行ファイルです。Visual C++2015でコンパイルしたものより
-	数%だけ速いようです。
+	AVX2用の実行ファイルです。Visual C++2015でコンパイルしたものより10数%速いようです。
+	(こちらを使ったほうがレーティングも+R30～40高いと思います)
 
     eval/KK_synthesized.bin        : 3駒関係の評価関数で用いるファイル(KK)
     eval/KKP_synthesized.bin       : 3駒関係の評価関数で用いるファイル(KKP)
