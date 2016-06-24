@@ -521,7 +521,7 @@ inline Bitboard AttacksAroundKingInAvoiding(const Position& pos,Color us, Square
   return AttacksAroundKingNonSliderInAvoiding(pos,us, from, occ) | AttacksSlider(pos,~us, from, occ);
 }
 
-// 歩が打てるかの判定用。(わけあってmovegen.cppに書いてある)
+// 歩が打てるかの判定用。
 // 歩を持っているかの判定も含む。
 inline bool can_pawn_drop(const Position& pos,Color us, Square sq)
 {
@@ -667,9 +667,6 @@ namespace {
   // ただしavoid升の駒でのcaptureは除外する。
   bool can_piece_capture(const Position& pos, Color us, Square to, Square avoid,const Bitboard& pinned, const Bitboard& slide)
   {
-    if (!is_ok(to))
-      std::cout << (int)to;
-
     ASSERT_LV3(is_ok(to));
 
     Square sq_king = pos.king_square(us);
@@ -699,14 +696,14 @@ Move is_mate_in_1ply(const Position& pos /*, const CheckInfo& ci */)
 {
   ASSERT_LV3(! pos.checkers() );
 
-  // check_info_update()をやってあると仮定できるなら、直接取得できる。
-  Bitboard dcCandidates = pos.state()->checkInfo.dcCandidates; // pos.discovered_check_candidates();
-
+  // check_info_update()をやってあると仮定できるなら、pos.discovered_check_candidates()ではなく直接取得できる。
+  Bitboard dcCandidates = pos.state()->checkInfo.dcCandidates;
+  
   Color us = pos.side_to_move();
   Color them = ~us;
   Square sq_king = pos.king_square(them);
 
-  // 王側のpinされている駒の列挙
+  // 王側のpinされている駒の列挙(王側は、この駒を動かすと素抜きに遭う)
   Bitboard pinned = pos.pinned_pieces(them);
 
   Square from,to;

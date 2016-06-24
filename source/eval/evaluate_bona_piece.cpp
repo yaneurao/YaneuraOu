@@ -22,7 +22,7 @@ namespace Eval
     BishopValue * 2, RookValue * 2, GoldValue * 2, KingValue , // SEEで使うので大きな値にしておく。
     ProPawnValue + PawnValue, ProLanceValue + LanceValue, ProKnightValue + KnightValue, ProSilverValue + SilverValue,
     HorseValue + BishopValue, DragonValue + RookValue, VALUE_ZERO /* PRO_GOLD */,
-    // KingValueの値は使わない
+ 
     VALUE_ZERO             , PawnValue * 2   , LanceValue * 2   , KnightValue * 2   , SilverValue * 2  ,
     BishopValue * 2, RookValue * 2, GoldValue * 2, KingValue , // SEEで使うので大きな値にしておく。
     ProPawnValue + PawnValue, ProLanceValue + LanceValue, ProKnightValue + KnightValue, ProSilverValue + SilverValue,

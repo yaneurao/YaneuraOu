@@ -30,3 +30,4 @@ BookLowLimitWhite 定跡で採用する評価値下限(後手)
 BookOnlyThinkingMove 定跡では思考した指し手のみ用いる
 
 EvalDir 評価関数格納フォルダ
+PvInterval PVの出力の抑制時間[ms]

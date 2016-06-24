@@ -85,6 +85,11 @@ void USI::extra_option(USI::OptionsMap & o)
 
   o["Param1"] << Option(0, 0, 100000);
   o["Param2"] << Option(0, 0, 100000);
+
+  //  PVの出力の抑制のために前回出力時間からの間隔を指定できる。
+
+  o["PvInterval"] << Option(300, 0, 100000);
+
 }
 
 // -----------------------
@@ -1886,7 +1891,6 @@ void Search::clear()
 // lazy SMPなので、それぞれのスレッドが勝手に探索しているだけ。
 void Thread::search()
 {
-
   // ---------------------
   //      variables
   // ---------------------
@@ -1912,6 +1916,11 @@ void Thread::search()
   // この初期化は、Thread::MainThread()のほうで行なっている。
   // (この関数を直接呼び出すときには注意が必要)
   completedDepth = DEPTH_ZERO;
+
+  // 将棋所のコンソールが詰まるので出力を抑制するために、前回の出力時刻を
+  // 記録しておき、そこから一定時間経過するごとに出力するという方式を採る。
+  int lastInfoTime = 0;
+  int pv_interval = Options["PvInterval"]; // PVの出力間隔[ms]
 
   // もし自分がメインスレッドであるならmainThreadにそのポインタを入れる。
   // 自分がスレーブのときはnullptrになる。
@@ -2017,10 +2026,16 @@ void Thread::search()
         // main threadでfail high/lowが起きたなら読み筋をGUIに出力する。
         // ただし出力を散らかさないように思考開始から3秒経ってないときは抑制する。
         if (mainThread && !Limits.silent
-          && multiPV == 1 
+          && multiPV == 1
           && (bestValue <= alpha || beta <= bestValue)
-          && Time.elapsed() > 3000)
+          && Time.elapsed() > 3000
+          // 将棋所のコンソールが詰まるのを予防するために出力を少し抑制する。
+          && (rootDepth < 3 || lastInfoTime + pv_interval < Time.elapsed())
+          )
+        {
+          lastInfoTime = Time.elapsed();
           sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
+        }
 
         // aspiration窓の範囲外
         if (bestValue <= alpha)
@@ -2074,8 +2089,12 @@ void Thread::search()
 
         // MultiPVのときは最後の候補手を求めた直後とする。
         // ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
-        else if (PVIdx + 1 == multiPV || Time.elapsed() > 3000)
+        else if ((PVIdx + 1 == multiPV || Time.elapsed() > 3000)
+          && (rootDepth < 3 || lastInfoTime + pv_interval < Time.elapsed()))
+        {
+          lastInfoTime = Time.elapsed();
           sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
+        }
       }
     
     } // multi PV

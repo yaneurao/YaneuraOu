@@ -44,6 +44,11 @@ set option name XXX value ...で設定できるoption
 
 	BookMoves		: 定跡を用いる手数(0=未使用)
 
+	// やねうら王2016 Mid時
+
+	PvInterval      : PVの出力を抑制する。前回出力時間から、この時間(単位は[ms])経過するまでは
+					次のPVを出力しない。
+
 
 	// 協力詰めsolver時
 

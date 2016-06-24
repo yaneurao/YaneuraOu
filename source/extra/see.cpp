@@ -1,6 +1,6 @@
 ﻿#include "../shogi.h"
 
-#ifdef USE_SEE
+#if defined (USE_SEE) || defined (USE_SIMPLE_SEE)
 
 #include "../position.h"
 
@@ -26,8 +26,9 @@ namespace {
 
   // 返し値は今回発見されたtoに利く最小の攻撃駒。これがtoの地点において成れるなら成ったあとの駒を返すべき。
 
+  template <Color stm>
   Piece min_attacker(const Position& pos,const Square& to
-    , const Bitboard& stmAttackers, Bitboard& occupied, Bitboard& attackers, Color stm
+    , const Bitboard& stmAttackers, Bitboard& occupied, Bitboard& attackers
 #ifndef USE_SIMPLE_SEE
     ,int& uncapValue
 #endif
@@ -46,13 +47,17 @@ namespace {
     b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_GOLD  ][stm]; if (b) goto found;
     b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_BISHOP][stm]; if (b) goto found;
     b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_ROOK  ][stm]; if (b) goto found;
-    b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_HDK][stm] & ~(pos.piece_bb[PIECE_TYPE_BITBOARD_ROOK  ][stm] | pos.king_square(stm)); if (b) goto found;
-    b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_HDK][stm] & ~(pos.piece_bb[PIECE_TYPE_BITBOARD_BISHOP][stm] | pos.king_square(stm)); if (b) goto found;
+    b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_HDK][stm] & pos.piece_bb[PIECE_TYPE_BITBOARD_BISHOP][stm]; if (b) goto found;
+    b = stmAttackers & pos.piece_bb[PIECE_TYPE_BITBOARD_HDK][stm] & pos.piece_bb[PIECE_TYPE_BITBOARD_ROOK  ][stm]; if (b) goto found;
 
-    // ここでサイクルは停止するのだ。
+    // 攻撃駒があるというのが前提条件だから、以上の駒で取れなければ、最後は玉でtoの升に移動出来て
+    // 駒を取れるはず。
+
 #ifndef USE_SIMPLE_SEE
     uncapValue = VALUE_ZERO;
 #endif
+
+    // ここでサイクルは停止するのだ。
     return KING;
 
   found:;
@@ -233,7 +238,7 @@ Value Position::see(Move m) const {
 
   stm = is_drop(m) ? sideToMove : color_of(piece_on(move_from(m)));
 
-  // 相手番(stm側の攻撃駒を列挙していく)
+  // 相手番(の攻撃駒を列挙していく)
   stm = ~stm;
 
   if (is_drop(m))
@@ -382,7 +387,9 @@ Value Position::see(Move m) const {
     // 最も価値の低い駒
     // ※　この関数が呼び出されたあと、occupied,attackersは更新されている。影にあった遠方駒はこのとき追加されている。
     //:      captured = min_attacker<PAWN>(byTypeBB, to, stmAttackers, occupied, attackers);
-    captured = min_attacker(*this, to, stmAttackers, occupied, attackers, stm, uncapValue[slIndex]);
+    captured = (stm == BLACK)
+      ? min_attacker<BLACK>(*this, to, stmAttackers, occupied, attackers, uncapValue[slIndex])
+      : min_attacker<WHITE>(*this, to, stmAttackers, occupied, attackers, uncapValue[slIndex]);
 
     ++slIndex;
 
@@ -467,13 +474,13 @@ Value Position::see(const Move move /*, const int asymmThreshold*/) const
   // 次にtoの升で捕獲される駒
   Piece captured;
 
-  Bitboard occupied;
+  Bitboard occupied = pieces();
   
-  // 手番側の攻撃駒
-  Bitboard stmAttackers;
-
-  // 先後の攻撃駒
+  // 先後の攻撃駒(toに利く駒)
   Bitboard attackers;
+
+  // 手番側の攻撃駒(toに利く駒)
+  Bitboard stmAttackers;
 
   // 移動させる駒側のturnから始まるものとする。
   // 次に列挙すべきは、この駒を取れる敵の駒なので、相手番に。
@@ -502,6 +509,8 @@ Value Position::see(const Move move /*, const int asymmThreshold*/) const
       }
       return (Value)CapturePieceValue[piece_on(to)];
     }
+    // fromの駒を除外する必要があるが、次の攻撃駒はstmAttacker側なので、
+    // min_attacker()のなかで、そのあとにattackers &= occupiedされるからそのときに除外される…はずなのだが。
     attackers = (stmAttackers | attackers_to(~stm, to, occupied)) & occupied;
     swapList[0] = (Value)CapturePieceValue[piece_on(to)];
     captured = type_of(piece_on(from));
@@ -520,7 +529,9 @@ Value Position::see(const Move move /*, const int asymmThreshold*/) const
     ASSERT_LV3(slIndex < 32);
 
     swapList[slIndex] = -swapList[slIndex - 1] + CapturePieceValue[captured];
-    captured = min_attacker(*this, to, stmAttackers, occupied , attackers, stm);
+    captured = (stm == BLACK)
+      ? min_attacker<BLACK>(*this, to, stmAttackers, occupied, attackers)
+      : min_attacker<WHITE>(*this, to, stmAttackers, occupied, attackers);
 
     stm = ~stm;
     stmAttackers = attackers & pieces(stm);

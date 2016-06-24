@@ -442,7 +442,7 @@ struct Position
   const Eval::EvalList* eval_list() const { return &evalList; }
 #endif
 
-#ifdef  USE_SEE
+#if defined (USE_SEE) || defined (USE_SIMPLE_SEE)
   // 指し手mの(Static Exchange Evaluation : 静的取り合い評価)の値を返す。
   Value see(Move m) const;
 

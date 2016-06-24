@@ -2,6 +2,16 @@
 やねうら王 更新履歴
 
 
+■　2016/06/25 V3.20
+
+・PVの出力の抑制。(出力が詰まるため)
+・USIオプションに"PvInterval"追加。
+・旧SEE、min_attacker()をtemplate化。min_attacker()での馬と龍の式を簡略化。
+・新SEE周り、occupiedの初期化がされてない実行経路があったの修正。
+・やねうら王2016Mid、新see()を使うように変更。
+・_mm_alloc()を使うのにg++では*intrin.hをincludeしないときにmm_alloc.hをincludeする必要があるので修正。
+
+
 ■　2016/06/24 V3.19
 
 ・Macのg++でbuild出来るようにbitop.hにSSE/AVX用のincludeを集めた。

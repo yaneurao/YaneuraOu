@@ -108,10 +108,11 @@
 //#define USE_MATE_1PLY
 
 // Position::see()を用いるか。これはSEE(Static Exchange Evaluation : 静的取り合い評価)の値を返す関数。
-//#define USE_SEE
+// これは比較的厳密な計算を行うSEE()で、この下にあるUSE_SIMPLE_SEEのほうが少し軽い。
+// というか、このsee()、少し計算バグっているのかも知れない。USE_SIMPLE_SEEのほうを使うこと推奨。
+// #define USE_SEE
 
 // Apery風の単純化されたSEE()を用いる場合
-// これを指定しないときは、厳密な計算を行うSEE()で、そちらのほうが少し重い。
 // #define USE_SIMPLE_SEE
 
 // PV(読み筋)を表示するときに置換表の指し手をかき集めてきて表示するか。
@@ -219,8 +220,8 @@
 #define ENABLE_TEST_CMD
 #define EVAL_KPPT
 //#define USE_EVAL_HASH
-#define USE_SEE
-//#define USE_SIMPLE_SEE
+//#define USE_SEE
+#define USE_SIMPLE_SEE
 #define USE_MOVE_PICKER_2016Q2
 //#define LONG_EFFECT_LIBRARY
 #define USE_MATE_1PLY
@@ -238,8 +239,7 @@
 #define ENABLE_TEST_CMD
 #define EVAL_KPPT
 //#define USE_EVAL_HASH
-#define USE_SEE
-//#define USE_SIMPLE_SEE
+#define USE_SIMPLE_SEE
 #define USE_MOVE_PICKER_2016Q2
 //#define LONG_EFFECT_LIBRARY
 #define USE_MATE_1PLY

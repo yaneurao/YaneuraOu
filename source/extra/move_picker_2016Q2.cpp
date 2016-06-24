@@ -287,7 +287,7 @@ Move MovePicker::next_move() {
       move = pick_best(currentMoves++, endMoves);
       if (move != ttMove)
       {
-#ifdef USE_SEE
+#if defined (USE_SEE) || defined (USE_SIMPLE_SEE)
         // ここでSSEの符号がマイナスならbad captureのほうに回す。
         // ToDo: moveは駒打ちではないからsee()の内部での駒打ち判定不要なのだが。
         if (pos.see_sign(move) >= VALUE_ZERO)
@@ -463,8 +463,8 @@ void MovePicker::score_evasions()
 
   for (auto& m : *this)
 
-#ifdef USE_SEE
-
+#if defined (USE_SEE) || defined (USE_SIMPLE_SEE)
+  
     // see()が負の指し手ならマイナスの値を突っ込んで後回しにする
     // 王手を防ぐためだけのただで取られてしまう駒打ちとかがここに含まれるであろうから。
     // evasion自体は指し手の数が少ないのでここでsee()を呼び出すコストは無視できる。
