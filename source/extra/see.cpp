@@ -458,11 +458,16 @@ Value Position::see_sign(const Move move) const
   {
     // 捕獲する指し手で、移動元の駒の価値のほうが移動先の駒の価値より低い場合、これでプラスになるはず。
     // (取り返されたあとの成りを考慮しなければ)
+    // 少しいい加減な判定だが、see_sign()を呼び出す状況においてはこれぐらいの精度で良い。
+    // KINGで取る手は合法手であるなら取り返されないということだから、ここではプラスを返して良い。
+    // ゆえに、中盤用のCapturePieceValue[KING]はゼロを返す。
+    
     const Piece ptFrom = type_of(piece_on(move_from(move)));
     const Piece ptTo = type_of(piece_on(move_to(move)));
     if (CapturePieceValue[ptFrom] <= CapturePieceValue[ptTo])
       return static_cast<Value>(1);
   }
+
   return see(move);
 }
 
@@ -509,19 +514,19 @@ Value Position::see(const Move move /*, const int asymmThreshold*/) const
       }
       return (Value)CapturePieceValue[piece_on(to)];
     }
-    // fromの駒を除外する必要があるが、次の攻撃駒はstmAttacker側なので、
-    // min_attacker()のなかで、そのあとにattackers &= occupiedされるからそのときに除外される…はずなのだが。
-    attackers = (stmAttackers | attackers_to(~stm, to, occupied)) & occupied;
-    swapList[0] = (Value)CapturePieceValue[piece_on(to)];
     captured = type_of(piece_on(from));
-    if (captured == KING)
-      return Value(-CapturePieceValue[KING]);
 
+    swapList[0] = (Value)CapturePieceValue[piece_on(to)];
     if (is_promote(move)) {
       const Piece ptFrom = type_of(piece_on(from));
       swapList[0] += ProDiffPieceValue[ptFrom];
       captured += PIECE_PROMOTE;
     }
+
+    // fromの駒を除外する必要があるが、次の攻撃駒はstmAttacker側なので、
+    // min_attacker()のなかで、そのあとにattackers &= occupiedされるからそのときに除外されるが、
+    // KINGのときにおかしくなる。
+    attackers = (stmAttackers | attackers_to(~stm, to, occupied)) & occupied;
   }
 
   int slIndex = 1;

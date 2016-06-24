@@ -16,15 +16,17 @@ namespace Eval
     -KingValue, -ProPawnValue, -ProLanceValue, -ProKnightValue, -ProSilverValue, -HorseValue, -DragonValue,0,
   };
 
+  // KINGの価値はゼロとしておく。KINGを捕獲する指し手は非合法手なので、これがプラスとして評価されたとしても
+  // そのあとlegal()で引っ掛かり、実際はその指し手で進めないからこれで良い。
   int CapturePieceValue[PIECE_NB] =
   {
     VALUE_ZERO             , PawnValue * 2   , LanceValue * 2   , KnightValue * 2   , SilverValue * 2  ,
-    BishopValue * 2, RookValue * 2, GoldValue * 2, KingValue , // SEEで使うので大きな値にしておく。
+    BishopValue * 2, RookValue * 2, GoldValue * 2, VALUE_ZERO ,
     ProPawnValue + PawnValue, ProLanceValue + LanceValue, ProKnightValue + KnightValue, ProSilverValue + SilverValue,
     HorseValue + BishopValue, DragonValue + RookValue, VALUE_ZERO /* PRO_GOLD */,
  
     VALUE_ZERO             , PawnValue * 2   , LanceValue * 2   , KnightValue * 2   , SilverValue * 2  ,
-    BishopValue * 2, RookValue * 2, GoldValue * 2, KingValue , // SEEで使うので大きな値にしておく。
+    BishopValue * 2, RookValue * 2, GoldValue * 2, VALUE_ZERO ,
     ProPawnValue + PawnValue, ProLanceValue + LanceValue, ProKnightValue + KnightValue, ProSilverValue + SilverValue,
     HorseValue + BishopValue, DragonValue + RookValue, VALUE_ZERO /* PRO_GOLD */,
   };

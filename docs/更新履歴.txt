@@ -10,6 +10,7 @@
 ・新SEE周り、occupiedの初期化がされてない実行経路があったの修正。
 ・やねうら王2016Mid、新see()を使うように変更。
 ・_mm_alloc()を使うのにg++では*intrin.hをincludeしないときにmm_alloc.hをincludeする必要があるので修正。
+・CapturePieceValue[KING]=VALUE_ZEROに変更。これで問題ない。
 
 
 ■　2016/06/24 V3.19

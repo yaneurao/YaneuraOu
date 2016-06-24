@@ -1,5 +1,6 @@
 ﻿
 
+
 ■　2016/06/25
 
 ] V3.20
@@ -93,7 +94,116 @@
 		Nodes searched  : 34588434
 		Nodes/second    : 651824
 
+	→　理由わかった。KINGをcaptureしたときに、stmAttackersが有ることになってしまうから
+	attackers & occupiedみたいな処理が必要になるのか。minAttackersでKINGを返すときに & occupied して返すべきなのか。
+	(Aperyはそうなっている)	Stockfishのコードと等価にするにはいまのコードが正しいな。そうか…。
 
+	Aperyのコードがわずかに無駄があるということなんだな。平岡さんに報告しよう。
+	https://github.com/HiraokaTakuya/apery/issues/6
+
+	see_sign()、いい加減にするのやめておいたほうがいいのでは…。
+
+	#if 0
+	  if (capture(move))
+	  {
+		// 捕獲する指し手で、移動元の駒の価値のほうが移動先の駒の価値より低い場合、これでプラスになるはず。
+		// (取り返されたあとの成りを考慮しなければ)
+		const Piece ptFrom = type_of(piece_on(move_from(move)));
+		const Piece ptTo = type_of(piece_on(move_to(move)));
+		if (CapturePieceValue[ptFrom] <= CapturePieceValue[ptTo])
+		  return static_cast<Value>(1);
+	  }
+	#endif
+
+		秒読み1000[ms]
+
+		47.2%	
+		#237
+		やねうら王2016mid V320b
+		新see()改良
+		#236
+		やねうら王2016mid V320a
+		新see()
+
+		258-6-289(91.4% R-19.7)	
+
+	よくなってない。もう少し長い時間で回してみる。
+
+		秒読み4000[ms]
+
+		49.2%	
+		#237
+		やねうら王2016mid V320b
+		新see()改良
+		#236
+		やねうら王2016mid V320a
+		新see()
+
+		127-11-131(62.2% R-5.4)	
+
+	変わらず。Stockfishでもこの判定になっているから、ここ変えても変わらないのかも知れない。
+
+	see_sign()の判定、kingでcaptureするときは常にプラスを返して良いのでは…。うーん..
+
+    // KINGで取る手は合法手であるなら取り返されないということだから、ここではプラスを返して良い。
+    // ゆえに、中盤用のCapturePieceValue[KING]はゼロを返して良いのでは。
+
+	-   if (CapturePieceValue[ptFrom] <= CapturePieceValue[ptTo])
+	+   if (CapturePieceValue[ptFrom] <= CapturePieceValue[ptTo] || ptFrom == KING)
+
+	こうするか。
+
+			秒読み300[ms]
+
+			51.6%	
+			#238
+			やねうら王2016mid V320c
+			新see()改良
+			#236
+			やねうら王2016mid V320a
+			新see()
+
+			489-11-458(14.9% R11.4)	
+
+	勝率が上がったが、この実装おかしいなぁ…。
+
+	CapturePieceValue、やはりKINGはゼロにするのが正しいのでは。
+
+		// KINGの場合、プラスが返るが、その場合、moveは非合法手であるから、そのあと引っかかるはずなので
+		// この判定、入れなくてもいいかも。
+		//if (captured == KING)
+		//  return Value(-CapturePieceValue[KING]);
+
+
+		秒読み300[ms]
+
+		51.3%	
+		#239
+		やねうら王2016mid V320d
+		CapturePieceValue[KING]=0
+		#238
+		やねうら王2016mid V320c
+		新see()改良
+
+		401-11-381(22.6% R8.9)	
+
+	弱くはなってなさそうなのでおk。
+
+	gccでコンパイルして1手5秒で魔女と対戦させておく。
+
+		秒読み5000[ms]
+
+		50.0%	
+		#240
+		やねうら王2016mid V320d gcc
+		CapturePieceValue[KING]=0
+		#0
+		silent_majority_V1.1公式
+		1スレッド
+
+		112-12-112(52.7% R0.0)	
+
+	ほぼ互角っぽい。
 
 
 ■　2016/06/24
