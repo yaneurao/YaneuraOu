@@ -9,13 +9,13 @@ namespace Eval {
 
   // std::array<T,2>に対して += と -= を提供する。
   template <typename Tl, typename Tr>
-  inline std::array<Tl, 2> operator += (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
+  FORCE_INLINE std::array<Tl, 2> operator += (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
     lhs[0] += rhs[0];
     lhs[1] += rhs[1];
     return lhs;
   }
   template <typename Tl, typename Tr>
-  inline std::array<Tl, 2> operator -= (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
+  FORCE_INLINE std::array<Tl, 2> operator -= (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
     lhs[0] -= rhs[0];
     lhs[1] -= rhs[1];
     return lhs;
