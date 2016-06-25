@@ -3,6 +3,7 @@
 
 #include "position.h"
 #include "misc.h"
+#include "tt.h"
 
 using namespace std;
 using namespace Effect8;
@@ -1329,6 +1330,9 @@ void Position::do_null_move(StateInfo& newSt) {
   st = &newSt;
 
   st->board_key_ ^= Zobrist::side;
+  // このタイミングでアドレスが確定するのでprefetchしたほうが良い。
+  prefetch(TT.first_entry(st->key()));
+
   st->pliesFromNull = 0;
 
   sideToMove = ~sideToMove;

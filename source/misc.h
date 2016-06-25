@@ -205,5 +205,14 @@ private:
   }
 };
 
+// --------------------
+//  prefetch命令
+// --------------------
+
+// prefetch()は、与えられたアドレスの内容をL1/L2 cacheに事前に読み込む。
+// これはnon-blocking関数で、CPUがメモリに読み込むのを待たない。
+
+extern void prefetch(void* addr);
+
 
 #endif // _MISC_H_

@@ -145,3 +145,34 @@ int read_all_lines(std::string filename, std::vector<std::string>& lines)
   return 0;
 }
 
+// --------------------
+//  prefetch命令
+// --------------------
+
+// prefetch命令を使わない。
+#ifdef NO_PREFETCH
+
+void prefetch(void*) {}
+
+#else
+
+void prefetch(void* addr) {
+
+// SSEの命令なのでSSE2が使える状況でのみ使用する。
+#ifdef USE_SSE2
+
+#  if defined(__INTEL_COMPILER)
+  // 最適化でprefetch命令を削除するのを回避するhack。MSVCとgccは問題ない。
+  __asm__("");
+#  endif
+
+#  if defined(__INTEL_COMPILER) || defined(_MSC_VER)
+  _mm_prefetch((char*)addr, _MM_HINT_T0);
+#  else
+  __builtin_prefetch(addr);
+#  endif
+
+#endif
+}
+
+#endif

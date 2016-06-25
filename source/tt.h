@@ -116,6 +116,11 @@ struct TranspositionTable {
   // 見つからなかったらfound == falseで、このとき置換表に書き戻すときに使うと良いTT_ENTRY*を返す。
   TTEntry* probe(const Key key, bool& found) const;
 
+  // keyの下位bitをClusterのindexにしてその最初のTTEntry*を返す。
+  TTEntry* first_entry(const Key key) const {
+    return &table[(size_t)key & (clusterCount - 1)].entry[0];
+  }
+
   // 置換表のサイズを変更する。mbSize == 確保するメモリサイズ。MB単位。
   void resize(size_t mbSize);
 

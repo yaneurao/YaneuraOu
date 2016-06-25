@@ -84,19 +84,20 @@ nosse:
 
 
 prof:
-	$(MAKE) CFLAGS='$(CFLAGS) -pg' bmi2
+	$(MAKE) CFLAGS='$(CFLAGS) -pg' avx2
 
 profgen:
-	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-generate -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-generate -lgcov' bmi2
+	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-generate -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-generate -lgcov' avx2
 
 profuse:
-	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-use -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-use -lgcov' bmi2
+	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-use -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-use -lgcov' avx2
 
 pgo:
 	$(MAKE) profgen
 	@./$(TARGET) bench
 	@touch $(SOURCES)
 	$(MAKE) profuse
+# benchコマンドの実行が終わったときに"quit"コマンドを手打ちするものとする。
 
 clean:
 	rm -f $(OBJECTS) $(DEPENDS) $(TARGET) ${OBJECTS:.o=.gcda}

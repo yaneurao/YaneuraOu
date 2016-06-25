@@ -35,7 +35,7 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found) const {
 
   // 最初のTT_ENTRYのアドレス(このアドレスからTT_ENTRYがClusterSize分だけ連なっている)
   // keyの下位bitをいくつか使って、このアドレスを求めるので、自ずと下位bitはいくらかは一致していることになる。
-  TTEntry* const tte = &table[(size_t)(key) & (clusterCount - 1)].entry[0];
+  TTEntry* const tte = first_entry(key);
 
   // 上位16bitが合致するTT_ENTRYを探す
   const uint16_t key16 = key >> 48;

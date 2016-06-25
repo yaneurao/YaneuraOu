@@ -1,4 +1,9 @@
 ﻿
+■　2016/06/26
+
+] V3.21
+
+
 
 
 ■　2016/06/25
@@ -204,6 +209,55 @@
 		112-12-112(52.7% R0.0)	
 
 	ほぼ互角っぽい。
+
+		gcc PGO
+		===========================
+		Total time (ms) : 48621
+		Nodes searched  : 32357232
+		Nodes/second    : 665499
+
+	1,2%速くなった程度？
+
+	魔女と10秒でテスト。
+
+		秒読み10000[ms]
+
+		45.5%	
+		#240
+		やねうら王2016mid V320d gcc
+		CapturePieceValue[KING]=0
+		#0
+		silent_majority_V1.1公式
+		1スレッド
+
+		438-52-525(99.8% R-31.5)	
+
+	まだ少し負けているのか。
+
+・ASSERT外して何故速くならないのか調べる。
+	→　assert()、探索の時間のかかるところにはあまり入ってないからかな。
+・プロファイラで調べる。
+	
+	Eval::calc_diff_kpp             40.29%
+	Position::attackers_to          10.82%
+	TranspositionTable::probe       10.81%
+	is_mate_in_1ply                  3.79%
+	MovePicker::generate_next_stage  2.69%
+
+	なにこれ。
+	評価関数40%でかすぎ。
+	probe時間かかりすぎ。
+	attackers_toも重すぎ。
+
+	attackers_to、template<Color us>とかに分けるとか..。
+
+	NullMoveのときにprefetchしたほうがいいのでは。
+	misc.cppにprefetch追加。
+	TTのfirst_entry()追加。
+	→　どちらが速いかほぼ計測不能。
+
+	利きを使わないmate1ply()はテーブル使ってもう少し速く出来るはず＆mate3にすれば
+	もうちょっと強くなるはず。
 
 
 ■　2016/06/24

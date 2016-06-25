@@ -2,6 +2,11 @@
 やねうら王 更新履歴
 
 
+■　2016/06/26 V3.21
+
+
+
+
 ■　2016/06/25 V3.20
 
 ・PVの出力の抑制。(出力が詰まるため)
@@ -11,6 +16,9 @@
 ・やねうら王2016Mid、新see()を使うように変更。
 ・_mm_alloc()を使うのにg++では*intrin.hをincludeしないときにmm_alloc.hをincludeする必要があるので修正。
 ・CapturePieceValue[KING]=VALUE_ZEROに変更。これで問題ない。
+・Makefile PGOがかけられるように修正。
+・misc.cppにprefetch()追加。
+・do_null_move()のときにはprefetch()するように変更。
 
 
 ■　2016/06/24 V3.19
