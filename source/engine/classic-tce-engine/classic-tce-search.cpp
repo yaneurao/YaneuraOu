@@ -279,7 +279,7 @@ namespace YaneuraOuClassicTce
     auto& fmh = CounterMoveHistory[prevPrevSq][prevPrevPc];
 
     auto thisThread = pos.this_thread();
-    Piece mpc = pos.moved_piece_after_ex(move);
+    Piece mpc = pos.moved_piece_after(move);
     thisThread->history.update(mpc, move_to(move), bonus);
 
     if (is_ok((ss - 1)->currentMove))
@@ -295,7 +295,7 @@ namespace YaneuraOuClassicTce
     // このnodeのベストの指し手以外の指し手はボーナス分を減らす
     for (int i = 0; i < quietsCnt; ++i)
     {
-      Piece qpc = pos.moved_piece_after_ex(quiets[i]);
+      Piece qpc = pos.moved_piece_after(quiets[i]);
       thisThread->history.update(qpc, move_to(quiets[i]), -bonus);
 
       // 前の局面の指し手がMOVE_NULLでないならcounter moveもupdateしておく。
@@ -1339,7 +1339,7 @@ namespace YaneuraOuClassicTce
       //
 
       // 浅い深さでの枝刈り
-      Piece mpc = pos.moved_piece_after_ex(move);
+      Piece mpc = pos.moved_piece_after(move);
 
       if (!RootNode
         && !captureOrPromotion

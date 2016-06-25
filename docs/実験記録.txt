@@ -69,6 +69,53 @@
 
 		→　わかった。move16_to_move()で復元するときに+32してしまっていた。これで範囲外の配列壊していたのか。
 
+		  // moved_piece_before()の移動後の駒が返る版。
+		  // KEEP_PIECE_IN_GENERATE_MOVESのときは単にmoveの上位16bitを返す。
+		  Piece moved_piece_after(Move m) const {
+		#ifdef    KEEP_PIECE_IN_GENERATE_MOVES
+			// 上位16bitにそのまま格納されているはず。
+		//    return Piece((m >> 16) & ~32); // DROP BITを飛ばす
+			return Piece(m >> 16);
+		#else
+			return is_drop(m)
+			  ? (move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE))
+			  : is_promote(m) ? Piece(piece_on(move_from(m)) + PIECE_PROMOTE) : piece_on(move_from(m));
+		#endif
+		  }
+
+		  moved_piece_after_ex()これ、要らないな。消そう。
+
+		  pseudo_legal_s()でdropのとき+32してた。これか。
+
+			rtime 100[ms]
+
+			49.1%	
+			#243
+			やねうら王2016mid V321b
+			history整理
+			#242
+			やねうら王2016mid V321a
+			DROPBITなし
+
+			279-6-289(67.8% R-6.1)	
+
+	互角ぐらいになった。短い時間だとhistoryが小さくなるとCPU cacheの効率が良くなるからか？
+	1000回ぐらいまわしてから判断しよう。
+
+			rtime 1000[ms]
+
+			50.2%	
+			#242
+			やねうら王2016mid V321a
+			DROPBITなし
+			#243
+			やねうら王2016mid V321b
+			history整理
+
+			1084-47-1074(41.5% R1.6)	
+
+	DROPBIT、やはりなくてもいいぐらいだな…。なしにする。
+
 
 
 

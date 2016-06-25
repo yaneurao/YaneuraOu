@@ -4,7 +4,8 @@
 
 ■　2016/06/26 V3.21
 
-
+・Position::moved_piece_after_ex()廃止。
+・やねうら王2016MidではUSE_DROPBIT_IN_STATSなしに変更。
 
 
 ■　2016/06/25 V3.20

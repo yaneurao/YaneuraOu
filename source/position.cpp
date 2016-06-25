@@ -737,7 +737,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 
 #ifdef KEEP_PIECE_IN_GENERATE_MOVES
     // 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
-    if (moved_piece_after_ex(m) != Piece(pr + ((us == WHITE) ? PIECE_WHITE : 0) + 32))
+    if (moved_piece_after(m) != Piece(pr + ((us == WHITE) ? PIECE_WHITE : 0) + PIECE_DROP))
       return false;
 #endif
 
@@ -807,7 +807,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 
 #ifdef KEEP_PIECE_IN_GENERATE_MOVES
       // 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
-      if (moved_piece_after_ex(m) != Piece(pc + PIECE_PROMOTE) )
+      if (moved_piece_after(m) != Piece(pc + PIECE_PROMOTE) )
         return false;
 #endif
 
@@ -821,7 +821,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 
 #ifdef KEEP_PIECE_IN_GENERATE_MOVES
       // 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
-      if (moved_piece_after_ex(m) != pc )
+      if (moved_piece_after(m) != pc )
         return false;
 #endif
 

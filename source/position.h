@@ -238,31 +238,17 @@ struct Position
       : piece_on(move_from(m));
   }
 
-  // moved_piece_before()の移動後の駒が返る版。
+  // moved_pieceの拡張版。駒打ちのときは、打ち駒(+32 == PIECE_DROP)を加算した駒種を返す。
+  // historyなどでUSE_DROPBIT_IN_STATSを有効にするときに用いる。
+  // 成りの指し手のときは成りの指し手を返す。(移動後の駒)
   // KEEP_PIECE_IN_GENERATE_MOVESのときは単にmoveの上位16bitを返す。
   Piece moved_piece_after(Move m) const {
 #ifdef    KEEP_PIECE_IN_GENERATE_MOVES
     // 上位16bitにそのまま格納されているはず。
-//    return Piece((m >> 16) & ~32); // DROP BITを飛ばす
     return Piece(m >> 16);
 #else
     return is_drop(m)
-      ? (move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE))
-      : is_promote(m) ? Piece(piece_on(move_from(m)) + PIECE_PROMOTE) : piece_on(move_from(m));
-#endif
-  }
-
-  // moved_pieceの拡張版。駒打ちのときは、打ち駒(+32)を加算した駒種を返す。
-  // historyなどでUSE_DROPBIT_IN_STATSを有効にするときに用いる。
-  // 成りの指し手のときは成りの指し手を返す。(移動後の駒)
-  // KEEP_PIECE_IN_GENERATE_MOVESのときは単にmoveの上位16bitを返す。
-  Piece moved_piece_after_ex(Move m) const {
-#ifdef    KEEP_PIECE_IN_GENERATE_MOVES
-    // 上位16bitにそのまま格納されているはず。
-    return Piece(m >> 16);
-#else
-    return is_drop(m)
-      ? Piece(move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE) + 32 )
+      ? Piece(move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE) + PIECE_DROP)
       : is_promote(m) ? Piece(piece_on(move_from(m)) + PIECE_PROMOTE) : piece_on(move_from(m));
 #endif
   }

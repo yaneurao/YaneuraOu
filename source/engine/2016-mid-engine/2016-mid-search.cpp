@@ -296,7 +296,7 @@ namespace YaneuraOu2016Mid
     Square prevSq = move_to((ss - 1)->currentMove);
 
     // Moveのなかに移動後の駒が格納されているからそれを取り出すだけ。
-    Piece prevPc = pos.moved_piece_after_ex((ss - 1)->currentMove);
+    Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
 
     ASSERT_LV3(move != MOVE_NULL);
 
@@ -307,10 +307,10 @@ namespace YaneuraOu2016Mid
     auto thisThread = pos.this_thread();
 
     // 今回のmoveで動かした局面ではないので、pos.piece_on()では移動後の駒は得られないが、
-    // moveの上位16bitに移動させたあとの駒が入っているので、それをmoved_piece_after_ex()で取り出す。
+    // moveの上位16bitに移動させたあとの駒が入っているので、それをmoved_piece_after()で取り出す。
 
     Square sq = move_to(move);
-    Piece mpc = pos.moved_piece_after_ex(move);
+    Piece mpc = pos.moved_piece_after(move);
 
     thisThread->history.update(mpc, sq , bonus);
 
@@ -330,7 +330,7 @@ namespace YaneuraOu2016Mid
     for (int i = 0; i < quietsCnt; ++i)
     {
       Square qto = move_to(quiets[i]);
-      Piece qpc = pos.moved_piece_after_ex(quiets[i]);
+      Piece qpc = pos.moved_piece_after(quiets[i]);
 
       thisThread->history.update(qpc, qto , -bonus);
 
@@ -670,7 +670,7 @@ namespace YaneuraOu2016Mid
       
       if (  (!InCheck || evasionPrunable)
           // 「歩が成る」指し手
-          &&  (!(is_promote(move) && raw_type_of(pos.moved_piece_after_ex(move)) == PAWN))
+          &&  (!(is_promote(move) && raw_type_of(pos.moved_piece_after(move)) == PAWN))
           &&  pos.see_sign(move) < VALUE_ZERO)
           continue;
 
@@ -1162,7 +1162,7 @@ namespace YaneuraOu2016Mid
         if (pos.legal(move))
         {
           ss->currentMove = move;
-          ss->counterMoves = &CounterMoveHistory[move_to(move)][pos.moved_piece_after_ex(move)];
+          ss->counterMoves = &CounterMoveHistory[move_to(move)][pos.moved_piece_after(move)];
 
           pos.do_move(move, st, pos.gives_check(move));
           value = -search<NonPV>(pos, ss + 1, -rbeta, -rbeta + 1, rdepth, !cutNode);
@@ -1379,7 +1379,7 @@ namespace YaneuraOu2016Mid
 
       // このあと、この指し手のhistoryの値などを調べたいのでいま求めてしまう。
       Square moved_sq = move_to(move);
-      Piece moved_pc = pos.moved_piece_after_ex(move);
+      Piece moved_pc = pos.moved_piece_after(move);
 
       if (!RootNode
         && !captureOrPawnPromotion
@@ -1671,7 +1671,7 @@ namespace YaneuraOu2016Mid
       Value bonus = Value((int)(depth / ONE_PLY) * (int)(depth / ONE_PLY) + 2 * depth / ONE_PLY - 2);
 
        // 指し手のなかに移動後の駒が格納されているのでこれで取得できる。
-      Piece prevPc = pos.moved_piece_after_ex((ss - 1)->currentMove);
+      Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
 
       if ((ss - 2)->counterMoves)
           (ss - 2)->counterMoves->update(prevPc, prevSq, bonus);

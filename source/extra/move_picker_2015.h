@@ -463,11 +463,7 @@ private:
   {
     for (auto& m : *this)
     {
-#ifndef USE_DROPBIT_IN_STATS
       Piece mpc = pos.moved_piece_after(m);
-#else
-      Piece mpc = pos.moved_piece_after_ex(m);
-#endif
       m.value = history[move_to(m)][mpc]
         + (*counterMoveHistory)[move_to(m)][mpc]
         + (*followupMoveHistory)[move_to(m)][mpc];
@@ -502,11 +498,7 @@ private:
         m.value = (Value)Eval::CapturePieceValue[pos.piece_on(move_to(m))]
                   - Value(type_of(pos.moved_piece_after(m))) + HistoryStats::Max;
       else
-#ifndef USE_DROPBIT_IN_STATS
         m.value = history[move_to(m)][pos.moved_piece_after(m)];
-#else
-        m.value = history[move_to(m)][pos.moved_piece_after_ex(m)];
-#endif
   }
 
   const Position& pos;
