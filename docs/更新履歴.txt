@@ -6,6 +6,9 @@
 
 ・Position::moved_piece_after_ex()廃止。
 ・やねうら王2016MidではUSE_DROPBIT_IN_STATSなしに変更。
+・ソースコード中にtabが混じっていたの修正。
+・MakefileのPGO版のビルドプロセスで、quitコマンドの手打ちが必要だと
+　ビルドプロセスを自動化出来ないので、bench終了後にquitするようにMakefile修正。
 
 
 ■　2016/06/25 V3.20

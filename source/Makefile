@@ -94,7 +94,7 @@ profuse:
 
 pgo:
 	$(MAKE) profgen
-	@./$(TARGET) bench
+	@./$(TARGET) bench , quit
 	@touch $(SOURCES)
 	$(MAKE) profuse
 # benchコマンドの実行が終わったときに"quit"コマンドを手打ちするものとする。

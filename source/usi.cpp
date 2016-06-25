@@ -546,6 +546,9 @@ void USI::loop(int argc,char* argv[])
       // 積んであるコマンドがあるならそれを実行する。
       // 尽きれば"quit"だと解釈してdoループを抜ける仕様にすることはできるが、
       // そうしてしまうとgoコマンド(これはノンブロッキングなので)の最中にquitが送られてしまう。
+      // ただ、
+      // YaneuraOu-mid.exe bench,quit
+      // のようなことは出来るのでPGOの役には立ちそうである。
       cmd = cmds.front();
       cmds.pop();
     }

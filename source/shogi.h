@@ -668,8 +668,8 @@ enum MOVE_GEN_TYPE
 {
   // LEGAL/LEGAL_ALL以外は自殺手が含まれることがある(pseudo-legal)ので、do_moveの前にPosition::legal()でのチェックが必要。
 
-  NON_CAPTURES,	// 駒を取らない指し手
-  CAPTURES,			// 駒を取る指し手
+  NON_CAPTURES,           // 駒を取らない指し手
+  CAPTURES,               // 駒を取る指し手
 
   CAPTURES_PRO_PLUS,      // CAPTURES + 価値のかなりあると思われる成り(歩だけ)
   NON_CAPTURES_PRO_MINUS, // NON_CAPTURES - 価値のかなりあると思われる成り(歩だけ)

@@ -387,8 +387,8 @@ inline Bitboard dragonEffect(const Square sq, const Bitboard& occupied){ return 
 
 // 上下にしか利かない飛車の利き
 inline Bitboard rookEffectFile(const Square sq, const Bitboard& occupied) {
-	const int index = (occupied.p[Bitboard::part(sq)] >> Slide[sq]) & 127;
-	return LanceEffect[BLACK][sq][index] | LanceEffect[WHITE][sq][index];
+  const int index = (occupied.p[Bitboard::part(sq)] >> Slide[sq]) & 127;
+  return LanceEffect[BLACK][sq][index] | LanceEffect[WHITE][sq][index];
 }
 
 // --------------------
