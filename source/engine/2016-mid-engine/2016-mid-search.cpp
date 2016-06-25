@@ -358,6 +358,9 @@ namespace YaneuraOu2016Mid
       //    -bonus -2 * (depth + 1) / ONE_PLY -1 
       //    だが、ONE_PLY = 2においてはおかしいような気が..
 
+      // 1手前に対する1手前(CounterMoveHistory)と2手、4手前(Follow up Move History)に対して
+      // ペナルティを与える。
+
       if ((ss - 2)->counterMoves)
           (ss - 2)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + ONE_PLY) / ONE_PLY - 1);
 
@@ -801,7 +804,9 @@ namespace YaneuraOu2016Mid
     ASSERT_LV3(-VALUE_INFINITE <= alpha && alpha < beta && beta <= VALUE_INFINITE);
     ASSERT_LV3(PvNode || (alpha == beta - 1));
     ASSERT_LV3(DEPTH_ZERO < depth && depth < DEPTH_MAX);
-
+    // IIDを含め、PvNodeではcutNodeで呼び出さない。
+    ASSERT_LV3(!(PvNode && cutNode));
+    
     Thread* thisThread = pos.this_thread();
 
     // ss->moveCountはこのあとMovePickerがこのnodeの指し手を生成するより前に
@@ -1201,6 +1206,9 @@ namespace YaneuraOu2016Mid
 
     const Square prevSq = move_to((ss - 1)->currentMove);
 
+    // cmh  = Counter Move History    = ある指し手が指されたときの応手
+    // fmh  = Follow up Move History  = 2手前の自分の指し手の継続手
+    // fmh2 = Follow up Move History2 = 4手前からの継続手
     const CounterMoveStats* cmh  = (ss - 1)->counterMoves;
     const CounterMoveStats* fmh  = (ss - 2)->counterMoves;
     const CounterMoveStats* fmh2 = (ss - 4)->counterMoves;
@@ -1210,7 +1218,9 @@ namespace YaneuraOu2016Mid
     // ※ VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
     //   枝刈りを甘くして調べないといけないのでimproving扱いとする。
     bool improving = (ss    )->staticEval >= (ss - 2)->staticEval
-                  || (ss    )->staticEval == VALUE_NONE
+//                || (ss    )->staticEval == VALUE_NONE
+    // この条件は一つ上の式に暗黙的に含んでいる。
+    // ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはないので。
                   || (ss - 2)->staticEval == VALUE_NONE;
     
     // singular延長をするnodeであるか。
@@ -1460,19 +1470,32 @@ namespace YaneuraOu2016Mid
                       + (fmh  ? (*fmh )[moved_sq][moved_pc] : VALUE_ZERO)
                       + (fmh2 ? (*fmh2)[moved_sq][moved_pc] : VALUE_ZERO);
 
-        // cut nodeや、historyの値が悪い指し手に対してはreduction量を増やす。
-        if (!PvNode && cutNode)
+        // cut nodeにおいてhistoryの値が悪い指し手に対してはreduction量を増やす。
+        // ※　PVnodeではIID時でもcutNode == trueでは呼ばないことにしたので、
+        // if (cutNode)という条件式は暗黙に && !PvNode を含む。
+
+        // 2 * ONE_PLYは、将棋においてはやりすぎの可能性もある。
+        // もう少し細かく調整したほうが好ましいのだが、ONE_PLY == 1のままだと少し難しい。
+
+        if (cutNode)
           r += 2 * ONE_PLY;
 
 #if 0
         // 捕獲から逃れる指し手はreduction量を減らす。
         // ※　捕獲から逃れる = この移動先にある駒で移動元の駒が取れる。
-        //    すなわち、moveのfromとtoを入れ替えて、その指し手でsee() < 0
+        //    すなわち、moveのfromとtoを入れ替えて、その指し手でsee_sign() < 0
         else if (!is_drop(move) // type_of(move)== NORMAL
-          && type_of(pos.piece_on(move_to(move))) != PAWN
-// →　captureOrPawnPromotionではないので、移動先に歩があるはずはなく、
-// これは、チェスのキャスリング判定絡み？
-          && pos.see_sign(make_move(move_to(move), move_from(move))) < VALUE_ZERO)
+//        && type_of(pos.piece_on(move_to(move))) != PAWN
+          // →　captureOrPawnPromotionではないので、移動先に歩があるはずはないが
+          // StockfishではPAWNの捕獲はcapture moveではないのかも。
+
+          // toの升はNO_PIECEであり、そこに価値のない駒が置かれていると考える。
+          // その駒でfromの駒を取ったときに取り返せないかを判定。
+
+          // see_sign()だと、toの升の駒(NO_PIECE)でfromの升の駒を取るから
+          // 必ず正になってしまうため、see_sign()ではなくsee()を用いる。
+
+          && pos.see(make_move(move_to(move), move_from(move))) < VALUE_ZERO)
           r -= 2 * ONE_PLY;
 #endif
 
@@ -2449,7 +2472,12 @@ namespace Learner
   // 3手読み時のスコアが欲しいなら、
   //   v = search(pos,-VALUE_INFINITE,+VALUE_INFINITE,3);
   // のようにすべし。
-  pair< Move, Value> search(Position& pos,Value alpha , Value beta , int depth)
+
+  // PVは、
+  // th->rootMoves[0].pv (これは配列)
+  // に格納される。
+
+  Value search(Position& pos,Value alpha , Value beta , int depth)
   {
     Stack stack[MAX_PLY + 7], *ss = stack + 5;
     memset(ss - 5, 0, 8 * sizeof(Stack));
@@ -2458,20 +2486,23 @@ namespace Learner
 
     auto th = pos.this_thread();
     auto& rootMoves = th->rootMoves;
+
+    rootMoves.clear();
+    for (auto m : MoveList<LEGAL>(pos))
+      rootMoves.push_back(Search::RootMove(m));
+
     th->rootDepth = 0;
 
+    Value bestValue;
     while (++th->rootDepth <= depth)
     {
-      YaneuraOu2016Mid::search<PV>(pos, ss, alpha, beta, th->rootDepth * ONE_PLY, false);
+      bestValue = YaneuraOu2016Mid::search<PV>(pos, ss, alpha, beta, th->rootDepth * ONE_PLY, false);
       std::stable_sort(rootMoves.begin(), rootMoves.end());
     }
-
-    auto bestMove = rootMoves[0].pv[0];
-    auto bestValue = rootMoves[0].score;
-    return pair<Move,Value>(bestMove , bestValue);
+    return bestValue;
   }
 
-  pair<Move, Value> qsearch(Position& pos, Value alpha, Value beta)
+  pair<Value,vector<Move> > qsearch(Position& pos, Value alpha, Value beta)
   {
     Stack stack[MAX_PLY + 7], *ss = stack + 5;
     memset(ss - 5, 0, 8 * sizeof(Stack));
@@ -2481,14 +2512,24 @@ namespace Learner
 
     pos.check_info_update();
 
+    auto th = pos.this_thread();
+    auto& rootMoves = th->rootMoves;
+
+    rootMoves.clear();
+    for (auto m : MoveList<LEGAL>(pos))
+      rootMoves.push_back(Search::RootMove(m));
+
     // 現局面で王手がかかっているかで場合分け。
     const bool inCheck = pos.in_check();
     auto bestValue = inCheck ?
       YaneuraOu2016Mid::qsearch<PV, true >(pos, ss, alpha, beta, DEPTH_ZERO) :
       YaneuraOu2016Mid::qsearch<PV, false>(pos, ss, alpha, beta, DEPTH_ZERO);
 
-    auto bestMove = pos.this_thread()->rootMoves[0].pv[0];
-    return pair<Move,Value>(bestMove , bestValue);
+    vector<Move> pvs;
+    for (Move* p = &ss->pv[0]; *p; ++p)
+      pvs.push_back(*p);
+
+    return pair<Value,vector<Move> >(bestValue,pvs);
   }
 }
 

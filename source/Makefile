@@ -82,7 +82,7 @@ sse2:
 nosse:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION)' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
-
+#　とりあえずPGOはavx2専用
 prof:
 	$(MAKE) CFLAGS='$(CFLAGS) -pg' avx2
 
@@ -97,7 +97,6 @@ pgo:
 	@./$(TARGET) bench , quit
 	@touch $(SOURCES)
 	$(MAKE) profuse
-# benchコマンドの実行が終わったときに"quit"コマンドを手打ちするものとする。
 
 clean:
 	rm -f $(OBJECTS) $(DEPENDS) $(TARGET) ${OBJECTS:.o=.gcda}

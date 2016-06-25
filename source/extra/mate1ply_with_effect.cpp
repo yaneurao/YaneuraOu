@@ -145,13 +145,15 @@ Move Position::mate1ply_impl() const
   // 駒打ちで詰む条件を満たしていない。
   if (!hk) goto MOVE_MATE;
 
-  auto themKingWW = to_sqww(themKing);
+  {
+    auto themKingWW = to_sqww(themKing);
 
-  // 一番詰みそうな金から調べていく
-  CHECK_PIECE(GOLD);
-  CHECK_PIECE(SILVER);
-  CHECK_PIECE(ROOK) else CHECK_PIECE(LANCE); // 飛車打ちで詰まないときに香打ちで詰むことはないのでチェックを除外
-  CHECK_PIECE(BISHOP);
+    // 一番詰みそうな金から調べていく
+    CHECK_PIECE(GOLD);
+    CHECK_PIECE(SILVER);
+    CHECK_PIECE(ROOK) else CHECK_PIECE(LANCE); // 飛車打ちで詰まないときに香打ちで詰むことはないのでチェックを除外
+    CHECK_PIECE(BISHOP);
+  }
 
 MOVE_MATE:
 

@@ -163,7 +163,7 @@ namespace USI
           bool found;
           auto tte = TT.probe(pos.state()->key(), found);
           ply++;
-          moves[ply] = found ? pos.move16_to_move((tte->move()) : MOVE_NONE;
+          moves[ply] = found ? pos.move16_to_move(tte->move()) : MOVE_NONE;
         }
         while (ply > 0)
           pos_->undo_move(moves[--ply]);

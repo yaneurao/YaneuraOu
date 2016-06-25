@@ -401,7 +401,7 @@ namespace LongEffect
   }
 
   // Usの手番で駒pcをtoに移動させ、成りがある場合、moved_after_pcになっており、捕獲された駒captured_pcがあるときの盤面の利きの更新
-  template <Color Us> void update_by_capturing_piece<Us>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc, Piece captured_pc)
+  template <Color Us> void update_by_capturing_piece(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc, Piece captured_pc)
   {
     auto& board_effect = pos.board_effect;
     auto& long_effect = pos.long_effect;
@@ -461,7 +461,7 @@ namespace LongEffect
   }
 
   // Usの手番で駒pcをtoに移動させ、成りがある場合、moved_after_pcになっている(捕獲された駒はない)ときの盤面の利きの更新
-  template <Color Us> void update_by_no_capturing_piece<Us>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc)
+  template <Color Us>void update_by_no_capturing_piece(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc)
   {
     auto& board_effect = pos.board_effect;
     auto& long_effect = pos.long_effect;
@@ -529,7 +529,7 @@ namespace LongEffect
     UPDATE_LONG_EFFECT_FROM_REWIND(to, dir_bw_us, dir_bw_others, -1); // rewind時には-1
   }
 
-  template <Color Us> void rewind_by_capturing_piece<Us>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc, Piece captured_pc)
+  template <Color Us> void rewind_by_capturing_piece(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc, Piece captured_pc)
   {
     auto& board_effect = pos.board_effect;
     auto& long_effect = pos.long_effect;
@@ -573,7 +573,7 @@ namespace LongEffect
     UPDATE_LONG_EFFECT_FROM_REWIND(from, dir_bw_us, dir_bw_others, +1); // rewind時はこの符号が+1
   }
 
-  template <Color Us> void rewind_by_no_capturing_piece<Us>(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc)
+  template <Color Us> void rewind_by_no_capturing_piece(Position& pos, Square from, Square to, Piece moved_pc, Piece moved_after_pc)
   {
     auto& board_effect = pos.board_effect;
     auto& long_effect = pos.long_effect;

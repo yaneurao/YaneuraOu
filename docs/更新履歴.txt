@@ -2,13 +2,22 @@
 やねうら王 更新履歴
 
 
-■　2016/06/26 V3.21
+■　2016/06/26 V3.21～V3.22
 
 ・Position::moved_piece_after_ex()廃止。
 ・やねうら王2016MidではUSE_DROPBIT_IN_STATSなしに変更。
 ・ソースコード中にtabが混じっていたの修正。
 ・MakefileのPGO版のビルドプロセスで、quitコマンドの手打ちが必要だと
 　ビルドプロセスを自動化出来ないので、bench終了後にquitするようにMakefile修正。
+・improvingの値比較、ひとつの条件をコメントアウト。(ひとつ前の式が暗黙的に含んでいるので)
+・PV nodeをcutnodeで呼ぶことはなくなったのでpv && cutNodeという条件式は無駄なので省略。
+・探索部、cmh,fmhまわりにコメント追加。
+・long_effect.cppがg++でbuildが通らなかったの修正。
+・mate1ply_with_effect.cppがg++でwarningが出ていたの修正。
+・nanoがbuild通らなくなっていたの修正。
+・棋譜の自動生成ルーチンを書く。(新学習メソッドで用いるので)
+　→　searchのrootMovesのセット、Learner::search()に移動させる。
+・test gensfenのqsearch()のPVがきちんと得られるようにした。
 
 
 ■　2016/06/25 V3.20

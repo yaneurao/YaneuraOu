@@ -1003,8 +1003,8 @@ void unit_test(Position& pos, istringstream& is)
 #if defined (YANEURAOU_2016_MID_ENGINE)
 namespace Learner
 {
-  extern pair<Move, Value> search(Position& pos, Value alpha, Value beta, int depth);
-  extern pair<Move, Value> qsearch(Position& pos, Value alpha, Value beta);
+  extern Value search(Position& pos, Value alpha, Value beta, int depth);
+  extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta);
 }
 #endif
 
@@ -1014,12 +1014,11 @@ void gen_sfen(Position& pos, istringstream& is)
   int loop_max = 1;
   is >> loop_max;
 
-  cout << "gen_sfen : loop_max = " << loop_max << endl;
+  std::cout << "gen_sfen : loop_max = " << loop_max << endl;
 
   // 評価関数の読み込み等
   is_ready(pos);
 
-  pos.set_hirate();
   const int MAX_PLY = 256; // 256手までテスト
 
   StateInfo state[MAX_PLY]; // StateInfoを最大手数分だけ
@@ -1028,38 +1027,58 @@ void gen_sfen(Position& pos, istringstream& is)
 
   PRNG prng(20160101);
 
+  pos.set_hirate();
+
+  // Positionに対して従属スレッドの設定が必要。
+  // 並列化するときは、Threads (これが実体が vector<Thread*>なので、
+  // Threads[0]...Threads[thread_num-1]までに対して同じようにすれば良い。
+  auto th = Threads.main();
+  pos.set_this_thread(th);
+
   for (int i = 0; i < loop_max; ++i)
   {
     for (ply = 0; ply < MAX_PLY; ++ply)
     {
-
-      // Positionに対して従属スレッドの設定が必要。
-      // 並列化するときは、Threads (これが実体が vector<Thread*>なので、Threads[0]...Threads[thread_num-1]までに対して
-      // 同じようにすれば良い。
-      auto th = Threads.main();
-      pos.set_this_thread(th);
-      th->rootMoves.clear();
-      for (auto m : MoveList<LEGAL>(pos))
-        th->rootMoves.push_back(Search::RootMove(m));
-
-      // 合法な指し手がなかった == 詰み
-      if (th->rootMoves.size() == 0)
-        break;
-
-//      cout << pos;
-
+      // mate1ply()の呼び出しのために必要。
       pos.check_info_update();
 
-      // 3手読み
-      auto mv1 = Learner::search(pos, -VALUE_INFINITE, VALUE_INFINITE, 3);
-      // 0手読み(静止探索のみ)
-      auto mv2 = Learner::qsearch(pos, -VALUE_INFINITE, VALUE_INFINITE);
+      // 1手詰め状態になっているなら終了。
+      if (pos.mate1ply())
+        break;
 
-      // 局面のsfen,3手読みでの最善手,3手読みでの評価値、0手読みでの評価値
-      cout << pos.sfen() << "," << mv1.first << "," << mv1.second << "," << mv2.second << endl;
+      // 5手読みの評価値とPV(最善応手列)
+      auto value1 = Learner::search(pos, -VALUE_INFINITE, VALUE_INFINITE, 5);
+      auto pv1 = th->rootMoves[0].pv;
 
-      // 3手読みの指し手で局面を進める。
-      auto m = mv1.first;
+      // 0手読み(静止探索のみ)の評価値とPV(最善応手列)
+      auto pv_value = Learner::qsearch(pos, -VALUE_INFINITE, VALUE_INFINITE);
+      auto value2 = pv_value.first;
+      auto pv2 = pv_value.second;
+
+      // 上のように、search()の直後にqsearch()をすると、search()で置換表に格納されてしまって、
+      // qsearch()が置換表にhitして、search()と同じ評価値が返るので注意。
+
+      // 局面のsfen,5手読みでの最善手,0手読みでの評価値
+      cout << pos.sfen() << "," << value1 << "," << value2 << "," << endl;
+
+#if 1
+      // デバッグ用に局面と読み筋を表示させてみる。
+      cout << pos;
+      cout << "search() PV = ";
+      for (auto pv_move : pv1)
+        cout << pv_move << " ";
+      cout << endl;
+
+      // 静止探索のpvは存在しないことがある。(駒の取り合いがない場合など)　その場合は、現局面がPVのleafである。
+      cout << "qsearch() PV = ";
+      for (auto pv_move : pv2)
+        cout << pv_move << " ";
+      cout << endl;
+
+#endif
+
+      // 5手読みの指し手で局面を進める。
+      auto m = pv1[0];
 
       pos.do_move(m, state[ply]);
       moves[ply] = m;
@@ -1073,10 +1092,10 @@ void gen_sfen(Position& pos, istringstream& is)
 
     // 1000回に1回ごとに'.'を出力(進んでいることがわかるように)
     if ((i % 1000) == 0)
-      cout << ".";
+      std::cout << ".";
   }
 
-  cout << "gen_sfen finished." << endl;
+  std::cout << "gen_sfen finished." << endl;
 #endif
 }
 
