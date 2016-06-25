@@ -670,7 +670,7 @@ namespace YaneuraOu2016Mid
       
       if (  (!InCheck || evasionPrunable)
           // 「歩が成る」指し手
-          &&  (!(is_promote(move) && type_of(pos.moved_piece_before(move)) == PAWN))
+          &&  (!(is_promote(move) && raw_type_of(pos.moved_piece_after_ex(move)) == PAWN))
           &&  pos.see_sign(move) < VALUE_ZERO)
           continue;
 

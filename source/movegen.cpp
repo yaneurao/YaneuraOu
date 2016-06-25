@@ -50,6 +50,13 @@ using namespace std;
 
 // 上位16bitに格納する駒を生成する。
 
+// USE_DROPBIT_IN_STATSがdefineされているときは、Moveの上位16bitに格納するPieceとして駒打ちは +32　にする。
+#ifdef USE_DROPBIT_IN_STATS
+#define PIECE_DROP 32
+#else
+#define PIECE_DROP 0
+#endif
+
 // そのままの駒
 #define OurPt(Us,Pt)     Move(((Us ? PIECE_WHITE:0)+Pt) << 16)
 
@@ -57,7 +64,7 @@ using namespace std;
 #define OurProPt(Us,Pt)  Move(((Us ? PIECE_WHITE:0)+Pt+PIECE_PROMOTE) << 16)
 
 // 駒打ちするときの駒(+32)
-#define OurDropPt(Us,Pt) Move(((Us ? PIECE_WHITE:0)+Pt+32) << 16)
+#define OurDropPt(Us,Pt) Move(((Us ? PIECE_WHITE:0)+Pt+PIECE_DROP) << 16)
 
 // 成らない指し手生成を生成する
 #define MAKE_MOVE_TARGET(target_) { FOREACH_BB(target_,to,{                                      \
@@ -96,7 +103,6 @@ using namespace std;
 #define MAKE_MOVE_TARGET_DROP(target_,Pt) { FOREACH_BB(target_, sq, {                           \
   mlist++->move = make_move_drop(Pt,sq) + OurDropPt(Us,Pt);                                     \
 });}
-
 
 #endif
 

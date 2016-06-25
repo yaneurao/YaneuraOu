@@ -13,6 +13,7 @@ YaneuraOu_backup*.lnk
 2016-late-param.h
 2016-late-search-body.cpp
 *Private.*
+*.vspx
 
 # cf. https://twitter.com/496_/status/673758920846917632
 YaneuraOu.VC.opendb

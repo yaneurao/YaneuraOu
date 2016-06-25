@@ -3,6 +3,31 @@
 
 ] V3.21
 
+	V3.21a
+・history、整理
+
+		秒読み300[ms]
+
+		51.8%	
+		#242
+		やねうら王2016mid V321a
+		history整理
+		#241
+		やねうら王2016mid V321
+		新基準
+
+		298-6-277(17.9% R12.7)	
+
+移動させる駒にしたものと比較
+
+	V3.21b
+
+			#define USE_DROPBIT_IN_STATS
+			#define KEEP_PIECE_IN_GENERATE_MOVES
+
+		これ、USE_DROPBIT_IN_STATSをundefするとすごく弱くなる。
+		何か修正忘れているのだと思う。
+
 
 
 

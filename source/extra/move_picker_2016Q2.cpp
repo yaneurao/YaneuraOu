@@ -97,10 +97,14 @@ MovePicker::MovePicker(const Position& pos_,Move ttMove_,Depth depth_, Search::S
 
   Square prevSq = move_to((ss - 1)->currentMove);
   Piece prevPc =
+#ifdef KEEP_PIECE_IN_GENERATE_MOVES
+      pos.moved_piece_after_ex((ss - 1)->currentMove);
+#else
 #ifndef USE_DROPBIT_IN_STATS   
       pos.piece_on(prevSq);
 #else
       pos.piece_on(prevSq) + Piece(is_drop((ss-1)->currentMove) ? 32 : 0);
+#endif
 #endif
 
   countermove =
@@ -484,14 +488,16 @@ void MovePicker::score_evasions()
     // LVAするときに王が10000だから、これが大きすぎる可能性がなくはないが…。
     if (pos.capture_or_promotion(m))
     {
+
       m.value = (Value)Eval::CapturePieceValue[pos.piece_on(move_to(m))]
         - Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
 
       // 成るなら、その成りの価値を加算
       if (is_promote(m))
-        m.value += (Eval::ProDiffPieceValue[pos.piece_on(move_from(m))]);
+        m.value += (Eval::ProDiffPieceValue[raw_type_of(pos.moved_piece_after_ex(m))]);
     }
     else
+
 #ifndef USE_DROPBIT_IN_STATS
       m.value = history[move_to(m)][pos.moved_piece_after(m)];
 #else
