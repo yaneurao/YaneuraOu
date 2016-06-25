@@ -50,13 +50,6 @@ using namespace std;
 
 // 上位16bitに格納する駒を生成する。
 
-// USE_DROPBIT_IN_STATSがdefineされているときは、Moveの上位16bitに格納するPieceとして駒打ちは +32　にする。
-#ifdef USE_DROPBIT_IN_STATS
-#define PIECE_DROP 32
-#else
-#define PIECE_DROP 0
-#endif
-
 // そのままの駒
 #define OurPt(Us,Pt)     Move(((Us ? PIECE_WHITE:0)+Pt) << 16)
 

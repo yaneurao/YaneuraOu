@@ -18,6 +18,22 @@
 
 		298-6-277(17.9% R12.7)	
 
+
+		秒読み10000[ms]
+
+		50.0%	
+		#243
+		やねうら王2016mid V321b
+		history整理
+		#0
+		silent_majority_V1.1公式
+		1スレッド
+
+		79-9-79(53.2% R0.0)	
+
+		魔女と互角ぐらい？
+
+
 移動させる駒にしたものと比較
 
 	V3.21b
@@ -25,8 +41,33 @@
 			#define USE_DROPBIT_IN_STATS
 			#define KEEP_PIECE_IN_GENERATE_MOVES
 
-		これ、USE_DROPBIT_IN_STATSをundefするとすごく弱くなる。
-		何か修正忘れているのだと思う。
+		これ、USE_DROPBIT_IN_STATSをundefするとすごく弱くなる。(-R170ぐらい)
+		何か修正忘れているのだと思う。この弱くなる原因をよく調べたほうがいい。
+
+			  // Moveの上位16bitのvaridation
+		#if 1
+			  if (is_drop(move))
+			  {
+				if (move_dropped_piece(move) + Piece(pos.side_to_move()==BLACK ? 0 : PIECE_WHITE) + PIECE_DROP  != Piece(move >> 16))
+				{
+				  cout << pos << move << ":" << move_dropped_piece(move);
+
+				}
+			  } else if (!is_promote(move)) {
+				if (pos.moved_piece_after_ex(move) != pos.piece_on(move_from(move)))
+				{
+				  cout << pos << move;
+				}
+			  } else {
+				if (pos.moved_piece_after_ex(move) != pos.piece_on(move_from(move)) + PIECE_PROMOTE)
+				{
+				  cout << pos << move;
+				}
+			  }
+		#endif
+
+
+		→　わかった。move16_to_move()で復元するときに+32してしまっていた。これで範囲外の配列壊していたのか。
 
 
 

@@ -227,7 +227,7 @@
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
-#define USE_DROPBIT_IN_STATS
+//#define USE_DROPBIT_IN_STATS
 #define KEEP_PIECE_IN_GENERATE_MOVES
 #define ONE_PLY_EQ_1
 #endif
@@ -402,6 +402,14 @@ const bool pretty_jp = false;
 #define HASH_KEY Key256
 #endif
 
+// --- Dropbit
+
+// USE_DROPBIT_IN_STATSがdefineされているときは、Moveの上位16bitに格納するPieceとして駒打ちは +32(PIECE_DROP)　にする。
+#ifdef USE_DROPBIT_IN_STATS
+#define PIECE_DROP 32
+#else
+#define PIECE_DROP 0
+#endif
 
 // ----------------------------
 //      CPU environment
