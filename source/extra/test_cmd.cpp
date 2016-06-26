@@ -1003,7 +1003,7 @@ void unit_test(Position& pos, istringstream& is)
 #if defined (YANEURAOU_2016_MID_ENGINE)
 namespace Learner
 {
-  extern Value search(Position& pos, Value alpha, Value beta, int depth);
+  extern pair<Value, vector<Move> >  search(Position& pos, Value alpha, Value beta, int depth);
   extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta);
 }
 #endif
@@ -1043,17 +1043,18 @@ void gen_sfen(Position& pos, istringstream& is)
       pos.check_info_update();
 
       // 1手詰め状態になっているなら終了。
-      if (pos.mate1ply())
+      if (pos.mate1ply() != MOVE_NONE)
         break;
 
       // 5手読みの評価値とPV(最善応手列)
-      auto value1 = Learner::search(pos, -VALUE_INFINITE, VALUE_INFINITE, 5);
-      auto pv1 = th->rootMoves[0].pv;
+      auto pv_value1 = Learner::search(pos, -VALUE_INFINITE, VALUE_INFINITE, 5);
+      auto value1 = pv_value1.first;
+      auto pv1 = pv_value1.second;
 
       // 0手読み(静止探索のみ)の評価値とPV(最善応手列)
-      auto pv_value = Learner::qsearch(pos, -VALUE_INFINITE, VALUE_INFINITE);
-      auto value2 = pv_value.first;
-      auto pv2 = pv_value.second;
+      auto pv_value2 = Learner::qsearch(pos, -VALUE_INFINITE, VALUE_INFINITE);
+      auto value2 = pv_value2.first;
+      auto pv2 = pv_value2.second;
 
       // 上のように、search()の直後にqsearch()をすると、search()で置換表に格納されてしまって、
       // qsearch()が置換表にhitして、search()と同じ評価値が返るので注意。
@@ -1061,7 +1062,7 @@ void gen_sfen(Position& pos, istringstream& is)
       // 局面のsfen,5手読みでの最善手,0手読みでの評価値
       cout << pos.sfen() << "," << value1 << "," << value2 << "," << endl;
 
-#if 1
+#if 0
       // デバッグ用に局面と読み筋を表示させてみる。
       cout << pos;
       cout << "search() PV = ";

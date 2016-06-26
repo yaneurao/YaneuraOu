@@ -2468,23 +2468,19 @@ namespace Learner
 {
   // 学習用に、1つのスレッドからsearch,qsearch()を呼び出せるようなスタブを用意する。
 
-  // 通常探索。深さdepth(整数で指定)。aspiration searchはしない。
-  // 3手読み時のスコアが欲しいなら、
-  //   v = search(pos,-VALUE_INFINITE,+VALUE_INFINITE,3);
-  // のようにすべし。
-
-  // PVは、
-  // th->rootMoves[0].pv (これは配列)
-  // に格納される。
-
-  Value search(Position& pos,Value alpha , Value beta , int depth)
+  // 学習のための初期化。
+  // Learner::search(),Learner::qsearch()から呼び出される。
+  void init_for_search(Position pos)
   {
-    Stack stack[MAX_PLY + 7], *ss = stack + 5;
-    memset(ss - 5, 0, 8 * sizeof(Stack));
-
     pos.check_info_update();
 
+    // 探索深さ無限
+    auto& limits = Search::Limits;
+    limits.infinite = true;
+
     auto th = pos.this_thread();
+    th->maxPly = 0;
+
     auto& rootMoves = th->rootMoves;
 
     rootMoves.clear();
@@ -2492,16 +2488,33 @@ namespace Learner
       rootMoves.push_back(Search::RootMove(m));
 
     th->rootDepth = 0;
+  }
+
+  // 通常探索。深さdepth(整数で指定)。aspiration searchはしない。
+  // 3手読み時のスコアが欲しいなら、
+  //   auto v = search(pos,-VALUE_INFINITE,+VALUE_INFINITE,3);
+  // のようにすべし。
+  // v.firstに評価値、v.secondにPVが得られる。
+
+  pair<Value, vector<Move> > search(Position& pos,Value alpha , Value beta , int depth)
+  {
+    Stack stack[MAX_PLY + 7], *ss = stack + 5;
+    memset(ss - 5, 0, 8 * sizeof(Stack));
+
+    init_for_search(pos);
+    auto th = pos.this_thread();
 
     Value bestValue;
     while (++th->rootDepth <= depth)
     {
       bestValue = YaneuraOu2016Mid::search<PV>(pos, ss, alpha, beta, th->rootDepth * ONE_PLY, false);
-      std::stable_sort(rootMoves.begin(), rootMoves.end());
+      std::stable_sort(th->rootMoves.begin(), th->rootMoves.end());
     }
-    return bestValue;
+
+    return pair<Value,vector<Move> >(bestValue,th->rootMoves[0].pv);
   }
 
+  // 同じく静止探索。
   pair<Value,vector<Move> > qsearch(Position& pos, Value alpha, Value beta)
   {
     Stack stack[MAX_PLY + 7], *ss = stack + 5;
@@ -2510,14 +2523,8 @@ namespace Learner
     Move pv[MAX_PLY + 1];
     ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
-    pos.check_info_update();
-
+    init_for_search(pos);
     auto th = pos.this_thread();
-    auto& rootMoves = th->rootMoves;
-
-    rootMoves.clear();
-    for (auto m : MoveList<LEGAL>(pos))
-      rootMoves.push_back(Search::RootMove(m));
 
     // 現局面で王手がかかっているかで場合分け。
     const bool inCheck = pos.in_check();
@@ -2525,6 +2532,7 @@ namespace Learner
       YaneuraOu2016Mid::qsearch<PV, true >(pos, ss, alpha, beta, DEPTH_ZERO) :
       YaneuraOu2016Mid::qsearch<PV, false>(pos, ss, alpha, beta, DEPTH_ZERO);
 
+    // 得られたPVを返す。
     vector<Move> pvs;
     for (Move* p = &ss->pv[0]; *p; ++p)
       pvs.push_back(*p);
