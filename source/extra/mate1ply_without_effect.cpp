@@ -36,8 +36,8 @@ enum PieceTypeCheck
   PIECE_TYPE_CHECK_ZERO = 0,
 };
 
-ENABLE_OPERATORS_ON(PieceTypeCheck);
-ENABLE_OPERATORS_ON(PieceTypeBitboard);
+ENABLE_FULL_OPERATORS_ON(PieceTypeCheck);
+ENABLE_FULL_OPERATORS_ON(PieceTypeBitboard);
 
 // 王手になる候補の駒の位置を示すBitboard
 Bitboard CHECK_CAND_BB[PIECE_TYPE_CHECK_NB][SQ_NB_PLUS1][COLOR_NB];

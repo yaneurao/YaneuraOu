@@ -1,6 +1,176 @@
 ﻿
 ■　2016/06/26
 
+] V3.23
+
+	V3.23a
+	-    // IID、null move、singular extensionの判定のときは浅い探索なのでこのときに
+	-    // killer等を更新するのは有害である。
+	-    if (ss->skipEarlyPruning)
+	-      return;
+	
+	これ、もはやないほうがいいのか…。
+
+
+		// fail lowを引き起こした前nodeでのcounter moveに対してボーナスを加点する。
+		else if (depth >= 3 * ONE_PLY
+		  && !bestMove                        // bestMoveが無い == fail low
+		  && !InCheck
+		  && !pos.captured_piece_type()
+		  && is_ok((ss - 1)->currentMove)
+	-      && is_ok((ss - 2)->currentMove))
+		{
+
+	fail low bonusも修正したほうがいいな。
+
+		秒読み300[ms]
+
+		50.1%	
+		#249
+		やねうら王2016mid V323a
+		update_stats()変更。
+		#248
+		やねうら王2016mid V323
+		新基準
+
+		578-21-576(47.7% R0.6)	
+
+	短い時間において弱くはなっていないので採用。
+
+	move_to → to_sq()にしたほうがStockfishと互換性が上がるのでは…。
+	変な独自性出さないほうがいいような…。
+	→　これはまだいいか..
+
+	V3.23b
+	ehash、bench値は上がらないが、2手前の局面で考えた結果が生きるので
+	やったほうがいいのでは。有効にして比較する。
+
+		秒読み300[ms]
+
+		49.6%	
+		#250
+		やねうら王2016mid V323b
+		ehash有効。
+		#248
+		やねうら王2016mid V323
+		新基準
+
+		408-16-414(59.6% R-2.5)	
+
+
+		秒読み2000[ms]
+
+		50.7%	
+		#250
+		やねうら王2016mid V323b
+		ehash有効。
+		#248
+		やねうら王2016mid V323
+		新基準
+
+		106-5-103(39.1% R5.0)	
+
+
+		→　よくわからない。スレッド数が多いなら他のスレッドの計算結果が使えていいのかも。
+		互角ぐらいなら入れたい気はする。入れる。
+
+
+	V3.23c
+		-	PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN = 170;
+		+	PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN = 256;
+		いったん元に戻したほうが良いのでは..
+
+			value = search<NonPV>(pos, ss, rBeta - 1, rBeta, depth * PARAM_SINGULAR_SEARCH_DEPTH / 256, cutNode);
+			ss->skipEarlyPruning = false;
+			ss->excludedMove = MOVE_NONE;
+
+		-	ss->moveCount = moveCount; // 破壊したと思うので修復しておく。
+
+
+		  if (givesCheck
+		-	&& moveCount == 1
+		+	&& !moveCountPruning
+			&& pos.see_sign(move) >= VALUE_ZERO)
+			extension = ONE_PLY;
+
+
+			else if (depth >= 3 * ONE_PLY
+			  && !bestMove                        // bestMoveが無い == fail low
+		-	  && !InCheck
+			  && !pos.captured_piece_type()
+			  && is_ok((ss - 1)->currentMove))
+			{
+			  // 指し手のなかに移動後の駒が格納されているのでこれで取得できる。
+			  Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
+
+		  if (  givesCheck
+			-   && moveCount == 1
+	   		+	&& !moveCountPruning
+			&&  pos.see_sign(move) >= VALUE_ZERO)
+			extension = ONE_PLY;
+
+			これやはり、やりすぎであったか…。
+
+				秒読み1000[ms]
+
+				53.3%	
+				#251
+				やねうら王2016mid V323c
+				see parant nodeでのmargin変更など。
+				#248
+				やねうら王2016mid V323
+				新基準
+
+				313-11-274(4.9% R23.1)	
+
+			少し上がったか。
+
+	V3.23d
+			  // 捕獲する指し手か、歩の成りの指し手であるかを返す。
+			  bool capture_or_pawn_promotion(Move m) const
+			  {
+	+		#ifdef KEEP_PIECE_IN_GENERATE_MOVES
+	+			// 移動させる駒が歩かどうかは、Moveの上位16bitを見れば良い
+	+			return (is_promote(m) && raw_type_of(moved_piece_after(m)) == PAWN) || capture(m);
+	+		#else
+				return (is_promote(m) && type_of(piece_on(move_from(m)))==PAWN) || capture(m);
+	+		#endif
+			  }
+
+			少し高速化。
+
+
+			null moveのとき、stateEval + 2*Tempo、良くないのでは..
+
+	-		  if ((ss - 1)->currentMove == MOVE_NULL)
+	-		    eval = ss->staticEval = -(ss - 1)->staticEval + 2 * Tempo;
+
+	-		ss->staticEval = bestValue =
+	-		  (ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
+			                                     : -(ss - 1)->staticEval + 2 * Tempo;
+	+		ss->staticEval = bestValue = evaluate(pos);
+
+			秒読み300[ms]
+
+			45.1%	
+			#252
+			やねうら王2016mid V323d
+			null moveのときのevaluate()変更。
+			#251
+			やねうら王2016mid V323c
+			see parant nodeでのmargin変更など。
+
+			246-8-299(99.0% R-33.9)	
+
+			なぜか弱くなった。npsも少し落ちたような感じ。
+			null move、なんでこんななるのん..。
+
+	+	  // この処理、入れたほうがいいようだ。一見するとevaluate()は上で手番つきで求めているから
+	+	  // これをやると不正確になるだけのようであるが、null moveした局面で手番つきの評価関数を呼ぶと
+	+	  // 駒に当たっているものがプラス評価されて、評価値として大きく出すぎて悪作用があるようだ。
+
+		という結論になった。
+
 ] V3.22
 
 ・futilityとrazoringのパラメーター、元に戻してみる。
@@ -48,6 +218,26 @@
 
 	mate1()の発見率が5%落ちることと、nps 5%ダウン。結構勝率に影響するんだな…。
 	同種ソフト対決なのも影響してるのかも知れないが。
+
+
+		秒読み15000[ms]
+
+		45.3%	
+		#246
+		やねうら王2016mid V322a
+		futilityとrazoringパラメーター戻した
+		#0
+		silent_majority_V1.1公式
+		1スレッド
+
+		377-49-456(99.7% R-33.0)	
+
+	まだ何らか負けているようだ。
+
+
+	moved_piece_after()やめて、移動させる駒になっていてもどうせ歩のpromoteは除外されるので
+	あまり変わらないのかも。桂を成る場合と成らない場合とが同一視されるのがちょっと嫌だな。
+	やはり、魔女のこの部分の実装は良いとは思えないのだが…。
 
 
 ] V3.21

@@ -266,9 +266,8 @@ Msys2環境下のgccで
 	> make avx2	(AVX2命令を使うときのbuild)
 
 とすればbuild出来て、これをWindows用の実行ファイルとして使えるところまでは確認しました。
+Ubuntu16.04、Mac OSでbuild出来ることも確認しました。
 
 やねうら王プロジェクトでは、local-game-server以外はWindows環境に依存するコードは混じっておらず、
 標準的なC++14コンパイラでコンパイル出来るはずです。
-
-
 	

@@ -10,7 +10,7 @@
 // +,-,*など標準的なoperatorを標準的な方法で定義するためのマクロ
 // enumで定義されている型に対して用いる。Stockfishのアイデア。
 
-#define ENABLE_OPERATORS_ON(T)                                                  \
+#define ENABLE_BASE_OPERATORS_ON(T)                                             \
   inline T operator+(const T d1, const T d2) { return T(int(d1) + int(d2)); }   \
   inline T operator-(const T d1, const T d2) { return T(int(d1) - int(d2)); }   \
   inline T operator*(const int i, const T d) { return T(i * int(d)); }          \
@@ -19,27 +19,31 @@
   inline T& operator+=(T& d1, const T d2) { return d1 = d1 + d2; }              \
   inline T& operator-=(T& d1, const T d2) { return d1 = d1 - d2; }              \
   inline T& operator*=(T& d, const int i) { return d = T(int(d) * i); }         \
-  inline T& operator++(T& d) { return d = T(int(d) + 1); }                      \
-  inline T& operator--(T& d) { return d = T(int(d) - 1); }                      \
-  inline T operator++(T& d,int) { T prev = d; d = T(int(d) + 1); return prev; } \
-  inline T operator--(T& d,int) { T prev = d; d = T(int(d) - 1); return prev; } \
-  inline T operator/(const T d, const int i) { return T(int(d) / i); }          \
-  inline T& operator/=(T& d, const int i) { return d = T(int(d) / i); }
 
-ENABLE_OPERATORS_ON(Color)
-ENABLE_OPERATORS_ON(File)
-ENABLE_OPERATORS_ON(Rank)
-ENABLE_OPERATORS_ON(Square)
-ENABLE_OPERATORS_ON(SquareWithWall)
-ENABLE_OPERATORS_ON(Piece)
-ENABLE_OPERATORS_ON(PieceNo)
-ENABLE_OPERATORS_ON(Value)
-ENABLE_OPERATORS_ON(Depth)
-ENABLE_OPERATORS_ON(Hand)
-ENABLE_OPERATORS_ON(HandKind)
-ENABLE_OPERATORS_ON(Move)
-ENABLE_OPERATORS_ON(Eval::BonaPiece)
-ENABLE_OPERATORS_ON(Effect8::Direct)
+#define ENABLE_FULL_OPERATORS_ON(T)                                             \
+ENABLE_BASE_OPERATORS_ON(T)                                                     \
+inline T& operator++(T& d) { return d = T(int(d) + 1); }                        \
+inline T& operator--(T& d) { return d = T(int(d) - 1); }                        \
+inline T operator++(T& d,int) { T prev = d; d = T(int(d) + 1); return prev; }   \
+inline T operator--(T& d,int) { T prev = d; d = T(int(d) - 1); return prev; }   \
+inline T operator/(T d, int i) { return T(int(d) / i); }                        \
+inline int operator/(T d1, T d2) { return int(d1) / int(d2); }                  \
+inline T& operator/=(T& d, int i) { return d = T(int(d) / i); }
+
+ENABLE_FULL_OPERATORS_ON(Color)
+ENABLE_FULL_OPERATORS_ON(File)
+ENABLE_FULL_OPERATORS_ON(Rank)
+ENABLE_FULL_OPERATORS_ON(Square)
+ENABLE_FULL_OPERATORS_ON(SquareWithWall)
+ENABLE_FULL_OPERATORS_ON(Piece)
+ENABLE_FULL_OPERATORS_ON(PieceNo)
+ENABLE_FULL_OPERATORS_ON(Value)
+ENABLE_FULL_OPERATORS_ON(Depth)
+ENABLE_FULL_OPERATORS_ON(Hand)
+ENABLE_FULL_OPERATORS_ON(HandKind)
+ENABLE_FULL_OPERATORS_ON(Move)
+ENABLE_FULL_OPERATORS_ON(Eval::BonaPiece)
+ENABLE_FULL_OPERATORS_ON(Effect8::Direct)
 
 
 // enumに対してint型との加算と減算を提供するマクロ。Value型など一部の型はこれがないと不便。

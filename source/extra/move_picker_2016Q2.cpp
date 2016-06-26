@@ -83,7 +83,7 @@ enum Stages : int {
 
   STOP,                         // 終端
 };
-ENABLE_OPERATORS_ON(Stages); // 次の状態にするためにインクリメントを使いたい。
+ENABLE_FULL_OPERATORS_ON(Stages); // 次の状態にするためにインクリメントを使いたい。
 
 
 // 指し手オーダリング器

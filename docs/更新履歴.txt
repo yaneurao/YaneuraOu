@@ -2,7 +2,7 @@
 やねうら王 更新履歴
 
 
-■　2016/06/26 V3.21～V3.22
+■　2016/06/26 V3.21～V3.23
 
 ・Position::moved_piece_after_ex()廃止。
 ・やねうら王2016MidではUSE_DROPBIT_IN_STATSなしに変更。
@@ -18,6 +18,14 @@
 ・棋譜の自動生成ルーチンを書く。(新学習メソッドで用いるので)
 　→　searchのrootMovesのセット、Learner::search()に移動させる。
 ・test gensfenのqsearch()のPVがきちんと得られるようにした。
+・ENABLE_OPERATORS_ONをENABLE_BASE_OPERATORS_ONとENABLE_FULL_OPERATORS_ONに分離
+・ENABLE_FULL_OPERATORS_ONにintとの割り算追加。depth / ONE_PLYが出来るように。
+・fail low時のbonusを与える条件、変更。
+・PARAM_IID_MARGIN_ALPHA追加。
+・PARAM_FUTILITY_AT_PARENT_NODE_MARGIN、256に戻す。
+・check extensionの条件、単純化。
+・やねうら王2016Midでehash有効にする。
+・capture_or_pawn_promotion() 高速化
 
 
 ■　2016/06/25 V3.20

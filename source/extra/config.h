@@ -219,7 +219,7 @@
 #define ENGINE_NAME "YaneuraOu 2016 Mid"
 #define ENABLE_TEST_CMD
 #define EVAL_KPPT
-//#define USE_EVAL_HASH
+#define USE_EVAL_HASH
 #define USE_SIMPLE_SEE
 #define USE_MOVE_PICKER_2016Q2
 //#define LONG_EFFECT_LIBRARY

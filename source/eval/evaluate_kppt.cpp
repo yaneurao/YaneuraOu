@@ -152,7 +152,7 @@ namespace Eval
     // 過去に遡って差分を計算していく。
     auto st = pos.state();
 
-    // すでに計算されている。rootか？
+    // すでに計算されている。rootか、null move。
     EvalSum sum;
     if (st->sum.p[2][0] != INT_MAX)
     {

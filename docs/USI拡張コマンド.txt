@@ -89,7 +89,8 @@ set option name XXX value ...で設定できるoption
 		test checks [回数]	 : ランダムプレイヤーで対局させて、王手の指し手生成ルーチンで指し手が
 								正しく生成出来ているかをテストする。
 		test autoplay [回数] : 思考ルーチンを呼び出して連続自己対戦をさせる。
-		test timeman         : TimeManagerで消費する時間のテスト結果を表示する。(やねうら王twigのみ)
+		test timeman         : TimeManagerで消費する時間のテスト結果を表示する。(やねうら王classic-tce以降のみ)
+		test gensfen         : 学習用の自己対局棋譜の生成(やねうら王2016Midのみ)
 
 	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。
 

@@ -1330,6 +1330,7 @@ void Position::do_null_move(StateInfo& newSt) {
   st = &newSt;
 
   st->board_key_ ^= Zobrist::side;
+
   // このタイミングでアドレスが確定するのでprefetchしたほうが良い。
   prefetch(TT.first_entry(st->key()));
 
