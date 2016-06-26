@@ -1011,7 +1011,7 @@ namespace Learner
 void gen_sfen(Position& pos, istringstream& is)
 {
 #if defined (YANEURAOU_2016_MID_ENGINE)
-  int loop_max = 1;
+  int loop_max = 10;
   is >> loop_max;
 
   std::cout << "gen_sfen : loop_max = " << loop_max << endl;
@@ -1021,7 +1021,7 @@ void gen_sfen(Position& pos, istringstream& is)
 
   const int MAX_PLY = 256; // 256手までテスト
 
-  StateInfo state[MAX_PLY]; // StateInfoを最大手数分だけ
+  StateInfo state[MAX_PLY + 10]; // StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
   Move moves[MAX_PLY]; // 局面の巻き戻し用に指し手を記憶
   int ply; // 初期局面からの手数
 
@@ -1042,12 +1042,11 @@ void gen_sfen(Position& pos, istringstream& is)
       // mate1ply()の呼び出しのために必要。
       pos.check_info_update();
 
-      // 1手詰め状態になっているなら終了。
-      if (pos.mate1ply() != MOVE_NONE)
+      if (pos.is_mated())
         break;
 
-      // 5手読みの評価値とPV(最善応手列)
-      auto pv_value1 = Learner::search(pos, -VALUE_INFINITE, VALUE_INFINITE, 5);
+      // 3手読みの評価値とPV(最善応手列)
+      auto pv_value1 = Learner::search(pos, -VALUE_INFINITE, VALUE_INFINITE, 3);
       auto value1 = pv_value1.first;
       auto pv1 = pv_value1.second;
 
@@ -1059,8 +1058,9 @@ void gen_sfen(Position& pos, istringstream& is)
       // 上のように、search()の直後にqsearch()をすると、search()で置換表に格納されてしまって、
       // qsearch()が置換表にhitして、search()と同じ評価値が返るので注意。
 
-      // 局面のsfen,5手読みでの最善手,0手読みでの評価値
-      cout << pos.sfen() << "," << value1 << "," << value2 << "," << endl;
+      // 局面のsfen,3手読みでの最善手,0手読みでの評価値
+      // これをファイルか何かに書き出すと良い。
+//      cout << pos.sfen() << "," << value1 << "," << value2 << "," << endl;
 
 #if 0
       // デバッグ用に局面と読み筋を表示させてみる。
@@ -1078,7 +1078,37 @@ void gen_sfen(Position& pos, istringstream& is)
 
 #endif
 
-      // 5手読みの指し手で局面を進める。
+#if 1
+      // デバッグ用の検証として、
+      // PVの指し手でleaf nodeまで進めて、非合法手が混じっていないかをテストする。
+      auto go_leaf_test = [&](auto pv) {
+        int ply2 = ply;
+        for (auto m : pv)
+        {
+          // 非合法手はやってこないはずなのだが。
+          if (!pos.pseudo_legal(m) || !pos.legal(m))
+          {
+            cout << pos << m << endl;
+            ASSERT_LV3(false);
+          }
+          pos.do_move(m, state[ply2++]);
+          pos.check_info_update();
+        }
+        // leafに到達
+        //      cout << pos;
+
+        // 巻き戻す
+        auto pv_r = pv;
+        std::reverse(pv_r.begin(), pv_r.end());
+        for (auto m : pv_r)
+          pos.undo_move(m);
+      };
+
+      go_leaf_test(pv1);
+      go_leaf_test(pv2);
+#endif
+
+      // 3手読みの指し手で局面を進める。
       auto m = pv1[0];
 
       pos.do_move(m, state[ply]);
@@ -1092,7 +1122,7 @@ void gen_sfen(Position& pos, istringstream& is)
     }
 
     // 1000回に1回ごとに'.'を出力(進んでいることがわかるように)
-    if ((i % 1000) == 0)
+    if ((i % 100) == 0)
       std::cout << ".";
   }
 

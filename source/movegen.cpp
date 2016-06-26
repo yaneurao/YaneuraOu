@@ -293,7 +293,7 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
 };
 
 // 成れない駒による移動による指し手。(金相当の駒・馬・龍・王)
-template <MOVE_GEN_TYPE GenType, Color Us,bool All> struct GeneratePieceMoves<GenType, GPM_GHDK, Us, All> {
+template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<GenType, GPM_GHDK, Us, All> {
   FORCE_INLINE ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target)
   {
     // 金相当の駒・馬・龍・玉に対して
@@ -325,11 +325,10 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
     {
       auto from = pieces.pop();
       // fromの升にある駒をfromの升においたときの利き
-      const auto Pt0 = pos.piece_on(from);
-      const auto Pt = type_of(Pt0);
-      auto target2 = effects_from(Pt0, from, occ) & target;
+      const auto Pt = pos.piece_on(from);
+      auto target2 = effects_from(Pt, from, occ) & target;
 
-      MAKE_MOVE_TARGET(target2);
+      MAKE_MOVE_TARGET_UNKNOWN(target2);
     }
     return mlist;
   }
@@ -410,14 +409,14 @@ template <Color Us> struct GenerateDropMoves {
       if (hand_exists(hk, KNIGHT)) drops[num++] = make_move_drop(KNIGHT, SQ_ZERO) + OurDropPt(Us, KNIGHT);
 
       int nextToKnight = num; // 桂を除いたdropsのindex
-      if (hand_exists(hk, LANCE)) drops[num++] = make_move_drop(LANCE, SQ_ZERO) + OurDropPt(Us, LANCE);
+      if (hand_exists(hk, LANCE)) drops[num++] = make_move_drop(LANCE  , SQ_ZERO) + OurDropPt(Us, LANCE);
 
       int nextToLance = num; // 香・桂を除いたdropsのindex
 
       if (hand_exists(hk, SILVER)) drops[num++] = make_move_drop(SILVER, SQ_ZERO) + OurDropPt(Us, SILVER);
-      if (hand_exists(hk, GOLD)) drops[num++] = make_move_drop(GOLD, SQ_ZERO) + OurDropPt(Us, GOLD);
+      if (hand_exists(hk, GOLD  )) drops[num++] = make_move_drop(GOLD  , SQ_ZERO) + OurDropPt(Us, GOLD  );
       if (hand_exists(hk, BISHOP)) drops[num++] = make_move_drop(BISHOP, SQ_ZERO) + OurDropPt(Us, BISHOP);
-      if (hand_exists(hk, ROOK)) drops[num++] = make_move_drop(ROOK, SQ_ZERO) + OurDropPt(Us, ROOK);
+      if (hand_exists(hk, ROOK  )) drops[num++] = make_move_drop(ROOK  , SQ_ZERO) + OurDropPt(Us, ROOK  );
 
 
       // 以下、コードが膨れ上がるが、dropは比較的、数が多く時間がわりとかかるので展開しておく価値があるかと思う。
@@ -740,21 +739,21 @@ ExtMove* make_move_check(const Position& pos, Piece pc, Square from, Square ksq,
   switch (type_of(pc))
   {
   // -- 成れる駒
-  case PAWN:   GEN_MOVE_NONPRO_CHECK(PAWN, pawnEffect, goldEffect); break;
-  case LANCE:  GEN_MOVE_LANCE_CHECK (LANCE, lanceEffect, goldEffect); break;
-  case KNIGHT: GEN_MOVE_NONPRO_CHECK(KNIGHT, knightEffect, goldEffect); break;
-  case SILVER: GEN_MOVE_NONPRO_CHECK(SILVER, silverEffect, goldEffect); break;
-  case BISHOP: GEN_MOVE_NONPRO_PRO_CHECK_BR(BISHOP, bishopEffect, horseEffect); break;
-  case ROOK:   GEN_MOVE_NONPRO_PRO_CHECK_BR(ROOK, rookEffect, dragonEffect); break;
+  case PAWN:   GEN_MOVE_NONPRO_CHECK       (PAWN  , pawnEffect  , goldEffect  ); break;
+  case LANCE:  GEN_MOVE_LANCE_CHECK        (LANCE , lanceEffect , goldEffect  ); break;
+  case KNIGHT: GEN_MOVE_NONPRO_CHECK       (KNIGHT, knightEffect, goldEffect  ); break;
+  case SILVER: GEN_MOVE_NONPRO_CHECK       (SILVER, silverEffect, goldEffect  ); break;
+  case BISHOP: GEN_MOVE_NONPRO_PRO_CHECK_BR(BISHOP, bishopEffect, horseEffect ); break;
+  case ROOK:   GEN_MOVE_NONPRO_PRO_CHECK_BR(ROOK  , rookEffect  , dragonEffect); break;
 
   // -- 成れない駒
-  case PRO_PAWN:
-  case PRO_LANCE:
-  case PRO_KNIGHT:
-  case PRO_SILVER:
-  case GOLD:    GEN_MOVE_GOLD_CHECK(GOLD, goldEffect); break;
-  case HORSE:   GEN_MOVE_HD_CHECK(HORSE, horseEffect); break;
-  case DRAGON:  GEN_MOVE_HD_CHECK(DRAGON, dragonEffect); break;
+  case PRO_PAWN  : GEN_MOVE_GOLD_CHECK     (PRO_PAWN  , goldEffect  ); break;
+  case PRO_LANCE : GEN_MOVE_GOLD_CHECK     (PRO_LANCE , goldEffect  ); break;
+  case PRO_KNIGHT: GEN_MOVE_GOLD_CHECK     (PRO_KNIGHT, goldEffect  ); break;
+  case PRO_SILVER: GEN_MOVE_GOLD_CHECK     (PRO_SILVER, goldEffect  ); break;
+  case GOLD      : GEN_MOVE_GOLD_CHECK     (GOLD      , goldEffect  ); break;
+  case HORSE     : GEN_MOVE_HD_CHECK       (HORSE     , horseEffect ); break;
+  case DRAGON    : GEN_MOVE_HD_CHECK       (DRAGON    , dragonEffect); break;
 
   default:UNREACHABLE;
   }

@@ -217,6 +217,7 @@
 
 #ifdef YANEURAOU_2016_MID_ENGINE
 #define ENGINE_NAME "YaneuraOu 2016 Mid"
+//#define ASSERT_LV 3
 #define ENABLE_TEST_CMD
 #define EVAL_KPPT
 #define USE_EVAL_HASH

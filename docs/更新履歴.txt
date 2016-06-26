@@ -26,6 +26,8 @@
 ・check extensionの条件、単純化。
 ・やねうら王2016Midでehash有効にする。
 ・capture_or_pawn_promotion() 高速化
+・movegenで金相当の駒の指し手、Moveの上位16bitに金としてしまっていたバグ修正。
+・gensfenコマンド、修正。
 
 
 ■　2016/06/25 V3.20

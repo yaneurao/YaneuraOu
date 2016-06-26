@@ -604,6 +604,7 @@ namespace YaneuraOu2016Mid
 
     while ((move = mp.next_move()) != MOVE_NONE)
     {
+
       // -----------------------
       //  局面を進める前の枝刈り
       // -----------------------
@@ -2501,6 +2502,8 @@ namespace Learner
     for (auto m : MoveList<LEGAL>(pos))
       rootMoves.push_back(Search::RootMove(m));
 
+    ASSERT_LV3(rootMoves.size() != 0);
+
     th->rootDepth = 0;
   }
 
@@ -2525,7 +2528,16 @@ namespace Learner
       std::stable_sort(th->rootMoves.begin(), th->rootMoves.end());
     }
 
-    return pair<Value,vector<Move> >(bestValue,th->rootMoves[0].pv);
+    // このPV、途中でNULL_MOVEの可能性があるかも知れないので排除するためにis_ok()を通す。
+    vector<Move> pvs;
+    for (Move move : th->rootMoves[0].pv)
+    {
+      if (!is_ok(move))
+        break;
+      pvs.push_back(move);
+    }
+
+    return pair<Value,vector<Move> >(bestValue,pvs);
   }
 
   // 同じく静止探索。
@@ -2548,7 +2560,7 @@ namespace Learner
 
     // 得られたPVを返す。
     vector<Move> pvs;
-    for (Move* p = &ss->pv[0]; *p; ++p)
+    for (Move* p = &ss->pv[0]; is_ok(*p); ++p)
       pvs.push_back(*p);
 
     return pair<Value,vector<Move> >(bestValue,pvs);

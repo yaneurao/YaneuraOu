@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "3.22"
+#define ENGINE_VERSION "3.23"
 
 // --------------------
 // コンパイル時の設定
@@ -427,10 +427,11 @@ enum Piece : int32_t
   HDK = KING,       // Position::pieces()で使うときの定数。H=Horse,D=Dragon,K=Kingの合体したBitboardが返る。
 
   // 指し手生成(GeneratePieceMove = GPM)でtemplateの引数として使うマーカー的な値。変更する可能性があるのでユーザーは使わないでください。
-  GPM_BR   = 100 ,     // Bishop Rook
-  GPM_GBR  = 101 ,     // Gold Bishop Rook
-  GPM_GHD  = 102 ,     // Gold Horse Dragon
-  GPM_GHDK = 103 ,     // Gold Horse Dragon King
+  // 値はマイナスにしておくことで、連続的な値になり、テーブルジャンプしやすくする。
+  GPM_BR   = -1 ,     // Bishop Rook
+  GPM_GBR  = -2 ,     // Gold Bishop Rook
+  GPM_GHD  = -3 ,     // Gold Horse Dragon
+  GPM_GHDK = -4 ,     // Gold Horse Dragon King
 };
 
 // USIプロトコルで駒を表す文字列を返す。

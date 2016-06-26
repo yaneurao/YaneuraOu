@@ -171,6 +171,93 @@
 
 		という結論になった。
 
+
+		魔女公式と比較。
+
+
+			秒読み3000[ms]
+
+			50.5%	
+			#254
+			やねうら王2016mid V323e gcc
+			戻した。
+			#0
+			silent_majority_V1.1公式
+			1スレッド
+
+			204-10-200(40.2% R3.4)	
+
+
+	V3.23f
+	test gensfenコマンドのデバッグ中に気づいたが、
+	金相当のMoveの上位16bitに駒を金としていたのでこれがkillerとかcountermoveになったときは
+	非合法手と扱いになるバグがあるようだ。
+
+		  auto from = pieces.pop();
+		  // fromの升にある駒をfromの升においたときの利き
+		- const auto Pt0 = pos.piece_on(from);
+		- const auto Pt = type_of(Pt0);
+		- auto target2 = effects_from(Pt0, from, occ) & target;
+		- MAKE_MOVE_TARGET(target2);
+		+  const auto Pt = pos.piece_on(from);
+		+  auto target2 = effects_from(Pt, from, occ) & target;
+		+  MAKE_MOVE_TARGET_UNKNOWN(target2);
+	
+	あとQUIET_CHECKSか。そうか。
+
+		-  case PRO_PAWN  :
+		-  case PRO_LANCE :
+		-  case PRO_KNIGHT:
+		-  case PRO_SILVER:
+		+  case PRO_PAWN  : GEN_MOVE_GOLD_CHECK     (PRO_PAWN  , goldEffect  ); break;
+		+  case PRO_LANCE : GEN_MOVE_GOLD_CHECK     (PRO_LANCE , goldEffect  ); break;
+		+  case PRO_KNIGHT: GEN_MOVE_GOLD_CHECK     (PRO_KNIGHT, goldEffect  ); break;
+		+  case PRO_SILVER: GEN_MOVE_GOLD_CHECK     (PRO_SILVER, goldEffect  ); break;
+		  case GOLD      : GEN_MOVE_GOLD_CHECK     (GOLD      , goldEffect  ); break;
+
+
+		pseudo_legal()で落ちたときのデバッグ用のコード
+
+            for (auto m2 : pv)
+              cout << m2 << " ";
+            cout << endl;
+
+            if (!pos.pseudo_legal(m) || !pos.legal(m))
+            {
+              auto mg = MoveList<NON_EVASIONS>(pos);
+              for (auto move : mg)
+              {
+                cout << move << " : " << Piece(move >> 16) << " : " ;
+                if (!pos.pseudo_legal(move))
+                  cout << "not pseudo_legal →　" << move;
+                cout << endl;
+              }
+
+              cout << endl;
+            }
+
+			  if (!pos.pseudo_legal(move))
+			  {
+				cout << pos << move;
+			  }
+
+				秒読み300[ms]
+
+				61.3%	
+				#255
+				やねうら王2016mid V323f gcc
+				genmove修正。
+				#254
+				やねうら王2016mid V323e gcc
+				戻した。
+
+				111-1-70(0.1% R80.1)	
+
+			ひどいバグであった模様。
+
+
+
+
 ] V3.22
 
 ・futilityとrazoringのパラメーター、元に戻してみる。
