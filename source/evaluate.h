@@ -66,10 +66,6 @@ namespace Eval {
   };
 #elif defined (EVAL_KPPT)
 
-  // null move後のevaluate()
-  // 手番を反転させたときの評価値を返す。
-  Value evaluate_nullmove(const Position& pos);
-
   // Aperyの駒割り
   enum {
     PawnValue = 90,

@@ -51,15 +51,23 @@ shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(abou
 
 長手数の詰将棋が解けるsolverです。
 
+## やねうら王の遊び方
+
+・このプロジェクトのexeフォルダ(https://github.com/yaneurao/YaneuraOu/tree/master/exe )にある、XXX-readme.txtをご覧ください。
+
 ## やねうら王評価関数バイナリ
 
-CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
+・やねうら王nano,nano-plus,classic,classic-tce用
+	CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
+・やねうら王2016Mid用
+	Apery(WCSC26)の評価関数バイナリをそのまま使います。
 
 
-#　俺の作業メモ(2016/06/27 9:00現在)
+#　俺の作業メモ(2016/06/28 9:00現在)
 
 ※　括弧のなかの+Rは、自己対局時の勝率から計算されるもので、0.5手延長などは顕著に勝率が上がりますが、自己対局以外では効果に乏しいです。
 
+- [x] 2016/06/27・KPPT evaluate()リファクタリングと高速化。
 - [x] 2016/06/26・やねうら王2016Midの探索部、調整。
 - [x] 2016/06/26・指し手生成部のバグ修正。
 - [x] 2016/06/26・やねうら王2016Mid、historyで駒打ちを区別しないように変更。

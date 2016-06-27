@@ -1,6 +1,11 @@
 ﻿#include "../shogi.h"
 
-// Apery WCSC26の評価関数バイナリを読み込むための仕組み
+// Apery WCSC26の評価関数バイナリを読み込むための仕組み。
+//
+// このコードを書くに当たって、Apery、Silent Majorityのコードを非常に参考にさせていただきました。
+// Special thanks to Takuya Hiraoka and Jangia , I am very impressed by their devouring enthusiasm.
+//
+
 #ifdef EVAL_KPPT
 
 #include <fstream>
@@ -78,11 +83,12 @@ namespace Eval
   // 駒割り以外の全計算
   // pos.st->BKPP,WKPP,KPPを初期化する。Position::set()で一度だけ呼び出される。(以降は差分計算)
   // 手番側から見た評価値を返すので注意。(他の評価関数とは設計がこの点において異なる)
+  // なので、この関数の最適化は頑張らない。
   Value compute_eval(const Position& pos)
   {
     Square sq_bk = pos.king_square(BLACK);
     Square sq_wk = pos.king_square(WHITE);
-    const auto* ppkppb = kpp[sq_bk];
+    const auto* ppkppb = kpp[    sq_bk ];
     const auto* ppkppw = kpp[Inv(sq_wk)];
 
     auto& pos_ = *const_cast<Position*>(&pos);
@@ -135,303 +141,303 @@ namespace Eval
       sum.p[2] += kkp[sq_bk][sq_wk][k0];
     }
 
-    auto& info = *pos.state();
-    info.sum = sum;
+    auto st = pos.state();
+    sum.p[2][0] += st->materialValue * FV_SCALE;
 
-    sum.p[2][0] += pos.state()->materialValue * FV_SCALE;
+    st->sum = sum;
 
     return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
   }
+
+  // 先手玉が移動したときに先手側の差分
+  std::array<s32, 2> do_a_black(const Position& pos, const ExtBonaPiece ebp) {
+    const Square sq_bk = pos.king_square(BLACK);
+    const auto* list0 = pos.eval_list()->piece_list_fb();
+
+    const auto* pkppb = kpp[sq_bk][ebp.fb];
+    std::array<s32, 2> sum = { { pkppb[list0[0]][0], pkppb[list0[0]][1] } };
+    for (int i = 1; i < PIECE_NO_KING ; ++i) {
+      sum[0] += pkppb[list0[i]][0];
+      sum[1] += pkppb[list0[i]][1];
+    }
+    return sum;
+  }
+
+  // 後手玉が移動したときの後手側の差分
+  std::array<s32, 2> do_a_white(const Position& pos, const ExtBonaPiece ebp) {
+    const Square sq_wk = pos.king_square(WHITE);
+    const auto* list1 = pos.eval_list()->piece_list_fw();
+
+    const auto* pkppw = kpp[Inv(sq_wk)][ebp.fw];
+    std::array<s32, 2> sum = { { pkppw[list1[0]][0], pkppw[list1[0]][1] } };
+    for (int i = 1; i < PIECE_NO_KING ; ++i) {
+      sum[0] += pkppw[list1[i]][0];
+      sum[1] += pkppw[list1[i]][1];
+    }
+    return sum;
+  }
+
+  // 玉以外の駒が移動したときの差分
+  EvalSum do_a_pc(const Position& pos, const ExtBonaPiece ebp) {
+    const Square sq_bk = pos.king_square(BLACK);
+    const Square sq_wk = pos.king_square(WHITE);
+    const auto list0 = pos.eval_list()->piece_list_fb();
+    const auto list1 = pos.eval_list()->piece_list_fw();
+
+    EvalSum sum;
+    sum.p[2][0] = kkp[sq_bk][sq_wk][ebp.fb][0];
+    sum.p[2][1] = kkp[sq_bk][sq_wk][ebp.fb][1];
+
+    const auto* pkppb = kpp[    sq_bk ][ebp.fb];
+    const auto* pkppw = kpp[Inv(sq_wk)][ebp.fw];
+#if defined (USE_SSE41)
+    sum.m[0] = _mm_set_epi32(0, 0, *reinterpret_cast<const s32*>(&pkppw[list1[0]][0]), *reinterpret_cast<const s32*>(&pkppb[list0[0]][0]));
+    sum.m[0] = _mm_cvtepi16_epi32(sum.m[0]);
+    for (int i = 1; i < PIECE_NO_KING; ++i) {
+      __m128i tmp;
+      tmp = _mm_set_epi32(0, 0, *reinterpret_cast<const s32*>(&pkppw[list1[i]][0]), *reinterpret_cast<const s32*>(&pkppb[list0[i]][0]));
+      tmp = _mm_cvtepi16_epi32(tmp);
+      sum.m[0] = _mm_add_epi32(sum.m[0], tmp);
+    }
+#else
+    sum.p[0][0] = pkppb[list0[0]][0];
+    sum.p[0][1] = pkppb[list0[0]][1];
+    sum.p[1][0] = pkppw[list1[0]][0];
+    sum.p[1][1] = pkppw[list1[0]][1];
+    for (int i = 1; i < PIECE_NO_KING ; ++i) {
+      sum.p[0] += pkppb[list0[i]];
+      sum.p[1] += pkppw[list1[i]];
+    }
+#endif
+
+    return sum;
+  }
+
 
 #ifdef USE_EVAL_HASH
   EvaluateHashTable g_evalTable;
 #endif
 
-  Value calc_diff_kpp(const Position& pos)
+  void evaluateBody(const Position& pos)
   {
     // 過去に遡って差分を計算していく。
-    auto st = pos.state();
 
-    // すでに計算されている。rootか、null move。
-    EvalSum sum;
-    if (st->sum.p[0][0] != VALUE_NOT_EVALUATED)
+    auto now = pos.state();
+    auto prev = now->previous;
+
+    // nodeごとにevaluate()は呼び出しているので絶対に差分計算できるはず。
+    // 一つ前のnodeでevaluate()されているはず。
+    if (!prev->sum.evaluated())
     {
-      sum = st->sum;
-      goto CALC_DIFF_END;
+      // 全計算
+      compute_eval(pos);
+      return;
+      // 結果は、pos->state().sumから取り出すべし。
     }
 
+    // 遡るnodeは一つだけ
+    // ひとつずつ遡りながらsumKPPがVALUE_NONEでないところまで探してそこからの差分を計算することは出来るが
+    // 現状、探索部では毎node、evaluate()を呼び出すから問題ない。
+
+    auto& dp = now->dirtyPiece;
+
+    // 移動させた駒は最大2つある。その数
+    int moved_piece_num = dp.dirty_num;
+
+    auto list0 = pos.eval_list()->piece_list_fb();
+    auto list1 = pos.eval_list()->piece_list_fw();
+
+    auto dirty = dp.pieceNo[0];
+
+    // 移動させた駒は王か？
+    if (dirty >= PIECE_NO_KING)
     {
-#ifdef USE_EVAL_HASH
-      // evaluate hash tableにはあるかも。
+      // 前のnodeの評価値からの増分を計算していく。
+      // (直接この変数に加算していく)
+      // この意味においてdiffという名前は少々不適切ではあるが。
+      EvalSum diff = prev->sum;
 
-      const Key keyExcludeTurn = pos.state()->key() & ~1; // 手番を消した局面hash key
-      EvalSum entry = *g_evalTable[keyExcludeTurn];       // atomic にデータを取得する必要がある。
-      entry.decode();
-      if (entry.key == keyExcludeTurn)
+      auto sq_bk = pos.king_square(BLACK);
+      auto sq_wk = pos.king_square(WHITE);
+
+      diff.p[2] = kk[sq_bk][sq_wk];
+      diff.p[2][0] += now->materialValue * FV_SCALE;
+
+      // 後手玉の移動(片側分のKPPを丸ごと求める)
+      if (dirty == PIECE_NO_WKING)
       {
-        // あった！
-        sum = st->sum = entry;
-        goto CALC_DIFF_END;
-      }
-#endif
+        const auto ppkppw = kpp[Inv(sq_wk)];
 
-      // 遡るのは一つだけ
-      // ひとつずつ遡りながらsumKPPがVALUE_NONEでないところまで探してそこからの差分を計算することは出来るが
-      // レアケースだし、StateInfoにEvalListを持たせる必要が出てきて、あまり得しない。
-      auto now = st;
-      auto prev = st->previous;
+        // ΣWKPP = 0
+        diff.p[1][0] = 0;
+        diff.p[1][1] = 0;
 
-      if (prev->sum.p[0][0] == VALUE_NOT_EVALUATED)
-      {
-        // 全計算
-        return  compute_eval(pos);
-      }
-
-      // この差分を求める
-      {
-        sum = prev->sum;
-
-        int k0, k1, k2, k3;
-
-        auto sq_bk0 = pos.king_square(BLACK);
-        auto sq_wk0 = pos.king_square(WHITE);
-        auto sq_wk1 = Inv(pos.king_square(WHITE));
-
-        auto now_list_fb = pos.eval_list()->piece_list_fb();
-        auto now_list_fw = pos.eval_list()->piece_list_fw();
-
-        int i, j;
-        auto& dp = now->dirtyPiece;
-
-        // 移動させた駒は最大2つある。その数
-        int k = dp.dirty_num;
-
-        auto dirty = dp.pieceNo[0];
-        if (dirty >= PIECE_NO_KING) // 王と王でないかで場合分け
+        for (int i = 0; i < PIECE_NO_KING; ++i)
         {
-          if (dirty == PIECE_NO_BKING)
+          const int k1 = list1[i];
+          const auto* pkppw = ppkppw[k1];
+          for (int j = 0; j < i; ++j)
           {
-            // ----------------------------
-            // 先手玉が移動したときの計算
-            // ----------------------------
-
-            // 現在の玉の位置に移動させて計算する。
-            // 先手玉に関するKKP,KPPは全計算なので一つ前の値は関係ない。
-
-            // BKPP
-            sum.p[0][0] = 0;
-            sum.p[0][1] = 0;
-
-            // このときKKPは差分で済まない。
-            sum.p[2] = Eval::kk[sq_bk0][sq_wk0];
-
-            // 片側まるごと計算
-            for (i = 0; i < PIECE_NO_KING; i++)
-            {
-              k0 = now_list_fb[i];
-              sum.p[2] += Eval::kkp[sq_bk0][sq_wk0][k0];
-
-              for (j = 0; j < i; j++)
-                sum.p[0] += Eval::kpp[sq_bk0][k0][now_list_fb[j]];
-            }
-
-            // もうひとつの駒がないならこれで計算終わりなのだが。
-            if (k == 2)
-            {
-              // この駒についての差分計算をしないといけない。
-              k1 = dp.piecePrevious[1].fw;
-              k3 = dp.pieceNow[1].fw;
-
-              dirty = dp.pieceNo[1];
-              // BKPPはすでに計算済みなのでWKPPのみ。
-              // WKは移動していないのでこれは前のままでいい。
-              for (i = 0; i < dirty; ++i)
-              {
-                sum.p[1] -= Eval::kpp[sq_wk1][k1][now_list_fw[i]];
-                sum.p[1] += Eval::kpp[sq_wk1][k3][now_list_fw[i]];
-              }
-              for (++i; i < PIECE_NO_KING; ++i)
-              {
-                sum.p[1] -= Eval::kpp[sq_wk1][k1][now_list_fw[i]];
-                sum.p[1] += Eval::kpp[sq_wk1][k3][now_list_fw[i]];
-              }
-            }
-
-          } else {
-            // ----------------------------
-            // 後手玉が移動したときの計算
-            // ----------------------------
-            ASSERT_LV3(dirty == PIECE_NO_WKING);
-
-            // WKPP
-            sum.p[1][0] = 0;
-            sum.p[1][1] = 0;
-            sum.p[2] = Eval::kk[sq_bk0][sq_wk0];
-
-            for (i = 0; i < PIECE_NO_KING; i++)
-            {
-              k0 = now_list_fb[i]; // これ、KKPテーブルにk1側も入れておいて欲しい気はするが..
-              k1 = now_list_fw[i];
-              sum.p[2] += Eval::kkp[sq_bk0][sq_wk0][k0];
-
-              for (j = 0; j < i; j++)
-                sum.p[1] += Eval::kpp[sq_wk1][k1][now_list_fw[j]];
-            }
-
-            if (k == 2)
-            {
-              k0 = dp.piecePrevious[1].fb;
-              k2 = dp.pieceNow[1].fb;
-
-              dirty = dp.pieceNo[1];
-              for (i = 0; i < dirty; ++i)
-              {
-                sum.p[0] -= Eval::kpp[sq_bk0][k0][now_list_fb[i]];
-                sum.p[0] += Eval::kpp[sq_bk0][k2][now_list_fb[i]];
-              }
-              for (++i; i < PIECE_NO_KING; ++i)
-              {
-                sum.p[0] -= Eval::kpp[sq_bk0][k0][now_list_fb[i]];
-                sum.p[0] += Eval::kpp[sq_bk0][k2][now_list_fb[i]];
-              }
-            }
+            const int l1 = list1[j];
+            diff.p[1] += pkppw[l1];
           }
 
-        } else {
-          // ----------------------------
-          // 玉以外が移動したときの計算
-          // ----------------------------
+          // KKPのWK分。BKは移動していないから、BK側には影響ない。
+          diff.p[2][0] -= kkp[Inv(sq_wk)][Inv(sq_bk)][k1][0];
+          diff.p[2][1] += kkp[Inv(sq_wk)][Inv(sq_bk)][k1][1];
+        }
 
-#define ADD_BWKPP(W0,W1,W2,W3) { \
-          sum.p[0] -= Eval::kpp[sq_bk0][W0][now_list_fb[i]]; \
-          sum.p[1] -= Eval::kpp[sq_wk1][W1][now_list_fw[i]]; \
-          sum.p[0] += Eval::kpp[sq_bk0][W2][now_list_fb[i]]; \
-          sum.p[1] += Eval::kpp[sq_wk1][W3][now_list_fw[i]]; \
-}
+        // 動かした駒が２つ
+        if (moved_piece_num == 2)
+        {
+          // 瞬間的にeval_listの移動させた駒の番号を変更してしまう。
+          // こうすることで前nodeのpiece_listを持たなくて済む。
 
-          if (k == 1)
-          {
-            // 移動した駒が一つ。
+          const int listIndex_cap = dp.pieceNo[1];
+          diff.p[0] += do_a_black(pos, dp.pieceNow[1]);
+          list0[listIndex_cap] = dp.piecePrevious[1].fb;
+          diff.p[0] -= do_a_black(pos, dp.piecePrevious[1]);
+          list0[listIndex_cap] = dp.pieceNow[1].fb;
+        }
 
-            k0 = dp.piecePrevious[0].fb;
-            k1 = dp.piecePrevious[0].fw;
-            k2 = dp.pieceNow[0].fb;
-            k3 = dp.pieceNow[0].fw;
+      } else {
 
-            // KKP差分
-            sum.p[2] -= Eval::kkp[sq_bk0][sq_wk0][k0];
-            sum.p[2] += Eval::kkp[sq_bk0][sq_wk0][k2];
+        // 先手玉の移動
+        // さきほどの処理と同様。
 
-            // KP値、要らんのでi==dirtyを除く
-            for (i = 0; i < dirty; ++i)
-              ADD_BWKPP(k0, k1, k2, k3);
-            for (++i; i < PIECE_NO_KING; ++i)
-              ADD_BWKPP(k0, k1, k2, k3);
+        const auto* ppkppb = kpp[sq_bk];
+        diff.p[0][0] = 0;
+        diff.p[0][1] = 0;
 
-          } else if (k == 2) {
-
-            // 移動する駒が王以外の2つ。
-            PieceNo dirty2 = dp.pieceNo[1];
-            if (dirty > dirty2) swap(dirty, dirty2);
-            // PIECE_NO_ZERO <= dirty < dirty2 < PIECE_NO_KING
-            // にしておく。
-
-            k0 = dp.piecePrevious[0].fb;
-            k1 = dp.piecePrevious[0].fw;
-            k2 = dp.pieceNow[0].fb;
-            k3 = dp.pieceNow[0].fw;
-
-            int m0, m1, m2, m3;
-            m0 = dp.piecePrevious[1].fb;
-            m1 = dp.piecePrevious[1].fw;
-            m2 = dp.pieceNow[1].fb;
-            m3 = dp.pieceNow[1].fw;
-
-            // KKP差分
-            sum.p[2] -= Eval::kkp[sq_bk0][sq_wk0][k0];
-            sum.p[2] += Eval::kkp[sq_bk0][sq_wk0][k2];
-            sum.p[2] -= Eval::kkp[sq_bk0][sq_wk0][m0];
-            sum.p[2] += Eval::kkp[sq_bk0][sq_wk0][m2];
-
-            // KPP差分
-            for (i = 0; i < dirty; ++i)
-            {
-              ADD_BWKPP(k0, k1, k2, k3);
-              ADD_BWKPP(m0, m1, m2, m3);
-            }
-            for (++i; i < dirty2; ++i)
-            {
-              ADD_BWKPP(k0, k1, k2, k3);
-              ADD_BWKPP(m0, m1, m2, m3);
-            }
-            for (++i; i < PIECE_NO_KING; ++i)
-            {
-              ADD_BWKPP(k0, k1, k2, k3);
-              ADD_BWKPP(m0, m1, m2, m3);
-            }
-
-            sum.p[0] -= Eval::kpp[sq_bk0][k0][m0];
-            sum.p[1] -= Eval::kpp[sq_wk1][k1][m1];
-            sum.p[0] += Eval::kpp[sq_bk0][k2][m2];
-            sum.p[1] += Eval::kpp[sq_wk1][k3][m3];
-
+        for (int i = 0; i < PIECE_NO_KING; ++i)
+        {
+          const int k0 = list0[i];
+          const auto* pkppb = ppkppb[k0];
+          for (int j = 0; j < i; ++j) {
+            const int l0 = list0[j];
+            diff.p[0] += pkppb[l0];
           }
+          diff.p[2] += kkp[sq_bk][sq_wk][k0];
+        }
+
+        if (moved_piece_num == 2) {
+          const int listIndex_cap = dp.pieceNo[1];
+          diff.p[1] += do_a_white(pos, dp.pieceNow[1]);
+          list1[listIndex_cap] = dp.piecePrevious[1].fw;
+          diff.p[1] -= do_a_white(pos, dp.piecePrevious[1]);
+          list1[listIndex_cap] = dp.pieceNow[1].fw;
         }
       }
 
-      now->sum = sum;
-      // 差分計算終わり
+      // sumの計算が終わったのでpos.state()->sumに反映させておく。(これがこの関数の返し値に相当する。)
+      now->sum = diff;
 
-#ifdef USE_EVAL_HASH
-    // せっかく計算したのでevaluate hash tableに保存しておく。
-      sum.key = keyExcludeTurn;
-      sum.encode();
-      *g_evalTable[keyExcludeTurn] = sum;
-#endif
+    } else {
+
+      // 王以外の駒が移動したケース
+      // 今回の差分を計算して、そこに加算する。
+
+      const int listIndex = dp.pieceNo[0];
+
+      auto diff = do_a_pc(pos, dp.pieceNow[0]);
+      if (moved_piece_num == 1) {
+
+        // 動いた駒が1つ。
+        list0[listIndex] = dp.piecePrevious[0].fb;
+        list1[listIndex] = dp.piecePrevious[0].fw;
+        diff -= do_a_pc(pos, dp.piecePrevious[0]);
+
+      } else {
+
+        // 動いた駒が2つ。
+
+        auto sq_bk = pos.king_square(BLACK);
+        auto sq_wk = pos.king_square(WHITE);
+
+        diff += do_a_pc(pos, dp.pieceNow[1]);
+        diff.p[0] -= kpp[sq_bk][dp.pieceNow[0].fb][dp.pieceNow[1].fb];
+        diff.p[1] -= kpp[Inv(sq_wk)][dp.pieceNow[0].fw][dp.pieceNow[1].fw];
+
+        const PieceNo listIndex_cap = dp.pieceNo[1];
+        list0[listIndex_cap] = dp.piecePrevious[1].fb;
+        list1[listIndex_cap] = dp.piecePrevious[1].fw;
+
+        list0[listIndex] = dp.piecePrevious[0].fb;
+        list1[listIndex] = dp.piecePrevious[0].fw;
+        diff -= do_a_pc(pos, dp.piecePrevious[0]);
+        diff -= do_a_pc(pos, dp.piecePrevious[1]);
+
+        diff.p[0] += kpp[sq_bk][dp.piecePrevious[0].fb][dp.piecePrevious[1].fb];
+        diff.p[1] += kpp[Inv(sq_wk)][dp.piecePrevious[0].fw][dp.piecePrevious[1].fw];
+        list0[listIndex_cap] = dp.pieceNow[1].fb;
+        list1[listIndex_cap] = dp.pieceNow[1].fw;
+      }
+
+      list0[listIndex] = dp.pieceNow[0].fb;
+      list1[listIndex] = dp.pieceNow[0].fw;
+
+      // 前nodeからの駒割りの増分を加算。
+      diff.p[2][0] += (now->materialValue - prev->materialValue) * FV_SCALE;
+
+      now->sum = diff + prev->sum;
     }
 
-  CALC_DIFF_END:;
-    sum.p[2][0] += pos.state()->materialValue * FV_SCALE;
-    return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
- }
+  }
 
   // 評価関数
   Value evaluate(const Position& pos)
   {
-    // 差分計算
-    auto score = calc_diff_kpp(pos);
+    auto st = pos.state();
+    auto &sum = st->sum;
 
-    // 非差分計算
-//    auto score = compute_eval(pos);
+    // すでに計算済(Null Moveなどで)であるなら、それを返す。
+    if (sum.evaluated())
+      return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
+
+#ifdef USE_EVAL_HASH
+    // evaluate hash tableにはあるかも。
+
+    const Key keyExcludeTurn = st->key() & ~1; // 手番を消した局面hash key
+    EvalSum entry = *g_evalTable[keyExcludeTurn];       // atomic にデータを取得する必要がある。
+    entry.decode();
+    if (entry.key == keyExcludeTurn)
+    {
+      // あった！
+      st->sum = entry;
+      return Value(entry.sum(pos.side_to_move()) / FV_SCALE);
+    }
+#endif
+
+    // 評価関数本体を呼び出して求める。
+    evaluateBody(pos);
+
+#ifdef USE_EVAL_HASH
+    // せっかく計算したのでevaluate hash tableに保存しておく。
+    st->sum.key = keyExcludeTurn;
+    st->sum.encode();
+    *g_evalTable[keyExcludeTurn] = st->sum;
+#endif
 
     ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));
-
     // 差分計算と非差分計算との計算結果が合致するかのテスト。(さすがに重いのでコメントアウトしておく)
-    // ASSERT_LV5(score == compute_eval(pos));
+    // ASSERT_LV5(Value(st->sum.sum(pos.side_to_move()) / FV_SCALE) == compute_eval(pos));
 
-    return score;
+#if 0
+    if (!(Value(st->sum.sum(pos.side_to_move()) / FV_SCALE) == compute_eval(pos)))
+    {
+      st->sum.p[0][0] = VALUE_NOT_EVALUATED;
+      evaluateBody(pos);
+    }
+#endif
+
+    return Value(st->sum.sum(pos.side_to_move()) / FV_SCALE);
   }
 
   void evaluate_with_no_return(const Position& pos)
   {
     // まだ評価値が計算されていないなら
-    if (pos.state()->sum.p[0][0] == VALUE_NOT_EVALUATED)
+    if (!pos.state()->sum.evaluated())
       evaluate(pos);
-  }
-
-
-  // null move後のevaluate()
-  // 手番を反転させたときの評価値を返す。
-  Value evaluate_nullmove(const Position& pos)
-  {
-    auto sum = pos.state()->sum;
-    if (sum.p[0][0] != VALUE_NOT_EVALUATED)
-    {
-      // 計算済みなので現在の手番から計算して計算終了。
-      sum.p[2][0] += pos.state()->materialValue * FV_SCALE;
-      return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
-    }
-    return compute_eval(pos);
   }
 
   // 現在の局面の評価値の内訳を表示する。

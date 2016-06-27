@@ -120,6 +120,10 @@ namespace Eval {
     // decode()はencode()の逆変換だが、xorなので逆変換も同じ変換。
     void decode() { encode(); }
 
+    // 評価値が計算済みであるかを判定する。
+    // このEvalSumに値が入っていないときはp[0][0]をVALUE_NOT_EVALUATEDを設定することになっている。
+    bool evaluated() const { return p[0][0] != VALUE_NOT_EVALUATED; }
+
     union {
       // array<.. , 3>でいいが、この下のstructに合わせてpaddingしておく。
       std::array<std::array<int32_t, 2>, 4> p;
