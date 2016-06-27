@@ -91,7 +91,7 @@ namespace Effect8
           {
             sq += delta;
             if (!is_ok(sq)) break;
-            bb ^= to_sq(sq);
+            bb ^= sqww_to_sq(sq);
           }
         }
         
@@ -151,7 +151,7 @@ namespace Effect24
           auto sqww = to_sqww(sq) + delta;
           if (!is_ok(sqww))
             continue;
-          if (sq33_around9 & to_sq(sqww))
+          if (sq33_around9 & sqww_to_sq(sqww))
             d |= Effect8::to_directions(dir);
         }
         d81[sq] = d;
@@ -351,7 +351,7 @@ namespace LongEffect
       do {                                                                                           \
         toww2 += delta;                                                                              \
         if (!is_ok(toww2)) break; /* 壁に当たったのでこのrayは更新終了*/                             \
-        sq = to_sq(toww2);                                                                           \
+        sq = sqww_to_sq(toww2);                                                                      \
         /* trick b) xorで先後同時にこの方向の利きを更新*/                                            \
         long_effect.le16[sq].u16 ^= value;                                                           \
         EFFECT_FUNC(Us,sq,e1,e2);                                                                    \

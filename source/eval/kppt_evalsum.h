@@ -34,7 +34,7 @@ namespace Eval {
   // (それぞれに手番は加味されているものとする)
   // sum.sum() == ΣBKPP - ΣWKPP + ΣKK
 
-  struct EvalSum {
+  struct alignas(32) EvalSum {
 
 #if defined(USE_AVX2)
     EvalSum(const EvalSum& es) {
@@ -121,7 +121,9 @@ namespace Eval {
     void decode() { encode(); }
 
     union {
-      std::array<std::array<int32_t, 2>, 3> p;
+      // array<.. , 3>でいいが、この下のstructに合わせてpaddingしておく。
+      std::array<std::array<int32_t, 2>, 4> p;
+      
       struct {
         uint64_t data[3];
         uint64_t key; // ehash用。

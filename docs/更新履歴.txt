@@ -2,6 +2,14 @@
 やねうら王 更新履歴
 
 
+■　2016/06/27 V3.24
+
+・捕獲から逃れる指し手のところ、コメント追記。
+・to_sq()をmove_to()のaliasとして、いまあるto_sqはsqww_to_sqに名前変更。
+・HashTableにaligned_as(32)追加。
+・KPPTの評価値の未計算値、VALUE_NOT_EVALUATEDに変更。フラグ位置をp[2][0]ではなくp[0][0]に変更。
+
+
 ■　2016/06/26 V3.21～V3.23
 
 ・Position::moved_piece_after_ex()廃止。

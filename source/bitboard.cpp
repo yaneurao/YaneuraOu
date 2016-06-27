@@ -156,7 +156,7 @@ void Bitboards::init()
       // dirの方角に壁にぶつかる(盤外)まで延長していく。このとき、sq1から見てsq2のDirectionsは (1 << dir)である。
       auto delta = Effect8::DirectToDeltaWW(dir);
       for (auto sq2 = to_sqww(sq1) + delta; is_ok(sq2); sq2 += delta)
-        Effect8::direc_table[sq1][to_sq(sq2)] = Effect8::to_directions(dir);
+        Effect8::direc_table[sq1][sqww_to_sq(sq2)] = Effect8::to_directions(dir);
     }
 
 
@@ -201,9 +201,9 @@ void Bitboards::init()
       // 壁に当たるまでsqを利き方向に伸ばしていく
       for (auto sq = to_sqww(square) + delta; is_ok(sq) ; sq += delta)
       {
-        result ^= to_sq(sq); // まだ障害物に当っていないのでここまでは利きが到達している
+        result ^= sqww_to_sq(sq); // まだ障害物に当っていないのでここまでは利きが到達している
 
-        if (occupied & to_sq(sq)) // sqの地点に障害物があればこのrayは終了。
+        if (occupied & sqww_to_sq(sq)) // sqの地点に障害物があればこのrayは終了。
           break;
       }
     return result;

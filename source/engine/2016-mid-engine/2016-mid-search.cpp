@@ -287,7 +287,7 @@ namespace YaneuraOu2016Mid
     Value bonus = Value((depth / ONE_PLY) * (depth / ONE_PLY) + 2 * depth / ONE_PLY - 2);
 
     // 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
-    Square prevSq = move_to((ss - 1)->currentMove);
+    Square prevSq = to_sq((ss - 1)->currentMove);
 
     // Moveのなかに移動後の駒が格納されているからそれを取り出すだけ。
     Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
@@ -303,7 +303,7 @@ namespace YaneuraOu2016Mid
     // 今回のmoveで動かした局面ではないので、pos.piece_on()では移動後の駒は得られないが、
     // moveの上位16bitに移動させたあとの駒が入っているので、それをmoved_piece_after()で取り出す。
 
-    Square mto = move_to(move);
+    Square mto = to_sq(move);
     Piece mpc = pos.moved_piece_after(move);
 
     thisThread->history.update(mpc, mto, bonus);
@@ -323,7 +323,7 @@ namespace YaneuraOu2016Mid
     // このnodeのベストの指し手以外の指し手はボーナス分を減らす
     for (int i = 0; i < quietsCnt; ++i)
     {
-      Square qto = move_to(quiets[i]);
+      Square qto = to_sq(quiets[i]);
       Piece qpc = pos.moved_piece_after(quiets[i]);
 
       thisThread->history.update(qpc, qto , -bonus);
@@ -592,7 +592,7 @@ namespace YaneuraOu2016Mid
     // 取り合いの指し手だけ生成する
     // searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうるが、
     // 静止探索の1つ目の深さではrecaptureを生成しないならこれは問題とならない。
-    MovePicker mp(pos, ttMove, depth, move_to((ss - 1)->currentMove));
+    MovePicker mp(pos, ttMove, depth, to_sq((ss - 1)->currentMove));
     Move move;
     Value value;
 
@@ -626,7 +626,7 @@ namespace YaneuraOu2016Mid
       {
         // moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになる。
 
-        Value futilityValue = futilityBase + (Value)CapturePieceValue[pos.piece_on(move_to(move))]
+        Value futilityValue = futilityBase + (Value)CapturePieceValue[pos.piece_on(to_sq(move))]
           + (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(move_from(move))]  : VALUE_ZERO) ;
 
         // futilityValueは今回捕獲するであろう駒の価値の分を上乗せしているのに
@@ -1167,7 +1167,7 @@ namespace YaneuraOu2016Mid
         if (pos.legal(move))
         {
           ss->currentMove = move;
-          ss->counterMoves = &CounterMoveHistory[move_to(move)][pos.moved_piece_after(move)];
+          ss->counterMoves = &CounterMoveHistory[to_sq(move)][pos.moved_piece_after(move)];
 
           pos.do_move(move, st, pos.gives_check(move));
           value = -search<NonPV>(pos, ss + 1, -rbeta, -rbeta + 1, rdepth, !cutNode);
@@ -1391,7 +1391,7 @@ namespace YaneuraOu2016Mid
 
 
       // このあと、この指し手のhistoryの値などを調べたいのでいま求めてしまう。
-      Square moved_sq = move_to(move);
+      Square moved_sq = to_sq(move);
       Piece moved_pc = pos.moved_piece_after(move);
 
       if (!RootNode
@@ -1489,21 +1489,26 @@ namespace YaneuraOu2016Mid
           r += 2 * ONE_PLY;
 
 #if 0
+
         // 捕獲から逃れる指し手はreduction量を減らす。
-        // ※　捕獲から逃れる = この移動先にある駒で移動元の駒が取れる。
-        //    すなわち、moveのfromとtoを入れ替えて、その指し手でsee_sign() < 0
+
+        // do_moveしたあとなのでtoの位置には今回移動させた駒が来ている。
+        // fromの位置は空(NO_PIECE)の升となっている。
+
+        // 例えばtoの位置に金があるとして、これをfromに動かす。
+        // 仮にこれが歩で取られるならsee() < 0 となる。
+
+        // ただ、KPPT型の評価関数では駒の当たりは評価されているので
+        // ここでreduction量を減らすのはあまり良くない。
+        // see()のコストが割にあわない。このコードは使わないほうがいいはず。
+
         else if (!is_drop(move) // type_of(move)== NORMAL
-//        && type_of(pos.piece_on(move_to(move))) != PAWN
-          // →　captureOrPawnPromotionではないので、移動先に歩があるはずはないが
-          // StockfishではPAWNの捕獲はcapture moveではないのかも。
+          && type_of(pos.piece_on(to_sq(move))) != PAWN
 
-          // toの升はNO_PIECEであり、そこに価値のない駒が置かれていると考える。
-          // その駒でfromの駒を取ったときに取り返せないかを判定。
-
-          // see_sign()だと、toの升の駒(NO_PIECE)でfromの升の駒を取るから
+          // see_sign()だと、toの升の駒でfromの升の駒(NO_PIECE)を取るから
           // 必ず正になってしまうため、see_sign()ではなくsee()を用いる。
 
-          && pos.see(make_move(move_to(move), move_from(move))) < VALUE_ZERO)
+          && pos.see(make_move(to_sq(move), move_from(move))) < VALUE_ZERO)
           r -= 2 * ONE_PLY;
 #endif
 
@@ -1701,7 +1706,7 @@ namespace YaneuraOu2016Mid
       && !pos.captured_piece_type()
       && is_ok((ss - 1)->currentMove))
     {
-      const Square prevSq = move_to((ss - 1)->currentMove);
+      const Square prevSq = to_sq((ss - 1)->currentMove);
 
       // 指し手のなかに移動後の駒が格納されているのでこれで取得できる。
       Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);

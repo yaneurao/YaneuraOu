@@ -154,7 +154,7 @@ namespace Eval
 
     // すでに計算されている。rootか、null move。
     EvalSum sum;
-    if (st->sum.p[2][0] != INT_MAX)
+    if (st->sum.p[0][0] != VALUE_NOT_EVALUATED)
     {
       sum = st->sum;
       goto CALC_DIFF_END;
@@ -181,7 +181,7 @@ namespace Eval
       auto now = st;
       auto prev = st->previous;
 
-      if (prev->sum.p[2][0] == INT_MAX)
+      if (prev->sum.p[0][0] == VALUE_NOT_EVALUATED)
       {
         // 全計算
         return  compute_eval(pos);
@@ -415,7 +415,7 @@ namespace Eval
   void evaluate_with_no_return(const Position& pos)
   {
     // まだ評価値が計算されていないなら
-    if (pos.state()->sum.p[2][0] == INT_MAX)
+    if (pos.state()->sum.p[0][0] == VALUE_NOT_EVALUATED)
       evaluate(pos);
   }
 
@@ -425,7 +425,7 @@ namespace Eval
   Value evaluate_nullmove(const Position& pos)
   {
     auto sum = pos.state()->sum;
-    if (sum.p[2][0] != INT_MAX)
+    if (sum.p[0][0] != VALUE_NOT_EVALUATED)
     {
       // 計算済みなので現在の手番から計算して計算終了。
       sum.p[2][0] += pos.state()->materialValue * FV_SCALE;
@@ -513,4 +513,4 @@ namespace Eval
 
 }
 
-#endif // EVAL_KPP
+#endif // EVAL_KPPT

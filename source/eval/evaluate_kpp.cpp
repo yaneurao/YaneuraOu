@@ -196,7 +196,7 @@ namespace Eval
 
     // すでに計算されている。rootか？
     int sumKKP, sumBKPP, sumWKPP;
-    if (st->sumKKP != INT_MAX)
+    if (st->sumKKP != VALUE_NOT_EVALUATED)
     {
       sumKKP = st->sumKKP;
       sumBKPP = st->sumBKPP;
@@ -226,7 +226,7 @@ namespace Eval
     auto now = st;
     auto prev = st->previous;
 
-    if (prev->sumKKP == INT_MAX)
+    if (prev->sumKKP == VALUE_NOT_EVALUATED)
     {
 #ifdef USE_EHASH
       HASH_KEY key2 = prev->key();
@@ -237,7 +237,7 @@ namespace Eval
         prev->sumKKP = e.sumKKP;
         prev->sumBKPP = e.sumBKPP;
         prev->sumWKPP = e.sumWKPP;
-        ASSERT_LV3(e.sumKKP != INT_MAX);
+        ASSERT_LV3(e.sumKKP != VALUE_NOT_EVALUATED);
       }
       else
 #endif
@@ -479,7 +479,7 @@ namespace Eval
 
   void evaluate_with_no_return(const Position& pos)
   {
-    if (pos.state()->sumKKP == INT_MAX)
+    if (pos.state()->sumKKP == VALUE_NOT_EVALUATED)
       evaluate(pos);
   }
 
