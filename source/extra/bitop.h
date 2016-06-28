@@ -178,7 +178,8 @@ struct alignas(32) ymm
     u32 u32[8];
   };
 
-  ymm(const __m256i m_) : m(m_) {}
+  ymm(const __m256i m_) : m(_mm256_loadu_si256((__m256i*)(&m_))) {}
+  ymm operator = (const __m256i &m_) { this->m = _mm256_loadu_si256((__m256i*)(&m_)); return *this; }
 
   // アライメント揃っていないところからの読み込みに対応させるためにloadではなくloaduのほうを用いる。
   ymm(const void* p) :m(_mm256_loadu_si256((__m256i*)p)) {}
