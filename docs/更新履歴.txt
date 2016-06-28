@@ -9,7 +9,7 @@
 ・HashTableにaligned_as(32)追加。
 ・KPPTの評価値の未計算値、VALUE_NOT_EVALUATEDに変更。フラグ位置をp[2][0]ではなくp[0][0]に変更。
 ・evaluate_nullmove()削除。
-・KPPTの評価関数、リファクタリング。(Apery、魔女風にした)　ここからAVX2で高速化する。
+・KPPTの評価関数、リファクタリング。(Apery、魔女風にした)
 ・s32、s64等のtypedef追加。
 
 
