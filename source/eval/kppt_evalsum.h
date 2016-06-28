@@ -58,7 +58,7 @@ namespace Eval {
 
     EvalSum() {}
 
-    // 先手から見た評価値を返す。この局面の手番は c側にあるものとする。c側から見た評価値を返す。
+    // この局面の手番は c側にあるものとする。c側から見た評価値を返す。
     int32_t sum(const Color c) const {
 
       // NDF(2014)の手番評価の手法。
@@ -68,7 +68,7 @@ namespace Eval {
       // p[1][0]はΣWKPPなので符号はマイナス。
       const int32_t scoreBoard = p[0][0] - p[1][0] + p[2][0];
       // 手番に依存する評価値合計
-      const int32_t scoreTurn = p[0][1] + p[1][1] + p[2][1];
+      const int32_t scoreTurn  = p[0][1] + p[1][1] + p[2][1];
 
       // この関数は手番側から見た評価値を返すのでscoreTurnは必ずプラス
 

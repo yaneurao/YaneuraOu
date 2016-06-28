@@ -260,6 +260,7 @@ namespace Eval
       auto sq_bk = pos.king_square(BLACK);
       auto sq_wk = pos.king_square(WHITE);
 
+      // ΣKKPは最初から全計算するしかないので初期化する。
       diff.p[2] = kk[sq_bk][sq_wk];
       diff.p[2][0] += now->materialValue * FV_SCALE;
 
@@ -283,9 +284,13 @@ namespace Eval
           }
 
           // KKPのWK分。BKは移動していないから、BK側には影響ない。
+
+          // 後手から見たKKP。後手から見ているのでマイナス
           diff.p[2][0] -= kkp[Inv(sq_wk)][Inv(sq_bk)][k1][0];
+          // 後手から見たKKP手番。後手から見るのでマイナスだが、手番は先手から見たスコアを格納するのでさらにマイナスになって、プラス。
           diff.p[2][1] += kkp[Inv(sq_wk)][Inv(sq_bk)][k1][1];
         }
+
 
         // 動かした駒が２つ
         if (moved_piece_num == 2)

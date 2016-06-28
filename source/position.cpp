@@ -937,7 +937,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #ifdef EVAL_KPP
   // KPPのとき差分計算は遅延させるのでここではKPPの値を未計算であることを意味するINT_MAXを代入しておく。
   // これVALUNE_NONEにするとsumKKPが32bitなので偶然一致することがある。
-  st->sumKKP = VALUE_NOT_EVALUATE;
+  st->sumKKP = VALUE_NOT_EVALUATED;
 #endif
 #if defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
   // 上と同じ意味。
