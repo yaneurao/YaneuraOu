@@ -137,7 +137,7 @@ struct StateInfo {
   int sumWKPP;
 #endif
 
-#ifdef EVAL_KPPT
+#if defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
   // 評価値。(次の局面で評価値を差分計算するときに用いる)
   // まだ計算されていなければsum.p[2][0]の値はINT_MAX
   Eval::EvalSum sum;

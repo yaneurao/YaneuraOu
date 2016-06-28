@@ -30,8 +30,8 @@
 //#define YANEURAOU_MINI_ENGINE        // やねうら王mini        (完成2016/02/29)
 //#define YANEURAOU_CLASSIC_ENGINE     // やねうら王classic     (完成2016/04/03)
 //#define YANEURAOU_CLASSIC_TCE_ENGINE // やねうら王classic tce (完成2016/04/15)
-#define YANEURAOU_2016_MID_ENGINE    // やねうら王2016(MID)   (完成2016/06/24)
-//#define YANEURAOU_2016_LATE_ENGINE   // やねうら王2016(LATE)  (開発中)
+//#define YANEURAOU_2016_MID_ENGINE    // やねうら王2016(MID)   (完成2016/06/28)
+#define YANEURAOU_2016_LATE_ENGINE   // やねうら王2016(LATE)  (開発中)
 //#define RANDOM_PLAYER_ENGINE         // ランダムプレイヤー
 //#define MATE_ENGINE                  // 詰め将棋solverとしてリリースする場合。(開発中)
 //#define HELP_MATE_ENGINE             // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
@@ -792,9 +792,18 @@ inline Value draw_value(RepetitionState rs, Color c) { ASSERT_LV3(is_ok(rs)); re
 //      評価関数
 // --------------------
 
-namespace Eval {
-  enum BonaPiece : int16_t;
+namespace Eval
+{
+#ifndef EVAL_KPPT_FAST
+  enum BonaPiece: int16_t;
+#else
+  enum BonaPiece: int32_t;
+#endif
 
+  // 評価関数本体。
+  // 戻り値は、
+  //  abs(value) < VALUE_MAX_EVAL
+  // を満たす。
   Value evaluate(const Position& pos);
 }
 

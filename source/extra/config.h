@@ -90,12 +90,13 @@
 // 確保するのはもったいないので、そのテーブルを確保するかどうかを選択するためのオプション。
 // 評価関数を用いるなら、どれか一つを選択すべし。
 
-// #define EVAL_NO_USE   // 評価関数を用いないとき。
-// #define EVAL_MATERIAL // 駒得のみの評価関数
-// #define EVAL_PP       // ツツカナ型 2駒関係
-// #define EVAL_KPP      // Bonanza型 3駒関係
-// #define EVAL_KPPT     // Bonanza型 3駒関係、手番つき(Apery WCSC26相当)
-// #define EVAL_PPET     // 技巧型 2駒+利き+手番
+// #define EVAL_NO_USE    // 評価関数を用いないとき。
+// #define EVAL_MATERIAL  // 駒得のみの評価関数
+// #define EVAL_PP        // ツツカナ型 2駒関係
+// #define EVAL_KPP       // Bonanza型 3駒関係
+// #define EVAL_KPPT      // Bonanza型 3駒関係、手番つき(Apery WCSC26相当)
+// #define EVAL_KPPT_FAST // KPPTのAVX2/AVX-512による高速化。(非公開)
+// #define EVAL_PPET      // 技巧型 2駒+利き+手番(開発予定)
 
 // 長い利き(遠方駒の利き)のライブラリを用いるか。
 // 超高速1手詰め判定などではこのライブラリが必要。
@@ -233,18 +234,16 @@
 
 #ifdef YANEURAOU_2016_LATE_ENGINE
 #define ENGINE_NAME "YaneuraOu 2016 Late"
-// 開発中なのでassertを有効に。
 //#define ASSERT_LV 3
 #define ENABLE_TEST_CMD
-#define EVAL_KPPT
-//#define USE_EVAL_HASH
+#define EVAL_KPPT_FAST
+#define USE_EVAL_HASH
 #define USE_SIMPLE_SEE
 #define USE_MOVE_PICKER_2016Q2
-//#define LONG_EFFECT_LIBRARY
+#define LONG_EFFECT_LIBRARY
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
-#define USE_DROPBIT_IN_STATS
 #define KEEP_PIECE_IN_GENERATE_MOVES
 #define ONE_PLY_EQ_1
 #endif
@@ -473,7 +472,7 @@ const bool Is64Bit = false;
 
 // PP,KPP,KPPT,PPEならdo_move()のときに移動した駒の管理をして差分計算
 // また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
-#if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_KPPT) || defined(EVAL_PPE)
+#if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST) || defined(EVAL_PPE)
 #define USE_EVAL_DIFF
 #endif
 

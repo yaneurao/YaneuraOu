@@ -8,6 +8,7 @@
 #YANEURAOU_EDITION = YANEURAOU_CLASSIC_ENGINE
 #YANEURAOU_EDITION = YANEURAOU_CLASSIC_TCE_ENGINE
 YANEURAOU_EDITION = YANEURAOU_2016_MID_ENGINE
+#YANEURAOU_EDITION = YANEURAOU_2016_LATE_ENGINE
 
 COMPILER = g++
 #COMPILER = mpicxx
@@ -28,32 +29,43 @@ ifeq "$(strip $(OBJDIR))" ""
   OBJDIR = ..
 endif
 #SOURCES  = $(wildcard *.cpp)
-SOURCES  = bitboard.cpp misc.cpp movegen.cpp position.cpp shogi.cpp \
-	thread.cpp tt.cpp usi.cpp \
-	extra/bitop.cpp \
-	extra/book.cpp \
-	extra/entering_king_win.cpp \
-	extra/long_effect.cpp \
-	extra/mate1ply_with_effect.cpp \
-	extra/mate1ply_without_effect.cpp \
-	extra/move_picker_2016Q2.cpp \
-	extra/test_cmd.cpp \
-	extra/timeman.cpp \
-	extra/see.cpp \
-	eval/evaluate_bona_piece.cpp \
-	eval/evaluate_kpp.cpp \
-	eval/evaluate_kppt.cpp \
-	eval/evaluate_material.cpp \
-	eval/evaluate_no_eval.cpp \
-	engine/random-player-engine/random-player-search.cpp \
-	engine/help-mate-engine/help-mate-search.cpp \
-	engine/nano-engine/nano-search.cpp \
-	engine/nano-plus-engine/nano-plus-search.cpp \
-	engine/mini-engine/mini-search.cpp \
-	engine/classic-engine/classic-search.cpp \
-	engine/classic-tce-engine/classic-tce-search.cpp \
-	engine/2016-mid-engine/2016-mid-search.cpp \
-	engine/user-engine/user-search.cpp
+SOURCES  = shogi.cpp                                                           \
+	bitboard.cpp                                                               \
+	misc.cpp                                                                   \
+	movegen.cpp                                                                \
+	position.cpp                                                               \
+	usi.cpp                                                                    \
+	thread.cpp tt.cpp                                                          \
+	extra/bitop.cpp                                                            \
+	extra/book.cpp                                                             \
+	extra/entering_king_win.cpp                                                \
+	extra/long_effect.cpp                                                      \
+	extra/mate1ply_with_effect.cpp                                             \
+	extra/mate1ply_without_effect.cpp                                          \
+	extra/move_picker_2016Q2.cpp                                               \
+	extra/test_cmd.cpp                                                         \
+	extra/timeman.cpp                                                          \
+	extra/see.cpp                                                              \
+	eval/evaluate_bona_piece.cpp                                               \
+	eval/evaluate_kpp.cpp                                                      \
+	eval/evaluate_kppt.cpp                                                     \
+	eval/evaluate_material.cpp                                                 \
+	eval/evaluate_no_eval.cpp                                                  \
+	engine/random-player-engine/random-player-search.cpp                       \
+	engine/help-mate-engine/help-mate-search.cpp                               \
+	engine/nano-engine/nano-search.cpp                                         \
+	engine/nano-plus-engine/nano-plus-search.cpp                               \
+	engine/mini-engine/mini-search.cpp                                         \
+	engine/classic-engine/classic-search.cpp                                   \
+	engine/classic-tce-engine/classic-tce-search.cpp                           \
+	engine/2016-mid-engine/2016-mid-search.cpp                                 \
+	engine/user-engine/user-search.cpp                                         \
+	engine/2016-late-engine/2016-late-search.cpp				               
+																               
+ifeq ($(YANEURAOU_EDITION),YANEURAOU_2016_LATE_ENGINE)				               
+	SOURCES += engine/2016-late-engine/2016-late-search.cpp                    \
+				eval/evaluate_kppt_fast.cpp                                    
+endif
 
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
 DEPENDS  = $(OBJECTS:.o=.d)

@@ -939,7 +939,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
   // これVALUNE_NONEにするとsumKKPが32bitなので偶然一致することがある。
   st->sumKKP = VALUE_NOT_EVALUATE;
 #endif
-#ifdef EVAL_KPPT
+#if defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
   // 上と同じ意味。
   st->sum.p[0][0] = VALUE_NOT_EVALUATED;
 #endif

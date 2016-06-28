@@ -3,7 +3,7 @@
 // Apery WCSC26の評価関数バイナリを読み込むための仕組み。
 //
 // このコードを書くに当たって、Apery、Silent Majorityのコードを非常に参考にさせていただきました。
-// Special thanks to Takuya Hiraoka and Jangia , I am very impressed by their devouring enthusiasm.
+// Special thanks to Takuya Hiraoka and Jangia , I was very impressed by their devouring enthusiasm.
 //
 
 #ifdef EVAL_KPPT
