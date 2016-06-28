@@ -33,7 +33,15 @@ using namespace Eval;
 
 // USIに追加オプションを設定したいときは、この関数を定義すること。
 // USI::init()のなかからコールバックされる。
-void USI::extra_option(USI::OptionsMap & o) {}
+void USI::extra_option(USI::OptionsMap & o)
+{
+  //
+  //   パラメーターの外部からの自動調整
+  //
+
+  o["Param1"] << Option(0, 0, 100000);
+  o["Param2"] << Option(0, 0, 100000);
+}
 
 namespace YaneuraOuNanoPlus
 {
@@ -183,10 +191,10 @@ namespace YaneuraOuNanoPlus
     // 連続王手による千日手、および通常の千日手、優等局面・劣等局面。
     auto draw_type = pos.is_repetition();
     if (draw_type != REPETITION_NONE)
-      return draw_value(draw_type,pos.side_to_move());
+      return value_from_tt(draw_value(draw_type,pos.side_to_move()),ss->ply);
 
     if (ss->ply >= MAX_PLY)
-      return draw_value(REPETITION_DRAW,pos.side_to_move());
+      return value_from_tt(draw_value(REPETITION_DRAW,pos.side_to_move()),ss->ply);
 
     // -----------------------
     //     置換表のprobe
@@ -309,6 +317,9 @@ namespace YaneuraOuNanoPlus
 
     while (move = mp.next_move())
     {
+      // MovePickerで生成された指し手はpseudo_legalであるはず。
+      ASSERT_LV3(pos.pseudo_legal(move));
+
       if (!pos.legal(move))
         continue;
 
@@ -338,8 +349,9 @@ namespace YaneuraOuNanoPlus
             // なぜなら、このタイミング以外だと枝刈りされるから。(else以下を読むこと)
             alpha = value;
             bestMove = move;
-          } else
-          {
+
+          } else {
+
             // 1. nonPVでのalpha値の更新 →　もうこの時点でreturnしてしまっていい。(ざっくりした枝刈り)
             // 2. PVでのvalue >= beta、すなわちfail high
             tte->save(posKey, value_to_tt(value, ss->ply), BOUND_LOWER,
@@ -370,7 +382,8 @@ namespace YaneuraOuNanoPlus
         ttDepth, bestMove, ss->staticEval, TT.generation());
     }
 
-    ASSERT_LV3(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
+    // このnodeはrootからss->ply手進めた局面なのでここでss->plyより短い詰みがあるのはおかしい。
+    ASSERT_LV3(abs(bestValue) <= mate_in(ss->ply));
 
     return bestValue;
   }
@@ -435,11 +448,11 @@ namespace YaneuraOuNanoPlus
     {
       auto draw_type = pos.is_repetition();
       if (draw_type != REPETITION_NONE)
-        return draw_value(draw_type,pos.side_to_move());
+        return value_from_tt(draw_value(draw_type,pos.side_to_move()),ss->ply);
 
       // 最大手数を超えている
       if (ss->ply >= MAX_PLY)
-        return draw_value(REPETITION_DRAW,pos.side_to_move());
+        return value_from_tt(draw_value(REPETITION_DRAW,pos.side_to_move()),ss->ply);
     }
 
     // -----------------------
@@ -658,6 +671,8 @@ namespace YaneuraOuNanoPlus
 
       while (move = mp.next_move())
       {
+        ASSERT_LV3(pos.pseudo_legal(move));
+
         // root nodeでは、rootMoves()の集合に含まれていない指し手は探索をスキップする。
         if (RootNode && !std::count(thisThread->rootMoves.begin() + thisThread->PVIdx,
           thisThread->rootMoves.end(), move))

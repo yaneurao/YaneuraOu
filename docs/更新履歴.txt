@@ -7,7 +7,12 @@
 ・EVAL_KPPT_FAST導入。
 ・KPPT型の超高速な評価関数、開発開始。(とりあえず非公開)
 ・Makefileに2016Late用の記述追加。
-・Mid以外がbuildできなくなっていたの修正。
+・Mid以外がbuildできなくなっていたの修正。VALUE_NOE_VALUATE→VALUE_NOT_EVALUATED
+・nano/nano plusでassertで落ちるの修正。
+・USE_TT_PVのときに置換表の指し手をpseudo_legal()でチェックしていなかったの修正。(nano/nano plus)
+・MIDでMovePickerから取得した指し手に対してpsudo_legal()のassert追加。
+・nono plusでdraw_value返すときにvalue_from_tt通してなかったの修正。
+・miniでOptions["Param1"]をextra_option()で追加していなかったの修正。
 
 
 ■　2016/06/27 V3.24

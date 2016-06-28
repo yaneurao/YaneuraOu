@@ -604,6 +604,8 @@ namespace YaneuraOu2016Mid
 
     while ((move = mp.next_move()) != MOVE_NONE)
     {
+      // MovePickerで生成された指し手はpseudo_legalであるはず。
+      ASSERT_LV3(pos.pseudo_legal(move));
 
       // -----------------------
       //  局面を進める前の枝刈り
@@ -1164,6 +1166,9 @@ namespace YaneuraOu2016Mid
       MovePicker mp(pos, ttMove, (Value)Eval::CapturePieceValue[pos.captured_piece_type()]);
 
       while ((move = mp.next_move()) != MOVE_NONE)
+      {
+        ASSERT_LV3(pos.pseudo_legal(move));
+
         if (pos.legal(move))
         {
           ss->currentMove = move;
@@ -1175,6 +1180,7 @@ namespace YaneuraOu2016Mid
           if (value >= rbeta)
             return value;
         }
+      }
     }
 
     //
