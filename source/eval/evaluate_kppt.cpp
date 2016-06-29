@@ -49,6 +49,182 @@ namespace Eval
   // KKP
   ValueKkp kkp[SQ_NB][SQ_NB][fe_end];
 
+
+#ifdef EVAL_LEARN
+
+  // あるBonaPieceを相手側から見たときの値
+  BonaPiece inv_piece[fe_end];
+
+  // 盤面上のあるBonaPieceをミラーした位置にあるものを返す。
+  BonaPiece mir_piece[fe_end];
+
+  // 学習時にkppテーブルに値を書き出すためのヘルパ関数。
+  // この関数を用いると、ミラー関係にある箇所などにも同じ値を書き込んでくれる。次元下げの一種。
+  void kpp_write(Square k1, BonaPiece p1, BonaPiece p2, ValueKpp value)
+  {
+    // '~'をinv記号,'M'をmirror記号だとして
+    //   [  k1 ][ p1][ p2]
+    //   [  k1 ][ p2][ p1]
+    //   [ ~k1 ][~p1][~p2]
+    //   [ ~k1 ][~p2][~p1]
+    //   [M(k1)][M(p1)][M(p2)]
+    //   …
+    // は、同じ値であるべきなので、その8箇所に書き出す。
+
+    BonaPiece ip1 = inv_piece[p1];
+    BonaPiece ip2 = inv_piece[p2];
+    BonaPiece mp1 = mir_piece[p1];
+    BonaPiece mp2 = mir_piece[p2];
+    BonaPiece mip1 = mir_piece[ip1];
+    BonaPiece mip2 = mir_piece[ip2];
+    Square mk1 = Mir(k1);
+    Square ik1 = Inv(k1);
+    Square mik1 = Mir(ik1);
+
+    ASSERT_LV3(kpp[k1][p1][p2] == kpp[  k1][  p2][  p1]);
+    ASSERT_LV3(kpp[k1][p1][p2] == kpp[ ik1][ ip1][ ip2]);
+    ASSERT_LV3(kpp[k1][p1][p2] == kpp[ ik1][ ip2][ ip1]);
+    ASSERT_LV3(kpp[k1][p1][p2] == kpp[ mk1][ mp1][ mp2]);
+    ASSERT_LV3(kpp[k1][p1][p2] == kpp[ mk1][ mp2][ mp1]);
+    ASSERT_LV3(kpp[k1][p1][p2] == kpp[mik1][mip1][mip2]);
+    ASSERT_LV3(kpp[k1][p1][p2] == kpp[mik1][mip2][mip1]);
+
+    kpp[  k1][  p1][  p2]
+      = kpp[  k1][  p2][  p1]
+      = kpp[ ik1][ ip1][ ip2]
+      = kpp[ ik1][ ip2][ ip1]
+      = kpp[ mk1][ mp1][ mp2]
+      = kpp[ mk1][ mp2][ mp1]
+      = kpp[mik1][mip1][mip2]
+      = kpp[mik1][mip2][mip1]
+      = value;
+  }
+
+
+  // 学習時にkkpテーブルに値を書き出すためのヘルパ関数。
+  // この関数を用いると、ミラー関係にある箇所などにも同じ値を書き込んでくれる。次元下げの一種。
+  void kkp_write(Square k1, Square k2, BonaPiece p1, ValueKkp value)
+  {
+    // '~'をinv記号,'M'をmirror記号だとして
+    //   [  k1 ][  k2 ][  p1 ]
+    //   [ ~k2 ][ ~k1 ][ ~p1 ]
+    //   [M k1 ][M k2 ][M p1 ]
+    //   [M~k2 ][M~k1 ][M~p1 ]
+    // は、同じ値であるべきなので、その4箇所に書き出す。
+
+    BonaPiece ip1 = inv_piece[p1];
+    BonaPiece mp1 = mir_piece[p1];
+    BonaPiece mip1 = mir_piece[ip1];
+    Square  mk1 = Mir( k1);
+    Square  ik1 = Inv( k1);
+    Square mik1 = Mir(ik1);
+    Square  mk2 = Mir( k2);
+    Square  ik2 = Inv( k2);
+    Square mik2 = Mir(ik2);
+
+    ASSERT_LV3(kkp[k1][k2][p1] == kkp[ ik2][ ik1][ ip1]);
+    ASSERT_LV3(kkp[k1][k2][p1] == kkp[ mk1][ mk2][ mp1]);
+    ASSERT_LV3(kkp[k1][k2][p1] == kkp[mik2][mik1][mip1]);
+
+    kkp[  k1][  k2][  p1]
+      = kkp[ ik2][ ik1][ ip1]
+      = kkp[ mk1][ mk2][ mp1]
+      = kkp[mik2][mik1][mip1]
+      = value;
+  }
+
+  // 学習のためのテーブルの初期化
+  void eval_learn_init()
+  {
+    // fとeとの交換
+    int t[] = {
+      f_hand_pawn     -1 , e_hand_pawn    -1 ,
+      f_hand_lance    -1 , e_hand_lance   -1 ,
+      f_hand_knight   -1 , e_hand_knight  -1 ,
+      f_hand_silver   -1 , e_hand_silver  -1 ,
+      f_hand_gold     -1 , e_hand_gold    -1 ,
+      f_hand_bishop   -1 , e_hand_bishop  -1 ,
+      f_hand_rook     -1 , e_hand_rook    -1 ,
+      f_pawn             , e_pawn            ,
+      f_lance            , e_lance           ,
+      f_knight           , e_knight          ,
+      f_silver           , e_silver          ,
+      f_gold             , e_gold            ,
+      f_bishop           , e_bishop          ,
+      f_horse            , e_horse           ,
+      f_rook             , e_rook            ,
+      f_dragon           , e_dragon          ,
+    };
+
+    // 未初期化の値を突っ込んでおく。
+    for (BonaPiece p = BONA_PIECE_ZERO; p < fe_end; ++p)
+    {
+      inv_piece[p] = (BonaPiece)-1;
+
+      // mirrorは手駒に対しては機能しない。元の値を返すだけ。
+      mir_piece[p] = (p < f_pawn) ? p : (BonaPiece)-1;
+    }
+
+    for (BonaPiece p = BONA_PIECE_ZERO; p < fe_end; ++p)
+    {
+      for (int i = 0; i < 32 /* t.size() */; i += 2)
+      {
+        if (t[i] <= p && p < t[i + 1])
+        {
+          Square sq = (Square)(p - t[i]);
+
+          // 見つかった!!
+          BonaPiece q = (p < fe_hand_end) ? BonaPiece(sq + t[i+1]) : (BonaPiece)(Inv(sq) + t[i + 1]);
+          inv_piece[p] = q;
+          inv_piece[q] = p;
+
+          // 手駒に関しては反転など存在しない。
+          if (p < fe_hand_end)
+            continue;
+
+          BonaPiece r1 = (BonaPiece)(Mir(sq) + t[i]);
+          mir_piece[ p] = r1;
+          mir_piece[r1] = p;
+
+          BonaPiece p2 = (BonaPiece)(sq + t[i + 1]);
+          BonaPiece r2 = (BonaPiece)(Mir(sq) + t[i + 1]);
+          mir_piece[ p] = r2;
+          mir_piece[r2] = p;
+
+          break;
+        }
+      }
+    }
+
+    for (BonaPiece p = BONA_PIECE_ZERO; p < fe_end; ++p)
+      if (inv_piece[p] == (BonaPiece)-1
+        || mir_piece[p] == (BonaPiece)-1
+        )
+      {
+        // 未初期化のままになっている。上のテーブルの初期化コードがおかしい。
+        ASSERT(false);
+      }
+
+#if 0
+    // 評価関数のミラーをしても大丈夫であるかの事前検証
+    // 値を書き込んだときにassertionがあるので、ミラーしてダメである場合、
+    // そのassertに引っかかるはず。
+
+    for (auto sq : SQ)
+      for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
+        for (BonaPiece p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
+          kpp_write(sq, p1, p2, kpp[sq][p1][p2]);
+
+    for (auto sq1 : SQ)
+      for (auto sq2 : SQ)
+        for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
+          kkp_write(sq1, sq2, p1, kkp[sq1][sq2][p1]);
+#endif
+  }
+
+#endif // EVAL_LEARN
+
+
   // 評価関数ファイルを読み込む
   void load_eval()
   {
@@ -67,8 +243,39 @@ namespace Eval
       std::ifstream ifsKPP((string)Options["EvalDir"] + KPP_BIN, std::ios::binary);
       if (ifsKPP) ifsKPP.read(reinterpret_cast<char*>(kpp), sizeof(kpp));
       else goto Error;
+
+#if 0
+      // Aperyの評価関数バイナリ、kppのp=0のところでゴミが入っている。
+      // 駒落ちなどではここを利用したいので0クリアすべき。
+      for (auto sq : SQ)
+        for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
+        {
+          kpp[sq][p1][0][0] = 0;
+          kpp[sq][p1][0][1] = 0;
+          kpp[sq][0][p1][0] = 0;
+          kpp[sq][0][p1][1] = 0;
+        }
+#endif
+
+#if 0
+      // Aperyの評価関数バイナリ、kkptは意味があるけどkpptはあまり意味がないので
+      // 手番価値をクリアする実験用のコード
+
+      for(auto sq:SQ)
+        for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
+          for (BonaPiece p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
+            kpp[sq][p1][p2][1] = 0;
+
+#endif
+
+#ifdef EVAL_LEARN
+      eval_learn_init();
+#endif
+
     }
     
+    // 読み込みは成功した。
+
     return;
 
   Error:;

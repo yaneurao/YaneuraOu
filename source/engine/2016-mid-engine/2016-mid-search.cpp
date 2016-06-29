@@ -746,7 +746,10 @@ namespace YaneuraOu2016Mid
     }
 
     // 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
-    ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
+    // このassertを書くべきだし、Stockfishではこのassertが書かれているが、
+    // このnodeはrootからss->ply手進めた局面なのでここでss->plyより短い詰みがあるのはおかしい。
+    // この事実を利用したほうが、より厳しいassertが書ける。
+    ASSERT_LV3(abs(bestValue) <= mate_in(ss->ply));
 
     return bestValue;
   }

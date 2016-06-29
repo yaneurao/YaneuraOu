@@ -98,6 +98,9 @@
 // #define EVAL_KPPT_FAST // KPPTのAVX2/AVX-512による高速化。(非公開)
 // #define EVAL_PPET      // 技巧型 2駒+利き+手番(開発予定)
 
+// KPPT評価関数の学習に使うときのモード
+// #define EVAL_LEARN
+
 // 長い利き(遠方駒の利き)のライブラリを用いるか。
 // 超高速1手詰め判定などではこのライブラリが必要。
 // do_move()のときに利きの差分更新を行なうので、do_move()は少し遅くなる。(その代わり、利きが使えるようになる)
@@ -221,7 +224,7 @@
 //#define ASSERT_LV 3
 #define ENABLE_TEST_CMD
 #define EVAL_KPPT
-#define USE_EVAL_HASH
+//#define USE_EVAL_HASH
 #define USE_SIMPLE_SEE
 #define USE_MOVE_PICKER_2016Q2
 #define LONG_EFFECT_LIBRARY
@@ -230,6 +233,7 @@
 #define USE_TIME_MANAGEMENT
 #define KEEP_PIECE_IN_GENERATE_MOVES
 #define ONE_PLY_EQ_1
+#define EVAL_LEARN
 #endif
 
 #ifdef YANEURAOU_2016_LATE_ENGINE

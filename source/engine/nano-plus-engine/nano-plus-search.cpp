@@ -382,8 +382,8 @@ namespace YaneuraOuNanoPlus
         ttDepth, bestMove, ss->staticEval, TT.generation());
     }
 
-    // このnodeはrootからss->ply手進めた局面なのでここでss->plyより短い詰みがあるのはおかしい。
-    ASSERT_LV3(abs(bestValue) <= mate_in(ss->ply));
+    // 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
+    ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
 
     return bestValue;
   }

@@ -1331,8 +1331,11 @@ void Position::do_null_move(StateInfo& newSt) {
 
   st->board_key_ ^= Zobrist::side;
 
-  // このタイミングでアドレスが確定するのでprefetchしたほうが良い。
-  prefetch(TT.first_entry(st->key()));
+  // このタイミングでアドレスが確定するのでprefetchしたほうが良い。(かも)
+  // →　将棋では評価関数の計算時のメモリ帯域がボトルネックになって、ここでprefetchしても
+  // 　prefetchのスケジューラーが処理しきれない可能性が…。
+
+  // prefetch(TT.first_entry(st->key()));
 
   st->pliesFromNull = 0;
 

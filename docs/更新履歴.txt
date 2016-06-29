@@ -1,6 +1,24 @@
 ﻿
 やねうら王 更新履歴
 
+■　2016/06/30 V3.27
+
+・KPPTの評価関数、学習のときに使うのでKPPのmirrorを考慮したKPP配列の要素を参照するモードを用意。
+・EVAL_LEARN追加。
+・KPPTのLEARN用として、mirror_piece(),inv_piece()追加。初期化コード追加。
+・Mir(Square)関数追加。
+・kpp_write(),kkp_write()追加。
+
+
+
+■　2016/06/29 V3.26
+
+・qsearch()のassertを、ASSERT_LV3(abs(bestValue) <= mate_in(ss->ply));に変更。
+・Apery(WCSC26)のKPP配列のp=0にゴミが入っているので、それをクリアするコード追加。(ただしコメントアウトしてある)
+・KPPTを、KKPTだけにするテストコード追加。
+・null move時のprefetch()削除
+・2016Midでeval hashの使わないように変更。
+
 
 ■　2016/06/28 V3.25
 
@@ -10,7 +28,7 @@
 ・Mid以外がbuildできなくなっていたの修正。VALUE_NOE_VALUATE→VALUE_NOT_EVALUATED
 ・nano/nano plusでassertで落ちるの修正。
 ・USE_TT_PVのときに置換表の指し手をpseudo_legal()でチェックしていなかったの修正。(nano/nano plus)
-・MIDでMovePickerから取得した指し手に対してpsudo_legal()のassert追加。
+・MidでMovePickerから取得した指し手に対してpsudo_legal()のassert追加。
 ・nono plusでdraw_value返すときにvalue_from_tt通してなかったの修正。
 ・miniでOptions["Param1"]をextra_option()で追加していなかったの修正。
 
