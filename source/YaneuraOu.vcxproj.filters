@@ -296,9 +296,6 @@
     <Text Include="..\docs\old\更新履歴2016Q2まで.txt">
       <Filter>doc\old</Filter>
     </Text>
-    <Text Include="..\docs\ToDoのリスト.txt">
-      <Filter>doc</Filter>
-    </Text>
     <Text Include="..\exe\YaneuraOu-2016-mid.txt">
       <Filter>exe</Filter>
     </Text>
