@@ -13,12 +13,16 @@
 
   を用意。
 
+  V3.27a
 ・棋譜生成のためのSearchのスタブにaspiration searchを導入する。
 	→　よく考えたらdepth5ぐらいでaspirationしても無駄だったのだ…。
 	まあいいや。aspirationとMultiPvを導入しよう。
 
 	> test gensfen
 	うまく動いたので、とりあえずこれでいいや。
+
+  V3.27b
+・定跡ファイルの選択機能追加。
 
 
 

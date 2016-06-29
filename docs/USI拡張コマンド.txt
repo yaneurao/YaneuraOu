@@ -49,6 +49,14 @@ set option name XXX value ...で設定できるoption
 	PvInterval      : PVの出力を抑制する。前回出力時間から、この時間(単位は[ms])経過するまでは
 					次のPVを出力しない。
 
+	BookFile 定跡ファイル : 定跡ファイルの選択
+
+					# このコンボボックスの値
+					standard_book.db 標準定跡
+					yaneura_book1.db やねうら定跡1(公開用1)
+					yaneura_book2.db やねうら定跡2(公開用2)
+					yaneura_book3.db やねうら定跡3(大会用)
+
 
 	// 協力詰めsolver時
 

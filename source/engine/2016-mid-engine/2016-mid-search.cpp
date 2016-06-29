@@ -65,6 +65,9 @@ using namespace std;
 using namespace Search;
 using namespace Eval;
 
+// 定跡ファイル名
+string book_name;
+
 // USIに追加オプションを設定したいときは、この関数を定義すること。
 // USI::init()のなかからコールバックされる。
 void USI::extra_option(USI::OptionsMap & o)
@@ -89,6 +92,18 @@ void USI::extra_option(USI::OptionsMap & o)
   //  PVの出力の抑制のために前回出力時間からの間隔を指定できる。
 
   o["PvInterval"] << Option(300, 0, 100000);
+
+
+  // 定跡ファイル名
+
+  //  standard_book.db 標準定跡
+  //  yaneura_book1.db やねうら定跡1(公開用1)
+  //  yaneura_book2.db やねうら定跡2(公開用2)
+  //  yaneura_book3.db やねうら定跡3(大会用)
+
+  std::vector<std::string> book_list = { "standard_book.db", "yaneura_book1.db" , "yaneura_book2.db" , "yaneura_book3.db" };
+  o["BookFile"] << Option(book_list, book_list[0], [](auto& o) { book_name = o; });
+  book_name = book_list[0];
 
 }
 
@@ -1915,12 +1930,7 @@ void Search::clear()
   // -----------------------
   //   定跡の読み込み
   // -----------------------
-  static bool first = true;
-  if (first)
-  {
-    Book::read_book("book/standard_book.db", book);
-    first = false;
-  }
+  Book::read_book("book/" + book_name, book);
 
   // -----------------------
   //   置換表のクリアなど

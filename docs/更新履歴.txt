@@ -10,6 +10,8 @@
 ・Mir(Square)関数追加。
 ・kpp_write(),kkp_write()追加。
 ・棋譜生成のためのSearchのスタブにmulti pv、aspiration window searchを導入する。
+・2016Midに定跡ファイルの選択機能追加。
+・read_book()で二度目はskipするように変更。
 
 
 ■　2016/06/29 V3.26

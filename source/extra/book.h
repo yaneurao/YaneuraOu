@@ -41,7 +41,11 @@ namespace Book
     }
     const BookType::iterator end() { return book_body.end(); }
 
+    // 定跡本体
     BookType book_body;
+
+    // 読み込んだbookの名前
+    std::string book_name;
   };
 
   // USI拡張コマンド。"makebook"。定跡ファイルを作成する。
@@ -49,6 +53,7 @@ namespace Book
   extern void makebook_cmd(Position& pos, std::istringstream& is);
 
   // 定跡ファイルの読み込み(book.db)など。
+  // 同じファイルを二度目は読み込み動作をskipする。
   extern int read_book(const std::string& filename, MemoryBook& book);
 
   // 定跡ファイルの書き出し
