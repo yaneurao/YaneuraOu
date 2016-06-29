@@ -1,6 +1,7 @@
 ﻿
 やねうら王 更新履歴
 
+
 ■　2016/06/30 V3.27
 
 ・KPPTの評価関数、学習のときに使うのでKPPのmirrorを考慮したKPP配列の要素を参照するモードを用意。
@@ -8,7 +9,7 @@
 ・KPPTのLEARN用として、mirror_piece(),inv_piece()追加。初期化コード追加。
 ・Mir(Square)関数追加。
 ・kpp_write(),kkp_write()追加。
-
+・棋譜生成のためのSearchのスタブにmulti pv、aspiration window searchを導入する。
 
 
 ■　2016/06/29 V3.26

@@ -2527,7 +2527,9 @@ namespace Learner
   // のようにすべし。
   // v.firstに評価値、v.secondにPVが得られる。
 
-  pair<Value, vector<Move> > search(Position& pos,Value alpha , Value beta , int depth)
+  // MultiPVが有効のときは、pos.this_thread()->rootMoves[N].pvにそのPV(読み筋)の配列が得られる。
+
+  pair<Value, vector<Move> > search(Position& pos, Value alpha , Value beta , int depth)
   {
     Stack stack[MAX_PLY + 7], *ss = stack + 5;
     memset(ss - 5, 0, 8 * sizeof(Stack));
@@ -2535,16 +2537,59 @@ namespace Learner
     init_for_search(pos);
     auto th = pos.this_thread();
 
-    Value bestValue;
-    while (++th->rootDepth <= depth)
+    auto& rootDepth = th->rootDepth;
+    auto& PVIdx = th->PVIdx;
+    auto& rootMoves = th->rootMoves;
+
+    Value bestValue, delta;
+    bestValue = delta = -VALUE_INFINITE;
+
+    // bestmoveとしてしこの局面の上位N個を探索する機能
+    size_t multiPV = Options["MultiPV"];
+    // この局面での指し手の数を上回ってはいけない
+    multiPV = std::min(multiPV, rootMoves.size());
+
+    while (++rootDepth <= depth)
     {
-      bestValue = YaneuraOu2016Mid::search<PV>(pos, ss, alpha, beta, th->rootDepth * ONE_PLY, false);
-      std::stable_sort(th->rootMoves.begin(), th->rootMoves.end());
+
+      // MultiPVのためにこの局面の候補手をN個選出する。
+      for (PVIdx = 0; PVIdx < multiPV && !Signals.stop; ++PVIdx)
+      {
+        // aspiration search
+        if (rootDepth >= 5)
+        {
+          delta = Value(18);
+          alpha = std::max(rootMoves[PVIdx].previousScore - delta, -VALUE_INFINITE);
+          beta = std::min(rootMoves[PVIdx].previousScore + delta, VALUE_INFINITE);
+        }
+
+        while (true)
+        {
+          bestValue = YaneuraOu2016Mid::search<PV>(pos, ss, alpha, beta, rootDepth * ONE_PLY, false);
+          std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
+
+          if (bestValue <= alpha)
+          {
+            beta = (alpha + beta) / 2;
+            alpha = std::max(bestValue - delta, -VALUE_INFINITE);
+          } else if (bestValue >= beta)
+          {
+            alpha = (alpha + beta) / 2;
+            beta = std::min(bestValue + delta, VALUE_INFINITE);
+          } else {
+            break;
+          }
+          delta += delta / 4 + 5;
+
+          ASSERT_LV3(-VALUE_INFINITE <= alpha && beta <= VALUE_INFINITE);
+        }
+        std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
+      } // multi PV
     }
 
     // このPV、途中でNULL_MOVEの可能性があるかも知れないので排除するためにis_ok()を通す。
     vector<Move> pvs;
-    for (Move move : th->rootMoves[0].pv)
+    for (Move move : rootMoves[0].pv)
     {
       if (!is_ok(move))
         break;
