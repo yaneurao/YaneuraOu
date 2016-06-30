@@ -18,7 +18,7 @@
 // これがdefineされていると"parameters_master.h"
 // defineされていなければ"parameters_slave.h"
 // を(実行時に)読み込む。
-#define PARAMETERS_MASTER
+//#define PARAMETERS_MASTER
 
 // mate1ply()を呼び出すのか
 #define USE_MATE_1PLY_IN_SEARCH
@@ -2503,6 +2503,8 @@ ID_END:;
 
 }
 
+#ifdef EVAL_LEARN
+
 namespace Learner
 {
   // 学習用に、1つのスレッドからsearch,qsearch()を呼び出せるようなスタブを用意する。
@@ -2635,6 +2637,6 @@ namespace Learner
     return pair<Value,vector<Move> >(bestValue,pvs);
   }
 }
-
+#endif
 
 #endif // YANEURAOU_2016_MID_ENGINE

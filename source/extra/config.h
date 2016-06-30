@@ -236,6 +236,23 @@
 //#define EVAL_LEARN
 #endif
 
+#ifdef YANEURAOU_2016_MID_ENGINE_LEARN
+#define ENGINE_NAME "YaneuraOu 2016 Mid Learn"
+#define YANEURAOU_2016_MID_ENGINE
+#define EVAL_LEARN
+#define ASSERT_LV 3
+#define ENABLE_TEST_CMD
+#define EVAL_KPPT
+#define USE_SIMPLE_SEE
+#define USE_MOVE_PICKER_2016Q2
+#define LONG_EFFECT_LIBRARY
+#define USE_MATE_1PLY
+#define USE_ENTERING_KING_WIN
+#define USE_TIME_MANAGEMENT
+#define KEEP_PIECE_IN_GENERATE_MOVES
+#define ONE_PLY_EQ_1
+#endif
+
 #ifdef YANEURAOU_2016_LATE_ENGINE
 #define ENGINE_NAME "YaneuraOu 2016 Late"
 //#define ASSERT_LV 3

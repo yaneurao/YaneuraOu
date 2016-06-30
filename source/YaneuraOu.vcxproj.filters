@@ -65,6 +65,9 @@
     <Filter Include="リソース ファイル\engine\2016-late-engine">
       <UniqueIdentifier>{340f8b93-a0de-4836-a164-61971b2d3ce6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\learn">
+      <UniqueIdentifier>{d7ca69f7-bd83-40ce-89c2-fe2d730b80be}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -245,6 +248,9 @@
     </ClCompile>
     <ClCompile Include="eval\evaluate_kppt_fast.cpp">
       <Filter>リソース ファイル\eval</Filter>
+    </ClCompile>
+    <ClCompile Include="learn\learner.cpp">
+      <Filter>リソース ファイル\learn</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

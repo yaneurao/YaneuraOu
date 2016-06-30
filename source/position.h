@@ -161,7 +161,14 @@ struct StateInfo {
   HASH_KEY hand_key_;
 
   // 一つ前の局面に遡るためのポインタ。
-  // NULL MOVEなどでそこより遡って欲しくないときはnullptrを設定しておく。
+  // この値としてnullptrが設定されているケースは、
+  // 1) root node
+  // 2) 直前がnull move
+  // のみである。
+  // 評価関数を差分計算するときに、
+  // 1)は、compute_eval()を呼び出して差分計算しないからprevious==nullで問題ない。
+  // 2)は、このnodeのEvalSum sum(これはdo_move_null()でコピーされている)から
+  //   計算出来るから問題ない。
   StateInfo* previous;
 
 };

@@ -255,6 +255,7 @@
     <ClCompile Include="extra\see.cpp" />
     <ClCompile Include="extra\test_cmd.cpp" />
     <ClCompile Include="extra\timeman.cpp" />
+    <ClCompile Include="learn\learner.cpp" />
     <ClCompile Include="misc.cpp" />
     <ClCompile Include="movegen.cpp" />
     <ClCompile Include="shogi.cpp" />

@@ -434,7 +434,15 @@ namespace Eval
 
     // nodeごとにevaluate()は呼び出しているので絶対に差分計算できるはず。
     // 一つ前のnodeでevaluate()されているはず。
-    if (!prev->sum.evaluated())
+    //
+    // root nodeではprevious == nullptrであるが、root nodeではPosition::set()でcompute_eval()
+    // を呼び出すので通常この関数が呼び出されることはないのだが、学習関係でこれが出来ないと
+    // コードが書きにくいのでEVAL_LEARNのときは、このチェックをする。
+    if (
+#ifdef EVAL_LEARN
+      prev == nullptr || 
+#endif
+      !prev->sum.evaluated())
     {
       // 全計算
       compute_eval(pos);

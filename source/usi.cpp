@@ -38,6 +38,16 @@ namespace Book { extern void makebook_cmd(Position& pos, istringstream& is); }
 #include "cooperate_mate/cooperative_mate_solver.h"
 #endif
 
+// 棋譜を自動生成するコマンド
+#ifdef EVAL_LEARN
+namespace Learner
+{
+  // 棋譜の自動生成。
+  void gen_sfen(Position& pos, istringstream& is);
+}
+#endif
+
+
 // Option設定が格納されたglobal object。
 USI::OptionsMap Options;
 
@@ -619,7 +629,7 @@ void USI::loop(int argc,char* argv[])
     else if (token == "log") start_logger(true);
 
     // 現在の局面について評価関数を呼び出して、その値を返す。
-    else if (token == "eval") cout << "eval = " << Eval::evaluate(pos) << endl;
+    else if (token == "eval") cout << "eval = " << Eval::compute_eval(pos) << endl;
     else if (token == "evalstat") Eval::print_eval_stat(pos);
 
     // この局面での指し手をすべて出力
@@ -658,6 +668,11 @@ void USI::loop(int argc,char* argv[])
     // 定跡を作るコマンド
     else if (token == "makebook") Book::makebook_cmd(pos, is);
 #endif
+
+#ifdef EVAL_LEARN
+    else if (token == "gensfen") Learner::gen_sfen(pos, is);
+#endif
+
     ;
 
   } while (token != "quit" );

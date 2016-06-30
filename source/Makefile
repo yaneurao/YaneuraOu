@@ -8,6 +8,7 @@
 #YANEURAOU_EDITION = YANEURAOU_CLASSIC_ENGINE
 #YANEURAOU_EDITION = YANEURAOU_CLASSIC_TCE_ENGINE
 YANEURAOU_EDITION = YANEURAOU_2016_MID_ENGINE
+#YANEURAOU_EDITION = YANEURAOU_2016_MID_ENGINE_LEARN
 #YANEURAOU_EDITION = YANEURAOU_2016_LATE_ENGINE
 
 COMPILER = g++
@@ -60,7 +61,8 @@ SOURCES  = shogi.cpp                                                           \
 	engine/classic-tce-engine/classic-tce-search.cpp                           \
 	engine/2016-mid-engine/2016-mid-search.cpp                                 \
 	engine/user-engine/user-search.cpp                                         \
-	engine/2016-late-engine/2016-late-search.cpp				               
+	engine/2016-late-engine/2016-late-search.cpp				               \
+	learn/learner.cpp				               
 																               
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_2016_LATE_ENGINE)				               
 	SOURCES += engine/2016-late-engine/2016-late-search.cpp                    \
