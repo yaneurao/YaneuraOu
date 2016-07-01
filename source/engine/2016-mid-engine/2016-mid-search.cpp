@@ -102,7 +102,7 @@ void USI::extra_option(USI::OptionsMap & o)
   //  yaneura_book3.db やねうら定跡3(大会用)
 
   std::vector<std::string> book_list = { "standard_book.db", "yaneura_book1.db" , "yaneura_book2.db" , "yaneura_book3.db" };
-  o["BookFile"] << Option(book_list, book_list[0], [](auto& o) { book_name = o; });
+  o["BookFile"] << Option(book_list, book_list[0], [](auto& o) { book_name = string(o); });
   book_name = book_list[0];
 
 }

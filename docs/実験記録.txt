@@ -22,7 +22,9 @@ ToDo:
 	PARAM_FUTILITY_RETURN_DEPTHが8のときにたまにASSERTに引っかかる？
 	→ margin値を引いたときにevalの値が-VALUE_INFINITEを下回るのかと思ったが違うようだ。
 
-・sfenの圧縮出力追加。
+	V3.28b
+・sfenの圧縮出力追加。(かきかけ)
+
 
 
 ■　2016/06/30

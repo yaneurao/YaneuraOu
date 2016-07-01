@@ -14,6 +14,8 @@ YANEURAOU_EDITION = YANEURAOU_2016_MID_ENGINE
 COMPILER = g++
 #COMPILER = mpicxx
 CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fopenmp -fpermissive -D_WIN64
+# ltoオプションを指定すると実行同時にクラッシュするときがあるので、そのときは、コメントアウトしてください。
+CFLAGS   += -flto
 CFLAGS   += -march=native
 LDFLAGS  = -lpthread #-lboost_mpi -lboost_serialization
 LIBS     =
