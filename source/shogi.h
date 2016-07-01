@@ -7,7 +7,7 @@
 //
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
-#define ENGINE_VERSION "3.28"
+#define ENGINE_VERSION "3.29"
 
 // --------------------
 // コンパイル時の設定
@@ -25,19 +25,19 @@
 
 #ifndef USE_MAKEFILE
 
-//#define YANEURAOU_NANO_ENGINE        // やねうら王nano        (完成2016/01/31)
-//#define YANEURAOU_NANO_PLUS_ENGINE   // やねうら王nano plus   (完成2016/02/25)
-//#define YANEURAOU_MINI_ENGINE        // やねうら王mini        (完成2016/02/29)
-//#define YANEURAOU_CLASSIC_ENGINE     // やねうら王classic     (完成2016/04/03)
-//#define YANEURAOU_CLASSIC_TCE_ENGINE // やねうら王classic tce (完成2016/04/15)
-//#define YANEURAOU_2016_MID_ENGINE    // やねうら王2016(MID)   (完成2016/06/28)
-#define YANEURAOU_2016_MID_ENGINE_LEARN    // やねうら王2016(MID) EVAL_LEARN版   (開発中) // 評価関数パラメーターの学習
-//#define YANEURAOU_2016_LATE_ENGINE   // やねうら王2016(LATE)  (開発中)
-//#define RANDOM_PLAYER_ENGINE         // ランダムプレイヤー
-//#define MATE_ENGINE                  // 詰め将棋solverとしてリリースする場合。(開発中)
-//#define HELP_MATE_ENGINE             // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
-//#define LOCAL_GAME_SERVER            // 連続自動対局フレームワーク
-//#define USER_ENGINE                  // ユーザーの思考エンジン
+//#define YANEURAOU_NANO_ENGINE            // やねうら王nano        (完成2016/01/31)
+//#define YANEURAOU_NANO_PLUS_ENGINE       // やねうら王nano plus   (完成2016/02/25)
+//#define YANEURAOU_MINI_ENGINE            // やねうら王mini        (完成2016/02/29)
+//#define YANEURAOU_CLASSIC_ENGINE         // やねうら王classic     (完成2016/04/03)
+//#define YANEURAOU_CLASSIC_TCE_ENGINE     // やねうら王classic tce (完成2016/04/15)
+#define YANEURAOU_2016_MID_ENGINE        // やねうら王2016(MID)   (完成2016/06/28)
+//#define YANEURAOU_2016_MID_ENGINE_LEARN  // やねうら王2016(MID) EVAL_LEARN版   (開発中) // 評価関数パラメーターの学習
+//#define YANEURAOU_2016_LATE_ENGINE       // やねうら王2016(LATE)  (開発中)
+//#define RANDOM_PLAYER_ENGINE             // ランダムプレイヤー
+//#define MATE_ENGINE                      // 詰め将棋solverとしてリリースする場合。(開発中)
+//#define HELP_MATE_ENGINE                 // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
+//#define LOCAL_GAME_SERVER                // 連続自動対局フレームワーク
+//#define USER_ENGINE                      // ユーザーの思考エンジン
 
 #else
 

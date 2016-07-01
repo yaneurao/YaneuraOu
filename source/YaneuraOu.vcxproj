@@ -253,6 +253,7 @@
     <ClCompile Include="extra\mate1ply_without_effect.cpp" />
     <ClCompile Include="extra\move_picker_2016Q2.cpp" />
     <ClCompile Include="extra\see.cpp" />
+    <ClCompile Include="extra\sfen_packer.cpp" />
     <ClCompile Include="extra\test_cmd.cpp" />
     <ClCompile Include="extra\timeman.cpp" />
     <ClCompile Include="learn\learner.cpp" />

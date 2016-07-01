@@ -2,6 +2,17 @@
 やねうら王 更新履歴
 
 
+■　2016/07/02 V3.29
+
+・sfen圧縮機能追加。(かきかけ)
+・Position::sfen_from_rawdata()追加。
+・sfen packer、misc/に移動。
+・USE_SFEN_PACKER追加。
+・USIで直接 Threads 1 とやったとき、setoption name Threads value 1と等価なようにする。
+・公式のトップページに書いていた更新履歴、邪魔なので消す。
+
+
+
 ■　2016/07/01 V3.28
 
 ・evalコマンドで呼び出すのをcompute_eval()に変更。

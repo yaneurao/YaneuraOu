@@ -252,6 +252,9 @@
     <ClCompile Include="learn\learner.cpp">
       <Filter>リソース ファイル\learn</Filter>
     </ClCompile>
+    <ClCompile Include="extra\sfen_packer.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">

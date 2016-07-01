@@ -549,6 +549,20 @@ struct Position
   Move DeclarationWin() const;
 #endif
 
+  // -- sfen化ヘルパ
+#ifdef USE_SFEN_PACKER
+  // 盤面と手駒、手番を与えて、そのsfenを返す。
+  static std::string sfen_from_rawdata(Piece board [81], Hand hands[2], Color turn, int gamePly);
+
+  // packされたsfenを得る。引数に指定したバッファに返す。
+  // gamePlyはpackに含めない。
+  void sfen_pack(u8 data[32]);
+
+  // packされたsfenを解凍する。sfen文字列が返る。
+  // gamePly = 0となる。
+  std::string sfen_unpack(u8 data[32]);
+#endif
+
   // -- 利き
 #ifdef LONG_EFFECT_LIBRARY
 

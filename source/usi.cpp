@@ -673,7 +673,27 @@ void USI::loop(int argc,char* argv[])
     else if (token == "gensfen") Learner::gen_sfen(pos, is);
 #endif
 
-    ;
+    else
+    {
+      //    簡略表現として、
+      //> Threads 1
+      //      のように指定したとき、
+      //> setoption name Threads value 1
+      //      と等価なようにしておく。
+      
+      if (!token.empty())
+      {
+        string value;
+        is >> value;
+        if (Options.count(token))
+        {
+          Options[token] = value;
+          sync_cout << "Options[" << token << "] = " << value << sync_endl;
+        }
+        else
+          sync_cout << "No such option: " << token << sync_endl;
+      }
+    }
 
   } while (token != "quit" );
   

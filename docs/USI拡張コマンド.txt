@@ -5,6 +5,13 @@ USIプロトコルの独自拡張コマンド
 
 set option name XXX value ...で設定できるoption
 
+	簡略表現として、
+	> Threads 1
+	のように指定したとき、
+	> setoption name Threads value 1
+	と等価なようになっている。
+
+
 	注意) USI_Hash で設定された値は無視されます。
 
 	Threads			: 思考するスレッド数

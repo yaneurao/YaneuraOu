@@ -49,6 +49,7 @@ SOURCES  = shogi.cpp                                                           \
 	extra/test_cmd.cpp                                                         \
 	extra/timeman.cpp                                                          \
 	extra/see.cpp                                                              \
+	extra/sfen_packer.cpp                                                      \
 	eval/evaluate_bona_piece.cpp                                               \
 	eval/evaluate_kpp.cpp                                                      \
 	eval/evaluate_kppt.cpp                                                     \
