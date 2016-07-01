@@ -11,6 +11,8 @@
 #if defined(EVAL_LEARN) && defined(YANEURAOU_2016_MID_ENGINE)
 
 #include <sstream>
+#include <fstream>
+
 #include "../misc.h"
 #include "../thread.h"
 #include "../position.h"
@@ -29,18 +31,65 @@ extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta
 // Sfenを書き出して行く。
 struct SfenWriter
 {
+  SfenWriter(int thread_num,u64 sfen_count_limit_)
+  {
+    sfen_count_limit = sfen_count_limit_;
+    sfen_buffers.resize(thread_num);
+    fs.open("generated_kifu.sfen", ios::out);
+  }
+
+  // この行数ごとにファイルにflushする。
+  // 探索深さ3なら1スレッドあたり1秒で1000局面ほど作れる。
+  // 40コア80HTで秒間10万局面。1日で80億ぐらい作れる。
+  // 80億=8G , 1局面100バイトとしたら 800GB。
+  
+  const size_t FILE_WRITE_INTERVAL = 10000;
+
   // 停止信号。これがtrueならslave threadは終了。
   bool is_stop() const
   {
     return sfen_count > sfen_count_limit;
   }
 
+  // 局面を1行書き出す
+  void write(size_t thread_id,string line)
+  {
+    // スレッドごとにbufferを持っていて、そこに追加する。
+    // bufferが溢れたら、ファイルに書き出す。
 
-  // 生成した棋譜の数
+    auto& buf = sfen_buffers[thread_id];
+    buf.push_back(line);
+    if (buf.size() >= FILE_WRITE_INTERVAL)
+    {
+      std::unique_lock<Mutex> lk(mutex);
+
+      for (auto line : buf)
+        fs << line;
+
+      fs.flush();
+      sfen_count += buf.size();
+      buf.clear();
+
+      // 棋譜を書き出すごとに'.'を出力。
+      cout << ".";
+    }
+  }
+
+private:
+  // ファイルに書き出す前に排他するためのmutex
+  Mutex mutex;
+
+  fstream fs;
+
+  // ファイルに書き出す前のバッファ
+  vector<vector<string>> sfen_buffers;
+
+  // 生成したい局面の数
+  u64 sfen_count_limit;
+
+  // 生成した局面の数
   u64 sfen_count;
 
-  // 生成したい棋譜の数
-  u64 sfen_count_limit;
 };
 
 // 棋譜を生成するworker(スレッドごと)
@@ -63,7 +112,7 @@ void gen_sfen_worker(size_t thread_id , int search_depth , SfenWriter& sw)
   // Positionに対して従属スレッドの設定が必要。
   // 並列化するときは、Threads (これが実体が vector<Thread*>なので、
   // Threads[0]...Threads[thread_num-1]までに対して同じようにすれば良い。
-  auto th = Threads.main();
+  auto th = Threads[thread_id];
   pos.set_this_thread(th);
 
   // loop_maxになるまで繰り返し
@@ -96,6 +145,9 @@ void gen_sfen_worker(size_t thread_id , int search_depth , SfenWriter& sw)
       // これをファイルか何かに書き出すと良い。
       //      cout << pos.sfen() << "," << value1 << "," << value2 << "," << endl;
 
+      string line = pos.sfen() + "," + to_string(value1) + "\n";
+      sw.write(thread_id,line);
+      
 #if 0
       // デバッグ用に局面と読み筋を表示させてみる。
       cout << pos;
@@ -163,25 +215,24 @@ void gen_sfen(Position& pos, istringstream& is)
   // 生成棋譜の個数 default = 80億局面(Ponanza仕様)
   u64 loop_max = 8000000000UL;
 
-  // スレッド数
-  u32 thread_num = 8;
+  // スレッド数(これは、USIのsetoptionで与えられる)
+  u32 thread_num = Options["Threads"];
 
   // 探索深さ
   int search_depth = 3;
 
-  is >> thread_num >> search_depth >> loop_max;
+  is >> search_depth >> loop_max;
 
   std::cout << "gen_sfen : "
-    << "thread_num = " << thread_num
-    << " , search_depth = " << search_depth
+    << "search_depth = " << search_depth
     << " , loop_max = " << loop_max
+    << " , thread_num (set by USI setoption) = " << thread_num
     << endl;
 
   // 評価関数の読み込み等
   is_ready(pos);
 
-  SfenWriter sw;
-  sw.sfen_count_limit = loop_max;
+  SfenWriter sw(thread_num,loop_max);
 
   // スレッド数だけ作って実行。
 

@@ -1,5 +1,6 @@
 ﻿
 ToDo: 
+・sfenの圧縮出力追加。
 ・定跡の自動生成機能追加。
 ・mate3()書く。
 
@@ -12,6 +13,7 @@ ToDo:
 
 	learn/learner.cpp追加。
 	gensfenコマンド追加。
+
 
 ・パラメーター自動調整関係
 

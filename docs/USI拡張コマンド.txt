@@ -99,7 +99,7 @@ set option name XXX value ...で設定できるoption
 		test autoplay [回数] : 思考ルーチンを呼び出して連続自己対戦をさせる。
 		test timeman         : TimeManagerで消費する時間のテスト結果を表示する。(やねうら王classic-tce以降のみ)
 	
-	gensfen [スレッド数][探索深さ][生成する棋譜の数]
+	gensfen [探索深さ][生成する棋譜の数]
 						     : 学習用の自己対局棋譜の生成(やねうら王2016Mid LEARN版のみ)
 		
 	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。

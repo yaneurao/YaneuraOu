@@ -8,6 +8,8 @@
 	(root nodeではStateInfo::previousがnullptrなので差分計算できない)
 ・StateInfo::previousのところのコメント修正。
 ・YANEURAOU_2016_MID_ENGINE_LEARN 追加。
+・learn/learner.cpp追加。
+・test gensfenコマンド削除。gensfenコマンド追加。
 
 
 ■　2016/06/30 V3.27
