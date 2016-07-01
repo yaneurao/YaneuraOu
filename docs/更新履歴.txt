@@ -10,6 +10,9 @@
 ・YANEURAOU_2016_MID_ENGINE_LEARN 追加。
 ・learn/learner.cpp追加。
 ・test gensfenコマンド削除。gensfenコマンド追加。
+・sfenのpacker/unpacker書いた。
+・BitStreamクラス書いた。
+・sfenの圧縮出力追加。
 
 
 ■　2016/06/30 V3.27

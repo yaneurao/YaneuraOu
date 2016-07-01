@@ -1,6 +1,8 @@
 ﻿
 ToDo: 
-・sfenの圧縮出力追加。
+・gensfenで定跡読み込む機能
+・gensfenで2駒入れ替える機能
+
 ・定跡の自動生成機能追加。
 ・mate3()書く。
 
@@ -19,6 +21,8 @@ ToDo:
 
 	PARAM_FUTILITY_RETURN_DEPTHが8のときにたまにASSERTに引っかかる？
 	→ margin値を引いたときにevalの値が-VALUE_INFINITEを下回るのかと思ったが違うようだ。
+
+・sfenの圧縮出力追加。
 
 
 ■　2016/06/30
