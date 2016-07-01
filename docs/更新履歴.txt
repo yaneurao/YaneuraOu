@@ -10,7 +10,7 @@
 ・USE_SFEN_PACKER追加。
 ・USIで直接 Threads 1 とやったとき、setoption name Threads value 1と等価なようにする。
 ・公式のトップページに書いていた更新履歴、邪魔なので消す。
-
+・sfen packer完成。
 
 
 ■　2016/07/01 V3.28

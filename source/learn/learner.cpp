@@ -153,7 +153,7 @@ void gen_sfen_worker(size_t thread_id , int search_depth , SfenWriter& sw)
       // これをファイルか何かに書き出すと良い。
       //      cout << pos.sfen() << "," << value1 << "," << value2 << "," << endl;
 
-#if 1
+#if 0
       // sfenのpack test
       // pack()してunpack()したものが元のsfenと一致するのかのテスト。
 

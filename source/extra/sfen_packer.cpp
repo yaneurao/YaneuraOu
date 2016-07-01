@@ -111,7 +111,7 @@ private:
 // 手駒に成りフラグは不要だが、これも含めておくと盤上の駒のbit数-1になるので
 // 全体のbit数が固定化できるのでこれも含めておくことにする。
 
-const struct HuffmanedPiece
+struct HuffmanedPiece
 {
   int code; // どうコード化されるか
   int bits; // 何bit専有するのか
@@ -316,8 +316,9 @@ private:
       for (pr = PAWN; pr < KING; ++pr)
         if ((huffman_table[pr].code >> 1) == code
           && (huffman_table[pr].bits -1) == bits)
-          break;
+          goto Found;
     }
+  Found:;
     ASSERT_LV3(pr != NO_PIECE);
 
     // 金以外であれば成りフラグを1bit捨てる
