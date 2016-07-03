@@ -2,6 +2,7 @@
 #define _BOOK_H_
 
 #include "../shogi.h"
+
 #include "../position.h"
 #include <unordered_map>
 
@@ -48,10 +49,6 @@ namespace Book
     std::string book_name;
   };
 
-  // USI拡張コマンド。"makebook"。定跡ファイルを作成する。
-  // フォーマット等についてはdoc/解説.txt を見ること。
-  extern void makebook_cmd(Position& pos, std::istringstream& is);
-
   // 定跡ファイルの読み込み(book.db)など。
   // 同じファイルを二度目は読み込み動作をskipする。
   extern int read_book(const std::string& filename, MemoryBook& book);
@@ -60,7 +57,14 @@ namespace Book
   extern int write_book(const std::string& filename, const MemoryBook& book);
 
   // bookにBookPosを一つ追加。(その局面ですでに同じbestMoveの指し手が登録されている場合は上書き動作)
-  extern void insert_book_pos(MemoryBook& book, const std::string sfen,const BookPos& bp);
+  extern void insert_book_pos(MemoryBook& book, const std::string sfen, const BookPos& bp);
+
+#ifdef ENABLE_MAKEBOOK_CMD
+  // USI拡張コマンド。"makebook"。定跡ファイルを作成する。
+  // フォーマット等についてはdoc/解説.txt を見ること。
+  extern void makebook_cmd(Position& pos, std::istringstream& is);
+#endif
+
 
 }
 

@@ -196,6 +196,7 @@ Update1までだと、リンク時に「内部エラー」と表示されてコ�
 
 ■　定跡の作り方
 
+
 	[定跡フォーマット]
 	sfen sfen文字列
 	この局面での指し手1 相手の応手1 この指し手を指したときの評価値 そのときの探索深さ その指し手が選択された回数
@@ -214,18 +215,23 @@ Update1までだと、リンク時に「内部エラー」と表示されてコ�
 	#YANEURAOU-DB2016 1.00
 	
 > makebook from_sfen book.sfen standard_book.db moves 16
+※　	config.hでENABLE_MAKEBOOK_CMDをdefineしてコンパイルしてある実行ファイルが必要。
 
 1行1局の棋譜を読み込ませてそれを上のフォーマットに変換する。standard_book.dbになる。
 各局、"moves"のあとに指定した手数までを出力する。このファイルを思考エンジンの実行ファイル配下のbookフォルダに配置する。
 
 floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡を作成したものをexe/book/standard_book.dbに入れてあります。ご自由にお使いください。
 
-> makebook think 2016.sfen yaneura_book.db move 16 depth 32 multipv 3
+> makebook think 2016.sfen yaneura_book.db move 16 depth 32
+※　	shogi.hでYANEURAOU_2016_MID_ENGINE_LEARNをdefineしてコンパイルしてある実行ファイルが必要。
 
-	2016.sfenという棋譜を読みこみ、その16手目までをdepth 32、multi pv = 3で思考させて、
+	2016.sfenという棋譜を読みこみ、その16手目までをdepth 32で思考させて、
 	そのときの上位3手を定跡ファイルに書き出す。
 
-	定跡ファイル上に、すでにそれ以上深い深さで探索した結果がある場合は、その局面については探索しない。
+	・定跡ファイル上に、すでにそれ以上深い深さで探索した結果がある場合は、その局面については探索しない。
+	・同じ深さの場合、登録されている手の数がMultiPVで指定されている手の数以上登録されている場合もその局面については探索しない。
+	・USI_Hash、Threads、MultiPVの設定に従い思考されるので、事前にこれらのパラメーターを
+	適切な値に設定しておくこと。
 
 
 ■　起動時のコマンドの指定

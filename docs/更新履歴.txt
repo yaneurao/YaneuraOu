@@ -13,9 +13,10 @@
 ・gensfenしたファイルを読み込む機能追加。(learnコマンドの一部)　→　テストコードはうまく動いているようだ。
 ・learnコマンド追加。→　作業中
 ・定跡の自動生成機能追加。
+・makebook from_sfen のほうのコマンド、from_sfenを指定せずに動いていたの修正。
 ・sfenを与えて思考させるためのmakebookコマンド追加。
 	> makebook think 2016.sfen yaneura_book.db move 16 depth 32 multipv 3
-	→　作業中
+	→　コード書けた。デバッグまだ。
 
 
 ■　2016/07/02 V3.29

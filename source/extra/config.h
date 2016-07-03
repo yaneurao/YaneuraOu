@@ -257,6 +257,8 @@
 // 学習絡みのオプション
 #define USE_SFEN_PACKER
 #define EVAL_LEARN
+// 定跡生成絡み
+#define ENABLE_MAKEBOOK_CMD
 #endif
 
 #ifdef YANEURAOU_2016_LATE_ENGINE
