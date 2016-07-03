@@ -10,12 +10,12 @@
 ・gensfenで任意二駒をときどき入れ替える機能追加。USE_SWAPPING_PIECES →　動いてるっぽい。
 ・Position::do_move_by_swapping_pieces()追加。→　書けた。うまく動いている。
 ・USIオプションの簡略入力のときに大文字小文字の区別をしないように変更。
-・gensfenしたファイルを読み込む機能追加。
-	// かきかけ
-
-// かきかけ
-・makebookコマンド追加。
+・gensfenしたファイルを読み込む機能追加。(learnコマンドの一部)　→　テストコードはうまく動いているようだ。
+・learnコマンド追加。→　作業中
 ・定跡の自動生成機能追加。
+・sfenを与えて思考させるためのmakebookコマンド追加。
+	> makebook think 2016.sfen yaneura_book.db move 16 depth 32 multipv 3
+	→　作業中
 
 
 ■　2016/07/02 V3.29

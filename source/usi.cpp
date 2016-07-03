@@ -44,6 +44,9 @@ namespace Learner
 {
   // 棋譜の自動生成。
   void gen_sfen(Position& pos, istringstream& is);
+
+  // 生成した棋譜からの学習
+  void learn(Position& pos, istringstream& is);
 }
 #endif
 
@@ -671,6 +674,7 @@ void USI::loop(int argc,char* argv[])
 
 #ifdef EVAL_LEARN
     else if (token == "gensfen") Learner::gen_sfen(pos, is);
+    else if (token == "learn") Learner::learn(pos, is);
 #endif
 
     else

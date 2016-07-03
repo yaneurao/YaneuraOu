@@ -397,7 +397,7 @@ void gen_sfen_worker(size_t thread_id, int search_depth, SfenWriter& sw)
 }
 
 // -----------------------------------
-//    棋譜を生成するコマンド(master)
+//    棋譜を生成するコマンド(master thread)
 // -----------------------------------
 
 // 棋譜を生成するコマンド
@@ -447,6 +447,38 @@ void gen_sfen(Position& pos, istringstream& is)
 
   std::cout << "gen_sfen finished." << endl;
 }
+
+// -----------------------------------
+// 生成した棋譜から学習させるコマンド(learn)
+// -----------------------------------
+
+// 生成した棋譜からの学習
+void learn(Position& pos, istringstream& is)
+{
+  // 生成した棋譜をテスト的に読み込むためのコード
+#if 0
+  fstream fs;
+  fs.open("generated_kifu.sfen", ios::in | ios::binary);
+
+  while (!fs.eof())
+  {
+    u8 data[34];
+    fs.read((char*)data, 34);
+
+    auto sfen = pos.sfen_unpack(data);
+    pos.set(sfen);
+
+    // 評価値は棋譜生成のときに、この34バイトの末尾2バイトに埋めてある。
+    Value value = (Value)*(int16_t*)&data[32];
+
+    cout << pos << value << endl;
+  }
+#endif
+
+  // 書きかけ
+
+}
+
 
 } // namespace Learner
 

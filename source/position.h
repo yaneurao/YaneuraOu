@@ -558,7 +558,7 @@ struct Position
 
   // packされたsfenを解凍する。sfen文字列が返る。
   // gamePly = 0となる。
-  std::string sfen_unpack(u8 data[32]);
+  static std::string sfen_unpack(u8 data[32]);
 
   // 盤面と手駒、手番を与えて、そのsfenを返す。
   static std::string sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly);
