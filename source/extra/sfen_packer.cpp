@@ -368,5 +368,75 @@ std::string Position::sfen_unpack(u8 data[32])
   return sp.unpack();
 }
 
+// sq1,sq2の駒を入れ替えるような指し手。
+bool Position::do_move_by_swapping_pieces(Square sq1, Square sq2)
+{
+  // この実装、意外と面倒くさい。do_move()と同じだけのケアが必要。面倒なのでsfen()化して戻す。
+
+  ASSERT_LV3(!in_check());
+  ASSERT_LV3(sq1 != SQ_NB && sq2 != SQ_NB);
+
+  auto pc1 = piece_on(sq1);
+  auto pc2 = piece_on(sq2);
+
+  // 同じ駒なので交換する意味がない。
+  if (pc1 == pc2)
+    return false;
+
+  ASSERT_LV3(pc1 != NO_PIECE && color_of(pc1) == side_to_move());
+  ASSERT_LV3(pc2 != NO_PIECE && color_of(pc2) == side_to_move());
+
+  // 非合法局面に突入するかの判定
+  // 1) 歩・香が敵陣の1段目に行くか
+  // 2) 桂が敵陣の1,2段目に行くか
+  // 3) 王手されている局面に突入するか
+  // 4) 次の手番で王が取れる局面に突入するか(次の手番は相手側なのでそれはない)
+  // 5) いずれかの玉が3重に王手されている局面に突入するか(王手されていない局面で呼び出しているのでそれはない)
+  // 6) 二歩局面にいくか。
+
+  // pcの駒をtoに持ってきて合法であるかを判定する。
+  auto legal_piece = [this](Piece pc, Square to)
+  {
+    auto pt = type_of(pc);
+    Color c = color_of(pc);
+    Rank f = relative_rank(c,rank_of(to));
+
+    // 1段目の歩・香
+    if ((pt == PAWN || pt == LANCE) && f == RANK_1)
+      return false;
+
+    // 1,2段目の桂
+    if (pt == KNIGHT && f <= RANK_2)
+      return false;
+
+    // 二歩のチェック
+    if (pt == PAWN && (this->pieces(c, PAWN) & FILE_BB[file_of(to)]))
+      return false;
+
+    // 玉を動かすのであればその移動先に敵の利きがすでにあると、次に相手番なので取られてしまう。
+    if (pt == KING && attackers_to(~c, to))
+      return false;
+
+    return true;
+  };
+  if (!legal_piece(pc1, sq2) || !legal_piece(pc2, sq1))
+    return false;
+
+  // 普通にswap。関係する構造体のこととか知らん。
+  // このあとsfenを取得して再セットするからこれで問題ない。
+  swap(board[sq1], board[sq2]);
+
+  // sfenをset()したときにthis_thread()が破壊されるので退避させておく。
+  auto th = this_thread();
+
+  // 以下、do_move()と同じ処理なのは癪なのでちょっと端折る。
+  set(sfen_from_rawdata(board, hand, ~sideToMove, gamePly + 1));
+
+  set_this_thread(th);
+
+  return true;
+}
+
+
 #endif // USE_SFEN_PACKER
 

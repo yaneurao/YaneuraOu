@@ -30,8 +30,8 @@
 //#define YANEURAOU_MINI_ENGINE            // やねうら王mini        (完成2016/02/29)
 //#define YANEURAOU_CLASSIC_ENGINE         // やねうら王classic     (完成2016/04/03)
 //#define YANEURAOU_CLASSIC_TCE_ENGINE     // やねうら王classic tce (完成2016/04/15)
-#define YANEURAOU_2016_MID_ENGINE        // やねうら王2016(MID)   (完成2016/06/28)
-//#define YANEURAOU_2016_MID_ENGINE_LEARN  // やねうら王2016(MID) EVAL_LEARN版   (開発中) // 評価関数パラメーターの学習
+//#define YANEURAOU_2016_MID_ENGINE        // やねうら王2016(MID)   (完成2016/06/28)
+#define YANEURAOU_2016_MID_ENGINE_LEARN  // やねうら王2016(MID) EVAL_LEARN版   (開発中) // 評価関数パラメーターの学習
 //#define YANEURAOU_2016_LATE_ENGINE       // やねうら王2016(LATE)  (開発中)
 //#define RANDOM_PLAYER_ENGINE             // ランダムプレイヤー
 //#define MATE_ENGINE                      // 詰め将棋solverとしてリリースする場合。(開発中)

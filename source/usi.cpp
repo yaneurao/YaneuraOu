@@ -676,7 +676,7 @@ void USI::loop(int argc,char* argv[])
     else
     {
       //    簡略表現として、
-      //> Threads 1
+      //> threads 1
       //      のように指定したとき、
       //> setoption name Threads value 1
       //      と等価なようにしておく。
@@ -685,13 +685,20 @@ void USI::loop(int argc,char* argv[])
       {
         string value;
         is >> value;
-        if (Options.count(token))
+
+        for (auto& o : Options)
         {
-          Options[token] = value;
-          sync_cout << "Options[" << token << "] = " << value << sync_endl;
+          // 大文字、小文字を無視して比較。
+          if (!_stricmp(token.c_str(), o.first.c_str()))
+          {
+            Options[o.first] = value;
+            sync_cout << "Options[" << o.first << "] = " << value << sync_endl;
+
+            goto OPTION_FOUND;
+          }
         }
-        else
-          sync_cout << "No such option: " << token << sync_endl;
+        sync_cout << "No such option: " << token << sync_endl;
+      OPTION_FOUND:;
       }
     }
 

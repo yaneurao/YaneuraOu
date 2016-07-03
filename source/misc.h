@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <thread>
+#include <mutex>
 #include <vector>
 #include <string>
 
@@ -203,6 +204,30 @@ private:
     s ^= s >> 12, s ^= s << 25, s ^= s >> 27;
     return s * 2685821657736338717LL;
   }
+};
+
+// 非同期で呼び出す用の乱数ジェネレータ
+// 使い方はPRNGと全く同じ。
+struct ASYNC_PRNG
+{
+  ASYNC_PRNG(uint64_t seed) : prng(seed) {}
+  ASYNC_PRNG() {}
+
+  // 乱数を一つ取り出す。
+  template<typename T> T rand() {
+    std::unique_lock<Mutex> lk(mutex);
+    return T(prng.rand64());
+  }
+
+  // 0からn-1までの乱数を返す。(一様分布ではないが現実的にはこれで十分)
+  uint64_t rand(size_t n) { 
+    std::unique_lock<Mutex> lk(mutex);
+    return prng.rand<uint64_t>() % n;
+  }
+
+private:
+  Mutex mutex;
+  PRNG prng;
 };
 
 // --------------------

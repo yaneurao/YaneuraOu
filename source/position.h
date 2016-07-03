@@ -213,6 +213,7 @@ struct Position
   Color side_to_move() const { return sideToMove; }
 
   // (将棋の)開始局面からの手数を返す。
+  // 平手の開始局面なら1が返る。(0ではない)
   int game_ply() const { return gamePly; }
 
   // この局面クラスを用いて探索しているスレッドを返す。 
@@ -551,9 +552,6 @@ struct Position
 
   // -- sfen化ヘルパ
 #ifdef USE_SFEN_PACKER
-  // 盤面と手駒、手番を与えて、そのsfenを返す。
-  static std::string sfen_from_rawdata(Piece board [81], Hand hands[2], Color turn, int gamePly);
-
   // packされたsfenを得る。引数に指定したバッファに返す。
   // gamePlyはpackに含めない。
   void sfen_pack(u8 data[32]);
@@ -561,6 +559,15 @@ struct Position
   // packされたsfenを解凍する。sfen文字列が返る。
   // gamePly = 0となる。
   std::string sfen_unpack(u8 data[32]);
+
+  // 盤面と手駒、手番を与えて、そのsfenを返す。
+  static std::string sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly);
+
+  // sq1,sq2の駒を入れ替える。(という指し手だと思うと良い)
+  // 棋譜生成のときなど特殊な用途に用いる。王手されている局面で呼び出してはならない。
+  // もし歩が1段目にあるなど、非合法局面に突入するなら2駒を入れ替えずにfalseを返す。
+  // ※　内部的に一端sfen()化するのだが、そのときにsfen_from_rawdata()を用いるのでsfen_packer.cppに依存。
+  bool do_move_by_swapping_pieces(Square sq1, Square sq2);
 #endif
 
   // -- 利き

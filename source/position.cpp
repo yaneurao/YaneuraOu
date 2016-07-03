@@ -25,7 +25,7 @@ namespace Zobrist {
 // ----------------------------------
 
 template <CheckInfoUpdate ciu>
-void CheckInfo::update(const Position& pos) {
+void CheckInfo::update(const Position& pos) {   
 
   ASSERT_LV1(ciu != CHECK_INFO_UPDATE_NONE);
 
@@ -1466,6 +1466,8 @@ bool Position::pos_is_ok() const
   // 6) 王手している駒は敵駒か
   if (checkers() & pieces(side_to_move()))
     return false;
+
+  // 二歩のチェックなど云々かんぬん..面倒くさいので省略。
 
   return true;
 }

@@ -334,6 +334,7 @@
 #include <memory>
 #include <map>
 #include <iostream>
+#include <mutex>
 #include <cstring>  // std::memcpy()
 #include <cmath>    // log(),std::round()
 #include <climits>  // INT_MAX
@@ -479,6 +480,14 @@ const bool Is64Bit = false;
 #ifdef USE_SSE41
 #define USE_SSE2
 #endif
+
+// ----------------------------
+//     mutex wrapper
+// ----------------------------
+
+// std::mutexをもっと速い実装に差し替えたい時のためにwrapしておく。
+typedef std::mutex Mutex;
+typedef std::condition_variable ConditionVariable;
 
 // ----------------------------
 //     evaluate function

@@ -2,6 +2,22 @@
 やねうら王 更新履歴
 
 
+■　2016/07/03 V3.30
+
+・gensfenで定跡を用いる機能追加。→　うまく動いている。
+・ASYNC_PRNG追加。
+・Mutexのtypedefをconfig.hに移動。
+・gensfenで任意二駒をときどき入れ替える機能追加。USE_SWAPPING_PIECES →　動いてるっぽい。
+・Position::do_move_by_swapping_pieces()追加。→　書けた。うまく動いている。
+・USIオプションの簡略入力のときに大文字小文字の区別をしないように変更。
+・gensfenしたファイルを読み込む機能追加。
+	// かきかけ
+
+// かきかけ
+・makebookコマンド追加。
+・定跡の自動生成機能追加。
+
+
 ■　2016/07/02 V3.29
 
 ・sfen圧縮機能追加。(かきかけ)
@@ -11,6 +27,8 @@
 ・USIで直接 Threads 1 とやったとき、setoption name Threads value 1と等価なようにする。
 ・公式のトップページに書いていた更新履歴、邪魔なので消す。
 ・sfen packer完成。
+・gensfenコマンド、とりあえず完成。
+・gensfenコマンド、packed_sfenで書き出す機能追加。
 
 
 ■　2016/07/01 V3.28

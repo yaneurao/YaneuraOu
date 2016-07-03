@@ -15,10 +15,6 @@
 // 探索時に用いるスレッド
 // --------------------
 
-// std::mutexをもっと速い実装に差し替えたい時のためにwrapしておく。
-typedef std::mutex Mutex;
-typedef std::condition_variable ConditionVariable;
-
 // 探索時に用いる、それぞれのスレッド
 // これを思考スレッド数だけ確保する。
 // ただしメインスレッドはこのclassを継承してMainThreadにして使う。
