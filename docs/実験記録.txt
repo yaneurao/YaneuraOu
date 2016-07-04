@@ -1,6 +1,5 @@
 ﻿
 ToDo: 
-・やねうら王2016Midに新定跡を対応させる。
 ・mate3()書く。
 
 
@@ -12,27 +11,103 @@ ToDo:
 	→　この処理、難しいので定期的に保存するコードを追加することにする。
 	→　追加した。
 
-	Hash 1024
-	MultiPV 10
-	Threads 4
-	makebook think records1.sfen yaneura_book1.db moves 4 depth 32
-	//　やりかけ
+・book mergeの機能、あったほうがいいような気がしなくもない。追加してみる。
+	→　実装した。うまく動いてるっぽい。
 
-	Hash 1024
-	MultiPV 7
-	Threads 4
-	makebook think records1.sfen yaneura_book1.db moves 4 depth 24
-	//　完了
+・定跡絡み。
+	BookEvalDiff 定跡の第一候補手との評価値の差
+	BookEvalBlackLimit 定跡の先手の評価値下限
+	BookEvalWhiteLimit 定跡の後手の評価値下限
+	BookDepthLimit 定跡のdepth下限(0=下限なし)
+
+・2016MidのEVAL_LEARNバージョン、Midと統合。
+
+	#ifdef YANEURAOU_2016_MID_ENGINE_LEARN
+	#define ENGINE_NAME "YaneuraOu 2016 Mid Learn"
+	#define YANEURAOU_2016_MID_ENGINE
+	#define ASSERT_LV 3
+	#define ENABLE_TEST_CMD
+	#define EVAL_KPPT
+	#define USE_SIMPLE_SEE
+	#define USE_MOVE_PICKER_2016Q2
+	#define USE_MATE_1PLY
+	#define USE_ENTERING_KING_WIN
+	#define USE_TIME_MANAGEMENT
+	#define KEEP_PIECE_IN_GENERATE_MOVES
+	#define ONE_PLY_EQ_1
+	// 学習絡みのオプション
+	#define USE_SFEN_PACKER
+	#define EVAL_LEARN
+	// 定跡生成絡み
+	#define ENABLE_MAKEBOOK_CMD
+	#endif
+	→削除。
+
+	VC++2015 (Hyper-V 8コア割当時)
+	===========================
+	Total time (ms) : 101001
+	Nodes searched  : 68270869
+	Nodes/second    : 675942
+
+	gcc PGO(Hyper-V 8コア割当時)
+	===========================
+	Total time (ms) : 101246
+	Nodes searched  : 68270869
+	Nodes/second    : 674306
+
+	ほぼ変わらない…。Hyper-V環境下が特殊なのかも…。
+	VC++2015をupdate3にしたからなのか、gccのほう-fltoを外したからなのか…。
+
+		※　YaneuraOu-2016-Mid_gcc.exeは、Msys2のg++でコンパイルした
+		AVX2用の実行ファイルです。Visual C++2015でコンパイルしたものより10数%速いようです。
+		(こちらを使ったほうがレーティングも+R30～40高いと思います)
+
+	→　削除。
+
+
+・定跡生成のときに思考対象局面の開始手数を指定できるように。startmoves 
+
+	Hash 8192
+	MultiPV 10
+	Threads 12
+	makebook think records1.sfen yaneura_book1.db moves 6 depth 32
+	//　1207nodeだが1nodeに1時間ぐらいかかるので12スレッドでやっても..。
+	// →　give up
+
+	Hash 8192
+	MultiPV 10
+	Threads 12
+	makebook think records1.sfen yaneura_book1.db moves 4 depth 32
+	// 206node。これなら2,3日で終わるか？
+	// 開始2016/07/05 6:50
+
+	Hash 8192
+	MultiPV 10
+	Threads 12
+	makebook think records1.sfen yaneura_book1.db moves 8 depth 24
+	// 4418 node。
+	// 開始2016/07/05 6:50
 
 	Hash 1024
 	MultiPV 5
 	Threads 4
 	makebook think records1.sfen yaneura_book1.db moves 10 depth 18
-	// 途中
+	// 6000ノードほど。1秒で2,3ノード処理できるから1時間かからない模様。
+	// → multipv 5で16手目までやることに。
 
-・book mergeの機能、あったほうがいいような気がしなくもない。追加してみる。
-	→　実装した。うまく動いてるっぽい。
+	Hash 1024
+	MultiPV 5
+	Threads 8
+	makebook think records1.sfen yaneura_book1.db moves 16 depth 18
+	// 51000ノードほど。丸一日あればいけそう。てか32手目まで入れても知れてるような。
+	// depth 18の指し手なんかあっても邪魔なだけか…。まあいいや、生成してみる。
 
+	Hash 8192
+	MultiPV 5
+	Threads 12
+	makebook think records1.sfen yaneura_book1.db moves 32 depth 18
+	// 42万nodeの模様。2,3日で終わるか。そうか。
+	// 開始2016/07/05 6:50
 
 
 ■ 2016/07/04

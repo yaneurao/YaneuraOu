@@ -82,12 +82,6 @@ void USI::extra_option(USI::OptionsMap & o)
   // 定跡の指し手を何手目まで用いるか
   o["BookMoves"] << Option(16, 0, 10000);
 
-  //
-  //   パラメーターの外部からの自動調整
-  //
-
-  o["Param1"] << Option(0, 0, 100000);
-  o["Param2"] << Option(0, 0, 100000);
 
   //  PVの出力の抑制のために前回出力時間からの間隔を指定できる。
 
@@ -97,9 +91,9 @@ void USI::extra_option(USI::OptionsMap & o)
   // 定跡ファイル名
 
   //  standard_book.db 標準定跡
-  //  yaneura_book1.db やねうら定跡1(公開用1)
-  //  yaneura_book2.db やねうら定跡2(公開用2)
-  //  yaneura_book3.db やねうら定跡3(大会用)
+  //  yaneura_book1.db やねうら大定跡(公開用1)
+  //  yaneura_book2.db やねうら超定跡(公開用2)
+  //  yaneura_book3.db やねうら裏定跡(大会用)
   //  user_book1.db    ユーザー定跡1
   //  user_book2.db    ユーザー定跡2
   //  user_book3.db    ユーザー定跡3
@@ -108,6 +102,24 @@ void USI::extra_option(USI::OptionsMap & o)
     , "user_book1.db", "user_book2.db", "user_book3.db" };
   o["BookFile"] << Option(book_list, book_list[0], [](auto& o) { book_name = string(o); });
   book_name = book_list[0];
+
+  //  BookEvalDiff: 定跡の指し手で1番目の候補の指し手と、2番目以降の候補の指し手との評価値の差が、
+  //    この範囲内であれば採用する。(1番目の候補の指し手しか選ばれて欲しくないときは0を指定する)
+  //  BookEvalBlackLimit : 定跡の指し手のうち、先手のときの評価値の下限。これより評価値が低くなる指し手は選択しない。
+  //  BookEvalWhiteLimit : 同じく後手の下限。
+  //  BookDepthLimit : 定跡に登録されている指し手のdepthがこれを下回るなら採用しない。0を指定するとdepth無視。
+
+  o["BookEvalDiff"]       << Option(  30 ,      0, 99999);
+  o["BookEvalBlackLimit"] << Option(   0 , -99999, 99999);
+  o["BookEvalWhiteLimit"] << Option(-140 , -99999, 99999);
+  o["BookDepthLimit"]     << Option(  16 ,      0, 99999);
+
+  //
+  //   パラメーターの外部からの自動調整
+  //
+
+  o["Param1"] << Option(0, 0, 100000);
+  o["Param2"] << Option(0, 0, 100000);
 
 }
 
@@ -2348,24 +2360,61 @@ void MainThread::think()
           }
         }
 
-        // 不成の指し手がRootMovesに含まれていると正しく指せない。
-        const auto& move = move_list[prng.rand(book_move_max)];
-        auto bestMove = move.bestMove; 
-        auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
-        if (it_move != rootMoves.end())
+        // 評価値の差などを反映。
+        if (book_move_max)
         {
-          std::swap(rootMoves[0], *it_move);
-
-          // 2手目の指し手も与えないとponder出来ない。
-          if (move.nextMove != MOVE_NONE)
+          if (move_list[0].depth < (int)Options["BookDepthLimit"])
           {
-            if (rootMoves[0].pv.size() <= 1)
-              rootMoves[0].pv.push_back(MOVE_NONE);
-            rootMoves[0].pv[1] = move.nextMove; // これが合法手でなかったら将棋所が弾くと思う。
+            sync_cout << "info string BookDepthLimit is lower than the depth of this node." << sync_endl;
+            book_move_max = 0;
+          } else {
+            // ベストな評価値の候補手から、この差に収まって欲しい。
+            auto eval_diff = (int)Options["BookEvalDiff"];
+            auto value_limit1 = move_list[0].value - eval_diff;
+            // 先手・後手の評価値下限の指し手を採用するわけにはいかない。
+            auto stm_string = (rootPos.side_to_move() == BLACK) ? "BookEvalBlackLimit" : "BookEvalWhiteLimit";
+            auto value_limit2 = (int)Options[stm_string];
+            auto value_limit = max(value_limit1, value_limit2);
+
+            for (int i = 0; i < book_move_max; ++i)
+            {
+              if (move_list[i].value < value_limit)
+              {
+                // 候補手が減った理由を出力
+                if (value_limit1 == value_limit)
+                  sync_cout << "info string BookEvalDiff = " << eval_diff << " , moves to " << i << sync_endl;
+                else
+                  sync_cout << "info string " << stm_string << " = " << value_limit2 << " , moves to " << i << sync_endl;
+
+                book_move_max = i;
+                break;
+              }
+            }
           }
-          goto ID_END;
         }
-        // 合法手のなかに含まれていなかったので定跡の指し手は指さない。
+
+        if (book_move_max)
+        {
+          // 不成の指し手がRootMovesに含まれていると正しく指せない。
+          const auto& move = move_list[prng.rand(book_move_max)];
+          auto bestMove = move.bestMove;
+          auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
+          if (it_move != rootMoves.end())
+          {
+            std::swap(rootMoves[0], *it_move);
+
+            // 2手目の指し手も与えないとponder出来ない。
+            if (move.nextMove != MOVE_NONE)
+            {
+              if (rootMoves[0].pv.size() <= 1)
+                rootMoves[0].pv.push_back(MOVE_NONE);
+              rootMoves[0].pv[1] = move.nextMove; // これが合法手でなかったら将棋所が弾くと思う。
+            }
+            goto ID_END;
+          }
+        }
+        // 合法手のなかに含まれていなかった、もしくは定跡として選ばれる条件を満たさなかったので
+        // 定跡の指し手は指さない。
       }
     }
   }

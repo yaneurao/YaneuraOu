@@ -225,8 +225,6 @@
 
 #ifdef YANEURAOU_2016_MID_ENGINE
 #define ENGINE_NAME "YaneuraOu 2016 Mid"
-//#define ASSERT_LV 3
-#define ENABLE_TEST_CMD
 #define EVAL_KPPT
 //#define USE_EVAL_HASH
 #define USE_SIMPLE_SEE
@@ -236,22 +234,9 @@
 #define USE_TIME_MANAGEMENT
 #define KEEP_PIECE_IN_GENERATE_MOVES
 #define ONE_PLY_EQ_1
-//#define EVAL_LEARN
-#endif
-
-#ifdef YANEURAOU_2016_MID_ENGINE_LEARN
-#define ENGINE_NAME "YaneuraOu 2016 Mid Learn"
-#define YANEURAOU_2016_MID_ENGINE
-#define ASSERT_LV 3
+// デバッグ絡み
+//#define ASSERT_LV 3
 #define ENABLE_TEST_CMD
-#define EVAL_KPPT
-#define USE_SIMPLE_SEE
-#define USE_MOVE_PICKER_2016Q2
-#define USE_MATE_1PLY
-#define USE_ENTERING_KING_WIN
-#define USE_TIME_MANAGEMENT
-#define KEEP_PIECE_IN_GENERATE_MOVES
-#define ONE_PLY_EQ_1
 // 学習絡みのオプション
 #define USE_SFEN_PACKER
 #define EVAL_LEARN

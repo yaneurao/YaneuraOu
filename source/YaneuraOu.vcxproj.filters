@@ -349,9 +349,6 @@
     <None Include="..\exe\YaneuraOu-2016-mid.exe">
       <Filter>exe</Filter>
     </None>
-    <None Include="..\exe\YaneuraOu-2016-Mid_gcc.exe">
-      <Filter>exe</Filter>
-    </None>
     <None Include="..\exe\YaneuraOu-2016-mid-nosse.exe">
       <Filter>exe</Filter>
     </None>

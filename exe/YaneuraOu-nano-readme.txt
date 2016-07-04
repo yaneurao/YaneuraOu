@@ -41,3 +41,11 @@
 	・静止探索ではRECAPTURESの指し手のみを生成。
 	
 	このあと改造していくためのベースとなる教育的なコードを目指す。
+
+
+	その他は、docs/
+			https://github.com/yaneurao/YaneuraOu/tree/master/docs
+	配下にある、
+		解説.txt
+		USI拡張コマンド.txt
+	なども併せてご覧ください。

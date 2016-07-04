@@ -26,9 +26,9 @@ TryRule トライルール
 BookFile 定跡ファイル
 # このコンボボックスの値
 standard_book.db 標準定跡
-yaneura_book1.db やねうら定跡1(公開用1)
-yaneura_book2.db やねうら定跡2(公開用2)
-yaneura_book3.db やねうら定跡3(大会用)
+yaneura_book1.db やねうら大定跡1
+yaneura_book2.db やねうら超定跡2
+yaneura_book3.db やねうら裏定跡3
 user_book1.db ユーザー定跡1
 user_book2.db ユーザー定跡2
 user_book3.db ユーザー定跡3
@@ -38,6 +38,12 @@ BookEvalDiff 定跡の幅(0=無,30=狭,100=広)
 BookLowLimitBlack 定跡で採用する評価値下限(先手)
 BookLowLimitWhite 定跡で採用する評価値下限(後手)
 BookOnlyThinkingMove 定跡では思考した指し手のみ用いる
+
+BookEvalDiff 定跡の第一候補手との評価値の差
+BookEvalBlackLimit 定跡の先手の評価値下限
+BookEvalWhiteLimit 定跡の後手の評価値下限
+BookDepthLimit 定跡のdepth下限(0=下限なし)
+
 
 EvalDir 評価関数格納フォルダ
 PvInterval PVの出力の抑制時間[ms]

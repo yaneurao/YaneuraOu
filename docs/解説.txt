@@ -219,7 +219,7 @@ Update1までだと、リンク時に「内部エラー」と表示されてコ�
 	#YANEURAOU-DB2016 1.00
 	
 > makebook from_sfen book.sfen standard_book.db moves 16
-※　	config.hでENABLE_MAKEBOOK_CMDをdefineしてコンパイルしてある実行ファイルが必要。
+	※　	やねうら王2016Midなど、この機能に対応している思考エンジンが必要。
 
 1行1局の棋譜を読み込ませてそれを上のフォーマットに変換する。standard_book.dbになる。
 各局、"moves"のあとに指定した手数までを出力する。このファイルを思考エンジンの実行ファイル配下のbookフォルダに配置する。
@@ -227,7 +227,7 @@ Update1までだと、リンク時に「内部エラー」と表示されてコ�
 floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡を作成したものをexe/book/standard_book.dbに入れてあります。ご自由にお使いください。
 
 > makebook think 2016.sfen yaneura_book.db moves 16 depth 32
-※　	shogi.hでYANEURAOU_2016_MID_ENGINE_LEARNをdefineしてコンパイルしてある実行ファイルが必要。
+	※　	やねうら王2016Midなど、この機能に対応している思考エンジンが必要。
 
 	2016.sfenという棋譜を読みこみ、その16手目までをdepth 32で思考させて、
 	そのときの上位3手を定跡ファイルに書き出す。
@@ -248,7 +248,14 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 		MultiPV 5
 		makebook think 2016.sfen user_book1.db moves 16 depth 32
 
+> makebook think 2016.sfen yaneura_book.db startmoves 5 moves 16 depth 32
+
+	startmovesを指定すると、思考対象局面をそこからにします。(省略時は1が指定されているものとみなされます。)
+	上の例だと、(初期局面を1手目として)5手目から16手目の局面を思考対象とします。
+
 > makebook merge yaneura_book1.db yaneura_book2.db yaneura_book3.db
+	※　	やねうら王2016Midなど、この機能に対応している思考エンジンが必要。
+
 	定跡のマージ機能。yaneura_book1.dbとyaneura_book2.dbとをマージ(合体)させてyaneura_book3.dbを作成する。
 
 	・1つの局面に対して、深く探索されたほうの結果を優先。

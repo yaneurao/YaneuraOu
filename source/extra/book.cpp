@@ -118,7 +118,8 @@ namespace Book
       string book_name;
       is >> book_name;
 
-      // 手数、探索深さ
+      // 開始手数、終了手数、探索深さ
+      int start_moves = 1;
       int moves = 16;
       int depth = 24;
       while (true)
@@ -131,6 +132,8 @@ namespace Book
           is >> moves;
         else if (token == "depth")
           is >> depth;
+        else if (from_thinking && token == "startmoves")
+          is >> start_moves;
         else
         {
           cout << "Error! : Illigal token = " << token << endl;
@@ -138,9 +141,10 @@ namespace Book
         }
       }
 
-      cout << "read sfen moves " << moves;
+      if (from_sfen)
+        cout << "read sfen moves " << moves << endl;
       if (from_thinking)
-        cout << " depth = " << depth;
+        cout << "read sfen moves from " << start_moves << " to " << moves << " , depth = " << depth << endl;
 
       vector<string> sfens;
       read_all_lines(sfen_name, sfens);
@@ -269,7 +273,7 @@ namespace Book
           }
         }
         
-#if 1
+#if 0
         // 思考対象局面が求まったので、sfenを表示させてみる。
         cout << "thinking sfen = " << endl;
         for (auto& s : sfens_)

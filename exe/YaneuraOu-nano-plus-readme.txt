@@ -36,3 +36,11 @@
     ・LMR,futilityなど、教科書に載っているような基本的な枝刈り以外の手法を極力使わない。
 
     このあと改造していくためのベースとなる教育的なコードを目指す。
+
+
+	その他は、docs/
+			https://github.com/yaneurao/YaneuraOu/tree/master/docs
+	配下にある、
+		解説.txt
+		USI拡張コマンド.txt
+	なども併せてご覧ください。
