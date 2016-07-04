@@ -337,6 +337,8 @@
 #include <map>
 #include <iostream>
 #include <mutex>
+#include <thread>   // このあとMutexをtypedefするので
+#include <condition_variable>
 #include <cstring>  // std::memcpy()
 #include <cmath>    // log(),std::round()
 #include <climits>  // INT_MAX

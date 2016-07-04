@@ -10,6 +10,9 @@
 ・bookまわりもMultiThinkクラスを用いて書き直した。そこそこ綺麗に書き直せた。
 ・Mid2016のsearch/qsearchのスタブ、デフォルトでsilentモードとした。
 ・is_ready()のほう、引数にPosition&を取るのやめる。これがあると余計な依存性が発生する。
+・g++でbuild出来なくなっていたの修正。
+・g++でbuildするとCFLAGS   += -fltoをつけるとセグフォで落ちるので、Makefileからこのオブション、削除。
+
 // やりかけ
 bookの生成モード,gensfenの動作テスト
 
