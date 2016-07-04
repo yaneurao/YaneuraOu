@@ -2,6 +2,18 @@
 やねうら王 更新履歴
 
 
+■　2016/07/04 V3.31
+
+・スレッドにまたがってsearchを個別に呼び出すworker用のclass追加。extra/multi_think.cpp
+・APRNG、意味ない気がしてきた。削除。
+・gensfenまわり、MultiThinkクラスを用いて書き直し。そこそこ綺麗に書き直せた。
+・bookまわりもMultiThinkクラスを用いて書き直した。そこそこ綺麗に書き直せた。
+・Mid2016のsearch/qsearchのスタブ、デフォルトでsilentモードとした。
+・is_ready()のほう、引数にPosition&を取るのやめる。これがあると余計な依存性が発生する。
+// やりかけ
+bookの生成モード,gensfenの動作テスト
+
+
 ■　2016/07/03 V3.30
 
 ・gensfenで定跡を用いる機能追加。→　うまく動いている。

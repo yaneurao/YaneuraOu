@@ -7,7 +7,7 @@
 
 #include "all.h"
 
-extern void is_ready(Position& pos);
+extern void is_ready();
 
 // ----------------------------------
 //  USI拡張コマンド "perft"(パフォーマンステスト)
@@ -1100,7 +1100,7 @@ void bench_cmd(Position& pos, istringstream& is)
     read_all_lines(fenFile, fens);
 
   // 評価関数の読み込み等
-  is_ready(pos);
+  is_ready();
 
   int64_t nodes = 0;
   Search::StateStackPtr st;

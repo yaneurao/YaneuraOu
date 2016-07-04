@@ -39,19 +39,14 @@
 #include "../thread.h"
 #include "../position.h"
 #include "../extra/book.h"
+#include "multi_think.h"
 
 using namespace std;
 
-extern void is_ready(Position& pos);
 extern Book::MemoryBook book;
 
 namespace Learner
 {
-
-// いまのところ、やねうら王2016Midしか、このスタブを持っていない。
-extern pair<Value, vector<Move> >  search(Position& pos, Value alpha, Value beta, int depth);
-extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta);
-
 
 // -----------------------------------
 //    局面のファイルへの書き出し
@@ -60,9 +55,8 @@ extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta
 // Sfenを書き出して行くためのヘルパクラス
 struct SfenWriter
 {
-  SfenWriter(int thread_num,u64 sfen_count_limit_)
+  SfenWriter(int thread_num)
   {
-    sfen_count_limit = sfen_count_limit_;
     sfen_buffers.resize(thread_num);
     fs.open("generated_kifu.sfen", ios::out | ios::binary);
   }
@@ -73,12 +67,6 @@ struct SfenWriter
   // 80億=8G , 1局面100バイトとしたら 800GB。
   
   const size_t FILE_WRITE_INTERVAL = 1000;
-
-  // 停止信号。これがtrueならslave threadは終了。
-  bool is_stop() const
-  {
-    return sfen_count > sfen_count_limit;
-  }
 
 #ifdef  WRITE_PACKED_SFEN
   struct PackedSfenValue
@@ -166,16 +154,21 @@ private:
 //  棋譜を生成するworker(スレッドごと)
 // -----------------------------------
 
-// ループ回数の上限とカウンター
-// 排他してないけど、まあいいや。回数、そこまで厳密でなくて問題ない。
-volatile u64 g_loop_max;
-volatile u64 g_loop_count;
+// 複数スレッドでsfenを生成するためのクラス
+struct MultiThinkGenSfen: public MultiThink
+{
+  MultiThinkGenSfen(int search_depth_, SfenWriter& sw_) : search_depth(search_depth_), sw(sw_) {}
+  virtual void MultiThinkGenSfen::thread_worker(size_t thread_id);
 
-ASYNC_PRNG prng(20160101);
+  //  search_depth = 通常探索の探索深さ
+  int search_depth;
+
+  // sfenの書き出し器
+  SfenWriter& sw;
+};
 
 //  thread_id    = 0..Threads.size()-1
-//  search_depth = 通常探索の探索深さ
-void gen_sfen_worker(size_t thread_id, int search_depth, SfenWriter& sw)
+void MultiThinkGenSfen::thread_worker(size_t thread_id)
 {
   const int MAX_PLY = 256; // 256手までテスト
   StateInfo state[MAX_PLY + 64]; // StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
@@ -185,8 +178,8 @@ void gen_sfen_worker(size_t thread_id, int search_depth, SfenWriter& sw)
   // 定跡の指し手を用いるモード
   int book_ply = Options["BookMoves"];
 
-  // g_loop_maxになるまで繰り返し
-  while (++g_loop_count <= g_loop_max)
+  // 規定回数回になるまで繰り返し
+  while (get_next_loop_count() != UINT64_MAX)
   {
     auto& pos = Threads[thread_id]->rootPos;
     pos.set_hirate();
@@ -217,7 +210,7 @@ void gen_sfen_worker(size_t thread_id, int search_depth, SfenWriter& sw)
 
           const auto& move_list = it->second;
 
-          const auto& move = move_list[prng.rand(move_list.size())];
+          const auto& move = move_list[rand(move_list.size())];
           auto bestMove = move.bestMove;
           // この指し手に不成があってもLEGALであるならこの指し手で進めるべき。
           if (pos.pseudo_legal(bestMove) && pos.legal(bestMove))
@@ -232,13 +225,13 @@ void gen_sfen_worker(size_t thread_id, int search_depth, SfenWriter& sw)
 
       {
         // 3手読みの評価値とPV(最善応手列)
-        auto pv_value1 = Learner::search(pos, -VALUE_INFINITE, VALUE_INFINITE, search_depth);
+        auto pv_value1 = search(pos, -VALUE_INFINITE, VALUE_INFINITE, search_depth);
         auto value1 = pv_value1.first;
         auto pv1 = pv_value1.second;
 
 #if 0
         // 0手読み(静止探索のみ)の評価値とPV(最善応手列)
-        auto pv_value2 = Learner::qsearch(pos, -VALUE_INFINITE, VALUE_INFINITE);
+        auto pv_value2 = qsearch(pos, -VALUE_INFINITE, VALUE_INFINITE);
         auto value2 = pv_value2.first;
         auto pv2 = pv_value2.second;
 #endif
@@ -255,6 +248,7 @@ void gen_sfen_worker(size_t thread_id, int search_depth, SfenWriter& sw)
         u8 data[32];
         // packを要求されているならpackされたsfenとそのときの評価値を書き出す。
         pos.sfen_pack(data);
+        // このwriteがスレッド排他を行うので、ここでの排他は不要。
         sw.write(thread_id, data, value1);
 
 #ifdef TEST_UNPACK_SFEN
@@ -288,9 +282,14 @@ void gen_sfen_worker(size_t thread_id, int search_depth, SfenWriter& sw)
 
 #else // WRITE_PACKED_SFEN
 
-        // sfenとそのときの評価値を書き出す。
-        string line = pos.sfen() + "," + to_string(value1) + "\n";
-        sw.write(thread_id, line);
+        {
+          // C++のiostreamに対するスレッド排他は自前で行なう必要がある。
+          std::unique_lock<Mutex> lk(io_mutex);
+
+          // sfenとそのときの評価値を書き出す。
+          string line = pos.sfen() + "," + to_string(value1) + "\n";
+          sw.write(thread_id, line);
+      }
 #endif
 
 
@@ -350,19 +349,19 @@ void gen_sfen_worker(size_t thread_id, int search_depth, SfenWriter& sw)
       // このイベントは、王手がかかっていない局面において一定の確率でこの指し手が発生する。
       // 王手がかかっていると王手回避しないといけないので良くない。
       // 二枚とも歩が選ばれる可能性がそこそこあるため、1/5に設定しておく。
-      if (prng.rand(5) == 0 && !pos.in_check())
+      if (rand(5) == 0 && !pos.in_check())
       {
         for (int retry = 0; retry < 10; ++retry)
         {
           // 手番側の駒を2駒入れ替える。
 
           // 与えられたBitboardからランダムに1駒を選び、そのSquareを返す。
-          auto get_one = [](Bitboard pieces)
+          auto get_one = [this](Bitboard pieces)
           {
             // 駒の数
             int num = pieces.pop_count();
             // 何番目かの駒
-            int n = (int)prng.rand(num) + 1;
+            int n = (int)rand(num) + 1;
             Square sq = SQ_NB;
             for (int i = 0; i < n; ++i)
               sq = pieces.pop();
@@ -424,30 +423,11 @@ void gen_sfen(Position& pos, istringstream& is)
     << " , thread_num (set by USI setoption) = " << thread_num
     << endl;
 
-  // 評価関数の読み込み等
-  is_ready(pos);
-
-  // 途中でPVの出力されると邪魔。
-  Search::Limits.silent = true;
-
-  SfenWriter sw(thread_num,loop_max);
-
-  // スレッド数だけ作って実行。
-  g_loop_max = loop_max;
-  g_loop_count = 0;
-
-  vector<std::thread> threads;
-  for (size_t i = 0; i < thread_num; ++i)
-  {
-    threads.push_back( std::thread([i, search_depth,&sw] { gen_sfen_worker(i, search_depth, sw);  }));
-  }
-
-  // すべてのthreadの終了待ち
-
-  for (auto& th:threads)
-  {
-    th.join();
-  }
+  // Options["Threads"]の数だけスレッドを作って実行。
+  SfenWriter sw(thread_num);
+  MultiThinkGenSfen multi_think(search_depth,sw);
+  multi_think.set_loop_max(loop_max);
+  multi_think.go_think();
 
   std::cout << "gen_sfen finished." << endl;
 }

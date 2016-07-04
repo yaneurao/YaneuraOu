@@ -9,20 +9,10 @@
 #include "../misc.h"
 #include "../search.h"
 #include "../thread.h"
+#include "../learn/multi_think.h"
 
 using namespace std;
 using std::cout;
-
-// 局面を与えて、その局面で思考させるために、やねうら王2016Midが必要。
-#if defined(ENABLE_MAKEBOOK_CMD) && defined(EVAL_LEARN) && defined(YANEURAOU_2016_MID_ENGINE)
-namespace Learner
-{
-  // いまのところ、やねうら王2016Midしか、このスタブを持っていない。
-  extern pair<Value, vector<Move> >  search(Position& pos, Value alpha, Value beta, int depth);
-  extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta);
-}
-extern void is_ready(Position& pos);
-#endif
 
 namespace Book
 {
@@ -33,43 +23,34 @@ namespace Book
 
   // 局面を与えて、その局面で思考させるために、やねうら王2016Midが必要。
   #if defined(EVAL_LEARN) && defined(YANEURAOU_2016_MID_ENGINE)
+  struct MultiThinkBook : public MultiThink
+  {
+    MultiThinkBook(int search_depth_, MemoryBook & book_) : search_depth(search_depth_), book(book_) {}
+    virtual void MultiThinkBook::thread_worker(size_t thread_id);
 
-  // ループ回数の上限とカウンター
-  volatile u64 g_loop_max;
-  volatile u64 g_loop_count;
+    // 定跡を作るために思考する局面
+    vector<string> sfens;
 
-  // ↑のg_loop_countをカウントするときに用いるmutex
-  Mutex count_mutex;
-  // BookPosをwriteするときのmutex
-  Mutex write_mutex;
+    // 定跡を作るときの通常探索の探索深さ
+    int search_depth;
 
-  // 定跡を作るために思考する局面
-  vector<string> sfens;
+    // メモリ上の定跡ファイル(ここに追加していく)
+    MemoryBook& book;
+  };
+
 
   //  thread_id    = 0..Threads.size()-1
   //  search_depth = 通常探索の探索深さ
-  void think_worker(size_t thread_id , int search_depth , MemoryBook &book)
+  void MultiThinkBook::thread_worker(size_t thread_id )
   {
     // g_loop_maxになるまで繰り返し
-    while (true)
+    u64 id;
+    while ((id = get_next_loop_count()) != UINT64_MAX)
     {
-      std::string sfen;
-      {
-        std::unique_lock<Mutex> lk(count_mutex);
-
-        // 全件終わったので終了。
-        if (g_loop_count >= g_loop_max)
-          return;
-
-        sfen = sfens[g_loop_count++];
-      }
+      auto sfen = sfens[id];
 
       auto& pos = Threads[thread_id]->rootPos;
       pos.set(sfen);
-
-      // Positionに対して従属スレッドの設定が必要。
-      // 並列化するときは、Threads (これが実体が vector<Thread*>なので、
-      // Threads[0]...Threads[thread_num-1]までに対して同じようにすれば良い。
       auto th = Threads[thread_id];
       pos.set_this_thread(th);
 
@@ -77,7 +58,7 @@ namespace Book
         continue;
 
       // depth手読みの評価値とPV(最善応手列)
-      Learner::search(pos, -VALUE_INFINITE, VALUE_INFINITE, search_depth);
+      search(pos, -VALUE_INFINITE, VALUE_INFINITE, search_depth);
 
       // MultiPVで局面を足す、的な
 
@@ -95,7 +76,7 @@ namespace Book
       }
 
       {
-        std::unique_lock<Mutex> lk(write_mutex);
+        std::unique_lock<Mutex> lk(io_mutex);
         // 前のエントリーは上書きされる。
         book.book_body[sfen] = move_list;
       }
@@ -225,16 +206,12 @@ namespace Book
       {
         // thinking_sfensを並列的に探索して思考する。
         // スレッド数(これは、USIのsetoptionで与えられる)
-        u32 thread_num = Options["Threads"];
         u32 multi_pv = Options["MultiPV"];
 
-        // 評価関数の読み込み等
-        is_ready(pos);
-
-        // 途中でPVの出力されると邪魔。
-        Search::Limits.silent = true;
-
         // 思考する局面をsfensに突っ込んで、この局面数をg_loop_maxに代入しておき、この回数だけ思考する。
+        MultiThinkBook multi_think(depth, book);
+
+        auto& sfens_ = multi_think.sfens;
         sfens.clear();
         for (auto& s : thinking_sfens)
         {
@@ -244,34 +221,18 @@ namespace Book
 
           // MemoryBookにエントリーが存在しないなら無条件で、この局面について思考して良い。
           if (it == book.book_body.end())
-            sfens.push_back(s);
+            sfens_.push_back(s);
           else
           {
             auto& bp = it->second;
             if (bp[0].depth < depth // 今回の探索depthのほうが深い
               || (bp[0].depth == depth && bp.size() < multi_pv) // 探索深さは同じだが今回のMultiPVのほうが大きい
               )
-              sfens.push_back(s);
+              sfens_.push_back(s);
           }
         }
-
-        g_loop_max = sfens.size();
-        g_loop_count = 0;
-
-        // スレッド数だけ作って実行。
-
-        vector<std::thread> threads;
-        for (size_t i = 0; i < thread_num; ++i)
-        {
-          threads.push_back(std::thread([i, depth , &book] { think_worker(i, depth , book);  }));
-        }
-
-        // すべてのthreadの終了待ち
-
-        for (auto& th : threads)
-        {
-          th.join();
-        }
+        multi_think.set_loop_max(sfens_.size());
+        multi_think.go_think();
 
       }
 

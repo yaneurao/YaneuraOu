@@ -139,6 +139,9 @@
     <ClInclude Include="engine\help-mate-engine\help-mate-search.h">
       <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClInclude>
+    <ClInclude Include="learn\multi_think.h">
+      <Filter>リソース ファイル\learn</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -254,6 +257,9 @@
     </ClCompile>
     <ClCompile Include="extra\sfen_packer.cpp">
       <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="learn\multi_think.cpp">
+      <Filter>リソース ファイル\learn</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

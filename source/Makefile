@@ -65,7 +65,8 @@ SOURCES  = shogi.cpp                                                           \
 	engine/2016-mid-engine/2016-mid-search.cpp                                 \
 	engine/user-engine/user-search.cpp                                         \
 	engine/2016-late-engine/2016-late-search.cpp				               \
-	learn/learner.cpp				               
+	learn/learner.cpp				                                           \
+	learn/multi_think.cpp				               
 																               
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_2016_LATE_ENGINE)				               
 	SOURCES += engine/2016-late-engine/2016-late-search.cpp                    \

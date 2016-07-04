@@ -41,6 +41,10 @@ source/
 	timeman.cpp         思考時間計算用。
     test_cmd.cpp        UnitTestなど。USI拡張コマンドの"test"コマンド関係。
 
+  learn/                評価関数パラメーターの学習関連
+    learner.cpp         棋譜自動生成等(あとで整理する予定)
+	multi_think.h/cpp   マルチスレッドで、Search::think関数を呼び出したいときに用いるthread worker
+
   eval/
 	evaluate_no_eval.cpp      評価関数なしのときのダミーヘッダ
 	evaluate_material.cpp     駒割りに関する評価関数
