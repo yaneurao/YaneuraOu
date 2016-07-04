@@ -12,9 +12,15 @@
 ・is_ready()のほう、引数にPosition&を取るのやめる。これがあると余計な依存性が発生する。
 ・g++でbuild出来なくなっていたの修正。
 ・g++でbuildするとCFLAGS   += -fltoをつけるとセグフォで落ちるので、Makefileからこのオブション、削除。
-
-// やりかけ
-bookの生成モード,gensfenの動作テスト
+・やねうら王2016Midにユーザー定跡機能追加。(user_book1.db～user_book3.dbまで)
+・gensfenの動作テスト →　gensfenうまく動いている。
+・makebook thinkのときに思考対象局面のsfenを表示するように。
+・makebookコマンドで無効なパラメーターが来たときのエラー出力追加。
+・解説.txtのmakebookコマンドの説明がmoveとなっていたのでmovesに修正。
+・makebookコマンドでMOVE_WIN/MOVE_RESIGNの処理してなかったので追加。
+・局後学習機能 →　対局中にsfenを出力しておけばいいのだが、将棋所等でcsaファイル出力すればいいから…要らないか…。
+・bookの生成モード動作テスト → うまく動くようになった。
+・2016Midがconfig.hでLONG_EFFECT_LIBRARYをdefineしたままだったので修正。
 
 
 ■　2016/07/03 V3.30

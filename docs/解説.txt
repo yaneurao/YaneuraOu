@@ -226,7 +226,7 @@ Update1までだと、リンク時に「内部エラー」と表示されてコ�
 
 floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡を作成したものをexe/book/standard_book.dbに入れてあります。ご自由にお使いください。
 
-> makebook think 2016.sfen yaneura_book.db move 16 depth 32
+> makebook think 2016.sfen yaneura_book.db moves 16 depth 32
 ※　	shogi.hでYANEURAOU_2016_MID_ENGINE_LEARNをdefineしてコンパイルしてある実行ファイルが必要。
 
 	2016.sfenという棋譜を読みこみ、その16手目までをdepth 32で思考させて、
@@ -234,8 +234,16 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 
 	・定跡ファイル上に、すでにそれ以上深い深さで探索した結果がある場合は、その局面については探索しない。
 	・同じ深さの場合、登録されている手の数がMultiPVで指定されている手の数以上登録されている場合もその局面については探索しない。
-	・USI_Hash、Threads、MultiPVの設定に従い思考されるので、事前にこれらのパラメーターを
+	・Hash、Threads、MultiPVの設定に従い思考されるので、事前にこれらのパラメーターを
 	適切な値に設定しておくこと。
+
+	例)
+	Hashメモリ4096MB、スレッド数8(それぞれのスレッドが1局面ずつ担当して検討)、MultiPV 5(それぞれの局面で候補手5手書き出し)、
+	棋譜2016.sfenの16手目までを深さ32で探索して定跡ファイルuser_book1(すでに存在すれば該当局面のみを上書き更新)を生成。
+		Hash 4096
+		Threads 8
+		MultiPV 5
+		makebook think 2016.sfen user_book1.db moves 16 depth 32
 
 
 ■　起動時のコマンドの指定

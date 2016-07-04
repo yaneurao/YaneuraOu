@@ -94,9 +94,9 @@ namespace Book
     is >> token;
 
     // sfenから生成する
-    bool from_sfen = "from_sfen";
+    bool from_sfen = token == "from_sfen";
     // 自ら思考して生成する
-    bool from_thinking = "think";
+    bool from_thinking = token == "think";
 
     #if !defined(EVAL_LEARN) || !defined(YANEURAOU_2016_MID_ENGINE)
     if (from_thinking)
@@ -117,15 +117,23 @@ namespace Book
       is >> book_name;
 
       // 手数、探索深さ
-      is >> token;
       int moves = 16;
       int depth = 24;
-      while (token != "")
+      while (true)
       {
+        token = "";
+        is >> token;
+        if (token == "")
+          break;
         if (token == "moves")
           is >> moves;
         else if (token == "depth")
           is >> depth;
+        else
+        {
+          cout << "Error! : Illigal token = " << token << endl;
+          return;
+        }
       }
 
       cout << "read sfen moves " << moves;
@@ -136,9 +144,21 @@ namespace Book
       read_all_lines(sfen_name, sfens);
 
       cout << "..done" << endl;
-      cout << "parse";
 
       MemoryBook book;
+
+      if (from_thinking)
+      {
+        cout << "read book..";
+        // 初回はファイルがないので読み込みに失敗するが無視して続行。
+        if (read_book(book_name, book) !=0 )
+        {
+          cout << "..but , create new file." << endl;
+        } else
+          cout << "..done" << endl;
+      }
+
+      cout << "parse..";
 
       // 思考すべき局面のsfen
       unordered_set<string> thinking_sfens;
@@ -158,31 +178,47 @@ namespace Book
         } while (token == "startpos" || token == "moves");
 
         vector<Move> m;    // 初手から(moves+1)手までの指し手格納用
-        m.resize(moves + 1);
         vector<string> sf; // 初手から(moves+0)手までのsfen文字列格納用
-        sf.resize(moves + 1);
 
         StateInfo si[MAX_PLY];
 
         pos.set_hirate();
 
-        for (int i = 0; i < moves + 1; ++i)
+        // sfenから直接生成するときはponderのためにmoves + 1の局面まで調べる必要がある。
+        for (int i = 0; i < moves + (from_sfen ? 1 : 0); ++i)
         {
-          m[i] = move_from_usi(pos, token);
-          if (m[i] == MOVE_NONE || !pos.pseudo_legal(m[i]) || !pos.legal(m[i]))
+          // 初回は、↑でfeedしたtokenが入っているはず。
+          if (i != 0)
           {
-            cout << "ilegal move : line = " << (k + 1) << " , " << sfen << " , move = " << token << endl;
+            token = "";
+            iss >> token;
+          }
+          if (token == "")
+            break;
+
+          Move move = move_from_usi(pos, token);
+          // illigal moveであるとMOVE_NONEが返る。
+          if (move == MOVE_NONE)
+          {
+            cout << "illegal move : line = " << (k + 1) << " , " << sfen << " , move = " << token << endl;
             break;
           }
-          sf[i] = pos.sfen();
-          pos.do_move(m[i], si[i]);
-          iss >> token;
+
+          // MOVE_WIN,MOVE_RESIGNでは局面を進められないのでここで終了。
+          if (!is_ok(move))
+            break;
+
+          sf.push_back(pos.sfen());
+          m.push_back(move);
+
+          pos.do_move(move, si[i]);
         }
         
-        for (int i = 0; i < moves; ++i)
+        for (int i = 0; i < m.size() - (from_sfen ? 1 : 0) ; ++i)
         {
           if (from_sfen)
           {
+            // この場合、m[i + 1]が必要になるので、m.size()-1までしかループできない。
             BookPos bp(m[i], m[i + 1], VALUE_ZERO, 32, 1);
             insert_book_pos(book, sf[i], bp);
           }
@@ -212,7 +248,6 @@ namespace Book
         MultiThinkBook multi_think(depth, book);
 
         auto& sfens_ = multi_think.sfens;
-        sfens.clear();
         for (auto& s : thinking_sfens)
         {
           
@@ -231,6 +266,14 @@ namespace Book
               sfens_.push_back(s);
           }
         }
+        
+#if 1
+        // 思考対象局面が求まったので、sfenを表示させてみる。
+        cout << "thinking sfen = " << endl;
+        for (auto& s : sfens_)
+          cout << "sfen " << s << endl;
+#endif
+
         multi_think.set_loop_max(sfens_.size());
         multi_think.go_think();
 
