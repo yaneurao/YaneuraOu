@@ -2522,6 +2522,8 @@ namespace Learner
     // 探索深さ無限
     auto& limits = Search::Limits;
     limits.infinite = true;
+    // PVを表示されると邪魔なので消しておく。
+    limits.silent = true;
 
     auto th = pos.this_thread();
     th->maxPly = 0;
@@ -2547,9 +2549,6 @@ namespace Learner
 
   pair<Value, vector<Move> > search(Position& pos, Value alpha , Value beta , int depth)
   {
-    // 途中でPVの出力されると邪魔。
-    Search::Limits.silent = true;
-
     Stack stack[MAX_PLY + 7], *ss = stack + 5;
     memset(ss - 5, 0, 8 * sizeof(Stack));
 
@@ -2621,9 +2620,6 @@ namespace Learner
   // 同じく静止探索。
   pair<Value,vector<Move> > qsearch(Position& pos, Value alpha, Value beta)
   {
-    // 途中でPVの出力されると邪魔。
-    Search::Limits.silent = true;
-
     Stack stack[MAX_PLY + 7], *ss = stack + 5;
     memset(ss - 5, 0, 8 * sizeof(Stack));
 

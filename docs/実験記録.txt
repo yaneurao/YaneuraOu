@@ -41,8 +41,32 @@ ToDo:
 	Threads 4
 	makebook think records1.sfen yaneura_book1.db moves 4 depth 24
 
+	→ 4スレのはずが、タスクマネージャーでCPU負荷100%。おかしい…。
+
+	Hash 1024
+	MultiPV 5
+	Threads 2
+	makebook think records1.sfen yaneura_book1.db moves 8 depth 18
+
+	2スレでCPU負荷50%。おかしい。
+	→　理由はよくわからないがHT無効になったのかも。
+
+	Hash 1024
+	MultiPV 5
+	Threads 4
+	makebook think records1.sfen yaneura_book1.db moves 8 depth 18
+	とりあえず16手目までdepth18で回しておく。
+	→　あかん。結構ある。これは死ぬ。8手目まで回して、あとは新しいPC来てからでいいや。
+
+
 ・やねうら王2016MidのLEARNバージョン、配布するか？
 	→　もうしばらくしてからでいいような…。
+	→　やねうら王2016MIDと統合してもいいような…。
+
+・g++で-fltoでセグフォになる件、LONG_EFFECT_LIBRARY絡みか？
+　　→　そうではなさげ。
+    →　shogi.cppでSearch::init() (やねうら王2016Mid)が呼び出された瞬間に落ちている模様。g++のbugくさい。
+	これ以上、どうしようもないので-fltoは付けないということにするしかない。
 
 
 ■　2016/07/02
