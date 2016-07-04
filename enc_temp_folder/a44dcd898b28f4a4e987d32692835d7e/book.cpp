@@ -275,8 +275,6 @@ namespace Book
         for (auto& s : sfens_)
           cout << "sfen " << s << endl;
 #endif
-        // 思考対象node数の出力。
-        cout << "total " << sfens_.size() << " nodes " << endl;
 
         multi_think.set_loop_max(sfens_.size());
 

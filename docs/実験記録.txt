@@ -1,6 +1,39 @@
 ﻿
 ToDo: 
+・やねうら王2016Midに新定跡を対応させる。
 ・mate3()書く。
+
+
+■ 2016/07/05
+
+] V3.32
+
+・定跡生成中の中断を実装する。
+	→　この処理、難しいので定期的に保存するコードを追加することにする。
+	→　追加した。
+
+	Hash 1024
+	MultiPV 10
+	Threads 4
+	makebook think records1.sfen yaneura_book1.db moves 4 depth 32
+	//　やりかけ
+
+	Hash 1024
+	MultiPV 7
+	Threads 4
+	makebook think records1.sfen yaneura_book1.db moves 4 depth 24
+	//　完了
+
+	Hash 1024
+	MultiPV 5
+	Threads 4
+	makebook think records1.sfen yaneura_book1.db moves 10 depth 18
+	// 途中
+
+・book mergeの機能、あったほうがいいような気がしなくもない。追加してみる。
+	→　実装した。うまく動いてるっぽい。
+
+
 
 ■ 2016/07/04
 
@@ -39,24 +72,26 @@ ToDo:
 	Hash 1024
 	MultiPV 7
 	Threads 4
-	makebook think records1.sfen yaneura_book1.db moves 4 depth 24
-
-	→ 4スレのはずが、タスクマネージャーでCPU負荷100%。おかしい…。
+	makebook think records1.sfen yaneura_book1.db moves 4 depth 24 →　完了
 
 	Hash 1024
-	MultiPV 5
-	Threads 2
-	makebook think records1.sfen yaneura_book1.db moves 8 depth 18
-
-	2スレでCPU負荷50%。おかしい。
-	→　理由はよくわからないがHT無効になったのかも。
+	MultiPV 10
+	Threads 4
+	makebook think records1.sfen yaneura_book1.db moves 4 depth 32 →　やりかけ
 
 	Hash 1024
 	MultiPV 5
 	Threads 4
 	makebook think records1.sfen yaneura_book1.db moves 8 depth 18
+
 	とりあえず16手目までdepth18で回しておく。
 	→　あかん。結構ある。これは死ぬ。8手目まで回して、あとは新しいPC来てからでいいや。
+	→　定跡生成中の途中中断に対応させないとやってられない。
+
+	Hash 1024
+	MultiPV 5
+	Threads 4
+	makebook think records1.sfen yaneura_book1.db moves 10 depth 18
 
 
 ・やねうら王2016MidのLEARNバージョン、配布するか？

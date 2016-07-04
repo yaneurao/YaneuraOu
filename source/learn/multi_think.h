@@ -21,11 +21,17 @@ struct MultiThink
   // [要件]
   // 1) thread_worker()のオーバーライド
   // 2) set_loop_max()でループ回数の設定
+  // 3) 定期的にcallbackされる関数を設定する(必要なら)
+  //   callback_funcとcallback_interval
   void go_think();
 
   // go_think()したときにスレッドを生成して呼び出されるthread worker
   // これをoverrideして用いる。
   virtual void thread_worker(size_t thread_id) = 0;
+
+  // go_think()したときにcallback_seconds[秒]ごとにcallbackされる。
+  std::function<void()> callback_func;
+  int callback_seconds = 600;
 
   // workerが処理する(Search::think()を呼び出す)回数を設定する。
   void set_loop_max(u64 loop_max_) { loop_max = loop_max_; }
@@ -44,6 +50,9 @@ struct MultiThink
 
   // [ASYNC] 静止探索をして、その結果を返す。
   std::pair<Value, std::vector<Move> > qsearch(Position& pos, Value alpha, Value beta);
+
+  // worker threadがI/Oにアクセスするときのmutex
+  Mutex io_mutex;
 
 protected:
 
@@ -64,9 +73,6 @@ protected:
   {
     prng = prng_;
   }
-
-  // worker threadがI/Oにアクセスするときのmutex
-  Mutex io_mutex;
 
 private:
   // workerが処理する(Search::think()を呼び出す)回数

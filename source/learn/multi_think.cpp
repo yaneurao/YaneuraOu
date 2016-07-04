@@ -43,6 +43,23 @@ void MultiThink::go_think()
     threads.push_back(std::thread([i,this] { this->thread_worker(i);  }));
   }
 
+  if (callback_func)
+  {
+    while (true)
+    {
+      for (int i = 0; i < callback_seconds ; ++i)
+      {
+        // 1秒おきに終了チェック
+        this_thread::sleep_for(chrono::seconds(1));
+        if (loop_count == loop_max)
+          goto Exit;
+      }
+      callback_func();
+    }
+  Exit:;
+  }
+
+
   // すべてのthreadの終了待ち
   for (auto& th : threads)
   {
