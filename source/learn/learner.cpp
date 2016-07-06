@@ -157,7 +157,12 @@ private:
 // 複数スレッドでsfenを生成するためのクラス
 struct MultiThinkGenSfen: public MultiThink
 {
-  MultiThinkGenSfen(int search_depth_, SfenWriter& sw_) : search_depth(search_depth_), sw(sw_) {}
+  MultiThinkGenSfen(int search_depth_, SfenWriter& sw_) : search_depth(search_depth_), sw(sw_)
+  {
+    // 乱数を時刻で初期化しないとまずい。
+    // (同じ乱数列だと同じ棋譜が生成されかねないため)
+    set_prng(PRNG());
+  }
   virtual void MultiThinkGenSfen::thread_worker(size_t thread_id);
 
   //  search_depth = 通常探索の探索深さ

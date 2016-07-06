@@ -70,23 +70,30 @@ ToDo:
 	Hash 8192
 	MultiPV 10
 	Threads 12
-	makebook think records1.sfen yaneura_book1.db moves 6 depth 32
-	//　1207nodeだが1nodeに1時間ぐらいかかるので12スレッドでやっても..。
-	// →　give up
-
-	Hash 8192
-	MultiPV 10
-	Threads 12
 	makebook think records1.sfen yaneura_book1.db moves 4 depth 32
 	// 206node。これなら2,3日で終わるか？
 	// 開始2016/07/05 6:50
 
 	Hash 8192
 	MultiPV 10
+	Threads 40
+	makebook think records1.sfen yaneura_book1.db startmoves 5 moves 5 depth 32
+	// 323node。40スレッドなので1日で終わる？
+	// 開始2016/07/06 12:30
+
+	Hash 8192
+	MultiPV 10
+	Threads 40
+	makebook think records1.sfen yaneura_book1.db startmoves 6 moves 6 depth 32
+	// 678node。
+	// 開始2016/07/06 12:30
+
+	Hash 8192
+	MultiPV 10
 	Threads 12
 	makebook think records1.sfen yaneura_book1.db moves 8 depth 24
 	// 4418 node。
-	// 開始2016/07/05 6:50
+	// 開始2016/07/05 6:50 → 翌日終了。
 
 	Hash 1024
 	MultiPV 5
@@ -109,6 +116,7 @@ ToDo:
 	// 42万nodeの模様。2,3日で終わるか。そうか。
 	// 開始2016/07/05 6:50
 
+	→　やねうら大定跡.txtに移動。
 
 ■ 2016/07/04
 

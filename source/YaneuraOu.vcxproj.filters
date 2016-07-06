@@ -317,6 +317,9 @@
     <Text Include="..\exe\YaneuraOu-2016-mid_ja.txt">
       <Filter>exe</Filter>
     </Text>
+    <Text Include="..\docs\やねうら大定跡.txt">
+      <Filter>doc</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md">

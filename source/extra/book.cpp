@@ -25,7 +25,9 @@ namespace Book
   #if defined(EVAL_LEARN) && defined(YANEURAOU_2016_MID_ENGINE)
   struct MultiThinkBook : public MultiThink
   {
-    MultiThinkBook(int search_depth_, MemoryBook & book_) : search_depth(search_depth_), book(book_) {}
+    MultiThinkBook(int search_depth_, MemoryBook & book_)
+      : search_depth(search_depth_), book(book_) , appended(false) {}
+
     virtual void MultiThinkBook::thread_worker(size_t thread_id);
 
     // 定跡を作るために思考する局面
@@ -36,6 +38,9 @@ namespace Book
 
     // メモリ上の定跡ファイル(ここに追加していく)
     MemoryBook& book;
+
+    // 前回から新たな指し手が追加されたかどうかのフラグ。
+    bool appended;
   };
 
 
@@ -79,6 +84,9 @@ namespace Book
         std::unique_lock<Mutex> lk(io_mutex);
         // 前のエントリーは上書きされる。
         book.book_body[sfen] = move_list;
+
+        // 新たなエントリーを追加したのでフラグを立てておく。
+        appended = true;
       }
 
       // 1局面思考するごとに'.'をひとつ出力する。
@@ -222,6 +230,9 @@ namespace Book
         
         for (int i = 0; i < m.size() - (from_sfen ? 1 : 0) ; ++i)
         {
+          if (i < start_moves -1)
+            continue;
+
           if (from_sfen)
           {
             // この場合、m[i + 1]が必要になるので、m.size()-1までしかループできない。
@@ -289,8 +300,17 @@ namespace Book
         multi_think.callback_func = [&]()
         {
           std::unique_lock<Mutex> lk(multi_think.io_mutex);
-          write_book(book_name, book);
-          cout << 'S';
+          // 前回書き出し時からレコードが追加された？
+          if (multi_think.appended)
+          {
+            write_book(book_name, book);
+            cout << 'S';
+            multi_think.appended = false;
+          } else {
+            // 追加されていないときは小文字のsマークを表示して
+            // ファイルへの書き出しは行わないように変更。
+            cout << 's';
+          }
         };
 
         multi_think.go_think();
