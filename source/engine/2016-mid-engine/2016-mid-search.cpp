@@ -114,6 +114,9 @@ void USI::extra_option(USI::OptionsMap & o)
   o["BookEvalWhiteLimit"] << Option(-140 , -99999, 99999);
   o["BookDepthLimit"]     << Option(  16 ,      0, 99999);
 
+  // 定跡をメモリに丸読みしないオプション。(default = false)
+  o["BookOnTheFly"] << Option(false);
+
   //
   //   パラメーターの外部からの自動調整
   //
@@ -1945,7 +1948,7 @@ void Search::clear()
   // -----------------------
   //   定跡の読み込み
   // -----------------------
-  Book::read_book("book/" + book_name, book);
+  Book::read_book("book/" + book_name, book , (bool)Options["BookOnTheFly"]);
 
   // -----------------------
   //   置換表のクリアなど

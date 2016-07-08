@@ -29,17 +29,14 @@ namespace Book
   struct MemoryBook
   {
     typedef std::unordered_map<std::string, std::vector<BookPos> > BookType;
-    BookType::iterator find(const Position& pos)
-    {
-      auto it = book_body.find(pos.sfen());
-      if (it != book_body.end())
-      {
-        // 定跡のMoveは16bitであり、rootMovesは32bitのMoveであるからこのタイミングで補正する。
-        for (auto& m : it->second)
-          m.bestMove = pos.move16_to_move(m.bestMove);
-      }
-      return it;
-    }
+
+    // 定跡として登録されているかを調べて返す。
+    // readのときにon_the_flyが指定されていればファイルを調べに行く。
+    // (このとき、見つからなければthis::end()が返ってくる。
+    // ファイルに読み込みに行っていることを意識する必要はない。)
+    BookType::iterator find(const Position& pos);
+
+    // find()で見つからなかったときの値
     const BookType::iterator end() { return book_body.end(); }
 
     // 定跡本体
@@ -47,14 +44,23 @@ namespace Book
 
     // 読み込んだbookの名前
     std::string book_name;
+
+    // メモリに丸読みせずにfind()のごとにファイルを調べにいくのか。
+    bool on_the_fly = false;
+
+    // 上のon_the_fly == trueのときに、開いている定跡ファイルのファイルハンドル
+    std::fstream fs;
   };
 
   // 定跡ファイルの読み込み(book.db)など。
   // 同じファイルを二度目は読み込み動作をskipする。
-  extern int read_book(const std::string& filename, MemoryBook& book);
+  // on_the_flyが指定されているとメモリに丸読みしない。
+  // 定跡作成時などはこれをtrueにしてはいけない。(メモリに読み込まれないため)
+  extern int read_book(const std::string& filename, MemoryBook& book,bool on_the_fly = false);
 
   // 定跡ファイルの書き出し
-  extern int write_book(const std::string& filename, const MemoryBook& book);
+  // sort = 書き出すときにsfen文字列で並び替えるのか。(書き出しにかかる時間増)
+  extern int write_book(const std::string& filename, const MemoryBook& book,bool sort = false);
 
   // bookにBookPosを一つ追加。(その局面ですでに同じbestMoveの指し手が登録されている場合は上書き動作)
   extern void insert_book_pos(MemoryBook& book, const std::string sfen, const BookPos& bp);

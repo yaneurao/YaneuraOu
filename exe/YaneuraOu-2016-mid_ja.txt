@@ -44,6 +44,7 @@ BookEvalBlackLimit 定跡の先手の評価値下限
 BookEvalWhiteLimit 定跡の後手の評価値下限
 BookDepthLimit 定跡のdepth下限(0=下限なし)
 
+BookOnTheFly 定跡をメモリに丸読みしない
 
 EvalDir 評価関数格納フォルダ
 PvInterval PVの出力の抑制時間[ms]

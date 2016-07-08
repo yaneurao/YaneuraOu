@@ -107,6 +107,8 @@ namespace Book
     bool from_thinking = token == "think";
     // 定跡のマージ
     bool book_merge = token == "merge";
+    // 定跡のsort
+    bool book_sort = token == "sort";
 
     #if !defined(EVAL_LEARN) || !defined(YANEURAOU_2016_MID_ENGINE)
     if (from_thinking)
@@ -295,8 +297,9 @@ namespace Book
 
         multi_think.set_loop_max(sfens_.size());
 
-        // 5分ごとに保存
-        multi_think.callback_seconds = 5*60;
+        // 30分ごとに保存
+        // (ファイルが大きくなってくると保存の時間も馬鹿にならないのでこれくらいの間隔で妥協)
+        multi_think.callback_seconds = 30*60;
         multi_think.callback_func = [&]()
         {
           std::unique_lock<Mutex> lk(multi_think.io_mutex);
@@ -395,21 +398,52 @@ namespace Book
       write_book(book_name[2], book[2]);
       cout << "..done!" << endl;
 
+    } if (book_sort) {
+      // 定跡のsort
+      MemoryBook book;
+      string book_src, book_dst;
+      is >> book_src >> book_dst;
+      cout << "book sort from " << book_src << " , write to " << book_dst << endl;
+      Book::read_book(book_src,book);
+
+      cout << "write..";
+      write_book(book_dst,book,true);
+      cout << "..done!" << endl;
+
     } else {
       cout << "usage" << endl;
       cout << "> makebook from_sfen book.sfen book.db moves 24" << endl;
       cout << "> makebook think book.sfen book.db moves 16 depth 18" << endl;
-      cout << "> makebook merge book1.db book2.db book_merged.db" << endl;
+      cout << "> makebook merge book_src1.db book_src2.db book_merged.db" << endl;
+      cout << "> makebook sort book_src.db book_sorted.db" << endl;
     }
   }
 #endif
 
   // 定跡ファイルの読み込み(book.db)など。
-  int read_book(const std::string& filename, MemoryBook& book)
+  int read_book(const std::string& filename, MemoryBook& book , bool on_the_fly)
   {
     // 読み込み済であるかの判定
     if (book.book_name == filename)
       return 0;
+
+    // ファイルだけオープンして読み込んだことにする。
+    if (on_the_fly)
+    {
+      if (book.fs.is_open())
+        book.fs.close();
+
+      book.fs.open(filename,ios::in);
+      if (book.fs.fail())
+      {
+        cout << "info string Error! : can't read " + filename << endl;
+        return 1;
+      }
+
+      book.on_the_fly = true;
+      book.book_name = filename;
+      return 0;
+    }
 
     vector<string> lines;
     if (read_all_lines(filename, lines))
@@ -486,7 +520,7 @@ namespace Book
   }
 
   // 定跡ファイルの書き出し
-  int write_book(const std::string& filename, const MemoryBook& book)
+  int write_book(const std::string& filename, const MemoryBook& book,bool sort)
   {
     fstream fs;
     fs.open(filename, ios::out);
@@ -494,16 +528,30 @@ namespace Book
     // バージョン識別用文字列
     fs << "#YANEURAOU-DB2016 1.00" << endl;
 
-    for (auto& it : book.book_body )
+    vector<pair<string,vector<BookPos>> > vectored_book;
+    for (auto& it : book.book_body)
     {
       // 指し手のない空っぽのentryは書き出さないように。
       if (it.second.size() == 0)
         continue;
+      vectored_book.push_back(it);
+    }
 
+    if (sort)
+    {
+      // ここvectored_bookが、sfen文字列でsortされていて欲しいのでsortする。
+      // アルファベットの範囲ではlocaleの影響は受けない…はず…。
+      std::sort(vectored_book.begin(), vectored_book.end(), 
+        [](const pair<string,vector<BookPos>>&lhs , const pair<string, vector<BookPos>>&rhs) {
+        return lhs.first < rhs.first;
+      });
+    }
+
+    for (auto& it : vectored_book)
+    {
       fs << "sfen " << it.first /* is sfen string */ << endl; // sfen
 
-      // const性を消すためにcopyする
-      auto move_list = it.second;
+      auto& move_list = it.second;
 
       // 採択回数でソートしておく。
       std::stable_sort(move_list.begin(), move_list.end());
@@ -547,4 +595,86 @@ namespace Book
     }
 
   }
+
+  MemoryBook::BookType::iterator MemoryBook::find(const Position& pos)
+  {
+    auto sfen = pos.sfen();
+
+    if (on_the_fly)
+    {
+      // ディスクから読み込むなら、いずれにせよ、book_bodyをクリアして、
+      // ディスクから読み込んだエントリーをinsertしてそのiteratorを返すべき。
+      book_body.clear();
+
+      // ファイル自体はオープンされてして、ファイルハンドルはfsだと仮定して良い。
+      
+      // ファイルサイズ取得
+      fs.seekg(0, fstream::end);
+      auto file_end = fs.tellg();
+
+      // seekg()に失敗する処理系に対するwork-around
+      fs.clear();
+      fs.seekg(0, fstream::beg);
+      auto file_start = fs.tellg();
+
+      auto file_size = u64(file_end - file_start);
+
+      // 与えられたseek位置から"sfen"文字列を探し、それを返す。なければ""が返る。
+      // 見つけたsfen文字列の終端がseek_nextに返る。
+      auto next_sfen = [&](u64 seek_from,u64& seek_next)
+      {
+        // sfen文字列は256byteに収まることは保証されているので256byte調べれば
+        // 改行コードには行き着くはず。
+        return "";
+      };
+
+      // バイナリサーチ
+      u64 s = 0, e = file_size, m = (s + e) / 2;
+
+      while (true)
+      {
+        u64 next;
+        auto sfen2 = next_sfen(m,next);
+        if (sfen2 == "" || sfen > sfen2)
+        { // 左を探す
+          e = m;
+        } else if (sfen < sfen2)
+        { // 右を探す
+          s = next;
+        } else {
+          // 見つかった！
+          break;
+        }
+        m = (s + e) / 2;
+
+        // 40バイトより小さなsfenは考えられないのでここより終端が手前に来ることはない。
+        // 右端、詰める処理
+        // ToDo:かきかけ。
+        if (e < 40)
+        {
+          // 見つからなかった
+          return book_body.end();
+        }
+      }
+      // 見つけた処理
+      vector<BookPos> vb;
+      // ToDo:書きかけ
+      book_body.insert(pair<string,vector<BookPos>>(sfen, vb));
+
+      return book_body.begin();
+
+    } else {
+
+      auto it = book_body.find(sfen);
+      if (it != book_body.end())
+      {
+        // 定跡のMoveは16bitであり、rootMovesは32bitのMoveであるからこのタイミングで補正する。
+        for (auto& m : it->second)
+          m.bestMove = pos.move16_to_move(m.bestMove);
+      }
+      return it;
+    }
+  }
+
 }
+

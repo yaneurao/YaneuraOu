@@ -265,6 +265,14 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 
 	makebook thinkコマンドで自動生成した定跡に対してマージするのに用いる。
 
+> makebook sort book_src.db book_sorted.db
+
+	sfen文字列でソートする。
+	上例では、book_src.dbを読み込み、並び替えられた、book_sorted.dbを出力する。
+
+	定跡をメモリに丸読みしたくないときには(BookOnTheFly機能)、並び変わっていないといけない。
+	(sfen文字列順でソートされていないとバイナリサーチが出来ないため。)
+
 
 ■　起動時のコマンドの指定
 

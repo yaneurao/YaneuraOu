@@ -1102,7 +1102,11 @@ void bench_cmd(Position& pos, istringstream& is)
   // 評価関数の読み込み等
   is_ready();
 
+  // トータルの探索したノード数
   int64_t nodes = 0;
+
+  // main threadが探索したノード数
+  int64_t nodes_main = 0;
   Search::StateStackPtr st;
   
   // ベンチの計測用タイマー
@@ -1123,7 +1127,8 @@ void bench_cmd(Position& pos, istringstream& is)
     Threads.start_thinking(pos, limits, st);
     Threads.main()->wait_for_search_finished(); // 探索の終了を待つ。
 
-    nodes += Threads.main()->rootPos.nodes_searched();
+    nodes += Threads.nodes_searched();
+    nodes_main += Threads.main()->rootPos.nodes_searched();
   }
 
   auto elapsed = time.elapsed() + 1; // 0除算の回避のため
@@ -1131,7 +1136,14 @@ void bench_cmd(Position& pos, istringstream& is)
   sync_cout << "\n==========================="
     << "\nTotal time (ms) : " << elapsed
     << "\nNodes searched  : " << nodes
-    << "\nNodes/second    : " << 1000 * nodes / elapsed << sync_endl;
+    << "\nNodes/second    : " << 1000 * nodes / elapsed;
+
+  if ((int)Options["Threads"] > 1)
+    cout
+    << "\nNodes searched(main thread) : " << nodes_main
+    << "\nNodes/second  (main thread) : " << 1000 * nodes_main / elapsed;
+
+  cout << sync_endl;
 
 }
 

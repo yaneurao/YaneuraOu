@@ -11,8 +11,8 @@
 
 対象棋譜 = record1.sfen(2ch棋譜)
 
-・ 1 ～ 5手目 MultiPV 10 , depth 32  →　作業中(Xeon 2998v4) , 229node
-・      6手目 MultiPV 10 , depth 32  →　作業中(Xeon 2998v4) , 678node
+・ 1 ～ 6手目 MultiPV 10 , depth 28  →　完了
+・ 1 ～ 6手目 MultiPV 10 , depth 32  →　残り 710 node / 20コアで20日ほどかかる見込み(放置中)
 ・ 7 ～ 8手目 MultiPV 10 , depth 24  →　完了
 ・ 9 ～16手目 MultiPV 10 , depth 24  →　作業中(Xeon 2998v4)
 ・ 17～32手目 MultiPV  5 , depth 18  →　作業中
@@ -27,6 +27,29 @@
 
 
 ■　以下、記録
+
+] 2016/07/08
+
+	Hash 8192
+	MultiPV 10
+	Threads 40
+	makebook think records1.sfen yaneura_book1.db moves 6 depth 28
+	// 残710node
+
+	Hash 8192
+	MultiPV 10
+	Threads 40
+	makebook think records1.sfen yaneura_book1.db startmoves 9 moves 16 depth 24
+	// 53609node 5分で60ぐらいのペース。3日強ぐらい。
+	// 33952node(2016/07/08 13:30)
+	// 28028node(2016/07/09  1:00)
+
+	Hash 8192
+	MultiPV 5
+	Threads 20
+	makebook think records1.sfen yaneura_book1.db startmoves 17 moves 32 depth 18
+	// 103840node(2016/07/09 1:00～)
+
 
 ] 2016/07/06
 
@@ -45,7 +68,7 @@ PC入れ替えにつき、やりなおし。
 	MultiPV 10
 	Threads 40
 	makebook think records1.sfen yaneura_book1.db moves 6 depth 32
-	// 929 node 3時間で10nodeぐらいのペース？3,4日。
+	// 929 node。20日ぐらいかかる見込み。→　いったん放置。
 
 
 	Hash 8192

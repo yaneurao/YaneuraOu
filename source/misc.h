@@ -180,17 +180,13 @@ inline uint64_t get_thread_id()
 }
 
 // 擬似乱数生成器
-// Stockfishで用いられているもの
+// Stockfishで用いられているもの + random_deviceによるseedの初期化機能。
 // UniformRandomNumberGenerator互換にして、std::shuffle()等でも使えるようにするべきか？
 struct PRNG {
   PRNG(uint64_t seed) : s(seed) { ASSERT_LV1(seed); }
 
-  // 乱数seedを指定しなければ現在時刻をseedとする。ただし、自己対戦のときに同じ乱数seedになる可能性が濃厚になるので
-  // このときにthisのアドレスなどを加味してそれを乱数seedとする。(by yaneurao)
-  PRNG() : s(now() ^ uint64_t(this) + get_thread_id() * 7) {
-    int n = (int)get_thread_id() & 1024; // 最大1024回、乱数を回してみる
-    for (int i = 0; i < n; ++i) rand<uint64_t>();
-  }
+  // C++11のrandom_device()によるseedの初期化
+  PRNG() { std::random_device rd; s = (u64)rd() + ((u64)rd() << 32); }
 
   // 乱数を一つ取り出す。
   template<typename T> T rand() { return T(rand64()); }

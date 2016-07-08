@@ -330,6 +330,7 @@
 #include <cmath>    // log(),std::round()
 #include <climits>  // INT_MAX
 #include <cstddef>  // offsetof
+#include <random>   // random_device
 
 // --------------------
 //   diable warnings
