@@ -677,6 +677,9 @@ void USI::loop(int argc,char* argv[])
     else if (token == "gensfen") Learner::gen_sfen(pos, is);
     else if (token == "learn") Learner::learn(pos, is);
 #endif
+    // "usinewgame"はゲーム中にsetoptionなどを送らないことを宣言するためのものだが、
+    // 我々はこれに関知しないので単に無視すれば良い。
+    else if (token == "usinewgame") continue; 
 
     else
     {

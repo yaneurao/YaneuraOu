@@ -427,6 +427,10 @@ namespace Book
     if (book.book_name == filename)
       return 0;
 
+    // 別のファイルを開こうとしているなら前回メモリに丸読みした定跡をクリアしておかないといけない。
+    if (book.book_name != "")
+      book.book_body.clear();
+
     // ファイルだけオープンして読み込んだことにする。
     if (on_the_fly)
     {
@@ -596,9 +600,29 @@ namespace Book
 
   }
 
+  // sfen文字列から末尾のゴミを取り除いて返す。
+  // ios::binaryでopenした場合などには'\r'なども入っていると思われる。
+  string trim_sfen(string sfen)
+  {
+    string s = sfen;
+    size_t cur = s.length() - 1;
+    while (cur >= 0)
+    {
+      char c = s[cur];
+      // 改行文字、スペース、数字(これはgame ply)ではないならループを抜ける。
+      // これらの文字が出現しなくなるまで末尾を切り詰める。
+      if (c != '\r' && c != '\n' && c != ' ' && !('0' <= c && c <= '9'))
+        break;
+      cur--;
+    }
+    s.resize(cur + 1);
+    return s;
+  }
+
   MemoryBook::BookType::iterator MemoryBook::find(const Position& pos)
   {
     auto sfen = pos.sfen();
+    BookType::iterator it;
 
     if (on_the_fly)
     {
@@ -606,74 +630,157 @@ namespace Book
       // ディスクから読み込んだエントリーをinsertしてそのiteratorを返すべき。
       book_body.clear();
 
+      // 末尾の手数は取り除いておく。
+      // read_book()で取り除くと、そのあと書き出すときに手数が消失するのでまずい。(気がする)
+      sfen = trim_sfen(sfen);
+
       // ファイル自体はオープンされてして、ファイルハンドルはfsだと仮定して良い。
       
       // ファイルサイズ取得
-      fs.seekg(0, fstream::end);
+      // C++的には未定義動作だが、これのためにsys/stat.hをincludeしたくない。
+      // ここでfs.clear()を呼ばないとeof()のあと、tellg()が失敗する。
+      fs.clear();
+      fs.seekg(0, std::ios::end);
       auto file_end = fs.tellg();
 
-      // seekg()に失敗する処理系に対するwork-around
       fs.clear();
-      fs.seekg(0, fstream::beg);
+      fs.seekg(0, std::ios::beg);
       auto file_start = fs.tellg();
 
       auto file_size = u64(file_end - file_start);
 
-      // 与えられたseek位置から"sfen"文字列を探し、それを返す。なければ""が返る。
-      // 見つけたsfen文字列の終端がseek_nextに返る。
-      auto next_sfen = [&](u64 seek_from,u64& seek_next)
+      // 与えられたseek位置から"sfen"文字列を探し、それを返す。どこまでもなければ""が返る。
+      // hackとして、seek位置は-80しておく。
+      auto next_sfen = [&](u64 seek_from)
       {
-        // sfen文字列は256byteに収まることは保証されているので256byte調べれば
-        // 改行コードには行き着くはず。
-        return "";
+        char buf[256];
+        fs.seekg(max(s64(0),(s64)seek_from - 80), fstream::beg);
+        fs.getline(buf,256); // 1行読み捨てる
+
+        // getlineはeof()正しく反映させない。
+        while (fs.getline(buf, 256))
+        {
+          if (buf[0] == 's' && buf[1] == 'f' && buf[2] == 'e' && buf[3] == 'n' && buf[4]!='\0')
+            return trim_sfen(string(buf + 5));
+          // "sfen"という文字列は取り除いたものを返す。
+          // 手数の表記も取り除いて比較したほうがいい。
+          // ios::binaryつけているので末尾に'\R'が付与されている。禿げそう。
+        }
+        return string();
       };
 
       // バイナリサーチ
-      u64 s = 0, e = file_size, m = (s + e) / 2;
+
+      u64 s = 0, e = file_size, m;
 
       while (true)
       {
-        u64 next;
-        auto sfen2 = next_sfen(m,next);
-        if (sfen2 == "" || sfen > sfen2)
-        { // 左を探す
+        m = (s + e) / 2;
+
+        auto sfen2 = next_sfen(m);
+        if (sfen2 == "" || sfen < sfen2)
+        { // 左(それより小さいところ)を探す
           e = m;
-        } else if (sfen < sfen2)
-        { // 右を探す
-          s = next;
+        } else if (sfen > sfen2)
+        { // 右(それより大きいところ)を探す
+          s = u64(fs.tellg() - file_start);
         } else {
           // 見つかった！
           break;
         }
-        m = (s + e) / 2;
 
-        // 40バイトより小さなsfenは考えられないのでここより終端が手前に来ることはない。
-        // 右端、詰める処理
-        // ToDo:かきかけ。
-        if (e < 40)
+        // 40バイトより小さなsfenはありえないので探索範囲がこれより小さいなら終了。
+        // ただしs = 0のままだと先頭が探索されていないので..
+        if (e - s < 40)
         {
-          // 見つからなかった
-          return book_body.end();
+          if (s != 0 || e != 0)
+          {
+            // 見つからなかった
+            return book_body.end();
+          }
+
+          // もしかしたら先頭付近にあるかも知れん..
+          e = 0; // この条件で再度サーチ
         }
+
       }
       // 見つけた処理
-      vector<BookPos> vb;
-      // ToDo:書きかけ
-      book_body.insert(pair<string,vector<BookPos>>(sfen, vb));
 
-      return book_body.begin();
+      // read_bookとほとんど同じ読み込み処理がここに必要。辛い。
+
+      uint64_t num_sum = 0;
+
+      auto calc_prob = [&] {
+        auto& move_list = book_body[sfen];
+        std::stable_sort(move_list.begin(), move_list.end());
+        num_sum = std::max(num_sum, UINT64_C(1)); // ゼロ除算対策
+        for (auto& bp : move_list)
+          bp.prob = float(bp.num) / num_sum;
+        num_sum = 0;
+      };
+
+      while (!fs.eof())
+      {
+        string line;
+        getline(fs, line);
+        
+        // バージョン識別文字列(とりあえず読み飛ばす)
+        if (line.length() >= 1 && line[0] == '#')
+          continue;
+
+        // コメント行(とりあえず読み飛ばす)
+        if (line.length() >= 2 && line.substr(0, 2) == "//")
+          continue;
+
+        // 次のsfenに遭遇したらこれにて終了。
+        if (line.length() >= 5 && line.substr(0, 5) == "sfen ")
+        {
+          break;
+        }
+
+        Move best, next;
+        int value;
+        int depth;
+
+        istringstream is(line);
+        string bestMove, nextMove;
+        uint64_t num;
+        is >> bestMove >> nextMove >> value >> depth >> num;
+
+        // 起動時なので変換に要するオーバーヘッドは最小化したいので合法かのチェックはしない。
+        if (bestMove == "none" || bestMove == "resign")
+          best = MOVE_NONE;
+        else
+          best = move_from_usi(bestMove);
+
+        if (nextMove == "none" || nextMove == "resign")
+          next = MOVE_NONE;
+        else
+          next = move_from_usi(nextMove);
+
+        BookPos bp(best, next, value, depth, num);
+        insert_book_pos(*this, sfen, bp);
+        num_sum += num;
+      }
+      // ファイルが終わるときにも最後の局面に対するcalc_probが必要。
+      calc_prob();
+
+      it = book_body.begin();
 
     } else {
 
-      auto it = book_body.find(sfen);
-      if (it != book_body.end())
-      {
-        // 定跡のMoveは16bitであり、rootMovesは32bitのMoveであるからこのタイミングで補正する。
-        for (auto& m : it->second)
-          m.bestMove = pos.move16_to_move(m.bestMove);
-      }
-      return it;
+      // on the flyではない場合
+      it = book_body.find(sfen);
     }
+
+
+    if (it != book_body.end())
+    {
+      // 定跡のMoveは16bitであり、rootMovesは32bitのMoveであるからこのタイミングで補正する。
+      for (auto& m : it->second)
+        m.bestMove = pos.move16_to_move(m.bestMove);
+    }
+    return it;
   }
 
 }

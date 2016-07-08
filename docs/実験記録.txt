@@ -40,6 +40,8 @@ ToDo:
 	makebook sort book1.db book2.db
 	こうやるとbook2.dbにsortされたものが書き出される。(ように実装する。)
 
+	→　やっとon the flyで定跡参照できるようになった。長かった…。
+
 
 ・Hyper-Vでのbenchテスト
 

@@ -13,6 +13,9 @@
 ・定跡をメモリに丸読みせずに指す機能追加。BookOnTheFlyオプション。
 ・exe/book/standard_book.dbをsort済みのものと差し替え。
 ・MemoryBookにon the fly機能追加。
+・"usinewgame"に対してNo such optionと表示するようになっていたの修正。
+・定跡を途中で選び直したときに前の定跡のclear()をしていなかったの修正。
+
 
 
 ■　2016/07/05 V3.32
