@@ -532,7 +532,6 @@ namespace YaneuraOu2016Mid
       ss->currentMove = ttMove; // MOVE_NONEでありうるが
       return ttValue;
     }
-
     // -----------------------
     //     eval呼び出し
     // -----------------------

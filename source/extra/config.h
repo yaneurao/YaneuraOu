@@ -156,6 +156,10 @@
 // これをdefineするとPosition::packe_sfen(),unpack_sfen()が使えるようになる。
 // #define USE_SFEN_PACKER
 
+// 置換表のprobeに必ず失敗する設定
+// 自己生成棋譜からの学習でqsearch()のPVが欲しいときに
+// 置換表にhitして枝刈りされたときにPVが得られないの悔しいので
+// #define USE_FALSE_PROBE_IN_TT
 
 // --------------------
 // release configurations

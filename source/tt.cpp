@@ -37,6 +37,12 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found) const {
   // keyの下位bitをいくつか使って、このアドレスを求めるので、自ずと下位bitはいくらかは一致していることになる。
   TTEntry* const tte = first_entry(key);
 
+#ifdef  USE_FALSE_PROBE_IN_TT
+  // 置換表にhitさせないモードであるなら、見つからなかったことにして
+  // つねに先頭要素を返せば良い。
+  return found = false, &tte[0];
+#else
+
   // 上位16bitが合致するTT_ENTRYを探す
   const uint16_t key16 = key >> 48;
 
@@ -80,6 +86,7 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found) const {
   // ( 256 + a - b + c) & 0xfc として c = 3としても結果に影響は及ぼさない、かつ、このゴミを無視した計算が出来る。
   
   return found = false, replace;
+#endif
 }
 
 int TranspositionTable::hashfull() const
