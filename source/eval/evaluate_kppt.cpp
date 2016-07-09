@@ -59,20 +59,25 @@ namespace Eval
   // 評価関数パラメーターを他プロセスと共有するための機能。
 
   // KK
-  ValueKk (*kk)[SQ_NB];
-
+  ValueKk (*kk_)[SQ_NB][SQ_NB];
+  
   // KPP
-  ValueKpp (*kpp)[fe_end][fe_end];
+  ValueKpp (*kpp_)[SQ_NB][fe_end][fe_end];
 
   // KKP
-  ValueKkp (*kkp)[SQ_NB][fe_end];
+  ValueKkp (*kkp_)[SQ_NB][SQ_NB][fe_end];
+
+  // 以下のマクロ定義して、ポインタではない場合と同じ挙動になるようにする。
+  #define kk (*kk_)
+  #define kpp (*kpp_)
+  #define kkp (*kkp_)
 
   // memory mapped fileを介して共有するデータ
   struct SharedEval
   {
-    ValueKk kk[SQ_NB][SQ_NB];
-    ValueKpp kpp[SQ_NB][fe_end][fe_end];
-    ValueKkp kkp[SQ_NB][SQ_NB][fe_end];
+    ValueKk kk_[SQ_NB][SQ_NB];
+    ValueKpp kpp_[SQ_NB][fe_end][fe_end];
+    ValueKkp kkp_[SQ_NB][SQ_NB][fe_end];
 
     // 参照カウント(プロセス間で共有している数)
     int shared_count;
@@ -346,14 +351,14 @@ namespace Eval
       // ビュー
       auto shared_eval_ptr = (SharedEval *)MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(SharedEval));
 
-      kk = (ValueKk(*)[SQ_NB])&(shared_eval_ptr->kk);
-      kkp = (ValueKkp(*)[SQ_NB][fe_end])&(shared_eval_ptr->kkp);
-      kpp = (ValueKpp(*)[fe_end][fe_end])&(shared_eval_ptr->kpp);
+      kk_  = &(shared_eval_ptr->kk_);
+      kkp_ = &(shared_eval_ptr->kkp_);
+      kpp_ = &(shared_eval_ptr->kpp_);
+
 
       if (!already_exists)
       {
         // 新規作成されてしまった
-        shared_eval_ptr->shared_count = 0;
 
         // このタイミングで評価関数バイナリを読み込む
         load_eval_impl();
@@ -367,15 +372,13 @@ namespace Eval
 
         sync_cout << "info string use shared eval memory." << sync_endl;
       }
-      shared_eval_ptr->shared_count++;
     }
     ReleaseMutex(hMutex);
 
-    // 終了時に
-    // 1) ReleaseMutex()
+    // 終了時に本当ならば
+    // 1) ::ReleaseMutex()
     // 2) ::UnmapVieOfFile()
-    // 3) 起動数のデクリメント
-    // が必要であるが、1),2)が自動でなされるなら3)は不要なのだが..
+    // が必要であるが、1),2)がプロセスが解体されるときに自動でなされるので、この処理は特に入れない。
   }
 #else
 

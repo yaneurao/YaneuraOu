@@ -21,6 +21,16 @@ ToDo:
 	Nodes searched  : 68270869
 	Nodes/second    : 628095
 
+	shared memory版
+	===========================
+	Total time (ms) : 102153
+	Nodes searched  : 68270869
+	Nodes/second    : 668319
+	→　完全に一致した。
+
+	isreadyコマンドを入力してからbenchコマンドを叩くと少しnpsが高く出るようだ。
+	理由はよくわからないが、評価関数の読み込みから時間をあけて十分CPU負荷が下がってからbenchコマンドを叩いているからか。
+
 
 ■ 2016/07/09
 
