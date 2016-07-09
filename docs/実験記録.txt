@@ -31,6 +31,24 @@ ToDo:
 	isreadyコマンドを入力してからbenchコマンドを叩くと少しnpsが高く出るようだ。
 	理由はよくわからないが、評価関数の読み込みから時間をあけて十分CPU負荷が下がってからbenchコマンドを叩いているからか。
 
+・shared memoryでsystem memoryの使用量が減らない問題
+
+	CreateFileMapping, MapViewOfFile, how to avoid holding up the system memory
+	http://stackoverflow.com/questions/1880714/createfilemapping-mapviewoffile-how-to-avoid-holding-up-the-system-memory
+
+	VirtualFree on shared memory
+	https://groups.google.com/forum/#!topic/microsoft.public.win32.programmer.kernel/3SvznY38SSc
+
+	SEC_RESERVEを指定して確保したあとVirtualUnlockするというhackが書いてある。
+	→　pagingされていたものが開放されるが、そのあとアクセスしないことが前提なのか…。
+
+・共有メモリを用いて、メモリ使用量が減らない問題、解決した。
+　ベンチマークコマンドがデフォルトで1GB確保しているだけだった。
+　共有自体、うまく行っていた。
+
+　あと、npsが上がらない問題も、置換表を16MBだとnps出た。1024MBだと10%ぐらいダウンした。
+　なるほど。そういうことか…。
+
 
 ■ 2016/07/09
 
@@ -76,6 +94,8 @@ ToDo:
 	非Hyper-V 1319万nps 40threads
 	Hyper-V   1132万nps 40threads // 14%ぐらいダウン
 	Hyper-V   1856万nps 64threads // 40コア時の64/40倍にはなかっているが…。
+	非Hyper-V 2079万nps 64threads // 無理やり64論理コア Hyper-Vを入れるとそうなった。
+
 
 Hyper-V、計算資源として用いるにはオーバーヘッドが大きいように思う。
 

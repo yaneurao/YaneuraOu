@@ -41,7 +41,7 @@ namespace Eval
   // 以下では、SQ_NBではなくSQ_NB_PLUS1まで確保したいが、Apery(WCSC26)の評価関数バイナリを読み込んで変換するのが面倒なので
   // ここではやらない。ゆえに片側の玉や、駒落ちの盤面には対応出来ない。
 
-#ifndef  USE_SHARED_MEMORY_IN_EVAL
+#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_MSC_VER)
 
   // 通常の評価関数テーブル
 
@@ -322,13 +322,14 @@ namespace Eval
   
 
 
-#ifdef USE_SHARED_MEMORY_IN_EVAL
+#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_MSC_VER)
   // 評価関数の共有を行うための大掛かりな仕組み
 
 #include <windows.h>
 
   void load_eval()
   {
+    // エンジンのバージョンによって評価関数は一意に定まるものとする。
     auto mapped_file_name = TEXT("YANEURAOU_KPPT_MMF" ENGINE_VERSION);
     auto mutex_name = TEXT("YANEURAOU_KPPT_MUTEX" ENGINE_VERSION);
 
@@ -342,7 +343,7 @@ namespace Eval
       // ファイルマッピングオブジェクトの作成
       auto hMap = CreateFileMapping(INVALID_HANDLE_VALUE ,
         NULL,
-        PAGE_READWRITE | SEC_COMMIT,
+        PAGE_READWRITE , // | /**SEC_COMMIT/**/ /*SEC_RESERVE/**/,
         0, sizeof(SharedEval),
         mapped_file_name);
 

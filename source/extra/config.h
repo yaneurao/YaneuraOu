@@ -163,8 +163,7 @@
 
 // 評価関数パラメーターを共有メモリを用いて他プロセスのものと共有する。
 // 少ないメモリのマシンで思考エンジンを何十個も立ち上げようとしたときにメモリ不足になるので
-// 評価関数をshared memoryを用いて他のプロセスと共有する機能。(対応しているのはいまのところKPPT評価関数のみ)
-// →　実装した。遅くはないが、メモリ節約にはならない模様。(Windows10にて)
+// 評価関数をshared memoryを用いて他のプロセスと共有する機能。(対応しているのはいまのところKPPT評価関数のみ。かつWindows限定)
 // #define USE_SHARED_MEMORY_IN_EVAL
 
 
@@ -253,6 +252,8 @@
 #define EVAL_LEARN
 // 定跡生成絡み
 #define ENABLE_MAKEBOOK_CMD
+// 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。
+#define USE_SHARED_MEMORY_IN_EVAL
 #endif
 
 #ifdef YANEURAOU_2016_LATE_ENGINE

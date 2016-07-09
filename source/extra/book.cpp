@@ -398,7 +398,7 @@ namespace Book
       write_book(book_name[2], book[2]);
       cout << "..done!" << endl;
 
-    } if (book_sort) {
+    } else if (book_sort) {
       // 定跡のsort
       MemoryBook book;
       string book_src, book_dst;
