@@ -13,6 +13,7 @@
 
 #include "../evaluate.h"
 #include "../position.h"
+#include "../misc.h"
 
 using namespace std;
 
@@ -40,14 +41,44 @@ namespace Eval
   // 以下では、SQ_NBではなくSQ_NB_PLUS1まで確保したいが、Apery(WCSC26)の評価関数バイナリを読み込んで変換するのが面倒なので
   // ここではやらない。ゆえに片側の玉や、駒落ちの盤面には対応出来ない。
 
+#ifndef  USE_SHARED_MEMORY_IN_EVAL
+
+  // 通常の評価関数テーブル
+
   // KK
-  ValueKk kk[SQ_NB][SQ_NB];
+  ALIGNED(32) ValueKk kk[SQ_NB][SQ_NB];
 
   // KPP
-  ValueKpp kpp[SQ_NB][fe_end][fe_end];
+  ALIGNED(32) ValueKpp kpp[SQ_NB][fe_end][fe_end];
 
   // KKP
-  ValueKkp kkp[SQ_NB][SQ_NB][fe_end];
+  ALIGNED(32) ValueKkp kkp[SQ_NB][SQ_NB][fe_end];
+
+#else
+
+  // 評価関数パラメーターを他プロセスと共有するための機能。
+
+  // KK
+  ValueKk (*kk)[SQ_NB];
+
+  // KPP
+  ValueKpp (*kpp)[fe_end][fe_end];
+
+  // KKP
+  ValueKkp (*kkp)[SQ_NB][fe_end];
+
+  // memory mapped fileを介して共有するデータ
+  struct SharedEval
+  {
+    ValueKk kk[SQ_NB][SQ_NB];
+    ValueKpp kpp[SQ_NB][fe_end][fe_end];
+    ValueKkp kkp[SQ_NB][SQ_NB][fe_end];
+
+    // 参照カウント(プロセス間で共有している数)
+    int shared_count;
+  };
+
+#endif
 
 
 #ifdef EVAL_LEARN
@@ -224,11 +255,11 @@ namespace Eval
 
 #endif // EVAL_LEARN
 
-
   // 評価関数ファイルを読み込む
-  void load_eval()
+  void load_eval_impl()
   {
     {
+
       // KK
       std::ifstream ifsKK((string)Options["EvalDir"] + KK_BIN, std::ios::binary);
       if (ifsKK) ifsKK.read(reinterpret_cast<char*>(kk), sizeof(kk));
@@ -280,10 +311,84 @@ namespace Eval
 
   Error:;
     // 評価関数ファイルの読み込みに失敗した場合、思考を開始しないように抑制したほうがいいと思う。
-    cout << "\ninfo string Error! open evaluation file failed.\n";
+    sync_cout << "\ninfo string Error! open evaluation file failed.\n" << sync_endl;
     exit(EXIT_FAILURE);
   }
   
+
+
+#ifdef USE_SHARED_MEMORY_IN_EVAL
+  // 評価関数の共有を行うための大掛かりな仕組み
+
+#include <windows.h>
+
+  void load_eval()
+  {
+    auto mapped_file_name = TEXT("YANEURAOU_KPPT_MMF" ENGINE_VERSION);
+    auto mutex_name = TEXT("YANEURAOU_KPPT_MUTEX" ENGINE_VERSION);
+
+    // プロセス間の排他用mutex
+    auto hMutex = CreateMutex(NULL, FALSE, mutex_name);
+
+    // ファイルマッピングオブジェクトの処理をプロセス間で排他したい。
+    WaitForSingleObject(hMutex, INFINITE);
+    {
+
+      // ファイルマッピングオブジェクトの作成
+      auto hMap = CreateFileMapping(INVALID_HANDLE_VALUE ,
+        NULL,
+        PAGE_READWRITE | SEC_COMMIT,
+        0, sizeof(SharedEval),
+        mapped_file_name);
+
+      bool already_exists = (GetLastError() == ERROR_ALREADY_EXISTS);
+
+      // ビュー
+      auto shared_eval_ptr = (SharedEval *)MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(SharedEval));
+
+      kk = (ValueKk(*)[SQ_NB])&(shared_eval_ptr->kk);
+      kkp = (ValueKkp(*)[SQ_NB][fe_end])&(shared_eval_ptr->kkp);
+      kpp = (ValueKpp(*)[fe_end][fe_end])&(shared_eval_ptr->kpp);
+
+      if (!already_exists)
+      {
+        // 新規作成されてしまった
+        shared_eval_ptr->shared_count = 0;
+
+        // このタイミングで評価関数バイナリを読み込む
+        load_eval_impl();
+
+        sync_cout << "info string created shared eval memory." << sync_endl;
+
+      } else {
+
+        // 評価関数バイナリを読み込む必要はない。ファイルマッピングが成功した時点で
+        // 評価関数バイナリは他のプロセスによって読み込まれていると考えられる。
+
+        sync_cout << "info string use shared eval memory." << sync_endl;
+      }
+      shared_eval_ptr->shared_count++;
+    }
+    ReleaseMutex(hMutex);
+
+    // 終了時に
+    // 1) ReleaseMutex()
+    // 2) ::UnmapVieOfFile()
+    // 3) 起動数のデクリメント
+    // が必要であるが、1),2)が自動でなされるなら3)は不要なのだが..
+  }
+#else
+
+  // 評価関数のプロセス間共有を行わないときは、普通に
+  // load_eval_impl()を呼び出すだけで良い。
+  void load_eval()
+  {
+    load_eval_impl();
+  }
+
+#endif
+
+
   // KP,KPP,KKPのスケール
   const int FV_SCALE = 32;
 

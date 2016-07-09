@@ -163,7 +163,7 @@ struct MultiThinkGenSfen: public MultiThink
     // (同じ乱数列だと同じ棋譜が生成されかねないため)
     set_prng(PRNG());
   }
-  virtual void MultiThinkGenSfen::thread_worker(size_t thread_id);
+  virtual void thread_worker(size_t thread_id);
 
   //  search_depth = 通常探索の探索深さ
   int search_depth;

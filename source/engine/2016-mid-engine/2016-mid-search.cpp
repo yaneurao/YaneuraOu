@@ -2378,7 +2378,7 @@ void MainThread::think()
             auto value_limit2 = (int)Options[stm_string];
             auto value_limit = max(value_limit1, value_limit2);
 
-            for (int i = 0; i < book_move_max; ++i)
+            for (size_t i = 0; i < book_move_max; ++i)
             {
               if (move_list[i].value < value_limit)
               {

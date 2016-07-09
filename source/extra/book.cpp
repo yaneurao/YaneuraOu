@@ -28,7 +28,7 @@ namespace Book
     MultiThinkBook(int search_depth_, MemoryBook & book_)
       : search_depth(search_depth_), book(book_) , appended(false) {}
 
-    virtual void MultiThinkBook::thread_worker(size_t thread_id);
+    virtual void thread_worker(size_t thread_id);
 
     // 定跡を作るために思考する局面
     vector<string> sfens;
@@ -230,7 +230,7 @@ namespace Book
           pos.do_move(move, si[i]);
         }
         
-        for (int i = 0; i < m.size() - (from_sfen ? 1 : 0) ; ++i)
+        for (int i = 0; i < (int)m.size() - (from_sfen ? 1 : 0) ; ++i)
         {
           if (i < start_moves -1)
             continue;
@@ -605,7 +605,7 @@ namespace Book
   string trim_sfen(string sfen)
   {
     string s = sfen;
-    size_t cur = s.length() - 1;
+    int cur = (int)s.length() - 1;
     while (cur >= 0)
     {
       char c = s[cur];
@@ -615,7 +615,7 @@ namespace Book
         break;
       cur--;
     }
-    s.resize(cur + 1);
+    s.resize((int)(cur + 1));
     return s;
   }
 

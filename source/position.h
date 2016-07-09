@@ -183,7 +183,15 @@ struct Position
   // --- ctor
 
   // コンストラクタではおまけとして平手の開始局面にする。
-  Position() { clear(); set_hirate(); }
+  Position() { clear(); 
+#ifndef USE_SHARED_MEMORY_IN_EVAL
+    // Positionのコンストラクタで平手に初期化すると、compute_eval()が呼び出され、このときに
+    // 評価関数テーブルを参照するが、isready()が呼び出されていないのでこの初期化が出来ない。
+    // ゆえに、この処理は本来ならやめたほうが良い。
+    // (特にisready()が呼び出されるまでcompute_eval()が呼び出せない状況においては。)
+    set_hirate();
+#endif
+  }
 
   // コピー。startStateもコピーして、外部のデータに依存しないように(detach)する。
   // 積極的に使うべきではない。探索開始時にslaveに局面をコピーするときに仕方なく使っているだけ。
