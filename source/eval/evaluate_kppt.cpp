@@ -43,19 +43,6 @@ namespace Eval
 
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_MSC_VER)
 
-  // 通常の評価関数テーブル
-
-  // KK
-  ALIGNED(32) ValueKk kk[SQ_NB][SQ_NB];
-
-  // KPP
-  ALIGNED(32) ValueKpp kpp[SQ_NB][fe_end][fe_end];
-
-  // KKP
-  ALIGNED(32) ValueKkp kkp[SQ_NB][SQ_NB][fe_end];
-
-#else
-
   // 評価関数パラメーターを他プロセスと共有するための機能。
 
   // KK
@@ -82,6 +69,19 @@ namespace Eval
     // 参照カウント(プロセス間で共有している数)
     int shared_count;
   };
+
+#else
+
+  // 通常の評価関数テーブル
+
+  // KK
+  ALIGNED(32) ValueKk kk[SQ_NB][SQ_NB];
+
+  // KPP
+  ALIGNED(32) ValueKpp kpp[SQ_NB][fe_end][fe_end];
+
+  // KKP
+  ALIGNED(32) ValueKkp kkp[SQ_NB][SQ_NB][fe_end];
 
 #endif
 
