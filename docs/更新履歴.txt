@@ -16,6 +16,7 @@
  →　説明を解説.txtに追記。
 ・makebook、処理が終わったときにusageが出ていたの修正。
 ・_stricmp()がlinux系では存在しないらしくその場合、strcasecmp()で置き換えるように修正。
+・makebookのときisready()を呼び出しておかないとPosition::set()などが出来ないので修正。
 
 
 ■　2016/07/09 V3.33

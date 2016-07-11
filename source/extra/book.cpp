@@ -14,6 +14,8 @@
 using namespace std;
 using std::cout;
 
+void is_ready();
+
 namespace Book
 {
 #ifdef ENABLE_MAKEBOOK_CMD
@@ -175,6 +177,9 @@ namespace Book
       }
 
       cout << "parse..";
+
+      // この時点で評価関数を読み込まないとKPPTはPositionのset()が出来ないので…。
+      is_ready();
 
       // 思考すべき局面のsfen
       unordered_set<string> thinking_sfens;
