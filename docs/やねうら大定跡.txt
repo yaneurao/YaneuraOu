@@ -9,7 +9,7 @@
 誰でも利用できる形で公開します。
 
 
-対象棋譜 = record1.sfen(2ch棋譜)
+対象棋譜 = record1.sfen(2ch棋譜)+α
 
 ・ 1 ～ 5手目 MultiPV 10 , depth 32  →　作業中 : あと2日ほど
 ・ 1 ～ 6手目 MultiPV 10 , depth 28  →　完了
@@ -36,6 +36,7 @@
 	Threads 40
 	makebook think records1.sfen yaneura_book1.db moves 5 depth 32
 	// 222 nodes
+	// 42 nodes
 
 
 ] 2016/07/08

@@ -58,14 +58,16 @@ void MultiThink::go_think()
     }
   Exit:;
   }
-
-
   // すべてのthreadの終了待ち
   for (auto& th : threads)
   {
     th.join();
   }
 
+  // 最後の保存。
+  cout << "finalize.." << endl;
+  callback_func();
+  cout << "makebook..done!!" << endl;
 }
 
 
