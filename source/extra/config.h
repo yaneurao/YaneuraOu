@@ -416,9 +416,11 @@
 #define ALIGNED(X) 
 #endif
 
-// --------------------
-//      configure
-// --------------------
+// --- stricmpはlinux系では存在しないらしく、置き換える。
+
+#if !defined(_MSC_VER)
+#define _stricmp strcasecmp
+#endif
 
 // --- output for Japanese notation
 
