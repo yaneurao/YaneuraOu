@@ -176,10 +176,10 @@ namespace Book
           cout << "..done" << endl;
       }
 
-      cout << "parse..";
-
       // この時点で評価関数を読み込まないとKPPTはPositionのset()が出来ないので…。
       is_ready();
+
+      cout << "parse..";
 
       // 思考すべき局面のsfen
       unordered_set<string> thinking_sfens;
