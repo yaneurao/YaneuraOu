@@ -38,36 +38,64 @@ void MultiThink::go_think()
   // threadをOptions["Threads"]の数だけ生成して思考開始。
   vector<std::thread> threads;
   auto thread_num = (size_t)Options["Threads"];
+
+  // worker threadの終了フラグの確保
+  thread_finished.reset(new volatile bool[thread_num]);
+
+  // worker threadの起動
   for (size_t i = 0; i < thread_num; ++i)
   {
-    threads.push_back(std::thread([i,this] { this->thread_worker(i);  }));
+    thread_finished.get()[i] = false;
+    threads.push_back(std::thread([i, this] { this->thread_worker(i); this->thread_finished.get()[i] = true; }));
   }
 
-  if (callback_func)
+  // すべてのthreadの終了待ちを
+  // for (auto& th : threads)
+  //  th.join();
+  // のように書くとスレッドがまだ仕事をしている状態でここに突入するので、
+  // その間、callback_func()が呼び出せず、セーブできなくなる。
+  // そこで終了フラグを自前でチェックする必要がある。
+
+  while (true)
   {
-    while (true)
+    // 5秒ごとにスレッドの終了をチェックする。
+    const int check_interval = 5;
+
+    for (int i = 0; i < callback_seconds/check_interval; ++i)
     {
-      for (int i = 0; i < callback_seconds ; ++i)
-      {
-        // 1秒おきに終了チェック
-        this_thread::sleep_for(chrono::seconds(1));
-        if (loop_count == loop_max)
-          goto Exit;
-      }
-      callback_func();
+      this_thread::sleep_for(chrono::seconds(check_interval));
+
+      // すべてのスレッドが終了したか
+      for (size_t i = 0; i < thread_num; ++i)
+        if (!thread_finished.get()[i])
+          goto NEXT;
+
+      // すべてのthread_finished[i]に渡って、trueなのですべてのthreadが終了している。
+      goto FINISH;
+
+    NEXT:;
     }
-  Exit:;
+
+    // callback_secondsごとにcallback_func()が呼び出される。
+    if (callback_func)
+      callback_func();
   }
-  // すべてのthreadの終了待ち
-  for (auto& th : threads)
-  {
-    th.join();
-  }
+FINISH:;
+  
 
   // 最後の保存。
-  cout << "finalize.." << endl;
-  callback_func();
-  cout << "makebook..done!!" << endl;
+  if (callback_func)
+  {
+	  cout << endl << "finalize..";
+	  callback_func();
+  }
+
+  // 終了したフラグは立っているがスレッドの終了コードの実行中であるということはありうるので
+  // join()でその終了を待つ必要がある。
+  for (size_t i = 0; i < thread_num; ++i)
+	  threads[i].join();
+
+  cout << "..makebook..done!!" << endl;
 }
 
 

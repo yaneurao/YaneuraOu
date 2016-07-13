@@ -402,6 +402,12 @@ namespace Eval
   // なので、この関数の最適化は頑張らない。
   Value compute_eval(const Position& pos)
   {
+#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_MSC_VER)
+    // shared memoryを用いているときには、is_ready()で評価関数を読み込み、
+    // 初期化してからしかcompute_eval()を呼び出すことは出来ない。
+    ASSERT_LV1(kk_ != nullptr);
+#endif
+
     Square sq_bk = pos.king_square(BLACK);
     Square sq_wk = pos.king_square(WHITE);
     const auto* ppkppb = kpp[    sq_bk ];

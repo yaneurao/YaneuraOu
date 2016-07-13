@@ -74,11 +74,13 @@ namespace Book
       int multi_pv = std::min((int)Options["MultiPV"], (int)th->rootMoves.size());
       for (int i = 0; i<multi_pv; ++i)
       {
-        // 出現頻度は、ベストの指し手が一番大きな数値になるようにしておく。
-        // (narrow bookを指定したときにベストの指し手が選ばれるように)
+        // 出現頻度は、バージョンナンバーを100倍したものにしておく)
         Move nextMove = (th->rootMoves[i].pv.size() >= 1) ? th->rootMoves[i].pv[1] : MOVE_NONE;
         BookPos bp(th->rootMoves[i].pv[0], nextMove, th->rootMoves[i].score
-          , search_depth, multi_pv - i);
+          , search_depth, int(atof(ENGINE_VERSION) * 100) );
+
+        // MultiPVで思考しているので、手番側から見て評価値の良い順に並んでいることは保証される。
+        // (書き出しのときに並び替えなければ)
         move_list.push_back(bp);
       }
 
@@ -331,7 +333,7 @@ namespace Book
       write_book(book_name, book);
       cout << "finished." << endl;
 
-    } if (book_merge) {
+    } else if (book_merge) {
 
       // 定跡のマージ
       MemoryBook book[3];
@@ -503,6 +505,12 @@ namespace Book
       string bestMove, nextMove;
       uint64_t num;
       is >> bestMove >> nextMove >> value >> depth >> num;
+
+#if 0
+      // 思考した指し手に対しては指し手の出現頻度のところを強制的にエンジンバージョンを100倍したものに変更する。
+      // この#ifを有効にして、makebook mergeコマンドを叩いて、別のファイルに書き出すなどするときに便利。
+      num = int(atof(ENGINE_VERSION) * 100);
+#endif
 
       // 起動時なので変換に要するオーバーヘッドは最小化したいので合法かのチェックはしない。
       if (bestMove == "none" || bestMove == "resign")

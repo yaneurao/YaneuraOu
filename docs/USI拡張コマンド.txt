@@ -60,12 +60,17 @@ set option name XXX value ...で設定できるoption
 
 					# このコンボボックスの値
 					standard_book.db 標準定跡
-					yaneura_book1.db やねうら大定跡(公開用1)
-					yaneura_book2.db やねうら超定跡(公開用2)
+					yaneura_book1.db やねうら大定跡(公開用)
+					yaneura_book2.db やねうら超定跡(公開用)
 					yaneura_book3.db やねうら裏定跡(大会用)
+					user_book1.db ユーザー定跡1
+					user_book2.db ユーザー定跡2
+					user_book3.db ユーザー定跡3
+
 
 	評価値ベースの定跡。以下のオプションを用いるときは
-	1) NarrowBookをオフに。(オンにしても良いがそうすると評価値順に並べたときの順位が低い候補手が選ばれない)
+	1) NarrowBookを必ずオフに。(やねうら大定跡では、「出現頻度」のところが、思考エンジンのバージョンナンバーになっています！
+    	　このため、出現頻度順で並び替えても意味がありません。)
 	2) 「やねうら大定跡」など評価値がきちんとついている定跡を用いる。
 
 		BookEvalDiff	    : 定跡の第一候補手との評価値の差

@@ -11,12 +11,15 @@
 
 対象棋譜 = record1.sfen(2ch棋譜)+α
 
-・ 1 ～ 5手目 MultiPV 10 , depth 32  →　作業中 : あと2日ほど
-・ 1 ～ 6手目 MultiPV 10 , depth 28  →　完了
+・ 1 ～ 5手目 MultiPV 10 , depth 32  →　完了
+・      6手目 MultiPV 10 , depth 28  →　完了
 ・      6手目 MultiPV 10 , depth 32  →　放置中 : 20コアで10日ほどかかる。
 ・ 7 ～ 8手目 MultiPV 10 , depth 24  →　完了
-・ 9 ～16手目 MultiPV 10 , depth 24  →　作業中 : あと3日ほど。
+・ 7 ～ 8手目 MultiPV 10 , depth 28  →　放置中 : 20コアで2日ほどかかる。
+・ 9 ～16手目 MultiPV 10 , depth 24  →　完了
+・ 9 ～16手目 MultiPV 10 , depth 28  →　放置中 : 20コアで20日ほどかかる。
 ・ 17～32手目 MultiPV  5 , depth 18  →　完了
+・ 17～18手目 MultiPV 10 , depth 28  →　放置中 : 20コアで20日ほどかかる。
 
 今後の予定。
 
@@ -29,14 +32,43 @@
 
 ■　以下、記録
 
-] 2016/07/10
+・デバッグ用
 
-	Hash 8192
+	Hash 4096
+	MultiPV 10
+	Threads 4
+	makebook think records1.sfen yaneura_book1.db moves 5 depth 29
+
+
+
+] 2016/07/10 - 2016/07/12
+
+	Hash 4096
+	MultiPV 10
+	Threads 10
+	makebook think records1.sfen yaneura_book1.db startmoves 7 moves 8 depth 28
+	// 3212 nodes
+
+	Hash 4096
+	MultiPV 10
+	Threads 40
+	makebook think records1.sfen yaneura_book1.db startmoves 6 moves 6 depth 32
+	// 489 nodes
+
+	Hash 4096
+	MultiPV 10
+	Threads 40
+	makebook think records1.sfen yaneura_book1.db startmoves 17 moves 18 depth 28
+	// 26652 nodes 20コアで1時間で60nodeほどしか進まない。
+
+	Hash 4096
 	MultiPV 10
 	Threads 40
 	makebook think records1.sfen yaneura_book1.db moves 5 depth 32
 	// 222 nodes
 	// 42 nodes
+	// もうちょっとなのだが..
+	// →　完了(2016/07/13 20:20)
 
 
 ] 2016/07/08
@@ -54,6 +86,7 @@
 	// 53609node 5分で60ぐらいのペース。3日強ぐらい。
 	// 33952node(2016/07/08 13:30)
 	// 28028node(2016/07/09  1:00)
+	// 完了。(2016/07/11 19:40)
 
 	Hash 8192
 	MultiPV 5

@@ -338,6 +338,7 @@
 #include <cmath>    // log(),std::round()
 #include <climits>  // INT_MAX
 #include <cstddef>  // offsetof
+#include <ctime>    // std::ctime()
 #include <random>   // random_device
 
 // --------------------
@@ -352,6 +353,9 @@
 // C4800 : 'unsigned int': ブール値を 'true' または 'false' に強制的に設定します
 // →　static_cast<bool>(...)において出る。
 #pragma warning(disable : 4800)
+
+// C4996 : 'ctime' : This function or variable may be unsafe.Consider using ctime_s instead.
+#pragma warning(disable : 4996)
 #endif
 
 // for GCC

@@ -59,7 +59,13 @@ struct SfenWriter
   SfenWriter(int thread_num)
   {
     sfen_buffers.resize(thread_num);
-    fs.open("generated_kifu.sfen", ios::out | ios::binary);
+    fs.open(
+#ifdef WRITE_PACKED_SFEN
+      "generated_kifu.bin"
+#else
+      "generated_kifu.sfen"
+#endif
+      , ios::out | ios::binary | ios::app);
   }
 
   // この行数ごとにファイルにflushする。
@@ -67,7 +73,7 @@ struct SfenWriter
   // 40コア80HTで秒間10万局面。1日で80億ぐらい作れる。
   // 80億=8G , 1局面100バイトとしたら 800GB。
   
-  const size_t FILE_WRITE_INTERVAL = 1000;
+  const size_t FILE_WRITE_INTERVAL = 5000;
 
 #ifdef  WRITE_PACKED_SFEN
   struct PackedSfenValue
@@ -81,13 +87,17 @@ struct SfenWriter
     // スレッドごとにbufferを持っていて、そこに追加する。
     // bufferが溢れたら、ファイルに書き出す。
 
+    // このバッファはスレッドごとに用意されている。
     auto& buf = sfen_buffers[thread_id];
     
     PackedSfenValue ps;
     memcpy(ps.data, data, 32);
     memcpy(ps.data + 32, &value, 2);
     
+    // スレッドごとに用意されており、一つのスレッドが同時にこのwrite()関数を呼び出さないので
+    // この時点では排他する必要はない。
     buf.push_back(ps);
+
     if (buf.size() >= FILE_WRITE_INTERVAL)
     {
       std::unique_lock<Mutex> lk(mutex);
@@ -102,6 +112,18 @@ struct SfenWriter
 
       // 棋譜を書き出すごとに'.'を出力。
       cout << ".";
+
+      // 40回出力するごとに出力した局面数を出力。
+      total_write += FILE_WRITE_INTERVAL;
+
+      if ((total_write % (FILE_WRITE_INTERVAL * 40)) == 0)
+      {
+        // 現在時刻も出力
+        auto now = std::chrono::system_clock::now();
+        auto tp = std::chrono::system_clock::to_time_t(now);
+        
+        cout << endl << total_write << " sfens , at " << std::ctime(&tp);
+      }
     }
   }
 #else
@@ -135,6 +157,8 @@ private:
   Mutex mutex;
 
   fstream fs;
+
+  u64 total_write = 0;
 
   // ファイルに書き出す前のバッファ
 #ifdef  WRITE_PACKED_SFEN
@@ -227,13 +251,24 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
             goto DO_MOVE;
           }
         }
+
+        // 定跡の局面は書き出さない＆思考しない。
+        continue;
       }
 
       {
-        // 3手読みの評価値とPV(最善応手列)
+        // search_depth手読みの評価値とPV(最善応手列)
         auto pv_value1 = search(pos, -VALUE_INFINITE, VALUE_INFINITE, search_depth);
         auto value1 = pv_value1.first;
         auto pv1 = pv_value1.second;
+
+#if 1
+		// 評価値の絶対値が2000以上の局面については
+		// その局面を学習に使うのはあまり意味がないのでこの試合を終了する。
+		// 2000という数字自体は調整したほうが良いが…。
+		if (abs(value1) >= 2000)
+			break;
+#endif
 
 #if 0
         // 0手読み(静止探索のみ)の評価値とPV(最善応手列)

@@ -89,6 +89,9 @@ private:
   // ↑の乱数を取得するときのmutex
   Mutex rand_mutex;
 
+  // スレッドの終了フラグ。
+  std::shared_ptr<volatile bool> thread_finished;
+
 };
 
 #endif // defined(EVAL_LEARN) && defined(YANEURAOU_2016_MID_ENGINE)
