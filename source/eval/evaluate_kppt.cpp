@@ -329,14 +329,18 @@ namespace Eval
 #if 0
       // Aperyの評価関数バイナリ、kppのp=0のところでゴミが入っている。
       // 駒落ちなどではここを利用したいので0クリアすべき。
+	  const ValueKpp kpp_zero = { 0,0 };
       for (auto sq : SQ)
         for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
         {
-          kpp[sq][p1][0][0] = 0;
-          kpp[sq][p1][0][1] = 0;
-          kpp[sq][0][p1][0] = 0;
-          kpp[sq][0][p1][1] = 0;
+          kpp[sq][p1][0] = kpp_zero;
+          kpp[sq][0][p1] = kpp_zero;
         }
+
+	  const ValueKkp kkp_zero = { 0,0 };
+	  for (auto sq1 : SQ)
+		  for (auto sq2 : SQ)
+			  kkp[sq1][sq2][0] = kkp_zero;
 #endif
 
 #if 0
