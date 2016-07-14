@@ -2340,10 +2340,17 @@ void MainThread::think()
 				// 1),2)から、move_list[0]の指し手がベストの指し手と言える。
 
 				if (!Limits.silent)
-					for (auto it = move_list.rbegin(); it != move_list.rend(); it++)
+				{
+					// 将棋所では対応していないが、ShogiGUIの検討モードで使うときに
+					// 定跡の指し手に対してmultipvを出力しておかないとうまく表示されないので
+					// これを出力しておく。
+					auto i = move_list.size();
+					for (auto it = move_list.rbegin() ; it != move_list.rend(); ++it,--i)
 						sync_cout << "info pv " << it->bestMove << " " << it->nextMove
 						<< " (" << fixed << setprecision(2) << (100 * it->prob) << "%)" // 採択確率
-						<< " score cp " << it->value << " depth " << it->depth << sync_endl;
+						<< " score cp " << it->value << " depth " << it->depth
+						<< " multipv " << i << sync_endl;
+				}
 
 				// このなかの一つをランダムに選択
 
