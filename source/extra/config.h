@@ -331,6 +331,7 @@
 #include <memory>
 #include <map>
 #include <iostream>
+#include <fstream>
 #include <mutex>
 #include <thread>   // このあとMutexをtypedefするので
 #include <condition_variable>
@@ -420,10 +421,24 @@
 #define ALIGNED(X) 
 #endif
 
-// --- stricmpはlinux系では存在しないらしく、置き換える。
+// --- for linux
 
 #if !defined(_MSC_VER)
+// stricmpはlinux系では存在しないらしく、置き換える。
 #define _stricmp strcasecmp
+
+// あと、getline()したときにテキストファイルが'\r\n'だと
+// '\r'が末尾に残るのでこの'\r'を除去するためにwrapperを書く。
+// そのため、fstreamに対してgetline()を呼び出すときは、
+// std::getline()ではなく単にgetline()と書いて、この関数を使うべき。
+inline bool getline(std::fstream& fs, std::string& s)
+{
+	bool b = (bool)std::getline(fs, s);
+	if (s.size() && s[s.size() - 1] == '\r')
+		s.erase(s.size() - 1);
+	return b;
+}
+
 #endif
 
 // --- output for Japanese notation
