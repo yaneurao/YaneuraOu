@@ -10,6 +10,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <unordered_set>
 
 #include "../evaluate.h"
 #include "../position.h"
@@ -98,42 +99,29 @@ namespace Eval
   // この関数を用いると、ミラー関係にある箇所などにも同じ値を書き込んでくれる。次元下げの一種。
   void kpp_write(Square k1, BonaPiece p1, BonaPiece p2, ValueKpp value)
   {
-    // '~'をinv記号,'M'をmirror記号だとして
-    //   [  k1 ][ p1][ p2]
-    //   [  k1 ][ p2][ p1]
-    //   [ ~k1 ][~p1][~p2]
-    //   [ ~k1 ][~p2][~p1]
-    //   [M(k1)][M(p1)][M(p2)]
-    //   …
-    // は、同じ値であるべきなので、その8箇所に書き出す。
+	  // '~'をinv記号,'M'をmirror記号だとして
+	  //   [  k1 ][  p1 ][  p2 ]
+	  //   [  k1 ][  p2 ][  p1 ]
+	  //   [M(k1)][M(p1)][M(p2)]
+	  //   [M(k1)][M(p2)][M(p1)]
+	  // は、同じ値であるべきなので、その4箇所に書き出す。
 
-    BonaPiece ip1 = inv_piece[p1];
-    BonaPiece ip2 = inv_piece[p2];
-    BonaPiece mp1 = mir_piece[p1];
-    BonaPiece mp2 = mir_piece[p2];
-    BonaPiece mip1 = mir_piece[ip1];
-    BonaPiece mip2 = mir_piece[ip2];
-    Square mk1 = Mir(k1);
-    Square ik1 = Inv(k1);
-    Square mik1 = Mir(ik1);
+	  BonaPiece mp1  = mir_piece[p1];
+	  BonaPiece mp2  = mir_piece[p2];
+	  Square  mk1 = Mir(k1);
 
-    ASSERT_LV3(kpp[k1][p1][p2] == kpp[  k1][  p2][  p1]);
-    ASSERT_LV3(kpp[k1][p1][p2] == kpp[ ik1][ ip1][ ip2]);
-    ASSERT_LV3(kpp[k1][p1][p2] == kpp[ ik1][ ip2][ ip1]);
-    ASSERT_LV3(kpp[k1][p1][p2] == kpp[ mk1][ mp1][ mp2]);
-    ASSERT_LV3(kpp[k1][p1][p2] == kpp[ mk1][ mp2][ mp1]);
-    ASSERT_LV3(kpp[k1][p1][p2] == kpp[mik1][mip1][mip2]);
-    ASSERT_LV3(kpp[k1][p1][p2] == kpp[mik1][mip2][mip1]);
+	  // Apery(WCSC26)の評価関数、玉が5筋にいるきにmirrorした値が一致しないので
+	  // assertから除外しておく。
 
-    kpp[  k1][  p1][  p2]
-      = kpp[  k1][  p2][  p1]
-      = kpp[ ik1][ ip1][ ip2]
-      = kpp[ ik1][ ip2][ ip1]
-      = kpp[ mk1][ mp1][ mp2]
-      = kpp[ mk1][ mp2][ mp1]
-      = kpp[mik1][mip1][mip2]
-      = kpp[mik1][mip2][mip1]
-      = value;
+	  ASSERT_LV3(kpp[k1][p1][p2] == kpp[k1][p2][p1]);
+	  ASSERT_LV3(kpp[k1][p1][p2] == kpp[mk1][mp1][mp2] || file_of(k1) == FILE_5);
+	  ASSERT_LV3(kpp[k1][p1][p2] == kpp[mk1][mp2][mp1] || file_of(k1) == FILE_5);
+
+	  kpp[k1][p1][p2]
+		  = kpp[k1][p2][p1]
+		  = kpp[mk1][mp1][mp2]
+		  = kpp[mk1][mp2][mp1]
+		  = value;
   }
 
 
@@ -143,10 +131,11 @@ namespace Eval
   {
     // '~'をinv記号,'M'をmirror記号だとして
     //   [  k1 ][  k2 ][  p1 ]
-    //   [ ~k2 ][ ~k1 ][ ~p1 ]
+    //   [ ~k2 ][ ~k1 ][ ~p1 ] (1)
     //   [M k1 ][M k2 ][M p1 ]
-    //   [M~k2 ][M~k1 ][M~p1 ]
+    //   [M~k2 ][M~k1 ][M~p1 ] (2)
     // は、同じ値であるべきなので、その4箇所に書き出す。
+	// ただし、(1)[0],(2)[0]は[k1][k2][p1][0]とは符号が逆なので注意。
 
     BonaPiece ip1 = inv_piece[p1];
     BonaPiece mp1 = mir_piece[p1];
@@ -158,15 +147,22 @@ namespace Eval
     Square  ik2 = Inv( k2);
     Square mik2 = Mir(ik2);
 
-    ASSERT_LV3(kkp[k1][k2][p1] == kkp[ ik2][ ik1][ ip1]);
-    ASSERT_LV3(kkp[k1][k2][p1] == kkp[ mk1][ mk2][ mp1]);
-    ASSERT_LV3(kkp[k1][k2][p1] == kkp[mik2][mik1][mip1]);
+    ASSERT_LV3(kkp[k1][k2][p1][0] == -kkp[ik2][ik1][ip1][0]);
+	ASSERT_LV3(kkp[k1][k2][p1][1] == +kkp[ik2][ik1][ip1][1]);
+	ASSERT_LV3(kkp[k1][k2][p1] == kkp[ mk1][ mk2][ mp1]);
+    ASSERT_LV3(kkp[ik2][ik1][ip1] == kkp[mik2][mik1][mip1]);
 
     kkp[  k1][  k2][  p1]
-      = kkp[ ik2][ ik1][ ip1]
       = kkp[ mk1][ mk2][ mp1]
-      = kkp[mik2][mik1][mip1]
       = value;
+
+	kkp[ik2][ik1][ip1][0]
+		= kkp[mik2][mik1][mip1][0]
+		= -value[0];
+
+	kkp[ik2][ik1][ip1][1]
+		= kkp[mik2][mik1][mip1][1]
+		= +value[1];
   }
 
   // 学習のためのテーブルの初期化
@@ -224,8 +220,8 @@ namespace Eval
 
           BonaPiece p2 = (BonaPiece)(sq + t[i + 1]);
           BonaPiece r2 = (BonaPiece)(Mir(sq) + t[i + 1]);
-          mir_piece[ p] = r2;
-          mir_piece[r2] = p;
+          mir_piece[p2] = r2;
+          mir_piece[r2] = p2;
 
           break;
         }
@@ -242,19 +238,69 @@ namespace Eval
       }
 
 #if 0
-    // 評価関数のミラーをしても大丈夫であるかの事前検証
+	// 評価関数のミラーをしても大丈夫であるかの事前検証
     // 値を書き込んだときにassertionがあるので、ミラーしてダメである場合、
     // そのassertに引っかかるはず。
 
-    for (auto sq : SQ)
-      for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
-        for (BonaPiece p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
-          kpp_write(sq, p1, p2, kpp[sq][p1][p2]);
+	// AperyのWCSC26の評価関数、kppのp1==0とかp1==20(後手の0枚目の歩)とかの
+	// ところにゴミが入っていて、これを回避しないとassertに引っかかる。
 
-    for (auto sq1 : SQ)
-      for (auto sq2 : SQ)
-        for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
-          kkp_write(sq1, sq2, p1, kkp[sq1][sq2][p1]);
+	std::unordered_set<BonaPiece> s;
+	vector<int> a = {
+		f_hand_pawn - 1,e_hand_pawn - 1,
+		f_hand_lance - 1, e_hand_lance - 1,
+		f_hand_knight - 1, e_hand_knight - 1,
+		f_hand_silver - 1, e_hand_silver - 1,
+		f_hand_gold - 1, e_hand_gold - 1,
+		f_hand_bishop - 1, e_hand_bishop - 1,
+		f_hand_rook - 1, e_hand_rook - 1,
+	};
+	for (auto b : a)
+		s.insert((BonaPiece)b);
+
+	// さらに出現しない升の盤上の歩、香、桂も除外(Aperyはここにもゴミが入っている)
+	for(Rank r = RANK_1;r<=RANK_2;++r)
+		for (File f = FILE_1; f <= FILE_9; ++f)
+		{
+			if (r == RANK_1)
+			{
+				// 1段目の歩
+				BonaPiece b1 = BonaPiece(f_pawn + (f | r));
+				s.insert(b1);
+				s.insert(inv_piece[b1]);
+
+				// 1段目の香
+				BonaPiece b2 = BonaPiece(f_lance + (f | r));
+				s.insert(b2);
+				s.insert(inv_piece[b2]);
+			}
+
+			// 1,2段目の桂
+			BonaPiece b = BonaPiece(f_knight + (f | r));
+			s.insert(b);
+			s.insert(inv_piece[b]);
+		}
+
+	cout << "\nchecking kpp_write()..";
+	for (auto sq : SQ)
+	{
+		cout << sq << ' ';
+		for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
+			for (BonaPiece p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
+				if (!s.count(p1) && !s.count(p2))
+					kpp_write(sq, p1, p2, kpp[sq][p1][p2]);
+	}
+	cout << "\nchecking kkp_write()..";
+
+	for (auto sq1 : SQ)
+	{
+		cout << sq1 << ' ';
+		for (auto sq2 : SQ)
+			for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
+				if (!s.count(p1))
+					kkp_write(sq1, sq2, p1, kkp[sq1][sq2][p1]);
+	}
+	cout << "..done!" << endl;
 #endif
   }
 
