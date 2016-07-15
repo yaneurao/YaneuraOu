@@ -49,6 +49,12 @@ extern void is_ready();
 namespace Learner
 {
 
+// packされたsfen
+struct PackedSfenValue
+{
+	u8 data[34];
+};
+
 // -----------------------------------
 //    局面のファイルへの書き出し
 // -----------------------------------
@@ -76,10 +82,6 @@ struct SfenWriter
   const size_t FILE_WRITE_INTERVAL = 5000;
 
 #ifdef  WRITE_PACKED_SFEN
-  struct PackedSfenValue
-  {
-    u8 data[34];
-  };
 
   // 局面と評価値をペアにして1つ書き出す(packされたsfen形式で)
   void write(size_t thread_id, u8 data[32], int16_t value)
@@ -477,31 +479,249 @@ void gen_sfen(Position& pos, istringstream& is)
 // 生成した棋譜から学習させるコマンド(learn)
 // -----------------------------------
 
+// Sfenの読み込み機
+struct SfenReader
+{
+	SfenReader(int thread_num)
+	{
+		packed_sfens.resize(thread_num);
+		total_read = 0;
+		files_end = false;
+	}
+
+	// [ASYNC] スレッドが局面を一つ返す。なければfalseが返る。
+	bool read_to_thread_buffer(size_t thread_id, PackedSfenValue& ps)
+	{
+		// スレッドバッファに局面が残っているなら、それを1つ取り出して返す。
+		auto& thread_ps = packed_sfens[thread_id];
+
+		// バッファに残りがなかったらread bufferから充填するが、それすらなかったらもう終了。
+		if (thread_ps.size() == 0 && !read_to_thread_buffer_impl(thread_ps))
+			return false;
+
+		ps = *thread_ps.rbegin();
+		thread_ps.pop_back();
+		return true;
+	}
+
+	// [ASYNC] スレッドバッファに局面を10000局面ほど読み込む。
+	bool read_to_thread_buffer_impl(vector<PackedSfenValue>& ps_vec)
+	{
+		// スレッドバッファが尽きたのでグローバルバッファから充填する。
+		std::unique_lock<Mutex> lk(mutex);
+
+		// もうすでに読み込むファイルは無くなっている。
+		if (files_end)
+			return false;
+
+		auto read_from_buffer = [&]()
+		{
+			// read bufferから充填可能か？
+			const int THREAD_BUFFER_SIZE = 10000;
+			int size = (int)read_buffer.size();
+			if (size >= THREAD_BUFFER_SIZE)
+			{
+				// 高速化のためにブロックコピーしてしまう。
+				ps_vec.resize(THREAD_BUFFER_SIZE);
+				int new_size = size - THREAD_BUFFER_SIZE;
+				memcpy(&ps_vec[0], &read_buffer[new_size], sizeof(PackedSfenValue)*THREAD_BUFFER_SIZE);
+				read_buffer.resize(new_size);
+
+				// 1万局面読むごとに'.'をひとつ出力。
+				cout << '.';
+
+				return true;
+			}
+			return false;
+		};
+
+		// ファイルバッファから充填できたなら、それで良し。
+		if (read_from_buffer())
+			return true;
+
+		// 次の10M局面(34*10MB = 340MB)を読み込む
+		// (この単位でshuffleする)
+
+		const int SFEN_READ_SIZE = 1000 * 1000 * 10; // 10M局面
+//		const int SFEN_READ_SIZE = 1000 * 1000 * 1; // 1M局面
+		auto open_next_file = [&]()
+		{
+			if (fs.is_open())
+				fs.close();
+
+			// もう無い
+			if (filenames.size() == 0)
+				return false;
+
+			string filename = *filenames.rbegin();
+			filenames.pop_back();
+
+			// 生成した棋譜をテスト的に読み込むためのコード
+			fs.open(filename, ios::in | ios::binary);
+			cout << endl << "open filename = " << filename << " ";
+
+			return true;
+		};
+
+		// SFEN_READ_SIZE分だけ読むごとに時刻を表示。
+
+		// 現在時刻も出力
+		auto now = std::chrono::system_clock::now();
+		auto tp = std::chrono::system_clock::to_time_t(now);
+		cout << endl << total_read << " sfens , at " << std::ctime(&tp);
+
+		// ファイルバッファにファイルから読み込む。
+		while (read_buffer.size() < SFEN_READ_SIZE)
+		{
+			PackedSfenValue p;
+			if (fs.read((char*)&p, sizeof(PackedSfenValue)))
+			{
+				read_buffer.push_back(p);
+			}
+			else
+			{
+				// 読み込み失敗
+				if (!open_next_file())
+				{
+					// 次のファイルもなかった。あぼーん。
+					cout << "..end of files.\n";
+					files_end = true;
+					return false;
+				}
+			}
+		}
+		
+#if 1
+		// この読み込んだ局面データをシャッフルする。
+		{
+			auto size = read_buffer.size();
+			for (size_t i = 0; i < size; ++i)
+				swap(read_buffer[i], read_buffer[prng.rand(size-i) + i]);
+		}
+#endif
+
+		total_read += SFEN_READ_SIZE;
+
+		if (read_from_buffer())
+			return true;
+
+		// バッファから充填しようとしたがデーターが足りなかった模様。んな馬鹿な…。
+		// THREAD_BUFFER_SIZE < SFEN_READ_SIZE 
+		// だから、それはないはず。
+		ASSERT_LV3(false);
+
+		return false;
+	}
+
+
+	virtual void thread_worker(size_t thread_id)
+	{
+		while (true)
+		{
+			PackedSfenValue ps;
+			auto hit = read_to_thread_buffer(thread_id, ps);
+			if (!hit)
+				break;
+		}
+	}
+
+	// sfenファイル群
+	vector<string> filenames;
+
+protected:
+
+	PRNG prng;
+
+	// 読み込んだ局面数
+	u64 total_read;
+
+	// ファイル群を読み込んでいき、最後まで到達したか。
+	bool files_end;
+
+	// ファイルを読み込むためのmutex
+	Mutex mutex;
+
+	// sfenファイルのハンドル
+	fstream fs;
+
+	// 各スレッド用のsfen
+	vector<vector<PackedSfenValue>> packed_sfens;
+
+	// 10M局面分の読み込みバッファ
+	vector<PackedSfenValue> read_buffer;
+};
+
+
+// 複数スレッドでsfenを生成するためのクラス
+struct LearnerThink: public MultiThink
+{
+	LearnerThink(SfenReader& sr_):sr(sr_){}
+	virtual void thread_worker(size_t thread_id);
+
+	//  search_depth = 通常探索の探索深さ
+	int search_depth;
+
+	// sfenの読み出し器
+	SfenReader& sr;
+};
+
+void LearnerThink::thread_worker(size_t thread_id)
+{
+	auto& pos = Threads[thread_id]->rootPos;
+
+	while (true)
+	{
+		PackedSfenValue ps;
+		if (!sr.read_to_thread_buffer(thread_id, ps))
+			break;
+
+		auto sfen = pos.sfen_unpack(ps.data);
+
+		pos.set(sfen);
+		auto th = Threads[thread_id];
+		pos.set_this_thread(th);
+
+		// 評価値は棋譜生成のときに、この34バイトの末尾2バイトに埋めてある。
+		Value value = (Value)*(int16_t*)&ps.data[32];
+
+		// 読み込めたので試しに表示してみる。
+		//		cout << pos << value << endl;
+
+		// ここに静止探索してなんやかやするコードを書く。
+
+	}
+}
+
 // 生成した棋譜からの学習
 void learn(Position& pos, istringstream& is)
 {
-  // 生成した棋譜をテスト的に読み込むためのコード
-#if 0
-  fstream fs;
-  fs.open("generated_kifu.sfen", ios::in | ios::binary);
 
-  while (!fs.eof())
-  {
-    u8 data[34];
-    fs.read((char*)data, 34);
+	auto thread_num = (int)Options["Threads"];
+	SfenReader sr(thread_num);
 
-    auto sfen = pos.sfen_unpack(data);
-    pos.set(sfen);
+	LearnerThink learn_think(sr);
+	vector<string> filenames;
 
-    // 評価値は棋譜生成のときに、この34バイトの末尾2バイトに埋めてある。
-    Value value = (Value)*(int16_t*)&data[32];
+	// ファイル名が後ろにずらずらと書かれていると仮定している。
+	while (true)
+	{
+		string filename;
+		is >> filename;
 
-    cout << pos << value << endl;
-  }
-#endif
+		if (filename == "")
+			break;
 
-  // 書きかけ
+		filenames.push_back(filename);
+	}
 
+	cout << "learn from ";
+	for (auto s : filenames)
+		cout << s << " , ";
+
+	reverse(filenames.begin(), filenames.end());
+	sr.filenames = filenames;
+
+	learn_think.go_think();
 }
 
 

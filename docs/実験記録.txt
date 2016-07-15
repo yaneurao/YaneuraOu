@@ -3,6 +3,48 @@ ToDo:
 ・mate3()書く。
 
 
+■　2016/07/17
+
+・生成された80億局面のファイルの読み込み例
+
+	while (!fs.eof())
+	{
+		u8 data[34];
+		fs.read((char*)data, 34);
+
+		auto sfen = pos.sfen_unpack(data);
+		pos.set(sfen);
+
+		// 評価値は棋譜生成のときに、この34バイトの末尾2バイトに埋めてある。
+		Value value = (Value)*(int16_t*)&data[32];
+
+		cout << pos << value << endl;
+	}
+
+・learnのスレッド並列で局面ファイルを読み込むルーチン、少し書いた。
+
+
+#if 1
+	{
+		fstream fs;
+		fs.open("a.bin", ios::binary | ios::in);
+
+		PackedSfenValue p[10000];
+		while (fs.read((char*)&p, sizeof(PackedSfenValue)*10000))
+		{
+			for (int i = 0; i < 10000; ++i)
+			{
+				auto q = p[i];
+				auto sfen = pos.sfen_unpack(q.data);
+				pos.set(sfen);
+			}
+			cout << '.';
+		}
+		return;
+	}
+#endif
+
+
 ■　2016/07/16
 
 ・ai5さんいわく、USI原案によると手駒の表記は、飛・角・金・銀・桂・香・歩の順らしい。

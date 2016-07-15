@@ -95,7 +95,7 @@ FINISH:;
   for (size_t i = 0; i < thread_num; ++i)
 	  threads[i].join();
 
-  cout << "..makebook..done!!" << endl;
+  cout << "..all works..done!!" << endl;
 }
 
 
