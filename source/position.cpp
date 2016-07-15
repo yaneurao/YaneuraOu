@@ -299,65 +299,73 @@ void Position::set(std::string sfen)
 // Position::set()の逆変換。
 const std::string Position::sfen() const
 {
-  std::ostringstream ss;
+	std::ostringstream ss;
 
-  // --- 盤面
-  int emptyCnt;
-  for (Rank r = RANK_1; r <= RANK_9; ++r)
-  {
-    for (File f = FILE_9; f >= FILE_1; --f)
-    {
-      // それぞれの升に対して駒がないなら
-      // その段の、そのあとの駒のない升をカウントする
-      for (emptyCnt = 0; f >= FILE_1 && piece_on(f | r) == NO_PIECE; --f)
-        ++emptyCnt;
+	// --- 盤面
+	int emptyCnt;
+	for (Rank r = RANK_1; r <= RANK_9; ++r)
+	{
+		for (File f = FILE_9; f >= FILE_1; --f)
+		{
+			// それぞれの升に対して駒がないなら
+			// その段の、そのあとの駒のない升をカウントする
+			for (emptyCnt = 0; f >= FILE_1 && piece_on(f | r) == NO_PIECE; --f)
+				++emptyCnt;
 
-      // 駒のなかった升の数を出力
-      if (emptyCnt)
-        ss << emptyCnt;
+			// 駒のなかった升の数を出力
+			if (emptyCnt)
+				ss << emptyCnt;
 
-      // 駒があったなら、それに対応する駒文字列を出力
-      if (f >= FILE_1)
-        ss << (piece_on(f | r));
-    }
+			// 駒があったなら、それに対応する駒文字列を出力
+			if (f >= FILE_1)
+				ss << (piece_on(f | r));
+		}
 
-    // 最下段以外では次の行があるのでセパレーターである'/'を出力する。
-    if (r < RANK_9)
-      ss << '/';
-  }
+		// 最下段以外では次の行があるのでセパレーターである'/'を出力する。
+		if (r < RANK_9)
+			ss << '/';
+	}
 
-  // --- 手番
-  ss << (sideToMove == WHITE ? " w " : " b ");
+	// --- 手番
+	ss << (sideToMove == WHITE ? " w " : " b ");
 
-  // --- 手駒(UCIプロトコルにはないがUSIプロトコルにはある)
-  int n;
-  bool found = false;
-  for (Color c = BLACK; c <= WHITE; ++c)
-    for (Piece p = PAWN; p < PIECE_HAND_NB; ++p)
-    {
-      // その種類の手駒の枚数
-      n = hand_count( hand[c] , p);
-      // その種類の手駒を持っているか
-      if (n != 0)
-      {
-        // 手駒が1枚でも見つかった
-        found = true;
+	// --- 手駒(UCIプロトコルにはないがUSIプロトコルにはある)
+	int n;
+	bool found = false;
+	for (Color c = BLACK; c <= WHITE; ++c)
+		for (int pn = 0 ; pn < 7; ++ pn)
+		{
+			// 手駒の出力順はUSIプロトコルでは規定されていないが、
+			// USI原案によると、飛、角、金、銀、桂、香、歩の順である。
+			// sfen文字列を一意にしておかないと定跡データーをsfen文字列で書き出したときに
+			// 他のソフトで文字列が一致しなくて困るので、この順に倣うことにする。
 
-        // その種類の駒の枚数。1ならば出力を省略
-        if (n != 1)
-          ss << n;
+			const Piece USI_Hand[7] = { ROOK,BISHOP,GOLD,SILVER,KNIGHT,LANCE,PAWN };
+			auto p = USI_Hand[pn];
 
-        ss << PieceToCharBW[make_piece(c, p)];
-      }
-    }
+			// その種類の手駒の枚数
+			n = hand_count(hand[c], p);
+			// その種類の手駒を持っているか
+			if (n != 0)
+			{
+				// 手駒が1枚でも見つかった
+				found = true;
 
-  // 手駒がない場合はハイフンを出力
-  ss << (found ? " " : "- " );
-  
-  // --- 初期局面からの手数
-  ss << gamePly;
+				// その種類の駒の枚数。1ならば出力を省略
+				if (n != 1)
+					ss << n;
 
-  return ss.str();
+				ss << PieceToCharBW[make_piece(c, p)];
+			}
+		}
+
+	// 手駒がない場合はハイフンを出力
+	ss << (found ? " " : "- ");
+
+	// --- 初期局面からの手数
+	ss << gamePly;
+
+	return ss.str();
 }
 
 void Position::set_state(StateInfo* si) const {

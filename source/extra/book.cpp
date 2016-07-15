@@ -556,10 +556,23 @@ namespace Book
 		if (sort)
 		{
 			// sfen文字列は手駒の表記に揺れがある。
+			// (USI原案のほうでは規定されているのだが、将棋所が採用しているUSIプロトコルではこの規定がない。)
 			// sortするタイミングで、一度すべての局面を読み込み、sfen()化しなおすことで
-			// やねうら王が用いているsfenの手駒表記に統一されるようにするべきかも知れない。
-			// とは言え、それで他のソフトとの互換性が高まるわけでもないし。
-			// 逆に、やねうら王定跡フォーマット2016では手駒のところは、PLKSBRGの順であるものとしよう。
+			// やねうら王が用いているsfenの手駒表記(USI原案)に統一されるようにする。
+
+			{
+				// Position::set()で評価関数の読み込みが必要。
+				is_ready();
+				Position pos;
+
+				// std::vectorにしてあるのでit.firstを書き換えてもitは無効にならないはず。
+				for (auto& it : vectored_book)
+				{
+					pos.set(it.first);
+					it.first = pos.sfen();
+				}
+			}
+
 
 			// ここvectored_bookが、sfen文字列でsortされていて欲しいのでsortする。
 			// アルファベットの範囲ではlocaleの影響は受けない…はず…。

@@ -210,11 +210,25 @@ namespace Eval
           inv_piece[p] = q;
           inv_piece[q] = p;
 
-          // 手駒に関しては反転など存在しない。
-          if (p < fe_hand_end)
-            continue;
+		  /*
+		  ちょっとトリッキーだが、pに関して盤上の駒は
+			  p >= fe_hand_end
+		  のとき。
+		  
+		  このpに対して、nを整数として(上のコードのiは偶数しかとらない)、
+			  a)  t[2n + 0] <= p < t[2n + 1] のときは先手の駒
+			  b)  t[2n + 1] <= p < t[2n + 2] のときは後手の駒
+		　である。
 
-          BonaPiece r1 = (BonaPiece)(Mir(sq) + t[i]);
+		  ゆえに、a)の範囲にあるpをq = Inv(p-t[2n+0]) + t[2n+1] とすると180度回転させた升にある後手の駒となる。
+		  そこでpとqをswapさせてinv_piece[ ]を初期化してある。
+		  */
+
+		  // 手駒に関してはmirrorなど存在しない。
+		  if (p < fe_hand_end)
+			  continue;
+		  
+		  BonaPiece r1 = (BonaPiece)(Mir(sq) + t[i]);
           mir_piece[ p] = r1;
           mir_piece[r1] = p;
 

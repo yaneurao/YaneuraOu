@@ -69,5 +69,5 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 
 [やねうら大定跡はじめました](http://yaneuraou.yaneu.com/2016/07/10/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E5%A4%A7%E5%AE%9A%E8%B7%A1%E3%81%AF%E3%81%98%E3%82%81%E3%81%BE%E3%81%97%E3%81%9F/)
 
-やねうら大定跡V1(2016/07/14)の[ダウンロード](https://drive.google.com/file/d/0ByIGrGAuSfHHaXB6dk1yQ25ub00/view?usp=sharing)
+やねうら大定跡V1.01(2016/07/15 update)の[ダウンロード](https://drive.google.com/open?id=0Bzbi5rbfN85NbWxfazMzamFVZm8)
 →　ダウンロードしたあと、zipファイルになっているのでそれを解凍して、やねうら王2016Midの実行ファイルを配置しているフォルダ配下のbookフォルダに放り込んでください。
