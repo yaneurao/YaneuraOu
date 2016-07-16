@@ -49,6 +49,9 @@ extern void is_ready();
 namespace Learner
 {
 
+// いまのところ、やねうら王2016Midしか、このスタブを持っていない。
+extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta);
+
 // packされたsfen
 struct PackedSfenValue
 {
@@ -486,8 +489,32 @@ struct SfenReader
 	{
 		packed_sfens.resize(thread_num);
 		total_read = 0;
+		total_read_mse_count = 0;
 		files_end = false;
 	}
+
+	// mseの計算用に1万局面ほど読み込んでおく。
+	void read_for_mse()
+	{
+		for (int i = 0; i < 10000; ++i)
+		{
+			PackedSfenValue ps;
+			if (!read_to_thread_buffer(0, ps))
+			{
+				cout << "Error! read packed sfen , failed." << endl;
+				break;
+			}
+			sfen_for_mse.push_back(ps);
+		}
+	}
+
+	// 各スレッドがバッファリングしている局面数
+	const int THREAD_BUFFER_SIZE = 10000;
+
+	// ファイル読み込み用のバッファ
+	//		const int SFEN_READ_SIZE = 1000 * 1000 * 10; // 10M局面
+	const int SFEN_READ_SIZE = 1000 * 1000 * 1; // 1M局面
+
 
 	// [ASYNC] スレッドが局面を一つ返す。なければfalseが返る。
 	bool read_to_thread_buffer(size_t thread_id, PackedSfenValue& ps)
@@ -504,6 +531,47 @@ struct SfenReader
 		return true;
 	}
 
+	// mseを計算して表示する。
+	void calc_mse()
+	{
+		const int thread_id = 0;
+		auto& pos = Threads[thread_id]->rootPos;
+		double sum = 0;
+		
+		// 評価値を勝率[-1,1]に変換する関数
+		auto sig = [](double d)
+		{
+			// sigmoidで[0,1]になるからこれを2倍して1引いておくと[-1,1]になるのでは。
+			// 50で0.08、100で0.17、1000で0.93、2000で1.00ぐらいが返る
+			return 2 / (1 + exp(-d/300)) -1;
+		};
+
+		for (auto& ps : sfen_for_mse)
+		{
+			auto sfen = pos.sfen_unpack(ps.data);
+
+			pos.set(sfen);
+			auto th = Threads[thread_id];
+			pos.set_this_thread(th);
+
+			auto r = Learner::qsearch(pos,-VALUE_INFINITE,VALUE_INFINITE);
+
+			// 浅い探索(qsearch)の評価値
+			auto shallow_value = r.first;
+
+			// 深い探索の評価値
+			auto deep_value = (Value)*(int16_t*)&ps.data[32];
+
+			// 勝率の差の2乗が目的関数
+			// それを件数で割ったのがmse
+
+			double f = sig(shallow_value) - sig(deep_value);
+			sum += abs(f*f);
+		}
+		auto mse = sum / sfen_for_mse.size();
+		cout << endl << "mse = " << mse << endl;
+	}
+
 	// [ASYNC] スレッドバッファに局面を10000局面ほど読み込む。
 	bool read_to_thread_buffer_impl(vector<PackedSfenValue>& ps_vec)
 	{
@@ -517,7 +585,6 @@ struct SfenReader
 		auto read_from_buffer = [&]()
 		{
 			// read bufferから充填可能か？
-			const int THREAD_BUFFER_SIZE = 10000;
 			int size = (int)read_buffer.size();
 			if (size >= THREAD_BUFFER_SIZE)
 			{
@@ -529,6 +596,8 @@ struct SfenReader
 
 				// 1万局面読むごとに'.'をひとつ出力。
 				cout << '.';
+
+				total_read += THREAD_BUFFER_SIZE;
 
 				return true;
 			}
@@ -542,8 +611,6 @@ struct SfenReader
 		// 次の10M局面(34*10MB = 340MB)を読み込む
 		// (この単位でshuffleする)
 
-		const int SFEN_READ_SIZE = 1000 * 1000 * 10; // 10M局面
-//		const int SFEN_READ_SIZE = 1000 * 1000 * 1; // 1M局面
 		auto open_next_file = [&]()
 		{
 			if (fs.is_open())
@@ -600,8 +667,6 @@ struct SfenReader
 		}
 #endif
 
-		total_read += SFEN_READ_SIZE;
-
 		if (read_from_buffer())
 			return true;
 
@@ -613,27 +678,18 @@ struct SfenReader
 		return false;
 	}
 
-
-	virtual void thread_worker(size_t thread_id)
-	{
-		while (true)
-		{
-			PackedSfenValue ps;
-			auto hit = read_to_thread_buffer(thread_id, ps);
-			if (!hit)
-				break;
-		}
-	}
-
 	// sfenファイル群
 	vector<string> filenames;
+
+	// 読み込んだ局面数
+	u64 total_read;
+
+	// mseの表示用カウンター
+	u64 total_read_mse_count;
 
 protected:
 
 	PRNG prng;
-
-	// 読み込んだ局面数
-	u64 total_read;
 
 	// ファイル群を読み込んでいき、最後まで到達したか。
 	bool files_end;
@@ -649,6 +705,9 @@ protected:
 
 	// 10M局面分の読み込みバッファ
 	vector<PackedSfenValue> read_buffer;
+
+	// mse計算用のバッファ
+	vector<PackedSfenValue> sfen_for_mse;
 };
 
 
@@ -671,6 +730,13 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 	while (true)
 	{
+		// mseの表示(これはthread 0のみときどき行う)
+		if (thread_id == 0 && sr.total_read_mse_count <= sr.total_read)
+		{
+			sr.calc_mse();
+			sr.total_read_mse_count += sr.THREAD_BUFFER_SIZE * 10;
+		}
+
 		PackedSfenValue ps;
 		if (!sr.read_to_thread_buffer(thread_id, ps))
 			break;
@@ -695,7 +761,6 @@ void LearnerThink::thread_worker(size_t thread_id)
 // 生成した棋譜からの学習
 void learn(Position& pos, istringstream& is)
 {
-
 	auto thread_num = (int)Options["Threads"];
 	SfenReader sr(thread_num);
 
@@ -718,8 +783,13 @@ void learn(Position& pos, istringstream& is)
 	for (auto s : filenames)
 		cout << s << " , ";
 
+	is_ready();
+
 	reverse(filenames.begin(), filenames.end());
 	sr.filenames = filenames;
+
+	// mse計算用にデータ1万件ほど取得しておく。
+	sr.read_for_mse();
 
 	learn_think.go_think();
 }

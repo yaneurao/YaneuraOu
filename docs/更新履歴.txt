@@ -5,7 +5,7 @@
 ■　2016/07/17 V3.39
 
 ・learnコマンド少し実装。packed sfenファイルの読み込みとshuffle～unpackのコードは書けた。
-
+・learnでmse計算するコード追加。
 
 
 ■　2016/07/16 V3.38

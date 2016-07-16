@@ -44,6 +44,14 @@ ToDo:
 	}
 #endif
 
+・learnコマンド少し実装。packed sfenファイルの読み込みとshuffle～unpackのコードは書けた。
+
+	あとは、棋譜分離してmse計算する部分と、AdaGradか何かで値動かす部分か…。
+
+・mseを計算するルーチン書けた。
+
+
+
 
 ■　2016/07/16
 
