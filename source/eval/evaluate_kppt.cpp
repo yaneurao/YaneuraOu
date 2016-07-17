@@ -165,6 +165,170 @@ namespace Eval
 		= +value[1];
   }
 
+  typedef std::array<float, 2> ValueKkFloat;
+  typedef std::array<float, 2> ValueKppFloat;
+  typedef std::array<float, 2> ValueKkpFloat;
+
+  // KK
+  ValueKkFloat(*kk_grad)[SQ_NB][SQ_NB];   // 学習時の目的関数の勾配
+  ValueKkFloat(*kk_grad2)[SQ_NB][SQ_NB];  // AdaGrad用のg2
+
+  // KPP
+  ValueKppFloat(*kpp_grad)[SQ_NB][fe_end][fe_end];
+  ValueKppFloat(*kpp_grad2)[SQ_NB][fe_end][fe_end];
+
+  // KKP
+  ValueKkpFloat(*kkp_grad)[SQ_NB][SQ_NB][fe_end];
+  ValueKkpFloat(*kkp_grad2)[SQ_NB][SQ_NB][fe_end];
+
+  // 学習のときの勾配配列の初期化
+  void init_grad()
+  {
+	  if (kk_grad == nullptr)
+	  {
+		  u64 size;
+		  
+		  size = u64(SQ_NB)*u64(SQ_NB);
+		  kk_grad = (ValueKkFloat(*)[SQ_NB][SQ_NB])new ValueKkFloat[size];
+		  kk_grad2 = (ValueKkFloat(*)[SQ_NB][SQ_NB])new ValueKkFloat[size];
+		  memset(kk_grad, 0, sizeof(ValueKkFloat) * size);
+		  memset(kk_grad2, 0, sizeof(ValueKkFloat) * size);
+
+		  size = u64(SQ_NB)*u64(fe_end)*u64(fe_end);
+		  kpp_grad = (ValueKppFloat(*)[SQ_NB][fe_end][fe_end])new ValueKppFloat[size];
+		  kpp_grad2 = (ValueKppFloat(*)[SQ_NB][fe_end][fe_end])new ValueKppFloat[size];
+		  memset(kpp_grad, 0, sizeof(ValueKppFloat) * size);
+		  memset(kpp_grad2, 0, sizeof(ValueKppFloat) * size);
+
+		  size = u64(SQ_NB)*u64(SQ_NB)*u64(fe_end);
+		  kkp_grad = (ValueKkpFloat(*)[SQ_NB][SQ_NB][fe_end])new ValueKkpFloat[size];
+		  kkp_grad2 = (ValueKkpFloat(*)[SQ_NB][SQ_NB][fe_end])new ValueKkpFloat[size];
+		  memset(kkp_grad, 0, sizeof(ValueKkpFloat) * size);
+		  memset(kkp_grad2, 0, sizeof(ValueKkpFloat) * size);
+	  }
+  }
+
+  // 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
+  void add_grad(Position& pos, double g)
+  {
+	  // 勾配配列を確保するメモリがもったいないのでfloatでいいや。
+	  auto f = float(g);
+	  auto t = 0.0f; //  (pos.side_to_move() == BLACK) ? f : -f;
+
+	  Square sq_bk = pos.king_square(BLACK);
+	  Square sq_wk = pos.king_square(WHITE);
+	  const auto* ppkppb = kpp[sq_bk];
+	  const auto* ppkppw = kpp[Inv(sq_wk)];
+
+	  auto& pos_ = *const_cast<Position*>(&pos);
+
+	  auto list_fb = pos_.eval_list()->piece_list_fb();
+	  auto list_fw = pos_.eval_list()->piece_list_fw();
+
+	  int i, j;
+	  BonaPiece k0, k1, l0, l1;
+
+	  // KK
+	  (*kk_grad)[sq_bk][sq_wk] += ValueKkFloat{ f , t };
+
+	  for (i = 0; i < PIECE_NO_KING; ++i)
+	  {
+		  k0 = list_fb[i];
+		  k1 = list_fw[i];
+		  for (j = 0; j < i; ++j)
+		  {
+			  l0 = list_fb[j];
+			  l1 = list_fw[j];
+
+			  (*kpp_grad)[    sq_bk ][k0][l0] += ValueKppFloat{  f ,  t };
+			  (*kpp_grad)[Inv(sq_wk)][k1][l1] += ValueKppFloat{ -f , -t };
+		  }
+		  (*kkp_grad)[sq_bk][sq_wk][k0] += ValueKkpFloat{ f , t };
+	  }
+
+  }
+
+  // 現在の勾配をもとにSGDかAdaGradか何かする。m = 教師データの件数。
+  void update_grad(u64 m)
+  {
+	  // 学習率η = 0.01。勾配が一定な場合、1万回でη×199ぐらい。
+	  // cf. [AdaGradのすすめ](http://qiita.com/ak11/items/7f63a1198c345a138150)
+	  const float eta = 0.01f * 32; // *1000; // 32 == Eval::FV_SCALE;
+
+	  // g2[i] += g * g;
+	  // w[i] -= eta * g / sqrt(g2[i]);
+	  // g = 0 // mini-batchならこのタイミングで勾配配列クリア。
+
+	  ASSERT_LV3(m != 0);
+
+	  for (auto k1 : SQ)
+		  for (auto k2 : SQ)
+		  {
+			  auto g = (*kk_grad)[k1][k2];
+			  if (g[0] == 0 && g[1] == 0)
+				  continue;
+
+			  auto gg = ValueKkFloat{ g[0] * g[0] / m, g[1] * g[1] / m };
+			  (*kk_grad2)[k1][k2] += gg;
+
+			  auto g2 = (*kk_grad2)[k1][k2];
+			  if (g2[0] == 0 || g2[1] == 0)
+				  continue;
+
+			  (*kk_grad)[k1][k2] = ValueKkFloat{ 0,0 };
+
+			  // kk[k1][k2] -= eta * g / sqrt(g2);
+
+			  auto e = ValueKk{ (int32_t)( -eta * g[0] / sqrt(g2[0])) , (int32_t)( -eta * g[1] / sqrt(g2[1])) };
+			  kk[k1][k2] += e;
+		  }
+
+	  for (auto k : SQ)
+		  for (auto p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
+			  for (auto p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
+			  {
+				  auto g = (*kpp_grad)[k][p1][p2];
+				  if (g[0] == 0 && g[1] == 0)
+					  continue;
+
+				  auto gg = ValueKppFloat{ g[0] * g[0] / m, g[1] * g[1] / m };
+				  (*kpp_grad2)[k][p1][p2] += gg;
+
+				  auto g2 = (*kpp_grad2)[k][p1][p2];
+				  if (g2[0] == 0 || g2[1] == 0)
+					  continue;
+
+				  (*kpp_grad)[k][p1][p2] = ValueKppFloat{ 0,0 };
+
+				  auto v = ValueKpp{ int16_t( kpp[k][p1][p2][0] - eta * g[0] / sqrt(g2[0])) , int16_t( kpp[k][p1][p2][1] - eta * g[1] / sqrt(g2[1])) };
+				  kpp_write(k, p1, p2, v);
+			  }
+
+	  for (auto k1 : SQ)
+		  for (auto k2 : SQ)
+			  for (auto p = BONA_PIECE_ZERO; p < fe_end; ++p)
+			  {
+				  auto g = (*kkp_grad)[k1][k2][p];
+				  if (g[0] == 0 && g[1] == 0)
+					  continue;
+
+				  auto gg = ValueKkFloat{ g[0] * g[0] / m, g[1] * g[1] / m };
+				  (*kkp_grad2)[k1][k2][p] += gg;
+
+				  auto g2 = (*kkp_grad2)[k1][k2][p];
+				  if (g2[0] == 0 || g2[1] == 0)
+					  continue;
+
+				  (*kkp_grad)[k1][k2][p] = ValueKkFloat{ 0,0 };
+
+				  // kk[k1][k2] -= eta * g / sqrt(g2);
+
+				  auto v = ValueKkp{ int32_t( kkp[k1][k2][p][0] - eta * g[0] / sqrt(g2[0])) , int32_t( kkp[k1][k2][p][1] - eta * g[1] / sqrt(g2[1])) };
+				  kkp_write(k1, k2, p, v);
+			  }
+  }
+
+
   // 学習のためのテーブルの初期化
   void eval_learn_init()
   {

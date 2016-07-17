@@ -39,6 +39,18 @@ namespace Eval {
   // 評価値の内訳表示(デバッグ用)
   void print_eval_stat(Position& pos);
 
+#if defined(EVAL_LEARN) && defined(EVAL_KPPT)
+  // 学習のときの勾配配列の初期化
+  void init_grad();
+
+  // 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
+  void add_grad(Position& pos , double g);
+
+  // 現在の勾配をもとにSGDかAdaGradか何かする。m = 教師データの件数
+  void update_grad(u64 m);
+#endif
+
+
 #ifdef EVAL_NO_USE
 
   // 評価関数を用いないときもValueを正規化するときに歩の価値は必要。

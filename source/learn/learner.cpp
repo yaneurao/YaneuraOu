@@ -482,6 +482,31 @@ void gen_sfen(Position& pos, istringstream& is)
 // 生成した棋譜から学習させるコマンド(learn)
 // -----------------------------------
 
+// 評価値を勝率[0,1]に変換する関数
+double sig(double d)
+{
+	return 1 / (1 + exp(-d / 600));
+};
+
+// シグモイド関数の導関数
+double dsig(double d)
+{
+	// シグモイド関数
+	//    f(x) = 1/(1+exp(-x))
+	// に対して1階微分は、
+	//    f'(x) = df/dx = f(x)・{ 1 - f(x) }
+	// となる。
+
+	// 同様に、
+	//   f(x) = 1/(1+exp(-x/600))
+	// に対して1階微分は、
+	//   f'(x) = f(x)・{ 1 - f(x) } / 600
+
+	// この600で割るの、どうせ学習率を掛けるからここで割っておかなくてもいいような気は少しするが。
+
+	return sig(d)*(1 - sig(d)) / 600;
+}
+
 // Sfenの読み込み機
 struct SfenReader
 {
@@ -508,13 +533,14 @@ struct SfenReader
 		}
 	}
 
-	// 各スレッドがバッファリングしている局面数
-	const int THREAD_BUFFER_SIZE = 10000;
 
-	// ファイル読み込み用のバッファ
-	//		const int SFEN_READ_SIZE = 1000 * 1000 * 10; // 10M局面
+	// 各スレッドがバッファリングしている局面数 0.1M局面。40HTで4M局面
+	const int THREAD_BUFFER_SIZE = 10 * 1000;
+
+	// ファイル読み込み用のバッファ(これ大きくしたほうが局面がshuffleが大きくなるので局面がバラけていいと思うが
+	// mini-batchでこの局面数に対して勾配を計算するので…。
+	// デバッグ時用設定
 	const int SFEN_READ_SIZE = 1000 * 1000 * 1; // 1M局面
-
 
 	// [ASYNC] スレッドが局面を一つ返す。なければfalseが返る。
 	bool read_to_thread_buffer(size_t thread_id, PackedSfenValue& ps)
@@ -538,14 +564,6 @@ struct SfenReader
 		auto& pos = Threads[thread_id]->rootPos;
 		double sum = 0;
 		
-		// 評価値を勝率[-1,1]に変換する関数
-		auto sig = [](double d)
-		{
-			// sigmoidで[0,1]になるからこれを2倍して1引いておくと[-1,1]になるのでは。
-			// 50で0.08、100で0.17、1000で0.93、2000で1.00ぐらいが返る
-			return 2 / (1 + exp(-d/300)) -1;
-		};
-
 		for (auto& ps : sfen_for_mse)
 		{
 			auto sfen = pos.sfen_unpack(ps.data);
@@ -554,10 +572,13 @@ struct SfenReader
 			auto th = Threads[thread_id];
 			pos.set_this_thread(th);
 
-			auto r = Learner::qsearch(pos,-VALUE_INFINITE,VALUE_INFINITE);
-
+			
 			// 浅い探索(qsearch)の評価値
+			auto r = Learner::qsearch(pos,-VALUE_INFINITE,VALUE_INFINITE);
 			auto shallow_value = r.first;
+
+			// qsearchではなくevaluate()の値をそのまま使う場合。
+//			auto shallow_value = Eval::evaluate(pos);
 
 			// 深い探索の評価値
 			auto deep_value = (Value)*(int16_t*)&ps.data[32];
@@ -566,7 +587,7 @@ struct SfenReader
 			// それを件数で割ったのがmse
 
 			double f = sig(shallow_value) - sig(deep_value);
-			sum += abs(f*f);
+			sum += f*f;
 		}
 		auto mse = sum / sfen_for_mse.size();
 		cout << endl << "mse = " << mse << endl;
@@ -731,10 +752,14 @@ void LearnerThink::thread_worker(size_t thread_id)
 	while (true)
 	{
 		// mseの表示(これはthread 0のみときどき行う)
+		// ファイルから読み込んだ直後とかでいいような…。
 		if (thread_id == 0 && sr.total_read_mse_count <= sr.total_read)
 		{
+			// このタイミングで勾配の更新。勾配の計算も1Mごとでちょうどいいのでは。
+			Eval::update_grad(sr.SFEN_READ_SIZE);
+
 			sr.calc_mse();
-			sr.total_read_mse_count += sr.THREAD_BUFFER_SIZE * 10;
+			sr.total_read_mse_count += sr.SFEN_READ_SIZE;
 		}
 
 		PackedSfenValue ps;
@@ -753,8 +778,67 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// 読み込めたので試しに表示してみる。
 		//		cout << pos << value << endl;
 
-		// ここに静止探索してなんやかやするコードを書く。
+		// 浅い探索(qsearch)の評価値
+		auto r = Learner::qsearch(pos, -VALUE_INFINITE, VALUE_INFINITE);
+		auto shallow_value = r.first;
 
+		// qsearchではなくevaluate()の値をそのまま使う場合。
+		//			auto shallow_value = Eval::evaluate(pos);
+
+		// 深い探索の評価値
+		auto deep_value = (Value)*(int16_t*)&ps.data[32];
+
+		// 勝率の差の2乗が目的関数それを最小化する。
+		// 目的関数 J = 1/2m Σ ( σ(shallow) - σ(deep) ) ^2
+		// ただし、σはシグモイド関数で、評価値を勝率の差に変換するもの。
+		// mはサンプルの件数。shallowは浅い探索(qsearch())のときの評価値。deepは深い探索のときの評価値。
+		// また、Wを特徴ベクトル(評価関数のパラメーター)、Xi,Yiを教師とすると
+		// shallow = W*Xi   // *はアダマール積で、Wの転置・X の意味
+		// f(Xi) = σ(W*Xi)
+		// σ(i番目のdeep) = Yi とおくと、
+		// J = m/2 Σ ( f(Xi) - Yi )^2
+		// とよくある式になる。
+		// Wはベクトルで、j番目の要素をWjと書くとすると、連鎖律から
+		// ∂J/∂Wj = ∂J/∂f ・ ∂f/∂W ・ ∂W/∂Wj
+		//          =  1/m Σ ( f(Xi) - y )      ・f'(Xi) ・(1)
+		// 1/mはあとで掛けるとして、勾配の値としてはΣの中身を配列に保持しておけば良い。
+
+		double dj_dw = (sig(shallow_value) - sig(deep_value)) *dsig(shallow_value);
+
+		// 現在、leaf nodeで出現している特徴ベクトルに対する勾配(∂J/∂Wj)として、jd_dwを加算する。
+
+		// AdaGradで直接動かすなら、
+		// gを勾配 dj_dw、g2[i]を出現した特徴ベクトルに対する過去の履歴(?)として、
+		// g2[i] += g * g
+		// Wi -= η * g / sqrt(g2[i])
+		// となる。
+
+		// mini batchのほうが勾配が出ていいような気がする。
+		// このままleaf nodeに行って、勾配配列にだけ足しておき、あとでmseの集計のときにAdaGradしてみる。
+
+		auto pv = r.second;
+		int ply = 0;
+		StateInfo state[MAX_PLY]; // qsearchのPVがそんなに長くなることはありえない。
+		for (auto m : pv)
+		{
+			// 非合法手はやってこないはずなのだが。
+			if (!pos.pseudo_legal(m) || !pos.legal(m))
+			{
+				cout << pos << m << endl;
+				ASSERT_LV3(false);
+			}
+			pos.do_move(m, state[ply++]);
+			pos.check_info_update();
+		}
+
+		// leafに到達
+		Eval::add_grad(pos,dj_dw);
+
+		// 局面を巻き戻す
+		auto pv_r = pv;
+		std::reverse(pv_r.begin(), pv_r.end());
+		for (auto m : pv_r)
+			pos.undo_move(m);
 	}
 }
 
@@ -782,14 +866,29 @@ void learn(Position& pos, istringstream& is)
 	cout << "learn from ";
 	for (auto s : filenames)
 		cout << s << " , ";
-
-	is_ready();
-
 	reverse(filenames.begin(), filenames.end());
 	sr.filenames = filenames;
 
+	// -----------------------------------
+	//            各種初期化
+	// -----------------------------------
+
+	cout << "\ninit..";
+
+	// 評価関数パラメーターの読み込み
+	is_ready();
+
+	// 評価関数パラメーターの勾配配列の初期化
+	Eval::init_grad();
+
 	// mse計算用にデータ1万件ほど取得しておく。
 	sr.read_for_mse();
+
+	cout << "init done." << endl;
+
+	// -----------------------------------
+	//   評価関数パラメーターの学習の開始
+	// -----------------------------------
 
 	learn_think.go_think();
 }

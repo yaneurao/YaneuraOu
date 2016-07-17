@@ -6,6 +6,8 @@
 
 ・learnコマンド少し実装。packed sfenファイルの読み込みとshuffle～unpackのコードは書けた。
 ・learnでmse計算するコード追加。
+・learnで∂J/∂Wiを計算するコードまで書けた。
+・Eval::add_grad(),update_ada_grad(),init_grad()を追加。
 
 
 ■　2016/07/16 V3.38
