@@ -809,7 +809,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 			// Wi -= η * g / sqrt(g2[i])
 			// となる。
 
-			Eval::update_weights(sr.SFEN_READ_SIZE);
+			Eval::update_weights();
 
 			sr.calc_rmse();
 			sr.total_read_mse_count += sr.SFEN_READ_SIZE;
@@ -842,7 +842,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 		auto deep_value = (Value)*(int16_t*)&ps.data[32];
 
 		// 勾配
-		double dj_dw = calc_grad(shallow_value, deep_value);
+		double dj_dw = calc_grad(deep_value, shallow_value);
 		
 		// 現在、leaf nodeで出現している特徴ベクトルに対する勾配(∂J/∂Wj)として、jd_dwを加算する。
 

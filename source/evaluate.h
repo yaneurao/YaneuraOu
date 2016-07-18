@@ -40,6 +40,9 @@ namespace Eval {
   void print_eval_stat(Position& pos);
 
 #if defined(EVAL_LEARN) && defined(EVAL_KPPT)
+  // 学習のための初期化(評価関数の読み込み時に行う。)
+  void eval_learn_init();
+
   // 学習のときの勾配配列の初期化
   void init_grad();
 
@@ -47,7 +50,7 @@ namespace Eval {
   void add_grad(Position& pos , Color rootColor , double delt_grad);
 
   // 現在の勾配をもとにSGDかAdaGradか何かする。m = 教師データの件数
-  void update_weights(u64 m);
+  void update_weights();
 #endif
 
 

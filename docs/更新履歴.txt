@@ -13,6 +13,11 @@
 ・Eval::update_grad()→update_weight()とリネーム。
 ・Eval::update_weight()にweight配列に関するassert追加。
 ・AdaGrad以外にSDGでのupdateも追加。
+・EvalのLEARN関連、learnに移動させる。
+・evaluate_kppt.h , evaluate_kppt_learn.cpp追加。
+・勾配計算するときにshallowとdeep、逆にして関数に渡してた。修正。
+
+// リリース前にASSERT_LV戻す。
 
 
 ■　2016/07/16 V3.38
