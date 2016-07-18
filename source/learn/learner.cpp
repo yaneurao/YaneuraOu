@@ -561,7 +561,8 @@ struct SfenReader
 	{
 		packed_sfens.resize(thread_num);
 		total_read = 0;
-		total_read_mse_count = 0;
+		total_read_count = 0;
+		save_count = 0;
 		files_end = false;
 	}
 
@@ -609,8 +610,10 @@ struct SfenReader
 	{
 		const int thread_id = 0;
 		auto& pos = Threads[thread_id]->rootPos;
+
 		double sum_error = 0;
-		
+		double sum_error2 = 0;
+
 		for (auto& ps : sfen_for_mse)
 		{
 			auto sfen = pos.sfen_unpack(ps.data);
@@ -632,10 +635,12 @@ struct SfenReader
 
 			// 誤差の計算
 			sum_error += calc_error(shallow_value, deep_value);
+			sum_error2 += abs(shallow_value - deep_value);
 		}
 
 		auto rmse = std::sqrt(sum_error / sfen_for_mse.size());
-		cout << endl << "rmse = " << rmse << endl;
+		auto mean_error = sum_error2 / sfen_for_mse.size();
+		cout << endl << "rmse = " << rmse << " , mean_error = " << mean_error << endl;
 	}
 
 	// [ASYNC] スレッドバッファに局面を10000局面ほど読み込む。
@@ -752,7 +757,9 @@ struct SfenReader
 	u64 total_read;
 
 	// mseの表示用カウンター
-	u64 total_read_mse_count;
+	u64 total_read_count;
+
+	int save_count;
 
 protected:
 
@@ -799,7 +806,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 	{
 		// mseの表示(これはthread 0のみときどき行う)
 		// ファイルから読み込んだ直後とかでいいような…。
-		if (thread_id == 0 && sr.total_read_mse_count <= sr.total_read)
+		if (thread_id == 0 && sr.total_read_count <= sr.total_read)
 		{
 			// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 
@@ -811,8 +818,20 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 			Eval::update_weights();
 
+			// 1M×20 = 20Mごとに保存
+			if (++sr.save_count >= 20)
+			{
+				sr.save_count = 0;
+
+				// 定期的に保存
+				Eval::save_eval();
+			}
+
 			sr.calc_rmse();
-			sr.total_read_mse_count += sr.SFEN_READ_SIZE;
+
+			// コア数が多いとSFEN_READ_SIZEだけ読み込むまでに終わっているとは限らないので
+			// いま読み込んでいる量 + SFEN_READ_SIZEを次のmseの計算のタイミングとする。
+			sr.total_read_count = sr.total_read + sr.SFEN_READ_SIZE;
 		}
 
 		PackedSfenValue ps;

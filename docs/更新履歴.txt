@@ -2,6 +2,14 @@
 やねうら王 更新履歴
 
 
+■　2016/07/20 V3.40
+
+・学習のときにkppの次元下げを用いるように実装。
+・Eval::save_eval()追加。
+・2000万局面ごとに保存するコード追加。
+・学習時にmean_error出力するように。
+
+
 ■　2016/07/17 - 2016/07/19 V3.39
 
 ・learnコマンド少し実装。packed sfenファイルの読み込みとshuffle～unpackのコードは書けた。
@@ -16,8 +24,6 @@
 ・EvalのLEARN関連、learnに移動させる。
 ・evaluate_kppt.h , evaluate_kppt_learn.cpp追加。
 ・勾配計算するときにshallowとdeep、逆にして関数に渡してた。修正。
-
-// リリース前にASSERT_LV戻す。
 
 
 ■　2016/07/16 V3.38

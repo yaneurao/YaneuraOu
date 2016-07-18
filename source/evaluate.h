@@ -51,7 +51,11 @@ namespace Eval {
 
   // 現在の勾配をもとにSGDかAdaGradか何かする。m = 教師データの件数
   void update_weights();
+
 #endif
+
+  // 評価関数パラメーターをファイルに保存する。ファイル名は末尾に"2"を付与しておく。
+  void save_eval();
 
 
 #ifdef EVAL_NO_USE

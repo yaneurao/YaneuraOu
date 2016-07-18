@@ -16,6 +16,10 @@
 #define USE_SGD_UPDATE
 
 
+// 評価関数パラメーターをゼロベクトルから開始する。
+#define RESET_TO_ZERO_VECTOR
+
+
 #include "../evaluate.h"
 #include "../eval/evaluate_kppt.h"
 #include "../eval/kppt_evalsum.h"
@@ -65,6 +69,21 @@ namespace Eval
 			= value;
 	}
 
+	// kpp_write()するときの一番若いアドレス(index)を返す。
+	u64 get_kpp_index(Square k1, BonaPiece p1, BonaPiece p2)
+	{
+		BonaPiece mp1 = mir_piece[p1];
+		BonaPiece mp2 = mir_piece[p2];
+		Square  mk1 = Mir(k1);
+
+		const auto q0 = &kpp[0][0][0];
+		auto q1 = &kpp[k1][p1][p2] - q0;
+		auto q2 = &kpp[k1][p2][p1] - q0;
+		auto q3 = &kpp[mk1][mp1][mp2] - q0;
+		auto q4 = &kpp[mk1][mp2][mp1] - q0;
+
+		return std::min({ q1, q2, q3, q4 });
+	}
 
 	// 学習時にkkpテーブルに値を書き出すためのヘルパ関数。
 	// この関数を用いると、ミラー関係にある箇所などにも同じ値を書き込んでくれる。次元下げの一種。
@@ -88,14 +107,17 @@ namespace Eval
 		Square  ik2 = Inv(k2);
 		Square mik2 = Mir(ik2);
 
-		ASSERT_LV3(kkp[k1][k2][p1][0] == -kkp[ik2][ik1][ip1][0]);
-		ASSERT_LV3(kkp[k1][k2][p1][1] == +kkp[ik2][ik1][ip1][1]);
 		ASSERT_LV3(kkp[k1][k2][p1] == kkp[mk1][mk2][mp1]);
-		ASSERT_LV3(kkp[ik2][ik1][ip1] == kkp[mik2][mik1][mip1]);
 
 		kkp[k1][k2][p1]
 			= kkp[mk1][mk2][mp1]
 			= value;
+
+	// kkpに関して180度のflipは入れないほうが良いのでは..
+#if 1
+		ASSERT_LV3(kkp[k1][k2][p1][0] == -kkp[ik2][ik1][ip1][0]);
+		ASSERT_LV3(kkp[k1][k2][p1][1] == +kkp[ik2][ik1][ip1][1]);
+		ASSERT_LV3(kkp[ik2][ik1][ip1] == kkp[mik2][mik1][mip1]);
 
 		kkp[ik2][ik1][ip1][0]
 			= kkp[mik2][mik1][mip1][0]
@@ -104,14 +126,37 @@ namespace Eval
 		kkp[ik2][ik1][ip1][1]
 			= kkp[mik2][mik1][mip1][1]
 			= +value[1];
+#endif
 	}
+
+#if 0
+	// kkp_write()するときの一番若いアドレス(index)を返す。
+	u64 get_kkp_index(Square k1, Square k2 , BonaPiece p1)
+	{
+		BonaPiece ip1 = inv_piece[p1];
+		BonaPiece mp1 = mir_piece[p1];
+		BonaPiece mip1 = mir_piece[ip1];
+		Square  mk1 = Mir(k1);
+		Square  ik1 = Inv(k1);
+		Square mik1 = Mir(ik1);
+		Square  mk2 = Mir(k2);
+		Square  ik2 = Inv(k2);
+		Square mik2 = Mir(ik2);
+
+		const auto q0 = &kkp[0][0][0];
+		auto q1 = &kkp[k1][k2][p1] - q0;
+		auto q2 = &kkp[mk1][mk2][mp1] - q0;
+
+		return std::min({ q1, q2 });
+	}
+#endif
 
 	typedef std::array<float, 2> ValueKkFloat;
 	typedef std::array<float, 2> ValueKppFloat;
 	typedef std::array<float, 2> ValueKkpFloat;
 
 	// 勾配等の配列
-	struct WeightKK
+	struct WeightKk
 	{
 		ValueKkpFloat w;   // 元の重み
 		ValueKkFloat g;   // トータルの勾配
@@ -128,7 +173,7 @@ namespace Eval
 		}
 	};
 
-	struct WeightKPP
+	struct WeightKpp
 	{
 		ValueKkpFloat w;   // 元の重み
 		ValueKppFloat g;  // トータルの勾配
@@ -145,7 +190,7 @@ namespace Eval
 		}
 	};
 
-	struct WeightKKP
+	struct WeightKkp
 	{
 		ValueKkpFloat w;   // 元の重み
 		ValueKkpFloat g;   // トータルの勾配
@@ -162,9 +207,9 @@ namespace Eval
 		}
 	};
 
-	WeightKK(*kk_w_)[SQ_NB][SQ_NB];
-	WeightKPP(*kpp_w_)[SQ_NB][fe_end][fe_end];
-	WeightKKP(*kkp_w_)[SQ_NB][SQ_NB][fe_end];
+	WeightKk(*kk_w_)[SQ_NB][SQ_NB];
+	WeightKpp(*kpp_w_)[SQ_NB][fe_end][fe_end];
+	WeightKkp(*kkp_w_)[SQ_NB][SQ_NB][fe_end];
 
 #define kk_w (*kk_w_)
 #define kpp_w (*kpp_w_)
@@ -178,16 +223,25 @@ namespace Eval
 			u64 size;
 
 			size = u64(SQ_NB)*u64(SQ_NB);
-			kk_w_ = (WeightKK(*)[SQ_NB][SQ_NB])new WeightKK[size];
-			memset(kk_w_, 0, sizeof(WeightKK) * size);
+			kk_w_ = (WeightKk(*)[SQ_NB][SQ_NB])new WeightKk[size];
+			memset(kk_w_, 0, sizeof(WeightKk) * size);
+#ifdef RESET_TO_ZERO_VECTOR
+			memset(kk_, 0, sizeof(ValueKk) * size);
+#endif
 
 			size = u64(SQ_NB)*u64(fe_end)*u64(fe_end);
-			kpp_w_ = (WeightKPP(*)[SQ_NB][fe_end][fe_end])new WeightKPP[size];
-			memset(kpp_w_, 0, sizeof(WeightKPP) * size);
+			kpp_w_ = (WeightKpp(*)[SQ_NB][fe_end][fe_end])new WeightKpp[size];
+			memset(kpp_w_, 0, sizeof(WeightKpp) * size);
+#ifdef RESET_TO_ZERO_VECTOR
+			memset(kpp_, 0, sizeof(ValueKpp) * size);
+#endif
 
 			size = u64(SQ_NB)*u64(SQ_NB)*u64(fe_end);
-			kkp_w_ = (WeightKKP(*)[SQ_NB][SQ_NB][fe_end])new WeightKKP[size];
-			memset(kkp_w_, 0, sizeof(WeightKKP) * size);
+			kkp_w_ = (WeightKkp(*)[SQ_NB][SQ_NB][fe_end])new WeightKkp[size];
+			memset(kkp_w_, 0, sizeof(WeightKkp) * size);
+#ifdef RESET_TO_ZERO_VECTOR
+			memset(kkp_, 0, sizeof(ValueKkp) * size);
+#endif
 
 			// 重みのコピー
 			for (auto k1 : SQ)
@@ -243,9 +297,29 @@ namespace Eval
 				l0 = list_fb[j];
 				l1 = list_fw[j];
 
-				kpp_w[sq_bk][k0][l0].add_grad( ValueKppFloat{ f ,  g });
-				kpp_w[Inv(sq_wk)][k1][l1].add_grad( ValueKppFloat{ -f ,  g });
+				// kpp配列に関してはミラー(左右判定)とフリップ(180度回転)の次元下げを行う。
+
+				// kpp_w[sq_bk][k0][l0].add_grad(ValueKppFloat{ f ,  g });
+				// kpp_w[Inv(sq_wk)][k1][l1].add_grad(ValueKppFloat{ -f ,  g });
+
+				((WeightKpp*)kpp_w_)[get_kpp_index(sq_bk, k0, l0)].add_grad(ValueKppFloat{ f ,  g });
+				((WeightKpp*)kpp_w_)[get_kpp_index(Inv(sq_wk), k1, l1)].add_grad(ValueKppFloat{ -f ,  g });
+
+#if 0
+				// ミラーもやめると…？
+				kpp_w[sq_bk][k0][l0].add_grad(ValueKppFloat{ f ,  g });
+				kpp_w[sq_bk][l0][k0].add_grad(ValueKppFloat{ f ,  g });
+				kpp_w[Inv(sq_wk)][k1][l1].add_grad(ValueKppFloat{ -f ,  g });
+				kpp_w[Inv(sq_wk)][l1][k1].add_grad(ValueKppFloat{ -f ,  g });
+#endif
 			}
+
+			// ((WeightKkp*)kkp_w_)[get_kkp_index(sq_bk,sq_wk,k0)].add_grad( ValueKkpFloat{ f , g });
+
+			// kkpは次元下げ、ミラーも含めてやらないことにする。どうせ教師の数は足りているし、
+			// 右と左とでは居飛車、振り飛車的な戦型選択を暗に含むからミラーするのが良いとは限らない。
+			// 180度回転も先手後手とは非対称である可能性があるのでここのフリップも入れない。
+
 			kkp_w[sq_bk][sq_wk][k0].add_grad( ValueKkpFloat{ f , g });
 		}
 
@@ -344,8 +418,12 @@ namespace Eval
 					w.w = ValueKppFloat{ w.w[0] - eta * w.g[0] , w.w[1] - eta * w.g[1] };
 #endif
 
-//					kpp_write(k, p1, p2, ValueKpp{ (s16)w.w[0], (s16)w.w[1] });
-					kpp[k][p1][p2] = ValueKpp{ (s16)w.w[0], (s16)w.w[1] };
+					kpp_write(k, p1, p2, ValueKpp{ (s16)w.w[0], (s16)w.w[1] });
+
+//					kpp[k][p1][p2] = ValueKpp{ (s16)w.w[0], (s16)w.w[1] };
+
+					//kpp[k][p1][p2] = ValueKpp{ (s16)w.w[0], (s16)w.w[1] };
+					//kpp[k][p2][p1] = ValueKpp{ (s16)w.w[0], (s16)w.w[1] };
 
 					ASSERT_LV3(abs(kpp[k][p1][p2][0]) < INT16_MAX / 2);
 					ASSERT_LV3(abs(kpp[k][p1][p2][1]) < INT16_MAX / 2);
@@ -388,8 +466,10 @@ namespace Eval
 #ifdef USE_SGD_UPDATE
 					w.w = ValueKkpFloat{ w.w[0] - eta * w.g[0]  , w.w[1] - eta * w.g[1] };
 #endif
-//					kkp_write(k1, k2, p, ValueKkp{s32(w.w[0]),s32(w.w[1])});
 
+					//	kkp_write(k1, k2, p, ValueKkp{s32(w.w[0]),s32(w.w[1])});
+
+					// kkpは上で書いた理由で次元下げをしない。
 					kkp[k1][k2][p] = ValueKkp{ s32(w.w[0]),s32(w.w[1]) };
 
 					ASSERT_LV3(abs(kkp[k1][k2][p][0]) < INT16_MAX / 4);

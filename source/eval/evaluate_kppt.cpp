@@ -187,6 +187,33 @@ namespace Eval
 
 #endif
 
+	void save_eval()
+	{
+		{
+			// KK
+			std::ofstream ifsKK((string)Options["EvalDir"] + KK_BIN + "2", std::ios::binary | std::ios::out);
+			if (!ifsKK.write(reinterpret_cast<char*>(kk), sizeof(kk)))
+				goto Error;
+
+			// KKP
+			std::ofstream ifsKKP((string)Options["EvalDir"] + KKP_BIN + "2", std::ios::binary | std::ios::out);
+			if (!ifsKKP.write(reinterpret_cast<char*>(kkp), sizeof(kkp)))
+				goto Error;
+
+			// KPP
+			std::ofstream ifsKPP((string)Options["EvalDir"] + KPP_BIN + "2", std::ios::binary | std::ios::out);
+			if (!ifsKPP.write(reinterpret_cast<char*>(kpp), sizeof(kpp)))
+				goto Error;
+
+			cout << "save_eval() finished." << endl;
+
+			return;
+		}
+
+	Error:;
+		cout << "Error : save_eval() failed" << endl;
+	}
+
 
 	// KP,KPP,KKPのスケール
 	const int FV_SCALE = 32;
