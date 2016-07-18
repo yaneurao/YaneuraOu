@@ -32,6 +32,15 @@
 #define USE_SWAPPING_PIECES
 
 
+// ----------------------
+//    目的関数の選択
+// ----------------------
+
+// 目的関数が勝率の差の二乗和
+#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
+
+
+
 #include <sstream>
 #include <fstream>
 
@@ -482,14 +491,20 @@ void gen_sfen(Position& pos, istringstream& is)
 // 生成した棋譜から学習させるコマンド(learn)
 // -----------------------------------
 
-// 評価値を勝率[0,1]に変換する関数
-double sig(double d)
+// 普通のシグモイド関数
+double sigmoid(double x)
 {
-	return 1 / (1 + exp(-d / 600));
-};
+	return 1.0 / (1.0 + std::exp(-x));
+}
 
-// シグモイド関数の導関数
-double dsig(double d)
+// 評価値を勝率[0,1]に変換する関数
+double winning_percentage(Value value)
+{
+	return sigmoid(static_cast<int>(value) / 600.0);
+}
+
+// 普通のシグモイド関数の導関数。
+double dsigmoid(double x)
 {
 	// シグモイド関数
 	//    f(x) = 1/(1+exp(-x))
@@ -497,15 +512,47 @@ double dsig(double d)
 	//    f'(x) = df/dx = f(x)・{ 1 - f(x) }
 	// となる。
 
-	// 同様に、
-	//   f(x) = 1/(1+exp(-x/600))
-	// に対して1階微分は、
-	//   f'(x) = f(x)・{ 1 - f(x) } / 600
-
-	// この600で割るの、どうせ学習率を掛けるからここで割っておかなくてもいいような気は少しするが。
-
-	return sig(d)*(1 - sig(d)) / 600;
+	return sigmoid(x) * (1.0 - sigmoid(x));
 }
+
+// 目的関数が勝率の差の二乗和のとき
+#ifdef LOSS_FUNCTION_IS_WINNING_PERCENTAGE
+// 勾配を計算する関数
+double calc_grad(Value deep, Value shallow)
+{
+	// 勝率の差の2乗が目的関数それを最小化する。
+	// 目的関数 J = 1/2m Σ ( win_rate(shallow) - win_rate(deep) ) ^2
+	// ただし、σはシグモイド関数で、評価値を勝率の差に変換するもの。
+	// mはサンプルの件数。shallowは浅い探索(qsearch())のときの評価値。deepは深い探索のときの評価値。
+	// また、Wを特徴ベクトル(評価関数のパラメーター)、Xi,Yiを教師とすると
+	// shallow = W*Xi   // *はアダマール積で、Wの転置・X の意味
+	// f(Xi) = win_rate(W*Xi)
+	// σ(i番目のdeep) = Yi とおくと、
+	// J = m/2 Σ ( f(Xi) - Yi )^2
+	// とよくある式になる。
+	// Wはベクトルで、j番目の要素をWjと書くとすると、連鎖律から
+	// ∂J/∂Wj = ∂J/∂f ・ ∂f/∂W ・ ∂W/∂Wj
+	//          =  1/m Σ ( f(Xi) - y )      ・f'(Xi) ・(1)
+	// 1/mはあとで掛けるとして、勾配の値としてはΣの中身を配列に保持しておけば良い。
+
+	// f'(Xi) = win_rate'(shallow) = sigmoid'(shallow/600) = dsigmoid(shallow / 600) / 600
+	// この末尾の /600 は学習率で調整するから書かなくていいか..
+
+	double p = winning_percentage(deep);
+	double q = winning_percentage(shallow);
+	return (q - p) * dsigmoid(double(shallow) / 600.0);
+}
+
+// 誤差を計算する関数(rmseの計算用)
+double calc_error(Value record_value, Value value)
+{
+	double diff = winning_percentage(value) - winning_percentage(record_value);
+	return diff * diff;
+}
+#endif
+
+// 目的関数として他のバリエーションも色々用意するかも..
+
 
 // Sfenの読み込み機
 struct SfenReader
@@ -557,12 +604,12 @@ struct SfenReader
 		return true;
 	}
 
-	// mseを計算して表示する。
-	void calc_mse()
+	// rmseを計算して表示する。
+	void calc_rmse()
 	{
 		const int thread_id = 0;
 		auto& pos = Threads[thread_id]->rootPos;
-		double sum = 0;
+		double sum_error = 0;
 		
 		for (auto& ps : sfen_for_mse)
 		{
@@ -583,14 +630,12 @@ struct SfenReader
 			// 深い探索の評価値
 			auto deep_value = (Value)*(int16_t*)&ps.data[32];
 
-			// 勝率の差の2乗が目的関数
-			// それを件数で割ったのがmse
-
-			double f = sig(shallow_value) - sig(deep_value);
-			sum += f*f;
+			// 誤差の計算
+			sum_error += calc_error(shallow_value, deep_value);
 		}
-		auto mse = sum / sfen_for_mse.size();
-		cout << endl << "mse = " << mse << endl;
+
+		auto rmse = std::sqrt(sum_error / sfen_for_mse.size());
+		cout << endl << "rmse = " << rmse << endl;
 	}
 
 	// [ASYNC] スレッドバッファに局面を10000局面ほど読み込む。
@@ -680,7 +725,8 @@ struct SfenReader
 		}
 		
 #if 1
-		// この読み込んだ局面データをシャッフルする。
+		// この読み込んだ局面データをshuffleする。
+		// random shuffle by Fisher-Yates algorithm
 		{
 			auto size = read_buffer.size();
 			for (size_t i = 0; i < size; ++i)
@@ -755,10 +801,17 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// ファイルから読み込んだ直後とかでいいような…。
 		if (thread_id == 0 && sr.total_read_mse_count <= sr.total_read)
 		{
-			// このタイミングで勾配の更新。勾配の計算も1Mごとでちょうどいいのでは。
-			Eval::update_grad(sr.SFEN_READ_SIZE);
+			// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 
-			sr.calc_mse();
+			// AdaGradで直接動かすなら、
+			// gを勾配 dj_dw、g2[i]を出現した特徴ベクトルに対する過去の履歴(?)として、
+			// g2[i] += g * g
+			// Wi -= η * g / sqrt(g2[i])
+			// となる。
+
+			Eval::update_weights(sr.SFEN_READ_SIZE);
+
+			sr.calc_rmse();
 			sr.total_read_mse_count += sr.SFEN_READ_SIZE;
 		}
 
@@ -788,33 +841,15 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// 深い探索の評価値
 		auto deep_value = (Value)*(int16_t*)&ps.data[32];
 
-		// 勝率の差の2乗が目的関数それを最小化する。
-		// 目的関数 J = 1/2m Σ ( σ(shallow) - σ(deep) ) ^2
-		// ただし、σはシグモイド関数で、評価値を勝率の差に変換するもの。
-		// mはサンプルの件数。shallowは浅い探索(qsearch())のときの評価値。deepは深い探索のときの評価値。
-		// また、Wを特徴ベクトル(評価関数のパラメーター)、Xi,Yiを教師とすると
-		// shallow = W*Xi   // *はアダマール積で、Wの転置・X の意味
-		// f(Xi) = σ(W*Xi)
-		// σ(i番目のdeep) = Yi とおくと、
-		// J = m/2 Σ ( f(Xi) - Yi )^2
-		// とよくある式になる。
-		// Wはベクトルで、j番目の要素をWjと書くとすると、連鎖律から
-		// ∂J/∂Wj = ∂J/∂f ・ ∂f/∂W ・ ∂W/∂Wj
-		//          =  1/m Σ ( f(Xi) - y )      ・f'(Xi) ・(1)
-		// 1/mはあとで掛けるとして、勾配の値としてはΣの中身を配列に保持しておけば良い。
-
-		double dj_dw = (sig(shallow_value) - sig(deep_value)) *dsig(shallow_value);
-
+		// 勾配
+		double dj_dw = calc_grad(shallow_value, deep_value);
+		
 		// 現在、leaf nodeで出現している特徴ベクトルに対する勾配(∂J/∂Wj)として、jd_dwを加算する。
 
-		// AdaGradで直接動かすなら、
-		// gを勾配 dj_dw、g2[i]を出現した特徴ベクトルに対する過去の履歴(?)として、
-		// g2[i] += g * g
-		// Wi -= η * g / sqrt(g2[i])
-		// となる。
-
 		// mini batchのほうが勾配が出ていいような気がする。
-		// このままleaf nodeに行って、勾配配列にだけ足しておき、あとでmseの集計のときにAdaGradしてみる。
+		// このままleaf nodeに行って、勾配配列にだけ足しておき、あとでrmseの集計のときにAdaGradしてみる。
+
+		auto rootColor = pos.side_to_move();
 
 		auto pv = r.second;
 		int ply = 0;
@@ -832,7 +867,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 		}
 
 		// leafに到達
-		Eval::add_grad(pos,dj_dw);
+		Eval::add_grad(pos, rootColor,dj_dw);
 
 		// 局面を巻き戻す
 		auto pv_r = pv;

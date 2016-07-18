@@ -43,11 +43,11 @@ namespace Eval {
   // 学習のときの勾配配列の初期化
   void init_grad();
 
-  // 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
-  void add_grad(Position& pos , double g);
+  // 現在の局面で出現している特徴すべてに対して、勾配の差分値を勾配配列に加算する。
+  void add_grad(Position& pos , Color rootColor , double delt_grad);
 
   // 現在の勾配をもとにSGDかAdaGradか何かする。m = 教師データの件数
-  void update_grad(u64 m);
+  void update_weights(u64 m);
 #endif
 
 
