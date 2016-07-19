@@ -11,10 +11,10 @@
 // update_weights()の更新式を以下のなかから一つ選択すべし。
 
 // 1) AdaGradによるupdate
-//#define USE_ADA_GRAD_UPDATE
+#define USE_ADA_GRAD_UPDATE
 
 // 2) SGDによるupdate
-#define USE_SGD_UPDATE
+//#define USE_SGD_UPDATE
 
 // ----------------------
 // ゼロベクトルからの学習
@@ -24,17 +24,17 @@
 // ゼロ初期化して棋譜生成してゼロベクトルから学習させて、
 // 棋譜生成→学習を繰り返すとプロの棋譜に依らないパラメーターが得られる。(かも)
 // (すごく時間かかる)
-#define RESET_TO_ZERO_VECTOR
+//#define RESET_TO_ZERO_VECTOR
 
 // ----------------------
 //    浅い探索の選択
 // ----------------------
 
 // 浅い探索の値としてevaluate()を用いる
-#define USE_EVALUATE_FOR_SHALLOW_VALUE
+//#define USE_EVALUATE_FOR_SHALLOW_VALUE
 
 // 浅い探索の値としてqsearch()を用いる。
-//#define USE_QSEARCH_FOR_SHALLOW_VALUE
+#define USE_QSEARCH_FOR_SHALLOW_VALUE
 
 
 // ----------------------
@@ -42,7 +42,10 @@
 // ----------------------
 
 // 目的関数が勝率の差の二乗和
-#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
+//#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
+
+// 目的関数が交差エントロピー
+#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
 
 // 他、色々追加するかも。
 

@@ -491,6 +491,14 @@ double dsigmoid(double x)
 	return sigmoid(x) * (1.0 - sigmoid(x));
 }
 
+// 誤差を計算する関数(rmseの計算用)
+// これは尺度が変わるといけないので目的関数を変更しても共通の計算にしておく。勝率の差の二乗和。
+double calc_error(Value record_value, Value value)
+{
+	double diff = winning_percentage(value) - winning_percentage(record_value);
+	return diff * diff;
+}
+
 // 目的関数が勝率の差の二乗和のとき
 #ifdef LOSS_FUNCTION_IS_WINNING_PERCENTAGE
 // 勾配を計算する関数
@@ -518,12 +526,31 @@ double calc_grad(Value deep, Value shallow)
 	double q = winning_percentage(shallow);
 	return (q - p) * dsigmoid(double(shallow) / 600.0);
 }
+#endif
 
-// 誤差を計算する関数(rmseの計算用)
-double calc_error(Value record_value, Value value)
+#ifdef LOSS_FUNCTION_IS_CROSS_ENTOROPY
+double calc_grad(Value deep, Value shallow)
 {
-	double diff = winning_percentage(value) - winning_percentage(record_value);
-	return diff * diff;
+	// 交差エントロピーを用いた目的関数
+
+	// 交差エントロピーの概念と性質については、
+	// http://nnadl-ja.github.io/nnadl_site_ja/chap3.html#the_cross-entropy_cost_function
+	// などを参考に。
+
+	// 目的関数の設計)
+	// pの分布をqの分布に近づけたい → pとqの確率分布間の交差エントロピーの最小化問題と考える。
+	// J = H(p,q) = - Σ p(x) log(q(x)) = -p log q - (1-p) log(1-q)
+	//                 x
+
+	// pは定数、qはWiの関数(q = σ(W・Xi) )としてWiに対する偏微分を求める。
+	// ∂J/∂Wi = -p・q'/q - (1-p)(1-q)'/(1-q)
+	//          = ...
+	//          = q - p.
+
+	double p = winning_percentage(deep);
+	double q = winning_percentage(shallow);
+
+	return q - p;
 }
 #endif
 
@@ -540,6 +567,9 @@ struct SfenReader
 		total_read_count = 0;
 		save_count = 0;
 		files_end = false;
+
+		// 比較実験がしたいので乱数を固定化しておく。
+		prng = PRNG(20160720);
 	}
 
 	// mseの計算用に1万局面ほど読み込んでおく。
@@ -796,7 +826,10 @@ void LearnerThink::thread_worker(size_t thread_id)
 				sr.save_count = 0;
 
 				// 定期的に保存
-				Eval::save_eval();
+				// 10億局面ごとにファイル名の拡張子部分を"0","1","2",..のように変えていく。
+				// (あとでそれぞれの評価関数パラメーターにおいて勝率を比較したいため)
+				u64 change_name_size = u64(1000) * 1000 * 1000;
+				Eval::save_eval(std::to_string(sr.total_read / change_name_size));
 			}
 
 			sr.calc_rmse();

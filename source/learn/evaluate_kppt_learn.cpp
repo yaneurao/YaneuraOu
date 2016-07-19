@@ -161,7 +161,9 @@ namespace Eval
 		void add_grad(ValueKkFloat delta)
 		{
 			g += delta;
+#ifdef USE_SGD_UPDATE
 			count++;
+#endif
 		}
 	};
 
@@ -169,7 +171,9 @@ namespace Eval
 	{
 		ValueKppFloat w;   // 元の重み
 		ValueKppFloat g;  // トータルの勾配
+#ifdef USE_SGD_UPDATE
 		u32   count;      // この特徴の出現回数
+#endif
 
 #ifdef		USE_ADA_GRAD_UPDATE
 		ValueKppFloat g2;  // AdaGradのg2
@@ -178,7 +182,9 @@ namespace Eval
 		void add_grad(ValueKppFloat delta)
 		{
 			g += delta;
+#ifdef USE_SGD_UPDATE
 			count++;
+#endif
 		}
 	};
 
@@ -198,7 +204,9 @@ namespace Eval
 		void add_grad(ValueKkpFloat delta)
 		{
 			g += delta;
+#ifdef USE_SGD_UPDATE
 			count++;
+#endif
 		}
 	};
 
@@ -326,12 +334,14 @@ namespace Eval
 	void update_weights()
 	{
 		// kkpの一番大きな値を表示させることで学習が進んでいるかのチェックに用いる。
+#ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
 		float max_kkp = 0.0f;
+#endif
 
 #ifdef USE_ADA_GRAD_UPDATE
 		// 学習率η = 0.01として勾配が一定な場合、1万回でη×199ぐらい。
 		// cf. [AdaGradのすすめ](http://qiita.com/ak11/items/7f63a1198c345a138150)
-		const float eta = 16; // 初回更新量はeta。そこから小さくなっていく。
+		const float eta = 2.0f; // 初回更新量はeta。そこから小さくなっていく。
 #endif
 
 #ifdef USE_SGD_UPDATE
@@ -347,9 +357,9 @@ namespace Eval
 			for (auto k2 : SQ)
 			{
 				auto& w = kk_w[k1][k2];
-				if (w.count == 0)
-					goto NEXT_KK;
-
+#ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
+				max_kkp = max(max_kkp, abs(w.w[0]));
+#endif
 
 #ifdef USE_ADA_GRAD_UPDATE
 
@@ -359,8 +369,9 @@ namespace Eval
 				auto gg = ValueKkFloat{ w.g[0] * w.g[0] , w.g[1] * w.g[1] };
 				w.g2 += gg;
 
+				// AdaGradにおいて最初のほうのiterationでは値を動かさない。
 				if (w.g2[0] < 0.01f || w.g2[1] < 0.01f)
-					goto NEXT_KK;
+						goto NEXT_KK;
 
 				// kk[k1][k2] -= eta * g / sqrt(g2);
 
@@ -370,6 +381,8 @@ namespace Eval
 
 #ifdef USE_SGD_UPDATE
 				// 勾配はこの特徴の出現したサンプル数で割ったもの。
+				if (w.count == 0)
+					goto NEXT_KK;
 				w.g[0] /= w.count;
 				w.g[1] /= w.count;
 				w.count = 0;
@@ -379,8 +392,6 @@ namespace Eval
 
 				ASSERT_LV3(abs(kk[k1][k2][0]) < INT16_MAX * 4);
 				ASSERT_LV3(abs(kk[k1][k2][1]) < INT16_MAX * 4);
-
-				max_kkp = max(max_kkp, abs(w.w[0]));
 				
 			NEXT_KK:;
 
@@ -392,8 +403,6 @@ namespace Eval
 				for (auto p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
 				{
 					auto& w = kpp_w[k][p1][p2];
-					if (w.count == 0)
-						goto NEXT_KPP;
 
 #ifdef USE_ADA_GRAD_UPDATE
 					if (w.g[0] == 0 && w.g[1] == 0)
@@ -410,6 +419,8 @@ namespace Eval
 #endif
 
 #ifdef USE_SGD_UPDATE
+					if (w.count == 0)
+						goto NEXT_KPP;
 					w.g[0] /= w.count;
 					w.g[1] /= w.count;
 					w.count = 0;
@@ -436,8 +447,6 @@ namespace Eval
 				for (auto p = BONA_PIECE_ZERO; p < fe_end; ++p)
 				{
 					auto& w = kkp_w[k1][k2][p];
-					if (w.count == 0)
-						goto NEXT_KKP;
 
 					// cout << "\n" << w.g[0] << " & " << w.g[1];
 
@@ -458,6 +467,8 @@ namespace Eval
 #endif
 
 #ifdef USE_SGD_UPDATE
+					if (w.count == 0)
+						goto NEXT_KKP;
 					w.g[0] /= w.count;
 					w.g[1] /= w.count;
 					w.count = 0;
@@ -476,7 +487,9 @@ namespace Eval
 					w.g = { 0.0f,0.0f };
 				}
 
+#ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
 		cout << " , max_kkp = " << max_kkp << " ";
+#endif
 	}
 
 
@@ -633,7 +646,36 @@ namespace Eval
 #endif
 	}
 
-}
+
+	void save_eval(std::string suffix)
+	{
+		{
+			// KK
+			std::ofstream ofsKK((string)Options["EvalDir"] + KK_BIN + suffix, std::ios::binary);
+			if (!ofsKK.write(reinterpret_cast<char*>(kk), sizeof(kk)))
+				goto Error;
+
+			// KKP
+			std::ofstream ofsKKP((string)Options["EvalDir"] + KKP_BIN + suffix, std::ios::binary);
+			if (!ofsKKP.write(reinterpret_cast<char*>(kkp), sizeof(kkp)))
+				goto Error;
+
+			// KPP
+			std::ofstream ofsKPP((string)Options["EvalDir"] + KPP_BIN + suffix, std::ios::binary);
+			if (!ofsKPP.write(reinterpret_cast<char*>(kpp), sizeof(kpp)))
+				goto Error;
+
+			cout << "save_eval() finished." << endl;
+
+			return;
+		}
+
+	Error:;
+		cout << "Error : save_eval() failed" << endl;
+	}
+
+} // namespace Eval
+
 #endif // EVAL_LEARN
 
 #endif

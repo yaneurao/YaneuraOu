@@ -22,16 +22,6 @@ using namespace std;
 namespace Eval
 {
 
-	// KKファイル名
-#define KK_BIN "/KK_synthesized.bin"
-
-// KKPファイル名
-#define KKP_BIN "/KKP_synthesized.bin"
-
-// KPPファイル名
-#define KPP_BIN "/KPP_synthesized.bin"
-
-
 // 評価関数パラメーター
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_MSC_VER)
 
@@ -186,34 +176,6 @@ namespace Eval
 	}
 
 #endif
-
-	void save_eval()
-	{
-		{
-			// KK
-			std::ofstream ofsKK((string)Options["EvalDir"] + KK_BIN + "2", std::ios::binary);
-			if (!ofsKK.write(reinterpret_cast<char*>(kk), sizeof(kk)))
-				goto Error;
-
-			// KKP
-			std::ofstream ofsKKP((string)Options["EvalDir"] + KKP_BIN + "2", std::ios::binary);
-			if (!ofsKKP.write(reinterpret_cast<char*>(kkp), sizeof(kkp)))
-				goto Error;
-
-			// KPP
-			std::ofstream ofsKPP((string)Options["EvalDir"] + KPP_BIN + "2", std::ios::binary);
-			if (!ofsKPP.write(reinterpret_cast<char*>(kpp), sizeof(kpp)))
-				goto Error;
-
-			cout << "save_eval() finished." << endl;
-
-			return;
-		}
-
-	Error:;
-		cout << "Error : save_eval() failed" << endl;
-	}
-
 
 	// KP,KPP,KKPのスケール
 	const int FV_SCALE = 32;
