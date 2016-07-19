@@ -7,18 +7,7 @@
 
 #if defined(EVAL_LEARN) && defined(YANEURAOU_2016_MID_ENGINE)
 
-// update_weights()の更新式を以下のなかから一つ選択すべし。
-
-// 1) AdaGradによるupdate
-//#define USE_ADA_GRAD_UPADTE
-
-// 2) SGDによるupdate
-#define USE_SGD_UPDATE
-
-
-// 評価関数パラメーターをゼロベクトルから開始する。
-#define RESET_TO_ZERO_VECTOR
-
+#include "learn.h"
 
 #include "../evaluate.h"
 #include "../eval/evaluate_kppt.h"
@@ -158,11 +147,14 @@ namespace Eval
 	// 勾配等の配列
 	struct WeightKk
 	{
-		ValueKkpFloat w;   // 元の重み
+		ValueKkFloat w;   // 元の重み
 		ValueKkFloat g;   // トータルの勾配
-		u32   count;      // この特徴の出現回数
 
-	#ifdef		USE_ADA_GRAD_UPADTE
+#ifdef USE_SGD_UPDATE
+		u32   count;      // この特徴の出現回数
+#endif
+
+	#ifdef		USE_ADA_GRAD_UPDATE
 		ValueKkFloat g2;  // AdaGradのg2
 	#endif
 
@@ -175,11 +167,11 @@ namespace Eval
 
 	struct WeightKpp
 	{
-		ValueKkpFloat w;   // 元の重み
+		ValueKppFloat w;   // 元の重み
 		ValueKppFloat g;  // トータルの勾配
 		u32   count;      // この特徴の出現回数
 
-#ifdef		USE_ADA_GRAD_UPADTE
+#ifdef		USE_ADA_GRAD_UPDATE
 		ValueKppFloat g2;  // AdaGradのg2
 #endif
 
@@ -194,9 +186,12 @@ namespace Eval
 	{
 		ValueKkpFloat w;   // 元の重み
 		ValueKkpFloat g;   // トータルの勾配
-		u32   count;       // この特徴の出現回数
 
-#ifdef		USE_ADA_GRAD_UPADTE
+#ifdef USE_SGD_UPDATE
+		u32   count;       // この特徴の出現回数
+#endif
+
+#ifdef		USE_ADA_GRAD_UPDATE
 		ValueKkpFloat g2;  // AdaGradのg2
 #endif
 
@@ -226,6 +221,7 @@ namespace Eval
 			kk_w_ = (WeightKk(*)[SQ_NB][SQ_NB])new WeightKk[size];
 			memset(kk_w_, 0, sizeof(WeightKk) * size);
 #ifdef RESET_TO_ZERO_VECTOR
+			cout << "[RESET_TO_ZERO_VECTOR]";
 			memset(kk_, 0, sizeof(ValueKk) * size);
 #endif
 
@@ -329,11 +325,12 @@ namespace Eval
 // 現在の勾配をもとにSGDかAdaGradか何かする。
 	void update_weights()
 	{
+		// kkpの一番大きな値を表示させることで学習が進んでいるかのチェックに用いる。
+		float max_kkp = 0.0f;
 
-#ifdef USE_ADA_GRAD_UPADTE
+#ifdef USE_ADA_GRAD_UPDATE
 		// 学習率η = 0.01として勾配が一定な場合、1万回でη×199ぐらい。
 		// cf. [AdaGradのすすめ](http://qiita.com/ak11/items/7f63a1198c345a138150)
-
 		const float eta = 16; // 初回更新量はeta。そこから小さくなっていく。
 #endif
 
@@ -342,9 +339,8 @@ namespace Eval
 		// 32 == Eval::FV_SCALE , 1/ 600 == dsigmoidのときに割ってなかった係数。
 #endif
 
-
 		// g2[i] += g * g;
-		// w[i] -= eta * g / sqrt(g2[i]);
+		// w[i] -= η * g / sqrt(g2[i]);
 		// g = 0 // mini-batchならこのタイミングで勾配配列クリア。
 
 		for (auto k1 : SQ)
@@ -354,11 +350,8 @@ namespace Eval
 				if (w.count == 0)
 					goto NEXT_KK;
 
-				// 勾配はこの特徴の出現したサンプル数で割ったもの。
-				w.g[0] /= w.count;
-				w.g[1] /= w.count;
 
-#ifdef USE_ADA_GRAD_UPADTE
+#ifdef USE_ADA_GRAD_UPDATE
 
 				if (w.g[0] == 0 && w.g[1] == 0)
 					goto NEXT_KK;
@@ -376,6 +369,10 @@ namespace Eval
 #endif
 
 #ifdef USE_SGD_UPDATE
+				// 勾配はこの特徴の出現したサンプル数で割ったもの。
+				w.g[0] /= w.count;
+				w.g[1] /= w.count;
+				w.count = 0;
 				w.w = ValueKkFloat { w.w[0] -eta * w.g[0] , w.w[1] -eta * w.g[1] };
 #endif
 				kk[k1][k2] = { (s32)w.w[0], (s32)w.w[1] };
@@ -383,10 +380,11 @@ namespace Eval
 				ASSERT_LV3(abs(kk[k1][k2][0]) < INT16_MAX * 4);
 				ASSERT_LV3(abs(kk[k1][k2][1]) < INT16_MAX * 4);
 
+				max_kkp = max(max_kkp, abs(w.w[0]));
+				
 			NEXT_KK:;
 
 				w.g = { 0.0f,0.0f };
-				w.count = 0;
 			}
 
 		for (auto k : SQ)
@@ -397,10 +395,7 @@ namespace Eval
 					if (w.count == 0)
 						goto NEXT_KPP;
 
-					w.g[0] /= w.count;
-					w.g[1] /= w.count;
-
-#ifdef USE_ADA_GRAD_UPADTE
+#ifdef USE_ADA_GRAD_UPDATE
 					if (w.g[0] == 0 && w.g[1] == 0)
 						goto NEXT_KPP;
 
@@ -415,6 +410,9 @@ namespace Eval
 #endif
 
 #ifdef USE_SGD_UPDATE
+					w.g[0] /= w.count;
+					w.g[1] /= w.count;
+					w.count = 0;
 					w.w = ValueKppFloat{ w.w[0] - eta * w.g[0] , w.w[1] - eta * w.g[1] };
 #endif
 
@@ -431,7 +429,6 @@ namespace Eval
 				NEXT_KPP:;
 
 					w.g = { 0.0f,0.0f };
-					w.count = 0;
 				}
 
 		for (auto k1 : SQ)
@@ -442,12 +439,9 @@ namespace Eval
 					if (w.count == 0)
 						goto NEXT_KKP;
 
-					w.g[0] /= w.count;
-					w.g[1] /= w.count;
-
 					// cout << "\n" << w.g[0] << " & " << w.g[1];
 
-#ifdef USE_ADA_GRAD_UPADTE
+#ifdef USE_ADA_GRAD_UPDATE
 					if (w.g[0] == 0 && w.g[1] == 0)
 						goto NEXT_KKP;
 
@@ -464,6 +458,9 @@ namespace Eval
 #endif
 
 #ifdef USE_SGD_UPDATE
+					w.g[0] /= w.count;
+					w.g[1] /= w.count;
+					w.count = 0;
 					w.w = ValueKkpFloat{ w.w[0] - eta * w.g[0]  , w.w[1] - eta * w.g[1] };
 #endif
 
@@ -477,8 +474,9 @@ namespace Eval
 
 				NEXT_KKP:;
 					w.g = { 0.0f,0.0f };
-					w.count = 0;
 				}
+
+		cout << " , max_kkp = " << max_kkp << " ";
 	}
 
 
@@ -487,13 +485,13 @@ namespace Eval
 	{
 		// fとeとの交換
 		int t[] = {
-			f_hand_pawn - 1 , e_hand_pawn - 1 ,
-			f_hand_lance - 1 , e_hand_lance - 1 ,
-			f_hand_knight - 1 , e_hand_knight - 1 ,
-			f_hand_silver - 1 , e_hand_silver - 1 ,
-			f_hand_gold - 1 , e_hand_gold - 1 ,
-			f_hand_bishop - 1 , e_hand_bishop - 1 ,
-			f_hand_rook - 1 , e_hand_rook - 1 ,
+			f_hand_pawn - 1    , e_hand_pawn - 1   ,
+			f_hand_lance - 1   , e_hand_lance - 1  ,
+			f_hand_knight - 1  , e_hand_knight - 1 ,
+			f_hand_silver - 1  , e_hand_silver - 1 ,
+			f_hand_gold - 1    , e_hand_gold - 1   ,
+			f_hand_bishop - 1  , e_hand_bishop - 1 ,
+			f_hand_rook - 1    , e_hand_rook - 1   ,
 			f_pawn             , e_pawn            ,
 			f_lance            , e_lance           ,
 			f_knight           , e_knight          ,

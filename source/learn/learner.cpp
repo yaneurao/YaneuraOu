@@ -14,32 +14,7 @@
 
 #if defined(EVAL_LEARN) && defined(YANEURAOU_2016_MID_ENGINE)
 
-// packされたsfenを書き出す
-#define WRITE_PACKED_SFEN
-
-// search()のleaf nodeまでの手順が合法手であるかを検証する。
-#define TEST_LEGAL_LEAF
-
-// packしたsfenをunpackして元の局面と一致するかをテストする。
-// →　十分テストしたのでもう大丈夫やろ…。
-//#define TEST_UNPACK_SFEN
-
-// 棋譜を生成するときに一定手数の局面まで定跡を用いる機能
-// これはOptions["BookMoves"]の値が反映される。この値が0なら、定跡を用いない。
-// 用いる定跡は、Options["BookFile"]が反映される。
-
-// 2駒の入れ替えを5手に1回ぐらいの確率で行なう。
-#define USE_SWAPPING_PIECES
-
-
-// ----------------------
-//    目的関数の選択
-// ----------------------
-
-// 目的関数が勝率の差の二乗和
-#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
-
-
+#include "learn.h"
 
 #include <sstream>
 #include <fstream>
@@ -48,6 +23,7 @@
 #include "../thread.h"
 #include "../position.h"
 #include "../extra/book.h"
+#include "../tt.h"
 #include "multi_think.h"
 
 using namespace std;
@@ -235,7 +211,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
     pos.set_this_thread(th);
 
     //    cout << endl;
-    for (ply = 0; ply < MAX_PLY; ++ply)
+    for (ply = 0; ply < MAX_PLY - 16; ++ply)
     {
       // mate1ply()の呼び出しのために必要。
       pos.check_info_update();
@@ -608,6 +584,9 @@ struct SfenReader
 	// rmseを計算して表示する。
 	void calc_rmse()
 	{
+		// 置換表にhitされてもかなわんので、このタイミングで置換表の世代を新しくする。
+		TT.new_search();
+
 		const int thread_id = 0;
 		auto& pos = Threads[thread_id]->rootPos;
 
@@ -622,7 +601,6 @@ struct SfenReader
 			auto th = Threads[thread_id];
 			pos.set_this_thread(th);
 
-			
 			// 浅い探索(qsearch)の評価値
 			auto r = Learner::qsearch(pos,-VALUE_INFINITE,VALUE_INFINITE);
 			auto shallow_value = r.first;
@@ -810,12 +788,6 @@ void LearnerThink::thread_worker(size_t thread_id)
 		{
 			// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 
-			// AdaGradで直接動かすなら、
-			// gを勾配 dj_dw、g2[i]を出現した特徴ベクトルに対する過去の履歴(?)として、
-			// g2[i] += g * g
-			// Wi -= η * g / sqrt(g2[i])
-			// となる。
-
 			Eval::update_weights();
 
 			// 1M×20 = 20Mごとに保存
@@ -851,8 +823,13 @@ void LearnerThink::thread_worker(size_t thread_id)
 		//		cout << pos << value << endl;
 
 		// 浅い探索(qsearch)の評価値
+#ifdef USE_QSEARCH_FOR_SHALLOW_VALUE
 		auto r = Learner::qsearch(pos, -VALUE_INFINITE, VALUE_INFINITE);
 		auto shallow_value = r.first;
+#endif
+#ifdef USE_EVALUATE_FOR_SHALLOW_VALUE
+		auto shallow_value = Eval::evaluate(pos);
+#endif
 
 		// qsearchではなくevaluate()の値をそのまま使う場合。
 		//			auto shallow_value = Eval::evaluate(pos);
@@ -869,6 +846,8 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// このままleaf nodeに行って、勾配配列にだけ足しておき、あとでrmseの集計のときにAdaGradしてみる。
 
 		auto rootColor = pos.side_to_move();
+
+#ifdef		USE_QSEARCH_FOR_SHALLOW_VALUE
 
 		auto pv = r.second;
 		int ply = 0;
@@ -893,6 +872,13 @@ void LearnerThink::thread_worker(size_t thread_id)
 		std::reverse(pv_r.begin(), pv_r.end());
 		for (auto m : pv_r)
 			pos.undo_move(m);
+#endif
+
+#ifdef USE_EVALUATE_FOR_SHALLOW_VALUE
+		// 現局面でevaluate()するので現局面がleafだと考えられる。
+		Eval::add_grad(pos, rootColor, dj_dw);
+#endif
+
 	}
 }
 

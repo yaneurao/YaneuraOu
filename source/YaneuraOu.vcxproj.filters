@@ -145,6 +145,9 @@
     <ClInclude Include="eval\evaluate_kppt.h">
       <Filter>リソース ファイル\eval</Filter>
     </ClInclude>
+    <ClInclude Include="learn\learn.h">
+      <Filter>リソース ファイル\learn</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
