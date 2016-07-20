@@ -517,10 +517,12 @@ double calc_grad(Value deep, Value shallow)
 	// Wはベクトルで、j番目の要素をWjと書くとすると、連鎖律から
 	// ∂J/∂Wj = ∂J/∂f ・ ∂f/∂W ・ ∂W/∂Wj
 	//          =  1/m Σ ( f(Xi) - y )      ・f'(Xi) ・(1)
-	// 1/mはあとで掛けるとして、勾配の値としてはΣの中身を配列に保持しておけば良い。
 
+	// 1/mはあとで掛けるとして、勾配の値としてはΣの中身を配列に保持しておけば良い。
 	// f'(Xi) = win_rate'(shallow) = sigmoid'(shallow/600) = dsigmoid(shallow / 600) / 600
 	// この末尾の /600 は学習率で調整するから書かなくていいか..
+	// また1/mという係数も、Adam , AdaGradのような勾配の自動調整機能を持つ更新式を用いるなら不要。
+	// ゆえにメモリ上に保存しておく必要はない。
 
 	double p = winning_percentage(deep);
 	double q = winning_percentage(shallow);
@@ -799,8 +801,8 @@ struct LearnerThink: public MultiThink
 	LearnerThink(SfenReader& sr_):sr(sr_){}
 	virtual void thread_worker(size_t thread_id);
 
-	//  search_depth = 通常探索の探索深さ
-	int search_depth;
+	// 評価関数パラメーターをファイルに保存
+	void save();
 
 	// sfenの読み出し器
 	SfenReader& sr;
@@ -843,9 +845,13 @@ void LearnerThink::thread_worker(size_t thread_id)
 		if (!sr.read_to_thread_buffer(thread_id, ps))
 			break;
 
+#if 0
 		auto sfen = pos.sfen_unpack(ps.data);
-
 		pos.set(sfen);
+#endif
+		// ↑sfenを経由すると遅いので専用の関数を作った。
+		pos.set_from_packed_sfen(ps.data);
+
 		auto th = Threads[thread_id];
 		pos.set_this_thread(th);
 
@@ -915,6 +921,15 @@ void LearnerThink::thread_worker(size_t thread_id)
 	}
 }
 
+void LearnerThink::save()
+{
+	// 定期的に保存
+	// 10億局面ごとにファイル名の拡張子部分を"0","1","2",..のように変えていく。
+	// (あとでそれぞれの評価関数パラメーターにおいて勝率を比較したいため)
+	u64 change_name_size = u64(1000) * 1000 * 1000;
+	Eval::save_eval(std::to_string(sr.total_read / change_name_size));
+}
+
 // 生成した棋譜からの学習
 void learn(Position& pos, istringstream& is)
 {
@@ -963,7 +978,11 @@ void learn(Position& pos, istringstream& is)
 	//   評価関数パラメーターの学習の開始
 	// -----------------------------------
 
+	// 学習開始。
 	learn_think.go_think();
+
+	// 最後に一度保存。
+	learn_think.save();
 }
 
 

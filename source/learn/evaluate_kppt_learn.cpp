@@ -345,8 +345,14 @@ namespace Eval
 #endif
 
 #ifdef USE_SGD_UPDATE
-		const float eta = 10 * 32; // FV_SCALE分ぐらい？
-		// 32 == Eval::FV_SCALE , 1/ 600 == dsigmoidのときに割ってなかった係数。
+
+		// SGDの場合、勾配自動調整ではないので、損失関数に合わせて適宜調整する必要がある。
+
+		#if defined (LOSS_FUNCTION_IS_CROSS_ENTOROPY)
+			const float eta = 32;
+		#elif defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
+			const float eta = 10 * 32; // FV_SCALE分ぐらい？
+		#endif
 #endif
 
 		// g2[i] += g * g;

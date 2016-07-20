@@ -229,7 +229,9 @@ struct SfenPacker
   // もしくはunpack()でdecodeするsfen
   u8 *data; // u8[32];
 
-private:
+//private:
+  // Position::set_from_packed_sfen(u8 data[32])でこれらの関数を使いたいので筋は悪いがpublicにしておく。
+
   BitStream stream;
 
   // 盤面の駒をstreamに出力する。
@@ -337,6 +339,123 @@ private:
 //        Positionクラスに追加
 // -----------------------------------
 
+// 高速化のために直接unpackする関数を追加。かなりしんどい。
+// packer::unpack()とPosition::set()とを合体させて書く。
+void Position::set_from_packed_sfen(u8 data[32])
+{
+	SfenPacker packer;
+	auto& stream = packer.stream;
+	stream.set_data(data);
+
+	clear();
+
+	// 手番
+	sideToMove = (Color)stream.read_one_bit();
+
+#ifndef EVAL_NO_USE
+	// PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
+	// それぞれの駒をどこまで使ったかのカウンター
+	PieceNo piece_no_count[KING] = { PIECE_NO_ZERO,PIECE_NO_PAWN,PIECE_NO_LANCE,PIECE_NO_KNIGHT,
+		PIECE_NO_SILVER, PIECE_NO_BISHOP, PIECE_NO_ROOK,PIECE_NO_GOLD };
+
+	evalList.clear();
+
+	// 先手玉のいない詰将棋とか、駒落ちに対応させるために、存在しない駒はすべてBONA_PIECE_ZEROにいることにする。
+	for (PieceNo pn = PIECE_NO_ZERO; pn < PIECE_NO_NB; ++pn)
+		evalList.put_piece(pn, SQ_ZERO, QUEEN); // QUEEN(金成り)はないのでこれでBONA_PIECE_ZEROとなる。
+#endif
+	kingSquare[BLACK] = kingSquare[WHITE] = SQ_NB;
+
+	// まず玉の位置
+	for (auto c : COLOR)
+		board[stream.read_n_bit(7)] = make_piece(c, KING);
+
+	// 盤上の駒
+	for (auto sq : SQ)
+	{
+		// すでに玉がいるようだ
+		Piece pc;
+		if (type_of(board[sq]) != KING)
+		{
+			ASSERT_LV3(board[sq] == NO_PIECE);
+			pc = packer.read_board_piece_from_stream();
+		}
+		else
+		{
+			pc = board[sq];
+			board[sq] = NO_PIECE; // いっかい取り除いておかないとput_piece()でASSERTに引っかかる。
+		}
+
+		// 駒がない場合もあるのでその場合はスキップする。
+		if (pc == NO_PIECE)
+			continue;
+
+		PieceNo piece_no =
+			(pc == B_KING) ? PIECE_NO_BKING : // 先手玉
+			(pc == W_KING) ? PIECE_NO_WKING : // 後手玉
+#ifndef EVAL_NO_USE
+			piece_no_count[raw_type_of(pc)]++; // それ以外
+#else
+			PIECE_NO_ZERO; // とりあえず駒番号は使わないので全部ゼロにしておけばいい。
+#endif
+
+		put_piece(sq, Piece(pc), piece_no);
+
+
+		//cout << sq << ' ' << board[sq] << ' ' << stream.get_cursor() << endl;
+
+		ASSERT_LV3(stream.get_cursor() <= 256);
+	}
+
+	// 手駒
+	hand[BLACK] = hand[WHITE] = (Hand)0;
+
+#ifndef EVAL_NO_USE
+	int i = 0;
+	Piece lastPc = NO_PIECE;
+#endif
+	while (stream.get_cursor() != 256)
+	{
+		// 256になるまで手駒が格納されているはず
+		auto pc = packer.read_hand_piece_from_stream();
+		add_hand(hand[(int)color_of(pc)], type_of(pc));
+
+#ifndef EVAL_NO_USE
+		// 何枚目のその駒であるかをカウントしておく。
+		if (lastPc != pc)
+			i = 0;
+		lastPc = pc;
+
+		// FV38などではこの個数分だけpieceListに突っ込まないといけない。
+		Piece rpc = raw_type_of(pc);
+		PieceNo piece_no = piece_no_count[rpc]++;
+		ASSERT_LV1(is_ok(piece_no));
+		evalList.put_piece(piece_no, color_of(pc), rpc, i++);
+#endif
+	}
+
+	gamePly = 0;
+	set_state(st);
+
+#ifndef EVAL_NO_USE
+	st->materialValue = Eval::material(*this);
+	Eval::compute_eval(*this);
+#endif
+
+	// --- effect
+
+#ifdef LONG_EFFECT_LIBRARY
+	// 利きの全計算による更新
+	LongEffect::calc_effect(*this);
+#endif
+
+//	sync_cout << sfen() << *this << pieces(BLACK) << pieces(WHITE) << pieces() << sync_endl;
+
+	//if (!is_ok(*this))
+	//	std::cout << "info string Illigal Position?" << endl;
+
+}
+
 // 盤面と手駒、手番を与えて、そのsfenを返す。
 std::string Position::sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly_)
 {
@@ -350,6 +469,9 @@ std::string Position::sfen_from_rawdata(Piece board[81], Hand hands[2], Color tu
   pos.gamePly = gamePly_;
 
   return pos.sfen();
+
+  // ↑の実装、美しいが、いかんせん遅い。
+  // 棋譜を大量に読み込ませて学習させるときにここがボトルネックになるので直接unpackする関数を書く。
 }
 
 // packされたsfenを得る。引数に指定したバッファに返す。
