@@ -19,6 +19,13 @@ using namespace std;
 
 namespace Eval
 {
+	// 絶対値を抑制するマクロ
+#define SET_A_LIMIT_TO(X,MIN,MAX)  \
+	X[0] = std::min(X[0],(MAX));     \
+	X[0] = std::max(X[0],(MIN));     \
+	X[1] = std::min(X[1],(MAX));     \
+	X[1] = std::max(X[1],(MIN));
+
 	typedef std::array<int32_t, 2> ValueKk;
 	typedef std::array<int16_t, 2> ValueKpp;
 	typedef std::array<int32_t, 2> ValueKkp;
@@ -324,7 +331,7 @@ namespace Eval
 			// 右と左とでは居飛車、振り飛車的な戦型選択を暗に含むからミラーするのが良いとは限らない。
 			// 180度回転も先手後手とは非対称である可能性があるのでここのフリップも入れない。
 
-			kkp_w[sq_bk][sq_wk][k0].add_grad( ValueKkpFloat{ f , g });
+			kkp_w[sq_bk][sq_wk][k0].add_grad(ValueKkpFloat{ f , g });
 		}
 
 	}
@@ -341,7 +348,11 @@ namespace Eval
 #ifdef USE_ADA_GRAD_UPDATE
 		// 学習率η = 0.01として勾配が一定な場合、1万回でη×199ぐらい。
 		// cf. [AdaGradのすすめ](http://qiita.com/ak11/items/7f63a1198c345a138150)
-		const float eta = 2.0f; // 初回更新量はeta。そこから小さくなっていく。
+		const float eta = 2.0f;
+		// 初回更新量はeta。そこから小さくなっていく。
+
+		// 最初のほうの更新量を抑制する項を独自に追加しておく。
+		const float epsilon = 1.0f;
 #endif
 
 #ifdef USE_SGD_UPDATE
@@ -351,9 +362,11 @@ namespace Eval
 		#if defined (LOSS_FUNCTION_IS_CROSS_ENTOROPY)
 			const float eta = 32;
 		#elif defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
-			const float eta = 10 * 32; // FV_SCALE分ぐらい？
+			const float eta = 10 * 32;
 		#endif
 #endif
+		// 手番用の学習率。これはηより小さめで良いはず。(小さめの値がつくべきところなので)
+		const float eta2 = eta * LEARN_ETA2_RATE;
 
 		// g2[i] += g * g;
 		// w[i] -= η * g / sqrt(g2[i]);
@@ -375,13 +388,13 @@ namespace Eval
 				auto gg = ValueKkFloat{ w.g[0] * w.g[0] , w.g[1] * w.g[1] };
 				w.g2 += gg;
 
-				// AdaGradにおいて最初のほうのiterationでは値を動かさない。
-				if (w.g2[0] < 0.01f || w.g2[1] < 0.01f)
-						goto NEXT_KK;
+				// AdaGradの更新式
+				//    w -= eta * g / sqrt(g2);
+				// これ、g2が小さいときにおかしくなるので、
+				//    w -= eta * g / sqrt(g2 + ε);
+				// のようにε項を追加しておく。
 
-				// kk[k1][k2] -= eta * g / sqrt(g2);
-
-				w.w = ValueKkFloat{ w.w[0] -eta * w.g[0] / sqrt(w.g2[0]) ,w.w[1] -eta * w.g[1] / sqrt(w.g2[1]) };
+				w.w = ValueKkFloat{ w.w[0] -eta * w.g[0] / sqrt(w.g2[0] + epsilon) ,w.w[1] -eta2 * w.g[1] / sqrt(w.g2[1] + epsilon) };
 
 #endif
 
@@ -392,13 +405,13 @@ namespace Eval
 				w.g[0] /= w.count;
 				w.g[1] /= w.count;
 				w.count = 0;
-				w.w = ValueKkFloat { w.w[0] -eta * w.g[0] , w.w[1] -eta * w.g[1] };
+				w.w = ValueKkFloat { w.w[0] -eta * w.g[0] , w.w[1] -eta2 * w.g[1] };
 #endif
+				// 絶対値を抑制する。
+				SET_A_LIMIT_TO(w.w , float(INT16_MIN / 2), float(INT16_MAX / 2));
+
 				kk[k1][k2] = { (s32)w.w[0], (s32)w.w[1] };
 
-				ASSERT_LV3(abs(kk[k1][k2][0]) < INT16_MAX * 4);
-				ASSERT_LV3(abs(kk[k1][k2][1]) < INT16_MAX * 4);
-				
 			NEXT_KK:;
 
 				w.g = { 0.0f,0.0f };
@@ -416,11 +429,7 @@ namespace Eval
 
 					auto gg = ValueKppFloat{ w.g[0] * w.g[0] , w.g[1] * w.g[1] };
 					w.g2 += gg;
-
-					if (w.g2[0] < 0.01f || w.g2[1] < 0.01f)
-						goto NEXT_KPP;
-
-					w.w = ValueKppFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0]) , w.w[1] - eta * w.g[1] / sqrt(w.g2[1]) };
+					w.w = ValueKppFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0] + epsilon) , w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1] + epsilon) };
 
 #endif
 
@@ -430,8 +439,11 @@ namespace Eval
 					w.g[0] /= w.count;
 					w.g[1] /= w.count;
 					w.count = 0;
-					w.w = ValueKppFloat{ w.w[0] - eta * w.g[0] , w.w[1] - eta * w.g[1] };
+					w.w = ValueKppFloat{ w.w[0] - eta * w.g[0] , w.w[1] - eta2 * w.g[1] };
 #endif
+
+					// 絶対値を抑制する。
+					SET_A_LIMIT_TO(w.w , (float)(INT16_MIN / 2), (float)(INT16_MAX / 2));
 
 					kpp_write(k, p1, p2, ValueKpp{ (s16)w.w[0], (s16)w.w[1] });
 
@@ -439,9 +451,6 @@ namespace Eval
 
 					//kpp[k][p1][p2] = ValueKpp{ (s16)w.w[0], (s16)w.w[1] };
 					//kpp[k][p2][p1] = ValueKpp{ (s16)w.w[0], (s16)w.w[1] };
-
-					ASSERT_LV3(abs(kpp[k][p1][p2][0]) < INT16_MAX / 2);
-					ASSERT_LV3(abs(kpp[k][p1][p2][1]) < INT16_MAX / 2);
 
 				NEXT_KPP:;
 
@@ -460,15 +469,11 @@ namespace Eval
 					if (w.g[0] == 0 && w.g[1] == 0)
 						goto NEXT_KKP;
 
-					auto gg = ValueKkFloat{ w.g[0] * w.g[0] , w.g[1] * w.g[1] };
-					w.g += gg;
+					auto gg = ValueKkpFloat{ w.g[0] * w.g[0] , w.g[1] * w.g[1] };
+					w.g2 += gg;
+					w.w = ValueKkpFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0] + epsilon) , w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1] + epsilon) };
 
-					if (w.g2[0] < 0.01f || w.g2[1] < 0.01f)
-						goto NEXT_KKP;
-
-					// kk[k1][k2] -= eta * g / sqrt(g2);
-
-					w.w = ValueKkpFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0]) , w.w[1] - eta * w.g[1] / sqrt(w.g2[1]) };
+//					cout << endl << w.g[0] << "," << w.g[1] << " : " << w.g2[0] << "," << w.g2[1];
 
 #endif
 
@@ -478,16 +483,16 @@ namespace Eval
 					w.g[0] /= w.count;
 					w.g[1] /= w.count;
 					w.count = 0;
-					w.w = ValueKkpFloat{ w.w[0] - eta * w.g[0]  , w.w[1] - eta * w.g[1] };
+					w.w = ValueKkpFloat{ w.w[0] - eta * w.g[0]  , w.w[1] - eta2 * w.g[1] };
 #endif
+
+					// 絶対値を抑制する。
+					SET_A_LIMIT_TO(w.w, (float)(INT16_MIN / 2), (float)(INT16_MAX / 2));
 
 					//	kkp_write(k1, k2, p, ValueKkp{s32(w.w[0]),s32(w.w[1])});
 
 					// kkpは上で書いた理由で次元下げをしない。
 					kkp[k1][k2][p] = ValueKkp{ s32(w.w[0]),s32(w.w[1]) };
-
-					ASSERT_LV3(abs(kkp[k1][k2][p][0]) < INT16_MAX / 4);
-					ASSERT_LV3(abs(kkp[k1][k2][p][1]) < INT16_MAX / 4);
 
 				NEXT_KKP:;
 					w.g = { 0.0f,0.0f };
