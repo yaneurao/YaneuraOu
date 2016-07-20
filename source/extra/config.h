@@ -359,6 +359,10 @@
 #pragma warning(disable : 4996)
 #endif
 
+// C4102 : ラベルは 1 度も参照されません。
+#pragma warning(disable : 4102)
+
+
 // for GCC
 #if defined(__GNUC__)
 #endif

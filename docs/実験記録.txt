@@ -60,7 +60,7 @@ ToDo:
 		#endif
 
 	→　これassertで書くのやめて、この制限は必ずしておくことにする。
-・
+
 ・AdaGradに最初のほうの更新量を抑制するε項を追加。
 
 				// AdaGradにおいて最初のほうのiterationでは値を動かさない。
@@ -68,6 +68,37 @@ ToDo:
 						goto NEXT_KK;
 
 			→　これやめて、epsilon項を追加するように変更。
+
+・AdaGradが発散するはずがなかった。kkpだけ更新式間違えてた。
+	→　うまく学習できるようになった。
+
+・ゼロパラメーターからの学習、再挑戦。
+
+・AdaGradのη、再調整。
+	eta =  2.0  , ε=10 , mean_error = 212.141　→　207.130(1000万局面)
+	eta =  5.0  , ε=10 , mean_error = 213.765  →  206.951(1000万局面)
+	eta =  5.0  , ε= 5 , mean_error = 214.090  →  206.897(1000万局面)
+	eta =  6.0  , ε= 3 , mean_error = 215.484  →  207.038(1000万局面)
+	eta =  7.0  , ε= 1 , mean_error = 217.741  →  208.684(1000万局面)
+	eta = 10.0  , ε= 1 , mean_error = 225.195  →  215.708(1000万局面)
+
+	発散しないなら大きな値から開始したほうが気分がいいのでは。
+
+		log
+		threads 8
+		learn \\Ws2012_860c_yan\e\genkif201607\kifu201607151400.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607152200.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171700.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171800.bin
+
+・手番なし、mean_error = 201から下がらない。(10億局面あたりでサチった模様)
+
+	AdaGrad、g2が大きくなってくるとそのパラメーター移動させられなくなるので他のパラメーターが遅れて追随してきてもどうしようもないという意味はあるのでは。
+	　g2の条件、制限しておくほうが無難なような気も。しかし、そこをゆるやかに減衰させていくとAdamになるのか…。うーん。
+
+	→　g2 *= 0.999; みたいな式を入れると、どこかで律速するのでこういうのを入れるべきかも知れない。
+
+・
+		log
+		threads 40
+		learn ..\YaneuraOu2016Engine\genkif\kifu201607171700.bin ..\YaneuraOu2016Engine\genkif\kifu201607151400.bin ..\YaneuraOu2016Engine\genkif\kifu201607171800.bin ..\YaneuraOu2016Engine\genkif\kifu201607152200.bin
 
 
 

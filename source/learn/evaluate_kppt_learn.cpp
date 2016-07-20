@@ -161,7 +161,7 @@ namespace Eval
 		u32   count;      // この特徴の出現回数
 #endif
 
-	#ifdef		USE_ADA_GRAD_UPDATE
+	#if defined (USE_ADA_GRAD_UPDATE) || defined (USE_YANE_GRAD_UPDATE)
 		ValueKkFloat g2;  // AdaGradのg2
 	#endif
 
@@ -182,7 +182,7 @@ namespace Eval
 		u32   count;      // この特徴の出現回数
 #endif
 
-#ifdef		USE_ADA_GRAD_UPDATE
+#if defined (USE_ADA_GRAD_UPDATE) || defined (USE_YANE_GRAD_UPDATE)
 		ValueKppFloat g2;  // AdaGradのg2
 #endif
 
@@ -204,7 +204,7 @@ namespace Eval
 		u32   count;       // この特徴の出現回数
 #endif
 
-#ifdef		USE_ADA_GRAD_UPDATE
+#if defined (USE_ADA_GRAD_UPDATE) || defined (USE_YANE_GRAD_UPDATE)
 		ValueKkpFloat g2;  // AdaGradのg2
 #endif
 
@@ -345,28 +345,54 @@ namespace Eval
 		float max_kkp = 0.0f;
 #endif
 
-#ifdef USE_ADA_GRAD_UPDATE
-		// 学習率η = 0.01として勾配が一定な場合、1万回でη×199ぐらい。
-		// cf. [AdaGradのすすめ](http://qiita.com/ak11/items/7f63a1198c345a138150)
-		const float eta = 2.0f;
-		// 初回更新量はeta。そこから小さくなっていく。
+#ifdef USE_YANE_GRAD_UPDATE
+
+		// YaneGradの更新式
+
+		//  gを勾配、wを評価関数パラメーター、ηを学習率、εを微小値とする。
+		// 　※　α = 0.99とかに設定しておき、v[i]が大きくなりすぎて他のパラメーターがあとから動いたときに、このv[i]が追随できないのを防ぐ。
+		//   ※　また比較的大きなεを加算しておき、vが小さいときに変な方向に行くことを抑制する。
+		//   v = αv + g^2
+		//   w = w - ηg/sqrt(v+ε)
+
+		// YaneGradのα値
+		const float alpha = (float)YANE_GRAD_ALPHA;
+
+		// 学習率η
+		const float eta = (float)YANE_GRAD_ETA;
 
 		// 最初のほうの更新量を抑制する項を独自に追加しておく。
-		const float epsilon = 1.0f;
+		const float epsilon = (float)YANE_GRAD_EPSILON;
+#endif
+
+#ifdef USE_ADA_GRAD_UPDATE
+
+		// AdaGradの更新式
+		//   v = v + g^2
+		// ※　vベクトルの各要素に対して、gの各要素の2乗を加算するの意味
+		//   w = w - ηg/sqrt(v)
+
+		// 学習率η = 0.01として勾配が一定な場合、1万回でη×199ぐらい。
+		// cf. [AdaGradのすすめ](http://qiita.com/ak11/items/7f63a1198c345a138150)
+		// 初回更新量はeta。そこから小さくなっていく。
+		const float eta = (float)ADA_GRAD_ETA;
 #endif
 
 #ifdef USE_SGD_UPDATE
 
+		// SGDの更新式
+		//   w = w - ηg
+
 		// SGDの場合、勾配自動調整ではないので、損失関数に合わせて適宜調整する必要がある。
 
 		#if defined (LOSS_FUNCTION_IS_CROSS_ENTOROPY)
-			const float eta = 32;
+			const float eta = (float)(SGD_ETA);
 		#elif defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
-			const float eta = 10 * 32;
+			const float eta = (float)(10.0f * SGD_ETA);
 		#endif
 #endif
 		// 手番用の学習率。これはηより小さめで良いはず。(小さめの値がつくべきところなので)
-		const float eta2 = eta * LEARN_ETA2_RATE;
+		const float eta2 = float(eta * LEARN_ETA2_RATE);
 
 		// g2[i] += g * g;
 		// w[i] -= η * g / sqrt(g2[i]);
@@ -380,22 +406,26 @@ namespace Eval
 				max_kkp = max(max_kkp, abs(w.w[0]));
 #endif
 
+#ifdef USE_YANE_GRAD_UPDATE
+
+				if (w.g[0] == 0 && w.g[1] == 0)
+					continue;
+
+				w.g2 = ValueKkFloat{ alpha * w.g2[0] + w.g[0] * w.g[0] , alpha * w.g2[1] + w.g[1] * w.g[1] };
+				w.w = ValueKkFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0] + epsilon) ,w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1] + epsilon) };
+#endif
+
 #ifdef USE_ADA_GRAD_UPDATE
 
 				if (w.g[0] == 0 && w.g[1] == 0)
 					goto NEXT_KK;
+				w.g2 += ValueKkFloat{ w.g[0] * w.g[0] , w.g[1] * w.g[1] };
 
-				auto gg = ValueKkFloat{ w.g[0] * w.g[0] , w.g[1] * w.g[1] };
-				w.g2 += gg;
+				// 値が小さいうちはskipする
+				if (w.g2[0] < 0.1f || w.g2[0] < 0.1f)
+					goto NEXT_KK;
 
-				// AdaGradの更新式
-				//    w -= eta * g / sqrt(g2);
-				// これ、g2が小さいときにおかしくなるので、
-				//    w -= eta * g / sqrt(g2 + ε);
-				// のようにε項を追加しておく。
-
-				w.w = ValueKkFloat{ w.w[0] -eta * w.g[0] / sqrt(w.g2[0] + epsilon) ,w.w[1] -eta2 * w.g[1] / sqrt(w.g2[1] + epsilon) };
-
+				w.w = ValueKkFloat{ w.w[0] -eta * w.g[0] / sqrt(w.g2[0]) ,w.w[1] -eta2 * w.g[1] / sqrt(w.g2[1]) };
 #endif
 
 #ifdef USE_SGD_UPDATE
@@ -423,19 +453,32 @@ namespace Eval
 				{
 					auto& w = kpp_w[k][p1][p2];
 
-#ifdef USE_ADA_GRAD_UPDATE
+#ifdef USE_YANE_GRAD_UPDATE
 					if (w.g[0] == 0 && w.g[1] == 0)
-						goto NEXT_KPP;
+						continue;
 
-					auto gg = ValueKppFloat{ w.g[0] * w.g[0] , w.g[1] * w.g[1] };
-					w.g2 += gg;
+					w.g2 = ValueKppFloat{ alpha * w.g2[0] + w.g[0] * w.g[0] , alpha * w.g2[1] + w.g[1] * w.g[1] };
 					w.w = ValueKppFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0] + epsilon) , w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1] + epsilon) };
 
+#endif
+
+#ifdef USE_ADA_GRAD_UPDATE
+					if (w.g[0] == 0 && w.g[1] == 0)
+						continue;
+
+					w.g2 += ValueKppFloat{ w.g[0] * w.g[0] , w.g[1] * w.g[1] };
+					// 値が小さいうちはskipする
+					if (w.g2[0] < 0.1f || w.g2[0] < 0.1f)
+						goto NEXT_KPP;
+
+					w.w = ValueKppFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0]) , w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1]) };
 #endif
 
 #ifdef USE_SGD_UPDATE
 					if (w.count == 0)
 						goto NEXT_KPP;
+					// このラベル使っておかないと使っていないラベルが存在することになってしまう。
+
 					w.g[0] /= w.count;
 					w.g[1] /= w.count;
 					w.count = 0;
@@ -465,13 +508,23 @@ namespace Eval
 
 					// cout << "\n" << w.g[0] << " & " << w.g[1];
 
+#ifdef USE_YANE_GRAD_UPDATE
+					if (w.g[0] == 0 && w.g[1] == 0)
+						continue;
+
+					w.g2 = ValueKkpFloat{ alpha * w.g2[0] + w.g[0] * w.g[0] , alpha * w.g2[1] + w.g[1] * w.g[1] };;
+					w.w = ValueKkpFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0] + epsilon) , w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1] + epsilon) };
+#endif
+
 #ifdef USE_ADA_GRAD_UPDATE
 					if (w.g[0] == 0 && w.g[1] == 0)
+						continue;
+
+					w.g2 += ValueKkpFloat{ w.g[0] * w.g[0] , w.g[1] * w.g[1] };;
+					if (w.g2[0] < 0.1f || w.g2[0] < 0.1f)
 						goto NEXT_KKP;
 
-					auto gg = ValueKkpFloat{ w.g[0] * w.g[0] , w.g[1] * w.g[1] };
-					w.g2 += gg;
-					w.w = ValueKkpFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0] + epsilon) , w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1] + epsilon) };
+					w.w = ValueKkpFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0]) , w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1]) };
 
 //					cout << endl << w.g[0] << "," << w.g[1] << " : " << w.g2[0] << "," << w.g2[1];
 
@@ -479,7 +532,7 @@ namespace Eval
 
 #ifdef USE_SGD_UPDATE
 					if (w.count == 0)
-						goto NEXT_KKP;
+						continue;
 					w.g[0] /= w.count;
 					w.g[1] /= w.count;
 					w.count = 0;

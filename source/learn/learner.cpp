@@ -253,10 +253,9 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
         auto pv1 = pv_value1.second;
 
 #if 1
-		// 評価値の絶対値が2000以上の局面については
+		// 評価値の絶対値がこの値以上の局面については
 		// その局面を学習に使うのはあまり意味がないのでこの試合を終了する。
-		// 2000という数字自体は調整したほうが良いが…。
-		if (abs(value1) >= 2000)
+		if (abs(value1) >= GEN_SFENS_EVAL_LIMIT)
 			break;
 #endif
 
@@ -596,7 +595,7 @@ struct SfenReader
 	// ファイル読み込み用のバッファ(これ大きくしたほうが局面がshuffleが大きくなるので局面がバラけていいと思うが
 	// mini-batchでこの局面数に対して勾配を計算するので…。
 	// デバッグ時用設定
-	const int SFEN_READ_SIZE = 1000 * 1000 * 1; // 1M局面
+	const size_t SFEN_READ_SIZE = size_t(1000 * 1000 * 1); // 1M局面
 
 	// [ASYNC] スレッドが局面を一つ返す。なければfalseが返る。
 	bool read_to_thread_buffer(size_t thread_id, PackedSfenValue& ps)
@@ -675,8 +674,10 @@ struct SfenReader
 				memcpy(&ps_vec[0], &read_buffer[new_size], sizeof(PackedSfenValue)*THREAD_BUFFER_SIZE);
 				read_buffer.resize(new_size);
 
+#ifdef				DISPLAY_STATS_IN_THREAD_READ_SFENS
 				// 1万局面読むごとに'.'をひとつ出力。
-				cout << '.';
+					cout << '.';
+#endif
 
 				total_read += THREAD_BUFFER_SIZE;
 
@@ -828,9 +829,9 @@ void LearnerThink::thread_worker(size_t thread_id)
 				sr.save_count = 0;
 
 				// 定期的に保存
-				// 10億局面ごとにファイル名の拡張子部分を"0","1","2",..のように変えていく。
+				// 5億局面ごとにファイル名の拡張子部分を"0","1","2",..のように変えていく。
 				// (あとでそれぞれの評価関数パラメーターにおいて勝率を比較したいため)
-				u64 change_name_size = u64(1000) * 1000 * 1000;
+				u64 change_name_size = (u64)EVAL_FILE_NAME_CHANGE_INTERVAL;
 				Eval::save_eval(std::to_string(sr.total_read / change_name_size));
 			}
 
