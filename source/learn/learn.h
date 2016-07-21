@@ -77,7 +77,7 @@
 #define YANE_GRAD_ETA 5.0f
 
 // YaneGradのε
-#define YANE_GRAD_EPSILON 5.0f
+#define YANE_GRAD_EPSILON 1.0f
 
 //
 // SGDのとき
@@ -98,6 +98,10 @@
 
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 
+// ファイルから1回に読み込む局面数。これだけ読み込んだあとshuffleする。
+// ある程度大きいほうが良いが、この数×34byte×2(ダブルバッファ)のメモリを消費する。10M局面なら340MB消費する。
+
+#define LEARN_READ_SFEN_SIZE (1000 * 1000 * 5)
 
 // ----------------------
 //    目的関数の選択
@@ -232,7 +236,7 @@
 #undef YANE_GRAD_ETA
 #define YANE_GRAD_ETA 5.0f
 #undef YANE_GRAD_EPSILON
-#define YANE_GRAD_EPSILON 5.0f
+#define YANE_GRAD_EPSILON 1.0f
 #undef LEARN_MINI_BATCH_SIZE
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 #define LOSS_FUNCTION_IS_CROSS_ENTOROPY

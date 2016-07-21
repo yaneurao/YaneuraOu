@@ -338,8 +338,9 @@ namespace Eval
 
 
 // 現在の勾配をもとにSGDかAdaGradか何かする。
-	void update_weights()
+	void update_weights(bool skip_update)
 	{
+		cout << "skip = " << skip_update;
 		// kkpの一番大きな値を表示させることで学習が進んでいるかのチェックに用いる。
 #ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
 		float max_kkp = 0.0f;
@@ -412,7 +413,10 @@ namespace Eval
 					continue;
 
 				w.g2 = ValueKkFloat{ alpha * w.g2[0] + w.g[0] * w.g[0] , alpha * w.g2[1] + w.g[1] * w.g[1] };
-				w.w = ValueKkFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0] + epsilon) ,w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1] + epsilon) };
+
+				// skip_updateのときはg2の更新に留める。
+				if (!skip_update)
+					w.w = ValueKkFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0] + epsilon) ,w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1] + epsilon) };
 #endif
 
 #ifdef USE_ADA_GRAD_UPDATE
@@ -425,7 +429,8 @@ namespace Eval
 				if (w.g2[0] < 0.1f || w.g2[0] < 0.1f)
 					goto NEXT_KK;
 
-				w.w = ValueKkFloat{ w.w[0] -eta * w.g[0] / sqrt(w.g2[0]) ,w.w[1] -eta2 * w.g[1] / sqrt(w.g2[1]) };
+				if (!skip_update)
+					w.w = ValueKkFloat{ w.w[0] -eta * w.g[0] / sqrt(w.g2[0]) ,w.w[1] -eta2 * w.g[1] / sqrt(w.g2[1]) };
 #endif
 
 #ifdef USE_SGD_UPDATE
@@ -458,7 +463,8 @@ namespace Eval
 						continue;
 
 					w.g2 = ValueKppFloat{ alpha * w.g2[0] + w.g[0] * w.g[0] , alpha * w.g2[1] + w.g[1] * w.g[1] };
-					w.w = ValueKppFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0] + epsilon) , w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1] + epsilon) };
+					if (!skip_update)
+						w.w = ValueKppFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0] + epsilon) , w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1] + epsilon) };
 
 #endif
 
@@ -471,7 +477,8 @@ namespace Eval
 					if (w.g2[0] < 0.1f || w.g2[0] < 0.1f)
 						goto NEXT_KPP;
 
-					w.w = ValueKppFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0]) , w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1]) };
+					if (!skip_update)
+						w.w = ValueKppFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0]) , w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1]) };
 #endif
 
 #ifdef USE_SGD_UPDATE
@@ -482,7 +489,8 @@ namespace Eval
 					w.g[0] /= w.count;
 					w.g[1] /= w.count;
 					w.count = 0;
-					w.w = ValueKppFloat{ w.w[0] - eta * w.g[0] , w.w[1] - eta2 * w.g[1] };
+					if (!skip_update)
+						w.w = ValueKppFloat{ w.w[0] - eta * w.g[0] , w.w[1] - eta2 * w.g[1] };
 #endif
 
 					// 絶対値を抑制する。
@@ -513,7 +521,8 @@ namespace Eval
 						continue;
 
 					w.g2 = ValueKkpFloat{ alpha * w.g2[0] + w.g[0] * w.g[0] , alpha * w.g2[1] + w.g[1] * w.g[1] };;
-					w.w = ValueKkpFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0] + epsilon) , w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1] + epsilon) };
+					if (!skip_update)
+						w.w = ValueKkpFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0] + epsilon) , w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1] + epsilon) };
 #endif
 
 #ifdef USE_ADA_GRAD_UPDATE
@@ -524,7 +533,8 @@ namespace Eval
 					if (w.g2[0] < 0.1f || w.g2[0] < 0.1f)
 						goto NEXT_KKP;
 
-					w.w = ValueKkpFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0]) , w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1]) };
+					if (!skip_update)
+						w.w = ValueKkpFloat{ w.w[0] - eta * w.g[0] / sqrt(w.g2[0]) , w.w[1] - eta2 * w.g[1] / sqrt(w.g2[1]) };
 
 //					cout << endl << w.g[0] << "," << w.g[1] << " : " << w.g2[0] << "," << w.g2[1];
 
@@ -717,8 +727,10 @@ namespace Eval
 			auto eval_dir = (string)Options["EvalDir"];
 
 			eval_dir += "/" + dir_name;
-			if (!MKDIR(dir_name))
-				goto Error;
+
+			// すでにこのフォルダがあるならmkdir()に失敗するが、
+			// 別にそれは構わない。なければ作って欲しいだけ。
+			MKDIR(eval_dir);
 
 			// KK
 			std::ofstream ofsKK(eval_dir + KK_BIN , std::ios::binary);
@@ -735,7 +747,7 @@ namespace Eval
 			if (!ofsKPP.write(reinterpret_cast<char*>(kpp), sizeof(kpp)))
 				goto Error;
 
-			cout << "save_eval() finished." << endl;
+			cout << "save_eval() finished. folder = " << eval_dir <<  endl;
 
 			return;
 		}

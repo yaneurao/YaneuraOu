@@ -593,9 +593,8 @@ struct SfenReader
 	const int THREAD_BUFFER_SIZE = 10 * 1000;
 
 	// ファイル読み込み用のバッファ(これ大きくしたほうが局面がshuffleが大きくなるので局面がバラけていいと思うが
-	// mini-batchでこの局面数に対して勾配を計算するので…。
-	// デバッグ時用設定
-	const size_t SFEN_READ_SIZE = size_t(LEARN_MINI_BATCH_SIZE);
+	// あまり大きいとメモリ消費量も上がる。
+	const size_t SFEN_READ_SIZE = LEARN_READ_SFEN_SIZE;
 
 	// [ASYNC] スレッドが局面を一つ返す。なければfalseが返る。
 	bool read_to_thread_buffer(size_t thread_id, PackedSfenValue& ps)
@@ -655,28 +654,21 @@ struct SfenReader
 	// [ASYNC] スレッドバッファに局面を10000局面ほど読み込む。
 	bool read_to_thread_buffer_impl(vector<PackedSfenValue>& ps_vec)
 	{
-		// スレッドバッファが尽きたのでグローバルバッファから充填する。
-		std::unique_lock<Mutex> lk(mutex);
-
-		// もうすでに読み込むファイルは無くなっている。
-		if (files_end)
-			return false;
-
 		auto read_from_buffer = [&]()
 		{
 			// read bufferから充填可能か？
-			int size = (int)read_buffer.size();
+			int size = (int)read_buffer1.size();
 			if (size >= THREAD_BUFFER_SIZE)
 			{
 				// 高速化のためにブロックコピーしてしまう。
 				ps_vec.resize(THREAD_BUFFER_SIZE);
 				int new_size = size - THREAD_BUFFER_SIZE;
-				memcpy(&ps_vec[0], &read_buffer[new_size], sizeof(PackedSfenValue)*THREAD_BUFFER_SIZE);
-				read_buffer.resize(new_size);
+				memcpy(&ps_vec[0], &read_buffer1[new_size], sizeof(PackedSfenValue)*THREAD_BUFFER_SIZE);
+				read_buffer1.resize(new_size);
 
 #ifdef				DISPLAY_STATS_IN_THREAD_READ_SFENS
 				// 1万局面読むごとに'.'をひとつ出力。
-					cout << '.';
+				cout << '.';
 #endif
 
 				total_read += THREAD_BUFFER_SIZE;
@@ -686,13 +678,35 @@ struct SfenReader
 			return false;
 		};
 
-		// ファイルバッファから充填できたなら、それで良し。
-		if (read_from_buffer())
-			return true;
+		while (true)
+		{
+			// ファイルバッファから充填できたなら、それで良し。
+			{
+				std::unique_lock<Mutex> lk(mutex);
+				if (read_from_buffer())
+					return true;
+			}
 
-		// 次の10M局面(34*10MB = 340MB)を読み込む
-		// (この単位でshuffleする)
+			// もうすでに読み込むファイルは無くなっている。もうダメぽ。
+			if (files_end)
+				return false;
 
+			// file workerがread_buffer1に充填してくれるのを待っている。
+			// mutexはlockしていないのでいずれ充填してくれるはずだ。
+			sleep(100);
+		}
+
+	}
+	
+	// 局面ファイルをバックグラウンドで読み込むスレッドを起動する。
+	void start_file_read_worker()
+	{
+		file_worker_thread = std::thread([&] { this->file_read_worker(); });
+	}
+
+	// ファイルの読み込み専用スレッド用
+	void file_read_worker()
+	{
 		auto open_next_file = [&]()
 		{
 			if (fs.is_open())
@@ -712,53 +726,57 @@ struct SfenReader
 			return true;
 		};
 
-		// SFEN_READ_SIZE分だけ読むごとに時刻を表示。
-
-		// 現在時刻も出力
-		auto now = std::chrono::system_clock::now();
-		auto tp = std::chrono::system_clock::to_time_t(now);
-		cout << endl << total_read << " sfens , at " << std::ctime(&tp);
-
-		// ファイルバッファにファイルから読み込む。
-		while (read_buffer.size() < SFEN_READ_SIZE)
+		while (true)
 		{
-			PackedSfenValue p;
-			if (fs.read((char*)&p, sizeof(PackedSfenValue)))
+			// ファイルバッファにファイルから読み込む。
+			while (read_buffer2.size() < SFEN_READ_SIZE)
 			{
-				read_buffer.push_back(p);
-			}
-			else
-			{
-				// 読み込み失敗
-				if (!open_next_file())
+				PackedSfenValue p;
+				if (fs.read((char*)&p, sizeof(PackedSfenValue)))
 				{
-					// 次のファイルもなかった。あぼーん。
-					cout << "..end of files.\n";
-					files_end = true;
-					return false;
+					read_buffer2.push_back(p);
+				} else
+				{
+					// 読み込み失敗
+					if (!open_next_file())
+					{
+						// 次のファイルもなかった。あぼーん。
+						cout << "..end of files.\n";
+						files_end = true;
+						return;
+					}
 				}
 			}
+
+			// この読み込んだ局面データをshuffleする。
+			// random shuffle by Fisher-Yates algorithm
+			{
+				auto size = read_buffer2.size();
+				for (size_t i = 0; i < size; ++i)
+					swap(read_buffer2[i], read_buffer2[prng.rand(size - i) + i]);
+			}
+
+			// read_buffer2の用意が出来たので、折を見てread_buffer1にコピー
+			while (true)
+			{
+				{
+					std::unique_lock<Mutex> lk(mutex);
+					if (read_buffer1.size() < SFEN_READ_SIZE)
+					{
+						// 大きなメモリなのでmemcpy()で一気にコピーしておく。
+						size_t size = read_buffer1.size();
+						read_buffer1.resize(size + SFEN_READ_SIZE);
+						memcpy(&read_buffer1[size] , &*read_buffer2.begin(), sizeof(PackedSfenValue)*SFEN_READ_SIZE);
+						read_buffer2.clear();
+						break;
+					}
+				}
+
+				// read_buffer1が空くのを待つ。これは優先されるのでsleepの周期が短いのは許される。
+				sleep(1);
+			}
+
 		}
-		
-#if 1
-		// この読み込んだ局面データをshuffleする。
-		// random shuffle by Fisher-Yates algorithm
-		{
-			auto size = read_buffer.size();
-			for (size_t i = 0; i < size; ++i)
-				swap(read_buffer[i], read_buffer[prng.rand(size-i) + i]);
-		}
-#endif
-
-		if (read_from_buffer())
-			return true;
-
-		// バッファから充填しようとしたがデーターが足りなかった模様。んな馬鹿な…。
-		// THREAD_BUFFER_SIZE < SFEN_READ_SIZE 
-		// だから、それはないはず。
-		ASSERT_LV3(false);
-
-		return false;
 	}
 
 	// sfenファイル群
@@ -774,10 +792,13 @@ struct SfenReader
 
 protected:
 
+	// fileをバックグラウンドで読み込みしているworker thread
+	std::thread file_worker_thread;
+
 	PRNG prng;
 
 	// ファイル群を読み込んでいき、最後まで到達したか。
-	bool files_end;
+	volatile bool files_end;
 
 	// ファイルを読み込むためのmutex
 	Mutex mutex;
@@ -788,8 +809,12 @@ protected:
 	// 各スレッド用のsfen
 	vector<vector<PackedSfenValue>> packed_sfens;
 
-	// 10M局面分の読み込みバッファ
-	vector<PackedSfenValue> read_buffer;
+	// 10M局面分の読み込みバッファ1,2
+	// read_buffer1はworker threadが直接参照する。
+	// read_buffer2はfileから読み込むの専用のthreadがここに格納する。
+	// read_buffer1がなくなったときに充填してくれる。
+	vector<PackedSfenValue> read_buffer1;
+	vector<PackedSfenValue> read_buffer2;
 
 	// mse計算用のバッファ
 	vector<PackedSfenValue> sfen_for_mse;
@@ -801,6 +826,9 @@ struct LearnerThink: public MultiThink
 {
 	LearnerThink(SfenReader& sr_):sr(sr_){}
 	virtual void thread_worker(size_t thread_id);
+
+	// 局面ファイルをバックグラウンドで読み込むスレッドを起動する。
+	void start_file_read_worker() { sr.start_file_read_worker(); }
 
 	// 評価関数パラメーターをファイルに保存
 	void save();
@@ -821,9 +849,16 @@ void LearnerThink::thread_worker(size_t thread_id)
 		{
 			u64 org_total_read = sr.total_read;
 
+			// 現在時刻を出力
+			auto now = std::chrono::system_clock::now();
+			auto tp = std::chrono::system_clock::to_time_t(now);
+			cout << endl << sr.total_read << " sfens , at " << std::ctime(&tp);
+
 			// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 
-			Eval::update_weights();
+			// 3回目ぐらいまではg2のupdateにとどめて、wのupdateは保留する。
+			bool skip_update = sr.next_update_weights < u64(LEARN_MINI_BATCH_SIZE * 3.5f);
+			Eval::update_weights(skip_update);
 
 			// 20回、update_weight()するごとに保存。
 			// 例えば、LEARN_MINI_BATCH_SIZEが1Mなら、1M×20 = 20Mごとに保存
@@ -980,10 +1015,14 @@ void learn(Position& pos, istringstream& is)
 	// 評価関数パラメーターの勾配配列の初期化
 	Eval::init_grad();
 
+	cout << "init done." << endl;
+
+	// 局面ファイルをバックグラウンドで読み込むスレッドを起動
+	// (これを開始しないとmseの計算が出来ない。)
+	learn_think.start_file_read_worker();
+
 	// mse計算用にデータ1万件ほど取得しておく。
 	sr.read_for_mse();
-
-	cout << "init done." << endl;
 
 	// -----------------------------------
 	//   評価関数パラメーターの学習の開始

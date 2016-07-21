@@ -50,7 +50,8 @@ namespace Eval {
   void add_grad(Position& pos , Color rootColor , double delt_grad);
 
   // 現在の勾配をもとにSGDかAdaGradか何かする。m = 教師データの件数
-  void update_weights();
+  // skip_update == trueのときはwの更新はしない。(AdaGrad/YaneGrad用)
+  void update_weights(bool skip_update);
 
   // 評価関数パラメーターをファイルに保存する。
   // ファイルの末尾につける拡張子を指定できる。

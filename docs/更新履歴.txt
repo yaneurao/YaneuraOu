@@ -12,6 +12,10 @@
 ・save_eval()で、Windows環境ならDirectoryを掘るように。
 ・棋譜からの学習、ファイルの保存でディレクトリ名変えるのは10億局面ごとに変更。
 ・update_weights()を呼び出すタイミング、調整した。
+・LEARN_READ_SFEN_SIZE、learn.hに移動。
+・棋譜からの学習のときにバックグラウンドでファイルを読み込むスレッドを追加。
+・AdaGradとYaneGrad、3回目ぐらいまではg2のupdateのみにするようにした。
+・save_eval()のときにフォルダ名を表示するようにした。
 
 	
 ■　2016/07/21 V3.41
