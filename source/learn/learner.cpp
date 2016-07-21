@@ -514,8 +514,8 @@ double calc_grad(Value deep, Value shallow)
 	// J = m/2 Σ ( f(Xi) - Yi )^2
 	// とよくある式になる。
 	// Wはベクトルで、j番目の要素をWjと書くとすると、連鎖律から
-	// ∂J/∂Wj = ∂J/∂f ・ ∂f/∂W ・ ∂W/∂Wj
-	//          =  1/m Σ ( f(Xi) - y )      ・f'(Xi) ・(1)
+	// ∂J/∂Wj =            ∂J/∂f     ・  ∂f/∂W   ・ ∂W/∂Wj
+	//          =  1/m Σ ( f(Xi) - y )  ・  f'(Xi)    ・    1
 
 	// 1/mはあとで掛けるとして、勾配の値としてはΣの中身を配列に保持しておけば良い。
 	// f'(Xi) = win_rate'(shallow) = sigmoid'(shallow/600) = dsigmoid(shallow / 600) / 600
@@ -565,7 +565,7 @@ struct SfenReader
 	{
 		packed_sfens.resize(thread_num);
 		total_read = 0;
-		total_read_count = 0;
+		next_update_weights = 0;
 		save_count = 0;
 		files_end = false;
 
@@ -595,7 +595,7 @@ struct SfenReader
 	// ファイル読み込み用のバッファ(これ大きくしたほうが局面がshuffleが大きくなるので局面がバラけていいと思うが
 	// mini-batchでこの局面数に対して勾配を計算するので…。
 	// デバッグ時用設定
-	const size_t SFEN_READ_SIZE = size_t(1000 * 1000 * 1); // 1M局面
+	const size_t SFEN_READ_SIZE = size_t(LEARN_MINI_BATCH_SIZE);
 
 	// [ASYNC] スレッドが局面を一つ返す。なければfalseが返る。
 	bool read_to_thread_buffer(size_t thread_id, PackedSfenValue& ps)
@@ -765,10 +765,10 @@ struct SfenReader
 	vector<string> filenames;
 
 	// 読み込んだ局面数
-	u64 total_read;
+	volatile u64 total_read;
 
-	// mseの表示用カウンター
-	u64 total_read_count;
+	// total_readがこの値を超えたらupdate_weights()してmseの計算をする。
+	u64 next_update_weights;
 
 	int save_count;
 
@@ -817,29 +817,39 @@ void LearnerThink::thread_worker(size_t thread_id)
 	{
 		// mseの表示(これはthread 0のみときどき行う)
 		// ファイルから読み込んだ直後とかでいいような…。
-		if (thread_id == 0 && sr.total_read_count <= sr.total_read)
+		if (thread_id == 0 && sr.next_update_weights <= sr.total_read)
 		{
+			u64 org_total_read = sr.total_read;
+
 			// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 
 			Eval::update_weights();
 
-			// 1M×20 = 20Mごとに保存
+			// 20回、update_weight()するごとに保存。
+			// 例えば、LEARN_MINI_BATCH_SIZEが1Mなら、1M×20 = 20Mごとに保存
+			// ただし、update_weights(),calc_rmse()している間の時間経過は無視するものとする。
 			if (++sr.save_count >= 20)
 			{
 				sr.save_count = 0;
 
 				// 定期的に保存
-				// 5億局面ごとにファイル名の拡張子部分を"0","1","2",..のように変えていく。
+				// 10億局面ごとにフォルダを掘っていく。
 				// (あとでそれぞれの評価関数パラメーターにおいて勝率を比較したいため)
 				u64 change_name_size = (u64)EVAL_FILE_NAME_CHANGE_INTERVAL;
 				Eval::save_eval(std::to_string(sr.total_read / change_name_size));
 			}
 
+			// rmseを計算する。1万局面のサンプルに対して行う。
+			// 40コアでやると100万局面ごとにupdate_weightsするとして、特定のスレッドが
+			// つきっきりになってしまうのあまりよくないような…。
 			sr.calc_rmse();
 
-			// コア数が多いとSFEN_READ_SIZEだけ読み込むまでに終わっているとは限らないので
-			// いま読み込んでいる量 + SFEN_READ_SIZEを次のmseの計算のタイミングとする。
-			sr.total_read_count = sr.total_read + sr.SFEN_READ_SIZE;
+			// 次回、この一連の処理は、
+			// org_total_read + LEARN_MINI_BATCH_SIZE <= total_read
+			// となったときにやって欲しいのだけど、それが現在時刻(toal_read_now)を過ぎているなら
+			// 仕方ないのでいますぐやる、的なコード。
+			u64 total_read_now = sr.total_read;
+			sr.next_update_weights = std::max(org_total_read + LEARN_MINI_BATCH_SIZE, total_read_now);
 		}
 
 		PackedSfenValue ps;

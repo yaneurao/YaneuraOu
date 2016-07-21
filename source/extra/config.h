@@ -526,6 +526,47 @@ const bool Is64Bit = false;
 typedef std::mutex Mutex;
 typedef std::condition_variable ConditionVariable;
 
+
+// ----------------------------
+//     mkdir wrapper
+// ----------------------------
+
+#if defined(_MSC_VER)
+
+// Windows用
+
+#include <codecvt>	// mkdirするのにwstringが欲しいのでこれが必要
+
+// フォルダを作成する。日本語は使っていないものとする。
+// カレントフォルダ相対で指定する。
+// 成功すれば0、失敗すれば非0が返る。
+inline int MKDIR(std::string dir_name)
+{
+	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
+	return _wmkdir(cv.from_bytes(dir_name).c_str());
+}
+#else
+
+// Linux用
+#if 0
+#include "sys/stat.h"
+
+inline int MKDIR(std::string dir_name)
+{
+	return ::mkdir(dir_name.c_str(), 0777);
+}
+#endif
+
+// Linux環境かどうかを判定するためにはmakefileを分けないといけなくなってくるな..
+// linuxでフォルダ掘る機能は、とりあえずナシでいいや..。評価関数ファイルの保存にしか使ってないし…。
+inline int MKDIR(std::string dir_name)
+{
+	return 0;
+}
+
+#endif
+
+
 // ----------------------------
 //     evaluate function
 // ----------------------------

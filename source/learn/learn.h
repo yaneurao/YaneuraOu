@@ -6,6 +6,21 @@
 //
 
 // ----------------------
+//     configure
+// ----------------------
+
+// 以下のいずれかを選択すれば、そのあとの細々したものは自動的に選択される。
+// 以下のいずれも選択しない場合は、そのあとの細々したものをひとつひとつ設定する必要がある。
+
+// デフォルトの学習設定
+#define LEARN_DEFAULT
+
+// やねうら王2016Late用デフォルトの学習設定。
+// 置換表を無効化するので、通常対局は出来ない。learnコマンド用の実行ファイル専用。
+//#define LEARN_YANEURAOU_2016_LATE
+
+
+// ----------------------
 //  重みベクトルの更新式
 // ----------------------
 
@@ -15,7 +30,7 @@
 //  これはAdaGradを改良したもの。
 // 詳しい説明は、evaluate_kppt_learn.cppを見ること。
 
-#define USE_YANE_GRAD_UPDATE
+//#define USE_YANE_GRAD_UPDATE
 
 
 // 2) AdaGradによるupdate
@@ -73,6 +88,18 @@
 
 
 // ----------------------
+//    学習時の設定
+// ----------------------
+
+// mini-batchサイズ。
+// この数だけの局面をまとめて勾配を計算する。
+// 小さくするとupdate_weights()の回数が増えるので収束が速くなる。勾配が不正確になる。
+// 大きくするとupdate_weights()の回数が減るので収束が遅くなる。勾配は正確に出るようになる。
+
+#define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
+
+
+// ----------------------
 //    目的関数の選択
 // ----------------------
 
@@ -84,7 +111,7 @@
 // 目的関数が交差エントロピー
 // 詳しい説明は、learner.cppを見ること。
 
-#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
+//#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
 
 
 // ※　他、色々追加するかも。
@@ -98,7 +125,7 @@
 //#define USE_EVALUATE_FOR_SHALLOW_VALUE
 
 // 浅い探索の値としてqsearch()を用いる。
-#define USE_QSEARCH_FOR_SHALLOW_VALUE
+//#define USE_QSEARCH_FOR_SHALLOW_VALUE
 
 
 // ※　他、色々追加するかも。
@@ -112,16 +139,32 @@
 // ゼロ初期化して棋譜生成してゼロベクトルから学習させて、
 // 棋譜生成→学習を繰り返すとプロの棋譜に依らないパラメーターが得られる。(かも)
 // (すごく時間かかる)
+
 //#define RESET_TO_ZERO_VECTOR
+
+
+// ----------------------
+//        置換表
+// ----------------------
+
+// 置換表を用いない。(やねうら王Mid2016のみ対応)
+// これをオンにすると通常対局時にも置換表を参照しなくなってしまうので棋譜からの学習を行う実行ファイルでのみオンにする。
+// 棋譜からの学習時にはオンにしたほうがよさげ。
+// 理由) 置換表にhitするとPV learが評価値の局面ではなくなってしまう。
+
+//#define DISABLE_TT_PROBE
 
 
 // ----------------------
 // 評価関数ファイルの保存
 // ----------------------
 
-// 保存するときのファイル名の末尾につける番号を、この局面数ごとにインクリメントしていく。
-// 例) "KK_synthesized.bin0" → "KK_synthesized.bin1" → "KK_synthesized.bin2" → ...
-#define EVAL_FILE_NAME_CHANGE_INTERVAL 500000000
+// 保存するときのフォルダ番号を、この局面数ごとにインクリメントしていく。
+// (Windows環境限定)
+// 例) "0/KK_synthesized.bin" →　"1/KK_synthesized.bin"
+// ※　Linux環境でファイルの上書きが嫌ならconfig.hのMKDIRのコードを有効にしてください。
+// 現状、10億局面ずつ。
+#define EVAL_FILE_NAME_CHANGE_INTERVAL (u64)1000000000
 
 
 // ----------------------
@@ -161,4 +204,42 @@
 // その局面で探索した評価値がこれ以上になった時点でその対局は終了する。
 #define GEN_SFENS_EVAL_LIMIT 3000
 
+#endif
+
+
+// ----------------------
+// configureの内容を反映
+// ----------------------
+
+#ifdef LEARN_DEFAULT
+#define USE_SGD_UPDATE
+#undef SGD_ETA
+#define SGD_ETA 32.0f
+#undef LEARN_MINI_BATCH_SIZE
+#define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
+#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
+#define USE_QSEARCH_FOR_SHALLOW_VALUE
+#undef EVAL_FILE_NAME_CHANGE_INTERVAL
+#define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
+#undef GEN_SFENS_EVAL_LIMIT
+#define GEN_SFENS_EVAL_LIMIT 2000
+#endif
+
+#ifdef LEARN_YANEURAOU_2016_LATE
+#define USE_YANE_GRAD_UPDATE
+#undef YANE_GRAD_ALPHA
+#define YANE_GRAD_ALPHA 0.99f
+#undef YANE_GRAD_ETA
+#define YANE_GRAD_ETA 5.0f
+#undef YANE_GRAD_EPSILON
+#define YANE_GRAD_EPSILON 5.0f
+#undef LEARN_MINI_BATCH_SIZE
+#define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
+#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
+#define USE_QSEARCH_FOR_SHALLOW_VALUE
+#define DISABLE_TT_PROBE
+#undef EVAL_FILE_NAME_CHANGE_INTERVAL
+#define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
+#undef GEN_SFENS_EVAL_LIMIT
+#define GEN_SFENS_EVAL_LIMIT 3000
 #endif

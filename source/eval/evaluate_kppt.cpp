@@ -45,7 +45,6 @@ namespace Eval
 	void load_eval_impl()
 	{
 		{
-
 			// KK
 			std::ifstream ifsKK((string)Options["EvalDir"] + KK_BIN, std::ios::binary);
 			if (ifsKK) ifsKK.read(reinterpret_cast<char*>(kk), sizeof(kk));

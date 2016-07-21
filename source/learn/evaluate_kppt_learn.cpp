@@ -711,21 +711,27 @@ namespace Eval
 	}
 
 
-	void save_eval(std::string suffix)
+	void save_eval(std::string dir_name)
 	{
 		{
+			auto eval_dir = (string)Options["EvalDir"];
+
+			eval_dir += "/" + dir_name;
+			if (!MKDIR(dir_name))
+				goto Error;
+
 			// KK
-			std::ofstream ofsKK((string)Options["EvalDir"] + KK_BIN + suffix, std::ios::binary);
+			std::ofstream ofsKK(eval_dir + KK_BIN , std::ios::binary);
 			if (!ofsKK.write(reinterpret_cast<char*>(kk), sizeof(kk)))
 				goto Error;
 
 			// KKP
-			std::ofstream ofsKKP((string)Options["EvalDir"] + KKP_BIN + suffix, std::ios::binary);
+			std::ofstream ofsKKP(eval_dir + KKP_BIN , std::ios::binary);
 			if (!ofsKKP.write(reinterpret_cast<char*>(kkp), sizeof(kkp)))
 				goto Error;
 
 			// KPP
-			std::ofstream ofsKPP((string)Options["EvalDir"] + KPP_BIN + suffix, std::ios::binary);
+			std::ofstream ofsKPP(eval_dir + KPP_BIN , std::ios::binary);
 			if (!ofsKPP.write(reinterpret_cast<char*>(kpp), sizeof(kpp)))
 				goto Error;
 
