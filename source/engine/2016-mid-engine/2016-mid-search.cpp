@@ -124,6 +124,10 @@ void USI::extra_option(USI::OptionsMap & o)
   o["Param1"] << Option(0, 0, 100000);
   o["Param2"] << Option(0, 0, 100000);
 
+#ifdef DISABLE_TT_PROBE
+  sync_cout << "info string warning!! disable TT.probe()." << sync_endl;
+#endif
+
 }
 
 // -----------------------
@@ -1999,6 +2003,7 @@ void Search::clear()
 	}
 
 	Threads.main()->previousScore = VALUE_INFINITE;
+
 }
 
 
