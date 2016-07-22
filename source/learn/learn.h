@@ -13,11 +13,11 @@
 // 以下のいずれも選択しない場合は、そのあとの細々したものをひとつひとつ設定する必要がある。
 
 // デフォルトの学習設定
-#define LEARN_DEFAULT
+//#define LEARN_DEFAULT
 
 // やねうら王2016Late用デフォルトの学習設定。
 // 置換表を無効化するので、通常対局は出来ない。learnコマンド用の実行ファイル専用。
-//#define LEARN_YANEURAOU_2016_LATE
+#define LEARN_YANEURAOU_2016_LATE
 
 
 // ----------------------

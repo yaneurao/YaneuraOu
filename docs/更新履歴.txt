@@ -14,8 +14,9 @@
 ・update_weights()を呼び出すタイミング、調整した。
 ・LEARN_READ_SFEN_SIZE、learn.hに移動。
 ・棋譜からの学習のときにバックグラウンドでファイルを読み込むスレッドを追加。
-・AdaGradとYaneGrad、3回目ぐらいまではg2のupdateのみにするようにした。
+・AdaGradとYaneGrad、5回目ぐらいまではg2のupdateのみにするようにした。
 ・save_eval()のときにフォルダ名を表示するようにした。
+・learnコマンド、40HTでスケールアウトするように改良。
 
 	
 ■　2016/07/21 V3.41

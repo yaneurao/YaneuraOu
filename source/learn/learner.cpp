@@ -857,7 +857,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 			// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 
 			// 3回目ぐらいまではg2のupdateにとどめて、wのupdateは保留する。
-			bool skip_update = sr.next_update_weights < u64(LEARN_MINI_BATCH_SIZE * 3.5f);
+			bool skip_update = sr.next_update_weights < u64(LEARN_MINI_BATCH_SIZE * 5.5f);
 			Eval::update_weights(skip_update);
 
 			// 20回、update_weight()するごとに保存。

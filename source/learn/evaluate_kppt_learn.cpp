@@ -340,7 +340,6 @@ namespace Eval
 // 現在の勾配をもとにSGDかAdaGradか何かする。
 	void update_weights(bool skip_update)
 	{
-		cout << "skip = " << skip_update;
 		// kkpの一番大きな値を表示させることで学習が進んでいるかのチェックに用いる。
 #ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
 		float max_kkp = 0.0f;
