@@ -60,7 +60,15 @@ struct SfenWriter
       "generated_kifu.sfen"
 #endif
       , ios::out | ios::binary | ios::app);
+
+	finished = false;
   }
+  ~SfenWriter()
+  {
+	  finished = true;
+	  file_worker_thread.join();
+  }
+
 
   // この行数ごとにファイルにflushする。
   // 探索深さ3なら1スレッドあたり1秒で1000局面ほど作れる。
@@ -79,43 +87,32 @@ struct SfenWriter
 
     // このバッファはスレッドごとに用意されている。
     auto& buf = sfen_buffers[thread_id];
-    
+	auto buf_reserve = [&]()
+	{
+		buf = shared_ptr<vector<PackedSfenValue>>(new vector<PackedSfenValue>());
+		buf->reserve(FILE_WRITE_INTERVAL);
+	};
+	
+	if (!buf)
+		buf_reserve();
+	
     PackedSfenValue ps;
     memcpy(ps.data, data, 32);
     memcpy(ps.data + 32, &value, 2);
     
     // スレッドごとに用意されており、一つのスレッドが同時にこのwrite()関数を呼び出さないので
     // この時点では排他する必要はない。
-    buf.push_back(ps);
+    buf->push_back(ps);
 
-    if (buf.size() >= FILE_WRITE_INTERVAL)
-    {
-      std::unique_lock<Mutex> lk(mutex);
-
-      for (auto line : buf)
-        fs.write((const char*)line.data,34);
-
-      fs.flush();
-
-      sfen_count += buf.size();
-      buf.clear();
-
-      // 棋譜を書き出すごとに'.'を出力。
-	  // これ要らない。メニーコアで遅くなる原因。
-      // cout << ".";
-
-	  // 40回×GEN_SFENS_TIMESTAMP_OUTPUT_INTERVALごとに処理した局面数を出力
-	  if ((total_write % (u64(FILE_WRITE_INTERVAL) * 40 * GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL)) == 0)
-	  {
-		  // 現在時刻も出力
-		  auto now = std::chrono::system_clock::now();
-		  auto tp = std::chrono::system_clock::to_time_t(now);
-
-		  cout << endl << u64(total_write + FILE_WRITE_INTERVAL) << " sfens , at " << std::ctime(&tp);
-	  }
-	  
-      total_write += FILE_WRITE_INTERVAL;
-    }
+	if (buf->size() >= FILE_WRITE_INTERVAL)
+	{
+		// sfen_buffers_poolに積んでおけばあとはworkerがよきに計らってくれる。
+		{
+			std::unique_lock<Mutex> lk(mutex);
+			sfen_buffers_pool.push_back(buf);
+		}
+		buf_reserve();
+	}
   }
 #else
   // 局面を1行書き出す
@@ -125,38 +122,113 @@ struct SfenWriter
     // bufferが溢れたら、ファイルに書き出す。
 
     auto& buf = sfen_buffers[thread_id];
-    buf.push_back(line);
-    if (buf.size() >= FILE_WRITE_INTERVAL)
-    {
-      std::unique_lock<Mutex> lk(mutex);
 
-      for (auto line : buf)
-        fs << line;
+	auto buf_reserve = [&]()
+	{
+		buf = shared_ptr<vector<string>>(new vector<string>());
+		buf->reserve(FILE_WRITE_INTERVAL);
+	};
 
-      fs.flush();
-      sfen_count += buf.size();
-      buf.clear();
+	if (!buf)
+		buf_reserve();
 
-      // 棋譜を書き出すごとに'.'を出力。
-      cout << ".";
-    }
+    buf->push_back(line);
+	if (buf->size() >= FILE_WRITE_INTERVAL)
+	{
+		// sfen_buffers_poolに積んでおけばあとはworkerがよきに計らってくれる。
+		{
+			std::unique_lock<Mutex> lk(mutex);
+			sfen_buffers_pool.push_back(buf);
+		}
+		buf_reserve();
+	}
   }
 #endif
 
+  // write_workerスレッドを開始する。
+  void start_file_write_worker()
+  {
+	  file_worker_thread = std::thread([&] { this->file_write_worker(); });
+  }
+
+  // ファイルに書き出すの専用スレッド
+  void file_write_worker()
+  {
+	  while (!finished)
+	  {
+#ifdef  WRITE_PACKED_SFEN
+		  shared_ptr<vector<PackedSfenValue>> ptr;
+#else
+		  shared_ptr<vector<string>> ptr;
+#endif
+		  {
+			  std::unique_lock<Mutex> lk(mutex);
+			  // poolに積まれていたら、それを処理する。
+
+			  if (sfen_buffers_pool.size() != 0)
+			  {
+				  ptr = *sfen_buffers_pool.rbegin();
+				  sfen_buffers_pool.pop_back();
+			  }
+		  }
+
+		  // 何も取得しなかったならsleep()
+		  // ひとつ取得したということはまだバッファにある可能性があるのでファイルに書きだしたあとsleep()せずに続行。
+		  if (!ptr)
+			  sleep(100);
+		  else
+		  {
+#ifdef  WRITE_PACKED_SFEN
+			  fs.write((const char*)&((*ptr)[0].data), sizeof(PackedSfenValue) * ptr->size());
+			  fs.flush();
+#else
+			  for (auto line : *ptr)
+				  fs << line;
+			  fs.flush();
+#endif
+
+			  sfen_count += ptr->size();
+
+			  // 棋譜を書き出すごとに'.'を出力。
+			  cout << ".";
+
+			  // 40回×GEN_SFENS_TIMESTAMP_OUTPUT_INTERVALごとに処理した局面数を出力
+			  if ((total_write % (u64(FILE_WRITE_INTERVAL) * 40 * GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL)) == 0)
+			  {
+				  // 現在時刻も出力
+				  auto now = std::chrono::system_clock::now();
+				  auto tp = std::chrono::system_clock::to_time_t(now);
+
+				  cout << endl << u64(total_write + FILE_WRITE_INTERVAL) << " sfens , at " << std::ctime(&tp);
+			  }
+
+			  total_write += FILE_WRITE_INTERVAL;
+		  }
+	  }
+  }
+
 private:
-  // ファイルに書き出す前に排他するためのmutex
-  Mutex mutex;
 
   fstream fs;
+
+  // ファイルに書き込む用のthread
+  std::thread file_worker_thread;
+  // 終了したかのフラグ
+  volatile bool finished;
 
   u64 total_write = 0;
 
   // ファイルに書き出す前のバッファ
 #ifdef  WRITE_PACKED_SFEN
-  vector<vector<PackedSfenValue>> sfen_buffers;
+  vector<shared_ptr<vector<PackedSfenValue>>> sfen_buffers;
+  vector<shared_ptr<vector<PackedSfenValue>>> sfen_buffers_pool;
 #else
-  vector<vector<string>> sfen_buffers;
+  vector<shared_ptr<vector<string>>> sfen_buffers;
+  vector<shared_ptr<vector<string>>> sfen_buffers_pool;
 #endif
+
+  // sfen_buffers_poolにアクセスするときに必要なmutex
+  Mutex mutex;
 
   // 生成したい局面の数
   u64 sfen_count_limit;
@@ -180,6 +252,7 @@ struct MultiThinkGenSfen: public MultiThink
     set_prng(PRNG());
   }
   virtual void thread_worker(size_t thread_id);
+  void start_file_write_worker() { sw.start_file_write_worker(); }
 
   //  search_depth = 通常探索の探索深さ
   int search_depth;
@@ -455,10 +528,16 @@ void gen_sfen(Position& pos, istringstream& is)
     << endl;
 
   // Options["Threads"]の数だけスレッドを作って実行。
-  SfenWriter sw(thread_num);
-  MultiThinkGenSfen multi_think(search_depth,sw);
-  multi_think.set_loop_max(loop_max);
-  multi_think.go_think();
+  {
+	  SfenWriter sw(thread_num);
+	  MultiThinkGenSfen multi_think(search_depth, sw);
+	  multi_think.set_loop_max(loop_max);
+	  multi_think.start_file_write_worker();
+	  multi_think.go_think();
+
+	  // SfenWriterのデストラクタでjoinするので、joinが終わってから終了したというメッセージを
+	  // 表示させるべきなのでここをブロックで囲む。
+  }
 
   std::cout << "gen_sfen finished." << endl;
 }

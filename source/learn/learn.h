@@ -222,7 +222,7 @@
 
 // タイムスタンプの出力をこの回数に一回に抑制する。
 // スレッドを論理コアの最大数まで酷使するとコンソールが詰まるので…。
-#define GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL 100
+#define GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL 1
 
 // ----------------------
 // configureの内容を反映
