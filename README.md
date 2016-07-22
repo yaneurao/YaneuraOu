@@ -57,12 +57,12 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 
 ## やねうら王評価関数バイナリ
 
-やねうら王nano,nano-plus,classic,classic-tce用  
-	CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
+やねうら王nano,nano-plus,classic,classic-tce用
+- CSAのライブラリの[ダウンロードページ](http://www.computer-shogi.org/library/)からダウンロードできます。
 
 やねうら王2016Mid用  
-	[やねうら王で使える評価関数ファイル28バリエーション公開しました](http://yaneuraou.yaneu.com/2016/07/22/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B%E3%81%A7%E4%BD%BF%E3%81%88%E3%82%8B%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB28%E3%83%90%E3%83%AA%E3%82%A8%E3%83%BC%E3%82%B7/)  
-	また、Apery(WCSC26)の評価関数バイナリをそのまま使えます。
+- [やねうら王で使える評価関数ファイル28バリエーション公開しました](http://yaneuraou.yaneu.com/2016/07/22/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B%E3%81%A7%E4%BD%BF%E3%81%88%E3%82%8B%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB28%E3%83%90%E3%83%AA%E3%82%A8%E3%83%BC%E3%82%B7/)
+- また、Apery(WCSC26)の評価関数バイナリをそのまま使えます。
 
 
 ## やねうら大定跡
@@ -72,7 +72,7 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 [やねうら大定跡はじめました](http://yaneuraou.yaneu.com/2016/07/10/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E5%A4%A7%E5%AE%9A%E8%B7%A1%E3%81%AF%E3%81%98%E3%82%81%E3%81%BE%E3%81%97%E3%81%9F/)
 
 やねうら大定跡V1.01(2016/07/15 update)の[ダウンロード](https://drive.google.com/open?id=0Bzbi5rbfN85NbWxfazMzamFVZm8)  
-→　ダウンロードしたあと、zipファイルになっているのでそれを解凍して、やねうら王2016Midの実行ファイルを配置しているフォルダ配下のbookフォルダに放り込んでください。
+  →　ダウンロードしたあと、zipファイルになっているのでそれを解凍して、やねうら王2016Midの実行ファイルを配置しているフォルダ配下のbookフォルダに放り込んでください。
 
 ## 2016年10月に開催される電王トーナメントに参加される開発者の方へ
 
