@@ -266,6 +266,11 @@ namespace USI
 
     o["EvalDir"] << Option("eval");
 
+#if defined(EVAL_KPPT) && defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_MSC_VER)
+	// 評価関数パラメーターを共有するか
+	o["EvalShare"] << Option(true);
+#endif
+
     // 各エンジンがOptionを追加したいだろうから、コールバックする。
     USI::extra_option(o);
   }

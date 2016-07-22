@@ -67,7 +67,7 @@ struct SfenWriter
   // 40コア80HTで秒間10万局面。1日で80億ぐらい作れる。
   // 80億=8G , 1局面100バイトとしたら 800GB。
   
-  const size_t FILE_WRITE_INTERVAL = 5000;
+  const u64 FILE_WRITE_INTERVAL = 5000;
 
 #ifdef  WRITE_PACKED_SFEN
 
@@ -101,19 +101,20 @@ struct SfenWriter
       buf.clear();
 
       // 棋譜を書き出すごとに'.'を出力。
-      cout << ".";
+	  // これ要らない。メニーコアで遅くなる原因。
+      // cout << ".";
 
-      // 40回出力するごとに出力した局面数を出力。
+	  // 40回×GEN_SFENS_TIMESTAMP_OUTPUT_INTERVALごとに処理した局面数を出力
+	  if ((total_write % (u64(FILE_WRITE_INTERVAL) * 40 * GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL)) == 0)
+	  {
+		  // 現在時刻も出力
+		  auto now = std::chrono::system_clock::now();
+		  auto tp = std::chrono::system_clock::to_time_t(now);
+
+		  cout << endl << u64(total_write + FILE_WRITE_INTERVAL) << " sfens , at " << std::ctime(&tp);
+	  }
+	  
       total_write += FILE_WRITE_INTERVAL;
-
-      if ((total_write % (FILE_WRITE_INTERVAL * 40)) == 0)
-      {
-        // 現在時刻も出力
-        auto now = std::chrono::system_clock::now();
-        auto tp = std::chrono::system_clock::to_time_t(now);
-        
-        cout << endl << total_write << " sfens , at " << std::ctime(&tp);
-      }
     }
   }
 #else
@@ -572,6 +573,10 @@ struct SfenReader
 		// 比較実験がしたいので乱数を固定化しておく。
 		prng = PRNG(20160720);
 	}
+	~SfenReader()
+	{
+		file_worker_thread.join();
+	}
 
 	// mseの計算用に1万局面ほど読み込んでおく。
 	void read_for_mse()
@@ -590,7 +595,7 @@ struct SfenReader
 
 
 	// 各スレッドがバッファリングしている局面数 0.1M局面。40HTで4M局面
-	const int THREAD_BUFFER_SIZE = 10 * 1000;
+	const size_t THREAD_BUFFER_SIZE = 10 * 1000;
 
 	// ファイル読み込み用のバッファ(これ大きくしたほうが局面がshuffleが大きくなるので局面がバラけていいと思うが
 	// あまり大きいとメモリ消費量も上がる。
@@ -603,11 +608,12 @@ struct SfenReader
 		auto& thread_ps = packed_sfens[thread_id];
 
 		// バッファに残りがなかったらread bufferから充填するが、それすらなかったらもう終了。
-		if (thread_ps.size() == 0 && !read_to_thread_buffer_impl(thread_ps))
+		if ((thread_ps == nullptr || thread_ps->size() == 0) // バッファが空なら重点する。
+			&& !read_to_thread_buffer_impl(thread_id))
 			return false;
 
-		ps = *thread_ps.rbegin();
-		thread_ps.pop_back();
+		ps = *(thread_ps->rbegin());
+		thread_ps->pop_back();
 		return true;
 	}
 
@@ -652,30 +658,25 @@ struct SfenReader
 	}
 
 	// [ASYNC] スレッドバッファに局面を10000局面ほど読み込む。
-	bool read_to_thread_buffer_impl(vector<PackedSfenValue>& ps_vec)
+	bool read_to_thread_buffer_impl(size_t thread_id)
 	{
 		auto read_from_buffer = [&]()
 		{
 			// read bufferから充填可能か？
-			int size = (int)read_buffer1.size();
-			if (size >= THREAD_BUFFER_SIZE)
-			{
-				// 高速化のためにブロックコピーしてしまう。
-				ps_vec.resize(THREAD_BUFFER_SIZE);
-				int new_size = size - THREAD_BUFFER_SIZE;
-				memcpy(&ps_vec[0], &read_buffer1[new_size], sizeof(PackedSfenValue)*THREAD_BUFFER_SIZE);
-				read_buffer1.resize(new_size);
+			if (packed_sfens_pool.size() == 0)
+				return false;
 
-#ifdef				DISPLAY_STATS_IN_THREAD_READ_SFENS
-				// 1万局面読むごとに'.'をひとつ出力。
-				cout << '.';
+			packed_sfens[thread_id] = *packed_sfens_pool.rbegin();
+			packed_sfens_pool.pop_back();
+
+#ifdef	DISPLAY_STATS_IN_THREAD_READ_SFENS
+			// 1万局面読むごとに'.'をひとつ出力。
+			cout << '.';
 #endif
 
-				total_read += THREAD_BUFFER_SIZE;
+			total_read += THREAD_BUFFER_SIZE;
 
-				return true;
-			}
-			return false;
+			return true;
 		};
 
 		while (true)
@@ -693,7 +694,7 @@ struct SfenReader
 
 			// file workerがread_buffer1に充填してくれるのを待っている。
 			// mutexはlockしていないのでいずれ充填してくれるはずだ。
-			sleep(100);
+			sleep(1);
 		}
 
 	}
@@ -728,13 +729,18 @@ struct SfenReader
 
 		while (true)
 		{
+			// バッファが減ってくるのを待つ。
+			while (packed_sfens_pool.size() >= SFEN_READ_SIZE / THREAD_BUFFER_SIZE)
+				sleep(100);
+
+			vector<PackedSfenValue> sfens;
 			// ファイルバッファにファイルから読み込む。
-			while (read_buffer2.size() < SFEN_READ_SIZE)
+			while (sfens.size() < SFEN_READ_SIZE)
 			{
 				PackedSfenValue p;
 				if (fs.read((char*)&p, sizeof(PackedSfenValue)))
 				{
-					read_buffer2.push_back(p);
+					sfens.push_back(p);
 				} else
 				{
 					// 読み込み失敗
@@ -751,25 +757,37 @@ struct SfenReader
 			// この読み込んだ局面データをshuffleする。
 			// random shuffle by Fisher-Yates algorithm
 			{
-				auto size = read_buffer2.size();
+				auto size = sfens.size();
 				for (size_t i = 0; i < size; ++i)
-					swap(read_buffer2[i], read_buffer2[prng.rand(size - i) + i]);
+					swap(sfens[i], sfens[prng.rand(size - i) + i]);
 			}
 
-			// read_buffer2の用意が出来たので、折を見てread_buffer1にコピー
+			// これをTHREAD_BUFFER_SIZEごとの細切れにする。それがsize個あるはず。
+			size_t size = SFEN_READ_SIZE / THREAD_BUFFER_SIZE;
+			vector<shared_ptr<vector<PackedSfenValue>>> ptrs;
+			ptrs.resize(size);
+
+			for (size_t i = 0; i < size; ++i)
+			{
+				shared_ptr<vector<PackedSfenValue>> ptr(new vector<PackedSfenValue>());
+				ptr->resize(THREAD_BUFFER_SIZE);
+				memcpy(&((*ptr)[0]), &sfens[i * THREAD_BUFFER_SIZE], sizeof(PackedSfenValue) * THREAD_BUFFER_SIZE);
+				ptrs[i] = ptr;
+			}
+
+			// sfensの用意が出来たので、折を見てコピー
 			while (true)
 			{
 				{
 					std::unique_lock<Mutex> lk(mutex);
-					if (read_buffer1.size() < SFEN_READ_SIZE)
-					{
-						// 大きなメモリなのでmemcpy()で一気にコピーしておく。
-						size_t size = read_buffer1.size();
-						read_buffer1.resize(size + SFEN_READ_SIZE);
-						memcpy(&read_buffer1[size] , &*read_buffer2.begin(), sizeof(PackedSfenValue)*SFEN_READ_SIZE);
-						read_buffer2.clear();
-						break;
-					}
+
+					// 300個ぐらいなのでこの時間は無視できるはず…。
+					auto size2 = packed_sfens_pool.size();
+					packed_sfens_pool.resize(size2+size);
+					for (size_t i = 0; i < size; ++i)
+						packed_sfens_pool[size2 + i] = ptrs[i];
+
+					break;
 				}
 
 				// read_buffer1が空くのを待つ。これは優先されるのでsleepの周期が短いのは許される。
@@ -800,21 +818,20 @@ protected:
 	// ファイル群を読み込んでいき、最後まで到達したか。
 	volatile bool files_end;
 
-	// ファイルを読み込むためのmutex
-	Mutex mutex;
 
 	// sfenファイルのハンドル
 	fstream fs;
 
 	// 各スレッド用のsfen
-	vector<vector<PackedSfenValue>> packed_sfens;
+	vector<shared_ptr<vector<PackedSfenValue>>> packed_sfens;
 
-	// 10M局面分の読み込みバッファ1,2
-	// read_buffer1はworker threadが直接参照する。
-	// read_buffer2はfileから読み込むの専用のthreadがここに格納する。
-	// read_buffer1がなくなったときに充填してくれる。
-	vector<PackedSfenValue> read_buffer1;
-	vector<PackedSfenValue> read_buffer2;
+	// packed_sfens_poolにアクセスするときのmutex
+	Mutex mutex;
+
+	// sfenのpool。fileから読み込むworker threadはここに補充する。
+	// 各worker threadはここから自分のpacked_sfens[thread_id]に充填する。
+	// ※　mutexをlockしてアクセスすること。
+	vector<shared_ptr<vector<PackedSfenValue>>> packed_sfens_pool;
 
 	// mse計算用のバッファ
 	vector<PackedSfenValue> sfen_for_mse;
@@ -850,9 +867,16 @@ void LearnerThink::thread_worker(size_t thread_id)
 			u64 org_total_read = sr.total_read;
 
 			// 現在時刻を出力
-			auto now = std::chrono::system_clock::now();
-			auto tp = std::chrono::system_clock::to_time_t(now);
-			cout << endl << sr.total_read << " sfens , at " << std::ctime(&tp);
+			static u64 sfens_output_count = 0;
+			if ((sfens_output_count++ % LEARN_TIMESTAMP_OUTPUT_INTERVAL) == 0)
+			{
+				auto now = std::chrono::system_clock::now();
+				auto tp = std::chrono::system_clock::to_time_t(now);
+				cout << endl << sr.total_read << " sfens , at " << std::ctime(&tp);
+			} else {
+				// これぐらいは出力しておく。
+				cout << '.';
+			}
 
 			// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 
@@ -861,9 +885,9 @@ void LearnerThink::thread_worker(size_t thread_id)
 			Eval::update_weights(skip_update);
 
 			// 20回、update_weight()するごとに保存。
-			// 例えば、LEARN_MINI_BATCH_SIZEが1Mなら、1M×20 = 20Mごとに保存
+			// 例えば、LEARN_MINI_BATCH_SIZEが1Mなら、1M×30 = 30Mごとに保存
 			// ただし、update_weights(),calc_rmse()している間の時間経過は無視するものとする。
-			if (++sr.save_count >= 20)
+			if (++sr.save_count >= 30)
 			{
 				sr.save_count = 0;
 
@@ -876,8 +900,12 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 			// rmseを計算する。1万局面のサンプルに対して行う。
 			// 40コアでやると100万局面ごとにupdate_weightsするとして、特定のスレッドが
-			// つきっきりになってしまうのあまりよくないような…。
-			sr.calc_rmse();
+			// つきっきりになってしまうのあまりよくないような気も…。
+			static u64 rmse_output_count = 0;
+			if ((rmse_output_count++ % LEARN_RMSE_OUTPUT_INTERVAL) == 0)
+			{
+				sr.calc_rmse();
+			}
 
 			// 次回、この一連の処理は、
 			// org_total_read + LEARN_MINI_BATCH_SIZE <= total_read

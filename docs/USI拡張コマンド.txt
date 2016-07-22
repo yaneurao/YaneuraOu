@@ -56,6 +56,9 @@ set option name XXX value ...で設定できるoption
 	PvInterval      : PVの出力を抑制する。前回出力時間から、この時間(単位は[ms])経過するまでは
 					次のPVを出力しない。
 
+	EvalShare       : 評価関数を共有メモリに展開する。詳しくは解説.txtを参照のこと。
+		
+
 	BookFile 定跡ファイル : 定跡ファイルの選択
 
 					# このコンボボックスの値

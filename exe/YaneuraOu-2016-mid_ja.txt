@@ -47,4 +47,5 @@ BookDepthLimit 定跡のdepth下限(0=下限なし)
 BookOnTheFly 定跡をメモリに丸読みしない
 
 EvalDir 評価関数格納フォルダ
+EvalShare 評価関数を共有メモリに展開する
 PvInterval PVの出力の抑制時間[ms]

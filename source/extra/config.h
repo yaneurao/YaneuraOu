@@ -14,7 +14,7 @@
 // USE_SSE42  : SSE4.2でサポートされた命令を使うか。popcnt命令など。
 // USE_SSE41  : SSE4.1でサポートされた命令を使うか。_mm_testz_si128など。
 // USE_SSE2   : SSE2  でサポートされた命令を使うか。
-// すべてdefineしなければSSEは使用しない。
+// NO_SSE     : SSEは使用しない。
 // (Windowsの64bit環境だと自動的にSSE2は使えるはず)
 // noSSE ⊂ SSE2 ⊂ SSE4.1 ⊂ SSE4.2 ⊂ AVX2 ⊂  AVX-512
 
@@ -28,6 +28,7 @@
 //#define USE_SSE42
 //#define USE_SSE41
 //#define USE_SSE2
+//#define NO_SSE
 
 #else
 

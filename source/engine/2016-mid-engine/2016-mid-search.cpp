@@ -88,7 +88,6 @@ void USI::extra_option(USI::OptionsMap & o)
 
   o["PvInterval"] << Option(300, 0, 100000);
 
-
   // 定跡ファイル名
 
   //  standard_book.db 標準定跡

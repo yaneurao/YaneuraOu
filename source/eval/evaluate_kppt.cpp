@@ -113,6 +113,21 @@ namespace Eval
 
 	void load_eval()
 	{
+		if (!(bool)Options["EvalShare"])
+		{
+			// このメモリは、プロセス終了のときに自動開放されることを期待している。
+			auto shared_eval_ptr = new SharedEval();
+
+			kk_ = &(shared_eval_ptr->kk_);
+			kkp_ = &(shared_eval_ptr->kkp_);
+			kpp_ = &(shared_eval_ptr->kpp_);
+
+			load_eval_impl();
+			// 共有されていないメモリを用いる。
+			sync_cout << "info string use non-shared eval_memory." << sync_endl;
+			return;
+		}
+
 		// エンジンのバージョンによって評価関数は一意に定まるものとする。
 		auto mapped_file_name = TEXT("YANEURAOU_KPPT_MMF" ENGINE_VERSION);
 		auto mutex_name = TEXT("YANEURAOU_KPPT_MUTEX" ENGINE_VERSION);

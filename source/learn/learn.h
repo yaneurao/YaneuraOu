@@ -12,12 +12,18 @@
 // 以下のいずれかを選択すれば、そのあとの細々したものは自動的に選択される。
 // 以下のいずれも選択しない場合は、そのあとの細々したものをひとつひとつ設定する必要がある。
 
+
 // デフォルトの学習設定
-//#define LEARN_DEFAULT
+
+#define LEARN_DEFAULT
+
 
 // やねうら王2016Late用デフォルトの学習設定。
-// 置換表を無効化するので、通常対局は出来ない。learnコマンド用の実行ファイル専用。
-#define LEARN_YANEURAOU_2016_LATE
+//
+// 置換表を無効化するので通常対局は出来ない。learnコマンド用の実行ファイル専用。
+//                       ~~~~~~~~~~~~~~~~~~
+
+//#define LEARN_YANEURAOU_2016_LATE
 
 
 // ----------------------
@@ -99,7 +105,8 @@
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 
 // ファイルから1回に読み込む局面数。これだけ読み込んだあとshuffleする。
-// ある程度大きいほうが良いが、この数×34byte×2(ダブルバッファ)のメモリを消費する。10M局面なら340MB消費する。
+// ある程度大きいほうが良いが、この数×34byte×3倍ぐらいのメモリを消費する。10M局面なら340MB*3程度消費する。
+// THREAD_BUFFER_SIZE(=10000)の倍数にすること。
 
 #define LEARN_READ_SFEN_SIZE (1000 * 1000 * 5)
 
@@ -181,12 +188,17 @@
 // 学習時にsfenファイルを1万局面読み込むごとに'.'を出力する。
 //#define DISPLAY_STATS_IN_THREAD_READ_SFENS
 
+// 学習時のrmseとタイムスタンプの出力をこの回数に1回に減らす
+#define LEARN_RMSE_OUTPUT_INTERVAL 1
+#define LEARN_TIMESTAMP_OUTPUT_INTERVAL 3
+
 
 // ----------------------
 //   棋譜生成時の設定
 // ----------------------
 
 // これはgensfenコマンドに関する設定。
+// これらは、configureの設定では変化しない。
 
 // packされたsfenを書き出す
 #define WRITE_PACKED_SFEN
@@ -208,8 +220,9 @@
 // その局面で探索した評価値がこれ以上になった時点でその対局は終了する。
 #define GEN_SFENS_EVAL_LIMIT 3000
 
-#endif
-
+// タイムスタンプの出力をこの回数に一回に抑制する。
+// スレッドを論理コアの最大数まで酷使するとコンソールが詰まるので…。
+#define GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL 100
 
 // ----------------------
 // configureの内容を反映
@@ -225,8 +238,6 @@
 #define USE_QSEARCH_FOR_SHALLOW_VALUE
 #undef EVAL_FILE_NAME_CHANGE_INTERVAL
 #define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
-#undef GEN_SFENS_EVAL_LIMIT
-#define GEN_SFENS_EVAL_LIMIT 2000
 #endif
 
 #ifdef LEARN_YANEURAOU_2016_LATE
@@ -244,6 +255,7 @@
 #define DISABLE_TT_PROBE
 #undef EVAL_FILE_NAME_CHANGE_INTERVAL
 #define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
-#undef GEN_SFENS_EVAL_LIMIT
-#define GEN_SFENS_EVAL_LIMIT 3000
 #endif
+
+
+#endif // ifndef _LEARN_H_
