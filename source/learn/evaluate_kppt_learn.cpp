@@ -220,18 +220,24 @@ namespace Eval
 		// cf. http://qiita.com/skitaoka/items/e6afbe238cd69c899b2a
 
 //		const LearnFloatType alpha = 0.001f;
-		const LearnFloatType beta  = 0.9f;
-		const LearnFloatType gamma = 0.999f;
-		const LearnFloatType epsilon = 10e-8;
-		const LearnFloatType eta = float(32/*FV_SCALE*/)/64.0f;
+
+		// const double eta = 32.0/64.0;
+		// と書くとなぜかeta == 0。コンパイラ最適化のバグか？defineで書く。
+		// etaは学習率。FV_SCALE / 64
+
+		#define beta LearnFloatType(0.9f)
+		#define gamma LearnFloatType(0.999f)
+		
+		#define epsilon (10e-8)
+		#define  eta (32.0/64.0)
 
 		FloatPair v;
 		FloatPair r;
 
 		// これはupdate()呼び出し前に計算して代入されるものとする。
 		// bt = pow(β,epoch) , rt = pow(γ,epoch)
-		static LearnFloatType bt;
-		static LearnFloatType rt;
+		static double bt;
+		static double rt;
 
 #endif
 
@@ -253,6 +259,9 @@ namespace Eval
 		bool update(bool skip_update)
 		{
 #ifdef USE_SGD_UPDATE
+			if (g[0] == 0 && g[1] == 0)
+				return false;
+
 			// 勾配はこの特徴の出現したサンプル数で割ったもの。
 			if (count == 0)
 				goto FINISH;
@@ -263,6 +272,9 @@ namespace Eval
 #endif
 
 #ifdef USE_ADA_GRAD_UPDATE
+			if (g[0] == 0 && g[1] == 0)
+				return false;
+
 			// g2[i] += g * g;
 			// w[i] -= η * g / sqrt(g2[i]);
 			// g = 0 // mini-batchならこのタイミングで勾配配列クリア。
@@ -278,6 +290,8 @@ namespace Eval
 #endif
 
 #ifdef USE_YANE_GRAD_UPDATE
+			if (g[0] == 0 && g[1] == 0)
+				return false;
 
 			g2 = FloatPair{ alpha * g2[0] + g[0] * g[0] , alpha * g2[1] + g[1] * g[1] };
 
@@ -287,7 +301,10 @@ namespace Eval
 #endif
 
 #ifdef USE_ADAM_UPDATE
-			
+			// Adamのときは勾配がゼロのときでもwの更新は行なう。
+			//if (g[0] == 0 && g[1] == 0)
+			//	return false;
+
 			// v = βv + (1-β)g
 			// r = γr + (1-γ)g^2
 			// w = w - α*v / (sqrt(r/(1-γ^t))+e) * (1-β^t)
@@ -297,10 +314,14 @@ namespace Eval
 			v = FloatPair{ beta * v[0] +  (1 - beta)*g[0] , beta * v[1] + (1 - beta) * g[1] };
 			r = FloatPair{ gamma * r[0] + (1 - gamma)*g[0] * g[0] , gamma * r[1] + (1 - gamma)*g[1] * g[1] };
 
+			// sqrt()の中身がゼロになりうるので、1回目の割り算を先にしないとアンダーフローしてしまう。
+			// 例) epsilon * bt = 0
+			// あと、doubleでないと計算精度が足りなくて死亡する。
 			if (!skip_update)
-				w = FloatPair{ w[0] - eta  *  v[0] / ((sqrt(r[0] / rt) + epsilon) * bt) , 
-							   w[1] - eta2 *  v[1] / ((sqrt(r[1] / rt) + epsilon) * bt)
+				w = FloatPair{ w[0] - LearnFloatType( eta  / (sqrt((double)r[0] / rt) + epsilon) * v[0] / bt) ,
+							   w[1] - LearnFloatType( eta2 / (sqrt((double)r[1] / rt) + epsilon) * v[1] / bt)
 				};
+
 
 #endif
 
@@ -312,8 +333,8 @@ namespace Eval
 	};
 
 #ifdef USE_ADAM_UPDATE
-	LearnFloatType Weight::bt;
-	LearnFloatType Weight::rt;
+	double Weight::bt;
+	double Weight::rt;
 #endif
 
 	Weight(*kk_w_)[SQ_NB][SQ_NB];
@@ -450,10 +471,10 @@ namespace Eval
 #if defined (USE_ADAM_UPDATE)
 		// Weight::beta,gammaをここから参照できないので再度書く。
 		// (C++11、class内のconst定数参照できない。)
-		LearnFloatType beta  = 0.9f;
-		LearnFloatType gamma = 0.999f;
-		Weight::bt = 1 - pow(beta , (LearnFloatType)epoch);
-		Weight::rt = 1 - pow(gamma, (LearnFloatType)epoch);
+
+		Weight::bt = 1.0 - pow(beta , (double)epoch);
+		Weight::rt = 1.0 - pow(gamma, (double)epoch);
+
 #endif
 
 		for (auto k1 : SQ)
@@ -463,8 +484,6 @@ namespace Eval
 #ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
 				max_kkp = max(max_kkp, abs(w.w[0]));
 #endif
-				if (w.g[0] == 0 && w.g[1] == 0)
-					continue;
 
 				// wの値にupdateがあったなら、値を制限して、かつ、kkに反映させる。
 				if (w.update(skip_update))
@@ -480,9 +499,6 @@ namespace Eval
 				for (auto p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
 				{
 					auto& w = kpp_w[k][p1][p2];
-
-					if (w.g[0] == 0 && w.g[1] == 0)
-						continue;
 
 					if (w.update(skip_update))
 					{
@@ -505,9 +521,6 @@ namespace Eval
 					auto& w = kkp_w[k1][k2][p];
 
 					// cout << "\n" << w.g[0] << " & " << w.g[1];
-
-					if (w.g[0] == 0 && w.g[1] == 0)
-						continue;
 
 					if (w.update(skip_update))
 					{

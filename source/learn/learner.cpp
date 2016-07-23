@@ -933,7 +933,7 @@ struct LearnerThink: public MultiThink
 	SfenReader& sr;
 
 	// 学習の反復回数のカウンター
-	u64 epoch;
+	u64 epoch = 0;
 };
 
 void LearnerThink::thread_worker(size_t thread_id)
@@ -1111,6 +1111,7 @@ void learn(Position& pos, istringstream& is)
 		cout << s << " , ";
 	reverse(filenames.begin(), filenames.end());
 	sr.filenames = filenames;
+	cout << "\nGradient Method : " << LEARN_UPDATE << endl;
 
 	// -----------------------------------
 	//            各種初期化

@@ -241,8 +241,8 @@ typedef float LearnFloatType;
 #endif
 
 #ifdef LEARN_YANEURAOU_2016_LATE
-//#define USE_ADAM_UPDATE
 #define USE_YANE_GRAD_UPDATE
+//#define USE_ADAM_UPDATE
 #undef LEARN_MINI_BATCH_SIZE
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 #define LOSS_FUNCTION_IS_CROSS_ENTOROPY
@@ -252,5 +252,15 @@ typedef float LearnFloatType;
 #define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
 #endif
 
+// 更新式に応じた文字列。(デバッグ用に出力する。)
+#if defined(USE_SGD_UPDATE)
+#define LEARN_UPDATE "SGD"
+#elif defined(USE_ADA_GRAD_UPDATE)
+#define LEARN_UPDATE "AdaGrad"
+#elif defined(USE_YANE_GRAD_UPDATE)
+#define LEARN_UPDATE "YaneGrad"
+#elif defined(USE_ADAM_UPDATE)
+#define LEARN_UPDATE "Adam"
+#endif
 
 #endif // ifndef _LEARN_H_
