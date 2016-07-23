@@ -25,6 +25,7 @@ ifeq ($(OS),Windows_NT)
   LDFLAGS += -static
   TARGET = YaneuraOu-by-gcc.exe
 else
+  CFLAGS += -D_LINUX
   TARGET = YaneuraOu-by-gcc
 endif
 OBJDIR   = ../obj

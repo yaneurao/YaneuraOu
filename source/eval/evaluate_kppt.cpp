@@ -129,11 +129,21 @@ namespace Eval
 		}
 
 		// エンジンのバージョンによって評価関数は一意に定まるものとする。
-		auto mapped_file_name = TEXT("YANEURAOU_KPPT_MMF" ENGINE_VERSION);
-		auto mutex_name = TEXT("YANEURAOU_KPPT_MUTEX" ENGINE_VERSION);
+
+
+		auto dir_name = (string)Options["EvalDir"];
+		// Mutex名にbackslashは使えないらしいので、escapeする。念のため'/'もescapeする。
+		replace(dir_name.begin(), dir_name.end(), '\\', '_');
+		replace(dir_name.begin(), dir_name.end(), '/', '_');
+		// wchar_t*が必要なので変換する。
+		std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
+		cv.from_bytes(dir_name).c_str();
+
+		auto mapped_file_name = TEXT("YANEURAOU_KPPT_MMF" ENGINE_VERSION) + cv.from_bytes(dir_name);
+		auto mutex_name = TEXT("YANEURAOU_KPPT_MUTEX" ENGINE_VERSION) + cv.from_bytes(dir_name);
 
 		// プロセス間の排他用mutex
-		auto hMutex = CreateMutex(NULL, FALSE, mutex_name);
+		auto hMutex = CreateMutex(NULL, FALSE, mutex_name.c_str());
 
 		// ファイルマッピングオブジェクトの処理をプロセス間で排他したい。
 		WaitForSingleObject(hMutex, INFINITE);
@@ -144,7 +154,7 @@ namespace Eval
 				NULL,
 				PAGE_READWRITE, // | /**SEC_COMMIT/**/ /*SEC_RESERVE/**/,
 				0, sizeof(SharedEval),
-				mapped_file_name);
+				mapped_file_name.c_str());
 
 			bool already_exists = (GetLastError() == ERROR_ALREADY_EXISTS);
 

@@ -546,17 +546,18 @@ inline int MKDIR(std::string dir_name)
 	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
 	return _wmkdir(cv.from_bytes(dir_name).c_str());
 }
-#else
+#elif defined(_LINUX)
+// linux環境において、この_LINUXというシンボルはmakefileにて定義されるものとする。
 
-// Linux用
-#if 0
+// Linux用のmkdir実装。
 #include "sys/stat.h"
 
 inline int MKDIR(std::string dir_name)
 {
 	return ::mkdir(dir_name.c_str(), 0777);
 }
-#endif
+
+#else
 
 // Linux環境かどうかを判定するためにはmakefileを分けないといけなくなってくるな..
 // linuxでフォルダ掘る機能は、とりあえずナシでいいや..。評価関数ファイルの保存にしか使ってないし…。

@@ -31,26 +31,31 @@
 // ----------------------
 
 // update_weights()の更新式を以下のなかから一つ選択すべし。
-
-// 1) YaneGradによるupdate
-//  これはAdaGradを改良したもの。
 // 詳しい説明は、evaluate_kppt_learn.cppを見ること。
 
-//#define USE_YANE_GRAD_UPDATE
+// 1) SGDによるupdate
+//  これは普通のSGD
+
+//#define USE_SGD_UPDATE
 
 
 // 2) AdaGradによるupdate
 //  これは普通のAdaGrad
-// 詳しい説明は、evaluate_kppt_learn.cppを見ること。
 
 //#define USE_ADA_GRAD_UPDATE
 
 
-// 3) SGDによるupdate
-//  これは普通のSGD
-// 詳しい説明は、evaluate_kppt_learn.cppを見ること。
+// 3) YaneGradによるupdate
+//  これはAdaGradを改良したもの。
 
-//#define USE_SGD_UPDATE
+//#define USE_YANE_GRAD_UPDATE
+
+
+// 4) Adamによるupdate
+//  これは普通のAdam 評価関数ファイルの16倍ぐらいWeight用のメモリが必要。
+
+//#define USE_ADAM_UPDATE
+
 
 
 // ----------------------
@@ -71,19 +76,6 @@
 
 // AdaGradの学習率η
 #define ADA_GRAD_ETA 5.0f
-
-//
-// YaneGradのとき
-// 
-
-// YaneGradのα。Adam風に過去の履歴がある程度抑制されたほうが良いと思う。
-#define YANE_GRAD_ALPHA 0.99f
-
-// YaneGradの学習率η
-#define YANE_GRAD_ETA 5.0f
-
-// YaneGradのε
-#define YANE_GRAD_EPSILON 1.0f
 
 //
 // SGDのとき
@@ -194,6 +186,14 @@
 
 
 // ----------------------
+//  学習のときの浮動小数
+// ----------------------
+
+// これをdoubleにしたほうが計算精度は上がるが、重み配列絡みのメモリが倍必要になる。
+typedef float LearnFloatType;
+
+
+// ----------------------
 //   棋譜生成時の設定
 // ----------------------
 
@@ -241,13 +241,8 @@
 #endif
 
 #ifdef LEARN_YANEURAOU_2016_LATE
+//#define USE_ADAM_UPDATE
 #define USE_YANE_GRAD_UPDATE
-#undef YANE_GRAD_ALPHA
-#define YANE_GRAD_ALPHA 0.99f
-#undef YANE_GRAD_ETA
-#define YANE_GRAD_ETA 5.0f
-#undef YANE_GRAD_EPSILON
-#define YANE_GRAD_EPSILON 1.0f
 #undef LEARN_MINI_BATCH_SIZE
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 #define LOSS_FUNCTION_IS_CROSS_ENTOROPY

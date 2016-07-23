@@ -1,6 +1,8 @@
 ﻿#ifndef _BITOP_H_
 #define _BITOP_H_
 
+#include "../shogi.h"
+
 //
 //   bit operation library
 //
@@ -174,8 +176,9 @@ struct alignas(32) ymm
 {
   union {
     __m256i m;
-    u64 u64[4];
-    u32 u32[8];
+    u64 _u64[4];
+    u32 _u32[8];
+	// typedef名と同じ変数名にするとg++で警告が出るようだ。
   };
 
   ymm(const __m256i m_) : m(_mm256_loadu_si256((__m256i*)(&m_))) {}

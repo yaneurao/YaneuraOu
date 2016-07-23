@@ -49,9 +49,9 @@ namespace Eval {
   // 現在の局面で出現している特徴すべてに対して、勾配の差分値を勾配配列に加算する。
   void add_grad(Position& pos , Color rootColor , double delt_grad);
 
-  // 現在の勾配をもとにSGDかAdaGradか何かする。m = 教師データの件数
-  // skip_update == trueのときはwの更新はしない。(AdaGrad/YaneGrad用)
-  void update_weights(bool skip_update);
+  // 現在の勾配をもとにSGDかAdaGradか何かする。
+  // epochは学習の反復回数が何回目であるか。
+  void update_weights(u64 epoch);
 
   // 評価関数パラメーターをファイルに保存する。
   // ファイルの末尾につける拡張子を指定できる。

@@ -8,6 +8,17 @@
 ・プロジェクト設定、AVX2に戻していなかったの修正。
 ・gensfenコマンド、lockしてファイル書き出しているのが気持ち悪いのでworker別に作った。
 ・README.mdに電王トーナメントの参加者向けの情報追加。
+・評価関数を共有メモリに配置する件、EvalDirが異なる場合は共有しないようにした。
+　　YaneuraOu + USI version番号 + EvalDir名
+　が合致したときにのみ共有するようにした。
+・evaluate_kppt_learn.cpp、ValueKkFloatとか、要らなかった。整理した。
+・学習時のKK配列のlimitの緩和。
+・学習時の更新式にAdam追加。
+・定跡のバイナリサーチのバグ修正。(thx. merom686さん)
+・Adamの学習率調整。
+・Linux環境用のmkdirのwrapper書いた。(learnコマンドで用いる)
+・makefile、Linux環境だと_LINUXというシンボルを定義するようにした。
+・g++でbitop.hで警告が出ていたの修正。
 
 
 ■　2016/07/23 V3.43

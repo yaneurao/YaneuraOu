@@ -1,12 +1,61 @@
 ﻿
 ToDo: 
-・自己対戦フレームワーク、対局回数を指定してその回数だけフルスレッドでぶん回してくれたほうが嬉しい。
 ・kppの手番→ppの手番だけでいいような気が…。
 ・mate3()書く。
 
 
 
 ■ 2016/07/24
+
+・定跡のバイナリサーチ、バグってた
+	https://twitter.com/merom686/status/756746338268618752
+	e - 40 < sは、eが無符号型だとまずいのか。修正した。
+
+
+・AdaGradの更新式、1箇所にまとめられないのか？
+	→　できそう。
+	→　1箇所にまとめられた。よしよし。
+	そしてKK配列のlimit、緩和する。
+
+		//#undef YANE_GRAD_ALPHA
+		//#define YANE_GRAD_ALPHA 0.99f
+		//#undef YANE_GRAD_ETA
+		//#define YANE_GRAD_ETA 5.0f
+		//#undef YANE_GRAD_EPSILON
+		//#define YANE_GRAD_EPSILON 1.0f
+	→　この定数、defineで定義するのやめる。
+
+・Adam書けた。
+
+		log
+		threads 8
+		evalshare false
+		learn \\Ws2012_860c_yan\e\genkif201607\kifu201607230600.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607152200.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171700.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171800.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607151400.bin
+
+		→　学習率調整し忘れていた。とりあえず1/64にした。
+
+・新Apery評価関数(20160722) vs 旧Aperyの評価関数     : 943-19-795(R29.7) 1手1秒相当
+・新Apery評価関数(20160722) vs やねうら王(181_0020G) : 547-7-461(R29.7)	1手1秒相当
+	だそうな。
+
+
+		秒読み2000[ms]
+
+		50.5%	
+		#273
+		やねうら王2016mid V341b
+		eval 181_0024G
+		#0
+		やねうら王2016mid V341b2
+		新基準
+
+		143-3-140(40.6% R3.7)	
+
+		これでもまだApery(WCSC26)と互角ぐらいか。
+
+・そうか。評価関数のMutex名、USI Optionで指定できるといいのかな。そうすれば同じバージョン同士でも
+	　共有メモリを使って対戦できるわけで…。あるいは、フォルダ名をそのままmutex名にするだとか。
+	 バックスラッシュがmutexに使えないのか。うーん、この..。仕方ないな。
 
 ・learnコマンドのために置換表をオフにしている場合、起動時にメッセージが出たほうが良いな。
 　これで間違えて棋譜を生成してはかなわん。
@@ -20,6 +69,10 @@ ToDo:
 		threads 39
 		evalshare false
 		learn \\Ws2012_860c_yan\e\genkif201607\kifu201607230600.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607152200.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171700.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171800.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607151400.bin
+
+・batch型連続自己対局が出来ないと不便だな…。
+・自己対戦フレームワーク、対局回数を指定してその回数だけフルスレッドでぶん回してくれたほうが嬉しい。
+	→　この２つ、あとで書くか…。
 
 
 ■ 2016/07/23
