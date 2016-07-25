@@ -555,6 +555,8 @@ double sigmoid(double x)
 // 評価値を勝率[0,1]に変換する関数
 double winning_percentage(Value value)
 {
+	// この600.0という定数は、ponanza定数。(ponanzaがそうしているらしいという意味で)
+	// ゲームの進行度に合わせたものにしたほうがいいかも知れないけども、その効果のほどは不明。
 	return sigmoid(static_cast<int>(value) / 600.0);
 }
 
