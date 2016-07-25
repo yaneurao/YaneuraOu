@@ -486,9 +486,9 @@ namespace Eval
 #ifdef USE_SGD_UPDATE
 
 #if defined (LOSS_FUNCTION_IS_CROSS_ENTOROPY)
-		Weight::eta = 3.2f / float(mini_batch_size / 1000000);
+		Weight::eta = 3.2f;
 #elif defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
-		Weight::eta = 32.0f / float(mini_batch_size / 1000000);
+		Weight::eta = 32.0f;
 #endif
 
 		// AdaGrad
@@ -733,9 +733,7 @@ namespace Eval
 	void save_eval(std::string dir_name)
 	{
 		{
-			auto eval_dir = (string)Options["EvalDir"];
-
-			eval_dir += "/" + dir_name;
+			auto eval_dir = path_combine((string)Options["EvalDir"], dir_name);
 
 			// すでにこのフォルダがあるならmkdir()に失敗するが、
 			// 別にそれは構わない。なければ作って欲しいだけ。

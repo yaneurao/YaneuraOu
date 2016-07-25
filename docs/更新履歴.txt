@@ -15,6 +15,8 @@
 ・misc.hにpath_combine()を追加。
 ・evaluate_kppt.cppでは、EvalDirの末尾に'/'が指定されていても良いようにこれを用いるように変更。
 ・learnコマンドのdirオプションもpath_combine()を用いるように変更。
+・learnでフォルダを掘るときにもpath_combine()を用いるように変更。
+・SGD、mini-batchのサイズで学習率変える必要ない気がしたので修正。
 
 
 ■　2016/07/24 V3.44
