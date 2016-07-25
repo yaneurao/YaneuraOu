@@ -46,17 +46,17 @@ namespace Eval
 	{
 		{
 			// KK
-			std::ifstream ifsKK((string)Options["EvalDir"] + KK_BIN, std::ios::binary);
+			std::ifstream ifsKK(path_combine((string)Options["EvalDir"] , KK_BIN), std::ios::binary);
 			if (ifsKK) ifsKK.read(reinterpret_cast<char*>(kk), sizeof(kk));
 			else goto Error;
 
 			// KKP
-			std::ifstream ifsKKP((string)Options["EvalDir"] + KKP_BIN, std::ios::binary);
+			std::ifstream ifsKKP(path_combine((string)Options["EvalDir"] , KKP_BIN), std::ios::binary);
 			if (ifsKKP) ifsKKP.read(reinterpret_cast<char*>(kkp), sizeof(kkp));
 			else goto Error;
 
 			// KPP
-			std::ifstream ifsKPP((string)Options["EvalDir"] + KPP_BIN, std::ios::binary);
+			std::ifstream ifsKPP(path_combine((string)Options["EvalDir"] , KPP_BIN), std::ios::binary);
 			if (ifsKPP) ifsKPP.read(reinterpret_cast<char*>(kpp), sizeof(kpp));
 			else goto Error;
 

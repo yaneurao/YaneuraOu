@@ -6,6 +6,15 @@
 
 ・learnコマンド使ったときに更新式を表示するように変更。
 ・epochの初期化忘れていたの修正。
+・Adamでコンパイラ周りのバグ(?)回避。
+・目的関数をlearnコマンド実行時に表示するようにした。
+・learnコマンドでmini-batch sizeを指定できるようにした。
+・YaneGrad、mini-batch sizeで学習率ηを変えるようにした。
+・SGDのパラメーターもlearn.hではなく、自動的に計算して設定するように変更。
+・learnコマンドにloop,dirの指定が出来るようにした。
+・misc.hにpath_combine()を追加。
+・evaluate_kppt.cppでは、EvalDirの末尾に'/'が指定されていても良いようにこれを用いるように変更。
+・learnコマンドのdirオプションもpath_combine()を用いるように変更。
 
 
 ■　2016/07/24 V3.44

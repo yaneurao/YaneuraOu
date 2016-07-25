@@ -1,10 +1,177 @@
 ﻿
+										！！！注意！！！
+
+　　このファイルは、やねうらおの開発時のメモです。備忘をかねて実験記録等を残しています。
+　　内容の正確性等は保証しませんし、また、書いてある作業予定もやねうら王の公式のアナウンスではないです。
+	また誰かに伝えるために書いている文書でもないので、意味不明なことは多々あるかと思います。
+	予めご了承いただければと思います。
+
+	-----------------------------------------------------------------------------------------------
+
+
 ToDo: 
 ・kppの手番→ppの手番で代替できるような気が…。
 ・mate3()書く。
 
 
 ■ 2016/07/25
+
+・学習のときに棋譜フォルダを指定するオプションをつけるか..
+	learn dir XXX とか。
+	あとloop回数かな。
+
+	こんな感じ？
+		log
+		evalshare false
+		threads 39
+		learn bat 100 loop 3 dir \\Ws2012_860c_yan\e\genkif201607 kifu201607250800.bin kifu201607230600.bin kifu201607152200.bin kifu201607171700.bin kifu201607171800.bin kifu201607151400.bin
+
+
+		log
+		evalshare false
+		threads 8
+		learn bat 100 loop 3 dir \\Ws2012_860c_yan\e\genkif201607 kifu201607250800.bin kifu201607230600.bin kifu201607152200.bin kifu201607171700.bin kifu201607171800.bin kifu201607151400.bin
+
+・棋譜、10億追加。(トータル65億程度？)
+
+		log
+		evalshare false
+		threads 39
+		learn bat 100 \\Ws2012_860c_yan\e\genkif201607\kifu201607250800.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607230600.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607152200.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171700.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171800.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607151400.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607230600.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607152200.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171700.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171800.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607151400.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607230600.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607152200.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171700.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171800.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607151400.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607230600.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607152200.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171700.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171800.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607151400.bin
+
+
+・評価値の打ち切り上限を無しにしたら、40HTで20万局面生成に50秒かかるようになってしまった。
+	これはまずいかも…。以前は30秒だったはず…。
+
+
+・究極的には評価関数は、search(N)をdepth Nでのsearchとして、
+		qsearch = search(1) = search(2) = ... = search(n)
+	となるべき。なので、いま
+		qsearch = search(6)
+	としているのは、
+		qsearch = search(1) = search(6)
+	のほうがいいはず。しかし学習時にsearch(1)の探索が必要になるので学習時間が増加する。
+	どうしたものか…。現状の方法で頭打ちになるまでは頑張ってみるか…。
+
+
+・損失関数、交差エントロピーと勝率とで比較。ただし勝率のほうはあまりiteration回せなかった。
+	交差エントロピーのほうはSGDで3Mのmini-batchにした。
+	rmseは下がってないのに多少強くなっているようだ。
+
+	次回の方針
+	・SGDは勾配が出にくいとおかしくなるのでmini-batchのサイズを大きくしてみる。
+	・局面数100億ぐらいまで増やしてみる。
+	・SGDでもいいからきちんと回す。
+	・探索深さ深くして教師を使ってみる。
+	・VALUE_MAX_EVALまで生成した局面データにしてみる。
+
+			秒読み100[ms]
+
+			53.2%	
+			#277
+			やねうら王2016mid V344
+			eval 179_0038G_CE
+			#276
+			やねうら王2016mid V344
+			eval 179_0034G_WIN
+
+			1048-22-922(0.2% R22.3)	
+
+		新Apery
+
+			秒読み100[ms]
+
+			52.3%	
+			#277
+			やねうら王2016mid V344
+			eval 179_0038G_CE
+			#272
+			やねうら王2016mid V344
+			eval Apery20160722
+
+			916-12-835(2.6% R16.1)	
+
+
+			秒読み1000[ms]
+
+			47.8%	
+			#277
+			やねうら王2016mid V344
+			eval 179_0038G_CE
+			#272
+			やねうら王2016mid V344
+			eval Apery20160722
+
+			752-12-822(96.1% R-15.5)	
+
+
+		旧Apery
+
+			秒読み100[ms]
+
+			52.1%	
+			#277
+			やねうら王2016mid V344
+			eval 179_0038G_CE
+			#266
+			やねうら王2016mid V344
+			新基準
+
+			1221-17-1124(2.3% R14.4)	
+
+
+			秒読み1000[ms]
+
+			51.9%	
+			#277
+			やねうら王2016mid V344
+			eval 179_0038G_CE
+			#266
+			やねうら王2016mid V344
+			新基準
+
+			451-5-418(12.4% R13.2)	
+		
+
+・Adamの定数、static constexpr LearnFloatTypeに変更。
+
+・SGDのパラメーターもlearn.hではなく、自動的に計算して設定するように変更。
+
+	SGDで3Mぐらいの単位で回すとさらに損失関数の値は下がる。
+	SGDが一番、統御しやすいという意味はあるのか…。
+
+
+・棋譜生成、評価値上限、VALUE_MAX_EVALに変更してみる。
+
+・learnコマンドでbatchサイズ指定できるようにする。
+
+		log
+		threads 8
+		evalshare false
+		learn bat 100 \\Ws2012_860c_yan\e\genkif201607\kifu201607230600.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607152200.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171700.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171800.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607151400.bin
+
+		log
+		threads 8
+		evalshare false
+		learn bat 500 \\Ws2012_860c_yan\e\genkif201607\kifu201607230600.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607152200.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171700.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171800.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607151400.bin
+		→　これで改善するかしばらく回してみる。
+
+		mini-batchサイズを上げると学習率を下げないと辻褄が合わないのかも…。うむむ…。
+
+		学習率5.0f→1.0fにしたもので比較。うーん..よくわからん。
+
+
+・YaneGrad、LOSS_FUNCTION_IS_WINNING_PERCENTAGEにするときは、学習率を変更するようにした。
+
+		// 学習率η
+#if defined (LOSS_FUNCTION_IS_CROSS_ENTOROPY)
+		const LearnFloatType eta = 5.0f;
+#elif defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
+		const LearnFloatType eta = 20.0f;
+		// 少し大きめに
+#endif
+
+	4倍しておく。
 
 ・learnコマンド使ったときに更新式を表示するようにしよう。
 	→　した。
@@ -15,13 +182,58 @@ ToDo:
 	const double epsilon = 10e-8
 		がゼロになってた。禿げそう。
 	class内のconst doubleまわりの最適化、何か怪しげ。
-	しかもクラス外から参照できない糞仕様。
+	しかもクラス外から参照できない糞仕様。static constexprにするか..
 	→　全部defineにしてやったら直った。
 	→　Adamの更新式、結構きわどいので更新式の中身だけdoubleにして計算しておく。
+	→　Adamめっちゃ遅い…。g == 0のところも更新しているからか。うーん。
+	結果的にmini batchのサイズが大きくなって、かえってよかったり？
 
 
 ・学習のときにepochの初期化忘れていたの修正。
 	→　問題はこれだけではないようだ…。
+
+・Adam、wがゼロベクトルから損失関数が下がること自体は確認できた。
+
+・Adam、更新に時間がかかるので、あまりよろしくなかった。
+	1) doubleの計算精度
+	2) sqrt 2回
+	3) 途中計算ややこしい
+	4) gがゼロでも更新必要(もしかすると不要？)
+	特に4)が遅くなる要因。sparse性が生きてない感じ。
+
+	結論的にはAdaGradのほうが良いのではという感じ。
+
+・Adamで30億局面追加学習させた。
+
+		秒読み100[ms]
+
+		50.8%	
+		#275
+		やねうら王2016mid V344
+		eval 179_0033G
+		#0
+		やねうら王2016mid V344
+		新基準
+
+		637-10-618(29.6% R5.3)	
+
+
+		秒読み100[ms]
+
+		50.6%	
+		#275
+		やねうら王2016mid V344
+		eval 179_0033G
+		#274
+		やねうら王2016mid V344
+		eval 180_0030G
+
+		720-6-703(32.6% R4.2)	
+
+		ひとつ前のバージョンに対してR3,4ぐらい強くなっているかも、という程度。
+
+・目的関数、変更してAdaGradで追加学習させてみる。
+	learnのときに目的関数を表示したほうがいいかも？
 
 
 ■ 2016/07/24
@@ -51,7 +263,7 @@ ToDo:
 		evalshare false
 		learn \\Ws2012_860c_yan\e\genkif201607\kifu201607230600.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607152200.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171700.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607171800.bin \\Ws2012_860c_yan\e\genkif201607\kifu201607151400.bin
 
-		→　学習率調整し忘れていた。とりあえず1/64にした。
+		→　学習率調整し忘れていた。とりあえずFV_SCALE/64にした。
 
 ・新Apery評価関数(20160722) vs 旧Aperyの評価関数     : 943-19-795(R29.7) 1手1秒相当
 ・新Apery評価関数(20160722) vs やねうら王(181_0020G) : 547-7-461(R29.7)	1手1秒相当

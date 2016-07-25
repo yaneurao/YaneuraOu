@@ -203,6 +203,20 @@ private:
 };
 
 // --------------------
+//       Path
+// --------------------
+
+// path名とファイル名を結合して、それを返す。
+// folder名のほうは空文字列でないときに、末尾に'/'か'\\'がなければそれを付与する。
+inline std::string path_combine(const std::string& folder, const std::string& filename)
+{
+	if (folder.length() >= 1 && *folder.rbegin() != '/' && *folder.rbegin() != '\\')
+		return folder + "/" + filename;
+
+	return folder + filename;
+}
+
+// --------------------
 //  prefetch命令
 // --------------------
 

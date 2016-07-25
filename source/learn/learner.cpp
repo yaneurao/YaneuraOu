@@ -934,6 +934,9 @@ struct LearnerThink: public MultiThink
 
 	// 学習の反復回数のカウンター
 	u64 epoch = 0;
+
+	// ミニバッチサイズのサイズ。必ずこのclassを使う側で設定すること。
+	u64 mini_batch_size = 1000*1000;
 };
 
 void LearnerThink::thread_worker(size_t thread_id)
@@ -963,7 +966,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 			// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 
 			// 3回目ぐらいまではg2のupdateにとどめて、wのupdateは保留する。
-			Eval::update_weights(++epoch);
+			Eval::update_weights(mini_batch_size , ++epoch);
 
 			// 20回、update_weight()するごとに保存。
 			// 例えば、LEARN_MINI_BATCH_SIZEが1Mなら、1M×30 = 30Mごとに保存
@@ -993,7 +996,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 			// となったときにやって欲しいのだけど、それが現在時刻(toal_read_now)を過ぎているなら
 			// 仕方ないのでいますぐやる、的なコード。
 			u64 total_read_now = sr.total_read;
-			sr.next_update_weights = std::max(org_total_read + LEARN_MINI_BATCH_SIZE, total_read_now);
+			sr.next_update_weights = std::max(org_total_read + mini_batch_size, total_read_now);
 		}
 
 		PackedSfenValue ps;
@@ -1094,25 +1097,64 @@ void learn(Position& pos, istringstream& is)
 	LearnerThink learn_think(sr);
 	vector<string> filenames;
 
+	// mini_batch_size デフォルトで1M局面。これを大きくできる。
+	auto mini_batch_size = LEARN_MINI_BATCH_SIZE;
+
+	// ループ回数(この回数だけ棋譜ファイルを読み込む)
+	int loop = 1;
+
+	// 棋譜ファイルが格納されているフォルダ
+	string dir;
+	
 	// ファイル名が後ろにずらずらと書かれていると仮定している。
 	while (true)
 	{
-		string filename;
-		is >> filename;
+		string option;
+		is >> option;
 
-		if (filename == "")
+		if (option == "")
 			break;
 
-		filenames.push_back(filename);
+		if (option == "bat")
+		{
+			// mini-batchの局面数を指定
+			is >> mini_batch_size;
+			mini_batch_size *= 10000; // 単位は万
+			continue;
+		} else if (option == "loop")
+		{
+			// ループ回数の指定
+			is >> loop;
+			continue;
+		} else if (option == "dir")
+		{
+			// 棋譜ファイル格納フォルダ
+			is >> dir;
+			continue;
+		}
+
+		filenames.push_back(option);
 	}
 
+#if 0
+	// 学習棋譜ファイルの表示
 	cout << "learn from ";
 	for (auto s : filenames)
 		cout << s << " , ";
-	reverse(filenames.begin(), filenames.end());
-	sr.filenames = filenames;
-	cout << "\nGradient Method : " << LEARN_UPDATE << endl;
+#endif
 
+	cout << "learn , dir = " << dir << " , loop = " << loop << endl;
+
+	// ループ回数分だけファイル名を突っ込む。
+	for (int i = 0; i < loop; ++i)
+		// sfen reader、逆順で読むからここでreverseしておく。すまんな。
+		for (auto it = filenames.rbegin(); it != filenames.rend(); ++it)
+			sr.filenames.push_back(path_combine(dir,*it));
+
+	cout << "\nGradient Method : " << LEARN_UPDATE;
+	cout << "\nLoss Function   : " << LOSS_FUNCTION;
+	cout << "\nmini-batch size : " << mini_batch_size;
+	
 	// -----------------------------------
 	//            各種初期化
 	// -----------------------------------
@@ -1130,6 +1172,8 @@ void learn(Position& pos, istringstream& is)
 	// 局面ファイルをバックグラウンドで読み込むスレッドを起動
 	// (これを開始しないとmseの計算が出来ない。)
 	learn_think.start_file_read_worker();
+
+	learn_think.mini_batch_size = mini_batch_size;
 
 	// mse計算用にデータ1万件ほど取得しておく。
 	sr.read_for_mse();

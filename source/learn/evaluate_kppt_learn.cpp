@@ -165,11 +165,7 @@ namespace Eval
 
 		// SGDの場合、勾配自動調整ではないので、損失関数に合わせて適宜調整する必要がある。
 
-#if defined (LOSS_FUNCTION_IS_CROSS_ENTOROPY)
-		const LearnFloatType eta = (LearnFloatType)(SGD_ETA);
-#elif defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
-		const LearnFloatType eta = (LearnFloatType)(10.0f * SGD_ETA);
-#endif
+		static LearnFloatType eta;
 
 		// この特徴の出現回数
 		u32   count;
@@ -185,8 +181,8 @@ namespace Eval
 		// 学習率η = 0.01として勾配が一定な場合、1万回でη×199ぐらい。
 		// cf. [AdaGradのすすめ](http://qiita.com/ak11/items/7f63a1198c345a138150)
 		// 初回更新量はeta。そこから小さくなっていく。
-		const LearnFloatType eta = (LearnFloatType)ADA_GRAD_ETA;
-
+		static LearnFloatType eta;
+		
 		// AdaGradのg2
 		FloatPair g2;
 #endif
@@ -202,10 +198,10 @@ namespace Eval
 		//   w = w - ηg/sqrt(v+ε)
 
 		// YaneGradのα値
-		const LearnFloatType alpha = 0.99f;
+		LearnFloatType Weight::alpha = 0.99f;
 
 		// 学習率η
-		const LearnFloatType eta = 5.0f;
+		static LearnFloatType eta;
 
 		// 最初のほうの更新量を抑制する項を独自に追加しておく。
 		const LearnFloatType epsilon = 1.0f;
@@ -225,12 +221,13 @@ namespace Eval
 		// と書くとなぜかeta == 0。コンパイラ最適化のバグか？defineで書く。
 		// etaは学習率。FV_SCALE / 64
 
-		#define beta LearnFloatType(0.9f)
-		#define gamma LearnFloatType(0.999f)
+		static constexpr LearnFloatType beta = LearnFloatType(0.9f);
+		static constexpr LearnFloatType gamma = LearnFloatType(0.999f);
 		
-		#define epsilon (10e-8)
-		#define  eta (32.0/64.0)
-
+		static constexpr LearnFloatType epsilon = LearnFloatType(10e-8);
+//		static constexpr LearnFloatType  eta = LearnFloatType(32.0/64.0);
+		static constexpr LearnFloatType  eta = LearnFloatType(1.0);
+		
 		FloatPair v;
 		FloatPair r;
 
@@ -242,7 +239,7 @@ namespace Eval
 #endif
 
 		// 手番用の学習率。これはηより小さめで良いはず。(小さめの値がつくべきところなので)
-		const LearnFloatType eta2 = LearnFloatType(eta * LEARN_ETA2_RATE);
+		const LearnFloatType eta2 = LearnFloatType(eta / 4);
 
 		void add_grad(LearnFloatType delta1, LearnFloatType delta2)
 		{
@@ -332,7 +329,14 @@ namespace Eval
 		}
 	};
 
-#ifdef USE_ADAM_UPDATE
+
+#ifdef USE_SGD_UPDATE
+	LearnFloatType Weight::eta;
+#elif defined USE_ADA_GRAD_UPDATE
+	LearnFloatType Weight::eta;
+#elif defined USE_YANE_GRAD_UPDATE
+	LearnFloatType Weight::eta;
+#elif defined USE_ADAM_UPDATE
 	double Weight::bt;
 	double Weight::rt;
 #endif
@@ -458,22 +462,54 @@ namespace Eval
 
 
 // 現在の勾配をもとにSGDかAdaGradか何かする。
-	void update_weights(u64 epoch)
+	void update_weights(u64 mini_batch_size , u64 epoch)
 	{
 		// 3回目まではwのupdateを保留する。
-		bool skip_update = epoch <= 3;
+		// ただし、SGDは履歴がないのでこれを行なう必要がない。
+		bool skip_update =
+#ifdef USE_SGD_UPDATE
+			false;
+#else
+			epoch <= 3;
+#endif
 
 		// kkpの一番大きな値を表示させることで学習が進んでいるかのチェックに用いる。
 #ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
 		LearnFloatType max_kkp = 0.0f;
 #endif
 
-#if defined (USE_ADAM_UPDATE)
-		// Weight::beta,gammaをここから参照できないので再度書く。
-		// (C++11、class内のconst定数参照できない。)
+		//
+		// 学習メソッドに応じた学習率設定
+		//
 
-		Weight::bt = 1.0 - pow(beta , (double)epoch);
-		Weight::rt = 1.0 - pow(gamma, (double)epoch);
+		// SGD
+#ifdef USE_SGD_UPDATE
+
+#if defined (LOSS_FUNCTION_IS_CROSS_ENTOROPY)
+		Weight::eta = 3.2f / float(mini_batch_size / 1000000);
+#elif defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
+		Weight::eta = 32.0f / float(mini_batch_size / 1000000);
+#endif
+
+		// AdaGrad
+#elif defined USE_ADA_GRAD_UPDATE
+
+		Weight::eta = 5.0f / float(mini_batch_size / 1000000);
+
+
+		// YaneGrad
+#elif defined USE_YANE_GRAD_UPDATE
+#if defined (LOSS_FUNCTION_IS_CROSS_ENTOROPY)
+		Weight::eta = 5.0f / float(mini_batch_size / 1000000);
+#elif defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
+		Weight::eta = 20.0f / float(mini_batch_size / 1000000);
+#endif
+
+		// Adam
+#elif defined USE_ADAM_UPDATE
+
+		Weight::bt = 1.0 - pow((double)Weight::beta , (double)epoch);
+		Weight::rt = 1.0 - pow((double)Weight::gamma, (double)epoch);
 
 #endif
 

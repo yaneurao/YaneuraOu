@@ -57,34 +57,6 @@
 //#define USE_ADAM_UPDATE
 
 
-
-// ----------------------
-//  更新式に関する係数
-// ----------------------
-
-//
-// すべての更新式共通
-//
-
-// 評価項目の手番の学習率
-// 手番じゃないほう×0.25ぐらいが良いのではないかと思っている。(値も手番じゃないほうの1/4ぐらいだろうし)
-#define LEARN_ETA2_RATE 0.25f
-
-//
-// AdaGradのとき
-//
-
-// AdaGradの学習率η
-#define ADA_GRAD_ETA 5.0f
-
-//
-// SGDのとき
-// 
-
-// SDGの学習率η
-#define SGD_ETA 32.0f
-
-
 // ----------------------
 //    学習時の設定
 // ----------------------
@@ -218,7 +190,7 @@ typedef float LearnFloatType;
 #define USE_SWAPPING_PIECES
 
 // その局面で探索した評価値がこれ以上になった時点でその対局は終了する。
-#define GEN_SFENS_EVAL_LIMIT 3000
+#define GEN_SFENS_EVAL_LIMIT VALUE_MAX_EVAL
 
 // タイムスタンプの出力をこの回数に一回に抑制する。
 // スレッドを論理コアの最大数まで酷使するとコンソールが詰まるので…。
@@ -230,8 +202,6 @@ typedef float LearnFloatType;
 
 #ifdef LEARN_DEFAULT
 #define USE_SGD_UPDATE
-#undef SGD_ETA
-#define SGD_ETA 32.0f
 #undef LEARN_MINI_BATCH_SIZE
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 #define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
@@ -241,16 +211,22 @@ typedef float LearnFloatType;
 #endif
 
 #ifdef LEARN_YANEURAOU_2016_LATE
-#define USE_YANE_GRAD_UPDATE
+#define USE_SGD_UPDATE
+//#define USE_YANE_GRAD_UPDATE
 //#define USE_ADAM_UPDATE
 #undef LEARN_MINI_BATCH_SIZE
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 #define LOSS_FUNCTION_IS_CROSS_ENTOROPY
+//#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
 #define USE_QSEARCH_FOR_SHALLOW_VALUE
 #define DISABLE_TT_PROBE
 #undef EVAL_FILE_NAME_CHANGE_INTERVAL
 #define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
 #endif
+
+// ----------------------
+// 設定内容に基づく定数文字列
+// ----------------------
 
 // 更新式に応じた文字列。(デバッグ用に出力する。)
 #if defined(USE_SGD_UPDATE)
@@ -261,6 +237,12 @@ typedef float LearnFloatType;
 #define LEARN_UPDATE "YaneGrad"
 #elif defined(USE_ADAM_UPDATE)
 #define LEARN_UPDATE "Adam"
+#endif
+
+#if defined(LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
+#define LOSS_FUNCTION "WINNING_PERCENTAGE"
+#elif defined(LOSS_FUNCTION_IS_CROSS_ENTOROPY)
+#define LOSS_FUNCTION "CROSS_ENTOROPY"
 #endif
 
 #endif // ifndef _LEARN_H_
