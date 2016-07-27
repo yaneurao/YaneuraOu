@@ -14,20 +14,140 @@ ToDo:
 ・mate3()書く。
 
 
+■ 2016/07/27
+
+・Jenkins Job化残り
+	・学習のJob化
+	→　できた…気がする。
+	・連続自己対局のJob化
+	→　あとで
+	・gensfen、flush()してるのに、ネットワークドライブ上だと途中で終了すると保存されないな…。うーん..
+
+・mkdir、フォルダ再帰的に作ってくれる？
+	→　くれなかった。コマンドラインのmkdirは掘ってくれるのに…。
+
+・連続自己対戦の改良
+	・指定された回数、全スレッドでフルスロットルで回す
+	・指定されたevaldirを順に変更して回す
+	・学習と連携したいが、書き出しフォルダと切り離しているので出来ない。
+	　evalの書き出しフォルダ、変更すべきか？
+	→　よく考える。
+	→　評価関数の書き出しをcontainerのなかにするとrobocopyが定期的にコピーしてしまい、
+	余計なオーバーヘッドが発生するしな…。どうしたものか..さすがに80スレッドがネットワークドライブ上の
+	同じ評価関数読み込むとなると80GBぐらいのトラフィックが発生してそれはそれで無駄だし…。
+	いや、evalshareしてるから、それでもいいのか…。そうか…。
+	なら学習回して、連続自己対戦までは自動化できそう。よしよし。
+	あ、これ棋譜生成してるやつの評価関数使うと、それ学習してるのか。げろげろマズー。
+	learnはevalshare offにしとかなきゃ。
+
+		start /B /WAIT /NODE %EXECUTOR_NUMBER% robocopy \\Ws2012_860c_yan\e\jenkins_container  c:\jenkins/container /s /mir
+		cd c:\jenkins\container
+		mkdir \\Ws2012_860c_yan\e\jenkins_output\eval\%BUILD_NUMBER%
+		start /NODE %EXECUTOR_NUMBER% /B /WAIT exe\YaneuraOuV345learn.exe evaldir %EVAL_DIR% , evalsavedir \\Ws2012_860c_yan\e\jenkins_output\eval\%BUILD_NUMBER% , threads 40 , hash 4096 , evalshare false , learn loop %LOOP_MAX% dir \\Ws2012_860c_yan\e\jenkins_output\learn_sfen  %KIF_FILES% , quit
+
+	よしよし。出来てきた。
+	連続自己対戦のJobまで書けたらJenkinsのバックアップをとる。
+
 
 ■ 2016/07/26
+
+・Jenkinsのテスト。
+	・robocopyでミラーするjob作成
+	→ JavaWebStartを使っていると実行権限が違って、ネットワークドライブが見れない。
+	→　DCOMで実行するように変更。でも見れない。
+		> whoami
+		nt authority\system
+	→　JenkinsのDCOMバグっているとしか思えん。
+	→　ああ、UseLocal System Userであって、Jenkinsに入力したアカウントではないのか。これはあかん…。
+	→　Jenkinsを実行しているWindowsのサービスを、指定ユーザーで実行するように変えれば良いのか。そうか。
+	→　robocopyはできた。
+
+	・NUMA、そもそも
+	ビルド番号か何かで識別できないのか？
+	https://wiki.jenkins-ci.org/display/JA/Building+a+software+project
+	EXECUTOR_NUMBER	このビルドを実行するエグゼキューターを識別（同一マシン内で）するユニークな番号。
+	"ビルド実行状態"で表示されている番号ですが、1ではなく0始まりです。
+	→　これで出来そうな予感。%EXECUTOR_NUMBER% これで出来るわ。
+	> start /NODE %EXECUTOR_NUMBER% robocopy ...
+	こう書けばいいのか？
+	→　よし、出来たっぽい。
+	> start /NODE 0 robocopy \\Ws2012_860c_yan\e\jenkins_container  c:\jenkins/container /s /mir 
+	→　よし、robocopy成功！
+	
+	・あと、同時実行されたときにフォルダが分かれて欲しいのだが..
+	→　tempを必要とするなら、そのフォルダを分けるか。
+		/{リモートFSルート}/workspace/{JOB_NAME}{EXECUTOR_NUMBER}
+		こうなってくれないと困る。
+	→ 自動的に、@2のようにJOB_NAMEの後ろにつくようだ。なら要らないのか、この機能は。
+
+	Jenkins、MSBuildも使えるようなのでMSBuildでビルドしたほうが楽かも知れない。うむむ..
+	msys2のmakeとか起動すると、numa nodeを指定できないか…。そんな問題があるのか…。うむむ…。
+	普通にgitコマンドとMSBuildコマンド叩いたほうが賢いか。うむむ…。そんな気がしてきた。
+	→　デプロイ少し楽になるかも知れないが、環境構築、面倒くさすぎる。
+	→　2つの対戦をさせるのに２つGitHubから取ってきてMSBuildして対戦。うーん。それはいいような悪いような…。
+	→　これはやめよう。
 
 ・Jenkinsのjob化していく。
 	1) 局面生成をjob化
 		・NUMA固定するためのプログラム考える。
+		→　不要になった。
+
 		・jobを細分化したいので、教師局面ファイルはもっと細切れに生成してconcatするべき。concatのプログラム書く。
 		・生成された局面のgatherの手段、よく考える。
+
+		→　とりあえずgensfenのファイル名を指定する手段を用意する。
+		→　用意した。
+
+			> start /NODE %EXECUTOR_NUMBER% exe/YaneuraOu.exe evaldir eval/179_0042G_V3 , threads 40 , hash 4096 , gensfen depth 6 loop 10000 file \\Ws2012_860c_yan\e\jenkins_output\kif1.bin , quit
+			こんな感じでどうか。
+			start /NODE 1 exe/YaneuraOuV345.exe evaldir eval/179_0042G_V3 , threads 40 , hash 4096 , gensfen depth 6 loop 100000 file \\Ws2012_860c_yan\e\jenkins_output\ファイル名 , quit 
+			start /NODE 1 /B ...
+			という/Bオプションを発見。
+			cf. http://pf-j.sakura.ne.jp/program/dos/doscmd/start.htm
+
+			Jenkinsがなんかleakしてるとかなんとか
+			> Process leaked file descriptors. See http://wiki.jenkins-ci.org/display/JENKINS/Spawning+processes+from+build for more information
+			うーん。startコマンドがforkみたいなことするから、file descriptorのleakとみなされてるのかな。厳しい。
+			start /B /WAIT
+			これが正しいのか？
+			→　これでうまく動作した。難しすぎ。
+		・とりあえず局面生成はJenkinsのjob化できた。
+			ファイルの結合はDOSのcopyコマンドでいいか..そうか..。ならこれで完成か。
+			copy /b a.bin + b.bin c.bin
+			こんな魔法のような記法があるとは。
+			copy /b *.bin all.bin
+			これでいいか。そうか。
+
+			ではこうか。
+				start /B /WAIT /NODE %EXECUTOR_NUMBER% robocopy \\Ws2012_860c_yan\e\jenkins_container  c:\jenkins/container /s /mir
+				cd c:\jenkins\container
+				start /NODE %EXECUTOR_NUMBER% /B /WAIT exe\YaneuraOuV345.exe evaldir %EVAL_DIR% , threads 40 , hash 4096 , gensfen depth %DEPTH% loop %LOOP_MAX% file \\Ws2012_860c_yan\e\jenkins_output\%SFEN_FILE_NAME% , quit
+			→できた(気がする)
+
+			depth 6, 40HT 1億局面生成 = 9時間のようだ。
+			80*9/24 = 30日かかるな。10プロセッサで3日か。そうか。
+			もとい、1億局面、7時間ぐらいでいけそう。
+			Jenkinsのjob、ひとつが4時間以内に収まるようにして、平均2時間の待ちで優先jobが実行されるぐらいにしておかないと
+			TATが悪くてかなわん。長いjobと短いjobとアトランダムにあればマシか…。
+
+
 	2) 学習をjob化
 		・デプロイ、どうするべきか。
+		→ robocopy組み合わせれば出来そう。事前にrobocopyすればいいだけか。
+
 		・評価関数ファイルの保存フォルダ、別途指定できたほうが良いのでは。考える。
+		→　Options("EvalSaveDir")用意したほうがいいかも。
+		→　そうした。
+
 		・jenkinsのjob、よほどのことがない限りキャンセルしないので、saveは1回でいいかも。
+		→　5億学習ごとに1回とかの意味。まあいいや。ここがそんなに問題ではないだろうし。たぶん。
+		→　とりあえず、1億局面に1回に変更。
+		→　これで学習のjobを書けるはず…。
+
 	3) 自己対局をjob化
 		・pythonスクリプトの活用
+		→　うーん。pythonすら要らないような気がしてきた。
+
 
 ・特定のjobと評価関数ファイルがバッティングしてはいけないので異なる評価関数ファイルは必ずフォルダを分けるべき..なのか..。そうか..。
 	→　ちょっと仕組みを考える。
@@ -37,11 +157,109 @@ ToDo:
 		やねうら王の公式のほうとごっちゃになるな…。
 		Visual StudioのGitHubのplug-in使うのやめて、別で管理するしかないな…。うーむ..
 		→　gitコマンドに慣れたほうがいいかも知れんな…。
+		→　TortoiseGit導入した。
+		→　GitHubから取ってくるのLAN内に大きなストレージがあるなら、いいアイデアではなさげだった。
 
 	・save_eval()のフォルダ、設定できるようにする。
+		→　した。
 
 
 ・Apery(WCSC26)から10億局面追加学習してそれと比較する。
+
+			5G
+
+			秒読み1000[ms]
+
+			47.9%	
+			#282
+			やねうら王2016mid V344
+			eval AppendApery20160726
+			#272
+			やねうら王2016mid V344
+			eval Apery20160722
+
+			883-19-960(96.4% R-14.5)	
+
+
+			秒読み100[ms]
+
+			50.6%	
+			#282
+			やねうら王2016mid V344
+			eval AppendApery20160726
+			#272
+			やねうら王2016mid V344
+			eval Apery20160722
+
+			1677-32-1636(23.8% R4.3)	
+
+
+			2G
+			秒読み1000[ms]
+
+			45.8%	
+			#282
+			やねうら王2016mid V344
+			eval AppendApery20160726
+			#272
+			やねうら王2016mid V344
+			eval Apery20160722
+
+			544-26-643(99.8% R-29.0)	
+
+
+			1G
+
+			秒読み1000[ms]
+
+			43.9%	
+			#282
+			やねうら王2016mid V344
+			eval AppendApery20160726
+			#272
+			やねうら王2016mid V344
+			eval Apery20160722
+
+			235-11-300(99.8% R-42.4)	
+
+
+			秒読み100[ms]
+
+			50.2%	
+			#282
+			やねうら王2016mid V344
+			eval AppendApery20160726
+			#272
+			やねうら王2016mid V344
+			eval Apery20160722
+
+			1427-36-1416(41.8% R1.3)	
+
+
+			秒読み100[ms]
+
+			52.5%	
+			#282
+			やねうら王2016mid V344
+			eval AppendApery20160726
+			#0
+			やねうら王2016mid V344
+			新基準(AperyWCSC26)
+
+			735-7-665(3.1% R17.4)	
+
+
+			秒読み1000[ms]
+
+			53.8%	
+			#282
+			やねうら王2016mid V344
+			eval AppendApery20160726
+			#0
+			やねうら王2016mid V344
+			新基準(AperyWCSC26)
+
+			477-8-409(1.0% R26.7)	
 
 
 

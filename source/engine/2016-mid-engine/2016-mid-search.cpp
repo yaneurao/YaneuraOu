@@ -124,7 +124,15 @@ void USI::extra_option(USI::OptionsMap & o)
   o["Param1"] << Option(0, 0, 100000);
   o["Param2"] << Option(0, 0, 100000);
 
+#ifdef EVAL_LEARN
+  // 評価関数の学習を行なうときは、評価関数の保存先のフォルダを変更できる。
+  // デフォルトではevalsave。このフォルダは事前に用意されているものとする。
+  // このフォルダ配下にフォルダを"0/","1/",…のように自動的に掘り、そこに評価関数ファイルを保存する。
+  o["EvalSaveDir"] << Option("evalsave");
+#endif
+
 #ifdef DISABLE_TT_PROBE
+  // 置換表がオフになっている場合、通常対局は出来ないと考えられるので警告を出す。
   sync_cout << "info string warning!! disable TT.probe()." << sync_endl;
 #endif
 

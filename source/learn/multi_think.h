@@ -78,7 +78,7 @@ private:
   // workerが処理する(Search::think()を呼び出す)回数
   volatile u64 loop_max;
   // workerが処理した(Search::think()を呼び出した)回数
-  volatile u64 loop_count;
+  volatile u64 loop_count = 0;
 
   // ↑の変数を変更するときのmutex
   Mutex loop_mutex;

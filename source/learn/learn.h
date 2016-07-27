@@ -176,7 +176,7 @@ typedef float LearnFloatType;
 #define WRITE_PACKED_SFEN
 
 // search()のleaf nodeまでの手順が合法手であるかを検証する。
-#define TEST_LEGAL_LEAF
+//#define TEST_LEGAL_LEAF
 
 // packしたsfenをunpackして元の局面と一致するかをテストする。
 // →　十分テストしたのでもう大丈夫やろ…。

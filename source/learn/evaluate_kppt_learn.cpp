@@ -733,24 +733,26 @@ namespace Eval
 	void save_eval(std::string dir_name)
 	{
 		{
-			auto eval_dir = path_combine((string)Options["EvalDir"], dir_name);
+			auto eval_dir = path_combine((string)Options["EvalSaveDir"], dir_name);
 
 			// すでにこのフォルダがあるならmkdir()に失敗するが、
 			// 別にそれは構わない。なければ作って欲しいだけ。
+			// また、EvalSaveDirまでのフォルダは掘ってあるものとする。
+			
 			MKDIR(eval_dir);
 
 			// KK
-			std::ofstream ofsKK(eval_dir + KK_BIN , std::ios::binary);
+			std::ofstream ofsKK(path_combine(eval_dir , KK_BIN) , std::ios::binary);
 			if (!ofsKK.write(reinterpret_cast<char*>(kk), sizeof(kk)))
 				goto Error;
 
 			// KKP
-			std::ofstream ofsKKP(eval_dir + KKP_BIN , std::ios::binary);
+			std::ofstream ofsKKP(path_combine(eval_dir , KKP_BIN) , std::ios::binary);
 			if (!ofsKKP.write(reinterpret_cast<char*>(kkp), sizeof(kkp)))
 				goto Error;
 
 			// KPP
-			std::ofstream ofsKPP(eval_dir + KPP_BIN , std::ios::binary);
+			std::ofstream ofsKPP(path_combine(eval_dir , KPP_BIN) , std::ios::binary);
 			if (!ofsKPP.write(reinterpret_cast<char*>(kpp), sizeof(kpp)))
 				goto Error;
 

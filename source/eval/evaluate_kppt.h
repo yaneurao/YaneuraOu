@@ -11,13 +11,13 @@
 
 
 // KKファイル名
-#define KK_BIN "/KK_synthesized.bin"
+#define KK_BIN "KK_synthesized.bin"
 
 // KKPファイル名
-#define KKP_BIN "/KKP_synthesized.bin"
+#define KKP_BIN "KKP_synthesized.bin"
 
 // KPPファイル名
-#define KPP_BIN "/KPP_synthesized.bin"
+#define KPP_BIN "KPP_synthesized.bin"
 
 namespace Eval
 {
