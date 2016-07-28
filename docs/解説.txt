@@ -174,16 +174,16 @@ shogi.hの
     setoption name Hash value 1024
 
   次に
-  goコマンドを打つ。
-  stopもしくはquitで終了するまで対局結果が出力される。
+  goコマンドを打つ。(実行中、stopは利かない)
 
-  O : engine1勝ち
-  X : engine1負け
-  . : 引き分け
+	  O : engine1勝ち
+	  X : engine1負け
+	  . : 引き分け
+
   ※　engine/local-game-server/local-game-server.cppで ONE_LINE_OUTPUT_MODE がdefineされているときは、
-	WIN
-	LOSE
-	DRAW
+		win,sfenで終局の局面図
+		lose,sfenで終局の局面図
+		draw,sfenで終局の局面図
 	という表記に変わる。
     
   対局回数の指定など)
@@ -201,8 +201,8 @@ shogi.hの
 	例えば、
 	setoption name Threads value 6
 	のようにして実行すると6スレッド(×2プロセス)が起動して、6局並列で対局が進行する。
-	btimeで指定した数の6倍の数の対局数が行われる。
-
+	btimeで指定した数に達すると、対局中のものは打ち切られる。
+	
 
 ■　「内部エラー」でコンパイル出来ない件
 

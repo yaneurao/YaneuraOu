@@ -106,6 +106,7 @@ struct SfenWriter
 				sfen_buffers_pool.push_back(buf);
 			}
 			buf_reserve();
+//			cout << '[' << thread_id << ']';
 		}
 	}
 #else

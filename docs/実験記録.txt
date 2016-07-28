@@ -14,6 +14,263 @@ ToDo:
 ・mate3()書く。
 
 
+■ 2016/07/28
+
+・1億局面生成のjob、片方途中で落ちてた。プロセスが落ちたのだろうか。
+	VALUE_EVAL_MAXまで生成していることに関係しているのかも。
+	困るなぁ…。再度落ちるようなら、ASSERT有効にして単体で走らせるしかあるまい。
+	→　NUMA1のほうでデバッグで回しておく。
+
+		start /NODE 1 /B /WAIT /D \\WS2012_860C_YAN\yanehome YaneuraOu.exe evaldir eval/179_0042G_V3 , threads 40 , hash 4096 , gensfen depth 6 loop 300000000 file \\WS2012_860C_YAN\yanehome\gen_sfen\00.bin , quit 
+
+・棋譜生成、16手目まで定跡の指し手だが、もう少し先までやったほうがいいかも。
+　あるいはもうちょっとなぞったほうがいいかも。
+
+・depth3で10億生成してみるか。
+	→　depth3にしたけど生成速度早くならん。なぜ？
+	→　learnのほうでgensfenしてたような？
+
+・Jenkins、master側再起動するとJob全部キャンセルするな…。再起動できないではないか…。
+	→　Windows updateで再起動しないようにしておく。
+
+・Jenkinsのmasterで実行できない件、workspaceフォルダ、該当ユーザーがフルコントロールに
+　なってないからのようだ。
+	→　フォルダに権限与えたところ実行できるようになった。
+
+・局面生成、何が起きたのかわからないが20万局面を数秒で連続3回ぐらい生成してるタイミングがある。
+	これ書き出し絡みのバグの可能性が…。
+
+	書き出しthreadのバグなのか生成のバグなのか、ネットワークドライブが詰まっているのかが
+	判然としない。生成スレッドのほう、
+				cout << '[' << thread_id << ']';
+	これ一行入れてテストする。
+	→　一個書き込みしている間に複数queueに積まれることはありえるようではあるが…。
+	→　ネットワークドライブが詰まるというのはあるのかも。
+	→　違うようだ。ファイルの書き出しworkerで、論理スレッドいっぱいまで使っているためにcoutが詰まって、
+	それゆえ、バッファ処理が少しずつ間に合わなくなるという問題があるようだ。
+	coutが詰まるというよりネットワークドライブの書き出しで、書き出しのためのnet layerで詰まっているようだ。なるほど。
+	なら、生成に問題があるわけではなさそう。
+
+・連続自己対戦、engine configをpython側で生成するか。
+	・フルスロットルで回せるべき。
+	・numa指定できるべき。
+	・records.sfenが実行ファイル直下固定なの、変更できるべき。
+	・フォルダ名をコマンドライン引数などでpython側に渡すか…。
+		→　テンプレからengine config持ってきて、python側で書き換えるか？
+		エンジン名と評価関数とマッチング条件…。うーむ。書くの面倒だな、これ。
+		・python2.7インストール
+		環境変数pathの設定と、これを反映させるためのPCの再起動が必要なようだ…。うーん。
+		c:\python27\python
+		として実行して良いような気も…。
+		とりあえずpathは通しておく。次の再起動のときになおるであろう。
+	・python エンジン名1 evaldir1 エンジン名2 evaldir2 1手のms
+		こう指定してengine configを生成するスクリプトを書くか。
+		そして、engine configのフォルダ位置、変更できるようにする。
+		→　pythonのスクリプト書けた。
+
+			import sys
+
+			def write_engine_file(num , engine_name , eval_dir , byoyomi):
+				f = open("engine-config"+str(num)+".txt","w")
+				f.write(engine_name+"\n")
+				f.write("go btime 0 wtime 0 byoyomi "+byoyomi+"\n")
+				f.write("setoption name EvalDir value " + eval_dir+"\n")
+				f.write("setoption name Hash value 32\n")
+				f.write("setoption name Threads value 1\n")
+				f.write("setoption name NetworkDelay value 0\n")
+				f.write("setoption name NetworkDelay2 value 0\n")
+
+				f.close()
+
+			param = sys.argv
+			if len(param) != 6 :
+				print " engine1 evaldir1 engine2 evaldir2 byoyomi"
+				sys.exit()
+
+			write_engine_file(1,param[1],param[2],param[5])
+			write_engine_file(2,param[3],param[4],param[5])
+
+	・local game serverにオプションいくつか追加。
+
+			// "engine_configX.txt"が配置してあるフォルダ
+			o["EngineConfigDir"] << Option("");
+
+			// 子プロセスでEngineを実行するプロセッサグループ(Numa node)
+			// -1なら、指定なし。
+			o["EngineNuma"] << Option(-1, 0, 99999);
+
+		CreateProcess、startコマンド呼べない。Node指定どうするのだ…。
+				(LPWSTR)to_wstring("start /node 0 " + app_path_).c_str(),
+
+		CreateProcessにSTARTUPINFOEXを指定するのか。情報少なすぎてわからん。
+
+			  PPROC_THREAD_ATTRIBUTE_LIST attribs = { 0 };
+
+			  size_t cb;
+			  char sAttribsBuf[4096];
+			  auto pAttribs = (PPROC_THREAD_ATTRIBUTE_LIST)sAttribsBuf;
+
+			  if (!InitializeProcThreadAttributeList(NULL, 1, 0, &cb)
+				  && (GetLastError() != ERROR_INSUFFICIENT_BUFFER))
+				  return ;
+			  if (!InitializeProcThreadAttributeList(pAttribs, 1, 0, &cb))
+				  return ;
+
+			  LPPROC_THREAD_ATTRIBUTE_LIST lpAttribs = (LPPROC_THREAD_ATTRIBUTE_LIST)sAttribsBuf;
+			  if (!UpdateProcThreadAttribute(lpAttribs, 0, PROC_THREAD_ATTRIBUTE_PREFERRED_NODE
+				  , &iNuma, sizeof(iNuma), NULL, NULL))
+			  {
+				  si.lpAttributeList = lpAttribs;
+
+				  // これを反映させておき、STARTUPINFOEXが指定されていることをCreateProcessに示す必要がある。
+				  si.StartupInfo.cb = sizeof(si);
+			  }
+
+		→　これやめよう。
+			cmd.exe /c start /node 0 calc.exe
+		こんな感じでcmd.exeから起動させよう。
+
+		pythonだとこうか。
+
+			import subprocess
+			cmd = "cmd.exe /c start /node 0 calc.exe"
+			subprocess.call( cmd.strip().split(" "))
+
+		→　うまく動いている感じ。
+
+			app_path_ = "cmd.exe /c start /B /WAIT /NODE " + to_string(numa) + " " + app_path_;
+
+			/*
+				/NODE
+				Numa node(実行するプロセッサグループ)の指定
+
+				/B
+				実行したコマンドを別窓で開かないためのオプション。
+
+				/WAIT
+				/Bを指定したときにはこれを指定して、本窓の終了を待機しないと
+				プロセス実行中に制御を抜けてしまい、file descriptorがleakする。
+			*/
+
+		→　やった！ここまでは意図通り動いた。
+
+			あとは、さらにpython側からhookするコードを書けばいいのか…。大変だな、これまた。
+
+			・BookSfenFileオプション追加。
+
+			よしよし。あとは、
+
+			・evalフォルダにサブフォルダがあるときにそれらをすべて対戦させるコード。
+				→　書けた。
+
+			・local-game-serverにフルスロットルで回すコード追加。
+				→　出来た。
+
+			・pythonで出力をリダイレクトして戦績を返すコード追加。
+				→　それより先にgoコマンド終了時にquitさせることが出来ない。
+				local game serverにおいてbyoyomi = 1なら終了後にquitするか。
+				→　よくない実装。メインスレッドではないのでexit()できない。
+			
+				→　local-game-serverにおいて、goコマンドのあとstopで停止できないように変更する。
+					そうしないとquitをqueueに積めない。
+				→　うまく動いた。
+
+				c:/python27/python.exe engine_invoker.py \\WS2012_860C_YAN\yanehome exe/YaneuraOuV347.exe eval/Apery20160505 exe/YaneuraOuV347.exe eval/learn_8 8 10 0 { 100 300 }
+
+			// 以下、python側のコード。
+			import sys
+			import subprocess
+			import os.path
+
+			def write_engine_file(num , engine_name , eval_dir , byoyomi):
+				f = open("engine-config"+str(num)+".txt","w")
+				f.write(engine_name+"\n")
+			#	f.write("go btime 0 wtime 0 byoyomi "+byoyomi+"\n")
+				f.write("go rtime " + byoyomi + "\n")
+				f.write("setoption name EvalDir value " + eval_dir+"\n")
+				f.write("setoption name Hash value 16\n")
+				f.write("setoption name Threads value 1\n")
+				f.write("setoption name BookFile value no_book\n")
+				f.write("setoption name NetworkDelay value 0\n")
+				f.write("setoption name NetworkDelay2 value 0\n")
+
+				f.close()
+
+			param = sys.argv
+
+			# args format
+			# 	HOMEPATH engine1 evaldir1 engine2 evaldir2 threads loop numa { rtime1 ... rtimeN }
+
+			# loop for invoker
+
+			home = param[1]
+			if not (home.endswith('/') or home.endswith('\\')):
+				home += '\\'
+
+			threads = param[6]
+			loop = param[7]
+			numa = param[8]
+
+			if param[9] != "{" :
+				byoyomi_list = param[9]
+			else:
+				byoyomi_list = []
+				for i in range (10,len(param)-1):
+					byoyomi_list.append(param[i])
+
+			# expand eval_dir
+
+			evaldirs = []
+			if not os.path.exists(home + param[5] + "/0") :
+				evaldirs.append(param[5])
+			else:
+				i = 0
+				while os.path.exists(home + param[5] + "/" + str(i)):
+					evaldirs.append(param[5] + "/" + str(i) )
+					i += 1
+
+			print "home         : " , home
+			print "byoyomi_list : " , byoyomi_list
+			print "evaldirs     : " , evaldirs
+
+			for evaldir in evaldirs:
+
+				print "engine1 = " + param[2] + " , eval = " + param[3]
+				print "engine2 = " + param[4] + " , eval = " + evaldir
+
+				for byoyomi in byoyomi_list:
+
+					print "threads = " + threads + " , loop = " + loop + " , numa = " + numa + " , byoyomi = " + byoyomi
+					write_engine_file(1,home + param[2],home + param[3],byoyomi)
+					write_engine_file(2,home + param[4],home + evaldir,byoyomi)
+
+					cmd = home + "\\exe\\local-game-serverV347.exe , booksfenfile " + home + "book/records1.sfen , threads " + threads + " , enginenuma " + numa + " , go btime " + loop + " , quit"
+
+					# subprocess.call( cmd.strip().split(" "))
+					print cmd
+					p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+					stdout_data, stderr_data = p.communicate()
+					# print "finish: \n%s\n%s" % (stdout_data, stderr_data)
+
+					win = lose = draw = 0
+					for line in stdout_data.split('\n'):
+						if line.startswith("win"):
+							win += 1
+						elif line.startswith("lose"):
+							lose += 1
+						elif line.startswith("draw"):
+							draw += 1
+
+					total = win + lose
+					if total != 0 :
+						win_rate = 100 * win / float(win+lose)
+					else:
+						win_rate = 0
+					print "finish " + str(win) + " - " + str(draw) + " - " + str(lose) + "(" + str(win_rate) + "%)\n"
+
+				→　JenkinsのJob化、成功した。
+
+
 ■ 2016/07/27
 
 ・Jenkins Job化残り
@@ -47,6 +304,54 @@ ToDo:
 
 	よしよし。出来てきた。
 	連続自己対戦のJobまで書けたらJenkinsのバックアップをとる。
+
+・考えまとまった。
+	ネットワーク上の共有ドライブに何もかも配置したほうがいいという結論になった。
+	robocopy不要になる。評価関数読み込むのは1つのJobにつきたかだか2回だけだし無視できるだろう。
+
+	startコマンドの/Dでworkig directoryが指定できるようなのでこれを利用。
+		例)
+		start /NODE %EXECUTOR_NUMBER% /B /WAIT /D %YANEHOME% %YANEHOME%\exe\YaneuraOuV345.exe evaldir %EVAL_DIR% , threads %HT_CORES% , hash 4096 , gensfen depth %DEPTH% loop %LOOP_MAX% file %YANEHOME%\gen_sfen\%BUILD_NUMBER%.bin , quit
+			HT_CORESに各nodeの論理コア数を入れておけば非対称なプロセッサでも大丈夫か。
+
+	→　うまく動かん。startコマンド、スペースが入るとき""でpathくくるべきだが、
+	  1つ目の""はwindow titleになるというstartコマンドの謎仕様。うむむ。
+	→　よくわからん。Jenkinsのmasterだとネットワークドライブが見えないようだ。
+	　サービスを動かしているuserが異なるからか？
+		まあいいや。masterで動かさない。たぶん。
+
+	例) 学習用
+		mkdir %YANEHOME%\eval\learn_%BUILD_NUMBER%
+		start /NODE %EXECUTOR_NUMBER% /B /WAIT /D %YANEHOME% %YANEHOME%\exe\YaneuraOuV345learn.exe evaldir %EVAL_DIR% , evalsavedir %YANEHOME%\eval\learn_%BUILD_NUMBER% , threads %HT_CORES% , hash 4096 , evalshare false , learn loop %LOOP_MAX% dir %YANEHOME%\learn_sfen  %KIF_FILES% , quit
+		→　完璧。
+
+・連続自己対戦用にやねうら王を改造する。
+	・対戦条件を書いてファイルを食わせるとそれをやってくれると良いのか…な？
+	→　ネットワークフォルダにそんなファイル置きたくないしな…。引数として指定できるといいのかな。
+		よく考えよう…。
+	→　まず、フルスロットルで回すコード追加するところからだ。
+
+・学習のときにfinalizeするフォルダ名、
+	learn_%BUILD_NUMBER%/f/
+	とかのほうが良いのでは…。ここを固定しておかないと比較するときに難しくなる気が。
+	そうでもないのかな…。
+	→　そうでもない気がしてきた。
+
+・eval limit=VALUE_EVAL_MAXで2億局面生成してSGDで1回まわして一つ前のものと比較。
+
+		秒読み1000[ms]
+
+		50.2%	
+		#283
+		やねうら王2016mid V344
+		eval 179_0043G_V4
+		#281
+		やねうら王2016mid V344
+		eval 179_0042G_V3
+
+		1440-33-1426(39.7% R1.7)	
+
+	ほぼ、変わらず？
 
 
 ■ 2016/07/26

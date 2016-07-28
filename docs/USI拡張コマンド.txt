@@ -63,6 +63,7 @@ set option name XXX value ...で設定できるoption
 	BookFile 定跡ファイル : 定跡ファイルの選択
 
 					# このコンボボックスの値
+					no_book          定跡なし
 					standard_book.db 標準定跡
 					yaneura_book1.db やねうら大定跡(公開用)
 					yaneura_book2.db やねうら超定跡(公開用)
@@ -107,6 +108,19 @@ set option name XXX value ...で設定できるoption
 	// 協力詰めsolver時
 
 	CM_Hash			: 協力詰め時の置換表サイズ(単位[MB])
+
+
+	// local-game-server時
+
+	EngineConfigDir			: "engine_configX.txt"が配置してあるフォルダ
+	
+	EngineNuma				: 子プロセスでEngineを実行するプロセッサグループ(Numa node)
+							  -1なら、指定なし。
+
+	BookSfenFile			: 連続自己対戦のときに定跡の局面まで進めるためのsfenファイル。
+							  このファイルの棋譜のまま32手目まで進める。
+							  book/book.sfen
+							  のように指定する。
 
 
 ■　USI拡張コマンド

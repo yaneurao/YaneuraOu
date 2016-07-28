@@ -90,6 +90,7 @@ void USI::extra_option(USI::OptionsMap & o)
 
   // 定跡ファイル名
 
+  //  no_book          定跡なし
   //  standard_book.db 標準定跡
   //  yaneura_book1.db やねうら大定跡(公開用1)
   //  yaneura_book2.db やねうら超定跡(公開用2)
@@ -98,10 +99,10 @@ void USI::extra_option(USI::OptionsMap & o)
   //  user_book2.db    ユーザー定跡2
   //  user_book3.db    ユーザー定跡3
 
-  std::vector<std::string> book_list = { "standard_book.db", "yaneura_book1.db" , "yaneura_book2.db" , "yaneura_book3.db"
+  std::vector<std::string> book_list = { "no_book" , "standard_book.db", "yaneura_book1.db" , "yaneura_book2.db" , "yaneura_book3.db"
     , "user_book1.db", "user_book2.db", "user_book3.db" };
-  o["BookFile"] << Option(book_list, book_list[0], [](auto& o) { book_name = string(o); });
-  book_name = book_list[0];
+  o["BookFile"] << Option(book_list, book_list[1], [](auto& o) { book_name = string(o); });
+  book_name = book_list[1];
 
   //  BookEvalDiff: 定跡の指し手で1番目の候補の指し手と、2番目以降の候補の指し手との評価値の差が、
   //    この範囲内であれば採用する。(1番目の候補の指し手しか選ばれて欲しくないときは0を指定する)
@@ -1995,7 +1996,9 @@ void Search::clear()
 	// -----------------------
 	//   定跡の読み込み
 	// -----------------------
-	Book::read_book("book/" + book_name, book, (bool)Options["BookOnTheFly"]);
+	
+	if (book_name != "no_book")
+		Book::read_book("book/" + book_name, book, (bool)Options["BookOnTheFly"]);
 
 	// -----------------------
 	//   置換表のクリアなど

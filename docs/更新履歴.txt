@@ -2,6 +2,17 @@
 やねうら王 更新履歴
 
 
+■　2016/07/28 V3.47
+
+・local-game-serverにEngineConfigDirオプション追加。
+・local-game-serverにBookSfenFileオプション追加。
+・local-game-serverにEngineNumaオプション追加。
+・local-game-serverで指定する対局回数は、対局回数は並列化されている分も考慮した、
+	トータルでの対局回数に変更。この回数に達すると対局中のものは中断して打ち切る。
+・local-game-serverにおいて、goコマンドのあとstopで停止できないように変更する。そうしないとquitをqueueに積めない。
+・やねうら王2016において定跡なしを選択できるように拡張。
+
+
 ■　2016/07/26 V3.46
 
 ・Jenkins対応を進めていく。
