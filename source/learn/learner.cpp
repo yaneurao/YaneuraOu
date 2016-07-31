@@ -161,6 +161,18 @@ struct SfenWriter
 	// ファイルに書き出すの専用スレッド
 	void file_write_worker()
 	{
+		auto output_status = [&]()
+		{
+			// 現在時刻も出力
+			auto now = std::chrono::system_clock::now();
+			auto tp = std::chrono::system_clock::to_time_t(now);
+
+			cout << endl << sfen_write_count << " sfens , at " << std::ctime(&tp);
+
+			// flush()はこのタイミングで十分。
+			fs.flush();
+		};
+
 		while (!finished || sfen_buffers_pool.size())
 		{
 #ifdef  WRITE_PACKED_SFEN
@@ -199,24 +211,20 @@ struct SfenWriter
 					for (auto line : *ptr)
 						fs << line;
 #endif
+
+//					cout << "[" << ptr->size() << "]";
 					sfen_write_count += ptr->size();
 
 					// 棋譜を書き出すごとに'.'を出力。
-					//cout << ".";
+					cout << ".";
 
 					// 40回×GEN_SFENS_TIMESTAMP_OUTPUT_INTERVALごとに処理した局面数を出力
 					if ((++time_stamp_count % (u64(40) * GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL)) == 0)
-					{
-						// 現在時刻も出力
-						auto now = std::chrono::system_clock::now();
-						auto tp = std::chrono::system_clock::to_time_t(now);
-
-						cout << endl << sfen_write_count << " sfens , at " << std::ctime(&tp);
-						fs.flush();
-					}
+						output_status();
 				}
 			}
 		}
+		output_status();
 	}
 
 private:
@@ -244,7 +252,7 @@ private:
 	Mutex mutex;
 
 	// 書きだした局面の数
-	u64 sfen_write_count;
+	u64 sfen_write_count = 0;
 
 };
 
