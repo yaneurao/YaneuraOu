@@ -171,8 +171,9 @@ set option name XXX value ...で設定できるoption
 
 	// やねうら王2016Mid LEARN版のみ
 
-	gensfen [depth 探索深さ] [loop 生成する棋譜の数] [file ファイル名]  : 学習用の自己対局棋譜の生成
+	gensfen [depth 探索深さ] [loop 生成する棋譜の数] [file ファイル名] [eval_limit 評価値]  : 学習用の自己対局棋譜の生成
 		例) gensfen depth 6  (残りは省略可)
+			eval_limitは、評価値の絶対値がこの値を上回った時点でその対局を終了するという値。
 
 	learn [ファイル名1] [ファイル名2] …   : 生成した棋譜から評価関数パラメーターの学習をさせる。
 

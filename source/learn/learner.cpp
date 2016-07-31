@@ -87,6 +87,7 @@ struct SfenWriter
 			buf->reserve(FILE_WRITE_INTERVAL);
 		};
 
+		// 初回はbufがないのでreserve()する。
 		if (!buf)
 			buf_reserve();
 
@@ -160,12 +161,12 @@ struct SfenWriter
 	// ファイルに書き出すの専用スレッド
 	void file_write_worker()
 	{
-		while (!finished)
+		while (!finished || sfen_buffers_pool.size())
 		{
 #ifdef  WRITE_PACKED_SFEN
-			shared_ptr<vector<PackedSfenValue>> ptr;
+			vector<shared_ptr<vector<PackedSfenValue>>> buffers;
 #else
-			shared_ptr<vector<string>> ptr;
+			vector<shared_ptr<vector<string>>> buffers;
 #endif
 			{
 				std::unique_lock<Mutex> lk(mutex);
@@ -173,42 +174,47 @@ struct SfenWriter
 
 				if (sfen_buffers_pool.size() != 0)
 				{
-					ptr = *sfen_buffers_pool.rbegin();
-					sfen_buffers_pool.pop_back();
+					//ptr = *sfen_buffers_pool.rbegin();
+					//sfen_buffers_pool.pop_back();
+
+					buffers = sfen_buffers_pool;
+					sfen_buffers_pool.clear();
 				}
 			}
 
 			// 何も取得しなかったならsleep()
 			// ひとつ取得したということはまだバッファにある可能性があるのでファイルに書きだしたあとsleep()せずに続行。
-			if (!ptr)
+			if (!buffers.size())
 				sleep(100);
 			else
 			{
-#ifdef  WRITE_PACKED_SFEN
-				fs.write((const char*)&((*ptr)[0].data), sizeof(PackedSfenValue) * ptr->size());
-				fs.flush();
-#else
-				for (auto line : *ptr)
-					fs << line;
-				fs.flush();
-#endif
+				// バッファがどれだけ積まれているのかデバッグのために出力
+				//cout << "[" << buffers.size() << "]";
 
-				sfen_count += ptr->size();
-
-				// 棋譜を書き出すごとに'.'を出力。
-				cout << ".";
-
-				// 40回×GEN_SFENS_TIMESTAMP_OUTPUT_INTERVALごとに処理した局面数を出力
-				if ((total_write % (u64(FILE_WRITE_INTERVAL) * 40 * GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL)) == 0)
+				for (auto ptr : buffers)
 				{
-					// 現在時刻も出力
-					auto now = std::chrono::system_clock::now();
-					auto tp = std::chrono::system_clock::to_time_t(now);
+#ifdef  WRITE_PACKED_SFEN
+					fs.write((const char*)&((*ptr)[0].data), sizeof(PackedSfenValue) * ptr->size());
+#else
+					for (auto line : *ptr)
+						fs << line;
+#endif
+					sfen_write_count += ptr->size();
 
-					cout << endl << u64(total_write + FILE_WRITE_INTERVAL) << " sfens , at " << std::ctime(&tp);
+					// 棋譜を書き出すごとに'.'を出力。
+					//cout << ".";
+
+					// 40回×GEN_SFENS_TIMESTAMP_OUTPUT_INTERVALごとに処理した局面数を出力
+					if ((++time_stamp_count % (u64(40) * GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL)) == 0)
+					{
+						// 現在時刻も出力
+						auto now = std::chrono::system_clock::now();
+						auto tp = std::chrono::system_clock::to_time_t(now);
+
+						cout << endl << sfen_write_count << " sfens , at " << std::ctime(&tp);
+						fs.flush();
+					}
 				}
-
-				total_write += FILE_WRITE_INTERVAL;
 			}
 		}
 	}
@@ -222,7 +228,8 @@ private:
 	// 終了したかのフラグ
 	volatile bool finished;
 
-	u64 total_write = 0;
+	// タイムスタンプの出力用のカウンター
+	u64 time_stamp_count = 0;
 
 	// ファイルに書き出す前のバッファ
 #ifdef  WRITE_PACKED_SFEN
@@ -236,11 +243,8 @@ private:
 	// sfen_buffers_poolにアクセスするときに必要なmutex
 	Mutex mutex;
 
-	// 生成したい局面の数
-	u64 sfen_count_limit;
-
-	// 生成した局面の数
-	u64 sfen_count;
+	// 書きだした局面の数
+	u64 sfen_write_count;
 
 };
 
@@ -262,6 +266,9 @@ struct MultiThinkGenSfen: public MultiThink
 
   //  search_depth = 通常探索の探索深さ
   int search_depth;
+
+  // 生成する局面の評価値の上限
+  int eval_limit;
 
   // sfenの書き出し器
   SfenWriter& sw;
@@ -335,7 +342,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 #if 1
 		// 評価値の絶対値がこの値以上の局面については
 		// その局面を学習に使うのはあまり意味がないのでこの試合を終了する。
-		if (abs(value1) >= GEN_SFENS_EVAL_LIMIT)
+		if (abs(value1) >= eval_limit)
 			break;
 #endif
 
@@ -527,6 +534,9 @@ void gen_sfen(Position& pos, istringstream& is)
   // 生成棋譜の個数 default = 80億局面(Ponanza仕様)
   u64 loop_max = 8000000000UL;
 
+  // 評価値がこの値になったら生成を打ち切る。
+  int eval_limit = 2000;
+
   // 探索深さ
   int search_depth = 3;
 
@@ -553,6 +563,8 @@ void gen_sfen(Position& pos, istringstream& is)
 		  is >> loop_max;
 	  else if (token == "file")
 		  is >> filename;
+	  else if (token == "eval_limit")
+		  is >> eval_limit;
 
   }
   is >> search_depth >> loop_max;
@@ -560,6 +572,7 @@ void gen_sfen(Position& pos, istringstream& is)
   std::cout << "gen_sfen : "
 	  << "search_depth = " << search_depth
 	  << " , loop_max = " << loop_max
+	  << " , eval_limit = " << eval_limit
 	  << " , thread_num (set by USI setoption) = " << thread_num
 	  << " , filename = " << filename
 	  << endl;
@@ -569,6 +582,7 @@ void gen_sfen(Position& pos, istringstream& is)
 	  SfenWriter sw(filename,thread_num);
 	  MultiThinkGenSfen multi_think(search_depth, sw);
 	  multi_think.set_loop_max(loop_max);
+	  multi_think.eval_limit = eval_limit;
 	  multi_think.start_file_write_worker();
 	  multi_think.go_think();
 
