@@ -6,6 +6,9 @@
 
 ・レーティング計算用、pythonのスクリプトをプロジェクトに追加。→　script/calc_rating.py
 ・思考エンジンの設定をしてlocal-game-serverを呼び出す用のpythonのスクリプトをプロジェクトに追加。→　engine_invoker.py
+・評価関数ファイルの読み込みに失敗した場合、エラーを表示したあと1秒待つようにした。
+・local-game-serverに子プロセスの終了判定のコード追加。
+・local-game-server、プロセスの起動に失敗したときのコード追加。
 
 
 ■　2016/08/01～2016/08/03 V3.49

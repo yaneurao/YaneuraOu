@@ -101,6 +101,7 @@ namespace Eval
 	Error:;
 		// 評価関数ファイルの読み込みに失敗した場合、思考を開始しないように抑制したほうがいいと思う。
 		sync_cout << "\ninfo string Error! open evaluation file failed.\n" << sync_endl;
+		sleep(1000); // 出力される前に終了するのはまずいのでwaitを入れておく。
 		exit(EXIT_FAILURE);
 	}
 

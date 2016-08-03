@@ -34,12 +34,81 @@ ToDo:
 +			if "Error" in line:
 +				print line
 
+		→　エラーはトラップされるようになった。よしよし。
 
-	・駒得のみの評価関数に対して負けているのは何なのかを調査
+	・pythonからlocal-game-serverをinvokeしているときに途中で結果を返すことは出来るのか？
+
+	pollしてればいいのか…。
+
+		retcode = proc.poll()
+		if retcode is not None: # Process finished.
+					running_procs.remove(proc)
+		print proc.stdout.read()
+
+		→　できた。
+
+	・評価関数の読み込みに失敗したときにexitしているのに負けているのは何なのかを調査
+		→　local-game-server、おかしいのでは…。
+			local-game-server、もっとみなおす。
+		→　わかった。評価関数読み込みに失敗するが、shared memoryは有効になっていて、
+		　それを別のプロセスが共有したあと、元のプロセスは終了するのか…。なんぞこれ…。
+		
+	・評価関数の読み込みに失敗した、駒得だけの評価関数のはずの思考エンジンに負けているのは何なのか
+		→　local-game-serverに棋譜を出力させてチェック
+
+			lose,startpos moves 3i3h 8c8d 2g2f 3c3d 6i7h 8d8e 7g7f 8e8f 8g8f 8b8f 2f2e 4a3b 2e2d 2c2d 2h2d 8f7f 8h2b+ 3a2b B*7g 2b2c 2d2c+ 3b2c 7g1a+ P*8h 1a8h P*2h 8h9h 7f7d L*7f 7d4d S*5e 4d9d P*2d 2c2d P*7d 2h2i+ 7d7c+ N*8f 7c6c 8f9h+ 7f7a+ B*9e 8i7g 6a7a P*7b 7a8b P*8c 8b8c 9g9f 9e8f 9i9h R*9i 6c5c 8f7g+ 5i4h P*5b 5e6f 7g7h S*4b 5a6a 7i7h 9i7i+ 7h7g L*7d B*6c 5b5c 3h2i 7d7g+ 4b5c+ G*6b 7b7a+ 6a7a 5c6b 7a6b 6c8a+ 7g6g N*6e 7i8h P*6h 8h6h 4h3i P*7b P*2h 6g6f P*6i 6h6i G*5i 6i8i N*7e N*6g 5i5h B*7f 7e8c+ 8i8c G*8b 8c8i 8a7b 6b5b 7b9d 9c9d R*2b B*4b 2b2a+ 7f6e 2a9a N*5e L*5f 6f5f 5g5f S*6i 5h4h 4b6d L*6f 5e4g 3i3h N*2f 3h4g S*4f 4g3f 4f3g+ 4h3g L*3e 3f4g 3e3g+ 4g5g S*4f 5g6h 8i7h
+			lose,startpos moves 5g5f 7a6b 7g7f 5c5d 7i6h 5a4b 3i4h 3c3d 6h7g 3a3b 5i6h 4b3a 6h7h 7c7d 2g2f 6c6d 2f2e 8a7c 9g9f 2b3c 7h7i 1c1d 4i5h 1d1e 2h2f 7c8e 7g6f 6d6e 6f6e 3c8h+ 7i8h B*4d 6g6f 8b9b 2f2h 4d6f 8h9h 7d7e 6e7d 8e7g 8i7g 6f7g+ 7d8c N*6f N*8i 7g7f 8c9b+ 9a9b P*7g 7f9d 5h5g S*7h 5g6f 7h6i N*8f 9d7b B*6d 3a2b 2e2d 2c2d 4h5i G*7h 5i5h 6i5h 2h5h S*6i 5h2h P*8h S*6g 8h8i+ P*2c 2b2c 6g7h 6i7h R*2g 8i9i 9h9i L*2e P*2f N*3e 2f2e 3e2g+ 2e2d 2c1d 2h7h R*6i G*7i 6i6f+ 6d9a+ S*6g 7h9h 6f7g S*7h 6g7h+ 7i7h 7g4g L*7d 7b8c P*6c 6b5c S*8a 4g4i 9i8h 4i2i 8a9b N*8e L*7i 8c8d 9a7c 8d7c 7d7c+ S*9g 9h9g B*2b S*5e 8e9g+ 8h9g 2i1i N*6e L*7g 7h8h 1i7i 8h9h G*9i 9f9e 9i9h 9g9f P*8d B*5h 1d2d 8f7d R*9g 9f8f G*8e 5h8e 9g8g+ 8f7e 8g8e 7e6f 7i6h G*6g B*4h
+
+		→　そこそこ激しい戦型になっているので仕方ないのか。
+		→　定跡32手目までにするのやめたほうがいいのか…。序盤がばらけることより、変な戦型で決着がついて勝率が5割に寄る
+			デメリットのほうが大きいのでは…。
+		→　100局に5局ぐらいがノイズになってしまうと、勝率で5%ぐらい計算が違ってくるか..これはでかいか…。
+
+	・local-game-serverに子プロセスの終了判定のコード追加。
+	・local-game-server、プロセスの起動に失敗したときのコード追加。
+
 	・探索ノード数を表示させてみて、一定値を示しているかの調査
+	→　まあいいや。負荷率がきちんとしている以上、そこはいま問題ではないだろう。
+
+	・置換表サイズによる差の計測
+
+		// hash 16MB
+		c:\jenkins\workspace\yanejob\連続自己対戦>start /B /WAIT /NODE 0 c:/python27/python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker.py \\WS2012_860C_YAN\yanehome exe\YaneuraOuV347RR2.exe eval/Apery20160505  exe\YaneuraOuV347RR2.exe eval/Haku20160731 40 10000 0 { 100 } 
+		home         :  \\WS2012_860C_YAN\yanehome\
+		byoyomi_list :  ['100']
+		evaldirs     :  ['eval/Haku20160731']
+		engine1 = exe\YaneuraOuV347RR2.exe , eval = eval/Apery20160505
+		engine2 = exe\YaneuraOuV347RR2.exe , eval = eval/Haku20160731
+		threads = 40 , loop = 10000 , numa = 0 , byoyomi = 100
+		\\WS2012_860C_YAN\yanehome\\exe\local-game-serverV347.exe , booksfenfile \\WS2012_860C_YAN\yanehome\book/records1.sfen , threads 40 , enginenuma 0 , go btime 10000 , quit
+		finish 3895 - 70 - 6035(39.22% R-76.07)
+
+		// hash 128MB
+		c:\jenkins\workspace\yanejob\連続自己対戦@2>start /B /WAIT /NODE 1 c:/python27/python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker.py \\WS2012_860C_YAN\yanehome exe\YaneuraOuV347RR2.exe eval/Apery20160505  exe\YaneuraOuV347RR2.exe eval/Haku20160731 40 10000 1 { 100 } 
+		home         :  \\WS2012_860C_YAN\yanehome\
+		byoyomi_list :  ['100']
+		evaldirs     :  ['eval/Haku20160731']
+		engine1 = exe\YaneuraOuV347RR2.exe , eval = eval/Apery20160505
+		engine2 = exe\YaneuraOuV347RR2.exe , eval = eval/Haku20160731
+		threads = 40 , loop = 10000 , numa = 1 , byoyomi = 100
+		\\WS2012_860C_YAN\yanehome\\exe\local-game-serverV347.exe , booksfenfile \\WS2012_860C_YAN\yanehome\book/records1.sfen , threads 40 , enginenuma 1 , go btime 10000 , quit
+		finish 4179 - 95 - 5726(42.19% R-54.71)
+
+		// hash 256MB
 
 
 ■　2016/08/03
+
+
+		c:\jenkins\workspace\yanejob\連続自己対戦>start /B /WAIT /NODE 0 c:/python27/python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker.py \\WS2012_860C_YAN\yanehome exe\YaneuraOuV347RR2.exe eval/179_0042G_V3  exe\YaneuraOuV347RR2.exe eval/Haku20160731 40 10000 0 { 1000 } 
+		home         :  \\WS2012_860C_YAN\yanehome\
+		byoyomi_list :  ['1000']
+		evaldirs     :  ['eval/Haku20160731']
+		engine1 = exe\YaneuraOuV347RR2.exe , eval = eval/179_0042G_V3
+		engine2 = exe\YaneuraOuV347RR2.exe , eval = eval/Haku20160731
+		threads = 40 , loop = 10000 , numa = 0 , byoyomi = 1000
+		\\WS2012_860C_YAN\yanehome\\exe\local-game-serverV347.exe , booksfenfile \\WS2012_860C_YAN\yanehome\book/records1.sfen , threads 40 , enginenuma 0 , go btime 10000 , quit
+		finish 3839 - 136 - 6025(38.92% R-78.3)
 
 
 		c:\jenkins\workspace\yanejob\連続自己対戦>start /B /WAIT /NODE 0 c:/python27/python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker.py \\WS2012_860C_YAN\yanehome exe\YaneuraOuV347RR2.exe eval/179_0042G_V3  exe\YaneuraOuV347RR2.exe eval/Haku20160731 40 10000 0 { 300 } 

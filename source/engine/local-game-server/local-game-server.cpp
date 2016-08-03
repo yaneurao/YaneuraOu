@@ -34,219 +34,241 @@ void USI::extra_option(USI::OptionsMap & o)
 // 子プロセスを実行して、子プロセスの標準入出力をリダイレクトするのをお手伝いするクラス。
 struct ProcessNegotiator
 {
-  ProcessNegotiator() { init(); }
+	ProcessNegotiator() { init(); }
 
-  virtual ~ProcessNegotiator() {
-    if (pi.hProcess) {
-      if (::WaitForSingleObject(pi.hProcess, 1000) != WAIT_OBJECT_0) {
-        ::TerminateProcess(pi.hProcess, 0);
-      }
-      ::CloseHandle(pi.hProcess);
-      pi.hProcess = nullptr;
-    }
-  }
-
-#ifdef OUTPUT_PROCESS_LOG
-  // 子プロセスとの通信ログを出力するときにプロセス番号を設定する
-  void set_process_id(int pn_) { pn = pn_; }
-#endif
-
-  // 子プロセスの実行
-  void run(string app_path_)
-  {
-	int numa = (int)Options["EngineNuma"];
-	if (numa != -1)
-	{
-		// numaが指定されているので、それを反映させる。
-		// cmd.exe経由でstartコマンドを叩く。(やねうらお考案)
-
-		app_path_ = "cmd.exe /c start /B /WAIT /NODE " + to_string(numa) + " " + app_path_;
-
-		/*
-			/NODE
-			Numa node(実行するプロセッサグループ)の指定
-
-			/B
-			実行したコマンドを別窓で開かないためのオプション。
-
-			/WAIT
-			/Bを指定したときにはこれを指定して、本窓の終了を待機しないと
-			プロセス実行中に制御を抜けてしまい、file descriptorがleakする。
-		*/
-
+	virtual ~ProcessNegotiator() {
+		if (pi.hProcess) {
+			if (::WaitForSingleObject(pi.hProcess, 1000) != WAIT_OBJECT_0) {
+				::TerminateProcess(pi.hProcess, 0);
+			}
+			::CloseHandle(pi.hProcess);
+			pi.hProcess = nullptr;
+		}
 	}
 
-	  wstring app_path = to_wstring(app_path_);
-
-	  ZeroMemory(&pi, sizeof(pi));
-	  ZeroMemory(&si, sizeof(si));
-
-	  si.cb = sizeof(si);
-	  si.hStdInput = child_std_in_read;
-	  si.hStdOutput = child_std_out_write;
-	  si.dwFlags |= STARTF_USESTDHANDLES;
-
-	  // Create the child process
-
-	  success = ::CreateProcess(
-		  NULL, // ApplicationName
-		  (LPWSTR)app_path.c_str(),  // CmdLine
-		  NULL, // security attributes
-		  NULL, // primary thread security attributes
-		  TRUE, // handles are inherited
-		  0,    // creation flags
-		  NULL, // use parent's environment
-		  NULL, // use parent's current directory
-		  // ここにカレントディレクトリを指定する。
-		  // engine/xxx.exe を起動するなら engine/ を指定するほうがいいような気は少しする。
-
-		  &si,  // STARTUPINFO pointer
-		  &pi   // receives PROCESS_INFOMATION
-	  );
-
-	  if (!success)
-		  sync_cout << "CreateProcessに失敗" << sync_endl;
-
-	  if (pi.hThread) {
-		  ::CloseHandle(pi.hThread);
-		  pi.hThread = nullptr;
-	  }
-  }
-  bool success;
-
-  // 長手数になるかも知れないので…。
-  static const int BUF_SIZE = 4096;
-
-  string read()
-  {
-    auto result = read_next();
-    if (!result.empty())
-      return result;
-
-    // ReadFileは同期的に使いたいが、しかしデータがないときにブロックされるのは困るので
-    // pipeにデータがあるのかどうかを調べてからReadFile()する。
-
-    DWORD dwRead , dwReadTotal , dwLeft;
-    CHAR chBuf[BUF_SIZE];
-
-    // bufferサイズは1文字少なく申告して終端に'\0'を付与してstring化する。
-
-    BOOL success = ::PeekNamedPipe(
-      child_std_out_read, // [in]  handle of named pipe
-      chBuf,              // [out] buffer     
-      BUF_SIZE-1,         // [in]  buffer size
-      &dwRead,            // [out] bytes read
-      &dwReadTotal,       // [out] total bytes avail
-      &dwLeft             // [out] bytes left this message
-      );
-
-    if (success && dwReadTotal > 0)
-    {
-      success = ::ReadFile(child_std_out_read, chBuf, BUF_SIZE - 1, &dwRead, NULL);
-
-      if (success && dwRead != 0)
-      {
-        chBuf[dwRead] = '\0'; // 終端マークを書いて文字列化する。
-        read_buffer += string(chBuf);
-      }
-    }
-    return read_next();
-  }
-
-  bool write(string str)
-  {
-    str += "\r\n"; // 改行コードの付与
-    DWORD dwWritten;
-    BOOL success = ::WriteFile(child_std_in_write, str.c_str(), DWORD(str.length()) , &dwWritten, NULL);
-
 #ifdef OUTPUT_PROCESS_LOG
-    sync_cout << "[" << pn << "] >" << str << sync_endl;
+	// 子プロセスとの通信ログを出力するときにプロセス番号を設定する
+	void set_process_id(int pn_) { pn = pn_; }
 #endif
 
-    return success;
-  }
+	// 子プロセスの実行
+	void run(string app_path_)
+	{
+		int numa = (int)Options["EngineNuma"];
+		if (numa != -1)
+		{
+			// numaが指定されているので、それを反映させる。
+			// cmd.exe経由でstartコマンドを叩く。(やねうらお考案)
+
+			app_path_ = "cmd.exe /c start /B /WAIT /NODE " + to_string(numa) + " " + app_path_;
+
+			/*
+				/NODE
+				Numa node(実行するプロセッサグループ)の指定
+
+				/B
+				実行したコマンドを別窓で開かないためのオプション。
+
+				/WAIT
+				/Bを指定したときにはこれを指定して、本窓の終了を待機しないと
+				プロセス実行中に制御を抜けてしまい、file descriptorがleakする。
+			*/
+
+		}
+
+		wstring app_path = to_wstring(app_path_);
+
+		ZeroMemory(&pi, sizeof(pi));
+		ZeroMemory(&si, sizeof(si));
+
+		si.cb = sizeof(si);
+		si.hStdInput = child_std_in_read;
+		si.hStdOutput = child_std_out_write;
+		si.dwFlags |= STARTF_USESTDHANDLES;
+
+		// Create the child process
+
+		success = ::CreateProcess(
+			NULL, // ApplicationName
+			(LPWSTR)app_path.c_str(),  // CmdLine
+			NULL, // security attributes
+			NULL, // primary thread security attributes
+			TRUE, // handles are inherited
+			0,    // creation flags
+			NULL, // use parent's environment
+			NULL, // use parent's current directory
+			// ここにカレントディレクトリを指定する。
+			// engine/xxx.exe を起動するなら engine/ を指定するほうがいいような気は少しする。
+
+			&si,  // STARTUPINFO pointer
+			&pi   // receives PROCESS_INFOMATION
+		);
+
+		if (!success)
+		{
+			sync_cout << "Error : failed to CreateProcess" << sync_endl;
+			terminated = true;
+		}
+
+		if (pi.hThread)
+		{
+			::CloseHandle(pi.hThread);
+			pi.hThread = nullptr;
+		}
+	}
+	bool success;
+
+	// 長手数になるかも知れないので…。
+	static const int BUF_SIZE = 4096;
+
+	string read()
+	{
+		auto result = read_next();
+		if (!result.empty())
+			return result;
+
+
+		DWORD dwExitCode;
+		::GetExitCodeProcess(pi.hProcess, &dwExitCode);
+		if (dwExitCode != STILL_ACTIVE)
+		{
+			read_buffer += "Error : PROCESS terminated unexpectedly.\n";
+			terminated = true;
+			return read_next();
+		}
+
+		// ReadFileは同期的に使いたいが、しかしデータがないときにブロックされるのは困るので
+		// pipeにデータがあるのかどうかを調べてからReadFile()する。
+
+		DWORD dwRead, dwReadTotal, dwLeft;
+		CHAR chBuf[BUF_SIZE];
+
+		// bufferサイズは1文字少なく申告して終端に'\0'を付与してstring化する。
+
+		BOOL success = ::PeekNamedPipe(
+			child_std_out_read, // [in]  handle of named pipe
+			chBuf,              // [out] buffer     
+			BUF_SIZE - 1,         // [in]  buffer size
+			&dwRead,            // [out] bytes read
+			&dwReadTotal,       // [out] total bytes avail
+			&dwLeft             // [out] bytes left this message
+		);
+
+		if (success && dwReadTotal > 0)
+		{
+			success = ::ReadFile(child_std_out_read, chBuf, BUF_SIZE - 1, &dwRead, NULL);
+
+			if (success && dwRead != 0)
+			{
+				chBuf[dwRead] = '\0'; // 終端マークを書いて文字列化する。
+				read_buffer += string(chBuf);
+			}
+		}
+		return read_next();
+	}
+
+	bool write(string str)
+	{
+		str += "\r\n"; // 改行コードの付与
+		DWORD dwWritten;
+		BOOL success = ::WriteFile(child_std_in_write, str.c_str(), DWORD(str.length()), &dwWritten, NULL);
+
+#ifdef OUTPUT_PROCESS_LOG
+		sync_cout << "[" << pn << "] >" << str << sync_endl;
+#endif
+
+		return success;
+	}
+
+	// プロセスの終了判定
+	bool is_terminated() const { return terminated; }
 
 protected:
 
-  void init()
-  {
-    // pipeの作成
+	void init()
+	{
+		terminated = false;
 
-    SECURITY_ATTRIBUTES saAttr;
+		// pipeの作成
 
-    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
-    saAttr.bInheritHandle = TRUE;
-    saAttr.lpSecurityDescriptor = NULL;
+		SECURITY_ATTRIBUTES saAttr;
+
+		saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+		saAttr.bInheritHandle = TRUE;
+		saAttr.lpSecurityDescriptor = NULL;
 
 #define ERROR_MES(mes) { sync_cout << mes << sync_endl; return ; }
 
-    if (!::CreatePipe(&child_std_out_read, &child_std_out_write, &saAttr, 0))
-      ERROR_MES("error CreatePipe : std out");
+		if (!::CreatePipe(&child_std_out_read, &child_std_out_write, &saAttr, 0))
+			ERROR_MES("Error : CreatePipe : std out");
 
-    if (!::SetHandleInformation(child_std_out_read, HANDLE_FLAG_INHERIT, 0))
-      ERROR_MES("error SetHandleInformation : std out");
-    
-    if (!::CreatePipe(&child_std_in_read, &child_std_in_write, &saAttr, 0))
-      ERROR_MES("error CreatePipe : std in");
+		if (!::SetHandleInformation(child_std_out_read, HANDLE_FLAG_INHERIT, 0))
+			ERROR_MES("Error : SetHandleInformation : std out");
 
-    if (!::SetHandleInformation(child_std_in_write, HANDLE_FLAG_INHERIT, 0))
-      ERROR_MES("error SetHandleInformation : std in");
+		if (!::CreatePipe(&child_std_in_read, &child_std_in_write, &saAttr, 0))
+			ERROR_MES("Error : CreatePipe : std in");
+
+		if (!::SetHandleInformation(child_std_in_write, HANDLE_FLAG_INHERIT, 0))
+			ERROR_MES("Error : SetHandleInformation : std in");
 
 #undef ERROR_MES
-  }
+	}
 
-  string read_next()
-  {
-    // read_bufferから改行までを切り出す
-    auto it = read_buffer.find("\n");
-    if (it == string::npos)
-      return string();
-    // 切り出したいのは"\n"の手前まで(改行コード不要)、このあと"\n"は捨てたいので
-    // it+1から最後までが次回まわし。
-    auto result = read_buffer.substr(0, it);
-    read_buffer = read_buffer.substr(it+1, read_buffer.size() - it);
-    // "\r\n"かも知れないので"\r"も除去。
-    if (result.size() && result[result.size() - 1] == '\r')
-      result = result.substr(0, result.size() - 1);
+	string read_next()
+	{
+		// read_bufferから改行までを切り出す
+		auto it = read_buffer.find("\n");
+		if (it == string::npos)
+			return string();
+		// 切り出したいのは"\n"の手前まで(改行コード不要)、このあと"\n"は捨てたいので
+		// it+1から最後までが次回まわし。
+		auto result = read_buffer.substr(0, it);
+		read_buffer = read_buffer.substr(it + 1, read_buffer.size() - it);
+		// "\r\n"かも知れないので"\r"も除去。
+		if (result.size() && result[result.size() - 1] == '\r')
+			result = result.substr(0, result.size() - 1);
 
 #ifdef OUTPUT_PROCESS_LOG
-    sync_cout << "[" << pn << "] >" <<  result << sync_endl;
+		sync_cout << "[" << pn << "] >" << result << sync_endl;
 #endif
 
-    if (result.find("Error") != string::npos)
-    {
-      // 何らかエラーが起きたので表示させておく。
-      sync_cout << "Error : " << result << sync_endl;
-    }
+		if (result.find("Error") != string::npos)
+		{
+			// 何らかエラーが起きたので表示させておく。
+			sync_cout << "Error : " << result << sync_endl;
+		}
 
-    return result;
-  }
+		return result;
+	}
 
-  // wstring変換
-  wstring to_wstring(const string& src)
-  {
-    size_t ret;
-    wchar_t *wcs = new wchar_t[src.length() + 1];
-    ::mbstowcs_s(&ret,wcs, src.length()+1, src.c_str(), _TRUNCATE);
-    wstring result = wcs;
-    delete[] wcs;
-    return result;
-  }
+	// wstring変換
+	wstring to_wstring(const string& src)
+	{
+		size_t ret;
+		wchar_t *wcs = new wchar_t[src.length() + 1];
+		::mbstowcs_s(&ret, wcs, src.length() + 1, src.c_str(), _TRUNCATE);
+		wstring result = wcs;
+		delete[] wcs;
+		return result;
+	}
 
-  PROCESS_INFORMATION pi;
-  STARTUPINFO si;
+	PROCESS_INFORMATION pi;
+	STARTUPINFO si;
 
-  HANDLE child_std_out_read;
-  HANDLE child_std_out_write;
-  HANDLE child_std_in_read;
-  HANDLE child_std_in_write;
+	HANDLE child_std_out_read;
+	HANDLE child_std_out_write;
+	HANDLE child_std_in_read;
+	HANDLE child_std_in_write;
 
-  // 受信バッファ
-  string read_buffer;
+	// プロセスが終了したかのフラグ
+	bool terminated;
+
+	// 受信バッファ
+	string read_buffer;
 
 #ifdef  OUTPUT_PROCESS_LOG
-  // プロセス番号(ログ出力のときに使う)
-  int pn;
+	// プロセス番号(ログ出力のときに使う)
+	int pn;
 #endif
 };
 
@@ -530,7 +552,7 @@ void MainThread::think() {
     }
     cout << endl;
   } else {
-    sync_cout << "Error! : can't read book.sfen" << sync_endl;
+    sync_cout << "Error : can't read book.sfen" << sync_endl;
   }
 
   sync_cout << "local game server start : " << engine_name[0] << " vs " << engine_name[1] << sync_endl;
@@ -680,6 +702,10 @@ void Thread::search()
 
 		es[0].on_idle();
 		es[1].on_idle();
+
+		// プロセスが終了している以上、試合は続行できない。
+		if (es[0].pn.is_terminated() || es[1].pn.is_terminated())
+			break;
 
 		if (!game_started && es[0].is_game_started() && es[1].is_game_started())
 		{

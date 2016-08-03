@@ -1,3 +1,4 @@
+import time
 import sys
 import subprocess
 import os.path
@@ -10,13 +11,29 @@ def write_engine_file(num , engine_name , eval_dir , byoyomi):
 	f.write("go rtime " + byoyomi + "\n")
 	f.write("setoption name EvalDir value " + eval_dir+"\n")
 	f.write("setoption name Hash value 16\n")
-#	f.write("setoption name Hash value 128\n")
+#	f.write("setoption name Hash value 256\n")
 	f.write("setoption name Threads value 1\n")
 	f.write("setoption name BookFile value no_book\n")
 	f.write("setoption name NetworkDelay value 0\n")
 	f.write("setoption name NetworkDelay2 value 0\n")
 
 	f.close()
+
+def output_rating(win,draw,lose):
+		total = win + lose
+		if total != 0 :
+			win_rate = win / float(win+lose)
+		else:
+			win_rate = 0
+
+		if win_rate == 0 or win_rate == 1:
+			rating = ""
+		else:
+			rating = " R" + str(round(-400*math.log(1/win_rate-1,10),2))
+
+		print str(win) + " - " + str(draw) + " - " + str(lose) + "(" + str(round(win_rate*100,2)) + "%" + rating + ")"
+		sys.stdout.flush()
+
 
 param = sys.argv
 
@@ -66,31 +83,53 @@ for evaldir in evaldirs:
 		write_engine_file(1,home + param[2],home + param[3],byoyomi)
 		write_engine_file(2,home + param[4],home + evaldir,byoyomi)
 
-		cmd = home + "\\exe\\local-game-serverV347.exe , booksfenfile " + home + "book/records1.sfen , threads " + threads + " , enginenuma " + numa + " , go btime " + loop + " , quit"
+		cmd = home + "\\exe\\local-game-serverV350.exe , booksfenfile " + home + "book/records1.sfen , threads " + threads + " , enginenuma " + numa + " , go btime " + loop + " , quit"
 
 		# subprocess.call( cmd.strip().split(" "))
 		print cmd
-		p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		stdout_data, stderr_data = p.communicate()
+		proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+		# stdout_data, stderr_data = p.communicate()
 		# print "finish: \n%s\n%s" % (stdout_data, stderr_data)
 
 		win = lose = draw = 0
-		for line in stdout_data.split('\n'):
-			if line.startswith("win"):
-				win += 1
-			elif line.startswith("lose"):
-				lose += 1
-			elif line.startswith("draw"):
-				draw += 1
 
-			if "Error" in line:
-				print line
+		while True:
+			retcode = proc.poll()
+			if retcode is not None:
+				# Process finished.
+				break
 
+			lines = proc.stdout.readline
 
-		total = win + lose
-		if total != 0 :
-			win_rate = win / float(win+lose)
-		else:
-			win_rate = 0
-		print "finish " + str(win) + " - " + str(draw) + " - " + str(lose) + "(" + str(round(win_rate*100,2)) + "% R" + str(round(-400*math.log(1/win_rate-1,10),2)) + ")\n"
+			for line in iter(proc.stdout.readline, b''):
+				update = True
+				if line.startswith("win"):
+					win += 1
+				elif line.startswith("lose"):
+					lose += 1
+				elif line.startswith("draw"):
+					draw += 1
+				else:
+					update = False
+
+				total = win + draw + lose
+				if update and (total % 10)==0 :
+					output_rating(win,draw,lose)
+
+#				print "[" +line +"]"
+
+				if "Error" in line:
+					print line
+					sys.stdout.flush()
+
+			# process is not done, wait a bit and check again.
+	        time.sleep(10)
+
+		# output final result
+		print "\n\nfinal result : "
+		print "engine1 = " + param[2] + " , eval = " + param[3]
+		print "engine2 = " + param[4] + " , eval = " + evaldir
+		print "byoyomi = " + byoyomi + " , " ,
+		output_rating(win,draw,lose)
 
