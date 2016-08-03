@@ -46,11 +46,19 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 
   if (limits.rtime)
   {
-    // これが指定されているときは1～1.5倍の範囲で最小思考時間をランダム化する。
-    // 連続自己対戦時に最小思考時間をばらつかせるためのもの。
-    // remain_timeにもこれを代入しておかないとround_up()が正常に出来なくて困る。
-    remain_time = minimumTime = optimumTime = maximumTime = limits.rtime + (int)prng.rand(limits.rtime/2);
-    return;
+	  // これが指定されているときは最小思考時間をランダム化する。
+	  // 連続自己対戦時に同じ進行になるのを回避するためのもの。
+	  // 終盤で大きく持ち時間を変えると、勝率が5割に寄ってしまうのでそれには注意。
+
+	  auto r = limits.rtime;
+#if 1
+	  // 指し手が進むごとに減衰していく曲線にする。
+	  if (ply)
+		  r += (int)prng.rand((int)std::min(r * 0.5f, r * 10.0f / (ply)));
+#endif
+
+	  remain_time = minimumTime = optimumTime = maximumTime = r;
+	  return;
   }
   
 #if 0

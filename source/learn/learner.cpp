@@ -748,7 +748,7 @@ struct SfenReader
 		auto& thread_ps = packed_sfens[thread_id];
 
 		// バッファに残りがなかったらread bufferから充填するが、それすらなかったらもう終了。
-		if ((thread_ps == nullptr || thread_ps->size() == 0) // バッファが空なら重点する。
+		if ((thread_ps == nullptr || thread_ps->size() == 0) // バッファが空なら充填する。
 			&& !read_to_thread_buffer_impl(thread_id))
 			return false;
 
