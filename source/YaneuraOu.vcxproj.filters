@@ -68,6 +68,9 @@
     <Filter Include="リソース ファイル\learn">
       <UniqueIdentifier>{d7ca69f7-bd83-40ce-89c2-fe2d730b80be}</UniqueIdentifier>
     </Filter>
+    <Filter Include="script">
+      <UniqueIdentifier>{efb5b189-918a-4b2a-ba65-731c674603a7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -372,6 +375,12 @@
     </None>
     <None Include="..\exe\YaneuraOu-2016-mid-sse41.exe">
       <Filter>exe</Filter>
+    </None>
+    <None Include="..\script\calc_rating.py">
+      <Filter>script</Filter>
+    </None>
+    <None Include="..\script\engine_invoker.py">
+      <Filter>script</Filter>
     </None>
   </ItemGroup>
 </Project>

@@ -305,6 +305,8 @@
     <None Include="..\exe\YaneuraOu-nano-plus.exe" />
     <None Include="..\exe\YaneuraOu-nano.exe" />
     <None Include="..\README.md" />
+    <None Include="..\script\calc_rating.py" />
+    <None Include="..\script\engine_invoker.py" />
     <None Include="Makefile" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
