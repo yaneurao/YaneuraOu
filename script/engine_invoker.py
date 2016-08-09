@@ -4,14 +4,13 @@ import subprocess
 import os.path
 import math
 
-def write_engine_file(num , engine_name , eval_dir , byoyomi):
+def write_engine_file(num , engine_name , eval_dir , byoyomi , hash):
 	f = open("engine-config"+str(num)+".txt","w")
 	f.write(engine_name+"\n")
 #	f.write("go btime 0 wtime 0 byoyomi "+byoyomi+"\n")
 	f.write("go rtime " + byoyomi + "\n")
 	f.write("setoption name EvalDir value " + eval_dir+"\n")
-	f.write("setoption name Hash value 16\n")
-#	f.write("setoption name Hash value 256\n")
+	f.write("setoption name Hash value " + str(hash) + "\n")
 	f.write("setoption name Threads value 1\n")
 	f.write("setoption name BookFile value no_book\n")
 	f.write("setoption name NetworkDelay value 0\n")
@@ -68,9 +67,14 @@ else:
 		evaldirs.append(param[5] + "/" + str(i) )
 		i += 1
 
+book_moves = 16
+hash = 24
+
 print "home         : " , home
 print "byoyomi_list : " , byoyomi_list
 print "evaldirs     : " , evaldirs
+print "hash size    : " , hash
+print "book_moves   : " , book_moves
 
 for evaldir in evaldirs:
 
@@ -80,10 +84,10 @@ for evaldir in evaldirs:
 	for byoyomi in byoyomi_list:
 
 		print "threads = " + threads + " , loop = " + loop + " , numa = " + numa + " , byoyomi = " + byoyomi
-		write_engine_file(1,home + param[2],home + param[3],byoyomi)
-		write_engine_file(2,home + param[4],home + evaldir,byoyomi)
+		write_engine_file(1,home + param[2],home + param[3],byoyomi,hash)
+		write_engine_file(2,home + param[4],home + evaldir ,byoyomi,hash)
 
-		cmd = home + "\\exe\\local-game-serverV350.exe , booksfenfile " + home + "book/records1.sfen , threads " + threads + " , enginenuma " + numa + " , go btime " + loop + " , quit"
+		cmd = home + "\\exe\\local-game-serverV350.exe , booksfenfile " + home + "book/records1.sfen , threads " + threads + " , enginenuma " + numa + " , go btime " + loop + " wtime " + str(book_moves) + ", quit"
 
 		# subprocess.call( cmd.strip().split(" "))
 		print cmd

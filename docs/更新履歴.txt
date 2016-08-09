@@ -2,6 +2,11 @@
 やねうら王 更新履歴
 
 
+■　2016/08/09 V3.51
+
+・Position::is_mated()でstalemateの判定がおかしかったのを修正。(tanuki-さんより報告あり)
+
+
 ■　2016/08/04 V3.50
 
 ・レーティング計算用、pythonのスクリプトをプロジェクトに追加。→　script/calc_rating.py

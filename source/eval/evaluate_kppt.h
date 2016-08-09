@@ -66,9 +66,6 @@ namespace Eval
 		ValueKk kk_[SQ_NB][SQ_NB];
 		ValueKpp kpp_[SQ_NB][fe_end][fe_end];
 		ValueKkp kkp_[SQ_NB][SQ_NB][fe_end];
-
-		// 参照カウント(プロセス間で共有している数)
-		int shared_count;
 	};
 
 #else

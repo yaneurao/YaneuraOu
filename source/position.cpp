@@ -620,20 +620,6 @@ Bitboard Position::pinned_pieces(Color c, Square from, Square to) const {
 // 現局面で指し手がないかをテストする。指し手生成ルーチンを用いるので速くない。探索中には使わないこと。
 bool Position::is_mated() const
 {
-  // a. 王手している駒がない
-  // b. stalemateではない
-  // ならば、この時点で不詰めが証明される。
-  // b.のstatemateは、c. 玉以外いなくて、d. 手駒がない、かつ、e. 玉の行き場所すべてに相手の利きがある
-  // ことがその条件であるが、c.かつd.であることだけここでは調べて、e.は実際の指し手生成で調べることにする。
-  // (stalemate自体レアケースなのでそこを高速化してもあまり意味がない)
-  // if (a && b) return false;
-  // → if (a && !(c && d && e)) return false; // b = !(c && d && e) より
-  // → if (a && !(c && d)) return false;      // eはこのあと判定する
-  // → if (a && (!c || !d)) return false;     // ドモルガンの法則より
-  auto Us = sideToMove;
-  if (!st->checkersBB && (hand[Us] != HAND_ZERO || pieces(Us) != Bitboard(king_square(Us))))
-    return false;
-
   // 不成で詰めろを回避できるパターンはないのでLEGAL_ALLである必要はない。
   return MoveList<LEGAL>(*this).size() == 0;
 }

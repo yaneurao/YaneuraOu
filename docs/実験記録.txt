@@ -14,6 +14,66 @@ ToDo:
 ・mate3()書く。
 
 
+■　2016/08/09
+
+Position::is_mated()でstalemateを、玉以外に自駒がいない状態と定義してあるのは間違い。
+以下の局面図で、81の銀は動かせるが、動かすと51の飛車に素ぬかれる。
+なのでstalemateの判定の仕方は、これではまずく、王手がかかっていないときも
+合法手が1つ以上あるかをテストする必要がある。
+
+ 玉 銀 □ □^飛^金 □^桂 □
+ 歩 歩^金 □ □^歩^桂^歩^香
+ □ □^と^歩 □^玉□ □ □
+ □ □ □^龍^歩 □^金^銀□
+ □ □^圭□ □^香□ □^歩
+ □^銀 □ □ □ □^歩 □ □
+ □^銀^馬 □ □ □ □ □ □
+ □ □ □ □ □ □ □ □ □
+ □ □ □^杏 □ □ □^馬 □
+
+ ゆえに以下のコードは、破棄。
+
+  // a. 王手している駒がない
+  // b. stalemateではない
+  // ならば、この時点で不詰めが証明される。
+  // b.のstatemateは、c. 玉以外いなくて、d. 手駒がない、かつ、e. 玉の行き場所すべてに相手の利きがある
+  // ことがその条件であるが、c.かつd.であることだけここでは調べて、e.は実際の指し手生成で調べることにする。
+  // (stalemate自体レアケースなのでそこを高速化してもあまり意味がない)
+  // if (a && b) return false;
+  // → if (a && !(c && d && e)) return false; // b = !(c && d && e) より
+  // → if (a && !(c && d)) return false;      // eはこのあと判定する
+  // → if (a && (!c || !d)) return false;     // ドモルガンの法則より
+  auto Us = sideToMove;
+  if (!st->checkersBB && (hand[Us] != HAND_ZERO || pieces(Us) != Bitboard(king_square(Us))))
+    return false;
+
+
+
+■　2016/08/05
+
+・自己対戦サーバーで、メッセージをtrapする仕組みを入れるか。
+　んー、それにしてもCPU負荷が100%でもないのに探索できないというのはありえないような気もするのだが…。
+
+・メモリ共有、40HTで読み込み中に別のスレッドが壊す/使いはじめるということはあるか?
+　　→　読み込み終わるまでmutexで囲われてる…。mutexとmemory mapped fileの解放順序は…問題ないと思う。
+
+・hash size 24MBでシミュレーションしてみる。
+	→　table[x & clusterCount]だから配列からはみ出ることがありえないな…。
+
+・評価関数のメモリ、readonlyに出来るか試す。
+	→　難しそう。
+
+・局面生成してみる。
+	depth 5で20万局面20秒(HT40) 2億局面 = 2万秒
+	3PCでも24時間(86400秒)で8億局面×3PC×dual = 50億局面ぐらい生成できるのか。
+	depth 5が現実解かも知れない。25億局面ほど生成して追加学習させて強くなるかテストしよう。
+
+	4PC、1000Wのコンセントでギリギリいけそう。
+	250(2698)+250(2698)+300(2698)+120(4771) = 920W
+	HDDとかプリンター酷使したら落ちたりして…。
+	別系統から1000W取ってきて、このあとの2PCと、2698ひとつはそちらから取ろう。
+	
+
 ■　2016/08/04
 
 ・自己対戦の戦績がアテにならんのを何とかする
@@ -95,6 +155,96 @@ ToDo:
 		finish 4179 - 95 - 5726(42.19% R-54.71)
 
 		// hash 256MB
+		final result : 
+		engine1 = exe\YaneuraOuV350.exe , eval = eval/Apery20160505
+		engine2 = exe\YaneuraOuV350.exe , eval = eval/Haku20160731
+		byoyomi = 100 ,  3820 - 79 - 6101(38.5% R-81.34)
+
+
+	置換表サイズの差ではなく、3%ぐらいはゴミ定跡を掴まされた差が出ると考えるのが自然か。
+	ゴミ定跡を掴まされて勝率50%に寄ると仮定すると本来のR差は76以上のはずだから、定跡を短くしたときに、そうなるはずだが…。
+
+	置換表サイズが大きくなる ≒ 探索効率がよくなる　≒　持ち時間が増えたときと同じ
+	　なので、R差が開く傾向にあるのか..。
+
+	・book moves = 16
+		engine1 = exe\YaneuraOuV350.exe , eval = eval/Apery20160505
+		engine2 = exe\YaneuraOuV350.exe , eval = eval/Haku20160731
+		byoyomi = 100 ,  3945 - 85 - 5970(39.79% R-71.97)
+
+		engine1 = exe\YaneuraOuV350.exe , eval = eval/Apery20160505
+		engine2 = exe\YaneuraOuV350.exe , eval = eval/Apery20160730
+		threads = 40 , loop = 10000 , numa = 0 , byoyomi = 500
+		389 - 8 - 1443(21.23% R-227.73)
+		→　おかしい。何かおかしいところを引いてくるのか？
+			hash size    :  24
+			book_moves   :  16
+		→　hash size間違えたのか。うむむむ..。この差は何なのか。棋譜全部調べたほうがいいな。
+		→　メモリが足りなかったわけではなさそうなのだが…。
+
+		// book_moves = 24
+		engine1 = exe\YaneuraOuV350.exe , eval = eval/Apery20160505
+		engine2 = exe\YaneuraOuV350.exe , eval = eval/Apery20160730
+		byoyomi = 500 ,  417 - 15 - 568(42.34% R-53.68)
+
+		置換表サイズをおかしくしたときに評価関数のメモリを破壊して、
+		全プロセスでおかしくなっている可能性ってないのかな。
+		・hash size 24MBでシミュレーションしてみる。
+		・置換表のメモリ、readonlyに出来るか試す。
+		・メモリ共有、40HTで読み込み中に別のスレッドが壊す/使いはじめるということはあるか?
+
+		// hash 24MB , bookmoves = 16
+		engine1 = exe\YaneuraOuV350.exe , eval = eval/Apery20160505
+		engine2 = exe\YaneuraOuV350.exe , eval = eval/Apery20160730
+		byoyomi = 500 ,  417 - 9 - 574(42.08% R-55.51)
+
+		// hash 16MB , bookmoves = 24
+		engine1 = exe\YaneuraOuV350.exe , eval = eval/Apery20160505
+		engine2 = exe\YaneuraOuV350.exe , eval = eval/Apery20160730
+		byoyomi = 1000 ,  397 - 9 - 594(40.06% R-70.0)
+
+		メモリテストしたほうが良いか？
+		→　メモリ、問題なかった。
+
+		Aperyの新バイナリのテスト。
+
+		hash size    :  16
+		book_moves   :  24
+
+		engine1 = exe\YaneuraOuV350.exe , eval = eval/Apery20160730
+		engine2 = exe\YaneuraOuV350.exe , eval = eval/Apery20160803
+		byoyomi = 100 ,  5464 - 83 - 4453(55.1% R35.54)
+
+		engine1 = exe\YaneuraOuV350.exe , eval = eval/Apery20160730
+		engine2 = exe\YaneuraOuV350.exe , eval = eval/Apery20160803
+		byoyomi = 300 ,  5409 - 115 - 4476(54.72% R32.89)
+
+		engine1 = exe\YaneuraOuV350.exe , eval = eval/Apery20160730
+		engine2 = exe\YaneuraOuV350.exe , eval = eval/Apery20160803
+		byoyomi = 100 ,  572 - 8 - 420(57.66% R53.66)
+
+		engine1 = exe\YaneuraOuV350.exe , eval = eval/Apery20160730
+		engine2 = exe\YaneuraOuV350.exe , eval = eval/Apery20160803
+		byoyomi = 300 ,  532 - 11 - 457(53.79% R26.4)
+
+
+		Apery20160803、強くなってない可能性が微レ存。
+
+		engine1 = exe\YaneuraOuV350.exe , eval = eval/Haku20160731
+		engine2 = exe\YaneuraOuV350.exe , eval = eval/Apery20160803
+		byoyomi = 100 ,  5697 - 69 - 4234(57.37% R51.56)
+
+		engine1 = exe\YaneuraOuV350.exe , eval = eval/Haku20160731
+		engine2 = exe\YaneuraOuV350.exe , eval = eval/Apery20160803
+		byoyomi = 300 ,  5486 - 79 - 4435(55.3% R36.94)
+
+		engine1 = exe\YaneuraOuV350.exe , eval = eval/Haku20160731
+		engine2 = exe\YaneuraOuV350.exe , eval = eval/Apery20160803
+		byoyomi = 100 ,  565 - 6 - 429(56.84% R47.84)
+
+		engine1 = exe\YaneuraOuV350.exe , eval = eval/Haku20160731
+		engine2 = exe\YaneuraOuV350.exe , eval = eval/Apery20160803
+		byoyomi = 300 ,  558 - 4 - 438(56.02% R42.06)
 
 
 ■　2016/08/03
