@@ -14,6 +14,36 @@ ToDo:
 ・mate3()書く。
 
 
+■　2016/08/14
+
+・pythonによる連続自己対戦フレームワーク(仮)
+	→　script/engine_invoker2.py追加。
+
+	pythonのsubprocessだとreadがblockingする。Windowsだとこれを回避するのすごく難しい。
+	無駄なthread作りたくないというのに…。
+
+		# Non-blocking read on a subprocess.PIPE in python
+		# http://stackoverflow.com/questions/375427/non-blocking-read-on-a-subprocess-pipe-in-python
+	
+		fcntl indeed doesn't work on Windows
+
+		http://code.activestate.com/recipes/440554-module-to-allow-asynchronous-subprocess-use-on-win/
+
+		The portable way: letting the main thread block
+		https://repolinux.wordpress.com/2012/10/09/non-blocking-read-from-stdin-in-python/#windows
+
+	ああ、なんとかなった感じ。
+
+		# process is not done, wait a bit and check again.
+		time.sleep(0)
+
+	このsleep(0)を入れると1000対局超えたあたりからCPU負荷率が下がっていく。
+	OSのスレッドスケジューラーに絡む何かかも。
+
+	pythonのスクリプト側で定跡と時間制御を実装して、もう少し原因を調べてみる。
+
+
+
 ■　2016/08/09
 
 Position::is_mated()でstalemateを、玉以外に自駒がいない状態と定義してあるのは間違い。

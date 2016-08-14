@@ -2,6 +2,12 @@
 やねうら王 更新履歴
 
 
+■　2016/08/14 V3.52
+
+・pythonによる連続自己対戦フレームワーク(仮)
+	→　script/engine_invoker2.py追加。
+
+
 ■　2016/08/09 V3.51
 
 ・Position::is_mated()でstalemateの判定がおかしかったのを修正。(tanuki-さんより報告あり)
