@@ -14,17 +14,36 @@ ToDo:
 ・mate3()書く。
 
 
+■　2016/08/16
+
+
+
+
+・futility margin変更
+	https://github.com/official-stockfish/Stockfish/commit/85924db496af2fb8d70b6c89b17fc8541339ca19
+
+	-  Value futility_margin(Depth d) { return Value(200 * d); }
+	+  Value futility_margin(Depth d) { return Value(150 * d); }
+
+		　PARAM_FUTILITY_MARGIN_ALPHA を200→150に。
+
+           if (   predictedDepth < 7 * ONE_PLY
+	-              && ss->staticEval + futility_margin(predictedDepth) + 256 <= alpha)
+ 	+              && ss->staticEval + 256 + 200 * predictedDepth / ONE_PLY <= alpha)
+
+
+
 ■　2016/08/15
 
 ・pythonフレームワークによる自己対戦
 
-	Apery20160505      vs Apery20160505 , r100  , 5008 - 83 - 4899(50.55% R3.82)
-	Apery20160505      vs haku20160729  , r100  , 3518 - 75 - 6397(35.48% R-103.87)
-	haku20160729no_ave vs haku20160729  , r100  , 4956 - 95 - 4939(50.09% R0.6)
-	Apery20160812      vs haku20160729  , r100  , 5227 - 52 - 4711(52.6% R18.06)
-	Apery20160812      vs Apery20160810 , r100  , 5014 - 71 - 4905(50.55% R3.82)
-	Apery20160731      vs Apery20160810 , r100  , 5996 - 56 - 3938(60.36% R73.03) ※3
-	Apery20160505      vs Apery20160812 , r100  , 4282 - 52 - 5656(43.09% R-48.35) ※2
+	Apery20160505      vs Apery20160505 ,  r100 , 5008 - 83 - 4899(50.55% R3.82)
+	Apery20160505      vs haku20160729  ,  r100 , 3518 - 75 - 6397(35.48% R-103.87)
+	haku20160729no_ave vs haku20160729  ,  r100 , 4956 - 95 - 4939(50.09% R0.6)
+	Apery20160812      vs haku20160729  ,  r100 , 5227 - 52 - 4711(52.6% R18.06)
+	Apery20160812      vs Apery20160810 ,  r100 , 5014 - 71 - 4905(50.55% R3.82)
+	Apery20160731      vs Apery20160810 ,  r100 , 5996 - 56 - 3938(60.36% R73.03) ※3
+	Apery20160505      vs Apery20160812 ,  r100 , 4282 - 52 - 5656(43.09% R-48.35) ※2
 	Apery20160505      vs Apery20160812 , b2000 ,  935 - 30 - 1905(32.92% R-123.63)
 	haku20160729       vs Apery20160812 , b2000 , 1032 - 31 - 1507(40.65% R-65.77)
 	Apery20160505      vs haku20160729  , b2000 ,  952 - 33 - 1625(36.94% R-92.89)
@@ -32,6 +51,8 @@ ToDo:
 	Apery20160731      vs Apery20160810 , b2000 ,  1128 - 25 - 1247(47.49% R-17.42) ※3
 	Apery20160810      vs Apery20160731 , b2000 ,  1284 - 17 - 1139(52.99% R20.82)  ※3
 	Apery20160810      vs Apery20160812 , b2000 ,  1041 - 35 - 1194(46.58% R-23.82)
+	Apery20160812      vs 179_0042G_V3  ,  r100 ,  5369 - 39 - 4592(53.9% R27.16)
+
 
 	Apery20160505(non shared memory) vs Apery20160505(shared memory) , r100 thread4 , 4086 - 104 - 4000(50.53% R3.7)
 	
