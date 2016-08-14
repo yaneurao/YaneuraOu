@@ -330,22 +330,31 @@ namespace USI
 // USI関係のコマンド処理
 // --------------------
 
+s32 eval_sum;
+
 // is_ready_cmd()を外部から呼び出せるようにしておく。(benchコマンドなどから呼び出したいため)
 void is_ready()
 {
-  static bool first = true;
+	static bool first = true;
 
-  // 評価関数の読み込みなど時間のかかるであろう処理はこのタイミングで行なう。
-  // 起動時に時間のかかる処理をしてしまうと将棋所がタイムアウト判定をして、思考エンジンとしての認識をリタイアしてしまう。
-  if (first)
-  {
-    // 評価関数の読み込み
-    Eval::load_eval();
+	// 評価関数の読み込みなど時間のかかるであろう処理はこのタイミングで行なう。
+	// 起動時に時間のかかる処理をしてしまうと将棋所がタイムアウト判定をして、思考エンジンとしての認識をリタイアしてしまう。
+	if (first)
+	{
+		// 評価関数の読み込み
+		Eval::load_eval();
+		eval_sum = Eval::calc_check_sum();
 
-    first = false;
-  }
+		first = false;
 
-  Search::clear();
+	} else {
+
+		if (eval_sum != Eval::calc_check_sum())
+			sync_cout << "Error! : evaluate memory is corrupted" << sync_endl;
+
+	}
+
+	Search::clear();
 }
 
 // isreadyコマンド処理部

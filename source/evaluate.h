@@ -36,6 +36,16 @@ namespace Eval {
   // あるいは差分計算が不可能なときに呼び出される。
   Value compute_eval(const Position& pos);
 
+  // 評価関数パラメーターのチェックサムを返す。
+  s32 calc_check_sum()
+#if defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
+	  ;
+#else
+  {
+	  return 0;
+  }
+#endif
+
   // 評価値の内訳表示(デバッグ用)
   void print_eval_stat(Position& pos);
 
