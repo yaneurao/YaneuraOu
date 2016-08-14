@@ -61,33 +61,73 @@ def output_rating(win,draw,lose):
 
 
 # create option for an each engine.
-def create_option(engines,engine_threads,evals,byoyomi,hash):
+def create_option(engines,engine_threads,evals,times,hash):
+
 	options = []
+
+	rtime = 0
+	byoyomi = 0
+	inc_time = 0
+	total_time = 0
+
+	for b in times.split("/"):
+		t = int(b[1:])
+		if b.startswith("r"):
+			rtime = t
+		elif b.startswith("b"):
+			byoyomi = t
+		elif b.startswith("i"):
+			inc_time = t
+		elif b.startswith("t"):
+			total_time = t
 
 	for i in range(2):
 		option = []
 		if ("Yane" in engines[i]):
-			option.append("go rtime " + byoyomi)
+			if rtime:
+				option.append("go rtime " + str(rtime))
+			elif inc_time:
+				option.append("go btime REST_TIME wtime REST_TIME inc " + str(inc_time))
+			else:
+				option.append("go btime REST_TIME wtime REST_TIME byoyomi " + str(byoyomi))
+
 			option.append("setoption name Threads value " + str(engine_threads))
 			option.append("setoption name EvalDir value " + evals[i])
 			option.append("setoption name Hash value " + str(hash))
 			option.append("setoption name BookFile value no_book")
-			option.append("setoption name NetworkDelay value 0")
-			option.append("setoption name NetworkDelay2 value 0")
+			if rtime:
+				option.append("setoption name NetworkDelay value 0")
+				option.append("setoption name NetworkDelay2 value 0")
+			else:
+				option.append("setoption name NetworkDelay value 550")
+				option.append("setoption name NetworkDelay2 value 550")
 #			option.append("setoption name EvalShare value false")
 			option.append("setoption name EvalShare value true")
+#			if i==0:
+#				option.append("setoption name EvalShare value false")
+#			else:
+#				option.append("setoption name EvalShare value true")
 		else:
-			option.append("go btime 0 wtime 0 byoyomi " + byoyomi)
+			if rtime:
+				option.append("go rtime " + str(rtime))
+				print "Error! " + engines[i] + " doesn't support rtime "
+			elif inc_time:
+				option.append("go btime REST_TIME wtime REST_TIME inc " + str(inc_time))
+			else:
+				option.append("go btime REST_TIME wtime REST_TIME byoyomi " + str(byoyomi))
+
 			option.append("setoption name Threads value " + str(engine_threads))
 			option.append("setoption name EvalDir value " + evals[i])
 			option.append("setoption name USI_Hash value " + str(hash))
 
 		options.append(option)
 
+	options.append([total_time,inc_time,byoyomi,rtime])
+
 	return options
 
 # play engine1 vs engine2
-def vs_match(engines_full,options,threads,loop,numa):
+def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 
 	global win,lose,draw
 	win = lose = draw = 0
@@ -105,6 +145,10 @@ def vs_match(engines_full,options,threads,loop,numa):
 	# sfen
 	sfens = []
 	moves = []
+	# times
+	rest_times = []
+	go_times = []
+
 	for t in range(threads):
 		sfens.append("")
 		moves.append(0)
@@ -114,6 +158,8 @@ def vs_match(engines_full,options,threads,loop,numa):
 
 			procs.append( proc )
 			states.append("init")
+			rest_times.append(0)
+			go_times.append(0)
 
 
 	# logging flag for console
@@ -121,8 +167,8 @@ def vs_match(engines_full,options,threads,loop,numa):
 	Logging = False
 
 	# logging flag for file
-	FileLogging = True
-#	FileLogging = False
+#	FileLogging = True
+	FileLogging = False
 
 	if FileLogging:
 		now = datetime.datetime.today()
@@ -140,6 +186,8 @@ def vs_match(engines_full,options,threads,loop,numa):
 		p = procs[i]
 		send_cmd(i,"isready")
 		states[i] = "wait_for_readyok"
+		# rest_time = total_time
+		rest_times[i] = options[2][0]
 
 	def go_cmd(i):
 		p = procs[i]
@@ -151,16 +199,19 @@ def vs_match(engines_full,options,threads,loop,numa):
 
 		# USI "go"
 		cmd = options[i & 1][0]
+		cmd = cmd.replace("REST_TIME",str(rest_times[i]))
 		send_cmd(i,cmd)
 
 		# changes state
 		states[i]   = "wait_for_bestmove"
 		states[i^1] = "wait_for_another_player"
 
+		go_times[i] = time.time()
+
 	def usinewgame_cmd(i):
 		p = procs[i]
 		send_cmd(i,"usinewgame")
-		sfens[i/2] = ""
+		sfens[i/2] = book_sfens[random.randint(0,len(book_sfens)-1)]
 		moves[i/2] = 0
 
 	def gameover_cmd(i):
@@ -217,6 +268,29 @@ def vs_match(engines_full,options,threads,loop,numa):
 						# go_cmd((i & ~1) )
 
 				elif ("bestmove" in line) and (states[i] == "wait_for_bestmove"):
+
+					# if (not random time)
+					if options[2][3]==0:
+
+						# elapsed time
+						elapsed_time = int(math.ceil(time.time() - go_times[i])*1000)
+
+						# rest_time += inc_time - elapsed_time
+						r = rest_times[i] + options[2][1] - elapsed_time
+						if r < 0:
+
+							# if (rest_time + byoyomi < 0) then time_over
+							r += options[2][2]
+							if r < 0:
+								elapsed_time2 = int((time.time() - go_times[i])*1000)
+								r = rest_times[i] + options[2][1] + options[2][2] - elapsed_time2
+								print "Error : TimeOver = " + engines[i & 1] \
+									+ " overtime = " + str(-r)
+								line = "bestmove resign"
+
+							rest_times[i] = 0
+						else:
+							rest_times[i] = r
 
 					if "resign" in line:
 						if (i%2)==1:
@@ -285,11 +359,17 @@ def vs_match(engines_full,options,threads,loop,numa):
 param = sys.argv
 
 # args format
-# 	HOMEPATH engine1 evaldir1 engine2 evaldir2 threads loop numa { rtime1 ... rtimeN }
+# 	HOMEPATH engine1 evaldir1 engine2 evaldir2 threads loop numa { time1 ... timeN }
 
 # sample 
-#   > c:\python27\python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker2.py \\WS2012_860C_YAN\yanehome\ YaneuraOuV350.exe Apery20160505 YaneuraOuV350.exe Apery20160505 8 1000 0  { 100 }
+#   > c:\python27\python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker2.py \\WS2012_860C_YAN\yanehome\ YaneuraOuV350.exe Apery20160505 YaneuraOuV350.exe Apery20160505 8 1000 0  { r100 }
 
+# time1..timeN sample
+#  r100    : random time 100
+#  1000    : byoyomi time 1000
+#  t300000 : total time 300000
+#  i3000   : inc time 3000
+#  t300000/i3000 : t300000 and i3000
 
 home = param[1]
 if not (home.endswith('/') or home.endswith('\\')):
@@ -300,11 +380,11 @@ loop = int(param[7])
 numa = param[8]
 
 if param[9] != "{" :
-	byoyomi_list = param[9]
+	play_time_list = [ param[9] ]
 else:
-	byoyomi_list = []
+	play_time_list = []
 	for i in range (10,len(param)-1):
-		byoyomi_list.append(param[i])
+		play_time_list.append(param[i])
 
 # expand eval_dir
 
@@ -318,17 +398,38 @@ else:
 		i += 1
 
 hash = 16
-book_moves = 24
+book_moves = 16
 
 # threads number for an each engine
+# engine_threads = 4
 engine_threads = 1
 
 print "home           : " , home
-print "byoyomi_list   : " , byoyomi_list
+print "play_time_list : " , play_time_list
 print "evaldirs       : " , evaldirs
 print "hash size      : " , hash
 print "book_moves     : " , book_moves
 print "engine_threads : " , engine_threads
+
+book_file = open(home+"/book/records2016.sfen","r")
+book_sfens = []
+count = 1
+for sfen in book_file:
+	s = sfen.split()
+	sf = ""
+	for i in range(book_moves):
+		try:
+			# skip "startpos moves"
+			sf += s[i+2]+" "
+		except:
+			print "Error! " + " in records2016.sfen line = " + str(count)
+	book_sfens.append(sf)
+	count += 1
+	if count % 100 == 0:
+		sys.stdout.write(".")
+		sys.stdout.flush()
+book_file.close()
+print
 
 threads = threads / engine_threads
 
@@ -342,22 +443,23 @@ for evaldir in evaldirs:
 	for i in range(2):
 		print "engine" + str(i+1) + " = " + engines[i] + " , eval = " + evals[i]
 
-	for byoyomi in byoyomi_list:
-		print "\nthreads = " + str(threads) + " , loop = " + str(loop) + " , numa = " + numa + " , byoyomi = " + byoyomi
+	for play_time in play_time_list:
+		print "\nthreads = " + str(threads) + " , loop = " + str(loop) + " , numa = " + numa + " , play_time = " + play_time
 
-		options = create_option(engines,engine_threads,evals_full,byoyomi,hash)
+		options = create_option(engines,engine_threads,evals_full,play_time,hash)
 
 		for i in range(2):
 			print "option " + str(i+1) + " = " + ' / '.join(options[i])
+		print "time_setting(total_time,inc_time,byoyomi,rtime) = " + str(options[2])
 
 		sys.stdout.flush()
 
-		vs_match(engines_full,options,threads,loop,numa)
+		vs_match(engines_full,options,threads,loop,numa,book_sfens)
 
 		# output final result
 		print "\nfinal result : "
 		for i in range(2):
 			print "engine" + str(i+1) + " = " + engines[i] + " , eval = " + evals[i]
-		print "byoyomi = " + byoyomi + " , " ,
+		print "play_time = " + play_time + " , " ,
 		output_rating(win,draw,lose)
 

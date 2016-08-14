@@ -13,6 +13,28 @@ ToDo:
 ・kppの手番→ppの手番で代替できるような気が…。
 ・mate3()書く。
 
+・isready()のときのメモリチェック
+
+
+■　2016/08/15
+
+・pythonフレームワークによる自己対戦
+
+	Apery20160505      vs Apery20160505 , rtime = 100 , 5008 - 83 - 4899(50.55% R3.82)
+	Apery20160505      vs haku20160729  , rtime = 100 , 3518 - 75 - 6397(35.48% R-103.87)
+	haku20160729no_ave vs haku20160729  , rtime = 100 , 4956 - 95 - 4939(50.09% R0.6)
+	Apery20160812      vs haku20160729  , rtime = 100 , 5227 - 52 - 4711(52.6% R18.06)
+	Apery20160812      vs Apery20160810 , rtime = 100 , 5014 - 71 - 4905(50.55% R3.82)
+	Apery20160731      vs Apery20160810 , rtime = 100 , 5996 - 56 - 3938(60.36% R73.03) ※3
+	Apery20160505      vs Apery20160812 , rtime = 100 , 4282 - 52 - 5656(43.09% R-48.35) ※2
+
+	haku20160729       = finalize時の平均化あり
+	haku20160729no_ave = finalize時の平均化なし
+
+	※1 共有メモリを使用することによる勝率低下はなさげ。
+	※2 以前の自己対戦フレームワークと勝率はさほど違いはなさげ。
+	※3 短い時間では正確にでなさげ。Stockfish7では短い時間では枝刈りの性質が長い時間と違うのでは。
+
 
 ■　2016/08/14
 
@@ -52,6 +74,16 @@ ToDo:
 	→　pythonで変数宣言強制できたほうが良いのでは…。まあいいや。
 
 	pythonスクリプトに定跡と時間制御実装して、動作テストしよう。
+
+[1]<position startpos moves 2g2f 3c3d 7g7f 8c8d 6g6f 8d8e 8h7g 3a3b 4i5h 7a6b 3i4h 5a4b 5h6g 6a5b 2f2e 4b3a 7i7h 7c7d 2e2d 2c2d 2h2d 2b3c 2d2h P*2d 5i6h 3b2c 6h7i 4a3b 5g5f 9c9d 3g3f 6c6d 2i3g 6b6c 4h5g 8a7c 5g4f 4c4d P*2e 2d2e 1g1f 1c1d 3f3e 3c5a 2h2e 5b4c 2e2f P*2d 7g6h 3d3e 4f3e P*3d 3e2d 2c2d 2f2d 5a2d 6h2d 8e8f 8g8f R*2h 2d6h S*5h
+[1]<go btime 5000 wtime 5000 byoyomi 3000
+[1]>info nodes 3541614 time 6010
+[1]>bestmove 6i5h ponder 2h5h+
+	時間余ってる？あれれ？
+
+position startpos moves 2g2f 3c3d 7g7f 8c8d 6g6f 8d8e 8h7g 3a3b 4i5h 7a6b 3i4h 5a4b 5h6g 6a5b 2f2e 4b3a 7i7h 7c7d 2e2d 2c2d 2h2d 2b3c 2d2h P*2d 5i6h 3b2c 6h7i 4a3b 5g5f 9c9d 3g3f 6c6d 2i3g 6b6c 4h5g 8a7c 5g4f 4c4d P*2e 2d2e 1g1f 1c1d 3f3e 3c5a 2h2e 5b4c 2e2f P*2d 7g6h 3d3e 4f3e P*3d 3e2d 2c2d 2f2d 5a2d 6h2d 8e8f 8g8f R*2h 2d6h S*5h
+go btime 5000 wtime 5000 byoyomi 3000
+→　合ってる気がする…。NetworkDelay絡みか？
 
 
 
