@@ -4,6 +4,7 @@ import subprocess
 import os.path
 import math
 import random
+import datetime
 
 # -----------------------------------------------------------------
 
@@ -114,14 +115,25 @@ def vs_match(engines_full,options,threads,loop,numa):
 			procs.append( proc )
 			states.append("init")
 
-	# logging flag
+
+	# logging flag for console
 #	Logging = True
 	Logging = False
+
+	# logging flag for file
+	FileLogging = True
+#	FileLogging = False
+
+	if FileLogging:
+		now = datetime.datetime.today()
+		f = open("script_log"+now.strftime("%Y%m%d%H%M%S")+".txt","w")
 
 	def send_cmd(i,s):
 		p = procs[i]
 		if Logging:
 			print "[" + str(i) + "]<" + s
+		if FileLogging:
+			f.write( "[" + str(i) + "]<" + s + "\n")
 		p.stdin.write(s+"\n")
 
 	def isready_cmd(i):
@@ -163,9 +175,11 @@ def vs_match(engines_full,options,threads,loop,numa):
 				opt = options[i % 2][j]
 				send_cmd(i,opt)
 
+	# loop for playing games
 	while True:
 
 		update = False
+		receive_something = False
 
 		for i in range(len(states)):
 			proc = procs[i]
@@ -178,30 +192,19 @@ def vs_match(engines_full,options,threads,loop,numa):
 
 			for line in iter(proc.stdout.readline, b''):
 
+				receive_something = True
+
 				if Logging:
 					print "[" + str(i) + "]>" + line.strip()
+				if FileLogging:
+					f.write("[" + str(i) + "]>" + line.strip() + "\n")
 
 				if "Error" in line:
 					print line
 
 				gameover = False
-				if "resign" in line:
-					if (i%2)==1:
-						win += 1
-					else:
-						lose += 1
-					gameover = True
-					update = True
 
-				elif "win" in line:
-					if (i%2)==0:
-						win += 1
-					else:
-						lose += 1
-					gameover = True
-					update = True
-
-				elif ("readyok" in line) and (states[i] == "wait_for_readyok"):
+				if ("readyok" in line) and (states[i] == "wait_for_readyok"):
 					states[i] = "start"
 					if states[i^1] == "start":
 						usinewgame_cmd(i)
@@ -214,19 +217,37 @@ def vs_match(engines_full,options,threads,loop,numa):
 						# go_cmd((i & ~1) )
 
 				elif ("bestmove" in line) and (states[i] == "wait_for_bestmove"):
-					# bestmove XXX
-					ss = line.split()
 
-					if sfens[i/2]!="":
-						sfens[i/2]+=" "
-					sfens[i/2] += ss[1]
-					moves[i/2] += 1
-					if moves[i/2] >= 256:
-						draw += 1
-						gameove = True
+					if "resign" in line:
+						if (i%2)==1:
+							win += 1
+						else:
+							lose += 1
+						gameover = True
 						update = True
+
+					elif "win" in line:
+						if (i%2)==0:
+							win += 1
+						else:
+							lose += 1
+						gameover = True
+						update = True
+
 					else:
-						go_cmd(i^1)
+						# bestmove XXX
+						ss = line.split()
+
+						if sfens[i/2]!="":
+							sfens[i/2]+=" "
+						sfens[i/2] += ss[1]
+						moves[i/2] += 1
+						if moves[i/2] >= 256:
+							draw += 1
+							gameover = True
+							update = True
+						else:
+							go_cmd(i^1)
 
 				if gameover :
 					gameover_cmd(i)
@@ -237,18 +258,28 @@ def vs_match(engines_full,options,threads,loop,numa):
 				if loop_count >= loop :
 					for p in procs:
 						p.terminate()
+					if FileLogging:
+						f.close()
 					return
 
 			if states[i] == "init":
 				isready_cmd(i)
 
 		# process is not done, wait a bit and check again.
-		# time.sleep(1)
-		# time.sleep(0)
+
+		if not receive_something :
+#			time.sleep(1.0/1000)
+			time.sleep(0)
 
 		# output result at stated periods
 		if update and (loop_count % 10) == 0 :
 			output_rating(win,draw,lose)
+			if FileLogging:
+				for i in range(len(states)):
+					f.write("["+str(i)+"] State = " + states[i] + "\n")
+
+			if FileLogging:
+				f.flush()
 
 
 param = sys.argv
