@@ -191,7 +191,8 @@ namespace Eval
 				// このタイミングで評価関数バイナリを読み込む
 				load_eval_impl();
 
-				sync_cout << "info string created shared eval memory." << sync_endl;
+				auto check_sum = calc_check_sum();
+				sync_cout << "info string created shared eval memory. Display : check_sum = " << std::hex << check_sum << std::dec << sync_endl;
 
 			} else {
 

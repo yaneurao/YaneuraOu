@@ -1519,6 +1519,13 @@ namespace YaneuraOu2016Mid
 				  + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN <= alpha)
 				  continue;
 
+#if 1
+			  // 次の子nodeにおいて浅い深さになる場合、負のSSE値を持つ指し手の枝刈り
+			  if (predictedDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH * ONE_PLY && pos.see_sign(move) < VALUE_ZERO)
+				  continue;
+#else
+			  // ↓どうも、このコードにすると少し弱くなるようなのでとりあえずコメントアウト。
+
 			  // 浅いdepthで負のSSE値を持つ指し手と、深いdepthで減少する閾値を下回る指し手の枝刈り
 			  if (predictedDepth < 8 * ONE_PLY)
 			  {
@@ -1528,6 +1535,7 @@ namespace YaneuraOu2016Mid
 				  if (pos.see_sign(move) < see_v)
 					  continue;
 			  }
+#endif
 
 		  }
 

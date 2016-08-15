@@ -1,3 +1,4 @@
+# coding: UTF-8
 import time
 import sys
 import subprocess
@@ -8,9 +9,12 @@ import datetime
 
 # -----------------------------------------------------------------
 
+# subprocessでnon blockingなreadにするhack。
+# fcntlはLinuxでは動くのだがWindowsでは動かない。
+# スレッドを数だけ作るのはオーバーヘッドがあるのでそれはしたくない。
+
 # Non-blocking read on a subprocess.PIPE in python
 # http://stackoverflow.com/questions/375427/non-blocking-read-on-a-subprocess-pipe-in-python
-# fcntl indeed doesn't work on Windows
 
 def pipe_non_blocking_set(fd):
 	# Constant could define globally but avoid polluting the name-space
@@ -43,7 +47,7 @@ def pipe_non_blocking_set(fd):
 
 win = lose = draw = 0
 
-# output rating.
+# レーティングの出力
 def output_rating(win,draw,lose):
 	total = win + lose
 	if total != 0 :
@@ -60,7 +64,7 @@ def output_rating(win,draw,lose):
 	sys.stdout.flush()
 
 
-# create option for an each engine.
+# 思考エンジンに対するオプションを生成する。
 def create_option(engines,engine_threads,evals,times,hash):
 
 	options = []
@@ -95,12 +99,9 @@ def create_option(engines,engine_threads,evals,times,hash):
 			option.append("setoption name EvalDir value " + evals[i])
 			option.append("setoption name Hash value " + str(hash))
 			option.append("setoption name BookFile value no_book")
-			if rtime:
-				option.append("setoption name NetworkDelay value 0")
-				option.append("setoption name NetworkDelay2 value 0")
-			else:
-				option.append("setoption name NetworkDelay value 550")
-				option.append("setoption name NetworkDelay2 value 550")
+			option.append("setoption name NetworkDelay value 0")
+			option.append("setoption name NetworkDelay2 value 0")
+
 #			option.append("setoption name EvalShare value false")
 			option.append("setoption name EvalShare value true")
 #			if i==0:
@@ -126,7 +127,10 @@ def create_option(engines,engine_threads,evals,times,hash):
 
 	return options
 
-# play engine1 vs engine2
+# engine1とengine2とを対戦させる
+#  threads    : この数だけ並列対局
+#  numa       : 実行するプロセッサグループ
+#  book_sfens : 定跡
 def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 
 	global win,lose,draw
@@ -138,35 +142,40 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 	for i in range(2):
 		cmds.append("cmd.exe /c start /B /WAIT /NODE " + numa + " " + engines_full[i])
 
-	# process state
-	states = []
+	# 棋譜
+	sfens = [""]*threads
+	# 対局開始局面からの手数
+	moves = [0]*threads
+	# 次の対局で先手番のplayer(0 or 1)
+	turns = [0]*threads
+
 	# process handle
-	procs = []
-	# sfen
-	sfens = []
-	moves = []
-	# times
-	rest_times = []
-	go_times = []
+	procs = [0]*threads*2
+	# process state
+	states = ["init"]*threads*2
 
-	for t in range(threads):
-		sfens.append("")
-		moves.append(0)
-		for i in range(2):
-			proc = subprocess.Popen(cmds[i], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE , stdin = subprocess.PIPE)
-			pipe_non_blocking_set(proc.stdout.fileno())
+	# 残り時間
+	rest_times = [0]*threads*2
+	# goコマンドを送った時刻
+	go_times = [0]*threads*2
+	# nodes計測用
+	nodes_str = [""]*threads*2
+	nodes = [0]*threads*2
+	# 終了したプロセスの監視用
+	term_procs = [False]*threads*2
 
-			procs.append( proc )
-			states.append("init")
-			rest_times.append(0)
-			go_times.append(0)
+	for i in range(threads*2):
+		proc = subprocess.Popen(cmds[i & 1], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE , stdin = subprocess.PIPE)
+		pipe_non_blocking_set(proc.stdout.fileno())
+
+		procs[i] = proc
 
 
-	# logging flag for console
+	# これをTrueにするとコンソールに思考エンジンとのやりとりを出力する。
 #	Logging = True
 	Logging = False
 
-	# logging flag for file
+	# これをTrueにするとログファイルに思考エンジンとのやりとりを出力する。
 #	FileLogging = True
 	FileLogging = False
 
@@ -219,6 +228,17 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 		send_cmd(i,"gameover win")
 		states[i] = "init"
 
+	def outlog(i,line):
+		if Logging:
+			print "[" + str(i) + "]>" + line.strip()
+		if FileLogging:
+			f.write("[" + str(i) + "]>" + line.strip() + "\n")
+
+	def outstd(i,line):
+		print "["+str(i)+"]>" + line.strip()
+		sys.stdout.flush()
+
+
 	# set options for each engine
 	for i in range(len(states)):
 		for j in range(len(options[i % 2])):
@@ -233,25 +253,30 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 		receive_something = False
 
 		for i in range(len(states)):
+
 			proc = procs[i]
 
 			retcode = proc.poll()
 			if retcode is not None:
 				# process finished unexpectedly
-#				print "[" + str(i) + "]:Error! process terminated."
+				if not term_procs[i]:
+					print "[" + str(i) + "]:Error! process terminated."
+					term_procs[i] = True
 				continue
 
 			for line in iter(proc.stdout.readline, b''):
 
 				receive_something = True
 
-				if Logging:
-					print "[" + str(i) + "]>" + line.strip()
-				if FileLogging:
-					f.write("[" + str(i) + "]>" + line.strip() + "\n")
+				outlog(i,line)
 
-				if "Error" in line:
-					print line
+				# "Error"か"Display"の文字列が含まれていればそれをそのまま出力する。
+				if ("Error" in line) or ("Display" in line):
+					outstd(i,line)
+
+				# node数計測用
+				if "nodes" in line :
+					nodes_str[i] = line
 
 				gameover = False
 
@@ -262,12 +287,26 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 						usinewgame_cmd(i^1)
 
 						# send go_cmd to player1 or player2 randomly.
-						go_cmd((i & ~1) + random.randint(0,1) )
+						# go_cmd((i & ~1) + random.randint(0,1) )
+						# outlog(i,"turn = " + str((i & ~1) + turns[i/2]))
+
+						go_cmd((i & ~1) + turns[i/2])
+						turns[i/2] = turns[i/2] ^ 1
 
 						# send go_cmd to player1
 						# go_cmd((i & ~1) )
 
 				elif ("bestmove" in line) and (states[i] == "wait_for_bestmove"):
+
+					# node数計測用(60手目までのみ)
+					if moves[i/2] < 60 :
+						# 最後に受け取ったnodesを含んだ文字列の次の数値がnodes数。それを加算しておく。
+						ns = nodes_str[i].split()
+						for j in range(len(ns)):
+							if ns[j] == "nodes":
+								if j+1 < len(ns):
+									nodes[i] += int(ns[j+1])
+								break
 
 					# if (not random time)
 					if options[2][3]==0:
@@ -277,15 +316,19 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 
 						# rest_time += inc_time - elapsed_time
 						r = rest_times[i] + options[2][1] - elapsed_time
+
 						if r < 0:
 
 							# if (rest_time + byoyomi < 0) then time_over
 							r += options[2][2]
-							if r < 0:
+
+#							if r < 0:
+							if False:
 								elapsed_time2 = int((time.time() - go_times[i])*1000)
 								r = rest_times[i] + options[2][1] + options[2][2] - elapsed_time2
-								print "Error : TimeOver = " + engines[i & 1] \
-									+ " overtime = " + str(-r)
+								mes = "Error : TimeOver = " + engines[i & 1] + " overtime = " + str(-r)
+								outlog(i,mes)
+								outstd(i,mes)
 								line = "bestmove resign"
 
 							rest_times[i] = 0
@@ -330,6 +373,16 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 			if update:
 				loop_count = win + lose + draw
 				if loop_count >= loop :
+					# 終了した対局が指定のloop回数に達したので終了する。
+
+					"""
+					# トータルのnodes数の出力
+					for j in range(threads*2):
+						mes = "["+str(j)+"]:nodes = " + str(nodes[j])
+						outlog(j,mes)
+						outstd(j,mes)
+					"""
+
 					for p in procs:
 						p.terminate()
 					if FileLogging:
@@ -364,7 +417,7 @@ param = sys.argv
 # sample 
 #   > c:\python27\python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker2.py \\WS2012_860C_YAN\yanehome\ YaneuraOuV350.exe Apery20160505 YaneuraOuV350.exe Apery20160505 8 1000 0  { r100 }
 
-# time1..timeN sample
+# time1..timeN の指定書式のサンプル
 #  r100    : random time 100
 #  1000    : byoyomi time 1000
 #  t300000 : total time 300000
@@ -375,7 +428,8 @@ home = param[1]
 if not (home.endswith('/') or home.endswith('\\')):
 	home += '\\'
 
-threads = int(param[6])
+# 論理コアの数を物理コア数の数に変更する。
+threads = int(param[6])/2
 loop = int(param[7])
 numa = param[8]
 
