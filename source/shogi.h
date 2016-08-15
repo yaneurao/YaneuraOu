@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "3.54"
+#define ENGINE_VERSION "3.56"
 
 // --------------------
 // コンパイル時の設定
@@ -513,13 +513,14 @@ enum Move : uint32_t {
   MOVE_PROMOTE = 1 << 15,       // 駒成りフラグ
 };
 
-// 指し手の移動元の升を返す
+// 指し手の移動元の升を返す。from_sq()は、Stockfishとの互換性を高めるためのalias。
 constexpr Square move_from(Move m) {
   // 駒打ちに対するmove_from()の呼び出しは不正。
   // ASSERT_LV3(!(MOVE_DROP & m));
   // ↑これを入れたいが、constexprにできなくなるのでやめておく。
   return Square((m >> 7) & 0x7f); }
-  
+constexpr Square from_sq(Move m) { return Square((m >> 7) & 0x7f); }
+
 // 指し手の移動先の升を返す。to_sq()はStockfishとの互換性を高めるためのalias。
 constexpr Square move_to(Move m) { return Square(m & 0x7f); }
 constexpr Square to_sq(Move m) { return Square(m & 0x7f); }

@@ -15,6 +15,36 @@
 //  history , counter move
 // -----------------------
 
+// fromの駒をtoに移動させることに対するhistory
+struct FromToStats
+{
+
+	Value get(Color c, Move m) const { return table[from_sq(m) + (is_drop(m) ? SQ_NB:0)][to_sq(m)][c]; }
+	void clear() { std::memset(table, 0, sizeof(table)); }
+
+	void update(Color c, Move m, Value v)
+	{
+		if (abs(int(v)) >= 324)
+			return;
+
+		Square f = from_sq(m);
+		Square t = to_sq(m);
+
+		// 駒打ちを分類すべきだと思うので、駒種に応じてfromの位置を調整する。
+		if (is_drop(m))
+			f += SQ_NB;
+
+		ASSERT_LV3(f < SQ_NB_PLUS1 + 7);
+
+		table[f][t][c] -= table[f][t][c] * abs(int(v)) / 324;
+		table[f][t][c] += int(v) * 32;
+	}
+private:
+	// table[from][to][color]となっているが、fromはSQ_NB_PLUS1 + 打ち駒の7種
+	Value table[SQ_NB_PLUS1 + 7][SQ_NB_PLUS1][COLOR_NB];
+};
+
+
 // Pieceを升sqに移動させるときの値(T型)
 // CM : CounterMove用フラグ
 template<typename T, bool CM = false>

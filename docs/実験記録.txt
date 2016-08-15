@@ -16,11 +16,53 @@ ToDo:
 
 ■　2016/08/16
 
+V3.55b
+
+・深いdepthでの枝刈り
+	cf. https://github.com/official-stockfish/Stockfish/commit/714329dbdc3c32af6e899c85409935dc3b6d799c
+			  // 次の子nodeにおいて浅い深さになる場合、負のSSE値を持つ指し手の枝刈り
+			  if (predictedDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH * ONE_PLY && pos.see_sign(move) < VALUE_ZERO)
+				  continue;
+
+				  ↓
+
+			  // 浅いdepthで負のSSE値を持つ指し手と、深いdepthで減少する閾値を下回る指し手の枝刈り
+			  if (predictedDepth < 8 * ONE_PLY)
+			  {
+				  Value see_v = predictedDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH * ONE_PLY ? VALUE_ZERO
+					  : -PawnValue * 2 * Value(predictedDepth - 3 * ONE_PLY);
+
+				  if (pos.see_sign(move) < see_v)
+					  continue;
+			  }
 
 
+V3.55a
+・depth 1でのnull pruning追加。
+	cf. https://github.com/official-stockfish/Stockfish/commit/f2f3a06a1acfa14b3054bfd73d6c3966c326a7cc
+
+・NMP(null move pruning)をstaticEvalの値に応じて段階的に適用する。
+	cf. https://github.com/official-stockfish/Stockfish/commit/76971d8acba4af1896cf94e1278f69ae2084d45d
+	cf.	https://github.com/official-stockfish/Stockfish/commit/ade3bb9a4e774aa9b760235f3b0ee42e0a0420d9
+
+		+        && (ss->staticEval >= beta - 35 * (depth / ONE_PLY - 6) || depth >= 13 * ONE_PLY)
+
+V3.55
+・ColorFromTo historyを追加。
+	cf.
+		Use Color-From-To history stats to help sort moves
+		https://github.com/official-stockfish/Stockfish/commit/b3525fa9ea88e230a38d72351826cbc16c282938
+
+	・from_sq()追加。
+	・FromToStats導入。
+		→　これを打ち駒を考慮するように拡張。
+
+		ASSERT_LV3(f < SQ_NB_PLUS1 + 7);
+		if (f >= SQ_NB_PLUS1 + 7)
+			std::cout << (int)f << " " << from_sq(m);
 
 ・futility margin変更
-	https://github.com/official-stockfish/Stockfish/commit/85924db496af2fb8d70b6c89b17fc8541339ca19
+	cf. https://github.com/official-stockfish/Stockfish/commit/85924db496af2fb8d70b6c89b17fc8541339ca19
 
 	-  Value futility_margin(Depth d) { return Value(200 * d); }
 	+  Value futility_margin(Depth d) { return Value(150 * d); }
@@ -31,6 +73,10 @@ ToDo:
 	-              && ss->staticEval + futility_margin(predictedDepth) + 256 <= alpha)
  	+              && ss->staticEval + 256 + 200 * predictedDepth / ONE_PLY <= alpha)
 
+		engine1 = YaneuraOuV353.exe , eval = Apery20160812
+		engine2 = YaneuraOuV354.exe , eval = Apery20160812
+		play_time = r100 ,  4602 - 73 - 5325(46.36% R-25.35)
+
 
 
 ■　2016/08/15
@@ -38,21 +84,28 @@ ToDo:
 ・pythonフレームワークによる自己対戦
 
 	Apery20160505      vs Apery20160505 ,  r100 , 5008 - 83 - 4899(50.55% R3.82)
+
 	Apery20160505      vs haku20160729  ,  r100 , 3518 - 75 - 6397(35.48% R-103.87)
 	haku20160729no_ave vs haku20160729  ,  r100 , 4956 - 95 - 4939(50.09% R0.6)
-	Apery20160812      vs haku20160729  ,  r100 , 5227 - 52 - 4711(52.6% R18.06)
-	Apery20160812      vs Apery20160810 ,  r100 , 5014 - 71 - 4905(50.55% R3.82)
-	Apery20160731      vs Apery20160810 ,  r100 , 5996 - 56 - 3938(60.36% R73.03) ※3
-	Apery20160505      vs Apery20160812 ,  r100 , 4282 - 52 - 5656(43.09% R-48.35) ※2
-	Apery20160505      vs Apery20160812 , b2000 ,  935 - 30 - 1905(32.92% R-123.63)
 	haku20160729       vs Apery20160812 , b2000 , 1032 - 31 - 1507(40.65% R-65.77)
 	Apery20160505      vs haku20160729  , b2000 ,  952 - 33 - 1625(36.94% R-92.89)
-	Apery20160505      vs Apery20160812 , b2000 ,  960 - 31 - 1979(32.66% R-125.67)
+
+	Apery20160812      vs haku20160729  ,  r100 , 5227 - 52 - 4711(52.6% R18.06)
+
+	Apery20160812      vs Apery20160810 ,  r100 , 5014 - 71 - 4905(50.55% R3.82)
+	Apery20160810      vs Apery20160812 , b2000 ,  1041 - 35 - 1194(46.58% R-23.82)
+
+	Apery20160731      vs Apery20160810 ,  r100 , 5996 - 56 - 3938(60.36% R73.03)   ※3
+	Apery20160731      vs Apery20160810 ,  r500 ,  2100 - 34 - 2016(51.02% R7.09)   ※3
 	Apery20160731      vs Apery20160810 , b2000 ,  1128 - 25 - 1247(47.49% R-17.42) ※3
 	Apery20160810      vs Apery20160731 , b2000 ,  1284 - 17 - 1139(52.99% R20.82)  ※3
-	Apery20160810      vs Apery20160812 , b2000 ,  1041 - 35 - 1194(46.58% R-23.82)
-	Apery20160812      vs 179_0042G_V3  ,  r100 ,  5369 - 39 - 4592(53.9% R27.16)
 
+	Apery20160505      vs Apery20160812 ,  r100 , 4282 - 52 - 5656(43.09% R-48.35)  ※2
+	Apery20160505      vs Apery20160812 , b2000 ,  935 - 30 - 1905(32.92% R-123.63)
+	Apery20160505      vs Apery20160812 , b2000 ,  960 - 31 - 1979(32.66% R-125.67)
+
+	Apery20160812      vs 179_0042G_V3  ,  r100 ,  5369 - 39 - 4592(53.9% R27.16)
+	Apery20160812      vs 179_0042G_V3  , b2000 ,   707 - 12 - 441(61.59% R81.99)
 
 	Apery20160505(non shared memory) vs Apery20160505(shared memory) , r100 thread4 , 4086 - 104 - 4000(50.53% R3.7)
 	

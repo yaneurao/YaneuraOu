@@ -429,63 +429,71 @@ void MovePicker::score_captures()
 void MovePicker::score_quiets()
 {
   const HistoryStats& history = pos.this_thread()->history;
+  const FromToStats& fromTo = pos.this_thread()->fromTo;
 
   const CounterMoveStats* cm = (ss - 1)->counterMoves;
   const CounterMoveStats* fm = (ss - 2)->counterMoves;
   const CounterMoveStats* f2 = (ss - 4)->counterMoves;
+
+  Color c = pos.side_to_move();
 
   for (auto& m : *this)
   {
     const Move move = m;
 
     Piece mpc = pos.moved_piece_after(move);
-    m.value = history[move_to(move)][mpc]
-        + (cm ? (*cm)[move_to(move)][mpc] : VALUE_ZERO)
-        + (fm ? (*fm)[move_to(move)][mpc] : VALUE_ZERO)
-        + (f2 ? (*f2)[move_to(move)][mpc] : VALUE_ZERO);
+	m.value = history[move_to(move)][mpc]
+		+ (cm ? (*cm)[move_to(move)][mpc] : VALUE_ZERO)
+		+ (fm ? (*fm)[move_to(move)][mpc] : VALUE_ZERO)
+		+ (f2 ? (*f2)[move_to(move)][mpc] : VALUE_ZERO)
+		+ fromTo.get(c, m);
   }
 }
 
 // 王手回避の指し手をスコアリングする。
 void MovePicker::score_evasions()
 {
-  const HistoryStats& history = pos.this_thread()->history;
-  Value see;
+	const HistoryStats& history = pos.this_thread()->history;
+	const FromToStats& fromTo = pos.this_thread()->fromTo;
+	Color c = pos.side_to_move();
+	Value see;
 
-  for (auto& m : *this)
+	for (auto& m : *this)
 
 #if defined (USE_SEE) || defined (USE_SIMPLE_SEE)
-  
-    // see()が負の指し手ならマイナスの値を突っ込んで後回しにする
-    // 王手を防ぐためだけのただで取られてしまう駒打ちとかがここに含まれるであろうから。
-    // evasion自体は指し手の数が少ないのでここでsee()を呼び出すコストは無視できる。
-    // ただで取られる指し手を後回しに出来るメリットのほうが大きい。
 
-    if ((see = pos.see_sign(m)) < VALUE_ZERO)
-      m.value = see - HistoryStats::Max; // At the bottom
+		// see()が負の指し手ならマイナスの値を突っ込んで後回しにする
+		// 王手を防ぐためだけのただで取られてしまう駒打ちとかがここに含まれるであろうから。
+		// evasion自体は指し手の数が少ないのでここでsee()を呼び出すコストは無視できる。
+		// ただで取られる指し手を後回しに出来るメリットのほうが大きい。(と思う)
 
-    else
-      // ↓のifがぶら下がっている。
+		if ((see = pos.see_sign(m)) < VALUE_ZERO)
+			m.value = see - HistoryStats::Max; // At the bottom
+
+		else
+			// ↓のifがぶら下がっている。
 
 #endif
 
-    // 駒を取る指し手ならseeがプラスだったということなのでプラスの符号になるようにStats::Maxを足す。
-    // あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
-    // 価値が高いので(例えば合駒に安い駒を使う的な…)
-    // LVAするときに王が10000だから、これが大きすぎる可能性がなくはないが…。
-    if (pos.capture_or_promotion(m))
-    {
+	// 駒を取る指し手ならseeがプラスだったということなのでプラスの符号になるようにStats::Maxを足す。
+	// あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
+	// 価値が高いので(例えば合駒に安い駒を使う的な…)
+	// LVAするときに王が10000だから、これが大きすぎる可能性がなくはないが…。
+			if (pos.capture_or_promotion(m))
+			{
 
-      m.value = (Value)Eval::CapturePieceValue[pos.piece_on(move_to(m))]
-        - Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
+				m.value = (Value)Eval::CapturePieceValue[pos.piece_on(move_to(m))]
+					- Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
 
-      // 成るなら、その成りの価値を加算
-      if (is_promote(m))
-        m.value += (Eval::ProDiffPieceValue[raw_type_of(pos.moved_piece_after(m))]);
-    }
-    else
+				// 成るなら、その成りの価値を加算
+				if (is_promote(m))
+					m.value += (Eval::ProDiffPieceValue[raw_type_of(pos.moved_piece_after(m))]);
 
-      m.value = history[move_to(m)][pos.moved_piece_after(m)];
+			} else {
+
+				m.value = history[move_to(m)][pos.moved_piece_after(m)] + fromTo.get(c, m);
+
+			}
 }
 
 #endif // ifdef USE_MOVE_PICKER_2016Q2

@@ -329,6 +329,7 @@ namespace YaneuraOu2016Mid
 	  }
 
 	  //   historyのupdate
+	  Color c = pos.side_to_move();
 
 	  // depthの二乗に比例したbonusをhistory tableに加算する。
 	  // d*d + 2*d - 2 のほうが d*d + d - 1より良いらしい。
@@ -355,6 +356,7 @@ namespace YaneuraOu2016Mid
 	  Piece mpc = pos.moved_piece_after(move);
 
 	  thisThread->history.update(mpc, mto, bonus);
+	  thisThread->fromTo.update(c, move, bonus);
 
 	  if (cmh)
 	  {
@@ -375,6 +377,7 @@ namespace YaneuraOu2016Mid
 		  Piece qpc = pos.moved_piece_after(quiets[i]);
 
 		  thisThread->history.update(qpc, qto, -bonus);
+		  thisThread->fromTo.update(c, quiets[i], -bonus);
 
 		  // 前の局面の指し手がMOVE_NULLでないならcounter moveもupdateしておく。
 
@@ -1174,8 +1177,9 @@ namespace YaneuraOu2016Mid
 	  //  null move探索。PV nodeではやらない。
 	  //  evalの見積りがbetaを超えているので1手パスしてもbetaは超えそう。
 	  if (!PvNode
-		  &&  depth >= 2 * ONE_PLY
-		  &&  eval >= beta)
+		  &&  eval >= beta
+		  && (ss->staticEval >= beta - 35 * (depth / ONE_PLY - 6) || depth >= 13 * ONE_PLY)
+		  )
 	  {
 		  ss->currentMove = MOVE_NULL;
 		  ss->counterMoves = nullptr;
@@ -1515,9 +1519,16 @@ namespace YaneuraOu2016Mid
 				  + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN <= alpha)
 				  continue;
 
-			  // 次の子nodeにおいて浅い深さになる場合、負のSSE値を持つ指し手の枝刈り
-			  if (predictedDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH * ONE_PLY && pos.see_sign(move) < VALUE_ZERO)
-				  continue;
+			  // 浅いdepthで負のSSE値を持つ指し手と、深いdepthで減少する閾値を下回る指し手の枝刈り
+			  if (predictedDepth < 8 * ONE_PLY)
+			  {
+				  Value see_v = predictedDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH * ONE_PLY ? VALUE_ZERO
+					  : -PawnValue * 2 * Value(predictedDepth - 3 * ONE_PLY);
+
+				  if (pos.see_sign(move) < see_v)
+					  continue;
+			  }
+
 		  }
 
 		  // -----------------------
@@ -1564,7 +1575,8 @@ namespace YaneuraOu2016Mid
 			  Value val = thisThread->history[moved_sq][moved_pc]
 				  + (cmh  ? (*cmh )[moved_sq][moved_pc] : VALUE_ZERO)
 				  + (fmh  ? (*fmh )[moved_sq][moved_pc] : VALUE_ZERO)
-				  + (fmh2 ? (*fmh2)[moved_sq][moved_pc] : VALUE_ZERO);
+				  + (fmh2 ? (*fmh2)[moved_sq][moved_pc] : VALUE_ZERO)
+				  + thisThread->fromTo.get(~pos.side_to_move(), move);
 
 			  // cut nodeにおいてhistoryの値が悪い指し手に対してはreduction量を増やす。
 			  // ※　PVnodeではIID時でもcutNode == trueでは呼ばないことにしたので、
@@ -2010,6 +2022,7 @@ void Search::clear()
 	{
 		th->history.clear();
 		th->counterMoves.clear();
+		th->fromTo.clear();
 	}
 
 	Threads.main()->previousScore = VALUE_INFINITE;

@@ -2,6 +2,14 @@
 やねうら王 更新履歴
 
 
+■　2016/08/16 V3.55
+
+・深いdepthでの枝刈り
+・depth 1でのnull pruning追加。
+・from_sq()追加。
+・ColorFromTo historyを導入。
+
+
 ■　2016/08/16 V3.54
 
 ・futility margin調整。

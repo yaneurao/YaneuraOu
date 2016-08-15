@@ -103,6 +103,10 @@ struct Thread
   MoveStats counterMoves;
 #endif
 
+#if defined( USE_MOVE_PICKER_2016Q2)
+  FromToStats fromTo;
+#endif
+
   // 探索でsearch()が呼び出された回数を集計する用。
   std::atomic_bool resetCalls;
   int callsCnt;
