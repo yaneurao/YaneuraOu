@@ -477,7 +477,9 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
       // このイベントは、王手がかかっていない局面において一定の確率でこの指し手が発生する。
       // 王手がかかっていると王手回避しないといけないので良くない。
       // 二枚とも歩が選ばれる可能性がそこそこあるため、1/5に設定しておく。
-      if (rand(5) == 0 && !pos.in_check())
+	  // また、レアケースながら盤上に王しかいないケースがある。
+	  // これは、6駒以上という条件を入れておく。
+	  if (rand(5) == 0 && !pos.in_check() && pos.pieces(pos.side_to_move()).pop_count() >= 6)
       {
         for (int retry = 0; retry < 10; ++retry)
         {
@@ -488,6 +490,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
           {
             // 駒の数
             int num = pieces.pop_count();
+
             // 何番目かの駒
             int n = (int)rand(num) + 1;
             Square sq = SQ_NB;
@@ -498,6 +501,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
           // この升の2駒を入れ替える。
           auto pieces = pos.pieces(pos.side_to_move());
+		  
           auto sq1 = get_one(pieces);
           // sq1を除くbitboard
           auto sq2 = get_one(pieces ^ sq1);
@@ -508,7 +512,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
           if (sq2 != SQ_NB
             && pos.do_move_by_swapping_pieces(sq1, sq2))
           {
-#if 1
+#if 0
             // 検証用のassert
             if (!is_ok(pos))
               cout << pos << sq1 << sq2;

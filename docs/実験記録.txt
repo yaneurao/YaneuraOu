@@ -20,6 +20,48 @@ ToDo:
 
 ■　2016/08/16
 
+
+・新Apery評価関数
+
+		engine1 = YaneuraOuV355c.exe , eval = Apery20160812
+		engine2 = YaneuraOuV355c.exe , eval = Apery20160815
+		play_time = r100 ,  4608 - 88 - 5304(46.49% R-24.44)
+
+
+・
+	pythonの自己対戦スクリプトでこのモードを使うオプション追加。
+	R100と指定したときにnodes as timeモードでgo rtimeすればいい。
+
+・npmsec(nodes time)実装。
+
+	StockfishのこのコードだとavailableNodesマイナスになるな…。
+
+		if (Limits.npmsec)
+			Time.availableNodes += Limits.inc[us] - Threads.nodes_searched();
+
+			↓正しい
+
+		if (Limits.npmsec)
+			Time.availableNodes = std::max(Time.availableNodes + Limits.inc[us] - Threads.nodes_searched() , (s64)0);
+
+	→　うまく動くようになった。
+
+		nodestime 600
+		bookfile no_book
+		threads 1
+		isready
+		go btime 0 wtime 0 byoyomi 10000
+
+
+・棋譜生成中に一回落ちたようだ。まだ何かバグがあるのか？
+
+	王がいないのに駒を入れ替えようとしている気がする。修正。
+
+	-	  if (rand(5) == 0 && !pos.in_check())
+	+	  if (rand(5) == 0 && !pos.in_check() && pos.pieces(pos.side_to_move()).pop_count() >= 6)
+
+	→　局面生成、盤上に王が1枚しかないときに盤上の2駒を交換しようとするバグ修正。
+
 ・結論的には論理コア数で対局させている部分が勝率が偏る原因なのかも。
 
 V3.55d

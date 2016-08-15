@@ -355,19 +355,26 @@ void is_ready()
 	}
 
 	Search::clear();
+
+	Time.availableNodes = 0;
 }
 
 // isreadyコマンド処理部
 void is_ready_cmd(Position& pos)
 {
-  is_ready();
+	// 対局ごとに"isready","usinewgame"の両方が来るはずだが、
+	// "isready"は起動後に1度だけしか来ないGUI実装がありうるかも知れない。
+	// 将棋では、"isready"が毎回来るようなので、"usinewgame"のほうは無視して、
+	// "isready"に応じて評価関数、定跡、探索部を初期化する。
 
-  // Positionコマンドが送られてくるまで評価値の全計算をしていないの気持ち悪いのでisreadyコマンドに対して
-  // evalの値を返せるようにこのタイミングで平手局面で初期化してしまう。
-  pos.set(SFEN_HIRATE);
+	is_ready();
 
-  ponder_mode = false;
-  sync_cout << "readyok" << sync_endl;
+	// Positionコマンドが送られてくるまで評価値の全計算をしていないの気持ち悪いのでisreadyコマンドに対して
+	// evalの値を返せるようにこのタイミングで平手局面で初期化してしまう。
+	pos.set(SFEN_HIRATE);
+
+	ponder_mode = false;
+	sync_cout << "readyok" << sync_endl;
 }
 
 // "position"コマンド処理部

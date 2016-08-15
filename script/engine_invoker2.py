@@ -74,15 +74,24 @@ def create_option(engines,engine_threads,evals,times,hash):
 	inc_time = 0
 	total_time = 0
 
+	nodes_time = False
+
 	for b in times.split("/"):
+
+		c = b[0]
+		# 大文字で指定されていたらnodes_timeモード。
+		if c != c.lower():
+			c = c.lower()
+			nodes_time = True
+
 		t = int(b[1:])
-		if b.startswith("r"):
+		if c == "r":
 			rtime = t
-		elif b.startswith("b"):
+		elif c == "b":
 			byoyomi = t
-		elif b.startswith("i"):
+		elif c == "i":
 			inc_time = t
-		elif b.startswith("t"):
+		elif c == "t":
 			total_time = t
 
 	for i in range(2):
@@ -108,6 +117,9 @@ def create_option(engines,engine_threads,evals,times,hash):
 #				option.append("setoption name EvalShare value false")
 #			else:
 #				option.append("setoption name EvalShare value true")
+
+			if nodes_time:
+				option.append("setoption name nodestime value 600")
 		else:
 			if rtime:
 				option.append("go rtime " + str(rtime))
@@ -290,6 +302,7 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 						# go_cmd((i & ~1) + random.randint(0,1) )
 						# outlog(i,"turn = " + str((i & ~1) + turns[i/2]))
 
+						# 先手→後手、交互に行う。
 						go_cmd((i & ~1) + turns[i/2])
 						turns[i/2] = turns[i/2] ^ 1
 
@@ -419,17 +432,19 @@ param = sys.argv
 
 # time1..timeN の指定書式のサンプル
 #  r100    : random time 100
-#  1000    : byoyomi time 1000
+#  b1000   : byoyomi time 1000
 #  t300000 : total time 300000
 #  i3000   : inc time 3000
 #  t300000/i3000 : t300000 and i3000
+#  大文字で書くとnodes as timeモード
+#  R100    : random time 100 and nodes as time
 
 home = param[1]
 if not (home.endswith('/') or home.endswith('\\')):
 	home += '\\'
 
 # 論理コアの数を物理コア数の数に変更する。
-threads = int(param[6])/2
+threads = int(param[6])
 loop = int(param[7])
 numa = param[8]
 

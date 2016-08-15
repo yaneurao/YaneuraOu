@@ -51,3 +51,4 @@ EvalDir 評価関数格納フォルダ
 EvalShare 評価関数を共有メモリに展開する
 EvalSaveDir 学習時の評価関数の保存フォルダ
 PvInterval PVの出力の抑制時間[ms]
+nodestime nodes as time
