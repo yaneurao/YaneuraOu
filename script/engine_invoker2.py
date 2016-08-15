@@ -65,7 +65,7 @@ def output_rating(win,draw,lose):
 
 
 # 思考エンジンに対するオプションを生成する。
-def create_option(engines,engine_threads,evals,times,hash):
+def create_option(engines,engine_threads,evals,times,hash,numa):
 
 	options = []
 
@@ -117,7 +117,7 @@ def create_option(engines,engine_threads,evals,times,hash):
 #				option.append("setoption name EvalShare value false")
 #			else:
 #				option.append("setoption name EvalShare value true")
-
+			option.append("setoption name Numa value " + numa)
 			if nodes_time:
 				option.append("setoption name nodestime value 600")
 		else:
@@ -261,7 +261,6 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 	# loop for playing games
 	while True:
 
-		update = False
 		receive_something = False
 
 		for i in range(len(states)):
@@ -276,6 +275,7 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 					term_procs[i] = True
 				continue
 
+			update = False
 			for line in iter(proc.stdout.readline, b''):
 
 				receive_something = True
@@ -402,6 +402,15 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 						f.close()
 					return
 
+				# output result at stated periods
+				if loop_count % 10 == 0 :
+					output_rating(win,draw,lose)
+					if FileLogging:
+						for i in range(len(states)):
+							f.write("["+str(i)+"] State = " + states[i] + "\n")
+					if FileLogging:
+						f.flush()
+
 			if states[i] == "init":
 				isready_cmd(i)
 
@@ -410,17 +419,6 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 		if not receive_something :
 #			time.sleep(1.0/1000)
 			time.sleep(0)
-
-		# output result at stated periods
-		if update and (loop_count % 10) == 0 :
-			output_rating(win,draw,lose)
-			if FileLogging:
-				for i in range(len(states)):
-					f.write("["+str(i)+"] State = " + states[i] + "\n")
-
-			if FileLogging:
-				f.flush()
-
 
 param = sys.argv
 
@@ -515,7 +513,7 @@ for evaldir in evaldirs:
 	for play_time in play_time_list:
 		print "\nthreads = " + str(threads) + " , loop = " + str(loop) + " , numa = " + numa + " , play_time = " + play_time
 
-		options = create_option(engines,engine_threads,evals_full,play_time,hash)
+		options = create_option(engines,engine_threads,evals_full,play_time,hash,numa)
 
 		for i in range(2):
 			print "option " + str(i+1) + " = " + ' / '.join(options[i])

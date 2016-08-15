@@ -20,13 +20,29 @@ ToDo:
 
 ■　2016/08/16
 
+・
+	engine1 = YaneuraOuV355c.exe , eval = haku20160729
+	engine2 = YaneuraOuV355c.exe , eval = Apery20160815
+	220 - 5 - 275(44.44% R-38.76)
+
+
+・あー、別のプロセッサグループのほうで確保している共有メモリ上の評価関数バイナリにアクセスしてnps下がる問題があるのか…。
+	弱くなるのは、これかも知れん…。この問題、回避できるか考えるか…。
+	Numa指定しているので、これで回避するか。
+	→　そうした。
+
+		auto dir_name = (string)Options["EvalDir"] + "Numa" + (string)Options["EngineNuma"];
+
 
 ・新Apery評価関数
+
+		engine1 = YaneuraOuV356.exe , eval = Apery20160812
+		engine2 = YaneuraOuV356.exe , eval = Apery20160815
+		play_time = R100 ,  459 - 9 - 532(46.32% R-25.64)
 
 		engine1 = YaneuraOuV355c.exe , eval = Apery20160812
 		engine2 = YaneuraOuV355c.exe , eval = Apery20160815
 		play_time = r100 ,  4608 - 88 - 5304(46.49% R-24.44)
-
 
 ・
 	pythonの自己対戦スクリプトでこのモードを使うオプション追加。

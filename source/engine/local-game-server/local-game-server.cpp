@@ -22,10 +22,6 @@ void USI::extra_option(USI::OptionsMap & o)
 	// "engine_configX.txt"が配置してあるフォルダ
 	o["EngineConfigDir"] << Option("");
 
-	// 子プロセスでEngineを実行するプロセッサグループ(Numa node)
-	// -1なら、指定なし。
-	o["EngineNuma"] << Option(-1, 0, 99999);
-
 	// 連続自己対戦のときに定跡の局面まで進めるためのsfenファイル。
 	// このファイルの棋譜のまま32手目まで進める。
 	o["BookSfenFile"] << Option("book.sfen");

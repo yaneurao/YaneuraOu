@@ -271,6 +271,12 @@ namespace USI
 	o["EvalShare"] << Option(true);
 #endif
 
+#if defined(LOCAL_GAME_SERVER) || (defined(USE_SHARED_MEMORY_IN_EVAL) && defined(EVAL_KPPT))
+	// 子プロセスでEngineを実行するプロセッサグループ(Numa node)
+	// -1なら、指定なし。
+	o["EngineNuma"] << Option(-1, 0, 99999);
+#endif
+
     // 各エンジンがOptionを追加したいだろうから、コールバックする。
     USI::extra_option(o);
   }
