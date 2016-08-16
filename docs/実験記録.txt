@@ -14,17 +14,48 @@ ToDo:
 ・mate3()書く。
 
 
+
 ・魔女と長い時間で対局させてチューニング
 ・技巧と長い時間で対局させてチューニング
 
 
+■　2016/08/17
+
+・新自己対戦フレームワークでHTありにて計測
+
+	engine1 = YaneuraOuV356a.exe , eval = Apery20160505
+	engine2 = YaneuraOuV356a.exe , eval = Apery20160803
+	play_time = r100 ,  4423 - 73 - 5504(44.56% R-37.98)
+
+	engine1 = YaneuraOuV356a.exe , eval = Apery20160505
+	engine2 = YaneuraOuV356a.exe , eval = Apery20160815
+	play_time = b2000 ,  391 - 10 - 599(39.49% R-74.1)
+
+	engine1 = YaneuraOuV356a.exe , eval = Apery20160812
+	engine2 = YaneuraOuV356a.exe , eval = Apery20160815
+	play_time = r300 ,  4736 - 130 - 5134(47.98% R-14.02)
+
+	engine1 = YaneuraOuV356a.exe , eval = Apery20160730
+	engine2 = YaneuraOuV356a.exe , eval = Apery20160803
+	play_time = r100 ,  4676 - 86 - 5238(47.17% R-19.72)
+	やはり、Aperyの0730→0803は強くなっていたのか。そうか…。
+
+・技巧も自己対戦フレームワークで対局できるようにする。
+	engine_threadsも自己対戦フレームワークで指定できるように。
+	jenkinsのjobも修正。
+
+	> start /B /WAIT /NODE %EXECUTOR_NUMBER% c:/python27/python.exe %YANEHOME%\script\engine_invoker2.py %YANEHOME% %ENGINE1% %EVAL1%  %ENGINE2% %EVAL2% %HT_CORES% %LOOP% %EXECUTOR_NUMBER% %ENGINE_THREADS% { %TIMES% }
+
+	→　修正した。
+
+・前回の30億局面をもとに学習を回しておく。
+
+
+
 ■　2016/08/16
 
-・
-	engine1 = YaneuraOuV355c.exe , eval = haku20160729
-	engine2 = YaneuraOuV355c.exe , eval = Apery20160815
-	220 - 5 - 275(44.44% R-38.76)
 
+・無教師から学習させていたものがそれなりの強さになったようだ。これを育てていく。
 
 ・あー、別のプロセッサグループのほうで確保している共有メモリ上の評価関数バイナリにアクセスしてnps下がる問題があるのか…。
 	弱くなるのは、これかも知れん…。この問題、回避できるか考えるか…。

@@ -2596,9 +2596,12 @@ ID_END:;
 	{
 		// "stop"が送られてきたらSignals.stop == trueになる。
 		// "ponderhit"が送られてきたらLimits.ponder == 0になるので、それを待つ。(stopOnPonderhitは用いない)
+		//    また、このときSignals.stop == trueにはならない。(この点、Stockfishとは異なる。)
 		// "go infinite"に対してはstopが送られてくるまで待つ。
 		while (!Signals.stop && (Limits.ponder || Limits.infinite))
 			sleep(1);
+		//	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
+		// (思考のためには計算資源を使っていないので。)
 	}
 
 	Signals.stop = true;

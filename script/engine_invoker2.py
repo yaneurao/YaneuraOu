@@ -121,6 +121,9 @@ def create_option(engines,engine_threads,evals,times,hash,numa):
 			if nodes_time:
 				option.append("setoption name nodestime value 600")
 		else:
+			# ここで対応しているengine一覧
+			#  ・技巧(20160606)
+			#  ・...
 			if rtime:
 				option.append("go rtime " + str(rtime))
 				print "Error! " + engines[i] + " doesn't support rtime "
@@ -130,8 +133,8 @@ def create_option(engines,engine_threads,evals,times,hash,numa):
 				option.append("go btime REST_TIME wtime REST_TIME byoyomi " + str(byoyomi))
 
 			option.append("setoption name Threads value " + str(engine_threads))
-			option.append("setoption name EvalDir value " + evals[i])
 			option.append("setoption name USI_Hash value " + str(hash))
+#			option.append("setoption name EvalDir value " + evals[i])
 
 		options.append(option)
 
@@ -152,7 +155,17 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 
 	cmds = []
 	for i in range(2):
-		cmds.append("cmd.exe /c start /B /WAIT /NODE " + numa + " " + engines_full[i])
+		# working directoryを実行ファイルのあるフォルダ直下としてやる。
+		# 最後のdirectory separatorを探す
+		engine_path = engines_full[i]
+		pos = max(engine_path.rfind('\\') , engine_path.rfind('/'))
+		if pos <= 0:
+			working_dir = ""
+		else:
+			working_dir = engine_path[:pos]
+		# print "working_dir = " + working_dir
+
+		cmds.append("cmd.exe /c start /B /WAIT /D " + working_dir + " /NODE " + numa + " " + engines_full[i])
 
 	# 棋譜
 	sfens = [""]*threads
@@ -177,7 +190,7 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 	term_procs = [False]*threads*2
 
 	for i in range(threads*2):
-		proc = subprocess.Popen(cmds[i & 1], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE , stdin = subprocess.PIPE)
+		proc = subprocess.Popen(cmds[i & 1] , shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE , stdin = subprocess.PIPE)
 		pipe_non_blocking_set(proc.stdout.fileno())
 
 		procs[i] = proc
@@ -188,8 +201,8 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 	Logging = False
 
 	# これをTrueにするとログファイルに思考エンジンとのやりとりを出力する。
-#	FileLogging = True
-	FileLogging = False
+	FileLogging = True
+#	FileLogging = False
 
 	if FileLogging:
 		now = datetime.datetime.today()
@@ -283,7 +296,8 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 				outlog(i,line)
 
 				# "Error"か"Display"の文字列が含まれていればそれをそのまま出力する。
-				if ("Error" in line) or ("Display" in line):
+				# "Failed"は技巧が出力してくる。
+				if ("Error" in line) or ("Display" in line) or ("Failed" in line):
 					outstd(i,line)
 
 				# node数計測用
@@ -370,7 +384,13 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 
 						if sfens[i/2]!="":
 							sfens[i/2]+=" "
-						sfens[i/2] += ss[1]
+
+						# bestmoveとしておかしい文字列を送ってくるエンジン対策
+						try:
+							sfens[i/2] += ss[1]
+						except:
+							outlog(i,"Error!" + line)
+
 						moves[i/2] += 1
 						if moves[i/2] >= 256:
 							draw += 1
@@ -423,10 +443,10 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 param = sys.argv
 
 # args format
-# 	HOMEPATH engine1 evaldir1 engine2 evaldir2 threads loop numa { time1 ... timeN }
+# 	HOMEPATH engine1 evaldir1 engine2 evaldir2 threads loop numa engine_threads { time1 ... timeN }
 
 # sample 
-#   > c:\python27\python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker2.py \\WS2012_860C_YAN\yanehome\ YaneuraOuV350.exe Apery20160505 YaneuraOuV350.exe Apery20160505 8 1000 0  { r100 }
+#   > c:\python27\python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker2.py \\WS2012_860C_YAN\yanehome\ YaneuraOuV350.exe Apery20160505 YaneuraOuV350.exe Apery20160505 8 1000 0 1 { r100 }
 
 # time1..timeN の指定書式のサンプル
 #  r100    : random time 100
@@ -446,11 +466,14 @@ threads = int(param[6])
 loop = int(param[7])
 numa = param[8]
 
-if param[9] != "{" :
-	play_time_list = [ param[9] ]
+# threads number for an each engine
+engine_threads = int(param[9])
+
+if param[10] != "{" :
+	play_time_list = [ param[10] ]
 else:
 	play_time_list = []
-	for i in range (10,len(param)-1):
+	for i in range (11,len(param)-1):
 		play_time_list.append(param[i])
 
 # expand eval_dir
@@ -466,10 +489,6 @@ else:
 
 hash = 16
 book_moves = 16
-
-# threads number for an each engine
-# engine_threads = 4
-engine_threads = 1
 
 print "home           : " , home
 print "play_time_list : " , play_time_list
