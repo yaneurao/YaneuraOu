@@ -10,16 +10,270 @@
 
 
 ToDo: 
+
+・魔女と持ち時間制で比較。
+
+・気になるのであとで調べる。
+	https://twitter.com/merom686/status/765463718146641920
+	 merom686 > 魔女でたまに35000くらいの謎点数が表示されるのって、静止探索の枝刈りの条件が futilityBase >  -ScoreInfinite  で（-ScoreKnownWinではなくて）、負けを読み切った局面でもfutilityBaseでスコアを更新するから？
+	https://twitter.com/merom686/status/765464617417977856
+	merom686 > 35000くらいの大きい数になるのは、ScoreMateInMaxPlyより少し小さい数をセンチポーン補正で1割くらい大きく表示してるから。
+
 ・kppの手番→ppの手番で代替できるような気が…。
 ・mate3()書く。
 
 
 
-・魔女と長い時間で対局させてチューニング
+■　2016/08/18
+
+・SSEなしのときにBitboardの>>=演算子の実装が間違っていたの修正。(ai5さん、thanks！)
+
+・置換表サイズによる強さの違いを計測しておく。
+		hash size      :  [16, 256]
+		engine1 = YaneuraOuV356a.exe , eval = Apery20160815
+		engine2 = YaneuraOuV356a.exe , eval = Apery20160815
+
+		1497 - 46 - 1497(50.0% R-0.0)
+
+		変わらず…。ふーん..。
+		8スレッド×10秒だと80倍は必要だから16Mが最適値だとしたらその80倍で1280MBほどないといけないのでは。
+		逆に16MBをいくらに縮めると弱くなるのかそっちのほうが大事かも。
+
+		hash size      :  [16, 256]
+		play_time = b3000 , 1688 - 96 - 1676(50.18% R1.24)
+		3秒でも変わらず。そうなのか…。
+
+
+		hash size      :  [1, 16]
+		engine1 = YaneuraOuV356a.exe , eval = Apery20160815
+		engine2 = YaneuraOuV356a.exe , eval = Apery20160815
+		play_time = b1000 ,  492 - 15 - 493(49.95% R-0.35)
+
+		hash size      :  [2, 16]
+		engine1 = YaneuraOuV356a.exe , eval = Apery20160815
+		engine2 = YaneuraOuV356a.exe , eval = Apery20160815
+		play_time = b1000 ,  472 - 23 - 505(48.31% R-11.74)
+
+		1MB、CPU cacheに載るのでむしろ強くなる可能性が微レ存。
+		まあいいや。hash sizeの変更で強弱はほぼ変わらないということか。
+		256MBより大きくても良いのかは謎だが…。
+
+
+・技巧、自己対戦フレームワークでうまく動くようになったので1,3,5秒でAperyのバイナリと対戦。
+
+		engine1 = YaneuraOuV356a.exe , eval = Apery20160815
+		engine2 = gikou_win_20160606/gikou.exe , eval = dummy
+		play_time = b1000 ,  465 - 7 - 528(46.83% R-22.07)
+
+		engine1 = YaneuraOuV356a.exe , eval = Apery20160815
+		engine2 = gikou_win_20160606/gikou.exe , eval = dummy
+		play_time = b3000 ,  546 - 9 - 445(55.1% R35.53)
+
+		短い時間では技巧有利だが、長い時間では逆転する模様。
+		長い時間においては、やねうら王+Apery20160815で技巧を上回っていると言えると思う。
+
+
 ・技巧と長い時間で対局させてチューニング
+	→　ソースコードを修正してビルドしなおす必要あり。
+	→　いや、そうでもないな。pythonの自己対戦フレームワーク、バイナリでreadline()しているのが問題なのか…。
+	→　そうでもなさげ。技巧側、printfで出力しているのをcoutで出力するように修正してビルドしなおしてみる。
+
+
+	Popenのときに universal_newlines=Trueを指定するように修正。
+
+		- proc = subprocess.Popen(cmds[i & 1] , shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE , stdin = subprocess.PIPE)
+		+ proc = subprocess.Popen(cmds[i & 1] , shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE , stdin = subprocess.PIPE , universal_newlines=True)
+
+		-	for line in iter(proc.stdout.readline, b''):
+		+	for line in iter(proc.stdout.readline):
+
+	→　Invalid argument…うむむ？
+
+・技巧のほう、printfをcoutを使うように修正。
+
+	修正案)
+
+		synced_printf.h
+
+		#include <iostream>
+		#include <utility>
+
+		/**
+		 * 排他制御された、printf()関数です.
+		 */
+		#if 0
+		#define SYNCED_PRINTF(...) { \
+		  g_synced_printf_mutex.lock();      \
+		  std::printf(__VA_ARGS__);  \
+		  g_synced_printf_mutex.unlock(); }
+		#else
+
+		//	This is a termination condition to stop that template being infinitely recursive
+		inline void SYNCED_PRINTF(){}
+
+		template<typename First, typename ...Rest>
+		void SYNCED_PRINTF(First && first, Rest && ...rest)
+		{
+		  g_synced_printf_mutex.lock();
+		  std::cout << std::forward<First>(first);
+		  SYNCED_PRINTF(rest...);
+		  std::cout << std::endl;
+		  g_synced_printf_mutex.unlock();
+		}
+		#endif
+		↓
+		あかん。printfの%sを利用してるところがある…。
+		こう書き換える。
+
+		#include <iostream>
+		#define SYNCED_PRINTF(...) { \
+		  g_synced_printf_mutex.lock();    \
+		  char _BUF[4096];                 \
+		  std::sprintf(_BUF,__VA_ARGS__);  \
+		  std::cout << _BUF;               \
+		  g_synced_printf_mutex.unlock(); }
+		 
+		→　pythonの自己対戦フレームワークでうまく対局できるようになった。
+		原因はよくわからないが、printf()をcoutに変更すれば直るということで間違いなさげ。
+		printf()、バッファリングしないことが仇になっているのかも。
+		coutはendlか何かがあるまではバッファリングするのだろうし。
+
+		Jenkinsのjob化したときにjobのキャンセルに対して、技巧のプロセスが残る。
+		うーん…。標準入力のpollingの仕方の問題だとは思うけど、嫌らしいなぁ…。
+		40プロセスもタスクマネージャーから終了させるのはしんどい。
+
+		やねうら王の場合、こう待機しているが、技巧はこれをやっていないからEOFが来ても終了しないのでは…。
+		  if (!getline(cin, cmd)) // 入力が来るかEOFがくるまでここで待機する。
+			cmd = "quit";
+		ああ、わかった。
+		OnQuitCommandEntered()が呼ばれないのか。これバグだな。
+
+			-		  for (std::string line; std::getline(std::cin, line) ; ) {
+
+			+		  for (std::string line; ; ) {
+			+			if (!std::getline(std::cin, line))
+			+				line = "quit";
+
+		こうすべき？
+
+		ReceiveCommands()のほうか。
+
+			-	  for (std::string command;std::getline(std::cin, command);) {
+
+			+	  for (std::string command; ;) {
+			+		if (!std::getline(std::cin, command))
+			+			command = "quit";
+
+		よし、これでうまく動いた。出村さんに報告しておく。
+
+		→　しておいた。
+
+			https://github.com/gikou-official/Gikou/issues/5
+			ReceiveCommands()なのですが、readline()の返し値を見てforループを抜ける構造になっていますが、このときquit処理をしないのでプロセスが終了しないです。Windows環境でCtrl+Z、Linux環境でCtrl+Dが送られてきたときにreadline()から抜けるのですが、このときにプロセスが残って困ります。あるいは、Pythonなどからsubprocessとして起動したときに、親側が死んだときにsubprocess側にはEOFが送られてくるのですが、このときreadline()の返し値は0になるので、このときに正常に終了しないとプロセスが残って困るのです。
+
+			修正案として、getlineの返し値を見て、"quit"コマンドが送られてきたと解釈するのがお手軽だと思います。
+			  for (std::string command; ;) {
+				if (!std::getline(std::cin, command))
+					command = "quit";
+
+			よろしくお願い致します。
+
+		→　よし、自己対戦フレームワークの終了に伴い、技巧が正しく終了するようになった。
 
 
 ■　2016/08/17
+
+・30億局面、1 iteration by SGD
+	まだ下がりそう。30億局面、1 iterationでは足りないのか…。そうか…。3,4回は回したほうが良いのかも…。
+
+	179_0045G_V4
+	ちょっと比べてみる。
+
+		engine1 = YaneuraOuV356a.exe , eval = Apery20160812
+		engine2 = YaneuraOuV356a.exe , eval = 179_0045G_V4
+		play_time = r200 ,  496 - 7 - 497(49.95% R-0.35)
+
+		engine1 = YaneuraOuV356a.exe , eval = Apery20160812
+		engine2 = YaneuraOuV356a.exe , eval = 179_0045G_V4
+		play_time = b1000 ,  575 - 11 - 414(58.14% R57.07)
+
+		engine1 = YaneuraOuV356a.exe , eval = Apery20160812
+		engine2 = YaneuraOuV356a.exe , eval = 179_0045G_V4
+		play_time = b5000 ,  548 - 17 - 435(55.75% R40.12)
+
+	まだ負けてるか。もう少し回さないと。
+
+		engine1 = YaneuraOuV356a.exe , eval = 179_0042G_V3
+		engine2 = YaneuraOuV356a.exe , eval = 179_0045G_V4
+		play_time = b1000 ,  408 - 8 - 584(41.13% R-62.3)
+
+		engine1 = YaneuraOuV356a.exe , eval = 179_0042G_V3
+		engine2 = YaneuraOuV356a.exe , eval = 179_0045G_V4
+		play_time = b5000 ,  371 - 17 - 612(37.74% R-86.95)
+
+	前のところからはずいぶん強くなってるのにな…。
+
+	179_0047G_V4
+
+		30億×2
+			rmse = 0.0956222 , mean_error = 384.207
+			..all works..done!!
+			save_eval() finished. folder = \\WS2012_860C_YAN\yanehome\eval\learn_9/6
+
+		engine1 = YaneuraOuV356a.exe , eval = Apery20160812
+		engine2 = YaneuraOuV356a.exe , eval = 179_0047G_V4
+		play_time = b1000 ,  504 - 10 - 486(50.91% R6.32)
+
+		engine1 = YaneuraOuV356a.exe , eval = Apery20160812
+		engine2 = YaneuraOuV356a.exe , eval = 179_0047G_V4
+		play_time = b1000 ,  502 - 13 - 485(50.86% R5.98)
+
+		engine1 = YaneuraOuV356a.exe , eval = 179_0045G_V4
+		engine2 = YaneuraOuV356a.exe , eval = 179_0047G_V4
+		play_time = b1000 ,  489 - 13 - 498(49.54% R-3.17)
+
+		ほぼ互角っぽい。まだサチっていないなら、もう60億ほど回したほうがいいな…。
+
+		engine1 = YaneuraOuV356a.exe , eval = Apery20160815
+		engine2 = YaneuraOuV356a.exe , eval = 179_0047G_V4
+		play_time = b1000 ,  525 - 6 - 469(52.82% R19.59)
+
+		まだ最新版には負けているのか。
+
+	179_0054G_V4
+		さらに30億×2
+			rmse = 0.0936538 , mean_error = 365.137
+			7537930000 sfens , at Wed Aug 17 19:10:42 2016
+
+				engine1 = YaneuraOuV356a.exe , eval = 179_0054G_V4
+				engine2 = YaneuraOuV356a.exe , eval = Apery20160812
+
+				r300 , 680 - 7 - 613(52.59% R18.02)
+
+				engine1 = YaneuraOuV356a.exe , eval = 179_0054G_V4
+				engine2 = YaneuraOuV356a.exe , eval = Apery20160815
+				b3000 , 419 - 18 - 473(46.97% R-21.06)
+
+	179_0060G_V4
+		さらに30億×2
+			rmse = 0.092966 , mean_error = 359.047
+
+
+
+・魔女と
+
+	engine1 = YaneuraOuV356a.exe , eval = Apery20160815
+	engine2 = SM_V110/SILENT_MAJORITY_AVX2_x64.exe , eval = Apery20160815
+	engine_threads = 4
+	play_time = b1000 ,  488 - 29 - 483(50.26% R1.79)
+	play_time = b3000 ,  481 - 42 - 477(50.21% R1.45)
+	play_time = b5000 ,  138 - 18 - 124(52.67% R18.58)
+	play_time = b5000 ,  178 - 18 - 164(52.05% R14.23)
+	play_time = b10000 ,  373 - 69 - 348(51.73% R12.05)
+	play_time = b15000 ,  244 - 35 - 291(45.61% R-30.6)
+	
+	互角ぐらいと見て良いのでは。15秒で負け越したのが少し気分が悪いが、これ、計算資源的に現実的には計測できない。
+
 
 ・新自己対戦フレームワークでHTありにて計測
 
@@ -30,6 +284,10 @@ ToDo:
 	engine1 = YaneuraOuV356a.exe , eval = Apery20160505
 	engine2 = YaneuraOuV356a.exe , eval = Apery20160815
 	play_time = b2000 ,  391 - 10 - 599(39.49% R-74.1)
+
+	engine1 = YaneuraOuV356a.exe , eval = Apery20160505
+	engine2 = YaneuraOuV356a.exe , eval = Apery20160815
+	play_time = b5000 ,  288 - 7 - 705(29.0% R-155.52)
 
 	engine1 = YaneuraOuV356a.exe , eval = Apery20160812
 	engine2 = YaneuraOuV356a.exe , eval = Apery20160815
@@ -48,8 +306,64 @@ ToDo:
 
 	→　修正した。
 
+	→　技巧、標準出力が細切れでやってくる。なんぞこれ。わけがわからん…。
+
+	[7]>info depth
+	[7]>10 se
+	[7]>ldepth 10 time 32 nodes 25423 nps 794468 hashfull 999 score cp 120 multipv 1 pv 2b4d
+	[7]>4i5h 6a5b 5g5f
+	[7]>5d6e 4f5e 4d2b 5e6d 5a4a 5f5e
+
+	技巧のソースコード見て、修正してビルドしなおすか…。
+	
+
+・魔女と長い時間で対局させてチューニング
+・魔女を自己対戦フレームワークで動作させる。
+	→　たぶん動くようになった。
+	engine_threads 4でぶん回しておく。2秒,5秒で1000回。
+	→　評価関数バイナリの最初の読み込みにめっさ時間かかる…。
+	→　動作自体は無事動いてくれている模様。
+
+
+
 ・前回の30億局面をもとに学習を回しておく。
 
+		Options[EvalDir] = eval/179_0042G_V3
+		Options[EvalSaveDir] = \\WS2012_860C_YAN\yanehome\eval\learn_9
+		Options[Threads] = 40
+		Options[Hash] = 4096
+		Options[EvalShare] = false
+		learn from 146.bin , 147.bin , 149.bin , learn , dir = \\WS2012_860C_YAN\yanehome\learn_sfen , loop = 2
+
+		Gradient Method : SGD
+		Loss Function   : CROSS_ENTOROPY
+		mini-batch size : 1000000
+		init..info string use non-shared eval_memory.
+		init done.
+
+		open filename = \\WS2012_860C_YAN\yanehome\learn_sfen/146.bin 
+		70000 sfens , at Tue Aug 16 10:53:36 2016
+
+		rmse = 0.110197 , mean_error = 452.911
+		…
+
+・isreadyが連続対局のときやサーバー対局のときに毎回送られてくることは保証されているのか？
+	USIプロトコルでは、
+		>  対局開始前に送ります。
+	とあるな…。
+
+	将棋所では連続対局のときに
+		isready
+		usinewgame
+	の両方を送ってくるようだ。
+
+	だとしたら、usinewgameが要らない子なような…。
+	Stockfishのほうは、いつの間にか、ucinewgameのほうでSearchの初期化をやるように修正されてる。うーむ..。
+	まあいいや。usinewgame使わないほうが、手でコマンド送るときに楽なのでこれで初期化するのはやらないようにしよう。
+	
+	将棋所でのサーバー対局でも同様の動作かテストしておく。
+	isreadyコマンドはfloodgateのサーバー側から送られてくるようだ。
+	だとしたら対局ごとにisreadyが送られてくるかどうかはサーバー側依存なのでは…。
 
 
 ■　2016/08/16

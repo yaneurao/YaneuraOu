@@ -65,7 +65,7 @@ def output_rating(win,draw,lose):
 
 
 # 思考エンジンに対するオプションを生成する。
-def create_option(engines,engine_threads,evals,times,hash,numa):
+def create_option(engines,engine_threads,evals,times,hashes,numa):
 
 	options = []
 
@@ -106,7 +106,7 @@ def create_option(engines,engine_threads,evals,times,hash,numa):
 
 			option.append("setoption name Threads value " + str(engine_threads))
 			option.append("setoption name EvalDir value " + evals[i])
-			option.append("setoption name Hash value " + str(hash))
+			option.append("setoption name Hash value " + str(hashes[i]))
 			option.append("setoption name BookFile value no_book")
 			option.append("setoption name NetworkDelay value 0")
 			option.append("setoption name NetworkDelay2 value 0")
@@ -117,13 +117,13 @@ def create_option(engines,engine_threads,evals,times,hash,numa):
 #				option.append("setoption name EvalShare value false")
 #			else:
 #				option.append("setoption name EvalShare value true")
-			option.append("setoption name Numa value " + numa)
+			option.append("setoption name EngineNuma value " + str(numa))
 			if nodes_time:
 				option.append("setoption name nodestime value 600")
 		else:
 			# ここで対応しているengine一覧
 			#  ・技巧(20160606)
-			#  ・...
+			#  ・Silent Majority(V1.1.0)
 			if rtime:
 				option.append("go rtime " + str(rtime))
 				print "Error! " + engines[i] + " doesn't support rtime "
@@ -133,8 +133,13 @@ def create_option(engines,engine_threads,evals,times,hash,numa):
 				option.append("go btime REST_TIME wtime REST_TIME byoyomi " + str(byoyomi))
 
 			option.append("setoption name Threads value " + str(engine_threads))
-			option.append("setoption name USI_Hash value " + str(hash))
+			option.append("setoption name USI_Hash value " + str(hashes[i]))
 #			option.append("setoption name EvalDir value " + evals[i])
+
+			if "SILENT_MAJORITY" in engines[i]:
+				option.append("setoption name Byoyomi_Margin value 0")
+				option.append("setoption name Minimum_Thinking_Time value 0")
+				option.append("setoption name Eval_Dir value " + evals[i])
 
 		options.append(option)
 
@@ -146,7 +151,7 @@ def create_option(engines,engine_threads,evals,times,hash,numa):
 #  threads    : この数だけ並列対局
 #  numa       : 実行するプロセッサグループ
 #  book_sfens : 定跡
-def vs_match(engines_full,options,threads,loop,numa,book_sfens):
+def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging):
 
 	global win,lose,draw
 	win = lose = draw = 0
@@ -165,7 +170,7 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 			working_dir = engine_path[:pos]
 		# print "working_dir = " + working_dir
 
-		cmds.append("cmd.exe /c start /B /WAIT /D " + working_dir + " /NODE " + numa + " " + engines_full[i])
+		cmds.append("cmd.exe /c start /B /WAIT /D " + working_dir + " /NODE " + str(numa) + " " + engines_full[i])
 
 	# 棋譜
 	sfens = [""]*threads
@@ -190,7 +195,8 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 	term_procs = [False]*threads*2
 
 	for i in range(threads*2):
-		proc = subprocess.Popen(cmds[i & 1] , shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE , stdin = subprocess.PIPE)
+#		proc = subprocess.Popen(cmds[i & 1] , shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE , stdin = subprocess.PIPE , universal_newlines=True , bufsize=1)
+		proc = subprocess.Popen(cmds[i & 1] , shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE , stdin = subprocess.PIPE )
 		pipe_non_blocking_set(proc.stdout.fileno())
 
 		procs[i] = proc
@@ -201,8 +207,8 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 	Logging = False
 
 	# これをTrueにするとログファイルに思考エンジンとのやりとりを出力する。
-	FileLogging = True
-#	FileLogging = False
+#	FileLogging = True
+	FileLogging = fileLogging
 
 	if FileLogging:
 		now = datetime.datetime.today()
@@ -289,7 +295,11 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 				continue
 
 			update = False
-			for line in iter(proc.stdout.readline, b''):
+
+			for line in iter(proc.stdout.readline,b''):
+
+#			line = proc.stdout.readline()
+#			if line != "":
 
 				receive_something = True
 
@@ -443,12 +453,22 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens):
 param = sys.argv
 
 # args format
-# 	HOMEPATH engine1 evaldir1 engine2 evaldir2 threads loop numa engine_threads { time1 ... timeN }
+# 	HOMEPATH engine1 evaldir1 engine2 evaldir2 threads loop numa engine_threads hash1 hash2 { time1 ... timeN }
 
 # sample 
-#   > c:\python27\python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker2.py \\WS2012_860C_YAN\yanehome\ YaneuraOuV350.exe Apery20160505 YaneuraOuV350.exe Apery20160505 8 1000 0 1 { r100 }
+#   > c:\python27\python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker2.py \\WS2012_860C_YAN\yanehome\ YaneuraOuV350.exe Apery20160505 YaneuraOuV350.exe Apery20160505 8 1000 0 1 16 16 { r100 }
 
-# time1..timeN の指定書式のサンプル
+# HOMEPATH          : ホームディレクトリ
+# engine1,engine2   : エンジン1,2のpath
+# evaldir1,evaldir2 : 評価関数フォルダ1,2 (ホームディレクトリ配下のevalフォルダ内にあるものとする)
+# threads           : 並列対局数
+# loop              : 対局回数
+# numa              : 実行するプロセッサグループ(256を指定すると0の意味になり、かつファイルロギングをする)
+# engine_threads    : 思考エンジンのスレッド数
+# hash1,hash2       : 思考エンジンのhashサイズ
+# time1…timeN      : 持ち時間の指定
+
+# 持ち時間の書式サンプル
 #  r100    : random time 100
 #  b1000   : byoyomi time 1000
 #  t300000 : total time 300000
@@ -464,16 +484,26 @@ if not (home.endswith('/') or home.endswith('\\')):
 # 論理コアの数を物理コア数の数に変更する。
 threads = int(param[6])
 loop = int(param[7])
-numa = param[8]
+numa = int(param[8])
+# numaに256が指定されているときは、FileLoggingを有効にする。
+fileLogging = False
+if numa == 256:
+	numa = 0
+	fileLogging = True
 
 # threads number for an each engine
 engine_threads = int(param[9])
 
-if param[10] != "{" :
-	play_time_list = [ param[10] ]
+# hash size for an each engine
+hashes = [16,16]
+hashes[0] = int(param[10])
+hashes[1] = int(param[11])
+
+if param[12] != "{" :
+	play_time_list = [ param[12] ]
 else:
 	play_time_list = []
-	for i in range (11,len(param)-1):
+	for i in range (13,len(param)-1):
 		play_time_list.append(param[i])
 
 # expand eval_dir
@@ -487,13 +517,12 @@ else:
 		evaldirs.append(param[5] + "/" + str(i) )
 		i += 1
 
-hash = 16
 book_moves = 16
 
 print "home           : " , home
 print "play_time_list : " , play_time_list
 print "evaldirs       : " , evaldirs
-print "hash size      : " , hash
+print "hash size      : " , hashes
 print "book_moves     : " , book_moves
 print "engine_threads : " , engine_threads
 
@@ -530,9 +559,9 @@ for evaldir in evaldirs:
 		print "engine" + str(i+1) + " = " + engines[i] + " , eval = " + evals[i]
 
 	for play_time in play_time_list:
-		print "\nthreads = " + str(threads) + " , loop = " + str(loop) + " , numa = " + numa + " , play_time = " + play_time
+		print "\nthreads = " + str(threads) + " , loop = " + str(loop) + " , numa = " + str(numa) + " , play_time = " + play_time
 
-		options = create_option(engines,engine_threads,evals_full,play_time,hash,numa)
+		options = create_option(engines,engine_threads,evals_full,play_time,hashes,numa)
 
 		for i in range(2):
 			print "option " + str(i+1) + " = " + ' / '.join(options[i])
@@ -540,7 +569,7 @@ for evaldir in evaldirs:
 
 		sys.stdout.flush()
 
-		vs_match(engines_full,options,threads,loop,numa,book_sfens)
+		vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging)
 
 		# output final result
 		print "\nfinal result : "

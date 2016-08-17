@@ -271,7 +271,7 @@ namespace USI
 	o["EvalShare"] << Option(true);
 #endif
 
-#if defined(LOCAL_GAME_SERVER) || (defined(USE_SHARED_MEMORY_IN_EVAL) && defined(EVAL_KPPT))
+#if defined(LOCAL_GAME_SERVER) || (defined(USE_SHARED_MEMORY_IN_EVAL) && defined(EVAL_KPPT) && defined(_MSC_VER))
 	// 子プロセスでEngineを実行するプロセッサグループ(Numa node)
 	// -1なら、指定なし。
 	o["EngineNuma"] << Option(-1, 0, 99999);
@@ -442,7 +442,7 @@ void setoption_cmd(istringstream& is)
     // USI_HashとUSI_Ponderは無視してやる。
     if (name != "USI_Hash" && name != "USI_Ponder" )
       // この名前のoptionは存在しなかった
-      sync_cout << "No such option: " << name << sync_endl;
+      sync_cout << "Error! : No such option: " << name << sync_endl;
   }
 }
 

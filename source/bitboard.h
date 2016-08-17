@@ -121,7 +121,7 @@ struct alignas(16) Bitboard
   Bitboard& operator -= (const Bitboard& b1) { this->p[0] -= b1.p[0]; this->p[1] -= b1.p[1]; return *this; }
 
   Bitboard& operator <<= (int shift) { ASSERT_LV3(shift == 1); this->p[0] <<= shift; this->p[1] <<= shift; return *this; }
-  Bitboard& operator >>= (int shift) { ASSERT_LV3(shift == 1); this->p[0] <<= shift; this->p[1] <<= shift; return *this; }
+  Bitboard& operator >>= (int shift) { ASSERT_LV3(shift == 1); this->p[0] >>= shift; this->p[1] >>= shift; return *this; }
 #endif
 
 
