@@ -135,7 +135,6 @@ struct Timer
   }
 
   // 探索終了の時間(startTime + search_end >= now()になったら停止)
-  // この値がマイナスのときは、startTimeFromPonderhit - (search_end) >= now() になったら停止。
   int search_end;
 
 private:

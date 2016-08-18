@@ -349,8 +349,8 @@ namespace YaneuraOu2016Late
 
 		ASSERT_LV3(move != MOVE_NULL);
 
-		CounterMoveStats* cmh = (ss - 1)->counterMoves;
-		CounterMoveStats* fmh = (ss - 2)->counterMoves;
+		CounterMoveStats* cmh  = (ss - 1)->counterMoves;
+		CounterMoveStats* fmh  = (ss - 2)->counterMoves;
 		CounterMoveStats* fmh2 = (ss - 4)->counterMoves;
 
 		auto thisThread = pos.this_thread();
@@ -413,13 +413,13 @@ namespace YaneuraOu2016Late
 			// ペナルティを与える。
 
 			if ((ss - 2)->counterMoves)
-				(ss - 2)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + ONE_PLY) / ONE_PLY - 1);
+				(ss - 2)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + 1) / ONE_PLY - 1);
 
 			if ((ss - 3)->counterMoves)
-				(ss - 3)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + ONE_PLY) / ONE_PLY - 1);
+				(ss - 3)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + 1) / ONE_PLY - 1);
 
 			if ((ss - 5)->counterMoves)
-				(ss - 5)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + ONE_PLY) / ONE_PLY - 1);
+				(ss - 5)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + 1) / ONE_PLY - 1);
 		}
 	}
 
@@ -447,7 +447,9 @@ namespace YaneuraOu2016Late
 		int elapsed = Time.elapsed_from_ponderhit();
 
 		// 今回のための思考時間を完璧超えているかの判定。
-		// 反復深化のループ内で、そろそろ終了して良い頃合いになると、Time.search_endに停止させて欲しい時間が代入される。
+
+		// 反復深化のループ内でそろそろ終了して良い頃合いになると、Time.search_endに停止させて欲しい時間が代入される。
+		// (それまではTime.search_endはゼロであり、これは終了予定時刻が未確定であることを示している。)
 		if ((Limits.use_time_management() &&
 			(elapsed > Time.maximum() - 10 || (Time.search_end > 0 && elapsed > Time.search_end - 10)))
 			|| (Limits.movetime && elapsed >= Limits.movetime)
@@ -488,7 +490,7 @@ namespace YaneuraOu2016Late
 		Value oldAlpha;        // 関数が呼び出されたときのalpha値
 		Value futilityBase;    // futility pruningの基準となる値
 
-							   // hash key関係
+		// hash key関係
 		TTEntry* tte;          // 置換表にhitしたときの置換表のエントリーへのポインタ
 		Key posKey;            // この局面のhash key
 		bool ttHit;            // 置換表にhitしたかのフラグ
@@ -496,12 +498,12 @@ namespace YaneuraOu2016Late
 		Value ttValue;         // 置換表に登録されていたスコア
 		Depth ttDepth;         // このnodeに関して置換表に登録するときの残り探索深さ
 
-							   // 王手関係
+		// 王手関係
 		bool givesCheck;       // MovePickerから取り出した指し手で王手になるか
 
-							   // -----------------------
-							   //     nodeの初期化
-							   // -----------------------
+		// -----------------------
+		//     nodeの初期化
+		// -----------------------
 
 		if (PvNode)
 		{
@@ -555,7 +557,7 @@ namespace YaneuraOu2016Late
 			&& tte->depth() >= ttDepth
 			&& ttValue != VALUE_NONE // 置換表から取り出したときに他スレッドが値を潰している可能性があるのでこのチェックが必要
 			&& (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
-				: (tte->bound() & BOUND_UPPER)))
+								: (tte->bound() & BOUND_UPPER)))
 			// ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
 			// ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
 			// 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
@@ -622,7 +624,7 @@ namespace YaneuraOu2016Late
 
 				ss->staticEval = bestValue =
 					(ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
-					: -(ss - 1)->staticEval + 2 * Tempo;
+													   : -(ss - 1)->staticEval + 2 * Tempo;
 			}
 
 			// Stand pat.
@@ -688,7 +690,9 @@ namespace YaneuraOu2016Late
 			if (!InCheck
 				&& !givesCheck
 				&&  futilityBase > -VALUE_KNOWN_WIN)
-				// ToDo:ここ本当に-VALUE_INFINITEでなくて良いのか？
+				// StockfishではここがVALUE_INFINITEになっているが、
+				// ここをVALUE_INFINITEにしてしまうと、負けを読みきっているときに
+				// その値を上乗せして置換表を更新してしまうのでおかしいと思う。
 			{
 				// moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになる。
 
@@ -734,7 +738,7 @@ namespace YaneuraOu2016Late
 			// ここ、captureだけでなく、歩の成りもevasionPrunableから除外したほうが良い。
 
 			if ((!InCheck || evasionPrunable)
-				// 「歩が成る」指し手
+				// 「歩が成る」指し手ではない
 				&& (!(is_promote(move) && raw_type_of(pos.moved_piece_after(move)) == PAWN))
 				&& pos.see_sign(move) < VALUE_ZERO)
 				continue;
@@ -752,8 +756,8 @@ namespace YaneuraOu2016Late
 			ss->currentMove = move;
 
 			pos.do_move(move, st, givesCheck);
-			value = givesCheck ? -qsearch<NT, true>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
-				: -qsearch<NT, false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
+			value = givesCheck ? -qsearch<NT, true >(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
+							   : -qsearch<NT, false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
 
 			pos.undo_move(move);
 

@@ -262,14 +262,14 @@
 #define EVAL_KPPT
 //#define USE_EVAL_HASH
 #define USE_SIMPLE_SEE
-#define USE_MOVE_PICKER_2016Q2
+#define USE_MOVE_PICKER_2016Q3
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
 #define KEEP_PIECE_IN_GENERATE_MOVES
 #define ONE_PLY_EQ_1
 // デバッグ絡み
-#define ASSERT_LV 3
+//#define ASSERT_LV 3
 #define ENABLE_TEST_CMD
 // 学習絡みのオプション
 #define USE_SFEN_PACKER

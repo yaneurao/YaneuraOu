@@ -10,11 +10,55 @@
 
 
 ToDo: 
+・魔女と持ち時間制で比較。
+・技巧のソースコード調べる。
+・kppの手番→ppの手番で代替できるような気が…。
+・mate3()書く。
+
+
+■　2016/08/19
 
 ・探索部もう少し突っ込んで改良する。
 	作業、2016-late-searchのほうでやるか…。
 
-・魔女と持ち時間制で比較。
+		V3.57
+		move_picker		
+		capturesで歩の成り、考慮しないほうが良い？
+				m.value =// (pawn_promo ? (Value)(Eval::ProDiffPieceValue[PAWN]) : VALUE_ZERO)
+			//      +
+
+		V3.57a
+		evasionでLVAはやらないほうがよさげ？
+			m.value = (Value)Eval::CapturePieceValue[pos.piece_on(move_to(m))]
+			//	- Value(LVA(type_of(pos.moved_piece_before(m))))
+				+ HistoryStats::Max;
+			→　Stockfishでも似たことはやっているのでやったほうがよさげ。
+				Aperyと魔女が何故やってないのかは知らないが…。
+
+				engine1 = YaneuraOuV356a.exe , eval = Apery20160815
+				engine2 = YaneuraOuV357a.exe , eval = Apery20160815
+				2091 - 56 - 1633(56.15% R42.95)
+
+			→　外すとめっさ弱くなる。マジっぽい。なんでなの？ここ以外に何かいじった？
+				ちょっと尋常じゃない。そんなに変わるほうがおかしいと思うのだが…。
+
+		V3.57b
+		BadCaptureの処遇は？
+			  QUIETS,                       // CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す。SEE値の悪い手は後回し。
+			  BAD_CAPTURES,                 // 捕獲する悪い指し手(SEE < 0 の指し手だが、将棋においてそこまで悪い手とは限らない)
+			こうすると？(V3.58の改造+この改造)
+
+
+	この処理、やはり+1が正しい気がする。
+	-	  (ss - 2)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + ONE_PLY) / ONE_PLY - 1);
+	+	  (ss - 2)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + 1) / ONE_PLY - 1);
+
+	Searchの、movetimeとかponderとかの変数が一箇所に書いてあるの、行を分けないとIntelliSenseが機能しない。
+	なおしておく。
+
+	Search::search_endの説明が間違ってる気がする。消す。
+	  // この値がマイナスのときは、startTimeFromPonderhit - (search_end) >= now() になったら停止。
+
 
 ・気になるのであとで調べる。
 	https://twitter.com/merom686/status/765463718146641920
@@ -22,17 +66,15 @@ ToDo:
 	https://twitter.com/merom686/status/765464617417977856
 	merom686 > 35000くらいの大きい数になるのは、ScoreMateInMaxPlyより少し小さい数をセンチポーン補正で1割くらい大きく表示してるから。
 
-・kppの手番→ppの手番で代替できるような気が…。
-・mate3()書く。
+	→　やねうら王の実装で正しい気がしてきた。
+	念のため、qsearchの以下のところをVALUE_INFINITEに書き換えて試してみる。
+			V3.57c
+				&&  futilityBase > -VALUE_KNOWN_WIN)
 
-
-■　2016/08/19
 
 ・自己対戦の結果を安定させるために、互角の局面集みたいなのを作ったほうが良いかも。
 　やねうら大定跡を用いるという手もあるか…。
 	　→　0.2秒以上なら問題なさそうなのでまあいいや。
-
-
 
 
 ■　2016/08/18

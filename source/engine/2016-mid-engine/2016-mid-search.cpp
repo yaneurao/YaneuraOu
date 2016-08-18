@@ -413,13 +413,13 @@ namespace YaneuraOu2016Mid
 		  // ペナルティを与える。
 
 		  if ((ss - 2)->counterMoves)
-			  (ss - 2)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + ONE_PLY) / ONE_PLY - 1);
+			  (ss - 2)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + 1) / ONE_PLY - 1);
 
 		  if ((ss - 3)->counterMoves)
-			  (ss - 3)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + ONE_PLY) / ONE_PLY - 1);
+			  (ss - 3)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + 1) / ONE_PLY - 1);
 
 		  if ((ss - 5)->counterMoves)
-			  (ss - 5)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + ONE_PLY) / ONE_PLY - 1);
+			  (ss - 5)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + 1) / ONE_PLY - 1);
 	  }
   }
 
