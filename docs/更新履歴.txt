@@ -7,6 +7,8 @@
 ・2016Late engine書きかけ。
 ・move_picker2016Q3追加。
 ・Search::search_endの説明が間違ってる気がする。消す。
+・move_picker、capturesで歩の成り、考慮しない。
+・move_picker、BadCaptureの順序変更。
 
 
 ■　2016/08/18 V3.57

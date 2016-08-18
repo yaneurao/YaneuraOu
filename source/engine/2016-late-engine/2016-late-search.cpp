@@ -623,8 +623,13 @@ namespace YaneuraOu2016Late
 				// 正しい値のはず。
 
 				ss->staticEval = bestValue =
+#if 1
 					(ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
 													   : -(ss - 1)->staticEval + 2 * Tempo;
+#else
+					// NULL_MOVEのあとも適切に差分計算されるはず。
+					evaluate(pos);
+#endif
 			}
 
 			// Stand pat.
@@ -690,9 +695,10 @@ namespace YaneuraOu2016Late
 			if (!InCheck
 				&& !givesCheck
 				&&  futilityBase > -VALUE_KNOWN_WIN)
-				// StockfishではここがVALUE_INFINITEになっているが、
+				// 魔女ではここがVALUE_INFINITEになっている。(StockfishではVALUE_KNOWN_WIN)
 				// ここをVALUE_INFINITEにしてしまうと、負けを読みきっているときに
-				// その値を上乗せして置換表を更新してしまうのでおかしいと思う。
+				// その値を基準に枝刈りすることになる。
+				// それでもいいような気もするが…。
 			{
 				// moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになる。
 
@@ -1014,17 +1020,18 @@ namespace YaneuraOu2016Late
 			&& tte->depth() >= depth   // 置換表に登録されている探索深さのほうが深くて
 			&& ttValue != VALUE_NONE   // (VALUE_NONEだとすると他スレッドからTTEntryが読みだす直前に破壊された可能性がある)
 			&& (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
-				: (tte->bound() & BOUND_UPPER))
+		                		: (tte->bound() & BOUND_UPPER))
 			// ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
 			// ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
 			// 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
 			// このままこの値でreturnして良い。
 			)
 		{
-			ss->currentMove = ttMove; // この指し手で枝刈りをした。ただしMOVE_NONEでありうる。
+			// この指し手で枝刈りをした。ただしMOVE_NONEでありうる。
+			ss->currentMove = ttMove;
 
-									  // 置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
-									  // ただし、捕獲する指し手か成る指し手であればこれはkillerを更新する価値はない。
+			// 置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
+			// ただし、捕獲する指し手か成る指し手であればこれはkillerを更新する価値はない。
 			if (ttValue >= beta && ttMove && !pos.capture_or_pawn_promotion(ttMove))
 				update_stats(pos, ss, ttMove, depth, nullptr, 0);
 
@@ -1100,8 +1107,9 @@ namespace YaneuraOu2016Late
 
 			ss->staticEval = eval = VALUE_NONE;
 			goto MOVES_LOOP;
-		} else if (ttHit)
-		{
+
+		} else if (ttHit) {
+
 			// 置換表にhitしたなら、評価値が記録されているはずだから、それを取り出しておく。
 			// あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
 
@@ -1119,8 +1127,10 @@ namespace YaneuraOu2016Late
 			// これをやると不正確になるだけのようであるが、null moveした局面で手番つきの評価関数を呼ぶと
 			// 駒に当たっているものがプラス評価されて、評価値として大きく出すぎて悪作用があるようだ。
 
+#if 0
 			if ((ss - 1)->currentMove == MOVE_NULL)
 				eval = ss->staticEval = -(ss - 1)->staticEval + 2 * Tempo;
+#endif				
 
 #ifndef DISABLE_TT_PROBE
 			// 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
@@ -1203,7 +1213,7 @@ namespace YaneuraOu2016Late
 
 			//  王手がかかっているときはここに来ていないのでqsearchはInCheck == falseのほうを呼ぶ。
 			Value nullValue = depth - R < ONE_PLY ? -qsearch<NonPV, false>(pos, ss + 1, -beta, -beta + 1, DEPTH_ZERO)
-				: -search<NonPV       >(pos, ss + 1, -beta, -beta + 1, depth - R, !cutNode);
+												  : -search<NonPV       >(pos, ss + 1, -beta, -beta + 1, depth - R, !cutNode);
 			(ss + 1)->skipEarlyPruning = false;
 			pos.undo_null_move();
 
@@ -1222,7 +1232,7 @@ namespace YaneuraOu2016Late
 				// nullMoveせずに(現在のnodeと同じ手番で)同じ深さで探索しなおして本当にbetaを超えるか検証する。cutNodeにしない。
 				ss->skipEarlyPruning = true;
 				Value v = depth - R < ONE_PLY ? qsearch<NonPV, false>(pos, ss, beta - 1, beta, DEPTH_ZERO)
-					: search<NonPV       >(pos, ss, beta - 1, beta, depth - R, false);
+											  :  search<NonPV       >(pos, ss, beta - 1, beta, depth - R, false);
 				ss->skipEarlyPruning = false;
 
 				if (v >= beta)
@@ -1512,8 +1522,8 @@ namespace YaneuraOu2016Late
 				// ToDo : このへん、fmh,fmh2を調べるほうが良いかは微妙
 				if (depth <= PARAM_PRUNING_BY_HISTORY_DEPTH * ONE_PLY
 					&& move != ss->killers[0]
-					&& (!cmh || (*cmh)[moved_sq][moved_pc] < VALUE_ZERO)
-					&& (!fmh || (*fmh)[moved_sq][moved_pc] < VALUE_ZERO)
+					&& (!cmh  || (*cmh)[moved_sq][moved_pc] < VALUE_ZERO)
+					&& (!fmh  || (*fmh)[moved_sq][moved_pc] < VALUE_ZERO)
 					&& (!fmh2 || (*fmh2)[moved_sq][moved_pc] < VALUE_ZERO || (cmh && fmh)))
 					continue;
 
@@ -1534,12 +1544,13 @@ namespace YaneuraOu2016Late
 					continue;
 #else
 				// ↓どうも、このコードにすると少し弱くなるようなのでとりあえずコメントアウト。
+				// b2000, 3987 - 151 - 3112(56.16% R43.04)
 
 				// 浅いdepthで負のSSE値を持つ指し手と、深いdepthで減少する閾値を下回る指し手の枝刈り
 				if (predictedDepth < 8 * ONE_PLY)
 				{
 					Value see_v = predictedDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH * ONE_PLY ? VALUE_ZERO
-						: -PawnValue * 2 * Value(predictedDepth - 3 * ONE_PLY);
+								: -PawnValue * 2 * Value(predictedDepth - 3 * ONE_PLY);
 
 					if (pos.see_sign(move) < see_v)
 						continue;
@@ -1590,8 +1601,8 @@ namespace YaneuraOu2016Late
 
 				// ToDo:ここ、fmh,fmh2を見たほうがいいかは微妙。
 				Value val = thisThread->history[moved_sq][moved_pc]
-					+ (cmh ? (*cmh)[moved_sq][moved_pc] : VALUE_ZERO)
-					+ (fmh ? (*fmh)[moved_sq][moved_pc] : VALUE_ZERO)
+					+ (cmh  ? (*cmh )[moved_sq][moved_pc] : VALUE_ZERO)
+					+ (fmh  ? (*fmh )[moved_sq][moved_pc] : VALUE_ZERO)
 					+ (fmh2 ? (*fmh2)[moved_sq][moved_pc] : VALUE_ZERO)
 					+ thisThread->fromTo.get(~pos.side_to_move(), move);
 
@@ -1606,7 +1617,7 @@ namespace YaneuraOu2016Late
 					r += 2 * ONE_PLY;
 
 #if 0
-
+				// ToDo:
 				// 捕獲から逃れる指し手はreduction量を減らす。
 
 				// do_moveしたあとなのでtoの位置には今回移動させた駒が来ている。

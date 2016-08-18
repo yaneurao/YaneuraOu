@@ -18,6 +18,10 @@ ToDo:
 
 ■　2016/08/19
 
+・Jenkinsの最後に終了したJobがどれだかわからない問題、
+　終了するときに空のファイルを共有フォルダに作るとかすべきか？そんな原始的な…。
+
+
 ・探索部もう少し突っ込んで改良する。
 	作業、2016-late-searchのほうでやるか…。
 
@@ -26,6 +30,11 @@ ToDo:
 		capturesで歩の成り、考慮しないほうが良い？
 				m.value =// (pawn_promo ? (Value)(Eval::ProDiffPieceValue[PAWN]) : VALUE_ZERO)
 			//      +
+
+			engine1 = YaneuraOuV356a.exe , eval = Apery20160815
+			engine2 = YaneuraOuV357.exe , eval = Apery20160815
+			play_time = r300 ,  4828 - 121 - 5051(48.87% R-7.84)
+			b1000 , 2989 - 134 - 3047(49.52% R-3.34)
 
 		V3.57a
 		evasionでLVAはやらないほうがよさげ？
@@ -37,7 +46,8 @@ ToDo:
 
 				engine1 = YaneuraOuV356a.exe , eval = Apery20160815
 				engine2 = YaneuraOuV357a.exe , eval = Apery20160815
-				2091 - 56 - 1633(56.15% R42.95)
+				r300 , 2091 - 56 - 1633(56.15% R42.95)
+				b1000, 1414 - 45 - 1111(56.0% R41.89)
 
 			→　外すとめっさ弱くなる。マジっぽい。なんでなの？ここ以外に何かいじった？
 				ちょっと尋常じゃない。そんなに変わるほうがおかしいと思うのだが…。
@@ -48,6 +58,21 @@ ToDo:
 			  BAD_CAPTURES,                 // 捕獲する悪い指し手(SEE < 0 の指し手だが、将棋においてそこまで悪い手とは限らない)
 			こうすると？(V3.58の改造+この改造)
 
+			engine1 = YaneuraOuV356a.exe , eval = Apery20160815
+			engine2 = YaneuraOuV357b.exe , eval = Apery20160815
+			r300 ,  2585 - 62 - 2993(46.34% R-25.46)
+
+			engine1 = YaneuraOuV356a.exe , eval = Apery20160815
+			engine2 = YaneuraOuV357b.exe , eval = Apery20160815
+			b1000 , 1051 - 43 - 1256(45.56% R-30.95)
+
+			engine1 = YaneuraOuV357.exe , eval = Apery20160815
+			engine2 = YaneuraOuV357b.exe , eval = Apery20160815
+			2759 - 66 - 3095(47.13% R-19.96)
+
+			engine1 = YaneuraOuV357b.exe , eval = Apery20160815
+			engine2 = SM_V110/SILENT_MAJORITY_AVX2_x64.exe , eval = Apery20160815
+			b2000 , 226 - 15 - 199(53.18% R22.1)
 
 	この処理、やはり+1が正しい気がする。
 	-	  (ss - 2)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + ONE_PLY) / ONE_PLY - 1);
@@ -71,10 +96,33 @@ ToDo:
 			V3.57c
 				&&  futilityBase > -VALUE_KNOWN_WIN)
 
+			engine1 = YaneuraOuV357b.exe , eval = Apery20160815
+			engine2 = YaneuraOuV357c.exe , eval = Apery20160815
+			r300 , 4463 - 107 - 4480(49.9% R-0.66)
+
+			1万局で計測できるレベルの差を生まない。StockfishもVALUE_KNOWN_WINだし元のままでいいや。
+			こんなところいまさら書き換えると置換表のassertで引っかかりかねん。
+
 
 ・自己対戦の結果を安定させるために、互角の局面集みたいなのを作ったほうが良いかも。
 　やねうら大定跡を用いるという手もあるか…。
 	　→　0.2秒以上なら問題なさそうなのでまあいいや。
+
+・同種のソフトと対局させても強くなっているとは言えないところがアレだな…。技巧とも対局させていくべきか…。
+
+	V3.57d
+		null_moveのあと、2 * Tempoで手番の価値を計算しているところ、evaluate()に変更して本当に弱くなるのか？
+
+
+・R300とr300との違い
+		engine1 = YaneuraOuV356a.exe , eval = 179_0054G_V4
+		engine2 = YaneuraOuV356a.exe , eval = 179_0060G_V4
+		play_time = R200 ,  4828 - 160 - 5012(49.07% R-6.5)
+		play_time = R300 ,  4864 - 159 - 4977(49.43% R-3.99)
+		play_time = r300 ,  4821 - 103 - 5076(48.71% R-8.95)
+		play_time = R500 ,  4849 - 187 - 4964(49.41% R-4.07)
+
+		あまり変わらないか…。そうか…。
 
 
 ■　2016/08/18
