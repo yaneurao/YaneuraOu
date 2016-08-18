@@ -151,6 +151,9 @@
     <ClInclude Include="learn\learn.h">
       <Filter>リソース ファイル\learn</Filter>
     </ClInclude>
+    <ClInclude Include="engine\2016-late-engine\2016-late-param.h">
+      <Filter>リソース ファイル\engine\2016-late-engine</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">

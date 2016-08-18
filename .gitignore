@@ -11,7 +11,7 @@ YaneuraOu_backup*.lnk
 バージョン履歴.txt
 *.bak
 2016-late-param.h
-2016-late-search-body.cpp
+2016-late-search.cpp
 evaluate_kppt_fast_body.cpp
 *Private.*
 *.vspx

@@ -11,6 +11,9 @@
 
 ToDo: 
 
+・探索部もう少し突っ込んで改良する。
+	作業、2016-late-searchのほうでやるか…。
+
 ・魔女と持ち時間制で比較。
 
 ・気になるのであとで調べる。
@@ -21,6 +24,14 @@ ToDo:
 
 ・kppの手番→ppの手番で代替できるような気が…。
 ・mate3()書く。
+
+
+■　2016/08/19
+
+・自己対戦の結果を安定させるために、互角の局面集みたいなのを作ったほうが良いかも。
+　やねうら大定跡を用いるという手もあるか…。
+	　→　0.2秒以上なら問題なさそうなのでまあいいや。
+
 
 
 
@@ -234,11 +245,20 @@ ToDo:
 
 		ほぼ互角っぽい。まだサチっていないなら、もう60億ほど回したほうがいいな…。
 
+		engine1 = YaneuraOuV356a.exe , eval = 179_0054G_V4
+		engine2 = YaneuraOuV356a.exe , eval = haku20160729
+		play_time = b1000 ,  531 - 5 - 464(53.37% R23.43)
+
 		engine1 = YaneuraOuV356a.exe , eval = Apery20160815
 		engine2 = YaneuraOuV356a.exe , eval = 179_0047G_V4
 		play_time = b1000 ,  525 - 6 - 469(52.82% R19.59)
 
 		まだ最新版には負けているのか。
+
+		engine1 = YaneuraOuV356a.exe , eval = Apery20160505
+		engine2 = YaneuraOuV356a.exe , eval = 179_0047G_V4
+		play_time = b1000 ,  327 - 7 - 666(32.93% R-123.57)
+		play_time = b2000 ,  340 - 7 - 653(34.24% R-113.37)
 
 	179_0054G_V4
 		さらに30億×2
@@ -258,7 +278,37 @@ ToDo:
 		さらに30億×2
 			rmse = 0.092966 , mean_error = 359.047
 
+				engine1 = YaneuraOuV356a.exe , eval = 179_0054G_V4
+				engine2 = YaneuraOuV356a.exe , eval = 179_0060G_V4
+				play_time = R100 ,  4953 - 126 - 4921(50.16% R1.13)
 
+				engine1 = YaneuraOuV356a.exe , eval = 179_0054G_V4
+				engine2 = YaneuraOuV356a.exe , eval = 179_0060G_V4
+				play_time = R200 ,  4828 - 160 - 5012(49.07% R-6.5)
+
+				engine1 = YaneuraOuV356a.exe , eval = 179_0054G_V4
+				engine2 = YaneuraOuV356a.exe , eval = 179_0060G_V4
+				play_time = b1000 ,  471 - 21 - 508(48.11% R-13.14)
+
+		R100だと差が見えないか。R100駄目だな…。R200以上だな。
+
+				engine1 = YaneuraOuV356a.exe , eval = Apery20160815
+				engine2 = YaneuraOuV356a.exe , eval = 179_0060G_V4
+				play_time = r100 ,  4610 - 74 - 5316(46.44% R-24.75)
+
+				engine1 = YaneuraOuV356a.exe , eval = Apery20160815
+				engine2 = YaneuraOuV356a.exe , eval = 179_0060G_V4
+				play_time = R100 ,  4713 - 81 - 5206(47.51% R-17.28)
+
+				engine1 = YaneuraOuV356a.exe , eval = Apery20160815
+				engine2 = YaneuraOuV356a.exe , eval = 179_0060G_V4
+				play_time = b1000 ,  506 - 10 - 484(51.11% R7.72)
+
+				engine1 = YaneuraOuV356a.exe , eval = Apery20160815
+				engine2 = YaneuraOuV356a.exe , eval = 179_0060G_V4
+				play_time = b3000 ,  518 - 11 - 471(52.38% R16.52)
+
+		まだAperyにこの評価関数は負けているのか。
 
 ・魔女と
 
