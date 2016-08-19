@@ -296,12 +296,17 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging):
 
 			update = False
 
+			# このスレッドから何か受け取ったかを計測しておき、
+			# time outの判定を行なう。
+			receive_something_for_this_process = False
+
 			for line in iter(proc.stdout.readline,b''):
 
 #			line = proc.stdout.readline()
 #			if line != "":
 
 				receive_something = True
+				receive_something_for_this_process = True
 
 				outlog(i,line)
 
@@ -443,6 +448,17 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging):
 
 			if states[i] == "init":
 				isready_cmd(i)
+
+			# goコマンドを送信してから1分経過しているならtime out処理
+			if states[i] == "wait_for_bestmove" \
+				and not receive_something_for_this_process \
+				and time.time() - go_times[i] >= 60:
+
+				# sys.float_info.maxにするとオーバーフローしかねん..
+				go_times[i] = sys.maxint
+				mes = "[" + str(i) + "]: Error! Engine Timeout"
+				outlog(i,mes)
+				outstd(i,mes)
 
 		# process is not done, wait a bit and check again.
 

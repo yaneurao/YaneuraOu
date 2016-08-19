@@ -622,13 +622,13 @@ namespace YaneuraOu2016Late
 				// StateInfo.sumは更新されていて、そのあとdo_null_move()ではStateInfoが丸ごとコピーされるから、現在のpos.state().sumは
 				// 正しい値のはず。
 
+#if 0
 				ss->staticEval = bestValue =
-#if 1
 					(ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
 													   : -(ss - 1)->staticEval + 2 * Tempo;
 #else
-					// NULL_MOVEのあとも適切に差分計算されるはず。
-					evaluate(pos);
+				// 長い持ち時間では、ここ、きちんと評価したほうが良いかも。
+				ss->staticEval = bestValue = evaluate(pos);
 #endif
 			}
 
@@ -698,7 +698,10 @@ namespace YaneuraOu2016Late
 				// 魔女ではここがVALUE_INFINITEになっている。(StockfishではVALUE_KNOWN_WIN)
 				// ここをVALUE_INFINITEにしてしまうと、負けを読みきっているときに
 				// その値を基準に枝刈りすることになる。
-				// それでもいいような気もするが…。
+
+				// ここをVALUE_INFINITEに変更してもほぼ変わらないようなのでこのままで行く。
+				// r300, 4463 - 107 - 4480(49.9% R - 0.66) [2016/08/19]
+
 			{
 				// moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになる。
 
@@ -1127,10 +1130,14 @@ namespace YaneuraOu2016Late
 			// これをやると不正確になるだけのようであるが、null moveした局面で手番つきの評価関数を呼ぶと
 			// 駒に当たっているものがプラス評価されて、評価値として大きく出すぎて悪作用があるようだ。
 
+			// →　長い持ち時間ではそうでもないかも。
+			//  play_time = b5000, 468 - 32 - 500(48.35% R - 11.49) [2016/08/19]
+			//  手番込みの評価関数で手番がそれなりに正しく評価されているなら意味があるようだ。
+
 #if 0
 			if ((ss - 1)->currentMove == MOVE_NULL)
 				eval = ss->staticEval = -(ss - 1)->staticEval + 2 * Tempo;
-#endif				
+#endif
 
 #ifndef DISABLE_TT_PROBE
 			// 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
@@ -1544,7 +1551,7 @@ namespace YaneuraOu2016Late
 					continue;
 #else
 				// ↓どうも、このコードにすると少し弱くなるようなのでとりあえずコメントアウト。
-				// b2000, 3987 - 151 - 3112(56.16% R43.04)
+				// b2000, 3987 - 151 - 3112(56.16% R43.04) [2016/08/19]
 
 				// 浅いdepthで負のSSE値を持つ指し手と、深いdepthで減少する閾値を下回る指し手の枝刈り
 				if (predictedDepth < 8 * ONE_PLY)
@@ -1616,8 +1623,7 @@ namespace YaneuraOu2016Late
 				if (cutNode)
 					r += 2 * ONE_PLY;
 
-#if 0
-				// ToDo:
+#if 1
 				// 捕獲から逃れる指し手はreduction量を減らす。
 
 				// do_moveしたあとなのでtoの位置には今回移動させた駒が来ている。
@@ -1629,6 +1635,9 @@ namespace YaneuraOu2016Late
 				// ただ、KPPT型の評価関数では駒の当たりは評価されているので
 				// ここでreduction量を減らすのはあまり良くない。
 				// see()のコストが割にあわない。このコードは使わないほうがいいはず。
+
+				// →　入れたほうがわずかに強いようなので残しておく。
+				// play_time = b1000, 1446 - 51 - 1503(49.03% R - 6.72) [2016/08/19]
 
 				else if (!is_drop(move) // type_of(move)== NORMAL
 					&& type_of(pos.piece_on(to_sq(move))) != PAWN
@@ -1670,8 +1679,8 @@ namespace YaneuraOu2016Late
 			if (doFullDepthSearch)
 				value = newDepth < ONE_PLY ?
 				givesCheck ? -qsearch<NonPV, true >(pos, ss + 1, -(alpha + 1), -alpha, DEPTH_ZERO)
-				: -qsearch<NonPV, false>(pos, ss + 1, -(alpha + 1), -alpha, DEPTH_ZERO)
-				: -search<NonPV       >(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
+				           : -qsearch<NonPV, false>(pos, ss + 1, -(alpha + 1), -alpha, DEPTH_ZERO)
+				           :  -search<NonPV       >(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
 
 			// PV nodeにおいては、full depth searchがfail highしたならPV nodeとしてsearchしなおす。
 			// ただし、value >= betaなら、正確な値を求めることにはあまり意味がないので、これはせずにbeta cutしてしまう。
@@ -1683,9 +1692,9 @@ namespace YaneuraOu2016Late
 
 				// full depthで探索するときはcutNodeにしてはいけない。
 				value = newDepth < ONE_PLY ?
-					givesCheck ? -qsearch<PV, true>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
-					: -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
-					: -search<PV>(pos, ss + 1, -beta, -alpha, newDepth, false);
+					givesCheck ? -qsearch<PV, true >(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
+							   : -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
+							   : - search<PV       >(pos, ss + 1, -beta, -alpha, newDepth, false);
 
 #ifdef DYNAMIC_FUTILITY_MARGIN
 

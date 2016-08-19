@@ -10,12 +10,71 @@
 
 
 ToDo: 
-・魔女と持ち時間制で比較。
 ・技巧のソースコード調べる。
+・魔女と持ち時間制で比較。
 ・kppの手番→ppの手番で代替できるような気が…。
 ・mate3()書く。
 
 
+■　2016/08/20
+
+・自己対戦フレームワーク、time outの処理追加する。
+
+・新自己対戦フレームワークを探索パラメーターの自動調整に対応させたほうがいいかも知れない…が、1手5秒とかだと
+	1パラメーター調整にどれだけかかることやら…。1手1秒だとまたおかしいことになりかねないし…。うーん。
+	あまりいまのパラメーターから動かすとStockfishの今後の枝刈りとの相性が悪くなる可能性もあるし…。
+
+	V3.59a
+		// 捕獲から逃れる指し手はreduction量を減らす。
+		これ有効にしてみよう。
+
+			engine1 = YaneuraOuV357e.exe , eval = Apery20160815
+			engine2 = YaneuraOuV359a.exe , eval = Apery20160815
+			play_time = b1000 ,  1446 - 51 - 1503(49.03% R-6.72)
+
+			engine1 = YaneuraOuV357e.exe , eval = Apery20160815
+			engine2 = YaneuraOuV359a.exe , eval = Apery20160815
+			play_time = b3000 ,  487 - 21 - 492(49.74% R-1.77)
+
+		よくわからんが入れたほうがいいっぽい…。そうなのか…。
+
+
+	V3.59b forked from 3.59a
+		静止探索の1手詰め、長い持ち時間でも入れたほうがいいのか？
+
+			engine1 = YaneuraOuV359a.exe , eval = Apery20160815
+			engine2 = YaneuraOuV359b.exe , eval = Apery20160815
+			play_time = b1000 ,  1631 - 55 - 1314(55.38% R37.54)
+
+
+	V3.59c forked from V3.59a
+		通常探索の1手詰め、入れないと？
+
+		engine1 = YaneuraOuV359a.exe , eval = Apery20160815
+		engine2 = YaneuraOuV359c.exe , eval = Apery20160815
+		play_time = b1000 ,  1471 - 57 - 1472(49.98% R-0.12)
+
+		engine1 = YaneuraOuV359a.exe , eval = Apery20160815
+		engine2 = YaneuraOuV359c.exe , eval = Apery20160815
+		play_time = b3000 ,  522 - 30 - 448(53.81% R26.56)
+
+		入れたほうがよさ気ではある。
+		残り探索深さがある程度ないと詰みを見つけたときのリターンが少ない気はする。
+		PVかどうかとか、残りdepthに応じて変えたほうが良いのかも..
+
+
+	V3.59d forked from V3.59a
+		・捕獲から逃れる指し手、あり
+		・tempo、なしに
+		→　これで魔女と対局させておく。
+
+		以前のデータ。
+		// 4 threads
+		engine1 = YaneuraOuV357b.exe , eval = Apery20160815
+		engine2 = SM_V110/SILENT_MAJORITY_AVX2_x64.exe , eval = Apery20160815
+		342 - 47 - 311(52.37% R16.51)
+
+	
 ■　2016/08/19
 
 ・Jenkinsの最後に終了したJobがどれだかわからない問題、
@@ -110,8 +169,30 @@ ToDo:
 
 ・同種のソフトと対局させても強くなっているとは言えないところがアレだな…。技巧とも対局させていくべきか…。
 
-	V3.57d
+	V3.57d forked from V3.57b
 		null_moveのあと、2 * Tempoで手番の価値を計算しているところ、evaluate()に変更して本当に弱くなるのか？
+		search()のほう変更して様子見。
+
+			engine1 = YaneuraOuV357b.exe , eval = Apery20160815
+			engine2 = YaneuraOuV357d.exe , eval = Apery20160815
+			play_time = r200 ,  1512 - 45 - 1443(51.17% R8.11)
+
+			engine1 = YaneuraOuV357b.exe , eval = Apery20160815
+			engine2 = YaneuraOuV357d.exe , eval = Apery20160815
+			play_time = b1000 ,  1464 - 53 - 1483(49.68% R-2.24)
+
+			b3000 , 935 - 63 - 972(49.03% R-6.74)
+
+			engine1 = YaneuraOuV357b.exe , eval = Apery20160815
+			engine2 = YaneuraOuV357d.exe , eval = Apery20160815
+			play_time = b5000 ,  468 - 32 - 500(48.35% R-11.49)
+
+			長い持ち時間ではそうでもなさげ？うむむ？
+
+	V3.57e forked from V3.57d
+			qsearch()のほうも同様にTempo消して、1秒、5秒で回しておく。
+
+			b1000 , 586 - 11 - 583(50.13% R0.89)
 
 
 ・R300とr300との違い
@@ -161,6 +242,7 @@ ToDo:
 
 
 ・技巧、自己対戦フレームワークでうまく動くようになったので1,3,5秒でAperyのバイナリと対戦。
+	threads = 2
 
 		engine1 = YaneuraOuV356a.exe , eval = Apery20160815
 		engine2 = gikou_win_20160606/gikou.exe , eval = dummy
