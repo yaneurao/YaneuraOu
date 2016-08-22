@@ -3,7 +3,7 @@
 
 #include "../shogi.h"
 
-#if defined(EVAL_LEARN) && defined(YANEURAOU_2016_MID_ENGINE)
+#if defined(EVAL_LEARN)
 
 #include "../misc.h"
 

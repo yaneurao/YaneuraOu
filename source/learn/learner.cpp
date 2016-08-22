@@ -12,7 +12,7 @@
 // etc..
 
 
-#if defined(EVAL_LEARN) && defined(YANEURAOU_2016_MID_ENGINE)
+#if defined(EVAL_LEARN)
 
 #include "learn.h"
 
@@ -34,7 +34,7 @@ extern void is_ready();
 namespace Learner
 {
 
-// いまのところ、やねうら王2016Midしか、このスタブを持っていない。
+// いまのところ、やねうら王2016Mid/Lateしか、このスタブを持っていない。
 extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta);
 
 // packされたsfen
@@ -1040,11 +1040,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 			{
 				sr.save_count = 0;
 
-				// 定期的に保存
-				// 10億局面ごとにフォルダを掘っていく。
-				// (あとでそれぞれの評価関数パラメーターにおいて勝率を比較したいため)
-				u64 change_name_size = (u64)EVAL_FILE_NAME_CHANGE_INTERVAL;
-				Eval::save_eval(std::to_string(sr.total_read / change_name_size));
+				save();
 			}
 
 			// rmseを計算する。1万局面のサンプルに対して行う。
@@ -1149,8 +1145,13 @@ void LearnerThink::save()
 	// 定期的に保存
 	// 10億局面ごとにファイル名の拡張子部分を"0","1","2",..のように変えていく。
 	// (あとでそれぞれの評価関数パラメーターにおいて勝率を比較したいため)
-	u64 change_name_size = u64(1000) * 1000 * 1000;
+#ifndef EVAL_SAVE_ONLY_ONCE
+	u64 change_name_size = (u64)EVAL_FILE_NAME_CHANGE_INTERVAL;
 	Eval::save_eval(std::to_string(sr.total_read / change_name_size));
+#else
+	// 1度だけの保存のときはサブフォルダを掘らない。
+	Eval::save_eval("");
+#endif
 }
 
 // 生成した棋譜からの学習

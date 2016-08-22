@@ -48,7 +48,7 @@ def pipe_non_blocking_set(fd):
 win = lose = draw = 0
 
 # レーティングの出力
-def output_rating(win,draw,lose):
+def output_rating(win,draw,lose,opt2):
 	total = win + lose
 	if total != 0 :
 		win_rate = win / float(win+lose)
@@ -60,7 +60,7 @@ def output_rating(win,draw,lose):
 	else:
 		rating = " R" + str(round(-400*math.log(1/win_rate-1,10),2))
 
-	print str(win) + " - " + str(draw) + " - " + str(lose) + "(" + str(round(win_rate*100,2)) + "%" + rating + ")"
+	print opt2 + "," + str(win) + " - " + str(draw) + " - " + str(lose) + "(" + str(round(win_rate*100,2)) + "%" + rating + ")"
 	sys.stdout.flush()
 
 
@@ -151,7 +151,8 @@ def create_option(engines,engine_threads,evals,times,hashes,numa):
 #  threads    : この数だけ並列対局
 #  numa       : 実行するプロセッサグループ
 #  book_sfens : 定跡
-def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging):
+#  opt2       : 勝敗の表示の先頭にt2,b2000 のように対局条件を文字列化して突っ込む用。
+def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2):
 
 	global win,lose,draw
 	win = lose = draw = 0
@@ -439,7 +440,7 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging):
 
 				# output result at stated periods
 				if loop_count % 10 == 0 :
-					output_rating(win,draw,lose)
+					output_rating(win,draw,lose,opt2)
 					if FileLogging:
 						for i in range(len(states)):
 							f.write("["+str(i)+"] State = " + states[i] + "\n")
@@ -585,12 +586,15 @@ for evaldir in evaldirs:
 
 		sys.stdout.flush()
 
-		vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging)
+		# 短くスレッド数と秒読み条件を文字列化
+		opt2 = "t"+str(engine_threads) + "," + play_time
+
+		vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2)
 
 		# output final result
 		print "\nfinal result : "
 		for i in range(2):
 			print "engine" + str(i+1) + " = " + engines[i] + " , eval = " + evals[i]
 		print "play_time = " + play_time + " , " ,
-		output_rating(win,draw,lose)
+		output_rating(win,draw,lose,opt2)
 

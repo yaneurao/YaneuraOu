@@ -14,6 +14,7 @@
 // 自動調整が終われば、ファイルを固定してincludeしたほうが良い。
 //#define USE_AUTO_TUNE_PARAMETERS
 
+
 // 読み込むパラメーターファイル名
 // これがdefineされていると"parameters_master.h"
 // defineされていなければ"parameters_slave.h"
@@ -591,6 +592,10 @@ namespace YaneuraOu2016Late
 
 #ifdef USE_MATE_1PLY_IN_QSEARCH
 
+			// いまのところ、入れたほうが良いようだ。
+			// play_time = b1000 ,  1631 - 55 - 1314(55.38% R37.54) [2016/08/19]
+			// play_time = b6000 ,  538 - 23 - 439(55.07% R35.33) [2016/08/19]
+
 			// 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
 			if (pos.mate1ply() != MOVE_NONE)
 				return mate_in(ss->ply + 1);
@@ -1034,7 +1039,7 @@ namespace YaneuraOu2016Late
 			ss->currentMove = ttMove;
 
 			// 置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
-			// ただし、捕獲する指し手か成る指し手であればこれはkillerを更新する価値はない。
+			// ただし、捕獲する指し手か成る指し手であればこれは(captureで生成する指し手なので)killerを更新する価値はない。
 			if (ttValue >= beta && ttMove && !pos.capture_or_pawn_promotion(ttMove))
 				update_stats(pos, ss, ttMove, depth, nullptr, 0);
 
@@ -1076,8 +1081,13 @@ namespace YaneuraOu2016Late
 		// 置換表にhitしたときも1手詰め判定はすでに行われていると思われるのでこの場合もはしょる。
 		// depthの残りがある程度ないと、1手詰めはどうせこのあとすぐに見つけてしまうわけで1手詰めを
 		// 見つけたときのリターン(見返り)が少ない。
-		if (!RootNode && !ttHit && depth > ONE_PLY && !InCheck)
+		// ただ、静止探索で入れている以上、depth == ONE_PLYでも1手詰めを判定したほうがよさげではある。
+		if (!RootNode && !ttHit && !InCheck)
 		{
+			// 入れたほうがよさげ。
+			// play_time = b1000, 1471 - 57 - 1472(49.98% R - 0.12) [2016/08/19]
+			// play_time = b3000, 522 - 30 - 448(53.81% R26.56) [2016/08/19]
+
 			move = pos.mate1ply();
 			if (move != MOVE_NONE)
 			{
@@ -1297,13 +1307,12 @@ namespace YaneuraOu2016Late
 		// (たぶん置換表のエントリーを上書きされた)、浅い探索をして、その指し手を置換表の指し手として用いる。
 		// 置換表用のメモリが潤沢にあるときはこれによる効果はほとんどないはずではあるのだが…。
 
-		if (depth >= (PvNode ? 5 * ONE_PLY : 8 * ONE_PLY)
+		if (depth >= 6 * ONE_PLY
 			&& !ttMove
 			&& (PvNode || ss->staticEval + PARAM_IID_MARGIN_ALPHA >= beta))
 		{
-			Depth d = depth - 2 * ONE_PLY - (PvNode ? DEPTH_ZERO : depth / 4);
 			ss->skipEarlyPruning = true;
-			search<NT>(pos, ss, alpha, beta, d, cutNode);
+			search<NT>(pos, ss, alpha, beta, 3 * depth / 4 - 2 * ONE_PLY , cutNode);
 			ss->skipEarlyPruning = false;
 
 #ifndef DISABLE_TT_PROBE
@@ -1322,9 +1331,9 @@ namespace YaneuraOu2016Late
 
 	MOVES_LOOP:
 
-		// cmh  = Counter Move History    = ある指し手が指されたときの応手
-		// fmh  = Follow up Move History  = 2手前の自分の指し手の継続手
-		// fmh2 = Follow up Move History2 = 4手前からの継続手
+		// cmh  = Counter Move History    : ある指し手が指されたときの応手
+		// fmh  = Follow up Move History  : 2手前の自分の指し手の継続手
+		// fmh2 = Follow up Move History2 : 4手前からの継続手
 		const CounterMoveStats* cmh = (ss - 1)->counterMoves;
 		const CounterMoveStats* fmh = (ss - 2)->counterMoves;
 		const CounterMoveStats* fmh2 = (ss - 4)->counterMoves;
@@ -1498,6 +1507,28 @@ namespace YaneuraOu2016Late
 			// これはsingluar extensionの探索が終わってから決めなければならない。(singularなら延長したいので)
 			Depth newDepth = depth - ONE_PLY + extension;
 
+
+			// bool captureOrPawnPromotion = pos.capture_or_promotion(move);
+
+			// これはpromotionをもっと絞ったほうがよさそうだ。
+			// (大きく加点されるのは、駒取りと歩の成りだけで、それ以外はそんなに大きな点数上昇ではないから。)
+
+			//  play_time = r300, 2626 - 73 - 2301(53.3% R22.95) [2016/08/20]
+			//	play_time = b1000, 1191 - 49 - 1010(54.11% R28.64) [2016/08/20]
+
+
+			//	bool captureOrPawnPromotion = pos.capture_or_valuable_promotion(move);
+
+			//	捕獲＋歩を捕獲 + 歩、角、飛の成りにした場合弱くなる。
+			//	成りを増やすのはオーダリングにいい影響を与えないようだ。
+			// 	play_time = r300 ,  2566 - 76 - 2358(52.11% R14.69) [2016/08/20]
+			//	play_time = b1000, 311 - 9 - 280(52.62% R18.24)[2016/08/20]
+
+			//	bool captureOrPawnPromotion = pos.capture(move);
+
+			// captureだけにするのは、やりすぎのようだ。
+
+
 			// 指し手で捕獲する指し手、もしくは歩の成りである。
 			bool captureOrPawnPromotion = pos.capture_or_pawn_promotion(move);
 
@@ -1526,8 +1557,14 @@ namespace YaneuraOu2016Late
 
 				// Historyに基づいた枝刈り(history && counter moveの値が悪いものに関してはskip)
 
+				// 次の子node(do_move()で進めたあとのnode)でのLMR後の予想depth
+				Depth predictedDepth = std::max(newDepth - reduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO);
+
+				// ここ、depthよりpredictedDepthを用いたほうが枝刈りの精度が上がる。
+				// play_time = b1000 ,  1438 - 55 - 1507(48.83% R-8.14)[2016/08/19]
+
 				// ToDo : このへん、fmh,fmh2を調べるほうが良いかは微妙
-				if (depth <= PARAM_PRUNING_BY_HISTORY_DEPTH * ONE_PLY
+				if (predictedDepth <= PARAM_PRUNING_BY_HISTORY_DEPTH * ONE_PLY
 					&& move != ss->killers[0]
 					&& (!cmh  || (*cmh)[moved_sq][moved_pc] < VALUE_ZERO)
 					&& (!fmh  || (*fmh)[moved_sq][moved_pc] < VALUE_ZERO)
@@ -1536,9 +1573,6 @@ namespace YaneuraOu2016Late
 
 				// Futility pruning: at parent node
 				// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
-
-				// 次の子node(do_move()で進めたあとのnode)でのLMR後の予想depth
-				Depth predictedDepth = std::max(newDepth - reduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO);
 
 				if (predictedDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH * ONE_PLY
 					&& ss->staticEval + PARAM_FUTILITY_MARGIN_BETA * predictedDepth / ONE_PLY
@@ -1601,57 +1635,67 @@ namespace YaneuraOu2016Late
 
 			if (depth >= 3 * ONE_PLY
 				&& moveCount > 1
-				&& !captureOrPawnPromotion)
+				&& (!captureOrPawnPromotion || moveCountPruning))
 			{
 				// Reduction量
 				Depth r = reduction<PvNode>(improving, depth, moveCount);
 
-				// ToDo:ここ、fmh,fmh2を見たほうがいいかは微妙。
-				Value val = thisThread->history[moved_sq][moved_pc]
-					+ (cmh  ? (*cmh )[moved_sq][moved_pc] : VALUE_ZERO)
-					+ (fmh  ? (*fmh )[moved_sq][moved_pc] : VALUE_ZERO)
-					+ (fmh2 ? (*fmh2)[moved_sq][moved_pc] : VALUE_ZERO)
-					+ thisThread->fromTo.get(~pos.side_to_move(), move);
+				if (captureOrPawnPromotion)
 
-				// cut nodeにおいてhistoryの値が悪い指し手に対してはreduction量を増やす。
-				// ※　PVnodeではIID時でもcutNode == trueでは呼ばないことにしたので、
-				// if (cutNode)という条件式は暗黙に && !PvNode を含む。
+					r -= r ? ONE_PLY : DEPTH_ZERO;
 
-				// 2 * ONE_PLYは、将棋においてはやりすぎの可能性もある。
-				// もう少し細かく調整したほうが好ましいのだが、ONE_PLY == 1のままだと少し難しい。
+				else
 
-				if (cutNode)
-					r += 2 * ONE_PLY;
+				{
+
+					// ToDo:ここ、fmh,fmh2を見たほうがいいかは微妙。
+					Value val = thisThread->history[moved_sq][moved_pc]
+						+ (cmh ? (*cmh)[moved_sq][moved_pc] : VALUE_ZERO)
+						+ (fmh ? (*fmh)[moved_sq][moved_pc] : VALUE_ZERO)
+						+ (fmh2 ? (*fmh2)[moved_sq][moved_pc] : VALUE_ZERO)
+						+ thisThread->fromTo.get(~pos.side_to_move(), move);
+
+					// cut nodeにおいてhistoryの値が悪い指し手に対してはreduction量を増やす。
+					// ※　PVnodeではIID時でもcutNode == trueでは呼ばないことにしたので、
+					// if (cutNode)という条件式は暗黙に && !PvNode を含む。
+
+					// 2 * ONE_PLYは、将棋においてはやりすぎの可能性もある。
+					// もう少し細かく調整したほうが好ましいのだが、ONE_PLY == 1のままだと少し難しい。
+
+					if (cutNode)
+						r += 2 * ONE_PLY;
 
 #if 1
-				// 捕獲から逃れる指し手はreduction量を減らす。
+					// 捕獲から逃れる指し手はreduction量を減らす。
 
-				// do_moveしたあとなのでtoの位置には今回移動させた駒が来ている。
-				// fromの位置は空(NO_PIECE)の升となっている。
+					// do_moveしたあとなのでtoの位置には今回移動させた駒が来ている。
+					// fromの位置は空(NO_PIECE)の升となっている。
 
-				// 例えばtoの位置に金があるとして、これをfromに動かす。
-				// 仮にこれが歩で取られるならsee() < 0 となる。
+					// 例えばtoの位置に金があるとして、これをfromに動かす。
+					// 仮にこれが歩で取られるならsee() < 0 となる。
 
-				// ただ、KPPT型の評価関数では駒の当たりは評価されているので
-				// ここでreduction量を減らすのはあまり良くない。
-				// see()のコストが割にあわない。このコードは使わないほうがいいはず。
+					// ただ、KPPT型の評価関数では駒の当たりは評価されているので
+					// ここでreduction量を減らすのはあまり良くない。
+					// see()のコストが割にあわない。このコードは使わないほうがいいはず。
 
-				// →　入れたほうがわずかに強いようなので残しておく。
-				// play_time = b1000, 1446 - 51 - 1503(49.03% R - 6.72) [2016/08/19]
+					// →　入れたほうがわずかに強いようなので残しておく。
+					// play_time = b1000, 1446 - 51 - 1503(49.03% R - 6.72) [2016/08/19]
 
-				else if (!is_drop(move) // type_of(move)== NORMAL
-					&& type_of(pos.piece_on(to_sq(move))) != PAWN
+					else if (!is_drop(move) // type_of(move)== NORMAL
+						&& type_of(pos.piece_on(to_sq(move))) != PAWN
 
-					// see_sign()だと、toの升の駒でfromの升の駒(NO_PIECE)を取るから
-					// 必ず正になってしまうため、see_sign()ではなくsee()を用いる。
+						// see_sign()だと、toの升の駒でfromの升の駒(NO_PIECE)を取るから
+						// 必ず正になってしまうため、see_sign()ではなくsee()を用いる。
 
-					&& pos.see(make_move(to_sq(move), move_from(move))) < VALUE_ZERO)
-					r -= 2 * ONE_PLY;
+						&& pos.see(make_move(to_sq(move), move_from(move))) < VALUE_ZERO)
+						r -= 2 * ONE_PLY;
 #endif
 
-				// historyの値に応じて指し手のreduction量を増減する。
-				int rHist = (val - (PARAM_REDUCTION_BY_HISTORY / 2)) / PARAM_REDUCTION_BY_HISTORY;
-				r = std::max(DEPTH_ZERO, r - rHist * ONE_PLY);
+					// historyの値に応じて指し手のreduction量を増減する。
+					int rHist = (val - (PARAM_REDUCTION_BY_HISTORY / 2)) / PARAM_REDUCTION_BY_HISTORY;
+					r = std::max(DEPTH_ZERO, r - rHist * ONE_PLY);
+
+				}
 
 				// depth >= 3なのでqsearchは呼ばれないし、かつ、
 				// moveCount > 1 すなわち、このnodeの2手目以降なのでsearch<NonPv>が呼び出されるべき。
@@ -1663,7 +1707,7 @@ namespace YaneuraOu2016Late
 				//
 
 				// 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす。
-				doFullDepthSearch = (value > alpha) && (r != DEPTH_ZERO);
+				doFullDepthSearch = (value > alpha) && (d != newDepth);
 
 			} else {
 
@@ -2822,4 +2866,4 @@ namespace Learner
 }
 #endif
 
-#endif // YANEURAOU_2016_MID_ENGINE
+#endif // YANEURAOU_2016_LATE_ENGINE

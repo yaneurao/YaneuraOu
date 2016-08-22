@@ -5,7 +5,7 @@
 
 #include "../shogi.h"
 
-#if defined(EVAL_LEARN) && defined(YANEURAOU_2016_MID_ENGINE)
+#if defined(EVAL_LEARN)
 
 #include "learn.h"
 
@@ -159,7 +159,7 @@ namespace Eval
 		FloatPair g;
 
 
-#if defined (USE_SGD_UPDATE)
+#if defined (USE_SGD_UPDATE) || defined (USE_YANE_SGD_UPDATE)
 		// SGDの更新式
 		//   w = w - ηg
 
@@ -245,7 +245,7 @@ namespace Eval
 		{
 			g[0] += delta1;
 			g[1] += delta2;
-#ifdef USE_SGD_UPDATE
+#if defined (USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE)
 			count++;
 #endif
 		}
@@ -255,7 +255,7 @@ namespace Eval
 		// wをupdateしたならtrueを返す。
 		bool update(bool skip_update)
 		{
-#ifdef USE_SGD_UPDATE
+#if defined (USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE)
 			if (g[0] == 0 && g[1] == 0)
 				return false;
 
@@ -330,11 +330,7 @@ namespace Eval
 	};
 
 
-#ifdef USE_SGD_UPDATE
-	LearnFloatType Weight::eta;
-#elif defined USE_ADA_GRAD_UPDATE
-	LearnFloatType Weight::eta;
-#elif defined USE_YANE_GRAD_UPDATE
+#if defined (USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE) || defined(USE_ADA_GRAD_UPDATE) || defined(USE_YANE_GRAD_UPDATE)
 	LearnFloatType Weight::eta;
 #elif defined USE_ADAM_UPDATE
 	double Weight::bt;
@@ -432,13 +428,22 @@ namespace Eval
 				l0 = list_fb[j];
 				l1 = list_fw[j];
 
+				// KPP
+
 				// kpp配列に関してはミラー(左右判定)とフリップ(180度回転)の次元下げを行う。
 
 				// kpp_w[sq_bk][k0][l0].add_grad(ValueKppFloat{ f ,  g });
 				// kpp_w[Inv(sq_wk)][k1][l1].add_grad(ValueKppFloat{ -f ,  g });
 
+#if 1
+				// KPPの手番ありのとき
 				((Weight*)kpp_w_)[get_kpp_index(sq_bk, k0, l0)].add_grad( f ,  g );
 				((Weight*)kpp_w_)[get_kpp_index(Inv(sq_wk), k1, l1)].add_grad(-f ,  g );
+#else
+				// KPPの手番はなしのとき
+				((Weight*)kpp_w_)[get_kpp_index(sq_bk, k0, l0)].add_grad(f, 0);
+				((Weight*)kpp_w_)[get_kpp_index(Inv(sq_wk), k1, l1)].add_grad(-f, 0);
+#endif
 
 #if 0
 				// ミラーもやめると…？
@@ -455,6 +460,8 @@ namespace Eval
 			// 右と左とでは居飛車、振り飛車的な戦型選択を暗に含むからミラーするのが良いとは限らない。
 			// 180度回転も先手後手とは非対称である可能性があるのでここのフリップも入れない。
 
+			// KKP
+
 			kkp_w[sq_bk][sq_wk][k0].add_grad( f , g );
 		}
 
@@ -467,7 +474,7 @@ namespace Eval
 		// 3回目まではwのupdateを保留する。
 		// ただし、SGDは履歴がないのでこれを行なう必要がない。
 		bool skip_update =
-#ifdef USE_SGD_UPDATE
+#if defined(USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE)
 			false;
 #else
 			epoch <= 3;
@@ -483,10 +490,21 @@ namespace Eval
 		//
 
 		// SGD
-#ifdef USE_SGD_UPDATE
+#if defined (USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE)
 
 #if defined (LOSS_FUNCTION_IS_CROSS_ENTOROPY)
+
+#ifdef USE_SGD_UPDATE
 		Weight::eta = 3.2f;
+#endif
+
+#ifdef USE_YANE_SGD_UPDATE
+		// epoch == 100(1億局面)で0.9倍。10億で0.3倍みたいな。
+//		Weight::eta = 3.2f * (float)pow(0.999f, epoch);
+		Weight::eta = 32.0f * (float)pow(0.999f, epoch);
+
+#endif
+
 #elif defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
 		Weight::eta = 32.0f;
 #endif

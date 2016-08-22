@@ -16,13 +16,190 @@ ToDo:
 ・mate3()書く。
 
 
+■　2016/08/23
+
+・自己対戦から糞定跡を取り除く。
+
+
+・自己対戦の結果表示、Stockfishに倣ったほうがいいかも知れん。
+	https://github.com/glinscott/fishtest/wiki/Creating-my-first-test
+	STC = Short time control (10+0.1)
+	LTC = Long time control (60+0.6)
+	SPRT(x,y) = SPRT test with elo0 = x and elo1 = y
+	http://chess-sprt-calc.azurewebsites.net/
+
+	→　倣うほどのものでもなさげなのでまあいいや。
+
+
+■　2016/08/22
+
+
+・KKPTの実験
+	YaneuraOuV360kkpt
+
+		engine1 = YaneuraOuV360.exe , eval = Apery20160821
+		engine2 = YaneuraOuV360kkpt.exe , eval = Apery20160821
+		t1,r300,644 - 16 - 380(62.89% R91.64)
+		t1,b1000,221 - 4 - 125(63.87% R98.99)
+		R100ぐらいの負けか。学習しなおしてみるか。
+
+		engine1 = YaneuraOuV360.exe , eval = Apery20160505
+		engine2 = YaneuraOuV360kkpt.exe , eval = Apery20160821
+		play_time = b1000 ,  t1,b1000,1240 - 27 - 1733(41.71% R-58.15)
+
+		それでもApery20160505よりはR60近く強いのか。
+
+	YaneuraOuV360learn_once30kkpt
+
+
+・SGDのη、低すぎるような気が。
+
+		// epoch == 100(1億局面)で0.9倍。10億で0.3倍みたいな。
+		Weight::eta = 3.2f;
+		↓
+		Weight::eta = 10.0f * pow(0.999,epoch);
+
+		// ↑比較↓
+
+		YaneuraOuV360learn_once30
+		Weight::eta = 30.0f * pow(0.999,epoch);
+
+		mean error上がってって話にならん。
+		rmseは下がってるんだけどな…。うーん。
+
+		Weight::eta = 3.2f * pow(0.999,epoch);
+		Weight::eta = 30.0f * pow(0.999,epoch);
+		// この２つで学習回して、結果を比較するのがいいな。
+
+	YaneuraOuV360learn_once3 
+		rmse = 0.0911691 , mean_error = 345.41 
+		rmse = 0.0902648 , mean_error = 345.825 // 12億局面 = 179_0080G_V5_E3
+	YaneuraOuV360learn_once30
+		rmse = 0.0880975 , mean_error = 347.994 // 12億局面 = 179_0080G_V5_E30
+	YaneuraOuV360learn_once30kkpt
+		rmse = 0.0976883 , mean_error = 357.362
+		rmse = 0.094295 , mean_error = 362.943  // 12億局面 = 179_0080G_V5_E30KKPT
+
+
+・3時間で棋譜生成、3時間学習にするには…。3時間だとdepth 3でも3億局面しか…。
+	3億局面、そこまで少なくない気もするけども..。
+	学習は100億=24時間ぐらい。
+	3時間で3億局面×4周ぐらい回すと？
+
+		depth 3 , 1.5時間 1億
+		depth 4 , 2.5時間 1億
+		depth 5 , 1分 =  60万局面
+		depth 6 , 1分 =  40万局面
+		…
+
+	Jenkinsのワークフローで何とかしたほうがいいような…。
+
+・eval、上書きするモードが必要なような..
+	→　追加した。
+
+	engine1 = YaneuraOuV360.exe , eval = 179_0070G_V5
+	engine2 = YaneuraOuV360.exe , eval = Apery20160821
+	t1,r300,2335 - 48 - 2377(49.55% R-3.1)
+
+
+	engine1 = YaneuraOuV360.exe , eval = 179_0068G_V5
+	engine2 = YaneuraOuV360.exe , eval = 179_0070G_V5
+	t1,r300,3963 - 112 - 3955(50.05% R0.35)
+	t1,b1000,1079 - 41 - 1120(49.07% R-6.48)
+	検知できない差。
+
+
+・Apery新バイナリ
+	engine1 = YaneuraOuV360.exe , eval = Apery20160815
+	engine2 = YaneuraOuV360.exe , eval = Apery20160821
+	play_time = b1000 ,  t1,b1000,1459 - 65 - 1476(49.71% R-2.01)
+	play_time = r300 ,  t1,r300,4840 - 129 - 5031(49.03% R-6.72)
+
+
+■　2016/08/21
+
+・V3.60 = V3.59h
+
+		engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+		engine2 = YaneuraOuV359h , eval = Apery20160815
+		t2 , b6000 , 373 - 7 - 500(42.73% R-50.9)
+
+		engine1 = SM_V110/SILENT_MAJORITY_AVX2_x64.exe , eval = Apery20160815
+		engine2 = YaneuraOuV359h , eval = Apery20160815
+		t4 , b6000 , 249 - 29 - 242(50.71% R4.95)
+
+		engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+		engine2 = SM_V110/SILENT_MAJORITY_AVX2_x64.exe , eval = Apery20160815
+		t2,b6000,150 - 9 - 161(48.23% R-12.29)
+
+		魔女は技巧に対してあまり勝率が良くない感。
+
+・depth8 ×1億局面から。
+	・開始時
+		rmse = 0.0889041 , mean_error = 443.663
+
+		3億局面経過
+		engine1 = YaneuraOuV360.exe , eval = 179_0060G_V4
+		engine2 = YaneuraOuV360.exe , eval = 179_0061G_V5
+		play_time = R200 ,  t1,R200,4954 - 167 - 4879(50.38% R2.65)
+
+		engine1 = YaneuraOuV360.exe , eval = Apery20160815
+		engine2 = YaneuraOuV360.exe , eval = 179_0061G_V5
+		t1,R200,3697 - 75 - 3618(50.54% R3.75)
+
+		検知できるレベルの差を生まないということか。
+		ここなしか、Aperyには近づいているのか？
+		わからん。以前の評価関数でR200でやったデータがなかった(´ω｀)
+
+		50億局面
+		engine1 = YaneuraOuV360.exe , eval = 179_0060G_V4
+		engine2 = YaneuraOuV360.exe , eval = 179_0065G_V5
+		play_time = b1000 ,  t1,b1000,1466 - 68 - 1466(50.0% R-0.0)
+
+		engine1 = YaneuraOuV360.exe , eval = 179_0063G_V5
+		engine2 = YaneuraOuV360.exe , eval = 179_0065G_V5
+		play_time = r200 ,  t1,r200,5060 - 123 - 4817(51.23% R8.55)
+		play_time = b1000 ,  t1,b1000,995 - 42 - 963(50.82% R5.68)
+
+		engine1 = YaneuraOuV360.exe , eval = Apery20160815
+		engine2 = YaneuraOuV360.exe , eval = 179_0065G_V5
+		play_time = r200 ,  t1,r200,4896 - 90 - 5014(49.4% R-4.14)
+		t1,r300,1258 - 19 - 1293(49.31% R-4.77)
+		play_time = b1000 ,  t1,b1000,1027 - 22 - 951(51.92% R13.36)
+		play_time = b5000 ,  t1,b5000,513 - 18 - 469(52.24% R15.58)
+
+		engine1 = YaneuraOuV360.exe , eval = 179_0060G_V4
+		engine2 = YaneuraOuV360.exe , eval = 179_0068G_V5
+		play_time = r300 ,  t1,r300,4885 - 135 - 4980(49.52% R-3.35)
+
+		engine1 = YaneuraOuV360.exe , eval = Apery20160815
+		engine2 = YaneuraOuV360.exe , eval = 179_0068G_V5
+		play_time = b5000 ,  t1,b5000,487 - 16 - 497(49.49% R-3.53)
+
+
+
 ■　2016/08/20
 
+・やねうら王のエンジンオプションで1パラメーターだけ好きに変更できるようにするか？
+	いやー、、パラメーター名 + 値をいくらでも書けばいいのでは.
+		FUTILITY_MARGIN:50:RAZOR_MARGIN:70:...
+	みたいな？なんかダサい気もする。よくわからない。
+	せっかく自動調整出来るのにいまさら手動とか意味わからん…。
+	paramファイル、固定なのがよくない気がする。これフォルダ変えれるようにして別のところに配置するか。
+	そして、5秒1000局で回すか…。うーん…。それするなら並列化したい気もするんだよな…。
+	しんどいか…。逆に並列化しないなら、フォルダ位置変えられる必要ないのでは…。
+	結局、python側で調整すればいいのか…そうか…。
+	この実装、2,3時間かかりそうなのであとでやろう。
+	そして、いま調整しても、Stockfish側の進化で再調整が必要になる可能性が…。
+	コード書くだけ書いて、futility等、簡単なところの調整だけにするか。まずは。
+
+
 ・自己対戦フレームワーク、time outの処理追加する。
+	→　追加した。
 
 ・新自己対戦フレームワークを探索パラメーターの自動調整に対応させたほうがいいかも知れない…が、1手5秒とかだと
 	1パラメーター調整にどれだけかかることやら…。1手1秒だとまたおかしいことになりかねないし…。うーん。
-	あまりいまのパラメーターから動かすとStockfishの今後の枝刈りとの相性が悪くなる可能性もあるし…。
+	あまりいまのパラメーターから動かすとStockfishの今後の枝刈りとの相性が悪くなる可能性もあるし…。困るなぁ…。
 
 	V3.59a
 		// 捕獲から逃れる指し手はreduction量を減らす。
@@ -45,6 +222,10 @@ ToDo:
 			engine1 = YaneuraOuV359a.exe , eval = Apery20160815
 			engine2 = YaneuraOuV359b.exe , eval = Apery20160815
 			play_time = b1000 ,  1631 - 55 - 1314(55.38% R37.54)
+
+			engine1 = YaneuraOuV359a.exe , eval = Apery20160815
+			engine2 = YaneuraOuV359b.exe , eval = Apery20160815
+			play_time = b6000 ,  538 - 23 - 439(55.07% R35.33)
 
 
 	V3.59c forked from V3.59a
@@ -74,6 +255,137 @@ ToDo:
 		engine2 = SM_V110/SILENT_MAJORITY_AVX2_x64.exe , eval = Apery20160815
 		342 - 47 - 311(52.37% R16.51)
 
+
+		// 4 threads
+		b1000 , 1127 - 79 - 1114(50.29% R2.02)
+
+		engine1 = YaneuraOuV359d , eval = Apery20160815
+		engine2 = gikou_win_20160606/gikou.exe , eval = Apery20160815
+		play_time = b3000 ,  494 - 4 - 502(49.6% R-2.79)
+
+		短い時間ではあまり勝ってない。
+
+		engine1 = YaneuraOuV359d , eval = Apery20160815
+		engine2 = gikou_win_20160606/gikou.exe , eval = Apery20160815
+		2 threads
+		b6000 , 359 - 5 - 256(58.37% R58.74)
+
+		技巧には相性いいみたい。
+
+		engine1 = YaneuraOuV359d , eval = Apery20160815
+		engine2 = SM_V110/SILENT_MAJORITY_AVX2_x64.exe , eval = Apery20160815
+		b5000 , 220 - 28 - 202(52.13% R14.83)
+
+		魔女にはいまひとつ。
+
+	V3.59e forked from V3.59d
+		Use predicted depth for history pruning
+		https://github.com/official-stockfish/Stockfish/commit/7396c08b795191d954528d687e84d7ff6dbe7a3b
+
+		engine1 = YaneuraOuV359d , eval = Apery20160815
+		engine2 = YaneuraOuV359e , eval = Apery20160815
+		play_time = b1000 ,  1438 - 55 - 1507(48.83% R-8.14)
+
+
+	V3.59f forked from V3.59e
+		通常探索の1手詰め判定、変更したほうが良いのでは…。
+	-		if (!RootNode && !ttHit && depth > ONE_PLY && !InCheck)
+	+		if (!RootNode && !ttHit && !InCheck)
+
+		b1000,	632 - 22 - 626(50.24% R1.66)
+		b3000,  142 - 3 - 115(55.25% R36.64)
+		b5000,  228 - 17 - 225(50.33% R2.3)
+
+		engine1 = YaneuraOuV359e , eval = Apery20160815
+		engine2 = YaneuraOuV359f , eval = Apery20160815
+		play_time = b3000 ,  934 - 58 - 1008(48.09% R-13.25)
+
+		検知できる程度の差にならないな…。たぶんdepth > ONE_PLYの条件は外したほうがいいのだろうけど。外すか。
+
+	V3.59g forked from V3.59e
+
+		逆にdepth > 2*ONE_PLYぐらいのほうがいいかも。
+	-		if (!RootNode && !ttHit && depth > ONE_PLY && !InCheck)
+	+		if (!RootNode && !ttHit && depth > ONE_PLY*2 && !InCheck)
+	
+		engine1 = YaneuraOuV359e , eval = Apery20160815
+		engine2 = YaneuraOuV359g , eval = Apery20160815
+		play_time = r500 ,  1522 - 35 - 1443(51.33% R9.26)
+
+		engine1 = YaneuraOuV359e , eval = Apery20160815
+		engine2 = YaneuraOuV359g , eval = Apery20160815
+		play_time = b3000 ,  495 - 23 - 482(50.67% R4.62)
+
+		engine1 = YaneuraOuV359e , eval = Apery20160815
+		engine2 = YaneuraOuV359g , eval = Apery20160815
+		play_time = b6000 ,  485 - 37 - 478(50.36% R2.53)
+
+		よくなさげ。
+
+	V3.59h forked from V3.59f
+		Simplify IID
+		https://github.com/official-stockfish/Stockfish/commit/5596492f6ed72ebc52a4d0f65bed483568e48918
+
+		→　IIDは、置換表が逼迫しない限り関係ないのでこのまま受け入れておく。
+
+		Do LMR on captures
+		https://github.com/official-stockfish/Stockfish/commit/8493c8c6b8da07a454adcaa160af8e8aa3d6b525
+
+		engine1 = YaneuraOuV359f , eval = Apery20160815
+		engine2 = YaneuraOuV359h , eval = Apery20160815
+		play_time = r300 ,  2350 - 62 - 2588(47.59% R-16.76)
+
+		engine1 = YaneuraOuV359f , eval = Apery20160815
+		engine2 = YaneuraOuV359h , eval = Apery20160815
+		play_time = b1000 ,  2435 - 102 - 2463(49.71% R-1.99)
+
+		engine1 = YaneuraOuV359f , eval = Apery20160815
+		engine2 = YaneuraOuV359h , eval = Apery20160815
+		play_time = b3000 ,  481 - 14 - 505(48.78% R-8.46)
+
+		計測できる差ではなさげだが、まあいいか。
+
+
+	V3.59i forked from V3.59h
+		captureOrPawnPromotion、単にcaptureOrPromotionにすると本当に駄目なのか？
+
+		-			bool captureOrPawnPromotion = pos.capture_or_pawn_promotion(move);
+		+			bool captureOrPawnPromotion = pos.capture_or_promotion(move);
+
+			play_time = r300 ,  2626 - 73 - 2301(53.3% R22.95)
+			play_time = b1000 , 1191 - 49 - 1010(54.11% R28.64)
+
+			→　駄目のようだ。
+
+	V3.59j forked from V3.59h
+
+		歩の成りを角、飛車の成りにまで拡大するとオーダリング性能は落ちるのだろうか？
+
+		-	bool captureOrPawnPromotion = pos.capture_or_pawn_promotion(move);
+		+	bool captureOrPawnPromotion = pos.capture_or_valuable_promotion(move);
+
+			play_time = r300 ,  2566 - 76 - 2358(52.11% R14.69)
+			play_time = b1000 , 311 - 9 - 280(52.62% R18.24)
+
+			→　駄目のようだ。
+
+	V3.59k forked from V3.59h
+
+		// captureのみに絞ったほうが良い可能性
+		-	bool captureOrPawnPromotion = pos.capture_or_pawn_promotion(move);
+		+	bool captureOrPawnPromotion = pos.capture(move);
+
+		play_time = r300 ,  2449 - 76 - 2475(49.74% R-1.83)
+		play_time = b1000 ,  2447 - 82 - 2471(49.76% R-1.7)
+		play_time = b3000 ,  989 - 44 - 967(50.56% R3.91)
+
+		// 成りがこんなに低いなら歩の捕獲をcaptureから除外しても良さそうなもんだけどな…。
+
+
+・局面、depth 8で1億作るのどれくらいかかるんだろうか…。
+	40HTで40万局面10分ぐらい？10*250=2500分でいけるのか。4並列で625分。ふーん…。
+	いま見た感じ、もうちょっと早く済みそう。360分ぐらいでいけそう。
+	
 	
 ■　2016/08/19
 
