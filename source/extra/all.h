@@ -16,6 +16,7 @@
 #include "../misc.h"
 #include "../tt.h"
 #include "long_effect.h"
+#include "book.h"
 
 // これもおまけしておく。
 using namespace std;

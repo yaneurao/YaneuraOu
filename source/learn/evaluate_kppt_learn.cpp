@@ -500,7 +500,7 @@ namespace Eval
 
 #ifdef USE_YANE_SGD_UPDATE
 		// epoch == 100(1億局面)で0.9倍。10億で0.3倍みたいな。
-//		Weight::eta = 3.2f * (float)pow(0.999f, epoch);
+		// あとη、大きめに。
 		Weight::eta = 32.0f * (float)pow(0.999f, epoch);
 
 #endif

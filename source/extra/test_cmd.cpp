@@ -6,6 +6,7 @@
 #ifdef ENABLE_TEST_CMD
 
 #include "all.h"
+#include <unordered_set>
 
 extern void is_ready();
 
@@ -1000,6 +1001,110 @@ void unit_test(Position& pos, istringstream& is)
 }
 
 
+// 定跡の精査用コマンド
+void exam_book(Position& pos)
+{
+	// やねうら大定跡のスコアと比較して、定跡のうち互角でない局面をそぎ落とし、
+	// 自己対戦時の精度を上げるのが狙い。
+
+	is_ready();
+
+	// 定跡ファイル
+	Book::MemoryBook book;
+
+	string book_name = "yaneura_book1.db";
+	Book::read_book("book/" + book_name, book, (bool)Options["BookOnTheFly"]);
+	
+	string input_sfen_name = "book/records2016.sfen";
+	string output_sfen_name = "book/records2016new.sfen";
+
+	cout << "book examine from " << input_sfen_name << " to " << output_sfen_name << endl;
+	
+	fstream fs1, fs2;
+	fs1.open(input_sfen_name, ios::in);
+	fs2.open(output_sfen_name, ios::out);
+
+	// 24手目の局面で。
+	int moves = 24;
+
+	// 行番号
+	int k = 0;
+	string line;
+	vector<StateInfo> si(moves);
+
+	// 探索済みのsfen(重複局面の除去用)
+	std::unordered_set<string> sfens;
+
+	while (!fs1.eof())
+	{
+		getline(fs1,line);
+		++k;
+		// 1行読み込んで、評価値を調べる。
+
+		// いま読み込み中の行の読み込んだところまでの内容
+		string buf;
+		int m = 0; // 0手目から
+
+		stringstream ss(line);
+		while (m < moves)
+		{
+			string token;
+			ss >> token;
+			buf += token + " ";
+			if (token == "startpos")
+			{
+				pos.set_hirate();
+				continue;
+			}
+			else if (token == "moves")
+				continue; // 読み飛ばす
+
+			Move move = move_from_usi(pos, token);
+			// illigal moveであるとMOVE_NONEが返る。
+			if (move == MOVE_NONE)
+			{
+				std::cout << "illegal move : line = " << k << " , move = " << token << endl;
+				break;
+			}
+			pos.do_move(move, si[m]);
+			++m;
+		}
+
+		string sfen = pos.sfen();
+		if (sfens.count(sfen) == 0)
+		{
+			sfens.insert(sfen);
+
+			// この局面で定跡を調べる。
+			auto it = book.find(pos);
+			if (it != book.end() && it->second.size() != 0)
+			{
+				int v = it->second[0].value;
+				// 得られた評価値が基準範囲内なので定跡として書き出す。
+				if (-100 <= v && 100 <= v)
+				{
+					fs2 << buf << endl;
+					// within the range
+					std::cout << 'O';
+				} else {
+					// out of range
+					std::cout << 'X';
+				}
+			} else {
+				// not found
+				std::cout << '.';
+			}
+		} else {
+			// already examined
+			std::cout << '_';
+		}
+
+	}
+	fs1.close();
+	fs2.close();
+	std::cout << ".. done!" << endl;
+}
+
 void test_cmd(Position& pos, istringstream& is)
 {
   std::string param;
@@ -1013,6 +1118,7 @@ void test_cmd(Position& pos, istringstream& is)
   else if (param == "records") test_read_record(pos,is);           // 棋譜の読み込みテスト 
   else if (param == "autoplay") auto_play(pos, is);                // 思考ルーチンを呼び出しての連続自己対戦
   else if (param == "timeman") test_timeman();                     // TimeManagerのテスト
+  else if (param == "exambook") exam_book(pos);                    // 定跡の精査用コマンド
   else {
     cout << "test unit               // UnitTest" << endl;
     cout << "test rp                 // Random Player" << endl;
@@ -1022,6 +1128,7 @@ void test_cmd(Position& pos, istringstream& is)
     cout << "test records [filename] // Read records.sfen Test" << endl;
     cout << "test autoplay           // Auto Play Test" << endl;
     cout << "test timeman            // Time Manager Test" << endl;
+	cout << "test exambook           // Examine Book" << endl;
   }
 }
 

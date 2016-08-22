@@ -5,7 +5,8 @@
 ■　2016/08/22 V3.60
 
 ・YANE_SGD_UPDATE追加。
-
+・2016Lateをmakebookコマンドに対応。
+・test exambookコマンド追加。
 
 
 ■　2016/08/20 V3.59

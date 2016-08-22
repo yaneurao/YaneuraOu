@@ -159,6 +159,10 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2)
 
 	# home + "book/records1.sfen
 
+	# 定跡ファイルは1行目から順番に読む。次に読むべき行番号
+	# 定跡ファイルは重複除去された、互角の局面集であるものとする。
+	sfen_no = 0;
+
 	cmds = []
 	for i in range(2):
 		# working directoryを実行ファイルのあるフォルダ直下としてやる。
@@ -249,10 +253,10 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2)
 
 		go_times[i] = time.time()
 
-	def usinewgame_cmd(i):
+	def usinewgame_cmd(i,sfen_no):
 		p = procs[i]
 		send_cmd(i,"usinewgame")
-		sfens[i/2] = book_sfens[random.randint(0,len(book_sfens)-1)]
+		sfens[i/2] = book_sfens[sfen_no]
 		moves[i/2] = 0
 
 	def gameover_cmd(i):
@@ -325,8 +329,9 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2)
 				if ("readyok" in line) and (states[i] == "wait_for_readyok"):
 					states[i] = "start"
 					if states[i^1] == "start":
-						usinewgame_cmd(i)
-						usinewgame_cmd(i^1)
+						usinewgame_cmd(i  ,sfen_no)
+						usinewgame_cmd(i^1,sfen_no)
+						sfen_no = (sfen_no + 1) % len(book_sfens)
 
 						# send go_cmd to player1 or player2 randomly.
 						# go_cmd((i & ~1) + random.randint(0,1) )
@@ -534,7 +539,7 @@ else:
 		evaldirs.append(param[5] + "/" + str(i) )
 		i += 1
 
-book_moves = 16
+book_moves = 24
 
 print "home           : " , home
 print "play_time_list : " , play_time_list
@@ -543,7 +548,7 @@ print "hash size      : " , hashes
 print "book_moves     : " , book_moves
 print "engine_threads : " , engine_threads
 
-book_file = open(home+"/book/records2016.sfen","r")
+book_file = open(home+"/book/records2016_11207.sfen","r")
 book_sfens = []
 count = 1
 for sfen in book_file:

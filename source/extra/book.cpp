@@ -24,7 +24,7 @@ namespace Book
 	// ----------------------------------
 
 	// 局面を与えて、その局面で思考させるために、やねうら王2016Midが必要。
-#if defined(EVAL_LEARN) && defined(YANEURAOU_2016_MID_ENGINE)
+#if defined(EVAL_LEARN) && (defined(YANEURAOU_2016_MID_ENGINE) || defined(YANEURAOU_2016_LATE_ENGINE))
 	struct MultiThinkBook: public MultiThink
 	{
 		MultiThinkBook(int search_depth_, MemoryBook & book_)
@@ -114,7 +114,7 @@ namespace Book
 		// 定跡のsort
 		bool book_sort = token == "sort";
 
-#if !defined(EVAL_LEARN) || !defined(YANEURAOU_2016_MID_ENGINE)
+#if !defined(EVAL_LEARN) || !(defined(YANEURAOU_2016_MID_ENGINE) || defined(YANEURAOU_2016_LATE_ENGINE))
 		if (from_thinking)
 		{
 			cout << "Error!:define EVAL_LEARN and YANEURAOU_2016_MID_ENGINE" << endl;
@@ -261,7 +261,7 @@ namespace Book
 			}
 			cout << "done." << endl;
 
-#if defined(EVAL_LEARN) && defined(YANEURAOU_2016_MID_ENGINE)
+#if defined(EVAL_LEARN) && (defined(YANEURAOU_2016_MID_ENGINE)||defined(YANEURAOU_2016_ENGINE))
 
 			if (from_thinking)
 			{

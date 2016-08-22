@@ -18,8 +18,36 @@ ToDo:
 
 ■　2016/08/23
 
+・2倍の思考時間テスト
+				option.append("go btime REST_TIME wtime REST_TIME byoyomi " + str(byoyomi * (i+1)))
+
+
 ・自己対戦から糞定跡を取り除く。
 
+	コマンド追加。
+	> makebook from_sfen_to_sfen book_in.sfen book_out.sfen eval -100 100 moves 24 depth 18
+
+	定跡ファイルの精査用。(自己対戦時の精度を上げるためのもの)
+
+	sfenファイルbook_in.sfenを読み込み、
+	depth18で24手目の局面を探索して、評価値が[-100,100]に収まっていなければ除外。
+	最終的に残ったものをbook_out.sfenとして書き出す。
+
+	→　良くない気がしてきた。やねうら大定跡から持ってきたほうが簡単なような…。
+		最初がsfenになるの気持ち悪いのか？
+		うーん、難しいなぁ…。
+		やねうら大定跡と比較して局面出力すればいいのかも？
+		test exambookコマンド追加しておく。
+
+	→　できた。
+		records2016_10000.sfen
+		評価値 [-100,100]
+		moves = 24
+		records = 11207
+
+	これに伴い、pythonのスクリプト変更。
+	ランダムに読むのではなく11207までは1周回す。
+	→　差し替えた。
 
 ・自己対戦の結果表示、Stockfishに倣ったほうがいいかも知れん。
 	https://github.com/glinscott/fishtest/wiki/Creating-my-first-test
@@ -29,6 +57,13 @@ ToDo:
 	http://chess-sprt-calc.azurewebsites.net/
 
 	→　倣うほどのものでもなさげなのでまあいいや。
+
+・無限自動学習スクリプト(新)
+	:loop
+	start /NODE %EXECUTOR_NUMBER% /B /WAIT /D %YANEHOME% %YANEHOME%\exe\YaneuraOuV360.exe evaldir eval/%EVAL_DIR% , threads %HT_CORES% , hash 4096 , gensfen depth %DEPTH% loop %GEN_LOOP_MAX% eval_limit %EVAL_LIMIT% file %WORKSPACE%\AL%BUILD_NUMBER%.bin , quit
+	start /NODE %EXECUTOR_NUMBER% /B /WAIT move %WORKSPACE%\AL%BUILD_NUMBER%.bin %YANEHOME%\gen_sfen\
+	start /NODE %EXECUTOR_NUMBER% /B /WAIT /D %YANEHOME% %YANEHOME%\exe\YaneuraOuV360learn_once30.exe evaldir eval/%EVAL_DIR% , evalsavedir %YANEHOME%\eval/%EVAL_DIR% , threads %HT_CORES% , hash 4096 , evalshare false , learn loop %LEARN_LOOP_MAX% dir %YANEHOME%\gen_sfen AL%BUILD_NUMBER%.bin , quit
+	goto loop
 
 
 ■　2016/08/22
@@ -49,7 +84,31 @@ ToDo:
 
 		それでもApery20160505よりはR60近く強いのか。
 
+
 	YaneuraOuV360learn_once30kkpt
+
+		engine1 = YaneuraOuV360.exe , eval = Apery20160821
+		engine2 = YaneuraOuV360.exe , eval = 179_0080G_V5_E30KKPT
+		t1,r300,4577 - 80 - 3133(59.36% R65.85)
+		t1,b1000,1555 - 27 - 968(61.63% R82.34)
+
+		これだけ差があるとKKPTにするとR30ぐらい損する気が。
+		ついでに1秒-2秒,5-10秒のr差、求めておいたほうがいいかも。
+
+
+		engine1 = YaneuraOuV360kkpt.exe , eval = Apery20160821
+		engine2 = YaneuraOuV360.exe , eval = 179_0080G_V5_E30KKPT
+		play_time = r300 ,  t1,r300,4938 - 86 - 4976(49.81% R-1.33)
+
+		engine1 = YaneuraOuV360kkpt.exe , eval = 179_0080G_V5_E3
+		engine2 = YaneuraOuV360.exe , eval = 179_0080G_V5_E30KKPT
+		t1,r300,1680 - 43 - 1657(50.34% R2.39)
+
+		engine1 = YaneuraOuV360.exe , eval = Apery20160821
+		engine2 = YaneuraOuV360.exe , eval = 179_0080G_V5_E30
+		t1,b1000,616 - 14 - 660(48.28% R-11.99)
+
+		KKPT用に学習しなおしても元のからKPPT=0にしたものと強さがほぼ変わらん。
 
 
 ・SGDのη、低すぎるような気が。
@@ -79,6 +138,24 @@ ToDo:
 	YaneuraOuV360learn_once30kkpt
 		rmse = 0.0976883 , mean_error = 357.362
 		rmse = 0.094295 , mean_error = 362.943  // 12億局面 = 179_0080G_V5_E30KKPT
+
+		engine1 = YaneuraOuV360.exe , eval = Apery20160821
+		engine2 = YaneuraOuV360.exe , eval = 179_0080G_V5_E3
+		play_time = r300 ,  t1,r300,4900 - 103 - 4997(49.51% R-3.41)
+		play_time = b1000 ,  t1,b1000,1513 - 45 - 1442(51.2% R8.35)
+
+		engine1 = YaneuraOuV360.exe , eval = Apery20160821
+		engine2 = YaneuraOuV360.exe , eval = 179_0080G_V5_E30
+		play_time = r300 ,  t1,r300,4846 - 110 - 5044(49.0% R-6.96)
+
+		engine1 = YaneuraOuV360.exe , eval = 179_0080G_V5_E3
+		engine2 = YaneuraOuV360.exe , eval = 179_0080G_V5_E30
+		t1,b1000,1436 - 55 - 1469(49.43% R-3.95)
+
+	→　E30のほうが強いっぽい。E20のほうがrmseの下がりが大きいので、こちらが強いというのは妥当性がある。
+		YANE_SGD_UPDATEではeta = 32.0fをデフォルトに変更する。
+			Weight::eta = 32.0f * (float)pow(0.999f, epoch);
+		mini-batch sizeもっと小さくしたいのだが、update()を並列化していないので難しいな…。うーん。
 
 
 ・3時間で棋譜生成、3時間学習にするには…。3時間だとdepth 3でも3億局面しか…。
