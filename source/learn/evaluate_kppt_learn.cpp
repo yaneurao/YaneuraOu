@@ -239,7 +239,8 @@ namespace Eval
 #endif
 
 		// 手番用の学習率。これはηより小さめで良いはず。(小さめの値がつくべきところなので)
-		const LearnFloatType eta2 = LearnFloatType(eta / 4);
+		// これconstにするとetaに応じてeta2が変わらない。注意すること。
+		#define	eta2 (eta / 4)
 
 		void add_grad(LearnFloatType delta1, LearnFloatType delta2)
 		{
@@ -256,16 +257,49 @@ namespace Eval
 		bool update(bool skip_update)
 		{
 #if defined (USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE)
+
 			if (g[0] == 0 && g[1] == 0)
 				return false;
 
 			// 勾配はこの特徴の出現したサンプル数で割ったもの。
 			if (count == 0)
 				goto FINISH;
-			g[0] /= count;
-			g[1] /= count;
+
+#if defined(USE_YANE_SGD_UPDATE)
+
+#if 0
+			// ゼロ方向に少し引っ張る(L1正則化的な何か)
+			w[0] -= (w[0]>0 ? 1 : -1)*0.01f;
+			w[1] -= (w[1]>0 ? 1 : -1)*0.01f;
+#endif
+
+#if 0
+			// 出現頻度が低い特徴は勾配がでたらめである可能性があるのでこれでupdateするのはやめる。
+			if (count < 5000)
+			{
+				count = 0;
+				goto FINISH;
+			}
+#endif
+		
+#endif
+
+			// 今回の更新量
+			g = { eta * g[0] / count, eta2 * g[1] / count };
+
+			// あまり大きいと発散しかねないので移動量に制約を課す。
+			SET_A_LIMIT_TO(g, -64.0f, 64.0f);
+
+			w = FloatPair{ w[0] - g[0] , w[1] -g[1] };
+
 			count = 0;
-			w = FloatPair{ w[0] - eta * g[0] , w[1] - eta2 * g[1] };
+
+//#if defined(USE_YANE_SGD_UPDATE)
+//			// ゼロ方向に少し引っ張る(L1正則化的な何か)
+//			w[0] -= (w[0]>0 ? 1 : -1)*0.1f;
+//			w[1] -= (w[1]>0 ? 1 : -1)*0.1f;
+//#endif
+
 #endif
 
 #ifdef USE_ADA_GRAD_UPDATE
@@ -395,6 +429,10 @@ namespace Eval
 	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
 	void add_grad(Position& pos, Color rootColor, double delta_grad)
 	{
+		// あまりきつい勾配を持っているとめったに出現しない特徴因子がおかしくなるので制約を課す
+		delta_grad = max(delta_grad, -100.0);
+		delta_grad = min(delta_grad,  100.0);
+
 		// 勾配配列を確保するメモリがもったいないのでとりあえずfloatでいいや。
 
 		// 手番を考慮しない値
@@ -496,17 +534,37 @@ namespace Eval
 
 #ifdef USE_SGD_UPDATE
 		Weight::eta = 3.2f;
+
+		//		Weight::eta = 100.0f;
 #endif
 
 #ifdef USE_YANE_SGD_UPDATE
+		//		Weight::eta = 100.0f;
+
 		// epoch == 100(1億局面)で0.9倍。10億で0.3倍みたいな。
+
 		// あとη、大きめに。
-		Weight::eta = 32.0f * (float)pow(0.999f, epoch);
+//		Weight::eta = 32.0f * (float)pow(0.999f, epoch);
+
+		// 1億で0.8倍、10億で0.13倍。
+		Weight::eta = 100.0f * (float)pow(0.998f, epoch);
+
+		// 1億で0.74倍、10億で0.05倍。
+//		Weight::eta = 300.0f * (float)pow(0.997f, epoch);
+
 
 #endif
 
 #elif defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
+
+#ifdef USE_SGD_UPDATE
 		Weight::eta = 32.0f;
+#endif
+
+#ifdef USE_YANE_SGD_UPDATE
+		Weight::eta = 100.0f * (float)pow(0.999f, epoch);
+#endif
+
 #endif
 
 		// AdaGrad

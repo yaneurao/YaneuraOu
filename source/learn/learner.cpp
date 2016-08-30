@@ -354,6 +354,13 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			break;
 #endif
 
+#if 1
+		// 何らかの千日手局面に突入したので局面生成を終了する。
+		auto draw_type = pos.is_repetition();
+		if (draw_type != REPETITION_NONE)
+			break;
+#endif
+
 #if 0
         // 0手読み(静止探索のみ)の評価値とPV(最善応手列)
         auto pv_value2 = qsearch(pos, -VALUE_INFINITE, VALUE_INFINITE);
@@ -775,9 +782,11 @@ struct SfenReader
 
 		for (auto& ps : sfen_for_mse)
 		{
-			auto sfen = pos.sfen_unpack(ps.data);
+//			auto sfen = pos.sfen_unpack(ps.data);
+//			pos.set(sfen);
 
-			pos.set(sfen);
+			pos.set_from_packed_sfen(ps.data);
+
 			auto th = Threads[thread_id];
 			pos.set_this_thread(th);
 

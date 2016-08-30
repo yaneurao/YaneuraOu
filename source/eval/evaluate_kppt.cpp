@@ -46,17 +46,17 @@ namespace Eval
 	{
 		{
 			// KK
-			std::ifstream ifsKK(path_combine((string)Options["EvalDir"] , KK_BIN), std::ios::binary);
+			std::ifstream ifsKK(path_combine((string)Options["EvalDir"], KK_BIN), std::ios::binary);
 			if (ifsKK) ifsKK.read(reinterpret_cast<char*>(kk), sizeof(kk));
 			else goto Error;
 
 			// KKP
-			std::ifstream ifsKKP(path_combine((string)Options["EvalDir"] , KKP_BIN), std::ios::binary);
+			std::ifstream ifsKKP(path_combine((string)Options["EvalDir"], KKP_BIN), std::ios::binary);
 			if (ifsKKP) ifsKKP.read(reinterpret_cast<char*>(kkp), sizeof(kkp));
 			else goto Error;
 
 			// KPP
-			std::ifstream ifsKPP(path_combine((string)Options["EvalDir"] , KPP_BIN), std::ios::binary);
+			std::ifstream ifsKPP(path_combine((string)Options["EvalDir"], KPP_BIN), std::ios::binary);
 			if (ifsKPP) ifsKPP.read(reinterpret_cast<char*>(kpp), sizeof(kpp));
 			else goto Error;
 
@@ -85,7 +85,44 @@ namespace Eval
 				for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
 					for (BonaPiece p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
 						kpp[sq][p1][p2][1] = 0;
+#endif
 
+#if 0
+			// KPPTをPPTで代替えできないかを検証するためのコード
+			// KPPTの値を平均化してPPTとして代入する。
+
+			for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
+				for (BonaPiece p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
+				{
+					int sum = 0;
+					for (auto sq : SQ)
+						sum += kpp[sq][p1][p2][1];
+
+					int z = sum / SQ_NB;
+
+					for (auto sq : SQ)
+						kpp[sq][p1][p2][1] = z;
+				}
+#endif
+
+#if 0
+			// KPPTの手駒は手番必要ないのではないかを検証するためのコード
+			for (auto sq : SQ)
+				for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_hand_end; ++p1)
+					for (BonaPiece p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
+					{
+							kpp[sq][p1][p2][1] = 0;
+							kpp[sq][p2][p1][1] = 0;
+					}
+#endif
+
+#if 0
+			// どんな値がついているのかダンプして観察する用。
+			for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_hand_end; ++p1)
+				for (BonaPiece p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
+				{
+					cout << p1 << "," << p2 << " = " << (int)kpp[SQ_88][p1][p2][1] << endl;
+				}
 #endif
 
 #ifdef EVAL_LEARN

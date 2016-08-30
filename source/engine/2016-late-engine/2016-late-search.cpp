@@ -949,9 +949,12 @@ namespace YaneuraOu2016Late
 			// 連続王手による千日手に対してdraw_value()は、詰みのスコアを返すので、rootからの手数を考慮したスコアに変換する必要がある。
 			// そこで、value_from_tt()で変換してから返すのが正解。
 
+			// 教師局面生成時には、これをオフにしたほうが良いかも知れない。
+#if 1
 			auto draw_type = pos.is_repetition();
 			if (draw_type != REPETITION_NONE)
 				return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
+#endif
 
 			// 最大手数を超えている、もしくは停止命令が来ている。
 			if (Signals.stop.load(std::memory_order_relaxed) || pos.game_ply() > Limits.max_game_ply)

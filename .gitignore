@@ -9,11 +9,8 @@
 *.rb
 YaneuraOu_backup*.lnk
 バージョン履歴.txt
+実験記録*.txt
 *.bak
-2016-late-param.h
-2016-late-search.cpp
-move_picker_2016Q3.h
-move_picker_2016Q3.cpp
 evaluate_kppt_fast_body.cpp
 *Private.*
 *.vspx

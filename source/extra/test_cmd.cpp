@@ -1081,7 +1081,7 @@ void exam_book(Position& pos)
 			{
 				int v = it->second[0].value;
 				// 得られた評価値が基準範囲内なので定跡として書き出す。
-				if (-100 <= v && 100 <= v)
+				if (-100 <= v && v <= 100)
 				{
 					fs2 << buf << endl;
 					// within the range

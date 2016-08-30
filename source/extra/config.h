@@ -589,6 +589,8 @@ inline int MKDIR(std::string dir_name)
 #define EVAL_TYPE_NAME "KPP"
 #elif defined(EVAL_PPE)
 #define EVAL_TYPE_NAME "PPE"
+#elif defined(EVAL_KPPT)
+#define EVAL_TYPE_NAME "KPPT"
 #else
 #define EVAL_TYPE_NAME ""
 #endif
