@@ -161,8 +161,8 @@ MOVE_MATE:
   //     移動による詰み
   // -----------------------
 
-  auto& pinned = state()->checkInfo.pinned;
-
+  auto& pinned = pinned_pieces(sideToMove);
+  
   // 利きが2つ以上ある場所
   Directions a8_effect_us_gt1 = board_effect[Us].around8_greater_than_one(themKing); // 1)
 

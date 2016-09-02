@@ -10,19 +10,35 @@
 
 
 ToDo: 
-・探索パラメーターの改良(2016/09/03～2016/09/10)
+・探索パラメーターの改良(2016/09/05～2016/09/10)
 ・技巧のソースコード調べる(2016/09/05～2016/09/10)
 ・mate3()書く。(2016/09/05～2016/09/10)
-・Stockfishにキャッチアップ(2016/09/15)
 ・評価関数に特徴追加(2016/09/10～2016/09/15)
 ・持ち時間制御の改良。(2016/09/10～2016/09/15)
 ・新やねうら王大定跡の生成(2016/09/20～2016/09/25)
-・Stockfishにキャッチアップ(2016/09/30)
-・Stockfishにキャッチアップ(2016/10/05)
+・Stockfishにキャッチアップ(2016/09/25)
+・Stockfishのpull req.にキャッチアップ(2016/10/01)
 ・最終ランニング(2016/10/01～2016/10/06)
 
 
+■　2016/09/03
+
 ・V3.64aで弱くなった原因調べる。
+	→　cm_stats_update()呼び出してなかったのとかが関係しているのかも。
+	V3.64cでV3.62より強くなっているならそれでいいや。
+	パラメーターに関してはこのあと調整するしな…。
+
+・
+	engine1 = YaneuraOuV362.exe , eval = Apery20160824
+	engine2 = YaneuraOuV364c.exe , eval = Apery20160824
+	T1,r300,2466 - 70 - 2734(47.42% R-17.92)
+
+・学習、教師局面が足りてない可能性はあるわな…。うーむ..。
+	depth3で30億さらに生成して、50億で学習回してみるか？
+
+・その前にAperyWCSC26からの学習、一応再度テストしておくか。
+	AperyWCSC26からdepth3で生成。5億局面。20160903d3_ap.bin
+
 
 
 ■　2016/09/02
@@ -70,6 +86,8 @@ ToDo:
 	V3.64c
 		Tweak probcut threshold
 		https://github.com/official-stockfish/Stockfish/commit/6aa9308f08bc76b0e3615dde65de7782a6761fa3
+
+		// これはいい改造の予感。
 
 		Move CheckInfo under StateInfo
 		https://github.com/official-stockfish/Stockfish/commit/805afcbf3d5db39c85b759232cfb99ab0a250311
@@ -139,10 +157,9 @@ ToDo:
 		→　set_check_info()、null_move()のとき処理を分離した。ベンチ通った。
 
 		===========================
-		Total time (ms) : 79799
+		Total time (ms) : 75429
 		Nodes searched  : 48509614
-		Nodes/second    : 607897
-
+		Nodes/second    : 643116
 
 		テスト関連のコード。
 			if (st->checkersBB != attackers_to(Us, king_square(~Us)))
@@ -171,6 +188,37 @@ ToDo:
 
 			}
 
+	V3.64d forked from V3.64c
+
+					Value futilityValue = futilityBase + (Value)CapturePieceValue[pos.piece_on(to_sq(move))];
+		-		//	+ (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(move_from(move))] : VALUE_ZERO);
+
+		これないほうが良いのでは..
+
+	V3.64e forked from V3.64d
+			以下のところ、see()に変更してみる。
+				// ToDo: pos.see(move) <= VALUE_ZEROのほうが良い可能性。
+				if (futilityBase <= alpha && pos.see_sign(move) <= VALUE_ZERO)
+				{
+					bestValue = std::max(bestValue, futilityBase);
+					continue;
+				}
+
+	V3.64f forked form V3.64c
+
+		// 除外した指し手をxorしてそのままhash keyに使う。
+		// 除外した指し手がないときは、0だから、xorしても0。
+		// ただし、hash keyのbit0は手番を入れることになっているのでここはクリアしておく。
+		auto posKey = pos.key() ^ Key(excludedMove << 1);
+
+		こうしたほうがいいな。
+
+		tte->eval()要らんのちゃう？
+		→　うーん。難しい。
+
+	V3.64g forked form V3.64f
+
+		PARAM_REDUCTION_BY_HISTORYを8000→10000に戻してテスト
 
 
 ■　2016/09/01
@@ -338,7 +386,8 @@ ToDo:
 		engine1 = YaneuraOuV362.exe , eval = 182_20160829_62_50G
 		engine2 = YaneuraOuV362.exe , eval = 182_20160901_75_20G
 		T1,b3000,772 - 51 - 727(51.5% R10.43)
-		// → 20G時点でも収束が十分ではなく、元の評価関数より強くなっているかも謎。
+		T1,b3000,2447 - 156 - 2397(50.52% R3.59)
+		// → 20G時点でも元の評価関数より強くなっているかも謎。
 
 		// #74との比較
 		engine1 = YaneuraOuV362.exe , eval = 182_20160901_74_40G

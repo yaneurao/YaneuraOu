@@ -37,13 +37,10 @@ namespace Eval {
   Value compute_eval(const Position& pos);
 
   // 評価関数パラメーターのチェックサムを返す。
-  s32 calc_check_sum()
 #if defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
-	  ;
+  s32 calc_check_sum();
 #else
-  {
-	  return 0;
-  }
+  inline s32 calc_check_sum(){ return 0; }
 #endif
 
   // 評価値の内訳表示(デバッグ用)

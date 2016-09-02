@@ -170,7 +170,6 @@ namespace USI
         int ply = 0;
         while (ply < MAX_PLY && moves[ply] != MOVE_NONE)
         {
-          pos_->check_info_update();
           pos_->do_move(moves[ply], si[ply]);
           ss << " " << moves[ply];
           bool found;

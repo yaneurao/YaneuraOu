@@ -976,7 +976,10 @@ namespace YaneuraOu2016Mid
 
 	  // このnodeで探索から除外する指し手。ss->excludedMoveのコピー。
 	  Move excludedMove = ss->excludedMove;
-	  auto posKey = excludedMove ? pos.state()->exclusion_key() : pos.state()->key();
+	  // 除外した指し手をxorしてそのままhash keyに使う。
+	  // 除外した指し手がないときは、0だから、xorしても0。
+	  // ただし、hash keyのbit0は手番を入れることになっているのでここは0にしておく。
+	  auto posKey = pos.key() ^ Key(excludedMove << 1);
 
 	  bool ttHit;    // 置換表がhitしたか
 

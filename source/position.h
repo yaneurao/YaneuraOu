@@ -77,13 +77,11 @@ struct StateInfo {
   Key key()                     const { return long_key(); }
   Key board_key()               const { return board_long_key(); }
   Key hand_key()                const { return hand_long_key(); }
-  Key exclusion_key()           const { return exclusion_long_key(); }
 
   // HASH_KEY_BITSが128のときはKey128が返るhash key,256のときはKey256
   HASH_KEY long_key()           const { return board_key_ + hand_key_; }
   HASH_KEY board_long_key()     const { return board_key_; }
   HASH_KEY hand_long_key()      const { return hand_key_; }
-  HASH_KEY exclusion_long_key() const;
   
   // この局面における手番側の持ち駒。優等局面の判定のために必要。
   Hand hand;
@@ -296,6 +294,7 @@ struct Position
 	Bitboard discovered_check_candidates() const { return st->blockersForKing[~sideToMove] & pieces(sideToMove); }
 
 	// ピンされているc側の駒。下手な方向に移動させるとc側の玉が素抜かれる。
+	// 手番側のpinされている駒はpos.pinned_pieces(pos.side_to_move())のようにして取得できる。
 	Bitboard pinned_pieces(Color c) const { return st->blockersForKing[c] & pieces(c); }
 
 	// 現局面で駒Ptを動かしたときに王手となる升を表現するBitboard
@@ -428,6 +427,12 @@ struct Position
 	// SEEの符号だけが欲しい場合はこちらのほうがsee()より速い。
 	Value see_sign(Move m) const;
 #endif
+
+	// --- Accessing hash keys
+
+	// StateInfo::key()への簡易アクセス。
+	Key key() const { return st->key(); }
+
 
 	// --- misc
 

@@ -85,7 +85,7 @@ PARAM_DEFINE PARAM_SINGULAR_EXTENSION_DEPTH = 8;
 // Value rBeta = ttValue - (PARAM_SINGULAR_MARGIN / 8) * depth / ONE_PLY;
 
 // 元の値 = 16
-// [PARAM] min:2,max:20,step:1,interval:1,time_rate:1
+// [PARAM] min:8,max:32,step:1,interval:1,time_rate:1
 PARAM_DEFINE PARAM_SINGULAR_MARGIN = 16;
 
 // singular extensionで浅い探索をするときの深さに関する係数
@@ -107,14 +107,14 @@ PARAM_DEFINE PARAM_PRUNING_BY_MOVE_COUNT_DEPTH = 16;
 
 // historyによる枝刈りをする深さ
 
-// 元の値 = 4
+// 元の値 = 3
 // [PARAM] min:2,max:32,step:1,interval:1,time_rate:1
 PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 3;
 
 // historyの値によってreductionするときの係数
 // 元の値 = 8000
 // [PARAM] min:4000,max:15000,step:256,interval:1,time_rate:1
-PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 8000;
+PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 10000;
 
 
 //

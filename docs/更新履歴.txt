@@ -2,6 +2,15 @@
 やねうら王 更新履歴
 
 
+■　2016/09/03 V3.65
+
+・nanoがビルド通らなかったの修正。
+・LONG_EFFECTありのmated1plyがコンパイル通らなかったの修正。
+・Position::key()追加。
+・learn.hにLEARN_GENSFEN追加。
+・Key exclusion_key()　→　削除
+
+
 ■　2016/09/02 V3.64
 
 ・update_stats()整理。
