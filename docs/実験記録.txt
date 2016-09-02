@@ -22,6 +22,9 @@ ToDo:
 ・最終ランニング(2016/10/01～2016/10/06)
 
 
+・V3.64aで弱くなった原因調べる。
+
+
 ■　2016/09/02
 
 ・探索部改良
@@ -34,8 +37,17 @@ ToDo:
 
 		Simplify stats update
 		https://github.com/official-stockfish/Stockfish/commit/9bd856e28ec93a16a5db78b24f9579c607541def
+		
+		engine1 = YaneuraOuV362.exe , eval = Apery20160824
+		engine2 = YaneuraOuV364a.exe , eval = Apery20160824
+		T1,r300,4727 - 162 - 5111(48.05% R-13.57)
+		T1,b3000,1524 - 96 - 1380(52.48% R17.24)
 
-		// →　この反駁ペナルティの改良、よさげ。
+		engine1 = YaneuraOuV364a.exe , eval = Apery20160824
+		engine2 = YaneuraOuV362.exe , eval = Apery20160824
+		T1,b3000,1366 - 94 - 1540(47.01% R-20.83)
+
+		// やばい。長い時間で弱くなっている。原因調べる(´ω｀)
 		
 	V3.64b
 		Make engine ONE_PLY value independent
@@ -49,6 +61,116 @@ ToDo:
 
 		Remove condition on killers in history pruning
 		https://github.com/official-stockfish/Stockfish/commit/2731bbaf6b4bed23abaae8de5c1fa9f373e30e57
+
+		engine1 = YaneuraOuV364a.exe , eval = Apery20160824
+		engine2 = YaneuraOuV364b.exe , eval = Apery20160824
+		T1,r300,4898 - 200 - 4902(49.98% R-0.14)
+		// この改造では何も壊していない。
+
+	V3.64c
+		Tweak probcut threshold
+		https://github.com/official-stockfish/Stockfish/commit/6aa9308f08bc76b0e3615dde65de7782a6761fa3
+
+		Move CheckInfo under StateInfo
+		https://github.com/official-stockfish/Stockfish/commit/805afcbf3d5db39c85b759232cfb99ab0a250311
+		→　いまごろになってやっとCheckInfoをStateInfoに隠匿するのか。遅すぎ。
+		→　これ大改造になるな…。
+
+		Retire CheckInfo
+		https://github.com/official-stockfish/Stockfish/commit/1ee2838214fcbadc352fb17c8c6fa1142ae5dcb0
+
+
+		// これもはや、不要なのか…。うーむ..
+		enum CheckInfoUpdate
+		{
+		  CHECK_INFO_UPDATE_NONE,           // 何もupdateされていない状態
+		  CHECK_INFO_UPDATE_ALL,            // 以下の2つともupdate
+		  CHECK_INFO_UPDATE_PINNED,         // pinnedの情報だけupdate
+		  CHECK_INFO_UPDATE_WITHOUT_PINNED, // pinned以外の情報だけupdate
+		};
+		→　大改造の予感。
+
+	  // 自分側(手番側)の(敵駒によって)pinされている駒
+	  Bitboard pinned;
+		→　blockersForKing
+
+	  // 自駒の駒種Xによって敵玉が王手となる升のbitboard
+	  Bitboard checkSq[PIECE_WHITE];
+		→　checkSquares
+
+	→　大改造になった。
+	→　legal_drop()が少し簡単化できた。
+
+	// 与えられた3升が縦横斜めの1直線上にあるか。駒を移動させたときに開き王手になるかどうかを判定するのに使う。
+	// 例) 王がsq1, pinされている駒がsq2にあるときに、pinされている駒をsq3に移動させたときにaligned(sq1,sq2,sq3)であれば、
+	//  pinされている方向に沿った移動なので開き王手にはならないと判定できる。
+	// ただし玉はsq3として、sq1,sq2は同じ側にいるものとする。(玉を挟んでの一直線は一直線とはみなさない)
+	inline bool aligned(Square sq1, Square sq2, Square sq3/* is ksq */)
+	{
+		auto d1 = Effect8::directions_of(sq1, sq2);
+		return d1 ? d1 == Effect8::directions_of(sq1, sq3) : false;
+	}
+	→　これ2回テーブルを引くので言うほど速くない気がしてきた。まあいいか…。
+
+	・これ、元のコードがバグっている可能性が微レ存。
+				case DIRECT_U: case DIRECT_D:
+					st->checkersBB |= rookEffectFile(from, pieces()) & pieces(Us); break;
+
+
+				 香
+				^玉
+
+				 
+				 角
+				 香
+
+		こういうときに誤って上の香を足してないか？
+		ああ、fromだからいいのか..そうか。
+
+		→　random playerでのテストは通ったが、benchが通らない。
+		→　do_null_move()でset_check_info()が要るのか…。うーむ..
+		→　bench通った。最適化はあとで考えようか…。
+
+		===========================
+		Total time (ms) : 81136
+		Nodes searched  : 48509614
+		Nodes/second    : 597880
+
+		→　set_check_info()、null_move()のとき処理を分離した。ベンチ通った。
+
+		===========================
+		Total time (ms) : 79799
+		Nodes searched  : 48509614
+		Nodes/second    : 607897
+
+
+		テスト関連のコード。
+			if (st->checkersBB != attackers_to(Us, king_square(~Us)))
+			{
+				cout << *this << st->checkersBB << attackers_to(Us, king_square(~Us)) << m << endl << prevSt->blockersForKing[~Us];
+
+				Bitboard pinned = prevSt->blockersForKing[~Us] & from;
+				if (discovered(from, to, ksq, pinned))
+				{
+					cout << "DISCOVERED";
+				} else {
+					cout << prevSt->checkSquares[type_of(moved_after_pc)];
+					cout << (prevSt->checkSquares[type_of(moved_after_pc)] & to);
+					cout << st->checkersBB;
+					st->checkersBB = prevSt->checkSquares[type_of(moved_after_pc)] & to;
+					cout << st->checkersBB;
+				}
+				cout <<  pinned 
+					<<
+					(pinned & from)               // 2)
+					<< !aligned(from, to, ksq); // 3)
+				cout << pinned
+					<<
+					(pinned & from)               // 2)
+					<< !aligned(from, to, ksq); // 3)
+
+			}
+
 
 
 ■　2016/09/01
@@ -213,6 +335,18 @@ ToDo:
 		T1,b3000,1587 - 97 - 1506(51.31% R9.1)
 		// → 収束が十分でなさげ。弱い。
 
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_62_50G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160901_75_20G
+		T1,b3000,772 - 51 - 727(51.5% R10.43)
+		// → 20G時点でも収束が十分ではなく、元の評価関数より強くなっているかも謎。
+
+		// #74との比較
+		engine1 = YaneuraOuV362.exe , eval = 182_20160901_74_40G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160901_75_30G
+		T1,r300,4935 - 135 - 4930(50.03% R0.18)
+		T1,b3000,2426 - 162 - 2392(50.35% R2.45)
+		→　depth3の教師と変わらないなら、depth6意味ないことになるが…。
+		
 		// Aperyとの比較
 
 		engine1 = YaneuraOuV362.exe , eval = 182_20160901_75_10G
@@ -224,6 +358,10 @@ ToDo:
 		T1,r300,4826 - 79 - 4495(51.78% R12.34)
 		T1,b3000,466 - 6 - 508(47.84% R-14.99) // 対局数少なめ
 
+		engine1 = YaneuraOuV362.exe , eval = 182_20160901_75_30G
+		engine2 = YaneuraOuV362.exe , eval = Apery20160824
+		T1,r300,5100 - 83 - 4817(51.43% R9.92)
+		T1,b3000,2393 - 81 - 2526(48.65% R-9.4)
 
 	・mini batchサイズの変更は明らかに弱い。収束が十分でないのだろう。
 		十分に時間をかけた場合、どちらが良いかはよくわからない。

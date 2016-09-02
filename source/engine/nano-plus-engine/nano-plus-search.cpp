@@ -231,9 +231,6 @@ namespace YaneuraOuNanoPlus
     //     eval呼び出し
     // -----------------------
 
-    // mate1ply()でCheckInfo.pinnedを使うのでここで初期化しておく。
-    pos.check_info_update();
-
     Value value;
     if (InCheck)
     {
@@ -663,7 +660,6 @@ namespace YaneuraOuNanoPlus
       const auto& cmh = CounterMoveHistory[prevSq][prevPc];
       const auto& fmh = CounterMoveHistory[ownPrevSq][pos.piece_on(ownPrevSq)];
 
-      pos.check_info_update();
       MovePicker mp(pos, ttMove, depth, thisThread->history, cmh, fmh , cm, ss);
 
 

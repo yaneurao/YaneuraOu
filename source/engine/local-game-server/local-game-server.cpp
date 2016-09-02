@@ -727,8 +727,6 @@ void Thread::search()
 				continue;
 			}
 
-			rootPos.check_info_update();
-
 			// 非合法手を弾く
 			if (m != MOVE_RESIGN && (!rootPos.pseudo_legal(m) || !rootPos.legal(m)))
 			{

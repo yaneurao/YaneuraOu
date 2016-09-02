@@ -244,6 +244,13 @@ extern Bitboard LineBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
 // 2升を通過する直線を返すためのBitboardを返す。sq1とsq2が縦横斜めの関係にないときはZERO_BBが返る。
 inline const Bitboard line_bb(Square sq1, Square sq2) { return LineBB[sq1][sq2]; }
 
+#if 0
+// →　高速化のために、Effect8::directions_ofを使って実装しているのでコメントアウト。(shogi.hにおいて)
+inline bool aligned(Square s1, Square s2, Square s3) {
+	return LineBB[s1][s2] & s3;
+}
+#endif
+
 // sqの升にいる敵玉に王手となるc側の駒ptの候補を得るテーブル。第2添字は(pr-1)を渡して使う。
 extern Bitboard CheckCandidateBB[SQ_NB_PLUS1][HDK][COLOR_NB];
 

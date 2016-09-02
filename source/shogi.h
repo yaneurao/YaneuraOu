@@ -305,13 +305,13 @@ namespace Effect8
 }
 
 // 与えられた3升が縦横斜めの1直線上にあるか。駒を移動させたときに開き王手になるかどうかを判定するのに使う。
-// 例) 王がsq1, pinされている駒がsq2にあるときに、pinされている駒をsq3に移動させたときにis_aligned(sq1,sq2,sq3)であれば、
+// 例) 王がsq1, pinされている駒がsq2にあるときに、pinされている駒をsq3に移動させたときにaligned(sq1,sq2,sq3)であれば、
 //  pinされている方向に沿った移動なので開き王手にはならないと判定できる。
-// ただし玉はsq1として、sq2,sq3は同じ側にいるものとする。(玉を挟んでの一直線は一直線とはみなさない)
-inline bool is_aligned(Square sq1 /* is ksq */, Square sq2, Square sq3)
+// ただし玉はsq3として、sq1,sq2は同じ側にいるものとする。(玉を挟んでの一直線は一直線とはみなさない)
+inline bool aligned(Square sq1, Square sq2, Square sq3/* is ksq */)
 {
-  auto d1 = Effect8::directions_of(sq1, sq2);
-  return d1 ? d1 == Effect8::directions_of(sq1, sq3) : false;
+  auto d1 = Effect8::directions_of(sq1, sq3);
+  return d1 ? d1 == Effect8::directions_of(sq2, sq3) : false;
 }
 
 // --------------------
@@ -864,7 +864,7 @@ namespace USI {
     }
 
     // string型への暗黙の変換子
-    operator std::string() const { ASSERT_LV1(type == "string" || type == "combo");  return currentValue; }
+    operator std::string() const { ASSERT_LV1(type == "string" || type == "combo" || type == "spin");  return currentValue; }
 
   private:
     friend std::ostream& operator<<(std::ostream& os, const OptionsMap& om);

@@ -367,8 +367,6 @@ namespace YaneuraOuClassic
       // alphaとは区別しなければならない。
       bestValue = futilityBase = -VALUE_INFINITE;
      
-      pos.check_info_update();
-
     } else {
 
       // 王手がかかっていないなら置換表の指し手を持ってくる
@@ -414,9 +412,6 @@ namespace YaneuraOuClassic
       //      一手詰め判定
       // -----------------------
 
-      // mate1ply()の呼び出しのためにCheckInfo.pinnedの更新が必要。
-      pos.check_info_update_pinned();
-
 #ifdef USE_MATE_1PLY
       Move m = pos.mate1ply();
       if (m != MOVE_NONE)
@@ -437,9 +432,6 @@ namespace YaneuraOuClassic
       // futilityの基準となる値をbestValueにmargin値を加算したものとして、
       // これを下回るようであれば枝刈りする。
       futilityBase = bestValue + 128;
-
-      // pinnedは更新したのでCheckInfoのそれ以外を更新。
-      pos.check_info_update_without_pinned();
     }
 
     // -----------------------
@@ -782,18 +774,12 @@ namespace YaneuraOuClassic
     Move bestMove = MOVE_NONE;
     const bool InCheck = pos.checkers();
 
-    CheckInfoUpdate ciu = CHECK_INFO_UPDATE_NONE;
-
     // RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
     // 置換表にhitしたときも1手詰め判定は行われていると思われるのでこの場合もはしょる。
     // depthの残りがある程度ないと、1手詰めはどうせこのあとすぐに見つけてしまうわけで1手詰めを
     // 見つけたときのリターン(見返り)が少ない。
     if (!RootNode && !ttHit && depth > ONE_PLY && !InCheck)
     {
-      // mate1ply()の呼び出しのためにCheckInfo.pinnedの更新が必要。
-      pos.check_info_update_pinned();
-      ciu = CHECK_INFO_UPDATE_PINNED; // pinnedのupdateだけ終わったとマークしておく。
-
 #ifdef USE_MATE_1PLY
       bestMove = pos.mate1ply();
       if (bestMove != MOVE_NONE)
@@ -913,10 +899,6 @@ namespace YaneuraOuClassic
       // 残り探索深さと評価値によるnull moveの深さを動的に減らす
       Depth R = ((823 + 67 * depth) / 256 + std::min((int)((eval - beta) / PawnValue), 3)) * ONE_PLY;
 
-      // このタイミングでcheck_infoをupdateしないと、null_moveのときにStateInfo(含むCheckInfo)をコピーされてしまい、まずい。
-      pos.check_info_update(ciu);
-      ciu = CHECK_INFO_UPDATE_ALL; // updateはすべて終わったとマークしておく。
-
       pos.do_null_move(st);
       (ss + 1)->skipEarlyPruning = true;
 
@@ -968,10 +950,6 @@ namespace YaneuraOuClassic
       ASSERT_LV3(rdepth >= ONE_PLY);
       ASSERT_LV3((ss - 1)->currentMove != MOVE_NONE);
       ASSERT_LV3((ss - 1)->currentMove != MOVE_NULL);
-
-      // CheckInfoのうち、残りのものをupdateしてやる。
-      pos.check_info_update(ciu);
-      ciu = CHECK_INFO_UPDATE_ALL; // updateはすべて終わったとマークしておく。
 
       // このnodeの指し手としては置換表の指し手を返したあとは、直前の指し手で捕獲された駒による評価値の上昇を
       // 上回るようなcaptureの指し手のみを生成する。
@@ -1063,9 +1041,6 @@ namespace YaneuraOuClassic
     const auto& fmh = CounterMoveHistory[ownPrevSq][pos.piece_on(ownPrevSq)];
     // 2手前のtoの駒、1手前の指し手によって捕獲されている場合があるが、それはcaptureであるから
     // ここでは対象とならない…はず…。
-
-    // CheckInfoのうち、残りのものをupdateしてやる。
-    pos.check_info_update(ciu);
     
     // このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
     // evaluate()を呼び出していないなら呼び出しておく。

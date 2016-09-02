@@ -535,9 +535,6 @@ namespace YaneuraOu2016Late
 		//     eval呼び出し
 		// -----------------------
 
-		// 1手詰めで必要なのでこのタイミングで更新しておく。
-		pos.check_info_update();
-
 		if (InCheck)
 		{
 			// 王手がかかっているならすべての指し手を調べるべきなのでevaluate()は呼び出さない。
@@ -1058,9 +1055,6 @@ namespace YaneuraOu2016Late
 		Move bestMove = MOVE_NONE;
 		const bool InCheck = pos.checkers();
 
-		// mate1ply()で必要なのでこのタイミングで更新しておく。
-		pos.check_info_update();
-
 #ifdef USE_MATE_1PLY_IN_SEARCH
 
 		// RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
@@ -1264,9 +1258,8 @@ namespace YaneuraOu2016Late
 			ASSERT_LV3((ss - 1)->currentMove != MOVE_NONE);
 			ASSERT_LV3((ss - 1)->currentMove != MOVE_NULL);
 
-			// このnodeの指し手としては置換表の指し手を返したあとは、直前の指し手で捕獲された駒による評価値の上昇を
-			// 上回るようなcaptureの指し手のみを生成する。
-			MovePicker mp(pos, ttMove, (Value)Eval::CapturePieceValue[pos.captured_piece_type()]);
+			// rbeta - ss->staticEvalを上回るcaptureの指し手のみを生成。
+			MovePicker mp(pos, ttMove, rbeta - ss->staticEval);
 
 			while ((move = mp.next_move()) != MOVE_NONE)
 			{
@@ -2747,8 +2740,6 @@ namespace Learner
 	// Learner::search(),Learner::qsearch()から呼び出される。
 	void init_for_search(Position pos)
 	{
-		pos.check_info_update();
-
 		// 探索深さ無限
 		auto& limits = Search::Limits;
 		limits.infinite = true;

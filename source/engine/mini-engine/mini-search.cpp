@@ -317,9 +317,6 @@ namespace YaneuraOuMini
     //     eval呼び出し
     // -----------------------
 
-    // mate1ply()でCheckInfo.pinnedを使うのでここで初期化しておく。
-    pos.check_info_update();
-
     if (InCheck)
     {
       // 王手がかかっているならすべての指し手を調べるべきなのでevaluate()は呼び出さない。
@@ -802,9 +799,6 @@ namespace YaneuraOuMini
       // 残り探索深さと評価値によるnull moveの深さを動的に減らす
       Depth R = ((823 + 67 * depth) / 256 + std::min((int)((eval - beta) / PawnValue), 3)) * ONE_PLY;
 
-      // このタイミングでcheck_infoをupdateしないと、null_moveのときにStateInfo(含むCheckInfo)をコピーされてしまい、まずい。
-      pos.check_info_update();
-
       pos.do_null_move(st);
       (ss + 1)->skipEarlyPruning = true;
 
@@ -857,7 +851,6 @@ namespace YaneuraOuMini
       ASSERT_LV3((ss - 1)->currentMove != MOVE_NONE);
       ASSERT_LV3((ss - 1)->currentMove != MOVE_NULL);
 
-      pos.check_info_update();
       // このnodeの指し手としては置換表の指し手を返したあとは、直前の指し手で捕獲された駒による評価値の上昇を
       // 上回るようなcaptureの指し手のみを生成する。
       MovePicker mp(pos, ttMove, thisThread->history, (Value)Eval::CapturePieceValue[pos.captured_piece_type()]);
@@ -914,7 +907,6 @@ namespace YaneuraOuMini
     const auto& cmh = CounterMoveHistory[prevSq][prevPc];
     const auto& fmh = CounterMoveHistory[ownPrevSq][pos.piece_on(ownPrevSq)];
 
-    pos.check_info_update();
     MovePicker mp(pos, ttMove, depth, thisThread->history, cmh, fmh , cm, ss);
 
     //  一手ずつ調べていく

@@ -819,8 +819,6 @@ Move move_from_usi(const Position& pos, const std::string& str)
   // 上位bitに駒種を入れておかないとpseudo_legal()で引っかかる。
   move = pos.move16_to_move(move);
 
-  // pseudo_legal(),legal()チェックのためにはCheckInfoのupdateが必要。
-  const_cast<Position*>(&pos)->check_info_update();
   if (pos.pseudo_legal(move) && pos.legal(move))
     return move;
 

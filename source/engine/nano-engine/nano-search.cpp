@@ -153,7 +153,6 @@ namespace YaneuraOuNano
     }
 
     // 取り合いの指し手だけ生成する
-    pos.check_info_update();
     MovePicker mp(pos,move_to(pos.state()->lastMove));
     Move move;
 
@@ -256,7 +255,6 @@ namespace YaneuraOuNano
     // 1手ずつ指し手を試す
     // -----------------------
 
-    pos.check_info_update();
     MovePicker mp(pos,ttMove);
 
     Value value;

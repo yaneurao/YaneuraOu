@@ -8,6 +8,14 @@
 ・反駁ペナルティ等の変更。
 ・ONE_PLYを2,4,8,...できちんと動作するように変更。
 ・history pruningのときにkillerの判定しないように変更。
+・CheckInfo、StateInfoに隠匿。CheckInfoUpdate削除、CheckInfoUpdate()関係すべて削除。
+・Position::check_blocker()削除。
+・Position::silder_blockers()追加。
+・is_aligned()廃止。aligned()追加。aligned()の引数の並び順をStockfishに合せる。
+・Position::check_info_update()を呼び出さなくて良くなった。
+・Optionクラス、spin型でもto_string()が呼び出せるように変更。
+・testコマンドの最初でis_ready()を呼び出すように修正。
+・set_check_info()、null_move()のとき処理を分離した。
 
 
 ■　2016/08/31 V3.63

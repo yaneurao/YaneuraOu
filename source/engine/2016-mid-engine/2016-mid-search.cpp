@@ -568,9 +568,6 @@ namespace YaneuraOu2016Mid
     //     eval呼び出し
     // -----------------------
 
-    // 1手詰めで必要なのでこのタイミングで更新しておく。
-    pos.check_info_update();
-
     if (InCheck)
     {
       // 王手がかかっているならすべての指し手を調べるべきなのでevaluate()は呼び出さない。
@@ -1053,9 +1050,6 @@ namespace YaneuraOu2016Mid
 
 	  Move bestMove = MOVE_NONE;
 	  const bool InCheck = pos.checkers();
-
-	  // mate1ply()で必要なのでこのタイミングで更新しておく。
-	  pos.check_info_update();
 
 #ifdef USE_MATE_1PLY_IN_SEARCH
 
@@ -2671,8 +2665,6 @@ namespace Learner
 	// Learner::search(),Learner::qsearch()から呼び出される。
 	void init_for_search(Position pos)
 	{
-		pos.check_info_update();
-
 		// 探索深さ無限
 		auto& limits = Search::Limits;
 		limits.infinite = true;

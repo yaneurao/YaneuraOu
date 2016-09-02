@@ -308,9 +308,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
     //    cout << endl;
     for (ply = 0; ply < MAX_PLY - 16; ++ply)
     {
-      // mate1ply()の呼び出しのために必要。
-      pos.check_info_update();
-
       if (pos.is_mated())
         break;
 
@@ -458,7 +455,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
               ASSERT_LV3(false);
             }
             pos.do_move(m, state[ply2++]);
-            pos.check_info_update();
           }
           // leafに到達
           //      cout << pos;
@@ -1128,7 +1124,6 @@ void LearnerThink::thread_worker(size_t thread_id)
 				ASSERT_LV3(false);
 			}
 			pos.do_move(m, state[ply++]);
-			pos.check_info_update();
 		}
 
 		// leafに到達

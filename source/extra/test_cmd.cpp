@@ -261,8 +261,6 @@ void random_player(Position& pos,uint64_t loop_max)
       // 局面がおかしくなっていないかをテストする
       ASSERT_LV3(is_ok(pos));
 
-      pos.check_info_update();
-
 #ifdef EVAL_VALUE_CHECK
       {
         // 評価値の差分計算等がsfen文字列をセットしての全計算と一致するかのテスト(すこぶる遅い)
@@ -418,7 +416,6 @@ void random_player_bench_cmd(Position& pos, istringstream& is)
       if (mg.size() == 0)
         break;
 
-      pos.check_info_update();
       Move m = mg.begin()[prng.rand(mg.size())];
 
       pos.do_move(m, state[ply]);
@@ -466,7 +463,6 @@ void test_genchecks(Position& pos, uint64_t loop_max)
       // 局面がおかしくなっていないかをテストする
       ASSERT_LV3(is_ok(pos));
 
-      pos.check_info_update();
       MoveList<CHECKS_ALL> mc(pos);
 
       // ここで生成された指し手と王手生成ルーチンで生成した指し手とが王手する指し手について一致するかをテストする。
@@ -575,7 +571,6 @@ void generate_moves_cmd(Position& pos)
   cout << "Generate Moves Test.." << endl;
 //  pos.set("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1");
   auto start = now();
-  pos.check_info_update();
 
   // 試行回数
   const int64_t n = 30000000;
@@ -734,7 +729,6 @@ void auto_play(Position& pos, istringstream& is)
     pos.set_hirate();
     for (ply = 0; ply < MAX_PLY; ++ply)
     {
-      pos.check_info_update();
       MoveList<LEGAL_ALL> mg(pos);
       if (mg.size() == 0)
         break;
@@ -1007,8 +1001,6 @@ void exam_book(Position& pos)
 	// やねうら大定跡のスコアと比較して、定跡のうち互角でない局面をそぎ落とし、
 	// 自己対戦時の精度を上げるのが狙い。
 
-	is_ready();
-
 	// 定跡ファイル
 	Book::MemoryBook book;
 
@@ -1107,29 +1099,31 @@ void exam_book(Position& pos)
 
 void test_cmd(Position& pos, istringstream& is)
 {
-  std::string param;
-  is >> param;
-  if (param == "unit") unit_test(pos, is);                         // 単体テスト
-  else if (param == "rp") random_player_cmd(pos,is);               // ランダムプレイヤー
-  else if (param == "rpbench") random_player_bench_cmd(pos, is);   // ランダムプレイヤーベンチ
-  else if (param == "cm") cooperation_mate_cmd(pos, is);           // 協力詰めルーチン
-  else if (param == "checks") test_genchecks(pos, is);             // 王手生成ルーチンのテスト
-  else if (param == "hand") test_hand();                           // 手駒の優劣関係などのテスト
-  else if (param == "records") test_read_record(pos,is);           // 棋譜の読み込みテスト 
-  else if (param == "autoplay") auto_play(pos, is);                // 思考ルーチンを呼び出しての連続自己対戦
-  else if (param == "timeman") test_timeman();                     // TimeManagerのテスト
-  else if (param == "exambook") exam_book(pos);                    // 定跡の精査用コマンド
-  else {
-    cout << "test unit               // UnitTest" << endl;
-    cout << "test rp                 // Random Player" << endl;
-    cout << "test rpbench            // Random Player bench" << endl;
-    cout << "test cm [depth]         // Cooperation Mate" << endl;
-    cout << "test checks             // Generate Checks Test" << endl;
-    cout << "test records [filename] // Read records.sfen Test" << endl;
-    cout << "test autoplay           // Auto Play Test" << endl;
-    cout << "test timeman            // Time Manager Test" << endl;
-	cout << "test exambook           // Examine Book" << endl;
-  }
+	is_ready();
+
+	std::string param;
+	is >> param;
+	if (param == "unit") unit_test(pos, is);                         // 単体テスト
+	else if (param == "rp") random_player_cmd(pos, is);               // ランダムプレイヤー
+	else if (param == "rpbench") random_player_bench_cmd(pos, is);   // ランダムプレイヤーベンチ
+	else if (param == "cm") cooperation_mate_cmd(pos, is);           // 協力詰めルーチン
+	else if (param == "checks") test_genchecks(pos, is);             // 王手生成ルーチンのテスト
+	else if (param == "hand") test_hand();                           // 手駒の優劣関係などのテスト
+	else if (param == "records") test_read_record(pos, is);           // 棋譜の読み込みテスト 
+	else if (param == "autoplay") auto_play(pos, is);                // 思考ルーチンを呼び出しての連続自己対戦
+	else if (param == "timeman") test_timeman();                     // TimeManagerのテスト
+	else if (param == "exambook") exam_book(pos);                    // 定跡の精査用コマンド
+	else {
+		cout << "test unit               // UnitTest" << endl;
+		cout << "test rp                 // Random Player" << endl;
+		cout << "test rpbench            // Random Player bench" << endl;
+		cout << "test cm [depth]         // Cooperation Mate" << endl;
+		cout << "test checks             // Generate Checks Test" << endl;
+		cout << "test records [filename] // Read records.sfen Test" << endl;
+		cout << "test autoplay           // Auto Play Test" << endl;
+		cout << "test timeman            // Time Manager Test" << endl;
+		cout << "test exambook           // Examine Book" << endl;
+	}
 }
 
 // ----------------------------------

@@ -655,7 +655,7 @@ namespace {
       // fromからtoに移動させて素抜きに合わないならばこれをもって良し。
       if (!pinned
         || !(pinned & from)
-        || is_aligned(pos.king_square(us) , from, to)
+        || aligned( from, to , pos.king_square(us))
         )
         return true;
     }
@@ -680,7 +680,7 @@ namespace {
       // fromからtoに移動させて素抜きに合わないならばこれをもって良し。
       if (!pinned
         || !(pinned & from)
-        || is_aligned(pos.king_square(us) , from, to)
+        || aligned( from, to , pos.king_square(us))
         )
         return true;
     }
@@ -696,8 +696,7 @@ Move is_mate_in_1ply(const Position& pos /*, const CheckInfo& ci */)
 {
   ASSERT_LV3(! pos.checkers() );
 
-  // check_info_update()をやってあると仮定できるなら、pos.discovered_check_candidates()ではなく直接取得できる。
-  Bitboard dcCandidates = pos.state()->checkInfo.dcCandidates;
+  Bitboard dcCandidates = pos.discovered_check_candidates();
   
   Color us = pos.side_to_move();
   Color them = ~us;
@@ -1009,7 +1008,7 @@ SILVER_DROP_END:;
       bb_attacks =bishopStepEffect(to) | kingEffect(to);
       if (can_king_escape(pos, them, from, to, bb_attacks, slide)) { continue; }
       // 移動元で馬だとpin方向を確認しないといけない。違う方向への移動による攻撃なら、これは両王手である。
-      if ((dcCandidates & from) && !is_aligned(sq_king,from,to))
+      if ((dcCandidates & from) && ! aligned(from,to, sq_king))
         ;
       else if (can_piece_capture(pos, them, to, new_pin, slide))   { continue; }
 
@@ -1432,7 +1431,7 @@ NEXT1:;
       if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
       bb_attacks = goldEffect(us, to);
       if (can_king_escape(pos, them, from, to, bb_attacks, slide)) { continue; }
-      if ((dcCandidates & from) && !is_aligned(sq_king,from, to))
+      if ((dcCandidates & from) && ! aligned(from, to, sq_king))
         ;
       else if (can_piece_capture(pos, them, to, new_pin, slide))   { continue; }
       return make_move(from, to);
@@ -1461,7 +1460,7 @@ NEXT1:;
       if (!(pos.attackers_to(us, to, slide) ^ from)) { goto PRO_SILVER; }
       if (pos.discovered(from, to, our_king, our_pinned)) { goto PRO_SILVER; }
       if (can_king_escape(pos, them, from, to, bb_attacks, slide)) { goto PRO_SILVER; }
-      if ((dcCandidates & from) && !is_aligned(sq_king,from, to))
+      if ((dcCandidates & from) && !aligned(from, to, sq_king))
         ;
       else
           if (can_piece_capture(pos, them, to, new_pin, slide))   { goto PRO_SILVER; }
@@ -1483,7 +1482,7 @@ NEXT1:;
       if (!(pos.attackers_to(us, to, slide) ^ from)) { continue; }
       if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
       if (can_king_escape(pos, them, from, to, bb_attacks, slide)) { continue; }
-      if ((dcCandidates & from) && !is_aligned(sq_king,from, to))
+      if ((dcCandidates & from) && !aligned(from, to, sq_king))
         ;
       else if (can_piece_capture(pos, them, to, new_pin, slide))   { continue; }
       return make_move_promote(from, to);
@@ -1639,7 +1638,7 @@ DC_CHECK:;
         while (bb)
         {
           to = bb.pop();
-          if (is_aligned(sq_king,from, to)) { continue; }
+          if (aligned(from, to, sq_king)) { continue; }
           bb_attacks =knightEffect(us, to);
           if (bb_attacks & sq_king) { continue; }
           if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
@@ -1652,7 +1651,7 @@ DC_CHECK:;
         while (bb)
         {
           to = bb.pop();
-          if (is_aligned(sq_king,from, to)) { continue; }
+          if (aligned(from, to, sq_king)) { continue; }
           if (!(canPromote(us, from,to))) { continue; }
           bb_attacks = goldEffect(us, to);
           if (bb_attacks & sq_king) { continue; }
@@ -1673,7 +1672,7 @@ DC_CHECK:;
         while (bb)
         {
           to = bb.pop();
-          if (is_aligned(sq_king,from, to)) { continue; }
+          if (aligned(from, to, sq_king)) { continue; }
           bb_attacks =silverEffect(us, to);
           if (bb_attacks & sq_king) { continue; }
           if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
@@ -1686,7 +1685,7 @@ DC_CHECK:;
         while (bb)
         {
           to = bb.pop();
-          if (is_aligned(sq_king,from, to)) { continue; }
+          if (aligned(from, to, sq_king)) { continue; }
           if (!(canPromote(us, from,to))) { continue; }
           bb_attacks =goldEffect(us, to);
           if (bb_attacks & sq_king) { continue; }
@@ -1769,7 +1768,7 @@ DC_CHECK:;
         bool promo = is_enemy_from || canPromote(us, to);
 
         // これ、開き王手になってないと駄目
-        if (is_aligned(sq_king,from, to)) { continue;  }
+        if (aligned(from, to, sq_king)) { continue;  }
 
         if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
 
@@ -1930,7 +1929,7 @@ DC_CHECK:;
         to = bb2.pop();
 
         // 開き王手になっていない。
-        if (is_aligned(sq_king,from, to))
+        if (aligned(from, to, sq_king))
           continue;
 
         // 合法手か？

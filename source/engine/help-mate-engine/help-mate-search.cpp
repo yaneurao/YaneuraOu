@@ -91,7 +91,6 @@ namespace HelpMate
     }
 
     StateInfo si;
-    pos.check_info_update(); // legal()とgives_check()とCHECKSの指し手生成に先だって呼び出されている必要がある。
 
     MovePicker mp(pos, tt_move);
     Move m;

@@ -145,7 +145,6 @@ namespace Search {
     if (!is_ok(pv[0]))
       return false;
 
-    pos.check_info_update();
     pos.do_move(pv[0], st, pos.gives_check(pv[0]));
     TTEntry* tte = TT.probe(pos.state()->key(), ttHit);
     Move m;
