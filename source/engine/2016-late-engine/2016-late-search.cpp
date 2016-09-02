@@ -318,13 +318,30 @@ namespace YaneuraOu2016Late
 	// 個別に確保したほうが本当は良い。まあ、そこまで探索性能悪化しないだろうけども…。
 	CounterMoveHistoryStats CounterMoveHistory;
 
+	// update_cm_stats()は、countermoveとfollow-up move historyを更新する。
+	void update_cm_stats(Stack* ss, Piece pc, Square s, Value bonus)
+	{
+		CounterMoveStats* cmh  = (ss - 1)->counterMoves;
+		CounterMoveStats* fmh1 = (ss - 2)->counterMoves;
+		CounterMoveStats* fmh2 = (ss - 4)->counterMoves;
+
+		if (cmh)
+			cmh->update(pc, s, bonus);
+
+		if (fmh1)
+			fmh1->update(pc, s, bonus);
+
+		if (fmh2)
+			fmh2->update(pc, s, bonus);
+	}
+
 	// いい探索結果だったときにkiller等を更新する
 
 	// move      = これが良かった指し手
 	// quiets    = 悪かった指し手(このnodeで生成した指し手)
 	// quietsCnt = ↑の数
 	inline void update_stats(const Position& pos, Stack* ss, Move move,
-		Depth depth, Move* quiets, int quietsCnt)
+				Move* quiets, int quietsCnt, Value bonus)
 	{
 		//   killerのupdate
 
@@ -338,89 +355,34 @@ namespace YaneuraOu2016Late
 		//   historyのupdate
 		Color c = pos.side_to_move();
 
-		// depthの二乗に比例したbonusをhistory tableに加算する。
-		// d*d + 2*d - 2 のほうが d*d + d - 1より良いらしい。
-		Value bonus = Value((depth / ONE_PLY) * (depth / ONE_PLY) + 2 * depth / ONE_PLY - 2);
-
-		// 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
-		Square prevSq = to_sq((ss - 1)->currentMove);
-
-		// Moveのなかに移動後の駒が格納されているからそれを取り出すだけ。
-		Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
-
-		ASSERT_LV3(move != MOVE_NULL);
-
-		CounterMoveStats* cmh  = (ss - 1)->counterMoves;
-		CounterMoveStats* fmh  = (ss - 2)->counterMoves;
-		CounterMoveStats* fmh2 = (ss - 4)->counterMoves;
-
 		auto thisThread = pos.this_thread();
-
-		// 今回のmoveで動かした局面ではないので、pos.piece_on()では移動後の駒は得られないが、
-		// moveの上位16bitに移動させたあとの駒が入っているので、それをmoved_piece_after()で取り出す。
 
 		Square mto = to_sq(move);
 		Piece mpc = pos.moved_piece_after(move);
 
-		thisThread->history.update(mpc, mto, bonus);
 		thisThread->fromTo.update(c, move, bonus);
+		thisThread->history.update(mpc, mto, bonus);
 
-		if (cmh)
+		update_cm_stats(ss, mpc, mto, bonus);
+
+		if ((ss - 1)->counterMoves)
 		{
+			// 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
+			Square prevSq = to_sq((ss - 1)->currentMove);
+
+			// Moveのなかに移動後の駒が格納されているからそれを取り出すだけ。
+			Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
+
 			thisThread->counterMoves.update(prevPc, prevSq, move);
-			cmh->update(mpc, mto, bonus);
 		}
 
-		if (fmh)
-			fmh->update(mpc, mto, bonus);
-
-		if (fmh2)
-			fmh2->update(mpc, mto, bonus);
-
-		// このnodeのベストの指し手以外の指し手はボーナス分を減らす
+		// Decrease all the other played quiet moves
 		for (int i = 0; i < quietsCnt; ++i)
 		{
-			Square qto = to_sq(quiets[i]);
-			Piece qpc = pos.moved_piece_after(quiets[i]);
-
-			thisThread->history.update(qpc, qto, -bonus);
 			thisThread->fromTo.update(c, quiets[i], -bonus);
-
-			// 前の局面の指し手がMOVE_NULLでないならcounter moveもupdateしておく。
-
-			if (cmh)
-				cmh->update(qpc, qto, -bonus);
-
-			if (fmh)
-				fmh->update(qpc, qto, -bonus);
-
-			if (fmh2)
-				fmh2->update(qpc, qto, -bonus);
-		}
-
-		// さらに、1手前で置換表の指し手が反駁されたときは、追加でペナルティを与える。
-		// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
-		if ((ss - 1)->moveCount == 1
-			&& !pos.captured_piece_type())
-		{
-			// 直前がcaptureではないから、2手前に動かした駒は捕獲されずに盤上にあるはずであり、
-			// その升の駒を盤から取り出すことが出来る。それ以上前の駒はあるかどうかわからないが…。
-
-			// ※　ここ、Stockfishでは
-			//    -bonus -2 * (depth + 1) / ONE_PLY -1 
-			//    だが、ONE_PLY = 2においてはおかしいような気が..
-
-			// 1手前に対する1手前(CounterMoveHistory)と2手、4手前(Follow up Move History)に対して
-			// ペナルティを与える。
-
-			if ((ss - 2)->counterMoves)
-				(ss - 2)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + 1) / ONE_PLY - 1);
-
-			if ((ss - 3)->counterMoves)
-				(ss - 3)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + 1) / ONE_PLY - 1);
-
-			if ((ss - 5)->counterMoves)
-				(ss - 5)->counterMoves->update(prevPc, prevSq, -bonus - 2 * (depth + 1) / ONE_PLY - 1);
+			Piece qpc = pos.moved_piece_after(quiets[i]);
+			thisThread->history.update(qpc, to_sq(quiets[i]), -bonus);
+			update_cm_stats(ss, qpc, to_sq(quiets[i]), -bonus);
 		}
 	}
 
@@ -1043,8 +1005,25 @@ namespace YaneuraOu2016Late
 
 			// 置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
 			// ただし、捕獲する指し手か成る指し手であればこれは(captureで生成する指し手なので)killerを更新する価値はない。
-			if (ttValue >= beta && ttMove && !pos.capture_or_pawn_promotion(ttMove))
-				update_stats(pos, ss, ttMove, depth, nullptr, 0);
+			if (ttValue >= beta && ttMove)
+			{
+				int d = depth / ONE_PLY;
+				if (!pos.capture_or_pawn_promotion(ttMove))
+				{
+					Value bonus = Value(d * d + 2 * d - 2);
+					update_stats(pos, ss, ttMove, nullptr, 0,bonus);
+				}
+
+				// 反駁された1手前の置換表のquietな指し手に対する追加ペナルティを課す。
+				// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
+				// ToDo:ここ、captureだけではなくpawn_promotionも含めるべきかも。
+				if ((ss - 1)->moveCount == 1 && !pos.captured_piece_type())
+				{
+					Value penalty = Value(d * d + 4 * d + 1);
+					Square prevSq = to_sq((ss - 1)->currentMove);
+					update_cm_stats(ss - 1, pos.piece_on(prevSq), prevSq, -penalty);
+				}
+			}
 
 			return ttValue;
 		}
@@ -1695,7 +1674,7 @@ namespace YaneuraOu2016Late
 #endif
 
 					// historyの値に応じて指し手のreduction量を増減する。
-					int rHist = (val - (PARAM_REDUCTION_BY_HISTORY / 2)) / PARAM_REDUCTION_BY_HISTORY;
+					int rHist = (val - (PARAM_REDUCTION_BY_HISTORY )) / PARAM_REDUCTION_BY_HISTORY;
 					r = std::max(DEPTH_ZERO, r - rHist * ONE_PLY);
 
 				}
@@ -1881,12 +1860,30 @@ namespace YaneuraOu2016Late
 			bestValue = excludedMove ? alpha : mated_in(ss->ply);
 
 		// 詰まされていない場合、bestMoveがあるならこの指し手をkiller等に登録する。
-		else if (bestMove && !pos.capture_or_pawn_promotion(bestMove))
-			update_stats(pos, ss, bestMove, depth, quietsSearched, quietCount);
+		else if (bestMove)
+		{
+			int d = depth / ONE_PLY;
 
+			// quietな(駒を捕獲しない)best moveなのでkillerとhistoryとcountermovesを更新する。
+			if (!pos.capture_or_pawn_promotion(bestMove))
+			{
+				Value bonus = Value(d * d + 2 * d - 2);
+				update_stats(pos, ss, bestMove, quietsSearched, quietCount, bonus);
+			}
+
+			// 反駁された1手前の置換表のquietな指し手に対する追加ペナルティを課す。
+			// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
+			if ((ss - 1)->moveCount == 1 && !pos.captured_piece_type())
+			{
+				Value penalty = Value(d * d + 4 * d + 1);
+				Square prevSq = to_sq((ss - 1)->currentMove);
+				Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
+				update_cm_stats(ss - 1, prevPc, prevSq, -penalty);
+			}
+		}
+		// bestMoveがない == fail lowしているケース。
 		// fail lowを引き起こした前nodeでのcounter moveに対してボーナスを加点する。
 		else if (depth >= 3 * ONE_PLY
-			&& !bestMove                        // bestMoveが無い == fail low
 			&& !pos.captured_piece_type()
 			&& is_ok((ss - 1)->currentMove))
 		{

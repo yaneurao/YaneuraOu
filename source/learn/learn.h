@@ -218,8 +218,8 @@ typedef float LearnFloatType;
 #endif
 
 #ifdef LEARN_YANEURAOU_2016_LATE
-//#define USE_SGD_UPDATE
-#define USE_YANE_SGD_UPDATE
+#define USE_SGD_UPDATE
+//#define USE_YANE_SGD_UPDATE
 //#define USE_YANE_GRAD_UPDATE
 //#define USE_ADAM_UPDATE
 #undef LEARN_MINI_BATCH_SIZE

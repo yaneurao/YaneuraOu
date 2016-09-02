@@ -959,7 +959,7 @@ struct SfenReader
 	// total_readがこの値を超えたらupdate_weights()してmseの計算をする。
 	u64 next_update_weights;
 
-	int save_count;
+	u64 save_count;
 
 protected:
 
@@ -1042,10 +1042,10 @@ void LearnerThink::thread_worker(size_t thread_id)
 			// 3回目ぐらいまではg2のupdateにとどめて、wのupdateは保留する。
 			Eval::update_weights(mini_batch_size , ++epoch);
 
-			// 20回、update_weight()するごとに保存。
-			// 例えば、LEARN_MINI_BATCH_SIZEが1Mなら、1M×100 = 0.1G(1億)ごとに保存
+			// 8000万局面ごとに1回保存、ぐらいの感じで。
+
 			// ただし、update_weights(),calc_rmse()している間の時間経過は無視するものとする。
-			if (++sr.save_count >= 100)
+			if (++sr.save_count * mini_batch_size >= 80000000ULL)
 			{
 				sr.save_count = 0;
 
@@ -1205,6 +1205,11 @@ void learn(Position& pos, istringstream& is)
 		{
 			// 棋譜ファイル格納フォルダ
 			is >> dir;
+			continue;
+		} else if (option == "batchsize")
+		{
+			// ミニバッチのサイズ
+			is >> mini_batch_size;
 			continue;
 		}
 

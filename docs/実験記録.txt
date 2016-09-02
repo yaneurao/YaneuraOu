@@ -10,9 +10,243 @@
 
 
 ToDo: 
-・技巧のソースコード調べる。
-・持ち時間制御の改良。
-・mate3()書く。
+・探索パラメーターの改良(2016/09/03～2016/09/10)
+・技巧のソースコード調べる(2016/09/05～2016/09/10)
+・mate3()書く。(2016/09/05～2016/09/10)
+・Stockfishにキャッチアップ(2016/09/15)
+・評価関数に特徴追加(2016/09/10～2016/09/15)
+・持ち時間制御の改良。(2016/09/10～2016/09/15)
+・新やねうら王大定跡の生成(2016/09/20～2016/09/25)
+・Stockfishにキャッチアップ(2016/09/30)
+・Stockfishにキャッチアップ(2016/10/05)
+・最終ランニング(2016/10/01～2016/10/06)
+
+
+■　2016/09/02
+
+・探索部改良
+	V3.64a
+		Refutation penalty on captures	
+		https://github.com/official-stockfish/Stockfish/commit/0b4f6e562b76a7a7fb581ad117927748371fe790
+
+		Reformat stats update
+		https://github.com/official-stockfish/Stockfish/commit/3e739f883fb766f965ed434507c9c8fbcf18a855
+
+		Simplify stats update
+		https://github.com/official-stockfish/Stockfish/commit/9bd856e28ec93a16a5db78b24f9579c607541def
+
+
+
+■　2016/09/01
+
+・学習のイテレーションを安定して回せる状態にする(～2016/09/03)
+
+・
+	#62(182_20160829_62_50G)からdepth3で10,20億局面を生成。182_20160829_62_50Gから追加学習。
+	EVAL_LIMIT = VALUE_INFINITE
+	目的関数 = LOSS_FUNCTION_IS_WINNING_PERCENTAGE
+	//	Weight::eta = 100.0f * (float)pow(0.999f, epoch);
+
+	#69..10億局面 minibatch = 100万局面
+	#70..10億局面 minibatch = 500万局面
+	#71..10億局面 minibatch = 200万局面
+	#72..20億局面 minibatch = 100万局面
+	#73..20億局面 minibatch = 100万局面 , ηの減衰なし。η=100
+		YaneuraOuV363learn_win.exe
+		//	Weight::eta = 100.0f;
+
+	#74..20億局面 minibatch = 100万局面 , ηの減衰なし。η=150
+		YaneuraOuV363learn150win.exe
+		//  Weight::eta = 150.0f;
+
+	#75..10億局面 minibatch = 100万局面 ただし、depth6で生成した教師局面10億局面
+		学習方法は、#74と同じ。
+	
+
+	実験結果)
+	#69
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_62_50G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160829_69_20G
+		T1,r300,4888 - 156 - 4956(49.65% R-2.4)
+		T1,b3000,1470 - 100 - 1430(50.69% R4.79)
+		// 元のバージョンより弱い可能性が。よくわからない。
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_69_10G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160829_69_20G
+		T1,b3000,1434 - 102 - 1464(49.48% R-3.6)
+
+		// 10Gではまだ収束していない可能性がある。
+		// rmse自体はまだ下がり続けている。
+		// きちんと棋力が伸びなくなる限界まで回さないと雑巾が絞りにくいのでは。
+		// →　η、減衰しないほうと比較実験などをする。
+
+		#69のrmse推移
+		rmse = 0.070048 , mean_error = 985.541  //  0億
+		rmse = 0.0691731 , mean_error = 988.378 // 10億
+		rmse = 0.0689261 , mean_error = 989.072 // 20億
+
+		#73のrmse推移
+		rmse = 0.0701574 , mean_error = 984.905 //  0億
+		rmse = 0.0689784 , mean_error = 989.425 // 10億
+		rmse = 0.0686712 , mean_error = 990.957 // 20億
+		rmse = 0.0678776 , mean_error = 991.066 // 30億
+
+		// →　#73の10億時点で#69の20億ぐらいの感じか。
+
+
+		// Aperyとの比較
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_69_20G
+		engine2 = YaneuraOuV362.exe , eval = Apery20160824
+		T1,b3000,1431 - 37 - 1532(48.3% R-11.85)
+
+	#70
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_62_50G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160829_70_20G
+		T1,r300,4912 - 151 - 4937(49.87% R-0.88)
+		T1,b3000,1480 - 95 - 1425(50.95% R6.58) // 収束していない。前バージョンより少し弱い。
+
+		// 10Gと20Gとの比較
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_70_10G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160829_70_20G
+		T1,b3000,1416 - 111 - 1473(49.01% R-6.86)
+
+	#71
+		// Aperyと
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_71_20G
+		engine2 = YaneuraOuV362.exe , eval = Apery20160824
+		T1,r300,5082 - 79 - 4839(51.22% R8.51)
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_62_50G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160829_71_20G
+		T1,b3000,1544 - 110 - 1346(53.43% R23.84) // 収束してない。前バージョンよりR23も弱い
+
+	#72
+		// #69と#72との比較
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_69_20G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160901_72_20G
+		T1,r300,4921 - 147 - 4932(49.94% R-0.39)
+		T1,b3000,1447 - 93 - 1460(49.78% R-1.55)
+
+		// →　教師、10億局面と20億局面とで差がほぼ無いかも…。
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_69_20G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160901_72_40G
+		T1,r300,5024 - 135 - 4841(50.93% R6.45)
+		T1,b3000,1472 - 112 - 1416(50.97% R6.74)
+
+		// →　むしろ弱くなってるような…？		
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160901_72_40G
+		engine2 = YaneuraOuV362.exe , eval = Apery20160824
+		T1,b3000,1407 - 33 - 1560(47.42% R-17.93)
+
+		// →　弱くなってるような？
+
+	#73
+
+		// #69,#73の比較
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_69_20G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160901_73_20G
+		T1,r300,4909 - 153 - 4938(49.85% R-1.02)
+		T1,b3000,1432 - 102 - 1466(49.41% R-4.08)
+		T1,b3000,1419 - 95 - 1486(48.85% R-8.01)
+
+		// η、減衰しないほうがよさげ。
+
+		// Aperyとの比較
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160901_73_50G
+		engine2 = YaneuraOuV362.exe , eval = Apery20160824
+		T1,b3000,2391 - 68 - 2541(48.48% R-10.57)
+
+	#74
+
+		// #69と#74との比較
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_69_20G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160901_74_20G
+		T1,r300,4872 - 141 - 4987(49.42% R-4.05)
+		T1,b3000,1437 - 99 - 1464(49.53% R-3.23)
+
+		// #73と#74との比較
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160901_73_20G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160901_74_20G
+		T1,b3000,1972 - 118 - 1930(50.54% R3.74)
+		// →　大差なし？
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160901_73_50G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160901_74_40G
+		T1,b3000,2256 - 153 - 2311(49.4% R-4.18)
+		// #74のほうが優れていると言えそう。
+
+		// 20Gと40Gとの比較
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160901_74_20G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160901_74_40G
+		T1,b3000,2386 - 173 - 2441(49.43% R-3.96)
+
+		// #74ですら20Gでは収束していないっぽい。
+		// 40G回さないと駄目か…。
+
+	#75
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_69_20G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160901_75_10G
+		T1,b3000,1587 - 97 - 1506(51.31% R9.1)
+		// → 収束が十分でなさげ。弱い。
+
+		// Aperyとの比較
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160901_75_10G
+		engine2 = YaneuraOuV362.exe , eval = Apery20160824
+		T1,b3000,1862 - 64 - 1994(48.29% R-11.9)
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160901_75_20G
+		engine2 = YaneuraOuV362.exe , eval = Apery20160824
+		T1,r300,4826 - 79 - 4495(51.78% R12.34)
+		T1,b3000,466 - 6 - 508(47.84% R-14.99) // 対局数少なめ
+
+
+	・mini batchサイズの変更は明らかに弱い。収束が十分でないのだろう。
+		十分に時間をかけた場合、どちらが良いかはよくわからない。
+		#71のほうがmini batchサイズが小さいのに、#70のほうが勝率が良さそうであるが、
+		単に値が動いていないから前のバージョンからあまり弱くなっていないだけかも。
+
+	・depth6で教師局面を生成したほう、収束が遅いように思う。
+		教師が元のものからかけ離れているからか？
+		depth3と大差ないならdepth3で回したほうが良いのではないか？
+
+
+■　2016/08/31
+
+
+・mini-batchサイズの違いによる学習の差を計測してみる実験。
+	100万と500万とで比較。
+
+・10億をflowで生成するJenkinsのJob書いた。
+
+		// build number
+		def bn = build.getEnvironment(listener).get('BUILD_NUMBER')  
+
+		// parallel number
+		def pn = params["PARA_NUM"].toInteger()
+
+		def builds = []
+		for(int i=0;i<pn;++i)
+		{
+		  // ここでjにコピーして、これをclosureに束縛させる。
+		  int j=i
+		  builds.add( { -> build("yanejob/教師局面ファイル生成flow",SFEN_FILENAME:"ALN_"+bn+"_" + j.toString() +".bin",
+								 DEPTH: params["DEPTH"], LOOP_MAX: params["SFEN_LOOP"] , EVAL_DIR : params["EVAL_DIR"] , EVAL_LIMIT : "32001") })
+		}
+		parallel(builds)  
+
+・depth3で生成するの、イテレーションが早くまわるように見えて、その後の強くなったかどうかの検証で
+　こんなに時間かかると何やってるかわからんな…。
 
 
 ■　2016/08/30
@@ -96,9 +330,16 @@ ToDo:
 
 		engine1 = YaneuraOuV362.exe , eval = 182_20160829_62_50G
 		engine2 = YaneuraOuV362.exe , eval = Apery20160824
-		play_time = r300 ,  T1,r300,5154 - 82 - 4764(51.97% R13.67)
-		play_time = b1000 ,  T1,b1000,2446 - 62 - 2492(49.53% R-3.24)
+		r300 ,  T1,r300,5154 - 82 - 4764(51.97% R13.67)
+		b1000 ,  T1,b1000,2446 - 62 - 2492(49.53% R-3.24)
+		T1,b3000,1426 - 54 - 1520(48.4% R-11.09)
 		→ 長い持ち時間で勝敗が逆転しているが、前バージョンよりはAperyに対する勝率が上がっていると言えそう。
+
+		// #56と62との比較
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160828_56_10G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160829_62_10G
+		T1,b1000,2400 - 113 - 2487(49.11% R-6.19)
 
 	#63
 		engine1 = YaneuraOuV362.exe , eval = 182_20160824
@@ -141,7 +382,8 @@ ToDo:
 		play_time = r300 ,  T1,r300,5468 - 111 - 4421(55.29% R36.92)
 		play_time = b1000 ,  T1,b1000,2678 - 91 - 2231(54.55% R31.72)
 		play_time = b5000 ,  T1,b5000,998 - 49 - 953(51.15% R8.02)
-
+		play_time = b10000 ,  T1,b10000,983 - 69 - 948(50.91% R6.3)
+		→　長い持ち時間だと差が縮まる傾向にある。
 
 	#64
 		engine1 = YaneuraOuV362.exe , eval = 182_20160824
@@ -152,6 +394,13 @@ ToDo:
 		engine2 = YaneuraOuV362.exe , eval = 182_20160829_64_20G
 		T1,r300,4873 - 125 - 5002(49.35% R-4.54)
 
+		// Aperyとの比較
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_64_20G
+		engine2 = YaneuraOuV362.exe , eval = Apery20160824
+		T1,b3000,1409 - 70 - 1521(48.09% R-13.29)
+		T1,b5000,968 - 32 - 1000(49.19% R-5.65)
+
+
 	#65
 		engine1 = YaneuraOuV362.exe , eval = 182_20160824
 		engine2 = YaneuraOuV362.exe , eval = 182_20160829_65_10G
@@ -160,6 +409,12 @@ ToDo:
 		engine1 = YaneuraOuV362.exe , eval = 182_20160824
 		engine2 = YaneuraOuV362.exe , eval = 182_20160829_65_20G
 		T1,r300,4568 - 129 - 5303(46.28% R-25.92)
+
+		// Aperyとの比較
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_65_20G
+		engine2 = YaneuraOuV362.exe , eval = Apery20160824
+		T1,b5000,998 - 62 - 940(51.5% R10.4)
 
 	#66
 		engine1 = YaneuraOuV362.exe , eval = 182_20160824
@@ -170,7 +425,11 @@ ToDo:
 		engine2 = YaneuraOuV362.exe , eval = 182_20160829_66_20G
 		T1,r300,4554 - 101 - 5345(46.0% R-27.82)
 
-		// #64と#65、#65と#66の比較
+	#62と#64、#64と#65、#65と#66の比較
+
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_62_50G
+		engine2 = YaneuraOuV362.exe , eval = 182_20160829_64_10G
+		T1,b3000,1091 - 84 - 1215(47.31% R-18.7)
 
 		engine1 = YaneuraOuV362.exe , eval = 182_20160829_64_10G
 		engine2 = YaneuraOuV362.exe , eval = 182_20160829_65_10G
@@ -181,7 +440,12 @@ ToDo:
 		engine1 = YaneuraOuV362.exe , eval = 182_20160829_65_20G
 		engine2 = YaneuraOuV362.exe , eval = 182_20160829_66_20G
 		T1,b1000,2441 - 119 - 2440(50.01% R0.07)
-		
+
+		// Aperyとの比較
+				
+		engine1 = YaneuraOuV362.exe , eval = 182_20160829_66_20G
+		engine2 = YaneuraOuV362.exe , eval = Apery20160824
+		T1,b5000,1031 - 47 - 922(52.79% R19.41)
 
 	182_20160828_56_10Gの強さを示す予備データ) 
 		長い持ち時間ではApery20160824より-R10程度弱いようだ。(短い時間では勝っていたのに…。)
@@ -220,11 +484,13 @@ ToDo:
 		　終盤の特徴が何らか強化されたからだろうか？
 		
 		検証) depth3の教師から雑巾が絞れているか？
-			#62が元の評価関数より強いので絞れていると言えそう。(終盤が強化されただけかも知れない)
+			#56と#62との比較から、元の評価関数より強いので絞れていると言えそう。
+			(終盤が強化されただけかも知れない)
 			depth3で教師生成→学習を繰り返してみるのはアリかも知れない。
 			
 		検証) 異なる評価関数であっても、強いほうの教師から学習させたほうが良いか？
-			#62→#64で弱くなっていることから、異なる評価関数の教師による学習は
+			#62→#64で少し強くなっているようではある。
+			教師を超える強さにはなっていないことから、異なる評価関数の教師による学習は
 			あまりよろしくないのではないかと思う。
 		
 			Aperyの評価関数に対して別の評価関数を教師にして学習させた#63は元のAperyの評価関数より

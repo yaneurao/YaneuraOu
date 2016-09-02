@@ -558,13 +558,13 @@ namespace Eval
 #elif defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
 
 #ifdef USE_SGD_UPDATE
-		Weight::eta = 32.0f;
+		Weight::eta = 150.0f;
+//		Weight::eta = 32.0f;
 #endif
 
 #ifdef USE_YANE_SGD_UPDATE
 		Weight::eta = 100.0f * (float)pow(0.999f, epoch);
 #endif
-
 #endif
 
 		// AdaGrad
