@@ -196,8 +196,8 @@ namespace YaneuraOu2016Late
 		return (20 + (param1 - 1) * 2) * futility_margin_sum * d / ONE_PLY / (64 * 8);
 	}
 #else
-	// game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
-	Value futility_margin(Depth d, int game_ply) {
+	// depth(残り探索深さ)に応じたfutility margin。
+	Value futility_margin(Depth d) {
 		return Value(d * PARAM_FUTILITY_MARGIN_ALPHA / ONE_PLY);
 	}
 #endif
@@ -210,13 +210,13 @@ namespace YaneuraOu2016Late
 
 	// 探索深さを減らすためのReductionテーブル
 	// [PvNodeであるか][improvingであるか][このnodeで何手目の指し手であるか][残りdepth]
-	Depth reduction_table[2][2][64][64];
+	int reduction_table[2][2][64][64];
 
 	// 残り探索深さをこの深さだけ減らす。depthとmove_countに関して63以上は63とみなす。
 	// improvingとは、評価値が2手前から上がっているかのフラグ。上がっていないなら
 	// 悪化していく局面なので深く読んでも仕方ないからreduction量を心もち増やす。
 	template <bool PvNode> Depth reduction(bool improving, Depth depth, int move_count) {
-		return reduction_table[PvNode][improving][std::min(depth / ONE_PLY, 63)][std::min(move_count, 63)];
+		return reduction_table[PvNode][improving][std::min(depth / ONE_PLY, 63)][std::min(move_count, 63)]*ONE_PLY;
 	}
 
 	// -----------------------
@@ -442,6 +442,8 @@ namespace YaneuraOu2016Late
 		ASSERT_LV3(-VALUE_INFINITE <= alpha && alpha < beta && beta <= VALUE_INFINITE);
 		ASSERT_LV3(PvNode || alpha == beta - 1);
 		ASSERT_LV3(depth <= DEPTH_ZERO);
+		// depthがONE_PLYの倍数である。
+		ASSERT_LV3(depth / ONE_PLY * ONE_PLY == depth);
 
 		// PV求める用のbuffer
 		// (これnonPVでは不要なので、nonPVでは参照していないの削除される。)
@@ -854,6 +856,8 @@ namespace YaneuraOu2016Late
 		ASSERT_LV3(DEPTH_ZERO < depth && depth < DEPTH_MAX);
 		// IIDを含め、PvNodeではcutNodeで呼び出さない。
 		ASSERT_LV3(!(PvNode && cutNode));
+		// depthがONE_PLYの倍数であるかのチェック
+		ASSERT_LV3(depth / ONE_PLY * ONE_PLY == depth);
 
 		Thread* thisThread = pos.this_thread();
 
@@ -1157,8 +1161,9 @@ namespace YaneuraOu2016Late
 		// 残り探索深さが少ないときに、その手数でalphaを上回りそうにないとき用の枝刈り。
 		if (!PvNode
 			&&  depth < 4 * ONE_PLY
+			&&  ttMove == MOVE_NONE
 			&&  eval + razor_margin(depth) <= alpha
-			&&  ttMove == MOVE_NONE)
+			)
 		{
 			// 残り探索深さがONE_PLY以下で、alphaを確実に下回りそうなら、ここで静止探索を呼び出してしまう。
 			if (depth <= ONE_PLY
@@ -1184,9 +1189,9 @@ namespace YaneuraOu2016Late
 
 		if (!RootNode
 			&&  depth < PARAM_FUTILITY_RETURN_DEPTH * ONE_PLY
-			&&  eval - futility_margin(depth, pos.game_ply()) >= beta
+			&&  eval - futility_margin(depth) >= beta
 			&&  eval < VALUE_KNOWN_WIN) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
-			return eval - futility_margin(depth, pos.game_ply());
+			return eval - futility_margin(depth);
 
 		//
 		//   Null move search with verification search
@@ -1203,7 +1208,7 @@ namespace YaneuraOu2016Late
 			ss->counterMoves = nullptr;
 
 			// 残り探索深さと評価値によるnull moveの深さを動的に減らす
-			Depth R = ((PARAM_NULL_MOVE_DYNAMIC_ALPHA + PARAM_NULL_MOVE_DYNAMIC_BETA * depth) / 256
+			Depth R = ((PARAM_NULL_MOVE_DYNAMIC_ALPHA + PARAM_NULL_MOVE_DYNAMIC_BETA * depth / ONE_PLY) / 256
 				+ std::min((int)((eval - beta) / PawnValue), 3)) * ONE_PLY;
 
 			pos.do_null_move(st);
@@ -1294,7 +1299,8 @@ namespace YaneuraOu2016Late
 			&& (PvNode || ss->staticEval + PARAM_IID_MARGIN_ALPHA >= beta))
 		{
 			ss->skipEarlyPruning = true;
-			search<NT>(pos, ss, alpha, beta, 3 * depth / 4 - 2 * ONE_PLY , cutNode);
+			Depth d = (3 * depth / (4 * ONE_PLY) - 2) * ONE_PLY;
+			search<NT>(pos, ss, alpha, beta, d , cutNode);
 			ss->skipEarlyPruning = false;
 
 #ifndef DISABLE_TT_PROBE
@@ -1316,8 +1322,8 @@ namespace YaneuraOu2016Late
 		// cmh  = Counter Move History    : ある指し手が指されたときの応手
 		// fmh  = Follow up Move History  : 2手前の自分の指し手の継続手
 		// fmh2 = Follow up Move History2 : 4手前からの継続手
-		const CounterMoveStats* cmh = (ss - 1)->counterMoves;
-		const CounterMoveStats* fmh = (ss - 2)->counterMoves;
+		const CounterMoveStats* cmh  = (ss - 1)->counterMoves;
+		const CounterMoveStats* fmh  = (ss - 2)->counterMoves;
 		const CounterMoveStats* fmh2 = (ss - 4)->counterMoves;
 
 		// 評価値が2手前の局面から上がって行っているのかのフラグ
@@ -1463,12 +1469,19 @@ namespace YaneuraOu2016Late
 				// このmargin値は評価関数の性質に合わせて調整されるべき。
 				Value rBeta = ttValue - (PARAM_SINGULAR_MARGIN / 8) * depth / ONE_PLY;
 
+				// PARAM_SINGULAR_SEARCH_DEPTHが128(無調整)のときはデフォルト動作。
+				Depth d;
+				if (PARAM_SINGULAR_SEARCH_DEPTH == 128)
+					d = (depth / (2 * ONE_PLY)) * ONE_PLY;
+				else
+					d = (depth * PARAM_SINGULAR_SEARCH_DEPTH / (256 * ONE_PLY)) * ONE_PLY;
+
 				// ttMoveの指し手を以下のsearch()での探索から除外
 				ss->excludedMove = move;
 				ss->skipEarlyPruning = true;
 				// 局面はdo_move()で進めずにこのnodeから浅い探索深さで探索しなおす。
 				// 浅いdepthでnull windowなので、すぐに探索は終わるはず。
-				value = search<NonPV>(pos, ss, rBeta - 1, rBeta, depth * PARAM_SINGULAR_SEARCH_DEPTH / 256, cutNode);
+				value = search<NonPV>(pos, ss, rBeta - 1, rBeta, d, cutNode);
 				ss->skipEarlyPruning = false;
 				ss->excludedMove = MOVE_NONE;
 
@@ -1529,7 +1542,9 @@ namespace YaneuraOu2016Late
 				&& !captureOrPawnPromotion
 				&& !InCheck
 				&& !givesCheck
-				&& bestValue > VALUE_MATED_IN_MAX_PLY)
+				&& bestValue > VALUE_MATED_IN_MAX_PLY
+//				&& !pos.advanced_pawn_push(move))
+				)
 			{
 
 				// Move countに基づいた枝刈り(futilityの亜種)
@@ -1547,7 +1562,8 @@ namespace YaneuraOu2016Late
 
 				// ToDo : このへん、fmh,fmh2を調べるほうが良いかは微妙
 				if (predictedDepth <= PARAM_PRUNING_BY_HISTORY_DEPTH * ONE_PLY
-					&& move != ss->killers[0]
+//					&& move != ss->killers[0]
+// →　このkillerの判定は入れないほうが強いらしい。
 					&& (!cmh  || (*cmh)[moved_sq][moved_pc] < VALUE_ZERO)
 					&& (!fmh  || (*fmh)[moved_sq][moved_pc] < VALUE_ZERO)
 					&& (!fmh2 || (*fmh2)[moved_sq][moved_pc] < VALUE_ZERO || (cmh && fmh)))
@@ -1566,14 +1582,14 @@ namespace YaneuraOu2016Late
 				if (predictedDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH * ONE_PLY && pos.see_sign(move) < VALUE_ZERO)
 					continue;
 #else
-				// ↓どうも、このコードにすると少し弱くなるようなのでとりあえずコメントアウト。
+				// ToDo: ↓どうも、このコードにすると明らかに弱くなるようなのでとりあえずコメントアウト。
 				// b2000, 3987 - 151 - 3112(56.16% R43.04) [2016/08/19]
 
 				// 浅いdepthで負のSSE値を持つ指し手と、深いdepthで減少する閾値を下回る指し手の枝刈り
 				if (predictedDepth < 8 * ONE_PLY)
 				{
 					Value see_v = predictedDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH * ONE_PLY ? VALUE_ZERO
-								: -PawnValue * 2 * Value(predictedDepth - 3 * ONE_PLY);
+								: -PawnValue * 2 * int(predictedDepth - 3 * ONE_PLY) / ONE_PLY;
 
 					if (pos.see_sign(move) < see_v)
 						continue;
@@ -1675,8 +1691,7 @@ namespace YaneuraOu2016Late
 
 					// historyの値に応じて指し手のreduction量を増減する。
 					int rHist = (val - (PARAM_REDUCTION_BY_HISTORY )) / PARAM_REDUCTION_BY_HISTORY;
-					r = std::max(DEPTH_ZERO, r - rHist * ONE_PLY);
-
+					r = std::max(DEPTH_ZERO, (r / ONE_PLY - rHist) * ONE_PLY);
 				}
 
 				// depth >= 3なのでqsearchは呼ばれないし、かつ、
@@ -1875,9 +1890,10 @@ namespace YaneuraOu2016Late
 			// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
 			if ((ss - 1)->moveCount == 1 && !pos.captured_piece_type())
 			{
+				Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
+
 				Value penalty = Value(d * d + 4 * d + 1);
 				Square prevSq = to_sq((ss - 1)->currentMove);
-				Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
 				update_cm_stats(ss - 1, prevPc, prevSq, -penalty);
 			}
 		}
@@ -1887,22 +1903,13 @@ namespace YaneuraOu2016Late
 			&& !pos.captured_piece_type()
 			&& is_ok((ss - 1)->currentMove))
 		{
-			const Square prevSq = to_sq((ss - 1)->currentMove);
-
-			// 指し手のなかに移動後の駒が格納されているのでこれで取得できる。
 			Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
 
 			// 残り探索depthの2乗ぐらいのボーナスを与える。
-			Value bonus = Value((depth / ONE_PLY) * (depth / ONE_PLY) + 2 * depth / ONE_PLY - 2);
-
-			if ((ss - 2)->counterMoves)
-				(ss - 2)->counterMoves->update(prevPc, prevSq, bonus);
-
-			if ((ss - 3)->counterMoves)
-				(ss - 3)->counterMoves->update(prevPc, prevSq, bonus);
-
-			if ((ss - 5)->counterMoves)
-				(ss - 5)->counterMoves->update(prevPc, prevSq, bonus);
+			int d = depth / ONE_PLY;
+			Value bonus = Value(d * d + 2 * d - 2);
+			Square prevSq = to_sq((ss - 1)->currentMove);
+			update_cm_stats(ss - 1, prevPc, prevSq, bonus);
 		}
 
 		// -----------------------
@@ -2056,12 +2063,12 @@ void Search::init() {
 					continue;
 
 				reduction_table[NonPV][imp][d][mc] = int(std::round(r)) * ONE_PLY;
-				reduction_table[PV][imp][d][mc] = std::max(reduction_table[NonPV][imp][d][mc] - ONE_PLY, DEPTH_ZERO);
+				reduction_table[PV][imp][d][mc] = std::max(reduction_table[NonPV][imp][d][mc] - 1, 0);
 
 				// nonPVでimproving(評価値が2手前から上がっている)でないときはreductionの量を増やす。
 				// →　これ、ほとんど効果がないようだ…。あとで調整すべき。
-				if (!imp && reduction_table[NonPV][imp][d][mc] >= 2 * ONE_PLY)
-					reduction_table[NonPV][imp][d][mc] += ONE_PLY;
+				if (!imp && reduction_table[NonPV][imp][d][mc] >= 2)
+					reduction_table[NonPV][imp][d][mc] ++;
 			}
 
 #endif
@@ -2179,7 +2186,9 @@ void Thread::search()
 
 	// 二度目のrootDepthは深さで探索量を制限するときの条件。main threadのrootDepthがLimits.depthを超えた時点で、
 	// salve threadはこのループを抜けて良いので。
-	while (++rootDepth < MAX_PLY && !Signals.stop && (!Limits.depth || Threads.main()->rootDepth <= Limits.depth))
+	while ((rootDepth+=ONE_PLY) < MAX_PLY
+		&& !Signals.stop
+		&& (!Limits.depth || Threads.main()->rootDepth/ONE_PLY <= Limits.depth))
 	{
 		// ------------------------
 		// lazy SMPのための初期化
@@ -2193,7 +2202,7 @@ void Thread::search()
 			// 詳しくは、このmatrixの定義部の説明を読むこと。
 			// game_ply()は加算すべきではない気がする。あとで実験する。
 			const Row& row = HalfDensity[(idx - 1) % HalfDensitySize];
-			if (row[(rootDepth + rootPos.game_ply()) % row.size()])
+			if (row[(rootDepth/ONE_PLY + rootPos.game_ply()) % row.size()])
 				continue;
 		}
 

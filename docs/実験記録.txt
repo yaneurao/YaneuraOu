@@ -35,6 +35,20 @@ ToDo:
 		Simplify stats update
 		https://github.com/official-stockfish/Stockfish/commit/9bd856e28ec93a16a5db78b24f9579c607541def
 
+		// →　この反駁ペナルティの改良、よさげ。
+		
+	V3.64b
+		Make engine ONE_PLY value independent
+		https://github.com/official-stockfish/Stockfish/commit/4c5cbb1b14b283679e3e0096b7973c97b75088f3
+
+		Silence some warnings with MSVC 2013
+		https://github.com/official-stockfish/Stockfish/commit/0b944c718631cdbdd8fae46eaf96a099f48ad5a4
+
+		Optimize order of a few conditions in search
+		https://github.com/official-stockfish/Stockfish/commit/5cffc032da8402df79cf6cba4238b83ff5d29f7e
+
+		Remove condition on killers in history pruning
+		https://github.com/official-stockfish/Stockfish/commit/2731bbaf6b4bed23abaae8de5c1fa9f373e30e57
 
 
 ■　2016/09/01

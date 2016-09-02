@@ -324,29 +324,34 @@ const int MAX_PLY = MAX_PLY_NUM;
 // 探索深さを表現するためのenum
 enum Depth : int32_t
 {
-  // 探索深さ0
-  DEPTH_ZERO = 0,
-
-  // Depthは1手をONE_PLY倍にスケーリングする。
+	// Depthは1手をONE_PLY倍にスケーリングする。
 #ifdef ONE_PLY_EQ_1
-  ONE_PLY = 1 ,
+	ONE_PLY = 1,
 #else
-  ONE_PLY = 2 ,
+	ONE_PLY = 2,
 #endif
+	
+	// 探索深さ0
+  DEPTH_ZERO = 0 * ONE_PLY,
 
   // 最大深さ
   DEPTH_MAX = MAX_PLY*(int)ONE_PLY ,
 
   // 静止探索で王手がかかっているときにこれより少ない残り探索深さでの探索した結果が置換表にあってもそれは信用しない
   DEPTH_QS_CHECKS = 0*(int)ONE_PLY,
+
   // 静止探索で王手がかかっていないとき。
   DEPTH_QS_NO_CHECKS = -1*(int)ONE_PLY,
+
   // 静止探索でこれより深い(残り探索深さが少ない)ところではRECAPTURESしか生成しない。
   DEPTH_QS_RECAPTURES = -5*(int)ONE_PLY,
 
   // DEPTH_NONEは探索せずに値を求めたという意味に使う。
   DEPTH_NONE = -6 * (int)ONE_PLY
 };
+
+// ONE_PLYは2のべき乗でないといけない。
+static_assert(!(ONE_PLY & (ONE_PLY - 1)), "ONE_PLY is not a power of 2");
 
 // --------------------
 //     評価値の性質

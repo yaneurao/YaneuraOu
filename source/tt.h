@@ -19,8 +19,7 @@ struct TTEntry {
   Value eval() const { return (Value)eval16; }
 #endif
 
-  // Stockfish、ここONE_PLY掛かってなくておかしい。掛けるべき。
-  Depth depth() const { return (Depth)((int)depth8 * ONE_PLY); }
+  Depth depth() const { return (Depth)(depth8 * int(ONE_PLY)); }
   Bound bound() const { return (Bound)(genBound8 & 0x3); }
 
   uint8_t generation() const { return genBound8 & 0xfc; }
