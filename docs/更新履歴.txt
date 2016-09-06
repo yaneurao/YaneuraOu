@@ -1,6 +1,10 @@
 ﻿
 やねうら王 更新履歴
 
+■　2016/09/05 V3.66
+
+・movegenで歩成りの王手生成時の上位8bitに格納する駒が間違っていたバグ修正。(ysさん、thanks!)
+
 
 ■　2016/09/03 V3.65
 
@@ -9,6 +13,9 @@
 ・Position::key()追加。
 ・learn.hにLEARN_GENSFEN追加。
 ・Key exclusion_key()　→　削除
+・futilityでpos.see_sign()を使っていたところ、see()に変更。
+・PARAM_REDUCTION_BY_HISTORY = 10000に戻す。
+・g++用のmakefileでLATE_ENGINEがコンパイル出来なかったの修正。
 
 
 ■　2016/09/02 V3.64

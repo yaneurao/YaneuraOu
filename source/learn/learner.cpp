@@ -33,9 +33,10 @@ extern void is_ready();
 
 namespace Learner
 {
-
 // いまのところ、やねうら王2016Mid/Lateしか、このスタブを持っていない。
 extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta);
+extern pair<Value, vector<Move> >  search(Position& pos, Value alpha, Value beta, int depth);
+
 
 // packされたsfen
 struct PackedSfenValue
@@ -349,7 +350,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		// その局面を学習に使うのはあまり意味がないのでこの試合を終了する。
 		if (abs(value1) >= eval_limit)
 			break;
-#endif
+#endif	
 
 #if 1
 		// 何らかの千日手局面に突入したので局面生成を終了する。

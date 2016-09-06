@@ -8,7 +8,7 @@ using namespace std;
 
 extern void is_ready();
 
-// いまのところ、やねうら王2016Midしか、このスタブを持っていない。
+// いまのところ、やねうら王2016Mid/Lateしか、このスタブを持っていない。
 namespace Learner
 {
   extern pair<Value, vector<Move> >  search(Position& pos, Value alpha, Value beta, int depth);

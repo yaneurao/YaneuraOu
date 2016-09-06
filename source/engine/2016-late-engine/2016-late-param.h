@@ -111,6 +111,7 @@ PARAM_DEFINE PARAM_PRUNING_BY_MOVE_COUNT_DEPTH = 16;
 // [PARAM] min:2,max:32,step:1,interval:1,time_rate:1
 PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 3;
 
+
 // historyの値によってreductionするときの係数
 // 元の値 = 8000
 // [PARAM] min:4000,max:15000,step:256,interval:1,time_rate:1

@@ -62,7 +62,7 @@ using namespace std;
 // 成らない指し手生成を生成する
 #define MAKE_MOVE_TARGET(target_) { FOREACH_BB(target_,to,{                                      \
   mlist++->move = make_move(from,to) + OurPt(Us,Pt);                                             \
-});}                                                                                           
+});}                                                                                          
                                                                                                
 // 移動させる駒が不明な場合                                                                    
 #define MAKE_MOVE_TARGET_UNKNOWN(target_) { FOREACH_BB(target_,to,{                              \
@@ -119,7 +119,7 @@ template <Piece Pt, Color Us, bool All> struct make_move_target {
         to = from + (Us == BLACK ? SQ_U : SQ_D ); // to = target.pop(); より少し速い
         if (canPromote(Us, to))
         {
-          mlist++->move = make_move_promote(from, to) + OurPt(Us,Pt);
+          mlist++->move = make_move_promote(from, to) + OurProPt(Us,Pt);
           if (All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_9))
             mlist++->move = make_move(from, to) + OurPt(Us,Pt);
         } else

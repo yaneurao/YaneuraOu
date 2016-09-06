@@ -20,7 +20,7 @@ using namespace std;
 namespace Eval
 {
 	// 絶対値を抑制するマクロ
-#define SET_A_LIMIT_TO(X,MIN,MAX)  \
+#define SET_A_LIMIT_TO(X,MIN,MAX)    \
 	X[0] = std::min(X[0],(MAX));     \
 	X[0] = std::max(X[0],(MIN));     \
 	X[1] = std::min(X[1],(MAX));     \
@@ -285,7 +285,10 @@ namespace Eval
 #endif
 
 			// 今回の更新量
-			g = { eta * g[0] / count, eta2 * g[1] / count };
+//			g = { eta * g[0] / count, eta2 * g[1] / count };
+
+			// → eta2では小さすぎのようだ。
+			g = { eta * g[0] / count, eta * g[1] / count };
 
 			// あまり大きいと発散しかねないので移動量に制約を課す。
 			SET_A_LIMIT_TO(g, -64.0f, 64.0f);
@@ -476,7 +479,8 @@ namespace Eval
 #if 1
 				// KPPの手番ありのとき
 				((Weight*)kpp_w_)[get_kpp_index(sq_bk, k0, l0)].add_grad( f ,  g );
-				((Weight*)kpp_w_)[get_kpp_index(Inv(sq_wk), k1, l1)].add_grad(-f ,  g );
+				((Weight*)kpp_w_)[get_kpp_index(Inv(sq_wk), k1, l1)].add_grad( -f ,  g );
+
 #else
 				// KPPの手番はなしのとき
 				((Weight*)kpp_w_)[get_kpp_index(sq_bk, k0, l0)].add_grad(f, 0);
@@ -535,7 +539,7 @@ namespace Eval
 #ifdef USE_SGD_UPDATE
 		Weight::eta = 3.2f;
 
-		//		Weight::eta = 100.0f;
+		//Weight::eta = 100.0f;
 #endif
 
 #ifdef USE_YANE_SGD_UPDATE
@@ -558,8 +562,9 @@ namespace Eval
 #elif defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
 
 #ifdef USE_SGD_UPDATE
-		Weight::eta = 150.0f;
-//		Weight::eta = 32.0f;
+//		Weight::eta = 150.0f;
+
+		Weight::eta = 32.0f;
 #endif
 
 #ifdef USE_YANE_SGD_UPDATE

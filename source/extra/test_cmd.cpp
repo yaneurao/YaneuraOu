@@ -890,7 +890,7 @@ void unit_test(Position& pos, istringstream& is)
 
   // -- 色んな関数
   {
-    cout << "> verious function ";
+    cout << "> various function ";
 
     // -- long effect
     bool success = true;

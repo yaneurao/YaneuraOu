@@ -144,6 +144,11 @@ void USI::extra_option(USI::OptionsMap & o)
 	sync_cout << "info string warning!! disable TT.probe()." << sync_endl;
 #endif
 
+#ifdef LEARN_GENSFEN
+	// 優等・劣等局面、千日手判定がオフになっている場合、通常対局は出来ないと考えられるので警告を出す。
+	sync_cout << "info string warning!! disable is_draw()." << sync_endl;
+#endif
+
 }
 
 // -----------------------
@@ -676,9 +681,14 @@ namespace YaneuraOu2016Late
 
 			{
 				// moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになるはず。
-				// ToDo: is_promote()以下、ないほうがいい？
+
+				// is_promote()以下、ないほうがいい？
+				// 			T1,b1000,4947 - 256 - 4797(50.77% R5.35)[2016/09/03]
+				//			T1,b3000,2416 - 183 - 2401(50.16% R1.08)[2016/09/04]
+				// →　有ったほうが良い…かも…。
+				
 				Value futilityValue = futilityBase + (Value)CapturePieceValue[pos.piece_on(to_sq(move))]
-				+ (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(move_from(move))] : VALUE_ZERO);
+					+ (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(move_from(move))] : VALUE_ZERO);
 
 				// futilityValueは今回捕獲するであろう駒の価値の分を上乗せしているのに
 				// それでもalpha値を超えないというとってもひどい指し手なので枝刈りする。
@@ -692,9 +702,14 @@ namespace YaneuraOu2016Late
 				// かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
 
 				// ToDo:MovePickerのなかでsee()を呼び出しているなら、ここで２重にsee()するのもったいないが…。
-				// ToDo: pos.see(move, beta - futilityBase) <= VALUE_ZEORのほうが良い可能性。
-				// ToDo: pos.see(move) <= VALUE_ZEROのほうが良い可能性。
-				if (futilityBase <= alpha && pos.see_sign(move) <= VALUE_ZERO)
+
+				// pos.see_sign()とpos.see(move)との比較
+				// 		T1,b1000,4941 - 284 - 4775(50.85% R5.94)[2016/09/03]
+				//		T1,b3000,1422 - 121 - 1457(49.39% R-4.22)[2016/09/03]
+				//		T1,b3000,2404 - 212 - 2384(50.21% R1.45)[2016/09/04]
+				// 大差なさげ。後者にしておく。
+
+				if (futilityBase <= alpha && pos.see(move) <= VALUE_ZERO)
 				{
 					bestValue = std::max(bestValue, futilityBase);
 					continue;
@@ -739,8 +754,8 @@ namespace YaneuraOu2016Late
 			ss->currentMove = move;
 
 			pos.do_move(move, st, givesCheck);
-			value = givesCheck ? -qsearch<NT, true>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
-				: -qsearch<NT, false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
+			value = givesCheck ? -qsearch<NT,  true>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
+							   : -qsearch<NT, false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
 
 			pos.undo_move(move);
 
@@ -1952,7 +1967,9 @@ namespace YaneuraOu2016Late
 #endif
 
 		// 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
-		ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
+		// ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
+		// →　もっと厳しいassertを書いたほうがいいな…。
+		ASSERT_LV3(abs(bestValue) <= mate_in(ss->ply));
 
 		return bestValue;
 	}
