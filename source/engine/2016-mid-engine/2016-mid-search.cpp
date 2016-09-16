@@ -400,7 +400,7 @@ namespace YaneuraOu2016Mid
 	  // さらに、1手前で置換表の指し手が反駁されたときは、追加でペナルティを与える。
 	  // 1手前は置換表の指し手であるのでNULL MOVEではありえない。
 	  if ((ss - 1)->moveCount == 1
-		  && !pos.captured_piece_type())
+		  && !pos.captured_piece())
 	  {
 		  // 直前がcaptureではないから、2手前に動かした駒は捕獲されずに盤上にあるはずであり、
 		  // その升の駒を盤から取り出すことが出来る。それ以上前の駒はあるかどうかわからないが…。
@@ -1246,7 +1246,7 @@ namespace YaneuraOu2016Mid
 
 		  // このnodeの指し手としては置換表の指し手を返したあとは、直前の指し手で捕獲された駒による評価値の上昇を
 		  // 上回るようなcaptureの指し手のみを生成する。
-		  MovePicker mp(pos, ttMove, (Value)Eval::CapturePieceValue[pos.captured_piece_type()]);
+		  MovePicker mp(pos, ttMove, (Value)Eval::CapturePieceValue[pos.captured_piece()]);
 
 		  while ((move = mp.next_move()) != MOVE_NONE)
 		  {
@@ -1814,7 +1814,7 @@ namespace YaneuraOu2016Mid
 	  // fail lowを引き起こした前nodeでのcounter moveに対してボーナスを加点する。
 	  else if (depth >= 3 * ONE_PLY
 		  && !bestMove                        // bestMoveが無い == fail low
-		  && !pos.captured_piece_type()
+		  && !pos.captured_piece()
 		  && is_ok((ss - 1)->currentMove))
 	  {
 		  const Square prevSq = to_sq((ss - 1)->currentMove);

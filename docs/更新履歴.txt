@@ -1,9 +1,23 @@
 ﻿
 やねうら王 更新履歴
 
+
+■　2016/09/16 V3.67
+
+・GEN_SFENのときでも、探索部で連続王手の千日手は有効にしておく。
+・Stockfish : Change from [Color][PieceType] to [Piece]
+・Stockfish : Prune dangerous moves at low depth
+・Stockfish : Integrate next_stage() logic into next_move()
+・move_piceker_2016Q3.cpp、変数名をStockfishに合わせた。
+・調整パラメーターにPARAM_FUTILITY_AT_PARENT_NODE_GAMMA追加。
+・GEN_MOVE_TYPEにQUIETSをaliasとして追加。
+・指し手生成で回避手、王手の指し手生成のときにcapture_or_pawn_promotion()の判定要らなかった。修正。
+
+
 ■　2016/09/05 V3.66
 
 ・movegenで歩成りの王手生成時の上位8bitに格納する駒が間違っていたバグ修正。(ysさん、thanks!)
+・learn.cppでsize_tを使っていたところ、一部u64に変更。
 
 
 ■　2016/09/03 V3.65

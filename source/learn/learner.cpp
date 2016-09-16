@@ -352,12 +352,10 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			break;
 #endif	
 
-#if 1
 		// 何らかの千日手局面に突入したので局面生成を終了する。
 		auto draw_type = pos.is_repetition();
 		if (draw_type != REPETITION_NONE)
 			break;
-#endif
 
 #if 0
         // 0手読み(静止探索のみ)の評価値とPV(最善応手列)
@@ -743,11 +741,11 @@ struct SfenReader
 
 
 	// 各スレッドがバッファリングしている局面数 0.1M局面。40HTで4M局面
-	const size_t THREAD_BUFFER_SIZE = 10 * 1000;
+	const u64 THREAD_BUFFER_SIZE = 10 * 1000;
 
 	// ファイル読み込み用のバッファ(これ大きくしたほうが局面がshuffleが大きくなるので局面がバラけていいと思うが
 	// あまり大きいとメモリ消費量も上がる。
-	const size_t SFEN_READ_SIZE = LEARN_READ_SFEN_SIZE;
+	const u64 SFEN_READ_SIZE = LEARN_READ_SFEN_SIZE;
 
 	// [ASYNC] スレッドが局面を一つ返す。なければfalseが返る。
 	bool read_to_thread_buffer(size_t thread_id, PackedSfenValue& ps)
@@ -908,16 +906,16 @@ struct SfenReader
 			// random shuffle by Fisher-Yates algorithm
 			{
 				auto size = sfens.size();
-				for (size_t i = 0; i < size; ++i)
+				for (u64 i = 0; i < size; ++i)
 					swap(sfens[i], sfens[prng.rand(size - i) + i]);
 			}
 
 			// これをTHREAD_BUFFER_SIZEごとの細切れにする。それがsize個あるはず。
-			size_t size = SFEN_READ_SIZE / THREAD_BUFFER_SIZE;
+			u64 size = SFEN_READ_SIZE / THREAD_BUFFER_SIZE;
 			vector<shared_ptr<vector<PackedSfenValue>>> ptrs;
 			ptrs.resize(size);
 
-			for (size_t i = 0; i < size; ++i)
+			for (u64 i = 0; i < size; ++i)
 			{
 				shared_ptr<vector<PackedSfenValue>> ptr(new vector<PackedSfenValue>());
 				ptr->resize(THREAD_BUFFER_SIZE);
@@ -934,7 +932,7 @@ struct SfenReader
 					// 300個ぐらいなのでこの時間は無視できるはず…。
 					auto size2 = packed_sfens_pool.size();
 					packed_sfens_pool.resize(size2+size);
-					for (size_t i = 0; i < size; ++i)
+					for (u64 i = 0; i < size; ++i)
 						packed_sfens_pool[size2 + i] = ptrs[i];
 
 					break;

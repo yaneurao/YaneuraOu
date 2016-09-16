@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "3.66"
+#define ENGINE_VERSION "3.67"
 
 // --------------------
 // コンパイル時の設定
@@ -32,7 +32,7 @@
 //#define YANEURAOU_CLASSIC_ENGINE         // やねうら王classic     (完成2016/04/03)
 //#define YANEURAOU_CLASSIC_TCE_ENGINE     // やねうら王classic tce (完成2016/04/15)
 //#define YANEURAOU_2016_MID_ENGINE        // やねうら王2016(MID)   (完成2016/08/18)
-#define YANEURAOU_2016_LATE_ENGINE       // やねうら王2016(LATE)  (開発中)
+#define YANEURAOU_2016_LATE_ENGINE       // やねうら王2016(LATE)  (完成2016/10/07予定)
 //#define RANDOM_PLAYER_ENGINE             // ランダムプレイヤー
 //#define MATE_ENGINE                      // 詰め将棋solverとしてリリースする場合。(開発中)
 //#define HELP_MATE_ENGINE                 // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
@@ -463,7 +463,7 @@ constexpr Piece type_of(Piece pc) { return (Piece)(pc & 15); }
 constexpr Piece raw_type_of(Piece pc) { return (Piece)(pc & 7); }
 
 // pcとして先手の駒を渡し、cが後手なら後手の駒を返す。cが先手なら先手の駒のまま。pcとしてNO_PIECEは渡してはならない。
-inline Piece make_piece(Color c, Piece pt) { ASSERT_LV3(color_of(pt) == BLACK && pt!=NO_PIECE);  return (Piece)(pt + (c << 4)); }
+inline Piece make_piece(Color c, Piece pt) { ASSERT_LV3(color_of(pt) == BLACK && pt!=NO_PIECE);  return (Piece)((c << 4) + pt); }
 
 // pcが遠方駒であるかを判定する。LANCE,BISHOP(5),ROOK(6),HORSE(13),DRAGON(14)
 inline bool has_long_effect(Piece pc) { return (type_of(pc) == LANCE) || (((pc+1) & 6)==6); }
@@ -715,6 +715,8 @@ enum MOVE_GEN_TYPE
 
   RECAPTURES,            // 指定升への移動の指し手のみを生成する。(歩の不成などは含まない)
   RECAPTURES_ALL,        // 指定升への移動の指し手のみを生成する。(歩の不成なども含む)
+
+  QUIETS = NON_CAPTURES , // Stockfishとの互換性向上ためのalias
 };
 
 struct Position; // 前方宣言

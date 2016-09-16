@@ -938,9 +938,13 @@ namespace YaneuraOu2016Late
 			// そこで、value_from_tt()で変換してから返すのが正解。
 
 			// 教師局面生成時には、これをオフにしたほうが良いかも知れない。
-#ifndef LEARN_GENSFEN
+			// ただし、そのときであっても連続王手の千日手は有効にしておく。
 			auto draw_type = pos.is_repetition();
+#ifndef LEARN_GENSFEN
 			if (draw_type != REPETITION_NONE)
+				return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
+#else
+			if (draw_type == REPETITION_WIN || draw_type == REPETITION_WIN)
 				return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 #endif
 
@@ -1047,7 +1051,7 @@ namespace YaneuraOu2016Late
 				// 反駁された1手前の置換表のquietな指し手に対する追加ペナルティを課す。
 				// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
 				// ToDo:ここ、captureだけではなくpawn_promotionも含めるべきかも。
-				if ((ss - 1)->moveCount == 1 && !pos.captured_piece_type())
+				if ((ss - 1)->moveCount == 1 && !pos.captured_piece())
 				{
 					Value penalty = Value(d * d + 4 * d + 1);
 					Square prevSq = to_sq((ss - 1)->currentMove);
@@ -1566,64 +1570,70 @@ namespace YaneuraOu2016Late
 			Square moved_sq = to_sq(move);
 			Piece moved_pc = pos.moved_piece_after(move);
 
+
 			if (!RootNode
-				&& !captureOrPawnPromotion
 				&& !InCheck
-				&& !givesCheck
-				&& bestValue > VALUE_MATED_IN_MAX_PLY
-//				&& !pos.advanced_pawn_push(move))
-				)
+				&& bestValue > VALUE_MATED_IN_MAX_PLY)
 			{
 
-				// Move countに基づいた枝刈り(futilityの亜種)
-
-				if (moveCountPruning)
-					continue;
-
-				// Historyに基づいた枝刈り(history && counter moveの値が悪いものに関してはskip)
-
-				// 次の子node(do_move()で進めたあとのnode)でのLMR後の予想depth
-				Depth predictedDepth = std::max(newDepth - reduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO);
-
-				// ここ、depthよりpredictedDepthを用いたほうが枝刈りの精度が上がる。
-				// play_time = b1000 ,  1438 - 55 - 1507(48.83% R-8.14)[2016/08/19]
-
-				// ToDo : このへん、fmh,fmh2を調べるほうが良いかは微妙
-				if (predictedDepth <= PARAM_PRUNING_BY_HISTORY_DEPTH * ONE_PLY
-//					&& move != ss->killers[0]
-// →　このkillerの判定は入れないほうが強いらしい。
-					&& (!cmh  || (*cmh)[moved_sq][moved_pc] < VALUE_ZERO)
-					&& (!fmh  || (*fmh)[moved_sq][moved_pc] < VALUE_ZERO)
-					&& (!fmh2 || (*fmh2)[moved_sq][moved_pc] < VALUE_ZERO || (cmh && fmh)))
-					continue;
-
-				// Futility pruning: at parent node
-				// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
-
-				if (predictedDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH * ONE_PLY
-					&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN 
-					+ PARAM_FUTILITY_MARGIN_BETA * predictedDepth / ONE_PLY <= alpha)
-					continue;
-
-#if 1
-				// 次の子nodeにおいて浅い深さになる場合、負のSSE値を持つ指し手の枝刈り
-				if (predictedDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH * ONE_PLY && pos.see_sign(move) < VALUE_ZERO)
-					continue;
-#else
-				// ToDo: ↓どうも、このコードにすると明らかに弱くなるようなのでとりあえずコメントアウト。
-				// b2000, 3987 - 151 - 3112(56.16% R43.04) [2016/08/19]
-
-				// 浅いdepthで負のSSE値を持つ指し手と、深いdepthで減少する閾値を下回る指し手の枝刈り
-				if (predictedDepth < 8 * ONE_PLY)
+				if (!captureOrPawnPromotion
+					&& !givesCheck
+					// && !pos.advanced_pawn_push(move)
+					)
 				{
-					Value see_v = predictedDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH * ONE_PLY ? VALUE_ZERO
-								: -PawnValue * 2 * int(predictedDepth - 3 * ONE_PLY) / ONE_PLY;
 
-					if (pos.see_sign(move) < see_v)
+					// Move countに基づいた枝刈り(futilityの亜種)
+
+					if (moveCountPruning)
 						continue;
-				}
+
+					// 次のLMR探索における軽減された深さ
+					int lmrDepth = std::max(newDepth - reduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO) / ONE_PLY;
+
+					// Historyに基づいた枝刈り(history && counter moveの値が悪いものに関してはskip)
+
+					// ToDo : このへん、fmh,fmh2を調べるほうが良いかは微妙
+					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH
+						//					&& move != ss->killers[0]
+						// →　このkillerの判定は入れないほうが強いらしい。
+						&& (!cmh || (*cmh)[moved_sq][moved_pc] < VALUE_ZERO)
+						&& (!fmh || (*fmh)[moved_sq][moved_pc] < VALUE_ZERO)
+						&& (!fmh2 || (*fmh2)[moved_sq][moved_pc] < VALUE_ZERO || (cmh && fmh)))
+						continue;
+
+					// Futility pruning: at parent node
+					// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
+
+					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH
+						&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1
+						+ PARAM_FUTILITY_MARGIN_BETA * lmrDepth <= alpha)
+						continue;
+
+					// このLMRまわり、強さに極めて重大な影響があるので枝刈りを入れるかどうかを含めて慎重に調整すべき。
+
+					// ToDo: ↓どうも、このコードにすると明らかに弱くなるようなのでとりあえずコメントアウト。
+#if 0
+
+					// 浅いdepthで負のSSE値を持つ指し手と、深いdepthで減少する閾値を下回る指し手の枝刈り
+
+					if (lmrDepth < 8
+						&& pos.see_sign(move) < Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA * lmrDepth * lmrDepth))
+						continue;
 #endif
 
+					// ToDo: 古いほうの枝刈りのコード。↑の代わりに用いる。
+#if 1
+					// 次の子nodeにおいて浅い深さになる場合、負のSSE値を持つ指し手の枝刈り
+					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH && pos.see_sign(move) < VALUE_ZERO)
+						continue;
+#endif
+
+				}
+#if 0
+				else if (depth < 7 * ONE_PLY
+					&& pos.see_sign(move) < Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA * depth / ONE_PLY * depth / ONE_PLY))
+					continue;
+#endif
 			}
 
 			// -----------------------
@@ -1921,7 +1931,7 @@ namespace YaneuraOu2016Late
 
 			// 反駁された1手前の置換表のquietな指し手に対する追加ペナルティを課す。
 			// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
-			if ((ss - 1)->moveCount == 1 && !pos.captured_piece_type())
+			if ((ss - 1)->moveCount == 1 && !pos.captured_piece())
 			{
 				Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
 
@@ -1936,7 +1946,7 @@ namespace YaneuraOu2016Late
 		// ToDo:ここ、captured_piece_type()で見るのではなく、
 		//  capture or pawn promotion相当の処理にしたほうが良いのでは…。
 		else if (depth >= 3 * ONE_PLY
-			&& !pos.captured_piece_type()
+			&& !pos.captured_piece()
 			&& is_ok((ss - 1)->currentMove))
 		{
 			Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
@@ -1991,8 +2001,9 @@ void Search::init() {
 #ifdef  USE_AUTO_TUNE_PARAMETERS
 	{
 		vector<string> param_names = {
-			"PARAM_FUTILITY_MARGIN_ALPHA" , "PARAM_FUTILITY_MARGIN_BETA" , "PARAM_FUTILITY_MARGIN_QUIET" , "PARAM_FUTILITY_RETURN_DEPTH",
-			"PARAM_FUTILITY_AT_PARENT_NODE_DEPTH","PARAM_FUTILITY_AT_PARENT_NODE_MARGIN","PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH",
+			"PARAM_FUTILITY_MARGIN_ALPHA" , "PARAM_FUTILITY_MARGIN_BETA" , "PARAM_FUTILITY_AT_PARENT_NODE_GAMMA" ,
+			"PARAM_FUTILITY_MARGIN_QUIET" , "PARAM_FUTILITY_RETURN_DEPTH",
+			"PARAM_FUTILITY_AT_PARENT_NODE_DEPTH","PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1", "PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH",
 			"PARAM_NULL_MOVE_DYNAMIC_ALPHA","PARAM_NULL_MOVE_DYNAMIC_BETA","PARAM_NULL_MOVE_RETURN_DEPTH",
 			"PARAM_PROBCUT_DEPTH","PARAM_SINGULAR_EXTENSION_DEPTH","PARAM_SINGULAR_MARGIN",
 			"PARAM_SINGULAR_SEARCH_DEPTH","PARAM_PRUNING_BY_MOVE_COUNT_DEPTH","PARAM_PRUNING_BY_HISTORY_DEPTH","PARAM_REDUCTION_BY_HISTORY",
@@ -2001,8 +2012,9 @@ void Search::init() {
 			"PARAM_QUIET_SEARCH_COUNT"
 		};
 		vector<int*> param_vars = {
-			&PARAM_FUTILITY_MARGIN_ALPHA , &PARAM_FUTILITY_MARGIN_BETA, &PARAM_FUTILITY_MARGIN_QUIET , &PARAM_FUTILITY_RETURN_DEPTH,
-			&PARAM_FUTILITY_AT_PARENT_NODE_DEPTH, &PARAM_FUTILITY_AT_PARENT_NODE_MARGIN, &PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH,
+			&PARAM_FUTILITY_MARGIN_ALPHA , &PARAM_FUTILITY_MARGIN_BETA, &PARAM_FUTILITY_AT_PARENT_NODE_GAMMA,
+			&PARAM_FUTILITY_MARGIN_QUIET , &PARAM_FUTILITY_RETURN_DEPTH,
+			&PARAM_FUTILITY_AT_PARENT_NODE_DEPTH, &PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 , &PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH,
 			&PARAM_NULL_MOVE_DYNAMIC_ALPHA, &PARAM_NULL_MOVE_DYNAMIC_BETA, &PARAM_NULL_MOVE_RETURN_DEPTH,
 			&PARAM_PROBCUT_DEPTH, &PARAM_SINGULAR_EXTENSION_DEPTH, &PARAM_SINGULAR_MARGIN,
 			&PARAM_SINGULAR_SEARCH_DEPTH, &PARAM_PRUNING_BY_MOVE_COUNT_DEPTH, &PARAM_PRUNING_BY_HISTORY_DEPTH,&PARAM_REDUCTION_BY_HISTORY,

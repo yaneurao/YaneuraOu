@@ -988,7 +988,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		}
 
 		// 駒打ちは捕獲した駒がない。
-		st->capturedType = NO_PIECE;
+		st->capturedPiece = NO_PIECE;
 
 		// Zobrist keyの更新
 		h -= Zobrist::hand[Us][pr];
@@ -1077,7 +1077,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			h += Zobrist::hand[Us][pr];
 
 			// 捕獲した駒をStateInfoに保存しておく。(undo_moveのため)
-			st->capturedType = type_of(to_pc);
+			st->capturedPiece = to_pc;
 
 #ifndef EVAL_NO_USE
 			// 評価関数で使う駒割りの値も更新
@@ -1085,7 +1085,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #endif
 
 		} else {
-			st->capturedType = NO_PIECE;
+			st->capturedPiece = NO_PIECE;
 
 #ifdef LONG_EFFECT_LIBRARY
 			// 移動先で駒を捕獲しないときの利きの更新
@@ -1244,15 +1244,15 @@ void Position::undo_move_impl(Move m)
 		// toの地点には捕獲された駒があるならその駒が盤面に戻り、手駒から減る。
 		// 駒打ちの場合は捕獲された駒があるということはありえない。
 		// (なので駒打ちの場合は、st->capturedTypeを設定していないから参照してはならない)
-		if (st->capturedType != NO_PIECE)
+		if (st->capturedPiece != NO_PIECE)
 		{
-			Piece to_pc = st->capturedType;
+			Piece to_pc = st->capturedPiece;
 
 			// 盤面のtoの地点に捕獲されていた駒を復元する
 			PieceNo piece_no2 = piece_no_of(Us, raw_type_of(to_pc)); // 捕っていた駒(手駒にある)のpiece_no
 			ASSERT_LV3(is_ok(piece_no2));
 
-			put_piece(to, make_piece(~Us, to_pc), piece_no2);
+			put_piece(to, to_pc , piece_no2);
 
 			// 手駒から減らす
 			sub_hand(hand[Us], raw_type_of(to_pc));
@@ -1262,7 +1262,7 @@ void Position::undo_move_impl(Move m)
 
 #ifdef LONG_EFFECT_LIBRARY
 			// 移動先で駒を捕獲するときの利きの更新
-			LongEffect::rewind_by_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc, make_piece(~Us, to_pc));
+			LongEffect::rewind_by_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc, to_pc);
 #endif
 
 		} else {

@@ -34,7 +34,11 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 7;
 
 // 元の値 = 256
 // [PARAM] min:100,max:200,step:3,interval:1,time_rate:1
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN = 256;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 = 256;
+
+// 元の値 = 35
+// [PARAM] min:20,max:50,step:5,interval:1,time_rate:1
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA = 35;
 
 // 元の値 = 4
 // [PARAM] min:2,max:10,step:1,interval:1,time_rate:1

@@ -361,8 +361,7 @@ Move MovePicker::next_move() {
       // (置換表の指し手とCAPTURES_PRO_PLUSの指し手は返したあとなのでこれらの指し手は除外する必要がある)
     case QCHECKS:
       move = *currentMoves++;
-      if (  move != ttMove
-        && !pos.capture_or_pawn_promotion(move)) // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
+      if (  move != ttMove )
         return move;
       break;
 

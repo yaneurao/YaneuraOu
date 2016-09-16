@@ -10,24 +10,140 @@
 
 
 ToDo: 
-・探索パラメーターの改良(2016/09/05～2016/09/10)
-・技巧のソースコード調べる(2016/09/05～2016/09/10)
-・mate3()書く。(2016/09/05～2016/09/10)
-・評価関数に特徴追加(2016/09/10～2016/09/15)
-・持ち時間制御の改良。(2016/09/10～2016/09/15)
-・新やねうら王大定跡の生成(2016/09/20～2016/09/25)
+・評価値のmin,max,分散を計算して表示したほうがいいな。出現回数の平均等も。
+・定跡、短い手数のものを用意する。
+・やねうら大定跡、新たに定跡生成する。(2016/09/17～)
+・探索パラメーターの改良(2016/09/17～2016/09/20)
+・学習部、書き直す(2016/09/18～)
+・mate3()書く。(2016/09/21～2016/09/24)
+	・技巧のソースコード調べる(2016/09/05～2016/09/10)
+・ASSERTとして、ERRORメッセージを表示するモード追加する。
+・教師局面を生成するときにASSERT有効にしたほうが良い。
+・rmseの下がり方がおかしい。絶壁になっているところは教師局面が同じものになっている可能性が…。
+・評価関数に特徴追加 →　あるいは減らす＆高速化
+・持ち時間制御の改良。→　探索パラメーターの改良としてやる。
+
 ・Stockfishにキャッチアップ(2016/09/25)
 ・Stockfishのpull req.にキャッチアップ(2016/10/01)
 ・最終ランニング(2016/10/01～2016/10/06)
 
 
-・ASSERTとして、ERRORメッセージを表示するモード追加する。
-・教師局面を生成するときにASSERT有効にしたほうが良い。
-・rmseの下がり方がおかしい。絶壁になっているところは教師局面が同じものになっている可能性が…。
+■　2016/09/17
+
+・ソース、以前のコードと差分とる。
+	→　特におかしいところはなさげだった。禿げそう…。
+
+・Stockfishにキャッチアップ(2016/09/16)
+
+	Total time (ms) : 58612
+	Nodes searched  : 39405967
+	Nodes/second    : 672319
+
+	Change from [Color][PieceType] to [Piece]
+	https://github.com/official-stockfish/Stockfish/commit/ca6c9f85a5c3a45a248716b8fe68821b20eee201
+	→　StateInfoのcapturedPieceType→capturedPieceぐらいの変更だけか？まあ、問題ないやろ。
+
+	Syntactic sugar to loop across pieces
+	https://github.com/official-stockfish/Stockfish/commit/e340ce221cc29113dc5f2f922d2759ca5fa52f8b
+	→　Pieceだけ横断したいことがあまりないので、これ反映させなくていいや。
+
+	Prune dangerous moves at low depth
+	https://github.com/official-stockfish/Stockfish/commit/38428ada5459903c4e68130751478d66f90b7c6a
+	Refactor previous patch
+	https://github.com/official-stockfish/Stockfish/commit/d909d10f33df023be46a2633608bdf655d1f5a62
+
+	Use Movepick SEE value in search
+	https://github.com/official-stockfish/Stockfish/commit/602d7fbb07e2cb1643469c0116fa47d711398a06
+	Retire MovePicker::see_sign()
+	https://github.com/official-stockfish/Stockfish/commit/01ee509a5c33e11d7d62d2f325f55720d8be9cfb
+	Tweak SEE margin in pruning conditions
+	https://github.com/official-stockfish/Stockfish/commit/95ad2b51b75be9b0ce3acfc39549bc87b7b181e3
+
+	よく考えたら、評価値ベースの枝刈り、Pawn = 100と89とでは違いがあったりするわな…。うーん..そうか..
+
+	→　とりあえず。
+	YaneuraOuV367a.exe
 
 
-・評価値のmin,max,分散を計算して表示したほうがいいな。
-　出現回数の平均等も。
+					// 浅いdepthで負のSSE値を持つ指し手と、深いdepthで減少する閾値を下回る指し手の枝刈り
+					if (lmrDepth < 8
+						&& pos.see_sign(move) < Value(-35 * lmrDepth * lmrDepth))
+						continue;
+					}
+					else if (depth < 7 * ONE_PLY
+						&& pos.see_sign(move) < Value(-35 * depth / ONE_PLY * depth / ONE_PLY))
+						continue;
+
+	YaneuraOuV367b.exe
+		→　YaneuraOuV357mid.exeとも比較する。
+
+		Total time (ms) : 28190
+		Nodes searched  : 16813996
+		Nodes/second    : 596452
+
+	Integrate next_stage() logic into next_move()
+	https://github.com/official-stockfish/Stockfish/commit/438805aee853de93b2ed0f24a51fae873509b885
+
+	王手の指し手生成するときにcapture_or_pawn_promotion除外してないか..
+
+		Total time (ms) : 28906
+		Nodes searched  : 16840850
+		Nodes/second    : 582607
+
+	→　やはりmove pickerまわりでやらかしていたのか…。
+
+	      if (  move != ttMove
+	-		&& !pos.capture_or_pawn_promotion(move)) // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
+
+	YaneuraOuV367c forked from YaneuraOuV367b
+	→　これ、比較してみよう。
+
+	Renaming in MovePicker 
+	https://github.com/official-stockfish/Stockfish/pull/803/files
+	→　いまやるのやめておく。
+
+	marginなどを調整して、2016midよりは強くしないと…。(´ω｀)
+	ASSERT_LV3にしている影響もあるのか…。うーん。
+
+	YaneuraOuV367d forked from YaneuraOuV367b
+	LMRまわりの最後の枝刈り、なしにしてみる。
+
+
+
+	// まだ。
+
+	Pinned aware SEE
+	https://github.com/official-stockfish/Stockfish/commit/90ce24b11ea080f923e1b5d37470e2ca98f4d98b
+	Simplify code for pinaware SEE
+	https://github.com/official-stockfish/Stockfish/commit/ace8e951d70c2986a0af83effcc0d2b2312d29e3
+
+
+
+■　2016/09/07
+
+#87
+・depth5で182_20160904_77_10GからEVAL_LIMIT=33000で40億局面生成。
+　→　これで駄目なら、以前の評価関数から二周目の雑巾絞り繰り返してみるか…。
+　→　あと、プログラム正しいのか再度検証したほうがいいぐらいだな…。
+　　前のバージョンより本当に強くなっているかだとか。
+
+		182_20160904_87_8G
+
+		engine1 = YaneuraOuV366.exe , eval = 182_20160904_87_8G
+		engine2 = YaneuraOuV366.exe , eval = Apery20160903
+		T1,b3000,1336 - 27 - 1637(44.94% R-35.3)
+
+		engine1 = YaneuraOuV366.exe , eval = 182_20160904_77_10G
+		engine2 = YaneuraOuV366.exe , eval = 182_20160904_87_8G
+		T1,b3000,1676 - 92 - 1232(57.63% R53.47)
+
+	結果が何かおかしいので、何か壊してしまっている可能性が微レ存。
+	ソースコード、比較したほうがよさげ。
+
+	365learnがおかしいのか、生成された棋譜がおかしいのか…。
+	うーむ..。頭を冷やしてソースコード比較するところからやるか…。なんぞこれ…。
+
+
 
 ■　2016/09/06
 
@@ -75,6 +191,68 @@ ToDo:
 		182_20160904_77_10G追加学習。YaneuraOuV365learn150win.exe。40億×2周
 	#82
 		同じ条件で、交差エントロピーYaneuraOuV365learn100cross.exeで。
+
+		engine1 = YaneuraOuV366.exe , eval = 182_20160829_62_50G
+		engine2 = YaneuraOuV366.exe , eval = 182_20160904_81_4G
+		T1,b3000,685 - 29 - 516(57.04% R49.22)
+
+		engine1 = YaneuraOuV366.exe , eval = 182_20160829_62_50G
+		engine2 = YaneuraOuV366.exe , eval = 182_20160904_82_4G
+		T1,b3000,699 - 28 - 513(57.67% R53.74)
+
+		engine1 = YaneuraOuV366.exe , eval = 182_20160829_62_50G
+		engine2 = YaneuraOuV366.exe , eval = 182_20160904_82_4G
+		T1,b6000,493 - 31 - 396(55.46% R38.06)
+
+		//
+
+		engine1 = YaneuraOuV366.exe , eval = 182_20160829_62_50G
+		engine2 = YaneuraOuV366.exe , eval = 182_20160904_81_7G
+		T1,b3000,399 - 15 - 286(58.25% R57.84)
+
+		engine1 = YaneuraOuV366.exe , eval = 182_20160829_62_50G
+		engine2 = YaneuraOuV366.exe , eval = 182_20160904_82_7G
+		T1,b3000,362 - 19 - 219(62.31% R87.31)
+
+
+	#85
+		#81からさらに40億×2周
+	#86
+		#82からさらに40億×2周
+
+		これであかんかったらdepth5 , EVAL_LIMIT = 32000でやるしか…。
+		
+		#77と比較すべきか。#72との比較はおかしいのか…。
+
+		engine1 = YaneuraOuV366.exe , eval = 182_20160829_62_50G
+		engine2 = YaneuraOuV366.exe , eval = 182_20160904_85_8G
+
+		T1,b3000,1252 - 67 - 901(58.15% R57.15)
+
+		engine1 = YaneuraOuV366.exe , eval = 182_20160829_62_50G
+		engine2 = YaneuraOuV366.exe , eval = 182_20160904_86_8G
+		T1,b3000,1350 - 68 - 822(62.15% R86.18)
+
+		engine1 = YaneuraOuV366.exe , eval = 182_20160904_85_8G
+		engine2 = YaneuraOuV366.exe , eval = 182_20160904_86_8G
+		T1,b3000,1046 - 69 - 1035(50.26% R1.84)
+
+		engine1 = YaneuraOuV366.exe , eval = 182_20160904_85_8G
+		engine2 = YaneuraOuV366.exe , eval = Apery20160903
+		T1,b3000,970 - 32 - 1378(41.31% R-60.99)
+
+		engine1 = YaneuraOuV366.exe , eval = 182_20160829_62_50G
+		engine2 = YaneuraOuV366.exe , eval = 182_20160904_85_8G
+		T1,b8000,396 - 22 - 282(58.41% R58.98)
+
+		engine1 = YaneuraOuV366.exe , eval = 182_20160904_77_10G
+		engine2 = YaneuraOuV366.exe , eval = 182_20160904_85_8G
+		T1,b3000,1105 - 69 - 746(59.7% R68.25)
+
+
+		// うーむ、よくわからん。教師生成しているエンジンとバージョンの差があるのがよくない可能性もある。
+
+
 
 
 ■　2016/09/05

@@ -121,76 +121,71 @@ enum Stages : int;
 // 指し手オーダリング器
 struct MovePicker
 {
-  // このクラスは指し手生成バッファが大きいので、コピーして使うような使い方は禁止。
-  MovePicker(const MovePicker&) = delete;
-  MovePicker& operator=(const MovePicker&) = delete;
+	// このクラスは指し手生成バッファが大きいので、コピーして使うような使い方は禁止。
+	MovePicker(const MovePicker&) = delete;
+	MovePicker& operator=(const MovePicker&) = delete;
 
-  // 通常探索から呼び出されるとき用。
-  MovePicker(const Position& pos_, Move ttMove_, Depth depth_, Search::Stack*ss_);
+	// 通常探索から呼び出されるとき用。
+	MovePicker(const Position& pos_, Move ttMove_, Depth depth_, Search::Stack*ss_);
 
-  // 静止探索から呼び出される時用。recapSq = 直前に動かした駒の行き先の升(取り返される升)
-  MovePicker(const Position& pos_, Move ttMove_, Depth depth_, Square recapSq);
-  
-  // 通常探索時にProbCutの処理から呼び出されるの専用。threshold_ = 直前に取られた駒の価値。これ以下の捕獲の指し手は生成しない。
-  MovePicker(const Position& pos_, Move ttMove_, Value threshold_);
+	// 静止探索から呼び出される時用。recapSq = 直前に動かした駒の行き先の升(取り返される升)
+	MovePicker(const Position& pos_, Move ttMove_, Depth depth_, Square recapSq);
 
-  // 次の指し手をひとつ返す
-  // 指し手が尽きればMOVE_NONEが返る。
-  Move next_move();
+	// 通常探索時にProbCutの処理から呼び出されるの専用。threshold_ = 直前に取られた駒の価値。これ以下の捕獲の指し手は生成しない。
+	MovePicker(const Position& pos_, Move ttMove_, Value threshold_);
+
+	// 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。
+	// 指し手が尽きればMOVE_NONEが返る。
+	// 置換表の指し手(ttMove)を返したあとは、それを取り除いた指し手を返す。
+	Move next_move();
 
 private:
+	// 指し手のオーダリング用
+	// GenType == CAPTURES : 捕獲する指し手のオーダリング
+	// GenType == QUIETS   : 捕獲しない指し手のオーダリング
+	// GenType == EVASIONS : 王手回避の指し手のオーダリング
+	template<MOVE_GEN_TYPE> void score();
 
-  // 次のstageにするため、必要なら指し手生成器で指し手を生成する。
-  void generate_next_stage();
+	// range-based forを使いたいので。
+	ExtMove* begin() { return moves; }
+	ExtMove* end() { return endMoves; }
 
-  // range-based forを使いたいので。
-  ExtMove* begin() { return moves; }
-  ExtMove* end() { return endMoves; }
+	// beginからendのなかでベストのスコアのものを先頭(begin)に移動させる。
+	Move pick_best(ExtMove* begin, ExtMove* end);
 
-  // beginからendのなかでベストのスコアのものを先頭(begin)に移動させる。
-  Move pick_best(ExtMove* begin, ExtMove* end);
+	const Position& pos;
 
-  // CAPTUREの指し手をオーダリング
-  void score_captures();
+	// node stack
+	Search::Stack* ss;
 
-  // QUIETの指し手をスコアリングする。
-  void score_quiets();
+	// コンストラクタで渡された、前の局面の指し手に対する応手
+	Move countermove;
 
-  // 王手回避の指し手をスコアリングする。
-  void score_evasions();
+	// コンストラクタで渡された探索深さ
+	Depth depth;
 
-  const Position& pos;
+	// RECAPUTREの指し手で移動させる先の升
+	Square recaptureSquare;
 
-  // node stack
-  Search::Stack* ss;
+	// 置換表の指し手
+	Move ttMove;
 
-  // コンストラクタで渡された、前の局面の指し手に対する応手
-  Move countermove;
+	// killer move 2個 + counter move 1個 + ttMove(QUIETS時) = 3個
+	// これはオーダリングしないからExtMoveである必要はない。
+	ExtMove killers[4];
 
-  // コンストラクタで渡された探索深さ
-  Depth depth;
+	// ProbCut用の指し手生成に用いる、直前の指し手で捕獲された駒の価値
+	Value threshold;
 
-  // RECAPUTREの指し手で移動させる先の升
-  Square recaptureSquare;
+	// 指し手生成の段階
+	int stage;
 
-  // 置換表の指し手
-  Move ttMove;
+	// 次に返す指し手 , 生成された指し手の末尾 , BadCaptureの終端(これは、movesの先頭から再利用していく)
+	ExtMove *cur, *endMoves, *endBadCaptures;
 
-  // killer move 2個 + counter move 1個 + ttMove(QUIETS時) = 3個
-  // これはオーダリングしないからExtMoveである必要はない。
-  ExtMove killers[4];
-
-  // ProbCut用の指し手生成に用いる、直前の指し手で捕獲された駒の価値
-  Value threshold;
-
-  // 指し手生成の段階
-  Stages stage;
-
-  // BadCaptureの終端(これはメモリの前方に向かって使っていく)。
-  ExtMove *endBadCaptures = moves + MAX_MOVES - 1;
-  // 指し手生成バッファと、次に返す指し手、生成された指し手の末尾
-  ExtMove moves[MAX_MOVES], *currentMoves = moves, *endMoves = moves;
+	// 指し手生成バッファ
+	ExtMove moves[MAX_MOVES];
 };
-#endif // USE_MOVE_PICKER_2016Q2
+#endif // USE_MOVE_PICKER_2016Q3
 
 #endif // _MOVE_PICKER_2016Q3_H_

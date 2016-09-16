@@ -211,7 +211,7 @@ namespace YaneuraOuClassic
     // さらに、1手前で置換表の指し手が反駁されたときは、追加でペナルティを与える。
     // 1手前は置換表の指し手であるのでNULL MOVEではありえない。
     if ((ss - 1)->moveCount == 1
-      && !pos.captured_piece_type()
+      && !pos.captured_piece()
       && is_ok((ss - 2)->currentMove))
     {
       // 直前がcaptureではないから、2手前に動かした駒は捕獲されずに盤上にあるはずであり、
@@ -956,7 +956,7 @@ namespace YaneuraOuClassic
 
       // このnodeの指し手としては置換表の指し手を返したあとは、直前の指し手で捕獲された駒による評価値の上昇を
       // 上回るようなcaptureの指し手のみを生成する。
-      MovePicker mp(pos, ttMove, thisThread->history, (Value)Eval::CapturePieceValue[pos.captured_piece_type()]);
+      MovePicker mp(pos, ttMove, thisThread->history, (Value)Eval::CapturePieceValue[pos.captured_piece()]);
 
       while ((move = mp.next_move()) != MOVE_NONE)
         if (pos.legal(move))
@@ -1399,7 +1399,7 @@ namespace YaneuraOuClassic
     else if (depth >= 3 * ONE_PLY
       && !bestMove                        // bestMoveが無い == fail low
       && !InCheck
-      && !pos.captured_piece_type()
+      && !pos.captured_piece()
       && is_ok((ss - 1)->currentMove)
       && is_ok((ss - 2)->currentMove))
     {

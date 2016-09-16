@@ -89,7 +89,7 @@ struct StateInfo {
   // この局面で捕獲された駒
   // ※　次の局面にdo_move()で進むときにこの値が設定される
   // 先後の区別はなし。馬とか龍など成り駒である可能性はある。
-  Piece capturedType;
+  Piece capturedPiece;
 
   friend struct Position;
 
@@ -410,7 +410,7 @@ struct Position
 	// --- StateInfo
 
 	// 現在の局面に対応するStateInfoを返す。
-	// たとえば、state()->capturedTypeであれば、前局面で捕獲された駒が格納されている。
+	// たとえば、state()->capturedPieceであれば、前局面で捕獲された駒が格納されている。
 	StateInfo* state() const { return st; }
 
 	// --- Evaluation
@@ -472,8 +472,8 @@ struct Position
 	// 現局面で指し手がないかをテストする。指し手生成ルーチンを用いるので速くない。探索中には使わないこと。
 	bool is_mated() const;
 
-	// 直前の指し手によって捕獲した駒。
-	Piece captured_piece_type() const { return st->capturedType; }
+	// 直前の指し手によって捕獲した駒。先後の区別あり。
+	Piece captured_piece() const { return st->capturedPiece; }
 
 	// 捕獲する指し手か、成りの指し手であるかを返す。
 	bool capture_or_promotion(Move m) const { return (m & MOVE_PROMOTE) || capture(m); }
