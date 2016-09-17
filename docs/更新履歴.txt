@@ -2,6 +2,13 @@
 やねうら王 更新履歴
 
 
+■　2016/09/17 V3.68
+
+・Stockfish : Pinned aware SEE
+・Positionクラスにattackers_to(to,occ)追加。
+・Position::see()、リファクタリング。
+
+
 ■　2016/09/16 V3.67
 
 ・GEN_SFENのときでも、探索部で連続王手の千日手は有効にしておく。

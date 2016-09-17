@@ -62,8 +62,12 @@ struct StateInfo {
   // color = 手番側 なら pinされている駒(動かすと開き王手になる)
   // color = 相手側 なら 両王手の候補となる駒。
 
-  // 自分側(手番側)の(敵駒によって)pinされている駒
+  // 自玉に対して(敵駒によって)pinされている駒
   Bitboard blockersForKing[COLOR_NB];
+
+  // 自玉に対してpinしている(可能性のある)敵の大駒。
+  // 自玉に対して上下左右方向にある敵の飛車、斜め十字方向にある敵の角、玉の前方向にある敵の香、…
+  Bitboard pinnersForKing[COLOR_NB];
 
   // 自駒の駒種Xによって敵玉が王手となる升のbitboard
   Bitboard checkSquares[PIECE_WHITE];
@@ -306,6 +310,7 @@ struct Position
 	// (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
 	Bitboard attackers_to(Color c, Square sq) const { return attackers_to(c, sq, pieces()); }
 	Bitboard attackers_to(Color c, Square sq, const Bitboard& occ) const;
+	Bitboard attackers_to(Square sq, const Bitboard& occ) const;
 
 	// 打ち歩詰め判定に使う。王に打ち歩された歩の升をpawn_sqとして、c側(王側)のpawn_sqへ利いている駒を列挙する。香が利いていないことは自明。
 	Bitboard attackers_to_pawn(Color c, Square pawn_sq) const;
@@ -325,7 +330,8 @@ struct Position
 
 	// 升sに対して、c側の大駒に含まれる長い利きを持つ駒の利きを遮っている駒のBitboardを返す(先後の区別なし)
 	// ※　Stockfishでは、sildersを渡すようになっているが、大駒のcolorを渡す実装のほうが優れているので変更。
-	Bitboard slider_blockers(Color c, Square s) const;
+	// [Out] pinnersとは、pinされている駒が取り除かれたときに升sに利きが発生する大駒である。これは返し値。
+	Bitboard slider_blockers(Color c, Square s, Bitboard& pinners) const;
 
 	// --- 局面を進める/戻す
 

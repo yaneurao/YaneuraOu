@@ -452,103 +452,114 @@ Value Position::see(Move m) const {
 // もっと単純化されたsee()
 // 最後になった駒による成りの上昇値は考えない。
 
-Value Position::see_sign(const Move move) const
+Value Position::see_sign(const Move m) const
 {
-  if (capture(move))
-  {
-    // 捕獲する指し手で、移動元の駒の価値のほうが移動先の駒の価値より低い場合、これでプラスになるはず。
-    // (取り返されたあとの成りを考慮しなければ)
-    // 少しいい加減な判定だが、see_sign()を呼び出す状況においてはこれぐらいの精度で良い。
-    // KINGで取る手は合法手であるなら取り返されないということだから、ここではプラスを返して良い。
-    // ゆえに、中盤用のCapturePieceValue[KING]はゼロを返す。
-    
-    const Piece ptFrom = type_of(piece_on(move_from(move)));
-    const Piece ptTo = type_of(piece_on(move_to(move)));
-    if (CapturePieceValue[ptFrom] <= CapturePieceValue[ptTo])
-      return static_cast<Value>(1);
-  }
+	// 捕獲する指し手で、移動元の駒の価値のほうが移動先の駒の価値より低い場合、これでプラスになるはず。
+	// (取り返されたあとの成りを考慮しなければ)
+	// 少しいい加減な判定だが、see_sign()を呼び出す状況においてはこれぐらいの精度で良い。
+	// KINGで取る手は合法手であるなら取り返されないということだから、ここではプラスを返して良い。
+	// ゆえに、中盤用のCapturePieceValue[KING]はゼロを返す。
 
-  return see(move);
+	if (CapturePieceValue[moved_piece_before(m)] <= CapturePieceValue[piece_on(to_sq(m))])
+		return VALUE_KNOWN_WIN;
+
+	return see(m);
 }
 
-Value Position::see(const Move move /*, const int asymmThreshold*/) const
+Value Position::see(const Move m) const
 {
-  Square to = move_to(move);
-  Square from;
+	// 駒の移動元(駒打ちの場合は)、移動先
+	Square from, to;
 
-  // 次にtoの升で捕獲される駒
-  Piece captured;
+	// 盤上の駒(取り合いしていくうちにここから駒が無くなっていく)
+	Bitboard occupied;
 
-  Bitboard occupied = pieces();
-  
-  // 先後の攻撃駒(toに利く駒)
-  Bitboard attackers;
+	// 先後の攻撃駒(toに利く駒)
+	Bitboard attackers;
 
-  // 手番側の攻撃駒(toに利く駒)
-  Bitboard stmAttackers;
+	// 手番側の攻撃駒(toに利く駒)
+	Bitboard stmAttackers;
 
-  // 移動させる駒側のturnから始まるものとする。
-  // 次に列挙すべきは、この駒を取れる敵の駒なので、相手番に。
-  Color stm;
-  Value swapList[32];
+	// 移動先の升で取り合いする駒
+	Value swapList[32];
 
-  if (is_drop(move))
-  {
-    stm = ~sideToMove;
-    occupied = pieces();
-    stmAttackers = attackers_to(stm, to, occupied);
-    if (!stmAttackers)
-      return VALUE_ZERO;
-    attackers = stmAttackers | attackers_to(~stm, to, occupied);
-    swapList[0] = VALUE_ZERO;
-    captured = move_dropped_piece(move);
-  } else {
-    from = move_from(move);
-    stm = ~color_of(piece_on(from));
-    occupied ^= from;
-    stmAttackers = attackers_to(stm, to, occupied);
-    if (!stmAttackers) {
-      if (is_promote(move)) {
-        const Piece ptFrom = type_of(piece_on(from));
-        return (Value)(CapturePieceValue[piece_on(to)] + ProDiffPieceValue[ptFrom]);
-      }
-      return (Value)CapturePieceValue[piece_on(to)];
-    }
-    captured = type_of(piece_on(from));
+	// swapListのどこまで使ったか。
+	int slIndex = 1;
 
-    swapList[0] = (Value)CapturePieceValue[piece_on(to)];
-    if (is_promote(move)) {
-      const Piece ptFrom = type_of(piece_on(from));
-      swapList[0] += ProDiffPieceValue[ptFrom];
-      captured += PIECE_PROMOTE;
-    }
+	// 次にtoの升で捕獲される駒
+	Piece captured;
 
-    // fromの駒を除外する必要があるが、次の攻撃駒はstmAttacker側なので、
-    // min_attacker()のなかで、そのあとにattackers &= occupiedされるからそのときに除外されるが、
-    // KINGのときにおかしくなる。
-    attackers = (stmAttackers | attackers_to(~stm, to, occupied)) & occupied;
-  }
+	// 移動させる駒側のturnから始まるものとする。
+	// 次に列挙すべきは、この駒を取れる敵の駒なので、相手番に。
+	Color stm;
 
-  int slIndex = 1;
-  do {
-    ASSERT_LV3(slIndex < 32);
+	// 少し無駄ではあるが、Stockfishの挙動をなるべく忠実に再現する。
 
-    swapList[slIndex] = -swapList[slIndex - 1] + CapturePieceValue[captured];
-    captured = (stm == BLACK)
-      ? min_attacker<BLACK>(*this, to, stmAttackers, occupied, attackers)
-      : min_attacker<WHITE>(*this, to, stmAttackers, occupied, attackers);
+	bool drop = is_drop(m);
+	
+	// dropのときにはSQ_NBにしておくことで、pieces() ^ fromを無効化するhack
+	from = drop ? SQ_NB : from_sq(m);
+	to = move_to(m);
 
-    stm = ~stm;
-    stmAttackers = attackers & pieces(stm);
-    ++slIndex;
+	swapList[0] = (Value)CapturePieceValue[piece_on(to)];
+	// ToDo : 成りなら成りのスコアを返したほうが良いかも。
+	// swapList[0] = (Value)CapturePieceValue[moved_piece_after(m)];
+	// ただ、このあとの取り合いで成りを評価していないので…。
 
-  } while (stmAttackers && (captured != KING || (--slIndex, false)));
-  // kingを捕獲する前にslIndexをデクリメントして停止する。
+	// 最初に移動させる駒の属する手番
+	// こう変えれば駒打ちに対応できる。
+	stm = color_of(moved_piece_after(m)); // color_of(piece_on(from));
 
-  while (--slIndex)
-    swapList[slIndex - 1] = std::min(-swapList[slIndex], swapList[slIndex - 1]);
+	occupied = pieces() ^ from;
 
-  return swapList[0];
+	// すべてのattackerを列挙する。
+	attackers = attackers_to(to, occupied) & occupied;
+
+	// 手番を相手番に
+	stm = ~stm;
+
+	// 手番側の攻撃駒
+	stmAttackers = attackers & pieces(stm);
+
+	// toにある駒を除去しておく。(これがpinnerである可能性があるため)
+	occupied ^= to;
+
+	// pinされている駒を攻撃のために使うことを許さない。
+	// pinnderをseeの交換のために動かしたなら、標準的なSEEに挙動に戻る。
+	if ((stmAttackers & pinned_pieces(stm))
+		&& (st->pinnersForKing[stm] & occupied) == st->pinnersForKing[stm])
+		stmAttackers &= ~pinned_pieces(stm);
+
+	if (!stmAttackers)
+		return swapList[0];
+
+	captured = drop ? move_dropped_piece(m) : type_of(piece_on(from));
+
+	do {
+		ASSERT_LV3(slIndex < 32);
+
+		swapList[slIndex] = -swapList[slIndex - 1] + CapturePieceValue[captured];
+
+		// 将棋だと香の利きが先後で違うのでmin_attacker()に手番も渡してやる必要がある。
+		captured = (stm == BLACK)
+			? min_attacker<BLACK>(*this, to, stmAttackers, occupied, attackers)
+			: min_attacker<WHITE>(*this, to, stmAttackers, occupied, attackers);
+
+		stm = ~stm;
+		stmAttackers = attackers & pieces(stm);
+		if ((stmAttackers & pinned_pieces(stm))
+			&& (st->pinnersForKing[stm] & occupied) == st->pinnersForKing[stm])
+			stmAttackers &= ~pinned_pieces(stm);
+
+		++slIndex;
+
+	} while (stmAttackers && (captured != KING || (--slIndex, false)));
+	// kingを捕獲する前にslIndexをデクリメントして停止する。
+
+	while (--slIndex)
+		swapList[slIndex - 1] = std::min(-swapList[slIndex], swapList[slIndex - 1]);
+
+	return swapList[0];
 }
 
 #endif // USE_SIMPLE_SEE

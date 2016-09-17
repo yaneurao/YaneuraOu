@@ -1596,8 +1596,8 @@ namespace YaneuraOu2016Late
 					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH
 						//					&& move != ss->killers[0]
 						// →　このkillerの判定は入れないほうが強いらしい。
-						&& (!cmh || (*cmh)[moved_sq][moved_pc] < VALUE_ZERO)
-						&& (!fmh || (*fmh)[moved_sq][moved_pc] < VALUE_ZERO)
+						&& (!cmh  || (*cmh)[moved_sq][moved_pc] < VALUE_ZERO)
+						&& (!fmh  || (*fmh)[moved_sq][moved_pc] < VALUE_ZERO)
 						&& (!fmh2 || (*fmh2)[moved_sq][moved_pc] < VALUE_ZERO || (cmh && fmh)))
 						continue;
 
@@ -1621,15 +1621,20 @@ namespace YaneuraOu2016Late
 						continue;
 #endif
 
-					// ToDo: 古いほうの枝刈りのコード。↑の代わりに用いる。
+					// ToDo: 古いほうの枝刈りのコード。↑と↓↓の代わりに用いる。
+					// たぶん↑と↓↓のコードは、将棋においては刈らなさすぎなのだと思う。
+					// 		T1,b3000,2653 - 132 - 2215(54.5% R31.35)[2016/09/17]
+
 #if 1
 					// 次の子nodeにおいて浅い深さになる場合、負のSSE値を持つ指し手の枝刈り
-					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH && pos.see_sign(move) < VALUE_ZERO)
+					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH
+						&& pos.see_sign(move) < VALUE_ZERO)
 						continue;
 #endif
 
 				}
 #if 0
+				// 浅い深さでの、危険な指し手を枝刈りする。
 				else if (depth < 7 * ONE_PLY
 					&& pos.see_sign(move) < Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA * depth / ONE_PLY * depth / ONE_PLY))
 					continue;
@@ -1728,7 +1733,7 @@ namespace YaneuraOu2016Late
 									+ thisThread->fromTo.get(~pos.side_to_move(), move);
 
 					// historyの値に応じて指し手のreduction量を増減する。
-					int rHist = (val - (PARAM_REDUCTION_BY_HISTORY )) / PARAM_REDUCTION_BY_HISTORY;
+					int rHist = (val - (PARAM_REDUCTION_BY_HISTORY )) / 20000;
 					r = std::max(DEPTH_ZERO, (r / ONE_PLY - rHist) * ONE_PLY);
 				}
 

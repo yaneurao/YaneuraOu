@@ -27,16 +27,16 @@ namespace Zobrist {
 template <bool doNullMove>
 void Position::set_check_info(StateInfo* si) const {
 
-	//: si->blockersForKing[WHITE] = slider_blockers(pieces(BLACK), square<KING>(WHITE));
-	//: si->blockersForKing[BLACK] = slider_blockers(pieces(WHITE), square<KING>(BLACK));
+	//: si->blockersForKing[WHITE] = slider_blockers(pieces(BLACK), square<KING>(WHITE),si->pinnersForKing[WHITE]);
+	//: si->blockersForKing[BLACK] = slider_blockers(pieces(WHITE), square<KING>(BLACK),si->pinnersForKing[BLACK]);
 
 	// ↓Stockfishのこの部分の実装、将棋においては良くないので、以下のように変える。
 
 	if (!doNullMove)
 	{
 		// null moveのときは前の局面でこの情報は設定されているので更新する必要がない。
-		si->blockersForKing[WHITE] = slider_blockers(BLACK, square<KING>(WHITE));
-		si->blockersForKing[BLACK] = slider_blockers(WHITE, square<KING>(BLACK));
+		si->blockersForKing[WHITE] = slider_blockers(BLACK, square<KING>(WHITE), si->pinnersForKing[WHITE]);
+		si->blockersForKing[BLACK] = slider_blockers(WHITE, square<KING>(BLACK), si->pinnersForKing[BLACK]);
 	}
 
 	Square ksq = square<KING>(~sideToMove);
@@ -450,22 +450,24 @@ std::string Position::moves_from_start(bool is_pretty) const
 // もし、この関数のこの返す駒を取り除いた場合、升sに対してsliderによって利きがある状態になる。
 // 升sにある玉に対してこの関数を呼び出した場合、それはpinされている駒と両王手の候補となる駒である。
 
-Bitboard Position::slider_blockers(Color c, Square s) const {
+Bitboard Position::slider_blockers(Color c, Square s , Bitboard& pinners) const {
 
-	Bitboard b, pinners, result = ZERO_BB;
+	Bitboard b, p , result = ZERO_BB;
 
 	// cが与えられていないと香の利きの方向を確定させることが出来ない。
 	// ゆえに将棋では、この関数は手番を引数に取るべき。(チェスとはこの点において異なる。)
 
 	// pinnersとは、pinされている駒が取り除かれたときに升sに利きが発生する大駒である。
-	pinners = (pieces(c, ROOK) & rookStepEffect(s))
+	// pinnersは返し値なのでこれは破壊せずにpを使う。
+	pinners = p = 
+			(pieces(c, ROOK) & rookStepEffect(s))
 			| (pieces(c, BISHOP) & bishopStepEffect(s))
 			// 香に関しては攻撃駒が先手なら、玉より下側をサーチして、そこにある先手の香を探す。
 			| (pieces(c, LANCE) & lanceStepEffect(~c, s));
 
-	while (pinners)
+	while (p)
 	{
-		b = between_bb(s, pinners.pop()) & pieces();
+		b = between_bb(s, p.pop()) & pieces();
 
 		if (!more_than_one(b))
 			result |= b;
@@ -490,6 +492,28 @@ Bitboard Position::attackers_to(Color c, Square sq, const Bitboard& occ) const
     | (rookEffect(sq, occ) & pieces(c, ROOK));
 //    | (kingEffect(sq) & pieces(c, HDK));
   // →　HDKは、銀と金のところに含めることによって、参照するテーブルを一個減らして高速化しようというAperyのアイデア。
+
+}
+
+// 
+Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
+{
+	// sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
+	return
+		  (pawnEffect(BLACK, sq) & pieces(WHITE, PAWN))
+		| (pawnEffect(WHITE, sq) & pieces(BLACK, PAWN))
+		| (lanceEffect(BLACK, sq, occ) & pieces(WHITE, LANCE))
+		| (lanceEffect(WHITE, sq, occ) & pieces(BLACK, LANCE))
+		| (knightEffect(BLACK, sq) & pieces(WHITE, KNIGHT))
+		| (knightEffect(WHITE, sq) & pieces(BLACK, KNIGHT))
+		| (silverEffect(BLACK, sq) & (pieces(WHITE, SILVER) | pieces(WHITE, HDK)))
+		| (silverEffect(WHITE, sq) & (pieces(BLACK, SILVER) | pieces(BLACK, HDK)))
+		| (goldEffect(BLACK, sq) & (pieces(WHITE, GOLD) | pieces(WHITE, HDK)))
+		| (goldEffect(WHITE, sq) & (pieces(BLACK, GOLD) | pieces(BLACK, HDK)))
+		| (bishopEffect(sq, occ) & (pieces(BLACK,BISHOP) | pieces(WHITE,BISHOP)))
+		| (rookEffect(sq, occ) & (pieces(BLACK,ROOK) | pieces(BLACK,ROOK)));
+	//    | (kingEffect(sq) & pieces(c, HDK));
+	// →　HDKは、銀と金のところに含めることによって、参照するテーブルを一個減らして高速化しようというAperyのアイデア。
 
 }
 
