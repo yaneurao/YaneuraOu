@@ -113,12 +113,7 @@
 //#define USE_MATE_1PLY
 
 // Position::see()を用いるか。これはSEE(Static Exchange Evaluation : 静的取り合い評価)の値を返す関数。
-// これは比較的厳密な計算を行うSEE()で、この下にあるUSE_SIMPLE_SEEのほうが少し軽い。
-// というか、このsee()、少し計算バグっているのかも知れない。USE_SIMPLE_SEEのほうを使うこと推奨。
 // #define USE_SEE
-
-// Apery風の単純化されたSEE()を用いる場合
-// #define USE_SIMPLE_SEE
 
 // PV(読み筋)を表示するときに置換表の指し手をかき集めてきて表示するか。
 // 自前でPVを管理してRootMoves::pvを更新するなら、この機能を使う必要はない。
@@ -238,7 +233,7 @@
 #define ENGINE_NAME "YaneuraOu 2016 Mid"
 #define EVAL_KPPT
 //#define USE_EVAL_HASH
-#define USE_SIMPLE_SEE
+#define USE_SEE
 #define USE_MOVE_PICKER_2016Q2
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
@@ -261,7 +256,7 @@
 #define ENGINE_NAME "YaneuraOu 2016 Late"
 #define EVAL_KPPT
 //#define USE_EVAL_HASH
-#define USE_SIMPLE_SEE
+#define USE_SEE
 #define USE_MOVE_PICKER_2016Q3
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN

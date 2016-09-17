@@ -7,6 +7,8 @@
 ・Stockfish : Pinned aware SEE
 ・Positionクラスにattackers_to(to,occ)追加。
 ・Position::see()、リファクタリング。
+・SIMPLE_SEEでないほうのコード、削除。スッキリ。
+・min_attackerで角・飛車に馬、龍が混じっていたの修正。
 
 
 ■　2016/09/16 V3.67
