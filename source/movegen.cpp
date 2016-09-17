@@ -829,7 +829,7 @@ ExtMove* generate_checks(const Position& pos, ExtMove* mlist)
   const Bitboard y = pos.discovered_check_candidates();
   const Bitboard target =
     (GenType == CHECKS || GenType == CHECKS_ALL) ? ~pos.pieces(Us) :                     // 自駒がない場所が移動対象升
-    (GenType == QUIET_CHECKS || GenType == QUIET_CHECKS_ALL) ? ~pos.pieces() :           // 捕獲の指し手を除外するため駒がない場所が移動対象升
+    (GenType == QUIET_CHECKS || GenType == QUIET_CHECKS_ALL) ? pos.empties() :           // 捕獲の指し手を除外するため駒がない場所が移動対象升
       ALL_BB; // Error!
 
   // yのみ。ただしxかつyである可能性もある。

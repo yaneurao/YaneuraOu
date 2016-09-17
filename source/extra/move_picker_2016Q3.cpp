@@ -4,6 +4,8 @@
 
 #include "../thread.h"
 
+namespace {
+
 // -----------------------
 //   LVA
 // -----------------------
@@ -16,48 +18,26 @@ static const Value LVATable[PIECE_WHITE] = {
   Value(10000)/*王*/, Value(5)/*と*/, Value(5)/*杏*/, Value(5)/*圭*/, Value(5)/*全*/, Value(9)/*馬*/, Value(10)/*龍*/,Value(11)/*成金*/
 };
 inline Value LVA(const Piece pt) { return LVATable[pt]; }
-
-// 直前のnodeの指し手で動かした駒(移動後の駒)とその移動先の升を返す。
-// この実装においてmoved_piece()は使えない。これは現在のPosition::side_to_move()の駒が返るからである。
-
-// -----------------------
-//   insertion sort
-// -----------------------
-
-// stableであることが保証されたinsertion sort。指し手オーダリングのために使う。
-inline void insertion_sort(ExtMove* begin, ExtMove* end)
-{
-  ExtMove tmp, *p, *q;
-
-  for (p = begin + 1; p < end; ++p)
-  {
-    tmp = *p;
-    for (q = p; q != begin && *(q - 1) < tmp; --q)
-      *q = *(q - 1);
-    *q = tmp;
-  }
-}
   
 // -----------------------
 //   指し手オーダリング
 // -----------------------
 
 // 指し手を段階的に生成するために現在どの段階にあるかの状態を表す定数
-// シンボルが指し手生成のほうのCHECKS , RECAPUTRESと被ったので、そこはPH_(phaseの意味)を前につけてある。
 enum Stages: int {
 
 	// -----------------------------------------------------
 	//   王手がかっていない通常探索時用の指し手生成
 	// -----------------------------------------------------
 
-	MAIN_SEARCH,                  // 置換表の指し手を返すフェーズ
-	GOOD_CAPTURES_INIT,           // (GOOD_CAPTURESの指し手生成)
-	GOOD_CAPTURES,                // 捕獲する指し手(CAPTURES_PRO_PLUS)を生成して指し手を一つずつ返す
-	KILLERS,                      // KILLERの指し手
-	KILLERS_2,                    // counter moveの指し手
-	QUIET_INIT,                   // (QUIETの指し手生成)
-	QUIET,	                      // CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す。SEE値の悪い手は後回し。
-	BAD_CAPTURES,                 // 捕獲する悪い指し手(SEE < 0 の指し手だが、将棋においてそこまで悪い手とは限らないが…)
+	MAIN_SEARCH,				// 置換表の指し手を返すフェーズ
+	CAPTURES_INIT,				// (CAPTURESの指し手生成)
+	GOOD_CAPTURES,				// 捕獲する指し手(CAPTURES_PRO_PLUS)を生成して指し手を一つずつ返す
+	KILLERS,					// KILLERの指し手
+	COUNTERMOVE,				// counter moveの指し手
+	QUIET_INIT,					// (QUIETの指し手生成)
+	QUIET,						// CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す。SEE値の悪い手は後回し。
+	BAD_CAPTURES,				// 捕獲する悪い指し手(SEE < 0 の指し手だが、将棋においてそこまで悪い手とは限らないが…)
 
 	// 将棋ではBAD_CAPTURESをQUIETSの前にやったほうが良いという従来説は以下の実験データにより覆った。
 	//  r300, 2585 - 62 - 2993(46.34% R - 25.46)[2016/08/19]
@@ -67,8 +47,17 @@ enum Stages: int {
 	//   王手がかっているときの静止探索/通常探索の指し手生成
 	// -----------------------------------------------------
 
-	EVASION,	                  // 置換表の指し手を返すフェーズ
-	ALL_EVASIONS,                 // 回避する指し手(EVASIONS)を生成した指し手を一つずつ返す
+	EVASION,					// 置換表の指し手を返すフェーズ
+	EVASIONS_INIT,				// (EVASIONSの指し手を生成)
+	ALL_EVASIONS,				// 回避する指し手(EVASIONS)を生成した指し手を一つずつ返す
+
+	// -----------------------------------------------------
+	//   通常探索のProbCutの処理のなかから呼び出される用
+	// -----------------------------------------------------
+
+	PROBCUT,					// 置換表の指し手を返すフェーズ
+	PROBCUT_INIT,				// (PROBCUTの指し手を生成)
+	PROBCUT_CAPTURES,			// 直前の指し手での駒の価値を上回る駒取りの指し手のみを生成するフェーズ
 
 	// -----------------------------------------------------
 	//   王手がかっていない静止探索時用の指し手生成
@@ -76,31 +65,50 @@ enum Stages: int {
 
 	// 王手の指し手を生成する場合
 
-	QSEARCH_WITH_CHECKS,          // 置換表の指し手を返すフェーズ
-	QCAPTURES_CHECKS_INIT,        // (指し手生成)
-	QCAPTURES_CHECKS,             // 捕獲する指し手
-	PH_CHECKS,                    // 王手となる指し手(上で生成している捕獲の指し手を除外した王手)
-
+	QSEARCH_WITH_CHECKS,		// 置換表の指し手を返すフェーズ
+	QCAPTURES_1_INIT,			// (指し手生成)
+	QCAPTURES_1,				// 捕獲する指し手
+	QCHECKS,					// 王手となる指し手
+	
 	// 王手の指し手は生成しない場合
 
-	QSEARCH_WITHOUT_CHECKS,       // 置換表の指し手を返すフェーズ
-	QCAPTURES_NO_CHECKS,          // (指し手生成)
-	REMAINING,					  // 残り生成フェーズ(共通処理)
+	QSEARCH_NO_CHECKS,			// 置換表の指し手を返すフェーズ
+	QCAPTURES_2_INIT,			// (指し手生成)
+	QCAPTURES_2,				// 残り生成フェーズ(共通処理)
 
 	// recaptureの指し手のみを生成
 
 	// 静止探索で深さ-2以降は組み合わせ爆発を防ぐためにrecaptureのみを生成する場合
-	PH_RECAPTURE,                 // 置換表の指し手を返すフェーズ
-	PH_RECAPTURES,                // 最後の移動した駒を捕獲する指し手(RECAPTURES)を生成した指し手を一つずつ返す
+	QSEARCH_RECAPTURES,			// 置換表の指し手を返すフェーズ
+	QRECAPTURES,				// 最後の移動した駒を捕獲する指し手(RECAPTURES)を生成した指し手を一つずつ返す
 
-	// -----------------------------------------------------
-	//   通常探索のProbCutの処理のなかから呼び出される用
-	// -----------------------------------------------------
-
-	PROBCUT,                      // 置換表の指し手を返すフェーズ
-	PROBCUT_INIT,                 // (PROBCUTの指し手を生成)
-	PROBCUT_CAPTURES,             // 直前の指し手での駒の価値を上回る駒取りの指し手のみを生成するフェーズ
 };
+
+// -----------------------
+//   insertion sort
+// -----------------------
+
+// stableであることが保証されたinsertion sort。指し手オーダリングのために使う。
+inline void insertion_sort(ExtMove* begin, ExtMove* end)
+{
+	ExtMove tmp, *p, *q;
+
+	for (p = begin + 1; p < end; ++p)
+	{
+		tmp = *p;
+		for (q = p; q != begin && *(q - 1) < tmp; --q)
+			*q = *(q - 1);
+		*q = tmp;
+	}
+}
+
+// beginからendのなかでベストのスコアのものを先頭(begin)に移動させる。
+Move pick_best(ExtMove* begin, ExtMove* end)
+{
+	std::swap(*begin, *std::max_element(begin, end));
+	return *begin;
+}
+} // end of namespace
 
 
 // 指し手オーダリング器
@@ -147,11 +155,11 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Square recapSq)
 		stage = QSEARCH_WITH_CHECKS;
 
 	else if (d > DEPTH_QS_RECAPTURES)
-		stage = QSEARCH_WITHOUT_CHECKS;
+		stage = QSEARCH_NO_CHECKS;
 
 	else
 	{
-		stage = PH_RECAPTURE;
+		stage = QSEARCH_RECAPTURES;
 		recaptureSquare = recapSq;
 		return;
 	}
@@ -183,13 +191,6 @@ MovePicker::MovePicker(const Position& p, Move ttm, Value th)
 	stage += (ttMove == MOVE_NONE);
 }
 
-
-// beginからendのなかでベストのスコアのものを先頭(begin)に移動させる。
-Move MovePicker::pick_best(ExtMove* begin, ExtMove* end)
-{
-	std::swap(*begin, *std::max_element(begin, end));
-	return *begin;
-}
 
 // CAPTUREの指し手をオーダリング
 template<>
@@ -309,12 +310,12 @@ Move MovePicker::next_move() {
 	{
 		// 置換表の指し手を返すフェーズ
 	case MAIN_SEARCH: case EVASION:
-	case QSEARCH_WITH_CHECKS: case QSEARCH_WITHOUT_CHECKS:
+	case QSEARCH_WITH_CHECKS: case QSEARCH_NO_CHECKS:
 	case PROBCUT:
 		++stage;
 		return ttMove;
 
-	case GOOD_CAPTURES_INIT:
+	case CAPTURES_INIT:
 		endBadCaptures = cur = moves;
 		endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, cur);
 		score<CAPTURES>(); // CAPTUREの指し手の並べ替え。
@@ -363,12 +364,12 @@ Move MovePicker::next_move() {
 			return move;
 
 		// counter moveを返すフェーズ
-	case KILLERS_2:
+	case COUNTERMOVE:
 		++stage;
 		move = countermove;
 		if (move != MOVE_NONE
-			&&  move != ttMove
-			&&  move != ss->killers[0]
+			&& move != ttMove
+			&& move != ss->killers[0]
 			&& move != ss->killers[1]
 			&& pos.pseudo_legal_s<false>(move)
 			&& !pos.capture_or_pawn_promotion(move))
@@ -377,11 +378,11 @@ Move MovePicker::next_move() {
 	case QUIET_INIT:
 		cur = endBadCaptures;
 		endMoves = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, cur);
-		score<NON_CAPTURES>();
+		score<QUIETS>();
 		if (depth < 3 * ONE_PLY)
 		{
 			ExtMove* goodQuiet = std::partition(cur, endMoves, [](const ExtMove& m)
-			{ return m.value > VALUE_ZERO; });
+												{ return m.value > VALUE_ZERO; });
 			insertion_sort(cur, goodQuiet);
 		} else
 			insertion_sort(cur, endMoves);
@@ -412,70 +413,22 @@ Move MovePicker::next_move() {
 		break;
 		// ここでcaseのfall throughは終わり。
 
-	// 王手回避の指し手を返す
-	case ALL_EVASIONS:
+	// 回避手の生成
+	case EVASIONS_INIT:
 		cur = moves;
 		endMoves = generateMoves<EVASIONS>(pos, cur);
 		// 生成された指し手が2手以上あるならオーダリングする。
 		if (endMoves - cur > 1)
 			score<EVASIONS>();
-		stage = REMAINING;
-		goto remaining;
-
-	// 捕獲する指し手のみを生成
-	case QCAPTURES_CHECKS_INIT:
-	case QCAPTURES_NO_CHECKS:
-		cur = moves;
-		endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, cur);
-		score<CAPTURES>();
 		++stage;
 
-		// 残りの指し手を生成するフェーズ(共通処理)
-	remaining:
-	case QCAPTURES_CHECKS:
-	case REMAINING:
+	// 王手回避の指し手を返す
+	case ALL_EVASIONS:
 		while (cur < endMoves)
 		{
 			move = pick_best(cur++, endMoves);
 			if (move != ttMove)
 				return move;
-		}
-		if (stage == REMAINING)
-			break;
-		cur = moves;
-		endMoves = generateMoves<QUIET_CHECKS>(pos, cur);
-		++stage;
-
-		// 王手になる指し手を一手ずつ返すフェーズ
-		// (置換表の指し手は返したあとなのでこの指し手は除外する必要がある)
-	case PH_CHECKS:
-		while (cur < endMoves)
-		{
-			move = cur++->move;
-			if (move != ttMove)
-				return move;
-		}
-		break;
-
-	case PH_RECAPTURE:
-		cur = moves;
-		endMoves = generateMoves<RECAPTURES>(pos, moves, recaptureSquare);
-		score<CAPTURES>(); // CAPTUREの指し手の並べ替え
-		++stage;
-
-	// 取り返す指し手。これはすでにrecaptureの指し手だけが生成されているのでそのまま返す。
-	case PH_RECAPTURES:
-		while (cur < endMoves)
-		{
-			// recaptureの指し手が2つ以上あることは稀なのでここでオーダリングしてもあまり意味をなさないが、
-			// 生成される指し手自体が少ないなら、pick_best()のコストはほぼ無視できるのでこれはやらないよりはマシ。
-			move = pick_best(cur++, endMoves);
-			//if (to_sq(move) == recaptureSquare)
-			//	return move;
-			// →　recaptureの指し手のみを生成しているのでこの判定は不要。
-			ASSERT_LV3(move_to(move) == recaptureSquare);
-
-			return move;
 		}
 		break;
 
@@ -494,6 +447,64 @@ Move MovePicker::next_move() {
 			if (move != ttMove
 				&& pos.see(move) > threshold)
 				return move;
+		}
+		break;
+
+	// 捕獲する指し手のみを生成
+	case QCAPTURES_1_INIT: case QCAPTURES_2_INIT:
+		cur = moves;
+		endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, cur);
+		score<CAPTURES>();
+		++stage;
+
+	// 残りの指し手を生成するフェーズ(共通処理)
+	case QCAPTURES_1: case QCAPTURES_2:
+		while (cur < endMoves)
+		{
+			move = pick_best(cur++, endMoves);
+			if (move != ttMove)
+				return move;
+		}
+		if (stage == QCAPTURES_2)
+			break;
+		cur = moves;
+		// CAPTURES_PRO_PLUSで生成していたので、歩の成る指し手は除外された王手となる指し手生成が必要。
+		// QUIET_CHECKS_PRO_MINUSがあれば良いのだが、実装が難しいので、このあと除外する。
+		endMoves = generateMoves<QUIET_CHECKS>(pos, cur);
+		++stage;
+
+		// 王手になる指し手を一手ずつ返すフェーズ
+		// (置換表の指し手は返したあとなのでこの指し手は除外する必要がある)
+	case QCHECKS:
+		while (cur < endMoves)
+		{
+			move = cur++->move;
+			if (move != ttMove
+				&& !pos.pawn_promotion(move)
+				)
+				return move;
+		}
+		break;
+
+	case QSEARCH_RECAPTURES:
+		cur = moves;
+		endMoves = generateMoves<RECAPTURES>(pos, moves, recaptureSquare);
+		score<CAPTURES>(); // CAPTUREの指し手の並べ替え
+		++stage;
+
+	// 取り返す指し手。これはすでにrecaptureの指し手だけが生成されているのでそのまま返す。
+	case QRECAPTURES:
+		while (cur < endMoves)
+		{
+			// recaptureの指し手が2つ以上あることは稀なのでここでオーダリングしてもあまり意味をなさないが、
+			// 生成される指し手自体が少ないなら、pick_best()のコストはほぼ無視できるのでこれはやらないよりはマシ。
+			move = pick_best(cur++, endMoves);
+			//if (to_sq(move) == recaptureSquare)
+			//	return move;
+			// →　recaptureの指し手のみを生成しているのでこの判定は不要。
+			ASSERT_LV3(move_to(move) == recaptureSquare);
+
+			return move;
 		}
 		break;
 

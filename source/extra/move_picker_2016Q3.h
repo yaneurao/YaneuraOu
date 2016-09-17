@@ -150,9 +150,6 @@ private:
 	ExtMove* begin() { return moves; }
 	ExtMove* end() { return endMoves; }
 
-	// beginからendのなかでベストのスコアのものを先頭(begin)に移動させる。
-	Move pick_best(ExtMove* begin, ExtMove* end);
-
 	const Position& pos;
 
 	// node stack

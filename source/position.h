@@ -484,15 +484,21 @@ struct Position
 	// 捕獲する指し手か、成りの指し手であるかを返す。
 	bool capture_or_promotion(Move m) const { return (m & MOVE_PROMOTE) || capture(m); }
 
-	// 捕獲する指し手か、歩の成りの指し手であるかを返す。
-	bool capture_or_pawn_promotion(Move m) const
+	// 歩の成る指し手であるか？
+	bool pawn_promotion(Move m) const
 	{
 #ifdef KEEP_PIECE_IN_GENERATE_MOVES
 		// 移動させる駒が歩かどうかは、Moveの上位16bitを見れば良い
-		return (is_promote(m) && raw_type_of(moved_piece_after(m)) == PAWN) || capture(m);
+		return (is_promote(m) && raw_type_of(moved_piece_after(m)) == PAWN);
 #else
-		return (is_promote(m) && type_of(piece_on(move_from(m))) == PAWN) || capture(m);
+		return (is_promote(m) && type_of(piece_on(move_from(m))) == PAWN);
 #endif
+	}
+
+	// 捕獲する指し手か、歩の成りの指し手であるかを返す。
+	bool capture_or_pawn_promotion(Move m) const
+	{
+		return pawn_promotion(m) || capture(m);
 	}
 
 #if 1

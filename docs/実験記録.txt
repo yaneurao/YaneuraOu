@@ -73,6 +73,36 @@ ToDo:
 ・古いSEEのコード削除。すっきりした。
 ・min_attackerで角・飛車に馬、龍が混じっていたの修正。
 
+・Stockfish : Renaming in MovePicker
+	https://github.com/official-stockfish/Stockfish/commit/b96dd754ede60b8463606cf38eac3eab400a123d
+
+	これは名前の変更だけなので影響がないはず。benchの値を事前と事後とで比較する。
+
+		Total time (ms) : 41538
+		Nodes searched  : 28156863
+		Nodes/second    : 677857
+
+		===========================
+		Total time (ms) : 40976
+		Nodes searched  : 28156863
+		Nodes/second    : 687154
+
+		→　よし、ノード数は変わっていない。成功。
+
+	V3.68b
+	-		endMoves = generateMoves<QUIET_CHECKS>(pos, cur);
+	+		endMoves = generateMoves<QUIET_CHECKS_PRO_MINUS>(pos, cur); // これが必要なのでは…。
+	うーん。これは大変なりよ..。→この実装は大変だからやめよう。
+	pawn_promotion除外したほうが楽。
+	midに対する修正も間違っていたのか。なおすわ。
+
+		===========================
+		Total time (ms) : 39915
+		Nodes searched  : 28109545
+		Nodes/second    : 704235
+
+	探索ノード数が変わった。速くなっている可能性が微レ存。
+
 
 ・魔女も対戦させてみて様子を見る。
 
@@ -82,6 +112,37 @@ ToDo:
 	技巧は序中盤が少し弱いのかも知れん。うむむむむ。
 	というか変な形に対する序中盤が弱いのか。うーむ..
 	対戦スクリプトバグっている可能性すらある。
+	勝率変わったの、定跡変えてからという可能性もある。難しいな…。
+
+	→　技巧、メモリ使いすぎ疑惑。技巧とやるとき2スレにしないと。魔女とやるときは4スレにしないと。
+	→　あと、4スレにすると技巧、ずいぶん弱い気がする。長時間で弱いということなのか…。
+
+	・魔女、技巧
+	・魔女、やねうら王V3.68
+	みたいなのも試す必要がありそう。
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV367h.exe , eval = Apery20160911
+	T1,b3000,1046 - 19 - 1115(48.4% R-11.1)
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV367f.exe , eval = Apery20160911
+	T1,b3000,936 - 15 - 1039(47.39% R-18.14)
+	T1,b6000,305 - 5 - 290(51.26% R8.76)
+	→　4スレ3秒でやりなおし。
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV367i.exe , eval = Apery20160911
+	T1,b3000,643 - 8 - 649(49.77% R-1.61)
+	T1,b6000,306 - 9 - 295(50.92% R6.36)
+	→　4スレ3秒でやりなおし。
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV357mid.exe , eval = Apery20160911
+	T1,b3000,650 - 14 - 676(49.02% R-6.81)
+	T1,b6000,297 - 9 - 304(49.42% R-4.05)
+	→　4スレ3秒でやりなおし。
+
 
 
 ・試しにmate3()、ちょろっと書く。
