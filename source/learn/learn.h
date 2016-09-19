@@ -67,6 +67,13 @@
 //#define USE_ADAM_UPDATE
 
 
+// 6) やねんざメソッドによるupdate
+// これは、勾配の符号だけを見てweightを調整する。ただし出現回数があまりにも低い特徴に関しては無視する。
+
+// #define USE_YANENZA_UPDATE
+
+
+
 // ----------------------
 //    学習時の設定
 // ----------------------
@@ -83,6 +90,10 @@
 // THREAD_BUFFER_SIZE(=10000)の倍数にすること。
 
 #define LEARN_READ_SFEN_SIZE (1000 * 1000 * 5)
+
+// KPPの評価値、ミラーを考慮するか(ミラーの位置にある評価値を同じ値にする)
+// #define USE_KPP_MIRROR_WRITE
+
 
 // ----------------------
 //    目的関数の選択
@@ -159,6 +170,7 @@
 // ----------------------
 
 // kkpの一番大きな値を表示させることで学習が進んでいるかのチェックに用いる。
+// これを使うとOpen MPと相性が悪くて、update_weights()が非常に遅くなる。
 //#define DISPLAY_STATS_IN_UPDATE_WEIGHTS
 
 // 学習時にsfenファイルを1万局面読み込むごとに'.'を出力する。
@@ -166,8 +178,7 @@
 
 // 学習時のrmseとタイムスタンプの出力をこの回数に1回に減らす
 #define LEARN_RMSE_OUTPUT_INTERVAL 1
-#define LEARN_TIMESTAMP_OUTPUT_INTERVAL 3
-
+#define LEARN_TIMESTAMP_OUTPUT_INTERVAL 10
 
 // ----------------------
 //  学習のときの浮動小数
@@ -215,6 +226,7 @@ typedef float LearnFloatType;
 
 #ifdef LEARN_DEFAULT
 #define USE_SGD_UPDATE
+#define USE_KPP_MIRROR_WRITE
 #undef LEARN_MINI_BATCH_SIZE
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 #define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
@@ -224,18 +236,21 @@ typedef float LearnFloatType;
 #endif
 
 #ifdef LEARN_YANEURAOU_2016_LATE
-#define USE_SGD_UPDATE
+//#define USE_SGD_UPDATE
 //#define USE_YANE_SGD_UPDATE
 //#define USE_YANE_GRAD_UPDATE
 //#define USE_ADAM_UPDATE
+#define USE_YANENZA_UPDATE
+//#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
+#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
+
 #undef LEARN_MINI_BATCH_SIZE
-#define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
-#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
-//#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
+#define LEARN_MINI_BATCH_SIZE (1000 * 100)
 #define USE_QSEARCH_FOR_SHALLOW_VALUE
 #define DISABLE_TT_PROBE
 #undef EVAL_FILE_NAME_CHANGE_INTERVAL
 #define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
+//#define DISPLAY_STATS_IN_UPDATE_WEIGHTS
 #endif
 
 // ----------------------
@@ -253,6 +268,8 @@ typedef float LearnFloatType;
 #define LEARN_UPDATE "YaneGrad"
 #elif defined(USE_ADAM_UPDATE)
 #define LEARN_UPDATE "Adam"
+#elif defined(USE_YANENZA_UPDATE)
+#define LEARN_UPDATE "Yanenza"
 #endif
 
 #if defined(LOSS_FUNCTION_IS_WINNING_PERCENTAGE)

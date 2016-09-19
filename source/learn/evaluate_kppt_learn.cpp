@@ -51,17 +51,24 @@ namespace Eval
 		BonaPiece mp2 = mir_piece[p2];
 		Square  mk1 = Mir(k1);
 
+		// kppのppを入れ替えたときのassert
+
+#if 0
 		// Apery(WCSC26)の評価関数、玉が5筋にいるきにmirrorした値が一致しないので
 		// assertから除外しておく。
-
 		ASSERT_LV3(kpp[k1][p1][p2] == kpp[k1][p2][p1]);
 		ASSERT_LV3(kpp[k1][p1][p2] == kpp[mk1][mp1][mp2] || file_of(k1) == FILE_5);
 		ASSERT_LV3(kpp[k1][p1][p2] == kpp[mk1][mp2][mp1] || file_of(k1) == FILE_5);
+#endif
 
 		kpp[k1][p1][p2]
 			= kpp[k1][p2][p1]
+
+#ifdef USE_KPP_MIRROR_WRITE
+			// ミラー、書き出すのやめるほうがいいかも。
 			= kpp[mk1][mp1][mp2]
 			= kpp[mk1][mp2][mp1]
+#endif
 			= value;
 	}
 
@@ -110,7 +117,7 @@ namespace Eval
 			= value;
 
 	// kkpに関して180度のflipは入れないほうが良いのでは..
-#if 1
+#if 0
 		ASSERT_LV3(kkp[k1][k2][p1][0] == -kkp[ik2][ik1][ip1][0]);
 		ASSERT_LV3(kkp[k1][k2][p1][1] == +kkp[ik2][ik1][ip1][1]);
 		ASSERT_LV3(kkp[ik2][ik1][ip1] == kkp[mik2][mik1][mip1]);
@@ -148,6 +155,13 @@ namespace Eval
 #endif
 
 	typedef std::array<LearnFloatType, 2> FloatPair;
+
+	// 出力用。
+	std::ostream& operator << (std::ostream& os, const FloatPair& p)
+	{
+		os << "{ " << p[0] << " , " << p[1] << " } ";
+		return os;
+	}
 
 	// 勾配等の配列
 	struct Weight
@@ -238,6 +252,11 @@ namespace Eval
 
 #endif
 
+#if defined (USE_YANENZA_UPDATE)
+		// やねんざメソッドには学習率はない。1か2ずつ適当に動かす。
+		u64 count;
+#endif
+
 		// 手番用の学習率。これはηより小さめで良いはず。(小さめの値がつくべきところなので)
 		// これconstにするとetaに応じてeta2が変わらない。注意すること。
 		#define	eta2 (eta / 4)
@@ -246,7 +265,7 @@ namespace Eval
 		{
 			g[0] += delta1;
 			g[1] += delta2;
-#if defined (USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE)
+#if defined (USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE) || defined(USE_YANENZA_UPDATE)
 			count++;
 #endif
 		}
@@ -356,6 +375,60 @@ namespace Eval
 							   w[1] - LearnFloatType( eta2 / (sqrt((double)r[1] / rt) + epsilon) * v[1] / bt)
 				};
 
+
+#endif
+
+#if defined(USE_YANENZA_UPDATE)
+
+
+#if 0
+			if (g[0] == 0 && g[1] == 0)
+				return false;
+
+			if (count < LEARN_MINI_BATCH_SIZE / 40)
+			{
+				count = 0;
+
+				// これが累積されてくると出現回数が少ないのにwを更新してしまうことになる。
+				g = { 0,0 };
+				
+				goto FINISH;
+			}
+
+#else
+			// L1正則化的な何かを施す場合
+			if ((g[0] == 0 && g[1] == 0)
+//				|| (count < LEARN_MINI_BATCH_SIZE / 40)
+				// 出現回数が少なすぎる特徴は勾配の方向がでたらめなので動かさない。(過学習の防止)
+				)
+			{
+				count = 0;
+
+				// L1正則化的な何か。
+				w = { w[0] * 0.99999f , w[1] * 0.99999f };
+
+				goto FINISH;
+			}
+#endif
+
+			{
+				auto f_sgn = [](float f)
+				{
+					// fの符号に応じて
+					// -3..0..3を二項分布で返す。
+					static PRNG prng;
+					if (f > 0)
+						return (float)(POPCNT32((u32)prng.rand(16)));
+					if (f < 0)
+						return (float)-(POPCNT32((u32)prng.rand(16)));
+
+					return 0.0f;
+				};
+
+				w = FloatPair{ w[0] - f_sgn(g[0]) , w[1] - f_sgn(g[1]) };
+			}
+
+			count = 0;
 
 #endif
 
@@ -516,15 +589,17 @@ namespace Eval
 		// 3回目まではwのupdateを保留する。
 		// ただし、SGDは履歴がないのでこれを行なう必要がない。
 		bool skip_update =
-#if defined(USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE)
+#if defined(USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE) || defined(USE_YANENZA_UPDATE)
 			false;
 #else
 			epoch <= 3;
 #endif
 
-		// kkpの一番大きな値を表示させることで学習が進んでいるかのチェックに用いる。
+		// kppの最小値、最大値、絶対値の和を表示させることで学習が進んでいるかのチェックに用いる。
 #ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
-		LearnFloatType max_kkp = 0.0f;
+		FloatPair min_kpp = { 0.0f , 0.0f };
+		FloatPair max_kpp = { 0.0f , 0.0f };
+		FloatPair sum_kpp = { 0.0f , 0.0f };
 #endif
 
 		//
@@ -548,10 +623,10 @@ namespace Eval
 		// epoch == 100(1億局面)で0.9倍。10億で0.3倍みたいな。
 
 		// あとη、大きめに。
-//		Weight::eta = 32.0f * (float)pow(0.999f, epoch);
+		Weight::eta = 32.0f * (float)pow(0.999f, epoch);
 
 		// 1億で0.8倍、10億で0.13倍。
-		Weight::eta = 100.0f * (float)pow(0.998f, epoch);
+//		Weight::eta = 100.0f * (float)pow(0.998f, epoch);
 
 		// 1億で0.74倍、10億で0.05倍。
 //		Weight::eta = 300.0f * (float)pow(0.997f, epoch);
@@ -594,65 +669,97 @@ namespace Eval
 
 #endif
 
-		for (auto k1 : SQ)
-			for (auto k2 : SQ)
-			{
-				auto& w = kk_w[k1][k2];
-#ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
-				max_kkp = max(max_kkp, abs(w.w[0]));
-#endif
 
-				// wの値にupdateがあったなら、値を制限して、かつ、kkに反映させる。
-				if (w.update(skip_update))
+// 学習をopenmpで並列化(この間も局面生成は続くがまあ、問題ないやろ..
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+		{
+#ifdef _OPENMP
+#pragma omp for
+#endif
+			// Open MP対応のため、int型の変数を使う必要がある。(悲しい)
+			for (int k1 = SQ_ZERO; k1 < SQ_NB; ++k1)
+			{
+				for (auto k2 : SQ)
 				{
-					// 絶対値を抑制する。
-					SET_A_LIMIT_TO(w.w, LearnFloatType((s32)INT16_MIN * 4), LearnFloatType((s32)INT16_MAX * 4));
-					kk[k1][k2] = { (s32)w.w[0], (s32)w.w[1] };
+					auto& w = kk_w[k1][k2];
+
+					// wの値にupdateがあったなら、値を制限して、かつ、kkに反映させる。
+					if (w.update(skip_update))
+					{
+						// 絶対値を抑制する。
+						SET_A_LIMIT_TO(w.w, LearnFloatType((s32)INT16_MIN * 4), LearnFloatType((s32)INT16_MAX * 4));
+						kk[k1][k2] = { (s32)w.w[0], (s32)w.w[1] };
+					}
 				}
 			}
 
-		for (auto k : SQ)
-			for (auto p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
-				for (auto p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
-				{
-					auto& w = kpp_w[k][p1][p2];
-
-					if (w.update(skip_update))
+#ifdef _OPENMP
+#pragma omp for
+#endif
+			for (int p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
+			{
+				for (auto k : SQ)
+					for (auto p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
 					{
-						// 絶対値を抑制する。
-						SET_A_LIMIT_TO(w.w , (LearnFloatType)(INT16_MIN / 2), (LearnFloatType)(INT16_MAX / 2));
+						// p1とp2を入れ替えたものは、kpp_write()で書き込まれるはずなので無視して良い。
+						if (p1 > p2)
+							continue;
 
-						kpp_write(k, p1, p2, ValueKpp{ (s16)w.w[0], (s16)w.w[1] });
-
-						//kpp[k][p1][p2] = ValueKpp{ (s16)w.w[0], (s16)w.w[1] };
-
-						//kpp[k][p1][p2] = ValueKpp{ (s16)w.w[0], (s16)w.w[1] };
-						//kpp[k][p2][p1] = ValueKpp{ (s16)w.w[0], (s16)w.w[1] };
-					}
-				}
-
-		for (auto k1 : SQ)
-			for (auto k2 : SQ)
-				for (auto p = BONA_PIECE_ZERO; p < fe_end; ++p)
-				{
-					auto& w = kkp_w[k1][k2][p];
-
-					// cout << "\n" << w.g[0] << " & " << w.g[1];
-
-					if (w.update(skip_update))
-					{
-						// 絶対値を抑制する。
-						SET_A_LIMIT_TO(w.w, (LearnFloatType)(INT16_MIN / 2), (LearnFloatType)(INT16_MAX / 2));
-
-						//	kkp_write(k1, k2, p, ValueKkp{s32(w.w[0]),s32(w.w[1])});
-
-						// kkpは上で書いた理由で次元下げをしない。
-						kkp[k1][k2][p] = ValueKkp{ s32(w.w[0]),s32(w.w[1]) };
-					}
-				}
+						auto& w = kpp_w[k][p1][p2];
 
 #ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
-		cout << " , max_kkp = " << max_kkp << " ";
+						min_kpp = { min(min_kpp[0], w.w[0]) , min(min_kpp[1], w.w[1]) };
+						max_kpp = { max(max_kpp[0], w.w[0]) , max(max_kpp[1], w.w[1]) };
+						sum_kpp = { sum_kpp[0] + abs(w.w[0]) , sum_kpp[1] + abs(w.w[1]) };
+#endif
+
+						if (w.update(skip_update))
+						{
+							// 絶対値を抑制する。
+							SET_A_LIMIT_TO(w.w, (LearnFloatType)(INT16_MIN / 2), (LearnFloatType)(INT16_MAX / 2));
+
+							kpp_write(k, (BonaPiece)p1, p2, ValueKpp{ (s16)w.w[0], (s16)w.w[1] });
+
+							//kpp[k][p1][p2] = ValueKpp{ (s16)w.w[0], (s16)w.w[1] };
+
+							//kpp[k][p1][p2] = ValueKpp{ (s16)w.w[0], (s16)w.w[1] };
+							//kpp[k][p2][p1] = ValueKpp{ (s16)w.w[0], (s16)w.w[1] };
+						}
+					}
+			}
+
+			// 外側のループをk1にすると、ループ回数が81になって、40HTのときに1余るのが嫌。
+			// ゆえに外側のループはpに変更する。
+#ifdef _OPENMP
+#pragma omp for
+#endif
+			for (int p = BONA_PIECE_ZERO; p < fe_end; ++p)
+			{
+				for (auto k1 : SQ)
+					for (auto k2 : SQ)
+					{
+						auto& w = kkp_w[k1][k2][p];
+
+						// cout << "\n" << w.g[0] << " & " << w.g[1];
+
+						if (w.update(skip_update))
+						{
+							// 絶対値を抑制する。
+							SET_A_LIMIT_TO(w.w, (LearnFloatType)(INT16_MIN / 2), (LearnFloatType)(INT16_MAX / 2));
+
+							//	kkp_write(k1, k2, p, ValueKkp{s32(w.w[0]),s32(w.w[1])});
+
+							// kkpは上で書いた理由で次元下げをしない。
+							kkp[k1][k2][p] = ValueKkp{ s32(w.w[0]),s32(w.w[1]) };
+						}
+					}
+			}
+		}
+
+#ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
+		cout << "\n min_kpp = " << min_kpp << " , max_kpp = " << max_kpp << " , sum_kpp = " << sum_kpp << " ";
 #endif
 	}
 

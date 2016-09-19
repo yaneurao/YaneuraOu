@@ -7,11 +7,17 @@
 ・自己対戦用のpythonスクリプトV3を用意。エンジンそれぞれに対して異なる持ち時間設定で対局できるようにした。
 ・Stockfish : Fix a warning with MSVC
 ・Stockfish : Fix indentation in struct FromToStats
-・教師局面の生成、USE_RANDOM_LEGAL_MOVE追加。
+・教師局面の生成、USE_RANDOM_LEGAL_MOVE追加。(こちらをdefaultに変更する。)
 ・教師局面の生成、最大手数を512に変更。
 ・MultiThinkGenSfen::thread_workerでconst intのMAX_PLYがglobalのMAX_PLYと被っていたの修正。
 ・USE_DEBUG_ASSERT有効のときに、エラーメッセージ出力後、停止するように変更。
 ・教師局面からの学習で、クロスバリデーションのために保存している局面は2周目でも学習には使用しないように変更。
+・教師局面からの学習、weight_updateをOpen MPで並列化した。(Open MPを有効にしてコンパイルすること)
+・教師局面からの学習に、やねんざメソッド実装。
+・解説.txtにOpenMPのことを追記。
+・教師局面からの学習のときに、kppのmin,max,sumを出力する機能を追加。
+・教師局面からの学習、局面をメモリ上のバッファから読み込んだ時点で局面数をカウントしていたの修正。
+・教師局面からの学習設定としてUSE_KPP_MIRROR_WRITE追加。デフォルトではこれをオフに。
 
 
 ■　2016/09/17 V3.68

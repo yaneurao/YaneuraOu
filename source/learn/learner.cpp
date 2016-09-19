@@ -27,6 +27,10 @@
 #include "../tt.h"
 #include "multi_think.h"
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 using namespace std;
 
 extern Book::MemoryBook book;
@@ -758,6 +762,7 @@ struct SfenReader
 	{
 		packed_sfens.resize(thread_num);
 		total_read = 0;
+		total_done = 0;
 		next_update_weights = 0;
 		save_count = 0;
 		files_end = false;
@@ -811,6 +816,10 @@ struct SfenReader
 
 		ps = *(thread_ps->rbegin());
 		thread_ps->pop_back();
+
+		// このインクリメントはatomic
+		total_done++;
+
 		return true;
 	}
 
@@ -999,8 +1008,11 @@ struct SfenReader
 	// sfenファイル群
 	vector<string> filenames;
 
-	// 読み込んだ局面数
+	// 読み込んだ局面数(ファイルからメモリ上のバッファへ)
 	volatile u64 total_read;
+
+	// 処理した局面数
+	atomic<u64> total_done;
 
 	// total_readがこの値を超えたらupdate_weights()してmseの計算をする。
 	u64 next_update_weights;
@@ -1049,7 +1061,7 @@ protected:
 // 複数スレッドでsfenを生成するためのクラス
 struct LearnerThink: public MultiThink
 {
-	LearnerThink(SfenReader& sr_):sr(sr_){}
+	LearnerThink(SfenReader& sr_):sr(sr_),updating_weight(false) {}
 	virtual void thread_worker(size_t thread_id);
 
 	// 局面ファイルをバックグラウンドで読み込むスレッドを起動する。
@@ -1066,6 +1078,9 @@ struct LearnerThink: public MultiThink
 
 	// ミニバッチサイズのサイズ。必ずこのclassを使う側で設定すること。
 	u64 mini_batch_size = 1000*1000;
+
+	// weightのupdate中であるか。(このとき、sleepする)
+	atomic<bool> updating_weight;
 };
 
 void LearnerThink::thread_worker(size_t thread_id)
@@ -1076,9 +1091,9 @@ void LearnerThink::thread_worker(size_t thread_id)
 	{
 		// mseの表示(これはthread 0のみときどき行う)
 		// ファイルから読み込んだ直後とかでいいような…。
-		if (thread_id == 0 && sr.next_update_weights <= sr.total_read)
+		if (thread_id == 0 && sr.next_update_weights <= sr.total_done)
 		{
-			u64 org_total_read = sr.total_read;
+			u64 org_total_done = sr.total_done;
 
 			// 現在時刻を出力
 			static u64 sfens_output_count = 0;
@@ -1086,7 +1101,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 			{
 				auto now = std::chrono::system_clock::now();
 				auto tp = std::chrono::system_clock::to_time_t(now);
-				cout << endl << sr.total_read << " sfens , at " << std::ctime(&tp);
+				cout << endl << sr.total_done << " sfens , at " << std::ctime(&tp);
 			} else {
 				// これぐらいは出力しておく。
 				cout << '.';
@@ -1095,7 +1110,14 @@ void LearnerThink::thread_worker(size_t thread_id)
 			// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 
 			// 3回目ぐらいまではg2のupdateにとどめて、wのupdateは保留する。
+			// 一応、他のスレッド停止させる。
+#ifdef _OPENMP
+			updating_weight = true;
+#endif
 			Eval::update_weights(mini_batch_size , ++epoch);
+#ifdef _OPENMP
+			updating_weight = false;
+#endif
 
 			// 8000万局面ごとに1回保存、ぐらいの感じで。
 
@@ -1120,8 +1142,8 @@ void LearnerThink::thread_worker(size_t thread_id)
 			// org_total_read + LEARN_MINI_BATCH_SIZE <= total_read
 			// となったときにやって欲しいのだけど、それが現在時刻(toal_read_now)を過ぎているなら
 			// 仕方ないのでいますぐやる、的なコード。
-			u64 total_read_now = sr.total_read;
-			sr.next_update_weights = std::max(org_total_read + mini_batch_size, total_read_now);
+			u64 total_done_now = sr.total_done;
+			sr.next_update_weights = std::max(org_total_done + mini_batch_size, total_done_now);
 		}
 
 		PackedSfenValue ps;
@@ -1201,6 +1223,13 @@ void LearnerThink::thread_worker(size_t thread_id)
 #ifdef USE_EVALUATE_FOR_SHALLOW_VALUE
 		// 現局面でevaluate()するので現局面がleafだと考えられる。
 		Eval::add_grad(pos, rootColor, dj_dw);
+#endif
+
+#ifdef _OPENMP
+		// weightの更新中であれば、そこはparallel forで回るので、
+		// こっちのスレッドは中断しておく。
+		while (updating_weight)
+			sleep(0);
 #endif
 
 	}
@@ -1303,6 +1332,10 @@ void learn(Position& pos, istringstream& is)
 
 	// 評価関数パラメーターの勾配配列の初期化
 	Eval::init_grad();
+
+#ifdef _OPENMP
+	omp_set_num_threads((int)Options["Threads"]);
+#endif
 
 	cout << "init done." << endl;
 
