@@ -311,6 +311,7 @@
     <None Include="..\script\calc_rating.py" />
     <None Include="..\script\engine_invoker.py" />
     <None Include="..\script\engine_invoker2.py" />
+    <None Include="..\script\engine_invoker3.py" />
     <None Include="Makefile" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

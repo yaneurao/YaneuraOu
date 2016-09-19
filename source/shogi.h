@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "3.68b"
+#define ENGINE_VERSION "3.69"
 
 // --------------------
 // コンパイル時の設定
@@ -736,33 +736,34 @@ template <MOVE_GEN_TYPE gen_type> ExtMove* generateMoves(const Position& pos, Ex
 // MoveGeneratorのwrapper。範囲forで回すときに便利。
 template<MOVE_GEN_TYPE GenType>
 struct MoveList {
-  // 局面をコンストラクタの引数に渡して使う。すると指し手が生成され、lastが初期化されるので、
-  // このclassのbegin(),end()が正常な値を返すようになる。
-  // CHECKS,CHECKS_NON_PRO_PLUSを生成するときは、事前にpos.check_info_update();でCheckInfoをupdateしておくこと。
-  explicit MoveList(const Position& pos) : last(generateMoves<GenType>(pos, mlist)){}
-    
-  // 内部的に持っている指し手生成バッファの先頭
-  const ExtMove* begin() const { return mlist; }
+	// 局面をコンストラクタの引数に渡して使う。すると指し手が生成され、lastが初期化されるので、
+	// このclassのbegin(),end()が正常な値を返すようになる。
+	// lastは内部のバッファを指しているので、このクラスのコピーは不可。
 
-  // 生成された指し手の末尾のひとつ先
-  const ExtMove* end() const { return last; }
+	explicit MoveList(const Position& pos) : last(generateMoves<GenType>(pos, mlist)) {}
 
-  // 生成された指し手のなかに引数で指定された指し手が含まれているかの判定。
-  // ASSERTなどで用いる。遅いので通常探索等では用いないこと。
-  bool contains(Move move) const {
-    for (const auto& m : *this) if (m == move) return true;
-    return false;
-  }
+	// 内部的に持っている指し手生成バッファの先頭
+	const ExtMove* begin() const { return mlist; }
 
-  // 生成された指し手の数
-  size_t size() const { return last - mlist; }
+	// 生成された指し手の末尾のひとつ先
+	const ExtMove* end() const { return last; }
 
-  // i番目の要素を返す
-  const ExtMove at(size_t i) const { ASSERT_LV3(0<=i && i<size()); return begin()[i]; }
+	// 生成された指し手のなかに引数で指定された指し手が含まれているかの判定。
+	// ASSERTなどで用いる。遅いので通常探索等では用いないこと。
+	bool contains(Move move) const {
+		for (const auto& m : *this) if (m == move) return true;
+		return false;
+	}
+
+	// 生成された指し手の数
+	size_t size() const { return last - mlist; }
+
+	// i番目の要素を返す
+	const ExtMove at(size_t i) const { ASSERT_LV3(0 <= i && i < size()); return begin()[i]; }
 
 private:
-  // 指し手生成バッファも自前で持っている。
-  ExtMove mlist[MAX_MOVES], *last;
+	// 指し手生成バッファも自前で持っている。
+	ExtMove mlist[MAX_MOVES], *last;
 };
 
 // --------------------

@@ -9,8 +9,6 @@
 
 #ifdef USE_MOVE_PICKER_2016Q3
 
-#include "../search.h"
-
 // -----------------------
 //  history , counter move
 // -----------------------
@@ -27,17 +25,17 @@ struct FromToStats
 		if (abs(int(v)) >= 324)
 			return;
 
-		Square f = from_sq(m);
-		Square t = to_sq(m);
+		Square from = from_sq(m);
+		Square to = to_sq(m);
 
 		// 駒打ちを分類すべきだと思うので、駒種に応じてfromの位置を調整する。
 		if (is_drop(m))
-			f += SQ_NB;
+			from += SQ_NB;
 
-		ASSERT_LV3(f < SQ_NB_PLUS1 + 7);
+		ASSERT_LV3(from < SQ_NB_PLUS1 + 7);
 
-		table[f][t][c] -= table[f][t][c] * abs(int(v)) / 324;
-		table[f][t][c] += int(v) * 32;
+		table[from][to][c] -= table[from][to][c] * abs(int(v)) / 324;
+		table[from][to][c] += int(v) * 32;
 	}
 private:
 	// table[from][to][color]となっているが、fromはSQ_NB_PLUS1 + 打ち駒の7種
@@ -115,8 +113,8 @@ typedef Stats<Value, false    > HistoryStats;
 typedef Stats<Value, true     > CounterMoveStats;
 typedef Stats<CounterMoveStats> CounterMoveHistoryStats;
 
-
 enum Stages : int;
+namespace Search { struct Stack; }
 
 // 指し手オーダリング器
 struct MovePicker

@@ -67,34 +67,43 @@ def output_rating(win,draw,lose,opt2):
 # 思考エンジンに対するオプションを生成する。
 def create_option(engines,engine_threads,evals,times,hashes,numa):
 
+	# 思考エンジンに対するコマンド列を保存する。
 	options = []
+	# 対局時間設定を保存する。
+	options2 = []
 
-	rtime = 0
-	byoyomi = 0
-	inc_time = 0
-	total_time = 0
-
-	nodes_time = False
-
-	for b in times.split("/"):
-
-		c = b[0]
-		# 大文字で指定されていたらnodes_timeモード。
-		if c != c.lower():
-			c = c.lower()
-			nodes_time = True
-
-		t = int(b[1:])
-		if c == "r":
-			rtime = t
-		elif c == "b":
-			byoyomi = t
-		elif c == "i":
-			inc_time = t
-		elif c == "t":
-			total_time = t
+	# 時間は.で連結できる。
+	times = times.split(".")
+	if len(times)==1:
+		times.append(times[0])
 
 	for i in range(2):
+
+		rtime = 0
+		byoyomi = 0
+		inc_time = 0
+		total_time = 0
+
+		nodes_time = False
+
+		for b in times[i].split("/"):
+
+			c = b[0]
+			# 大文字で指定されていたらnodes_timeモード。
+			if c != c.lower():
+				c = c.lower()
+				nodes_time = True
+
+			t = int(b[1:])
+			if c == "r":
+				rtime = t
+			elif c == "b":
+				byoyomi = t
+			elif c == "i":
+				inc_time = t
+			elif c == "t":
+				total_time = t
+
 		option = []
 		if ("Yane" in engines[i]):
 			if rtime:
@@ -143,7 +152,10 @@ def create_option(engines,engine_threads,evals,times,hashes,numa):
 
 		options.append(option)
 
-	options.append([total_time,inc_time,byoyomi,rtime])
+		options2.append([total_time,inc_time,byoyomi,rtime])
+
+	options.append(options2[0])
+	options.append(options2[1])
 
 	return options
 
@@ -536,7 +548,7 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 
 
 # 省略されたエンジン名に対して、フルパス名を返す
-def engine_full(e):
+def engine_to_full(e):
 	# 技巧
 	if e == "gikou":
 		e = "gikou_win_20160606/gikou.exe"
@@ -552,15 +564,26 @@ def engine_full(e):
 # ここからmain()
 
 # args format
-# 	HOMEPATH engine1 evaldir1 engine2 evaldir2 threads loop numa engine_threads hash1 hash2 { time1 ... timeN }
+# 	home:HOMEPATH
+#   engine1:engine1
+#   eval1:evaldir1
+#   engine2:engine2
+#   eval2:evaldir2
+#   cores:coreの数
+#   loop:loop回数
+#   numa:numaの番号
+#   engine_threads:思考スレッド数
+#   hash1:engine1のhash size
+#   hash2:engine2のhash size
+#   time:持ち時間設定
 
 # sample 
-#   > c:\python27\python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker2.py \\WS2012_860C_YAN\yanehome\ YaneuraOuV350.exe Apery20160505 YaneuraOuV350.exe Apery20160505 8 1000 0 1 16 16 { r100 }
+#   > c:\python27\python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker2.py home:\\WS2012_860C_YAN\yanehome\ engine1:YaneuraOuV350.exe eval1:Apery20160505 engine2:YaneuraOuV350.exe eval2:Apery20160505 cores:8 loop:1000 numa:0 engine_threads:1 hash1:16 hash2:16 time:r100
 
 # HOMEPATH          : ホームディレクトリ
 # engine1,engine2   : エンジン1,2のpath
 # evaldir1,evaldir2 : 評価関数フォルダ1,2 (ホームディレクトリ配下のevalフォルダ内にあるものとする)
-# threads           : 並列対局数
+# cores             : コアの数(これをengine_threadsで割った数だけ並列対局)
 # loop              : 対局回数
 # numa              : 実行するプロセッサグループ(256を指定すると0の意味になり、かつファイルロギングをする)
 # engine_threads    : 思考エンジンのスレッド数
@@ -575,47 +598,72 @@ def engine_full(e):
 #  t300000/i3000 : t300000 and i3000
 #  大文字で書くとnodes as timeモード
 #  R100    : random time 100 and nodes as time
+#  r100,r300   : ,で併記可能(それぞれの時間で対局する)
+#  b1000.b2000 : .で連結するとengine1とengine2とでそれぞれの持ち時間になる。
 
-param = sys.argv
+home = ""
+threads = 1
+loop = 1
+engine_threads = 1
+# hash size for an each engine
+hashes = [16,16]
+engine1_path = ""
+engine2_path = ""
+eval1_path = ""
+eval2_path = ""
+play_time_list = ""
 
-home = param[1]
+# パラメーターのparse
+for param in sys.argv[1:]:
+	index = param.find(":")
+	if index != -1:
+		label = param[:index]
+		data = param[index+1:]
+		if label == "home":
+			home = data
+		elif label == "cores":
+			threads = int(data)
+		elif label == "loop":
+			loop = int(data)
+		elif label == "numa":
+			numa = int(data)
+		elif label == "engine_threads":
+			engine_threads = int(data)
+		elif label == "hash1":
+			hashes[0] = int(data)
+		elif label == "hash2":
+			hashes[1] = int(data)
+		elif label == "engine1":
+			engine1_path = data
+		elif label == "engine2":
+			engine2_path = data
+		elif label == "eval1":
+			eval1_path = data
+		elif label == "eval2":
+			eval2_path = data
+		elif label == "time":
+			play_time_list = data.split(",")
+		else:
+			print "Error! can't parse > "+ param
+
 if not (home.endswith('/') or home.endswith('\\')):
 	home += '\\'
 
-# 論理コアの数を物理コア数の数に変更する。
-threads = int(param[6])
-loop = int(param[7])
-numa = int(param[8])
 # numaに256が指定されているときは、FileLoggingを有効にする。
 fileLogging = False
 if numa == 256:
 	numa = 0
 	fileLogging = True
 
-# threads number for an each engine
-engine_threads = int(param[9])
-
-# hash size for an each engine
-hashes = [16,16]
-hashes[0] = int(param[10])
-hashes[1] = int(param[11])
-
-if param[12] != "{" :
-	play_time_list = [ param[12] ]
-else:
-	play_time_list = []
-	for i in range (13,len(param)-1):
-		play_time_list.append(param[i])
-
 # expand eval_dir
 
 evaldirs = []
-if not os.path.exists(home + param[5] + "/0") :
-	evaldirs.append(param[5])
+if not os.path.exists(home + eval2_path + "/0") :
+	evaldirs.append(eval2_path)
 else:
 	i = 0
-	while os.path.exists(home + param[5] + "/" + str(i)):
-		evaldirs.append(param[5] + "/" + str(i) )
+	while os.path.exists(home + eval2_path + "/" + str(i)):
+		evaldirs.append(eval2_path + "/" + str(i) )
 		i += 1
 
 book_moves = 24
@@ -651,13 +699,13 @@ threads = threads / engine_threads
 
 for evaldir in evaldirs:
 
-	engine1 = engine_full(param[2])
-	engine2 = engine_full(param[4])
+	engine1 = engine_to_full(engine1_path)
+	engine2 = engine_to_full(engine2_path)
 
 	engines = ( engine1 , engine2 )
 	engines_full = ( home + "exe\\" + engines[0] , home + "exe\\" + engines[1] )
-	evals   = ( param[3] , evaldir )
-	evals_full   = ( home + "eval\\" + param[3]  , home + "eval\\" + evaldir )
+	evals   = ( eval1_path , evaldir )
+	evals_full   = ( home + "eval\\" + eval1_path  , home + "eval\\" + evaldir )
 
 	for i in range(2):
 		print "engine" + str(i+1) + " = " + engines[i] + " , eval = " + evals[i]
@@ -669,7 +717,7 @@ for evaldir in evaldirs:
 
 		for i in range(2):
 			print "option " + str(i+1) + " = " + ' / '.join(options[i])
-		print "time_setting(total_time,inc_time,byoyomi,rtime) = " + str(options[2])
+			print "time_setting = (total_time,inc_time,byoyomi,rtime) = " + str(options[i+2])
 
 		sys.stdout.flush()
 

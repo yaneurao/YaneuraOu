@@ -10,21 +10,15 @@
 
 
 ToDo: 
-・教師局面を生成するときにASSERT有効にしたほうが良いかも。
-・ASSERTとして、ERRORメッセージを表示するモード追加する。
+・試しにmate3()、ちょろっと書く。
 
-・教師局面の生成、Apery方式も試す。
-
-・定跡、短い手数のものを用意する。
+・探索パラメーターの改良(2016/09/18～2016/09/22)
+	探索パラメーターの自動調整ツールなんとかする。
 
 ・評価値のmin,max,分散を計算して表示したほうがいいな。出現回数の平均等も。
 ・Dropout試したほうがいいかも。
-
-・探索パラメーターの改良(2016/09/17～2016/09/20)
-・やねうら大定跡、新たに定跡生成する。(2016/09/17～)
-・rmseの下がり方がおかしい。絶壁になっているところは教師局面が同じものになっている可能性が…。
+・やねうら大定跡、新たに定跡生成する。(2016/09/20)
 ・評価関数に特徴追加 →　あるいは減らす＆高速化
-・持ち時間制御の改良。→　探索パラメーターの改良としてやる。
 
 // 最終
 ・Stockfishにキャッチアップ(2016/09/25)
@@ -35,7 +29,176 @@ ToDo:
 ・技巧のソースコード調べる(2016/09/05～2016/09/10)
 
 
+■　2016/09/19
+
+・Stockfish : Fix a warning with MSVC
+	https://github.com/official-stockfish/Stockfish/commit/92f01aa2bd2b4e9644323cdbef8621682605660d
+
+・Stockfish : Fix indentation in struct FromToStats
+	https://github.com/official-stockfish/Stockfish/commit/057d710fc2f23b63b574122f2609e03f58d2e494
+	事前と事後とでbenchの探索node数が変わらないことを保証する。
+
+		Total time (ms) : 43591
+		Nodes searched  : 28109545
+		Nodes/second    : 644847
+
+・教師局面の生成、Apery方式も試す。
+・教師局面を生成するときにASSERT有効にしたほうが良いかも。
+	→　2駒入れ替えよりはランダム合法手 + 玉の2手指しぐらいにしておく。
+	USE_RANDOM_LEGAL_MOVE
+	→　よし、うまく動くようになった。
+
+	試しにhaku20160916から20億局面を生成。EVAL_LIMIT=33000。depth=4。
+
+・rmseの下がり方がおかしい。絶壁になっているところは教師局面が同じものになっている可能性がないだろうか…。
+・クロスバリデーションの処理、きちんと書くべきか？
+　→　これ、意外と難しいのか…。そうか…。
+	教師用のhash持っておいて、それ除外するか。いやー。2周目、丸々除外されてまずいのか…。
+	これは難しいな…。いやー、そうでもないか。うむうむ..
+	→　unordered_set使うと簡単に書けた。そかそか。
+
+・// 教師局面生成時に千日手・優等・劣等局面の判定をなくすなら、LEARN_GENSFENをdefineすること。
+	→　よく考えたら、これしないほうがいいわ。延々と同じ局面が発生するのでこれがノイズになる。
+	→　優等局面の評価値が +∞みたいなのになるのは癪だが。まあ、仕方がなかろう。
+
+
+■　2016/09/18その2
+
+・持ち時間制御の改良。→　探索パラメーターの改良としてやる。
+
+・前バージョンとではなく、持ち時間を減らして他のソフトと対局させたほうが良いのでは…。
+　→　新自己対戦フレームワークに追加する。
+  →　これいいや。技巧相手で十分やろ。
+	あ、互角ぐらいになるように調整したほうがいいのはいいのか..そうか..
+・2倍の持ち時間でどれくらい勝率に差が出るのかを計測する。
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = Apery20160917
+	engine2 = SM_V110/SILENT_MAJORITY_AVX2_x64.exe , eval = Apery20160917
+	T8,b3000.b6000,199 - 11 - 550(26.57% R-176.6)
+
+・
+	engine1 = YaneuraOuV368c.exe , eval = Apery20160505
+	engine2 = YaneuraOuV368c.exe , eval = haku20160916
+	T1,b3000,1498 - 73 - 3429(30.4% R-143.86)
+
+	engine1 = YaneuraOuV368c.exe , eval = Apery20160917
+	engine2 = YaneuraOuV368c.exe , eval = haku20160916
+	T1,b3000,2586 - 49 - 2275(53.2% R22.26)
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV368c.exe , eval = haku20160916
+	T4,b3000,545 - 16 - 609(47.23% R-19.29)
+
+	教師局面、Apery式の生成にして、ここから追加学習の実験を行なう。
+
+・
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = SM_V110/SILENT_MAJORITY_AVX2_x64.exe , eval = Apery20160911
+	T4,b3000,953 - 25 - 1352(41.34% R-60.75)
+
+	何の差かはわからないが、まだSilent Majorityに負けているということなのか…。
+	そんな馬鹿な…。
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV357mid.exe , eval = Apery20160917
+	T4,b6000,540 - 9 - 741(42.15% R-54.97)
+	T4,b10000,371 - 11 - 568(39.51% R-73.99)
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV368c.exe , eval = Apery20160917
+	T4,b6000,490 - 18 - 812(37.63% R-87.74)
+	T4,b10000,367 - 8 - 585(38.55% R-81.0)
+	// ここ、なんで逆転するのかわけわかりゃん
+	// これだとMIDのほうが伸びが顕著である可能性が…。
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = SM_V110/SILENT_MAJORITY_AVX2_x64.exe , eval = Apery20160917
+	T4,b6000,510 - 13 - 767(39.94% R-70.89)
+	T4,b10000,342 - 10 - 578(37.17% R-91.16)
+
+
 ■　2016/09/18
+
+・定跡、短い手数のものを用意する…ほうがいいのかも。いまでも結構短い気はするのだけど。
+　→　これあまり関係なさげ。単に短い時間ではわからないというだけ。
+
+・368f、落ちてやがる…。メモリ足りなかったのか何なのか…。
+	> [15]:Error! process terminated.
+	うーん。MovePicker改修した直後かな？うむむ。
+	また直したからまあいいか。
+
+・ASSERTとして、ERRORメッセージを表示するモード追加する。
+	→　というか、あった。これか。USE_DEBUG_ASSERT
+	→　しばらく、このモードで開発しよう..
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV357mid.exe , eval = Apery20160911
+	T4,b3000,296 - 8 - 456(39.36% R-75.07)
+
+		Traceback (most recent call last):
+		  File "\\WS2012_860C_YAN\yanehome\script\engine_invoker2.py", line 653, in <module>
+			vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,book_moves)
+		  File "\\WS2012_860C_YAN\yanehome\script\engine_invoker2.py", line 392, in vs_match
+			v = int(vs[j+2])
+		ValueError: invalid literal for int() with base 10: '+'
+		// 技巧が何か変な文字列返したのか..
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV367f.exe , eval = Apery20160911
+	T4,b3000,336 - 12 - 472(41.58% R-59.04)
+	→　367fいまひとつだな…。
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV368b.exe , eval = Apery20160911
+	T4,b3000,318 - 8 - 464(40.66% R-65.64)
+	→　そこまで悪くはないか？
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV367i.exe , eval = Apery20160911
+	T4,b6000,153 - 1 - 196(43.84% R-43.03)
+	→　あんまりよくなさげ。
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV368c.exe , eval = Apery20160911
+	T4,b3000,435 - 8 - 627(40.96% R-63.51)
+	
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV368d.exe , eval = Apery20160911
+	T4,b3000,298 - 10 - 402(42.57% R-52.0)
+
+	dよりc。
+
+・Aperyの新評価関数テストする。
+	→　わずかに強くなってそう。
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV368c.exe , eval = Apery20160911
+	T4,b6000,301 - 10 - 489(38.1% R-84.3)
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV368d.exe , eval = Apery20160911
+	T4,b3000,385 - 8 - 527(42.21% R-54.54)
+	T4,b6000,187 - 3 - 270(40.92% R-63.81)
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = SM_V110/SILENT_MAJORITY_AVX2_x64.exe , eval = Apery20160911
+	T4,b3000,337 - 9 - 504(40.07% R-69.92)
+
+	だいたいわかったので、短い定跡でも試したほうがいいな…。いまbook_moves = 24で、長過ぎる可能性がある。
+
+・自己対戦スクリプト、パラメーターをもっと自由に取れるように改良しよう…。
+	→　出来た気がする。Jenkinsのjobも書くか。
+	→　さらに、エンジンそれぞれに対して異なる持ち時間設定で対局できるようにした。
+
+・Apery20160917
+
+	engine1 = YaneuraOuV368d.exe , eval = Apery20160911
+	engine2 = YaneuraOuV368d.exe , eval = Apery20160917
+	T4,b3000,518 - 63 - 519(49.95% R-0.34)
+	368dが悪いのかも知れないが、計測不能。
+
+
+■　2016/09/17その2
 
 ・Aperyの新しい評価関数、テストする。
 
@@ -73,6 +236,12 @@ ToDo:
 ・古いSEEのコード削除。すっきりした。
 ・min_attackerで角・飛車に馬、龍が混じっていたの修正。
 
+	engine1 = YaneuraOuV357mid.exe , eval = Apery20160911
+	engine2 = YaneuraOuV368a.exe , eval = Apery20160911
+	T1,b3000,844 - 46 - 930(47.58% R-16.86)
+	→　トータルで弱くなってないようなので、とりま良し。
+
+
 ・Stockfish : Renaming in MovePicker
 	https://github.com/official-stockfish/Stockfish/commit/b96dd754ede60b8463606cf38eac3eab400a123d
 
@@ -103,6 +272,69 @@ ToDo:
 
 	探索ノード数が変わった。速くなっている可能性が微レ存。
 
+	engine1 = YaneuraOuV368.exe , eval = Apery20160911
+	engine2 = YaneuraOuV368b.exe , eval = Apery20160911
+	T1,b3000,579 - 39 - 622(48.21% R-12.44)
+	→　弱くなってなさそうで良し。
+
+
+・Stockfish : Use per-thread counterMoveHistory
+	https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
+
+	コア数が多いと効果があるが、コア数が少ないか持ち時間が少ないとマイナスの効果があるようだ。
+
+	V3.68c
+	Total time (ms) : 40751
+	Nodes searched  : 28109545
+	Nodes/second    : 689787
+	ベンチ上の探索ノード数は変わっていないので良しとする。
+
+・lmrの3つの枝刈りなしにしてテスト。
+	V3.68d
+	→　よくなさげだった。
+
+	とりあえず技巧と4スレ3秒でやってみて勝ったやつを使わねば。
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV367h.exe , eval = Apery20160911
+	T1,b3000,1046 - 19 - 1115(48.4% R-11.1)
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV367f.exe , eval = Apery20160911
+	T1,b3000,936 - 15 - 1039(47.39% R-18.14)
+	T1,b6000,305 - 5 - 290(51.26% R8.76)
+	→　4スレ3秒でやりなおし。
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV367i.exe , eval = Apery20160911
+	T1,b3000,643 - 8 - 649(49.77% R-1.61)
+	T1,b6000,306 - 9 - 295(50.92% R6.36)
+	→　4スレ3秒でやりなおし。
+	T4,b3000,172 - 8 - 290(37.23% R-90.75)
+	→　367i、もしかしてええんか？ええのんか？lmr、あそこの枝刈り、なしのほうがええのんか…。
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV357mid.exe , eval = Apery20160911
+	T1,b3000,650 - 14 - 676(49.02% R-6.81)
+	T1,b6000,297 - 9 - 304(49.42% R-4.05)
+	→　4スレ3秒でやりなおし。
+
+	engine1 = YaneuraOuV357mid.exe , eval = Apery20160911
+	engine2 = YaneuraOuV368.exe , eval = Apery20160911
+	T1,b3000,586 - 38 - 686(46.07% R-27.37)
+	→　やはり、midよりは強いようなので良しとする。
+
+	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+	engine2 = YaneuraOuV368a.exe , eval = Apery20160911
+	T1,b6000,180 - 1 - 199(47.49% R-17.43)
+	→　持ち時間を増やしていくと差が開くようだ。ふーん..
+
+	8スレ5秒とかでも試しておくべきかも知れん。
+	15分10秒ルールだと、10スレ10秒ぐらいでないと同じ条件でないかもな…。うーん、ツライ…。
+
+	cのほうがdよりよさげだが、パラメーター調整すればdはcになるのにな…。
+	パラメーター自動調整実装してから考えよう。
+
 
 ・魔女も対戦させてみて様子を見る。
 
@@ -121,35 +353,11 @@ ToDo:
 	・魔女、やねうら王V3.68
 	みたいなのも試す必要がありそう。
 
-	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
-	engine2 = YaneuraOuV367h.exe , eval = Apery20160911
-	T1,b3000,1046 - 19 - 1115(48.4% R-11.1)
+	魔女、技巧 4スレ3秒
 
-	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
-	engine2 = YaneuraOuV367f.exe , eval = Apery20160911
-	T1,b3000,936 - 15 - 1039(47.39% R-18.14)
-	T1,b6000,305 - 5 - 290(51.26% R8.76)
-	→　4スレ3秒でやりなおし。
+・10スレ10秒とかに合わせてチューニングしないといけないのか。辛すぎ…。
 
-	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
-	engine2 = YaneuraOuV367i.exe , eval = Apery20160911
-	T1,b3000,643 - 8 - 649(49.77% R-1.61)
-	T1,b6000,306 - 9 - 295(50.92% R6.36)
-	→　4スレ3秒でやりなおし。
-
-	engine1 = gikou_win_20160606/gikou.exe , eval = dummy
-	engine2 = YaneuraOuV357mid.exe , eval = Apery20160911
-	T1,b3000,650 - 14 - 676(49.02% R-6.81)
-	T1,b6000,297 - 9 - 304(49.42% R-4.05)
-	→　4スレ3秒でやりなおし。
-
-
-
-・試しにmate3()、ちょろっと書く。
-
-・前バージョンとではなく、持ち時間を減らして他のソフトと対局させたほうが良いのでは…。
-　→　新自己対戦フレームワークに追加する。
-・2倍の持ち時間でどれくらい勝率に差が出るのかを計測する。
+	試しにSMとくらべてみる。
 
 
 ■　2016/09/17
@@ -284,6 +492,10 @@ ToDo:
 		engine1 = YaneuraOuV366.exe , eval = Apery20160911
 		engine2 = YaneuraOuV367e.exe , eval = Apery20160911
 		T1,b3000,1283 - 86 - 1041(55.21% R36.31)
+
+		engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+		engine2 = YaneuraOuV367e.exe , eval = Apery20160911
+		T4,b3000,198 - 3 - 219(47.48% R-17.51)
 
 		→　新リダクション、糞すぎワロタ
 

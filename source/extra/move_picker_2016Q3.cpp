@@ -257,8 +257,8 @@ void MovePicker::score<EVASIONS>()
 
 	for (auto& m : *this)
 
-#if defined (USE_SEE) || defined (USE_SIMPLE_SEE)
-
+#if defined (USE_SEE)
+		
 		// see()が負の指し手ならマイナスの値を突っ込んで後回しにする
 		// 王手を防ぐためだけのただで取られてしまう駒打ちとかがここに含まれるであろうから。
 		// evasion自体は指し手の数が少ないのでここでsee()を呼び出すコストは無視できる。
@@ -418,7 +418,9 @@ Move MovePicker::next_move() {
 		cur = moves;
 		endMoves = generateMoves<EVASIONS>(pos, cur);
 		// 生成された指し手が2手以上あるならオーダリングする。
-		if (endMoves - cur > 1)
+		// ただし、そのうちの1つはttMove(があるなら)と一致するはずだから、
+		// これを引いて2手以上あればという条件にする。
+		if (endMoves - cur - (ttMove != MOVE_NONE) > 1)
 			score<EVASIONS>();
 		++stage;
 

@@ -18,6 +18,7 @@
 
 #include <sstream>
 #include <fstream>
+#include <unordered_set>
 
 #include "../misc.h"
 #include "../thread.h"
@@ -286,253 +287,297 @@ struct MultiThinkGenSfen: public MultiThink
 //  thread_id    = 0..Threads.size()-1
 void MultiThinkGenSfen::thread_worker(size_t thread_id)
 {
-  const int MAX_PLY = 256; // 256手までテスト
-  StateInfo state[MAX_PLY + 64]; // StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
-  int ply; // 初期局面からの手数
-  Move m = MOVE_NONE;
+	const int MAX_PLY2 = 512; // 512手までテスト(どうせ評価値が大きくなったら終了するので)
+	StateInfo state[MAX_PLY2 + 64]; // StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
+	int ply; // 初期局面からの手数
+	Move m = MOVE_NONE;
 
-  // 定跡の指し手を用いるモード
-  int book_ply = Options["BookMoves"];
+	// 定跡の指し手を用いるモード
+	int book_ply = Options["BookMoves"];
 
-  // 規定回数回になるまで繰り返し
-  while (true)
-  {
-    auto& pos = Threads[thread_id]->rootPos;
-    pos.set_hirate();
-    
-    // Positionに対して従属スレッドの設定が必要。
-    // 並列化するときは、Threads (これが実体が vector<Thread*>なので、
-    // Threads[0]...Threads[thread_num-1]までに対して同じようにすれば良い。
-    auto th = Threads[thread_id];
-    pos.set_this_thread(th);
+	// 規定回数回になるまで繰り返し
+	while (true)
+	{
+		auto& pos = Threads[thread_id]->rootPos;
+		pos.set_hirate();
 
-    //    cout << endl;
-    for (ply = 0; ply < MAX_PLY - 16; ++ply)
-    {
-      if (pos.is_mated())
-        break;
+		// Positionに対して従属スレッドの設定が必要。
+		// 並列化するときは、Threads (これが実体が vector<Thread*>なので、
+		// Threads[0]...Threads[thread_num-1]までに対して同じようにすれば良い。
+		auto th = Threads[thread_id];
+		pos.set_this_thread(th);
 
-      // 定跡を使用するのか？
-      if (pos.game_ply() <= book_ply)
-      {
-        auto it = book.find(pos);
-        if (it != book.end() && it->second.size() != 0)
-        {
-          // 定跡にhitした。it->second->size()!=0をチェックしておかないと
-          // 指し手のない定跡が登録されていたときに困る。
+		//    cout << endl;
+		for (ply = 0; ply < MAX_PLY2 - 20; ++ply)
+		{
+			if (pos.is_mated())
+				break;
 
-          const auto& move_list = it->second;
+			// 定跡を使用するのか？
+			if (pos.game_ply() <= book_ply)
+			{
+				auto it = book.find(pos);
+				if (it != book.end() && it->second.size() != 0)
+				{
+					// 定跡にhitした。it->second->size()!=0をチェックしておかないと
+					// 指し手のない定跡が登録されていたときに困る。
 
-          const auto& move = move_list[rand(move_list.size())];
-          auto bestMove = move.bestMove;
-          // この指し手に不成があってもLEGALであるならこの指し手で進めるべき。
-          if (pos.pseudo_legal(bestMove) && pos.legal(bestMove))
-          {
-            // この指し手で1手進める。
-            m = bestMove;
-//            cout << m << ' ';
-            goto DO_MOVE;
-          }
-        }
+					const auto& move_list = it->second;
 
-        // 定跡の局面は書き出さない＆思考しない。
-        continue;
-      }
+					const auto& move = move_list[rand(move_list.size())];
+					auto bestMove = move.bestMove;
+					// この指し手に不成があってもLEGALであるならこの指し手で進めるべき。
+					if (pos.pseudo_legal(bestMove) && pos.legal(bestMove))
+					{
+						// この指し手で1手進める。
+						m = bestMove;
+						//            cout << m << ' ';
+						goto DO_MOVE;
+					}
+				}
 
-      {
-        // search_depth手読みの評価値とPV(最善応手列)
-        auto pv_value1 = search(pos, -VALUE_INFINITE, VALUE_INFINITE, search_depth);
-        auto value1 = pv_value1.first;
-        auto pv1 = pv_value1.second;
+				// 定跡の局面は書き出さない＆思考しない。
+				continue;
+			}
+
+			{
+				// search_depth手読みの評価値とPV(最善応手列)
+				auto pv_value1 = search(pos, -VALUE_INFINITE, VALUE_INFINITE, search_depth);
+				auto value1 = pv_value1.first;
+				auto pv1 = pv_value1.second;
 
 #if 1
-		// 評価値の絶対値がこの値以上の局面については
-		// その局面を学習に使うのはあまり意味がないのでこの試合を終了する。
-		if (abs(value1) >= eval_limit)
-			break;
+				// 評価値の絶対値がこの値以上の局面については
+				// その局面を学習に使うのはあまり意味がないのでこの試合を終了する。
+				if (abs(value1) >= eval_limit)
+					break;
 #endif	
 
-		// 何らかの千日手局面に突入したので局面生成を終了する。
-		auto draw_type = pos.is_repetition();
-		if (draw_type != REPETITION_NONE)
-			break;
+				// 何らかの千日手局面に突入したので局面生成を終了する。
+				auto draw_type = pos.is_repetition();
+				if (draw_type != REPETITION_NONE)
+					break;
 
 #if 0
-        // 0手読み(静止探索のみ)の評価値とPV(最善応手列)
-        auto pv_value2 = qsearch(pos, -VALUE_INFINITE, VALUE_INFINITE);
-        auto value2 = pv_value2.first;
-        auto pv2 = pv_value2.second;
+				// 0手読み(静止探索のみ)の評価値とPV(最善応手列)
+				auto pv_value2 = qsearch(pos, -VALUE_INFINITE, VALUE_INFINITE);
+				auto value2 = pv_value2.first;
+				auto pv2 = pv_value2.second;
 #endif
 
-        // 上のように、search()の直後にqsearch()をすると、search()で置換表に格納されてしまって、
-        // qsearch()が置換表にhitして、search()と同じ評価値が返るので注意。
+				// 上のように、search()の直後にqsearch()をすると、search()で置換表に格納されてしまって、
+				// qsearch()が置換表にhitして、search()と同じ評価値が返るので注意。
 
-        // 局面のsfen,3手読みでの最善手,0手読みでの評価値
-        // これをファイルか何かに書き出すと良い。
-        //      cout << pos.sfen() << "," << value1 << "," << value2 << "," << endl;
+				// 局面のsfen,3手読みでの最善手,0手読みでの評価値
+				// これをファイルか何かに書き出すと良い。
+				//      cout << pos.sfen() << "," << value1 << "," << value2 << "," << endl;
 
-		// 局面を書き出そうと思ったら規定回数に達していた。
-		if (get_next_loop_count() == UINT64_MAX)
-			goto FINALIZE;
+				// 局面を書き出そうと思ったら規定回数に達していた。
+				if (get_next_loop_count() == UINT64_MAX)
+					goto FINALIZE;
 
 #ifdef WRITE_PACKED_SFEN
-        u8 data[32];
-        // packを要求されているならpackされたsfenとそのときの評価値を書き出す。
-        pos.sfen_pack(data);
-        // このwriteがスレッド排他を行うので、ここでの排他は不要。
-        sw.write(thread_id, data, value1);
+				u8 data[32];
+				// packを要求されているならpackされたsfenとそのときの評価値を書き出す。
+				pos.sfen_pack(data);
+				// このwriteがスレッド排他を行うので、ここでの排他は不要。
+				sw.write(thread_id, data, value1);
 
 #ifdef TEST_UNPACK_SFEN
 
-        // sfenのpack test
-        // pack()してunpack()したものが元のsfenと一致するのかのテスト。
+				// sfenのpack test
+				// pack()してunpack()したものが元のsfenと一致するのかのテスト。
 
-  //      pos.sfen_pack(data);
-        auto sfen = pos.sfen_unpack(data);
-        auto pos_sfen = pos.sfen();
+		  //      pos.sfen_pack(data);
+				auto sfen = pos.sfen_unpack(data);
+				auto pos_sfen = pos.sfen();
 
-        // 手数の部分の出力がないので異なる。末尾の数字を消すと一致するはず。
-        auto trim = [](std::string& s)
-        {
-          while (true)
-          {
-            auto c = *s.rbegin();
-            if (c < '0' || '9' < c)
-              break;
-            s.pop_back();
-          }
-        };
-        trim(sfen);
-        trim(pos_sfen);
+				// 手数の部分の出力がないので異なる。末尾の数字を消すと一致するはず。
+				auto trim = [](std::string& s)
+				{
+					while (true)
+					{
+						auto c = *s.rbegin();
+						if (c < '0' || '9' < c)
+							break;
+						s.pop_back();
+					}
+				};
+				trim(sfen);
+				trim(pos_sfen);
 
-        if (sfen != pos_sfen)
-        {
-          cout << "Error: sfen packer error\n" << sfen << endl << pos_sfen << endl;
-        }
+				if (sfen != pos_sfen)
+				{
+					cout << "Error: sfen packer error\n" << sfen << endl << pos_sfen << endl;
+				}
 #endif
 
 #else // WRITE_PACKED_SFEN
 
-        {
-          // C++のiostreamに対するスレッド排他は自前で行なう必要がある。
-          std::unique_lock<Mutex> lk(io_mutex);
+				{
+					// C++のiostreamに対するスレッド排他は自前で行なう必要がある。
+					std::unique_lock<Mutex> lk(io_mutex);
 
-          // sfenとそのときの評価値を書き出す。
-          string line = pos.sfen() + "," + to_string(value1) + "\n";
-          sw.write(thread_id, line);
-      }
+					// sfenとそのときの評価値を書き出す。
+					string line = pos.sfen() + "," + to_string(value1) + "\n";
+					sw.write(thread_id, line);
+				}
 #endif
 
 
 #if 0
-        // デバッグ用に局面と読み筋を表示させてみる。
-        cout << pos;
-        cout << "search() PV = ";
-        for (auto pv_move : pv1)
-          cout << pv_move << " ";
-        cout << endl;
+				// デバッグ用に局面と読み筋を表示させてみる。
+				cout << pos;
+				cout << "search() PV = ";
+				for (auto pv_move : pv1)
+					cout << pv_move << " ";
+				cout << endl;
 
-        // 静止探索のpvは存在しないことがある。(駒の取り合いがない場合など)　その場合は、現局面がPVのleafである。
-        cout << "qsearch() PV = ";
-        for (auto pv_move : pv2)
-          cout << pv_move << " ";
-        cout << endl;
+				// 静止探索のpvは存在しないことがある。(駒の取り合いがない場合など)　その場合は、現局面がPVのleafである。
+				cout << "qsearch() PV = ";
+				for (auto pv_move : pv2)
+					cout << pv_move << " ";
+				cout << endl;
 
 #endif
 
 #ifdef TEST_LEGAL_LEAF
-        // デバッグ用の検証として、
-        // PVの指し手でleaf nodeまで進めて、非合法手が混じっていないかをテストする。
-        auto go_leaf_test = [&](auto pv) {
-          int ply2 = ply;
-          for (auto m : pv)
-          {
-            // 非合法手はやってこないはずなのだが。
-            if (!pos.pseudo_legal(m) || !pos.legal(m))
-            {
-              cout << pos << m << endl;
-              ASSERT_LV3(false);
-            }
-            pos.do_move(m, state[ply2++]);
-          }
-          // leafに到達
-          //      cout << pos;
+				// デバッグ用の検証として、
+				// PVの指し手でleaf nodeまで進めて、非合法手が混じっていないかをテストする。
+				auto go_leaf_test = [&](auto pv) {
+					int ply2 = ply;
+					for (auto m : pv)
+					{
+						// 非合法手はやってこないはずなのだが。
+						if (!pos.pseudo_legal(m) || !pos.legal(m))
+						{
+							cout << pos << m << endl;
+							ASSERT_LV3(false);
+						}
+						pos.do_move(m, state[ply2++]);
+					}
+					// leafに到達
+					//      cout << pos;
 
-          // 巻き戻す
-          auto pv_r = pv;
-          std::reverse(pv_r.begin(), pv_r.end());
-          for (auto m : pv_r)
-            pos.undo_move(m);
-        };
+					// 巻き戻す
+					auto pv_r = pv;
+					std::reverse(pv_r.begin(), pv_r.end());
+					for (auto m : pv_r)
+						pos.undo_move(m);
+				};
 
-        go_leaf_test(pv1); // 通常探索のleafまで行くテスト
-  //      go_leaf_test(pv2); // 静止探索のleafまで行くテスト
+				go_leaf_test(pv1); // 通常探索のleafまで行くテスト
+		  //      go_leaf_test(pv2); // 静止探索のleafまで行くテスト
 #endif
 
-        // 3手読みの指し手で局面を進める。
-        m = pv1[0];
-      }
+		// 3手読みの指し手で局面を進める。
+				m = pv1[0];
+			}
 
 #ifdef      USE_SWAPPING_PIECES
-      // 2駒をときどき入れ替える機能
-      
-      // このイベントは、王手がかかっていない局面において一定の確率でこの指し手が発生する。
-      // 王手がかかっていると王手回避しないといけないので良くない。
-      // 二枚とも歩が選ばれる可能性がそこそこあるため、1/5に設定しておく。
-	  // また、レアケースながら盤上に王しかいないケースがある。
-	  // これは、6駒以上という条件を入れておく。
-	  if (rand(5) == 0 && !pos.in_check() && pos.pieces(pos.side_to_move()).pop_count() >= 6)
-      {
-        for (int retry = 0; retry < 10; ++retry)
-        {
-          // 手番側の駒を2駒入れ替える。
+			// 2駒をときどき入れ替える機能
 
-          // 与えられたBitboardからランダムに1駒を選び、そのSquareを返す。
-          auto get_one = [this](Bitboard pieces)
-          {
-            // 駒の数
-            int num = pieces.pop_count();
+			// このイベントは、王手がかかっていない局面において一定の確率でこの指し手が発生する。
+			// 王手がかかっていると王手回避しないといけないので良くない。
+			// 二枚とも歩が選ばれる可能性がそこそこあるため、1/5に設定しておく。
+			// また、レアケースながら盤上に王しかいないケースがある。
+			// これは、6駒以上という条件を入れておく。
+			if (rand(5) == 0 && !pos.in_check() && pos.pieces(pos.side_to_move()).pop_count() >= 6)
+			{
+				for (int retry = 0; retry < 10; ++retry)
+				{
+					// 手番側の駒を2駒入れ替える。
 
-            // 何番目かの駒
-            int n = (int)rand(num) + 1;
-            Square sq = SQ_NB;
-            for (int i = 0; i < n; ++i)
-              sq = pieces.pop();
-            return sq;
-          };
+					// 与えられたBitboardからランダムに1駒を選び、そのSquareを返す。
+					auto get_one = [this](Bitboard pieces)
+					{
+						// 駒の数
+						int num = pieces.pop_count();
 
-          // この升の2駒を入れ替える。
-          auto pieces = pos.pieces(pos.side_to_move());
-		  
-          auto sq1 = get_one(pieces);
-          // sq1を除くbitboard
-          auto sq2 = get_one(pieces ^ sq1);
+						// 何番目かの駒
+						int n = (int)rand(num) + 1;
+						Square sq = SQ_NB;
+						for (int i = 0; i < n; ++i)
+							sq = pieces.pop();
+						return sq;
+					};
 
-        // sq2は王しかいない場合、SQ_NBになるから、これを調べておく
-        // この指し手に成功したら、それはdo_moveの代わりであるから今回、do_move()は行わない。
+					// この升の2駒を入れ替える。
+					auto pieces = pos.pieces(pos.side_to_move());
 
-          if (sq2 != SQ_NB
-            && pos.do_move_by_swapping_pieces(sq1, sq2))
-          {
+					auto sq1 = get_one(pieces);
+					// sq1を除くbitboard
+					auto sq2 = get_one(pieces ^ sq1);
+
+					// sq2は王しかいない場合、SQ_NBになるから、これを調べておく
+					// この指し手に成功したら、それはdo_moveの代わりであるから今回、do_move()は行わない。
+
+					if (sq2 != SQ_NB
+						&& pos.do_move_by_swapping_pieces(sq1, sq2))
+					{
 #if 0
-            // 検証用のassert
-            if (!is_ok(pos))
-              cout << pos << sq1 << sq2;
+						// 検証用のassert
+						if (!is_ok(pos))
+							cout << pos << sq1 << sq2;
 #endif
-            goto DO_MOVE_FINISH;
-          }
-        }
-      }
+						goto DO_MOVE_FINISH;
+					}
+				}
+			}
 #endif
-    DO_MOVE:;
-      pos.do_move(m, state[ply]);
 
-    DO_MOVE_FINISH:;
+#ifdef USE_RANDOM_LEGAL_MOVE
 
-    }
-  }
+			// 合法手のなかからランダムに1手選ぶフェーズ
+			// 1/5の確率で。
+			if (rand(5) == 0)
+			{
+				{
+					MoveList<LEGAL> list(pos);
+					m = list.at(rand(list.size()));
+				}
+
+				// これが玉の移動であれば、1/2の確率で再度玉を移動させて、なるべく色んな位置の玉に対するデータを集める。
+				// ただし王手がかかっている局面だと手抜くと玉を取られてしまうのでNG
+				bool king_move = type_of(pos.moved_piece_after(m))==KING;
+				pos.do_move(m, state[ply]);
+
+				if (king_move && !pos.in_check() && rand(2) == 0)
+				{
+					// 手番を変更する。
+					pos.do_null_move(state[++ply]);
+
+					// 再度、玉の移動する指し手をランダムに選ぶ
+					MoveList<LEGAL> list(pos);
+					ExtMove* it2 = (ExtMove*)list.begin();
+					for (ExtMove* it = (ExtMove*)list.begin(); it != list.end(); ++it)
+						if (type_of(pos.moved_piece_after(it->move)) != KING)
+							*it2++ = *it;
+							
+					auto size = it2 - list.begin();
+					if (size == 0)
+					{
+						// 局面を戻しておく。
+						pos.undo_null_move();
+					} else {
+						// ランダムにひとつ選ぶ
+						pos.do_move(list.at(rand(size)),state[++ply]);
+					}
+				}
+
+				goto DO_MOVE_FINISH;
+			}
+#endif
+
+		DO_MOVE:;
+			pos.do_move(m, state[ply]);
+
+		DO_MOVE_FINISH:;
+
+		}
+	}
 FINALIZE:;
-  sw.finalize(thread_id);
+	sw.finalize(thread_id);
 }
 
 // -----------------------------------
@@ -588,6 +633,7 @@ void gen_sfen(Position& pos, istringstream& is)
 	  << " , loop_max = " << loop_max
 	  << " , eval_limit = " << eval_limit
 	  << " , thread_num (set by USI setoption) = " << thread_num
+	  << " , book_moves (set by USI setoption) = " << Options["BookMoves"]
 	  << " , filename = " << filename
 	  << endl;
 
@@ -727,6 +773,7 @@ struct SfenReader
 	// mseの計算用に1万局面ほど読み込んでおく。
 	void read_for_mse()
 	{
+		Position& pos = Threads.main()->rootPos;
 		for (int i = 0; i < 10000; ++i)
 		{
 			PackedSfenValue ps;
@@ -736,6 +783,10 @@ struct SfenReader
 				break;
 			}
 			sfen_for_mse.push_back(ps);
+
+			// hash keyを求める。
+			pos.set_from_packed_sfen(&ps.data[0]);
+			sfen_for_mse_hash.insert(pos.key());
 		}
 	}
 
@@ -956,6 +1007,13 @@ struct SfenReader
 
 	u64 save_count;
 
+	// rmseの計算用の局面であるかどうかを判定する。
+	// (rmseの計算用の局面は学習のために使うべきではない。)
+	bool is_for_rmse(Key key) const
+	{
+		return sfen_for_mse_hash.count(key) != 0;
+	}
+
 protected:
 
 	// fileをバックグラウンドで読み込みしているworker thread
@@ -983,6 +1041,8 @@ protected:
 
 	// mse計算用のバッファ
 	vector<PackedSfenValue> sfen_for_mse;
+	// mse計算用の局面を学習に用いないためにhash keyを保持しておく。
+	std::unordered_set<Key> sfen_for_mse_hash;
 };
 
 
@@ -1065,15 +1125,18 @@ void LearnerThink::thread_worker(size_t thread_id)
 		}
 
 		PackedSfenValue ps;
+	RetryRead:;
 		if (!sr.read_to_thread_buffer(thread_id, ps))
 			break;
-
+		
 #if 0
 		auto sfen = pos.sfen_unpack(ps.data);
 		pos.set(sfen);
 #endif
 		// ↑sfenを経由すると遅いので専用の関数を作った。
 		pos.set_from_packed_sfen(ps.data);
+		if (sr.is_for_rmse(pos.key()))
+			goto RetryRead;
 
 		auto th = Threads[thread_id];
 		pos.set_this_thread(th);

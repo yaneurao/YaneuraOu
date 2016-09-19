@@ -2,6 +2,18 @@
 やねうら王 更新履歴
 
 
+■　2016/09/18～2016/09/20 V3.69
+
+・自己対戦用のpythonスクリプトV3を用意。エンジンそれぞれに対して異なる持ち時間設定で対局できるようにした。
+・Stockfish : Fix a warning with MSVC
+・Stockfish : Fix indentation in struct FromToStats
+・教師局面の生成、USE_RANDOM_LEGAL_MOVE追加。
+・教師局面の生成、最大手数を512に変更。
+・MultiThinkGenSfen::thread_workerでconst intのMAX_PLYがglobalのMAX_PLYと被っていたの修正。
+・USE_DEBUG_ASSERT有効のときに、エラーメッセージ出力後、停止するように変更。
+・教師局面からの学習で、クロスバリデーションのために保存している局面は2周目でも学習には使用しないように変更。
+
+
 ■　2016/09/17 V3.68
 
 ・Stockfish : Renaming in MovePicker
@@ -12,6 +24,10 @@
 ・min_attackerで角・飛車に馬、龍が混じっていたの修正。
 ・move_picker_2016Q3.hのMovePicker::pick_the_best()を.cpp側に移動。
 ・Position::pawn_promotion()追加。
+・Stockfish : Use per-thread counterMoveHistory
+	→　コア数が多いと効果があるが、コア数が少ないか持ち時間が少ないとマイナスの効果があるようだ。
+・CSAルール改正に伴い、MinumumThinkingTimeのデフォルト値を2000から1000に変更。
+・自己対戦用のpythonスクリプト、score cp XXX のところに数字以外が送られてくるエンジン向けに修正。
 
 
 ■　2016/09/16 V3.67

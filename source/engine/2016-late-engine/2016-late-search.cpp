@@ -319,10 +319,6 @@ namespace YaneuraOu2016Late
 	//     Statsのupdate
 	// -----------------------
 
-	// これglobalに確保しているが、スレッドごとに別の局面を探索させる場合は
-	// 個別に確保したほうが本当は良い。まあ、そこまで探索性能悪化しないだろうけども…。
-	CounterMoveHistoryStats CounterMoveHistory;
-
 	// update_cm_stats()は、countermoveとfollow-up move historyを更新する。
 	void update_cm_stats(Stack* ss, Piece pc, Square s, Value bonus)
 	{
@@ -1302,7 +1298,7 @@ namespace YaneuraOu2016Late
 				if (pos.legal(move))
 				{
 					ss->currentMove = move;
-					ss->counterMoves = &CounterMoveHistory[to_sq(move)][pos.moved_piece_after(move)];
+					ss->counterMoves = &thisThread->counterMoveHistory[to_sq(move)][pos.moved_piece_after(move)];
 
 					pos.do_move(move, st, pos.gives_check(move));
 					value = -search<NonPV>(pos, ss + 1, -rbeta, -rbeta + 1, rdepth, !cutNode);
@@ -1622,10 +1618,11 @@ namespace YaneuraOu2016Late
 #endif
 
 					// ToDo: 古いほうの枝刈りのコード。↑と↓↓の代わりに用いる。
-					// たぶん↑のコードは、将棋においては刈らなさすぎなのだと思う。
-					// ↓↓のコードはよくわからない。
-					// 		T1,b3000,2653 - 132 - 2215(54.5% R31.35)[2016/09/17]
+					// 評価値がPawnValueが100ではないので何らか調整が要るんだろうな…。
+					// PARAM_FUTILITY_AT_PARENT_NODE_GAMMAをゼロに近づけると以下と等価にはなるはずなのだが..
 
+					// この枝刈りをなしにすると対技巧の勝率が6秒4スレッドで落ちた。
+					// パラメーターの自動調整に任せる。
 #if 1
 					// 次の子nodeにおいて浅い深さになる場合、負のSSE値を持つ指し手の枝刈り
 					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH
@@ -1662,7 +1659,7 @@ namespace YaneuraOu2016Late
 
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
-			ss->counterMoves = &CounterMoveHistory[moved_sq][moved_pc];
+			ss->counterMoves = &thisThread->counterMoveHistory[moved_sq][moved_pc];
 
 
 			// 指し手で1手進める
@@ -2159,7 +2156,6 @@ void Search::clear()
 	//   置換表のクリアなど
 	// -----------------------
 	TT.clear();
-	CounterMoveHistory.clear();
 
 	// Threadsが変更になってからisreadyが送られてこないとisreadyでthread数だけ初期化しているものはこれではまずいの
 	for (Thread* th : Threads)
@@ -2167,10 +2163,10 @@ void Search::clear()
 		th->history.clear();
 		th->counterMoves.clear();
 		th->fromTo.clear();
+		th->counterMoveHistory.clear();
 	}
 
 	Threads.main()->previousScore = VALUE_INFINITE;
-
 }
 
 
@@ -2449,7 +2445,7 @@ void Thread::search()
 				// failLowが起きてなかったり、1つ前の反復深化から値がよくなってたりするとimprovingFactorが小さくなる。
 				if (rootMoves.size() == 1
 					|| elapsed > Time.optimum() * unstablePvFactor * improvingFactor / 628
-					|| (mainThread->easyMovePlayed = doEasyMove))
+					|| (mainThread->easyMovePlayed = doEasyMove , doEasyMove ))
 				{
 					// 停止条件を満たした
 
