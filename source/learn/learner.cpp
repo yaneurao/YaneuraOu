@@ -817,9 +817,6 @@ struct SfenReader
 		ps = *(thread_ps->rbegin());
 		thread_ps->pop_back();
 
-		// このインクリメントはatomic
-		total_done++;
-
 		return true;
 	}
 
@@ -1159,6 +1156,9 @@ void LearnerThink::thread_worker(size_t thread_id)
 		pos.set_from_packed_sfen(ps.data);
 		if (sr.is_for_rmse(pos.key()))
 			goto RetryRead;
+
+		// このインクリメントはatomic
+		sr.total_done++;
 
 		auto th = Threads[thread_id];
 		pos.set_this_thread(th);

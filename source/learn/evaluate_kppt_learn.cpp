@@ -56,11 +56,11 @@ namespace Eval
 #if 0
 		// Apery(WCSC26)の評価関数、玉が5筋にいるきにmirrorした値が一致しないので
 		// assertから除外しておく。
-		ASSERT_LV3(kpp[k1][p1][p2] == kpp[k1][p2][p1]);
 		ASSERT_LV3(kpp[k1][p1][p2] == kpp[mk1][mp1][mp2] || file_of(k1) == FILE_5);
 		ASSERT_LV3(kpp[k1][p1][p2] == kpp[mk1][mp2][mp1] || file_of(k1) == FILE_5);
 #endif
 
+		ASSERT_LV3(kpp[k1][p1][p2] == kpp[k1][p2][p1]);
 		kpp[k1][p1][p2]
 			= kpp[k1][p2][p1]
 
@@ -117,7 +117,7 @@ namespace Eval
 			= value;
 
 	// kkpに関して180度のflipは入れないほうが良いのでは..
-#if 0
+#if USE_KKP_FLIP_WRITE
 		ASSERT_LV3(kkp[k1][k2][p1][0] == -kkp[ik2][ik1][ip1][0]);
 		ASSERT_LV3(kkp[k1][k2][p1][1] == +kkp[ik2][ik1][ip1][1]);
 		ASSERT_LV3(kkp[ik2][ik1][ip1] == kkp[mik2][mik1][mip1]);
@@ -416,11 +416,14 @@ namespace Eval
 				{
 					// fの符号に応じて
 					// -3..0..3を二項分布で返す。
+					// →　あんまり良くないかも。
 					static PRNG prng;
-					if (f > 0)
-						return (float)(POPCNT32((u32)prng.rand(16)));
-					if (f < 0)
-						return (float)-(POPCNT32((u32)prng.rand(16)));
+					if (f > 0.1f)
+//						return (float)(POPCNT32((u32)prng.rand(4)) + 1);
+						return 0.5f;
+					if (f < -0.1f)
+//						return (float)-(POPCNT32((u32)prng.rand(4)) + 1);
+						return -0.5f;
 
 					return 0.0f;
 				};
@@ -669,6 +672,9 @@ namespace Eval
 
 #endif
 
+#ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
+		int max_kpp_k = -1, max_kpp_p1 = -1, max_kpp_p2 = -1;
+#endif
 
 // 学習をopenmpで並列化(この間も局面生成は続くがまあ、問題ないやろ..
 #ifdef _OPENMP
@@ -709,10 +715,29 @@ namespace Eval
 
 						auto& w = kpp_w[k][p1][p2];
 
+						// p1,p2を入れ替えたものも集計する。
+						auto& w2 = kpp_w[k][p2][p1];
+						w.g += w2.g;
+						w2.g = { 0.0f , 0.0f };
+
+#if defined (USE_SGD_UPDATE) || defined (USE_YANE_SGD_UPDATE) || defined(USE_YANENZA_UPDATE)
+						w.count += w2.count;
+						w2.count = 0;
+#endif
+
 #ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
 						min_kpp = { min(min_kpp[0], w.w[0]) , min(min_kpp[1], w.w[1]) };
 						max_kpp = { max(max_kpp[0], w.w[0]) , max(max_kpp[1], w.w[1]) };
 						sum_kpp = { sum_kpp[0] + abs(w.w[0]) , sum_kpp[1] + abs(w.w[1]) };
+
+						// デバッグ用に、これがどこの値であるかを表示する。
+						if (max_kpp[0] == w.w[0])
+						{
+							max_kpp_k = k;
+							max_kpp_p1 = p1;
+							max_kpp_p2 = p2;
+						}
+
 #endif
 
 						if (w.update(skip_update))
@@ -760,6 +785,7 @@ namespace Eval
 
 #ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
 		cout << "\n min_kpp = " << min_kpp << " , max_kpp = " << max_kpp << " , sum_kpp = " << sum_kpp << " ";
+		cout << "\n max_kpp (k,p1,p2) = " << "(" << max_kpp_k << " , " << max_kpp_p1 << " , " << max_kpp_p2 << ")";
 #endif
 	}
 
