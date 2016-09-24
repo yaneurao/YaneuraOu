@@ -202,7 +202,7 @@ void MovePicker::generate_next_stage()
     endMoves = endBadCaptures;
     break;
 
-  case QUIETS:
+  case SEARCH_QUIETS:
     endMoves = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, moves);
     score_quiets();
     // プラスの符号のものだけ前方に移動させてソート

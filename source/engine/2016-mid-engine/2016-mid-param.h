@@ -1,5 +1,5 @@
-﻿#ifndef _2016_MID_PARAMETERS_
-#define _2016_MID_PARAMETERS_
+﻿#ifndef _2016_MID_PARAMETERS_H_
+#define _2016_MID_PARAMETERS_H_
 
 //
 // futility pruning

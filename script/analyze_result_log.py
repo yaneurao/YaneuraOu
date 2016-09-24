@@ -1,10 +1,15 @@
 # -*- coding: utf8 -*-
+'''
+やねうら王 2016 Lateのランダムパラメーター機能で探索パラメーターを変化させて
+対局させたときのログを集計して一番勝率の高いものを選ぶための分析スクリプト。
+'''
 import os
 import sys
 import glob
 import math
+from collections import OrderedDict
 
-params = {}
+params = OrderedDict()
 
 def analyze_log(file_path):
 
@@ -76,8 +81,8 @@ if __name__ == '__main__':
 
 		print key + ":"
 
-		win = lose = draw = 0
 		for key2,result in sorted(param.items(),key = lambda x:int(x[0])):
+			win = lose = draw = 0
 			if "win" in result:
 				win = result["win"]
 			if "lose" in result:
