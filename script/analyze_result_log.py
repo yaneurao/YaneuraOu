@@ -59,15 +59,20 @@ if __name__ == '__main__':
 	for file_path in sorted(glob.glob(os.path.join(sys.argv[1], '*.log'))):
 		fig = analyze_log(file_path)
 
+	t_win = t_lose = t_draw = 0
+	first = True
 	for key,param in params.items():
+		if first:
+			first = False
+			for key2,result in param.items():
+				t_win += result["win"]
+				t_lose += result["lose"]
+				t_draw += result["draw"]
+			total = t_win+t_lose+t_draw
+			print "  total : " + rating(t_win,t_lose,t_draw)
+
 		print key + ":"
-		t_win = t_lose = t_draw = 0
-		for key2,result in param.items():
-			t_win += result["win"]
-			t_lose += result["lose"]
-			t_draw += result["draw"]
-		total = t_win+t_lose+t_draw
-		print "  total : " + rating(t_win,t_lose,t_draw)
+
 		for key2,result in sorted(param.items(),key = lambda x:int(x[0])):
 			win = result["win"]
 			lose = result["lose"]
