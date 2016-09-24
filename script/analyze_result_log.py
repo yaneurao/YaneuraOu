@@ -65,17 +65,24 @@ if __name__ == '__main__':
 		if first:
 			first = False
 			for key2,result in param.items():
-				t_win += result["win"]
-				t_lose += result["lose"]
-				t_draw += result["draw"]
+				if "win" in result:
+					t_win += result["win"]
+				if "lose" in result:
+					t_lose += result["lose"]
+				if "draw" in result:
+					t_draw += result["draw"]
 			total = t_win+t_lose+t_draw
 			print "  total : " + rating(t_win,t_lose,t_draw)
 
 		print key + ":"
 
+		win = lose = draw = 0
 		for key2,result in sorted(param.items(),key = lambda x:int(x[0])):
-			win = result["win"]
-			lose = result["lose"]
-			draw = result["draw"]
+			if "win" in result:
+				win = result["win"]
+			if "lose" in result:
+				lose = result["lose"]
+			if "draw" in result:
+				draw = result["draw"]
 			print "  " + key2 + " : " + rating(win,lose,draw)
 
