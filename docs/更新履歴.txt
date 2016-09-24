@@ -2,6 +2,30 @@
 やねうら王 更新履歴
 
 
+■　2016/09/24 V3.72
+
+・2016 Late用のパラメーターファイル名変更。
+・2016 LateにUSE_RANDOM_PARAMETERS機能追加。
+・2016 Lateのほう、パラメーターファイル、MASTERとSLAVEに分けるのやめる。
+・pythonの対戦スクリプトにPARAMETERS_LOG_FILE_PATHの追加。
+・pythonの対戦スクリプト、gameoverコマンド正しく返すように修正。
+・ランダムパラメーターのログファイルを分析するpythonのスクリプト追加。
+・lateのパラメーターファイルは非公開に変更して、残りはGitHubに公開。
+
+
+■　2016/09/24 V3.71
+
+・Stockfish : Fix pin-aware SEE
+・Stockfish : Simplify pinners conditions in SEE()
+
+
+■　2016/09/21～2016/09/22 V3.70
+
+・ADAMの学習率0.5に変更。更新式、doubleの精度で計算するように変更。
+・LOSS_FUNCTIONにCROSS_ENTOROPY_FOR_VALUE追加。
+・AdaGradの学習率調整。
+
+
 ■　2016/09/18～2016/09/20 V3.69
 
 ・自己対戦用のpythonスクリプトV3を用意。エンジンそれぞれに対して異なる持ち時間設定で対局できるようにした。

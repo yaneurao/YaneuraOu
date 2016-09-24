@@ -173,7 +173,7 @@ Value Position::see(const Move m) const
 	int slIndex = 1;
 
 	// 次にtoの升で捕獲される駒
-	Piece captured;
+	Piece nextVictim;
 
 	// 移動させる駒側のturnから始まるものとする。
 	// 次に列挙すべきは、この駒を取れる敵の駒なので、相手番に。
@@ -209,35 +209,36 @@ Value Position::see(const Move m) const
 
 	// pinされている駒を攻撃のために使うことを許さない。
 	// pinnderをseeの交換のために動かしたなら、標準的なSEEに挙動に戻る。
-	if ((stmAttackers & pinned_pieces(stm))
-		&& (st->pinnersForKing[stm] & occupied) == st->pinnersForKing[stm])
-		stmAttackers &= ~pinned_pieces(stm);
+	if (!(st->pinnersForKing[stm] & ~occupied))
+		stmAttackers &= ~st->blockersForKing[stm];
 
 	if (!stmAttackers)
 		return swapList[0];
 
 	// 成りなら成りを評価したほうが良い可能性があるが、このあとの取り合いで指し手の成りを評価していないので…。
-	captured = drop ? move_dropped_piece(m) : type_of(piece_on(from));
+	nextVictim = drop ? move_dropped_piece(m) : type_of(piece_on(from));
 
 	do {
 		ASSERT_LV3(slIndex < 32);
 
-		swapList[slIndex] = -swapList[slIndex - 1] + CapturePieceValue[captured];
+		swapList[slIndex] = -swapList[slIndex - 1] + CapturePieceValue[nextVictim];
 
 		// 将棋だと香の利きが先後で違うのでmin_attacker()に手番も渡してやる必要がある。
-		captured = (stm == BLACK)
+		nextVictim = (stm == BLACK)
 			? min_attacker<BLACK>(*this, to, stmAttackers, occupied, attackers)
 			: min_attacker<WHITE>(*this, to, stmAttackers, occupied, attackers);
 
 		stm = ~stm;
 		stmAttackers = attackers & pieces(stm);
-		if ((stmAttackers & pinned_pieces(stm))
-			&& (st->pinnersForKing[stm] & occupied) == st->pinnersForKing[stm])
-			stmAttackers &= ~pinned_pieces(stm);
+
+		// pinされた駒から玉を除く駒への利きは許さない。
+		if (nextVictim != KING
+			&& !(st->pinnersForKing[stm] & ~occupied))
+			stmAttackers &= ~st->blockersForKing[stm];
 
 		++slIndex;
 
-	} while (stmAttackers && (captured != KING || (--slIndex, false)));
+	} while (stmAttackers && (nextVictim != KING || (--slIndex, false)));
 	// kingを捕獲する前にslIndexをデクリメントして停止する。
 
 	while (--slIndex)

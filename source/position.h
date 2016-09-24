@@ -331,6 +331,7 @@ struct Position
 	// 升sに対して、c側の大駒に含まれる長い利きを持つ駒の利きを遮っている駒のBitboardを返す(先後の区別なし)
 	// ※　Stockfishでは、sildersを渡すようになっているが、大駒のcolorを渡す実装のほうが優れているので変更。
 	// [Out] pinnersとは、pinされている駒が取り除かれたときに升sに利きが発生する大駒である。これは返し値。
+	// また、升sにある玉は~c側のKINGであるとする。
 	Bitboard slider_blockers(Color c, Square s, Bitboard& pinners) const;
 
 	// --- 局面を進める/戻す

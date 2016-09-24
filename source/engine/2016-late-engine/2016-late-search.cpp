@@ -6,6 +6,7 @@
 //   やねうら王2016(late)設定部
 // -----------------------
 
+
 // 開発方針
 // やねうら王classic-tceからの改造。
 // 探索のためのハイパーパラメーターの完全自動調整。
@@ -14,12 +15,14 @@
 // 自動調整が終われば、ファイルを固定してincludeしたほうが良い。
 //#define USE_AUTO_TUNE_PARAMETERS
 
+// 探索パラメーターにstep分のランダム値を加えて対戦させるとき用。
+// 試合が終わったときに勝敗と、そのときに用いたパラメーター一覧をファイルに出力する。
+#define USE_RANDOM_PARAMETERS
 
-// 読み込むパラメーターファイル名
-// これがdefineされていると"parameters_master.h"
-// defineされていなければ"parameters_slave.h"
-// を(実行時に)読み込む。
-//#define PARAMETERS_MASTER
+
+// -----------------------
+//   探索部の設定
+// -----------------------
 
 // mate1ply()を呼び出すのか
 #define USE_MATE_1PLY_IN_SEARCH
@@ -48,18 +51,14 @@
 #include "../../learn/learn.h"
 
 // ハイパーパラメーターを自動調整するときはstatic変数にしておいて変更できるようにする。
-#ifdef USE_AUTO_TUNE_PARAMETERS
+#if defined (USE_AUTO_TUNE_PARAMETERS) || defined(USE_RANDOM_PARAMETERS)
 #define PARAM_DEFINE static int
 #else
 #define PARAM_DEFINE constexpr int
 #endif
 
 // 実行時に読み込むパラメーターファイルの名前
-#ifdef PARAMETERS_MASTER
-#define PARAM_FILE "parameters_master.h"
-#else
-#define PARAM_FILE "parameters_slave.h"
-#endif
+#define PARAM_FILE "2016-late-param.h"
 #include "2016-late-param.h"
 
 
@@ -69,6 +68,11 @@ using namespace Eval;
 
 // 定跡ファイル名
 string book_name;
+
+#ifdef USE_RANDOM_PARAMETERS
+// 変更したパラメーター一覧と、リザルト(勝敗)を書き出すためのファイルハンドル
+static fstream result_log;
+#endif
 
 // USIに追加オプションを設定したいときは、この関数を定義すること。
 // USI::init()のなかからコールバックされる。
@@ -149,6 +153,12 @@ void USI::extra_option(USI::OptionsMap & o)
 	sync_cout << "info string warning!! disable is_draw()." << sync_endl;
 #endif
 
+#ifdef USE_RANDOM_PARAMETERS
+	sync_cout << "info string warning!! USE_RANDOM_PARAMETERS." << sync_endl;
+
+	// パラメーターのログの保存先のfile path
+	o["PARAMETERS_LOG_FILE_PATH"] << Option("param_log.txt");
+#endif
 }
 
 // -----------------------
@@ -1376,7 +1386,7 @@ namespace YaneuraOu2016Late
 		// 調べた指し手を残しておいて、statusのupdateを行なうときに使う。
 		// ここ、PARAM_QUIET_SEARCH_COUNTにしたいが、これは自動調整時はstatic変数なので指定できない。
 		Move quietsSearched[
-#ifdef USE_AUTO_TUNE_PARAMETERS
+#if defined (USE_AUTO_TUNE_PARAMETERS) || defined(USE_RANDOM_PARAMETERS)
 			128
 #else
 			PARAM_QUIET_SEARCH_COUNT
@@ -1995,13 +2005,13 @@ using namespace YaneuraOu2016Late;
 // 定跡ファイル
 Book::MemoryBook book;
 
-// 起動時に呼び出される。時間のかからない探索関係の初期化処理はここに書くこと。
-void Search::init() {
-
+// パラメーターの初期化
+void init_param()
+{
 	// -----------------------
 	//   parameters.hの動的な読み込み
 	// -----------------------
-#ifdef  USE_AUTO_TUNE_PARAMETERS
+#if defined (USE_AUTO_TUNE_PARAMETERS) || defined(USE_RANDOM_PARAMETERS)
 	{
 		vector<string> param_names = {
 			"PARAM_FUTILITY_MARGIN_ALPHA" , "PARAM_FUTILITY_MARGIN_BETA" , "PARAM_FUTILITY_AT_PARENT_NODE_GAMMA" ,
@@ -2027,7 +2037,7 @@ void Search::init() {
 		};
 
 		fstream fs;
-		fs.open("param/" PARAM_FILE, ios::in);
+		fs.open("param\\" PARAM_FILE, ios::in);
 		if (fs.fail())
 		{
 			cout << "info string Error! : can't read " PARAM_FILE << endl;
@@ -2035,7 +2045,15 @@ void Search::init() {
 		}
 
 		int count = 0;
-		string line;
+		string line, last_line;
+
+		// bufのなかにある部分文字列strの右側にある数値を読む。
+		auto get_num = [](const string& buf, const string& str)
+		{
+			auto pos = buf.find(str);
+			ASSERT_LV3(pos != -1);
+			return stoi(buf.substr(pos + str.size()));
+		};
 
 		vector<bool> founds(param_vars.size());
 
@@ -2048,18 +2066,38 @@ void Search::init() {
 					if (line.find(param_names[i]) != -1)
 					{
 						count++;
+
 						// "="の右側にある数値を読む。
-						auto pos = line.find("=");
-						ASSERT_LV3(pos != -1);
-						*param_vars[i] = stoi(line.substr(pos + 1));
-						founds[i] = true; // 見つかった
-										  //            cout << param_names[i] << " = " << *param_vars[i] << endl;
+						*param_vars[i] = get_num(line, "=");
+
+						// 見つかった
+						founds[i] = true;
+
+#ifdef USE_RANDOM_PARAMETERS
+						// PARAM_DEFINEの一つ前の行には次のように書いてあるはずなので、
+						// USE_RANDOM_PARAMETERSのときは、このstepをプラスかマイナス方向に加算してやる。
+						// [PARAM] min:100,max:240,step:3,interval:1,time_rate:1
+						static PRNG rand;
+						int param_step = get_num(last_line, "step:");
+						int param_min = get_num(last_line, "min:");
+						int param_max = get_num(last_line, "max:");
+
+						switch (rand.rand(3))
+						{
+						case 0:break;
+						case 1: *param_vars[i] = min(*param_vars[i] + param_step, param_max); break;
+						case 2: *param_vars[i] = max(*param_vars[i] - param_step, param_min); break;
+						}
+#endif
+
+						//            cout << param_names[i] << " = " << *param_vars[i] << endl;
 						goto NEXT;
 					}
 				cout << "Error : param not found! in parameters.h -> " << line << endl;
 
 			NEXT:;
 			}
+			last_line = line; // 1つ前の行を記憶しておく。
 		}
 		fs.close();
 
@@ -2072,7 +2110,29 @@ void Search::init() {
 					cout << "Error : param not found in " << PARAM_FILE << " -> " << param_names[i] << endl;
 		}
 
+#ifdef USE_RANDOM_PARAMETERS
+		{
+			if (!result_log.is_open())
+				result_log.open(Options["PARAMETERS_LOG_FILE_PATH"], ios::app);
+			// 今回のパラメーターをログファイルに書き出す。
+			for (int i = 0; i < param_names.size(); ++i)
+			{
+				result_log << param_names[i] << ":" << *param_vars[i] << ",";
+			}
+			result_log << endl << flush;
+		}
+#endif
+
 	}
+#endif
+}
+
+// 起動時に呼び出される。時間のかからない探索関係の初期化処理はここに書くこと。
+void Search::init() {
+
+	// USE_RANDOM_PARAMETERSを用いないときは、このタイミングで探索パラメーターを初期化しておく。
+#ifndef	USE_RANDOM_PARAMETERS
+	init_param();
 #endif
 
 	// -----------------------
@@ -2142,9 +2202,28 @@ void Search::init() {
 
 }
 
+// パラメーターのランダム化のときには、
+// USIの"gameover"コマンドに対して、それをログに書き出す。
+void gameover_handler(const string& cmd)
+{
+#ifdef USE_RANDOM_PARAMETERS
+	result_log << cmd << endl << flush;
+#endif
+}
+
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
 void Search::clear()
 {
+
+	// -----------------------
+	//   探索パラメーターの初期化
+	// -----------------------
+
+	// USE_RANDOM_PARAMETERSを用いるときは、このタイミングで探索パラメーターを初期化する。(毎回ランダム化)
+#ifdef	USE_RANDOM_PARAMETERS
+	init_param();
+#endif
+
 	// -----------------------
 	//   定跡の読み込み
 	// -----------------------

@@ -308,6 +308,7 @@
     <None Include="..\exe\YaneuraOu-nano-plus.exe" />
     <None Include="..\exe\YaneuraOu-nano.exe" />
     <None Include="..\README.md" />
+    <None Include="..\script\analyze_result_log.py" />
     <None Include="..\script\calc_rating.py" />
     <None Include="..\script\engine_invoker.py" />
     <None Include="..\script\engine_invoker2.py" />

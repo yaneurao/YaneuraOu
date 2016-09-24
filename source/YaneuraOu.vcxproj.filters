@@ -397,5 +397,8 @@
     <None Include="..\script\engine_invoker3.py">
       <Filter>script</Filter>
     </None>
+    <None Include="..\script\analyze_result_log.py">
+      <Filter>script</Filter>
+    </None>
   </ItemGroup>
 </Project>

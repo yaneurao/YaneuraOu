@@ -752,6 +752,16 @@ double calc_grad(Value deep, Value shallow)
 }
 #endif
 
+#ifdef LOSS_FUNCTION_IS_CROSS_ENTOROPY_FOR_VALUE
+double calc_grad(Value deep, Value shallow)
+{
+	// 勝率の関数を通さない版
+	// これ、EVAL_LIMITを低くしておかないと、終盤の形に対して評価値を一致させようとして
+	// evalがevalの範囲を超えかねない。
+	return shallow - deep;
+}
+#endif
+
 // 目的関数として他のバリエーションも色々用意するかも..
 
 
@@ -1077,6 +1087,7 @@ struct LearnerThink: public MultiThink
 	u64 mini_batch_size = 1000*1000;
 
 	// weightのupdate中であるか。(このとき、sleepする)
+	// あるいはsleepさせたいときはこれをTrueにする。
 	atomic<bool> updating_weight;
 };
 
@@ -1101,20 +1112,18 @@ void LearnerThink::thread_worker(size_t thread_id)
 				cout << endl << sr.total_done << " sfens , at " << std::ctime(&tp);
 			} else {
 				// これぐらいは出力しておく。
-				cout << '.';
+				cout << '.' << flush;
 			}
 
 			// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 
-			// 3回目ぐらいまではg2のupdateにとどめて、wのupdateは保留する。
-			// 一応、他のスレッド停止させる。
-#ifdef _OPENMP
-			updating_weight = true;
-#endif
-			Eval::update_weights(mini_batch_size , ++epoch);
-#ifdef _OPENMP
-			updating_weight = false;
-#endif
+			{
+				// 3回目ぐらいまではg2のupdateにとどめて、wのupdateは保留する。
+				// 一応、他のスレッド停止させる。
+				updating_weight = true;
+				Eval::update_weights(mini_batch_size, ++epoch);
+				updating_weight = false;
+			}
 
 			// 8000万局面ごとに1回保存、ぐらいの感じで。
 
@@ -1123,7 +1132,10 @@ void LearnerThink::thread_worker(size_t thread_id)
 			{
 				sr.save_count = 0;
 
+				// この間、gradientの計算が進むと値が大きくなりすぎて困る気がするので他のスレッドを停止させる。
+				updating_weight = true;
 				save();
+				updating_weight = false;
 			}
 
 			// rmseを計算する。1万局面のサンプルに対して行う。
@@ -1132,7 +1144,11 @@ void LearnerThink::thread_worker(size_t thread_id)
 			static u64 rmse_output_count = 0;
 			if ((rmse_output_count++ % LEARN_RMSE_OUTPUT_INTERVAL) == 0)
 			{
+				// この計算自体も並列化すべきのような…。
+				// この計算をしているときにあまり処理が進みすぎると困るので停止させておくか…。
+				updating_weight = true;
 				sr.calc_rmse();
+				updating_weight = false;
 			}
 
 			// 次回、この一連の処理は、

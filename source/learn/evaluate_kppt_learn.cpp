@@ -235,12 +235,12 @@ namespace Eval
 		// と書くとなぜかeta == 0。コンパイラ最適化のバグか？defineで書く。
 		// etaは学習率。FV_SCALE / 64
 
-		static constexpr LearnFloatType beta = LearnFloatType(0.9f);
-		static constexpr LearnFloatType gamma = LearnFloatType(0.999f);
+		static constexpr double beta = LearnFloatType(0.9);
+		static constexpr double gamma = LearnFloatType(0.999);
 		
-		static constexpr LearnFloatType epsilon = LearnFloatType(10e-8);
-//		static constexpr LearnFloatType  eta = LearnFloatType(32.0/64.0);
-		static constexpr LearnFloatType  eta = LearnFloatType(1.0);
+		static constexpr double epsilon = LearnFloatType(10e-8);
+		static constexpr double eta = LearnFloatType(32.0/64.0);
+//		static constexpr LearnFloatType  eta = LearnFloatType(1.0);
 		
 		FloatPair v;
 		FloatPair r;
@@ -364,15 +364,15 @@ namespace Eval
 			// rt = 1-γ^t , bt = 1-β^tとして、これは事前に計算しておくとすると、
 			// w = w - α*v / (sqrt(r/rt) + e) * (bt)
 
-			v = FloatPair{ beta * v[0] +  (1 - beta)*g[0] , beta * v[1] + (1 - beta) * g[1] };
-			r = FloatPair{ gamma * r[0] + (1 - gamma)*g[0] * g[0] , gamma * r[1] + (1 - gamma)*g[1] * g[1] };
+			v = FloatPair{ float( beta  * v[0] + (1.0 - beta) *g[0]       ) , float(beta  * v[1] + (1.0 - beta) * g[1]       ) };
+			r = FloatPair{ float( gamma * r[0] + (1.0 - gamma)*g[0] * g[0]) , float(gamma * r[1] + (1.0 - gamma)* g[1] * g[1]) };
 
 			// sqrt()の中身がゼロになりうるので、1回目の割り算を先にしないとアンダーフローしてしまう。
 			// 例) epsilon * bt = 0
 			// あと、doubleでないと計算精度が足りなくて死亡する。
 			if (!skip_update)
 				w = FloatPair{ w[0] - LearnFloatType( eta  / (sqrt((double)r[0] / rt) + epsilon) * v[0] / bt) ,
-							   w[1] - LearnFloatType( eta2 / (sqrt((double)r[1] / rt) + epsilon) * v[1] / bt)
+							   w[1] - LearnFloatType( eta  / (sqrt((double)r[1] / rt) + epsilon) * v[1] / bt)
 				};
 
 
@@ -420,10 +420,10 @@ namespace Eval
 					static PRNG prng;
 					if (f > 0.1f)
 //						return (float)(POPCNT32((u32)prng.rand(4)) + 1);
-						return 0.5f;
+						return 0.1f;
 					if (f < -0.1f)
 //						return (float)-(POPCNT32((u32)prng.rand(4)) + 1);
-						return -0.5f;
+						return -0.1f;
 
 					return 0.0f;
 				};
@@ -446,7 +446,9 @@ namespace Eval
 #if defined (USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE) || defined(USE_ADA_GRAD_UPDATE) || defined(USE_YANE_GRAD_UPDATE)
 	LearnFloatType Weight::eta;
 #elif defined USE_ADAM_UPDATE
+	// 1.0 - pow(beta,epoch)
 	double Weight::bt;
+	// 1.0 - pow(gamma,epoch)
 	double Weight::rt;
 #endif
 
@@ -653,15 +655,16 @@ namespace Eval
 		// AdaGrad
 #elif defined USE_ADA_GRAD_UPDATE
 
-		Weight::eta = 5.0f / float(mini_batch_size / 1000000);
+		// この係数、mini-batch sizeの影響を受けるのどうかと思う..
 
+		Weight::eta = 3.0f;
 
 		// YaneGrad
 #elif defined USE_YANE_GRAD_UPDATE
 #if defined (LOSS_FUNCTION_IS_CROSS_ENTOROPY)
-		Weight::eta = 5.0f / float(mini_batch_size / 1000000);
+		Weight::eta = 5.0f;
 #elif defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
-		Weight::eta = 20.0f / float(mini_batch_size / 1000000);
+		Weight::eta = 20.0f;
 #endif
 
 		// Adam

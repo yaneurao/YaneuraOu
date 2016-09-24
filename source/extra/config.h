@@ -162,6 +162,8 @@
 // 評価関数をshared memoryを用いて他のプロセスと共有する機能。(対応しているのはいまのところKPPT評価関数のみ。かつWindows限定)
 // #define USE_SHARED_MEMORY_IN_EVAL
 
+// USIプロトコルでgameoverコマンドが送られてきたときに gameover_handler()を呼び出す。
+// #define USE_GAMEOVER_HANDLER
 
 // --------------------
 // release configurations
@@ -264,8 +266,8 @@
 #define KEEP_PIECE_IN_GENERATE_MOVES
 #define ONE_PLY_EQ_1
 // デバッグ絡み
-#define ASSERT_LV 3
-#define USE_DEBUG_ASSERT
+//#define ASSERT_LV 3
+//#define USE_DEBUG_ASSERT
 #define ENABLE_TEST_CMD
 // 学習絡みのオプション
 #define USE_SFEN_PACKER
@@ -274,6 +276,8 @@
 #define ENABLE_MAKEBOOK_CMD
 // 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
 #define USE_SHARED_MEMORY_IN_EVAL
+// パラメーターの自動調整絡み
+#define USE_GAMEOVER_HANDLER
 #endif
 
 

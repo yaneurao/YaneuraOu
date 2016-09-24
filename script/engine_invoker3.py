@@ -65,7 +65,7 @@ def output_rating(win,draw,lose,opt2):
 
 
 # 思考エンジンに対するオプションを生成する。
-def create_option(engines,engine_threads,evals,times,hashes,numa):
+def create_option(engines,engine_threads,evals,times,hashes,numa,PARAMETERS_LOG_FILE_PATH):
 
 	# 思考エンジンに対するコマンド列を保存する。
 	options = []
@@ -129,6 +129,9 @@ def create_option(engines,engine_threads,evals,times,hashes,numa):
 			option.append("setoption name EngineNuma value " + str(numa))
 			if nodes_time:
 				option.append("setoption name nodestime value 600")
+			if PARAMETERS_LOG_FILE_PATH :
+				option.append("setoption name PARAMETERS_LOG_FILE_PATH value " + PARAMETERS_LOG_FILE_PATH + "_%%THREAD_NUMBER%%.log")
+				# →　仕方ないので%THREAD_NUMBER%のところはのちほど置換する。
 		else:
 			# ここで対応しているengine一覧
 			#  ・技巧(20160606)
@@ -289,9 +292,19 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 		# 定跡の評価値はよくわからんので0にしとくしかない。
 		eval_values[i/2] = "0 "*book_moves
 
-	def gameover_cmd(i):
+	# ゲームオーバーのハンドラ
+	# i = threads number
+	# g = result : 1..1P勝ち , 2..2P勝ち , 3..引き分け
+	def gameover_cmd(i,g):
 		p = procs[i]
-		send_cmd(i,"gameover win")
+		if g == 3:
+			result = "draw"
+		elif g == (i % 2)+1:
+			result = "win"
+		else:
+			result = "lose"
+
+		send_cmd(i,"gameover " + result)
 		states[i] = "init"
 
 	def outlog(i,line):
@@ -310,6 +323,10 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 		for j in range(len(options[i % 2])):
 			if j != 0 :
 				opt = options[i % 2][j]
+
+				# 置換対象文字列が含まれているなら置換しておく。
+				opt = opt.replace("%%THREAD_NUMBER%%",str(i))
+
 				send_cmd(i,opt)
 
 	# loop for playing games
@@ -357,7 +374,7 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 				if "score" in line :
 					eval_value_from_thread[i] = line
 
-				gameover = False
+				gameover = 0
 
 				if ("readyok" in line) and (states[i] == "wait_for_readyok"):
 
@@ -450,17 +467,19 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 					if "resign" in line:
 						if (i%2)==1:
 							win += 1
+							gameover = 1 # 1P勝ち
 						else:
 							lose += 1
-						gameover = True
+							gameover = 2 # 2P勝ち
 						update = True
 
 					elif "win" in line:
 						if (i%2)==0:
 							win += 1
+							gameover = 1 # 1P勝ち
 						else:
 							lose += 1
-						gameover = True
+							gameover = 2 # 2P勝ち
 						update = True
 
 					else:
@@ -481,14 +500,14 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 						moves[i/2] += 1
 						if moves[i/2] >= 256:
 							draw += 1
-							gameover = True
+							gameover = 3 # Draw
 							update = True
 						else:
 							go_cmd(i^1)
 
 				if gameover :
-					gameover_cmd(i  )
-					gameover_cmd(i^1)
+					gameover_cmd(i  ,gameover)
+					gameover_cmd(i^1,gameover)
 					if KifOutput:
 						kif_file.write("startpos moves " + sfens[i/2] + "\n")
 						kif_file.write(eval_values[i/2]+"\n")
@@ -576,6 +595,8 @@ def engine_to_full(e):
 #   hash1:engine1のhash size
 #   hash2:engine2のhash size
 #   time:持ち時間設定
+#	PARAMETERS_LOG_FILE_PATH:同optionのpath指定
+#        (ここに"_2.log"のような文字列が自動的に付与される。)
 
 # sample 
 #   > c:\python27\python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker2.py home:\\WS2012_860C_YAN\yanehome\ engine1:YaneuraOuV350.exe eval1:Apery20160505 engine2:YaneuraOuV350.exe eval2:Apery20160505 cores:8 loop:1000 numa:0 engine_threads:1 hash1:16 hash2:16 time:r100
@@ -612,6 +633,8 @@ engine2_path = ""
 eval1_path = ""
 eval2_path = ""
 play_time_list = ""
+book_moves = 24
+PARAMETERS_LOG_FILE_PATH = ""
 
 # パラメーターのparse
 for param in sys.argv[1:]:
@@ -641,8 +664,12 @@ for param in sys.argv[1:]:
 			eval1_path = data
 		elif label == "eval2":
 			eval2_path = data
+		elif label == "book_moves":
+			book_moves = int(data)
 		elif label == "time":
 			play_time_list = data.split(",")
+		elif label == "PARAMETERS_LOG_FILE_PATH":
+			PARAMETERS_LOG_FILE_PATH = data
 		else:
 			print "Error! can't parse > "+ param
 
@@ -666,14 +693,13 @@ else:
 		evaldirs.append(eval2_path + "/" + str(i) )
 		i += 1
 
-book_moves = 24
-
 print "home           : " , home
 print "play_time_list : " , play_time_list
 print "evaldirs       : " , evaldirs
 print "hash size      : " , hashes
 print "book_moves     : " , book_moves
 print "engine_threads : " , engine_threads
+print "PARAMETERS_LOG_FILE_PATH : " , PARAMETERS_LOG_FILE_PATH
 
 book_file = open(home+"/book/records2016_10818.sfen","r")
 book_sfens = []
@@ -713,7 +739,7 @@ for evaldir in evaldirs:
 	for play_time in play_time_list:
 		print "\nthreads = " + str(threads) + " , loop = " + str(loop) + " , numa = " + str(numa) + " , play_time = " + play_time
 
-		options = create_option(engines,engine_threads,evals_full,play_time,hashes,numa)
+		options = create_option(engines,engine_threads,evals_full,play_time,hashes,numa,PARAMETERS_LOG_FILE_PATH)
 
 		for i in range(2):
 			print "option " + str(i+1) + " = " + ' / '.join(options[i])

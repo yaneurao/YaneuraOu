@@ -449,28 +449,39 @@ std::string Position::moves_from_start(bool is_pretty) const
 // 遮っている両方の手番を返す。ただし、２重に遮っている場合はそれらの駒は返さない。
 // もし、この関数のこの返す駒を取り除いた場合、升sに対してsliderによって利きがある状態になる。
 // 升sにある玉に対してこの関数を呼び出した場合、それはpinされている駒と両王手の候補となる駒である。
+// また、升sにある玉は~c側のKINGであるとする。
 
 Bitboard Position::slider_blockers(Color c, Square s , Bitboard& pinners) const {
 
-	Bitboard b, p , result = ZERO_BB;
+	Bitboard result = ZERO_BB;
+
+	// pinnersは返し値。
+	pinners = ZERO_BB;
 
 	// cが与えられていないと香の利きの方向を確定させることが出来ない。
 	// ゆえに将棋では、この関数は手番を引数に取るべき。(チェスとはこの点において異なる。)
 
-	// pinnersとは、pinされている駒が取り除かれたときに升sに利きが発生する大駒である。
-	// pinnersは返し値なのでこれは破壊せずにpを使う。
-	pinners = p = 
-			(pieces(c, ROOK) & rookStepEffect(s))
-			| (pieces(c, BISHOP) & bishopStepEffect(s))
-			// 香に関しては攻撃駒が先手なら、玉より下側をサーチして、そこにある先手の香を探す。
-			| (pieces(c, LANCE) & lanceStepEffect(~c, s));
+	// snipersとは、pinされている駒が取り除かれたときに升sに利きが発生する大駒である。
+	Bitboard snipers =
+		(pieces(c, ROOK) & rookStepEffect(s))
+		| (pieces(c, BISHOP) & bishopStepEffect(s))
+		// 香に関しては攻撃駒が先手なら、玉より下側をサーチして、そこにある先手の香を探す。
+		| (pieces(c, LANCE) & lanceStepEffect(~c, s));
 
-	while (p)
+	while (snipers)
 	{
-		b = between_bb(s, p.pop()) & pieces();
+		Square sniperSq = snipers.pop();
+		Bitboard b = between_bb(s, sniperSq) & pieces();
 
+		// snipperと玉との間にある駒が1個であるなら。
+		// (間にある駒が0個の場合、b == ZERO_BBとなり、何も変化しない。)
 		if (!more_than_one(b))
+		{
 			result |= b;
+			if (b & pieces(~c))
+				// sniperと玉に挟まれた駒が玉と同じ色の駒であるなら、pinnerに追加。
+				pinners |= sniperSq;
+		}
 	}
 	return result;
 }
