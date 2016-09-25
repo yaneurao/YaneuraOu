@@ -17,7 +17,7 @@
 
 // 探索パラメーターにstep分のランダム値を加えて対戦させるとき用。
 // 試合が終わったときに勝敗と、そのときに用いたパラメーター一覧をファイルに出力する。
-//#define USE_RANDOM_PARAMETERS
+#define USE_RANDOM_PARAMETERS
 
 
 // -----------------------
@@ -2096,7 +2096,7 @@ void init_param()
 						// "fixed"と書かれているパラメーターはないものとして扱う。
 						if (last_line.find("fixed") != -1)
 						{
-							param_names[i] = "";
+							param_names[i] = "FIXED";
 							goto NEXT;
 						}
 
@@ -2140,7 +2140,7 @@ void init_param()
 			// 今回のパラメーターをログファイルに書き出す。
 			for (int i = 0; i < param_names.size(); ++i)
 			{
-				if (param_names[i].empty())
+				if (param_names[i] == "FIXED")
 					continue;
 
 				result_log << param_names[i] << ":" << *param_vars[i] << ",";

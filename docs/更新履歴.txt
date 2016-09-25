@@ -8,7 +8,7 @@
 ・PARAMで"fixed"と書かれているものは無いものとして扱うように変更。
 ・Stockfish : Rename shift_bb() to shift()
 ・Bitboard::shift()追加。
-・movegen.cpp、mate1ply()など、Bitboard::shift()を用いるように変更。
+・movegen.cpp、mate1ply()など、Bitboard::shift()を用いるように変更
 
 
 ■　2016/09/25 V3.74
