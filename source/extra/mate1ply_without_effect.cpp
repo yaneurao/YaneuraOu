@@ -100,11 +100,11 @@ void init_check_bb()
           if (c == BLACK)
           {
             bb &= enemy_field(BLACK);
-            bb = bb << 1; // その1段前にある歩
+            bb = shift<SQ_D>(bb); // その1段下にある歩
           } else
           {
             bb &= enemy_field(WHITE);
-            bb = bb >> 1; // その1段後ろにある歩
+            bb = shift<SQ_U>(bb); // その1段上にある歩
           }
           break;
 
@@ -227,7 +227,7 @@ void init_check_bb()
               // これ用意するほどでもないんだな
               // 一応、用意するコード書いておくか..
               bb = kingEffect(sq);
-              bb = (c == BLACK) ? (bb >> 1) : (bb << 1);
+              bb = (c == BLACK) ? shift<SQ_U>(bb) : shift<SQ_D>(bb);
               // →　このシフトでp[0]の63bit目に来ると…まずいのでは..？
               bb &= ALL_BB; // ALL_BBでand取っとくわ
               break;
@@ -410,7 +410,7 @@ Bitboard AttacksAroundKingNonSlider(const Position& pos , Color ourKing)
 
   // 歩は普通でいい
   Bitboard sum =
-    them == BLACK ? (pos.pieces(them, PAWN) >> 1) : (pos.pieces(them, PAWN) << 1);
+    them == BLACK ? shift<SQ_U>(pos.pieces(them, PAWN)) : shift<SQ_D>(pos.pieces(them, PAWN));
 
   // ほとんどのケースにおいて候補になる駒はなく、whileで回らずに抜けると期待している。
   bb = pos.pieces(them, KNIGHT) & check_around_bb(them, KNIGHT, sq_king);
@@ -480,7 +480,7 @@ Bitboard AttacksAroundKingNonSliderInAvoiding(const Position& pos,Color us, Squa
 
   // 歩は普通でいい
   Bitboard sum =
-    them == BLACK ? (pos.pieces(them, PAWN) >> 1) : (pos.pieces(them, PAWN) << 1);
+    them == BLACK ? shift<SQ_U>(pos.pieces(them, PAWN)) : shift<SQ_D>(pos.pieces(them, PAWN));
 
   // ほとんどのケースにおいて候補になる駒はなく、whileで回らずに抜けると期待している。
   bb = pos.pieces(them, KNIGHT) & check_around_bb(them, KNIGHT, sq_king) & avoid_bb;

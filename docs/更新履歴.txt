@@ -1,9 +1,23 @@
 ﻿
 やねうら王 更新履歴
 
+
+■　2016/09/25 V3.75
+
+・singularのPARAM、2を掛けていたの修正。
+・PARAMで"fixed"と書かれているものは無いものとして扱うように変更。
+・Stockfish : Rename shift_bb() to shift()
+・Bitboard::shift()追加。
+・movegen.cpp、mate1ply()など、Bitboard::shift()を用いるように変更。
+
+
 ■　2016/09/25 V3.74
 
 ・2016 MidのMovePicker、QUIETS→SEARCH_QUIETSに置換もれがあったの修正。
+・PARAM_FUTILITY_AT_PARENT_NODE_GAMMAの順番変更。
+・PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTHまわり変更。
+・PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2を用意。
+・Stockfish : Allowing singular extension in mate positions
 
 
 ■　2016/09/24 V3.73

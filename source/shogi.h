@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "3.74"
+#define ENGINE_VERSION "3.75"
 
 // --------------------
 // コンパイル時の設定
@@ -31,8 +31,8 @@
 //#define YANEURAOU_MINI_ENGINE            // やねうら王mini        (完成2016/02/29)
 //#define YANEURAOU_CLASSIC_ENGINE         // やねうら王classic     (完成2016/04/03)
 //#define YANEURAOU_CLASSIC_TCE_ENGINE     // やねうら王classic tce (完成2016/04/15)
-#define YANEURAOU_2016_MID_ENGINE        // やねうら王2016(MID)   (完成2016/08/18)
-//#define YANEURAOU_2016_LATE_ENGINE       // やねうら王2016(LATE)  (完成2016/10/07予定)
+//#define YANEURAOU_2016_MID_ENGINE        // やねうら王2016(MID)   (完成2016/08/18)
+#define YANEURAOU_2016_LATE_ENGINE       // やねうら王2016(LATE)  (完成2016/10/07予定)
 //#define RANDOM_PLAYER_ENGINE             // ランダムプレイヤー
 //#define MATE_ENGINE                      // 詰め将棋solverとしてリリースする場合。(開発中)
 //#define HELP_MATE_ENGINE                 // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
@@ -153,7 +153,8 @@ enum Square : int32_t
   SQ_ZERO = 0, SQ_NB = 81,
   SQ_NB_PLUS1 = SQ_NB + 1, // 玉がいない場合、SQ_NBに移動したものとして扱うため、配列をSQ_NB+1で確保しないといけないときがあるのでこの定数を用いる。
 
-  // 方角に関する定数。StockfishだとN=北=盤面の下を意味するようだが…。
+  // 方角に関する定数。StockfishだとNORTH=北=盤面の下を意味するようだが、
+  // わかりにくいのでやねうら王ではストレートな命名に変更する。
   SQ_D  = +1, // 下(Down)
   SQ_R  = -9, // 右(Right)
   SQ_U  = -1, // 上(Up)

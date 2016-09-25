@@ -17,7 +17,7 @@
 
 // 探索パラメーターにstep分のランダム値を加えて対戦させるとき用。
 // 試合が終わったときに勝敗と、そのときに用いたパラメーター一覧をファイルに出力する。
-#define USE_RANDOM_PARAMETERS
+//#define USE_RANDOM_PARAMETERS
 
 
 // -----------------------
@@ -1289,7 +1289,7 @@ namespace YaneuraOu2016Late
 			&&  depth >= PARAM_PROBCUT_DEPTH * ONE_PLY
 			&&  abs(beta) < VALUE_MATE_IN_MAX_PLY)
 		{
-			Value rbeta = std::min(beta + 200, VALUE_INFINITE);
+			Value rbeta = std::min(beta + PARAM_PROBCUT_MARGIN, VALUE_INFINITE);
 
 			// 大胆に探索depthを減らす
 			Depth rdepth = depth - (PARAM_PROBCUT_DEPTH - 1) * ONE_PLY;
@@ -1373,9 +1373,7 @@ namespace YaneuraOu2016Late
 		bool singularExtensionNode = !RootNode
 			&&  depth >= PARAM_SINGULAR_EXTENSION_DEPTH * ONE_PLY // Stockfish , Apreyは、8 * ONE_PLY
 			&&  ttMove != MOVE_NONE
-		/*  &&  ttValue != VALUE_NONE これは次行の条件に暗に含まれている */
-			&&  abs(ttValue) < VALUE_KNOWN_WIN
-		// ↑ここ、abs(beta) < VALUE_KNOWN_WINのほうがいいか？
+			&&  ttValue != VALUE_NONE // 詰み絡みのスコアであってもsingular extensionはしたほうが良いらしい。
 			&& !excludedMove // 再帰的なsingular延長はすべきではない
 			&& (tte->bound() & BOUND_LOWER)
 			&& tte->depth() >= depth - 3 * ONE_PLY;
@@ -1455,8 +1453,6 @@ namespace YaneuraOu2016Late
 			bool givesCheck = pos.gives_check(move);
 
 			// move countベースの枝刈りを実行するかどうかのフラグ
-			// ※　Stockfish、ここdepth/ONE_PLYになっていないが、
-			// ONE_PLY == 2ではうまく動作しないのでStockfishのバグと言えばバグ。
 
 			bool moveCountPruning = depth < 16 * ONE_PLY
 				&& moveCount >= FutilityMoveCounts[improving][depth / ONE_PLY];
@@ -1503,9 +1499,9 @@ namespace YaneuraOu2016Late
 				// PARAM_SINGULAR_MARGIN == 16のときはdefault動作。
 				Value rBeta;
 				if (PARAM_SINGULAR_MARGIN == 16)
-					rBeta = ttValue - 2 * depth / ONE_PLY;
+					rBeta = std::max(ttValue - 2 * depth / ONE_PLY, -VALUE_MATE);
 				else
-					rBeta = ttValue - (PARAM_SINGULAR_MARGIN * depth) / (8 * ONE_PLY);
+					rBeta = std::max(ttValue - PARAM_SINGULAR_MARGIN * depth / (8 * ONE_PLY), -VALUE_MATE);
 
 				// PARAM_SINGULAR_SEARCH_DEPTHが128(無調整)のときはデフォルト動作。
 				Depth d;
@@ -1622,7 +1618,7 @@ namespace YaneuraOu2016Late
 
 					// 浅いdepthで負のSSE値を持つ指し手と、深いdepthで減少する閾値を下回る指し手の枝刈り
 
-					if (lmrDepth < 8
+					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2
 						&& pos.see_sign(move) < Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA * lmrDepth * lmrDepth))
 						continue;
 #endif
@@ -1635,7 +1631,7 @@ namespace YaneuraOu2016Late
 					// パラメーターの自動調整に任せる。
 #if 1
 					// 次の子nodeにおいて浅い深さになる場合、負のSSE値を持つ指し手の枝刈り
-					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH
+					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1
 						&& pos.see_sign(move) < VALUE_ZERO)
 						continue;
 #endif
@@ -1643,7 +1639,7 @@ namespace YaneuraOu2016Late
 				}
 #if 0
 				// 浅い深さでの、危険な指し手を枝刈りする。
-				else if (depth < 7 * ONE_PLY
+				else if (depth < (PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2-1) * ONE_PLY
 					&& pos.see_sign(move) < Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA * depth / ONE_PLY * depth / ONE_PLY))
 					continue;
 #endif
@@ -2014,22 +2010,39 @@ void init_param()
 #if defined (USE_AUTO_TUNE_PARAMETERS) || defined(USE_RANDOM_PARAMETERS)
 	{
 		vector<string> param_names = {
-			"PARAM_FUTILITY_MARGIN_ALPHA" , "PARAM_FUTILITY_MARGIN_BETA" , "PARAM_FUTILITY_AT_PARENT_NODE_GAMMA" ,
+			"PARAM_FUTILITY_MARGIN_ALPHA" , "PARAM_FUTILITY_MARGIN_BETA" ,
 			"PARAM_FUTILITY_MARGIN_QUIET" , "PARAM_FUTILITY_RETURN_DEPTH",
-			"PARAM_FUTILITY_AT_PARENT_NODE_DEPTH","PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1", "PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH",
+			
+			"PARAM_FUTILITY_AT_PARENT_NODE_DEPTH","PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1",
+
+			"PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1",
+			"PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2",
+			"PARAM_FUTILITY_AT_PARENT_NODE_GAMMA" ,
+
 			"PARAM_NULL_MOVE_DYNAMIC_ALPHA","PARAM_NULL_MOVE_DYNAMIC_BETA","PARAM_NULL_MOVE_RETURN_DEPTH",
-			"PARAM_PROBCUT_DEPTH","PARAM_SINGULAR_EXTENSION_DEPTH","PARAM_SINGULAR_MARGIN",
+
+			"PARAM_PROBCUT_DEPTH","PARAM_PROBCUT_MARGIN",
+			
+			"PARAM_SINGULAR_EXTENSION_DEPTH","PARAM_SINGULAR_MARGIN",
 			"PARAM_SINGULAR_SEARCH_DEPTH","PARAM_PRUNING_BY_MOVE_COUNT_DEPTH","PARAM_PRUNING_BY_HISTORY_DEPTH","PARAM_REDUCTION_BY_HISTORY",
 			"PARAM_IID_MARGIN_ALPHA",
 			"PARAM_RAZORING_MARGIN1","PARAM_RAZORING_MARGIN2","PARAM_RAZORING_MARGIN3","PARAM_RAZORING_MARGIN4",
 			"PARAM_QUIET_SEARCH_COUNT"
 		};
 		vector<int*> param_vars = {
-			&PARAM_FUTILITY_MARGIN_ALPHA , &PARAM_FUTILITY_MARGIN_BETA, &PARAM_FUTILITY_AT_PARENT_NODE_GAMMA,
+			&PARAM_FUTILITY_MARGIN_ALPHA , &PARAM_FUTILITY_MARGIN_BETA,
 			&PARAM_FUTILITY_MARGIN_QUIET , &PARAM_FUTILITY_RETURN_DEPTH,
-			&PARAM_FUTILITY_AT_PARENT_NODE_DEPTH, &PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 , &PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH,
+			
+			&PARAM_FUTILITY_AT_PARENT_NODE_DEPTH, &PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 ,
+			&PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1,
+			&PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2,
+			&PARAM_FUTILITY_AT_PARENT_NODE_GAMMA,
+
 			&PARAM_NULL_MOVE_DYNAMIC_ALPHA, &PARAM_NULL_MOVE_DYNAMIC_BETA, &PARAM_NULL_MOVE_RETURN_DEPTH,
-			&PARAM_PROBCUT_DEPTH, &PARAM_SINGULAR_EXTENSION_DEPTH, &PARAM_SINGULAR_MARGIN,
+			
+			&PARAM_PROBCUT_DEPTH, &PARAM_PROBCUT_MARGIN,
+
+			&PARAM_SINGULAR_EXTENSION_DEPTH, &PARAM_SINGULAR_MARGIN,
 			&PARAM_SINGULAR_SEARCH_DEPTH, &PARAM_PRUNING_BY_MOVE_COUNT_DEPTH, &PARAM_PRUNING_BY_HISTORY_DEPTH,&PARAM_REDUCTION_BY_HISTORY,
 			&PARAM_IID_MARGIN_ALPHA,
 			&PARAM_RAZORING_MARGIN1,&PARAM_RAZORING_MARGIN2,&PARAM_RAZORING_MARGIN3,&PARAM_RAZORING_MARGIN4,
@@ -2076,7 +2089,17 @@ void init_param()
 #ifdef USE_RANDOM_PARAMETERS
 						// PARAM_DEFINEの一つ前の行には次のように書いてあるはずなので、
 						// USE_RANDOM_PARAMETERSのときは、このstepをプラスかマイナス方向に加算してやる。
-						// [PARAM] min:100,max:240,step:3,interval:1,time_rate:1
+						// ただし、fixedと書いてあるパラメーターに関しては除外する。
+
+						// [PARAM] min:100,max:240,step:3,interval:1,time_rate:1,fixed
+
+						// "fixed"と書かれているパラメーターはないものとして扱う。
+						if (last_line.find("fixed") != -1)
+						{
+							param_names[i] = "";
+							goto NEXT;
+						}
+
 						static PRNG rand;
 						int param_step = get_num(last_line, "step:");
 						int param_min = get_num(last_line, "min:");
@@ -2117,6 +2140,9 @@ void init_param()
 			// 今回のパラメーターをログファイルに書き出す。
 			for (int i = 0; i < param_names.size(); ++i)
 			{
+				if (param_names[i].empty())
+					continue;
+
 				result_log << param_names[i] << ":" << *param_vars[i] << ",";
 			}
 			result_log << endl << flush;

@@ -63,6 +63,8 @@ if __name__ == '__main__':
 #	print os.path.join(sys.argv[1], '*', 'log')
 	for file_path in sorted(glob.glob(os.path.join(sys.argv[1], '*.log'))):
 		fig = analyze_log(file_path)
+		sys.stdout.write(".")
+	print
 
 	t_win = t_lose = t_draw = 0
 	first = True
