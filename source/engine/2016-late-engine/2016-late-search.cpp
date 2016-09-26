@@ -24,10 +24,6 @@
 //   探索部の設定
 // -----------------------
 
-// mate1ply()を呼び出すのか
-#define USE_MATE_1PLY_IN_SEARCH
-#define USE_MATE_1PLY_IN_QSEARCH
-
 // futilityのmarginを動的に決定するのか
 // #define DYNAMIC_FUTILITY_MARGIN
 
@@ -562,18 +558,17 @@ namespace YaneuraOu2016Late
 			//      一手詰め判定
 			// -----------------------
 
-#ifdef USE_MATE_1PLY_IN_QSEARCH
+			if (PARAM_QSEARCH_MATE1)
 
-			// いまのところ、入れたほうが良いようだ。
-			// play_time = b1000 ,  1631 - 55 - 1314(55.38% R37.54) [2016/08/19]
-			// play_time = b6000 ,  538 - 23 - 439(55.07% R35.33) [2016/08/19]
+				// いまのところ、入れたほうが良いようだ。
+				// play_time = b1000 ,  1631 - 55 - 1314(55.38% R37.54) [2016/08/19]
+				// play_time = b6000 ,  538 - 23 - 439(55.07% R35.33) [2016/08/19]
 
-			// 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
-			if (pos.mate1ply() != MOVE_NONE)
-				return mate_in(ss->ply + 1);
+				// 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
+				if (pos.mate1ply() != MOVE_NONE)
+					return mate_in(ss->ply + 1);
 
 			// このnodeに再訪問することはまずないだろうから、置換表に保存する価値はない。
-#endif
 
 			// 王手がかかっていないなら置換表の指し手を持ってくる
 
@@ -692,7 +687,7 @@ namespace YaneuraOu2016Late
 				// 			T1,b1000,4947 - 256 - 4797(50.77% R5.35)[2016/09/03]
 				//			T1,b3000,2416 - 183 - 2401(50.16% R1.08)[2016/09/04]
 				// →　有ったほうが良い…かも…。
-				
+
 				Value futilityValue = futilityBase + (Value)CapturePieceValue[pos.piece_on(to_sq(move))]
 					+ (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(move_from(move))] : VALUE_ZERO);
 
@@ -760,8 +755,8 @@ namespace YaneuraOu2016Late
 			ss->currentMove = move;
 
 			pos.do_move(move, st, givesCheck);
-			value = givesCheck ? -qsearch<NT,  true>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
-							   : -qsearch<NT, false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
+			value = givesCheck ? -qsearch<NT, true>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
+				: -qsearch<NT, false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
 
 			pos.undo_move(move);
 
@@ -785,8 +780,7 @@ namespace YaneuraOu2016Late
 						alpha = value;
 						bestMove = move;
 
-					}
-					else // fail high
+					} else // fail high
 					{
 #ifndef DISABLE_TT_PROBE
 						// 1. nonPVでのalpha値の更新 →　もうこの時点でreturnしてしまっていい。(ざっくりした枝刈り)
@@ -1094,36 +1088,37 @@ namespace YaneuraOu2016Late
 		Move bestMove = MOVE_NONE;
 		const bool InCheck = pos.checkers();
 
-#ifdef USE_MATE_1PLY_IN_SEARCH
-
-		// RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
-		// 置換表にhitしたときも1手詰め判定はすでに行われていると思われるのでこの場合もはしょる。
-		// depthの残りがある程度ないと、1手詰めはどうせこのあとすぐに見つけてしまうわけで1手詰めを
-		// 見つけたときのリターン(見返り)が少ない。
-		// ただ、静止探索で入れている以上、depth == ONE_PLYでも1手詰めを判定したほうがよさげではある。
-		if (!RootNode && !ttHit && !InCheck)
+		if (PARAM_SEARCH_MATE1)
 		{
-			// 入れたほうがよさげ。
-			// play_time = b1000, 1471 - 57 - 1472(49.98% R - 0.12) [2016/08/19]
-			// play_time = b3000, 522 - 30 - 448(53.81% R26.56) [2016/08/19]
-
-			move = pos.mate1ply();
-			if (move != MOVE_NONE)
+			// RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
+			// 置換表にhitしたときも1手詰め判定はすでに行われていると思われるのでこの場合もはしょる。
+			// depthの残りがある程度ないと、1手詰めはどうせこのあとすぐに見つけてしまうわけで1手詰めを
+			// 見つけたときのリターン(見返り)が少ない。
+			// ただ、静止探索で入れている以上、depth == ONE_PLYでも1手詰めを判定したほうがよさげではある。
+			if (!RootNode && !ttHit && !InCheck)
 			{
-				// 1手詰めスコアなので確実にvalue > alphaなはず。
-				// 1手詰めは次のnodeで詰むという解釈
-				bestValue = mate_in(ss->ply + 1);
+				// 入れたほうがよさげ。
+				// play_time = b1000, 1471 - 57 - 1472(49.98% R - 0.12) [2016/08/19]
+				// play_time = b3000, 522 - 30 - 448(53.81% R26.56) [2016/08/19]
+
+				move = pos.mate1ply();
+				if (move != MOVE_NONE)
+				{
+					// 1手詰めスコアなので確実にvalue > alphaなはず。
+					// 1手詰めは次のnodeで詰むという解釈
+					bestValue = mate_in(ss->ply + 1);
 
 #ifndef DISABLE_TT_PROBE
-				// staticEvalの代わりに詰みのスコア書いてもいいのでは..
-				tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
-					DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT.generation());
+					// staticEvalの代わりに詰みのスコア書いてもいいのでは..
+					tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
+						DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT.generation());
 #endif
 
-				return bestValue;
+					return bestValue;
+				}
 			}
+			// 1手詰めがなかったのでこの時点でもsave()したほうがいいような気がしなくもない。
 		}
-#endif
 
 		// -----------------------
 		//  局面を評価値によって静的に評価
@@ -1235,7 +1230,7 @@ namespace YaneuraOu2016Late
 		//  evalの見積りがbetaを超えているので1手パスしてもbetaは超えそう。
 		if (   !PvNode
 			&&  eval >= beta
-			&& (ss->staticEval >= beta - 35 * (depth / ONE_PLY - 6) || depth >= 13 * ONE_PLY)
+			&& (ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN * (depth / ONE_PLY - 6) || depth >= 13 * ONE_PLY)
 			)
 		{
 			ss->currentMove = MOVE_NULL;
@@ -1260,7 +1255,7 @@ namespace YaneuraOu2016Late
 				// 1手パスしてもbetaを上回りそうであることがわかったので
 				// これをもう少しちゃんと検証しなおす。
 
-				// 証明されていないmate scoreの場合はリターンしない。
+				// 証明されていないmate scoreはreturnで返さない。
 				if (nullValue >= VALUE_MATE_IN_MAX_PLY)
 					nullValue = beta;
 
@@ -1505,10 +1500,10 @@ namespace YaneuraOu2016Late
 
 				// PARAM_SINGULAR_SEARCH_DEPTHが128(無調整)のときはデフォルト動作。
 				Depth d;
-				if (PARAM_SINGULAR_SEARCH_DEPTH == 128)
+				if (PARAM_SINGULAR_SEARCH_DEPTH == 16)
 					d = (depth / (2 * ONE_PLY)) * ONE_PLY;
 				else
-					d = (depth * PARAM_SINGULAR_SEARCH_DEPTH / (256 * ONE_PLY)) * ONE_PLY;
+					d = (depth * PARAM_SINGULAR_SEARCH_DEPTH / (32 * ONE_PLY)) * ONE_PLY;
 
 				// ttMoveの指し手を以下のsearch()での探索から除外
 				ss->excludedMove = move;
@@ -1611,36 +1606,40 @@ namespace YaneuraOu2016Late
 						+ PARAM_FUTILITY_MARGIN_BETA * lmrDepth <= alpha)
 						continue;
 
-					// このLMRまわり、強さに極めて重大な影響があるので枝刈りを入れるかどうかを含めて慎重に調整すべき。
+					// ※　このLMRまわり、強さに極めて重大な影響があるので枝刈りを入れるかどうかを含めて慎重に調整すべき。
+
+					// Prune moves with negative SEE
+					// SEEが負の指し手を枝刈り
 
 					// ToDo: ↓どうも、このコードにすると明らかに弱くなるようなのでとりあえずコメントアウト。
-#if 0
-
+					// 将棋ではseeが負の指し手もそのあと詰むような場合があるから、あまり無碍にも出来ないようだ。
+#if 1
 					// 浅いdepthで負のSSE値を持つ指し手と、深いdepthで減少する閾値を下回る指し手の枝刈り
 
-					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2
-						&& pos.see_sign(move) < Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA * lmrDepth * lmrDepth))
+					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1
+						&& pos.see_sign(move) < Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 * lmrDepth * lmrDepth))
 						continue;
 #endif
 
-					// ToDo: 古いほうの枝刈りのコード。↑と↓↓の代わりに用いる。
+					// ToDo: 古いほうの枝刈りのコード。↑の代わりに用いる。
 					// 評価値がPawnValueが100ではないので何らか調整が要るんだろうな…。
 					// PARAM_FUTILITY_AT_PARENT_NODE_GAMMAをゼロに近づけると以下と等価にはなるはずなのだが..
 
 					// この枝刈りをなしにすると対技巧の勝率が6秒4スレッドで落ちた。
 					// パラメーターの自動調整に任せる。
-#if 1
+#if 0
 					// 次の子nodeにおいて浅い深さになる場合、負のSSE値を持つ指し手の枝刈り
-					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1
+					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH0
 						&& pos.see_sign(move) < VALUE_ZERO)
 						continue;
 #endif
 
 				}
-#if 0
+#if 1
 				// 浅い深さでの、危険な指し手を枝刈りする。
-				else if (depth < (PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2-1) * ONE_PLY
-					&& pos.see_sign(move) < Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA * depth / ONE_PLY * depth / ONE_PLY))
+				// これは対技巧で見ると、入れたほうが強いっぽい。
+				else if (depth < (PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2) * ONE_PLY
+					&& pos.see_sign(move) < Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 * depth / ONE_PLY * depth / ONE_PLY))
 					continue;
 #endif
 			}
@@ -2015,38 +2014,50 @@ void init_param()
 			
 			"PARAM_FUTILITY_AT_PARENT_NODE_DEPTH","PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1",
 
+			"PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH0",
 			"PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1",
 			"PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2",
-			"PARAM_FUTILITY_AT_PARENT_NODE_GAMMA" ,
+			"PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1" ,
+			"PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2" ,
 
-			"PARAM_NULL_MOVE_DYNAMIC_ALPHA","PARAM_NULL_MOVE_DYNAMIC_BETA","PARAM_NULL_MOVE_RETURN_DEPTH",
+			"PARAM_NULL_MOVE_DYNAMIC_ALPHA","PARAM_NULL_MOVE_DYNAMIC_BETA",
+			"PARAM_NULL_MOVE_MARGIN","PARAM_NULL_MOVE_RETURN_DEPTH",
 
 			"PARAM_PROBCUT_DEPTH","PARAM_PROBCUT_MARGIN",
 			
-			"PARAM_SINGULAR_EXTENSION_DEPTH","PARAM_SINGULAR_MARGIN",
-			"PARAM_SINGULAR_SEARCH_DEPTH","PARAM_PRUNING_BY_MOVE_COUNT_DEPTH","PARAM_PRUNING_BY_HISTORY_DEPTH","PARAM_REDUCTION_BY_HISTORY",
+			"PARAM_SINGULAR_EXTENSION_DEPTH","PARAM_SINGULAR_MARGIN","PARAM_SINGULAR_SEARCH_DEPTH",
+			
+			"PARAM_PRUNING_BY_MOVE_COUNT_DEPTH","PARAM_PRUNING_BY_HISTORY_DEPTH","PARAM_REDUCTION_BY_HISTORY",
 			"PARAM_IID_MARGIN_ALPHA",
 			"PARAM_RAZORING_MARGIN1","PARAM_RAZORING_MARGIN2","PARAM_RAZORING_MARGIN3","PARAM_RAZORING_MARGIN4",
-			"PARAM_QUIET_SEARCH_COUNT"
+			"PARAM_QUIET_SEARCH_COUNT",
+
+			"PARAM_QSEARCH_MATE1","PARAM_SEARCH_MATE1"
 		};
 		vector<int*> param_vars = {
 			&PARAM_FUTILITY_MARGIN_ALPHA , &PARAM_FUTILITY_MARGIN_BETA,
 			&PARAM_FUTILITY_MARGIN_QUIET , &PARAM_FUTILITY_RETURN_DEPTH,
 			
 			&PARAM_FUTILITY_AT_PARENT_NODE_DEPTH, &PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 ,
+			&PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH0,
 			&PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1,
 			&PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2,
-			&PARAM_FUTILITY_AT_PARENT_NODE_GAMMA,
+			&PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1,
+			&PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2,
 
-			&PARAM_NULL_MOVE_DYNAMIC_ALPHA, &PARAM_NULL_MOVE_DYNAMIC_BETA, &PARAM_NULL_MOVE_RETURN_DEPTH,
+			&PARAM_NULL_MOVE_DYNAMIC_ALPHA, &PARAM_NULL_MOVE_DYNAMIC_BETA,
+			&PARAM_NULL_MOVE_MARGIN,&PARAM_NULL_MOVE_RETURN_DEPTH,
 			
 			&PARAM_PROBCUT_DEPTH, &PARAM_PROBCUT_MARGIN,
 
-			&PARAM_SINGULAR_EXTENSION_DEPTH, &PARAM_SINGULAR_MARGIN,
-			&PARAM_SINGULAR_SEARCH_DEPTH, &PARAM_PRUNING_BY_MOVE_COUNT_DEPTH, &PARAM_PRUNING_BY_HISTORY_DEPTH,&PARAM_REDUCTION_BY_HISTORY,
+			&PARAM_SINGULAR_EXTENSION_DEPTH, &PARAM_SINGULAR_MARGIN,&PARAM_SINGULAR_SEARCH_DEPTH,
+			
+			&PARAM_PRUNING_BY_MOVE_COUNT_DEPTH, &PARAM_PRUNING_BY_HISTORY_DEPTH,&PARAM_REDUCTION_BY_HISTORY,
 			&PARAM_IID_MARGIN_ALPHA,
 			&PARAM_RAZORING_MARGIN1,&PARAM_RAZORING_MARGIN2,&PARAM_RAZORING_MARGIN3,&PARAM_RAZORING_MARGIN4,
-			&PARAM_QUIET_SEARCH_COUNT
+			&PARAM_QUIET_SEARCH_COUNT,
+
+			&PARAM_QSEARCH_MATE1,&PARAM_SEARCH_MATE1
 		};
 
 		fstream fs;
@@ -2105,11 +2116,33 @@ void init_param()
 						int param_min = get_num(last_line, "min:");
 						int param_max = get_num(last_line, "max:");
 
-						switch (rand.rand(3))
+						// これ、有りと無しの2択であるパラメーターとかについて、
+						// もう片側が1/3の確率でしか出現しないのまずいので均等になるように調整する。
+
+						bool r1 = *param_vars[i] == param_max;
+						bool r2 = *param_vars[i] == param_min;
+						if (r1 || r2)
 						{
-						case 0:break;
-						case 1: *param_vars[i] = min(*param_vars[i] + param_step, param_max); break;
-						case 2: *param_vars[i] = max(*param_vars[i] - param_step, param_min); break;
+							// r1==r2だと、param_min == param_maxということになってしまう。
+							// そんなパラメーターは用意しない。
+							ASSERT_LV3(r1 != r2);
+							
+							// 2択
+							if (rand.rand(2))
+							{
+								if (r1)
+									*param_vars[i] = max(*param_vars[i] - param_step, param_min);
+								else // if (r2)
+									*param_vars[i] = min(*param_vars[i] + param_step, param_max);
+							}
+
+						} else {
+							switch (rand.rand(3))
+							{
+							case 0:break;
+							case 1: *param_vars[i] = min(*param_vars[i] + param_step, param_max); break;
+							case 2: *param_vars[i] = max(*param_vars[i] - param_step, param_min); break;
+							}
 						}
 #endif
 
@@ -2168,28 +2201,6 @@ void Search::init() {
 	// pvとnon pvのときのreduction定数
 	// 0.05とか変更するだけで勝率えらく変わる
 
-#if 0
-	// K[][2] = { nonPV時 }、{ PV時 }
-	double K[][2] = { { 0.799 - 0.1 , 2.281 + 0.1 },{ 0.484 + 0.1 , 3.023 + 0.05 } };
-
-	for (int pv = 0; pv <= 1; ++pv)
-		for (int imp = 0; imp <= 1; ++imp)
-			for (int d = 1; d < 64; ++d)
-				for (int mc = 1; mc < 64; ++mc)
-				{
-					// 基本的なアイデアとしては、log(depth) × log(moveCount)に比例した分だけreductionさせるというもの。
-					double r = K[pv][0] + log(d) * log(mc) / K[pv][1];
-
-					if (r >= 1.5)
-						reduction_table[pv][imp][d][mc] = int(r) * ONE_PLY;
-
-					// nonPVでimproving(評価値が2手前から上がっている)でないときはreductionの量を増やす。
-					// →　これ、ほとんど効果がないようだ…。あとで調整すべき。
-					if (!pv && !imp && reduction_table[pv][imp][d][mc] >= 2 * ONE_PLY)
-						reduction_table[pv][imp][d][mc] += ONE_PLY;
-				}
-#else
-
 	// K[][2] = { nonPV時 }、{ PV時 }
 
 	for (int imp = 0; imp <= 1; ++imp)
@@ -2209,8 +2220,6 @@ void Search::init() {
 				if (!imp && reduction_table[NonPV][imp][d][mc] >= 2)
 					reduction_table[NonPV][imp][d][mc] ++;
 			}
-
-#endif
 
 	// 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
 	// 枝刈りしてしまうためのmoveCountベースのfutilityで用いるテーブル。
@@ -2308,10 +2317,11 @@ void Thread::search()
 	// 将棋所のコンソールが詰まるので出力を抑制するために、前回の出力時刻を
 	// 記録しておき、そこから一定時間経過するごとに出力するという方式を採る。
 	int lastInfoTime = 0;
-	int pv_interval = Options["PvInterval"]; // PVの出力間隔[ms]
+	// PVの出力間隔[ms]
+	int pv_interval = Options["PvInterval"];
 
-											 // もし自分がメインスレッドであるならmainThreadにそのポインタを入れる。
-											 // 自分がスレーブのときはnullptrになる。
+	// もし自分がメインスレッドであるならmainThreadにそのポインタを入れる。
+	// 自分がスレーブのときはnullptrになる。
 	MainThread* mainThread = (this == Threads.main() ? Threads.main() : nullptr);
 
 	// メインスレッド用の初期化処理

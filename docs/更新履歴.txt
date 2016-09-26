@@ -2,6 +2,24 @@
 やねうら王 更新履歴
 
 
+■　2016/09/26 V3.77
+
+・2016 lateにPARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH3追加。
+・PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1,2を追加。
+・PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1→PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH0に名前変更。以下、1,2も同様。
+・pythonの自己対戦スクリプト、定跡のランダムシャッフルするオプションを追加。
+・PARAM_NULL_MOVE_MARGIN追加。
+・PARAM_SINGULAR_SEARCH_DEPTHの初期値がおかしかったの修正。
+
+
+■　2016/09/25 V3.76
+
+・PARAMで"fixed"と書かれているものは無いものとして扱うように変更。→　バグっていたので修正。
+・2016 late、古いほうのreduction tableの初期化コード、削除。
+・2016 late、mate1の呼び出しもパラメーター化する。USE_MATE_1PLY_IN_SEARCH、USE_MATE_1PLY_IN_QSEARCH削除。
+・USE_RANDOM_PARAMETERSのとき、2択のパラメーターの採択確率に偏りがあったのを修正。
+
+
 ■　2016/09/25 V3.75
 
 ・singularのPARAM、2を掛けていたの修正。
