@@ -17,15 +17,11 @@
 
 // 探索パラメーターにstep分のランダム値を加えて対戦させるとき用。
 // 試合が終わったときに勝敗と、そのときに用いたパラメーター一覧をファイルに出力する。
-#define USE_RANDOM_PARAMETERS
+//#define USE_RANDOM_PARAMETERS
 
-
-// -----------------------
-//   探索部の設定
-// -----------------------
-
-// futilityのmarginを動的に決定するのか
-// #define DYNAMIC_FUTILITY_MARGIN
+// 試合が終わったときに勝敗と、そのときに用いたパラメーター一覧をファイルに出力する。
+// パラメーターのランダム化は行わない。
+//#define ENABLE_OUTPUT_GAME_RESULT
 
 // -----------------------
 //   includes
@@ -65,7 +61,7 @@ using namespace Eval;
 // 定跡ファイル名
 string book_name;
 
-#ifdef USE_RANDOM_PARAMETERS
+#if defined (USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
 // 変更したパラメーター一覧と、リザルト(勝敗)を書き出すためのファイルハンドル
 static fstream result_log;
 #endif
@@ -149,8 +145,15 @@ void USI::extra_option(USI::OptionsMap & o)
 	sync_cout << "info string warning!! disable is_draw()." << sync_endl;
 #endif
 
+#if defined (USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
+
 #ifdef USE_RANDOM_PARAMETERS
 	sync_cout << "info string warning!! USE_RANDOM_PARAMETERS." << sync_endl;
+#endif
+
+#ifdef ENABLE_OUTPUT_GAME_RESULT
+	sync_cout << "info string warning!! ENABLE_OUTPUT_GAME_RESULT." << sync_endl;
+#endif
 
 	// パラメーターのログの保存先のfile path
 	o["PARAMETERS_LOG_FILE_PATH"] << Option("param_log.txt");
@@ -194,25 +197,10 @@ namespace YaneuraOu2016Late
 	// 手番の価値
 	const Value Tempo = Value(20);
 
-#ifdef DYNAMIC_FUTILITY_MARGIN
-	// 64個分のfutility marginを足したもの
-	Value futility_margin_sum;
-
-	// game ply(≒進行度)とdepth(残り探索深さ)に応じたfutility margin。
-	Value futility_margin(Depth d, int game_ply) {
-		// 64は64個のサンプリングをしているから。
-		// 平均値をmaringとすると小さすぎるので(40%ぐらいが危険な枝刈りになる)
-		// そこから分散をσとして3σぐらいの範囲にしたいが、分散は平均に比例すると仮定して、
-		// 結局、3σ≒ 平均(= futility_margin_sum/64 )×適当な係数。
-		return (20 + (param1 - 1) * 2) * futility_margin_sum * d / ONE_PLY / (64 * 8);
-	}
-#else
 	// depth(残り探索深さ)に応じたfutility margin。
 	Value futility_margin(Depth d) {
 		return Value(d * PARAM_FUTILITY_MARGIN_ALPHA / ONE_PLY);
 	}
-#endif
-
 
 	// 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
 	// 枝刈りしてしまうためのmoveCountベースのfutilityで用いるテーブル
@@ -1449,8 +1437,9 @@ namespace YaneuraOu2016Late
 
 			// move countベースの枝刈りを実行するかどうかのフラグ
 
-			bool moveCountPruning = depth < 16 * ONE_PLY
-				&& moveCount >= FutilityMoveCounts[improving][depth / ONE_PLY];
+			bool moveCountPruning = depth < PARAM_PRUNING_BY_MOVE_COUNT_DEPTH * ONE_PLY
+				&& moveCount >= FutilityMoveCounts[improving][min(depth / ONE_PLY, 16)];
+			// FutilityMoveCounts[][depth]、depth16までしかテーブル作っていないのでmin()で16までに制限しておく。
 
 			// 王手となる指し手でSEE >= 0であれば残り探索深さに1手分だけ足す。
 			// また、moveCountPruningでない指し手(置換表の指し手とか)も延長対称。
@@ -1498,12 +1487,12 @@ namespace YaneuraOu2016Late
 				else
 					rBeta = std::max(ttValue - PARAM_SINGULAR_MARGIN * depth / (8 * ONE_PLY), -VALUE_MATE);
 
-				// PARAM_SINGULAR_SEARCH_DEPTHが128(無調整)のときはデフォルト動作。
+				// PARAM_SINGULAR_SEARCH_DEPTH_ALPHAが128(無調整)のときはデフォルト動作。
 				Depth d;
-				if (PARAM_SINGULAR_SEARCH_DEPTH == 16)
+				if (PARAM_SINGULAR_SEARCH_DEPTH_ALPHA == 16)
 					d = (depth / (2 * ONE_PLY)) * ONE_PLY;
 				else
-					d = (depth * PARAM_SINGULAR_SEARCH_DEPTH / (32 * ONE_PLY)) * ONE_PLY;
+					d = (depth * PARAM_SINGULAR_SEARCH_DEPTH_ALPHA / (32 * ONE_PLY)) * ONE_PLY;
 
 				// ttMoveの指し手を以下のsearch()での探索から除外
 				ss->excludedMove = move;
@@ -1611,37 +1600,17 @@ namespace YaneuraOu2016Late
 					// Prune moves with negative SEE
 					// SEEが負の指し手を枝刈り
 
-					// ToDo: ↓どうも、このコードにすると明らかに弱くなるようなのでとりあえずコメントアウト。
-					// 将棋ではseeが負の指し手もそのあと詰むような場合があるから、あまり無碍にも出来ないようだ。
-#if 1
-					// 浅いdepthで負のSSE値を持つ指し手と、深いdepthで減少する閾値を下回る指し手の枝刈り
+					// 将棋ではseeが負の指し手もそのあと詰むような場合があるから、あまり無碍にも出来ないようだが…。
 
 					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1
 						&& pos.see_sign(move) < Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 * lmrDepth * lmrDepth))
 						continue;
-#endif
-
-					// ToDo: 古いほうの枝刈りのコード。↑の代わりに用いる。
-					// 評価値がPawnValueが100ではないので何らか調整が要るんだろうな…。
-					// PARAM_FUTILITY_AT_PARENT_NODE_GAMMAをゼロに近づけると以下と等価にはなるはずなのだが..
-
-					// この枝刈りをなしにすると対技巧の勝率が6秒4スレッドで落ちた。
-					// パラメーターの自動調整に任せる。
-#if 0
-					// 次の子nodeにおいて浅い深さになる場合、負のSSE値を持つ指し手の枝刈り
-					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH0
-						&& pos.see_sign(move) < VALUE_ZERO)
-						continue;
-#endif
-
 				}
-#if 1
+
 				// 浅い深さでの、危険な指し手を枝刈りする。
-				// これは対技巧で見ると、入れたほうが強いっぽい。
 				else if (depth < (PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2) * ONE_PLY
 					&& pos.see_sign(move) < Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 * depth / ONE_PLY * depth / ONE_PLY))
 					continue;
-#endif
 			}
 
 			// -----------------------
@@ -1782,34 +1751,6 @@ namespace YaneuraOu2016Late
 								givesCheck  ? -qsearch<PV, true >(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
 											: -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
 											: - search<PV       >(pos, ss + 1, -beta, -alpha, newDepth, false);
-
-#ifdef DYNAMIC_FUTILITY_MARGIN
-
-				// 普通にfull depth searchしたのでこのときのeval-valueをサンプリングして
-				// futilty marginを動的に変更してやる。
-
-				// sampling対象はONE_PLYのときのもののみ。
-				// あまり深いものを使うと、途中で枝刈りされて、小さな値が返ってきたりして困る。
-				// あくまで1手でどれくらいの変動があるかを知りたくて、
-				// その変動値 × depth　みたいなものを計算したい。
-
-				if (newDepth == ONE_PLY
-					&& eval != VALUE_NONE             // evalutate()を呼び出していて
-					&& !captureOrPromotion            // futilityはcaptureとpromotionのときは行わないのでこの値は参考にならない
-					&& !InCheck                       // 王手がかかっていなくて
-					&& abs(value) <= VALUE_MAX_EVAL   // 評価関数の返してきた値
-					&& alpha < value && value < beta  // fail low/highしていると参考にならない
-					)
-				{
-					// 移動平均みたいなものを求める
-					futility_margin_sum = futility_margin_sum * 63 / 64;
-					futility_margin_sum += abs(value - eval);
-
-					//static int count = 0;
-					//if ((++count & 0x100) == 0)
-					//  sync_cout << "futility_margin = " << futility_margin(ONE_PLY,0) << sync_endl;
-				}
-#endif
 
 			}
 
@@ -2006,7 +1947,7 @@ void init_param()
 	// -----------------------
 	//   parameters.hの動的な読み込み
 	// -----------------------
-#if defined (USE_AUTO_TUNE_PARAMETERS) || defined(USE_RANDOM_PARAMETERS)
+#if defined (USE_AUTO_TUNE_PARAMETERS) || defined(USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
 	{
 		vector<string> param_names = {
 			"PARAM_FUTILITY_MARGIN_ALPHA" , "PARAM_FUTILITY_MARGIN_BETA" ,
@@ -2014,7 +1955,6 @@ void init_param()
 			
 			"PARAM_FUTILITY_AT_PARENT_NODE_DEPTH","PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1",
 
-			"PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH0",
 			"PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1",
 			"PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2",
 			"PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1" ,
@@ -2025,7 +1965,7 @@ void init_param()
 
 			"PARAM_PROBCUT_DEPTH","PARAM_PROBCUT_MARGIN",
 			
-			"PARAM_SINGULAR_EXTENSION_DEPTH","PARAM_SINGULAR_MARGIN","PARAM_SINGULAR_SEARCH_DEPTH",
+			"PARAM_SINGULAR_EXTENSION_DEPTH","PARAM_SINGULAR_MARGIN","PARAM_SINGULAR_SEARCH_DEPTH_ALPHA",
 			
 			"PARAM_PRUNING_BY_MOVE_COUNT_DEPTH","PARAM_PRUNING_BY_HISTORY_DEPTH","PARAM_REDUCTION_BY_HISTORY",
 			"PARAM_IID_MARGIN_ALPHA",
@@ -2034,12 +1974,15 @@ void init_param()
 
 			"PARAM_QSEARCH_MATE1","PARAM_SEARCH_MATE1"
 		};
+#ifdef 		ENABLE_OUTPUT_GAME_RESULT
+		vector<const int*> param_vars = {
+#else
 		vector<int*> param_vars = {
+#endif
 			&PARAM_FUTILITY_MARGIN_ALPHA , &PARAM_FUTILITY_MARGIN_BETA,
 			&PARAM_FUTILITY_MARGIN_QUIET , &PARAM_FUTILITY_RETURN_DEPTH,
 			
 			&PARAM_FUTILITY_AT_PARENT_NODE_DEPTH, &PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 ,
-			&PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH0,
 			&PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1,
 			&PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2,
 			&PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1,
@@ -2050,7 +1993,7 @@ void init_param()
 			
 			&PARAM_PROBCUT_DEPTH, &PARAM_PROBCUT_MARGIN,
 
-			&PARAM_SINGULAR_EXTENSION_DEPTH, &PARAM_SINGULAR_MARGIN,&PARAM_SINGULAR_SEARCH_DEPTH,
+			&PARAM_SINGULAR_EXTENSION_DEPTH, &PARAM_SINGULAR_MARGIN,&PARAM_SINGULAR_SEARCH_DEPTH_ALPHA,
 			
 			&PARAM_PRUNING_BY_MOVE_COUNT_DEPTH, &PARAM_PRUNING_BY_HISTORY_DEPTH,&PARAM_REDUCTION_BY_HISTORY,
 			&PARAM_IID_MARGIN_ALPHA,
@@ -2092,7 +2035,9 @@ void init_param()
 						count++;
 
 						// "="の右側にある数値を読む。
+#ifndef ENABLE_OUTPUT_GAME_RESULT
 						*param_vars[i] = get_num(line, "=");
+#endif
 
 						// 見つかった
 						founds[i] = true;
@@ -2166,7 +2111,7 @@ void init_param()
 					cout << "Error : param not found in " << PARAM_FILE << " -> " << param_names[i] << endl;
 		}
 
-#ifdef USE_RANDOM_PARAMETERS
+#if defined (USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
 		{
 			if (!result_log.is_open())
 				result_log.open(Options["PARAMETERS_LOG_FILE_PATH"], ios::app);
@@ -2190,7 +2135,7 @@ void init_param()
 void Search::init() {
 
 	// USE_RANDOM_PARAMETERSを用いないときは、このタイミングで探索パラメーターを初期化しておく。
-#ifndef	USE_RANDOM_PARAMETERS
+#if ! (defined(USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT))
 	init_param();
 #endif
 
@@ -2230,18 +2175,13 @@ void Search::init() {
 		FutilityMoveCounts[1][d] = int(2.9 + 1.045 * pow((float)d + 0.49, 1.8));
 	}
 
-#ifdef DYNAMIC_FUTILITY_MARGIN
-	// 64個分のmarginの合計
-	futility_margin_sum = Value(int(int(90 * ONE_PLY) / (14.0 / 8.0) * 64));
-#endif
-
 }
 
 // パラメーターのランダム化のときには、
 // USIの"gameover"コマンドに対して、それをログに書き出す。
 void gameover_handler(const string& cmd)
 {
-#ifdef USE_RANDOM_PARAMETERS
+#if defined (USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
 	result_log << cmd << endl << flush;
 #endif
 }
@@ -2255,7 +2195,7 @@ void Search::clear()
 	// -----------------------
 
 	// USE_RANDOM_PARAMETERSを用いるときは、このタイミングで探索パラメーターを初期化する。(毎回ランダム化)
-#ifdef	USE_RANDOM_PARAMETERS
+#if defined	(USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
 	init_param();
 #endif
 
