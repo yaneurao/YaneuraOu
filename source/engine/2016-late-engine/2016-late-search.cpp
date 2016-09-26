@@ -6,10 +6,9 @@
 //   やねうら王2016(late)設定部
 // -----------------------
 
-
 // 開発方針
 // やねうら王classic-tceからの改造。
-// 探索のためのハイパーパラメーターの完全自動調整。
+// 探索のためのパラメーターの完全自動調整。
 
 // パラメーターを自動調整するのか
 // 自動調整が終われば、ファイルを固定してincludeしたほうが良い。
@@ -205,7 +204,14 @@ namespace YaneuraOu2016Late
 	// 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
 	// 枝刈りしてしまうためのmoveCountベースのfutilityで用いるテーブル
 	// [improving][残りdepth/ONE_PLY]
-	int FutilityMoveCounts[2][16];
+
+#if defined (USE_AUTO_TUNE_PARAMETERS) || defined(USE_RANDOM_PARAMETERS)
+	// PARAM_PRUNING_BY_MOVE_COUNT_DEPTHの最大値の分だけ余裕を持って確保する。
+	int FutilityMoveCounts[2][32];
+#else
+	// 16のはずだが。
+	int FutilityMoveCounts[2][PARAM_PRUNING_BY_MOVE_COUNT_DEPTH];
+#endif
 
 	// 探索深さを減らすためのReductionテーブル
 	// [PvNodeであるか][improvingであるか][このnodeで何手目の指し手であるか][残りdepth]
@@ -1438,8 +1444,7 @@ namespace YaneuraOu2016Late
 			// move countベースの枝刈りを実行するかどうかのフラグ
 
 			bool moveCountPruning = depth < PARAM_PRUNING_BY_MOVE_COUNT_DEPTH * ONE_PLY
-				&& moveCount >= FutilityMoveCounts[improving][min(depth / ONE_PLY, 16)];
-			// FutilityMoveCounts[][depth]、depth16までしかテーブル作っていないのでmin()で16までに制限しておく。
+				&& moveCount >= FutilityMoveCounts[improving][depth / ONE_PLY];
 
 			// 王手となる指し手でSEE >= 0であれば残り探索深さに1手分だけ足す。
 			// また、moveCountPruningでない指し手(置換表の指し手とか)も延長対称。
@@ -2132,21 +2137,40 @@ void init_param()
 }
 
 // 起動時に呼び出される。時間のかからない探索関係の初期化処理はここに書くこと。
-void Search::init() {
+void Search::init() {}
 
-	// USE_RANDOM_PARAMETERSを用いないときは、このタイミングで探索パラメーターを初期化しておく。
-#if ! (defined(USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT))
-	init_param();
+// パラメーターのランダム化のときには、
+// USIの"gameover"コマンドに対して、それをログに書き出す。
+void gameover_handler(const string& cmd)
+{
+#if defined (USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
+	result_log << cmd << endl << flush;
 #endif
+}
+
+// isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
+void Search::clear()
+{
+	// -----------------------
+	//   探索パラメーターの初期化
+	// -----------------------
+
+	init_param();
 
 	// -----------------------
 	// LMRで使うreduction tableの初期化
 	// -----------------------
 
+	// この初期化処理、起動時に1度でも良いのだが、探索パラメーターの調整を行なうときは、
+	// init_param()のあとに行なうべきなので、ここで初期化することにする。
+
 	// pvとnon pvのときのreduction定数
 	// 0.05とか変更するだけで勝率えらく変わる
 
 	// K[][2] = { nonPV時 }、{ PV時 }
+
+	// パラメーターの自動調整のため、前の値として0以外が入っているかも知れないのでゼロ初期化する。
+	memset(&reduction_table, 0, sizeof(reduction_table));
 
 	for (int imp = 0; imp <= 1; ++imp)
 		for (int d = 1; d < 64; ++d)
@@ -2169,35 +2193,11 @@ void Search::init() {
 	// 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
 	// 枝刈りしてしまうためのmoveCountベースのfutilityで用いるテーブル。
 	// FutilityMoveCounts[improving][残りdepth/ONE_PLY]
-	for (int d = 0; d < 16; ++d)
+	for (int d = 0; d < PARAM_PRUNING_BY_MOVE_COUNT_DEPTH; ++d)
 	{
 		FutilityMoveCounts[0][d] = int(2.4 + 0.773 * pow((float)d + 0.00, 1.8));
 		FutilityMoveCounts[1][d] = int(2.9 + 1.045 * pow((float)d + 0.49, 1.8));
 	}
-
-}
-
-// パラメーターのランダム化のときには、
-// USIの"gameover"コマンドに対して、それをログに書き出す。
-void gameover_handler(const string& cmd)
-{
-#if defined (USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
-	result_log << cmd << endl << flush;
-#endif
-}
-
-// isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
-void Search::clear()
-{
-
-	// -----------------------
-	//   探索パラメーターの初期化
-	// -----------------------
-
-	// USE_RANDOM_PARAMETERSを用いるときは、このタイミングで探索パラメーターを初期化する。(毎回ランダム化)
-#if defined	(USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
-	init_param();
-#endif
 
 	// -----------------------
 	//   定跡の読み込み

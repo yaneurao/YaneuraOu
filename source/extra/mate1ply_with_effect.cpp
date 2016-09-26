@@ -537,5 +537,59 @@ namespace Mate1Ply
   }
 }
 
+// 取れない近接王手からの3手詰め
+Move Position::weak_mate3ply() const
+{
+	// 1手詰めであるならこれを返す
+	Move m = mate1ply();
+	if (m)
+		return m;
+
+	// 敵駒
+	Color them = ~side_to_move();
+	Bitboard around8 = kingEffect(king_square(them));
+
+	// const剥がし
+	Position* This = ((Position*)this);
+
+	StateInfo si;
+	StateInfo si2;
+
+	// 近接王手で利きのない場所を探す。
+	for (auto m : MoveList<CHECKS>(*this))
+	{
+		// 近接王手で、この指し手による駒の移動先に敵の駒がない。
+		Square to = to_sq(m);
+		if ((around8 & to) && !effected_to(them, to))
+		{
+			This->do_move(m, si, true);
+
+			// この局面ですべてのevasionを試す
+			for (auto m2 : MoveList<EVASIONS>(*this))
+			{
+				This->do_move(m2, si2);
+
+				if (!mate1ply())
+				{
+					// 詰んでないので、m2で詰みを逃れている。
+					This->undo_move(m2);
+					goto NEXT_CHECK;
+				}
+
+				This->undo_move(m2);
+			}
+			// すべて詰んだ
+			This->undo_move(m);
+
+			// mによって3手で詰む。
+			return m;
+
+		NEXT_CHECK:;
+			This->undo_move(m);
+		}
+	}
+	return MOVE_NONE;
+}
+
 
 #endif

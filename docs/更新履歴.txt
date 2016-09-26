@@ -2,6 +2,14 @@
 やねうら王 更新履歴
 
 
+■　2016/09/27 V3.79
+
+・2016 Late、LMRのreductionテーブルの初期化タイミングの変更。
+・reduction_table、FutilityMoveCountsをパラメーター化の準備。
+・mate3()実装。
+・MovePickerの書き換えでclassic-tceまでがコンパイル通らなくなっていたの修正。
+
+
 ■　2016/09/26 V3.78
 
 ・PARAM_SINGULAR_SEARCH_DEPTHをPARAM_SINGULAR_SEARCH_DEPTH_ALPHAにリネーム。

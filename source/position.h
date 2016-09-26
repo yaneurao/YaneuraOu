@@ -540,6 +540,10 @@ struct Position
 
 	// ↑の先後別のバージョン。(内部的に用いる)
 	template <Color Us> Move mate1ply_impl() const;
+
+	// 取れない近接王手からの3手詰め
+	Move weak_mate3ply() const;
+
 #endif
 
 	// 入玉時の宣言勝ち

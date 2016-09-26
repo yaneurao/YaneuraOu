@@ -122,7 +122,7 @@ enum Stages : int {
   GOOD_CAPTURES,                // 捕獲する指し手(CAPTURES_PRO_PLUS)を生成して指し手を一つずつ返す
   KILLERS,                      // KILLERの指し手
   BAD_CAPTURES,                 // 捕獲する悪い指し手(SEE < 0 の指し手だが、将棋においてそこまで悪い手とは限らない)
-  QUIETS,                       // CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す。SEE値の悪い手は後回し。
+  SEARCH_QUIETS,                // CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す。SEE値の悪い手は後回し。
 
   // -----------------------------------------------------
   //   王手がかっている/静止探索時用の指し手生成
@@ -264,7 +264,7 @@ struct MovePicker
       endMoves = endBadCaptures;
       break;
 
-    case QUIETS:
+    case SEARCH_QUIETS:
       endMoves = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, moves);
       score_quiets();
       // プラスの符号のものだけ前方に移動させてソート
@@ -370,7 +370,7 @@ struct MovePicker
 
         // 指し手を一手ずつ返すフェーズ
         // (置換表の指し手とkillerの指し手は返したあとなのでこれらの指し手は除外する必要がある)
-      case QUIETS:
+      case SEARCH_QUIETS:
         move = *currentMoves++;
         // 置換表の指し手、killerと同じものは返してはならない。
         // ※　これ、指し手の数が多い場合、AVXを使って一気に削除しておいたほうが良いのでは..
