@@ -541,8 +541,9 @@ struct Position
 	// ↑の先後別のバージョン。(内部的に用いる)
 	template <Color Us> Move mate1ply_impl() const;
 
-	// 取れない近接王手からの3手詰め
-	Move weak_mate3ply() const;
+	// 利きのある場所への取れない近接王手からのply手詰め
+	// ply = 1,3,5,…,
+	Move weak_mate_n_ply(int ply) const;
 
 #endif
 

@@ -16,7 +16,7 @@
 
 // 探索パラメーターにstep分のランダム値を加えて対戦させるとき用。
 // 試合が終わったときに勝敗と、そのときに用いたパラメーター一覧をファイルに出力する。
-//#define USE_RANDOM_PARAMETERS
+#define USE_RANDOM_PARAMETERS
 
 // 試合が終わったときに勝敗と、そのときに用いたパラメーター一覧をファイルに出力する。
 // パラメーターのランダム化は行わない。
@@ -559,8 +559,15 @@ namespace YaneuraOu2016Late
 				// play_time = b6000 ,  538 - 23 - 439(55.07% R35.33) [2016/08/19]
 
 				// 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
-				if (pos.mate1ply() != MOVE_NONE)
-					return mate_in(ss->ply + 1);
+				if (PARAM_WEAK_MATE_PLY == 1)
+				{
+					if (pos.mate1ply() != MOVE_NONE)
+						return mate_in(ss->ply + 1);
+				} else {
+					if (pos.weak_mate_n_ply(PARAM_WEAK_MATE_PLY) != MOVE_NONE)
+						// 1手詰めかも知れないがN手詰めの可能性があるのでNを返す。
+						return mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
+				}
 
 			// このnodeに再訪問することはまずないだろうから、置換表に保存する価値はない。
 
@@ -1091,25 +1098,43 @@ namespace YaneuraOu2016Late
 			// ただ、静止探索で入れている以上、depth == ONE_PLYでも1手詰めを判定したほうがよさげではある。
 			if (!RootNode && !ttHit && !InCheck)
 			{
-				// 入れたほうがよさげ。
+				// 1手詰めは入れたほうがよさげ。
 				// play_time = b1000, 1471 - 57 - 1472(49.98% R - 0.12) [2016/08/19]
 				// play_time = b3000, 522 - 30 - 448(53.81% R26.56) [2016/08/19]
 
-				move = pos.mate1ply();
-				if (move != MOVE_NONE)
+				if (PARAM_WEAK_MATE_PLY == 1)
 				{
-					// 1手詰めスコアなので確実にvalue > alphaなはず。
-					// 1手詰めは次のnodeで詰むという解釈
-					bestValue = mate_in(ss->ply + 1);
+					move = pos.mate1ply();
+					if (move != MOVE_NONE)
+					{
+						// 1手詰めスコアなので確実にvalue > alphaなはず。
+						// 1手詰めは次のnodeで詰むという解釈
+						bestValue = mate_in(ss->ply + 1);
 
 #ifndef DISABLE_TT_PROBE
-					// staticEvalの代わりに詰みのスコア書いてもいいのでは..
-					tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
-						DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT.generation());
+						// staticEvalの代わりに詰みのスコア書いてもいいのでは..
+						tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
+							DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT.generation());
 #endif
 
-					return bestValue;
+						return bestValue;
+					}
+				} else {
+					move = pos.weak_mate_n_ply(PARAM_WEAK_MATE_PLY);
+					if (move != MOVE_NONE)
+					{
+						// 3手詰めかも知れないのでPARAM_WEAK_MATE_PLY手詰めのスコアを返す。
+						bestValue = mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
+
+#ifndef DISABLE_TT_PROBE
+						tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
+							DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT.generation());
+#endif
+
+						return bestValue;
+					}
 				}
+
 			}
 			// 1手詰めがなかったのでこの時点でもsave()したほうがいいような気がしなくもない。
 		}
@@ -1975,9 +2000,16 @@ void init_param()
 			"PARAM_PRUNING_BY_MOVE_COUNT_DEPTH","PARAM_PRUNING_BY_HISTORY_DEPTH","PARAM_REDUCTION_BY_HISTORY",
 			"PARAM_IID_MARGIN_ALPHA",
 			"PARAM_RAZORING_MARGIN1","PARAM_RAZORING_MARGIN2","PARAM_RAZORING_MARGIN3","PARAM_RAZORING_MARGIN4",
+
+			"PARAM_REDUCTION_ALPHA",
+
+			"PARAM_FUTILITY_MOVE_COUNT_ALPHA0","PARAM_FUTILITY_MOVE_COUNT_ALPHA1",
+			"PARAM_FUTILITY_MOVE_COUNT_BETA0","PARAM_FUTILITY_MOVE_COUNT_BETA1",
+
 			"PARAM_QUIET_SEARCH_COUNT",
 
-			"PARAM_QSEARCH_MATE1","PARAM_SEARCH_MATE1"
+			"PARAM_QSEARCH_MATE1","PARAM_SEARCH_MATE1","PARAM_WEAK_MATE_PLY"
+
 		};
 #ifdef 		ENABLE_OUTPUT_GAME_RESULT
 		vector<const int*> param_vars = {
@@ -2003,9 +2035,16 @@ void init_param()
 			&PARAM_PRUNING_BY_MOVE_COUNT_DEPTH, &PARAM_PRUNING_BY_HISTORY_DEPTH,&PARAM_REDUCTION_BY_HISTORY,
 			&PARAM_IID_MARGIN_ALPHA,
 			&PARAM_RAZORING_MARGIN1,&PARAM_RAZORING_MARGIN2,&PARAM_RAZORING_MARGIN3,&PARAM_RAZORING_MARGIN4,
+
+			&PARAM_REDUCTION_ALPHA,
+
+			&PARAM_FUTILITY_MOVE_COUNT_ALPHA0,&PARAM_FUTILITY_MOVE_COUNT_ALPHA1,
+			&PARAM_FUTILITY_MOVE_COUNT_BETA0,&PARAM_FUTILITY_MOVE_COUNT_BETA1,
+
 			&PARAM_QUIET_SEARCH_COUNT,
 
-			&PARAM_QSEARCH_MATE1,&PARAM_SEARCH_MATE1
+			&PARAM_QSEARCH_MATE1,&PARAM_SEARCH_MATE1,&PARAM_WEAK_MATE_PLY,
+
 		};
 
 		fstream fs;
@@ -2177,7 +2216,7 @@ void Search::clear()
 			for (int mc = 1; mc < 64; ++mc)
 			{
 				// 基本的なアイデアとしては、log(depth) × log(moveCount)に比例した分だけreductionさせるというもの。
-				double r = log(d) * log(mc) / 2;
+				double r = log(d) * log(mc) * PARAM_REDUCTION_ALPHA / 32;
 				if (r < 0.80)
 					continue;
 
@@ -2195,8 +2234,10 @@ void Search::clear()
 	// FutilityMoveCounts[improving][残りdepth/ONE_PLY]
 	for (int d = 0; d < PARAM_PRUNING_BY_MOVE_COUNT_DEPTH; ++d)
 	{
-		FutilityMoveCounts[0][d] = int(2.4 + 0.773 * pow((float)d + 0.00, 1.8));
-		FutilityMoveCounts[1][d] = int(2.9 + 1.045 * pow((float)d + 0.49, 1.8));
+		//FutilityMoveCounts[0][d] = int(2.4 + 0.773 * pow((float)d + 0.00, 1.8));
+		//FutilityMoveCounts[1][d] = int(2.9 + 1.045 * pow((float)d + 0.49, 1.8));
+		FutilityMoveCounts[0][d] = int(PARAM_FUTILITY_MOVE_COUNT_ALPHA0/100.0 + PARAM_FUTILITY_MOVE_COUNT_BETA0 / 1000.0 * pow((float)d + 0.00, 1.8));
+		FutilityMoveCounts[1][d] = int(PARAM_FUTILITY_MOVE_COUNT_ALPHA1/100.0 + PARAM_FUTILITY_MOVE_COUNT_BETA1 / 1000.0 * pow((float)d + 0.49, 1.8));
 	}
 
 	// -----------------------

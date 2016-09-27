@@ -278,6 +278,7 @@
 #define USE_SHARED_MEMORY_IN_EVAL
 // パラメーターの自動調整絡み
 #define USE_GAMEOVER_HANDLER
+//#define LONG_EFFECT_LIBRARY
 #endif
 
 

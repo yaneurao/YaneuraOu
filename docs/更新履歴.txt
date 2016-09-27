@@ -2,6 +2,17 @@
 やねうら王 更新履歴
 
 
+■　2016/09/27 V3.80
+
+・3手詰めやめて、N手詰めに拡張。
+・2016 Late、weak_mate_n_ply()を使うかどうかをパラメーター化
+・PARAM_WEAK_MATE_PLY追加。
+・2016 Late、以下のパラメーター追加。
+	"PARAM_REDUCTION_ALPHA",
+	"PARAM_FUTILITY_MOVE_COUNT_ALPHA0","PARAM_FUTILITY_MOVE_COUNT_ALPHA1",
+	"PARAM_FUTILITY_MOVE_COUNT_BETA0","PARAM_FUTILITY_MOVE_COUNT_BETA1",
+
+
 ■　2016/09/27 V3.79
 
 ・2016 Late、LMRのreductionテーブルの初期化タイミングの変更。

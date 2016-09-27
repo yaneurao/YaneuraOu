@@ -256,6 +256,7 @@
     <ClCompile Include="extra\long_effect.cpp" />
     <ClCompile Include="extra\mate1ply_with_effect.cpp" />
     <ClCompile Include="extra\mate1ply_without_effect.cpp" />
+    <ClCompile Include="extra\mate_n_ply.cpp" />
     <ClCompile Include="extra\move_picker_2016Q2.cpp" />
     <ClCompile Include="extra\move_picker_2016Q3.cpp" />
     <ClCompile Include="extra\see.cpp" />
