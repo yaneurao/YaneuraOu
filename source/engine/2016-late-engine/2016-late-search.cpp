@@ -16,7 +16,7 @@
 
 // 探索パラメーターにstep分のランダム値を加えて対戦させるとき用。
 // 試合が終わったときに勝敗と、そのときに用いたパラメーター一覧をファイルに出力する。
-#define USE_RANDOM_PARAMETERS
+//#define USE_RANDOM_PARAMETERS
 
 // 試合が終わったときに勝敗と、そのときに用いたパラメーター一覧をファイルに出力する。
 // パラメーターのランダム化は行わない。
@@ -2090,6 +2090,7 @@ void init_param()
 						// PARAM_DEFINEの一つ前の行には次のように書いてあるはずなので、
 						// USE_RANDOM_PARAMETERSのときは、このstepをプラスかマイナス方向に加算してやる。
 						// ただし、fixedと書いてあるパラメーターに関しては除外する。
+						// interval = 2だと、-2*step,-step,+0,+step,2*stepの5つを試す。
 
 						// [PARAM] min:100,max:240,step:3,interval:1,time_rate:1,fixed
 
@@ -2104,34 +2105,33 @@ void init_param()
 						int param_step = get_num(last_line, "step:");
 						int param_min = get_num(last_line, "min:");
 						int param_max = get_num(last_line, "max:");
+						int param_interval = get_num(last_line, "interval:");
 
-						// これ、有りと無しの2択であるパラメーターとかについて、
-						// もう片側が1/3の確率でしか出現しないのまずいので均等になるように調整する。
+						// 現在の値
+						int v = *param_vars[i];
 
-						bool r1 = *param_vars[i] == param_max;
-						bool r2 = *param_vars[i] == param_min;
-						if (r1 || r2)
+						// とりうる値の候補
+						vector<int> a;
+						
+						for (int j = 0; j <= param_interval; ++j)
 						{
-							// r1==r2だと、param_min == param_maxということになってしまう。
-							// そんなパラメーターは用意しない。
-							ASSERT_LV3(r1 != r2);
-							
-							// 2択
-							if (rand.rand(2))
-							{
-								if (r1)
-									*param_vars[i] = max(*param_vars[i] - param_step, param_min);
-								else // if (r2)
-									*param_vars[i] = min(*param_vars[i] + param_step, param_max);
-							}
+							// j==0のときは同じ値であり、これはのちに除外される。
+							a.push_back(max(v - param_step*j,param_max));
+							a.push_back(min(v + param_step*j,param_min));
+						}
 
+						// 重複除去。
+						// 1) std::unique()は隣接要素しか削除しないので事前にソートしている。
+						// 2) std::unique()では末尾にゴミが残るのでそれをerase()で消している。
+						std::sort(a.begin(), a.end());
+						a.erase(std::unique(a.begin(), a.end()), a.end());
+
+						// 残ったものから1つをランダムに選択
+						if (a.size() == 0)
+						{
+							cout << "Error : param is out of range -> " << line << endl;
 						} else {
-							switch (rand.rand(3))
-							{
-							case 0:break;
-							case 1: *param_vars[i] = min(*param_vars[i] + param_step, param_max); break;
-							case 2: *param_vars[i] = max(*param_vars[i] - param_step, param_min); break;
-							}
+							*param_vars[i] = a[rand.rand(a.size())];
 						}
 #endif
 
@@ -2216,7 +2216,7 @@ void Search::clear()
 			for (int mc = 1; mc < 64; ++mc)
 			{
 				// 基本的なアイデアとしては、log(depth) × log(moveCount)に比例した分だけreductionさせるというもの。
-				double r = log(d) * log(mc) * PARAM_REDUCTION_ALPHA / 32;
+				double r = log(d) * log(mc) * PARAM_REDUCTION_ALPHA / 256;
 				if (r < 0.80)
 					continue;
 
