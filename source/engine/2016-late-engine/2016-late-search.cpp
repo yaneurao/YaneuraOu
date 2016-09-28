@@ -1510,12 +1510,12 @@ namespace YaneuraOu2016Late
 				&&  pos.legal(move))
 			{
 				// このmargin値は評価関数の性質に合わせて調整されるべき。
-				// PARAM_SINGULAR_MARGIN == 16のときはdefault動作。
+				// PARAM_SINGULAR_MARGIN == 128のときはdefault動作。
 				Value rBeta;
-				if (PARAM_SINGULAR_MARGIN == 16)
+				if (PARAM_SINGULAR_MARGIN == 128)
 					rBeta = std::max(ttValue - 2 * depth / ONE_PLY, -VALUE_MATE);
 				else
-					rBeta = std::max(ttValue - PARAM_SINGULAR_MARGIN * depth / (8 * ONE_PLY), -VALUE_MATE);
+					rBeta = std::max(ttValue - PARAM_SINGULAR_MARGIN * depth / (64 * ONE_PLY), -VALUE_MATE);
 
 				// PARAM_SINGULAR_SEARCH_DEPTH_ALPHAが128(無調整)のときはデフォルト動作。
 				Depth d;
@@ -2116,8 +2116,8 @@ void init_param()
 						for (int j = 0; j <= param_interval; ++j)
 						{
 							// j==0のときは同じ値であり、これはのちに除外される。
-							a.push_back(max(v - param_step*j,param_max));
-							a.push_back(min(v + param_step*j,param_min));
+							a.push_back(max(v - param_step*j,param_min));
+							a.push_back(min(v + param_step*j,param_max));
 						}
 
 						// 重複除去。
