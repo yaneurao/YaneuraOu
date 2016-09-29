@@ -185,14 +185,8 @@ namespace YaneuraOu2016Late
 	enum NodeType { PV, NonPV };
 
 	// Razoringのdepthに応じたマージン値
-	const int razor_margin_table[4] = { PARAM_RAZORING_MARGIN1 , PARAM_RAZORING_MARGIN2 , PARAM_RAZORING_MARGIN3 , PARAM_RAZORING_MARGIN4 };
-
-	Value razor_margin(Depth d)
-	{
-		ASSERT_LV3(DEPTH_ZERO <= d && d < 4 * ONE_PLY);
-		return (Value)razor_margin_table[d / ONE_PLY];
-	}
-
+	int razor_margin[4];
+	
 	// 手番の価値
 	const Value Tempo = Value(20);
 
@@ -1123,7 +1117,7 @@ namespace YaneuraOu2016Late
 					move = pos.weak_mate_n_ply(PARAM_WEAK_MATE_PLY);
 					if (move != MOVE_NONE)
 					{
-						// 3手詰めかも知れないのでPARAM_WEAK_MATE_PLY手詰めのスコアを返す。
+						// N手詰めかも知れないのでPARAM_WEAK_MATE_PLY手詰めのスコアを返す。
 						bestValue = mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
 
 #ifndef DISABLE_TT_PROBE
@@ -1210,17 +1204,17 @@ namespace YaneuraOu2016Late
 		if (!PvNode
 			&&  depth < 4 * ONE_PLY
 			&&  ttMove == MOVE_NONE
-			&&  eval + razor_margin(depth) <= alpha
+			&&  eval + razor_margin[depth/ONE_PLY] <= alpha
 			)
 		{
 			// 残り探索深さがONE_PLY以下で、alphaを確実に下回りそうなら、ここで静止探索を呼び出してしまう。
 			if (depth <= ONE_PLY
-				&& eval + razor_margin(3 * ONE_PLY) <= alpha)
+				&& eval + razor_margin[3] <= alpha)
 				return  qsearch<NonPV, false>(pos, ss, alpha, beta, DEPTH_ZERO);
 
 			// 残り探索深さが1～3手ぐらいあるときに、alpha - razor_marginを上回るかだけ調べて
 			// 上回りそうにないならもうリターンする。
-			Value ralpha = alpha - razor_margin(depth);
+			Value ralpha = alpha - razor_margin[depth/ONE_PLY];
 			Value v = qsearch<NonPV, false>(pos, ss, ralpha, ralpha + 1, DEPTH_ZERO);
 			if (v <= ralpha)
 				return v;
@@ -2197,8 +2191,10 @@ void Search::clear()
 	init_param();
 
 	// -----------------------
-	// LMRで使うreduction tableの初期化
+	//   テーブルの初期化
 	// -----------------------
+
+	// LMRで使うreduction tableの初期化
 
 	// この初期化処理、起動時に1度でも良いのだが、探索パラメーターの調整を行なうときは、
 	// init_param()のあとに行なうべきなので、ここで初期化することにする。
@@ -2229,6 +2225,8 @@ void Search::clear()
 					reduction_table[NonPV][imp][d][mc] ++;
 			}
 
+	// Futilityで用いるテーブルの初期化
+
 	// 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
 	// 枝刈りしてしまうためのmoveCountベースのfutilityで用いるテーブル。
 	// FutilityMoveCounts[improving][残りdepth/ONE_PLY]
@@ -2239,6 +2237,13 @@ void Search::clear()
 		FutilityMoveCounts[0][d] = int(PARAM_FUTILITY_MOVE_COUNT_ALPHA0/100.0 + PARAM_FUTILITY_MOVE_COUNT_BETA0 / 1000.0 * pow((float)d + 0.00, 1.8));
 		FutilityMoveCounts[1][d] = int(PARAM_FUTILITY_MOVE_COUNT_ALPHA1/100.0 + PARAM_FUTILITY_MOVE_COUNT_BETA1 / 1000.0 * pow((float)d + 0.49, 1.8));
 	}
+
+	// razor marginの初期化
+
+	razor_margin[0] = PARAM_RAZORING_MARGIN1;
+	razor_margin[1] = PARAM_RAZORING_MARGIN2;
+	razor_margin[2] = PARAM_RAZORING_MARGIN3;
+	razor_margin[3] = PARAM_RAZORING_MARGIN4;
 
 	// -----------------------
 	//   定跡の読み込み

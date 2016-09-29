@@ -151,14 +151,14 @@ set option name XXX value ...で設定できるoption
 	bench   : ベンチマーク
 		bench [置換表サイズ][スレッド数][→の指定][LimitType = depth , nodes, time][局面の指定]
 		例)
-			bench 1024 1 10 depth
+			bench 1024 1 10 default depth
 			※　パラメーター省略時は上記の設定
 		
 		[局面の指定]について
 		  "default"=デフォルトの局面、"current"=現在の局面、
 		  それ以外 = ファイル名とみなしてそのsfenファイルを読み込む
 
-		例) bench 1024 1 10 depth current
+		例) bench 1024 1 10 default depth
 
 
 	test    : テスト用コマンド

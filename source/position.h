@@ -359,7 +359,6 @@ struct Position
 	// --- legality(指し手の合法性)のチェック
 
 	// 生成した指し手(CAPTUREとかNON_CAPTUREとか)が、合法であるかどうかをテストする。
-	// 注意 : 事前にcheck_info_update()が呼び出されていること。
 	//
 	// 指し手生成で合法手であるか判定が漏れている項目についてチェックする。
 	// 王手のかかっている局面についてはEVASION(回避手)で指し手が生成されているはずなので
@@ -396,7 +395,6 @@ struct Position
 	// killerのような兄弟局面の指し手がこの局面において合法かどうかにも使う。
 	// ※　置換表の検査だが、pseudo_legal()で擬似合法手かどうかを判定したあとlegal()で自殺手でないことを
 	// 確認しなくてはならない。このためpseudo_legal()とlegal()とで重複する自殺手チェックはしていない。
-	// 注意 : 事前にcheck_info_update()が呼び出されていること。
 	bool pseudo_legal(const Move m) const { return pseudo_legal_s<true>(m); }
 
 	// All == false        : 歩や大駒の不成に対してはfalseを返すpseudo_legal()
@@ -462,7 +460,6 @@ struct Position
 
 	// 指し手mで王手になるかを判定する。
 	// 指し手mはpseudo-legal(擬似合法)の指し手であるものとする。
-	// 事前にcheck_info_update()が呼び出されていること。
 	bool gives_check(Move m) const;
 
 	// 手番側の駒をfromからtoに移動させると素抜きに遭うのか？
@@ -526,13 +523,6 @@ struct Position
   // ただし1手詰めであれば確実に詰ませられるわけではなく、簡単に判定できそうな近接王手による
   // 1手詰めのみを判定する。(要するに判定に漏れがある。)
   // 
-  // 前提条件
-  // 1) LONG_EFFECT_LIBRARYを用いる場合、先行して、CheckInfo.pinnedを更新しておく必要がある。
-  // →　check_info_update_pinned()を利用するのが吉。
-  // 2) LONG_EFFECT_LIBRARYを用いない場合、CheckInfo.dcCandidatesを更新しておく必要がある。
-  // →　素直にcheck_info_update()を呼び出すのが吉。
-  // 
-
   // 返し値は、16bitのMove。このあとpseudo_legal()等を使いたいなら、
   // pos.move16_to_move()を使って32bitのMoveに変換すること。
 

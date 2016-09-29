@@ -32,24 +32,36 @@ Move Position::weak_mate_n_ply(int ply) const
 		if ((around8 & to) && effected_to(us, to) &&
 			// 敵玉の利きは必ずtoにあるのでそれを除いた利きがあるかどうか。
 #ifndef LONG_EFFECT_LIBRARY
-			// toに利かせている駒から玉を取り除く。
-			attackers_to(them,to,pieces()) ^ king_square(them)
+			// toに利かせている駒から玉を取り除いて、toに利かせている駒があれば。
+			(attackers_to(them,to,pieces()) ^ king_square(them))
 #else
 			// 敵玉の利きがあるので2つ以上なければそれで良い。
-			board_effect[them].effect(to) <= 1
+			(board_effect[them].effect(to) <= 1)
 #endif
 			)
 		{
+			if (!legal(m))
+				continue;
+
+			ASSERT_LV3(gives_check(m));
+
 			This->do_move(m,si,true);
+
+			ASSERT_LV3(in_check());
 
 			// この局面ですべてのevasionを試す
 			for (auto m2 : MoveList<EVASIONS>(*this))
 			{
+				if (!legal(m2))
+					continue;
+
 				// この指し手で逆王手になるなら、不詰めとして扱う
 				if (gives_check(m2))
 					goto NEXT_CHECK;
 
-				This->do_move(m2, si2,false);
+				This->do_move(m2, si2, false);
+
+				ASSERT_LV3(!in_check());
 
 				if (!weak_mate_n_ply(ply-2))
 				{
@@ -60,6 +72,7 @@ Move Position::weak_mate_n_ply(int ply) const
 
 				This->undo_move(m2);
 			}
+
 			// すべて詰んだ
 			This->undo_move(m);
 
