@@ -32,8 +32,8 @@ Move Position::weak_mate_n_ply(int ply) const
 		if ((around8 & to) && effected_to(us, to) &&
 			// 敵玉の利きは必ずtoにあるのでそれを除いた利きがあるかどうか。
 #ifndef LONG_EFFECT_LIBRARY
-			// toに利かせている駒から玉を取り除いて、toに利かせている駒があれば。
-			(attackers_to(them,to,pieces()) ^ king_square(them))
+			// toに利かせている駒から玉を取り除いて、toに利かせている駒がなければ。
+			!(attackers_to(them,to,pieces()) ^ king_square(them))
 #else
 			// 敵玉の利きがあるので2つ以上なければそれで良い。
 			(board_effect[them].effect(to) <= 1)
