@@ -1209,7 +1209,7 @@ namespace YaneuraOu2016Late
 		{
 			// 残り探索深さがONE_PLY以下で、alphaを確実に下回りそうなら、ここで静止探索を呼び出してしまう。
 			if (depth <= ONE_PLY
-				&& eval + razor_margin[3] <= alpha)
+				&& eval + razor_margin[DEPTH_ZERO] <= alpha)
 				return  qsearch<NonPV, false>(pos, ss, alpha, beta, DEPTH_ZERO);
 
 			// 残り探索深さが1～3手ぐらいあるときに、alpha - razor_marginを上回るかだけ調べて
@@ -1504,14 +1504,14 @@ namespace YaneuraOu2016Late
 				&&  pos.legal(move))
 			{
 				// このmargin値は評価関数の性質に合わせて調整されるべき。
-				// PARAM_SINGULAR_MARGIN == 128のときはdefault動作。
+				// PARAM_SINGULAR_MARGIN == 128(無調整)のときはdefault動作。
 				Value rBeta;
 				if (PARAM_SINGULAR_MARGIN == 128)
 					rBeta = std::max(ttValue - 2 * depth / ONE_PLY, -VALUE_MATE);
 				else
 					rBeta = std::max(ttValue - PARAM_SINGULAR_MARGIN * depth / (64 * ONE_PLY), -VALUE_MATE);
 
-				// PARAM_SINGULAR_SEARCH_DEPTH_ALPHAが128(無調整)のときはデフォルト動作。
+				// PARAM_SINGULAR_SEARCH_DEPTH_ALPHAが16(無調整)のときはデフォルト動作。
 				Depth d;
 				if (PARAM_SINGULAR_SEARCH_DEPTH_ALPHA == 16)
 					d = (depth / (2 * ONE_PLY)) * ONE_PLY;

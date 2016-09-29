@@ -391,16 +391,13 @@
     <None Include="..\script\calc_rating.py">
       <Filter>script</Filter>
     </None>
-    <None Include="..\script\engine_invoker.py">
-      <Filter>script</Filter>
-    </None>
-    <None Include="..\script\engine_invoker2.py">
-      <Filter>script</Filter>
-    </None>
-    <None Include="..\script\engine_invoker3.py">
-      <Filter>script</Filter>
-    </None>
     <None Include="..\script\analyze_result_log.py">
+      <Filter>script</Filter>
+    </None>
+    <None Include="..\script\engine_invoker1.py">
+      <Filter>script</Filter>
+    </None>
+    <None Include="..\script\engine_invoker4.py">
       <Filter>script</Filter>
     </None>
   </ItemGroup>
