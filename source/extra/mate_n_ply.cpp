@@ -45,7 +45,11 @@ Move Position::weak_mate_n_ply(int ply) const
 			// この局面ですべてのevasionを試す
 			for (auto m2 : MoveList<EVASIONS>(*this))
 			{
-				This->do_move(m2, si2);
+				// この指し手で逆王手になるなら、不詰めとして扱う
+				if (gives_check(m2))
+					goto NEXT_CHECK;
+
+				This->do_move(m2, si2,false);
 
 				if (!weak_mate_n_ply(ply-2))
 				{
