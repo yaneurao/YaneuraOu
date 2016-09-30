@@ -29,14 +29,21 @@ Move Position::weak_mate_n_ply(int ply) const
 	{
 		// 近接王手で、この指し手による駒の移動先に敵の駒がない。
 		Square to = to_sq(m);
-		if ((around8 & to) && effected_to(us, to) &&
-			// 敵玉の利きは必ずtoにあるのでそれを除いた利きがあるかどうか。
+		if ((around8 & to)
+
 #ifndef LONG_EFFECT_LIBRARY
-			// toに利かせている駒から玉を取り除いて、toに利かせている駒がなければ。
-			!(attackers_to(them,to,pieces()) ^ king_square(them))
+			// toに利きがあるかどうか。mが移動の指し手の場合、mの元の利きを取り除く必要がある。
+			&& (is_drop(m) ? effected_to(us, to) : (attackers_to(us, to, pieces() ^ from_sq(m)) ^ from_sq(m)))
+
+			// 敵玉の利きは必ずtoにあるのでそれを除いた利きがあるかどうか。
+			&& (attackers_to(them,to,pieces()) ^ king_square(them))
 #else
+			&& (is_drop(m) ? effected_to(us, to) :
+					board_effect[us].effect(to) >= 2 ||
+					(long_effect.directions_of(us, from_sq(m)) & Effect8::directions_of(from_sq(m), to)) != 0)
+
 			// 敵玉の利きがあるので2つ以上なければそれで良い。
-			(board_effect[them].effect(to) <= 1)
+			&& (board_effect[them].effect(to) <= 1)
 #endif
 			)
 		{

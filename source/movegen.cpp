@@ -826,6 +826,9 @@ ExtMove* generate_checks(const Position& pos, ExtMove* mlist)
     (pos.pieces(Us, ROOK) ) | // ROOK,DRAGONは無条件全域
     (pos.pieces(Us, HDK) & pos.pieces(Us, BISHOP) & check_candidate_bb(Us, ROOK, themKing)); // check_candidate_bbにはROOKと書いてるけど、HORSE
 
+  // ここには王を敵玉の8近傍に移動させる指し手も含まれるが、王が近接する形はレアケースなので
+  // 指し手生成の段階では除外しなくても良いと思う。
+
   const Bitboard y = pos.discovered_check_candidates();
   const Bitboard target =
     (GenType == CHECKS || GenType == CHECKS_ALL) ? ~pos.pieces(Us) :                     // 自駒がない場所が移動対象升

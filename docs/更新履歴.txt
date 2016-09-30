@@ -1,6 +1,13 @@
 ﻿
 やねうら王 更新履歴
 
+
+
+■　2016/10/01 V3.87
+
+・N手詰め、まだバグっていたのでまたまた修正。(thanks! > tttakさん)
+
+
 ■　2016/09/29 V3.86
 
 ・N手詰め、まだバグっていたので修正。(thanks! > tttakさん)
@@ -10,6 +17,8 @@
 
 ・Stockfishのコード、razor_margin[3]を下回るときに静止探索を呼び出しているが、razor_margin[ZERO_DEPTH]
 　を下回るときでないとrazoringとしておかしい。これはStockfishのバグだろう。修正した。
+・Stockfish公式のほうも同じ修正が入った。
+→　Stockfish : Remove useless razoring condition
 
 
 ■　2016/09/29 V3.84
