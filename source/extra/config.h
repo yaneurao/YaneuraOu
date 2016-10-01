@@ -601,6 +601,12 @@ inline int MKDIR(std::string dir_name)
 #define USE_EVAL_DIFF
 #endif
 
+// AVX2を用いたKPPT評価関数は高速化できるので特別扱い。
+// Skylake以降でないとほぼ効果がないが…。
+#if defined(EVAL_KPPT) && defined(USE_AVX2)
+#define USE_FAST_KPPT
+#endif
+
 // -- 評価関数の種類により、盤面の利きの更新ときの処理が異なる。(このタイミングで評価関数の差分計算をしたいので)
 
 // 盤面上の利きを更新するときに呼び出したい関数。(評価関数の差分更新などのために差し替え可能にしておく。)

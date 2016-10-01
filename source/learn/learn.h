@@ -26,8 +26,13 @@
 // =====================
 
 // 教師局面生成時に千日手・優等・劣等局面の判定をなくすなら、LEARN_GENSFENをdefineすること。
-//#define LEARN_GENSFEN
+// (やねうら王2016Lateでサポート)
+//#define GENSFEN_USE_NO_REPETITION
+// →　意味ないようなので将来的に削除するかも。
 
+// 教師局面の生成時にPVの初手も保存するならこれをdefineすること。
+// 2016年9月までに公開したした教師データを用いる場合、これをdefineしてはならない。
+#define GENSFEN_SAVE_FIRST_MOVE
 
 
 // ----------------------

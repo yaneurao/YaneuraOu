@@ -371,12 +371,76 @@ namespace Eval
 		const auto list1 = pos.eval_list()->piece_list_fw();
 
 		EvalSum sum;
-		sum.p[2][0] = kkp[sq_bk][sq_wk][ebp.fb][0];
-		sum.p[2][1] = kkp[sq_bk][sq_wk][ebp.fb][1];
+		sum.p[0] = { 0, 0 };
+		sum.p[1] = { 0, 0 };
+		sum.p[2] = kkp[sq_bk][sq_wk][ebp.fb];
 
 		const auto* pkppb = kpp[sq_bk][ebp.fb];
 		const auto* pkppw = kpp[Inv(sq_wk)][ebp.fw];
-#if defined (USE_SSE41)
+
+#if defined (USE_AVX2)
+		// This code is written by tanuki-.
+		// I pay my respects to his great achievements.
+
+		__m256i zero = _mm256_setzero_si256();
+		__m256i sum0 = zero;
+		__m256i sum1 = zero;
+		int i = 0;
+		for (; i + 8 < PIECE_NO_KING; i += 8) {
+			__m256i indexes0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(&list0[i]));
+			__m256i indexes1 = _mm256_load_si256(reinterpret_cast<const __m256i*>(&list1[i]));
+			__m256i w0 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(pkppb), indexes0, 4);
+			__m256i w1 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(pkppw), indexes1, 4);
+
+			__m256i w0lo = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w0, 0));
+			sum0 = _mm256_add_epi32(sum0, w0lo);
+			__m256i w0hi = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w0, 1));
+			sum0 = _mm256_add_epi32(sum0, w0hi);
+
+			__m256i w1lo = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w1, 0));
+			sum1 = _mm256_add_epi32(sum1, w1lo);
+			__m256i w1hi = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w1, 1));
+			sum1 = _mm256_add_epi32(sum1, w1hi);
+		}
+
+		for (; i + 4 < PIECE_NO_KING; i += 4) {
+			__m128i indexes0 = _mm_load_si128(reinterpret_cast<const __m128i*>(&list0[i]));
+			__m128i indexes1 = _mm_load_si128(reinterpret_cast<const __m128i*>(&list1[i]));
+			__m128i w0 = _mm_i32gather_epi32(reinterpret_cast<const int*>(pkppb), indexes0, 4);
+			__m128i w1 = _mm_i32gather_epi32(reinterpret_cast<const int*>(pkppw), indexes1, 4);
+
+			__m256i w0lo = _mm256_cvtepi16_epi32(w0);
+			sum0 = _mm256_add_epi32(sum0, w0lo);
+
+			__m256i w1lo = _mm256_cvtepi16_epi32(w1);
+			sum1 = _mm256_add_epi32(sum1, w1lo);
+		}
+
+		for (; i < PIECE_NO_KING; ++i) {
+			sum.p[0] += pkppb[list0[i]];
+			sum.p[1] += pkppw[list1[i]];
+		}
+
+		// sum0とsum0の上位128ビットと下位128ビットを独立して8バイトシフトしたものを足し合わせる
+		sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 8));
+		// sum0の上位128ビットと下位128ビットを足しあわせてsum0_128に代入する
+		__m128i sum0_128 = _mm_add_epi32(_mm256_extracti128_si256(sum0, 0), _mm256_extracti128_si256(sum0, 1));
+		// sum0_128の下位64ビットをdiff.p[1]にストアする
+		std::array<int32_t, 2> sum0_array;
+		_mm_storel_epi64(reinterpret_cast<__m128i*>(&sum0_array), sum0_128);
+		sum.p[0] += sum0_array;
+
+		// sum1とsum1の上位128ビットと下位128ビットを独立して8バイトシフトしたものを足し合わせる
+		sum1 = _mm256_add_epi32(sum1, _mm256_srli_si256(sum1, 8));
+		// sum1の上位128ビットと下位128ビットを足しあわせてsum1_128に代入する
+		__m128i sum1_128 = _mm_add_epi32(_mm256_extracti128_si256(sum1, 0), _mm256_extracti128_si256(sum1, 1));
+		// sum1_128の下位64ビットをdiff.p[1]にストアする
+		std::array<int32_t, 2> sum1_array;
+		_mm_storel_epi64(reinterpret_cast<__m128i*>(&sum1_array), sum1_128);
+		sum.p[1] += sum1_array;
+
+#elif defined (USE_SSE41)
+
 		sum.m[0] = _mm_set_epi32(0, 0, *reinterpret_cast<const s32*>(&pkppw[list1[0]][0]), *reinterpret_cast<const s32*>(&pkppb[list0[0]][0]));
 		sum.m[0] = _mm_cvtepi16_epi32(sum.m[0]);
 		for (int i = 1; i < PIECE_NO_KING; ++i) {
@@ -467,6 +531,69 @@ namespace Eval
 				diff.p[1][0] = 0;
 				diff.p[1][1] = 0;
 
+#if defined(USE_AVX2)
+
+				// This code is written by tanuki-.
+				// I pay my respects to his great achievements.
+
+				__m256i zero = _mm256_setzero_si256();
+				__m256i diffp1 = zero;
+				for (int i = 0; i < PIECE_NO_KING; ++i)
+				{
+					const int k1 = list1[i];
+					const auto* pkppw = ppkppw[k1];
+					int j = 0;
+					for (; j + 8 < i; j += 8)
+					{
+						// list1[j]から8要素ロードする
+						__m256i indexes = _mm256_load_si256(reinterpret_cast<const __m256i*>(&list1[j]));
+						// indexesのオフセットに従い、pkppwから8要素ギャザーする
+						__m256i w = _mm256_i32gather_epi32(reinterpret_cast<const int*>(pkppw), indexes, 4);
+						// 下位128ビットを16ビット整数→32ビット整数に変換する
+						__m256i wlo = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w, 0));
+						// diffp1に足し合わせる
+						diffp1 = _mm256_add_epi32(diffp1, wlo);
+						// 上位128ビットを16ビット整数→32ビット整数に変換する
+						__m256i whi = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w, 1));
+						// diffp1に足し合わせる
+						diffp1 = _mm256_add_epi32(diffp1, whi);
+			}
+
+					for (; j + 4 < i; j += 4) {
+						// list1[j]から4要素ロードする
+						__m128i indexes = _mm_load_si128(reinterpret_cast<const __m128i*>(&list1[j]));
+						// indexesのオフセットに従い、pkppwから4要素ギャザーする
+						__m128i w = _mm_i32gather_epi32(reinterpret_cast<const int*>(pkppw), indexes, 4);
+						// 16ビット整数→32ビット整数に変換する
+						__m256i wlo = _mm256_cvtepi16_epi32(w);
+						// diffp1に足し合わせる
+						diffp1 = _mm256_add_epi32(diffp1, wlo);
+					}
+
+					for (; j < i; ++j)
+					{
+						const int l1 = list1[j];
+						diff.p[1] += pkppw[l1];
+					}
+
+					// KKPのWK分。BKは移動していないから、BK側には影響ない。
+
+					// 後手から見たKKP。後手から見ているのでマイナス
+					diff.p[2][0] -= kkp[Inv(sq_wk)][Inv(sq_bk)][k1][0];
+					// 後手から見たKKP手番。後手から見るのでマイナスだが、手番は先手から見たスコアを格納するのでさらにマイナスになって、プラス。
+					diff.p[2][1] += kkp[Inv(sq_wk)][Inv(sq_bk)][k1][1];
+		}
+
+				// diffp1とdiffp1の上位128ビットと下位128ビットを独立して8バイトシフトしたものを足し合わせる
+				diffp1 = _mm256_add_epi32(diffp1, _mm256_srli_si256(diffp1, 8));
+				// diffp1の上位128ビットと下位128ビットを足しあわせてdiffp1_128に代入する
+				__m128i diffp1_128 = _mm_add_epi32(_mm256_extracti128_si256(diffp1, 0), _mm256_extracti128_si256(diffp1, 1));
+				// diffp1_128の下位64ビットをdiff.p[1]にストアする
+				std::array<int32_t, 2> diffp1_sum;
+				_mm_storel_epi64(reinterpret_cast<__m128i*>(&diffp1_sum), diffp1_128);
+				diff.p[1] += diffp1_sum;
+#else
+
 				for (int i = 0; i < PIECE_NO_KING; ++i)
 				{
 					const int k1 = list1[i];
@@ -484,7 +611,7 @@ namespace Eval
 					// 後手から見たKKP手番。後手から見るのでマイナスだが、手番は先手から見たスコアを格納するのでさらにマイナスになって、プラス。
 					diff.p[2][1] += kkp[Inv(sq_wk)][Inv(sq_bk)][k1][1];
 				}
-
+#endif
 
 				// 動かした駒が２つ
 				if (moved_piece_num == 2)
@@ -508,6 +635,60 @@ namespace Eval
 				diff.p[0][0] = 0;
 				diff.p[0][1] = 0;
 
+#if defined(USE_AVX2)
+
+				__m256i zero = _mm256_setzero_si256();
+				__m256i diffp0 = zero;
+				for (int i = 0; i < PIECE_NO_KING; ++i)
+				{
+					const int k0 = list0[i];
+					const auto* pkppb = ppkppb[k0];
+					int j = 0;
+					for (; j + 8 < i; j += 8)
+					{
+						// list0[j]から8要素ロードする
+						__m256i indexes = _mm256_load_si256(reinterpret_cast<const __m256i*>(&list0[j]));
+						// indexesのオフセットに従い、pkppwから8要素ギャザーする
+						__m256i w = _mm256_i32gather_epi32(reinterpret_cast<const int*>(pkppb), indexes, 4);
+						// 下位128ビットを16ビット整数→32ビット整数に変換する
+						__m256i wlo = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w, 0));
+						// diffp0に足し合わせる
+						diffp0 = _mm256_add_epi32(diffp0, wlo);
+						// 上位128ビットを16ビット整数→32ビット整数に変換する
+						__m256i whi = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w, 1));
+						// diffp0に足し合わせる
+						diffp0 = _mm256_add_epi32(diffp0, whi);
+		  }
+
+					for (; j + 4 < i; j += 4) {
+						// list0[j]から4要素ロードする
+						__m128i indexes = _mm_load_si128(reinterpret_cast<const __m128i*>(&list0[j]));
+						// indexesのオフセットに従い、pkppwから4要素ギャザーする
+						__m128i w = _mm_i32gather_epi32(reinterpret_cast<const int*>(pkppb), indexes, 4);
+						// 16ビット整数→32ビット整数に変換する
+						__m256i wlo = _mm256_cvtepi16_epi32(w);
+						// diffp0に足し合わせる
+						diffp0 = _mm256_add_epi32(diffp0, wlo);
+					}
+
+					for (; j < i; ++j)
+					{
+						const int l0 = list0[j];
+						diff.p[0] += pkppb[l0];
+					}
+
+					diff.p[2] += kkp[sq_bk][sq_wk][k0];
+		}
+
+				// diffp0とdiffp0の上位128ビットと下位128ビットを独立して8バイトシフトしたものを足し合わせる
+				diffp0 = _mm256_add_epi32(diffp0, _mm256_srli_si256(diffp0, 8));
+				// diffp0の上位128ビットと下位128ビットを足しあわせてdiffp0_128に代入する
+				__m128i diffp0_128 = _mm_add_epi32(_mm256_extracti128_si256(diffp0, 0), _mm256_extracti128_si256(diffp0, 1));
+				// diffp0_128の下位64ビットをdiff.p[1]にストアする
+				std::array<int32_t, 2> diffp0_sum;
+				_mm_storel_epi64(reinterpret_cast<__m128i*>(&diffp0_sum), diffp0_128);
+				diff.p[0] += diffp0_sum;
+#else
 				for (int i = 0; i < PIECE_NO_KING; ++i)
 				{
 					const int k0 = list0[i];
@@ -518,6 +699,7 @@ namespace Eval
 					}
 					diff.p[2] += kkp[sq_bk][sq_wk][k0];
 				}
+#endif
 
 				if (moved_piece_num == 2) {
 					const int listIndex_cap = dp.pieceNo[1];

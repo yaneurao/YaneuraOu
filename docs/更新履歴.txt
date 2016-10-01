@@ -2,6 +2,16 @@
 やねうら王 更新履歴
 
 
+■　2016/10/01 V3.88
+
+・KPPTのAVX2化。(thanks! > tanuki-さん)
+・GENSFEN_SAVE_FIRST_MOVE追加。PVの初手も保存するように変更。
+・gensfenコマンドで教師局面を生成するとき、PV leafのevaluate()の値を保存するように変更。
+・教師局面からの学習 : 教師のPVの初手と異なる場合、それを学習対象としないように変更。
+・learnコマンドのoptionのdir→basedirに変更。
+・learnコマンドのoptionにtargetdir追加。
+・教師局面からの学習 : search_depthよりPVが短い場合(置換表にhitするなどした場合)、その局面は出力しないように変更。
+
 
 ■　2016/10/01 V3.87
 

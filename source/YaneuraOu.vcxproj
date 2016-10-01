@@ -247,7 +247,6 @@
     <ClCompile Include="eval\evaluate_bona_piece.cpp" />
     <ClCompile Include="eval\evaluate_kpp.cpp" />
     <ClCompile Include="eval\evaluate_kppt.cpp" />
-    <ClCompile Include="eval\evaluate_kppt_fast.cpp" />
     <ClCompile Include="eval\evaluate_material.cpp" />
     <ClCompile Include="eval\evaluate_no_eval.cpp" />
     <ClCompile Include="extra\bitop.cpp" />

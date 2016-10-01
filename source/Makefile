@@ -72,10 +72,10 @@ SOURCES  = shogi.cpp                                                           \
 	learn/multi_think.cpp				                                       \
 	learn/evaluate_kppt_learn.cpp   
 																               
-ifeq ($(YANEURAOU_EDITION),YANEURAOU_2016_LATE_ENGINE)				               
-	SOURCES += engine/2016-late-engine/2016-late-search.cpp                    \
-				eval/evaluate_kppt_fast.cpp                                    
-endif
+#ifeq ($(YANEURAOU_EDITION),YANEURAOU_2016_LATE_ENGINE)				               
+#	SOURCES += engine/2016-late-engine/2016-late-search.cpp                    \
+#				eval/evaluate_kppt_fast.cpp                                    
+#endif
 
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
 DEPENDS  = $(OBJECTS:.o=.d)
