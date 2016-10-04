@@ -1586,7 +1586,13 @@ namespace YaneuraOu2016Late
 
 
 			if (!RootNode
-				&& !InCheck
+			//	&& !InCheck
+			// →　王手がかかっていても以下の枝刈りはしたほうが良いらしいが…。
+			// cf. 	https://github.com/official-stockfish/Stockfish/commit/ab26c61971c2f73d312b003e6d024373fbacf8e6
+			// T1,r300,2501 - 73 - 2426(50.76% R5.29)
+			// T1,b1000,2428 - 97 - 2465(49.62% R-2.63)
+			// 1秒のほうではやや勝ち越し。計測できない程度の差だが良しとする。
+
 				&& bestValue > VALUE_MATED_IN_MAX_PLY)
 			{
 
@@ -1883,11 +1889,15 @@ namespace YaneuraOu2016Late
 			if (!captureOrPawnPromotion && move != bestMove && quietCount < PARAM_QUIET_SEARCH_COUNT)
 				quietsSearched[quietCount++] = move;
 
-		} // end of while
+		}
+		// end of while
 
-		  // -----------------------
-		  //  生成された指し手がない？
-		  // -----------------------
+		// -----------------------
+		//  生成された指し手がない？
+		// -----------------------
+
+		// このStockfishのassert、合法手を生成しているので重すぎる。良くない。
+		ASSERT_LV5(moveCount || !InCheck || excludedMove || !MoveList<LEGAL>(pos).size());
 
 		  // 合法手がない == 詰まされている ので、rootの局面からの手数で詰まされたという評価値を返す。
 		  // ただし、singular extension中のときは、ttMoveの指し手が除外されているので単にalphaを返すべき。

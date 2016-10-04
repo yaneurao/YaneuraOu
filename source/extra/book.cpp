@@ -394,7 +394,10 @@ namespace Book
 			cout << "merge..";
 
 			// 同一nodeと非同一nodeの統計用
-			u64 same_nodes = 0, diffrent_nodes = 0;
+			// diffrent_nodes1 = book0側にのみあったnodeの数
+			// diffrent_nodes2 = book1側にのみあったnodeの数
+			u64 same_nodes = 0;
+			u64 diffrent_nodes1 = 0, diffrent_nodes2 = 0;
 
 			// 1) 探索が深いほうを採用。
 			// 2) 同じ探索深さであれば、MultiPVの大きいほうを採用。
@@ -427,18 +430,22 @@ namespace Book
 				} else {
 					// なかったので無条件でbook2に突っ込む。
 					book[2].book_body.insert(it0);
-
-					diffrent_nodes++;
+					diffrent_nodes1++;
 				}
 			}
 			// book0の精査が終わったので、book1側で、まだ突っ込んでいないnodeを探して、それをbook2に突っ込む
 			for (auto& it1 : book[1].book_body)
 			{
 				if (book[2].book_body.find(it1.first) == book[2].book_body.end())
+				{
 					book[2].book_body.insert(it1);
+					diffrent_nodes2++;
+				}
 			}
 			cout << "..done" << endl;
-			cout << "same nodes = " << same_nodes << " , different nodes =  " << diffrent_nodes << endl;
+
+			cout << "same nodes = " << same_nodes
+				<< " , different nodes =  " << diffrent_nodes1 << " + " << diffrent_nodes2 << endl;
 
 			cout << "write..";
 			write_book(book_name[2], book[2]);
