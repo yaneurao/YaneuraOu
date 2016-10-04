@@ -10,6 +10,7 @@
 #include "../search.h"
 #include "../thread.h"
 #include "../learn/multi_think.h"
+#include "../tt.h"
 
 using namespace std;
 using std::cout;
@@ -94,7 +95,7 @@ namespace Book
 			}
 
 			// 1局面思考するごとに'.'をひとつ出力する。
-			cout << '.';
+			cout << '.' << flush;
 		}
 	}
 #endif
@@ -117,7 +118,7 @@ namespace Book
 #if !defined(EVAL_LEARN) || !(defined(YANEURAOU_2016_MID_ENGINE) || defined(YANEURAOU_2016_LATE_ENGINE))
 		if (from_thinking)
 		{
-			cout << "Error!:define EVAL_LEARN and YANEURAOU_2016_MID_ENGINE" << endl;
+			cout << "Error!:define EVAL_LEARN and ( YANEURAOU_2016_MID_ENGINE or LATE_ENGINE) " << endl;
 			return;
 		}
 #endif
@@ -136,6 +137,17 @@ namespace Book
 			int start_moves = 1;
 			int moves = 16;
 			int depth = 24;
+
+			// 分散生成用。
+			// 2/7なら、7個に分けて分散生成するときの2台目のPCの意味。
+			// cluster 2 7
+			// のように指定する。
+			// 1/1なら、分散させない。
+			// cluster 1 1
+			// のように指定する。
+			int cluster_id = 1;
+			int cluster_num = 1;
+
 			while (true)
 			{
 				token = "";
@@ -148,6 +160,8 @@ namespace Book
 					is >> depth;
 				else if (from_thinking && token == "startmoves")
 					is >> start_moves;
+				else if (from_thinking && token == "cluster")
+					is >> cluster_id >> cluster_num;
 				else
 				{
 					cout << "Error! : Illigal token = " << token << endl;
@@ -158,7 +172,9 @@ namespace Book
 			if (from_sfen)
 				cout << "read sfen moves " << moves << endl;
 			if (from_thinking)
-				cout << "read sfen moves from " << start_moves << " to " << moves << " , depth = " << depth << endl;
+				cout << "read sfen moves from " << start_moves << " to " << moves
+					<< " , depth = " << depth
+					<< " , cluster = " << cluster_id << "/" << cluster_num << endl;
 
 			vector<string> sfens;
 			read_all_lines(sfen_name, sfens);
@@ -217,7 +233,12 @@ namespace Book
 						iss >> token;
 					}
 					if (token == "")
+					{
+						// この局面、未知の局面なのでpushしないといけないのでは..
+						if (!from_sfen)
+							sf.push_back(pos.sfen());
 						break;
+					}
 
 					Move move = move_from_usi(pos, token);
 					// illigal moveであるとMOVE_NONEが返る。
@@ -237,7 +258,7 @@ namespace Book
 					pos.do_move(move, si[i]);
 				}
 
-				for (int i = 0; i < (int)m.size() - (from_sfen ? 1 : 0); ++i)
+				for (int i = 0; i < sf.size() - (from_sfen ? 1 : 0); ++i)
 				{
 					if (i < start_moves - 1)
 						continue;
@@ -261,7 +282,7 @@ namespace Book
 			}
 			cout << "done." << endl;
 
-#if defined(EVAL_LEARN) && (defined(YANEURAOU_2016_MID_ENGINE)||defined(YANEURAOU_2016_ENGINE))
+#if defined(EVAL_LEARN) && (defined(YANEURAOU_2016_MID_ENGINE)||defined(YANEURAOU_2016_LATE_ENGINE))
 
 			if (from_thinking)
 			{
@@ -298,8 +319,24 @@ namespace Book
 				for (auto& s : sfens_)
 					cout << "sfen " << s << endl;
 #endif
+
 				// 思考対象node数の出力。
 				cout << "total " << sfens_.size() << " nodes " << endl;
+
+				// クラスターの指定に従い、間引く。
+				if (cluster_id != 1 || cluster_num != 1)
+				{
+					vector<string> a;
+					for (size_t i = 0; i < sfens_.size(); ++i)
+					{
+						if ((i % cluster_num) == cluster_id - 1)
+							a.push_back(sfens_[i]);
+					}
+					sfens_ = a;
+
+					// このPCに割り振られたnode数を表示する。
+					cout << "for my PC : " << sfens_.size() << " nodes " << endl;
+				}
 
 				multi_think.set_loop_max(sfens_.size());
 
@@ -313,13 +350,16 @@ namespace Book
 					if (multi_think.appended)
 					{
 						write_book(book_name, book);
-						cout << 'S';
+						cout << 'S' << endl;
 						multi_think.appended = false;
 					} else {
 						// 追加されていないときは小文字のsマークを表示して
 						// ファイルへの書き出しは行わないように変更。
-						cout << 's';
+						cout << 's' << endl;
 					}
+
+					// 置換表が同じ世代で埋め尽くされるとまずいのでこのタイミングで世代カウンターを足しておく。
+					TT.new_search();
 				};
 
 				multi_think.go_think();

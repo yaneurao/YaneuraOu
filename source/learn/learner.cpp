@@ -44,10 +44,10 @@ extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta
 extern pair<Value, vector<Move> >  search(Position& pos, Value alpha, Value beta, int depth);
 
 
-// packされたsfen
+// ファイルに保存するentry
 struct PackedSfenValue
 {
-	u8 data[32];
+	PackedSfen sfen;
 	s16 score; // PV leafでの評価値
 
 #ifdef	GENSFEN_SAVE_FIRST_MOVE
@@ -86,7 +86,7 @@ struct SfenWriter
 #ifdef  WRITE_PACKED_SFEN
 
 	// 局面と評価値をペアにして1つ書き出す(packされたsfen形式で)
-	void write(size_t thread_id, u8 data[32], s16 value
+	void write(size_t thread_id, const PackedSfen& sfen, s16 value
 #ifdef GENSFEN_SAVE_FIRST_MOVE
 		// PVの初手
 		,Move move
@@ -109,7 +109,7 @@ struct SfenWriter
 			buf_reserve();
 
 		PackedSfenValue ps;
-		memcpy(ps.data, data, 32);
+		ps.sfen = sfen;
 		ps.score = value;
 #ifdef GENSFEN_SAVE_FIRST_MOVE
 		ps.move = (u16)move;
@@ -226,7 +226,7 @@ struct SfenWriter
 				for (auto ptr : buffers)
 				{
 #ifdef  WRITE_PACKED_SFEN
-					fs.write((const char*)&((*ptr)[0].data), sizeof(PackedSfenValue) * ptr->size());
+					fs.write((const char*)&((*ptr)[0]), sizeof(PackedSfenValue) * ptr->size());
 #else
 					for (auto line : *ptr)
 						fs << line;
@@ -463,9 +463,9 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					goto NEXT_MOVE;
 
 #ifdef WRITE_PACKED_SFEN
-				u8 data[32];
+				PackedSfen sfen;
 				// packを要求されているならpackされたsfenとそのときの評価値を書き出す。
-				pos.sfen_pack(data);
+				pos.sfen_pack(sfen);
 				// このwriteがスレッド排他を行うので、ここでの排他は不要。
 #ifndef GENSFEN_SAVE_FIRST_MOVE
 				sw.write(thread_id, data, leaf_value);
@@ -473,7 +473,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// PVの初手を取り出す。これは存在するはずなのだが…。
 				ASSERT_LV3(pv_value1.second.size() >= 1);
 				Move move = pv_value1.second[0];
-				sw.write(thread_id, data, leaf_value, move);
+				sw.write(thread_id, sfen, leaf_value, move);
 #endif
 
 #ifdef TEST_UNPACK_SFEN
@@ -860,7 +860,7 @@ struct SfenReader
 			sfen_for_mse.push_back(ps);
 
 			// hash keyを求める。
-			pos.set_from_packed_sfen(&ps.data[0]);
+			pos.set_from_packed_sfen(ps.sfen);
 			sfen_for_mse_hash.insert(pos.key());
 		}
 	}
@@ -907,7 +907,7 @@ struct SfenReader
 //			auto sfen = pos.sfen_unpack(ps.data);
 //			pos.set(sfen);
 
-			pos.set_from_packed_sfen(ps.data);
+			pos.set_from_packed_sfen(ps.sfen);
 
 			auto th = Threads[thread_id];
 			pos.set_this_thread(th);
@@ -1229,7 +1229,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 		pos.set(sfen);
 #endif
 		// ↑sfenを経由すると遅いので専用の関数を作った。
-		pos.set_from_packed_sfen(ps.data);
+		pos.set_from_packed_sfen(ps.sfen);
 		if (sr.is_for_rmse(pos.key()))
 			goto RetryRead;
 
@@ -1239,15 +1239,14 @@ void LearnerThink::thread_worker(size_t thread_id)
 		auto th = Threads[thread_id];
 		pos.set_this_thread(th);
 
-		// 評価値は棋譜生成のときに、この34バイトの末尾2バイトに埋めてある。
-		Value value = (Value)ps.score;
-
 		// 読み込めたので試しに表示してみる。
 		//		cout << pos << value << endl;
 
 		// 浅い探索(qsearch)の評価値
 #ifdef USE_QSEARCH_FOR_SHALLOW_VALUE
 		auto r = Learner::qsearch(pos, -VALUE_INFINITE, VALUE_INFINITE);
+		// 置換表を無効化しているのでPV leafでevaluate()を呼び出したときの値と同じはず..
+		// (詰みのスコアでないなら)
 		auto shallow_value = r.first;
 #endif
 #ifdef USE_EVALUATE_FOR_SHALLOW_VALUE
@@ -1316,12 +1315,10 @@ void LearnerThink::thread_worker(size_t thread_id)
 		Eval::add_grad(pos, rootColor, dj_dw);
 #endif
 
-#ifdef _OPENMP
-		// weightの更新中であれば、そこはparallel forで回るので、
-		// こっちのスレッドは中断しておく。
+		// weightの更新中であれば、そこはparallel forで回るので、こっちのスレッドは中断しておく。
+		// 保存のときに回られるのも勾配だけが更新され続けるので良くない。
 		while (updating_weight)
 			sleep(0);
-#endif
 
 	}
 }
@@ -1338,6 +1335,10 @@ void LearnerThink::save()
 	// 1度だけの保存のときはサブフォルダを掘らない。
 	Eval::save_eval("");
 #endif
+
+	// 置換表が同じ世代で埋め尽くされるとまずいのでこのタイミングで世代カウンターを足しておく。
+	TT.new_search();
+
 }
 
 // 生成した棋譜からの学習
@@ -1403,16 +1404,22 @@ void learn(Position& pos, istringstream& is)
 
 	cout << "learn command , ";
 
+	// OpenMP無効なら警告を出すように。
+#ifndef _OPENMP
+	cout << "Warning! OpenMP disabled." << endl;
+#endif
+
 	// 学習棋譜ファイルの表示
 	if (target_dir != "")
 	{
 		// このフォルダを根こそぎ取る。base_dir相対にしておく。
 		namespace sys = std::tr2::sys;
-		sys::path p(path_combine(base_dir, target_dir)); // 列挙の起点
+		string kif_base_dir = path_combine(base_dir, target_dir);
+		sys::path p(kif_base_dir); // 列挙の起点
 		std::for_each(sys::directory_iterator(p), sys::directory_iterator(),
 			[&](const sys::path& p) {
 			if (sys::is_regular_file(p))
-				filenames.push_back(p.filename().generic_string());
+				filenames.push_back(path_combine(target_dir , p.filename().generic_string()));
 		});
 	}
 

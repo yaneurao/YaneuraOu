@@ -152,6 +152,9 @@ struct StateInfo {
 //       盤面
 // --------------------
 
+// packされたsfen
+struct PackedSfen { u8 data[32]; };
+
 // 盤面
 struct Position
 {
@@ -549,15 +552,15 @@ struct Position
 #ifdef USE_SFEN_PACKER
   // packされたsfenを得る。引数に指定したバッファに返す。
   // gamePlyはpackに含めない。
-	void sfen_pack(u8 data[32]);
+	void sfen_pack(PackedSfen& sfen);
 
 	// packされたsfenを解凍する。sfen文字列が返る。
 	// gamePly = 0となる。
-	static std::string sfen_unpack(u8 data[32]);
+	static std::string sfen_unpack(const PackedSfen& sfen);
 
 	// ↑sfenを経由すると遅いので直接packされたsfenをセットする関数を作った。
 	// pos.set(sfen_unpack(data)); と等価。
-	void set_from_packed_sfen(u8 data[32]);
+	void set_from_packed_sfen(const PackedSfen& sfen);
 
 	// 盤面と手駒、手番を与えて、そのsfenを返す。
 	static std::string sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly);

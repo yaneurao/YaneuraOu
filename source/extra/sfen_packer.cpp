@@ -341,11 +341,11 @@ struct SfenPacker
 
 // 高速化のために直接unpackする関数を追加。かなりしんどい。
 // packer::unpack()とPosition::set()とを合体させて書く。
-void Position::set_from_packed_sfen(u8 data[32])
+void Position::set_from_packed_sfen(const PackedSfen& sfen)
 {
 	SfenPacker packer;
 	auto& stream = packer.stream;
-	stream.set_data(data);
+	stream.set_data((u8*)&sfen);
 
 	clear();
 
@@ -475,18 +475,18 @@ std::string Position::sfen_from_rawdata(Piece board[81], Hand hands[2], Color tu
 }
 
 // packされたsfenを得る。引数に指定したバッファに返す。
-void Position::sfen_pack(u8 data[32])
+void Position::sfen_pack(PackedSfen& sfen)
 {
   SfenPacker sp;
-  sp.data = data;
+  sp.data = (u8*)&sfen;
   sp.pack(*this);
 }
 
 // packされたsfenを解凍する。sfen文字列が返る。
-std::string Position::sfen_unpack(u8 data[32])
+std::string Position::sfen_unpack(const PackedSfen& sfen)
 {
   SfenPacker sp;
-  sp.data = data;
+  sp.data = (u8*)&sfen;
   return sp.unpack();
 }
 

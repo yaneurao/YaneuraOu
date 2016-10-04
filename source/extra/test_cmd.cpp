@@ -1097,6 +1097,248 @@ void exam_book(Position& pos)
 	std::cout << ".. done!" << endl;
 }
 
+//
+// eval merge
+//  KKPT評価関数の合成用
+//   実験的に作ったもの。あとで消すかも。
+//
+
+struct KKPT_reader
+{
+	static const int fe_end = 1548;
+
+	typedef std::array<int32_t, 2> ValueKk;
+	typedef std::array<int16_t, 2> ValueKpp;
+	typedef std::array<int32_t, 2> ValueKkp;
+
+	ValueKk(*kk_)[SQ_NB][SQ_NB];
+	ValueKpp(*kpp_)[SQ_NB][fe_end][fe_end];
+	ValueKkp(*kkp_)[SQ_NB][SQ_NB][fe_end];
+
+#define KK_BIN "KK_synthesized.bin"
+#define KKP_BIN "KKP_synthesized.bin"
+#define KPP_BIN "KPP_synthesized.bin"
+
+	KKPT_reader()
+	{
+		kk_ = (ValueKk(*)[SQ_NB][SQ_NB])new ValueKk[int(SQ_NB)*int(SQ_NB)];
+		kpp_ = (ValueKpp(*)[SQ_NB][fe_end][fe_end])new ValueKpp[int(SQ_NB)*int(fe_end)*int(fe_end)];
+		kkp_ = (ValueKkp(*)[SQ_NB][SQ_NB][fe_end])new ValueKkp[int(SQ_NB)*int(SQ_NB)*int(fe_end)];
+	}
+
+	void read(string dir)
+	{
+		{
+			std::ifstream ifsKK(path_combine(dir, KK_BIN), std::ios::binary);
+			if (ifsKK) ifsKK.read(reinterpret_cast<char*>(kk_), sizeof(*kk_));
+			else goto Error;
+
+			// KKP
+			std::ifstream ifsKKP(path_combine(dir, KKP_BIN), std::ios::binary);
+			if (ifsKKP) ifsKKP.read(reinterpret_cast<char*>(kkp_), sizeof(*kkp_));
+			else goto Error;
+
+			// KPP
+			std::ifstream ifsKPP(path_combine(dir, KPP_BIN), std::ios::binary);
+			if (ifsKPP) ifsKPP.read(reinterpret_cast<char*>(kpp_), sizeof(*kpp_));
+			else goto Error;
+
+			return;
+		}
+
+	Error:;
+		cout << "ERROR! : read error." << endl;
+	}
+
+	void write(string dir)
+	{
+		{
+			std::ofstream ofsKK(path_combine(dir, KK_BIN), std::ios::binary);
+			if (ofsKK) ofsKK.write(reinterpret_cast<char*>(kk_), sizeof(*kk_));
+			else goto Error;
+
+			// KKP
+			std::ofstream ofsKKP(path_combine(dir, KKP_BIN), std::ios::binary);
+			if (ofsKKP) ofsKKP.write(reinterpret_cast<char*>(kkp_), sizeof(*kkp_));
+			else goto Error;
+
+			// KPP
+			std::ofstream ofsKPP(path_combine(dir, KPP_BIN), std::ios::binary);
+			if (ofsKPP) ofsKPP.write(reinterpret_cast<char*>(kpp_), sizeof(*kpp_));
+			else goto Error;
+
+			return;
+		}
+
+	Error:;
+		cout << "ERROR! : write error." << endl;
+	}
+
+	// 按分する
+	void div(const KKPT_reader& eval2, double percent)
+	{
+		auto r1 = percent / 100.0;
+		auto r2 = 1 - r1;
+		// p1:p2で合成する。
+		
+		for (auto k1 : SQ)
+			for (auto k2 : SQ)
+			{
+				(*kk_)[k1][k2][0] = (s32)(r1 * (*kk_)[k1][k2][0] + r2 * (*eval2.kk_)[k1][k2][0]);
+				(*kk_)[k1][k2][1] = (s32)(r1 * (*kk_)[k1][k2][1] + r2 * (*eval2.kk_)[k1][k2][1]);
+			}
+
+		for (auto k1 : SQ)
+			for (int p1 = 0;p1<fe_end;++p1)
+				for (int p2 = 0; p2 < fe_end; ++p2)
+				{
+					(*kpp_)[k1][p1][p2][0] = (s16)(r1 * (*kpp_)[k1][p1][p2][0] + r2 * (*eval2.kpp_)[k1][p1][p2][0]);
+					(*kpp_)[k1][p1][p2][1] = (s16)(r1 * (*kpp_)[k1][p1][p2][1] + r2 * (*eval2.kpp_)[k1][p1][p2][1]);
+				}
+
+		for (auto k1 : SQ)
+			for (auto k2 : SQ)
+				for (int p1 = 0; p1 < fe_end; ++p1)
+				{
+					(*kkp_)[k1][k2][p1][0] = (s32)(r1 * (*kkp_)[k1][k2][p1][0] + r2 * (*eval2.kkp_)[k1][k2][p1][0]);
+					(*kkp_)[k1][k2][p1][1] = (s32)(r1 * (*kkp_)[k1][k2][p1][1] + r2 * (*eval2.kkp_)[k1][k2][p1][1]);
+				}
+	}
+
+	void normalize_kpp()
+	{
+		for (int p1 = 0; p1 < fe_end; ++p1)
+			for (int p2 = 0; p2 < fe_end; ++p2)
+			{
+				int sum = 0;
+				for (auto sq : SQ)
+					sum += (*kpp_)[sq][p1][p2][1];
+
+				int z = sum / SQ_NB;
+
+				for (auto sq : SQ)
+					(*kpp_)[sq][p1][p2][1] = z;
+			}
+	}
+};
+
+// "test evalmerge dir1 dir2 dir3 percent"
+// dir3は出力フォルダ。事前に生成しておくこと。
+void eval_merge(istringstream& is)
+{
+	string dir1, dir2,dir3;
+	double percent;
+
+	// dir1のほうの評価関数を何%で按分するか。
+	// 20を指定すると、dir1:dir2 = 20:80で按分する。
+	is >> dir1 >> dir2 >> dir3 >> percent;
+	cout << "\neval merge KKPT"; // とりあえずKKPT型評価関数のmerge専用。
+	cout << "\ndir1    : " << dir1;
+	cout << "\ndir2    : " << dir2;
+	cout << "\nOutDir  : " << dir3;
+	cout << "\npercent : " << percent << endl;
+
+	KKPT_reader eval1, eval2;
+	eval1.read(dir1);
+	eval2.read(dir2);
+	eval1.div(eval2, percent);
+//	eval1.normalize_kpp();
+	eval1.write(dir3);
+
+	cout << "..done" << endl;
+}
+
+
+void book_check(Position& pos,Color rootTurn,Book::MemoryBook& book,string sfen,ofstream& of)
+{
+	int ply = pos.game_ply();
+	StateInfo si;
+
+	auto it = book.find(pos);
+	if (it != book.end() && it->second.size() != 0) {
+		// 定跡にhitした。逆順で出力しないと将棋所だと逆順にならないという問題があるので逆順で出力する。
+		// また、it->second->size()!=0をチェックしておかないと指し手のない定跡が登録されていたときに困る。
+
+		const auto& move_list = it->second;
+
+		// 上位N手で局面を進める。
+		int n;
+		if (pos.side_to_move() == rootTurn)
+		{
+			// 自分の手番なのでN=1
+			n = 1;
+		} else {
+			// 4手目までは4手ずつ候補をあげる。
+			if (ply <= 4)
+				n = 4;
+			else
+				n = 2;
+		}
+
+		for (int i = 0; i < n; ++i)
+		{
+			if (move_list.size() <= i)
+				break;
+
+			Move m = move_list[i].bestMove;
+
+			pos.do_move(m, si);
+			book_check(pos,rootTurn,book,sfen + ' ' + to_usi_string(m),of);
+			pos.undo_move(m);
+		}
+
+	} else {
+		// 終端になったのでここまでの手順を書き出す。
+		of << sfen << endl;
+//		cout << sfen << endl;
+	}
+}
+
+// 定跡のチェックコマンド
+// あとで消すかも。
+void book_check_cmd(Position& pos, istringstream& is)
+{
+	// 初手から定跡をチェックしていき、そこまでの変化をファイルに書き出す。
+
+	// 先手番として
+	// 初手、定跡の指し手、上位1通り(自分の手番なので)
+	// 後手、定跡の指し手、上位2通り(相手番なので)
+	// 3手目、定跡の指し手、上位1通り
+	// 4手目、定跡の指し手、上位2通り
+	// .. 以下、同様。
+
+	string turn = "all";
+	is >> turn;
+
+	cout << "book check start.." << endl;
+	cout << "turn = " << turn << endl;;
+
+	string file_name = "book_records.sfen";
+	ofstream of(file_name , ios::out);
+	pos.set_hirate();
+
+	// とりあえずファイル名は固定でいいや。
+	string book_name = "yaneura_book3.db";
+
+	// bookの読み込み。	
+	Book::MemoryBook book;
+	Book::read_book("book/" + book_name, book, /*BookOnTheFly*/ false);
+	string sfen = "startpos moves";
+
+	if (turn == "all")
+	{
+		for (auto rootTurn : COLOR)
+			book_check(pos, rootTurn, book, sfen, of);
+	} else if (turn == "black") {
+		book_check(pos, BLACK, book, sfen, of);
+	} else if (turn == "white") {
+		book_check(pos, WHITE, book, sfen, of);
+	}
+
+	of.close();
+	cout << "..done , write to " << file_name << endl;
+}
+
 void test_cmd(Position& pos, istringstream& is)
 {
 	is_ready();
@@ -1104,15 +1346,17 @@ void test_cmd(Position& pos, istringstream& is)
 	std::string param;
 	is >> param;
 	if (param == "unit") unit_test(pos, is);                         // 単体テスト
-	else if (param == "rp") random_player_cmd(pos, is);               // ランダムプレイヤー
+	else if (param == "rp") random_player_cmd(pos, is);              // ランダムプレイヤー
 	else if (param == "rpbench") random_player_bench_cmd(pos, is);   // ランダムプレイヤーベンチ
 	else if (param == "cm") cooperation_mate_cmd(pos, is);           // 協力詰めルーチン
 	else if (param == "checks") test_genchecks(pos, is);             // 王手生成ルーチンのテスト
 	else if (param == "hand") test_hand();                           // 手駒の優劣関係などのテスト
-	else if (param == "records") test_read_record(pos, is);           // 棋譜の読み込みテスト 
+	else if (param == "records") test_read_record(pos, is);          // 棋譜の読み込みテスト 
 	else if (param == "autoplay") auto_play(pos, is);                // 思考ルーチンを呼び出しての連続自己対戦
 	else if (param == "timeman") test_timeman();                     // TimeManagerのテスト
 	else if (param == "exambook") exam_book(pos);                    // 定跡の精査用コマンド
+	else if (param == "evalmerge") eval_merge(is);                   // 評価関数の合成コマンド
+	else if (param == "bookcheck") book_check_cmd(pos,is);           // 定跡のチェックコマンド
 	else {
 		cout << "test unit               // UnitTest" << endl;
 		cout << "test rp                 // Random Player" << endl;
