@@ -80,7 +80,7 @@ namespace Search {
     // 探索node数を思考経過時間の代わりに用いるモードであるかのフラグ(from UCI)
     int npmsec;
 
-    // この手数で引き分けとなる。
+    // この手数で引き分けとなる。256なら256手目を指したあとに引き分け。
     // USIのoption["MaxMovesToDraw"]の値。引き分けなしならINT_MAX。
     int max_game_ply;
 

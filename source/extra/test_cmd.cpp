@@ -1268,11 +1268,16 @@ void book_check(Position& pos,Color rootTurn,Book::MemoryBook& book,string sfen,
 			// 自分の手番なのでN=1
 			n = 1;
 		} else {
+#if 0
 			// 4手目までは4手ずつ候補をあげる。
 			if (ply <= 4)
 				n = 4;
 			else
 				n = 2;
+#else
+			// 常に相手側の平均分岐数は4に設定すればどうか。
+			n = 4;
+#endif
 		}
 
 		for (int i = 0; i < n; ++i)

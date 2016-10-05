@@ -2,6 +2,11 @@
 やねうら王 更新履歴
 
 
+■　2016/10/05 V3.92
+
+・MovePickerのupdate、abs()の括弧の位置がおかしかったの修正。(thanks! > merom686さん)
+
+
 ■　2016/10/04 V3.91
 
 ・Stockfish : Allow inCheck pruning
