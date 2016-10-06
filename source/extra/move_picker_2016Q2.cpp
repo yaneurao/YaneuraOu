@@ -470,11 +470,11 @@ void MovePicker::score_evasions()
 		{
 			// 捕獲する指し手に関しては簡易see + MVV/LVA
 			m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
-				- Value(type_of(pos.moved_piece_before(m))) + HistoryStats::Max;
+				- Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
 
-			// Todo :成るなら、その成りの価値を加算したほうが見積もりとしては正しい気がするが取り返されたりするのか
 			if (is_promote(m))
 				m.value += (Eval::ProDiffPieceValue[raw_type_of(pos.moved_piece_after(m))]);
+
 		} else
 			// ↓のifがぶら下がっている。
 

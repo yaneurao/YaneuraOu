@@ -701,14 +701,6 @@ namespace YaneuraOu2016Late
 				// futilityBaseはこの局面のevalにmargin値を加算しているのだが、それがalphaを超えないし、
 				// かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
 
-				// ToDo:MovePickerのなかでsee()を呼び出しているなら、ここで２重にsee()するのもったいないが…。
-
-				// pos.see_sign()とpos.see(move)との比較
-				// 		T1,b1000,4941 - 284 - 4775(50.85% R5.94)[2016/09/03]
-				//		T1,b3000,1422 - 121 - 1457(49.39% R-4.22)[2016/09/03]
-				//		T1,b3000,2404 - 212 - 2384(50.21% R1.45)[2016/09/04]
-				// 大差なさげ。後者にしておく。
-
 				if (futilityBase <= alpha && !pos.see_ge(move , VALUE_ZERO+1))
 				{
 					bestValue = std::max(bestValue, futilityBase);

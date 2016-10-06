@@ -4,9 +4,12 @@
 
 ■　2016/10/06 V3.93
 
+・Stockfish : Do not use SEE in evasion scoring 
 ・Stockfish : Replace Position::see and Position::see_sign by Position::see_ge 
 ・USE_SIMPLE_SEE削除。
 ・2016 Late用のデフォルトパラメーター(Stockfishと同じもの)を公開。
+・上の修正にともなって、Score<Evasion>、LVAするの忘れていたの修正。
+・score<EVASION>、capture_or_promotionで分岐するように変更。
 
 
 ■　2016/10/05 V3.92

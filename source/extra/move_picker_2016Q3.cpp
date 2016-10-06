@@ -256,17 +256,15 @@ void MovePicker::score<EVASIONS>()
 
 	for (auto& m : *this)
 
-		if (pos.capture(m))
+		if (pos.capture_or_promotion(m))
 		{
 			// 捕獲する指し手に関しては簡易see + MVV/LVA
 			m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
-				- Value(type_of(pos.moved_piece_before(m))) + HistoryStats::Max;
+				- Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
 
-#if 0			
-			// Todo :成るなら、その成りの価値を加算したほうが見積もりとしては正しい気がするが取り返されたりするのか
+			// Todo :成るなら、その成りの価値を加算したほうが見積もりとしては正しい気がするが…。
 			if (is_promote(m))
 				m.value += (Eval::ProDiffPieceValue[raw_type_of(pos.moved_piece_after(m))]);
-#endif
 		}
 		else
 			// 捕獲しない指し手に関してはhistoryの値の順番
