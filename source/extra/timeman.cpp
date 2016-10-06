@@ -25,6 +25,8 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 	// nodes as timeモード
 	int npmsec = Options["nodestime"];
 
+	// npmsecがUSI optionで指定されていれば、時間の代わりに、ここで指定されたnode数をベースに思考を行なう。
+	// nodes per milli secondの意味。
 	// nodes as timeモードで対局しなければならないなら、時間をノード数に変換して、
 	// 持ち時間制御の計算式では、この結果の値を用いる。
 	if (npmsec)
@@ -82,23 +84,6 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 		remain_time = minimumTime = optimumTime = maximumTime = r;
 		return;
 	}
-
-#if 0
-	// npmsecがUSI optionで指定されていれば、時間の代わりに、ここで指定されたnode数をベースに思考を行なう。
-	// nodes per milli secondの意味。
-	int npmsec = Options["nodestime"];
-
-	if (npmsec)
-	{
-		if (!availableNodes) // 試合開始時に設定しておくべき。
-			availableNodes = npmsec * limits.time[us]; // Time is in msec
-
-		  // ミリ秒からノード数に単位を変換する。
-		limits.time[us] = (int)availableNodes;
-		limits.inc[us] *= npmsec;
-		limits.npmsec = npmsec;
-	}
-#endif
 
 	// 残り手数
 	// plyは開始局面が1。

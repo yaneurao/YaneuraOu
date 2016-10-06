@@ -9,7 +9,7 @@
 ・USE_SIMPLE_SEE削除。
 ・2016 Late用のデフォルトパラメーター(Stockfishと同じもの)を公開。
 ・上の修正にともなって、Score<Evasion>、LVAするの忘れていたの修正。
-・score<EVASION>、capture_or_promotionで分岐するように変更。
+・score<EVASION>、capture_or_promotionで分岐するように変更。→　revert
 
 
 ■　2016/10/05 V3.92

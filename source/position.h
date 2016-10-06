@@ -227,7 +227,8 @@ struct Position
 	// 現局面に対して
 	// この指し手によって移動させる駒を返す。(移動前の駒)
 	// 後手の駒打ちは後手の駒が返る。
-	Piece moved_piece_before(Move m) const {
+	Piece moved_piece_before(Move m) const
+	{
 		return is_drop(m)
 			? (move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE))
 			: piece_on(move_from(m));

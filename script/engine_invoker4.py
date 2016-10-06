@@ -117,6 +117,7 @@ def create_option(engines,engine_threads,evals,times,hashes,numa,PARAMETERS_LOG_
 			option.append("setoption name EvalDir value " + evals[i])
 			option.append("setoption name Hash value " + str(hashes[i]))
 			option.append("setoption name BookFile value no_book")
+			option.append("setoption MinimumThinkingTime value 1000")
 			option.append("setoption name NetworkDelay value 0")
 			option.append("setoption name NetworkDelay2 value 0")
 

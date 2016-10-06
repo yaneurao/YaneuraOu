@@ -256,16 +256,20 @@ void MovePicker::score<EVASIONS>()
 
 	for (auto& m : *this)
 
-		if (pos.capture_or_promotion(m))
-		{
-			// 捕獲する指し手に関しては簡易see + MVV/LVA
-			m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
-				- Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
+		// 駒を取る指し手ならseeがプラスだったということなのでプラスの符号になるようにStats::Maxを足す。
+		// あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
+		// 価値が高いので(例えば合駒に安い駒を使う的な…)
 
-			// Todo :成るなら、その成りの価値を加算したほうが見積もりとしては正しい気がするが…。
-			if (is_promote(m))
-				m.value += (Eval::ProDiffPieceValue[raw_type_of(pos.moved_piece_after(m))]);
-		}
+		//  成るなら、その成りの価値を加算したほうが見積もりとしては正しい気がするが、
+		// 　それは取り返されないことが前提にあるから、そうでもない。
+		//		T1,r300,2491 - 78 - 2421(50.71% R4.95)
+		//		T1,b1000,2483 - 103 - 2404(50.81% R5.62)
+		// やはり、改造前のほうが良い。[2016/10/06]
+
+		if (pos.capture(m))
+			// 捕獲する指し手に関しては簡易SEE + MVV/LVA
+			m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
+			- Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
 		else
 			// 捕獲しない指し手に関してはhistoryの値の順番
 			m.value = history[to_sq(m)][pos.moved_piece_after(m)] + fromTo.get(c, m);
