@@ -349,6 +349,7 @@
 #include <climits>  // INT_MAX
 #include <ctime>    // std::ctime()
 #include <random>   // random_device
+#include <cstddef>  // offsetof
 
 // --------------------
 //   diable warnings

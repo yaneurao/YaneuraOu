@@ -148,96 +148,96 @@ MovePicker::MovePicker(const Position& pos_, Move ttMove_, Depth depth_, Square 
   
 // 通常探索時にProbCutの処理から呼び出されるの専用
 MovePicker::MovePicker(const Position& pos_, Move ttMove_, Value threshold_)
-  : pos(pos_), threshold(threshold_) {
+	: pos(pos_), threshold(threshold_) {
 
-  ASSERT_LV3(!pos.checkers());
+	ASSERT_LV3(!pos.checkers());
 
-  stage = PROBCUT_START;
+	stage = PROBCUT_START;
 
-  // ProbCutにおいて、SEEが与えられたthresholdの値より大きな指し手のみ生成する。
-  // (置換表の指しても、この条件を満たさなければならない)
-  ttMove = ttMove_
-    && pos.pseudo_legal_s<false>(ttMove_)
-    && pos.capture(ttMove_)
-    && pos.see(ttMove_) > threshold ? ttMove_ : MOVE_NONE;
+	// ProbCutにおいて、SEEが与えられたthresholdの値より大きな指し手のみ生成する。
+	// (置換表の指しても、この条件を満たさなければならない)
+	ttMove = ttMove_
+		&& pos.pseudo_legal_s<false>(ttMove_)
+		&& pos.capture(ttMove_)
+		&& pos.see_ge(ttMove_, threshold + 1) ? ttMove_ : MOVE_NONE;
 
-  endMoves += (ttMove != MOVE_NONE);
+	endMoves += (ttMove != MOVE_NONE);
 }
 
 // 次のstageにするため、必要なら指し手生成器で指し手を生成する。
 void MovePicker::generate_next_stage()
 {
-  ASSERT_LV3(stage != STOP);
+	ASSERT_LV3(stage != STOP);
 
-  // 指し手生成バッファの先頭を指すように
-  currentMoves = moves;
+	// 指し手生成バッファの先頭を指すように
+	currentMoves = moves;
 
-  // 次のステージに移行して、そのときに指し手生成が必要なステージに達したなら指し手を生成する。
-  switch (++stage)
-  {
-  case GOOD_CAPTURES: case QCAPTURES_1: case QCAPTURES_2: case PROBCUT_CAPTURES:
-    endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, moves);
-    score_captures(); // CAPTUREの指し手の並べ替え。
-    break;
+	// 次のステージに移行して、そのときに指し手生成が必要なステージに達したなら指し手を生成する。
+	switch (++stage)
+	{
+	case GOOD_CAPTURES: case QCAPTURES_1: case QCAPTURES_2: case PROBCUT_CAPTURES:
+		endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, moves);
+		score_captures(); // CAPTUREの指し手の並べ替え。
+		break;
 
-  case KILLERS:
-    // killer,counter moveを32bitで持つとき、ExtMoveの上位に駒種を格納しておき、取り出したときにチェックする。
-    // killerはオーダリングしないのでこれは可能なはず。
-    killers[0] = ss->killers[0];
-    killers[1] = ss->killers[1];
-    killers[2] = countermove;
-    currentMoves = killers;
-    endMoves = currentMoves + 2 + (countermove != killers[0] && countermove != killers[1]);
-    break;
+	case KILLERS:
+		// killer,counter moveを32bitで持つとき、ExtMoveの上位に駒種を格納しておき、取り出したときにチェックする。
+		// killerはオーダリングしないのでこれは可能なはず。
+		killers[0] = ss->killers[0];
+		killers[1] = ss->killers[1];
+		killers[2] = countermove;
+		currentMoves = killers;
+		endMoves = currentMoves + 2 + (countermove != killers[0] && countermove != killers[1]);
+		break;
 
-  case GOOD_RECAPTURES:
-    endMoves = generateMoves<RECAPTURES>(pos, moves, recaptureSquare);
-    score_captures(); // CAPTUREの指し手の並べ替え
-    break;
+	case GOOD_RECAPTURES:
+		endMoves = generateMoves<RECAPTURES>(pos, moves, recaptureSquare);
+		score_captures(); // CAPTUREの指し手の並べ替え
+		break;
 
-    // あとで実装する(↑で生成して返さなかった指し手を返すフェーズ)
-  case BAD_CAPTURES:
-    // SEE<0の指し手を指し手生成バッファの末尾に回していたのでそれを順番に返す。
-    currentMoves = moves + MAX_MOVES - 1; // 指し手生成バッファの末尾
-    endMoves = endBadCaptures;
-    break;
+		// あとで実装する(↑で生成して返さなかった指し手を返すフェーズ)
+	case BAD_CAPTURES:
+		// SEE<0の指し手を指し手生成バッファの末尾に回していたのでそれを順番に返す。
+		currentMoves = moves + MAX_MOVES - 1; // 指し手生成バッファの末尾
+		endMoves = endBadCaptures;
+		break;
 
-  case SEARCH_QUIETS:
-    endMoves = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, moves);
-    score_quiets();
-    // プラスの符号のものだけ前方に移動させてソート
-    if (depth < 3 * ONE_PLY)
-    {
-      auto goodQuiet = std::partition(currentMoves, endMoves, [](const ExtMove& m) { return m.value > VALUE_ZERO; });
-      // その移動させたものは少数のはずなので、sortしても遅くない。
-      insertion_sort(currentMoves, goodQuiet);
-    } else {
-      // 残り探索深さがある程度あるなら、ソートする時間は相対的に無視できる。
-      insertion_sort(currentMoves, endMoves);
-    }
-    break;
+	case SEARCH_QUIETS:
+		endMoves = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, moves);
+		score_quiets();
+		// プラスの符号のものだけ前方に移動させてソート
+		if (depth < 3 * ONE_PLY)
+		{
+			auto goodQuiet = std::partition(currentMoves, endMoves, [](const ExtMove& m) { return m.value > VALUE_ZERO; });
+			// その移動させたものは少数のはずなので、sortしても遅くない。
+			insertion_sort(currentMoves, goodQuiet);
+		} else {
+			// 残り探索深さがある程度あるなら、ソートする時間は相対的に無視できる。
+			insertion_sort(currentMoves, endMoves);
+		}
+		break;
 
-  case ALL_EVASIONS:
-    endMoves = generateMoves<EVASIONS>(pos, moves);
-    // 生成された指し手が2手以上あるならオーダリングする。
-    if (endMoves - moves > 1)
-      score_evasions();
-    break;
+	case ALL_EVASIONS:
+		endMoves = generateMoves<EVASIONS>(pos, moves);
+		// 生成された指し手が2手以上あるならオーダリングする。
+		if (endMoves - moves > 1)
+			score_evasions();
+		break;
 
-  case QCHECKS:
-    endMoves = generateMoves<QUIET_CHECKS>(pos, moves);
-    break;
+	case QCHECKS:
+		endMoves = generateMoves<QUIET_CHECKS>(pos, moves);
+		break;
 
-    // そのステージの末尾に達したのでMovePickerを終了する。
-  case EVASION_START: case QSEARCH_WITH_CHECKS_START: case QSEARCH_WITHOUT_CHECKS_START:
-  case PROBCUT_START: case RECAPTURE_START: case STOP:
-    stage = STOP;
-    break;
+		// そのステージの末尾に達したのでMovePickerを終了する。
+	case EVASION_START: case QSEARCH_WITH_CHECKS_START: case QSEARCH_WITHOUT_CHECKS_START:
+	case PROBCUT_START: case RECAPTURE_START: case STOP:
+		stage = STOP;
+		break;
 
-  default:
-    UNREACHABLE;
-    break;
-  }
+	default:
+		UNREACHABLE;
+		break;
+	}
 
 }
 
@@ -285,8 +285,8 @@ Move MovePicker::next_move() {
 #if defined (USE_SEE)
         // ここでSSEの符号がマイナスならbad captureのほうに回す。
         // ToDo: moveは駒打ちではないからsee()の内部での駒打ち判定不要なのだが。
-        if (pos.see_sign(move) >= VALUE_ZERO)
-          return move;
+		if (pos.see_ge(move, VALUE_ZERO))
+				return move;
 
         // 損をするCAPTUREの指し手は、後回しにする。
         // これは指し手生成バッファの末尾から使っていく。
@@ -370,7 +370,7 @@ Move MovePicker::next_move() {
       // 直前に捕獲された駒の価値を上回るようなcaptureの指し手のみを生成する。
     case PROBCUT_CAPTURES:
       move = pick_best(currentMoves++, endMoves);
-      if (move != ttMove && pos.see(move) > threshold)
+      if (move != ttMove && pos.see_ge(move, threshold + 1))
         return move;
       break;
 
@@ -456,7 +456,6 @@ void MovePicker::score_evasions()
 	const HistoryStats& history = pos.this_thread()->history;
 	const FromToStats& fromTo = pos.this_thread()->fromTo;
 	Color c = pos.side_to_move();
-	Value see;
 
 	for (auto& m : *this)
 
@@ -467,10 +466,16 @@ void MovePicker::score_evasions()
 		// evasion自体は指し手の数が少ないのでここでsee()を呼び出すコストは無視できる。
 		// ただで取られる指し手を後回しに出来るメリットのほうが大きい。(と思う)
 
-		if ((see = pos.see_sign(m)) < VALUE_ZERO)
-			m.value = see - HistoryStats::Max; // At the bottom
+		if (pos.capture(m))
+		{
+			// 捕獲する指し手に関しては簡易see + MVV/LVA
+			m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
+				- Value(type_of(pos.moved_piece_before(m))) + HistoryStats::Max;
 
-		else
+			// Todo :成るなら、その成りの価値を加算したほうが見積もりとしては正しい気がするが取り返されたりするのか
+			if (is_promote(m))
+				m.value += (Eval::ProDiffPieceValue[raw_type_of(pos.moved_piece_after(m))]);
+		} else
 			// ↓のifがぶら下がっている。
 
 #endif
@@ -479,21 +484,7 @@ void MovePicker::score_evasions()
 	// あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
 	// 価値が高いので(例えば合駒に安い駒を使う的な…)
 	// LVAするときに王が10000だから、これが大きすぎる可能性がなくはないが…。
-			if (pos.capture_or_promotion(m))
-			{
-
-				m.value = (Value)Eval::CapturePieceValue[pos.piece_on(move_to(m))]
-					- Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
-
-				// 成るなら、その成りの価値を加算
-				if (is_promote(m))
-					m.value += (Eval::ProDiffPieceValue[raw_type_of(pos.moved_piece_after(m))]);
-
-			} else {
-
-				m.value = history[move_to(m)][pos.moved_piece_after(m)] + fromTo.get(c, m);
-
-			}
+			m.value = history[move_to(m)][pos.moved_piece_after(m)] + fromTo.get(c, m);
 }
 
 #endif // ifdef USE_MOVE_PICKER_2016Q2

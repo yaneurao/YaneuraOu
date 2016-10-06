@@ -1097,6 +1097,104 @@ void exam_book(Position& pos)
 	std::cout << ".. done!" << endl;
 }
 
+
+void book_check(Position& pos, Color rootTurn, Book::MemoryBook& book, string sfen, ofstream& of)
+{
+	int ply = pos.game_ply();
+	StateInfo si;
+
+	auto it = book.find(pos);
+	if (it != book.end() && it->second.size() != 0) {
+		// 定跡にhitした。逆順で出力しないと将棋所だと逆順にならないという問題があるので逆順で出力する。
+		// また、it->second->size()!=0をチェックしておかないと指し手のない定跡が登録されていたときに困る。
+
+		const auto& move_list = it->second;
+
+		// 上位N手で局面を進める。
+		int n;
+		if (pos.side_to_move() == rootTurn)
+		{
+			// 自分の手番なのでN=1
+			n = 1;
+		} else {
+#if 0
+			// 4手目までは4手ずつ候補をあげる。
+			if (ply <= 4)
+				n = 4;
+			else
+				n = 2;
+#else
+			// 常に相手側の平均分岐数は4に設定すればどうか。
+			n = 4;
+#endif
+		}
+
+		for (int i = 0; i < n; ++i)
+		{
+			if (move_list.size() <= i)
+				break;
+
+			Move m = move_list[i].bestMove;
+
+			pos.do_move(m, si);
+			book_check(pos, rootTurn, book, sfen + ' ' + to_usi_string(m), of);
+			pos.undo_move(m);
+		}
+
+	} else {
+		// 終端になったのでここまでの手順を書き出す。
+		of << sfen << endl;
+		//		cout << sfen << endl;
+	}
+}
+
+// 定跡のチェックコマンド
+// あとで消すかも。
+void book_check_cmd(Position& pos, istringstream& is)
+{
+	// 初手から定跡をチェックしていき、そこまでの変化をファイルに書き出す。
+
+	// 先手番として
+	// 初手、定跡の指し手、上位1通り(自分の手番なので)
+	// 後手、定跡の指し手、上位2通り(相手番なので)
+	// 3手目、定跡の指し手、上位1通り
+	// 4手目、定跡の指し手、上位2通り
+	// .. 以下、同様。
+
+	string turn = "all";
+	is >> turn;
+
+	cout << "book check start.." << endl;
+	cout << "turn = " << turn << endl;;
+
+	string file_name = "book_records.sfen";
+	ofstream of(file_name, ios::out);
+	pos.set_hirate();
+
+	// とりあえずファイル名は固定でいいや。
+	string book_name = "yaneura_book3.db";
+
+	// bookの読み込み。	
+	Book::MemoryBook book;
+	Book::read_book("book/" + book_name, book, /*BookOnTheFly*/ false);
+	string sfen = "startpos moves";
+
+	if (turn == "all")
+	{
+		for (auto rootTurn : COLOR)
+			book_check(pos, rootTurn, book, sfen, of);
+	} else if (turn == "black") {
+		book_check(pos, BLACK, book, sfen, of);
+	} else if (turn == "white") {
+		book_check(pos, WHITE, book, sfen, of);
+	}
+
+	of.close();
+	cout << "..done , write to " << file_name << endl;
+}
+
+
+#ifdef EVAL_KPPT
 //
 // eval merge
 //  KKPT評価関数の合成用
@@ -1247,102 +1345,8 @@ void eval_merge(istringstream& is)
 
 	cout << "..done" << endl;
 }
-
-
-void book_check(Position& pos,Color rootTurn,Book::MemoryBook& book,string sfen,ofstream& of)
-{
-	int ply = pos.game_ply();
-	StateInfo si;
-
-	auto it = book.find(pos);
-	if (it != book.end() && it->second.size() != 0) {
-		// 定跡にhitした。逆順で出力しないと将棋所だと逆順にならないという問題があるので逆順で出力する。
-		// また、it->second->size()!=0をチェックしておかないと指し手のない定跡が登録されていたときに困る。
-
-		const auto& move_list = it->second;
-
-		// 上位N手で局面を進める。
-		int n;
-		if (pos.side_to_move() == rootTurn)
-		{
-			// 自分の手番なのでN=1
-			n = 1;
-		} else {
-#if 0
-			// 4手目までは4手ずつ候補をあげる。
-			if (ply <= 4)
-				n = 4;
-			else
-				n = 2;
-#else
-			// 常に相手側の平均分岐数は4に設定すればどうか。
-			n = 4;
 #endif
-		}
 
-		for (int i = 0; i < n; ++i)
-		{
-			if (move_list.size() <= i)
-				break;
-
-			Move m = move_list[i].bestMove;
-
-			pos.do_move(m, si);
-			book_check(pos,rootTurn,book,sfen + ' ' + to_usi_string(m),of);
-			pos.undo_move(m);
-		}
-
-	} else {
-		// 終端になったのでここまでの手順を書き出す。
-		of << sfen << endl;
-//		cout << sfen << endl;
-	}
-}
-
-// 定跡のチェックコマンド
-// あとで消すかも。
-void book_check_cmd(Position& pos, istringstream& is)
-{
-	// 初手から定跡をチェックしていき、そこまでの変化をファイルに書き出す。
-
-	// 先手番として
-	// 初手、定跡の指し手、上位1通り(自分の手番なので)
-	// 後手、定跡の指し手、上位2通り(相手番なので)
-	// 3手目、定跡の指し手、上位1通り
-	// 4手目、定跡の指し手、上位2通り
-	// .. 以下、同様。
-
-	string turn = "all";
-	is >> turn;
-
-	cout << "book check start.." << endl;
-	cout << "turn = " << turn << endl;;
-
-	string file_name = "book_records.sfen";
-	ofstream of(file_name , ios::out);
-	pos.set_hirate();
-
-	// とりあえずファイル名は固定でいいや。
-	string book_name = "yaneura_book3.db";
-
-	// bookの読み込み。	
-	Book::MemoryBook book;
-	Book::read_book("book/" + book_name, book, /*BookOnTheFly*/ false);
-	string sfen = "startpos moves";
-
-	if (turn == "all")
-	{
-		for (auto rootTurn : COLOR)
-			book_check(pos, rootTurn, book, sfen, of);
-	} else if (turn == "black") {
-		book_check(pos, BLACK, book, sfen, of);
-	} else if (turn == "white") {
-		book_check(pos, WHITE, book, sfen, of);
-	}
-
-	of.close();
-	cout << "..done , write to " << file_name << endl;
-}
 
 void test_cmd(Position& pos, istringstream& is)
 {
@@ -1360,8 +1364,10 @@ void test_cmd(Position& pos, istringstream& is)
 	else if (param == "autoplay") auto_play(pos, is);                // 思考ルーチンを呼び出しての連続自己対戦
 	else if (param == "timeman") test_timeman();                     // TimeManagerのテスト
 	else if (param == "exambook") exam_book(pos);                    // 定跡の精査用コマンド
-	else if (param == "evalmerge") eval_merge(is);                   // 評価関数の合成コマンド
 	else if (param == "bookcheck") book_check_cmd(pos,is);           // 定跡のチェックコマンド
+#ifdef EVAL_KPPT
+	else if (param == "evalmerge") eval_merge(is);                   // 評価関数の合成コマンド
+#endif
 	else {
 		cout << "test unit               // UnitTest" << endl;
 		cout << "test rp                 // Random Player" << endl;

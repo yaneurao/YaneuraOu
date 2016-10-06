@@ -484,7 +484,7 @@ namespace YaneuraOuClassic
 
         // futilityBaseはこの局面のevalにmargin値を加算しているのだが、それがalphaを超えないし、
         // かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
-        if (futilityBase <= alpha && pos.see(move) <= VALUE_ZERO)
+        if (futilityBase <= alpha && !pos.see_ge(move, VALUE_ZERO + 1))
         {
           bestValue = std::max(bestValue, futilityBase);
           continue;
@@ -503,8 +503,8 @@ namespace YaneuraOuClassic
         && !pos.capture(move);
 
       if (  (!InCheck || evasionPrunable)
-          &&  !(move & MOVE_PROMOTE)
-          &&  pos.see_sign(move) < VALUE_ZERO)
+          && !(move & MOVE_PROMOTE)
+          && !pos.see_ge(move, VALUE_ZERO))
           continue;
 
       // -----------------------
@@ -1095,7 +1095,7 @@ namespace YaneuraOuClassic
       Depth extension = DEPTH_ZERO;
 
       // 王手となる指し手でSEE >= 0であれば残り探索深さに1手分だけ足す。
-      if (givesCheck && pos.see_sign(move) >= VALUE_ZERO)
+      if (givesCheck && pos.see_ge(move, VALUE_ZERO))
         extension = ONE_PLY;
 
       //
@@ -1202,7 +1202,7 @@ namespace YaneuraOuClassic
         }
 
         // 次の子nodeにおいて浅い深さになる場合、負のSSE値を持つ指し手の枝刈り
-        if (predictedDepth < 4 * ONE_PLY && pos.see_sign(move) < VALUE_ZERO)
+        if (predictedDepth < 4 * ONE_PLY && !pos.see_ge(move, VALUE_ZERO))
           continue;
       }
 

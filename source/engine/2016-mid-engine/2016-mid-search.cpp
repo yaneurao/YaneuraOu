@@ -705,7 +705,7 @@ namespace YaneuraOu2016Mid
 
         // ToDo:MovePickerのなかでsee()を呼び出しているなら、ここで２重にsee()するのもったいないが…。
         // ToDo: pos.see(move, beta - futilityBase) <= VALUE_ZEORのほうが良い可能性。
-        if (futilityBase <= alpha && pos.see_sign(move) <= VALUE_ZERO)
+        if (futilityBase <= alpha && !pos.see_ge(move, VALUE_ZERO + 1))
         {
           bestValue = std::max(bestValue, futilityBase);
           continue;
@@ -733,7 +733,7 @@ namespace YaneuraOu2016Mid
       if (  (!InCheck || evasionPrunable)
           // 「歩が成る」指し手
           &&  (!(is_promote(move) && raw_type_of(pos.moved_piece_after(move)) == PAWN))
-          &&  pos.see_sign(move) < VALUE_ZERO)
+          && !pos.see_ge(move, VALUE_ZERO))
           continue;
 
       // -----------------------
@@ -1415,7 +1415,7 @@ namespace YaneuraOu2016Mid
 
 		  if (givesCheck
 			  && !moveCountPruning
-			  &&  pos.see_sign(move) >= VALUE_ZERO)
+			  &&  pos.see_ge(move, VALUE_ZERO))
 			  extension = ONE_PLY;
 
 		  //
@@ -1524,7 +1524,7 @@ namespace YaneuraOu2016Mid
 
 #if 1
 			  // 次の子nodeにおいて浅い深さになる場合、負のSSE値を持つ指し手の枝刈り
-			  if (predictedDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH * ONE_PLY && pos.see_sign(move) < VALUE_ZERO)
+			  if (predictedDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH * ONE_PLY && !pos.see_ge(move, VALUE_ZERO))
 				  continue;
 #else
 			  // ↓どうも、このコードにすると少し弱くなるようなのでとりあえずコメントアウト。

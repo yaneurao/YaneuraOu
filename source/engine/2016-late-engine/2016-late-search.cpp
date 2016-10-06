@@ -371,6 +371,10 @@ namespace YaneuraOu2016Late
 			thisThread->counterMoves.update(prevPc, prevSq, move);
 		}
 
+		// ToDo :
+		//   abs(bonus) >= 324 ならupdate()する必要がないので
+		//   ここでreturn出来るはずなのだが…。
+
 		// Decrease all the other played quiet moves
 		for (int i = 0; i < quietsCnt; ++i)
 		{
@@ -705,7 +709,7 @@ namespace YaneuraOu2016Late
 				//		T1,b3000,2404 - 212 - 2384(50.21% R1.45)[2016/09/04]
 				// 大差なさげ。後者にしておく。
 
-				if (futilityBase <= alpha && pos.see(move) <= VALUE_ZERO)
+				if (futilityBase <= alpha && !pos.see_ge(move , VALUE_ZERO+1))
 				{
 					bestValue = std::max(bestValue, futilityBase);
 					continue;
@@ -734,7 +738,7 @@ namespace YaneuraOu2016Late
 				// ここ、成る手ではなく、歩が成る手のみを除外(したほうがたぶん良い)
 				// 「歩が成る」指し手ではない
 				&& (!(is_promote(move) && raw_type_of(pos.moved_piece_after(move)) == PAWN))
-				&& pos.see_sign(move) < VALUE_ZERO)
+				&& !pos.see_ge(move , VALUE_ZERO))
 				continue;
 
 			// -----------------------
@@ -1476,7 +1480,8 @@ namespace YaneuraOu2016Late
 
 			if (givesCheck
 				&& !moveCountPruning
-				&&  pos.see_sign(move) >= VALUE_ZERO)
+				&&  pos.see_ge(move , VALUE_ZERO)
+				)
 				extension = ONE_PLY;
 
 			//
@@ -1637,13 +1642,13 @@ namespace YaneuraOu2016Late
 					// 将棋ではseeが負の指し手もそのあと詰むような場合があるから、あまり無碍にも出来ないようだが…。
 
 					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1
-						&& pos.see_sign(move) < Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 * lmrDepth * lmrDepth))
+						&& !pos.see_ge(move , Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 * lmrDepth * lmrDepth)))
 						continue;
 				}
 
 				// 浅い深さでの、危険な指し手を枝刈りする。
 				else if (depth < (PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2) * ONE_PLY
-					&& pos.see_sign(move) < Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 * depth / ONE_PLY * depth / ONE_PLY))
+					&& !pos.see_ge(move , Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 * depth / ONE_PLY * depth / ONE_PLY)))
 					continue;
 			}
 
@@ -1727,7 +1732,7 @@ namespace YaneuraOu2016Late
 						// see_sign()だと、toの升の駒でfromの升の駒(NO_PIECE)を取るから
 						// 必ず正になってしまうため、see_sign()ではなくsee()を用いる。
 
-						&& pos.see(make_move(to_sq(move), move_from(move))) < VALUE_ZERO)
+						&& !pos.see_ge(make_move(to_sq(move), move_from(move)),VALUE_ZERO))
 						r -= 2 * ONE_PLY;
 #endif
 

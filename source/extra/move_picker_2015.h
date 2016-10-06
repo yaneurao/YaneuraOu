@@ -221,7 +221,7 @@ struct MovePicker
     ttMove = ttMove_
       && pos.pseudo_legal_s<false>(ttMove_)
       && pos.capture(ttMove_)
-      && pos.see(ttMove_) > threshold ? ttMove_ : MOVE_NONE;
+      && pos.see_ge(ttMove_, threshold + 1) ? ttMove_ : MOVE_NONE;
 
     endMoves += (ttMove != MOVE_NONE);
   }
@@ -346,7 +346,7 @@ struct MovePicker
 #ifdef USE_SEE
           // ここでSSEの符号がマイナスならbad captureのほうに回す。
           // ToDo: moveは駒打ちではないからsee()の内部での駒打ち判定不要なのだが。
-          if (pos.see_sign(move) >= VALUE_ZERO)
+          if (pos.see_ge(move, VALUE_ZERO))
             return move;
 
           // 損をするCAPTUREの指し手は、後回しにする。
@@ -398,7 +398,7 @@ struct MovePicker
         // 直前に捕獲された駒の価値を上回るようなcaptureの指し手のみを生成する。
       case PROBCUT_CAPTURES:
         move = pick_best(currentMoves++, endMoves);
-        if (move != ttMove && pos.see(move) > threshold)
+        if (move != ttMove && pos.see_ge(move , threshold+1))
           return move;
         break;
 
@@ -472,33 +472,34 @@ private:
 
   void score_evasions()
   {
-    Value see;
-
     for (auto& m : *this)
 
-#ifdef USE_SEE
+#if defined (USE_SEE)
 
-      // see()が負の指し手ならマイナスの値を突っ込んで後回しにする
-      // 王手を防ぐためだけのただで取られてしまう駒打ちとかがここに含まれるであろうから。
-      // evasion自体は指し手の数が少ないのでここでsee()を呼び出すコストは無視できる。
-      // ただで取られる指し手を後回しに出来るメリットのほうが大きい。
+		// see()が負の指し手ならマイナスの値を突っ込んで後回しにする
+		// 王手を防ぐためだけのただで取られてしまう駒打ちとかがここに含まれるであろうから。
+		// evasion自体は指し手の数が少ないのでここでsee()を呼び出すコストは無視できる。
+		// ただで取られる指し手を後回しに出来るメリットのほうが大きい。(と思う)
 
-      if ((see = pos.see(m)) < VALUE_ZERO)
-        m.value = see - HistoryStats::Max; // At the bottom
+		if (pos.capture(m))
+		{
+			// 捕獲する指し手に関しては簡易see + MVV/LVA
+			m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
+				- Value(type_of(pos.moved_piece_before(m))) + HistoryStats::Max;
 
-      else
-        // ↓のifがぶら下がっている。
+			// Todo :成るなら、その成りの価値を加算したほうが見積もりとしては正しい気がするが取り返されたりするのか
+			if (is_promote(m))
+				m.value += (Eval::ProDiffPieceValue[raw_type_of(pos.moved_piece_after(m))]);
+		} else
+			// ↓のifがぶら下がっている。
 
 #endif
 
-      // 駒を取る指し手ならseeがプラスだったということなのでプラスの符号になるようにStats::Maxを足す。
-      // あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
-      // 価値が高いので(例えば合駒に安い駒を使う的な…)
-      if (pos.capture(m))
-        m.value = (Value)Eval::CapturePieceValue[pos.piece_on(move_to(m))]
-                  - Value(type_of(pos.moved_piece_after(m))) + HistoryStats::Max;
-      else
-        m.value = history[move_to(m)][pos.moved_piece_after(m)];
+			// 駒を取る指し手ならseeがプラスだったということなのでプラスの符号になるようにStats::Maxを足す。
+			// あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
+			// 価値が高いので(例えば合駒に安い駒を使う的な…)
+			// LVAするときに王が10000だから、これが大きすぎる可能性がなくはないが…。
+			m.value = history[move_to(m)][pos.moved_piece_after(m)];
   }
 
   const Position& pos;

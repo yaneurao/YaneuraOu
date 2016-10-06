@@ -437,7 +437,7 @@ namespace YaneuraOuMini
 
         // futilityBaseはこの局面のevalにmargin値を加算しているのだが、それがalphaを超えないし、
         // かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
-        if (futilityBase <= alpha && pos.see(move) <= VALUE_ZERO)
+        if (futilityBase <= alpha && !pos.see_ge(move, VALUE_ZERO + 1))
         {
           bestValue = std::max(bestValue, futilityBase);
           continue;
@@ -457,7 +457,7 @@ namespace YaneuraOuMini
 
       if ((!InCheck || evasionPrunable)
         && !(move & MOVE_PROMOTE)
-        && pos.see_sign(move) < VALUE_ZERO)
+        && !pos.see_ge(move, VALUE_ZERO))
         continue;
 
 

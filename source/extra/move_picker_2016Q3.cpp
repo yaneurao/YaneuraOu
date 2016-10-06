@@ -185,7 +185,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Value th)
 	ttMove = ttm
 		&& pos.pseudo_legal_s<false>(ttm)
 		&& pos.capture(ttm)
-		&& pos.see(ttm) > threshold ? ttm : MOVE_NONE;
+		&& pos.see_ge(ttm, threshold + 1) ? ttm : MOVE_NONE;
 
 	// 置換表の指し手がないなら、次のstageから開始する。
 	stage += (ttMove == MOVE_NONE);
@@ -253,49 +253,24 @@ void MovePicker::score<EVASIONS>()
 	const HistoryStats& history = pos.this_thread()->history;
 	const FromToStats& fromTo = pos.this_thread()->fromTo;
 	Color c = pos.side_to_move();
-	Value see;
 
 	for (auto& m : *this)
 
-#if defined (USE_SEE)
-		
-		// see()が負の指し手ならマイナスの値を突っ込んで後回しにする
-		// 王手を防ぐためだけのただで取られてしまう駒打ちとかがここに含まれるであろうから。
-		// evasion自体は指し手の数が少ないのでここでsee()を呼び出すコストは無視できる。
-		// ただで取られる指し手を後回しに出来るメリットのほうが大きい。(と思う)
+		if (pos.capture(m))
+		{
+			// 捕獲する指し手に関しては簡易see + MVV/LVA
+			m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
+				- Value(type_of(pos.moved_piece_before(m))) + HistoryStats::Max;
 
-		if ((see = pos.see_sign(m)) < VALUE_ZERO)
-			m.value = see - HistoryStats::Max; // At the bottom
-
-		else
-			// ↓のifがぶら下がっている。
-
+#if 0			
+			// Todo :成るなら、その成りの価値を加算したほうが見積もりとしては正しい気がするが取り返されたりするのか
+			if (is_promote(m))
+				m.value += (Eval::ProDiffPieceValue[raw_type_of(pos.moved_piece_after(m))]);
 #endif
-
-			// 駒を取る指し手ならseeがプラスだったということなのでプラスの符号になるようにStats::Maxを足す。
-			// あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
-			// 価値が高いので(例えば合駒に安い駒を使う的な…)
-			// LVAするときに王が10000だから、これが大きすぎる可能性がなくはないが…。
-			if (pos.capture_or_promotion(m))
-			{
-
-				// このLVA、やらないとめっちゃ弱くなるようだ。
-				// 	r300 , 2091 - 56 - 1633(56.15% R42.95) [2016/08/19]
-				// 	b1000, 1414 - 45 - 1111(56.0% R41.89) [2016/08/19]
-
-				m.value = (Value)Eval::CapturePieceValue[pos.piece_on(move_to(m))]
-					- Value(LVA(type_of(pos.moved_piece_before(m))))
-					+ HistoryStats::Max;
-
-				// 成るなら、その成りの価値を加算
-				if (is_promote(m))
-					m.value += (Eval::ProDiffPieceValue[raw_type_of(pos.moved_piece_after(m))]);
-
-			} else {
-
-				m.value = history[move_to(m)][pos.moved_piece_after(m)] + fromTo.get(c, m);
-
-			}
+		}
+		else
+			// 捕獲しない指し手に関してはhistoryの値の順番
+			m.value = history[to_sq(m)][pos.moved_piece_after(m)] + fromTo.get(c, m);
 }
 
 // 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。
@@ -331,8 +306,8 @@ Move MovePicker::next_move() {
 			if (move != ttMove)
 			{
 				// ここでSSEの符号がマイナスならbad captureのほうに回す。
-				// ToDo: moveは駒打ちではないからsee()の内部での駒打ち判定不要なのだが。
-				if (pos.see_sign(move) >= VALUE_ZERO)
+				// ToDo: moveは駒打ちではないからsee()の内部での駒打ちは判定不要なのだが。
+				if (pos.see_ge(move, VALUE_ZERO))
 					return move;
 
 				// 損をするCAPTUREの指し手は、後回しにする。
@@ -447,7 +422,7 @@ Move MovePicker::next_move() {
 		{
 			move = pick_best(cur++, endMoves);
 			if (move != ttMove
-				&& pos.see(move) > threshold)
+				&& pos.see_ge(move, threshold + 1))
 				return move;
 		}
 		break;
