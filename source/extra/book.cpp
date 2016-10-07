@@ -258,7 +258,7 @@ namespace Book
 					pos.do_move(move, si[i]);
 				}
 
-				for (int i = 0; i < sf.size() - (from_sfen ? 1 : 0); ++i)
+				for (int i = 0; i < (int)sf.size() - (from_sfen ? 1 : 0); ++i)
 				{
 					if (i < start_moves - 1)
 						continue;
@@ -327,7 +327,7 @@ namespace Book
 				if (cluster_id != 1 || cluster_num != 1)
 				{
 					vector<string> a;
-					for (size_t i = 0; i < sfens_.size(); ++i)
+					for (int i = 0; i < (int)sfens_.size(); ++i)
 					{
 						if ((i % cluster_num) == cluster_id - 1)
 							a.push_back(sfens_[i]);

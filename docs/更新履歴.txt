@@ -2,6 +2,12 @@
 やねうら王 更新履歴
 
 
+■　2016/10/07 V3.94
+
+・Position::see_ge()、g++で警告出てていたの修正。
+・その他、g++で警告出ていたもの一通り修正。
+
+
 ■　2016/10/06 V3.93
 
 ・Stockfish : Do not use SEE in evasion scoring 

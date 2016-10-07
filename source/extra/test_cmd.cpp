@@ -1111,7 +1111,7 @@ void book_check(Position& pos, Color rootTurn, Book::MemoryBook& book, string sf
 		const auto& move_list = it->second;
 
 		// 上位N手で局面を進める。
-		int n;
+		size_t n;
 		if (pos.side_to_move() == rootTurn)
 		{
 			// 自分の手番なのでN=1
@@ -1129,7 +1129,7 @@ void book_check(Position& pos, Color rootTurn, Book::MemoryBook& book, string sf
 #endif
 		}
 
-		for (int i = 0; i < n; ++i)
+		for (size_t i = 0; i < n; ++i)
 		{
 			if (move_list.size() <= i)
 				break;

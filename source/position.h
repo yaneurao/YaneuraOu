@@ -433,7 +433,7 @@ struct Position
 	// 指し手mのsee(Static Exchange Evaluation : 静的取り合い評価)において
 	// v(しきい値)以上になるかどうかを返す。
 	// see_geのgeはgreater or equal(「以上」の意味)の略。
-	bool Position::see_ge(Move m, Value v) const;
+	bool see_ge(Move m, Value v) const;
 
 #endif
 

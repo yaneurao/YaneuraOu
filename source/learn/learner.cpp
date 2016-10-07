@@ -19,7 +19,6 @@
 #include <sstream>
 #include <fstream>
 #include <unordered_set>
-#include <filesystem>
 
 #include "../misc.h"
 #include "../thread.h"
@@ -27,6 +26,11 @@
 #include "../extra/book.h"
 #include "../tt.h"
 #include "multi_think.h"
+
+// これ、Windows専用なの？よくわからん…。
+#if defined(_MSC_VER)
+#include <filesystem>
+#endif
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -459,79 +463,81 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// 置換表にヒットするなどしてPVが途中で切れるケースは全体の0.15%程度。
 				// このケースを捨てたほうがいいかも知れん。
 
-				if (pv1.size() < search_depth)
+				if ((int)pv1.size() < search_depth)
 					goto NEXT_MOVE;
 
+				{
 #ifdef WRITE_PACKED_SFEN
-				PackedSfen sfen;
-				// packを要求されているならpackされたsfenとそのときの評価値を書き出す。
-				pos.sfen_pack(sfen);
-				// このwriteがスレッド排他を行うので、ここでの排他は不要。
+					PackedSfen sfen;
+					// packを要求されているならpackされたsfenとそのときの評価値を書き出す。
+					pos.sfen_pack(sfen);
+					// このwriteがスレッド排他を行うので、ここでの排他は不要。
 #ifndef GENSFEN_SAVE_FIRST_MOVE
-				sw.write(thread_id, data, leaf_value);
+					sw.write(thread_id, data, leaf_value);
 #else
 				// PVの初手を取り出す。これは存在するはずなのだが…。
-				ASSERT_LV3(pv_value1.second.size() >= 1);
-				Move move = pv_value1.second[0];
-				sw.write(thread_id, sfen, leaf_value, move);
+					ASSERT_LV3(pv_value1.second.size() >= 1);
+					Move pv_move1 = pv_value1.second[0];
+					sw.write(thread_id, sfen, leaf_value, pv_move1);
 #endif
 
 #ifdef TEST_UNPACK_SFEN
 
-				// sfenのpack test
-				// pack()してunpack()したものが元のsfenと一致するのかのテスト。
+					// sfenのpack test
+					// pack()してunpack()したものが元のsfenと一致するのかのテスト。
 
-		  //      pos.sfen_pack(data);
-				auto sfen = pos.sfen_unpack(data);
-				auto pos_sfen = pos.sfen();
+			  //      pos.sfen_pack(data);
+					auto sfen = pos.sfen_unpack(data);
+					auto pos_sfen = pos.sfen();
 
-				// 手数の部分の出力がないので異なる。末尾の数字を消すと一致するはず。
-				auto trim = [](std::string& s)
-				{
-					while (true)
+					// 手数の部分の出力がないので異なる。末尾の数字を消すと一致するはず。
+					auto trim = [](std::string& s)
 					{
-						auto c = *s.rbegin();
-						if (c < '0' || '9' < c)
-							break;
-						s.pop_back();
-					}
-				};
-				trim(sfen);
-				trim(pos_sfen);
+						while (true)
+						{
+							auto c = *s.rbegin();
+							if (c < '0' || '9' < c)
+								break;
+							s.pop_back();
+						}
+					};
+					trim(sfen);
+					trim(pos_sfen);
 
-				if (sfen != pos_sfen)
-				{
-					cout << "Error: sfen packer error\n" << sfen << endl << pos_sfen << endl;
-				}
+					if (sfen != pos_sfen)
+					{
+						cout << "Error: sfen packer error\n" << sfen << endl << pos_sfen << endl;
+					}
 #endif
 
 #else // WRITE_PACKED_SFEN
 
-				{
-					// C++のiostreamに対するスレッド排他は自前で行なう必要がある。
-					std::unique_lock<Mutex> lk(io_mutex);
+					{
+						// C++のiostreamに対するスレッド排他は自前で行なう必要がある。
+						std::unique_lock<Mutex> lk(io_mutex);
 
-					// sfenとそのときの評価値を書き出す。
-					string line = pos.sfen() + "," + to_string(value1) + "\n";
-					sw.write(thread_id, line);
-				}
+						// sfenとそのときの評価値を書き出す。
+						string line = pos.sfen() + "," + to_string(value1) + "\n";
+						sw.write(thread_id, line);
+					}
 #endif
 
 #if 0
-				// デバッグ用に局面と読み筋を表示させてみる。
-				cout << pos;
-				cout << "search() PV = ";
-				for (auto pv_move : pv1)
-					cout << pv_move << " ";
-				cout << endl;
+					// デバッグ用に局面と読み筋を表示させてみる。
+					cout << pos;
+					cout << "search() PV = ";
+					for (auto pv_move : pv1)
+						cout << pv_move << " ";
+					cout << endl;
 
-				// 静止探索のpvは存在しないことがある。(駒の取り合いがない場合など)　その場合は、現局面がPVのleafである。
-				cout << "qsearch() PV = ";
-				for (auto pv_move : pv2)
-					cout << pv_move << " ";
-				cout << endl;
+					// 静止探索のpvは存在しないことがある。(駒の取り合いがない場合など)　その場合は、現局面がPVのleafである。
+					cout << "qsearch() PV = ";
+					for (auto pv_move : pv2)
+						cout << pv_move << " ";
+					cout << endl;
 
 #endif
+				}
 
 			NEXT_MOVE:;
 				// search_depth手読みの指し手で局面を進める。
@@ -1390,6 +1396,11 @@ void learn(Position& pos, istringstream& is)
 		{
 			// 棋譜が格納されているフォルダを指定して、根こそぎ対象とする。
 			is >> target_dir;
+
+#if !defined(_MSC_VER)
+			cout << "ERROR! : targetdir , this function is only for Windows." << endl;
+#endif
+
 			continue;
 		} else if (option == "batchsize")
 		{
@@ -1409,6 +1420,9 @@ void learn(Position& pos, istringstream& is)
 	cout << "Warning! OpenMP disabled." << endl;
 #endif
 
+#if defined(_MSC_VER)
+	// ディレクトリ操作がWindows専用っぽいので…。
+
 	// 学習棋譜ファイルの表示
 	if (target_dir != "")
 	{
@@ -1422,6 +1436,7 @@ void learn(Position& pos, istringstream& is)
 				filenames.push_back(path_combine(target_dir , p.filename().generic_string()));
 		});
 	}
+#endif
 
 	cout << "learn from ";
 	for (auto s : filenames)

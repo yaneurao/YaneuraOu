@@ -2227,7 +2227,7 @@ void Search::clear()
 				if (r < 0.80)
 					continue;
 
-				reduction_table[NonPV][imp][d][mc] = int(std::round(r)) * ONE_PLY;
+				reduction_table[NonPV][imp][d][mc] = int(round(r)) * ONE_PLY;
 				reduction_table[PV][imp][d][mc] = std::max(reduction_table[NonPV][imp][d][mc] - 1, 0);
 
 				// nonPVでimproving(評価値が2手前から上がっている)でないときはreductionの量を増やす。
