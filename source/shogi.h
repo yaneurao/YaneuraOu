@@ -24,7 +24,7 @@
 // オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE を defineして 他のエンジンのソースコードを参考に
 //  engine/user-engine/ フォルダの中身を書くべし。
 
-// YANEURAOU_2016_LATE_ENGINEは現状、探索パラメーターが非公開。
+// YANEURAOU_2016_LATE_ENGINEは現状、探索パラメーターは非公開。
 // engine/2016-late-engine/2016-late-param.hの#ifdef 1となっている値を0にすると、
 // Stockfishのデフォルトパラメーターになり、一応ビルドは出来る。
 

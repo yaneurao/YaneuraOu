@@ -81,3 +81,5 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 - 評価関数ファイル28バリエーション : [やねうら王で使える評価関数ファイル28バリエーション公開しました](http://yaneuraou.yaneu.com/2016/07/22/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B%E3%81%A7%E4%BD%BF%E3%81%88%E3%82%8B%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB28%E3%83%90%E3%83%AA%E3%82%A8%E3%83%BC%E3%82%B7/)
 - やねうら王で生成した学習局面45億局面データ : [教師用局面ファイル、45億局面分を公開しました](http://yaneuraou.yaneu.com/2016/07/21/%E6%95%99%E5%B8%AB%E7%94%A8%E5%B1%80%E9%9D%A2%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB%E3%80%8145%E5%84%84%E5%B1%80%E9%9D%A2%E5%88%86%E3%82%92%E5%85%AC%E9%96%8B%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F/)
 - 追加の学習局面データ : [教師用データ、追加で公開しました。](http://yaneuraou.yaneu.com/2016/07/23/%E6%95%99%E5%B8%AB%E7%94%A8%E3%83%87%E3%83%BC%E3%82%BF%E3%80%81%E8%BF%BD%E5%8A%A0%E3%81%A7%E5%85%AC%E9%96%8B%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F%E3%80%82/)
+- 追加の定跡ファイル : [真やねうら定跡](https://drive.google.com/open?id=0ByIGrGAuSfHHcXRrc2FmdHVmRzA)
+
