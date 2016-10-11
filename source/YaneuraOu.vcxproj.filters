@@ -157,6 +157,9 @@
     <ClInclude Include="extra\move_picker_2016Q3.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
+    <ClInclude Include="engine\2016-late-engine\2016-late-param_body.h">
+      <Filter>リソース ファイル\engine\2016-late-engine</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">

@@ -621,7 +621,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					MoveList<LEGAL> list(pos);
 					ExtMove* it2 = (ExtMove*)list.begin();
 					for (ExtMove* it = (ExtMove*)list.begin(); it != list.end(); ++it)
-						if (type_of(pos.moved_piece_after(it->move)) != KING)
+						if (type_of(pos.moved_piece_after(it->move)) == KING)
 							*it2++ = *it;
 							
 					auto size = it2 - list.begin();

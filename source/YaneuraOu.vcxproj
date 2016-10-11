@@ -203,6 +203,7 @@
   <ItemGroup>
     <ClInclude Include="bitboard.h" />
     <ClInclude Include="engine\2016-late-engine\2016-late-param.h" />
+    <ClInclude Include="engine\2016-late-engine\2016-late-param_body.h" />
     <ClInclude Include="engine\2016-mid-engine\2016-mid-param.h" />
     <ClInclude Include="engine\help-mate-engine\help-mate-search.h" />
     <ClInclude Include="engine\mate-engine\mate-search.h" />

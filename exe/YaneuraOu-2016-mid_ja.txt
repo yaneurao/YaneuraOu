@@ -28,8 +28,9 @@ BookFile 定跡ファイル
 no_book 定跡なし
 standard_book.db 標準定跡
 yaneura_book1.db やねうら大定跡
-yaneura_book2.db やねうら超定跡
-yaneura_book3.db やねうら裏定跡
+yaneura_book2.db 超やねうら定跡
+yaneura_book3.db 真やねうら定跡
+yaneura_book4.db 極やねうら定跡
 user_book1.db ユーザー定跡1
 user_book2.db ユーザー定跡2
 user_book3.db ユーザー定跡3
