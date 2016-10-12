@@ -9,6 +9,7 @@
 ・やねうら王2016Lateの探索パラメーターファイルを公開に変更。
 ・教師局面の生成部、KINGの二度移動が新しいコードにおいて生成出来ていなかったの修正。
 ・極やねうら王の定跡ファイル、読み込み対応。
+・AdaGradのg2に関するif式修正。(thanks! > 読み太の塚本さん)
 
 
 ■　2016/10/07 V3.94
@@ -20,7 +21,8 @@
 ■　2016/10/06 V3.93
 
 ・Stockfish : Do not use SEE in evasion scoring 
-・Stockfish : Replace Position::see and Position::see_sign by Position::see_ge 
+・Stockfish[pull req.] : Replace Position::see and Position::see_sign by Position::see_ge 
+・Stockfish : Optimisation of Position::see and Position::see_sign
 ・USE_SIMPLE_SEE削除。
 ・2016 Late用のデフォルトパラメーター(Stockfishと同じもの)を公開。
 ・上の修正にともなって、Score<Evasion>、LVAするの忘れていたの修正。

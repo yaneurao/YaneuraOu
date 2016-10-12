@@ -335,7 +335,7 @@ namespace Eval
 			g2 += FloatPair{ g[0] * g[0] , g[1] * g[1] };
 
 			// 値が小さいうちはskipする
-			if (g2[0] < 0.1f || g2[0] < 0.1f)
+			if (g2[0] < 0.1f || g2[1] < 0.1f)
 				goto FINISH;
 
 			if (!skip_update)
@@ -588,7 +588,7 @@ namespace Eval
 	}
 
 
-// 現在の勾配をもとにSGDかAdaGradか何かする。
+	// 現在の勾配をもとにSGDかAdaGradか何かする。
 	void update_weights(u64 mini_batch_size , u64 epoch)
 	{
 		// 3回目まではwのupdateを保留する。
