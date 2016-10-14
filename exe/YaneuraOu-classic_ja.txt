@@ -1,5 +1,5 @@
 Threads スレッド数
-Hash 置換表サイズ[mb]
+Hash 置換表サイズ[MB]
 Ponder Ponder(相手番でも考慮)
 WriteDebugLog デバッグログ出力
 NarrowBook 出現確率の低い定跡を採用しない

@@ -1,8 +1,8 @@
 Threads スレッド数
-Hash 置換表サイズ[mb]
+Hash 置換表サイズ[MB]
 Ponder 相手番でも考慮
 WriteDebugLog デバッグログ出力
-CM_Hash 協力詰め置換表サイズ[mb]
+CM_Hash 協力詰め置換表サイズ[MB]
 
 NetworkDelay 通信時の遅延時間[ms]
 ContemptFactor 引き分け時スコア(歩を100とする)
