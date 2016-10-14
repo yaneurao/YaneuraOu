@@ -15,7 +15,7 @@ NDFの学習メソッドを用い、Hyperopt等を用いて各種パラメータ
 
     以下のようにファイルを配置します。
 
-    YaneuraOu-2016-late.exe      : やねうら王2016 Mid本体
+    YaneuraOu-2016-late.exe      : やねうら王2016 Late本体
     YaneuraOu-2016-late_ja.txt   : これを用いると思考エンジンの設定項目の表示が日本語化される。
     book/standard_book.db   : 基本定跡
 	book/yaneura_book1.db   : やねうら大定跡(これは別途ダウンロードが必要)
