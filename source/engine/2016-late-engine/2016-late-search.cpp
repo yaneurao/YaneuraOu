@@ -2888,8 +2888,10 @@ ID_END:;
 	// ---------------------
 
 	// 投了スコアが設定されていて、歩の価値を100として正規化した値がそれを下回るなら投了。
-	auto resign_value = Options["ResignValue"];
-	if (bestThread->rootMoves[0].score * 100 / PawnValue <= -resign_value)
+	// ただし定跡の指し手にhitした場合などはrootMoves[0].score == -VALUE_INFINITEになっているのでそれは除外。
+	auto resign_value = (int)Options["ResignValue"];
+	if (bestThread->rootMoves[0].score != -VALUE_INFINITE
+		&& bestThread->rootMoves[0].score * 100 / PawnValue <= -resign_value)
 		bestThread->rootMoves[0].pv[0] = MOVE_RESIGN;
 
 	// サイレントモードでないならbestな指し手を出力
