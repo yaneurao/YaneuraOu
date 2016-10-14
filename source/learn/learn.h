@@ -21,6 +21,7 @@
 //#define LEARN_YANEURAOU_2016_LATE
 //#define EVAL_SAVE_ONLY_ONCE
 
+
 // =====================
 // 教師局面生成時の設定
 // =====================
@@ -101,6 +102,11 @@
 
 // KKPの評価値、フリップを考慮するか(盤面を180度回転させた位置にある評価値を同じ値にする)
 // #define USE_KKP_FLIP_WRITE
+
+// 毎回wを更新する。ただし評価関数パラメーターに反映させるのは、
+// mini-batch回数に1回。
+// #define LEARN_UPDATE_EVERYTIME
+
 
 // ----------------------
 //    目的関数の選択
@@ -246,27 +252,51 @@ typedef float LearnFloatType;
 #endif
 
 #ifdef LEARN_YANEURAOU_2016_LATE
+
+// SGDによる標準的なupdate
+#if 0
 #define USE_SGD_UPDATE
+#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
+#endif
+
+// AdaGradによるupdate
+#if 0
+#define USE_ADA_GRAD_UPDATE
+#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
+#define LEARN_UPDATE_EVERYTIME
+#endif
+
+// Adamによるupdate
+#if 1
+#define USE_ADAM_UPDATE
+#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
+#define LEARN_UPDATE_EVERYTIME
+#endif
+
+#if 0
+
+//#define USE_SGD_UPDATE
 //#define USE_YANE_SGD_UPDATE
 //#define USE_YANE_GRAD_UPDATE
 //#define USE_ADAM_UPDATE
 //#define USE_ADA_GRAD_UPDATE
 //#define USE_YANENZA_UPDATE
 
-#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
+//#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
 //#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
 //define LOSS_FUNCTION_IS_CROSS_ENTOROPY_FOR_VALUE
 
+#endif
+
 #undef LEARN_MINI_BATCH_SIZE
-#define LEARN_MINI_BATCH_SIZE (1000 * 100)
+#define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 #define USE_QSEARCH_FOR_SHALLOW_VALUE
 #define DISABLE_TT_PROBE
 #undef EVAL_FILE_NAME_CHANGE_INTERVAL
 #define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
 
 #undef LEARN_RMSE_OUTPUT_INTERVAL
-#define LEARN_RMSE_OUTPUT_INTERVAL 10
-//#define LEARN_RMSE_OUTPUT_INTERVAL 1
+#define LEARN_RMSE_OUTPUT_INTERVAL 1
 //#define DISPLAY_STATS_IN_UPDATE_WEIGHTS
 
 #endif

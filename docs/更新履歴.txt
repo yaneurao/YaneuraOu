@@ -2,6 +2,20 @@
 やねうら王 更新履歴
 
 
+■　2016/10/13 V3.97
+
+・MinimumThinkingTime、電王トーナメントでは2秒未満が計測1秒らしかったので、デフォルトを2秒に戻しておく。
+・投了スコアを設定できるように変更。ResignValue
+
+
+■　2016/10/13 V3.96
+
+・bitop.hにBLSRマクロ追加。(thanks! > merom686さん)
+・gen_sfen時にfail low/highしたら生成を終了するように変更。
+・learn.hにLEARN_UPDATE_EVERYTIME追加。
+・KPPTのAVX2のコード、Late以外にも開放。
+
+
 ■　2016/10/12 V3.95
 
 ・真やねうら定跡公開。

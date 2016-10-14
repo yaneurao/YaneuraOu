@@ -14,7 +14,6 @@ YaneuraOu_backup*.lnk
 evaluate_kppt_fast_body.cpp
 *Private.*
 *.vspx
-2016-late-param_body.h
 
 # cf. https://twitter.com/496_/status/673758920846917632
 YaneuraOu.VC.opendb

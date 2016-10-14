@@ -116,6 +116,9 @@ void USI::extra_option(USI::OptionsMap & o)
 	// 定跡をメモリに丸読みしないオプション。(default = false)
 	o["BookOnTheFly"] << Option(false);
 
+	// 投了スコア
+	o["ResignValue"] << Option(99999, 0, 99999);
+
 	// nodes as timeモード。
 	// ミリ秒あたりのノード数を設定する。goコマンドでbtimeが、ここで設定した値に掛け算されたノード数を探索の上限とする。
 	// 0を指定すればnodes as timeモードではない。
@@ -2883,6 +2886,11 @@ ID_END:;
 	// ---------------------
 	// 指し手をGUIに返す
 	// ---------------------
+
+	// 投了スコアが設定されていて、歩の価値を100として正規化した値がそれを下回るなら投了。
+	auto resign_value = Options["ResignValue"];
+	if (bestThread->rootMoves[0].score * 100 / PawnValue <= -resign_value)
+		bestThread->rootMoves[0].pv[0] = MOVE_RESIGN;
 
 	// サイレントモードでないならbestな指し手を出力
 	if (!Limits.silent)

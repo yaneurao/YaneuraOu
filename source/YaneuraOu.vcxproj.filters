@@ -344,6 +344,12 @@
     <Text Include="..\docs\やねうら大定跡.txt">
       <Filter>doc</Filter>
     </Text>
+    <Text Include="..\exe\YaneuraOu-2016-late.txt">
+      <Filter>exe</Filter>
+    </Text>
+    <Text Include="..\exe\YaneuraOu-2016-late_ja.txt">
+      <Filter>exe</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md">
@@ -399,6 +405,21 @@
     </None>
     <None Include="..\script\engine_invoker4.py">
       <Filter>script</Filter>
+    </None>
+    <None Include="..\exe\YaneuraOu-2016-late.exe">
+      <Filter>exe</Filter>
+    </None>
+    <None Include="..\exe\YaneuraOu-2016-late-nosse.exe">
+      <Filter>exe</Filter>
+    </None>
+    <None Include="..\exe\YaneuraOu-2016-late-sse2.exe">
+      <Filter>exe</Filter>
+    </None>
+    <None Include="..\exe\YaneuraOu-2016-late-sse41.exe">
+      <Filter>exe</Filter>
+    </None>
+    <None Include="..\exe\YaneuraOu-2016-late-sse42.exe">
+      <Filter>exe</Filter>
     </None>
   </ItemGroup>
 </Project>

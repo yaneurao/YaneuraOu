@@ -284,13 +284,25 @@ private:
 };
 
 // ----------------------------
+//    BSLR
+// ----------------------------
+
+// 最下位bitをresetする命令。
+
+#ifdef USE_AVX2
+#define BLSR(x) _blsr_u64(x)
+#else
+#define BLSR(x) (x & (x-1))
+#endif
+
+// ----------------------------
 //    pop_lsb
 // ----------------------------
 
 // 1である最下位bitを1bit取り出して、そのbit位置を返す。0を渡してはならない。
 // sizeof(T)<=4 なら LSB32(b)で済むのだが、これをコンパイル時に評価させるの、どう書いていいのかわからん…。
 // デフォルトでLSB32()を呼ぶようにしてuint64_tのときだけ64bit版を用意しておく。
-template <typename T> FORCE_INLINE int pop_lsb(T& b) {  int index = LSB32(b);  b = T(b & (b - 1)); return index; }
-FORCE_INLINE int pop_lsb(uint64_t & b) { int index = LSB64(b);  b &= b - 1; return index; }
+template <typename T> FORCE_INLINE int pop_lsb(T& b) {  int index = LSB32(b);  b = T(BLSR(b)); return index; }
+FORCE_INLINE int pop_lsb(u64 & b) { int index = LSB64(b);  b = BLSR(b); return index; }
 
 #endif

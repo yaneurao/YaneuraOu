@@ -185,6 +185,7 @@
       <StructMemberAlignment>Default</StructMemberAlignment>
       <OmitFramePointers>false</OmitFramePointers>
       <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
+      <OpenMPSupport>false</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -282,6 +283,8 @@
     <Text Include="..\docs\更新履歴.txt" />
     <Text Include="..\docs\解説.txt" />
     <Text Include="..\exe\eval\readme.txt" />
+    <Text Include="..\exe\YaneuraOu-2016-late.txt" />
+    <Text Include="..\exe\YaneuraOu-2016-late_ja.txt" />
     <Text Include="..\exe\YaneuraOu-2016-mid.txt" />
     <Text Include="..\exe\YaneuraOu-2016-mid_ja.txt" />
     <Text Include="..\exe\YaneuraOu-classic-readme.txt" />
@@ -297,6 +300,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\exe\book\standard_book.db" />
+    <None Include="..\exe\YaneuraOu-2016-late-nosse.exe" />
+    <None Include="..\exe\YaneuraOu-2016-late-sse2.exe" />
+    <None Include="..\exe\YaneuraOu-2016-late-sse41.exe" />
+    <None Include="..\exe\YaneuraOu-2016-late-sse42.exe" />
+    <None Include="..\exe\YaneuraOu-2016-late.exe" />
     <None Include="..\exe\YaneuraOu-2016-mid-nosse.exe" />
     <None Include="..\exe\YaneuraOu-2016-mid-sse2.exe" />
     <None Include="..\exe\YaneuraOu-2016-mid-sse41.exe" />
