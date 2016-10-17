@@ -61,19 +61,13 @@
 //#define USE_ADA_GRAD_UPDATE
 
 
-// 4) YaneGradによるupdate
-//  これはAdaGradを改良したもの。
-
-//#define USE_YANE_GRAD_UPDATE
-
-
-// 5) Adamによるupdate
+// 4) Adamによるupdate
 //  これは普通のAdam 評価関数ファイルの16倍ぐらいWeight用のメモリが必要。
 
 //#define USE_ADAM_UPDATE
 
 
-// 6) やねんざメソッドによるupdate
+// 5) やねんざメソッドによるupdate
 // これは、勾配の符号だけを見てweightを調整する。ただし出現回数があまりにも低い特徴に関しては無視する。
 
 // #define USE_YANENZA_UPDATE
@@ -95,7 +89,7 @@
 // ある程度大きいほうが良いが、この数×34byte×3倍ぐらいのメモリを消費する。10M局面なら340MB*3程度消費する。
 // THREAD_BUFFER_SIZE(=10000)の倍数にすること。
 
-#define LEARN_READ_SFEN_SIZE (1000 * 1000 * 5)
+#define LEARN_READ_SFEN_SIZE (1000 * 1000 * 10)
 
 // KPPの評価値、ミラーを考慮するか(ミラーの位置にある評価値を同じ値にする)
 // #define USE_KPP_MIRROR_WRITE
@@ -260,14 +254,14 @@ typedef float LearnFloatType;
 #endif
 
 // AdaGradによるupdate
-#if 0
+#if 1
 #define USE_ADA_GRAD_UPDATE
 #define LOSS_FUNCTION_IS_CROSS_ENTOROPY
 #define LEARN_UPDATE_EVERYTIME
 #endif
 
 // Adamによるupdate
-#if 1
+#if 0
 #define USE_ADAM_UPDATE
 #define LOSS_FUNCTION_IS_CROSS_ENTOROPY
 #define LEARN_UPDATE_EVERYTIME
@@ -277,7 +271,6 @@ typedef float LearnFloatType;
 
 //#define USE_SGD_UPDATE
 //#define USE_YANE_SGD_UPDATE
-//#define USE_YANE_GRAD_UPDATE
 //#define USE_ADAM_UPDATE
 //#define USE_ADA_GRAD_UPDATE
 //#define USE_YANENZA_UPDATE
@@ -312,8 +305,6 @@ typedef float LearnFloatType;
 #define LEARN_UPDATE "YaneSGD"
 #elif defined(USE_ADA_GRAD_UPDATE)
 #define LEARN_UPDATE "AdaGrad"
-#elif defined(USE_YANE_GRAD_UPDATE)
-#define LEARN_UPDATE "YaneGrad"
 #elif defined(USE_ADAM_UPDATE)
 #define LEARN_UPDATE "Adam"
 #elif defined(USE_YANENZA_UPDATE)

@@ -532,7 +532,6 @@ namespace YaneuraOu2016Late
 			// 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
 			// このままこの値でreturnして良い。
 		{
-			ss->currentMove = ttMove; // MOVE_NONEでありうるが
 			return ttValue;
 		}
 		// -----------------------
@@ -1029,9 +1028,6 @@ namespace YaneuraOu2016Late
 			// このままこの値でreturnして良い。
 			)
 		{
-			// この指し手で枝刈りをした。ただしMOVE_NONEでありうる。
-			ss->currentMove = ttMove;
-
 			// 置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
 			// ただし、捕獲する指し手か成る指し手であればこれは(captureで生成する指し手なので)killerを更新する価値はない。
 			if (ttValue >= beta && ttMove)
@@ -1082,7 +1078,7 @@ namespace YaneuraOu2016Late
 		// -----------------------
 
 		Move bestMove = MOVE_NONE;
-		const bool InCheck = pos.checkers();
+		const bool inCheck = pos.checkers();
 
 		if (PARAM_SEARCH_MATE1)
 		{
@@ -1091,7 +1087,7 @@ namespace YaneuraOu2016Late
 			// depthの残りがある程度ないと、1手詰めはどうせこのあとすぐに見つけてしまうわけで1手詰めを
 			// 見つけたときのリターン(見返り)が少ない。
 			// ただ、静止探索で入れている以上、depth == ONE_PLYでも1手詰めを判定したほうがよさげではある。
-			if (!RootNode && !ttHit && !InCheck)
+			if (!RootNode && !ttHit && !inCheck)
 			{
 				// 1手詰めは入れたほうがよさげ。
 				// play_time = b1000, 1471 - 57 - 1472(49.98% R - 0.12) [2016/08/19]
@@ -1141,7 +1137,7 @@ namespace YaneuraOu2016Late
 		// 差分計算の都合、毎回evaluate()を呼ぶ。
 		ss->staticEval = eval = evaluate(pos);
 
-		if (InCheck)
+		if (inCheck)
 		{
 			// 評価値を置換表から取り出したほうが得だと思うが、反復深化でこのnodeに再訪問したときも
 			// このnodeでは評価値を用いないであろうから、置換表にこのnodeの評価値があることに意味がない。
@@ -1195,7 +1191,7 @@ namespace YaneuraOu2016Late
 		// -----------------------
 
 		// 局面の静的評価値(eval)が得られたので、以下ではこの評価値を用いて各種枝刈りを行なう。
-		// 王手のときはここにはこない。(上のInCheckのなかでMOVES_LOOPに突入。)
+		// 王手のときはここにはこない。(上のinCheckのなかでMOVES_LOOPに突入。)
 
 		//
 		//   Razoring
@@ -1262,7 +1258,7 @@ namespace YaneuraOu2016Late
 
 			(ss + 1)->skipEarlyPruning = true;
 
-			//  王手がかかっているときはここに来ていないのでqsearchはInCheck == falseのほうを呼ぶ。
+			//  王手がかかっているときはここに来ていないのでqsearchはinCheck == falseのほうを呼ぶ。
 			Value nullValue = depth - R < ONE_PLY ? -qsearch<NonPV, false>(pos, ss + 1, -beta, -beta + 1, DEPTH_ZERO)
 												  : - search<NonPV       >(pos, ss + 1, -beta, -beta + 1, depth - R, !cutNode);
 			(ss + 1)->skipEarlyPruning = false;
@@ -1588,7 +1584,7 @@ namespace YaneuraOu2016Late
 
 
 			if (!RootNode
-			//	&& !InCheck
+			//	&& !inCheck
 			// →　王手がかかっていても以下の枝刈りはしたほうが良いらしいが…。
 			// cf. 	https://github.com/official-stockfish/Stockfish/commit/ab26c61971c2f73d312b003e6d024373fbacf8e6
 			// T1,r300,2501 - 73 - 2426(50.76% R5.29)
@@ -1627,6 +1623,7 @@ namespace YaneuraOu2016Late
 					// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
 
 					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH
+						&& !inCheck
 						&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1
 						+ PARAM_FUTILITY_MARGIN_BETA * lmrDepth <= alpha)
 						continue;
@@ -1639,6 +1636,7 @@ namespace YaneuraOu2016Late
 					// 将棋ではseeが負の指し手もそのあと詰むような場合があるから、あまり無碍にも出来ないようだが…。
 
 					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1
+						&& !extension
 						&& !pos.see_ge(move , Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 * lmrDepth * lmrDepth)))
 						continue;
 				}
@@ -1899,7 +1897,7 @@ namespace YaneuraOu2016Late
 		// -----------------------
 
 		// このStockfishのassert、合法手を生成しているので重すぎる。良くない。
-		ASSERT_LV5(moveCount || !InCheck || excludedMove || !MoveList<LEGAL>(pos).size());
+		ASSERT_LV5(moveCount || !inCheck || excludedMove || !MoveList<LEGAL>(pos).size());
 
 		  // 合法手がない == 詰まされている ので、rootの局面からの手数で詰まされたという評価値を返す。
 		  // ただし、singular extension中のときは、ttMoveの指し手が除外されているので単にalphaを返すべき。

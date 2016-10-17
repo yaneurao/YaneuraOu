@@ -201,29 +201,6 @@ namespace Eval
 		FloatPair g2;
 #endif
 
-#ifdef USE_YANE_GRAD_UPDATE
-
-		// YaneGradの更新式
-
-		//  gを勾配、wを評価関数パラメーター、ηを学習率、εを微小値とする。
-		// 　※　α = 0.99とかに設定しておき、v[i]が大きくなりすぎて他のパラメーターがあとから動いたときに、このv[i]が追随できないのを防ぐ。
-		//   ※　また比較的大きなεを加算しておき、vが小さいときに変な方向に行くことを抑制する。
-		//   v = αv + g^2
-		//   w = w - ηg/sqrt(v+ε)
-
-		// YaneGradのα値
-		LearnFloatType Weight::alpha = 0.99f;
-
-		// 学習率η
-		static LearnFloatType eta;
-
-		// 最初のほうの更新量を抑制する項を独自に追加しておく。
-		const LearnFloatType epsilon = 1.0f;
-
-		// AdaGradのg2
-		FloatPair g2;
-#endif
-
 
 #if defined (USE_ADAM_UPDATE)
 		// 普通のAdam
@@ -333,35 +310,25 @@ namespace Eval
 #endif
 
 #ifdef USE_ADA_GRAD_UPDATE
-			if (g[0] == 0 && g[1] == 0)
-				return false;
+
+			// 普通のAdaGrad
 
 			// g2[i] += g * g;
 			// w[i] -= η * g / sqrt(g2[i]);
 			// g = 0 // mini-batchならこのタイミングで勾配配列クリア。
 
-#if 1
-			g2 += FloatPair{ g[0]*g[0] ,g[1]*g[1] };
-			w = FloatPair{ w[0] - eta * g[0] / sqrt(g2[0]) ,w[1] - eta2 * g[1] / sqrt(g2[1]) };
-#endif
+			// ゼロ除算を避けるため、abs(g)が小さいときはskipしたほうが良い。
+			if (g[0] != 0)
+			{
+				g2[0] += g[0] * g[0];
+				w[0] -= eta * g[0] / sqrt(g2[0]);
+			}
 
-#if 0
-			// 2乗と1/2乗のところを定数で変更できるようにしておく。2乗は激しすぎのような気がするので。
-			const float ADA_GRAD_ALPHA = 1.8f;
-
-			g2 += FloatPair{ pow(g[0],ADA_GRAD_ALPHA) , pow(g[1],ADA_GRAD_ALPHA) };
-			w = FloatPair{ w[0] - eta * g[0] / pow(g2[0],1.0f/ADA_GRAD_ALPHA) ,w[1] - eta2 * g[1] / pow(g2[1],1.0f / ADA_GRAD_ALPHA) };
-#endif
-
-#endif
-
-#ifdef USE_YANE_GRAD_UPDATE
-			if (g[0] == 0 && g[1] == 0)
-				return false;
-
-			g2 = FloatPair{ alpha * g2[0] + g[0] * g[0] , alpha * g2[1] + g[1] * g[1] };
-
-			w = FloatPair{ w[0] - eta * g[0] / sqrt(g2[0] + epsilon) ,w[1] - eta2 * g[1] / sqrt(g2[1] + epsilon) };
+			if (g[1] != 0)
+			{
+				g2[1] += g[1] * g[1];
+				w[1] -= eta2 * g[1] / sqrt(g2[1]);
+			}
 #endif
 
 #ifdef USE_ADAM_UPDATE
@@ -453,7 +420,7 @@ namespace Eval
 	};
 
 
-#if defined (USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE) || defined(USE_ADA_GRAD_UPDATE) || defined(USE_YANE_GRAD_UPDATE)
+#if defined (USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE) || defined(USE_ADA_GRAD_UPDATE)
 	LearnFloatType Weight::eta;
 #elif defined USE_ADAM_UPDATE
 	// 1.0 - pow(beta,epoch)
@@ -679,19 +646,12 @@ namespace Eval
 #elif defined USE_ADA_GRAD_UPDATE
 
 #ifdef LEARN_UPDATE_EVERYTIME
-		// mini-batch size = 1Mに対してこれくらいが適切
-		Weight::eta = 0.4f;
+		// mini-batch size = 1Mに対して0.2f～0.4fぐらいが適切
+		Weight::eta = 0.5f;
+
 #else
 		// この係数、mini-batch sizeの影響を受けるのどうかと思うが..
 		Weight::eta = 3.0f;
-#endif
-
-		// YaneGrad
-#elif defined USE_YANE_GRAD_UPDATE
-#if defined (LOSS_FUNCTION_IS_CROSS_ENTOROPY)
-		Weight::eta = 5.0f;
-#elif defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
-		Weight::eta = 20.0f;
 #endif
 
 		// Adam
@@ -756,6 +716,15 @@ namespace Eval
 						w.count += w2.count;
 						w2.count = 0;
 #endif
+
+#if defined (USE_ADA_GRAD_UPDATE) && defined(LEARN_UPDATE_EVERYTIME)
+						// g2を指数移動平均で減衰させておかないと値が動かなくなって良くないような..
+						w.g2[0] *= 0.999f;
+						w.g2[1] *= 0.999f;
+						w2.g2[0] *= 0.999f;
+						w2.g2[1] *= 0.999f;
+#endif
+						
 
 #ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
 						min_kpp = { min(min_kpp[0], w.w[0]) , min(min_kpp[1], w.w[1]) };

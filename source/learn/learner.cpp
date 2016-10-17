@@ -1198,7 +1198,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 			// 40コアでやると100万局面ごとにupdate_weightsするとして、特定のスレッドが
 			// つきっきりになってしまうのあまりよくないような気も…。
 			static u64 rmse_output_count = 0;
-			if ((rmse_output_count++ % LEARN_RMSE_OUTPUT_INTERVAL) == 0)
+			if ((++rmse_output_count % LEARN_RMSE_OUTPUT_INTERVAL) == 0)
 			{
 				// この計算自体も並列化すべきのような…。
 				// この計算をしているときにあまり処理が進みすぎると困るので停止させておくか…。
@@ -1455,6 +1455,8 @@ void learn(Position& pos, istringstream& is)
 	// 評価関数パラメーターの読み込み
 	is_ready();
 
+	cout << "\ninit_grad..";
+
 	// 評価関数パラメーターの勾配配列の初期化
 	Eval::init_grad();
 
@@ -1462,7 +1464,7 @@ void learn(Position& pos, istringstream& is)
 	omp_set_num_threads((int)Options["Threads"]);
 #endif
 
-	cout << "init done." << endl;
+	cout << "\ninit done." << endl;
 
 	// 局面ファイルをバックグラウンドで読み込むスレッドを起動
 	// (これを開始しないとmseの計算が出来ない。)
@@ -1477,6 +1479,9 @@ void learn(Position& pos, istringstream& is)
 	// 毎回updateするなら学習率の初期化のために最初に呼び出しておく必要がある。
 	Eval::update_weights(mini_batch_size, 1);
 #endif
+
+	// この時点で一度rmseを計算(0 sfenのタイミング)
+	//sr.calc_rmse();
 
 	// -----------------------------------
 	//   評価関数パラメーターの学習の開始

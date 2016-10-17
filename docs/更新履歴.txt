@@ -2,6 +2,18 @@
 やねうら王 更新履歴
 
 
+■　2016/10/16 V3.99
+
+・AdaGradの更新式、調整。
+・解説.txtに推奨設定のところ追記。
+・YaneGrad削除。
+・LEARN_READ_SFEN_SIZEのデフォルト値 10Mに変更。
+・2016lateのInCheck→inCheckに変更。
+・Stockfish[pull req.] : Explicit Logic/Speedup
+・Stockfish[pull req.] : Remove assignments to currentMove that don't serve any purpose
+・Stockfish[pull req.] : Simplify next_move by always scoring evasions.
+
+
 ■　2016/10/13 V3.98
 
 ・ResignValueの実装、バグっていたようなので修正。

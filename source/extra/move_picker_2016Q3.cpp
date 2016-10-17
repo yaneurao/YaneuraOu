@@ -395,11 +395,7 @@ Move MovePicker::next_move() {
 	case EVASIONS_INIT:
 		cur = moves;
 		endMoves = generateMoves<EVASIONS>(pos, cur);
-		// 生成された指し手が2手以上あるならオーダリングする。
-		// ただし、そのうちの1つはttMove(があるなら)と一致するはずだから、
-		// これを引いて2手以上あればという条件にする。
-		if (endMoves - cur - (ttMove != MOVE_NONE) > 1)
-			score<EVASIONS>();
+		score<EVASIONS>();
 		++stage;
 
 	// 王手回避の指し手を返す
