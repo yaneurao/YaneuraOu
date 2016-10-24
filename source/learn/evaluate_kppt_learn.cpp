@@ -317,18 +317,15 @@ namespace Eval
 			// w[i] -= η * g / sqrt(g2[i]);
 			// g = 0 // mini-batchならこのタイミングで勾配配列クリア。
 
-			// ゼロ除算を避けるため、abs(g)が小さいときはskipしたほうが良い。
-			if (g[0] != 0)
-			{
-				g2[0] += g[0] * g[0];
-				w[0] -= eta * g[0] / sqrt(g2[0]);
-			}
+			// ゼロ除算を避けるため、abs(g)が小さいときはskipしたほうが良いかも…。
+			// ここではゼロ除算防止用の小さな定数(0.000001f)を入れておく。
+			float epsilon = 0.000001f;
+			
+			g2[0] += g[0] * g[0];
+			w[0] -= eta * g[0] / sqrt(g2[0] + epsilon);
 
-			if (g[1] != 0)
-			{
-				g2[1] += g[1] * g[1];
-				w[1] -= eta2 * g[1] / sqrt(g2[1]);
-			}
+			g2[1] += g[1] * g[1];
+			w[1] -= eta2 * g[1] / sqrt(g2[1] + epsilon);
 #endif
 
 #ifdef USE_ADAM_UPDATE
@@ -543,14 +540,21 @@ namespace Eval
 				((Weight*)kpp_w_)[get_kpp_index(Inv(sq_wk), k1, l1)].add_grad( -f ,  g );
 #else
 				kpp_w[sq_bk][k0][l0].add_grad(f, g);
-				kpp_w[sq_bk][l0][k0].add_grad(f, g);
-				kpp_w[Inv(sq_wk)][k1][l1].add_grad(-f, g);
-				kpp_w[Inv(sq_wk)][l1][k1].add_grad(-f, g);
-
 				kpp_w[sq_bk][k0][l0].update();
-				kpp_w[sq_bk][l0][k0].update();
+
+				kpp_w[Inv(sq_wk)][k1][l1].add_grad(-f, g);
 				kpp_w[Inv(sq_wk)][k1][l1].update();
-				kpp_w[Inv(sq_wk)][l1][k1].update();
+
+				// l0 == k0ときは2度加算してはならないので、この処理は省略する。
+				if (l0 != k0)
+				{
+					kpp_w[sq_bk][l0][k0].add_grad(f, g);
+					kpp_w[sq_bk][l0][k0].update();
+
+					kpp_w[Inv(sq_wk)][l1][k1].add_grad(-f, g);
+					kpp_w[Inv(sq_wk)][l1][k1].update();
+				}
+
 #endif
 
 #else
@@ -646,7 +650,8 @@ namespace Eval
 #elif defined USE_ADA_GRAD_UPDATE
 
 #ifdef LEARN_UPDATE_EVERYTIME
-		// mini-batch size = 1Mに対して0.2f～0.4fぐらいが適切
+		// 更新式のepsilon = 微小なら、mini-batch size = 1Mに対して0.2f～0.4fぐらいが適切
+//		Weight::eta = 0.5f;
 		Weight::eta = 0.5f;
 
 #else
@@ -707,24 +712,26 @@ namespace Eval
 
 						auto& w = kpp_w[k][p1][p2];
 
-						// p1,p2を入れ替えたものも集計する。
-						auto& w2 = kpp_w[k][p2][p1];
-						w.g += w2.g;
-						w2.g = { 0.0f , 0.0f };
+						// p1,p2を入れ替えたものも集計する。(p1 != p2のとき)
+						if (p1 != p2)
+						{
+							auto& w2 = kpp_w[k][p2][p1];
+							w.g += w2.g;
+							w2.g = { 0.0f , 0.0f };
 
 #if defined (USE_SGD_UPDATE) || defined (USE_YANE_SGD_UPDATE) || defined(USE_YANENZA_UPDATE)
-						w.count += w2.count;
-						w2.count = 0;
+							w.count += w2.count;
+							w2.count = 0;
 #endif
 
 #if defined (USE_ADA_GRAD_UPDATE) && defined(LEARN_UPDATE_EVERYTIME)
-						// g2を指数移動平均で減衰させておかないと値が動かなくなって良くないような..
-						w.g2[0] *= 0.999f;
-						w.g2[1] *= 0.999f;
-						w2.g2[0] *= 0.999f;
-						w2.g2[1] *= 0.999f;
+							// g2を指数移動平均で減衰させておかないと値が動かなくなって良くないような..
+							w.g2[0] *= 0.998f;
+							w.g2[1] *= 0.998f;
+							w2.g2[0] *= 0.998f;
+							w2.g2[1] *= 0.998f;
 #endif
-						
+						}
 
 #ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
 						min_kpp = { min(min_kpp[0], w.w[0]) , min(min_kpp[1], w.w[1]) };

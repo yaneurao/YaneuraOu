@@ -10,7 +10,7 @@
 
 // デフォルトの学習設定
 
-#define LEARN_DEFAULT
+//#define LEARN_DEFAULT
 
 // やねうら王2016Late用デフォルトの学習設定。
 //
@@ -18,7 +18,7 @@
 //                       ~~~~~~~~~~~~~~~~~~
 // ※　色々実験中なので使わないように。
 
-//#define LEARN_YANEURAOU_2016_LATE
+#define LEARN_YANEURAOU_2016_LATE
 //#define EVAL_SAVE_ONLY_ONCE
 
 
