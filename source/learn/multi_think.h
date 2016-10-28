@@ -38,6 +38,8 @@ struct MultiThink
 
   // [ASYNC] ループカウンターの値を取り出して、取り出し後にループカウンターを加算する。
   // もしループカウンターがloop_maxに達していたらUINT64_MAXを返す。
+  // 局面を生成する場合などは、局面を生成するタイミングでこの関数を呼び出すようにしないと、
+  // 生成した局面数と、カウンターの値が一致しなくなってしまうので注意すること。
   u64 get_next_loop_count() {
     std::unique_lock<Mutex> lk(loop_mutex);
     if (loop_count >= loop_max)

@@ -2940,6 +2940,32 @@ namespace Learner
 
 		th->rootDepth = 0;
 	}
+	
+	// 静止探索。
+	pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta)
+	{
+		Stack stack[MAX_PLY + 7], *ss = stack + 5;
+		memset(ss - 5, 0, 8 * sizeof(Stack));
+
+		Move pv[MAX_PLY + 1];
+		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
+
+		init_for_search(pos);
+		auto th = pos.this_thread();
+
+		// 現局面で王手がかかっているかで場合分け。
+		const bool inCheck = pos.in_check();
+		auto bestValue = inCheck ?
+			YaneuraOu2016Late::qsearch<PV, true >(pos, ss, alpha, beta, DEPTH_ZERO) :
+			YaneuraOu2016Late::qsearch<PV, false>(pos, ss, alpha, beta, DEPTH_ZERO);
+
+		// 得られたPVを返す。
+		vector<Move> pvs;
+		for (Move* p = &ss->pv[0]; is_ok(*p); ++p)
+			pvs.push_back(*p);
+
+		return pair<Value, vector<Move> >(bestValue, pvs);
+	}
 
 	// 通常探索。深さdepth(整数で指定)。aspiration searchはしない。
 	// 3手読み時のスコアが欲しいなら、
@@ -2951,6 +2977,9 @@ namespace Learner
 
 	pair<Value, vector<Move> > search(Position& pos, Value alpha, Value beta, int depth)
 	{
+		if (depth < ONE_PLY)
+			return qsearch(pos, alpha, beta);
+
 		Stack stack[MAX_PLY + 7], *ss = stack + 5;
 		memset(ss - 5, 0, 8 * sizeof(Stack));
 
@@ -3019,31 +3048,6 @@ namespace Learner
 		return pair<Value, vector<Move> >(bestValue, pvs);
 	}
 
-	// 同じく静止探索。
-	pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta)
-	{
-		Stack stack[MAX_PLY + 7], *ss = stack + 5;
-		memset(ss - 5, 0, 8 * sizeof(Stack));
-
-		Move pv[MAX_PLY + 1];
-		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
-
-		init_for_search(pos);
-		auto th = pos.this_thread();
-
-		// 現局面で王手がかかっているかで場合分け。
-		const bool inCheck = pos.in_check();
-		auto bestValue = inCheck ?
-			YaneuraOu2016Late::qsearch<PV, true >(pos, ss, alpha, beta, DEPTH_ZERO) :
-			YaneuraOu2016Late::qsearch<PV, false>(pos, ss, alpha, beta, DEPTH_ZERO);
-
-		// 得られたPVを返す。
-		vector<Move> pvs;
-		for (Move* p = &ss->pv[0]; is_ok(*p); ++p)
-			pvs.push_back(*p);
-
-		return pair<Value, vector<Move> >(bestValue, pvs);
-	}
 }
 #endif
 

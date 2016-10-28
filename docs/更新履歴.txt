@@ -3,7 +3,19 @@
 
 ■　2016/10/30 V4.00
 
-・学習のときにkppのp1==p2のケース、gradを2倍足していたのを修正。
+・gensfenコマンドで生成される棋譜の数が指定した数ぴったりになっていなかったのを修正。
+・gensfenコマンドでdepth < ONE_PLYでも教師局面が生成できるように修正。
+・learnのeta2廃止。
+・gensfenコマンドでdepth2を指定できるように。
+・AdaGradのとき、最初のiterationではwを更新しないように変更。
+・save_eval()の開始時にメッセージを出力するように。
+・learn.hの設定項目にLEARN_EVAL_SAVE_INTERVAL追加。
+・KPP_MIRROR_WRITE、デフォルト有効に変更。
+・KPP_MIRROR_WRITEが定義されていないとき、get_kpp_indexはmirrorを考慮しないindexを返すように変更。
+・学習時のkppのupdateのコード、整理。
+・learnの更新式のupdate、整理した。
+・learnからUSE_YANENZA_UPDATE削除。
+・learnからUSE_YANE_SGD_UPDATE削除。
 
 
 ■　2016/10/16 V3.99

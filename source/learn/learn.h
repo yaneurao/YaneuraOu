@@ -49,28 +49,16 @@
 //#define USE_SGD_UPDATE
 
 
-// 2) YANE_SGDによるupdate
-//  これはSGDを改良したもの。
-
-//#define USE_YANE_SGD_UPDATE
-
-
-// 3) AdaGradによるupdate
+// 2) AdaGradによるupdate
 //  これは普通のAdaGrad
 
 //#define USE_ADA_GRAD_UPDATE
 
 
-// 4) Adamによるupdate
+// 3) Adamによるupdate
 //  これは普通のAdam 評価関数ファイルの16倍ぐらいWeight用のメモリが必要。
 
 //#define USE_ADAM_UPDATE
-
-
-// 5) やねんざメソッドによるupdate
-// これは、勾配の符号だけを見てweightを調整する。ただし出現回数があまりにも低い特徴に関しては無視する。
-
-// #define USE_YANENZA_UPDATE
 
 
 
@@ -91,8 +79,12 @@
 
 #define LEARN_READ_SFEN_SIZE (1000 * 1000 * 10)
 
+// 学習時の評価関数の保存間隔。この局面数だけ学習させるごとに保存。
+#define LEARN_EVAL_SAVE_INTERVAL (80000000ULL)
+
+
 // KPPの評価値、ミラーを考慮するか(ミラーの位置にある評価値を同じ値にする)
-// #define USE_KPP_MIRROR_WRITE
+#define USE_KPP_MIRROR_WRITE
 
 // KKPの評価値、フリップを考慮するか(盤面を180度回転させた位置にある評価値を同じ値にする)
 // #define USE_KKP_FLIP_WRITE
@@ -220,7 +212,7 @@ typedef float LearnFloatType;
 // 用いる定跡は、Options["BookFile"]が反映される。
 
 // 2駒の入れ替えを5手に1回ぐらいの確率で行なう。
-// #define USE_SWAPPING_PIECES
+//#define USE_SWAPPING_PIECES
 
 // ときどき合法手のなかからランダムに1手選ぶ。(Apery方式)
 #define USE_RANDOM_LEGAL_MOVE
@@ -253,7 +245,7 @@ typedef float LearnFloatType;
 #define LOSS_FUNCTION_IS_CROSS_ENTOROPY
 #endif
 
-// AdaGradによるupdate
+// AdaGradによるリアルタイムupdate
 #if 1
 #define USE_ADA_GRAD_UPDATE
 #define LOSS_FUNCTION_IS_CROSS_ENTOROPY
@@ -270,10 +262,8 @@ typedef float LearnFloatType;
 #if 0
 
 //#define USE_SGD_UPDATE
-//#define USE_YANE_SGD_UPDATE
 //#define USE_ADAM_UPDATE
 //#define USE_ADA_GRAD_UPDATE
-//#define USE_YANENZA_UPDATE
 
 //#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
 //#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
@@ -286,11 +276,15 @@ typedef float LearnFloatType;
 #define USE_QSEARCH_FOR_SHALLOW_VALUE
 #define DISABLE_TT_PROBE
 #undef EVAL_FILE_NAME_CHANGE_INTERVAL
-#define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
+#define EVAL_FILE_NAME_CHANGE_INTERVAL (500000000ULL)
 
 #undef LEARN_RMSE_OUTPUT_INTERVAL
-#define LEARN_RMSE_OUTPUT_INTERVAL 1
+#define LEARN_RMSE_OUTPUT_INTERVAL 10
 //#define DISPLAY_STATS_IN_UPDATE_WEIGHTS
+
+// 5億に1回ぐらいのペースでいいんじゃね？
+#undef LEARN_EVAL_SAVE_INTERVAL
+#define LEARN_EVAL_SAVE_INTERVAL (500000000ULL)
 
 #endif
 
@@ -307,8 +301,6 @@ typedef float LearnFloatType;
 #define LEARN_UPDATE "AdaGrad"
 #elif defined(USE_ADAM_UPDATE)
 #define LEARN_UPDATE "Adam"
-#elif defined(USE_YANENZA_UPDATE)
-#define LEARN_UPDATE "Yanenza"
 #endif
 
 #if defined(LOSS_FUNCTION_IS_WINNING_PERCENTAGE)

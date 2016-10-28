@@ -287,7 +287,8 @@ private:
 // 複数スレッドでsfenを生成するためのクラス
 struct MultiThinkGenSfen: public MultiThink
 {
-  MultiThinkGenSfen(int search_depth_, SfenWriter& sw_) : search_depth(search_depth_), sw(sw_)
+  MultiThinkGenSfen(int search_depth_, int search_depth2_, SfenWriter& sw_)
+	  : search_depth(search_depth_), search_depth2(search_depth2_), sw(sw_)
   {
     // 乱数を時刻で初期化しないとまずい。
     // (同じ乱数列だと同じ棋譜が生成されかねないため)
@@ -298,6 +299,7 @@ struct MultiThinkGenSfen: public MultiThink
 
   //  search_depth = 通常探索の探索深さ
   int search_depth;
+  int search_depth2;
 
   // 生成する局面の評価値の上限
   int eval_limit;
@@ -363,9 +365,13 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			}
 
 			{
-				// search_depth手読みの評価値とPV(最善応手列)
+				// search_depth～search_depth2 手読みの評価値とPV(最善応手列)
 				// 探索窓を狭めておいても問題ないはず。
-				auto pv_value1 = search(pos, (Value)-eval_limit, (Value)eval_limit, search_depth);
+
+				int depth = search_depth + (int)rand(search_depth2 - search_depth + 1);
+
+				auto pv_value1 = search(pos, (Value)-eval_limit, (Value)eval_limit, depth );
+
 				auto value1 = pv_value1.first;
 				auto pv1 = pv_value1.second;
 
@@ -393,12 +399,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// これをファイルか何かに書き出すと良い。
 				//      cout << pos.sfen() << "," << value1 << "," << value2 << "," << endl;
 
-				// 局面を書き出そうと思ったら規定回数に達していた。
-				if (get_next_loop_count() == UINT64_MAX)
-					goto FINALIZE;
-
 				// PVの指し手でleaf nodeまで進めて、そのleaf nodeでevaluate()を呼び出した値を用いる。
-				auto evaluate_leaf = [&](auto& pv)
+				auto evaluate_leaf = [&](Position& pos , auto& pv)
 				{
 					auto rootColor = pos.side_to_move();
 
@@ -440,8 +442,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					return v;
 				};
 
-				// leaf nodeでのroot colorから見たvalueを取得。
-				auto leaf_value = evaluate_leaf(pv1);
+				// leaf nodeでのroot colorから見たevaluate()の値を取得。
+				auto leaf_value = evaluate_leaf(pos , pv1);
 
 #if 0
 				//				cout << pv_value1.first << " , " << leaf_value << endl;
@@ -465,7 +467,20 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				if ((int)pv1.size() < search_depth)
 					goto NEXT_MOVE;
 
+				// depth 0の場合、pvが得られていないのでdepth 2で探索しなおす。
+				if (search_depth == 0)
 				{
+					pv_value1 = search(pos, (Value)-eval_limit, (Value)eval_limit, 2);
+					pv1 = pv_value1.second;
+				}
+
+				{
+					// 局面を書き出そうと思ったら規定回数に達していた。
+					// get_next_loop_count()内でカウンターを加算するので
+					// 局面を出力したときにこれを呼び出さないとカウンターが狂う。
+					if (get_next_loop_count() == UINT64_MAX)
+						goto FINALIZE;
+
 #ifdef WRITE_PACKED_SFEN
 					PackedSfen sfen;
 					// packを要求されているならpackされたsfenとそのときの評価値を書き出す。
@@ -474,7 +489,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 #ifndef GENSFEN_SAVE_FIRST_MOVE
 					sw.write(thread_id, data, leaf_value);
 #else
-				// PVの初手を取り出す。これは存在するはずなのだが…。
+					// PVの初手を取り出す。これはdepth 0でない限りは存在するはず。
 					ASSERT_LV3(pv_value1.second.size() >= 1);
 					Move pv_move1 = pv_value1.second[0];
 					sw.write(thread_id, sfen, leaf_value, pv_move1);
@@ -667,6 +682,7 @@ void gen_sfen(Position& pos, istringstream& is)
 
   // 探索深さ
   int search_depth = 3;
+  int search_depth2 = INT_MIN;
 
   // 書き出すファイル名
   string filename =
@@ -687,18 +703,24 @@ void gen_sfen(Position& pos, istringstream& is)
 
 	  if (token == "depth")
 		  is >> search_depth;
+	  else if (token == "depth2")
+		  is >> search_depth2;
 	  else if (token == "loop")
 		  is >> loop_max;
 	  else if (token == "file")
 		  is >> filename;
 	  else if (token == "eval_limit")
 		  is >> eval_limit;
-
+	  else
+		  cout << "Error! : Illegal token " << token << endl;
   }
-  is >> search_depth >> loop_max;
+
+  // search depth2が設定されていないなら、search depthと同じにしておく。
+  if (search_depth2 == INT_MIN)
+	  search_depth2 = search_depth;
 
   std::cout << "gen_sfen : "
-	  << "search_depth = " << search_depth
+	  << "search_depth = " << search_depth << " to " << search_depth2
 	  << " , loop_max = " << loop_max
 	  << " , eval_limit = " << eval_limit
 	  << " , thread_num (set by USI setoption) = " << thread_num
@@ -709,7 +731,7 @@ void gen_sfen(Position& pos, istringstream& is)
   // Options["Threads"]の数だけスレッドを作って実行。
   {
 	  SfenWriter sw(filename,thread_num);
-	  MultiThinkGenSfen multi_think(search_depth, sw);
+	  MultiThinkGenSfen multi_think(search_depth, search_depth2, sw);
 	  multi_think.set_loop_max(loop_max);
 	  multi_think.eval_limit = eval_limit;
 	  multi_think.start_file_write_worker();
@@ -798,6 +820,7 @@ double calc_grad(Value deep, Value shallow)
 
 	// 交差エントロピーの概念と性質については、
 	// http://nnadl-ja.github.io/nnadl_site_ja/chap3.html#the_cross-entropy_cost_function
+	// http://postd.cc/visual-information-theory-3/
 	// などを参考に。
 
 	// 目的関数の設計)
@@ -901,12 +924,14 @@ struct SfenReader
 		// 置換表にhitされてもかなわんので、このタイミングで置換表の世代を新しくする。
 		TT.new_search();
 
+		// thread_idは0に固定。(main threadで行わせるため)
 		const int thread_id = 0;
 		auto& pos = Threads[thread_id]->rootPos;
 
 		double sum_error = 0;
 		double sum_error2 = 0;
 
+		int i = 0;
 		for (auto& ps : sfen_for_mse)
 		{
 //			auto sfen = pos.sfen_unpack(ps.data);
@@ -921,6 +946,10 @@ struct SfenReader
 			auto r = Learner::qsearch(pos,-VALUE_INFINITE,VALUE_INFINITE);
 			auto shallow_value = r.first;
 
+			// これPVに行ってleaf nodeで、w(floatで計算されている)に基いて
+			// eval()の値を計算する評価関数を呼び出したほうが正確だと思う。
+			
+
 			// qsearchではなくevaluate()の値をそのまま使う場合。
 //			auto shallow_value = Eval::evaluate(pos);
 
@@ -930,6 +959,16 @@ struct SfenReader
 			// 誤差の計算
 			sum_error += calc_error(shallow_value, deep_value);
 			sum_error2 += abs(shallow_value - deep_value);
+
+#if 0
+			{
+				// 検証用にlogを書き出してみる。
+				static fstream log;
+				if (!log.is_open())
+					log.open("rmse_log.txt", ios::out);
+				log << this->total_done << ": [" << i++ << "]" << " = " << shallow_value << " , " << deep_value << endl;
+			}
+#endif
 		}
 
 		auto rmse = std::sqrt(sum_error / sfen_for_mse.size());
@@ -1173,46 +1212,42 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 			// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 
+			// 一応、他のスレッド停止させる。
+			updating_weight = true;
 			{
-				// 3回目ぐらいまではg2のupdateにとどめて、wのupdateは保留する。
-				// 一応、他のスレッド停止させる。
-				updating_weight = true;
 				Eval::update_weights(mini_batch_size, ++epoch);
-				updating_weight = false;
+
+				// 8000万局面ごとに1回保存、ぐらいの感じで。
+
+				// ただし、update_weights(),calc_rmse()している間の時間経過は無視するものとする。
+				if (++sr.save_count * mini_batch_size >= LEARN_EVAL_SAVE_INTERVAL)
+				{
+					sr.save_count = 0;
+
+					// この間、gradientの計算が進むと値が大きくなりすぎて困る気がするので他のスレッドを停止させる。
+					save();
+				}
+
+				// rmseを計算する。1万局面のサンプルに対して行う。
+				// 40コアでやると100万局面ごとにupdate_weightsするとして、特定のスレッドが
+				// つきっきりになってしまうのあまりよくないような気も…。
+				static u64 rmse_output_count = 0;
+				if ((++rmse_output_count % LEARN_RMSE_OUTPUT_INTERVAL) == 0)
+				{
+					// この計算自体も並列化すべきのような…。
+					// この計算をしているときにあまり処理が進みすぎると困るので停止させておくか…。
+					sr.calc_rmse();
+				}
+
+				// 次回、この一連の処理は、
+				// org_total_read + LEARN_MINI_BATCH_SIZE <= total_read
+				// となったときにやって欲しいのだけど、それが現在時刻(toal_read_now)を過ぎているなら
+				// 仕方ないのでいますぐやる、的なコード。
+				u64 total_done_now = sr.total_done;
+				sr.next_update_weights = std::max(org_total_done + mini_batch_size, total_done_now);
 			}
-
-			// 8000万局面ごとに1回保存、ぐらいの感じで。
-
-			// ただし、update_weights(),calc_rmse()している間の時間経過は無視するものとする。
-			if (++sr.save_count * mini_batch_size >= 80000000ULL)
-			{
-				sr.save_count = 0;
-
-				// この間、gradientの計算が進むと値が大きくなりすぎて困る気がするので他のスレッドを停止させる。
-				updating_weight = true;
-				save();
-				updating_weight = false;
-			}
-
-			// rmseを計算する。1万局面のサンプルに対して行う。
-			// 40コアでやると100万局面ごとにupdate_weightsするとして、特定のスレッドが
-			// つきっきりになってしまうのあまりよくないような気も…。
-			static u64 rmse_output_count = 0;
-			if ((++rmse_output_count % LEARN_RMSE_OUTPUT_INTERVAL) == 0)
-			{
-				// この計算自体も並列化すべきのような…。
-				// この計算をしているときにあまり処理が進みすぎると困るので停止させておくか…。
-				updating_weight = true;
-				sr.calc_rmse();
-				updating_weight = false;
-			}
-
-			// 次回、この一連の処理は、
-			// org_total_read + LEARN_MINI_BATCH_SIZE <= total_read
-			// となったときにやって欲しいのだけど、それが現在時刻(toal_read_now)を過ぎているなら
-			// 仕方ないのでいますぐやる、的なコード。
-			u64 total_done_now = sr.total_done;
-			sr.next_update_weights = std::max(org_total_done + mini_batch_size, total_done_now);
+			// 他のスレッド再開。
+			updating_weight = false;
 		}
 
 		PackedSfenValue ps;
@@ -1273,15 +1308,27 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// 全然違うところを探索した結果だとそれがノイズに成りかねない。
 		// 評価値の差が大きすぎるところも学習対象としないほうがいいかも…。
 #ifdef GENSFEN_SAVE_FIRST_MOVE
-		if (pv.size() >= 1)
-		{
-			if ((u16)pv[0] != ps.move)
-				continue;
-		}
 
-		// 評価値の差が大きすぎるところも学習対象としないほうがいいかも…。
-		if (abs((s16)r.first - ps.score) >= Eval::PawnValue * 4)
+#if 0
+		// これやると13%程度の局面が学習対象から外れてしまう。善悪は微妙。
+		if (pv.size() >= 1 && (u16)pv[0] != ps.move)
+		{
+//			dbg_hit_on(false);
 			continue;
+		}
+#endif
+
+#if 0
+		// 評価値の差が大きすぎるところも学習対象としないほうがいいかも…。
+		// →　勝率の関数を通すのでまあいいか…。30%ぐらいの局面が学習対象から外れてしまうしな…。
+		if (abs((s16)r.first - ps.score) >= Eval::PawnValue * 4)
+		{
+//			dbg_hit_on(false);
+			continue;
+		}
+#endif
+
+//		dbg_hit_on(true);
 
 #endif
 
@@ -1327,6 +1374,9 @@ void LearnerThink::save()
 #ifndef EVAL_SAVE_ONLY_ONCE
 	u64 change_name_size = (u64)EVAL_FILE_NAME_CHANGE_INTERVAL;
 	Eval::save_eval(std::to_string(sr.total_read / change_name_size));
+
+	// sr.total_readは、処理した件数ではないので、ちょっとオーバーしている可能性はある。
+
 #else
 	// 1度だけの保存のときはサブフォルダを掘らない。
 	Eval::save_eval("");

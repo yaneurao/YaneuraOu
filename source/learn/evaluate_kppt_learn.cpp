@@ -29,6 +29,7 @@ namespace Eval
 	typedef std::array<int32_t, 2> ValueKk;
 	typedef std::array<int16_t, 2> ValueKpp;
 	typedef std::array<int32_t, 2> ValueKkp;
+	typedef std::array<float, 2> ValueFF;
 
 	// あるBonaPieceを相手側から見たときの値
 	BonaPiece inv_piece[fe_end];
@@ -65,7 +66,7 @@ namespace Eval
 			= kpp[k1][p2][p1]
 
 #ifdef USE_KPP_MIRROR_WRITE
-			// ミラー、書き出すのやめるほうがいいかも。
+			// ミラー、書き出すのやめるほうがいいかも…よくわからない。
 			= kpp[mk1][mp1][mp2]
 			= kpp[mk1][mp2][mp1]
 #endif
@@ -82,10 +83,16 @@ namespace Eval
 		const auto q0 = &kpp[0][0][0];
 		auto q1 = &kpp[k1][p1][p2] - q0;
 		auto q2 = &kpp[k1][p2][p1] - q0;
+#ifdef USE_KPP_MIRROR_WRITE
 		auto q3 = &kpp[mk1][mp1][mp2] - q0;
 		auto q4 = &kpp[mk1][mp2][mp1] - q0;
+#endif
 
+#ifdef USE_KPP_MIRROR_WRITE
 		return std::min({ q1, q2, q3, q4 });
+#else
+		return std::min({ q1, q2 });
+#endif
 	}
 
 	// 学習時にkkpテーブルに値を書き出すためのヘルパ関数。
@@ -169,11 +176,12 @@ namespace Eval
 		// 元の重み
 		FloatPair w;
 		
+#if !defined(LEARN_UPDATE_EVERYTIME)
 		// mini-batch 1回分の勾配
 		FloatPair g;
+#endif
 
-
-#if defined (USE_SGD_UPDATE) || defined (USE_YANE_SGD_UPDATE)
+#if defined (USE_SGD_UPDATE)
 		// SGDの更新式
 		//   w = w - ηg
 
@@ -237,31 +245,32 @@ namespace Eval
 
 #endif
 
-#if defined (USE_YANENZA_UPDATE)
-		// やねんざメソッドには学習率はない。1か2ずつ適当に動かす。
-		u64 count;
-#endif
-
-		// 手番用の学習率。これはηより小さめで良いはず。(小さめの値がつくべきところなので)
-		// これconstにするとetaに応じてeta2が変わらない。注意すること。
-		#define	eta2 (eta / 4)
-
+#if! defined( LEARN_UPDATE_EVERYTIME)
 		void add_grad(LearnFloatType delta1, LearnFloatType delta2)
 		{
 			g[0] += delta1;
 			g[1] += delta2;
-#if defined (USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE) || defined(USE_YANENZA_UPDATE)
+#if defined (USE_SGD_UPDATE)
 			count++;
 #endif
 		}
+#endif
 
 		// 勾配gにもとづいて、wをupdateする。
 		// update後、gは0になる。
 		// wをupdateしたならtrueを返す。
-		bool update()
-		{
-#if defined (USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE)
 
+		// LEARN_UPDATE_EVERYTIMEが定義されているときは、メンバにgを持っていなくて
+		// 毎回引数として与えられるから、これで更新する。
+
+#ifdef		LEARN_UPDATE_EVERYTIME
+		bool update(ValueFF g)
+#else
+		bool update()
+#endif
+		{
+#if defined (USE_SGD_UPDATE)
+			
 			if (g[0] == 0 && g[1] == 0)
 				return false;
 
@@ -269,30 +278,11 @@ namespace Eval
 			if (count == 0)
 				goto FINISH;
 
-#if defined(USE_YANE_SGD_UPDATE)
-
-#if 0
-			// ゼロ方向に少し引っ張る(L1正則化的な何か)
-			w[0] -= (w[0]>0 ? 1 : -1)*0.01f;
-			w[1] -= (w[1]>0 ? 1 : -1)*0.01f;
-#endif
-
-#if 0
-			// 出現頻度が低い特徴は勾配がでたらめである可能性があるのでこれでupdateするのはやめる。
-			if (count < 5000)
-			{
-				count = 0;
-				goto FINISH;
-			}
-#endif
-		
-#endif
-
 			// 今回の更新量
-//			g = { eta * g[0] / count, eta2 * g[1] / count };
-
-			// → eta2では小さすぎのようだ。
 			g = { eta * g[0] / count, eta * g[1] / count };
+
+			// countのほうsqrt()かlog()をとるとどうなの。
+			// g = { eta * g[0] / (float)log(count), eta * g[1] / (float)log(count) };
 
 			// あまり大きいと発散しかねないので移動量に制約を課す。
 			SET_A_LIMIT_TO(g, -64.0f, 64.0f);
@@ -300,12 +290,6 @@ namespace Eval
 			w = FloatPair{ w[0] - g[0] , w[1] -g[1] };
 
 			count = 0;
-
-//#if defined(USE_YANE_SGD_UPDATE)
-//			// ゼロ方向に少し引っ張る(L1正則化的な何か)
-//			w[0] -= (w[0]>0 ? 1 : -1)*0.1f;
-//			w[1] -= (w[1]>0 ? 1 : -1)*0.1f;
-//#endif
 
 #endif
 
@@ -318,14 +302,18 @@ namespace Eval
 			// g = 0 // mini-batchならこのタイミングで勾配配列クリア。
 
 			// ゼロ除算を避けるため、abs(g)が小さいときはskipしたほうが良いかも…。
-			// ここではゼロ除算防止用の小さな定数(0.000001f)を入れておく。
-			float epsilon = 0.000001f;
 			
-			g2[0] += g[0] * g[0];
-			w[0] -= eta * g[0] / sqrt(g2[0] + epsilon);
+			if (g[0] != 0)
+			{
+				g2[0] += g[0] * g[0];
+				w[0] -= eta * g[0] / sqrt(g2[0]);
+			}
 
-			g2[1] += g[1] * g[1];
-			w[1] -= eta2 * g[1] / sqrt(g2[1] + epsilon);
+			if (g[1] != 0)
+			{
+				g2[1] += g[1] * g[1];
+				w[1] -= eta * g[1] / sqrt(g2[1]);
+			}
 #endif
 
 #ifdef USE_ADAM_UPDATE
@@ -352,72 +340,18 @@ namespace Eval
 
 #endif
 
-#if defined(USE_YANENZA_UPDATE)
-
-
-#if 0
-			if (g[0] == 0 && g[1] == 0)
-				return false;
-
-			if (count < LEARN_MINI_BATCH_SIZE / 40)
-			{
-				count = 0;
-
-				// これが累積されてくると出現回数が少ないのにwを更新してしまうことになる。
-				g = { 0,0 };
-				
-				goto FINISH;
-			}
-
-#else
-			// L1正則化的な何かを施す場合
-			if ((g[0] == 0 && g[1] == 0)
-//				|| (count < LEARN_MINI_BATCH_SIZE / 40)
-				// 出現回数が少なすぎる特徴は勾配の方向がでたらめなので動かさない。(過学習の防止)
-				)
-			{
-				count = 0;
-
-				// L1正則化的な何か。
-				w = { w[0] * 0.99999f , w[1] * 0.99999f };
-
-				goto FINISH;
-			}
-#endif
-
-			{
-				auto f_sgn = [](float f)
-				{
-					// fの符号に応じて
-					// -3..0..3を二項分布で返す。
-					// →　あんまり良くないかも。
-					static PRNG prng;
-					if (f > 0.1f)
-//						return (float)(POPCNT32((u32)prng.rand(4)) + 1);
-						return 0.1f;
-					if (f < -0.1f)
-//						return (float)-(POPCNT32((u32)prng.rand(4)) + 1);
-						return -0.1f;
-
-					return 0.0f;
-				};
-
-				w = FloatPair{ w[0] - f_sgn(g[0]) , w[1] - f_sgn(g[1]) };
-			}
-
-			count = 0;
-
-#endif
-
 		FINISH:;
+
+#if !defined(LEARN_UPDATE_EVERYTIME)
 			g = { 0,0 };
+#endif
 
 			return true;
 		}
 	};
 
 
-#if defined (USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE) || defined(USE_ADA_GRAD_UPDATE)
+#if defined (USE_SGD_UPDATE) || defined(USE_ADA_GRAD_UPDATE)
 	LearnFloatType Weight::eta;
 #elif defined USE_ADAM_UPDATE
 	// 1.0 - pow(beta,epoch)
@@ -433,6 +367,24 @@ namespace Eval
 #define kk_w (*kk_w_)
 #define kpp_w (*kpp_w_)
 #define kkp_w (*kkp_w_)
+
+	// evaluate()で用いる重みを学習用のwにコピー
+	void copy_eval_weight_to_learn_weight()
+	{
+		for (auto k1 : SQ)
+			for (auto k2 : SQ)
+				kk_w[k1][k2].w = { LearnFloatType(kk[k1][k2][0]) , LearnFloatType(kk[k1][k2][1]) };
+
+		for (auto k : SQ)
+			for (auto p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
+				for (auto p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
+					kpp_w[k][p1][p2].w = { LearnFloatType(kpp[k][p1][p2][0]) , LearnFloatType(kpp[k][p1][p2][1]) };
+
+		for (auto k1 : SQ)
+			for (auto k2 : SQ)
+				for (auto p = BONA_PIECE_ZERO; p < fe_end; ++p)
+					kkp_w[k1][k2][p].w = { LearnFloatType(kkp[k1][k2][p][0]) , LearnFloatType(kkp[k1][k2][p][1]) };
+	}
 
 	// 学習のときの勾配配列の初期化
 	void init_grad()
@@ -463,20 +415,7 @@ namespace Eval
 			memset(kkp_, 0, sizeof(ValueKkp) * size);
 #endif
 
-			// 重みのコピー
-			for (auto k1 : SQ)
-				for (auto k2 : SQ)
-					kk_w[k1][k2].w = { LearnFloatType(kk[k1][k2][0]) , LearnFloatType(kk[k1][k2][1]) };
-
-			for (auto k : SQ)
-				for (auto p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
-					for (auto p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
-						kpp_w[k][p1][p2].w = { LearnFloatType(kpp[k][p1][p2][0]) , LearnFloatType(kpp[k][p1][p2][1]) };
-
-			for (auto k1 : SQ)
-				for (auto k2 : SQ)
-					for (auto p = BONA_PIECE_ZERO; p < fe_end; ++p)
-						kkp_w[k1][k2][p].w = { LearnFloatType(kkp[k1][k2][p][0]) , LearnFloatType(kkp[k1][k2][p][1]) };
+			copy_eval_weight_to_learn_weight();
 
 		}
 	}
@@ -510,12 +449,15 @@ namespace Eval
 		BonaPiece k0, k1, l0, l1;
 
 		// KK
+#if ! defined (LEARN_UPDATE_EVERYTIME)
 		kk_w[sq_bk][sq_wk].add_grad( f , g );
-
-#ifdef LEARN_UPDATE_EVERYTIME
-		kk_w[sq_bk][sq_wk].update();
+#else
+		kk_w[sq_bk][sq_wk].update(ValueFF{ f,g });
 #endif
 
+		// このループではk0 == l0は出現しない。
+		// それはKPであり、KKPの計算に含まれると考えられるから。
+		
 		for (i = 0; i < PIECE_NO_KING; ++i)
 		{
 			k0 = list_fb[i];
@@ -529,47 +471,18 @@ namespace Eval
 
 				// kpp配列に関してはミラー(左右判定)とフリップ(180度回転)の次元下げを行う。
 
-				// kpp_w[sq_bk][k0][l0].add_grad(ValueKppFloat{ f ,  g });
-				// kpp_w[Inv(sq_wk)][k1][l1].add_grad(ValueKppFloat{ -f ,  g });
+				// l0 == k0ときは2度加算してはならないので、この処理は省略するべきだが、
+				// …が、kppはkpは含まないことになっているので、気にしなくて良い。
 
-#if 1
-
-#if !defined( LEARN_UPDATE_EVERYTIME)
 				// KPPの手番ありのとき
+#if !defined( LEARN_UPDATE_EVERYTIME)
 				((Weight*)kpp_w_)[get_kpp_index(sq_bk, k0, l0)].add_grad( f ,  g );
 				((Weight*)kpp_w_)[get_kpp_index(Inv(sq_wk), k1, l1)].add_grad( -f ,  g );
 #else
-				kpp_w[sq_bk][k0][l0].add_grad(f, g);
-				kpp_w[sq_bk][k0][l0].update();
-
-				kpp_w[Inv(sq_wk)][k1][l1].add_grad(-f, g);
-				kpp_w[Inv(sq_wk)][k1][l1].update();
-
-				// l0 == k0ときは2度加算してはならないので、この処理は省略する。
-				if (l0 != k0)
-				{
-					kpp_w[sq_bk][l0][k0].add_grad(f, g);
-					kpp_w[sq_bk][l0][k0].update();
-
-					kpp_w[Inv(sq_wk)][l1][k1].add_grad(-f, g);
-					kpp_w[Inv(sq_wk)][l1][k1].update();
-				}
-
+				((Weight*)kpp_w_)[get_kpp_index(sq_bk, k0, l0)].update(ValueFF{ f,g });
+				((Weight*)kpp_w_)[get_kpp_index(Inv(sq_wk), k1, l1)].update(ValueFF{ -f,g });
 #endif
 
-#else
-				// KPPの手番はなしのとき
-				((Weight*)kpp_w_)[get_kpp_index(sq_bk, k0, l0)].add_grad(f, 0);
-				((Weight*)kpp_w_)[get_kpp_index(Inv(sq_wk), k1, l1)].add_grad(-f, 0);
-#endif
-
-#if 0
-				// ミラーもやめると…？
-				kpp_w[sq_bk][k0][l0].add_grad( f ,  g );
-				kpp_w[sq_bk][l0][k0].add_grad( f ,  g );
-				kpp_w[Inv(sq_wk)][k1][l1].add_grad( -f ,  g );
-				kpp_w[Inv(sq_wk)][l1][k1].add_grad( -f ,  g );
-#endif
 			}
 
 			// ((Weight*)kkp_w_)[get_kkp_index(sq_bk,sq_wk,k0)].add_grad( f , g );
@@ -580,10 +493,10 @@ namespace Eval
 
 			// KKP
 
+#if !defined( LEARN_UPDATE_EVERYTIME)
 			kkp_w[sq_bk][sq_wk][k0].add_grad( f , g );
-
-#ifdef LEARN_UPDATE_EVERYTIME
-			kkp_w[sq_bk][sq_wk][k0].update();
+#else
+			kkp_w[sq_bk][sq_wk][k0].update(ValueFF{ f,g });
 #endif
 
 		}
@@ -606,31 +519,14 @@ namespace Eval
 		//
 
 		// SGD
-#if defined (USE_SGD_UPDATE) || defined(USE_YANE_SGD_UPDATE)
-
+#if defined (USE_SGD_UPDATE)
+		
 #if defined (LOSS_FUNCTION_IS_CROSS_ENTOROPY)
 
 #ifdef USE_SGD_UPDATE
 		Weight::eta = 3.2f;
 
 		//Weight::eta = 100.0f;
-#endif
-
-#ifdef USE_YANE_SGD_UPDATE
-		//		Weight::eta = 100.0f;
-
-		// epoch == 100(1億局面)で0.9倍。10億で0.3倍みたいな。
-
-		// あとη、大きめに。
-		Weight::eta = 32.0f * (float)pow(0.999f, epoch);
-
-		// 1億で0.8倍、10億で0.13倍。
-//		Weight::eta = 100.0f * (float)pow(0.998f, epoch);
-
-		// 1億で0.74倍、10億で0.05倍。
-//		Weight::eta = 300.0f * (float)pow(0.997f, epoch);
-
-
 #endif
 
 #elif defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
@@ -640,19 +536,34 @@ namespace Eval
 
 		Weight::eta = 32.0f;
 #endif
-
-#ifdef USE_YANE_SGD_UPDATE
-		Weight::eta = 100.0f * (float)pow(0.999f, epoch);
-#endif
 #endif
 
 		// AdaGrad
 #elif defined USE_ADA_GRAD_UPDATE
 
+
 #ifdef LEARN_UPDATE_EVERYTIME
-		// 更新式のepsilon = 微小なら、mini-batch size = 1Mに対して0.2f～0.4fぐらいが適切
-//		Weight::eta = 0.5f;
+
+		// 最初のうちは移動量が大きくなりすぎるのでupdateをしないように変更。
+		if (epoch < 10)
+		{
+			// 学習用のwを復元しておく。
+			copy_eval_weight_to_learn_weight();
+			// LEARN_UPDATE_EVERYTIMEではないときはgのゼロクリアが必要。面倒なので書いてない。
+
+			cout << "skip_update epoch = " << epoch << endl;
+			return;
+		}
+
+		// mini-batch size = 1Mに対して0.2f～0.4fぐらいが適切
+//		Weight::eta = 0.4f;
+
+		// epoch < 10までupdateをskipするなら少し大きめに出来る。
+		// 0.6fは少し攻めすぎかも知れん..0.5fぐらいのほうが？
+		// 雑巾絞りを繰り返していくと増え幅そんなに要らないはずで、0.3f～0.4fぐらいのほうがいいかも。
 		Weight::eta = 0.5f;
+
+		// mini-batch size = 10Mに対してはその1/10より少し大きいぐらいが適切。(たぶん)
 
 #else
 		// この係数、mini-batch sizeの影響を受けるのどうかと思うが..
@@ -704,34 +615,22 @@ namespace Eval
 			for (int p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
 			{
 				for (auto k : SQ)
-					for (auto p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
+
+					// p1とp2を入れ替えたものは、kpp_write()で書き込まれるはずなので無視して良い。
+					// また、p1 == p2はKPであり、これはKKPの計算のときにやっているので無視して良い。
+					for (int p2 = p1 + 1; p2 < fe_end; ++p2)
 					{
-						// p1とp2を入れ替えたものは、kpp_write()で書き込まれるはずなので無視して良い。
-						if (p1 > p2)
-							continue;
 
-						auto& w = kpp_w[k][p1][p2];
-
-						// p1,p2を入れ替えたものも集計する。(p1 != p2のとき)
-						if (p1 != p2)
-						{
-							auto& w2 = kpp_w[k][p2][p1];
-							w.g += w2.g;
-							w2.g = { 0.0f , 0.0f };
-
-#if defined (USE_SGD_UPDATE) || defined (USE_YANE_SGD_UPDATE) || defined(USE_YANENZA_UPDATE)
-							w.count += w2.count;
-							w2.count = 0;
-#endif
-
+						auto& w = ((Weight*)kpp_w_)[get_kpp_index(k, (BonaPiece)p1, (BonaPiece)p2)];
+						
 #if defined (USE_ADA_GRAD_UPDATE) && defined(LEARN_UPDATE_EVERYTIME)
-							// g2を指数移動平均で減衰させておかないと値が動かなくなって良くないような..
-							w.g2[0] *= 0.998f;
-							w.g2[1] *= 0.998f;
-							w2.g2[0] *= 0.998f;
-							w2.g2[1] *= 0.998f;
+						// g2を指数移動平均で減衰させておかないと値が動かなくなって良くないような..
+						// 0.999fぐらいが無難。これを小さくすると発散しやすくなる。
+						// etaを小さめにしてこちらを少し下げるほうが長い時間回すときに損失が下がりやすく
+						// なるので、そのへんはうまく調整すべき。
+						w.g2[0] *= 0.9985f;
+						w.g2[1] *= 0.9985f;
 #endif
-						}
 
 #ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
 						min_kpp = { min(min_kpp[0], w.w[0]) , min(min_kpp[1], w.w[1]) };
@@ -755,12 +654,7 @@ namespace Eval
 							// 絶対値を抑制する。
 							SET_A_LIMIT_TO(w.w, (LearnFloatType)(INT16_MIN / 2), (LearnFloatType)(INT16_MAX / 2));
 
-							kpp_write(k, (BonaPiece)p1, p2, ValueKpp{ (s16)w.w[0], (s16)w.w[1] });
-
-							//kpp[k][p1][p2] = ValueKpp{ (s16)w.w[0], (s16)w.w[1] };
-
-							//kpp[k][p1][p2] = ValueKpp{ (s16)w.w[0], (s16)w.w[1] };
-							//kpp[k][p2][p1] = ValueKpp{ (s16)w.w[0], (s16)w.w[1] };
+							kpp_write(k, (BonaPiece)p1, (BonaPiece)p2, ValueKpp{ (s16)w.w[0], (s16)w.w[1] });
 						}
 					}
 			}
@@ -960,6 +854,8 @@ namespace Eval
 	{
 		{
 			auto eval_dir = path_combine((string)Options["EvalSaveDir"], dir_name);
+
+			cout << "save_eval() start. folder = " << eval_dir << endl;
 
 			// すでにこのフォルダがあるならmkdir()に失敗するが、
 			// 別にそれは構わない。なければ作って欲しいだけ。
