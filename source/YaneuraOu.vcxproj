@@ -276,10 +276,8 @@
     <ClCompile Include="usi.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="..\docs\old\更新履歴2016Q2まで.txt" />
     <Text Include="..\docs\USI拡張コマンド.txt" />
     <Text Include="..\docs\やねうら大定跡.txt" />
-    <Text Include="..\docs\実験記録.txt" />
     <Text Include="..\docs\更新履歴.txt" />
     <Text Include="..\docs\解説.txt" />
     <Text Include="..\exe\eval\readme.txt" />

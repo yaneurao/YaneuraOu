@@ -1,7 +1,8 @@
 ﻿
 やねうら王 更新履歴
 
-■　2016/10/30 V4.00
+
+■　2016/11/05 V4.00
 
 ・gensfenコマンドで生成される棋譜の数が指定した数ぴったりになっていなかったのを修正。
 ・gensfenコマンドでdepth < ONE_PLYでも教師局面が生成できるように修正。
@@ -10,12 +11,20 @@
 ・AdaGradのとき、最初のiterationではwを更新しないように変更。
 ・save_eval()の開始時にメッセージを出力するように。
 ・learn.hの設定項目にLEARN_EVAL_SAVE_INTERVAL追加。
-・KPP_MIRROR_WRITE、デフォルト有効に変更。
 ・KPP_MIRROR_WRITEが定義されていないとき、get_kpp_indexはmirrorを考慮しないindexを返すように変更。
 ・学習時のkppのupdateのコード、整理。
 ・learnの更新式のupdate、整理した。
 ・learnからUSE_YANENZA_UPDATE削除。
 ・learnからUSE_YANE_SGD_UPDATE削除。
+・kppのp1==p2がゼロかチェックするテストコード追加。
+・learnのadd_grad()からdead code削除。
+・学習のときのwの絶対値の抑制するコード、調整。
+・学習のときのg2の減衰、KKとKKPに適用してなかったの修正。
+・USE_KKP_MIRROR_WRITE追加。
+・learnはデフォルトでKPPのflipも対応。
+・learnのadd_grad()でKK,KKPのflipにも書き込むようにした。
+・learnのFloatPairに基本的な演算子追加。
+
 
 
 ■　2016/10/16 V3.99

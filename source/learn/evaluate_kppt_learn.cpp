@@ -29,7 +29,21 @@ namespace Eval
 	typedef std::array<int32_t, 2> ValueKk;
 	typedef std::array<int16_t, 2> ValueKpp;
 	typedef std::array<int32_t, 2> ValueKkp;
-	typedef std::array<float, 2> ValueFF;
+
+	// 学習で用いる、手番込みの浮動小数点数。
+	typedef std::array<LearnFloatType, 2> FloatPair;
+
+	// FloatPairに対する基本的な演算。
+	FloatPair operator + (FloatPair x, LearnFloatType a) { return FloatPair{ x[0] + a, x[1] + a }; }
+	FloatPair operator - (FloatPair x, LearnFloatType a) { return FloatPair{ x[0] - a, x[1] - a }; }
+	FloatPair operator * (FloatPair x, LearnFloatType a) { return FloatPair{ x[0] * a, x[1] * a }; }
+	FloatPair operator * (LearnFloatType a , FloatPair x) { return FloatPair{ x[0] * a, x[1] * a }; }
+	FloatPair operator / (FloatPair x, LearnFloatType a) { return FloatPair{ x[0] / a, x[1] / a }; }
+
+	FloatPair operator + (FloatPair x, FloatPair y) { return FloatPair{ x[0] + y[0], x[1] + y[1] }; }
+	FloatPair operator - (FloatPair x, FloatPair y) { return FloatPair{ x[0] - y[0], x[1] - y[1] }; }
+	FloatPair operator * (FloatPair x, FloatPair y) { return FloatPair{ x[0] * y[0], x[1] * y[1] }; }
+	FloatPair operator / (FloatPair x, FloatPair y) { return FloatPair{ x[0] / y[0], x[1] / y[1] }; }
 
 	// あるBonaPieceを相手側から見たときの値
 	BonaPiece inv_piece[fe_end];
@@ -71,6 +85,7 @@ namespace Eval
 			= kpp[mk1][mp2][mp1]
 #endif
 			= value;
+
 	}
 
 	// kpp_write()するときの一番若いアドレス(index)を返す。
@@ -117,17 +132,21 @@ namespace Eval
 		Square  ik2 = Inv(k2);
 		Square mik2 = Mir(ik2);
 
-		ASSERT_LV3(kkp[k1][k2][p1] == kkp[mk1][mk2][mp1]);
+		// ASSERT_LV3(kkp[k1][k2][p1] == kkp[mk1][mk2][mp1]);
 
 		kkp[k1][k2][p1]
+#ifdef USE_KKP_MIRROR_WRITE
 			= kkp[mk1][mk2][mp1]
+#endif
 			= value;
 
 	// kkpに関して180度のflipは入れないほうが良いのでは..
-#if USE_KKP_FLIP_WRITE
+#ifdef USE_KKP_FLIP_WRITE
+		/*
 		ASSERT_LV3(kkp[k1][k2][p1][0] == -kkp[ik2][ik1][ip1][0]);
 		ASSERT_LV3(kkp[k1][k2][p1][1] == +kkp[ik2][ik1][ip1][1]);
 		ASSERT_LV3(kkp[ik2][ik1][ip1] == kkp[mik2][mik1][mip1]);
+		*/
 
 		kkp[ik2][ik1][ip1][0]
 			= kkp[mik2][mik1][mip1][0]
@@ -139,8 +158,8 @@ namespace Eval
 #endif
 	}
 
-#if 0
 	// kkp_write()するときの一番若いアドレス(index)を返す。
+	// flipはvalueの符号が変わるのでここでは考慮しない。
 	u64 get_kkp_index(Square k1, Square k2 , BonaPiece p1)
 	{
 		BonaPiece ip1 = inv_piece[p1];
@@ -159,9 +178,6 @@ namespace Eval
 
 		return std::min({ q1, q2 });
 	}
-#endif
-
-	typedef std::array<LearnFloatType, 2> FloatPair;
 
 	// 出力用。
 	std::ostream& operator << (std::ostream& os, const FloatPair& p)
@@ -246,10 +262,10 @@ namespace Eval
 #endif
 
 #if! defined( LEARN_UPDATE_EVERYTIME)
-		void add_grad(LearnFloatType delta1, LearnFloatType delta2)
+		void add_grad(FloatPair g_)
 		{
-			g[0] += delta1;
-			g[1] += delta2;
+			g = g + g_;
+
 #if defined (USE_SGD_UPDATE)
 			count++;
 #endif
@@ -264,7 +280,7 @@ namespace Eval
 		// 毎回引数として与えられるから、これで更新する。
 
 #ifdef		LEARN_UPDATE_EVERYTIME
-		bool update(ValueFF g)
+		bool update(FloatPair g)
 #else
 		bool update()
 #endif
@@ -279,15 +295,12 @@ namespace Eval
 				goto FINISH;
 
 			// 今回の更新量
-			g = { eta * g[0] / count, eta * g[1] / count };
-
-			// countのほうsqrt()かlog()をとるとどうなの。
-			// g = { eta * g[0] / (float)log(count), eta * g[1] / (float)log(count) };
+			g = eta * g / (LearnFloatType)count;
 
 			// あまり大きいと発散しかねないので移動量に制約を課す。
 			SET_A_LIMIT_TO(g, -64.0f, 64.0f);
 
-			w = FloatPair{ w[0] - g[0] , w[1] -g[1] };
+			w = w - g;
 
 			count = 0;
 
@@ -327,8 +340,8 @@ namespace Eval
 			// rt = 1-γ^t , bt = 1-β^tとして、これは事前に計算しておくとすると、
 			// w = w - α*v / (sqrt(r/rt) + e) * (bt)
 
-			v = FloatPair{ float( beta  * v[0] + (1.0 - beta) *g[0]       ) , float(beta  * v[1] + (1.0 - beta) * g[1]       ) };
-			r = FloatPair{ float( gamma * r[0] + (1.0 - gamma)*g[0] * g[0]) , float(gamma * r[1] + (1.0 - gamma)* g[1] * g[1]) };
+			v = beta * v[0] + (1.0 - beta) * g;
+			r = gamma * r + (1.0 - gamma) * (g*g);
 
 			// sqrt()の中身がゼロになりうるので、1回目の割り算を先にしないとアンダーフローしてしまう。
 			// 例) epsilon * bt = 0
@@ -373,17 +386,20 @@ namespace Eval
 	{
 		for (auto k1 : SQ)
 			for (auto k2 : SQ)
+			{
+				// kk
 				kk_w[k1][k2].w = { LearnFloatType(kk[k1][k2][0]) , LearnFloatType(kk[k1][k2][1]) };
 
+				// kkp
+				for (auto p = BONA_PIECE_ZERO; p < fe_end; ++p)
+					kkp_w[k1][k2][p].w = { LearnFloatType(kkp[k1][k2][p][0]) , LearnFloatType(kkp[k1][k2][p][1]) };
+			}
+
+		// kpp
 		for (auto k : SQ)
 			for (auto p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
 				for (auto p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
 					kpp_w[k][p1][p2].w = { LearnFloatType(kpp[k][p1][p2][0]) , LearnFloatType(kpp[k][p1][p2][1]) };
-
-		for (auto k1 : SQ)
-			for (auto k2 : SQ)
-				for (auto p = BONA_PIECE_ZERO; p < fe_end; ++p)
-					kkp_w[k1][k2][p].w = { LearnFloatType(kkp[k1][k2][p][0]) , LearnFloatType(kkp[k1][k2][p][1]) };
 	}
 
 	// 学習のときの勾配配列の初期化
@@ -423,49 +439,51 @@ namespace Eval
 	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
 	void add_grad(Position& pos, Color rootColor, double delta_grad)
 	{
-		// あまりきつい勾配を持っているとめったに出現しない特徴因子がおかしくなるので制約を課す
-		delta_grad = max(delta_grad, -100.0);
-		delta_grad = min(delta_grad,  100.0);
+		// 勾配
+		FloatPair g = {
+			// 手番を考慮しない値
+			(rootColor == BLACK) ? LearnFloatType(delta_grad) : -LearnFloatType(delta_grad),
 
-		// 勾配配列を確保するメモリがもったいないのでとりあえずfloatでいいや。
+			// 手番を考慮する値
+			(rootColor == pos.side_to_move()) ? LearnFloatType(delta_grad) : -LearnFloatType(delta_grad)
+		};
 
-		// 手番を考慮しない値
-		auto f = (rootColor == BLACK) ? LearnFloatType(delta_grad) : -LearnFloatType(delta_grad);
-
-		// 手番を考慮する値
-		auto g = (rootColor == pos.side_to_move()) ? LearnFloatType(delta_grad) : -LearnFloatType(delta_grad);
+		// 180度盤面を回転させた位置関係に対する勾配
+		FloatPair g_flip = { -g[0],+g[1] };
 
 		Square sq_bk = pos.king_square(BLACK);
 		Square sq_wk = pos.king_square(WHITE);
-		const auto* ppkppb = kpp[sq_bk];
-		const auto* ppkppw = kpp[Inv(sq_wk)];
 
 		auto& pos_ = *const_cast<Position*>(&pos);
 
 		auto list_fb = pos_.eval_list()->piece_list_fb();
 		auto list_fw = pos_.eval_list()->piece_list_fw();
 
-		int i, j;
-		BonaPiece k0, k1, l0, l1;
-
 		// KK
-#if ! defined (LEARN_UPDATE_EVERYTIME)
-		kk_w[sq_bk][sq_wk].add_grad( f , g );
-#else
-		kk_w[sq_bk][sq_wk].update(ValueFF{ f,g });
-#endif
 
-		// このループではk0 == l0は出現しない。
-		// それはKPであり、KKPの計算に含まれると考えられるから。
+		// KKはmirrorとflipするのは微妙。
+		// 後手振り飛車はすごく不利だとかそういうのを学習させたいので..。
+
+#if ! defined (LEARN_UPDATE_EVERYTIME)
+		kk_w[sq_bk][sq_wk].add_grad(g);
+		// flipした位置関係にも書き込む
+		//kk_w[Inv(sq_wk)][Inv(sq_bk)].add_grad(g_flip);
+#else
+		kk_w[sq_bk][sq_wk].update(g);
+		//kk_w[Inv(sq_wk)][Inv(sq_bk)].update(g_flip);
+#endif
 		
-		for (i = 0; i < PIECE_NO_KING; ++i)
+		for (int i = 0; i < PIECE_NO_KING; ++i)
 		{
-			k0 = list_fb[i];
-			k1 = list_fw[i];
-			for (j = 0; j < i; ++j)
+			BonaPiece k0 = list_fb[i];
+			BonaPiece k1 = list_fw[i];
+
+			// このループではk0 == l0は出現しない。
+			// それはKPであり、KKPの計算に含まれると考えられるから。
+			for (int j = 0; j < i; ++j)
 			{
-				l0 = list_fb[j];
-				l1 = list_fw[j];
+				BonaPiece l0 = list_fb[j];
+				BonaPiece l1 = list_fw[j];
 
 				// KPP
 
@@ -476,27 +494,27 @@ namespace Eval
 
 				// KPPの手番ありのとき
 #if !defined( LEARN_UPDATE_EVERYTIME)
-				((Weight*)kpp_w_)[get_kpp_index(sq_bk, k0, l0)].add_grad( f ,  g );
-				((Weight*)kpp_w_)[get_kpp_index(Inv(sq_wk), k1, l1)].add_grad( -f ,  g );
+				((Weight*)kpp_w_)[get_kpp_index(sq_bk, k0, l0)].add_grad(g);
+				((Weight*)kpp_w_)[get_kpp_index(Inv(sq_wk), k1, l1)].add_grad(g_flip);
 #else
-				((Weight*)kpp_w_)[get_kpp_index(sq_bk, k0, l0)].update(ValueFF{ f,g });
-				((Weight*)kpp_w_)[get_kpp_index(Inv(sq_wk), k1, l1)].update(ValueFF{ -f,g });
+				((Weight*)kpp_w_)[get_kpp_index(sq_bk, k0, l0)].update(g);
+				((Weight*)kpp_w_)[get_kpp_index(Inv(sq_wk), k1, l1)].update(g_flip);
 #endif
 
 			}
 
-			// ((Weight*)kkp_w_)[get_kkp_index(sq_bk,sq_wk,k0)].add_grad( f , g );
-
-			// kkpは次元下げ、ミラーも含めてやらないことにする。どうせ教師の数は足りているし、
-			// 右と左とでは居飛車、振り飛車的な戦型選択を暗に含むからミラーするのが良いとは限らない。
-			// 180度回転も先手後手とは非対称である可能性があるのでここのフリップも入れない。
-
 			// KKP
 
+			// kkpは次元下げ、ミラーも含めてやらないほうがいいかも。どうせ教師の数は足りているし、
+			// 右と左とでは居飛車、振り飛車的な戦型選択を暗に含むからミラーするのが良いとは限らない。
+			// 180度回転も先手後手とは非対称である可能性があるのでここのフリップは善悪微妙。
+			
 #if !defined( LEARN_UPDATE_EVERYTIME)
-			kkp_w[sq_bk][sq_wk][k0].add_grad( f , g );
+			((Weight*)kkp_w_)[get_kkp_index(sq_bk,sq_wk,k0)].add_grad(g);
+			((Weight*)kkp_w_)[get_kkp_index(Inv(sq_wk), Inv(sq_bk), k1)].add_grad(g_flip);
 #else
-			kkp_w[sq_bk][sq_wk][k0].update(ValueFF{ f,g });
+			((Weight*)kkp_w_)[get_kkp_index(sq_bk, sq_wk, k0)].update(g);
+			((Weight*)kkp_w_)[get_kkp_index(Inv(sq_wk), Inv(sq_bk), k1)].update(g_flip);
 #endif
 
 		}
@@ -597,6 +615,17 @@ namespace Eval
 				{
 					auto& w = kk_w[k1][k2];
 
+#if defined (USE_ADA_GRAD_UPDATE) && defined(LEARN_UPDATE_EVERYTIME)
+					// g2を指数移動平均で減衰させておかないと値が動かなくなって良くないような..
+					// 0.999fぐらいが無難。これを小さくすると発散しやすくなる。
+					// etaを小さめにしてこちらを少し下げるほうが長い時間回すときに損失が下がりやすくなるので、
+					// そのへんはうまく調整すべき。
+					// この処理を入れたほうが目的関数の下がりは早くなるが、全体的なバランスは悪くなるので
+					// 収束したときの棋力はあまりよろしくない可能性がある。
+					// 最終的には、これをコメントアウトして再度、学習を回すべきではないかと思う。
+					w.g2 = w.g2 * 0.997f;
+#endif
+
 					// wの値にupdateがあったなら、値を制限して、かつ、kkに反映させる。
 #if ! defined(LEARN_UPDATE_EVERYTIME)
 					if (w.update())
@@ -604,6 +633,7 @@ namespace Eval
 					{
 						// 絶対値を抑制する。
 						SET_A_LIMIT_TO(w.w, LearnFloatType((s32)INT16_MIN * 4), LearnFloatType((s32)INT16_MAX * 4));
+
 						kk[k1][k2] = { (s32)w.w[0], (s32)w.w[1] };
 					}
 				}
@@ -624,12 +654,7 @@ namespace Eval
 						auto& w = ((Weight*)kpp_w_)[get_kpp_index(k, (BonaPiece)p1, (BonaPiece)p2)];
 						
 #if defined (USE_ADA_GRAD_UPDATE) && defined(LEARN_UPDATE_EVERYTIME)
-						// g2を指数移動平均で減衰させておかないと値が動かなくなって良くないような..
-						// 0.999fぐらいが無難。これを小さくすると発散しやすくなる。
-						// etaを小さめにしてこちらを少し下げるほうが長い時間回すときに損失が下がりやすく
-						// なるので、そのへんはうまく調整すべき。
-						w.g2[0] *= 0.9985f;
-						w.g2[1] *= 0.9985f;
+						w.g2 = w.g2 * 0.997f;
 #endif
 
 #ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
@@ -652,7 +677,7 @@ namespace Eval
 #endif
 						{
 							// 絶対値を抑制する。
-							SET_A_LIMIT_TO(w.w, (LearnFloatType)(INT16_MIN / 2), (LearnFloatType)(INT16_MAX / 2));
+							SET_A_LIMIT_TO(w.w, (LearnFloatType)((int)INT16_MIN * 3 / 4), (LearnFloatType)((int)INT16_MAX * 3/ 4));
 
 							kpp_write(k, (BonaPiece)p1, (BonaPiece)p2, ValueKpp{ (s16)w.w[0], (s16)w.w[1] });
 						}
@@ -673,17 +698,18 @@ namespace Eval
 
 						// cout << "\n" << w.g[0] << " & " << w.g[1];
 
+#if defined (USE_ADA_GRAD_UPDATE) && defined(LEARN_UPDATE_EVERYTIME)
+						w.g2 = w.g2 * 0.997f;
+#endif
+
 #if ! defined(LEARN_UPDATE_EVERYTIME)
 						if (w.update())
 #endif
 						{
 							// 絶対値を抑制する。
-							SET_A_LIMIT_TO(w.w, (LearnFloatType)(INT16_MIN / 2), (LearnFloatType)(INT16_MAX / 2));
+							SET_A_LIMIT_TO(w.w, (LearnFloatType)((int)INT16_MIN * 3/ 4), (LearnFloatType)((int)INT16_MAX * 3 / 4));
 
-							//	kkp_write(k1, k2, p, ValueKkp{s32(w.w[0]),s32(w.w[1])});
-
-							// kkpは上で書いた理由で次元下げをしない。
-							kkp[k1][k2][p] = ValueKkp{ s32(w.w[0]),s32(w.w[1]) };
+							kkp_write(k1, k2, (BonaPiece)p, ValueKkp{s32(w.w[0]),s32(w.w[1])});
 						}
 					}
 			}

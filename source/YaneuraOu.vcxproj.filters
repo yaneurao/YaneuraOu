@@ -59,9 +59,6 @@
     <Filter Include="リソース ファイル\engine\2016-mid-engine">
       <UniqueIdentifier>{307735dd-d642-4bb7-a1c0-4b578152201a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="doc\old">
-      <UniqueIdentifier>{aefbe5b2-c4db-408d-b69f-3084701e0753}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\engine\2016-late-engine">
       <UniqueIdentifier>{340f8b93-a0de-4836-a164-61971b2d3ce6}</UniqueIdentifier>
     </Filter>
@@ -290,9 +287,6 @@
     <Text Include="..\docs\USI拡張コマンド.txt">
       <Filter>doc</Filter>
     </Text>
-    <Text Include="..\docs\更新履歴.txt">
-      <Filter>doc</Filter>
-    </Text>
     <Text Include="..\docs\解説.txt">
       <Filter>doc</Filter>
     </Text>
@@ -329,12 +323,6 @@
     <Text Include="..\exe\YaneuraOu-classic-tce-readme.txt">
       <Filter>exe</Filter>
     </Text>
-    <Text Include="..\docs\実験記録.txt">
-      <Filter>doc</Filter>
-    </Text>
-    <Text Include="..\docs\old\更新履歴2016Q2まで.txt">
-      <Filter>doc\old</Filter>
-    </Text>
     <Text Include="..\exe\YaneuraOu-2016-mid_ja.txt">
       <Filter>exe</Filter>
     </Text>
@@ -349,6 +337,9 @@
     </Text>
     <Text Include="..\exe\YaneuraOu-2016-mid-readme.txt">
       <Filter>exe</Filter>
+    </Text>
+    <Text Include="..\docs\更新履歴.txt">
+      <Filter>doc</Filter>
     </Text>
   </ItemGroup>
   <ItemGroup>
