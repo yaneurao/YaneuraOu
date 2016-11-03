@@ -2977,7 +2977,10 @@ namespace Learner
 
 	pair<Value, vector<Move> > search(Position& pos, Value alpha, Value beta, int depth)
 	{
-		if (depth < ONE_PLY)
+		if (depth < DEPTH_ZERO)
+			return pair<Value,vector<Move>>(Eval::evaluate(pos),vector<Move>());
+
+		if (depth == DEPTH_ZERO)
 			return qsearch(pos, alpha, beta);
 
 		Stack stack[MAX_PLY + 7], *ss = stack + 5;
