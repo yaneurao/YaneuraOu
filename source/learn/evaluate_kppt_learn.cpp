@@ -402,9 +402,14 @@ namespace Eval
 					kpp_w[k][p1][p2].w = { LearnFloatType(kpp[k][p1][p2][0]) , LearnFloatType(kpp[k][p1][p2][1]) };
 	}
 
+	// ユーザーがlearnコマンドで指定したetaの値。0.0fなら設定なしなのでdefault値を用いるべき。
+	static float user_eta = 0.0f;
+
 	// 学習のときの勾配配列の初期化
-	void init_grad()
+	void init_grad(float eta)
 	{
+		user_eta = eta;
+
 		if (kk_w_ == nullptr)
 		{
 			u64 size;
@@ -525,12 +530,6 @@ namespace Eval
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
 	void update_weights(u64 mini_batch_size , u64 epoch)
 	{
-		// kppの最小値、最大値、絶対値の和を表示させることで学習が進んでいるかのチェックに用いる。
-#ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
-		FloatPair min_kpp = { 0.0f , 0.0f };
-		FloatPair max_kpp = { 0.0f , 0.0f };
-		FloatPair sum_kpp = { 0.0f , 0.0f };
-#endif
 
 		//
 		// 学習メソッドに応じた学習率設定
@@ -554,6 +553,11 @@ namespace Eval
 
 		Weight::eta = 32.0f;
 #endif
+
+		// ユーザーがlearnコマンドでetaの値を指定していたら。
+		if (user_eta != 0)
+			Weight::eta = user_eta;
+
 #endif
 
 		// AdaGrad
@@ -588,6 +592,11 @@ namespace Eval
 		Weight::eta = 3.0f;
 #endif
 
+		// ユーザーがlearnコマンドでetaの値を指定していたら。
+		if (user_eta != 0)
+			Weight::eta = user_eta;
+
+
 		// Adam
 #elif defined USE_ADAM_UPDATE
 
@@ -596,9 +605,6 @@ namespace Eval
 
 #endif
 
-#ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
-		int max_kpp_k = -1, max_kpp_p1 = -1, max_kpp_p2 = -1;
-#endif
 
 // 学習をopenmpで並列化(この間も局面生成は続くがまあ、問題ないやろ..
 #ifdef _OPENMP
@@ -657,20 +663,6 @@ namespace Eval
 						w.g2 = w.g2 * 0.997f;
 #endif
 
-#ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
-						min_kpp = { min(min_kpp[0], w.w[0]) , min(min_kpp[1], w.w[1]) };
-						max_kpp = { max(max_kpp[0], w.w[0]) , max(max_kpp[1], w.w[1]) };
-						sum_kpp = { sum_kpp[0] + abs(w.w[0]) , sum_kpp[1] + abs(w.w[1]) };
-
-						// デバッグ用に、これがどこの値であるかを表示する。
-						if (max_kpp[0] == w.w[0])
-						{
-							max_kpp_k = k;
-							max_kpp_p1 = p1;
-							max_kpp_p2 = p2;
-						}
-
-#endif
 
 #if ! defined(LEARN_UPDATE_EVERYTIME)
 						if (w.update())
@@ -715,10 +707,6 @@ namespace Eval
 			}
 		}
 
-#ifdef DISPLAY_STATS_IN_UPDATE_WEIGHTS
-		cout << "\n min_kpp = " << min_kpp << " , max_kpp = " << max_kpp << " , sum_kpp = " << sum_kpp << " ";
-		cout << "\n max_kpp (k,p1,p2) = " << "(" << max_kpp_k << " , " << max_kpp_p1 << " , " << max_kpp_p2 << ")";
-#endif
 	}
 
 

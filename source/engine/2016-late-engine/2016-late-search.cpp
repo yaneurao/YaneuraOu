@@ -144,11 +144,6 @@ void USI::extra_option(USI::OptionsMap & o)
 	sync_cout << "info string warning!! disable TT.probe()." << sync_endl;
 #endif
 
-#ifdef GENSFEN_USE_NO_REPETITION
-	// 優等・劣等局面、千日手判定がオフになっている場合、通常対局は出来ないと考えられるので警告を出す。
-	sync_cout << "info string warning!! disable is_draw()." << sync_endl;
-#endif
-
 #if defined (USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
 
 #ifdef USE_RANDOM_PARAMETERS
@@ -935,13 +930,8 @@ namespace YaneuraOu2016Late
 			// 教師局面生成時には、これをオフにしたほうが良いかも知れない。
 			// ただし、そのときであっても連続王手の千日手は有効にしておく。
 			auto draw_type = pos.is_repetition();
-#ifndef GENSFEN_USE_NO_REPETITION
 			if (draw_type != REPETITION_NONE)
 				return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
-#else
-			if (draw_type == REPETITION_WIN || draw_type == REPETITION_WIN)
-				return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
-#endif
 
 			// 最大手数を超えている、もしくは停止命令が来ている。
 			if (Signals.stop.load(std::memory_order_relaxed) || pos.game_ply() > Limits.max_game_ply)

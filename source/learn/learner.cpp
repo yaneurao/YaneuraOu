@@ -468,7 +468,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					goto NEXT_MOVE;
 
 				// depth 0の場合、pvが得られていないのでdepth 2で探索しなおす。
-				if (search_depth == 0)
+				if (search_depth <= 0)
 				{
 					pv_value1 = search(pos, (Value)-eval_limit, (Value)eval_limit, 2);
 					pv1 = pv_value1.second;
@@ -942,17 +942,20 @@ struct SfenReader
 			auto th = Threads[thread_id];
 			pos.set_this_thread(th);
 
-			// 浅い探索(qsearch)の評価値
-			auto r = Learner::qsearch(pos,-VALUE_INFINITE,VALUE_INFINITE);
+			// 浅い探索の評価値
+
+#ifdef USE_QSEARCH_FOR_SHALLOW_VALUE
+			const int depth = 0; // qsearch()相当
+#endif
+#ifdef USE_EVALUATE_FOR_SHALLOW_VALUE
+			const int depth = -1; // evaluate()相当
+#endif
+			auto r = Learner::search(pos,-VALUE_INFINITE,VALUE_INFINITE,depth);
 			auto shallow_value = r.first;
 
 			// これPVに行ってleaf nodeで、w(floatで計算されている)に基いて
 			// eval()の値を計算する評価関数を呼び出したほうが正確だと思う。
 			
-
-			// qsearchではなくevaluate()の値をそのまま使う場合。
-//			auto shallow_value = Eval::evaluate(pos);
-
 			// 深い探索の評価値
 			auto deep_value = (Value)ps.score;
 
@@ -987,11 +990,6 @@ struct SfenReader
 
 			packed_sfens[thread_id] = *packed_sfens_pool.rbegin();
 			packed_sfens_pool.pop_back();
-
-#ifdef	DISPLAY_STATS_IN_THREAD_READ_SFENS
-			// 1万局面読むごとに'.'をひとつ出力。
-			cout << '.';
-#endif
 
 			total_read += THREAD_BUFFER_SIZE;
 
@@ -1407,6 +1405,8 @@ void learn(Position& pos, istringstream& is)
 
 	string target_dir;
 	
+	float eta = 0.0f;
+
 	// ファイル名が後ろにずらずらと書かれていると仮定している。
 	while (true)
 	{
@@ -1447,6 +1447,10 @@ void learn(Position& pos, istringstream& is)
 			// ミニバッチのサイズ
 			is >> mini_batch_size;
 			continue;
+		} else if (option == "eta")
+		{
+			// 学習率
+			is >> eta;
 		}
 
 		// さもなくば、それはファイル名である。
@@ -1495,7 +1499,8 @@ void learn(Position& pos, istringstream& is)
 	cout << "\nGradient Method : " << LEARN_UPDATE;
 	cout << "\nLoss Function   : " << LOSS_FUNCTION;
 	cout << "\nmini-batch size : " << mini_batch_size;
-	
+	cout << "\nlearning rate   : " << eta;
+
 	// -----------------------------------
 	//            各種初期化
 	// -----------------------------------
@@ -1508,7 +1513,7 @@ void learn(Position& pos, istringstream& is)
 	cout << "\ninit_grad..";
 
 	// 評価関数パラメーターの勾配配列の初期化
-	Eval::init_grad();
+	Eval::init_grad(eta);
 
 #ifdef _OPENMP
 	omp_set_num_threads((int)Options["Threads"]);
@@ -1531,7 +1536,7 @@ void learn(Position& pos, istringstream& is)
 #endif
 
 	// この時点で一度rmseを計算(0 sfenのタイミング)
-	//sr.calc_rmse();
+	// sr.calc_rmse();
 
 	// -----------------------------------
 	//   評価関数パラメーターの学習の開始

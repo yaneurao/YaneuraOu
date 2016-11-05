@@ -10,7 +10,7 @@
 
 // デフォルトの学習設定
 
-#define LEARN_DEFAULT
+//#define LEARN_DEFAULT
 
 // やねうら王2016Late用デフォルトの学習設定。
 //
@@ -18,18 +18,13 @@
 //                       ~~~~~~~~~~~~~~~~~~
 // ※　色々実験中なので使わないように。
 
-//#define LEARN_YANEURAOU_2016_LATE
+#define LEARN_YANEURAOU_2016_LATE
 //#define EVAL_SAVE_ONLY_ONCE
 
 
 // =====================
 // 教師局面生成時の設定
 // =====================
-
-// 教師局面生成時に千日手・優等・劣等局面の判定をなくすなら、LEARN_GENSFENをdefineすること。
-// (やねうら王2016Lateでサポート)
-//#define GENSFEN_USE_NO_REPETITION
-// →　意味ないようなので将来的に削除するかも。
 
 // 教師局面の生成時にPVの初手も保存するならこれをdefineすること。
 // 2016年9月までに公開したした教師データを用いる場合、これをdefineしてはならない。
@@ -174,10 +169,6 @@
 // 学習に関するデバッグ設定
 // ----------------------
 
-// kkpの一番大きな値を表示させることで学習が進んでいるかのチェックに用いる。
-// これを使うとOpen MPと相性が悪くて、update_weights()が非常に遅くなる。
-//#define DISPLAY_STATS_IN_UPDATE_WEIGHTS
-
 // 学習時にsfenファイルを1万局面読み込むごとに'.'を出力する。
 //#define DISPLAY_STATS_IN_THREAD_READ_SFENS
 
@@ -276,14 +267,14 @@ typedef float LearnFloatType;
 
 #undef LEARN_MINI_BATCH_SIZE
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
-#define USE_QSEARCH_FOR_SHALLOW_VALUE
+//#define USE_QSEARCH_FOR_SHALLOW_VALUE
+#define USE_EVALUATE_FOR_SHALLOW_VALUE
 #define DISABLE_TT_PROBE
 #undef EVAL_FILE_NAME_CHANGE_INTERVAL
 #define EVAL_FILE_NAME_CHANGE_INTERVAL (500000000ULL)
 
 #undef LEARN_RMSE_OUTPUT_INTERVAL
 #define LEARN_RMSE_OUTPUT_INTERVAL 10
-//#define DISPLAY_STATS_IN_UPDATE_WEIGHTS
 
 // 5億に1回ぐらいのペースでいいんじゃね？
 #undef LEARN_EVAL_SAVE_INTERVAL

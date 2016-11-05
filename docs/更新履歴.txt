@@ -2,6 +2,14 @@
 やねうら王 更新履歴
 
 
+■　2016/11/05 V4.01
+
+・GENSFEN_USE_NO_REPETITION関係、削除。
+・learnコマンドで計算するrmse、USE_EVALUATE_FOR_SHALLOW_VALUEのときは、evaluate()基準で計算するように変更。
+・learnコマンドでetaを設定できるように。
+・DISPLAY_STATS_IN_UPDATE_WEIGHTS削除。
+
+
 ■　2016/11/04 V4.00
 
 ・gensfenコマンドで生成される棋譜の数が指定した数ぴったりになっていなかったのを修正。

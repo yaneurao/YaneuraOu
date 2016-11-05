@@ -51,7 +51,8 @@ namespace Eval {
   void eval_learn_init();
 
   // 学習のときの勾配配列の初期化
-  void init_grad();
+  // 学習率を引数に渡しておく。0.0fなら、defaultの値を採用する。
+  void init_grad(float eta);
 
   // 現在の局面で出現している特徴すべてに対して、勾配の差分値を勾配配列に加算する。
   void add_grad(Position& pos , Color rootColor , double delt_grad);
