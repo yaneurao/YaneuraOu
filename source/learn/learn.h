@@ -10,7 +10,7 @@
 
 // デフォルトの学習設定
 
-//#define LEARN_DEFAULT
+#define LEARN_DEFAULT
 
 // やねうら王2016Late用デフォルトの学習設定。
 //
@@ -18,7 +18,7 @@
 //                       ~~~~~~~~~~~~~~~~~~
 // ※　色々実験中なので使わないように。
 
-#define LEARN_YANEURAOU_2016_LATE
+//#define LEARN_YANEURAOU_2016_LATE
 //#define EVAL_SAVE_ONLY_ONCE
 
 
@@ -267,8 +267,8 @@ typedef float LearnFloatType;
 
 #undef LEARN_MINI_BATCH_SIZE
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
-//#define USE_QSEARCH_FOR_SHALLOW_VALUE
-#define USE_EVALUATE_FOR_SHALLOW_VALUE
+#define USE_QSEARCH_FOR_SHALLOW_VALUE
+//#define USE_EVALUATE_FOR_SHALLOW_VALUE
 #define DISABLE_TT_PROBE
 #undef EVAL_FILE_NAME_CHANGE_INTERVAL
 #define EVAL_FILE_NAME_CHANGE_INTERVAL (500000000ULL)

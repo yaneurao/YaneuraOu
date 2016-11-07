@@ -2,12 +2,40 @@
 やねうら王 更新履歴
 
 
+■　2016/11/07 V4.03
+
+・Stockfish : Simplify futility pruning return value
+・Stockfish : Use explicit logic for pruning →　反映済みだった。
+・Stockfish : Remove useless assignments to currentMove →　反映済みだった。
+・Stockfish : Simplify next_move by always scoring evasions →　反映済みだった。
+・Stockfish : Per-thread TB hit counters → TB hit counter使ってなかった。
+・Position::set_node_searched()削除。(使っていない/使わないから)
+・Position::node_searched()をint64_tからuint64_tに変更。
+・Thread::node_searched()も同様にuint64_tに変更。
+・Stockfish : History Stat Comparison
+・Stockfish : Output PV if last iteration does not complete
+・Stockfish : Fix a series of undefined behaviours
+・Stockfish : Sync variable names in decl vs def
+・Stockfish : Reduction Simplification
+・Stockfish : Reproducible searches after ucinewgame
+
+
+
+■　2016/11/06 V4.02
+
+・2016Lateの、search()のスタブ、aspiration searchをしているコードを削除。
+・gensfenのときに毎node、evaluate()を呼び出すように修正。
+
+
 ■　2016/11/05 V4.01
 
 ・GENSFEN_USE_NO_REPETITION関係、削除。
 ・learnコマンドで計算するrmse、USE_EVALUATE_FOR_SHALLOW_VALUEのときは、evaluate()基準で計算するように変更。
-・learnコマンドでetaを設定できるように。
+・learnコマンドでetaを設定できるように変更。
 ・DISPLAY_STATS_IN_UPDATE_WEIGHTS削除。
+・learnコマンドのparser、ソースコード整理。
+・学習のときの進み具合をグラフ化するpythonスクリプト追加(たぬきチームより提供) → analyze_yane_log.py
+・scriptフォルダにreadme.txt追加。
 
 
 ■　2016/11/04 V4.00

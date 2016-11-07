@@ -185,7 +185,7 @@
       <StructMemberAlignment>Default</StructMemberAlignment>
       <OmitFramePointers>false</OmitFramePointers>
       <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
-      <OpenMPSupport>true</OpenMPSupport>
+      <OpenMPSupport>false</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -295,6 +295,7 @@
     <Text Include="..\exe\YaneuraOu-nano-plus_ja.txt" />
     <Text Include="..\exe\YaneuraOu-nano-readme.txt" />
     <Text Include="..\exe\YaneuraOu-nano_ja.txt" />
+    <Text Include="..\script\readme.txt" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\exe\book\standard_book.db" />
@@ -316,6 +317,7 @@
     <None Include="..\exe\YaneuraOu-nano.exe" />
     <None Include="..\README.md" />
     <None Include="..\script\analyze_result_log.py" />
+    <None Include="..\script\analyze_yane_log.py" />
     <None Include="..\script\calc_rating.py" />
     <None Include="..\script\engine_invoker1.py" />
     <None Include="..\script\engine_invoker4.py" />

@@ -415,7 +415,7 @@ namespace YaneuraOu2016Late
 		if ((Limits.use_time_management() &&
 			(elapsed > Time.maximum() - 10 || (Time.search_end > 0 && elapsed > Time.search_end - 10)))
 			|| (Limits.movetime && elapsed >= Limits.movetime)
-			|| (Limits.nodes && Threads.nodes_searched() >= Limits.nodes))
+			|| (Limits.nodes && Threads.nodes_searched() >= (uint64_t)Limits.nodes))
 			Signals.stop = true;
 	}
 
@@ -521,7 +521,7 @@ namespace YaneuraOu2016Late
 			&& tte->depth() >= ttDepth
 			&& ttValue != VALUE_NONE // 置換表から取り出したときに他スレッドが値を潰している可能性があるのでこのチェックが必要
 			&& (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
-				: (tte->bound() & BOUND_UPPER)))
+								: (tte->bound() & BOUND_UPPER)))
 			// ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
 			// ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
 			// 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
@@ -961,6 +961,9 @@ namespace YaneuraOu2016Late
 		ss->currentMove = MOVE_NONE;
 		ss->counterMoves = nullptr;
 
+		// historyの合計値を計算してcacheしておく用。
+		ss->history = VALUE_ZERO;
+
 		// 1手先のexcludedMoveの初期化
 		(ss + 1)->excludedMove = MOVE_NONE;
 
@@ -1224,7 +1227,10 @@ namespace YaneuraOu2016Late
 			&&  depth < PARAM_FUTILITY_RETURN_DEPTH * ONE_PLY
 			&&  eval - futility_margin(depth) >= beta
 			&&  eval < VALUE_KNOWN_WIN) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
-			return eval - futility_margin(depth);
+			return eval;
+		// 以下のようにするより、単にevalを返したほうが良いらしい。
+		// cf. https://github.com/official-stockfish/Stockfish/commit/f799610d4bb48bc280ea7f58cd5f78ab21028bf5
+		//	return eval - futility_margin(depth);
 
 		//
 		//   Null move search with verification search
@@ -1722,15 +1728,21 @@ namespace YaneuraOu2016Late
 #endif
 
 					// ToDo:ここ、fmh,fmh2を見たほうがいいかは微妙。
-					Value val =   thisThread->history[moved_sq][moved_pc]
+					ss->history =   thisThread->history[moved_sq][moved_pc]
 									+ (cmh  ? (*cmh )[moved_sq][moved_pc] : VALUE_ZERO)
 									+ (fmh  ? (*fmh )[moved_sq][moved_pc] : VALUE_ZERO)
 									+ (fmh2 ? (*fmh2)[moved_sq][moved_pc] : VALUE_ZERO)
-									+ thisThread->fromTo.get(~pos.side_to_move(), move);
+									+ thisThread->fromTo.get(~pos.side_to_move(), move)
+									-PARAM_REDUCTION_BY_HISTORY; // 修正項
 
 					// historyの値に応じて指し手のreduction量を増減する。
-					int rHist = (val - (PARAM_REDUCTION_BY_HISTORY )) / 20000;
-					r = std::max(DEPTH_ZERO, (r / ONE_PLY - rHist) * ONE_PLY);
+
+					if (ss->history > VALUE_ZERO && (ss - 1)->history < VALUE_ZERO)
+						r -= ONE_PLY;
+					else if (ss->history < VALUE_ZERO && (ss - 1)->history > VALUE_ZERO)
+						r += ONE_PLY;
+
+					r = std::max(DEPTH_ZERO, (r / ONE_PLY - ss->history / 20000) * ONE_PLY);
 				}
 
 				// depth >= 3なのでqsearchは呼ばれないし、かつ、
@@ -2217,8 +2229,6 @@ void Search::clear()
 			{
 				// 基本的なアイデアとしては、log(depth) × log(moveCount)に比例した分だけreductionさせるというもの。
 				double r = log(d) * log(mc) * PARAM_REDUCTION_ALPHA / 256;
-				if (r < 0.80)
-					continue;
 
 				reduction_table[NonPV][imp][d][mc] = int(round(r)) * ONE_PLY;
 				reduction_table[PV][imp][d][mc] = std::max(reduction_table[NonPV][imp][d][mc] - 1, 0);
@@ -2268,6 +2278,7 @@ void Search::clear()
 		th->counterMoves.clear();
 		th->fromTo.clear();
 		th->counterMoveHistory.clear();
+		th->resetCalls = true;
 	}
 
 	Threads.main()->previousScore = VALUE_INFINITE;
@@ -2470,16 +2481,13 @@ void Thread::search()
 			// また、silentモードの場合もPVは出力しない。
 			if (!Limits.silent)
 			{
-				// 停止するときに探索node数と経過時間を出力すべき。
+				// 停止するときにもPVを出力すべき。(少なくともnode数などは出力されるべき)
 				// (そうしないと正確な探索node数がわからなくなってしまう)
-				if (Signals.stop)
-					sync_cout << "info nodes " << Threads.nodes_searched()
-					<< " time " << Time.elapsed() << sync_endl;
-
-				// MultiPVのときは最後の候補手を求めた直後とする。
-				// ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
-				else if ((PVIdx + 1 == multiPV || Time.elapsed() > 3000)
-					&& (rootDepth < 3 || lastInfoTime + pv_interval < Time.elapsed()))
+				if (Signals.stop ||
+					// MultiPVのときは最後の候補手を求めた直後とする。
+					// ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
+					((PVIdx + 1 == multiPV || Time.elapsed() > 3000)
+					 && (rootDepth < 3 || lastInfoTime + pv_interval < Time.elapsed())))
 				{
 					lastInfoTime = Time.elapsed();
 					sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
@@ -2818,7 +2826,7 @@ ID_END:;
 
 	// nodes as time(時間としてnodesを用いるモード)のときは、利用可能なノード数から探索したノード数を引き算する。
 	if (Limits.npmsec)
-		Time.availableNodes = std::max(Time.availableNodes + Limits.inc[us] - Threads.nodes_searched(), (s64)0);
+		Time.availableNodes = std::max(Time.availableNodes + Limits.inc[us] - (s64)Threads.nodes_searched(), (s64)0);
 
 	// 最大depth深さに到達したときに、ここまで実行が到達するが、
 	// まだSignals.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
@@ -2993,38 +3001,15 @@ namespace Learner
 
 		while (++rootDepth <= depth)
 		{
-
 			// MultiPVのためにこの局面の候補手をN個選出する。
+			// fail low,fail highが起きても無視して回る。
 			for (PVIdx = 0; PVIdx < multiPV && !Signals.stop; ++PVIdx)
 			{
-				// aspiration search
-				if (rootDepth >= 5)
-				{
-					delta = Value(18);
-					alpha = std::max(rootMoves[PVIdx].previousScore - delta, -VALUE_INFINITE);
-					beta = std::min(rootMoves[PVIdx].previousScore + delta, VALUE_INFINITE);
-				}
+				bestValue = YaneuraOu2016Late::search<PV>(pos, ss, alpha, beta, rootDepth * ONE_PLY, false);
+				std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
 
-				while (true)
-				{
-					bestValue = YaneuraOu2016Late::search<PV>(pos, ss, alpha, beta, rootDepth * ONE_PLY, false);
-					std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
+				ASSERT_LV3(-VALUE_INFINITE <= alpha && beta <= VALUE_INFINITE);
 
-					if (bestValue <= alpha)
-					{
-						beta = (alpha + beta) / 2;
-						alpha = std::max(bestValue - delta, -VALUE_INFINITE);
-					} else if (bestValue >= beta)
-					{
-						alpha = (alpha + beta) / 2;
-						beta = std::min(bestValue + delta, VALUE_INFINITE);
-					} else {
-						break;
-					}
-					delta += delta / 4 + 5;
-
-					ASSERT_LV3(-VALUE_INFINITE <= alpha && beta <= VALUE_INFINITE);
-				}
 				std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
 			} // multi PV
 		}
@@ -3037,6 +3022,9 @@ namespace Learner
 				break;
 			pvs.push_back(move);
 		}
+
+		// 引数で指定されたalpha,betaの範囲外の値を返すときは、fail low/highなので、
+		// PVが正しい保証はない。
 
 		return pair<Value, vector<Move> >(bestValue, pvs);
 	}

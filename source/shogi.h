@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "4.01"
+#define ENGINE_VERSION "4.03"
 
 // --------------------
 // コンパイル時の設定
@@ -78,7 +78,7 @@ std::ostream& operator<<(std::ostream& os, Color c);
 // --------------------
 
 //  例) FILE_3なら3筋。
-enum File { FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8, FILE_9 , FILE_NB , FILE_ZERO=0 };
+enum File : int { FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8, FILE_9 , FILE_NB , FILE_ZERO=0 };
 
 // 正常な値であるかを検査する。assertで使う用。
 constexpr bool is_ok(File f) { return FILE_ZERO <= f && f < FILE_NB; }
@@ -99,7 +99,7 @@ inline std::ostream& operator<<(std::ostream& os, File f) { os << (char)('1' + f
 // --------------------
 
 // 例) RANK_4なら4段目。
-enum Rank { RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9 , RANK_NB , RANK_ZERO = 0};
+enum Rank : int { RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9 , RANK_NB , RANK_ZERO = 0};
 
 // 正常な値であるかを検査する。assertで使う用。
 constexpr bool is_ok(Rank r) { return RANK_ZERO <= r && r < RANK_NB; }
@@ -851,7 +851,7 @@ namespace USI {
     { defaultValue = currentValue = v ? "true" : "false"; }
 
     // int型で(min,max)でデフォルトがv
-    Option(int v, int min_, int max_, OnChange f = nullptr) : type("spin"),min(min_),max(max_),on_change(f)
+    Option(int v, int minv, int maxv, OnChange f = nullptr) : type("spin"),min(minv),max(maxv),on_change(f)
     { defaultValue = currentValue = std::to_string(v); }
 
     // combo型。内容的には、string型と同等。

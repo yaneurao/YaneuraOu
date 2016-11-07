@@ -220,9 +220,8 @@ struct Position
 	// 保持しているデータに矛盾がないかテストする。
 	bool pos_is_ok() const;
 
-	// 探索したノード数(≒do_move()が呼び出された回数)を設定/取得する
-	void set_nodes_searched(uint64_t n) { nodes = n; }
-	int64_t nodes_searched() const { return nodes; }
+	// 探索したノード数(≒do_move()が呼び出された回数)を取得する
+	uint64_t nodes_searched() const { return nodes; }
 
 	// 現局面に対して
 	// この指し手によって移動させる駒を返す。(移動前の駒)
@@ -346,11 +345,11 @@ struct Position
 	// このバッファはこのdo_move()の呼び出し元の責任において確保されている必要がある。
 	// givesCheck = mの指し手によって王手になるかどうか。
 	// この呼出までにst.checkInfo.update(pos)が呼び出されている必要がある。
-	void do_move(Move m, StateInfo& st, bool givesCheck);
+	void do_move(Move m, StateInfo& newSt, bool givesCheck);
 
 	// do_move()の4パラメーター版のほうを呼び出すにはgivesCheckも渡さないといけないが、
 	// mで王手になるかどうかがわからないときはこちらの関数を用いる。
-	void do_move(Move m, StateInfo& st) { do_move(m, st, gives_check(m)); }
+	void do_move(Move m, StateInfo& newSt) { do_move(m, newSt, gives_check(m)); }
 
 	// 指し手で盤面を1手戻す
 	void undo_move(Move m);
@@ -668,7 +667,7 @@ private:
 	Thread* thisThread;
 
 	// 探索ノード数 ≒do_move()の呼び出し回数。
-	int64_t nodes;
+	uint64_t nodes;
 
 	// 現局面に対応するStateInfoのポインタ。
 	// do_move()で次の局面に進むときは次の局面のStateInfoへの参照をdo_move()の引数として渡される。

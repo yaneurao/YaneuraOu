@@ -341,6 +341,9 @@
     <Text Include="..\docs\更新履歴.txt">
       <Filter>doc</Filter>
     </Text>
+    <Text Include="..\script\readme.txt">
+      <Filter>script</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md">
@@ -411,6 +414,9 @@
     </None>
     <None Include="..\exe\YaneuraOu-2016-late-sse42.exe">
       <Filter>exe</Filter>
+    </None>
+    <None Include="..\script\analyze_yane_log.py">
+      <Filter>script</Filter>
     </None>
   </ItemGroup>
 </Project>

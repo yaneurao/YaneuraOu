@@ -192,7 +192,7 @@ struct ThreadPool : public std::vector<Thread*>
   void start_thinking(const Position& pos, const Search::LimitsType& limits, Search::StateStackPtr& states);
 
   // 今回、goコマンド以降に探索したノード数
-  int64_t nodes_searched() { int64_t nodes = 0; for (auto*th : *this) nodes += th->rootPos.nodes_searched(); return nodes; }
+  uint64_t nodes_searched() { uint64_t nodes = 0; for (auto*th : *this) nodes += th->rootPos.nodes_searched(); return nodes; }
 
   // main()以外のスレッド
   Slaves slaves;

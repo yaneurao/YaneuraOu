@@ -1323,12 +1323,12 @@ void Position::undo_move_impl(Move m)
 }
 
 // do_move()を先後分けたdo_move_impl<>()を呼び出す。
-void Position::do_move(Move m, StateInfo& st, bool givesCheck)
+void Position::do_move(Move m, StateInfo& newSt, bool givesCheck)
 {
   if (sideToMove == BLACK)
-    do_move_impl<BLACK>(m, st, givesCheck);
+    do_move_impl<BLACK>(m, newSt, givesCheck);
   else
-    do_move_impl<WHITE>(m, st, givesCheck);
+    do_move_impl<WHITE>(m, newSt, givesCheck);
 }
 
 // undo_move()を先後分けたdo_move_impl<>()を呼び出す。

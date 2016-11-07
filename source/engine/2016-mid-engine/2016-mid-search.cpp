@@ -453,7 +453,7 @@ namespace YaneuraOu2016Mid
     if ((Limits.use_time_management() &&
         ( elapsed > Time.maximum() - 10 || (Time.search_end > 0 && elapsed > Time.search_end - 10)))
       || (Limits.movetime && elapsed >= Limits.movetime)
-      || (Limits.nodes && Threads.nodes_searched() >= Limits.nodes))
+      || (Limits.nodes && Threads.nodes_searched() >= (uint64_t)Limits.nodes))
       Signals.stop = true;
   }
 
@@ -2584,7 +2584,7 @@ ID_END:;
 
 	// nodes as time(時間としてnodesを用いるモード)のときは、利用可能なノード数から探索したノード数を引き算する。
 	if (Limits.npmsec)
-		Time.availableNodes = std::max(Time.availableNodes + Limits.inc[us] - Threads.nodes_searched() , (s64)0);
+		Time.availableNodes = std::max(Time.availableNodes + Limits.inc[us] - (s64)Threads.nodes_searched() , (s64)0);
 
 	// 最大depth深さに到達したときに、ここまで実行が到達するが、
 	// まだSignals.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、

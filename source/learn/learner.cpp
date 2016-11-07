@@ -294,6 +294,7 @@ struct MultiThinkGenSfen: public MultiThink
     // (同じ乱数列だと同じ棋譜が生成されかねないため)
     set_prng(PRNG());
   }
+
   virtual void thread_worker(size_t thread_id);
   void start_file_write_worker() { sw.start_file_write_worker(); }
 
@@ -417,10 +418,11 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 							ASSERT_LV3(false);
 						}
 #endif
+						pos.do_move(m, state[ply2++]);
+						
 						// 毎ノードevaluate()を呼び出さないと、evaluate()の差分計算が出来ないので注意！
 						Eval::evaluate(pos);
-						pos.do_move(m, state[ply2++]);
-//						cout << "move = m " << m << " , evaluate = " << Eval::evaluate(pos) << endl;
+						//						cout << "move = m " << m << " , evaluate = " << Eval::evaluate(pos) << endl;
 					}
 
 					// leafに到達
@@ -617,6 +619,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			if (rand(5) == 0)
 			{
 				{
+					// mateではないので合法手が1手はあるはず…。
 					MoveList<LEGAL> list(pos);
 					m = list.at(rand(list.size()));
 				}
@@ -626,9 +629,13 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				bool king_move = type_of(pos.moved_piece_after(m))==KING;
 				pos.do_move(m, state[ply]);
 
+				// 差分計算を行なうためにdo_move()ごとにevaluate()を呼び出しておく。
+				Eval::evaluate(pos);
+
 				if (king_move && !pos.in_check() && rand(2) == 0)
 				{
 					// 手番を変更する。
+					// これはevaluate()を呼ばなくとも差分計算は出来る。
 					pos.do_null_move(state[++ply]);
 
 					// 再度、玉の移動する指し手をランダムに選ぶ
@@ -658,6 +665,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 		DO_MOVE_FINISH:;
 
+			// 差分計算を行なうために毎node evaluate()を呼び出しておく。
+			Eval::evaluate(pos);
 		}
 	}
 FINALIZE:;
@@ -1416,45 +1425,39 @@ void learn(Position& pos, istringstream& is)
 		if (option == "")
 			break;
 
+		// mini-batchの局面数を指定
 		if (option == "bat")
 		{
-			// mini-batchの局面数を指定
 			is >> mini_batch_size;
 			mini_batch_size *= 10000; // 単位は万
-			continue;
-		} else if (option == "loop")
+
+		}
+
+		// 棋譜が格納されているフォルダを指定して、根こそぎ対象とする。
+		else if (option == "targetdir")
 		{
-			// ループ回数の指定
-			is >> loop;
-			continue;
-		} else if (option == "basedir")
-		{
-			// 棋譜ファイル格納フォルダ(ここから相対pathで棋譜ファイルを取得)
-			is >> base_dir;
-			continue;
-		} else if (option == "targetdir")
-		{
-			// 棋譜が格納されているフォルダを指定して、根こそぎ対象とする。
 			is >> target_dir;
 
 #if !defined(_MSC_VER)
 			cout << "ERROR! : targetdir , this function is only for Windows." << endl;
 #endif
-
-			continue;
-		} else if (option == "batchsize")
-		{
-			// ミニバッチのサイズ
-			is >> mini_batch_size;
-			continue;
-		} else if (option == "eta")
-		{
-			// 学習率
-			is >> eta;
 		}
 
+		// ループ回数の指定
+		else if (option == "loop")      is >> loop;
+
+		// 棋譜ファイル格納フォルダ(ここから相対pathで棋譜ファイルを取得)
+		else if (option == "basedir")   is >> base_dir;
+
+		// ミニバッチのサイズ
+		else if (option == "batchsize") is >> mini_batch_size;
+
+		// 学習率
+		else if (option == "eta")       is >> eta;
+
 		// さもなくば、それはファイル名である。
-		filenames.push_back(option);
+		else
+			filenames.push_back(option);
 	}
 
 	cout << "learn command , ";
