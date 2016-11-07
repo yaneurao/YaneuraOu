@@ -1737,10 +1737,16 @@ namespace YaneuraOu2016Late
 
 					// historyの値に応じて指し手のreduction量を増減する。
 
+#if 0
+					// これ、やったほうがいいかどうかは微妙。1秒、3秒においてはやると弱くなるようだが…。
+					// T1,b1000,2135 - 84 - 2071(50.76% R5.29)
+					// T1,b3000,640 - 34 - 576(52.63% R18.3)
+
 					if (ss->history > VALUE_ZERO && (ss - 1)->history < VALUE_ZERO)
 						r -= ONE_PLY;
 					else if (ss->history < VALUE_ZERO && (ss - 1)->history > VALUE_ZERO)
 						r += ONE_PLY;
+#endif
 
 					r = std::max(DEPTH_ZERO, (r / ONE_PLY - ss->history / 20000) * ONE_PLY);
 				}

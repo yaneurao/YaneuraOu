@@ -2,6 +2,12 @@
 やねうら王 更新履歴
 
 
+■　2016/11/08 V4.04
+
+・gensfenで書き出す局面、同一局面の書き出しを制限するためのコード追加。
+・learnコマンドでも同一局面を学習対象から外すコードを追加。
+
+
 ■　2016/11/07 V4.03
 
 ・Stockfish : Simplify futility pruning return value

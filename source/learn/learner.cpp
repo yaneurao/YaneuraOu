@@ -293,6 +293,8 @@ struct MultiThinkGenSfen: public MultiThink
     // 乱数を時刻で初期化しないとまずい。
     // (同じ乱数列だと同じ棋譜が生成されかねないため)
     set_prng(PRNG());
+
+	hash.resize(GENSFEN_HASH_SIZE);
   }
 
   virtual void thread_worker(size_t thread_id);
@@ -307,6 +309,10 @@ struct MultiThinkGenSfen: public MultiThink
 
   // sfenの書き出し器
   SfenWriter& sw;
+
+  // 同一局面の書き出しを制限するためのhash
+  static const u64 GENSFEN_HASH_SIZE = 64 * 1024 * 1024;
+  vector<HASH_KEY> hash; // 64MB*8 = 512MB
 };
 
 //  thread_id    = 0..Threads.size()-1
@@ -468,6 +474,18 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				if ((int)pv1.size() < search_depth)
 					goto NEXT_MOVE;
+
+				// 同一局面を書き出したところか？
+				// これ、複数のPCで並列して生成していると同じ局面が含まれることがあるので
+				// 読み込みのときにも同様の処理をしたほうが良い。
+				{
+					auto key = pos.key();
+					auto hash_index = key & (GENSFEN_HASH_SIZE - 1);
+					auto key2 = hash[hash_index];
+					if (key == key2)
+						goto NEXT_MOVE;
+					hash[hash_index] = key2; // 今回のkeyに入れ替えておく。
+				}
 
 				// depth 0の場合、pvが得られていないのでdepth 2で探索しなおす。
 				if (search_depth <= 0)
@@ -876,6 +894,8 @@ struct SfenReader
 
 		// 比較実験がしたいので乱数を固定化しておく。
 		prng = PRNG(20160720);
+
+		hash.resize(READ_SFEN_HASH_SIZE);
 	}
 	~SfenReader()
 	{
@@ -1135,6 +1155,11 @@ struct SfenReader
 		return sfen_for_mse_hash.count(key) != 0;
 	}
 
+	// 同一局面の読み出しを制限するためのhash
+	// 6400万局面って多すぎるか？そうでもないか..
+	static const u64 READ_SFEN_HASH_SIZE = 64 * 1024 * 1024;
+	vector<HASH_KEY> hash; // 64MB*8 = 512MB
+
 protected:
 
 	// fileをバックグラウンドで読み込みしているworker thread
@@ -1268,8 +1293,19 @@ void LearnerThink::thread_worker(size_t thread_id)
 #endif
 		// ↑sfenを経由すると遅いので専用の関数を作った。
 		pos.set_from_packed_sfen(ps.sfen);
-		if (sr.is_for_rmse(pos.key()))
-			goto RetryRead;
+		{
+			auto key = pos.key();
+			// rmseの計算用に使っている局面なら除外する。
+			if (sr.is_for_rmse(key))
+				goto RetryRead;
+
+			// 直近で用いた局面も除外する。
+			auto hash_index = key & (sr.READ_SFEN_HASH_SIZE - 1);
+			auto key2 = sr.hash[hash_index];
+			if (key == key2)
+				goto RetryRead;
+			sr.hash[hash_index] = key2; // 今回のkeyに入れ替えておく。
+		}
 
 		// このインクリメントはatomic
 		sr.total_done++;
