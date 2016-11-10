@@ -258,7 +258,7 @@ private:
 	// ファイルに書き込む用のthread
 	std::thread file_worker_thread;
 	// 終了したかのフラグ
-	volatile bool finished;
+	atomic<bool> finished;
 
 	// タイムスタンプの出力用のカウンター
 	u64 time_stamp_count = 0;
@@ -329,18 +329,19 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 	// 規定回数回になるまで繰り返し
 	while (true)
 	{
-		auto& pos = Threads[thread_id]->rootPos;
-		pos.set_hirate();
-
 		// Positionに対して従属スレッドの設定が必要。
 		// 並列化するときは、Threads (これが実体が vector<Thread*>なので、
 		// Threads[0]...Threads[thread_num-1]までに対して同じようにすれば良い。
 		auto th = Threads[thread_id];
+
+		auto& pos = th->rootPos;
+		pos.set_hirate();
 		pos.set_this_thread(th);
 
 		//    cout << endl;
 		for (ply = 0; ply < MAX_PLY2 - 20; ++ply)
 		{
+			// 詰んでいるなら次の対局に
 			if (pos.is_mated())
 				break;
 
@@ -362,13 +363,11 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					{
 						// この指し手で1手進める。
 						m = bestMove;
-						//            cout << m << ' ';
-						goto DO_MOVE;
+
+						// 定跡の局面であっても、一定確率でランダムムーブは行なう。
+						goto RANDOM_MOVE;
 					}
 				}
-
-				// 定跡の局面は書き出さない＆思考しない。
-				continue;
 			}
 
 			{
@@ -451,7 +450,13 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				};
 
 				// leaf nodeでのroot colorから見たevaluate()の値を取得。
-				auto leaf_value = evaluate_leaf(pos , pv1);
+				// auto leaf_value = evaluate_leaf(pos , pv1);
+
+				// →　置換表にhitしたとき、PVが途中で枝刈りされてしまうので、
+				// 駒の取り合いの途中の変な局面までのPVしかないと、局面の評価値として
+				// 適切ではない気がする。
+
+				auto leaf_value = value1;
 
 #if 0
 				//				cout << pv_value1.first << " , " << leaf_value << endl;
@@ -467,13 +472,15 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// →　局面が偏るのが怖いので実験してからでいいや。
 #endif
 
-//				dbg_hit_on(pv1.size() >= search_depth);
+#if 0
+				//				dbg_hit_on(pv1.size() >= search_depth);
 				// Total 101949 Hits 101794 hit rate (%) 99.847
 				// 置換表にヒットするなどしてPVが途中で切れるケースは全体の0.15%程度。
 				// このケースを捨てたほうがいいかも知れん。
 
 				if ((int)pv1.size() < search_depth)
 					goto NEXT_MOVE;
+#endif
 
 				// 同一局面を書き出したところか？
 				// これ、複数のPCで並列して生成していると同じ局面が含まれることがあるので
@@ -498,8 +505,13 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					// 局面を書き出そうと思ったら規定回数に達していた。
 					// get_next_loop_count()内でカウンターを加算するので
 					// 局面を出力したときにこれを呼び出さないとカウンターが狂う。
-					if (get_next_loop_count() == UINT64_MAX)
+					auto loop_count = get_next_loop_count();
+					if (loop_count == UINT64_MAX)
 						goto FINALIZE;
+
+					// 1M局面に1回ぐらい置換表の世代を進める。
+					if ((loop_count % 1000000) == 0)
+						TT.new_search();
 
 #ifdef WRITE_PACKED_SFEN
 					PackedSfen sfen;
@@ -507,12 +519,17 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					pos.sfen_pack(sfen);
 					// このwriteがスレッド排他を行うので、ここでの排他は不要。
 #ifndef GENSFEN_SAVE_FIRST_MOVE
-					sw.write(thread_id, data, leaf_value);
+					sw.write(thread_id, sfen, leaf_value);
 #else
 					// PVの初手を取り出す。これはdepth 0でない限りは存在するはず。
 					ASSERT_LV3(pv_value1.second.size() >= 1);
 					Move pv_move1 = pv_value1.second[0];
 					sw.write(thread_id, sfen, leaf_value, pv_move1);
+#endif
+
+#if 0
+					// デバッグ用に局面を表示させてみる。
+					sync_cout << pos << "leaf value = " << leaf_value << sync_endl;
 #endif
 
 #ifdef TEST_UNPACK_SFEN
@@ -630,58 +647,24 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			}
 #endif
 
+		RANDOM_MOVE:;
 #ifdef USE_RANDOM_LEGAL_MOVE
 
 			// 合法手のなかからランダムに1手選ぶフェーズ
-			// 1/5の確率で。
-			if (rand(5) == 0)
+			// plyが小さいときは高い確率で。そのあとはあまり選ばれなくて良い。
+			if (rand(4 + ply / 10) == 0)
 			{
-				{
-					// mateではないので合法手が1手はあるはず…。
-					MoveList<LEGAL> list(pos);
-					m = list.at(rand(list.size()));
-				}
+				// mateではないので合法手が1手はあるはず…。
+				MoveList<LEGAL> list(pos);
+				m = list.at(rand(list.size()));
 
-				// これが玉の移動であれば、1/2の確率で再度玉を移動させて、なるべく色んな位置の玉に対するデータを集める。
-				// ただし王手がかかっている局面だと手抜くと玉を取られてしまうのでNG
-				bool king_move = type_of(pos.moved_piece_after(m))==KING;
-				pos.do_move(m, state[ply]);
-
-				// 差分計算を行なうためにdo_move()ごとにevaluate()を呼び出しておく。
-				Eval::evaluate(pos);
-
-				if (king_move && !pos.in_check() && rand(2) == 0)
-				{
-					// 手番を変更する。
-					// これはevaluate()を呼ばなくとも差分計算は出来る。
-					pos.do_null_move(state[++ply]);
-
-					// 再度、玉の移動する指し手をランダムに選ぶ
-					MoveList<LEGAL> list(pos);
-					ExtMove* it2 = (ExtMove*)list.begin();
-					for (ExtMove* it = (ExtMove*)list.begin(); it != list.end(); ++it)
-						if (type_of(pos.moved_piece_after(it->move)) == KING)
-							*it2++ = *it;
-							
-					auto size = it2 - list.begin();
-					if (size == 0)
-					{
-						// 局面を戻しておく。
-						pos.undo_null_move();
-					} else {
-						// ランダムにひとつ選ぶ
-						pos.do_move(list.at(rand(size)),state[++ply]);
-					}
-				}
-
-				goto DO_MOVE_FINISH;
+				// 玉の2手指しのコードを入れていたが、合法手から1手選べばそれに相当するはずで
+				// コードが複雑化するだけだから不要だと判断した。
 			}
 #endif
 
 		DO_MOVE:;
 			pos.do_move(m, state[ply]);
-
-		DO_MOVE_FINISH:;
 
 			// 差分計算を行なうために毎node evaluate()を呼び出しておく。
 			Eval::evaluate(pos);
@@ -1138,7 +1121,7 @@ struct SfenReader
 	vector<string> filenames;
 
 	// 読み込んだ局面数(ファイルからメモリ上のバッファへ)
-	volatile u64 total_read;
+	atomic<u64> total_read;
 
 	// 処理した局面数
 	atomic<u64> total_done;
@@ -1168,7 +1151,7 @@ protected:
 	PRNG prng;
 
 	// ファイル群を読み込んでいき、最後まで到達したか。
-	volatile bool files_end;
+	atomic<bool> files_end;
 
 
 	// sfenファイルのハンドル

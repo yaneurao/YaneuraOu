@@ -28,7 +28,7 @@
 
 // 教師局面の生成時にPVの初手も保存するならこれをdefineすること。
 // 2016年9月までに公開したした教師データを用いる場合、これをdefineしてはならない。
-#define GENSFEN_SAVE_FIRST_MOVE
+// #define GENSFEN_SAVE_FIRST_MOVE
 
 
 // ----------------------
@@ -209,7 +209,7 @@ typedef float LearnFloatType;
 //#define USE_SWAPPING_PIECES
 
 // ときどき合法手のなかからランダムに1手選ぶ。(Apery方式)
-#define USE_RANDOM_LEGAL_MOVE
+//#define USE_RANDOM_LEGAL_MOVE
 
 
 // タイムスタンプの出力をこの回数に一回に抑制する。
@@ -229,6 +229,7 @@ typedef float LearnFloatType;
 #define USE_QSEARCH_FOR_SHALLOW_VALUE
 #undef EVAL_FILE_NAME_CHANGE_INTERVAL
 #define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
+#define USE_RANDOM_LEGAL_MOVE
 #endif
 
 #ifdef LEARN_YANEURAOU_2016_LATE
@@ -271,19 +272,21 @@ typedef float LearnFloatType;
 //#define USE_EVALUATE_FOR_SHALLOW_VALUE
 #define DISABLE_TT_PROBE
 #undef EVAL_FILE_NAME_CHANGE_INTERVAL
-#define EVAL_FILE_NAME_CHANGE_INTERVAL (500000000ULL)
+#define EVAL_FILE_NAME_CHANGE_INTERVAL (250000000ULL)
 
 #undef LEARN_RMSE_OUTPUT_INTERVAL
 #define LEARN_RMSE_OUTPUT_INTERVAL 10
 
-// 5億に1回ぐらいのペースでいいんじゃね？
+// 2.5億に1回ぐらいのペースでいいんじゃね？
 #undef LEARN_EVAL_SAVE_INTERVAL
-#define LEARN_EVAL_SAVE_INTERVAL (500000000ULL)
+#define LEARN_EVAL_SAVE_INTERVAL (250000000ULL)
 
 #define USE_KPP_MIRROR_WRITE
 #define USE_KKP_FLIP_WRITE
 #define USE_KKP_MIRROR_WRITE
 #define LEARN_USE_EMA
+
+//#define USE_RANDOM_LEGAL_MOVE
 
 #endif
 

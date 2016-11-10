@@ -464,36 +464,36 @@ void Search::clear() {}
 
 namespace
 {
-  // 思考エンジンの実行ファイル名
-  string engine_name[2];
+	// 思考エンジンの実行ファイル名
+	string engine_name[2];
 
-  // usiコマンドに応答として返ってきたエンジン名
-  string usi_engine_name[2];
+	// usiコマンドに応答として返ってきたエンジン名
+	string usi_engine_name[2];
 
-  // 思考エンジンの設定
-  vector<string> engine_config_lines[2];
+	// 思考エンジンの設定
+	vector<string> engine_config_lines[2];
 
-  // 思考コマンド
-  string think_cmd[2];
+	// 思考コマンド
+	string think_cmd[2];
 
-  // 勝数のトータル
-  uint64_t win,draw,lose;
+	// 勝数のトータル
+	uint64_t win, draw, lose;
 
-  vector<string> book;
-  PRNG book_rand; // 定跡用の乱数生成器
-  Mutex local_mutex;
+	vector<string> book;
+	PRNG book_rand; // 定跡用の乱数生成器
+	Mutex local_mutex;
 
-  int64_t get_rand(size_t n)
-  {
-    std::unique_lock<Mutex> lk(local_mutex);
-    return book_rand.rand(n);
-  }
+	int64_t get_rand(size_t n)
+	{
+		std::unique_lock<Mutex> lk(local_mutex);
+		return book_rand.rand(n);
+	}
 
-  // 対局数
-  volatile int games = 0;
+	// 対局数
+	atomic<int> games = 0;
 
-  // gamesをインクリメントするときに必要なmutex
-  Mutex games_mutex;
+	// gamesをインクリメントするときに必要なmutex(atomicなのだが、勢い余って2足すとまずいので..)
+	Mutex games_mutex;
 }
 
 void MainThread::think() {
