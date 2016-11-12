@@ -2,11 +2,23 @@
 やねうら王 更新履歴
 
 
+■　2016/11/13 V4.07
+
+・Stockfish : Stack offset changed from -5 to -4
+・Stockfish : Make a version of Position::do_move() without the givesCheck parameter →　すでにそうしてた。
+・Stockfish : Allow benches with more than 2G nodes.
+・Learn::search()、stackのpv初期化コード追加。
+・atoi()を使っていたところstoi()に変更。
+
+
 ■　2016/11/11 V4.06
 
 ・gensfenコマンドで玉の2手指しのコード、削除。
 ・gensfenコマンド、定跡の局面であっても一定確率でランダムムーブは行なうように変更。
 ・gensfenコマンドで定跡にhitしなかったときの処理、少しおかしかったので修正。
+・gensfenコマンド、learnコマンドの局面の重複除去処理のバグ修正。
+・learnerのinit_for_search()にDRAW_VALUEの初期化コード追加。
+・gensfenのランダムムーブ、24手目以降ではやらないように変更。
 
 
 ■　2016/11/09 V4.05

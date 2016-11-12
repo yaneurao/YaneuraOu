@@ -69,11 +69,14 @@ struct SfenWriter
 	// 書き出すファイル名と生成するスレッドの数
 	SfenWriter(string filename, int thread_num)
 	{
+		sfen_buffers_pool.reserve(thread_num * 10);
+
 		sfen_buffers.resize(thread_num);
 		fs.open(filename, ios::out | ios::binary | ios::app);
 
 		finished = false;
 	}
+
 	~SfenWriter()
 	{
 		finished = true;
@@ -108,7 +111,7 @@ struct SfenWriter
 			buf->reserve(FILE_WRITE_INTERVAL);
 		};
 
-		// 初回はbufがないのでreserve()する。
+		// 初回はbufがないので確保する。
 		if (!buf)
 			buf_reserve();
 
@@ -130,8 +133,8 @@ struct SfenWriter
 				std::unique_lock<Mutex> lk(mutex);
 				sfen_buffers_pool.push_back(buf);
 			}
+
 			buf_reserve();
-//			cout << '[' << thread_id << ']';
 		}
 	}
 #else
@@ -320,7 +323,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 {
 	const int MAX_PLY2 = 512; // 512手までテスト(どうせ評価値が大きくなったら終了するので)
 	StateInfo state[MAX_PLY2 + 64]; // StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
-	int ply; // 初期局面からの手数
 	Move m = MOVE_NONE;
 
 	// 定跡の指し手を用いるモード
@@ -338,8 +340,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		pos.set_hirate();
 		pos.set_this_thread(th);
 
-		//    cout << endl;
-		for (ply = 0; ply < MAX_PLY2 - 20; ++ply)
+		// ply : 初期局面からの手数
+		for (int ply = 0; ply < MAX_PLY2 - 20; ++ply)
 		{
 			// 詰んでいるなら次の対局に
 			if (pos.is_mated())
@@ -384,12 +386,22 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// 評価値の絶対値がこの値以上の局面については
 				// その局面を学習に使うのはあまり意味がないのでこの試合を終了する。
 				if (abs(value1) >= eval_limit)
+				{
+#if 0
+					sync_cout << pos << "eval limit = " << eval_limit << " over , move = " << pv1[0] << sync_endl;
+#endif
 					break;
+				}
 
 				// 何らかの千日手局面に突入したので局面生成を終了する。
 				auto draw_type = pos.is_repetition();
 				if (draw_type != REPETITION_NONE)
+				{
+#if 0
+					sync_cout << pos << "repetition , move = " << pv1[0] << sync_endl;
+#endif
 					break;
+				}
 
 #if 0
 				// 0手読み(静止探索のみ)の評価値とPV(最善応手列)
@@ -482,6 +494,13 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					goto NEXT_MOVE;
 #endif
 
+				// depth 0の場合、pvが得られていないのでdepth 2で探索しなおす。
+				if (search_depth <= 0)
+				{
+					pv_value1 = search(pos, (Value)-eval_limit, (Value)eval_limit, 2);
+					pv1 = pv_value1.second;
+				}
+
 				// 同一局面を書き出したところか？
 				// これ、複数のPCで並列して生成していると同じ局面が含まれることがあるので
 				// 読み込みのときにも同様の処理をしたほうが良い。
@@ -490,15 +509,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					auto hash_index = key & (GENSFEN_HASH_SIZE - 1);
 					auto key2 = hash[hash_index];
 					if (key == key2)
-						goto NEXT_MOVE;
-					hash[hash_index] = key2; // 今回のkeyに入れ替えておく。
-				}
-
-				// depth 0の場合、pvが得られていないのでdepth 2で探索しなおす。
-				if (search_depth <= 0)
-				{
-					pv_value1 = search(pos, (Value)-eval_limit, (Value)eval_limit, 2);
-					pv1 = pv_value1.second;
+						goto SKIP_WRITE;
+					hash[hash_index] = key; // 今回のkeyに入れ替えておく。
 				}
 
 				{
@@ -527,7 +539,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					sw.write(thread_id, sfen, leaf_value, pv_move1);
 #endif
 
-#if 0
+#if 1
 					// デバッグ用に局面を表示させてみる。
 					sync_cout << pos << "leaf value = " << leaf_value << sync_endl;
 #endif
@@ -590,7 +602,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 #endif
 				}
 
-			NEXT_MOVE:;
+			SKIP_WRITE:;
 				// search_depth手読みの指し手で局面を進める。
 				m = pv1[0];
 			}
@@ -652,7 +664,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 			// 合法手のなかからランダムに1手選ぶフェーズ
 			// plyが小さいときは高い確率で。そのあとはあまり選ばれなくて良い。
-			if (rand(4 + ply / 10) == 0)
+			// 24手超えてランダムムーブを選ぶと角のただ捨てなどの指し手が入って終局してしまう。
+			if (ply <= 16 && rand(4 + ply / 10) == 0)
 			{
 				// mateではないので合法手が1手はあるはず…。
 				MoveList<LEGAL> list(pos);
@@ -1063,6 +1076,8 @@ struct SfenReader
 				sleep(100);
 
 			vector<PackedSfenValue> sfens;
+			sfens.reserve(SFEN_READ_SIZE);
+
 			// ファイルバッファにファイルから読み込む。
 			while (sfens.size() < SFEN_READ_SIZE)
 			{
@@ -1083,6 +1098,7 @@ struct SfenReader
 				}
 			}
 
+#if 1
 			// この読み込んだ局面データをshuffleする。
 			// random shuffle by Fisher-Yates algorithm
 			{
@@ -1090,6 +1106,7 @@ struct SfenReader
 				for (u64 i = 0; i < size; ++i)
 					swap(sfens[i], sfens[prng.rand(size - i) + i]);
 			}
+#endif
 
 			// これをTHREAD_BUFFER_SIZEごとの細切れにする。それがsize個あるはず。
 			u64 size = SFEN_READ_SIZE / THREAD_BUFFER_SIZE;
@@ -1109,10 +1126,10 @@ struct SfenReader
 				std::unique_lock<Mutex> lk(mutex);
 
 				// 300個ぐらいなのでこの時間は無視できるはず…。
-				auto size2 = packed_sfens_pool.size();
-				packed_sfens_pool.resize(size2+size);
+				auto sizeOrg = packed_sfens_pool.size();
+				packed_sfens_pool.resize(sizeOrg+size);
 				for (u64 i = 0; i < size; ++i)
-					packed_sfens_pool[size2 + i] = ptrs[i];
+					packed_sfens_pool[sizeOrg + i] = ptrs[i];
 			}
 		}
 	}
@@ -1287,7 +1304,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 			auto key2 = sr.hash[hash_index];
 			if (key == key2)
 				goto RetryRead;
-			sr.hash[hash_index] = key2; // 今回のkeyに入れ替えておく。
+			sr.hash[hash_index] = key; // 今回のkeyに入れ替えておく。
 		}
 
 		// このインクリメントはatomic

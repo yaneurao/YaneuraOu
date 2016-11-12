@@ -2300,10 +2300,10 @@ void Thread::search()
 	// ---------------------
 
 	// (ss-5)と(ss+2)にアクセスしたいので余分に確保しておく。
-	Stack stack[MAX_PLY + 7], *ss = stack + 5;
+	Stack stack[MAX_PLY + 7], *ss = stack + 4;
 
 	// 先頭8つを初期化しておけば十分。そのあとはsearch()の先頭でss+1,ss+2を適宜初期化していく。
-	memset(ss - 5, 0, 8 * sizeof(Stack));
+	memset(ss - 4, 0, 7 * sizeof(Stack));
 
 	// aspiration searchの窓の範囲(alpha,beta)
 	// apritation searchで窓を動かす大きさdelta
@@ -2943,13 +2943,18 @@ namespace Learner
 		ASSERT_LV3(rootMoves.size() != 0);
 
 		th->rootDepth = 0;
+
+		Color us = pos.side_to_move();
+		int contempt = Options["Contempt"] * PawnValue / 100;
+		drawValueTable[REPETITION_DRAW][us] = VALUE_ZERO - Value(contempt);
+		drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
 	}
 	
 	// 静止探索。
 	pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta)
 	{
-		Stack stack[MAX_PLY + 7], *ss = stack + 5;
-		memset(ss - 5, 0, 8 * sizeof(Stack));
+		Stack stack[MAX_PLY + 7], *ss = stack + 4;
+		memset(ss - 4, 0, 7 * sizeof(Stack));
 
 		Move pv[MAX_PLY + 1];
 		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
@@ -2987,8 +2992,11 @@ namespace Learner
 		if (depth == DEPTH_ZERO)
 			return qsearch(pos, alpha, beta);
 
-		Stack stack[MAX_PLY + 7], *ss = stack + 5;
-		memset(ss - 5, 0, 8 * sizeof(Stack));
+		Stack stack[MAX_PLY + 7], *ss = stack + 4;
+		memset(ss - 4, 0, 7 * sizeof(Stack));
+
+		Move pv[MAX_PLY + 1];
+		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
 		init_for_search(pos);
 		auto th = pos.this_thread();
