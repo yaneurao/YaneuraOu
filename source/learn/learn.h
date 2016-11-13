@@ -313,4 +313,23 @@ typedef float LearnFloatType;
 #define LOSS_FUNCTION "CROSS_ENTOROPY_FOR_VALUE"
 #endif
 
+// ----------------------
+// Learnerで用いるstructの定義
+// ----------------------
+#include "../position.h"
+
+namespace Learner
+{
+	// PackedSfenと評価値が一体化した構造体
+	struct PackedSfenValue
+	{
+		PackedSfen sfen;
+		s16 score; // PV leafでの評価値
+
+#ifdef	GENSFEN_SAVE_FIRST_MOVE
+		u16 move; // PVの初手
+#endif
+	};
+}
+
 #endif // ifndef _LEARN_H_

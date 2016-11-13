@@ -2925,29 +2925,53 @@ namespace Learner
 	// Learner::search(),Learner::qsearch()から呼び出される。
 	void init_for_search(Position pos)
 	{
-		// 探索深さ無限
-		auto& limits = Search::Limits;
-		limits.infinite = true;
-		// PVを表示されると邪魔なので消しておく。
-		limits.silent = true;
+		// Search::Limitsに関して
+		{
+			auto& limits = Search::Limits;
 
-		auto th = pos.this_thread();
-		th->maxPly = 0;
+			// 探索を"go infinite"コマンド相当にする。(time managementされると困るため)
+			limits.infinite = true;
 
-		auto& rootMoves = th->rootMoves;
+			// PVを表示されると邪魔なので消しておく。
+			limits.silent = true;
 
-		rootMoves.clear();
-		for (auto m : MoveList<LEGAL>(pos))
-			rootMoves.push_back(Search::RootMove(m));
+			// ここでLimits.max_game_ply破壊するけど、gensfenのとき用だから復元せずともまあいいか…。
+			limits.max_game_ply = pos.game_ply() + MAX_PLY - 1;
+		}
 
-		ASSERT_LV3(rootMoves.size() != 0);
+		// this_threadに関して。
+		{
+			auto th = pos.this_thread();
 
-		th->rootDepth = 0;
+			th->completedDepth = 0;
+			th->maxPly = 0;
+			th->rootDepth = 0;
 
-		Color us = pos.side_to_move();
-		int contempt = Options["Contempt"] * PawnValue / 100;
-		drawValueTable[REPETITION_DRAW][us] = VALUE_ZERO - Value(contempt);
-		drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
+			// history等もクリアしておく。
+			// したほうがいいかは微妙だが…。
+			th->history.clear();
+			th->counterMoves.clear();
+			th->fromTo.clear();
+			th->counterMoveHistory.clear();
+			th->resetCalls = true;
+
+			// rootMovesの設定
+			auto& rootMoves = th->rootMoves;
+
+			rootMoves.clear();
+			for (auto m : MoveList<LEGAL>(pos))
+				rootMoves.push_back(Search::RootMove(m));
+
+			ASSERT_LV3(rootMoves.size() != 0);
+		}
+
+		// DrawValueの設定
+		{
+			Color us = pos.side_to_move();
+			int contempt = Options["Contempt"] * PawnValue / 100;
+			drawValueTable[REPETITION_DRAW][us] = VALUE_ZERO - Value(contempt);
+			drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
+		}
 	}
 	
 	// 静止探索。
@@ -2955,7 +2979,6 @@ namespace Learner
 	{
 		Stack stack[MAX_PLY + 7], *ss = stack + 4;
 		memset(ss - 4, 0, 7 * sizeof(Stack));
-
 		Move pv[MAX_PLY + 1];
 		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
@@ -2994,7 +3017,6 @@ namespace Learner
 
 		Stack stack[MAX_PLY + 7], *ss = stack + 4;
 		memset(ss - 4, 0, 7 * sizeof(Stack));
-
 		Move pv[MAX_PLY + 1];
 		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
@@ -3019,12 +3041,16 @@ namespace Learner
 			// fail low,fail highが起きても無視して回る。
 			for (PVIdx = 0; PVIdx < multiPV && !Signals.stop; ++PVIdx)
 			{
-				bestValue = YaneuraOu2016Late::search<PV>(pos, ss, alpha, beta, rootDepth * ONE_PLY, false);
-				std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
+				// ここaspiration searchにしても良いが、alpha,betaを指定されているのでやりにくい。
+				{
+					bestValue = YaneuraOu2016Late::search<PV>(pos, ss, alpha, beta, rootDepth * ONE_PLY, false);
+					std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
 
-				ASSERT_LV3(-VALUE_INFINITE <= alpha && beta <= VALUE_INFINITE);
+					ASSERT_LV3(-VALUE_INFINITE <= alpha && beta <= VALUE_INFINITE);
+				}
 
 				std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
+
 			} // multi PV
 		}
 

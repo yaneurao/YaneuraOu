@@ -14,6 +14,8 @@ def analyze_log(file_path):
     with open(file_path, 'rb') as fi:
         sfens_pat = re.compile(r'^(?P<sfens>\d+) sfens ,')
         record_pat = re.compile(r'^rmse = (?P<rmse>.*) , mean_error = (?P<mean_error>.*)')
+        # mini-batch size , added by yane.
+        mini_batch_pat = re.compile(r'mini-batch size : (?P<mini_batch>\d+)')
 
         log = []
         sfen_counter = 0
@@ -35,8 +37,12 @@ def analyze_log(file_path):
                 if sfen_counter >= 5:
                     log.append((sfens, counter, rmse, mean_error))
 
-				# default interval , added by yane.
-                sfens += 1000000
+				# mini-batch size , added by yane.
+                sfens += mini_batch
+
+            mo = mini_batch_pat.search(line)
+            if mo:
+                mini_batch = int(mo.groupdict()['mini_batch'])
 
     if len(log) == 0:
         print('{}: Empty'.format(file_path))

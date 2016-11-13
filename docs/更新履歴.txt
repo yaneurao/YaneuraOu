@@ -2,7 +2,29 @@
 やねうら王 更新履歴
 
 
-■　2016/11/13 V4.07
+■　2016/11/14 V4.10
+
+・init_for_search()にhistory等をクリアするコード追加。
+
+
+■　2016/11/14 V4.09
+
+・learnコマンドで置換表の世代を進めるの、1M→100k局面ごとに変更。
+・gensfenのSfenWriterのコード整理。
+・Learner::init_for_search()のコード整理。
+・analyze_yane_log.py、mini-batchのサイズを自動認識するように修正。
+・SfenWriter、FILE_WRITE_INTERVAL→SFEN_WRITE_SIZEにリネーム。
+
+■　2016/11/13 V4.08
+
+・test dumpsfenコマンド追加。
+・PackedSfenValueの定義をlearn.hに移動。
+・Learner::Search()に初期化コード色々追加。
+・gensfen、MAX_PLY2まで生成するのやめてMAX_PLYに変更。
+・"test dumpsfen"コマンドにnumber指定できるように。
+
+
+■　2016/11/12 V4.07
 
 ・Stockfish : Stack offset changed from -5 to -4
 ・Stockfish : Make a version of Position::do_move() without the givesCheck parameter →　すでにそうしてた。

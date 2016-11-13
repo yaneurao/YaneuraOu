@@ -1347,6 +1347,109 @@ void eval_merge(istringstream& is)
 }
 #endif
 
+namespace Learner
+{
+	// いまのところ、やねうら王2016Mid/Lateしか、このスタブを持っていない。
+	extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta);
+	extern pair<Value, vector<Move> >  search(Position& pos, Value alpha, Value beta, int depth);
+}
+
+void dump_sfen(Position& pos, istringstream& is)
+{
+	is_ready();
+
+	std::string filename;
+	is >> filename;
+
+	// この番号の局面から。
+	u64 start_number = 0;
+	u64 end_number = UINT64_MAX;
+	while (true)
+	{
+		std::string token = "";
+		is >> token;
+		if (token == "start")
+			is >> start_number;
+		else if (token == "end")
+			is >> end_number;
+		else
+			break;
+	}
+
+	cout << "dump sfen , filename = " << filename << endl
+		<< "start : " << start_number << endl
+		<< "end   : " << end_number << endl;
+
+	fstream fs(filename, ios::in | ios::binary);
+	if (fs.fail())
+	{
+		cout << "Error : file read error " << filename << endl;
+		return;
+	}
+
+	Learner::PackedSfenValue sfen;
+
+	u64 num = 0;
+
+#if 0
+	// 統計用の変数
+	u64 sum = 0;
+	double vari = 0.0;
+#endif
+
+	while (!fs.eof())
+	{
+		if (!fs.read((char*)&sfen, sizeof(Learner::PackedSfenValue)))
+			break;
+
+		// 指定番号になるまでskip
+		if (num < start_number)
+			goto NEXT;
+		
+		// 指定番号を超えたら終了。
+		if (num >= end_number)
+			break;
+
+		pos.set_from_packed_sfen(sfen.sfen);
+#if 0
+		cout << pos;
+		cout << "value = " << sfen.score << " , num = " << num << endl;
+#endif
+
+#if 0
+		// 評価値の絶対値の平均を計算する。
+		sum += abs(sfen.score);
+
+		// 評価値の分散
+		vari += sfen.score * sfen.score;
+
+		const u64 block = 10000;
+		if ((num % block) == 0)
+		{
+			// 平均と偏差を出す。
+			cout << num << " , avg = " << (sum / block) << " , deviation = " << sqrt(vari/block) << endl;
+			sum = 0;
+			vari = 0.0;
+
+#if 0
+			pos.set_this_thread(Threads.main());
+			// 深さ6,8,10,12で探索させた評価値を比較してみる。
+			auto pv6 = Learner::search(pos, (Value)-3000, (Value)+3000, 6);
+			auto pv8 = Learner::search(pos, (Value)-3000, (Value)+3000, 8);
+			auto pv10 = Learner::search(pos, (Value)-3000, (Value)+3000, 10);
+			auto pv12 = Learner::search(pos, (Value)-3000, (Value)+3000, 12);
+			cout << sfen.score << " and pv6,8 =  " << pv6.first << " , " << pv8.first << " , " << pv10.first << " , " << pv12.first << endl;
+#endif
+		}
+#endif
+	NEXT:;
+		num++;
+	}
+
+	fs.close();
+
+	cout << "sfen_dump , finished." << endl;
+}
 
 void test_cmd(Position& pos, istringstream& is)
 {
@@ -1365,6 +1468,7 @@ void test_cmd(Position& pos, istringstream& is)
 	else if (param == "timeman") test_timeman();                     // TimeManagerのテスト
 	else if (param == "exambook") exam_book(pos);                    // 定跡の精査用コマンド
 	else if (param == "bookcheck") book_check_cmd(pos,is);           // 定跡のチェックコマンド
+	else if (param == "dumpsfen") dump_sfen(pos, is);                // gensfenコマンドで生成した教師局面のダンプ
 #ifdef EVAL_KPPT
 	else if (param == "evalmerge") eval_merge(is);                   // 評価関数の合成コマンド
 #endif
@@ -1378,6 +1482,7 @@ void test_cmd(Position& pos, istringstream& is)
 		cout << "test autoplay           // Auto Play Test" << endl;
 		cout << "test timeman            // Time Manager Test" << endl;
 		cout << "test exambook           // Examine Book" << endl;
+		cout << "test dumpsfen [filename]// dump gensfen's file" << endl;
 	}
 }
 

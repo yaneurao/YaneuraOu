@@ -47,18 +47,6 @@ namespace Learner
 extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta);
 extern pair<Value, vector<Move> >  search(Position& pos, Value alpha, Value beta, int depth);
 
-
-// ファイルに保存するentry
-struct PackedSfenValue
-{
-	PackedSfen sfen;
-	s16 score; // PV leafでの評価値
-
-#ifdef	GENSFEN_SAVE_FIRST_MOVE
-	u16 move; // PVの初手
-#endif
-};
-
 // -----------------------------------
 //    局面のファイルへの書き出し
 // -----------------------------------
@@ -83,12 +71,8 @@ struct SfenWriter
 		file_worker_thread.join();
 	}
 
-	// この行数ごとにファイルにflushする。
-	// 探索深さ3なら1スレッドあたり1秒で1000局面ほど作れる。
-	// 40コア80HTで秒間10万局面。1日で80億ぐらい作れる。
-	// 80億=8G , 1局面100バイトとしたら 800GB。
-
-	const u64 FILE_WRITE_INTERVAL = 5000;
+	// 各スレッドについて、この局面数ごとにファイルにflushする。
+	const u64 SFEN_WRITE_SIZE = 5000;
 
 #ifdef  WRITE_PACKED_SFEN
 
@@ -108,7 +92,7 @@ struct SfenWriter
 		auto buf_reserve = [&]()
 		{
 			buf = shared_ptr<vector<PackedSfenValue>>(new vector<PackedSfenValue>());
-			buf->reserve(FILE_WRITE_INTERVAL);
+			buf->reserve(SFEN_WRITE_SIZE);
 		};
 
 		// 初回はbufがないので確保する。
@@ -126,12 +110,16 @@ struct SfenWriter
 		// この時点では排他する必要はない。
 		buf->push_back(ps);
 
-		if (buf->size() >= FILE_WRITE_INTERVAL)
+		if (buf->size() >= SFEN_WRITE_SIZE)
 		{
 			// sfen_buffers_poolに積んでおけばあとはworkerがよきに計らってくれる。
 			{
 				std::unique_lock<Mutex> lk(mutex);
 				sfen_buffers_pool.push_back(buf);
+
+				// この瞬間、参照を剥がしておかないとこのスレッドとwrite workerのほうから同時に
+				// shared_ptrの参照カウントをいじることになってまずい。
+				buf = nullptr;
 			}
 
 			buf_reserve();
@@ -149,19 +137,20 @@ struct SfenWriter
 		auto buf_reserve = [&]()
 		{
 			buf = shared_ptr<vector<string>>(new vector<string>());
-			buf->reserve(FILE_WRITE_INTERVAL);
+			buf->reserve(SFEN_WRITE_SIZE);
 		};
 
 		if (!buf)
 			buf_reserve();
 
 		buf->push_back(line);
-		if (buf->size() >= FILE_WRITE_INTERVAL)
+		if (buf->size() >= SFEN_WRITE_SIZE)
 		{
 			// sfen_buffers_poolに積んでおけばあとはworkerがよきに計らってくれる。
 			{
 				std::unique_lock<Mutex> lk(mutex);
 				sfen_buffers_pool.push_back(buf);
+				buf = nullptr;
 			}
 			buf_reserve();
 		}
@@ -176,6 +165,7 @@ struct SfenWriter
 		{
 			std::unique_lock<Mutex> lk(mutex);
 			sfen_buffers_pool.push_back(buf);
+			buf = nullptr;
 		}
 	}
 
@@ -209,20 +199,13 @@ struct SfenWriter
 #endif
 			{
 				std::unique_lock<Mutex> lk(mutex);
-				// poolに積まれていたら、それを処理する。
 
-				if (sfen_buffers_pool.size() != 0)
-				{
-					//ptr = *sfen_buffers_pool.rbegin();
-					//sfen_buffers_pool.pop_back();
-
-					buffers = sfen_buffers_pool;
-					sfen_buffers_pool.clear();
-				}
+				// まるごとコピー
+				buffers = sfen_buffers_pool;
+				sfen_buffers_pool.clear();
 			}
 
 			// 何も取得しなかったならsleep()
-			// ひとつ取得したということはまだバッファにある可能性があるのでファイルに書きだしたあとsleep()せずに続行。
 			if (!buffers.size())
 				sleep(100);
 			else
@@ -251,6 +234,8 @@ struct SfenWriter
 				}
 			}
 		}
+
+		// 終了前にもう一度、タイムスタンプを出力。
 		output_status();
 	}
 
@@ -321,8 +306,7 @@ struct MultiThinkGenSfen: public MultiThink
 //  thread_id    = 0..Threads.size()-1
 void MultiThinkGenSfen::thread_worker(size_t thread_id)
 {
-	const int MAX_PLY2 = 512; // 512手までテスト(どうせ評価値が大きくなったら終了するので)
-	StateInfo state[MAX_PLY2 + 64]; // StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
+	StateInfo state[MAX_PLY + 8]; // StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
 	Move m = MOVE_NONE;
 
 	// 定跡の指し手を用いるモード
@@ -341,7 +325,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		pos.set_this_thread(th);
 
 		// ply : 初期局面からの手数
-		for (int ply = 0; ply < MAX_PLY2 - 20; ++ply)
+		for (int ply = 0; ply < MAX_PLY - 20; ++ply)
 		{
 			// 詰んでいるなら次の対局に
 			if (pos.is_mated())
@@ -521,8 +505,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					if (loop_count == UINT64_MAX)
 						goto FINALIZE;
 
-					// 1M局面に1回ぐらい置換表の世代を進める。
-					if ((loop_count % 1000000) == 0)
+					// 100k局面に1回ぐらい置換表の世代を進める。
+					if ((loop_count % 100000) == 0)
 						TT.new_search();
 
 #ifdef WRITE_PACKED_SFEN
@@ -539,7 +523,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					sw.write(thread_id, sfen, leaf_value, pv_move1);
 #endif
 
-#if 1
+#if 0
 					// デバッグ用に局面を表示させてみる。
 					sync_cout << pos << "leaf value = " << leaf_value << sync_endl;
 #endif
@@ -1165,6 +1149,7 @@ protected:
 	// fileをバックグラウンドで読み込みしているworker thread
 	std::thread file_worker_thread;
 
+	// 局面の読み込み時にshuffleするための乱数
 	PRNG prng;
 
 	// ファイル群を読み込んでいき、最後まで到達したか。
