@@ -58,8 +58,8 @@ struct SfenWriter
 	SfenWriter(string filename, int thread_num)
 	{
 		sfen_buffers_pool.reserve(thread_num * 10);
-
 		sfen_buffers.resize(thread_num);
+
 		fs.open(filename, ios::out | ios::binary | ios::app);
 
 		finished = false;
@@ -870,7 +870,7 @@ struct SfenReader
 		total_done = 0;
 		next_update_weights = 0;
 		save_count = 0;
-		files_end = false;
+		end_of_files = false;
 
 		// 比較実験がしたいので乱数を固定化しておく。
 		prng = PRNG(20160720);
@@ -908,7 +908,7 @@ struct SfenReader
 
 	// ファイル読み込み用のバッファ(これ大きくしたほうが局面がshuffleが大きくなるので局面がバラけていいと思うが
 	// あまり大きいとメモリ消費量も上がる。
-	const u64 SFEN_READ_SIZE = LEARN_READ_SFEN_SIZE;
+	const u64 SFEN_READ_SIZE = LEARN_SFEN_READ_SIZE;
 
 	// [ASYNC] スレッドが局面を一つ返す。なければfalseが返る。
 	bool read_to_thread_buffer(size_t thread_id, PackedSfenValue& ps)
@@ -921,6 +921,10 @@ struct SfenReader
 			&& !read_to_thread_buffer_impl(thread_id))
 			return false;
 
+		// read_to_thread_buffer_impl()がtrueを返したというこは、
+		// スレッドバッファへの局面の充填が無事完了したということなので
+		// thread_ps->rbegin()は健在。
+
 		ps = *(thread_ps->rbegin());
 		thread_ps->pop_back();
 
@@ -931,6 +935,7 @@ struct SfenReader
 	void calc_rmse()
 	{
 		// 置換表にhitされてもかなわんので、このタイミングで置換表の世代を新しくする。
+		// 置換表を無効にしているなら関係ないのだが。
 		TT.new_search();
 
 		// thread_idは0に固定。(main threadで行わせるため)
@@ -997,6 +1002,8 @@ struct SfenReader
 			if (packed_sfens_pool.size() == 0)
 				return false;
 
+			// 充填可能なようなので充填して終了。
+
 			packed_sfens[thread_id] = *packed_sfens_pool.rbegin();
 			packed_sfens_pool.pop_back();
 
@@ -1015,10 +1022,10 @@ struct SfenReader
 			}
 
 			// もうすでに読み込むファイルは無くなっている。もうダメぽ。
-			if (files_end)
+			if (end_of_files)
 				return false;
 
-			// file workerがread_buffer1に充填してくれるのを待っている。
+			// file workerがpacked_sfens_poolに充填してくれるのを待っている。
 			// mutexはlockしていないのでいずれ充填してくれるはずだ。
 			sleep(1);
 		}
@@ -1043,12 +1050,18 @@ struct SfenReader
 			if (filenames.size() == 0)
 				return false;
 
+			// 次のファイル名ひとつ取得。
 			string filename = *filenames.rbegin();
 			filenames.pop_back();
 
-			// 生成した棋譜をテスト的に読み込むためのコード
 			fs.open(filename, ios::in | ios::binary);
 			cout << endl << "open filename = " << filename << " ";
+
+#if 0
+			// 棋譜の先頭4M局面ほど、探索の初期化が十分なされていないせいか、
+			// あまりいい探索結果ではないので、これを捨てる。
+			fs.seekp(sizeof(PackedSfenValue) * 4*1000*1000,ios::beg);
+#endif
 
 			return true;
 		};
@@ -1076,7 +1089,7 @@ struct SfenReader
 					{
 						// 次のファイルもなかった。あぼーん。
 						cout << "..end of files.\n";
-						files_end = true;
+						end_of_files = true;
 						return;
 					}
 				}
@@ -1095,25 +1108,30 @@ struct SfenReader
 			// これをTHREAD_BUFFER_SIZEごとの細切れにする。それがsize個あるはず。
 			u64 size = SFEN_READ_SIZE / THREAD_BUFFER_SIZE;
 			vector<shared_ptr<vector<PackedSfenValue>>> ptrs;
-			ptrs.resize(size);
+			ptrs.reserve(size);
 
 			for (u64 i = 0; i < size; ++i)
 			{
 				shared_ptr<vector<PackedSfenValue>> ptr(new vector<PackedSfenValue>());
 				ptr->resize(THREAD_BUFFER_SIZE);
 				memcpy(&((*ptr)[0]), &sfens[i * THREAD_BUFFER_SIZE], sizeof(PackedSfenValue) * THREAD_BUFFER_SIZE);
-				ptrs[i] = ptr;
+
+				ptrs.push_back(ptr);
 			}
 
 			// sfensの用意が出来たので、折を見てコピー
 			{
 				std::unique_lock<Mutex> lk(mutex);
 
-				// 300個ぐらいなのでこの時間は無視できるはず…。
-				auto sizeOrg = packed_sfens_pool.size();
-				packed_sfens_pool.resize(sizeOrg+size);
+				// shared_ptrをコピーするだけなのでこの時間は無視できるはず…。
+				// packed_sfens_poolの内容を変更するのでmutexのlockが必要。
+
 				for (u64 i = 0; i < size; ++i)
-					packed_sfens_pool[sizeOrg + i] = ptrs[i];
+				{
+					packed_sfens_pool.push_back(ptrs[i]);
+					// この瞬間にやっておかないと参照カウントを複数スレッドから変更することになってまずい。
+					ptrs[i] = nullptr;
+				}
 			}
 		}
 	}
@@ -1153,7 +1171,7 @@ protected:
 	PRNG prng;
 
 	// ファイル群を読み込んでいき、最後まで到達したか。
-	atomic<bool> files_end;
+	atomic<bool> end_of_files;
 
 
 	// sfenファイルのハンドル
@@ -1409,10 +1427,6 @@ void LearnerThink::save()
 	// 1度だけの保存のときはサブフォルダを掘らない。
 	Eval::save_eval("");
 #endif
-
-	// 置換表が同じ世代で埋め尽くされるとまずいのでこのタイミングで世代カウンターを足しておく。
-	TT.new_search();
-
 }
 
 // 生成した棋譜からの学習

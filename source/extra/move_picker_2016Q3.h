@@ -173,7 +173,7 @@ private:
 	// 置換表の指し手
 	Move ttMove;
 
-	// killer move 2個 + counter move 1個 + ttMove(QUIETS時) = 3個
+	// killer move 2個 + counter move 1個 + ttMove(QUIETS時) = 4個
 	// これはオーダリングしないからExtMoveである必要はない。
 	ExtMove killers[4];
 

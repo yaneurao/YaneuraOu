@@ -10,7 +10,7 @@
 
 // デフォルトの学習設定
 
-#define LEARN_DEFAULT
+//#define LEARN_DEFAULT
 
 // やねうら王2016Late用デフォルトの学習設定。
 //
@@ -18,7 +18,7 @@
 //                       ~~~~~~~~~~~~~~~~~~
 // ※　色々実験中なので使わないように。
 
-//#define LEARN_YANEURAOU_2016_LATE
+#define LEARN_YANEURAOU_2016_LATE
 //#define EVAL_SAVE_ONLY_ONCE
 
 
@@ -72,7 +72,7 @@
 // ある程度大きいほうが良いが、この数×34byte×3倍ぐらいのメモリを消費する。10M局面なら340MB*3程度消費する。
 // THREAD_BUFFER_SIZE(=10000)の倍数にすること。
 
-#define LEARN_READ_SFEN_SIZE (1000 * 1000 * 10)
+#define LEARN_SFEN_READ_SIZE (1000 * 1000 * 10)
 
 // 学習時の評価関数の保存間隔。この局面数だけ学習させるごとに保存。
 #define LEARN_EVAL_SAVE_INTERVAL (80000000ULL)

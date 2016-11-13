@@ -5,6 +5,9 @@
 ■　2016/11/14 V4.10
 
 ・init_for_search()にhistory等をクリアするコード追加。
+・move_picker_2016Q3.hのコメント間違っていたの修正。
+・LEARN_READ_SFEN_SIZE →　LEARN_SFEN_READ_SIZEにリネーム。
+・SfenReader、vector::resize()で元の要素がコピーされることを期待していたので修正。
 
 
 ■　2016/11/14 V4.09

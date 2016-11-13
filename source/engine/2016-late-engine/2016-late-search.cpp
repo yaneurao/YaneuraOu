@@ -2277,7 +2277,7 @@ void Search::clear()
 	// -----------------------
 	TT.clear();
 
-	// Threadsが変更になってからisreadyが送られてこないとisreadyでthread数だけ初期化しているものはこれではまずいの
+	// Threadsが変更になってからisreadyが送られてこないとisreadyでthread数だけ初期化しているものはこれではまずい。
 	for (Thread* th : Threads)
 	{
 		th->history.clear();
@@ -2947,12 +2947,15 @@ namespace Learner
 			th->maxPly = 0;
 			th->rootDepth = 0;
 
-			// history等もクリアしておく。
+#if 0
+			// 余裕があるならhistory等もクリアしておく。
 			// したほうがいいかは微妙だが…。
 			th->history.clear();
 			th->counterMoves.clear();
 			th->fromTo.clear();
-			th->counterMoveHistory.clear();
+		//	th->counterMoveHistory.clear();
+			// →　このクリア、時間がかかりすぎるのでまあいいや。
+#endif
 			th->resetCalls = true;
 
 			// rootMovesの設定

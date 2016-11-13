@@ -1434,10 +1434,10 @@ void dump_sfen(Position& pos, istringstream& is)
 #if 0
 			pos.set_this_thread(Threads.main());
 			// 深さ6,8,10,12で探索させた評価値を比較してみる。
-			auto pv6 = Learner::search(pos, (Value)-3000, (Value)+3000, 6);
-			auto pv8 = Learner::search(pos, (Value)-3000, (Value)+3000, 8);
-			auto pv10 = Learner::search(pos, (Value)-3000, (Value)+3000, 10);
-			auto pv12 = Learner::search(pos, (Value)-3000, (Value)+3000, 12);
+			auto pv6 = Learner::search(pos, (Value)-3000, (Value)+3000, 6 * ONE_PLY);
+			auto pv8 = Learner::search(pos, (Value)-3000, (Value)+3000, 8 * ONE_PLY);
+			auto pv10 = Learner::search(pos, (Value)-3000, (Value)+3000, 10 * ONE_PLY);
+			auto pv12 = Learner::search(pos, (Value)-3000, (Value)+3000, 12 * ONE_PLY);
 			cout << sfen.score << " and pv6,8 =  " << pv6.first << " , " << pv8.first << " , " << pv10.first << " , " << pv12.first << endl;
 #endif
 		}
