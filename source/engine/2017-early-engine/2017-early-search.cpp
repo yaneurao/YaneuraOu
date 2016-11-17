@@ -1,13 +1,13 @@
 ﻿#include "../../shogi.h"
 
-#ifdef YANEURAOU_2016_LATE_ENGINE
+#ifdef YANEURAOU_2017_EARLY_ENGINE
 
 // -----------------------
-//   やねうら王2016(late)設定部
+//   やねうら王2017(early)設定部
 // -----------------------
 
 // 開発方針
-// やねうら王classic-tceからの改造。
+// やねうら王2016(late)からの改造。
 // 探索のためのパラメーターの完全自動調整。
 
 // パラメーターを自動調整するのか
@@ -49,8 +49,8 @@
 #endif
 
 // 実行時に読み込むパラメーターファイルの名前
-#define PARAM_FILE "2016-late-param.h"
-#include "2016-late-param.h"
+#define PARAM_FILE "2017-early-param.h"
+#include "2017-early-param.h"
 
 
 using namespace std;
@@ -160,10 +160,10 @@ void USI::extra_option(USI::OptionsMap & o)
 }
 
 // -----------------------
-//   やねうら王2016(late)探索部
+//   やねうら王2017(early)探索部
 // -----------------------
 
-namespace YaneuraOu2016Late
+namespace YaneuraOu2017Early
 {
 
 	// 外部から調整される探索パラメーター
@@ -714,20 +714,22 @@ namespace YaneuraOu2016Late
 			// 駒を取らない王手回避の指し手はよろしくない可能性が高いのでこれは枝刈りしてしまう。
 			// 成りでない && seeが負の指し手はNG。王手回避でなくとも、同様。
 
-			// ただし、王手されている局面の場合、王手の回避手を1つ以上見つけているときでないと
-			// これを枝刈りしてしまうと回避手がないかのように錯覚してしまうので、
+			// ただし、王手されている局面の場合、王手の回避手を1つ以上見つけていないのに
+			// これの指し手を枝刈りしてしまうと回避手がないかのように錯覚してしまうので、
 			// bestValue > VALUE_MATED_IN_MAX_PLY
 			// (実際は-VALUE_INFINITEより大きければ良い)
 			// という条件を追加してある。
 
-			bool evasionPrunable = InCheck
-				&&  bestValue > VALUE_MATED_IN_MAX_PLY
-				&& !pos.capture_or_pawn_promotion(move);
-			// ここ、captureだけでなく、歩の成りもevasionPrunableから除外したほうが良い。
-
-			if ((!InCheck || evasionPrunable)
-				// ここ、成る手ではなく、歩が成る手のみを除外(したほうがたぶん良い)
-				&& (!(is_promote(move) && raw_type_of(pos.moved_piece_after(move)) == PAWN))
+			if (
+				(!InCheck || (!pos.capture(move) && bestValue > VALUE_MATED_IN_MAX_PLY))
+#if 0
+				// Stockfish8相当のコード
+				&& !is_promote(move)
+#else
+				// ここ、成る手ではなく、歩が成る手のみを除外(したほうが良い)
+				// T1,b1000,1439 - 61 - 1220(54.12% R28.68)
+				&& !pos.pawn_promotion(move)
+#endif
 				&& !pos.see_ge(move , VALUE_ZERO))
 				continue;
 
@@ -1630,15 +1632,14 @@ namespace YaneuraOu2016Late
 
 					// 将棋ではseeが負の指し手もそのあと詰むような場合があるから、あまり無碍にも出来ないようだが…。
 
-					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1
-						&& !extension
-						&& !pos.see_ge(move , Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 * lmrDepth * lmrDepth)))
+					if (!pos.see_ge(move , Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 * lmrDepth * lmrDepth)))
 						continue;
 				}
 
 				// 浅い深さでの、危険な指し手を枝刈りする。
-				else if (depth < (PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2) * ONE_PLY
-					&& !pos.see_ge(move , Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 * depth / ONE_PLY * depth / ONE_PLY)))
+				else if (!extension
+					&& !pos.see_ge(move , Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 * depth / ONE_PLY * depth / ONE_PLY)
+											+ (ss->staticEval != VALUE_NONE ? ss->staticEval - alpha - PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2 : VALUE_ZERO)))
 					continue;
 			}
 
@@ -1979,7 +1980,7 @@ namespace YaneuraOu2016Late
 	}
 }
 
-using namespace YaneuraOu2016Late;
+using namespace YaneuraOu2017Early;
 
 // --- 以下に好きなように探索のプログラムを書くべし。
 
@@ -1998,10 +1999,9 @@ void init_param()
 			"PARAM_FUTILITY_MARGIN_ALPHA" , "PARAM_FUTILITY_MARGIN_BETA" ,
 			"PARAM_FUTILITY_MARGIN_QUIET" , "PARAM_FUTILITY_RETURN_DEPTH",
 			
-			"PARAM_FUTILITY_AT_PARENT_NODE_DEPTH","PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1",
-
-			"PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1",
-			"PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2",
+			"PARAM_FUTILITY_AT_PARENT_NODE_DEPTH",
+			"PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1",
+			"PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2",
 			"PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1" ,
 			"PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2" ,
 
@@ -2034,9 +2034,9 @@ void init_param()
 			&PARAM_FUTILITY_MARGIN_ALPHA , &PARAM_FUTILITY_MARGIN_BETA,
 			&PARAM_FUTILITY_MARGIN_QUIET , &PARAM_FUTILITY_RETURN_DEPTH,
 			
-			&PARAM_FUTILITY_AT_PARENT_NODE_DEPTH, &PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 ,
-			&PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1,
-			&PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2,
+			&PARAM_FUTILITY_AT_PARENT_NODE_DEPTH,
+			&PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1,
+			&PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2,
 			&PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1,
 			&PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2,
 
@@ -2419,7 +2419,7 @@ void Thread::search()
 			while (true)
 			{
 				// Stockfish、ここrootDepthにONE_PLY掛けてない。Stockfishのbug。
-				bestValue = YaneuraOu2016Late::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false);
+				bestValue = YaneuraOu2017Early::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false);
 
 				// それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
 				// 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
@@ -2991,8 +2991,8 @@ namespace Learner
 		// 現局面で王手がかかっているかで場合分け。
 		const bool inCheck = pos.in_check();
 		auto bestValue = inCheck ?
-			YaneuraOu2016Late::qsearch<PV, true >(pos, ss, alpha, beta, DEPTH_ZERO) :
-			YaneuraOu2016Late::qsearch<PV, false>(pos, ss, alpha, beta, DEPTH_ZERO);
+			YaneuraOu2017Early::qsearch<PV, true >(pos, ss, alpha, beta, DEPTH_ZERO) :
+			YaneuraOu2017Early::qsearch<PV, false>(pos, ss, alpha, beta, DEPTH_ZERO);
 
 		// 得られたPVを返す。
 		vector<Move> pvs;
@@ -3044,7 +3044,7 @@ namespace Learner
 			{
 				// ここaspiration searchにしても良いが、alpha,betaを指定されているのでやりにくい。
 				{
-					YaneuraOu2016Late::search<PV>(pos, ss, alpha, beta, rootDepth * ONE_PLY, false);
+					YaneuraOu2017Early::search<PV>(pos, ss, alpha, beta, rootDepth * ONE_PLY, false);
 					std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
 				}
 
@@ -3074,4 +3074,4 @@ namespace Learner
 }
 #endif
 
-#endif // YANEURAOU_2016_LATE_ENGINE
+#endif // YANEURAOU_2017_EARLY_ENGINE

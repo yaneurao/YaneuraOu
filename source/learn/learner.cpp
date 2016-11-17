@@ -43,7 +43,7 @@ extern void is_ready();
 
 namespace Learner
 {
-// いまのところ、やねうら王2016Mid/Lateしか、このスタブを持っていない。
+// いまのところ、やねうら王2016Mid/Late,2017Earlyしか、このスタブを持っていない。
 extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta);
 extern pair<Value, vector<Move> >  search(Position& pos, Value alpha, Value beta, int depth);
 
@@ -89,15 +89,13 @@ struct SfenWriter
 
 		// このバッファはスレッドごとに用意されている。
 		auto& buf = sfen_buffers[thread_id];
-		auto buf_reserve = [&]()
+
+		// 初回とスレッドバッファを書き出した直後はbufがないので確保する。
+		if (!buf)
 		{
 			buf = shared_ptr<vector<PackedSfenValue>>(new vector<PackedSfenValue>());
 			buf->reserve(SFEN_WRITE_SIZE);
-		};
-
-		// 初回はbufがないので確保する。
-		if (!buf)
-			buf_reserve();
+		}
 
 		PackedSfenValue ps;
 		ps.sfen = sfen;
@@ -113,16 +111,16 @@ struct SfenWriter
 		if (buf->size() >= SFEN_WRITE_SIZE)
 		{
 			// sfen_buffers_poolに積んでおけばあとはworkerがよきに計らってくれる。
-			{
-				std::unique_lock<Mutex> lk(mutex);
-				sfen_buffers_pool.push_back(buf);
 
-				// この瞬間、参照を剥がしておかないとこのスレッドとwrite workerのほうから同時に
-				// shared_ptrの参照カウントをいじることになってまずい。
-				buf = nullptr;
-			}
+			// sfen_buffers_poolの内容を変更するときはmutexのlockが必要。
+			std::unique_lock<Mutex> lk(mutex);
+			sfen_buffers_pool.push_back(buf);
 
-			buf_reserve();
+			// この瞬間、参照を剥がしておかないとこのスレッドとwrite workerのほうから同時に
+			// shared_ptrの参照カウントをいじることになってまずい。
+			buf = nullptr;
+
+			// buf == nullptrにしておけば次回にこの関数が呼び出されたときにバッファは確保される。
 		}
 	}
 #else
@@ -299,8 +297,10 @@ struct MultiThinkGenSfen: public MultiThink
   SfenWriter& sw;
 
   // 同一局面の書き出しを制限するためのhash
+  // hash_indexを求めるためのmaskに使うので、2**Nでなければならない。
   static const u64 GENSFEN_HASH_SIZE = 64 * 1024 * 1024;
-  vector<HASH_KEY> hash; // 64MB*8 = 512MB
+
+  vector<HASH_KEY> hash; // 64MB*sizeof(HASH_KEY) = 512MB
 };
 
 //  thread_id    = 0..Threads.size()-1
@@ -484,6 +484,11 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					pv_value1 = search(pos, (Value)-eval_limit, (Value)eval_limit, 2);
 					pv1 = pv_value1.second;
 				}
+
+				// 16手目までの局面、類似局面ばかりなので
+				// 学習に用いると過学習になりかねないから書き出さない。
+				if (ply < 16)
+					goto SKIP_WRITE;
 
 				// 同一局面を書き出したところか？
 				// これ、複数のPCで並列して生成していると同じ局面が含まれることがあるので
@@ -908,6 +913,7 @@ struct SfenReader
 
 	// ファイル読み込み用のバッファ(これ大きくしたほうが局面がshuffleが大きくなるので局面がバラけていいと思うが
 	// あまり大きいとメモリ消費量も上がる。
+	// SFEN_READ_SIZEはTHREAD_BUFFER_SIZEの倍数であるものとする。
 	const u64 SFEN_READ_SIZE = LEARN_SFEN_READ_SIZE;
 
 	// [ASYNC] スレッドが局面を一つ返す。なければfalseが返る。
@@ -996,29 +1002,22 @@ struct SfenReader
 	// [ASYNC] スレッドバッファに局面を10000局面ほど読み込む。
 	bool read_to_thread_buffer_impl(size_t thread_id)
 	{
-		auto read_from_buffer = [&]()
-		{
-			// read bufferから充填可能か？
-			if (packed_sfens_pool.size() == 0)
-				return false;
-
-			// 充填可能なようなので充填して終了。
-
-			packed_sfens[thread_id] = *packed_sfens_pool.rbegin();
-			packed_sfens_pool.pop_back();
-
-			total_read += THREAD_BUFFER_SIZE;
-
-			return true;
-		};
-
 		while (true)
 		{
-			// ファイルバッファから充填できたなら、それで良し。
 			{
 				std::unique_lock<Mutex> lk(mutex);
-				if (read_from_buffer())
+				// ファイルバッファから充填できたなら、それで良し。
+				if (packed_sfens_pool.size() != 0)
+				{
+					// 充填可能なようなので充填して終了。
+
+					packed_sfens[thread_id] = *packed_sfens_pool.rbegin();
+					packed_sfens_pool.pop_back();
+
+					total_read += THREAD_BUFFER_SIZE;
+
 					return true;
+				}
 			}
 
 			// もうすでに読み込むファイルは無くなっている。もうダメぽ。
@@ -1058,9 +1057,9 @@ struct SfenReader
 			cout << endl << "open filename = " << filename << " ";
 
 #if 0
-			// 棋譜の先頭4M局面ほど、探索の初期化が十分なされていないせいか、
+			// 棋譜の先頭2M局面ほど、探索の初期化が十分なされていないせいか、
 			// あまりいい探索結果ではないので、これを捨てる。
-			fs.seekp(sizeof(PackedSfenValue) * 4*1000*1000,ios::beg);
+			fs.seekp(sizeof(PackedSfenValue) * 2*1000*1000,ios::beg);
 #endif
 
 			return true;
@@ -1069,6 +1068,7 @@ struct SfenReader
 		while (true)
 		{
 			// バッファが減ってくるのを待つ。
+			// このsize()の読み取りはread onlyなのでlockしなくていいだろう。
 			while (packed_sfens_pool.size() >= SFEN_READ_SIZE / THREAD_BUFFER_SIZE)
 				sleep(100);
 
@@ -1095,7 +1095,7 @@ struct SfenReader
 				}
 			}
 
-#if 1
+#ifndef LEARN_SFEN_NO_SHUFFLE
 			// この読み込んだ局面データをshuffleする。
 			// random shuffle by Fisher-Yates algorithm
 			{
@@ -1106,6 +1106,9 @@ struct SfenReader
 #endif
 
 			// これをTHREAD_BUFFER_SIZEごとの細切れにする。それがsize個あるはず。
+			// SFEN_READ_SIZEはTHREAD_BUFFER_SIZEの倍数であるものとする。
+			ASSERT_LV3((SFEN_READ_SIZE % THREAD_BUFFER_SIZE)==0);
+
 			u64 size = SFEN_READ_SIZE / THREAD_BUFFER_SIZE;
 			vector<shared_ptr<vector<PackedSfenValue>>> ptrs;
 			ptrs.reserve(size);
@@ -1127,11 +1130,11 @@ struct SfenReader
 				// packed_sfens_poolの内容を変更するのでmutexのlockが必要。
 
 				for (u64 i = 0; i < size; ++i)
-				{
 					packed_sfens_pool.push_back(ptrs[i]);
-					// この瞬間にやっておかないと参照カウントを複数スレッドから変更することになってまずい。
-					ptrs[i] = nullptr;
-				}
+
+				// mutexをlockしている間にshared_ptrのデストラクタを呼び出さないと
+				// 参照カウントを複数スレッドから変更することになってまずい。
+				ptrs.clear();
 			}
 		}
 	}
@@ -1159,6 +1162,7 @@ struct SfenReader
 
 	// 同一局面の読み出しを制限するためのhash
 	// 6400万局面って多すぎるか？そうでもないか..
+	// hash_indexを求めるためのmaskに使うので、2**Nでなければならない。
 	static const u64 READ_SFEN_HASH_SIZE = 64 * 1024 * 1024;
 	vector<HASH_KEY> hash; // 64MB*8 = 512MB
 
@@ -1231,7 +1235,8 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// ファイルから読み込んだ直後とかでいいような…。
 		if (thread_id == 0 && sr.next_update_weights <= sr.total_done)
 		{
-			u64 org_total_done = sr.total_done;
+			// 一応、他のスレッド停止させる。
+			updating_weight = true;
 
 			// 現在時刻を出力
 			static u64 sfens_output_count = 0;
@@ -1247,40 +1252,35 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 			// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 
-			// 一応、他のスレッド停止させる。
-			updating_weight = true;
+			Eval::update_weights(mini_batch_size, ++epoch);
+
+			// 8000万局面ごとに1回保存、ぐらいの感じで。
+
+			// ただし、update_weights(),calc_rmse()している間の時間経過は無視するものとする。
+			if (++sr.save_count * mini_batch_size >= LEARN_EVAL_SAVE_INTERVAL)
 			{
-				Eval::update_weights(mini_batch_size, ++epoch);
+				sr.save_count = 0;
 
-				// 8000万局面ごとに1回保存、ぐらいの感じで。
-
-				// ただし、update_weights(),calc_rmse()している間の時間経過は無視するものとする。
-				if (++sr.save_count * mini_batch_size >= LEARN_EVAL_SAVE_INTERVAL)
-				{
-					sr.save_count = 0;
-
-					// この間、gradientの計算が進むと値が大きくなりすぎて困る気がするので他のスレッドを停止させる。
-					save();
-				}
-
-				// rmseを計算する。1万局面のサンプルに対して行う。
-				// 40コアでやると100万局面ごとにupdate_weightsするとして、特定のスレッドが
-				// つきっきりになってしまうのあまりよくないような気も…。
-				static u64 rmse_output_count = 0;
-				if ((++rmse_output_count % LEARN_RMSE_OUTPUT_INTERVAL) == 0)
-				{
-					// この計算自体も並列化すべきのような…。
-					// この計算をしているときにあまり処理が進みすぎると困るので停止させておくか…。
-					sr.calc_rmse();
-				}
-
-				// 次回、この一連の処理は、
-				// org_total_read + LEARN_MINI_BATCH_SIZE <= total_read
-				// となったときにやって欲しいのだけど、それが現在時刻(toal_read_now)を過ぎているなら
-				// 仕方ないのでいますぐやる、的なコード。
-				u64 total_done_now = sr.total_done;
-				sr.next_update_weights = std::max(org_total_done + mini_batch_size, total_done_now);
+				// この間、gradientの計算が進むと値が大きくなりすぎて困る気がするので他のスレッドを停止させる。
+				save();
 			}
+
+			// rmseを計算する。1万局面のサンプルに対して行う。
+			// 40コアでやると100万局面ごとにupdate_weightsするとして、特定のスレッドが
+			// つきっきりになってしまうのあまりよくないような気も…。
+			static u64 rmse_output_count = 0;
+			if ((++rmse_output_count % LEARN_RMSE_OUTPUT_INTERVAL) == 0)
+			{
+				// この計算自体も並列化すべきのような…。
+				// この計算をしているときにあまり処理が進みすぎると困るので停止させておくか…。
+				sr.calc_rmse();
+			}
+
+			// 次回、この一連の処理は、
+			// total_read + LEARN_MINI_BATCH_SIZE <= total_read
+			// となったときにやって欲しい。
+			sr.next_update_weights = sr.total_done + mini_batch_size;
+
 			// 他のスレッド再開。
 			updating_weight = false;
 		}

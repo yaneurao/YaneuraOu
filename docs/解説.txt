@@ -9,6 +9,8 @@ source/
   classic-engine/       やねうら王classic関連の探索部
   classic-tce-engine/   やねうら王classic-tce関連の探索部
   2016-mid-engine/      やねうら王2016 Midの探索部
+  2016-late-engine/     やねうら王2016 Lateの探索部
+  2017-early-engine/    やねうら王2017 Ealryの探索部
   help-mate-engine/     やねうら王 協力詰めsolver関連
   random-player-engine/ ランダムプレイヤー
   local-game-server/    自動対局フレームワーク

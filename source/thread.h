@@ -111,7 +111,7 @@ struct Thread
   FromToStats fromTo;
 #endif
 
-#if defined( YANEURAOU_2016_LATE_ENGINE )
+#if defined( YANEURAOU_2016_LATE_ENGINE ) || defined ( YANEURAOU_2017_EARLY_ENGINE )
   // コア数が多いか、長い持ち時間においては、スレッドごとにCounterMoveHistoryを確保したほうが良い。
   // cf. https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
   CounterMoveHistoryStats counterMoveHistory;

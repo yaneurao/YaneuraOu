@@ -68,6 +68,9 @@
     <Filter Include="script">
       <UniqueIdentifier>{efb5b189-918a-4b2a-ba65-731c674603a7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\engine\2017-early-engine">
+      <UniqueIdentifier>{d3dd072e-59ab-4ec3-a846-36d845709d2c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -156,6 +159,9 @@
     </ClInclude>
     <ClInclude Include="engine\2016-late-engine\2016-late-param_body.h">
       <Filter>リソース ファイル\engine\2016-late-engine</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\2017-early-engine\2017-early-param.h">
+      <Filter>リソース ファイル\engine\2017-early-engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -281,6 +287,9 @@
     </ClCompile>
     <ClCompile Include="extra\mate_n_ply.cpp">
       <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\2017-early-engine\2017-early-search.cpp">
+      <Filter>リソース ファイル\engine\2017-early-engine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

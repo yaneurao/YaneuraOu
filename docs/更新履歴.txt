@@ -2,12 +2,40 @@
 やねうら王 更新履歴
 
 
+■　2016/11/17 V4.12
+
+・2017-early-engineの作業開始。関連ファイル追加。
+・2017(early)がbuild出来るようにmakefile修正。
+・Stockfish[pull req.] : Remove restriction of Depth
+	→　PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH1削除
+	→　PARAM_FUTILITY_AT_PARENT_NODE_SEE_DEPTH2削除
+	T1,b3000,2302 - 144 - 2354(49.44% R-3.88)
+・Stockfish[pull req.] : remove evasionPrunable variable, reorder condition evaluation
+・Stockfish[pull req.] : Remove branching in key_after()
+　　→　この関数、実装してない。
+・Zobrist::psqをSQ_NB_PLUS1まで確保するように修正。
+・Zobrist::psq,handはpc==NO_PIECEのときに0を保証するように変更。
+・Stockfish[pull req.] : Position::is_draw(): start searching from the 4th ply behind 
+	→　すでにこれに近いコードになっているので修正不要。
+・Stockfish[pull req.] : Non-quiet pruning tweak
+・PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2追加。
+
+
+
+■　2016/11/15 V4.11
+
+・gensfenコマンドでは16手目までの局面を書き出さないように変更。
+
+
 ■　2016/11/14 V4.10
 
 ・init_for_search()にhistory等をクリアするコード追加。
 ・move_picker_2016Q3.hのコメント間違っていたの修正。
 ・LEARN_READ_SFEN_SIZE →　LEARN_SFEN_READ_SIZEにリネーム。
 ・SfenReader、vector::resize()で元の要素がコピーされることを期待していたので修正。
+・SfenWriterのバッファ確保まわりの処理、単純化。
+・Learner::search()でmulti pvのときもbest valueが正しく返るように修正。
+・read_to_thread_buffer_impl、単純化。
 
 
 ■　2016/11/14 V4.09
@@ -17,6 +45,7 @@
 ・Learner::init_for_search()のコード整理。
 ・analyze_yane_log.py、mini-batchのサイズを自動認識するように修正。
 ・SfenWriter、FILE_WRITE_INTERVAL→SFEN_WRITE_SIZEにリネーム。
+
 
 ■　2016/11/13 V4.08
 

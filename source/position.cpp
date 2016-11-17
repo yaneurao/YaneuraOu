@@ -14,7 +14,7 @@ std::string SFEN_HIRATE = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGK
 namespace Zobrist {
   HASH_KEY zero; // ゼロ(==0)
   HASH_KEY side; // 手番(==1)
-  HASH_KEY psq[SQ_NB][PIECE_NB]; // 駒pcが盤上sqに配置されているときのZobrist Key
+  HASH_KEY psq[SQ_NB_PLUS1][PIECE_NB]; // 駒pcが盤上sqに配置されているときのZobrist Key
   HASH_KEY hand[COLOR_NB][PIECE_HAND_NB]; // c側の手駒prが一枚増えるごとにこれを加算するZobristKey
   HASH_KEY depth[MAX_PLY]; // 深さも考慮に入れたHASH KEYを作りたいときに用いる(実験用)
 }
@@ -84,13 +84,18 @@ void Position::init() {
 
 	// 64bit hash keyは256bit hash keyの下位64bitという解釈をすることで、256bitと64bitのときとでhash keyの下位64bitは合致するようにしておく。
 	// これは定跡DBなどで使うときにこの性質が欲しいからである。
+	// またpc==NO_PIECEのときは0であることを保証したいのでSET_HASHしない。
+	// psqは、C++の規約上、事前にゼロであることは保証される。
 	for (auto pc : Piece())
 		for (auto sq : SQ)
-			SET_HASH(Zobrist::psq[sq][pc], rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>());
+			if (pc)
+				SET_HASH(Zobrist::psq[sq][pc], rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>());
 
+	// またpr==NO_PIECEのときは0であることを保証したいのでSET_HASHしない。
 	for (auto c : COLOR)
 		for (Piece pr = PIECE_ZERO; pr < PIECE_HAND_NB; ++pr)
-			SET_HASH(Zobrist::hand[c][pr], rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>());
+			if (pr)
+				SET_HASH(Zobrist::hand[c][pr], rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>());
 
 	for (int i = 0; i < MAX_PLY; ++i)
 		SET_HASH(Zobrist::depth[i], rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>());

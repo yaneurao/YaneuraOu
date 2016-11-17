@@ -7,9 +7,10 @@
 #YANEURAOU_EDITION = YANEURAOU_MINI_ENGINE
 #YANEURAOU_EDITION = YANEURAOU_CLASSIC_ENGINE
 #YANEURAOU_EDITION = YANEURAOU_CLASSIC_TCE_ENGINE
-YANEURAOU_EDITION = YANEURAOU_2016_MID_ENGINE
+#YANEURAOU_EDITION = YANEURAOU_2016_MID_ENGINE
 #YANEURAOU_EDITION = YANEURAOU_2016_MID_ENGINE_LEARN
 #YANEURAOU_EDITION = YANEURAOU_2016_LATE_ENGINE
+YANEURAOU_EDITION = YANEURAOU_2017_EARLY_ENGINE
 
 COMPILER = g++
 #COMPILER = mpicxx
@@ -58,6 +59,7 @@ SOURCES  = shogi.cpp                                                           \
 	eval/evaluate_kppt.cpp                                                     \
 	eval/evaluate_material.cpp                                                 \
 	eval/evaluate_no_eval.cpp                                                  \
+	engine/user-engine/user-search.cpp                                         \
 	engine/random-player-engine/random-player-search.cpp                       \
 	engine/help-mate-engine/help-mate-search.cpp                               \
 	engine/nano-engine/nano-search.cpp                                         \
@@ -66,8 +68,8 @@ SOURCES  = shogi.cpp                                                           \
 	engine/classic-engine/classic-search.cpp                                   \
 	engine/classic-tce-engine/classic-tce-search.cpp                           \
 	engine/2016-mid-engine/2016-mid-search.cpp                                 \
-	engine/user-engine/user-search.cpp                                         \
 	engine/2016-late-engine/2016-late-search.cpp				               \
+	engine/2017-early-engine/2017-early-search.cpp				               \
 	learn/learner.cpp				                                           \
 	learn/multi_think.cpp				                                       \
 	learn/evaluate_kppt_learn.cpp   
