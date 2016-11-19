@@ -46,6 +46,11 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 13;
 // [PARAM] min:100,max:300,step:2,interval:2,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 = 246;
 
+// staticEvalから減算するmargin
+// 元の値 = 200
+// [PARAM] min:0,max:300,step:25,interval:2,time_rate:1,fixed
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2 = 198;
+
 // depthが2乗されるので影響大きい
 // 元の値 = 35
 // [PARAM] min:20,max:50,step:1,interval:2,time_rate:1,fixed
@@ -53,12 +58,8 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 41;
 
 // depthが2乗されるので影響大きい
 // 元の値 = 35
-// [PARAM] min:20,max:60,step:1,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 = 35;
-
-// ↑のときのstaticEvalから減算するmargin
-// [PARAM] min:0,max:300,step:25,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2 = 200;
+// [PARAM] min:20,max:60,step:3,interval:2,time_rate:1,fixed
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 = 51;
 
 //
 // null move dynamic pruning

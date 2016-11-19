@@ -8,7 +8,10 @@
 
 // 開発方針
 // やねうら王2016(late)からの改造。
-// 探索のためのパラメーターの完全自動調整。
+// 特徴)
+//  1. 探索のためのパラメーターの完全自動調整。
+//  2. 進行度を用いたmargin
+
 
 // パラメーターを自動調整するのか
 // 自動調整が終われば、ファイルを固定してincludeしたほうが良い。
@@ -20,7 +23,9 @@
 
 // 試合が終わったときに勝敗と、そのときに用いたパラメーター一覧をファイルに出力する。
 // パラメーターのランダム化は行わない。
+// USE_RANDOM_PARAMETERSと同時にdefineしてはならない。
 //#define ENABLE_OUTPUT_GAME_RESULT
+
 
 // -----------------------
 //   includes
@@ -1639,7 +1644,13 @@ namespace YaneuraOu2017Early
 				// 浅い深さでの、危険な指し手を枝刈りする。
 				else if (!extension
 					&& !pos.see_ge(move , Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 * depth / ONE_PLY * depth / ONE_PLY)
-											+ (ss->staticEval != VALUE_NONE ? ss->staticEval - alpha - PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2 : VALUE_ZERO)))
+#if 0
+						// Stockfish 8相当
+						+ (ss->staticEval != VALUE_NONE ? ss->staticEval - alpha - PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2 : VALUE_ZERO)))
+#else
+						// PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2を少し大きめにして調整したほうがよさげ。
+					))
+#endif
 					continue;
 			}
 
@@ -2026,6 +2037,7 @@ void init_param()
 			"PARAM_QSEARCH_MATE1","PARAM_SEARCH_MATE1","PARAM_WEAK_MATE_PLY"
 
 		};
+
 #ifdef 		ENABLE_OUTPUT_GAME_RESULT
 		vector<const int*> param_vars = {
 #else

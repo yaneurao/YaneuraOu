@@ -2,6 +2,11 @@
 やねうら王 更新履歴
 
 
+■　2016/11/18 V4.13
+
+・2017(early)の探索パラメーターの調整
+
+
 ■　2016/11/17 V4.12
 
 ・2017-early-engineの作業開始。関連ファイル追加。
@@ -19,7 +24,6 @@
 	→　すでにこれに近いコードになっているので修正不要。
 ・Stockfish[pull req.] : Non-quiet pruning tweak
 ・PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2追加。
-
 
 
 ■　2016/11/15 V4.11
