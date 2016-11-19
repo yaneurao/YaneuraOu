@@ -71,6 +71,9 @@
     <Filter Include="リソース ファイル\engine\2017-early-engine">
       <UniqueIdentifier>{d3dd072e-59ab-4ec3-a846-36d845709d2c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\engine\check-shogi-engine">
+      <UniqueIdentifier>{11d51fe5-ad3a-4a26-a710-6db4f036a01a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -162,6 +165,9 @@
     </ClInclude>
     <ClInclude Include="engine\2017-early-engine\2017-early-param.h">
       <Filter>リソース ファイル\engine\2017-early-engine</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\check-shogi-engine\check-shogi-param.h">
+      <Filter>リソース ファイル\engine\check-shogi-engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -291,6 +297,9 @@
     <ClCompile Include="engine\2017-early-engine\2017-early-search.cpp">
       <Filter>リソース ファイル\engine\2017-early-engine</Filter>
     </ClCompile>
+    <ClCompile Include="engine\check-shogi-engine\check-shogi.cpp">
+      <Filter>リソース ファイル\engine\check-shogi-engine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">
@@ -352,6 +361,12 @@
     </Text>
     <Text Include="..\script\readme.txt">
       <Filter>script</Filter>
+    </Text>
+    <Text Include="..\exe\YaneuraOu-check-shogi_ja.txt">
+      <Filter>exe</Filter>
+    </Text>
+    <Text Include="..\exe\YaneuraOu-check-shogi-readme.txt">
+      <Filter>exe</Filter>
     </Text>
   </ItemGroup>
   <ItemGroup>
@@ -426,6 +441,9 @@
     </None>
     <None Include="..\script\analyze_yane_log.py">
       <Filter>script</Filter>
+    </None>
+    <None Include="..\exe\YaneuraOu-check-shogi.exe">
+      <Filter>exe</Filter>
     </None>
   </ItemGroup>
 </Project>

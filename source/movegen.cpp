@@ -913,60 +913,66 @@ ExtMove* generateChecksMoves(const Position& pos, ExtMove* mlist)
 
 // 一般的な指し手生成
 template<MOVE_GEN_TYPE GenType>
-ExtMove* generateMoves(const Position& pos, ExtMove* mlist,Square recapSq)
+ExtMove* generateMoves(const Position& pos, ExtMove* mlist, Square recapSq)
 {
-  // すべての指し手を生成するのか。
-  const bool All = (GenType == EVASIONS_ALL) || (GenType == CHECKS_ALL) || (GenType == LEGAL_ALL)
-    || (GenType == NON_EVASIONS_ALL) || (GenType == RECAPTURES_ALL) || (GenType == QUIET_CHECKS_ALL);
+#ifdef CHCECK_SHOGI_ENGINE
+	// 王手将棋エンジンにおいては王手がかかっている局面は詰みであるから指し手は存在しない。
+	if (pos.in_check())
+		return mlist; // no moves
+#endif
 
-  if (GenType == LEGAL || GenType == LEGAL_ALL)
-  {
-    // 合法性な指し手のみを生成する。
-    // 自殺手や打ち歩詰めが含まれているのでそれを取り除く。かなり重い。ゆえにLEGALは特殊な状況でしか使うべきではない。
-    auto last = pos.in_check() ? generateEvasionMoves<All>(pos,mlist) : generateMoves<NON_EVASIONS, All>(pos, mlist);
+	// すべての指し手を生成するのか。
+	const bool All = (GenType == EVASIONS_ALL) || (GenType == CHECKS_ALL) || (GenType == LEGAL_ALL)
+		|| (GenType == NON_EVASIONS_ALL) || (GenType == RECAPTURES_ALL) || (GenType == QUIET_CHECKS_ALL);
 
-    // 合法ではない指し手を末尾の指し手と入れ替え
-    while (mlist != last)
-    {
-      if (!pos.legal(*mlist))
-        mlist->move = (--last)->move;
-      else
-        ++mlist;
-    }
-    return last;
-  }
+	if (GenType == LEGAL || GenType == LEGAL_ALL)
+	{
+		// 合法性な指し手のみを生成する。
+		// 自殺手や打ち歩詰めが含まれているのでそれを取り除く。かなり重い。ゆえにLEGALは特殊な状況でしか使うべきではない。
+		auto last = pos.in_check() ? generateEvasionMoves<All>(pos, mlist) : generateMoves<NON_EVASIONS, All>(pos, mlist);
 
-  // 王手生成
-  if (GenType == CHECKS || GenType == CHECKS_ALL || GenType == QUIET_CHECKS || GenType == QUIET_CHECKS_ALL)
-  {
-    auto last = generateChecksMoves<GenType,All>(pos, mlist);
+		// 合法ではない指し手を末尾の指し手と入れ替え
+		while (mlist != last)
+		{
+			if (!pos.legal(*mlist))
+				mlist->move = (--last)->move;
+			else
+				++mlist;
+		}
+		return last;
+	}
 
-    // 王手がかかっている局面においては王手生成において、回避手になっていない指し手も含まれるので(王手放置での駒打ち等)
-    // pseudo_legal()でない指し手はここで除外する。これはレアケースなので少々の無駄は許容する。
-    if (pos.in_check())
-      while (mlist != last)
-      {
-        if (!pos.pseudo_legal(*mlist))
-          mlist->move = (--last)->move;
-        else
-          ++mlist;
-      }
-    return last;
-  }
+	// 王手生成
+	if (GenType == CHECKS || GenType == CHECKS_ALL || GenType == QUIET_CHECKS || GenType == QUIET_CHECKS_ALL)
+	{
+		auto last = generateChecksMoves<GenType, All>(pos, mlist);
 
-  // 回避手
-  if (GenType == EVASIONS || GenType == EVASIONS_ALL)
-    return generateEvasionMoves<All>(pos, mlist);
+		// 王手がかかっている局面においては王手生成において、回避手になっていない指し手も含まれるので(王手放置での駒打ち等)
+		// pseudo_legal()でない指し手はここで除外する。これはレアケースなので少々の無駄は許容する。
+		if (pos.in_check())
+			while (mlist != last)
+			{
+				if (!pos.pseudo_legal(*mlist))
+					mlist->move = (--last)->move;
+				else
+					++mlist;
+			}
+		return last;
+	}
 
-  // 上記のもの以外
-  // ただし、NON_EVASIONS_ALL , RECAPTURES_ALLは、ALLではないほうを呼び出す必要がある。
-  // EVASIONS_ALLは上で呼び出されているが、実際はここでも実体化されたあと、最適化によって削除されるので、ここでも書く必要がある。
-  const auto GenType2 =
-    GenType == NON_EVASIONS_ALL ? NON_EVASIONS :
-    GenType == RECAPTURES_ALL ? RECAPTURES :
-    GenType == EVASIONS_ALL ? EVASIONS :
-    GenType; // さもなくば元のまま。
-  return generateMoves<GenType2, All>(pos, mlist,recapSq);
+	// 回避手
+	if (GenType == EVASIONS || GenType == EVASIONS_ALL)
+		return generateEvasionMoves<All>(pos, mlist);
+
+	// 上記のもの以外
+	// ただし、NON_EVASIONS_ALL , RECAPTURES_ALLは、ALLではないほうを呼び出す必要がある。
+	// EVASIONS_ALLは上で呼び出されているが、実際はここでも実体化されたあと、最適化によって削除されるので、ここでも書く必要がある。
+	const auto GenType2 =
+		GenType == NON_EVASIONS_ALL ? NON_EVASIONS :
+		GenType == RECAPTURES_ALL ? RECAPTURES :
+		GenType == EVASIONS_ALL ? EVASIONS :
+		GenType; // さもなくば元のまま。
+	return generateMoves<GenType2, All>(pos, mlist, recapSq);
 }
 
 template<MOVE_GEN_TYPE GenType>

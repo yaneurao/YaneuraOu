@@ -2,6 +2,16 @@
 やねうら王 更新履歴
 
 
+■　2016/11/20 V4.14
+
+・王手将棋(CheckShogi)探索部追加。また、ビルドに追加。
+・makefileを王手将棋に対応。
+・PER_THREAD_COUNTERMOVEHISTORY追加。
+・PER_STACK_HISTORY追加。
+・thread.h、2tabになっていたの修正。
+・readme等を用意して、王手将棋関連をexe/に入れた。
+
+
 ■　2016/11/18 V4.13
 
 ・2017(early)の探索パラメーターの調整

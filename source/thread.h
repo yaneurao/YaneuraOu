@@ -20,197 +20,197 @@
 // ただしメインスレッドはこのclassを継承してMainThreadにして使う。
 struct Thread
 {
-  // slaveは、main threadから
-  // for(auto th : Threads.slavle) th->start_searching();のようにされると
-  // この関数が呼び出される。
-  // MainThread::search()はvirtualになっていてthink()が呼び出されるので、MainThread::think()から
-  // この関数を呼び出したいときは、Thread::search()とすること。
-  virtual void search();
+	// slaveは、main threadから
+	// for(auto th : Threads.slavle) th->start_searching();のようにされると
+	// この関数が呼び出される。
+	// MainThread::search()はvirtualになっていてthink()が呼び出されるので、MainThread::think()から
+	// この関数を呼び出したいときは、Thread::search()とすること。
+	virtual void search();
 
-  // スレッド起動後、この関数が呼び出される。
-  void idle_loop();
+	// スレッド起動後、この関数が呼び出される。
+	void idle_loop();
 
-  // ------------------------------
-  //      同期待ちのwait等
-  // ------------------------------
+	// ------------------------------
+	//      同期待ちのwait等
+	// ------------------------------
 
-  // MainThreadがslaveを起こして、Thread::search()を開始させるときに呼び出す。
-  // resume == falseなら(探索中断～再開時でないなら)searchingフラグをtrueにする。
-  // これはstopコマンドかponderhitコマンドを受信したときにスレッドが(すでに思考を終えて)
-  // 寝てるのを起こすときに使う。
-  void start_searching(bool resume = false)
-  {
-    std::unique_lock<Mutex> lk(mutex);
-    if (!resume)
-      searching = true;
-    sleepCondition.notify_one();
-  }
-  
-  // 探索が終わるのを待機する。(searchingフラグがfalseになるのを待つ)
-  void wait_for_search_finished()
-  {
-    std::unique_lock<Mutex> lk(mutex);
-    sleepCondition.wait(lk, [&] { return !searching; });
-  }
+	// MainThreadがslaveを起こして、Thread::search()を開始させるときに呼び出す。
+	// resume == falseなら(探索中断～再開時でないなら)searchingフラグをtrueにする。
+	// これはstopコマンドかponderhitコマンドを受信したときにスレッドが(すでに思考を終えて)
+	// 寝てるのを起こすときに使う。
+	void start_searching(bool resume = false)
+	{
+		std::unique_lock<Mutex> lk(mutex);
+		if (!resume)
+			searching = true;
+		sleepCondition.notify_one();
+	}
 
-  // bの状態がtrueになるのを待つ。
-  // 他のスレッドからは、この待機を解除するには、bをtrueにしてからnotify_one()を呼ぶこと。
-  void wait(std::atomic_bool& condition) {
-    std::unique_lock<Mutex> lk(mutex);
-    sleepCondition.wait(lk, [&] { return bool(condition); });
-  }
-  
-  // ------------------------------
-  //       プロパティ
-  // ------------------------------
+	// 探索が終わるのを待機する。(searchingフラグがfalseになるのを待つ)
+	void wait_for_search_finished()
+	{
+		std::unique_lock<Mutex> lk(mutex);
+		sleepCondition.wait(lk, [&] { return !searching; });
+	}
 
-  // スレッドidが返る。
-  // MainThreadなら0、slaveなら1,2,3,...
-  size_t thread_id() const { return idx; }
+	// bの状態がtrueになるのを待つ。
+	// 他のスレッドからは、この待機を解除するには、bをtrueにしてからnotify_one()を呼ぶこと。
+	void wait(std::atomic_bool& condition) {
+		std::unique_lock<Mutex> lk(mutex);
+		sleepCondition.wait(lk, [&] { return bool(condition); });
+	}
 
-  // main threadであるならtrueを返す。
-  bool is_main() const { return idx == 0; }
+	// ------------------------------
+	//       プロパティ
+	// ------------------------------
 
-  // ------------------------------
-  //       探索に必要なもの
-  // ------------------------------
+	// スレッドidが返る。
+	// MainThreadなら0、slaveなら1,2,3,...
+	size_t thread_id() const { return idx; }
 
-  // 探索開始局面
-  Position rootPos;
+	// main threadであるならtrueを返す。
+	bool is_main() const { return idx == 0; }
 
-  // 探索開始局面で思考対象とする指し手の集合。
-  // goコマンドで渡されていなければ、全合法手(ただし歩の不成などは除く)とする。
-  std::vector<Search::RootMove> rootMoves;
+	// ------------------------------
+	//       探索に必要なもの
+	// ------------------------------
 
-  // このスレッドでMultiPVを用いているとして、rootMovesの(0から数えて)何番目のPVの指し手を探索中であるか
-  // MultiPVでないときはこの変数の値は0。
-  size_t PVIdx;
+	// 探索開始局面
+	Position rootPos;
 
-  // rootから最大、何手目まで探索したか(選択深さの最大)
-  int maxPly;
+	// 探索開始局面で思考対象とする指し手の集合。
+	// goコマンドで渡されていなければ、全合法手(ただし歩の不成などは除く)とする。
+	std::vector<Search::RootMove> rootMoves;
 
-  // 反復深化の深さ(Depth型ではないので注意)
-  int rootDepth;
+	// このスレッドでMultiPVを用いているとして、rootMovesの(0から数えて)何番目のPVの指し手を探索中であるか
+	// MultiPVでないときはこの変数の値は0。
+	size_t PVIdx;
 
-  // このスレッドに関して、終了した反復深化の深さ(Depth型ではないので注意)
-  int completedDepth;
+	// rootから最大、何手目まで探索したか(選択深さの最大)
+	int maxPly;
 
-  // 探索でsearch()が呼び出された回数を集計する用。
-  std::atomic_bool resetCalls;
-  int callsCnt;
+	// 反復深化の深さ(Depth型ではないので注意)
+	int rootDepth;
+
+	// このスレッドに関して、終了した反復深化の深さ(Depth型ではないので注意)
+	int completedDepth;
+
+	// 探索でsearch()が呼び出された回数を集計する用。
+	std::atomic_bool resetCalls;
+	int callsCnt;
 
 #if defined( USE_MOVE_PICKER_2015 ) || defined( USE_MOVE_PICKER_2016Q2 ) || defined( USE_MOVE_PICKER_2016Q3 )
-  // ある種のMovePickerではオーダリングのために、
-  // スレッドごとにhistoryとcounter movesのtableを持たないといけない。
+	// ある種のMovePickerではオーダリングのために、
+	// スレッドごとにhistoryとcounter movesのtableを持たないといけない。
 
-  HistoryStats history;
-  MoveStats counterMoves;
+	HistoryStats history;
+	MoveStats counterMoves;
 #endif
 
 #if defined( USE_MOVE_PICKER_2016Q2 ) || defined( USE_MOVE_PICKER_2016Q3 )
-  FromToStats fromTo;
+	FromToStats fromTo;
 #endif
 
-#if defined( YANEURAOU_2016_LATE_ENGINE ) || defined ( YANEURAOU_2017_EARLY_ENGINE )
-  // コア数が多いか、長い持ち時間においては、スレッドごとにCounterMoveHistoryを確保したほうが良い。
-  // cf. https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
-  CounterMoveHistoryStats counterMoveHistory;
+#if defined( PER_THREAD_COUNTERMOVEHISTORY )
+	// コア数が多いか、長い持ち時間においては、スレッドごとにCounterMoveHistoryを確保したほうが良い。
+	// cf. https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
+	CounterMoveHistoryStats counterMoveHistory;
 #endif
 
-  // ------------------------------
-  //       constructor ..
-  // ------------------------------
+	// ------------------------------
+	//       constructor ..
+	// ------------------------------
 
-  Thread();
-  void terminate();
+	Thread();
+	void terminate();
 
 protected:
 
-  Mutex mutex;
-  
-  // idle_loop()で待機しているときに待つ対象
-  ConditionVariable sleepCondition;
+	Mutex mutex;
 
-  // exitフラグが立ったら終了する。
-  bool exit;
+	// idle_loop()で待機しているときに待つ対象
+	ConditionVariable sleepCondition;
 
-  // 探索中であるかを表すフラグ
-  bool searching;
+	// exitフラグが立ったら終了する。
+	bool exit;
 
-  // thread id
-  size_t idx;
+	// 探索中であるかを表すフラグ
+	bool searching;
 
-  // wrapしているstd::thread
-  std::thread nativeThread;
+	// thread id
+	size_t idx;
+
+	// wrapしているstd::thread
+	std::thread nativeThread;
 };
   
 
 // 探索時のmainスレッド(これがmasterであり、これ以外はslaveとみなす)
-struct MainThread : public Thread
+struct MainThread: public Thread
 {
-  // この関数はvirtualになっていてthink()が呼び出される。
-  // MainThread::think()から呼び出すべきは、Thread::search()
-  virtual void search() { think(); }
+	// この関数はvirtualになっていてthink()が呼び出される。
+	// MainThread::think()から呼び出すべきは、Thread::search()
+	virtual void search() { think(); }
 
-  // 思考を開始する。engine/*/*_search.cpp等で定義されているthink()が呼び出される。
-  void think();
+	// 思考を開始する。engine/*/*_search.cpp等で定義されているthink()が呼び出される。
+	void think();
 
-  // 前回の探索時のスコア。
-  // 次回の探索のときに何らか使えるかも。
-  Value previousScore;
+	// 前回の探索時のスコア。
+	// 次回の探索のときに何らか使えるかも。
+	Value previousScore;
 
-  bool easyMovePlayed;
+	bool easyMovePlayed;
 
-  // root nodeでfail lowが起きているのか
-  bool failedLow;
+	// root nodeでfail lowが起きているのか
+	bool failedLow;
 
-  // 反復深化においてbestMoveが変わった回数。nodeの安定性の指標として使う。
-  double bestMoveChanges;
+	// 反復深化においてbestMoveが変わった回数。nodeの安定性の指標として使う。
+	double bestMoveChanges;
 
 };
 
 struct Slaves
 {
-  std::vector<Thread*>::iterator begin() const;
-  std::vector<Thread*>::iterator end() const;
+	std::vector<Thread*>::iterator begin() const;
+	std::vector<Thread*>::iterator end() const;
 };
 
 // 思考で用いるスレッドの集合体
 // 継承はあまり使いたくないが、for(auto* th:Threads) ... のようにして回せて便利なのでこうしておく。
-struct ThreadPool : public std::vector<Thread*>
+struct ThreadPool: public std::vector<Thread*>
 {
-  // 起動時に呼び出される。Main
-  void init();
+	// 起動時に呼び出される。Main
+	void init();
 
-  // 終了時に呼び出される
-  void exit();
+	// 終了時に呼び出される
+	void exit();
 
-  // mainスレッドを取得する。これはthis[0]がそう。
-  MainThread* main() { return static_cast<MainThread*>(at(0)); }
+	// mainスレッドを取得する。これはthis[0]がそう。
+	MainThread* main() { return static_cast<MainThread*>(at(0)); }
 
-  // mainスレッドに思考を開始させる。
-  void start_thinking(const Position& pos, const Search::LimitsType& limits, Search::StateStackPtr& states);
+	// mainスレッドに思考を開始させる。
+	void start_thinking(const Position& pos, const Search::LimitsType& limits, Search::StateStackPtr& states);
 
-  // 今回、goコマンド以降に探索したノード数
-  uint64_t nodes_searched() { uint64_t nodes = 0; for (auto*th : *this) nodes += th->rootPos.nodes_searched(); return nodes; }
+	// 今回、goコマンド以降に探索したノード数
+	uint64_t nodes_searched() { uint64_t nodes = 0; for (auto*th : *this) nodes += th->rootPos.nodes_searched(); return nodes; }
 
-  // main()以外のスレッド
-  Slaves slaves;
+	// main()以外のスレッド
+	Slaves slaves;
 
-  // USIプロトコルで指定されているスレッド数を反映させる。
-  void read_usi_options();
+	// USIプロトコルで指定されているスレッド数を反映させる。
+	void read_usi_options();
 
-  // 探索開始前のslaveの初期化
-  // 探索部を単体でどこかから呼び出したいときに用いる。
-  /*
-  例)
-    Search::clear();                                      // isreadyが呼び出されたものとする。
-    Time.init();                                          // 思考開始時刻の初期化
-    Threads.init_for_slave(pos, lm);                      // 局面をslaveにもコピーする
-    Threads.start_thinking(pos, lm, Search::SetupStates); // 思考させる
-    Threads.main()->wait_for_search_finished();           // 思考の終了を待つ
-  */
-  void init_for_slave(const Position& pos, const Search::LimitsType& limits);
+	// 探索開始前のslaveの初期化
+	// 探索部を単体でどこかから呼び出したいときに用いる。
+	/*
+	例)
+	  Search::clear();                                      // isreadyが呼び出されたものとする。
+	  Time.init();                                          // 思考開始時刻の初期化
+	  Threads.init_for_slave(pos, lm);                      // 局面をslaveにもコピーする
+	  Threads.start_thinking(pos, lm, Search::SetupStates); // 思考させる
+	  Threads.main()->wait_for_search_finished();           // 思考の終了を待つ
+	*/
+	void init_for_slave(const Position& pos, const Search::LimitsType& limits);
 };
 
 // ThreadPoolのglobalな実体

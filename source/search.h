@@ -148,7 +148,7 @@ namespace Search {
     Move excludedMove;       // singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手
     Move killers[2];         // killer move
     Value staticEval;        // 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
-#if defined (YANEURAOU_2016_LATE_ENGINE) || defined (YANEURAOU_2017_EARLY_ENGINE)
+#if defined (PER_STACK_HISTORY)
 	Value history;			// 一度計算したhistoryの合計値をcacheしておくのに用いる。
 #endif
 	bool skipEarlyPruning;   // 指し手生成前に行なう枝刈りを省略するか。(NULL MOVEの直後など)
