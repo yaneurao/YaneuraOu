@@ -43,9 +43,9 @@ extern void is_ready();
 
 namespace Learner
 {
-// いまのところ、やねうら王2016Mid/Late,2017Earlyしか、このスタブを持っていない。
-extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta);
-extern pair<Value, vector<Move> >  search(Position& pos, Value alpha, Value beta, int depth);
+// いまのところ、やねうら王2017Early/王手将棋しか、このスタブを持っていない。
+extern pair<Value, vector<Move> > qsearch(Position& pos);
+extern pair<Value, vector<Move> >  search(Position& pos, int depth);
 
 // -----------------------------------
 //    局面のファイルへの書き出し
@@ -362,7 +362,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				int depth = search_depth + (int)rand(search_depth2 - search_depth + 1);
 
-				auto pv_value1 = search(pos, (Value)-eval_limit, (Value)eval_limit, depth );
+				auto pv_value1 = Learner::search(pos, depth);
 
 				auto value1 = pv_value1.first;
 				auto pv1 = pv_value1.second;
@@ -389,7 +389,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 #if 0
 				// 0手読み(静止探索のみ)の評価値とPV(最善応手列)
-				auto pv_value2 = qsearch(pos, -VALUE_INFINITE, VALUE_INFINITE);
+				auto pv_value2 = qsearch(pos);
 				auto value2 = pv_value2.first;
 				auto pv2 = pv_value2.second;
 #endif
@@ -481,7 +481,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// depth 0の場合、pvが得られていないのでdepth 2で探索しなおす。
 				if (search_depth <= 0)
 				{
-					pv_value1 = search(pos, (Value)-eval_limit, (Value)eval_limit, 2);
+					pv_value1 = Learner::search(pos, 2);
 					pv1 = pv_value1.second;
 				}
 
@@ -592,6 +592,11 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				}
 
 			SKIP_WRITE:;
+
+				// 何故かPVが得られなかった(置換表などにhitして詰んでいた？)ので次に行く。
+				if (pv1.size() == 0)
+					break;
+				
 				// search_depth手読みの指し手で局面を進める。
 				m = pv1[0];
 			}
@@ -970,7 +975,7 @@ struct SfenReader
 #ifdef USE_EVALUATE_FOR_SHALLOW_VALUE
 			const int depth = -1; // evaluate()相当
 #endif
-			auto r = Learner::search(pos,-VALUE_INFINITE,VALUE_INFINITE,depth);
+			auto r = Learner::search(pos,depth);
 			auto shallow_value = r.first;
 
 			// これPVに行ってleaf nodeで、w(floatで計算されている)に基いて
@@ -1321,7 +1326,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 		// 浅い探索(qsearch)の評価値
 #ifdef USE_QSEARCH_FOR_SHALLOW_VALUE
-		auto r = Learner::qsearch(pos, -VALUE_INFINITE, VALUE_INFINITE);
+		auto r = Learner::qsearch(pos);
 		// 置換表を無効化しているのでPV leafでevaluate()を呼び出したときの値と同じはず..
 		// (詰みのスコアでないなら)
 		auto shallow_value = r.first;

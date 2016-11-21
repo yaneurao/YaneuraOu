@@ -2430,7 +2430,6 @@ void Thread::search()
 
 			while (true)
 			{
-				// Stockfish、ここrootDepthにONE_PLY掛けてない。Stockfishのbug。
 				bestValue = YaneuraOu2017Early::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false);
 
 				// それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
@@ -2990,7 +2989,10 @@ namespace Learner
 	
 	// 静止探索。
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
-	pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta)
+	// 引数でalpha,betaを指定できるようにしていたが、これがその窓で探索したときの結果を
+	// 置換表に書き込むので、その窓に対して枝刈りが出来るような値が書き込まれて学習のときに
+	// 悪い影響があるので、窓の範囲を指定できるようにするのをやめることにした。
+	pair<Value, vector<Move> > qsearch(Position& pos)
 	{
 		Stack stack[MAX_PLY + 7], *ss = stack + 4;
 		memset(ss - 4, 0, 7 * sizeof(Stack));
@@ -3003,8 +3005,8 @@ namespace Learner
 		// 現局面で王手がかかっているかで場合分け。
 		const bool inCheck = pos.in_check();
 		auto bestValue = inCheck ?
-			YaneuraOu2017Early::qsearch<PV, true >(pos, ss, alpha, beta, DEPTH_ZERO) :
-			YaneuraOu2017Early::qsearch<PV, false>(pos, ss, alpha, beta, DEPTH_ZERO);
+			YaneuraOu2017Early::qsearch<PV, true >(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, DEPTH_ZERO) :
+			YaneuraOu2017Early::qsearch<PV, false>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, DEPTH_ZERO);
 
 		// 得られたPVを返す。
 		vector<Move> pvs;
@@ -3014,21 +3016,21 @@ namespace Learner
 		return pair<Value, vector<Move> >(bestValue, pvs);
 	}
 
-	// 通常探索。深さdepth(整数で指定)。aspiration searchはしない。
+	// 通常探索。深さdepth(整数で指定)。
 	// 3手読み時のスコアが欲しいなら、
-	//   auto v = search(pos,-VALUE_INFINITE,+VALUE_INFINITE,3);
+	//   auto v = search(pos,3);
 	// のようにすべし。
 	// v.firstに評価値、v.secondにPVが得られる。
 	// MultiPVが有効のときは、pos.this_thread()->rootMoves[N].pvにそのPV(読み筋)の配列が得られる。
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
 
-	pair<Value, vector<Move> > search(Position& pos, Value alpha, Value beta, int depth)
+	pair<Value, vector<Move> > search(Position& pos, int depth)
 	{
 		if (depth < DEPTH_ZERO)
-			return pair<Value,vector<Move>>(Eval::evaluate(pos),vector<Move>());
+			return pair<Value, vector<Move>>(Eval::evaluate(pos), vector<Move>());
 
 		if (depth == DEPTH_ZERO)
-			return qsearch(pos, alpha, beta);
+			return qsearch(pos);
 
 		Stack stack[MAX_PLY + 7], *ss = stack + 4;
 		memset(ss - 4, 0, 7 * sizeof(Stack));
@@ -3048,21 +3050,58 @@ namespace Learner
 		// この局面での指し手の数を上回ってはいけない
 		multiPV = std::min(multiPV, rootMoves.size());
 
+		Value alpha = -VALUE_INFINITE;
+		Value beta = VALUE_INFINITE;
+		Value delta = -VALUE_INFINITE;
+		Value bestValue = -VALUE_INFINITE;
+
 		while (++rootDepth <= depth)
 		{
-			// MultiPVのためにこの局面の候補手をN個選出する。
-			// fail low,fail highが起きても無視して回る。
+			for (RootMove& rm : rootMoves)
+				rm.previousScore = rm.score;
+
+			// MultiPV
 			for (PVIdx = 0; PVIdx < multiPV && !Signals.stop; ++PVIdx)
 			{
-				// ここaspiration searchにしても良いが、alpha,betaを指定されているのでやりにくい。
+				// depth 5以上においてはaspiration searchに切り替える。
+				if (rootDepth >= 5)
 				{
-					YaneuraOu2017Early::search<PV>(pos, ss, alpha, beta, rootDepth * ONE_PLY, false);
-					std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
+					delta = Value(18);
+
+					Value p = rootMoves[PVIdx].previousScore;
+
+					alpha = std::max(p - delta, -VALUE_INFINITE);
+					beta = std::min(p + delta, VALUE_INFINITE);
 				}
 
-				std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
+				// aspiration search
+				while (true)
+				{
+					bestValue = YaneuraOu2017Early::search<PV>(pos, ss, alpha, beta, rootDepth * ONE_PLY, false);
+					std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
+
+					// fail low/highに対してaspiration windowを広げる。
+					// ただし、引数で指定されていた値になっていたら、もうfail low/high扱いとしてbreakする。
+					if (bestValue <= alpha )
+					{
+						beta = (alpha + beta) / 2;
+						alpha = std::max(bestValue - delta, -VALUE_INFINITE);
+					} else if (bestValue >= beta)
+					{
+						alpha = (alpha + beta) / 2;
+						beta = std::min(bestValue + delta, VALUE_INFINITE);
+					} else {
+						break;
+					}
+					delta += delta / 4 + 5;
+					ASSERT_LV3(-VALUE_INFINITE <= alpha && beta <= VALUE_INFINITE);
+				}
+
+				std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
 
 			} // multi PV
+
+			std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
 		}
 
 		// このPV、途中でNULL_MOVEの可能性があるかも知れないので排除するためにis_ok()を通す。
@@ -3078,7 +3117,7 @@ namespace Learner
 		// PVが正しい保証はない。
 
 		// multiPV時を考慮して、rootMoves[0]のscoreをbestValueとして返す。
-		auto bestValue = rootMoves[0].score;
+		bestValue = rootMoves[0].score;
 
 		return pair<Value, vector<Move> >(bestValue, pvs);
 	}

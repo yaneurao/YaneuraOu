@@ -2,6 +2,18 @@
 やねうら王 更新履歴
 
 
+■　2016/11/21 V4.15
+
+・Learner::search()、aspiration型に戻す。綺麗に実装しなおす。
+・定跡を読み込んでいないとき、MemoryBook:find()はなる早でリターンするように変更。
+・王手将棋用の評価関数V1を用意した。
+・書き直したLearner::search()のaspiration searchがバグっていたので修正した。
+・Learner::search()でalpha,beta指定できるの良くないので変更する。
+・Learner::qsearch()も同様に修正。
+・やねうら王2016Mid/LateからLearnerのスタブ削除。(お役御免)
+・EVAL_LEARNなしでTEST_CMD有効にしたときにコンパイルが通らなかったの修正。
+
+
 ■　2016/11/20 V4.14
 
 ・王手将棋(CheckShogi)探索部追加。また、ビルドに追加。

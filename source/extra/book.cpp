@@ -699,6 +699,10 @@ namespace Book
 
 	MemoryBook::BookType::iterator MemoryBook::find(const Position& pos)
 	{
+		// 定跡がないならこのまま返る。(sfen()を呼び出すコストの節約)
+		if (!on_the_fly && book_body.size() == 0)
+			return book_body.end();
+
 		auto sfen = pos.sfen();
 		BookType::iterator it;
 

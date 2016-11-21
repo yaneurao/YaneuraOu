@@ -15,88 +15,76 @@ namespace Learner
   extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta);
 }
 
-// 通常探索をして、その結果を返す。
-pair<Value, vector<Move> >  MultiThink::search(Position& pos, Value alpha, Value beta, int depth)
-{
-  return Learner::search(pos, alpha, beta, depth);
-}
-
-// 静止探索をして、その結果を返す。
-pair<Value, vector<Move> > MultiThink::qsearch(Position& pos, Value alpha, Value beta)
-{
-  return Learner::qsearch(pos, alpha, beta);
-}
-
 void MultiThink::go_think()
 {
-  // 評価関数の読み込み等
-  is_ready();
-  
-  // ループ上限はset_loop_max()で設定されているものとする。
-  loop_count = 0;
+	// 評価関数の読み込み等
+	is_ready();
 
-  // threadをOptions["Threads"]の数だけ生成して思考開始。
-  vector<std::thread> threads;
-  auto thread_num = (size_t)Options["Threads"];
+	// ループ上限はset_loop_max()で設定されているものとする。
+	loop_count = 0;
 
-  // worker threadの終了フラグの確保
-  thread_finished.reset(new volatile bool[thread_num]);
+	// threadをOptions["Threads"]の数だけ生成して思考開始。
+	vector<std::thread> threads;
+	auto thread_num = (size_t)Options["Threads"];
 
-  // worker threadの起動
-  for (size_t i = 0; i < thread_num; ++i)
-  {
-    thread_finished.get()[i] = false;
-    threads.push_back(std::thread([i, this] { this->thread_worker(i); this->thread_finished.get()[i] = true; }));
-  }
+	// worker threadの終了フラグの確保
+	thread_finished.reset(new volatile bool[thread_num]);
 
-  // すべてのthreadの終了待ちを
-  // for (auto& th : threads)
-  //  th.join();
-  // のように書くとスレッドがまだ仕事をしている状態でここに突入するので、
-  // その間、callback_func()が呼び出せず、セーブできなくなる。
-  // そこで終了フラグを自前でチェックする必要がある。
+	// worker threadの起動
+	for (size_t i = 0; i < thread_num; ++i)
+	{
+		thread_finished.get()[i] = false;
+		threads.push_back(std::thread([i, this] { this->thread_worker(i); this->thread_finished.get()[i] = true; }));
+	}
 
-  while (true)
-  {
-    // 5秒ごとにスレッドの終了をチェックする。
-    const int check_interval = 5;
+	// すべてのthreadの終了待ちを
+	// for (auto& th : threads)
+	//  th.join();
+	// のように書くとスレッドがまだ仕事をしている状態でここに突入するので、
+	// その間、callback_func()が呼び出せず、セーブできなくなる。
+	// そこで終了フラグを自前でチェックする必要がある。
 
-    for (int i = 0; i < callback_seconds/check_interval; ++i)
-    {
-      this_thread::sleep_for(chrono::seconds(check_interval));
+	while (true)
+	{
+		// 5秒ごとにスレッドの終了をチェックする。
+		const int check_interval = 5;
 
-      // すべてのスレッドが終了したか
-      for (size_t i = 0; i < thread_num; ++i)
-        if (!thread_finished.get()[i])
-          goto NEXT;
+		for (int i = 0; i < callback_seconds / check_interval; ++i)
+		{
+			this_thread::sleep_for(chrono::seconds(check_interval));
 
-      // すべてのthread_finished[i]に渡って、trueなのですべてのthreadが終了している。
-      goto FINISH;
+			// すべてのスレッドが終了したか
+			for (size_t i = 0; i < thread_num; ++i)
+				if (!thread_finished.get()[i])
+					goto NEXT;
 
-    NEXT:;
-    }
+			// すべてのthread_finished[i]に渡って、trueなのですべてのthreadが終了している。
+			goto FINISH;
 
-    // callback_secondsごとにcallback_func()が呼び出される。
-    if (callback_func)
-      callback_func();
-  }
+		NEXT:;
+		}
+
+		// callback_secondsごとにcallback_func()が呼び出される。
+		if (callback_func)
+			callback_func();
+	}
 FINISH:;
-  
 
-  // 最後の保存。
-  if (callback_func)
-  {
-	  cout << endl << "finalize..";
-	  callback_func();
-  }
 
-  // 終了したフラグは立っているがスレッドの終了コードの実行中であるということはありうるので
-  // join()でその終了を待つ必要がある。
-  for (size_t i = 0; i < thread_num; ++i)
-	  threads[i].join();
+	// 最後の保存。
+	if (callback_func)
+	{
+		cout << endl << "finalize..";
+		callback_func();
+	}
 
-  cout << "..all works..done!!" << endl;
+	// 終了したフラグは立っているがスレッドの終了コードの実行中であるということはありうるので
+	// join()でその終了を待つ必要がある。
+	for (size_t i = 0; i < thread_num; ++i)
+		threads[i].join();
+
+	cout << "..all works..done!!" << endl;
 }
 
 
-#endif // defined(EVAL_LEARN) && defined(YANEURAOU_2016_MID_ENGINE)
+#endif // defined(EVAL_LEARN)

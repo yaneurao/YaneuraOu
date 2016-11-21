@@ -1347,11 +1347,11 @@ void eval_merge(istringstream& is)
 }
 #endif
 
+#ifdef EVAL_LEARN
 namespace Learner
 {
-	// いまのところ、やねうら王2016Mid/Lateしか、このスタブを持っていない。
-	extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta);
-	extern pair<Value, vector<Move> >  search(Position& pos, Value alpha, Value beta, int depth);
+	extern pair<Value, vector<Move> > qsearch(Position& pos);
+	extern pair<Value, vector<Move> >  search(Position& pos, int depth);
 }
 
 void dump_sfen(Position& pos, istringstream& is)
@@ -1450,6 +1450,7 @@ void dump_sfen(Position& pos, istringstream& is)
 
 	cout << "sfen_dump , finished." << endl;
 }
+#endif
 
 void test_cmd(Position& pos, istringstream& is)
 {
@@ -1468,7 +1469,9 @@ void test_cmd(Position& pos, istringstream& is)
 	else if (param == "timeman") test_timeman();                     // TimeManagerのテスト
 	else if (param == "exambook") exam_book(pos);                    // 定跡の精査用コマンド
 	else if (param == "bookcheck") book_check_cmd(pos,is);           // 定跡のチェックコマンド
+#ifdef EVAL_LEARN
 	else if (param == "dumpsfen") dump_sfen(pos, is);                // gensfenコマンドで生成した教師局面のダンプ
+#endif
 #ifdef EVAL_KPPT
 	else if (param == "evalmerge") eval_merge(is);                   // 評価関数の合成コマンド
 #endif
