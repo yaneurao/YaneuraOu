@@ -2,11 +2,14 @@
 やねうら王 更新履歴
 
 
+■　2016/11/22 V4.16
+
+
 ■　2016/11/21 V4.15
 
 ・Learner::search()、aspiration型に戻す。綺麗に実装しなおす。
 ・定跡を読み込んでいないとき、MemoryBook:find()はなる早でリターンするように変更。
-・王手将棋用の評価関数V1を用意した。
+・王手将棋用の評価関数V1を用意した。README.md更新。
 ・書き直したLearner::search()のaspiration searchがバグっていたので修正した。
 ・Learner::search()でalpha,beta指定できるの良くないので変更する。
 ・Learner::qsearch()も同様に修正。

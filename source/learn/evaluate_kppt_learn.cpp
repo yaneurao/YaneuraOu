@@ -577,7 +577,8 @@ namespace Eval
 			return;
 		}
 
-		// mini-batch size = 1Mに対して0.2f～0.4fぐらいが適切
+		// mini-batch size = 1Mに対して0.2f～0.4fぐらいが適切。
+		// mini-batch size = 100kに対しては0.5f～1.0fぐらいが適切。
 //		Weight::eta = 0.4f;
 
 		// epoch < 10までupdateをskipするなら少し大きめに出来る。

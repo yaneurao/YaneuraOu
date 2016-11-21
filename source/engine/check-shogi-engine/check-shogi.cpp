@@ -1067,7 +1067,7 @@ namespace CheckShogi
 		const bool inCheck = pos.checkers();
 
 		// 王手がかかっているなら詰みであるから、王手将棋においてはこれで詰まされている。
-		// search()のほうで王手になるならqsearch()を呼ばないのだが、RootNodeでだけは
+		// search()のほうで王手になるならqsearch()を呼ばないのだが、RootNodeからは
 		// 呼び出されるのでこの処理が必要になる。
 		if (inCheck)
 			return mated_in(ss->ply);
