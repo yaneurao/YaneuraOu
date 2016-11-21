@@ -327,7 +327,7 @@
 
 // デバッグ絡み
 #define ASSERT_LV 3
-//#define USE_DEBUG_ASSERT
+#define USE_DEBUG_ASSERT
 
 #define ENABLE_TEST_CMD
 // 学習絡みのオプション

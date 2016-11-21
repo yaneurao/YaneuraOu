@@ -444,10 +444,6 @@ namespace CheckShogi
 		// depthがONE_PLYの倍数である。
 		ASSERT_LV3(depth / ONE_PLY * ONE_PLY == depth);
 
-		// 王手将棋では王手がかかっているなら詰みであるから、呼び出されていれば詰みのスコアを返す。
-		if (InCheck)
-			return mated_in(ss->ply);
-
 		// PV求める用のbuffer
 		// (これnonPVでは不要なので、nonPVでは参照していないの削除される。)
 		Move pv[MAX_PLY + 1];
@@ -473,6 +469,14 @@ namespace CheckShogi
 		//     nodeの初期化
 		// -----------------------
 
+		// rootからの手数
+		ss->ply = (ss - 1)->ply + 1;
+
+		// 王手将棋では王手がかかっているなら詰みであるから、呼び出されていれば詰みのスコアを返す。
+		// ss->plyを初期化してからしか、ss->plyを返せないので注意。
+		if (InCheck)
+			return mated_in(ss->ply);
+
 		if (PvNode)
 		{
 			// PV nodeではalpha値を上回る指し手が存在した場合は(そこそこ指し手を調べたので)置換表にはBOUND_EXACTで保存したいから、
@@ -487,9 +491,6 @@ namespace CheckShogi
 		}
 
 		ss->currentMove = bestMove = MOVE_NONE;
-
-		// rootからの手数
-		ss->ply = (ss - 1)->ply + 1;
 
 		// -----------------------
 		//    最大手数へ到達したか？
