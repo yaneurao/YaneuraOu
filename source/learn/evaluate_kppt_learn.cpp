@@ -75,7 +75,10 @@ namespace Eval
 		ASSERT_LV3(kpp[k1][p1][p2] == kpp[mk1][mp2][mp1] || file_of(k1) == FILE_5);
 #endif
 
-		ASSERT_LV3(kpp[k1][p1][p2] == kpp[k1][p2][p1]);
+		// このassert書いておきたいが、many core(e.g.HT40)だと
+		// 別のスレッドから同時に２つに異なる値を書き込むことがあるのでassertで落ちてしまう。
+//		ASSERT_LV3(kpp[k1][p1][p2] == kpp[k1][p2][p1]);
+
 		kpp[k1][p1][p2]
 			= kpp[k1][p2][p1]
 
