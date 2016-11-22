@@ -2,7 +2,7 @@
 #define _SHOGI_H_
 
 //
-//  やねうら王mini
+//  やねうら王プロジェクト
 //  公式サイト :  http://yaneuraou.yaneu.com/yaneuraou_mini/
 //
 
