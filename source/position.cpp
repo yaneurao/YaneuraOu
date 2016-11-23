@@ -131,7 +131,7 @@ void Position::clear()
 
 // Pieceを綺麗に出力する(USI形式ではない) 先手の駒は大文字、後手の駒は小文字、成り駒は先頭に+がつく。盤面表示に使う。
 #ifndef PRETTY_JP
-std::string pretty(Piece pc) { return std::string(". P L N S B R G K +P+L+N+S+B+R+G+.p l n s b r g k +p+l+n+s+b+r+g+k").substr(pc * 2, 2); }
+std::string pretty(Piece pc) { return std::string(USI_PIECE).substr(pc * 2, 2); }
 #else
 std::string pretty(Piece pc) { return std::string(" □ 歩 香 桂 銀 角 飛 金 玉 と 杏 圭 全 馬 龍 菌 王^歩^香^桂^銀^角^飛^金^玉^と^杏^圭^全^馬^龍^菌^王").substr(pc * 3, 3); }
 #endif

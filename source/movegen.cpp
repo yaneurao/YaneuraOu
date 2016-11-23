@@ -915,7 +915,7 @@ ExtMove* generateChecksMoves(const Position& pos, ExtMove* mlist)
 template<MOVE_GEN_TYPE GenType>
 ExtMove* generateMoves(const Position& pos, ExtMove* mlist, Square recapSq)
 {
-#ifdef CHCECK_SHOGI_ENGINE
+#ifdef CHECK_SHOGI_ENGINE
 	// 王手将棋エンジンにおいては王手がかかっている局面は詰みであるから指し手は存在しない。
 	if (pos.in_check())
 		return mlist; // no moves

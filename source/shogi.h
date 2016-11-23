@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "4.17"
+#define ENGINE_VERSION "4.19"
 
 // --------------------
 // コンパイル時の設定
@@ -34,7 +34,7 @@
 //#define YANEURAOU_2016_MID_ENGINE        // やねうら王2016(MID)   (完成2016/08/18)
 //#define YANEURAOU_2016_LATE_ENGINE       // やねうら王2016(LATE)  (完成2016/10/07)
 //#define YANEURAOU_2017_EARLY_ENGINE      // やねうら王2017(EARLY) (開発中)
-#define CHCECK_SHOGI_ENGINE	           // やねうら王 王手将棋   (開発中)
+#define CHECK_SHOGI_ENGINE	           // やねうら王 王手将棋   (開発中)
 //#define RANDOM_PLAYER_ENGINE             // ランダムプレイヤー
 //#define MATE_ENGINE                      // 詰め将棋solverとしてリリースする場合。(開発中)
 //#define HELP_MATE_ENGINE                 // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
@@ -418,6 +418,9 @@ inline Value mated_in(int ply) {  return (Value)(-VALUE_MATE + ply);}
 //        駒
 // --------------------
 
+// USIプロトコルでやりとりするときの駒の表現
+static const char* USI_PIECE = ". P L N S B R G K +P+L+N+S+B+R+G+.p l n s b r g k +p+l+n+s+b+r+g+k";
+
 enum Piece : int32_t
 {
   // 金の順番を飛の後ろにしておく。KINGを8にしておく。
@@ -452,7 +455,7 @@ enum Piece : int32_t
 // USIプロトコルで駒を表す文字列を返す。
 // 駒打ちの駒なら先頭に"D"。
 inline std::string usi_piece(Piece pc) { return std::string((pc & 32) ? "D":"")
-  + std::string(". P L N S B R G K +P+L+N+S+B+R+G+.p l n s b r g k +p+l+n+s+b+r+g+k").substr((pc & 31) * 2, 2); }
+		  + std::string(USI_PIECE).substr((pc & 31) * 2, 2); }
 
 // 駒に対して、それが先後、どちらの手番の駒であるかを返す。
 constexpr Color color_of(Piece pc) { return (pc & PIECE_WHITE) ? WHITE : BLACK; }

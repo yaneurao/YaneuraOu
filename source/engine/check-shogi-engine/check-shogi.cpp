@@ -1,6 +1,6 @@
 ﻿#include "../../shogi.h"
 
-#ifdef CHCECK_SHOGI_ENGINE
+#ifdef CHECK_SHOGI_ENGINE
 
 // -----------------------
 //   王手将棋設定部
@@ -3090,5 +3090,5 @@ namespace Learner
 }
 #endif
 
-#endif // CHCECK_SHOGI_ENGINE
+#endif // CHECK_SHOGI_ENGINE
 

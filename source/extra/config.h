@@ -310,7 +310,7 @@
 //#define LONG_EFFECT_LIBRARY
 #endif
 
-#ifdef CHCECK_SHOGI_ENGINE
+#ifdef CHECK_SHOGI_ENGINE
 #define ENGINE_NAME "YaneuraOu Check Shogi"
 #define EVAL_KPPT
 //#define USE_EVAL_HASH
