@@ -49,14 +49,22 @@ win = lose = draw = 0
 win_black = lose_black = 0
 
 # レーティングの出力
-def output_rating(win,draw,lose,win_black,lose_black,opt2):
+def output_rating(win,draw,lose,win_black,win_white,opt2):
 	total = win + lose
 	if total != 0 :
+		# 普通の勝率
 		win_rate = win / float(win+lose)
-		win_rate2 = win_black / float(win+lose)
 	else:
 		win_rate = 0
-		win_rate2 = 0
+
+	if win != 0:
+		# 先手番のときの勝率内訳
+		win_rate_black = win_black / float(win)
+		# 後手番のときの勝率内訳
+		win_rate_white = win_white / float(win)
+	else:
+		win_rate_black = 0
+		win_rate_white = 0
 
 	if win_rate == 0 or win_rate == 1:
 		rating = ""
@@ -65,7 +73,9 @@ def output_rating(win,draw,lose,win_black,lose_black,opt2):
 
 	print opt2 + "," + str(win) + " - " + str(draw) + " - " + str(lose) + \
 		"(" + str(round(win_rate*100,2)) + "%" + rating + ")" + \
-		" win_black = " + str(round(win_rate2*100,2)) + "%"
+		" win black : white = " + \
+		str(round(win_rate_black*100,2)) + "% : " + \
+		str(round(win_rate_white*100,2)) + "%"
 	sys.stdout.flush()
 
 
@@ -180,10 +190,10 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 	win = lose = draw = 0
 
 	# engine0側にとって、
-	# 先手のときの勝ちと負け(先手/後手のときの勝率計算用)
+	# 先手番での勝ちと後手番での勝ち(先手/後手のときの勝率計算用)
 	# 引き分けは上のdrawと同じ値になるから不要。
-	global win_black,lose_black
-	win_black = lose_black = 0
+	global win_black,win_white
+	win_black = win_white = 0
 
 	# home + "book/records1.sfen
 
@@ -215,7 +225,7 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 	# 対局開始局面からの手数
 	moves = [0]*threads
 
-	# 次の対局で先手番のplayer(0 or 1)
+	# 今回の対局での先手番のplayer(0 or 1)
 	turns = [0]*threads
 
 	# process handle
@@ -408,7 +418,6 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 
 						# 先手→後手、交互に行う。
 						go_cmd((i & ~1) + turns[i/2])
-						turns[i/2] = turns[i/2] ^ 1
 
 						# send go_cmd to player1
 						# go_cmd((i & ~1) )
@@ -480,26 +489,26 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 					if "resign" in line:
 						if (i%2)==1:
 							win += 1
-							if (turns[i/2] == 1):
+							if (turns[i/2] == 0):
 								win_black += 1
+							else:
+								win_white += 1
 							gameover = 1 # 1P勝ち
 						else:
 							lose += 1
-							if (turns[i/2] == 1):
-								lose_black += 1
 							gameover = 2 # 2P勝ち
 						update = True
 
 					elif "win" in line:
 						if (i%2)==0:
 							win += 1
-							if (turns[i/2] == 1):
+							if (turns[i/2] == 0):
 								win_black += 1
+							else:
+								win_white += 1
 							gameover = 1 # 1P勝ち
 						else:
 							lose += 1
-							if (turns[i/2] == 1):
-								lose_black += 1
 							gameover = 2 # 2P勝ち
 						update = True
 
@@ -532,6 +541,8 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 					if KifOutput:
 						kif_file.write("startpos moves " + sfens[i/2] + "\n")
 						kif_file.write(eval_values[i/2]+"\n")
+					# 手番を変更する。
+					turns[i/2] = turns[i/2] ^ 1
 
 			if update:
 				loop_count = win + lose + draw
@@ -556,7 +567,7 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 
 				# output result at stated periods
 				if loop_count % 10 == 0 :
-					output_rating(win,draw,lose,win_black,lose_black,opt2)
+					output_rating(win,draw,lose,win_black,win_white,opt2)
 					if FileLogging:
 						for i in range(len(states)):
 							log_file.write("["+str(i)+"] State = " + states[i] + "\n")
@@ -787,5 +798,5 @@ for evaldir in evaldirs:
 		for i in range(2):
 			print "engine" + str(i+1) + " = " + engines[i] + " , eval = " + evals[i]
 #		print "play_time = " + play_time + " , " ,
-		output_rating(win,draw,lose,win_black,lose_black,opt2)
+		output_rating(win,draw,lose,win_black,win_white,opt2)
 

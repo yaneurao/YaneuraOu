@@ -73,6 +73,7 @@ NDFの学習メソッドを用い、Hyperopt等を用いて各種パラメータ
 - [王手将棋用評価関数ファイルV2](https://drive.google.com/open?id=0Bzbi5rbfN85Nci02T3hkWm1yQlE) [解説記事](http://yaneuraou.yaneu.com/2016/11/22/%E7%8E%8B%E6%89%8B%E5%B0%86%E6%A3%8B%E7%94%A8%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%83%95%E3%82%A1%E3%82%A4%E3%83%ABv2%E3%82%92%E5%85%AC%E9%96%8B%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F/)
 - [王手将棋用評価関数ファイルV3](https://drive.google.com/open?id=0Bzbi5rbfN85NVGJ3eHNtaHZhLXc) [解説記事](http://yaneuraou.yaneu.com/2016/11/23/%E7%8E%8B%E6%89%8B%E5%B0%86%E6%A3%8B%E7%94%A8%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%83%95%E3%82%A1%E3%82%A4%E3%83%ABv3%E3%82%92%E5%85%AC%E9%96%8B%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F/)
 - [王手将棋用評価関数ファイルV4](https://drive.google.com/open?id=0Bzbi5rbfN85NcTIzaFVKU0ZfNU0) [解説記事](http://yaneuraou.yaneu.com/2016/11/23/%E7%8E%8B%E6%89%8B%E5%B0%86%E6%A3%8B%E7%94%A8%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%83%95%E3%82%A1%E3%82%A4%E3%83%ABv4%E3%82%92%E5%85%AC%E9%96%8B%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F/)
+- [王手将棋用評価関数ファイルV5](https://drive.google.com/open?id=0Bzbi5rbfN85Na3ZOeE5zNUZpNkE) [解説記事](http://yaneuraou.yaneu.com/2016/11/24/%E7%8E%8B%E6%89%8B%E5%B0%86%E6%A3%8B%E7%94%A8%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%83%95%E3%82%A1%E3%82%A4%E3%83%ABv5%E3%82%92%E5%85%AC%E9%96%8B%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F/)
 
 やねうら王2016Mid用/2016Late用/2017Early用
 
