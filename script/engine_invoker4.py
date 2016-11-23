@@ -46,21 +46,26 @@ def pipe_non_blocking_set(fd):
 # -----------------------------------------------------------------
 
 win = lose = draw = 0
+win_black = lose_black = 0
 
 # レーティングの出力
-def output_rating(win,draw,lose,opt2):
+def output_rating(win,draw,lose,win_black,lose_black,opt2):
 	total = win + lose
 	if total != 0 :
 		win_rate = win / float(win+lose)
+		win_rate2 = win_black / float(win+lose)
 	else:
 		win_rate = 0
+		win_rate2 = 0
 
 	if win_rate == 0 or win_rate == 1:
 		rating = ""
 	else:
 		rating = " R" + str(round(-400*math.log(1/win_rate-1,10),2))
 
-	print opt2 + "," + str(win) + " - " + str(draw) + " - " + str(lose) + "(" + str(round(win_rate*100,2)) + "%" + rating + ")"
+	print opt2 + "," + str(win) + " - " + str(draw) + " - " + str(lose) + \
+		"(" + str(round(win_rate*100,2)) + "%" + rating + ")" + \
+		" win_black = " + str(round(win_rate2*100,2)) + "%"
 	sys.stdout.flush()
 
 
@@ -173,6 +178,12 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 
 	global win,lose,draw
 	win = lose = draw = 0
+
+	# engine0側にとって、
+	# 先手のときの勝ちと負け(先手/後手のときの勝率計算用)
+	# 引き分けは上のdrawと同じ値になるから不要。
+	global win_black,lose_black
+	win_black = lose_black = 0
 
 	# home + "book/records1.sfen
 
@@ -469,18 +480,26 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 					if "resign" in line:
 						if (i%2)==1:
 							win += 1
+							if (turns[i/2] == 1):
+								win_black += 1
 							gameover = 1 # 1P勝ち
 						else:
 							lose += 1
+							if (turns[i/2] == 1):
+								lose_black += 1
 							gameover = 2 # 2P勝ち
 						update = True
 
 					elif "win" in line:
 						if (i%2)==0:
 							win += 1
+							if (turns[i/2] == 1):
+								win_black += 1
 							gameover = 1 # 1P勝ち
 						else:
 							lose += 1
+							if (turns[i/2] == 1):
+								lose_black += 1
 							gameover = 2 # 2P勝ち
 						update = True
 
@@ -537,7 +556,7 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 
 				# output result at stated periods
 				if loop_count % 10 == 0 :
-					output_rating(win,draw,lose,opt2)
+					output_rating(win,draw,lose,win_black,lose_black,opt2)
 					if FileLogging:
 						for i in range(len(states)):
 							log_file.write("["+str(i)+"] State = " + states[i] + "\n")
@@ -768,5 +787,5 @@ for evaldir in evaldirs:
 		for i in range(2):
 			print "engine" + str(i+1) + " = " + engines[i] + " , eval = " + evals[i]
 #		print "play_time = " + play_time + " , " ,
-		output_rating(win,draw,lose,opt2)
+		output_rating(win,draw,lose,win_black,lose_black,opt2)
 
