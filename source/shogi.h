@@ -419,7 +419,7 @@ inline Value mated_in(int ply) {  return (Value)(-VALUE_MATE + ply);}
 // --------------------
 
 // USIプロトコルでやりとりするときの駒の表現
-static const char* USI_PIECE;
+extern const char* USI_PIECE;
 
 enum Piece : int32_t
 {

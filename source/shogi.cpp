@@ -11,7 +11,7 @@
 //    const
 // ----------------------------------------
 
-static const char* USI_STRING = ". P L N S B R G K +P+L+N+S+B+R+G+.p l n s b r g k +p+l+n+s+b+r+g+k";
+const char* USI_PIECE = ". P L N S B R G K +P+L+N+S+B+R+G+.p l n s b r g k +p+l+n+s+b+r+g+k";
 
 // ----------------------------------------
 //    tables
