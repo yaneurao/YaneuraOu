@@ -649,6 +649,7 @@ namespace CheckShogi
 
 				// これが合法手なら詰み
 				// このnodeに再訪問することはまずないだろうから、置換表に保存する価値はない。
+
 				return mate_in(ss->ply + 1);
 			}
 
@@ -1639,7 +1640,6 @@ namespace CheckShogi
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
 			ss->counterMoves = &thisThread->counterMoveHistory[moved_sq][moved_pc];
-
 
 			// 指し手で1手進める
 			pos.do_move(move, st, givesCheck);
