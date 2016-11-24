@@ -69,11 +69,11 @@ SOURCES  = shogi.cpp                                                           \
 	engine/classic-engine/classic-search.cpp                                   \
 	engine/classic-tce-engine/classic-tce-search.cpp                           \
 	engine/2016-mid-engine/2016-mid-search.cpp                                 \
-	engine/2016-late-engine/2016-late-search.cpp				               \
-	engine/2017-early-engine/2017-early-search.cpp				               \
-	engine/check-shogi-engine/check-shogi-search.cpp				           \
-	learn/learner.cpp				                                           \
-	learn/multi_think.cpp				                                       \
+	engine/2016-late-engine/2016-late-search.cpp                               \
+	engine/2017-early-engine/2017-early-search.cpp                             \
+	engine/check-shogi-engine/check-shogi.cpp                                  \
+	learn/learner.cpp                                                          \
+	learn/multi_think.cpp                                                      \
 	learn/evaluate_kppt_learn.cpp   
 																               
 #ifeq ($(YANEURAOU_EDITION),YANEURAOU_2016_LATE_ENGINE)				               
