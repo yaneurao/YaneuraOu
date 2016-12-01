@@ -74,6 +74,9 @@
     <Filter Include="リソース ファイル\engine\check-shogi-engine">
       <UniqueIdentifier>{11d51fe5-ad3a-4a26-a710-6db4f036a01a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\engine\must-capture-shogi-engine">
+      <UniqueIdentifier>{5dd99140-04f4-49f4-9699-713b1b7ee46a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -168,6 +171,9 @@
     </ClInclude>
     <ClInclude Include="engine\check-shogi-engine\check-shogi-param.h">
       <Filter>リソース ファイル\engine\check-shogi-engine</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\must-capture-shogi-engine\must-capture-shogi-param.h">
+      <Filter>リソース ファイル\engine\must-capture-shogi-engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -299,6 +305,9 @@
     </ClCompile>
     <ClCompile Include="engine\check-shogi-engine\check-shogi.cpp">
       <Filter>リソース ファイル\engine\check-shogi-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\must-capture-shogi-engine\must-capture-shogi.cpp">
+      <Filter>リソース ファイル\engine\must-capture-shogi-engine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

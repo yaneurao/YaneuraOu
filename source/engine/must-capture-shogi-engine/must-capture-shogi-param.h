@@ -1,5 +1,5 @@
-﻿#ifndef _CHECK_SHOGI_PARAMETERS_
-#define _CHECK_SHOGI_PARAMETERS_
+﻿#ifndef _MUST_CAPTURE_SHOGI_PARAMETERS_
+#define _MUST_CAPTURE_SHOGI_PARAMETERS_
 
 // パラメーターの説明に "fixed"と書いてあるパラメーターはランダムパラメーター化するときでも変化しない。
 // 「前提depth」は、これ以上ならその枝刈りを適用する(かも)の意味。

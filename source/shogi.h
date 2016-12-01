@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "4.19"
+#define ENGINE_VERSION "4.20"
 
 // --------------------
 // コンパイル時の設定
@@ -26,15 +26,16 @@
 
 #ifndef USE_MAKEFILE
 
-//#define YANEURAOU_NANO_ENGINE            // やねうら王nano        (完成2016/01/31)
-//#define YANEURAOU_NANO_PLUS_ENGINE       // やねうら王nano plus   (完成2016/02/25)
-//#define YANEURAOU_MINI_ENGINE            // やねうら王mini        (完成2016/02/29)
-//#define YANEURAOU_CLASSIC_ENGINE         // やねうら王classic     (完成2016/04/03)
-//#define YANEURAOU_CLASSIC_TCE_ENGINE     // やねうら王classic tce (完成2016/04/15)
-//#define YANEURAOU_2016_MID_ENGINE        // やねうら王2016(MID)   (完成2016/08/18)
-//#define YANEURAOU_2016_LATE_ENGINE       // やねうら王2016(LATE)  (完成2016/10/07)
-//#define YANEURAOU_2017_EARLY_ENGINE      // やねうら王2017(EARLY) (開発中)
-#define CHECK_SHOGI_ENGINE	           // やねうら王 王手将棋   (開発中)
+//#define YANEURAOU_NANO_ENGINE            // やねうら王nano         (完成2016/01/31)
+//#define YANEURAOU_NANO_PLUS_ENGINE       // やねうら王nano plus    (完成2016/02/25)
+//#define YANEURAOU_MINI_ENGINE            // やねうら王mini         (完成2016/02/29)
+//#define YANEURAOU_CLASSIC_ENGINE         // やねうら王classic      (完成2016/04/03)
+//#define YANEURAOU_CLASSIC_TCE_ENGINE     // やねうら王classic tce  (完成2016/04/15)
+//#define YANEURAOU_2016_MID_ENGINE        // やねうら王2016(MID)    (完成2016/08/18)
+//#define YANEURAOU_2016_LATE_ENGINE       // やねうら王2016(LATE)   (完成2016/10/07)
+#define YANEURAOU_2017_EARLY_ENGINE      // やねうら王2017(EARLY)  (開発中)
+//#define CHECK_SHOGI_ENGINE	           // やねうら王 王手将棋    (完成2016/11/30)
+//#define MUST_CAPTURE_SHOGI_ENGINE        // やねうら王 取る一手将棋(開発中)
 //#define RANDOM_PLAYER_ENGINE             // ランダムプレイヤー
 //#define MATE_ENGINE                      // 詰め将棋solverとしてリリースする場合。(開発中)
 //#define HELP_MATE_ENGINE                 // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm

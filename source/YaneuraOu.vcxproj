@@ -211,6 +211,7 @@
     <ClInclude Include="engine\check-shogi-engine\check-shogi-param.h" />
     <ClInclude Include="engine\help-mate-engine\help-mate-search.h" />
     <ClInclude Include="engine\mate-engine\mate-search.h" />
+    <ClInclude Include="engine\must-capture-shogi-engine\must-capture-shogi-param.h" />
     <ClInclude Include="evaluate.h" />
     <ClInclude Include="eval\evaluate_kppt.h" />
     <ClInclude Include="eval\kppt_evalsum.h" />
@@ -247,6 +248,7 @@
     <ClCompile Include="engine\local-game-server\local-game-server.cpp" />
     <ClCompile Include="engine\mate-engine\mate-search.cpp" />
     <ClCompile Include="engine\mini-engine\mini-search.cpp" />
+    <ClCompile Include="engine\must-capture-shogi-engine\must-capture-shogi.cpp" />
     <ClCompile Include="engine\nano-engine\nano-search.cpp" />
     <ClCompile Include="engine\nano-plus-engine\nano-plus-search.cpp" />
     <ClCompile Include="engine\random-player-engine\random-player-search.cpp" />

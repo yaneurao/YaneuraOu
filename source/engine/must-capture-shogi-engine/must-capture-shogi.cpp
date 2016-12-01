@@ -1,16 +1,15 @@
 ﻿#include "../../shogi.h"
 
-#ifdef YANEURAOU_2017_EARLY_ENGINE
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
 
 // -----------------------
-//   やねうら王2017(early)設定部
+//   取る一手将棋設定部
 // -----------------------
 
 // 開発方針
-// やねうら王2016(late)からの改造。
+// やねうら王2017Earlyからの改造。
 // 特徴)
-//  1. 探索のためのパラメーターの完全自動調整。
-//  2. 進行度を用いたmargin
+// 駒が取れるときは必ず取るという変則ルール
 
 
 // パラメーターを自動調整するのか
@@ -54,8 +53,8 @@
 #endif
 
 // 実行時に読み込むパラメーターファイルの名前
-#define PARAM_FILE "2017-early-param.h"
-#include "2017-early-param.h"
+#define PARAM_FILE "must-capture-shogi-param.h"
+#include "must-capture-shogi-param.h"
 
 
 using namespace std;
@@ -92,17 +91,13 @@ void USI::extra_option(USI::OptionsMap & o)
 	// 定跡ファイル名
 
 	//  no_book          定跡なし
-	//  standard_book.db 標準定跡
-	//	yaneura_book1.db やねうら大定跡(公開用 concept proof)
-	//	yaneura_book2.db 超やねうら定跡(大会用2015)
-	//	yaneura_book3.db 真やねうら定跡(大会用2016)
-	//	yaneura_book4.db 極やねうら定跡(大会用2017)
+	//  must_capture_shogi_book1.db 取る一手将棋定跡
 	//  user_book1.db    ユーザー定跡1
 	//  user_book2.db    ユーザー定跡2
 	//  user_book3.db    ユーザー定跡3
 
-	std::vector<std::string> book_list = { "no_book" , "standard_book.db"
-		, "yaneura_book1.db" , "yaneura_book2.db" , "yaneura_book3.db", "yaneura_book4.db"
+	std::vector<std::string> book_list = { "no_book"
+		, "must_capture_shogi_book1.db"
 		, "user_book1.db", "user_book2.db", "user_book3.db" };
 	o["BookFile"] << Option(book_list, book_list[1], [](auto& o) { book_name = string(o); });
 	book_name = book_list[1];
@@ -165,10 +160,10 @@ void USI::extra_option(USI::OptionsMap & o)
 }
 
 // -----------------------
-//   やねうら王2017(early)探索部
+//   取る一手将棋探索部
 // -----------------------
 
-namespace YaneuraOu2017Early
+namespace MustCaptureShogi
 {
 
 	// 外部から調整される探索パラメーター
@@ -474,6 +469,14 @@ namespace YaneuraOu2017Early
 		//     nodeの初期化
 		// -----------------------
 
+		// rootからの手数
+		ss->ply = (ss - 1)->ply + 1;
+
+		// 王手将棋では王手がかかっているなら詰みであるから、呼び出されていれば詰みのスコアを返す。
+		// ss->plyを初期化してからしか、ss->plyを返せないので注意。
+		if (InCheck)
+			return mated_in(ss->ply);
+
 		if (PvNode)
 		{
 			// PV nodeではalpha値を上回る指し手が存在した場合は(そこそこ指し手を調べたので)置換表にはBOUND_EXACTで保存したいから、
@@ -488,9 +491,6 @@ namespace YaneuraOu2017Early
 		}
 
 		ss->currentMove = bestMove = MOVE_NONE;
-
-		// rootからの手数
-		ss->ply = (ss - 1)->ply + 1;
 
 		// -----------------------
 		//    最大手数へ到達したか？
@@ -549,29 +549,6 @@ namespace YaneuraOu2017Early
 			bestValue = futilityBase = -VALUE_INFINITE;
 
 		} else {
-
-			// -----------------------
-			//      一手詰め判定
-			// -----------------------
-
-			if (PARAM_QSEARCH_MATE1)
-
-				// いまのところ、入れたほうが良いようだ。
-				// play_time = b1000 ,  1631 - 55 - 1314(55.38% R37.54) [2016/08/19]
-				// play_time = b6000 ,  538 - 23 - 439(55.07% R35.33) [2016/08/19]
-
-				// 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
-				if (PARAM_WEAK_MATE_PLY == 1)
-				{
-					if (pos.mate1ply() != MOVE_NONE)
-						return mate_in(ss->ply + 1);
-				} else {
-					if (pos.weak_mate_n_ply(PARAM_WEAK_MATE_PLY) != MOVE_NONE)
-						// 1手詰めかも知れないがN手詰めの可能性があるのでNを返す。
-						return mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
-				}
-
-			// このnodeに再訪問することはまずないだろうから、置換表に保存する価値はない。
 
 			// 王手がかかっていないなら置換表の指し手を持ってくる
 
@@ -663,6 +640,18 @@ namespace YaneuraOu2017Early
 			// -----------------------
 
 			givesCheck = pos.gives_check(move);
+
+			// 王手将棋ではこれにて詰み
+			if (givesCheck)
+			{
+				if (!pos.legal(move))
+					continue;
+
+				// これが合法手なら詰み
+				// このnodeに再訪問することはまずないだろうから、置換表に保存する価値はない。
+
+				return mate_in(ss->ply + 1);
+			}
 
 			//
 			//  Futility pruning
@@ -1073,61 +1062,17 @@ namespace YaneuraOu2017Early
 		}
 
 		// -----------------------
-		//    1手詰みか？
+		//    詰まされているか？
 		// -----------------------
 
 		Move bestMove = MOVE_NONE;
 		const bool inCheck = pos.checkers();
 
-		if (PARAM_SEARCH_MATE1)
-		{
-			// RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
-			// 置換表にhitしたときも1手詰め判定はすでに行われていると思われるのでこの場合もはしょる。
-			// depthの残りがある程度ないと、1手詰めはどうせこのあとすぐに見つけてしまうわけで1手詰めを
-			// 見つけたときのリターン(見返り)が少ない。
-			// ただ、静止探索で入れている以上、depth == ONE_PLYでも1手詰めを判定したほうがよさげではある。
-			if (!RootNode && !ttHit && !inCheck)
-			{
-				// 1手詰めは入れたほうがよさげ。
-				// play_time = b1000, 1471 - 57 - 1472(49.98% R - 0.12) [2016/08/19]
-				// play_time = b3000, 522 - 30 - 448(53.81% R26.56) [2016/08/19]
-
-				if (PARAM_WEAK_MATE_PLY == 1)
-				{
-					move = pos.mate1ply();
-					if (move != MOVE_NONE)
-					{
-						// 1手詰めスコアなので確実にvalue > alphaなはず。
-						// 1手詰めは次のnodeで詰むという解釈
-						bestValue = mate_in(ss->ply + 1);
-
-#ifndef DISABLE_TT_PROBE
-						// staticEvalの代わりに詰みのスコア書いてもいいのでは..
-						tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
-							DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT.generation());
-#endif
-
-						return bestValue;
-					}
-				} else {
-					move = pos.weak_mate_n_ply(PARAM_WEAK_MATE_PLY);
-					if (move != MOVE_NONE)
-					{
-						// N手詰めかも知れないのでPARAM_WEAK_MATE_PLY手詰めのスコアを返す。
-						bestValue = mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
-
-#ifndef DISABLE_TT_PROBE
-						tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
-							DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT.generation());
-#endif
-
-						return bestValue;
-					}
-				}
-
-			}
-			// 1手詰めがなかったのでこの時点でもsave()したほうがいいような気がしなくもない。
-		}
+		// 王手がかかっているなら詰みであるから、王手将棋においてはこれで詰まされている。
+		// search()のほうで王手になるならqsearch()を呼ばないのだが、RootNodeからは
+		// 呼び出されるのでこの処理が必要になる。
+		if (inCheck)
+			return mated_in(ss->ply);
 
 		// -----------------------
 		//  局面を評価値によって静的に評価
@@ -1318,6 +1263,11 @@ namespace YaneuraOu2017Early
 
 				if (pos.legal(move))
 				{
+					// 王手将棋においては王手の時点で詰みなので
+					// この指し手が王手になるなら詰みのスコアを返す。
+					if (pos.gives_check(move))
+						return mate_in(ss->ply + 1);
+
 					ss->currentMove = move;
 					ss->counterMoves = &thisThread->counterMoveHistory[to_sq(move)][pos.moved_piece_after(move)];
 
@@ -1462,6 +1412,21 @@ namespace YaneuraOu2017Early
 
 			// 今回の指し手で王手になるかどうか
 			bool givesCheck = pos.gives_check(move);
+
+			// 王手将棋ではこれにて詰み
+			// ただしRootNodeでは、th->rootMovesを更新する必要があるので
+			// この判定は行わない。
+			if (givesCheck && !RootNode)
+			{
+				if (!pos.legal(move))
+				{
+					ss->moveCount = --moveCount;
+					continue;
+				}
+
+				// これが合法手なら詰み
+				return mate_in(ss->ply + 1);
+			}
 
 			// move countベースの枝刈りを実行するかどうかのフラグ
 
@@ -1675,7 +1640,6 @@ namespace YaneuraOu2017Early
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
 			ss->counterMoves = &thisThread->counterMoveHistory[moved_sq][moved_pc];
-
 
 			// 指し手で1手進める
 			pos.do_move(move, st, givesCheck);
@@ -1991,7 +1955,7 @@ namespace YaneuraOu2017Early
 	}
 }
 
-using namespace YaneuraOu2017Early;
+using namespace MustCaptureShogi;
 
 // --- 以下に好きなように探索のプログラムを書くべし。
 
@@ -2214,12 +2178,6 @@ void gameover_handler(const string& cmd)
 #endif
 }
 
-namespace Learner
-{
-	pair<Value, vector<Move> > search(Position& pos, int depth);
-}
-
-
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
 void Search::clear()
 {
@@ -2436,7 +2394,8 @@ void Thread::search()
 
 			while (true)
 			{
-				bestValue = YaneuraOu2017Early::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false);
+				// Stockfish、ここrootDepthにONE_PLY掛けてない。Stockfishのbug。
+				bestValue = MustCaptureShogi::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false);
 
 				// それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
 				// 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
@@ -2969,7 +2928,7 @@ namespace Learner
 			th->history.clear();
 			th->counterMoves.clear();
 			th->fromTo.clear();
-		//	th->counterMoveHistory.clear();
+			//	th->counterMoveHistory.clear();
 			// →　このクリア、時間がかかりすぎるのでまあいいや。
 #endif
 			th->resetCalls = true;
@@ -2992,7 +2951,7 @@ namespace Learner
 			drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
 		}
 	}
-	
+
 	// 静止探索。
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
 	// 引数でalpha,betaを指定できるようにしていたが、これがその窓で探索したときの結果を
@@ -3011,8 +2970,8 @@ namespace Learner
 		// 現局面で王手がかかっているかで場合分け。
 		const bool inCheck = pos.in_check();
 		auto bestValue = inCheck ?
-			YaneuraOu2017Early::qsearch<PV, true >(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, DEPTH_ZERO) :
-			YaneuraOu2017Early::qsearch<PV, false>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, DEPTH_ZERO);
+			MustCaptureShogi::qsearch<PV, true >(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, DEPTH_ZERO) :
+			MustCaptureShogi::qsearch<PV, false>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, DEPTH_ZERO);
 
 		// 得られたPVを返す。
 		vector<Move> pvs;
@@ -3083,12 +3042,12 @@ namespace Learner
 				// aspiration search
 				while (true)
 				{
-					bestValue = YaneuraOu2017Early::search<PV>(pos, ss, alpha, beta, rootDepth * ONE_PLY, false);
+					bestValue = MustCaptureShogi::search<PV>(pos, ss, alpha, beta, rootDepth * ONE_PLY, false);
 					std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
 
 					// fail low/highに対してaspiration windowを広げる。
 					// ただし、引数で指定されていた値になっていたら、もうfail low/high扱いとしてbreakする。
-					if (bestValue <= alpha )
+					if (bestValue <= alpha)
 					{
 						beta = (alpha + beta) / 2;
 						alpha = std::max(bestValue - delta, -VALUE_INFINITE);
@@ -3129,4 +3088,5 @@ namespace Learner
 }
 #endif
 
-#endif // YANEURAOU_2017_EARLY_ENGINE
+#endif // CHECK_SHOGI_ENGINE
+

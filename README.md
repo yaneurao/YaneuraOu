@@ -41,9 +41,13 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 NDFの学習メソッドを用い、Hyperopt等を用いて各種パラメーターの調整を行い、技巧(2015)を超えた強さになりました。(R3650程度)
 →　第4回将棋電王トーナメントは無事終えました。真やねうら王は3位に入賞しました。応援してくださった皆様、本当にありがとうございました。
 
-## やねうら王2017 Early【非公開の予定】
+## やねうら王2017 Early
 
-2017年開発するかも。
+2017年Q1完成予定。R3750程度の予定。
+
+## やねうら王2017 Late(非公開予定)
+
+2017年10月ごろ完成予定。
 
 ## やねうら王 王手将棋エディション
 
@@ -74,6 +78,7 @@ NDFの学習メソッドを用い、Hyperopt等を用いて各種パラメータ
 - [王手将棋用評価関数ファイルV3](https://drive.google.com/open?id=0Bzbi5rbfN85NVGJ3eHNtaHZhLXc) [解説記事](http://yaneuraou.yaneu.com/2016/11/23/%E7%8E%8B%E6%89%8B%E5%B0%86%E6%A3%8B%E7%94%A8%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%83%95%E3%82%A1%E3%82%A4%E3%83%ABv3%E3%82%92%E5%85%AC%E9%96%8B%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F/)
 - [王手将棋用評価関数ファイルV4](https://drive.google.com/open?id=0Bzbi5rbfN85NcTIzaFVKU0ZfNU0) [解説記事](http://yaneuraou.yaneu.com/2016/11/23/%E7%8E%8B%E6%89%8B%E5%B0%86%E6%A3%8B%E7%94%A8%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%83%95%E3%82%A1%E3%82%A4%E3%83%ABv4%E3%82%92%E5%85%AC%E9%96%8B%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F/)
 - [王手将棋用評価関数ファイルV5](https://drive.google.com/open?id=0Bzbi5rbfN85Na3ZOeE5zNUZpNkE) [解説記事](http://yaneuraou.yaneu.com/2016/11/24/%E7%8E%8B%E6%89%8B%E5%B0%86%E6%A3%8B%E7%94%A8%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%83%95%E3%82%A1%E3%82%A4%E3%83%ABv5%E3%82%92%E5%85%AC%E9%96%8B%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F/)
+- [王手将棋用評価関数ファイルV6](https://drive.google.com/open?id=0Bzbi5rbfN85NeWxUWUFfMFdZSjQ) [解説記事](http://yaneuraou.yaneu.com/2016/11/29/%E7%8E%8B%E6%89%8B%E5%B0%86%E6%A3%8B%E7%94%A8%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%83%95%E3%82%A1%E3%82%A4%E3%83%ABv6%E3%82%92%E5%85%AC%E9%96%8B%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F/)
 
 やねうら王2016Mid用/2016Late用/2017Early用
 
