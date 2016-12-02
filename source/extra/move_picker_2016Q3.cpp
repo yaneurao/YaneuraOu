@@ -110,6 +110,26 @@ Move pick_best(ExtMove* begin, ExtMove* end)
 }
 } // end of namespace
 
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
+void MovePicker::checkMustCapture()
+{
+	// このnodeで合法なcaptureの指し手が1手でもあれば、必ずcaptureしなければならない。
+	bool inCheck = pos.in_check();
+	endMoves = inCheck ? generateMoves<EVASIONS>(pos, moves) : generateMoves<CAPTURES>(pos,moves);
+	for (auto it = moves; it != endMoves; ++it)
+	{
+		// 合法な指し手が一つ見つかったので以降、captureしか返してはならない。
+		// capturesで生成した指し手はcapturesに決まっているのだが、このチェックのコストは
+		// 知れてるので構わない。
+		if (pos.capture(it->move) && pos.legal(it->move))
+		{
+			mustCapture = true;
+			return;
+		}
+	}
+	mustCapture = false;
+}
+#endif
 
 // 指し手オーダリング器
 
@@ -119,6 +139,10 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Search::Stack*s)
 {
 	// 通常探索から呼び出されているので残り深さはゼロより大きい。
 	ASSERT_LV3(d > DEPTH_ZERO);
+
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
+	checkMustCapture();
+#endif
 
 	Square prevSq = to_sq((ss - 1)->currentMove);
 	Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
@@ -139,25 +163,6 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Search::Stack*s)
 	// 置換表の指し手がないなら、次のstageから開始する。
 	stage += (ttMove == MOVE_NONE);
 }
-
-#ifdef MUST_CAPTURE_SHOGI_ENGINE
-void MovePicker::checkMustCapture()
-{
-	// このnodeで合法なcaptureの指し手が1手でもあれば、必ずcaptureしなければならない。
-	endMoves = generateMoves<CAPTURES>(pos, moves);
-	for (auto it = moves; it != endMoves; ++it)
-	{
-		// 合法な指し手が一つ見つかったので以降、captureしか返してはならない。
-		if (pos.legal(it->move))
-		{
-			mustCapture = true;
-			return ;
-		}
-	}
-	mustCapture = false;
-}
-#endif
-
 
   // 静止探索から呼び出される時用。
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Square recapSq)
@@ -316,11 +321,11 @@ Move MovePicker::next_move() {
 		move = next_move2();
 
 		// 終端まで行った
-		if (move != MOVE_NONE)
+		if (move == MOVE_NONE)
 			return move;
 
 		// 1.mustCaputreモードではない
-		// 2.mustCaptureだけどmove捕獲する指し手
+		// 2.mustCaptureだけどmoveが捕獲する指し手
 		// のいずれか
 		if (!mustCapture || pos.capture(move))
 			return move;

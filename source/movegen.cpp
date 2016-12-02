@@ -928,15 +928,15 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist, Square recapSq)
 	if (GenType == LEGAL || GenType == LEGAL_ALL)
 	{
 #ifdef MUST_CAPTURE_SHOGI_ENGINE
+
 		// captureの指し手を生成して、合法なcaptureが1つでもあるなら捕獲する指し手しか
 		// 生成してはならない。
-
 		bool mustCapture = false;
-		auto endMoves = generateMoves<CAPTURES>(pos, mlist);
+		bool inCheck = pos.in_check();
+		auto endMoves = inCheck ? generateMoves<EVASIONS>(pos, mlist) : generateMoves<CAPTURES>(pos, mlist);
 		for (auto it = mlist; it != endMoves; ++it)
 		{
-			// 合法な指し手が一つ見つかったので以降、captureしか返してはならない。
-			if (pos.legal(it->move))
+			if (pos.capture(it->move) && pos.legal(it->move))
 			{
 				mustCapture = true;
 				break;
