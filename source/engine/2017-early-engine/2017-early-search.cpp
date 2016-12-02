@@ -2214,12 +2214,6 @@ void gameover_handler(const string& cmd)
 #endif
 }
 
-namespace Learner
-{
-	pair<Value, vector<Move> > search(Position& pos, int depth);
-}
-
-
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
 void Search::clear()
 {

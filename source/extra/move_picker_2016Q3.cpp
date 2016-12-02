@@ -140,10 +140,33 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Search::Stack*s)
 	stage += (ttMove == MOVE_NONE);
 }
 
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
+void MovePicker::checkMustCapture()
+{
+	// このnodeで合法なcaptureの指し手が1手でもあれば、必ずcaptureしなければならない。
+	endMoves = generateMoves<CAPTURES>(pos, moves);
+	for (auto it = moves; it != endMoves; ++it)
+	{
+		// 合法な指し手が一つ見つかったので以降、captureしか返してはならない。
+		if (pos.legal(it->move))
+		{
+			mustCapture = true;
+			return ;
+		}
+	}
+	mustCapture = false;
+}
+#endif
+
+
   // 静止探索から呼び出される時用。
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Square recapSq)
 	: pos(p)
 {
+
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
+	checkMustCapture();
+#endif
 
 	// 静止探索から呼び出されているので残り深さはゼロ以下。
 	ASSERT_LV3(d <= DEPTH_ZERO);
@@ -177,6 +200,10 @@ MovePicker::MovePicker(const Position& p, Move ttm, Value th)
 	: pos(p), threshold(th) {
 
 	ASSERT_LV3(!pos.in_check());
+
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
+	checkMustCapture();
+#endif
 
 	stage = PROBCUT;
 
@@ -280,6 +307,27 @@ void MovePicker::score<EVASIONS>()
 // 指し手が尽きればMOVE_NONEが返る。
 // 置換表の指し手(ttMove)を返したあとは、それを取り除いた指し手を返す。
 Move MovePicker::next_move() {
+
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
+	// MustCaptureShogiの場合は、mustCaptureフラグを見ながら指し手を返す必要がある。
+	Move move;
+	while (true)
+	{
+		move = next_move2();
+
+		// 終端まで行った
+		if (move != MOVE_NONE)
+			return move;
+
+		// 1.mustCaputreモードではない
+		// 2.mustCaptureだけどmove捕獲する指し手
+		// のいずれか
+		if (!mustCapture || pos.capture(move))
+			return move;
+	}
+}
+Move MovePicker::next_move2() {
+#endif
 
 	Move move;
 

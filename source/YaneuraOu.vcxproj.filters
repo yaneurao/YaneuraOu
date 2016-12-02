@@ -317,53 +317,11 @@
     <Text Include="..\docs\解説.txt">
       <Filter>doc</Filter>
     </Text>
-    <Text Include="..\exe\YaneuraOu-nano_ja.txt">
-      <Filter>exe</Filter>
-    </Text>
-    <Text Include="..\exe\YaneuraOu-nano-readme.txt">
-      <Filter>exe</Filter>
-    </Text>
     <Text Include="..\exe\eval\readme.txt">
       <Filter>exe\eval</Filter>
     </Text>
-    <Text Include="..\exe\YaneuraOu-nano-plus_ja.txt">
-      <Filter>exe</Filter>
-    </Text>
-    <Text Include="..\exe\YaneuraOu-nano-plus-readme.txt">
-      <Filter>exe</Filter>
-    </Text>
-    <Text Include="..\exe\YaneuraOu-mini_ja.txt">
-      <Filter>exe</Filter>
-    </Text>
-    <Text Include="..\exe\YaneuraOu-mini-readme.txt">
-      <Filter>exe</Filter>
-    </Text>
-    <Text Include="..\exe\YaneuraOu-classic_ja.txt">
-      <Filter>exe</Filter>
-    </Text>
-    <Text Include="..\exe\YaneuraOu-classic-readme.txt">
-      <Filter>exe</Filter>
-    </Text>
-    <Text Include="..\exe\YaneuraOu-classic-tce_ja.txt">
-      <Filter>exe</Filter>
-    </Text>
-    <Text Include="..\exe\YaneuraOu-classic-tce-readme.txt">
-      <Filter>exe</Filter>
-    </Text>
-    <Text Include="..\exe\YaneuraOu-2016-mid_ja.txt">
-      <Filter>exe</Filter>
-    </Text>
     <Text Include="..\docs\やねうら大定跡.txt">
       <Filter>doc</Filter>
-    </Text>
-    <Text Include="..\exe\YaneuraOu-2016-late_ja.txt">
-      <Filter>exe</Filter>
-    </Text>
-    <Text Include="..\exe\YaneuraOu-2016-late-readme.txt">
-      <Filter>exe</Filter>
-    </Text>
-    <Text Include="..\exe\YaneuraOu-2016-mid-readme.txt">
-      <Filter>exe</Filter>
     </Text>
     <Text Include="..\docs\更新履歴.txt">
       <Filter>doc</Filter>
@@ -371,55 +329,16 @@
     <Text Include="..\script\readme.txt">
       <Filter>script</Filter>
     </Text>
-    <Text Include="..\exe\YaneuraOu-check-shogi_ja.txt">
-      <Filter>exe</Filter>
-    </Text>
-    <Text Include="..\exe\YaneuraOu-check-shogi-readme.txt">
-      <Filter>exe</Filter>
-    </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md">
       <Filter>doc</Filter>
     </None>
-    <None Include="..\exe\YaneuraOu-nano.exe">
-      <Filter>exe</Filter>
-    </None>
     <None Include="..\exe\book\standard_book.db">
       <Filter>exe\book</Filter>
     </None>
-    <None Include="..\exe\YaneuraOu-nano-plus.exe">
-      <Filter>exe</Filter>
-    </None>
-    <None Include="..\exe\YaneuraOu-mini.exe">
-      <Filter>exe</Filter>
-    </None>
-    <None Include="..\exe\YaneuraOu-classic.exe">
-      <Filter>exe</Filter>
-    </None>
-    <None Include="..\exe\YaneuraOu-classic-tce.exe">
-      <Filter>exe</Filter>
-    </None>
-    <None Include="..\exe\YaneuraOu-local-server.exe">
-      <Filter>exe</Filter>
-    </None>
     <None Include="Makefile">
       <Filter>doc</Filter>
-    </None>
-    <None Include="..\exe\YaneuraOu-2016-mid.exe">
-      <Filter>exe</Filter>
-    </None>
-    <None Include="..\exe\YaneuraOu-2016-mid-nosse.exe">
-      <Filter>exe</Filter>
-    </None>
-    <None Include="..\exe\YaneuraOu-2016-mid-sse2.exe">
-      <Filter>exe</Filter>
-    </None>
-    <None Include="..\exe\YaneuraOu-2016-mid-sse42.exe">
-      <Filter>exe</Filter>
-    </None>
-    <None Include="..\exe\YaneuraOu-2016-mid-sse41.exe">
-      <Filter>exe</Filter>
     </None>
     <None Include="..\script\calc_rating.py">
       <Filter>script</Filter>
@@ -433,26 +352,8 @@
     <None Include="..\script\engine_invoker4.py">
       <Filter>script</Filter>
     </None>
-    <None Include="..\exe\YaneuraOu-2016-late.exe">
-      <Filter>exe</Filter>
-    </None>
-    <None Include="..\exe\YaneuraOu-2016-late-nosse.exe">
-      <Filter>exe</Filter>
-    </None>
-    <None Include="..\exe\YaneuraOu-2016-late-sse2.exe">
-      <Filter>exe</Filter>
-    </None>
-    <None Include="..\exe\YaneuraOu-2016-late-sse41.exe">
-      <Filter>exe</Filter>
-    </None>
-    <None Include="..\exe\YaneuraOu-2016-late-sse42.exe">
-      <Filter>exe</Filter>
-    </None>
     <None Include="..\script\analyze_yane_log.py">
       <Filter>script</Filter>
-    </None>
-    <None Include="..\exe\YaneuraOu-check-shogi.exe">
-      <Filter>exe</Filter>
     </None>
   </ItemGroup>
 </Project>
