@@ -297,7 +297,7 @@
     <None Include="..\script\analyze_yane_log.py" />
     <None Include="..\script\calc_rating.py" />
     <None Include="..\script\engine_invoker1.py" />
-    <None Include="..\script\engine_invoker4.py" />
+    <None Include="..\script\engine_invoker5.py" />
     <None Include="Makefile" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

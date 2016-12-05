@@ -274,7 +274,7 @@ namespace USI
 		o["EvalShare"] << Option(true);
 #endif
 
-#if defined(LOCAL_GAME_SERVER) || (defined(USE_SHARED_MEMORY_IN_EVAL) && defined(EVAL_KPPT) && defined(_MSC_VER))
+#if defined(LOCAL_GAME_SERVER)
 		// 子プロセスでEngineを実行するプロセッサグループ(Numa node)
 		// -1なら、指定なし。
 		o["EngineNuma"] << Option(-1, 0, 99999);
@@ -826,6 +826,13 @@ Move move_from_usi(const Position& pos, const std::string& str)
 
 	// 上位bitに駒種を入れておかないとpseudo_legal()で引っかかる。
 	move = pos.move16_to_move(move);
+
+#if defined(MUST_CAPTURE_SHOGI_ENGINE)
+	// 取る一手将棋は合法手かどうかをGUI側でチェックしてくれないから、
+	// 合法手かどうかのチェックを入れる。
+	if (!MoveList<LEGAL>(pos).contains(move))
+		sync_cout << "info string Error!! Illegal Move = " << move << sync_endl;
+#endif
 
 	if (pos.pseudo_legal(move) && pos.legal(move))
 		return move;

@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "4.21"
+#define ENGINE_VERSION "4.23"
 
 // --------------------
 // コンパイル時の設定
@@ -33,9 +33,9 @@
 //#define YANEURAOU_CLASSIC_TCE_ENGINE     // やねうら王classic tce  (完成2016/04/15)
 //#define YANEURAOU_2016_MID_ENGINE        // やねうら王2016(MID)    (完成2016/08/18)
 //#define YANEURAOU_2016_LATE_ENGINE       // やねうら王2016(LATE)   (完成2016/10/07)
-//#define YANEURAOU_2017_EARLY_ENGINE      // やねうら王2017(EARLY)  (開発中)
+#define YANEURAOU_2017_EARLY_ENGINE      // やねうら王2017(EARLY)  (開発中)
 //#define CHECK_SHOGI_ENGINE	           // やねうら王 王手将棋    (完成2016/11/30)
-#define MUST_CAPTURE_SHOGI_ENGINE        // やねうら王 取る一手将棋(開発中)
+//#define MUST_CAPTURE_SHOGI_ENGINE        // やねうら王 取る一手将棋(完成2016/12/04)
 //#define RANDOM_PLAYER_ENGINE             // ランダムプレイヤー
 //#define MATE_ENGINE                      // 詰め将棋solverとしてリリースする場合。(開発中)
 //#define HELP_MATE_ENGINE                 // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
@@ -109,11 +109,11 @@ constexpr bool is_ok(Rank r) { return RANK_ZERO <= r && r < RANK_NB; }
 
 // 移動元、もしくは移動先の升のrankを与えたときに、そこが成れるかどうかを判定する。
 inline bool canPromote(const Color c, const Rank fromOrToRank) {
-  ASSERT_LV1(is_ok(c) && is_ok(fromOrToRank));
-  // 先手9bit(9段) + 後手9bit(9段) = 18bitのbit列に対して、判定すればいい。
-  // ただし ×9みたいな掛け算をするのは嫌なのでbit shiftで済むように先手16bit、後手16bitの32bitのbit列に対して判定する。
-  // このcastにおいて、VC++2015ではwarning C4800が出る。
-  return static_cast<bool>(0x1c00007u & (1u << ((c << 4) + fromOrToRank)));
+	ASSERT_LV1(is_ok(c) && is_ok(fromOrToRank));
+	// 先手9bit(9段) + 後手9bit(9段) = 18bitのbit列に対して、判定すればいい。
+	// ただし ×9みたいな掛け算をするのは嫌なのでbit shiftで済むように先手16bit、後手16bitの32bitのbit列に対して判定する。
+	// このcastにおいて、VC++2015ではwarning C4800が出る。
+	return static_cast<bool>(0x1c00007u & (1u << ((c << 4) + fromOrToRank)));
 }
 
 // 後手の段なら先手から見た段を返す。
@@ -137,41 +137,41 @@ inline std::ostream& operator<<(std::ostream& os, Rank r) { os << (char)('a' + r
 
 // 盤上の升目に対応する定数。
 // 盤上右上(１一が0)、左下(９九)が80
-enum Square : int32_t
+enum Square: int32_t
 {
-  // 以下、盤面の右上から左下までの定数。
-  // これを定義していなくとも問題ないのだが、デバッガでSquare型を見たときに
-  // どの升であるかが表示されることに価値がある。
-  SQ_11, SQ_12, SQ_13, SQ_14, SQ_15, SQ_16, SQ_17, SQ_18, SQ_19,
-  SQ_21, SQ_22, SQ_23, SQ_24, SQ_25, SQ_26, SQ_27, SQ_28, SQ_29,
-  SQ_31, SQ_32, SQ_33, SQ_34, SQ_35, SQ_36, SQ_37, SQ_38, SQ_39,
-  SQ_41, SQ_42, SQ_43, SQ_44, SQ_45, SQ_46, SQ_47, SQ_48, SQ_49,
-  SQ_51, SQ_52, SQ_53, SQ_54, SQ_55, SQ_56, SQ_57, SQ_58, SQ_59,
-  SQ_61, SQ_62, SQ_63, SQ_64, SQ_65, SQ_66, SQ_67, SQ_68, SQ_69,
-  SQ_71, SQ_72, SQ_73, SQ_74, SQ_75, SQ_76, SQ_77, SQ_78, SQ_79,
-  SQ_81, SQ_82, SQ_83, SQ_84, SQ_85, SQ_86, SQ_87, SQ_88, SQ_89,
-  SQ_91, SQ_92, SQ_93, SQ_94, SQ_95, SQ_96, SQ_97, SQ_98, SQ_99,
+	// 以下、盤面の右上から左下までの定数。
+	// これを定義していなくとも問題ないのだが、デバッガでSquare型を見たときに
+	// どの升であるかが表示されることに価値がある。
+	SQ_11, SQ_12, SQ_13, SQ_14, SQ_15, SQ_16, SQ_17, SQ_18, SQ_19,
+	SQ_21, SQ_22, SQ_23, SQ_24, SQ_25, SQ_26, SQ_27, SQ_28, SQ_29,
+	SQ_31, SQ_32, SQ_33, SQ_34, SQ_35, SQ_36, SQ_37, SQ_38, SQ_39,
+	SQ_41, SQ_42, SQ_43, SQ_44, SQ_45, SQ_46, SQ_47, SQ_48, SQ_49,
+	SQ_51, SQ_52, SQ_53, SQ_54, SQ_55, SQ_56, SQ_57, SQ_58, SQ_59,
+	SQ_61, SQ_62, SQ_63, SQ_64, SQ_65, SQ_66, SQ_67, SQ_68, SQ_69,
+	SQ_71, SQ_72, SQ_73, SQ_74, SQ_75, SQ_76, SQ_77, SQ_78, SQ_79,
+	SQ_81, SQ_82, SQ_83, SQ_84, SQ_85, SQ_86, SQ_87, SQ_88, SQ_89,
+	SQ_91, SQ_92, SQ_93, SQ_94, SQ_95, SQ_96, SQ_97, SQ_98, SQ_99,
 
-  // ゼロと末尾
-  SQ_ZERO = 0, SQ_NB = 81,
-  SQ_NB_PLUS1 = SQ_NB + 1, // 玉がいない場合、SQ_NBに移動したものとして扱うため、配列をSQ_NB+1で確保しないといけないときがあるのでこの定数を用いる。
+	// ゼロと末尾
+	SQ_ZERO = 0, SQ_NB = 81,
+	SQ_NB_PLUS1 = SQ_NB + 1, // 玉がいない場合、SQ_NBに移動したものとして扱うため、配列をSQ_NB+1で確保しないといけないときがあるのでこの定数を用いる。
 
-  // 方角に関する定数。StockfishだとNORTH=北=盤面の下を意味するようだが、
-  // わかりにくいのでやねうら王ではストレートな命名に変更する。
-  SQ_D  = +1, // 下(Down)
-  SQ_R  = -9, // 右(Right)
-  SQ_U  = -1, // 上(Up)
-  SQ_L  = +9, // 左(Left)
+	// 方角に関する定数。StockfishだとNORTH=北=盤面の下を意味するようだが、
+	// わかりにくいのでやねうら王ではストレートな命名に変更する。
+	SQ_D = +1, // 下(Down)
+	SQ_R = -9, // 右(Right)
+	SQ_U = -1, // 上(Up)
+	SQ_L = +9, // 左(Left)
 
-  // 斜めの方角などを意味する定数。
-  SQ_RU = int(SQ_U) + int(SQ_R), // 右上(Right Up)
-  SQ_RD = int(SQ_D) + int(SQ_R), // 右下(Right Down)
-  SQ_LU = int(SQ_U) + int(SQ_L), // 左上(Left Up)
-  SQ_LD = int(SQ_D) + int(SQ_L), // 左下(Left Down)
-  SQ_RUU = int(SQ_RU) + int(SQ_U), // 右上上
-  SQ_LUU = int(SQ_LU) + int(SQ_U), // 左上上
-  SQ_RDD = int(SQ_RD) + int(SQ_D), // 右下下
-  SQ_LDD = int(SQ_LD) + int(SQ_D), // 左下下
+	// 斜めの方角などを意味する定数。
+	SQ_RU = int(SQ_U) + int(SQ_R), // 右上(Right Up)
+	SQ_RD = int(SQ_D) + int(SQ_R), // 右下(Right Down)
+	SQ_LU = int(SQ_U) + int(SQ_L), // 左上(Left Up)
+	SQ_LD = int(SQ_D) + int(SQ_L), // 左下(Left Down)
+	SQ_RUU = int(SQ_RU) + int(SQ_U), // 右上上
+	SQ_LUU = int(SQ_LU) + int(SQ_U), // 左上上
+	SQ_RDD = int(SQ_RD) + int(SQ_D), // 右下下
+	SQ_LDD = int(SQ_LD) + int(SQ_D), // 左下下
 };
 
 // sqが盤面の内側を指しているかを判定する。assert()などで使う用。
@@ -242,16 +242,16 @@ inline std::ostream& operator<<(std::ostream& os, Square sq) { os << file_of(sq)
 // bit 14..18 : いまの升から盤外まで何升上に(略
 // bit 19..23 : いまの升から盤外まで何升下に(略
 // bit 24..28 : いまの升から盤外まで何升左に(略
-enum SquareWithWall : int32_t {
-  // 相対移動するときの差分値
-  SQWW_R  = SQ_R - (1 << 9) + (1 << 24) , SQWW_U = SQ_U - (1 << 14) + (1 << 19) , SQWW_D = -int(SQWW_U), SQWW_L = -int(SQWW_R),
-  SQWW_RU = int(SQWW_R) + int(SQWW_U) , SQWW_RD = int(SQWW_R) + int(SQWW_D) , SQWW_LU = int(SQWW_L) + int(SQWW_U) , SQWW_LD = int(SQWW_L) + int(SQWW_D) ,
+enum SquareWithWall: int32_t {
+	// 相対移動するときの差分値
+	SQWW_R = SQ_R - (1 << 9) + (1 << 24), SQWW_U = SQ_U - (1 << 14) + (1 << 19), SQWW_D = -int(SQWW_U), SQWW_L = -int(SQWW_R),
+	SQWW_RU = int(SQWW_R) + int(SQWW_U), SQWW_RD = int(SQWW_R) + int(SQWW_D), SQWW_LU = int(SQWW_L) + int(SQWW_U), SQWW_LD = int(SQWW_L) + int(SQWW_D),
 
-  // SQ_11の地点に対応する値(他の升はこれ相対で事前に求めテーブルに格納)
-  SQWW_11 = SQ_11 | (1 << 8) /* bit8 is 1 */ | (0 << 9) /*右に0升*/| (0 << 14) /*上に0升*/ | (8 << 19) /*下に8升*/| (8 << 24) /*左に8升*/,
+	// SQ_11の地点に対応する値(他の升はこれ相対で事前に求めテーブルに格納)
+	SQWW_11 = SQ_11 | (1 << 8) /* bit8 is 1 */ | (0 << 9) /*右に0升*/ | (0 << 14) /*上に0升*/ | (8 << 19) /*下に8升*/ | (8 << 24) /*左に8升*/,
 
-  // SQWW_RIGHTなどを足して行ったときに盤外に行ったときのborrow bitの集合
-  SQWW_BORROW_MASK = (1 << 13) | (1 << 18) | (1 << 23) | (1 << 28) ,
+	// SQWW_RIGHTなどを足して行ったときに盤外に行ったときのborrow bitの集合
+	SQWW_BORROW_MASK = (1 << 13) | (1 << 18) | (1 << 23) | (1 << 28),
 };
 
 // 型変換。下位8bit == Square
@@ -277,35 +277,38 @@ inline std::ostream& operator<<(std::ostream& os, SquareWithWall sqww) { os << s
 // それ以上を使いたい場合は、LONG_EFFECT_LIBRARYというシンボルをdefineして、extra/long_effect.hをincludeすること。
 namespace Effect8
 {
-  // 方角を表す。遠方駒の利きや、玉から見た方角を表すのに用いる。
-  // bit0..右上、bit1..右、bit2..右下、bit3..上、bit4..下、bit5..左上、bit6..左、bit7..左下
-  // 同時に複数のbitが1であることがありうる。
-  enum Directions : uint8_t { DIRECTIONS_ZERO = 0 , DIRECTIONS_RU = 1, DIRECTIONS_R = 2 , DIRECTIONS_RD = 4,
-    DIRECTIONS_U = 8, DIRECTIONS_D = 16 , DIRECTIONS_LU = 32 , DIRECTIONS_L = 64 , DIRECTIONS_LD = 128 ,
-    DIRECTIONS_CROSS = DIRECTIONS_U | DIRECTIONS_D | DIRECTIONS_R | DIRECTIONS_L ,
-    DIRECTIONS_DIAG = DIRECTIONS_RU | DIRECTIONS_RD | DIRECTIONS_LU | DIRECTIONS_LD,
-  };
+	// 方角を表す。遠方駒の利きや、玉から見た方角を表すのに用いる。
+	// bit0..右上、bit1..右、bit2..右下、bit3..上、bit4..下、bit5..左上、bit6..左、bit7..左下
+	// 同時に複数のbitが1であることがありうる。
+	enum Directions: uint8_t {
+		DIRECTIONS_ZERO  = 0, DIRECTIONS_RU = 1, DIRECTIONS_R = 2, DIRECTIONS_RD = 4,
+		DIRECTIONS_U     = 8, DIRECTIONS_D = 16, DIRECTIONS_LU = 32, DIRECTIONS_L = 64, DIRECTIONS_LD = 128,
+		DIRECTIONS_CROSS = DIRECTIONS_U  | DIRECTIONS_D  | DIRECTIONS_R  | DIRECTIONS_L,
+		DIRECTIONS_DIAG  = DIRECTIONS_RU | DIRECTIONS_RD | DIRECTIONS_LU | DIRECTIONS_LD,
+	};
 
-  // sq1にとってsq2がどのdirectionにあるか。
-  extern Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1];
-  inline Directions directions_of(Square sq1, Square sq2) { return direc_table[sq1][sq2]; }
+	// sq1にとってsq2がどのdirectionにあるか。
+	extern Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1];
+	inline Directions directions_of(Square sq1, Square sq2) { return direc_table[sq1][sq2]; }
 
-  // Directionsをpopしたもの。複数の方角を同時に表すことはない。
-  // おまけで桂馬の移動も追加しておく。
-  enum Direct { DIRECT_RU, DIRECT_R, DIRECT_RD, DIRECT_U, DIRECT_D, DIRECT_LU, DIRECT_L, DIRECT_LD,
-    DIRECT_NB, DIRECT_ZERO = 0, DIRECT_RUU=8,DIRECT_LUU,DIRECT_RDD,DIRECT_LDD,DIRECT_NB_PLUS4 };
+	// Directionsをpopしたもの。複数の方角を同時に表すことはない。
+	// おまけで桂馬の移動も追加しておく。
+	enum Direct {
+		DIRECT_RU, DIRECT_R, DIRECT_RD, DIRECT_U, DIRECT_D, DIRECT_LU, DIRECT_L, DIRECT_LD,
+		DIRECT_NB, DIRECT_ZERO = 0, DIRECT_RUU = 8, DIRECT_LUU, DIRECT_RDD, DIRECT_LDD, DIRECT_NB_PLUS4
+	};
 
-  // Directionsに相当するものを引数に渡して1つ方角を取り出す。
-  inline Direct pop_directions(Directions& d) { return (Direct)pop_lsb(d); }
+	// Directionsに相当するものを引数に渡して1つ方角を取り出す。
+	inline Direct pop_directions(Directions& d) { return (Direct)pop_lsb(d); }
 
-  // DirectからDirectionsへの逆変換
-  inline Directions to_directions(Direct d) { return Directions(1 << d); }
+	// DirectからDirectionsへの逆変換
+	inline Directions to_directions(Direct d) { return Directions(1 << d); }
 
-  inline bool is_ok(Direct d) { return DIRECT_ZERO <= d && d < DIRECT_NB_PLUS4; }
+	inline bool is_ok(Direct d) { return DIRECT_ZERO <= d && d < DIRECT_NB_PLUS4; }
 
-  // DirectをSquareWithWall型の差分値で表現したもの。
-  const SquareWithWall DirectToDeltaWW_[DIRECT_NB] = { SQWW_RU,SQWW_R,SQWW_RD,SQWW_U,SQWW_D,SQWW_LU,SQWW_L,SQWW_LD, };
-  inline SquareWithWall DirectToDeltaWW(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDeltaWW_[d]; }
+	// DirectをSquareWithWall型の差分値で表現したもの。
+	const SquareWithWall DirectToDeltaWW_[DIRECT_NB] = { SQWW_RU,SQWW_R,SQWW_RD,SQWW_U,SQWW_D,SQWW_LU,SQWW_L,SQWW_LD, };
+	inline SquareWithWall DirectToDeltaWW(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDeltaWW_[d]; }
 }
 
 // 与えられた3升が縦横斜めの1直線上にあるか。駒を移動させたときに開き王手になるかどうかを判定するのに使う。
@@ -326,7 +329,7 @@ inline bool aligned(Square sq1, Square sq2, Square sq3/* is ksq */)
 const int MAX_PLY = MAX_PLY_NUM;
 
 // 探索深さを表現するためのenum
-enum Depth : int32_t
+enum Depth: int32_t
 {
 	// Depthは1手をONE_PLY倍にスケーリングする。
 #ifdef ONE_PLY_EQ_1
@@ -334,24 +337,24 @@ enum Depth : int32_t
 #else
 	ONE_PLY = 2,
 #endif
-	
+
 	// 探索深さ0
-  DEPTH_ZERO = 0 * ONE_PLY,
+	DEPTH_ZERO = 0 * ONE_PLY,
 
-  // 最大深さ
-  DEPTH_MAX = MAX_PLY*(int)ONE_PLY ,
+	// 最大深さ
+	DEPTH_MAX = MAX_PLY*(int)ONE_PLY,
 
-  // 静止探索で王手がかかっているときにこれより少ない残り探索深さでの探索した結果が置換表にあってもそれは信用しない
-  DEPTH_QS_CHECKS = 0*(int)ONE_PLY,
+	// 静止探索で王手がかかっているときにこれより少ない残り探索深さでの探索した結果が置換表にあってもそれは信用しない
+	DEPTH_QS_CHECKS = 0 * (int)ONE_PLY,
 
-  // 静止探索で王手がかかっていないとき。
-  DEPTH_QS_NO_CHECKS = -1*(int)ONE_PLY,
+	// 静止探索で王手がかかっていないとき。
+	DEPTH_QS_NO_CHECKS = -1 * (int)ONE_PLY,
 
-  // 静止探索でこれより深い(残り探索深さが少ない)ところではRECAPTURESしか生成しない。
-  DEPTH_QS_RECAPTURES = -5*(int)ONE_PLY,
+	// 静止探索でこれより深い(残り探索深さが少ない)ところではRECAPTURESしか生成しない。
+	DEPTH_QS_RECAPTURES = -5 * (int)ONE_PLY,
 
-  // DEPTH_NONEは探索せずに値を求めたという意味に使う。
-  DEPTH_NONE = -6 * (int)ONE_PLY
+	// DEPTH_NONEは探索せずに値を求めたという意味に使う。
+	DEPTH_NONE = -6 * (int)ONE_PLY
 };
 
 // ONE_PLYは2のべき乗でないといけない。
@@ -365,10 +368,10 @@ static_assert(!(ONE_PLY & (ONE_PLY - 1)), "ONE_PLY is not a power of 2");
 // high fail時はこの値は上界(真の値はこれより小さい)、low fail時はこの値は下界(真の値はこれより大きい)
 // である。
 enum Bound {
-  BOUND_NONE,  // 探索していない(DEPTH_NONE)ときに、最善手か、静的評価スコアだけを置換表に格納したいときに用いる。
-  BOUND_UPPER, // 上界(真の評価値はこれより小さい) = 詰みのスコアや、nonPVで評価値があまり信用ならない状態であることを表現する。
-  BOUND_LOWER, // 下界(真の評価値はこれより大きい)
-  BOUND_EXACT = BOUND_UPPER | BOUND_LOWER // 真の評価値と一致している。PV nodeでかつ詰みのスコアでないことを表現する。
+	BOUND_NONE,  // 探索していない(DEPTH_NONE)ときに、最善手か、静的評価スコアだけを置換表に格納したいときに用いる。
+	BOUND_UPPER, // 上界(真の評価値はこれより小さい) = 詰みのスコアや、nonPVで評価値があまり信用ならない状態であることを表現する。
+	BOUND_LOWER, // 下界(真の評価値はこれより大きい)
+	BOUND_EXACT = BOUND_UPPER | BOUND_LOWER // 真の評価値と一致している。PV nodeでかつ詰みのスコアでないことを表現する。
 };
 
 // --------------------
@@ -376,36 +379,36 @@ enum Bound {
 // --------------------
 
 // 置換表に格納するときにあまりbit数が多いともったいないので値自体は16bitで収まる範囲で。
-enum Value : int32_t
+enum Value: int32_t
 {
-  VALUE_ZERO = 0,
+	VALUE_ZERO = 0,
 
-  // 1手詰めのスコア(例えば、3手詰めならこの値より2少ない)
-  VALUE_MATE = 32000,
+	// 1手詰めのスコア(例えば、3手詰めならこの値より2少ない)
+	VALUE_MATE = 32000,
 
-  // Valueの取りうる最大値(最小値はこの符号を反転させた値)
-  VALUE_INFINITE = 32001,
+	// Valueの取りうる最大値(最小値はこの符号を反転させた値)
+	VALUE_INFINITE = 32001,
 
-  // 無効な値
-  VALUE_NONE = 32002,
+	// 無効な値
+	VALUE_NONE = 32002,
 
-  VALUE_MATE_IN_MAX_PLY  =   int(VALUE_MATE) - MAX_PLY,   // MAX_PLYでの詰みのときのスコア。
-  VALUE_MATED_IN_MAX_PLY =  -int(VALUE_MATE_IN_MAX_PLY), // MAX_PLYで詰まされるときのスコア。
+	VALUE_MATE_IN_MAX_PLY = int(VALUE_MATE) - MAX_PLY,   // MAX_PLYでの詰みのときのスコア。
+	VALUE_MATED_IN_MAX_PLY = -int(VALUE_MATE_IN_MAX_PLY), // MAX_PLYで詰まされるときのスコア。
 
-  // 勝ち手順が何らか証明されているときのスコア下限値
-  VALUE_KNOWN_WIN        =   int(VALUE_MATE_IN_MAX_PLY) - 1000,
+	// 勝ち手順が何らか証明されているときのスコア下限値
+	VALUE_KNOWN_WIN = int(VALUE_MATE_IN_MAX_PLY) - 1000,
 
-  // 千日手による優等局面への突入したときのスコア
-  // これある程度離しておかないと、置換表に書き込んで、相手番から見て、これから
-  // singularの判定なんかをしようと思ったときに
-  // -VALUE_KNOWN_WIN - margin が、VALUE_MATED_IN_MAX_PLYを下回るとまずいので…。
-  VALUE_SUPERIOR             = 28000,
+	// 千日手による優等局面への突入したときのスコア
+	// これある程度離しておかないと、置換表に書き込んで、相手番から見て、これから
+	// singularの判定なんかをしようと思ったときに
+	// -VALUE_KNOWN_WIN - margin が、VALUE_MATED_IN_MAX_PLYを下回るとまずいので…。
+	VALUE_SUPERIOR = 28000,
 
-  // 評価関数の返す値の最大値(2**14ぐらいに収まっていて欲しいところだが..)
-  VALUE_MAX_EVAL             = 25000,
+	// 評価関数の返す値の最大値(2**14ぐらいに収まっていて欲しいところだが..)
+	VALUE_MAX_EVAL = 25000,
 
-  // 評価関数がまだ呼び出されていないということを示すのに使う特殊な定数
-  VALUE_NOT_EVALUATED        = 32003,
+	// 評価関数がまだ呼び出されていないということを示すのに使う特殊な定数
+	VALUE_NOT_EVALUATED = 32003,
 };
 
 // ply手で詰ませるときのスコア
@@ -422,35 +425,35 @@ inline Value mated_in(int ply) {  return (Value)(-VALUE_MATE + ply);}
 // USIプロトコルでやりとりするときの駒の表現
 extern const char* USI_PIECE;
 
-enum Piece : int32_t
+enum Piece: int32_t
 {
-  // 金の順番を飛の後ろにしておく。KINGを8にしておく。
-  // こうすることで、成りを求めるときに pc |= 8;で求まり、かつ、先手の全種類の駒を列挙するときに空きが発生しない。(DRAGONが終端になる)
-  NO_PIECE, PAWN/*歩*/, LANCE/*香*/, KNIGHT/*桂*/, SILVER/*銀*/, BISHOP/*角*/, ROOK/*飛*/, GOLD/*金*/ ,
-  KING = 8/*玉*/, PRO_PAWN /*と*/, PRO_LANCE /*成香*/, PRO_KNIGHT /*成桂*/, PRO_SILVER /*成銀*/, HORSE/*馬*/, DRAGON/*龍*/, QUEEN/*未使用*/,
-  // 以下、先後の区別のある駒(Bがついているのは先手、Wがついているのは後手)
-  B_PAWN = 1 , B_LANCE, B_KNIGHT, B_SILVER, B_BISHOP, B_ROOK, B_GOLD , B_KING, B_PRO_PAWN, B_PRO_LANCE, B_PRO_KNIGHT, B_PRO_SILVER, B_HORSE, B_DRAGON, B_QUEEN,
-  W_PAWN = 17, W_LANCE, W_KNIGHT, W_SILVER, W_BISHOP, W_ROOK, W_GOLD , W_KING, W_PRO_PAWN, W_PRO_LANCE, W_PRO_KNIGHT, W_PRO_SILVER, W_HORSE, W_DRAGON, W_QUEEN,
-  PIECE_NB, // 終端
-  PIECE_ZERO = 0,
+	// 金の順番を飛の後ろにしておく。KINGを8にしておく。
+	// こうすることで、成りを求めるときに pc |= 8;で求まり、かつ、先手の全種類の駒を列挙するときに空きが発生しない。(DRAGONが終端になる)
+	NO_PIECE, PAWN/*歩*/, LANCE/*香*/, KNIGHT/*桂*/, SILVER/*銀*/, BISHOP/*角*/, ROOK/*飛*/, GOLD/*金*/,
+	KING = 8/*玉*/, PRO_PAWN /*と*/, PRO_LANCE /*成香*/, PRO_KNIGHT /*成桂*/, PRO_SILVER /*成銀*/, HORSE/*馬*/, DRAGON/*龍*/, QUEEN/*未使用*/,
+	// 以下、先後の区別のある駒(Bがついているのは先手、Wがついているのは後手)
+	B_PAWN = 1, B_LANCE, B_KNIGHT, B_SILVER, B_BISHOP, B_ROOK, B_GOLD, B_KING, B_PRO_PAWN, B_PRO_LANCE, B_PRO_KNIGHT, B_PRO_SILVER, B_HORSE, B_DRAGON, B_QUEEN,
+	W_PAWN = 17, W_LANCE, W_KNIGHT, W_SILVER, W_BISHOP, W_ROOK, W_GOLD, W_KING, W_PRO_PAWN, W_PRO_LANCE, W_PRO_KNIGHT, W_PRO_SILVER, W_HORSE, W_DRAGON, W_QUEEN,
+	PIECE_NB, // 終端
+	PIECE_ZERO = 0,
 
-  // --- 特殊な定数
+	// --- 特殊な定数
 
-  PIECE_PROMOTE = 8, // 成り駒と非成り駒との差(この定数を足すと成り駒になる)
-  PIECE_WHITE = 16,  // これを先手の駒に加算すると後手の駒になる。
-  PIECE_RAW_NB = 8,  // 非成駒の終端
+	PIECE_PROMOTE = 8, // 成り駒と非成り駒との差(この定数を足すと成り駒になる)
+	PIECE_WHITE = 16,  // これを先手の駒に加算すると後手の駒になる。
+	PIECE_RAW_NB = 8,  // 非成駒の終端
 
-  PIECE_HAND_ZERO = PAWN, // 手駒の開始位置
-  PIECE_HAND_NB = KING  , // 手駒になる駒種の最大+1
+	PIECE_HAND_ZERO = PAWN, // 手駒の開始位置
+	PIECE_HAND_NB = KING,   // 手駒になる駒種の最大+1
 
-  HDK = KING,       // Position::pieces()で使うときの定数。H=Horse,D=Dragon,K=Kingの合体したBitboardが返る。
+	HDK = KING,        // Position::pieces()で使うときの定数。H=Horse,D=Dragon,K=Kingの合体したBitboardが返る。
 
-  // 指し手生成(GeneratePieceMove = GPM)でtemplateの引数として使うマーカー的な値。変更する可能性があるのでユーザーは使わないでください。
-  // 値はマイナスにしておくことで、連続的な値になり、テーブルジャンプしやすくする。
-  GPM_BR   = -1 ,     // Bishop Rook
-  GPM_GBR  = -2 ,     // Gold Bishop Rook
-  GPM_GHD  = -3 ,     // Gold Horse Dragon
-  GPM_GHDK = -4 ,     // Gold Horse Dragon King
+	// 指し手生成(GeneratePieceMove = GPM)でtemplateの引数として使うマーカー的な値。変更する可能性があるのでユーザーは使わないでください。
+	// 値はマイナスにしておくことで、連続的な値になり、テーブルジャンプしやすくする。
+	GPM_BR   = -1,     // Bishop Rook
+	GPM_GBR  = -2,     // Gold Bishop Rook
+	GPM_GHD  = -3,     // Gold Horse Dragon
+	GPM_GHDK = -4,     // Gold Horse Dragon King
 };
 
 // USIプロトコルで駒を表す文字列を返す。
@@ -513,16 +516,16 @@ constexpr bool is_ok(PieceNo pn) { return PIECE_NO_ZERO <= pn && pn < PIECE_NO_N
 
 // 指し手 bit0..6 = 移動先のSquare、bit7..13 = 移動元のSquare(駒打ちのときは駒種)、bit14..駒打ちか、bit15..成りか
 // 上位16bitには、この指し手によってto(移動後の升)に来る駒。駒打ちのときは、さらに+32。
-enum Move : uint32_t {
+enum Move: uint32_t {
 
-  MOVE_NONE    = 0,             // 無効な移動
+	MOVE_NONE    = 0,             // 無効な移動
 
-  MOVE_NULL    = (1 << 7) + 1,  // NULL MOVEを意味する指し手。Square(1)からSquare(1)への移動は存在しないのでここを特殊な記号として使う。
-  MOVE_RESIGN  = (2 << 7) + 2,  // << で出力したときに"resign"と表示する投了を意味する指し手。
-  MOVE_WIN     = (3 << 7) + 3,  // 入玉時の宣言勝ちのために使う特殊な指し手
+	MOVE_NULL    = (1 << 7) + 1,  // NULL MOVEを意味する指し手。Square(1)からSquare(1)への移動は存在しないのでここを特殊な記号として使う。
+	MOVE_RESIGN  = (2 << 7) + 2,  // << で出力したときに"resign"と表示する投了を意味する指し手。
+	MOVE_WIN     = (3 << 7) + 3,  // 入玉時の宣言勝ちのために使う特殊な指し手
 
-  MOVE_DROP    = 1 << 14,       // 駒打ちフラグ
-  MOVE_PROMOTE = 1 << 15,       // 駒成りフラグ
+	MOVE_DROP    = 1 << 14,       // 駒打ちフラグ
+	MOVE_PROMOTE = 1 << 15,       // 駒成りフラグ
 };
 
 // 指し手の移動元の升を返す。from_sq()は、Stockfishとの互換性を高めるためのalias。
@@ -586,18 +589,18 @@ inline std::ostream& operator<<(std::ostream& os, Move m) { os << to_usi_string(
 // オーダリングのときにスコアで並べ替えしたいが、一つになっているほうが並び替えがしやすいのでこうしてある。
 struct ExtMove {
 
-  Move move;   // 指し手(32bit)
-  Value value; // これはMovePickerが指し手オーダリングのために並び替えるときに用いる値(≠評価値)。
+	Move move;   // 指し手(32bit)
+	Value value; // これはMovePickerが指し手オーダリングのために並び替えるときに用いる値(≠評価値)。
 
-  // Move型とは暗黙で変換できていい。
+	// Move型とは暗黙で変換できていい。
 
-  operator Move() const { return move; }
-  void operator=(Move m) { move = m; }
+	operator Move() const { return move; }
+	void operator=(Move m) { move = m; }
 };
 
 // ExtMoveの並べ替えを行なうので比較オペレーターを定義しておく。
 inline bool operator<(const ExtMove& first, const ExtMove& second) {
-  return first.value < second.value;
+	return first.value < second.value;
 }
 
 inline std::ostream& operator<<(std::ostream& os, ExtMove m) { os << m.move << '(' << m.value << ')'; return os; }
@@ -621,9 +624,9 @@ constexpr Hand PIECE_TO_HAND[PIECE_HAND_NB] = { (Hand)0, (Hand)(1 << PIECE_BITS[
 constexpr int PIECE_BIT_MASK[PIECE_HAND_NB] = { 0,31/*歩は5bit*/,7/*香は3bit*/,7/*桂*/,7/*銀*/,3/*角*/,3/*飛*/,7/*金*/ };
 
 constexpr int PIECE_BIT_MASK2[PIECE_HAND_NB] = { 0,
-  PIECE_BIT_MASK[PAWN]   << PIECE_BITS[PAWN]  , PIECE_BIT_MASK[LANCE]  << PIECE_BITS[LANCE] , PIECE_BIT_MASK[KNIGHT] << PIECE_BITS[KNIGHT],
-  PIECE_BIT_MASK[SILVER] << PIECE_BITS[SILVER], PIECE_BIT_MASK[BISHOP] << PIECE_BITS[BISHOP], PIECE_BIT_MASK[ROOK]   << PIECE_BITS[ROOK]  ,
-  PIECE_BIT_MASK[GOLD]   << PIECE_BITS[GOLD] };
+	PIECE_BIT_MASK[PAWN]   << PIECE_BITS[PAWN]  , PIECE_BIT_MASK[LANCE]  << PIECE_BITS[LANCE] , PIECE_BIT_MASK[KNIGHT] << PIECE_BITS[KNIGHT],
+	PIECE_BIT_MASK[SILVER] << PIECE_BITS[SILVER], PIECE_BIT_MASK[BISHOP] << PIECE_BITS[BISHOP], PIECE_BIT_MASK[ROOK]   << PIECE_BITS[ROOK]  ,
+	PIECE_BIT_MASK[GOLD]   << PIECE_BITS[GOLD] };
 
 // 駒の枚数が格納されているbitが1となっているMASK。(駒種を得るときに使う)
 constexpr int32_t HAND_BIT_MASK = PIECE_BIT_MASK2[PAWN] | PIECE_BIT_MASK2[LANCE] | PIECE_BIT_MASK2[KNIGHT] | PIECE_BIT_MASK2[SILVER]
@@ -661,8 +664,8 @@ std::ostream& operator<<(std::ostream& os, Hand hand);
 // 特定種の手駒を持っているかどうかをbitで表現するクラス
 // bit0..歩を持っているか , bit1..香 , bit2..桂 , bit3..銀 , bit4..角 , bit5..飛 , bit6..金 , bit7..玉(フラグとして用いるため)
 enum HandKind : uint32_t { HAND_KIND_PAWN = 1 << (PAWN-1), HAND_KIND_LANCE=1 << (LANCE-1) , HAND_KIND_KNIGHT = 1 << (KNIGHT-1),
-  HAND_KIND_SILVER = 1 << (SILVER-1), HAND_KIND_BISHOP = 1 << (BISHOP-1), HAND_KIND_ROOK = 1 << (ROOK-1) , HAND_KIND_GOLD = 1 << (GOLD-1) ,
-  HAND_KIND_KING = 1 << (KING-1) , HAND_KIND_ZERO = 0,};
+	HAND_KIND_SILVER = 1 << (SILVER-1), HAND_KIND_BISHOP = 1 << (BISHOP-1), HAND_KIND_ROOK = 1 << (ROOK-1) , HAND_KIND_GOLD = 1 << (GOLD-1) ,
+	HAND_KIND_KING = 1 << (KING-1) , HAND_KIND_ZERO = 0,};
 
 // Hand型からHandKind型への変換子
 // 例えば歩の枚数であれば5bitで表現できるが、011111bを加算すると1枚でもあれば桁あふれしてbit5が1になる。
@@ -688,46 +691,46 @@ const int MAX_MOVES = 600;
 // 生成する指し手の種類
 enum MOVE_GEN_TYPE
 {
-  // LEGAL/LEGAL_ALL以外は自殺手が含まれることがある(pseudo-legal)ので、do_moveの前にPosition::legal()でのチェックが必要。
+	// LEGAL/LEGAL_ALL以外は自殺手が含まれることがある(pseudo-legal)ので、do_moveの前にPosition::legal()でのチェックが必要。
 
-  NON_CAPTURES,           // 駒を取らない指し手
-  CAPTURES,               // 駒を取る指し手
+	NON_CAPTURES,           // 駒を取らない指し手
+	CAPTURES,               // 駒を取る指し手
 
-  CAPTURES_PRO_PLUS,      // CAPTURES + 価値のかなりあると思われる成り(歩だけ)
-  NON_CAPTURES_PRO_MINUS, // NON_CAPTURES - 価値のかなりあると思われる成り(歩だけ)
+	CAPTURES_PRO_PLUS,      // CAPTURES + 価値のかなりあると思われる成り(歩だけ)
+	NON_CAPTURES_PRO_MINUS, // NON_CAPTURES - 価値のかなりあると思われる成り(歩だけ)
 
-  // BonanzaではCAPTURESに銀以外の成りを含めていたが、Aperyでは歩の成り以外は含めない。
-  // あまり変な成りまで入れるとオーダリングを阻害する。
-  // 本ソースコードでは、NON_CAPTURESとCAPTURESは使わず、CAPTURES_PRO_PLUSとNON_CAPTURES_PRO_MINUSを使う。
-  
-  // note : NON_CAPTURESとCAPTURESとの生成される指し手の集合は被覆していない。
-  // note : CAPTURES_PRO_PLUSとNON_CAPTURES_PRO_MINUSとの生成される指し手の集合も被覆していない。
-  // →　被覆させないことで、二段階に指し手生成を分解することが出来る。
+	// BonanzaではCAPTURESに銀以外の成りを含めていたが、Aperyでは歩の成り以外は含めない。
+	// あまり変な成りまで入れるとオーダリングを阻害する。
+	// 本ソースコードでは、NON_CAPTURESとCAPTURESは使わず、CAPTURES_PRO_PLUSとNON_CAPTURES_PRO_MINUSを使う。
 
-  EVASIONS ,             // 王手の回避(指し手生成元で王手されている局面であることがわかっているときはこちらを呼び出す)
-  EVASIONS_ALL,          // EVASIONS + 歩の不成なども含む。
+	// note : NON_CAPTURESとCAPTURESとの生成される指し手の集合は被覆していない。
+	// note : CAPTURES_PRO_PLUSとNON_CAPTURES_PRO_MINUSとの生成される指し手の集合も被覆していない。
+	// →　被覆させないことで、二段階に指し手生成を分解することが出来る。
 
-  NON_EVASIONS,          // 王手の回避ではない手(指し手生成元で王手されていない局面であることがわかっているときのすべての指し手)
-  NON_EVASIONS_ALL,      // NON_EVASIONS + 歩の不成などを含む。
-  
-  // 以下の2つは、pos.legalを内部的に呼び出すので生成するのに時間が少しかかる。棋譜の読み込み時などにしか使わない。
-  LEGAL,                 // 合法手すべて。ただし、2段目の歩・香の不成や角・飛の不成は生成しない。
-  LEGAL_ALL,             // 合法手すべて
+	EVASIONS,              // 王手の回避(指し手生成元で王手されている局面であることがわかっているときはこちらを呼び出す)
+	EVASIONS_ALL,          // EVASIONS + 歩の不成なども含む。
 
-  CHECKS,                // 王手となる指し手(歩の不成などは含まない)
-  CHECKS_ALL,            // 王手となる指し手(歩の不成なども含む)
+	NON_EVASIONS,          // 王手の回避ではない手(指し手生成元で王手されていない局面であることがわかっているときのすべての指し手)
+	NON_EVASIONS_ALL,      // NON_EVASIONS + 歩の不成などを含む。
 
-  QUIET_CHECKS,          // 王手となる指し手(歩の不成などは含まない)で、CAPTURESの指し手は含まない指し手
-  QUIET_CHECKS_ALL,      // 王手となる指し手(歩の不成なども含む)でCAPTURESの指し手は含まない指し手
+	// 以下の2つは、pos.legalを内部的に呼び出すので生成するのに時間が少しかかる。棋譜の読み込み時などにしか使わない。
+	LEGAL,                 // 合法手すべて。ただし、2段目の歩・香の不成や角・飛の不成は生成しない。
+	LEGAL_ALL,             // 合法手すべて
 
-  // QUIET_CHECKS_PRO_MINUS,	  // 王手となる指し手(歩の不成などは含まない)で、CAPTURES_PRO_PLUSの指し手は含まない指し手
-  // QUIET_CHECKS_PRO_MINUS_ALL, // 王手となる指し手(歩の不成なども含む)で、CAPTURES_PRO_PLUSの指し手は含まない指し手
-  // →　これらは実装が難しいので、QUIET_CHECKSで生成してから、歩の成る指し手を除外したほうが良いと思う。
+	CHECKS,                // 王手となる指し手(歩の不成などは含まない)
+	CHECKS_ALL,            // 王手となる指し手(歩の不成なども含む)
 
-  RECAPTURES,            // 指定升への移動の指し手のみを生成する。(歩の不成などは含まない)
-  RECAPTURES_ALL,        // 指定升への移動の指し手のみを生成する。(歩の不成なども含む)
+	QUIET_CHECKS,          // 王手となる指し手(歩の不成などは含まない)で、CAPTURESの指し手は含まない指し手
+	QUIET_CHECKS_ALL,      // 王手となる指し手(歩の不成なども含む)でCAPTURESの指し手は含まない指し手
 
-  QUIETS = NON_CAPTURES , // Stockfishとの互換性向上ためのalias
+	// QUIET_CHECKS_PRO_MINUS,	  // 王手となる指し手(歩の不成などは含まない)で、CAPTURES_PRO_PLUSの指し手は含まない指し手
+	// QUIET_CHECKS_PRO_MINUS_ALL, // 王手となる指し手(歩の不成なども含む)で、CAPTURES_PRO_PLUSの指し手は含まない指し手
+	// →　これらは実装が難しいので、QUIET_CHECKSで生成してから、歩の成る指し手を除外したほうが良いと思う。
+
+	RECAPTURES,            // 指定升への移動の指し手のみを生成する。(歩の不成などは含まない)
+	RECAPTURES_ALL,        // 指定升への移動の指し手のみを生成する。(歩の不成なども含む)
+
+	QUIETS = NON_CAPTURES, // Stockfishとの互換性向上ためのalias
 };
 
 struct Position; // 前方宣言
@@ -788,22 +791,22 @@ typedef uint64_t Key;
 // 入玉ルール設定
 enum EnteringKingRule
 {
-  EKR_NONE ,           // 入玉ルールなし
-  EKR_24_POINT,        // 24点法(31点以上で宣言勝ち)
-  EKR_27_POINT,        // 27点法 = CSAルール
-  EKR_TRY_RULE,        // トライルール
+	EKR_NONE,            // 入玉ルールなし
+	EKR_24_POINT,        // 24点法(31点以上で宣言勝ち)
+	EKR_27_POINT,        // 27点法 = CSAルール
+	EKR_TRY_RULE,        // トライルール
 };
 
 // 千日手の状態
 enum RepetitionState
 {
-  REPETITION_NONE,     // 千日手ではない
-  REPETITION_WIN ,     // 連続王手の千日手による勝ち
-  REPETITION_LOSE,     // 連続王手の千日手による負け
-  REPETITION_DRAW,     // 連続王手ではない普通の千日手
-  REPETITION_SUPERIOR, // 優等局面(盤上の駒が同じで手駒が相手より優れている)
-  REPETITION_INFERIOR, // 劣等局面(盤上の駒が同じで手駒が相手より優れている)
-  REPETITION_NB,
+	REPETITION_NONE,     // 千日手ではない
+	REPETITION_WIN,      // 連続王手の千日手による勝ち
+	REPETITION_LOSE,     // 連続王手の千日手による負け
+	REPETITION_DRAW,     // 連続王手ではない普通の千日手
+	REPETITION_SUPERIOR, // 優等局面(盤上の駒が同じで手駒が相手より優れている)
+	REPETITION_INFERIOR, // 劣等局面(盤上の駒が同じで手駒が相手より優れている)
+	REPETITION_NB,
 };
 
 inline bool is_ok(RepetitionState rs) { return REPETITION_NONE <= rs && rs < REPETITION_NB; }
@@ -818,18 +821,18 @@ inline Value draw_value(RepetitionState rs, Color c) { ASSERT_LV3(is_ok(rs)); re
 
 namespace Eval
 {
-// AVX2ありのときはKPPT評価関数をAVX2命令で高速化するためにBonaPieceは32bit化されていて欲しい。
+	// AVX2ありのときはKPPT評価関数をAVX2命令で高速化するためにBonaPieceは32bit化されていて欲しい。
 #if defined(USE_FAST_KPPT)
 	enum BonaPiece: int32_t;
 #else
 	enum BonaPiece: int16_t;
 #endif
 
-  // 評価関数本体。
-  // 戻り値は、
-  //  abs(value) < VALUE_MAX_EVAL
-  // を満たす。
-  Value evaluate(const Position& pos);
+	// 評価関数本体。
+	// 戻り値は、
+	//  abs(value) < VALUE_MAX_EVAL
+	// を満たす。
+	Value evaluate(const Position& pos);
 }
 
 // --------------------
@@ -837,89 +840,97 @@ namespace Eval
 // --------------------
 
 namespace USI {
-  struct Option;
+	struct Option;
 
-  // USIのoption名と、それに対応する設定内容を保持しているclass
-  typedef std::map<std::string, Option> OptionsMap;
+	// USIのoption名と、それに対応する設定内容を保持しているclass
+	typedef std::map<std::string, Option> OptionsMap;
 
-  // USIプロトコルで指定されるoptionの内容を保持するclass
-  struct Option {
-    typedef void(*OnChange)(const Option&);
+	// USIプロトコルで指定されるoptionの内容を保持するclass
+	struct Option {
+		typedef void(*OnChange)(const Option&);
 
-    Option(OnChange f = nullptr) : type("button"), min(0), max(0), on_change(f) {}
+		Option(OnChange f = nullptr) : type("button"), min(0), max(0), on_change(f) {}
 
-    // 文字列
-    Option(const char* v, OnChange f = nullptr) : type("string"), min(0), max(0), on_change(f)
-    { defaultValue = currentValue = v; }
+		// 文字列
+		Option(const char* v, OnChange f = nullptr) : type("string"), min(0), max(0), on_change(f)
+		{
+			defaultValue = currentValue = v;
+		}
 
-    // bool型のoption デフォルト値が v
-    Option(bool v, OnChange f = nullptr) : type("check"),min(0),max(0),on_change(f)
-    { defaultValue = currentValue = v ? "true" : "false"; }
+		// bool型のoption デフォルト値が v
+		Option(bool v, OnChange f = nullptr) : type("check"), min(0), max(0), on_change(f)
+		{
+			defaultValue = currentValue = v ? "true" : "false";
+		}
 
-    // int型で(min,max)でデフォルトがv
-    Option(int v, int minv, int maxv, OnChange f = nullptr) : type("spin"),min(minv),max(maxv),on_change(f)
-    { defaultValue = currentValue = std::to_string(v); }
+		// int型で(min,max)でデフォルトがv
+		Option(int v, int minv, int maxv, OnChange f = nullptr) : type("spin"), min(minv), max(maxv), on_change(f)
+		{
+			defaultValue = currentValue = std::to_string(v);
+		}
 
-    // combo型。内容的には、string型と同等。
-    // list = コンボボックスに表示する値。v = デフォルト値かつ現在の値
-    Option(const std::vector<std::string>&list, const std::string& v, OnChange f = nullptr) : type("combo"), on_change(f) ,list(list)
-    { defaultValue = currentValue = v; }
+		// combo型。内容的には、string型と同等。
+		// list = コンボボックスに表示する値。v = デフォルト値かつ現在の値
+		Option(const std::vector<std::string>&list, const std::string& v, OnChange f = nullptr) : type("combo"), on_change(f), list(list)
+		{
+			defaultValue = currentValue = v;
+		}
 
-    // USIプロトコル経由で値を設定されたときにそれをcurrentValueに反映させる。
-    Option& operator=(const std::string&);
-    Option& operator=(const char* ptr) { return *this = std::string(ptr); };
+		// USIプロトコル経由で値を設定されたときにそれをcurrentValueに反映させる。
+		Option& operator=(const std::string&);
+		Option& operator=(const char* ptr) { return *this = std::string(ptr); };
 
-    // 起動時に設定を代入する。
-    void operator<<(const Option&);
+		// 起動時に設定を代入する。
+		void operator<<(const Option&);
 
-    // int,bool型への暗黙の変換子
-    operator int() const {
-      ASSERT_LV1(type == "check" || type == "spin");
-      return type == "spin" ? stoi(currentValue) : currentValue == "true";
-    }
+		// int,bool型への暗黙の変換子
+		operator int() const {
+			ASSERT_LV1(type == "check" || type == "spin");
+			return type == "spin" ? stoi(currentValue) : currentValue == "true";
+		}
 
-    // string型への暗黙の変換子
-    operator std::string() const { ASSERT_LV1(type == "string" || type == "combo" || type == "spin");  return currentValue; }
+		// string型への暗黙の変換子
+		operator std::string() const { ASSERT_LV1(type == "string" || type == "combo" || type == "spin");  return currentValue; }
 
-  private:
-    friend std::ostream& operator<<(std::ostream& os, const OptionsMap& om);
+	private:
+		friend std::ostream& operator<<(std::ostream& os, const OptionsMap& om);
 
-    // 出力するときの順番。この順番に従ってGUIの設定ダイアログに反映されるので順番重要！
-    size_t idx;
+		// 出力するときの順番。この順番に従ってGUIの設定ダイアログに反映されるので順番重要！
+		size_t idx;
 
-    std::string defaultValue, currentValue, type;
+		std::string defaultValue, currentValue, type;
 
-    // int型のときの最小と最大
-    int min, max;
+		// int型のときの最小と最大
+		int min, max;
 
-    // combo boxのときの表示する文字列リスト
-    std::vector<std::string> list;
+		// combo boxのときの表示する文字列リスト
+		std::vector<std::string> list;
 
-    // 値が変わったときに呼び出されるハンドラ
-    OnChange on_change;
-  };
+		// 値が変わったときに呼び出されるハンドラ
+		OnChange on_change;
+	};
 
-  // USIメッセージ応答部(起動時に、各種初期化のあとに呼び出される)
-  void loop(int argc, char* argv[]);
+	// USIメッセージ応答部(起動時に、各種初期化のあとに呼び出される)
+	void loop(int argc, char* argv[]);
 
-  // optionのdefault値を設定する。
-  void init(OptionsMap&);
+	// optionのdefault値を設定する。
+	void init(OptionsMap&);
 
-  // pv(読み筋)をUSIプロトコルに基いて出力する。
-  // iteration_depth = 反復深化のiteration深さ。
-  std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta);
+	// pv(読み筋)をUSIプロトコルに基いて出力する。
+	// iteration_depth = 反復深化のiteration深さ。
+	std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta);
 
-  // USIプロトコルで、idxの順番でoptionを出力する。
-  std::ostream& operator<<(std::ostream& os, const OptionsMap& om);
+	// USIプロトコルで、idxの順番でoptionを出力する。
+	std::ostream& operator<<(std::ostream& os, const OptionsMap& om);
 
-  // USIプロトコルの形式でValue型を出力する。
-  // 歩が100になるように正規化するので、operator <<()をこういう仕様にすると
-  // 実際の値と異なる表示になりデバッグがしにくくなるから、そうはしていない。
-  std::string score_to_usi(Value v);
+	// USIプロトコルの形式でValue型を出力する。
+	// 歩が100になるように正規化するので、operator <<()をこういう仕様にすると
+	// 実際の値と異なる表示になりデバッグがしにくくなるから、そうはしていない。
+	std::string score_to_usi(Value v);
 
-  // USIに追加オプションを設定したいときは、この関数を定義すること。
-  // USI::init()のなかからコールバックされる。
-  void extra_option(USI::OptionsMap& o);
+	// USIに追加オプションを設定したいときは、この関数を定義すること。
+	// USI::init()のなかからコールバックされる。
+	void extra_option(USI::OptionsMap& o);
 }
 
 // USIのoption設定はここに保持されている。

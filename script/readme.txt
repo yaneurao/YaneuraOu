@@ -4,7 +4,7 @@ python2.7系で動作を確認しています。
 そのうちpython3系に移行するかも知れません。
 
 engine_invoker1.py
-engine_invoker4.py
+engine_invoker5.py
 
 	新自己対戦フレームワーク
 	将棋エンジンを複数起動して並列的に連続対局できます。

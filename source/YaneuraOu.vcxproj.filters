@@ -349,10 +349,10 @@
     <None Include="..\script\engine_invoker1.py">
       <Filter>script</Filter>
     </None>
-    <None Include="..\script\engine_invoker4.py">
+    <None Include="..\script\analyze_yane_log.py">
       <Filter>script</Filter>
     </None>
-    <None Include="..\script\analyze_yane_log.py">
+    <None Include="..\script\engine_invoker5.py">
       <Filter>script</Filter>
     </None>
   </ItemGroup>

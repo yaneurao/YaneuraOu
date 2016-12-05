@@ -142,7 +142,6 @@ def create_option(engines,engine_threads,evals,times,hashes,numa,PARAMETERS_LOG_
 #				option.append("setoption name EvalShare value false")
 #			else:
 #				option.append("setoption name EvalShare value true")
-			option.append("setoption name EngineNuma value " + str(numa))
 			if nodes_time:
 				option.append("setoption name nodestime value 600")
 			if PARAMETERS_LOG_FILE_PATH :
@@ -180,11 +179,12 @@ def create_option(engines,engine_threads,evals,times,hashes,numa,PARAMETERS_LOG_
 
 # engine1とengine2とを対戦させる
 #  threads    : この数だけ並列対局
-#  numa       : 実行するプロセッサグループ
+#  cpu        : 実行するプロセッサグループの数
+#               1つのプロセッサには threads/cpu だけスレッドを割り当てる
 #  book_sfens : 定跡
 #  opt2       : 勝敗の表示の先頭にT2,b2000 のように対局条件を文字列化して突っ込む用。
 #  book_moves : 定跡の手数
-def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,book_moves):
+def vs_match(engines_full,options,threads,loop,cpu,book_sfens,fileLogging,opt2,book_moves):
 
 	global win,lose,draw
 	win = lose = draw = 0
@@ -202,10 +202,10 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 	sfen_no = 0;
 
 	cmds = []
-	for i in range(2):
+	for i in range(2*threads):
 		# working directoryを実行ファイルのあるフォルダ直下としてやる。
 		# 最後のdirectory separatorを探す
-		engine_path = engines_full[i]
+		engine_path = engines_full[i % 2]
 		pos = max(engine_path.rfind('\\') , engine_path.rfind('/'))
 		if pos <= 0:
 			working_dir = ""
@@ -213,7 +213,8 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 			working_dir = engine_path[:pos]
 		# print "working_dir = " + working_dir
 
-		cmds.append("cmd.exe /c start /B /WAIT /D " + working_dir + " /NODE " + str(numa) + " " + engines_full[i])
+		cmd = "cmd.exe /c start /B /WAIT /D " + working_dir + " /NODE " + str(int(i * cpu / (threads*2))) + " " + engines_full[i % 2]
+		cmds.append(cmd)
 
 	# 棋譜
 	sfens = [""]*threads
@@ -246,8 +247,8 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 	term_procs = [False]*threads*2
 
 	for i in range(threads*2):
-#		proc = subprocess.Popen(cmds[i & 1] , shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE , stdin = subprocess.PIPE , universal_newlines=True , bufsize=1)
-		proc = subprocess.Popen(cmds[i & 1] , shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE , stdin = subprocess.PIPE )
+#		proc = subprocess.Popen(cmds[i] , shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE , stdin = subprocess.PIPE , universal_newlines=True , bufsize=1)
+		proc = subprocess.Popen(cmds[i] , shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE , stdin = subprocess.PIPE )
 		pipe_non_blocking_set(proc.stdout.fileno())
 
 		procs[i] = proc
@@ -348,7 +349,6 @@ def vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,
 
 				# 置換対象文字列が含まれているなら置換しておく。
 				opt = opt.replace("%%THREAD_NUMBER%%",str(i))
-
 				send_cmd(i,opt)
 
 	# loop for playing games
@@ -622,7 +622,9 @@ def engine_to_full(e):
 #   eval2:evaldir2
 #   cores:coreの数
 #   loop:loop回数
-#   numa:numaの番号
+#   cpu :cpuの数
+#  		実行するプロセッサグループの数
+#       1つのプロセッサには threads/cpu だけスレッドを割り当てる
 #   engine_threads:思考スレッド数
 #   hash1:engine1のhash size
 #   hash2:engine2のhash size
@@ -631,14 +633,14 @@ def engine_to_full(e):
 #        (ここに"_2.log"のような文字列が自動的に付与される。)
 
 # sample 
-#   > c:\python27\python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker2.py home:\\WS2012_860C_YAN\yanehome\ engine1:YaneuraOuV350.exe eval1:Apery20160505 engine2:YaneuraOuV350.exe eval2:Apery20160505 cores:8 loop:1000 numa:0 engine_threads:1 hash1:16 hash2:16 time:r100
+#   > c:\python27\python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker2.py home:\\WS2012_860C_YAN\yanehome\ engine1:YaneuraOuV350.exe eval1:Apery20160505 engine2:YaneuraOuV350.exe eval2:Apery20160505 cores:8 loop:1000 cpu:2 engine_threads:1 hash1:16 hash2:16 time:r100
 
 # HOMEPATH          : ホームディレクトリ
 # engine1,engine2   : エンジン1,2のpath
 # evaldir1,evaldir2 : 評価関数フォルダ1,2 (ホームディレクトリ配下のevalフォルダ内にあるものとする)
 # cores             : コアの数(これをengine_threadsで割った数だけ並列対局)
 # loop              : 対局回数
-# numa              : 実行するプロセッサグループ(256を指定すると0の意味になり、かつファイルロギングをする)
+# cpu               : PCに搭載されているCPUの数(256を指定すると1の意味になり、かつファイルロギングをする)
 # engine_threads    : 思考エンジンのスレッド数
 # hash1,hash2       : 思考エンジンのhashサイズ
 # time1…timeN      : 持ち時間の指定
@@ -669,6 +671,7 @@ play_time_list = ""
 book_moves = 24
 PARAMETERS_LOG_FILE_PATH = ""
 rand_book = 0
+cpu = 1
 
 # パラメーターのparse
 for param in sys.argv[1:]:
@@ -682,8 +685,8 @@ for param in sys.argv[1:]:
 			threads = int(data)
 		elif label == "loop":
 			loop = int(data)
-		elif label == "numa":
-			numa = int(data)
+		elif label == "cpu":
+			cpu = int(data)
 		elif label == "engine_threads":
 			engine_threads = int(data)
 		elif label == "hash1":
@@ -712,10 +715,10 @@ for param in sys.argv[1:]:
 if not (home.endswith('/') or home.endswith('\\')):
 	home += '\\'
 
-# numaに256が指定されているときは、FileLoggingを有効にする。
+# cpuに256が指定されているときは、FileLoggingを有効にする。
 fileLogging = False
-if numa == 256:
-	numa = 0
+if cpu == 256:
+	cpu = 1
 	fileLogging = True
 
 # expand eval_dir
@@ -778,9 +781,9 @@ for evaldir in evaldirs:
 		print "engine" + str(i+1) + " = " + engines[i] + " , eval = " + evals[i]
 
 	for play_time in play_time_list:
-		print "\nthreads = " + str(threads) + " , loop = " + str(loop) + " , numa = " + str(numa) + " , play_time = " + play_time
+		print "\nthreads = " + str(threads) + " , loop = " + str(loop) + " , max_cpu = " + str(cpu) + " , play_time = " + play_time
 
-		options = create_option(engines,engine_threads,evals_full,play_time,hashes,numa,PARAMETERS_LOG_FILE_PATH)
+		options = create_option(engines,engine_threads,evals_full,play_time,hashes,cpu,PARAMETERS_LOG_FILE_PATH)
 
 		for i in range(2):
 			print "option " + str(i+1) + " = " + ' / '.join(options[i])
@@ -791,7 +794,7 @@ for evaldir in evaldirs:
 		# 短くスレッド数と秒読み条件を文字列化
 		opt2 = "T"+str(engine_threads) + "," + play_time
 
-		vs_match(engines_full,options,threads,loop,numa,book_sfens,fileLogging,opt2,book_moves)
+		vs_match(engines_full,options,threads,loop,cpu,book_sfens,fileLogging,opt2,book_moves)
 
 		# output final result
 		print "\nfinal result : "

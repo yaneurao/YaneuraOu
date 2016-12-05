@@ -216,7 +216,7 @@ inline std::string path_combine(const std::string& folder, const std::string& fi
 }
 
 // --------------------
-//  prefetch命令
+//    prefetch命令
 // --------------------
 
 // prefetch()は、与えられたアドレスの内容をL1/L2 cacheに事前に読み込む。
@@ -224,5 +224,22 @@ inline std::string path_combine(const std::string& folder, const std::string& fi
 
 extern void prefetch(void* addr);
 
+
+// --------------------
+//  全プロセッサを使う
+// --------------------
+
+// Windows環境において、プロセスが1個の論理プロセッサグループを超えてスレッドを
+// 実行するのは不可能である。これは、最大64コアまでの使用に制限されていることを普通、意味する。
+// これを克服するためには、いくつかの特殊なプラットフォーム固有のAPIを呼び出して、
+// それぞのスレッドがgroup affinityを設定しなければならない。
+// 元のコードはPeter ÖsterlundによるTexelから。
+
+namespace WinProcGroup {
+	// 各スレッドがidle_loop()などで自分のスレッド番号(0～)を渡す。
+	// 1つ目のプロセッサをまず使い切るようにgroup affinityを割り当てる。
+	// 1つ目のプロセッサの論理コアを使い切ったら次は2つ目のプロセッサを使っていくような動作。
+	void bindThisThread(size_t idx);
+}
 
 #endif // _MISC_H_

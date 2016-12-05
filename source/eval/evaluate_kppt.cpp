@@ -211,7 +211,7 @@ namespace Eval
 		// エンジンのバージョンによって評価関数は一意に定まるものとする。
 		// Numaで確保する名前を変更しておく。
 
-		auto dir_name = (string)Options["EvalDir"] + "Numa" + (string)Options["EngineNuma"];
+		auto dir_name = (string)Options["EvalDir"];
 		// Mutex名にbackslashは使えないらしいので、escapeする。念のため'/'もescapeする。
 		replace(dir_name.begin(), dir_name.end(), '\\', '_');
 		replace(dir_name.begin(), dir_name.end(), '/', '_');
