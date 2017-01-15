@@ -1,11 +1,12 @@
 # coding: UTF-8
-import time
-import sys
-import subprocess
-import os.path
-import math
-import random
+import argparse
 import datetime
+import math
+import os.path
+import random
+import subprocess
+import sys
+import time
 
 # -----------------------------------------------------------------
 
@@ -614,39 +615,22 @@ def engine_to_full(e):
 
 # ここからmain()
 
-# args format
-# 	home:HOMEPATH
-#   engine1:engine1
-#   eval1:evaldir1
-#   engine2:engine2
-#   eval2:evaldir2
-#   cores:coreの数
-#   loop:loop回数
-#   cpu :cpuの数
-#  		実行するプロセッサグループの数
-#       1つのプロセッサには threads/cpu だけスレッドを割り当てる
-#   engine_threads:思考スレッド数
-#   hash1:engine1のhash size
-#   hash2:engine2のhash size
-#   time:持ち時間設定
-#	PARAMETERS_LOG_FILE_PATH:同optionのpath指定
-#        (ここに"_2.log"のような文字列が自動的に付与される。)
-
 # sample 
-#   > c:\python27\python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker2.py home:\\WS2012_860C_YAN\yanehome\ engine1:YaneuraOuV350.exe eval1:Apery20160505 engine2:YaneuraOuV350.exe eval2:Apery20160505 cores:8 loop:1000 cpu:2 engine_threads:1 hash1:16 hash2:16 time:r100
+#   > c:\python27\python.exe \\WS2012_860C_YAN\yanehome\script\engine_invoker2.py ^
+#        --home \\WS2012_860C_YAN\yanehome\ ^
+#        --engine1 YaneuraOuV350.exe ^
+#        --eval1 Apery20160505 ^
+#        --engine2 YaneuraOuV350.exe ^
+#        --eval2 Apery20160505 ^
+#        --cores 8 ^
+#        --loop 1000 ^
+#        --cpu 2 ^
+#        --engine_threads 1 ^
+#        --hash1 16 ^
+#        --hash2 16 ^
+#        --time r100
 
-# HOMEPATH          : ホームディレクトリ
-# engine1,engine2   : エンジン1,2のpath
-# evaldir1,evaldir2 : 評価関数フォルダ1,2 (ホームディレクトリ配下のevalフォルダ内にあるものとする)
-# cores             : コアの数(これをengine_threadsで割った数だけ並列対局)
-# loop              : 対局回数
-# cpu               : PCに搭載されているCPUの数(256を指定すると1の意味になり、かつファイルロギングをする)
-# engine_threads    : 思考エンジンのスレッド数
-# hash1,hash2       : 思考エンジンのhashサイズ
-# time1…timeN      : 持ち時間の指定
-# rand_book         : 定跡の順番をランダム化(rand_book:1を指定したとき)
-
-# 持ち時間の書式サンプル
+# 持ち時間(--time)の書式サンプル
 #  r100    : random time 100
 #  b1000   : byoyomi time 1000
 #  t300000 : total time 300000
@@ -657,60 +641,39 @@ def engine_to_full(e):
 #  r100,r300   : ,で併記可能(それぞれの時間で対局する)
 #  b1000.b2000 : .で連結するとengine1とengine2とでそれぞれの持ち時間になる。
 
-home = ""
-threads = 1
-loop = 1
-engine_threads = 1
-# hash size for an each engine
-hashes = [16,16]
-engine1_path = ""
-engine2_path = ""
-eval1_path = ""
-eval2_path = ""
-play_time_list = ""
-book_moves = 24
-PARAMETERS_LOG_FILE_PATH = ""
-rand_book = 0
-cpu = 1
-
 # パラメーターのparse
-for param in sys.argv[1:]:
-	index = param.find(":")
-	if index != -1:
-		label = param[:index]
-		data = param[index+1:]
-		if label == "home":
-			home = data
-		elif label == "cores":
-			threads = int(data)
-		elif label == "loop":
-			loop = int(data)
-		elif label == "cpu":
-			cpu = int(data)
-		elif label == "engine_threads":
-			engine_threads = int(data)
-		elif label == "hash1":
-			hashes[0] = int(data)
-		elif label == "hash2":
-			hashes[1] = int(data)
-		elif label == "engine1":
-			engine1_path = data
-		elif label == "engine2":
-			engine2_path = data
-		elif label == "eval1":
-			eval1_path = data
-		elif label == "eval2":
-			eval2_path = data
-		elif label == "book_moves":
-			book_moves = int(data)
-		elif label == "time":
-			play_time_list = data.split(",")
-		elif label == "PARAMETERS_LOG_FILE_PATH":
-			PARAMETERS_LOG_FILE_PATH = data
-		elif label == "rand_book":
-			rand_book = int(data)
-		else:
-			print "Error! can't parse > "+ param
+parser = argparse.ArgumentParser("engine_invoker5.py")
+parser.add_argument('--home', type=str, default="", help=u"ホームディレクトリ");
+parser.add_argument('--engine1', type=str, default="", help=u"エンジン1のpath");
+parser.add_argument('--eval1', type=str, default="", help=u"評価関数フォルダ1 (ホームディレクトリ配下のevalフォルダ内にあるものとする)");
+parser.add_argument('--engine2', type=str, default="", help=u"エンジン2のpath");
+parser.add_argument('--eval2', type=str, default="", help=u"評価関数フォルダ2 (ホームディレクトリ配下のevalフォルダ内にあるものとする)");
+parser.add_argument('--cores', type=int, default=1, help=u"コアの数(これをengine_threadsで割った数だけ並列対局)");
+parser.add_argument('--loop', type=int, default=1, help=u"対局回数");
+parser.add_argument('--cpu', type=int, default=1, help=u"PCに搭載されているCPUの数 1つのプロセッサには threads/cpu だけスレッドを割り当てる (256を指定すると1の意味になり、かつファイルロギングをする)");
+parser.add_argument('--engine_threads', type=int, default=1, help=u"思考エンジンのスレッド数");
+parser.add_argument('--hash1', type=str, default="", help=u"思考エンジン1のhashサイズ");
+parser.add_argument('--hash2', type=str, default="", help=u"思考エンジン2のhashサイズ");
+parser.add_argument('--time', type=str, default="", help=u"time");
+parser.add_argument('--rand_book', type=int, default=0, help=u"定跡の順番をランダム化(rand_book=1を指定したとき)");
+parser.add_argument('--book_moves', type=int, default=24, help=u"何手目まで定跡で指させるか");
+parser.add_argument('--PARAMETERS_LOG_FILE_PATH', type=int, default=24, help=u"同optionのpath指定 (ここに\"_2.log\"のような文字列が自動的に付与される。)");
+args = parser.parse_args()
+
+home = args.home
+threads = args.cores
+loop = args.loop
+cpu = args.cpu
+engine_threads = args.engine_threads
+hashes = [args.hash1, args.hash2]
+engine1_path = args.engine1
+engine2_path = args.engine2
+eval1_path = args.eval1
+eval2_path = args.eval2
+book_moves = args.book_moves
+play_time_list = args.time.split(",")
+PARAMETERS_LOG_FILE_PATH = args.PARAMETERS_LOG_FILE_PATH
+rand_book = args.rand_book
 
 if not (home.endswith('/') or home.endswith('\\')):
 	home += '\\'
