@@ -226,7 +226,7 @@ namespace USI
 		// 並列探索するときのスレッド数
 		// CPUの搭載コア数をデフォルトとすべきかも知れないが余計なお世話のような気もするのでしていない。
 
-		o["Threads"] << Option(4, 1, 128, [](auto& o) { Threads.read_usi_options(); });
+		o["Threads"] << Option(4, 1, 512, [](auto& o) { Threads.read_usi_options(); });
 
 		// USIプロトコルでは、"USI_Hash"なのだが、
 		// 置換表サイズを変更しての自己対戦などをさせたいので、
