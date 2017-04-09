@@ -188,6 +188,19 @@ private:
 
 	// 指し手生成バッファ
 	ExtMove moves[MAX_MOVES];
+
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
+	// 合法な駒を捕獲する指し手が1手でもあるのか
+	bool mustCapture;
+
+	// ↑のフラグを更新する
+	void checkMustCapture();
+
+	// 本来のnext_move()を以下の関数に移動させて、
+	// next_move()はmustCaptureのチェックを行なう関数と差し替える。
+	Move next_move2();
+#endif
+
 };
 #endif // USE_MOVE_PICKER_2016Q3
 

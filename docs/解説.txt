@@ -3,58 +3,59 @@
 
 docs/
 source/
-  nano-engine/          やねうら王nano関連の探索部
-  nano-plus-engine/     やねうら王nano plus関連の探索部
-  mini-engine/          やねうら王mini関連の探索部
-  classic-engine/       やねうら王classic関連の探索部
-  classic-tce-engine/   やねうら王classic-tce関連の探索部
-  2016-mid-engine/      やねうら王2016 Midの探索部
-  2016-late-engine/     やねうら王2016 Lateの探索部
-  2017-early-engine/    やねうら王2017 Ealryの探索部
-  check-shogi-engine/   やねうら王 王手将棋エディション探索部
-  help-mate-engine/     やねうら王 協力詰めsolver関連
-  random-player-engine/ ランダムプレイヤー
-  local-game-server/    自動対局フレームワーク
-  user-engine/          ユーザーが独自のエンジンを作るときの作業用フォルダ
-
-  shogi.h/.cpp          コンパイル時の設定や、各種構造体の定義。
-  bitboard.h/.cpp       Bitboard(盤面の駒のある場所や、ある駒による利きなどを表現するのに使う)
-  evaluate.h/.cpp       評価関数
-  misc.h/.cpp           バージョン情報など
-  movegen.cpp           指し手生成器(おそらく世界最速)
-  position.h/.cpp       盤面クラス
-  search.h/.cpp         探索部
-  thread.h/.cpp         スレッド関係
-  tt.h/.cpp             置換表
-  usi.cpp               USIプロトコルによる入出力
-
-  extra/                やねうら王nanoでは削除する(or 用いない)予定の拡張クラス
-    all.h               すべてのheaderをincludeする横着なheader
-    bitop.h             SSE、AVXの命令をsoftwareでemulationするためのマクロ群
-	book.h/cpp          定跡関連の処理
-    config.h            shogi.hで設定されたコンパイルオプションに基づき、configurationを行なう。
-	entering_king_win.cpp 宣言勝ち(入玉判定)
-    key128.h            128bit,256bitのhash key。(実験用)
-    long_effect.h/.cpp  遠方駒による長い利きとBitboardなどへの変換子
-	macros.h            マクロ集
-    mate1ply.h          1手詰めのヘッダー
+  nano-engine/                  やねうら王nano関連の探索部
+  nano-plus-engine/             やねうら王nano plus関連の探索部
+  mini-engine/                  やねうら王mini関連の探索部
+  classic-engine/               やねうら王classic関連の探索部
+  classic-tce-engine/           やねうら王classic-tce関連の探索部
+  2016-mid-engine/              やねうら王2016 Midの探索部
+  2016-late-engine/             やねうら王2016 Lateの探索部
+  2017-early-engine/            やねうら王2017 Ealryの探索部
+  check-shogi-engine/           やねうら王 王手将棋エディション探索部
+  must-capture-shogi-engine/    やねうら王 取る一手将棋エディション探索部
+  help-mate-engine/             やねうら王 協力詰めsolver関連
+  random-player-engine/         ランダムプレイヤー
+  local-game-server/            自動対局フレームワーク
+  user-engine/                  ユーザーが独自のエンジンを作るときの作業用フォルダ
+						     
+  shogi.h/.cpp                  コンパイル時の設定や、各種構造体の定義。
+  bitboard.h/.cpp               Bitboard(盤面の駒のある場所や、ある駒による利きなどを表現するのに使う)
+  evaluate.h/.cpp               評価関数
+  misc.h/.cpp                   バージョン情報など
+  movegen.cpp                   指し手生成器(おそらく世界最速)
+  position.h/.cpp               盤面クラス
+  search.h/.cpp                 探索部
+  thread.h/.cpp                 スレッド関係
+  tt.h/.cpp                     置換表
+  usi.cpp                       USIプロトコルによる入出力
+						     
+  extra/                        やねうら王nanoでは削除する(or 用いない)予定の拡張クラス
+    all.h                       すべてのheaderをincludeする横着なheader
+    bitop.h                     SSE、AVXの命令をsoftwareでemulationするためのマクロ群
+	book.h/cpp                  定跡関連の処理
+    config.h                    shogi.hで設定されたコンパイルオプションに基づき、configurationを行なう。
+	entering_king_win.cpp       宣言勝ち(入玉判定)
+    key128.h                    128bit,256bitのhash key。(実験用)
+    long_effect.h/.cpp          遠方駒による長い利きとBitboardなどへの変換子
+	macros.h                    マクロ集
+    mate1ply.h                  1手詰めのヘッダー
 	mate1ply_with_effect.cpp    利きを利用した超高速1手詰め判定関数(おそらく世界最速)
 	mate1ply_without_effect.cpp 利きを用いない、Bonanza6風の1手詰め
-	see.cpp             PositionクラスのSEEの計算用。
-	timeman.cpp         思考時間計算用。
-    test_cmd.cpp        UnitTestなど。USI拡張コマンドの"test"コマンド関係。
-
-  learn/                評価関数パラメーターの学習関連
-	learn.h             ここで学習関係のオプション設定を行なうことが出来る。
-    learner.cpp         棋譜自動生成等(あとで整理する予定)
-	multi_think.h/cpp   マルチスレッドで、Search::think関数を呼び出したいときに用いるthread worker
-	evaluate_kppt_learn.cpp 学習のときに(損失関数の勾配を計算するのに)用いるkppt評価関数。
+	see.cpp                     PositionクラスのSEEの計算用。
+	timeman.cpp                 思考時間計算用。
+    test_cmd.cpp                UnitTestなど。USI拡張コマンドの"test"コマンド関係。
+						        
+  learn/                        評価関数パラメーターの学習関連
+	learn.h                     ここで学習関係のオプション設定を行なうことが出来る。
+    learner.cpp                 棋譜自動生成等(あとで整理する予定)
+	multi_think.h/cpp           マルチスレッドで、Search::think関数を呼び出したいときに用いるthread worker
+	evaluate_kppt_learn.cpp     学習のときに(損失関数の勾配を計算するのに)用いるkppt評価関数。
 
   eval/
-	evaluate_no_eval.cpp      評価関数なしのときのダミーヘッダ
-	evaluate_material.cpp     駒割りに関する評価関数
-    evaluate_bona_piece.cpp   BonaPieceを用いるときの共通ヘッダ
-	evaluate_kpp.cpp          KPP型の3駒の評価関数
+	evaluate_no_eval.cpp        評価関数なしのときのダミーヘッダ
+	evaluate_material.cpp       駒割りに関する評価関数
+    evaluate_bona_piece.cpp     BonaPieceを用いるときの共通ヘッダ
+	evaluate_kpp.cpp            KPP型の3駒の評価関数
 	
 
 ■　解説記事等

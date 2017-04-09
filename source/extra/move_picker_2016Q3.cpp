@@ -110,6 +110,26 @@ Move pick_best(ExtMove* begin, ExtMove* end)
 }
 } // end of namespace
 
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
+void MovePicker::checkMustCapture()
+{
+	// このnodeで合法なcaptureの指し手が1手でもあれば、必ずcaptureしなければならない。
+	bool inCheck = pos.in_check();
+	endMoves = inCheck ? generateMoves<EVASIONS>(pos, moves) : generateMoves<CAPTURES>(pos,moves);
+	for (auto it = moves; it != endMoves; ++it)
+	{
+		// 合法な指し手が一つ見つかったので以降、captureしか返してはならない。
+		// capturesで生成した指し手はcapturesに決まっているのだが、このチェックのコストは
+		// 知れてるので構わない。
+		if (pos.capture(it->move) && pos.legal(it->move))
+		{
+			mustCapture = true;
+			return;
+		}
+	}
+	mustCapture = false;
+}
+#endif
 
 // 指し手オーダリング器
 
@@ -119,6 +139,10 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Search::Stack*s)
 {
 	// 通常探索から呼び出されているので残り深さはゼロより大きい。
 	ASSERT_LV3(d > DEPTH_ZERO);
+
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
+	checkMustCapture();
+#endif
 
 	Square prevSq = to_sq((ss - 1)->currentMove);
 	Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
@@ -144,6 +168,10 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Search::Stack*s)
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Square recapSq)
 	: pos(p)
 {
+
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
+	checkMustCapture();
+#endif
 
 	// 静止探索から呼び出されているので残り深さはゼロ以下。
 	ASSERT_LV3(d <= DEPTH_ZERO);
@@ -177,6 +205,10 @@ MovePicker::MovePicker(const Position& p, Move ttm, Value th)
 	: pos(p), threshold(th) {
 
 	ASSERT_LV3(!pos.in_check());
+
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
+	checkMustCapture();
+#endif
 
 	stage = PROBCUT;
 
@@ -280,6 +312,27 @@ void MovePicker::score<EVASIONS>()
 // 指し手が尽きればMOVE_NONEが返る。
 // 置換表の指し手(ttMove)を返したあとは、それを取り除いた指し手を返す。
 Move MovePicker::next_move() {
+
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
+	// MustCaptureShogiの場合は、mustCaptureフラグを見ながら指し手を返す必要がある。
+	Move move;
+	while (true)
+	{
+		move = next_move2();
+
+		// 終端まで行った
+		if (move == MOVE_NONE)
+			return move;
+
+		// 1.mustCaputreモードではない
+		// 2.mustCaptureだけどmoveが捕獲する指し手
+		// のいずれか
+		if (!mustCapture || pos.capture(move))
+			return move;
+	}
+}
+Move MovePicker::next_move2() {
+#endif
 
 	Move move;
 

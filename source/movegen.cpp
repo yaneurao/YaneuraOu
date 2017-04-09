@@ -927,6 +927,23 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist, Square recapSq)
 
 	if (GenType == LEGAL || GenType == LEGAL_ALL)
 	{
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
+
+		// captureの指し手を生成して、合法なcaptureが1つでもあるなら捕獲する指し手しか
+		// 生成してはならない。
+		bool mustCapture = false;
+		bool inCheck = pos.in_check();
+		auto endMoves = inCheck ? generateMoves<EVASIONS>(pos, mlist) : generateMoves<CAPTURES>(pos, mlist);
+		for (auto it = mlist; it != endMoves; ++it)
+		{
+			if (pos.capture(it->move) && pos.legal(it->move))
+			{
+				mustCapture = true;
+				break;
+			}
+		}
+#endif
+
 		// 合法性な指し手のみを生成する。
 		// 自殺手や打ち歩詰めが含まれているのでそれを取り除く。かなり重い。ゆえにLEGALは特殊な状況でしか使うべきではない。
 		auto last = pos.in_check() ? generateEvasionMoves<All>(pos, mlist) : generateMoves<NON_EVASIONS, All>(pos, mlist);
@@ -934,7 +951,12 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist, Square recapSq)
 		// 合法ではない指し手を末尾の指し手と入れ替え
 		while (mlist != last)
 		{
-			if (!pos.legal(*mlist))
+			if (!pos.legal(*mlist)
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
+				// 捕獲する指し手しか生成してはいけないモードなのに捕獲する指し手ではない
+				||(mustCapture && !pos.capture(*mlist))
+#endif
+				)
 				mlist->move = (--last)->move;
 			else
 				++mlist;

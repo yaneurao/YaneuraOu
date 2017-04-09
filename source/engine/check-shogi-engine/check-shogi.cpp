@@ -3062,11 +3062,9 @@ namespace Learner
 					ASSERT_LV3(-VALUE_INFINITE <= alpha && beta <= VALUE_INFINITE);
 				}
 
-				std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
+				std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
 
 			} // multi PV
-
-			std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
 		}
 
 		// このPV、途中でNULL_MOVEの可能性があるかも知れないので排除するためにis_ok()を通す。

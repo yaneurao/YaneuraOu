@@ -34,7 +34,12 @@ void MultiThink::go_think()
 	for (size_t i = 0; i < thread_num; ++i)
 	{
 		thread_finished.get()[i] = false;
-		threads.push_back(std::thread([i, this] { this->thread_worker(i); this->thread_finished.get()[i] = true; }));
+		threads.push_back(std::thread([i, this]
+		{ 
+			// プロセッサの全スレッドを使い切る。
+			WinProcGroup::bindThisThread(i);
+			this->thread_worker(i); this->thread_finished.get()[i] = true;
+		}));
 	}
 
 	// すべてのthreadの終了待ちを

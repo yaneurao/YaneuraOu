@@ -1,16 +1,15 @@
 ﻿#include "../../shogi.h"
 
-#ifdef YANEURAOU_2017_EARLY_ENGINE
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
 
 // -----------------------
-//   やねうら王2017(early)設定部
+//   取る一手将棋設定部
 // -----------------------
 
 // 開発方針
-// やねうら王2016(late)からの改造。
+// やねうら王2017(early)からの改造。
 // 特徴)
-//  1. 探索のためのパラメーターの完全自動調整。
-//  2. 進行度を用いたmargin
+// 取れる駒があるときは必ず取る将棋
 
 
 // パラメーターを自動調整するのか
@@ -54,8 +53,8 @@
 #endif
 
 // 実行時に読み込むパラメーターファイルの名前
-#define PARAM_FILE "2017-early-param.h"
-#include "2017-early-param.h"
+#define PARAM_FILE "must-capture-shogi-param.h"
+#include "must-capture-shogi-param.h"
 
 
 using namespace std;
@@ -92,17 +91,13 @@ void USI::extra_option(USI::OptionsMap & o)
 	// 定跡ファイル名
 
 	//  no_book          定跡なし
-	//  standard_book.db 標準定跡
-	//	yaneura_book1.db やねうら大定跡(公開用 concept proof)
-	//	yaneura_book2.db 超やねうら定跡(大会用2015)
-	//	yaneura_book3.db 真やねうら定跡(大会用2016)
-	//	yaneura_book4.db 極やねうら定跡(大会用2017)
+	//	must-capture-shogi.db 取る一手将棋用定跡
 	//  user_book1.db    ユーザー定跡1
 	//  user_book2.db    ユーザー定跡2
 	//  user_book3.db    ユーザー定跡3
 
-	std::vector<std::string> book_list = { "no_book" , "standard_book.db"
-		, "yaneura_book1.db" , "yaneura_book2.db" , "yaneura_book3.db", "yaneura_book4.db"
+	std::vector<std::string> book_list = { "no_book"
+		, "must-capture-shogi.db"
 		, "user_book1.db", "user_book2.db", "user_book3.db" };
 	o["BookFile"] << Option(book_list, book_list[1], [](auto& o) { book_name = string(o); });
 	book_name = book_list[1];
@@ -165,10 +160,10 @@ void USI::extra_option(USI::OptionsMap & o)
 }
 
 // -----------------------
-//   やねうら王2017(early)探索部
+//   取る一手将棋探索部
 // -----------------------
 
-namespace YaneuraOu2017Early
+namespace MustCaptureShogi
 {
 
 	// 外部から調整される探索パラメーター
@@ -191,7 +186,7 @@ namespace YaneuraOu2017Early
 
 	// Razoringのdepthに応じたマージン値
 	int razor_margin[4];
-	
+
 	// 手番の価値
 	const Value Tempo = Value(20);
 
@@ -220,7 +215,7 @@ namespace YaneuraOu2017Early
 	// improvingとは、評価値が2手前から上がっているかのフラグ。上がっていないなら
 	// 悪化していく局面なので深く読んでも仕方ないからreduction量を心もち増やす。
 	template <bool PvNode> Depth reduction(bool improving, Depth depth, int move_count) {
-		return reduction_table[PvNode][improving][std::min(depth / ONE_PLY, 63)][std::min(move_count, 63)]*ONE_PLY;
+		return reduction_table[PvNode][improving][std::min(depth / ONE_PLY, 63)][std::min(move_count, 63)] * ONE_PLY;
 	}
 
 	// -----------------------
@@ -321,7 +316,7 @@ namespace YaneuraOu2017Early
 	// update_cm_stats()は、countermoveとfollow-up move historyを更新する。
 	void update_cm_stats(Stack* ss, Piece pc, Square s, Value bonus)
 	{
-		CounterMoveStats* cmh  = (ss - 1)->counterMoves;
+		CounterMoveStats* cmh = (ss - 1)->counterMoves;
 		CounterMoveStats* fmh1 = (ss - 2)->counterMoves;
 		CounterMoveStats* fmh2 = (ss - 4)->counterMoves;
 
@@ -341,7 +336,7 @@ namespace YaneuraOu2017Early
 	// quiets    = 悪かった指し手(このnodeで生成した指し手)
 	// quietsCnt = ↑の数
 	inline void update_stats(const Position& pos, Stack* ss, Move move,
-				Move* quiets, int quietsCnt, Value bonus)
+		Move* quiets, int quietsCnt, Value bonus)
 	{
 		//   killerのupdate
 
@@ -459,7 +454,7 @@ namespace YaneuraOu2017Early
 		Value oldAlpha;        // 関数が呼び出されたときのalpha値
 		Value futilityBase;    // futility pruningの基準となる値
 
-		// hash key関係
+							   // hash key関係
 		TTEntry* tte;          // 置換表にhitしたときの置換表のエントリーへのポインタ
 		Key posKey;            // この局面のhash key
 		bool ttHit;            // 置換表にhitしたかのフラグ
@@ -467,12 +462,12 @@ namespace YaneuraOu2017Early
 		Value ttValue;         // 置換表に登録されていたスコア
 		Depth ttDepth;         // このnodeに関して置換表に登録するときの残り探索深さ
 
-		// 王手関係
+							   // 王手関係
 		bool givesCheck;       // MovePickerから取り出した指し手で王手になるか
 
-		// -----------------------
-		//     nodeの初期化
-		// -----------------------
+							   // -----------------------
+							   //     nodeの初期化
+							   // -----------------------
 
 		if (PvNode)
 		{
@@ -526,7 +521,7 @@ namespace YaneuraOu2017Early
 			&& tte->depth() >= ttDepth
 			&& ttValue != VALUE_NONE // 置換表から取り出したときに他スレッドが値を潰している可能性があるのでこのチェックが必要
 			&& (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
-								: (tte->bound() & BOUND_UPPER)))
+				: (tte->bound() & BOUND_UPPER)))
 			// ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
 			// ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
 			// 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
@@ -550,28 +545,9 @@ namespace YaneuraOu2017Early
 
 		} else {
 
-			// -----------------------
-			//      一手詰め判定
-			// -----------------------
+			// 取る一手将棋では、駒が取れるときは駒を取らないといけないため、
+			// 通常の詰み判定は使えない。
 
-			if (PARAM_QSEARCH_MATE1)
-
-				// いまのところ、入れたほうが良いようだ。
-				// play_time = b1000 ,  1631 - 55 - 1314(55.38% R37.54) [2016/08/19]
-				// play_time = b6000 ,  538 - 23 - 439(55.07% R35.33) [2016/08/19]
-
-				// 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
-				if (PARAM_WEAK_MATE_PLY == 1)
-				{
-					if (pos.mate1ply() != MOVE_NONE)
-						return mate_in(ss->ply + 1);
-				} else {
-					if (pos.weak_mate_n_ply(PARAM_WEAK_MATE_PLY) != MOVE_NONE)
-						// 1手詰めかも知れないがN手詰めの可能性があるのでNを返す。
-						return mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
-				}
-
-			// このnodeに再訪問することはまずないだろうから、置換表に保存する価値はない。
 
 			// 王手がかかっていないなら置換表の指し手を持ってくる
 
@@ -705,7 +681,7 @@ namespace YaneuraOu2017Early
 				// futilityBaseはこの局面のevalにmargin値を加算しているのだが、それがalphaを超えないし、
 				// かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
 
-				if (futilityBase <= alpha && !pos.see_ge(move , VALUE_ZERO+1))
+				if (futilityBase <= alpha && !pos.see_ge(move, VALUE_ZERO + 1))
 				{
 					bestValue = std::max(bestValue, futilityBase);
 					continue;
@@ -735,7 +711,7 @@ namespace YaneuraOu2017Early
 				// T1,b1000,1439 - 61 - 1220(54.12% R28.68)
 				&& !pos.pawn_promotion(move)
 #endif
-				&& !pos.see_ge(move , VALUE_ZERO))
+				&& !pos.see_ge(move, VALUE_ZERO))
 				continue;
 
 			// -----------------------
@@ -752,7 +728,7 @@ namespace YaneuraOu2017Early
 
 			pos.do_move(move, st, givesCheck);
 			value = givesCheck ? -qsearch<NT, true >(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
-				               : -qsearch<NT, false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
+				: -qsearch<NT, false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
 
 			pos.undo_move(move);
 
@@ -1005,7 +981,7 @@ namespace YaneuraOu2017Early
 		// RootNodeであるなら、(MultiPVなどでも)現在注目している1手だけがベストの指し手と仮定できるから、
 		// それが置換表にあったものとして指し手を進める。
 		Move ttMove = RootNode ? thisThread->rootMoves[thisThread->PVIdx].pv[0]
-					: ttHit    ? pos.move16_to_move(tte->move()) : MOVE_NONE;
+			: ttHit ? pos.move16_to_move(tte->move()) : MOVE_NONE;
 
 #else
 		TTEntry* tte = nullptr; ttHit = false;
@@ -1020,7 +996,7 @@ namespace YaneuraOu2017Early
 			&& tte->depth() >= depth   // 置換表に登録されている探索深さのほうが深くて
 			&& ttValue != VALUE_NONE   // (VALUE_NONEだとすると他スレッドからTTEntryが読みだす直前に破壊された可能性がある)
 			&& (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
-		                		: (tte->bound() & BOUND_UPPER))
+				: (tte->bound() & BOUND_UPPER))
 			// ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
 			// ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
 			// 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
@@ -1036,7 +1012,7 @@ namespace YaneuraOu2017Early
 				if (!pos.capture_or_pawn_promotion(ttMove))
 				{
 					Value bonus = Value(d * d + 2 * d - 2);
-					update_stats(pos, ss, ttMove, nullptr, 0,bonus);
+					update_stats(pos, ss, ttMove, nullptr, 0, bonus);
 				}
 
 				// 反駁された1手前の置換表のquietな指し手に対する追加ペナルティを課す。
@@ -1072,62 +1048,11 @@ namespace YaneuraOu2017Early
 			}
 		}
 
-		// -----------------------
-		//    1手詰みか？
-		// -----------------------
+		// 取る一手将棋では、駒が取れるときは駒を取らないといけないため、
+		// 通常の詰み判定は使えない。
 
 		Move bestMove = MOVE_NONE;
-		const bool inCheck = pos.checkers();
-
-		if (PARAM_SEARCH_MATE1)
-		{
-			// RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
-			// 置換表にhitしたときも1手詰め判定はすでに行われていると思われるのでこの場合もはしょる。
-			// depthの残りがある程度ないと、1手詰めはどうせこのあとすぐに見つけてしまうわけで1手詰めを
-			// 見つけたときのリターン(見返り)が少ない。
-			// ただ、静止探索で入れている以上、depth == ONE_PLYでも1手詰めを判定したほうがよさげではある。
-			if (!RootNode && !ttHit && !inCheck)
-			{
-				// 1手詰めは入れたほうがよさげ。
-				// play_time = b1000, 1471 - 57 - 1472(49.98% R - 0.12) [2016/08/19]
-				// play_time = b3000, 522 - 30 - 448(53.81% R26.56) [2016/08/19]
-
-				if (PARAM_WEAK_MATE_PLY == 1)
-				{
-					move = pos.mate1ply();
-					if (move != MOVE_NONE)
-					{
-						// 1手詰めスコアなので確実にvalue > alphaなはず。
-						// 1手詰めは次のnodeで詰むという解釈
-						bestValue = mate_in(ss->ply + 1);
-
-#ifndef DISABLE_TT_PROBE
-						// staticEvalの代わりに詰みのスコア書いてもいいのでは..
-						tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
-							DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT.generation());
-#endif
-
-						return bestValue;
-					}
-				} else {
-					move = pos.weak_mate_n_ply(PARAM_WEAK_MATE_PLY);
-					if (move != MOVE_NONE)
-					{
-						// N手詰めかも知れないのでPARAM_WEAK_MATE_PLY手詰めのスコアを返す。
-						bestValue = mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
-
-#ifndef DISABLE_TT_PROBE
-						tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
-							DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT.generation());
-#endif
-
-						return bestValue;
-					}
-				}
-
-			}
-			// 1手詰めがなかったのでこの時点でもsave()したほうがいいような気がしなくもない。
-		}
+		bool inCheck = pos.checkers();
 
 		// -----------------------
 		//  局面を評価値によって静的に評価
@@ -1200,12 +1125,12 @@ namespace YaneuraOu2017Early
 		if (!PvNode
 			&&  depth < 4 * ONE_PLY
 			&&  ttMove == MOVE_NONE
-			&&  eval + razor_margin[depth/ONE_PLY] <= alpha
+			&&  eval + razor_margin[depth / ONE_PLY] <= alpha
 			)
 		{
 			// 残り探索深さがONE_PLY以下で、alphaを確実に下回りそうなら、ここで静止探索を呼び出してしまう。
 			if (depth <= ONE_PLY
-			//	&& eval + razor_margin[3] <= alpha
+				//	&& eval + razor_margin[3] <= alpha
 				// →　ここ、razoringとしてはrazor_margin[ZERO_DEPTH]を参照すべき。
 				// しかしそれは前提条件として満たしているので結局、ここでは単にqsearch()を
 				// 呼び出して良いように思う。
@@ -1214,7 +1139,7 @@ namespace YaneuraOu2017Early
 
 			// 残り探索深さが1～3手ぐらいあるときに、alpha - razor_marginを上回るかだけ調べて
 			// 上回りそうにないならもうリターンする。
-			Value ralpha = alpha - razor_margin[depth/ONE_PLY];
+			Value ralpha = alpha - razor_margin[depth / ONE_PLY];
 			Value v = qsearch<NonPV, false>(pos, ss, ralpha, ralpha + 1, DEPTH_ZERO);
 			if (v <= ralpha)
 				return v;
@@ -1229,7 +1154,7 @@ namespace YaneuraOu2017Early
 		// ただし、将棋の終盤では評価値の変動の幅は大きくなっていくので、進行度に応じたfutility_marginが必要となる。
 		// ここでは進行度としてgamePly()を用いる。このへんはあとで調整すべき。
 
-		if (   !RootNode
+		if (!RootNode
 			&&  depth < PARAM_FUTILITY_RETURN_DEPTH * ONE_PLY
 			&&  eval - futility_margin(depth) >= beta
 			&&  eval < VALUE_KNOWN_WIN) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
@@ -1244,7 +1169,7 @@ namespace YaneuraOu2017Early
 
 		//  null move探索。PV nodeではやらない。
 		//  evalの見積りがbetaを超えているので1手パスしてもbetaは超えそう。
-		if (   !PvNode
+		if (!PvNode
 			&&  eval >= beta
 			&& (ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN * (depth / ONE_PLY - 6) || depth >= 13 * ONE_PLY)
 			)
@@ -1262,7 +1187,7 @@ namespace YaneuraOu2017Early
 
 			//  王手がかかっているときはここに来ていないのでqsearchはinCheck == falseのほうを呼ぶ。
 			Value nullValue = depth - R < ONE_PLY ? -qsearch<NonPV, false>(pos, ss + 1, -beta, -beta + 1, DEPTH_ZERO)
-												  : - search<NonPV       >(pos, ss + 1, -beta, -beta + 1, depth - R, !cutNode);
+				: -search<NonPV       >(pos, ss + 1, -beta, -beta + 1, depth - R, !cutNode);
 			(ss + 1)->skipEarlyPruning = false;
 			pos.undo_null_move();
 
@@ -1281,7 +1206,7 @@ namespace YaneuraOu2017Early
 				// nullMoveせずに(現在のnodeと同じ手番で)同じ深さで探索しなおして本当にbetaを超えるか検証する。cutNodeにしない。
 				ss->skipEarlyPruning = true;
 				Value v = depth - R < ONE_PLY ? qsearch<NonPV, false>(pos, ss, beta - 1, beta, DEPTH_ZERO)
-											  :  search<NonPV       >(pos, ss, beta - 1, beta, depth - R, false);
+					: search<NonPV       >(pos, ss, beta - 1, beta, depth - R, false);
 				ss->skipEarlyPruning = false;
 
 				if (v >= beta)
@@ -1344,7 +1269,7 @@ namespace YaneuraOu2017Early
 		{
 			Depth d = (3 * depth / (4 * ONE_PLY) - 2) * ONE_PLY;
 			ss->skipEarlyPruning = true;
-			search<NT>(pos, ss, alpha, beta, d , cutNode);
+			search<NT>(pos, ss, alpha, beta, d, cutNode);
 			ss->skipEarlyPruning = false;
 
 #ifndef DISABLE_TT_PROBE
@@ -1366,8 +1291,8 @@ namespace YaneuraOu2017Early
 		// cmh  = Counter Move History    : ある指し手が指されたときの応手
 		// fmh  = Follow up Move History  : 2手前の自分の指し手の継続手
 		// fmh2 = Follow up Move History2 : 4手前からの継続手
-		const CounterMoveStats* cmh  = (ss - 1)->counterMoves;
-		const CounterMoveStats* fmh  = (ss - 2)->counterMoves;
+		const CounterMoveStats* cmh = (ss - 1)->counterMoves;
+		const CounterMoveStats* fmh = (ss - 2)->counterMoves;
 		const CounterMoveStats* fmh2 = (ss - 4)->counterMoves;
 
 		// 評価値が2手前の局面から上がって行っているのかのフラグ
@@ -1375,10 +1300,10 @@ namespace YaneuraOu2017Early
 		// ※ VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
 		//   枝刈りを甘くして調べないといけないのでimproving扱いとする。
 		bool improving = ss->staticEval >= (ss - 2)->staticEval
-		//			  || ss->staticEval == VALUE_NONE
-		// この条件は一つ上の式に暗黙的に含んでいる。
-		// ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはないので。
-					  || (ss - 2)->staticEval == VALUE_NONE;
+			//			  || ss->staticEval == VALUE_NONE
+			// この条件は一つ上の式に暗黙的に含んでいる。
+			// ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはないので。
+			|| (ss - 2)->staticEval == VALUE_NONE;
 
 		// singular延長をするnodeであるか。
 		bool singularExtensionNode = !RootNode
@@ -1429,7 +1354,7 @@ namespace YaneuraOu2017Early
 
 			// root nodeでは、rootMoves()の集合に含まれていない指し手は探索をスキップする。
 			if (RootNode && !std::count(thisThread->rootMoves.begin() + thisThread->PVIdx,
-										thisThread->rootMoves.end(), move))
+				thisThread->rootMoves.end(), move))
 				continue;
 
 			// do_move()した指し手の数のインクリメント
@@ -1475,7 +1400,7 @@ namespace YaneuraOu2017Early
 
 			if (givesCheck
 				&& !moveCountPruning
-				&&  pos.see_ge(move , VALUE_ZERO)
+				&&  pos.see_ge(move, VALUE_ZERO)
 				)
 				extension = ONE_PLY;
 
@@ -1586,12 +1511,12 @@ namespace YaneuraOu2017Early
 
 
 			if (!RootNode
-			//	&& !inCheck
-			// →　王手がかかっていても以下の枝刈りはしたほうが良いらしいが…。
-			// cf. 	https://github.com/official-stockfish/Stockfish/commit/ab26c61971c2f73d312b003e6d024373fbacf8e6
-			// T1,r300,2501 - 73 - 2426(50.76% R5.29)
-			// T1,b1000,2428 - 97 - 2465(49.62% R-2.63)
-			// 1秒のほうではやや勝ち越し。計測できない程度の差だが良しとする。
+				//	&& !inCheck
+				// →　王手がかかっていても以下の枝刈りはしたほうが良いらしいが…。
+				// cf. 	https://github.com/official-stockfish/Stockfish/commit/ab26c61971c2f73d312b003e6d024373fbacf8e6
+				// T1,r300,2501 - 73 - 2426(50.76% R5.29)
+				// T1,b1000,2428 - 97 - 2465(49.62% R-2.63)
+				// 1秒のほうではやや勝ち越し。計測できない程度の差だが良しとする。
 
 				&& bestValue > VALUE_MATED_IN_MAX_PLY)
 			{
@@ -1616,8 +1541,8 @@ namespace YaneuraOu2017Early
 					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH
 						//					&& move != ss->killers[0]
 						// →　このkillerの判定は入れないほうが強いらしい。
-						&& (!cmh  || (*cmh)[moved_sq][moved_pc] < VALUE_ZERO)
-						&& (!fmh  || (*fmh)[moved_sq][moved_pc] < VALUE_ZERO)
+						&& (!cmh || (*cmh)[moved_sq][moved_pc] < VALUE_ZERO)
+						&& (!fmh || (*fmh)[moved_sq][moved_pc] < VALUE_ZERO)
 						&& (!fmh2 || (*fmh2)[moved_sq][moved_pc] < VALUE_ZERO || (cmh && fmh)))
 						continue;
 
@@ -1637,18 +1562,18 @@ namespace YaneuraOu2017Early
 
 					// 将棋ではseeが負の指し手もそのあと詰むような場合があるから、あまり無碍にも出来ないようだが…。
 
-					if (!pos.see_ge(move , Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 * lmrDepth * lmrDepth)))
+					if (!pos.see_ge(move, Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 * lmrDepth * lmrDepth)))
 						continue;
 				}
 
 				// 浅い深さでの、危険な指し手を枝刈りする。
 				else if (!extension
-					&& !pos.see_ge(move , Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 * depth / ONE_PLY * depth / ONE_PLY)
+					&& !pos.see_ge(move, Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 * depth / ONE_PLY * depth / ONE_PLY)
 #if 0
 						// Stockfish 8相当
 						+ (ss->staticEval != VALUE_NONE ? ss->staticEval - alpha - PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2 : VALUE_ZERO)))
 #else
-						// PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2を少し大きめにして調整したほうがよさげ。
+					// PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2を少し大きめにして調整したほうがよさげ。
 					))
 #endif
 					continue;
@@ -1734,24 +1659,24 @@ namespace YaneuraOu2017Early
 						// see_sign()だと、toの升の駒でfromの升の駒(NO_PIECE)を取るから
 						// 必ず正になってしまうため、see_sign()ではなくsee()を用いる。
 
-						&& !pos.see_ge(make_move(to_sq(move), move_from(move)),VALUE_ZERO))
+						&& !pos.see_ge(make_move(to_sq(move), move_from(move)), VALUE_ZERO))
 						r -= 2 * ONE_PLY;
 #endif
 
 					// ToDo:ここ、fmh,fmh2を見たほうがいいかは微妙。
-					ss->history =   thisThread->history[moved_sq][moved_pc]
-									+ (cmh  ? (*cmh )[moved_sq][moved_pc] : VALUE_ZERO)
-									+ (fmh  ? (*fmh )[moved_sq][moved_pc] : VALUE_ZERO)
-									+ (fmh2 ? (*fmh2)[moved_sq][moved_pc] : VALUE_ZERO)
-									+ thisThread->fromTo.get(~pos.side_to_move(), move)
-									-PARAM_REDUCTION_BY_HISTORY; // 修正項
+					ss->history = thisThread->history[moved_sq][moved_pc]
+						+ (cmh ? (*cmh)[moved_sq][moved_pc] : VALUE_ZERO)
+						+ (fmh ? (*fmh)[moved_sq][moved_pc] : VALUE_ZERO)
+						+ (fmh2 ? (*fmh2)[moved_sq][moved_pc] : VALUE_ZERO)
+						+ thisThread->fromTo.get(~pos.side_to_move(), move)
+						- PARAM_REDUCTION_BY_HISTORY; // 修正項
 
-					// historyの値に応じて指し手のreduction量を増減する。
+													  // historyの値に応じて指し手のreduction量を増減する。
 
 #if 0
-					// これ、やったほうがいいかどうかは微妙。1秒、3秒においてはやると弱くなるようだが…。
-					// T1,b1000,2135 - 84 - 2071(50.76% R5.29)
-					// T1,b3000,640 - 34 - 576(52.63% R18.3)
+													  // これ、やったほうがいいかどうかは微妙。1秒、3秒においてはやると弱くなるようだが…。
+													  // T1,b1000,2135 - 84 - 2071(50.76% R5.29)
+													  // T1,b3000,640 - 34 - 576(52.63% R18.3)
 
 					if (ss->history > VALUE_ZERO && (ss - 1)->history < VALUE_ZERO)
 						r -= ONE_PLY;
@@ -1788,8 +1713,8 @@ namespace YaneuraOu2017Early
 			if (doFullDepthSearch)
 				value = newDepth < ONE_PLY ?
 				givesCheck ? -qsearch<NonPV, true >(pos, ss + 1, -(alpha + 1), -alpha, DEPTH_ZERO)
-				           : -qsearch<NonPV, false>(pos, ss + 1, -(alpha + 1), -alpha, DEPTH_ZERO)
-				           :  -search<NonPV       >(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
+				: -qsearch<NonPV, false>(pos, ss + 1, -(alpha + 1), -alpha, DEPTH_ZERO)
+				: -search<NonPV       >(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
 
 			// PV nodeにおいては、full depth searchがfail highしたならPV nodeとしてsearchしなおす。
 			// ただし、value >= betaなら、正確な値を求めることにはあまり意味がないので、これはせずにbeta cutしてしまう。
@@ -1800,10 +1725,10 @@ namespace YaneuraOu2017Early
 				(ss + 1)->pv[0] = MOVE_NONE;
 
 				// full depthで探索するときはcutNodeにしてはいけない。
-				value = newDepth < ONE_PLY  ?
-								givesCheck  ? -qsearch<PV, true >(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
-											: -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
-											: - search<PV       >(pos, ss + 1, -beta, -alpha, newDepth, false);
+				value = newDepth < ONE_PLY ?
+					givesCheck ? -qsearch<PV, true >(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
+					: -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
+					: -search<PV       >(pos, ss + 1, -beta, -alpha, newDepth, false);
 
 			}
 
@@ -1826,7 +1751,7 @@ namespace YaneuraOu2017Early
 			if (RootNode)
 			{
 				auto& rm = *std::find(thisThread->rootMoves.begin(),
-									  thisThread->rootMoves.end(), move);
+					thisThread->rootMoves.end(), move);
 
 				if (moveCount == 1 || value > alpha)
 				{
@@ -1918,8 +1843,8 @@ namespace YaneuraOu2017Early
 		// このStockfishのassert、合法手を生成しているので重すぎる。良くない。
 		ASSERT_LV5(moveCount || !inCheck || excludedMove || !MoveList<LEGAL>(pos).size());
 
-		  // 合法手がない == 詰まされている ので、rootの局面からの手数で詰まされたという評価値を返す。
-		  // ただし、singular extension中のときは、ttMoveの指し手が除外されているので単にalphaを返すべき。
+		// 合法手がない == 詰まされている ので、rootの局面からの手数で詰まされたという評価値を返す。
+		// ただし、singular extension中のときは、ttMoveの指し手が除外されているので単にalphaを返すべき。
 		if (!moveCount)
 			bestValue = excludedMove ? alpha : mated_in(ss->ply);
 
@@ -1991,7 +1916,7 @@ namespace YaneuraOu2017Early
 	}
 }
 
-using namespace YaneuraOu2017Early;
+using namespace MustCaptureShogi;
 
 // --- 以下に好きなように探索のプログラムを書くべし。
 
@@ -2009,7 +1934,7 @@ void init_param()
 		vector<string> param_names = {
 			"PARAM_FUTILITY_MARGIN_ALPHA" , "PARAM_FUTILITY_MARGIN_BETA" ,
 			"PARAM_FUTILITY_MARGIN_QUIET" , "PARAM_FUTILITY_RETURN_DEPTH",
-			
+
 			"PARAM_FUTILITY_AT_PARENT_NODE_DEPTH",
 			"PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1",
 			"PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2",
@@ -2020,9 +1945,9 @@ void init_param()
 			"PARAM_NULL_MOVE_MARGIN","PARAM_NULL_MOVE_RETURN_DEPTH",
 
 			"PARAM_PROBCUT_DEPTH","PARAM_PROBCUT_MARGIN",
-			
+
 			"PARAM_SINGULAR_EXTENSION_DEPTH","PARAM_SINGULAR_MARGIN","PARAM_SINGULAR_SEARCH_DEPTH_ALPHA",
-			
+
 			"PARAM_PRUNING_BY_MOVE_COUNT_DEPTH","PARAM_PRUNING_BY_HISTORY_DEPTH","PARAM_REDUCTION_BY_HISTORY",
 			"PARAM_IID_MARGIN_ALPHA",
 			"PARAM_RAZORING_MARGIN1","PARAM_RAZORING_MARGIN2","PARAM_RAZORING_MARGIN3","PARAM_RAZORING_MARGIN4",
@@ -2045,7 +1970,7 @@ void init_param()
 #endif
 			&PARAM_FUTILITY_MARGIN_ALPHA , &PARAM_FUTILITY_MARGIN_BETA,
 			&PARAM_FUTILITY_MARGIN_QUIET , &PARAM_FUTILITY_RETURN_DEPTH,
-			
+
 			&PARAM_FUTILITY_AT_PARENT_NODE_DEPTH,
 			&PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1,
 			&PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2,
@@ -2054,11 +1979,11 @@ void init_param()
 
 			&PARAM_NULL_MOVE_DYNAMIC_ALPHA, &PARAM_NULL_MOVE_DYNAMIC_BETA,
 			&PARAM_NULL_MOVE_MARGIN,&PARAM_NULL_MOVE_RETURN_DEPTH,
-			
+
 			&PARAM_PROBCUT_DEPTH, &PARAM_PROBCUT_MARGIN,
 
 			&PARAM_SINGULAR_EXTENSION_DEPTH, &PARAM_SINGULAR_MARGIN,&PARAM_SINGULAR_SEARCH_DEPTH_ALPHA,
-			
+
 			&PARAM_PRUNING_BY_MOVE_COUNT_DEPTH, &PARAM_PRUNING_BY_HISTORY_DEPTH,&PARAM_REDUCTION_BY_HISTORY,
 			&PARAM_IID_MARGIN_ALPHA,
 			&PARAM_RAZORING_MARGIN1,&PARAM_RAZORING_MARGIN2,&PARAM_RAZORING_MARGIN3,&PARAM_RAZORING_MARGIN4,
@@ -2139,7 +2064,7 @@ void init_param()
 
 						// とりうる値の候補
 						vector<int> a;
-						
+
 						for (int j = 0; j <= param_interval; ++j)
 						{
 							// j==0のときは同じ値であり、これはのちに除外される。
@@ -2198,9 +2123,9 @@ void init_param()
 		}
 #endif
 
-	}
+		}
 #endif
-}
+	}
 
 // 起動時に呼び出される。時間のかからない探索関係の初期化処理はここに書くこと。
 void Search::init() {}
@@ -2265,8 +2190,8 @@ void Search::clear()
 	{
 		//FutilityMoveCounts[0][d] = int(2.4 + 0.773 * pow((float)d + 0.00, 1.8));
 		//FutilityMoveCounts[1][d] = int(2.9 + 1.045 * pow((float)d + 0.49, 1.8));
-		FutilityMoveCounts[0][d] = int(PARAM_FUTILITY_MOVE_COUNT_ALPHA0/100.0 + PARAM_FUTILITY_MOVE_COUNT_BETA0 / 1000.0 * pow((float)d + 0.00, 1.8));
-		FutilityMoveCounts[1][d] = int(PARAM_FUTILITY_MOVE_COUNT_ALPHA1/100.0 + PARAM_FUTILITY_MOVE_COUNT_BETA1 / 1000.0 * pow((float)d + 0.49, 1.8));
+		FutilityMoveCounts[0][d] = int(PARAM_FUTILITY_MOVE_COUNT_ALPHA0 / 100.0 + PARAM_FUTILITY_MOVE_COUNT_BETA0 / 1000.0 * pow((float)d + 0.00, 1.8));
+		FutilityMoveCounts[1][d] = int(PARAM_FUTILITY_MOVE_COUNT_ALPHA1 / 100.0 + PARAM_FUTILITY_MOVE_COUNT_BETA1 / 1000.0 * pow((float)d + 0.49, 1.8));
 	}
 
 	// razor marginの初期化
@@ -2371,9 +2296,9 @@ void Thread::search()
 
 	// 二度目のrootDepthは深さで探索量を制限するときの条件。main threadのrootDepthがLimits.depthを超えた時点で、
 	// salve threadはこのループを抜けて良いので。
-	while ((rootDepth+=ONE_PLY) < MAX_PLY
+	while ((rootDepth += ONE_PLY) < MAX_PLY
 		&& !Signals.stop
-		&& (!Limits.depth || Threads.main()->rootDepth/ONE_PLY <= Limits.depth))
+		&& (!Limits.depth || Threads.main()->rootDepth / ONE_PLY <= Limits.depth))
 	{
 		// ------------------------
 		// lazy SMPのための初期化
@@ -2387,7 +2312,7 @@ void Thread::search()
 			// 詳しくは、このmatrixの定義部の説明を読むこと。
 			// game_ply()は加算すべきではない気がする。あとで実験する。
 			const Row& row = HalfDensity[(idx - 1) % HalfDensitySize];
-			if (row[(rootDepth/ONE_PLY + rootPos.game_ply()) % row.size()])
+			if (row[(rootDepth / ONE_PLY + rootPos.game_ply()) % row.size()])
 				continue;
 		}
 
@@ -2430,7 +2355,7 @@ void Thread::search()
 
 			while (true)
 			{
-				bestValue = YaneuraOu2017Early::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false);
+				bestValue = MustCaptureShogi::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false);
 
 				// それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
 				// 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
@@ -2503,7 +2428,7 @@ void Thread::search()
 					// MultiPVのときは最後の候補手を求めた直後とする。
 					// ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
 					((PVIdx + 1 == multiPV || Time.elapsed() > 3000)
-					 && (rootDepth < 3 || lastInfoTime + pv_interval < Time.elapsed())))
+						&& (rootDepth < 3 || lastInfoTime + pv_interval < Time.elapsed())))
 				{
 					lastInfoTime = Time.elapsed();
 					sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
@@ -2574,7 +2499,7 @@ void Thread::search()
 				// failLowが起きてなかったり、1つ前の反復深化から値がよくなってたりするとimprovingFactorが小さくなる。
 				if (rootMoves.size() == 1
 					|| elapsed > Time.optimum() * unstablePvFactor * improvingFactor / 628
-					|| (mainThread->easyMovePlayed = doEasyMove , doEasyMove ))
+					|| (mainThread->easyMovePlayed = doEasyMove, doEasyMove))
 				{
 					// 停止条件を満たした
 
@@ -2963,7 +2888,7 @@ namespace Learner
 			th->history.clear();
 			th->counterMoves.clear();
 			th->fromTo.clear();
-		//	th->counterMoveHistory.clear();
+			//	th->counterMoveHistory.clear();
 			// →　このクリア、時間がかかりすぎるのでまあいいや。
 #endif
 			th->resetCalls = true;
@@ -2986,7 +2911,7 @@ namespace Learner
 			drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
 		}
 	}
-	
+
 	// 静止探索。
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
 	// 引数でalpha,betaを指定できるようにしていたが、これがその窓で探索したときの結果を
@@ -3005,8 +2930,8 @@ namespace Learner
 		// 現局面で王手がかかっているかで場合分け。
 		const bool inCheck = pos.in_check();
 		auto bestValue = inCheck ?
-			YaneuraOu2017Early::qsearch<PV, true >(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, DEPTH_ZERO) :
-			YaneuraOu2017Early::qsearch<PV, false>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, DEPTH_ZERO);
+			MustCaptureShogi::qsearch<PV, true >(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, DEPTH_ZERO) :
+			MustCaptureShogi::qsearch<PV, false>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, DEPTH_ZERO);
 
 		// 得られたPVを返す。
 		vector<Move> pvs;
@@ -3077,12 +3002,12 @@ namespace Learner
 				// aspiration search
 				while (true)
 				{
-					bestValue = YaneuraOu2017Early::search<PV>(pos, ss, alpha, beta, rootDepth * ONE_PLY, false);
+					bestValue = MustCaptureShogi::search<PV>(pos, ss, alpha, beta, rootDepth * ONE_PLY, false);
 					std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
 
 					// fail low/highに対してaspiration windowを広げる。
 					// ただし、引数で指定されていた値になっていたら、もうfail low/high扱いとしてbreakする。
-					if (bestValue <= alpha )
+					if (bestValue <= alpha)
 					{
 						beta = (alpha + beta) / 2;
 						alpha = std::max(bestValue - delta, -VALUE_INFINITE);
@@ -3123,4 +3048,4 @@ namespace Learner
 }
 #endif
 
-#endif // YANEURAOU_2017_EARLY_ENGINE
+#endif // MUST_CAPTURE_SHOGI_ENGINE

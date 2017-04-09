@@ -12,6 +12,7 @@
 #YANEURAOU_EDITION = YANEURAOU_2016_LATE_ENGINE
 YANEURAOU_EDITION = YANEURAOU_2017_EARLY_ENGINE
 #YANEURAOU_EDITION = CHECK_SHOGI_ENGINE
+#YANEURAOU_EDITION = MUST_CAPTURE_SHOGI_ENGINE
 
 COMPILER = g++
 #COMPILER = mpicxx
@@ -72,6 +73,7 @@ SOURCES  = shogi.cpp                                                           \
 	engine/2016-late-engine/2016-late-search.cpp                               \
 	engine/2017-early-engine/2017-early-search.cpp                             \
 	engine/check-shogi-engine/check-shogi.cpp                                  \
+	engine/must-capture-shogi-engine/must-capture-shogi.cpp                    \
 	learn/learner.cpp                                                          \
 	learn/multi_think.cpp                                                      \
 	learn/evaluate_kppt_learn.cpp   

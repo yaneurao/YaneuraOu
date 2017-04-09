@@ -310,14 +310,12 @@
 //#define LONG_EFFECT_LIBRARY
 #endif
 
-#ifdef CHECK_SHOGI_ENGINE
-#define ENGINE_NAME "YaneuraOu Check Shogi"
+#ifdef MUST_CAPTURE_SHOGI_ENGINE
+#define ENGINE_NAME "YaneuraOu MustCaptureShogi"
 #define EVAL_KPPT
 //#define USE_EVAL_HASH
 #define USE_SEE
 #define USE_MOVE_PICKER_2016Q3
-//#define USE_MATE_1PLY
-// →　普通の一手詰めを合法手の王手があれば詰みというように置き換えても良いが…。
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
 #define KEEP_PIECE_IN_GENERATE_MOVES
@@ -341,6 +339,7 @@
 #define USE_GAMEOVER_HANDLER
 //#define LONG_EFFECT_LIBRARY
 #endif
+
 
 #ifdef RANDOM_PLAYER_ENGINE
 #define ENGINE_NAME "YaneuraOu random player"
