@@ -675,9 +675,6 @@ play_time_list = args.time.split(",")
 PARAMETERS_LOG_FILE_PATH = args.PARAMETERS_LOG_FILE_PATH
 rand_book = args.rand_book
 
-if not (home.endswith('/') or home.endswith('\\')):
-	home += '\\'
-
 # cpuに256が指定されているときは、FileLoggingを有効にする。
 fileLogging = False
 if cpu == 256:
@@ -687,12 +684,12 @@ if cpu == 256:
 # expand eval_dir
 
 evaldirs = []
-if not os.path.exists(home + eval2_path + "/0") :
+if not os.path.exists(os.path.join(home, eval2_path, "0")) :
 	evaldirs.append(eval2_path)
 else:
 	i = 0
-	while os.path.exists(home + eval2_path + "/" + str(i)):
-		evaldirs.append(eval2_path + "/" + str(i) )
+	while os.path.exists(os.path.join(home, eval2_path, str(i))):
+		evaldirs.append(os.path.join(eval2_path, str(i)))
 		i += 1
 
 print "home           : " , home
@@ -704,7 +701,7 @@ print "engine_threads : " , engine_threads
 print "rand_book      : " , rand_book
 print "PARAMETERS_LOG_FILE_PATH : " , PARAMETERS_LOG_FILE_PATH
 
-book_file = open(home+"/book/records2016_10818.sfen","r")
+book_file = open(os.path.join(home, "book", "records2016_10818.sfen"),"r")
 book_sfens = []
 count = 1
 for sfen in book_file:
@@ -736,9 +733,9 @@ for evaldir in evaldirs:
 	engine2 = engine_to_full(engine2_path)
 
 	engines = ( engine1 , engine2 )
-	engines_full = ( home + "exe\\" + engines[0] , home + "exe\\" + engines[1] )
+	engines_full = ( os.path.join(home, "exe", engines[0]) , os.path.join(home, "exe", engines[1]) )
 	evals   = ( eval1_path , evaldir )
-	evals_full   = ( home + "eval\\" + eval1_path  , home + "eval\\" + evaldir )
+	evals_full   = ( os.path.join(home, "eval", eval1_path) , os.path.join(home, "eval", evaldir) )
 
 	for i in range(2):
 		print "engine" + str(i+1) + " = " + engines[i] + " , eval = " + evals[i]
