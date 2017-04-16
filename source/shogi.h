@@ -1,4 +1,4 @@
-﻿#ifndef _SHOGI_H_
+#ifndef _SHOGI_H_
 #define _SHOGI_H_
 
 //
@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "4.23"
+#define ENGINE_VERSION "4.25"
 
 // --------------------
 // コンパイル時の設定

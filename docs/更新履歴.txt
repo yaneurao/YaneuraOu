@@ -3,7 +3,14 @@
 
 ■　2017/04/17 V4.25
 
-・作業中
+・プロジェクトファイルをVisual Studio 2015→2017に変更。
+・推奨コンパイル環境をVisual Studio 2017に変更。
+・解説.txtのVisual Studio 2015用の説明を削除。
+・[pullreq] リファクタリング: コマンドラインオプションのパースにargparseを使用するようにした(nodchipさん)
+・[pullreq] リファクタリング: パスの結合をos.path.join()で行うようにした(nodchipさん)
+・[pullreq] Intel Xeon Phi Processor 7250においてCPUを100%使い切れるようにした(nodchipさん) →　Stockfish公式にpull reqすべき？
+・[pullreq] 駒得評価関数での思考エンジンのコンパイルエラーを回避(YuriCatさん)
+・[pullreq] 自己対戦フレームワークの先手・後手の表示の誤りを修正した (nodchipさん)
 
 
 ■　2016/12/04 V4.24

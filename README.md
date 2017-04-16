@@ -1,8 +1,8 @@
 # About this project
 
-YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(about 2500 lines) , USI compliant engine , capable of being compiled by VC++2015 Update3
+YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(about 2500 lines) , USI compliant engine , capable of being compiled by VC++2017
 
-やねうら王miniは、将棋の思考エンジンで、Bonanza6より強く、教育的で短いコード(2500行程度)で書かれたUSIプロトコル準拠の思考エンジンで、VC++2015 Update3でコンパイル可能です。
+やねうら王miniは、将棋の思考エンジンで、Bonanza6より強く、教育的で短いコード(2500行程度)で書かれたUSIプロトコル準拠の思考エンジンで、VC++2017でコンパイル可能です。
 
 [やねうら王mini 公式サイト (解説記事、開発者向け情報等)](http://yaneuraou.yaneu.com/YaneuraOu_Mini/)
 
@@ -113,6 +113,3 @@ NDFの学習メソッドを用い、Hyperopt等を用いて各種パラメータ
 やねうら王プロジェクトのソースコードはStockfishをそのまま用いている部分が多々あり、Apery/SilentMajorityを参考にしている部分もありますので、やねうら王プロジェクトは、それらのプロジェクトのライセンス(GPL)に従うものとします。
 
 また、「真やねうら王の評価関数ファイル」は、Aperyの評価関数バイナリから追加学習させたものですので、その著作権は、Aperyの開発者の平岡拓也氏に帰属し、ライセンスや取扱いは元のライセンスに従うものとします。また、やねうら王プロジェクト側はこのファイルの著作権を主張しません。
-
-
-
