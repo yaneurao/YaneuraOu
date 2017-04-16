@@ -490,7 +490,7 @@ def vs_match(engines_full,options,threads,loop,cpu,book_sfens,fileLogging,opt2,b
 					if "resign" in line:
 						if (i%2)==1:
 							win += 1
-							if (turns[i/2] == 0):
+							if (moves[i/2] & 1 == 1):
 								win_black += 1
 							else:
 								win_white += 1
@@ -503,7 +503,7 @@ def vs_match(engines_full,options,threads,loop,cpu,book_sfens,fileLogging,opt2,b
 					elif "win" in line:
 						if (i%2)==0:
 							win += 1
-							if (turns[i/2] == 0):
+							if (moves[i/2] & 1 == 0):
 								win_black += 1
 							else:
 								win_white += 1
