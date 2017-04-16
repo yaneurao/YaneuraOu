@@ -74,7 +74,7 @@ namespace Eval {
 
 #else
 
-#if defined (EVAL_PP) || defined(EVAL_KPP)
+#if defined (EVAL_MATERIAL) || defined (EVAL_PP) || defined(EVAL_KPP)
   // Bona6の駒割りを初期値に。それぞれの駒の価値。
   enum {
     PawnValue = 86,
@@ -142,7 +142,7 @@ namespace Eval {
 
     // --- 手駒
 
-#if defined (EVAL_PP) || defined(EVAL_KPP)
+#if defined (EVAL_MATERIAL) || defined (EVAL_PP) || defined(EVAL_KPP)
 
     f_hand_pawn = BONA_PIECE_ZERO + 1,
     e_hand_pawn = f_hand_pawn + 18,
