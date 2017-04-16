@@ -1,4 +1,4 @@
-#ifndef _SHOGI_H_
+﻿#ifndef _SHOGI_H_
 #define _SHOGI_H_
 
 //

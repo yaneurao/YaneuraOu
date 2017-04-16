@@ -1,4 +1,4 @@
-#include <sstream>
+﻿#include <sstream>
 #include <queue>
 
 #include "shogi.h"
