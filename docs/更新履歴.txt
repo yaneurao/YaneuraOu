@@ -11,6 +11,7 @@
 ・[pullreq] Intel Xeon Phi Processor 7250においてCPUを100%使い切れるようにした(nodchipさん) →　Stockfish公式にpull reqすべき？
 ・[pullreq] 駒得評価関数での思考エンジンのコンパイルエラーを回避(YuriCatさん)
 ・[pullreq] 自己対戦フレームワークの先手・後手の表示の誤りを修正した (nodchipさん)
+・V4.24を間違って削除してしまったので復旧。→	config.h
 
 
 ■　2016/12/04 V4.24

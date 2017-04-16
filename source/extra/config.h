@@ -1,4 +1,4 @@
-﻿#ifndef _CONFIG_H_
+#ifndef _CONFIG_H_
 #define _CONFIG_H_
 
 // --------------------
@@ -93,11 +93,13 @@
 
 // #define EVAL_NO_USE    // 評価関数を用いないとき。
 // #define EVAL_MATERIAL  // 駒得のみの評価関数
-// #define EVAL_PP        // ツツカナ型 2駒関係
+// #define EVAL_PP        // ツツカナ型 2駒関係(開発するかも)
 // #define EVAL_KPP       // Bonanza型 3駒関係
 // #define EVAL_KPPT      // Bonanza型 3駒関係、手番つき(Apery WCSC26相当)
-// #define EVAL_KPPT_FAST // KPPTのAVX2/AVX-512による高速化。(非公開)
-// #define EVAL_PPET      // 技巧型 2駒+利き+手番(開発予定)
+// #define EVAL_KKPT      // KKP手番あり + KPP手番なし(Ponanza WCSC26相当)
+// #define EVAL_PPET      // 技巧型 2駒+利き+手番(開発するかも/しないかも)
+// #define EVAL_KKPPT     // KKPPT型 4駒関係ね手番つき(55将棋、56将棋で用いる)
+// #define EVAL_PPAT      // 3駒 + Piece-Piece-and Pawn型
 
 // KPPT評価関数の学習に使うときのモード
 // #define EVAL_LEARN
@@ -657,7 +659,7 @@ inline int MKDIR(std::string dir_name)
 
 // PP,KPP,KPPT,PPEならdo_move()のときに移動した駒の管理をして差分計算
 // また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
-#if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST) || defined(EVAL_PPE)
+#if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_KPPT) || defined(EVAL_PPE)
 #define USE_EVAL_DIFF
 #endif
 
