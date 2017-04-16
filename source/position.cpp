@@ -511,26 +511,32 @@ Bitboard Position::attackers_to(Color c, Square sq, const Bitboard& occ) const
 
 }
 
-// 
+// see_ge()から呼び出すので、この関数、結構な頻度で呼び出されるのだが、
+// 両方の駒を見る必要があって、あまり速いとは言えない。ByteBoardを用いるべきなのか…。
 Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 {
-	// sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
+	// sqの地点に敵駒ptをおいて、その利きに自駒のptがあればsqに利いているということだ。
 	return
 		  (pawnEffect(BLACK, sq) & pieces(WHITE, PAWN))
 		| (pawnEffect(WHITE, sq) & pieces(BLACK, PAWN))
-		| (lanceEffect(BLACK, sq, occ) & pieces(WHITE, LANCE))
-		| (lanceEffect(WHITE, sq, occ) & pieces(BLACK, LANCE))
+		//| (lanceEffect(BLACK, sq, occ) & pieces(WHITE, LANCE))
+		//| (lanceEffect(WHITE, sq, occ) & pieces(BLACK, LANCE))
 		| (knightEffect(BLACK, sq) & pieces(WHITE, KNIGHT))
 		| (knightEffect(WHITE, sq) & pieces(BLACK, KNIGHT))
 		| (silverEffect(BLACK, sq) & (pieces(WHITE, SILVER) | pieces(WHITE, HDK)))
 		| (silverEffect(WHITE, sq) & (pieces(BLACK, SILVER) | pieces(BLACK, HDK)))
-		| (goldEffect(BLACK, sq) & (pieces(WHITE, GOLD) | pieces(WHITE, HDK)))
-		| (goldEffect(WHITE, sq) & (pieces(BLACK, GOLD) | pieces(BLACK, HDK)))
+		| (goldEffect(BLACK, sq) & (pieces(WHITE, GOLD ) | pieces(WHITE, HDK)))
+		| (goldEffect(WHITE, sq) & (pieces(BLACK, GOLD ) | pieces(BLACK, HDK)))
 		| (bishopEffect(sq, occ) & (pieces(BLACK,BISHOP) | pieces(WHITE,BISHOP)))
-		| (rookEffect(sq, occ) & (pieces(BLACK,ROOK) | pieces(BLACK,ROOK)));
+		| (rookEffect(sq, occ) & (
+			   pieces(BLACK , ROOK)
+			|  pieces(WHITE , ROOK)
+			| (pieces(BLACK , LANCE) & lanceStepEffect(WHITE , sq))
+			| (pieces(WHITE , LANCE) & lanceStepEffect(BLACK , sq))
+			// 香も、StepEffectでマスクしたあと飛車の利きを使ったほうが香の利きを求めなくて済んで速い。
+			));
 	//    | (kingEffect(sq) & pieces(c, HDK));
 	// →　HDKは、銀と金のところに含めることによって、参照するテーブルを一個減らして高速化しようというAperyのアイデア。
-
 }
 
 // 打ち歩詰め判定に使う。王に打ち歩された歩の升をpawn_sqとして、c側(王側)のpawn_sqへ利いている駒を列挙する。香が利いていないことは自明。
