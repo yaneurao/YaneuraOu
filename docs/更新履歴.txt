@@ -2,12 +2,21 @@
 やねうら王 更新履歴
 
 
+■　2017/04/17 V4.27
+
+・開発メモ2017.txt追加。(そのうち消すかも)
+・Stockfishの最新版にキャッチアップ
+  - Help GCC to optimize msb() to single instruction
+  - Use DEPTH_ZERO initializer for depth in qsearch
+  - Remove piece condition in decrease lmr reduction check
+  - Explicitly use alpha+1 for beta in NonPV search
+  - Clean-up skipEarlyPruning 
+
+
 ■　2017/04/17 V4.26
 
-・Ryzenに向けた最適化
-  - AVX2用のevaluate()でも速度はほぼ変わらず。(AVX2用ではないほうが速いようだが)
-  - attackers_to()がどうも遅い。原因はよくわからない。機を改めて調査する。
-・attackers_to()のColorを取らないバージョン、バグってた。see_ge()実装以降バグっていたのか。修正。
+・Ryzenに向けた最適化、調査。
+・attackers_to()のColorを取らないバージョン、バグってた。see_ge()実装以降バグっていたのか。修正。[1秒で+R25]
 ・attackers_to()のColorを取らないバージョン、香の利きに関して高速化した。全体で1%ぐらい速くなったかも。
 
 

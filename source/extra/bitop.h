@@ -160,8 +160,8 @@ FORCE_INLINE int MSB64(uint64_t v) { ASSERT_LV3(v != 0); return uint32_t(v >> 32
 
 FORCE_INLINE int LSB32(const u32 v) { ASSERT_LV3(v != 0); return __builtin_ctzll(v); }
 FORCE_INLINE int LSB64(const u64 v) { ASSERT_LV3(v != 0); return __builtin_ctzll(v); }
-FORCE_INLINE int MSB32(const u32 v) { ASSERT_LV3(v != 0); return 63 - __builtin_clzll(v); }
-FORCE_INLINE int MSB64(const u64 v) { ASSERT_LV3(v != 0); return 63 - __builtin_clzll(v); }
+FORCE_INLINE int MSB32(const u32 v) { ASSERT_LV3(v != 0); return 63 ^ __builtin_clzll(v); }
+FORCE_INLINE int MSB64(const u64 v) { ASSERT_LV3(v != 0); return 63 ^ __builtin_clzll(v); }
 
 #endif
 

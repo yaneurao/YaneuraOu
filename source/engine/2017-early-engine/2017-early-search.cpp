@@ -269,6 +269,12 @@ namespace YaneuraOu2017Early
 
 	EasyMoveManager EasyMove;
 
+	template <NodeType NT>
+	Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode, bool skipEarlyPruning);
+
+	template <NodeType NT, bool InCheck>
+	Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth = DEPTH_ZERO);
+
 	// -----------------------
 	//  lazy SMPで用いるテーブル
 	// -----------------------
@@ -828,7 +834,7 @@ namespace YaneuraOu2017Early
 
 	// cutNode = LMRで悪そうな指し手に対してreduction量を増やすnode
 	template <NodeType NT>
-	Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode)
+	Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode, bool skipEarlyPruning)
 	{
 		// -----------------------
 		//     nodeの種類
@@ -972,9 +978,6 @@ namespace YaneuraOu2017Early
 
 		// 1手先のexcludedMoveの初期化
 		(ss + 1)->excludedMove = MOVE_NONE;
-
-		// 1手先のskipEarlyPruningフラグの初期化。
-		(ss + 1)->skipEarlyPruning = false;
 
 		// 2手先のkillerの初期化。
 		(ss + 2)->killers[0] = (ss + 2)->killers[1] = MOVE_NONE;
@@ -1182,7 +1185,7 @@ namespace YaneuraOu2017Early
 		}
 
 		// このnodeで指し手生成前の枝刈りを省略するなら指し手生成ループへ。
-		if (ss->skipEarlyPruning)
+		if (skipEarlyPruning)
 			goto MOVES_LOOP;
 
 		// -----------------------
@@ -1210,12 +1213,12 @@ namespace YaneuraOu2017Early
 				// しかしそれは前提条件として満たしているので結局、ここでは単にqsearch()を
 				// 呼び出して良いように思う。
 				)
-				return  qsearch<NonPV, false>(pos, ss, alpha, beta, DEPTH_ZERO);
+				return qsearch<NonPV, false>(pos, ss, alpha, alpha + 1);
 
 			// 残り探索深さが1～3手ぐらいあるときに、alpha - razor_marginを上回るかだけ調べて
 			// 上回りそうにないならもうリターンする。
 			Value ralpha = alpha - razor_margin[depth/ONE_PLY];
-			Value v = qsearch<NonPV, false>(pos, ss, ralpha, ralpha + 1, DEPTH_ZERO);
+			Value v = qsearch<NonPV, false>(pos, ss, ralpha, ralpha + 1);
 			if (v <= ralpha)
 				return v;
 		}
@@ -1258,12 +1261,9 @@ namespace YaneuraOu2017Early
 
 			pos.do_null_move(st);
 
-			(ss + 1)->skipEarlyPruning = true;
-
 			//  王手がかかっているときはここに来ていないのでqsearchはinCheck == falseのほうを呼ぶ。
-			Value nullValue = depth - R < ONE_PLY ? -qsearch<NonPV, false>(pos, ss + 1, -beta, -beta + 1, DEPTH_ZERO)
-												  : - search<NonPV       >(pos, ss + 1, -beta, -beta + 1, depth - R, !cutNode);
-			(ss + 1)->skipEarlyPruning = false;
+			Value nullValue = depth - R < ONE_PLY ? -qsearch<NonPV, false>(pos, ss + 1, -beta, -beta + 1)
+												  : - search<NonPV       >(pos, ss + 1, -beta, -beta + 1, depth - R, !cutNode,true);
 			pos.undo_null_move();
 
 			if (nullValue >= beta)
@@ -1279,10 +1279,8 @@ namespace YaneuraOu2017Early
 					return nullValue;
 
 				// nullMoveせずに(現在のnodeと同じ手番で)同じ深さで探索しなおして本当にbetaを超えるか検証する。cutNodeにしない。
-				ss->skipEarlyPruning = true;
-				Value v = depth - R < ONE_PLY ? qsearch<NonPV, false>(pos, ss, beta - 1, beta, DEPTH_ZERO)
-											  :  search<NonPV       >(pos, ss, beta - 1, beta, depth - R, false);
-				ss->skipEarlyPruning = false;
+				Value v = depth - R < ONE_PLY ? qsearch<NonPV, false>(pos, ss, beta - 1, beta)
+											  :  search<NonPV       >(pos, ss, beta - 1, beta, depth - R, false , true);
 
 				if (v >= beta)
 					return nullValue;
@@ -1322,7 +1320,7 @@ namespace YaneuraOu2017Early
 					ss->counterMoves = &thisThread->counterMoveHistory[to_sq(move)][pos.moved_piece_after(move)];
 
 					pos.do_move(move, st, pos.gives_check(move));
-					value = -search<NonPV>(pos, ss + 1, -rbeta, -rbeta + 1, rdepth, !cutNode);
+					value = -search<NonPV>(pos, ss + 1, -rbeta, -rbeta + 1, rdepth, !cutNode,false);
 					pos.undo_move(move);
 					if (value >= rbeta)
 						return value;
@@ -1343,9 +1341,7 @@ namespace YaneuraOu2017Early
 			&& (PvNode || ss->staticEval + PARAM_IID_MARGIN_ALPHA >= beta))
 		{
 			Depth d = (3 * depth / (4 * ONE_PLY) - 2) * ONE_PLY;
-			ss->skipEarlyPruning = true;
-			search<NT>(pos, ss, alpha, beta, d , cutNode);
-			ss->skipEarlyPruning = false;
+			search<NT>(pos, ss, alpha, beta, d , cutNode,true);
 
 #ifndef DISABLE_TT_PROBE
 			tte = TT.probe(posKey, ttHit);
@@ -1524,11 +1520,9 @@ namespace YaneuraOu2017Early
 
 				// ttMoveの指し手を以下のsearch()での探索から除外
 				ss->excludedMove = move;
-				ss->skipEarlyPruning = true;
 				// 局面はdo_move()で進めずにこのnodeから浅い探索深さで探索しなおす。
 				// 浅いdepthでnull windowなので、すぐに探索は終わるはず。
-				value = search<NonPV>(pos, ss, rBeta - 1, rBeta, d, cutNode);
-				ss->skipEarlyPruning = false;
+				value = search<NonPV>(pos, ss, rBeta - 1, rBeta, d, cutNode , true);
 				ss->excludedMove = MOVE_NONE;
 
 				// 置換表の指し手以外がすべてfail lowしているならsingular延長確定。
@@ -1642,16 +1636,21 @@ namespace YaneuraOu2017Early
 				}
 
 				// 浅い深さでの、危険な指し手を枝刈りする。
+
+#if 1 // やねうら王、独自のコード。
 				else if (!extension
-					&& !pos.see_ge(move , Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 * depth / ONE_PLY * depth / ONE_PLY)
-#if 0
-						// Stockfish 8相当
-						+ (ss->staticEval != VALUE_NONE ? ss->staticEval - alpha - PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2 : VALUE_ZERO)))
-#else
+					&& !pos.see_ge(move, Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 * depth / ONE_PLY * depth / ONE_PLY)
 						// PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2を少し大きめにして調整したほうがよさげ。
 					))
-#endif
 					continue;
+#endif
+
+#if 0 // Stockfish 2017/04/17相当 これだとR50ぐらい弱くなる。
+				else if (	depth < 7 * ONE_PLY
+						&& !extension
+						&& !pos.see_ge(move, Value(-PawnValue * (depth / ONE_PLY))))
+						continue;
+#endif
 			}
 
 			// -----------------------
@@ -1765,7 +1764,7 @@ namespace YaneuraOu2017Early
 				// depth >= 3なのでqsearchは呼ばれないし、かつ、
 				// moveCount > 1 すなわち、このnodeの2手目以降なのでsearch<NonPv>が呼び出されるべき。
 				Depth d = std::max(newDepth - r, ONE_PLY);
-				value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, true);
+				value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, true, false);
 
 				//
 				// ここにその他の枝刈り、何か入れるべき(かも)
@@ -1787,9 +1786,9 @@ namespace YaneuraOu2017Early
 			// ※　静止探索は残り探索深さはDEPTH_ZEROとして開始されるべきである。(端数があるとややこしいため)
 			if (doFullDepthSearch)
 				value = newDepth < ONE_PLY ?
-				givesCheck ? -qsearch<NonPV, true >(pos, ss + 1, -(alpha + 1), -alpha, DEPTH_ZERO)
-				           : -qsearch<NonPV, false>(pos, ss + 1, -(alpha + 1), -alpha, DEPTH_ZERO)
-				           :  -search<NonPV       >(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
+				givesCheck ? -qsearch<NonPV, true >(pos, ss + 1, -(alpha + 1), -alpha)
+				           : -qsearch<NonPV, false>(pos, ss + 1, -(alpha + 1), -alpha)
+				           :  -search<NonPV       >(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode , false);
 
 			// PV nodeにおいては、full depth searchがfail highしたならPV nodeとしてsearchしなおす。
 			// ただし、value >= betaなら、正確な値を求めることにはあまり意味がないので、これはせずにbeta cutしてしまう。
@@ -1801,9 +1800,9 @@ namespace YaneuraOu2017Early
 
 				// full depthで探索するときはcutNodeにしてはいけない。
 				value = newDepth < ONE_PLY  ?
-								givesCheck  ? -qsearch<PV, true >(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
-											: -qsearch<PV, false>(pos, ss + 1, -beta, -alpha, DEPTH_ZERO)
-											: - search<PV       >(pos, ss + 1, -beta, -alpha, newDepth, false);
+								givesCheck  ? -qsearch<PV, true >(pos, ss + 1, -beta, -alpha)
+											: -qsearch<PV, false>(pos, ss + 1, -beta, -alpha)
+											: - search<PV       >(pos, ss + 1, -beta, -alpha, newDepth, false , false);
 
 			}
 
@@ -2430,7 +2429,7 @@ void Thread::search()
 
 			while (true)
 			{
-				bestValue = YaneuraOu2017Early::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false);
+				bestValue = YaneuraOu2017Early::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false , false);
 
 				// それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
 				// 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
@@ -3005,8 +3004,8 @@ namespace Learner
 		// 現局面で王手がかかっているかで場合分け。
 		const bool inCheck = pos.in_check();
 		auto bestValue = inCheck ?
-			YaneuraOu2017Early::qsearch<PV, true >(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, DEPTH_ZERO) :
-			YaneuraOu2017Early::qsearch<PV, false>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, DEPTH_ZERO);
+			YaneuraOu2017Early::qsearch<PV, true >(pos, ss, -VALUE_INFINITE, VALUE_INFINITE) :
+			YaneuraOu2017Early::qsearch<PV, false>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE);
 
 		// 得られたPVを返す。
 		vector<Move> pvs;
@@ -3077,7 +3076,7 @@ namespace Learner
 				// aspiration search
 				while (true)
 				{
-					bestValue = YaneuraOu2017Early::search<PV>(pos, ss, alpha, beta, rootDepth * ONE_PLY, false);
+					bestValue = YaneuraOu2017Early::search<PV>(pos, ss, alpha, beta, rootDepth * ONE_PLY, false , false);
 					std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
 
 					// fail low/highに対してaspiration windowを広げる。

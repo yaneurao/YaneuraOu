@@ -1,0 +1,53 @@
+
+
+## 2017/04/17
+
+- Ryzenに向けた最適化
+	- AVX2用のevaluate()でも速度はほぼ変わらず。(AVX2用ではないほうが速いようだが)
+	- attackers_to()がどうも遅い。原因はよくわからない。機を改めて調査する。
+
+- attackers_to()のColorを取らないバージョン、バグってた。see_ge()実装以降バグっていたのか。修正。[1秒で+R25]
+	- T1,b1000,910 - 51 - 1049(46.45% R-24.69)
+
+
+- Help GCC to optimize msb() to single instruction
+	- https://github.com/official-stockfish/Stockfish/commit/bf8b45fe6305c89a9a30f660de34164cf3bdcdf2
+
+- Simplify pruning rule
+	- https://github.com/official-stockfish/Stockfish/commit/e70da0d2eb20cffee505c4e7ef61399de7d3fa16
+	- これ、このあと修正があるので採用せず。
+
+- Another simplification for SEE pruning
+	- https://github.com/official-stockfish/Stockfish/commit/8c61bbda54b0ec06cb05b89db4342d890dd21798
+
+	// 浅い深さでの、危険な指し手を枝刈りする。
+	else if (	depth < 7 * ONE_PLY
+			&& !extension
+			&& !pos.see_ge(move, Value(-PawnValue * (depth / ONE_PLY))))
+			continue;
+
+	→　YaneuraOuV426a , R50ぐらい弱くなった。なんぞこれ…。
+
+- Use DEPTH_ZERO initializer for depth in qsearch 
+	- https://github.com/official-stockfish/Stockfish/commit/ee22b61f5e90a180af942828feb83cef90ea5683
+	- 強さには寄与せず
+
+- Remove piece condition in decrease lmr reduction check
+	- https://github.com/official-stockfish/Stockfish/commit/46d066b04190763339d5ede87018422a1ab7c7dc
+
+		else if (!is_drop(move) // type_of(move)== NORMAL
+	//	&& type_of(pos.piece_on(to_sq(move))) != PAWN
+
+	→　YaneuraOuV426b
+
+- piecesCount
+	- https://github.com/official-stockfish/Stockfish/commit/f72b7dc99af07c4f012ef229f9d3dcc490d6d69f
+	- 将棋では関係なさげ。
+
+- Explicitly use alpha+1 for beta in NonPV search
+	- https://github.com/official-stockfish/Stockfish/commit/af7412e58a4ce374b5035d9bb1e8c47a108ff352
+	- NonPVなのでalpha == beta - 1なので、明示的にalphaを用いる。強さには寄与しない。
+
+- Clean-up skipEarlyPruning 
+	- https://github.com/official-stockfish/Stockfish/commit/1b62d413c137bfa669922b6d52b92262d60020f1
+	- 関数の引数のリファクタリング。強さには寄与しない。

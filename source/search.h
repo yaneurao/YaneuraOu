@@ -151,8 +151,10 @@ namespace Search {
 #if defined (PER_STACK_HISTORY)
 	Value history;			// 一度計算したhistoryの合計値をcacheしておくのに用いる。
 #endif
+#if defined (YANEURAOU_2016_LATE_ENGINE)
 	bool skipEarlyPruning;   // 指し手生成前に行なう枝刈りを省略するか。(NULL MOVEの直後など)
-    int moveCount;           // このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
+#endif
+	int moveCount;           // このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
 #if defined (USE_MOVE_PICKER_2016Q2)||defined (USE_MOVE_PICKER_2016Q3)
     CounterMoveStats* counterMoves; // MovePickerから使いたいのでここにCounterMoveStatsを格納することになった。
 #endif
