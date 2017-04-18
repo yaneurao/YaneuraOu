@@ -143,9 +143,9 @@ PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 9;
 
 // historyの値によってreductionするときの係数
 // これ、元のが (hist - 8000) / 20000みたいな意味ありげな値なので下手に変更しないほうが良さげ。
-// 元の値 = 8000
-// [PARAM] min:4000,max:15000,step:40,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 8000;
+// 元の値 = 4000
+// [PARAM] min:2000,max:8000,step:40,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 4000;
 
 
 //

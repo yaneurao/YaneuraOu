@@ -2,6 +2,16 @@
 やねうら王 更新履歴
 
 
+■　2017/04/18 V4.30
+
+・Stockfishの最新版にキャッチアップ
+	- Penalty for a quiet ttMove that fails low
+	- Standardize stat penalty
+	- update_cm_stats() 書き換え
+	- Always have counterMoves associated
+	- Remove HistoryStats
+	- Rename FromTo -> History
+
 
 ■　2017/04/18 V4.29
 

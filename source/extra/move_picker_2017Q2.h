@@ -14,8 +14,11 @@
 // -----------------------
 
 // fromの駒をtoに移動させることに対するhistory
-struct FromToStats
+struct HistoryStats
 {
+	// 値の最大値
+	static const Value Max = Value(1 << 28);
+
 	Value get(Color c, Move m) const { return table[from_sq(m) + (is_drop(m) ? SQ_NB:0)][to_sq(m)][c]; }
 	void clear() { std::memset(table, 0, sizeof(table)); }
 
@@ -104,7 +107,6 @@ private:
 // このStats<CounterMoveStats>は、直前の指し手に対する、あらゆる指し手に対するスコアである。
 
 typedef Stats<Move            > MoveStats;
-typedef Stats<Value           > HistoryStats;
 typedef Stats<Value           > CounterMoveStats;
 typedef Stats<CounterMoveStats> CounterMoveHistoryStats;
 

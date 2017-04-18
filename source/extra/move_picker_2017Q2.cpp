@@ -257,24 +257,22 @@ template<>
 void MovePicker::score<QUIETS>()
 {
 	const HistoryStats& history = pos.this_thread()->history;
-	const FromToStats& fromTo = pos.this_thread()->fromTo;
 
-	const CounterMoveStats* cmh  = (ss - 1)->counterMoves;
-	const CounterMoveStats* fmh  = (ss - 2)->counterMoves;
-	const CounterMoveStats* fmh2 = (ss - 4)->counterMoves;
+	const CounterMoveStats& cmh = *(ss - 1)->counterMoves;
+	const CounterMoveStats& fmh = *(ss - 2)->counterMoves;
+	const CounterMoveStats& fm2 = *(ss - 4)->counterMoves;
 
 	Color c = pos.side_to_move();
 
 	for (auto& m : *this)
 	{
-		const Move move = m;
+		Piece mpc = pos.moved_piece_after(m);
+		Square msq = to_sq(m);
 
-		Piece mpc = pos.moved_piece_after(move);
-		m.value = history[move_to(move)][mpc]
-			+ (cmh  ? (*cmh )[move_to(move)][mpc] : VALUE_ZERO)
-			+ (fmh  ? (*fmh )[move_to(move)][mpc] : VALUE_ZERO)
-			+ (fmh2 ? (*fmh2)[move_to(move)][mpc] : VALUE_ZERO)
-			+ fromTo.get(c, m);
+		m.value = cmh[msq][mpc]
+				+ fmh[msq][mpc]
+				+ fm2[msq][mpc]
+				+ history.get(c, m);
 	}
 }
 
@@ -283,7 +281,6 @@ template<>
 void MovePicker::score<EVASIONS>()
 {
 	const HistoryStats& history = pos.this_thread()->history;
-	const FromToStats& fromTo = pos.this_thread()->fromTo;
 	Color c = pos.side_to_move();
 
 	for (auto& m : *this)
@@ -305,7 +302,7 @@ void MovePicker::score<EVASIONS>()
 			- Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
 		else
 			// 捕獲しない指し手に関してはhistoryの値の順番
-			m.value = history[to_sq(m)][pos.moved_piece_after(m)] + fromTo.get(c, m);
+			m.value = history.get(c, m);
 }
 
 // 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。

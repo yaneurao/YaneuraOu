@@ -1,6 +1,39 @@
 
 ## 2017/04/19
 
+- Penalty for a quiet ttMove that fails low
+	- https://github.com/official-stockfish/Stockfish/commit/5254a6040c59cf7d3b9faa847168ccbd628c0574
+
+				// fails lowのときのquiet ttMoveに対するペナルティ
+				else if (!pos.capture_or_promotion(ttMove))
+				{
+					Value penalty = -stat_bonus(depth);
+					thisThread->history.update(pos.side_to_move(), ttMove, penalty);
+					update_cm_stats(ss, pos.moved_piece_after(ttMove), to_sq(ttMove), penalty);
+				}
+
+- update_cm_stats() 書き換え
+- HistoryStats削除
+- history周り、大改造。
+
+- Standardize stat penalty
+	- https://github.com/official-stockfish/Stockfish/commit/35b77b120ef5ca5d9db848e02e42642b1a93e982
+
+- Always have counterMoves associated
+	- https://github.com/official-stockfish/Stockfish/commit/d490bb99734bd6e2f8a0a352d2f3f1ba264ece66
+
+- Allow pruning advance pawn pushes if not near endgame
+	- https://github.com/official-stockfish/Stockfish/commit/3627348e2b4633604a878b0e5397acb6218a6afc
+	- 将棋では関係なさげ。
+
+- Remove HistoryStats
+	- https://github.com/official-stockfish/Stockfish/commit/e0504ab876a997321102f040ab88203cb893db12
+
+- Rename FromTo -> History
+	- https://github.com/official-stockfish/Stockfish/commit/34e47ca87d82a420043f2bc9a1960eb1fad5c4f4
+
+### V4.30
+
 
 
 ## 2017/04/18
