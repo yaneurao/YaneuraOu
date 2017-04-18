@@ -16,15 +16,11 @@
 // fromの駒をtoに移動させることに対するhistory
 struct FromToStats
 {
-	FromToStats() { clear(); }
 	Value get(Color c, Move m) const { return table[from_sq(m) + (is_drop(m) ? SQ_NB:0)][to_sq(m)][c]; }
 	void clear() { std::memset(table, 0, sizeof(table)); }
 
 	void update(Color c, Move m, Value v)
 	{
-		if (abs(int(v)) >= 324)
-			return;
-
 		Square from = from_sq(m);
 		Square to = to_sq(m);
 
@@ -34,7 +30,11 @@ struct FromToStats
 
 		ASSERT_LV3(from < SQ_NB_PLUS1 + 7);
 
-		table[from][to][c] -= table[from][to][c] * abs(int(v)) / 324;
+		const int denom = 324;
+
+		ASSERT_LV3(abs(int(v)) <= denom); // 安定性のために必要
+
+		table[from][to][c] -= table[from][to][c] * abs(int(v)) / denom;
 		table[from][to][c] += int(v) * 32;
 	}
 private:
@@ -44,15 +44,11 @@ private:
 
 
 // Pieceを升sqに移動させるときの値(T型)
-// CM : CounterMove用フラグ
-template<typename T, bool CM = false>
+template<typename T>
 struct Stats {
 
   // このtableの要素の最大値
   static const Value Max = Value(1 << 28);
-
-  // コンストラクタでゼロクリア
-  Stats() { clear(); }
 
   // tableの要素の値を取り出す
   const T* operator[](Square to) const {
@@ -82,24 +78,12 @@ struct Stats {
 
     ASSERT_LV4(is_ok(to));
 
-#if 1
-	// abs(v) <= 324に制限する。
-	// → returnするのが良いかどうかはわからない。
-	// depthの2乗ボーナスだとしたら、depth >= 18以上でないと関係がない部分であり、
-	// なかなか表面化してこない。
-	// 長い持ち時間では変わるはずなのだが、この違いを検証するのは大変。
 
-	if (abs(int(v)) >= 324)
-		return;
+	const int denom = 936;
 
-#else
+	ASSERT_LV3(abs(int(v)) <= denom); // 安定性のために必要
 
-	// 値が過剰だと言うなら足切りするのはどうか。
-	v = (Value)max(int(v) , -324);
-	v = (Value)min(int(v) , +324);
-#endif
-
-    table[to][pc] -= table[to][pc] * abs(int(v)) / (CM ? 936 : 324);
+	table[to][pc] -= table[to][pc] * abs(int(v)) / denom;
     table[to][pc] += int(v) * 32;
   }
 
@@ -120,8 +104,8 @@ private:
 // このStats<CounterMoveStats>は、直前の指し手に対する、あらゆる指し手に対するスコアである。
 
 typedef Stats<Move            > MoveStats;
-typedef Stats<Value, false    > HistoryStats;
-typedef Stats<Value, true     > CounterMoveStats;
+typedef Stats<Value           > HistoryStats;
+typedef Stats<Value           > CounterMoveStats;
 typedef Stats<CounterMoveStats> CounterMoveHistoryStats;
 
 enum Stages : int;

@@ -1202,7 +1202,6 @@ namespace YaneuraOu2017Early
 		// 残り探索深さが少ないときに、その手数でalphaを上回りそうにないとき用の枝刈り。
 		if (!PvNode
 			&&  depth < 4 * ONE_PLY
-			&&  ttMove == MOVE_NONE
 			&&  eval + razor_margin[depth/ONE_PLY] <= alpha
 			)
 		{
@@ -1586,7 +1585,7 @@ namespace YaneuraOu2017Early
 			// T1,r300,2501 - 73 - 2426(50.76% R5.29)
 			// T1,b1000,2428 - 97 - 2465(49.62% R-2.63)
 			// 1秒のほうではやや勝ち越し。計測できない程度の差だが良しとする。
-
+//				&& pos.non_pawn_material(pos.side_to_move())
 				&& bestValue > VALUE_MATED_IN_MAX_PLY)
 			{
 
@@ -1962,10 +1961,11 @@ namespace YaneuraOu2017Early
 		// すなわち、スコアは変動するかも知れないので、BOUND_UPPERという扱いをする。
 
 #ifndef DISABLE_TT_PROBE
-		tte->save(posKey, value_to_tt(bestValue, ss->ply),
-			bestValue >= beta ? BOUND_LOWER :
-			PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
-			depth, bestMove, ss->staticEval, TT.generation());
+		if (!excludedMove)
+			tte->save(posKey, value_to_tt(bestValue, ss->ply),
+				bestValue >= beta ? BOUND_LOWER :
+				PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
+				depth, bestMove, ss->staticEval, TT.generation());
 #endif
 
 		// 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
@@ -2553,7 +2553,7 @@ void Thread::search()
 
 				bool doEasyMove = rootMoves[0].pv[0] == easyMove
 					&& mainThread->bestMoveChanges < 0.03
-					&& elapsed > Time.optimum() * 5 / 42;
+					&& elapsed > Time.optimum() * 5 / 44;
 
 				// bestMoveが何度も変更になっているならunstablePvFactorが大きくなる。
 				// failLowが起きてなかったり、1つ前の反復深化から値がよくなってたりするとimprovingFactorが小さくなる。

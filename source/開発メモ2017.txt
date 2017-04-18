@@ -1,4 +1,53 @@
 
+## 2017/04/19
+
+
+
+## 2017/04/18
+
+- Removing CM parameter from the Stats struct. 
+	- https://github.com/official-stockfish/Stockfish/commit/99cd513264be1ad61848bbefd678be0feaa08061
+
+- A small tweak in doEasyMove()
+	- https://github.com/official-stockfish/Stockfish/commit/a753e20bd4fc1e916f7e99884c01bb63fd7c1326
+	- 影響は軽微で検証できない。
+
+- search(): Move nullValue variable into local scope
+	- https://github.com/official-stockfish/Stockfish/commit/83fb4547f640c63c2dbbf0d5637bd8d1cf216a60
+	- すでにこうしてた。
+
+- Drop Stats c'tors
+	- https://github.com/official-stockfish/Stockfish/commit/3ab3e55bb5faf57aec864f3bb7268601c11d72be
+	- スレッドオブジェクト生成のときにヒープがゼロクリアされているならコンストラクタでゼロクリアは不要なのだが。
+
+- Razor Simplification
+	- https://github.com/official-stockfish/Stockfish/commit/05cf45f2d137600387d5e560e22a464a84ad7b0d
+	- razoringのところの
+			&&  ttMove == MOVE_NONE
+	を削除。
+
+- Introduce assert for stats update
+	- https://github.com/official-stockfish/Stockfish/commit/c5de4080dba8e9b3248f06bd6c168c22e9fbfd92
+
+- Don't update TT at excluded move ply
+	- https://github.com/official-stockfish/Stockfish/commit/ebe021f6a5da63cf0e31da89d4c21e9b5f673fcd
+
+- Fix zugzwang pruning issues
+	- https://github.com/official-stockfish/Stockfish/commit/72a501c6fe5e4e7b61291e9603d0c6cc0902e618
+	- これ将棋で関係なさげ。
+		&& pos.non_pawn_material(pos.side_to_move())
+
+
+### V4.29
+
+	engine1 = YaneuraOuV426.exe , eval = ShinYane20161117
+	engine2 = YaneuraOuV429.exe , eval = ShinYane20161117
+	T1,b1000,2545 - 108 - 2347(52.02% R14.07) win black : white = 51.63% : 48.37%
+	T4,b1000,1986 - 132 - 1722(53.56% R24.78) win black : white = 50.65% : 49.35%
+
+	counter moveのところのパラメーター変更になった影響で、全パラメーターを再調整しないと
+	弱くなったままのような気がする…。あとで再調整する。
+
 
 ## 2017/04/17
 
@@ -119,4 +168,7 @@
 	go btime 0 wtime 0 byoyomi 3000
 
 
+	engine1 = YaneuraOuV426.exe , eval = ShinYane20161117
+	engine2 = YaneuraOuV428c.exe , eval = ShinYane20161117
+	T4,b1000,971 - 62 - 1037(48.36% R-11.42) win black : white = 51.6% : 48.4%
 

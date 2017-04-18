@@ -2,6 +2,20 @@
 やねうら王 更新履歴
 
 
+
+■　2017/04/18 V4.29
+
+・Stockfishの最新版にキャッチアップ
+	- Removing CM parameter from the Stats struct. 
+	- A small tweak in doEasyMove()
+	- Drop Stats c'tors
+		- これに伴い、thread.cppでスレッドメモリの確保のときにゼロクリアを強制するように変更。
+	- Razor Simplification
+	- Introduce assert for stats update
+		- これに伴い、HistoryStats、Statsのupdateでvの値が大きいときにreturnする処理を削除。
+	- Don't update TT at excluded move ply
+
+
 ■　2017/04/18 V4.28
 
 ・MovePicker新しく用意した。

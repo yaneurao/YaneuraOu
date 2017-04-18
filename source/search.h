@@ -6,10 +6,15 @@
 #include "position.h"
 #include "misc.h"
 
-#if defined(USE_MOVE_PICKER_2016Q2) || defined(USE_MOVE_PICKER_2016Q3) || defined(USE_MOVE_PICKER_2017Q2)
 // CounterMoveStatsの前方宣言。
+#if defined(USE_MOVE_PICKER_2016Q2) || defined(USE_MOVE_PICKER_2016Q3)
 template<typename T, bool CM> struct Stats;
 typedef Stats<Value, true> CounterMoveStats;
+#endif
+
+#if defined(USE_MOVE_PICKER_2017Q2)
+template<typename T> struct Stats;
+typedef Stats<Value> CounterMoveStats;
 #endif
 
 // 探索関係
