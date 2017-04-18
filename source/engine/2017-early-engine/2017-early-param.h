@@ -183,9 +183,9 @@ PARAM_DEFINE PARAM_RAZORING_MARGIN4 = 539;
 // LMR reduction table
 //
 
-// 元の値 = 128
+// 元の値 = 131
 // [PARAM] min:64,max:256,step:2,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_ALPHA = 124;
+PARAM_DEFINE PARAM_REDUCTION_ALPHA = 131;
 
 
 //
@@ -198,17 +198,17 @@ PARAM_DEFINE PARAM_REDUCTION_ALPHA = 124;
 // [PARAM] min:150,max:400,step:1,interval:2,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_ALPHA0 = 240;
 
-// 元の値 = 290
-// [PARAM] min:150,max:400,step:1,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_ALPHA1 = 288;
+// 元の値 = 500
+// [PARAM] min:300,max:600,step:1,interval:2,time_rate:1,fixed
+PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_ALPHA1 = 500;
 
-// 元の値 = 773
+// 元の値 = 740
 // [PARAM] min:500,max:2000,step:2,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_BETA0 = 773;
+PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_BETA0 = 740;
 
-// 元の値 = 1045
+// 元の値 = 1000
 // [PARAM] min:500,max:2000,step:2,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_BETA1 = 1041;
+PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_BETA1 = 1000;
 
 
 //

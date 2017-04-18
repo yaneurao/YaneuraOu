@@ -1,5 +1,45 @@
 
+
 ## 2017/04/19
+
+- Singular extension and check extension tweak
+	- https://github.com/official-stockfish/Stockfish/commit/30c583204f97da2c67b5042c30327013e70ae209
+
+- Skip quiet moves based on moveCount pruning threshold and history stats
+	- https://github.com/official-stockfish/Stockfish/commit/352bd6f5aa348e15909f50266fc5bdc003df35bf
+
+- Penalty for a quiet ttMove that fails low
+	- https://github.com/official-stockfish/Stockfish/commit/5254a6040c59cf7d3b9faa847168ccbd628c0574
+
+- Simplify skipping of plies with helper threads
+	- https://github.com/official-stockfish/Stockfish/commit/1810c4d758674dc4de288ca782851e52874f8908
+
+- Further simplify skipping of plies with threads
+	- https://github.com/official-stockfish/Stockfish/commit/cc76524c2e36345fcbf5fcdd3618a5dafd166b62
+
+- Check for overflow in Score * int multiplication
+	- https://github.com/official-stockfish/Stockfish/commit/d2971f3fca929d9085ed17b71aa4ec8e96499d99
+	- 序盤と終盤のスコア内分してないのでこれ意味ないな…。
+
+- Prefer std::find over a hand-coded loop
+	- https://github.com/official-stockfish/Stockfish/commit/57a3334322df005d567fc7db9afef82c495df83d
+
+- Move-Count Formula Tweak
+	- https://github.com/official-stockfish/Stockfish/commit/9d3ed9ed2ef97fda99183c1290fd4f51dac55180
+
+// 以上で、最新のStockfish(2017/4/18)に追いついた。
+
+### V4.31
+
+engine1 = YaneuraOuV426.exe , eval = ShinYane20161117
+engine2 = YaneuraOuV431.exe , eval = ShinYane20161117
+T1,b1000,2540 - 86 - 2374(51.69% R11.74) win black : white = 52.87% : 47.13%
+T4,b1000,1238 - 104 - 1308(48.63% R-9.55) win black : white = 50.32% : 49.68%
+
+1スレッドで負け越したの少し気になるが。探索パラメーター、再度調整すべき。
+
+
+## 2017/04/18
 
 - Penalty for a quiet ttMove that fails low
 	- https://github.com/official-stockfish/Stockfish/commit/5254a6040c59cf7d3b9faa847168ccbd628c0574
@@ -32,9 +72,15 @@
 - Rename FromTo -> History
 	- https://github.com/official-stockfish/Stockfish/commit/34e47ca87d82a420043f2bc9a1960eb1fad5c4f4
 
+- Simplify TT penalty stat
+	- https://github.com/official-stockfish/Stockfish/commit/fa24cc25a43da5ac41a086edda02dfc2e8e9b830
+
 ### V4.30
 
-
+	engine1 = YaneuraOuV426.exe , eval = ShinYane20161117
+	engine2 = YaneuraOuV430.exe , eval = ShinYane20161117
+	T1,b1000,2357 - 79 - 2564(47.9% R-14.62) win black : white = 51.21% : 48.79%
+	T4,b1000,1892 - 124 - 2044(48.07% R-13.42) win black : white = 51.22% : 48.78%
 
 ## 2017/04/18
 

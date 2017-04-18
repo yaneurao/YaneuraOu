@@ -308,7 +308,7 @@ void MovePicker::score<EVASIONS>()
 // 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。
 // 指し手が尽きればMOVE_NONEが返る。
 // 置換表の指し手(ttMove)を返したあとは、それを取り除いた指し手を返す。
-Move MovePicker::next_move() {
+Move MovePicker::next_move(bool skipQuiets) {
 
 #ifdef MUST_CAPTURE_SHOGI_ENGINE
 	// MustCaptureShogiの場合は、mustCaptureフラグを見ながら指し手を返す必要がある。
@@ -420,7 +420,8 @@ Move MovePicker::next_move2() {
 	// (置換表の指し手とkillerの指し手は返したあとなのでこれらの指し手は除外する必要がある)
 	// ※　これ、指し手の数が多い場合、AVXを使って一気に削除しておいたほうが良いのでは..
 	case QUIET:
-		while (cur < endMoves)
+		while (cur < endMoves
+			&& (!skipQuiets || cur->value >= VALUE_ZERO))
 		{
 			move = *cur++;
 			if (move != ttMove

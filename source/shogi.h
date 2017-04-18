@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "4.30"
+#define ENGINE_VERSION "4.31"
 
 // --------------------
 // コンパイル時の設定
@@ -761,8 +761,7 @@ struct MoveList {
 	// 生成された指し手のなかに引数で指定された指し手が含まれているかの判定。
 	// ASSERTなどで用いる。遅いので通常探索等では用いないこと。
 	bool contains(Move move) const {
-		for (const auto& m : *this) if (m == move) return true;
-		return false;
+		return std::find(begin(), end(), move) != end();
 	}
 
 	// 生成された指し手の数

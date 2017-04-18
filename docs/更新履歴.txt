@@ -2,6 +2,21 @@
 やねうら王 更新履歴
 
 
+■　2017/04/19 V4.31
+
+・search()にStep 1.からStep 20.のコメントをつける。Step 19.はStockfishのソースには抜けている。
+・reduction_tableの名前をReductionsにリネーム。
+・Stockfishの最新版にキャッチアップ
+	- Singular extension and check extension tweak
+	- Skip quiet moves based on moveCount pruning threshold and history stats
+	- Penalty for a quiet ttMove that fails low
+	- Simplify skipping of plies with helper threads
+	- Further simplify skipping of plies with threads
+	- Prefer std::find over a hand-coded loop
+	- Move-Count Formula Tweak
+	// 以上で、最新のStockfish(2017/4/18)に追いついた。
+
+
 ■　2017/04/18 V4.30
 
 ・Stockfishの最新版にキャッチアップ
@@ -11,6 +26,7 @@
 	- Always have counterMoves associated
 	- Remove HistoryStats
 	- Rename FromTo -> History
+	- Simplify TT penalty stat
 
 
 ■　2017/04/18 V4.29

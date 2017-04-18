@@ -132,7 +132,7 @@ struct MovePicker
 	// 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。
 	// 指し手が尽きればMOVE_NONEが返る。
 	// 置換表の指し手(ttMove)を返したあとは、それを取り除いた指し手を返す。
-	Move next_move();
+	Move next_move(bool skipQuiets = false);
 
 private:
 	// 指し手のオーダリング用
