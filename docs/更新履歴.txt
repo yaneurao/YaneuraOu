@@ -2,15 +2,32 @@
 やねうら王 更新履歴
 
 
+■　2017/04/18 V4.28
+
+・MovePicker新しく用意した。
+	- move_picker_2017Q2.h / cpp
+	- これに伴いmakefile修正。
+・Stockfishの最新版にキャッチアップ
+	- Simplify threshold handling for probcut.
+	- Don't clear EasyMove in search()
+	- Use consistent variable names for counterMoveStats 
+	- Correct zero-init of Thread data members
+	- Zero init fromToStats in constructor. 
+	- Tweak best thread selection logic
+	- Simplified select best thread 
+		- ベストスレッドの指し手を返すときにresignの指し手だとhangすることに対する修正。
+		- ベストスレッドの指し手を返すときにeasyMovePlayedのフラグを見るように修正。
+
+
 ■　2017/04/17 V4.27
 
 ・開発メモ2017.txt追加。(そのうち消すかも)
 ・Stockfishの最新版にキャッチアップ
-  - Help GCC to optimize msb() to single instruction
-  - Use DEPTH_ZERO initializer for depth in qsearch
-  - Remove piece condition in decrease lmr reduction check
-  - Explicitly use alpha+1 for beta in NonPV search
-  - Clean-up skipEarlyPruning 
+	- Help GCC to optimize msb() to single instruction
+	- Use DEPTH_ZERO initializer for depth in qsearch
+	- Remove piece condition in decrease lmr reduction check
+	- Explicitly use alpha+1 for beta in NonPV search
+	- Clean-up skipEarlyPruning 
 
 
 ■　2017/04/17 V4.26

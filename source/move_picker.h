@@ -23,4 +23,9 @@
 #include "extra/move_picker_2016Q3.h"
 #endif
 
+// やねうら王2017Earlyで用いているMovePicker
+#ifdef USE_MOVE_PICKER_2017Q2
+#include "extra/move_picker_2017Q2.h"
+#endif
+
 #endif // _MOVE_PICKER_H_

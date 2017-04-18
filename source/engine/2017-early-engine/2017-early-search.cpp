@@ -1866,19 +1866,6 @@ namespace YaneuraOu2017Early
 
 				if (value > alpha)
 				{
-					// 不安定なnodeにおいてeasy moveをクリアする。
-					// ※　　posKeyは、excludedMoveが指定されていると本来のkeyとは異なることになるが、それは
-					// singular extensionのときにしか関係なくて、singular extensionは深いdepthでしかやらないので、
-					// EasyMove.get()で返す2手目のkeyには影響を及ぼさない。
-					if (PvNode
-						&&  thisThread == Threads.main()
-						&& EasyMove.get(posKey)
-						&& (move != EasyMove.get(posKey) || moveCount > 1))
-						EasyMove.clear();
-					// ここ、Stockfishのコード、pos.key()になっているが、
-					// excludedMoveがあるとき、動作が違うことになるが、
-					// excludedMoveがあるときはPvNodeではないのでそのケースは考えなくて良い。
-
 					bestMove = move;
 
 					// fail highのときにもPVをupdateする。
@@ -2290,9 +2277,8 @@ void Search::clear()
 	// Threadsが変更になってからisreadyが送られてこないとisreadyでthread数だけ初期化しているものはこれではまずい。
 	for (Thread* th : Threads)
 	{
-		th->history.clear();
 		th->counterMoves.clear();
-		th->fromTo.clear();
+		th->history.clear();
 		th->counterMoveHistory.clear();
 		th->resetCalls = true;
 	}
@@ -2873,7 +2859,8 @@ ID_END:;
 	Thread* bestThread = this;
 
 	// 並列して探索させていたスレッドのうち、ベストのスレッドの結果を選出する。
-	if (Options["MultiPV"] == 1
+	if (!this->easyMovePlayed
+		&& Options["MultiPV"] == 1
 		&& !Limits.depth
 		&& rootMoves[0].pv[0] != MOVE_NONE)
 	{
@@ -2881,9 +2868,18 @@ ID_END:;
 		// 単にcompleteDepthが深いほうのスレッドを採用しても良さそうだが、スコアが良いほうの探索深さのほうが
 		// いい指し手を発見している可能性があって楽観合議のような効果があるようだ。
 		for (Thread* th : Threads)
-			if (th->completedDepth > bestThread->completedDepth
-				&& th->rootMoves[0].score > bestThread->rootMoves[0].score)
+		{
+			// やねうら王では、resignのときは、main threadにresignの指し手をpushしているが、
+			// 他のスレッドはこれをpushされていないので、rootMoves[0]にアクセスできない。
+			if (th->rootMoves.size() == 0)
+				continue;
+
+			int depthDiff = th->completedDepth - bestThread->completedDepth;
+			Value scoreDiff = th->rootMoves[0].score - bestThread->rootMoves[0].score;
+			
+			if (scoreDiff > 0 && depthDiff >= 0)
 				bestThread = th;
+		}
 	}
 
 	// 次回の探索のときに何らか使えるのでベストな指し手の評価値を保存しておく。
@@ -2955,7 +2951,7 @@ namespace Learner
 			th->completedDepth = 0;
 			th->maxPly = 0;
 			th->rootDepth = 0;
-
+			
 #if 0
 			// 余裕があるならhistory等もクリアしておく。
 			// したほうがいいかは微妙だが…。

@@ -40,6 +40,10 @@
 
 	→　YaneuraOuV426b
 
+	engine1 = YaneuraOuV426b.exe , eval = ShinYane20161117
+	engine2 = YaneuraOuV426.exe , eval = ShinYane20161117
+	T1,b1000,2480 - 101 - 2419(50.62% R4.33) win black : white = 51.98% : 48.02%
+
 - piecesCount
 	- https://github.com/official-stockfish/Stockfish/commit/f72b7dc99af07c4f012ef229f9d3dcc490d6d69f
 	- 将棋では関係なさげ。
@@ -51,3 +55,68 @@
 - Clean-up skipEarlyPruning 
 	- https://github.com/official-stockfish/Stockfish/commit/1b62d413c137bfa669922b6d52b92262d60020f1
 	- 関数の引数のリファクタリング。強さには寄与しない。
+
+- Simplify pruning
+	- https://github.com/official-stockfish/Stockfish/commit/847bc0e80fa78a81b028515da03a90ea4dd40458
+	- あとで変更があるのでこれは無視。
+
+	engine1 = YaneuraOuV426c.exe , eval = ShinYane20161117
+	engine2 = YaneuraOuV426.exe , eval = ShinYane20161117
+	T1,b1000,2441 - 90 - 2469(49.71% R-1.98) win black : white = 52.15% : 47.85%
+	T1,b3000,2445 - 146 - 2409(50.37% R2.58) win black : white = 51.21% : 48.79%
+
+
+### V4.28
+
+- Simplify threshold handling for probcut.
+	- https://github.com/official-stockfish/Stockfish/commit/1ceaea701baaa79f378b0842ff0fb5d2a1f53ef7
+	- 影響は軽微。
+
+- Refactor bonus and penalty calculation
+	- https://github.com/official-stockfish/Stockfish/commit/a47bbca0ea40ac007d64682c3ba51fa4158b2d3f
+	- あとで再度調整があるので、これは採用しない。
+
+- Threefold repetition detection
+	- https://github.com/official-stockfish/Stockfish/commit/881a9dfb0a8fec3b1472791e2d98415e4a9a182a
+	- 千日手チェックの高速化だが、これと同等のことはすでにやっているので採用せず。
+
+- Don't clear EasyMove in search()
+	- https://github.com/official-stockfish/Stockfish/commit/b7b9d7c9c72a987bb497ec2b629d885a06238aa2
+
+- Tweak best thread selection logic
+	- https://github.com/official-stockfish/Stockfish/commit/1052ce74f65479e5d583d349227dc101f8483a85
+- Simplified select best thread 
+	- https://github.com/official-stockfish/Stockfish/commit/d39ffbeea6ad54c90123a352d50b65c5bda1561b
+	- これ、複数スレッドでないと動作検証できない。
+
+
+- Use consistent variable names for counterMoveStats 
+	- https://github.com/official-stockfish/Stockfish/commit/6b16ebc82566a69b9336cca6aa7a19ab1824b85d
+	- 名前の変更だけ。
+
+- Correct zero-init of Thread data members
+	- https://github.com/official-stockfish/Stockfish/commit/fe99de20ff8f0594a17e2cedf680d25e86dd5a13
+	- 影響なし。
+
+- Zero init fromToStats in constructor. 
+	- https://github.com/official-stockfish/Stockfish/commit/90b052462cc473ee03df0e1613d1c9f81ca99887
+	- あまり影響はないが、以下の部分、コメントアウトした。
+		//	th->fromTo.clear();
+
+- Correctly zero-initialize MainThread
+	- https://github.com/official-stockfish/Stockfish/commit/1c316c41bb0b3a1522aecd0dd2447009f976ebd7
+	- もとより、こんなことはしてなかった。
+
+	engine1 = YaneuraOuV428.exe , eval = ShinYane20161117
+	engine2 = YaneuraOuV426.exe , eval = ShinYane20161117
+	T1,b1000,2444 - 83 - 2473(49.71% R-2.05) win black : white = 52.5% : 47.5%
+
+// スレッド増やすと落ちる。何故？あとで調査する。
+// →　投了のbestmove resignが返ってこない。
+// →　main thread以外、resignの指し手をrootMovesにpushしてないからアクセス違反になってた。修正。
+
+	position startpos moves 2g2f 3c3d 2f2e 2b3c 7g7f 3a2b 6i7h 4a3b 3i4h 8c8d 8h3c+ 2b3c 7i8h 7c7d 3g3f 7a6b 4g4f 5a4b 4h4g 8a7c 9g9f 6c6d 8h7g 6b6c 2i3g 1c1d 2h2i 8b8a 1g1f 9c9d 4i4h 6a6b 5i4i B*6i 7h8h 7c6e 7g6f 8d8e B*6h 8e8f 6h8f 6i4g+ 4h4g S*8e 8f5i 8e7f 4i5h 7f8g P*8b 8a8b B*7a 8b8c 7a6b+ 8g8h+ G*8d 8c8b 6b7c 8b8a 7c6c 8a8d 3g4e G*5b 4e5c+ 5b5c S*5a 4b5a 6c7c 5a4b 7c8d 4b3a 4g3g 3a2b 8i7g 3d3e 7g6e 6d6e 2e2d 2c2d N*4e 3e3f 4e3c+ 2a3c 3g3f S*3h 2i2d P*2c 2d7d 6e6f P*3d S*4g 5h6h G*7h 7d7h 8h7h 6h7h 6f6g+ 7h8g 4g3f 3d3c+ 3b3c P*3d 3c3d N*2f 5c4d 2f3d 4d3d R*5b G*3b S*4a P*3a 4a3b+ 3a3b S*3a 2b1c 5b3b+ R*8i P*8h 8i5i+ 3b3d 6g7g 8g8f 7g7f 8f7f P*7e 8d7e B*5h P*6g N*8d 7e8d 5i7i P*7g N*6d 7f6e N*7c 8d7c 5h4g+ 6e6d 4g4f 6d5c S*6d 7c6d 4f6d 5c6d B*2h 6d5c 2h6d+ 3d6d P*5b 5c4b P*3d B*3c 1d1e 3a2b 1c1b G*1c
+	go btime 0 wtime 0 byoyomi 3000
+
+
+

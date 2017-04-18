@@ -175,6 +175,9 @@
     <ClInclude Include="engine\must-capture-shogi-engine\must-capture-shogi-param.h">
       <Filter>リソース ファイル\engine\must-capture-shogi-engine</Filter>
     </ClInclude>
+    <ClInclude Include="extra\move_picker_2017Q2.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -308,6 +311,9 @@
     </ClCompile>
     <ClCompile Include="engine\must-capture-shogi-engine\must-capture-shogi.cpp">
       <Filter>リソース ファイル\engine\must-capture-shogi-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\move_picker_2017Q2.cpp">
+      <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
