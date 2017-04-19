@@ -335,7 +335,7 @@
     <Text Include="..\script\readme.txt">
       <Filter>script</Filter>
     </Text>
-    <Text Include="開発メモ2017.txt">
+    <Text Include="..\docs\開発メモ2017.txt">
       <Filter>doc</Filter>
     </Text>
   </ItemGroup>
