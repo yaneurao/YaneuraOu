@@ -610,13 +610,10 @@ namespace Eval
 #endif
 
 
+		{
 // 学習をopenmpで並列化(この間も局面生成は続くがまあ、問題ないやろ..
 #ifdef _OPENMP
-#pragma omp parallel
-#endif
-		{
-#ifdef _OPENMP
-#pragma omp for
+#pragma omp parallel for schedule (static)
 #endif
 			// Open MP対応のため、int型の変数を使う必要がある。(悲しい)
 			for (int k1 = SQ_ZERO; k1 < SQ_NB; ++k1)
@@ -650,7 +647,7 @@ namespace Eval
 			}
 
 #ifdef _OPENMP
-#pragma omp for
+#pragma omp parallel for schedule (static)
 #endif
 			for (int p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
 			{
@@ -683,7 +680,7 @@ namespace Eval
 			// 外側のループをk1にすると、ループ回数が81になって、40HTのときに1余るのが嫌。
 			// ゆえに外側のループはpに変更する。
 #ifdef _OPENMP
-#pragma omp for
+#pragma omp parallel for schedule (static)
 #endif
 			for (int p = BONA_PIECE_ZERO; p < fe_end; ++p)
 			{

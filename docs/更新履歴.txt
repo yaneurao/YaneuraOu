@@ -2,6 +2,11 @@
 やねうら王 更新履歴
 
 
+■　2017/04/19 V4.31a
+
+・learner.cpp、#pragma omp parallel for schedule static を並列化したいforの前に移動。(Qhapaqさん)
+
+
 ■　2017/04/19 V4.31
 
 ・search()にStep 1.からStep 20.のコメントをつける。Step 19.はStockfishのソースには抜けている。
