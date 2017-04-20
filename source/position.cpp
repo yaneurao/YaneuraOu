@@ -1003,6 +1003,15 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		ASSERT_LV2(PAWN <= pr && pr < PIECE_HAND_NB);
 
 		Piece pc = make_piece(Us, pr);
+
+		// Zobrist keyの更新
+		h -= Zobrist::hand[Us][pr];
+		k += Zobrist::psq[to][pc];
+
+		// なるべく早い段階でのTTに対するprefetch
+		// 駒打ちのときはこの時点でTT entryのアドレスが確定できる
+		prefetch(TT.first_entry(k + h));
+
 		PieceNo piece_no = piece_no_of(Us, pr);
 		ASSERT_LV3(is_ok(piece_no));
 
@@ -1035,10 +1044,6 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 		// 駒打ちは捕獲した駒がない。
 		st->capturedPiece = NO_PIECE;
-
-		// Zobrist keyの更新
-		h -= Zobrist::hand[Us][pr];
-		k += Zobrist::psq[to][pc];
 
 #ifndef EVAL_NO_USE
 		materialDiff = 0;
@@ -1161,6 +1166,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
 		k -= Zobrist::psq[from][moved_pc];
 		k += Zobrist::psq[to][moved_after_pc];
+
+		// 駒打ちでないときはprefetchはこの時点まで延期される。
+		prefetch(TT.first_entry(k + h));
 
 		// 王手している駒のbitboardを更新する。
 		if (givesCheck)

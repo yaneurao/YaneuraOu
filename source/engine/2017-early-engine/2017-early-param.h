@@ -92,12 +92,12 @@ PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 13;
 
 // probcutの前提depth
 // 元の値 = 5
-// [PARAM] min:3,max:10,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_DEPTH = 4;
+// [PARAM] min:3,max:10,step:1,interval:1,time_rate:1
+PARAM_DEFINE PARAM_PROBCUT_DEPTH = 5;
 
 // probcutのmargin
 // 元の値 = 200
-// [PARAM] min:100,max:300,step:2,interval:2,time_rate:1,fixed
+// [PARAM] min:100,max:300,step:2,interval:2,time_rate:1
 PARAM_DEFINE PARAM_PROBCUT_MARGIN = 216;
 
 
@@ -137,7 +137,7 @@ PARAM_DEFINE PARAM_PRUNING_BY_MOVE_COUNT_DEPTH = 17;
 // historyによる枝刈りをする深さ。適用depth。
 // これ、将棋ではそこそこ上げたほうが長い時間では良さげ。
 // 元の値 = 3
-// [PARAM] min:2,max:32,step:1,interval:1,time_rate:1,fixed
+// [PARAM] min:2,max:32,step:1,interval:1,time_rate:1
 PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 9;
 
 
@@ -184,7 +184,7 @@ PARAM_DEFINE PARAM_RAZORING_MARGIN4 = 539;
 //
 
 // 元の値 = 131
-// [PARAM] min:64,max:256,step:2,interval:2,time_rate:1,fixed
+// [PARAM] min:64,max:256,step:2,interval:2,time_rate:1
 PARAM_DEFINE PARAM_REDUCTION_ALPHA = 131;
 
 
@@ -195,19 +195,19 @@ PARAM_DEFINE PARAM_REDUCTION_ALPHA = 131;
 // どうも、元の値ぐらいが最適値のようだ…。
 
 // 元の値 = 240
-// [PARAM] min:150,max:400,step:1,interval:2,time_rate:1,fixed
+// [PARAM] min:150,max:400,step:1,interval:2,time_rate:1
 PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_ALPHA0 = 240;
 
 // 元の値 = 500
-// [PARAM] min:300,max:600,step:1,interval:2,time_rate:1,fixed
+// [PARAM] min:300,max:600,step:1,interval:2,time_rate:1
 PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_ALPHA1 = 500;
 
 // 元の値 = 740
-// [PARAM] min:500,max:2000,step:2,interval:2,time_rate:1,fixed
+// [PARAM] min:500,max:2000,step:2,interval:2,time_rate:1
 PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_BETA0 = 740;
 
 // 元の値 = 1000
-// [PARAM] min:500,max:2000,step:2,interval:2,time_rate:1,fixed
+// [PARAM] min:500,max:2000,step:2,interval:2,time_rate:1
 PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_BETA1 = 1000;
 
 

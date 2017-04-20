@@ -1,4 +1,46 @@
 
+## 2017/04/21
+
+・EngineNuma、やはり設定できないと、他ソフトの対局のときにNuma指定できなくて困るのか…。あらら？
+	→　そうでもないか。
+
+		start /B /WAIT /NODE %EXECUTOR_NUMBER% c:/python27/python.exe %YANEHOME%\script\engine_invoker4.py home:%YANEHOME% engine1:%ENGINE1% eval1:%EVAL1%  engine2:%ENGINE2% eval2:%EVAL2% cores:%HT_CORES% loop:%LOOP% numa:%EXECUTOR_NUMBER% engine_threads:%ENGINE_THREADS% hash1:%ENGINE_HASH1% hash2:%ENGINE_HASH2% time:%TIMES% book_moves:%BOOK_MOVES% rand_book:1 PARAMETERS_LOG_FILE_PATH:%YANEHOME%\result_log\param_%BUILD_NUMBER%
+		start /B /WAIT /NODE %EXECUTOR_NUMBER% move *.sfen %YANEHOME%\kif
+
+・TTのprefetch、追加する
+
+- 4771
+
+// prefetchなし
+===========================
+Total time (ms) : 18180
+Nodes searched  : 12421760
+Nodes/second    : 683265
+Nodes/second    : 706785
+Nodes/second    : 717688
+
+// prefetchあり
+Nodes/second    : 721105
+Nodes/second    : 724343
+
+> bench 1024 8 16
+Total time (ms) : 24520
+Nodes searched  : 74895345
+Nodes/second    : 3054459
+Nodes searched(main thread) : 9394930
+Nodes/second  (main thread) : 383153
+Nodes searched(main thread) : 9924828
+Nodes/second  (main thread) : 378781
+
+Nodes searched(main thread) : 10324092
+Nodes/second  (main thread) : 384409
+Nodes searched(main thread) : 20745383
+Nodes/second  (main thread) : 353895
+
+### V4.32
+
+・Ryzenでベンチとる。(あとで)
+
 
 ## 2017/04/19
 
