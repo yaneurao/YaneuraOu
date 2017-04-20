@@ -23,6 +23,11 @@ Nodes/second    : 717688
 Nodes/second    : 721105
 Nodes/second    : 724343
 
+// prefetchあり、eval hashあり
+Nodes searched  : 12421760
+Nodes/second    : 699738
+Nodes/second    : 692637
+
 > bench 1024 8 16
 Total time (ms) : 24520
 Nodes searched  : 74895345
@@ -36,6 +41,27 @@ Nodes searched(main thread) : 10324092
 Nodes/second  (main thread) : 384409
 Nodes searched(main thread) : 20745383
 Nodes/second  (main thread) : 353895
+
+// lazy SMPで伸びないのはeval hashの都合もあるのか…。
+
+// eval hashをONにするとめっちゃ遅い。なんで？
+Nodes searched(main thread) : 12163807
+Nodes/second  (main thread) : 260852
+
+// eval hashのkeyを計算する部分、これだと2個に1個が無駄になってる
+-		const Key keyExcludeTurn = st->key() & ~1; // 手番を消した局面hash key
++		const Key keyExcludeTurn = st->key() >> 1; // 手番を消した局面hash key
+修正。
+
+eval hash、20%もhitしてるのに遅いな…。
+hitしたあとの差分計算が出来てなかったり？
+
+// st->sumと書いていたところsumに変更した。
+
+Nodes searched(main thread) : 8100708
+Nodes/second  (main thread) : 401223
+// よくわからない。あとでRyzenでベンチとる。
+
 
 ### V4.32
 

@@ -798,15 +798,17 @@ namespace Eval
 #ifdef USE_EVAL_HASH
 		// evaluate hash tableにはあるかも。
 
-		const Key keyExcludeTurn = st->key() & ~1; // 手番を消した局面hash key
-		EvalSum entry = *g_evalTable[keyExcludeTurn];       // atomic にデータを取得する必要がある。
+		const Key keyExcludeTurn = st->key() >> 1;		// 手番を消した局面hash key
+		EvalSum entry = *g_evalTable[keyExcludeTurn];   // atomic にデータを取得する必要がある。
 		entry.decode();
 		if (entry.key == keyExcludeTurn)
 		{
+//			dbg_hit_on(true);
 			// あった！
-			st->sum = entry;
+			sum = entry;
 			return Value(entry.sum(pos.side_to_move()) / FV_SCALE);
 		}
+//		dbg_hit_on(false);
 #endif
 
 		// 評価関数本体を呼び出して求める。
@@ -814,9 +816,9 @@ namespace Eval
 
 #ifdef USE_EVAL_HASH
 		// せっかく計算したのでevaluate hash tableに保存しておく。
-		st->sum.key = keyExcludeTurn;
-		st->sum.encode();
-		*g_evalTable[keyExcludeTurn] = st->sum;
+		sum.key = keyExcludeTurn;
+		sum.encode();
+		*g_evalTable[keyExcludeTurn] = sum;
 #endif
 
 		ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));
@@ -831,7 +833,7 @@ namespace Eval
 		}
 #endif
 
-		return Value(st->sum.sum(pos.side_to_move()) / FV_SCALE);
+		return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
 	}
 
 	void evaluate_with_no_return(const Position& pos)
