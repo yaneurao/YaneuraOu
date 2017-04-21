@@ -1,4 +1,57 @@
 
+## 2017/04/22
+
+Ryzen 8コア(論理16コア)にて
+
+// prefetchなし
+
+Total time (ms) : 61094
+Nodes searched  : 27207336
+Nodes/second    : 445335
+
+> bench 1024 16
+Total time (ms) : 44258
+Nodes searched  : 179667725
+Nodes/second    : 4059553
+Nodes searched(main thread) : 11324212
+Nodes/second  (main thread) : 255868
+
+// prefetchあり
+
+Total time (ms) : 58355
+Nodes searched  : 27207336
+Nodes/second    : 466238
+
+> bench 1024 16
+Total time (ms) : 54807
+Nodes searched  : 226393803
+Nodes/second    : 4130746
+Nodes searched(main thread) : 11923099
+Nodes/second  (main thread) : 217547
+
+// eval hash、prefetchあり
+
+Total time (ms) : 57458
+Nodes searched  : 27207336
+Nodes/second    : 473516
+
+> bench 1024 16
+
+Total time (ms) : 31393
+Nodes searched  : 148282761
+Nodes/second    : 4723433
+Nodes searched(main thread) : 9249663
+Nodes/second  (main thread) : 294640
+
+Total time (ms) : 28043
+Nodes searched  : 129733738
+Nodes/second    : 4626243
+Nodes searched(main thread) : 8099409
+Nodes/second  (main thread) : 288821
+
+// eval hash、prefetch有効のほうがいいかも知れん..
+
+
 ## 2017/04/21
 
 ・EngineNuma、やはり設定できないと、他ソフトの対局のときにNuma指定できなくて困るのか…。あらら？
