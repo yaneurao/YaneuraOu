@@ -2405,7 +2405,7 @@ void Thread::search()
 
 			while (true)
 			{
-				bestValue = YaneuraOu2017Early::search<PV>(rootPos, ss, alpha, beta, rootDepth * ONE_PLY, false , false);
+				bestValue = YaneuraOu2017Early::search<PV>(rootPos, ss, alpha, beta, rootDepth, false , false);
 
 				// それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
 				// 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
@@ -2613,8 +2613,9 @@ void MainThread::think()
 
 	// lazy SMPではcompletedDepthを最後に比較するのでこれをゼロ初期化しておかないと
 	// 探索しないときにThreads.main()の指し手が選ばれない。
+	// 将棋用に改造する際に、定跡の指し手を指せるように改造しているので、その影響。
 	for (Thread* th : Threads)
-		th->completedDepth = 0;
+		th->completedDepth = DEPTH_ZERO;
 
 	if (rootMoves.size() == 0)
 	{
@@ -2801,7 +2802,7 @@ void MainThread::think()
 		for (Thread* th : Threads)
 		{
 			th->maxPly = 0;
-			th->rootDepth = 0;
+			th->rootDepth = DEPTH_ZERO;
 			if (th != this)
 				th->start_searching();
 		}
@@ -2864,7 +2865,7 @@ ID_END:;
 			if (th->rootMoves.size() == 0)
 				continue;
 
-			int depthDiff = th->completedDepth - bestThread->completedDepth;
+			Depth depthDiff = th->completedDepth - bestThread->completedDepth;
 			Value scoreDiff = th->rootMoves[0].score - bestThread->rootMoves[0].score;
 			
 			// いまよりスコアが優れていて、かつ、探索深さがいまより浅くなければ。
@@ -2919,7 +2920,7 @@ namespace Learner
 
 	// 学習のための初期化。
 	// Learner::search(),Learner::qsearch()から呼び出される。
-	void init_for_search(Position pos)
+	void init_for_search(Position pos,Stack* ss)
 	{
 		// Search::Limitsに関して
 		{
@@ -2935,14 +2936,25 @@ namespace Learner
 			limits.max_game_ply = pos.game_ply() + MAX_PLY - 1;
 		}
 
+		// DrawValueの設定
+		{
+			Color us = pos.side_to_move();
+			int contempt = Options["Contempt"] * PawnValue / 100;
+			drawValueTable[REPETITION_DRAW][us] = VALUE_ZERO - Value(contempt);
+			drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
+		}
+
 		// this_threadに関して。
 		{
 			auto th = pos.this_thread();
 
-			th->completedDepth = 0;
+			th->completedDepth = DEPTH_ZERO;
 			th->maxPly = 0;
-			th->rootDepth = 0;
-			
+			th->rootDepth = DEPTH_ZERO;
+
+			for (int i = 4; i > 0; i--)
+				(ss - i)->counterMoves = &th->counterMoveHistory[SQ_ZERO][NO_PIECE];
+
 #if 0
 			// 余裕があるならhistory等もクリアしておく。
 			// したほうがいいかは微妙だが…。
@@ -2964,13 +2976,6 @@ namespace Learner
 			ASSERT_LV3(rootMoves.size() != 0);
 		}
 
-		// DrawValueの設定
-		{
-			Color us = pos.side_to_move();
-			int contempt = Options["Contempt"] * PawnValue / 100;
-			drawValueTable[REPETITION_DRAW][us] = VALUE_ZERO - Value(contempt);
-			drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
-		}
 	}
 	
 	// 静止探索。
@@ -2983,14 +2988,10 @@ namespace Learner
 		Stack stack[MAX_PLY + 7], *ss = stack + 4;
 		memset(ss - 4, 0, 7 * sizeof(Stack));
 
-		auto th = pos.this_thread();
-		for (int i = 4; i > 0; i--)
-			(ss - i)->counterMoves = &th->counterMoveHistory[SQ_ZERO][NO_PIECE];
-
 		Move pv[MAX_PLY + 1];
 		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
-		init_for_search(pos);
+		init_for_search(pos,ss);
 
 		// 現局面で王手がかかっているかで場合分け。
 		const bool inCheck = pos.in_check();
@@ -3024,20 +3025,18 @@ namespace Learner
 
 		Stack stack[MAX_PLY + 7], *ss = stack + 4;
 		memset(ss - 4, 0, 7 * sizeof(Stack));
-
-		auto th = pos.this_thread();
-		for (int i = 4; i > 0; i--)
-			(ss - i)->counterMoves = &th->counterMoveHistory[SQ_ZERO][NO_PIECE];
 		
 		Move pv[MAX_PLY + 1];
 		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
-		init_for_search(pos);
+		init_for_search(pos,ss);
 
 		// this_threadに関連する変数の初期化
+		auto th = pos.this_thread();
 		auto& rootDepth = th->rootDepth;
 		auto& PVIdx = th->PVIdx;
 		auto& rootMoves = th->rootMoves;
+		auto& completedDepth = th->completedDepth;
 
 		// bestmoveとしてしこの局面の上位N個を探索する機能
 		size_t multiPV = Options["MultiPV"];
@@ -3049,7 +3048,7 @@ namespace Learner
 		Value delta = -VALUE_INFINITE;
 		Value bestValue = -VALUE_INFINITE;
 
-		while (++rootDepth <= depth)
+		while ((rootDepth+=ONE_PLY) <= depth)
 		{
 			for (RootMove& rm : rootMoves)
 				rm.previousScore = rm.score;
@@ -3071,7 +3070,7 @@ namespace Learner
 				// aspiration search
 				while (true)
 				{
-					bestValue = YaneuraOu2017Early::search<PV>(pos, ss, alpha, beta, rootDepth * ONE_PLY, false , false);
+					bestValue = YaneuraOu2017Early::search<PV>(pos, ss, alpha, beta, rootDepth, false , false);
 					std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
 
 					// fail low/highに対してaspiration windowを広げる。
@@ -3094,6 +3093,8 @@ namespace Learner
 				std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
 
 			} // multi PV
+
+			completedDepth = rootDepth;
 		}
 
 		// このPV、途中でNULL_MOVEの可能性があるかも知れないので排除するためにis_ok()を通す。

@@ -1,6 +1,11 @@
 
-## 2017/04/21
+## 2017/04/22
 
+・Learner::search()に何らかバグがあるらしいので調査。
+
+
+
+## 2017/04/21
 
 ・対技巧でパラメーターチューニング
 z:\script>c:/Python27/python.exe analyze_result_log.py ../result_log
