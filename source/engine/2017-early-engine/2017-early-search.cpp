@@ -103,7 +103,7 @@ void USI::extra_option(USI::OptionsMap & o)
 
 	std::vector<std::string> book_list = { "no_book" , "standard_book.db"
 		, "yaneura_book1.db" , "yaneura_book2.db" , "yaneura_book3.db", "yaneura_book4.db"
-		, "user_book1.db", "user_book2.db", "user_book3.db" };
+		, "user_book1.db", "user_book2.db", "user_book3.db", "book.bin" };
 	o["BookFile"] << Option(book_list, book_list[1], [](auto& o) { book_name = string(o); });
 	book_name = book_list[1];
 

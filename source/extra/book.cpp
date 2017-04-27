@@ -595,11 +595,122 @@ namespace Book
   }
 
   static std::unique_ptr<AperyBook> apery_book;
+  static const constexpr char* kAperyBookName = "book/book.bin";
 
   // 定跡ファイルの読み込み(book.db)など。
   int read_book(const std::string& filename, MemoryBook& book, bool on_the_fly)
   {
-    apery_book = std::make_unique<AperyBook>("book/book.bin");
+    // 読み込み済であるかの判定
+    if (book.book_name == filename)
+      return 0;
+
+    // 別のファイルを開こうとしているなら前回メモリに丸読みした定跡をクリアしておかないといけない。
+    if (book.book_name != "")
+      book.book_body.clear();
+
+    if (filename == kAperyBookName) {
+      // Apery定跡データベースを読み込む
+      apery_book = std::make_unique<AperyBook>(kAperyBookName);
+    }
+    else {
+      // やねうら王定跡データベースを読み込む
+
+      // ファイルだけオープンして読み込んだことにする。
+      if (on_the_fly)
+      {
+        if (book.fs.is_open())
+          book.fs.close();
+
+        book.fs.open(filename, ios::in);
+        if (book.fs.fail())
+        {
+          cout << "info string Error! : can't read " + filename << endl;
+          return 1;
+        }
+
+        book.on_the_fly = true;
+        book.book_name = filename;
+        return 0;
+      }
+
+      vector<string> lines;
+      if (read_all_lines(filename, lines))
+      {
+        cout << "info string Error! : can't read " + filename << endl;
+        //      exit(EXIT_FAILURE);
+        return 1; // 読み込み失敗
+      }
+
+      uint64_t num_sum = 0;
+      string sfen;
+
+      auto calc_prob = [&] {
+        auto& move_list = book.book_body[sfen];
+        std::stable_sort(move_list.begin(), move_list.end());
+        num_sum = std::max(num_sum, UINT64_C(1)); // ゼロ除算対策
+        for (auto& bp : move_list)
+          bp.prob = float(bp.num) / num_sum;
+        num_sum = 0;
+      };
+
+      for (auto line : lines)
+      {
+        // バージョン識別文字列(とりあえず読み飛ばす)
+        if (line.length() >= 1 && line[0] == '#')
+          continue;
+
+        // コメント行(とりあえず読み飛ばす)
+        if (line.length() >= 2 && line.substr(0, 2) == "//")
+          continue;
+
+        // "sfen "で始まる行は局面のデータであり、sfen文字列が格納されている。
+        if (line.length() >= 5 && line.substr(0, 5) == "sfen ")
+        {
+          // ひとつ前のsfen文字列に対応するものが終わったということなので採択確率を計算して、かつ、採択回数でsortしておく
+          // (sortはされてるはずだが他のソフトで生成した定跡DBではそうとも限らないので)。
+          calc_prob();
+
+          sfen = line.substr(5, line.length() - 5); // 新しいsfen文字列を"sfen "を除去して格納
+          continue;
+        }
+
+        Move best, next;
+        int value;
+        int depth;
+
+        istringstream is(line);
+        string bestMove, nextMove;
+        uint64_t num;
+        is >> bestMove >> nextMove >> value >> depth >> num;
+
+#if 0
+        // 思考した指し手に対しては指し手の出現頻度のところを強制的にエンジンバージョンを100倍したものに変更する。
+        // この#ifを有効にして、makebook mergeコマンドを叩いて、別のファイルに書き出すなどするときに便利。
+        num = int(atof(ENGINE_VERSION) * 100);
+#endif
+
+        // 起動時なので変換に要するオーバーヘッドは最小化したいので合法かのチェックはしない。
+        if (bestMove == "none" || bestMove == "resign")
+          best = MOVE_NONE;
+        else
+          best = move_from_usi(bestMove);
+
+        if (nextMove == "none" || nextMove == "resign")
+          next = MOVE_NONE;
+        else
+          next = move_from_usi(nextMove);
+
+        BookPos bp(best, next, value, depth, num);
+        insert_book_pos(book, sfen, bp);
+        num_sum += num;
+      }
+      // ファイルが終わるときにも最後の局面に対するcalc_probが必要。
+      calc_prob();
+    }
+
+    // 読み込んだファイル名を保存しておく。二度目のread_book()はskipする。
+    book.book_name = filename;
+
     return 0;
   }
 
@@ -721,14 +832,190 @@ namespace Book
 
   MemoryBook::BookType::iterator MemoryBook::find(const Position& pos)
   {
-    book_body.clear();
+    if (book_name == kAperyBookName) {
+      // Apery定跡データベースを用いて指し手を選択する
+      book_body.clear();
 
-    for (const auto& entry : apery_book->get_entries(pos)) {
-      BookPos book_pos(pos.move16_to_move(static_cast<Move>(entry.fromToPro)), MOVE_NONE, entry.score, 256, entry.count);
-      insert_book_pos(*this, pos.sfen(), book_pos);
+      for (const auto& entry : apery_book->get_entries(pos)) {
+        BookPos book_pos(pos.move16_to_move(static_cast<Move>(entry.fromToPro)), MOVE_NONE, entry.score, 256, entry.count);
+        insert_book_pos(*this, pos.sfen(), book_pos);
+      }
+
+      return book_body.begin();
     }
+    else {
+      // やねうら王定跡データベースを用いて指し手を選択する
 
-    return book_body.begin();
+      // 定跡がないならこのまま返る。(sfen()を呼び出すコストの節約)
+      if (!on_the_fly && book_body.size() == 0)
+        return book_body.end();
+
+      auto sfen = pos.sfen();
+      BookType::iterator it;
+
+      if (on_the_fly)
+      {
+        // ディスクから読み込むなら、いずれにせよ、book_bodyをクリアして、
+        // ディスクから読み込んだエントリーをinsertしてそのiteratorを返すべき。
+        book_body.clear();
+
+        // 末尾の手数は取り除いておく。
+        // read_book()で取り除くと、そのあと書き出すときに手数が消失するのでまずい。(気がする)
+        sfen = trim_sfen(sfen);
+
+        // ファイル自体はオープンされてして、ファイルハンドルはfsだと仮定して良い。
+
+        // ファイルサイズ取得
+        // C++的には未定義動作だが、これのためにsys/stat.hをincludeしたくない。
+        // ここでfs.clear()を呼ばないとeof()のあと、tellg()が失敗する。
+        fs.clear();
+        fs.seekg(0, std::ios::end);
+        auto file_end = fs.tellg();
+
+        fs.clear();
+        fs.seekg(0, std::ios::beg);
+        auto file_start = fs.tellg();
+
+        auto file_size = u64(file_end - file_start);
+
+        // 与えられたseek位置から"sfen"文字列を探し、それを返す。どこまでもなければ""が返る。
+        // hackとして、seek位置は-80しておく。
+        auto next_sfen = [&](u64 seek_from)
+        {
+          string line;
+
+          fs.seekg(max(s64(0), (s64)seek_from - 80), fstream::beg);
+          getline(fs, line); // 1行読み捨てる
+
+                             // getlineはeof()を正しく反映させないのでgetline()の返し値を用いる必要がある。
+          while (getline(fs, line))
+          {
+            if (!line.compare(0, 4, "sfen"))
+              return trim_sfen(line.substr(5));
+            // "sfen"という文字列は取り除いたものを返す。
+            // 手数の表記も取り除いて比較したほうがいい。
+            // ios::binaryつけているので末尾に'\R'が付与されている。禿げそう。
+          }
+          return string();
+        };
+
+        // バイナリサーチ
+
+        u64 s = 0, e = file_size, m;
+
+        while (true)
+        {
+          m = (s + e) / 2;
+
+          auto sfen2 = next_sfen(m);
+          if (sfen2 == "" || sfen < sfen2)
+          { // 左(それより小さいところ)を探す
+            e = m;
+          }
+          else if (sfen > sfen2)
+          { // 右(それより大きいところ)を探す
+            s = u64(fs.tellg() - file_start);
+          }
+          else {
+            // 見つかった！
+            break;
+          }
+
+          // 40バイトより小さなsfenはありえないので探索範囲がこれより小さいなら終了。
+          // ただしs = 0のままだと先頭が探索されていないので..
+          // s,eは無符号型であることに注意。if (s-40 < e) と書くとs-40がマイナスになりかねない。
+          if (s + 40 > e)
+          {
+            if (s != 0 || e != 0)
+            {
+              // 見つからなかった
+              return book_body.end();
+            }
+
+            // もしかしたら先頭付近にあるかも知れん..
+            e = 0; // この条件で再度サーチ
+          }
+
+        }
+        // 見つけた処理
+
+        // read_bookとほとんど同じ読み込み処理がここに必要。辛い。
+
+        uint64_t num_sum = 0;
+
+        auto calc_prob = [&] {
+          auto& move_list = book_body[sfen];
+          std::stable_sort(move_list.begin(), move_list.end());
+          num_sum = std::max(num_sum, UINT64_C(1)); // ゼロ除算対策
+          for (auto& bp : move_list)
+            bp.prob = float(bp.num) / num_sum;
+          num_sum = 0;
+        };
+
+        while (!fs.eof())
+        {
+          string line;
+          getline(fs, line);
+
+          // バージョン識別文字列(とりあえず読み飛ばす)
+          if (line.length() >= 1 && line[0] == '#')
+            continue;
+
+          // コメント行(とりあえず読み飛ばす)
+          if (line.length() >= 2 && line.substr(0, 2) == "//")
+            continue;
+
+          // 次のsfenに遭遇したらこれにて終了。
+          if (line.length() >= 5 && line.substr(0, 5) == "sfen ")
+          {
+            break;
+          }
+
+          Move best, next;
+          int value;
+          int depth;
+
+          istringstream is(line);
+          string bestMove, nextMove;
+          uint64_t num;
+          is >> bestMove >> nextMove >> value >> depth >> num;
+
+          // 起動時なので変換に要するオーバーヘッドは最小化したいので合法かのチェックはしない。
+          if (bestMove == "none" || bestMove == "resign")
+            best = MOVE_NONE;
+          else
+            best = move_from_usi(bestMove);
+
+          if (nextMove == "none" || nextMove == "resign")
+            next = MOVE_NONE;
+          else
+            next = move_from_usi(nextMove);
+
+          BookPos bp(best, next, value, depth, num);
+          insert_book_pos(*this, sfen, bp);
+          num_sum += num;
+        }
+        // ファイルが終わるときにも最後の局面に対するcalc_probが必要。
+        calc_prob();
+
+        it = book_body.begin();
+
+      }
+      else {
+
+        // on the flyではない場合
+        it = book_body.find(sfen);
+      }
+
+
+      if (it != book_body.end())
+      {
+        // 定跡のMoveは16bitであり、rootMovesは32bitのMoveであるからこのタイミングで補正する。
+        for (auto& m : it->second)
+          m.bestMove = pos.move16_to_move(m.bestMove);
+      }
+      return it;
+    }
   }
 
 }
