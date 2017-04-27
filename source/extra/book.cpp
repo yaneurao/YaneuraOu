@@ -11,6 +11,7 @@
 #include "../thread.h"
 #include "../learn/multi_think.h"
 #include "../tt.h"
+#include "apery_book.h"
 
 using namespace std;
 using std::cout;
@@ -114,6 +115,8 @@ namespace Book
 		bool book_merge = token == "merge";
 		// 定跡のsort
 		bool book_sort = token == "sort";
+		// 定跡の変換
+		bool convert_from_apery = token == "convert_from_apery";
 
 #if !defined(EVAL_LEARN) || !(defined(YANEURAOU_2016_MID_ENGINE) || defined(YANEURAOU_2016_LATE_ENGINE))
 		if (from_thinking)
@@ -463,15 +466,125 @@ namespace Book
 			write_book(book_dst, book, true);
 			cout << "..done!" << endl;
 
+		} else if (convert_from_apery) {
+			MemoryBook book;
+			string book_src, book_dst;
+			is >> book_src >> book_dst;
+			cout << "convert apery book from " << book_src << " , write to " << book_dst << endl;
+			Book::read_apery_book(book_src, book);
+
+			cout << "write..";
+			write_book(book_dst, book, true);
+			cout << "..done!" << endl;
+
 		} else {
 			cout << "usage" << endl;
 			cout << "> makebook from_sfen book.sfen book.db moves 24" << endl;
 			cout << "> makebook think book.sfen book.db moves 16 depth 18" << endl;
 			cout << "> makebook merge book_src1.db book_src2.db book_merged.db" << endl;
 			cout << "> makebook sort book_src.db book_sorted.db" << endl;
+			cout << "> makebook convert_from_apery book_src.bin book_converted.db" << endl;
 		}
 	}
 #endif
+
+	string trim_sfen(string sfen);
+
+	// Apery用定跡ファイルの読み込み
+	int read_apery_book(const std::string& filename, MemoryBook& book)
+	{
+		// 読み込み済であるかの判定
+		if (book.book_name == filename)
+			return 0;
+
+		auto convert_move_from_apery = [](uint16_t apery_move) {
+			const uint16_t to = apery_move & 0x7f;
+			const uint16_t from = (apery_move >> 7) & 0x7f;
+			const bool is_promotion = (apery_move & (1 << 14)) != 0;
+			if (is_promotion) {
+				return make_move_promote(static_cast<Square>(from), static_cast<Square>(to));
+			}
+			const bool is_drop = ((apery_move >> 7) & 0x7f) >= SQ_NB;
+			if (is_drop) {
+				const uint16_t piece = from - SQ_NB + 1;
+				return make_move_drop(static_cast<Piece>(piece), static_cast<Square>(to));
+			}
+			return make_move(static_cast<Square>(from), static_cast<Square>(to));
+		};
+
+		AperyBook apery_book(filename.c_str());
+		cout << "size of apery book = " << apery_book.size() << endl;
+		unordered_set<string> seen;
+		uint64_t collisions = 0;
+
+		auto report = [&]() {
+			cout << "# seen positions = " << seen.size()
+				<< ", size of converted book = " << book.book_body.size()
+				<< ", # hash collisions detected = " << collisions
+				<< endl;
+		};
+
+		function<void(Position&)> search = [&](Position& pos) {
+			const string sfen = pos.sfen();
+			const string sfen_for_key = trim_sfen(sfen);
+			if (seen.count(sfen_for_key)) return;
+			seen.insert(sfen_for_key);
+
+			if (seen.size() % 100000 == 0) report();
+
+			const auto& entries = apery_book.get_entries(pos);
+			if (entries.empty()) return;
+			bool has_illegal_move = false;
+			for (const auto& entry : entries) {
+				const Move move = convert_move_from_apery(entry.fromToPro);
+				has_illegal_move |= !pos.legal(move);
+			}
+			if (has_illegal_move) {
+				++collisions;
+				return;
+			}
+
+			StateInfo st;
+			for (const auto move : MoveList<LEGAL_ALL>(pos)) {
+				pos.do_move(move, st);
+				search(pos);
+				pos.undo_move(move);
+			}
+
+			for (const auto& entry : entries) {
+				const Move move = convert_move_from_apery(entry.fromToPro);
+				BookPos bp(move, MOVE_NONE, entry.score, 1, entry.count);
+				insert_book_pos(book, sfen, bp);
+			}
+
+			auto& move_list = book.book_body[sfen];
+			std::stable_sort(move_list.begin(), move_list.end());
+			uint64_t num_sum = 0;
+			for (const auto& bp : move_list) {
+				num_sum += bp.num;
+			}
+			num_sum = std::max(num_sum, UINT64_C(1)); // ゼロ除算対策
+			for (auto& bp : move_list) {
+				bp.prob = float(bp.num) / num_sum;
+				pos.do_move(bp.bestMove, st);
+				auto it = book.find(pos);
+				if (it != book.end() && it->second.size() != 0) {
+					bp.nextMove = it->second.front().bestMove;
+				}
+				pos.undo_move(bp.bestMove);
+			}
+		};
+
+		Position pos;
+		pos.set_hirate();
+		search(pos);
+		report();
+
+		// 読み込んだファイル名を保存しておく。二度目のread_book()はskipする。
+		book.book_name = filename;
+
+		return 0;
+	}
 
 	// 定跡ファイルの読み込み(book.db)など。
 	int read_book(const std::string& filename, MemoryBook& book, bool on_the_fly)

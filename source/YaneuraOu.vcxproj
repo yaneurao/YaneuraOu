@@ -218,6 +218,7 @@
     <ClInclude Include="eval\evaluate_kppt.h" />
     <ClInclude Include="eval\kppt_evalsum.h" />
     <ClInclude Include="extra\all.h" />
+    <ClInclude Include="extra\apery_book.h" />
     <ClInclude Include="extra\bitop.h" />
     <ClInclude Include="extra\book.h" />
     <ClInclude Include="extra\config.h" />
@@ -229,6 +230,7 @@
     <ClInclude Include="extra\move_picker_2016Q2.h" />
     <ClInclude Include="extra\move_picker_2016Q3.h" />
     <ClInclude Include="extra\move_picker_2017Q2.h" />
+    <ClInclude Include="extra\mt64bit.h" />
     <ClInclude Include="learn\learn.h" />
     <ClInclude Include="learn\multi_think.h" />
     <ClInclude Include="misc.h" />
@@ -261,6 +263,7 @@
     <ClCompile Include="eval\evaluate_kppt.cpp" />
     <ClCompile Include="eval\evaluate_material.cpp" />
     <ClCompile Include="eval\evaluate_no_eval.cpp" />
+    <ClCompile Include="extra\apery_book.cpp" />
     <ClCompile Include="extra\bitop.cpp" />
     <ClCompile Include="extra\book.cpp" />
     <ClCompile Include="extra\entering_king_win.cpp" />

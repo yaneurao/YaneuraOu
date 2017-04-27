@@ -58,6 +58,8 @@ namespace Book
   // 定跡作成時などはこれをtrueにしてはいけない。(メモリに読み込まれないため)
   extern int read_book(const std::string& filename, MemoryBook& book,bool on_the_fly = false);
 
+  extern int read_apery_book(const std::string& filename, MemoryBook& book);
+
   // 定跡ファイルの書き出し
   // sort = 書き出すときにsfen文字列で並び替えるのか。(書き出しにかかる時間増)
   extern int write_book(const std::string& filename, const MemoryBook& book,bool sort = false);
