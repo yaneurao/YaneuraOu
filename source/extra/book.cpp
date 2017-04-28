@@ -830,6 +830,21 @@ namespace Book
     return s;
   }
 
+  Move convert_move_from_apery(uint16_t apery_move) {
+      const uint16_t to = apery_move & 0x7f;
+      const uint16_t from = (apery_move >> 7) & 0x7f;
+      const bool is_promotion = (apery_move & (1 << 14)) != 0;
+      if (is_promotion) {
+          return make_move_promote(static_cast<Square>(from), static_cast<Square>(to));
+      }
+      const bool is_drop = ((apery_move >> 7) & 0x7f) >= SQ_NB;
+      if (is_drop) {
+          const uint16_t piece = from - SQ_NB + 1;
+          return make_move_drop(static_cast<Piece>(piece), static_cast<Square>(to));
+      }
+      return make_move(static_cast<Square>(from), static_cast<Square>(to));
+  };
+
   MemoryBook::BookType::iterator MemoryBook::find(const Position& pos)
   {
     if (book_name == kAperyBookName) {
@@ -837,7 +852,7 @@ namespace Book
       book_body.clear();
 
       for (const auto& entry : apery_book->get_entries(pos)) {
-        BookPos book_pos(pos.move16_to_move(static_cast<Move>(entry.fromToPro)), MOVE_NONE, entry.score, 256, entry.count);
+        BookPos book_pos(pos.move16_to_move(convert_move_from_apery(entry.fromToPro)), MOVE_NONE, entry.score, 256, entry.count);
         insert_book_pos(*this, pos.sfen(), book_pos);
       }
 
