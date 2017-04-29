@@ -45,6 +45,7 @@ SOURCES  = shogi.cpp                                                           \
 	position.cpp                                                               \
 	usi.cpp                                                                    \
 	thread.cpp tt.cpp                                                          \
+	extra/apery_book.cpp                                                       \
 	extra/bitop.cpp                                                            \
 	extra/book.cpp                                                             \
 	extra/entering_king_win.cpp                                                \

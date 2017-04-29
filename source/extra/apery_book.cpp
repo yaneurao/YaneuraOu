@@ -21,6 +21,8 @@
 
 #include "apery_book.h"
 
+#include "../misc.h"
+
 namespace Book {
 
 MT64bit AperyBook::mt64bit_; // 定跡のhash生成用なので、seedは固定でデフォルト値を使う。
@@ -46,7 +48,8 @@ AperyBook::AperyBook(const char* fName) {
     std::ifstream file(fName, std::ifstream::in | std::ifstream::binary);
 
     if (!file.is_open())
-        throw std::runtime_error("could not open file");
+        sync_cout << "info string could not open an apery book file. " << fName << sync_endl;
+
     AperyBookEntry entry;
     while (file.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {
         book_[entry.key].push_back(entry);
