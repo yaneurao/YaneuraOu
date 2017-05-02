@@ -196,6 +196,7 @@ namespace YaneuraOu2017Early
 	const int skipPhase[] = { 0, 1, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7 };
 
 	// Razoringのdepthに応じたマージン値
+	// razor_margin[0]は、search()のなかでは depth >= ONE_PLY であるから使われない。
 	int razor_margin[4];
 	
 	// 手番の価値
@@ -222,6 +223,9 @@ namespace YaneuraOu2017Early
 	// [PvNodeであるか][improvingであるか][このnodeで何手目の指し手であるか][残りdepth]
 	int Reductions[2][2][64][64];
 
+	// countermoves based pruningで使う閾値
+	const int CounterMovePruneThreshold = 0;
+
 	// 残り探索深さをこの深さだけ減らす。depthとmove_countに関して63以上は63とみなす。
 	// improvingとは、評価値が2手前から上がっているかのフラグ。上がっていないなら
 	// 悪化していく局面なので深く読んでも仕方ないからreduction量を心もち増やす。
@@ -230,9 +234,9 @@ namespace YaneuraOu2017Early
 	}
 
 	// depthに基づく、historyとstatsのupdate bonus
-	Value stat_bonus(Depth depth) {
+	int stat_bonus(Depth depth) {
 		int d = depth / ONE_PLY;
-		return d > 17 ? VALUE_ZERO : Value(d * d + 2 * d - 2);
+		return d > 17 ? 0 : d * d + 2 * d - 2;
 	}
 
 	// -----------------------
@@ -292,7 +296,7 @@ namespace YaneuraOu2017Early
 	// -----------------------
 
 	// update_cm_stats()は、countermoveとfollow-up move historyを更新する。
-	void update_cm_stats(Stack* ss, Piece pc, Square s, Value bonus)
+	void update_cm_stats(Stack* ss, Piece pc, Square s, int bonus)
 	{
 		for (int i : { 1, 2, 4})
 			if (is_ok((ss - i)->currentMove))
@@ -305,7 +309,7 @@ namespace YaneuraOu2017Early
 	// quiets    = 悪かった指し手(このnodeで生成した指し手)
 	// quietsCnt = ↑の数
 	inline void update_stats(const Position& pos, Stack* ss, Move move,
-				Move* quiets, int quietsCnt, Value bonus)
+				Move* quiets, int quietsCnt, int bonus)
 	{
 		//   killerのupdate
 
@@ -676,8 +680,13 @@ namespace YaneuraOu2017Early
 			// (実際は-VALUE_INFINITEより大きければ良い)
 			// という条件を追加してある。
 
-			if (
-				(!InCheck || (!pos.capture(move) && bestValue > VALUE_MATED_IN_MAX_PLY))
+			// 枝刈りの候補となりうる捕獲しない回避手を検出する。
+			bool evasionPrunable =  InCheck
+								&&  depth != DEPTH_ZERO
+								&&  bestValue > VALUE_MATED_IN_MAX_PLY
+								&& !pos.capture(move);
+
+			if ((!InCheck || evasionPrunable)
 #if 0
 				// Stockfish8相当のコード
 				&& !is_promote(move)
@@ -860,7 +869,11 @@ namespace YaneuraOu2017Early
 		if (thisThread->resetCalls.load(std::memory_order_relaxed))
 		{
 			thisThread->resetCalls = false;
-			thisThread->callsCnt = 0;
+
+			// Limits.nodesが指定されているときは、そのnodesの0.1%程度になるごとにチェック。
+			// さもなくばデフォルトの値を使う。
+			thisThread->callsCnt = Limits.nodes ? std::min(4096, int(Limits.nodes / 1024))
+												: 4096;
 		}
 		// nps 1コア時でも600kぐらい出るから、10knodeごとに調べれば0.02秒程度の精度は出るはず。
 		if (++thisThread->callsCnt > 4096)
@@ -921,7 +934,7 @@ namespace YaneuraOu2017Early
 		ss->counterMoves = &thisThread->counterMoveHistory[SQ_ZERO][NO_PIECE];
 
 		// historyの合計値を計算してcacheしておく用。
-		ss->history = VALUE_ZERO;
+		ss->history = 0;
 
 		// 1手先のexcludedMoveの初期化
 		(ss + 1)->excludedMove = MOVE_NONE;
@@ -1002,7 +1015,7 @@ namespace YaneuraOu2017Early
 				// fails lowのときのquiet ttMoveに対するペナルティ
 				else if (!pos.capture_or_promotion(ttMove))
 				{
-					Value penalty = -stat_bonus(depth);
+					int penalty = -stat_bonus(depth);
 					thisThread->history.update(pos.side_to_move(), ttMove, penalty);
 					update_cm_stats(ss, pos.moved_piece_after(ttMove), to_sq(ttMove), penalty);
 				}
@@ -1330,9 +1343,6 @@ namespace YaneuraOu2017Early
 		const CounterMoveStats& cmh  = *(ss - 1)->counterMoves;
 		const CounterMoveStats& fmh  = *(ss - 2)->counterMoves;
 		const CounterMoveStats& fm2  = *(ss - 4)->counterMoves;
-		const bool cm_ok = is_ok((ss - 1)->currentMove);
-		const bool fm_ok = is_ok((ss - 2)->currentMove);
-		const bool f2_ok = is_ok((ss - 4)->currentMove);
 
 		// 評価値が2手前の局面から上がって行っているのかのフラグ
 		// 上がって行っているなら枝刈りを甘くする。
@@ -1590,12 +1600,12 @@ namespace YaneuraOu2017Early
 					// Historyに基づいた枝刈り(history && counter moveの値が悪いものに関してはskip)
 
 					// ToDo : このへん、fmh,fmh2を調べるほうが良いかは微妙
-					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH
+					// [2017/05/03] fmh2を調べないように変更があった。
+ 					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH
 						//					&& move != ss->killers[0]
 						// →　このkillerの判定は入れないほうが強いらしい。
-						&& ((cmh[moved_sq][moved_piece] < VALUE_ZERO) || !cm_ok)
-						&& ((fmh[moved_sq][moved_piece] < VALUE_ZERO) || !fm_ok)
-						&& ((fm2[moved_sq][moved_piece] < VALUE_ZERO) || !f2_ok || (cm_ok && fm_ok)))
+						&& (cmh[moved_sq][moved_piece] < CounterMovePruneThreshold) 
+						&& (fmh[moved_sq][moved_piece] < CounterMovePruneThreshold))
 						continue;
 
 					// Futility pruning: at parent node
@@ -1741,9 +1751,9 @@ namespace YaneuraOu2017Early
 					// T1,b1000,2135 - 84 - 2071(50.76% R5.29)
 					// T1,b3000,640 - 34 - 576(52.63% R18.3)
 
-					if (ss->history > VALUE_ZERO && (ss - 1)->history < VALUE_ZERO)
+					if (ss->history > 0 && (ss - 1)->history < 0)
 						r -= ONE_PLY;
-					else if (ss->history < VALUE_ZERO && (ss - 1)->history > VALUE_ZERO)
+					else if (ss->history < 0 && (ss - 1)->history > 0)
 						r += ONE_PLY;
 #endif
 
@@ -1935,7 +1945,7 @@ namespace YaneuraOu2017Early
 		//  capture or pawn promotion相当の処理にしたほうが良いのでは…。
 		else if (depth >= 3 * ONE_PLY
 			&& !pos.captured_piece()
-			&& cm_ok)
+			&& is_ok((ss - 1)->currentMove))
 			update_cm_stats(ss - 1, pos.moved_piece_after((ss - 1)->currentMove), prevSq, stat_bonus(depth));
 
 		// -----------------------
@@ -2196,6 +2206,9 @@ void Search::clear()
 	//   探索パラメーターの初期化
 	// -----------------------
 
+	// 探索パラメーターを動的に調整する場合は、
+	// このタイミングでファイルから探索パラメーターを読み込む。
+
 	init_param();
 
 	// -----------------------
@@ -2244,7 +2257,7 @@ void Search::clear()
 
 	// razor marginの初期化
 
-	razor_margin[0] = PARAM_RAZORING_MARGIN1;
+	razor_margin[0] = PARAM_RAZORING_MARGIN1; // 未使用
 	razor_margin[1] = PARAM_RAZORING_MARGIN2;
 	razor_margin[2] = PARAM_RAZORING_MARGIN3;
 	razor_margin[3] = PARAM_RAZORING_MARGIN4;
@@ -2259,6 +2272,7 @@ void Search::clear()
 	// -----------------------
 	//   置換表のクリアなど
 	// -----------------------
+
 	TT.clear();
 
 	// Threadsが変更になってからisreadyが送られてこないとisreadyでthread数だけ初期化しているものはこれではまずい。
@@ -2268,6 +2282,12 @@ void Search::clear()
 		th->history.clear();
 		th->counterMoveHistory.clear();
 		th->resetCalls = true;
+
+		// ここは、未初期化のときに[SQ_ZERO][NO_PIECE]を指すので、ここを-1で初期化しておくことによって、
+		// history > 0 を条件にすれば自ずと未初期化のときは除外されるようになる。
+		CounterMoveStats& cm = th->counterMoveHistory[SQ_ZERO][NO_PIECE];
+		int* t = &cm[SQ_ZERO][NO_PIECE];
+		std::fill(t, t + sizeof(cm), CounterMovePruneThreshold - 1);
 	}
 
 	Threads.main()->previousScore = VALUE_INFINITE;
@@ -2515,13 +2535,13 @@ void Thread::search()
 		// mateを読みきったとき、そのmateの倍以上、iterationを回しても仕方ない気がするので探索を打ち切るようにする。
 		if (!Limits.mate
 			&& bestValue >= VALUE_MATE_IN_MAX_PLY
-			&& (VALUE_MATE - bestValue) * 2 < rootDepth)
+			&& (VALUE_MATE - bestValue) * 2 < (Value)(rootDepth / ONE_PLY))
 			break;
 
 		// 詰まされる形についても同様。こちらはmateの2倍以上、iterationを回したなら探索を打ち切る。
 		if (!Limits.mate
 			&& bestValue <= VALUE_MATED_IN_MAX_PLY
-			&& (bestValue - (-VALUE_MATE)) * 2 < rootDepth)
+			&& (bestValue - (-VALUE_MATE)) * 2 < (Value)(rootDepth / ONE_PLY))
 			break;
 
 		// 残り時間的に、次のiterationに行って良いのか、あるいは、探索をいますぐここでやめるべきか？

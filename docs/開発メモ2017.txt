@@ -1,4 +1,54 @@
 
+## 2017/05/03
+
+・Stockfish最新版にキャッチアップ
+
+	- Partial insertion sort
+		- https://github.com/official-stockfish/Stockfish/commit/2d96e8fbe9b683ff320a197715155381139c7664
+		- std::partitionが安定ソートではないし遅いので自前で用意する。
+	- Use int instead of Value for history related stats.
+		- https://github.com/official-stockfish/Stockfish/commit/9da3b44ddc7bc9ea7094b91663cbc0f8319c46be
+		- ExtMoveのvalueはValue型にしておくと-VALUE_INFINITE,VALUE_INFINITEから容易にはみだすのでint型に変更。
+	- simplify logic for history based pruning
+		- https://github.com/official-stockfish/Stockfish/commit/ced29248c93de7fc5a4e284807f8f052006e647c
+		- historyの未初期化のところを-1にしておくことで、history > 0を条件にすれば未初期化のところは
+		- 自然と除外されるというhack。
+	- King safety parameters improved
+		- https://github.com/official-stockfish/Stockfish/commit/0868de705df796b9b9803bd393f4f27c3f4ed772
+		- 将棋に関係ない。
+	- Sort moves partially: linear depth dependence
+		- https://github.com/official-stockfish/Stockfish/commit/6b9a22b40d37d27ad10cafd8697d96e90a586f8a
+		-  partial_insertion_sort(cur, endMoves, -4000 * depth / ONE_PLY)
+	- Assorted code style issues
+		- https://github.com/official-stockfish/Stockfish/commit/b48439e90643cb6f65f9e34d1421976883c12efc
+		- 変数名など。
+	- Zero unused constant
+		- https://github.com/official-stockfish/Stockfish/commit/d06a8d0c188b796e115d503f85906fadb5625c70
+	- Copy killers in the movepicker
+		- https://github.com/official-stockfish/Stockfish/commit/b1b19343cd1f5ec65084dc11a0a0b4d5ece2a24b
+		- movepicker.h/cpp、最新のStockfishに合せた。
+	- Retire the misdesigned StepAttacks[] array.
+		- https://github.com/official-stockfish/Stockfish/commit/e06a117d5e78ec4edc051f2b161d36559f784d37
+		- StepAttacksが設計ミスだったらしい。やねうら王には影響なさげ。
+	- Don't do InCheck Pruning at the root of QS
+		- https://github.com/official-stockfish/Stockfish/commit/a18c2c2c3f38070cb897a8a28cf1d6d45236ded4
+		- 静止探索のrootでは王手枝刈りをしない。
+	- gcc 7 port
+		- https://github.com/official-stockfish/Stockfish/commit/e9f26cccdde7ca6e0941bb4b9066665a68c5bc42
+		- gcc7用に、movepicker.cppに[[fallthrough]]のアノテーションをつける。
+
+
+
+
+## 2017/04/25
+
+・スタックサイズ100MBにしているが、これを小さくしたほうが数%速くなるようではある。
+・EVAL_LEARNをundefしたほうが数%速くなるようではある。
+・プロジェクトの設定でデバッグ情報の生成をONにしていたのでこれをOFFに変更した。
+・Console出力が詰まってbenchの値がおかしいのか？
+
+
+
 ## 2017/04/22
 
 ・Learner::search()に何らかバグがあるらしいので調査。

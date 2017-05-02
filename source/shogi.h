@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "4.36"
+#define ENGINE_VERSION "4.38"
 
 // --------------------
 // コンパイル時の設定
@@ -590,7 +590,11 @@ inline std::ostream& operator<<(std::ostream& os, Move m) { os << to_usi_string(
 struct ExtMove {
 
 	Move move;   // 指し手(32bit)
-	Value value; // これはMovePickerが指し手オーダリングのために並び替えるときに用いる値(≠評価値)。
+#if defined(USE_MOVE_PICKER_2017Q2)
+	int value;
+#else
+	Value value;   // これはMovePickerが指し手オーダリングのために並び替えるときに用いる値(≠評価値)。
+#endif
 
 	// Move型とは暗黙で変換できていい。
 

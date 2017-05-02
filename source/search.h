@@ -14,7 +14,7 @@ typedef Stats<Value, true> CounterMoveStats;
 
 #if defined(USE_MOVE_PICKER_2017Q2)
 template<typename T> struct Stats;
-typedef Stats<Value> CounterMoveStats;
+typedef Stats<int> CounterMoveStats;
 #endif
 
 // 探索関係
@@ -147,17 +147,23 @@ namespace Search {
   // -----------------------
 
   struct Stack {
-    Move* pv;                // PVへのポインター。RootMovesのvector<Move> pvを指している。
-    int ply;                 // rootからの手数
-    Move currentMove;        // そのスレッドの探索においてこの局面で現在選択されている指し手
-    Move excludedMove;       // singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手
-    Move killers[2];         // killer move
-    Value staticEval;        // 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
+    Move* pv;				// PVへのポインター。RootMovesのvector<Move> pvを指している。
+    int ply;				// rootからの手数
+    Move currentMove;		// そのスレッドの探索においてこの局面で現在選択されている指し手
+    Move excludedMove;		// singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手
+    Move killers[2];		// killer move
+    Value staticEval;		// 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
 #if defined (PER_STACK_HISTORY)
+
+#if defined (USE_MOVE_PICKER_2017Q2)
+	int history;			// 一度計算したhistoryの合計値をcacheしておくのに用いる。
+#else
 	Value history;			// 一度計算したhistoryの合計値をcacheしておくのに用いる。
 #endif
+
+#endif
 #if defined (YANEURAOU_2016_LATE_ENGINE)
-	bool skipEarlyPruning;   // 指し手生成前に行なう枝刈りを省略するか。(NULL MOVEの直後など)
+	bool skipEarlyPruning;	// 指し手生成前に行なう枝刈りを省略するか。(NULL MOVEの直後など)
 #endif
 	int moveCount;           // このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
 #if defined (USE_MOVE_PICKER_2016Q2) || defined (USE_MOVE_PICKER_2016Q3) || defined(USE_MOVE_PICKER_2017Q2)

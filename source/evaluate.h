@@ -133,7 +133,7 @@ namespace Eval {
 #if defined(USE_FAST_KPPT)
   enum BonaPiece: int32_t
 #else
-  enum BonaPiece: int16_t
+  enum BonaPiece : int16_t
 #endif
   {
     // f = friend(≒先手)の意味。e = enemy(≒後手)の意味

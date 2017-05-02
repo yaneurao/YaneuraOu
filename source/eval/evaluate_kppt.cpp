@@ -11,7 +11,6 @@
 // I pay my respects to his great achievements.
 //
 
-
 #ifdef EVAL_KPPT
 
 #include <fstream>

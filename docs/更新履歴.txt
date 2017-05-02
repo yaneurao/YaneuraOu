@@ -12,6 +12,29 @@
 後者を使ったほうが無難かも。
 
 
+■　2017/05/03 V4.38
+
+・Stockfish最新版にキャッチアップ
+	- Partial insertion sort
+	- Use int instead of Value for history related stats.
+	- simplify logic for history based pruning
+	- Sort moves partially: linear depth dependence
+	- Assorted code style issues
+	- Zero unused constant
+	- Copy killers in the movepicker
+	- Retire the misdesigned StepAttacks[] array.
+	- Don't do InCheck Pruning at the root of QS
+	- gcc 7 port
+	以上、2017/5/2時点までキャッチアップ完了。
+
+
+
+■　2017/04/25 V4.37
+
+・rootDepthをValueにキャストせずにValue型と比較していたところ修正。
+・プロジェクト設定の調整
+
+
 ■　2017/04/23 V4.36
 
 ・Thread::rootDepth、completedDepthをDepth型に変更。

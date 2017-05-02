@@ -162,8 +162,9 @@ PARAM_DEFINE PARAM_IID_MARGIN_ALPHA = 261;
 // razoring pruning
 // 
 
-// 元の値 = 483
-// [PARAM] min:400,max:700,step:5,interval:2,time_rate:1,fixed
+// この値は、未使用。razoringはdepth < ONE_PLYでは行わないため。
+// 元の値 = 0
+// [PARAM] min:0,max:0,step:1,interval:2,time_rate:1,fixed
 PARAM_DEFINE PARAM_RAZORING_MARGIN1 = 483;
 
 // 元の値 = 570

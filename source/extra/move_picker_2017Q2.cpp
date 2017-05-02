@@ -85,21 +85,24 @@ enum Stages: int {
 };
 
 // -----------------------
-//   insertion sort
+//   partial insertion sort
 // -----------------------
 
-// stableであることが保証されたinsertion sort。指し手オーダリングのために使う。
-inline void insertion_sort(ExtMove* begin, ExtMove* end)
-{
-	ExtMove tmp, *p, *q;
+// partial_insertion_sort()は指し手を与えられたlimitまで降順でソートする。
+// limitよりも小さい値の指し手の順序については、不定。
+// 実装を単純にするため、*beginは常にソートされる指し手に含まれるものとする。
+void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 
-	for (p = begin + 1; p < end; ++p)
-	{
-		tmp = *p;
-		for (q = p; q != begin && *(q - 1) < tmp; --q)
-			*q = *(q - 1);
-		*q = tmp;
-	}
+	for (ExtMove *sortedEnd = begin + 1, *p = begin + 1; p < end; ++p)
+		if (p->value >= limit)
+		{
+			ExtMove tmp = *p, *q;
+			*p = *sortedEnd;
+			for (q = sortedEnd; q != begin && *(q - 1) < tmp; --q)
+				*q = *(q - 1);
+			*q = tmp;
+			++sortedEnd;
+		}
 }
 
 // beginからendのなかでベストのスコアのものを先頭(begin)に移動させる。
@@ -146,12 +149,10 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Search::Stack*s)
 
 	Square prevSq = to_sq((ss - 1)->currentMove);
 	Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
+	countermove = pos.this_thread()->counterMoves[prevSq][prevPc];
 
-	countermove =
-		is_ok((ss - 1)->currentMove)
-		? pos.this_thread()->counterMoves[prevSq][prevPc]
-		: MOVE_NONE
-		;
+	killers[0] = ss->killers[0];
+	killers[1] = ss->killers[1];
 
 	// 次の指し手生成の段階
 	// 王手がかかっているなら回避手、かかっていないなら通常探索用の指し手生成
@@ -237,12 +238,12 @@ void MovePicker::score<CAPTURES>()
 
 		// 移動させる駒の駒種。駒取りなので移動元は盤上であることは保証されている。
 		auto pt = type_of(pos.piece_on(move_from(m)));
-		bool pawn_promo = is_promote(m) && pt == PAWN;
+		// bool pawn_promo = is_promote(m) && pt == PAWN;
 
 		// MVV-LVAに、歩の成りに加点する形にしておく。
 		// →　歩の成りは加点しないほうがよさげ？
 		m.value =// (pawn_promo ? (Value)(Eval::ProDiffPieceValue[PAWN]) : VALUE_ZERO) +
-			(Value)Eval::CapturePieceValue[pos.piece_on(move_to(m))]
+			(Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
 			- LVA(pt);
 
 		// 盤の上のほうの段にあるほど価値があるので下の方の段に対して小さなペナルティを課す。
@@ -337,9 +338,8 @@ Move MovePicker::next_move2() {
 	switch (stage)
 	{
 		// 置換表の指し手を返すフェーズ
-	case MAIN_SEARCH: case EVASION:
-	case QSEARCH_WITH_CHECKS: case QSEARCH_NO_CHECKS:
-	case PROBCUT:
+	case MAIN_SEARCH: case EVASION: case QSEARCH_WITH_CHECKS:
+	case QSEARCH_NO_CHECKS: case PROBCUT:
 		++stage;
 		return ttMove;
 
@@ -348,6 +348,7 @@ Move MovePicker::next_move2() {
 		endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, cur);
 		score<CAPTURES>(); // CAPTUREの指し手の並べ替え。
 		++stage;
+		/* fallthrough */
 
 		// 置換表の指し手を返したあとのフェーズ
 		// (killer moveの前のフェーズなのでkiller除去は不要)
@@ -372,49 +373,50 @@ Move MovePicker::next_move2() {
 		// 1つ目のkiller move
 		// ※　killer[]は32bit化されている(上位に移動後の駒が格納されている)と仮定している。
 
-		move = ss->killers[0];
-		if (move != MOVE_NONE
+		move = killers[0];
+		if (    move != MOVE_NONE
 			&&  move != ttMove
 			&&  pos.pseudo_legal_s<false>(move)
 			&& !pos.capture_or_pawn_promotion(move))
 			return move;
+		/* fallthrough */
 
 		// killer moveを返すフェーズ
 		// (直前に置換表の指し手を返しているし、CAPTURES_PRO_PLUSでの指し手も返しているのでそれらの指し手は除外されるべき)
 	case KILLERS:
 		++stage;
-		move = ss->killers[1]; // 2つ目のkiller move
+		move = killers[1]; // 2つ目のkiller move
 
-		if (move != MOVE_NONE                       // ss->killer[0],[1]からコピーしただけなのでMOVE_NONEの可能性がある
+		if (    move != MOVE_NONE                     // ss->killer[0],[1]からコピーしただけなのでMOVE_NONEの可能性がある
 			&&  move != ttMove                        // 置換表の指し手を重複除去しないといけない
 			&&  pos.pseudo_legal_s<false>(move)       // pseudo_legalでない指し手以外に歩や大駒の不成なども除外
 			&& !pos.capture_or_pawn_promotion(move))  // 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
 			return move;
+		/* fallthrough */
 
 		// counter moveを返すフェーズ
 	case COUNTERMOVE:
 		++stage;
 		move = countermove;
-		if (move != MOVE_NONE
+		if (   move != MOVE_NONE
 			&& move != ttMove
-			&& move != ss->killers[0]
-			&& move != ss->killers[1]
+			&& move != killers[0]
+			&& move != killers[1]
 			&& pos.pseudo_legal_s<false>(move)
 			&& !pos.capture_or_pawn_promotion(move))
 			return move;
+		/* fallthrough */
 
 	case QUIET_INIT:
 		cur = endBadCaptures;
 		endMoves = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, cur);
 		score<QUIETS>();
-		if (depth < 3 * ONE_PLY)
-		{
-			ExtMove* goodQuiet = std::partition(cur, endMoves, [](const ExtMove& m)
-												{ return m.value > VALUE_ZERO; });
-			insertion_sort(cur, goodQuiet);
-		} else
-			insertion_sort(cur, endMoves);
+
+		// 指し手を部分的にソートする。depthに線形に依存する閾値で。
+		partial_insertion_sort(cur, endMoves, -4000 * depth / ONE_PLY);
+
 		++stage;
+		/* fallthrough */
 
 	// 捕獲しない指し手を返す。
 	// (置換表の指し手とkillerの指し手は返したあとなのでこれらの指し手は除外する必要がある)
@@ -425,8 +427,8 @@ Move MovePicker::next_move2() {
 		{
 			move = *cur++;
 			if (move != ttMove
-				&& move != ss->killers[0]
-				&& move != ss->killers[1]
+				&& move != killers[0]
+				&& move != killers[1]
 				&& move != countermove)
 				return move;
 		}
@@ -434,6 +436,7 @@ Move MovePicker::next_move2() {
 
 		// bad capturesの先頭を指すようにする。これは指し手生成バッファの先頭付近を再利用している。
 		cur = moves;
+		/* fallthrough */
 
 		// see()が負の指し手を返す。
 	case BAD_CAPTURES:
@@ -448,6 +451,7 @@ Move MovePicker::next_move2() {
 		endMoves = generateMoves<EVASIONS>(pos, cur);
 		score<EVASIONS>();
 		++stage;
+		/* fallthrough */
 
 	// 王手回避の指し手を返す
 	case ALL_EVASIONS:
@@ -464,6 +468,7 @@ Move MovePicker::next_move2() {
 		endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, cur);
 		score<CAPTURES>();
 		++stage;
+		/* fallthrough */
 
 		// 通常探索のProbCutの処理から呼び出されるとき用。
 		// 直前に捕獲された駒の価値以上のcaptureの指し手のみを生成する。
@@ -483,6 +488,7 @@ Move MovePicker::next_move2() {
 		endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, cur);
 		score<CAPTURES>();
 		++stage;
+		/* fallthrough */
 
 	// 残りの指し手を生成するフェーズ(共通処理)
 	case QCAPTURES_1: case QCAPTURES_2:
@@ -499,6 +505,7 @@ Move MovePicker::next_move2() {
 		// QUIET_CHECKS_PRO_MINUSがあれば良いのだが、実装が難しいので、このあと除外する。
 		endMoves = generateMoves<QUIET_CHECKS>(pos, cur);
 		++stage;
+		/* fallthrough */
 
 		// 王手になる指し手を一手ずつ返すフェーズ
 		// (置換表の指し手は返したあとなのでこの指し手は除外する必要がある)
@@ -518,6 +525,7 @@ Move MovePicker::next_move2() {
 		endMoves = generateMoves<RECAPTURES>(pos, moves, recaptureSquare);
 		score<CAPTURES>(); // CAPTUREの指し手の並べ替え
 		++stage;
+		/* fallthrough */
 
 	// 取り返す指し手。これはすでにrecaptureの指し手だけが生成されているのでそのまま返す。
 	case QRECAPTURES:
@@ -529,7 +537,7 @@ Move MovePicker::next_move2() {
 			//if (to_sq(move) == recaptureSquare)
 			//	return move;
 			// →　recaptureの指し手のみを生成しているのでこの判定は不要。
-			ASSERT_LV3(move_to(move) == recaptureSquare);
+			ASSERT_LV3(to_sq(move) == recaptureSquare);
 
 			return move;
 		}
