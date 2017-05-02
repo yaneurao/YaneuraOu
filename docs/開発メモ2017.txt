@@ -1,6 +1,18 @@
 
 ## 2017/05/03
 
+・探索部、Stockfishのsearch.cppに書式をなるべく合せる。
+・Reductionテーブルの初期化コード、ONE_PLYを掛けるように修正。Stockfish本家のほうも同様の修正が必要だと思う…。
+・check_time()の呼び出すコード、修正。(npsが出なかったの、これが原因か？)
+・#ifndef、紛らわしいので#if !defined()に変更する。
+・qsearch()の1手詰め、置換表にhitしなかったときにのみ調べるように変更。
+
+### V4.39
+
+
+
+## 2017/05/02
+
 ・Stockfish最新版にキャッチアップ
 
 	- Partial insertion sort
@@ -37,6 +49,11 @@
 		- https://github.com/official-stockfish/Stockfish/commit/e9f26cccdde7ca6e0941bb4b9066665a68c5bc42
 		- gcc7用に、movepicker.cppに[[fallthrough]]のアノテーションをつける。
 
+### V4.38
+
+engine1 = YaneuraOuV431.exe , eval = ShinYane20161117
+engine2 = YaneuraOuV438.exe , eval = ShinYane20161117
+T1,b1000,2303 - 85 - 2612(46.86% R-21.87) win black : white = 52.24% : 47.76%
 
 
 
