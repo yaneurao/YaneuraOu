@@ -12,6 +12,17 @@
 後者を使ったほうが無難かも。
 
 
+■　2017/05/03 V4.41 また強くなっててワロタ
+
+・EVAL_HASHのprefetch有効にする。
+
+
+■　2017/05/03 V4.40
+
+・Stockfishのpull req.
+	- Remove excluded move from TT position key formula. 
+
+
 ■　2017/05/03 V4.39 強くなりすぎワロタ
 
 ・探索部、Stockfishのsearch.cppに書式をなるべく合せる。

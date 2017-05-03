@@ -36,6 +36,11 @@ namespace Eval {
   // あるいは差分計算が不可能なときに呼び出される。
   Value compute_eval(const Position& pos);
 
+#if defined(EVAL_KPPT) && defined(USE_EVAL_HASH)
+  // prefetchする関数
+  void prefetch_evalhash(const Key key);
+#endif
+
   // 評価関数パラメーターのチェックサムを返す。
 #if defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
   s32 calc_check_sum();

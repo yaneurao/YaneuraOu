@@ -955,10 +955,7 @@ namespace YaneuraOu2017Early
 		// このnodeで探索から除外する指し手。ss->excludedMoveのコピー。
 		Move excludedMove = ss->excludedMove;
 
-		// 除外した指し手をxorしてそのままhash keyに使う。
-		// 除外した指し手がないときは、0だから、xorしても0。
-		// ただし、hash keyのbit0は手番を入れることになっているのでここは0にしておく。
-		Key posKey = pos.key() ^ Key(excludedMove << 1);
+		Key posKey = pos.key();
 
 		bool ttHit;    // 置換表がhitしたか
 
@@ -966,17 +963,23 @@ namespace YaneuraOu2017Early
 
 		TTEntry* tte = TT.probe(posKey, ttHit);
 
-		// 置換表の指し手
-		// 置換表にhitしなければMOVE_NONE
+		// excludedMoveがある(singular extension時)は、ttValueとttMoveは無いものとして扱う。
+		// excludedMoveがあるときはfull depth searchしたときもsave()しないので置換表は破壊されない。
+
+		// ToDo: 置換表のlookup自体やらないほうがいいような…。
 
 		// 置換表上のスコア
 		// 置換表にhitしなければVALUE_NONE
-		Value ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
 
+		Value ttValue = ttHit && !excludedMove ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
+
+		// 置換表の指し手
+		// 置換表にhitしなければMOVE_NONE
 		// RootNodeであるなら、(MultiPVなどでも)現在注目している1手だけがベストの指し手と仮定できるから、
 		// それが置換表にあったものとして指し手を進める。
+
 		Move ttMove = RootNode ? thisThread->rootMoves[thisThread->PVIdx].pv[0]
-					: ttHit    ? pos.move16_to_move(tte->move()) : MOVE_NONE;
+					: ttHit && !excludedMove ? pos.move16_to_move(tte->move()) : MOVE_NONE;
 
 #else
 		TTEntry* tte = nullptr; ttHit = false;
@@ -1663,7 +1666,9 @@ namespace YaneuraOu2017Early
 			// 計算するコストがわりとあるので、これをやってもあまり得にはならない。無効にしておく。
 
 			// 投機的なprefetch
-			// prefetch(TT.first_entry(pos.key_after(move)));
+			// const Key nextKey = pos.key_after(move);
+			// prefetch(TT.first_entry(nextKey));
+			// Eval::prefetch_evalhash(nextKey);
 
 			// legal()のチェック。root nodeだとlegal()だとわかっているのでこのチェックは不要。
 			// 非合法手はほとんど含まれていないからこの判定はdo_move()の直前まで遅延させたほうが得。

@@ -183,18 +183,22 @@ void prefetch(void*) {}
 
 void prefetch(void* addr) {
 
-// SSEの命令なのでSSE2が使える状況でのみ使用する。
+	// SSEの命令なのでSSE2が使える状況でのみ使用する。
 #ifdef USE_SSE2
 
 #  if defined(__INTEL_COMPILER)
-  // 最適化でprefetch命令を削除するのを回避するhack。MSVCとgccは問題ない。
-  __asm__("");
+	// 最適化でprefetch命令を削除するのを回避するhack。MSVCとgccは問題ない。
+	__asm__("");
 #  endif
 
+	// 1 cache lineのprefetch
+	// 64bytesの系もあるかも知れないが、Stockfishではcache line = 32bytesだと仮定してある。
+	// ちなみにRyzenでは32bytesらしい。
+
 #  if defined(__INTEL_COMPILER) || defined(_MSC_VER)
-  _mm_prefetch((char*)addr, _MM_HINT_T0);
+	_mm_prefetch((char*)addr, _MM_HINT_T0);
 #  else
-  __builtin_prefetch(addr);
+	__builtin_prefetch(addr);
 #  endif
 
 #endif

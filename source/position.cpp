@@ -1010,7 +1010,11 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 		// なるべく早い段階でのTTに対するprefetch
 		// 駒打ちのときはこの時点でTT entryのアドレスが確定できる
-		prefetch(TT.first_entry(k + h));
+		const Key key = k + h;
+		prefetch(TT.first_entry(key));
+#if defined(USE_EVAL_HASH)
+		Eval::prefetch_evalhash(key);
+#endif
 
 		PieceNo piece_no = piece_no_of(Us, pr);
 		ASSERT_LV3(is_ok(piece_no));
@@ -1168,7 +1172,11 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		k += Zobrist::psq[to][moved_after_pc];
 
 		// 駒打ちでないときはprefetchはこの時点まで延期される。
-		prefetch(TT.first_entry(k + h));
+		const Key key = k + h;
+		prefetch(TT.first_entry(key));
+#if defined(USE_EVAL_HASH)
+		Eval::prefetch_evalhash(key);
+#endif
 
 		// 王手している駒のbitboardを更新する。
 		if (givesCheck)
@@ -1377,7 +1385,11 @@ void Position::do_null_move(StateInfo& newSt) {
   // 　prefetchのスケジューラーが処理しきれない可能性が…。
   // CPUによっては有効なので一応やっておく。
 
-  prefetch(TT.first_entry(st->key()));
+  const Key key = st->key();
+  prefetch(TT.first_entry(key));
+
+  // これは、さっきアクセスしたところのはずなので意味がない。
+  //  Eval::prefetch_evalhash(key);
 
   st->pliesFromNull = 0;
 

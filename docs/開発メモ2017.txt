@@ -1,4 +1,43 @@
 ﻿
+## 2017/05/04
+
+・置換表にEVAL_HASH突っ込んだほうがいいのでは…。
+	- 手番があるから手番違いが同じエントリーに来なくてまずいのか？
+	- 手番なしkeyでlookupしてTTEntryを
+		hashkey        :  2byte
+		EvalSum        : 12byte*2
+		DATA for black :  8byte(gen8,depth8,move16,value16,mate8,progress8)
+		DATA for white :  8byte(gen8,depth8,move16,value16,mate8,progress8)
+			mate8 = N手詰めを調べたときに記入しておく
+			progress8 = 進行度の計算用
+		= 2 + 12*2 + 8*2 = 36 bytes
+	これが3つでTTCluster、みたいなエントリー構造にしたらいいのか…。んで2発prefetchしておくと。
+	many coreでnps 2,3割ぐらい上がるかも知れんが、大改造だな…。
+	
+	EvalHashに対してprefetchするほうがシンプルだな。そうしよう。
+
+### V4.41
+
+T1,b1000,614 - 31 - 725(45.86% R-28.87) win black : white = 52.93% : 47.07%
+
+
+## 2017/05/03その2
+
+・Stockfishのpull req.
+	- Remove excluded move from TT position key formula. 
+		- https://github.com/official-stockfish/Stockfish/pull/1096/files
+
+### V4.40
+
+engine1 = YaneuraOuV439.exe , eval = ShinYane20161117
+engine2 = YaneuraOuV440.exe , eval = ShinYane20161117
+T1,b1000,2429 - 107 - 2464(49.64% R-2.49) win black : white = 53.23% : 46.77%
+T1,b3000,1754 - 138 - 1668(51.26% R8.73) win black : white = 52.0% : 48.0%
+
+誤差の範疇？
+
+
+
 ## 2017/05/03
 
 ・探索部、Stockfishのsearch.cppに書式をなるべく合せる。

@@ -171,6 +171,11 @@ namespace Eval {
 
   // 134MB(魔女設定)
   struct EvaluateHashTable:HashTable<EvalSum, 0x400000> {};
+
+  // prefetch有りなら大きいほうが良いのでは…。
+  // →　あまり変わらないし、メモリもったいないので↑の設定で良いか…。
+  // struct EvaluateHashTable :HashTable<EvalSum, 0x2000000> {};
+
   extern EvaluateHashTable g_evalTable;
 #endif
 

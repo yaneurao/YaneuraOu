@@ -488,6 +488,13 @@ namespace Eval
 
 #ifdef USE_EVAL_HASH
 	EvaluateHashTable g_evalTable;
+
+	// prefetchする関数も用意しておく。
+	void prefetch_evalhash(const Key key)
+	{
+		prefetch(g_evalTable[key >> 1]);
+	}
+
 #endif
 
 	void evaluateBody(const Position& pos)
@@ -797,7 +804,8 @@ namespace Eval
 #ifdef USE_EVAL_HASH
 		// evaluate hash tableにはあるかも。
 
-		const Key keyExcludeTurn = st->key() >> 1;		// 手番を消した局面hash key
+		// 手番を消した局面hash key
+		const Key keyExcludeTurn = st->key() >> 1;
 		EvalSum entry = *g_evalTable[keyExcludeTurn];   // atomic にデータを取得する必要がある。
 		entry.decode();
 		if (entry.key == keyExcludeTurn)
