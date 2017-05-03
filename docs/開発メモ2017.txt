@@ -1,53 +1,60 @@
-
+ï»¿
 ## 2017/05/03
 
-E’Tõ•”AStockfish‚Ìsearch.cpp‚É‘®‚ğ‚È‚é‚×‚­‡‚¹‚éB
-EReductionƒe[ƒuƒ‹‚Ì‰Šú‰»ƒR[ƒhAONE_PLY‚ğŠ|‚¯‚é‚æ‚¤‚ÉC³BStockfish–{‰Æ‚Ì‚Ù‚¤‚à“¯—l‚ÌC³‚ª•K—v‚¾‚Æv‚¤cB
-Echeck_time()‚ÌŒÄ‚Ño‚·ƒR[ƒhAC³B(nps‚ªo‚È‚©‚Á‚½‚ÌA‚±‚ê‚ªŒ´ˆö‚©H)
-E#ifndefA•´‚ç‚í‚µ‚¢‚Ì‚Å#if !defined()‚É•ÏX‚·‚éB
-Eqsearch()‚Ì1è‹l‚ßA’uŠ·•\‚Éhit‚µ‚È‚©‚Á‚½‚Æ‚«‚É‚Ì‚İ’²‚×‚é‚æ‚¤‚É•ÏXB
+ãƒ»æ¢ç´¢éƒ¨ã€Stockfishã®search.cppã«æ›¸å¼ã‚’ãªã‚‹ã¹ãåˆã›ã‚‹ã€‚
+ãƒ»Reductionãƒ†ãƒ¼ãƒ–ãƒ«ã®åˆæœŸåŒ–ã‚³ãƒ¼ãƒ‰ã€ONE_PLYã‚’æ›ã‘ã‚‹ã‚ˆã†ã«ä¿®æ­£ã€‚Stockfishæœ¬å®¶ã®ã»ã†ã‚‚åŒæ§˜ã®ä¿®æ­£ãŒå¿…è¦ã ã¨æ€ã†â€¦ã€‚
+ãƒ»check_time()ã®å‘¼ã³å‡ºã™ã‚³ãƒ¼ãƒ‰ã€ä¿®æ­£ã€‚(npsãŒå‡ºãªã‹ã£ãŸã®ã€ã“ã‚ŒãŒåŸå› ã‹ï¼Ÿ)
+ãƒ»#ifndefã€ç´›ã‚‰ã‚ã—ã„ã®ã§#if !defined()ã«å¤‰æ›´ã™ã‚‹ã€‚
+ãƒ»qsearch()ã®1æ‰‹è©°ã‚ã€ç½®æ›è¡¨ã«hitã—ãªã‹ã£ãŸã¨ãã«ã®ã¿èª¿ã¹ã‚‹ã‚ˆã†ã«å¤‰æ›´ã€‚
 
 ### V4.39
 
+engine1 = YaneuraOuV431.exe , eval = ShinYane20161117
+engine2 = YaneuraOuV439.exe , eval = ShinYane20161117
+T4,b1000,1718 - 174 - 3108(35.6% R-102.98) win black : white = 50.87% : 49.13%
+T4,b5000,120 - 17 - 253(32.17% R-129.58) win black : white = 53.33% : 46.67%
+T4,b5000,116 - 26 - 228(33.72% R-117.39) win black : white = 55.17% : 44.83%
+
+ãƒã‚°å–ã‚ŒãŸé–¢ä¿‚ã‹ã€ãšã„ã¶ã‚“å¼·ããªã£ã¦ã‚‹ã€‚
 
 
 ## 2017/05/02
 
-EStockfishÅV”Å‚ÉƒLƒƒƒbƒ`ƒAƒbƒv
+ãƒ»Stockfishæœ€æ–°ç‰ˆã«ã‚­ãƒ£ãƒƒãƒã‚¢ãƒƒãƒ—
 
 	- Partial insertion sort
 		- https://github.com/official-stockfish/Stockfish/commit/2d96e8fbe9b683ff320a197715155381139c7664
-		- std::partition‚ªˆÀ’èƒ\[ƒg‚Å‚Í‚È‚¢‚µ’x‚¢‚Ì‚Å©‘O‚Å—pˆÓ‚·‚éB
+		- std::partitionãŒå®‰å®šã‚½ãƒ¼ãƒˆã§ã¯ãªã„ã—é…ã„ã®ã§è‡ªå‰ã§ç”¨æ„ã™ã‚‹ã€‚
 	- Use int instead of Value for history related stats.
 		- https://github.com/official-stockfish/Stockfish/commit/9da3b44ddc7bc9ea7094b91663cbc0f8319c46be
-		- ExtMove‚Ìvalue‚ÍValueŒ^‚É‚µ‚Ä‚¨‚­‚Æ-VALUE_INFINITE,VALUE_INFINITE‚©‚ç—eˆÕ‚É‚Í‚İ‚¾‚·‚Ì‚ÅintŒ^‚É•ÏXB
+		- ExtMoveã®valueã¯Valueå‹ã«ã—ã¦ãŠãã¨-VALUE_INFINITE,VALUE_INFINITEã‹ã‚‰å®¹æ˜“ã«ã¯ã¿ã ã™ã®ã§intå‹ã«å¤‰æ›´ã€‚
 	- simplify logic for history based pruning
 		- https://github.com/official-stockfish/Stockfish/commit/ced29248c93de7fc5a4e284807f8f052006e647c
-		- history‚Ì–¢‰Šú‰»‚Ì‚Æ‚±‚ë‚ğ-1‚É‚µ‚Ä‚¨‚­‚±‚Æ‚ÅAhistory > 0‚ğğŒ‚É‚·‚ê‚Î–¢‰Šú‰»‚Ì‚Æ‚±‚ë‚Í
-		- ©‘R‚ÆœŠO‚³‚ê‚é‚Æ‚¢‚¤hackB
+		- historyã®æœªåˆæœŸåŒ–ã®ã¨ã“ã‚ã‚’-1ã«ã—ã¦ãŠãã“ã¨ã§ã€history > 0ã‚’æ¡ä»¶ã«ã™ã‚Œã°æœªåˆæœŸåŒ–ã®ã¨ã“ã‚ã¯
+		- è‡ªç„¶ã¨é™¤å¤–ã•ã‚Œã‚‹ã¨ã„ã†hackã€‚
 	- King safety parameters improved
 		- https://github.com/official-stockfish/Stockfish/commit/0868de705df796b9b9803bd393f4f27c3f4ed772
-		- «Šû‚ÉŠÖŒW‚È‚¢B
+		- å°†æ£‹ã«é–¢ä¿‚ãªã„ã€‚
 	- Sort moves partially: linear depth dependence
 		- https://github.com/official-stockfish/Stockfish/commit/6b9a22b40d37d27ad10cafd8697d96e90a586f8a
 		-  partial_insertion_sort(cur, endMoves, -4000 * depth / ONE_PLY)
 	- Assorted code style issues
 		- https://github.com/official-stockfish/Stockfish/commit/b48439e90643cb6f65f9e34d1421976883c12efc
-		- •Ï”–¼‚È‚ÇB
+		- å¤‰æ•°åãªã©ã€‚
 	- Zero unused constant
 		- https://github.com/official-stockfish/Stockfish/commit/d06a8d0c188b796e115d503f85906fadb5625c70
 	- Copy killers in the movepicker
 		- https://github.com/official-stockfish/Stockfish/commit/b1b19343cd1f5ec65084dc11a0a0b4d5ece2a24b
-		- movepicker.h/cppAÅV‚ÌStockfish‚É‡‚¹‚½B
+		- movepicker.h/cppã€æœ€æ–°ã®Stockfishã«åˆã›ãŸã€‚
 	- Retire the misdesigned StepAttacks[] array.
 		- https://github.com/official-stockfish/Stockfish/commit/e06a117d5e78ec4edc051f2b161d36559f784d37
-		- StepAttacks‚ªİŒvƒ~ƒX‚¾‚Á‚½‚ç‚µ‚¢B‚â‚Ë‚¤‚ç‰¤‚É‚Í‰e‹¿‚È‚³‚°B
+		- StepAttacksãŒè¨­è¨ˆãƒŸã‚¹ã ã£ãŸã‚‰ã—ã„ã€‚ã‚„ã­ã†ã‚‰ç‹ã«ã¯å½±éŸ¿ãªã•ã’ã€‚
 	- Don't do InCheck Pruning at the root of QS
 		- https://github.com/official-stockfish/Stockfish/commit/a18c2c2c3f38070cb897a8a28cf1d6d45236ded4
-		- Ã~’Tõ‚Ìroot‚Å‚Í‰¤è}Š ‚è‚ğ‚µ‚È‚¢B
+		- é™æ­¢æ¢ç´¢ã®rootã§ã¯ç‹æ‰‹æåˆˆã‚Šã‚’ã—ãªã„ã€‚
 	- gcc 7 port
 		- https://github.com/official-stockfish/Stockfish/commit/e9f26cccdde7ca6e0941bb4b9066665a68c5bc42
-		- gcc7—p‚ÉAmovepicker.cpp‚É[[fallthrough]]‚ÌƒAƒmƒe[ƒVƒ‡ƒ“‚ğ‚Â‚¯‚éB
+		- gcc7ç”¨ã«ã€movepicker.cppã«[[fallthrough]]ã®ã‚¢ãƒãƒ†ãƒ¼ã‚·ãƒ§ãƒ³ã‚’ã¤ã‘ã‚‹ã€‚
 
 ### V4.38
 
@@ -59,22 +66,22 @@ T1,b1000,2303 - 85 - 2612(46.86% R-21.87) win black : white = 52.24% : 47.76%
 
 ## 2017/04/25
 
-EƒXƒ^ƒbƒNƒTƒCƒY100MB‚É‚µ‚Ä‚¢‚é‚ªA‚±‚ê‚ğ¬‚³‚­‚µ‚½‚Ù‚¤‚ª”%‘¬‚­‚È‚é‚æ‚¤‚Å‚Í‚ ‚éB
-EEVAL_LEARN‚ğundef‚µ‚½‚Ù‚¤‚ª”%‘¬‚­‚È‚é‚æ‚¤‚Å‚Í‚ ‚éB
-EƒvƒƒWƒFƒNƒg‚Ìİ’è‚ÅƒfƒoƒbƒOî•ñ‚Ì¶¬‚ğON‚É‚µ‚Ä‚¢‚½‚Ì‚Å‚±‚ê‚ğOFF‚É•ÏX‚µ‚½B
-EConsoleo—Í‚ª‹l‚Ü‚Á‚Äbench‚Ì’l‚ª‚¨‚©‚µ‚¢‚Ì‚©H
+ãƒ»ã‚¹ã‚¿ãƒƒã‚¯ã‚µã‚¤ã‚º100MBã«ã—ã¦ã„ã‚‹ãŒã€ã“ã‚Œã‚’å°ã•ãã—ãŸã»ã†ãŒæ•°%é€Ÿããªã‚‹ã‚ˆã†ã§ã¯ã‚ã‚‹ã€‚
+ãƒ»EVAL_LEARNã‚’undefã—ãŸã»ã†ãŒæ•°%é€Ÿããªã‚‹ã‚ˆã†ã§ã¯ã‚ã‚‹ã€‚
+ãƒ»ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã®è¨­å®šã§ãƒ‡ãƒãƒƒã‚°æƒ…å ±ã®ç”Ÿæˆã‚’ONã«ã—ã¦ã„ãŸã®ã§ã“ã‚Œã‚’OFFã«å¤‰æ›´ã—ãŸã€‚
+ãƒ»Consoleå‡ºåŠ›ãŒè©°ã¾ã£ã¦benchã®å€¤ãŒãŠã‹ã—ã„ã®ã‹ï¼Ÿ
 
 
 
 ## 2017/04/22
 
-ELearner::search()‚É‰½‚ç‚©ƒoƒO‚ª‚ ‚é‚ç‚µ‚¢‚Ì‚Å’²¸B
+ãƒ»Learner::search()ã«ä½•ã‚‰ã‹ãƒã‚°ãŒã‚ã‚‹ã‚‰ã—ã„ã®ã§èª¿æŸ»ã€‚
 
 
 
 ## 2017/04/21
 
-E‘Î‹ZI‚Åƒpƒ‰ƒ[ƒ^[ƒ`ƒ…[ƒjƒ“ƒO
+ãƒ»å¯¾æŠ€å·§ã§ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãƒ¼ãƒãƒ¥ãƒ¼ãƒ‹ãƒ³ã‚°
 z:\script>c:/Python27/python.exe analyze_result_log.py ../result_log
 ....................................................................................................
   total : 3394 - 32 - 1574(68.32% R133.48)
@@ -125,16 +132,16 @@ PARAM_FUTILITY_MOVE_COUNT_BETA1:
 
 ### V4.35
 
-ƒ`ƒ…[ƒjƒ“ƒOŠ®—¹B
+ãƒãƒ¥ãƒ¼ãƒ‹ãƒ³ã‚°å®Œäº†ã€‚
 
-Eƒ`ƒ…[ƒjƒ“ƒOŒãA‘Î‹ZI 4ƒXƒŒ5•bB
+ãƒ»ãƒãƒ¥ãƒ¼ãƒ‹ãƒ³ã‚°å¾Œã€å¯¾æŠ€å·§ 4ã‚¹ãƒ¬5ç§’ã€‚
 total : 4033 - 34 - 1625(71.28% R157.91)
 
 
 
-Ryzen 8ƒRƒA(˜_—16ƒRƒA)‚É‚Ä
+Ryzen 8ã‚³ã‚¢(è«–ç†16ã‚³ã‚¢)ã«ã¦
 
-// prefetch‚È‚µ
+// prefetchãªã—
 
 Total time (ms) : 61094
 Nodes searched  : 27207336
@@ -147,7 +154,7 @@ Nodes/second    : 4059553
 Nodes searched(main thread) : 11324212
 Nodes/second  (main thread) : 255868
 
-// prefetch‚ ‚è
+// prefetchã‚ã‚Š
 
 Total time (ms) : 58355
 Nodes searched  : 27207336
@@ -160,7 +167,7 @@ Nodes/second    : 4130746
 Nodes searched(main thread) : 11923099
 Nodes/second  (main thread) : 217547
 
-// eval hashAprefetch‚ ‚è
+// eval hashã€prefetchã‚ã‚Š
 
 Total time (ms) : 57458
 Nodes searched  : 27207336
@@ -180,22 +187,22 @@ Nodes/second    : 4626243
 Nodes searched(main thread) : 8099409
 Nodes/second  (main thread) : 288821
 
-// eval hashAprefetch—LŒø‚Ì‚Ù‚¤‚ª‚¢‚¢‚©‚à’m‚ê‚ñ..
+// eval hashã€prefetchæœ‰åŠ¹ã®ã»ã†ãŒã„ã„ã‹ã‚‚çŸ¥ã‚Œã‚“..
 
 
 ## 2017/04/21
 
-EEngineNumaA‚â‚Í‚èİ’è‚Å‚«‚È‚¢‚ÆA‘¼ƒ\ƒtƒg‚Ì‘Î‹Ç‚Ì‚Æ‚«‚ÉNumaw’è‚Å‚«‚È‚­‚Ä¢‚é‚Ì‚©cB‚ ‚ç‚çH
-	¨@‚»‚¤‚Å‚à‚È‚¢‚©B
+ãƒ»EngineNumaã€ã‚„ã¯ã‚Šè¨­å®šã§ããªã„ã¨ã€ä»–ã‚½ãƒ•ãƒˆã®å¯¾å±€ã®ã¨ãã«NumaæŒ‡å®šã§ããªãã¦å›°ã‚‹ã®ã‹â€¦ã€‚ã‚ã‚‰ã‚‰ï¼Ÿ
+	â†’ã€€ãã†ã§ã‚‚ãªã„ã‹ã€‚
 
 		start /B /WAIT /NODE %EXECUTOR_NUMBER% c:/python27/python.exe %YANEHOME%\script\engine_invoker4.py home:%YANEHOME% engine1:%ENGINE1% eval1:%EVAL1%  engine2:%ENGINE2% eval2:%EVAL2% cores:%HT_CORES% loop:%LOOP% numa:%EXECUTOR_NUMBER% engine_threads:%ENGINE_THREADS% hash1:%ENGINE_HASH1% hash2:%ENGINE_HASH2% time:%TIMES% book_moves:%BOOK_MOVES% rand_book:1 PARAMETERS_LOG_FILE_PATH:%YANEHOME%\result_log\param_%BUILD_NUMBER%
 		start /B /WAIT /NODE %EXECUTOR_NUMBER% move *.sfen %YANEHOME%\kif
 
-ETT‚ÌprefetchA’Ç‰Á‚·‚é
+ãƒ»TTã®prefetchã€è¿½åŠ ã™ã‚‹
 
 - 4771
 
-// prefetch‚È‚µ
+// prefetchãªã—
 ===========================
 Total time (ms) : 18180
 Nodes searched  : 12421760
@@ -203,11 +210,11 @@ Nodes/second    : 683265
 Nodes/second    : 706785
 Nodes/second    : 717688
 
-// prefetch‚ ‚è
+// prefetchã‚ã‚Š
 Nodes/second    : 721105
 Nodes/second    : 724343
 
-// prefetch‚ ‚èAeval hash‚ ‚è
+// prefetchã‚ã‚Šã€eval hashã‚ã‚Š
 Nodes searched  : 12421760
 Nodes/second    : 699738
 Nodes/second    : 692637
@@ -226,30 +233,30 @@ Nodes/second  (main thread) : 384409
 Nodes searched(main thread) : 20745383
 Nodes/second  (main thread) : 353895
 
-// lazy SMP‚ÅL‚Ñ‚È‚¢‚Ì‚Íeval hash‚Ì“s‡‚à‚ ‚é‚Ì‚©cB
+// lazy SMPã§ä¼¸ã³ãªã„ã®ã¯eval hashã®éƒ½åˆã‚‚ã‚ã‚‹ã®ã‹â€¦ã€‚
 
-// eval hash‚ğON‚É‚·‚é‚Æ‚ß‚Á‚¿‚á’x‚¢B‚È‚ñ‚ÅH
+// eval hashã‚’ONã«ã™ã‚‹ã¨ã‚ã£ã¡ã‚ƒé…ã„ã€‚ãªã‚“ã§ï¼Ÿ
 Nodes searched(main thread) : 12163807
 Nodes/second  (main thread) : 260852
 
-// eval hash‚Ìkey‚ğŒvZ‚·‚é•”•ªA‚±‚ê‚¾‚Æ2ŒÂ‚É1ŒÂ‚ª–³‘Ê‚É‚È‚Á‚Ä‚é
--		const Key keyExcludeTurn = st->key() & ~1; // è”Ô‚ğÁ‚µ‚½‹Ç–Êhash key
-+		const Key keyExcludeTurn = st->key() >> 1; // è”Ô‚ğÁ‚µ‚½‹Ç–Êhash key
-C³B
+// eval hashã®keyã‚’è¨ˆç®—ã™ã‚‹éƒ¨åˆ†ã€ã“ã‚Œã ã¨2å€‹ã«1å€‹ãŒç„¡é§„ã«ãªã£ã¦ã‚‹
+-		const Key keyExcludeTurn = st->key() & ~1; // æ‰‹ç•ªã‚’æ¶ˆã—ãŸå±€é¢hash key
++		const Key keyExcludeTurn = st->key() >> 1; // æ‰‹ç•ªã‚’æ¶ˆã—ãŸå±€é¢hash key
+ä¿®æ­£ã€‚
 
-eval hashA20%‚àhit‚µ‚Ä‚é‚Ì‚É’x‚¢‚ÈcB
-hit‚µ‚½‚ ‚Æ‚Ì·•ªŒvZ‚ªo—ˆ‚Ä‚È‚©‚Á‚½‚èH
+eval hashã€20%ã‚‚hitã—ã¦ã‚‹ã®ã«é…ã„ãªâ€¦ã€‚
+hitã—ãŸã‚ã¨ã®å·®åˆ†è¨ˆç®—ãŒå‡ºæ¥ã¦ãªã‹ã£ãŸã‚Šï¼Ÿ
 
-// st->sum‚Æ‘‚¢‚Ä‚¢‚½‚Æ‚±‚ësum‚É•ÏX‚µ‚½B
+// st->sumã¨æ›¸ã„ã¦ã„ãŸã¨ã“ã‚sumã«å¤‰æ›´ã—ãŸã€‚
 
 Nodes searched(main thread) : 8100708
 Nodes/second  (main thread) : 401223
-// ‚æ‚­‚í‚©‚ç‚È‚¢B‚ ‚Æ‚ÅRyzen‚Åƒxƒ“ƒ`‚Æ‚éB
+// ã‚ˆãã‚ã‹ã‚‰ãªã„ã€‚ã‚ã¨ã§Ryzenã§ãƒ™ãƒ³ãƒã¨ã‚‹ã€‚
 
 
 ### V4.32
 
-ERyzen‚Åƒxƒ“ƒ`‚Æ‚éB(‚ ‚Æ‚Å)
+ãƒ»Ryzenã§ãƒ™ãƒ³ãƒã¨ã‚‹ã€‚(ã‚ã¨ã§)
 
 
 ## 2017/04/19
@@ -271,7 +278,7 @@ Nodes/second  (main thread) : 401223
 
 - Check for overflow in Score * int multiplication
 	- https://github.com/official-stockfish/Stockfish/commit/d2971f3fca929d9085ed17b71aa4ec8e96499d99
-	- ˜”Õ‚ÆI”Õ‚ÌƒXƒRƒA“à•ª‚µ‚Ä‚È‚¢‚Ì‚Å‚±‚êˆÓ–¡‚È‚¢‚ÈcB
+	- åºç›¤ã¨çµ‚ç›¤ã®ã‚¹ã‚³ã‚¢å†…åˆ†ã—ã¦ãªã„ã®ã§ã“ã‚Œæ„å‘³ãªã„ãªâ€¦ã€‚
 
 - Prefer std::find over a hand-coded loop
 	- https://github.com/official-stockfish/Stockfish/commit/57a3334322df005d567fc7db9afef82c495df83d
@@ -279,7 +286,7 @@ Nodes/second  (main thread) : 401223
 - Move-Count Formula Tweak
 	- https://github.com/official-stockfish/Stockfish/commit/9d3ed9ed2ef97fda99183c1290fd4f51dac55180
 
-// ˆÈã‚ÅAÅV‚ÌStockfish(2017/4/18)‚É’Ç‚¢‚Â‚¢‚½B
+// ä»¥ä¸Šã§ã€æœ€æ–°ã®Stockfish(2017/4/18)ã«è¿½ã„ã¤ã„ãŸã€‚
 
 ### V4.31
 
@@ -288,7 +295,7 @@ engine2 = YaneuraOuV431.exe , eval = ShinYane20161117
 T1,b1000,2540 - 86 - 2374(51.69% R11.74) win black : white = 52.87% : 47.13%
 T4,b1000,1238 - 104 - 1308(48.63% R-9.55) win black : white = 50.32% : 49.68%
 
-1ƒXƒŒƒbƒh‚Å•‰‚¯‰z‚µ‚½‚Ì­‚µ‹C‚É‚È‚é‚ªB’Tõƒpƒ‰ƒ[ƒ^[AÄ“x’²®‚·‚×‚«B
+1ã‚¹ãƒ¬ãƒƒãƒ‰ã§è² ã‘è¶Šã—ãŸã®å°‘ã—æ°—ã«ãªã‚‹ãŒã€‚æ¢ç´¢ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãƒ¼ã€å†åº¦èª¿æ•´ã™ã¹ãã€‚
 
 
 ## 2017/04/18
@@ -296,7 +303,7 @@ T4,b1000,1238 - 104 - 1308(48.63% R-9.55) win black : white = 50.32% : 49.68%
 - Penalty for a quiet ttMove that fails low
 	- https://github.com/official-stockfish/Stockfish/commit/5254a6040c59cf7d3b9faa847168ccbd628c0574
 
-				// fails low‚Ì‚Æ‚«‚Ìquiet ttMove‚É‘Î‚·‚éƒyƒiƒ‹ƒeƒB
+				// fails lowã®ã¨ãã®quiet ttMoveã«å¯¾ã™ã‚‹ãƒšãƒŠãƒ«ãƒ†ã‚£
 				else if (!pos.capture_or_promotion(ttMove))
 				{
 					Value penalty = -stat_bonus(depth);
@@ -304,9 +311,9 @@ T4,b1000,1238 - 104 - 1308(48.63% R-9.55) win black : white = 50.32% : 49.68%
 					update_cm_stats(ss, pos.moved_piece_after(ttMove), to_sq(ttMove), penalty);
 				}
 
-- update_cm_stats() ‘‚«Š·‚¦
-- HistoryStatsíœ
-- historyü‚èA‘å‰ü‘¢B
+- update_cm_stats() æ›¸ãæ›ãˆ
+- HistoryStatså‰Šé™¤
+- historyå‘¨ã‚Šã€å¤§æ”¹é€ ã€‚
 
 - Standardize stat penalty
 	- https://github.com/official-stockfish/Stockfish/commit/35b77b120ef5ca5d9db848e02e42642b1a93e982
@@ -316,7 +323,7 @@ T4,b1000,1238 - 104 - 1308(48.63% R-9.55) win black : white = 50.32% : 49.68%
 
 - Allow pruning advance pawn pushes if not near endgame
 	- https://github.com/official-stockfish/Stockfish/commit/3627348e2b4633604a878b0e5397acb6218a6afc
-	- «Šû‚Å‚ÍŠÖŒW‚È‚³‚°B
+	- å°†æ£‹ã§ã¯é–¢ä¿‚ãªã•ã’ã€‚
 
 - Remove HistoryStats
 	- https://github.com/official-stockfish/Stockfish/commit/e0504ab876a997321102f040ab88203cb893db12
@@ -341,21 +348,21 @@ T4,b1000,1238 - 104 - 1308(48.63% R-9.55) win black : white = 50.32% : 49.68%
 
 - A small tweak in doEasyMove()
 	- https://github.com/official-stockfish/Stockfish/commit/a753e20bd4fc1e916f7e99884c01bb63fd7c1326
-	- ‰e‹¿‚ÍŒy”÷‚ÅŒŸØ‚Å‚«‚È‚¢B
+	- å½±éŸ¿ã¯è»½å¾®ã§æ¤œè¨¼ã§ããªã„ã€‚
 
 - search(): Move nullValue variable into local scope
 	- https://github.com/official-stockfish/Stockfish/commit/83fb4547f640c63c2dbbf0d5637bd8d1cf216a60
-	- ‚·‚Å‚É‚±‚¤‚µ‚Ä‚½B
+	- ã™ã§ã«ã“ã†ã—ã¦ãŸã€‚
 
 - Drop Stats c'tors
 	- https://github.com/official-stockfish/Stockfish/commit/3ab3e55bb5faf57aec864f3bb7268601c11d72be
-	- ƒXƒŒƒbƒhƒIƒuƒWƒFƒNƒg¶¬‚Ì‚Æ‚«‚Éƒq[ƒv‚ªƒ[ƒƒNƒŠƒA‚³‚ê‚Ä‚¢‚é‚È‚çƒRƒ“ƒXƒgƒ‰ƒNƒ^‚Åƒ[ƒƒNƒŠƒA‚Í•s—v‚È‚Ì‚¾‚ªB
+	- ã‚¹ãƒ¬ãƒƒãƒ‰ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆç”Ÿæˆã®ã¨ãã«ãƒ’ãƒ¼ãƒ—ãŒã‚¼ãƒ­ã‚¯ãƒªã‚¢ã•ã‚Œã¦ã„ã‚‹ãªã‚‰ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿ã§ã‚¼ãƒ­ã‚¯ãƒªã‚¢ã¯ä¸è¦ãªã®ã ãŒã€‚
 
 - Razor Simplification
 	- https://github.com/official-stockfish/Stockfish/commit/05cf45f2d137600387d5e560e22a464a84ad7b0d
-	- razoring‚Ì‚Æ‚±‚ë‚Ì
+	- razoringã®ã¨ã“ã‚ã®
 			&&  ttMove == MOVE_NONE
-	‚ğíœB
+	ã‚’å‰Šé™¤ã€‚
 
 - Introduce assert for stats update
 	- https://github.com/official-stockfish/Stockfish/commit/c5de4080dba8e9b3248f06bd6c168c22e9fbfd92
@@ -365,7 +372,7 @@ T4,b1000,1238 - 104 - 1308(48.63% R-9.55) win black : white = 50.32% : 49.68%
 
 - Fix zugzwang pruning issues
 	- https://github.com/official-stockfish/Stockfish/commit/72a501c6fe5e4e7b61291e9603d0c6cc0902e618
-	- ‚±‚ê«Šû‚ÅŠÖŒW‚È‚³‚°B
+	- ã“ã‚Œå°†æ£‹ã§é–¢ä¿‚ãªã•ã’ã€‚
 		&& pos.non_pawn_material(pos.side_to_move())
 
 
@@ -376,17 +383,17 @@ T4,b1000,1238 - 104 - 1308(48.63% R-9.55) win black : white = 50.32% : 49.68%
 	T1,b1000,2545 - 108 - 2347(52.02% R14.07) win black : white = 51.63% : 48.37%
 	T4,b1000,1986 - 132 - 1722(53.56% R24.78) win black : white = 50.65% : 49.35%
 
-	counter move‚Ì‚Æ‚±‚ë‚Ìƒpƒ‰ƒ[ƒ^[•ÏX‚É‚È‚Á‚½‰e‹¿‚ÅA‘Sƒpƒ‰ƒ[ƒ^[‚ğÄ’²®‚µ‚È‚¢‚Æ
-	ã‚­‚È‚Á‚½‚Ü‚Ü‚Ì‚æ‚¤‚È‹C‚ª‚·‚écB‚ ‚Æ‚ÅÄ’²®‚·‚éB
+	counter moveã®ã¨ã“ã‚ã®ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãƒ¼å¤‰æ›´ã«ãªã£ãŸå½±éŸ¿ã§ã€å…¨ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãƒ¼ã‚’å†èª¿æ•´ã—ãªã„ã¨
+	å¼±ããªã£ãŸã¾ã¾ã®ã‚ˆã†ãªæ°—ãŒã™ã‚‹â€¦ã€‚ã‚ã¨ã§å†èª¿æ•´ã™ã‚‹ã€‚
 
 
 ## 2017/04/17
 
-- Ryzen‚ÉŒü‚¯‚½Å“K‰»
-	- AVX2—p‚Ìevaluate()‚Å‚à‘¬“x‚Í‚Ù‚Ú•Ï‚í‚ç‚¸B(AVX2—p‚Å‚Í‚È‚¢‚Ù‚¤‚ª‘¬‚¢‚æ‚¤‚¾‚ª)
-	- attackers_to()‚ª‚Ç‚¤‚à’x‚¢BŒ´ˆö‚Í‚æ‚­‚í‚©‚ç‚È‚¢B‹@‚ğ‰ü‚ß‚Ä’²¸‚·‚éB
+- Ryzenã«å‘ã‘ãŸæœ€é©åŒ–
+	- AVX2ç”¨ã®evaluate()ã§ã‚‚é€Ÿåº¦ã¯ã»ã¼å¤‰ã‚ã‚‰ãšã€‚(AVX2ç”¨ã§ã¯ãªã„ã»ã†ãŒé€Ÿã„ã‚ˆã†ã ãŒ)
+	- attackers_to()ãŒã©ã†ã‚‚é…ã„ã€‚åŸå› ã¯ã‚ˆãã‚ã‹ã‚‰ãªã„ã€‚æ©Ÿã‚’æ”¹ã‚ã¦èª¿æŸ»ã™ã‚‹ã€‚
 
-- attackers_to()‚ÌColor‚ğæ‚ç‚È‚¢ƒo[ƒWƒ‡ƒ“AƒoƒO‚Á‚Ä‚½Bsee_ge()À‘•ˆÈ~ƒoƒO‚Á‚Ä‚¢‚½‚Ì‚©BC³B[1•b‚Å+R25]
+- attackers_to()ã®Colorã‚’å–ã‚‰ãªã„ãƒãƒ¼ã‚¸ãƒ§ãƒ³ã€ãƒã‚°ã£ã¦ãŸã€‚see_ge()å®Ÿè£…ä»¥é™ãƒã‚°ã£ã¦ã„ãŸã®ã‹ã€‚ä¿®æ­£ã€‚[1ç§’ã§+R25]
 	- T1,b1000,910 - 51 - 1049(46.45% R-24.69)
 
 
@@ -395,22 +402,22 @@ T4,b1000,1238 - 104 - 1308(48.63% R-9.55) win black : white = 50.32% : 49.68%
 
 - Simplify pruning rule
 	- https://github.com/official-stockfish/Stockfish/commit/e70da0d2eb20cffee505c4e7ef61399de7d3fa16
-	- ‚±‚êA‚±‚Ì‚ ‚ÆC³‚ª‚ ‚é‚Ì‚ÅÌ—p‚¹‚¸B
+	- ã“ã‚Œã€ã“ã®ã‚ã¨ä¿®æ­£ãŒã‚ã‚‹ã®ã§æ¡ç”¨ã›ãšã€‚
 
 - Another simplification for SEE pruning
 	- https://github.com/official-stockfish/Stockfish/commit/8c61bbda54b0ec06cb05b89db4342d890dd21798
 
-	// ó‚¢[‚³‚Å‚ÌAŠëŒ¯‚Èw‚µè‚ğ}Š ‚è‚·‚éB
+	// æµ…ã„æ·±ã•ã§ã®ã€å±é™ºãªæŒ‡ã—æ‰‹ã‚’æåˆˆã‚Šã™ã‚‹ã€‚
 	else if (	depth < 7 * ONE_PLY
 			&& !extension
 			&& !pos.see_ge(move, Value(-PawnValue * (depth / ONE_PLY))))
 			continue;
 
-	¨@YaneuraOuV426a , R50‚®‚ç‚¢ã‚­‚È‚Á‚½B‚È‚ñ‚¼‚±‚êcB
+	â†’ã€€YaneuraOuV426a , R50ãã‚‰ã„å¼±ããªã£ãŸã€‚ãªã‚“ãã“ã‚Œâ€¦ã€‚
 
 - Use DEPTH_ZERO initializer for depth in qsearch 
 	- https://github.com/official-stockfish/Stockfish/commit/ee22b61f5e90a180af942828feb83cef90ea5683
-	- ‹­‚³‚É‚ÍŠñ—^‚¹‚¸
+	- å¼·ã•ã«ã¯å¯„ä¸ã›ãš
 
 - Remove piece condition in decrease lmr reduction check
 	- https://github.com/official-stockfish/Stockfish/commit/46d066b04190763339d5ede87018422a1ab7c7dc
@@ -418,7 +425,7 @@ T4,b1000,1238 - 104 - 1308(48.63% R-9.55) win black : white = 50.32% : 49.68%
 		else if (!is_drop(move) // type_of(move)== NORMAL
 	//	&& type_of(pos.piece_on(to_sq(move))) != PAWN
 
-	¨@YaneuraOuV426b
+	â†’ã€€YaneuraOuV426b
 
 	engine1 = YaneuraOuV426b.exe , eval = ShinYane20161117
 	engine2 = YaneuraOuV426.exe , eval = ShinYane20161117
@@ -426,19 +433,19 @@ T4,b1000,1238 - 104 - 1308(48.63% R-9.55) win black : white = 50.32% : 49.68%
 
 - piecesCount
 	- https://github.com/official-stockfish/Stockfish/commit/f72b7dc99af07c4f012ef229f9d3dcc490d6d69f
-	- «Šû‚Å‚ÍŠÖŒW‚È‚³‚°B
+	- å°†æ£‹ã§ã¯é–¢ä¿‚ãªã•ã’ã€‚
 
 - Explicitly use alpha+1 for beta in NonPV search
 	- https://github.com/official-stockfish/Stockfish/commit/af7412e58a4ce374b5035d9bb1e8c47a108ff352
-	- NonPV‚È‚Ì‚Åalpha == beta - 1‚È‚Ì‚ÅA–¾¦“I‚Éalpha‚ğ—p‚¢‚éB‹­‚³‚É‚ÍŠñ—^‚µ‚È‚¢B
+	- NonPVãªã®ã§alpha == beta - 1ãªã®ã§ã€æ˜ç¤ºçš„ã«alphaã‚’ç”¨ã„ã‚‹ã€‚å¼·ã•ã«ã¯å¯„ä¸ã—ãªã„ã€‚
 
 - Clean-up skipEarlyPruning 
 	- https://github.com/official-stockfish/Stockfish/commit/1b62d413c137bfa669922b6d52b92262d60020f1
-	- ŠÖ”‚Ìˆø”‚ÌƒŠƒtƒ@ƒNƒ^ƒŠƒ“ƒOB‹­‚³‚É‚ÍŠñ—^‚µ‚È‚¢B
+	- é–¢æ•°ã®å¼•æ•°ã®ãƒªãƒ•ã‚¡ã‚¯ã‚¿ãƒªãƒ³ã‚°ã€‚å¼·ã•ã«ã¯å¯„ä¸ã—ãªã„ã€‚
 
 - Simplify pruning
 	- https://github.com/official-stockfish/Stockfish/commit/847bc0e80fa78a81b028515da03a90ea4dd40458
-	- ‚ ‚Æ‚Å•ÏX‚ª‚ ‚é‚Ì‚Å‚±‚ê‚Í–³‹B
+	- ã‚ã¨ã§å¤‰æ›´ãŒã‚ã‚‹ã®ã§ã“ã‚Œã¯ç„¡è¦–ã€‚
 
 	engine1 = YaneuraOuV426c.exe , eval = ShinYane20161117
 	engine2 = YaneuraOuV426.exe , eval = ShinYane20161117
@@ -450,15 +457,15 @@ T4,b1000,1238 - 104 - 1308(48.63% R-9.55) win black : white = 50.32% : 49.68%
 
 - Simplify threshold handling for probcut.
 	- https://github.com/official-stockfish/Stockfish/commit/1ceaea701baaa79f378b0842ff0fb5d2a1f53ef7
-	- ‰e‹¿‚ÍŒy”÷B
+	- å½±éŸ¿ã¯è»½å¾®ã€‚
 
 - Refactor bonus and penalty calculation
 	- https://github.com/official-stockfish/Stockfish/commit/a47bbca0ea40ac007d64682c3ba51fa4158b2d3f
-	- ‚ ‚Æ‚ÅÄ“x’²®‚ª‚ ‚é‚Ì‚ÅA‚±‚ê‚ÍÌ—p‚µ‚È‚¢B
+	- ã‚ã¨ã§å†åº¦èª¿æ•´ãŒã‚ã‚‹ã®ã§ã€ã“ã‚Œã¯æ¡ç”¨ã—ãªã„ã€‚
 
 - Threefold repetition detection
 	- https://github.com/official-stockfish/Stockfish/commit/881a9dfb0a8fec3b1472791e2d98415e4a9a182a
-	- ç“úèƒ`ƒFƒbƒN‚Ì‚‘¬‰»‚¾‚ªA‚±‚ê‚Æ“¯“™‚Ì‚±‚Æ‚Í‚·‚Å‚É‚â‚Á‚Ä‚¢‚é‚Ì‚ÅÌ—p‚¹‚¸B
+	- åƒæ—¥æ‰‹ãƒã‚§ãƒƒã‚¯ã®é«˜é€ŸåŒ–ã ãŒã€ã“ã‚Œã¨åŒç­‰ã®ã“ã¨ã¯ã™ã§ã«ã‚„ã£ã¦ã„ã‚‹ã®ã§æ¡ç”¨ã›ãšã€‚
 
 - Don't clear EasyMove in search()
 	- https://github.com/official-stockfish/Stockfish/commit/b7b9d7c9c72a987bb497ec2b629d885a06238aa2
@@ -467,33 +474,33 @@ T4,b1000,1238 - 104 - 1308(48.63% R-9.55) win black : white = 50.32% : 49.68%
 	- https://github.com/official-stockfish/Stockfish/commit/1052ce74f65479e5d583d349227dc101f8483a85
 - Simplified select best thread 
 	- https://github.com/official-stockfish/Stockfish/commit/d39ffbeea6ad54c90123a352d50b65c5bda1561b
-	- ‚±‚êA•¡”ƒXƒŒƒbƒh‚Å‚È‚¢‚Æ“®ìŒŸØ‚Å‚«‚È‚¢B
+	- ã“ã‚Œã€è¤‡æ•°ã‚¹ãƒ¬ãƒƒãƒ‰ã§ãªã„ã¨å‹•ä½œæ¤œè¨¼ã§ããªã„ã€‚
 
 
 - Use consistent variable names for counterMoveStats 
 	- https://github.com/official-stockfish/Stockfish/commit/6b16ebc82566a69b9336cca6aa7a19ab1824b85d
-	- –¼‘O‚Ì•ÏX‚¾‚¯B
+	- åå‰ã®å¤‰æ›´ã ã‘ã€‚
 
 - Correct zero-init of Thread data members
 	- https://github.com/official-stockfish/Stockfish/commit/fe99de20ff8f0594a17e2cedf680d25e86dd5a13
-	- ‰e‹¿‚È‚µB
+	- å½±éŸ¿ãªã—ã€‚
 
 - Zero init fromToStats in constructor. 
 	- https://github.com/official-stockfish/Stockfish/commit/90b052462cc473ee03df0e1613d1c9f81ca99887
-	- ‚ ‚Ü‚è‰e‹¿‚Í‚È‚¢‚ªAˆÈ‰º‚Ì•”•ªAƒRƒƒ“ƒgƒAƒEƒg‚µ‚½B
+	- ã‚ã¾ã‚Šå½±éŸ¿ã¯ãªã„ãŒã€ä»¥ä¸‹ã®éƒ¨åˆ†ã€ã‚³ãƒ¡ãƒ³ãƒˆã‚¢ã‚¦ãƒˆã—ãŸã€‚
 		//	th->fromTo.clear();
 
 - Correctly zero-initialize MainThread
 	- https://github.com/official-stockfish/Stockfish/commit/1c316c41bb0b3a1522aecd0dd2447009f976ebd7
-	- ‚à‚Æ‚æ‚èA‚±‚ñ‚È‚±‚Æ‚Í‚µ‚Ä‚È‚©‚Á‚½B
+	- ã‚‚ã¨ã‚ˆã‚Šã€ã“ã‚“ãªã“ã¨ã¯ã—ã¦ãªã‹ã£ãŸã€‚
 
 	engine1 = YaneuraOuV428.exe , eval = ShinYane20161117
 	engine2 = YaneuraOuV426.exe , eval = ShinYane20161117
 	T1,b1000,2444 - 83 - 2473(49.71% R-2.05) win black : white = 52.5% : 47.5%
 
-// ƒXƒŒƒbƒh‘‚â‚·‚Æ—‚¿‚éB‰½ŒÌH‚ ‚Æ‚Å’²¸‚·‚éB
-// ¨@“Š—¹‚Ìbestmove resign‚ª•Ô‚Á‚Ä‚±‚È‚¢B
-// ¨@main threadˆÈŠOAresign‚Ìw‚µè‚ğrootMoves‚Épush‚µ‚Ä‚È‚¢‚©‚çƒAƒNƒZƒXˆá”½‚É‚È‚Á‚Ä‚½BC³B
+// ã‚¹ãƒ¬ãƒƒãƒ‰å¢—ã‚„ã™ã¨è½ã¡ã‚‹ã€‚ä½•æ•…ï¼Ÿã‚ã¨ã§èª¿æŸ»ã™ã‚‹ã€‚
+// â†’ã€€æŠ•äº†ã®bestmove resignãŒè¿”ã£ã¦ã“ãªã„ã€‚
+// â†’ã€€main threadä»¥å¤–ã€resignã®æŒ‡ã—æ‰‹ã‚’rootMovesã«pushã—ã¦ãªã„ã‹ã‚‰ã‚¢ã‚¯ã‚»ã‚¹é•åã«ãªã£ã¦ãŸã€‚ä¿®æ­£ã€‚
 
 	position startpos moves 2g2f 3c3d 2f2e 2b3c 7g7f 3a2b 6i7h 4a3b 3i4h 8c8d 8h3c+ 2b3c 7i8h 7c7d 3g3f 7a6b 4g4f 5a4b 4h4g 8a7c 9g9f 6c6d 8h7g 6b6c 2i3g 1c1d 2h2i 8b8a 1g1f 9c9d 4i4h 6a6b 5i4i B*6i 7h8h 7c6e 7g6f 8d8e B*6h 8e8f 6h8f 6i4g+ 4h4g S*8e 8f5i 8e7f 4i5h 7f8g P*8b 8a8b B*7a 8b8c 7a6b+ 8g8h+ G*8d 8c8b 6b7c 8b8a 7c6c 8a8d 3g4e G*5b 4e5c+ 5b5c S*5a 4b5a 6c7c 5a4b 7c8d 4b3a 4g3g 3a2b 8i7g 3d3e 7g6e 6d6e 2e2d 2c2d N*4e 3e3f 4e3c+ 2a3c 3g3f S*3h 2i2d P*2c 2d7d 6e6f P*3d S*4g 5h6h G*7h 7d7h 8h7h 6h7h 6f6g+ 7h8g 4g3f 3d3c+ 3b3c P*3d 3c3d N*2f 5c4d 2f3d 4d3d R*5b G*3b S*4a P*3a 4a3b+ 3a3b S*3a 2b1c 5b3b+ R*8i P*8h 8i5i+ 3b3d 6g7g 8g8f 7g7f 8f7f P*7e 8d7e B*5h P*6g N*8d 7e8d 5i7i P*7g N*6d 7f6e N*7c 8d7c 5h4g+ 6e6d 4g4f 6d5c S*6d 7c6d 4f6d 5c6d B*2h 6d5c 2h6d+ 3d6d P*5b 5c4b P*3d B*3c 1d1e 3a2b 1c1b G*1c
 	go btime 0 wtime 0 byoyomi 3000
