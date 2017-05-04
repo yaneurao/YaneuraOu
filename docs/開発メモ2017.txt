@@ -18,7 +18,15 @@
 
 ### V4.41
 
-T1,b1000,614 - 31 - 725(45.86% R-28.87) win black : white = 52.93% : 47.07%
+engine1 = YaneuraOuV439.exe , eval = ShinYane20161117
+engine2 = YaneuraOuV440.exe , eval = ShinYane20161117
+T1,b1000,2265 - 107 - 2628(46.29% R-25.82) win black : white = 50.91% : 49.09%
+T4,b1000,633 - 81 - 686(47.99% R-13.97) win black : white = 52.29% : 47.71%
+T4,b3000,1050 - 178 - 1222(46.21% R-26.35) win black : white = 52.19% : 47.81%
+
+engine1 = gikou_win_20160606/gikou.exe , eval = dummy
+engine2 = YaneuraOuV440.exe , eval = ShinYane20161117
+T4,b2000,1075 - 22 - 2773(27.94% R-164.62) win black : white = 52.09% : 47.91%
 
 
 ## 2017/05/03その2

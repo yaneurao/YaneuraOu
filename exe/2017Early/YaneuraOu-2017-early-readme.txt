@@ -26,7 +26,7 @@
 　　　　　　ターゲット環境のCPUのものを選択して、それを
 	    YaneuraOu-2017-early.exeとリネームしてお使いください。
 
-		YaneuraOu-2017-early-sse42.exe : SSE4.2以降用
+    // [2017/05/04] AVX2用以外はまだ用意してません。要望があれば用意します。
 		YaneuraOu-2017-early-sse4.exe  : SSE4  以降用
 		YaneuraOu-2017-early-sse2.exe  : SSE2  以降用
 		YaneuraOu-2017-early-nosse.exe : SSEなし
