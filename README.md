@@ -10,7 +10,10 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 
 ## やねうら王シリーズの遊び方
 
-[このプロジェクトのexeフォルダ](https://github.com/yaneurao/YaneuraOu/tree/master/exe)の対象フォルダ配下にある、XXX-readme.txtをご覧ください。**このreadme.txtを読んでいないと思われる質問に対しては一切お答えしません。**
+[このプロジェクトのexeフォルダ](https://github.com/yaneurao/YaneuraOu/tree/master/exe)の対象フォルダ配下にある、XXX-readme.txtをご覧ください。
+
+- 質問等は以下の記事のコメント欄でお願いします。Twitterでの個別質問にはお答え出来ません。
+	- [やねうら王セットアップ質問スレッド](http://yaneuraou.yaneu.com/2017/05/04/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B-%E3%82%BB%E3%83%83%E3%83%88%E3%82%A2%E3%83%83%E3%83%97%E8%B3%AA%E5%95%8F%E3%82%B9%E3%83%AC%E3%83%83%E3%83%89/)
 
 # Sub-projects
 
