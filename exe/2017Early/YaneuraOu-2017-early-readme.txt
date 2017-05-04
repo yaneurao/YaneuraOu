@@ -22,14 +22,15 @@
 		※　やねうら大定跡のダウンロードは https://github.com/yaneurao/YaneuraOu の
 			末尾のところにダウンロードリンクがあります。
 
-	※　AVX2に対応していないCPUの場合、以下のなかから
-　　　　　　ターゲット環境のCPUのものを選択して、それを
+	※　64bitOS / AVX2に対応していないCPUの場合、以下のなかから
+　　　　　ターゲット環境のCPUのものを選択して、それを
 	    YaneuraOu-2017-early.exeとリネームしてお使いください。
+		32bit OSだとメモリが足りなくて動かないようです。
 
-    // [2017/05/04] AVX2用以外はまだ用意してません。要望があれば用意します。
-		YaneuraOu-2017-early-sse4.exe  : SSE4  以降用
-		YaneuraOu-2017-early-sse2.exe  : SSE2  以降用
-		YaneuraOu-2017-early-nosse.exe : SSEなし
+		YaneuraOu-2017-early-sse42.exe : SSE4.2  以降用/64bit OS用
+		YaneuraOu-2017-early-sse41.exe : SSE4.1  以降用/64bit OS用
+		YaneuraOu-2017-early-sse2.exe  : SSE2    以降用/64bit OS用
+		YaneuraOu-2017-early-nosse.exe : SSEなし       /32bit OS用(用意しておらず)
 
     eval/KK_synthesized.bin        : 3駒関係の評価関数で用いるファイル(KK)
     eval/KKP_synthesized.bin       : 3駒関係の評価関数で用いるファイル(KKP)

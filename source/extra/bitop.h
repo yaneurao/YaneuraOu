@@ -63,12 +63,12 @@ typedef  int64_t s64;
 #ifdef USE_AVX2
 
 // for AVX2 : hardwareによるpext実装
-#define PEXT32(a,b) _pext_u32(a,b)
+#define PEXT32(a,b) _pext_u32((u32)(a),(u32)(b))
 #ifdef IS_64BIT
 #define PEXT64(a,b) _pext_u64(a,b)
 #else
 // PEXT32を2回使った64bitのPEXTのemulation
-#define PEXT64(a,b) ( uint64_t(PEXT32(uint32_t((a)>>32),uint32_t((b)>>32)) << POPCNT32(b)) | uint64_t(PEXT32(uint32_t(a),uint32_t(b))) )
+#define PEXT64(a,b) ( u64(PEXT32( (a)>>32 , (b)>>32) << (u32)POPCNT32(b)) | u64(PEXT32(u32(a),u32(b))) )
 #endif
 
 #else
@@ -105,7 +105,7 @@ inline uint64_t PEXT64(uint64_t a, uint64_t b) { return pext(a, b); }
 #define POPCNT32(a) _mm_popcnt_u32(a)
 #define POPCNT64(a) _mm_popcnt_u64(a)
 #else
-#define POPCNT32(a) _mm_popcnt_u32(a)
+#define POPCNT32(a) _mm_popcnt_u32((u32)(a))
 // 32bit環境では32bitのpop_count 2回でemulation。
 #define POPCNT64(a) (POPCNT32((a)>>32) + POPCNT32(a))
 #endif
@@ -136,7 +136,7 @@ inline int32_t POPCNT64(uint64_t a) {
 //     BSF(bitscan forward)
 // ----------------------------
 
-#if defined(_MSC_VER) && !defined(__INTEL_COMPILER) && defined(_WIN64)
+#if defined(_MSC_VER) && !defined(__INTEL_COMPILER) // && defined(_WIN64)
 #include <intrin.h>
 
 #ifdef IS_64BIT
@@ -147,7 +147,9 @@ FORCE_INLINE int LSB64(uint64_t v) { ASSERT_LV3(v != 0); unsigned long index; _B
 // 1である最上位のbitのbit位置を得る。0を渡してはならない。
 FORCE_INLINE int MSB32(uint32_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanReverse(&index, v); return index; }
 FORCE_INLINE int MSB64(uint64_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanReverse64(&index, v); return index; }
+
 #else
+
 // 32bit環境では64bit版を要求されたら2回に分けて実行。
 FORCE_INLINE int LSB32(uint32_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanForward(&index, v); return index; }
 FORCE_INLINE int LSB64(uint64_t v) { ASSERT_LV3(v != 0); return uint32_t(v) ? LSB32(uint32_t(v)) : 32 + LSB32(uint32_t(v >> 32)); }
@@ -289,7 +291,7 @@ private:
 
 // 最下位bitをresetする命令。
 
-#ifdef USE_AVX2
+#if defined(USE_AVX2) && defined(IS_64BIT)
 #define BLSR(x) _blsr_u64(x)
 #else
 #define BLSR(x) (x & (x-1))

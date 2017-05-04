@@ -302,7 +302,8 @@
 #define ENABLE_TEST_CMD
 // 学習絡みのオプション
 #define USE_SFEN_PACKER
-#define EVAL_LEARN
+//#define EVAL_LEARN
+
 // 定跡生成絡み
 #define ENABLE_MAKEBOOK_CMD
 // 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)

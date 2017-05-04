@@ -2772,7 +2772,7 @@ void MainThread::think()
 				if (book_move_max)
 				{
 					// 不成の指し手がRootMovesに含まれていると正しく指せない。
-					const auto& move = move_list[prng.rand(book_move_max)];
+					const auto& move = move_list[(size_t)prng.rand(book_move_max)];
 					auto bestMove = move.bestMove;
 					auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
 					if (it_move != rootMoves.end())
@@ -2964,7 +2964,7 @@ namespace Learner
 
 	// 学習のための初期化。
 	// Learner::search(),Learner::qsearch()から呼び出される。
-	void init_for_search(Position pos,Stack* ss)
+	void init_for_search(Position& pos,Stack* ss)
 	{
 		memset(ss - 4, 0, 7 * sizeof(Stack));
 

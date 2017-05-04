@@ -418,11 +418,13 @@ inline bool more_than_one(const Bitboard& bb) { ASSERT_LV2(!bb.cross_over()); re
 // SQ_Uを指定したときに、51の升は49の升に移動するので、注意すること。(51の升にいる先手の歩は存在しないので、
 // 歩の移動に用いる分には問題ないはずではあるが。)
 
+// ToDo : x86モードではBitboardのaligned(16)を強制できない？あとで調査する。
+
 template<Square D>
-inline Bitboard shift(Bitboard b) {
+inline Bitboard shift(const Bitboard& b) {
 	ASSERT_LV3(D == SQ_U || D == SQ_D);
 
-	// Apery型の縦型Bitboardにおいては歩の利きはbit shiftで済む。
+	// Apery型の縦型Bitboardにおいては歩の利きはbit shiftで済む。be
 	return  D == SQ_U ? b >> 1 : D == SQ_D ? b << 1
 		: ZERO_BB;
 }
