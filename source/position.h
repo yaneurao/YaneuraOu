@@ -24,15 +24,17 @@ extern std::string SFEN_HIRATE;
 // 前の局面から移動した駒番号を管理するための構造体
 struct DirtyPiece
 {
-  // dirtyになった個数。null moveだと0ということもありうる。
-  int dirty_num;
+	// dirtyになった個数。
+	// null moveだと0ということもありうる。
+	// 動く駒と取られる駒とで最大で2つ。
+	int dirty_num;
 
-  // dirtyになった駒番号
-  PieceNo pieceNo[2];
+	// dirtyになった駒番号
+	PieceNo pieceNo[2];
 
-  // その駒番号の駒が何から何に変わったのか
-  Eval::ExtBonaPiece piecePrevious[2];
-  Eval::ExtBonaPiece pieceNow[2];
+	// その駒番号の駒が何から何に変わったのか
+	Eval::ExtBonaPiece piecePrevious[2];
+	Eval::ExtBonaPiece pieceNow[2];
 };
 #endif
 
@@ -40,111 +42,115 @@ struct DirtyPiece
 // do_move()のときは、ブロックコピーで済むのでそこそこ高速。
 struct StateInfo {
 
-  // ---- ここから下のやつは do_move()のときにコピーされる
+	// ---- ここから下のやつは do_move()のときにコピーされる
 
-  // 遡り可能な手数(previousポインタを用いて局面を遡るときに用いる)
-  int pliesFromNull;
+	// 遡り可能な手数(previousポインタを用いて局面を遡るときに用いる)
+	int pliesFromNull;
 
-  // この手番側の連続王手は何手前からやっているのか(連続王手の千日手の検出のときに必要)
-  int continuousCheck[COLOR_NB];
+	// この手番側の連続王手は何手前からやっているのか(連続王手の千日手の検出のときに必要)
+	int continuousCheck[COLOR_NB];
 
-  // ---- ここから下のやつは do_move()のときにコピーされない
-  // ※　ただし、do_null_move()のときは丸ごとコピーされる。
+	// ---- ここから下のやつは do_move()のときにコピーされない
+	// ※　ただし、do_null_move()のときは丸ごとコピーされる。
 
-  // --- 以下のメンバーは、Position::do_move()で更新される。
+	// --- 以下のメンバーは、Position::do_move()で更新される。
 
-  // 現局面で手番側に対して王手をしている駒のbitboard
-  Bitboard checkersBB;
+	// 現局面で手番側に対して王手をしている駒のbitboard
+	Bitboard checkersBB;
 
-  // 動かすと手番側の王に対して空き王手になるかも知れない駒の候補
-  // チェスの場合、駒がほとんどが大駒なのでこれらを動かすと必ず開き王手となる。
-  // 将棋の場合、そうとも限らないので移動方向について考えなければならない。
-  // color = 手番側 なら pinされている駒(動かすと開き王手になる)
-  // color = 相手側 なら 両王手の候補となる駒。
+	// 動かすと手番側の王に対して空き王手になるかも知れない駒の候補
+	// チェスの場合、駒がほとんどが大駒なのでこれらを動かすと必ず開き王手となる。
+	// 将棋の場合、そうとも限らないので移動方向について考えなければならない。
+	// color = 手番側 なら pinされている駒(動かすと開き王手になる)
+	// color = 相手側 なら 両王手の候補となる駒。
 
-  // 自玉に対して(敵駒によって)pinされている駒
-  Bitboard blockersForKing[COLOR_NB];
+	// 自玉に対して(敵駒によって)pinされている駒
+	Bitboard blockersForKing[COLOR_NB];
 
-  // 自玉に対してpinしている(可能性のある)敵の大駒。
-  // 自玉に対して上下左右方向にある敵の飛車、斜め十字方向にある敵の角、玉の前方向にある敵の香、…
-  Bitboard pinnersForKing[COLOR_NB];
+	// 自玉に対してpinしている(可能性のある)敵の大駒。
+	// 自玉に対して上下左右方向にある敵の飛車、斜め十字方向にある敵の角、玉の前方向にある敵の香、…
+	Bitboard pinnersForKing[COLOR_NB];
 
-  // 自駒の駒種Xによって敵玉が王手となる升のbitboard
-  Bitboard checkSquares[PIECE_WHITE];
+	// 自駒の駒種Xによって敵玉が王手となる升のbitboard
+	Bitboard checkSquares[PIECE_WHITE];
 
 
-  // この局面のハッシュキー
-  // ※　次の局面にdo_move()で進むときに最終的な値が設定される
-  // board_key()は盤面のhash。hand_key()は手駒のhash。それぞれ加算したのがkey() 盤面のhash。
-  // board_key()のほうは、手番も込み。
-  // exclusion_key()は、singular extensionのために現在のkey()に一定の値を足したものを返す。
-  Key key()                     const { return long_key(); }
-  Key board_key()               const { return board_long_key(); }
-  Key hand_key()                const { return hand_long_key(); }
+	// この局面のハッシュキー
+	// ※　次の局面にdo_move()で進むときに最終的な値が設定される
+	// board_key()は盤面のhash。hand_key()は手駒のhash。それぞれ加算したのがkey() 盤面のhash。
+	// board_key()のほうは、手番も込み。
+	// exclusion_key()は、singular extensionのために現在のkey()に一定の値を足したものを返す。
 
-  // HASH_KEY_BITSが128のときはKey128が返るhash key,256のときはKey256
-  HASH_KEY long_key()           const { return board_key_ + hand_key_; }
-  HASH_KEY board_long_key()     const { return board_key_; }
-  HASH_KEY hand_long_key()      const { return hand_key_; }
+	Key key()                     const { return long_key(); }
+	Key board_key()               const { return board_long_key(); }
+	Key hand_key()                const { return hand_long_key(); }
+
+	// HASH_KEY_BITSが128のときはKey128が返るhash key,256のときはKey256
+
+	HASH_KEY long_key()           const { return board_key_ + hand_key_; }
+	HASH_KEY board_long_key()     const { return board_key_; }
+	HASH_KEY hand_long_key()      const { return hand_key_; }
   
-  // この局面における手番側の持ち駒。優等局面の判定のために必要。
-  Hand hand;
+	// この局面における手番側の持ち駒。優等局面の判定のために必要。
+	Hand hand;
 
-  // この局面で捕獲された駒
-  // ※　次の局面にdo_move()で進むときにこの値が設定される
-  // 先後の区別はなし。馬とか龍など成り駒である可能性はある。
-  Piece capturedPiece;
+	// この局面で捕獲された駒
+	// ※　次の局面にdo_move()で進むときにこの値が設定される
+	// 先後の区別はなし。馬とか龍など成り駒である可能性はある。
+	Piece capturedPiece;
 
-  friend struct Position;
+	friend struct Position;
 
-  // --- evaluate
+	// --- evaluate
 
-#ifndef EVAL_NO_USE
-  // この局面での評価関数の駒割
-  Value materialValue;
-#endif
+	#if !defined(EVAL_NO_USE)
+	// この局面での評価関数の駒割
+	Value materialValue;
+	#endif
 
-#ifdef EVAL_KPP
-  // 評価値。(次の局面で評価値を差分計算するときに用いる)
-  // まだ計算されていなければsumKPPの値は、INT_MAX
-  int sumKKP;
-  int sumBKPP;
-  int sumWKPP;
-#endif
+	#if defined(EVAL_KPP)
+	// 評価値。(次の局面で評価値を差分計算するときに用いる)
+	// まだ計算されていなければsumKPPの値は、INT_MAX
+	int sumKKP;
+	int sumBKPP;
+	int sumWKPP;
+	#endif
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
-  // 評価値。(次の局面で評価値を差分計算するときに用いる)
-  // まだ計算されていなければsum.p[2][0]の値はINT_MAX
-  Eval::EvalSum sum;
-#endif
+	#if defined(EVAL_KPPT)
+	// 評価値。(次の局面で評価値を差分計算するときに用いる)
+	// まだ計算されていなければsum.p[2][0]の値はINT_MAX
+	Eval::EvalSum sum;
+	#endif
 
-#ifdef USE_EVAL_DIFF
-  // 評価値の差分計算の管理用
-  DirtyPiece dirtyPiece;
-#endif
+	#if defined(USE_EVAL_DIFF)
+	// 評価値の差分計算の管理用
+	DirtyPiece dirtyPiece;
+	#endif
 
-#ifdef  KEEP_LAST_MOVE
-  // 直前の指し手。デバッグ時などにおいてその局面までの手順を表示出来ると便利なことがあるのでそのための機能
-  Move lastMove;
+	#if defined(KEEP_LAST_MOVE)
+	// 直前の指し手。デバッグ時などにおいてその局面までの手順を表示出来ると便利なことがあるのでそのための機能
+	Move lastMove;
 
-  // lastMoveで移動させた駒(先後の区別なし)
-  Piece lastMovedPieceType;
-#endif
+	// lastMoveで移動させた駒(先後の区別なし)
+	Piece lastMovedPieceType;
+	#endif
 
-  // HASH_KEY_BITSで128を指定した場合はBitboardにHashKeyが入っている。
-  HASH_KEY board_key_;
-  HASH_KEY hand_key_;
+	// 盤面(盤上の駒)と手駒に関するhash key
+	// 直接アクセスせずに、hand_key()、board_key(),key()を用いること。
 
-  // 一つ前の局面に遡るためのポインタ。
-  // この値としてnullptrが設定されているケースは、
-  // 1) root node
-  // 2) 直前がnull move
-  // のみである。
-  // 評価関数を差分計算するときに、
-  // 1)は、compute_eval()を呼び出して差分計算しないからprevious==nullで問題ない。
-  // 2)は、このnodeのEvalSum sum(これはdo_move_null()でコピーされている)から
-  //   計算出来るから問題ない。
-  StateInfo* previous;
+	HASH_KEY board_key_;
+	HASH_KEY hand_key_;
+
+	// 一つ前の局面に遡るためのポインタ。
+	// この値としてnullptrが設定されているケースは、
+	// 1) root node
+	// 2) 直前がnull move
+	// のみである。
+	// 評価関数を差分計算するときに、
+	// 1)は、compute_eval()を呼び出して差分計算しないからprevious==nullで問題ない。
+	// 2)は、このnodeのEvalSum sum(これはdo_move_null()でコピーされている)から
+	//   計算出来るから問題ない。
+	StateInfo* previous;
 
 };
 
@@ -271,16 +277,18 @@ struct Position
 	// 駒がない升が1になっているBitboardが返る
 	Bitboard empties() const { return pieces() ^ ALL_BB; }
 
-	// 駒に対するBitboardを得る
-	Bitboard pieces(Color c, PieceTypeBitboard pr) const { return piece_bb[pr][c]; }
-
 	// 駒に対応するBitboardを得る。
-	Bitboard pieces(Color c, Piece pr) const { ASSERT_LV3(PAWN <= pr && pr <= KING);  return piece_bb[(PieceTypeBitboard)(pr - 1)][c]; }
+	// ・引数でcの指定がないものは先後両方の駒が返る。
+	// ・引数がPieceのものは、prはPAWN～KINGまでの値とし、
+	//   成香など金と同等の移動特性を持つ駒はGOLDとして扱われるものとする。
+	//   また、KINGは、HDK(馬・龍・玉)であるものとする。
+	// ・引数でPieceを2つ取るものは２種類の駒のBitboardを合成したものが返る。
 
-	// 駒が存在する升を表すBitboard
-	// 高速化したいときだけ用いる。普段は使うべきではない。
-	// ※　see()の高速化のために用いている。
-	Bitboard piece_bb[PIECE_TYPE_BITBOARD_NB][COLOR_NB];
+	Bitboard pieces(PieceTypeBitboard pr) const { return piece_bb[pr]; }
+	Bitboard pieces(Color c, PieceTypeBitboard pr) const { return piece_bb[pr] & pieces(c); }
+	Bitboard pieces(Piece pr) const { ASSERT_LV3(PAWN <= pr && pr <= KING); return piece_bb[pr - 1];}
+	Bitboard pieces(Color c, Piece pr) const { return pieces(pr) & pieces(c); }
+	Bitboard pieces(Piece pr1, Piece pr2) const { return pieces(pr1) | pieces(pr2); }
 
 	// --- 升
 
@@ -309,10 +317,12 @@ struct Position
 
 	// --- 利き
 
-	// sに利きのあるc側の駒を列挙する。
-	// (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
+	// sに利きのあるc側の駒を列挙する。cの指定がないものは先後両方の駒が返る。
+	// occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして。
+
 	Bitboard attackers_to(Color c, Square sq) const { return attackers_to(c, sq, pieces()); }
 	Bitboard attackers_to(Color c, Square sq, const Bitboard& occ) const;
+	Bitboard attackers_to(Square sq) const { return attackers_to(sq, pieces()); }
 	Bitboard attackers_to(Square sq, const Bitboard& occ) const;
 
 	// 打ち歩詰め判定に使う。王に打ち歩された歩の升をpawn_sqとして、c側(王側)のpawn_sqへ利いている駒を列挙する。香が利いていないことは自明。
@@ -619,6 +629,9 @@ private:
 	// 盤上の先手/後手/両方の駒があるところが1であるBitboard
 	Bitboard occupied[COLOR_NB + 1];
 
+	// 駒が存在する升を表すBitboard。先後混在。
+	Bitboard piece_bb[PIECE_TYPE_BITBOARD_NB];
+
 	// stが初期状態で指している、空のStateInfo
 	StateInfo startState;
 
@@ -696,16 +709,16 @@ inline void Position::xor_piece(Piece pc, Square sq)
   // 先手・後手の駒のある場所を示すoccupied bitboardの更新
   occupied[c] ^= q;
   // 先手 or 後手の駒のある場所を示すoccupied bitboardの更新
-  occupied[COLOR_ALL] ^= sq;
+  occupied[COLOR_ALL] ^= q;
 
   // 駒別のBitboardの更新
   Piece pt = type_of(pc);
-  piece_bb[piece2ptb[pt]][c] ^= sq;
+  piece_bb[piece2ptb[pt]] ^= q;
 
   // 馬、龍は、piece_bbのPIECE_TYPE_BITBOARD_BISHOP(ROOK)とPIECE_TYPE_BITBOARD_HDKの両方のbitboardにまたがって存在するので
   // PIECE_TYPE_BITBOARD_HDKのほうも更新する必要がある。
   if (pt >= HORSE)
-    piece_bb[PIECE_TYPE_BITBOARD_HDK][c] ^= sq;
+    piece_bb[PIECE_TYPE_BITBOARD_HDK] ^= q;
 }
 
 // 駒を配置して、内部的に保持しているBitboardも更新する。

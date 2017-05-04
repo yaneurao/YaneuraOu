@@ -1,4 +1,117 @@
-﻿
+﻿# ToDO
+
+- 自己対戦フレームワーク、改良。
+- 高速化
+	- Positionクラスのリファクタリング
+	- 評価関数の差分計算見直す
+- 評価関数の形を変える
+
+
+## 2017/05/05
+
+- MovePickerの配列、よく考えたらtoがSQ_NBであるような指し手を渡すことはないので
+		int table[SQ_NB + 7][SQ_NB][COLOR_NB];
+でいい。修正。
+
+- もしかして、positionクラスで、
+	Bitboard piece_bb[PIECE_TYPE_BITBOARD_NB][COLOR_NB];
+	色別に持たないほうが良いのでは…。大改造になるが高速化のために変更してみる。
+
+- piece_bb[][]を直接参照しているところをPosition::pieces()経由でアクセスするように変更。
+
+// 改良前
+Total time (ms) : 32729
+Nodes searched  : 26014961
+Nodes/second    : 794859
+
+// 改良後
+Total time (ms) : 32437
+Nodes searched  : 26014961
+Nodes/second    : 802015
+
+// gccでbuildした場合。2%ぐらい速いかも？
+Total time (ms) : 31770
+Nodes searched  : 26014961
+Nodes/second    : 818853
+
+
+// 4 threads
+Total time (ms) : 28682
+Nodes searched  : 66869828
+Nodes/second    : 2331421
+Nodes searched(main thread) : 16690131
+Nodes/second  (main thread) : 581902
+
+// 8 threads
+Total time (ms) : 27703
+Nodes searched  : 90831960
+Nodes/second    : 3278777
+Nodes searched(main thread) : 11602893
+Nodes/second  (main thread) : 418831
+
+遅くはなっていないが4Tにしたときに4倍のnps出てないのおかしくないか？
+2Tにした時点で700k/tぐらいしか出ない。うーん..
+
+### V4.44
+
+engine1 = YaneuraOuV440.exe , eval = ShinYane20161117
+engine2 = YaneuraOuV444.exe , eval = ShinYane20161117
+T1,b1000,1733 - 86 - 1711(50.32% R2.22) win black : white = 50.78% : 49.22%
+
+たぶん計測誤差。何も変わってない。
+
+
+## 2017/05/04
+
+・Stockfish
+	- Fix multiPV issue #502
+		- https://github.com/official-stockfish/Stockfish/commit/8b15961349e18a9ba113973c53f53913d0cd0fad
+
+・search()でalpha値を更新したときに詰み探索を呼ぶほうが良いだとか？
+
+
+						// PvNodeでalpha値を更新したときにここが最善応手列になるので
+						// ここで1手進めてから詰み探索を呼ぶ。
+#if 1
+						if (!RootNode && is_ok(bestMove))
+						{
+							// mate_depth = 1 or 3 or 5
+							int mate_depth = min(5, depth / (4 * ONE_PLY) * 2 + 1);
+							if (mate_depth >= 3)
+							{
+								pos.do_move(bestMove, st);
+								move = pos.weak_mate_n_ply(mate_depth);
+								pos.undo_move(bestMove);
+
+								if (move != MOVE_NONE)
+								{
+									// N手詰めかも知れないのでmate_depth手詰めのスコアを返す。
+									bestValue = mated_in(ss->ply + 1 + mate_depth);
+
+#if !defined(DISABLE_TT_PROBE)
+									tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
+										DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT.generation());
+#endif
+									return bestValue;
+								}
+							}
+						}
+#endif
+
+
+上のコード追加してもほぼ弱くならない。
+これは、PvNodeの全体に占める割合が極めて小さいから。
+PvNodeで相手からの詰みを調べたほうが良いかと思ったが、そうでもない。
+Pv自体が枝刈りしまくった結果の産物で、信用ならないからかも知れない。
+
+いずれにせよ、もう少しきちんと書くべき。詰み探索を調べたかどうかをTTに書くべきだろうし。
+あと、もっと投機的に詰み探索などを呼ぶ仕組みを入れたほうが良いと思う。
+reductionをthread idごとにバラけさせるだとか…。
+いずれにせよ、TT拡張すること考えたほうが良さげ。
+
+・benchコマンドのデフォルト設定、早く終わりすぎて役目を果たしていないのでdepth15から17に条件を変更。
+
+
 ## 2017/05/04
 
 ・置換表にEVAL_HASH突っ込んだほうがいいのでは…。

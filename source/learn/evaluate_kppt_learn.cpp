@@ -415,9 +415,9 @@ namespace Eval
 
 		if (kk_w_ == nullptr)
 		{
-			u64 size;
+			size_t size;
 
-			size = u64(SQ_NB)*u64(SQ_NB);
+			size = size_t(SQ_NB)*size_t(SQ_NB);
 			kk_w_ = (Weight(*)[SQ_NB][SQ_NB])new Weight[size];
 			memset(kk_w_, 0, sizeof(Weight) * size);
 #ifdef RESET_TO_ZERO_VECTOR
@@ -425,14 +425,14 @@ namespace Eval
 			memset(kk_, 0, sizeof(ValueKk) * size);
 #endif
 
-			size = u64(SQ_NB)*u64(fe_end)*u64(fe_end);
+			size = size_t(SQ_NB)*size_t(fe_end)*size_t(fe_end);
 			kpp_w_ = (Weight(*)[SQ_NB][fe_end][fe_end])new Weight[size];
 			memset(kpp_w_, 0, sizeof(Weight) * size);
 #ifdef RESET_TO_ZERO_VECTOR
 			memset(kpp_, 0, sizeof(ValueKpp) * size);
 #endif
 
-			size = u64(SQ_NB)*u64(SQ_NB)*u64(fe_end);
+			size = size_t(SQ_NB)*size_t(SQ_NB)*size_t(fe_end);
 			kkp_w_ = (Weight(*)[SQ_NB][SQ_NB][fe_end])new Weight[size];
 			memset(kkp_w_, 0, sizeof(Weight) * size);
 #ifdef RESET_TO_ZERO_VECTOR

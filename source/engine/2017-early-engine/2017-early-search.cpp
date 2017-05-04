@@ -507,7 +507,7 @@ namespace YaneuraOu2017Early
 
 			// 置換表にhitした場合は、すでに詰みを調べたはずであり、
 			// 親nodeで枝刈りが生じていると考えられるので置換表にhitしなかったときにのみ調べる。
-			if (PARAM_QSEARCH_MATE1 && (!ttHit || PvNode))
+			if (PARAM_QSEARCH_MATE1 && !ttHit )
 
 				// いまのところ、入れたほうが良いようだ。
 				// play_time = b1000 ,  1631 - 55 - 1314(55.38% R37.54) [2016/08/19]
@@ -1551,7 +1551,7 @@ namespace YaneuraOu2017Early
 			// 王手延長
 
 			// 王手となる指し手でSEE >= 0であれば残り探索深さに1手分だけ足す。
-			// また、moveCountPruningでない指し手(置換表の指し手とか)も延長対称。
+			// また、moveCountPruningでない指し手(置換表の指し手とか)も延長対象。
 			// これはYSSの0.5手延長に似たもの。
 			// ※　将棋においてはこれはやりすぎの可能性も..
 
@@ -1901,7 +1901,14 @@ namespace YaneuraOu2017Early
 
 					// alpha値を更新したので更新しておく
 					if (PvNode && value < beta)
+					{
 						alpha = value;
+
+						// PvNodeでalpha値を更新した。
+						// このとき相手からの詰みがあるかどうかを調べるなどしたほうが良いなら
+						// ここに書くべし。
+
+					}
 					else
 					{
 						// value >= beta なら fail high(beta cut)

@@ -98,6 +98,8 @@ namespace USI
 	  // スコアを歩の価値を100として正規化して出力する。
 	std::string score_to_usi(Value v)
 	{
+		ASSERT_LV3(-VALUE_INFINITE < v && v < VALUE_INFINITE);
+
 		std::stringstream s;
 
 		// 置換表上、値が確定していないことがある。
@@ -127,7 +129,7 @@ namespace USI
 		for (size_t i = 0; i < multiPV; ++i)
 		{
 			// この指し手のpvの更新が終わっているのか
-			bool updated = (i <= PVIdx);
+			bool updated = (i <= PVIdx && rootMoves[i].score != -VALUE_INFINITE);
 
 			if (iteration_depth == ONE_PLY && !updated)
 				continue;

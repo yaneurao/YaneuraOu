@@ -468,10 +468,11 @@ Bitboard Position::slider_blockers(Color c, Square s , Bitboard& pinners) const 
 
 	// snipersとは、pinされている駒が取り除かれたときに升sに利きが発生する大駒である。
 	Bitboard snipers =
-		(pieces(c, ROOK) & rookStepEffect(s))
-		| (pieces(c, BISHOP) & bishopStepEffect(s))
-		// 香に関しては攻撃駒が先手なら、玉より下側をサーチして、そこにある先手の香を探す。
-		| (pieces(c, LANCE) & lanceStepEffect(~c, s));
+		((pieces(ROOK) & rookStepEffect(s))
+			| (pieces(BISHOP) & bishopStepEffect(s))
+			// 香に関しては攻撃駒が先手なら、玉より下側をサーチして、そこにある先手の香を探す。
+			| (pieces(LANCE) & lanceStepEffect(~c, s))
+			) & pieces(c);
 
 	while (snipers)
 	{
@@ -491,73 +492,80 @@ Bitboard Position::slider_blockers(Color c, Square s , Bitboard& pinners) const 
 	return result;
 }
 
+
 // sに利きのあるc側の駒を列挙する。
 // (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
 Bitboard Position::attackers_to(Color c, Square sq, const Bitboard& occ) const
 {
-  Color them = ~c;
+	Color them = ~c;
 
-  // sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
-  return
-    (pawnEffect(them, sq) & pieces(c, PAWN))
-    | (lanceEffect(them, sq, occ) & pieces(c, LANCE))
-    | (knightEffect(them, sq) & pieces(c, KNIGHT))
-    | (silverEffect(them, sq) & (pieces(c, SILVER) | pieces(c, HDK)))
-    | (goldEffect(them, sq) & (pieces(c, GOLD) | pieces(c, HDK)))
-    | (bishopEffect(sq, occ) & pieces(c, BISHOP))
-    | (rookEffect(sq, occ) & pieces(c, ROOK));
-//    | (kingEffect(sq) & pieces(c, HDK));
-  // →　HDKは、銀と金のところに含めることによって、参照するテーブルを一個減らして高速化しようというAperyのアイデア。
+	// sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
+	return
+		(     (pawnEffect(them, sq)       & pieces(PAWN)        )
+			| (lanceEffect(them, sq, occ) & pieces(LANCE)       )
+			| (knightEffect(them, sq)     & pieces(KNIGHT)      )
+			| (silverEffect(them, sq)     & pieces(SILVER, HDK) )
+			| (goldEffect(them, sq)       & pieces(GOLD , HDK)  )
+			| (bishopEffect(sq, occ)      & pieces(BISHOP)      )
+			| (rookEffect(sq, occ)        & pieces(ROOK)        )
+		//  | (kingEffect(sq) & pieces(c, HDK));
+		// →　HDKは、銀と金のところに含めることによって、参照するテーブルを一個減らして高速化しようというAperyのアイデア。
+			) & pieces(c); // 先後混在しているのでc側の駒だけ最後にマスクする。
+		;
 
 }
 
-// see_ge()から呼び出すので、この関数、結構な頻度で呼び出されるのだが、
-// 両方の駒を見る必要があって、あまり速いとは言えない。ByteBoardを用いるべきなのか…。
+// sに利きのあるc側の駒を列挙する。先後両方。
+// (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
 Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 {
 	// sqの地点に敵駒ptをおいて、その利きに自駒のptがあればsqに利いているということだ。
 	return
-		  (pawnEffect(BLACK, sq) & pieces(WHITE, PAWN))
-		| (pawnEffect(WHITE, sq) & pieces(BLACK, PAWN))
-		//| (lanceEffect(BLACK, sq, occ) & pieces(WHITE, LANCE))
-		//| (lanceEffect(WHITE, sq, occ) & pieces(BLACK, LANCE))
-		| (knightEffect(BLACK, sq) & pieces(WHITE, KNIGHT))
-		| (knightEffect(WHITE, sq) & pieces(BLACK, KNIGHT))
-		| (silverEffect(BLACK, sq) & (pieces(WHITE, SILVER) | pieces(WHITE, HDK)))
-		| (silverEffect(WHITE, sq) & (pieces(BLACK, SILVER) | pieces(BLACK, HDK)))
-		| (goldEffect(BLACK, sq) & (pieces(WHITE, GOLD ) | pieces(WHITE, HDK)))
-		| (goldEffect(WHITE, sq) & (pieces(BLACK, GOLD ) | pieces(BLACK, HDK)))
-		| (bishopEffect(sq, occ) & (pieces(BLACK,BISHOP) | pieces(WHITE,BISHOP)))
+		// 先手の歩・桂・銀・金・HDK
+		((    (pawnEffect(WHITE, sq)   & pieces(PAWN)        )
+			| (knightEffect(WHITE, sq) & pieces(KNIGHT)      )
+			| (silverEffect(WHITE, sq) & pieces(SILVER, HDK) )
+			| (goldEffect(WHITE, sq)   & pieces(GOLD , HDK)  )
+			) & pieces(BLACK))
+		|
+
+		// 後手の歩・桂・銀・金・HDK
+		((    (pawnEffect(BLACK, sq)   & pieces(PAWN)        )
+			| (knightEffect(BLACK, sq) & pieces(KNIGHT)      )
+			| (silverEffect(BLACK, sq) & (pieces(SILVER,HDK)))
+			| (goldEffect(BLACK, sq)   & (pieces(GOLD,HDK))  )
+			) & pieces(WHITE))
+
+		// 先後の角・飛・香
+		| (bishopEffect(sq, occ) & pieces(BISHOP) )
 		| (rookEffect(sq, occ) & (
-			   pieces(BLACK , ROOK)
-			|  pieces(WHITE , ROOK)
+			   pieces(ROOK)
 			| (pieces(BLACK , LANCE) & lanceStepEffect(WHITE , sq))
 			| (pieces(WHITE , LANCE) & lanceStepEffect(BLACK , sq))
 			// 香も、StepEffectでマスクしたあと飛車の利きを使ったほうが香の利きを求めなくて済んで速い。
 			));
-	//    | (kingEffect(sq) & pieces(c, HDK));
-	// →　HDKは、銀と金のところに含めることによって、参照するテーブルを一個減らして高速化しようというAperyのアイデア。
 }
 
 // 打ち歩詰め判定に使う。王に打ち歩された歩の升をpawn_sqとして、c側(王側)のpawn_sqへ利いている駒を列挙する。香が利いていないことは自明。
 inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 {
-  Color them = ~c;
-  const Bitboard& occ = pieces();
+	Color them = ~c;
+	const Bitboard& occ = pieces();
 
-  // 馬と龍
-  const Bitboard bb_hd = (kingEffect(pawn_sq) & pieces(c, HDK) & ~Bitboard(king_square(c)));
-  // 馬、龍の利きは考慮しないといけない。しかしここに玉が含まれるので玉は取り除く必要がある。
-  // bb_hdは銀と金のところに加えてしまうことでテーブル参照を一回減らす。
+	// 馬と龍
+	const Bitboard bb_hd = (kingEffect(pawn_sq) & pieces(HDK) & ~Bitboard(king_square(c)));
+	// 馬、龍の利きは考慮しないといけない。しかしここに玉が含まれるので玉は取り除く必要がある。
+	// bb_hdは銀と金のところに加えてしまうことでテーブル参照を一回減らす。
 
-    // sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
-    // 打ち歩詰め判定なので、その打たれた歩を歩、香、王で取れることはない。(王で取れないことは事前にチェック済)
-    return
-    (knightEffect(them, pawn_sq) & pieces(c, KNIGHT))
-    | (silverEffect(them, pawn_sq) & (pieces(c, SILVER) | bb_hd))
-    | (goldEffect(them, pawn_sq) & (pieces(c, GOLD) | bb_hd))
-    | (bishopEffect(pawn_sq, occ) & pieces(c, BISHOP))
-    | (rookEffect(pawn_sq, occ) & pieces(c, ROOK));
+	// sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
+	// 打ち歩詰め判定なので、その打たれた歩を歩、香、王で取れることはない。(王で取れないことは事前にチェック済)
+	return
+		(     (knightEffect(them, pawn_sq) &  pieces(KNIGHT)          )
+			| (silverEffect(them, pawn_sq) & (pieces(SILVER) | bb_hd) )
+			| (goldEffect(them, pawn_sq)   & (pieces(GOLD)   | bb_hd) )
+			| (bishopEffect(pawn_sq, occ)  &  pieces(BISHOP)          )
+			| (rookEffect(pawn_sq, occ)    &  pieces(ROOK)            )
+			) & pieces(c);
 }
 
 // 指し手が、(敵玉に)王手になるかをテストする。
@@ -605,10 +613,10 @@ Bitboard Position::pinned_pieces(Color c, Square avoid) const {
   Bitboard avoid_bb = ~Bitboard(avoid);
 
   pinners = (
-    (pieces(~c, PIECE_TYPE_BITBOARD_ROOK) & rookStepEffect(ksq))
-    | (pieces(~c, PIECE_TYPE_BITBOARD_BISHOP) & bishopStepEffect(ksq))
-    | (pieces(~c, PIECE_TYPE_BITBOARD_LANCE) & lanceStepEffect(c, ksq))
-    ) & avoid_bb;
+      (pieces(ROOK)   & rookStepEffect(ksq))
+    | (pieces(BISHOP) & bishopStepEffect(ksq))
+    | (pieces(LANCE)  & lanceStepEffect(c, ksq))
+    ) & avoid_bb & pieces(~c);
 
   while (pinners)
   {
@@ -627,10 +635,10 @@ Bitboard Position::pinned_pieces(Color c, Square from, Square to) const {
   Bitboard avoid_bb = ~Bitboard(from);
 
   pinners = (
-    (pieces(~c, PIECE_TYPE_BITBOARD_ROOK) & rookStepEffect(ksq))
-    | (pieces(~c, PIECE_TYPE_BITBOARD_BISHOP) & bishopStepEffect(ksq))
-    | (pieces(~c, PIECE_TYPE_BITBOARD_LANCE) & lanceStepEffect(c, ksq))
-    ) & avoid_bb;
+      (pieces( ROOK )   & rookStepEffect(ksq))
+    | (pieces( BISHOP ) & bishopStepEffect(ksq))
+    | (pieces( LANCE  ) & lanceStepEffect(c, ksq))
+    ) & avoid_bb & pieces(~c);
 
   // fromからは消えて、toの地点に駒が現れているものとして
   Bitboard new_pieces = (pieces() & avoid_bb) | to;

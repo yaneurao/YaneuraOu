@@ -37,15 +37,15 @@ namespace {
 	  // 歩、香、桂、銀、金、角、飛、馬、龍…の順で取るのに使う駒を調べる。
 
 	  Bitboard b;
-	  b = stmAttackers &  pos.piece_bb[PIECE_TYPE_BITBOARD_PAWN][stm];   if (b) goto found;
-	  b = stmAttackers &  pos.piece_bb[PIECE_TYPE_BITBOARD_LANCE][stm];  if (b) goto found;
-	  b = stmAttackers &  pos.piece_bb[PIECE_TYPE_BITBOARD_KNIGHT][stm]; if (b) goto found;
-	  b = stmAttackers &  pos.piece_bb[PIECE_TYPE_BITBOARD_SILVER][stm]; if (b) goto found;
-	  b = stmAttackers &  pos.piece_bb[PIECE_TYPE_BITBOARD_GOLD][stm];   if (b) goto found;
-	  b = stmAttackers & ~pos.piece_bb[PIECE_TYPE_BITBOARD_HDK][stm] & pos.piece_bb[PIECE_TYPE_BITBOARD_BISHOP][stm]; if (b) goto found;
-	  b = stmAttackers & ~pos.piece_bb[PIECE_TYPE_BITBOARD_HDK][stm] & pos.piece_bb[PIECE_TYPE_BITBOARD_ROOK][stm];   if (b) goto found;
-	  b = stmAttackers &  pos.piece_bb[PIECE_TYPE_BITBOARD_HDK][stm] & pos.piece_bb[PIECE_TYPE_BITBOARD_BISHOP][stm]; if (b) goto found;
-	  b = stmAttackers &  pos.piece_bb[PIECE_TYPE_BITBOARD_HDK][stm] & pos.piece_bb[PIECE_TYPE_BITBOARD_ROOK][stm];   if (b) goto found;
+	  b = stmAttackers &  pos.pieces(PAWN);   if (b) goto found;
+	  b = stmAttackers &  pos.pieces(LANCE);  if (b) goto found;
+	  b = stmAttackers &  pos.pieces(KNIGHT); if (b) goto found;
+	  b = stmAttackers &  pos.pieces(SILVER); if (b) goto found;
+	  b = stmAttackers &  pos.pieces(GOLD);   if (b) goto found;
+	  b = stmAttackers & ~pos.pieces(HDK) & pos.pieces(BISHOP); if (b) goto found;
+	  b = stmAttackers & ~pos.pieces(HDK) & pos.pieces(ROOK);   if (b) goto found;
+	  b = stmAttackers &  pos.pieces(HDK) & pos.pieces(BISHOP); if (b) goto found;
+	  b = stmAttackers &  pos.pieces(HDK) & pos.pieces(ROOK);   if (b) goto found;
 
 	  // 攻撃駒があるというのが前提条件だから、以上の駒で取れなければ、最後は玉でtoの升に移動出来て
 	  // 駒を取れるはず。
@@ -63,14 +63,12 @@ namespace {
 	  // このときpinされているかの判定を入れられるなら入れたほうが良いのだが…。
 	  // この攻撃駒の種類によって場合分け
 
-	  const auto& bb = pos.piece_bb;
-
 	  auto dirs = directions_of(to, sq);
 	  if (dirs) switch (pop_directions(dirs))
 	  {
 	  case DIRECT_RU: case DIRECT_RD: case DIRECT_LU: case DIRECT_LD:
 		  // 斜め方向なら斜め方向の升をスキャンしてその上にある角・馬を足す
-		  attackers |= bishopEffect(to, occupied) & (bb[PIECE_TYPE_BITBOARD_BISHOP][BLACK] | bb[PIECE_TYPE_BITBOARD_BISHOP][WHITE]);
+		  attackers |= bishopEffect(to, occupied) & pos.pieces(BISHOP);
 
 		  ASSERT_LV3((bishopStepEffect(to) & sq));
 		  break;
@@ -78,7 +76,7 @@ namespace {
 	  case DIRECT_U:
 		  // 後手の香 + 先後の飛車
 		  attackers |= rookEffect(to, occupied) & lanceStepEffect(BLACK, to)
-			  & (bb[PIECE_TYPE_BITBOARD_ROOK][BLACK] | bb[PIECE_TYPE_BITBOARD_ROOK][WHITE] | bb[PIECE_TYPE_BITBOARD_LANCE][WHITE]);
+			  & (pos.pieces(ROOK) | pos.pieces(WHITE,LANCE));
 
 		  ASSERT_LV3((lanceStepEffect(BLACK, to) & sq));
 		  break;
@@ -86,15 +84,14 @@ namespace {
 	  case DIRECT_D:
 		  // 先手の香 + 先後の飛車
 		  attackers |= rookEffect(to, occupied) & lanceStepEffect(WHITE, to)
-			  & (bb[PIECE_TYPE_BITBOARD_ROOK][BLACK] | bb[PIECE_TYPE_BITBOARD_ROOK][WHITE] | bb[PIECE_TYPE_BITBOARD_LANCE][BLACK]);
+			  & (pos.pieces(ROOK) | pos.pieces(BLACK,LANCE));
 
 		  ASSERT_LV3((lanceStepEffect(WHITE, to) & sq));
 		  break;
 
 	  case DIRECT_L: case DIRECT_R:
 		  // 左右なので先後の飛車
-		  attackers |= rookEffect(to, occupied)
-			  & (bb[PIECE_TYPE_BITBOARD_ROOK][BLACK] | bb[PIECE_TYPE_BITBOARD_ROOK][WHITE]);
+		  attackers |= rookEffect(to, occupied) & pos.pieces(ROOK);
 
 		  ASSERT_LV3(((rookStepEffect(to) & sq)));
 		  break;

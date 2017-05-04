@@ -589,6 +589,18 @@ const bool Is64Bit = false;
 #define USE_SSE2
 #endif
 
+// --------------------
+//    for 32bit OS
+// --------------------
+
+#if !defined(IS_64BIT)
+
+// 32bit環境ではメモリが足りなくなるので以下の2つは強制的にオフにしておく。
+#undef USE_EVAL_HASH
+#undef USE_SHARED_MEMORY_IN_EVAL
+
+#endif
+
 // ----------------------------
 //     mutex wrapper
 // ----------------------------

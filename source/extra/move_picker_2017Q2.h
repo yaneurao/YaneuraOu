@@ -20,7 +20,7 @@ struct HistoryStats
 	// 値の最大値
 	static const int Max = Value(1 << 28);
 
-	int get(Color c, Move m) const { return table[from_sq(m) + (is_drop(m) ? SQ_NB:0)][to_sq(m)][c]; }
+	int get(Color c, Move m) const { return table[from_sq(m) + (is_drop(m) ? (SQ_NB-1):0)][to_sq(m)][c]; }
 	void clear() { std::memset(table, 0, sizeof(table)); }
 
 	void update(Color c, Move m, int v)
@@ -30,9 +30,9 @@ struct HistoryStats
 
 		// 駒打ちを分類すべきだと思うので、駒種に応じてfromの位置を調整する。
 		if (is_drop(m))
-			from += SQ_NB;
+			from += (Square)(SQ_NB - 1);
 
-		ASSERT_LV3(from < SQ_NB_PLUS1 + 7);
+		ASSERT_LV3(from < SQ_NB + 7);
 
 		const int D = 324;
 
@@ -43,7 +43,7 @@ struct HistoryStats
 	}
 private:
 	// table[from][to][color]となっているが、fromはSQ_NB_PLUS1 + 打ち駒の7種
-	int table[SQ_NB_PLUS1 + 7][SQ_NB_PLUS1][COLOR_NB];
+	int table[SQ_NB + 7][SQ_NB][COLOR_NB];
 };
 
 
@@ -97,9 +97,9 @@ private:
   // ※　Stockfishとは添字が逆順だが、将棋ではPIECE_NBのほうだけが2^Nなので仕方がない。
   // NULL_MOVEのときは、[color][NO_PIECE]を用いる
 #ifndef USE_DROPBIT_IN_STATS
-  T table[SQ_NB_PLUS1][PIECE_NB];
+  T table[SQ_NB][PIECE_NB];
 #else
-  T table[SQ_NB_PLUS1][(int)PIECE_NB*2];
+  T table[SQ_NB][(int)PIECE_NB*2];
 #endif
 };
 
