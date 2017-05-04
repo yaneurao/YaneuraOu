@@ -192,18 +192,26 @@ namespace Eval
 
 	void load_eval()
 	{
+		// 評価関数を共有するのか
 		if (!(bool)Options["EvalShare"])
 		{
 			// このメモリは、プロセス終了のときに自動開放されることを期待している。
 			auto shared_eval_ptr = new SharedEval();
 
-			kk_ = &(shared_eval_ptr->kk_);
-			kkp_ = &(shared_eval_ptr->kkp_);
-			kpp_ = &(shared_eval_ptr->kpp_);
+			if (shared_eval_ptr == nullptr)
+			{
+				sync_cout << "info string can't allocate eval memory." << sync_endl;
+			}
+			else
+			{
+				kk_ = &(shared_eval_ptr->kk_);
+				kkp_ = &(shared_eval_ptr->kkp_);
+				kpp_ = &(shared_eval_ptr->kpp_);
 
-			load_eval_impl();
-			// 共有されていないメモリを用いる。
-			sync_cout << "info string use non-shared eval_memory." << sync_endl;
+				load_eval_impl();
+				// 共有されていないメモリを用いる。
+				sync_cout << "info string use non-shared eval_memory." << sync_endl;
+			}
 			return;
 		}
 
@@ -240,27 +248,35 @@ namespace Eval
 			// ビュー
 			auto shared_eval_ptr = (SharedEval *)MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(SharedEval));
 
-			kk_ = &(shared_eval_ptr->kk_);
-			kkp_ = &(shared_eval_ptr->kkp_);
-			kpp_ = &(shared_eval_ptr->kpp_);
-
-
-			if (!already_exists)
+			// メモリが確保できないときはshared_eval_ptr == null。このチェックをしたほうがいいような..。
+			if (shared_eval_ptr == nullptr)
 			{
-				// 新規作成されてしまった
+				sync_cout << "info string can't allocate shared eval memory." << sync_endl;
+			}
+			else
+			{
+				kk_ = &(shared_eval_ptr->kk_);
+				kkp_ = &(shared_eval_ptr->kkp_);
+				kpp_ = &(shared_eval_ptr->kpp_);
 
-				// このタイミングで評価関数バイナリを読み込む
-				load_eval_impl();
+				if (!already_exists)
+				{
+					// 新規作成されてしまった
 
-				auto check_sum = calc_check_sum();
-				sync_cout << "info string created shared eval memory. Display : check_sum = " << std::hex << check_sum << std::dec << sync_endl;
+					// このタイミングで評価関数バイナリを読み込む
+					load_eval_impl();
 
-			} else {
+					auto check_sum = calc_check_sum();
+					sync_cout << "info string created shared eval memory. Display : check_sum = " << std::hex << check_sum << std::dec << sync_endl;
 
-				// 評価関数バイナリを読み込む必要はない。ファイルマッピングが成功した時点で
-				// 評価関数バイナリは他のプロセスによって読み込まれていると考えられる。
+				}
+				else {
 
-				sync_cout << "info string use shared eval memory." << sync_endl;
+					// 評価関数バイナリを読み込む必要はない。ファイルマッピングが成功した時点で
+					// 評価関数バイナリは他のプロセスによって読み込まれていると考えられる。
+
+					sync_cout << "info string use shared eval memory." << sync_endl;
+				}
 			}
 		}
 		ReleaseMutex(hMutex);

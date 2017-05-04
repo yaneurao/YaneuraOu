@@ -72,7 +72,7 @@ struct SfenWriter
 	}
 
 	// 各スレッドについて、この局面数ごとにファイルにflushする。
-	const u64 SFEN_WRITE_SIZE = 5000;
+	const size_t SFEN_WRITE_SIZE = 5000;
 
 #ifdef  WRITE_PACKED_SFEN
 
@@ -342,7 +342,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 					const auto& move_list = it->second;
 
-					const auto& move = move_list[rand(move_list.size())];
+					const auto& move = move_list[(size_t)rand(move_list.size())];
 					auto bestMove = move.bestMove;
 					// この指し手に不成があってもLEGALであるならこの指し手で進めるべき。
 					if (pos.pseudo_legal(bestMove) && pos.legal(bestMove))
@@ -495,7 +495,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// 読み込みのときにも同様の処理をしたほうが良い。
 				{
 					auto key = pos.key();
-					auto hash_index = key & (GENSFEN_HASH_SIZE - 1);
+					auto hash_index = (size_t)(key & (GENSFEN_HASH_SIZE - 1));
 					auto key2 = hash[hash_index];
 					if (key == key2)
 						goto SKIP_WRITE;
@@ -663,7 +663,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			{
 				// mateではないので合法手が1手はあるはず…。
 				MoveList<LEGAL> list(pos);
-				m = list.at(rand(list.size()));
+				m = list.at((size_t)rand(list.size()));
 
 				// 玉の2手指しのコードを入れていたが、合法手から1手選べばそれに相当するはずで
 				// コードが複雑化するだけだから不要だと判断した。
@@ -914,12 +914,12 @@ struct SfenReader
 
 
 	// 各スレッドがバッファリングしている局面数 0.1M局面。40HTで4M局面
-	const u64 THREAD_BUFFER_SIZE = 10 * 1000;
+	const size_t THREAD_BUFFER_SIZE = 10 * 1000;
 
 	// ファイル読み込み用のバッファ(これ大きくしたほうが局面がshuffleが大きくなるので局面がバラけていいと思うが
 	// あまり大きいとメモリ消費量も上がる。
 	// SFEN_READ_SIZEはTHREAD_BUFFER_SIZEの倍数であるものとする。
-	const u64 SFEN_READ_SIZE = LEARN_SFEN_READ_SIZE;
+	const size_t SFEN_READ_SIZE = LEARN_SFEN_READ_SIZE;
 
 	// [ASYNC] スレッドが局面を一つ返す。なければfalseが返る。
 	bool read_to_thread_buffer(size_t thread_id, PackedSfenValue& ps)
@@ -1105,8 +1105,8 @@ struct SfenReader
 			// random shuffle by Fisher-Yates algorithm
 			{
 				auto size = sfens.size();
-				for (u64 i = 0; i < size; ++i)
-					swap(sfens[i], sfens[prng.rand(size - i) + i]);
+				for (size_t i = 0; i < size; ++i)
+					swap(sfens[i], sfens[(size_t)(prng.rand(size - i) + i)]);
 			}
 #endif
 
@@ -1114,11 +1114,11 @@ struct SfenReader
 			// SFEN_READ_SIZEはTHREAD_BUFFER_SIZEの倍数であるものとする。
 			ASSERT_LV3((SFEN_READ_SIZE % THREAD_BUFFER_SIZE)==0);
 
-			u64 size = SFEN_READ_SIZE / THREAD_BUFFER_SIZE;
+			auto size = size_t(SFEN_READ_SIZE / THREAD_BUFFER_SIZE);
 			vector<shared_ptr<vector<PackedSfenValue>>> ptrs;
 			ptrs.reserve(size);
 
-			for (u64 i = 0; i < size; ++i)
+			for (size_t i = 0; i < size; ++i)
 			{
 				shared_ptr<vector<PackedSfenValue>> ptr(new vector<PackedSfenValue>());
 				ptr->resize(THREAD_BUFFER_SIZE);
@@ -1134,7 +1134,7 @@ struct SfenReader
 				// shared_ptrをコピーするだけなのでこの時間は無視できるはず…。
 				// packed_sfens_poolの内容を変更するのでmutexのlockが必要。
 
-				for (u64 i = 0; i < size; ++i)
+				for (size_t i = 0; i < size; ++i)
 					packed_sfens_pool.push_back(ptrs[i]);
 
 				// mutexをlockしている間にshared_ptrのデストラクタを呼び出さないと
@@ -1308,7 +1308,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 				goto RetryRead;
 
 			// 直近で用いた局面も除外する。
-			auto hash_index = key & (sr.READ_SFEN_HASH_SIZE - 1);
+			auto hash_index = size_t(key & (sr.READ_SFEN_HASH_SIZE - 1));
 			auto key2 = sr.hash[hash_index];
 			if (key == key2)
 				goto RetryRead;
