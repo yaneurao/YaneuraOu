@@ -1497,16 +1497,19 @@ void test_cmd(Position& pos, istringstream& is)
 // これを増やすなら、下のほうの fens.assign のところの局面数も増やすこと。
 static const char* BenchSfen[] = {
 
-  // 読めば読むほど後手悪いような局面
-  "l4S2l/4g1gs1/5p1p1/pr2N1pkp/4Gn3/PP3PPPP/2GPP4/1K7/L3r+s2L w BS2N5Pb 1",
+	// 初期局面に近い曲面。
+	//"lnsgkgsnl/1r7/p1ppp1bpp/1p3pp2/7P1/2P6/PP1PPPP1P/1B3S1R1/LNSGKG1NL b - 9",
+	
+	// 読めば読むほど後手悪いような局面
+	"l4S2l/4g1gs1/5p1p1/pr2N1pkp/4Gn3/PP3PPPP/2GPP4/1K7/L3r+s2L w BS2N5Pb 1",
 
-  // 57同銀は詰み、みたいな。
-  // 読めば読むほど先手が悪いことがわかってくる局面。
-  "6n1l/2+S1k4/2lp4p/1np1B2b1/3PP4/1N1S3rP/1P2+pPP+p1/1p1G5/3KG2r1 b GSN2L4Pgs2p 1",
+	// 57同銀は詰み、みたいな。
+	// 読めば読むほど先手が悪いことがわかってくる局面。
+	"6n1l/2+S1k4/2lp4p/1np1B2b1/3PP4/1N1S3rP/1P2+pPP+p1/1p1G5/3KG2r1 b GSN2L4Pgs2p 1",
 
-  // 指し手生成祭りの局面
-  // cf. http://d.hatena.ne.jp/ak11/20110508/p1
-  "l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1",
+	// 指し手生成祭りの局面
+	// cf. http://d.hatena.ne.jp/ak11/20110508/p1
+	"l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1",
 };
 
 void bench_cmd(Position& pos, istringstream& is)
@@ -1548,6 +1551,11 @@ void bench_cmd(Position& pos, istringstream& is)
 
   Options["Hash"] = ttSize;
   Options["Threads"] = threads;
+
+#if defined(YANEURAOU_2017_EARLY_ENGINE)
+  // 定跡にhitされるとベンチマークにならない。
+  Options["BookFile"] = "no_book";
+#endif
 
   TT.clear();
 

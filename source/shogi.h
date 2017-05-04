@@ -426,7 +426,7 @@ inline Value mated_in(int ply) {  return (Value)(-VALUE_MATE + ply);}
 // USIプロトコルでやりとりするときの駒の表現
 extern const char* USI_PIECE;
 
-enum Piece: int32_t
+enum Piece: uint32_t
 {
 	// 金の順番を飛の後ろにしておく。KINGを8にしておく。
 	// こうすることで、成りを求めるときに pc |= 8;で求まり、かつ、先手の全種類の駒を列挙するときに空きが発生しない。(DRAGONが終端になる)
@@ -450,11 +450,11 @@ enum Piece: int32_t
 	HDK = KING,        // Position::pieces()で使うときの定数。H=Horse,D=Dragon,K=Kingの合体したBitboardが返る。
 
 	// 指し手生成(GeneratePieceMove = GPM)でtemplateの引数として使うマーカー的な値。変更する可能性があるのでユーザーは使わないでください。
-	// 値はマイナスにしておくことで、連続的な値になり、テーブルジャンプしやすくする。
-	GPM_BR   = -1,     // Bishop Rook
-	GPM_GBR  = -2,     // Gold Bishop Rook
-	GPM_GHD  = -3,     // Gold Horse Dragon
-	GPM_GHDK = -4,     // Gold Horse Dragon King
+	// 連続的な値にしておくことで、テーブルジャンプしやすくする。
+	GPM_BR   = 16,     // Bishop Rook
+	GPM_GBR  = 17,     // Gold Bishop Rook
+	GPM_GHD  = 18,     // Gold Horse Dragon
+	GPM_GHDK = 19,     // Gold Horse Dragon King
 };
 
 // USIプロトコルで駒を表す文字列を返す。

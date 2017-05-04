@@ -200,7 +200,7 @@ void Position::set(std::string sfen)
 #endif
 
 	  // 盤面の(f,r)の駒を設定する
-			put_piece(f | r, Piece(idx + (promote ? PIECE_PROMOTE : 0)), piece_no);
+			put_piece(f | r, Piece(idx + (promote ? u32(PIECE_PROMOTE) : 0)), piece_no);
 
 			// 1升進める
 			--f;
@@ -768,7 +768,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 
 #ifdef KEEP_PIECE_IN_GENERATE_MOVES
     // 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
-    if (moved_piece_after(m) != Piece(pr + ((us == WHITE) ? PIECE_WHITE : 0) + PIECE_DROP))
+    if (moved_piece_after(m) != Piece(pr + ((us == WHITE) ? u32(PIECE_WHITE) : 0) + PIECE_DROP))
       return false;
 #endif
 
