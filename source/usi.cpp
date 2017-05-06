@@ -170,7 +170,7 @@ namespace USI
 			// 置換表からPVをかき集めてくるモード
 			// probe()するとTTEntryのgenerationが変わるので探索に影響する。
 			// benchコマンド時、これはまずいのでbenchコマンド時にはこのモードをオフにする。
-			if (bench || true)
+			if (bench)
 			{
 				for (Move m : rootMoves[i].pv)
 					ss << " " << m;
