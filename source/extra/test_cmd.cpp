@@ -1557,6 +1557,9 @@ void bench_cmd(Position& pos, istringstream& is)
   Options["BookFile"] = "no_book";
 #endif
 
+  // ベンチマークモードにしておかないとPVの出力のときに置換表を漁られて探索に影響がある。
+  limits.bench = true;
+
   TT.clear();
 
   // Optionsの影響を受けると嫌なので、その他の条件を固定しておく。

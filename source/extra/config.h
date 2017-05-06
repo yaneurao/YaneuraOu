@@ -121,6 +121,8 @@
 // 自前でPVを管理してRootMoves::pvを更新するなら、この機能を使う必要はない。
 // これはPVの更新が不要なので実装が簡単だが、Ponderの指し手を返すためには
 // PVが常に正常に更新されていないといけないので最近はこの方法は好まれない。
+// ただ、将棋所/ShogiGUIの検討モードでPVが途中までしか表示されなくて使用上、不便らしく、
+// PVの出力のときは、この機能を使ったほうが良いと思う。
 // #define USE_TT_PV
 
 // 定跡を作るコマンド("makebook")を有効にする。
@@ -285,6 +287,7 @@
 #define ENGINE_NAME "YaneuraOu 2017 Early"
 #define EVAL_KPPT
 #define USE_EVAL_HASH
+#define USE_TT_PV
 #define USE_SEE
 #define USE_MOVE_PICKER_2017Q2
 #define USE_MATE_1PLY

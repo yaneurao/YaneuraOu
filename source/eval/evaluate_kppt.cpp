@@ -662,10 +662,10 @@ namespace Eval
 					// こうすることで前nodeのpiece_listを持たなくて済む。
 
 					const int listIndex_cap = dp.pieceNo[1];
-					diff.p[0] += do_a_black(pos, dp.pieceNow[1]);
-					list0[listIndex_cap] = dp.piecePrevious[1].fb;
-					diff.p[0] -= do_a_black(pos, dp.piecePrevious[1]);
-					list0[listIndex_cap] = dp.pieceNow[1].fb;
+					diff.p[0] += do_a_black(pos, dp.changed_piece[1].new_piece);
+					list0[listIndex_cap] = dp.changed_piece[1].old_piece.fb;
+					diff.p[0] -= do_a_black(pos, dp.changed_piece[1].old_piece);
+					list0[listIndex_cap] = dp.changed_piece[1].new_piece.fb;
 				}
 
 			} else {
@@ -745,10 +745,10 @@ namespace Eval
 
 				if (moved_piece_num == 2) {
 					const int listIndex_cap = dp.pieceNo[1];
-					diff.p[1] += do_a_white(pos, dp.pieceNow[1]);
-					list1[listIndex_cap] = dp.piecePrevious[1].fw;
-					diff.p[1] -= do_a_white(pos, dp.piecePrevious[1]);
-					list1[listIndex_cap] = dp.pieceNow[1].fw;
+					diff.p[1] += do_a_white(pos, dp.changed_piece[1].new_piece);
+					list1[listIndex_cap] = dp.changed_piece[1].old_piece.fw;
+					diff.p[1] -= do_a_white(pos, dp.changed_piece[1].old_piece);
+					list1[listIndex_cap] = dp.changed_piece[1].new_piece.fw;
 				}
 			}
 
@@ -762,13 +762,13 @@ namespace Eval
 
 			const int listIndex = dp.pieceNo[0];
 
-			auto diff = do_a_pc(pos, dp.pieceNow[0]);
+			auto diff = do_a_pc(pos, dp.changed_piece[0].new_piece);
 			if (moved_piece_num == 1) {
 
 				// 動いた駒が1つ。
-				list0[listIndex] = dp.piecePrevious[0].fb;
-				list1[listIndex] = dp.piecePrevious[0].fw;
-				diff -= do_a_pc(pos, dp.piecePrevious[0]);
+				list0[listIndex] = dp.changed_piece[0].old_piece.fb;
+				list1[listIndex] = dp.changed_piece[0].old_piece.fw;
+				diff -= do_a_pc(pos, dp.changed_piece[0].old_piece);
 
 			} else {
 
@@ -777,27 +777,27 @@ namespace Eval
 				auto sq_bk = pos.king_square(BLACK);
 				auto sq_wk = pos.king_square(WHITE);
 
-				diff += do_a_pc(pos, dp.pieceNow[1]);
-				diff.p[0] -= kpp[sq_bk][dp.pieceNow[0].fb][dp.pieceNow[1].fb];
-				diff.p[1] -= kpp[Inv(sq_wk)][dp.pieceNow[0].fw][dp.pieceNow[1].fw];
+				diff += do_a_pc(pos, dp.changed_piece[1].new_piece);
+				diff.p[0] -= kpp[sq_bk][dp.changed_piece[0].new_piece.fb][dp.changed_piece[1].new_piece.fb];
+				diff.p[1] -= kpp[Inv(sq_wk)][dp.changed_piece[0].new_piece.fw][dp.changed_piece[1].new_piece.fw];
 
 				const PieceNo listIndex_cap = dp.pieceNo[1];
-				list0[listIndex_cap] = dp.piecePrevious[1].fb;
-				list1[listIndex_cap] = dp.piecePrevious[1].fw;
+				list0[listIndex_cap] = dp.changed_piece[1].old_piece.fb;
+				list1[listIndex_cap] = dp.changed_piece[1].old_piece.fw;
 
-				list0[listIndex] = dp.piecePrevious[0].fb;
-				list1[listIndex] = dp.piecePrevious[0].fw;
-				diff -= do_a_pc(pos, dp.piecePrevious[0]);
-				diff -= do_a_pc(pos, dp.piecePrevious[1]);
+				list0[listIndex] = dp.changed_piece[0].old_piece.fb;
+				list1[listIndex] = dp.changed_piece[0].old_piece.fw;
+				diff -= do_a_pc(pos, dp.changed_piece[0].old_piece);
+				diff -= do_a_pc(pos, dp.changed_piece[1].old_piece);
 
-				diff.p[0] += kpp[sq_bk][dp.piecePrevious[0].fb][dp.piecePrevious[1].fb];
-				diff.p[1] += kpp[Inv(sq_wk)][dp.piecePrevious[0].fw][dp.piecePrevious[1].fw];
-				list0[listIndex_cap] = dp.pieceNow[1].fb;
-				list1[listIndex_cap] = dp.pieceNow[1].fw;
+				diff.p[0] += kpp[sq_bk][dp.changed_piece[0].old_piece.fb][dp.changed_piece[1].old_piece.fb];
+				diff.p[1] += kpp[Inv(sq_wk)][dp.changed_piece[0].old_piece.fw][dp.changed_piece[1].old_piece.fw];
+				list0[listIndex_cap] = dp.changed_piece[1].new_piece.fb;
+				list1[listIndex_cap] = dp.changed_piece[1].new_piece.fw;
 			}
 
-			list0[listIndex] = dp.pieceNow[0].fb;
-			list1[listIndex] = dp.pieceNow[0].fw;
+			list0[listIndex] = dp.changed_piece[0].new_piece.fb;
+			list1[listIndex] = dp.changed_piece[0].new_piece.fw;
 
 			// 前nodeからの駒割りの増分を加算。
 			diff.p[2][0] += (now->materialValue - prev->materialValue) * FV_SCALE;

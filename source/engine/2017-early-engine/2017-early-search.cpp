@@ -2475,7 +2475,7 @@ void Thread::search()
 				{
 					// 最後に出力した時刻を記録しておく。
 					lastInfoTime = Time.elapsed();
-					sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
+					sync_cout << USI::pv(rootPos, rootDepth, alpha, beta , Limits.bench) << sync_endl;
 				}
 
 				// aspiration窓の範囲外
@@ -2532,7 +2532,7 @@ void Thread::search()
 					 && (rootDepth < 3 || lastInfoTime + pv_interval < Time.elapsed())))
 				{
 					lastInfoTime = Time.elapsed();
-					sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
+					sync_cout << USI::pv(rootPos, rootDepth, alpha, beta , Limits.bench) << sync_endl;
 				}
 			}
 
@@ -2931,7 +2931,7 @@ ID_END:;
 	// ベストな指し手として返すスレッドがmain threadではないのなら、その読み筋は出力していなかったはずなので
 	// ここで読み筋を出力しておく。
 	if (bestThread != this && !Limits.silent)
-		sync_cout << USI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
+		sync_cout << USI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE, Limits.bench) << sync_endl;
 
 	// ---------------------
 	// 指し手をGUIに返す

@@ -234,6 +234,14 @@ namespace Eval {
   // BonaPiece、f側だけを表示する。
   inline std::ostream& operator<<(std::ostream& os, ExtBonaPiece bp) { os << bp.fb; return os; }
 
+  // 駒が今回の指し手によってどこからどこに移動したのかの情報。
+  // 駒はExtBonaPiece表現であるとする。
+  struct ChangedBonaPiece
+  {
+	  ExtBonaPiece old_piece;
+	  ExtBonaPiece new_piece;
+  };
+
   // KPPテーブルの盤上の駒pcに対応するBonaPieceを求めるための配列。
   // 例)
   // BonaPiece fb = kpp_board_index[pc].fb + sq; // 先手から見たsqにあるpcに対応するBonaPiece

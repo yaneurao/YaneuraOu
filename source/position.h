@@ -24,17 +24,17 @@ extern std::string SFEN_HIRATE;
 // 前の局面から移動した駒番号を管理するための構造体
 struct DirtyPiece
 {
+	// その駒番号の駒が何から何に変わったのか
+	Eval::ChangedBonaPiece changed_piece[2];
+
+	// dirtyになった駒番号
+	PieceNo pieceNo[2];
+
 	// dirtyになった個数。
 	// null moveだと0ということもありうる。
 	// 動く駒と取られる駒とで最大で2つ。
 	int dirty_num;
 
-	// dirtyになった駒番号
-	PieceNo pieceNo[2];
-
-	// その駒番号の駒が何から何に変わったのか
-	Eval::ExtBonaPiece piecePrevious[2];
-	Eval::ExtBonaPiece pieceNow[2];
 };
 #endif
 

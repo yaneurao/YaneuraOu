@@ -6,10 +6,27 @@
 	- 評価関数の差分計算見直す
 - 評価関数の形を変える
 
+
 ## 2017/05/06
 
 ・benchコマンド用の局面1つ追加。> startpos moves 2g2f 3c3d 2f2e 2b3c 7g7f 4c4d 3i4h 8c8d
-	- 1.1Mnpsぐらい出る。魔女とほぼ同じ。
+	- 1.1Mnpsぐらい出る。VC++でコンパイルされた魔女とほぼ同じ。
+
+・ChangedBonaPieceを用意してデータ構造変更。
+Total time (ms) : 33403
+Nodes searched  : 26014961
+Nodes/second    : 778821
+
+・USE_TT_PV、デフォルトでオンに変更する。検討モードが使いにくすぎ。
+	- https://twitter.com/mizumon_/status/860566849007763456
+
+	- TT.probe()でgenerationが新しくなるので探索node数が変わってしまう。
+	またbench時のこのタイミングが異なるのでbenchごとにnode数が変わってしまう…。不便だなぁ…。
+	→　bench対策した。
+
+・思考エンジン名にevalフォルダ名を含めないとevalフォルダを変更したときにきちんと選ばれているのかわかりづらい
+	evalのchecksumは出力しているのでそれを確認すればいいか…。うーん？
+	checksumごとに代表的なソフト名(評価関数名)を出力するだとか？考えとく。
 
 
 ## 2017/05/05

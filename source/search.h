@@ -60,7 +60,7 @@ namespace Search {
 		LimitsType() {
 			nodes = time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = byoyomi[WHITE] = byoyomi[BLACK] = npmsec
 				= depth = movetime = mate = infinite = ponder = rtime = 0;
-			silent = false;
+			silent = bench = false;
 			max_game_ply = 100000;
 			ponder_mode = false;
 			enteringKingRule = EKR_NONE;
@@ -121,7 +121,11 @@ namespace Search {
 		EnteringKingRule enteringKingRule;
 
 		// 画面に出力しないサイレントモード(プロセス内での連続自己対戦のとき用)
+		// このときPVを出力しない。
 		bool silent;
+
+		// ベンチマークモード(このときPVの出力時に置換表にアクセスしない)
+		bool bench;
 
 		// 試合開始後、ponderが一度でも送られてきたか
 		bool ponder_mode;
@@ -156,6 +160,7 @@ namespace Search {
 		Move excludedMove;		// singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手
 		Move killers[2];		// killer move
 		Value staticEval;		// 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
+
 #if defined (PER_STACK_HISTORY)
 
 #if defined (USE_MOVE_PICKER_2017Q2)
@@ -165,10 +170,15 @@ namespace Search {
 #endif
 
 #endif
-#if defined (YANEURAOU_2016_LATE_ENGINE)
+
+#if defined(YANEURAOU_NANO_PLUS_ENGINE) || defined(YANEURAOU_MINI_ENGINE) || defined(YANEURAOU_CLASSIC_ENGINE) \
+	 || defined(YANEURAOU_CLASSIC_TCE_ENGINE) || defined(YANEURAOU_2016_MID_ENGINE) || defined(YANEURAOU_2016_LATE_ENGINE)
+
 		bool skipEarlyPruning;	// 指し手生成前に行なう枝刈りを省略するか。(NULL MOVEの直後など)
 #endif
+
 		int moveCount;          // このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
+
 #if defined (USE_MOVE_PICKER_2016Q2) || defined (USE_MOVE_PICKER_2016Q3) || defined(USE_MOVE_PICKER_2017Q2)
 		CounterMoveStats* counterMoves; // MovePickerから使いたいのでここにCounterMoveStatsを格納することになった。
 #endif

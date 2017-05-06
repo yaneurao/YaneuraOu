@@ -1031,13 +1031,13 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// KPPの差分計算のために移動した駒をStateInfoに記録しておく。
 		dp.dirty_num = 1; // 動いた駒は1個
 		dp.pieceNo[0] = piece_no;
-		dp.piecePrevious[0] = evalList.bona_piece(piece_no);
+		dp.changed_piece[0].old_piece = evalList.bona_piece(piece_no);
 #endif
 
 		put_piece(to, pc, piece_no);
 
 #ifdef USE_EVAL_DIFF
-		dp.pieceNow[0] = evalList.bona_piece(piece_no);
+		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no);
 #endif
 
 		// 駒打ちなので手駒が減る
@@ -1118,7 +1118,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #ifdef USE_EVAL_DIFF
 			dp.dirty_num = 2; // 動いた駒は2個
 			dp.pieceNo[1] = piece_no;
-			dp.piecePrevious[1] = evalList.bona_piece(piece_no);
+			dp.changed_piece[1].old_piece = evalList.bona_piece(piece_no);
 #endif
 
 #ifndef EVAL_NO_USE
@@ -1126,7 +1126,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #endif
 
 #ifdef USE_EVAL_DIFF
-			dp.pieceNow[1] = evalList.bona_piece(piece_no);
+			dp.changed_piece[1].new_piece = evalList.bona_piece(piece_no);
 #endif
 
 			// 駒取りなら現在の手番側の駒が増える。
@@ -1163,7 +1163,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 #ifdef USE_EVAL_DIFF
 		dp.pieceNo[0] = piece_no2;
-		dp.piecePrevious[0] = evalList.bona_piece(piece_no2);
+		dp.changed_piece[0].old_piece = evalList.bona_piece(piece_no2);
 #endif
 
 		// 移動元の升からの駒の除去
@@ -1172,7 +1172,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		put_piece(to, moved_after_pc, piece_no2);
 
 #ifdef USE_EVAL_DIFF
-		dp.pieceNow[0] = evalList.bona_piece(piece_no2);
+		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no2);
 #endif
 
 		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。

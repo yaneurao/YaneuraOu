@@ -301,8 +301,8 @@ namespace Eval
           if (k == 2)
           {
             // この駒についての差分計算をしないといけない。
-            k1 = dp.piecePrevious[1].fw;
-            k3 = dp.pieceNow[1].fw;
+            k1 = dp.changed_piece[1].old_piece.fw;
+            k3 = dp.changed_piece[1].new_piece.fw;
 
             dirty = dp.pieceNo[1];
             // BKPPはすでに計算済みなのでWKPPのみ。
@@ -340,8 +340,8 @@ namespace Eval
 
           if (k == 2)
           {
-            k0 = dp.piecePrevious[1].fb;
-            k2 = dp.pieceNow[1].fb;
+            k0 = dp.changed_piece[1].old_piece.fb;
+            k2 = dp.changed_piece[1].new_piece.fb;
 
             dirty = dp.pieceNo[1];
             for (i = 0; i < dirty; ++i)
@@ -373,10 +373,10 @@ namespace Eval
         {
           // 移動した駒が一つ。
 
-          k0 = dp.piecePrevious[0].fb;
-          k1 = dp.piecePrevious[0].fw;
-          k2 = dp.pieceNow[0].fb;
-          k3 = dp.pieceNow[0].fw;
+          k0 = dp.changed_piece[0].old_piece.fb;
+          k1 = dp.changed_piece[0].old_piece.fw;
+          k2 = dp.changed_piece[0].new_piece.fb;
+          k3 = dp.changed_piece[0].new_piece.fw;
 
           // KKP差分
           sumKKP -= Eval::kkp[sq_bk0][sq_wk1][k0];
@@ -396,16 +396,16 @@ namespace Eval
           // PIECE_NO_ZERO <= dirty < dirty2 < PIECE_NO_KING
           // にしておく。
 
-          k0 = dp.piecePrevious[0].fb;
-          k1 = dp.piecePrevious[0].fw;
-          k2 = dp.pieceNow[0].fb;
-          k3 = dp.pieceNow[0].fw;
+          k0 = dp.changed_piece[0].old_piece.fb;
+          k1 = dp.changed_piece[0].old_piece.fw;
+          k2 = dp.changed_piece[0].new_piece.fb;
+          k3 = dp.changed_piece[0].new_piece.fw;
 
           int m0, m1, m2, m3;
-          m0 = dp.piecePrevious[1].fb;
-          m1 = dp.piecePrevious[1].fw;
-          m2 = dp.pieceNow[1].fb;
-          m3 = dp.pieceNow[1].fw;
+          m0 = dp.changed_piece[1].old_piece.fb;
+          m1 = dp.changed_piece[1].old_piece.fw;
+          m2 = dp.changed_piece[1].new_piece.fb;
+          m3 = dp.changed_piece[1].new_piece.fw;
 
           // KKP差分
           sumKKP -= Eval::kkp[sq_bk0][sq_wk1][k0];

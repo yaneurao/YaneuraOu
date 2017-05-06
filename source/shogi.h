@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "4.45"
+#define ENGINE_VERSION "4.46"
 
 // --------------------
 // コンパイル時の設定
@@ -34,7 +34,7 @@
 //#define YANEURAOU_2016_MID_ENGINE        // やねうら王2016(MID)    (完成2016/08/18)
 //#define YANEURAOU_2016_LATE_ENGINE       // やねうら王2016(LATE)   (完成2016/10/07)
 #define YANEURAOU_2017_EARLY_ENGINE      // やねうら王2017(EARLY)  (完成2017/05/05)
-//#define YANEURAOU_2017_LATE_ENGINE      // やねうら王2017(LATE)  (開発中2017/05/05～)
+//#define YANEURAOU_2017_LATE_ENGINE      // やねうら王2017(LATE)  (開発中2017/05/06～)
 //#define CHECK_SHOGI_ENGINE	           // やねうら王 王手将棋    (完成2016/11/30)
 //#define MUST_CAPTURE_SHOGI_ENGINE        // やねうら王 取る一手将棋(完成2016/12/04)
 //#define RANDOM_PLAYER_ENGINE             // ランダムプレイヤー
@@ -921,8 +921,9 @@ namespace USI {
 	void init(OptionsMap&);
 
 	// pv(読み筋)をUSIプロトコルに基いて出力する。
-	// iteration_depth = 反復深化のiteration深さ。
-	std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta);
+	// iteration_depth : 反復深化のiteration深さ。
+	// bench : ベンチマークを取るモード。PVの出力のために置換表を漁らない。
+	std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta,bool bench=false);
 
 	// USIプロトコルで、idxの順番でoptionを出力する。
 	std::ostream& operator<<(std::ostream& os, const OptionsMap& om);

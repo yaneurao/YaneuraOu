@@ -114,7 +114,7 @@ namespace USI
 		return s.str();
 	}
 
-	std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta)
+	std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta , bool bench)
 	{
 		std::stringstream ss;
 		int elapsed = Time.elapsed() + 1;
@@ -168,6 +168,14 @@ namespace USI
 
 #ifdef USE_TT_PV
 			// 置換表からPVをかき集めてくるモード
+			// probe()するとTTEntryのgenerationが変わるので探索に影響する。
+			// benchコマンド時、これはまずいのでbenchコマンド時にはこのモードをオフにする。
+			if (bench)
+			{
+				for (Move m : rootMoves[i].pv)
+					ss << " " << m;
+			}
+			else
 			{
 				auto pos_ = const_cast<Position*>(&pos);
 				Move moves[MAX_PLY + 1];
