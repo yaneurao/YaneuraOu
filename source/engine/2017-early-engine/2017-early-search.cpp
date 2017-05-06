@@ -2328,7 +2328,7 @@ void Thread::search()
 	// PVの出力間隔[ms]
 	// go infiniteはShogiGUIなどの検討モードで動作させていると考えられるので
 	// この場合は、PVを毎回出力しないと読み筋が出力されないことがある。
-	int pv_interval = Limits.infinite ? 0 : Options["PvInterval"];
+	int pv_interval = Limits.infinite ? 0 : (int)Options["PvInterval"];
 
 	// ---------------------
 	//      variables

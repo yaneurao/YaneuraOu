@@ -1253,7 +1253,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	//ASSERT_LV5(st->materialValue == Eval::material(*this));
 #endif
 
-  // 相手番に変更する。
+	// 相手番に変更する。
 	sideToMove = ~Us;
 
 	// 更新されたhash keyをStateInfoに書き戻す。
