@@ -170,7 +170,7 @@ namespace USI
 			// 置換表からPVをかき集めてくるモード
 			// probe()するとTTEntryのgenerationが変わるので探索に影響する。
 			// benchコマンド時、これはまずいのでbenchコマンド時にはこのモードをオフにする。
-			if (bench)
+			if (bench || true)
 			{
 				for (Move m : rootMoves[i].pv)
 					ss << " " << m;
@@ -192,8 +192,9 @@ namespace USI
 					if (found)
 					{
 						// 置換表にはpsudo_legalではない指し手が含まれるのでそれを弾く。
+						// legal()の判定もここでしておく。
 						Move m = pos.move16_to_move(tte->move());
-						if (pos.pseudo_legal(m))
+						if (pos.pseudo_legal(m) && pos.legal(m))
 							moves[ply] = m;
 						else
 							moves[ply] = MOVE_NONE;

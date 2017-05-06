@@ -34,7 +34,7 @@ namespace {
 	  // 駒種ごとのbitboardのうち、攻撃駒の候補を調べる
   //:      Bitboard b = stmAttackers & bb[Pt];
 
-	  // 歩、香、桂、銀、金、角、飛、馬、龍…の順で取るのに使う駒を調べる。
+	  // 歩、香、桂、銀、金(金相当の駒)、角、飛、馬、龍…の順で取るのに使う駒を調べる。
 
 	  Bitboard b;
 	  b = stmAttackers &  pos.pieces(PAWN);   if (b) goto found;

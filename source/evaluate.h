@@ -255,8 +255,8 @@ namespace Eval {
   struct EvalList {
 
     // 評価関数(FV38型)で用いる駒番号のリスト
-    inline BonaPiece* piece_list_fb() const { return const_cast<BonaPiece*>(pieceListFb); }
-    inline BonaPiece* piece_list_fw() const { return const_cast<BonaPiece*>(pieceListFw); }
+	BonaPiece* piece_list_fb() const { return const_cast<BonaPiece*>(pieceListFb); }
+    BonaPiece* piece_list_fw() const { return const_cast<BonaPiece*>(pieceListFw); }
 
     // 指定されたpiece_noの駒をExtBonaPiece型に変換して返す。
     ExtBonaPiece bona_piece(PieceNo piece_no) const

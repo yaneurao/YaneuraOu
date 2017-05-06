@@ -2324,8 +2324,11 @@ void Thread::search()
 	// 将棋所のコンソールが詰まるので出力を抑制するために、前回の出力時刻を
 	// 記録しておき、そこから一定時間経過するごとに出力するという方式を採る。
 	int lastInfoTime = 0;
+
 	// PVの出力間隔[ms]
-	int pv_interval = Options["PvInterval"];
+	// go infiniteはShogiGUIなどの検討モードで動作させていると考えられるので
+	// この場合は、PVを毎回出力しないと読み筋が出力されないことがある。
+	int pv_interval = Limits.infinite ? 0 : Options["PvInterval"];
 
 	// ---------------------
 	//      variables
@@ -2470,7 +2473,8 @@ void Thread::search()
 					// silent modeなら出力を抑制する。
 					&& !Limits.silent
 					// 将棋所のコンソールが詰まるのを予防するために出力を少し抑制する。
-					&& (rootDepth < 3 || lastInfoTime + pv_interval < Time.elapsed())
+					// また、go infiniteのときは、検討モードから使用しているわけで、PVは必ず出力する。
+					&& (rootDepth < 3 || lastInfoTime + pv_interval <= Time.elapsed())
 					)
 				{
 					// 最後に出力した時刻を記録しておく。
@@ -2529,7 +2533,7 @@ void Thread::search()
 					// MultiPVのときは最後の候補手を求めた直後とする。
 					// ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
 					((PVIdx + 1 == multiPV || Time.elapsed() > 3000)
-					 && (rootDepth < 3 || lastInfoTime + pv_interval < Time.elapsed())))
+					 && (rootDepth < 3 || lastInfoTime + pv_interval <= Time.elapsed() )))
 				{
 					lastInfoTime = Time.elapsed();
 					sync_cout << USI::pv(rootPos, rootDepth, alpha, beta , Limits.bench) << sync_endl;

@@ -51,10 +51,10 @@ set option name XXX value ...で設定できるoption
 
 	BookMoves		: 定跡を用いる手数(0=未使用)
 
-	// やねうら王2016 Mid/Late時
+	// やねうら王2016 Mid/Late/2017Early時
 
-	PvInterval      : PVの出力を抑制する。前回出力時間から、この時間(単位は[ms])経過するまでは
-					次のPVを出力しない。
+	PvInterval      : PVの出力を抑制する。前回出力時間から、この時間(単位は[ms])経過するまでは次のPVを出力しない。
+					ただし2017Early以降、go infiniteではこの設定を無視する。(ShogiGUIの検討モードのため)
 
 	EvalShare       : 評価関数を共有メモリに展開する。詳しくは解説.txtを参照のこと。
 		

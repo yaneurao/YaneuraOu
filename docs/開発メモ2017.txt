@@ -2,9 +2,30 @@
 
 - 自己対戦フレームワーク、改良。
 - 高速化
-	- Positionクラスのリファクタリング
 	- 評価関数の差分計算見直す
 - 評価関数の形を変える
+
+
+## 2017/05/07
+
+・ShogiGUIの検討モードできちんと読み筋が出力されるように修正。go infiniteのときはPvの出力を減らさないほうが良いのでは…。
+> position startpos moves 2g2f 3c3d 2f2e 2b3c 7g7f 3a2b 3i4h 4a3b 3g3f 8c8d 6i7h 8d8e 4h3g 8e8f 8g8f 8b8f P*8g 8f8e 3g4f 7a6b 5i6i 7c7d 5g5f 3c8h+ 7i8h 2b3c 8h7g 6c6d 7g6f 6b6c 5f5e 6a5b B*5f 8a7c 8i7g 8e8a 3f3e 3d3e 4f3e 7d7e 6f7e 7c6e 7g6e 6d6e 3e4f P*7d 7e8f 5a6b 5f4e 4c4d 4e2g 4d4e 2g4e 3c4d 4e1h P*4e N*5f 3b4c 5f4d 4c4d 4f5g 5c5d 5e5d B*5e S*5c 5b5c 5d5c+ 6b5c 4g4f P*5f 5g5f 5e4f G*3g 4f5g+ 3g4g 5g4g 5f4g N*5g 6i7i 5g4i+ 2i3g 2a3c P*3d 4d3d 2e2d
+
+あー、わかった。
+	lastInfoTime + pv_interval < Time.elapsed()
+これ、
+	lastInfoTime + pv_interval <= Time.elapsed()
+こう書かないと連続してPV出力できないということでは…。
+
+
+- Positionクラスのリファクタリング
+	- AperyのsetPiece()方式にしたほうが良いのでは…。
+	- PieceTypeBitboardを廃止してGoldのBitobard追加したほうが良いのでは…。
+	- 利きもがらっと変わるし、大改造になるな…。
+	- ソースコードは少しシンプルになるが速度的にはほぼ変わらないか、むしろ遅くなるような気がしてきた。ツライ。
+	- まずは、occupied[COLOR_ALL]の更新だけ分離する。
+	- あとで大幅にいじる。変更後に探索ノードが変わるので自己対戦のためのが必要だから、この修正は落ち着いてから。
+
 
 
 ## 2017/05/06
