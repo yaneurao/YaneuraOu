@@ -284,7 +284,7 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
 	FORCE_INLINE ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target)
 	{
 		// 角と飛に対して(馬と龍は除く)
-		auto pieces = (pos.pieces(Us, BISHOP) | pos.pieces(Us, ROOK)) & ~pos.pieces(Us, HDK);
+		auto pieces = pos.pieces(BISHOP,ROOK) & ~pos.pieces(HDK) & pos.pieces(Us);
 		auto occ = pos.pieces();
 
 		while (pieces)
@@ -305,7 +305,7 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
 	FORCE_INLINE ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target)
 	{
 		// 金相当の駒・馬・龍・玉に対して
-		auto pieces = pos.pieces(Us, HDK) | pos.pieces(Us, GOLD);
+		auto pieces = pos.pieces(GOLD,HDK) & pos.pieces(Us);
 		auto occ = pos.pieces();
 
 		while (pieces)
@@ -325,7 +325,7 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
 	FORCE_INLINE ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target)
 	{
 		// 金相当の駒・馬・龍に対して
-		auto pieces = (pos.pieces(Us, HDK) | pos.pieces(Us, GOLD)) ^ pos.king_square(Us);
+		auto pieces = (pos.pieces(HDK, GOLD) ^ pos.king_square(Us)) & pos.pieces(Us);
 		auto occ = pos.pieces();
 		Square to;
 
@@ -597,18 +597,18 @@ ExtMove* generate_general(const Position& pos, ExtMove* mlist, Square recapSq = 
 
 	// 歩以外の駒の移動先
 	const Bitboard target =
-		(GenType == NON_CAPTURES) ? pos.empties() : // 捕獲しない指し手 = 移動先の升は駒のない升
-		(GenType == CAPTURES) ? pos.pieces(~Us) :   // 捕獲する指し手 = 移動先の升は敵駒のある升
+		(GenType == NON_CAPTURES)      ? pos.empties()      : // 捕獲しない指し手 = 移動先の升は駒のない升
+		(GenType == CAPTURES)          ? pos.pieces(~Us)    : // 捕獲する指し手 = 移動先の升は敵駒のある升
 		(GenType == NON_CAPTURES_PRO_MINUS) ? pos.empties() : // 捕獲しない指し手 - 歩の成る指し手 = 移動先の升は駒のない升 - 敵陣(歩のときのみ)
-		(GenType == CAPTURES_PRO_PLUS) ? pos.pieces(~Us) : // 捕獲 + 歩の成る指し手 = 移動先の升は敵駒のある升 + 敵陣(歩のときのみ)
-		(GenType == NON_EVASIONS) ? ~pos.pieces(Us) : // すべて = 移動先の升は自駒のない升
-		(GenType == RECAPTURES) ? Bitboard(recapSq) :  // リキャプチャー用の升(直前で相手の駒が移動したわけだからここには移動できるはず)
+		(GenType == CAPTURES_PRO_PLUS) ? pos.pieces(~Us)    : // 捕獲 + 歩の成る指し手 = 移動先の升は敵駒のある升 + 敵陣(歩のときのみ)
+		(GenType == NON_EVASIONS)      ? ~pos.pieces(Us)    : // すべて = 移動先の升は自駒のない升
+		(GenType == RECAPTURES)        ? Bitboard(recapSq)  : // リキャプチャー用の升(直前で相手の駒が移動したわけだからここには移動できるはず)
 		ALL_BB; // error
 
 				// 歩の移動先(↑のtargetと違う部分のみをオーバーライド)
 	const Bitboard targetPawn =
 		(GenType == NON_CAPTURES_PRO_MINUS) ? (pos.empties() & ~enemy_field(Us)) : // 駒を取らない指し手 かつ、歩の成る指し手を引いたもの
-		(GenType == CAPTURES_PRO_PLUS) ? (pos.pieces(~Us) | (~pos.pieces(Us) & enemy_field(Us))) : // 歩の場合は敵陣での成りもこれに含める
+		(GenType == CAPTURES_PRO_PLUS)      ? (pos.pieces(~Us) | (~pos.pieces(Us) & enemy_field(Us))) : // 歩の場合は敵陣での成りもこれに含める
 		target;
 
 	// 各駒による移動の指し手の生成
@@ -647,20 +647,20 @@ template <Color Us, bool All> struct make_move_target_general {
 		auto effect = effects_from(pc, from, pos.pieces());
 		switch (type_of(pc))
 		{
-		case PAWN: mlist = make_move_target<PAWN, Us, All>()(pos, from, effect & target, mlist); break;
-		case LANCE: mlist = make_move_target<LANCE, Us, All>()(pos, from, effect & target, mlist); break;
-		case KNIGHT: mlist = make_move_target<KNIGHT, Us, All>()(pos, from, effect & target, mlist); break;
-		case SILVER: mlist = make_move_target<SILVER, Us, All>()(pos, from, effect & target, mlist); break;
-		case GOLD: mlist = make_move_target<GOLD, Us, All>()(pos, from, effect & target, mlist); break;
-		case BISHOP: mlist = make_move_target<BISHOP, Us, All>()(pos, from, effect & target, mlist); break;
-		case ROOK: mlist = make_move_target<ROOK, Us, All>()(pos, from, effect & target, mlist); break;
-		case KING: mlist = make_move_target<KING, Us, All>()(pos, from, effect & target, mlist); break;
-		case PRO_PAWN: mlist = make_move_target<PRO_PAWN, Us, All>()(pos, from, effect & target, mlist); break;
-		case PRO_LANCE: mlist = make_move_target<PRO_LANCE, Us, All>()(pos, from, effect & target, mlist); break;
+		case PAWN      : mlist = make_move_target<PAWN, Us, All>()(pos, from, effect & target, mlist); break;
+		case LANCE     : mlist = make_move_target<LANCE, Us, All>()(pos, from, effect & target, mlist); break;
+		case KNIGHT    : mlist = make_move_target<KNIGHT, Us, All>()(pos, from, effect & target, mlist); break;
+		case SILVER    : mlist = make_move_target<SILVER, Us, All>()(pos, from, effect & target, mlist); break;
+		case GOLD      : mlist = make_move_target<GOLD, Us, All>()(pos, from, effect & target, mlist); break;
+		case BISHOP    : mlist = make_move_target<BISHOP, Us, All>()(pos, from, effect & target, mlist); break;
+		case ROOK      : mlist = make_move_target<ROOK, Us, All>()(pos, from, effect & target, mlist); break;
+		case KING      : mlist = make_move_target<KING, Us, All>()(pos, from, effect & target, mlist); break;
+		case PRO_PAWN  : mlist = make_move_target<PRO_PAWN, Us, All>()(pos, from, effect & target, mlist); break;
+		case PRO_LANCE : mlist = make_move_target<PRO_LANCE, Us, All>()(pos, from, effect & target, mlist); break;
 		case PRO_KNIGHT: mlist = make_move_target<PRO_KNIGHT, Us, All>()(pos, from, effect & target, mlist); break;
 		case PRO_SILVER: mlist = make_move_target<PRO_SILVER, Us, All>()(pos, from, effect & target, mlist); break;
-		case HORSE: mlist = make_move_target<HORSE, Us, All>()(pos, from, effect & target, mlist); break;
-		case DRAGON: mlist = make_move_target<DRAGON, Us, All>()(pos, from, effect & target, mlist); break;
+		case HORSE     : mlist = make_move_target<HORSE, Us, All>()(pos, from, effect & target, mlist); break;
+		case DRAGON    : mlist = make_move_target<DRAGON, Us, All>()(pos, from, effect & target, mlist); break;
 		default: UNREACHABLE;
 		}
 		return mlist;
@@ -749,21 +749,21 @@ ExtMove* make_move_check(const Position& pos, Piece pc, Square from, Square ksq,
 	switch (type_of(pc))
 	{
 		// -- 成れる駒
-	case PAWN:   GEN_MOVE_NONPRO_CHECK(PAWN, pawnEffect, goldEffect); break;
-	case LANCE:  GEN_MOVE_LANCE_CHECK(LANCE, lanceEffect, goldEffect); break;
-	case KNIGHT: GEN_MOVE_NONPRO_CHECK(KNIGHT, knightEffect, goldEffect); break;
-	case SILVER: GEN_MOVE_NONPRO_CHECK(SILVER, silverEffect, goldEffect); break;
-	case BISHOP: GEN_MOVE_NONPRO_PRO_CHECK_BR(BISHOP, bishopEffect, horseEffect); break;
-	case ROOK:   GEN_MOVE_NONPRO_PRO_CHECK_BR(ROOK, rookEffect, dragonEffect); break;
+	case PAWN      : GEN_MOVE_NONPRO_CHECK(PAWN, pawnEffect, goldEffect); break;
+	case LANCE     : GEN_MOVE_LANCE_CHECK(LANCE, lanceEffect, goldEffect); break;
+	case KNIGHT    : GEN_MOVE_NONPRO_CHECK(KNIGHT, knightEffect, goldEffect); break;
+	case SILVER    : GEN_MOVE_NONPRO_CHECK(SILVER, silverEffect, goldEffect); break;
+	case BISHOP    : GEN_MOVE_NONPRO_PRO_CHECK_BR(BISHOP, bishopEffect, horseEffect); break;
+	case ROOK      : GEN_MOVE_NONPRO_PRO_CHECK_BR(ROOK, rookEffect, dragonEffect); break;
 
 		// -- 成れない駒
-	case PRO_PAWN: GEN_MOVE_GOLD_CHECK(PRO_PAWN, goldEffect); break;
-	case PRO_LANCE: GEN_MOVE_GOLD_CHECK(PRO_LANCE, goldEffect); break;
+	case PRO_PAWN  : GEN_MOVE_GOLD_CHECK(PRO_PAWN, goldEffect); break;
+	case PRO_LANCE : GEN_MOVE_GOLD_CHECK(PRO_LANCE, goldEffect); break;
 	case PRO_KNIGHT: GEN_MOVE_GOLD_CHECK(PRO_KNIGHT, goldEffect); break;
 	case PRO_SILVER: GEN_MOVE_GOLD_CHECK(PRO_SILVER, goldEffect); break;
-	case GOLD: GEN_MOVE_GOLD_CHECK(GOLD, goldEffect); break;
-	case HORSE: GEN_MOVE_HD_CHECK(HORSE, horseEffect); break;
-	case DRAGON: GEN_MOVE_HD_CHECK(DRAGON, dragonEffect); break;
+	case GOLD      : GEN_MOVE_GOLD_CHECK(GOLD, goldEffect); break;
+	case HORSE     : GEN_MOVE_HD_CHECK(HORSE, horseEffect); break;
+	case DRAGON    : GEN_MOVE_HD_CHECK(DRAGON, dragonEffect); break;
 
 	default:UNREACHABLE;
 	}
@@ -827,15 +827,16 @@ ExtMove* generate_checks(const Position& pos, ExtMove* mlist)
 
 	// 以下の方法だとxとして飛(龍)は100%含まれる。角・馬は60%ぐらいの確率で含まれる。事前条件でもう少し省ければ良いのだが…。
 	const Bitboard x =
-		(pos.pieces(Us, PAWN) & check_candidate_bb(Us, PAWN, themKing)) |
-		(pos.pieces(Us, LANCE) & check_candidate_bb(Us, LANCE, themKing)) |
-		(pos.pieces(Us, KNIGHT) & check_candidate_bb(Us, KNIGHT, themKing)) |
-		(pos.pieces(Us, SILVER) & check_candidate_bb(Us, SILVER, themKing)) |
-		(pos.pieces(Us, GOLD) & check_candidate_bb(Us, GOLD, themKing)) |
-		(pos.pieces(Us, BISHOP) & check_candidate_bb(Us, BISHOP, themKing)) |
-		(pos.pieces(Us, ROOK)) | // ROOK,DRAGONは無条件全域
-		(pos.pieces(Us, HDK) & pos.pieces(Us, BISHOP) & check_candidate_bb(Us, ROOK, themKing)); // check_candidate_bbにはROOKと書いてるけど、HORSE
-
+		(
+			(pos.pieces(PAWN)   & check_candidate_bb(Us, PAWN, themKing)) |
+			(pos.pieces(LANCE)  & check_candidate_bb(Us, LANCE, themKing)) |
+			(pos.pieces(KNIGHT) & check_candidate_bb(Us, KNIGHT, themKing)) |
+			(pos.pieces(SILVER) & check_candidate_bb(Us, SILVER, themKing)) |
+			(pos.pieces(GOLD)   & check_candidate_bb(Us, GOLD, themKing)) |
+			(pos.pieces(BISHOP) & check_candidate_bb(Us, BISHOP, themKing)) |
+			(pos.pieces(ROOK)) | // ROOK,DRAGONは無条件全域
+			(pos.pieces(HDK) & pos.pieces(BISHOP) & check_candidate_bb(Us, ROOK, themKing)) // check_candidate_bbにはROOKと書いてるけど、HORSE
+		) & pos.pieces(Us);
 																								 // ここには王を敵玉の8近傍に移動させる指し手も含まれるが、王が近接する形はレアケースなので
 																								 // 指し手生成の段階では除外しなくても良いと思う。
 
