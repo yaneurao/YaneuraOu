@@ -407,9 +407,6 @@ void Position::set_from_packed_sfen(const PackedSfen& sfen)
 		ASSERT_LV3(stream.get_cursor() <= 256);
 	}
 
-	// put_piece()を用いたのでbitboardを更新。
-	update_bitboards();
-
 	// 手駒
 	hand[BLACK] = hand[WHITE] = (Hand)0;
 

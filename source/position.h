@@ -643,9 +643,6 @@ private:
 	// 最後にupdate_bitboards()を呼び出すこと。
 	void xor_piece(Piece pc, Square sq);
 
-	// put_piece()やremove_piece()、xor_piece()を用いたときに、最後に呼び出して整合性を取るためのもの。
-	void update_bitboards();
-
 #if !defined(EVAL_NO_USE)
 	// --- 盤面を更新するときにEvalListの更新のために必要なヘルパー関数
 
@@ -717,6 +714,8 @@ inline void Position::xor_piece(Piece pc, Square sq)
 	const Bitboard q = Bitboard(sq);
 	// 先手・後手の駒のある場所を示すoccupied bitboardの更新
 	occupied[c] ^= q;
+	// 先手 or 後手の駒のある場所を示すoccupied bitboardの更新
+	occupied[COLOR_ALL] ^= q;
 
 	// 駒別のBitboardの更新
 	Piece pt = type_of(pc);

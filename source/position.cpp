@@ -250,9 +250,6 @@ void Position::set(std::string sfen)
 		}
 	}
 
-	// put_piece()などを用いたのでbitboardの更新。
-	update_bitboards();
-
 	// --- 手数(平手の初期局面からの手数)
 
 	// gamePlyとして将棋所では(検討モードなどにおいて)ここで常に1が渡されている。
@@ -569,13 +566,6 @@ inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 			| (bishopEffect(pawn_sq, occ)  &  pieces(BISHOP)          )
 			| (rookEffect(pawn_sq, occ)    &  pieces(ROOK)            )
 			) & pieces(c);
-}
-
-// put_piece()やremove_piece()、xor_piece()を用いたときに、最後に呼び出して整合性を取るためのもの。
-void Position::update_bitboards()
-{
-	// 先手 or 後手の駒のある場所を示すoccupied bitboardの更新
-	occupied[COLOR_ALL] = occupied[BLACK] | occupied[WHITE];
 }
 
 
@@ -1072,9 +1062,6 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		materialDiff = 0;
 #endif
 
-		// put_piece()などを用いたのでこのタイミングでbitboardを更新しないと利きの更新に困る。
-		update_bitboards();
-
 #ifdef LONG_EFFECT_LIBRARY
 		// 駒打ちによる利きの更新処理
 		LongEffect::update_by_dropping_piece<Us>(*this, to, pc);
@@ -1162,6 +1149,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #endif
 
 		} else {
+			// 駒を取らない指し手
+
 			st->capturedPiece = NO_PIECE;
 
 #ifdef LONG_EFFECT_LIBRARY
@@ -1199,10 +1188,6 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #if defined(USE_EVAL_HASH)
 		Eval::prefetch_evalhash(key);
 #endif
-
-		// put_piece()などを用いたので更新。
-		// このあと利きを更新するのでそのときにoccupiedを参照するのでこのタイミングで更新しておかなければならない。
-		update_bitboards();
 
 		// 王手している駒のbitboardを更新する。
 		if (givesCheck)
@@ -1367,8 +1352,6 @@ void Position::undo_move_impl(Move m)
 		}
 	}
 
-	// put_piece()などを用いたのでbitboardの更新。
-	update_bitboards();
 
 	// --- 相手番に変更
 	sideToMove = Us; // Usは先後入れ替えて呼び出されているはず。
