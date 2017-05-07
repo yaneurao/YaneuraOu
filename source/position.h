@@ -284,11 +284,17 @@ struct Position
 	//   また、KINGは、HDK(馬・龍・玉)であるものとする。
 	// ・引数でPieceを2つ取るものは２種類の駒のBitboardを合成したものが返る。
 
-	Bitboard pieces(PieceTypeBitboard pr) const { return piece_bb[pr]; }
-	Bitboard pieces(Color c, PieceTypeBitboard pr) const { return piece_bb[pr] & pieces(c); }
 	Bitboard pieces(Piece pr) const { ASSERT_LV3(PAWN <= pr && pr <= KING); return piece_bb[pr - 1];}
-	Bitboard pieces(Color c, Piece pr) const { return pieces(pr) & pieces(c); }
 	Bitboard pieces(Piece pr1, Piece pr2) const { return pieces(pr1) | pieces(pr2); }
+	Bitboard pieces(Piece pr1, Piece pr2, Piece pr3) const { return pieces(pr1) | pieces(pr2) | pieces(pr3); }
+	Bitboard pieces(Piece pr1, Piece pr2, Piece pr3, Piece pr4) const { return pieces(pr1) | pieces(pr2) | pieces(pr3) | pieces(pr4); }
+	Bitboard pieces(Piece pr1, Piece pr2, Piece pr3, Piece pr4, Piece pr5) const { return pieces(pr1) | pieces(pr2) | pieces(pr3) | pieces(pr4) | pieces(pr5); }
+
+	Bitboard pieces(Color c, Piece pr) const { return pieces(pr) & pieces(c); }
+	Bitboard pieces(Color c, Piece pr1, Piece pr2) const { return pieces(pr1,pr2) & pieces(c); }
+	Bitboard pieces(Color c, Piece pr1, Piece pr2, Piece pr3) const { return pieces(pr1,pr2,pr3) & pieces(c); }
+	Bitboard pieces(Color c, Piece pr1, Piece pr2, Piece pr3, Piece pr4) const { return pieces(pr1, pr2, pr3,pr4) & pieces(c); }
+	Bitboard pieces(Color c, Piece pr1, Piece pr2, Piece pr3, Piece pr4, Piece pr5) const { return pieces(pr1, pr2, pr3, pr4, pr5) & pieces(c); }
 
 	// --- 升
 
