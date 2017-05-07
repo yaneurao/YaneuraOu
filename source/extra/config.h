@@ -121,6 +121,10 @@
 // 自前でPVを管理してRootMoves::pvを更新するなら、この機能を使う必要はない。
 // これはPVの更新が不要なので実装が簡単だが、Ponderの指し手を返すためには
 // PVが常に正常に更新されていないといけないので最近はこの方法は好まれない。
+// ただしShogiGUIの解析モードでは思考エンジンが出力した最後の読み筋を記録するようなので、
+// fail low/fail highしたときのものが棋譜に残る。このとき、読み筋は途中までしか出力されないが、
+// これはまずい。かと言って、ShogiGUIが棋譜解析のときにfail low/fail highした読み筋を無視するようにすると、
+// それはbest moveとは異なる可能性があるので、それはよろしくない。結論的には、USE_TT_PVは有効にすべき。
 // #define USE_TT_PV
 
 // 定跡を作るコマンド("makebook")を有効にする。
@@ -285,7 +289,7 @@
 #define ENGINE_NAME "YaneuraOu 2017 Early"
 #define EVAL_KPPT
 #define USE_EVAL_HASH
-//#define USE_TT_PV
+#define USE_TT_PV
 #define USE_SEE
 #define USE_MOVE_PICKER_2017Q2
 #define USE_MATE_1PLY

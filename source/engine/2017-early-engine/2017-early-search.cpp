@@ -2536,11 +2536,17 @@ void Thread::search()
 				// 指し手を返したときに何も読み筋が出力されなくて困る。
 				// 仕方ないのでpv_interval == 0でかつstopのときは例外的にPVを出力しないことにする。
 
-				if ((Signals.stop && pv_interval) ||
-					// MultiPVのときは最後の候補手を求めた直後とする。
-					// ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
-					((PVIdx + 1 == multiPV || Time.elapsed() > 3000)
-					 && (rootDepth < 3 || lastInfoTime + pv_interval <= Time.elapsed() )))
+				//	 && (Signals.stop && !pv_interval)
+
+				// しかし、ShogiGUIの検討モードなど、fail low/fail highでPVをきちんと出力する必要があるので
+				// USE_TT_PVはオンにせざるを得ない。この場合、上記の条件は考慮の必要がない。
+				// (PV用の配列を参照せず、置換表を漁ってPVを出力するため)
+
+				if (Signals.stop ||
+						// MultiPVのときは最後の候補手を求めた直後とする。
+						// ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
+						((PVIdx + 1 == multiPV || Time.elapsed() > 3000)
+						 && (rootDepth < 3 || lastInfoTime + pv_interval <= Time.elapsed() )))
 				{
 					lastInfoTime = Time.elapsed();
 					sync_cout << USI::pv(rootPos, rootDepth, alpha, beta , Limits.bench) << sync_endl;
