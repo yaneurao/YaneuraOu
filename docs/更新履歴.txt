@@ -2,6 +2,12 @@
 やねうら王 更新履歴
 
 
+■　2017/05/08 V4.50
+
+・Position::piece_bb、やはり大改造することにした。
+・WindowsSDK、10.0.15063.0をターゲットに変更。
+
+
 ■　2017/05/07 V4.49
 
 ・ShogiGUIの検討モードの読み筋が短いことがある件に関する修正。(thanks! tさん)
@@ -76,7 +82,7 @@
 ■　2017/05/03 V4.40
 
 ・Stockfishのpull req.
-	- Remove excluded move from TT position key formula. 
+	- Remove excluded move from TT position key formula.
 
 
 ■　2017/05/03 V4.39 強くなりすぎワロタ
@@ -173,7 +179,7 @@
 ■　2017/04/18 V4.29
 
 ・Stockfishの最新版にキャッチアップ
-	- Removing CM parameter from the Stats struct. 
+	- Removing CM parameter from the Stats struct.
 	- A small tweak in doEasyMove()
 	- Drop Stats c'tors
 		- これに伴い、thread.cppでスレッドメモリの確保のときにゼロクリアを強制するように変更。
@@ -191,11 +197,11 @@
 ・Stockfishの最新版にキャッチアップ
 	- Simplify threshold handling for probcut.
 	- Don't clear EasyMove in search()
-	- Use consistent variable names for counterMoveStats 
+	- Use consistent variable names for counterMoveStats
 	- Correct zero-init of Thread data members
-	- Zero init fromToStats in constructor. 
+	- Zero init fromToStats in constructor.
 	- Tweak best thread selection logic
-	- Simplified select best thread 
+	- Simplified select best thread
 		- ベストスレッドの指し手を返すときにresignの指し手だとhangすることに対する修正。
 		- ベストスレッドの指し手を返すときにeasyMovePlayedのフラグを見るように修正。
 
@@ -208,7 +214,7 @@
 	- Use DEPTH_ZERO initializer for depth in qsearch
 	- Remove piece condition in decrease lmr reduction check
 	- Explicitly use alpha+1 for beta in NonPV search
-	- Clean-up skipEarlyPruning 
+	- Clean-up skipEarlyPruning
 
 
 ■　2017/04/17 V4.26
@@ -343,7 +349,7 @@
 　　→　この関数、実装してない。
 ・Zobrist::psqをSQ_NB_PLUS1まで確保するように修正。
 ・Zobrist::psq,handはpc==NO_PIECEのときに0を保証するように変更。
-・Stockfish[pull req.] : Position::is_draw(): start searching from the 4th ply behind 
+・Stockfish[pull req.] : Position::is_draw(): start searching from the 4th ply behind
 	→　すでにこれに近いコードになっているので修正不要。
 ・Stockfish[pull req.] : Non-quiet pruning tweak
 ・PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2追加。
@@ -530,8 +536,8 @@
 
 ■　2016/10/06 V3.93
 
-・Stockfish : Do not use SEE in evasion scoring 
-・Stockfish[pull req.] : Replace Position::see and Position::see_sign by Position::see_ge 
+・Stockfish : Do not use SEE in evasion scoring
+・Stockfish[pull req.] : Replace Position::see and Position::see_sign by Position::see_ge
 ・Stockfish : Optimisation of Position::see and Position::see_sign
 ・USE_SIMPLE_SEE削除。
 ・2016 Late用のデフォルトパラメーター(Stockfishと同じもの)を公開。
@@ -1010,7 +1016,7 @@
 ・learnコマンド、gensfenコマンド、出力を抑制するようにした。learn.hで設定可能。
 ・file_read_workerのjoin()忘れていたの修正。
 
-	
+
 ■　2016/07/21 V3.41
 
 ・sfenのunpacker、高速化。Position::set_from_packed_sfen()を作った。
@@ -1363,7 +1369,7 @@
 ■　2016/06/22 V3.16～V3.17
 
 ・razoring margin調整。
-・王手延長の単純化	
+・王手延長の単純化
 ・IIDのとき、常にcut nodeにするのではなく、そのnodeのcutNodeを伝播させる
 ・Makefile、フォルダを自動的に掘るように修正。(thx. tanuki-さん)
 ・Moveが32bitにともない、MemoryBookが16bitでMoveを持っていると合致しないことになる。

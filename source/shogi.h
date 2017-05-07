@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "4.49"
+#define ENGINE_VERSION "4.50"
 
 // --------------------
 // コンパイル時の設定
@@ -426,7 +426,7 @@ inline Value mated_in(int ply) {  return (Value)(-VALUE_MATE + ply);}
 // USIプロトコルでやりとりするときの駒の表現
 extern const char* USI_PIECE;
 
-enum Piece: uint32_t
+enum Piece : uint32_t
 {
 	// 金の順番を飛の後ろにしておく。KINGを8にしておく。
 	// こうすることで、成りを求めるときに pc |= 8;で求まり、かつ、先手の全種類の駒を列挙するときに空きが発生しない。(DRAGONが終端になる)
@@ -447,7 +447,12 @@ enum Piece: uint32_t
 	PIECE_HAND_ZERO = PAWN, // 手駒の開始位置
 	PIECE_HAND_NB = KING,   // 手駒になる駒種の最大+1
 
-	HDK = KING,        // Position::pieces()で使うときの定数。H=Horse,D=Dragon,K=Kingの合体したBitboardが返る。
+	// --- Position::pieces()で用いる定数。空いてるところを順番に用いる。
+	HDK			= NO_PIECE, // H=Horse,D=Dragon,K=Kingの合体したBitboardが返る。
+	GOLDS		= QUEEN,	// 金と同じ移動特性を持つ駒のBitboardが返る。
+	BISHOP_HORSE,			// BISHOP,HORSEを合成したBitboardが返る。
+	ROOK_DRAGON,			// ROOK,DRAGONを合成したBitboardが返る。
+	PIECE_BB_NB,			// デリミタ
 
 	// 指し手生成(GeneratePieceMove = GPM)でtemplateの引数として使うマーカー的な値。変更する可能性があるのでユーザーは使わないでください。
 	// 連続的な値にしておくことで、テーブルジャンプしやすくする。

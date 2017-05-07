@@ -284,7 +284,7 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
 	FORCE_INLINE ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target)
 	{
 		// 角と飛に対して(馬と龍は除く)
-		auto pieces = pos.pieces(BISHOP,ROOK) & ~pos.pieces(HDK) & pos.pieces(Us);
+		auto pieces = pos.pieces(Us,BISHOP,ROOK);
 		auto occ = pos.pieces();
 
 		while (pieces)
@@ -305,7 +305,7 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
 	FORCE_INLINE ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target)
 	{
 		// 金相当の駒・馬・龍・玉に対して
-		auto pieces = pos.pieces(GOLD,HDK) & pos.pieces(Us);
+		auto pieces = pos.pieces(Us,GOLDS,HDK);
 		auto occ = pos.pieces();
 
 		while (pieces)
@@ -325,7 +325,7 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
 	FORCE_INLINE ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target)
 	{
 		// 金相当の駒・馬・龍に対して
-		auto pieces = (pos.pieces(HDK, GOLD) ^ pos.king_square(Us)) & pos.pieces(Us);
+		auto pieces = pos.pieces(Us,GOLDS,HORSE,DRAGON);
 		auto occ = pos.pieces();
 		Square to;
 
@@ -539,7 +539,7 @@ ExtMove* generate_evasions(const Position& pos, ExtMove* mlist)
 	// 王手回避のための玉の移動先は、玉の利きで、自駒のない場所でかつさきほどの王手していた駒が利いていないところが候補として挙げられる
 	// これがまだ自殺手である可能性もあるが、それはis_legal()でチェックすればいいと思う。
 
-	Bitboard bb = kingEffect(ksq) & ~pos.pieces(Us) & ~sliderAttacks;
+	Bitboard bb = kingEffect(ksq) & ~(pos.pieces(Us) | sliderAttacks);
 	while (bb) { Square to = bb.pop(); mlist++->move = make_move(ksq, to) + OurPt(Us, KING); }
 
 	// 両王手であるなら、王の移動のみが回避手となる。ゆえにこれで指し手生成は終了。
@@ -828,17 +828,18 @@ ExtMove* generate_checks(const Position& pos, ExtMove* mlist)
 	// 以下の方法だとxとして飛(龍)は100%含まれる。角・馬は60%ぐらいの確率で含まれる。事前条件でもう少し省ければ良いのだが…。
 	const Bitboard x =
 		(
-			(pos.pieces(PAWN)   & check_candidate_bb(Us, PAWN, themKing)) |
-			(pos.pieces(LANCE)  & check_candidate_bb(Us, LANCE, themKing)) |
+			(pos.pieces(PAWN)   & check_candidate_bb(Us, PAWN  , themKing)) |
+			(pos.pieces(LANCE)  & check_candidate_bb(Us, LANCE , themKing)) |
 			(pos.pieces(KNIGHT) & check_candidate_bb(Us, KNIGHT, themKing)) |
 			(pos.pieces(SILVER) & check_candidate_bb(Us, SILVER, themKing)) |
-			(pos.pieces(GOLD)   & check_candidate_bb(Us, GOLD, themKing)) |
+			(pos.pieces(GOLDS)  & check_candidate_bb(Us, GOLD  , themKing)) |
 			(pos.pieces(BISHOP) & check_candidate_bb(Us, BISHOP, themKing)) |
-			(pos.pieces(ROOK)) | // ROOK,DRAGONは無条件全域
-			(pos.pieces(HDK) & pos.pieces(BISHOP) & check_candidate_bb(Us, ROOK, themKing)) // check_candidate_bbにはROOKと書いてるけど、HORSE
+			(pos.pieces(ROOK_DRAGON)) | // ROOK,DRAGONは無条件全域
+			(pos.pieces(HORSE)  & check_candidate_bb(Us, ROOK, themKing)) // check_candidate_bbにはROOKと書いてるけど、HORSE
 		) & pos.pieces(Us);
-																								 // ここには王を敵玉の8近傍に移動させる指し手も含まれるが、王が近接する形はレアケースなので
-																								 // 指し手生成の段階では除外しなくても良いと思う。
+
+	// ここには王を敵玉の8近傍に移動させる指し手も含まれるが、王が近接する形はレアケースなので
+	// 指し手生成の段階では除外しなくても良いと思う。
 
 	const Bitboard y = pos.discovered_check_candidates();
 	const Bitboard target =

@@ -35,17 +35,18 @@ namespace {
   //:      Bitboard b = stmAttackers & bb[Pt];
 
 	  // 歩、香、桂、銀、金(金相当の駒)、角、飛、馬、龍…の順で取るのに使う駒を調べる。
+	  // 金相当の駒については、細かくしたほうが良いかどうかは微妙。
 
 	  Bitboard b;
-	  b = stmAttackers &  pos.pieces(PAWN);   if (b) goto found;
-	  b = stmAttackers &  pos.pieces(LANCE);  if (b) goto found;
-	  b = stmAttackers &  pos.pieces(KNIGHT); if (b) goto found;
-	  b = stmAttackers &  pos.pieces(SILVER); if (b) goto found;
-	  b = stmAttackers &  pos.pieces(GOLD);   if (b) goto found;
-	  b = stmAttackers & ~pos.pieces(HDK) & pos.pieces(BISHOP); if (b) goto found;
-	  b = stmAttackers & ~pos.pieces(HDK) & pos.pieces(ROOK);   if (b) goto found;
-	  b = stmAttackers &  pos.pieces(HDK) & pos.pieces(BISHOP); if (b) goto found;
-	  b = stmAttackers &  pos.pieces(HDK) & pos.pieces(ROOK);   if (b) goto found;
+	  b = stmAttackers & pos.pieces(PAWN);   if (b) goto found;
+	  b = stmAttackers & pos.pieces(LANCE);  if (b) goto found;
+	  b = stmAttackers & pos.pieces(KNIGHT); if (b) goto found;
+	  b = stmAttackers & pos.pieces(SILVER); if (b) goto found;
+	  b = stmAttackers & pos.pieces(GOLDS);  if (b) goto found;
+	  b = stmAttackers & pos.pieces(BISHOP); if (b) goto found;
+	  b = stmAttackers & pos.pieces(ROOK);   if (b) goto found;
+	  b = stmAttackers & pos.pieces(HORSE);  if (b) goto found;
+	  b = stmAttackers & pos.pieces(DRAGON); if (b) goto found;
 
 	  // 攻撃駒があるというのが前提条件だから、以上の駒で取れなければ、最後は玉でtoの升に移動出来て
 	  // 駒を取れるはず。
@@ -68,7 +69,7 @@ namespace {
 	  {
 	  case DIRECT_RU: case DIRECT_RD: case DIRECT_LU: case DIRECT_LD:
 		  // 斜め方向なら斜め方向の升をスキャンしてその上にある角・馬を足す
-		  attackers |= bishopEffect(to, occupied) & pos.pieces(BISHOP);
+		  attackers |= bishopEffect(to, occupied) & pos.pieces(BISHOP_HORSE);
 
 		  ASSERT_LV3((bishopStepEffect(to) & sq));
 		  break;
@@ -76,7 +77,7 @@ namespace {
 	  case DIRECT_U:
 		  // 後手の香 + 先後の飛車
 		  attackers |= rookEffect(to, occupied) & lanceStepEffect(BLACK, to)
-			  & (pos.pieces(ROOK) | pos.pieces(WHITE,LANCE));
+			  & (pos.pieces(ROOK_DRAGON) | pos.pieces(WHITE,LANCE));
 
 		  ASSERT_LV3((lanceStepEffect(BLACK, to) & sq));
 		  break;
@@ -84,14 +85,14 @@ namespace {
 	  case DIRECT_D:
 		  // 先手の香 + 先後の飛車
 		  attackers |= rookEffect(to, occupied) & lanceStepEffect(WHITE, to)
-			  & (pos.pieces(ROOK) | pos.pieces(BLACK,LANCE));
+			  & (pos.pieces(ROOK_DRAGON) | pos.pieces(BLACK,LANCE));
 
 		  ASSERT_LV3((lanceStepEffect(WHITE, to) & sq));
 		  break;
 
 	  case DIRECT_L: case DIRECT_R:
 		  // 左右なので先後の飛車
-		  attackers |= rookEffect(to, occupied) & pos.pieces(ROOK);
+		  attackers |= rookEffect(to, occupied) & pos.pieces(ROOK_DRAGON);
 
 		  ASSERT_LV3(((rookStepEffect(to) & sq)));
 		  break;

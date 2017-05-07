@@ -437,6 +437,9 @@ void Position::set_from_packed_sfen(const PackedSfen& sfen)
 	gamePly = 0;
 	set_state(st);
 
+	// put_piece()したのでこのタイミングでupdate
+	update_bitboards();
+
 #ifndef EVAL_NO_USE
 	st->materialValue = Eval::material(*this);
 	Eval::compute_eval(*this);

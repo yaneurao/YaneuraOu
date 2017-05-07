@@ -72,7 +72,7 @@ Bitboard PAWN_DROP_MASK_BB[0x200][COLOR_NB];
 
 Bitboard BetweenBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
 Bitboard LineBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
-Bitboard CheckCandidateBB[SQ_NB_PLUS1][HDK][COLOR_NB];
+Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING][COLOR_NB];
 
 // SquareからSquareWithWallへの変換テーブル
 SquareWithWall sqww_table[SQ_NB_PLUS1];
@@ -454,7 +454,7 @@ void Bitboards::init()
       // 王(24近傍が格納される)
       target = ZERO_BB;
       FOREACH_KING(kingEffect(ksq) , kingEffect);
-      CheckCandidateBB[ksq][HDK - 1][Us] = target & ~Bitboard(ksq);
+      CheckCandidateBB[ksq][KING - 1][Us] = target & ~Bitboard(ksq);
     }
 
   // 10. LONG_EFFECT_LIBRARYの初期化

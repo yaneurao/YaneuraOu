@@ -279,22 +279,22 @@ struct Position
 
 	// 駒に対応するBitboardを得る。
 	// ・引数でcの指定がないものは先後両方の駒が返る。
-	// ・引数がPieceのものは、prはPAWN～KINGまでの値とし、
-	//   成香など金と同等の移動特性を持つ駒はGOLDとして扱われるものとする。
-	//   また、KINGは、HDK(馬・龍・玉)であるものとする。
+	// ・引数がPieceのものは、prはPAWN～DRAGON , GOLDS(金相当の駒) , HDK(馬・龍・玉) ,
+	//	  BISHOP_HORSE(角・馬) , ROOK_DRAGON(飛車・龍)。
 	// ・引数でPieceを2つ取るものは２種類の駒のBitboardを合成したものが返る。
 
-	Bitboard pieces(Piece pr) const { ASSERT_LV3(PAWN <= pr && pr <= KING); return piece_bb[pr - 1];}
+	Bitboard pieces(Piece pr) const { ASSERT_LV3(pr < PIECE_BB_NB); return piece_bb[pr]; }
 	Bitboard pieces(Piece pr1, Piece pr2) const { return pieces(pr1) | pieces(pr2); }
 	Bitboard pieces(Piece pr1, Piece pr2, Piece pr3) const { return pieces(pr1) | pieces(pr2) | pieces(pr3); }
 	Bitboard pieces(Piece pr1, Piece pr2, Piece pr3, Piece pr4) const { return pieces(pr1) | pieces(pr2) | pieces(pr3) | pieces(pr4); }
 	Bitboard pieces(Piece pr1, Piece pr2, Piece pr3, Piece pr4, Piece pr5) const { return pieces(pr1) | pieces(pr2) | pieces(pr3) | pieces(pr4) | pieces(pr5); }
 
 	Bitboard pieces(Color c, Piece pr) const { return pieces(pr) & pieces(c); }
-	Bitboard pieces(Color c, Piece pr1, Piece pr2) const { return pieces(pr1,pr2) & pieces(c); }
-	Bitboard pieces(Color c, Piece pr1, Piece pr2, Piece pr3) const { return pieces(pr1,pr2,pr3) & pieces(c); }
-	Bitboard pieces(Color c, Piece pr1, Piece pr2, Piece pr3, Piece pr4) const { return pieces(pr1, pr2, pr3,pr4) & pieces(c); }
+	Bitboard pieces(Color c, Piece pr1, Piece pr2) const { return pieces(pr1, pr2) & pieces(c); }
+	Bitboard pieces(Color c, Piece pr1, Piece pr2, Piece pr3) const { return pieces(pr1, pr2, pr3) & pieces(c); }
+	Bitboard pieces(Color c, Piece pr1, Piece pr2, Piece pr3, Piece pr4) const { return pieces(pr1, pr2, pr3, pr4) & pieces(c); }
 	Bitboard pieces(Color c, Piece pr1, Piece pr2, Piece pr3, Piece pr4, Piece pr5) const { return pieces(pr1, pr2, pr3, pr4, pr5) & pieces(c); }
+
 
 	// --- 升
 
@@ -631,7 +631,7 @@ private:
 	Bitboard occupied[COLOR_NB + 1];
 
 	// 駒が存在する升を表すBitboard。先後混在。
-	Bitboard piece_bb[PIECE_TYPE_BITBOARD_NB];
+	Bitboard piece_bb[PIECE_BB_NB];
 
 	// stが初期状態で指している、空のStateInfo
 	StateInfo startState;
@@ -648,6 +648,9 @@ private:
 	// sqの地点にpcを置く/取り除く、したとして内部で保持しているBitboardを更新する。
 	// 最後にupdate_bitboards()を呼び出すこと。
 	void xor_piece(Piece pc, Square sq);
+
+	// put_piece(),remove_piece(),xor_piece()を用いたあとに呼び出す必要がある。
+	void update_bitboards();
 
 #if !defined(EVAL_NO_USE)
 	// --- 盤面を更新するときにEvalListの更新のために必要なヘルパー関数
@@ -706,14 +709,6 @@ private:
 
 };
 
-// PieceからPieceTypeBitboardへの変換テーブル
-const PieceTypeBitboard piece2ptb[PIECE_WHITE] = {
-	PIECE_TYPE_BITBOARD_NB /*NO_PIECE*/,PIECE_TYPE_BITBOARD_PAWN /*歩*/,PIECE_TYPE_BITBOARD_LANCE /*香*/,PIECE_TYPE_BITBOARD_KNIGHT /*桂*/,
-	PIECE_TYPE_BITBOARD_SILVER /*銀*/,PIECE_TYPE_BITBOARD_BISHOP /*角*/,PIECE_TYPE_BITBOARD_ROOK /*飛*/,PIECE_TYPE_BITBOARD_GOLD /*金*/,
-	PIECE_TYPE_BITBOARD_HDK /*玉*/, PIECE_TYPE_BITBOARD_GOLD /*歩成*/ , PIECE_TYPE_BITBOARD_GOLD /*香成*/,PIECE_TYPE_BITBOARD_GOLD/*桂成*/,
-	PIECE_TYPE_BITBOARD_GOLD /*銀成*/,PIECE_TYPE_BITBOARD_BISHOP/*馬*/,PIECE_TYPE_BITBOARD_ROOK/*龍*/ ,PIECE_TYPE_BITBOARD_NB/*金成*/
-};
-
 inline void Position::xor_piece(Piece pc, Square sq)
 {
 	Color c = color_of(pc);
@@ -724,13 +719,9 @@ inline void Position::xor_piece(Piece pc, Square sq)
 	occupied[COLOR_ALL] ^= q;
 
 	// 駒別のBitboardの更新
-	Piece pt = type_of(pc);
-	piece_bb[piece2ptb[pt]] ^= q;
-
-	// 馬、龍は、piece_bbのPIECE_TYPE_BITBOARD_BISHOP(ROOK)とPIECE_TYPE_BITBOARD_HDKの両方のbitboardにまたがって存在するので
-	// PIECE_TYPE_BITBOARD_HDKのほうも更新する必要がある。
-	if (pt >= HORSE)
-		piece_bb[PIECE_TYPE_BITBOARD_HDK] ^= q;
+	// これ以外のBitboardの更新は、update_bitboards()で行なう。
+	piece_bb[type_of(pc)] ^= q;
+	
 }
 
 // 駒を配置して、内部的に保持しているBitboardも更新する。

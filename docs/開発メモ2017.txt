@@ -1,9 +1,40 @@
 ﻿# ToDO
 
+- posix_memalign使う。
 - 自己対戦フレームワーク、改良。
 - 高速化
 	- 評価関数の差分計算見直す
 - 評価関数の形を変える
+
+
+## 2017/05/08
+
+- Position::piece_bb、やはり大改造することにした。
+
+Total time (ms) : 34291
+Nodes searched  : 26014961
+Nodes/second    : 779147
+Nodes/second    : 793962
+
+// gcc
+Total time (ms) : 33368
+Nodes searched  : 26014961
+Nodes/second    : 777936
+Nodes/second    : 773311
+
+// 前の
+Nodes/second    : 766724
+Nodes/second    : 781511
+Nodes/second    : 793163
+
+
+- mm_alloc()より、posix_memalign()使うほうがいいらしい。
+	- http://kawa0810.hateblo.jp/entry/20120430/1335775256
+
+- VC++2017のPGO
+	- https://docs.microsoft.com/ja-jp/windows/uwp/debug-test-perf/pgo-for-uwp
+	- pgo140rt.dllが無い。うーん？
+
 
 
 ## 2017/05/07
