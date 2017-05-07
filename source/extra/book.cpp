@@ -850,9 +850,15 @@ namespace Book
     if (book_name == kAperyBookName) {
       // Apery定跡データベースを用いて指し手を選択する
       book_body.clear();
+      const auto& entries = apery_book->get_entries(pos);
+      int64_t sum_count = 0;
+      for (const auto& entry : entries) {
+        sum_count += entry.count;
+      }
 
       for (const auto& entry : apery_book->get_entries(pos)) {
         BookPos book_pos(pos.move16_to_move(convert_move_from_apery(entry.fromToPro)), MOVE_NONE, entry.score, 256, entry.count);
+        book_pos.prob = entry.count / static_cast<float>(sum_count);
         insert_book_pos(*this, pos.sfen(), book_pos);
       }
 
