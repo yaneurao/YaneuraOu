@@ -162,6 +162,7 @@ void USI::extra_option(USI::OptionsMap & o)
 	// パラメーターのログの保存先のfile path
 	o["PARAMETERS_LOG_FILE_PATH"] << Option("param_log.txt");
 #endif
+  o["ConsiderBookMoveCount"] << Option(true);
 }
 
 // -----------------------
@@ -2658,6 +2659,26 @@ void Thread::search()
 
 }
 
+namespace {
+  Book::BookPos select_book_move(const std::vector<Book::BookPos>& move_list) {
+    bool consider_book_move_count = Options["ConsiderBookMoveCount"];
+    if (consider_book_move_count) {
+      int64_t sum_move_counts = 0;
+      for (const auto& move : move_list) {
+        sum_move_counts += std::max<int64_t>(1, move.num);
+      }
+      int64_t x = prng.rand(sum_move_counts);
+      int64_t accumulated = 0;
+      for (const auto& move : move_list) {
+        accumulated += std::max<int64_t>(1, move.num);
+        if (accumulated > x) {
+          return move;
+        }
+      }
+    }
+    return move_list[prng.rand(move_list.size())];
+  };
+}
 
 // 探索開始時に呼び出される。
 // この関数内で初期化を終わらせ、slaveスレッドを起動してThread::search()を呼び出す。
@@ -2796,7 +2817,7 @@ void MainThread::think()
 				if (book_move_max)
 				{
 					// 不成の指し手がRootMovesに含まれていると正しく指せない。
-					const auto& move = move_list[(size_t)prng.rand(book_move_max)];
+					const auto& move = select_book_move(move_list);
 					auto bestMove = move.bestMove;
 					auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
 					if (it_move != rootMoves.end())
