@@ -656,7 +656,7 @@ void USI::loop(int argc, char* argv[])
 
 		// 起動時いきなりこれが飛んでくるので速攻応答しないとタイムアウトになる。
 		else if (token == "usi")
-			sync_cout << "id name " << engine_info() << Options << "usiok" << sync_endl;
+			sync_cout << engine_info() << Options << "usiok" << sync_endl;
 
 		// オプションを設定する
 		else if (token == "setoption") setoption_cmd(is);
