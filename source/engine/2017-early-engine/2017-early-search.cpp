@@ -162,7 +162,7 @@ void USI::extra_option(USI::OptionsMap & o)
 	// パラメーターのログの保存先のfile path
 	o["PARAMETERS_LOG_FILE_PATH"] << Option("param_log.txt");
 #endif
-  o["ConsiderBookMoveCount"] << Option(true);
+  o["ConsiderBookMoveCount"] << Option(false);
 }
 
 // -----------------------
@@ -2662,17 +2662,17 @@ void Thread::search()
 namespace {
   Book::BookPos select_book_move(const std::vector<Book::BookPos>& move_list) {
     bool consider_book_move_count = Options["ConsiderBookMoveCount"];
+    auto best_move = move_list[prng.rand(move_list.size())];
     if (consider_book_move_count) {
-      int64_t sum_move_counts = 0;
+      // 採択率に従って指し手を決める
+      uint64_t sum_move_counts = 0;
+      // 1-passで採択率に従って指し手を決めるオンラインアルゴリズム
+      // http://yaneuraou.yaneu.com/2015/01/03/stockfish-dd-book-%E5%AE%9A%E8%B7%A1%E9%83%A8/
       for (const auto& move : move_list) {
-        sum_move_counts += std::max<int64_t>(1, move.num);
-      }
-      int64_t x = prng.rand(sum_move_counts);
-      int64_t accumulated = 0;
-      for (const auto& move : move_list) {
-        accumulated += std::max<int64_t>(1, move.num);
-        if (accumulated > x) {
-          return move;
+        uint64_t move_count = std::max<uint64_t>(1, move.num);
+        sum_move_counts += std::max<uint64_t>(1, move.num);
+        if (prng.rand(sum_move_counts) < move_count) {
+          best_move = move;
         }
       }
     }
