@@ -178,6 +178,12 @@
     <ClInclude Include="extra\move_picker_2017Q2.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
+    <ClInclude Include="extra\mt64bit.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\apery_book.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -313,6 +319,9 @@
       <Filter>リソース ファイル\engine\must-capture-shogi-engine</Filter>
     </ClCompile>
     <ClCompile Include="extra\move_picker_2017Q2.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\apery_book.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
   </ItemGroup>
