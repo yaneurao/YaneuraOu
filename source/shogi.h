@@ -38,7 +38,7 @@
 //#define CHECK_SHOGI_ENGINE	           // やねうら王 王手将棋    (完成2016/11/30)
 //#define MUST_CAPTURE_SHOGI_ENGINE        // やねうら王 取る一手将棋(完成2016/12/04)
 //#define RANDOM_PLAYER_ENGINE             // ランダムプレイヤー
-//#define MATE_ENGINE                      // 詰め将棋solverとしてリリースする場合。(開発中)
+//#define MATE_ENGINE                      // 詰め将棋solverとしてリリースする場合。(開発中2017/05/06～)
 //#define HELP_MATE_ENGINE                 // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
 //#define LOCAL_GAME_SERVER                // 連続自動対局フレームワーク
 //#define USER_ENGINE                      // ユーザーの思考エンジン

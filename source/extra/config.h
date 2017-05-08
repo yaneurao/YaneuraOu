@@ -386,6 +386,7 @@
 #define USE_MATE_1PLY
 #define EVAL_NO_USE
 #define LONG_EFFECT_LIBRARY
+#define USE_KEY_AFTER
 #endif
 
 // --- ユーザーの自作エンジンとして実行ファイルを公開するとき用の設定集

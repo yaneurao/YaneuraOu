@@ -1295,69 +1295,72 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	set_check_info<false>(st);
 }
 
+#if defined(USE_KEY_AFTER)
 
+// ある指し手を指した後のhash keyを返す。
 Key Position::key_after(Move m) const {
-  Color Us = side_to_move();
-  auto k = st->board_key_ ^ Zobrist::side;
-  auto h = st->hand_key_;
 
-  // 移動先の升
-  Square to = move_to(m);
-  ASSERT_LV2(is_ok(to));
+	Color Us = side_to_move();
+	auto k = st->board_key_ ^ Zobrist::side;
+	auto h = st->hand_key_;
 
-  if (is_drop(m))
-  {
-    // --- 駒打ち
-    Piece pr = move_dropped_piece(m);
-    ASSERT_LV2(PAWN <= pr && pr < PIECE_HAND_NB);
+	// 移動先の升
+	Square to = move_to(m);
+	ASSERT_LV2(is_ok(to));
 
-    Piece pc = make_piece(Us, pr);
+	if (is_drop(m))
+	{
+		// --- 駒打ち
+		Piece pr = move_dropped_piece(m);
+		ASSERT_LV2(PAWN <= pr && pr < PIECE_HAND_NB);
 
-    // Zobrist keyの更新
-    h -= Zobrist::hand[Us][pr];
-    k += Zobrist::psq[to][pc];
-  }
-  else {
+		Piece pc = make_piece(Us, pr);
 
-    // -- 駒の移動
-    Square from = move_from(m);
-    ASSERT_LV2(is_ok(from));
+		// Zobrist keyの更新
+		h -= Zobrist::hand[Us][pr];
+		k += Zobrist::psq[to][pc];
+	}
+	else
+	{
+		// -- 駒の移動
+		Square from = move_from(m);
+		ASSERT_LV2(is_ok(from));
 
-    // 移動させる駒
-    Piece moved_pc = piece_on(from);
-    ASSERT_LV2(moved_pc != NO_PIECE);
+		// 移動させる駒
+		Piece moved_pc = piece_on(from);
+		ASSERT_LV2(moved_pc != NO_PIECE);
 
-    // 移動先に駒の配置
-    // もし成る指し手であるなら、成った後の駒を配置する。
-    Piece moved_after_pc;
+		// 移動先に駒の配置
+		// もし成る指し手であるなら、成った後の駒を配置する。
+		Piece moved_after_pc;
 
-    if (is_promote(m))
-    {
-      moved_after_pc = moved_pc + PIECE_PROMOTE;
-    }
-    else {
-      moved_after_pc = moved_pc;
-    }
+		if (is_promote(m))
+		{
+			moved_after_pc = moved_pc + PIECE_PROMOTE;
+		}
+		else {
+			moved_after_pc = moved_pc;
+		}
 
-    // 移動先の升にある駒
-    Piece to_pc = piece_on(to);
-    if (to_pc != NO_PIECE)
-    {
-      Piece pr = raw_type_of(to_pc);
+		// 移動先の升にある駒
+		Piece to_pc = piece_on(to);
+		if (to_pc != NO_PIECE)
+		{
+			Piece pr = raw_type_of(to_pc);
 
-      // 捕獲された駒が盤上から消えるので局面のhash keyを更新する
-      k -= Zobrist::psq[to][to_pc];
-      h += Zobrist::hand[Us][pr];
-    }
+			// 捕獲された駒が盤上から消えるので局面のhash keyを更新する
+			k -= Zobrist::psq[to][to_pc];
+			h += Zobrist::hand[Us][pr];
+		}
 
-    // fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
-    k -= Zobrist::psq[from][moved_pc];
-    k += Zobrist::psq[to][moved_after_pc];
-  }
+		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
+		k -= Zobrist::psq[from][moved_pc];
+		k += Zobrist::psq[to][moved_after_pc];
+	}
 
-  return k + h;
+	return k + h;
 }
-
+#endif
 
 // 指し手で盤面を1手戻す。do_move()の逆変換。
 template <Color Us>

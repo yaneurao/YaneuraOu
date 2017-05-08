@@ -457,10 +457,13 @@ struct Position
 	// StateInfo::key()への簡易アクセス。
 	Key key() const { return st->key(); }
 
-  // ある指し手を指した後のハッシュを返す
-  // 詰め将棋ルーチンの高速化等に使う
-  Key key_after(Move m) const;
-
+#if defined(USE_KEY_AFTER)
+	// ある指し手を指した後のhash keyを返す。
+	// 将棋だとこの計算にそこそこ時間がかかるので、通常の探索部でprefetch用に
+	// これを計算するのはあまり得策ではないが、詰将棋ルーチンでは置換表を投機的に
+	// prefetchできるとずいぶん速くなるのでこの関数を用意しておく。
+	Key key_after(Move m) const;
+#endif
 
 	// --- misc
 
