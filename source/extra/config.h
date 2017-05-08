@@ -177,6 +177,10 @@
 // USIプロトコルでgameoverコマンドが送られてきたときに gameover_handler()を呼び出す。
 // #define USE_GAMEOVER_HANDLER
 
+// EVAL_HASHで使用するメモリとして大きなメモリを確保するか。
+// これをONすると数%高速化する代わりに、メモリ使用量が1GBほど増える。
+// #define USE_LARGE_EVAL_HASH
+
 // --------------------
 // release configurations
 // --------------------
@@ -289,6 +293,8 @@
 #define ENGINE_NAME "YaneuraOu 2017 Early"
 #define EVAL_KPPT
 #define USE_EVAL_HASH
+//#define USE_LARGE_EVAL_HASH
+
 #define USE_TT_PV
 #define USE_SEE
 #define USE_MOVE_PICKER_2017Q2

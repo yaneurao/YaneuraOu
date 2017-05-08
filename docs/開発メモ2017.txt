@@ -1,11 +1,27 @@
 ﻿# ToDO
 
+- 読み筋出力がおかしいらしい件、調査する。
+- pull req取り込む。
+- gccでコンパイル、-fltoを指定するとセグフォで落ちる件、調査する。
 - 詰将棋探索エンジン、他の探索部から呼び出せるように改良する。
-- posix_memalign使う。
 - 自己対戦フレームワーク、改良。
-- 高速化
-	- 評価関数の差分計算見直す
 - 評価関数の形を変える
+
+
+## 2017/05/09
+
+- _mm_malloc()やめてposix_memalign()使う件
+	- #include <cstdlib>  // posix_memalign()
+	- これやっているのに
+		エラー	C3861	'posix_memalign': 識別子が見つかりませんでした
+	- よくわかんない。あれれ？
+	- Windows環境では使えないような…。
+		- http://stackoverflow.com/questions/33696092/whats-the-correct-replacement-for-posix-memalign-in-windows
+
+- 魔女
+	- msys2で
+		make -j8 bmi2
+	でビルドできた。あれれ…そうなのか…。
 
 
 ## 2017/05/08

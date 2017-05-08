@@ -1,6 +1,7 @@
 ﻿#ifndef _KPPT_EVAL_SUM_H_
 #define _KPPT_EVAL_SUM_H_
 
+#include "../shogi.h"
 #include <array>
 
 // KPPTで使うためのヘルパクラス
@@ -169,12 +170,15 @@ namespace Eval {
 
   // evaluateしたものを保存しておくHashTable(俗にいうehash)
 
-  // 134MB(魔女設定)
+#if !defined(USE_LARGE_EVAL_HASH)
+  // 134MB(魔女のAVX2以外の時の設定)
   struct EvaluateHashTable:HashTable<EvalSum, 0x400000> {};
-
+#else
   // prefetch有りなら大きいほうが良いのでは…。
-  // →　あまり変わらないし、メモリもったいないので↑の設定で良いか…。
-  // struct EvaluateHashTable :HashTable<EvalSum, 0x2000000> {};
+  // →　あまり変わらないし、メモリもったいないのでデフォルトでは↑の設定で良いか…。
+  // 1GB(魔女のAVX2の時の設定)
+  struct EvaluateHashTable :HashTable<EvalSum, 0x2000000> {};
+#endif
 
   extern EvaluateHashTable g_evalTable;
 #endif
