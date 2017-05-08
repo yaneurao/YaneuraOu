@@ -737,10 +737,10 @@ namespace Eval
 		// 未初期化の値を突っ込んでおく。
 		for (BonaPiece p = BONA_PIECE_ZERO; p < fe_end; ++p)
 		{
-			inv_piece[p] = (BonaPiece)-1;
+			inv_piece[p] = BONA_PIECE_NOT_INIT;
 
 			// mirrorは手駒に対しては機能しない。元の値を返すだけ。
-			mir_piece[p] = (p < f_pawn) ? p : (BonaPiece)-1;
+			mir_piece[p] = (p < f_pawn) ? p : BONA_PIECE_NOT_INIT;
 		}
 
 		for (BonaPiece p = BONA_PIECE_ZERO; p < fe_end; ++p)
@@ -789,8 +789,8 @@ namespace Eval
 		}
 
 		for (BonaPiece p = BONA_PIECE_ZERO; p < fe_end; ++p)
-			if (inv_piece[p] == (BonaPiece)-1
-				|| mir_piece[p] == (BonaPiece)-1
+			if (inv_piece[p] == BONA_PIECE_NOT_INIT
+				|| mir_piece[p] == BONA_PIECE_NOT_INIT
 				)
 			{
 				// 未初期化のままになっている。上のテーブルの初期化コードがおかしい。

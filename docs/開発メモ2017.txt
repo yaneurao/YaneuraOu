@@ -34,7 +34,9 @@ Nodes/second    : 793163
 - VC++2017のPGO
 	- https://docs.microsoft.com/ja-jp/windows/uwp/debug-test-perf/pgo-for-uwp
 	- pgo140rt.dllが無い。うーん？
-
+	- C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Tools\MSVC\14.10.25017\bin\HostX64\x64 にあった。
+	- evaluate_kppt_learn.cppが内部コンパイルエラーになる(´；ω；｀)　こら、どうもならん..
+	- EVAL_LEARNをundefしとけばPGO出来た。肝心のnpsはほぼ変わらず…。なんなんこれ…。
 
 
 ## 2017/05/07

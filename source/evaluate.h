@@ -143,7 +143,8 @@ namespace Eval {
   {
     // f = friend(≒先手)の意味。e = enemy(≒後手)の意味
 
-    BONA_PIECE_ZERO = 0, // 無効な駒。駒落ちのときなどは、不要な駒をここに移動させる。
+	BONA_PIECE_NOT_INIT = -1, // 未初期化の時の値
+    BONA_PIECE_ZERO = 0,      // 無効な駒。駒落ちのときなどは、不要な駒をここに移動させる。
 
     // --- 手駒
 

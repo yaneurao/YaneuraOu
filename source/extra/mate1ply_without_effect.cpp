@@ -648,7 +648,7 @@ namespace {
     Square sq_king = pos.king_square(us);
 
     // 玉以外の駒でこれが取れるのか？(toの地点には敵の利きがある or 届かないので玉では取れないものとする)
-    Bitboard sum = pos.attackers_to(us, to, slide) & ~Bitboard(sq_king);
+    Bitboard sum = pos.attackers_to(us, to, slide) & ~pos.pieces(KING);
     while (sum)
     {
       Square from = sum.pop();
@@ -673,7 +673,7 @@ namespace {
     Square sq_king = pos.king_square(us);
 
     // 玉以外の駒でこれが取れるのか？(toの地点には敵の利きがあるので玉では取れないものとする)
-    Bitboard sum = pos.attackers_to(us, to, slide) & ~Bitboard(sq_king) & ~Bitboard(avoid);
+    Bitboard sum = pos.attackers_to(us, to, slide) & ~(pos.pieces(KING) | Bitboard(avoid));
     while (sum)
     {
       Square from = sum.pop();
