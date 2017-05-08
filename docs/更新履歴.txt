@@ -2,11 +2,17 @@
 やねうら王 更新履歴
 
 
+■　2017/05/09 V4.51
+
+・USE_LARGE_EVAL_HASH導入。
+・Apery定跡ファイルの読み込みに対応。(tanuki-さん)
+
+
 ■　2017/05/08 V4.50
 
 ・Position::piece_bb、やはり大改造することにした。
 ・WindowsSDK、10.0.15063.0をターゲットに変更。
-・たぬきさんの詰将棋探索エンジンをmerge。(作業中)
+・tanuki-さんの詰将棋探索エンジンをmerge。(作業中)
 
 
 ■　2017/05/07 V4.49
@@ -231,11 +237,11 @@
 ・推奨コンパイル環境をVisual Studio 2017に変更。
 ・解説.txtのVisual Studio 2015用の説明を削除。
 ・デバッグのターゲットフォルダ、..\\YaneuraOu2016Engineに設定。
-・[pullreq] リファクタリング: コマンドラインオプションのパースにargparseを使用するようにした(nodchipさん)
-・[pullreq] リファクタリング: パスの結合をos.path.join()で行うようにした(nodchipさん)
-・[pullreq] Intel Xeon Phi Processor 7250においてCPUを100%使い切れるようにした(nodchipさん) →　Stockfish公式にpull reqすべき？
+・[pullreq] リファクタリング: コマンドラインオプションのパースにargparseを使用するようにした(tanuki-さん)
+・[pullreq] リファクタリング: パスの結合をos.path.join()で行うようにした(tanuki-さん)
+・[pullreq] Intel Xeon Phi Processor 7250においてCPUを100%使い切れるようにした(tanuki-さん) →　Stockfish公式にpull reqすべき？
 ・[pullreq] 駒得評価関数での思考エンジンのコンパイルエラーを回避(YuriCatさん)
-・[pullreq] 自己対戦フレームワークの先手・後手の表示の誤りを修正した (nodchipさん)
+・[pullreq] 自己対戦フレームワークの先手・後手の表示の誤りを修正した (tanuki-さん)
 ・V4.24を間違って削除してしまったので復旧。→	config.h
 ・Windows SDKのターゲットバージョンを10.0.14393.0から10.0.15063.0に変更。
 	→時期尚早だった。Windows 10 Creators Updateが来てからにする。
@@ -456,7 +462,7 @@
 ・learnコマンドでetaを設定できるように変更。
 ・DISPLAY_STATS_IN_UPDATE_WEIGHTS削除。
 ・learnコマンドのparser、ソースコード整理。
-・学習のときの進み具合をグラフ化するpythonスクリプト追加(たぬきチームより提供) → analyze_yane_log.py
+・学習のときの進み具合をグラフ化するpythonスクリプト追加(tanuki-さんのチームより提供) → analyze_yane_log.py
 ・scriptフォルダにreadme.txt追加。
 
 
