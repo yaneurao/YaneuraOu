@@ -226,11 +226,13 @@
     <ClInclude Include="extra\key128.h" />
     <ClInclude Include="extra\macros.h" />
     <ClInclude Include="extra\mate1ply.h" />
+    <ClInclude Include="extra\math.h" />
     <ClInclude Include="extra\move_picker_2015.h" />
     <ClInclude Include="extra\move_picker_2016Q2.h" />
     <ClInclude Include="extra\move_picker_2016Q3.h" />
     <ClInclude Include="extra\move_picker_2017Q2.h" />
     <ClInclude Include="extra\mt64bit.h" />
+    <ClInclude Include="extra\progress.h" />
     <ClInclude Include="learn\learn.h" />
     <ClInclude Include="learn\multi_think.h" />
     <ClInclude Include="misc.h" />
@@ -271,9 +273,11 @@
     <ClCompile Include="extra\mate1ply_with_effect.cpp" />
     <ClCompile Include="extra\mate1ply_without_effect.cpp" />
     <ClCompile Include="extra\mate_n_ply.cpp" />
+    <ClCompile Include="extra\math.cpp" />
     <ClCompile Include="extra\move_picker_2016Q2.cpp" />
     <ClCompile Include="extra\move_picker_2016Q3.cpp" />
     <ClCompile Include="extra\move_picker_2017Q2.cpp" />
+    <ClCompile Include="extra\progress.cpp" />
     <ClCompile Include="extra\see.cpp" />
     <ClCompile Include="extra\sfen_packer.cpp" />
     <ClCompile Include="extra\test_cmd.cpp" />
