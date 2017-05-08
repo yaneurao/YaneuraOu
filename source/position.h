@@ -457,6 +457,10 @@ struct Position
 	// StateInfo::key()への簡易アクセス。
 	Key key() const { return st->key(); }
 
+  // ある指し手を指した後のハッシュを返す
+  // 詰め将棋ルーチンの高速化等に使う
+  Key key_after(Move m) const;
+
 
 	// --- misc
 
