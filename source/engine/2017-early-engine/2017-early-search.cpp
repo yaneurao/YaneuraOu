@@ -2670,7 +2670,7 @@ namespace {
       // http://yaneuraou.yaneu.com/2015/01/03/stockfish-dd-book-%E5%AE%9A%E8%B7%A1%E9%83%A8/
       for (const auto& move : move_list) {
         uint64_t move_count = std::max<uint64_t>(1, move.num);
-        sum_move_counts += std::max<uint64_t>(1, move.num);
+        sum_move_counts += move_count;
         if (prng.rand(sum_move_counts) < move_count) {
           best_move = move;
         }
