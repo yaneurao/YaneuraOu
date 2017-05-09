@@ -48,6 +48,7 @@ BookEvalWhiteLimit 定跡の後手の評価値下限
 BookDepthLimit 定跡のdepth下限(0=下限なし)
 
 BookOnTheFly 定跡をメモリに丸読みしない
+ConsiderBookMoveCount 定跡の指し手を採択率に比例させる
 
 EvalDir 評価関数格納フォルダ
 EvalShare 評価関数を共有メモリに展開する

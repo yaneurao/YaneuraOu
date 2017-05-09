@@ -100,6 +100,7 @@ void USI::extra_option(USI::OptionsMap & o)
 	//  user_book1.db    ユーザー定跡1
 	//  user_book2.db    ユーザー定跡2
 	//  user_book3.db    ユーザー定跡3
+	//  book.bin         Apery型の定跡DB
 
 	std::vector<std::string> book_list = { "no_book" , "standard_book.db"
 		, "yaneura_book1.db" , "yaneura_book2.db" , "yaneura_book3.db", "yaneura_book4.db"
@@ -162,6 +163,8 @@ void USI::extra_option(USI::OptionsMap & o)
 	// パラメーターのログの保存先のfile path
 	o["PARAMETERS_LOG_FILE_PATH"] << Option("param_log.txt");
 #endif
+
+	// 定跡データベースの採択率に比例して指し手を選択するオプション
   o["ConsiderBookMoveCount"] << Option(false);
 }
 
@@ -2659,27 +2662,6 @@ void Thread::search()
 
 }
 
-namespace {
-  Book::BookPos select_book_move(const std::vector<Book::BookPos>& move_list) {
-    bool consider_book_move_count = Options["ConsiderBookMoveCount"];
-    auto best_move = move_list[prng.rand(move_list.size())];
-    if (consider_book_move_count) {
-      // 採択率に従って指し手を決める
-      uint64_t sum_move_counts = 0;
-      // 1-passで採択率に従って指し手を決めるオンラインアルゴリズム
-      // http://yaneuraou.yaneu.com/2015/01/03/stockfish-dd-book-%E5%AE%9A%E8%B7%A1%E9%83%A8/
-      for (const auto& move : move_list) {
-        uint64_t move_count = std::max<uint64_t>(1, move.num);
-        sum_move_counts += move_count;
-        if (prng.rand(sum_move_counts) < move_count) {
-          best_move = move;
-        }
-      }
-    }
-    return move_list[prng.rand(move_list.size())];
-  };
-}
-
 // 探索開始時に呼び出される。
 // この関数内で初期化を終わらせ、slaveスレッドを起動してThread::search()を呼び出す。
 // そのあとslaveスレッドを終了させ、ベストな指し手を返すこと。
@@ -2817,7 +2799,7 @@ void MainThread::think()
 				if (book_move_max)
 				{
 					// 不成の指し手がRootMovesに含まれていると正しく指せない。
-					const auto& move = select_book_move(move_list);
+					const auto& move = Book::select_book_move(move_list,prng);
 					auto bestMove = move.bestMove;
 					auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
 					if (it_move != rootMoves.end())
