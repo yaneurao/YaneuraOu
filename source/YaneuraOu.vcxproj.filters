@@ -187,6 +187,15 @@
     <ClInclude Include="extra\book\mt64bit.h">
       <Filter>リソース ファイル\extra\book</Filter>
     </ClInclude>
+    <ClInclude Include="extra\progress.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\math.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\mt64bit.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -326,6 +335,12 @@
     </ClCompile>
     <ClCompile Include="extra\book\book.cpp">
       <Filter>リソース ファイル\extra\book</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\progress.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\math.cpp">
+      <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
