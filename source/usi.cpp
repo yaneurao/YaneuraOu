@@ -350,7 +350,7 @@ namespace USI
 // USI関係のコマンド処理
 // --------------------
 
-s32 eval_sum;
+u64 eval_sum;
 
 // is_ready_cmd()を外部から呼び出せるようにしておく。(benchコマンドなどから呼び出したいため)
 void is_ready()

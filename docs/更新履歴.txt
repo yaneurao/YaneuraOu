@@ -10,6 +10,7 @@
 ・calc_check_sum()の返し値をu64に変更。
 ・評価関数ファイルの自動判定機能追加。
 	- 真やねうら王20161010 , 浮かむ瀬(sdt4) , elmo(WCSC27) , 読み太(WCSC27) , Qhapaq(WCSC27) , tanuki(WCSC27)
+・eval_sum、u64に変え忘れていた箇所修正。
 
 
 ■　2017/05/09 V4.51
