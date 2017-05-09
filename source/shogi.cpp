@@ -17,6 +17,9 @@ const char* USI_PIECE = ". P L N S B R G K +P+L+N+S+B+R+G+.p l n s b r g k +p+l+
 //    tables
 // ----------------------------------------
 
+// これはshogi.hで定義しているのでLONG_EFFECT_LIBRARYがdefineされていないときにも必要。
+namespace Effect8 { Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1]; }
+
 File SquareToFile[SQ_NB] = {
   FILE_1, FILE_1, FILE_1, FILE_1, FILE_1, FILE_1, FILE_1, FILE_1, FILE_1,
   FILE_2, FILE_2, FILE_2, FILE_2, FILE_2, FILE_2, FILE_2, FILE_2, FILE_2,

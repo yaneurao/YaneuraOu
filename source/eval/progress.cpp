@@ -1,4 +1,4 @@
-#include "progress.h"
+﻿#include "progress.h"
 
 #ifdef USE_PROGRESS
 
