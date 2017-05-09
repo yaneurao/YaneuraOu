@@ -1,0 +1,25 @@
+version: 1.0.{build}
+clone_depth: 1
+environment:
+  matrix:
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+    VS: 1
+    PLATFORM: x64
+  - CPU: avx2
+  - CPU: sse42
+  - CPU: sse2
+  - CPU: nosse
+build_script:
+- ps: >-
+    if ($env:VS -eq "1") {
+        msbuild source\YaneuraOu.vcxproj /p:Configuration=Release /p:Platform=$env:PLATFORM /p:OutDir=.
+        Set-Location source
+        Rename-Item YaneuraOu.exe YaneuraOu-by-VS2017.exe
+    } else {
+        $env:Path = "C:\msys64\mingw64\bin;" + $env:Path
+        Set-Location source
+        mingw32-make $env:CPU
+        Rename-Item YaneuraOu-by-gcc.exe YaneuraOu-$env:CPU-by-gcc.exe
+    }
+artifacts:
+- path: '*/YaneuraOu-*.exe'
