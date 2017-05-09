@@ -28,7 +28,7 @@ namespace Eval
 {
 
 // 評価関数パラメーター
-#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_MSC_VER)
+#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
 
 	// 共有メモリ上に確保する場合。
 
@@ -185,8 +185,9 @@ namespace Eval
 	}
 
 
-#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_MSC_VER)
+#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
 	// 評価関数の共有を行うための大掛かりな仕組み
+	// gccでコンパイルするときもWindows環境であれば、これが有効になって欲しいので defined(_WIN32) で判定。
 
 #include <windows.h>
 
@@ -326,7 +327,7 @@ namespace Eval
 	// なので、この関数の最適化は頑張らない。
 	Value compute_eval(const Position& pos)
 	{
-#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_MSC_VER)
+#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
 		// shared memoryを用いているときには、is_ready()で評価関数を読み込み、
 		// 初期化してからしかcompute_eval()を呼び出すことは出来ない。
 		ASSERT_LV1(kk_ != nullptr);

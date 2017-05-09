@@ -626,11 +626,12 @@ typedef std::condition_variable ConditionVariable;
 //     mkdir wrapper
 // ----------------------------
 
-#if defined(_MSC_VER)
+#if defined(_WIN32)
 
 // Windows用
 
 #include <codecvt>	// mkdirするのにwstringが欲しいのでこれが必要
+#include <locale>   // wstring_convertにこれが必要。
 
 // フォルダを作成する。日本語は使っていないものとする。
 // カレントフォルダ相対で指定する。

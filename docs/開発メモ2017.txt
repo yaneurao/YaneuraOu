@@ -15,7 +15,7 @@
 
 	- USER_ENGINEにして、EVAL_NO_USEでも実行した途端にセグフォ。そんな馬鹿な…。
 	- make nosseでビルドしてもセグフォ。
-
+	- オプション指定するところ間違えてた…。修正した。
 
 
 - 評価関数ファイルの自動判定機能追加。
@@ -32,6 +32,26 @@
 Total time (ms) : 26151
 Nodes searched  : 20361112
 Nodes/second    : 778597
+
+// flto,PGOあり。
+Total time (ms) : 25944
+Nodes searched  : 20361112
+Nodes/second    : 784810
+
+// flto
+Total time (ms) : 24836
+Nodes searched  : 20361112
+Nodes/second    : 819822
+
+// PGOあまり意味なさげ
+
+// VC++2017
+Total time (ms) : 27416
+Nodes searched  : 20361112
+Nodes/second    : 742672
+Nodes/second    : 751249
+// gccのほうが5%ぐらい速いのかも知れん。
+
 
 ## 2017/05/09
 

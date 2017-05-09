@@ -169,7 +169,7 @@ struct Position
 	// コンストラクタではおまけとして平手の開始局面にする。
 	Position() {
 		clear();
-#ifndef USE_SHARED_MEMORY_IN_EVAL
+#if !(defined(USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32))
 		// Positionのコンストラクタで平手に初期化すると、compute_eval()が呼び出され、このときに
 		// 評価関数テーブルを参照するが、isready()が呼び出されていないのでこの初期化が出来ない。
 		// ゆえに、この処理は本来ならやめたほうが良い。
