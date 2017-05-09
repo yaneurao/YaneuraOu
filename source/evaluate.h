@@ -45,7 +45,7 @@ namespace Eval {
 #if defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
   u64 calc_check_sum();
 #else
-  u64 calc_check_sum(){ return 0; }
+  static u64 calc_check_sum(){ return 0; }
 #endif
 
   // 評価値の内訳表示(デバッグ用)
