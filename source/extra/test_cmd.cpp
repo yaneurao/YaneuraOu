@@ -1622,5 +1622,103 @@ void bench_cmd(Position& pos, istringstream& is)
 
 }
 
+#ifdef MATE_ENGINE
+// ----------------------------------
+//  USI拡張コマンド "test_mate_engine"
+// ----------------------------------
+
+// 詰将棋エンジンテスト用局面集
+static const char* TestMateEngineSfen[] = {
+  // http://www.ne.jp/asahi/tetsu/toybox/shogi/kifu.htm
+  "3sks3/9/4+P4/9/9/+B8/9/9/9 b S2rb4gs4n4l17p 1",
+  // http://www.ne.jp/asahi/tetsu/toybox/shogi/kifu.htm
+  "7nl/7k1/6p2/6S1p/9/9/9/9/9 b GS2r2b3g2s3n3l16p 1",
+  // http://www.ne.jp/asahi/tetsu/toybox/shogi/kifu.htm
+  "4k4/9/PPPPPPPPP/9/9/9/9/9/9 b B4L2rb4g4s4n9p 1",
+  // http://wdoor.c.u-tokyo.ac.jp/shogi/view/index.cgi?csa=http://wdoor.c.u-tokyo.ac.jp/shogi/LATEST/2017/04/30/wdoor%2Bfloodgate-300-10F%2Bukamuse_6700K%2Bcatshogi%2B20170430143005.csa&move_to=102
+  "l2g5/2s3g2/3k1p2p/P2pp2P1/1pP4s1/p1+B6/NP1P+nPS1P/K1G4+p1/L6NL b RBGNLPrs3p 1",
+  // http://wdoor.c.u-tokyo.ac.jp/shogi/view/index.cgi?csa=http://wdoor.c.u-tokyo.ac.jp/shogi/LATEST/2017/04/30/wdoor%2Bfloodgate-300-10F%2Bcoduck_pi2_600MHz_1c%2BShogiNet%2B20170430110007.csa&move_to=100
+  "6lnk/6+Rbl/2n4pp/7s1/1p2P2NP/p1P2PPP1/1P4GS1/6GK1/LNr5L b B2G2S6Pp 1",
+  // http://wdoor.c.u-tokyo.ac.jp/shogi/view/index.cgi?csa=http://wdoor.c.u-tokyo.ac.jp/shogi/LATEST/2017/04/30/wdoor%2Bfloodgate-300-10F%2BSM_1_25_Xeon_E5_2698_v4_40c%2BSILENT_MAJORITY_1.25_6950X%2B20170430103005.csa&move_to=195
+  "lnks5/1pg1s4/2p5p/p4+r3/P1g6/1Nn6/BKN1P3P/9/LG2s4 w GSL2Prbl9p 1",
+  // http://wdoor.c.u-tokyo.ac.jp/shogi/view/index.cgi?csa=http://wdoor.c.u-tokyo.ac.jp/shogi/LATEST/2017/04/30/wdoor%2Bfloodgate-300-10F%2Bcatshogi%2Bgps_l%2B20170430070003.csa&move_to=134
+  "l7l/2+Rbk4/3rp4/2p3pPs/p2P1p2p/2P1G4/P1N1PPN2/2GK2G2/L7L b B2S6Pgs2n 1",
+  // http://wdoor.c.u-tokyo.ac.jp/shogi/view/index.cgi?csa=http://wdoor.c.u-tokyo.ac.jp/shogi/LATEST/2017/04/30/wdoor%2Bfloodgate-300-10F%2Bcatshogi%2BGikouAperyEvalMix_SeoTsume_i5-33%2B20170430063002.csa&move_to=127
+  "l5g1l/2s+B5/p2ppp2p/5kpP1/3n5/6Pp1/P3PP1lP/2+nr2SS1/3N1GKRL w G2Pbgsn3p 1",
+  // http://wdoor.c.u-tokyo.ac.jp/shogi/view/index.cgi?csa=http://wdoor.c.u-tokyo.ac.jp/shogi/LATEST/2017/04/30/wdoor%2Bfloodgate-300-10F%2BGc_at_Cortex-A53_4c%2BSaturday_Crush_4770K%2B20170430023007.csa&move_to=99
+  "l4g2l/7k1/p1+Pp3pp/5ss1P/3Pp1gP1/P3SL3/N2GPK3/1+rP6/+p6RL w BG2N2Pbsn3p 1",
+  // http://wdoor.c.u-tokyo.ac.jp/shogi/view/index.cgi?csa=http://wdoor.c.u-tokyo.ac.jp/shogi/LATEST/2017/04/30/wdoor%2Bfloodgate-300-10F%2BSM_1_25_Xeon_E5_2698_v4_40c%2Bukamuse_i7%2B20170430013007.csa&move_to=116
+  "l2s3nl/3g1p+R+R1/p1k5p/2pPp4/1p1p5/5Sp2/PPP1PP2P/3G5/L1K4NL b BG2S2Pbg2np 1",
+  // http://wdoor.c.u-tokyo.ac.jp/shogi/view/index.cgi?csa=http://wdoor.c.u-tokyo.ac.jp/shogi/LATEST/2017/04/30/wdoor%2Bfloodgate-300-10F%2BGc_at_Cortex-A53_4c%2Bsonic%2B20170430013003.csa&move_to=149
+  "ln7/2gk1S+S2/2+rpPp2G/2p5p/PP4P2/3B4P/K1SP3PN/1Sg2P+np1/L+r6L w L2Pbgn3p 1",
+  // http://wdoor.c.u-tokyo.ac.jp/shogi/view/index.cgi?csa=http://wdoor.c.u-tokyo.ac.jp/shogi/LATEST/2017/04/30/wdoor%2Bfloodgate-300-10F%2BTest_NB10.5_i5_6200U%2BGikouAperyEvalMix_SeoTsume_i5-33%2B20170430010007.csa&move_to=121
+  "6p1l/1+R1G2g2/5pns1/pp1pk3p/2p3P2/P7P/1L1PSP+b2/1SG1K2P1/L5G1L w N2Prbs2n3p 1",
+  // http://wdoor.c.u-tokyo.ac.jp/shogi/view/index.cgi?csa=http://wdoor.c.u-tokyo.ac.jp/shogi/LATEST/2017/04/30/wdoor%2Bfloodgate-300-10F%2BInoue%2Byeu%2B20170430003006.csa&move_to=144
+  "lng3+R2/2kgs4/ppp6/1B1pp4/7B1/2P2pLp1/PP1PP3P/1S1K2p2/LN5GL b RG2SP2n3p 1",
+};
+
+void test_mate_engine_cmd(Position& pos, istringstream& is) {
+  string token;
+
+  // →　デフォルト1024にしておかないと置換表あふれるな。
+  string ttSize = (is >> token) ? token : "1024";
+
+  Options["Hash"] = ttSize;
+
+  Search::LimitsType limits;
+
+  // ベンチマークモードにしておかないとPVの出力のときに置換表を漁られて探索に影響がある。
+  limits.bench = true;
+
+  // Optionsの影響を受けると嫌なので、その他の条件を固定しておく。
+  limits.enteringKingRule = EKR_NONE;
+
+  // 評価関数の読み込み等
+  is_ready();
+
+  // トータルの探索したノード数
+  int64_t nodes = 0;
+
+  // main threadが探索したノード数
+  int64_t nodes_main = 0;
+  Search::StateStackPtr st;
+
+  // ベンチの計測用タイマー
+  Timer time;
+  time.reset();
+
+  for (const char* sfen : TestMateEngineSfen) {
+    Position pos;
+    pos.set(sfen);
+    pos.set_this_thread(Threads.main());
+
+    sync_cout << "\nPosition: " << sfen << sync_endl;
+
+    // 探索時にnpsが表示されるが、それはこのglobalなTimerに基づくので探索ごとにリセットを行なうようにする。
+    Time.reset();
+
+    Threads.start_thinking(pos, limits, st);
+    Threads.main()->wait_for_search_finished(); // 探索の終了を待つ。
+
+    nodes += Threads.nodes_searched();
+    nodes_main += Threads.main()->rootPos.nodes_searched();
+  }
+
+  auto elapsed = time.elapsed() + 1; // 0除算の回避のため
+
+  sync_cout << "\n==========================="
+    << "\nTotal time (ms) : " << elapsed
+    << "\nNodes searched  : " << nodes
+    << "\nNodes/second    : " << 1000 * nodes / elapsed;
+
+  if ((int)Options["Threads"] > 1)
+    cout
+    << "\nNodes searched(main thread) : " << nodes_main
+    << "\nNodes/second  (main thread) : " << 1000 * nodes_main / elapsed;
+
+  cout << sync_endl;
+
+}
+#endif
 
 #endif // ENABLE_TEST_CMD
