@@ -444,6 +444,7 @@ namespace Eval
 			}
 		}
 
+
 		now->sumKKP = sumKKP;
 		now->sumBKPP = sumBKPP;
 		now->sumWKPP = sumWKPP;

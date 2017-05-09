@@ -25,9 +25,9 @@
 
 namespace Book {
 
-MT64bit AperyBook::mt64bit_; // ’èÕ‚Ìhash¶¬—p‚È‚Ì‚ÅAseed‚ÍŒÅ’è‚ÅƒfƒtƒHƒ‹ƒg’l‚ğg‚¤B
+MT64bit AperyBook::mt64bit_; // å®šè·¡ã®hashç”Ÿæˆç”¨ãªã®ã§ã€seedã¯å›ºå®šã§ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆå€¤ã‚’ä½¿ã†ã€‚
 Key AperyBook::ZobPiece[PIECE_NB - 1][SQ_NB];
-Key AperyBook::ZobHand[PIECE_HAND_NB - 1][19]; // ‚¿‹î‚Ì“¯ˆêí—Ş‚Ì‹î‚Ì”‚²‚Æ
+Key AperyBook::ZobHand[PIECE_HAND_NB - 1][19]; // æŒã¡é§’ã®åŒä¸€ç¨®é¡ã®é§’ã®æ•°ã”ã¨
 Key AperyBook::ZobTurn;
 
 void AperyBook::init() {

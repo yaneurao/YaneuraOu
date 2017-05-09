@@ -83,7 +83,7 @@ bool Progress::Learn() {
 	int num_threads = (int)Options[kThreads];
 	omp_set_num_threads(num_threads);
 
-	// Šû•ˆ‚ğ“Ç‚İ‚Ş
+	// æ£‹è­œã‚’èª­ã¿è¾¼ã‚€
 	sync_cout << "Reading records..." << sync_endl;
 	std::vector<std::vector<Move> > games;
 	std::string book_file = (std::string)Options[kProgressBookFile];
@@ -134,7 +134,7 @@ bool Progress::Learn() {
 		std::exit(1);
 	}
 
-	// ŠwK€”õ
+	// å­¦ç¿’æº–å‚™
 	std::shuffle(games.begin(), games.end(), std::mt19937_64());
 	std::vector<std::vector<Move> > games_for_training(games.begin(),
 		games.begin() + num_games_for_training);
@@ -142,7 +142,7 @@ bool Progress::Learn() {
 		games.begin() + num_games_for_training + num_games_for_testing);
 	int num_iterations = (int)Options[kProgressNumIterations];
 
-	// Adam—p•Ï”
+	// Adamç”¨å¤‰æ•°
 	int num_dimensions = SQ_NB * static_cast<int>(Eval::fe_end);
 	std::vector<std::vector<double> > sum_gradients(num_threads, std::vector<double>(num_dimensions));
 	std::vector<double> ws(num_dimensions);
@@ -157,9 +157,9 @@ bool Progress::Learn() {
 	std::ofstream ofs_loss(loss_file_name);
 	ofs_loss << "offset,rmse_train,rmse_test" << std::endl;
 
-	// ŠwKŠJn
+	// å­¦ç¿’é–‹å§‹
 	for (int iteration = 0; iteration < num_iterations; ++iteration) {
-		// ŒP—ûƒf[ƒ^‚Ìˆ—
+		// è¨“ç·´ãƒ‡ãƒ¼ã‚¿ã®å‡¦ç†
 		double offset = 0.0;
 		double sum_diff2_train = 0.0;
 		int num_moves_in_train = 0;
@@ -203,7 +203,7 @@ bool Progress::Learn() {
 			}
 		}
 
-		// ƒeƒXƒgƒf[ƒ^‚Ìˆ—
+		// ãƒ†ã‚¹ãƒˆãƒ‡ãƒ¼ã‚¿ã®å‡¦ç†
 		double sum_diff2_test = 0.0;
 		int num_moves_in_test = 0;
 #pragma omp parallel for reduction(+:sum_diff2_test, num_moves_in_test) schedule(dynamic)
@@ -225,14 +225,14 @@ bool Progress::Learn() {
 			}
 		}
 
-		// ƒƒX‚Ìo—Í
+		// ãƒ­ã‚¹ã®å‡ºåŠ›
 		ofs_loss <<
 			offset / num_moves_in_train << "," <<
 			std::sqrt(sum_diff2_train / num_moves_in_train) << "," <<
 			std::sqrt(sum_diff2_test / num_moves_in_test)
 			<< std::endl << std::flush;
 
-		// d‚İ‚ÌXV
+		// é‡ã¿ã®æ›´æ–°
 		double adam_beta1_t = std::pow(kAdamBeta1, num_iterations + 1);
 		double adam_beta2_t = std::pow(kAdamBeta2, num_iterations + 1);
 #pragma omp parallel for schedule(dynamic)
@@ -250,13 +250,13 @@ bool Progress::Learn() {
 			// Adam
 			m = kAdamBeta1 * m + (1.0 - kAdamBeta1) * g;
 			v = kAdamBeta2 * v + (1.0 - kAdamBeta2) * g * g;
-			// ‚‘¬‰»‚Ì‚½‚ßpow(ADAM_BETA1, t)‚Ì’l‚ğ•Û‚µ‚Ä‚¨‚­
+			// é«˜é€ŸåŒ–ã®ãŸã‚pow(ADAM_BETA1, t)ã®å€¤ã‚’ä¿æŒã—ã¦ãŠã
 			double mm = m / (1.0 - adam_beta1_t);
 			double vv = v / (1.0 - adam_beta2_t);
 			double delta = learning_rate * mm / (std::sqrt(vv) + kEps);
 			w -= delta;
 
-			// d‚İƒe[ƒuƒ‹‚É‘‚«–ß‚·
+			// é‡ã¿ãƒ†ãƒ¼ãƒ–ãƒ«ã«æ›¸ãæˆ»ã™
 			Square square = static_cast<Square>(dimension / Eval::fe_end);
 			Eval::BonaPiece piece = static_cast<Eval::BonaPiece>(dimension % Eval::fe_end);
 			weights_[square][piece] = w;

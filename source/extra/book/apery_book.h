@@ -49,7 +49,7 @@ public:
 private:
     static void init();
 
-    static MT64bit mt64bit_; // ’èÕ‚Ìhash¶¬—p‚È‚Ì‚ÅAseed‚ÍŒÅ’è‚ÅƒfƒtƒHƒ‹ƒg’l‚ğg‚¤B
+    static MT64bit mt64bit_; // å®šè·¡ã®hashç”Ÿæˆç”¨ãªã®ã§ã€seedã¯å›ºå®šã§ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆå€¤ã‚’ä½¿ã†ã€‚
     std::vector<AperyBookEntry> empty_entries_;
     std::unordered_map<Key, std::vector<AperyBookEntry>> book_;
 

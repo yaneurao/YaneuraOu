@@ -1,7 +1,7 @@
 #ifndef _PROGRESS_H
 #define _PROGRESS_H
 
-// 進行度の計算用
+// 騾ｲ陦悟ｺｦ縺ｮ險育ｮ礼畑
 
 #include "../shogi.h"
 

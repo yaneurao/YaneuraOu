@@ -25,7 +25,7 @@
 #include <cstdint>
 #include <random>
 
-// 64bit のランダムな値を返す為のクラス
+// 64bit 縺ｮ繝ｩ繝ｳ繝繝縺ｪ蛟､繧定ｿ斐☆轤ｺ縺ｮ繧ｯ繝ｩ繧ｹ
 class MT64bit : public std::mt19937_64 {
 public:
     MT64bit() : std::mt19937_64() {}
