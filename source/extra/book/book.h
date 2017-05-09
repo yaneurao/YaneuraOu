@@ -1,9 +1,8 @@
 ﻿#ifndef _BOOK_H_
 #define _BOOK_H_
 
-#include "../shogi.h"
-
-#include "../position.h"
+#include "../../shogi.h"
+#include "../../position.h"
 #include <unordered_map>
 
 // 定跡処理関係

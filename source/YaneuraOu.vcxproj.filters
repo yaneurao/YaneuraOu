@@ -77,6 +77,9 @@
     <Filter Include="リソース ファイル\engine\must-capture-shogi-engine">
       <UniqueIdentifier>{5dd99140-04f4-49f4-9699-713b1b7ee46a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\extra\book">
+      <UniqueIdentifier>{991f4422-aa69-47f9-96dc-ab57ff54f469}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -120,9 +123,6 @@
     </ClInclude>
     <ClInclude Include="tt.h">
       <Filter>リソース ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="extra\book.h">
-      <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
     <ClInclude Include="extra\macros.h">
       <Filter>リソース ファイル\extra</Filter>
@@ -178,11 +178,14 @@
     <ClInclude Include="extra\move_picker_2017Q2.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
-    <ClInclude Include="extra\mt64bit.h">
-      <Filter>リソース ファイル\extra</Filter>
+    <ClInclude Include="extra\book\apery_book.h">
+      <Filter>リソース ファイル\extra\book</Filter>
     </ClInclude>
-    <ClInclude Include="extra\apery_book.h">
-      <Filter>リソース ファイル\extra</Filter>
+    <ClInclude Include="extra\book\book.h">
+      <Filter>リソース ファイル\extra\book</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\book\mt64bit.h">
+      <Filter>リソース ファイル\extra\book</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -223,9 +226,6 @@
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
     <ClCompile Include="extra\bitop.cpp">
-      <Filter>リソース ファイル\extra</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\book.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
     <ClCompile Include="eval\evaluate_kpp.cpp">
@@ -321,8 +321,11 @@
     <ClCompile Include="extra\move_picker_2017Q2.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
-    <ClCompile Include="extra\apery_book.cpp">
-      <Filter>リソース ファイル\extra</Filter>
+    <ClCompile Include="extra\book\apery_book.cpp">
+      <Filter>リソース ファイル\extra\book</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\book\book.cpp">
+      <Filter>リソース ファイル\extra\book</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -1,16 +1,16 @@
-﻿#include "../shogi.h"
+﻿#include "../../shogi.h"
 
 #include <fstream>
 #include <sstream>
 #include <unordered_set>
 
 #include "book.h"
-#include "../position.h"
-#include "../misc.h"
-#include "../search.h"
-#include "../thread.h"
-#include "../learn/multi_think.h"
-#include "../tt.h"
+#include "../../position.h"
+#include "../../misc.h"
+#include "../../search.h"
+#include "../../thread.h"
+#include "../../learn/multi_think.h"
+#include "../../tt.h"
 #include "apery_book.h"
 
 using namespace std;

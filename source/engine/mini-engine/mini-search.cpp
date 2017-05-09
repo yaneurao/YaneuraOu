@@ -23,7 +23,7 @@
 #include "../../thread.h"
 #include "../../misc.h"
 #include "../../tt.h"
-#include "../../extra/book.h"
+#include "../../extra/book/book.h"
 #include "../../move_picker.h"
 
 using namespace std;
