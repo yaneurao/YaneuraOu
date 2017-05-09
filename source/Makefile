@@ -19,8 +19,11 @@ COMPILER = g++
 
 CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fopenmp -fpermissive -D_WIN64 -DUNICODE
 
+# stripの指示
+CFLAGS  += -Wl,-s
+
 # ltoオプションを指定すると実行直後にSegmentation Faultで落ちるときがあるので、そのときは、コメントアウトしてください。
-# CFLAGS   += -flto
+LDFLAGS   += -flto
 CFLAGS   += -march=native
 LDFLAGS  = -lpthread #-lboost_mpi -lboost_serialization
 LIBS     =

@@ -266,26 +266,7 @@ namespace Eval
 					// このタイミングで評価関数バイナリを読み込む
 					load_eval_impl();
 
-					auto check_sum = calc_check_sum();
-
-					// 評価関数ファイルの正体
-					string softname = "unknown";
-
-					// ソフト名自動判別
-					map<u64, string> list = {
-						{ 0x7171a5469027ebf , "ShinYane(20161010)" } ,
-						{ 0x71fc7fd40c668cc , "Ukamuse(sdt4)"      } ,
-
-						{ 0x65cd7c55a9d4cd9 , "elmo(WCSC27)"       } ,
-						{ 0x3aa68b055a020a8 , "Yomita(WCSC27)"     } ,
-						{ 0x702fb2ee5672156 , "Qhapaq(WCSC27)"     } ,
-						{ 0x6c54a1bcb654e37 , "tanuki(WCSC27)"     } ,
-					};
-					if (list.count(check_sum))
-						softname = list[check_sum];
-
-					sync_cout << "info string created shared eval memory. Display : check_sum = "
-						<< std::hex << check_sum << std::dec << " , EvalFile = " << softname <<  sync_endl;
+					sync_cout << "info string created shared eval memory." << sync_endl;
 
 				}
 				else {
@@ -303,7 +284,7 @@ namespace Eval
 		// 1) ::ReleaseMutex()
 		// 2) ::UnmapVieOfFile()
 		// が必要であるが、1),2)がプロセスが解体されるときに自動でなされるので、この処理は特に入れない。
-	}
+
 #else
 
 	// 評価関数のプロセス間共有を行わないときは、普通に
@@ -311,9 +292,30 @@ namespace Eval
 	void load_eval()
 	{
 		load_eval_impl();
-	}
-
 #endif
+
+		// 共有メモリを使う/使わないときの共通の処理
+		auto check_sum = calc_check_sum();
+
+		// 評価関数ファイルの正体
+		string softname = "unknown";
+
+		// ソフト名自動判別
+		map<u64, string> list = {
+			{ 0x7171a5469027ebf , "ShinYane(20161010)" } ,
+			{ 0x71fc7fd40c668cc , "Ukamuse(sdt4)" } ,
+
+			{ 0x65cd7c55a9d4cd9 , "elmo(WCSC27)" } ,
+			{ 0x3aa68b055a020a8 , "Yomita(WCSC27)" } ,
+			{ 0x702fb2ee5672156 , "Qhapaq(WCSC27)" } ,
+			{ 0x6c54a1bcb654e37 , "tanuki(WCSC27)" } ,
+		};
+		if (list.count(check_sum))
+			softname = list[check_sum];
+
+		sync_cout << "info string Eval Check Sum = " << std::hex << check_sum << std::dec
+				  << " , Eval File = " << softname << sync_endl;
+	}
 
 	// KP,KPP,KKPのスケール
 	const int FV_SCALE = 32;
