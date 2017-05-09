@@ -167,19 +167,19 @@ namespace Eval
 	}
 
 
-	s32 calc_check_sum()
+	u64 calc_check_sum()
 	{
-		s32 sum = 0;
+		u64 sum = 0;
 		
-		auto add_sum = [&](s32*ptr , size_t t)
+		auto add_sum = [&](u32*ptr , size_t t)
 		{
 			for (size_t i = 0; i < t; ++i)
 				sum += ptr[i];
 		};
 		
-		add_sum(reinterpret_cast<s32*>(kk) , sizeof(kk ) / sizeof(s32));
-		add_sum(reinterpret_cast<s32*>(kkp), sizeof(kkp) / sizeof(s32));
-		add_sum(reinterpret_cast<s32*>(kpp), sizeof(kpp) / sizeof(s32));
+		add_sum(reinterpret_cast<u32*>(kk) , sizeof(kk ) / sizeof(u32));
+		add_sum(reinterpret_cast<u32*>(kkp), sizeof(kkp) / sizeof(u32));
+		add_sum(reinterpret_cast<u32*>(kpp), sizeof(kpp) / sizeof(u32));
 
 		return sum;
 	}
@@ -267,7 +267,25 @@ namespace Eval
 					load_eval_impl();
 
 					auto check_sum = calc_check_sum();
-					sync_cout << "info string created shared eval memory. Display : check_sum = " << std::hex << check_sum << std::dec << sync_endl;
+
+					// 評価関数ファイルの正体
+					string softname = "unknown";
+
+					// ソフト名自動判別
+					map<u64, string> list = {
+						{ 0x7171a5469027ebf , "ShinYane(20161010)" } ,
+						{ 0x71fc7fd40c668cc , "Ukamuse(sdt4)"      } ,
+
+						{ 0x65cd7c55a9d4cd9 , "elmo(WCSC27)"       } ,
+						{ 0x3aa68b055a020a8 , "Yomita(WCSC27)"     } ,
+						{ 0x702fb2ee5672156 , "Qhapaq(WCSC27)"     } ,
+						{ 0x6c54a1bcb654e37 , "tanuki(WCSC27)"     } ,
+					};
+					if (list.count(check_sum))
+						softname = list[check_sum];
+
+					sync_cout << "info string created shared eval memory. Display : check_sum = "
+						<< std::hex << check_sum << std::dec << " , EvalFile = " << softname <<  sync_endl;
 
 				}
 				else {

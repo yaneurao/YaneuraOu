@@ -1,16 +1,37 @@
 ﻿# ToDO
 
-- 読み筋出力がおかしいらしい件、調査する。
-- pull req取り込む。
 - gccでコンパイル、-fltoを指定するとセグフォで落ちる件、調査する。
+	- あと、strip試す
 - 詰将棋探索エンジン、他の探索部から呼び出せるように改良する。
 - 自己対戦フレームワーク、改良。
-- 評価関数の判定機能追加。
 - 評価関数の形を変える。
 - elmoの学習ルーチン、取り込む。
 
 
+## 2017/05/10
+
+- 評価関数ファイルの自動判定機能追加。
+		{ 0x7171a5469027ebf , "ShinYane(20161010)" } ,
+		{ 0x71fc7fd40c668cc , "Ukamuse(sdt4)"      } ,
+
+		{ 0x65cd7c55a9d4cd9 , "elmo(WCSC27)"       } ,
+		{ 0x3aa68b055a020a8 , "Yomita(WCSC27)"     } ,
+		{ 0x702fb2ee5672156 , "Qhapaq(WCSC27)"     } ,
+		{ 0x6c54a1bcb654e37 , "tanuki(WCSC27)"     } ,
+
+
+// eval = elmo(WCSC27)
+Total time (ms) : 26151
+Nodes searched  : 20361112
+Nodes/second    : 778597
+
 ## 2017/05/09
+
+- pull req取り込む。
+	- 全部なんとかした。
+
+- 読み筋出力がおかしいらしい件、調査する。
+	- V4.50で解決しているらしい。調査おわり。
 
 - 定跡データベースの採択率に比例して指し手を選択するオプション追加
 	- https://github.com/yaneurao/YaneuraOu/pull/24/files

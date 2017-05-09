@@ -7,6 +7,9 @@
 ・KP絶対を用いた進行度推定ルーチン追加。(tanuki-さん)
 ・進行度絡みのファイルの整理。move_picker絡みのファイルの整理。
 ・math.h/cppの中身をmisc.h/cppのなかに移動
+・calc_check_sum()の返し値をu64に変更。
+・評価関数ファイルの自動判定機能追加。
+	- 真やねうら王20161010 , 浮かむ瀬(sdt4) , elmo(WCSC27) , 読み太(WCSC27) , Qhapaq(WCSC27) , tanuki(WCSC27)
 
 
 ■　2017/05/09 V4.51

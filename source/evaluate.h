@@ -43,9 +43,9 @@ namespace Eval {
 
   // 評価関数パラメーターのチェックサムを返す。
 #if defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
-  s32 calc_check_sum();
+  u64 calc_check_sum();
 #else
-  inline s32 calc_check_sum(){ return 0; }
+  u64 calc_check_sum(){ return 0; }
 #endif
 
   // 評価値の内訳表示(デバッグ用)

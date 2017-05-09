@@ -45,7 +45,7 @@ SOURCES  = shogi.cpp                                                           \
 	position.cpp                                                               \
 	usi.cpp                                                                    \
 	thread.cpp                                                                 \
-    tt.cpp                                                                     \
+	tt.cpp                                                                     \
 	extra/book/apery_book.cpp                                                  \
 	extra/book/book.cpp                                                        \
 	extra/bitop.cpp                                                            \
