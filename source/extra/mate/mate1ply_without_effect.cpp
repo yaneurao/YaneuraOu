@@ -5,7 +5,7 @@
 // 利きを用いない1手詰め判定用。(Bonanza6風)
 // やねうら王2014からの移植。
 
-#include "../position.h"
+#include "../../position.h"
 
 //#include <iostream>
 //using std::cout;

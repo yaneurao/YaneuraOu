@@ -202,6 +202,22 @@ private:
 };
 
 // --------------------
+//       Math
+// --------------------
+
+// 進行度の計算や学習で用いる数学的な関数
+namespace Math {
+	// シグモイド関数
+	//  = 1.0 / (1.0 + std::exp(-x))
+	double sigmoid(double x);
+
+	// シグモイド関数の微分
+	//  = sigmoid(x) * (1.0 - sigmoid(x))
+	double dsigmoid(double x);
+}
+
+
+// --------------------
 //       Path
 // --------------------
 

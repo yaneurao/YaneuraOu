@@ -5,8 +5,8 @@
 
 #if defined(USE_MATE_1PLY) && defined(LONG_EFFECT_LIBRARY)
 
-#include "../position.h"
-#include "long_effect.h"
+#include "../../position.h"
+#include "../long_effect.h"
 
 using namespace Effect8; // Effect24のほうは必要に応じて書く。
 

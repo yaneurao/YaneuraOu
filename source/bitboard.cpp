@@ -5,7 +5,7 @@
 #include "shogi.h"
 #include "bitboard.h"
 #include "extra/long_effect.h"
-#include "extra/mate1ply.h"
+#include "extra/mate/mate1ply.h"
 
 using namespace std;
 

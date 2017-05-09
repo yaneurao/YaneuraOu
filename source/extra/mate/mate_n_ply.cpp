@@ -1,6 +1,6 @@
 ﻿#include "mate1ply.h"
 #if defined(USE_MATE_1PLY)
-#include "../position.h"
+#include "../../position.h"
 
 // 利きのある場所への取れない近接王手からの3手詰め
 Move Position::weak_mate_n_ply(int ply) const

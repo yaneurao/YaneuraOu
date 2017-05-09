@@ -44,18 +44,19 @@ SOURCES  = shogi.cpp                                                           \
 	movegen.cpp                                                                \
 	position.cpp                                                               \
 	usi.cpp                                                                    \
-	thread.cpp tt.cpp                                                          \
+	thread.cpp                                                                 \
+    tt.cpp                                                                     \
 	extra/book/apery_book.cpp                                                  \
-	extra/bitop.cpp                                                            \
 	extra/book/book.cpp                                                        \
+	extra/bitop.cpp                                                            \
 	extra/entering_king_win.cpp                                                \
 	extra/long_effect.cpp                                                      \
-	extra/mate1ply_with_effect.cpp                                             \
-	extra/mate1ply_without_effect.cpp                                          \
-	extra/mate_n_ply.cpp                                                       \
-	extra/move_picker_2016Q2.cpp                                               \
-	extra/move_picker_2016Q3.cpp                                               \
-	extra/move_picker_2017Q2.cpp                                               \
+	extra/mate/mate1ply_with_effect.cpp                                        \
+	extra/mate/mate1ply_without_effect.cpp                                     \
+	extra/mate/mate_n_ply.cpp                                                  \
+	extra/move_picker/move_picker_2016Q2.cpp                                   \
+	extra/move_picker/move_picker_2016Q3.cpp                                   \
+	extra/move_picker/move_picker_2017Q2.cpp                                   \
 	extra/test_cmd.cpp                                                         \
 	extra/timeman.cpp                                                          \
 	extra/see.cpp                                                              \
@@ -65,6 +66,7 @@ SOURCES  = shogi.cpp                                                           \
 	eval/evaluate_kppt.cpp                                                     \
 	eval/evaluate_material.cpp                                                 \
 	eval/evaluate_no_eval.cpp                                                  \
+	eval/progress.cpp                                                          \
 	engine/user-engine/user-search.cpp                                         \
 	engine/random-player-engine/random-player-search.cpp                       \
 	engine/help-mate-engine/help-mate-search.cpp                               \

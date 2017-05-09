@@ -135,32 +135,32 @@ struct Tie : public streambuf
 };
 
 struct Logger {
-  static void start(bool b)
-  {
-    static Logger log;
+	static void start(bool b)
+	{
+		static Logger log;
 
-    if (b && !log.file.is_open())
-    {
-      log.file.open("io_log.txt", ifstream::out);
-      cin.rdbuf(&log.in);
-      cout.rdbuf(&log.out);
-      cout << "start logger" << endl;
-    } else if (!b && log.file.is_open())
-    {
-      cout << "end logger" << endl;
-      cout.rdbuf(log.out.buf);
-      cin.rdbuf(log.in.buf);
-      log.file.close();
-    }
-  }
+		if (b && !log.file.is_open())
+		{
+			log.file.open("io_log.txt", ifstream::out);
+			cin.rdbuf(&log.in);
+			cout.rdbuf(&log.out);
+			cout << "start logger" << endl;
+		}
+		else if (!b && log.file.is_open())
+		{
+			cout << "end logger" << endl;
+			cout.rdbuf(log.out.buf);
+			cin.rdbuf(log.in.buf);
+			log.file.close();
+		}
+	}
 
 private:
-  Tie in, out;   // 標準入力とファイル、標準出力とファイルのひも付け
-  ofstream file; // ログを書き出すファイル
+	Tie in, out;   // 標準入力とファイル、標準出力とファイルのひも付け
+	ofstream file; // ログを書き出すファイル
 
-  Logger() : in(cin.rdbuf(),file.rdbuf()) , out(cout.rdbuf(),file.rdbuf()) {}
-  ~Logger() { start(false); }
-
+	Logger() : in(cin.rdbuf(), file.rdbuf()), out(cout.rdbuf(), file.rdbuf()) {}
+	~Logger() { start(false); }
 };
 
 void start_logger(bool b) { Logger::start(b); }
@@ -172,19 +172,31 @@ void start_logger(bool b) { Logger::start(b); }
 // ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。
 int read_all_lines(std::string filename, std::vector<std::string>& lines)
 {
-  fstream fs(filename,ios::in);
-  if (fs.fail())
-    return 1; // 読み込み失敗
+	fstream fs(filename, ios::in);
+	if (fs.fail())
+		return 1; // 読み込み失敗
 
-  while (!fs.fail() && !fs.eof())
-  {
-    std::string line;
-    getline(fs,line);
-    if (line.length())
-      lines.push_back(line);
-  }
-  fs.close();
-  return 0;
+	while (!fs.fail() && !fs.eof())
+	{
+		std::string line;
+		getline(fs, line);
+		if (line.length())
+			lines.push_back(line);
+	}
+	fs.close();
+	return 0;
+}
+
+// --------------------
+//       Math
+// --------------------
+
+double Math::sigmoid(double x) {
+	return 1.0 / (1.0 + std::exp(-x));
+}
+
+double Math::dsigmoid(double x) {
+	return sigmoid(x) * (1.0 - sigmoid(x));
 }
 
 // --------------------
