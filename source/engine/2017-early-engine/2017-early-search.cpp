@@ -42,7 +42,7 @@
 #include "../../thread.h"
 #include "../../misc.h"
 #include "../../tt.h"
-#include "../../extra/book.h"
+#include "../../extra/book/book.h"
 #include "../../move_picker.h"
 #include "../../learn/learn.h"
 
@@ -100,6 +100,7 @@ void USI::extra_option(USI::OptionsMap & o)
 	//  user_book1.db    ユーザー定跡1
 	//  user_book2.db    ユーザー定跡2
 	//  user_book3.db    ユーザー定跡3
+	//  book.bin         Apery型の定跡DB
 
 	std::vector<std::string> book_list = { "no_book" , "standard_book.db"
 		, "yaneura_book1.db" , "yaneura_book2.db" , "yaneura_book3.db", "yaneura_book4.db"
@@ -162,6 +163,9 @@ void USI::extra_option(USI::OptionsMap & o)
 	// パラメーターのログの保存先のfile path
 	o["PARAMETERS_LOG_FILE_PATH"] << Option("param_log.txt");
 #endif
+
+	// 定跡データベースの採択率に比例して指し手を選択するオプション
+  o["ConsiderBookMoveCount"] << Option(false);
 }
 
 // -----------------------
@@ -2658,7 +2662,6 @@ void Thread::search()
 
 }
 
-
 // 探索開始時に呼び出される。
 // この関数内で初期化を終わらせ、slaveスレッドを起動してThread::search()を呼び出す。
 // そのあとslaveスレッドを終了させ、ベストな指し手を返すこと。
@@ -2796,7 +2799,7 @@ void MainThread::think()
 				if (book_move_max)
 				{
 					// 不成の指し手がRootMovesに含まれていると正しく指せない。
-					const auto& move = move_list[(size_t)prng.rand(book_move_max)];
+					const auto& move = Book::select_book_move(move_list,prng);
 					auto bestMove = move.bestMove;
 					auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
 					if (it_move != rootMoves.end())

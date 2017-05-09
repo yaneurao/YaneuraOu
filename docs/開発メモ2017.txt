@@ -5,10 +5,20 @@
 - gccでコンパイル、-fltoを指定するとセグフォで落ちる件、調査する。
 - 詰将棋探索エンジン、他の探索部から呼び出せるように改良する。
 - 自己対戦フレームワーク、改良。
-- 評価関数の形を変える
+- 評価関数の判定機能追加。
+- 評価関数の形を変える。
+- elmoの学習ルーチン、取り込む。
 
 
 ## 2017/05/09
+
+- 定跡データベースの採択率に比例して指し手を選択するオプション追加
+	- https://github.com/yaneurao/YaneuraOu/pull/24/files
+
+
+- Apery定跡データベース読み込みルーチン
+	- まふ定跡を読み込むためにAperyの定跡DBを読み込む機能が必要らしい。
+	- https://github.com/yaneurao/YaneuraOu/pull/23
 
 - _mm_malloc()やめてposix_memalign()使う件
 	- #include <cstdlib>  // posix_memalign()

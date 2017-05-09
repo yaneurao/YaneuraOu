@@ -24,8 +24,8 @@
 
 #include <unordered_map>
 #include "mt64bit.h"
-#include "../shogi.h"
-#include "../position.h"
+#include "../../shogi.h"
+#include "../../position.h"
 
 namespace Book {
 

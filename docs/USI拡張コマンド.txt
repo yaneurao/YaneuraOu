@@ -105,6 +105,9 @@ set option name XXX value ...で設定できるoption
 		定跡ファイル内をバイナリサーチで調べているのでファイルサイズが10GBを超える超巨大な定跡でも取り扱えます。
 		ランダムアクセスに近いアクセスになるので、このオプションを用いるならHDDよりはSSDのほうが好ましいです。
 
+	ConsiderBookMoveCount :  定跡の指し手を定跡DBの採択率に比例させる(やねうら王2017Early以降)
+
+
 	nodestime      : node as timeモード。
 
 		時間の代わりに探索ノード数を決めて探索するときのミリ秒当たりのnode数。

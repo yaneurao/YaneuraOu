@@ -1,16 +1,16 @@
-﻿#include "../shogi.h"
+﻿#include "../../shogi.h"
 
 #include <fstream>
 #include <sstream>
 #include <unordered_set>
 
 #include "book.h"
-#include "../position.h"
-#include "../misc.h"
-#include "../search.h"
-#include "../thread.h"
-#include "../learn/multi_think.h"
-#include "../tt.h"
+#include "../../position.h"
+#include "../../misc.h"
+#include "../../search.h"
+#include "../../thread.h"
+#include "../../learn/multi_think.h"
+#include "../../tt.h"
 #include "apery_book.h"
 
 using namespace std;
@@ -1039,5 +1039,24 @@ namespace Book
     }
   }
 
-}
 
+	Book::BookPos select_book_move(const std::vector<Book::BookPos>& move_list,PRNG& prng) {
+		bool consider_book_move_count = Options["ConsiderBookMoveCount"];
+		auto best_move = move_list[prng.rand(move_list.size())];
+		if (consider_book_move_count) {
+			// 採択率に従って指し手を決める
+			uint64_t sum_move_counts = 0;
+			// 1-passで採択率に従って指し手を決めるオンラインアルゴリズム
+			// http://yaneuraou.yaneu.com/2015/01/03/stockfish-dd-book-%E5%AE%9A%E8%B7%A1%E9%83%A8/
+			for (const auto& move : move_list) {
+				uint64_t move_count = std::max<uint64_t>(1, move.num);
+				sum_move_counts += move_count;
+				if (prng.rand(sum_move_counts) < move_count) {
+					best_move = move;
+				}
+			}
+		}
+		return move_list[prng.rand(move_list.size())];
+	};
+
+}

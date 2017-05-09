@@ -218,9 +218,10 @@
     <ClInclude Include="eval\evaluate_kppt.h" />
     <ClInclude Include="eval\kppt_evalsum.h" />
     <ClInclude Include="extra\all.h" />
-    <ClInclude Include="extra\apery_book.h" />
     <ClInclude Include="extra\bitop.h" />
-    <ClInclude Include="extra\book.h" />
+    <ClInclude Include="extra\book\apery_book.h" />
+    <ClInclude Include="extra\book\book.h" />
+    <ClInclude Include="extra\book\mt64bit.h" />
     <ClInclude Include="extra\config.h" />
     <ClInclude Include="extra\long_effect.h" />
     <ClInclude Include="extra\key128.h" />
@@ -265,9 +266,9 @@
     <ClCompile Include="eval\evaluate_kppt.cpp" />
     <ClCompile Include="eval\evaluate_material.cpp" />
     <ClCompile Include="eval\evaluate_no_eval.cpp" />
-    <ClCompile Include="extra\apery_book.cpp" />
     <ClCompile Include="extra\bitop.cpp" />
-    <ClCompile Include="extra\book.cpp" />
+    <ClCompile Include="extra\book\apery_book.cpp" />
+    <ClCompile Include="extra\book\book.cpp" />
     <ClCompile Include="extra\entering_king_win.cpp" />
     <ClCompile Include="extra\long_effect.cpp" />
     <ClCompile Include="extra\mate1ply_with_effect.cpp" />
