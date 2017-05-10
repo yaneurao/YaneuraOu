@@ -3059,12 +3059,10 @@ namespace Learner
 	pair<Value, vector<Move> > qsearch(Position& pos)
 	{
 		Stack stack[MAX_PLY + 7], *ss = stack + 4;
-		memset(ss - 4, 0, 7 * sizeof(Stack));
-
 		Move pv[MAX_PLY + 1];
-		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
 		init_for_search(pos,ss);
+		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
 		// 現局面で王手がかかっているかで場合分け。
 		const bool inCheck = pos.in_check();
@@ -3098,9 +3096,9 @@ namespace Learner
 
 		Stack stack[MAX_PLY + 7], *ss = stack + 4;	
 		Move pv[MAX_PLY + 1];
-		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
 		init_for_search(pos,ss);
+		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
 		// this_threadに関連する変数の初期化
 		auto th = pos.this_thread();
