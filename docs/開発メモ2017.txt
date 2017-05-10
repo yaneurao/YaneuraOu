@@ -1,7 +1,9 @@
 ﻿# ToDO
 
+- alignas必要のないときにつけないようにする。
 - 自己対戦フレームワーク、改良する。
 - 詰将棋探索エンジン、他の探索部から呼び出せるように改良する。
+- 高速化、もう少し頑張る。
 - 評価関数の形を変える。
 - elmoの学習ルーチン、取り込む。
 - 読み太のソースコード調査する。
@@ -9,6 +11,18 @@
 
 
 ## 2017/05/10
+
+・定跡を選択するときのConsiderBookMoveCountの処理が間違っていたので修正。
+	- 定跡選択部自体をリファクタリングしたほうがいいような気はするが…。
+
+
+・王手のかかっている局面をPosition::set_from_packed_sfen()で読むと状態が不正になる
+	- https://github.com/yaneurao/YaneuraOu/issues/27
+
+
+・Learner::qsearch() および Learner::search() でnullポインタアクセスする件修正。(thx. tanuki-さん)
+	- https://github.com/yaneurao/YaneuraOu/issues/26
+
 
 - gccでコンパイル、-fltoを指定するとセグフォで落ちる件、調査する。
 	- あと、strip試す

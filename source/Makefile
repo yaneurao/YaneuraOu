@@ -22,7 +22,9 @@ CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fopenmp
 # stripの指示
 CFLAGS  += -Wl,-s
 
-CFLAGS   += -march=native
+# これを指定していると、各CPU向けの実行ファイルが生成されない。
+# CFLAGS   += -march=native
+
 LDFLAGS  = -lpthread #-lboost_mpi -lboost_serialization
 LIBS     =
 INCLUDE  = #-I../include
