@@ -2800,24 +2800,44 @@ void MainThread::think()
 
 				if (book_move_max)
 				{
-					// 定跡ファイルの採択率に応じて指し手を選択する場合
+					// move_list[0]～move_list[book_move_max-1]までのなかから選ぶ。
 
-					// 不成の指し手がRootMovesに含まれていると正しく指せない。
-					const auto& move = Book::select_book_move(move_list, book_move_max , prng);
+					auto bestPos = move_list[prng.rand(book_move_max)];
 
-					auto bestMove = move.bestMove;
+					// 定跡ファイルの採択率に応じて指し手を選択するか
+					if (Options["ConsiderBookMoveCount"])
+					{
+						// 1-passで採択率に従って指し手を決めるオンラインアルゴリズム
+						// http://yaneuraou.yaneu.com/2015/01/03/stockfish-dd-book-%E5%AE%9A%E8%B7%A1%E9%83%A8/
+
+						u64 sum_move_counts = 0;
+						for (size_t i = 0; i < book_move_max; ++i)
+						{
+							const auto& move = move_list[i];
+							u64 move_count = std::max<u64>(1, move.num);
+							sum_move_counts += move_count;
+							if (prng.rand(sum_move_counts) < move_count)
+								bestPos = move;
+						}
+					}
+					auto bestMove = bestPos.bestMove;
+
+					// RootMovesに含まれているかどうかをチェックしておく。
 					auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
 					if (it_move != rootMoves.end())
 					{
 						std::swap(rootMoves[0], *it_move);
 
 						// 2手目の指し手も与えないとponder出来ない。
-						if (move.nextMove != MOVE_NONE)
+						// 定跡ファイルに2手目が書いてあったなら、それをponder用に出力する。
+						if (bestPos.nextMove != MOVE_NONE)
 						{
 							if (rootMoves[0].pv.size() <= 1)
 								rootMoves[0].pv.push_back(MOVE_NONE);
-							rootMoves[0].pv[1] = move.nextMove; // これが合法手でなかったら将棋所が弾くと思う。
+							rootMoves[0].pv[1] = bestPos.nextMove; // これが合法手でなかったら将棋所が弾くと思う。
 						}
+
+						// この指し手を指す
 						goto ID_END;
 					}
 				}
