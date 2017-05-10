@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <YaneuraOuCpuTarget>sse2</YaneuraOuCpuTarget>
+  </PropertyGroup>
+  <PropertyGroup>
+    <TargetName>$(ProjectName)-$(YaneuraOuDbgPrefix)$(YaneuraOuTarget)-$(YaneuraOuCpuTarget)</TargetName>
+    <IntDir>$(OutDir)obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
+      <PreprocessorDefinitions>USE_SSE2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <BuildMacro Include="YaneuraOuCpuTarget">
+      <Value>$(YaneuraOuCpuTarget)</Value>
+    </BuildMacro>
+  </ItemGroup>
+</Project>
