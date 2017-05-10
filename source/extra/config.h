@@ -608,8 +608,13 @@ const bool Is64Bit = false;
 #if !defined(IS_64BIT)
 
 // 32bit環境ではメモリが足りなくなるので以下の2つは強制的にオフにしておく。
+
 #undef USE_EVAL_HASH
 #undef USE_SHARED_MEMORY_IN_EVAL
+
+// 機械学習用の配列もメモリ空間に収まりきらないのでコンパイルエラーとなるから
+// これもオフにしておく。
+#undef EVAL_LEARN
 
 #endif
 

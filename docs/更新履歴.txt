@@ -8,6 +8,7 @@
 ・王手のかかっている局面をPosition::set_from_packed_sfen()で読むと状態が不正になる件修正。(thx. tanuki-さん)
 ・定跡を選択するときのConsiderBookMoveCountの処理が間違っていたので修正。
 ・各CPU用のMakefile修正。nosseはx86用にコンパイルする環境が必要なので後回し。
+・32bit用にコンパイルするときはEVAL_LEARNをオフにするようにした。
 
 
 ■　2017/05/10 V4.52
