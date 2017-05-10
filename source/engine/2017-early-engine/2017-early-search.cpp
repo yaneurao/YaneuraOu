@@ -2744,6 +2744,8 @@ void MainThread::think()
 
 				// 狭い定跡を用いるのか？
 				bool narrowBook = Options["NarrowBook"];
+
+				// この局面における定跡の指し手のうち、条件に合わないものを取り除いたあとの指し手の数
 				size_t book_move_max = move_list.size();
 				if (narrowBook)
 				{
@@ -2798,8 +2800,11 @@ void MainThread::think()
 
 				if (book_move_max)
 				{
+					// 定跡ファイルの採択率に応じて指し手を選択する場合
+
 					// 不成の指し手がRootMovesに含まれていると正しく指せない。
-					const auto& move = Book::select_book_move(move_list,prng);
+					const auto& move = Book::select_book_move(move_list, book_move_max , prng);
+
 					auto bestMove = move.bestMove;
 					auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
 					if (it_move != rootMoves.end())
@@ -2816,6 +2821,7 @@ void MainThread::think()
 						goto ID_END;
 					}
 				}
+
 				// 合法手のなかに含まれていなかった、もしくは定跡として選ばれる条件を満たさなかったので
 				// 定跡の指し手は指さない。
 			}

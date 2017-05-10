@@ -1039,16 +1039,19 @@ namespace Book
     }
   }
 
-
-	Book::BookPos select_book_move(const std::vector<Book::BookPos>& move_list,PRNG& prng) {
+	Book::BookPos select_book_move(const std::vector<Book::BookPos>& move_list, size_t book_move_max , PRNG& prng) {
 		bool consider_book_move_count = Options["ConsiderBookMoveCount"];
-		auto best_move = move_list[prng.rand(move_list.size())];
+		auto best_move = move_list[prng.rand(book_move_max)];
+
 		if (consider_book_move_count) {
 			// 採択率に従って指し手を決める
 			uint64_t sum_move_counts = 0;
 			// 1-passで採択率に従って指し手を決めるオンラインアルゴリズム
 			// http://yaneuraou.yaneu.com/2015/01/03/stockfish-dd-book-%E5%AE%9A%E8%B7%A1%E9%83%A8/
-			for (const auto& move : move_list) {
+			for (size_t i = 0; i < book_move_max; ++i)
+			{
+				const auto& move = move_list[i];
+
 				uint64_t move_count = std::max<uint64_t>(1, move.num);
 				sum_move_counts += move_count;
 				if (prng.rand(sum_move_counts) < move_count) {
@@ -1056,7 +1059,7 @@ namespace Book
 				}
 			}
 		}
-		return move_list[prng.rand(move_list.size())];
+		return best_move;
 	};
 
 }

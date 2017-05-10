@@ -76,9 +76,11 @@ namespace Book
 
 
 	// 定跡データベースの採択率に比例して指し手を選択する
-	// const auto& move = select_book_move(move_list,prng);
+	// const auto& move = select_book_move(move_list, book_move_max , prng);
 	// のようにして使う。
-	Book::BookPos select_book_move(const std::vector<Book::BookPos>& move_list,PRNG& prng);
+	// book_move_max : move_list[0]～move_list[book_move_max-1]までのなかから指し手を選ぶ。
+	// prng          : 疑似乱数生成器
+	Book::BookPos select_book_move(const std::vector<Book::BookPos>& move_list,size_t book_move_max , PRNG& prng);
 
 }
 
