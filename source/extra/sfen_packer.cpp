@@ -435,10 +435,12 @@ void Position::set_from_packed_sfen(const PackedSfen& sfen)
 	}
 
 	gamePly = 0;
-	set_state(st);
 
 	// put_piece()したのでこのタイミングでupdate
+	// set_state()で駒種別のbitboardを参照するのでそれまでにこの関数を呼び出す必要がある。
 	update_bitboards();
+
+	set_state(st);
 
 #ifndef EVAL_NO_USE
 	st->materialValue = Eval::material(*this);

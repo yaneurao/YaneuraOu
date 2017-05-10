@@ -212,6 +212,7 @@ void Position::set(std::string sfen)
 	}
 
 	// put_piece()を使ったので更新しておく。
+	// set_state()で駒種別のbitboardを参照するのでそれまでにこの関数を呼び出す必要がある。
 	update_bitboards();
 
 	// --- 手番
