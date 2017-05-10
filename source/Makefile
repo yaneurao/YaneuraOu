@@ -17,12 +17,16 @@ YANEURAOU_EDITION = YANEURAOU_2017_EARLY_ENGINE
 COMPILER = g++
 #COMPILER = mpicxx
 
-CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fopenmp -fpermissive -D_WIN64 -DUNICODE
+# 標準的なコンパイルオプション
+CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fopenmp -fpermissive -DUNICODE
 
-# stripの指示
+# stripの指示。(実行ファイルのサイズを小さく)
 CFLAGS  += -Wl,-s
 
-# これを指定していると、各CPU向けの実行ファイルが生成されない。
+# mingw64では-D_WIN64,-D_WIN32は環境に応じて自動で設定されるので指定すべきではない。
+# CFLAGS += -D_WIN64
+
+# これを指定していると、各CPU向けの実行ファイルが生成されないので指定すべきではない。
 # CFLAGS   += -march=native
 
 LDFLAGS  = -lpthread #-lboost_mpi -lboost_serialization
@@ -105,18 +109,24 @@ $(OBJDIR)/%.o: %.cpp
 all: clean $(TARGET)
 
 avx2:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 sse41:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE41 -msse4.1' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE41 -msse4.1 -march=core2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 sse2:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE2 -msse2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE2 -msse2 -march=core2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
+# 32bit用。-m32は、MSYS2 MinGW-64だと無視されるので、
+# MinGW-64の32bit環境用でコンパイルする必要がある。
 nosse:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DNO_SSE -m32' LDFLAGS='$(LDFLAGS) -flto -march=pentium3' $(TARGET)
+
+# ARMなどのCPU
+other:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DNO_SSE' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 #　とりあえずPGOはavx2専用

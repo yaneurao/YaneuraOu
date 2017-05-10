@@ -1,4 +1,4 @@
-rem 各CPU用の実行ファイルの一括生成用バッチファイル
+# 各CPU用の実行ファイルの一括生成用バッチファイル
 cp -r c:/Users/yaneen/Dropbox/project2/YaneuraOu2017/source ~/shogi-msys64 
 cd source
 
@@ -18,8 +18,8 @@ mingw32-make clean
 mingw32-make -j8 sse2 YANEURAOU_EDITION=YANEURAOU_2017_EARLY_ENGINE
 cp YaneuraOu-by-gcc.exe c:/Users/yaneen/Dropbox/project2/YaneuraOu2017/exe/2017Early/YaneuraOu-2017-early-sse2.exe
 
-mingw32-make clean
-mingw32-make -j8 nosse YANEURAOU_EDITION=YANEURAOU_2017_EARLY_ENGINE
-cp YaneuraOu-by-gcc.exe c:/Users/yaneen/Dropbox/project2/YaneuraOu2017/exe/2017Early/YaneuraOu-2017-early-nosse.exe
-
+# export Path=C:/msys64/mingw32/bin;$PATH
+# mingw32-make clean
+# mingw32-make -j8 nosse YANEURAOU_EDITION=YANEURAOU_2017_EARLY_ENGINE
+# cp YaneuraOu-by-gcc.exe c:/Users/yaneen/Dropbox/project2/YaneuraOu2017/exe/2017Early/YaneuraOu-2017-early-nosse.exe
 
