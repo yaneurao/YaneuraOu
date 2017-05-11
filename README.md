@@ -25,23 +25,7 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 
 《開発計画中》
 
-## やねうら王 王手将棋エディション
-
-王手すると勝ちという変則ルールの将棋。世界最強の王手将棋になりました。(R4250)
-
-## やねうら王 取る一手将棋エディション
-
-合法な取る手がある場合は、必ず取らないといけないという変則ルールの将棋。
-
-## 連続自動対局フレームワーク
-
-連続自動対局を自動化できます。 python版のスクリプトも用意。今後は、python版のほうに注力します。
-
-## やねうら王協力詰めsolver
-
-『寿限無3』(49909手)も解ける協力詰めsolver →　[解説ページ](http://yaneuraou.yaneu.com/2016/01/02/%E5%8D%94%E5%8A%9B%E8%A9%B0%E3%82%81solver%E3%82%92%E5%85%AC%E9%96%8B%E3%81%97%E3%81%BE%E3%81%99/)
-
-## やねうら王詰め将棋solver (気が向いたら製作します)
+## やねうら王詰め将棋solver
 
 《tanuki-さんが開発中》
 
@@ -50,10 +34,9 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 
 ## 過去のサブプロジェクト
 
-過去のサブプロジェクトである、やねうら王nano , mini , classic、王手将棋、取る一手将棋 などはこちらからどうぞ。
+過去のサブプロジェクトである、やねうら王nano , mini , classic、王手将棋、取る一手将棋、協力詰めsolver、連続自己対戦フレームワークなどはこちらからどうぞ。
 
-- [過去のサブプロジェクト](/docs/readme2017.md)
-
+- [過去のサブプロジェクト](/blob/master/docs/README2017.md)
 
 ## やねうら王評価関数ファイル
 
