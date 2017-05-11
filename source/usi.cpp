@@ -26,6 +26,9 @@ extern void test_cmd(Position& pos, istringstream& is);
 extern void perft(Position& pos, istringstream& is);
 extern void generate_moves_cmd(Position& pos);
 extern void bench_cmd(Position& pos, istringstream& is);
+#ifdef MATE_ENGINE
+extern void test_mate_engine_cmd(Position& pos, istringstream& is);
+#endif
 #endif
 
 // 定跡を作るコマンド
@@ -713,6 +716,10 @@ void USI::loop(int argc, char* argv[])
 
 		// ベンチコマンド
 		else if (token == "bench") bench_cmd(pos, is);
+
+#ifdef MATE_ENGINE
+		else if (token == "test_mate_engine") test_mate_engine_cmd(pos, is);
+#endif
 #endif
 
 #ifdef ENABLE_MAKEBOOK_CMD

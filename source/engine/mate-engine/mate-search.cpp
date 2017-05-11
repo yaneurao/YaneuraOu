@@ -218,10 +218,9 @@ namespace MateEngine
     uint32_t generation = 0; // 256で一周する
   };
 
-  static const constexpr int kInfinitePnDn = 1000000;
+  static const constexpr int kInfinitePnDn = 100000000;
   static const constexpr int kMaxDepth = MAX_PLY;
 
-  int64_t counter = 0;
   TranspositionTable transposition_table;
 
   // TODO(tanuki-): ネガマックス法的な書き方に変更する
@@ -230,10 +229,9 @@ namespace MateEngine
       return;
     }
 
-    //sync_cout << n << sync_endl;
-    ++counter;
-    if (counter % 1000000 == 0) {
-      sync_cout << "info string counter=" << counter << sync_endl;
+    auto nodes_searched = n.nodes_searched();
+    if (nodes_searched && nodes_searched % 10000000 == 0) {
+      sync_cout << "info string nodes_searched=" << n.nodes_searched() << sync_endl;
     }
 
     auto& entry = transposition_table.LookUp(n);
@@ -259,11 +257,17 @@ namespace MateEngine
     if (move_picker.empty()) {
       // nが先端ノード
 
-      // 自分の手番でここに到達した場合は王手の手が無かった、
-      // 相手の手番でここに到達した場合は王手回避の手が無かった、
-      // なのでdn=0となる
-      entry.pn = kInfinitePnDn;
-      entry.dn = 0;
+      if (or_node) {
+        // 自分の手番でここに到達した場合は王手の手が無かった、
+        entry.pn = kInfinitePnDn;
+        entry.dn = 0;
+      }
+      else {
+        // 相手の手番でここに到達した場合は王手回避の手が無かった、
+        entry.pn = 0;
+        entry.dn = kInfinitePnDn;
+      }
+
       entry.minimum_distance = std::min(entry.minimum_distance, depth);
       return;
     }
@@ -467,14 +471,14 @@ namespace MateEngine
 
     auto start = std::chrono::system_clock::now();
 
-    counter = 0;
     DFPNwithTCA(r, kInfinitePnDn, kInfinitePnDn, false, true, 0);
     const auto& entry = transposition_table.LookUp(r);
 
+    auto nodes_searched = r.nodes_searched();
     sync_cout << "info string" <<
       " pn " << entry.pn <<
       " dn " << entry.dn <<
-      " counter " << counter << sync_endl;
+      " nodes_searched " << nodes_searched << sync_endl;
 
     std::vector<Move> moves;
     std::unordered_set<Key> visited;
@@ -484,9 +488,9 @@ namespace MateEngine
     if (!moves.empty()) {
       auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
       time_ms = std::max(time_ms, 1LL);
-      int64_t nps = counter * 1000LL / time_ms;
+      int64_t nps = nodes_searched * 1000LL / time_ms;
       std::ostringstream oss;
-      oss << "info depth " << moves.size() << " time " << time_ms << " nodes " << counter << " pv";
+      oss << "info depth " << moves.size() << " time " << time_ms << " nodes " << nodes_searched << " pv";
       for (const auto& move : moves) {
         oss << " " << move;
       }

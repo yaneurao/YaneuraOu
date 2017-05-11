@@ -393,6 +393,7 @@
 #define EVAL_NO_USE
 #define LONG_EFFECT_LIBRARY
 #define USE_KEY_AFTER
+#define ENABLE_TEST_CMD
 #endif
 
 // --- ユーザーの自作エンジンとして実行ファイルを公開するとき用の設定集
