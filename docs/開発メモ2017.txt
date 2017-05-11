@@ -1,6 +1,5 @@
 ﻿# ToDO
 
-- rootMoves、上位にPIECE入ってないのでは。
 - 自己対戦フレームワーク、改良する。
 - 詰将棋探索エンジン、他の探索部から呼び出せるように改良する。
 - 高速化、もう少し頑張る。
@@ -12,18 +11,23 @@
 
 ## 2017/05/12
 
-- Default argument for see_ge()
-	- https://github.com/official-stockfish/Stockfish/commit/0c1f119069bf915b85126159d4865c4bcc532239
-- Remove int to int conversion, unused include.
-	- https://github.com/official-stockfish/Stockfish/commit/99d914985f6ddb1ee22b232d41f17a35e1d34f89
-- Move Pieces[] out of global visibility
-	- https://github.com/official-stockfish/Stockfish/commit/25296547d0258f8519b7614e4474bbc947eaea04
-	- 使ってないから関係なさげ。
-- Avoid *begin always being included in the sorted list regardless of its value.
-	- https://github.com/official-stockfish/Stockfish/commit/321a27fbe3b5af9961b99585ddd365a9cc855e38
+- rootMoves、上位にPIECE入ってないのでは。
+	- 入ってる。
+		Move ttMove = RootNode ? thisThread->rootMoves[thisThread->PVIdx].pv[0]
+	- ああ、 MemoryBook::find()で
+		m.bestMove = pos.move16_to_move(m.bestMove);
+		してた。そうか。これは全エディション共通か。
 
-
-
+- Stockfish最新版にキャッチアップ
+	- Default argument for see_ge()
+		- https://github.com/official-stockfish/Stockfish/commit/0c1f119069bf915b85126159d4865c4bcc532239
+	- Remove int to int conversion, unused include.
+		- https://github.com/official-stockfish/Stockfish/commit/99d914985f6ddb1ee22b232d41f17a35e1d34f89
+	- Move Pieces[] out of global visibility
+		- https://github.com/official-stockfish/Stockfish/commit/25296547d0258f8519b7614e4474bbc947eaea04
+		- 使ってないから関係なさげ。
+	- Avoid *begin always being included in the sorted list regardless of its value.
+		- https://github.com/official-stockfish/Stockfish/commit/321a27fbe3b5af9961b99585ddd365a9cc855e38
 
 
 ## 2017/05/11
