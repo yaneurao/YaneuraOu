@@ -15,11 +15,13 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 - 質問等は以下の記事のコメント欄でお願いします。Twitterでの個別質問にはお答え出来ません。
 	- [やねうら王セットアップ質問スレッド](http://yaneuraou.yaneu.com/2017/05/04/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B-%E3%82%BB%E3%83%83%E3%83%88%E3%82%A2%E3%83%83%E3%83%97%E8%B3%AA%E5%95%8F%E3%82%B9%E3%83%AC%E3%83%83%E3%83%89/)
 
-# Sub-projects
+# 現在進行中のサブプロジェクト
 
 ## やねうら王2017 Early
 
-2017年5月3日完成。蒼天幻想ナイツ・オブ・タヌキ(WCSC27出場)の評価関数を用いるとXeon 24コアでR4000程度の模様。また、この思考エンジンを用いたelmoがWCSC27で優勝しました。
+2017年5月5日完成。蒼天幻想ナイツ・オブ・タヌキ(WCSC27出場)の評価関数を用いるとXeon 24コアでR4000程度の模様。
+
+また、この思考エンジンを用いたelmoがWCSC27で優勝しました。
 
 ## やねうら王2017 GOKU
 
@@ -36,7 +38,7 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 
 過去のサブプロジェクトである、やねうら王nano , mini , classic、王手将棋、取る一手将棋、協力詰めsolver、連続自己対戦フレームワークなどはこちらからどうぞ。
 
-- [過去のサブプロジェクト](/blob/master/docs/README2017.md)
+- [過去のサブプロジェクト](/docs/README2017.md)
 
 ## やねうら王評価関数ファイル
 
