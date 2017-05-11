@@ -699,7 +699,7 @@ namespace YaneuraOu2017Early
 				// T1,b1000,1439 - 61 - 1220(54.12% R28.68)
 				&& !pos.pawn_promotion(move)
 #endif
-				&& !pos.see_ge(move , VALUE_ZERO))
+				&& !pos.see_ge(move))
 				continue;
 
 			// -----------------------
@@ -1561,7 +1561,7 @@ namespace YaneuraOu2017Early
 
 			else if (   givesCheck
 					&& !moveCountPruning
-					&&  pos.see_ge(move, VALUE_ZERO))
+					&&  pos.see_ge(move))
 				extension = ONE_PLY;
 #endif
 
@@ -1747,7 +1747,7 @@ namespace YaneuraOu2017Early
 						// see_sign()だと、toの升の駒でfromの升の駒(NO_PIECE)を取るから
 						// 必ず正になってしまうため、see_sign()ではなくsee()を用いる。
 
-						&& !pos.see_ge(make_move(to_sq(move), from_sq(move)),VALUE_ZERO))
+						&& !pos.see_ge(make_move(to_sq(move), from_sq(move))))
 						r -= 2 * ONE_PLY;
 #endif
 

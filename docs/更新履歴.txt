@@ -2,6 +2,15 @@
 やねうら王 更新履歴
 
 
+■　2017/05/12 V4.54
+
+- Stockfish最新版にキャッチアップ
+	- Default argument for see_ge()
+	- Remove int to int conversion, unused include.
+	- Move Pieces[] out of global visibility
+	- Avoid *begin always being included in the sorted list regardless of its value.
+
+
 ■　2017/05/11 V4.53
 
 ・Learner::qsearch() および Learner::search() でnullポインタアクセスする件修正。(thx. tanuki-さん)
@@ -12,6 +21,8 @@
 ・Makefile、CFLAGSとして-D_WIN64指定しないように変更。
 ・Makefileにother(ARM用など)を追加。
 ・VSのプロジェクト設定のカスケーディング追加。(thx. mizarさん)
+	- [VisualStudioのプロパティシートのメモ](http://qiita.com/bigengelt/items/31c315cf624985a6a47c)
+・定跡の指し手選択部、少しリファクタリングした。
 
 
 ■　2017/05/10 V4.52

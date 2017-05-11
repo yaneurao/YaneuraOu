@@ -36,10 +36,10 @@ struct HistoryStats
 
 		const int D = 324;
 
-		ASSERT_LV3(abs(int(v)) <= D); // 下記の公式に対する一貫性チェック
+		ASSERT_LV3(abs(v) <= D); // 下記の公式に対する一貫性チェック
 		
-		table[from][to][c] -= table[from][to][c] * abs(int(v)) / D;
-		table[from][to][c] += int(v) * 32;
+		table[from][to][c] -= table[from][to][c] * abs(v) / D;
+		table[from][to][c] += v * 32;
 	}
 private:
 	// table[from][to][color]となっているが、fromはSQ_NB_PLUS1 + 打ち駒の7種
@@ -86,10 +86,10 @@ struct Stats {
 
 	const int D = 936;
 
-	ASSERT_LV3(abs(int(v)) <= D); // 下記の公式に対する一貫性チェック
+	ASSERT_LV3(abs(v) <= D); // 下記の公式に対する一貫性チェック
 
-	table[to][pc] -= table[to][pc] * abs(int(v)) / D;
-    table[to][pc] += int(v) * 32;
+	table[to][pc] -= table[to][pc] * abs(v) / D;
+    table[to][pc] += v * 32;
   }
 
 private:
