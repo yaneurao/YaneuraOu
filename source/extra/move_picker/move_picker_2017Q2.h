@@ -36,14 +36,14 @@ struct HistoryStats
 
 		const int D = 324;
 
-		ASSERT_LV3(abs(v) <= D); // 下記の公式に対する一貫性チェック
+		ASSERT_LV3(abs(v) <= D && 32 * D <= 32768); // 下記の公式に対する一貫性チェック
 		
 		table[from][to][c] -= table[from][to][c] * abs(v) / D;
 		table[from][to][c] += v * 32;
 	}
 private:
 	// table[from][to][color]となっているが、fromはSQ_NB_PLUS1 + 打ち駒の7種
-	int table[SQ_NB + 7][SQ_NB][COLOR_NB];
+	int16_t table[SQ_NB + 7][SQ_NB][COLOR_NB];
 };
 
 
@@ -86,7 +86,7 @@ struct Stats {
 
 	const int D = 936;
 
-	ASSERT_LV3(abs(v) <= D); // 下記の公式に対する一貫性チェック
+	ASSERT_LV3(abs(v) <= D && 32 * D <= 32768); // 下記の公式に対する一貫性チェック
 
 	table[to][pc] -= table[to][pc] * abs(v) / D;
     table[to][pc] += v * 32;
@@ -109,7 +109,7 @@ private:
 // このStats<CounterMoveStats>は、直前の指し手に対する、あらゆる指し手に対するスコアである。
 
 typedef Stats<Move            > MoveStats;
-typedef Stats<int             > CounterMoveStats;
+typedef Stats<int16_t         > CounterMoveStats;
 typedef Stats<CounterMoveStats> CounterMoveHistoryStats;
 
 enum Stages : int;

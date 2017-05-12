@@ -11,6 +11,9 @@
 
 ## 2017/05/12
 
+・採択率が高い定跡を選択する部分のコード修正中。
+
+
 - 比較実験用のKKPT型評価関数追加。
 	- nps、5%ぐらいしか変わらない。メモリレイアウトが悪いのか…。元がAVX2用のコードだし、そのせいもあるのか…。
 
@@ -31,6 +34,9 @@
 		- 使ってないから関係なさげ。
 	- Avoid *begin always being included in the sorted list regardless of its value.
 		- https://github.com/official-stockfish/Stockfish/commit/321a27fbe3b5af9961b99585ddd365a9cc855e38
+	- use int16_t for histories
+		- https://github.com/official-stockfish/Stockfish/pull/1113
+			nps、0.5%ぐらい上がるらしい。
 
 
 ## 2017/05/11

@@ -14,7 +14,7 @@ typedef Stats<Value, true> CounterMoveStats;
 
 #if defined(USE_MOVE_PICKER_2017Q2)
 template<typename T> struct Stats;
-typedef Stats<int> CounterMoveStats;
+typedef Stats<int16_t> CounterMoveStats;
 #endif
 
 // 探索関係
