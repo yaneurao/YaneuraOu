@@ -38,7 +38,8 @@
 
 using namespace std;
 
-Book::MemoryBook book;
+// これは探索部で定義されているものとする。
+extern Book::BookMoveSelector book;
 extern void is_ready();
 
 namespace Learner
@@ -323,6 +324,9 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		auto& pos = th->rootPos;
 		pos.set_hirate();
 		pos.set_this_thread(th);
+
+		// 探索部で定義されているBookMoveSelectorのメンバを参照する。
+		auto& book = ::book.memory_book;
 
 		// ply : 初期局面からの手数
 		for (int ply = 0; ply < MAX_PLY - 20; ++ply)

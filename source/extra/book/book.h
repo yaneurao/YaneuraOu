@@ -88,7 +88,6 @@ namespace Book
 		// 定跡にhitした場合は、このままrootMoves[0]を指すようにすれば良い。
 		bool probe(Thread& th , Search::LimitsType& limit ,  PRNG& prng);
 
-	private:
 		// メモリに読み込んだ定跡ファイル
 		MemoryBook memory_book;
 
