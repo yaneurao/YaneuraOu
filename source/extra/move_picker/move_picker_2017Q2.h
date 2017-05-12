@@ -20,17 +20,13 @@ struct HistoryStats
 	// 値の最大値
 	static const int Max = Value(1 << 28);
 
-	int get(Color c, Move m) const { return table[from_sq(m) + (is_drop(m) ? (SQ_NB-1):0)][to_sq(m)][c]; }
+	int get(Color c, Move m) const { return table[from_sq(m)][to_sq(m)][c]; }
 	void clear() { std::memset(table, 0, sizeof(table)); }
 
 	void update(Color c, Move m, int v)
 	{
 		Square from = from_sq(m);
 		Square to = to_sq(m);
-
-		// 駒打ちを分類すべきだと思うので、駒種に応じてfromの位置を調整する。
-		if (is_drop(m))
-			from += (Square)(SQ_NB - 1);
 
 		ASSERT_LV3(from < SQ_NB + 7);
 
@@ -42,6 +38,10 @@ struct HistoryStats
 		table[from][to][c] += v * 32;
 	}
 private:
+	// 駒打ちを分類すべきだと思うので、駒種に応じてfromの位置を調整する。
+	// Stockfishのコードとなるべく互換性を保つためにfrom_sq()と同名の関数名にしておく。
+	Square from_sq(Move m) const { return (Square)(::from_sq(m) + (is_drop(m) ? (SQ_NB - 1) : 0)); }
+
 	// table[from][to][color]となっているが、fromはSQ_NB_PLUS1 + 打ち駒の7種
 	int16_t table[SQ_NB + 7][SQ_NB][COLOR_NB];
 };
@@ -82,7 +82,6 @@ struct Stats {
     // なので is_ok(pc)というassertは書けない。
 
     ASSERT_LV4(is_ok(to));
-
 
 	const int D = 936;
 

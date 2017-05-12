@@ -12,6 +12,7 @@
 	- use int16_t for histories
 ・詰将棋エンジンのバグ修正と、テストコマンド追加。(thx. tanuki-さん)
 ・比較実験用のKKPT型評価関数追加。
+・HistoryStats、リファクタリング。
 
 
 ■　2017/05/11 V4.53
