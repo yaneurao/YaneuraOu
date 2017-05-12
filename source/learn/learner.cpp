@@ -38,7 +38,7 @@
 
 using namespace std;
 
-extern Book::MemoryBook book;
+Book::MemoryBook book;
 extern void is_ready();
 
 namespace Learner

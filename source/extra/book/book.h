@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 struct PRNG;
+namespace Search { struct LimitsType; };
 
 // 定跡処理関係
 namespace Book
@@ -73,6 +74,30 @@ namespace Book
 	// フォーマット等についてはdoc/解説.txt を見ること。
 	extern void makebook_cmd(Position& pos, std::istringstream& is);
 #endif
+
+	// 定跡の指し手の選択をする部分を切り出したもの。
+	struct BookMoveSelector
+	{
+		// extra_option()で呼び出すと、定跡関係のオプション項目をオプション(OptionMap)に追加。
+		void init(USI::OptionsMap & o);
+
+		// 定跡ファイルの読み込み。Search::clear()で呼び出す。
+		void read();
+
+		// 定跡の指し手の選択
+		// 定跡にhitした場合は、このままrootMoves[0]を指すようにすれば良い。
+		bool probe(Thread& th , Search::LimitsType& limit ,  PRNG& prng);
+
+	private:
+		// メモリに読み込んだ定跡ファイル
+		MemoryBook memory_book;
+
+		// 定跡ファイル名
+		static std::string book_name;
+		// TODO : ここstaticにしておかないと
+		// 		o["BookFile"] << Option(book_list, book_list[1], [](auto& o) { book_name = string(o); });
+		// がコンパイル通らない。あとでstaticなの、修正する。
+	};
 
 }
 

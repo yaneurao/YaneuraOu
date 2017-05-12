@@ -62,8 +62,8 @@ using namespace std;
 using namespace Search;
 using namespace Eval;
 
-// 定跡ファイル名
-string book_name;
+// 定跡の指し手を選択するモジュール
+Book::BookMoveSelector book;
 
 #if defined (USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
 // 変更したパラメーター一覧と、リザルト(勝敗)を書き出すためのファイルハンドル
@@ -74,53 +74,14 @@ static fstream result_log;
 // USI::init()のなかからコールバックされる。
 void USI::extra_option(USI::OptionsMap & o)
 {
-	// 
 	//   定跡設定
-	//
 
-	// 実現確率の低い狭い定跡を選択しない
-	o["NarrowBook"] << Option(false);
-
-	// 定跡の指し手を何手目まで用いるか
-	o["BookMoves"] << Option(16, 0, 10000);
-
+	book.init(o);
 
 	//  PVの出力の抑制のために前回出力時間からの間隔を指定できる。
 
 	o["PvInterval"] << Option(300, 0, 100000);
 
-	// 定跡ファイル名
-
-	//  no_book          定跡なし
-	//  standard_book.db 標準定跡
-	//	yaneura_book1.db やねうら大定跡(公開用 concept proof)
-	//	yaneura_book2.db 超やねうら定跡(大会用2015)
-	//	yaneura_book3.db 真やねうら定跡(大会用2016)
-	//	yaneura_book4.db 極やねうら定跡(大会用2017)
-	//  user_book1.db    ユーザー定跡1
-	//  user_book2.db    ユーザー定跡2
-	//  user_book3.db    ユーザー定跡3
-	//  book.bin         Apery型の定跡DB
-
-	std::vector<std::string> book_list = { "no_book" , "standard_book.db"
-		, "yaneura_book1.db" , "yaneura_book2.db" , "yaneura_book3.db", "yaneura_book4.db"
-		, "user_book1.db", "user_book2.db", "user_book3.db", "book.bin" };
-	o["BookFile"] << Option(book_list, book_list[1], [](auto& o) { book_name = string(o); });
-	book_name = book_list[1];
-
-	//  BookEvalDiff: 定跡の指し手で1番目の候補の指し手と、2番目以降の候補の指し手との評価値の差が、
-	//    この範囲内であれば採用する。(1番目の候補の指し手しか選ばれて欲しくないときは0を指定する)
-	//  BookEvalBlackLimit : 定跡の指し手のうち、先手のときの評価値の下限。これより評価値が低くなる指し手は選択しない。
-	//  BookEvalWhiteLimit : 同じく後手の下限。
-	//  BookDepthLimit : 定跡に登録されている指し手のdepthがこれを下回るなら採用しない。0を指定するとdepth無視。
-
-	o["BookEvalDiff"] << Option(30, 0, 99999);
-	o["BookEvalBlackLimit"] << Option(0, -99999, 99999);
-	o["BookEvalWhiteLimit"] << Option(-140, -99999, 99999);
-	o["BookDepthLimit"] << Option(16, 0, 99999);
-
-	// 定跡をメモリに丸読みしないオプション。(default = false)
-	o["BookOnTheFly"] << Option(false);
 
 	// 投了スコア
 	o["ResignValue"] << Option(99999, 0, 99999);
@@ -164,8 +125,6 @@ void USI::extra_option(USI::OptionsMap & o)
 	o["PARAMETERS_LOG_FILE_PATH"] << Option("param_log.txt");
 #endif
 
-	// 定跡データベースの採択率に比例して指し手を選択するオプション
-  o["ConsiderBookMoveCount"] << Option(false);
 }
 
 // -----------------------
@@ -2003,9 +1962,6 @@ using namespace YaneuraOu2017Early;
 
 // --- 以下に好きなように探索のプログラムを書くべし。
 
-// 定跡ファイル
-Book::MemoryBook book;
-
 // パラメーターの初期化
 void init_param()
 {
@@ -2289,8 +2245,7 @@ void Search::clear()
 	//   定跡の読み込み
 	// -----------------------
 
-	if (book_name != "no_book")
-		Book::read_book("book/" + book_name, book, (bool)Options["BookOnTheFly"]);
+	book.read();
 
 	// -----------------------
 	//   置換表のクリアなど
@@ -2705,148 +2660,8 @@ void MainThread::think()
 	//     定跡の選択部
 	// ---------------------
 
-	{
-		// 定跡を用いる手数
-		int book_ply = Options["BookMoves"];
-		if (rootPos.game_ply() <= book_ply)
-		{
-			auto it = book.find(rootPos);
-			if (it != book.end() && it->second.size() != 0) {
-				// 定跡にhitした。逆順で出力しないと将棋所だと逆順にならないという問題があるので逆順で出力する。
-				// また、it->second->size()!=0をチェックしておかないと指し手のない定跡が登録されていたときに困る。
-
-				const auto& move_list = it->second;
-
-				// 1) やねうら標準定跡のように評価値なしの定跡DBにおいては
-				// 出現頻度の高い順で並んでいることが保証されている。
-				// 2) やねうら大定跡のように評価値つきの定跡DBにおいては
-				// 手番側から見て評価値の良い順に並んでいることは保証されている。
-				// 1),2)から、move_list[0]の指し手がベストの指し手と言える。
-
-				if (!Limits.silent)
-				{
-					// 将棋所では対応していないが、ShogiGUIの検討モードで使うときに
-					// 定跡の指し手に対してmultipvを出力しておかないとうまく表示されないので
-					// これを出力しておく。
-					auto i = move_list.size();
-					for (auto it = move_list.rbegin(); it != move_list.rend(); ++it, --i)
-						sync_cout << "info pv " << it->bestMove << " " << it->nextMove
-						<< " (" << fixed << setprecision(2) << (100 * it->prob) << "%)" // 採択確率
-						<< " score cp " << it->value << " depth " << it->depth
-						<< " multipv " << i << sync_endl;
-				}
-
-				// このなかの一つをランダムに選択
-
-				// 評価値ベースで選ぶのでないなら、
-				// 無難な指し手が選びたければ、採択回数が一番多い、最初の指し手(move_list[0])を選ぶべし。
-				// 評価値ベースで選ぶときは、NarrowBookはオンにすべきではない。
-
-				// 狭い定跡を用いるのか？
-				bool narrowBook = Options["NarrowBook"];
-
-				// この局面における定跡の指し手のうち、条件に合わないものを取り除いたあとの指し手の数
-				size_t book_move_max = move_list.size();
-				if (narrowBook)
-				{
-					// 出現確率10%未満のものを取り除く。
-					for (size_t i = 0; i < move_list.size(); ++i)
-					{
-						if (move_list[i].prob < 0.1)
-						{
-							book_move_max = max(i, size_t(1));
-							// 定跡から取り除いたことをGUIに出力
-							if (!Limits.silent)
-								sync_cout << "info string narrow book moves to " << book_move_max << " moves." << sync_endl;
-							break;
-						}
-					}
-				}
-
-				// 評価値の差などを反映。
-				if (book_move_max)
-				{
-					// 定跡として採用するdepthの下限。0 = 無視。
-					auto depth_limit = (int)Options["BookDepthLimit"];
-					if (depth_limit != 0 && move_list[0].depth < depth_limit)
-					{
-						sync_cout << "info string BookDepthLimit is lower than the depth of this node." << sync_endl;
-						book_move_max = 0;
-					} else {
-						// ベストな評価値の候補手から、この差に収まって欲しい。
-						auto eval_diff = (int)Options["BookEvalDiff"];
-						auto value_limit1 = move_list[0].value - eval_diff;
-						// 先手・後手の評価値下限の指し手を採用するわけにはいかない。
-						auto stm_string = (rootPos.side_to_move() == BLACK) ? "BookEvalBlackLimit" : "BookEvalWhiteLimit";
-						auto value_limit2 = (int)Options[stm_string];
-						auto value_limit = max(value_limit1, value_limit2);
-
-						for (size_t i = 0; i < book_move_max; ++i)
-						{
-							if (move_list[i].value < value_limit)
-							{
-								// 候補手が減った理由を出力
-								if (value_limit1 == value_limit)
-									sync_cout << "info string BookEvalDiff = " << eval_diff << " , moves to " << i << " moves." << sync_endl;
-								else
-									sync_cout << "info string " << stm_string << " = " << value_limit2 << " , moves to " << i << " moves." << sync_endl;
-
-								book_move_max = i;
-								break;
-							}
-						}
-					}
-				}
-
-				if (book_move_max)
-				{
-					// move_list[0]～move_list[book_move_max-1]までのなかから選ぶ。
-
-					auto bestPos = move_list[prng.rand(book_move_max)];
-
-					// 定跡ファイルの採択率に応じて指し手を選択するか
-					if (Options["ConsiderBookMoveCount"])
-					{
-						// 1-passで採択率に従って指し手を決めるオンラインアルゴリズム
-						// http://yaneuraou.yaneu.com/2015/01/03/stockfish-dd-book-%E5%AE%9A%E8%B7%A1%E9%83%A8/
-
-						u64 sum_move_counts = 0;
-						for (size_t i = 0; i < book_move_max; ++i)
-						{
-							const auto& move = move_list[i];
-							u64 move_count = std::max<u64>(1, move.num);
-							sum_move_counts += move_count;
-							if (prng.rand(sum_move_counts) < move_count)
-								bestPos = move;
-						}
-					}
-					auto bestMove = bestPos.bestMove;
-
-					// RootMovesに含まれているかどうかをチェックしておく。
-					auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
-					if (it_move != rootMoves.end())
-					{
-						std::swap(rootMoves[0], *it_move);
-
-						// 2手目の指し手も与えないとponder出来ない。
-						// 定跡ファイルに2手目が書いてあったなら、それをponder用に出力する。
-						if (bestPos.nextMove != MOVE_NONE)
-						{
-							if (rootMoves[0].pv.size() <= 1)
-								rootMoves[0].pv.push_back(MOVE_NONE);
-							rootMoves[0].pv[1] = bestPos.nextMove; // これが合法手でなかったら将棋所が弾くと思う。
-						}
-
-						// この指し手を指す
-						goto ID_END;
-					}
-				}
-
-				// 合法手のなかに含まれていなかった、もしくは定跡として選ばれる条件を満たさなかったので
-				// 定跡の指し手は指さない。
-			}
-		}
-	}
+	if (book.probe(*this, Limits, prng))
+		goto ID_END;
 
 	// ---------------------
 	//    宣言勝ち判定
