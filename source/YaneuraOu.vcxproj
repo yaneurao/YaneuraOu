@@ -1131,6 +1131,7 @@
     <ClCompile Include="engine\random-player-engine\random-player-search.cpp" />
     <ClCompile Include="engine\user-engine\user-search.cpp" />
     <ClCompile Include="eval\evaluate_bona_piece.cpp" />
+    <ClCompile Include="eval\evaluate_kkpt.cpp" />
     <ClCompile Include="eval\evaluate_kpp.cpp" />
     <ClCompile Include="eval\evaluate_kppt.cpp" />
     <ClCompile Include="eval\evaluate_material.cpp" />
@@ -1172,6 +1173,7 @@
     <Text Include="..\script\readme.txt" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\docs\README2017.md" />
     <None Include="..\exe\book\standard_book.db" />
     <None Include="..\README.md" />
     <None Include="..\script\analyze_result_log.py" />

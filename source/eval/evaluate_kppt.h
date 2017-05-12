@@ -5,7 +5,7 @@
 
 // KPPT評価関数で用いる共用header的なもの。
 
-#if defined (EVAL_KPPT)
+#if defined(EVAL_KKPT) || defined (EVAL_KPPT)
 
 #include "../evaluate.h"
 

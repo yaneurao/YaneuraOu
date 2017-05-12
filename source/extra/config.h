@@ -292,6 +292,8 @@
 #ifdef YANEURAOU_2017_EARLY_ENGINE
 #define ENGINE_NAME "YaneuraOu 2017 Early"
 #define EVAL_KPPT
+//#define EVAL_KKPT
+
 #define USE_EVAL_HASH
 //#define USE_LARGE_EVAL_HASH
 
@@ -689,9 +691,9 @@ inline int MKDIR(std::string dir_name)
 #define EVAL_TYPE_NAME ""
 #endif
 
-// PP,KPP,KPPT,PPEならdo_move()のときに移動した駒の管理をして差分計算
+// PP,KPP,KKPT,KPPT,PPEならdo_move()のときに移動した駒の管理をして差分計算
 // また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
-#if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_KPPT) || defined(EVAL_PPE)
+#if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_PPE)
 #define USE_EVAL_DIFF
 #endif
 

@@ -339,6 +339,9 @@
     <ClCompile Include="extra\mate\mate1ply_without_effect.cpp">
       <Filter>リソース ファイル\extra\mate</Filter>
     </ClCompile>
+    <ClCompile Include="eval\evaluate_kkpt.cpp">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">
@@ -387,6 +390,9 @@
     </None>
     <None Include="..\script\engine_invoker5.py">
       <Filter>script</Filter>
+    </None>
+    <None Include="..\docs\README2017.md">
+      <Filter>doc</Filter>
     </None>
   </ItemGroup>
 </Project>
