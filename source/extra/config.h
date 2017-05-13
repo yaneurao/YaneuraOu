@@ -7,7 +7,7 @@
 
 // --- ターゲットCPUの選択
 
-#ifndef USE_MAKEFILE
+#if !defined(USE_MAKEFILE)
 
 // USE_AVX512 : AVX-512(サーバー向けSkylake以降)でサポートされた命令を使うか。
 // USE_AVX2   : AVX2(Haswell以降)でサポートされた命令を使うか。pextなど。

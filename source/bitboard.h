@@ -65,10 +65,24 @@ struct alignas(16) Bitboard
 #endif
   }
 
+  // bit test命令
+  // if (lhs & rhs) と書くべきところを
+  // if (lhs.test(rhs)) と書くことでSSE命令を用いて高速化する。
+  
+  bool test(Bitboard rhs) const {
+#if defined(USE_SSE41)
+	  return !_mm_testz_si128(m, rhs.m);
+#else
+	  return (*this & rhs);
+#endif
+  }
+  bool test(Square sq) const { return test(Bitboard(sq)); }
+
   // p[n]を取り出す。SSE4の命令が使えるときはそれを使う。
   template <int n>
   u64 extract64() const
   {
+	  static_assert(n == 0 || n == 1, "");
 #if defined(USE_SSE41)
 	  return (u64)(_mm_extract_epi64(m, n));
 #else
@@ -76,10 +90,24 @@ struct alignas(16) Bitboard
 #endif
   }
 
-  // p[0]とp[1]をorしたものを返す。toU()相当。
+  // p[n]に値を設定する。SSE4の命令が使えるときはそれを使う。
+  template <int n>
+  inline Bitboard& insert64(u64 u)
+  {
+	  static_assert(n == 0 || n == 1, "");
+#if defined(USE_SSE41)
+	  m = _mm_insert_epi64(m, u , n);
+#else
+	  p[n] = u;
+#endif
+	  return *this;
+  }
+
+
+  // p[0]とp[1]をbitwise orしたものを返す。toU()相当。
   u64 merge() const { return extract64<0>() | extract64<1>(); }
 
-  // p[0]とp[1]とで and したときに被覆しているbitがあるか。
+  // p[0]とp[1]とで bitwise and したときに被覆しているbitがあるか。
   // merge()したあとにpext()を使うときなどに被覆していないことを前提とする場合にそのassertを書くときに使う。
   bool cross_over() const { return extract64<0>() & extract64<1>(); }
 
@@ -96,17 +124,22 @@ struct alignas(16) Bitboard
   // while(to = bb.pop())
   //  make_move(from,to);
   // のように用いる。
-  FORCE_INLINE Square pop() { return (p[0] != 0) ? Square(pop_lsb(p[0])) : Square(pop_lsb(p[1]) + 63); }
+  FORCE_INLINE Square pop() {
+	u64 q0 = extract64<0>();  Square sq; 
+	if (q0 != 0) { sq = Square(pop_lsb(q0)); insert64<0>(q0); }
+	else { u64 q1 = extract64<1>();  sq = Square(pop_lsb(q1) + 63); insert64<1>(q1); }
+	return sq;
+  }
 
   // このBitboardの値を変えないpop()
-  FORCE_INLINE Square pop_c() const { return (p[0] != 0) ? Square(LSB64(p[0])) : Square(LSB64(p[1]) + 63); }
+  FORCE_INLINE Square pop_c() const { u64 q0 = extract64<0>();  return (q0 != 0) ? Square(LSB64(q0)) : Square(LSB64(extract64<1>()) + 63); }
 
   // pop()をp[0],p[1]に分けて片側ずつする用
-  FORCE_INLINE Square pop_from_p0() { ASSERT_LV3(p[0] != 0);  return Square(pop_lsb(p[0])); }
-  FORCE_INLINE Square pop_from_p1() { ASSERT_LV3(p[1] != 0);  return Square(pop_lsb(p[1]) + 63); }
+  FORCE_INLINE Square pop_from_p0() { u64 q0 = extract64<0>(); ASSERT_LV3(q0 != 0);  Square sq = Square(pop_lsb(q0)); insert64<0>(q0); return sq; }
+  FORCE_INLINE Square pop_from_p1() { u64 q1 = extract64<1>();  ASSERT_LV3(q1 != 0);  Square sq = Square(pop_lsb(q1) + 63); insert64<1>(q1); return sq; }
 
   // 1のbitを数えて返す。
-  int pop_count() const { return (int)(POPCNT64(p[0]) + POPCNT64(p[1])); }
+  int pop_count() const { return (int)(POPCNT64(extract64<0>()) + POPCNT64(extract64<1>())); }
 
   // 代入型演算子
 
