@@ -18,8 +18,8 @@ struct alignas(16) Bitboard
 #ifdef  USE_SSE2
   union
   {
-    // 64bitずつとして扱いとき用
-    uint64_t p[2];
+    // 64bitずつとして扱うとき用
+    u64 p[2];
 
     // SSEで取り扱い時用
     // bit0がSQ_11,bit1がSQ_12,…,bit81がSQ_99を表現する。
@@ -58,19 +58,30 @@ struct alignas(16) Bitboard
 
   // Stockfishのソースとの互換性がよくなるようにboolへの暗黙の型変換書いておく。
   operator bool() const {
-#ifdef USE_SSE41
-    return !(_mm_testz_si128(m, _mm_set1_epi8(static_cast<char>(0xffu))));
+#if defined(USE_SSE41)
+	  return !_mm_testz_si128(m, m);
 #else
     return (this->merge() ? true : false);
 #endif
   }
 
+  // p[n]を取り出す。SSE4の命令が使えるときはそれを使う。
+  template <int n>
+  u64 extract64() const
+  {
+#if defined(USE_SSE41)
+	  return (u64)(_mm_extract_epi64(m, n));
+#else
+	  return p[n];
+#endif
+  }
+
   // p[0]とp[1]をorしたものを返す。toU()相当。
-  uint64_t merge() const { return p[0] | p[1]; }
+  u64 merge() const { return extract64<0>() | extract64<1>(); }
 
   // p[0]とp[1]とで and したときに被覆しているbitがあるか。
   // merge()したあとにpext()を使うときなどに被覆していないことを前提とする場合にそのassertを書くときに使う。
-  bool cross_over() const { return p[0] & p[1]; }
+  bool cross_over() const { return extract64<0>() & extract64<1>(); }
 
   // 指定した升(Square)が Bitboard のどちらの u64 変数の要素に属するか。
   // 本ソースコードのように縦型Bitboardにおいては、香の利きを求めるのにBitboardの
@@ -227,7 +238,8 @@ extern Bitboard InFrontBB[COLOR_NB][RANK_NB];
 inline const Bitboard rank1_n_bb(const Color US, const Rank r) { ASSERT_LV2(is_ok(r));  return InFrontBB[US][(US == BLACK ? r + 1 : 7 - r)]; }
 
 // 敵陣を表現するBitboard。
-inline const Bitboard enemy_field(const Color US) { return rank1_n_bb(US, RANK_3); }
+extern Bitboard EnemyField[COLOR_NB];
+inline const Bitboard enemy_field(const Color Us) { return EnemyField[Us]; }
 
 // 歩が打てる筋を得るためのBitboard mask
 extern Bitboard PAWN_DROP_MASK_BB[0x200][COLOR_NB];

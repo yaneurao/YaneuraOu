@@ -44,6 +44,10 @@ Bitboard InFrontBB[COLOR_NB][RANK_NB] = {
   RANK9_BB | RANK8_BB | RANK7_BB | RANK6_BB , RANK9_BB | RANK8_BB | RANK7_BB , RANK9_BB | RANK8_BB , RANK9_BB , ZERO_BB }
 };
 
+// 敵陣を表現するBitboard。
+Bitboard EnemyField[COLOR_NB] = { RANK1_BB | RANK2_BB | RANK3_BB , RANK7_BB | RANK8_BB | RANK9_BB };
+
+
 // ----- Bitboard tables
 
 // sqの升が1であるbitboard
