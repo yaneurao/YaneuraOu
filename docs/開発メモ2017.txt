@@ -9,6 +9,19 @@
 - 技巧2のソースコード調査する。
 
 
+## 2017/05/13
+
+
+・V4.52ではConsiderBookMoveCountが無視されていた模様。これはV4.54で修正されている。
+	まふ定跡の選択がおかしかった件はこれのようだ。
+	https://github.com/yaneurao/YaneuraOu/pull/24#issuecomment-301193795
+
+・配布している実行ファイルで同じ定跡の指し手が選ばれる問題
+	  // std::random_device rd; s = (u64)rd() + ((u64)rd() << 32);
+	  // msys2のgccでbuildすると同じ値を返すっぽい。なんぞこれ…。
+	random_device使わないようにする。
+
+
 ## 2017/05/12
 
 - 定跡の指し手の選択部、リファクタリング。
