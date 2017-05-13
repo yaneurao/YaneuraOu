@@ -848,7 +848,8 @@ namespace Eval
 //     USI関連
 // --------------------
 
-namespace USI {
+namespace USI
+{
 	struct Option;
 
 	// USIのoption名と、それに対応する設定内容を保持しているclass
@@ -856,7 +857,12 @@ namespace USI {
 
 	// USIプロトコルで指定されるoptionの内容を保持するclass
 	struct Option {
-		typedef void(*OnChange)(const Option&);
+
+		// USIプロトコルで"setoption"コマンドが送られてきたときに呼び出されるハンドラの型。
+		//		typedef void(*OnChange)(const Option&);
+		// Stockfishでは↑のように関数ポインタになっているが、
+		// これだと[&](o){...}みたいなlambda式を受けられないのでここはstd::functionを使うべきだと思う。
+		typedef std::function<void(const Option&)> OnChange;
 
 		Option(OnChange f = nullptr) : type("button"), min(0), max(0), on_change(f) {}
 

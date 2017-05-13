@@ -11,6 +11,14 @@ namespace Search { struct LimitsType; };
 // 定跡処理関係
 namespace Book
 {
+	struct MemoryBook;
+	// 定跡ファイルの読み込み(book.db)など。
+	// 同じファイルを二度目は読み込み動作をskipする。
+	// on_the_flyが指定されているとメモリに丸読みしない。
+	// 定跡作成時などはこれをtrueにしてはいけない。(メモリに読み込まれないため)
+	extern int read_book(const std::string& filename, MemoryBook& book, bool on_the_fly = false);
+
+
 	// 局面における指し手(定跡を格納するのに用いる)
 	struct BookPos
 	{
@@ -41,6 +49,23 @@ namespace Book
 		// find()で見つからなかったときの値
 		const BookType::iterator end() { return book_body.end(); }
 
+		// 定跡ファイル名を設定する。
+		// また、このタイミングで内部的に読み込んでいる定跡データをクリアする。(別のファイルに変更する可能性があるため)
+		// nameとして"no_book"を与えると定跡なしの意味。
+		void set_book_name(std::string name) { book_name = name; clear(); }
+
+		// 定跡を内部に読み込む。
+		// 定跡ファイル : set_book_name()で事前に渡したファイル名のファイル。
+		// Aperyの定跡ファイルは"book/book.bin"だと仮定。(これはon the fly読み込みに非対応なので丸読みする)
+		// やねうら王の定跡ファイルは、Options["BookOnTheFly"]がtrueのときはon the flyで読み込むので
+		// このタイミングでは実際にはメモリに読み込まない。
+		void read_book() { Book::read_book("book/" + book_name, *this , (bool)Options["BookOnTheFly"]); }
+
+		// 内部に読み込んだ定跡のクリア
+		void clear() { book_body.clear();  }
+
+		// --- 以下のメンバ、普段は直接アクセスすべきではない。
+
 		// 定跡本体
 		BookType book_body;
 
@@ -53,12 +78,6 @@ namespace Book
 		// 上のon_the_fly == trueのときに、開いている定跡ファイルのファイルハンドル
 		std::fstream fs;
 	};
-
-	// 定跡ファイルの読み込み(book.db)など。
-	// 同じファイルを二度目は読み込み動作をskipする。
-	// on_the_flyが指定されているとメモリに丸読みしない。
-	// 定跡作成時などはこれをtrueにしてはいけない。(メモリに読み込まれないため)
-	extern int read_book(const std::string& filename, MemoryBook& book, bool on_the_fly = false);
 
 	extern int read_apery_book(const std::string& filename, MemoryBook& book);
 
@@ -82,7 +101,7 @@ namespace Book
 		void init(USI::OptionsMap & o);
 
 		// 定跡ファイルの読み込み。Search::clear()で呼び出す。
-		void read();
+		void read_book() { memory_book.read_book(); }
 
 		// 定跡の指し手の選択
 		// 定跡にhitした場合は、このままrootMoves[0]を指すようにすれば良い。
@@ -90,12 +109,6 @@ namespace Book
 
 		// メモリに読み込んだ定跡ファイル
 		MemoryBook memory_book;
-
-		// 定跡ファイル名
-		static std::string book_name;
-		// TODO : ここstaticにしておかないと
-		// 		o["BookFile"] << Option(book_list, book_list[1], [](auto& o) { book_name = string(o); });
-		// がコンパイル通らない。あとでstaticなの、修正する。
 	};
 
 }

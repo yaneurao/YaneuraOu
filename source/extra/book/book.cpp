@@ -847,6 +847,10 @@ namespace Book
 
 	MemoryBook::BookType::iterator MemoryBook::find(const Position& pos)
 	{
+		// "no_book"は定跡なしという意味なので定跡の指し手が見つからなかったことにする。
+		if (book_name == "no_book")
+			return end();
+
 		if (book_name == kAperyBookName) {
 			// Apery定跡データベースを用いて指し手を選択する
 			book_body.clear();
@@ -1044,7 +1048,6 @@ namespace Book
 	//
 
 	using namespace USI;
-	std::string BookMoveSelector::book_name;
 
 	void BookMoveSelector::init(USI::OptionsMap & o)
 	{
@@ -1070,8 +1073,9 @@ namespace Book
 		std::vector<std::string> book_list = { "no_book" , "standard_book.db"
 			, "yaneura_book1.db" , "yaneura_book2.db" , "yaneura_book3.db", "yaneura_book4.db"
 			, "user_book1.db", "user_book2.db", "user_book3.db", "book.bin" };
-		o["BookFile"] << Option(book_list, book_list[1], [](auto& o) { book_name = string(o); });
-		book_name = book_list[1];
+
+		o["BookFile"] << Option(book_list, book_list[1], [&](auto& o){ this->memory_book.set_book_name(o); });
+		memory_book.set_book_name(book_list[1]);
 
 		//  BookEvalDiff: 定跡の指し手で1番目の候補の指し手と、2番目以降の候補の指し手との評価値の差が、
 		//    この範囲内であれば採用する。(1番目の候補の指し手しか選ばれて欲しくないときは0を指定する)
@@ -1090,13 +1094,6 @@ namespace Book
 		// 定跡データベースの採択率に比例して指し手を選択するオプション
 		o["ConsiderBookMoveCount"] << Option(false);
 
-	}
-
-	// 定跡ファイルの読み込み。Search::clear()で呼び出す。
-	void BookMoveSelector::read()
-	{
-		if (book_name != "no_book")
-			Book::read_book("book/" + book_name, memory_book, (bool)Options["BookOnTheFly"]);
 	}
 
 	// 定跡の指し手の選択
@@ -1161,7 +1158,7 @@ namespace Book
 
 			// 1手でも取り除いたなら、定跡から取り除いたことをGUIに出力
 			if (!Limits.silent && (n!=move_list.size()))
-				sync_cout << "info string narrow book moves to " << move_list.size() << " moves." << sync_endl;
+				sync_cout << "info string NarrowBook : " << n << " moves to " << move_list.size() << " moves." << sync_endl;
 		}
 
 		if (move_list.size() == 0)
@@ -1194,7 +1191,7 @@ namespace Book
 			// 候補手が1手でも減ったなら減った理由を出力
 			if (n!=move_list.size())
 				sync_cout << "info string BookEvalDiff = " << eval_diff << " ,  " << stm_string << " = " << value_limit2 
-					<< " , moves to " << move_list.size() << " moves." << sync_endl;
+					<< " , " << n << " moves to " << move_list.size() << " moves." << sync_endl;
 		}
 
 		if (move_list.size() == 0)
