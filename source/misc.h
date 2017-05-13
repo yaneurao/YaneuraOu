@@ -185,7 +185,13 @@ struct PRNG {
   PRNG(uint64_t seed) : s(seed) { ASSERT_LV1(seed); }
 
   // C++11のrandom_device()によるseedの初期化
-  PRNG() { std::random_device rd; s = (u64)rd() + ((u64)rd() << 32); }
+  PRNG() {
+	  // std::random_device rd; s = (u64)rd() + ((u64)rd() << 32);
+	  // msys2のgccでbuildすると同じ値を返すっぽい。なんぞこれ…。
+
+	  // time値とか、thisとか加算しておく。
+	  s = (u64)(time(NULL)) + ((u64)(this) << 32);
+  }
 
   // 乱数を一つ取り出す。
   template<typename T> T rand() { return T(rand64()); }
