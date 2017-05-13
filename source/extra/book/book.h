@@ -49,17 +49,13 @@ namespace Book
 		// find()で見つからなかったときの値
 		const BookType::iterator end() { return book_body.end(); }
 
-		// 定跡ファイル名を設定する。
-		// また、このタイミングで内部的に読み込んでいる定跡データをクリアする。(別のファイルに変更する可能性があるため)
-		// nameとして"no_book"を与えると定跡なしの意味。
-		void set_book_name(std::string name) { book_name = name; clear(); }
-
 		// 定跡を内部に読み込む。
 		// 定跡ファイル : set_book_name()で事前に渡したファイル名のファイル。
 		// Aperyの定跡ファイルは"book/book.bin"だと仮定。(これはon the fly読み込みに非対応なので丸読みする)
 		// やねうら王の定跡ファイルは、Options["BookOnTheFly"]がtrueのときはon the flyで読み込むので
 		// このタイミングでは実際にはメモリに読み込まない。
-		void read_book() { Book::read_book("book/" + book_name, *this , (bool)Options["BookOnTheFly"]); }
+		void read_book(const std::string& book_name)
+		{ Book::read_book("book/" + book_name, *this , (bool)Options["BookOnTheFly"]); }
 
 		// 内部に読み込んだ定跡のクリア
 		void clear() { book_body.clear();  }
@@ -70,6 +66,7 @@ namespace Book
 		BookType book_body;
 
 		// 読み込んだbookの名前
+		// (読み込む前にこの名前を設定してはいけない)
 		std::string book_name;
 
 		// メモリに丸読みせずにfind()のごとにファイルを調べにいくのか。
@@ -101,7 +98,7 @@ namespace Book
 		void init(USI::OptionsMap & o);
 
 		// 定跡ファイルの読み込み。Search::clear()で呼び出す。
-		void read_book() { memory_book.read_book(); }
+		void read_book() { memory_book.read_book(book_name); }
 
 		// 定跡の指し手の選択
 		// 定跡にhitした場合は、このままrootMoves[0]を指すようにすれば良い。
@@ -109,6 +106,9 @@ namespace Book
 
 		// メモリに読み込んだ定跡ファイル
 		MemoryBook memory_book;
+
+		// 読み込む予定の定跡ファイル名
+		std::string book_name;
 	};
 
 }

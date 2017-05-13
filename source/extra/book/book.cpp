@@ -601,7 +601,8 @@ namespace Book
 	int read_book(const std::string& filename, MemoryBook& book, bool on_the_fly)
 	{
 		// 読み込み済であるかの判定
-		if (book.book_name == filename)
+		// 読み込み済み、もしくは定跡を用いない(no_book)であるなら正常終了。
+		if (book.book_name == filename || filename=="book/no_book")
 			return 0;
 
 		// 別のファイルを開こうとしているなら前回メモリに丸読みした定跡をクリアしておかないといけない。
@@ -1074,8 +1075,8 @@ namespace Book
 			, "yaneura_book1.db" , "yaneura_book2.db" , "yaneura_book3.db", "yaneura_book4.db"
 			, "user_book1.db", "user_book2.db", "user_book3.db", "book.bin" };
 
-		o["BookFile"] << Option(book_list, book_list[1], [&](auto& o){ this->memory_book.set_book_name(o); });
-		memory_book.set_book_name(book_list[1]);
+		o["BookFile"] << Option(book_list, book_list[1], [&](auto& o){ this->book_name = string(o); });
+		book_name = book_list[1];
 
 		//  BookEvalDiff: 定跡の指し手で1番目の候補の指し手と、2番目以降の候補の指し手との評価値の差が、
 		//    この範囲内であれば採用する。(1番目の候補の指し手しか選ばれて欲しくないときは0を指定する)
