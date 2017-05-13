@@ -2,15 +2,36 @@
 
 - 自己対戦フレームワーク、改良する。
 - 詰将棋探索エンジン、他の探索部から呼び出せるように改良する。
-- 高速化、もう少し頑張る。
 - PPAP評価関数
 - elmoの学習ルーチン、取り込む。
 - 読み太のソースコード調査する。
 - 技巧2のソースコード調査する。
 
 
-## 2017/05/13
+## 2017/05/14
 
+・Bitboardクラス、リファクタリング。
+	- enemy_field、Bitboardを別途用意した。
+	- Bitboard::test()追加。
+	- Bitboard::extract64(),insert64()追加。
+	- FOREACH_BB、修正。
+
+Total time (ms) : 24892
+Nodes searched  : 20361112
+Nodes/second    : 817978
+
+// 速くなっているかは微妙だがxmmレジスタをいったんストアしてないだけマシだと思うことにする。
+
+Total time (ms) : 25446
+Nodes searched  : 86563443
+Nodes/second    : 3401848
+Nodes searched(main thread) : 11001396
+Nodes/second  (main thread) : 432342
+
+Bitboardクラス、もう少しソースコードを整理したほうが良いと思うが、キリがないので今回はこれくらいにしておく。
+
+
+## 2017/05/13
 
 ・V4.52ではConsiderBookMoveCountが無視されていた模様。これはV4.54で修正されている。
 	まふ定跡の選択がおかしかった件はこれのようだ。
