@@ -57,9 +57,6 @@ namespace Book
 		void read_book(const std::string& book_name)
 		{ Book::read_book("book/" + book_name, *this , (bool)Options["BookOnTheFly"]); }
 
-		// 内部に読み込んだ定跡のクリア
-		void clear() { book_body.clear();  }
-
 		// --- 以下のメンバ、普段は直接アクセスすべきではない。
 
 		// 定跡本体
@@ -68,6 +65,9 @@ namespace Book
 		// 読み込んだbookの名前
 		// (読み込む前にこの名前を設定してはいけない)
 		std::string book_name;
+
+		// 内部に読み込んだ定跡のクリア
+		void clear() { book_body.clear(); }
 
 		// メモリに丸読みせずにfind()のごとにファイルを調べにいくのか。
 		bool on_the_fly = false;

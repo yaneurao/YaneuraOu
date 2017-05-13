@@ -601,13 +601,18 @@ namespace Book
 	int read_book(const std::string& filename, MemoryBook& book, bool on_the_fly)
 	{
 		// 読み込み済であるかの判定
-		// 読み込み済み、もしくは定跡を用いない(no_book)であるなら正常終了。
-		if (book.book_name == filename || filename=="book/no_book")
+		if (book.book_name == filename)
 			return 0;
 
-		// 別のファイルを開こうとしているなら前回メモリに丸読みした定跡をクリアしておかないといけない。
-		if (book.book_name != "")
-			book.book_body.clear();
+		// 別のファイルを開こうとしているので前回メモリに丸読みした定跡をクリアしておかないといけない。
+		book.clear();
+
+		// 読み込み済み、もしくは定跡を用いない(no_book)であるなら正常終了。
+		if (filename == "book/no_book")
+		{
+			book.book_name = filename;
+			return 0;
+		}
 
 		if (filename == kAperyBookName) {
 			// Apery定跡データベースを読み込む
