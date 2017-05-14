@@ -10,6 +10,10 @@ import math
 from collections import OrderedDict
 
 params = OrderedDict()
+res = {}
+res["win"]  = 0
+res["lose"] = 0
+res["draw"] = 0
 
 def analyze_log(file_path):
 
@@ -22,6 +26,8 @@ def analyze_log(file_path):
 			if ("draw" in line) or ("win" in line) or ("lose" in line):
 				# "gameover win"の"win"の部分を取り出す
 				result = line.split(' ')[1].strip()
+
+				res[result] += 1
 
 				plist = last_line.split(",");
 				# PARAM1:123,PARAM2:234,...のように並んでいる。
@@ -66,9 +72,12 @@ if __name__ == '__main__':
 		sys.stdout.write(".")
 	print
 
+	print ("total : " + rating(res["win"],res["lose"],res["draw"]))
+
 	t_win = t_lose = t_draw = 0
 	first = True
 	for key,param in params.items():
+
 		if first:
 			first = False
 			for key2,result in param.items():

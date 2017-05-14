@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <YaneuraOuTarget>2016-mid</YaneuraOuTarget>
+    <YaneuraOuDir>2016Mid</YaneuraOuDir>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OutDir>$(OutBaseDir)$(YaneuraOuDir)\</OutDir>
+    <TargetName>$(ProjectName)-$(YaneuraOuTarget)</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>USE_MAKEFILE;YANEURAOU_2016_MID_ENGINE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <BuildMacro Include="YaneuraOuTarget">
+      <Value>$(YaneuraOuTarget)</Value>
+    </BuildMacro>
+    <BuildMacro Include="YaneuraOuDir">
+      <Value>$(YaneuraOuDir)</Value>
+    </BuildMacro>
+  </ItemGroup>
+</Project>

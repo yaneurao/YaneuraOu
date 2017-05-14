@@ -89,22 +89,30 @@ struct Thread
 	// rootから最大、何手目まで探索したか(選択深さの最大)
 	int maxPly;
 
+#if !defined(YANEURAOU_2017_EARLY_ENGINE)
 	// 反復深化の深さ(Depth型ではないので注意)
 	int rootDepth;
 
 	// このスレッドに関して、終了した反復深化の深さ(Depth型ではないので注意)
 	int completedDepth;
+#else
+	// 反復深化の深さ
+	Depth rootDepth;
+
+	// このスレッドに関して、終了した反復深化の深さ
+	Depth completedDepth;
+#endif
 
 	// 探索でsearch()が呼び出された回数を集計する用。
 	std::atomic_bool resetCalls;
 	int callsCnt;
 
-#if defined( USE_MOVE_PICKER_2015 ) || defined( USE_MOVE_PICKER_2016Q2 ) || defined( USE_MOVE_PICKER_2016Q3 )
+#if defined( USE_MOVE_PICKER_2015 ) || defined( USE_MOVE_PICKER_2016Q2 ) || defined( USE_MOVE_PICKER_2016Q3 ) || defined ( USE_MOVE_PICKER_2017Q2 )
 	// ある種のMovePickerではオーダリングのために、
 	// スレッドごとにhistoryとcounter movesのtableを持たないといけない。
 
-	HistoryStats history;
 	MoveStats counterMoves;
+	HistoryStats history;
 #endif
 
 #if defined( USE_MOVE_PICKER_2016Q2 ) || defined( USE_MOVE_PICKER_2016Q3 )

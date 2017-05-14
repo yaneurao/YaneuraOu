@@ -5,7 +5,7 @@
 
 // KPPT評価関数で用いる共用header的なもの。
 
-#if defined (EVAL_KPPT)
+#if defined(EVAL_KKPT) || defined (EVAL_KPPT)
 
 #include "../evaluate.h"
 
@@ -42,7 +42,7 @@ namespace Eval
 	// 以下では、SQ_NBではなくSQ_NB_PLUS1まで確保したいが、Apery(WCSC26)の評価関数バイナリを読み込んで変換するのが面倒なので
 	// ここではやらない。ゆえに片側の玉や、駒落ちの盤面には対応出来ない。
 
-#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_MSC_VER)
+#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
 
 	// 評価関数パラメーターを他プロセスと共有するための機能。
 

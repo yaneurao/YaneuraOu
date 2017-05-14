@@ -12,7 +12,12 @@ namespace {
 	// std::thread派生型であるT型のthreadを一つ作って、そのidle_loopを実行するためのマクロ。
 	// 生成されたスレッドはidle_loop()で仕事が来るのを待機している。
 	template<typename T> T* new_thread() {
-		T* th = new (_mm_malloc(sizeof(T), alignof(T))) T();
+		void* dst = _mm_malloc(sizeof(T), alignof(T));
+		// 確保に成功したならゼロクリアしておく。
+		if (dst)
+			std::memset(dst, 0, sizeof(T));
+
+		T* th = new (dst) T();
 		return (T*)th;
 	}
 

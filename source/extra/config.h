@@ -7,7 +7,7 @@
 
 // --- ターゲットCPUの選択
 
-#ifndef USE_MAKEFILE
+#if !defined(USE_MAKEFILE)
 
 // USE_AVX512 : AVX-512(サーバー向けSkylake以降)でサポートされた命令を使うか。
 // USE_AVX2   : AVX2(Haswell以降)でサポートされた命令を使うか。pextなど。
@@ -93,11 +93,13 @@
 
 // #define EVAL_NO_USE    // 評価関数を用いないとき。
 // #define EVAL_MATERIAL  // 駒得のみの評価関数
-// #define EVAL_PP        // ツツカナ型 2駒関係
+// #define EVAL_PP        // ツツカナ型 2駒関係(開発するかも)
 // #define EVAL_KPP       // Bonanza型 3駒関係
 // #define EVAL_KPPT      // Bonanza型 3駒関係、手番つき(Apery WCSC26相当)
-// #define EVAL_KPPT_FAST // KPPTのAVX2/AVX-512による高速化。(非公開)
-// #define EVAL_PPET      // 技巧型 2駒+利き+手番(開発予定)
+// #define EVAL_KKPT      // KKP手番あり + KPP手番なし(Ponanza WCSC26相当)
+// #define EVAL_PPET      // 技巧型 2駒+利き+手番(開発するかも/しないかも)
+// #define EVAL_KKPPT     // KKPPT型 4駒関係ね手番つき(55将棋、56将棋で用いる)
+// #define EVAL_PPAT      // 3駒 + Piece-Piece-and Pawn型
 
 // KPPT評価関数の学習に使うときのモード
 // #define EVAL_LEARN
@@ -119,6 +121,10 @@
 // 自前でPVを管理してRootMoves::pvを更新するなら、この機能を使う必要はない。
 // これはPVの更新が不要なので実装が簡単だが、Ponderの指し手を返すためには
 // PVが常に正常に更新されていないといけないので最近はこの方法は好まれない。
+// ただしShogiGUIの解析モードでは思考エンジンが出力した最後の読み筋を記録するようなので、
+// fail low/fail highしたときのものが棋譜に残る。このとき、読み筋は途中までしか出力されないが、
+// これはまずい。かと言って、ShogiGUIが棋譜解析のときにfail low/fail highした読み筋を無視するようにすると、
+// それはbest moveとは異なる可能性があるので、それはよろしくない。結論的には、USE_TT_PVは有効にすべき。
 // #define USE_TT_PV
 
 // 定跡を作るコマンド("makebook")を有効にする。
@@ -170,6 +176,10 @@
 
 // USIプロトコルでgameoverコマンドが送られてきたときに gameover_handler()を呼び出す。
 // #define USE_GAMEOVER_HANDLER
+
+// EVAL_HASHで使用するメモリとして大きなメモリを確保するか。
+// これをONすると数%高速化する代わりに、メモリ使用量が1GBほど増える。
+// #define USE_LARGE_EVAL_HASH
 
 // --------------------
 // release configurations
@@ -282,9 +292,14 @@
 #ifdef YANEURAOU_2017_EARLY_ENGINE
 #define ENGINE_NAME "YaneuraOu 2017 Early"
 #define EVAL_KPPT
-//#define USE_EVAL_HASH
+//#define EVAL_KKPT
+
+#define USE_EVAL_HASH
+//#define USE_LARGE_EVAL_HASH
+
+#define USE_TT_PV
 #define USE_SEE
-#define USE_MOVE_PICKER_2016Q3
+#define USE_MOVE_PICKER_2017Q2
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
@@ -301,6 +316,7 @@
 // 学習絡みのオプション
 #define USE_SFEN_PACKER
 #define EVAL_LEARN
+
 // 定跡生成絡み
 #define ENABLE_MAKEBOOK_CMD
 // 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
@@ -378,6 +394,8 @@
 #define USE_MATE_1PLY
 #define EVAL_NO_USE
 #define LONG_EFFECT_LIBRARY
+#define USE_KEY_AFTER
+#define ENABLE_TEST_CMD
 #endif
 
 // --- ユーザーの自作エンジンとして実行ファイルを公開するとき用の設定集
@@ -586,6 +604,23 @@ const bool Is64Bit = false;
 #define USE_SSE2
 #endif
 
+// --------------------
+//    for 32bit OS
+// --------------------
+
+#if !defined(IS_64BIT)
+
+// 32bit環境ではメモリが足りなくなるので以下の2つは強制的にオフにしておく。
+
+#undef USE_EVAL_HASH
+#undef USE_SHARED_MEMORY_IN_EVAL
+
+// 機械学習用の配列もメモリ空間に収まりきらないのでコンパイルエラーとなるから
+// これもオフにしておく。
+#undef EVAL_LEARN
+
+#endif
+
 // ----------------------------
 //     mutex wrapper
 // ----------------------------
@@ -599,11 +634,12 @@ typedef std::condition_variable ConditionVariable;
 //     mkdir wrapper
 // ----------------------------
 
-#if defined(_MSC_VER)
+#if defined(_WIN32)
 
 // Windows用
 
 #include <codecvt>	// mkdirするのにwstringが欲しいのでこれが必要
+#include <locale>   // wstring_convertにこれが必要。
 
 // フォルダを作成する。日本語は使っていないものとする。
 // カレントフォルダ相対で指定する。
@@ -655,9 +691,9 @@ inline int MKDIR(std::string dir_name)
 #define EVAL_TYPE_NAME ""
 #endif
 
-// PP,KPP,KPPT,PPEならdo_move()のときに移動した駒の管理をして差分計算
+// PP,KPP,KKPT,KPPT,PPEならdo_move()のときに移動した駒の管理をして差分計算
 // また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
-#if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST) || defined(EVAL_PPE)
+#if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_PPE)
 #define USE_EVAL_DIFF
 #endif
 

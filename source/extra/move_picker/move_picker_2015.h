@@ -1,7 +1,7 @@
 ﻿#ifndef _MOVE_PICKER_2015_H_
 #define _MOVE_PICKER_2015_H_
 
-#include "../shogi.h"
+#include "../../shogi.h"
 
 // -----------------------
 //   MovePicker
@@ -9,7 +9,7 @@
 
 #ifdef USE_MOVE_PICKER_2015
 
-#include "search.h"
+#include "../../search.h"
 
 // 被害が小さいように、LVA(価値の低い駒)を動かして取るほうが優先されたほうが良いので駒に価値の低い順に番号をつける。そのためのテーブル。
 // ※ LVA = Least Valuable Aggressor。cf.MVV-LVA

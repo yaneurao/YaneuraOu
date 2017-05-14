@@ -11,7 +11,6 @@
 // I pay my respects to his great achievements.
 //
 
-
 #ifdef EVAL_KPPT
 
 #include <fstream>
@@ -29,7 +28,7 @@ namespace Eval
 {
 
 // 評価関数パラメーター
-#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_MSC_VER)
+#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
 
 	// 共有メモリ上に確保する場合。
 
@@ -168,43 +167,52 @@ namespace Eval
 	}
 
 
-	s32 calc_check_sum()
+	u64 calc_check_sum()
 	{
-		s32 sum = 0;
+		u64 sum = 0;
 		
-		auto add_sum = [&](s32*ptr , size_t t)
+		auto add_sum = [&](u32*ptr , size_t t)
 		{
 			for (size_t i = 0; i < t; ++i)
 				sum += ptr[i];
 		};
 		
-		add_sum(reinterpret_cast<s32*>(kk) , sizeof(kk ) / sizeof(s32));
-		add_sum(reinterpret_cast<s32*>(kkp), sizeof(kkp) / sizeof(s32));
-		add_sum(reinterpret_cast<s32*>(kpp), sizeof(kpp) / sizeof(s32));
+		add_sum(reinterpret_cast<u32*>(kk) , sizeof(kk ) / sizeof(u32));
+		add_sum(reinterpret_cast<u32*>(kkp), sizeof(kkp) / sizeof(u32));
+		add_sum(reinterpret_cast<u32*>(kpp), sizeof(kpp) / sizeof(u32));
 
 		return sum;
 	}
 
 
-#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_MSC_VER)
+#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
 	// 評価関数の共有を行うための大掛かりな仕組み
+	// gccでコンパイルするときもWindows環境であれば、これが有効になって欲しいので defined(_WIN32) で判定。
 
 #include <windows.h>
 
 	void load_eval()
 	{
+		// 評価関数を共有するのか
 		if (!(bool)Options["EvalShare"])
 		{
 			// このメモリは、プロセス終了のときに自動開放されることを期待している。
 			auto shared_eval_ptr = new SharedEval();
 
-			kk_ = &(shared_eval_ptr->kk_);
-			kkp_ = &(shared_eval_ptr->kkp_);
-			kpp_ = &(shared_eval_ptr->kpp_);
+			if (shared_eval_ptr == nullptr)
+			{
+				sync_cout << "info string can't allocate eval memory." << sync_endl;
+			}
+			else
+			{
+				kk_ = &(shared_eval_ptr->kk_);
+				kkp_ = &(shared_eval_ptr->kkp_);
+				kpp_ = &(shared_eval_ptr->kpp_);
 
-			load_eval_impl();
-			// 共有されていないメモリを用いる。
-			sync_cout << "info string use non-shared eval_memory." << sync_endl;
+				load_eval_impl();
+				// 共有されていないメモリを用いる。
+				sync_cout << "info string use non-shared eval_memory." << sync_endl;
+			}
 			return;
 		}
 
@@ -241,27 +249,34 @@ namespace Eval
 			// ビュー
 			auto shared_eval_ptr = (SharedEval *)MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(SharedEval));
 
-			kk_ = &(shared_eval_ptr->kk_);
-			kkp_ = &(shared_eval_ptr->kkp_);
-			kpp_ = &(shared_eval_ptr->kpp_);
-
-
-			if (!already_exists)
+			// メモリが確保できないときはshared_eval_ptr == null。このチェックをしたほうがいいような..。
+			if (shared_eval_ptr == nullptr)
 			{
-				// 新規作成されてしまった
+				sync_cout << "info string can't allocate shared eval memory." << sync_endl;
+			}
+			else
+			{
+				kk_ = &(shared_eval_ptr->kk_);
+				kkp_ = &(shared_eval_ptr->kkp_);
+				kpp_ = &(shared_eval_ptr->kpp_);
 
-				// このタイミングで評価関数バイナリを読み込む
-				load_eval_impl();
+				if (!already_exists)
+				{
+					// 新規作成されてしまった
 
-				auto check_sum = calc_check_sum();
-				sync_cout << "info string created shared eval memory. Display : check_sum = " << std::hex << check_sum << std::dec << sync_endl;
+					// このタイミングで評価関数バイナリを読み込む
+					load_eval_impl();
 
-			} else {
+					sync_cout << "info string created shared eval memory." << sync_endl;
 
-				// 評価関数バイナリを読み込む必要はない。ファイルマッピングが成功した時点で
-				// 評価関数バイナリは他のプロセスによって読み込まれていると考えられる。
+				}
+				else {
 
-				sync_cout << "info string use shared eval memory." << sync_endl;
+					// 評価関数バイナリを読み込む必要はない。ファイルマッピングが成功した時点で
+					// 評価関数バイナリは他のプロセスによって読み込まれていると考えられる。
+
+					sync_cout << "info string use shared eval memory." << sync_endl;
+				}
 			}
 		}
 		ReleaseMutex(hMutex);
@@ -270,7 +285,7 @@ namespace Eval
 		// 1) ::ReleaseMutex()
 		// 2) ::UnmapVieOfFile()
 		// が必要であるが、1),2)がプロセスが解体されるときに自動でなされるので、この処理は特に入れない。
-	}
+
 #else
 
 	// 評価関数のプロセス間共有を行わないときは、普通に
@@ -278,9 +293,30 @@ namespace Eval
 	void load_eval()
 	{
 		load_eval_impl();
-	}
-
 #endif
+
+		// 共有メモリを使う/使わないときの共通の処理
+		auto check_sum = calc_check_sum();
+
+		// 評価関数ファイルの正体
+		string softname = "unknown";
+
+		// ソフト名自動判別
+		map<u64, string> list = {
+			{ 0x7171a5469027ebf , "ShinYane(20161010)" } ,
+			{ 0x71fc7fd40c668cc , "Ukamuse(sdt4)" } ,
+
+			{ 0x65cd7c55a9d4cd9 , "elmo(WCSC27)" } ,
+			{ 0x3aa68b055a020a8 , "Yomita(WCSC27)" } ,
+			{ 0x702fb2ee5672156 , "Qhapaq(WCSC27)" } ,
+			{ 0x6c54a1bcb654e37 , "tanuki(WCSC27)" } ,
+		};
+		if (list.count(check_sum))
+			softname = list[check_sum];
+
+		sync_cout << "info string Eval Check Sum = " << std::hex << check_sum << std::dec
+				  << " , Eval File = " << softname << sync_endl;
+	}
 
 	// KP,KPP,KKPのスケール
 	const int FV_SCALE = 32;
@@ -291,7 +327,7 @@ namespace Eval
 	// なので、この関数の最適化は頑張らない。
 	Value compute_eval(const Position& pos)
 	{
-#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_MSC_VER)
+#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
 		// shared memoryを用いているときには、is_ready()で評価関数を読み込み、
 		// 初期化してからしかcompute_eval()を呼び出すことは出来ない。
 		ASSERT_LV1(kk_ != nullptr);
@@ -489,6 +525,13 @@ namespace Eval
 
 #ifdef USE_EVAL_HASH
 	EvaluateHashTable g_evalTable;
+
+	// prefetchする関数も用意しておく。
+	void prefetch_evalhash(const Key key)
+	{
+		prefetch(g_evalTable[key >> 1]);
+	}
+
 #endif
 
 	void evaluateBody(const Position& pos)
@@ -640,10 +683,10 @@ namespace Eval
 					// こうすることで前nodeのpiece_listを持たなくて済む。
 
 					const int listIndex_cap = dp.pieceNo[1];
-					diff.p[0] += do_a_black(pos, dp.pieceNow[1]);
-					list0[listIndex_cap] = dp.piecePrevious[1].fb;
-					diff.p[0] -= do_a_black(pos, dp.piecePrevious[1]);
-					list0[listIndex_cap] = dp.pieceNow[1].fb;
+					diff.p[0] += do_a_black(pos, dp.changed_piece[1].new_piece);
+					list0[listIndex_cap] = dp.changed_piece[1].old_piece.fb;
+					diff.p[0] -= do_a_black(pos, dp.changed_piece[1].old_piece);
+					list0[listIndex_cap] = dp.changed_piece[1].new_piece.fb;
 				}
 
 			} else {
@@ -723,10 +766,10 @@ namespace Eval
 
 				if (moved_piece_num == 2) {
 					const int listIndex_cap = dp.pieceNo[1];
-					diff.p[1] += do_a_white(pos, dp.pieceNow[1]);
-					list1[listIndex_cap] = dp.piecePrevious[1].fw;
-					diff.p[1] -= do_a_white(pos, dp.piecePrevious[1]);
-					list1[listIndex_cap] = dp.pieceNow[1].fw;
+					diff.p[1] += do_a_white(pos, dp.changed_piece[1].new_piece);
+					list1[listIndex_cap] = dp.changed_piece[1].old_piece.fw;
+					diff.p[1] -= do_a_white(pos, dp.changed_piece[1].old_piece);
+					list1[listIndex_cap] = dp.changed_piece[1].new_piece.fw;
 				}
 			}
 
@@ -740,13 +783,13 @@ namespace Eval
 
 			const int listIndex = dp.pieceNo[0];
 
-			auto diff = do_a_pc(pos, dp.pieceNow[0]);
+			auto diff = do_a_pc(pos, dp.changed_piece[0].new_piece);
 			if (moved_piece_num == 1) {
 
 				// 動いた駒が1つ。
-				list0[listIndex] = dp.piecePrevious[0].fb;
-				list1[listIndex] = dp.piecePrevious[0].fw;
-				diff -= do_a_pc(pos, dp.piecePrevious[0]);
+				list0[listIndex] = dp.changed_piece[0].old_piece.fb;
+				list1[listIndex] = dp.changed_piece[0].old_piece.fw;
+				diff -= do_a_pc(pos, dp.changed_piece[0].old_piece);
 
 			} else {
 
@@ -755,27 +798,27 @@ namespace Eval
 				auto sq_bk = pos.king_square(BLACK);
 				auto sq_wk = pos.king_square(WHITE);
 
-				diff += do_a_pc(pos, dp.pieceNow[1]);
-				diff.p[0] -= kpp[sq_bk][dp.pieceNow[0].fb][dp.pieceNow[1].fb];
-				diff.p[1] -= kpp[Inv(sq_wk)][dp.pieceNow[0].fw][dp.pieceNow[1].fw];
+				diff += do_a_pc(pos, dp.changed_piece[1].new_piece);
+				diff.p[0] -= kpp[sq_bk][dp.changed_piece[0].new_piece.fb][dp.changed_piece[1].new_piece.fb];
+				diff.p[1] -= kpp[Inv(sq_wk)][dp.changed_piece[0].new_piece.fw][dp.changed_piece[1].new_piece.fw];
 
 				const PieceNo listIndex_cap = dp.pieceNo[1];
-				list0[listIndex_cap] = dp.piecePrevious[1].fb;
-				list1[listIndex_cap] = dp.piecePrevious[1].fw;
+				list0[listIndex_cap] = dp.changed_piece[1].old_piece.fb;
+				list1[listIndex_cap] = dp.changed_piece[1].old_piece.fw;
 
-				list0[listIndex] = dp.piecePrevious[0].fb;
-				list1[listIndex] = dp.piecePrevious[0].fw;
-				diff -= do_a_pc(pos, dp.piecePrevious[0]);
-				diff -= do_a_pc(pos, dp.piecePrevious[1]);
+				list0[listIndex] = dp.changed_piece[0].old_piece.fb;
+				list1[listIndex] = dp.changed_piece[0].old_piece.fw;
+				diff -= do_a_pc(pos, dp.changed_piece[0].old_piece);
+				diff -= do_a_pc(pos, dp.changed_piece[1].old_piece);
 
-				diff.p[0] += kpp[sq_bk][dp.piecePrevious[0].fb][dp.piecePrevious[1].fb];
-				diff.p[1] += kpp[Inv(sq_wk)][dp.piecePrevious[0].fw][dp.piecePrevious[1].fw];
-				list0[listIndex_cap] = dp.pieceNow[1].fb;
-				list1[listIndex_cap] = dp.pieceNow[1].fw;
+				diff.p[0] += kpp[sq_bk][dp.changed_piece[0].old_piece.fb][dp.changed_piece[1].old_piece.fb];
+				diff.p[1] += kpp[Inv(sq_wk)][dp.changed_piece[0].old_piece.fw][dp.changed_piece[1].old_piece.fw];
+				list0[listIndex_cap] = dp.changed_piece[1].new_piece.fb;
+				list1[listIndex_cap] = dp.changed_piece[1].new_piece.fw;
 			}
 
-			list0[listIndex] = dp.pieceNow[0].fb;
-			list1[listIndex] = dp.pieceNow[0].fw;
+			list0[listIndex] = dp.changed_piece[0].new_piece.fb;
+			list1[listIndex] = dp.changed_piece[0].new_piece.fw;
 
 			// 前nodeからの駒割りの増分を加算。
 			diff.p[2][0] += (now->materialValue - prev->materialValue) * FV_SCALE;
@@ -798,15 +841,18 @@ namespace Eval
 #ifdef USE_EVAL_HASH
 		// evaluate hash tableにはあるかも。
 
-		const Key keyExcludeTurn = st->key() & ~1; // 手番を消した局面hash key
-		EvalSum entry = *g_evalTable[keyExcludeTurn];       // atomic にデータを取得する必要がある。
+		// 手番を消した局面hash key
+		const Key keyExcludeTurn = st->key() >> 1;
+		EvalSum entry = *g_evalTable[keyExcludeTurn];   // atomic にデータを取得する必要がある。
 		entry.decode();
 		if (entry.key == keyExcludeTurn)
 		{
+//			dbg_hit_on(true);
 			// あった！
-			st->sum = entry;
+			sum = entry;
 			return Value(entry.sum(pos.side_to_move()) / FV_SCALE);
 		}
+//		dbg_hit_on(false);
 #endif
 
 		// 評価関数本体を呼び出して求める。
@@ -814,9 +860,9 @@ namespace Eval
 
 #ifdef USE_EVAL_HASH
 		// せっかく計算したのでevaluate hash tableに保存しておく。
-		st->sum.key = keyExcludeTurn;
-		st->sum.encode();
-		*g_evalTable[keyExcludeTurn] = st->sum;
+		sum.key = keyExcludeTurn;
+		sum.encode();
+		*g_evalTable[keyExcludeTurn] = sum;
 #endif
 
 		ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));
@@ -831,7 +877,7 @@ namespace Eval
 		}
 #endif
 
-		return Value(st->sum.sum(pos.side_to_move()) / FV_SCALE);
+		return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
 	}
 
 	void evaluate_with_no_return(const Position& pos)

@@ -196,7 +196,8 @@ namespace Eval
 
     // すでに計算されている。rootか？
     int sumKKP, sumBKPP, sumWKPP;
-    if (st->sumKKP != VALUE_NOT_EVALUATED)
+
+	if (st->sumKKP != VALUE_NOT_EVALUATED)
     {
       sumKKP = st->sumKKP;
       sumBKPP = st->sumBKPP;
@@ -205,162 +206,165 @@ namespace Eval
     }
 
 #ifdef USE_EHASH
-    HASH_KEY key = st->key();
     {
-      auto e = ehash[key & (EHASH_SIZE - 1)];
-      if (e.key == key)
-      {
-        // hitしたのでこのまま返す
-        st->sumKKP = sumKKP = e.sumKKP;
-        st->sumBKPP = sumBKPP = e.sumBKPP;
-        st->sumWKPP = sumWKPP = e.sumWKPP;
+		HASH_KEY key = st->key();
+		auto e = ehash[key & (EHASH_SIZE - 1)];
+		if (e.key == key)
+		{
+			// hitしたのでこのまま返す
+			st->sumKKP = sumKKP = e.sumKKP;
+			st->sumBKPP = sumBKPP = e.sumBKPP;
+			st->sumWKPP = sumWKPP = e.sumWKPP;
         
-        goto CALC_DIFF_END;
-      }
-    }
+			goto CALC_DIFF_END;
+		}
+	}
 #endif
 
-    // 遡るのは一つだけ
-    // ひとつずつ遡りながらsumKPPがVALUE_NONEでないところまで探してそこからの差分を計算することは出来るが
-    // レアケースだし、StateInfoにEvalListを持たせる必要が出てきて、あまり得しない。
-    auto now = st;
-    auto prev = st->previous;
+	{
+		// 遡るのは一つだけ
+		// ひとつずつ遡りながらsumKPPがVALUE_NONEでないところまで探してそこからの差分を計算することは出来るが
+		// レアケースだし、StateInfoにEvalListを持たせる必要が出てきて、あまり得しない。
+		auto now = st;
+		auto prev = st->previous;
 
-    if (prev->sumKKP == VALUE_NOT_EVALUATED)
-    {
+		if (prev->sumKKP == VALUE_NOT_EVALUATED)
+		{
 #ifdef USE_EHASH
-      HASH_KEY key2 = prev->key();
-      auto e = ehash[key2 & (EHASH_SIZE - 1)];
-      if (e.key == key2)
-      {
-        // hitしたのでここからの差分計算を行なう。
-        prev->sumKKP = e.sumKKP;
-        prev->sumBKPP = e.sumBKPP;
-        prev->sumWKPP = e.sumWKPP;
-        ASSERT_LV3(e.sumKKP != VALUE_NOT_EVALUATED);
-      }
-      else
+			HASH_KEY key2 = prev->key();
+			auto e = ehash[key2 & (EHASH_SIZE - 1)];
+			if (e.key == key2)
+			{
+				// hitしたのでここからの差分計算を行なう。
+				prev->sumKKP = e.sumKKP;
+				prev->sumBKPP = e.sumBKPP;
+				prev->sumWKPP = e.sumWKPP;
+				ASSERT_LV3(e.sumKKP != VALUE_NOT_EVALUATED);
+			}
+			else
 #endif
-      {
-        // 全計算
-        compute_eval(pos);
-        sumKKP = now->sumKKP;
-        sumBKPP = now->sumBKPP;
-        sumWKPP = now->sumWKPP;
-        goto CALC_DIFF_END;
-      }
-    }
+			{
+				// 全計算
+				compute_eval(pos);
+				sumKKP = now->sumKKP;
+				sumBKPP = now->sumBKPP;
+				sumWKPP = now->sumWKPP;
+				goto CALC_DIFF_END;
+			}
+		}
 
-    // この差分を求める
-    {
-      sumKKP = prev->sumKKP;
-      sumBKPP = prev->sumBKPP;
-      sumWKPP = prev->sumWKPP;
-      int k0, k1, k2, k3;
+		// この差分を求める
+		{
+			sumKKP = prev->sumKKP;
+			sumBKPP = prev->sumBKPP;
+			sumWKPP = prev->sumWKPP;
+			int k0, k1, k2, k3;
 
-      auto sq_bk0 = pos.king_square(BLACK);
-      auto sq_wk1 = Inv(pos.king_square(WHITE));
+			auto sq_bk0 = pos.king_square(BLACK);
+			auto sq_wk1 = Inv(pos.king_square(WHITE));
 
-      auto now_list_fb = pos.eval_list()->piece_list_fb();
-      auto now_list_fw = pos.eval_list()->piece_list_fw();
+			auto now_list_fb = pos.eval_list()->piece_list_fb();
+			auto now_list_fw = pos.eval_list()->piece_list_fw();
 
-      int i, j;
-      auto& dp = now->dirtyPiece;
+			int i, j;
+			auto& dp = now->dirtyPiece;
 
-      // 移動させた駒は最大2つある。その数
-      int k = dp.dirty_num;
+			// 移動させた駒は最大2つある。その数
+			int k = dp.dirty_num;
 
-      auto dirty = dp.pieceNo[0];
-      if (dirty >= PIECE_NO_KING) // 王と王でないかで場合分け
-      {
-        if (dirty == PIECE_NO_BKING)
-        {
-          // ----------------------------
-          // 先手玉が移動したときの計算
-          // ----------------------------
+			auto dirty = dp.pieceNo[0];
+			if (dirty >= PIECE_NO_KING) // 王と王でないかで場合分け
+			{
+				if (dirty == PIECE_NO_BKING)
+				{
+					// ----------------------------
+					// 先手玉が移動したときの計算
+					// ----------------------------
 
-          // 現在の玉の位置に移動させて計算する。
-          // 先手玉に関するKKP,KPPは全計算なので一つ前の値は関係ない。
+					// 現在の玉の位置に移動させて計算する。
+					// 先手玉に関するKKP,KPPは全計算なので一つ前の値は関係ない。
 
-          sumBKPP = 0;
+					sumBKPP = 0;
 
-          // このときKKPは差分で済まない。
-          sumKKP = Eval::kkp[sq_bk0][sq_wk1][fe_end];
+					// このときKKPは差分で済まない。
+					sumKKP = Eval::kkp[sq_bk0][sq_wk1][fe_end];
 
-          // 片側まるごと計算
-          for (i = 0; i < PIECE_NO_KING; i++)
-          {
-            k0 = now_list_fb[i];
-            sumKKP += Eval::kkp[sq_bk0][sq_wk1][k0];
+					// 片側まるごと計算
+					for (i = 0; i < PIECE_NO_KING; i++)
+					{
+						k0 = now_list_fb[i];
+						sumKKP += Eval::kkp[sq_bk0][sq_wk1][k0];
 
-            for (j = 0; j < i; j++)
-              sumBKPP += Eval::kpp[sq_bk0][k0][now_list_fb[j]];
-          }
+						for (j = 0; j < i; j++)
+							sumBKPP += Eval::kpp[sq_bk0][k0][now_list_fb[j]];
+					}
 
-          // もうひとつの駒がないならこれで計算終わりなのだが。
-          if (k == 2)
-          {
-            // この駒についての差分計算をしないといけない。
-            k1 = dp.piecePrevious[1].fw;
-            k3 = dp.pieceNow[1].fw;
+					// もうひとつの駒がないならこれで計算終わりなのだが。
+					if (k == 2)
+					{
+						// この駒についての差分計算をしないといけない。
+						k1 = dp.changed_piece[1].old_piece.fw;
+						k3 = dp.changed_piece[1].new_piece.fw;
 
-            dirty = dp.pieceNo[1];
-            // BKPPはすでに計算済みなのでWKPPのみ。
-            // WKは移動していないのでこれは前のままでいい。
-            for (i = 0; i < dirty; ++i)
-            {
-              sumWKPP += Eval::kpp[sq_wk1][k1][now_list_fw[i]];
-              sumWKPP -= Eval::kpp[sq_wk1][k3][now_list_fw[i]];
-            }
-            for (++i; i < PIECE_NO_KING; ++i)
-            {
-              sumWKPP += Eval::kpp[sq_wk1][k1][now_list_fw[i]];
-              sumWKPP -= Eval::kpp[sq_wk1][k3][now_list_fw[i]];
-            }
-          }
+						dirty = dp.pieceNo[1];
+						// BKPPはすでに計算済みなのでWKPPのみ。
+						// WKは移動していないのでこれは前のままでいい。
+						for (i = 0; i < dirty; ++i)
+						{
+							sumWKPP += Eval::kpp[sq_wk1][k1][now_list_fw[i]];
+							sumWKPP -= Eval::kpp[sq_wk1][k3][now_list_fw[i]];
+						}
+						for (++i; i < PIECE_NO_KING; ++i)
+						{
+							sumWKPP += Eval::kpp[sq_wk1][k1][now_list_fw[i]];
+							sumWKPP -= Eval::kpp[sq_wk1][k3][now_list_fw[i]];
+						}
+					}
 
-        } else {
-          // ----------------------------
-          // 後手玉が移動したときの計算
-          // ----------------------------
-          ASSERT_LV3(dirty == PIECE_NO_WKING);
+				}
+				else {
+					// ----------------------------
+					// 後手玉が移動したときの計算
+					// ----------------------------
+					ASSERT_LV3(dirty == PIECE_NO_WKING);
 
-          sumWKPP = 0;
-          sumKKP = Eval::kkp[sq_bk0][sq_wk1][fe_end];
+					sumWKPP = 0;
+					sumKKP = Eval::kkp[sq_bk0][sq_wk1][fe_end];
 
-          for (i = 0; i < PIECE_NO_KING; i++)
-          {
-            k0 = now_list_fb[i]; // これ、KKPテーブルにk1側も入れておいて欲しい気はするが..
-            k1 = now_list_fw[i];
-            sumKKP += Eval::kkp[sq_bk0][sq_wk1][k0];
+					for (i = 0; i < PIECE_NO_KING; i++)
+					{
+						k0 = now_list_fb[i]; // これ、KKPテーブルにk1側も入れておいて欲しい気はするが..
+						k1 = now_list_fw[i];
+						sumKKP += Eval::kkp[sq_bk0][sq_wk1][k0];
 
-            for (j = 0; j < i; j++)
-              sumWKPP -= Eval::kpp[sq_wk1][k1][now_list_fw[j]];
-          }
+						for (j = 0; j < i; j++)
+							sumWKPP -= Eval::kpp[sq_wk1][k1][now_list_fw[j]];
+					}
 
-          if (k == 2)
-          {
-            k0 = dp.piecePrevious[1].fb;
-            k2 = dp.pieceNow[1].fb;
+					if (k == 2)
+					{
+						k0 = dp.changed_piece[1].old_piece.fb;
+						k2 = dp.changed_piece[1].new_piece.fb;
 
-            dirty = dp.pieceNo[1];
-            for (i = 0; i < dirty; ++i)
-            {
-              sumBKPP -= Eval::kpp[sq_bk0][k0][now_list_fb[i]];
-              sumBKPP += Eval::kpp[sq_bk0][k2][now_list_fb[i]];
-            }
-            for (++i; i < PIECE_NO_KING; ++i)
-            {
-              sumBKPP -= Eval::kpp[sq_bk0][k0][now_list_fb[i]];
-              sumBKPP += Eval::kpp[sq_bk0][k2][now_list_fb[i]];
-            }
-          }
-        }
+						dirty = dp.pieceNo[1];
+						for (i = 0; i < dirty; ++i)
+						{
+							sumBKPP -= Eval::kpp[sq_bk0][k0][now_list_fb[i]];
+							sumBKPP += Eval::kpp[sq_bk0][k2][now_list_fb[i]];
+						}
+						for (++i; i < PIECE_NO_KING; ++i)
+						{
+							sumBKPP -= Eval::kpp[sq_bk0][k0][now_list_fb[i]];
+							sumBKPP += Eval::kpp[sq_bk0][k2][now_list_fb[i]];
+						}
+					}
+				}
 
-      } else {
-        // ----------------------------
-        // 玉以外が移動したときの計算
-        // ----------------------------
+			}
+			else {
+				// ----------------------------
+				// 玉以外が移動したときの計算
+				// ----------------------------
 
 #define ADD_BWKPP(W0,W1,W2,W3) { \
           sumBKPP -= Eval::kpp[sq_bk0][W0][now_list_fb[i]]; \
@@ -369,91 +373,94 @@ namespace Eval
           sumWKPP -= Eval::kpp[sq_wk1][W3][now_list_fw[i]]; \
 }
 
-        if (k == 1)
-        {
-          // 移動した駒が一つ。
+				if (k == 1)
+				{
+					// 移動した駒が一つ。
 
-          k0 = dp.piecePrevious[0].fb;
-          k1 = dp.piecePrevious[0].fw;
-          k2 = dp.pieceNow[0].fb;
-          k3 = dp.pieceNow[0].fw;
+					k0 = dp.changed_piece[0].old_piece.fb;
+					k1 = dp.changed_piece[0].old_piece.fw;
+					k2 = dp.changed_piece[0].new_piece.fb;
+					k3 = dp.changed_piece[0].new_piece.fw;
 
-          // KKP差分
-          sumKKP -= Eval::kkp[sq_bk0][sq_wk1][k0];
-          sumKKP += Eval::kkp[sq_bk0][sq_wk1][k2];
+					// KKP差分
+					sumKKP -= Eval::kkp[sq_bk0][sq_wk1][k0];
+					sumKKP += Eval::kkp[sq_bk0][sq_wk1][k2];
 
-          // KP値、要らんのでi==dirtyを除く
-          for (i = 0; i < dirty; ++i)
-            ADD_BWKPP(k0, k1, k2, k3);
-          for (++i; i < PIECE_NO_KING; ++i)
-            ADD_BWKPP(k0, k1, k2, k3);
+					// KP値、要らんのでi==dirtyを除く
+					for (i = 0; i < dirty; ++i)
+						ADD_BWKPP(k0, k1, k2, k3);
+					for (++i; i < PIECE_NO_KING; ++i)
+						ADD_BWKPP(k0, k1, k2, k3);
 
-        } else if (k == 2) {
+				}
+				else if (k == 2) {
 
-          // 移動する駒が王以外の2つ。
-          PieceNo dirty2 = dp.pieceNo[1];
-          if (dirty > dirty2) swap(dirty, dirty2);
-          // PIECE_NO_ZERO <= dirty < dirty2 < PIECE_NO_KING
-          // にしておく。
+					// 移動する駒が王以外の2つ。
+					PieceNo dirty2 = dp.pieceNo[1];
+					if (dirty > dirty2) swap(dirty, dirty2);
+					// PIECE_NO_ZERO <= dirty < dirty2 < PIECE_NO_KING
+					// にしておく。
 
-          k0 = dp.piecePrevious[0].fb;
-          k1 = dp.piecePrevious[0].fw;
-          k2 = dp.pieceNow[0].fb;
-          k3 = dp.pieceNow[0].fw;
+					k0 = dp.changed_piece[0].old_piece.fb;
+					k1 = dp.changed_piece[0].old_piece.fw;
+					k2 = dp.changed_piece[0].new_piece.fb;
+					k3 = dp.changed_piece[0].new_piece.fw;
 
-          int m0, m1, m2, m3;
-          m0 = dp.piecePrevious[1].fb;
-          m1 = dp.piecePrevious[1].fw;
-          m2 = dp.pieceNow[1].fb;
-          m3 = dp.pieceNow[1].fw;
+					int m0, m1, m2, m3;
+					m0 = dp.changed_piece[1].old_piece.fb;
+					m1 = dp.changed_piece[1].old_piece.fw;
+					m2 = dp.changed_piece[1].new_piece.fb;
+					m3 = dp.changed_piece[1].new_piece.fw;
 
-          // KKP差分
-          sumKKP -= Eval::kkp[sq_bk0][sq_wk1][k0];
-          sumKKP += Eval::kkp[sq_bk0][sq_wk1][k2];
-          sumKKP -= Eval::kkp[sq_bk0][sq_wk1][m0];
-          sumKKP += Eval::kkp[sq_bk0][sq_wk1][m2];
+					// KKP差分
+					sumKKP -= Eval::kkp[sq_bk0][sq_wk1][k0];
+					sumKKP += Eval::kkp[sq_bk0][sq_wk1][k2];
+					sumKKP -= Eval::kkp[sq_bk0][sq_wk1][m0];
+					sumKKP += Eval::kkp[sq_bk0][sq_wk1][m2];
 
-          // KPP差分
-          for (i = 0; i < dirty; ++i)
-          {
-            ADD_BWKPP(k0, k1, k2, k3);
-            ADD_BWKPP(m0, m1, m2, m3);
-          }
-          for (++i; i < dirty2; ++i)
-          {
-            ADD_BWKPP(k0, k1, k2, k3);
-            ADD_BWKPP(m0, m1, m2, m3);
-          }
-          for (++i; i < PIECE_NO_KING; ++i)
-          {
-            ADD_BWKPP(k0, k1, k2, k3);
-            ADD_BWKPP(m0, m1, m2, m3);
-          }
+					// KPP差分
+					for (i = 0; i < dirty; ++i)
+					{
+						ADD_BWKPP(k0, k1, k2, k3);
+						ADD_BWKPP(m0, m1, m2, m3);
+					}
+					for (++i; i < dirty2; ++i)
+					{
+						ADD_BWKPP(k0, k1, k2, k3);
+						ADD_BWKPP(m0, m1, m2, m3);
+					}
+					for (++i; i < PIECE_NO_KING; ++i)
+					{
+						ADD_BWKPP(k0, k1, k2, k3);
+						ADD_BWKPP(m0, m1, m2, m3);
+					}
 
-          sumBKPP -= Eval::kpp[sq_bk0][k0][m0];
-          sumWKPP += Eval::kpp[sq_wk1][k1][m1];
-          sumBKPP += Eval::kpp[sq_bk0][k2][m2];
-          sumWKPP -= Eval::kpp[sq_wk1][k3][m3];
+					sumBKPP -= Eval::kpp[sq_bk0][k0][m0];
+					sumWKPP += Eval::kpp[sq_wk1][k1][m1];
+					sumBKPP += Eval::kpp[sq_bk0][k2][m2];
+					sumWKPP -= Eval::kpp[sq_wk1][k3][m3];
 
-        }
-      }
-    }
+				}
+			}
+		}
 
-    now->sumKKP = sumKKP;
-    now->sumBKPP = sumBKPP;
-    now->sumWKPP = sumWKPP;
+
+		now->sumKKP = sumKKP;
+		now->sumBKPP = sumBKPP;
+		now->sumWKPP = sumWKPP;
 
 #ifdef USE_EHASH
-    // せっかく計算したのでehashに保存しておく。
-    {
-      EvalHash e;
-      e.sumKKP = Value(sumKKP);
-      e.sumBKPP = Value(sumBKPP);
-      e.sumWKPP = Value(sumWKPP);
-      e.key = key;
-      ehash[key & (EHASH_SIZE - 1)] = e;
-    }
+		// せっかく計算したのでehashに保存しておく。
+		{
+			EvalHash e;
+			e.sumKKP = Value(sumKKP);
+			e.sumBKPP = Value(sumBKPP);
+			e.sumWKPP = Value(sumWKPP);
+			e.key = key;
+			ehash[key & (EHASH_SIZE - 1)] = e;
+		}
 #endif
+	}
 
     // 差分計算終わり
   CALC_DIFF_END:;

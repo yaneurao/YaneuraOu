@@ -2,7 +2,7 @@
 
 #ifdef USE_MOVE_PICKER_2016Q2
 
-#include "../thread.h"
+#include "../../thread.h"
 
 // -----------------------
 //   LVA

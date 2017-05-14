@@ -1,7 +1,7 @@
 ﻿#include "long_effect.h"
 
-// これはshogi.hで定義しているのでLONG_EFFECT_LIBRARYがdefineされていないときにも必要。
-namespace Effect8 { Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1]; }
+// namespace Effect8 { Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1]; }
+// → shogi.cppで定義している。LONG_EFFECT_LIBRARYが必要なときは、この定義も用意すること。
 
 // ----------------------
 //  長い利きに関するライブラリ

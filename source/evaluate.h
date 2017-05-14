@@ -4,7 +4,7 @@
 #include "shogi.h"
 
 // 手番込みの評価関数であれば手番を込みで値を計算するhelper classを使う。
-#if defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
+#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
 #include "eval/kppt_evalsum.h"
 #endif
 
@@ -36,17 +36,22 @@ namespace Eval {
   // あるいは差分計算が不可能なときに呼び出される。
   Value compute_eval(const Position& pos);
 
+#if defined(USE_EVAL_HASH) && (defined(EVAL_KKPT) || defined(EVAL_KPPT))
+  // prefetchする関数
+  void prefetch_evalhash(const Key key);
+#endif
+
   // 評価関数パラメーターのチェックサムを返す。
-#if defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
-  s32 calc_check_sum();
+#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
+  u64 calc_check_sum();
 #else
-  inline s32 calc_check_sum(){ return 0; }
+  static u64 calc_check_sum(){ return 0; }
 #endif
 
   // 評価値の内訳表示(デバッグ用)
   void print_eval_stat(Position& pos);
 
-#if defined(EVAL_LEARN) && defined(EVAL_KPPT)
+#if defined(EVAL_LEARN) && (defined(EVAL_KKPT) || defined(EVAL_KPPT))
   // 学習のための初期化(評価関数の読み込み時に行う。)
   void eval_learn_init();
 
@@ -74,7 +79,7 @@ namespace Eval {
 
 #else
 
-#if defined (EVAL_PP) || defined(EVAL_KPP)
+#if defined (EVAL_MATERIAL) || defined (EVAL_PP) || defined(EVAL_KPP)
   // Bona6の駒割りを初期値に。それぞれの駒の価値。
   enum {
     PawnValue = 86,
@@ -92,7 +97,7 @@ namespace Eval {
     DragonValue = 942,
     KingValue = 15000,
   };
-#elif defined (EVAL_KPPT) || defined (EVAL_KPPT_FAST)
+#elif defined(EVAL_KKPT) || defined (EVAL_KPPT) || defined (EVAL_KPPT_FAST)
 
   // Aperyの駒割り
   enum {
@@ -133,16 +138,17 @@ namespace Eval {
 #if defined(USE_FAST_KPPT)
   enum BonaPiece: int32_t
 #else
-  enum BonaPiece: int16_t
+  enum BonaPiece : int16_t
 #endif
   {
     // f = friend(≒先手)の意味。e = enemy(≒後手)の意味
 
-    BONA_PIECE_ZERO = 0, // 無効な駒。駒落ちのときなどは、不要な駒をここに移動させる。
+	BONA_PIECE_NOT_INIT = -1, // 未初期化の時の値
+    BONA_PIECE_ZERO = 0,      // 無効な駒。駒落ちのときなどは、不要な駒をここに移動させる。
 
     // --- 手駒
 
-#if defined (EVAL_PP) || defined(EVAL_KPP)
+#if defined (EVAL_MATERIAL) || defined (EVAL_PP) || defined(EVAL_KPP)
 
     f_hand_pawn = BONA_PIECE_ZERO + 1,
     e_hand_pawn = f_hand_pawn + 18,
@@ -160,7 +166,7 @@ namespace Eval {
     e_hand_rook = f_hand_rook + 2,
     fe_hand_end = e_hand_rook + 2,
 
-#elif defined (EVAL_KPPT) || defined(EVAL_KPPT_FAST)
+#elif defined(EVAL_KKPT) || defined (EVAL_KPPT) || defined(EVAL_KPPT_FAST)
     // Apery(WCSC26)方式。0枚目の駒があるので少し隙間がある。
     // 定数自体は1枚目の駒のindexなので、KPPの時と同様の処理で問題ない。
 
@@ -229,6 +235,14 @@ namespace Eval {
   // BonaPiece、f側だけを表示する。
   inline std::ostream& operator<<(std::ostream& os, ExtBonaPiece bp) { os << bp.fb; return os; }
 
+  // 駒が今回の指し手によってどこからどこに移動したのかの情報。
+  // 駒はExtBonaPiece表現であるとする。
+  struct ChangedBonaPiece
+  {
+	  ExtBonaPiece old_piece;
+	  ExtBonaPiece new_piece;
+  };
+
   // KPPテーブルの盤上の駒pcに対応するBonaPieceを求めるための配列。
   // 例)
   // BonaPiece fb = kpp_board_index[pc].fb + sq; // 先手から見たsqにあるpcに対応するBonaPiece
@@ -242,8 +256,8 @@ namespace Eval {
   struct EvalList {
 
     // 評価関数(FV38型)で用いる駒番号のリスト
-    inline BonaPiece* piece_list_fb() const { return const_cast<BonaPiece*>(pieceListFb); }
-    inline BonaPiece* piece_list_fw() const { return const_cast<BonaPiece*>(pieceListFw); }
+	BonaPiece* piece_list_fb() const { return const_cast<BonaPiece*>(pieceListFb); }
+    BonaPiece* piece_list_fw() const { return const_cast<BonaPiece*>(pieceListFw); }
 
     // 指定されたpiece_noの駒をExtBonaPiece型に変換して返す。
     ExtBonaPiece bona_piece(PieceNo piece_no) const

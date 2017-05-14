@@ -18,8 +18,8 @@ struct alignas(16) Bitboard
 #ifdef  USE_SSE2
   union
   {
-    // 64bitずつとして扱いとき用
-    uint64_t p[2];
+    // 64bitずつとして扱うとき用
+    u64 p[2];
 
     // SSEで取り扱い時用
     // bit0がSQ_11,bit1がSQ_12,…,bit81がSQ_99を表現する。
@@ -58,19 +58,58 @@ struct alignas(16) Bitboard
 
   // Stockfishのソースとの互換性がよくなるようにboolへの暗黙の型変換書いておく。
   operator bool() const {
-#ifdef USE_SSE41
-    return !(_mm_testz_si128(m, _mm_set1_epi8(static_cast<char>(0xffu))));
+#if defined(USE_SSE41)
+	  return !_mm_testz_si128(m, m);
 #else
     return (this->merge() ? true : false);
 #endif
   }
 
-  // p[0]とp[1]をorしたものを返す。toU()相当。
-  uint64_t merge() const { return p[0] | p[1]; }
+  // bit test命令
+  // if (lhs & rhs) と書くべきところを
+  // if (lhs.test(rhs)) と書くことでSSE命令を用いて高速化する。
+  
+  bool test(Bitboard rhs) const {
+#if defined(USE_SSE41)
+	  return !_mm_testz_si128(m, rhs.m);
+#else
+	  return (*this & rhs);
+#endif
+  }
+  bool test(Square sq) const { return test(Bitboard(sq)); }
 
-  // p[0]とp[1]とで and したときに被覆しているbitがあるか。
+  // p[n]を取り出す。SSE4の命令が使えるときはそれを使う。
+  template <int n>
+  u64 extract64() const
+  {
+	  static_assert(n == 0 || n == 1, "");
+#if defined(USE_SSE41)
+	  return (u64)(_mm_extract_epi64(m, n));
+#else
+	  return p[n];
+#endif
+  }
+
+  // p[n]に値を設定する。SSE4の命令が使えるときはそれを使う。
+  template <int n>
+  inline Bitboard& insert64(u64 u)
+  {
+	  static_assert(n == 0 || n == 1, "");
+#if defined(USE_SSE41)
+	  m = _mm_insert_epi64(m, u , n);
+#else
+	  p[n] = u;
+#endif
+	  return *this;
+  }
+
+
+  // p[0]とp[1]をbitwise orしたものを返す。toU()相当。
+  u64 merge() const { return extract64<0>() | extract64<1>(); }
+
+  // p[0]とp[1]とで bitwise and したときに被覆しているbitがあるか。
   // merge()したあとにpext()を使うときなどに被覆していないことを前提とする場合にそのassertを書くときに使う。
-  bool cross_over() const { return p[0] & p[1]; }
+  bool cross_over() const { return extract64<0>() & extract64<1>(); }
 
   // 指定した升(Square)が Bitboard のどちらの u64 変数の要素に属するか。
   // 本ソースコードのように縦型Bitboardにおいては、香の利きを求めるのにBitboardの
@@ -85,17 +124,22 @@ struct alignas(16) Bitboard
   // while(to = bb.pop())
   //  make_move(from,to);
   // のように用いる。
-  FORCE_INLINE Square pop() { return (p[0] != 0) ? Square(pop_lsb(p[0])) : Square(pop_lsb(p[1]) + 63); }
+  FORCE_INLINE Square pop() {
+	u64 q0 = extract64<0>();  Square sq; 
+	if (q0 != 0) { sq = Square(pop_lsb(q0)); insert64<0>(q0); }
+	else { u64 q1 = extract64<1>();  sq = Square(pop_lsb(q1) + 63); insert64<1>(q1); }
+	return sq;
+  }
 
   // このBitboardの値を変えないpop()
-  FORCE_INLINE Square pop_c() const { return (p[0] != 0) ? Square(LSB64(p[0])) : Square(LSB64(p[1]) + 63); }
+  FORCE_INLINE Square pop_c() const { u64 q0 = extract64<0>();  return (q0 != 0) ? Square(LSB64(q0)) : Square(LSB64(extract64<1>()) + 63); }
 
   // pop()をp[0],p[1]に分けて片側ずつする用
-  FORCE_INLINE Square pop_from_p0() { ASSERT_LV3(p[0] != 0);  return Square(pop_lsb(p[0])); }
-  FORCE_INLINE Square pop_from_p1() { ASSERT_LV3(p[1] != 0);  return Square(pop_lsb(p[1]) + 63); }
+  FORCE_INLINE Square pop_from_p0() { u64 q0 = extract64<0>(); ASSERT_LV3(q0 != 0);  Square sq = Square(pop_lsb(q0)); insert64<0>(q0); return sq; }
+  FORCE_INLINE Square pop_from_p1() { u64 q1 = extract64<1>();  ASSERT_LV3(q1 != 0);  Square sq = Square(pop_lsb(q1) + 63); insert64<1>(q1); return sq; }
 
   // 1のbitを数えて返す。
-  int pop_count() const { return (int)(POPCNT64(p[0]) + POPCNT64(p[1])); }
+  int pop_count() const { return (int)(POPCNT64(extract64<0>()) + POPCNT64(extract64<1>())); }
 
   // 代入型演算子
 
@@ -227,7 +271,8 @@ extern Bitboard InFrontBB[COLOR_NB][RANK_NB];
 inline const Bitboard rank1_n_bb(const Color US, const Rank r) { ASSERT_LV2(is_ok(r));  return InFrontBB[US][(US == BLACK ? r + 1 : 7 - r)]; }
 
 // 敵陣を表現するBitboard。
-inline const Bitboard enemy_field(const Color US) { return rank1_n_bb(US, RANK_3); }
+extern Bitboard EnemyField[COLOR_NB];
+inline const Bitboard enemy_field(const Color Us) { return EnemyField[Us]; }
 
 // 歩が打てる筋を得るためのBitboard mask
 extern Bitboard PAWN_DROP_MASK_BB[0x200][COLOR_NB];
@@ -252,15 +297,15 @@ inline bool aligned(Square s1, Square s2, Square s3) {
 #endif
 
 // sqの升にいる敵玉に王手となるc側の駒ptの候補を得るテーブル。第2添字は(pr-1)を渡して使う。
-extern Bitboard CheckCandidateBB[SQ_NB_PLUS1][HDK][COLOR_NB];
+extern Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING][COLOR_NB];
 
 // sqの升にいる敵玉に王手となるus側の駒ptの候補を得る
 // pr == ROOKは無条件全域なので代わりにHORSEで王手になる領域を返す。
 // pr == KINGはsqの24近傍を返す。(ただしこれは王手生成では使わない)
-inline const Bitboard check_candidate_bb(Color us, Piece pr, Square sq) { ASSERT_LV3(PAWN<= pr && pr <= HDK); return CheckCandidateBB[sq][pr - 1][us]; }
+inline const Bitboard check_candidate_bb(Color us, Piece pr, Square sq) { ASSERT_LV3(PAWN<= pr && pr <= KING); return CheckCandidateBB[sq][pr - 1][us]; }
 
 // ある升の24近傍のBitboardを返す。
-inline const Bitboard around24_bb(Square sq) { return check_candidate_bb(BLACK, HDK, sq); }
+inline const Bitboard around24_bb(Square sq) { return check_candidate_bb(BLACK, KING, sq); }
 
 // --------------------
 //  Bitboard用の駒定数
@@ -418,11 +463,13 @@ inline bool more_than_one(const Bitboard& bb) { ASSERT_LV2(!bb.cross_over()); re
 // SQ_Uを指定したときに、51の升は49の升に移動するので、注意すること。(51の升にいる先手の歩は存在しないので、
 // 歩の移動に用いる分には問題ないはずではあるが。)
 
+// ToDo : x86モードではBitboardのaligned(16)を強制できない？あとで調査する。
+
 template<Square D>
-inline Bitboard shift(Bitboard b) {
+inline Bitboard shift(const Bitboard& b) {
 	ASSERT_LV3(D == SQ_U || D == SQ_D);
 
-	// Apery型の縦型Bitboardにおいては歩の利きはbit shiftで済む。
+	// Apery型の縦型Bitboardにおいては歩の利きはbit shiftで済む。be
 	return  D == SQ_U ? b >> 1 : D == SQ_D ? b << 1
 		: ZERO_BB;
 }

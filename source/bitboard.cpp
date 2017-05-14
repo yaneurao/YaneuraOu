@@ -5,7 +5,7 @@
 #include "shogi.h"
 #include "bitboard.h"
 #include "extra/long_effect.h"
-#include "extra/mate1ply.h"
+#include "extra/mate/mate1ply.h"
 
 using namespace std;
 
@@ -44,6 +44,10 @@ Bitboard InFrontBB[COLOR_NB][RANK_NB] = {
   RANK9_BB | RANK8_BB | RANK7_BB | RANK6_BB , RANK9_BB | RANK8_BB | RANK7_BB , RANK9_BB | RANK8_BB , RANK9_BB , ZERO_BB }
 };
 
+// 敵陣を表現するBitboard。
+Bitboard EnemyField[COLOR_NB] = { RANK1_BB | RANK2_BB | RANK3_BB , RANK7_BB | RANK8_BB | RANK9_BB };
+
+
 // ----- Bitboard tables
 
 // sqの升が1であるbitboard
@@ -72,7 +76,7 @@ Bitboard PAWN_DROP_MASK_BB[0x200][COLOR_NB];
 
 Bitboard BetweenBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
 Bitboard LineBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
-Bitboard CheckCandidateBB[SQ_NB_PLUS1][HDK][COLOR_NB];
+Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING][COLOR_NB];
 
 // SquareからSquareWithWallへの変換テーブル
 SquareWithWall sqww_table[SQ_NB_PLUS1];
@@ -454,7 +458,7 @@ void Bitboards::init()
       // 王(24近傍が格納される)
       target = ZERO_BB;
       FOREACH_KING(kingEffect(ksq) , kingEffect);
-      CheckCandidateBB[ksq][HDK - 1][Us] = target & ~Bitboard(ksq);
+      CheckCandidateBB[ksq][KING - 1][Us] = target & ~Bitboard(ksq);
     }
 
   // 10. LONG_EFFECT_LIBRARYの初期化

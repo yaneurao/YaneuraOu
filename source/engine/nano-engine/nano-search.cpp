@@ -26,7 +26,7 @@
 #include "../../thread.h"
 #include "../../misc.h"
 #include "../../tt.h"
-#include "../../extra/book.h"
+#include "../../extra/book/book.h"
 
 using namespace std;
 using namespace Search;

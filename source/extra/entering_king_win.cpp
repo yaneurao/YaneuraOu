@@ -65,7 +65,7 @@ Move Position::DeclarationWin() const
         return MOVE_NONE;
 
       // 敵陣にいる大駒の数
-      int p2 = ((pieces(us, PIECE_TYPE_BITBOARD_BISHOP) | pieces(us, PIECE_TYPE_BITBOARD_ROOK)) & ef).pop_count();
+      int p2 = ((pieces(us, BISHOP_HORSE , ROOK_DRAGON)) & ef).pop_count();
 
       // 小駒1点、大駒5点、玉除く
       // ＝　敵陣の自駒 + 敵陣の自駒の大駒×4 - 玉

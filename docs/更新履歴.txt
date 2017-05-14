@@ -2,6 +2,320 @@
 やねうら王 更新履歴
 
 
+■　2017/05/14 V4.56
+
+・定跡読み込み部、リファクタリングしたときに若干壊してたの修正。(定跡ファイルの対局途中での変更ができなかった)
+・Bitboardクラス、リファクタリング。
+	- Bitboard::test()追加。
+	- Bitboard::test()追加。
+	- Bitboard::extract64(),insert64()追加。
+	- FOREACH_BB、修正。
+・VC++のプロジェクト設定、現行のやねうら王のプロジェクトでないものは削除する。(切り替えするとき邪魔なので)
+
+
+■　2017/05/13 V4.55
+
+・配布している実行ファイルで同じ定跡の指し手が選ばれる問題修正。(MSYS2のgccのランタイムの問題らしい)
+・乱数シードとしてstd::chrono::high_resolution_clock::now().time_since_epoch().count()の時刻も足すことにした。
+・定跡選択部、リファクタリング。
+・定跡部で指し手を選ぶ時に、いくつからいくつに減らしたかを出力するようにした。
+
+
+■　2017/05/12 V4.54
+
+- Stockfish最新版にキャッチアップ
+	- Default argument for see_ge()
+	- Remove int to int conversion, unused include.
+	- Move Pieces[] out of global visibility
+	- Avoid *begin always being included in the sorted list regardless of its value.
+	- use int16_t for histories
+・詰将棋エンジンのバグ修正と、テストコマンド追加。(thx. tanuki-さん)
+・比較実験用のKKPT型評価関数追加。
+・HistoryStats、リファクタリング。
+・定跡の指し手の選択部、リファクタリング。(何か壊しているかも)
+
+
+■　2017/05/11 V4.53
+
+・Learner::qsearch() および Learner::search() でnullポインタアクセスする件修正。(thx. tanuki-さん)
+・王手のかかっている局面をPosition::set_from_packed_sfen()で読むと状態が不正になる件修正。(thx. tanuki-さん)
+・定跡を選択するときのConsiderBookMoveCountの処理が間違っていたので修正。
+・各CPU用のMakefile修正。nosseはx86用にコンパイルする環境が必要なので後回し。
+・32bit用にコンパイルするときはEVAL_LEARNをオフにするようにした。
+・Makefile、CFLAGSとして-D_WIN64指定しないように変更。
+・Makefileにother(ARM用など)を追加。
+・VSのプロジェクト設定のカスケーディング追加。(thx. mizarさん)
+	- [VisualStudioのプロパティシートのメモ](http://qiita.com/bigengelt/items/31c315cf624985a6a47c)
+・定跡の指し手選択部、少しリファクタリングした。
+
+
+■　2017/05/10 V4.52
+
+・KP絶対を用いた進行度推定ルーチン追加。(tanuki-さん)
+・進行度絡みのファイルの整理。move_picker絡みのファイルの整理。
+・math.h/cppの中身をmisc.h/cppのなかに移動
+・calc_check_sum()の返し値をu64に変更。
+・評価関数ファイルの自動判定機能追加。
+	- 真やねうら王20161010 , 浮かむ瀬(sdt4) , elmo(WCSC27) , 読み太(WCSC27) , Qhapaq(WCSC27) , tanuki(WCSC27)
+・eval_sum、u64に変え忘れていた箇所修正。
+・共有メモリを使わないときにもeval check sumが出力されるように。
+・gccでコンパイルするときもWindows環境であれば、評価関数を共有メモリに配置するように。
+・各CPU用の実行ファイルの自動生成バッチファイルを作成した。
+
+
+■　2017/05/09 V4.51
+
+・USE_LARGE_EVAL_HASH導入。
+・Apery定跡ファイルの読み込みに対応。(tanuki-さん)
+・extra/book/ フォルダ作成。定跡の読み込み絡みのソースコードはここに移動。
+・定跡データベースの採択率に比例して指し手を選択するオプション追加。(tanuki-さん)
+・book.cpp、リフォーマッティング。
+
+
+■　2017/05/08 V4.50
+
+・Position::piece_bb、やはり大改造することにした。
+・WindowsSDK、10.0.15063.0をターゲットに変更。
+・tanuki-さんの詰将棋探索エンジンをmerge。(作業中)
+
+
+■　2017/05/07 V4.49
+
+・ShogiGUIの検討モードの読み筋が短いことがある件に関する修正。(thanks! tさん)
+・エンジン名の偽装として、USIプロトコルの「usi」コマンドに対してengine名を返すときに同じフォルダに
+	"engine_name.txt"というファイルがあればその1行目をエンジン名、その2行目を作者名として出力するようにした。
+
+
+■　2017/05/06 V4.48
+
+・PvIntervalが0のときに思考を中断した場合、PVを出力しないように修正。(読み筋が途中までになってしまうので)
+
+
+■　2017/05/06 V4.47
+
+・ShogiGUIの検討モードできちんと読み筋が出力されるように修正。
+	- go infiniteのときはPvの出力を減らさないように(PvInterval = 0とみなして動作)
+	- PvIntervalが0のときに、前回の出力から1ms経過していないと次のPVが出力されないのを修正。
+
+
+■　2017/05/06 V4.46
+
+・DirtyPieceのデータ構造、少し変更。
+・やねうら王2016MID以前がコンパイル通らなかったの修正。
+・Limitsにbenchモード用のフラグを追加。Limitsまわり改良。
+・検討モードが使いにくすぎるのでUSE_TT_PV、デフォルトでオンに変更する。
+
+
+■　2017/05/05 V4.45
+
+・gccの最新版でbuildが通らなかったの修正。> misc.cpp
+・gccの最新版で警告が出ていたの修正。> movegen.cpp
+
+// 色々いじってテストが十分出来てないのでWCSC27の大会参加者は、V4.41を使っておくほうが無難。
+
+
+■　2017/05/05 V4.44
+
+・qsearch()でPvNodeのときに強制で1手詰め判定してたの、意味なさそうなのでやめる。
+・benchコマンドのデフォルト設定、早く終わりすぎて役目を果たしていないのでdepth15から17に条件を変更。
+・Stockfish
+	- Fix multiPV issue #502
+・Position::pieces()改良。
+	- piece_bb、色別に持たないように変更。
+	- piece_bb[][]を直接参照しているところをPosition::pieces()経由でアクセスするように変更。
+・Visual Studioのプロジェクトファイル
+	- 並列コンパイルのコンパイルオプションを有効に。
+	- デバッグ情報の出力、オフにしてたのでオンに戻す。
+・やねうら王2017Early、noSSEで動作したのでexe/フォルダに入れておいた。
+・MovePickerの配列無駄があったので少し縮めた。
+
+
+■　2017/05/04 V4.43
+
+・EVAL_LEARN、間違っててコメントアウトしたままだったの修正。
+・EVAL_LEARN、x86用のコンパイルで警告が出ていたの修正。(依然としてx86環境ではメモリが確保できないが…)
+・評価関数読み込み用のメモリ確保できなかったときにエラーメッセージを出力するように。
+
+
+■　2017/05/04 V4.42
+
+・NO_SSEにコンパイル出来なかったので少し修正。
+・NO_SSEにコンパイルするときに警告が出ないように修正。
+・やねうら王2017early、SSE4.2/SSE4.1/SSE2の実行ファイルを用意。
+・Learner::search()の引数のPosition、参照で受け取ってなかったのを修正。
+
+
+■　2017/05/03 V4.41 また強くなっててワロタ
+
+・EVAL_HASHのprefetch有効にする。
+
+
+■　2017/05/03 V4.40
+
+・Stockfishのpull req.
+	- Remove excluded move from TT position key formula.
+
+
+■　2017/05/03 V4.39 強くなりすぎワロタ
+
+・探索部、Stockfishのsearch.cppに書式をなるべく合せる。
+・Reductionテーブルの初期化コード、ONE_PLYを掛けるように修正。Stockfish本家のほうも同様の修正が必要だと思う…。
+・check_time()の呼び出すコード、修正。(npsが出なかったの、これが原因か？)
+・#ifndef、紛らわしいので#if !defined()に変更する。
+・qsearch()の1手詰め、置換表にhitしなかったときにのみ調べるように変更。ただしPvNodeでは調べる。
+
+
+■　2017/05/02 V4.38
+
+・Stockfish最新版にキャッチアップ
+	- Partial insertion sort
+	- Use int instead of Value for history related stats.
+	- simplify logic for history based pruning
+	- Sort moves partially: linear depth dependence
+	- Assorted code style issues
+	- Zero unused constant
+	- Copy killers in the movepicker
+	- Retire the misdesigned StepAttacks[] array.
+	- Don't do InCheck Pruning at the root of QS
+	- gcc 7 port
+	以上、2017/5/2時点までキャッチアップ完了。
+
+
+
+■　2017/04/25 V4.37
+
+・rootDepthをValueにキャストせずにValue型と比較していたところ修正。
+・プロジェクト設定の調整
+
+
+■　2017/04/23 V4.36
+
+・Thread::rootDepth、completedDepthをDepth型に変更。
+・Learner::search()調査。少しリファクタリング。
+・Xeon Phi対応コード、いったんrevert。
+
+
+■　2017/04/22 V4.35
+
+・2017early、探索パラメーター、最終調整。完了。対技巧、4スレ5秒。4033 - 34 - 1625(71.28% R157.91)
+
+
+■　2017/04/21 V4.34
+
+・Ryzen向けに、EVAL_HASHデフォルトで有効に変更。
+
+
+■　2017/04/21 V4.33
+
+・EVAL_HASHの処理、微修正。
+
+
+■　2017/04/20 V4.32
+
+・do_move()でのTTのprefetch、2箇所追加する。
+
+
+■　2017/04/19 V4.31a
+
+・learner.cpp、#pragma omp parallel for schedule static を並列化したいforの前に移動。(Qhapaqさん)
+
+
+■　2017/04/19 V4.31
+
+・search()にStep 1.からStep 20.のコメントをつける。Step 19.はStockfishのソースには抜けている。
+・reduction_tableの名前をReductionsにリネーム。
+・Stockfishの最新版にキャッチアップ
+	- Singular extension and check extension tweak
+	- Skip quiet moves based on moveCount pruning threshold and history stats
+	- Penalty for a quiet ttMove that fails low
+	- Simplify skipping of plies with helper threads
+	- Further simplify skipping of plies with threads
+	- Prefer std::find over a hand-coded loop
+	- Move-Count Formula Tweak
+	// 以上で、最新のStockfish(2017/4/18)に追いついた。
+
+
+■　2017/04/18 V4.30
+
+・Stockfishの最新版にキャッチアップ
+	- Penalty for a quiet ttMove that fails low
+	- Standardize stat penalty
+	- update_cm_stats() 書き換え
+	- Always have counterMoves associated
+	- Remove HistoryStats
+	- Rename FromTo -> History
+	- Simplify TT penalty stat
+
+
+■　2017/04/18 V4.29
+
+・Stockfishの最新版にキャッチアップ
+	- Removing CM parameter from the Stats struct.
+	- A small tweak in doEasyMove()
+	- Drop Stats c'tors
+		- これに伴い、thread.cppでスレッドメモリの確保のときにゼロクリアを強制するように変更。
+	- Razor Simplification
+	- Introduce assert for stats update
+		- これに伴い、HistoryStats、Statsのupdateでvの値が大きいときにreturnする処理を削除。
+	- Don't update TT at excluded move ply
+
+
+■　2017/04/18 V4.28
+
+・MovePicker新しく用意した。
+	- move_picker_2017Q2.h / cpp
+	- これに伴いmakefile修正。
+・Stockfishの最新版にキャッチアップ
+	- Simplify threshold handling for probcut.
+	- Don't clear EasyMove in search()
+	- Use consistent variable names for counterMoveStats
+	- Correct zero-init of Thread data members
+	- Zero init fromToStats in constructor.
+	- Tweak best thread selection logic
+	- Simplified select best thread
+		- ベストスレッドの指し手を返すときにresignの指し手だとhangすることに対する修正。
+		- ベストスレッドの指し手を返すときにeasyMovePlayedのフラグを見るように修正。
+
+
+■　2017/04/17 V4.27
+
+・開発メモ2017.txt追加。(そのうち消すかも)
+・Stockfishの最新版にキャッチアップ
+	- Help GCC to optimize msb() to single instruction
+	- Use DEPTH_ZERO initializer for depth in qsearch
+	- Remove piece condition in decrease lmr reduction check
+	- Explicitly use alpha+1 for beta in NonPV search
+	- Clean-up skipEarlyPruning
+
+
+■　2017/04/17 V4.26
+
+・Ryzenに向けた最適化、調査。
+・attackers_to()のColorを取らないバージョン、バグってた。see_ge()実装以降バグっていたのか。修正。[1秒で+R25]
+・attackers_to()のColorを取らないバージョン、香の利きに関して高速化した。全体で1%ぐらい速くなったかも。
+
+
+■　2017/04/16 V4.25
+
+・プロジェクトファイルをVisual Studio 2015→2017に変更。
+・推奨コンパイル環境をVisual Studio 2017に変更。
+・解説.txtのVisual Studio 2015用の説明を削除。
+・デバッグのターゲットフォルダ、..\\YaneuraOu2016Engineに設定。
+・[pullreq] リファクタリング: コマンドラインオプションのパースにargparseを使用するようにした(tanuki-さん)
+・[pullreq] リファクタリング: パスの結合をos.path.join()で行うようにした(tanuki-さん)
+・[pullreq] Intel Xeon Phi Processor 7250においてCPUを100%使い切れるようにした(tanuki-さん) →　Stockfish公式にpull reqすべき？
+・[pullreq] 駒得評価関数での思考エンジンのコンパイルエラーを回避(YuriCatさん)
+・[pullreq] 自己対戦フレームワークの先手・後手の表示の誤りを修正した (tanuki-さん)
+・V4.24を間違って削除してしまったので復旧。→	config.h
+・Windows SDKのターゲットバージョンを10.0.14393.0から10.0.15063.0に変更。
+	→時期尚早だった。Windows 10 Creators Updateが来てからにする。
+
+
+■　2016/12/04 V4.24
+
+・評価関数を増やすためにeval関連の整理。
+
+
 ■　2016/12/04 V4.23
 
 ・shogi.h、4タブ化。
@@ -106,7 +420,7 @@
 　　→　この関数、実装してない。
 ・Zobrist::psqをSQ_NB_PLUS1まで確保するように修正。
 ・Zobrist::psq,handはpc==NO_PIECEのときに0を保証するように変更。
-・Stockfish[pull req.] : Position::is_draw(): start searching from the 4th ply behind 
+・Stockfish[pull req.] : Position::is_draw(): start searching from the 4th ply behind
 	→　すでにこれに近いコードになっているので修正不要。
 ・Stockfish[pull req.] : Non-quiet pruning tweak
 ・PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2追加。
@@ -212,7 +526,7 @@
 ・learnコマンドでetaを設定できるように変更。
 ・DISPLAY_STATS_IN_UPDATE_WEIGHTS削除。
 ・learnコマンドのparser、ソースコード整理。
-・学習のときの進み具合をグラフ化するpythonスクリプト追加(たぬきチームより提供) → analyze_yane_log.py
+・学習のときの進み具合をグラフ化するpythonスクリプト追加(tanuki-さんのチームより提供) → analyze_yane_log.py
 ・scriptフォルダにreadme.txt追加。
 
 
@@ -293,8 +607,8 @@
 
 ■　2016/10/06 V3.93
 
-・Stockfish : Do not use SEE in evasion scoring 
-・Stockfish[pull req.] : Replace Position::see and Position::see_sign by Position::see_ge 
+・Stockfish : Do not use SEE in evasion scoring
+・Stockfish[pull req.] : Replace Position::see and Position::see_sign by Position::see_ge
 ・Stockfish : Optimisation of Position::see and Position::see_sign
 ・USE_SIMPLE_SEE削除。
 ・2016 Late用のデフォルトパラメーター(Stockfishと同じもの)を公開。
@@ -773,7 +1087,7 @@
 ・learnコマンド、gensfenコマンド、出力を抑制するようにした。learn.hで設定可能。
 ・file_read_workerのjoin()忘れていたの修正。
 
-	
+
 ■　2016/07/21 V3.41
 
 ・sfenのunpacker、高速化。Position::set_from_packed_sfen()を作った。
@@ -1126,7 +1440,7 @@
 ■　2016/06/22 V3.16～V3.17
 
 ・razoring margin調整。
-・王手延長の単純化	
+・王手延長の単純化
 ・IIDのとき、常にcut nodeにするのではなく、そのnodeのcutNodeを伝播させる
 ・Makefile、フォルダを自動的に掘るように修正。(thx. tanuki-さん)
 ・Moveが32bitにともない、MemoryBookが16bitでMoveを持っていると合致しないことになる。

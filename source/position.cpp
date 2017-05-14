@@ -200,7 +200,7 @@ void Position::set(std::string sfen)
 #endif
 
 	  // 盤面の(f,r)の駒を設定する
-			put_piece(f | r, Piece(idx + (promote ? PIECE_PROMOTE : 0)), piece_no);
+			put_piece(f | r, Piece(idx + (promote ? u32(PIECE_PROMOTE) : 0)), piece_no);
 
 			// 1升進める
 			--f;
@@ -210,6 +210,10 @@ void Position::set(std::string sfen)
 		}
 
 	}
+
+	// put_piece()を使ったので更新しておく。
+	// set_state()で駒種別のbitboardを参照するのでそれまでにこの関数を呼び出す必要がある。
+	update_bitboards();
 
 	// --- 手番
 
@@ -385,6 +389,23 @@ void Position::set_state(StateInfo* si) const {
 
 }
 
+void Position::update_bitboards()
+{
+	// 王・馬・龍を合成したbitboard
+	piece_bb[HDK]          = pieces(KING , HORSE , DRAGON);
+
+	// 金と同じ移動特性を持つ駒
+	piece_bb[GOLDS]        = pieces(GOLD , PRO_PAWN , PRO_LANCE , PRO_KNIGHT , PRO_SILVER);
+
+	// 角と馬
+	piece_bb[BISHOP_HORSE] = pieces(BISHOP , HORSE);
+
+	// 飛車と龍
+	piece_bb[ROOK_DRAGON]  = pieces(ROOK   , DRAGON);
+
+}
+
+
 // ----------------------------------
 //           Positionの表示
 // ----------------------------------
@@ -468,10 +489,11 @@ Bitboard Position::slider_blockers(Color c, Square s , Bitboard& pinners) const 
 
 	// snipersとは、pinされている駒が取り除かれたときに升sに利きが発生する大駒である。
 	Bitboard snipers =
-		(pieces(c, ROOK) & rookStepEffect(s))
-		| (pieces(c, BISHOP) & bishopStepEffect(s))
+		( (pieces(ROOK_DRAGON)  & rookStepEffect(s))
+		| (pieces(BISHOP_HORSE) & bishopStepEffect(s))
 		// 香に関しては攻撃駒が先手なら、玉より下側をサーチして、そこにある先手の香を探す。
-		| (pieces(c, LANCE) & lanceStepEffect(~c, s));
+		| (pieces(LANCE) & lanceStepEffect(~c, s))
+		) & pieces(c);
 
 	while (snipers)
 	{
@@ -491,68 +513,82 @@ Bitboard Position::slider_blockers(Color c, Square s , Bitboard& pinners) const 
 	return result;
 }
 
+
 // sに利きのあるc側の駒を列挙する。
 // (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
 Bitboard Position::attackers_to(Color c, Square sq, const Bitboard& occ) const
 {
-  Color them = ~c;
+	Color them = ~c;
 
-  // sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
-  return
-    (pawnEffect(them, sq) & pieces(c, PAWN))
-    | (lanceEffect(them, sq, occ) & pieces(c, LANCE))
-    | (knightEffect(them, sq) & pieces(c, KNIGHT))
-    | (silverEffect(them, sq) & (pieces(c, SILVER) | pieces(c, HDK)))
-    | (goldEffect(them, sq) & (pieces(c, GOLD) | pieces(c, HDK)))
-    | (bishopEffect(sq, occ) & pieces(c, BISHOP))
-    | (rookEffect(sq, occ) & pieces(c, ROOK));
-//    | (kingEffect(sq) & pieces(c, HDK));
-  // →　HDKは、銀と金のところに含めることによって、参照するテーブルを一個減らして高速化しようというAperyのアイデア。
+	// sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
+	return
+		(     (pawnEffect(them, sq)       & pieces(PAWN)        )
+			| (lanceEffect(them, sq, occ) & pieces(LANCE)       )
+			| (knightEffect(them, sq)     & pieces(KNIGHT)      )
+			| (silverEffect(them, sq)     & pieces(SILVER, HDK) )
+			| (goldEffect(them, sq)       & pieces(GOLDS , HDK) )
+			| (bishopEffect(sq, occ)      & pieces(BISHOP_HORSE))
+			| (rookEffect(sq, occ)        & pieces(ROOK_DRAGON ))
+		//  | (kingEffect(sq) & pieces(c, HDK));
+		// →　HDKは、銀と金のところに含めることによって、参照するテーブルを一個減らして高速化しようというAperyのアイデア。
+			) & pieces(c); // 先後混在しているのでc側の駒だけ最後にマスクする。
+		;
 
 }
 
-// 
+// sに利きのあるc側の駒を列挙する。先後両方。
+// (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
 Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 {
-	// sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
+	// sqの地点に敵駒ptをおいて、その利きに自駒のptがあればsqに利いているということだ。
 	return
-		  (pawnEffect(BLACK, sq) & pieces(WHITE, PAWN))
-		| (pawnEffect(WHITE, sq) & pieces(BLACK, PAWN))
-		| (lanceEffect(BLACK, sq, occ) & pieces(WHITE, LANCE))
-		| (lanceEffect(WHITE, sq, occ) & pieces(BLACK, LANCE))
-		| (knightEffect(BLACK, sq) & pieces(WHITE, KNIGHT))
-		| (knightEffect(WHITE, sq) & pieces(BLACK, KNIGHT))
-		| (silverEffect(BLACK, sq) & (pieces(WHITE, SILVER) | pieces(WHITE, HDK)))
-		| (silverEffect(WHITE, sq) & (pieces(BLACK, SILVER) | pieces(BLACK, HDK)))
-		| (goldEffect(BLACK, sq) & (pieces(WHITE, GOLD) | pieces(WHITE, HDK)))
-		| (goldEffect(WHITE, sq) & (pieces(BLACK, GOLD) | pieces(BLACK, HDK)))
-		| (bishopEffect(sq, occ) & (pieces(BLACK,BISHOP) | pieces(WHITE,BISHOP)))
-		| (rookEffect(sq, occ) & (pieces(BLACK,ROOK) | pieces(BLACK,ROOK)));
-	//    | (kingEffect(sq) & pieces(c, HDK));
-	// →　HDKは、銀と金のところに含めることによって、参照するテーブルを一個減らして高速化しようというAperyのアイデア。
+		// 先手の歩・桂・銀・金・HDK
+		((    (pawnEffect(WHITE, sq)   & pieces(PAWN)        )
+			| (knightEffect(WHITE, sq) & pieces(KNIGHT)      )
+			| (silverEffect(WHITE, sq) & pieces(SILVER, HDK) )
+			| (goldEffect(WHITE, sq)   & pieces(GOLDS , HDK) )
+			) & pieces(BLACK))
+		|
 
+		// 後手の歩・桂・銀・金・HDK
+		((    (pawnEffect(BLACK, sq)   & pieces(PAWN)        )
+			| (knightEffect(BLACK, sq) & pieces(KNIGHT)      )
+			| (silverEffect(BLACK, sq) & pieces(SILVER, HDK) )
+			| (goldEffect(BLACK, sq)   & pieces(GOLDS , HDK) )
+			) & pieces(WHITE))
+
+		// 先後の角・飛・香
+		| (bishopEffect(sq, occ) & pieces(BISHOP_HORSE) )
+		| (rookEffect(sq, occ) & (
+			   pieces(ROOK_DRAGON)
+			| (pieces(BLACK , LANCE) & lanceStepEffect(WHITE , sq))
+			| (pieces(WHITE , LANCE) & lanceStepEffect(BLACK , sq))
+			// 香も、StepEffectでマスクしたあと飛車の利きを使ったほうが香の利きを求めなくて済んで速い。
+			));
 }
 
 // 打ち歩詰め判定に使う。王に打ち歩された歩の升をpawn_sqとして、c側(王側)のpawn_sqへ利いている駒を列挙する。香が利いていないことは自明。
 inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 {
-  Color them = ~c;
-  const Bitboard& occ = pieces();
+	Color them = ~c;
+	const Bitboard& occ = pieces();
 
-  // 馬と龍
-  const Bitboard bb_hd = (kingEffect(pawn_sq) & pieces(c, HDK) & ~Bitboard(king_square(c)));
-  // 馬、龍の利きは考慮しないといけない。しかしここに玉が含まれるので玉は取り除く必要がある。
-  // bb_hdは銀と金のところに加えてしまうことでテーブル参照を一回減らす。
+	// 馬と龍
+	const Bitboard bb_hd = kingEffect(pawn_sq) & pieces(HORSE,DRAGON);
+	// 馬、龍の利きは考慮しないといけない。しかしここに玉が含まれるので玉は取り除く必要がある。
+	// bb_hdは銀と金のところに加えてしまうことでテーブル参照を一回減らす。
 
-    // sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
-    // 打ち歩詰め判定なので、その打たれた歩を歩、香、王で取れることはない。(王で取れないことは事前にチェック済)
-    return
-    (knightEffect(them, pawn_sq) & pieces(c, KNIGHT))
-    | (silverEffect(them, pawn_sq) & (pieces(c, SILVER) | bb_hd))
-    | (goldEffect(them, pawn_sq) & (pieces(c, GOLD) | bb_hd))
-    | (bishopEffect(pawn_sq, occ) & pieces(c, BISHOP))
-    | (rookEffect(pawn_sq, occ) & pieces(c, ROOK));
+	// sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
+	// 打ち歩詰め判定なので、その打たれた歩を歩、香、王で取れることはない。(王で取れないことは事前にチェック済)
+	return
+		(     (knightEffect(them, pawn_sq) &  pieces(KNIGHT)          )
+			| (silverEffect(them, pawn_sq) & (pieces(SILVER) | bb_hd) )
+			| (goldEffect(them, pawn_sq)   & (pieces(GOLDS)  | bb_hd) )
+			| (bishopEffect(pawn_sq, occ)  &  pieces(BISHOP_HORSE)    )
+			| (rookEffect(pawn_sq, occ)    &  pieces(ROOK_DRAGON)     )
+			) & pieces(c);
 }
+
 
 // 指し手が、(敵玉に)王手になるかをテストする。
 
@@ -599,10 +635,10 @@ Bitboard Position::pinned_pieces(Color c, Square avoid) const {
   Bitboard avoid_bb = ~Bitboard(avoid);
 
   pinners = (
-    (pieces(~c, PIECE_TYPE_BITBOARD_ROOK) & rookStepEffect(ksq))
-    | (pieces(~c, PIECE_TYPE_BITBOARD_BISHOP) & bishopStepEffect(ksq))
-    | (pieces(~c, PIECE_TYPE_BITBOARD_LANCE) & lanceStepEffect(c, ksq))
-    ) & avoid_bb;
+      (pieces(ROOK_DRAGON)   & rookStepEffect(ksq))
+    | (pieces(BISHOP_HORSE)  & bishopStepEffect(ksq))
+    | (pieces(LANCE)         & lanceStepEffect(c, ksq))
+    ) & avoid_bb & pieces(~c);
 
   while (pinners)
   {
@@ -621,10 +657,10 @@ Bitboard Position::pinned_pieces(Color c, Square from, Square to) const {
   Bitboard avoid_bb = ~Bitboard(from);
 
   pinners = (
-    (pieces(~c, PIECE_TYPE_BITBOARD_ROOK) & rookStepEffect(ksq))
-    | (pieces(~c, PIECE_TYPE_BITBOARD_BISHOP) & bishopStepEffect(ksq))
-    | (pieces(~c, PIECE_TYPE_BITBOARD_LANCE) & lanceStepEffect(c, ksq))
-    ) & avoid_bb;
+      (pieces( ROOK_DRAGON )  & rookStepEffect(ksq))
+    | (pieces( BISHOP_HORSE ) & bishopStepEffect(ksq))
+    | (pieces( LANCE  )       & lanceStepEffect(c, ksq))
+    ) & avoid_bb & pieces(~c);
 
   // fromからは消えて、toの地点に駒が現れているものとして
   Bitboard new_pieces = (pieces() & avoid_bb) | to;
@@ -754,7 +790,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 
 #ifdef KEEP_PIECE_IN_GENERATE_MOVES
     // 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
-    if (moved_piece_after(m) != Piece(pr + ((us == WHITE) ? PIECE_WHITE : 0) + PIECE_DROP))
+    if (moved_piece_after(m) != Piece(pr + ((us == WHITE) ? u32(PIECE_WHITE) : 0) + PIECE_DROP))
       return false;
 #endif
 
@@ -956,7 +992,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
   // これVALUNE_NONEにするとsumKKPが32bitなので偶然一致することがある。
 	st->sumKKP = VALUE_NOT_EVALUATED;
 #endif
-#if defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
+#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
 	// 上と同じ意味。
 	st->sum.p[0][0] = VALUE_NOT_EVALUATED;
 #endif
@@ -997,6 +1033,19 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		ASSERT_LV2(PAWN <= pr && pr < PIECE_HAND_NB);
 
 		Piece pc = make_piece(Us, pr);
+
+		// Zobrist keyの更新
+		h -= Zobrist::hand[Us][pr];
+		k += Zobrist::psq[to][pc];
+
+		// なるべく早い段階でのTTに対するprefetch
+		// 駒打ちのときはこの時点でTT entryのアドレスが確定できる
+		const Key key = k + h;
+		prefetch(TT.first_entry(key));
+#if defined(USE_EVAL_HASH)
+		Eval::prefetch_evalhash(key);
+#endif
+
 		PieceNo piece_no = piece_no_of(Us, pr);
 		ASSERT_LV3(is_ok(piece_no));
 
@@ -1004,13 +1053,13 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// KPPの差分計算のために移動した駒をStateInfoに記録しておく。
 		dp.dirty_num = 1; // 動いた駒は1個
 		dp.pieceNo[0] = piece_no;
-		dp.piecePrevious[0] = evalList.bona_piece(piece_no);
+		dp.changed_piece[0].old_piece = evalList.bona_piece(piece_no);
 #endif
 
 		put_piece(to, pc, piece_no);
 
 #ifdef USE_EVAL_DIFF
-		dp.pieceNow[0] = evalList.bona_piece(piece_no);
+		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no);
 #endif
 
 		// 駒打ちなので手駒が減る
@@ -1030,9 +1079,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// 駒打ちは捕獲した駒がない。
 		st->capturedPiece = NO_PIECE;
 
-		// Zobrist keyの更新
-		h -= Zobrist::hand[Us][pr];
-		k += Zobrist::psq[to][pc];
+		// put_piece()などを用いたのでupdateする
+		update_bitboards();
 
 #ifndef EVAL_NO_USE
 		materialDiff = 0;
@@ -1095,7 +1143,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #ifdef USE_EVAL_DIFF
 			dp.dirty_num = 2; // 動いた駒は2個
 			dp.pieceNo[1] = piece_no;
-			dp.piecePrevious[1] = evalList.bona_piece(piece_no);
+			dp.changed_piece[1].old_piece = evalList.bona_piece(piece_no);
 #endif
 
 #ifndef EVAL_NO_USE
@@ -1103,7 +1151,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #endif
 
 #ifdef USE_EVAL_DIFF
-			dp.pieceNow[1] = evalList.bona_piece(piece_no);
+			dp.changed_piece[1].new_piece = evalList.bona_piece(piece_no);
 #endif
 
 			// 駒取りなら現在の手番側の駒が増える。
@@ -1125,6 +1173,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #endif
 
 		} else {
+			// 駒を取らない指し手
+
 			st->capturedPiece = NO_PIECE;
 
 #ifdef LONG_EFFECT_LIBRARY
@@ -1140,7 +1190,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 #ifdef USE_EVAL_DIFF
 		dp.pieceNo[0] = piece_no2;
-		dp.piecePrevious[0] = evalList.bona_piece(piece_no2);
+		dp.changed_piece[0].old_piece = evalList.bona_piece(piece_no2);
 #endif
 
 		// 移動元の升からの駒の除去
@@ -1149,12 +1199,23 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		put_piece(to, moved_after_pc, piece_no2);
 
 #ifdef USE_EVAL_DIFF
-		dp.pieceNow[0] = evalList.bona_piece(piece_no2);
+		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no2);
 #endif
 
 		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
 		k -= Zobrist::psq[from][moved_pc];
 		k += Zobrist::psq[to][moved_after_pc];
+
+		// 駒打ちでないときはprefetchはこの時点まで延期される。
+		const Key key = k + h;
+		prefetch(TT.first_entry(key));
+#if defined(USE_EVAL_HASH)
+		Eval::prefetch_evalhash(key);
+#endif
+
+		// put_piece()などを用いたのでupdateする。
+		// ROOK_DRAGONなどをこの直後で用いるのでここより後ろにやるわけにはいかない。
+		update_bitboards();
 
 		// 王手している駒のbitboardを更新する。
 		if (givesCheck)
@@ -1180,12 +1241,12 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 					// 斜めに利く遠方駒は角(+馬)しかないので、玉の位置から角の利きを求めてその利きのなかにいる角を足す。
 
 				case DIRECT_RU: case DIRECT_RD: case DIRECT_LU: case DIRECT_LD:
-					st->checkersBB |= bishopEffect(ksq, pieces()) & pieces(Us, BISHOP); break;
+					st->checkersBB |= bishopEffect(ksq, pieces()) & pieces(Us, BISHOP_HORSE); break;
 
 					// 横に利く遠方駒は飛車(+龍)しかないので、玉の位置から飛車の利きを求めてその利きのなかにいる飛車を足す。
 
 				case DIRECT_R: case DIRECT_L:
-					st->checkersBB |= rookEffect(ksq, pieces()) & pieces(Us, ROOK); break;
+					st->checkersBB |= rookEffect(ksq, pieces()) & pieces(Us, ROOK_DRAGON); break;
 
 					// fromと敵玉とは同じ筋にあり、かつfromから駒を移動させて空き王手になる。
 					// つまりfromから上下を見ると、敵玉と、自分の開き王手をしている遠方駒(飛車 or 香)があるはずなのでこれを追加する。
@@ -1211,15 +1272,18 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			st->checkersBB = ZERO_BB;
 			st->continuousCheck[Us] = 0;
 
+			// put_piece()などを用いたのでupdateする
+			update_bitboards();
 		}
 	}
+
 
 #ifndef EVAL_NO_USE
 	st->materialValue = (Value)(st->previous->materialValue + (Us == BLACK ? materialDiff : -materialDiff));
 	//ASSERT_LV5(st->materialValue == Eval::material(*this));
 #endif
 
-  // 相手番に変更する。
+	// 相手番に変更する。
 	sideToMove = ~Us;
 
 	// 更新されたhash keyをStateInfoに書き戻す。
@@ -1232,6 +1296,72 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	set_check_info<false>(st);
 }
 
+#if defined(USE_KEY_AFTER)
+
+// ある指し手を指した後のhash keyを返す。
+Key Position::key_after(Move m) const {
+
+	Color Us = side_to_move();
+	auto k = st->board_key_ ^ Zobrist::side;
+	auto h = st->hand_key_;
+
+	// 移動先の升
+	Square to = move_to(m);
+	ASSERT_LV2(is_ok(to));
+
+	if (is_drop(m))
+	{
+		// --- 駒打ち
+		Piece pr = move_dropped_piece(m);
+		ASSERT_LV2(PAWN <= pr && pr < PIECE_HAND_NB);
+
+		Piece pc = make_piece(Us, pr);
+
+		// Zobrist keyの更新
+		h -= Zobrist::hand[Us][pr];
+		k += Zobrist::psq[to][pc];
+	}
+	else
+	{
+		// -- 駒の移動
+		Square from = move_from(m);
+		ASSERT_LV2(is_ok(from));
+
+		// 移動させる駒
+		Piece moved_pc = piece_on(from);
+		ASSERT_LV2(moved_pc != NO_PIECE);
+
+		// 移動先に駒の配置
+		// もし成る指し手であるなら、成った後の駒を配置する。
+		Piece moved_after_pc;
+
+		if (is_promote(m))
+		{
+			moved_after_pc = moved_pc + PIECE_PROMOTE;
+		}
+		else {
+			moved_after_pc = moved_pc;
+		}
+
+		// 移動先の升にある駒
+		Piece to_pc = piece_on(to);
+		if (to_pc != NO_PIECE)
+		{
+			Piece pr = raw_type_of(to_pc);
+
+			// 捕獲された駒が盤上から消えるので局面のhash keyを更新する
+			k -= Zobrist::psq[to][to_pc];
+			h += Zobrist::hand[Us][pr];
+		}
+
+		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
+		k -= Zobrist::psq[from][moved_pc];
+		k += Zobrist::psq[to][moved_after_pc];
+	}
+
+	return k + h;
+}
+#endif
 
 // 指し手で盤面を1手戻す。do_move()の逆変換。
 template <Color Us>
@@ -1318,6 +1448,9 @@ void Position::undo_move_impl(Move m)
 		}
 	}
 
+	// put_piece()などを使ったので更新する。
+	update_bitboards();
+
 	// --- 相手番に変更
 	sideToMove = Us; // Usは先後入れ替えて呼び出されているはず。
 
@@ -1363,7 +1496,11 @@ void Position::do_null_move(StateInfo& newSt) {
   // 　prefetchのスケジューラーが処理しきれない可能性が…。
   // CPUによっては有効なので一応やっておく。
 
-  prefetch(TT.first_entry(st->key()));
+  const Key key = st->key();
+  prefetch(TT.first_entry(key));
+
+  // これは、さっきアクセスしたところのはずなので意味がない。
+  //  Eval::prefetch_evalhash(key);
 
   st->pliesFromNull = 0;
 
@@ -1387,54 +1524,55 @@ void Position::undo_null_move() {
 // 連続王手の千日手等で引き分けかどうかを返す(repPlyまで遡る)
 RepetitionState Position::is_repetition(const int repPly) const
 {
-  // 4手かけないと千日手にはならないから、4手前から調べていく。
-  const int Start = 4;
-  int i = Start;
+	// 4手かけないと千日手にはならないから、4手前から調べていく。
+	const int Start = 4;
+	int i = Start;
 
-  // 遡り可能な手数。
-  // 最大でもrepPly手までしか遡らないことにする。
-  const int e = min(repPly,st->pliesFromNull);
-  
-  // pliesFromNullが未初期化になっていないかのチェックのためのassert
-  ASSERT_LV3(st->pliesFromNull >= 0);
+	// 遡り可能な手数。
+	// 最大でもrepPly手までしか遡らないことにする。
+	const int e = min(repPly, st->pliesFromNull);
 
-  if (i <= e)
-  {
-    auto stp = st->previous->previous;
-    auto key = st->board_key(); // 盤上の駒のみのhash(手駒を除く)
+	// pliesFromNullが未初期化になっていないかのチェックのためのassert
+	ASSERT_LV3(st->pliesFromNull >= 0);
 
-    do {
-      stp = stp->previous->previous;
+	if (i <= e)
+	{
+		auto stp = st->previous->previous;
+		auto key = st->board_key(); // 盤上の駒のみのhash(手駒を除く)
 
-      // 同じboard hash keyの局面であるか？
-      if (stp->board_key() == key)
-      {
-        // 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
-        if (stp->hand == st->hand)
-        {
-          // 自分が王手をしている連続王手の千日手なのか？
-          if (i <= st->continuousCheck[sideToMove])
-            return REPETITION_LOSE;
+		do {
+			stp = stp->previous->previous;
 
-          // 相手が王手をしている連続王手の千日手なのか？
-          if (i <= st->continuousCheck[~sideToMove])
-            return REPETITION_WIN;
+			// 同じboard hash keyの局面であるか？
+			if (stp->board_key() == key)
+			{
+				// 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
+				if (stp->hand == st->hand)
+				{
+					// 自分が王手をしている連続王手の千日手なのか？
+					if (i <= st->continuousCheck[sideToMove])
+						return REPETITION_LOSE;
 
-          return REPETITION_DRAW;
-        } else {
-          // 優等局面か劣等局面であるか。(手番が相手番になっている場合はいま考えない)
-          if (hand_is_equal_or_superior(st->hand, stp->hand))
-            return REPETITION_SUPERIOR;
-          if (hand_is_equal_or_superior(stp->hand, st->hand))
-            return REPETITION_INFERIOR;
-        }
-      }
-      i += 2;
-    } while (i <= e);
-  }
+					// 相手が王手をしている連続王手の千日手なのか？
+					if (i <= st->continuousCheck[~sideToMove])
+						return REPETITION_WIN;
 
-  // 同じhash keyの局面が見つからなかったので…。
-  return REPETITION_NONE;
+					return REPETITION_DRAW;
+				}
+				else {
+					// 優等局面か劣等局面であるか。(手番が相手番になっている場合はいま考えない)
+					if (hand_is_equal_or_superior(st->hand, stp->hand))
+						return REPETITION_SUPERIOR;
+					if (hand_is_equal_or_superior(stp->hand, st->hand))
+						return REPETITION_INFERIOR;
+				}
+			}
+			i += 2;
+		} while (i <= e);
+	}
+
+	// 同じhash keyの局面が見つからなかったので…。
+	return REPETITION_NONE;
 }
 
 // ----------------------------------

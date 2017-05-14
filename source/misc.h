@@ -185,7 +185,14 @@ struct PRNG {
   PRNG(uint64_t seed) : s(seed) { ASSERT_LV1(seed); }
 
   // C++11のrandom_device()によるseedの初期化
-  PRNG() { std::random_device rd; s = (u64)rd() + ((u64)rd() << 32); }
+  PRNG() {
+	  // std::random_device rd; s = (u64)rd() + ((u64)rd() << 32);
+	  // msys2のgccでbuildすると同じ値を返すっぽい。なんぞこれ…。
+
+	  // time値とか、thisとか色々加算しておく。
+	  s = (u64)(time(NULL)) + ((u64)(this) << 32)
+		  + (u64)(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+  }
 
   // 乱数を一つ取り出す。
   template<typename T> T rand() { return T(rand64()); }
@@ -200,6 +207,22 @@ private:
     return s * 2685821657736338717LL;
   }
 };
+
+// --------------------
+//       Math
+// --------------------
+
+// 進行度の計算や学習で用いる数学的な関数
+namespace Math {
+	// シグモイド関数
+	//  = 1.0 / (1.0 + std::exp(-x))
+	double sigmoid(double x);
+
+	// シグモイド関数の微分
+	//  = sigmoid(x) * (1.0 - sigmoid(x))
+	double dsigmoid(double x);
+}
+
 
 // --------------------
 //       Path
@@ -223,6 +246,9 @@ inline std::string path_combine(const std::string& folder, const std::string& fi
 // これはnon-blocking関数で、CPUがメモリに読み込むのを待たない。
 
 extern void prefetch(void* addr);
+
+// 連続する128バイトをprefetchするときに用いる。
+extern void prefetch2(void* addr);
 
 
 // --------------------

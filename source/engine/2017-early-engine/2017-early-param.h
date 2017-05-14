@@ -93,12 +93,12 @@ PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 13;
 // probcutの前提depth
 // 元の値 = 5
 // [PARAM] min:3,max:10,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_DEPTH = 4;
+PARAM_DEFINE PARAM_PROBCUT_DEPTH = 5;
 
 // probcutのmargin
 // 元の値 = 200
 // [PARAM] min:100,max:300,step:2,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_MARGIN = 216;
+PARAM_DEFINE PARAM_PROBCUT_MARGIN = 220;
 
 
 //
@@ -138,14 +138,14 @@ PARAM_DEFINE PARAM_PRUNING_BY_MOVE_COUNT_DEPTH = 17;
 // これ、将棋ではそこそこ上げたほうが長い時間では良さげ。
 // 元の値 = 3
 // [PARAM] min:2,max:32,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 9;
+PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 8;
 
 
 // historyの値によってreductionするときの係数
 // これ、元のが (hist - 8000) / 20000みたいな意味ありげな値なので下手に変更しないほうが良さげ。
-// 元の値 = 8000
-// [PARAM] min:4000,max:15000,step:40,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 8000;
+// 元の値 = 4000
+// [PARAM] min:2000,max:8000,step:40,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 4000;
 
 
 //
@@ -162,8 +162,9 @@ PARAM_DEFINE PARAM_IID_MARGIN_ALPHA = 261;
 // razoring pruning
 // 
 
-// 元の値 = 483
-// [PARAM] min:400,max:700,step:5,interval:2,time_rate:1,fixed
+// この値は、未使用。razoringはdepth < ONE_PLYでは行わないため。
+// 元の値 = 0
+// [PARAM] min:0,max:0,step:1,interval:2,time_rate:1,fixed
 PARAM_DEFINE PARAM_RAZORING_MARGIN1 = 483;
 
 // 元の値 = 570
@@ -183,9 +184,9 @@ PARAM_DEFINE PARAM_RAZORING_MARGIN4 = 539;
 // LMR reduction table
 //
 
-// 元の値 = 128
+// 元の値 = 131
 // [PARAM] min:64,max:256,step:2,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_ALPHA = 124;
+PARAM_DEFINE PARAM_REDUCTION_ALPHA = 135;
 
 
 //
@@ -198,17 +199,17 @@ PARAM_DEFINE PARAM_REDUCTION_ALPHA = 124;
 // [PARAM] min:150,max:400,step:1,interval:2,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_ALPHA0 = 240;
 
-// 元の値 = 290
-// [PARAM] min:150,max:400,step:1,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_ALPHA1 = 288;
+// 元の値 = 500
+// [PARAM] min:300,max:600,step:1,interval:2,time_rate:1,fixed
+PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_ALPHA1 = 502;
 
-// 元の値 = 773
+// 元の値 = 740
 // [PARAM] min:500,max:2000,step:2,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_BETA0 = 773;
+PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_BETA0 = 742;
 
-// 元の値 = 1045
+// 元の値 = 1000
 // [PARAM] min:500,max:2000,step:2,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_BETA1 = 1041;
+PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_BETA1 = 1002;
 
 
 //

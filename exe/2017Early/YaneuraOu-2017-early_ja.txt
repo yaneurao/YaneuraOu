@@ -34,6 +34,7 @@ yaneura_book4.db 極やねうら定跡
 user_book1.db ユーザー定跡1
 user_book2.db ユーザー定跡2
 user_book3.db ユーザー定跡3
+book.bin Apery用定跡DB
 
 BookMoves 定跡を用いる手数(0=未使用)
 BookEvalDiff 定跡の幅(0=無,30=狭,100=広)
@@ -47,6 +48,7 @@ BookEvalWhiteLimit 定跡の後手の評価値下限
 BookDepthLimit 定跡のdepth下限(0=下限なし)
 
 BookOnTheFly 定跡をメモリに丸読みしない
+ConsiderBookMoveCount 定跡の指し手を採択率に比例させる
 
 EvalDir 評価関数格納フォルダ
 EvalShare 評価関数を共有メモリに展開する

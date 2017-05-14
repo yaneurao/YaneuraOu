@@ -16,10 +16,19 @@ YANEURAOU_EDITION = YANEURAOU_2017_EARLY_ENGINE
 
 COMPILER = g++
 #COMPILER = mpicxx
-CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fopenmp -fpermissive -D_WIN64
-# ltoオプションを指定すると実行同時にSegmentation Faultで落ちるときがあるので、そのときは、コメントアウトしてください。
-# CFLAGS   += -flto
-CFLAGS   += -march=native
+
+# 標準的なコンパイルオプション
+CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fopenmp -fpermissive -DUNICODE
+
+# stripの指示。(実行ファイルのサイズを小さく)
+CFLAGS  += -Wl,-s
+
+# mingw64では-D_WIN64,-D_WIN32は環境に応じて自動で設定されるので指定すべきではない。
+# CFLAGS += -D_WIN64
+
+# これを指定していると、各CPU向けの実行ファイルが生成されないので指定すべきではない。
+# CFLAGS   += -march=native
+
 LDFLAGS  = -lpthread #-lboost_mpi -lboost_serialization
 LIBS     =
 INCLUDE  = #-I../include
@@ -42,16 +51,19 @@ SOURCES  = shogi.cpp                                                           \
 	movegen.cpp                                                                \
 	position.cpp                                                               \
 	usi.cpp                                                                    \
-	thread.cpp tt.cpp                                                          \
+	thread.cpp                                                                 \
+	tt.cpp                                                                     \
+	extra/book/apery_book.cpp                                                  \
+	extra/book/book.cpp                                                        \
 	extra/bitop.cpp                                                            \
-	extra/book.cpp                                                             \
 	extra/entering_king_win.cpp                                                \
 	extra/long_effect.cpp                                                      \
-	extra/mate1ply_with_effect.cpp                                             \
-	extra/mate1ply_without_effect.cpp                                          \
-	extra/mate_n_ply.cpp                                                       \
-	extra/move_picker_2016Q2.cpp                                               \
-	extra/move_picker_2016Q3.cpp                                               \
+	extra/mate/mate1ply_with_effect.cpp                                        \
+	extra/mate/mate1ply_without_effect.cpp                                     \
+	extra/mate/mate_n_ply.cpp                                                  \
+	extra/move_picker/move_picker_2016Q2.cpp                                   \
+	extra/move_picker/move_picker_2016Q3.cpp                                   \
+	extra/move_picker/move_picker_2017Q2.cpp                                   \
 	extra/test_cmd.cpp                                                         \
 	extra/timeman.cpp                                                          \
 	extra/see.cpp                                                              \
@@ -61,6 +73,7 @@ SOURCES  = shogi.cpp                                                           \
 	eval/evaluate_kppt.cpp                                                     \
 	eval/evaluate_material.cpp                                                 \
 	eval/evaluate_no_eval.cpp                                                  \
+	eval/progress.cpp                                                          \
 	engine/user-engine/user-search.cpp                                         \
 	engine/random-player-engine/random-player-search.cpp                       \
 	engine/help-mate-engine/help-mate-search.cpp                               \
@@ -96,19 +109,25 @@ $(OBJDIR)/%.o: %.cpp
 all: clean $(TARGET)
 
 avx2:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 sse41:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE41 -msse4.1' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE41 -msse4.1 -march=core2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 sse2:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE2 -msse2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE2 -msse2 -march=core2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
+# 32bit用。-m32は、MSYS2 MinGW-64だと無視されるので、
+# MinGW-64の32bit環境用でコンパイルする必要がある。
 nosse:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION)' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DNO_SSE -m32' LDFLAGS='$(LDFLAGS) -flto -march=pentium3' $(TARGET)
+
+# ARMなどのCPU
+other:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DNO_SSE' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 #　とりあえずPGOはavx2専用
 prof:
@@ -118,7 +137,7 @@ profgen:
 	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-generate -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-generate -lgcov' avx2
 
 profuse:
-	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-use -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-use -lgcov' avx2
+	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-use -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-use -lgcov -flto' avx2
 
 pgo:
 	$(MAKE) profgen

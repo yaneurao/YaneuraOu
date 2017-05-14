@@ -5,7 +5,7 @@
 // 利きを用いない1手詰め判定用。(Bonanza6風)
 // やねうら王2014からの移植。
 
-#include "../position.h"
+#include "../../position.h"
 
 //#include <iostream>
 //using std::cout;
@@ -55,6 +55,7 @@ static Bitboard check_cand_bb(Color us, PieceTypeCheck pc, Square sq_king)
 }
 
 // 敵玉8近傍の利きに関係する自駒の候補のbitboardを返す。ここになければ玉周辺に利きをつけない。
+// pt = PAWN～HDK
 static Bitboard check_around_bb(Color us, Piece pt, Square sq_king)
 {
   return CHECK_AROUND_BB[sq_king][pt - 1][us];
@@ -356,13 +357,13 @@ Bitboard AttacksSlider(const Position& pos , Color us, const Bitboard& slide)
     from = bb.pop();
     sum |= lanceEffect(us, from, slide);
   }
-  bb = pos.pieces(us, BISHOP);
+  bb = pos.pieces(us, BISHOP_HORSE);
   while (bb)
   {
     from = bb.pop();
     sum |= bishopEffect(from, slide);
   }
-  bb = pos.pieces(us, ROOK);
+  bb = pos.pieces(us, ROOK_DRAGON);
   while (bb)
   {
     from = bb.pop();
@@ -385,13 +386,13 @@ Bitboard AttacksSlider(const Position& pos,Color us, Square avoid_from, const Bi
     from = bb.pop();
     sum |= lanceEffect(us, from, occ);
   }
-  bb = pos.pieces(us, BISHOP) & avoid_bb;
+  bb = pos.pieces(us, BISHOP_HORSE) & avoid_bb;
   while (bb)
   {
     from = bb.pop();
     sum |= bishopEffect(from, occ);
   }
-  bb = pos.pieces(us, ROOK) & avoid_bb;
+  bb = pos.pieces(us, ROOK_DRAGON) & avoid_bb;
   while (bb)
   {
     from = bb.pop();
@@ -425,13 +426,13 @@ Bitboard AttacksAroundKingNonSlider(const Position& pos , Color ourKing)
     from = bb.pop();
     sum |= silverEffect(them, from);
   }
-  bb = pos.pieces(them, GOLD) & check_around_bb(them, GOLD, sq_king);
+  bb = pos.pieces(them, GOLDS) & check_around_bb(them, GOLD, sq_king);
   while (bb)
   {
     from = bb.pop();
     sum |= goldEffect(them, from);
   }
-  bb = pos.pieces(them, KING) & check_around_bb(them, KING, sq_king);
+  bb = pos.pieces(them, HDK) & check_around_bb(them, KING, sq_king);
   while (bb)
   {
     from = bb.pop();
@@ -455,13 +456,13 @@ Bitboard AttacksAroundKingSlider(const Position& pos , Color ourKing)
     from = bb.pop();
     sum |= lanceEffect(them, from, pos.pieces());
   }
-  bb = pos.pieces(them, BISHOP) & check_around_bb(them, BISHOP, sq_king);
+  bb = pos.pieces(them, BISHOP_HORSE) & check_around_bb(them, BISHOP, sq_king);
   while (bb)
   {
     from = bb.pop();
     sum |= bishopEffect(from, pos.pieces());
   }
-  bb = pos.pieces(them, ROOK) & check_around_bb(them, ROOK, sq_king);
+  bb = pos.pieces(them, ROOK_DRAGON) & check_around_bb(them, ROOK, sq_king);
   while (bb)
   {
     from = bb.pop();
@@ -495,13 +496,13 @@ Bitboard AttacksAroundKingNonSliderInAvoiding(const Position& pos,Color us, Squa
     from = bb.pop();
     sum |= silverEffect(them, from);
   }
-  bb = pos.pieces(them, GOLD) & check_around_bb(them, GOLD, sq_king) & avoid_bb;
+  bb = pos.pieces(them, GOLDS) & check_around_bb(them, GOLD, sq_king) & avoid_bb;
   while (bb)
   {
     from = bb.pop();
     sum |= goldEffect(them, from);
   }
-  bb = pos.pieces(them, KING) & check_around_bb(them, KING, sq_king) & avoid_bb;
+  bb = pos.pieces(them, HDK) & check_around_bb(them, KING, sq_king) & avoid_bb;
   while (bb)
   {
     from = bb.pop();
@@ -647,7 +648,7 @@ namespace {
     Square sq_king = pos.king_square(us);
 
     // 玉以外の駒でこれが取れるのか？(toの地点には敵の利きがある or 届かないので玉では取れないものとする)
-    Bitboard sum = pos.attackers_to(us, to, slide) & ~Bitboard(sq_king);
+    Bitboard sum = pos.attackers_to(us, to, slide) & ~pos.pieces(KING);
     while (sum)
     {
       Square from = sum.pop();
@@ -672,7 +673,7 @@ namespace {
     Square sq_king = pos.king_square(us);
 
     // 玉以外の駒でこれが取れるのか？(toの地点には敵の利きがあるので玉では取れないものとする)
-    Bitboard sum = pos.attackers_to(us, to, slide) & ~Bitboard(sq_king) & ~Bitboard(avoid);
+    Bitboard sum = pos.attackers_to(us, to, slide) & ~(pos.pieces(KING) | Bitboard(avoid));
     while (sum)
     {
       Square from = sum.pop();
@@ -680,7 +681,7 @@ namespace {
       // fromからtoに移動させて素抜きに合わないならばこれをもって良し。
       if (!pinned
         || !(pinned & from)
-        || aligned( from, to , pos.king_square(us))
+        || aligned( from, to , sq_king)
         )
         return true;
     }
@@ -871,7 +872,7 @@ SILVER_DROP_END:;
   Square our_king = pos.king_square(us);
 
   // 龍
-  bb = pos.pieces(us,ROOK) & pos.pieces(us,PIECE_TYPE_BITBOARD_HDK);
+  bb = pos.pieces(us, DRAGON);
   while (bb)
   {
     from = bb.pop();
@@ -918,7 +919,7 @@ SILVER_DROP_END:;
   }
 
   // 飛
-  bb = pos.pieces(us,ROOK) & ~pos.pieces(us,PIECE_TYPE_BITBOARD_HDK);
+  bb = pos.pieces(us,ROOK);
   while (bb)
   {
     from = bb.pop();
@@ -973,7 +974,7 @@ SILVER_DROP_END:;
   // -- 以下、同様
   
   // 馬
-  bb = pos.pieces(us,BISHOP) & pos.pieces(us,PIECE_TYPE_BITBOARD_HDK);
+  bb = pos.pieces(us, HORSE);
   while (bb)
   {
     from = bb.pop();
@@ -1017,7 +1018,7 @@ SILVER_DROP_END:;
   }
 
   // 角
-  bb = pos.pieces(us, BISHOP) & ~pos.pieces(us, PIECE_TYPE_BITBOARD_HDK);
+  bb = pos.pieces(us, BISHOP);
   while (bb)
   {
     {
@@ -1276,8 +1277,8 @@ SILVER_DROP_END:;
       {
         // どこかtoの近くに飛車は落ちてないかね..
         // 飛車を移動させた結果、oneに敵の利きが生じるかも知らんけど。
-        bool is_rook = rookStepEffect(to) & pos.pieces(us, ROOK);
-        bool is_dragon = kingEffect(to) & pos.pieces(us, ROOK) & pos.pieces(us, KING);
+        bool is_rook = rookStepEffect(to) & pos.pieces(us, ROOK_DRAGON);
+        bool is_dragon = kingEffect(to) & pos.pieces(us, DRAGON);
         bool is_lance = (canLanceAttack) ? (lanceStepEffect(them,to) & pos.pieces(us, LANCE)) : false;
 
         if (is_rook || is_dragon || is_lance)
@@ -1285,9 +1286,9 @@ SILVER_DROP_END:;
           // 落ちてるっぽい。移動可能かどうか調べる。
           bb = ZERO_BB;
           if (is_rook)
-            bb = rookEffect(to, pos.pieces()) & pos.pieces(us, ROOK);
+            bb = rookEffect(to, pos.pieces()) & pos.pieces(us, ROOK_DRAGON);
           if (is_dragon)
-            bb |= kingEffect(to) & pos.pieces(us, ROOK) & pos.pieces(us, KING);
+            bb |= kingEffect(to) & pos.pieces(us, DRAGON);
           if (is_lance)
             bb |= lanceEffect(them, to, pos.pieces()) & pos.pieces(us, LANCE);
 
@@ -1344,16 +1345,16 @@ SILVER_DROP_END:;
       else {
         // 同じく角
 
-        bool is_bishop = bishopStepEffect(to) & pos.pieces(us, BISHOP);
-        bool is_horse = kingEffect(to) & pos.pieces(us, BISHOP) & pos.pieces(us, KING);
+        bool is_bishop = bishopStepEffect(to) & pos.pieces(us, BISHOP_HORSE);
+        bool is_horse = kingEffect(to) & pos.pieces(us, HORSE);
         if (is_bishop || is_horse)
         {
           // 落ちてるっぽい。移動可能かどうか調べる。
           bb = ZERO_BB;
           if (is_bishop)
-            bb = bishopEffect(to, pos.pieces()) & pos.pieces(us, BISHOP);
+            bb = bishopEffect(to, pos.pieces()) & pos.pieces(us, BISHOP_HORSE);
           if (is_horse)
-            bb |= kingEffect(to) & pos.pieces(us, BISHOP) & pos.pieces(us, KING);
+            bb |= kingEffect(to) & pos.pieces(us, HORSE);
 
           while (bb)
           {
@@ -1407,12 +1408,12 @@ NEXT1:;
   // まあ、一応、やるだけやるか…。
 
   bb = check_cand_bb(us, PIECE_TYPE_CHECK_NON_SLIDER, sq_king)
-    & (pos.pieces(us, GOLD) | pos.pieces(us, SILVER) | pos.pieces(us, KNIGHT) | pos.pieces(us, PAWN));
+    & (pos.pieces(us, GOLDS, SILVER, KNIGHT, PAWN));
   if (!bb)
     goto DC_CHECK;
 
   // 金
-  bb = check_cand_bb(us, PIECE_TYPE_CHECK_GOLD, sq_king)  & pos.pieces(us, PIECE_TYPE_BITBOARD_GOLD);
+  bb = check_cand_bb(us, PIECE_TYPE_CHECK_GOLD, sq_king)  & pos.pieces(us, GOLDS);
   while (bb)
   {
     from = bb.pop();
@@ -1440,7 +1441,7 @@ NEXT1:;
 
 
   // 銀は成りと不成が選択できるので少し嫌らしい
-  bb = check_cand_bb(us, PIECE_TYPE_CHECK_SILVER, sq_king)  & pos.pieces(us, PIECE_TYPE_BITBOARD_SILVER);
+  bb = check_cand_bb(us, PIECE_TYPE_CHECK_SILVER, sq_king)  & pos.pieces(us, SILVER);
   while (bb)
   {
     from = bb.pop();
@@ -1490,7 +1491,7 @@ NEXT1:;
   }
 
   // 桂も成りと不成が選択できるので少し嫌らしい
-  bb = check_cand_bb(us, PIECE_TYPE_CHECK_KNIGHT, sq_king)  & pos.pieces(us, PIECE_TYPE_BITBOARD_KNIGHT);
+  bb = check_cand_bb(us, PIECE_TYPE_CHECK_KNIGHT, sq_king)  & pos.pieces(us, KNIGHT);
   while (bb)
   {
     from = bb.pop();
