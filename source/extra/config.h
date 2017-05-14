@@ -122,9 +122,9 @@
 // これはPVの更新が不要なので実装が簡単だが、Ponderの指し手を返すためには
 // PVが常に正常に更新されていないといけないので最近はこの方法は好まれない。
 // ただしShogiGUIの解析モードでは思考エンジンが出力した最後の読み筋を記録するようなので、
-// fail low/fail highしたときのものが棋譜に残る。このとき、読み筋は途中までしか出力されないが、
-// これはまずい。かと言って、ShogiGUIが棋譜解析のときにfail low/fail highした読み筋を無視するようにすると、
-// それはbest moveとは異なる可能性があるので、それはよろしくない。結論的には、USE_TT_PVは有効にすべき。
+// 思考を途中で打ち切るときに、fail low/fail highが起きていると、中途半端なPVが出力され、それが棋譜に残る。
+// かと言って、そのときにPVの出力をしないと、最後に出力されたPVとbest moveとは異なる可能性があるので、
+// それはよろしくない。検討モード用の思考オプションを用意すべき。
 // #define USE_TT_PV
 
 // 定跡を作るコマンド("makebook")を有効にする。
@@ -297,7 +297,7 @@
 #define USE_EVAL_HASH
 //#define USE_LARGE_EVAL_HASH
 
-#define USE_TT_PV
+//#define USE_TT_PV
 #define USE_SEE
 #define USE_MOVE_PICKER_2017Q2
 #define USE_MATE_1PLY

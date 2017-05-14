@@ -125,6 +125,8 @@ void USI::extra_option(USI::OptionsMap & o)
 	o["PARAMETERS_LOG_FILE_PATH"] << Option("param_log.txt");
 #endif
 
+	// 検討モード用のPVを出力するモード
+	o["ConsiderationMode"] << Option(false);
 }
 
 // -----------------------
@@ -2284,11 +2286,14 @@ void Thread::search()
 	// 記録しておき、そこから一定時間経過するごとに出力するという方式を採る。
 	int lastInfoTime = 0;
 
+	// 検討モード用のPVを出力するのか。
+	Limits.consideration_mode = Options["ConsiderationMode"];
+
 	// PVの出力間隔[ms]
 	// go infiniteはShogiGUIなどの検討モードで動作させていると考えられるので
 	// この場合は、PVを毎回出力しないと読み筋が出力されないことがある。
-	int pv_interval = Limits.infinite ? 0 : (int)Options["PvInterval"];
-
+	int pv_interval = (Limits.infinite || Limits.consideration_mode) ? 0 : (int)Options["PvInterval"];
+	
 	// ---------------------
 	//      variables
 	// ---------------------
@@ -2429,11 +2434,12 @@ void Thread::search()
 					&& multiPV == 1
 					&& (bestValue <= alpha || beta <= bestValue)
 					&& Time.elapsed() > 3000
-					// silent modeなら出力を抑制する。
-					&& !Limits.silent
 					// 将棋所のコンソールが詰まるのを予防するために出力を少し抑制する。
 					// また、go infiniteのときは、検討モードから使用しているわけで、PVは必ず出力する。
 					&& (rootDepth < 3 || lastInfoTime + pv_interval <= Time.elapsed())
+					// silent modeや検討モードなら出力を抑制する。
+					// 検討モードではfail high/fail lowのときのPVを出力しない。
+					&& !(Limits.silent || Limits.consideration_mode)
 					)
 				{
 					// 最後に出力した時刻を記録しておく。
@@ -2489,17 +2495,10 @@ void Thread::search()
 				// 停止するときにもPVを出力すべき。(少なくともnode数などは出力されるべき)
 				// (そうしないと正確な探索node数がわからなくなってしまう)
 
-				// ただし、反復深化のiterationを途中で打ち切る場合、PVが途中までしか出力されないので
-				// 1手あたりの秒固定で棋譜解析をさせる場合に短い読み筋が解析棋譜に残ってしまい、よろしくない。
+				// ただし、反復深化のiterationを途中で打ち切る場合、PVが途中までしか出力されないので困る。
 				// かと言ってstopに対してPVを出力しないと、PvInterval = 300などに設定されていて短い時間で
-				// 指し手を返したときに何も読み筋が出力されなくて困る。
-				// 仕方ないのでpv_interval == 0でかつstopのときは例外的にPVを出力しないことにする。
-
-				//	 && (Signals.stop && !pv_interval)
-
-				// しかし、ShogiGUIの検討モードなど、fail low/fail highでPVをきちんと出力する必要があるので
-				// USE_TT_PVはオンにせざるを得ない。この場合、上記の条件は考慮の必要がない。
-				// (PV用の配列を参照せず、置換表を漁ってPVを出力するため)
+				// 指し手を返したときに何も読み筋が出力されない。
+				// 検討モードのときは、stopのときには、PVを出力しないことにする。
 
 				if (Signals.stop ||
 						// MultiPVのときは最後の候補手を求めた直後とする。
@@ -2507,8 +2506,12 @@ void Thread::search()
 						((PVIdx + 1 == multiPV || Time.elapsed() > 3000)
 						 && (rootDepth < 3 || lastInfoTime + pv_interval <= Time.elapsed() )))
 				{
-					lastInfoTime = Time.elapsed();
-					sync_cout << USI::pv(rootPos, rootDepth, alpha, beta , Limits.bench) << sync_endl;
+					// 検討モードのときは、stopのときには、PVを出力しないことにする。
+					if (!(Signals.stop && Limits.consideration_mode))
+					{
+						lastInfoTime = Time.elapsed();
+						sync_cout << USI::pv(rootPos, rootDepth, alpha, beta, Limits.bench) << sync_endl;
+					}
 				}
 			}
 
@@ -2789,9 +2792,11 @@ ID_END:;
 	// 次回の探索のときに何らか使えるのでベストな指し手の評価値を保存しておく。
 	previousScore = bestThread->rootMoves[0].score;
 
-	// ベストな指し手として返すスレッドがmain threadではないのなら、その読み筋は出力していなかったはずなので
-	// ここで読み筋を出力しておく。
-	if (bestThread != this && !Limits.silent)
+	// ベストな指し手として返すスレッドがmain threadではないのなら、
+	// その読み筋は出力していなかったはずなのでここで読み筋を出力しておく。
+	// ただし、これはiterationの途中で停止させているので中途半端なPVである可能性が高い。
+	// 検討モードではこのPVを出力しない。
+	if (bestThread != this && !Limits.silent && !Limits.consideration_mode)
 		sync_cout << USI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE, Limits.bench) << sync_endl;
 
 	// ---------------------

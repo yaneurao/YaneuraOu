@@ -60,9 +60,8 @@ namespace Search {
 		LimitsType() {
 			nodes = time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = byoyomi[WHITE] = byoyomi[BLACK] = npmsec
 				= depth = movetime = mate = infinite = ponder = rtime = 0;
-			silent = bench = false;
+			silent = bench = ponder_mode = consideration_mode = false;
 			max_game_ply = 100000;
-			ponder_mode = false;
 			enteringKingRule = EKR_NONE;
 		}
 
@@ -129,6 +128,9 @@ namespace Search {
 
 		// 試合開始後、ponderが一度でも送られてきたか
 		bool ponder_mode;
+
+		// 検討モード用のPVを出力するのか
+		bool consideration_mode;
 	};
 
 	struct SignalsType {

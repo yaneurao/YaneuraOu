@@ -1,14 +1,106 @@
 ﻿# ToDO
 
-- 自己対戦フレームワーク、改良する。
+- pythonの自己対戦フレームワーク、改良する。
 - 詰将棋探索エンジン、他の探索部から呼び出せるように改良する。
 - PPAP評価関数
 - elmoの学習ルーチン、取り込む。
 - 読み太のソースコード調査する。
-- 技巧2のソースコード調査する。
 
 
 ## 2017/05/14
+
+- 技巧2のソースコード調査する。
+	- 探索部
+		- 進行度を考慮したfutility
+		- 実現確率に基づくLMR
+
+	- futility marginに進行度を考慮。
+
+		inline Score futility_margin(Depth depth) {
+		  return static_cast<Score>(200 * (depth / kOnePly));
+		}
+		↓
+		inline Score futility_margin(Depth depth, double progress) {
+		  // 終盤になるほど、マージンを大きくする
+		  int c = static_cast<int>(120.0 + 80.0 * progress);
+		  return static_cast<Score>(c * (depth / kOnePly));
+		}
+	    
+		// 子ノードにおける futility pruning（王手がかかっている場合は、スキップされる）
+		if (   !kIsPv
+			&& !ss->skip_null_move
+			&&  depth < 7 * kOnePly
+			&&  eval - futility_margin(depth, progress) >= beta
+			&&  abs(beta) < kScoreMateInMaxPly) {
+		return eval - futility_margin(depth, progress);
+		}
+
+		// 末尾に引数ひとつ追加。
+
+	    MovePicker mp(node, history_, gains_, hash_move, rbeta - ss->static_score);
+
+
+	- 指し手の実現確率
+
+		MoveProbability::SetCacheTableToNextAge();
+
+	- aspiration
+
+		// αβウィンドウをセットする
+		Score alpha = -kScoreInfinite, beta = kScoreInfinite;
+		Score half_window = Score(64);
+
+
+	- IIDの条件変更
+
+		  // 内部反復深化（王手がかかっている場合は、スキップされる）
+		  if (   depth >= 6 * kOnePly
+			  && hash_move == kMoveNone
+			  && (kIsPv || ss->static_score + 256 >= beta)) {
+			Depth d = (depth * 3 / 4) - (2 * kOnePly);
+
+	・王手延長の条件にmove_countpruningを追加。
+
+			const bool move_count_pruning =    depth < 16 * kOnePly
+											&& move_count >= futility_move_count(kIsPv, depth);
+
+			// 王手延長
+			if (   move_gives_check
+				&& !move_count_pruning) {
+			  ext = !Swap::IsLosing(move, node) ? kOnePly : (kOnePly / 2);
+			}
+
+	・singular margin変更。
+
+			// depthに応じたマージンに
+		  Score rbeta = hash_score - int(3 * depth / kOnePly);
+		  ss->excluded_move = move;
+		  ss->skip_null_move = true;
+		  Score score = MainSearch<kNonPvNode>(node, rbeta-1, rbeta, depth / 3, ply,
+											   cut_node);
+		  ss->skip_null_move = false;
+		  ss->excluded_move = kMoveNone;
+
+		  if (score < rbeta) {
+			ext = kOnePly; // 0.5手から1手に
+		  }
+
+	・実現確率を用いたLMR
+
+		// 実現確率 及び LMR（Late Move Reduction）
+		// 一定以上の残り深さがあれば実現確率を、そうでなければLMRを用いる。
+		// 本当はすべて実現確率にしたいところだが、実現確率の計算コストが高いため、残り深さが大きい
+		// ところに限って実現確率を用いている
+		if (   depth >= 3 * kOnePly
+			&& (move_is_quiet || depth >= MoveProbability::kAppliedDepth)
+			&& move_count >= 2
+			&& move != ss->killers[0]
+			&& move != ss->killers[1]) {
+
+		  // 実現確率
+		  if (depth >= MoveProbability::kAppliedDepth) {
+			// 指し手の確率に基づいて、何手減らすかを決定する
+
 
 ・Bitboardクラス、リファクタリング。
 	- enemy_field、Bitboardを別途用意した。
