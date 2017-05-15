@@ -2898,7 +2898,12 @@ namespace Learner
 	}
 	
 	// 静止探索。
+	//
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
+	// 　また、Signals.stopが来ると探索を中断してしまうので、そのときのPVは正しくない。
+	// 　search()から戻ったあと、Signals.stop == trueなら、その探索結果を用いてはならない。
+	// 　あと、呼び出し前は、Signals.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
+	//
 	// 引数でalpha,betaを指定できるようにしていたが、これがその窓で探索したときの結果を
 	// 置換表に書き込むので、その窓に対して枝刈りが出来るような値が書き込まれて学習のときに
 	// 悪い影響があるので、窓の範囲を指定できるようにするのをやめることにした。
@@ -2930,10 +2935,15 @@ namespace Learner
 	// のようにすべし。
 	// v.firstに評価値、v.secondにPVが得られる。
 	// MultiPVが有効のときは、pos.this_thread()->rootMoves[N].pvにそのPV(読み筋)の配列が得られる。
+	//
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
+	// 　また、Signals.stopが来ると探索を中断してしまうので、そのときのPVは正しくない。
+	// 　search()から戻ったあと、Signals.stop == trueなら、その探索結果を用いてはならない。
+	// 　あと、呼び出し前は、Signals.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
 
-	pair<Value, vector<Move> > search(Position& pos, int depth)
+	pair<Value, vector<Move> > search(Position& pos, int depth_)
 	{
+		Depth depth = depth_ * ONE_PLY;
 		if (depth < DEPTH_ZERO)
 			return pair<Value, vector<Move>>(Eval::evaluate(pos), vector<Move>());
 
@@ -2944,6 +2954,7 @@ namespace Learner
 		Move pv[MAX_PLY + 1];
 
 		init_for_search(pos,ss);
+
 		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
 		// this_threadに関連する変数の初期化

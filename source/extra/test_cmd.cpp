@@ -3,12 +3,20 @@
 // USI拡張コマンドのうち、開発上のテスト関係のコマンド。
 // 思考エンジンの実行には関係しない。GitHubにはcommitしないかも。
 
-#ifdef ENABLE_TEST_CMD
+#if defined(ENABLE_TEST_CMD)
 
 #include "all.h"
 #include <unordered_set>
 
 extern void is_ready();
+
+#if defined(EVAL_LEARN)
+namespace Learner
+{
+	extern pair<Value, vector<Move> > qsearch(Position& pos);
+	extern pair<Value, vector<Move> >  search(Position& pos, int depth);
+}
+#endif
 
 // ----------------------------------
 //  USI拡張コマンド "perft"(パフォーマンステスト)
@@ -1194,6 +1202,32 @@ void book_check_cmd(Position& pos, istringstream& is)
 }
 
 
+#if defined(EVAL_LEARN)
+// "test search"コマンド。
+// 現局面からLearner::search()を呼び出して探索させる。
+// depthを指定できる。
+// 例) test search 10
+// とするとdepth 10で探索して結果を返す。
+// depthを指定しないときはdefaultでは6。
+void test_search(Position& pos, istringstream& is)
+{
+	is_ready();
+	Search::Signals.stop = false;
+	pos.set_this_thread(Threads.main());
+
+	int depth = 6;
+	is >> depth;
+
+	auto result = Learner::search(pos, depth);
+	cout << "Eval = " << result.first << " , PV = ";
+	for (auto move : result.second)
+	{
+		cout << move << " ";
+	}
+	cout << endl;	
+}
+#endif
+
 #ifdef EVAL_KPPT
 //
 // eval merge
@@ -1348,11 +1382,6 @@ void eval_merge(istringstream& is)
 #endif
 
 #ifdef EVAL_LEARN
-namespace Learner
-{
-	extern pair<Value, vector<Move> > qsearch(Position& pos);
-	extern pair<Value, vector<Move> >  search(Position& pos, int depth);
-}
 
 void dump_sfen(Position& pos, istringstream& is)
 {
@@ -1470,6 +1499,7 @@ void test_cmd(Position& pos, istringstream& is)
 	else if (param == "exambook") exam_book(pos);                    // 定跡の精査用コマンド
 	else if (param == "bookcheck") book_check_cmd(pos,is);           // 定跡のチェックコマンド
 #ifdef EVAL_LEARN
+	else if (param == "search") test_search(pos, is);                // 現局面からLearner::search()を呼び出して探索させる
 	else if (param == "dumpsfen") dump_sfen(pos, is);                // gensfenコマンドで生成した教師局面のダンプ
 #endif
 #ifdef EVAL_KPPT
