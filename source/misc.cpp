@@ -226,6 +226,7 @@ void prefetch(void* addr) {
 
 #  if defined(__INTEL_COMPILER) || defined(_MSC_VER)
 	_mm_prefetch((char*)addr, _MM_HINT_T0);
+//	cout << hex << (u64)addr << endl;
 #  else
 	__builtin_prefetch(addr);
 #  endif

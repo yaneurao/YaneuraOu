@@ -8,6 +8,8 @@
 #include "all.h"
 #include <unordered_set>
 
+// 評価関数ファイルを読み込む。
+// 局面の初期化は行わないので必要ならばPosition::set()などで初期化すること。
 extern void is_ready();
 
 #if defined(EVAL_LEARN)
@@ -1211,20 +1213,26 @@ void book_check_cmd(Position& pos, istringstream& is)
 // depthを指定しないときはdefaultでは6。
 void test_search(Position& pos, istringstream& is)
 {
-	is_ready();
-	Search::Signals.stop = false;
 	pos.set_this_thread(Threads.main());
 
 	int depth = 6;
 	is >> depth;
 
-	auto result = Learner::search(pos, depth);
-	cout << "Eval = " << result.first << " , PV = ";
-	for (auto move : result.second)
+	auto result1 = Learner::qsearch(pos);
+	cout << "qsearch eval = " << result1.first << " , PV = ";
+	for (auto move : result1.second)
 	{
 		cout << move << " ";
 	}
-	cout << endl;	
+	cout << endl;
+
+	auto result2 = Learner::search(pos, depth);
+	cout << "search eval = " << result2.first << " , PV = ";
+	for (auto move : result2.second)
+	{
+		cout << move << " ";
+	}
+	cout << endl;
 }
 #endif
 
@@ -1484,6 +1492,9 @@ void dump_sfen(Position& pos, istringstream& is)
 void test_cmd(Position& pos, istringstream& is)
 {
 	is_ready();
+	// 探索をするかも知れないので初期化しておく。
+	Search::Signals.stop = false;
+	// 局面は初期化されていないので必要に応じてpos.set()などを呼び出すこと。
 
 	std::string param;
 	is >> param;

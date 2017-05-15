@@ -843,6 +843,7 @@ namespace Eval
 
 		// 手番を消した局面hash key
 		const Key keyExcludeTurn = st->key() >> 1;
+//		cout << "EvalSum " << hex << g_evalTable[keyExcludeTurn] << endl;
 		EvalSum entry = *g_evalTable[keyExcludeTurn];   // atomic にデータを取得する必要がある。
 		entry.decode();
 		if (entry.key == keyExcludeTurn)

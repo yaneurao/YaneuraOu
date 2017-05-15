@@ -452,6 +452,9 @@ enum Piece : uint32_t
 	GOLDS		= QUEEN,	// 金と同じ移動特性を持つ駒のBitboardが返る。
 	BISHOP_HORSE,			// BISHOP,HORSEを合成したBitboardが返る。
 	ROOK_DRAGON,			// ROOK,DRAGONを合成したBitboardが返る。
+	SILVER_HDK,				// SILVER,HDKを合成したBitboardが返る。
+	GOLDS_HDK,				// GOLDS,HDKを合成したBitboardが返る。
+
 	PIECE_BB_NB,			// デリミタ
 
 	// 指し手生成(GeneratePieceMove = GPM)でtemplateの引数として使うマーカー的な値。変更する可能性があるのでユーザーは使わないでください。

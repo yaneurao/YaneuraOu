@@ -6,6 +6,7 @@
 
 ・検討モード用の読み筋出力として、ConsiderationMode "検討モード用のPV出力" を用意。
 ・テスト用に"test search"コマンド追加。
+・SILVER_HDK、GOLDS_HDK追加。
 
 
 ■　2017/05/14 V4.56

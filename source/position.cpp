@@ -392,17 +392,24 @@ void Position::set_state(StateInfo* si) const {
 void Position::update_bitboards()
 {
 	// 王・馬・龍を合成したbitboard
-	piece_bb[HDK]          = pieces(KING , HORSE , DRAGON);
+	piece_bb[HDK]			= pieces(KING , HORSE , DRAGON);
 
 	// 金と同じ移動特性を持つ駒
-	piece_bb[GOLDS]        = pieces(GOLD , PRO_PAWN , PRO_LANCE , PRO_KNIGHT , PRO_SILVER);
+	piece_bb[GOLDS]			= pieces(GOLD , PRO_PAWN , PRO_LANCE , PRO_KNIGHT , PRO_SILVER);
+
+	// 以下、attackers_to()で頻繁に用いるのでここで1回計算しておいても、トータルでは高速化する。
 
 	// 角と馬
-	piece_bb[BISHOP_HORSE] = pieces(BISHOP , HORSE);
+	piece_bb[BISHOP_HORSE]	= pieces(BISHOP , HORSE);
 
 	// 飛車と龍
-	piece_bb[ROOK_DRAGON]  = pieces(ROOK   , DRAGON);
+	piece_bb[ROOK_DRAGON]	= pieces(ROOK   , DRAGON);
 
+	// 銀とHDK
+	piece_bb[SILVER_HDK]	= pieces(SILVER , HDK);
+
+	// 金相当の駒とHDK
+	piece_bb[GOLDS_HDK]		= pieces(GOLDS  , HDK);
 }
 
 
@@ -525,8 +532,8 @@ Bitboard Position::attackers_to(Color c, Square sq, const Bitboard& occ) const
 		(     (pawnEffect(them, sq)       & pieces(PAWN)        )
 			| (lanceEffect(them, sq, occ) & pieces(LANCE)       )
 			| (knightEffect(them, sq)     & pieces(KNIGHT)      )
-			| (silverEffect(them, sq)     & pieces(SILVER, HDK) )
-			| (goldEffect(them, sq)       & pieces(GOLDS , HDK) )
+			| (silverEffect(them, sq)     & pieces(SILVER_HDK)  )
+			| (goldEffect(them, sq)       & pieces(GOLDS_HDK)   )
 			| (bishopEffect(sq, occ)      & pieces(BISHOP_HORSE))
 			| (rookEffect(sq, occ)        & pieces(ROOK_DRAGON ))
 		//  | (kingEffect(sq) & pieces(c, HDK));
@@ -545,16 +552,16 @@ Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 		// 先手の歩・桂・銀・金・HDK
 		((    (pawnEffect(WHITE, sq)   & pieces(PAWN)        )
 			| (knightEffect(WHITE, sq) & pieces(KNIGHT)      )
-			| (silverEffect(WHITE, sq) & pieces(SILVER, HDK) )
-			| (goldEffect(WHITE, sq)   & pieces(GOLDS , HDK) )
+			| (silverEffect(WHITE, sq) & pieces(SILVER_HDK)  )
+			| (goldEffect(WHITE, sq)   & pieces(GOLDS_HDK)   )
 			) & pieces(BLACK))
 		|
 
 		// 後手の歩・桂・銀・金・HDK
 		((    (pawnEffect(BLACK, sq)   & pieces(PAWN)        )
 			| (knightEffect(BLACK, sq) & pieces(KNIGHT)      )
-			| (silverEffect(BLACK, sq) & pieces(SILVER, HDK) )
-			| (goldEffect(BLACK, sq)   & pieces(GOLDS , HDK) )
+			| (silverEffect(BLACK, sq) & pieces(SILVER_HDK)  )
+			| (goldEffect(BLACK, sq)   & pieces(GOLDS_HDK)   )
 			) & pieces(WHITE))
 
 		// 先後の角・飛・香
@@ -657,9 +664,9 @@ Bitboard Position::pinned_pieces(Color c, Square from, Square to) const {
   Bitboard avoid_bb = ~Bitboard(from);
 
   pinners = (
-      (pieces( ROOK_DRAGON )  & rookStepEffect(ksq))
-    | (pieces( BISHOP_HORSE ) & bishopStepEffect(ksq))
-    | (pieces( LANCE  )       & lanceStepEffect(c, ksq))
+      (pieces(ROOK_DRAGON )  & rookStepEffect(ksq))
+    | (pieces(BISHOP_HORSE ) & bishopStepEffect(ksq))
+    | (pieces(LANCE)         & lanceStepEffect(c, ksq))
     ) & avoid_bb & pieces(~c);
 
   // fromからは消えて、toの地点に駒が現れているものとして

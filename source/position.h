@@ -79,8 +79,7 @@ struct StateInfo {
 	// ※　次の局面にdo_move()で進むときに最終的な値が設定される
 	// board_key()は盤面のhash。hand_key()は手駒のhash。それぞれ加算したのがkey() 盤面のhash。
 	// board_key()のほうは、手番も込み。
-	// exclusion_key()は、singular extensionのために現在のkey()に一定の値を足したものを返す。
-
+	
 	Key key()                     const { return long_key(); }
 	Key board_key()               const { return board_long_key(); }
 	Key hand_key()                const { return hand_long_key(); }
