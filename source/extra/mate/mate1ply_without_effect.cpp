@@ -99,12 +99,12 @@ namespace {
 						if (c == BLACK)
 						{
 							bb &= enemy_field(BLACK);
-							bb = shift<SQ_D>(bb); // その1段下にある歩
+							bb = pawnEffect(WHITE,bb); // その1段下にある歩
 						}
 						else
 						{
 							bb &= enemy_field(WHITE);
-							bb = shift<SQ_U>(bb); // その1段上にある歩
+							bb = pawnEffect(BLACK,bb); // その1段上にある歩
 						}
 						break;
 
@@ -227,9 +227,9 @@ namespace {
 						// これ用意するほどでもないんだな
 						// 一応、用意するコード書いておくか..
 						bb = kingEffect(sq);
-						bb = (c == BLACK) ? shift<SQ_U>(bb) : shift<SQ_D>(bb);
-						// →　このシフトでp[0]の63bit目に来ると…まずいのでは..？
-						bb &= ALL_BB; // ALL_BBでand取っとくわ
+						bb = pawnEffect(c, bb);
+						// →　このシフトでp[0]の63bit目に来るとまずいので..
+						bb &= ALL_BB; // ALL_BBでand取っておく。
 						break;
 
 					case LANCE:
@@ -410,9 +410,8 @@ namespace {
 		Bitboard bb;
 
 		// 歩は普通でいい
-		Bitboard sum =
-			them == BLACK ? shift<SQ_U>(pos.pieces(them, PAWN)) : shift<SQ_D>(pos.pieces(them, PAWN));
-
+		Bitboard sum = pawnEffect(them, pos.pieces(them, PAWN));
+		
 		// ほとんどのケースにおいて候補になる駒はなく、whileで回らずに抜けると期待している。
 		bb = pos.pieces(them, KNIGHT) & check_around_bb(them, KNIGHT, sq_king);
 		while (bb)
@@ -480,9 +479,8 @@ namespace {
 		Square from;
 
 		// 歩は普通でいい
-		Bitboard sum =
-			them == BLACK ? shift<SQ_U>(pos.pieces(them, PAWN)) : shift<SQ_D>(pos.pieces(them, PAWN));
-
+		Bitboard sum = pawnEffect(them, pos.pieces(them, PAWN));
+		
 		// ほとんどのケースにおいて候補になる駒はなく、whileで回らずに抜けると期待している。
 		bb = pos.pieces(them, KNIGHT) & check_around_bb(them, KNIGHT, sq_king) & avoid_bb;
 		while (bb)
@@ -656,7 +654,7 @@ namespace {
 			// fromからtoに移動させて素抜きに合わないならばこれをもって良し。
 			if (!pinned
 				|| !(pinned & from)
-				|| aligned(from, to, pos.king_square(us))
+				|| aligned(from, to, sq_king)
 				)
 				return true;
 		}

@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "4.57"
+#define ENGINE_VERSION "4.58"
 
 // --------------------
 // コンパイル時の設定
@@ -524,7 +524,8 @@ constexpr bool is_ok(PieceNo pn) { return PIECE_NO_ZERO <= pn && pn < PIECE_NO_N
 // --------------------
 
 // 指し手 bit0..6 = 移動先のSquare、bit7..13 = 移動元のSquare(駒打ちのときは駒種)、bit14..駒打ちか、bit15..成りか
-// 上位16bitには、この指し手によってto(移動後の升)に来る駒。駒打ちのときは、さらに+32。
+// 32bit形式の指し手の場合、上位16bitには、この指し手によってto(移動後の升)に来る駒。駒打ちのときは、さらに+PIECE_DROP。
+// PIECE_DROPはUSE_DROPBIT_IN_STATSがdefineされているとき+32だが、そうでないときは+0なので注意。
 enum Move: uint32_t {
 
 	MOVE_NONE    = 0,             // 無効な移動
@@ -556,16 +557,16 @@ constexpr bool is_drop(Move m){ return (m & MOVE_DROP)!=0; }
 constexpr bool is_promote(Move m) { return (m & MOVE_PROMOTE)!=0; }
 
 // 駒打ち(is_drop()==true)のときの打った駒
+// 先後の区別なし。PAWN～ROOKまでの値が返る。
 constexpr Piece move_dropped_piece(Move m) { return (Piece)((m >> 7) & 0x7f); }
 
-// fromからtoに移動する指し手を生成して返す
+// fromからtoに移動する指し手を生成して返す(16bitの指し手)
 constexpr Move make_move(Square from, Square to) { return (Move)(to + (from << 7)); }
 
-// fromからtoに移動する、成りの指し手を生成して返す
+// fromからtoに移動する、成りの指し手を生成して返す(16bit)
 constexpr Move make_move_promote(Square from, Square to) { return (Move)(to + (from << 7) + MOVE_PROMOTE); }
 
-// Pieceをtoに打つ指し手を生成して返す
-// constexpr 
+// Pieceをtoに打つ指し手を生成して返す(16bitの指し手)
 constexpr Move make_move_drop(Piece pt, Square to) { return (Move)(to + (pt << 7) + MOVE_DROP); }
 
 // 指し手がおかしくないかをテストする

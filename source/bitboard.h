@@ -284,7 +284,7 @@ extern Bitboard RANK_BB[RANK_NB];
 // color == WHITEのとき、n段目よりBLACK側(n+1から9段目)を表現するBitboard。
 // このアイデアはAperyのもの。
 extern Bitboard InFrontBB[COLOR_NB][RANK_NB];
-  
+
 // 先手から見て1段目からr段目までを表現するBB(US==WHITEなら、9段目から数える)
 inline const Bitboard rank1_n_bb(const Color US, const Rank r) { ASSERT_LV2(is_ok(r));  return InFrontBB[US][(US == BLACK ? r + 1 : 7 - r)]; }
 
@@ -380,6 +380,17 @@ inline Bitboard kingEffect(const Square sq) { return KingEffectBB[sq]; }
 // 歩の利き
 inline Bitboard pawnEffect(const Color color, const Square sq) { return PawnEffectBB[sq][color]; }
 
+// Bitboardに対する歩の利き
+// color = BLACKのとき、51の升は49の升に移動するので、注意すること。
+// (51の升にいる先手の歩は存在しないので、歩の移動に用いる分には問題ないが。)
+inline Bitboard pawnEffect(const Color color, const Bitboard bb)
+{
+	// Apery型の縦型Bitboardにおいては歩の利きはbit shiftで済む。
+	ASSERT_LV3(color == BLACK || color == WHITE);
+	return  color == BLACK ? bb >> 1 : color == WHITE ? bb << 1
+		: ZERO_BB;
+}
+
 // 桂の利き
 inline Bitboard knightEffect(const Color color, const Square sq) { return KnightEffectBB[sq][color]; }
 
@@ -456,21 +467,6 @@ Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ);
 // 2bit以上あるかどうかを判定する。縦横斜め方向に並んだ駒が2枚以上であるかを判定する。この関係にないと駄目。
 // この関係にある場合、Bitboard::merge()によって被覆しないことがBitboardのレイアウトから保証されている。
 inline bool more_than_one(const Bitboard& bb) { ASSERT_LV2(!bb.cross_over()); return POPCNT64(bb.merge()) > 1; }
-
-// shift()は、与えられた方向に添ってbitboardを1升ずつ移動させる。主に歩に対して用いる。
-// SQ_Uを指定したときに、51の升は49の升に移動するので、注意すること。(51の升にいる先手の歩は存在しないので、
-// 歩の移動に用いる分には問題ないはずではあるが。)
-
-// ToDo : x86モードではBitboardのaligned(16)を強制できない？あとで調査する。
-
-template<Square D>
-inline Bitboard shift(const Bitboard& b) {
-	ASSERT_LV3(D == SQ_U || D == SQ_D);
-
-	// Apery型の縦型Bitboardにおいては歩の利きはbit shiftで済む。be
-	return  D == SQ_U ? b >> 1 : D == SQ_D ? b << 1
-		: ZERO_BB;
-}
 
 
 #endif // #ifndef _BITBOARD_H_
