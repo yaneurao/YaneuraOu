@@ -45,13 +45,13 @@ struct alignas(16) Bitboard
 	Bitboard() {}
 
 	// p[0],p[1]の値を直接指定しての初期化。(Bitboard定数の初期化のときのみ用いる)
-	Bitboard(uint64_t p0, uint64_t p1) { p[0] = p0; p[1] = p1; }
-
+	Bitboard(u64 p0, u64 p1);
+	
 	// sqの升が1のBitboardとして初期化する。
 	Bitboard(Square sq);
   
 	// 値を直接代入する。
-	void set(uint64_t p0, uint64_t p1) { p[0] = p0; p[1] = p1; }
+	void set(u64 p0, u64 p1);
 
 	// --- property
 
@@ -151,6 +151,27 @@ struct alignas(16) Bitboard
 
 
 // --- Bitboardの実装
+
+inline Bitboard::Bitboard(u64 p0, u64 p1) :
+#if defined(USE_SSE2)
+	// この命令、引数の順に注意。
+	m( _mm_set_epi64x(p1,p0))
+#else
+	p { p0 , p1 }
+#endif
+{}
+
+// 値を直接代入する。
+inline void Bitboard::set(u64 p0, u64 p1)
+{
+#if defined(USE_SSE2)
+	m = _mm_set_epi64x(p1,p0);
+#else
+	p[0] = p0; p[1] = p1;
+#endif
+}
+
+
 
 inline Bitboard::operator bool() const
 {
@@ -293,7 +314,8 @@ extern Bitboard EnemyField[COLOR_NB];
 inline const Bitboard enemy_field(const Color Us) { return EnemyField[Us]; }
 
 // 歩が打てる筋を得るためのBitboard mask
-extern Bitboard PAWN_DROP_MASK_BB[0x200][COLOR_NB];
+// これ、bitboard、均等に81升をp[0],p[1]に割り振られているほうがテーブル小さくて済むのだが…。
+extern Bitboard PAWN_DROP_MASK_BB[0x80]; // p[0]には1～7筋 、p[1]には8,9筋のときのデータが入っている。
 
 // 2升に挟まれている升を返すためのテーブル(その2升は含まない)
 extern Bitboard BetweenBB[SQ_NB_PLUS1][SQ_NB_PLUS1];

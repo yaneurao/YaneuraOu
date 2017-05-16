@@ -79,9 +79,10 @@ Bitboard RookEffectMask[SQ_NB_PLUS1];
 int RookEffectIndex[SQ_NB_PLUS1];
 
 // 歩が打てる筋を得るためのBitboard
-// bit0..9筋に歩が打てないなら1 , bit1..8筋に , … , bit8..1筋に歩が打てないなら1
+// bit0 = 9筋に歩が打てないなら1 , bit1 = 8筋に… , bit8 = 1筋に歩が打てないなら1
 // というbit列をindexとして、歩の打てるBitboardを返すためのテーブル。
-Bitboard PAWN_DROP_MASK_BB[0x200][COLOR_NB];
+// テーブルサイズが大きくなるのが嫌だったので2つに分割。
+Bitboard PAWN_DROP_MASK_BB[0x80]; // p[0]には1～7筋 、p[1]には8,9筋のときのデータが入っている。
 
 Bitboard BetweenBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
 Bitboard LineBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
@@ -370,15 +371,23 @@ void Bitboards::init()
 
 	// 7) 二歩用のテーブル初期化
 
-	for (int i = 0; i <= 0x1ff; ++i)
+	for (int i = 0; i < 0x80; ++i)
 	{
 		Bitboard b = ZERO_BB;
-		for (int k = 0; k < 9; ++k)
+		for (int k = 0; k < 7; ++k)
 			if ((i & (1 << k)) == 0)
 				b |= FILE_BB[k];
 
-		PAWN_DROP_MASK_BB[i][BLACK] = b & rank1_n_bb(WHITE, RANK_8); // 2～9段目まで
-		PAWN_DROP_MASK_BB[i][WHITE] = b & rank1_n_bb(BLACK, RANK_8); // 1～8段目まで
+		PAWN_DROP_MASK_BB[i].p[0] = b.p[0]; // 1～7筋
+	}
+	for (int i = 0; i < 0x4; ++i)
+	{
+		Bitboard b = ZERO_BB;
+		for (int k = 0; k < 2; ++k)
+			if ((i & (1 << k)) == 0)
+				b |= FILE_BB[k+7];
+
+		PAWN_DROP_MASK_BB[i].p[1] = b.p[1]; // 8,9筋
 	}
 
 	// 8) BetweenBB , LineBBの初期化
