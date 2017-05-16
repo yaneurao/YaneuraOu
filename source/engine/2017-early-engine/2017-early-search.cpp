@@ -411,7 +411,7 @@ namespace YaneuraOu2017Early
 		//    最大手数へ到達したか？
 		// -----------------------
 
-		if (pos.game_ply() > Limits.max_game_ply)
+		if (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
 			return draw_value(REPETITION_DRAW, pos.side_to_move());
 
 		// -----------------------
@@ -866,7 +866,7 @@ namespace YaneuraOu2017Early
 				return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 
 			// 最大手数を超えている、もしくは停止命令が来ている。
-			if (Signals.stop.load(std::memory_order_relaxed) || pos.game_ply() > Limits.max_game_ply)
+			if (Signals.stop.load(std::memory_order_relaxed) || (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply))
 				return draw_value(REPETITION_DRAW, pos.side_to_move());
 
 			// -----------------------
@@ -2691,12 +2691,6 @@ void MainThread::think()
 		StateInfo si;
 		auto& pos = rootPos;
 
-		// -- MAX_PLYに到達したかの判定が面倒なのでLimits.max_game_plyに一本化する。
-
-		// あとで戻す用
-		auto max_game_ply = Limits.max_game_ply;
-		Limits.max_game_ply = std::min(Limits.max_game_ply, rootPos.game_ply() + MAX_PLY - 1);
-
 		// --- contempt factor(引き分けのスコア)
 
 		// Contempt: 引き分けを受け入れるスコア。歩を100とする。例えば、この値を100にすると引き分けの局面は
@@ -2724,8 +2718,6 @@ void MainThread::think()
 
 		Thread::search();
 
-		// 復元する。
-		Limits.max_game_ply = max_game_ply;
 	}
 
 	// 反復深化の終了。
@@ -2842,6 +2834,7 @@ namespace Learner
 		memset(ss - 4, 0, 7 * sizeof(Stack));
 
 		// Search::Limitsに関して
+		// これの変数はglobalなので他のスレッドに影響を及ぼすので気をつけること。
 		{
 			auto& limits = Search::Limits;
 
@@ -2850,9 +2843,6 @@ namespace Learner
 
 			// PVを表示されると邪魔なので消しておく。
 			limits.silent = true;
-
-			// ここでLimits.max_game_ply破壊するけど、gensfenのとき用だから復元せずともまあいいか…。
-			limits.max_game_ply = pos.game_ply() + MAX_PLY - 1;
 		}
 
 		// DrawValueの設定

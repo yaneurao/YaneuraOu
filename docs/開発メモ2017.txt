@@ -8,6 +8,16 @@
 - elmoの学習ルーチン、取り込む。
 - 読み太のソースコード調査する。
 
+## 2017/05/16
+
+		// -- MAX_PLYに到達したかの判定が面倒なのでLimits.max_game_plyに一本化する。
+
+		// あとで戻す用
+		auto max_game_ply = Limits.max_game_ply;
+		Limits.max_game_ply = std::min(Limits.max_game_ply, rootPos.game_ply() + MAX_PLY - 1);
+
+		// これ、スレッドごとに並列探索するときによくないな。
+
 
 ## 2017/05/15
 
