@@ -64,6 +64,7 @@ SOURCES  = shogi.cpp                                                           \
 	extra/move_picker/move_picker_2016Q2.cpp                                   \
 	extra/move_picker/move_picker_2016Q3.cpp                                   \
 	extra/move_picker/move_picker_2017Q2.cpp                                   \
+	extra/benchmark.cpp                                                        \
 	extra/test_cmd.cpp                                                         \
 	extra/timeman.cpp                                                          \
 	extra/see.cpp                                                              \

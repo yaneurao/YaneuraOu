@@ -342,6 +342,9 @@
     <ClCompile Include="eval\evaluate_kkpt.cpp">
       <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
+    <ClCompile Include="extra\benchmark.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">

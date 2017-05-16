@@ -25,11 +25,13 @@ extern void user_test(Position& pos, std::istringstream& is);
 extern void test_cmd(Position& pos, istringstream& is);
 extern void perft(Position& pos, istringstream& is);
 extern void generate_moves_cmd(Position& pos);
-extern void bench_cmd(Position& pos, istringstream& is);
 #ifdef MATE_ENGINE
 extern void test_mate_engine_cmd(Position& pos, istringstream& is);
 #endif
 #endif
+
+// "bench"コマンドは、"test"コマンド群とは別。常に呼び出せるようにしてある。
+extern void bench_cmd(Position& pos, istringstream& is);
 
 // 定跡を作るコマンド
 #ifdef ENABLE_MAKEBOOK_CMD
@@ -711,6 +713,9 @@ void USI::loop(int argc, char* argv[])
 		else if (token == "mate1") cout << pos.mate1ply() << endl;
 #endif
 
+		// ベンチコマンド(これは常に使える)
+		else if (token == "bench") bench_cmd(pos, is);
+
 #ifdef ENABLE_TEST_CMD
 		// 指し手生成のテスト
 		else if (token == "s") generate_moves_cmd(pos);
@@ -720,9 +725,6 @@ void USI::loop(int argc, char* argv[])
 
 		// テストコマンド
 		else if (token == "test") test_cmd(pos, is);
-
-		// ベンチコマンド
-		else if (token == "bench") bench_cmd(pos, is);
 
 #ifdef MATE_ENGINE
 		else if (token == "test_mate_engine") test_mate_engine_cmd(pos, is);
