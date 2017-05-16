@@ -51,12 +51,14 @@ void Position::set_check_info(StateInfo* si) const {
 
 	// この指し手が二歩でないかは、この時点でテストしない。指し手生成で除外する。なるべくこの手のチェックは遅延させる。
 	si->checkSquares[PAWN]   = pawnEffect(them, ksq);
-	si->checkSquares[LANCE]  = lanceEffect(them, ksq, occ);
 	si->checkSquares[KNIGHT] = knightEffect(them, ksq);
 	si->checkSquares[SILVER] = silverEffect(them, ksq);
 	si->checkSquares[BISHOP] = bishopEffect(ksq, occ);
 	si->checkSquares[ROOK]   = rookEffect(ksq, occ);
 	si->checkSquares[GOLD]   = goldEffect(them, ksq);
+
+	// 香で王手になる升は利きを求め直さずに飛車で王手になる升を香のstep effectでマスクしたものを使う。
+	si->checkSquares[LANCE]  = si->checkSquares[ROOK] & lanceStepEffect(them,ksq);
 
 	// 王を移動させて直接王手になることはない。それは自殺手である。
 	si->checkSquares[KING]   = ZERO_BB;
@@ -528,14 +530,17 @@ Bitboard Position::attackers_to(Color c, Square sq, const Bitboard& occ) const
 	Color them = ~c;
 
 	// sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
+	// 香の利きを求めるコストが惜しいのでrookEffect()を利用する。
 	return
-		(     (pawnEffect(them, sq)       & pieces(PAWN)        )
-			| (lanceEffect(them, sq, occ) & pieces(LANCE)       )
-			| (knightEffect(them, sq)     & pieces(KNIGHT)      )
-			| (silverEffect(them, sq)     & pieces(SILVER_HDK)  )
-			| (goldEffect(them, sq)       & pieces(GOLDS_HDK)   )
-			| (bishopEffect(sq, occ)      & pieces(BISHOP_HORSE))
-			| (rookEffect(sq, occ)        & pieces(ROOK_DRAGON ))
+		(     (pawnEffect(them, sq)		&  pieces(PAWN)        )
+			| (knightEffect(them, sq)	&  pieces(KNIGHT)      )
+			| (silverEffect(them, sq)	&  pieces(SILVER_HDK)  )
+			| (goldEffect(them, sq)		&  pieces(GOLDS_HDK)   )
+			| (bishopEffect(sq, occ)	&  pieces(BISHOP_HORSE))
+			| (rookEffect(sq, occ)		& (
+					pieces(ROOK_DRAGON)
+				|  (lanceStepEffect(them,sq) & pieces(LANCE))
+			  ))
 		//  | (kingEffect(sq) & pieces(c, HDK));
 		// →　HDKは、銀と金のところに含めることによって、参照するテーブルを一個減らして高速化しようというAperyのアイデア。
 			) & pieces(c); // 先後混在しているのでc側の駒だけ最後にマスクする。
