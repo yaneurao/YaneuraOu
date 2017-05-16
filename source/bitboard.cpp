@@ -53,11 +53,20 @@ Bitboard EnemyField[COLOR_NB] = { RANK1_BB | RANK2_BB | RANK3_BB , RANK7_BB | RA
 // sqの升が1であるbitboard
 Bitboard SquareBB[SQ_NB_PLUS1];
 
-// 近接駒の利き
-Bitboard StepEffectsBB[SQ_NB_PLUS1][COLOR_NB][16];
+// 玉、金、銀、桂、歩の利き
+Bitboard KingEffectBB[SQ_NB_PLUS1];
+Bitboard GoldEffectBB[SQ_NB_PLUS1][COLOR_NB];
+Bitboard SilverEffectBB[SQ_NB_PLUS1][COLOR_NB];
+Bitboard KnightEffectBB[SQ_NB_PLUS1][COLOR_NB];
+Bitboard PawnEffectBB[SQ_NB_PLUS1][COLOR_NB];
+
+// 盤上の駒をないものとして扱う、遠方駒の利き。香、角、飛
+Bitboard LanceStepEffectBB[SQ_NB_PLUS1][COLOR_NB];
+Bitboard BishopStepEffectBB[SQ_NB_PLUS1];
+Bitboard RookStepEffectBB[SQ_NB_PLUS1];
 
 // 香の利き
-Bitboard LanceEffect[COLOR_NB][SQ_NB_PLUS1][128];
+Bitboard LanceEffect[SQ_NB_PLUS1][COLOR_NB][128];
 
 // 角の利き
 Bitboard BishopEffect[20224+1];
@@ -142,334 +151,338 @@ Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ)
 // Bitboard関連の各種テーブルの初期化。
 void Bitboards::init()
 {
-  // ------------------------------------------------------------
-  //        Bitboard関係のテーブルの初期化
-  // ------------------------------------------------------------
+	// ------------------------------------------------------------
+	//        Bitboard関係のテーブルの初期化
+	// ------------------------------------------------------------
 
-  // 1) SquareWithWallテーブルの初期化。
+	// 1) SquareWithWallテーブルの初期化。
 
-  for (auto sq : SQ)
-    sqww_table[sq] = SquareWithWall(SQWW_11 + (int32_t)file_of(sq) * SQWW_L + (int32_t)rank_of(sq) * SQWW_D);
-
-
-  // 2) direct_tableの初期化
-
-  for (auto sq1 : SQ)
-    for (auto dir = Effect8::DIRECT_ZERO; dir < Effect8::DIRECT_NB; ++dir)
-    {
-      // dirの方角に壁にぶつかる(盤外)まで延長していく。このとき、sq1から見てsq2のDirectionsは (1 << dir)である。
-      auto delta = Effect8::DirectToDeltaWW(dir);
-      for (auto sq2 = to_sqww(sq1) + delta; is_ok(sq2); sq2 += delta)
-        Effect8::direc_table[sq1][sqww_to_sq(sq2)] = Effect8::to_directions(dir);
-    }
+	for (auto sq : SQ)
+		sqww_table[sq] = SquareWithWall(SQWW_11 + (int32_t)file_of(sq) * SQWW_L + (int32_t)rank_of(sq) * SQWW_D);
 
 
-  // 3) Square型のsqの指す升が1であるBitboardがSquareBB。これをまず初期化する。
+	// 2) direct_tableの初期化
 
-  for (auto sq : SQ)
-  {
-    Rank r = rank_of(sq);
-    File f = file_of(sq);
-    SquareBB[sq].p[0] = (f <= FILE_7) ? ((uint64_t)1 << (f * 9 + r)) : 0;
-    SquareBB[sq].p[1] = (f >= FILE_8) ? ((uint64_t)1 << ((f - FILE_8) * 9 + r)) : 0;
-  }
+	for (auto sq1 : SQ)
+		for (auto dir = Effect8::DIRECT_ZERO; dir < Effect8::DIRECT_NB; ++dir)
+		{
+			// dirの方角に壁にぶつかる(盤外)まで延長していく。このとき、sq1から見てsq2のDirectionsは (1 << dir)である。
+			auto delta = Effect8::DirectToDeltaWW(dir);
+			for (auto sq2 = to_sqww(sq1) + delta; is_ok(sq2); sq2 += delta)
+			Effect8::direc_table[sq1][sqww_to_sq(sq2)] = Effect8::to_directions(dir);
+		}
 
 
-  // 4) 遠方利きのテーブルの初期化
-  //  thanks to Apery (Takuya Hiraoka)
+	// 3) Square型のsqの指す升が1であるBitboardがSquareBB。これをまず初期化する。
 
-  // 引数のindexをbits桁の2進数としてみなす。すなわちindex(0から2^bits-1)。
-  // 与えられたmask(1の数がbitsだけある)に対して、1のbitのいくつかを(indexの値に従って)0にする。
-  auto indexToOccupied = [](const int index, const int bits, const Bitboard& mask_)
-  {
-    auto mask = mask_;
-    auto result = ZERO_BB;
-    for (int i = 0; i < bits; ++i)
-    {
-      const Square sq = mask.pop();
-      if (index & (1 << i))
-        result ^= sq;
-    }
-    return result;
-  };
+	for (auto sq : SQ)
+	{
+		Rank r = rank_of(sq);
+		File f = file_of(sq);
+		SquareBB[sq].p[0] = (f <= FILE_7) ? ((uint64_t)1 << (f * 9 + r)) : 0;
+		SquareBB[sq].p[1] = (f >= FILE_8) ? ((uint64_t)1 << ((f - FILE_8) * 9 + r)) : 0;
+	}
 
-  // Rook or Bishop の利きの範囲を調べて bitboard で返す。
-  // occupied  障害物があるマスが 1 の bitboard
-  auto effectCalc = [](const Square square, const Bitboard& occupied, const Piece piece)
-  {
-    auto result = ZERO_BB;
 
-    // 角の利きのrayと飛車の利きのray
-    const SquareWithWall deltaArray[2][4] = { { SQWW_RU, SQWW_RD, SQWW_LU, SQWW_LD },{ SQWW_U, SQWW_D, SQWW_R, SQWW_L } };
-    for (auto delta : deltaArray[(piece == BISHOP) ? 0 : 1])
-      // 壁に当たるまでsqを利き方向に伸ばしていく
-      for (auto sq = to_sqww(square) + delta; is_ok(sq) ; sq += delta)
-      {
-        result ^= sqww_to_sq(sq); // まだ障害物に当っていないのでここまでは利きが到達している
+	// 4) 遠方利きのテーブルの初期化
+	//  thanks to Apery (Takuya Hiraoka)
 
-        if (occupied & sqww_to_sq(sq)) // sqの地点に障害物があればこのrayは終了。
-          break;
-      }
-    return result;
-  };
+	// 引数のindexをbits桁の2進数としてみなす。すなわちindex(0から2^bits-1)。
+	// 与えられたmask(1の数がbitsだけある)に対して、1のbitのいくつかを(indexの値に従って)0にする。
+	auto indexToOccupied = [](const int index, const int bits, const Bitboard& mask_)
+	{
+		auto mask = mask_;
+		auto result = ZERO_BB;
+		for (int i = 0; i < bits; ++i)
+		{
+			const Square sq = mask.pop();
+			if (index & (1 << i))
+			result ^= sq;
+		}
+		return result;
+	};
 
-  // pieceをsqにおいたときに利きを得るのに関係する升を返す
-  auto calcEffectMask = [](Square sq, Piece piece)
-  {
-    Bitboard result;
-    if (piece == BISHOP) {
+	// Rook or Bishop の利きの範囲を調べて bitboard で返す。
+	// occupied  障害物があるマスが 1 の bitboard
+	auto effectCalc = [](const Square square, const Bitboard& occupied, const Piece piece)
+	{
+	auto result = ZERO_BB;
 
-      result = ZERO_BB;
+	// 角の利きのrayと飛車の利きのray
+	const SquareWithWall deltaArray[2][4] = { { SQWW_RU, SQWW_RD, SQWW_LU, SQWW_LD },{ SQWW_U, SQWW_D, SQWW_R, SQWW_L } };
+	for (auto delta : deltaArray[(piece == BISHOP) ? 0 : 1])
+		// 壁に当たるまでsqを利き方向に伸ばしていく
+		for (auto sq = to_sqww(square) + delta; is_ok(sq) ; sq += delta)
+		{
+		result ^= sqww_to_sq(sq); // まだ障害物に当っていないのでここまでは利きが到達している
 
-      for (Rank r = RANK_2; r <= RANK_8; ++r)
-        for (File f = FILE_2; f <= FILE_8; ++f)
-          // 外周は角の利きには関係ないのでそこは除外する。
-          if (abs(rank_of(sq) - r) == abs(file_of(sq) - f))
-            result ^= (f | r);
-    } else {
+		if (occupied & sqww_to_sq(sq)) // sqの地点に障害物があればこのrayは終了。
+			break;
+		}
+	return result;
+	};
 
-      ASSERT_LV3(piece == ROOK);
+	// pieceをsqにおいたときに利きを得るのに関係する升を返す
+	auto calcEffectMask = [](Square sq, Piece piece)
+	{
+		Bitboard result;
+		if (piece == BISHOP) {
 
-      result = RANK_BB[rank_of(sq)] ^ FILE_BB[file_of(sq)];
+			result = ZERO_BB;
 
-      // 外周に居ない限り、その外周升は利きの計算には関係ない。
-      if (file_of(sq) != FILE_1) { result &= ~FILE1_BB; }
-      if (file_of(sq) != FILE_9) { result &= ~FILE9_BB; }
-      if (rank_of(sq) != RANK_1) { result &= ~RANK1_BB; }
-      if (rank_of(sq) != RANK_9) { result &= ~RANK9_BB; }
-    }
+			for (Rank r = RANK_2; r <= RANK_8; ++r)
+			for (File f = FILE_2; f <= FILE_8; ++f)
+				// 外周は角の利きには関係ないのでそこは除外する。
+				if (abs(rank_of(sq) - r) == abs(file_of(sq) - f))
+				result ^= (f | r);
+		} else {
 
-    // sqの地点は関係ないのでクリアしておく。
-    result &= ~Bitboard(sq);
+			ASSERT_LV3(piece == ROOK);
 
-    return result;
-  };
+			result = RANK_BB[rank_of(sq)] ^ FILE_BB[file_of(sq)];
+
+			// 外周に居ない限り、その外周升は利きの計算には関係ない。
+			if (file_of(sq) != FILE_1) { result &= ~FILE1_BB; }
+			if (file_of(sq) != FILE_9) { result &= ~FILE9_BB; }
+			if (rank_of(sq) != RANK_1) { result &= ~RANK1_BB; }
+			if (rank_of(sq) != RANK_9) { result &= ~RANK9_BB; }
+		}
+
+		// sqの地点は関係ないのでクリアしておく。
+		result &= ~Bitboard(sq);
+
+		return result;
+	};
   
-  // 角と飛車の利きテーブルの初期化
-  for (Piece pc : {BISHOP,ROOK} )
-  {
-    // 初期化するテーブルのアドレス
-    Bitboard* effects = (pc == BISHOP) ? BishopEffect : RookEffect;
+	// 角と飛車の利きテーブルの初期化
+	for (Piece pc : {BISHOP,ROOK} )
+	{
+		// 初期化するテーブルのアドレス
+		Bitboard* effects = (pc == BISHOP) ? BishopEffect : RookEffect;
 
-    // sqの升に対してテーブルのどこを引くかのindex
-    int* effectIndex = (pc == BISHOP) ? BishopEffectIndex : RookEffectIndex;
+		// sqの升に対してテーブルのどこを引くかのindex
+		int* effectIndex = (pc == BISHOP) ? BishopEffectIndex : RookEffectIndex;
 
-    // 利きを得るために関係する升
-    Bitboard* masks = (pc == BISHOP) ? BishopEffectMask : RookEffectMask;
+		// 利きを得るために関係する升
+		Bitboard* masks = (pc == BISHOP) ? BishopEffectMask : RookEffectMask;
 
-    int index = 0;
+		int index = 0;
 
-    for (auto sq : SQ)
-    {
-      effectIndex[sq] = index;
+		for (auto sq : SQ)
+		{
+			effectIndex[sq] = index;
 
-      // sqの地点にpieceがあるときにその利きを得るのに関係する升を取得する
-      masks[sq] = calcEffectMask(sq, pc);
+			// sqの地点にpieceがあるときにその利きを得るのに関係する升を取得する
+			masks[sq] = calcEffectMask(sq, pc);
 
-      // p[0]とp[1]が被覆していると正しく計算できないのでNG。
-      // Bitboardのレイアウト的に、正しく計算できるかのテスト。
-      // 縦型Bitboardであるならp[0]のbit63を余らせるようにしておく必要がある。
-      ASSERT_LV3(!(masks[sq].p[0] & masks[sq].p[1]));
+			// p[0]とp[1]が被覆していると正しく計算できないのでNG。
+			// Bitboardのレイアウト的に、正しく計算できるかのテスト。
+			// 縦型Bitboardであるならp[0]のbit63を余らせるようにしておく必要がある。
+			ASSERT_LV3(!(masks[sq].p[0] & masks[sq].p[1]));
 
-      // sqの升用に何bit情報を拾ってくるのか
-      const int bits = masks[sq].pop_count();
+			// sqの升用に何bit情報を拾ってくるのか
+			const int bits = masks[sq].pop_count();
 
-      // 参照するoccupied bitboardのbit数と、そのbitの取りうる状態分だけ..
-      const int num = 1 << bits;
+			// 参照するoccupied bitboardのbit数と、そのbitの取りうる状態分だけ..
+			const int num = 1 << bits;
 
-      for (int i = 0; i < num; ++i)
-      {
-        Bitboard occupied = indexToOccupied(i, bits, masks[sq]);
-        effects[index + occupiedToIndex(occupied & masks[sq], masks[sq])] = effectCalc(sq, occupied, pc);
-      }
-      index += num;
-    }
+			for (int i = 0; i < num; ++i)
+			{
+				Bitboard occupied = indexToOccupied(i, bits, masks[sq]);
+				effects[index + occupiedToIndex(occupied & masks[sq], masks[sq])] = effectCalc(sq, occupied, pc);
+			}
+			index += num;
+		}
 
-    // 盤外(SQ_NB)に駒を配置したときに利きがZERO_BBとなるときのための処理
-    effectIndex[SQ_NB] = index;
-  }
+		// 盤外(SQ_NB)に駒を配置したときに利きがZERO_BBとなるときのための処理
+		effectIndex[SQ_NB] = index;
+	}
 
   
-  // 5. 香の利きテーブルの初期化
-  // 上で初期化した飛車の利きを用いる。
+	// 5. 香の利きテーブルの初期化
+	// 上で初期化した飛車の利きを用いる。
 
-  for (auto c : COLOR)
-    for (auto sq : SQ)
-    {
-      const Bitboard blockMask = FILE_BB[file_of(sq)] & ~(RANK1_BB | RANK9_BB);
-      const int num1s = 7;
-      for (int i = 0; i < (1 << num1s); ++i) {
-        Bitboard occupied = indexToOccupied(i, num1s, blockMask);
-        LanceEffect[c][sq][i] = rookEffect(sq, occupied) & InFrontBB[c][rank_of(sq)];
-      }
-    }
+	for (auto c : COLOR)
+		for (auto sq : SQ)
+		{
+			const Bitboard blockMask = FILE_BB[file_of(sq)] & ~(RANK1_BB | RANK9_BB);
+			const int num1s = 7;
+			for (int i = 0; i < (1 << num1s); ++i) {
+				Bitboard occupied = indexToOccupied(i, num1s, blockMask);
+				LanceEffect[sq][c][i] = rookEffect(sq, occupied) & InFrontBB[c][rank_of(sq)];
+			}
+		}
 
-  // 6. 近接駒(+盤上の利きを考慮しない駒)のテーブルの初期化。
-  // 上で初期化した、香・馬・飛の利きを用いる。
+	// 6. 近接駒(+盤上の利きを考慮しない駒)のテーブルの初期化。
+	// 上で初期化した、香・馬・飛の利きを用いる。
 
-  for (auto c : COLOR)
-    for (auto sq : SQ)
-    {
-      // 歩は長さ1の香の利きとして定義できる
-      StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_PAWN] = lanceEffect(c, sq, ALL_BB);
+	for (auto sq : SQ)
+	{
+		// 玉は長さ1の角と飛車の利きを合成する
+		KingEffectBB[sq] = bishopEffect(sq, ALL_BB) | rookEffect(sq, ALL_BB);
+	}
+	for (auto c : COLOR)
+		for (auto sq : SQ)
+		{
+			// 歩は長さ1の香の利きとして定義できる
+			PawnEffectBB[sq][c] = lanceEffect(c, sq, ALL_BB);
 
-      // 障害物がないときの香の利き
-      StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_LANCE] = lanceEffect(c, sq, ZERO_BB);
+			// 障害物がないときの香の利き
+			LanceStepEffectBB[sq][c] = lanceEffect(c, sq, ZERO_BB);
 
-      // 桂の利きは、歩の利きの地点に長さ1の角の利きを作って、前方のみ残す。
-      Bitboard tmp = ZERO_BB;
-      Bitboard pawn = lanceEffect(c, sq, ALL_BB);
-      if (pawn)
-      {
-        Square sq2 = pawn.pop();
-        Bitboard pawn2 = lanceEffect(c, sq2, ALL_BB); // さらに1つ前
-        if (pawn2)
-          tmp = bishopEffect(sq2, ALL_BB) & RANK_BB[rank_of(pawn2.pop())];
-      }
-      StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_KNIGHT] = tmp;
+			// 桂の利きは、歩の利きの地点に長さ1の角の利きを作って、前方のみ残す。
+			Bitboard tmp = ZERO_BB;
+			Bitboard pawn = lanceEffect(c, sq, ALL_BB);
+			if (pawn)
+			{
+				Square sq2 = pawn.pop();
+				Bitboard pawn2 = lanceEffect(c, sq2, ALL_BB); // さらに1つ前
+				if (pawn2)
+					tmp = bishopEffect(sq2, ALL_BB) & RANK_BB[rank_of(pawn2.pop())];
+			}
+			KnightEffectBB[sq][c] = tmp;
 
-      // 銀は長さ1の角の利きと長さ1の香の利きの合成として定義できる。
-      StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_SILVER] = lanceEffect(c, sq, ALL_BB) | bishopEffect(sq, ALL_BB);
+			// 銀は長さ1の角の利きと長さ1の香の利きの合成として定義できる。
+			SilverEffectBB[sq][c] = lanceEffect(c, sq, ALL_BB) | bishopEffect(sq, ALL_BB);
 
-      // 金は長さ1の角と飛車の利き。ただし、角のほうは相手側の歩の行き先の段でmaskしてしまう。
-      Bitboard e_pawn = lanceEffect(~c, sq, ALL_BB);
-      Bitboard mask = ZERO_BB;
-      if (e_pawn)
-        mask = RANK_BB[rank_of(e_pawn.pop())];
-      StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_GOLD] = (bishopEffect(sq, ALL_BB) & ~mask) | rookEffect(sq, ALL_BB);
+			// 金は長さ1の角と飛車の利き。ただし、角のほうは相手側の歩の行き先の段でmaskしてしまう。
+			Bitboard e_pawn = lanceEffect(~c, sq, ALL_BB);
+			Bitboard mask = ZERO_BB;
+			if (e_pawn)
+				mask = RANK_BB[rank_of(e_pawn.pop())];
+			GoldEffectBB[sq][c]= (bishopEffect(sq, ALL_BB) & ~mask) | rookEffect(sq, ALL_BB);
 
-      // 障害物がないときの角と飛車の利き
-      StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_BISHOP] = bishopEffect(sq, ZERO_BB);
-      StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_ROOK] = rookEffect(sq, ZERO_BB);
+			// 障害物がないときの角と飛車の利き
+			BishopStepEffectBB[sq] = bishopEffect(sq, ZERO_BB);
+			RookStepEffectBB[sq]   = rookEffect(sq, ZERO_BB);
 
-      // 玉は長さ1の角と飛車の利きを合成する
-      StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_HDK] = bishopEffect(sq, ALL_BB) | rookEffect(sq, ALL_BB);
+			// --- 以下のbitboard、あまり頻繁に呼び出さないので他のbitboardを合成して代用する。
 
-      // 盤上の駒がないときのqueenの利き
-      StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_QUEEN] = bishopEffect(sq, ZERO_BB) | rookEffect(sq, ZERO_BB);
+			// 盤上の駒がないときのqueenの利き
+			// StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_QUEEN] = bishopEffect(sq, ZERO_BB) | rookEffect(sq, ZERO_BB);
 
-      // 長さ1の十字
-      StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_CROSS00] = rookEffect(sq, ALL_BB);
+			// 長さ1の十字
+			// StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_CROSS00] = rookEffect(sq, ALL_BB);
 
-      // 長さ1の斜め
-      StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_CROSS45] = bishopEffect(sq, ALL_BB);
-    }
+			// 長さ1の斜め
+			// StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_CROSS45] = bishopEffect(sq, ALL_BB);
+		}
 
-  // 7) 二歩用のテーブル初期化
+	// 7) 二歩用のテーブル初期化
 
-  for (int i = 0; i <= 0x1ff; ++i)
-  {
-    Bitboard b = ZERO_BB;
-    for (int k = 0; k < 9; ++k)
-      if ((i & (1 << k)) == 0)
-        b |= FILE_BB[k];
+	for (int i = 0; i <= 0x1ff; ++i)
+	{
+		Bitboard b = ZERO_BB;
+		for (int k = 0; k < 9; ++k)
+			if ((i & (1 << k)) == 0)
+				b |= FILE_BB[k];
 
-    PAWN_DROP_MASK_BB[i][BLACK] = b & rank1_n_bb(WHITE, RANK_8); // 2～9段目まで
-    PAWN_DROP_MASK_BB[i][WHITE] = b & rank1_n_bb(BLACK, RANK_8); // 1～8段目まで
-  }
+		PAWN_DROP_MASK_BB[i][BLACK] = b & rank1_n_bb(WHITE, RANK_8); // 2～9段目まで
+		PAWN_DROP_MASK_BB[i][WHITE] = b & rank1_n_bb(BLACK, RANK_8); // 1～8段目まで
+	}
 
-  // 8) BetweenBB , LineBBの初期化
-  
-  for (auto s1 : SQ)
-    for (auto s2 : SQ)
-    {
-      // 方角を用いるテーブルの初期化
-      if (Effect8::directions_of(s1,s2))
-      {
-        // 間に挟まれた升を1に
-        Square delta = (s2 - s1) / dist(s1 , s2);
-        for (Square s = s1 + delta; s != s2; s += delta)
-          BetweenBB[s1][s2] |= s;
+	// 8) BetweenBB , LineBBの初期化
 
-        // 間に挟まれてない升も1に
-        LineBB[s1][s2] = BetweenBB[s1][s2];
+	for (auto s1 : SQ)
+		for (auto s2 : SQ)
+		{
+			// 方角を用いるテーブルの初期化
+			if (Effect8::directions_of(s1, s2))
+			{
+				// 間に挟まれた升を1に
+				Square delta = (s2 - s1) / dist(s1, s2);
+				for (Square s = s1 + delta; s != s2; s += delta)
+					BetweenBB[s1][s2] |= s;
 
-        // 壁に当たるまでs1から-delta方向に延長
-        for (Square s = s1; dist(s, s + delta) <= 1; s -= delta) LineBB[s1][s2] |= s;
+				// 間に挟まれてない升も1に
+				LineBB[s1][s2] = BetweenBB[s1][s2];
 
-        // 壁に当たるまでs2から+delta方向に延長
-        for (Square s = s2; dist(s, s - delta) <= 1; s += delta) LineBB[s1][s2] |= s;
-      }
-    }
+				// 壁に当たるまでs1から-delta方向に延長
+				for (Square s = s1; dist(s, s + delta) <= 1; s -= delta) LineBB[s1][s2] |= s;
 
-  // 9) 王手となる候補の駒のテーブル初期化(王手の指し手生成に必要。やねうら王nanoでは削除予定)
+				// 壁に当たるまでs2から+delta方向に延長
+				for (Square s = s2; dist(s, s - delta) <= 1; s += delta) LineBB[s1][s2] |= s;
+			}
+		}
+
+	// 9) 王手となる候補の駒のテーブル初期化(王手の指し手生成に必要。やねうら王nanoでは削除予定)
 
 #define FOREACH_KING(BB, EFFECT ) { for(auto sq : BB){ target|= EFFECT(sq); } }
 #define FOREACH(BB, EFFECT ) { for(auto sq : BB){ target|= EFFECT(them,sq); } }
 #define FOREACH_BR(BB, EFFECT ) { for(auto sq : BB) { target|= EFFECT(sq,ZERO_BB); } }
 
-  for (auto Us : COLOR)
-    for (auto ksq : SQ)
-    {
-      Color them = ~Us;
-      auto enemyGold = goldEffect(them, ksq) & enemy_field(Us);
-      Bitboard target;
+	for (auto Us : COLOR)
+		for (auto ksq : SQ)
+		{
+			Color them = ~Us;
+			auto enemyGold = goldEffect(them, ksq) & enemy_field(Us);
+			Bitboard target;
 
-      // 歩で王手になる可能性のあるものは、敵玉から２つ離れた歩(不成での移動) + ksqに敵の金をおいた範囲(enemyGold)に成りで移動できる
-      target = ZERO_BB;
-      FOREACH(pawnEffect(them, ksq), pawnEffect);
-      FOREACH(enemyGold, pawnEffect);
-      CheckCandidateBB[ksq][PAWN - 1][Us] = target & ~Bitboard(ksq);
+			// 歩で王手になる可能性のあるものは、敵玉から２つ離れた歩(不成での移動) + ksqに敵の金をおいた範囲(enemyGold)に成りで移動できる
+			target = ZERO_BB;
+			FOREACH(pawnEffect(them, ksq), pawnEffect);
+			FOREACH(enemyGold, pawnEffect);
+			CheckCandidateBB[ksq][PAWN - 1][Us] = target & ~Bitboard(ksq);
 
-      // 香で王手になる可能性のあるものは、ksqに敵の香をおいたときの利き。(盤上には何もないものとする)
-      // と、王が1から3段目だと成れるので王の両端に香を置いた利きも。
-      target = lanceStepEffect(them, ksq);
-      if (enemy_field(Us) & ksq)
-      {
-        if (file_of(ksq) != FILE_1)
-          target |= lanceStepEffect(them, ksq + SQ_R);
-        if (file_of(ksq) != FILE_9)
-          target |= lanceStepEffect(them, ksq + SQ_L);
-      }
-      CheckCandidateBB[ksq][LANCE - 1][Us] = target;
+			// 香で王手になる可能性のあるものは、ksqに敵の香をおいたときの利き。(盤上には何もないものとする)
+			// と、王が1から3段目だと成れるので王の両端に香を置いた利きも。
+			target = lanceStepEffect(them, ksq);
+			if (enemy_field(Us) & ksq)
+			{
+				if (file_of(ksq) != FILE_1)
+					target |= lanceStepEffect(them, ksq + SQ_R);
+				if (file_of(ksq) != FILE_9)
+					target |= lanceStepEffect(them, ksq + SQ_L);
+			}
+			CheckCandidateBB[ksq][LANCE - 1][Us] = target;
 
-      // 桂で王手になる可能性のあるものは、ksqに敵の桂をおいたところに移動できる桂(不成) + ksqに金をおいた範囲(enemyGold)に成りで移動できる桂
-      target = ZERO_BB;
-      FOREACH(knightEffect(them, ksq) | enemyGold, knightEffect);
-      CheckCandidateBB[ksq][KNIGHT - 1][Us] = target & ~Bitboard(ksq);
+			// 桂で王手になる可能性のあるものは、ksqに敵の桂をおいたところに移動できる桂(不成) + ksqに金をおいた範囲(enemyGold)に成りで移動できる桂
+			target = ZERO_BB;
+			FOREACH(knightEffect(them, ksq) | enemyGold, knightEffect);
+			CheckCandidateBB[ksq][KNIGHT - 1][Us] = target & ~Bitboard(ksq);
 
-      // 銀も同様だが、2,3段目からの引き成りで王手になるパターンがある。(4段玉と5段玉に対して)
-      target = ZERO_BB;
-      FOREACH(silverEffect(them, ksq) , silverEffect);
-      FOREACH(enemyGold, silverEffect); // 移動先が敵陣 == 成れる == 金になるので、敵玉の升に敵の金をおいた利きに成りで移動すると王手になる。
-      FOREACH(goldEffect(them, ksq), enemy_field(Us) & silverEffect); // 移動元が敵陣 == 成れる == 金になるので、敵玉の升に敵の金をおいた利きに成りで移動すると王手になる。
-      CheckCandidateBB[ksq][SILVER - 1][Us] = target & ~Bitboard(ksq);
+			// 銀も同様だが、2,3段目からの引き成りで王手になるパターンがある。(4段玉と5段玉に対して)
+			target = ZERO_BB;
+			FOREACH(silverEffect(them, ksq), silverEffect);
+			FOREACH(enemyGold, silverEffect); // 移動先が敵陣 == 成れる == 金になるので、敵玉の升に敵の金をおいた利きに成りで移動すると王手になる。
+			FOREACH(goldEffect(them, ksq), enemy_field(Us) & silverEffect); // 移動元が敵陣 == 成れる == 金になるので、敵玉の升に敵の金をおいた利きに成りで移動すると王手になる。
+			CheckCandidateBB[ksq][SILVER - 1][Us] = target & ~Bitboard(ksq);
 
-      // 金
-      target = ZERO_BB;
-      FOREACH(goldEffect(them, ksq), goldEffect);
-      CheckCandidateBB[ksq][GOLD - 1][Us] = target & ~Bitboard(ksq);
+			// 金
+			target = ZERO_BB;
+			FOREACH(goldEffect(them, ksq), goldEffect);
+			CheckCandidateBB[ksq][GOLD - 1][Us] = target & ~Bitboard(ksq);
 
-      // 角
-      target = ZERO_BB;
-      FOREACH_BR(bishopEffect(ksq,ZERO_BB), bishopEffect);
-      FOREACH_BR(kingEffect(ksq) & enemy_field(Us), bishopEffect); // 移動先が敵陣 == 成れる == 王の動き
-      FOREACH_BR(kingEffect(ksq) , enemy_field(Us) & bishopEffect); // 移動元が敵陣 == 成れる == 王の動き
-      CheckCandidateBB[ksq][BISHOP - 1][Us] = target & ~Bitboard(ksq);
+			// 角
+			target = ZERO_BB;
+			FOREACH_BR(bishopEffect(ksq, ZERO_BB), bishopEffect);
+			FOREACH_BR(kingEffect(ksq) & enemy_field(Us), bishopEffect); // 移動先が敵陣 == 成れる == 王の動き
+			FOREACH_BR(kingEffect(ksq), enemy_field(Us) & bishopEffect); // 移動元が敵陣 == 成れる == 王の動き
+			CheckCandidateBB[ksq][BISHOP - 1][Us] = target & ~Bitboard(ksq);
 
-      // 飛・龍は無条件全域。
-      // ROOKのところには馬のときのことを格納
+			// 飛・龍は無条件全域。
+			// ROOKのところには馬のときのことを格納
 
-      // 馬
-      target = ZERO_BB;
-      FOREACH_BR(horseEffect(ksq, ZERO_BB), horseEffect);
-      CheckCandidateBB[ksq][ROOK - 1][Us] = target & ~Bitboard(ksq);
-      
-      // 王(24近傍が格納される)
-      target = ZERO_BB;
-      FOREACH_KING(kingEffect(ksq) , kingEffect);
-      CheckCandidateBB[ksq][KING - 1][Us] = target & ~Bitboard(ksq);
-    }
+			// 馬
+			target = ZERO_BB;
+			FOREACH_BR(horseEffect(ksq, ZERO_BB), horseEffect);
+			CheckCandidateBB[ksq][ROOK - 1][Us] = target & ~Bitboard(ksq);
 
-  // 10. LONG_EFFECT_LIBRARYの初期化
-  
+			// 王(24近傍が格納される)
+			target = ZERO_BB;
+			FOREACH_KING(kingEffect(ksq), kingEffect);
+			CheckCandidateBB[ksq][KING - 1][Us] = target & ~Bitboard(ksq);
+		}
+
+	// 10. LONG_EFFECT_LIBRARYの初期化
+
 #ifdef LONG_EFFECT_LIBRARY
-  LongEffect::init();
+	LongEffect::init();
 #endif
 
-  // 11. 1手詰めテーブルの初期化
+	// 11. 1手詰めテーブルの初期化
 #ifdef USE_MATE_1PLY
-  Mate1Ply::init();
+	Mate1Ply::init();
 #endif
 }
 

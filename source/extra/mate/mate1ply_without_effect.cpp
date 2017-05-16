@@ -20,45 +20,43 @@ template <typename T> int sgn(T val) {
 // 1手詰めルーチンで用いる、移動によって王手になるかどうかの判定用テーブルで使う。
 enum PieceTypeCheck
 {
-  PIECE_TYPE_CHECK_PAWN_WITH_NO_PRO, // 不成りのまま王手になるところ(成れる場合は含まず)
-  PIECE_TYPE_CHECK_PAWN_WITH_PRO, // 成りで王手になるところ
-  PIECE_TYPE_CHECK_LANCE,
-  PIECE_TYPE_CHECK_KNIGHT,
-  PIECE_TYPE_CHECK_SILVER,
-  PIECE_TYPE_CHECK_GOLD,
-  PIECE_TYPE_CHECK_BISHOP,
-  PIECE_TYPE_CHECK_ROOK,
-  PIECE_TYPE_CHECK_PRO_BISHOP,
-  PIECE_TYPE_CHECK_PRO_ROOK,
-  PIECE_TYPE_CHECK_NON_SLIDER, // 王手になる非遠方駒の移動元
+	PIECE_TYPE_CHECK_PAWN_WITH_NO_PRO, // 不成りのまま王手になるところ(成れる場合は含まず)
+	PIECE_TYPE_CHECK_PAWN_WITH_PRO, // 成りで王手になるところ
+	PIECE_TYPE_CHECK_LANCE,
+	PIECE_TYPE_CHECK_KNIGHT,
+	PIECE_TYPE_CHECK_SILVER,
+	PIECE_TYPE_CHECK_GOLD,
+	PIECE_TYPE_CHECK_BISHOP,
+	PIECE_TYPE_CHECK_ROOK,
+	PIECE_TYPE_CHECK_PRO_BISHOP,
+	PIECE_TYPE_CHECK_PRO_ROOK,
+	PIECE_TYPE_CHECK_NON_SLIDER, // 王手になる非遠方駒の移動元
 
-  PIECE_TYPE_CHECK_NB,
-  PIECE_TYPE_CHECK_ZERO = 0,
+	PIECE_TYPE_CHECK_NB,
+	PIECE_TYPE_CHECK_ZERO = 0,
 };
 
 ENABLE_FULL_OPERATORS_ON(PieceTypeCheck);
-ENABLE_FULL_OPERATORS_ON(PieceTypeBitboard);
 
 // 王手になる候補の駒の位置を示すBitboard
 Bitboard CHECK_CAND_BB[PIECE_TYPE_CHECK_NB][SQ_NB_PLUS1][COLOR_NB];
 
 // 玉周辺の利きを求めるときに使う、玉周辺に利きをつける候補の駒を表すBB
 // COLORのところは王手する側の駒
-// CHECK_CAND_BBとは並び順を変えたので注意。
-Bitboard CHECK_AROUND_BB[SQ_NB_PLUS1][PIECE_TYPE_BITBOARD_NB][COLOR_NB];
+Bitboard CHECK_AROUND_BB[PIECE_RAW_NB][SQ_NB_PLUS1][COLOR_NB];
 
 // 移動により王手になるbitboardを返す。
 // us側が王手する。sq_king = 敵玉の升。pc = 駒
 static Bitboard check_cand_bb(Color us, PieceTypeCheck pc, Square sq_king)
 {
-  return CHECK_CAND_BB[pc][sq_king][us];
+	return CHECK_CAND_BB[pc][sq_king][us];
 }
 
 // 敵玉8近傍の利きに関係する自駒の候補のbitboardを返す。ここになければ玉周辺に利きをつけない。
 // pt = PAWN～HDK
 static Bitboard check_around_bb(Color us, Piece pt, Square sq_king)
 {
-  return CHECK_AROUND_BB[sq_king][pt - 1][us];
+	return CHECK_AROUND_BB[pt - 1][sq_king][us];
 }
 
 // sq1に対してsq2の升の延長上にある次の升を得る。
@@ -214,7 +212,7 @@ void init_check_bb()
       }
 
 
-      for (PieceTypeBitboard p = PIECE_TYPE_BITBOARD_PAWN; p <= PIECE_TYPE_BITBOARD_HDK; ++p)
+      for (Piece p = PAWN; p <= KING; ++p)
         for (auto sq : SQ)
           for (auto c : COLOR)
           {
@@ -222,9 +220,9 @@ void init_check_bb()
             Square to;
             bb = ZERO_BB;
 
-            switch ((int)p)
+            switch (p)
             {
-            case PIECE_TYPE_BITBOARD_PAWN:
+            case PAWN:
               // これ用意するほどでもないんだな
               // 一応、用意するコード書いておくか..
               bb = kingEffect(sq);
@@ -233,7 +231,7 @@ void init_check_bb()
               bb &= ALL_BB; // ALL_BBでand取っとくわ
               break;
 
-            case PIECE_TYPE_BITBOARD_LANCE:
+            case LANCE:
               // 香で玉8近傍の利きに関与するのは…。玉と同じ段より攻撃側の陣にある香だけか..
               bb = lanceStepEffect(~c, sq);
               if (file_of(sq) != FILE_1)
@@ -242,7 +240,7 @@ void init_check_bb()
                 bb |= lanceStepEffect(~c, sq + SQ_L) | (sq + SQ_L);
               break;
 
-            case PIECE_TYPE_BITBOARD_KNIGHT:
+            case KNIGHT:
               // 桂は玉8近傍の逆桂か。
               tmp = kingEffect(sq);
               while (tmp)
@@ -252,7 +250,7 @@ void init_check_bb()
               }
               break;
 
-            case PIECE_TYPE_BITBOARD_SILVER:
+            case SILVER:
               // 同じく
               tmp = kingEffect(sq);
               while (tmp)
@@ -262,7 +260,7 @@ void init_check_bb()
               }
               break;
 
-            case PIECE_TYPE_BITBOARD_GOLD:
+            case GOLD:
               // 同じく
               tmp = kingEffect(sq);
               while (tmp)
@@ -272,7 +270,7 @@ void init_check_bb()
               }
               break;
 
-            case PIECE_TYPE_BITBOARD_BISHOP:
+            case BISHOP:
               // 同じく
               tmp = kingEffect(sq);
               while (tmp)
@@ -282,7 +280,7 @@ void init_check_bb()
               }
               break;
 
-            case PIECE_TYPE_BITBOARD_ROOK:
+            case ROOK:
               // 同じく
               tmp = kingEffect(sq);
               while (tmp)
@@ -292,7 +290,8 @@ void init_check_bb()
               }
               break;
 
-            case PIECE_TYPE_BITBOARD_HDK:
+			// HDK相当
+            case KING:
               // 同じく
               tmp = kingEffect(sq);
               while (tmp)
@@ -305,7 +304,7 @@ void init_check_bb()
 
             bb &= ~Bitboard(sq); // sqの地点邪魔なので消しておく。
                                  // CHECK_CAND_BBとは並び順を変えたので注意。
-            CHECK_AROUND_BB[sq][p][c] = bb;
+            CHECK_AROUND_BB[p-1][sq][c] = bb;
           }
 
       // NextSquareの初期化
@@ -726,7 +725,7 @@ Move is_mate_in_1ply(const Position& pos /*, const CheckInfo& ci */)
   if (hand_count(ourHand,ROOK))
   {
     // 敵玉の上下左右の駒の打てる場所
-    bb = cross00StepEffect(sq_king) & bb_drop;
+    bb = rookStepEffect(sq_king) & kingEffect(sq_king) & bb_drop;
 
     while (bb)
     {
