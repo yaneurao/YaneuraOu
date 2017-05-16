@@ -599,81 +599,81 @@ inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 
 // 指し手が、(敵玉に)王手になるかをテストする。
 
-bool Position::gives_check(Move m) const {
+bool Position::gives_check(Move m) const
+{
+	// 指し手がおかしくないか
+	ASSERT_LV3(is_ok(m));
 
-  // 指し手がおかしくないか
-  ASSERT_LV3(is_ok(m));
+	// 移動先
+	const Square to = move_to(m);
 
-  // 移動先
-  const Square to = move_to(m);
+	// 駒打ち・移動する指し手どちらであってもmove_piece_after(m)で移動後の駒が取得できるので
+	// 直接王手の処理は共通化できる。
+	if (st->checkSquares[type_of(moved_piece_after(m))] & to)
+		return true;
 
-  // 駒打ち・移動する指し手どちらであってもmove_piece_after(m)で移動後の駒が取得できるので
-  // 直接王手の処理は共通化できる。
-  if (st->checkSquares[type_of(moved_piece_after(m))] & to)
-	  return true;
+	// -- 移動する指し手ならば、これで開き王手になるかどうかの判定が必要。
 
-  // -- 移動する指し手ならば、これで開き王手になるかどうかの判定が必要。
+	// 移動元
+	const Square from = move_from(m);
 
-  // 移動元
-  const Square from = move_from(m);
-
-  // 開き王手になる駒の候補があるとして、fromにあるのがその駒で、fromからtoは玉と直線上にないなら
-  return !is_drop(m)
+	// 開き王手になる駒の候補があるとして、fromにあるのがその駒で、fromからtoは玉と直線上にないなら
+	return !is_drop(m)
 		&& ((discovered_check_candidates() & from)
 		&& !aligned(from, to, square<KING>(~sideToMove)));
 }
 
 Bitboard Position::pinned_pieces(Color c, Square avoid) const {
-  Bitboard b, pinners, result = ZERO_BB;
-  Square ksq = king_square(c);
+	Bitboard b, pinners, result = ZERO_BB;
+	Square ksq = king_square(c);
 
-  // avoidを除外して考える。
-  Bitboard avoid_bb = ~Bitboard(avoid);
+	// avoidを除外して考える。
+	Bitboard avoid_bb = ~Bitboard(avoid);
 
-  pinners = (
-      (pieces(ROOK_DRAGON)   & rookStepEffect(ksq))
-    | (pieces(BISHOP_HORSE)  & bishopStepEffect(ksq))
-    | (pieces(LANCE)         & lanceStepEffect(c, ksq))
-    ) & avoid_bb & pieces(~c);
+	pinners = (
+		  (pieces(ROOK_DRAGON)   & rookStepEffect(ksq))
+		| (pieces(BISHOP_HORSE)  & bishopStepEffect(ksq))
+		| (pieces(LANCE)         & lanceStepEffect(c, ksq))
+		) & avoid_bb & pieces(~c);
 
-  while (pinners)
-  {
-    b = between_bb(ksq, pinners.pop()) & pieces() & avoid_bb;
-    if (!more_than_one(b))
-      result |= b & pieces(c);
-  }
-  return result;
+	while (pinners)
+	{
+		b = between_bb(ksq, pinners.pop()) & pieces() & avoid_bb;
+		if (!more_than_one(b))
+			result |= b & pieces(c);
+	}
+	return result;
 }
 
 Bitboard Position::pinned_pieces(Color c, Square from, Square to) const {
-  Bitboard b, pinners, result = ZERO_BB;
-  Square ksq = king_square(c);
+	Bitboard b, pinners, result = ZERO_BB;
+	Square ksq = king_square(c);
 
-  // avoidを除外して考える。
-  Bitboard avoid_bb = ~Bitboard(from);
+	// avoidを除外して考える。
+	Bitboard avoid_bb = ~Bitboard(from);
 
-  pinners = (
-      (pieces(ROOK_DRAGON )  & rookStepEffect(ksq))
-    | (pieces(BISHOP_HORSE ) & bishopStepEffect(ksq))
-    | (pieces(LANCE)         & lanceStepEffect(c, ksq))
-    ) & avoid_bb & pieces(~c);
+	pinners = (
+		(pieces(ROOK_DRAGON)    & rookStepEffect(ksq))
+		| (pieces(BISHOP_HORSE) & bishopStepEffect(ksq))
+		| (pieces(LANCE)        & lanceStepEffect(c, ksq))
+		) & avoid_bb & pieces(~c);
 
-  // fromからは消えて、toの地点に駒が現れているものとして
-  Bitboard new_pieces = (pieces() & avoid_bb) | to;
-  while (pinners)
-  {
-    b = between_bb(ksq, pinners.pop()) & new_pieces;
-    if (!more_than_one(b))
-      result |= b & pieces(c);
-  }
-  return result;
+	// fromからは消えて、toの地点に駒が現れているものとして
+	Bitboard new_pieces = (pieces() & avoid_bb) | to;
+	while (pinners)
+	{
+		b = between_bb(ksq, pinners.pop()) & new_pieces;
+		if (!more_than_one(b))
+			result |= b & pieces(c);
+	}
+	return result;
 }
 
 // 現局面で指し手がないかをテストする。指し手生成ルーチンを用いるので速くない。探索中には使わないこと。
 bool Position::is_mated() const
 {
-  // 不成で詰めろを回避できるパターンはないのでLEGAL_ALLである必要はない。
-  return MoveList<LEGAL>(*this).size() == 0;
+	// 不成で詰めろを回避できるパターンはないのでLEGAL_ALLである必要はない。
+	return MoveList<LEGAL>(*this).size() == 0;
 }
 
 // ----------------------------------
@@ -775,173 +775,176 @@ bool Position::legal_drop(const Square to) const
 template <bool All>
 bool Position::pseudo_legal_s(const Move m) const {
 
-  const Color us = sideToMove;
-  const Square to = move_to(m); // 移動先
+	const Color us = sideToMove;
+	const Square to = move_to(m); // 移動先
 
-  if (is_drop(m))
-  {
-    const Piece pr = move_dropped_piece(m);
-    // 置換表から取り出してきている以上、一度は指し手生成ルーチンで生成した指し手のはずであり、
-    // KING打ちのような値であることはないものとする。
-
-#ifdef KEEP_PIECE_IN_GENERATE_MOVES
-    // 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
-    if (moved_piece_after(m) != Piece(pr + ((us == WHITE) ? u32(PIECE_WHITE) : 0) + PIECE_DROP))
-      return false;
-#endif
-
-    ASSERT_LV3(PAWN <= pr && pr < KING);
-
-    // 打つ先の升が埋まっていたり、その手駒を持っていなかったりしたら駄目。
-    if (piece_on(to) != NO_PIECE || hand_count(hand[us], pr) == 0)
-      return false;
-
-    if (in_check())
-    {
-      // 王手されている局面なので合駒でなければならない
-      Bitboard target = checkers();
-      Square checksq = target.pop();
-
-      // 王手している駒を1個取り除いて、もうひとつあるということは王手している駒が
-      // 2つあったということであり、両王手なので合い利かず。
-      if (target)
-        return false;
-
-      // 王と王手している駒との間の升に駒を打っていない場合、それは王手を回避していることに
-      // ならないので、これは非合法手。
-      if (!(between_bb(checksq, king_square(us)) & to))
-        return false;
-    }
-
-    // 歩のとき、二歩および打ち歩詰めであるなら非合法手
-    if (pr==PAWN && !legal_pawn_drop(us,to))
-      return false;
-
-    // --- 移動できない升への歩・香・桂打ちについて
-
-    // 打てない段に打つ歩・香・桂の指し手はそもそも生成されていない。
-    // 置換表のhash衝突で、後手の指し手が先手の指し手にならないことは保証されている。
-    // (先手の手番の局面と後手の手番の局面とのhash keyはbit0で区別しているので)
-
-    // しかし、Counter Moveの手は手番に関係ないので(駒種を保持していないなら)取り違える可能性があるため
-    // (しかも、その可能性はそこそこ高い)、ここで合法性をチェックする必要がある。
-    // →　指し手生成の段階で駒種を保存するようにしたのでこのテスト不要。
-
-  } else {
-
-    const Square from = move_from(m);
-    const Piece pc = piece_on(from);
-
-    // 動かす駒が自駒でなければならない
-    if (pc == NO_PIECE || color_of(pc) != us)
-      return false;
-
-    // toに移動できないといけない。
-    if (!(effects_from(pc, from, pieces()) & to))
-      return false;
-
-    // toの地点に自駒があるといけない
-    if (pieces(us) & to)
-      return false;
-
-    Piece pt = type_of(pc);
-    if (is_promote(m))
-    {
-      // --- 成る指し手
-
-      // 成れない駒の成りではないことを確かめないといけない。
-      static_assert(GOLD == 7,"GOLD must be 7.");
-      if (pt >= GOLD)
-        return false;
+	if (is_drop(m))
+	{
+		const Piece pr = move_dropped_piece(m);
+		// 置換表から取り出してきている以上、一度は指し手生成ルーチンで生成した指し手のはずであり、
+		// KING打ちのような値であることはないものとする。
 
 #ifdef KEEP_PIECE_IN_GENERATE_MOVES
-      // 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
-      if (moved_piece_after(m) != Piece(pc + PIECE_PROMOTE) )
-        return false;
+		// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
+		if (moved_piece_after(m) != Piece(pr + ((us == WHITE) ? u32(PIECE_WHITE) : 0) + PIECE_DROP))
+			return false;
 #endif
 
-      // 移動先が敵陣でないと成れない。先手が置換表衝突で後手の指し手を引いてきたら、こういうことになりかねない。
-      if (!(enemy_field(us) & (Bitboard(from) | Bitboard(to))))
-        return false;
+		ASSERT_LV3(PAWN <= pr && pr < KING);
 
-    } else {
+		// 打つ先の升が埋まっていたり、その手駒を持っていなかったりしたら駄目。
+		if (piece_on(to) != NO_PIECE || hand_count(hand[us], pr) == 0)
+			return false;
 
-      // --- 成らない指し手
+		if (in_check())
+		{
+			// 王手されている局面なので合駒でなければならない
+			Bitboard target = checkers();
+			Square checksq = target.pop();
+
+			// 王手している駒を1個取り除いて、もうひとつあるということは王手している駒が
+			// 2つあったということであり、両王手なので合い利かず。
+			if (target)
+				return false;
+
+			// 王と王手している駒との間の升に駒を打っていない場合、それは王手を回避していることに
+			// ならないので、これは非合法手。
+			if (!(between_bb(checksq, king_square(us)) & to))
+				return false;
+		}
+
+		// 歩のとき、二歩および打ち歩詰めであるなら非合法手
+		if (pr == PAWN && !legal_pawn_drop(us, to))
+			return false;
+
+		// --- 移動できない升への歩・香・桂打ちについて
+
+		// 打てない段に打つ歩・香・桂の指し手はそもそも生成されていない。
+		// 置換表のhash衝突で、後手の指し手が先手の指し手にならないことは保証されている。
+		// (先手の手番の局面と後手の手番の局面とのhash keyはbit0で区別しているので)
+
+		// しかし、Counter Moveの手は手番に関係ないので(駒種を保持していないなら)取り違える可能性があるため
+		// (しかも、その可能性はそこそこ高い)、ここで合法性をチェックする必要がある。
+		// →　指し手生成の段階で駒種を保存するようにしたのでこのテスト不要。
+
+	}
+	else {
+
+		const Square from = move_from(m);
+		const Piece pc = piece_on(from);
+
+		// 動かす駒が自駒でなければならない
+		if (pc == NO_PIECE || color_of(pc) != us)
+			return false;
+
+		// toに移動できないといけない。
+		if (!(effects_from(pc, from, pieces()) & to))
+			return false;
+
+		// toの地点に自駒があるといけない
+		if (pieces(us) & to)
+			return false;
+
+		Piece pt = type_of(pc);
+		if (is_promote(m))
+		{
+			// --- 成る指し手
+
+			// 成れない駒の成りではないことを確かめないといけない。
+			static_assert(GOLD == 7, "GOLD must be 7.");
+			if (pt >= GOLD)
+				return false;
 
 #ifdef KEEP_PIECE_IN_GENERATE_MOVES
-      // 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
-      if (moved_piece_after(m) != pc )
-        return false;
+			// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
+			if (moved_piece_after(m) != Piece(pc + PIECE_PROMOTE))
+				return false;
+#endif
+
+			// 移動先が敵陣でないと成れない。先手が置換表衝突で後手の指し手を引いてきたら、こういうことになりかねない。
+			if (!(enemy_field(us) & (Bitboard(from) | Bitboard(to))))
+				return false;
+
+		}
+		else {
+
+			// --- 成らない指し手
+
+#ifdef KEEP_PIECE_IN_GENERATE_MOVES
+			// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
+			if (moved_piece_after(m) != pc)
+				return false;
 #endif
 
 
-      // 駒打ちのところに書いた理由により、不成で進めない升への指し手のチェックも不要。
-      // 間違い　→　駒種をmoveに含めていないならこのチェック必要だわ。
-      // 52から51銀のような指し手がkillerやcountermoveに登録されていたとして、52に歩があると
-      // 51歩不成という指し手を生成してしまう…。
-      // あと、歩や大駒が敵陣において成らない指し手も不要なのでは..。
+			// 駒打ちのところに書いた理由により、不成で進めない升への指し手のチェックも不要。
+			// 間違い　→　駒種をmoveに含めていないならこのチェック必要だわ。
+			// 52から51銀のような指し手がkillerやcountermoveに登録されていたとして、52に歩があると
+			// 51歩不成という指し手を生成してしまう…。
+			// あと、歩や大駒が敵陣において成らない指し手も不要なのでは..。
 
-      if (All)
-      {
-        // 歩と香に関しては1段目への不成は不可。桂は、桂飛びが出来る駒は桂しかないので
-        // 移動元と移動先がこれであるかぎり、それは桂の指し手生成によって生成されたものだから
-        // これが非合法手であることはない。
+			if (All)
+			{
+				// 歩と香に関しては1段目への不成は不可。桂は、桂飛びが出来る駒は桂しかないので
+				// 移動元と移動先がこれであるかぎり、それは桂の指し手生成によって生成されたものだから
+				// これが非合法手であることはない。
 
-        if (pt == PAWN || pt == LANCE)
-          if ((us == BLACK && rank_of(to) == RANK_1) || (us == WHITE && rank_of(to) == RANK_9))
-            return false;
-      } else {
-        // 歩の不成と香の2段目への不成を禁止。
-        // 大駒の不成を禁止
-        switch (pt)
-        {
-        case PAWN:
-          if (enemy_field(us) & to)
-            return false;
-          break;
+				if (pt == PAWN || pt == LANCE)
+					if ((us == BLACK && rank_of(to) == RANK_1) || (us == WHITE && rank_of(to) == RANK_9))
+						return false;
+			}
+			else {
+				// 歩の不成と香の2段目への不成を禁止。
+				// 大駒の不成を禁止
+				switch (pt)
+				{
+				case PAWN:
+					if (enemy_field(us) & to)
+						return false;
+					break;
 
-        case LANCE:
-          if ((us == BLACK && rank_of(to) <= RANK_2) || (us == WHITE && rank_of(to) >= RANK_8))
-            return false;
-          break;
+				case LANCE:
+					if ((us == BLACK && rank_of(to) <= RANK_2) || (us == WHITE && rank_of(to) >= RANK_8))
+						return false;
+					break;
 
-        case BISHOP:
-        case ROOK:
-          if (enemy_field(us) & (Bitboard(from) | Bitboard(to)))
-            return false;
-          break;
-        }
-      }
+				case BISHOP:
+				case ROOK:
+					if (enemy_field(us) & (Bitboard(from) | Bitboard(to)))
+						return false;
+					break;
+				}
+			}
 
-    }
+		}
 
-    // 王手している駒があるのか
-    if (checkers())
-    {
-      // このとき、指し手生成のEVASIONで生成される指し手と同等以上の条件でなければならない。
+		// 王手している駒があるのか
+		if (checkers())
+		{
+			// このとき、指し手生成のEVASIONで生成される指し手と同等以上の条件でなければならない。
 
-      // 動かす駒は王以外か？
-      if (type_of(pc) != KING)
-      {
-        // 両王手なら王の移動をさせなければならない。
-        if (more_than_one(checkers()))
-          return false;
+			// 動かす駒は王以外か？
+			if (type_of(pc) != KING)
+			{
+				// 両王手なら王の移動をさせなければならない。
+				if (more_than_one(checkers()))
+					return false;
 
-        // 指し手は、王手を遮断しているか、王手している駒の捕獲でなければならない。
-        // ※　王手している駒と王の間に王手している駒の升を足した升が駒の移動先であるか。
-        // 例) 王■■■^飛
-        // となっているときに■の升か、^飛 のところが移動先であれば王手は回避できている。
-        // (素抜きになる可能性はあるが、そのチェックはここでは不要)
-        if (!((between_bb(checkers().pop(), king_square(us)) | checkers()) & to))
-          return false;
-      }
+				// 指し手は、王手を遮断しているか、王手している駒の捕獲でなければならない。
+				// ※　王手している駒と王の間に王手している駒の升を足した升が駒の移動先であるか。
+				// 例) 王■■■^飛
+				// となっているときに■の升か、^飛 のところが移動先であれば王手は回避できている。
+				// (素抜きになる可能性はあるが、そのチェックはここでは不要)
+				if (!((between_bb(checkers().pop(), king_square(us)) | checkers()) & to))
+					return false;
+			}
 
-      // 玉の自殺手のチェックはlegal()のほうで調べているのでここではやらない。
+			// 玉の自殺手のチェックはlegal()のほうで調べているのでここではやらない。
 
-    }
-  }
+		}
+	}
 
-  return true;
+	return true;
 }
 
 
@@ -1459,58 +1462,58 @@ void Position::undo_move_impl(Move m)
 // do_move()を先後分けたdo_move_impl<>()を呼び出す。
 void Position::do_move(Move m, StateInfo& newSt, bool givesCheck)
 {
-  if (sideToMove == BLACK)
-    do_move_impl<BLACK>(m, newSt, givesCheck);
-  else
-    do_move_impl<WHITE>(m, newSt, givesCheck);
+	if (sideToMove == BLACK)
+		do_move_impl<BLACK>(m, newSt, givesCheck);
+	else
+		do_move_impl<WHITE>(m, newSt, givesCheck);
 }
 
 // undo_move()を先後分けたdo_move_impl<>()を呼び出す。
 void Position::undo_move(Move m)
 {
-  if (sideToMove == BLACK)
-    undo_move_impl<WHITE>(m); // 1手前の手番が返らないとややこしいので入れ替えておく。
-  else
-    undo_move_impl<BLACK>(m);
+	if (sideToMove == BLACK)
+		undo_move_impl<WHITE>(m); // 1手前の手番が返らないとややこしいので入れ替えておく。
+	else
+		undo_move_impl<BLACK>(m);
 }
 
 // null move searchに使われる。手番だけ変更する。
 void Position::do_null_move(StateInfo& newSt) {
 
-  ASSERT_LV3(!checkers());
-  ASSERT_LV3(&newSt != st);
+	ASSERT_LV3(!checkers());
+	ASSERT_LV3(&newSt != st);
 
-  // この場合、StateInfo自体は丸ごとコピーしておかないといけない。(他の初期化をしないので)
-  std::memcpy(&newSt, st, sizeof(StateInfo));
-  newSt.previous = st;
-  st = &newSt;
+	// この場合、StateInfo自体は丸ごとコピーしておかないといけない。(他の初期化をしないので)
+	std::memcpy(&newSt, st, sizeof(StateInfo));
+	newSt.previous = st;
+	st = &newSt;
 
-  st->board_key_ ^= Zobrist::side;
+	st->board_key_ ^= Zobrist::side;
 
-  // このタイミングでアドレスが確定するのでprefetchしたほうが良い。(かも)
-  // →　将棋では評価関数の計算時のメモリ帯域がボトルネックになって、ここでprefetchしても
-  // 　prefetchのスケジューラーが処理しきれない可能性が…。
-  // CPUによっては有効なので一応やっておく。
+	// このタイミングでアドレスが確定するのでprefetchしたほうが良い。(かも)
+	// →　将棋では評価関数の計算時のメモリ帯域がボトルネックになって、ここでprefetchしても
+	// 　prefetchのスケジューラーが処理しきれない可能性が…。
+	// CPUによっては有効なので一応やっておく。
 
-  const Key key = st->key();
-  prefetch(TT.first_entry(key));
+	const Key key = st->key();
+	prefetch(TT.first_entry(key));
 
-  // これは、さっきアクセスしたところのはずなので意味がない。
-  //  Eval::prefetch_evalhash(key);
+	// これは、さっきアクセスしたところのはずなので意味がない。
+	//  Eval::prefetch_evalhash(key);
 
-  st->pliesFromNull = 0;
+	st->pliesFromNull = 0;
 
-  sideToMove = ~sideToMove;
+	sideToMove = ~sideToMove;
 
-  set_check_info<true>(st);
+	set_check_info<true>(st);
 }
 
-void Position::undo_null_move() {
+void Position::undo_null_move()
+{
+	ASSERT_LV3(!checkers());
 
-  ASSERT_LV3(!checkers());
-
-  st = st->previous;
-  sideToMove = ~sideToMove;
+	st = st->previous;
+	sideToMove = ~sideToMove;
 }
 
 // ----------------------------------
@@ -1580,10 +1583,10 @@ bool Position::pos_is_ok() const
 	// Bitboardの完全なテストには時間がかかるので、あまりややこしいテストは現実的ではない。
 
 #if 0
-  // 1) 盤上の駒と手駒を合わせて40駒あるか。
-  // →　駒落ちに対応させたいのでコメントアウト
+	// 1) 盤上の駒と手駒を合わせて40駒あるか。
+	// →　駒落ちに対応させたいのでコメントアウト
 
-  // それぞれの駒のあるべき枚数
+	// それぞれの駒のあるべき枚数
 	const int ptc0[KING] = { 2/*玉*/,18/*歩*/,4/*香*/,4/*桂*/,4/*銀*/,2/*角*/,2/*飛*/,4/*金*/ };
 	// カウント用の変数
 	int ptc[PIECE_WHITE] = { 0 };
