@@ -369,17 +369,18 @@ extern Bitboard LanceStepEffectBB[SQ_NB_PLUS1][COLOR_NB];
 extern Bitboard BishopStepEffectBB[SQ_NB_PLUS1];
 extern Bitboard RookStepEffectBB[SQ_NB_PLUS1];
 
-// 指定した位置の属する file の bit を shift し、
-// index を求める為に使用する。(from Apery)
-extern int Slide[SQ_NB_PLUS1];
-
 // --- 角の利き
 extern Bitboard BishopEffect[20224+1];
 extern Bitboard BishopEffectMask[SQ_NB_PLUS1];
 extern int BishopEffectIndex[SQ_NB_PLUS1];
 
 // --- 飛車の縦、横の利き
-extern Bitboard RookEffectFile[SQ_NB_PLUS1][128];
+
+// 飛車の縦方向の利きを求めるときに、指定した升sqの属するfileのbitをshiftし、
+// index を求める為に使用する。(from Apery)
+extern int Slide[SQ_NB_PLUS1];
+
+extern u64      RookEffectFile[RANK_NB + 1][128];
 extern Bitboard RookEffectRank[FILE_NB + 1][128];
 
 // Haswellのpext()を呼び出す。occupied = occupied bitboard , mask = 利きの算出に絡む升が1のbitboard
@@ -448,14 +449,20 @@ inline Bitboard horseEffect(const Square sq, const Bitboard& occupied) { return 
 
 
 // 飛車の縦の利き
-inline Bitboard rookEffectFile(const Square sq, const Bitboard& occupied) {
-	const int index = (occupied.p[Bitboard::part(sq)] >> Slide[sq]) & 127;
-	return RookEffectFile[sq][index];
+inline Bitboard rookEffectFile(const Square sq, const Bitboard& occupied)
+{
+	ASSERT_LV3(sq <= SQ_NB);
+	const int index = (occupied.p[Bitboard::part(sq)] >> Slide[sq]) & 0x7f;
+	File f = file_of(sq);
+	return (f <= FILE_7) ?
+		Bitboard(RookEffectFile[rank_of(sq)][index] << int(f | RANK_1), 0) :
+		Bitboard(0, RookEffectFile[rank_of(sq)][index] << int((File)(f - FILE_8) | RANK_1));
 }
 
 // 飛車の横の利き
 inline Bitboard rookEffectRank(const Square sq, const Bitboard& occupied)
 {
+	ASSERT_LV3(sq <= SQ_NB);
 	// 将棋盤をシフトして、SQ_71 , SQ_61 .. SQ_11に飛車の横方向の情報を持ってくる。
 	// このbitを直列化して7bit取り出して、これがindexとなる。
 	// しかし、r回の右シフトを以下の変数uに対して行なうと計算完了まで待たされるので、

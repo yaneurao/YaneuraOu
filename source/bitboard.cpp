@@ -71,7 +71,7 @@ Bitboard BishopEffectMask[SQ_NB_PLUS1];
 int BishopEffectIndex[SQ_NB_PLUS1];
 
 // 飛車の縦、横の利き
-Bitboard RookEffectFile[SQ_NB_PLUS1][128];
+u64      RookEffectFile[RANK_NB + 1][128];
 Bitboard RookEffectRank[FILE_NB + 1][128];
 
 // 歩が打てる筋を得るためのBitboard
@@ -299,8 +299,11 @@ void Bitboards::init()
 	// 5. 飛車の縦方向の利きテーブルの初期化
 	// ここでは飛車の利きを使わずに初期化しないといけない。
 
-	for (auto sq : SQ)
+	for (Rank rank = RANK_1; rank <= RANK_9 ; ++rank)
 	{
+		// sq = SQ_11 , SQ_12 , ... , SQ_19
+		Square sq = FILE_1 | rank;
+
 		const int num1s = 7;
 		for (int i = 0; i < (1 << num1s); ++i)
 		{
@@ -320,16 +323,17 @@ void Bitboards::init()
 				if (ii & (1 << r))
 					break;
 			}
-			RookEffectFile[sq][i] = bb;
+			RookEffectFile[rank][i] = bb.p[0];
+			// RookEffectFile[RANK_NB][x] には値を代入していないがC++の規約によりゼロ初期化されている。
 		}
 	}
 
 	// 飛車の横の利き
-	for (File file = FILE_1 ; file <= (FILE_9 + 1) ; ++file )
+	for (File file = FILE_1 ; file <= FILE_9 ; ++file )
 	{
 		// sq = SQ_11 , SQ_21 , ... , SQ_NBまで
-		Square sq = (Square)((int)file * RANK_NB);
-
+		Square sq = file | RANK_1;
+		
 		const int num1s = 7;
 		for (int i = 0; i < (1 << num1s); ++i)
 		{
@@ -347,7 +351,8 @@ void Bitboards::init()
 				if (ii & (1 << f))
 					break;
 			}
-			RookEffectRank[file_of(sq)][i] = bb;
+			RookEffectRank[file][i] = bb;
+			// RookEffectRank[FILE_NB][x] には値を代入していないがC++の規約によりゼロ初期化されている。
 		}
 	}
 
@@ -364,7 +369,7 @@ void Bitboards::init()
 		for(auto sq : SQ)
 			// 障害物がないときの香の利き
 			// これを最初に初期化しないとlanceEffect()が使えない。
-			LanceStepEffectBB[sq][c] = RookEffectFile[sq][0] & InFrontBB[c][rank_of(sq)];
+			LanceStepEffectBB[sq][c] = rookEffectFile(sq,ZERO_BB) & InFrontBB[c][rank_of(sq)];
 
 	for (auto c : COLOR)
 		for (auto sq : SQ)
