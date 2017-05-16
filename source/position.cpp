@@ -12,11 +12,11 @@ std::string SFEN_HIRATE = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGK
 
 // 局面のhash keyを求めるときに用いるZobrist key
 namespace Zobrist {
-  HASH_KEY zero; // ゼロ(==0)
-  HASH_KEY side; // 手番(==1)
-  HASH_KEY psq[SQ_NB_PLUS1][PIECE_NB]; // 駒pcが盤上sqに配置されているときのZobrist Key
-  HASH_KEY hand[COLOR_NB][PIECE_HAND_NB]; // c側の手駒prが一枚増えるごとにこれを加算するZobristKey
-  HASH_KEY depth[MAX_PLY]; // 深さも考慮に入れたHASH KEYを作りたいときに用いる(実験用)
+	HASH_KEY zero;							// ゼロ(==0)
+	HASH_KEY side;							// 手番(==1)
+	HASH_KEY psq[SQ_NB_PLUS1][PIECE_NB];	// 駒pcが盤上sqに配置されているときのZobrist Key
+	HASH_KEY hand[COLOR_NB][PIECE_HAND_NB];	// c側の手駒prが一枚増えるごとにこれを加算するZobristKey
+	HASH_KEY depth[MAX_PLY];				// 深さも考慮に入れたHASH KEYを作りたいときに用いる(実験用)
 }
 
 // ----------------------------------
@@ -607,31 +607,20 @@ bool Position::gives_check(Move m) const {
   // 移動先
   const Square to = move_to(m);
 
-  if (is_drop(m))
-  {
-    // 打つ駒
-    const Piece pt = move_dropped_piece(m);
-    // その駒をtoの地点において王手になるかを判定してそのままreturnする。
-    // 王手にならないとしても、駒打ちによって開き王手になることはないから、
-    // そういう追加の判定は不要。
-    return st->checkSquares[pt] & to;
+  // 駒打ち・移動する指し手どちらであってもmove_piece_after(m)で移動後の駒が取得できるので
+  // 直接王手の処理は共通化できる。
+  if (st->checkSquares[type_of(moved_piece_after(m))] & to)
+	  return true;
 
-  } else {
-	  
-	// 移動元
-    const Square from = move_from(m);
+  // -- 移動する指し手ならば、これで開き王手になるかどうかの判定が必要。
 
-	// 移動先に来る駒で直接王手になるかどうか。
-    if (st->checkSquares[type_of(moved_piece_after(m))] & to)
-      return true;
+  // 移動元
+  const Square from = move_from(m);
 
-    // 開き王手になる駒の候補があるとして、fromにあるのがその駒で、fromからtoは玉と直線上にないなら
-	if ((discovered_check_candidates() & from)
-		&& !aligned(from, to, square<KING>(~sideToMove)))
-		return true;
-  }
-
-  return false;
+  // 開き王手になる駒の候補があるとして、fromにあるのがその駒で、fromからtoは玉と直線上にないなら
+  return !is_drop(m)
+		&& ((discovered_check_candidates() & from)
+		&& !aligned(from, to, square<KING>(~sideToMove)));
 }
 
 Bitboard Position::pinned_pieces(Color c, Square avoid) const {

@@ -555,6 +555,7 @@ namespace Eval
 		{
 			// 全計算
 			compute_eval(pos);
+
 			return;
 			// 結果は、pos->state().sumから取り出すべし。
 		}
