@@ -66,9 +66,9 @@ Bitboard BishopStepEffectBB[SQ_NB_PLUS1];
 Bitboard RookStepEffectBB[SQ_NB_PLUS1];
 
 // 角の利き
-Bitboard BishopEffect[20224+1];
-Bitboard BishopEffectMask[SQ_NB_PLUS1];
-int BishopEffectIndex[SQ_NB_PLUS1];
+Bitboard BishopEffect[2][1856+1];
+Bitboard BishopEffectMask[2][SQ_NB_PLUS1];
+int BishopEffectIndex[2][SQ_NB_PLUS1];
 
 // 飛車の縦、横の利き
 u64      RookEffectFile[RANK_NB + 1][128];
@@ -201,49 +201,44 @@ void Bitboards::init()
 
 	// Rook or Bishop の利きの範囲を調べて bitboard で返す。
 	// occupied  障害物があるマスが 1 の bitboard
-	auto effectCalc = [](const Square square, const Bitboard& occupied, const Piece piece)
+	// n = 0 右上から左下 , n = 1 左上から右下
+	auto effectCalc = [](const Square square, const Bitboard& occupied, int n)
 	{
-	auto result = ZERO_BB;
+		auto result = ZERO_BB;
 
-	// 角の利きのrayと飛車の利きのray
-	const SquareWithWall deltaArray[2][4] = { { SQWW_RU, SQWW_RD, SQWW_LU, SQWW_LD },{ SQWW_U, SQWW_D, SQWW_R, SQWW_L } };
-	for (auto delta : deltaArray[(piece == BISHOP) ? 0 : 1])
-		// 壁に当たるまでsqを利き方向に伸ばしていく
-		for (auto sq = to_sqww(square) + delta; is_ok(sq) ; sq += delta)
+		// 角の利きのrayと飛車の利きのray
+		const SquareWithWall deltaArray[2][2] = { { SQWW_RU, SQWW_LD },{ SQWW_RD, SQWW_LU} };
+		for (auto delta : deltaArray[n])
 		{
-		result ^= sqww_to_sq(sq); // まだ障害物に当っていないのでここまでは利きが到達している
+			// 壁に当たるまでsqを利き方向に伸ばしていく
+			for (auto sq = to_sqww(square) + delta; is_ok(sq); sq += delta)
+			{
+				result ^= sqww_to_sq(sq); // まだ障害物に当っていないのでここまでは利きが到達している
 
-		if (occupied & sqww_to_sq(sq)) // sqの地点に障害物があればこのrayは終了。
-			break;
+				if (occupied & sqww_to_sq(sq)) // sqの地点に障害物があればこのrayは終了。
+					break;
+			}
 		}
-	return result;
+		return result;
 	};
 
 	// pieceをsqにおいたときに利きを得るのに関係する升を返す
-	auto calcEffectMask = [](Square sq, Piece piece)
+	auto calcBishopEffectMask = [](Square sq, int n)
 	{
 		Bitboard result;
-		if (piece == BISHOP) {
+		result = ZERO_BB;
 
-			result = ZERO_BB;
-
-			for (Rank r = RANK_2; r <= RANK_8; ++r)
+		// 外周は角の利きには関係ないのでそこは除外する。
+		for (Rank r = RANK_2; r <= RANK_8; ++r)
 			for (File f = FILE_2; f <= FILE_8; ++f)
-				// 外周は角の利きには関係ないのでそこは除外する。
-				if (abs(rank_of(sq) - r) == abs(file_of(sq) - f))
-				result ^= (f | r);
-		} else {
-
-			ASSERT_LV3(piece == ROOK);
-
-			result = RANK_BB[rank_of(sq)] ^ FILE_BB[file_of(sq)];
-
-			// 外周に居ない限り、その外周升は利きの計算には関係ない。
-			if (file_of(sq) != FILE_1) { result &= ~FILE1_BB; }
-			if (file_of(sq) != FILE_9) { result &= ~FILE9_BB; }
-			if (rank_of(sq) != RANK_1) { result &= ~RANK1_BB; }
-			if (rank_of(sq) != RANK_9) { result &= ~RANK9_BB; }
-		}
+			{
+				auto dr = rank_of(sq) - r;
+				auto df = file_of(sq) - f;
+				// dr == dfとdr != dfとをnが0,1とで切り替える。
+				if (abs(dr) == abs(df)
+					&& (!!((int)dr == (int)df) ^ n ))
+						result ^= (f | r);
+			}
 
 		// sqの地点は関係ないのでクリアしておく。
 		result &= ~Bitboard(sq);
@@ -251,48 +246,44 @@ void Bitboards::init()
 		return result;
 	};
   
-	// 角と飛車の利きテーブルの初期化
-	for (Piece pc : {BISHOP /*,ROOK */ } )
+	// 角の利きテーブルの初期化
+	for (int n : { 0 , 1 })
 	{
-		// 初期化するテーブルのアドレス
-		Bitboard* effects = (pc == BISHOP) ? BishopEffect : /*RookEffect*/ nullptr;
-
-		// sqの升に対してテーブルのどこを見るかのindex
-		int* effectIndex = (pc == BISHOP) ? BishopEffectIndex : /*RookEffectIndex */ nullptr;
-
-		// 利きを得るために関係する升
-		Bitboard* masks = (pc == BISHOP) ? BishopEffectMask : /*RookEffectMask */ nullptr;
-
 		int index = 0;
-
 		for (auto sq : SQ)
 		{
-			effectIndex[sq] = index;
+			// sqの升に対してテーブルのどこを見るかのindex
+			BishopEffectIndex[n][sq] = index;
 
 			// sqの地点にpieceがあるときにその利きを得るのに関係する升を取得する
-			masks[sq] = calcEffectMask(sq, pc);
+			auto& mask = BishopEffectMask[n][sq];
+			mask = calcBishopEffectMask(sq, n);
 
 			// p[0]とp[1]が被覆していると正しく計算できないのでNG。
 			// Bitboardのレイアウト的に、正しく計算できるかのテスト。
 			// 縦型Bitboardであるならp[0]のbit63を余らせるようにしておく必要がある。
-			ASSERT_LV3(!(masks[sq].p[0] & masks[sq].p[1]));
+			ASSERT_LV3(!(mask.cross_over()));
 
 			// sqの升用に何bit情報を拾ってくるのか
-			const int bits = masks[sq].pop_count();
+			const int bits = mask.pop_count();
 
 			// 参照するoccupied bitboardのbit数と、そのbitの取りうる状態分だけ..
 			const int num = 1 << bits;
 
 			for (int i = 0; i < num; ++i)
 			{
-				Bitboard occupied = indexToOccupied(i, bits, masks[sq]);
-				effects[index + occupiedToIndex(occupied & masks[sq], masks[sq])] = effectCalc(sq, occupied, pc);
+				Bitboard occupied = indexToOccupied(i, bits, mask);
+				// 初期化するテーブル
+				BishopEffect[n][index + occupiedToIndex(occupied & mask, mask)] = effectCalc(sq, occupied, n);
 			}
 			index += num;
 		}
 
 		// 盤外(SQ_NB)に駒を配置したときに利きがZERO_BBとなるときのための処理
-		effectIndex[SQ_NB] = index;
+		BishopEffectIndex[n][SQ_NB] = index;
+
+		// 何番まで使ったか出力してみる。(確保する配列をこのサイズに収めたいので)
+		// cout << index << endl;
 	}
 
   
