@@ -98,7 +98,7 @@ struct alignas(16) Bitboard
 
 	// pop()をp[0],p[1]に分けて片側ずつする用
 	FORCE_INLINE Square pop_from_p0() { u64 q0 = extract64<0>(); ASSERT_LV3(q0 != 0);  Square sq = Square(pop_lsb(q0)); insert64<0>(q0); return sq; }
-	FORCE_INLINE Square pop_from_p1() { u64 q1 = extract64<1>();  ASSERT_LV3(q1 != 0);  Square sq = Square(pop_lsb(q1) + 63); insert64<1>(q1); return sq; }
+	FORCE_INLINE Square pop_from_p1() { u64 q1 = extract64<1>(); ASSERT_LV3(q1 != 0);  Square sq = Square(pop_lsb(q1) + 63); insert64<1>(q1); return sq; }
 
 	// 1のbitを数えて返す。
 	int pop_count() const { return (int)(POPCNT64(extract64<0>()) + POPCNT64(extract64<1>())); }
@@ -114,10 +114,10 @@ struct alignas(16) Bitboard
 
 	// 左シフト(縦型Bitboardでは左1回シフトで1段下の升に移動する)
 	// ※　シフト演算子は歩の利きを求めるためだけに使う。
-	Bitboard& operator <<= (int shift) { ASSERT_LV3(shift == 1); m = _mm_slli_epi64(m, shift); return *this; }
+	Bitboard& operator <<= (int shift) { /*ASSERT_LV3(shift == 1);*/ m = _mm_slli_epi64(m, shift); return *this; }
 
 	// 右シフト(縦型Bitboardでは右1回シフトで1段上の升に移動する)
-	Bitboard& operator >>= (int shift) { ASSERT_LV3(shift == 1); m = _mm_srli_epi64(m, shift); return *this; }
+	Bitboard& operator >>= (int shift) { /*ASSERT_LV3(shift == 1);*/ m = _mm_srli_epi64(m, shift); return *this; }
 
 #else
 	Bitboard& operator |= (const Bitboard& b1) { this->p[0] |= b1.p[0]; this->p[1] |= b1.p[1]; return *this; }
@@ -126,8 +126,8 @@ struct alignas(16) Bitboard
 	Bitboard& operator += (const Bitboard& b1) { this->p[0] += b1.p[0]; this->p[1] += b1.p[1]; return *this; }
 	Bitboard& operator -= (const Bitboard& b1) { this->p[0] -= b1.p[0]; this->p[1] -= b1.p[1]; return *this; }
 
-	Bitboard& operator <<= (int shift) { ASSERT_LV3(shift == 1); this->p[0] <<= shift; this->p[1] <<= shift; return *this; }
-	Bitboard& operator >>= (int shift) { ASSERT_LV3(shift == 1); this->p[0] >>= shift; this->p[1] >>= shift; return *this; }
+	Bitboard& operator <<= (int shift) { /*ASSERT_LV3(shift == 1);*/ this->p[0] <<= shift; this->p[1] <<= shift; return *this; }
+	Bitboard& operator >>= (int shift) { /*ASSERT_LV3(shift == 1);*/ this->p[0] >>= shift; this->p[1] >>= shift; return *this; }
 #endif
 
 	// 比較演算子
@@ -369,9 +369,6 @@ extern Bitboard LanceStepEffectBB[SQ_NB_PLUS1][COLOR_NB];
 extern Bitboard BishopStepEffectBB[SQ_NB_PLUS1];
 extern Bitboard RookStepEffectBB[SQ_NB_PLUS1];
 
-// --- 香の利き
-extern Bitboard LanceEffect[SQ_NB_PLUS1][COLOR_NB][128];
-
 // 指定した位置の属する file の bit を shift し、
 // index を求める為に使用する。(from Apery)
 extern int Slide[SQ_NB_PLUS1];
@@ -381,10 +378,9 @@ extern Bitboard BishopEffect[20224+1];
 extern Bitboard BishopEffectMask[SQ_NB_PLUS1];
 extern int BishopEffectIndex[SQ_NB_PLUS1];
 
-// --- 飛車の利き
-extern Bitboard RookEffect[495616+1];
-extern Bitboard RookEffectMask[SQ_NB_PLUS1];
-extern int RookEffectIndex[SQ_NB_PLUS1];
+// --- 飛車の縦、横の利き
+extern Bitboard RookEffectFile[SQ_NB_PLUS1][128];
+extern Bitboard RookEffectRank[FILE_NB + 1][128];
 
 // Haswellのpext()を呼び出す。occupied = occupied bitboard , mask = 利きの算出に絡む升が1のbitboard
 // この関数で戻ってきた値をもとに利きテーブルを参照して、遠方駒の利きを得る。
@@ -433,8 +429,6 @@ inline Bitboard rookStepEffect(Square sq) { return RookStepEffectBB[sq]; }
 // 盤上の駒を考慮しない香の利き
 inline Bitboard lanceStepEffect(Color c, Square sq) { return LanceStepEffectBB[sq][c]; }
 
-// ToDo : 以下の2つ、あとで消すかも。
-
 // 盤上の駒を無視するQueenの動き。
 inline Bitboard queenStepEffect(const Square sq) { return rookStepEffect(sq) | bishopStepEffect(sq); }
 
@@ -442,12 +436,6 @@ inline Bitboard queenStepEffect(const Square sq) { return rookStepEffect(sq) | b
 inline Bitboard cross45StepEffect(Square sq) { return bishopStepEffect(sq) & kingEffect(sq); }
 
 // --- 遠方駒(盤上の駒の状態を考慮しながら利きを求める)
-
-// 香 : occupied bitboardを考慮しながら香の利きを求める
-inline Bitboard lanceEffect(const Color c,const Square sq, const Bitboard& occupied) {
-	const int index = (occupied.p[Bitboard::part(sq)] >> Slide[sq]) & 127;
-	return LanceEffect[sq][c][index];
-}
 
 // 角 : occupied bitboardを考慮しながら角の利きを求める
 inline Bitboard bishopEffect(const Square sq, const Bitboard& occupied) {
@@ -458,21 +446,39 @@ inline Bitboard bishopEffect(const Square sq, const Bitboard& occupied) {
 // 馬 : occupied bitboardを考慮しながら香の利きを求める
 inline Bitboard horseEffect(const Square sq, const Bitboard& occupied) { return bishopEffect(sq, occupied) | kingEffect(sq); }
 
-// 飛 : occupied bitboardを考慮しながら香の利きを求める
+
+// 飛車の縦の利き
+inline Bitboard rookEffectFile(const Square sq, const Bitboard& occupied) {
+	const int index = (occupied.p[Bitboard::part(sq)] >> Slide[sq]) & 127;
+	return RookEffectFile[sq][index];
+}
+
+// 飛車の横の利き
+inline Bitboard rookEffectRank(const Square sq, const Bitboard& occupied)
+{
+	// 将棋盤をシフトして、SQ_71 , SQ_61 .. SQ_11に飛車の横方向の情報を持ってくる。
+	// このbitを直列化して7bit取り出して、これがindexとなる。
+	// しかし、r回の右シフトを以下の変数uに対して行なうと計算完了まで待たされるので、
+	// PEXT64()の第二引数のほうを左シフトしておく。
+	int r = rank_of(sq);
+	u64 u = (occupied.extract64<1>() << 6*9 ) + (occupied.extract64<0>() >> 9);
+	u64 index = PEXT64(u, 0b1000000001000000001000000001000000001000000001000000001 << r);
+	return RookEffectRank[file_of(sq)][index] << r;
+}
+
+// 飛 : occupied bitboardを考慮しながら飛車の利きを求める
 inline Bitboard rookEffect(const Square sq, const Bitboard& occupied)
 {
-	const Bitboard block(occupied & RookEffectMask[sq]);
-	return RookEffect[RookEffectIndex[sq] + occupiedToIndex(block, RookEffectMask[sq])];
+	return rookEffectFile(sq, occupied) | rookEffectRank(sq, occupied);
+}
+
+// 香 : occupied bitboardを考慮しながら香の利きを求める
+inline Bitboard lanceEffect(const Color c, const Square sq, const Bitboard& occupied) {
+	return rookEffectFile(sq, occupied) & lanceStepEffect(c, sq);
 }
 
 // 龍 : occupied bitboardを考慮しながら香の利きを求める
-inline Bitboard dragonEffect(const Square sq, const Bitboard& occupied){ return rookEffect(sq, occupied) | kingEffect(sq); }
-
-// 上下にしか利かない飛車の利き
-inline Bitboard rookEffectFile(const Square sq, const Bitboard& occupied) {
-	const int index = (occupied.p[Bitboard::part(sq)] >> Slide[sq]) & 127;
-	return LanceEffect[sq][BLACK][index] | LanceEffect[sq][WHITE][index];
-}
+inline Bitboard dragonEffect(const Square sq, const Bitboard& occupied) { return rookEffect(sq, occupied) | kingEffect(sq); }
 
 // --------------------
 //   汎用性のある利き

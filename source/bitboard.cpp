@@ -65,18 +65,14 @@ Bitboard LanceStepEffectBB[SQ_NB_PLUS1][COLOR_NB];
 Bitboard BishopStepEffectBB[SQ_NB_PLUS1];
 Bitboard RookStepEffectBB[SQ_NB_PLUS1];
 
-// 香の利き
-Bitboard LanceEffect[SQ_NB_PLUS1][COLOR_NB][128];
-
 // 角の利き
 Bitboard BishopEffect[20224+1];
 Bitboard BishopEffectMask[SQ_NB_PLUS1];
 int BishopEffectIndex[SQ_NB_PLUS1];
 
-// 飛車の利き
-Bitboard RookEffect[495616+1];
-Bitboard RookEffectMask[SQ_NB_PLUS1];
-int RookEffectIndex[SQ_NB_PLUS1];
+// 飛車の縦、横の利き
+Bitboard RookEffectFile[SQ_NB_PLUS1][128];
+Bitboard RookEffectRank[FILE_NB + 1][128];
 
 // 歩が打てる筋を得るためのBitboard
 // bit0 = 9筋に歩が打てないなら1 , bit1 = 8筋に… , bit8 = 1筋に歩が打てないなら1
@@ -256,16 +252,16 @@ void Bitboards::init()
 	};
   
 	// 角と飛車の利きテーブルの初期化
-	for (Piece pc : {BISHOP,ROOK} )
+	for (Piece pc : {BISHOP /*,ROOK */ } )
 	{
 		// 初期化するテーブルのアドレス
-		Bitboard* effects = (pc == BISHOP) ? BishopEffect : RookEffect;
+		Bitboard* effects = (pc == BISHOP) ? BishopEffect : /*RookEffect*/ nullptr;
 
-		// sqの升に対してテーブルのどこを引くかのindex
-		int* effectIndex = (pc == BISHOP) ? BishopEffectIndex : RookEffectIndex;
+		// sqの升に対してテーブルのどこを見るかのindex
+		int* effectIndex = (pc == BISHOP) ? BishopEffectIndex : /*RookEffectIndex */ nullptr;
 
 		// 利きを得るために関係する升
-		Bitboard* masks = (pc == BISHOP) ? BishopEffectMask : RookEffectMask;
+		Bitboard* masks = (pc == BISHOP) ? BishopEffectMask : /*RookEffectMask */ nullptr;
 
 		int index = 0;
 
@@ -300,19 +296,60 @@ void Bitboards::init()
 	}
 
   
-	// 5. 香の利きテーブルの初期化
-	// 上で初期化した飛車の利きを用いる。
+	// 5. 飛車の縦方向の利きテーブルの初期化
+	// ここでは飛車の利きを使わずに初期化しないといけない。
 
-	for (auto c : COLOR)
-		for (auto sq : SQ)
+	for (auto sq : SQ)
+	{
+		const int num1s = 7;
+		for (int i = 0; i < (1 << num1s); ++i)
 		{
-			const Bitboard blockMask = FILE_BB[file_of(sq)] & ~(RANK1_BB | RANK9_BB);
-			const int num1s = 7;
-			for (int i = 0; i < (1 << num1s); ++i) {
-				Bitboard occupied = indexToOccupied(i, num1s, blockMask);
-				LanceEffect[sq][c][i] = rookEffect(sq, occupied) & InFrontBB[c][rank_of(sq)];
+			// iはsqに駒をおいたときに、その筋の2段～8段目の升がemptyかどうかを表現する値なので
+			// 1ビットシフトして、1～9段目の升を表現するようにする。
+			int ii = i << 1;
+			Bitboard bb = ZERO_BB;
+			for (int r = rank_of(sq) - 1; r >= RANK_1; --r)
+			{
+				bb |= file_of(sq) | (Rank)r;
+				if (ii & (1 << r))
+					break;
 			}
+			for (int r = rank_of(sq) + 1; r <= RANK_9; ++r)
+			{
+				bb |= file_of(sq) | (Rank)r;
+				if (ii & (1 << r))
+					break;
+			}
+			RookEffectFile[sq][i] = bb;
 		}
+	}
+
+	// 飛車の横の利き
+	for (File file = FILE_1 ; file <= (FILE_9 + 1) ; ++file )
+	{
+		// sq = SQ_11 , SQ_21 , ... , SQ_NBまで
+		Square sq = (Square)((int)file * RANK_NB);
+
+		const int num1s = 7;
+		for (int i = 0; i < (1 << num1s); ++i)
+		{
+			int ii = i << 1;
+			Bitboard bb = ZERO_BB;
+			for (int f = file_of(sq) - 1; f >= FILE_1; --f)
+			{
+				bb |= (File)f | rank_of(sq);
+				if (ii & (1 << f))
+					break;
+			}
+			for (int f = file_of(sq) + 1; f <= FILE_9; ++f)
+			{
+				bb |= (File)f | rank_of(sq);
+				if (ii & (1 << f))
+					break;
+			}
+			RookEffectRank[file_of(sq)][i] = bb;
+		}
+	}
 
 	// 6. 近接駒(+盤上の利きを考慮しない駒)のテーブルの初期化。
 	// 上で初期化した、香・馬・飛の利きを用いる。
@@ -322,14 +359,18 @@ void Bitboards::init()
 		// 玉は長さ1の角と飛車の利きを合成する
 		KingEffectBB[sq] = bishopEffect(sq, ALL_BB) | rookEffect(sq, ALL_BB);
 	}
+
+	for (auto c : COLOR)
+		for(auto sq : SQ)
+			// 障害物がないときの香の利き
+			// これを最初に初期化しないとlanceEffect()が使えない。
+			LanceStepEffectBB[sq][c] = RookEffectFile[sq][0] & InFrontBB[c][rank_of(sq)];
+
 	for (auto c : COLOR)
 		for (auto sq : SQ)
 		{
 			// 歩は長さ1の香の利きとして定義できる
 			PawnEffectBB[sq][c] = lanceEffect(c, sq, ALL_BB);
-
-			// 障害物がないときの香の利き
-			LanceStepEffectBB[sq][c] = lanceEffect(c, sq, ZERO_BB);
 
 			// 桂の利きは、歩の利きの地点に長さ1の角の利きを作って、前方のみ残す。
 			Bitboard tmp = ZERO_BB;
