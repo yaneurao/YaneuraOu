@@ -215,6 +215,10 @@ void prefetch(void* addr) {
 	// SSEの命令なのでSSE2が使える状況でのみ使用する。
 #ifdef USE_SSE2
 
+	// 下位5bitが0でないような中途半端なアドレスのprefetchは、
+	// そもそも構造体がalignされていない可能性があり、バグに違いない。
+	ASSERT_LV3(((u64)addr & 0x1f) == 0);
+
 #  if defined(__INTEL_COMPILER)
 	// 最適化でprefetch命令を削除するのを回避するhack。MSVCとgccは問題ない。
 	__asm__("");
@@ -236,7 +240,11 @@ void prefetch(void* addr) {
 
 #endif
 
-void prefetch2(void* addr) {
+void prefetch2(void* addr)
+{
+	// Stockfishのコードはこうなっている。
+	// cache lineが32byteなら、あと2回やる必要があるように思うのだが…。
+
 	prefetch(addr);
 	prefetch((uint8_t*)addr + 64);
 }
