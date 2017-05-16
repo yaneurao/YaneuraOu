@@ -2,14 +2,42 @@
 やねうら王 更新履歴
 
 
+■　2017/05/17 V4.58
+
+・lanceEffect()はrookFileEffect()を使うように変更。
+・飛車の利きを求めるための利きテーブルを無くした。
+・飛車の利き用のテーブルさらに小さくした。
+・角の利き用のテーブル小さくした。
+・working memory、だいぶ減ったかも。置換表を小さくすればいままでせ動かなかったスマホでも動くかも。
+
+
+■　2017/05/16
+
+・Learner::search、max_game_plyの値を変更しないようにした。
+・Limits.max_game_plyに一本化していたの、やめた。
+・MaxMovesToDrawを0に設定されたとき内部的にINT_MAXにしていたの、100000に変更。
+・is_ready()のなかでSignals.stopなどの変数を初期化するように変更。
+・Stockfish
+	- Execute an implied ucinewgame at startup
+・position::gives_check() リファクタリング。
+・position.cpp reformatting
+・ベンチマークだけTEST_CMDから移動させる。これは常に必要。
+・reformatting position.h
+・step effectリファクタリング
+・Position::attackers_to()、高速化。
+・prefetch()にassert追加。
+・NextSquareテーブル、u8に変更。
+・mate1ply_without_effect.cpp reformatting
+・pawnEffect(Color,Bitboard)追加。Shift<>(Bitboard)削除。
+・歩の打てるところを調べるコード、テーブルを2つに分割。先後の区別なしにする。
+・Bitboard(u64,u64)のSSE2用コードを追加。
+
+
 ■　2017/05/15 V4.57
 
 ・検討モード用の読み筋出力として、ConsiderationMode "検討モード用のPV出力" を用意。
 ・テスト用に"test search"コマンド追加。
 ・SILVER_HDK、GOLDS_HDK追加。
-・Learner::search、max_game_plyの値を変更しないようにした。
-・Limits.max_game_plyに一本化していたの、やめた。
-・MaxMovesToDrawを0に設定されたとき内部的にINT_MAXにしていたの、100000に変更。
 
 
 ■　2017/05/14 V4.56

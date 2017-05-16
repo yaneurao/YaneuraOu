@@ -5,10 +5,112 @@
 - PPAP評価関数
 	- FP型(2GB)
 	- SP型(6GB)
+	- EP型(16GB)
 - elmoの学習ルーチン、取り込む。
-- 読み太のソースコード調査する。
+
+
+## 2017/05/17
+
+- lazySMPで4コアのときに8Tと4Tとどちらがいいか微妙。計測したほうがいいような。
+
+
+・角のテーブル小さくすることを考えたほうがいいかも。
+	- した
+
+Nodes/second    : 816502
+Nodes/second    : 822704
+	// 変わらないのでこれでいく。
+
+Total time (ms) : 31455
+Nodes searched  : 107911684
+Nodes/second    : 3430668
+Nodes searched(main thread) : 13632956
+Nodes/second  (main thread) : 433411
+
+
+・飛車のテーブルさらに小さくした。
+Nodes searched  : 20361112
+Nodes/second    : 823136
+// SSE4.1
+Nodes/second    : 689646
+
+・飛車のテーブルさらに小さくした。
+Nodes/second    : 820384
+
+・角と飛車のテーブル、大きいのでなんとかする。この変なテーブル使うのやめる。
+	角はそんなに大きくないのか。飛車をまずなんとかする。
+
+	飛車のテーブル消したが、ほぼ速度変わらない。
+	Nodes/second    : 811652
+	Nodes/second    : 816927
+
+Total time (ms) : 24635
+Nodes searched  : 84955436
+Nodes/second    : 3448566
+Nodes searched(main thread) : 10999930
+Nodes/second  (main thread) : 446516
+
+
+・lanceEffect()はrootFileEffect()を使うように変更。
+
+// 8T
+Total time (ms) : 13327
+Nodes searched  : 46596805
+Nodes/second    : 3496421
+Nodes searched(main thread) : 5807426
+Nodes/second  (main thread) : 435763
+
+Total time (ms) : 18130
+Nodes searched  : 63283390
+Nodes/second    : 3490534
+Nodes searched(main thread) : 7985854
+Nodes/second  (main thread) : 440477
+
+
+- 歩の打てるところを調べるコード、テーブルを2つに分割。先後の区別なしにする。
+
+- pawnEffect(Color,Bitboard)追加。Shift<>(Bitboard)削除。
+
+- NextSquareテーブル、 u8に変更。
+Nodes/second    : 829271
+// ほぼ変わらず
+
 
 ## 2017/05/16
+
+・Moveのdropのときのfrom、SQ_NB + Pieceにしたほうが使い勝手が良いのでは…。
+	Piece自体はmoved_piece_after()で取得できるわけで…。
+// 善悪微妙なのでこの改造はいいや。
+
+- attackers_to()改良。
+
+Nodes searched  : 20361112
+Nodes/second    : 825004
+// ほぼ変わらず。
+
+・reformatting position.h
+
+・玉以外SQ_NBに移動させることはないので、ここの利きとか配列、不要。
+	→　王手になる指し手を生成するために王(SQ_NB)からの利きを見るので、そう簡単でもないのか。
+
+・ベンチマークだけTEST_CMDから移動させる。これは常に必要。
+
+
+・position::gives_check() リファクタリング。
+共通化できて、少し速くなった。(かも)
+
+
+・EVAL_LEARN、オフにしたほうが高速化する気がする。余計なコードが減って、コードが詰められるからか？
+Nodes searched  : 20361112
+Nodes/second    : 831473
+test cmdもなくしたほうが速くなるかも知れないが、benchコマンドもなくなるのでテストできなくなる。
+
+・Stockfish
+	- Execute an implied ucinewgame at startup
+		- 将棋だとusinewgameではなくisreadyに対して初期化しているのでそちらのコードを整理。
+
+・Learner::search、max_game_plyの値を変更しないようにした。
+・Limits.max_game_plyに一本化していたの、やめた。
 
 		// -- MAX_PLYに到達したかの判定が面倒なのでLimits.max_game_plyに一本化する。
 
@@ -411,9 +513,14 @@ Nodes/second    : 778821
 		int table[SQ_NB + 7][SQ_NB][COLOR_NB];
 でいい。修正。
 
+
 - もしかして、positionクラスで、
 	Bitboard piece_bb[PIECE_TYPE_BITBOARD_NB][COLOR_NB];
 	色別に持たないほうが良いのでは…。大改造になるが高速化のために変更してみる。
+
+Nodes searched  : 20361112
+Nodes/second    : 813598
+// 結果、変わらない気がする。
 
 - piece_bb[][]を直接参照しているところをPosition::pieces()経由でアクセスするように変更。
 
