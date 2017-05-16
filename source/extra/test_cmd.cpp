@@ -1491,10 +1491,8 @@ void dump_sfen(Position& pos, istringstream& is)
 
 void test_cmd(Position& pos, istringstream& is)
 {
-	is_ready();
 	// 探索をするかも知れないので初期化しておく。
-	Search::Signals.stop = false;
-	// 局面は初期化されていないので必要に応じてpos.set()などを呼び出すこと。
+	is_ready();
 
 	std::string param;
 	is >> param;

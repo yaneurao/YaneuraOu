@@ -357,6 +357,7 @@ namespace USI
 u64 eval_sum;
 
 // is_ready_cmd()を外部から呼び出せるようにしておく。(benchコマンドなどから呼び出したいため)
+// 局面は初期化されないので注意。
 void is_ready()
 {
 	static bool first = true;
@@ -378,9 +379,15 @@ void is_ready()
 
 	}
 
-	Search::clear();
+	// isreadyに対してはreadyokを返すまで次のコマンドが来ないことは約束されているので
+	// このタイミングで各種変数の初期化もしておく。
 
+	TT.resize(Options["Hash"]);
+	Search::clear();
 	Time.availableNodes = 0;
+
+	ponder_mode = false;
+	Search::Signals.stop = false;
 }
 
 // isreadyコマンド処理部
@@ -397,7 +404,6 @@ void is_ready_cmd(Position& pos)
 	// evalの値を返せるようにこのタイミングで平手局面で初期化してしまう。
 	pos.set(SFEN_HIRATE);
 
-	ponder_mode = false;
 	sync_cout << "readyok" << sync_endl;
 }
 
