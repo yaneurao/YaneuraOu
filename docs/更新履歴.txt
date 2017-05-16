@@ -9,6 +9,7 @@
 ・SILVER_HDK、GOLDS_HDK追加。
 ・Learner::search、max_game_plyの値を変更しないようにした。
 ・Limits.max_game_plyに一本化していたの、やめた。
+・MaxMovesToDrawを0に設定されたとき内部的にINT_MAXにしていたの、100000に変更。
 
 
 ■　2017/05/14 V4.56

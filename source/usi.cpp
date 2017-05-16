@@ -269,8 +269,9 @@ namespace USI
 		// 最小思考時間[ms]
 		o["MinimumThinkingTime"] << Option(2000, 1000, 100000);
 
-		// 引き分けまでの最大手数。256手ルールのときに256。0なら無制限。
-		o["MaxMovesToDraw"] << Option(0, 0, 100000, [](const Option& o) { max_game_ply = (o == 0) ? INT_MAX : (int)o; });
+		// 引き分けまでの最大手数。256手ルールのときに256を設定すると良い。
+		// 0なら無制限。(桁あふれすると良くないので内部的には100000として扱う)
+		o["MaxMovesToDraw"] << Option(0, 0, 100000, [](const Option& o) { max_game_ply = (o == 0) ? 100000 : (int)o; });
 
 		// 引き分けを受け入れるスコア
 		// 歩を100とする。例えば、この値を100にすると引き分けの局面は評価値が -100とみなされる。
