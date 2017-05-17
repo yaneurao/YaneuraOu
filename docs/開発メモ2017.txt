@@ -17,10 +17,12 @@
 ・角のテーブル小さくすることを考えたほうがいいかも。
 	- した
 
+// 1T
 Nodes/second    : 816502
 Nodes/second    : 822704
 	// 変わらないのでこれでいく。
 
+// 8T
 Total time (ms) : 31455
 Nodes searched  : 107911684
 Nodes/second    : 3430668

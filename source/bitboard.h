@@ -438,14 +438,25 @@ inline Bitboard cross45StepEffect(Square sq) { return bishopStepEffect(sq) & kin
 
 // --- 遠方駒(盤上の駒の状態を考慮しながら利きを求める)
 
+// 角の右上と左下方向への利き
+inline Bitboard bishopEffect0(const Square sq, const Bitboard& occupied)
+{
+	const Bitboard block0(occupied & BishopEffectMask[0][sq]);
+	return BishopEffect[0][BishopEffectIndex[0][sq] + occupiedToIndex(block0, BishopEffectMask[0][sq])];
+}
+
+// 角の左上と右下方向への利き
+inline Bitboard bishopEffect1(const Square sq, const Bitboard& occupied)
+{
+	const Bitboard block1(occupied & BishopEffectMask[1][sq]);
+	return BishopEffect[1][BishopEffectIndex[1][sq] + occupiedToIndex(block1, BishopEffectMask[1][sq])];
+}
+
+
 // 角 : occupied bitboardを考慮しながら角の利きを求める
 inline Bitboard bishopEffect(const Square sq, const Bitboard& occupied)
 {
-	const Bitboard block0(occupied & BishopEffectMask[0][sq]);
-	const Bitboard block1(occupied & BishopEffectMask[1][sq]);
-	// 右上から左下方向 + 左上から右下方向
-	return BishopEffect[0][BishopEffectIndex[0][sq] + occupiedToIndex(block0, BishopEffectMask[0][sq])]
-		 | BishopEffect[1][BishopEffectIndex[1][sq] + occupiedToIndex(block1, BishopEffectMask[1][sq])];
+	return bishopEffect0(sq, occupied) | bishopEffect1(sq, occupied);
 }
 
 // 馬 : occupied bitboardを考慮しながら香の利きを求める

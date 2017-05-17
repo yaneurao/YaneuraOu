@@ -1242,22 +1242,28 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 				auto directions = directions_of(from, ksq);
 				switch (pop_directions(directions)) {
 
-					// 斜めに利く遠方駒は角(+馬)しかないので、玉の位置から角の利きを求めてその利きのなかにいる角を足す。
-
-				case DIRECT_RU: case DIRECT_RD: case DIRECT_LU: case DIRECT_LD:
-					st->checkersBB |= bishopEffect(ksq, pieces()) & pieces(Us, BISHOP_HORSE); break;
-
-					// 横に利く遠方駒は飛車(+龍)しかないので、玉の位置から飛車の利きを求めてその利きのなかにいる飛車を足す。
-
-				case DIRECT_R: case DIRECT_L:
-					st->checkersBB |= rookEffect(ksq, pieces()) & pieces(Us, ROOK_DRAGON); break;
-
 					// fromと敵玉とは同じ筋にあり、かつfromから駒を移動させて空き王手になる。
 					// つまりfromから上下を見ると、敵玉と、自分の開き王手をしている遠方駒(飛車 or 香)があるはずなのでこれを追加する。
 					// 敵玉はpieces(Us)なので含まれないはずであり、結果として自分の開き王手している駒だけが足される。
 
 				case DIRECT_U: case DIRECT_D:
 					st->checkersBB |= rookEffectFile(from, pieces()) & pieces(Us); break;
+
+					// 横に利く遠方駒は飛車(+龍)しかないので、玉の位置から飛車の利きを求めてその利きのなかにいる飛車を足す。
+					// →　飛車の横だけの利きを求める関数を用意したので、それを用いると上と同様の手法で求まる。
+
+				case DIRECT_R: case DIRECT_L:
+					st->checkersBB |= rookEffectRank(from, pieces()) & pieces(Us); break;
+
+					// 斜めに利く遠方駒は角(+馬)しかないので、玉の位置から角の利きを求めてその利きのなかにいる角を足す。
+					// →　上と同様の方法が使える。以下同様。
+
+				case DIRECT_RU: case DIRECT_LD:
+					st->checkersBB |= bishopEffect0(from, pieces()) & pieces(Us); break;
+
+				case DIRECT_RD: case DIRECT_LU:
+					st->checkersBB |= bishopEffect1(from, pieces()) & pieces(Us); break;
+
 
 				default: UNREACHABLE;
 				}
