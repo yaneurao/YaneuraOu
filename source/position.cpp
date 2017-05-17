@@ -1281,9 +1281,6 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 			st->checkersBB = ZERO_BB;
 			st->continuousCheck[Us] = 0;
-
-			// put_piece()などを用いたのでupdateする
-			update_bitboards();
 		}
 	}
 
