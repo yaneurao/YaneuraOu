@@ -267,11 +267,11 @@ struct Position
 	// --- Bitboard
 
 	// 先手か後手か、いずれかの駒がある場所が1であるBitboardが返る。
-	Bitboard pieces() const { return occupied[COLOR_ALL]; }
+	Bitboard pieces() const { return byTypeBB[ALL_PIECES]; }
 
 	// c == BLACK : 先手の駒があるBitboardが返る
 	// c == WHITE : 後手の駒があるBitboardが返る
-	Bitboard pieces(Color c) const { ASSERT_LV3(is_ok(c)); return occupied[c]; }
+	Bitboard pieces(Color c) const { ASSERT_LV3(is_ok(c)); return byColorBB[c]; }
 
 	// 駒がない升が1になっているBitboardが返る
 	Bitboard empties() const { return pieces() ^ ALL_BB; }
@@ -282,7 +282,7 @@ struct Position
 	//	  BISHOP_HORSE(角・馬) , ROOK_DRAGON(飛車・龍)。
 	// ・引数でPieceを2つ取るものは２種類の駒のBitboardを合成したものが返る。
 
-	Bitboard pieces(Piece pr) const { ASSERT_LV3(pr < PIECE_BB_NB); return piece_bb[pr]; }
+	Bitboard pieces(Piece pr) const { ASSERT_LV3(pr < PIECE_BB_NB); return byTypeBB[pr]; }
 	Bitboard pieces(Piece pr1, Piece pr2) const { return pieces(pr1) | pieces(pr2); }
 	Bitboard pieces(Piece pr1, Piece pr2, Piece pr3) const { return pieces(pr1) | pieces(pr2) | pieces(pr3); }
 	Bitboard pieces(Piece pr1, Piece pr2, Piece pr3, Piece pr4) const { return pieces(pr1) | pieces(pr2) | pieces(pr3) | pieces(pr4); }
@@ -634,10 +634,11 @@ private:
 	// alignas(16)を要求するものを先に宣言。
 
 	// 盤上の先手/後手/両方の駒があるところが1であるBitboard
-	Bitboard occupied[COLOR_NB + 1];
+	Bitboard byColorBB[COLOR_NB];
 
 	// 駒が存在する升を表すBitboard。先後混在。
-	Bitboard piece_bb[PIECE_BB_NB];
+	// pieces()の引数と同じく、ALL_PIECES,HDKなどのPieceで定義されている特殊な定数が使える。
+	Bitboard byTypeBB[PIECE_BB_NB];
 
 	// stが初期状態で指している、空のStateInfo
 	StateInfo startState;
@@ -719,16 +720,15 @@ private:
 
 inline void Position::xor_piece(Piece pc, Square sq)
 {
-	Color c = color_of(pc);
-	const Bitboard q = Bitboard(sq);
 	// 先手・後手の駒のある場所を示すoccupied bitboardの更新
-	occupied[c] ^= q;
+	byColorBB[color_of(pc)] ^= sq;
+
 	// 先手 or 後手の駒のある場所を示すoccupied bitboardの更新
-	occupied[COLOR_ALL] ^= q;
+	byTypeBB[ALL_PIECES] ^= sq;
 
 	// 駒別のBitboardの更新
 	// これ以外のBitboardの更新は、update_bitboards()で行なう。
-	piece_bb[type_of(pc)] ^= q;
+	byTypeBB[type_of(pc)] ^= sq;
 }
 
 // 駒を配置して、内部的に保持しているBitboardも更新する。

@@ -394,24 +394,24 @@ void Position::set_state(StateInfo* si) const {
 void Position::update_bitboards()
 {
 	// 王・馬・龍を合成したbitboard
-	piece_bb[HDK]			= pieces(KING , HORSE , DRAGON);
+	byTypeBB[HDK]			= pieces(KING , HORSE , DRAGON);
 
 	// 金と同じ移動特性を持つ駒
-	piece_bb[GOLDS]			= pieces(GOLD , PRO_PAWN , PRO_LANCE , PRO_KNIGHT , PRO_SILVER);
+	byTypeBB[GOLDS]			= pieces(GOLD , PRO_PAWN , PRO_LANCE , PRO_KNIGHT , PRO_SILVER);
 
 	// 以下、attackers_to()で頻繁に用いるのでここで1回計算しておいても、トータルでは高速化する。
 
 	// 角と馬
-	piece_bb[BISHOP_HORSE]	= pieces(BISHOP , HORSE);
+	byTypeBB[BISHOP_HORSE]	= pieces(BISHOP , HORSE);
 
 	// 飛車と龍
-	piece_bb[ROOK_DRAGON]	= pieces(ROOK   , DRAGON);
+	byTypeBB[ROOK_DRAGON]	= pieces(ROOK   , DRAGON);
 
 	// 銀とHDK
-	piece_bb[SILVER_HDK]	= pieces(SILVER , HDK);
+	byTypeBB[SILVER_HDK]	= pieces(SILVER , HDK);
 
 	// 金相当の駒とHDK
-	piece_bb[GOLDS_HDK]		= pieces(GOLDS  , HDK);
+	byTypeBB[GOLDS_HDK]		= pieces(GOLDS  , HDK);
 }
 
 

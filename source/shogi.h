@@ -66,7 +66,7 @@
 // --------------------
 
 // 手番
-enum Color { BLACK=0/*先手*/,WHITE=1/*後手*/,COLOR_NB /* =2 */ , COLOR_ALL = 2 /*先後共通の何か*/ , COLOR_ZERO = 0,};
+enum Color { BLACK=0/*先手*/,WHITE=1/*後手*/,COLOR_NB /* =2 */ , COLOR_ZERO = 0,};
 
 // 相手番を返す
 constexpr Color operator ~(Color c) { return (Color)(c ^ 1);  }
@@ -448,13 +448,13 @@ enum Piece : uint32_t
 	PIECE_HAND_NB = KING,   // 手駒になる駒種の最大+1
 
 	// --- Position::pieces()で用いる定数。空いてるところを順番に用いる。
-	HDK			= NO_PIECE, // H=Horse,D=Dragon,K=Kingの合体したBitboardが返る。
-	GOLDS		= QUEEN,	// 金と同じ移動特性を持つ駒のBitboardが返る。
+	ALL_PIECES = 0,			// 駒がある升を示すBitboardが返る。
+	GOLDS = QUEEN,			// 金と同じ移動特性を持つ駒のBitboardが返る。
+	HDK,				    // H=Horse,D=Dragon,K=Kingの合体したBitboardが返る。
 	BISHOP_HORSE,			// BISHOP,HORSEを合成したBitboardが返る。
 	ROOK_DRAGON,			// ROOK,DRAGONを合成したBitboardが返る。
 	SILVER_HDK,				// SILVER,HDKを合成したBitboardが返る。
 	GOLDS_HDK,				// GOLDS,HDKを合成したBitboardが返る。
-
 	PIECE_BB_NB,			// デリミタ
 
 	// 指し手生成(GeneratePieceMove = GPM)でtemplateの引数として使うマーカー的な値。変更する可能性があるのでユーザーは使わないでください。
