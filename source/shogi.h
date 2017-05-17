@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "4.58"
+#define ENGINE_VERSION "4.59"
 
 // --------------------
 // コンパイル時の設定
@@ -471,7 +471,12 @@ inline std::string usi_piece(Piece pc) { return std::string((pc & 32) ? "D":"")
 		  + std::string(USI_PIECE).substr((pc & 31) * 2, 2); }
 
 // 駒に対して、それが先後、どちらの手番の駒であるかを返す。
-constexpr Color color_of(Piece pc) { return (pc & PIECE_WHITE) ? WHITE : BLACK; }
+constexpr Color color_of(Piece pc)
+{
+//	return (pc & PIECE_WHITE) ? WHITE : BLACK;
+	static_assert(PIECE_WHITE == 16 && WHITE == 1 && BLACK == 0, "");
+	return (Color)((pc & PIECE_WHITE) >> 4);
+}
 
 // 後手の歩→先手の歩のように、後手という属性を取り払った駒種を返す
 constexpr Piece type_of(Piece pc) { return (Piece)(pc & 15); }
