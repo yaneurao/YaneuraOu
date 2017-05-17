@@ -1196,7 +1196,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #endif
 		}
 
-		PieceNo piece_no2 = piece_no_of(moved_pc, from); // 移動元にあった駒のpiece_noを得る
+		// 移動元にあった駒のpiece_noを得る
+		PieceNo piece_no2 = piece_no_of(moved_pc, from);
 
 #ifdef USE_EVAL_DIFF
 		dp.pieceNo[0] = piece_no2;
@@ -1205,6 +1206,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 		// 移動元の升からの駒の除去
 		remove_piece(from);
+
 		ASSERT_LV3(is_ok(piece_no2));
 		put_piece_simple(to, moved_after_pc, piece_no2);
 

@@ -90,6 +90,8 @@ enum Stages: int {
 
 // partial_insertion_sort()は指し手を与えられたlimitまで降順でソートする。
 // limitよりも小さい値の指し手の順序については、不定。
+// 将棋だと指し手の数が多い(ことがある)ので、数が多いときは途中で打ち切ったほうがいいかも。
+// 現状、全体時間の7%程度をこの関数で消費している。
 void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 
 	for (ExtMove *sortedEnd = begin, *p = begin + 1; p < end; ++p)

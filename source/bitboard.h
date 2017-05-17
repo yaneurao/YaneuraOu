@@ -59,8 +59,8 @@ struct alignas(16) Bitboard
 	operator bool() const;
 
 	// bit test命令
-	// if (lhs & rhs) と書くべきところを
-	// if (lhs.test(rhs)) と書くことでSSE命令を用いて高速化する。
+	// if (lhs & rhs)とか(lhs & sq) と書くべきところを
+	// if (lhs.test(rhs)) とか(lhs.test(ssq)) 書くことでSSE命令を用いて高速化する。
   
 	bool test(Bitboard rhs) const;
 	bool test(Square sq) const { return test(Bitboard(sq)); }
