@@ -644,9 +644,11 @@ private:
 
 	// put_piece()やremove_piece()、xor_piece()を用いたときは、最後にupdate_bitboards()を呼び出して
 	// bitboardの整合性を保つこと。
+	// また、put_piece_simple()は、put_piece()の王の升(kingSquare)を更新しない版。do_move()で用いる。
 
 	// 駒を配置して、内部的に保持しているBitboardなどを更新する。
 	void put_piece(Square sq, Piece pc, PieceNo piece_no);
+	void put_piece_simple(Square sq, Piece pc, PieceNo piece_no);
 
 	// 駒を盤面から取り除き、内部的に保持しているBitboardも更新する。
 	void remove_piece(Square sq);
@@ -727,7 +729,6 @@ inline void Position::xor_piece(Piece pc, Square sq)
 	// 駒別のBitboardの更新
 	// これ以外のBitboardの更新は、update_bitboards()で行なう。
 	piece_bb[type_of(pc)] ^= q;
-	
 }
 
 // 駒を配置して、内部的に保持しているBitboardも更新する。
@@ -745,10 +746,23 @@ inline void Position::put_piece(Square sq, Piece pc,PieceNo piece_no)
 	evalList.put_piece(piece_no, sq, pc); // sqの升にpcの駒を配置する
 #endif
 
-										  // 王なら、その升を記憶しておく。
-										  // (王の升はBitboardなどをみればわかるが、頻繁にアクセスするのでcacheしている。)
+	// 王なら、その升を記憶しておく。
+	// (王の升はBitboardなどをみればわかるが、頻繁にアクセスするのでcacheしている。)
 	if (type_of(pc) == KING)
 		kingSquare[color_of(pc)] = sq;
+}
+
+// put_piece()の王の升(kingSquare)を更新しない版
+inline void Position::put_piece_simple(Square sq, Piece pc, PieceNo piece_no)
+{
+	ASSERT_LV2(board[sq] == NO_PIECE);
+	board[sq] = pc;
+	xor_piece(pc, sq);
+	ASSERT_LV3(is_ok(piece_no));
+
+#ifndef EVAL_NO_USE
+	evalList.put_piece(piece_no, sq, pc);
+#endif
 }
 
 // 駒を盤面から取り除き、内部的に保持しているBitboardも更新する。

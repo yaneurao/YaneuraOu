@@ -201,7 +201,7 @@ void Position::set(std::string sfen)
 				PIECE_NO_ZERO; // とりあえず駒番号は使わないので全部ゼロにしておけばいい。
 #endif
 
-	  // 盤面の(f,r)の駒を設定する
+			// 盤面の(f,r)の駒を設定する
 			put_piece(f | r, Piece(idx + (promote ? u32(PIECE_PROMOTE) : 0)), piece_no);
 
 			// 1升進める
@@ -1016,10 +1016,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	Square to = move_to(m);
 	ASSERT_LV2(is_ok(to));
 
-#ifndef EVAL_NO_USE
+#if !defined(EVAL_NO_USE)
 	// 駒割りの差分計算用
 	int materialDiff;
-
 #endif
 
 #ifdef USE_EVAL_DIFF
@@ -1033,10 +1032,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// 移動先の升は空のはず
 		ASSERT_LV2(piece_on(to) == NO_PIECE);
 
-		Piece pr = move_dropped_piece(m);
+		Piece pc = moved_piece_after(m);
+		Piece pr = raw_type_of(pc);
 		ASSERT_LV2(PAWN <= pr && pr < PIECE_HAND_NB);
-
-		Piece pc = make_piece(Us, pr);
 
 		// Zobrist keyの更新
 		h -= Zobrist::hand[Us][pr];
@@ -1060,7 +1058,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		dp.changed_piece[0].old_piece = evalList.bona_piece(piece_no);
 #endif
 
-		put_piece(to, pc, piece_no);
+		put_piece_simple(to, pc, piece_no);
 
 #ifdef USE_EVAL_DIFF
 		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no);
@@ -1120,6 +1118,14 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			materialDiff = 0;
 #endif
 			moved_after_pc = moved_pc;
+
+			// 王を移動させる手であるなら、kingSquareを更新しておく。
+			// 王は成れないため、is_promote()は必ずfalseになっているはず。
+			// また、王は駒打できないのでdropの指し手に含まれていることはないから
+			// dropのときにはkingSquareを更新する必要はない。
+			// よって、このタイミング以外で更新する必要はない。
+			if (type_of(moved_pc) == KING)
+				kingSquare[Us] = to;
 		}
 
 		// 移動先の升にある駒
@@ -1200,7 +1206,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// 移動元の升からの駒の除去
 		remove_piece(from);
 		ASSERT_LV3(is_ok(piece_no2));
-		put_piece(to, moved_after_pc, piece_no2);
+		put_piece_simple(to, moved_after_pc, piece_no2);
 
 #ifdef USE_EVAL_DIFF
 		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no2);
@@ -1283,7 +1289,6 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			st->continuousCheck[Us] = 0;
 		}
 	}
-
 
 #ifndef EVAL_NO_USE
 	st->materialValue = (Value)(st->previous->materialValue + (Us == BLACK ? materialDiff : -materialDiff));
@@ -1380,13 +1385,18 @@ void Position::undo_move_impl(Move m)
 	ASSERT_LV2(is_ok(to));
 
 	// 移動後の駒
-	auto moved_after_pc = board[to];
+	Piece moved_after_pc = moved_piece_after(m);
 
 	PieceNo piece_no = piece_no_of(moved_after_pc, to); // 移動元のpiece_no == いまtoの場所にある駒のpiece_no
 	ASSERT_LV3(is_ok(piece_no));
 
 	// 移動前の駒
-	Piece moved_pc = is_promote(m) ? (moved_after_pc - PIECE_PROMOTE) : moved_after_pc;
+	// Piece moved_pc = is_promote(m) ? (moved_after_pc - PIECE_PROMOTE) : moved_after_pc;
+
+	// ↑の処理、mの成りを表現するbitを直接、Pieceの成りを表現するbitに持ってきたほうが速い。
+	static_assert((u32)MOVE_PROMOTE / (u32)PIECE_PROMOTE == 4096,"");
+	// log(2)4096 == 12
+	Piece moved_pc = Piece(moved_after_pc ^ ((m & MOVE_PROMOTE) >> 12));
 
 	if (is_drop(m))
 	{
@@ -1429,13 +1439,13 @@ void Position::undo_move_impl(Move m)
 			PieceNo piece_no2 = piece_no_of(Us, raw_type_of(to_pc)); // 捕っていた駒(手駒にある)のpiece_no
 			ASSERT_LV3(is_ok(piece_no2));
 
-			put_piece(to, to_pc , piece_no2);
+			put_piece_simple(to, to_pc , piece_no2);
 
 			// 手駒から減らす
 			sub_hand(hand[Us], raw_type_of(to_pc));
 
 			// 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
-			put_piece(from, moved_pc, piece_no);
+			put_piece_simple(from, moved_pc, piece_no);
 
 #ifdef LONG_EFFECT_LIBRARY
 			// 移動先で駒を捕獲するときの利きの更新
@@ -1445,14 +1455,16 @@ void Position::undo_move_impl(Move m)
 		} else {
 
 			// 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
-			put_piece(from, moved_pc, piece_no);
+			put_piece_simple(from, moved_pc, piece_no);
 
 #ifdef LONG_EFFECT_LIBRARY
 			// 移動先で駒を捕獲しないときの利きの更新
 			LongEffect::rewind_by_no_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc);
 #endif
-
 		}
+
+		if (type_of(moved_pc) == KING)
+			kingSquare[Us] = from;
 	}
 
 	// put_piece()などを使ったので更新する。
