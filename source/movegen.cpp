@@ -379,8 +379,8 @@ template <Color Us> struct GenerateDropMoves {
 			Bitboard a = pos.pieces(Us, PAWN) + rank1_n_bb(BLACK, RANK_8); // 1～8段目を意味するbitboard
 
 			// このRANK9に集まった情報をpextで回収。
-			u32 index1 = u32(PEXT64(a.extract64<0>(), RANK9_BB.p[0]));
-			u32 index2 = u32(PEXT32(a.extract64<1>(), RANK9_BB.p[1]));
+			u32 index1 = u32(PEXT64(     a.extract64<0>(),      RANK9_BB.p[0]));
+			u32 index2 = u32(PEXT32((u32)a.extract64<1>(), (u32)RANK9_BB.p[1]));
 
 			// 駒の打てる場所
 			Bitboard target2 = Bitboard(PAWN_DROP_MASK_BB[index1].p[0],PAWN_DROP_MASK_BB[index2].p[1])
