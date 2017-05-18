@@ -433,6 +433,9 @@ inline Bitboard lanceStepEffect(Color c, Square sq) { return LanceStepEffectBB[s
 // 盤上の駒を無視するQueenの動き。
 inline Bitboard queenStepEffect(const Square sq) { return rookStepEffect(sq) | bishopStepEffect(sq); }
 
+// 縦横十字の利き 利き長さ=1升分。
+inline Bitboard cross00StepEffect(Square sq) { return rookStepEffect(sq) & kingEffect(sq); }
+
 // 斜め十字の利き 利き長さ=1升分。
 inline Bitboard cross45StepEffect(Square sq) { return bishopStepEffect(sq) & kingEffect(sq); }
 
