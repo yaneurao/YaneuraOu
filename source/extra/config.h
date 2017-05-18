@@ -181,6 +181,9 @@
 // これをONすると数%高速化する代わりに、メモリ使用量が1GBほど増える。
 // #define USE_LARGE_EVAL_HASH
 
+// トーナメント(大会)用のビルド。最新CPU(いまはAVX2)用でEVAL_HASH大きめ。EVAL_LEARN、TEST_CMD使用不可。ASSERTなし。
+// #define FOR_TOURNAMENT
+
 // --------------------
 // release configurations
 // --------------------
@@ -402,6 +405,17 @@
 #ifdef USER_ENGINE
 #define ENGINE_NAME "YaneuraOu user engine"
 #define EVAL_KPP
+#endif
+
+// --------------------
+//   for tournament
+// --------------------
+
+#if defined(FOR_TOURNAMENT)
+#undef ASSERT_LV
+#undef EVAL_LEARN
+#undef ENABLE_TEST_CMD
+#define USE_LARGE_EVAL_HASH
 #endif
 
 // --------------------
