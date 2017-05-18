@@ -2266,8 +2266,8 @@ void Search::clear()
 		// ここは、未初期化のときに[SQ_ZERO][NO_PIECE]を指すので、ここを-1で初期化しておくことによって、
 		// history > 0 を条件にすれば自ずと未初期化のときは除外されるようになる。
 		CounterMoveStats& cm = th->counterMoveHistory[SQ_ZERO][NO_PIECE];
-		int16_t* t = &cm[SQ_ZERO][NO_PIECE];
-		std::fill(t, t + sizeof(cm), int16_t(CounterMovePruneThreshold - 1));
+		auto* t = &cm[SQ_ZERO][NO_PIECE];
+		std::fill(t, t + sizeof(cm) / sizeof(*t), int16_t(CounterMovePruneThreshold - 1));
 	}
 
 	Threads.main()->previousScore = VALUE_INFINITE;
