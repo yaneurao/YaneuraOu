@@ -13,6 +13,8 @@ Global
 		Debug-2017Goku|x86 = Debug-2017Goku|x86
 		Debug-mate|x64 = Debug-mate|x64
 		Debug-mate|x86 = Debug-mate|x86
+		Debug-user|x64 = Debug-user|x64
+		Debug-user|x86 = Debug-user|x86
 		Release-2017Early|x64 = Release-2017Early|x64
 		Release-2017Early|x86 = Release-2017Early|x86
 		Release-2017Early-sse2|x64 = Release-2017Early-sse2|x64
@@ -31,10 +33,18 @@ Global
 		Release-2017Goku-sse42|x86 = Release-2017Goku-sse42|x86
 		Release-mate|x64 = Release-mate|x64
 		Release-mate|x86 = Release-mate|x86
+		Release-mate-sse2|x64 = Release-mate-sse2|x64
+		Release-mate-sse2|x86 = Release-mate-sse2|x86
+		Release-mate-sse41|x64 = Release-mate-sse41|x64
+		Release-mate-sse41|x86 = Release-mate-sse41|x86
 		Release-mate-sse42|x64 = Release-mate-sse42|x64
 		Release-mate-sse42|x86 = Release-mate-sse42|x86
 		Release-user|x64 = Release-user|x64
 		Release-user|x86 = Release-user|x86
+		Release-user-sse2|x64 = Release-user-sse2|x64
+		Release-user-sse2|x86 = Release-user-sse2|x86
+		Release-user-sse41|x64 = Release-user-sse41|x64
+		Release-user-sse41|x86 = Release-user-sse41|x86
 		Release-user-sse42|x64 = Release-user-sse42|x64
 		Release-user-sse42|x86 = Release-user-sse42|x86
 	EndGlobalSection
@@ -51,6 +61,10 @@ Global
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-mate|x64.Build.0 = Debug-mate|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-mate|x86.ActiveCfg = Debug-mate|Win32
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-mate|x86.Build.0 = Debug-mate|Win32
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-user|x64.ActiveCfg = Debug-user|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-user|x64.Build.0 = Debug-user|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-user|x86.ActiveCfg = Debug-user|Win32
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-user|x86.Build.0 = Debug-user|Win32
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2017Early|x64.ActiveCfg = Release-2017Early|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2017Early|x64.Build.0 = Release-2017Early|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2017Early|x86.ActiveCfg = Release-2017Early|Win32
@@ -81,6 +95,12 @@ Global
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate|x64.Build.0 = Release-mate|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate|x86.ActiveCfg = Release-mate|Win32
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate|x86.Build.0 = Release-mate|Win32
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate-sse2|x64.ActiveCfg = Release-mate-sse2|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate-sse2|x64.Build.0 = Release-mate-sse2|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate-sse2|x86.ActiveCfg = Release-mate-sse2|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate-sse41|x64.ActiveCfg = Release-mate-sse41|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate-sse41|x64.Build.0 = Release-mate-sse41|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate-sse41|x86.ActiveCfg = Release-mate-sse41|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate-sse42|x64.ActiveCfg = Release-mate-sse42|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate-sse42|x64.Build.0 = Release-mate-sse42|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate-sse42|x86.ActiveCfg = Release-mate-sse42|x64
@@ -88,6 +108,12 @@ Global
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-user|x64.Build.0 = Release-user|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-user|x86.ActiveCfg = Release-user|Win32
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-user|x86.Build.0 = Release-user|Win32
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-user-sse2|x64.ActiveCfg = Release-user-sse2|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-user-sse2|x64.Build.0 = Release-user-sse2|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-user-sse2|x86.ActiveCfg = Release-user-sse2|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-user-sse41|x64.ActiveCfg = Release-user-sse41|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-user-sse41|x64.Build.0 = Release-user-sse41|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-user-sse41|x86.ActiveCfg = Release-user-sse41|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-user-sse42|x64.ActiveCfg = Release-user-sse42|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-user-sse42|x64.Build.0 = Release-user-sse42|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-user-sse42|x86.ActiveCfg = Release-user-sse42|x64
