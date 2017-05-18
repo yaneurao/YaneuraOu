@@ -336,7 +336,7 @@ namespace Eval {
 		// 手駒である、任意のBonaPieceに対して、その駒番号(PieceNo)を保持している配列
 		PieceNo piece_no_list_hand[fe_hand_end];
 
-		// 盤上のBonaPieceに対して、その駒番号(PieceNo)を保持している配列
+		// 盤上の駒に対して、その駒番号(PieceNo)を保持している配列
 		// 玉がSQ_NBに移動しているとき用に+1まで保持しておくが、
 		// SQ_NBの玉を移動させないので、この値を使うことはないはず。
 		PieceNo piece_no_list_board[SQ_NB_PLUS1];

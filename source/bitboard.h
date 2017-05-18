@@ -378,7 +378,7 @@ extern int BishopEffectIndex[2][SQ_NB_PLUS1];
 
 // 飛車の縦方向の利きを求めるときに、指定した升sqの属するfileのbitをshiftし、
 // index を求める為に使用する。(from Apery)
-extern int Slide[SQ_NB_PLUS1];
+extern u8 Slide[SQ_NB_PLUS1];
 
 extern u64      RookEffectFile[RANK_NB + 1][128];
 extern Bitboard RookEffectRank[FILE_NB + 1][128];

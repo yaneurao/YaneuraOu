@@ -81,13 +81,9 @@ Bitboard RookEffectRank[FILE_NB + 1][128];
 Bitboard PAWN_DROP_MASK_BB[0x80]; // p[0]には1～7筋 、p[1]には8,9筋のときのデータが入っている。
 
 Bitboard BetweenBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
-Bitboard LineBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
 Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING][COLOR_NB];
 
-// SquareからSquareWithWallへの変換テーブル
-SquareWithWall sqww_table[SQ_NB_PLUS1];
-
-int Slide[SQ_NB_PLUS1] = {
+u8 Slide[SQ_NB_PLUS1] = {
   1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 ,
   10, 10, 10, 10, 10, 10, 10, 10, 10,
   19, 19, 19, 19, 19, 19, 19, 19, 19,
@@ -99,6 +95,13 @@ int Slide[SQ_NB_PLUS1] = {
   10, 10, 10, 10, 10, 10, 10, 10, 10,
   0 , // SQ_NB用
 };
+
+// LineBBは、王手の指し手生成からしか使っておらず、ふだんアクセスしないので
+// このテーブルは上のテーブルとは区別しとく。
+Bitboard LineBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
+
+// SquareからSquareWithWallへの変換テーブル
+SquareWithWall sqww_table[SQ_NB_PLUS1];
 
 // Bitboardを表示する(USI形式ではない) デバッグ用
 std::ostream& operator<<(std::ostream& os, const Bitboard& board)

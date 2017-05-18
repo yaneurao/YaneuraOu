@@ -850,14 +850,17 @@ ExtMove* generate_checks(const Position& pos, ExtMove* mlist)
 		(GenType == QUIET_CHECKS || GenType == QUIET_CHECKS_ALL) ? pos.empties() :           // 捕獲の指し手を除外するため駒がない場所が移動対象升
 		ALL_BB; // Error!
 
-				// yのみ。ただしxかつyである可能性もある。
+	// yのみ。ただしxかつyである可能性もある。
 	auto src = y;
 	while (src)
 	{
 		auto from = src.pop();
 
 		// 両王手候補なので指し手を生成してしまう。
-		auto pin_line = line_bb(themKing, from); // いまの敵玉とfromを通る線上と違うところに移動させれば開き王手確定
+
+		// いまの敵玉とfromを通る直線上の升と違うところに移動させれば開き王手が確定する。その直線を求める。
+		auto pin_line = line_bb(themKing, from);
+		
 		mlist = make_move_target_general<Us, All>()(pos, pos.piece_on(from), from, target & ~pin_line, mlist);
 
 		if (x & from)
