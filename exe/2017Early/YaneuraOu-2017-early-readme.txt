@@ -33,6 +33,11 @@
 		YaneuraOu-2017-early-sse2.exe  : SSE2    以降用/64bit OS用
 		YaneuraOu-2017-early-nosse.exe : SSEなし       /32bit OS用
 
+		YaneuraOu-2017-early-tournament.exe
+		// 大会用。TEST_CMD、LEARNコマンドは使えない。EVAL_HASH大きめ。
+		// 最新CPU(いまはAVX2)が必要。
+		// AVX2用実行ファイルよりmany coreにおいて若干速いかも。
+
     eval/KK_synthesized.bin        : 3駒関係の評価関数で用いるファイル(KK)
     eval/KKP_synthesized.bin       : 3駒関係の評価関数で用いるファイル(KKP)
     eval/KPP_synthesized.bin       : 3駒関係の評価関数で用いるファイル(KPP)

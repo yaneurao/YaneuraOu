@@ -2,6 +2,23 @@
 やねうら王 更新履歴
 
 
+■　2017/05/18 V4.59
+
+・do_move_impl()での王手している駒の利きの更新を最適化。
+・UpdateBitboards()を重複してやっている箇所があったので修正。
+・Position::put_piece_simple()追加。少しdo_move()を高速化。
+・VC++でSSE2用のコンパイル時にwarning出てたの修正。
+・color_of()少し高速化。
+・mate1plyの実装、templateにして先後区別する。
+・Position::piece_bb →　byTypeBBに、occupied → byColorBBにrename。
+・do_move()のときのmemcpy()をやらないようにした。
+・玉が盤上にいないときにrookEffectがアクセス違反になっていたの修正
+・mate engineに対するVC++のプロパティシート追加
+・KEEP_PIECE_IN_GENERATE_MOVESが定義されていないときのundo_move()の動作修正
+・LONG_EFFECT_LIBRARYをdefineしたときにコンパイルエラーになっていたの修正
+・トーナメント用のbuild、FOR_TOURNAMENTオプション追加。AVX2用でEVAL_HASH大きめ。EVAL_LEARN、TEST_CMD使用不可。
+
+
 ■　2017/05/17 V4.58
 
 ・lanceEffect()はrookFileEffect()を使うように変更。
@@ -9,7 +26,6 @@
 ・飛車の利き用のテーブルさらに小さくした。
 ・角の利き用のテーブル小さくした。
 ・working memory、だいぶ減ったかも。置換表を小さくすればいままでせ動かなかったスマホでも動くかも。
-・do_move_impl()での王手している駒の利きの更新を最適化。
 
 
 ■　2017/05/16

@@ -1,5 +1,6 @@
 ﻿# ToDO
 
+- LONG_EFFECT_LIBRARY、何か壊してしまっている。do_move()書き換えたからか。あとでなおす。
 - pythonの自己対戦フレームワーク、改良する。
 - 詰将棋探索エンジン、他の探索部から呼び出せるように改良する。
 - PPAP評価関数
@@ -9,10 +10,53 @@
 - elmoの学習ルーチン、取り込む。
 
 
+## 2017/05/18
+
+- config.hにトーナメント用のbuild、FOR_TOURNAMENTオプション追加。AVX2用でEVAL_HASH大きめ。EVAL_LEARN、TEST_CMD使用不可。
+
+- do_move()のときのmemcpy要らんのでは…。
+	Nodes/second    : 828360
+	Nodes/second    : 831744
+変わらんか…。
+
+- Position::piece_bb →　byTypeBBに、occupied → byColorBBにrename。
+	StockfishのPositionに合わせておく。
+
+- mate1ply()、先後テンプレートで分けた。ほとんど速くならない。
+	Nodes/second    : 836288
+
+- Position::do_move()もう少し綺麗に書き直したほうがいい。
+	Nodes searched  : 20361112
+	Nodes/second    : 844859
+よくわからんが、少し速くなったのかも。
+
+		occupied[COLOR_ALL] = occupied[BLACK] | occupied[WHITE];
+
+		// xor_piece()で、occupied[COLOR_ALL]は更新しない版
+		inline void Position::xor_piece_simple(Piece pc, Square sq)
+		{
+			Color c = color_of(pc);
+			const Bitboard q = Bitboard(sq);
+			occupied[c] ^= q;
+			piece_bb[type_of(pc)] ^= q;
+		}
+
+	このリファクタリングは良くないかも…。
+
+	do_move()あまり綺麗に書き直せなかった。また今度頑張る。
+
+- mate1ply()、check infoを使えば、attackers_to()を呼び出す回数が減るのでは…。
+	- 減らんかった。
+
+- KK,KKPを16bitにして、かつBonaPieceを詰めた評価関数を用意すべき？BonaPiece詰めるとpiece_typeの導出が難しくなるのか。
+	KK,KKPは32bitのまま、値は16bitにして、残り16bitに進行度用の値を突っ込むか…。そうするといまの形式のまま、
+	追加の計算コストほぼなしに進行度の計算が出来ることになるが…。
+
+
 ## 2017/05/17
 
 - lazySMPで4コアのときに8Tと4Tとどちらがいいか微妙。計測したほうがいいような。
-
+	- また考える。
 
 ・角のテーブル小さくすることを考えたほうがいいかも。
 	- した

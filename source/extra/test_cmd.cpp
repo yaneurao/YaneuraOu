@@ -1563,6 +1563,7 @@ static const char* TestMateEngineSfen[] = {
   "lng3+R2/2kgs4/ppp6/1B1pp4/7B1/2P2pLp1/PP1PP3P/1S1K2p2/LN5GL b RG2SP2n3p 1",
 };
 
+// "test_mate_engine"コマンド
 void test_mate_engine_cmd(Position& pos, istringstream& is) {
   string token;
 
