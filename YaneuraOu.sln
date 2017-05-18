@@ -11,6 +11,8 @@ Global
 		Debug-2017Early|x86 = Debug-2017Early|x86
 		Debug-2017Goku|x64 = Debug-2017Goku|x64
 		Debug-2017Goku|x86 = Debug-2017Goku|x86
+		Debug-mate|x64 = Debug-mate|x64
+		Debug-mate|x86 = Debug-mate|x86
 		Release-2017Early|x64 = Release-2017Early|x64
 		Release-2017Early|x86 = Release-2017Early|x86
 		Release-2017Early-sse2|x64 = Release-2017Early-sse2|x64
@@ -45,6 +47,10 @@ Global
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-2017Goku|x64.Build.0 = Debug-2017Goku|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-2017Goku|x86.ActiveCfg = Debug-2017Goku|Win32
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-2017Goku|x86.Build.0 = Debug-2017Goku|Win32
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-mate|x64.ActiveCfg = Debug-mate|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-mate|x64.Build.0 = Debug-mate|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-mate|x86.ActiveCfg = Debug-mate|Win32
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-mate|x86.Build.0 = Debug-mate|Win32
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2017Early|x64.ActiveCfg = Release-2017Early|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2017Early|x64.Build.0 = Release-2017Early|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2017Early|x86.ActiveCfg = Release-2017Early|Win32
