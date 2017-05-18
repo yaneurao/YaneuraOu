@@ -332,6 +332,7 @@ extern Bitboard LineBB[SQ_NB][4];
 // 2升を通過する直線を返すためのBitboardを返す。sq1とsq2が縦横斜めの関係にないときに呼び出してはならない。
 inline const Bitboard line_bb(Square sq1, Square sq2)
 {
+	static_assert(Effect8::DIRECT_RU == 0 && Effect8::DIRECT_LD == 7 , "");
 	auto dir = Effect8::directions_of(sq1, sq2);
 	ASSERT_LV3(dir != 0);
 	int d = (int)Effect8::pop_directions(dir);
@@ -381,16 +382,16 @@ extern Bitboard RookStepEffectBB[SQ_NB_PLUS1];
 // --- 角の利き
 extern Bitboard BishopEffect[2][1856+1];
 extern Bitboard BishopEffectMask[2][SQ_NB_PLUS1];
-extern int BishopEffectIndex[2][SQ_NB_PLUS1];
+extern int		BishopEffectIndex[2][SQ_NB_PLUS1];
 
 // --- 飛車の縦、横の利き
 
 // 飛車の縦方向の利きを求めるときに、指定した升sqの属するfileのbitをshiftし、
 // index を求める為に使用する。(from Apery)
-extern u8 Slide[SQ_NB_PLUS1];
+extern u8		Slide[SQ_NB_PLUS1];
 
-extern u64      RookEffectFile[RANK_NB + 1][128];
-extern Bitboard RookEffectRank[FILE_NB + 1][128];
+extern u64      RookFileEffect[RANK_NB + 1][128];
+extern Bitboard RookRankEffect[FILE_NB + 1][128];
 
 // Haswellのpext()を呼び出す。occupied = occupied bitboard , mask = 利きの算出に絡む升が1のbitboard
 // この関数で戻ってきた値をもとに利きテーブルを参照して、遠方駒の利きを得る。
@@ -476,18 +477,18 @@ inline Bitboard horseEffect(const Square sq, const Bitboard& occupied) { return 
 
 
 // 飛車の縦の利き
-inline Bitboard rookEffectFile(const Square sq, const Bitboard& occupied)
+inline Bitboard rookFileEffect(const Square sq, const Bitboard& occupied)
 {
 	ASSERT_LV3(sq <= SQ_NB);
 	const int index = (occupied.p[Bitboard::part(sq)] >> Slide[sq]) & 0x7f;
 	File f = file_of(sq);
 	return (f <= FILE_7) ?
-		Bitboard(RookEffectFile[rank_of(sq)][index] << int(f | RANK_1), 0) :
-		Bitboard(0, RookEffectFile[rank_of(sq)][index] << int((File)(f - FILE_8) | RANK_1));
+		Bitboard(RookFileEffect[rank_of(sq)][index] << int(f | RANK_1), 0) :
+		Bitboard(0, RookFileEffect[rank_of(sq)][index] << int((File)(f - FILE_8) | RANK_1));
 }
 
 // 飛車の横の利き
-inline Bitboard rookEffectRank(const Square sq, const Bitboard& occupied)
+inline Bitboard rookRankEffect(const Square sq, const Bitboard& occupied)
 {
 	ASSERT_LV3(sq <= SQ_NB);
 	// 将棋盤をシフトして、SQ_71 , SQ_61 .. SQ_11に飛車の横方向の情報を持ってくる。
@@ -497,18 +498,18 @@ inline Bitboard rookEffectRank(const Square sq, const Bitboard& occupied)
 	int r = rank_of(sq);
 	u64 u = (occupied.extract64<1>() << 6*9 ) + (occupied.extract64<0>() >> 9);
 	u64 index = PEXT64(u, 0b1000000001000000001000000001000000001000000001000000001 << r);
-	return RookEffectRank[file_of(sq)][index] << r;
+	return RookRankEffect[file_of(sq)][index] << r;
 }
 
 // 飛 : occupied bitboardを考慮しながら飛車の利きを求める
 inline Bitboard rookEffect(const Square sq, const Bitboard& occupied)
 {
-	return rookEffectFile(sq, occupied) | rookEffectRank(sq, occupied);
+	return rookFileEffect(sq, occupied) | rookRankEffect(sq, occupied);
 }
 
 // 香 : occupied bitboardを考慮しながら香の利きを求める
 inline Bitboard lanceEffect(const Color c, const Square sq, const Bitboard& occupied) {
-	return rookEffectFile(sq, occupied) & lanceStepEffect(c, sq);
+	return rookFileEffect(sq, occupied) & lanceStepEffect(c, sq);
 }
 
 // 龍 : occupied bitboardを考慮しながら香の利きを求める

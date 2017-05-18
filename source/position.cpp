@@ -1094,11 +1094,12 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// put_piece()などを用いたのでupdateする
 		update_bitboards();
 
-#ifndef EVAL_NO_USE
+#if !defined (EVAL_NO_USE)
+		// 駒打ちなので駒割りの変動なし。
 		materialDiff = 0;
 #endif
 
-#ifdef LONG_EFFECT_LIBRARY
+#if defined(LONG_EFFECT_LIBRARY)
 		// 駒打ちによる利きの更新処理
 		LongEffect::update_by_dropping_piece<Us>(*this, to, pc);
 #endif
@@ -1143,17 +1144,17 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			PieceNo piece_no = piece_no_of(to);
 			ASSERT_LV3(is_ok(piece_no));
 
-#ifdef USE_EVAL_DIFF
+#if defined (USE_EVAL_DIFF)
 			dp.dirty_num = 2; // 動いた駒は2個
 			dp.pieceNo[1] = piece_no;
 			dp.changed_piece[1].old_piece = evalList.bona_piece(piece_no);
 #endif
 
-#ifndef EVAL_NO_USE
+#if !defined (EVAL_NO_USE)
 			evalList.put_piece(piece_no, Us, pr, hand_count(hand[Us], pr));
 #endif
 
-#ifdef USE_EVAL_DIFF
+#if defined (USE_EVAL_DIFF)
 			dp.changed_piece[1].new_piece = evalList.bona_piece(piece_no);
 #endif
 
@@ -1254,13 +1255,13 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 					// 敵玉はpieces(Us)なので含まれないはずであり、結果として自分の開き王手している駒だけが足される。
 
 				case DIRECT_U: case DIRECT_D:
-					st->checkersBB |= rookEffectFile(from, pieces()) & pieces(Us); break;
+					st->checkersBB |= rookFileEffect(from, pieces()) & pieces(Us); break;
 
 					// 横に利く遠方駒は飛車(+龍)しかないので、玉の位置から飛車の利きを求めてその利きのなかにいる飛車を足す。
 					// →　飛車の横だけの利きを求める関数を用意したので、それを用いると上と同様の手法で求まる。
 
 				case DIRECT_R: case DIRECT_L:
-					st->checkersBB |= rookEffectRank(from, pieces()) & pieces(Us); break;
+					st->checkersBB |= rookRankEffect(from, pieces()) & pieces(Us); break;
 
 					// 斜めに利く遠方駒は角(+馬)しかないので、玉の位置から角の利きを求めてその利きのなかにいる角を足す。
 					// →　上と同様の方法が使える。以下同様。
@@ -1515,6 +1516,7 @@ void Position::do_null_move(StateInfo& newSt) {
 	ASSERT_LV3(&newSt != st);
 
 	// この場合、StateInfo自体は丸ごとコピーしておかないといけない。(他の初期化をしないので)
+	// よく考えると、StateInfo、新しく作る必要もないのだが…。まあ、CheckInfoがあるので仕方ないか…。
 	std::memcpy(&newSt, st, sizeof(StateInfo));
 	newSt.previous = st;
 	st = &newSt;

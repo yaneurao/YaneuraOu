@@ -232,7 +232,7 @@ template <MOVE_GEN_TYPE GenType, Piece Pt, Color Us, bool All> struct GeneratePi
 
 			// 移動できる場所 = 利きのある場所
 			auto target2 =
-				Pt == LANCE ? lanceEffect(Us, from, occ) :
+				Pt == LANCE  ? lanceEffect(Us, from, occ) :
 				Pt == KNIGHT ? knightEffect(Us, from) :
 				Pt == SILVER ? silverEffect(Us, from) :
 				ALL_BB; // error
@@ -420,14 +420,14 @@ template <Color Us> struct GenerateDropMoves {
 			if (hand_exists(hk, KNIGHT)) drops[num++] = make_move_drop(KNIGHT, SQ_ZERO) + OurDropPt(Us, KNIGHT);
 
 			int nextToKnight = num; // 桂を除いたdropsのindex
-			if (hand_exists(hk, LANCE)) drops[num++] = make_move_drop(LANCE, SQ_ZERO) + OurDropPt(Us, LANCE);
+			if (hand_exists(hk, LANCE) ) drops[num++] = make_move_drop(LANCE, SQ_ZERO)  + OurDropPt(Us, LANCE);
 
 			int nextToLance = num; // 香・桂を除いたdropsのindex
 
 			if (hand_exists(hk, SILVER)) drops[num++] = make_move_drop(SILVER, SQ_ZERO) + OurDropPt(Us, SILVER);
-			if (hand_exists(hk, GOLD)) drops[num++] = make_move_drop(GOLD, SQ_ZERO) + OurDropPt(Us, GOLD);
+			if (hand_exists(hk, GOLD)  ) drops[num++] = make_move_drop(GOLD  , SQ_ZERO) + OurDropPt(Us, GOLD);
 			if (hand_exists(hk, BISHOP)) drops[num++] = make_move_drop(BISHOP, SQ_ZERO) + OurDropPt(Us, BISHOP);
-			if (hand_exists(hk, ROOK)) drops[num++] = make_move_drop(ROOK, SQ_ZERO) + OurDropPt(Us, ROOK);
+			if (hand_exists(hk, ROOK)  ) drops[num++] = make_move_drop(ROOK  , SQ_ZERO) + OurDropPt(Us, ROOK);
 
 
 			// 以下、コードが膨れ上がるが、dropは比較的、数が多く時間がわりとかかるので展開しておく価値があるかと思う。

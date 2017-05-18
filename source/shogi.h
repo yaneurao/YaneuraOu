@@ -290,6 +290,8 @@ namespace Effect8
 	};
 
 	// sq1にとってsq2がどのdirectionにあるか。
+	// "Direction"ではなく"Directions"を返したほうが、縦横十字方向や、斜め方向の位置関係にある場合、
+	// DIRECTIONS_CROSSやDIRECTIONS_DIAGのような定数が使えて便利。
 	extern Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1];
 	inline Directions directions_of(Square sq1, Square sq2) { return direc_table[sq1][sq2]; }
 

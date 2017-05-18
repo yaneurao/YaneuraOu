@@ -71,8 +71,8 @@ Bitboard BishopEffectMask[2][SQ_NB_PLUS1];
 int BishopEffectIndex[2][SQ_NB_PLUS1];
 
 // 飛車の縦、横の利き
-u64      RookEffectFile[RANK_NB + 1][128];
-Bitboard RookEffectRank[FILE_NB + 1][128];
+u64      RookFileEffect[RANK_NB + 1][128];
+Bitboard RookRankEffect[FILE_NB + 1][128];
 
 // 歩が打てる筋を得るためのBitboard
 // bit0 = 9筋に歩が打てないなら1 , bit1 = 8筋に… , bit8 = 1筋に歩が打てないなら1
@@ -318,7 +318,7 @@ void Bitboards::init()
 				if (ii & (1 << r))
 					break;
 			}
-			RookEffectFile[rank][i] = bb.p[0];
+			RookFileEffect[rank][i] = bb.p[0];
 			// RookEffectFile[RANK_NB][x] には値を代入していないがC++の規約によりゼロ初期化されている。
 		}
 	}
@@ -346,8 +346,8 @@ void Bitboards::init()
 				if (ii & (1 << f))
 					break;
 			}
-			RookEffectRank[file][i] = bb;
-			// RookEffectRank[FILE_NB][x] には値を代入していないがC++の規約によりゼロ初期化されている。
+			RookRankEffect[file][i] = bb;
+			// RookRankEffect[FILE_NB][x] には値を代入していないがC++の規約によりゼロ初期化されている。
 		}
 	}
 
@@ -364,7 +364,7 @@ void Bitboards::init()
 		for(auto sq : SQ)
 			// 障害物がないときの香の利き
 			// これを最初に初期化しないとlanceEffect()が使えない。
-			LanceStepEffectBB[sq][c] = rookEffectFile(sq,ZERO_BB) & InFrontBB[c][rank_of(sq)];
+			LanceStepEffectBB[sq][c] = rookFileEffect(sq,ZERO_BB) & InFrontBB[c][rank_of(sq)];
 
 	for (auto c : COLOR)
 		for (auto sq : SQ)

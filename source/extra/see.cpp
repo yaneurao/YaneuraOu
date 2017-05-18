@@ -97,7 +97,7 @@ namespace {
 
 	  case DIRECT_L: case DIRECT_R:
 		  // 左右なので先後の飛車
-		  attackers |= rookEffectRank(to, occupied) & pos.pieces(ROOK_DRAGON);
+		  attackers |= rookRankEffect(to, occupied) & pos.pieces(ROOK_DRAGON);
 
 		  ASSERT_LV3(((rookStepEffect(to) & sq)));
 		  break;
