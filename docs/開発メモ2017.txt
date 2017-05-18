@@ -1,6 +1,5 @@
 ﻿# ToDO
 
-- LONG_EFFECT_LIBRARY、何か壊してしまっている。do_move()書き換えたからか。あとでなおす。
 - pythonの自己対戦フレームワーク、改良する。
 - 詰将棋探索エンジン、他の探索部から呼び出せるように改良する。
 - PPAP評価関数
@@ -8,6 +7,36 @@
 	- SP型(6GB)
 	- EP型(16GB)
 - elmoの学習ルーチン、取り込む。
+
+
+## 2017/05/19
+
+- BonaPieceを拡張するのに際して、この実装、良くないな。
+	PieceNo piece_no_list[fe_end2];
+	うーん。大改造になるな…。
+	→　そうでもなかった。むしろ明快になった。
+
+	Nodes/second    : 840985
+	// 速度的には遅くなったかも知れんが仕方がない。
+
+	// 置換表16MB 2.5%ぐらい速いかも。
+	Nodes/second    : 865076
+
+
+- PieceNoをu8に。
+
+トーナメント用
+Nodes/second    : 837767
+Nodes/second    : 847426
+// そうでないやつ
+Nodes/second    : 851751
+Nodes/second    : 853966
+
+遅くはなってなさげなので良しとする。
+他にもテーブルサイズ、もう少しシュリンク、頑張ったほうが良いのでは。
+
+- Fix memory access in Search::clear()
+	なるほど。オーバーアクセスしてたのか…。
 
 
 ## 2017/05/18
@@ -21,6 +50,9 @@
 
 - Position::piece_bb →　byTypeBBに、occupied → byColorBBにrename。
 	StockfishのPositionに合わせておく。
+
+- LONG_EFFECT_LIBRARY、何か壊してしまっている。do_move()書き換えたからか。あとでなおす。
+	- なおした。
 
 - mate1ply()、先後テンプレートで分けた。ほとんど速くならない。
 	Nodes/second    : 836288

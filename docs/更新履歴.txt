@@ -2,6 +2,14 @@
 やねうら王 更新履歴
 
 
+■　2017/05/19
+
+・PieceNoをu8に変更。
+・Stockfish : Fix memory access in Search::clear()
+・EvalList、refactoringした。
+・解説.txtにトーナメント用実行ファイルの説明追加。
+
+
 ■　2017/05/18 V4.59
 
 ・do_move_impl()での王手している駒の利きの更新を最適化。
