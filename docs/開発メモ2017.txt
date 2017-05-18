@@ -11,6 +11,38 @@
 
 ## 2017/05/19
 
+- min_attacker()高速化
+Nodes/second    : 846862
+
+- do_move()少しリファクタリング。
+Nodes/second    : 842517
+
+- Bitboardの馬鹿でかい配列、なんとかならんのか
+	- BetweenBB
+	- LineBB
+	[SQ_NB+1][SQ_N+1B] * 128bit = 82*82*16bytes = 107,584 bytesもある…。
+
+	- CheckCandidateBB
+	[SQ_NB+1][KING][COLOR_NB] = 82*8*2*16bytes = 20,992 bytes
+
+	この3つ、どないかならんかな..。
+	BetweenBBはStockfishで使ってあるのでとりあえず仕方がないか…。
+
+	LineBBは要らんやろ。
+	→　開き王手になる指し手生成でkingとfromを結ぶ直線上から外に出る指し手を求めるために使ってある。
+	王手の指し手、ふだん生成しないので、これ要らんのちゃうか…。ふだん生成していないということは
+	この配列、アクセスしてないのでそもそも関係ないか…。そうか…。
+
+	LineBBちょっと端に移動させた。Slide u8に変更した。
+
+	Nodes/second    : 844298
+
+	LineBBだけなら、direction求めて、sqを通る4方向の直線があればいいだけなので
+	[SQ_NB][4]で良いのだが…。そういうコードにするか？
+
+	くそー。遅くなった？0.3%ぐらい遅いかも知れん。計測誤差かも知れん。
+
+
 - BonaPieceを拡張するのに際して、この実装、良くないな。
 	PieceNo piece_no_list[fe_end2];
 	うーん。大改造になるな…。
@@ -21,7 +53,6 @@
 
 	// 置換表16MB 2.5%ぐらい速いかも。
 	Nodes/second    : 865076
-
 
 - PieceNoをu8に。
 

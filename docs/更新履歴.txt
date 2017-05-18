@@ -2,12 +2,17 @@
 やねうら王 更新履歴
 
 
-■　2017/05/19
+■　2017/05/19 V4.60
 
 ・PieceNoをu8に変更。
 ・Stockfish : Fix memory access in Search::clear()
 ・EvalList、refactoringした。
 ・解説.txtにトーナメント用実行ファイルの説明追加。
+・Position.hで使っているSlide、u8に変更など。
+・LineBB配列、シュリンクした。
+・min_attacker()高速化
+・RookEffectRank → RookRankEffectにrename
+
 
 
 ■　2017/05/18 V4.59
