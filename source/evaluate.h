@@ -256,8 +256,8 @@ namespace Eval {
 	extern ExtBonaPiece kpp_hand_index[COLOR_NB][KING];
 
 	// 評価関数で用いる駒リスト。どの駒(PieceNo)がどこにあるのか(BonaPiece)を保持している構造体
-	struct EvalList {
-
+	struct EvalList
+	{
 		// 評価関数(FV38型)で用いる駒番号のリスト
 		BonaPiece* piece_list_fb() const { return const_cast<BonaPiece*>(pieceListFb); }
 		BonaPiece* piece_list_fw() const { return const_cast<BonaPiece*>(pieceListFw); }
@@ -273,44 +273,59 @@ namespace Eval {
 
 		// 盤上のsqの升にpiece_noのpcの駒を配置する
 		void put_piece(PieceNo piece_no, Square sq, Piece pc) {
-			set_piece(piece_no, BonaPiece(kpp_board_index[pc].fb + sq), BonaPiece(kpp_board_index[pc].fw + Inv(sq)));
+			set_piece_on_board(piece_no, BonaPiece(kpp_board_index[pc].fb + sq), BonaPiece(kpp_board_index[pc].fw + Inv(sq)),sq);
 		}
 
 		// c側の手駒ptのi+1枚目の駒のPieceNoを設定する。(1枚目の駒のPieceNoを設定したいならi==0にして呼び出すの意味)
 		void put_piece(PieceNo piece_no, Color c, Piece pt, int i) {
-			set_piece(piece_no, BonaPiece(kpp_hand_index[c][pt].fb + i), BonaPiece(kpp_hand_index[c][pt].fw + i));
+			set_piece_on_hand(piece_no, BonaPiece(kpp_hand_index[c][pt].fb + i), BonaPiece(kpp_hand_index[c][pt].fw + i));
 		}
 
 		// あるBonaPieceに対応するPieceNoを返す。
-		inline PieceNo piece_no_of(BonaPiece bp) const { return piece_no_list[bp]; }
+		PieceNo piece_no_of_hand(BonaPiece bp) const { return piece_no_list_hand[bp]; }
+		// 盤上のある升sqに対応するPieceNoを返す。
+		PieceNo piece_no_of_board(Square sq) const { return piece_no_list_board[sq]; }
 
 		// pieceListを初期化する。
 		// 駒落ちに対応させる時のために、未使用の駒の値はBONA_PIECE_ZEROにしておく。
 		// 通常の評価関数を駒落ちの評価関数として流用できる。
-		// piece_no_listのほうはデバッグが捗るように-1で初期化。
+		// piece_no_listのほうはデバッグが捗るようにPIECE_NO_NBで初期化。
 		void clear()
 		{
 			for (auto& p : pieceListFb)
 				p = BONA_PIECE_ZERO;
 			for (auto& p : pieceListFw)
 				p = BONA_PIECE_ZERO;
-			for (auto& v : piece_no_list)
-				v = PieceNo(-1);
+
+			for (auto& v : piece_no_list_hand)
+				v = PIECE_NO_NB;
+			for (auto& v : piece_no_list_board)
+				v = PIECE_NO_NB;
 		}
 
 	protected:
 
-		// piece_noの駒のBonaPieceがfb,fwであることを設定する。
-		inline void set_piece(PieceNo piece_no, BonaPiece fb, BonaPiece fw)
+		// 盤上sqにあるpiece_noの駒のBonaPieceがfb,fwであることを設定する。
+		inline void set_piece_on_board(PieceNo piece_no, BonaPiece fb, BonaPiece fw , Square sq)
 		{
 			ASSERT_LV3(is_ok(piece_no));
 			pieceListFb[piece_no] = fb;
 			pieceListFw[piece_no] = fw;
-			piece_no_list[fb] = piece_no;
+			piece_no_list_board[sq] = piece_no;
+		}
+
+		// 手駒であるpiece_noの駒のBonaPieceがfb,fwであることを設定する。
+		inline void set_piece_on_hand(PieceNo piece_no, BonaPiece fb, BonaPiece fw)
+		{
+			ASSERT_LV3(is_ok(piece_no));
+			pieceListFb[piece_no] = fb;
+			pieceListFw[piece_no] = fw;
+			piece_no_list_hand[fb] = piece_no;
 		}
 
 		// 駒リスト。駒番号(PieceNo)いくつの駒がどこにあるのか(BonaPiece)を示す。FV38などで用いる。
 #if defined(USE_FAST_KPPT)
+		// AVX2の命令でアクセスするのでalignas(32)が必要。
 		alignas(32) BonaPiece pieceListFb[PIECE_NO_NB];
 		alignas(32) BonaPiece pieceListFw[PIECE_NO_NB];
 #else
@@ -318,8 +333,13 @@ namespace Eval {
 		BonaPiece pieceListFw[PIECE_NO_NB];
 #endif
 
-		// あるBonaPieceに対して、その駒番号(PieceNo)を保持している配列
-		PieceNo piece_no_list[fe_end2];
+		// 手駒である、任意のBonaPieceに対して、その駒番号(PieceNo)を保持している配列
+		PieceNo piece_no_list_hand[fe_hand_end];
+
+		// 盤上のBonaPieceに対して、その駒番号(PieceNo)を保持している配列
+		// 玉がSQ_NBに移動しているとき用に+1まで保持しておくが、
+		// SQ_NBの玉を移動させないので、この値を使うことはないはず。
+		PieceNo piece_no_list_board[SQ_NB_PLUS1];
 	};
 #endif
 }

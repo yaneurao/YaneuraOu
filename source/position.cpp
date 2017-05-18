@@ -1157,7 +1157,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			Piece pr = raw_type_of(to_pc);
 
 			// このPieceNoの駒が手駒に移動したのでEvalListのほうを更新しておく。
-			PieceNo piece_no = piece_no_of(to_pc, to);
+			PieceNo piece_no = piece_no_of(to);
 			ASSERT_LV3(is_ok(piece_no));
 
 #ifdef USE_EVAL_DIFF
@@ -1207,7 +1207,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		}
 
 		// 移動元にあった駒のpiece_noを得る
-		PieceNo piece_no2 = piece_no_of(moved_pc, from);
+		PieceNo piece_no2 = piece_no_of(from);
 
 #ifdef USE_EVAL_DIFF
 		dp.pieceNo[0] = piece_no2;
@@ -1409,7 +1409,7 @@ void Position::undo_move_impl(Move m)
 		piece_on(to);
 #endif
 
-	PieceNo piece_no = piece_no_of(moved_after_pc, to); // 移動元のpiece_no == いまtoの場所にある駒のpiece_no
+	PieceNo piece_no = piece_no_of(to); // 移動元のpiece_no == いまtoの場所にある駒のpiece_no
 	ASSERT_LV3(is_ok(piece_no));
 
 	// 移動前の駒

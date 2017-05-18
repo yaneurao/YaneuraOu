@@ -665,11 +665,11 @@ private:
 		return (Eval::BonaPiece)(Eval::kpp_hand_index[c][pt].fb + ct - 1);
 	}
 
-	// c側の手駒ptの(最後の1枚の)PieceNoを返す
-	PieceNo piece_no_of(Color c, Piece pt) const { return evalList.piece_no_of(bona_piece_of(c, pt)); }
+	// c側の手駒ptの(最後の1枚の)PieceNoを返す。
+	PieceNo piece_no_of(Color c, Piece pt) const { return evalList.piece_no_of_hand(bona_piece_of(c, pt)); }
 
-	// 盤上のpcの駒のPieceNoを返す
-	PieceNo piece_no_of(Piece pc, Square sq) const { return evalList.piece_no_of((Eval::BonaPiece)(Eval::kpp_board_index[pc].fb + sq)); }
+	// 盤上のsqの升にある駒のPieceNoを返す。
+	PieceNo piece_no_of(Square sq) const { ASSERT_LV3(piece_on(sq) != NO_PIECE);  return evalList.piece_no_of_board(sq); }
 #else
 	// 駒番号を使わないとき用のダミー
 	PieceNo piece_no_of(Color c, Piece pt) const { return PIECE_NO_ZERO; }
