@@ -182,13 +182,13 @@ constexpr bool is_ok(Square sq) { return SQ_ZERO <= sq && sq <= SQ_NB; }
 // sqが盤面の内側を指しているかを判定する。assert()などで使う用。玉は盤上にないときにSQ_NBを取るのでこの関数が必要。
 constexpr bool is_ok_plus1(Square sq) { return SQ_ZERO <= sq && sq < SQ_NB_PLUS1; }
 
-extern File SquareToFile[SQ_NB];
+extern File SquareToFile[SQ_NB_PLUS1];
 
 // 与えられたSquareに対応する筋を返す。
 // →　行数は長くなるが速度面においてテーブルを用いる。
 inline File file_of(Square sq) { /* return (File)(sq / 9); */ ASSERT_LV2(is_ok(sq)); return SquareToFile[sq]; }
 
-extern Rank SquareToRank[SQ_NB];
+extern Rank SquareToRank[SQ_NB_PLUS1];
 
 // 与えられたSquareに対応する段を返す。
 // →　行数は長くなるが速度面においてテーブルを用いる。
