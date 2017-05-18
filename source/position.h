@@ -40,20 +40,13 @@ struct DirtyPiece
 
 // StateInfoは、undo_move()で局面を戻すときに情報を元の状態に戻すのが面倒なものを詰め込んでおくための構造体。
 // do_move()のときは、ブロックコピーで済むのでそこそこ高速。
-struct StateInfo {
-
-	// ---- ここから下のやつは do_move()のときにコピーされる
-
+struct StateInfo
+{
 	// 遡り可能な手数(previousポインタを用いて局面を遡るときに用いる)
 	int pliesFromNull;
 
 	// この手番側の連続王手は何手前からやっているのか(連続王手の千日手の検出のときに必要)
 	int continuousCheck[COLOR_NB];
-
-	// ---- ここから下のやつは do_move()のときにコピーされない
-	// ※　ただし、do_null_move()のときは丸ごとコピーされる。
-
-	// --- 以下のメンバーは、Position::do_move()で更新される。
 
 	// 現局面で手番側に対して王手をしている駒のbitboard
 	Bitboard checkersBB;

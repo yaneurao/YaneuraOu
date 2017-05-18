@@ -978,16 +978,21 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	// StateInfoの構造体のメンバーの上からkeyのところまでは前のを丸ごとコピーしておく。
 	// undo_moveで戻すときにこの部分はundo処理が要らないので細かい更新処理が必要なものはここに載せておけばundoが速くなる。
 
-	std::memcpy(&new_st, st, offsetof(StateInfo, checkersBB));
+	// std::memcpy(&new_st, st, offsetof(StateInfo, checkersBB));
+	// 将棋ではこの処理、要らないのでは…。
 
 	// StateInfoを遡れるようにpreviousを設定しておいてやる。
-	new_st.previous = st;
+	StateInfo* prev;
+	new_st.previous = prev = st;
 	st = &new_st;
 
-	// 手数がらみのカウンターのインクリメント
+	// --- 手数がらみのカウンターのインクリメント
 
-	++gamePly;           // 厳密には、これはrootからの手数ではなく、初期盤面からの手数ではあるが。
-	++st->pliesFromNull; // st->previousで遡り可能な手数カウンタ
+	// 厳密には、これはrootからの手数ではなく、初期盤面からの手数ではあるが。
+	++gamePly;
+	
+	// st->previousで遡り可能な手数カウンタ
+	st->pliesFromNull = prev->pliesFromNull + 1;
 
 	// 評価値の差分計算用の初期化
 
@@ -1072,7 +1077,12 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		if (givesCheck)
 		{
 			st->checkersBB = Bitboard(to);
-			st->continuousCheck[Us] += 2;
+			st->continuousCheck[Us] = prev->continuousCheck[Us] + 2;
+
+			// Stockfishのコードは、ここのコード、" += 2 "になっているが、
+			// やねうら王ではStateInfoのmemcpy()をしないことにしたので
+			// 前ノードの値に対して、" + 2 "しないといけない。
+
 		} else {
 			st->checkersBB = ZERO_BB;
 			st->continuousCheck[Us] = 0;
@@ -1283,7 +1293,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			// 差分更新しないとき用。
 			st->checkersBB = attackers_to(Us, king_square(~Us));
 #endif
-			st->continuousCheck[Us] += 2;
+			st->continuousCheck[Us] = prev->continuousCheck[Us] + 2;
 
 		} else {
 
@@ -1291,6 +1301,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			st->continuousCheck[Us] = 0;
 		}
 	}
+	// 相手番のほうは関係ないので前ノードの値をそのまま受け継ぐ。
+	st->continuousCheck[~Us] = prev->continuousCheck[~Us];
 
 #ifndef EVAL_NO_USE
 	st->materialValue = (Value)(st->previous->materialValue + (Us == BLACK ? materialDiff : -materialDiff));
