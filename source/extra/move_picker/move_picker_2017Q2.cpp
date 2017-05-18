@@ -501,7 +501,7 @@ Move MovePicker::next_move2() {
 		if (stage == QCAPTURES_2)
 			break;
 		cur = moves;
-		// CAPTURES_PRO_PLUSで生成していたので、歩の成る指し手は除外された王手となる指し手生成が必要。
+		// CAPTURES_PRO_PLUSで生成していたので、歩の成る指し手は除外された成る指し手＋王手の指し手生成が必要。
 		// QUIET_CHECKS_PRO_MINUSがあれば良いのだが、実装が難しいので、このあと除外する。
 		endMoves = generateMoves<QUIET_CHECKS>(pos, cur);
 		++stage;

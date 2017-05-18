@@ -138,6 +138,7 @@ inline std::ostream& operator<<(std::ostream& os, Rank r) { os << (char)('a' + r
 
 // 盤上の升目に対応する定数。
 // 盤上右上(１一が0)、左下(９九)が80
+// 方角を表現するときにマイナスの値を使うので符号型である必要がある。
 enum Square: int32_t
 {
 	// 以下、盤面の右上から左下までの定数。

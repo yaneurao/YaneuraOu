@@ -318,16 +318,25 @@ inline const Bitboard enemy_field(const Color Us) { return EnemyField[Us]; }
 extern Bitboard PAWN_DROP_MASK_BB[0x80]; // p[0]には1～7筋 、p[1]には8,9筋のときのデータが入っている。
 
 // 2升に挟まれている升を返すためのテーブル(その2升は含まない)
+// この配列には直接アクセスせずにbetween_bb()を使うこと。
 extern Bitboard BetweenBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
 
 // 2升に挟まれている升を表すBitboardを返す。sq1とsq2が縦横斜めの関係にないときはZERO_BBが返る。
 inline const Bitboard between_bb(Square sq1, Square sq2) { return BetweenBB[sq1][sq2]; }
 
 // 2升を通過する直線を返すためのテーブル
-extern Bitboard LineBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
+// 2つ目のindexは[0]:右上から左下、[1]:横方向、[2]:左上から右下、[3]:縦方向の直線。
+// この配列には直接アクセスせず、line_bb()を使うこと。
+extern Bitboard LineBB[SQ_NB][4];
 
-// 2升を通過する直線を返すためのBitboardを返す。sq1とsq2が縦横斜めの関係にないときはZERO_BBが返る。
-inline const Bitboard line_bb(Square sq1, Square sq2) { return LineBB[sq1][sq2]; }
+// 2升を通過する直線を返すためのBitboardを返す。sq1とsq2が縦横斜めの関係にないときに呼び出してはならない。
+inline const Bitboard line_bb(Square sq1, Square sq2)
+{
+	auto dir = Effect8::directions_of(sq1, sq2);
+	ASSERT_LV3(dir != 0);
+	int d = (int)Effect8::pop_directions(dir);
+	return LineBB[sq1][(d <= 3) ? d : (7 - d)];
+}
 
 #if 0
 // →　高速化のために、Effect8::directions_ofを使って実装しているのでコメントアウト。(shogi.hにおいて)

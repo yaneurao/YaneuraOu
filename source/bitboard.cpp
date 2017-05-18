@@ -80,7 +80,10 @@ Bitboard RookEffectRank[FILE_NB + 1][128];
 // テーブルサイズが大きくなるのが嫌だったので2つに分割。
 Bitboard PAWN_DROP_MASK_BB[0x80]; // p[0]には1～7筋 、p[1]には8,9筋のときのデータが入っている。
 
-Bitboard BetweenBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
+// LineBBは、王手の指し手生成からしか使っていないが、move_pickerからQUIET_CHECKS呼び出しているので…。
+// そして、配列シュリンクした。
+Bitboard LineBB[SQ_NB][4];
+
 Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING][COLOR_NB];
 
 u8 Slide[SQ_NB_PLUS1] = {
@@ -96,9 +99,7 @@ u8 Slide[SQ_NB_PLUS1] = {
   0 , // SQ_NB用
 };
 
-// LineBBは、王手の指し手生成からしか使っておらず、ふだんアクセスしないので
-// このテーブルは上のテーブルとは区別しとく。
-Bitboard LineBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
+Bitboard BetweenBB[SQ_NB_PLUS1][SQ_NB_PLUS1];
 
 // SquareからSquareWithWallへの変換テーブル
 SquareWithWall sqww_table[SQ_NB_PLUS1];
@@ -442,17 +443,26 @@ void Bitboards::init()
 				Square delta = (s2 - s1) / dist(s1, s2);
 				for (Square s = s1 + delta; s != s2; s += delta)
 					BetweenBB[s1][s2] |= s;
-
-				// 間に挟まれてない升も1に
-				LineBB[s1][s2] = BetweenBB[s1][s2];
-
-				// 壁に当たるまでs1から-delta方向に延長
-				for (Square s = s1; dist(s, s + delta) <= 1; s -= delta) LineBB[s1][s2] |= s;
-
-				// 壁に当たるまでs2から+delta方向に延長
-				for (Square s = s2; dist(s, s - delta) <= 1; s += delta) LineBB[s1][s2] |= s;
 			}
 		}
+
+	for (auto s1 : SQ)
+		for (int d = 0; d < 4; ++d)
+		{
+			Bitboard bb = Bitboard(s1);
+
+			const Square deltas[4] = { SQ_RU , SQ_R , SQ_RD , SQ_U };
+			const Square delta = deltas[d];
+
+			// 壁に当たるまでs1から-delta方向に延長
+			for (Square s = s1; dist(s, s - delta) <= 1; s -= delta) bb |= (s - delta);
+
+			// 壁に当たるまでs1から+delta方向に延長
+			for (Square s = s1; dist(s, s + delta) <= 1; s += delta) bb |= (s + delta);
+
+			LineBB[s1][d] = bb;
+		}
+
 
 	// 9) 王手となる候補の駒のテーブル初期化(王手の指し手生成に必要。やねうら王nanoでは削除予定)
 
