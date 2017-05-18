@@ -1115,28 +1115,11 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 		// 移動先に駒の配置
 		// もし成る指し手であるなら、成った後の駒を配置する。
-		Piece moved_after_pc;
+		Piece moved_after_pc = moved_piece_after(m);
 
-		if (is_promote(m))
-		{
-#ifndef EVAL_NO_USE
-			materialDiff = Eval::ProDiffPieceValue[moved_pc];
+#if !defined(EVAL_NO_USE)
+		materialDiff = is_promote(m) ? Eval::ProDiffPieceValue[moved_pc] : 0;
 #endif
-			moved_after_pc = moved_pc + PIECE_PROMOTE;
-		} else {
-#ifndef EVAL_NO_USE
-			materialDiff = 0;
-#endif
-			moved_after_pc = moved_pc;
-
-			// 王を移動させる手であるなら、kingSquareを更新しておく。
-			// 王は成れないため、is_promote()は必ずfalseになっているはず。
-			// また、王は駒打できないのでdropの指し手に含まれていることはないから
-			// dropのときにはkingSquareを更新する必要はない。
-			// よって、このタイミング以外で更新する必要はない。
-			if (type_of(moved_pc) == KING)
-				kingSquare[Us] = to;
-		}
 
 		// 移動先の升にある駒
 		Piece to_pc = piece_on(to);
@@ -1234,6 +1217,12 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #if defined(USE_EVAL_HASH)
 		Eval::prefetch_evalhash(key);
 #endif
+
+		// 王を移動させる手であるなら、kingSquareを更新しておく。
+		// 王は駒打できないのでdropの指し手に含まれていることはないから
+		// dropのときにはkingSquareを更新する必要はない。
+		if (type_of(moved_pc) == KING)
+			kingSquare[Us] = to;
 
 		// put_piece()などを用いたのでupdateする。
 		// ROOK_DRAGONなどをこの直後で用いるのでここより後ろにやるわけにはいかない。
