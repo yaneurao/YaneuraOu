@@ -789,7 +789,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 		// 置換表から取り出してきている以上、一度は指し手生成ルーチンで生成した指し手のはずであり、
 		// KING打ちのような値であることはないものとする。
 
-#ifdef KEEP_PIECE_IN_GENERATE_MOVES
+#if defined(KEEP_PIECE_IN_GENERATE_MOVES)
 		// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
 		if (moved_piece_after(m) != Piece(pr + ((us == WHITE) ? u32(PIECE_WHITE) : 0) + PIECE_DROP))
 			return false;
@@ -860,7 +860,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 			if (pt >= GOLD)
 				return false;
 
-#ifdef KEEP_PIECE_IN_GENERATE_MOVES
+#if defined(KEEP_PIECE_IN_GENERATE_MOVES)
 			// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
 			if (moved_piece_after(m) != Piece(pc + PIECE_PROMOTE))
 				return false;
@@ -875,7 +875,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 
 			// --- 成らない指し手
 
-#ifdef KEEP_PIECE_IN_GENERATE_MOVES
+#if defined(KEEP_PIECE_IN_GENERATE_MOVES)
 			// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
 			if (moved_piece_after(m) != pc)
 				return false;
@@ -1398,8 +1398,16 @@ void Position::undo_move_impl(Move m)
 	auto to = move_to(m);
 	ASSERT_LV2(is_ok(to));
 
-	// 移動後の駒
-	Piece moved_after_pc = moved_piece_after(m);
+	// --- 移動後の駒
+
+	// 手番が変わるのでKEEP_PIECE_IN_GENERATE_MOVESを定義していないときに
+	// moved_piece_after()を呼び出すのは正しく動作しない。
+	Piece moved_after_pc =
+#if defined(KEEP_PIECE_IN_GENERATE_MOVES)
+		moved_piece_after(m);
+#else
+		piece_on(to);
+#endif
 
 	PieceNo piece_no = piece_no_of(moved_after_pc, to); // 移動元のpiece_no == いまtoの場所にある駒のpiece_no
 	ASSERT_LV3(is_ok(piece_no));
