@@ -39,24 +39,24 @@ namespace {
 	ENABLE_FULL_OPERATORS_ON(PieceTypeCheck);
 
 	// 王手になる候補の駒の位置を示すBitboard
-	Bitboard CHECK_CAND_BB[PIECE_TYPE_CHECK_NB][SQ_NB_PLUS1][COLOR_NB];
+	Bitboard CHECK_CAND_BB[SQ_NB_PLUS1][PIECE_TYPE_CHECK_NB][COLOR_NB];
 
 	// 玉周辺の利きを求めるときに使う、玉周辺に利きをつける候補の駒を表すBB
 	// COLORのところは王手する側の駒
-	Bitboard CHECK_AROUND_BB[PIECE_RAW_NB][SQ_NB_PLUS1][COLOR_NB];
+	Bitboard CHECK_AROUND_BB[SQ_NB_PLUS1][PIECE_RAW_NB][COLOR_NB];
 
 	// 移動により王手になるbitboardを返す。
 	// us側が王手する。sq_king = 敵玉の升。pc = 駒
 	inline Bitboard check_cand_bb(Color us, PieceTypeCheck pc, Square sq_king)
 	{
-		return CHECK_CAND_BB[pc][sq_king][us];
+		return CHECK_CAND_BB[sq_king][pc][us];
 	}
 
 	// 敵玉8近傍の利きに関係する自駒の候補のbitboardを返す。ここになければ玉周辺に利きをつけない。
 	// pt = PAWN～HDK
 	inline Bitboard check_around_bb(Color us, Piece pt, Square sq_king)
 	{
-		return CHECK_AROUND_BB[pt - 1][sq_king][us];
+		return CHECK_AROUND_BB[sq_king][pt - 1][us];
 	}
 
 	// sq1に対してsq2の升の延長上にある次の升を得る。
@@ -95,17 +95,8 @@ namespace {
 
 					case PIECE_TYPE_CHECK_PAWN_WITH_PRO:
 
-						bb = goldEffect(~c, sq);
-						if (c == BLACK)
-						{
-							bb &= enemy_field(BLACK);
-							bb = pawnEffect(WHITE,bb); // その1段下にある歩
-						}
-						else
-						{
-							bb &= enemy_field(WHITE);
-							bb = pawnEffect(BLACK,bb); // その1段上にある歩
-						}
+						bb = goldEffect(~c, sq) & enemy_field(c);
+						bb = pawnEffect(~c, bb);
 						break;
 
 					case PIECE_TYPE_CHECK_LANCE:
@@ -201,15 +192,15 @@ namespace {
 
 						// 非遠方駒の合体bitboard。ちょっとぐらい速くなるんだろう…。
 					case PIECE_TYPE_CHECK_NON_SLIDER:
-						bb =  CHECK_CAND_BB[PIECE_TYPE_CHECK_GOLD][sq][c]
-							| CHECK_CAND_BB[PIECE_TYPE_CHECK_KNIGHT][sq][c]
-							| CHECK_CAND_BB[PIECE_TYPE_CHECK_SILVER][sq][c]
-							| CHECK_CAND_BB[PIECE_TYPE_CHECK_PAWN_WITH_NO_PRO][sq][c]
-							| CHECK_CAND_BB[PIECE_TYPE_CHECK_PAWN_WITH_PRO][sq][c];
+						bb =  CHECK_CAND_BB[sq][PIECE_TYPE_CHECK_GOLD][c]
+							| CHECK_CAND_BB[sq][PIECE_TYPE_CHECK_KNIGHT][c]
+							| CHECK_CAND_BB[sq][PIECE_TYPE_CHECK_SILVER][c]
+							| CHECK_CAND_BB[sq][PIECE_TYPE_CHECK_PAWN_WITH_NO_PRO][c]
+							| CHECK_CAND_BB[sq][PIECE_TYPE_CHECK_PAWN_WITH_PRO][c];
 						break;
 					}
 					bb &= ~Bitboard(sq); // sqの地点邪魔なので消しておく。
-					CHECK_CAND_BB[p][sq][c] = bb;
+					CHECK_CAND_BB[sq][p][c] = bb;
 				}
 
 
@@ -305,7 +296,7 @@ namespace {
 
 					bb &= ~Bitboard(sq); // sqの地点邪魔なので消しておく。
 										 // CHECK_CAND_BBとは並び順を変えたので注意。
-					CHECK_AROUND_BB[p - 1][sq][c] = bb;
+					CHECK_AROUND_BB[sq][p - 1][c] = bb;
 				}
 
 		// NextSquareの初期化
@@ -544,10 +535,8 @@ namespace Mate1Ply
 	// Mate1Ply関係のテーブル初期化
 	void init()
 	{
-		// Bitboard CHECK_CAND_BB[PIECE_TYPE_CHECK_NB][SQUARE_NB][COLOR_NB];
-		// の初期化
+		// CHECK_CAND_BB、CHECK_AROUND_BBの初期化
 		init_check_bb();
-
 	}
 }
 
