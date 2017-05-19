@@ -84,7 +84,8 @@ Bitboard PAWN_DROP_MASK_BB[0x80]; // p[0]には1～7筋 、p[1]には8,9筋の�
 // そして、配列シュリンクした。
 Bitboard LineBB[SQ_NB][4];
 
-Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING][COLOR_NB];
+Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING-1][COLOR_NB];
+Bitboard CheckCandidateKingBB[SQ_NB_PLUS1];
 
 u8 Slide[SQ_NB_PLUS1] = {
   1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 ,
@@ -561,7 +562,7 @@ void Bitboards::init()
 			// 王(24近傍が格納される)
 			target = ZERO_BB;
 			FOREACH_KING(kingEffect(ksq), kingEffect);
-			CheckCandidateBB[ksq][KING - 1][Us] = target & ~Bitboard(ksq);
+			CheckCandidateKingBB[ksq] = target & ~Bitboard(ksq);
 		}
 
 	// 10. LONG_EFFECT_LIBRARYの初期化

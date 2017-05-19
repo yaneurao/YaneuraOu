@@ -838,7 +838,7 @@ ExtMove* generate_checks(const Position& pos, ExtMove* mlist)
 			(pos.pieces(GOLDS)  & check_candidate_bb(Us, GOLD  , themKing)) |
 			(pos.pieces(BISHOP) & check_candidate_bb(Us, BISHOP, themKing)) |
 			(pos.pieces(ROOK_DRAGON)) | // ROOK,DRAGONは無条件全域
-			(pos.pieces(HORSE)  & check_candidate_bb(Us, ROOK, themKing)) // check_candidate_bbにはROOKと書いてるけど、HORSE
+			(pos.pieces(HORSE)  & check_candidate_bb(Us, ROOK  , themKing)) // check_candidate_bbにはROOKと書いてるけど、HORSE
 		) & pos.pieces(Us);
 
 	// ここには王を敵玉の8近傍に移動させる指し手も含まれるが、王が近接する形はレアケースなので

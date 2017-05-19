@@ -349,21 +349,23 @@ inline bool aligned(Square s1, Square s2, Square s3) {
 #endif
 
 // sqの升にいる敵玉に王手となるc側の駒ptの候補を得るテーブル。第2添字は(pr-1)を渡して使う。
-extern Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING][COLOR_NB];
+extern Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING-1][COLOR_NB];
+extern Bitboard CheckCandidateKingBB[SQ_NB_PLUS1];
 
 // sqの升にいる敵玉に王手となるus側の駒ptの候補を得る
 // pr == ROOKは無条件全域なので代わりにHORSEで王手になる領域を返す。
 // pr == KINGはsqの24近傍を返す。(ただしこれは王手生成では使わない)
 inline const Bitboard check_candidate_bb(Color us, Piece pr, Square sq)
 {
-	ASSERT_LV3(PAWN<= pr && pr <= KING && sq <= SQ_NB && is_ok(us));
+	ASSERT_LV3(PAWN<= pr && pr < KING && sq <= SQ_NB && is_ok(us));
 	return CheckCandidateBB[sq][pr - 1][us];
 }
 
 // ある升の24近傍のBitboardを返す。
 inline const Bitboard around24_bb(Square sq)
 {
-	return check_candidate_bb(BLACK, KING, sq);
+	ASSERT_LV3(sq <= SQ_NB);
+	return CheckCandidateKingBB[sq];
 }
 
 // --------------------
