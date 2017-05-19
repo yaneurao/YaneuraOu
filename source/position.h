@@ -207,7 +207,7 @@ struct Position
 	void set_this_thread(Thread*th) { thisThread = th; }
 
 	// 盤面上の駒を返す
-	Piece piece_on(Square sq) const { return board[sq]; }
+	Piece piece_on(Square sq) const { ASSERT_LV3(sq <= SQ_NB); return board[sq]; }
 
 	// c側の手駒を返す
 	Hand hand_of(Color c) const { return hand[c]; }
@@ -677,8 +677,8 @@ private:
 #endif
 	// ---
 
-	// 盤面、81升分の駒。
-	Piece board[SQ_NB];
+	// 盤面、81升分の駒 + 1
+	Piece board[SQ_NB_PLUS1];
 
 	// 手駒
 	Hand hand[COLOR_NB];

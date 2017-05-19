@@ -48,10 +48,10 @@ namespace {
 	  b = stmAttackers & pos.pieces(HORSE);  if (b) goto found;
 	  b = stmAttackers & pos.pieces(DRAGON); if (b) goto found;
 
-	  // 攻撃駒があるというのが前提条件だから、以上の駒で取れなければ、最後は玉でtoの升に移動出来て
-	  // 駒を取れるはず。
+	  // 攻撃駒があるというのが前提条件だから、以上の駒で取れなければ、最後は玉でtoの升に移動出来て駒を取れるはず。
+	  // 玉を移動させた結果、影になっていた遠方駒によってこの王が取られることはないから、
+	  // sqに利く遠方駒が追加されることはなく、このままreturnすれば良い。
 
-	  // ここでサイクルは停止するのだ。
 	  return KING;
 
   found:;

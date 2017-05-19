@@ -337,8 +337,8 @@ inline const Bitboard line_bb(Square sq1, Square sq2)
 	static_assert(Effect8::DIRECT_RU == 0 && Effect8::DIRECT_LD == 7 , "");
 	auto dir = Effect8::directions_of(sq1, sq2);
 	ASSERT_LV3(dir != 0);
-	int d = (int)Effect8::pop_directions(dir);
-	return LineBB[sq1][(d <= 3) ? d : (7 - d)];
+	static const int a[8] = { 0 , 1 , 2 , 3 , 3 , 2 , 1 , 0 };
+	return LineBB[sq1][a[(int)Effect8::pop_directions(dir)]];
 }
 
 #if 0
