@@ -295,11 +295,7 @@
 #ifdef YANEURAOU_2017_EARLY_ENGINE
 #define ENGINE_NAME "YaneuraOu 2017 Early"
 #define EVAL_KPPT
-//#define EVAL_KKPT
-
 #define USE_EVAL_HASH
-//#define USE_LARGE_EVAL_HASH
-
 #define USE_SEE
 #define USE_MOVE_PICKER_2017Q2
 #define USE_MATE_1PLY

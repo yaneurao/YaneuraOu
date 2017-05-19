@@ -147,6 +147,9 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Search::Stack*s)
 	checkMustCapture();
 #endif
 
+	// (ss - 1)->currentMove == MOVE_NONEである可能性はある。
+	// そのときは、prevPc == NO_PIECEになり、それでもうまく動作する。
+
 	Square prevSq = to_sq((ss - 1)->currentMove);
 	Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
 	countermove = pos.this_thread()->counterMoves[prevSq][prevPc];
@@ -199,7 +202,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Square recapSq)
 	// 置換表の指し手がないなら、次のstageから開始する。
 	stage += (ttMove == MOVE_NONE);
 }
-  
+
 // 通常探索時にProbCutの処理から呼び出されるの専用
 // th = 枝刈りのしきい値
 MovePicker::MovePicker(const Position& p, Move ttm, Value th)
@@ -297,6 +300,8 @@ void MovePicker::score<EVASIONS>()
 		//      T1,b3000,2459 - 148 - 2383(50.78% R5.45)
 		//   →　やはり、改造前のほうが良い。[2016/10/06]
 
+		// TODO : ここ、moved_piece_before()が本当にいいのか？
+		// moved_piece_after()と比較すべき。
 		if (pos.capture(m))
 			// 捕獲する指し手に関しては簡易SEE + MVV/LVA
 			m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]

@@ -527,6 +527,8 @@ Bitboard Position::slider_blockers(Color c, Square s , Bitboard& pinners) const 
 // (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
 Bitboard Position::attackers_to(Color c, Square sq, const Bitboard& occ) const
 {
+	ASSERT_LV3(is_ok(c) && sq <= SQ_NB);
+
 	Color them = ~c;
 
 	// sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
@@ -552,6 +554,8 @@ Bitboard Position::attackers_to(Color c, Square sq, const Bitboard& occ) const
 // (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
 Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 {
+	ASSERT_LV3(sq <= SQ_NB);
+
 	// sqの地点に敵駒ptをおいて、その利きに自駒のptがあればsqに利いているということだ。
 	return
 		// 先手の歩・桂・銀・金・HDK
@@ -582,6 +586,8 @@ Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 // 打ち歩詰め判定に使う。王に打ち歩された歩の升をpawn_sqとして、c側(王側)のpawn_sqへ利いている駒を列挙する。香が利いていないことは自明。
 inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 {
+	ASSERT_LV3(is_ok(c) && pawn_sq <= SQ_NB);
+
 	Color them = ~c;
 	const Bitboard& occ = pieces();
 
@@ -1201,7 +1207,6 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// 移動元の升からの駒の除去
 		remove_piece(from);
 
-		ASSERT_LV3(is_ok(piece_no2));
 		put_piece_simple(to, moved_after_pc, piece_no2);
 
 #ifdef USE_EVAL_DIFF

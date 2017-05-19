@@ -210,10 +210,10 @@ struct Position
 	Piece piece_on(Square sq) const { ASSERT_LV3(sq <= SQ_NB); return board[sq]; }
 
 	// c側の手駒を返す
-	Hand hand_of(Color c) const { return hand[c]; }
+	Hand hand_of(Color c) const { ASSERT_LV3(is_ok(c));  return hand[c]; }
 
 	// c側の玉の位置を返す
-	FORCE_INLINE Square king_square(Color c) const { return kingSquare[c]; }
+	FORCE_INLINE Square king_square(Color c) const { ASSERT_LV3(is_ok(c)); return kingSquare[c]; }
 
 	// 保持しているデータに矛盾がないかテストする。
 	bool pos_is_ok() const;
@@ -226,17 +226,31 @@ struct Position
 	// 後手の駒打ちは後手の駒が返る。
 	Piece moved_piece_before(Move m) const
 	{
-		return is_drop(m)
-			? (move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE))
-			: piece_on(move_from(m));
+		ASSERT_LV3(is_ok(m));
+#if defined( KEEP_PIECE_IN_GENERATE_MOVES)
+		// 上位16bitに格納されている値を利用する。
+		// return is_promote(m) ? (piece & ~PIECE_PROMOTE) : piece;
+		// みたいなコードにしたいので、
+		// mのMOVE_PROMOTEのbitで、PIECE_PROMOTEのbitを反転させてやる。
+		static_assert(MOVE_PROMOTE == (1 << 15) && PIECE_PROMOTE == 8, "");
+		return (Piece)((m ^ ((m & MOVE_PROMOTE) << 4)) >> 16);
+
+#else
+		return is_drop(m) ? make_piece(sideToMove , move_dropped_piece(m)) : piece_on(move_from(m));
+#endif
 	}
 
 	// moved_pieceの拡張版。駒打ちのときは、打ち駒(+32 == PIECE_DROP)を加算した駒種を返す。
 	// historyなどでUSE_DROPBIT_IN_STATSを有効にするときに用いる。
 	// 成りの指し手のときは成りの指し手を返す。(移動後の駒)
 	// KEEP_PIECE_IN_GENERATE_MOVESのときは単にmoveの上位16bitを返す。
-	Piece moved_piece_after(Move m) const {
-#ifdef    KEEP_PIECE_IN_GENERATE_MOVES
+	Piece moved_piece_after(Move m) const
+	{
+		// move pickerから MOVE_NONEに対してこの関数が呼び出されることがあるのでこのASSERTは書けない。
+		// MOVE_NONEに対しては、NO_PIECEからPIECE_NB未満のいずれかの値が返れば良い。
+		// ASSERT_LV3(is_ok(m));
+
+#if defined(KEEP_PIECE_IN_GENERATE_MOVES)
 		// 上位16bitにそのまま格納されているはず。
 		return Piece(m >> 16);
 #else
@@ -248,9 +262,14 @@ struct Position
 
 	// 置換表から取り出したMoveを32bit化する。
 	Move move16_to_move(Move m) const {
+		// 置換表から取り出した値なので m==0である可能性があり、ASSERTは書けない。
+		// その場合、piece_on(SQ_ZERO)の駒が上位16bitに格納されるが、
+		// 指し手自体はilligal moveなのでこの指し手が選択されることはない。
+		//		ASSERT_LV3(is_ok(m));
+
 		return Move(u16(m) +
-			((is_drop(m) ? Piece(move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE) + PIECE_DROP)
-				: is_promote(m) ? Piece(piece_on(move_from(m)) + PIECE_PROMOTE) : piece_on(move_from(m))) << 16)
+			((is_drop(m) ? (Piece)(make_piece(sideToMove,move_dropped_piece(m)) + PIECE_DROP)
+				: is_promote(m) ? (Piece)(piece_on(move_from(m)) + PIECE_PROMOTE) : piece_on(move_from(m))) << 16)
 		);
 	}
 
@@ -295,6 +314,7 @@ struct Position
 	template<Piece Pt> Square square(Color c) const
 	{
 		static_assert(Pt == KING,"Pt must be a KING in Position::square().");
+		ASSERT_LV3(is_ok(c));
 		return king_square(c);
 	}
 
@@ -308,10 +328,10 @@ struct Position
 
 	// ピンされているc側の駒。下手な方向に移動させるとc側の玉が素抜かれる。
 	// 手番側のpinされている駒はpos.pinned_pieces(pos.side_to_move())のようにして取得できる。
-	Bitboard pinned_pieces(Color c) const { return st->blockersForKing[c] & pieces(c); }
+	Bitboard pinned_pieces(Color c) const { ASSERT_LV3(is_ok(c)); return st->blockersForKing[c] & pieces(c); }
 
 	// 現局面で駒Ptを動かしたときに王手となる升を表現するBitboard
-	Bitboard check_squares(Piece pt) const { return st->checkSquares[pt]; }
+	Bitboard check_squares(Piece pt) const { ASSERT_LV3(pt!= NO_PIECE && pt < PIECE_WHITE); return st->checkSquares[pt]; }
 
 	// --- 利き
 
@@ -328,7 +348,7 @@ struct Position
 
 	// attackers_to()で駒があればtrueを返す版。(利きの情報を持っているなら、軽い実装に変更できる)
 	// kingSqの地点からは玉を取り除いての利きの判定を行なう。
-#ifndef LONG_EFFECT_LIBRARY
+#if !defined(LONG_EFFECT_LIBRARY)
 	bool effected_to(Color c, Square sq) const { return attackers_to(c, sq, pieces()); }
 	bool effected_to(Color c, Square sq, Square kingSq) const { return attackers_to(c, sq, pieces() ^ kingSq); }
 #else 
@@ -669,7 +689,13 @@ private:
 	PieceNo piece_no_of(Color c, Piece pt) const { return evalList.piece_no_of_hand(bona_piece_of(c, pt)); }
 
 	// 盤上のsqの升にある駒のPieceNoを返す。
-	PieceNo piece_no_of(Square sq) const { ASSERT_LV3(piece_on(sq) != NO_PIECE);  return evalList.piece_no_of_board(sq); }
+	PieceNo piece_no_of(Square sq) const
+	{
+		ASSERT_LV3(piece_on(sq) != NO_PIECE);
+		PieceNo n = evalList.piece_no_of_board(sq);
+		ASSERT_LV3(is_ok(n));
+		return n;
+	}
 #else
 	// 駒番号を使わないとき用のダミー
 	PieceNo piece_no_of(Color c, Piece pt) const { return PIECE_NO_ZERO; }
@@ -734,7 +760,7 @@ inline void Position::put_piece(Square sq, Piece pc,PieceNo piece_no)
 	// 駒番号をセットしておく必要がある。
 	ASSERT_LV3(is_ok(piece_no));
 
-#ifndef EVAL_NO_USE
+#if !defined (EVAL_NO_USE)
 	// evalListのほうを更新しないといけない
 	evalList.put_piece(piece_no, sq, pc); // sqの升にpcの駒を配置する
 #endif
@@ -751,9 +777,9 @@ inline void Position::put_piece_simple(Square sq, Piece pc, PieceNo piece_no)
 	ASSERT_LV2(board[sq] == NO_PIECE);
 	board[sq] = pc;
 	xor_piece(pc, sq);
-	ASSERT_LV3(is_ok(piece_no));
 
-#ifndef EVAL_NO_USE
+#if !defined(EVAL_NO_USE)
+	ASSERT_LV3(is_ok(piece_no));
 	evalList.put_piece(piece_no, sq, pc);
 #endif
 }
