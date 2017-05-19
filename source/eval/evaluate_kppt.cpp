@@ -536,7 +536,7 @@ namespace Eval
 
 	void evaluateBody(const Position& pos)
 	{
-		// 過去に遡って差分を計算していく。
+		// 一つ前のノードからの評価値の差分を計算する。
 
 		auto now = pos.state();
 		auto prev = now->previous;
