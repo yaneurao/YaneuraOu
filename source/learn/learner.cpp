@@ -351,10 +351,12 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 						// 局面を一つ書き出す。
 						sw.write(thread_id, *it);
 
+#if 0
 						pos.set_from_packed_sfen(it->sfen);
-						cout << pos << it->isWin << endl;
+						cout << pos << "Win : " << it->isWin << " , " << it->score << endl;
+#endif
 					}
-
+					
 					break;
 				}
 
