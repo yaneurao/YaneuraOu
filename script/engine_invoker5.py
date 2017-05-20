@@ -55,15 +55,11 @@ def output_rating(win,draw,lose,win_black,win_white,opt2):
 	if total != 0 :
 		# 普通の勝率
 		win_rate = win / float(win+lose)
+		# 先手番/後手番のときの勝率内訳
+		win_rate_black = win_black / float(win + lose)
+		win_rate_white = win_white / float(win + lose)
 	else:
 		win_rate = 0
-
-	if win != 0:
-		# 先手番のときの勝率内訳
-		win_rate_black = win_black / float(win)
-		# 後手番のときの勝率内訳
-		win_rate_white = win_white / float(win)
-	else:
 		win_rate_black = 0
 		win_rate_white = 0
 
@@ -490,27 +486,27 @@ def vs_match(engines_full,options,threads,loop,cpu,book_sfens,fileLogging,opt2,b
 					if "resign" in line:
 						if (i%2)==1:
 							win += 1
-							if (moves[i/2] & 1 == 1):
-								win_black += 1
-							else:
-								win_white += 1
 							gameover = 1 # 1P勝ち
 						else:
 							lose += 1
 							gameover = 2 # 2P勝ち
+						if (moves[i/2] & 1 == 1):
+							win_black += 1
+						else:
+							win_white += 1
 						update = True
 
 					elif "win" in line:
 						if (i%2)==0:
 							win += 1
-							if (moves[i/2] & 1 == 0):
-								win_black += 1
-							else:
-								win_white += 1
 							gameover = 1 # 1P勝ち
 						else:
 							lose += 1
 							gameover = 2 # 2P勝ち
+						if (moves[i/2] & 1 == 0):
+							win_black += 1
+						else:
+							win_white += 1
 						update = True
 
 					else:
