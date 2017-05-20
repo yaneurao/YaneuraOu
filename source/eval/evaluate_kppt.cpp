@@ -205,7 +205,7 @@ namespace Eval
 			}
 			else
 			{
-				kk_ = &(shared_eval_ptr->kk_);
+				kk_  = &(shared_eval_ptr->kk_ );
 				kkp_ = &(shared_eval_ptr->kkp_);
 				kpp_ = &(shared_eval_ptr->kpp_);
 
@@ -256,7 +256,7 @@ namespace Eval
 			}
 			else
 			{
-				kk_ = &(shared_eval_ptr->kk_);
+				kk_  = &(shared_eval_ptr->kk_ );
 				kkp_ = &(shared_eval_ptr->kkp_);
 				kpp_ = &(shared_eval_ptr->kpp_);
 

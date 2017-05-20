@@ -293,19 +293,24 @@ void MovePicker::score<EVASIONS>()
 		// あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
 		// 価値が高いので(例えば合駒に安い駒を使う的な…)
 
-		//  成るなら、その成りの価値を加算したほうが見積もりとしては正しい気がするが、
+		//  ・成るなら、その成りの価値を加算したほうが見積もりとしては正しい？
 		// 　それは取り返されないことが前提にあるから、そうでもない。
 		//		T1,r300,2491 - 78 - 2421(50.71% R4.95)
 		//		T1,b1000,2483 - 103 - 2404(50.81% R5.62)
 		//      T1,b3000,2459 - 148 - 2383(50.78% R5.45)
 		//   →　やはり、改造前のほうが良い。[2016/10/06]
 
-		// TODO : ここ、moved_piece_before()が本当にいいのか？
-		// moved_piece_after()と比較すべき。
+		// ・moved_piece_before()とmoved_piece_after()との比較
+		// 　厳密なLVAではなくなるが、afterのほうが良さげ。
+		// 　例えば、歩を成って取るのと、桂で取るのとでは、安い駒は歩だが、桂で行ったほうが、
+		// 　歩はあとで成れるとすれば潜在的な価値はそちらのほうが高いから、そちらを残しておくという理屈はあるのか。
+		// 　　T1, b1000, 2402 - 138 - 2460(49.4% R - 4.14) win black : white = 51.04% : 48.96%
+		//  →　moved_piece_before()のほうで問題なさげ。[2017/5/20]
+
 		if (pos.capture(m))
 			// 捕獲する指し手に関しては簡易SEE + MVV/LVA
 			m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
-			- Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
+			-Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
 		else
 			// 捕獲しない指し手に関してはhistoryの値の順番
 			m.value = history.get(c, m);

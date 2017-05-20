@@ -75,15 +75,8 @@ struct SfenWriter
 	// 各スレッドについて、この局面数ごとにファイルにflushする。
 	const size_t SFEN_WRITE_SIZE = 5000;
 
-#ifdef  WRITE_PACKED_SFEN
-
 	// 局面と評価値をペアにして1つ書き出す(packされたsfen形式で)
-	void write(size_t thread_id, const PackedSfen& sfen, s16 value
-#ifdef GENSFEN_SAVE_FIRST_MOVE
-		// PVの初手
-		,Move move
-#endif
-	)
+	void write(size_t thread_id, const PackedSfenValue& psv)
 	{
 		// スレッドごとにbufferを持っていて、そこに追加する。
 		// bufferが溢れたら、ファイルに書き出す。
@@ -98,16 +91,9 @@ struct SfenWriter
 			buf->reserve(SFEN_WRITE_SIZE);
 		}
 
-		PackedSfenValue ps;
-		ps.sfen = sfen;
-		ps.score = value;
-#ifdef GENSFEN_SAVE_FIRST_MOVE
-		ps.move = (u16)move;
-#endif
-
 		// スレッドごとに用意されており、一つのスレッドが同時にこのwrite()関数を呼び出さないので
 		// この時点では排他する必要はない。
-		buf->push_back(ps);
+		buf->push_back(psv);
 
 		if (buf->size() >= SFEN_WRITE_SIZE)
 		{
@@ -124,37 +110,6 @@ struct SfenWriter
 			// buf == nullptrにしておけば次回にこの関数が呼び出されたときにバッファは確保される。
 		}
 	}
-#else
-	// 局面を1行書き出す
-	void write(size_t thread_id, string line)
-	{
-		// スレッドごとにbufferを持っていて、そこに追加する。
-		// bufferが溢れたら、ファイルに書き出す。
-
-		auto& buf = sfen_buffers[thread_id];
-
-		auto buf_reserve = [&]()
-		{
-			buf = shared_ptr<vector<string>>(new vector<string>());
-			buf->reserve(SFEN_WRITE_SIZE);
-		};
-
-		if (!buf)
-			buf_reserve();
-
-		buf->push_back(line);
-		if (buf->size() >= SFEN_WRITE_SIZE)
-		{
-			// sfen_buffers_poolに積んでおけばあとはworkerがよきに計らってくれる。
-			{
-				std::unique_lock<Mutex> lk(mutex);
-				sfen_buffers_pool.push_back(buf);
-				buf = nullptr;
-			}
-			buf_reserve();
-		}
-	}
-#endif
 
 	// バッファに残っている分をファイルに書き出す。
 	void finalize(size_t thread_id)
@@ -191,11 +146,7 @@ struct SfenWriter
 
 		while (!finished || sfen_buffers_pool.size())
 		{
-#ifdef  WRITE_PACKED_SFEN
 			vector<shared_ptr<vector<PackedSfenValue>>> buffers;
-#else
-			vector<shared_ptr<vector<string>>> buffers;
-#endif
 			{
 				std::unique_lock<Mutex> lk(mutex);
 
@@ -214,12 +165,7 @@ struct SfenWriter
 
 				for (auto ptr : buffers)
 				{
-#ifdef  WRITE_PACKED_SFEN
 					fs.write((const char*)&((*ptr)[0]), sizeof(PackedSfenValue) * ptr->size());
-#else
-					for (auto line : *ptr)
-						fs << line;
-#endif
 
 //					cout << "[" << ptr->size() << "]";
 					sfen_write_count += ptr->size();
@@ -251,13 +197,8 @@ private:
 	u64 time_stamp_count = 0;
 
 	// ファイルに書き出す前のバッファ
-#ifdef  WRITE_PACKED_SFEN
 	vector<shared_ptr<vector<PackedSfenValue>>> sfen_buffers;
 	vector<shared_ptr<vector<PackedSfenValue>>> sfen_buffers_pool;
-#else
-	vector<shared_ptr<vector<string>>> sfen_buffers;
-	vector<shared_ptr<vector<string>>> sfen_buffers_pool;
-#endif
 
 	// sfen_buffers_poolにアクセスするときに必要なmutex
 	Mutex mutex;
@@ -307,7 +248,9 @@ struct MultiThinkGenSfen: public MultiThink
 //  thread_id    = 0..Threads.size()-1
 void MultiThinkGenSfen::thread_worker(size_t thread_id)
 {
-	StateInfo state[MAX_PLY + 8]; // StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
+	const int MAX_PLY2 = 400;
+
+	StateInfo state[MAX_PLY2 + 20]; // StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
 	Move m = MOVE_NONE;
 
 	// 定跡の指し手を用いるモード
@@ -316,6 +259,10 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 	// 規定回数回になるまで繰り返し
 	while (true)
 	{
+		// 1局分の局面を保存しておき、勝敗を含めて書き出す。
+		vector<PackedSfenValue> a_psv;
+
+
 		// Positionに対して従属スレッドの設定が必要。
 		// 並列化するときは、Threads (これが実体が vector<Thread*>なので、
 		// Threads[0]...Threads[thread_num-1]までに対して同じようにすれば良い。
@@ -329,7 +276,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		auto& book = ::book.memory_book;
 
 		// ply : 初期局面からの手数
-		for (int ply = 0; ply < MAX_PLY - 20; ++ply)
+		for (int ply = 0; ply < MAX_PLY2 ; ++ply)
 		{
 			// 詰んでいるなら次の対局に
 			if (pos.is_mated())
@@ -373,11 +320,41 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				// 評価値の絶対値がこの値以上の局面については
 				// その局面を学習に使うのはあまり意味がないのでこの試合を終了する。
+				// これをもって勝敗がついたという扱いをする。
 				if (abs(value1) >= eval_limit)
 				{
-#if 0
-					sync_cout << pos << "eval limit = " << eval_limit << " over , move = " << pv1[0] << sync_endl;
+//					sync_cout << pos << "eval limit = " << eval_limit << " over , move = " << pv1[0] << sync_endl;
+
+					// 現在の手番側の勝ちとして扱い、局面をファイルに書き出す。
+					// 一つ前の局面は相手番であり、負け側。
+
+					// 初手から各局面に関して、勝敗を付与しておく。
+					bool isWin = false;
+					for (auto it = a_psv.rbegin(); it != a_psv.rend(); ++it)
+					{
+#if defined(GENSFEN_SAVE_GAME_RESULT)
+						it->isWin = isWin;
+						isWin = !isWin;
 #endif
+
+						// 局面を書き出そうと思ったら規定回数に達していた。
+						// get_next_loop_count()内でカウンターを加算するので
+						// 局面を出力したときにこれを呼び出さないとカウンターが狂う。
+						auto loop_count = get_next_loop_count();
+						if (loop_count == UINT64_MAX)
+							goto FINALIZE;
+
+						// 100k局面に1回ぐらい置換表の世代を進める。
+						if ((loop_count % 100000) == 0)
+							TT.new_search();
+
+						// 局面を一つ書き出す。
+						sw.write(thread_id, *it);
+
+						pos.set_from_packed_sfen(it->sfen);
+						cout << pos << it->isWin << endl;
+					}
+
 					break;
 				}
 
@@ -385,9 +362,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				auto draw_type = pos.is_repetition();
 				if (draw_type != REPETITION_NONE)
 				{
-#if 0
-					sync_cout << pos << "repetition , move = " << pv1[0] << sync_endl;
-#endif
+					// 引き分けのときは、局面を書き出さない。
+//					sync_cout << pos << "repetition , move = " << pv1[0] << sync_endl;
 					break;
 				}
 
@@ -459,7 +435,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				auto leaf_value = value1;
 
 #if 0
-				//				cout << pv_value1.first << " , " << leaf_value << endl;
+				//	cout << pv_value1.first << " , " << leaf_value << endl;
 				// dbg_hit_on(pv_value1.first == leaf_value);
 				// Total 150402 Hits 127195 hit rate (%) 84.569
 
@@ -473,7 +449,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 #endif
 
 #if 0
-				//				dbg_hit_on(pv1.size() >= search_depth);
+				//	dbg_hit_on(pv1.size() >= search_depth);
 				// Total 101949 Hits 101794 hit rate (%) 99.847
 				// 置換表にヒットするなどしてPVが途中で切れるケースは全体の0.15%程度。
 				// このケースを捨てたほうがいいかも知れん。
@@ -492,7 +468,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// 16手目までの局面、類似局面ばかりなので
 				// 学習に用いると過学習になりかねないから書き出さない。
 				if (ply < 16)
-					goto SKIP_WRITE;
+					goto SKIP_SAVE;
 
 				// 同一局面を書き出したところか？
 				// これ、複数のPCで並列して生成していると同じ局面が含まれることがあるので
@@ -502,100 +478,30 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					auto hash_index = (size_t)(key & (GENSFEN_HASH_SIZE - 1));
 					auto key2 = hash[hash_index];
 					if (key == key2)
-						goto SKIP_WRITE;
+						goto SKIP_SAVE;
 					hash[hash_index] = key; // 今回のkeyに入れ替えておく。
 				}
 
+				// 局面の一時保存。
 				{
-					// 局面を書き出そうと思ったら規定回数に達していた。
-					// get_next_loop_count()内でカウンターを加算するので
-					// 局面を出力したときにこれを呼び出さないとカウンターが狂う。
-					auto loop_count = get_next_loop_count();
-					if (loop_count == UINT64_MAX)
-						goto FINALIZE;
+					PackedSfenValue psv;
 
-					// 100k局面に1回ぐらい置換表の世代を進める。
-					if ((loop_count % 100000) == 0)
-						TT.new_search();
-
-#ifdef WRITE_PACKED_SFEN
-					PackedSfen sfen;
 					// packを要求されているならpackされたsfenとそのときの評価値を書き出す。
-					pos.sfen_pack(sfen);
-					// このwriteがスレッド排他を行うので、ここでの排他は不要。
-#ifndef GENSFEN_SAVE_FIRST_MOVE
-					sw.write(thread_id, sfen, leaf_value);
-#else
+					// 最終的な書き出しは、勝敗がついてから。
+					pos.sfen_pack(psv.sfen);
+					psv.score = leaf_value;
+
+#if defined(GENSFEN_SAVE_FIRST_MOVE)
 					// PVの初手を取り出す。これはdepth 0でない限りは存在するはず。
 					ASSERT_LV3(pv_value1.second.size() >= 1);
 					Move pv_move1 = pv_value1.second[0];
-					sw.write(thread_id, sfen, leaf_value, pv_move1);
+					pvs.move = pv_move1;
 #endif
 
-#if 0
-					// デバッグ用に局面を表示させてみる。
-					sync_cout << pos << "leaf value = " << leaf_value << sync_endl;
-#endif
-
-#ifdef TEST_UNPACK_SFEN
-
-					// sfenのpack test
-					// pack()してunpack()したものが元のsfenと一致するのかのテスト。
-
-			  //      pos.sfen_pack(data);
-					auto sfen = pos.sfen_unpack(data);
-					auto pos_sfen = pos.sfen();
-
-					// 手数の部分の出力がないので異なる。末尾の数字を消すと一致するはず。
-					auto trim = [](std::string& s)
-					{
-						while (true)
-						{
-							auto c = *s.rbegin();
-							if (c < '0' || '9' < c)
-								break;
-							s.pop_back();
-						}
-					};
-					trim(sfen);
-					trim(pos_sfen);
-
-					if (sfen != pos_sfen)
-					{
-						cout << "Error: sfen packer error\n" << sfen << endl << pos_sfen << endl;
-					}
-#endif
-
-#else // WRITE_PACKED_SFEN
-
-					{
-						// C++のiostreamに対するスレッド排他は自前で行なう必要がある。
-						std::unique_lock<Mutex> lk(io_mutex);
-
-						// sfenとそのときの評価値を書き出す。
-						string line = pos.sfen() + "," + to_string(value1) + "\n";
-						sw.write(thread_id, line);
-					}
-#endif
-
-#if 0
-					// デバッグ用に局面と読み筋を表示させてみる。
-					cout << pos;
-					cout << "search() PV = ";
-					for (auto pv_move : pv1)
-						cout << pv_move << " ";
-					cout << endl;
-
-					// 静止探索のpvは存在しないことがある。(駒の取り合いがない場合など)　その場合は、現局面がPVのleafである。
-					cout << "qsearch() PV = ";
-					for (auto pv_move : pv2)
-						cout << pv_move << " ";
-					cout << endl;
-
-#endif
+					a_psv.push_back(psv);
 				}
 
-			SKIP_WRITE:;
+			SKIP_SAVE:;
 
 				// 何故かPVが得られなかった(置換表などにhitして詰んでいた？)ので次に行く。
 				if (pv1.size() == 0)
@@ -651,6 +557,11 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 						if (!is_ok(pos))
 							cout << pos << sq1 << sq2;
 #endif
+
+						// ゲームの勝敗から指し手を評価しようとするとき、
+						// 今回のランダムムーブがあるので、ここ以前には及ばないようにする。
+						a_psv.clear(); // 保存していた局面のクリア
+
 						goto DO_MOVE_FINISH;
 					}
 				}
@@ -671,6 +582,10 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				// 玉の2手指しのコードを入れていたが、合法手から1手選べばそれに相当するはずで
 				// コードが複雑化するだけだから不要だと判断した。
+
+				// ゲームの勝敗から指し手を評価しようとするとき、
+				// 今回のランダムムーブがあるので、ここ以前には及ばないようにする。
+				a_psv.clear(); // 保存していた局面のクリア
 			}
 #endif
 
@@ -699,20 +614,14 @@ void gen_sfen(Position& pos, istringstream& is)
   u64 loop_max = 8000000000UL;
 
   // 評価値がこの値になったら生成を打ち切る。
-  int eval_limit = 2000;
+  int eval_limit = 3000;
 
   // 探索深さ
   int search_depth = 3;
   int search_depth2 = INT_MIN;
 
   // 書き出すファイル名
-  string filename =
-#ifdef WRITE_PACKED_SFEN
-	  "generated_kifu.bin"
-#else
-	  "generated_kifu.sfen"
-#endif
-	  ;
+  string filename = "generated_kifu.bin";
 
   string token;
   while (true)
@@ -776,11 +685,11 @@ double sigmoid(double x)
 }
 
 // 評価値を勝率[0,1]に変換する関数
-double winning_percentage(Value value)
+double winning_percentage(double value)
 {
 	// この600.0という定数は、ponanza定数。(ponanzaがそうしているらしいという意味で)
 	// ゲームの進行度に合わせたものにしたほうがいいかも知れないけども、その効果のほどは不明。
-	return sigmoid(static_cast<int>(value) / 600.0);
+	return sigmoid(value / 600.0);
 }
 
 // 普通のシグモイド関数の導関数。
@@ -834,7 +743,7 @@ double calc_grad(Value deep, Value shallow)
 }
 #endif
 
-#ifdef LOSS_FUNCTION_IS_CROSS_ENTOROPY
+#if defined (LOSS_FUNCTION_IS_CROSS_ENTOROPY)
 double calc_grad(Value deep, Value shallow)
 {
 	// 交差エントロピーを用いた目的関数
@@ -861,13 +770,37 @@ double calc_grad(Value deep, Value shallow)
 }
 #endif
 
-#ifdef LOSS_FUNCTION_IS_CROSS_ENTOROPY_FOR_VALUE
+#if defined ( LOSS_FUNCTION_IS_CROSS_ENTOROPY_FOR_VALUE)
 double calc_grad(Value deep, Value shallow)
 {
 	// 勝率の関数を通さない版
 	// これ、EVAL_LIMITを低くしておかないと、終盤の形に対して評価値を一致させようとして
 	// evalがevalの範囲を超えかねない。
 	return shallow - deep;
+}
+#endif
+
+#if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
+
+// isWin : この手番側が最終的に勝利したかどうか
+double calc_grad(Value deep, Value shallow , bool isWin)
+{
+	// elmo(WCSC27)方式
+	// 実際のゲームの勝敗で補正する。
+
+	const double eval_winrate = winning_percentage(shallow);
+	const double teacher_winrate = winning_percentage(deep);
+
+	// 勝っていれば1、負けていれば 0。
+	const double t = (isWin) ? 1.0 : 0.0;
+
+	// elmo(WCSC27)で使われている定数。要調整。
+	const double LAMBDA = 0.5;
+
+	// 実際の勝率を補正項として使っている。
+	const double dsig = (eval_winrate - t) + LAMBDA * (eval_winrate - teacher_winrate);
+
+	return dsig;
 }
 #endif
 
@@ -1346,8 +1279,13 @@ void LearnerThink::thread_worker(size_t thread_id)
 		auto deep_value = (Value)ps.score;
 
 		// 勾配
-		double dj_dw = calc_grad(deep_value, shallow_value);
-		
+		double dj_dw = calc_grad(deep_value, shallow_value
+#if defined(LOSS_FUNCTION_IS_ELMO_METHOD)
+			// elmo methodにおいては実際の勝敗を補正項として用いるので引数として渡してやる。
+		,	ps.isWin
+#endif
+		);
+
 		// 現在、leaf nodeで出現している特徴ベクトルに対する勾配(∂J/∂Wj)として、jd_dwを加算する。
 
 		// mini batchのほうが勾配が出ていいような気がする。

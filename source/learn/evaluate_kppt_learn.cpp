@@ -210,7 +210,6 @@ namespace Eval
 
 		// この特徴の出現回数
 		u32   count;
-
 #endif
 
 #if defined (USE_ADA_GRAD_UPDATE)

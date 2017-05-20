@@ -9,26 +9,20 @@
 // 以下のいずれも選択しない場合は、そのあとの細々したものをひとつひとつ設定する必要がある。
 
 // デフォルトの学習設定
+// #define LEARN_DEFAULT
 
-#define LEARN_DEFAULT
+
+// === 以下、色々実験中なので使わないように ===
+
+// elmo方式での学習設定。
+// #define LEARN_ELMO_METHOD
+
+// #define EVAL_SAVE_ONLY_ONCE
 
 // やねうら王2016Late用デフォルトの学習設定。
-//
 // 置換表を無効化するので通常対局は出来ない。learnコマンド用の実行ファイル専用。
 //                       ~~~~~~~~~~~~~~~~~~
-// ※　色々実験中なので使わないように。
-
-//#define LEARN_YANEURAOU_2016_LATE
-//#define EVAL_SAVE_ONLY_ONCE
-
-
-// =====================
-// 教師局面生成時の設定
-// =====================
-
-// 教師局面の生成時にPVの初手も保存するならこれをdefineすること。
-// 2016年9月までに公開したした教師データを用いる場合、これをdefineしてはならない。
-// #define GENSFEN_SAVE_FIRST_MOVE
+// #define LEARN_YANEURAOU_2016_LATE
 
 
 // ----------------------
@@ -109,6 +103,8 @@
 // 目的関数が交差エントロピーだが、勝率の関数を通さない版
 // #define LOSS_FUNCTION_IS_CROSS_ENTOROPY_FOR_VALUE
 
+// elmo(WCSC27)の方式
+// #define LOSS_FUNCTION_IS_ELMO_METHOD
 
 // ※　他、色々追加するかも。
 
@@ -143,10 +139,10 @@
 //        置換表
 // ----------------------
 
-// 置換表を用いない。(やねうら王Mid2016/Late2016のみ対応)
+// 置換表を用いない。(やねうら王2017Earlyのみ対応)
 // これをオンにすると通常対局時にも置換表を参照しなくなってしまうので棋譜からの学習を行う実行ファイルでのみオンにする。
 // 棋譜からの学習時にはオンにしたほうがよさげ。
-// 理由) 置換表にhitするとPV learが評価値の局面ではなくなってしまう。
+// 理由) 置換表にhitするとPV leafが評価値の局面ではなくなってしまう。
 
 //#define DISABLE_TT_PROBE
 
@@ -184,22 +180,20 @@
 typedef float LearnFloatType;
 
 
-// ----------------------
-//   棋譜生成時の設定
-// ----------------------
+// =====================
+// 教師局面生成時の設定
+// =====================
 
 // これはgensfenコマンドに関する設定。
 // これらは、configureの設定では変化しない。
 
-// packされたsfenを書き出す
-#define WRITE_PACKED_SFEN
+
+// 教師局面の生成時にPVの初手も保存するならこれをdefineすること。
+// 2016年9月までに公開したした教師データを用いる場合、これをdefineしてはならない。
+// #define GENSFEN_SAVE_FIRST_MOVE
 
 // search()のleaf nodeまでの手順が合法手であるかを検証する。
 //#define TEST_LEGAL_LEAF
-
-// packしたsfenをunpackして元の局面と一致するかをテストする。
-// →　十分テストしたのでもう大丈夫やろ…。
-//#define TEST_UNPACK_SFEN
 
 // 棋譜を生成するときに一定手数の局面まで定跡を用いる機能
 // これはOptions["BookMoves"]の値が反映される。この値が0なら、定跡を用いない。
@@ -211,6 +205,8 @@ typedef float LearnFloatType;
 // ときどき合法手のなかからランダムに1手選ぶ。(Apery方式)
 //#define USE_RANDOM_LEGAL_MOVE
 
+// 棋譜生成時にゲームの勝敗を書き出す。
+//#define GENSFEN_SAVE_GAME_RESULT
 
 // タイムスタンプの出力をこの回数に一回に抑制する。
 // スレッドを論理コアの最大数まで酷使するとコンソールが詰まるので…。
@@ -220,7 +216,7 @@ typedef float LearnFloatType;
 // configureの内容を反映
 // ----------------------
 
-#ifdef LEARN_DEFAULT
+#if defined (LEARN_DEFAULT)
 #define USE_SGD_UPDATE
 #define USE_KPP_MIRROR_WRITE
 #undef LEARN_MINI_BATCH_SIZE
@@ -231,6 +227,10 @@ typedef float LearnFloatType;
 #define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
 #define USE_RANDOM_LEGAL_MOVE
 #endif
+
+// ----------------------
+//  やねうら王2016LATE 方式での学習
+// ----------------------
 
 #ifdef LEARN_YANEURAOU_2016_LATE
 
@@ -291,6 +291,30 @@ typedef float LearnFloatType;
 #endif
 
 // ----------------------
+//  elmoの方法での学習
+// ----------------------
+
+#if defined( LEARN_ELMO_METHOD )
+
+// elmoでは、ゲームの勝敗を学習時に利用するのでこのフラグを書き出す必要がある。
+#define GENSFEN_SAVE_GAME_RESULT
+
+#define USE_ADA_GRAD_UPDATE
+#define LEARN_UPDATE_EVERYTIME
+
+#define USE_KPP_MIRROR_WRITE
+#undef LEARN_MINI_BATCH_SIZE
+#define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
+#define LOSS_FUNCTION_IS_ELMO_METHOD
+#define USE_QSEARCH_FOR_SHALLOW_VALUE
+#undef EVAL_FILE_NAME_CHANGE_INTERVAL
+#define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
+#define USE_RANDOM_LEGAL_MOVE
+
+#endif
+
+
+// ----------------------
 // 設定内容に基づく定数文字列
 // ----------------------
 
@@ -311,6 +335,8 @@ typedef float LearnFloatType;
 #define LOSS_FUNCTION "CROSS_ENTOROPY"
 #elif defined(LOSS_FUNCTION_IS_CROSS_ENTOROPY_FOR_VALUE)
 #define LOSS_FUNCTION "CROSS_ENTOROPY_FOR_VALUE"
+#elif defined(LOSS_FUNCTION_IS_ELMO_METHOD)
+#define LOSS_FUNCTION "ELMO_METHOD(WCSC27)"
 #endif
 
 // rmseの観測用
@@ -338,6 +364,12 @@ namespace Learner
 
 #ifdef	GENSFEN_SAVE_FIRST_MOVE
 		u16 move; // PVの初手
+#endif
+
+#ifdef  GENSFEN_SAVE_GAME_RESULT
+		// この局面の手番側が、ゲームを最終的に勝っているならtrue。負けているならfalse。
+		// 引き分けに至った場合は、局面自体書き出さない。
+		bool isWin;
 #endif
 	};
 }
