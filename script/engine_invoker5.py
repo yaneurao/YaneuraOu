@@ -657,7 +657,7 @@ parser.add_argument('--hash2', type=str, default="", help=u"思考エンジン2�
 parser.add_argument('--time', type=str, default="", help=u"time");
 parser.add_argument('--rand_book', type=int, default=0, help=u"定跡の順番をランダム化(rand_book=1を指定したとき)");
 parser.add_argument('--book_moves', type=int, default=24, help=u"何手目まで定跡で指させるか");
-parser.add_argument('--PARAMETERS_LOG_FILE_PATH', type=int, default=24, help=u"同optionのpath指定 (ここに\"_2.log\"のような文字列が自動的に付与される。)");
+parser.add_argument('--PARAMETERS_LOG_FILE_PATH', type=str, default="", help=u"同optionのpath指定 (ここに\"_2.log\"のような文字列が自動的に付与される。)");
 args = parser.parse_args()
 
 home = args.home
