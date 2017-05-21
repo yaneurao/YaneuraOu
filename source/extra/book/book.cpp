@@ -616,7 +616,9 @@ namespace Book
 
 		if (filename == kAperyBookName) {
 			// Apery定跡データベースを読み込む
-			apery_book = std::make_unique<AperyBook>(kAperyBookName);
+		//	apery_book = std::make_unique<AperyBook>(kAperyBookName);
+			// これ、C++14の機能。C++11用に以下のように書き直す。
+			apery_book = std::unique_ptr<AperyBook>(new AperyBook(kAperyBookName));
 		}
 		else {
 			// やねうら王定跡データベースを読み込む
@@ -1080,7 +1082,7 @@ namespace Book
 			, "yaneura_book1.db" , "yaneura_book2.db" , "yaneura_book3.db", "yaneura_book4.db"
 			, "user_book1.db", "user_book2.db", "user_book3.db", "book.bin" };
 
-		o["BookFile"] << Option(book_list, book_list[1], [&](auto& o){ this->book_name = string(o); });
+		o["BookFile"] << Option(book_list, book_list[1], [&](const Option& o){ this->book_name = string(o); });
 		book_name = book_list[1];
 
 		//  BookEvalDiff: 定跡の指し手で1番目の候補の指し手と、2番目以降の候補の指し手との評価値の差が、
@@ -1159,7 +1161,7 @@ namespace Book
 			auto n = move_list.size();
 
 			// 出現確率10%未満のものを取り除く。
-			auto it_end = std::remove_if(move_list.begin(), move_list.end(), [](auto& m) { return m.prob < 0.1; });
+			auto it_end = std::remove_if(move_list.begin(), move_list.end(), [](Book::BookPos& m) { return m.prob < 0.1; });
 			move_list.erase(it_end, move_list.end());
 
 			// 1手でも取り除いたなら、定跡から取り除いたことをGUIに出力
@@ -1191,7 +1193,7 @@ namespace Book
 			auto n = move_list.size();
 		
 			// 評価値がvalue_limitを下回るものを削除
-			auto it_end = std::remove_if(move_list.begin(), move_list.end(), [&](auto& m) { return m.value < value_limit; });
+			auto it_end = std::remove_if(move_list.begin(), move_list.end(), [&](Book::BookPos& m) { return m.value < value_limit; });
 			move_list.erase(it_end, move_list.end());
 
 			// 候補手が1手でも減ったなら減った理由を出力

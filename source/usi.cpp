@@ -249,7 +249,7 @@ namespace USI
 		// 並列探索するときのスレッド数
 		// CPUの搭載コア数をデフォルトとすべきかも知れないが余計なお世話のような気もするのでしていない。
 
-		o["Threads"] << Option(4, 1, 512, [](auto& o) { Threads.read_usi_options(); });
+		o["Threads"] << Option(4, 1, 512, [](const Option& o) { Threads.read_usi_options(); });
 
 		// USIプロトコルでは、"USI_Hash"なのだが、
 		// 置換表サイズを変更しての自己対戦などをさせたいので、
@@ -257,13 +257,13 @@ namespace USI
 		// ゆえにGUIでの対局設定は無視して、思考エンジンの設定ダイアログのところで
 		// 個別設定が出来るようにする。
 
-		o["Hash"] << Option(16, 1, MaxHashMB, [](auto&o) { TT.resize(o); });
+		o["Hash"] << Option(16, 1, MaxHashMB, [](const Option&o) { TT.resize(o); });
 
 		// その局面での上位N個の候補手を調べる機能
 		o["MultiPV"] << Option(1, 1, 800);
 
 		// cin/coutの入出力をファイルにリダイレクトする
-		o["WriteDebugLog"] << Option(false, [](auto& o) { start_logger(o); });
+		o["WriteDebugLog"] << Option(false, [](const Option& o) { start_logger(o); });
 
 		// ネットワークの平均遅延時間[ms]
 		// この時間だけ早めに指せばだいたい間に合う。
@@ -288,7 +288,7 @@ namespace USI
 
 #ifdef USE_ENTERING_KING_WIN
 		// 入玉ルール
-		o["EnteringKingRule"] << Option(ekr_rules, ekr_rules[EKR_27_POINT], [](auto& o) { set_entering_king_rule(o); });
+		o["EnteringKingRule"] << Option(ekr_rules, ekr_rules[EKR_27_POINT], [](const Option& o) { set_entering_king_rule(o); });
 #endif
 
 		o["EvalDir"] << Option("eval");

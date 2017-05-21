@@ -19,6 +19,10 @@ COMPILER = g++
 # 標準的なコンパイルオプション
 CFLAGS   =  -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
 
+# リンク時最適化。これをつけるとmsys2環境だとセグフォで落ちる。
+# 落ちない環境なら有効にしたほうが速い実行ファイルが生成されるはず。
+# CFLAGS += -flto
+
 # wstringを使うためにこのシンボル定義が必要。
 CFLAGS  += -DUNICODE
 

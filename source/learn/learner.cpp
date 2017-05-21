@@ -399,7 +399,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				//      cout << pos.sfen() << "," << value1 << "," << value2 << "," << endl;
 
 				// PVの指し手でleaf nodeまで進めて、そのleaf nodeでevaluate()を呼び出した値を用いる。
-				auto evaluate_leaf = [&](Position& pos , auto& pv)
+				auto evaluate_leaf = [&](Position& pos , vector<Move>& pv)
 				{
 					auto rootColor = pos.side_to_move();
 
