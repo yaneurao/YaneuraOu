@@ -5,8 +5,8 @@
     <YaneuraOuCpuTarget>sse2</YaneuraOuCpuTarget>
   </PropertyGroup>
   <PropertyGroup>
-    <TargetName>$(ProjectName)-$(YaneuraOuDbgPrefix)$(YaneuraOuTarget)-$(YaneuraOuCpuTarget)</TargetName>
-    <IntDir>$(OutDir)obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget)\</IntDir>
+    <TargetName>$(ProjectName)-$(YaneuraOuDbgPrefix)$(YaneuraOuTarget)-$(YaneuraOuCpuTarget)$(YaneuraOuExtra)</TargetName>
+    <IntDir>$(OutDir)obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget)$(YaneuraOuExtra)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
