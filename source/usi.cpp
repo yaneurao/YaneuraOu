@@ -110,9 +110,16 @@ namespace USI
 		// 置換表上、値が確定していないことがある。
 		if (v == VALUE_NONE)
 			s << "none";
-
 		else if (abs(v) < VALUE_MATE_IN_MAX_PLY)
 			s << "cp " << v * 100 / int(Eval::PawnValue);
+		else if (v == -VALUE_MATE)
+			// USIプロトコルでは、手数がわからないときには "mate -"と出力するらしい。
+			// 手数がわからないというか詰んでいるのだが…。これを出力する方法がUSIプロトコルで定められていない。
+			// ここでは"-0"を出力しておく。
+			// 将棋所では検討モードは、go infiniteで呼び出されて、このときbestmoveを返さないから
+			// 結局、このときのスコアは画面に表示されない。
+			// ShogiGUIだと、これできちんと"+詰"と出力されるようである。
+			s << "mate -0";
 		else
 			s << "mate " << (v > 0 ? VALUE_MATE - v - 1 : -VALUE_MATE - v + 1);
 
