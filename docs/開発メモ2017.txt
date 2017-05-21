@@ -1,15 +1,130 @@
 ﻿# ToDO
 
-- pythonの自己対戦フレームワーク、改良する。
-- 詰将棋探索エンジン、他の探索部から呼び出せるように改良する。
+- evaluate KPPT 16bit化するか、上位16bitに進行度入れる。
+- evaluate()、コードを見直す。
+- Stockfishのevaluate()よく調べる。
+- 学習式 定数1/600→1/200,1/400とか試す。
 - PPAP評価関数
 	- FP型(2GB)
 	- SP型(6GB)
 	- EP型(16GB)
+- 詰将棋探索エンジン、他の探索部から呼び出せるように改良する。
+
+
+## 2017/05/21
+
+- 詰みの局面を渡されたときにinfo stringでmate 1と出力していたの修正。
+
+// 詰みの局面
+sfen l2+P4l/4p1R2/k1ns4p/pps6/1n1G1P3/2PS5/PPGKPs2P/3+bg4/LN3b2L b N6Prgp 1
+// 詰み2手前
+→ここ、mate -0 と出力するのが正しい？うーん。mate -と返すべきなのか。
+sfen l7l/3Pp1R2/k1ns4p/pps6/1n1G1P3/2PS5/PPGKPs2P/4g4/LNb2b2L b N6Prgp 1
+→ここはmate -2と出力する
+
+
+- elmo絞り比較中
+goku(3) vs elmo
+T1,b1000,469 - 13 - 498(48.5% R-10.42) win black : white = 51.19% : 48.81%
+
+// elmoとは1秒で比較できないということがわかった。
+goku(6) vs elmo
+T1,b1000,1429 - 35 - 1456(49.53% R-3.25) win black : white = 52.48% : 47.52%
+T1,b3000,392 - 11 - 507(43.6% R-44.69) win black : white = 49.72% : 50.28%
+
+
+- 学習時にファイルまたぐところでrmse跳ね上がるの、何らかのバグでは…。
+	定跡局面抜けたところを書き出すからかな。うーん、そうか…。
+	いずれにせよ1PC、5000万局面の生成はよくないかも知れん。
+	random move、もっと増やすべきか。
+
+				if (ply <= 20 && rand(4) == 0)
+こう変更した。
+
+- elmo式とplyを反映させる方法との比較。
+	const double LAMBDA = 0.75 - (0.750-0.333)*(double)std::min((int)psv.gamePly, 100)/100.0;
+	const double dsig = (1 - LAMBDA ) * (eval_winrate - t) + LAMBDA * (eval_winrate - teacher_winrate);
+	// あー、これ、元の式よりdsigの値が小さくなるから、収束遅いか。公平な比較難しいな…。
+
+	elmo式 vs yane-elmo式
+	T1,b3000,406 - 33 - 421(49.09% R-6.3) win black : white = 52.24% : 47.76%
+
+
+- elmo絞り 2億局面
+	T1,b1000,578 - 19 - 573(50.22% R1.51) win black : white = 51.0% : 49.0%
+	T1,b3000,248 - 17 - 315(44.05% R-41.54) win black : white = 49.91% : 50.09%
+	1秒では強くなっているかを計測できないようだ。
+
+	- 3.2億
+	T1,b1000,2000 - 79 - 2131(48.41% R-11.02) win black : white = 51.9% : 48.1%
+	T1,b3000,583 - 47 - 670(46.53% R-24.16) win black : white = 52.91% : 47.09%
+	// 弱くなってるような…。よくわからん。計測誤差か..
+
+
+// 誤差を計算する関数(rmseの計算用)
+// これは尺度が変わるといけないので目的関数を変更しても共通の計算にしておく。勝率の差の二乗和。
+double calc_error(Value record_value, Value value)
+{
+	double diff = winning_percentage(value) - winning_percentage(record_value);
+	return diff * diff;
+}
+
+ → これ、目的関数が違いすぎると指標にならないから学習率調整に向かないので良くない。収束したのかの判定も出来ない。
+ 目的関数のrmseを求めるように変更する。
+
+
+- gccでfilesystemが使えない件
+	- mkdir自体も失敗してるっぽい。path separatorの問題か？
+	- なんやかやして、うまく動くようになった。
+
+
+- gensfenコマンドでgamePlyを書き出すようにした。
+
 - elmoの学習ルーチン、取り込む。
+	- cf. https://github.com/mk-takizawa/elmo_for_learn/commit/3ffb877cff332684f7bcf29c5ec76ab5ac57b150
+
+	evallimit=3000 , depth 6 , 1PC(40cores) 1億局面に1.5時間。
+
+
+// 学習用コマンドbatch
+evaldir eval
+evalsavedir \\WS2012_860C_YAN\yanehome\eval\learn_339
+hash 4096
+evalshare false
+learn loop 10 basedir \\WS2012_860C_YAN\yanehome batchsize 500000 eta 0.3 targetdir learn_sfen\201705211600D6
+
+
+## 2017/05/20
+
+- pythonの自己対戦フレームワーク、改良する。
+
+新しいスクリプトを使う場合
+start /B /WAIT /NODE %EXECUTOR_NUMBER% c:/python27/python.exe %YANEHOME%\script\engine_invoker5.py --home %YANEHOME% --engine1 %ENGINE1% --eval1 %EVAL1% --engine2 %ENGINE2% --eval2 %EVAL2% --cores %HT_CORES% --loop %LOOP% --cpu %CPU% --engine_threads %ENGINE_THREADS% --hash1 %ENGINE_HASH1% --hash2 %ENGINE_HASH2% --time %TIMES% --book_moves %BOOK_MOVES%
+start /B /WAIT /NODE %EXECUTOR_NUMBER% move *.sfen %YANEHOME%\kif
+
+	engine_invoker5.py、パラメーターの型を間違っていたところ修正。
+	engine_invoker5.py、先手の勝率の計算が間違っていたのを修正。
+
+- score evasion
+		// ここ、moved_piece_before()とmoved_piece_after()との比較
+	4.60 vs 4.60a
+	どうもafterのほうがよさげ。
+
+Nodes searched  : 21780142
+
+
+- PositionのメンバにASSERT追加する。
+・Position::moved_piece_before()高速化
+・CheckCandidateBB、少しシュリンクした。
 
 
 ## 2017/05/19
+
+- BetweenBBなんとかする。
+	- シュリンクするわ。みたいな感じで。
+	BetweenBB[BetweenIndex[sq1][sq2]]
+	785に縮んだ。縮みすぎ…。
+	速度、ほぼ変わらない。これは採用する。
 
 - min_attacker()高速化
 Nodes/second    : 846862

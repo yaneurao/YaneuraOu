@@ -1,4 +1,68 @@
 ﻿
+■　やねうら王2016 LATE方式の学習
+
+// ----------------------
+//  やねうら王2016LATE 方式での学習
+// ----------------------
+
+#ifdef LEARN_YANEURAOU_2016_LATE
+
+// SGDによる標準的なupdate
+#if 0
+#define USE_SGD_UPDATE
+#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
+#endif
+
+// AdaGradによるリアルタイムupdate
+#if 1
+#define USE_ADA_GRAD_UPDATE
+#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
+#define LEARN_UPDATE_EVERYTIME
+#endif
+
+// Adamによるupdate
+#if 0
+#define USE_ADAM_UPDATE
+#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
+#define LEARN_UPDATE_EVERYTIME
+#endif
+
+#if 0
+
+//#define USE_SGD_UPDATE
+//#define USE_ADAM_UPDATE
+//#define USE_ADA_GRAD_UPDATE
+
+//#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
+//#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
+//define LOSS_FUNCTION_IS_CROSS_ENTOROPY_FOR_VALUE
+
+#endif
+
+#undef LEARN_MINI_BATCH_SIZE
+#define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
+#define USE_QSEARCH_FOR_SHALLOW_VALUE
+//#define USE_EVALUATE_FOR_SHALLOW_VALUE
+#define DISABLE_TT_PROBE
+#undef EVAL_FILE_NAME_CHANGE_INTERVAL
+#define EVAL_FILE_NAME_CHANGE_INTERVAL (250000000ULL)
+
+#undef LEARN_RMSE_OUTPUT_INTERVAL
+#define LEARN_RMSE_OUTPUT_INTERVAL 10
+
+// 2.5億に1回ぐらいのペースでいいんじゃね？
+#undef LEARN_EVAL_SAVE_INTERVAL
+#define LEARN_EVAL_SAVE_INTERVAL (250000000ULL)
+
+#define USE_KPP_MIRROR_WRITE
+#define USE_KKP_FLIP_WRITE
+#define USE_KKP_MIRROR_WRITE
+#define LEARN_USE_EMA
+
+//#define USE_RANDOM_LEGAL_MOVE
+
+#endif
+
 ■　dynamic futility margin
 
 

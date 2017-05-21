@@ -2,6 +2,35 @@
 やねうら王 更新履歴
 
 
+■　2017/05/21 V4.61
+
+・learner.cppのフォルダ内のファイル取得、gccのためにwindows.hを用いて書き直した。→msys2でうまく動かない
+・gensfenコマンドでgamePlyを書き出すようにした。
+・learnで用いていたrmse計算用の損失関数、変更した。
+・gcc用のフォルダの作成、ファイルの列挙のコード、修正。
+・学習用のビルドオプションをMakefileに追加。
+・対局用に公開している実行ファイル、openmpなしでコンパイルするように変更。
+・learn.hから2016LATE用の学習オプション削除。
+・gensfenコマンドでmatedのときに局面を書き出していなかったの修正。
+・gensfenコマンドでのrandom moveの条件、緩和。
+・詰みの局面を渡されたときにinfo stringでmate 1と出力していたの修正。
+	USIプロトコルは、詰みのときには"info string score mate -0"と出力するときちんと定めるべき！
+
+
+■　2017/05/20
+
+・BetweenBB、シュリンクした。
+・see_ge()でPosition::piece_on(SQ_NB)にアクセスしてたのでpiece_on側を修正。
+・mate1ply()で用いるbitboardの添字の順番入れ替え。
+・Positionの各メンバにASSERT追加。
+・Position::moved_piece_before()高速化
+・CheckCandidateBB、少しシュリンクした。
+・engine_invoker5.py、パラメーターの型を間違っていたところ修正。
+・engine_invoker5.py、先手の勝率の計算が間違っていたのを修正。
+・elmo(WCSC27) learning method support
+・packed sfen以外での教師局面の書き出しコード、使ってないので削除する。
+
+
 ■　2017/05/19 V4.60
 
 ・PieceNoをu8に変更。
@@ -12,7 +41,6 @@
 ・LineBB配列、シュリンクした。
 ・min_attacker()高速化
 ・RookEffectRank → RookRankEffectにrename
-
 
 
 ■　2017/05/18 V4.59
