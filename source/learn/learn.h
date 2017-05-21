@@ -6,28 +6,16 @@
 // =====================
 
 // 以下のいずれかを選択すれば、そのあとの細々したものは自動的に選択される。
-// 以下のいずれも選択しない場合は、そのあとの細々したものをひとつひとつ設定する必要がある。
+// いずれも選択しない場合は、そのあとの細々したものをひとつひとつ設定する必要がある。
 
 // デフォルトの学習設定
-#define LEARN_DEFAULT
-
-
-// === 以下、色々実験中なので使わないように ===
+// #define LEARN_DEFAULT
 
 // elmo方式での学習設定。
-//#define LEARN_ELMO_METHOD
-
-
-// やねうら王2016Late用デフォルトの学習設定。
-// 置換表を無効化するので通常対局は出来ない。learnコマンド用の実行ファイル専用。
-//                       ~~~~~~~~~~~~~~~~~~
-// #define LEARN_YANEURAOU_2016_LATE
-
+// #define LEARN_ELMO_METHOD
 
 // やねうら王2017GOKU用のデフォルトの学習設定
-//#define LEARN_YANEURAOU_2017_GOKU
-// #define EVAL_SAVE_ONLY_ONCE
-
+#define LEARN_YANEURAOU_2017_GOKU
 
 // ----------------------
 //  重みベクトルの更新式
@@ -225,68 +213,6 @@ typedef float LearnFloatType;
 #endif
 
 // ----------------------
-//  やねうら王2016LATE 方式での学習
-// ----------------------
-
-#ifdef LEARN_YANEURAOU_2016_LATE
-
-// SGDによる標準的なupdate
-#if 0
-#define USE_SGD_UPDATE
-#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
-#endif
-
-// AdaGradによるリアルタイムupdate
-#if 1
-#define USE_ADA_GRAD_UPDATE
-#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
-#define LEARN_UPDATE_EVERYTIME
-#endif
-
-// Adamによるupdate
-#if 0
-#define USE_ADAM_UPDATE
-#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
-#define LEARN_UPDATE_EVERYTIME
-#endif
-
-#if 0
-
-//#define USE_SGD_UPDATE
-//#define USE_ADAM_UPDATE
-//#define USE_ADA_GRAD_UPDATE
-
-//#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
-//#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
-//define LOSS_FUNCTION_IS_CROSS_ENTOROPY_FOR_VALUE
-
-#endif
-
-#undef LEARN_MINI_BATCH_SIZE
-#define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
-#define USE_QSEARCH_FOR_SHALLOW_VALUE
-//#define USE_EVALUATE_FOR_SHALLOW_VALUE
-#define DISABLE_TT_PROBE
-#undef EVAL_FILE_NAME_CHANGE_INTERVAL
-#define EVAL_FILE_NAME_CHANGE_INTERVAL (250000000ULL)
-
-#undef LEARN_RMSE_OUTPUT_INTERVAL
-#define LEARN_RMSE_OUTPUT_INTERVAL 10
-
-// 2.5億に1回ぐらいのペースでいいんじゃね？
-#undef LEARN_EVAL_SAVE_INTERVAL
-#define LEARN_EVAL_SAVE_INTERVAL (250000000ULL)
-
-#define USE_KPP_MIRROR_WRITE
-#define USE_KKP_FLIP_WRITE
-#define USE_KKP_MIRROR_WRITE
-#define LEARN_USE_EMA
-
-//#define USE_RANDOM_LEGAL_MOVE
-
-#endif
-
-// ----------------------
 //  elmoの方法での学習
 // ----------------------
 
@@ -331,6 +257,8 @@ typedef float LearnFloatType;
 #undef EVAL_FILE_NAME_CHANGE_INTERVAL
 #define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
 #define USE_RANDOM_LEGAL_MOVE
+
+// #define EVAL_SAVE_ONLY_ONCE
 
 #endif
 

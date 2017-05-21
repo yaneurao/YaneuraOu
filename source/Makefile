@@ -8,7 +8,6 @@
 #YANEURAOU_EDITION = YANEURAOU_CLASSIC_ENGINE
 #YANEURAOU_EDITION = YANEURAOU_CLASSIC_TCE_ENGINE
 #YANEURAOU_EDITION = YANEURAOU_2016_MID_ENGINE
-#YANEURAOU_EDITION = YANEURAOU_2016_MID_ENGINE_LEARN
 #YANEURAOU_EDITION = YANEURAOU_2016_LATE_ENGINE
 YANEURAOU_EDITION = YANEURAOU_2017_EARLY_ENGINE
 #YANEURAOU_EDITION = CHECK_SHOGI_ENGINE
@@ -18,17 +17,13 @@ COMPILER = g++
 #COMPILER = mpicxx
 
 # 標準的なコンパイルオプション
-CFLAGS   =  -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
+CFLAGS   =  -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
 
 # wstringを使うためにこのシンボル定義が必要。
 CFLAGS  += -DUNICODE
 
-# 学習部ではフォルダの列挙のためにC++17のfilesystemを使いたいのだが…。
-CFLAGS  += -std=c++14
-#CFLAGS  += -std=c++1z
-
-# 学習用の実行ファイルでないなに、openmp要らんけどなー。100KBほど増えるし..
-CFLAGS  += -fopenmp
+# 学習部ではopenmpを用いるので、学習用のビルドではこのオプションを指定すること。
+# CFLAGS  += -fopenmp
 
 # stripの指示。(実行ファイルのサイズを小さく)
 CFLAGS  += -Wl,-s
@@ -118,6 +113,10 @@ $(OBJDIR)/%.o: %.cpp
 	$(COMPILER) $(CFLAGS) $(INCLUDE) -o $@ -c $<
 
 all: clean $(TARGET)
+
+# 学習用バイナリのときは、openmpを有効にする。
+evallearn:
+	$(MAKE) CFLAGS='$(CFLAGS) -fopenmp -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 tournament:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -DFOR_TOURNAMENT -march=corei7-avx' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
