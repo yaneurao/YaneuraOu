@@ -9,20 +9,24 @@
 // 以下のいずれも選択しない場合は、そのあとの細々したものをひとつひとつ設定する必要がある。
 
 // デフォルトの学習設定
-#define LEARN_DEFAULT
+//#define LEARN_DEFAULT
 
 
 // === 以下、色々実験中なので使わないように ===
 
 // elmo方式での学習設定。
-// #define LEARN_ELMO_METHOD
+#define LEARN_ELMO_METHOD
 
-// #define EVAL_SAVE_ONLY_ONCE
 
 // やねうら王2016Late用デフォルトの学習設定。
 // 置換表を無効化するので通常対局は出来ない。learnコマンド用の実行ファイル専用。
 //                       ~~~~~~~~~~~~~~~~~~
 // #define LEARN_YANEURAOU_2016_LATE
+
+
+// やねうら王2017GOKU用のデフォルトの学習設定
+// #define LEARN_YANEURAOU_2017_GOKU
+// #define EVAL_SAVE_ONLY_ONCE
 
 
 // ----------------------
@@ -187,11 +191,6 @@ typedef float LearnFloatType;
 // これはgensfenコマンドに関する設定。
 // これらは、configureの設定では変化しない。
 
-
-// 教師局面の生成時にPVの初手も保存するならこれをdefineすること。
-// 2016年9月までに公開したした教師データを用いる場合、これをdefineしてはならない。
-// #define GENSFEN_SAVE_FIRST_MOVE
-
 // search()のleaf nodeまでの手順が合法手であるかを検証する。
 //#define TEST_LEGAL_LEAF
 
@@ -204,9 +203,6 @@ typedef float LearnFloatType;
 
 // ときどき合法手のなかからランダムに1手選ぶ。(Apery方式)
 //#define USE_RANDOM_LEGAL_MOVE
-
-// 棋譜生成時にゲームの勝敗を書き出す。
-//#define GENSFEN_SAVE_GAME_RESULT
 
 // タイムスタンプの出力をこの回数に一回に抑制する。
 // スレッドを論理コアの最大数まで酷使するとコンソールが詰まるので…。
@@ -303,6 +299,9 @@ typedef float LearnFloatType;
 #define LEARN_UPDATE_EVERYTIME
 
 #define USE_KPP_MIRROR_WRITE
+#define USE_KKP_FLIP_WRITE
+#define USE_KKP_MIRROR_WRITE
+
 #undef LEARN_MINI_BATCH_SIZE
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 #define LOSS_FUNCTION_IS_ELMO_METHOD
@@ -313,6 +312,27 @@ typedef float LearnFloatType;
 
 #endif
 
+// ----------------------
+//  やねうら王2017GOKUの方法
+// ----------------------
+
+#if defined(LEARN_YANEURAOU_2017_GOKU)
+
+#define GENSFEN_SAVE_GAME_RESULT
+
+#define USE_ADA_GRAD_UPDATE
+#define LEARN_UPDATE_EVERYTIME
+
+#define USE_KPP_MIRROR_WRITE
+#undef LEARN_MINI_BATCH_SIZE
+#define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
+#define LOSS_FUNCTION_IS_YANE_ELMO_METHOD
+#define USE_QSEARCH_FOR_SHALLOW_VALUE
+#undef EVAL_FILE_NAME_CHANGE_INTERVAL
+#define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
+#define USE_RANDOM_LEGAL_MOVE
+
+#endif
 
 // ----------------------
 // 設定内容に基づく定数文字列
@@ -357,20 +377,21 @@ typedef float LearnFloatType;
 namespace Learner
 {
 	// PackedSfenと評価値が一体化した構造体
+	// オプションごとに書き出す内容が異なると教師棋譜を再利用するときに困るので
+	// とりあえず、以下のメンバーはオプションによらずすべて書き出しておく。
 	struct PackedSfenValue
 	{
 		PackedSfen sfen;
 		s16 score; // PV leafでの評価値
 
-#ifdef	GENSFEN_SAVE_FIRST_MOVE
 		u16 move; // PVの初手
-#endif
 
-#ifdef  GENSFEN_SAVE_GAME_RESULT
+		// 初期局面からの局面の手数。
+		u16 gamePly;
+
 		// この局面の手番側が、ゲームを最終的に勝っているならtrue。負けているならfalse。
 		// 引き分けに至った場合は、局面自体書き出さない。
 		bool isWin;
-#endif
 	};
 }
 

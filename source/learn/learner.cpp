@@ -27,10 +27,17 @@
 #include "../tt.h"
 #include "multi_think.h"
 
-// これ、Windows専用なの？よくわからん…。
 #if defined(_MSC_VER)
+// C++のfilesystemは、C++1z以降か、MSCでないと使えないようだ。windows.hを使うようにしたが、msys2のg++だと
+// うまくフォルダ内のファイルが取得できない。
 #include <filesystem>
 #endif
+
+//#if defined(__GNUC__) 
+//// gcc用にはこれを用いてフォルダ内のファイルを取得する。
+//#include "dirent.h"
+//#endif
+
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -328,14 +335,12 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					// 現在の手番側の勝ちとして扱い、局面をファイルに書き出す。
 					// 一つ前の局面は相手番であり、負け側。
 
-					// 初手から各局面に関して、勝敗を付与しておく。
+					// 終局の局面から初手に向けて、各局面に関して、対局の勝敗の情報を付与しておく。
 					bool isWin = false;
 					for (auto it = a_psv.rbegin(); it != a_psv.rend(); ++it)
 					{
-#if defined(GENSFEN_SAVE_GAME_RESULT)
 						it->isWin = isWin;
 						isWin = !isWin;
-#endif
 
 						// 局面を書き出そうと思ったら規定回数に達していた。
 						// get_next_loop_count()内でカウンターを加算するので
@@ -486,21 +491,20 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				// 局面の一時保存。
 				{
-					PackedSfenValue psv;
-
+					a_psv.emplace_back(PackedSfenValue());
+					auto &psv = a_psv.back();
+					
 					// packを要求されているならpackされたsfenとそのときの評価値を書き出す。
 					// 最終的な書き出しは、勝敗がついてから。
 					pos.sfen_pack(psv.sfen);
 					psv.score = leaf_value;
+					psv.gamePly = ply;
 
-#if defined(GENSFEN_SAVE_FIRST_MOVE)
 					// PVの初手を取り出す。これはdepth 0でない限りは存在するはず。
 					ASSERT_LV3(pv_value1.second.size() >= 1);
 					Move pv_move1 = pv_value1.second[0];
-					pvs.move = pv_move1;
-#endif
+					psv.move = pv_move1;
 
-					a_psv.push_back(psv);
 				}
 
 			SKIP_SAVE:;
@@ -717,7 +721,7 @@ double calc_error(Value record_value, Value value)
 // 目的関数が勝率の差の二乗和のとき
 #ifdef LOSS_FUNCTION_IS_WINNING_PERCENTAGE
 // 勾配を計算する関数
-double calc_grad(Value deep, Value shallow)
+double calc_grad(Value deep, Value shallow, PackedSfenValue& psv)
 {
 	// 勝率の差の2乗が目的関数それを最小化する。
 	// 目的関数 J = 1/2m Σ ( win_rate(shallow) - win_rate(deep) ) ^2
@@ -746,7 +750,7 @@ double calc_grad(Value deep, Value shallow)
 #endif
 
 #if defined (LOSS_FUNCTION_IS_CROSS_ENTOROPY)
-double calc_grad(Value deep, Value shallow)
+double calc_grad(Value deep, Value shallow, PackedSfenValue& psv)
 {
 	// 交差エントロピーを用いた目的関数
 
@@ -773,7 +777,7 @@ double calc_grad(Value deep, Value shallow)
 #endif
 
 #if defined ( LOSS_FUNCTION_IS_CROSS_ENTOROPY_FOR_VALUE)
-double calc_grad(Value deep, Value shallow)
+double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 {
 	// 勝率の関数を通さない版
 	// これ、EVAL_LIMITを低くしておかないと、終盤の形に対して評価値を一致させようとして
@@ -785,7 +789,7 @@ double calc_grad(Value deep, Value shallow)
 #if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
 
 // isWin : この手番側が最終的に勝利したかどうか
-double calc_grad(Value deep, Value shallow , bool isWin)
+double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 {
 	// elmo(WCSC27)方式
 	// 実際のゲームの勝敗で補正する。
@@ -794,7 +798,7 @@ double calc_grad(Value deep, Value shallow , bool isWin)
 	const double teacher_winrate = winning_percentage(deep);
 
 	// 勝っていれば1、負けていれば 0。
-	const double t = (isWin) ? 1.0 : 0.0;
+	const double t = (psv.isWin) ? 1.0 : 0.0;
 
 	// elmo(WCSC27)で使われている定数。要調整。
 	const double LAMBDA = 0.5;
@@ -805,6 +809,36 @@ double calc_grad(Value deep, Value shallow , bool isWin)
 	return dsig;
 }
 #endif
+
+
+#if defined(LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
+
+// isWin : この手番側が最終的に勝利したかどうか
+double calc_grad(Value deep, Value shallow, PackedSfenValue& psv)
+{
+	// elmo(WCSC27)方式
+	// 実際のゲームの勝敗で補正する。
+
+	const double eval_winrate = winning_percentage(shallow);
+	const double teacher_winrate = winning_percentage(deep);
+
+	// 勝っていれば1、負けていれば 0。
+	const double t = (psv.isWin) ? 1.0 : 0.0;
+
+	// elmo(WCSC27)で使われている定数。要調整。
+	// この補正項、序盤においては大きすぎるような気がする。
+	// game plyに応じてどやこやしたほうがいいような気がする。
+	const double LAMBDA = 0.5;
+	// gamePlyに応じて影響範囲を返る(かも)
+
+	// 実際の勝率を補正項として使っている。
+	// 調整しやすいようにLAMBDAで内分している。
+	const double dsig = (1 - LAMBDA ) * (eval_winrate - t) + LAMBDA * (eval_winrate - teacher_winrate);
+
+	return dsig;
+}
+#endif
+
 
 // 目的関数として他のバリエーションも色々用意するかも..
 
@@ -1281,12 +1315,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 		auto deep_value = (Value)ps.score;
 
 		// 勾配
-		double dj_dw = calc_grad(deep_value, shallow_value
-#if defined(LOSS_FUNCTION_IS_ELMO_METHOD)
-			// elmo methodにおいては実際の勝敗を補正項として用いるので引数として渡してやる。
-		,	ps.isWin
-#endif
-		);
+		double dj_dw = calc_grad(deep_value, shallow_value , ps);
 
 		// 現在、leaf nodeで出現している特徴ベクトルに対する勾配(∂J/∂Wj)として、jd_dwを加算する。
 
@@ -1302,7 +1331,6 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// PVの初手が異なる場合は学習に用いないほうが良いのでは…。
 		// 全然違うところを探索した結果だとそれがノイズに成りかねない。
 		// 評価値の差が大きすぎるところも学習対象としないほうがいいかも…。
-#ifdef GENSFEN_SAVE_FIRST_MOVE
 
 #if 0
 		// これやると13%程度の局面が学習対象から外れてしまう。善悪は微妙。
@@ -1322,10 +1350,8 @@ void LearnerThink::thread_worker(size_t thread_id)
 			continue;
 		}
 #endif
-
 //		dbg_hit_on(true);
 
-#endif
 
 		int ply = 0;
 		StateInfo state[MAX_PLY]; // qsearchのPVがそんなに長くなることはありえない。
@@ -1451,21 +1477,74 @@ void learn(Position& pos, istringstream& is)
 	cout << "Warning! OpenMP disabled." << endl;
 #endif
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) // || defined(__GNUC__)
 	// ディレクトリ操作がWindows専用っぽいので…。
 
 	// 学習棋譜ファイルの表示
 	if (target_dir != "")
 	{
+		string kif_base_dir = path_combine(base_dir, target_dir);
+#if defined(_MSC_VER)
+		// <filesystem>を使う場合の実装
 		// このフォルダを根こそぎ取る。base_dir相対にしておく。
 		namespace sys = std::tr2::sys;
-		string kif_base_dir = path_combine(base_dir, target_dir);
 		sys::path p(kif_base_dir); // 列挙の起点
 		std::for_each(sys::directory_iterator(p), sys::directory_iterator(),
 			[&](const sys::path& p) {
 			if (sys::is_regular_file(p))
 				filenames.push_back(path_combine(target_dir , p.filename().generic_string()));
 		});
+#endif
+
+#if 0
+		// gccのためにWindows.hを用いて実装しなおし(´ω｀)
+		// msys2環境では、これだとうまく取得できないようだ。なんなん…。ネットワークドライブ絡みか？
+		std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
+
+		HANDLE hFind;
+		WIN32_FIND_DATA win32fd;//defined at Windwos.h
+		std::vector<std::string> file_names;
+
+		std::string search_name = kif_base_dir + "\\*.bin";
+
+		hFind = FindFirstFile(cv.from_bytes(search_name).c_str(), &win32fd);
+
+		if (hFind != INVALID_HANDLE_VALUE)
+		{
+			do {
+				if (!(win32fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+				{
+					string filename = cv.to_bytes(win32fd.cFileName);
+				//	cout << filename << endl;
+					filenames.push_back(path_combine(target_dir, filename));
+				}
+			} while (FindNextFile(hFind, &win32fd));
+
+			FindClose(hFind);
+		}
+#endif
+
+#if 0 // あかん。これもネットワークドライブに対してうまく動かないようだ。
+#if defined(__GNUC__)
+		// 仕方ないのでdirent.hを用いて読み込む。
+		DIR *dp;       // ディレクトリへのポインタ
+		dirent* entry; // readdir() で返されるエントリーポイント
+
+		dp = opendir(target_dir.c_str());
+		if (dp != NULL)
+		{
+			do {
+				entry = readdir(dp);
+				if (entry != NULL)
+				{
+					cout << entry->d_name << endl;
+					filenames.push_back(path_combine(target_dir, entry->d_name));
+				}
+			} while (entry != NULL);
+			closedir(dp);
+		}
+#endif
+#endif
 	}
 #endif
 
