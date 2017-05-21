@@ -333,10 +333,10 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 //					sync_cout << pos << "eval limit = " << eval_limit << " over , move = " << pv1[0] << sync_endl;
 
 					// 現在の手番側の勝ちとして扱い、局面をファイルに書き出す。
-					// 一つ前の局面は相手番であり、負け側。
+					// 一つ前の局面は相手番。
+					bool isWin = !(value1 >= eval_limit);
 
 					// 終局の局面から初手に向けて、各局面に関して、対局の勝敗の情報を付与しておく。
-					bool isWin = false;
 					for (auto it = a_psv.rbegin(); it != a_psv.rend(); ++it)
 					{
 						it->isWin = isWin;
