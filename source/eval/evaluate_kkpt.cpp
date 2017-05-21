@@ -187,6 +187,8 @@ namespace Eval
 	// gccでコンパイルするときもWindows環境であれば、これが有効になって欲しいので defined(_WIN32) で判定。
 
 #include <windows.h>
+#include <codecvt>	// mkdirするのにwstringが欲しいのでこれが必要
+#include <locale>   // wstring_convertにこれが必要。
 
 	void load_eval()
 	{

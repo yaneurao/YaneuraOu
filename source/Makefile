@@ -18,7 +18,17 @@ COMPILER = g++
 #COMPILER = mpicxx
 
 # 標準的なコンパイルオプション
-CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fopenmp -fpermissive -DUNICODE
+CFLAGS   =  -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
+
+# wstringを使うためにこのシンボル定義が必要。
+CFLAGS  += -DUNICODE
+
+# 学習部ではフォルダの列挙のためにC++17のfilesystemを使いたいのだが…。
+CFLAGS  += -std=c++14
+#CFLAGS  += -std=c++1z
+
+# 学習用の実行ファイルでないなに、openmp要らんけどなー。100KBほど増えるし..
+CFLAGS  += -fopenmp
 
 # stripの指示。(実行ファイルのサイズを小さく)
 CFLAGS  += -Wl,-s

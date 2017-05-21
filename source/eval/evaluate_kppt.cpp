@@ -22,6 +22,13 @@
 #include "../position.h"
 #include "../misc.h"
 
+// EvalShareの機能を使うために必要
+#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
+#include <codecvt>	 // mkdirするのにwstringが欲しいのでこれが必要
+#include <locale>    // wstring_convertにこれが必要。
+#include <windows.h>
+#endif
+
 using namespace std;
 
 namespace Eval
@@ -188,8 +195,6 @@ namespace Eval
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
 	// 評価関数の共有を行うための大掛かりな仕組み
 	// gccでコンパイルするときもWindows環境であれば、これが有効になって欲しいので defined(_WIN32) で判定。
-
-#include <windows.h>
 
 	void load_eval()
 	{

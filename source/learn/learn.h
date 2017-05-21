@@ -9,13 +9,13 @@
 // 以下のいずれも選択しない場合は、そのあとの細々したものをひとつひとつ設定する必要がある。
 
 // デフォルトの学習設定
-//#define LEARN_DEFAULT
+#define LEARN_DEFAULT
 
 
 // === 以下、色々実験中なので使わないように ===
 
 // elmo方式での学習設定。
-#define LEARN_ELMO_METHOD
+//#define LEARN_ELMO_METHOD
 
 
 // やねうら王2016Late用デフォルトの学習設定。
@@ -25,7 +25,7 @@
 
 
 // やねうら王2017GOKU用のデフォルトの学習設定
-// #define LEARN_YANEURAOU_2017_GOKU
+//#define LEARN_YANEURAOU_2017_GOKU
 // #define EVAL_SAVE_ONLY_ONCE
 
 
@@ -357,6 +357,8 @@ typedef float LearnFloatType;
 #define LOSS_FUNCTION "CROSS_ENTOROPY_FOR_VALUE"
 #elif defined(LOSS_FUNCTION_IS_ELMO_METHOD)
 #define LOSS_FUNCTION "ELMO_METHOD(WCSC27)"
+#elif defined(LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
+#define LOSS_FUNCTION "YANE_ELMO_METHOD(WCSC27)"
 #endif
 
 // rmseの観測用

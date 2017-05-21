@@ -643,21 +643,30 @@ typedef std::condition_variable ConditionVariable;
 //     mkdir wrapper
 // ----------------------------
 
-#if defined(_WIN32)
+// カレントフォルダ相対で指定する。成功すれば0、失敗すれば非0が返る。
+// フォルダを作成する。日本語は使っていないものとする。
+// どうもmsys2環境下のgccだと_wmkdir()だとフォルダの作成に失敗する。原因不明。
+// 仕方ないので_mkdir()を用いる。
 
+#if defined(_WIN32)
 // Windows用
 
+#if defined(_MSC_VER)
 #include <codecvt>	// mkdirするのにwstringが欲しいのでこれが必要
 #include <locale>   // wstring_convertにこれが必要。
-
-// フォルダを作成する。日本語は使っていないものとする。
-// カレントフォルダ相対で指定する。
-// 成功すれば0、失敗すれば非0が返る。
 inline int MKDIR(std::string dir_name)
 {
 	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
 	return _wmkdir(cv.from_bytes(dir_name).c_str());
+//	::CreateDirectory(cv.from_bytes(dir_name).c_str(),NULL);
 }
+#elif defined(__GNUC__) 
+#include <direct.h>
+inline int MKDIR(std::string dir_name)
+{
+	return _mkdir(dir_name.c_str());
+}
+#endif
 #elif defined(_LINUX)
 // linux環境において、この_LINUXというシンボルはmakefileにて定義されるものとする。
 

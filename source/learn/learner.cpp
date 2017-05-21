@@ -28,15 +28,12 @@
 #include "multi_think.h"
 
 #if defined(_MSC_VER)
-// C++のfilesystemは、C++1z以降か、MSCでないと使えないようだ。windows.hを使うようにしたが、msys2のg++だと
-// うまくフォルダ内のファイルが取得できない。
+// C++のfilesystemは、C++17以降か、MSCでないと使えないようだ。
+// windows.hを使うようにしたが、msys2のg++だとうまくフォルダ内のファイルが取得できない。
 #include <filesystem>
+#elif defined(__GNUC__)
+#include <dirent.h>
 #endif
-
-//#if defined(__GNUC__) 
-//// gcc用にはこれを用いてフォルダ内のファイルを取得する。
-//#include "dirent.h"
-//#endif
 
 
 #ifdef _OPENMP
@@ -710,14 +707,6 @@ double dsigmoid(double x)
 	return sigmoid(x) * (1.0 - sigmoid(x));
 }
 
-// 誤差を計算する関数(rmseの計算用)
-// これは尺度が変わるといけないので目的関数を変更しても共通の計算にしておく。勝率の差の二乗和。
-double calc_error(Value record_value, Value value)
-{
-	double diff = winning_percentage(value) - winning_percentage(record_value);
-	return diff * diff;
-}
-
 // 目的関数が勝率の差の二乗和のとき
 #ifdef LOSS_FUNCTION_IS_WINNING_PERCENTAGE
 // 勾配を計算する関数
@@ -797,13 +786,14 @@ double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 	const double eval_winrate = winning_percentage(shallow);
 	const double teacher_winrate = winning_percentage(deep);
 
-	// 勝っていれば1、負けていれば 0。
+	// 期待勝率を勝っていれば1、負けていれば 0として補正項として用いる。
 	const double t = (psv.isWin) ? 1.0 : 0.0;
 
 	// elmo(WCSC27)で使われている定数。要調整。
 	const double LAMBDA = 0.5;
 
 	// 実際の勝率を補正項として使っている。
+	// これがelmo(WCSC27)のアイデアで、現代のオーパーツ。
 	const double dsig = (eval_winrate - t) + LAMBDA * (eval_winrate - teacher_winrate);
 
 	return dsig;
@@ -822,17 +812,20 @@ double calc_grad(Value deep, Value shallow, PackedSfenValue& psv)
 	const double eval_winrate = winning_percentage(shallow);
 	const double teacher_winrate = winning_percentage(deep);
 
-	// 勝っていれば1、負けていれば 0。
+	// 期待勝率を勝っていれば1、負けていれば 0として補正項として用いる。
 	const double t = (psv.isWin) ? 1.0 : 0.0;
 
-	// elmo(WCSC27)で使われている定数。要調整。
-	// この補正項、序盤においては大きすぎるような気がする。
-	// game plyに応じてどやこやしたほうがいいような気がする。
-	const double LAMBDA = 0.5;
-	// gamePlyに応じて影響範囲を返る(かも)
+	// elmo(WCSC27)で使われている定数。
+	// この補正項、序盤においては勝敗の影響が大きすぎるような気がする。
+	// game plyに応じてどやこやする。
+
+	// gamePly == 0なら  λ = 3/4ぐらい。(勝敗の影響を小さめにする)
+	// gamePly == ∞なら λ = 1/3ぐらい。(元のelmo式ぐらいの値になる)
+	const double LAMBDA = 0.75 - (0.750-0.333)*(double)std::min((int)psv.gamePly, 100)/100.0;
 
 	// 実際の勝率を補正項として使っている。
-	// 調整しやすいようにLAMBDAで内分している。
+	// これがelmo(WCSC27)のアイデアで、現代のオーパーツ。
+	// やねうら王ではこれを調整しやすいようにLAMBDAで内分するように変更した。
 	const double dsig = (1 - LAMBDA ) * (eval_winrate - t) + LAMBDA * (eval_winrate - teacher_winrate);
 
 	return dsig;
@@ -958,7 +951,7 @@ struct SfenReader
 			auto deep_value = (Value)ps.score;
 
 			// 誤差の計算
-			sum_error += calc_error(shallow_value, deep_value);
+			sum_error += calc_grad(shallow_value, deep_value, ps);
 			sum_error2 += abs(shallow_value - deep_value);
 
 #if 0
@@ -1448,9 +1441,7 @@ void learn(Position& pos, istringstream& is)
 		{
 			is >> target_dir;
 
-#if !defined(_MSC_VER)
-			cout << "ERROR! : targetdir , this function is only for Windows." << endl;
-#endif
+//			cout << "ERROR! : targetdir , this function is only for Windows." << endl;
 		}
 
 		// ループ回数の指定
@@ -1477,65 +1468,39 @@ void learn(Position& pos, istringstream& is)
 	cout << "Warning! OpenMP disabled." << endl;
 #endif
 
-#if defined(_MSC_VER) // || defined(__GNUC__)
-	// ディレクトリ操作がWindows専用っぽいので…。
-
 	// 学習棋譜ファイルの表示
 	if (target_dir != "")
 	{
 		string kif_base_dir = path_combine(base_dir, target_dir);
-#if defined(_MSC_VER)
-		// <filesystem>を使う場合の実装
+
 		// このフォルダを根こそぎ取る。base_dir相対にしておく。
+#if defined(_MSC_VER)
 		namespace sys = std::tr2::sys;
 		sys::path p(kif_base_dir); // 列挙の起点
 		std::for_each(sys::directory_iterator(p), sys::directory_iterator(),
 			[&](const sys::path& p) {
 			if (sys::is_regular_file(p))
-				filenames.push_back(path_combine(target_dir , p.filename().generic_string()));
+				filenames.push_back(path_combine(target_dir, p.filename().generic_string()));
 		});
-#endif
+#elif defined(__GNUC__)
 
-#if 0
-		// gccのためにWindows.hを用いて実装しなおし(´ω｀)
-		// msys2環境では、これだとうまく取得できないようだ。なんなん…。ネットワークドライブ絡みか？
-		std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
-
-		HANDLE hFind;
-		WIN32_FIND_DATA win32fd;//defined at Windwos.h
-		std::vector<std::string> file_names;
-
-		std::string search_name = kif_base_dir + "\\*.bin";
-
-		hFind = FindFirstFile(cv.from_bytes(search_name).c_str(), &win32fd);
-
-		if (hFind != INVALID_HANDLE_VALUE)
+		auto ends_with = [](std::string const & value, std::string const & ending)
 		{
-			do {
-				if (!(win32fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
-				{
-					string filename = cv.to_bytes(win32fd.cFileName);
-				//	cout << filename << endl;
-					filenames.push_back(path_combine(target_dir, filename));
-				}
-			} while (FindNextFile(hFind, &win32fd));
+			if (ending.size() > value.size()) return false;
+			return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+		};
 
-			FindClose(hFind);
-		}
-#endif
-
-#if 0 // あかん。これもネットワークドライブに対してうまく動かないようだ。
-#if defined(__GNUC__)
 		// 仕方ないのでdirent.hを用いて読み込む。
 		DIR *dp;       // ディレクトリへのポインタ
 		dirent* entry; // readdir() で返されるエントリーポイント
 
-		dp = opendir(target_dir.c_str());
+		dp = opendir(kif_base_dir.c_str());
 		if (dp != NULL)
 		{
 			do {
 				entry = readdir(dp);
-				if (entry != NULL)
+				// ".bin"で終わるファイルのみを列挙
+				if (entry != NULL && ends_with(entry->d_name,".bin"))
 				{
 					cout << entry->d_name << endl;
 					filenames.push_back(path_combine(target_dir, entry->d_name));
@@ -1544,9 +1509,7 @@ void learn(Position& pos, istringstream& is)
 			closedir(dp);
 		}
 #endif
-#endif
 	}
-#endif
 
 	cout << "learn from ";
 	for (auto s : filenames)

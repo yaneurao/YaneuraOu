@@ -199,19 +199,19 @@ Value drawValueTable[REPETITION_NB][COLOR_NB] =
 
 int main(int argc, char* argv[])
 {
-  // --- 全体的な初期化
-  USI::init(Options);
-  Bitboards::init();
-  Position::init();
-  Search::init();
-  Threads.init();
-  Eval::init(); // 簡単な初期化のみで評価関数の読み込みはisreadyに応じて行なう。
+	// --- 全体的な初期化
+	USI::init(Options);
+	Bitboards::init();
+	Position::init();
+	Search::init();
+	Threads.init();
+	Eval::init(); // 簡単な初期化のみで評価関数の読み込みはisreadyに応じて行なう。
 
-  // USIコマンドの応答部
-  USI::loop(argc,argv);
+				  // USIコマンドの応答部
+	USI::loop(argc, argv);
 
-  // 生成して、待機させていたスレッドの停止
-  Threads.exit();
+	// 生成して、待機させていたスレッドの停止
+	Threads.exit();
 
-  return 0;
+	return 0;
 }
