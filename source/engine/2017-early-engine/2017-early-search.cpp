@@ -2650,9 +2650,13 @@ void MainThread::think()
 	{
 		// 詰みなのでbestmoveを返す前に読み筋として詰みのスコアを出力すべき。
 		if (!Limits.silent)
-			sync_cout << "info depth 0 score "
-			<< USI::score_to_usi(-VALUE_MATE)
-			<< sync_endl;
+			sync_cout << "info depth 0 score mate -0" << sync_endl;
+		// USIプロトコルでは、手数がわからないときには "mate -"と出力するらしい。
+		// 手数がわからないというか詰んでいるのだが…。
+		// ここでは"-0"を出力しておく。
+		// 将棋所では検討モードは、go infiniteで呼び出されて、このときbestmoveを返さないから
+		// 結局、このときのスコアは画面に表示されない。
+		// ShogiGUIだと、これできちんと+詰と出力されるようである。
 
 		// rootMoves.at(0)がbestmoveとしてGUIに対して出力される。
 		rootMoves.push_back(RootMove(MOVE_RESIGN));
