@@ -15,6 +15,7 @@
 // #define LEARN_ELMO_METHOD
 
 // やねうら王2017GOKU用のデフォルトの学習設定
+// ※　このオプションは実験中なので使わないように。
 #define LEARN_YANEURAOU_2017_GOKU
 
 // ----------------------
@@ -252,7 +253,8 @@ typedef float LearnFloatType;
 #define USE_KPP_MIRROR_WRITE
 #undef LEARN_MINI_BATCH_SIZE
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
-#define LOSS_FUNCTION_IS_YANE_ELMO_METHOD
+//#define LOSS_FUNCTION_IS_YANE_ELMO_METHOD
+#define LOSS_FUNCTION_IS_ELMO_METHOD
 #define USE_QSEARCH_FOR_SHALLOW_VALUE
 #undef EVAL_FILE_NAME_CHANGE_INTERVAL
 #define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000

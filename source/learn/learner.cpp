@@ -263,10 +263,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 	// 規定回数回になるまで繰り返し
 	while (true)
 	{
-		// 1局分の局面を保存しておき、勝敗を含めて書き出す。
-		vector<PackedSfenValue> a_psv;
-
-
 		// Positionに対して従属スレッドの設定が必要。
 		// 並列化するときは、Threads (これが実体が vector<Thread*>なので、
 		// Threads[0]...Threads[thread_num-1]までに対して同じようにすれば良い。
@@ -279,12 +275,56 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		// 探索部で定義されているBookMoveSelectorのメンバを参照する。
 		auto& book = ::book.memory_book;
 
+		// 1局分の局面を保存しておき、終局のときに勝敗を含めて書き出す。
+		// 書き出す関数は、この下にあるflush_psv()である。
+		vector<PackedSfenValue> a_psv;
+
+		// a_psvに積まれている局面をファイルに書き出す。
+		// isWin : a_psvに積まれている最終局面の次の局面での勝敗
+		// 返し値 : もう書き出せないので終了する場合にtrue。
+		auto flush_psv = [&](bool isWin)
+		{
+			// 終局の局面(の一つ前)から初手に向けて、各局面に関して、対局の勝敗の情報を付与しておく。
+			for (auto it = a_psv.rbegin(); it != a_psv.rend(); ++it)
+			{
+				isWin = !isWin;
+				it->isWin = isWin;
+
+				// 局面を書き出そうと思ったら規定回数に達していた。
+				// get_next_loop_count()内でカウンターを加算するので
+				// 局面を出力したときにこれを呼び出さないとカウンターが狂う。
+				auto loop_count = get_next_loop_count();
+				if (loop_count == UINT64_MAX)
+					return true;
+
+				// 100k局面に1回ぐらい置換表の世代を進める。
+				if ((loop_count % 100000) == 0)
+					TT.new_search();
+
+				// 局面を一つ書き出す。
+				sw.write(thread_id, *it);
+
+#if 0
+				pos.set_from_packed_sfen(it->sfen);
+				cout << pos << "Win : " << it->isWin << " , " << it->score << endl;
+#endif
+			}
+			return false;
+		};
+
+
 		// ply : 初期局面からの手数
 		for (int ply = 0; ply < MAX_PLY2 ; ++ply)
 		{
 			// 詰んでいるなら次の対局に
+			// 基本的にはここに来る前にsearch()でeval_limitを超えたスコアが返ってくるはず。
 			if (pos.is_mated())
+			{
+				// この局面では負けなので引数はfalseを渡す
+				if (flush_psv(false))
+					goto FINALIZE;
 				break;
+			}
 
 			// 定跡を使用するのか？
 			if (pos.game_ply() <= book_ply)
@@ -329,36 +369,9 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				{
 //					sync_cout << pos << "eval limit = " << eval_limit << " over , move = " << pv1[0] << sync_endl;
 
-					// 現在の手番側の勝ちとして扱い、局面をファイルに書き出す。
-					// 一つ前の局面は相手番。
-					bool isWin = !(value1 >= eval_limit);
-
-					// 終局の局面から初手に向けて、各局面に関して、対局の勝敗の情報を付与しておく。
-					for (auto it = a_psv.rbegin(); it != a_psv.rend(); ++it)
-					{
-						it->isWin = isWin;
-						isWin = !isWin;
-
-						// 局面を書き出そうと思ったら規定回数に達していた。
-						// get_next_loop_count()内でカウンターを加算するので
-						// 局面を出力したときにこれを呼び出さないとカウンターが狂う。
-						auto loop_count = get_next_loop_count();
-						if (loop_count == UINT64_MAX)
-							goto FINALIZE;
-
-						// 100k局面に1回ぐらい置換表の世代を進める。
-						if ((loop_count % 100000) == 0)
-							TT.new_search();
-
-						// 局面を一つ書き出す。
-						sw.write(thread_id, *it);
-
-#if 0
-						pos.set_from_packed_sfen(it->sfen);
-						cout << pos << "Win : " << it->isWin << " , " << it->score << endl;
-#endif
-					}
-					
+					// この局面でvalue1 >= eval_limitならば、(この局面の手番側の)勝ちである。
+					if (flush_psv(value1 >= eval_limit))
+						goto FINALIZE;
 					break;
 				}
 
@@ -1502,7 +1515,7 @@ void learn(Position& pos, istringstream& is)
 				// ".bin"で終わるファイルのみを列挙
 				if (entry != NULL && ends_with(entry->d_name,".bin"))
 				{
-					cout << entry->d_name << endl;
+					//cout << entry->d_name << endl;
 					filenames.push_back(path_combine(target_dir, entry->d_name));
 				}
 			} while (entry != NULL);
