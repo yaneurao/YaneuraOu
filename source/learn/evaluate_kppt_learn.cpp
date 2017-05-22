@@ -192,13 +192,8 @@ namespace Eval
 	// 勾配等の配列
 	struct Weight
 	{
-		// 元の重み
-		FloatPair w;
-		
-#if !defined(LEARN_UPDATE_EVERYTIME)
-		// mini-batch 1回分の勾配
+		// mini-batch 1回分の勾配の累積値
 		FloatPair g;
-#endif
 
 #if defined (USE_SGD_UPDATE)
 		// SGDの更新式
@@ -206,7 +201,7 @@ namespace Eval
 
 		// SGDの場合、勾配自動調整ではないので、損失関数に合わせて適宜調整する必要がある。
 
-		static LearnFloatType eta;
+		static double eta;
 
 		// この特徴の出現回数
 		u32   count;
@@ -221,7 +216,7 @@ namespace Eval
 		// 学習率η = 0.01として勾配が一定な場合、1万回でη×199ぐらい。
 		// cf. [AdaGradのすすめ](http://qiita.com/ak11/items/7f63a1198c345a138150)
 		// 初回更新量はeta。そこから小さくなっていく。
-		static LearnFloatType eta;
+		static double eta;
 		
 		// AdaGradのg2
 		FloatPair g2;
@@ -235,23 +230,13 @@ namespace Eval
 //		const LearnFloatType alpha = 0.001f;
 
 		// const double eta = 32.0/64.0;
-		// と書くとなぜかeta == 0。コンパイラ最適化のバグか？defineで書く。
-		// etaは学習率。FV_SCALE / 64
 
 		static constexpr double beta = LearnFloatType(0.9);
 		static constexpr double gamma = LearnFloatType(0.999);
 		
 		static constexpr double epsilon = LearnFloatType(10e-8);
 
-#if !defined (LEARN_UPDATE_EVERYTIME)
 		static constexpr double eta = LearnFloatType(32.0/64.0);
-//		static constexpr LearnFloatType  eta = LearnFloatType(1.0);
-#else
-		// mini-batch size 1Mに対して…。
-		// 0.03でも発散気味。よくわからない。
-		static constexpr double eta = LearnFloatType(0.01 / 64.0);
-#endif
-
 
 		FloatPair v;
 		FloatPair r;
@@ -263,7 +248,6 @@ namespace Eval
 
 #endif
 
-#if! defined( LEARN_UPDATE_EVERYTIME)
 		void add_grad(FloatPair g_)
 		{
 			g = g + g_;
@@ -272,43 +256,36 @@ namespace Eval
 			count++;
 #endif
 		}
-#endif
 
 		// 勾配gにもとづいて、wをupdateする。
-		// update後、gは0になる。
-		// wをupdateしたならtrueを返す。
 
-		// LEARN_UPDATE_EVERYTIMEが定義されているときは、メンバにgを持っていなくて
-		// 毎回引数として与えられるから、これで更新する。
-
-#ifdef		LEARN_UPDATE_EVERYTIME
-		bool update(FloatPair g)
-#else
-		bool update()
-#endif
+		template <typename T>
+		void update(array<T,2>& w)
 		{
 #if defined (USE_SGD_UPDATE)
 			
 			if (g[0] == 0 && g[1] == 0)
-				return false;
+				return ;
 
 			// 勾配はこの特徴の出現したサンプル数で割ったもの。
 			if (count == 0)
-				goto FINISH;
+				return ;
 
 			// 今回の更新量
-			g = eta * g / (LearnFloatType)count;
+			for (int i = 0; i < 2; ++i)
+				g[i] = (LearnFloatType)(eta * g[i] / (LearnFloatType)count);
 
 			// あまり大きいと発散しかねないので移動量に制約を課す。
 			SET_A_LIMIT_TO(g, -64.0f, 64.0f);
 
-			w = w - g;
+			for (int i = 0; i < 2; ++i)
+				w[i] = T(w[i] - g[i]);
 
 			count = 0;
 
 #endif
 
-#ifdef USE_ADA_GRAD_UPDATE
+#if defined ( USE_ADA_GRAD_UPDATE )
 
 			// 普通のAdaGrad
 
@@ -318,23 +295,17 @@ namespace Eval
 
 			// ゼロ除算を避けるため、abs(g)が小さいときはskipしたほうが良いかも…。
 			
-			if (g[0] != 0)
-			{
-				g2[0] += g[0] * g[0];
-				w[0] -= eta * g[0] / sqrt(g2[0]);
-			}
+			constexpr double epsilon = 0.000001;
 
-			if (g[1] != 0)
+			for (int i = 0; i < 2; ++i)
 			{
-				g2[1] += g[1] * g[1];
-				w[1] -= eta * g[1] / sqrt(g2[1]);
+				g2[i] += g[i] * g[i];
+				w[i] -= (T)(eta * (double)g[i] / sqrt((double)g2[i] + epsilon));
 			}
 #endif
 
 #ifdef USE_ADAM_UPDATE
 			// Adamのときは勾配がゼロのときでもwの更新は行なう。
-			//if (g[0] == 0 && g[1] == 0)
-			//	return false;
 
 			// v = βv + (1-β)g
 			// r = γr + (1-γ)g^2
@@ -342,32 +313,28 @@ namespace Eval
 			// rt = 1-γ^t , bt = 1-β^tとして、これは事前に計算しておくとすると、
 			// w = w - α*v / (sqrt(r/rt) + e) * (bt)
 
-			v = beta * v[0] + (1.0 - beta) * g;
-			r = gamma * r + (1.0 - gamma) * (g*g);
+			for (int i = 0; i < 2; ++i)
+			{
+				v[i] = LearnFloatType(beta * v[i] + (1.0 - beta) * g[i]);
+				r[i] = LearnFloatType(gamma * r[i] + (1.0 - gamma) * (g[i]*g[i]));
 
-			// sqrt()の中身がゼロになりうるので、1回目の割り算を先にしないとアンダーフローしてしまう。
-			// 例) epsilon * bt = 0
-			// あと、doubleでないと計算精度が足りなくて死亡する。
-			w = FloatPair{ w[0] - LearnFloatType( eta  / (sqrt((double)r[0] / rt) + epsilon) * v[0] / bt) ,
-							w[1] - LearnFloatType( eta  / (sqrt((double)r[1] / rt) + epsilon) * v[1] / bt)
-			};
-
+				// sqrt()の中身がゼロになりうるので、1回目の割り算を先にしないとアンダーフローしてしまう。
+				// 例) epsilon * bt = 0
+				// あと、doubleでないと計算精度が足りなくて死亡する。
+				w[i] = T(w[i] - LearnFloatType(eta / (sqrt((double)r[i] / rt) + epsilon) * v[i] / bt));
+			}
 
 #endif
 
-		FINISH:;
 
-#if !defined(LEARN_UPDATE_EVERYTIME)
+			// この要素に関するmini-batchの1回分の更新が終わったのでgをクリア
 			g = { 0,0 };
-#endif
-
-			return true;
 		}
 	};
 
 
 #if defined (USE_SGD_UPDATE) || defined(USE_ADA_GRAD_UPDATE)
-	LearnFloatType Weight::eta;
+	double Weight::eta;
 #elif defined USE_ADAM_UPDATE
 	// 1.0 - pow(beta,epoch)
 	double Weight::bt;
@@ -382,27 +349,6 @@ namespace Eval
 #define kk_w (*kk_w_)
 #define kpp_w (*kpp_w_)
 #define kkp_w (*kkp_w_)
-
-	// evaluate()で用いる重みを学習用のwにコピー
-	void copy_eval_weight_to_learn_weight()
-	{
-		for (auto k1 : SQ)
-			for (auto k2 : SQ)
-			{
-				// kk
-				kk_w[k1][k2].w = { LearnFloatType(kk[k1][k2][0]) , LearnFloatType(kk[k1][k2][1]) };
-
-				// kkp
-				for (auto p = BONA_PIECE_ZERO; p < fe_end; ++p)
-					kkp_w[k1][k2][p].w = { LearnFloatType(kkp[k1][k2][p][0]) , LearnFloatType(kkp[k1][k2][p][1]) };
-			}
-
-		// kpp
-		for (auto k : SQ)
-			for (auto p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
-				for (auto p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
-					kpp_w[k][p1][p2].w = { LearnFloatType(kpp[k][p1][p2][0]) , LearnFloatType(kpp[k][p1][p2][1]) };
-	}
 
 	// ユーザーがlearnコマンドで指定したetaの値。0.0fなら設定なしなのでdefault値を用いるべき。
 	static float user_eta = 0.0f;
@@ -438,8 +384,6 @@ namespace Eval
 			memset(kkp_, 0, sizeof(ValueKkp) * size);
 #endif
 
-			copy_eval_weight_to_learn_weight();
-
 		}
 	}
 
@@ -471,14 +415,9 @@ namespace Eval
 		// KKはmirrorとflipするのは微妙。
 		// 後手振り飛車はすごく不利だとかそういうのを学習させたいので..。
 
-#if ! defined (LEARN_UPDATE_EVERYTIME)
 		kk_w[sq_bk][sq_wk].add_grad(g);
 		// flipした位置関係にも書き込む
 		//kk_w[Inv(sq_wk)][Inv(sq_bk)].add_grad(g_flip);
-#else
-		kk_w[sq_bk][sq_wk].update(g);
-		//kk_w[Inv(sq_wk)][Inv(sq_bk)].update(g_flip);
-#endif
 		
 		for (int i = 0; i < PIECE_NO_KING; ++i)
 		{
@@ -500,13 +439,8 @@ namespace Eval
 				// …が、kppはkpは含まないことになっているので、気にしなくて良い。
 
 				// KPPの手番ありのとき
-#if !defined( LEARN_UPDATE_EVERYTIME)
 				((Weight*)kpp_w_)[get_kpp_index(sq_bk, k0, l0)].add_grad(g);
 				((Weight*)kpp_w_)[get_kpp_index(Inv(sq_wk), k1, l1)].add_grad(g_flip);
-#else
-				((Weight*)kpp_w_)[get_kpp_index(sq_bk, k0, l0)].update(g);
-				((Weight*)kpp_w_)[get_kpp_index(Inv(sq_wk), k1, l1)].update(g_flip);
-#endif
 
 			}
 
@@ -516,14 +450,8 @@ namespace Eval
 			// 右と左とでは居飛車、振り飛車的な戦型選択を暗に含むからミラーするのが良いとは限らない。
 			// 180度回転も先手後手とは非対称である可能性があるのでここのフリップは善悪微妙。
 			
-#if !defined( LEARN_UPDATE_EVERYTIME)
 			((Weight*)kkp_w_)[get_kkp_index(sq_bk,sq_wk,k0)].add_grad(g);
 			((Weight*)kkp_w_)[get_kkp_index(Inv(sq_wk), Inv(sq_bk), k1)].add_grad(g_flip);
-#else
-			((Weight*)kkp_w_)[get_kkp_index(sq_bk, sq_wk, k0)].update(g);
-			((Weight*)kkp_w_)[get_kkp_index(Inv(sq_wk), Inv(sq_bk), k1)].update(g_flip);
-#endif
-
 		}
 
 	}
@@ -565,37 +493,11 @@ namespace Eval
 		// AdaGrad
 #elif defined USE_ADA_GRAD_UPDATE
 
+		// この係数、mini-batch sizeの影響を受けるのどうかと思うが、AdaGradのようなものなら問題ない。
+		// デフォルトでは30.0
+		Weight::eta = 30.0f;
 
-#ifdef LEARN_UPDATE_EVERYTIME
-
-		// 最初のうちは移動量が大きくなりすぎるのでupdateをしないように変更。
-		if (epoch < 10)
-		{
-			// 学習用のwを復元しておく。
-			copy_eval_weight_to_learn_weight();
-			// LEARN_UPDATE_EVERYTIMEではないときはgのゼロクリアが必要。面倒なので書いてない。
-
-			cout << "skip_update epoch = " << epoch << endl;
-			return;
-		}
-
-		// mini-batch size = 1Mに対して0.2f～0.4fぐらいが適切。
-		// mini-batch size = 100kに対しては0.5f～1.0fぐらいが適切。
-//		Weight::eta = 0.4f;
-
-		// epoch < 10までupdateをskipするなら少し大きめに出来る。
-		// 0.6fは少し攻めすぎかも知れん..0.5fぐらいのほうが？
-		// 雑巾絞りを繰り返していくと増え幅そんなに要らないはずで、0.3f～0.4fぐらいのほうがいいかも。
-		Weight::eta = 0.5f;
-
-		// mini-batch size = 10Mに対してはその1/10より少し大きいぐらいが適切。(たぶん)
-
-#else
-		// この係数、mini-batch sizeの影響を受けるのどうかと思うが..
-		Weight::eta = 3.0f;
-#endif
-
-		// ユーザーがlearnコマンドでetaの値を指定していたら。
+		// ユーザーがlearnコマンドでetaの値を指定していたらその数値を反映。
 		if (user_eta != 0)
 			Weight::eta = user_eta;
 
@@ -621,27 +523,12 @@ namespace Eval
 				{
 					auto& w = kk_w[k1][k2];
 
-#if defined (USE_ADA_GRAD_UPDATE) && defined(LEARN_UPDATE_EVERYTIME)
-					// g2を指数移動平均で減衰させておかないと値が動かなくなって良くないような..
-					// 0.999fぐらいが無難。これを小さくすると発散しやすくなる。
-					// etaを小さめにしてこちらを少し下げるほうが長い時間回すときに損失が下がりやすくなるので、
-					// そのへんはうまく調整すべき。
-					// この処理を入れたほうが目的関数の下がりは早くなるが、全体的なバランスは悪くなるので
-					// 収束したときの棋力はあまりよろしくない可能性がある。
-					// 最終的には、これをコメントアウトして再度、学習を回すべきではないかと思う。
-					w.g2 = w.g2 * 0.997f;
-#endif
-
 					// wの値にupdateがあったなら、値を制限して、かつ、kkに反映させる。
-#if ! defined(LEARN_UPDATE_EVERYTIME)
-					if (w.update())
-#endif
-					{
-						// 絶対値を抑制する。
-						SET_A_LIMIT_TO(w.w, LearnFloatType((s32)INT16_MIN * 4), LearnFloatType((s32)INT16_MAX * 4));
+					w.update(kk[k1][k2]);
 
-						kk[k1][k2] = { (s32)w.w[0], (s32)w.w[1] };
-					}
+					// 絶対値を抑制する。
+					// KKはいまどきの手法だとs16に収まる。
+					SET_A_LIMIT_TO(kk[k1][k2], (s32)INT16_MIN * 3/4, (s32)INT16_MAX * 3/4);
 				}
 			}
 
@@ -651,29 +538,25 @@ namespace Eval
 			for (int p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
 			{
 				for (auto k : SQ)
-
+				{
 					// p1とp2を入れ替えたものは、kpp_write()で書き込まれるはずなので無視して良い。
 					// また、p1 == p2はKPであり、これはKKPの計算のときにやっているので無視して良い。
+					// kpp[k][p1][p2]==0であるものとする。念のためにクリアしておく。
+					kpp[k][p1][p1] = { 0,0 };
+					
 					for (int p2 = p1 + 1; p2 < fe_end; ++p2)
 					{
 
 						auto& w = ((Weight*)kpp_w_)[get_kpp_index(k, (BonaPiece)p1, (BonaPiece)p2)];
-						
-#if defined (USE_ADA_GRAD_UPDATE) && defined(LEARN_UPDATE_EVERYTIME)
-						w.g2 = w.g2 * 0.997f;
-#endif
+						auto& v = kpp[k][p1][p2];
 
+						w.update(v);
 
-#if ! defined(LEARN_UPDATE_EVERYTIME)
-						if (w.update())
-#endif
-						{
-							// 絶対値を抑制する。
-							SET_A_LIMIT_TO(w.w, (LearnFloatType)((int)INT16_MIN * 3 / 4), (LearnFloatType)((int)INT16_MAX * 3/ 4));
-
-							kpp_write(k, (BonaPiece)p1, (BonaPiece)p2, ValueKpp{ (s16)w.w[0], (s16)w.w[1] });
-						}
+						// 絶対値を抑制する。
+						SET_A_LIMIT_TO(v, (s16)((s32)INT16_MIN * 3 / 4), (s16)((s32)INT16_MAX * 3 / 4));
+						kpp_write(k, (BonaPiece)p1, (BonaPiece)p2, v);
 					}
+				}
 			}
 
 			// 外側のループをk1にすると、ループ回数が81になって、40HTのときに1余るのが嫌。
@@ -687,22 +570,12 @@ namespace Eval
 					for (auto k2 : SQ)
 					{
 						auto& w = kkp_w[k1][k2][p];
+						auto& v = kkp[k1][k2][p];
+						w.update(v);
+						// 絶対値を抑制する。
+						SET_A_LIMIT_TO(v, ((s32)INT16_MIN * 3/ 4), ((s32)INT16_MAX * 3 / 4));
 
-						// cout << "\n" << w.g[0] << " & " << w.g[1];
-
-#if defined (USE_ADA_GRAD_UPDATE) && defined(LEARN_UPDATE_EVERYTIME)
-						w.g2 = w.g2 * 0.997f;
-#endif
-
-#if ! defined(LEARN_UPDATE_EVERYTIME)
-						if (w.update())
-#endif
-						{
-							// 絶対値を抑制する。
-							SET_A_LIMIT_TO(w.w, (LearnFloatType)((int)INT16_MIN * 3/ 4), (LearnFloatType)((int)INT16_MAX * 3 / 4));
-
-							kkp_write(k1, k2, (BonaPiece)p, ValueKkp{s32(w.w[0]),s32(w.w[1])});
-						}
+						kkp_write(k1, k2, (BonaPiece)p, v);
 					}
 			}
 		}

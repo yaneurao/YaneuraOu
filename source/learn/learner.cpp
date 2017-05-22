@@ -383,6 +383,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				if (draw_type != REPETITION_NONE)
 				{
 					// 引き分けのときは、局面を書き出さない。
+					// (勝敗情報が書き出せないため。)
 //					sync_cout << pos << "repetition , move = " << pv1[0] << sync_endl;
 					break;
 				}
@@ -504,6 +505,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					{
 						// スキップするときはこれ以前に関する
 						// 勝敗の情報がおかしくなるので保存している局面をクリアする。
+						// どのみち、hashが合致した時点でそこ以前の局面も合致している可能性が高いから
+						// 書き出す価値がない。
 						a_psv.clear();
 						goto SKIP_SAVE;
 					}
@@ -1325,6 +1328,9 @@ void LearnerThink::thread_worker(size_t thread_id)
 				ASSERT_LV3(false);
 			}
 			pos.do_move(m, state[ply++]);
+			
+			// leafでevaluate()は呼ばないので差分計算していく必要はないのでevaluate()を呼び出す必要はない。
+			//	Eval::evaluate(pos);
 		}
 
 		// leafに到達
@@ -1385,6 +1391,7 @@ void learn(Position& pos, istringstream& is)
 
 	string target_dir;
 	
+	// 0であれば、デフォルト値になる。
 	float eta = 0.0f;
 
 	// ファイル名が後ろにずらずらと書かれていると仮定している。
