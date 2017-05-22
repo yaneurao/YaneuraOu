@@ -326,9 +326,12 @@ namespace Eval
 
 #endif
 
+			// 絶対値を抑制する。
+			// KKはいまどきの手法だとs16に収まる。
+			SET_A_LIMIT_TO(w, (T)((s32)INT16_MIN * 3 / 4), (T)((s32)INT16_MAX * 3 / 4));
 
 			// この要素に関するmini-batchの1回分の更新が終わったのでgをクリア
-			g = { 0,0 };
+			g = { 0 , 0 };
 		}
 	};
 
@@ -518,19 +521,8 @@ namespace Eval
 #endif
 			// Open MP対応のため、int型の変数を使う必要がある。(悲しい)
 			for (int k1 = SQ_ZERO; k1 < SQ_NB; ++k1)
-			{
 				for (auto k2 : SQ)
-				{
-					auto& w = kk_w[k1][k2];
-
-					// wの値にupdateがあったなら、値を制限して、かつ、kkに反映させる。
-					w.update(kk[k1][k2]);
-
-					// 絶対値を抑制する。
-					// KKはいまどきの手法だとs16に収まる。
-					SET_A_LIMIT_TO(kk[k1][k2], (s32)INT16_MIN * 3/4, (s32)INT16_MAX * 3/4);
-				}
-			}
+					kk_w[k1][k2].update(kk[k1][k2]);
 
 #ifdef _OPENMP
 #pragma omp parallel for schedule (static)
@@ -546,14 +538,10 @@ namespace Eval
 					
 					for (int p2 = p1 + 1; p2 < fe_end; ++p2)
 					{
-
 						auto& w = ((Weight*)kpp_w_)[get_kpp_index(k, (BonaPiece)p1, (BonaPiece)p2)];
 						auto& v = kpp[k][p1][p2];
 
 						w.update(v);
-
-						// 絶対値を抑制する。
-						SET_A_LIMIT_TO(v, (s16)((s32)INT16_MIN * 3 / 4), (s16)((s32)INT16_MAX * 3 / 4));
 						kpp_write(k, (BonaPiece)p1, (BonaPiece)p2, v);
 					}
 				}
@@ -572,9 +560,6 @@ namespace Eval
 						auto& w = kkp_w[k1][k2][p];
 						auto& v = kkp[k1][k2][p];
 						w.update(v);
-						// 絶対値を抑制する。
-						SET_A_LIMIT_TO(v, ((s32)INT16_MIN * 3/ 4), ((s32)INT16_MAX * 3 / 4));
-
 						kkp_write(k1, k2, (BonaPiece)p, v);
 					}
 			}
