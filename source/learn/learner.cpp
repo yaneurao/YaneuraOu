@@ -280,11 +280,14 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		vector<PackedSfenValue> a_psv;
 
 		// a_psvに積まれている局面をファイルに書き出す。
-		// isWin : a_psvに積まれている最終局面の次の局面での勝敗
+		// lastTurnIsWin : a_psvに積まれている最終局面の次の局面での勝敗
 		// 返し値 : もう書き出せないので終了する場合にtrue。
-		auto flush_psv = [&](bool isWin)
+		auto flush_psv = [&](bool lastTurnIsWin)
 		{
+			bool isWin = lastTurnIsWin;
+
 			// 終局の局面(の一つ前)から初手に向けて、各局面に関して、対局の勝敗の情報を付与しておく。
+			// a_psvに保存されている局面は(手番的に)連続しているものとする。
 			for (auto it = a_psv.rbegin(); it != a_psv.rend(); ++it)
 			{
 				isWin = !isWin;
@@ -533,63 +536,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// search_depth手読みの指し手で局面を進める。
 				m = pv1[0];
 			}
-
-#ifdef      USE_SWAPPING_PIECES
-			// 2駒をときどき入れ替える機能
-
-			// このイベントは、王手がかかっていない局面において一定の確率でこの指し手が発生する。
-			// 王手がかかっていると王手回避しないといけないので良くない。
-			// 二枚とも歩が選ばれる可能性がそこそこあるため、1/5に設定しておく。
-			// また、レアケースながら盤上に王しかいないケースがある。
-			// これは、6駒以上という条件を入れておく。
-			if (rand(5) == 0 && !pos.in_check() && pos.pieces(pos.side_to_move()).pop_count() >= 6)
-			{
-				for (int retry = 0; retry < 10; ++retry)
-				{
-					// 手番側の駒を2駒入れ替える。
-
-					// 与えられたBitboardからランダムに1駒を選び、そのSquareを返す。
-					auto get_one = [this](Bitboard pieces)
-					{
-						// 駒の数
-						int num = pieces.pop_count();
-
-						// 何番目かの駒
-						int n = (int)rand(num) + 1;
-						Square sq = SQ_NB;
-						for (int i = 0; i < n; ++i)
-							sq = pieces.pop();
-						return sq;
-					};
-
-					// この升の2駒を入れ替える。
-					auto pieces = pos.pieces(pos.side_to_move());
-
-					auto sq1 = get_one(pieces);
-					// sq1を除くbitboard
-					auto sq2 = get_one(pieces ^ sq1);
-
-					// sq2は王しかいない場合、SQ_NBになるから、これを調べておく
-					// この指し手に成功したら、それはdo_moveの代わりであるから今回、do_move()は行わない。
-
-					if (sq2 != SQ_NB
-						&& pos.do_move_by_swapping_pieces(sq1, sq2))
-					{
-#if 0
-						// 検証用のassert
-						if (!is_ok(pos))
-							cout << pos << sq1 << sq2;
-#endif
-
-						// ゲームの勝敗から指し手を評価しようとするとき、
-						// 今回のランダムムーブがあるので、ここ以前には及ばないようにする。
-						a_psv.clear(); // 保存していた局面のクリア
-
-						goto DO_MOVE_FINISH;
-					}
-				}
-			}
-#endif
 
 		RANDOM_MOVE:;
 #ifdef USE_RANDOM_LEGAL_MOVE

@@ -187,9 +187,6 @@ typedef float LearnFloatType;
 // これはOptions["BookMoves"]の値が反映される。この値が0なら、定跡を用いない。
 // 用いる定跡は、Options["BookFile"]が反映される。
 
-// 2駒の入れ替えを5手に1回ぐらいの確率で行なう。
-//#define USE_SWAPPING_PIECES
-
 // ときどき合法手のなかからランダムに1手選ぶ。(Apery方式)
 //#define USE_RANDOM_LEGAL_MOVE
 

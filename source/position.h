@@ -594,12 +594,6 @@ struct Position
 
 	// 盤面と手駒、手番を与えて、そのsfenを返す。
 	static std::string sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly);
-
-	// sq1,sq2の駒を入れ替える。(という指し手だと思うと良い)
-	// 棋譜生成のときなど特殊な用途に用いる。王手されている局面で呼び出してはならない。
-	// もし歩が1段目にあるなど、非合法局面に突入するなら2駒を入れ替えずにfalseを返す。
-	// ※　内部的に一端sfen()化するのだが、そのときにsfen_from_rawdata()を用いるのでsfen_packer.cppに依存。
-	bool do_move_by_swapping_pieces(Square sq1, Square sq2);
 #endif
 
 	// -- 利き
