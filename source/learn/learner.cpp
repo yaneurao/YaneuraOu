@@ -485,7 +485,10 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// 16手目までの局面、類似局面ばかりなので
 				// 学習に用いると過学習になりかねないから書き出さない。
 				if (ply < 16)
+				{
+					a_psv.clear();
 					goto SKIP_SAVE;
+				}
 
 				// 同一局面を書き出したところか？
 				// これ、複数のPCで並列して生成していると同じ局面が含まれることがあるので
@@ -495,7 +498,12 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					auto hash_index = (size_t)(key & (GENSFEN_HASH_SIZE - 1));
 					auto key2 = hash[hash_index];
 					if (key == key2)
+					{
+						// スキップするときはこれ以前に関する
+						// 勝敗の情報がおかしくなるので保存している局面をクリアする。
+						a_psv.clear();
 						goto SKIP_SAVE;
+					}
 					hash[hash_index] = key; // 今回のkeyに入れ替えておく。
 				}
 
@@ -514,7 +522,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					ASSERT_LV3(pv_value1.second.size() >= 1);
 					Move pv_move1 = pv_value1.second[0];
 					psv.move = pv_move1;
-
 				}
 
 			SKIP_SAVE:;
@@ -602,7 +609,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// コードが複雑化するだけだから不要だと判断した。
 
 				// ゲームの勝敗から指し手を評価しようとするとき、
-				// 今回のランダムムーブがあるので、ここ以前には及ばないようにする。
+				// 今回のrandom moveがあるので、ここ以前には及ばないようにする。
 				a_psv.clear(); // 保存していた局面のクリア
 			}
 #endif
