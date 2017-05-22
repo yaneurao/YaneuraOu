@@ -64,14 +64,6 @@
 // 学習時の評価関数の保存間隔。この局面数だけ学習させるごとに保存。
 #define LEARN_EVAL_SAVE_INTERVAL (80000000ULL)
 
-
-// KKP,KPPの評価値、ミラーを考慮するか(ミラーの位置にある評価値を同じ値にする)
-// #define USE_KKP_MIRROR_WRITE
-// #define USE_KPP_MIRROR_WRITE
-
-// KKPの評価値、フリップを考慮するか(盤面を180度回転させた位置にある評価値を同じ値にする)
-// #define USE_KKP_FLIP_WRITE
-
 // 評価関数ファイルを出力するときに指数移動平均(EMA)を用いた平均化を行なう。
 // #define LEARN_USE_EMA
 
@@ -196,7 +188,6 @@ typedef float LearnFloatType;
 
 #if defined (LEARN_DEFAULT)
 #define USE_SGD_UPDATE
-#define USE_KPP_MIRROR_WRITE
 #undef LEARN_MINI_BATCH_SIZE
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 #define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
@@ -216,10 +207,6 @@ typedef float LearnFloatType;
 #define GENSFEN_SAVE_GAME_RESULT
 
 #define USE_ADA_GRAD_UPDATE
-#define USE_KPP_MIRROR_WRITE
-#define USE_KKP_FLIP_WRITE
-#define USE_KKP_MIRROR_WRITE
-
 #undef LEARN_MINI_BATCH_SIZE
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 #define LOSS_FUNCTION_IS_ELMO_METHOD
@@ -241,7 +228,6 @@ typedef float LearnFloatType;
 #define USE_ADA_GRAD_UPDATE
 //#define USE_ADAM_UPDATE
 
-#define USE_KPP_MIRROR_WRITE
 #undef LEARN_MINI_BATCH_SIZE
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 
@@ -255,8 +241,8 @@ typedef float LearnFloatType;
 #define USE_RANDOM_LEGAL_MOVE
 
 // 出力を減らして高速化。
-//#undef LEARN_RMSE_OUTPUT_INTERVAL
-//#define LEARN_RMSE_OUTPUT_INTERVAL 10
+#undef LEARN_RMSE_OUTPUT_INTERVAL
+#define LEARN_RMSE_OUTPUT_INTERVAL 10
 
 // #define EVAL_SAVE_ONLY_ONCE
 

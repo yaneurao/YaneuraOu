@@ -30,6 +30,7 @@ namespace Eval
 	typedef std::array<int16_t, 2> ValueKpp;
 	typedef std::array<int32_t, 2> ValueKkp;
 
+
 	// 学習で用いる、手番込みの浮動小数点数。
 	typedef std::array<LearnFloatType, 2> FloatPair;
 
@@ -81,12 +82,9 @@ namespace Eval
 
 		kpp[k1][p1][p2]
 			= kpp[k1][p2][p1]
-
-#ifdef USE_KPP_MIRROR_WRITE
 			// ミラー、書き出すのやめるほうがいいかも…よくわからない。
 			= kpp[mk1][mp1][mp2]
 			= kpp[mk1][mp2][mp1]
-#endif
 			= value;
 
 	}
@@ -101,16 +99,11 @@ namespace Eval
 		const auto q0 = &kpp[0][0][0];
 		auto q1 = &kpp[k1][p1][p2] - q0;
 		auto q2 = &kpp[k1][p2][p1] - q0;
-#ifdef USE_KPP_MIRROR_WRITE
 		auto q3 = &kpp[mk1][mp1][mp2] - q0;
 		auto q4 = &kpp[mk1][mp2][mp1] - q0;
-#endif
 
-#ifdef USE_KPP_MIRROR_WRITE
+		// ミラー位置も考慮したほうが良いのかはよくわからないが。
 		return std::min({ q1, q2, q3, q4 });
-#else
-		return std::min({ q1, q2 });
-#endif
 	}
 
 	// 学習時にkkpテーブルに値を書き出すためのヘルパ関数。
@@ -138,9 +131,7 @@ namespace Eval
 		// ASSERT_LV3(kkp[k1][k2][p1] == kkp[mk1][mk2][mp1]);
 
 		kkp[k1][k2][p1]
-#ifdef USE_KKP_MIRROR_WRITE
 			= kkp[mk1][mk2][mp1]
-#endif
 			= value;
 
 	// kkpに関して180度のflipは入れないほうが良いのでは..
@@ -165,15 +156,9 @@ namespace Eval
 	// flipはvalueの符号が変わるのでここでは考慮しない。
 	u64 get_kkp_index(Square k1, Square k2 , BonaPiece p1)
 	{
-		BonaPiece ip1 = inv_piece[p1];
-		BonaPiece mp1 = mir_piece[p1];
-		BonaPiece mip1 = mir_piece[ip1];
 		Square  mk1 = Mir(k1);
-		Square  ik1 = Inv(k1);
-		Square mik1 = Mir(ik1);
 		Square  mk2 = Mir(k2);
-		Square  ik2 = Inv(k2);
-		Square mik2 = Mir(ik2);
+		BonaPiece mp1 = mir_piece[p1];
 
 		const auto q0 = &kkp[0][0][0];
 		auto q1 = &kkp[k1][k2][p1] - q0;
@@ -182,8 +167,10 @@ namespace Eval
 		return std::min({ q1, q2 });
 	}
 
-	// 出力用。
-	std::ostream& operator << (std::ostream& os, const FloatPair& p)
+	// --- デバッグ用出力。
+
+	template <typename T>
+	std::ostream& operator << (std::ostream& os, const std::array<T, 2>& p)
 	{
 		os << "{ " << p[0] << " , " << p[1] << " } ";
 		return os;
@@ -290,16 +277,20 @@ namespace Eval
 			// 普通のAdaGrad
 
 			// g2[i] += g * g;
-			// w[i] -= η * g / sqrt(g2[i]);
+			// w[i] -= η * g / sqrt(g2[i] + epsilon);
 			// g = 0 // mini-batchならこのタイミングで勾配配列クリア。
-
-			// ゼロ除算を避けるため、abs(g)が小さいときはskipしたほうが良いかも…。
 			
 			constexpr double epsilon = 0.000001;
 
 			for (int i = 0; i < 2; ++i)
 			{
 				g2[i] += g[i] * g[i];
+
+				// 更新式の分母でepsilonを足すとは言え、
+				// g2が小さいときはノイズが大きいので更新しないことにする。
+				if (g2[i] < epsilon * 10)
+					continue;
+
 				w[i] -= (T)(eta * (double)g[i] / sqrt((double)g2[i] + epsilon));
 			}
 #endif
@@ -327,13 +318,24 @@ namespace Eval
 #endif
 
 			// 絶対値を抑制する。
-			// KKはいまどきの手法だとs16に収まる。
+			// KK,KKPもいまどきの手法だとs16に収まる。
 			SET_A_LIMIT_TO(w, (T)((s32)INT16_MIN * 3 / 4), (T)((s32)INT16_MAX * 3 / 4));
 
 			// この要素に関するmini-batchの1回分の更新が終わったのでgをクリア
 			g = { 0 , 0 };
 		}
 	};
+
+	// デバッグ用にgの値を出力する。
+	std::ostream& operator<<(std::ostream& os, const Eval::Weight& w)
+	{
+		os << "g = " << w.g
+#if defined ( USE_ADA_GRAD_UPDATE )
+			<< ", g2 = " << w.g2;
+#endif
+			;
+		return os;
+	}
 
 
 #if defined (USE_SGD_UPDATE) || defined(USE_ADA_GRAD_UPDATE)
@@ -365,6 +367,7 @@ namespace Eval
 		{
 			size_t size;
 
+			// KK
 			size = size_t(SQ_NB)*size_t(SQ_NB);
 			kk_w_ = (Weight(*)[SQ_NB][SQ_NB])new Weight[size];
 			memset(kk_w_, 0, sizeof(Weight) * size);
@@ -373,18 +376,20 @@ namespace Eval
 			memset(kk_, 0, sizeof(ValueKk) * size);
 #endif
 
-			size = size_t(SQ_NB)*size_t(fe_end)*size_t(fe_end);
-			kpp_w_ = (Weight(*)[SQ_NB][fe_end][fe_end])new Weight[size];
-			memset(kpp_w_, 0, sizeof(Weight) * size);
-#ifdef RESET_TO_ZERO_VECTOR
-			memset(kpp_, 0, sizeof(ValueKpp) * size);
-#endif
-
+			// KKP
 			size = size_t(SQ_NB)*size_t(SQ_NB)*size_t(fe_end);
 			kkp_w_ = (Weight(*)[SQ_NB][SQ_NB][fe_end])new Weight[size];
 			memset(kkp_w_, 0, sizeof(Weight) * size);
 #ifdef RESET_TO_ZERO_VECTOR
 			memset(kkp_, 0, sizeof(ValueKkp) * size);
+#endif
+
+			// KPP
+			size = size_t(SQ_NB)*size_t(fe_end)*size_t(fe_end);
+			kpp_w_ = (Weight(*)[SQ_NB][fe_end][fe_end])new Weight[size];
+			memset(kpp_w_, 0, sizeof(Weight) * size);
+#ifdef RESET_TO_ZERO_VECTOR
+			memset(kpp_, 0, sizeof(ValueKpp) * size);
 #endif
 
 		}
@@ -393,6 +398,9 @@ namespace Eval
 	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
 	void add_grad(Position& pos, Color rootColor, double delta_grad)
 	{
+		// Aperyに合わせておく。
+		delta_grad /= 32.0 /*FV_SCALE*/;
+
 		// 勾配
 		FloatPair g = {
 			// 手番を考慮しない値
@@ -403,7 +411,7 @@ namespace Eval
 		};
 
 		// 180度盤面を回転させた位置関係に対する勾配
-		FloatPair g_flip = { -g[0],+g[1] };
+		FloatPair g_flip = { -g[0] , +g[1] };
 
 		Square sq_bk = pos.king_square(BLACK);
 		Square sq_wk = pos.king_square(WHITE);
@@ -454,7 +462,7 @@ namespace Eval
 			// 180度回転も先手後手とは非対称である可能性があるのでここのフリップは善悪微妙。
 			
 			((Weight*)kkp_w_)[get_kkp_index(sq_bk,sq_wk,k0)].add_grad(g);
-			((Weight*)kkp_w_)[get_kkp_index(Inv(sq_wk), Inv(sq_bk), k1)].add_grad(g_flip);
+		//	((Weight*)kkp_w_)[get_kkp_index(Inv(sq_wk), Inv(sq_bk), k1)].add_grad(g_flip);
 		}
 
 	}
@@ -522,7 +530,9 @@ namespace Eval
 			// Open MP対応のため、int型の変数を使う必要がある。(悲しい)
 			for (int k1 = SQ_ZERO; k1 < SQ_NB; ++k1)
 				for (auto k2 : SQ)
+				{
 					kk_w[k1][k2].update(kk[k1][k2]);
+				}
 
 #ifdef _OPENMP
 #pragma omp parallel for schedule (static)
@@ -538,6 +548,8 @@ namespace Eval
 					
 					for (int p2 = p1 + 1; p2 < fe_end; ++p2)
 					{
+						// (次元下げとして)一番若いアドレスにgradの値が書き込まれているから、
+						// この値に基いて以下のvを更新すれば良い。
 						auto& w = ((Weight*)kpp_w_)[get_kpp_index(k, (BonaPiece)p1, (BonaPiece)p2)];
 						auto& v = kpp[k][p1][p2];
 
@@ -559,7 +571,9 @@ namespace Eval
 					{
 						auto& w = kkp_w[k1][k2][p];
 						auto& v = kkp[k1][k2][p];
+
 						w.update(v);
+
 						kkp_write(k1, k2, (BonaPiece)p, v);
 					}
 			}

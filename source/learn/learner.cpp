@@ -1374,6 +1374,7 @@ void LearnerThink::save()
 // 生成した棋譜からの学習
 void learn(Position& pos, istringstream& is)
 {
+
 	auto thread_num = (int)Options["Threads"];
 	SfenReader sr(thread_num);
 
@@ -1518,7 +1519,7 @@ void learn(Position& pos, istringstream& is)
 
 	// 評価関数パラメーターの勾配配列の初期化
 	Eval::init_grad(eta);
-
+	
 #ifdef _OPENMP
 	omp_set_num_threads((int)Options["Threads"]);
 #endif
@@ -1533,11 +1534,6 @@ void learn(Position& pos, istringstream& is)
 
 	// mse計算用にデータ1万件ほど取得しておく。
 	sr.read_for_mse();
-
-#ifdef LEARN_UPDATE_EVERYTIME
-	// 毎回updateするなら学習率の初期化のために最初に呼び出しておく必要がある。
-	Eval::update_weights(mini_batch_size, 1);
-#endif
 
 	// この時点で一度rmseを計算(0 sfenのタイミング)
 	// sr.calc_rmse();
