@@ -19,7 +19,41 @@ COMPILER = g++
 # COMPILER = clang++
 
 # 標準的なコンパイルオプション
-CFLAGS   =  -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
+CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
+WCFLAGS  =
+LDFLAGS  =
+LIBS     =
+INCLUDE  = # -I../include
+
+# clang用にCFLAGSなどを変更
+# あとでclang用のMakefileは分離する。
+ifeq ($(findstring clang++,$(COMPILER)),clang++)
+  # stdlib
+  CFLAGS += -stdlib=libstdc++
+
+  # 関数の引数が関数本体で使われていないときに警告出るのうざすぎるので抑制。
+  # CFLAGS += -Wno-unused-parameter
+
+  # static リンクを行う際に __cxa_guard_acquire __cxa_guard_release の生成を抑止
+  #   undefined reference to `__imp___cxa_guard_acquire'
+  #   undefined reference to `__imp___cxa_guard_release'
+  # static 変数を初期化したかを pthread_mutex_t でロックを取って確認し、
+  # 最初の実行なら初期化するスレッドセーフなコードを生成するためのもの。
+  # → 本当に消してしまっても大丈夫か？
+  WCFLAGS += -fno-threadsafe-statics
+
+  # msys2用のclangでは、OpenMP使えない？インスコ仕方がわからん。
+
+endif
+
+ifeq ($(OS),Windows_NT)
+  CFLAGS += $(WCFLAGS)
+  LDFLAGS += -Wl,-static,--stack,100000000
+  TARGET = YaneuraOu-by-gcc.exe
+else
+  CFLAGS += -D_LINUX
+  TARGET = YaneuraOu-by-gcc
+endif
 
 # リンク時最適化。これをつけるとmsys2環境だとセグフォで落ちる。
 # 落ちない環境なら有効にしたほうが速い実行ファイルが生成されるはず。
@@ -33,7 +67,7 @@ LTOFLAGS = -flto
 CFLAGS  += -DUNICODE
 
 # stripの指示。(実行ファイルのサイズを小さく)
-CFLAGS  += -Wl,-s
+LDFLAGS += -Wl,-s
 
 # mingw64では-D_WIN64,-D_WIN32は環境に応じて自動で設定されるので指定すべきではない。
 # CFLAGS += -D_WIN64
@@ -48,41 +82,9 @@ CFLAGS  += -Wl,-s
 # ※ 学習部ではOpenMpを用いるので、学習用のビルドではこのオプションを指定する。
 OPENMP   = -fopenmp
 
-LDFLAGS  = -lpthread
-LIBS     =
-INCLUDE  = # -I../include
-
-ifeq ($(OS),Windows_NT)
-  CFLAGS += -Wl,--stack,100000000
-  LDFLAGS += -static
-  TARGET = YaneuraOu-by-gcc.exe
-else
-  CFLAGS += -D_LINUX
-  TARGET = YaneuraOu-by-gcc
-endif
-
-# clang用にCFLAGSなどを変更
-# あとでclang用のMakefileは分離する。
-ifeq ($(COMPILER),clang++)
-  # gccと共通
-  CFLAGS  = -std=c++14 -fno-exceptions -fno-rtti -Wextra
-  CFLAGS += -Ofast -MMD -MP -fpermissive -DUNICODE -DNO_EXCEPTIONS
-
-  # lib  // static linkの仕方わからん。
-  CFLAGS += -stdlib=libstdc++
-
-  # 関数の引数が関数本体で使われていないときに警告出るのうざすぎるので抑制。
-  CFLAGS += -Wno-unused-parameter
-
-  # msys2用のclangならば-fltoつけてもセグフォで落ちないらしい。
-  # CFLAGS += -flto
-  # →　LDFLAGSのほうで指定すれば十分？
-
-  LDFLAGS  = -lpthread -Wl,-s -Wl,--stack,100000000
-
-  # msys2用のclangでは、OpenMP使えない？インスコ仕方がわからん。
-
-endif
+CFLAGS += -DNO_EXCEPTIONS
+LDFLAGS += -lpthread
+LDFLAGS += -v
 
 OBJDIR   = ../obj
 ifeq "$(strip $(OBJDIR))" ""
@@ -136,10 +138,10 @@ SOURCES  = shogi.cpp                                                           \
 	learn/learning_tools.cpp                                                   \
 	learn/multi_think.cpp                                                      \
 	learn/evaluate_kppt_learn.cpp   
-																               
-#ifeq ($(YANEURAOU_EDITION),YANEURAOU_2017_GOKU_ENGINE)				           
+
+#ifeq ($(YANEURAOU_EDITION),YANEURAOU_2017_GOKU_ENGINE)                        
 #	SOURCES += engine/2017-goku-engine/2017-goku-search.cpp                    \
-#				eval/evaluate_ppap.cpp                                         
+#	           eval/evaluate_ppap.cpp                                          
 #endif
 
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
@@ -157,9 +159,13 @@ all: clean $(TARGET)
 # 学習用バイナリのときは、openmpを有効にする。
 evallearn:
 	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+evallearn-sse42:
+	$(MAKE) CFLAGS='$(CFLAGS) -fopenmp -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 tournament:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -DFOR_TOURNAMENT -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+tournament-sse42:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -DFOR_TOURNAMENT -march=corei7' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 avx2:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
@@ -185,18 +191,29 @@ other:
 #　とりあえずPGOはavx2専用
 prof:
 	$(MAKE) CFLAGS='$(CFLAGS) -pg' avx2
+prof-sse42:
+	$(MAKE) CFLAGS='$(CFLAGS) -pg' sse42
 
 profgen:
 	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-generate -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-generate -lgcov' avx2
+profgen-sse42:
+	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-generate -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-generate -lgcov' sse42
 
 profuse:
-	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-use -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-use -lgcov -flto' avx2
+	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-use -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-use -lgcov $(LTOFLAGS)' avx2
+profuse-sse42:
+	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-use -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-use -lgcov $(LTOFLAGS)' sse42
 
 pgo:
 	$(MAKE) profgen
-	@./$(TARGET) bench , quit
+	@./$(TARGET) EvalDir ../build/eval , bench , quit
 	@touch $(SOURCES)
 	$(MAKE) profuse
+pgo-sse42:
+	$(MAKE) profgen-sse42
+	@./$(TARGET) EvalDir ../build/eval , bench , quit
+	@touch $(SOURCES)
+	$(MAKE) profuse-sse42
 
 clean:
 	rm -f $(OBJECTS) $(DEPENDS) $(TARGET) ${OBJECTS:.o=.gcda}
