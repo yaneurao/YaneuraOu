@@ -1,5 +1,7 @@
-﻿# ToDO
+﻿
+# ToDO
 
+- 学習部のmirrorとかの処理、単純化する＆高速化する。
 - evaluate KPPT 16bit化するか、上位16bitに進行度入れる。
 - evaluate()、コードを見直す。
 - Stockfishのevaluate()よく調べる。
@@ -11,7 +13,119 @@
 - 詰将棋探索エンジン、他の探索部から呼び出せるように改良する。
 
 
+## 2017/05/24
+
+- 時間あったので学習部のコード、刷新した。明日にでもデバッグしよう。
+
+- evaluate_kppt_learn.cpp、いまどきのコードに書き直す。
+	- // FloatPairに対する基本的な演算。
+		- こんなもの要らんかったんやー。
+	- よく考えたらソースコードが少し汚い以外は合理的なコードのような気もしてきた。
+
+- GokuYane20170523 , 201705231540D8
+
+## 2017/05/23
+
+- learn_369/2 (GokuYane20170523)からdepth8で7.5億局面生成。
+
+- AdaGrad、g2をg^2としているの、もっと緩やかな収束をするように調整したほうがいいような…。
+	- http://qiita.com/ak11/items/7f63a1198c345a138150
+	- > 勾配がほぼ一定な場合で考えると、ある要素のn回目の学習率はeta / sqrt(n)くらいになる。
+
+	mini-batch 1Mだと1000回目(1G)でeta / sqrt(1000) = eta / 31.6
+	eta = 30.0だとすると これは1より小さくなるので、10G以降、値が動かないことになる。
+
+	mini-batchのサイズを大きくすることで調整すべきか。
+	50G局面食わせるならeta = 30.0としてmini-batch = 10Mにするだとか。
+
+	更新量が1.0未満なら次回に持ち越すか。
+
+				T diff = (T)(eta * (double)g[i] / sqrt((double)g2[i]));
+				// 今回の更新量が1未満であるなら整数化して0になるので
+				// 今回は更新を保留してg[i]はクリアしないことにする。
+				if (-1 < diff && diff < 1)
+					continue;
+
+				w[i] -= diff;
+
+				// この要素に関するmini-batchの1回分の更新が終わったのでgをクリア
+				g[i] = 0;
+
+
+
+## 2017/05/22
+
+- elmo vs  learn_369/2
+
+T1,b6000,1592 - 72 - 1256(55.9% R41.18) win black : white = 52.25% : 47.75%
+
+engine1 = YaneuraOuV460.exe , eval = GokuYane20170522
+engine2 = YaneuraOuV460.exe , eval = learn_369/2
+T1,b3000,2340 - 160 - 2490(48.45% R-10.79) win black : white = 51.35% : 48.65%
+T1,b6000,1362 - 124 - 1434(48.71% R-8.95) win black : white = 51.9% : 48.1%
+
+
+- SGDでmini-batch 1M、eta = 32.0
+
+- learnからLEARN_UPDATE_EVERYTIME関連、削除。コードが複雑化する。
+	学習用のfloat配列削除する。
+	eta = 30 , mini-batch 1Mにする。
+	eta = 10の場合と比較。
+		Options[EvalDir] = eval\GokuYane20170522
+		target dir      : learn_sfen\201705220250D6
+
+- これで発散するのよくわからん。書き込んでいる配列ダンプするぐらいのことをしたほうがよさげ。
+
+						if (k == SQ_59 && p1 == BonaPiece::f_pawn + SQ_27 && p2 == BonaPiece::f_rook + SQ_28)
+							cout << w << v;
+あっとる…。
+						if (k1 == SQ_59 && p == BonaPiece::f_pawn + SQ_27 && k2 == SQ_51)
+							cout << w << v;
+
+		pos.set_hirate();
+		Eval::add_grad(pos, BLACK, 10);
+		Eval::update_weights(1000000,0);
+
+		// mirrorが間違っているということは？
+		BonaPiece x = (BonaPiece)((int)Eval::f_pawn + (int)SQ_44);
+		cout << x << mir_piece[x];
+		BonaPiece y = (BonaPiece)((int)Eval::e_pawn + (int)SQ_44);
+		cout << y << mir_piece[y];
+		// あっとる。
+
+		for (int i = 0; i < fe_end;++i)
+			cout << i << " = " << (BonaPiece)(i) << " : " << mir_piece[i] << " : " << inv_piece[i] << endl;
+		// あっとる。
+
+		よくわからないな。Aperyのeta = 30が結構挑戦的な値なのかな。
+
+
+// デバッグ用学習コマンド
+evaldir eval
+evalsavedir \\WS2012_860C_YAN\yanehome\eval\learn_339
+hash 4096
+evalshare false
+learn loop 10 basedir \\WS2012_860C_YAN\yanehome batchsize 100000 eta 30 targetdir learn_sfen\201705211600D6
+
+
+- C++11でコンパイルが通るように修正。
+
+- GokuYane20170522からdepth8でelmo式で教師局面0.5G生成。
+	- depth 8、80HTで50M局面、2.5時間。400HTで10時間で10G局面。
+		50Gぐらいなら2日で生成できるのか…。
+		depth 10,12,14,16ぐらいまで試す価値あるのかも。
+
+	201705220250D6
+		AdaGrad eta 0.3と0.6で比較。
+		T1,b2000,583 - 37 - 500(53.83% R26.68) win black : white = 52.26% : 47.74%
+		0.3のほうが良さげ？
+
+
 ## 2017/05/21
+
+- 80HTでAdaGrad10億局面4時間ぐらい。学習遅すぎない？
+	LEARN_RMSE_OUTPUT_INTERVAL 1で回してたからか。
+	10分で5000万。1時間で3億局面ぐらい？
 
 - 詰みの局面を渡されたときにinfo stringでmate 1と出力していたの修正。
 
@@ -24,6 +138,9 @@ sfen l7l/3Pp1R2/k1ns4p/pps6/1n1G1P3/2PS5/PPGKPs2P/4g4/LNb2b2L b N6Prgp 1
 
 
 - elmo絞り比較中
+
+rmseは直線的に下がっているのだが…。
+
 goku(3) vs elmo
 T1,b1000,469 - 13 - 498(48.5% R-10.42) win black : white = 51.19% : 48.81%
 
@@ -31,6 +148,19 @@ T1,b1000,469 - 13 - 498(48.5% R-10.42) win black : white = 51.19% : 48.81%
 goku(6) vs elmo
 T1,b1000,1429 - 35 - 1456(49.53% R-3.25) win black : white = 52.48% : 47.52%
 T1,b3000,392 - 11 - 507(43.6% R-44.69) win black : white = 49.72% : 50.28%
+
+goku(8) vs elmo
+T1,b3000,482 - 20 - 578(45.47% R-31.55) win black : white = 51.89% : 48.11%
+// 近づいてはいるのか..
+
+goku(8) vs ShinYane20161108
+T1,b3000,587 - 25 - 508(53.61% R25.11) win black : white = 50.87% : 49.13%
+
+goku(10) vs elmo
+T1,b2000,360 - 11 - 419(46.21% R-26.36) win black : white = 51.35% : 48.65%
+T1,b3000,224 - 6 - 280(44.44% R-38.76) win black : white = 51.79% : 48.21%
+T1,b6000,108 - 2 - 130(45.38% R-32.21) win black : white = 51.26% : 48.74%
+// 回数少なくてよくわからないが、持ち時間を長くすると勝率が開く傾向はありそう。
 
 
 - 学習時にファイルまたぐところでrmse跳ね上がるの、何らかのバグでは…。
@@ -48,6 +178,8 @@ T1,b3000,392 - 11 - 507(43.6% R-44.69) win black : white = 49.72% : 50.28%
 
 	elmo式 vs yane-elmo式
 	T1,b3000,406 - 33 - 421(49.09% R-6.3) win black : white = 52.24% : 47.76%
+	T1,b3000,532 - 43 - 485(52.31% R16.07) win black : white = 51.13% : 48.87%
+	// あかん。yane-elmo式はとりあえずしばらく封印。
 
 
 - elmo絞り 2億局面
@@ -91,7 +223,7 @@ evaldir eval
 evalsavedir \\WS2012_860C_YAN\yanehome\eval\learn_339
 hash 4096
 evalshare false
-learn loop 10 basedir \\WS2012_860C_YAN\yanehome batchsize 500000 eta 0.3 targetdir learn_sfen\201705211600D6
+learn loop 10 basedir \\WS2012_860C_YAN\yanehome batchsize 500000 eta 30 targetdir learn_sfen\201705211600D6
 
 
 ## 2017/05/20

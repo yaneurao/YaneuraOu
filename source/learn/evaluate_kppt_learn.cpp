@@ -1,7 +1,8 @@
-﻿#ifndef _EVALUATE_LEARN_CPP_
-#define _EVALUATE_LEARN_CPP_
+﻿#ifndef _EVALUATE_KPPT_LEARN_CPP_
+#define _EVALUATE_KPPT_LEARN_CPP_
 
 // KPPT評価関数の学習時用のコード
+// tanuki-さんの学習部のコードをかなり参考にさせていただきました。
 
 #include "../shogi.h"
 
@@ -19,390 +20,295 @@ using namespace std;
 
 namespace Eval
 {
-	// 絶対値を抑制するマクロ
-#define SET_A_LIMIT_TO(X,MIN,MAX)    \
-	X[0] = std::min(X[0],(MAX));     \
-	X[0] = std::max(X[0],(MIN));     \
-	X[1] = std::min(X[1],(MAX));     \
-	X[1] = std::max(X[1],(MIN));
+	// 学習のときの勾配配列の初期化
+	void init_grad(double eta);
 
-	typedef std::array<int32_t, 2> ValueKk;
-	typedef std::array<int16_t, 2> ValueKpp;
-	typedef std::array<int32_t, 2> ValueKkp;
+	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
+	// 現局面は、leaf nodeであるものとする。
+	void add_grad(Position& pos, Color rootColor, double delta_grad);
 
+	// 現在の勾配をもとにSGDかAdaGradか何かする。
+	void update_weights(u64 epoch);
 
-	// 学習で用いる、手番込みの浮動小数点数。
-	typedef std::array<LearnFloatType, 2> FloatPair;
+	// 学習のためのテーブルの初期化
+	void eval_learn_init();
 
-	// FloatPairに対する基本的な演算。
-	FloatPair operator + (FloatPair x, LearnFloatType a) { return FloatPair{ x[0] + a, x[1] + a }; }
-	FloatPair operator - (FloatPair x, LearnFloatType a) { return FloatPair{ x[0] - a, x[1] - a }; }
-	FloatPair operator * (FloatPair x, LearnFloatType a) { return FloatPair{ x[0] * a, x[1] * a }; }
-	FloatPair operator * (LearnFloatType a , FloatPair x) { return FloatPair{ x[0] * a, x[1] * a }; }
-	FloatPair operator / (FloatPair x, LearnFloatType a) { return FloatPair{ x[0] / a, x[1] / a }; }
-
-	FloatPair operator + (FloatPair x, FloatPair y) { return FloatPair{ x[0] + y[0], x[1] + y[1] }; }
-	FloatPair operator - (FloatPair x, FloatPair y) { return FloatPair{ x[0] - y[0], x[1] - y[1] }; }
-	FloatPair operator * (FloatPair x, FloatPair y) { return FloatPair{ x[0] * y[0], x[1] * y[1] }; }
-	FloatPair operator / (FloatPair x, FloatPair y) { return FloatPair{ x[0] / y[0], x[1] / y[1] }; }
+	// 評価関数パラメーターをファイルに保存。
+	void save_eval(std::string dir_name);
 
 	// あるBonaPieceを相手側から見たときの値
 	BonaPiece inv_piece[fe_end];
 
 	// 盤面上のあるBonaPieceをミラーした位置にあるものを返す。
 	BonaPiece mir_piece[fe_end];
+}
 
-	// 学習時にkppテーブルに値を書き出すためのヘルパ関数。
-	// この関数を用いると、ミラー関係にある箇所などにも同じ値を書き込んでくれる。次元下げの一種。
-	void kpp_write(Square k1, BonaPiece p1, BonaPiece p2, ValueKpp value)
-	{
-		// '~'をinv記号,'M'をmirror記号だとして
-		//   [  k1 ][  p1 ][  p2 ]
-		//   [  k1 ][  p2 ][  p1 ]
-		//   [M(k1)][M(p1)][M(p2)]
-		//   [M(k1)][M(p2)][M(p1)]
-		// は、同じ値であるべきなので、その4箇所に書き出す。
+// --- 以下、定義
 
-		BonaPiece mp1 = mir_piece[p1];
-		BonaPiece mp2 = mir_piece[p2];
-		Square  mk1 = Mir(k1);
-
-		// kppのppを入れ替えたときのassert
-
-#if 0
-		// Apery(WCSC26)の評価関数、玉が5筋にいるきにmirrorした値が一致しないので
-		// assertから除外しておく。
-		ASSERT_LV3(kpp[k1][p1][p2] == kpp[mk1][mp1][mp2] || file_of(k1) == FILE_5);
-		ASSERT_LV3(kpp[k1][p1][p2] == kpp[mk1][mp2][mp1] || file_of(k1) == FILE_5);
-#endif
-
-		// このassert書いておきたいが、many core(e.g.HT40)だと
-		// 別のスレッドから同時に２つに異なる値を書き込むことがあるのでassertで落ちてしまう。
-//		ASSERT_LV3(kpp[k1][p1][p2] == kpp[k1][p2][p1]);
-
-		kpp[k1][p1][p2]
-			= kpp[k1][p2][p1]
-			// ミラー、書き出すのやめるほうがいいかも…よくわからない。
-			= kpp[mk1][mp1][mp2]
-			= kpp[mk1][mp2][mp1]
-			= value;
-
-	}
-
-	// kpp_write()するときの一番若いアドレス(index)を返す。
-	u64 get_kpp_index(Square k1, BonaPiece p1, BonaPiece p2)
-	{
-		BonaPiece mp1 = mir_piece[p1];
-		BonaPiece mp2 = mir_piece[p2];
-		Square  mk1 = Mir(k1);
-
-		const auto q0 = &kpp[0][0][0];
-		auto q1 = &kpp[k1][p1][p2] - q0;
-		auto q2 = &kpp[k1][p2][p1] - q0;
-		auto q3 = &kpp[mk1][mp1][mp2] - q0;
-		auto q4 = &kpp[mk1][mp2][mp1] - q0;
-
-		// ミラー位置も考慮したほうが良いのかはよくわからないが。
-		return std::min({ q1, q2, q3, q4 });
-	}
-
-	// 学習時にkkpテーブルに値を書き出すためのヘルパ関数。
-	// この関数を用いると、ミラー関係にある箇所などにも同じ値を書き込んでくれる。次元下げの一種。
-	void kkp_write(Square k1, Square k2, BonaPiece p1, ValueKkp value)
-	{
-		// '~'をinv記号,'M'をmirror記号だとして
-		//   [  k1 ][  k2 ][  p1 ]
-		//   [ ~k2 ][ ~k1 ][ ~p1 ] (1)
-		//   [M k1 ][M k2 ][M p1 ]
-		//   [M~k2 ][M~k1 ][M~p1 ] (2)
-		// は、同じ値であるべきなので、その4箇所に書き出す。
-		// ただし、(1)[0],(2)[0]は[k1][k2][p1][0]とは符号が逆なので注意。
-
-		BonaPiece ip1 = inv_piece[p1];
-		BonaPiece mp1 = mir_piece[p1];
-		BonaPiece mip1 = mir_piece[ip1];
-		Square  mk1 = Mir(k1);
-		Square  ik1 = Inv(k1);
-		Square mik1 = Mir(ik1);
-		Square  mk2 = Mir(k2);
-		Square  ik2 = Inv(k2);
-		Square mik2 = Mir(ik2);
-
-		// ASSERT_LV3(kkp[k1][k2][p1] == kkp[mk1][mk2][mp1]);
-
-		kkp[k1][k2][p1]
-			= kkp[mk1][mk2][mp1]
-			= value;
-
-	// kkpに関して180度のflipは入れないほうが良いのでは..
-#ifdef USE_KKP_FLIP_WRITE
-		/*
-		ASSERT_LV3(kkp[k1][k2][p1][0] == -kkp[ik2][ik1][ip1][0]);
-		ASSERT_LV3(kkp[k1][k2][p1][1] == +kkp[ik2][ik1][ip1][1]);
-		ASSERT_LV3(kkp[ik2][ik1][ip1] == kkp[mik2][mik1][mip1]);
-		*/
-
-		kkp[ik2][ik1][ip1][0]
-			= kkp[mik2][mik1][mip1][0]
-			= -value[0];
-
-		kkp[ik2][ik1][ip1][1]
-			= kkp[mik2][mik1][mip1][1]
-			= +value[1];
-#endif
-	}
-
-	// kkp_write()するときの一番若いアドレス(index)を返す。
-	// flipはvalueの符号が変わるのでここでは考慮しない。
-	u64 get_kkp_index(Square k1, Square k2 , BonaPiece p1)
-	{
-		Square  mk1 = Mir(k1);
-		Square  mk2 = Mir(k2);
-		BonaPiece mp1 = mir_piece[p1];
-
-		const auto q0 = &kkp[0][0][0];
-		auto q1 = &kkp[k1][k2][p1] - q0;
-		auto q2 = &kkp[mk1][mk2][mp1] - q0;
-
-		return std::min({ q1, q2 });
-	}
-
-	// --- デバッグ用出力。
-
-	template <typename T>
-	std::ostream& operator << (std::ostream& os, const std::array<T, 2>& p)
-	{
-		os << "{ " << p[0] << " , " << p[1] << " } ";
-		return os;
-	}
-
-	// 勾配等の配列
+namespace Eval
+{
+	// 勾配等を格納している学習用の配列
 	struct Weight
 	{
+		// AdaGradのη。updateFV()が呼び出されるまでに設定されているものとする。
+		static double eta;
+
 		// mini-batch 1回分の勾配の累積値
-		FloatPair g;
+		array<LearnFloatType,2> g;
 
-#if defined (USE_SGD_UPDATE)
-		// SGDの更新式
-		//   w = w - ηg
-
-		// SGDの場合、勾配自動調整ではないので、損失関数に合わせて適宜調整する必要がある。
-
-		static double eta;
-
-		// この特徴の出現回数
-		u32   count;
-#endif
-
-#if defined (USE_ADA_GRAD_UPDATE)
-		// AdaGradの更新式
-		//   v = v + g^2
-		// ※　vベクトルの各要素に対して、gの各要素の2乗を加算するの意味
-		//   w = w - ηg/sqrt(v)
-
-		// 学習率η = 0.01として勾配が一定な場合、1万回でη×199ぐらい。
-		// cf. [AdaGradのすすめ](http://qiita.com/ak11/items/7f63a1198c345a138150)
-		// 初回更新量はeta。そこから小さくなっていく。
-		static double eta;
-		
 		// AdaGradのg2
-		FloatPair g2;
-#endif
+		array<LearnFloatType,2> g2;
 
+		// vの小数部上位8bit。(vをfloatで持つのもったいないのでvの補助bitとして8bitで持つ)
+		array<s8,2> v8;
 
-#if defined (USE_ADAM_UPDATE)
-		// 普通のAdam
-		// cf. http://qiita.com/skitaoka/items/e6afbe238cd69c899b2a
+		// 合計 4*2 + 4*2 + 1*2 = 18 bytes(LearnFloatType == floatのとき)
+		// 1GBの評価関数パラメーターに対してその4.5倍のサイズのWeight配列が確保できれば良い。
 
-//		const LearnFloatType alpha = 0.001f;
-
-		// const double eta = 32.0/64.0;
-
-		static constexpr double beta = LearnFloatType(0.9);
-		static constexpr double gamma = LearnFloatType(0.999);
-		
-		static constexpr double epsilon = LearnFloatType(10e-8);
-
-		static constexpr double eta = LearnFloatType(32.0/64.0);
-
-		FloatPair v;
-		FloatPair r;
-
-		// これはupdate()呼び出し前に計算して代入されるものとする。
-		// bt = pow(β,epoch) , rt = pow(γ,epoch)
-		static double bt;
-		static double rt;
-
-#endif
-
-		void add_grad(FloatPair g_)
+		// 勾配を加算する。
+		template <typename T>
+		void add_grad(array<T, 2> grad)
 		{
-			g = g + g_;
-
-#if defined (USE_SGD_UPDATE)
-			count++;
-#endif
+			g += grad;
 		}
 
-		// 勾配gにもとづいて、wをupdateする。
-
+		// AdaGradでupdateする
 		template <typename T>
-		void update(array<T,2>& w)
+		void updateFV(array<T,2>& v)
 		{
-#if defined (USE_SGD_UPDATE)
-			
-			if (g[0] == 0 && g[1] == 0)
-				return ;
+			// AdaGradの更新式
+			//   v = v + g^2
+			// ※　vベクトルの各要素に対して、gの各要素の2乗を加算するの意味
+			//   w = w - ηg/sqrt(v)
 
-			// 勾配はこの特徴の出現したサンプル数で割ったもの。
-			if (count == 0)
-				return ;
-
-			// 今回の更新量
-			for (int i = 0; i < 2; ++i)
-				g[i] = (LearnFloatType)(eta * g[i] / (LearnFloatType)count);
-
-			// あまり大きいと発散しかねないので移動量に制約を課す。
-			SET_A_LIMIT_TO(g, -64.0f, 64.0f);
-
-			for (int i = 0; i < 2; ++i)
-				w[i] = T(w[i] - g[i]);
-
-			count = 0;
-
-#endif
-
-#if defined ( USE_ADA_GRAD_UPDATE )
-
-			// 普通のAdaGrad
-
-			// g2[i] += g * g;
-			// w[i] -= η * g / sqrt(g2[i] + epsilon);
-			// g = 0 // mini-batchならこのタイミングで勾配配列クリア。
-			
 			constexpr double epsilon = 0.000001;
-
 			for (int i = 0; i < 2; ++i)
 			{
-				g2[i] += g[i] * g[i];
-
-				// 更新式の分母でepsilonを足すとは言え、
-				// g2が小さいときはノイズが大きいので更新しないことにする。
-				if (g2[i] < epsilon * 10)
+				if (g[i] == 0)
 					continue;
 
-				w[i] -= (T)(eta * (double)g[i] / sqrt((double)g2[i] + epsilon));
+				g2[i] += g[i] * g[i];
+
+				// v8は小数部8bitを含んでいるのでこれを復元する。
+				// 128にすると、-1を保持できなくなるので127倍しておく。
+				// -1.0～+1.0を-127～127で保持している。
+				double V = v[i] + ((double)v8[i] / 127);
+
+				V -= eta * (double)g[i] / sqrt((double)g2[i] + epsilon);
+				v[i] = (T)round(V);
+				v8[i] = (s8)((V - v[i]) * 127);
+
+				// この要素に関するmini-batchの1回分の更新が終わったのでgをクリア
+				g[i] = 0;
 			}
-#endif
-
-#ifdef USE_ADAM_UPDATE
-			// Adamのときは勾配がゼロのときでもwの更新は行なう。
-
-			// v = βv + (1-β)g
-			// r = γr + (1-γ)g^2
-			// w = w - α*v / (sqrt(r/(1-γ^t))+e) * (1-β^t)
-			// rt = 1-γ^t , bt = 1-β^tとして、これは事前に計算しておくとすると、
-			// w = w - α*v / (sqrt(r/rt) + e) * (bt)
-
-			for (int i = 0; i < 2; ++i)
-			{
-				v[i] = LearnFloatType(beta * v[i] + (1.0 - beta) * g[i]);
-				r[i] = LearnFloatType(gamma * r[i] + (1.0 - gamma) * (g[i]*g[i]));
-
-				// sqrt()の中身がゼロになりうるので、1回目の割り算を先にしないとアンダーフローしてしまう。
-				// 例) epsilon * bt = 0
-				// あと、doubleでないと計算精度が足りなくて死亡する。
-				w[i] = T(w[i] - LearnFloatType(eta / (sqrt((double)r[i] / rt) + epsilon) * v[i] / bt));
-			}
-
-#endif
-
-			// 絶対値を抑制する。
-			// KK,KKPもいまどきの手法だとs16に収まる。
-			SET_A_LIMIT_TO(w, (T)((s32)INT16_MIN * 3 / 4), (T)((s32)INT16_MAX * 3 / 4));
-
-			// この要素に関するmini-batchの1回分の更新が終わったのでgをクリア
-			g = { 0 , 0 };
 		}
 	};
-
-	// デバッグ用にgの値を出力する。
-	std::ostream& operator<<(std::ostream& os, const Eval::Weight& w)
-	{
-		os << "g = " << w.g
-#if defined ( USE_ADA_GRAD_UPDATE )
-			<< ", g2 = " << w.g2;
-#endif
-			;
-		return os;
-	}
-
-
-#if defined (USE_SGD_UPDATE) || defined(USE_ADA_GRAD_UPDATE)
 	double Weight::eta;
-#elif defined USE_ADAM_UPDATE
-	// 1.0 - pow(beta,epoch)
-	double Weight::bt;
-	// 1.0 - pow(gamma,epoch)
-	double Weight::rt;
-#endif
 
-	Weight(*kk_w_)[SQ_NB][SQ_NB];
-	Weight(*kpp_w_)[SQ_NB][fe_end][fe_end];
-	Weight(*kkp_w_)[SQ_NB][SQ_NB][fe_end];
+	// --- 以下のKK,KKP,KPPは、Weight配列を直列化したときのindexを計算したりするヘルパー。
 
-#define kk_w (*kk_w_)
-#define kpp_w (*kpp_w_)
-#define kkp_w (*kkp_w_)
+	struct KK
+	{
+		KK() {}
+		KK(Square king0, Square king1) : king0_(king0), king1_(king1) {}
 
-	// ユーザーがlearnコマンドで指定したetaの値。0.0fなら設定なしなのでdefault値を用いるべき。
-	static float user_eta = 0.0f;
+		// KK,KKP,KPP配列を直列化するときの通し番号の、KKの最小値、最大値。
+		static u64 min_index() { return 0;  }
+		static u64 max_index() { return min_index() + (u64)SQ_NB*(u64)SQ_NB; }
+
+		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
+		static bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
+
+		// indexからKKのオブジェクトを生成するbuilder
+		static KK forIndex(u64 index)
+		{
+			index -= min_index();
+			Square king1 = (Square)(index % SQ_NB);
+			index /= SQ_NB;
+			Square king0 = (Square)(index  /* % SQ_NB */ );
+			ASSERT_LV3(king0 < SQ_NB);
+			return KK(king0,king1);
+		}
+
+		// forIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
+		Square king0() const { return king0_; }
+		Square king1() const { return king1_; }
+
+		// 低次元の配列のindexを得る。
+		// KKはミラーの次元下げを行わないので、そのままの値。
+		void toLowerDimensions(KK kk[1]) const {
+			kk[0] = KK(king0_, king1_);
+		}
+
+		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
+		u64 toIndex() const {
+			return min_index() + (u64)king0_ * (u64)SQ_NB + (u64)king1_;
+		}
+
+	private:
+		Square king0_, king1_;
+	};
+
+	struct KKP
+	{
+		KKP() {}
+		KKP(Square king0, Square king1,BonaPiece p) : king0_(king0), king1_(king1),piece_(p) {}
+
+		// KK,KKP,KPP配列を直列化するときの通し番号の、KKPの最小値、最大値。
+		static u64 min_index() { return KK::max_index(); }
+		static u64 max_index() { return min_index() + (u64)SQ_NB*(u64)SQ_NB*(u64)fe_end; }
+
+		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
+		static bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
+
+		// indexからKKPのオブジェクトを生成するbuilder
+		static KKP forIndex(u64 index)
+		{
+			KKP kkp_;
+			index -= min_index();
+			kkp_.piece_ = (BonaPiece)(index % fe_end);
+			index /= fe_end;
+			kkp_.king1_ = (Square)(index % SQ_NB);
+			index /= SQ_NB;
+			kkp_.king0_ = (Square)(index  /* % SQ_NB */);
+			ASSERT_LV3(kkp_.king0_ < SQ_NB);
+			return kkp_;
+		}
+
+		// forIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
+		Square king0() const { return king0_; }
+		Square king1() const { return king1_; }
+		BonaPiece piece() const { return piece_; }
+
+		// 低次元の配列のindexを得る。ミラーしたものがkkp_[1]に返る。
+		void toLowerDimensions(KKP kkp_[2]) const {
+			kkp_[0] = KKP(king0_, king1_, piece_);
+			kkp_[1] = KKP(Mir(king0_), Mir(king1_), mir_piece[piece_]);
+		}
+
+		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
+		u64 toIndex() const {
+			return min_index() + ((u64)king0_ * (u64)SQ_NB + (u64)king1_) * (u64)fe_end + (u64)piece_;
+		}
+
+	private:
+		Square king0_, king1_;
+		BonaPiece piece_;
+	};
+
+	struct KPP
+	{
+		KPP() {}
+		KPP(Square king, BonaPiece p0, BonaPiece p1) : king_(king), piece0_(p0), piece1_(p1) {}
+
+		// KK,KKP,KPP配列を直列化するときの通し番号の、KPPの最小値、最大値。
+		static u64 min_index() { return KKP::max_index(); }
+		static u64 max_index() { return min_index() + (u64)SQ_NB*(u64)fe_end*(u64)fe_end; }
+
+		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
+		static bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
+
+		// indexからKPPのオブジェクトを生成するbuilder
+		static KPP forIndex(u64 index)
+		{
+			KPP kpp_;
+			index -= min_index();
+			kpp_.piece0_ = (BonaPiece)(index % fe_end);
+			index /= fe_end;
+			kpp_.piece1_ = (BonaPiece)(index % fe_end);
+			index /= fe_end;
+			kpp_.king_ = (Square)(index  /* % SQ_NB */);
+			ASSERT_LV3(kpp_.king_ < SQ_NB);
+			return kpp_;
+		}
+
+		// forIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
+		Square king() const { return king_; }
+		BonaPiece piece0() const { return piece0_; }
+		BonaPiece piece1() const { return piece1_; }
+
+		// 低次元の配列のindexを得る。p1,p2を入れ替えたもの、ミラーしたものなどが返る。
+		void toLowerDimensions(KPP kpp_[4]) const {
+			kpp_[0] = KPP(king_, piece0_, piece1_);
+			kpp_[1] = KPP(king_, piece1_, piece0_);
+			kpp_[2] = KPP(Mir(king_) , mir_piece[piece0_], mir_piece[piece1_]);
+			kpp_[3] = KPP(Mir(king_) , mir_piece[piece1_], mir_piece[piece0_]);
+		}
+
+		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
+		u64 toIndex() const {
+			return min_index() + ((u64)king_ * (u64)fe_end + (u64)piece0_) * (u64)fe_end + (u64)piece1_;
+		}
+
+	private:
+		Square king_;
+		BonaPiece piece0_ , piece1_;
+	};
+
+	// 評価関数学習用の構造体
+
+	// KK,KKP,KPPのWeightを保持している配列
+	// 直列化してあるので1次元配列
+	std::vector<Weight> weights;
+
+	// 次元下げしたときに、そのなかの一番小さなindexになることがわかっているindexに対してtrueとなっているフラグ配列。
+	std::vector<bool> min_index_flag;
+
 
 	// 学習のときの勾配配列の初期化
-	void init_grad(float eta)
+	void init_grad(double eta)
 	{
-		user_eta = eta;
+		// 学習用配列の確保
+		u64 size = KPP::max_index();
+		weights.resize(size); // 確保できるかは知らん。確保できる環境で動かしてちょうだい。
+		memset(&weights[0], 0, sizeof(Weight) * size);
 
-		if (kk_w_ == nullptr)
+		min_index_flag.resize(size);
+		for (u64 index = 0; index < size; ++index)
 		{
-			size_t size;
-
-			// KK
-			size = size_t(SQ_NB)*size_t(SQ_NB);
-			kk_w_ = (Weight(*)[SQ_NB][SQ_NB])new Weight[size];
-			memset(kk_w_, 0, sizeof(Weight) * size);
-#ifdef RESET_TO_ZERO_VECTOR
-			cout << "[RESET_TO_ZERO_VECTOR]";
-			memset(kk_, 0, sizeof(ValueKk) * size);
-#endif
-
-			// KKP
-			size = size_t(SQ_NB)*size_t(SQ_NB)*size_t(fe_end);
-			kkp_w_ = (Weight(*)[SQ_NB][SQ_NB][fe_end])new Weight[size];
-			memset(kkp_w_, 0, sizeof(Weight) * size);
-#ifdef RESET_TO_ZERO_VECTOR
-			memset(kkp_, 0, sizeof(ValueKkp) * size);
-#endif
-
-			// KPP
-			size = size_t(SQ_NB)*size_t(fe_end)*size_t(fe_end);
-			kpp_w_ = (Weight(*)[SQ_NB][fe_end][fe_end])new Weight[size];
-			memset(kpp_w_, 0, sizeof(Weight) * size);
-#ifdef RESET_TO_ZERO_VECTOR
-			memset(kpp_, 0, sizeof(ValueKpp) * size);
-#endif
-
+			if (KK::is_ok(index))
+			{
+				min_index_flag[index] = true;
+			}
+			else if (KKP::is_ok(index))
+			{
+				KKP x = KKP::forIndex(index);
+				KKP a[2];
+				x.toLowerDimensions(a);
+				u64 id[2] = { a[0].toIndex(),a[1].toIndex() };
+				min_index_flag[index] = ( min({ id[0],id[1] }) == index );
+			}
+			else if (KPP::is_ok(index))
+			{
+				KPP x = KPP::forIndex(index);
+				KPP a[4];
+				x.toLowerDimensions(a);
+				u64 id[4] = { a[0].toIndex() , a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
+				min_index_flag[index] = ( min({ id[0],id[1],id[2],id[3] }) == index );
+			}
+			else
+			{
+				ASSERT_LV3(false);
+			}
 		}
+
+		// 学習率の設定
+		if (eta != 0)
+			Weight::eta = eta;
+		else
+			Weight::eta = 30.0;
 	}
 
 	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
+	// 現局面は、leaf nodeであるものとする。
 	void add_grad(Position& pos, Color rootColor, double delta_grad)
 	{
 		// Aperyに合わせておく。
 		delta_grad /= 32.0 /*FV_SCALE*/;
 
 		// 勾配
-		FloatPair g = {
+		array<LearnFloatType,2> g =
+		{
 			// 手番を考慮しない値
 			(rootColor == BLACK) ? LearnFloatType(delta_grad) : -LearnFloatType(delta_grad),
 
@@ -411,7 +317,7 @@ namespace Eval
 		};
 
 		// 180度盤面を回転させた位置関係に対する勾配
-		FloatPair g_flip = { -g[0] , +g[1] };
+		array<LearnFloatType,2> g_flip = { -g[0] , +g[1] };
 
 		Square sq_bk = pos.king_square(BLACK);
 		Square sq_wk = pos.king_square(WHITE);
@@ -422,14 +328,11 @@ namespace Eval
 		auto list_fw = pos_.eval_list()->piece_list_fw();
 
 		// KK
+		weights[KK(sq_bk,sq_wk).toIndex()].add_grad(g);
 
-		// KKはmirrorとflipするのは微妙。
-		// 後手振り飛車はすごく不利だとかそういうのを学習させたいので..。
-
-		kk_w[sq_bk][sq_wk].add_grad(g);
 		// flipした位置関係にも書き込む
 		//kk_w[Inv(sq_wk)][Inv(sq_bk)].add_grad(g_flip);
-		
+
 		for (int i = 0; i < PIECE_NO_KING; ++i)
 		{
 			BonaPiece k0 = list_fb[i];
@@ -442,145 +345,79 @@ namespace Eval
 				BonaPiece l0 = list_fb[j];
 				BonaPiece l1 = list_fw[j];
 
-				// KPP
-
-				// kpp配列に関してはミラー(左右判定)とフリップ(180度回転)の次元下げを行う。
-
-				// l0 == k0ときは2度加算してはならないので、この処理は省略するべきだが、
-				// …が、kppはkpは含まないことになっているので、気にしなくて良い。
-
-				// KPPの手番ありのとき
-				((Weight*)kpp_w_)[get_kpp_index(sq_bk, k0, l0)].add_grad(g);
-				((Weight*)kpp_w_)[get_kpp_index(Inv(sq_wk), k1, l1)].add_grad(g_flip);
-
+				weights[KPP(sq_bk, k0, l0).toIndex()].add_grad(g);
+				weights[KPP(Inv(sq_wk), k1, l1).toIndex()].add_grad(g_flip);
 			}
 
 			// KKP
-
-			// kkpは次元下げ、ミラーも含めてやらないほうがいいかも。どうせ教師の数は足りているし、
-			// 右と左とでは居飛車、振り飛車的な戦型選択を暗に含むからミラーするのが良いとは限らない。
-			// 180度回転も先手後手とは非対称である可能性があるのでここのフリップは善悪微妙。
-			
-			((Weight*)kkp_w_)[get_kkp_index(sq_bk,sq_wk,k0)].add_grad(g);
-		//	((Weight*)kkp_w_)[get_kkp_index(Inv(sq_wk), Inv(sq_bk), k1)].add_grad(g_flip);
+			weights[KKP(sq_bk, sq_wk, k0).toIndex()].add_grad(g);
 		}
-
 	}
-
 
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
-	void update_weights(u64 mini_batch_size , u64 epoch)
+	void update_weights(u64 epoch)
 	{
+		u64 vector_length = KPP::max_index();
 
-		//
-		// 学習メソッドに応じた学習率設定
-		//
-
-		// SGD
-#if defined (USE_SGD_UPDATE)
-		
-#if defined (LOSS_FUNCTION_IS_CROSS_ENTOROPY)
-
-#ifdef USE_SGD_UPDATE
-		Weight::eta = 3.2f;
-
-		//Weight::eta = 100.0f;
-#endif
-
-#elif defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
-
-#ifdef USE_SGD_UPDATE
-//		Weight::eta = 150.0f;
-
-		Weight::eta = 32.0f;
-#endif
-
-		// ユーザーがlearnコマンドでetaの値を指定していたら。
-		if (user_eta != 0)
-			Weight::eta = user_eta;
-
-#endif
-
-		// AdaGrad
-#elif defined USE_ADA_GRAD_UPDATE
-
-		// この係数、mini-batch sizeの影響を受けるのどうかと思うが、AdaGradのようなものなら問題ない。
-		// デフォルトでは30.0
-		Weight::eta = 30.0f;
-
-		// ユーザーがlearnコマンドでetaの値を指定していたらその数値を反映。
-		if (user_eta != 0)
-			Weight::eta = user_eta;
-
-
-		// Adam
-#elif defined USE_ADAM_UPDATE
-
-		Weight::bt = 1.0 - pow((double)Weight::beta , (double)epoch);
-		Weight::rt = 1.0 - pow((double)Weight::gamma, (double)epoch);
-
-#endif
-
-
+		// 並列化を効かせたいので直列化されたWeight配列に対してループを回す。
+#pragma omp parallel for schedule(guided)
+		for (u64 index = 0; index < vector_length; ++index)
 		{
-// 学習をopenmpで並列化(この間も局面生成は続くがまあ、問題ないやろ..
-#ifdef _OPENMP
-#pragma omp parallel for schedule (static)
-#endif
-			// Open MP対応のため、int型の変数を使う必要がある。(悲しい)
-			for (int k1 = SQ_ZERO; k1 < SQ_NB; ++k1)
-				for (auto k2 : SQ)
-				{
-					kk_w[k1][k2].update(kk[k1][k2]);
-				}
-
-#ifdef _OPENMP
-#pragma omp parallel for schedule (static)
-#endif
-			for (int p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
+			if (KK::is_ok(index))
 			{
-				for (auto k : SQ)
-				{
-					// p1とp2を入れ替えたものは、kpp_write()で書き込まれるはずなので無視して良い。
-					// また、p1 == p2はKPであり、これはKKPの計算のときにやっているので無視して良い。
-					// kpp[k][p1][p2]==0であるものとする。念のためにクリアしておく。
-					kpp[k][p1][p1] = { 0,0 };
-					
-					for (int p2 = p1 + 1; p2 < fe_end; ++p2)
-					{
-						// (次元下げとして)一番若いアドレスにgradの値が書き込まれているから、
-						// この値に基いて以下のvを更新すれば良い。
-						auto& w = ((Weight*)kpp_w_)[get_kpp_index(k, (BonaPiece)p1, (BonaPiece)p2)];
-						auto& v = kpp[k][p1][p2];
-
-						w.update(v);
-						kpp_write(k, (BonaPiece)p1, (BonaPiece)p2, v);
-					}
-				}
+				// KKは次元下げしていないので普通にupdate
+				KK x = KK::forIndex(index);
+				weights[index].updateFV(kk[x.king0()][x.king1()]);
 			}
-
-			// 外側のループをk1にすると、ループ回数が81になって、40HTのときに1余るのが嫌。
-			// ゆえに外側のループはpに変更する。
-#ifdef _OPENMP
-#pragma omp parallel for schedule (static)
-#endif
-			for (int p = BONA_PIECE_ZERO; p < fe_end; ++p)
+			else if (KKP::is_ok(index))
 			{
-				for (auto k1 : SQ)
-					for (auto k2 : SQ)
-					{
-						auto& w = kkp_w[k1][k2][p];
-						auto& v = kkp[k1][k2][p];
+				// 自分が更新すべきやつか？
+				// 次元下げしたときのindexの小さいほうが自分でないならこの更新は行わない。
+				if (!min_index_flag[index])
+					continue;
 
-						w.update(v);
+				// KKPは次元下げがあるので..
+				KKP x = KKP::forIndex(index);
+				KKP a[2];
+				x.toLowerDimensions(a);
+				u64 id[2] = { a[0].toIndex(),a[1].toIndex() };
 
-						kkp_write(k1, k2, (BonaPiece)p, v);
-					}
+				// 勾配を合計して、とりあえずa[0]に格納し、
+				// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す
+				weights[id[0]].g += weights[id[1]].g;
+
+				auto& v = kkp[a[0].king0()][a[0].king1()][a[0].piece()];
+				weights[id[0]].updateFV(v);
+
+				kkp[a[1].king0()][a[1].king1()][a[1].piece()] = v;
+			}
+			else if (KPP::is_ok(index))
+			{
+				if (!min_index_flag[index])
+					continue;
+
+				KPP x = KPP::forIndex(index);
+				KPP a[4];
+				x.toLowerDimensions(a);
+				u64 id[4] = { a[0].toIndex() , a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
+
+				// 勾配を合計して、とりあえずa[0]に格納し、
+				// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す
+				for (int i = 1; i<4; ++i)
+					weights[id[0]].g += weights[id[i]].g;
+
+				auto& v = kpp[a[0].king()][a[0].piece0()][a[0].piece1()];
+				weights[id[0]].updateFV(v);
+
+				for (int i = 1; i<4; ++i)
+					kpp[a[i].king()][a[i].piece0()][a[i].piece1()] = v;
+			}
+			else
+			{
+				ASSERT_LV3(false);
 			}
 		}
-
 	}
-
 
 	// 学習のためのテーブルの初期化
 	void eval_learn_init()
@@ -735,7 +572,7 @@ namespace Eval
 #endif
 	}
 
-
+	// 評価関数パラメーターをファイルに保存。
 	void save_eval(std::string dir_name)
 	{
 		{
@@ -746,25 +583,25 @@ namespace Eval
 			// すでにこのフォルダがあるならmkdir()に失敗するが、
 			// 別にそれは構わない。なければ作って欲しいだけ。
 			// また、EvalSaveDirまでのフォルダは掘ってあるものとする。
-			
+
 			MKDIR(eval_dir);
 
 			// KK
-			std::ofstream ofsKK(path_combine(eval_dir , KK_BIN) , std::ios::binary);
+			std::ofstream ofsKK(path_combine(eval_dir, KK_BIN), std::ios::binary);
 			if (!ofsKK.write(reinterpret_cast<char*>(kk), sizeof(kk)))
 				goto Error;
 
 			// KKP
-			std::ofstream ofsKKP(path_combine(eval_dir , KKP_BIN) , std::ios::binary);
+			std::ofstream ofsKKP(path_combine(eval_dir, KKP_BIN), std::ios::binary);
 			if (!ofsKKP.write(reinterpret_cast<char*>(kkp), sizeof(kkp)))
 				goto Error;
 
 			// KPP
-			std::ofstream ofsKPP(path_combine(eval_dir , KPP_BIN) , std::ios::binary);
+			std::ofstream ofsKPP(path_combine(eval_dir, KPP_BIN), std::ios::binary);
 			if (!ofsKPP.write(reinterpret_cast<char*>(kpp), sizeof(kpp)))
 				goto Error;
 
-			cout << "save_eval() finished. folder = " << eval_dir <<  endl;
+			cout << "save_eval() finished. folder = " << eval_dir << endl;
 
 			return;
 		}
@@ -773,8 +610,7 @@ namespace Eval
 		cout << "Error : save_eval() failed" << endl;
 	}
 
-} // namespace Eval
+}
 
 #endif // EVAL_LEARN
-
-#endif
+#endif // _EVALUATE_LEARN_CPP_

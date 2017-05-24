@@ -18,31 +18,6 @@
 // ※　このオプションは実験中なので使わないように。
 #define LEARN_YANEURAOU_2017_GOKU
 
-// ----------------------
-//  重みベクトルの更新式
-// ----------------------
-
-// update_weights()の更新式を以下のなかから一つ選択すべし。
-// 詳しい説明は、evaluate_kppt_learn.cppを見ること。
-
-// 1) SGDによるupdate
-//  これは普通のSGD
-
-//#define USE_SGD_UPDATE
-
-
-// 2) AdaGradによるupdate
-//  これは普通のAdaGrad
-
-//#define USE_ADA_GRAD_UPDATE
-
-
-// 3) Adamによるupdate
-//  これは普通のAdam 評価関数ファイルの16倍ぐらいWeight用のメモリが必要。
-
-//#define USE_ADAM_UPDATE
-
-
 
 // ----------------------
 //    学習時の設定
@@ -64,7 +39,7 @@
 // 学習時の評価関数の保存間隔。この局面数だけ学習させるごとに保存。
 #define LEARN_EVAL_SAVE_INTERVAL (80000000ULL)
 
-// 評価関数ファイルを出力するときに指数移動平均(EMA)を用いた平均化を行なう。
+// 評価関数ファイルを出力するときに指数移動平均(EMA)を用いた平均化を行なう。(未実装)
 // #define LEARN_USE_EMA
 
 // ----------------------
@@ -158,6 +133,7 @@
 // ----------------------
 
 // これをdoubleにしたほうが計算精度は上がるが、重み配列絡みのメモリが倍必要になる。
+// 現状、ここをfloatにした場合、評価関数ファイルに対して、重み配列はその4.5倍のサイズ。(KPPTで4.5GB程度)
 typedef float LearnFloatType;
 
 
@@ -206,7 +182,6 @@ typedef float LearnFloatType;
 // elmoでは、ゲームの勝敗を学習時に利用するのでこのフラグを書き出す必要がある。
 #define GENSFEN_SAVE_GAME_RESULT
 
-#define USE_ADA_GRAD_UPDATE
 #undef LEARN_MINI_BATCH_SIZE
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 #define LOSS_FUNCTION_IS_ELMO_METHOD
@@ -224,9 +199,6 @@ typedef float LearnFloatType;
 #if defined(LEARN_YANEURAOU_2017_GOKU)
 
 #define GENSFEN_SAVE_GAME_RESULT
-
-#define USE_ADA_GRAD_UPDATE
-//#define USE_ADAM_UPDATE
 
 #undef LEARN_MINI_BATCH_SIZE
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
@@ -253,15 +225,7 @@ typedef float LearnFloatType;
 // ----------------------
 
 // 更新式に応じた文字列。(デバッグ用に出力する。)
-#if defined(USE_SGD_UPDATE)
-#define LEARN_UPDATE "SGD"
-#elif defined(USE_YANE_SGD_UPDATE)
-#define LEARN_UPDATE "YaneSGD"
-#elif defined(USE_ADA_GRAD_UPDATE)
 #define LEARN_UPDATE "AdaGrad"
-#elif defined(USE_ADAM_UPDATE)
-#define LEARN_UPDATE "Adam"
-#endif
 
 #if defined(LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
 #define LOSS_FUNCTION "WINNING_PERCENTAGE"

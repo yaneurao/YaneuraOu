@@ -1194,7 +1194,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 			// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 
-			Eval::update_weights(mini_batch_size, ++epoch);
+			Eval::update_weights(++epoch);
 
 			// 8000万局面ごとに1回保存、ぐらいの感じで。
 
@@ -1262,18 +1262,16 @@ void LearnerThink::thread_worker(size_t thread_id)
 		//		cout << pos << value << endl;
 
 		// 浅い探索(qsearch)の評価値
-#ifdef USE_QSEARCH_FOR_SHALLOW_VALUE
+#if defined (USE_QSEARCH_FOR_SHALLOW_VALUE)
 		auto r = Learner::qsearch(pos);
-		// 置換表を無効化しているのでPV leafでevaluate()を呼び出したときの値と同じはず..
-		// (詰みのスコアでないなら)
+
 		auto shallow_value = r.first;
-#endif
-#ifdef USE_EVALUATE_FOR_SHALLOW_VALUE
-		auto shallow_value = Eval::evaluate(pos);
 #endif
 
 		// qsearchではなくevaluate()の値をそのまま使う場合。
-		//			auto shallow_value = Eval::evaluate(pos);
+#if defined (USE_EVALUATE_FOR_SHALLOW_VALUE)
+		auto shallow_value = Eval::evaluate(pos);
+#endif
 
 		// 深い探索の評価値
 		auto deep_value = (Value)ps.score;
@@ -1288,7 +1286,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 		auto rootColor = pos.side_to_move();
 
-#ifdef		USE_QSEARCH_FOR_SHALLOW_VALUE
+#if defined	(USE_QSEARCH_FOR_SHALLOW_VALUE)
 
 		auto pv = r.second;
 
@@ -1313,8 +1311,8 @@ void LearnerThink::thread_worker(size_t thread_id)
 //			dbg_hit_on(false);
 			continue;
 		}
+		//		dbg_hit_on(true);
 #endif
-//		dbg_hit_on(true);
 
 
 		int ply = 0;
@@ -1333,7 +1331,8 @@ void LearnerThink::thread_worker(size_t thread_id)
 			//	Eval::evaluate(pos);
 		}
 
-		// leafに到達
+		// leafに到達したのでこの局面に出現している特徴に勾配を加算しておく。
+		// 勾配に基づくupdateはのちほど行なう。
 		Eval::add_grad(pos,rootColor,dj_dw);
 
 		// 局面を巻き戻す
