@@ -1392,7 +1392,7 @@ void learn(Position& pos, istringstream& is)
 	string target_dir;
 	
 	// 0であれば、デフォルト値になる。
-	float eta = 0.0f;
+	double eta = 0.0;
 
 	// ファイル名が後ろにずらずらと書かれていると仮定している。
 	while (true)

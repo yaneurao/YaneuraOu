@@ -95,6 +95,11 @@ namespace Eval
 				double V = v[i] + ((double)v8[i] / 127);
 
 				V -= eta * (double)g[i] / sqrt((double)g2[i] + epsilon);
+
+				// Vの値をINT16の範囲に収まるように制約を課す。
+				V = min((double)INT16_MAX * 3 / 4, V);
+				V = max((double)INT16_MIN * 3 / 4, V);
+
 				v[i] = (T)round(V);
 				v8[i] = (s8)((V - v[i]) * 127);
 
@@ -383,13 +388,17 @@ namespace Eval
 				u64 id[2] = { a[0].toIndex(),a[1].toIndex() };
 
 				// 勾配を合計して、とりあえずa[0]に格納し、
-				// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す
+				// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す。
 				weights[id[0]].g += weights[id[1]].g;
 
 				auto& v = kkp[a[0].king0()][a[0].king1()][a[0].piece()];
 				weights[id[0]].updateFV(v);
 
 				kkp[a[1].king0()][a[1].king1()][a[1].piece()] = v;
+
+				// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
+				// この場合、gを通常の2倍加算していることになるが、AdaGradは適応型なのでこれでもうまく学習できる。
+				weights[id[1]].g = { 0,0 };
 			}
 			else if (KPP::is_ok(index))
 			{
@@ -411,6 +420,10 @@ namespace Eval
 
 				for (int i = 1; i<4; ++i)
 					kpp[a[i].king()][a[i].piece0()][a[i].piece1()] = v;
+
+				// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
+				for (int i = 1; i<4; ++i)
+					weights[id[i]].g = { 0,0 };
 			}
 			else
 			{
