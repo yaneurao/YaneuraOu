@@ -119,7 +119,7 @@ namespace Eval
 		static bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
 
 		// indexからKKのオブジェクトを生成するbuilder
-		static KK forIndex(u64 index)
+		static KK fromIndex(u64 index)
 		{
 			index -= min_index();
 			Square king1 = (Square)(index % SQ_NB);
@@ -129,7 +129,7 @@ namespace Eval
 			return KK(king0,king1);
 		}
 
-		// forIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
+		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
 		Square king0() const { return king0_; }
 		Square king1() const { return king1_; }
 
@@ -161,7 +161,7 @@ namespace Eval
 		static bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
 
 		// indexからKKPのオブジェクトを生成するbuilder
-		static KKP forIndex(u64 index)
+		static KKP fromIndex(u64 index)
 		{
 			index -= min_index();
 			BonaPiece piece = (BonaPiece)(index % fe_end);
@@ -173,13 +173,13 @@ namespace Eval
 			return KKP(king0, king1, piece);
 		}
 
-		// forIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
+		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
 		Square king0() const { return king0_; }
 		Square king1() const { return king1_; }
 		BonaPiece piece() const { return piece_; }
 
 		// 低次元の配列のindexを得る。ミラーしたものがkkp_[1]に返る。
-		void toLowerDimensions(KKP kkp_[2]) const {
+		void toLowerDimensions(/*out*/ KKP kkp_[2]) const {
 			kkp_[0] = KKP(king0_, king1_, piece_);
 			kkp_[1] = KKP(Mir(king0_), Mir(king1_), mir_piece[piece_]);
 		}
@@ -207,7 +207,7 @@ namespace Eval
 		static bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
 
 		// indexからKPPのオブジェクトを生成するbuilder
-		static KPP forIndex(u64 index)
+		static KPP fromIndex(u64 index)
 		{
 			index -= min_index();
 			BonaPiece piece0 = (BonaPiece)(index % fe_end);
@@ -219,13 +219,13 @@ namespace Eval
 			return KPP(king,piece0,piece1);
 		}
 
-		// forIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
+		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
 		Square king() const { return king_; }
 		BonaPiece piece0() const { return piece0_; }
 		BonaPiece piece1() const { return piece1_; }
 
 		// 低次元の配列のindexを得る。p1,p2を入れ替えたもの、ミラーしたものなどが返る。
-		void toLowerDimensions(KPP kpp_[4]) const {
+		void toLowerDimensions(/*out*/ KPP kpp_[4]) const {
 			kpp_[0] = KPP(king_, piece0_, piece1_);
 			kpp_[1] = KPP(king_, piece1_, piece0_);
 			kpp_[2] = KPP(Mir(king_) , mir_piece[piece0_], mir_piece[piece1_]);
@@ -271,7 +271,7 @@ namespace Eval
 			}
 			else if (KKP::is_ok(index))
 			{
-				KKP x = KKP::forIndex(index);
+				KKP x = KKP::fromIndex(index);
 				KKP a[2];
 				x.toLowerDimensions(a);
 				u64 id[2] = { a[0].toIndex(),a[1].toIndex() };
@@ -279,7 +279,7 @@ namespace Eval
 			}
 			else if (KPP::is_ok(index))
 			{
-				KPP x = KPP::forIndex(index);
+				KPP x = KPP::fromIndex(index);
 				KPP a[4];
 				x.toLowerDimensions(a);
 				u64 id[4] = { a[0].toIndex() , a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
@@ -370,63 +370,63 @@ namespace Eval
 			if (KK::is_ok(index))
 			{
 				// KKは次元下げしていないので普通にupdate
-				KK x = KK::forIndex(index);
+				KK x = KK::fromIndex(index);
 				weights[index].updateFV(kk[x.king0()][x.king1()]);
 				weights[index].g = { 0,0 };
 			}
 			else if (KKP::is_ok(index))
 			{
 				// KKPは次元下げがあるので..
-				KKP x = KKP::forIndex(index);
+				KKP x = KKP::fromIndex(index);
 				KKP a[2];
-				x.toLowerDimensions(a);
+				x.toLowerDimensions(/*out*/a);
 
 				// a[0] == indexであることは保証されている。
-				u64 id[2] = { a[0].toIndex(),a[1].toIndex() };
+				u64 ids[2] = { a[0].toIndex(),a[1].toIndex() };
 
 				// 勾配を合計して、とりあえずa[0]に格納し、
 				// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す。
-				weights[id[0]].g += weights[id[1]].g;
+				weights[ids[0]].g += weights[ids[1]].g;
 
 				auto& v = kkp[a[0].king0()][a[0].king1()][a[0].piece()];
 				//cout << a[0].king0() << a[0].king1() << a[0].piece() << v << weights[id[0]].g << endl;
 
-				weights[id[0]].updateFV(v);
+				weights[ids[0]].updateFV(v);
 				//cout << a[0].king0() << a[0].king1() << a[0].piece() << v << weights[id[0]].g << endl;
 
 				kkp[a[1].king0()][a[1].king1()][a[1].piece()] = v;
 
 				// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
 				// この場合、gを通常の2倍加算していることになるが、AdaGradは適応型なのでこれでもうまく学習できる。
-				for (int i = 0; i<2; ++i)
-					weights[id[i]].g = { 0,0 };
+				for (auto id : ids)
+					weights[id].g = { 0,0 };
 			}
 			else if (KPP::is_ok(index))
 			{
-				KPP x = KPP::forIndex(index);
+				KPP x = KPP::fromIndex(index);
 				KPP a[4];
-				x.toLowerDimensions(a);
+				x.toLowerDimensions(/*out*/a);
 
 				// a[0] == indexであることは保証されている。
-				u64 id[4] = { a[0].toIndex(), a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
+				u64 ids[4] = { a[0].toIndex(), a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
 
 				// 勾配を合計して、とりあえずa[0]に格納し、
 				// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す
 				// id[0]==id[1]==id[2]==id[3]である可能性があるので、gは外部で加算
 				array<LearnFloatType, 2> g_sum = { 0,0 };
-				for (int i = 0; i<4; ++i)
-					g_sum += weights[id[i]].g;
+				for (auto id : ids)
+					g_sum += weights[id].g;
 
 				auto& v = kpp[a[0].king()][a[0].piece0()][a[0].piece1()];
-				weights[id[0]].g = g_sum;
-				weights[id[0]].updateFV(v);
+				weights[ids[0]].g = g_sum;
+				weights[ids[0]].updateFV(v);
 
 				for (int i = 1; i<4; ++i)
 					kpp[a[i].king()][a[i].piece0()][a[i].piece1()] = v;
 
 				// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
-				for (int i = 0; i<4; ++i)
-					weights[id[i]].g = { 0,0 };
+				for (auto id : ids)
+					weights[id].g = { 0,0 };
 			}
 			else
 			{
