@@ -181,7 +181,11 @@
 // これをONすると数%高速化する代わりに、メモリ使用量が1GBほど増える。
 // #define USE_LARGE_EVAL_HASH
 
-// トーナメント(大会)用のビルド。最新CPU(いまはAVX2)用でEVAL_HASH大きめ。EVAL_LEARN、TEST_CMD使用不可。ASSERTなし。
+// GlobalOptionという、EVAL_HASHを有効/無効を切り替えたり、置換表の有効/無効を切り替えたりする
+// オプションのための変数が使えるようになる。スピードが1%ぐらい遅くなるので大会用のビルドではオフを推奨。
+// #define USE_GLOBAL_OPTIONS
+
+// トーナメント(大会)用のビルド。最新CPU(いまはAVX2)用でEVAL_HASH大きめ。EVAL_LEARN、TEST_CMD使用不可。ASSERTなし。GlobalOptionsなし。
 // #define FOR_TOURNAMENT
 
 // --------------------
@@ -313,8 +317,8 @@
 #define ENABLE_TEST_CMD
 // 学習絡みのオプション
 #define USE_SFEN_PACKER
-// 学習機能を有効にするオプション。デフォルトではオフ。
-//#define EVAL_LEARN
+// 学習機能を有効にするオプション。
+#define EVAL_LEARN
 
 // 定跡生成絡み
 #define ENABLE_MAKEBOOK_CMD
@@ -323,6 +327,9 @@
 // パラメーターの自動調整絡み
 #define USE_GAMEOVER_HANDLER
 //#define LONG_EFFECT_LIBRARY
+
+// GlobalOptionsは有効にしておく。
+#define USE_GLOBAL_OPTIONS
 #endif
 
 #ifdef MUST_CAPTURE_SHOGI_ENGINE
@@ -413,6 +420,7 @@
 #undef EVAL_LEARN
 #undef ENABLE_TEST_CMD
 #define USE_LARGE_EVAL_HASH
+#undef USE_GLOBAL_OPTIONS
 #endif
 
 // --------------------
@@ -423,6 +431,33 @@
 // 正しく計算できない。
 #if defined(EVAL_LEARN)
 #undef USE_EVAL_HASH
+#define USE_GLOBAL_OPTIONS
+#endif
+
+// --------------------
+//   GlobalOptions
+// --------------------
+
+#if defined(USE_GLOBAL_OPTIONS)
+
+struct GlobalOptions_
+{
+	// eval hashを有効/無効化する。
+	// (USE_EVAL_HASHがdefineされていないと有効にはならない。)
+	bool use_eval_hash;
+
+	// 置換表のprobe()を有効化/無効化する。
+	// (無効化するとTT.probe()が必ずmiss hitするようになる)
+	bool use_hash_probe;
+
+	GlobalOptions_()
+	{
+		use_eval_hash = use_hash_probe = true;
+	}
+};
+
+extern GlobalOptions_ GlobalOptions;
+
 #endif
 
 // --------------------

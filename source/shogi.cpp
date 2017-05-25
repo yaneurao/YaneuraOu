@@ -193,6 +193,10 @@ Value drawValueTable[REPETITION_NB][COLOR_NB] =
   { -VALUE_SUPERIOR    , -VALUE_SUPERIOR    }, // REPETITION_INFERIOR
 };
 
+#if defined(USE_GLOBAL_OPTIONS)
+GlobalOptions_ GlobalOptions;
+#endif
+
 // ----------------------------------------
 //  main()
 // ----------------------------------------

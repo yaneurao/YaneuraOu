@@ -910,9 +910,9 @@ struct SfenReader
 			pos.set_this_thread(th);
 
 			// 浅い探索の評価値
-			// qsearch()を呼ぶと置換表にhitしてしまうので意味をなさない。
-			// 置換表を無効化する機能をつけても良いのだが、それをするほどでもない気が…。
-
+			// qsearch()だとそこそこ時間がかかるのでevaluate()にしておく。
+			// 目安としてはこれでいいだろう。
+			// EvalHashは事前に無効化してある。
 			auto shallow_value = Eval::evaluate(pos);
 			
 			// 深い探索の評価値
@@ -1365,7 +1365,6 @@ void LearnerThink::save()
 // 生成した棋譜からの学習
 void learn(Position& pos, istringstream& is)
 {
-
 	auto thread_num = (int)Options["Threads"];
 	SfenReader sr(thread_num);
 
@@ -1385,6 +1384,13 @@ void learn(Position& pos, istringstream& is)
 
 	// 0であれば、デフォルト値になる。
 	double eta = 0.0;
+
+	// あとで復元するために保存しておく。
+	auto oldGlobalOptions = GlobalOptions;
+	// eval hashにhitするとrmseなどの計算ができなくなるのでオフにしておく。
+	GlobalOptions.use_eval_hash = false;
+	// 置換表にhitするとそこで以前の評価値で枝刈りがされることがあるのでオフにしておく。
+	GlobalOptions.use_hash_probe = false;
 
 	// ファイル名が後ろにずらずらと書かれていると仮定している。
 	while (true)
@@ -1550,6 +1556,9 @@ void learn(Position& pos, istringstream& is)
 
 	// 最後に一度保存。
 	learn_think.save();
+
+	// GlobalOptionsの復元。
+	GlobalOptions = oldGlobalOptions;
 }
 
 

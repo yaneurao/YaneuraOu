@@ -29,64 +29,66 @@ void TranspositionTable::resize(size_t mbSize) {
 }
 
 
-TTEntry* TranspositionTable::probe(const Key key, bool& found) const {
+TTEntry* TranspositionTable::probe(const Key key, bool& found) const
+{
+	ASSERT_LV3(clusterCount != 0);
 
-  ASSERT_LV3(clusterCount != 0);
-
-  // 最初のTT_ENTRYのアドレス(このアドレスからTT_ENTRYがClusterSize分だけ連なっている)
-  // keyの下位bitをいくつか使って、このアドレスを求めるので、自ずと下位bitはいくらかは一致していることになる。
-  TTEntry* const tte = first_entry(key);
-
-#ifdef  USE_FALSE_PROBE_IN_TT
-  // 置換表にhitさせないモードであるなら、見つからなかったことにして
-  // つねに先頭要素を返せば良い。
-  return found = false, &tte[0];
-#else
-
-  // 上位16bitが合致するTT_ENTRYを探す
-  const uint16_t key16 = key >> 48;
-
-  // クラスターのなかから、keyが合致するTT_ENTRYを探す
-  for (int i = 0; i < ClusterSize; ++i)
-  {
-    // returnする条件
-    // 1. keyが合致しているentryを見つけた。(found==trueにしてそのTT_ENTRYのアドレスを返す)
-    // 2. 空のエントリーを見つけた(そこまではkeyが合致していないので、found==falseにして新規TT_ENTRYのアドレスとして返す)
-    if (!tte[i].key16)
-      return found = false, &tte[i];      // このケースにおいてrefreshは必要ない。save()のときにgenerationを書き出すため。
-
-    if (tte[i].key16 == key16)
-    {
-      tte[i].set_generation(generation8); // Refresh
-      return found = true, &tte[i];
-    }
-  }
-
-  // 空きエントリーも、探していたkeyが格納されているentryが見当たらなかった。
-  // クラスター内のどれか一つを潰す必要がある。
-
-  TTEntry* replace = tte;
-  for (int i = 1; i < ClusterSize; ++i)
-
-    // ・深い探索の結果であるものほど価値があるので残しておきたい。depth8 × 重み1.0
-    // ・generationがいまの探索generationに近いものほど価値があるので残しておきたい。geration(4ずつ増える)×重み 2.0
-    // 以上に基いてスコアリングする。
-    // 以上の合計が一番小さいTTEntryを使う。
-
-    if (replace->depth8 - ((259 + generation8 - replace->genBound8) & 0xFC) * 2
-      >   tte[i].depth8 - ((259 + generation8 -   tte[i].genBound8) & 0xFC) * 2)
-      replace = &tte[i];
-
-  // generationは256になるとオーバーフローして0になるのでそれをうまく処理できなければならない。
-  // a,bが8bitであるとき ( 256 + a - b ) & 0xff　のようにすれば、オーバーフローを考慮した引き算が出来る。
-  // このテクニックを用いる。
-  // いま、
-  //   a := generationは下位2bitは用いていないので0。
-  //   b := genBound8は下位2bitにはBoundが入っているのでこれはゴミと考える。
-  // ( 256 + a - b + c) & 0xfc として c = 3としても結果に影響は及ぼさない、かつ、このゴミを無視した計算が出来る。
-  
-  return found = false, replace;
+#if defined(USE_GLOBAL_OPTIONS)
+	if (!GlobalOptions.use_hash_probe)
+	{
+		// 置換表にhitさせないモードであるなら、見つからなかったことにして
+		// つねに確保しているメモリの先頭要素を返せば良い。(ここに書き込まれたところで問題ない)
+		return found = false, first_entry(0);
+	}
 #endif
+
+	// 最初のTT_ENTRYのアドレス(このアドレスからTT_ENTRYがClusterSize分だけ連なっている)
+	// keyの下位bitをいくつか使って、このアドレスを求めるので、自ずと下位bitはいくらかは一致していることになる。
+	TTEntry* const tte = first_entry(key);
+
+	// 上位16bitが合致するTT_ENTRYを探す
+	const uint16_t key16 = key >> 48;
+
+	// クラスターのなかから、keyが合致するTT_ENTRYを探す
+	for (int i = 0; i < ClusterSize; ++i)
+	{
+		// returnする条件
+		// 1. keyが合致しているentryを見つけた。(found==trueにしてそのTT_ENTRYのアドレスを返す)
+		// 2. 空のエントリーを見つけた(そこまではkeyが合致していないので、found==falseにして新規TT_ENTRYのアドレスとして返す)
+		if (!tte[i].key16)
+			return found = false, &tte[i];      // このケースにおいてrefreshは必要ない。save()のときにgenerationを書き出すため。
+
+		if (tte[i].key16 == key16)
+		{
+			tte[i].set_generation(generation8); // Refresh
+			return found = true, &tte[i];
+		}
+	}
+
+	// 空きエントリーも、探していたkeyが格納されているentryが見当たらなかった。
+	// クラスター内のどれか一つを潰す必要がある。
+
+	TTEntry* replace = tte;
+	for (int i = 1; i < ClusterSize; ++i)
+
+		// ・深い探索の結果であるものほど価値があるので残しておきたい。depth8 × 重み1.0
+		// ・generationがいまの探索generationに近いものほど価値があるので残しておきたい。geration(4ずつ増える)×重み 2.0
+		// 以上に基いてスコアリングする。
+		// 以上の合計が一番小さいTTEntryを使う。
+
+		if (replace->depth8 - ((259 + generation8 - replace->genBound8) & 0xFC) * 2
+		  >   tte[i].depth8 - ((259 + generation8 - tte[i].genBound8) & 0xFC) * 2)
+			replace = &tte[i];
+
+	// generationは256になるとオーバーフローして0になるのでそれをうまく処理できなければならない。
+	// a,bが8bitであるとき ( 256 + a - b ) & 0xff　のようにすれば、オーバーフローを考慮した引き算が出来る。
+	// このテクニックを用いる。
+	// いま、
+	//   a := generationは下位2bitは用いていないので0。
+	//   b := genBound8は下位2bitにはBoundが入っているのでこれはゴミと考える。
+	// ( 256 + a - b + c) & 0xfc として c = 3としても結果に影響は及ぼさない、かつ、このゴミを無視した計算が出来る。
+
+	return found = false, replace;
 }
 
 int TranspositionTable::hashfull() const

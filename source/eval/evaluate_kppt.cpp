@@ -844,24 +844,35 @@ namespace Eval
 		if (sum.evaluated())
 			return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
 
-#ifdef USE_EVAL_HASH
-		// evaluate hash tableにはあるかも。
-
-		// 手番を消した局面hash key
-		const Key keyExcludeTurn = st->key() >> 1;
-//		cout << "EvalSum " << hex << g_evalTable[keyExcludeTurn] << endl;
-		EvalSum entry = *g_evalTable[keyExcludeTurn];   // atomic にデータを取得する必要がある。
-		entry.decode();
-		if (entry.key == keyExcludeTurn)
-		{
-//			dbg_hit_on(true);
-			// あった！
-			sum = entry;
-			return Value(entry.sum(pos.side_to_move()) / FV_SCALE);
-		}
-//		dbg_hit_on(false);
+#if defined(USE_GLOBAL_OPTIONS)
+		// GlobalOptionsでeval hashを用いない設定になっているなら
+		// eval hashへの照会をskipする。
+		if (!GlobalOptions.use_eval_hash)
+			goto Next;
 #endif
 
+#if defined ( USE_EVAL_HASH )
+		{
+			// evaluate hash tableにはあるかも。
+
+			// 手番を消した局面hash key
+			const Key keyExcludeTurn = st->key() >> 1;
+			//		cout << "EvalSum " << hex << g_evalTable[keyExcludeTurn] << endl;
+			EvalSum entry = *g_evalTable[keyExcludeTurn];   // atomic にデータを取得する必要がある。
+			entry.decode();
+			if (entry.key == keyExcludeTurn)
+			{
+				//	dbg_hit_on(true);
+
+				// あった！
+				sum = entry;
+				return Value(entry.sum(pos.side_to_move()) / FV_SCALE);
+			}
+			//		dbg_hit_on(false);
+		}
+#endif
+
+	Next:;
 		// 評価関数本体を呼び出して求める。
 		evaluateBody(pos);
 
