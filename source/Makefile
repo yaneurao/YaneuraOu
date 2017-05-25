@@ -38,11 +38,15 @@ CFLAGS  += -Wl,-s
 # これを指定していると、各CPU向けの実行ファイルが生成されないので指定すべきではない。
 # CFLAGS   += -march=native
 
+# デバッグ情報を付加
+# CFLAGS  += -g3 -ggdb
+
 LDFLAGS  = -lpthread #-lboost_mpi -lboost_serialization
 LIBS     =
 INCLUDE  = #-I../include
 
 ifeq ($(OS),Windows_NT)
+  CFLAGS += -Wl,--stack,100000000
   LDFLAGS += -static
   TARGET = YaneuraOu-by-gcc.exe
 else
