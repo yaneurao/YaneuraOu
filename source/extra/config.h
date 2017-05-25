@@ -313,7 +313,8 @@
 #define ENABLE_TEST_CMD
 // 学習絡みのオプション
 #define USE_SFEN_PACKER
-#define EVAL_LEARN
+// 学習機能を有効にするオプション。デフォルトではオフ。
+//#define EVAL_LEARN
 
 // 定跡生成絡み
 #define ENABLE_MAKEBOOK_CMD
@@ -412,6 +413,16 @@
 #undef EVAL_LEARN
 #undef ENABLE_TEST_CMD
 #define USE_LARGE_EVAL_HASH
+#endif
+
+// --------------------
+//   for learner
+// --------------------
+
+// 学習時にはEVAL_HASHを無効化しておかないと、rmseの計算のときなどにeval hashにhitしてしまい、
+// 正しく計算できない。
+#if defined(EVAL_LEARN)
+#undef USE_EVAL_HASH
 #endif
 
 // --------------------

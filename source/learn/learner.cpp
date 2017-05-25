@@ -541,7 +541,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			}
 
 		RANDOM_MOVE:;
-#ifdef USE_RANDOM_LEGAL_MOVE
+#if defined ( USE_RANDOM_LEGAL_MOVE )
 
 			// 合法手のなかからランダムに1手選ぶフェーズ
 			// plyが小さいときは高い確率で。そのあとはあまり選ばれなくて良い。
@@ -679,7 +679,7 @@ double dsigmoid(double x)
 }
 
 // 目的関数が勝率の差の二乗和のとき
-#ifdef LOSS_FUNCTION_IS_WINNING_PERCENTAGE
+#if defined (LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
 // 勾配を計算する関数
 double calc_grad(Value deep, Value shallow, PackedSfenValue& psv)
 {
@@ -892,6 +892,11 @@ struct SfenReader
 
 		double sum_error = 0;
 		double sum_error2 = 0;
+		double sum_error3 = 0;
+
+		// 平手の初期局面のeval()の値を表示させて、揺れを見る。
+		pos.set_hirate();
+		cout << endl << "hirate eval = " << Eval::evaluate(pos);
 
 		int i = 0;
 		for (auto& ps : sfen_for_mse)
@@ -905,25 +910,23 @@ struct SfenReader
 			pos.set_this_thread(th);
 
 			// 浅い探索の評価値
+			// qsearch()を呼ぶと置換表にhitしてしまうので意味をなさない。
+			// 置換表を無効化する機能をつけても良いのだが、それをするほどでもない気が…。
 
-#ifdef USE_QSEARCH_FOR_SHALLOW_VALUE
-			const int depth = 0; // qsearch()相当
-#endif
-#ifdef USE_EVALUATE_FOR_SHALLOW_VALUE
-			const int depth = -1; // evaluate()相当
-#endif
-			auto r = Learner::search(pos,depth);
-			auto shallow_value = r.first;
-
-			// これPVに行ってleaf nodeで、w(floatで計算されている)に基いて
-			// eval()の値を計算する評価関数を呼び出したほうが正確だと思う。
+			auto shallow_value = Eval::evaluate(pos);
 			
 			// 深い探索の評価値
 			auto deep_value = (Value)ps.score;
 
-			// 誤差の計算
-			sum_error += calc_grad(shallow_value, deep_value, ps);
-			sum_error2 += abs(shallow_value - deep_value);
+			// --- 誤差の計算
+
+			auto dsig = calc_grad(deep_value, shallow_value, ps);
+			// rmse的なもの
+			sum_error += dsig*dsig;
+			// 勾配の絶対値を足したもの
+			sum_error2 += abs(dsig);
+			// 評価値の差の絶対値を足したもの
+			sum_error3 += abs(shallow_value - deep_value);
 
 #if 0
 			{
@@ -937,8 +940,10 @@ struct SfenReader
 		}
 
 		auto rmse = std::sqrt(sum_error / sfen_for_mse.size());
-		auto mean_error = sum_error2 / sfen_for_mse.size();
-		cout << endl << "rmse = " << rmse << " , mean_error = " << mean_error << endl;
+		auto dsig_mean_error = sum_error2 / sfen_for_mse.size();
+		auto eval_mean_error = sum_error3 / sfen_for_mse.size();
+		cout << " , rmse = " << rmse << " , abs_mean_error = " << dsig_mean_error
+			<< " , eval_mean_error = " << eval_mean_error << endl;
 	}
 
 	// [ASYNC] スレッドバッファに局面を10000局面ほど読み込む。
@@ -1262,16 +1267,11 @@ void LearnerThink::thread_worker(size_t thread_id)
 		//		cout << pos << value << endl;
 
 		// 浅い探索(qsearch)の評価値
-#if defined (USE_QSEARCH_FOR_SHALLOW_VALUE)
 		auto r = Learner::qsearch(pos);
-
 		auto shallow_value = r.first;
-#endif
 
 		// qsearchではなくevaluate()の値をそのまま使う場合。
-#if defined (USE_EVALUATE_FOR_SHALLOW_VALUE)
-		auto shallow_value = Eval::evaluate(pos);
-#endif
+		// auto shallow_value = Eval::evaluate(pos);
 
 		// 深い探索の評価値
 		auto deep_value = (Value)ps.score;
@@ -1285,8 +1285,6 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// このままleaf nodeに行って、勾配配列にだけ足しておき、あとでrmseの集計のときにAdaGradしてみる。
 
 		auto rootColor = pos.side_to_move();
-
-#if defined	(USE_QSEARCH_FOR_SHALLOW_VALUE)
 
 		auto pv = r.second;
 
@@ -1338,12 +1336,6 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// 局面を巻き戻す
 		for (auto it = pv.rbegin(); it != pv.rend(); ++it)
 			pos.undo_move(*it);
-#endif
-
-#ifdef USE_EVALUATE_FOR_SHALLOW_VALUE
-		// 現局面でevaluate()するので現局面がleafだと考えられる。
-		Eval::add_grad(pos, rootColor, dj_dw);
-#endif
 
 		// weightの更新中であれば、そこはparallel forで回るので、こっちのスレッドは中断しておく。
 		// 保存のときに回られるのも勾配だけが更新され続けるので良くない。
@@ -1390,7 +1382,7 @@ void learn(Position& pos, istringstream& is)
 	string base_dir;
 
 	string target_dir;
-	
+
 	// 0であれば、デフォルト値になる。
 	double eta = 0.0;
 
@@ -1416,7 +1408,7 @@ void learn(Position& pos, istringstream& is)
 		{
 			is >> target_dir;
 
-//			cout << "ERROR! : targetdir , this function is only for Windows." << endl;
+			//			cout << "ERROR! : targetdir , this function is only for Windows." << endl;
 		}
 
 		// ループ回数の指定
@@ -1475,7 +1467,7 @@ void learn(Position& pos, istringstream& is)
 			do {
 				entry = readdir(dp);
 				// ".bin"で終わるファイルのみを列挙
-				if (entry != NULL && ends_with(entry->d_name,".bin"))
+				if (entry != NULL && ends_with(entry->d_name, ".bin"))
 				{
 					//cout << entry->d_name << endl;
 					filenames.push_back(path_combine(target_dir, entry->d_name));
@@ -1518,8 +1510,20 @@ void learn(Position& pos, istringstream& is)
 
 	// 評価関数パラメーターの勾配配列の初期化
 	Eval::init_grad(eta);
-	
-#ifdef _OPENMP
+
+#if 0
+	// 平手の初期局面に対して1.0の勾配を与えてみるテスト。
+	pos.set_hirate();
+	cout << Eval::evaluate(pos) << endl;
+	//Eval::print_eval_stat(pos);
+	Eval::add_grad(pos,BLACK,32.0);
+	Eval::update_weights(1);
+	pos.state()->sum.p[2][0] = VALUE_NOT_EVALUATED;
+	cout << Eval::evaluate(pos) << endl;
+	//Eval::print_eval_stat(pos);
+#endif
+
+#if defined( _OPENMP )
 	omp_set_num_threads((int)Options["Threads"]);
 #endif
 

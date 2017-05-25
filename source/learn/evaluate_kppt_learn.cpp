@@ -50,7 +50,8 @@ namespace Eval
 	// 勾配等を格納している学習用の配列
 	struct Weight
 	{
-		// AdaGradのη。updateFV()が呼び出されるまでに設定されているものとする。
+		// AdaGradの学習率η(eta)。
+		// updateFV()が呼び出されるまでに設定されているものとする。
 		static double eta;
 
 		// mini-batch 1回分の勾配の累積値
@@ -70,9 +71,9 @@ namespace Eval
 		void updateFV(array<T,2>& v)
 		{
 			// AdaGradの更新式
-			//   v = v + g^2
-			// ※　vベクトルの各要素に対して、gの各要素の2乗を加算するの意味
-			//   w = w - ηg/sqrt(v)
+			//   勾配ベクトルをg、更新したいベクトルをv、η(eta)は定数として、
+			//     g2 = g2 + g^2
+			//     v = v - ηg/sqrt(g2)
 
 			constexpr double epsilon = 0.000001;
 			for (int i = 0; i < 2; ++i)
@@ -135,8 +136,8 @@ namespace Eval
 
 		// 低次元の配列のindexを得る。
 		// KKはミラーの次元下げを行わないので、そのままの値。
-		void toLowerDimensions(KK kk[1]) const {
-			kk[0] = KK(king0_, king1_);
+		void toLowerDimensions(/*out*/KK kk_[1]) const {
+			kk_[0] = KK(king0_, king1_);
 		}
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
@@ -210,9 +211,9 @@ namespace Eval
 		static KPP fromIndex(u64 index)
 		{
 			index -= min_index();
-			BonaPiece piece0 = (BonaPiece)(index % fe_end);
-			index /= fe_end;
 			BonaPiece piece1 = (BonaPiece)(index % fe_end);
+			index /= fe_end;
+			BonaPiece piece0 = (BonaPiece)(index % fe_end);
 			index /= fe_end;
 			Square king = (Square)(index  /* % SQ_NB */);
 			ASSERT_LV3(king < SQ_NB);
@@ -253,6 +254,7 @@ namespace Eval
 
 
 	// 学習のときの勾配配列の初期化
+	// 引数のetaは、AdaGradのときの定数η(eta)。
 	void init_grad(double eta)
 	{
 		// 学習用配列の確保
@@ -268,6 +270,13 @@ namespace Eval
 			if (KK::is_ok(index))
 			{
 				min_index_flag[index] = true;
+				// indexからの変換と逆変換によって元のindexに戻ることを確認しておく。
+				// 起動時に1回しか実行しない処理なのでASSERT_LV1で書いておく。
+				ASSERT_LV1(KK::fromIndex(index).toIndex() == index);
+				// 次元下げの1つ目の要素が元のindexと同一であることを確認しておく。
+				KK a[1];
+				KK::fromIndex(index).toLowerDimensions(a);
+				ASSERT_LV1(a[0].toIndex() == index);
 			}
 			else if (KKP::is_ok(index))
 			{
@@ -276,6 +285,7 @@ namespace Eval
 				x.toLowerDimensions(a);
 				u64 id[2] = { a[0].toIndex(),a[1].toIndex() };
 				min_index_flag[index] = ( min({ id[0],id[1] }) == index );
+				ASSERT_LV1(id[0] == index);
 			}
 			else if (KPP::is_ok(index))
 			{
@@ -284,6 +294,8 @@ namespace Eval
 				x.toLowerDimensions(a);
 				u64 id[4] = { a[0].toIndex() , a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
 				min_index_flag[index] = ( min({ id[0],id[1],id[2],id[3] }) == index );
+				ASSERT_LV1(KPP::fromIndex(index).toIndex() == index);
+				ASSERT_LV1(id[0] == index);
 			}
 			else
 			{
@@ -295,7 +307,7 @@ namespace Eval
 		if (eta != 0)
 			Weight::eta = eta;
 		else
-			Weight::eta = 30.0;
+			Weight::eta = 30.0; // default値
 	}
 
 	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
@@ -382,22 +394,29 @@ namespace Eval
 				x.toLowerDimensions(/*out*/a);
 
 				// a[0] == indexであることは保証されている。
-				u64 ids[2] = { a[0].toIndex(),a[1].toIndex() };
+				u64 ids[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
 
 				// 勾配を合計して、とりあえずa[0]に格納し、
 				// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す。
-				weights[ids[0]].g += weights[ids[1]].g;
+				// id[0]==id[1]==id[2]==id[3]みたいな可能性があるので、gは外部で合計する
+				array<LearnFloatType, 2> g_sum = { 0,0 };
+				for (auto id : ids)
+					g_sum += weights[id].g;
+
+				// 次元下げを考慮して、その勾配の合計が0であるなら、一切の更新をする必要はない。
+				if (is_zero(g_sum))
+					continue;
+
+				//cout << a[0].king0() << a[0].king1() << a[0].piece() << g_sum << endl;
 
 				auto& v = kkp[a[0].king0()][a[0].king1()][a[0].piece()];
-				//cout << a[0].king0() << a[0].king1() << a[0].piece() << v << weights[id[0]].g << endl;
-
+				weights[ids[0]].g = g_sum;
 				weights[ids[0]].updateFV(v);
-				//cout << a[0].king0() << a[0].king1() << a[0].piece() << v << weights[id[0]].g << endl;
 
 				kkp[a[1].king0()][a[1].king1()][a[1].piece()] = v;
 
 				// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
-				// この場合、gを通常の2倍加算していることになるが、AdaGradは適応型なのでこれでもうまく学習できる。
+				// この場合、毎回gを通常の2倍加算していることになるが、AdaGradは適応型なのでこれでもうまく学習できる。
 				for (auto id : ids)
 					weights[id].g = { 0,0 };
 			}
@@ -407,15 +426,16 @@ namespace Eval
 				KPP a[4];
 				x.toLowerDimensions(/*out*/a);
 
-				// a[0] == indexであることは保証されている。
-				u64 ids[4] = { a[0].toIndex(), a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
+				u64 ids[4] = { /*a[0].toIndex()*/ index , a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
 
-				// 勾配を合計して、とりあえずa[0]に格納し、
-				// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す
-				// id[0]==id[1]==id[2]==id[3]である可能性があるので、gは外部で加算
 				array<LearnFloatType, 2> g_sum = { 0,0 };
 				for (auto id : ids)
 					g_sum += weights[id].g;
+
+				if (is_zero(g_sum))
+					continue;
+
+				//cout << a[0].king() << a[0].piece0() << a[0].piece1() << g_sum << endl;
 
 				auto& v = kpp[a[0].king()][a[0].piece0()][a[0].piece1()];
 				weights[ids[0]].g = g_sum;
@@ -424,7 +444,6 @@ namespace Eval
 				for (int i = 1; i<4; ++i)
 					kpp[a[i].king()][a[i].piece0()][a[i].piece1()] = v;
 
-				// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
 				for (auto id : ids)
 					weights[id].g = { 0,0 };
 			}

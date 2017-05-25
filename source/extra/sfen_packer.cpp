@@ -352,7 +352,7 @@ void Position::set_from_packed_sfen(const PackedSfen& sfen)
 	// 手番
 	sideToMove = (Color)stream.read_one_bit();
 
-#ifndef EVAL_NO_USE
+#if !defined( EVAL_NO_USE )
 	// PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
 	// それぞれの駒をどこまで使ったかのカウンター
 	PieceNo piece_no_count[KING] = { PIECE_NO_ZERO,PIECE_NO_PAWN,PIECE_NO_LANCE,PIECE_NO_KNIGHT,
@@ -393,7 +393,7 @@ void Position::set_from_packed_sfen(const PackedSfen& sfen)
 		PieceNo piece_no =
 			(pc == B_KING) ? PIECE_NO_BKING : // 先手玉
 			(pc == W_KING) ? PIECE_NO_WKING : // 後手玉
-#ifndef EVAL_NO_USE
+#if !defined(EVAL_NO_USE)
 			piece_no_count[raw_type_of(pc)]++; // それ以外
 #else
 			PIECE_NO_ZERO; // とりあえず駒番号は使わないので全部ゼロにしておけばいい。
@@ -410,7 +410,7 @@ void Position::set_from_packed_sfen(const PackedSfen& sfen)
 	// 手駒
 	hand[BLACK] = hand[WHITE] = (Hand)0;
 
-#ifndef EVAL_NO_USE
+#if !defined (EVAL_NO_USE)
 	int i = 0;
 	Piece lastPc = NO_PIECE;
 #endif
@@ -442,7 +442,7 @@ void Position::set_from_packed_sfen(const PackedSfen& sfen)
 
 	set_state(st);
 
-#ifndef EVAL_NO_USE
+#if !defined(EVAL_NO_USE)
 	st->materialValue = Eval::material(*this);
 	Eval::compute_eval(*this);
 #endif

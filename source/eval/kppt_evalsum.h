@@ -22,6 +22,13 @@ namespace Eval {
 		return lhs;
 	}
 
+	// 与えられたarrayが0ベクトルであるかどうかを判定する。
+	template <typename T>
+	bool is_zero(const std::array<T, 2> v)
+	{
+		return v[0] == T(0) && v[1] == T(0);
+	}
+
 	// デバッグ用出力
 	template <typename T>
 	std::ostream& operator<<(std::ostream& os, const std::array<T, 2> v)
