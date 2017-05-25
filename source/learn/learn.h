@@ -135,6 +135,7 @@
 // これをdoubleにしたほうが計算精度は上がるが、重み配列絡みのメモリが倍必要になる。
 // 現状、ここをfloatにした場合、評価関数ファイルに対して、重み配列はその4.5倍のサイズ。(KPPTで4.5GB程度)
 typedef float LearnFloatType;
+//typedef double LearnFloatType;
 
 
 // =====================
@@ -213,8 +214,8 @@ typedef float LearnFloatType;
 #define USE_RANDOM_LEGAL_MOVE
 
 // 出力を減らして高速化。
-#undef LEARN_RMSE_OUTPUT_INTERVAL
-#define LEARN_RMSE_OUTPUT_INTERVAL 10
+//#undef LEARN_RMSE_OUTPUT_INTERVAL
+//#define LEARN_RMSE_OUTPUT_INTERVAL 10
 
 // #define EVAL_SAVE_ONLY_ONCE
 

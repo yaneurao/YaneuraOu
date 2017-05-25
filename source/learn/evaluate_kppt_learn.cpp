@@ -33,7 +33,7 @@ namespace Eval
 	// 学習のためのテーブルの初期化
 	void eval_learn_init();
 
-	// 評価関数パラメーターをファイルに保存。
+	// 評価関数パラメーターをファイルに保存する。
 	void save_eval(std::string dir_name);
 
 	// あるBonaPieceを相手側から見たときの値
@@ -64,13 +64,6 @@ namespace Eval
 
 		// 合計 4*2 + 4*2 + 1*2 = 18 bytes(LearnFloatType == floatのとき)
 		// 1GBの評価関数パラメーターに対してその4.5倍のサイズのWeight配列が確保できれば良い。
-
-		// 勾配を加算する。
-		template <typename T>
-		void add_grad(array<T, 2> grad)
-		{
-			g += grad;
-		}
 
 		// AdaGradでupdateする
 		template <typename T>
@@ -104,7 +97,8 @@ namespace Eval
 				v8[i] = (s8)((V - v[i]) * 127);
 
 				// この要素に関するmini-batchの1回分の更新が終わったのでgをクリア
-				g[i] = 0;
+				//g[i] = 0;
+				// これは呼び出し側で行なうことにする。
 			}
 		}
 	};
@@ -169,15 +163,14 @@ namespace Eval
 		// indexからKKPのオブジェクトを生成するbuilder
 		static KKP forIndex(u64 index)
 		{
-			KKP kkp_;
 			index -= min_index();
-			kkp_.piece_ = (BonaPiece)(index % fe_end);
+			BonaPiece piece = (BonaPiece)(index % fe_end);
 			index /= fe_end;
-			kkp_.king1_ = (Square)(index % SQ_NB);
+			Square king1 = (Square)(index % SQ_NB);
 			index /= SQ_NB;
-			kkp_.king0_ = (Square)(index  /* % SQ_NB */);
-			ASSERT_LV3(kkp_.king0_ < SQ_NB);
-			return kkp_;
+			Square king0 = (Square)(index  /* % SQ_NB */);
+			ASSERT_LV3(king0 < SQ_NB);
+			return KKP(king0, king1, piece);
 		}
 
 		// forIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
@@ -216,15 +209,14 @@ namespace Eval
 		// indexからKPPのオブジェクトを生成するbuilder
 		static KPP forIndex(u64 index)
 		{
-			KPP kpp_;
 			index -= min_index();
-			kpp_.piece0_ = (BonaPiece)(index % fe_end);
+			BonaPiece piece0 = (BonaPiece)(index % fe_end);
 			index /= fe_end;
-			kpp_.piece1_ = (BonaPiece)(index % fe_end);
+			BonaPiece piece1 = (BonaPiece)(index % fe_end);
 			index /= fe_end;
-			kpp_.king_ = (Square)(index  /* % SQ_NB */);
-			ASSERT_LV3(kpp_.king_ < SQ_NB);
-			return kpp_;
+			Square king = (Square)(index  /* % SQ_NB */);
+			ASSERT_LV3(king < SQ_NB);
+			return KPP(king,piece0,piece1);
 		}
 
 		// forIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
@@ -268,7 +260,9 @@ namespace Eval
 		weights.resize(size); // 確保できるかは知らん。確保できる環境で動かしてちょうだい。
 		memset(&weights[0], 0, sizeof(Weight) * size);
 
+		// 次元下げ用フラグ配列の初期化
 		min_index_flag.resize(size);
+#pragma omp parallel for schedule(guided)
 		for (u64 index = 0; index < size; ++index)
 		{
 			if (KK::is_ok(index))
@@ -333,29 +327,29 @@ namespace Eval
 		auto list_fw = pos_.eval_list()->piece_list_fw();
 
 		// KK
-		weights[KK(sq_bk,sq_wk).toIndex()].add_grad(g);
+		weights[KK(sq_bk,sq_wk).toIndex()].g += g;
 
 		// flipした位置関係にも書き込む
-		//kk_w[Inv(sq_wk)][Inv(sq_bk)].add_grad(g_flip);
+		//kk_w[Inv(sq_wk)][Inv(sq_bk)].g += g_flip;
 
 		for (int i = 0; i < PIECE_NO_KING; ++i)
 		{
 			BonaPiece k0 = list_fb[i];
 			BonaPiece k1 = list_fw[i];
 
-			// このループではk0 == l0は出現しない。
+			// このループではk0 == l0は出現しない。(させない)
 			// それはKPであり、KKPの計算に含まれると考えられるから。
 			for (int j = 0; j < i; ++j)
 			{
 				BonaPiece l0 = list_fb[j];
 				BonaPiece l1 = list_fw[j];
 
-				weights[KPP(sq_bk, k0, l0).toIndex()].add_grad(g);
-				weights[KPP(Inv(sq_wk), k1, l1).toIndex()].add_grad(g_flip);
+				weights[KPP(sq_bk, k0, l0).toIndex()].g += g;
+				weights[KPP(Inv(sq_wk), k1, l1).toIndex()].g += g_flip;
 			}
 
 			// KKP
-			weights[KKP(sq_bk, sq_wk, k0).toIndex()].add_grad(g);
+			weights[KKP(sq_bk, sq_wk, k0).toIndex()].g += g;
 		}
 	}
 
@@ -368,23 +362,26 @@ namespace Eval
 #pragma omp parallel for schedule(guided)
 		for (u64 index = 0; index < vector_length; ++index)
 		{
+			// 自分が更新すべきやつか？
+			// 次元下げしたときのindexの小さいほうが自分でないならこの更新は行わない。
+			if (!min_index_flag[index])
+				continue;
+
 			if (KK::is_ok(index))
 			{
 				// KKは次元下げしていないので普通にupdate
 				KK x = KK::forIndex(index);
 				weights[index].updateFV(kk[x.king0()][x.king1()]);
+				weights[index].g = { 0,0 };
 			}
 			else if (KKP::is_ok(index))
 			{
-				// 自分が更新すべきやつか？
-				// 次元下げしたときのindexの小さいほうが自分でないならこの更新は行わない。
-				if (!min_index_flag[index])
-					continue;
-
 				// KKPは次元下げがあるので..
 				KKP x = KKP::forIndex(index);
 				KKP a[2];
 				x.toLowerDimensions(a);
+
+				// a[0] == indexであることは保証されている。
 				u64 id[2] = { a[0].toIndex(),a[1].toIndex() };
 
 				// 勾配を合計して、とりあえずa[0]に格納し、
@@ -392,37 +389,43 @@ namespace Eval
 				weights[id[0]].g += weights[id[1]].g;
 
 				auto& v = kkp[a[0].king0()][a[0].king1()][a[0].piece()];
+				//cout << a[0].king0() << a[0].king1() << a[0].piece() << v << weights[id[0]].g << endl;
+
 				weights[id[0]].updateFV(v);
+				//cout << a[0].king0() << a[0].king1() << a[0].piece() << v << weights[id[0]].g << endl;
 
 				kkp[a[1].king0()][a[1].king1()][a[1].piece()] = v;
 
 				// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
 				// この場合、gを通常の2倍加算していることになるが、AdaGradは適応型なのでこれでもうまく学習できる。
-				weights[id[1]].g = { 0,0 };
+				for (int i = 0; i<2; ++i)
+					weights[id[i]].g = { 0,0 };
 			}
 			else if (KPP::is_ok(index))
 			{
-				if (!min_index_flag[index])
-					continue;
-
 				KPP x = KPP::forIndex(index);
 				KPP a[4];
 				x.toLowerDimensions(a);
-				u64 id[4] = { a[0].toIndex() , a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
+
+				// a[0] == indexであることは保証されている。
+				u64 id[4] = { a[0].toIndex(), a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
 
 				// 勾配を合計して、とりあえずa[0]に格納し、
 				// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す
-				for (int i = 1; i<4; ++i)
-					weights[id[0]].g += weights[id[i]].g;
+				// id[0]==id[1]==id[2]==id[3]である可能性があるので、gは外部で加算
+				array<LearnFloatType, 2> g_sum = { 0,0 };
+				for (int i = 0; i<4; ++i)
+					g_sum += weights[id[i]].g;
 
 				auto& v = kpp[a[0].king()][a[0].piece0()][a[0].piece1()];
+				weights[id[0]].g = g_sum;
 				weights[id[0]].updateFV(v);
 
 				for (int i = 1; i<4; ++i)
 					kpp[a[i].king()][a[i].piece0()][a[i].piece1()] = v;
 
 				// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
-				for (int i = 1; i<4; ++i)
+				for (int i = 0; i<4; ++i)
 					weights[id[i]].g = { 0,0 };
 			}
 			else
@@ -585,7 +588,7 @@ namespace Eval
 #endif
 	}
 
-	// 評価関数パラメーターをファイルに保存。
+	// 評価関数パラメーターをファイルに保存する。
 	void save_eval(std::string dir_name)
 	{
 		{

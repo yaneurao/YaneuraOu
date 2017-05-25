@@ -22,6 +22,14 @@ namespace Eval {
 		return lhs;
 	}
 
+	// デバッグ用出力
+	template <typename T>
+	std::ostream& operator<<(std::ostream& os, const std::array<T, 2> v)
+	{
+		os << "{ " << v[0] << "," << v[1] << " } ";
+		return os;
+	}
+
 	//
 	// 手番つきの評価値を足していくときに使うclass
 	//
