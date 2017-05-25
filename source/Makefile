@@ -1,4 +1,4 @@
-# > Select YaneuraOu edition below.
+﻿# > Select YaneuraOu edition below.
 
 #YANEURAOU_EDITION = RANDOM_PLAYER_ENGINE
 #YANEURAOU_EDITION = HELP_MATE_ENGINE
@@ -16,29 +16,29 @@ YANEURAOU_EDITION = YANEURAOU_2017_EARLY_ENGINE
 COMPILER = g++
 #COMPILER = mpicxx
 
-# �W���I�ȃR���p�C���I�v�V����
+# 標準的なコンパイルオプション
 CFLAGS   =  -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
 
-# �����N���œK���B����������msys2�����ƃZ�O�t�H�ŗ�����B
-# �����Ȃ����Ȃ�L���ɂ����ق����������s�t�@�C�������������͂��B
+# リンク時最適化。これをつけるとmsys2環境だとセグフォで落ちる。
+# 落ちない環境なら有効にしたほうが速い実行ファイルが生成されるはず。
 # CFLAGS += -flto
 
-# wstring���g�����߂ɂ��̃V���{����`���K�v�B
+# wstringを使うためにこのシンボル定義が必要。
 CFLAGS  += -DUNICODE
 
-# �w�K���ł�openmp��p����̂ŁA�w�K�p�̃r���h�ł͂��̃I�v�V�������w�肷�邱�ƁB
+# 学習部ではopenmpを用いるので、学習用のビルドではこのオプションを指定すること。
 # CFLAGS  += -fopenmp
 
-# strip�̎w���B(���s�t�@�C���̃T�C�Y��������)
+# stripの指示。(実行ファイルのサイズを小さく)
 CFLAGS  += -Wl,-s
 
-# mingw64�ł�-D_WIN64,-D_WIN32�͊��ɉ����Ď����Őݒ肳���̂Ŏw�肷�ׂ��ł͂Ȃ��B
+# mingw64では-D_WIN64,-D_WIN32は環境に応じて自動で設定されるので指定すべきではない。
 # CFLAGS += -D_WIN64
 
-# ������w�肵�Ă���ƁA�eCPU�����̎��s�t�@�C������������Ȃ��̂Ŏw�肷�ׂ��ł͂Ȃ��B
+# これを指定していると、各CPU向けの実行ファイルが生成されないので指定すべきではない。
 # CFLAGS   += -march=native
 
-# �f�o�b�O����t��
+# デバッグ情報を付加
 # CFLAGS  += -g3 -ggdb
 
 LDFLAGS  = -lpthread #-lboost_mpi -lboost_serialization
@@ -122,7 +122,7 @@ $(OBJDIR)/%.o: %.cpp
 
 all: clean $(TARGET)
 
-# �w�K�p�o�C�i���̂Ƃ��́Aopenmp��L���ɂ���B
+# 学習用バイナリのときは、openmpを有効にする。
 evallearn:
 	$(MAKE) CFLAGS='$(CFLAGS) -fopenmp -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
@@ -141,16 +141,16 @@ sse41:
 sse2:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE2 -msse2 -march=core2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
-# 32bit�p�B-m32�́AMSYS2 MinGW-64���Ɩ��������̂ŁA
-# MinGW-64��32bit���p�ŃR���p�C������K�v������B
+# 32bit用。-m32は、MSYS2 MinGW-64だと無視されるので、
+# MinGW-64の32bit環境用でコンパイルする必要がある。
 nosse:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DNO_SSE -m32' LDFLAGS='$(LDFLAGS) -flto -march=pentium3' $(TARGET)
 
-# ARM�Ȃǂ�CPU
+# ARMなどのCPU
 other:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DNO_SSE' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
-#�@�Ƃ肠����PGO��avx2��p
+#　とりあえずPGOはavx2専用
 prof:
 	$(MAKE) CFLAGS='$(CFLAGS) -pg' avx2
 
