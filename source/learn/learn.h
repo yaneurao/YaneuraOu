@@ -1,6 +1,7 @@
 ﻿#ifndef _LEARN_H_
 #define _LEARN_H_
 
+
 // =====================
 //  学習時の設定
 // =====================
@@ -27,6 +28,7 @@
 // この数だけの局面をまとめて勾配を計算する。
 // 小さくするとupdate_weights()の回数が増えるので収束が速くなる。勾配が不正確になる。
 // 大きくするとupdate_weights()の回数が減るので収束が遅くなる。勾配は正確に出るようになる。
+// 多くの場合において、この値を変更する必要はないと思う。
 
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 
@@ -37,10 +39,9 @@
 #define LEARN_SFEN_READ_SIZE (1000 * 1000 * 10)
 
 // 学習時の評価関数の保存間隔。この局面数だけ学習させるごとに保存。
+// 当然ながら、保存間隔を長くしたほうが学習時間は短くなる。
 #define LEARN_EVAL_SAVE_INTERVAL (80000000ULL)
 
-// 評価関数ファイルを出力するときに指数移動平均(EMA)を用いた平均化を行なう。(未実装)
-// #define LEARN_USE_EMA
 
 // ----------------------
 //    目的関数の選択
@@ -66,17 +67,36 @@
 
 
 // ----------------------
-//    浅い探索の選択
+//  学習のときの浮動小数
 // ----------------------
 
-// 浅い探索の値としてevaluate()を用いる
-//#define USE_EVALUATE_FOR_SHALLOW_VALUE
+// これをdoubleにしたほうが計算精度は上がるが、重み配列絡みのメモリが倍必要になる。
+// 現状、ここをfloatにした場合、評価関数ファイルに対して、重み配列はその4.5倍のサイズ。(KPPTで4.5GB程度)
+typedef float LearnFloatType;
+//typedef double LearnFloatType;
 
-// 浅い探索の値としてqsearch()を用いる。
-//#define USE_QSEARCH_FOR_SHALLOW_VALUE
+
+// ----------------------
+// 評価関数ファイルの保存
+// ----------------------
+
+// 保存するときのフォルダ番号を、この局面数ごとにインクリメントしていく。
+// 例) "0/KK_synthesized.bin" →　"1/KK_synthesized.bin"
+// 現状、10億局面ずつ。
+#define EVAL_FILE_NAME_CHANGE_INTERVAL (u64)1000000000
+
+// evalファイルの保存は(終了のときの)1度のみにする。
+//#define EVAL_SAVE_ONLY_ONCE
 
 
-// ※　他、色々追加するかも。
+// ----------------------
+// 学習に関するデバッグ設定
+// ----------------------
+
+// 学習時のrmseとタイムスタンプの出力をこの回数に1回に減らす。
+// rmseの計算は1スレッドで行なうためそこそこ時間をとられるので出力を減らすと効果がある。
+#define LEARN_RMSE_OUTPUT_INTERVAL 1
+#define LEARN_TIMESTAMP_OUTPUT_INTERVAL 10
 
 
 // ----------------------
@@ -92,85 +112,11 @@
 
 
 // ----------------------
-//        置換表
-// ----------------------
-
-// 置換表を用いない。(やねうら王2017Earlyのみ対応)
-// これをオンにすると通常対局時にも置換表を参照しなくなってしまうので棋譜からの学習を行う実行ファイルでのみオンにする。
-// 棋譜からの学習時にはオンにしたほうがよさげ。
-// 理由) 置換表にhitするとPV leafが評価値の局面ではなくなってしまう。
-
-//#define DISABLE_TT_PROBE
-
-
-// ----------------------
-// 評価関数ファイルの保存
-// ----------------------
-
-// 保存するときのフォルダ番号を、この局面数ごとにインクリメントしていく。
-// (Windows環境限定)
-// 例) "0/KK_synthesized.bin" →　"1/KK_synthesized.bin"
-// ※　Linux環境でファイルの上書きが嫌ならconfig.hのMKDIRのコードを有効にしてください。
-// 現状、10億局面ずつ。
-#define EVAL_FILE_NAME_CHANGE_INTERVAL (u64)1000000000
-
-// evalファイルの保存は1度のみにする。
-//#define EVAL_SAVE_ONLY_ONCE
-
-// ----------------------
-// 学習に関するデバッグ設定
-// ----------------------
-
-// 学習時にsfenファイルを1万局面読み込むごとに'.'を出力する。
-//#define DISPLAY_STATS_IN_THREAD_READ_SFENS
-
-// 学習時のrmseとタイムスタンプの出力をこの回数に1回に減らす
-#define LEARN_RMSE_OUTPUT_INTERVAL 1
-#define LEARN_TIMESTAMP_OUTPUT_INTERVAL 10
-
-// ----------------------
-//  学習のときの浮動小数
-// ----------------------
-
-// これをdoubleにしたほうが計算精度は上がるが、重み配列絡みのメモリが倍必要になる。
-// 現状、ここをfloatにした場合、評価関数ファイルに対して、重み配列はその4.5倍のサイズ。(KPPTで4.5GB程度)
-typedef float LearnFloatType;
-//typedef double LearnFloatType;
-
-
-// =====================
-// 教師局面生成時の設定
-// =====================
-
-// これはgensfenコマンドに関する設定。
-// これらは、configureの設定では変化しない。
-
-// search()のleaf nodeまでの手順が合法手であるかを検証する。
-//#define TEST_LEGAL_LEAF
-
-// 棋譜を生成するときに一定手数の局面まで定跡を用いる機能
-// これはOptions["BookMoves"]の値が反映される。この値が0なら、定跡を用いない。
-// 用いる定跡は、Options["BookFile"]が反映される。
-
-// ときどき合法手のなかからランダムに1手選ぶ。(Apery方式)
-//#define USE_RANDOM_LEGAL_MOVE
-
-// タイムスタンプの出力をこの回数に一回に抑制する。
-// スレッドを論理コアの最大数まで酷使するとコンソールが詰まるので…。
-#define GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL 1
-
-// ----------------------
 // configureの内容を反映
 // ----------------------
 
 #if defined (LEARN_DEFAULT)
-#define USE_SGD_UPDATE
-#undef LEARN_MINI_BATCH_SIZE
-#define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 #define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
-#undef EVAL_FILE_NAME_CHANGE_INTERVAL
-#define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
-#define USE_RANDOM_LEGAL_MOVE
 #endif
 
 // ----------------------
@@ -178,17 +124,7 @@ typedef float LearnFloatType;
 // ----------------------
 
 #if defined( LEARN_ELMO_METHOD )
-
-// elmoでは、ゲームの勝敗を学習時に利用するのでこのフラグを書き出す必要がある。
-#define GENSFEN_SAVE_GAME_RESULT
-
-#undef LEARN_MINI_BATCH_SIZE
-#define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 #define LOSS_FUNCTION_IS_ELMO_METHOD
-#undef EVAL_FILE_NAME_CHANGE_INTERVAL
-#define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
-#define USE_RANDOM_LEGAL_MOVE
-
 #endif
 
 // ----------------------
@@ -197,25 +133,17 @@ typedef float LearnFloatType;
 
 #if defined(LEARN_YANEURAOU_2017_GOKU)
 
-#define GENSFEN_SAVE_GAME_RESULT
-
-#undef LEARN_MINI_BATCH_SIZE
-#define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
-
-// 損失関数、あとでよく考える。
-//#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
-#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
+// 損失関数、あとでよく考える。比較実験中。
+#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
+//#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
 //#define LOSS_FUNCTION_IS_ELMO_METHOD
 //#define LOSS_FUNCTION_IS_YANE_ELMO_METHOD
 
-#undef EVAL_FILE_NAME_CHANGE_INTERVAL
-#define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
-#define USE_RANDOM_LEGAL_MOVE
-
-// 出力を減らして高速化。
+// rmseなどの出力を減らして高速化。
 //#undef LEARN_RMSE_OUTPUT_INTERVAL
 //#define LEARN_RMSE_OUTPUT_INTERVAL 10
 
+// 実験時は1回だけの保存で良い。
 // #define EVAL_SAVE_ONLY_ONCE
 
 #endif
@@ -225,6 +153,7 @@ typedef float LearnFloatType;
 // ----------------------
 
 // 更新式に応じた文字列。(デバッグ用に出力する。)
+// 色々更新式を実装したがAdaGradが速度面、メモリ面においてベストという結論になった。
 #define LEARN_UPDATE "AdaGrad"
 
 #if defined(LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
@@ -237,15 +166,6 @@ typedef float LearnFloatType;
 #define LOSS_FUNCTION "ELMO_METHOD(WCSC27)"
 #elif defined(LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
 #define LOSS_FUNCTION "YANE_ELMO_METHOD(WCSC27)"
-#endif
-
-// rmseの観測用
-#if 0
-#undef LEARN_RMSE_OUTPUT_INTERVAL
-#define LEARN_RMSE_OUTPUT_INTERVAL 1
-#define LEARN_SFEN_NO_SHUFFLE
-#undef LEARN_SFEN_READ_SIZE
-#define LEARN_SFEN_READ_SIZE 100000 
 #endif
 
 
@@ -261,10 +181,14 @@ namespace Learner
 	// とりあえず、以下のメンバーはオプションによらずすべて書き出しておく。
 	struct PackedSfenValue
 	{
+		// 局面
 		PackedSfen sfen;
-		s16 score; // PV leafでの評価値
 
-		u16 move; // PVの初手
+		// Learner::search()から返ってきた評価値
+		s16 score;
+
+		// PVの初手
+		u16 move;
 
 		// 初期局面からの局面の手数。
 		u16 gamePly;
@@ -272,6 +196,12 @@ namespace Learner
 		// この局面の手番側が、ゲームを最終的に勝っているならtrue。負けているならfalse。
 		// 引き分けに至った場合は、局面自体書き出さない。
 		bool isWin;
+
+		// 教師局面を書き出したファイルを他の人とやりとりするときに
+		// この構造体サイズが不定だと困るため、paddingしてどの環境でも必ず40bytesになるようにしておく。
+		u8 padding;
+
+		// 32 + 2 + 2 + 2 + 1 + 1 = 40bytes
 	};
 }
 

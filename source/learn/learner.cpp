@@ -14,6 +14,16 @@
 
 #if defined(EVAL_LEARN)
 
+// -- 学習時に関する、あまり大した意味のない設定項目はここ。
+
+// タイムスタンプの出力をこの回数に一回に抑制する。
+// スレッドを論理コアの最大数まで酷使するとコンソールが詰まるので調整用。
+#define GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL 1
+
+// 学習時にsfenファイルを1万局面読み込むごとに'.'を出力する。
+//#define DISPLAY_STATS_IN_THREAD_READ_SFENS
+
+
 #include "learn.h"
 
 #include <sstream>
@@ -412,7 +422,9 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					{
 						// デバッグ用の検証として、途中に非合法手が存在しないことを確認する。
 						// NULL_MOVEはこないものとする。
-#ifdef TEST_LEGAL_LEAF
+
+						// 十分にテストしたのでコメントアウトで良い。
+#if 0
 						// 非合法手はやってこないはずなのだが。
 						if (!pos.pseudo_legal(m) || !pos.legal(m))
 						{
@@ -541,7 +553,10 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			}
 
 		RANDOM_MOVE:;
-#if defined ( USE_RANDOM_LEGAL_MOVE )
+
+//#if defined ( USE_RANDOM_LEGAL_MOVE )
+			// これは効果があるので、常に有効で良い。
+#if 1
 
 			// 合法手のなかからランダムに1手選ぶフェーズ
 			// plyが小さいときは高い確率で。そのあとはあまり選ばれなくて良い。
@@ -736,7 +751,7 @@ double calc_grad(Value deep, Value shallow, PackedSfenValue& psv)
 }
 #endif
 
-#if defined ( LOSS_FUNCTION_IS_CROSS_ENTOROPY_FOR_VALUE)
+#if defined ( LOSS_FUNCTION_IS_CROSS_ENTOROPY_FOR_VALUE )
 double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 {
 	// 勝率の関数を通さない版
@@ -746,7 +761,7 @@ double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 }
 #endif
 
-#if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
+#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
 
 // isWin : この手番側が最終的に勝利したかどうか
 double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
@@ -772,7 +787,7 @@ double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 #endif
 
 
-#if defined(LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
+#if defined( LOSS_FUNCTION_IS_YANE_ELMO_METHOD )
 
 // isWin : この手番側が最終的に勝利したかどうか
 double calc_grad(Value deep, Value shallow, PackedSfenValue& psv)

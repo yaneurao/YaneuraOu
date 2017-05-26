@@ -48,6 +48,11 @@ namespace Eval
 namespace Eval
 {
 	// 勾配等を格納している学習用の配列
+#if defined(_MSC_VER)
+#pragma pack(push,2)
+#elif defined(__GNUC__)
+#pragma pack(2)
+#endif
 	struct Weight
 	{
 		// AdaGradの学習率η(eta)。
@@ -65,6 +70,8 @@ namespace Eval
 
 		// 合計 4*2 + 4*2 + 1*2 = 18 bytes(LearnFloatType == floatのとき)
 		// 1GBの評価関数パラメーターに対してその4.5倍のサイズのWeight配列が確保できれば良い。
+		// ただし、構造体のアライメントが4バイト単位になっているとsizeof(Weight)==20なコードが生成されるので
+		// pragma pack(2)を指定しておく。
 
 		// AdaGradでupdateする
 		template <typename T>
@@ -103,6 +110,13 @@ namespace Eval
 			}
 		}
 	};
+#if defined(_MSC_VER)
+#pragma pack(pop)
+#elif defined(__GNUC__)
+#pragma pack(0)
+#endif
+
+
 	double Weight::eta;
 
 	// --- 以下のKK,KKP,KPPは、Weight配列を直列化したときのindexを計算したりするヘルパー。

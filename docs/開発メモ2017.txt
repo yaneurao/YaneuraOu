@@ -1,7 +1,7 @@
 ﻿
 # ToDO
 
-- 学習部のmirrorとかの処理、単純化する＆高速化する。
+- multiPVで読み筋が途切れることがあるらしい。(Stockfish側の問題のような気も)
 - evaluate KPPT 16bit化するか、上位16bitに進行度入れる。
 - evaluate()、コードを見直す。
 - Stockfishのevaluate()よく調べる。
@@ -13,8 +13,78 @@
 - 詰将棋探索エンジン、他の探索部から呼び出せるように改良する。
 
 
+## 2017/05/26
+
+- 学習のときの損失関数をオプションで指定できたほうがいいような…。
+	- まあ、そんなに書き換えないか..またあとで考えよう。
+
+- gensfenコマンドのときはEvalHash有効化するように考えなおす。
+	- 結局のところ、TTの無効化とEvalHashの無効化を制御できたほうがいいのかも。
+		- gensfenコマンド用とlearn用と対戦用とでバイナリと分けるの面倒くさいしな。
+	- GlobalOptions導入した。
+		- learn用と分ける必要がなくなった。OpenMPを有効化しないといけないからMakefileはこのままでいいや。
+
+
+## 2017/05/25
+
+- 学習部のデバッグ中。
+
+				//cout << a[0].king0() << a[0].king1() << a[0].piece() << v << weights[ids[0]].g << endl;
+				//cout << a[1].king0() << a[1].king1() << a[1].piece()
+				//	<< kkp[a[1].king0()][a[1].king1()][a[1].piece()]
+				//	<< weights[ids[1]].g << endl;
+
+// デバッグ用学習コマンド
+evaldir eval
+evalsavedir \\WS2012_860C_YAN\yanehome\eval\learn_339
+hash 4096
+evalshare false
+learn loop 10 basedir \\WS2012_860C_YAN\yanehome batchsize 10000 eta 30 targetdir learn_sfen\201705211600D6
+
+→　実はうまく学習できていた可能性が微レ存。EVAL_HASHが有効になっていたのでrmseが下がらなかっただけっぽい。
+　あとは置換表にhitしていたっぽい。
+
+Apery20160505からdepth8で5億局面生成、5億×4周。これで1秒対戦で+R63の増加になれば成功らしい。(tanuki-さん情報)
+	07:32:37 T1,b1000,582 - 15 - 403(59.09% R63.85) win black: white = 50.66% : 49.34%
+→　やってみる。
+
+	- YaneuraOuV460learn_cross.exe : LOSS_FUNCTION_IS_CROSS_ENTOROPY 
+	- YaneuraOuV460learn_win.exe   : LOSS_FUNCTION_IS_WINNING_PERCENTAGE
+
+	eval : Apery20160505
+	sfen : 201705260520D8Apery22
+	exe  : cross entoropy eta = 30 , 15 , winning percentage eta = 30 , 15 の4つ。それぞれ1),2),3),4)とする。learn386,387,388,389。
+
+	最終的なrmseとかの値とApery20160505との対局結果。雑巾絞り系はeval_mean_errorが小さいほど強いと言えそう。
+	1) hirate eval = 239 , rmse = 0.142808 , abs_mean_error = 0.096126 , eval_mean_error = 392.007
+	2) hirate eval = 237 , rmse = 0.143522 , abs_mean_error = 0.0967743 , eval_mean_error = 393.972
+	3) hirate eval = 239 , rmse = 0.0281137 , abs_mean_error = 0.0178524 , eval_mean_error = 392.129
+	4) hirate eval = 233 , rmse = 0.0284061 , abs_mean_error = 0.0180897 , eval_mean_error = 395.251
+
+	1) T1,b1000,1757 - 89 - 3154(35.78% R-101.64) win black : white = 51.27% : 48.73%
+	2) T1,b1000,1779 - 102 - 3119(36.32% R-97.54) win black : white = 50.33% : 49.67%
+	3) T1,b1000,1823 - 94 - 3083(37.16% R-91.27) win black : white = 50.18% : 49.82%
+	4) T1,b1000,1841 - 100 - 3059(37.57% R-88.21) win black : white = 50.45% : 49.55%
+
+	→ 学習成功！
+
+	LearnFloatType == doubleでもやってみる。
+
+
+
+// 評価関数ファイルを出力するときに指数移動平均(EMA)を用いた平均化を行なう。(未実装)
+// #define LEARN_USE_EMA
+
+→ 効果に乏しいらしいので実装予定ないので、削除。
+
+
+
+- よく考えたらgensfenコマンドのときはEVAL_HASHあったほうがいいのか。そうか…。
+
+
 ## 2017/05/24
 
+- 学習部のmirrorとかの処理、単純化する＆高速化する。
 - 時間あったので学習部のコード、刷新した。明日にでもデバッグしよう。
 
 - evaluate_kppt_learn.cpp、いまどきのコードに書き直す。
@@ -23,6 +93,7 @@
 	- よく考えたらソースコードが少し汚い以外は合理的なコードのような気もしてきた。
 
 - GokuYane20170523 , 201705231540D8
+
 
 ## 2017/05/23
 
@@ -105,7 +176,7 @@ evaldir eval
 evalsavedir \\WS2012_860C_YAN\yanehome\eval\learn_339
 hash 4096
 evalshare false
-learn loop 10 basedir \\WS2012_860C_YAN\yanehome batchsize 100000 eta 30 targetdir learn_sfen\201705211600D6
+learn loop 10 basedir \\WS2012_860C_YAN\yanehome batchsize 10000 eta 30 targetdir learn_sfen\201705211600D6
 
 
 - C++11でコンパイルが通るように修正。
