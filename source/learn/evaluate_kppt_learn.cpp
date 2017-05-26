@@ -18,6 +18,16 @@
 
 using namespace std;
 
+// ----------------------
+//  学習のときの浮動小数
+// ----------------------
+
+// これをdoubleにしたほうが計算精度は上がるが、重み配列絡みのメモリが倍必要になる。
+// 現状、ここをfloatにした場合、評価関数ファイルに対して、重み配列はその4.5倍のサイズ。(KPPTで4.5GB程度)
+// double型にしても収束の仕方にほとんど差異がなかったのでfloatに固定する。
+typedef float LearnFloatType;
+
+
 namespace Eval
 {
 	// 学習のときの勾配配列の初期化
@@ -74,6 +84,8 @@ namespace Eval
 		// pragma pack(2)を指定しておく。
 
 		// AdaGradでupdateする
+		// この関数を実行しているときにgの値やメンバーが書き変わらないことは
+		// 呼び出し側で保証されている。atomic演算である必要はない。
 		template <typename T>
 		void updateFV(array<T,2>& v)
 		{
@@ -91,8 +103,11 @@ namespace Eval
 				g2[i] += g[i] * g[i];
 
 				// v8は小数部8bitを含んでいるのでこれを復元する。
-				// 128にすると、-1を保持できなくなるので127倍しておく。
+				// 128倍にすると、-1を保持できなくなるので127倍にしておく。
 				// -1.0～+1.0を-127～127で保持している。
+				// std::round()限定なら-0.5～+0.5の範囲なので255倍でも良いが、
+				// どんな丸め方をするかはわからないので余裕を持たせてある。
+
 				double V = v[i] + ((double)v8[i] / 127);
 
 				V -= eta * (double)g[i] / sqrt((double)g2[i] + epsilon);
@@ -328,6 +343,14 @@ namespace Eval
 	// 現局面は、leaf nodeであるものとする。
 	void add_grad(Position& pos, Color rootColor, double delta_grad)
 	{
+		// LearnFloatTypeにatomicつけてないが、2つのスレッドが、それぞれx += yと x += z を実行しようとしたとき
+		// 極稀にどちらか一方しか実行されなくともAdaGradでは問題とならないので気にしないことにする。
+		// double型にしたときにWeight.gが破壊されるケースは多少困るが、double型の下位4バイトが破壊されたところで
+		// それによる影響は小さな値だから実害は少ないと思う。
+		
+		// 勾配に多少ノイズが入ったところで、むしろ歓迎！という意味すらある。
+		// (cf. gradient noise)
+
 		// Aperyに合わせておく。
 		delta_grad /= 32.0 /*FV_SCALE*/;
 
@@ -459,7 +482,7 @@ namespace Eval
 					kpp[a[i].king()][a[i].piece0()][a[i].piece1()] = v;
 
 				for (auto id : ids)
-					weights[id].g = { 0,0 };
+					weights[id].g = { 0 , 0 };
 			}
 			else
 			{

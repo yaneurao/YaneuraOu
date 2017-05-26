@@ -415,6 +415,7 @@
 //   for tournament
 // --------------------
 
+// トーナメント(大会)用に、対局に不要なものをすべて削ぎ落とす。
 #if defined(FOR_TOURNAMENT)
 #undef ASSERT_LV
 #undef EVAL_LEARN

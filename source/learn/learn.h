@@ -67,16 +67,6 @@
 
 
 // ----------------------
-//  学習のときの浮動小数
-// ----------------------
-
-// これをdoubleにしたほうが計算精度は上がるが、重み配列絡みのメモリが倍必要になる。
-// 現状、ここをfloatにした場合、評価関数ファイルに対して、重み配列はその4.5倍のサイズ。(KPPTで4.5GB程度)
-typedef float LearnFloatType;
-//typedef double LearnFloatType;
-
-
-// ----------------------
 // 評価関数ファイルの保存
 // ----------------------
 
@@ -146,26 +136,6 @@ typedef float LearnFloatType;
 // 実験時は1回だけの保存で良い。
 // #define EVAL_SAVE_ONLY_ONCE
 
-#endif
-
-// ----------------------
-// 設定内容に基づく定数文字列
-// ----------------------
-
-// 更新式に応じた文字列。(デバッグ用に出力する。)
-// 色々更新式を実装したがAdaGradが速度面、メモリ面においてベストという結論になった。
-#define LEARN_UPDATE "AdaGrad"
-
-#if defined(LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
-#define LOSS_FUNCTION "WINNING_PERCENTAGE"
-#elif defined(LOSS_FUNCTION_IS_CROSS_ENTOROPY)
-#define LOSS_FUNCTION "CROSS_ENTOROPY"
-#elif defined(LOSS_FUNCTION_IS_CROSS_ENTOROPY_FOR_VALUE)
-#define LOSS_FUNCTION "CROSS_ENTOROPY_FOR_VALUE"
-#elif defined(LOSS_FUNCTION_IS_ELMO_METHOD)
-#define LOSS_FUNCTION "ELMO_METHOD(WCSC27)"
-#elif defined(LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
-#define LOSS_FUNCTION "YANE_ELMO_METHOD(WCSC27)"
 #endif
 
 

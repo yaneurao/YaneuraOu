@@ -14,7 +14,11 @@
 
 #if defined(EVAL_LEARN)
 
-// -- 学習時に関する、あまり大した意味のない設定項目はここ。
+#include "learn.h"
+
+// ----------------------
+// 学習時に関する、あまり大した意味のない設定項目はここ。
+// ----------------------
 
 // タイムスタンプの出力をこの回数に一回に抑制する。
 // スレッドを論理コアの最大数まで酷使するとコンソールが詰まるので調整用。
@@ -23,8 +27,30 @@
 // 学習時にsfenファイルを1万局面読み込むごとに'.'を出力する。
 //#define DISPLAY_STATS_IN_THREAD_READ_SFENS
 
+// ----------------------
+// 設定内容に基づく定数文字列
+// ----------------------
 
-#include "learn.h"
+// 更新式に応じた文字列。(デバッグ用に出力する。)
+// 色々更新式を実装したがAdaGradが速度面、メモリ面においてベストという結論になった。
+#define LEARN_UPDATE "AdaGrad"
+
+#if defined(LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
+#define LOSS_FUNCTION "WINNING_PERCENTAGE"
+#elif defined(LOSS_FUNCTION_IS_CROSS_ENTOROPY)
+#define LOSS_FUNCTION "CROSS_ENTOROPY"
+#elif defined(LOSS_FUNCTION_IS_CROSS_ENTOROPY_FOR_VALUE)
+#define LOSS_FUNCTION "CROSS_ENTOROPY_FOR_VALUE"
+#elif defined(LOSS_FUNCTION_IS_ELMO_METHOD)
+#define LOSS_FUNCTION "ELMO_METHOD(WCSC27)"
+#elif defined(LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
+#define LOSS_FUNCTION "YANE_ELMO_METHOD(WCSC27)"
+#endif
+
+// -----------------------------------
+//    以下、実装部。
+// -----------------------------------
+
 
 #include <sstream>
 #include <fstream>
