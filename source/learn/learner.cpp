@@ -802,11 +802,14 @@ double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 	const double t = (psv.isWin) ? 1.0 : 0.0;
 
 	// elmo(WCSC27)で使われている定数。要調整。
-	const double LAMBDA = 0.5;
+	// elmoのほうは式を内分していないので値が違う。
+	const double LAMBDA = 0.33; // elmoの定数(0.5)相当
+
+	//const double LAMBDA = 0.80; // 勝率の影響を小さめに抑える。
 
 	// 実際の勝率を補正項として使っている。
 	// これがelmo(WCSC27)のアイデアで、現代のオーパーツ。
-	const double dsig = (eval_winrate - t) + LAMBDA * (eval_winrate - teacher_winrate);
+	const double dsig = (1 - LAMBDA) * (eval_winrate - t) + LAMBDA * (eval_winrate - teacher_winrate);
 
 	return dsig;
 }
@@ -980,11 +983,13 @@ struct SfenReader
 #endif
 		}
 
-		auto rmse = std::sqrt(sum_error / sfen_for_mse.size());
-		auto dsig_mean_error = sum_error2 / sfen_for_mse.size();
-		auto eval_mean_error = sum_error3 / sfen_for_mse.size();
-		cout << " , rmse = " << rmse << " , abs_mean_error = " << dsig_mean_error
-			<< " , eval_mean_error = " << eval_mean_error << endl;
+		// rmse = root mean square error : 平均二乗誤差
+		// mae  = mean absolute error    : 平均絶対誤差
+		auto dsig_rmse = std::sqrt(sum_error / sfen_for_mse.size());
+		auto dsig_mae = sum_error2 / sfen_for_mse.size();
+		auto eval_mae = sum_error3 / sfen_for_mse.size();
+		cout << " , dsig rmse = " << dsig_rmse << " , dsig mae = " << dsig_mae
+			<< " , eval mae = " << eval_mae << endl;
 	}
 
 	// [ASYNC] スレッドバッファに局面を10000局面ほど読み込む。
