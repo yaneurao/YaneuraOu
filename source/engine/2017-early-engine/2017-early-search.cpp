@@ -106,11 +106,6 @@ void USI::extra_option(USI::OptionsMap & o)
 	o["EvalSaveDir"] << Option("evalsave");
 #endif
 
-#ifdef DISABLE_TT_PROBE
-	// 置換表がオフになっている場合、通常対局は出来ないと考えられるので警告を出す。
-	sync_cout << "info string warning!! disable TT.probe()." << sync_endl;
-#endif
-
 #if defined (USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
 
 #ifdef USE_RANDOM_PARAMETERS
@@ -424,15 +419,9 @@ namespace YaneuraOu2017Early
 			: DEPTH_QS_NO_CHECKS;
 
 		posKey = pos.key();
-#if !defined(DISABLE_TT_PROBE)
 		tte = TT.probe(posKey, ttHit);
 		ttMove = ttHit ? pos.move16_to_move(tte->move()) : MOVE_NONE;
 		ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
-#else
-		tte = nullptr; ttHit = false;
-		ttMove = MOVE_NONE;
-		ttValue = VALUE_NONE;
-#endif
 
 		// nonPVでは置換表の指し手で枝刈りする
 		// PVでは置換表の指し手では枝刈りしない(前回evaluateした値は使える)
@@ -537,12 +526,10 @@ namespace YaneuraOu2017Early
 			// 王手がかかっていないケースにおいては、この時点での静的なevalの値がbetaを上回りそうならこの時点で帰る。
 			if (bestValue >= beta)
 			{
-#if !defined(DISABLE_TT_PROBE)
 				// Stockfishではここ、pos.key()になっているが、posKeyを使うべき。
 				if (!ttHit)
 					tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_LOWER,
 						DEPTH_NONE, MOVE_NONE, ss->staticEval, TT.generation());
-#endif
 				return bestValue;
 			}
 
@@ -703,12 +690,10 @@ namespace YaneuraOu2017Early
 
 					} else // fail high
 					{
-#if !defined(DISABLE_TT_PROBE)
 						// 1. nonPVでのalpha値の更新 →　もうこの時点でreturnしてしまっていい。(ざっくりした枝刈り)
 						// 2. PVでのvalue >= beta、すなわちfail high
 						tte->save(posKey, value_to_tt(value, ss->ply), BOUND_LOWER,
 							ttDepth, move, ss->staticEval, TT.generation());
-#endif
 						return value;
 					}
 				}
@@ -729,12 +714,9 @@ namespace YaneuraOu2017Early
 
 		} else {
 			// 詰みではなかったのでこれを書き出す。
-
-#if !defined(DISABLE_TT_PROBE)
 			tte->save(posKey, value_to_tt(bestValue, ss->ply),
 				(PvNode && bestValue > oldAlpha) ? BOUND_EXACT : BOUND_UPPER,
 				ttDepth, bestMove, ss->staticEval, TT.generation());
-#endif
 		}
 
 		// 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
@@ -924,8 +906,6 @@ namespace YaneuraOu2017Early
 
 		bool ttHit;    // 置換表がhitしたか
 
-#if !defined(DISABLE_TT_PROBE)
-
 		TTEntry* tte = TT.probe(posKey, ttHit);
 
 		// excludedMoveがある(singular extension時)は、ttValueとttMoveは無いものとして扱う。
@@ -945,12 +925,6 @@ namespace YaneuraOu2017Early
 
 		Move ttMove = RootNode ? thisThread->rootMoves[thisThread->PVIdx].pv[0]
 					: ttHit && !excludedMove ? pos.move16_to_move(tte->move()) : MOVE_NONE;
-
-#else
-		TTEntry* tte = nullptr; ttHit = false;
-		Move ttMove = MOVE_NONE;
-		Value ttValue = VALUE_NONE;
-#endif
 
 		// 置換表の値による枝刈り
 
@@ -1006,11 +980,8 @@ namespace YaneuraOu2017Early
 			if (m != MOVE_NONE)
 			{
 				bestValue = mate_in(ss->ply + 1); // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
-
-#if !defined(DISABLE_TT_PROBE)
 				tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
 					DEPTH_MAX, m, ss->staticEval, TT.generation());
-#endif
 				return bestValue;
 			}
 		}
@@ -1044,11 +1015,9 @@ namespace YaneuraOu2017Early
 						// 1手詰めは次のnodeで詰むという解釈
 						bestValue = mate_in(ss->ply + 1);
 
-#if !defined(DISABLE_TT_PROBE)
 						// staticEvalの代わりに詰みのスコア書いてもいいのでは..
 						tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
 							DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT.generation());
-#endif
 
 						return bestValue;
 					}
@@ -1059,10 +1028,8 @@ namespace YaneuraOu2017Early
 						// N手詰めかも知れないのでPARAM_WEAK_MATE_PLY手詰めのスコアを返す。
 						bestValue = mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
 
-#if !defined(DISABLE_TT_PROBE)
 						tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
 							DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT.generation());
-#endif
 
 						return bestValue;
 					}
@@ -1122,13 +1089,11 @@ namespace YaneuraOu2017Early
 				eval = ss->staticEval = -(ss - 1)->staticEval + 2 * Tempo;
 #endif
 
-#if !defined(DISABLE_TT_PROBE)
 			// 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
 			tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE,
 					  ss->staticEval, TT.generation());
 			// どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないのだが、mate1ply()を
 			// 実行したという証にはなるので意味がある。
-#endif
 		}
 
 		// このnodeで指し手生成前の枝刈りを省略するなら指し手生成ループへ。
@@ -1299,14 +1264,8 @@ namespace YaneuraOu2017Early
 			Depth d = (3 * depth / (4 * ONE_PLY) - 2) * ONE_PLY;
 			search<NT>(pos, ss, alpha, beta, d , cutNode,true);
 
-#if !defined(DISABLE_TT_PROBE)
 			tte = TT.probe(posKey, ttHit);
 			ttMove = ttHit ? pos.move16_to_move(tte->move()) : MOVE_NONE;
-#else
-			tte = nullptr;
-			ttHit = false;
-			ttMove = MOVE_NONE;
-#endif
 		}
 
 
@@ -1860,7 +1819,7 @@ namespace YaneuraOu2017Early
 				{
 					bestMove = move;
 
-					// fail highのときにもPVをupdateする。
+					// fail-highのときにもPVをupdateする。
 					if (PvNode && !RootNode)
 						update_pv(ss->pv, move, (ss + 1)->pv);
 
@@ -1943,13 +1902,11 @@ namespace YaneuraOu2017Early
 		// ただし、指し手がない場合は、詰まされているスコアなので、これより短い/長い手順の詰みがあるかも知れないから、
 		// すなわち、スコアは変動するかも知れないので、BOUND_UPPERという扱いをする。
 
-#if !defined(DISABLE_TT_PROBE)
 		if (!excludedMove)
 			tte->save(posKey, value_to_tt(bestValue, ss->ply),
 				bestValue >= beta ? BOUND_LOWER :
 				PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
 				depth, bestMove, ss->staticEval, TT.generation());
-#endif
 
 		// 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
 		// ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);

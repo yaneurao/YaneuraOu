@@ -178,49 +178,62 @@ namespace USI
 			ss << " time " << elapsed
 				<< " pv";
 
-#ifdef USE_TT_PV
-			// 置換表からPVをかき集めてくるモード
-			// probe()するとTTEntryのgenerationが変わるので探索に影響する。
-			// benchコマンド時、これはまずいのでbenchコマンド時にはこのモードをオフにする。
-			if (bench)
+			auto out_tt_pv = [&]()
 			{
-				for (Move m : rootMoves[i].pv)
-					ss << " " << m;
-			}
-			else
-			{
-				auto pos_ = const_cast<Position*>(&pos);
-				Move moves[MAX_PLY + 1];
-				StateInfo si[MAX_PLY];
-				moves[0] = rootMoves[i].pv[0];
-				int ply = 0;
-				while (ply < MAX_PLY && moves[ply] != MOVE_NONE)
+				// 置換表からPVをかき集めてくるモード
+				// probe()するとTTEntryのgenerationが変わるので探索に影響する。
+				// benchコマンド時、これはまずいのでbenchコマンド時にはこのモードをオフにする。
+				if (bench)
 				{
-					pos_->do_move(moves[ply], si[ply]);
-					ss << " " << moves[ply];
-					bool found;
-					auto tte = TT.probe(pos.state()->key(), found);
-					ply++;
-					if (found)
+					for (Move m : rootMoves[i].pv)
+						ss << " " << m;
+				}
+				else
+				{
+					auto pos_ = const_cast<Position*>(&pos);
+					Move moves[MAX_PLY + 1];
+					StateInfo si[MAX_PLY];
+					moves[0] = rootMoves[i].pv[0];
+					int ply = 0;
+					while (ply < MAX_PLY && moves[ply] != MOVE_NONE)
 					{
-						// 置換表にはpsudo_legalではない指し手が含まれるのでそれを弾く。
-						// legal()の判定もここでしておく。
-						Move m = pos.move16_to_move(tte->move());
-						if (pos.pseudo_legal(m) && pos.legal(m))
-							moves[ply] = m;
+						pos_->do_move(moves[ply], si[ply]);
+						ss << " " << moves[ply];
+						bool found;
+						auto tte = TT.probe(pos.state()->key(), found);
+						ply++;
+						if (found)
+						{
+							// 置換表にはpsudo_legalではない指し手が含まれるのでそれを弾く。
+							// legal()の判定もここでしておく。
+							Move m = pos.move16_to_move(tte->move());
+							if (pos.pseudo_legal(m) && pos.legal(m))
+								moves[ply] = m;
+							else
+								moves[ply] = MOVE_NONE;
+						}
 						else
 							moves[ply] = MOVE_NONE;
-					} else
-						moves[ply] = MOVE_NONE;
+					}
+					while (ply > 0)
+						pos_->undo_move(moves[--ply]);
 				}
-				while (ply > 0)
-					pos_->undo_move(moves[--ply]);
-			}
-#else
-			// rootMovesが自らPVを持っているモード
+			};
 
-			for (Move m : rootMoves[i].pv)
-				ss << " " << m;
+#if defined (USE_TT_PV)
+			out_tt_pv();
+#else
+			// 検討用のPVを出力するモードなら、置換表からPVをかき集める。
+			// (そうしないとMultiPV時にPVが欠損することがあるようだ)
+			// fail-highのときにもPVを更新しているのが問題ではなさそう。
+			// Stockfish側の何らかのバグかも。
+			if (Search::Limits.consideration_mode)
+				out_tt_pv();
+
+			else
+				// rootMovesが自らPVを持っているモード
+				for (Move m : rootMoves[i].pv)
+					ss << " " << m;
 #endif
 		}
 
