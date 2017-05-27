@@ -110,6 +110,7 @@ struct SfenWriter
 	{
 		finished = true;
 		file_worker_thread.join();
+		fs.close();
 	}
 
 	// 各スレッドについて、この局面数ごとにファイルにflushする。
