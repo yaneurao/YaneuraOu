@@ -18,6 +18,18 @@
 
 using namespace std;
 
+
+// ----------------------
+//        更新式
+// ----------------------
+
+// AdaGrad。これが安定しているのでお勧め。
+#define ADA_GRAD_UPDATE
+
+// 勾配の符号だけ見るSGD。省メモリで済むが精度は…。
+//#define SGD_UPDATE
+
+
 // ----------------------
 //  学習のときの浮動小数
 // ----------------------
@@ -72,16 +84,19 @@ namespace Eval
 		// mini-batch 1回分の勾配の累積値
 		array<LearnFloatType,2> g;
 
-		// AdaGradのg2
-		array<LearnFloatType,2> g2;
-
 		// vの小数部上位8bit。(vをfloatで持つのもったいないのでvの補助bitとして8bitで持つ)
 		array<s8,2> v8;
 
-		// 合計 4*2 + 4*2 + 1*2 = 18 bytes(LearnFloatType == floatのとき)
+		// 合計 4*2 + 4*2 + 1*2 = 18 bytes(LearnFloatType == floatでADA_GRAD_UPDATEのとき)
 		// 1GBの評価関数パラメーターに対してその4.5倍のサイズのWeight配列が確保できれば良い。
 		// ただし、構造体のアライメントが4バイト単位になっているとsizeof(Weight)==20なコードが生成されるので
 		// pragma pack(2)を指定しておく。
+
+		// SGD_UPDATE の場合、この構造体はさらに8バイト減って、10バイトで済む。
+
+#if defined (ADA_GRAD_UPDATE)
+		// AdaGradのg2
+		array<LearnFloatType, 2> g2;
 
 		// AdaGradでupdateする
 		// この関数を実行しているときにgの値やメンバーが書き変わらないことは
@@ -124,6 +139,41 @@ namespace Eval
 				// これは呼び出し側で行なうことにする。
 			}
 		}
+#elif defined(SGD_UPDATE)
+
+		// 勾配の符号だけ見るSGDでupdateする
+		// この関数を実行しているときにgの値やメンバーが書き変わらないことは
+		// 呼び出し側で保証されている。atomic演算である必要はない。
+		template <typename T>
+		void updateFV(array<T, 2>& v)
+		{
+			for (int i = 0; i < 2; ++i)
+			{
+				if (g[i] == 0)
+					continue;
+
+				// g[i]の符号だけ見てupdateする。
+				// g[i] < 0 なら vを少し足す。
+				// g[i] > 0 なら vを少し引く。
+
+				double V = v[i] + ((double)v8[i] / 127);
+
+				if (g[i] > 0.0)
+					V -= 1.0;
+				else
+					V += 1.0;
+
+				// Vの値をINT16の範囲に収まるように制約を課す。
+				V = min((double)INT16_MAX * 3 / 4, V);
+				V = max((double)INT16_MIN * 3 / 4, V);
+
+				v[i] = (T)round(V);
+				v8[i] = (s8)((V - v[i]) * 127);
+			}
+		}
+
+#endif
+
 	};
 #if defined(_MSC_VER)
 #pragma pack(pop)

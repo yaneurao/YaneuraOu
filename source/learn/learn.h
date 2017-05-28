@@ -40,7 +40,8 @@
 
 // 学習時の評価関数の保存間隔。この局面数だけ学習させるごとに保存。
 // 当然ながら、保存間隔を長くしたほうが学習時間は短くなる。
-#define LEARN_EVAL_SAVE_INTERVAL (80000000ULL)
+// 4.5億局面に1回。
+#define LEARN_EVAL_SAVE_INTERVAL (450000000ULL)
 
 
 // ----------------------
@@ -124,9 +125,9 @@
 #if defined(LEARN_YANEURAOU_2017_GOKU)
 
 // 損失関数、あとでよく考える。比較実験中。
-//#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
+#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
 //#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
-#define LOSS_FUNCTION_IS_ELMO_METHOD
+//#define LOSS_FUNCTION_IS_ELMO_METHOD
 //#define LOSS_FUNCTION_IS_YANE_ELMO_METHOD
 
 // rmseなどの出力を減らして高速化。

@@ -806,7 +806,8 @@ double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 	// elmoのほうは式を内分していないので値が違う。
 	const double LAMBDA = 0.33; // elmoの定数(0.5)相当
 
-	//const double LAMBDA = 0.80; // 勝率の影響を小さめに抑える。
+//	const double LAMBDA = 0.80; // 勝率の影響を小さめに抑える。
+//	const double LAMBDA = 0.70; // 勝率の影響を小さめに抑える。
 
 	// 実際の勝率を補正項として使っている。
 	// これがelmo(WCSC27)のアイデアで、現代のオーパーツ。
