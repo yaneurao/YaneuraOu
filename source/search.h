@@ -123,14 +123,14 @@ namespace Search {
 		// このときPVを出力しない。
 		bool silent;
 
-		// ベンチマークモード(このときPVの出力時に置換表にアクセスしない)
-		bool bench;
-
 		// 試合開始後、ponderが一度でも送られてきたか
 		bool ponder_mode;
 
 		// 検討モード用のPVを出力するのか
 		bool consideration_mode;
+
+		// ベンチマークモード(このときPVの出力時に置換表にアクセスしない)
+		bool bench;
 	};
 
 	struct SignalsType {

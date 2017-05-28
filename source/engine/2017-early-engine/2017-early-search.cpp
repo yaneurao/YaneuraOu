@@ -2401,7 +2401,7 @@ void Thread::search()
 				{
 					// 最後に出力した時刻を記録しておく。
 					lastInfoTime = Time.elapsed();
-					sync_cout << USI::pv(rootPos, rootDepth, alpha, beta , Limits.bench) << sync_endl;
+					sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
 				}
 
 				// aspiration窓の範囲外
@@ -2467,7 +2467,7 @@ void Thread::search()
 					if (!(Signals.stop && Limits.consideration_mode))
 					{
 						lastInfoTime = Time.elapsed();
-						sync_cout << USI::pv(rootPos, rootDepth, alpha, beta, Limits.bench) << sync_endl;
+						sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
 					}
 				}
 			}
@@ -2746,7 +2746,7 @@ ID_END:;
 	// ただし、これはiterationの途中で停止させているので中途半端なPVである可能性が高い。
 	// 検討モードではこのPVを出力しない。
 	if (bestThread != this && !Limits.silent && !Limits.consideration_mode)
-		sync_cout << USI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE, Limits.bench) << sync_endl;
+		sync_cout << USI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
 
 	// ---------------------
 	// 指し手をGUIに返す

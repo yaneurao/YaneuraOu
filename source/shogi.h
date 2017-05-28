@@ -946,8 +946,7 @@ namespace USI
 
 	// pv(読み筋)をUSIプロトコルに基いて出力する。
 	// iteration_depth : 反復深化のiteration深さ。
-	// bench : ベンチマークを取るモード。PVの出力のために置換表を漁らない。
-	std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta,bool bench=false);
+	std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta);
 
 	// USIプロトコルで、idxの順番でoptionを出力する。
 	std::ostream& operator<<(std::ostream& os, const OptionsMap& om);

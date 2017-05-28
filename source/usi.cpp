@@ -126,7 +126,7 @@ namespace USI
 		return s.str();
 	}
 
-	std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta , bool bench)
+	std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta)
 	{
 		std::stringstream ss;
 		int elapsed = Time.elapsed() + 1;
@@ -178,62 +178,65 @@ namespace USI
 			ss << " time " << elapsed
 				<< " pv";
 
+
+			// PV配列からPVを出力する。
+			auto out_array_pv = [&]()
+			{
+				for (Move m : rootMoves[i].pv)
+					ss << " " << m;
+			};
+
+			// 置換表からPVをかき集めてきてPVを出力する。
 			auto out_tt_pv = [&]()
 			{
-				// 置換表からPVをかき集めてくるモード
-				// probe()するとTTEntryのgenerationが変わるので探索に影響する。
-				// benchコマンド時、これはまずいのでbenchコマンド時にはこのモードをオフにする。
-				if (bench)
+				auto pos_ = const_cast<Position*>(&pos);
+				Move moves[MAX_PLY + 1];
+				StateInfo si[MAX_PLY];
+				moves[0] = rootMoves[i].pv[0];
+				int ply = 0;
+				while (ply < MAX_PLY && moves[ply] != MOVE_NONE)
 				{
-					for (Move m : rootMoves[i].pv)
-						ss << " " << m;
-				}
-				else
-				{
-					auto pos_ = const_cast<Position*>(&pos);
-					Move moves[MAX_PLY + 1];
-					StateInfo si[MAX_PLY];
-					moves[0] = rootMoves[i].pv[0];
-					int ply = 0;
-					while (ply < MAX_PLY && moves[ply] != MOVE_NONE)
+					pos_->do_move(moves[ply], si[ply]);
+					ss << " " << moves[ply];
+					bool found;
+					auto tte = TT.probe(pos.state()->key(), found);
+					ply++;
+					if (found)
 					{
-						pos_->do_move(moves[ply], si[ply]);
-						ss << " " << moves[ply];
-						bool found;
-						auto tte = TT.probe(pos.state()->key(), found);
-						ply++;
-						if (found)
-						{
-							// 置換表にはpsudo_legalではない指し手が含まれるのでそれを弾く。
-							// legal()の判定もここでしておく。
-							Move m = pos.move16_to_move(tte->move());
-							if (pos.pseudo_legal(m) && pos.legal(m))
-								moves[ply] = m;
-							else
-								moves[ply] = MOVE_NONE;
-						}
+						// 置換表にはpsudo_legalではない指し手が含まれるのでそれを弾く。
+						// legal()の判定もここでしておく。
+						Move m = pos.move16_to_move(tte->move());
+						if (pos.pseudo_legal(m) && pos.legal(m))
+							moves[ply] = m;
 						else
 							moves[ply] = MOVE_NONE;
 					}
-					while (ply > 0)
-						pos_->undo_move(moves[--ply]);
+					else
+						moves[ply] = MOVE_NONE;
 				}
+				while (ply > 0)
+					pos_->undo_move(moves[--ply]);
 			};
 
-#if defined (USE_TT_PV)
-			out_tt_pv();
-#else
+#if !defined (USE_TT_PV)
 			// 検討用のPVを出力するモードなら、置換表からPVをかき集める。
 			// (そうしないとMultiPV時にPVが欠損することがあるようだ)
 			// fail-highのときにもPVを更新しているのが問題ではなさそう。
 			// Stockfish側の何らかのバグかも。
 			if (Search::Limits.consideration_mode)
 				out_tt_pv();
-
 			else
-				// rootMovesが自らPVを持っているモード
-				for (Move m : rootMoves[i].pv)
-					ss << " " << m;
+				out_array_pv();
+
+#else
+			// 置換表からPVを出力するモード。
+			// ただし、probe()するとTTEntryのgenerationが変わるので探索に影響する。
+			// benchコマンド時、これはまずいのでbenchコマンド時にはこのモードをオフにする。
+			if (Search::Limits.bench)
+				out_array_pv();
+			else
+				out_tt_pv();
+
 #endif
 		}
 
