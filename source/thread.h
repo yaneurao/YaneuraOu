@@ -107,22 +107,24 @@ struct Thread
 	std::atomic_bool resetCalls;
 	int callsCnt;
 
-#if defined( USE_MOVE_PICKER_2015 ) || defined( USE_MOVE_PICKER_2016Q2 ) || defined( USE_MOVE_PICKER_2016Q3 ) || defined ( USE_MOVE_PICKER_2017Q2 )
 	// ある種のMovePickerではオーダリングのために、
 	// スレッドごとにhistoryとcounter movesのtableを持たないといけない。
-
+#if defined( USE_MOVE_PICKER_2015 )
 	MoveStats counterMoves;
 	HistoryStats history;
-#endif
-
-#if defined( USE_MOVE_PICKER_2016Q2 ) || defined( USE_MOVE_PICKER_2016Q3 )
+#elif defined( USE_MOVE_PICKER_2016Q2 ) || defined( USE_MOVE_PICKER_2016Q3 )
+	MoveStats counterMoves;
+	HistoryStats history;
 	FromToStats fromTo;
+#elif defined ( USE_MOVE_PICKER_2017Q2 )
+	ButterflyBoards counterMoves;
+	ButterflyHistory history;
 #endif
 
 #if defined( PER_THREAD_COUNTERMOVEHISTORY )
 	// コア数が多いか、長い持ち時間においては、スレッドごとにCounterMoveHistoryを確保したほうが良い。
 	// cf. https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
-	CounterMoveHistoryStats counterMoveHistory;
+	CounterMoveHistoryStat counterMoveHistory;
 #endif
 
 	// ------------------------------

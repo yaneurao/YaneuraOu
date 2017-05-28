@@ -15,7 +15,7 @@
 
 // fromの駒をtoに移動させることに対するhistory
 // 駒打ちはfromが特殊な値になっていて、盤上のfromとは区別される。
-struct HistoryStats
+struct ButterflyHistory
 {
 	int get(Color c, Move m) const { return table[from_to(m)][c]; }
 	void clear() { std::memset(table, 0, sizeof(table)); }
@@ -85,9 +85,9 @@ private:
 // TがValueのときは指し手に対するスコアとなる。これがhistory table(HistoryStatsとCounterMoveStats)
 // このStats<CounterMoveStats>は、直前の指し手に対する、あらゆる指し手に対するスコアである。
 
-typedef Stats<Move            > MoveStats;
-typedef Stats<int16_t         > CounterMoveStats;
-typedef Stats<CounterMoveStats> CounterMoveHistoryStats;
+typedef Stats<Move            > ButterflyBoards;
+typedef Stats<int16_t         > PieceToHistory;
+typedef Stats<PieceToHistory  > CounterMoveHistoryStat;
 
 enum Stages : int;
 namespace Search { struct Stack; }

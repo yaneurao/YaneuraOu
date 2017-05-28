@@ -107,7 +107,7 @@ private:
 typedef Stats<Move            > MoveStats;
 typedef Stats<Value, false    > HistoryStats;
 typedef Stats<Value, true     > CounterMoveStats;
-typedef Stats<CounterMoveStats> CounterMoveHistoryStats;
+typedef Stats<CounterMoveStats> CounterMoveHistoryStat;
   
 // -----------------------
 //   指し手オーダリング

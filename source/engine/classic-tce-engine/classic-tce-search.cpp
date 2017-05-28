@@ -219,7 +219,7 @@ namespace YaneuraOuClassicTce
   // -----------------------
 
   // MovePickerで用いる直前の指し手に対するそれぞれの指し手のスコア
-  CounterMoveHistoryStats CounterMoveHistory;
+  CounterMoveHistoryStat CounterMoveHistory;
 
   // 直前のnodeの指し手で動かした駒(移動後の駒)とその移動先の升を返す。
   // この実装においてmoved_piece()は使えない。これは現在のPosition::side_to_move()の駒が返るからである。

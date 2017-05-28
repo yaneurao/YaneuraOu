@@ -149,7 +149,7 @@ namespace YaneuraOuMini
   // -----------------------
 
   // MovePickerで用いる直前の指し手に対するそれぞれの指し手のスコア
-  CounterMoveHistoryStats CounterMoveHistory;
+  CounterMoveHistoryStat CounterMoveHistory;
 
   // いい探索結果だったときにkiller等を更新する
 

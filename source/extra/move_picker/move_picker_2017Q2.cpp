@@ -260,11 +260,11 @@ void MovePicker::score<CAPTURES>()
 template<>
 void MovePicker::score<QUIETS>()
 {
-	const HistoryStats& history = pos.this_thread()->history;
+	const ButterflyHistory& history = pos.this_thread()->history;
 
-	const CounterMoveStats& cmh = *(ss - 1)->counterMoves;
-	const CounterMoveStats& fmh = *(ss - 2)->counterMoves;
-	const CounterMoveStats& fm2 = *(ss - 4)->counterMoves;
+	const PieceToHistory& cmh = *(ss - 1)->history;
+	const PieceToHistory& fmh = *(ss - 2)->history;
+	const PieceToHistory& fm2 = *(ss - 4)->history;
 
 	Color c = pos.side_to_move();
 
@@ -284,7 +284,7 @@ void MovePicker::score<QUIETS>()
 template<>
 void MovePicker::score<EVASIONS>()
 {
-	const HistoryStats& history = pos.this_thread()->history;
+	const ButterflyHistory& history = pos.this_thread()->history;
 	Color c = pos.side_to_move();
 
 	for (auto& m : *this)

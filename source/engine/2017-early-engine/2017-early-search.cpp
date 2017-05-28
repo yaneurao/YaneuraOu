@@ -253,7 +253,7 @@ namespace YaneuraOu2017Early
 	{
 		for (int i : { 1, 2, 4})
 			if (is_ok((ss - i)->currentMove))
-				(ss - i)->counterMoves->update(pc, s, bonus);
+				(ss - i)->history->update(pc, s, bonus);
 	}
 
 	// いい探索結果だったときにkiller等を更新する
@@ -873,7 +873,7 @@ namespace YaneuraOu2017Early
 		ss->history = 0;
 
 		ss->currentMove = MOVE_NONE;
-		ss->counterMoves = &thisThread->counterMoveHistory[SQ_ZERO][NO_PIECE];
+		ss->history = &thisThread->counterMoveHistory[SQ_ZERO][NO_PIECE];
 
 		// ss->moveCountはこのあとMovePickerがこのnodeの指し手を生成するより前に
 		// 枝刈り等でsearch()を再帰的に呼び出すことがあり、そのときに親局面のmoveCountベースで
@@ -1173,7 +1173,7 @@ namespace YaneuraOu2017Early
 				+ std::min((int)((eval - beta) / PawnValue), 3)) * ONE_PLY;
 
 			ss->currentMove = MOVE_NONE;
-			ss->counterMoves = &thisThread->counterMoveHistory[SQ_ZERO][NO_PIECE];
+			ss->history = &thisThread->counterMoveHistory[SQ_ZERO][NO_PIECE];
 
 			pos.do_null_move(st);
 
@@ -1234,7 +1234,7 @@ namespace YaneuraOu2017Early
 				if (pos.legal(move))
 				{
 					ss->currentMove = move;
-					ss->counterMoves = &thisThread->counterMoveHistory[to_sq(move)][pos.moved_piece_after(move)];
+					ss->history = &thisThread->counterMoveHistory[to_sq(move)][pos.moved_piece_after(move)];
 
 					pos.do_move(move, st, pos.gives_check(move));
 					value = -search<NonPV>(pos, ss + 1, -rbeta, -rbeta + 1, rdepth, !cutNode,false);
@@ -1273,9 +1273,9 @@ namespace YaneuraOu2017Early
 		// cmh  = Counter Move History    : ある指し手が指されたときの応手
 		// fmh  = Follow up Move History  : 2手前の自分の指し手の継続手
 		// fm2  = Follow up Move History2 : 4手前からの継続手
-		const CounterMoveStats& cmh  = *(ss - 1)->counterMoves;
-		const CounterMoveStats& fmh  = *(ss - 2)->counterMoves;
-		const CounterMoveStats& fm2  = *(ss - 4)->counterMoves;
+		const PieceToHistory& cmh  = *(ss - 1)->history;
+		const PieceToHistory& fmh  = *(ss - 2)->history;
+		const PieceToHistory& fm2  = *(ss - 4)->history;
 
 		// 評価値が2手前の局面から上がって行っているのかのフラグ
 		// 上がって行っているなら枝刈りを甘くする。
@@ -1603,7 +1603,7 @@ namespace YaneuraOu2017Early
 
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
-			ss->counterMoves = &thisThread->counterMoveHistory[moved_sq][moved_pc];
+			ss->history = &thisThread->counterMoveHistory[moved_sq][moved_pc];
 
 			// -----------------------
 			// Step 14. Make the move
@@ -1670,11 +1670,11 @@ namespace YaneuraOu2017Early
 #endif
 
 					// ToDo:ここ、fmh,fmh2を見たほうがいいかは微妙。
-					ss->history = cmh[moved_sq][moved_piece]
-								+ fmh[moved_sq][moved_piece]
-								+ fm2[moved_sq][moved_piece]
-								+ thisThread->history.get(~pos.side_to_move(), move) 
-								- PARAM_REDUCTION_BY_HISTORY; // 修正項
+					ss->statScore = cmh[moved_sq][moved_piece]
+								  + fmh[moved_sq][moved_piece]
+								  + fm2[moved_sq][moved_piece]
+								  + thisThread->history.get(~pos.side_to_move(), move) 
+								  - PARAM_REDUCTION_BY_HISTORY; // 修正項
 
 
 					// historyの値に応じて指し手のreduction量を増減する。
@@ -1691,7 +1691,7 @@ namespace YaneuraOu2017Early
 						r += ONE_PLY;
 #endif
 
-					r = std::max(DEPTH_ZERO, (r / ONE_PLY - ss->history / 20000) * ONE_PLY);
+					r = std::max(DEPTH_ZERO, (r / ONE_PLY - ss->statScore / 20000) * ONE_PLY);
 				}
 
 				// depth >= 3なのでqsearchは呼ばれないし、かつ、
@@ -2220,7 +2220,7 @@ void Search::clear()
 
 		// ここは、未初期化のときに[SQ_ZERO][NO_PIECE]を指すので、ここを-1で初期化しておくことによって、
 		// history > 0 を条件にすれば自ずと未初期化のときは除外されるようになる。
-		CounterMoveStats& cm = th->counterMoveHistory[SQ_ZERO][NO_PIECE];
+		PieceToHistory& cm = th->counterMoveHistory[SQ_ZERO][NO_PIECE];
 		auto* t = &cm[SQ_ZERO][NO_PIECE];
 		std::fill(t, t + sizeof(cm) / sizeof(*t), int16_t(CounterMovePruneThreshold - 1));
 	}
@@ -2272,7 +2272,7 @@ void Thread::search()
 
 	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
 	for (int i = 4; i > 0; i--)
-		(ss - i)->counterMoves = &this->counterMoveHistory[SQ_ZERO][NO_PIECE];
+		(ss - i)->history = &this->counterMoveHistory[SQ_ZERO][NO_PIECE];
 
 	// 反復深化のiterationが浅いうちはaspiration searchを使わない。
 	// 探索窓を (-VALUE_INFINITE , +VALUE_INFINITE)とする。
@@ -2817,7 +2817,7 @@ namespace Learner
 			th->rootDepth = DEPTH_ZERO;
 
 			for (int i = 4; i > 0; i--)
-				(ss - i)->counterMoves = &th->counterMoveHistory[SQ_ZERO][NO_PIECE];
+				(ss - i)->history = &th->counterMoveHistory[SQ_ZERO][NO_PIECE];
 
 #if 0
 			// 余裕があるならhistory等もクリアしておく。
