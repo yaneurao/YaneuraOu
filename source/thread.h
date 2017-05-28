@@ -117,7 +117,7 @@ struct Thread
 	HistoryStats history;
 	FromToStats fromTo;
 #elif defined ( USE_MOVE_PICKER_2017Q2 )
-	ButterflyBoards counterMoves;
+	CounterMoveStat counterMoves;
 	ButterflyHistory history;
 #endif
 

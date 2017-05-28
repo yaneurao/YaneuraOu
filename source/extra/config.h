@@ -483,6 +483,7 @@ extern GlobalOptions_ GlobalOptions;
 #include <ctime>    // std::ctime()
 #include <random>   // random_device
 #include <cstddef>  // offsetof
+#include <array>
 
 // --------------------
 //   diable warnings

@@ -276,7 +276,7 @@ void MovePicker::score<QUIETS>()
 		m.value = cmh[msq][mpc]
 				+ fmh[msq][mpc]
 				+ fm2[msq][mpc]
-				+ history.get(c, m);
+				+ history[from_to(m)][c];
 	}
 }
 
@@ -315,7 +315,7 @@ void MovePicker::score<EVASIONS>()
 			-Value(LVA(type_of(pos.moved_piece_before(m)))) + Value(1 << 28);
 		else
 			// 捕獲しない指し手に関してはhistoryの値の順番
-			m.value = history.get(c, m);
+			m.value = history[from_to(m)][c];
 }
 
 // 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。

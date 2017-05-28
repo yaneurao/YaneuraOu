@@ -287,7 +287,7 @@ namespace YaneuraOu2017Early
 
 			// moved_piece_after(..)のところはpos.piece_on(prevSq)でも良いが、
 			// Moveのなかに移動後の駒が格納されているからそれを取り出して使う。
-			thisThread->counterMoves.update(pos.moved_piece_after((ss - 1)->currentMove), prevSq, move);
+			thisThread->counterMoves[prevSq][pos.moved_piece_after((ss - 1)->currentMove)] = move;
 		}
 
 		// その他のすべてのquiet movesを減少させる。
@@ -1673,7 +1673,7 @@ namespace YaneuraOu2017Early
 					ss->statScore = cmh[moved_sq][moved_piece]
 								  + fmh[moved_sq][moved_piece]
 								  + fm2[moved_sq][moved_piece]
-								  + thisThread->history.get(~pos.side_to_move(), move) 
+								  + thisThread->history[from_to(move)][~pos.side_to_move()]
 								  - PARAM_REDUCTION_BY_HISTORY; // 修正項
 
 
@@ -2213,16 +2213,17 @@ void Search::clear()
 	// Threadsが変更になってからisreadyが送られてこないとisreadyでthread数だけ初期化しているものはこれではまずい。
 	for (Thread* th : Threads)
 	{
-		th->counterMoves.clear();
-		th->history.clear();
-		th->counterMoveHistory.clear();
 		th->resetCalls = true;
+		th->counterMoves.fill(MOVE_NONE);
+		th->history.fill(0);
 
 		// ここは、未初期化のときに[SQ_ZERO][NO_PIECE]を指すので、ここを-1で初期化しておくことによって、
 		// history > 0 を条件にすれば自ずと未初期化のときは除外されるようになる。
-		PieceToHistory& cm = th->counterMoveHistory[SQ_ZERO][NO_PIECE];
-		auto* t = &cm[SQ_ZERO][NO_PIECE];
-		std::fill(t, t + sizeof(cm) / sizeof(*t), int16_t(CounterMovePruneThreshold - 1));
+		for (auto& to : th->counterMoveHistory)
+			for (auto& h : to)
+				h.fill(0);
+
+		th->counterMoveHistory[SQ_ZERO][NO_PIECE].fill(CounterMovePruneThreshold - 1);
 	}
 
 	Threads.main()->previousScore = VALUE_INFINITE;
