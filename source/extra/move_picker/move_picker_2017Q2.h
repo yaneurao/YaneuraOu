@@ -17,33 +17,21 @@
 // 駒打ちはfromが特殊な値になっていて、盤上のfromとは区別される。
 struct HistoryStats
 {
-	// 値の最大値
-	static const int Max = Value(1 << 28);
-
-	int get(Color c, Move m) const { return table[from_sq(m)][to_sq(m)][c]; }
+	int get(Color c, Move m) const { return table[from_to(m)][c]; }
 	void clear() { std::memset(table, 0, sizeof(table)); }
 
 	void update(Color c, Move m, int v)
 	{
-		Square from = from_sq(m);
-		Square to = to_sq(m);
-
-		ASSERT_LV3(from < SQ_NB + 7);
-
 		const int D = 324;
 
 		ASSERT_LV3(abs(v) <= D && 32 * D <= 32768); // 下記の公式に対する一貫性チェック
 		
-		table[from][to][c] -= table[from][to][c] * abs(v) / D;
-		table[from][to][c] += v * 32;
+		auto& entry = table[from_to(m)][c];
+		entry += v * 32  - entry * abs(v) / D;
 	}
 private:
-	// 駒打ちを分類すべきだと思うので、駒種に応じてfromの位置を調整する。
-	// Stockfishのコードとなるべく互換性を保つためにfrom_sq()と同名の関数名にしておく。
-	Square from_sq(Move m) const { return (Square)(::from_sq(m) + (is_drop(m) ? (SQ_NB - 1) : 0)); }
-
 	// table[from][to][color]となっているが、fromはSQ_NB_PLUS1 + 打ち駒の7種
-	int16_t table[SQ_NB + 7][SQ_NB][COLOR_NB];
+	int16_t table[(int)(SQ_NB + 7)*int(SQ_NB)][COLOR_NB];
 };
 
 
@@ -51,9 +39,6 @@ private:
 // 移動先のみ。移動元に関しては情報を持っていない。
 template<typename T>
 struct Stats {
-
-  // このtableの要素の最大値
-  static const Value Max = Value(1 << 28);
 
   // tableの要素の値を取り出す
   const T* operator[](Square to) const {
@@ -76,30 +61,23 @@ struct Stats {
   }
 
   // tableに値を格納する(Tの型がValueのとき)
-  void update(Piece pc, Square to, int v) {
-
-    // USE_DROPBIT_IN_STATSが有効なときはpcとして +32したものを駒打ちとして格納する。
-    // なので is_ok(pc)というassertは書けない。
-
+  void update(Piece pc, Square to, int v)
+  {
     ASSERT_LV4(is_ok(to));
 
 	const int D = 936;
 
 	ASSERT_LV3(abs(v) <= D && 32 * D <= 32768); // 下記の公式に対する一貫性チェック
 
-	table[to][pc] -= table[to][pc] * abs(v) / D;
-    table[to][pc] += v * 32;
+	auto& entry = table[to][pc];
+	entry += v * 32 - entry * abs(v) / D;
   }
 
 private:
   // Pieceを升sqに移動させるときの値
   // ※　Stockfishとは添字が逆順だが、将棋ではPIECE_NBのほうだけが2^Nなので仕方がない。
   // NULL_MOVEのときは、[color][NO_PIECE]を用いる
-#ifndef USE_DROPBIT_IN_STATS
   T table[SQ_NB][PIECE_NB];
-#else
-  T table[SQ_NB][(int)PIECE_NB*2];
-#endif
 };
 
 // Statsは、pcをsqの升に移動させる指し手に対してT型の値を保存する。

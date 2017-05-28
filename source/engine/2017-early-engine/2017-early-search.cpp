@@ -57,8 +57,6 @@
 #define PARAM_FILE "2017-early-param.h"
 #include "2017-early-param.h"
 
-
-using namespace std;
 using namespace Search;
 using namespace Eval;
 
@@ -2130,7 +2128,7 @@ void Search::init() {}
 
 // パラメーターのランダム化のときには、
 // USIの"gameover"コマンドに対して、それをログに書き出す。
-void gameover_handler(const string& cmd)
+void gameover_handler(const std::string& cmd)
 {
 #if defined (USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
 	result_log << cmd << endl << flush;
@@ -2854,7 +2852,7 @@ namespace Learner
 	// 引数でalpha,betaを指定できるようにしていたが、これがその窓で探索したときの結果を
 	// 置換表に書き込むので、その窓に対して枝刈りが出来るような値が書き込まれて学習のときに
 	// 悪い影響があるので、窓の範囲を指定できるようにするのをやめることにした。
-	pair<Value, vector<Move> > qsearch(Position& pos)
+	std::pair<Value, std::vector<Move> > qsearch(Position& pos)
 	{
 		Stack stack[MAX_PLY + 7], *ss = stack + 4;
 		Move pv[MAX_PLY + 1];
@@ -2869,11 +2867,11 @@ namespace Learner
 			YaneuraOu2017Early::qsearch<PV, false>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE);
 
 		// 得られたPVを返す。
-		vector<Move> pvs;
+		std::vector<Move> pvs;
 		for (Move* p = &ss->pv[0]; is_ok(*p); ++p)
 			pvs.push_back(*p);
 
-		return pair<Value, vector<Move> >(bestValue, pvs);
+		return std::pair<Value, std::vector<Move> >(bestValue, pvs);
 	}
 
 	// 通常探索。深さdepth(整数で指定)。
@@ -2888,11 +2886,11 @@ namespace Learner
 	// 　search()から戻ったあと、Signals.stop == trueなら、その探索結果を用いてはならない。
 	// 　あと、呼び出し前は、Signals.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
 
-	pair<Value, vector<Move> > search(Position& pos, int depth_)
+	std::pair<Value, std::vector<Move> > search(Position& pos, int depth_)
 	{
 		Depth depth = depth_ * ONE_PLY;
 		if (depth < DEPTH_ZERO)
-			return pair<Value, vector<Move>>(Eval::evaluate(pos), vector<Move>());
+			return std::pair<Value, std::vector<Move>>(Eval::evaluate(pos), std::vector<Move>());
 
 		if (depth == DEPTH_ZERO)
 			return qsearch(pos);
@@ -2973,7 +2971,7 @@ namespace Learner
 		}
 
 		// このPV、途中でNULL_MOVEの可能性があるかも知れないので排除するためにis_ok()を通す。
-		vector<Move> pvs;
+		std::vector<Move> pvs;
 		for (Move move : rootMoves[0].pv)
 		{
 			if (!is_ok(move))
@@ -2987,7 +2985,7 @@ namespace Learner
 		// multiPV時を考慮して、rootMoves[0]のscoreをbestValueとして返す。
 		bestValue = rootMoves[0].score;
 
-		return pair<Value, vector<Move> >(bestValue, pvs);
+		return std::pair<Value, std::vector<Move> >(bestValue, pvs);
 	}
 
 }

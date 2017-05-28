@@ -562,6 +562,10 @@ constexpr Square to_sq(Move m) { return Square(m & 0x7f); }
 // 指し手が駒打ちか？
 constexpr bool is_drop(Move m){ return (m & MOVE_DROP)!=0; }
 
+// fromとtoをシリアライズする。駒打ちのときのfromは普通の移動の指し手とは異なる。
+// この関数は、0 ～ ((SQ_NB+7) * SQ_NB - 1)までの値が返る。
+constexpr int from_to(Move m) { return (int)(from_sq(m) + (is_drop(m) ? (SQ_NB - 1) : 0))*(int)SQ_NB + (int)to_sq(m); }
+
 // 指し手が成りか？
 constexpr bool is_promote(Move m) { return (m & MOVE_PROMOTE)!=0; }
 

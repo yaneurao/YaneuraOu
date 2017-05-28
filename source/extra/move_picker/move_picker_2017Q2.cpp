@@ -312,7 +312,7 @@ void MovePicker::score<EVASIONS>()
 		if (pos.capture(m))
 			// 捕獲する指し手に関しては簡易SEE + MVV/LVA
 			m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
-			-Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
+			-Value(LVA(type_of(pos.moved_piece_before(m)))) + Value(1 << 28);
 		else
 			// 捕獲しない指し手に関してはhistoryの値の順番
 			m.value = history.get(c, m);
