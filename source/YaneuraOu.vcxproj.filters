@@ -196,6 +196,9 @@
     <ClInclude Include="extra\mate\mate1ply.h">
       <Filter>リソース ファイル\extra\mate</Filter>
     </ClInclude>
+    <ClInclude Include="learn\half_float.h">
+      <Filter>リソース ファイル\learn</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">

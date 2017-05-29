@@ -61,12 +61,10 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 	// 最小思考時間
 	minimum_thinking_time = Options["MinimumThinkingTime"];
 
-	/*
 	// 序盤重視率
-	// →　これはこんなパラメーターとして手で調整するべきではなく、探索パラメーターの一種として
-	//     別の方法で調整すべき。
+	// 　これはこんなパラメーターとして手で調整するべきではなく、探索パラメーターの一種として
+	//   別の方法で調整すべき。ただ、対人でソフトに早指ししたいときには意味があるような…。
 	int slowMover = Options["SlowMover"];
-	*/
 
 	if (limits.rtime)
 	{
@@ -149,7 +147,8 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 		// optimumが超える分にはいい。それは残り手数が少ないときとかなので構わない。
 		t2 = std::min(t2, (int)(remain_estimate * 0.3));
 
-		optimumTime = std::min(t1, optimumTime);
+		// slowMoverは100分率で与えられていて、optimumTimeの係数として作用するものとする。
+		optimumTime = std::min(t1, optimumTime) * slowMover / 100;
 		maximumTime = std::min(t2, maximumTime);
 
 		// Ponderが有効になっている場合、ponderhitすると時間が本来の予測より余っていくので思考時間を心持ち多めにとっておく。
