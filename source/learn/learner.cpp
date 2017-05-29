@@ -790,6 +790,11 @@ double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 
 #if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
 
+// elmo(WCSC27)で使われている定数。要調整。
+// elmoのほうは式を内分していないので値が違う。
+// learnコマンドでこの値を設定できる。
+double LAMBDA = 0.33; // elmoの定数(0.5)相当
+
 // isWin : この手番側が最終的に勝利したかどうか
 double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 {
@@ -801,13 +806,6 @@ double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 
 	// 期待勝率を勝っていれば1、負けていれば 0として補正項として用いる。
 	const double t = (psv.isWin) ? 1.0 : 0.0;
-
-	// elmo(WCSC27)で使われている定数。要調整。
-	// elmoのほうは式を内分していないので値が違う。
-	const double LAMBDA = 0.33; // elmoの定数(0.5)相当
-
-//	const double LAMBDA = 0.80; // 勝率の影響を小さめに抑える。
-//	const double LAMBDA = 0.70; // 勝率の影響を小さめに抑える。
 
 	// 実際の勝率を補正項として使っている。
 	// これがelmo(WCSC27)のアイデアで、現代のオーパーツ。
@@ -832,18 +830,11 @@ double calc_grad(Value deep, Value shallow, PackedSfenValue& psv)
 	// 期待勝率を勝っていれば1、負けていれば 0として補正項として用いる。
 	const double t = (psv.isWin) ? 1.0 : 0.0;
 
-	// elmo(WCSC27)で使われている定数。
-	// この補正項、序盤においては勝敗の影響が大きすぎるような気がする。
-	// game plyに応じてどやこやする。
+	// gamePly == 0なら  λ = 0.8ぐらい。(勝敗の影響を小さめにする)
+	// gamePly == ∞なら λ = 0.4ぐらい。(元のelmo式ぐらいの値になる)
+	const double LAMBDA = 0.8 - (0.8-0.4)*(double)std::min((int)psv.gamePly, 100)/100.0;
 
-	// gamePly == 0なら  λ = 3/4ぐらい。(勝敗の影響を小さめにする)
-	// gamePly == ∞なら λ = 1/3ぐらい。(元のelmo式ぐらいの値になる)
-	const double LAMBDA = 0.75 - (0.750-0.333)*(double)std::min((int)psv.gamePly, 100)/100.0;
-
-	// 実際の勝率を補正項として使っている。
-	// これがelmo(WCSC27)のアイデアで、現代のオーパーツ。
-	// やねうら王ではこれを調整しやすいようにLAMBDAで内分するように変更した。
-	const double dsig = (1 - LAMBDA ) * (eval_winrate - t) + LAMBDA * (eval_winrate - teacher_winrate);
+	const double dsig = (1 - LAMBDA) * (eval_winrate - t) + LAMBDA * (eval_winrate - teacher_winrate);
 
 	return dsig;
 }
@@ -1476,6 +1467,11 @@ void learn(Position& pos, istringstream& is)
 
 		// 学習率
 		else if (option == "eta")       is >> eta;
+
+#if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
+		// LAMBDA
+		else if (option == "lambda")    is >> LAMBDA;
+#endif
 
 		// さもなくば、それはファイル名である。
 		else

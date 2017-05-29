@@ -20,17 +20,6 @@ using namespace std;
 
 
 // ----------------------
-//        更新式
-// ----------------------
-
-// AdaGrad。これが安定しているのでお勧め。
-#define ADA_GRAD_UPDATE
-
-// 勾配の符号だけ見るSGD。省メモリで済むが精度は…。
-//#define SGD_UPDATE
-
-
-// ----------------------
 //  学習のときの浮動小数
 // ----------------------
 
@@ -38,6 +27,9 @@ using namespace std;
 // 現状、ここをfloatにした場合、評価関数ファイルに対して、重み配列はその4.5倍のサイズ。(KPPTで4.5GB程度)
 // double型にしても収束の仕方にほとんど差異がなかったのでfloatに固定する。
 typedef float LearnFloatType;
+
+//#include "half_float.h"
+//typedef HalfFloat::float16 LearnFloatType;
 
 
 namespace Eval
@@ -114,7 +106,7 @@ namespace Eval
 			constexpr double epsilon = 0.000001;
 			for (int i = 0; i < 2; ++i)
 			{
-				if (g[i] == 0)
+				if (g[i] == LearnFloatType(0))
 					continue;
 
 				g2[i] += g[i] * g[i];
@@ -143,6 +135,8 @@ namespace Eval
 		}
 #elif defined(SGD_UPDATE)
 
+		PRNG rand;
+
 		// 勾配の符号だけ見るSGDでupdateする
 		// この関数を実行しているときにgの値やメンバーが書き変わらないことは
 		// 呼び出し側で保証されている。atomic演算である必要はない。
@@ -160,8 +154,11 @@ namespace Eval
 
 				// 整数しか足さないので小数部不要。
 
-				auto V = v[i];
+				// しかし+1,-1だと値が動きすぎるので 1/3ぐらいの確率で動かす。
+				if (rand.rand(3))
+					continue;
 
+				auto V = v[i];
 				if (g[i] > 0.0)
 					V --;
 				else
@@ -418,7 +415,7 @@ namespace Eval
 		};
 
 		// 180度盤面を回転させた位置関係に対する勾配
-		array<LearnFloatType,2> g_flip = { -g[0] , +g[1] };
+		array<LearnFloatType,2> g_flip = { -g[0] , g[1] };
 
 		Square sq_bk = pos.king_square(BLACK);
 		Square sq_wk = pos.king_square(WHITE);
