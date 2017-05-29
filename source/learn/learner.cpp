@@ -33,7 +33,11 @@
 
 // 更新式に応じた文字列。(デバッグ用に出力する。)
 // 色々更新式を実装したがAdaGradが速度面、メモリ面においてベストという結論になった。
+#if defined(ADA_GRAD_UPDATE)
 #define LEARN_UPDATE "AdaGrad"
+#elif defined(SGD_UPDATE)
+#define LEARN_UPDATE "SGD"
+#endif
 
 #if defined(LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
 #define LOSS_FUNCTION "WINNING_PERCENTAGE"
@@ -1468,7 +1472,7 @@ void learn(Position& pos, istringstream& is)
 		// 学習率
 		else if (option == "eta")       is >> eta;
 
-#if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
+#if defined (LOSS_FUNCTION_IS_ELMO_METHOD) || defined (LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
 		// LAMBDA
 		else if (option == "lambda")    is >> LAMBDA;
 #endif
@@ -1546,6 +1550,9 @@ void learn(Position& pos, istringstream& is)
 	cout << "\nLoss Function   : " << LOSS_FUNCTION;
 	cout << "\nmini-batch size : " << mini_batch_size;
 	cout << "\nlearning rate   : " << eta;
+#if defined (LOSS_FUNCTION_IS_ELMO_METHOD) || defined (LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
+	cout << "\nLAMBDA          : " << LAMBDA;
+#endif
 
 	// -----------------------------------
 	//            各種初期化

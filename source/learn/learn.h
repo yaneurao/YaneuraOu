@@ -144,6 +144,7 @@
 //#define LOSS_FUNCTION_IS_YANE_ELMO_METHOD
 
 #define ADA_GRAD_UPDATE
+//#define SGD_UPDATE
 
 // rmseなどの出力を減らして高速化。
 #undef LEARN_RMSE_OUTPUT_INTERVAL
