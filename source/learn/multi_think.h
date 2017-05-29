@@ -61,13 +61,13 @@ protected:
   // [ASYNC] 乱数を一つ取り出す。
   template<typename T> T rand() {
     std::unique_lock<Mutex> lk(rand_mutex);
-    return T(prng.rand64());
+    return T(prng.rand<T>());
   }
 
   // [ASYNC] 0からn-1までの乱数を返す。(一様分布ではないが現実的にはこれで十分)
   uint64_t rand(size_t n) {
     std::unique_lock<Mutex> lk(rand_mutex);
-    return prng.rand<uint64_t>() % n;
+    return prng.rand(n);
   }
 
   // 乱数の再初期化をしたいときに用いる。
