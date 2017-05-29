@@ -200,12 +200,15 @@ struct PRNG {
   // 0からn-1までの乱数を返す。(一様分布ではないが現実的にはこれで十分)
   uint64_t rand(size_t n) { return rand<uint64_t>() % n; }
 
+  // 64bitの乱数を得る。
+  uint64_t rand64()
+  {
+	  s ^= s >> 12, s ^= s << 25, s ^= s >> 27;
+	  return s * 2685821657736338717LL;
+  }
+
 private:
   uint64_t s;
-  uint64_t rand64() {
-    s ^= s >> 12, s ^= s << 25, s ^= s >> 27;
-    return s * 2685821657736338717LL;
-  }
 };
 
 // --------------------
