@@ -59,3 +59,4 @@ ConsiderationMode 検討モード用のPV出力
 nodestime nodes as time
 EngineNuma EngineNuma
 ResignValue 投了スコア
+SlowMover 序盤重視率[%]
