@@ -21,6 +21,17 @@
 
 
 // ----------------------
+//        更新式
+// ----------------------
+
+// AdaGrad。これが安定しているのでお勧め。
+// #define ADA_GRAD_UPDATE
+
+// 勾配の符号だけ見るSGD。省メモリで済むが精度は…。
+// #define SGD_UPDATE
+
+
+// ----------------------
 //    学習時の設定
 // ----------------------
 
@@ -103,19 +114,21 @@
 
 
 // ----------------------
-// configureの内容を反映
+//    標準の学習方法
 // ----------------------
 
 #if defined (LEARN_DEFAULT)
 #define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
+#define ADA_GRAD_UPDATE
 #endif
 
 // ----------------------
-//  elmoの方法での学習
+//  elmo(WCSC27)の方法での学習
 // ----------------------
 
 #if defined( LEARN_ELMO_METHOD )
 #define LOSS_FUNCTION_IS_ELMO_METHOD
+#define ADA_GRAD_UPDATE
 #endif
 
 // ----------------------
@@ -124,11 +137,13 @@
 
 #if defined(LEARN_YANEURAOU_2017_GOKU)
 
-// 損失関数、あとでよく考える。比較実験中。
-#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
+// 損失関数、比較実験中。
+//#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
 //#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
-//#define LOSS_FUNCTION_IS_ELMO_METHOD
+#define LOSS_FUNCTION_IS_ELMO_METHOD
 //#define LOSS_FUNCTION_IS_YANE_ELMO_METHOD
+
+#define ADA_GRAD_UPDATE
 
 // rmseなどの出力を減らして高速化。
 #undef LEARN_RMSE_OUTPUT_INTERVAL
