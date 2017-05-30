@@ -199,6 +199,9 @@
     <ClInclude Include="learn\half_float.h">
       <Filter>リソース ファイル\learn</Filter>
     </ClInclude>
+    <ClInclude Include="learn\learning_tools.h">
+      <Filter>リソース ファイル\learn</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -347,6 +350,9 @@
     </ClCompile>
     <ClCompile Include="extra\benchmark.cpp">
       <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="learn\learning_tools.cpp">
+      <Filter>リソース ファイル\learn</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

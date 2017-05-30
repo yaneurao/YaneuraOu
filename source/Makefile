@@ -102,6 +102,7 @@ SOURCES  = shogi.cpp                                                           \
 	engine/check-shogi-engine/check-shogi.cpp                                  \
 	engine/must-capture-shogi-engine/must-capture-shogi.cpp                    \
 	learn/learner.cpp                                                          \
+	learn/learning_tools.cpp                                                   \
 	learn/multi_think.cpp                                                      \
 	learn/evaluate_kppt_learn.cpp   
 																               

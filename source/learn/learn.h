@@ -157,6 +157,18 @@
 
 
 // ----------------------
+//  学習のときの浮動小数
+// ----------------------
+
+// これをdoubleにしたほうが計算精度は上がるが、重み配列絡みのメモリが倍必要になる。
+// 現状、ここをfloatにした場合、評価関数ファイルに対して、重み配列はその4.5倍のサイズ。(KPPTで4.5GB程度)
+// double型にしても収束の仕方にほとんど差異がなかったのでfloatに固定する。
+typedef float LearnFloatType;
+
+//#include "half_float.h"
+//typedef HalfFloat::float16 LearnFloatType;
+
+// ----------------------
 // Learnerで用いるstructの定義
 // ----------------------
 #include "../position.h"

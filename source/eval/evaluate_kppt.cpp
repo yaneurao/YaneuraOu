@@ -56,6 +56,11 @@ namespace Eval
 	// 評価関数ファイルを読み込む
 	void load_eval_impl()
 	{
+		// ToDo : Aperyの新形式(Apery WCSC27)の評価関数ファイル、KK/KKPが16bitになっていて、
+		//   評価関数のファイル名が同名であり、ファイルサイズが小さい。このときread()は失敗して
+		//   エラーになるはずだが、このときのエラーをinfo stringで出力しても、読まないユーザーが多い。
+		//   ShogiGUIはinfo stringで出力してもそれを表示しないという問題もある。
+		//   USIプロトコルでエラー出力の仕様が定められていないのがおかしいのだが…。
 		{
 			// KK
 			std::ifstream ifsKK(path_combine((string)Options["EvalDir"], KK_BIN), std::ios::binary);

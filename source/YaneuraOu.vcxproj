@@ -669,6 +669,7 @@
     <ClInclude Include="extra\move_picker\move_picker_2017Q2.h" />
     <ClInclude Include="learn\half_float.h" />
     <ClInclude Include="learn\learn.h" />
+    <ClInclude Include="learn\learning_tools.h" />
     <ClInclude Include="learn\multi_think.h" />
     <ClInclude Include="misc.h" />
     <ClInclude Include="move_picker.h" />
@@ -720,6 +721,7 @@
     <ClCompile Include="extra\timeman.cpp" />
     <ClCompile Include="learn\evaluate_kppt_learn.cpp" />
     <ClCompile Include="learn\learner.cpp" />
+    <ClCompile Include="learn\learning_tools.cpp" />
     <ClCompile Include="learn\multi_think.cpp" />
     <ClCompile Include="misc.cpp" />
     <ClCompile Include="movegen.cpp" />
