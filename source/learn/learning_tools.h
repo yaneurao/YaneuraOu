@@ -79,8 +79,8 @@ namespace EvalLearningTools
 				V -= eta * (double)g[i] / sqrt((double)g2[i] + epsilon);
 
 				// Vの値をINT16の範囲に収まるように制約を課す。
-				V = min((double)INT16_MAX * 3 / 4, V);
-				V = max((double)INT16_MIN * 3 / 4, V);
+				V = std::min((double)INT16_MAX * 3 / 4, V);
+				V = std::max((double)INT16_MIN * 3 / 4, V);
 
 				v[i] = (T)round(V);
 				v8[i] = (s8)((V - v[i]) * 127);

@@ -120,8 +120,14 @@
 // これをdoubleにしたほうが計算精度は上がるが、重み配列絡みのメモリが倍必要になる。
 // 現状、ここをfloatにした場合、評価関数ファイルに対して、重み配列はその4.5倍のサイズ。(KPPTで4.5GB程度)
 // double型にしても収束の仕方にほとんど差異がなかったのでfloatに固定する。
+
+// floatを使う場合
 typedef float LearnFloatType;
 
+// doubleを使う場合
+//typedef double LearnFloatType;
+
+// float16を使う場合
 //#include "half_float.h"
 //typedef HalfFloat::float16 LearnFloatType;
 
@@ -133,7 +139,8 @@ typedef float LearnFloatType;
 // Weight配列(のうちのKPP)に三角配列を用いて省メモリ化する。
 // これを用いると、学習用の重み配列は評価関数ファイルの2.5倍程度で済むようになる。
 // ※　まだデバッグ中なので使わないように。
-//#define USE_TRIANGLE_WEIGHT_ARRAY
+
+// #define USE_TRIANGLE_WEIGHT_ARRAY
 
 
 // ----------------------
