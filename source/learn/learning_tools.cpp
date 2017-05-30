@@ -56,10 +56,20 @@ namespace EvalLearningTools
 			else if (KPP::is_ok(index))
 			{
 				KPP x = KPP::fromIndex(index);
+
+#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
+				// 普通の正方配列のとき、次元下げは4つ。
 				KPP a[4];
 				x.toLowerDimensions(a);
-				u64 id[4] = { a[0].toIndex() , a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
+				u64 id[4] = { a[0].toIndex() , a[1].toIndex(), a[2].toIndex() , a[3].toIndex()};
 				min_index_flag[index] = (std::min({ id[0],id[1],id[2],id[3] }) == index);
+#else
+				// 3角配列を用いるなら、次元下げは2つ。
+				KPP a[2];
+				x.toLowerDimensions(a);
+				u64 id[2] = { a[0].toIndex() , a[1].toIndex()};
+				min_index_flag[index] = (std::min({ id[0],id[1] }) == index);
+#endif
 				ASSERT_LV1(KPP::fromIndex(index).toIndex() == index);
 				ASSERT_LV1(id[0] == index);
 			}

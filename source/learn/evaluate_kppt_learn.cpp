@@ -187,11 +187,17 @@ namespace Eval
 			else if (KPP::is_ok(index))
 			{
 				KPP x = KPP::fromIndex(index);
+
+#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
 				KPP a[4];
 				x.toLowerDimensions(/*out*/a);
-
 				u64 ids[4] = { /*a[0].toIndex()*/ index , a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
-
+#else
+				// 3角配列を用いる場合、次元下げは2つ。
+				KPP a[2];
+				x.toLowerDimensions(/*out*/a);
+				u64 ids[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
+#endif
 				array<LearnFloatType, 2> g_sum = { 0,0 };
 				for (auto id : ids)
 					g_sum += weights[id].g;
@@ -205,8 +211,15 @@ namespace Eval
 				weights[ids[0]].g = g_sum;
 				weights[ids[0]].updateFV(v);
 
+#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
 				for (int i = 1; i<4; ++i)
 					kpp[a[i].king()][a[i].piece0()][a[i].piece1()] = v;
+#else
+				// KPP::toLowerDimensionsで、piece0とpiece1を入れ替えたものは返らないので、自分で入れ替えて書き込む。
+				kpp[a[0].king()][a[0].piece1()][a[0].piece0()] = v;
+				kpp[a[0].king()][a[1].piece0()][a[1].piece1()] = v;
+				kpp[a[0].king()][a[1].piece1()][a[1].piece0()] = v;
+#endif
 
 				for (auto id : ids)
 					weights[id].g = { 0 , 0 };

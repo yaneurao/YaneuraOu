@@ -260,7 +260,15 @@ namespace EvalLearningTools
 
 		// KK,KKP,KPP配列を直列化するときの通し番号の、KPPの最小値、最大値。
 		static u64 min_index() { return KKP::max_index(); }
+#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
 		static u64 max_index() { return min_index() + (u64)SQ_NB*(u64)Eval::fe_end*(u64)Eval::fe_end; }
+#else
+		// [SQ_NB][fe_end][fe_end]の[fe_end][fe_end]な正方配列の部分を三角配列化する。
+		// [SQ_NB][triangle_fe_end]とすると、1行目は要素1個、2行目は2個、…。
+		// ゆえに、triangle_fe_end = 1 + 2 + .. + fe_end = fe_end * (fe_end + 1) / 2
+		static const u64 triangle_fe_end = (u64)Eval::fe_end*((u64)Eval::fe_end + 1) / 2;
+		static u64 max_index() { return min_index() + (u64)SQ_NB*triangle_fe_end; }
+#endif
 
 		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
 		static bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
@@ -269,10 +277,25 @@ namespace EvalLearningTools
 		static KPP fromIndex(u64 index)
 		{
 			index -= min_index();
+
+#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
 			Eval::BonaPiece piece1 = (Eval::BonaPiece)(index % Eval::fe_end);
 			index /= Eval::fe_end;
 			Eval::BonaPiece piece0 = (Eval::BonaPiece)(index % Eval::fe_end);
 			index /= Eval::fe_end;
+#else
+			u64 index2 = index % triangle_fe_end;
+
+			// ここにindex2からpiece0,piece1を求める式を書く。
+			// これは index2 = i * (i+1) / 2 + j の逆関数となる。
+			// j = 0 の場合、i^2 + i - 2 * index2 == 0なので
+			// 2次方程式の解の公式から i = (sqrt(8*index2+1) - 1) / 2である。
+			// iを整数化したのちに、j = index2 - i * (i + 1) / 2としてjを求めれば良い。
+			Eval::BonaPiece piece1 = (Eval::BonaPiece)(((u64)sqrt(8 * index2 + 1) - 1) / 2);
+			Eval::BonaPiece piece0 = (Eval::BonaPiece)(index2 - piece1*(piece1 + 1) / 2);
+
+			index /= triangle_fe_end;
+#endif
 			Square king = (Square)(index  /* % SQ_NB */);
 			ASSERT_LV3(king < SQ_NB);
 			return KPP(king, piece0, piece1);
@@ -283,6 +306,7 @@ namespace EvalLearningTools
 		Eval::BonaPiece piece0() const { return piece0_; }
 		Eval::BonaPiece piece1() const { return piece1_; }
 
+#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
 		// 低次元の配列のindexを得る。p1,p2を入れ替えたもの、ミラーしたものなどが返る。
 		void toLowerDimensions(/*out*/ KPP kpp_[4]) const {
 			kpp_[0] = KPP(king_, piece0_, piece1_);
@@ -290,10 +314,38 @@ namespace EvalLearningTools
 			kpp_[2] = KPP(Mir(king_), mir_piece[piece0_], mir_piece[piece1_]);
 			kpp_[3] = KPP(Mir(king_), mir_piece[piece1_], mir_piece[piece0_]);
 		}
+#else
+		// 低次元の配列のindexを得る。p1,p2を入れ替えたもの、ミラーしたものが返る。
+		// piece0とpiece1を入れ替えたものは返らないので注意。
+		void toLowerDimensions(/*out*/ KPP kpp_[2]) const {
+			kpp_[0] = KPP(king_, piece0_, piece1_);
+			kpp_[1] = KPP(Mir(king_), mir_piece[piece0_], mir_piece[piece1_]);
+		}
+#endif
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
-		u64 toIndex() const {
+		u64 toIndex() const
+		{
+#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
+
 			return min_index() + ((u64)king_ * (u64)Eval::fe_end + (u64)piece0_) * (u64)Eval::fe_end + (u64)piece1_;
+
+#else
+			// Bonanza6.0で使われているのに似せたマクロ
+			auto PcPcOnSq = [](Square k, Eval::BonaPiece i, Eval::BonaPiece j)
+			{
+				// この三角配列の(i,j)は、i行目のj列目の要素。
+				// i行目0列目は、そこまでの要素の合計であるから、1 + 2 + ... + i = i * (i+1) / 2
+				// i行目j列目は、これにjを足したもの。i * (i + 1) /2 + j
+				return (u64)k * triangle_fe_end + (u64)((i)*((i)+1) / 2 + (j));
+			};
+
+			auto k = king_;
+			auto i = piece0_;
+			auto j = piece1_;
+
+			return min_index() + ( (i >= j) ? PcPcOnSq(k, i, j) : PcPcOnSq(k, j, i));
+#endif
 		}
 
 	private:
