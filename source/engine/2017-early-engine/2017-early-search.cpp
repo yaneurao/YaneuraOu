@@ -459,8 +459,8 @@ namespace YaneuraOu2017Early
 
 			// 置換表にhitした場合は、すでに詰みを調べたはずなので
 			// 置換表にhitしなかったときにのみ調べる。
-			if (PARAM_QSEARCH_MATE1 && !ttHit )
-
+			if (PARAM_QSEARCH_MATE1 && !ttHit)
+			{
 				// いまのところ、入れたほうが良いようだ。
 				// play_time = b1000 ,  1631 - 55 - 1314(55.38% R37.54) [2016/08/19]
 				// play_time = b6000 ,  538 - 23 - 439(55.07% R35.33) [2016/08/19]
@@ -471,16 +471,17 @@ namespace YaneuraOu2017Early
 					if (pos.mate1ply() != MOVE_NONE)
 						return mate_in(ss->ply + 1);
 				}
-				else {
+				else
+				{
 					if (pos.weak_mate_n_ply(PARAM_WEAK_MATE_PLY) != MOVE_NONE)
 						// 1手詰めかも知れないがN手詰めの可能性があるのでNを返す。
 						return mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
 				}
-
 				// このnodeに再訪問することはまずないだろうから、置換表に保存する価値はない。
 
-				// 王手がかかっていないなら置換表の指し手を持ってくる
+			}
 
+			// 王手がかかっていないなら置換表の指し手を持ってくる
 
 			if (ttHit)
 			{

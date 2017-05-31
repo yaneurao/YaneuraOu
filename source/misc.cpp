@@ -180,7 +180,12 @@ private:
 	Tie in, out;   // 標準入力とファイル、標準出力とファイルのひも付け
 	ofstream file; // ログを書き出すファイル
 
+	// clangだとここ警告が出るので一時的に警告を抑制する。
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wuninitialized"
 	Logger() : in(cin.rdbuf(), file.rdbuf()), out(cout.rdbuf(), file.rdbuf()) {}
+#pragma clang diagnostic pop
+
 	~Logger() { start(false); }
 };
 

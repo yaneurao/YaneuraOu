@@ -292,6 +292,9 @@ namespace {
 							bb |= kingEffect(to);
 						}
 						break;
+
+					default:
+						UNREACHABLE;
 					}
 
 					bb &= ~Bitboard(sq); // sqの地点邪魔なので消しておく。
@@ -466,7 +469,7 @@ namespace {
 	}
 
 	template <Color Us>
-	Bitboard AttacksAroundKingNonSliderInAvoiding(const Position& pos, Square avoid_from, const Bitboard& slide)
+	Bitboard AttacksAroundKingNonSliderInAvoiding(const Position& pos, Square avoid_from)
 	{
 		Square sq_king = pos.king_square(Us);
 		Color them = ~Us;
@@ -514,7 +517,7 @@ namespace {
 	template <Color Us>
 	inline Bitboard AttacksAroundKingInAvoiding(const Position& pos, Square from, const Bitboard& occ)
 	{
-		return AttacksAroundKingNonSliderInAvoiding<Us>(pos, from, occ) | AttacksSlider<~Us>(pos, from, occ);
+		return AttacksAroundKingNonSliderInAvoiding<Us>(pos, from) | AttacksSlider<~Us>(pos, from, occ);
 	}
 
 	// 歩が打てるかの判定用。

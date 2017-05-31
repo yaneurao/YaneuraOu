@@ -197,10 +197,10 @@ void perft(Position& pos, istringstream& is)
 //      USI拡張コマンド "test"
 // ----------------------------------
 
+#if defined(LONG_EFFECT_LIBRARY) && defined(KEEP_LAST_MOVE)
 // 利きの整合性のチェック
 void effect_check(Position& pos)
 {
-#if defined(LONG_EFFECT_LIBRARY) && defined(KEEP_LAST_MOVE)
   // 利きは、Position::set_effect()で全計算され、do_move()のときに差分更新されるが、
   // 差分更新された値がset_effect()の値と一致するかをテストする。
   using namespace LongEffect;
@@ -223,10 +223,8 @@ void effect_check(Position& pos)
       cout << "Error long effect at " << sq << endl << pos << "wrong\n" << wb << endl << "correct\n" << pos.long_effect << pos.moves_from_start_pretty();
       ASSERT(false);
     }
-
-#endif
 }
-
+#endif
 
 // --- "test rp"コマンド
 
@@ -1565,65 +1563,65 @@ static const char* TestMateEngineSfen[] = {
 
 // "test_mate_engine"コマンド
 void test_mate_engine_cmd(Position& pos, istringstream& is) {
-  string token;
+	string token;
 
-  // →　デフォルト1024にしておかないと置換表あふれるな。
-  string ttSize = (is >> token) ? token : "1024";
+	// →　デフォルト1024にしておかないと置換表あふれるな。
+	string ttSize = (is >> token) ? token : "1024";
 
-  Options["Hash"] = ttSize;
+	Options["Hash"] = ttSize;
 
-  Search::LimitsType limits;
+	Search::LimitsType limits;
 
-  // ベンチマークモードにしておかないとPVの出力のときに置換表を漁られて探索に影響がある。
-  limits.bench = true;
+	// ベンチマークモードにしておかないとPVの出力のときに置換表を漁られて探索に影響がある。
+	limits.bench = true;
 
-  // Optionsの影響を受けると嫌なので、その他の条件を固定しておく。
-  limits.enteringKingRule = EKR_NONE;
+	// Optionsの影響を受けると嫌なので、その他の条件を固定しておく。
+	limits.enteringKingRule = EKR_NONE;
 
-  // 評価関数の読み込み等
-  is_ready();
+	// 評価関数の読み込み等
+	is_ready();
 
-  // トータルの探索したノード数
-  int64_t nodes = 0;
+	// トータルの探索したノード数
+	int64_t nodes = 0;
 
-  // main threadが探索したノード数
-  int64_t nodes_main = 0;
-  Search::StateStackPtr st;
+	// main threadが探索したノード数
+	int64_t nodes_main = 0;
+	Search::StateStackPtr st;
 
-  // ベンチの計測用タイマー
-  Timer time;
-  time.reset();
+	// ベンチの計測用タイマー
+	Timer time;
+	time.reset();
 
-  for (const char* sfen : TestMateEngineSfen) {
-    Position pos;
-    pos.set(sfen);
-    pos.set_this_thread(Threads.main());
+	for (const char* sfen : TestMateEngineSfen) {
+		Position pos;
+		pos.set(sfen);
+		pos.set_this_thread(Threads.main());
 
-    sync_cout << "\nPosition: " << sfen << sync_endl;
+		sync_cout << "\nPosition: " << sfen << sync_endl;
 
-    // 探索時にnpsが表示されるが、それはこのglobalなTimerに基づくので探索ごとにリセットを行なうようにする。
-    Time.reset();
+		// 探索時にnpsが表示されるが、それはこのglobalなTimerに基づくので探索ごとにリセットを行なうようにする。
+		Time.reset();
 
-    Threads.start_thinking(pos, limits, st);
-    Threads.main()->wait_for_search_finished(); // 探索の終了を待つ。
+		Threads.start_thinking(pos, limits, st);
+		Threads.main()->wait_for_search_finished(); // 探索の終了を待つ。
 
-    nodes += Threads.nodes_searched();
-    nodes_main += Threads.main()->rootPos.nodes_searched();
-  }
+		nodes += Threads.nodes_searched();
+		nodes_main += Threads.main()->rootPos.nodes_searched();
+	}
 
-  auto elapsed = time.elapsed() + 1; // 0除算の回避のため
+	auto elapsed = time.elapsed() + 1; // 0除算の回避のため
 
-  sync_cout << "\n==========================="
-    << "\nTotal time (ms) : " << elapsed
-    << "\nNodes searched  : " << nodes
-    << "\nNodes/second    : " << 1000 * nodes / elapsed;
+	sync_cout << "\n==========================="
+		<< "\nTotal time (ms) : " << elapsed
+		<< "\nNodes searched  : " << nodes
+		<< "\nNodes/second    : " << 1000 * nodes / elapsed;
 
-  if ((int)Options["Threads"] > 1)
-    cout
-    << "\nNodes searched(main thread) : " << nodes_main
-    << "\nNodes/second  (main thread) : " << 1000 * nodes_main / elapsed;
+	if ((int)Options["Threads"] > 1)
+		cout
+		<< "\nNodes searched(main thread) : " << nodes_main
+		<< "\nNodes/second  (main thread) : " << 1000 * nodes_main / elapsed;
 
-  cout << sync_endl;
+	cout << sync_endl;
 
 }
 #endif

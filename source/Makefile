@@ -13,8 +13,10 @@ YANEURAOU_EDITION = YANEURAOU_2017_EARLY_ENGINE
 #YANEURAOU_EDITION = CHECK_SHOGI_ENGINE
 #YANEURAOU_EDITION = MUST_CAPTURE_SHOGI_ENGINE
 
+# clangでコンパイルしたほうが数%速いっぽい。
+# ToDo : あとでclang用のMakefileは分離する。
 COMPILER = g++
-#COMPILER = mpicxx
+# COMPILER = clang++
 
 # 標準的なコンパイルオプション
 CFLAGS   =  -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
@@ -23,11 +25,12 @@ CFLAGS   =  -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermi
 # 落ちない環境なら有効にしたほうが速い実行ファイルが生成されるはず。
 # CFLAGS += -flto
 
+# CFLAGSとLDFLAGSの両方で-fltoを指定する必要がある。
+# cf. https://gcc.gnu.org/onlinedocs/gcc-6.3.0/gcc/Optimize-Options.html#Optimize-Options
+LTOFLAGS = -flto
+
 # wstringを使うためにこのシンボル定義が必要。
 CFLAGS  += -DUNICODE
-
-# 学習部ではopenmpを用いるので、学習用のビルドではこのオプションを指定すること。
-# CFLAGS  += -fopenmp
 
 # stripの指示。(実行ファイルのサイズを小さく)
 CFLAGS  += -Wl,-s
@@ -41,6 +44,10 @@ CFLAGS  += -Wl,-s
 # デバッグ情報を付加
 # CFLAGS  += -g3 -ggdb
 
+# OpenMPを使うときにCFLAGSとして指定するオプション
+# ※ 学習部ではOpenMpを用いるので、学習用のビルドではこのオプションを指定する。
+OPENMP   = -fopenmp
+
 LDFLAGS  = -lpthread
 LIBS     =
 INCLUDE  = # -I../include
@@ -53,6 +60,30 @@ else
   CFLAGS += -D_LINUX
   TARGET = YaneuraOu-by-gcc
 endif
+
+# clang用にCFLAGSなどを変更
+# あとでclang用のMakefileは分離する。
+ifeq ($(COMPILER),clang++)
+  # gccと共通
+  CFLAGS  = -std=c++14 -fno-exceptions -fno-rtti -Wextra
+  CFLAGS += -Ofast -MMD -MP -fpermissive -DUNICODE -DNO_EXCEPTIONS
+
+  # lib  // static linkの仕方わからん。
+  CFLAGS += -stdlib=libstdc++
+
+  # 関数の引数が関数本体で使われていないときに警告出るのうざすぎるので抑制。
+  CFLAGS += -Wno-unused-parameter
+
+  # msys2用のclangならば-fltoつけてもセグフォで落ちないらしい。
+  # CFLAGS += -flto
+  # →　LDFLAGSのほうで指定すれば十分？
+
+  LDFLAGS  = -lpthread -Wl,-s -Wl,--stack,100000000
+
+  # msys2用のclangでは、OpenMP使えない？インスコ仕方がわからん。
+
+endif
+
 OBJDIR   = ../obj
 ifeq "$(strip $(OBJDIR))" ""
   OBJDIR = ..
@@ -125,31 +156,31 @@ all: clean $(TARGET)
 
 # 学習用バイナリのときは、openmpを有効にする。
 evallearn:
-	$(MAKE) CFLAGS='$(CFLAGS) -fopenmp -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 tournament:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -DFOR_TOURNAMENT -march=corei7-avx' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -DFOR_TOURNAMENT -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 avx2:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 sse41:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE41 -msse4.1 -march=core2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE41 -msse4.1 -march=core2' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 sse2:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE2 -msse2 -march=core2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE2 -msse2 -march=core2' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 # 32bit用。-m32は、MSYS2 MinGW-64だと無視されるので、
 # MinGW-64の32bit環境用でコンパイルする必要がある。
 nosse:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DNO_SSE -m32' LDFLAGS='$(LDFLAGS) -flto -march=pentium3' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DNO_SSE -m32 -march=pentium3' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 # ARMなどのCPU
 other:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DNO_SSE' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DNO_SSE' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 #　とりあえずPGOはavx2専用
 prof:
