@@ -41,7 +41,7 @@
 
 // 通例hash keyは64bitだが、これを128にするとPosition::state()->long_key()から128bit hash keyが
 // 得られるようになる。研究時に局面が厳密に合致しているかどうかを判定したいときなどに用いる。
-// ※　やねうら王nanoではこの機能は削除する予定。
+// 実験用の機能なので、128bit,256bitのhash keyのサポートはAVX2のみ。
 #define HASH_KEY_BITS 64
 //#define HASH_KEY_BITS 128
 //#define HASH_KEY_BITS 256
@@ -480,21 +480,8 @@ extern GlobalOptions_ GlobalOptions;
 #include <cstring>  // std::memcpy()
 #include <cmath>    // log(),std::round()
 #include <climits>  // INT_MAX
-#include <ctime>    // std::ctime()
-#include <random>   // random_device
 #include <cstddef>  // offsetof
 #include <array>
-
-// --------------------
-//   diable warnings
-// --------------------
-
-// うざいので無効化するwarning
-
-#if defined(_MSC_VER)
-// C4996 : 'ctime' : This function or variable may be unsafe.Consider using ctime_s instead.
-#pragma warning(disable : 4996)
-#endif
 
 
 // --------------------

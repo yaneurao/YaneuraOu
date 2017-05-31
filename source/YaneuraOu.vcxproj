@@ -659,8 +659,8 @@
     <ClInclude Include="extra\book\book.h" />
     <ClInclude Include="extra\book\mt64bit.h" />
     <ClInclude Include="extra\config.h" />
-    <ClInclude Include="extra\long_effect.h" />
     <ClInclude Include="extra\key128.h" />
+    <ClInclude Include="extra\long_effect.h" />
     <ClInclude Include="extra\macros.h" />
     <ClInclude Include="extra\mate\mate1ply.h" />
     <ClInclude Include="extra\move_picker\move_picker_2015.h" />

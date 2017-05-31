@@ -2,7 +2,6 @@
 #define _TT_H_
 
 #include "shogi.h"
-#include "extra/key128.h"
 
 // --------------------
 //       置換表

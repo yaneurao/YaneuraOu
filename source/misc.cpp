@@ -27,6 +27,7 @@ extern "C" {
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <ctime>    // std::ctime()
 
 #include "misc.h"
 #include "thread.h"
@@ -61,6 +62,22 @@ Timer Time;
 
 int Timer::elapsed() const { return int(Search::Limits.npmsec ? Threads.nodes_searched() : now() - startTime); }
 int Timer::elapsed_from_ponderhit() const { return int(Search::Limits.npmsec ? Threads.nodes_searched()/*これ正しくないがこのモードでponder使わないからいいや*/ : now() - startTimeFromPonderhit); }
+
+// 現在時刻を文字列化したもを返す。(評価関数の学習時などに用いる)
+std::string now_string()
+{
+	// std::ctime(), localtime()を使うと、MSVCでセキュアでないという警告が出る。
+	// C++標準的にはそんなことないはずなのだが…。
+
+#if defined(_MSC_VER)
+	// C4996 : 'ctime' : This function or variable may be unsafe.Consider using ctime_s instead.
+#pragma warning(disable : 4996)
+#endif
+
+	auto now = std::chrono::system_clock::now();
+	auto tp = std::chrono::system_clock::to_time_t(now);
+	return string(std::ctime(&tp));
+}
 
 // --------------------
 //  engine info

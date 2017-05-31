@@ -180,10 +180,7 @@ struct SfenWriter
 		auto output_status = [&]()
 		{
 			// 現在時刻も出力
-			auto now = std::chrono::system_clock::now();
-			auto tp = std::chrono::system_clock::to_time_t(now);
-
-			cout << endl << sfen_write_count << " sfens , at " << std::ctime(&tp);
+			cout << endl << sfen_write_count << " sfens , at " << now_string();
 
 			// flush()はこのタイミングで十分。
 			fs.flush();
@@ -1231,9 +1228,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 			static u64 sfens_output_count = 0;
 			if ((sfens_output_count++ % LEARN_TIMESTAMP_OUTPUT_INTERVAL) == 0)
 			{
-				auto now = std::chrono::system_clock::now();
-				auto tp = std::chrono::system_clock::to_time_t(now);
-				cout << endl << sr.total_done << " sfens , at " << std::ctime(&tp);
+				cout << endl << sr.total_done << " sfens , at " << now_string() << flush;
 			} else {
 				// これぐらいは出力しておく。
 				cout << '.' << flush;

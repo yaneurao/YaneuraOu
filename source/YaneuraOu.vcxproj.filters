@@ -112,9 +112,6 @@
     <ClInclude Include="extra\all.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
-    <ClInclude Include="extra\key128.h">
-      <Filter>リソース ファイル\extra</Filter>
-    </ClInclude>
     <ClInclude Include="extra\bitop.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
@@ -201,6 +198,9 @@
     </ClInclude>
     <ClInclude Include="learn\learning_tools.h">
       <Filter>リソース ファイル\learn</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\key128.h">
+      <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
