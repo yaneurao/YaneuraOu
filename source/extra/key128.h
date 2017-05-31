@@ -9,9 +9,9 @@
 
 // 関数の引数に直接書くと(rand関数呼び出しの)評価順序が既定されていないので困る。C++11では左からのはずなのだがVC++2015ではそうなっていない。
 #if HASH_KEY_BITS <= 64
-#define SET_HASH(x,p0,p1,p2,p3) { x = (p0); (p1); (p2); (p3); }
+#define SET_HASH(x,p0,p1,p2,p3) { x = (p0); auto dummy_func = [](u64 a,u64 b,u64 c){}; dummy_func(p1,p2,p3); }
 #elif HASH_KEY_BITS <= 128
-#define SET_HASH(x,p0,p1,p2,p3) { Key _K0=(p0); Key _K1=(p1); x.set(_K0, _K1); (p2); (p3); }
+#define SET_HASH(x,p0,p1,p2,p3) { Key _K0=(p0); Key _K1=(p1); x.set(_K0, _K1); auto dummy_func = [](u64 a,u64 b); dummy_func(p2,p3); }
 #else
 #define SET_HASH(x,p0,p1,p2,p3) { Key _K0=(p0); Key _K1=(p1); Key _K2=(p2); Key _K3=(p3); x.set(_K0, _K1, _K2, _K3); }
 #endif
