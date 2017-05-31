@@ -142,16 +142,16 @@ namespace EvalLearningTools
 	//                  tables
 	// -------------------------------------------------
 
-	// 	--- BonaPieceに対してMirrorとInverseを提供する配列。
+	// 	--- BonaPieceに対してMirrorとInverseを提供する。
 
 	// これらの配列は、init();を呼び出すと初期化される。
 	// これらの配列は、以下のKK/KKP/KPPクラスから参照される。
 
-	// あるBonaPieceを相手側から見たときの値
-	extern Eval::BonaPiece inv_piece[Eval::fe_end];
+	// あるBonaPieceを相手側から見たときの値を返す
+	extern Eval::BonaPiece inv_piece(Eval::BonaPiece p);
 
 	// 盤面上のあるBonaPieceをミラーした位置にあるものを返す。
-	extern Eval::BonaPiece mir_piece[Eval::fe_end];
+	extern Eval::BonaPiece mir_piece(Eval::BonaPiece p);
 
 	// 次元下げしたときに、そのなかの一番小さなindexになることが
 	// わかっているindexに対してtrueとなっているフラグ配列。
@@ -240,7 +240,7 @@ namespace EvalLearningTools
 		// 低次元の配列のindexを得る。ミラーしたものがkkp_[1]に返る。
 		void toLowerDimensions(/*out*/ KKP kkp_[2]) const {
 			kkp_[0] = KKP(king0_, king1_, piece_);
-			kkp_[1] = KKP(Mir(king0_), Mir(king1_), mir_piece[piece_]);
+			kkp_[1] = KKP(Mir(king0_), Mir(king1_), mir_piece(piece_));
 		}
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
@@ -263,8 +263,8 @@ namespace EvalLearningTools
 #if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
 		static u64 max_index() { return min_index() + (u64)SQ_NB*(u64)Eval::fe_end*(u64)Eval::fe_end; }
 #else
-		// [SQ_NB][fe_end][fe_end]の[fe_end][fe_end]な正方配列の部分を三角配列化する。
-		// [SQ_NB][triangle_fe_end]とすると、1行目は要素1個、2行目は2個、…。
+		// kpp[SQ_NB][fe_end][fe_end]の[fe_end][fe_end]な正方配列の部分を三角配列化する。
+		// kpp[SQ_NB][triangle_fe_end]とすると、この三角配列の1行目は要素1個、2行目は2個、…。
 		// ゆえに、triangle_fe_end = 1 + 2 + .. + fe_end = fe_end * (fe_end + 1) / 2
 		static const u64 triangle_fe_end = (u64)Eval::fe_end*((u64)Eval::fe_end + 1) / 2;
 		static u64 max_index() { return min_index() + (u64)SQ_NB*triangle_fe_end; }
@@ -294,6 +294,9 @@ namespace EvalLearningTools
 			Eval::BonaPiece piece1 = (Eval::BonaPiece)(((u64)sqrt(8 * index2 + 1) - 1) / 2);
 			Eval::BonaPiece piece0 = (Eval::BonaPiece)(index2 - piece1*(piece1 + 1) / 2);
 
+			ASSERT_LV3(piece1 < Eval::fe_end);
+			ASSERT_LV3(piece0 < Eval::fe_end);
+
 			index /= triangle_fe_end;
 #endif
 			Square king = (Square)(index  /* % SQ_NB */);
@@ -319,7 +322,7 @@ namespace EvalLearningTools
 		// piece0とpiece1を入れ替えたものは返らないので注意。
 		void toLowerDimensions(/*out*/ KPP kpp_[2]) const {
 			kpp_[0] = KPP(king_, piece0_, piece1_);
-			kpp_[1] = KPP(Mir(king_), mir_piece[piece0_], mir_piece[piece1_]);
+			kpp_[1] = KPP(Mir(king_), mir_piece(piece0_), mir_piece(piece1_));
 		}
 #endif
 

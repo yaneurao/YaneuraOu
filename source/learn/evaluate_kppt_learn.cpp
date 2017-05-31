@@ -215,10 +215,11 @@ namespace Eval
 				for (int i = 1; i<4; ++i)
 					kpp[a[i].king()][a[i].piece0()][a[i].piece1()] = v;
 #else
-				// KPP::toLowerDimensionsで、piece0とpiece1を入れ替えたものは返らないので、自分で入れ替えて書き込む。
+				// 三角配列の場合、KPP::toLowerDimensionsで、piece0とpiece1を入れ替えたものは返らないので
+				// (同じindexを指しているので)、自分で入れ替えてkpp配列にvの値を反映させる。
 				kpp[a[0].king()][a[0].piece1()][a[0].piece0()] = v;
-				kpp[a[0].king()][a[1].piece0()][a[1].piece1()] = v;
-				kpp[a[0].king()][a[1].piece1()][a[1].piece0()] = v;
+				kpp[a[1].king()][a[1].piece0()][a[1].piece1()] = v;
+				kpp[a[1].king()][a[1].piece1()][a[1].piece0()] = v;
 #endif
 
 				for (auto id : ids)
