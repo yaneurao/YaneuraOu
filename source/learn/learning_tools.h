@@ -116,15 +116,10 @@ namespace EvalLearningTools
 
 				// 整数しか足さないので小数部不要。
 
-#if 1
-				// 1ずつ動かす場合
-				const s16 diff = 1;
-#else
-				// 0～5ぐらいずつ動かす場合
+				// 0～5ぐらいずつ動かすのがよさげ。
 				// ガウス分布っぽいほうが良いので5bitの乱数を発生させて(それぞれのbitは1/2の確率で1である)、
 				// それをpop_count()する。このとき、二項分布になっている。
 				s16 diff = (s16)POPCNT32((u32)prng.rand(31));
-#endif
 
 				auto V = v[i];
 				if (g[i] > 0.0)

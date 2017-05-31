@@ -776,7 +776,7 @@ ExtMove* make_move_check(const Position& pos, Piece pc, Square from, Square ksq,
 // 王手になる駒打ち
 
 template <Color Us, Piece Pt> struct GenerateCheckDropMoves {
-	ExtMove* operator()(const Position& pos, const Bitboard& target, ExtMove* mlist)
+	ExtMove* operator()(const Position& , const Bitboard& target, ExtMove* mlist)
 	{
 		auto bb = target;
 		while (bb)

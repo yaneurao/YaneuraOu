@@ -63,8 +63,7 @@ namespace Eval {
 	void add_grad(Position& pos, Color rootColor, double delt_grad);
 
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
-	// epochは学習の反復回数が何回目であるか。
-	void update_weights(u64 epoch);
+	void update_weights(/*u64 epoch*/);
 
 	// 評価関数パラメーターをファイルに保存する。
 	// ファイルの末尾につける拡張子を指定できる。

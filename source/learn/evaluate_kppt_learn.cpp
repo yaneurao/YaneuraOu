@@ -29,7 +29,7 @@ namespace Eval
 	void add_grad(Position& pos, Color rootColor, double delta_grad);
 
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
-	void update_weights(u64 epoch);
+	void update_weights(/*u64 epoch*/);
 
 	// 学習で使用するテーブル類の初期化
 	void eval_learn_init() { EvalLearningTools::init(); }
@@ -132,7 +132,7 @@ namespace Eval
 	}
 
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
-	void update_weights(u64 epoch)
+	void update_weights(/*u64 epoch*/)
 	{
 		u64 vector_length = KPP::max_index();
 

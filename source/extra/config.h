@@ -491,30 +491,10 @@ extern GlobalOptions_ GlobalOptions;
 
 // うざいので無効化するwarning
 
-// for MSVC or Intel on Windows
-
 #if defined(_MSC_VER)
-// C4800 : 'unsigned int': ブール値を 'true' または 'false' に強制的に設定します
-// →　static_cast<bool>(...)において出る。
-#pragma warning(disable : 4800)
-
 // C4996 : 'ctime' : This function or variable may be unsafe.Consider using ctime_s instead.
 #pragma warning(disable : 4996)
 #endif
-
-// C4102 : ラベルは 1 度も参照されません。
-#pragma warning(disable : 4102)
-
-
-// for GCC
-#if defined(__GNUC__)
-#endif
-
-// for Clang
-//#pragma clang diagnostic ignored "-Wunused-value"     // 未使用な変数に対する警告
-//#pragma clang diagnostic ignored "-Wnull-dereference" // *(int*)0 = 0; のようにnullptrに対する参照に対する警告
-//#pragma clang diagnostic ignored "-Wparentheses"      // while (m = mp.next()) {.. } みたいな副作用についての警告
-//#pragma clang diagnostic ignored "-Wmicrosoft"        // 括弧のなかからの gotoでの警告
 
 
 // --------------------

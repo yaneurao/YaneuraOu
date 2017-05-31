@@ -924,6 +924,9 @@ bool Position::pseudo_legal_s(const Move m) const {
 					if (enemy_field(us) & (Bitboard(from) | Bitboard(to)))
 						return false;
 					break;
+
+				default:
+					break;
 				}
 			}
 

@@ -258,36 +258,36 @@ private:
 // -----------------------------------
 
 // 複数スレッドでsfenを生成するためのクラス
-struct MultiThinkGenSfen: public MultiThink
+struct MultiThinkGenSfen : public MultiThink
 {
-  MultiThinkGenSfen(int search_depth_, int search_depth2_, SfenWriter& sw_)
-	  : search_depth(search_depth_), search_depth2(search_depth2_), sw(sw_)
-  {
-    // 乱数を時刻で初期化しないとまずい。
-    // (同じ乱数列だと同じ棋譜が生成されかねないため)
-    set_prng(PRNG());
+	MultiThinkGenSfen(int search_depth_, int search_depth2_, SfenWriter& sw_)
+		: search_depth(search_depth_), search_depth2(search_depth2_), sw(sw_)
+	{
+		// 乱数を時刻で初期化しないとまずい。
+		// (同じ乱数列だと同じ棋譜が生成されかねないため)
+		set_prng(PRNG());
 
-	hash.resize(GENSFEN_HASH_SIZE);
-  }
+		hash.resize(GENSFEN_HASH_SIZE);
+	}
 
-  virtual void thread_worker(size_t thread_id);
-  void start_file_write_worker() { sw.start_file_write_worker(); }
+	virtual void thread_worker(size_t thread_id);
+	void start_file_write_worker() { sw.start_file_write_worker(); }
 
-  //  search_depth = 通常探索の探索深さ
-  int search_depth;
-  int search_depth2;
+	//  search_depth = 通常探索の探索深さ
+	int search_depth;
+	int search_depth2;
 
-  // 生成する局面の評価値の上限
-  int eval_limit;
+	// 生成する局面の評価値の上限
+	int eval_limit;
 
-  // sfenの書き出し器
-  SfenWriter& sw;
+	// sfenの書き出し器
+	SfenWriter& sw;
 
-  // 同一局面の書き出しを制限するためのhash
-  // hash_indexを求めるためのmaskに使うので、2**Nでなければならない。
-  static const u64 GENSFEN_HASH_SIZE = 64 * 1024 * 1024;
+	// 同一局面の書き出しを制限するためのhash
+	// hash_indexを求めるためのmaskに使うので、2**Nでなければならない。
+	static const u64 GENSFEN_HASH_SIZE = 64 * 1024 * 1024;
 
-  vector<HASH_KEY> hash; // 64MB*sizeof(HASH_KEY) = 512MB
+	vector<Key> hash; // 64MB*sizeof(HASH_KEY) = 512MB
 };
 
 //  thread_id    = 0..Threads.size()-1
@@ -609,7 +609,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			}
 #endif
 
-		DO_MOVE:;
 			pos.do_move(m, state[ply]);
 
 			// 差分計算を行なうために毎node evaluate()を呼び出しておく。
@@ -625,73 +624,73 @@ FINALIZE:;
 // -----------------------------------
 
 // 棋譜を生成するコマンド
-void gen_sfen(Position& pos, istringstream& is)
+void gen_sfen(Position&, istringstream& is)
 {
-  // スレッド数(これは、USIのsetoptionで与えられる)
-  u32 thread_num = Options["Threads"];
+	// スレッド数(これは、USIのsetoptionで与えられる)
+	u32 thread_num = Options["Threads"];
 
-  // 生成棋譜の個数 default = 80億局面(Ponanza仕様)
-  u64 loop_max = 8000000000UL;
+	// 生成棋譜の個数 default = 80億局面(Ponanza仕様)
+	u64 loop_max = 8000000000UL;
 
-  // 評価値がこの値になったら生成を打ち切る。
-  int eval_limit = 3000;
+	// 評価値がこの値になったら生成を打ち切る。
+	int eval_limit = 3000;
 
-  // 探索深さ
-  int search_depth = 3;
-  int search_depth2 = INT_MIN;
+	// 探索深さ
+	int search_depth = 3;
+	int search_depth2 = INT_MIN;
 
-  // 書き出すファイル名
-  string filename = "generated_kifu.bin";
+	// 書き出すファイル名
+	string filename = "generated_kifu.bin";
 
-  string token;
-  while (true)
-  {
-	  token = "";
-	  is >> token;
-	  if (token == "")
-		  break;
+	string token;
+	while (true)
+	{
+		token = "";
+		is >> token;
+		if (token == "")
+			break;
 
-	  if (token == "depth")
-		  is >> search_depth;
-	  else if (token == "depth2")
-		  is >> search_depth2;
-	  else if (token == "loop")
-		  is >> loop_max;
-	  else if (token == "file")
-		  is >> filename;
-	  else if (token == "eval_limit")
-		  is >> eval_limit;
-	  else
-		  cout << "Error! : Illegal token " << token << endl;
-  }
+		if (token == "depth")
+			is >> search_depth;
+		else if (token == "depth2")
+			is >> search_depth2;
+		else if (token == "loop")
+			is >> loop_max;
+		else if (token == "file")
+			is >> filename;
+		else if (token == "eval_limit")
+			is >> eval_limit;
+		else
+			cout << "Error! : Illegal token " << token << endl;
+	}
 
-  // search depth2が設定されていないなら、search depthと同じにしておく。
-  if (search_depth2 == INT_MIN)
-	  search_depth2 = search_depth;
+	// search depth2が設定されていないなら、search depthと同じにしておく。
+	if (search_depth2 == INT_MIN)
+		search_depth2 = search_depth;
 
-  std::cout << "gen_sfen : "
-	  << "search_depth = " << search_depth << " to " << search_depth2
-	  << " , loop_max = " << loop_max
-	  << " , eval_limit = " << eval_limit
-	  << " , thread_num (set by USI setoption) = " << thread_num
-	  << " , book_moves (set by USI setoption) = " << Options["BookMoves"]
-	  << " , filename = " << filename
-	  << endl;
+	std::cout << "gen_sfen : "
+		<< "search_depth = " << search_depth << " to " << search_depth2
+		<< " , loop_max = " << loop_max
+		<< " , eval_limit = " << eval_limit
+		<< " , thread_num (set by USI setoption) = " << thread_num
+		<< " , book_moves (set by USI setoption) = " << Options["BookMoves"]
+		<< " , filename = " << filename
+		<< endl;
 
-  // Options["Threads"]の数だけスレッドを作って実行。
-  {
-	  SfenWriter sw(filename,thread_num);
-	  MultiThinkGenSfen multi_think(search_depth, search_depth2, sw);
-	  multi_think.set_loop_max(loop_max);
-	  multi_think.eval_limit = eval_limit;
-	  multi_think.start_file_write_worker();
-	  multi_think.go_think();
+	// Options["Threads"]の数だけスレッドを作って実行。
+	{
+		SfenWriter sw(filename, thread_num);
+		MultiThinkGenSfen multi_think(search_depth, search_depth2, sw);
+		multi_think.set_loop_max(loop_max);
+		multi_think.eval_limit = eval_limit;
+		multi_think.start_file_write_worker();
+		multi_think.go_think();
 
-	  // SfenWriterのデストラクタでjoinするので、joinが終わってから終了したというメッセージを
-	  // 表示させるべきなのでここをブロックで囲む。
-  }
+		// SfenWriterのデストラクタでjoinするので、joinが終わってから終了したというメッセージを
+		// 表示させるべきなのでここをブロックで囲む。
+	}
 
-  std::cout << "gen_sfen finished." << endl;
+	std::cout << "gen_sfen finished." << endl;
 }
 
 // -----------------------------------
@@ -1154,7 +1153,7 @@ struct SfenReader
 	// 6400万局面って多すぎるか？そうでもないか..
 	// hash_indexを求めるためのmaskに使うので、2**Nでなければならない。
 	static const u64 READ_SFEN_HASH_SIZE = 64 * 1024 * 1024;
-	vector<HASH_KEY> hash; // 64MB*8 = 512MB
+	vector<Key> hash; // 64MB*8 = 512MB
 
 protected:
 
@@ -1242,7 +1241,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 			// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 
-			Eval::update_weights(++epoch);
+			Eval::update_weights(/* ++epoch */);
 
 			// 8000万局面ごとに1回保存、ぐらいの感じで。
 
@@ -1406,7 +1405,7 @@ void LearnerThink::save()
 }
 
 // 生成した棋譜からの学習
-void learn(Position& pos, istringstream& is)
+void learn(Position&, istringstream& is)
 {
 	auto thread_num = (int)Options["Threads"];
 	SfenReader sr(thread_num);
@@ -1573,7 +1572,7 @@ void learn(Position& pos, istringstream& is)
 	pos.set_hirate();
 	cout << Eval::evaluate(pos) << endl;
 	//Eval::print_eval_stat(pos);
-	Eval::add_grad(pos,BLACK,32.0);
+	Eval::add_grad(pos, BLACK, 32.0);
 	Eval::update_weights(1);
 	pos.state()->sum.p[2][0] = VALUE_NOT_EVALUATED;
 	cout << Eval::evaluate(pos) << endl;

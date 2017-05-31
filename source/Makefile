@@ -41,9 +41,9 @@ CFLAGS  += -Wl,-s
 # デバッグ情報を付加
 # CFLAGS  += -g3 -ggdb
 
-LDFLAGS  = -lpthread #-lboost_mpi -lboost_serialization
+LDFLAGS  = -lpthread
 LIBS     =
-INCLUDE  = #-I../include
+INCLUDE  = # -I../include
 
 ifeq ($(OS),Windows_NT)
   CFLAGS += -Wl,--stack,100000000
@@ -106,9 +106,9 @@ SOURCES  = shogi.cpp                                                           \
 	learn/multi_think.cpp                                                      \
 	learn/evaluate_kppt_learn.cpp   
 																               
-#ifeq ($(YANEURAOU_EDITION),YANEURAOU_2016_LATE_ENGINE)				               
-#	SOURCES += engine/2016-late-engine/2016-late-search.cpp                    \
-#				eval/evaluate_kppt_fast.cpp                                    
+#ifeq ($(YANEURAOU_EDITION),YANEURAOU_2017_GOKU_ENGINE)				           
+#	SOURCES += engine/2017-goku-engine/2017-goku-search.cpp                    \
+#				eval/evaluate_ppap.cpp                                         
 #endif
 
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))

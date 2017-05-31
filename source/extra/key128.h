@@ -7,10 +7,14 @@
 //     拡張hash key
 // --------------------
 
+// 関数の引数に直接書くと(rand関数呼び出しの)評価順序が既定されていないので困る。C++11では左からのはずなのだがVC++2015ではそうなっていない。
+
 #if HASH_KEY_BITS <= 64
+// 呼び出し側でSET_HASH(prng.rand(),…)みたいなことをしているので、(p1),(p2),(p3)をここで評価しないと乱数を発生させる
+// 処理の回数が減ってしまい、ZobrishHashの値が変わってしまう。HashKeyが64bitのときも128bit,256bitのときも下位64bitは
+// 合致して欲しいので、このような処理にしてある。
 #define SET_HASH(x,p0,p1,p2,p3) { x = (p0); (p1); (p2); (p3); }
 #elif HASH_KEY_BITS <= 128
-// 関数の引数に直接書くと(rand関数呼び出しの)評価順序が既定されていないので困る。C++11では左からのはずなのだがVC++2015ではそうなっていない。
 #define SET_HASH(x,p0,p1,p2,p3) { Key _K0=(p0); Key _K1=(p1); x.set(_K0, _K1); (p2); (p3); }
 #else
 #define SET_HASH(x,p0,p1,p2,p3) { Key _K0=(p0); Key _K1=(p1); Key _K2=(p2); Key _K3=(p3); x.set(_K0, _K1, _K2, _K3); }
@@ -21,7 +25,7 @@
 // 64bit版
 typedef uint64_t Key64;
 
-#ifdef USE_AVX2
+#if defined (USE_AVX2)
 
 // 128bit版
 struct alignas(16) Key128

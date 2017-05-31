@@ -260,7 +260,7 @@ inline Bitboard operator ~ (const Bitboard& a) { return a ^ ALL_BB; }
 
 // range-forで回せるようにするためのhack(少し遅いので速度が要求されるところでは使わないこと)
 inline const Bitboard begin(const Bitboard& b) { return b; }
-inline const Bitboard end(const Bitboard& b) { return ZERO_BB; }
+inline const Bitboard end(const Bitboard&) { return ZERO_BB; }
 
 // Bitboardの1の升を'*'、0の升を'.'として表示する。デバッグ用。
 std::ostream& operator<<(std::ostream& os, const Bitboard& board);
