@@ -8,7 +8,7 @@ namespace EvalLearningTools
 #if defined (ADA_GRAD_UPDATE)
 	double Weight::eta;
 #elif defined (SGD_UPDATE)
-	PRNG Weight::rand;
+	PRNG Weight::prng;
 #endif
 
 	// --- tables

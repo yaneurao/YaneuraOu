@@ -138,9 +138,8 @@ typedef float LearnFloatType;
 
 // Weight配列(のうちのKPP)に三角配列を用いて省メモリ化する。
 // これを用いると、学習用の重み配列は評価関数ファイルの2.5倍程度で済むようになる。
-// ※　まだデバッグ中なので使わないように。
 
-// #define USE_TRIANGLE_WEIGHT_ARRAY
+#define USE_TRIANGLE_WEIGHT_ARRAY
 
 
 // ----------------------

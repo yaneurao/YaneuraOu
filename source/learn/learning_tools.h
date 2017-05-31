@@ -5,6 +5,10 @@
 
 #include "learn.h"
 
+#if defined(SGD_UPDATE)
+#include "../misc.h"  // PRNG
+#endif
+
 namespace EvalLearningTools
 {
 	// -------------------------------------------------
@@ -93,13 +97,13 @@ namespace EvalLearningTools
 
 #elif defined(SGD_UPDATE)
 
-		static PRNG rand;
+		static PRNG prng;
 
 		// 勾配の符号だけ見るSGDでupdateする
 		// この関数を実行しているときにgの値やメンバーが書き変わらないことは
 		// 呼び出し側で保証されている。atomic演算である必要はない。
 		template <typename T>
-		void updateFV(array<T, 2>& v)
+		void updateFV(std::array<T, 2>& v)
 		{
 			for (int i = 0; i < 2; ++i)
 			{
@@ -112,19 +116,25 @@ namespace EvalLearningTools
 
 				// 整数しか足さないので小数部不要。
 
-				// しかし+1,-1だと値が動きすぎるので 1/3ぐらいの確率で動かす。
-				if (rand.rand(3))
-					continue;
+#if 1
+				// 1ずつ動かす場合
+				const s16 diff = 1;
+#else
+				// 0～5ぐらいずつ動かす場合
+				// ガウス分布っぽいほうが良いので5bitの乱数を発生させて(それぞれのbitは1/2の確率で1である)、
+				// それをpop_count()する。このとき、二項分布になっている。
+				s16 diff = (s16)POPCNT32((u32)prng.rand(31));
+#endif
 
 				auto V = v[i];
 				if (g[i] > 0.0)
-					V--;
+					V-= diff;
 				else
-					V++;
+					V+= diff;
 
 				// Vの値をINT16の範囲に収まるように制約を課す。
-				V = min((s16)((double)INT16_MAX * 3 / 4), (s16)(V));
-				V = max((s16)((double)INT16_MIN * 3 / 4), (s16)(V));
+				V = std::min((s16)((double)INT16_MAX * 3 / 4), (s16)(V));
+				V = std::max((s16)((double)INT16_MIN * 3 / 4), (s16)(V));
 
 				v[i] = (T)V;
 			}
