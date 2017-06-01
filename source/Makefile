@@ -15,8 +15,8 @@ YANEURAOU_EDITION = YANEURAOU_2017_EARLY_ENGINE
 
 # clangでコンパイルしたほうが数%速いっぽい。
 # ToDo : あとでclang用のMakefileは分離する。
-COMPILER = g++
-# COMPILER = clang++
+# COMPILER = g++
+COMPILER = clang++
 
 # 標準的なコンパイルオプション
 CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
@@ -32,7 +32,7 @@ ifeq ($(findstring clang++,$(COMPILER)),clang++)
   CFLAGS += -stdlib=libstdc++
 
   # 関数の引数が関数本体で使われていないときに警告出るのうざすぎるので抑制。
-  # CFLAGS += -Wno-unused-parameter
+  CFLAGS += -Wno-unused-parameter
 
   # static リンクを行う際に __cxa_guard_acquire __cxa_guard_release の生成を抑止
   #   undefined reference to `__imp___cxa_guard_acquire'
@@ -160,7 +160,7 @@ all: clean $(TARGET)
 evallearn:
 	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 evallearn-sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) -fopenmp -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 tournament:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -DFOR_TOURNAMENT -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
@@ -188,7 +188,7 @@ nosse:
 other:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DNO_SSE' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
-#　とりあえずPGOはavx2専用
+#　とりあえずPGOはAVX2とSSE4.2専用
 prof:
 	$(MAKE) CFLAGS='$(CFLAGS) -pg' avx2
 prof-sse42:
