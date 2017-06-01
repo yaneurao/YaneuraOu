@@ -48,7 +48,7 @@ endif
 
 ifeq ($(OS),Windows_NT)
   CFLAGS += $(WCFLAGS)
-  LDFLAGS += -Wl,-static,--stack,100000000
+  LDFLAGS += -static -Wl,--stack,100000000
   TARGET = YaneuraOu-by-gcc.exe
 else
   CFLAGS += -D_LINUX

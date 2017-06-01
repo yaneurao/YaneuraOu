@@ -1,0 +1,57 @@
+#!/usr/bin/bash
+# -*- coding: utf-8 -*-
+MAKE=mingw32-make
+MAKEFILE=Makefile
+COMPILER=clang++
+BUILDDIR=../build/msys2/2017Early
+EDITION=YANEURAOU_2017_EARLY_ENGINE
+TARGET=YaneuraOu-2017-early-clang
+
+mkdir -p ${BUILDDIR}
+
+# ${MAKE} -f ${MAKEFILE} clean
+# ${MAKE} -f ${MAKEFILE} -j8 pgo YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} 2>&1 | tee ${BUILDDIR}/${TARGET}-pgo-avx2.log
+# cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-pgo-avx2.exe
+
+# ${MAKE} -f ${MAKEFILE} clean
+# ${MAKE} -f ${MAKEFILE} -j8 pgo-sse42 YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} 2>&1 | tee ${BUILDDIR}/${TARGET}-pgo-sse42.log
+# cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-pgo-sse42.exe
+
+#${MAKE} -f ${MAKEFILE} clean
+#${MAKE} -f ${MAKEFILE} -j8 avx2 YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} 2>&1 | tee ${BUILDDIR}/${TARGET}-avx2.log
+#cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-avx2.exe
+
+# ${MAKE} -f ${MAKEFILE} clean
+# ${MAKE} -f ${MAKEFILE} -j8 evallearn YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} 2>&1 | tee ${BUILDDIR}/${TARGET}-evallearn-avx2.log
+# cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-evallearn-avx2.exe
+
+#${MAKE} -f ${MAKEFILE} clean
+#${MAKE} -f ${MAKEFILE} -j8 tournament YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} 2>&1 | tee ${BUILDDIR}/${TARGET}-tournament-avx2.log
+#cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-tournament-avx2.exe
+
+${MAKE} -f ${MAKEFILE} clean
+${MAKE} -f ${MAKEFILE} -j8 sse42 YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} 2>&1 | tee ${BUILDDIR}/${TARGET}-sse42.log
+cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-sse42.exe
+
+# ${MAKE} -f ${MAKEFILE} clean
+# ${MAKE} -f ${MAKEFILE} -j8 evallearn-sse42 YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} 2>&1 | tee ${BUILDDIR}/${TARGET}-evallearn-sse42.log
+# cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-evallearn-sse42.exe
+
+#${MAKE} -f ${MAKEFILE} clean
+#${MAKE} -f ${MAKEFILE} -j8 tournament-sse42 YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} 2>&1 | tee ${BUILDDIR}/${TARGET}-tournament-sse42.log
+#cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-tournament-sse42.exe
+
+#${MAKE} -f ${MAKEFILE} clean
+#${MAKE} -f ${MAKEFILE} -j8 sse41 YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} 2>&1 | tee ${BUILDDIR}/${TARGET}-sse41.log
+#cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-sse41.exe
+
+#${MAKE} -f ${MAKEFILE} clean
+#${MAKE} -f ${MAKEFILE} -j8 sse2 YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} 2>&1 | tee ${BUILDDIR}/${TARGET}-sse2.log
+#cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-sse2.exe
+
+# export Path=C:/msys64/mingw32/bin;$PATH
+# ${MAKE} -f ${MAKEFILE} clean
+# ${MAKE} -f ${MAKEFILE} -j8 nosse YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} 2>&1 | tee ${BUILDDIR}/${TARGET}-nosse.log
+# cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-nosse.exe
+
+${MAKE} -f ${MAKEFILE} clean
