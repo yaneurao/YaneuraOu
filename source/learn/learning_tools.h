@@ -4,6 +4,8 @@
 // 評価関数の機械学習のときに用いる重み配列などに関する機械学習用ツール類一式
 
 #include "learn.h"
+#if defined (EVAL_LEARN)
+
 
 #if defined(SGD_UPDATE)
 #include "../misc.h"  // PRNG
@@ -363,5 +365,5 @@ namespace EvalLearningTools
 
 }
 
+#endif // defined (EVAL_LEARN)
 #endif
-

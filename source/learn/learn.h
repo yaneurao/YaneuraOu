@@ -2,6 +2,7 @@
 #define _LEARN_H_
 
 #include "../shogi.h"
+
 #if defined(EVAL_LEARN)
 
 // =====================
