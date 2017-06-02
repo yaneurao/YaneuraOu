@@ -482,6 +482,7 @@ extern GlobalOptions_ GlobalOptions;
 #include <climits>  // INT_MAX
 #include <cstddef>  // offsetof
 #include <array>
+#include <functional>
 
 
 // --------------------
