@@ -475,14 +475,14 @@ extern GlobalOptions_ GlobalOptions;
 #include <iostream>
 #include <fstream>
 #include <mutex>
-#include <thread>   // このあとMutexをtypedefするので
+#include <thread>		// このあとMutexをtypedefするので
 #include <condition_variable>
-#include <cstring>  // std::memcpy()
-#include <cmath>    // log(),std::round()
-#include <climits>  // INT_MAX
-#include <cstddef>  // offsetof
+#include <cstring>		// std::memcpy()
+#include <cmath>		// log(),std::round()
+#include <climits>		// INT_MAX
+#include <cstddef>		// offsetof
 #include <array>
-#include <functional>
+#include <functional>	// function 
 
 
 // --------------------
@@ -650,10 +650,10 @@ const bool Is64Bit = false;
 //     mutex wrapper
 // ----------------------------
 
-// std::mutexをもっと速い実装に差し替えたい時のためにwrapしておく。
-typedef std::mutex Mutex;
-typedef std::condition_variable ConditionVariable;
+// Windows用のmingw、gcc環境下でstd::mutexをもっと速い実装に差し替えたい時のためにwrapしてある。
+// そのためstd::mutex、std::condition_variableを直接用いるのではなく、Mutex、ConditionVariableを用いる。
 
+#include "thread_win32.h"
 
 // ----------------------------
 //     mkdir wrapper

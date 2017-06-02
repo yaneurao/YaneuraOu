@@ -667,6 +667,7 @@
     <ClInclude Include="extra\move_picker\move_picker_2016Q2.h" />
     <ClInclude Include="extra\move_picker\move_picker_2016Q3.h" />
     <ClInclude Include="extra\move_picker\move_picker_2017Q2.h" />
+    <ClInclude Include="extra\thread_win32.h" />
     <ClInclude Include="learn\half_float.h" />
     <ClInclude Include="learn\learn.h" />
     <ClInclude Include="learn\learning_tools.h" />
