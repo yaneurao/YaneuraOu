@@ -181,6 +181,7 @@ private:
 	ofstream file; // ログを書き出すファイル
 
 	// clangだとここ警告が出るので一時的に警告を抑制する。
+#pragma warning (disable : 4068) // MSVC用の不明なpragmaの抑制
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wuninitialized"
 	Logger() : in(cin.rdbuf(), file.rdbuf()), out(cout.rdbuf(), file.rdbuf()) {}
