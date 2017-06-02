@@ -1,28 +1,245 @@
 ﻿
 # ToDO
 
-- multiPVで読み筋が途切れることがあるらしい。(Stockfish側の問題のような気も)
-- evaluate KPPT 16bit化するか、上位16bitに進行度入れる。
-- evaluate()、コードを見直す。
-- Stockfishのevaluate()よく調べる。
 - 学習式 定数1/600→1/200,1/400とか試す。
-- msys2で-fltoをつけてコンパイルするとセグフォで落ちる件。iostream絡み問題らしい。
+- EVAL_NO_USEの処理削除して、Position::do_move()単純化する。
+- EvalList、refactoringする。
+- evaluate KPPT 16bit化するか、上位16bitに進行度入れる。
+- evaluate()、無駄なBonaPieceの番号詰める。
+- PPAP評価関数 5*5
+
+- Stockfish
+	- 探索の性質が変わる変更はあとでまとめてやる。学習時の教師局面の性質が変わるのでその検証も大変。
+		- Evasion Pruning Tweak
+			- https://github.com/official-stockfish/Stockfish/commit/1d31065e1d1f04ecf47fc959523c560e8657fbfa
+- 詰将棋探索エンジン、他の探索部から呼び出せるように改良する。
+	- 探索から呼び出しても強くはならないだろうから、この作業は保留でいいや。
+
+
+## 2017/06/01
+
+- GokuYane20170531からdepth 8で20億局面生成。400HTで20時間で2G局面。
+	201706021500D8 2.4G局面。
+		elmo lambda = 0.6 , 0.7 , 0.8 , 0.9
+
+
+- 大きい評価関数作ると自己対戦すらままならないな。最初は9GBぐらいのにしとくか。
+
+- msys2で-fltoをつけてコンパイルするとセグフォで落ちる件。
+	- iostream絡みの問題らしい。
+	- iostream書き換えるの、logとかの絡みがあって大変だし、Stockfishと乖離するのでやりたくない。
+	- clangでコンパイル出来ればそっちでもいいか…。
+
+- clangでのコンパイルの件
+	- https://github.com/mizar/YaneuraOu/releases/tag/v4.63-test20170531b
+	- コンパイル自体は通った。static linkしてないので別途dllが必要らしい。
+	- あと、msys2環境のclang、OpenMpは別途なんとかしないといけないらしい。
+
+
+## 2017/05/31
+
+- ctime()、MSVCで警告でるので書き換える。
+
+	auto now = std::time(nullptr);
+	auto* localNow = std::localtime(&now);
+	char buf[256];
+	sprintf("%d/%d/%d %d:%d:%d", buf, localNow->tm_year, localNow->tm_mon + 1, localNow->tm_mday,
+		localNow->tm_hour, localNow->tm_min, localNow->tm_sec);
+	return string(buf);
+	→　あかん。localtime()も同様か。なんだこりゃ。
+
+- clangでコンパイルが通るかを確認したほうがいいかも知れん。
+	- VSでclangを選択すればいいのか。
+	- http://releases.llvm.org/download.html
+		- Download LLVM 4.0.0
+		- Clang for Windows (64-bit) (.sig)
+		- うまくMSVCと統合されへん。禿げそう。
+		- Mizarさんのコンパイルのログから、適当になおしておく。
+
+- 警告の抑制、そこそこ削除してもよさげ。
+
+	// C4800 : 'unsigned int': ブール値を 'true' または 'false' に強制的に設定します
+	// →　static_cast<bool>(...)において出る。
+	#pragma warning(disable : 4800)
+
+	// C4102 : ラベルは 1 度も参照されません。
+	#pragma warning(disable : 4102)
+
+
+	// for GCC
+	#if defined(__GNUC__)
+	#endif
+
+	// for Clang
+	//#pragma clang diagnostic ignored "-Wunused-value"     // 未使用な変数に対する警告
+	//#pragma clang diagnostic ignored "-Wnull-dereference" // *(int*)0 = 0; のようにnullptrに対する参照に対する警告
+	//#pragma clang diagnostic ignored "-Wparentheses"      // while (m = mp.next()) {.. } みたいな副作用についての警告
+	//#pragma clang diagnostic ignored "-Wmicrosoft"        // 括弧のなかからの gotoでの警告
+
+
+
+- 学習部、3角配列を用いる。
+	- 書けた。
+	- YaneuraOuV460learn_mini.exeとして実験。
+	- 学習失敗してた。デバッグ頑張ろう…(´ω｀)
+	- vの書き込み、間違ってた。修正した。
+	- 再度、学習のテスト。Apery(WCSC26)から追加学習でテスト。depth8 5億局面、loop 1。
+		- 1) 三角配列 + AdaGrad     + elmo method
+		- 2) 三角配列 + SGD rand(3) + elmo method
+		- 3) 三角配列 + SGD no rand + elmo method
+		- 4) 三角配列 + SGD 31 rand + elmo method
+
+		1) T1,b1000,937 - 61 - 1822(33.96% R-115.52) win black : white = 48.86% : 51.14%
+		   T1,b3000,1516 - 110 - 3374(31.0% R-138.98) win black : white = 50.63% : 49.37%
+		2) T1,b3000,2047 - 152 - 2761(42.57% R-51.98) win black : white = 51.87% : 48.13%
+		3) T1,b3000,1875 - 142 - 2973(38.68% R-80.08) win black : white = 50.37% : 49.63%
+		4) T1,b3000,991 - 56 - 2133(31.72% R-133.17) win black : white = 51.12% : 48.88%
+
+	SGDのrand(3)、どう見ても値が動き足らん。
+	以下のコード、削除する。逆に、もっと足したほうが良さそう。
+
+	2)のコード
+				// しかし+1,-1だと値が動きすぎるので 1/3ぐらいの確率で動かす。
+				// これは、1/3ずつ動かしているのに相当する。
+				if (prng.rand(3))
+					continue;
+
+	4)のコード
+		↓以下のように変更してみる。
+
+				// 0～5ぐらいずつ動かす場合
+				// ガウス分布っぽいほうが良いので5bitの乱数を発生させて(それぞれのbitは1/2の確率で1である)、
+				// それをpop_count()する。このとき、二項分布になっている。
+				s16 diff = (s16)POPCNT32((u32)prng.rand(31));
+
+				→　これが結果、よさげ。デフォルトでこれにしておく。AdaGradと比べても遜色なさげ。
+
+
+- Eval::Weightなどをlearn/learning_tools.h/cppとして切り離す。
+
+- EvalLearningTools::KPPのテスト用コード
+
+#if 1
+	EvalLearningTools::init();
+	for (u64 i = KPP::min_index(); i < KPP::max_index(); ++i)
+	{
+		auto k = KPP::fromIndex(i);
+		//std::cout << i << " <- " <<  k.king() << k.piece0() << k.piece1() << std::endl;
+		KPP a[2];
+		k.toLowerDimensions(a);
+		//for (auto j : { 0,1 })
+		//	std::cout << j << " = " << a[j].king() << a[j].piece0() << a[j].piece1() << a[j].toIndex() << std::endl;
+
+		KPP b[2];
+		a[1].toLowerDimensions(b);
+		if (b[1].toIndex() != i)
+		{
+			std::cout << i;
+		}
+	}
+#endif
+
 - PPAP評価関数
 	- FP型(2GB)
 	- SP型(6GB)
 	- EP型(16GB)
-- 詰将棋探索エンジン、他の探索部から呼び出せるように改良する。
+	- 実装難しい気がしてきた。考えなおす。
 
+
+
+## 2017/05/30
+
+
+- SlowMover、いるのか？早指しさせたいときに便利なのか…そうか…。
+
+
+## 2017/05/29
+
+
+- 雑巾絞り GokuYane20170527 , 201705281650D8
+	depth 8 , 18億。minibatch 1M。loop 2。
+
+	1) elmo  , AdaGrad eta = 30 , lambda = 0.9
+	2) elmo  , AdaGrad eta = 30 , lambda = 0.85
+	3) elmo  , SGD     rand(3)  , lambda = 0.8
+	4) YAEL  , AdaGrad eta = 30 , lambda = 0.8
+
+	YANE_ELMO = YAEL
+	// gamePly == 0なら  λ = 0.8ぐらい。(勝敗の影響を小さめにする)
+	// gamePly == ∞なら λ = 0.4ぐらい。(元のelmo式ぐらいの値になる)
+	const double LAMBDA = 0.8 - (0.8-0.4)*(double)std::min((int)psv.gamePly, 100)/100.0;
+
+	3)が31億局面あたりで落ちてしまった。
+
+	1) T1,b3000,2281 - 152 - 2567(47.05% R-20.52) win black : white = 50.93% : 49.07%
+	2) T1,b3000,2265 - 162 - 2573(46.82% R-22.15) win black : white = 51.82% : 48.18%
+	3) T1,b3000,2314 - 167 - 2519(47.88% R-14.75) win black : white = 50.76% : 49.24%
+		// 学習は成功しているようだが、AdaGradと比べるとちょっと伸びが小さい。途中で落ちたからか？よくわからん。
+	4) T1,b3000,2354 - 142 - 2504(48.46% R-10.73) win black : white = 52.24% : 47.76%
+
+	elmo絞りはlambda = 0.8か0.75付近がpeakかも。
+
+	elmo(WCSC27)と対戦。
+	1) T1,b6000,2519 - 80 - 2401(51.2% R8.33) win black : white = 51.63% : 48.37%
+	2) T1,b6000,2505 - 94 - 2401(51.06% R7.37) win black : white = 52.12% : 47.88%
+	3) T1,b6000,2520 - 85 - 2395(51.27% R8.84) win black : white = 51.52% : 48.48%
+	4) T1,b6000,2467 - 77 - 2456(50.11% R0.78) win black : white = 51.84% : 48.16%
+
+	λ=0.5～0.8あたり、次回もう少し調べてみる。
+
+
+- 教師局面からの学習jenkins用バッチコマンド
+	mkdir %YANEHOME%\eval\learn_%BUILD_NUMBER%
+	start /NODE %EXECUTOR_NUMBER% /B /WAIT /D %YANEHOME% %YANEHOME%\exe\%ENGINE% evaldir eval\%EVAL_DIR% , evalsavedir %YANEHOME%\eval\learn_%BUILD_NUMBER% , threads %HT_CORES%, hash 16 , evalshare false , learn loop %LOOP_MAX% basedir %YANEHOME% batchsize %BATCH_SIZE% eta %ETA% lambda %LAMBDA% targetdir learn_sfen\%KIF_DIR% , quit
+
+
+- half float実装
+
+
+## 2017/05/28
+
+- 雑巾絞り GokuYane20170527 , 201705281650D8
+	depth 8 , 18億。minibatch 1M。loop 2。
+	1) cross , AdaGrad eta = 30
+	2) elmo  , AdaGrad eta = 30 , lambda = 0.8
+	3) elmo  , AdaGrad eta = 30 , lambda = 0.7
+	4) cross , SGD
+	learn 400,401,402,403
+
+	- 損失の下がり方を見る限り、SGD 0.1 stepとかのほうがいいかも。+1,-1は大きすぎる模様。randomに1/3ぐらいの確率で動かしたほうがいいかも。
+	- 勝率、SGDのも悪くはない。さらにfloat16を導入すればいまの半分のメモリで学習できるようになるかも知れん。
+	- learnコマンドでlambdaを指定できるようにする。
+
+	前バージョンとの自己対戦
+	1) T1,b3000,2438 - 165 - 2397(50.42% R2.95) win black : white = 51.69% : 48.31%
+	2) T1,b3000,2226 - 173 - 2601(46.12% R-27.05) win black : white = 51.25% : 48.75%
+	3) T1,b3000,2287 - 148 - 2565(47.14% R-19.93) win black : white = 51.73% : 48.27%
+	4) T1,b3000,2436 - 168 - 2396(50.41% R2.88) win black : white = 51.7% : 48.3%
+
+	elmo(WCSC27)との対戦
+	2)
+		T1,b3000,2342 - 61 - 2597(47.42% R-17.95) win black : white = 51.77% : 48.23%
+		T1,b6000,1609 - 52 - 1639(49.54% R-3.21) win black : white = 52.16% : 47.84%
+	3)
+		T1,b3000,2418 - 75 - 2507(49.1% R-6.28) win black : white = 50.17% : 49.83%
+		T1,b6000,1622 - 50 - 1628(49.91% R-0.64) win black : white = 53.45% : 46.55%
+
+	2)のほうが強いとは明確に言いにくい感じではある。
+
+
+- Stockfishのevaluate()よく調べる。
+	- 軽く見た。
+
+- 勾配の符号だけ見て更新するタイプのSGDを実装。
+
+- History code rewrite
+	https://github.com/official-stockfish/Stockfish/commit/ecd3218b6b24bb54509dbe6e9b24517b7df7390d
+
+- multiPVで読み筋が途切れることがあるらしい。(Stockfish側の問題のような気も)
+	- どうしようもなさそうなのでConsiderationModeでは置換表をかき集めるようにした。
+	
 
 ## 2017/05/26
-
-
-- 雑巾絞り GokuYane20170527 , 
-	depth 8 , 15億。loop 2。
-	1) cross , eta = 30
-	2) elmo  , eta = 30 , lambda = 0.9
-	3) elmo  , eta = 30 , lambda = 0.8
-	4) elmo  , eta = 30 , lambda = 0.7
 
 
 - 雑巾絞り GokuYane20170523 , 201705231540D8
@@ -233,8 +450,8 @@ learn loop 10 basedir \\WS2012_860C_YAN\yanehome batchsize 10000 eta 30 targetdi
 - C++11でコンパイルが通るように修正。
 
 - GokuYane20170522からdepth8でelmo式で教師局面0.5G生成。
-	- depth 8、80HTで50M局面、2.5時間。400HTで10時間で10G局面。
-		50Gぐらいなら2日で生成できるのか…。
+	- depth 8、80HTで50M局面、2.5時間。400HTで10時間で1G局面。
+		5Gぐらいなら2日で生成できるのか…。
 		depth 10,12,14,16ぐらいまで試す価値あるのかも。
 
 	201705220250D6

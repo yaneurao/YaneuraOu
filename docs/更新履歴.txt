@@ -2,11 +2,51 @@
 やねうら王 更新履歴
 
 
+■　2017/06/02 V4.64
+
+・misc.cppがMSVCでコンパイルしたときに警告出てたの修正。
+・learn.h全体をifdef EVAL_LEARNで囲うようにした。
+・clangでコンパイルした実行ファイルを配布。
+
+
+■　2017/06/01
+
+・clangでwarning出るのでkey128.h少し修正。
+・Makefile、clang用に修正。msys2用のclangでwarning出さずにコンパイルが通ることを確認。
+・Makefile、デフォルトでclangでコンパイルすることに変更。
+
+
+■　2017/05/31
+
+・学習時に用いるEval::Weightをlearn/learning_tools.hとして切り離す。
+・学習でSGDを使用するときにメモリ大量に使ってたの修正。
+・学習時に用いる重み配列を3角配列化した。(デバッグ中)
+・3角配列の学習部、添字間違っていたの修正。
+・3角配列でうまく学習できたので、defaultで有効にする。
+・SGDでrand(3)==0ときだけ値を動かすコード、削除。
+・clangでコンパイルしたときのwarning、いくつか出ないようにした。
+・使ってないinclude文削除。
+
+
+■　2017/05/29 V4.63
+
+・学習式がelmo(WCSC27)のとき、LAMBDAの値を指定できるようにした。
+・learn.hでAdaGradとSGDとを選択できるようにした。
+・half float実装
+・SlowMoverオプション導入。
+・MultiThinkの乱数取得コード修正。(clangでコンパイルが通らなかったらしい)
+・学習部でSGDを選択したときにそれを出力していなかったの修正。
+
+
 ■　2017/05/28 V4.62
 
 ・トーナメント用実行ファイル、コンパイルエラーになっていたの修正。
 ・SfenWriterのデストラクタでclose()を呼び出すように修正。
 ・ConsiderationModeのとき、置換表からPVをかき集めるように変更。
+・PVの出力のコード、refactoring。
+・Stockfishに合わせて、from_to()導入。
+・Stockfish : History code rewrite
+・新しい学習部にSGDでの更新実装。学習時の評価関数の保存は4.5億局面に1回に変更。
 
 
 ■　2017/05/26

@@ -13,8 +13,7 @@ YANEURAOU_EDITION = YANEURAOU_2017_EARLY_ENGINE
 #YANEURAOU_EDITION = CHECK_SHOGI_ENGINE
 #YANEURAOU_EDITION = MUST_CAPTURE_SHOGI_ENGINE
 
-# clangでコンパイルしたほうが数%速いっぽい。
-# ToDo : あとでclang用のMakefileは分離する。
+# clangでコンパイルしたほうがgccより数%速いっぽい。
 # COMPILER = g++
 COMPILER = clang++
 
@@ -26,7 +25,6 @@ LIBS     =
 INCLUDE  = # -I../include
 
 # clang用にCFLAGSなどを変更
-# あとでclang用のMakefileは分離する。
 ifeq ($(findstring clang++,$(COMPILER)),clang++)
   # stdlib
   CFLAGS += -stdlib=libstdc++
