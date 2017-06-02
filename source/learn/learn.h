@@ -1,6 +1,8 @@
 ﻿#ifndef _LEARN_H_
 #define _LEARN_H_
 
+#include "../shogi.h"
+#if defined(EVAL_LEARN)
 
 // =====================
 //  学習時の設定
@@ -220,5 +222,7 @@ namespace Learner
 		// 32 + 2 + 2 + 2 + 1 + 1 = 40bytes
 	};
 }
+
+#endif
 
 #endif // ifndef _LEARN_H_
