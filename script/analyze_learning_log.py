@@ -1,4 +1,4 @@
-# -*- coding: utf8 -*-
+# -*- coding: cp932 -*-
 import os
 import sys
 import re
@@ -13,12 +13,9 @@ import pandas as pd
 def analyze_log(file_path):
     with open(file_path, 'rb') as fi:
         sfens_pat = re.compile(r'^(?P<sfens>\d+) sfens ,')
-        record_pat = re.compile(r'^rmse = (?P<rmse>.*) , mean_error = (?P<mean_error>.*)')
-        # mini-batch size , added by yane.
-        mini_batch_pat = re.compile(r'mini-batch size : (?P<mini_batch>\d+)')
-
+#        record_pat = re.compile(r'^rmse = (?P<rmse>.*) , mean_error = (?P<mean_error>.*)')
+        record_pat = re.compile(r'^hirate eval = (?P<hirate_eval>.*) , dsig rmse = (?P<dsig_rmse>.*) , dsig mae = (?P<dsig_mae>.*) , eval mae = (?P<eval_mae>.*)')
         log = []
-        sfen_counter = 0
         for line in fi.readlines():
             mo = sfens_pat.search(line)
             if mo:
@@ -28,21 +25,13 @@ def analyze_log(file_path):
 
             mo = record_pat.search(line)
             if mo:
-                rmse = float(mo.groupdict()['rmse'])
-                mean_error = float(mo.groupdict()['mean_error'])
+                hirate_eval = float(mo.groupdict()['hirate_eval'])
+                dsig_rmse = float(mo.groupdict()['dsig_rmse'])
+                dsig_mae = float(mo.groupdict()['dsig_mae'])
+                eval_mae = float(mo.groupdict()['eval_mae'])
+
                 counter += 1
-                sfen_counter += 1
-
-                # 最初の数回は値が発散するので無視する。
-                if sfen_counter >= 5:
-                    log.append((sfens, counter, rmse, mean_error))
-
-				# mini-batch size , added by yane.
-                sfens += mini_batch
-
-            mo = mini_batch_pat.search(line)
-            if mo:
-                mini_batch = int(mo.groupdict()['mini_batch'])
+                log.append((sfens, counter, hirate_eval, dsig_rmse , dsig_mae , eval_mae))
 
     if len(log) == 0:
         print('{}: Empty'.format(file_path))
@@ -51,25 +40,45 @@ def analyze_log(file_path):
         print('{}: {}'.format(file_path, len(log)))
 
     # dataframe
-    df = pd.DataFrame(data=log, columns='sfens counter rmse mean_error'.split())
+    df = pd.DataFrame(data=log, columns='sfens counter hirate_eval dsig_rmse dsig_mae eval_mae'.split())
 
     # plot
     fig, ax = plt.subplots(1, 1)
     ax.plot(
             df['sfens'],
-            df['rmse'],
+            df['dsig_rmse'],
             '.-', color='blue', label='RMSE')
     ax.set_xlabel('# SFENs')
-    ax.set_ylabel('RMSE')
+    ax.set_ylabel('DSIG_RMSE')
     ax.legend(loc='upper left').get_frame().set_alpha(0.5)
+
     ax = ax.twinx()
     ax.plot(
             df['sfens'],
-            df['mean_error'],
-            '.-', color='red', label='mean_error')
+            df['hirate_eval'],
+		'.-', color='red', label='hirate_eval')
     ax.set_xlabel('# SFENs')
-    ax.set_ylabel('mean error')
+    ax.set_ylabel('hirate_eval')
     ax.legend(loc='upper right').get_frame().set_alpha(0.5)
+
+    ax = ax.twinx()
+    ax.plot(
+            df['sfens'],
+            df['dsig_mae'],
+		'.-', color='green', label='dsig_mae')
+    ax.set_xlabel('# SFENs')
+    ax.set_ylabel('dsig_mae')
+    ax.legend(loc='lower right').get_frame().set_alpha(0.5)
+
+    ax = ax.twinx()
+    ax.plot(
+            df['sfens'],
+            df['eval_mae'],
+		'.-', color='purple', label='eval_mae')
+    ax.set_xlabel('# SFENs')
+    ax.set_ylabel('eval_mae')
+    ax.legend(loc='lower left').get_frame().set_alpha(0.5)
+
     ax.set_title(file_path)
 
     return fig
