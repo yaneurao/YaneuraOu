@@ -201,9 +201,8 @@ GlobalOptions_ GlobalOptions;
 //  main()
 // ----------------------------------------
 
-// 作業中。
+// デバッグ作業中。
 //#include "extra/kif_converter/kif_convert_tools.h"
-//extern void is_ready();
 
 int main(int argc, char* argv[])
 {
@@ -216,7 +215,6 @@ int main(int argc, char* argv[])
 	// 簡単な初期化のみで評価関数の読み込みはisreadyに応じて行なう。
 	Eval::init();
 
-	//is_ready();
 	//KifConvertTools::UnitTest();
 
 	// USIコマンドの応答部

@@ -188,9 +188,9 @@
 // トーナメント(大会)用のビルド。最新CPU(いまはAVX2)用でEVAL_HASH大きめ。EVAL_LEARN、TEST_CMD使用不可。ASSERTなし。GlobalOptionsなし。
 // #define FOR_TOURNAMENT
 
-// 棋譜の変換などを行なうツールセット。CSA,KIF,KI2形式などの入出力を担う。
+// 棋譜の変換などを行なうツールセット。CSA,KIF,KIF2(KI2)形式などの入出力を担う。
 // これをdefineすると、extra/kif_converter/ フォルダにある棋譜や指し手表現の変換を行なう関数群が使用できるようになる。
- //#define USE_KIF_CONVERT_TOOLS
+// #define USE_KIF_CONVERT_TOOLS
 
 // --------------------
 // release configurations
