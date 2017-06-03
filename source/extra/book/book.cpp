@@ -140,14 +140,19 @@ namespace Book
 			// ここに "bw"(black and whiteの意味)と指定がある場合、
 			// 先手局面用と後手局面用とのsfenファイルが異なるという意味。
 			// つまり、このあとsfenファイル名の指定が2つ来ることを想定している。
+
+			// 先後両方のsfenファイルを指定されているときはこのフラグをtrueに設定しておく。
+			bool bw_files;
 			if (token == "bw")
 			{
 				is >> sfen_file_name[BLACK];
 				is >> sfen_file_name[WHITE];
+				bw_files = true;
 			}
 			else {
 				/*BLACKとWHITEと共通*/
 				sfen_file_name[0] = token;
+				bw_files = false;
 			}
 
 			// 定跡ファイル名
@@ -201,7 +206,7 @@ namespace Book
 			// 読み込むべきsfenファイル名が2つ指定されている時は、
 			// 先手用と後手用の局面で個別のsfenファイルが指定されているということ。
 			vector<string> sfens;
-			if (sfen_file_name[1].empty())
+			if (bw_files)
 			{
 				read_all_lines(sfen_file_name[0], sfens);
 			}
@@ -225,8 +230,15 @@ namespace Book
 				// sfenファイルを2つとも読み込み、手番でフィルターする。
 				for (auto c : COLOR)
 				{
+					auto& filename = sfen_file_name[c];
+
+					// ファイル名として"no_file"が指定されていれば、先手用 or 後手用のsfenはファイルは
+					// 読み込まないという指定になる。
+					if (filename == "no_file")
+						continue;
+
 					vector<string> sfens0;
-					read_all_lines(sfen_file_name[c], sfens0);
+					read_all_lines(filename, sfens0);
 					auto result = sfen_filter_by_color(sfens0, c);
 					// sfens.append(result);
 					sfens.insert(sfens.end(), result.begin(),result.end());
