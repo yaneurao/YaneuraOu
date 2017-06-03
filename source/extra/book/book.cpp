@@ -133,7 +133,22 @@ namespace Book
 		{
 			// sfenファイル名
 			is >> token;
-			string sfen_name = token;
+
+			// 読み込むべきファイル名
+			string sfen_file_name[COLOR_NB];
+
+			// ここに "bw"(black and whiteの意味)と指定がある場合、
+			// 先手局面用と後手局面用とのsfenファイルが異なるという意味。
+			// つまり、このあとsfenファイル名の指定が2つ来ることを想定している。
+			if (token == "bw")
+			{
+				is >> sfen_file_name[BLACK];
+				is >> sfen_file_name[WHITE];
+			}
+			else {
+				/*BLACKとWHITEと共通*/
+				sfen_file_name[0] = token;
+			}
 
 			// 定跡ファイル名
 			string book_name;
@@ -182,8 +197,41 @@ namespace Book
 				<< " , depth = " << depth
 				<< " , cluster = " << cluster_id << "/" << cluster_num << endl;
 
+			// 解析対象とするsfen集合。
+			// 読み込むべきsfenファイル名が2つ指定されている時は、
+			// 先手用と後手用の局面で個別のsfenファイルが指定されているということ。
 			vector<string> sfens;
-			read_all_lines(sfen_name, sfens);
+			if (sfen_file_name[1].empty())
+			{
+				read_all_lines(sfen_file_name[0], sfens);
+			}
+			else
+			{
+				// sfenファイルの両方を読み込んで、フィルターを適用する。
+
+				// 与えられたsfen集合のうち、c側の手番の局面だけを返すフィルター。
+				auto sfen_filter_by_color = [&pos](const vector<string>& sfens_, Color c)
+				{
+					vector<string> result;
+					for (auto sfen : sfens_)
+					{
+						pos.set(sfen);
+						if (pos.side_to_move() == c)
+							result.push_back(sfen);
+					}
+					return result;
+				};
+
+				// sfenファイルを2つとも読み込み、手番でフィルターする。
+				for (auto c : COLOR)
+				{
+					vector<string> sfens0;
+					read_all_lines(sfen_file_name[c], sfens0);
+					auto result = sfen_filter_by_color(sfens0, c);
+					// sfens.append(result);
+					sfens.insert(sfens.end(), result.begin(),result.end());
+				}
+			}
 
 			cout << "..done" << endl;
 

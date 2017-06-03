@@ -2315,18 +2315,20 @@ void Thread::search()
 	//   反復深化のループ
 	// ---------------------
 
-	// 二度目のrootDepthは深さで探索量を制限するときの条件。main threadのrootDepthがLimits.depthを超えた時点で、
-	// salve threadはこのループを抜けて良いので。
-	while ((rootDepth+=ONE_PLY) < DEPTH_MAX
+	// 1つ目のrootDepthはこのthreadの反復深化での探索中の深さ。
+	// 2つ目のrootDepth (Threads.main()->rootDepth)は深さで探索量を制限するためのもの。
+	// main threadのrootDepthがLimits.depthを超えた時点で、
+	// slave threadはこのループを抜けて良いのでこういう書き方になっている。
+	while ((rootDepth += ONE_PLY) < DEPTH_MAX
 		&& !Signals.stop
-		&& (!Limits.depth || Threads.main()->rootDepth/ONE_PLY <= Limits.depth))
+		&& (!Limits.depth || Threads.main()->rootDepth / ONE_PLY <= Limits.depth))
 	{
 		// ------------------------
 		// lazy SMPのための初期化
 		// ------------------------
 
 		// スレッド間の探索深さの分散
-		
+
 		// idx : スレッド番号。main threadならば0。
 		// slave threadには、main threadより少し深い深さを探索させたい。
 		if (idx)
@@ -2370,12 +2372,12 @@ void Thread::search()
 				delta = Value(18);
 
 				alpha = std::max(rootMoves[PVIdx].previousScore - delta, -VALUE_INFINITE);
-				beta  = std::min(rootMoves[PVIdx].previousScore + delta, VALUE_INFINITE);
+				beta = std::min(rootMoves[PVIdx].previousScore + delta, VALUE_INFINITE);
 			}
 
 			while (true)
 			{
-				bestValue = YaneuraOu2017Early::search<PV>(rootPos, ss, alpha, beta, rootDepth, false , false);
+				bestValue = YaneuraOu2017Early::search<PV>(rootPos, ss, alpha, beta, rootDepth, false, false);
 
 				// それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
 				// 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
@@ -2387,7 +2389,7 @@ void Thread::search()
 
 				// main threadでfail high/lowが起きたなら読み筋をGUIに出力する。
 				// ただし出力を散らかさないように思考開始から3秒経ってないときは抑制する。
-				if (   mainThread
+				if (mainThread
 					&& multiPV == 1
 					&& (bestValue <= alpha || beta <= bestValue)
 					&& Time.elapsed() > 3000
@@ -2458,10 +2460,10 @@ void Thread::search()
 				// 検討モードのときは、stopのときには、PVを出力しないことにする。
 
 				if (Signals.stop ||
-						// MultiPVのときは最後の候補手を求めた直後とする。
-						// ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
-						((PVIdx + 1 == multiPV || Time.elapsed() > 3000)
-						 && (rootDepth < 3 || lastInfoTime + pv_interval <= Time.elapsed() )))
+					// MultiPVのときは最後の候補手を求めた直後とする。
+					// ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
+					((PVIdx + 1 == multiPV || Time.elapsed() > 3000)
+						&& (rootDepth < 3 || lastInfoTime + pv_interval <= Time.elapsed())))
 				{
 					// 検討モードのときは、stopのときには、PVを出力しないことにする。
 					if (!(Signals.stop && Limits.consideration_mode))
@@ -2528,15 +2530,15 @@ void Thread::search()
 
 				auto elapsed = Time.elapsed();
 
-				bool doEasyMove =  rootMoves[0].pv[0] == easyMove
-								&& mainThread->bestMoveChanges < 0.03
-								&& elapsed > Time.optimum() * 5 / 44;
+				bool doEasyMove = rootMoves[0].pv[0] == easyMove
+					&& mainThread->bestMoveChanges < 0.03
+					&& elapsed > Time.optimum() * 5 / 44;
 
 				// bestMoveが何度も変更になっているならunstablePvFactorが大きくなる。
 				// failLowが起きてなかったり、1つ前の反復深化から値がよくなってたりするとimprovingFactorが小さくなる。
-				if (   rootMoves.size() == 1
+				if (rootMoves.size() == 1
 					|| elapsed > Time.optimum() * unstablePvFactor * improvingFactor / 628
-					|| (mainThread->easyMovePlayed = doEasyMove , doEasyMove ))
+					|| (mainThread->easyMovePlayed = doEasyMove, doEasyMove))
 				{
 					// 停止条件を満たした
 
