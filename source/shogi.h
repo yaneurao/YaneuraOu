@@ -81,6 +81,9 @@ std::ostream& operator<<(std::ostream& os, Color c);
 //        筋
 // --------------------
 
+// マス目の棋譜表記時の書式
+enum SquareFormat : int { SqFmt_ASCII, SqFmt_FullWidthArabic, SqFmt_FullWidthMix };
+
 //  例) FILE_3なら3筋。
 enum File : int { FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8, FILE_9 , FILE_NB , FILE_ZERO=0 };
 
@@ -94,6 +97,9 @@ inline File toFile(char c) { return (File)(c - '1'); }
 // "PRETTY_JP"をdefineしていれば、日本語文字での表示になる。例 → ８
 // "PRETTY_JP"をdefineしていなければ、数字のみの表示になる。例 → 8
 std::string pretty(File f);
+
+// Fileを棋譜形式で出力する
+char32_t kif_char32(File f, SquareFormat fmt = SqFmt_ASCII);
 
 // USI形式でFileを出力する
 inline std::ostream& operator<<(std::ostream& os, File f) { os << (char)('1' + f); return os; }
@@ -128,6 +134,9 @@ inline Rank toRank(char c) { return (Rank)(c - 'a'); }
 // "PRETTY_JP"をdefineしていれば、日本語文字での表示になる。例 → 八
 // "PRETTY_JP"をdefineしていなければ、数字のみの表示になる。例 → 8
 std::string pretty(Rank r);
+
+// Rankを棋譜形式で出力する
+char32_t kif_char32(Rank r, SquareFormat fmt = SqFmt_ASCII);
 
 // USI形式でRankを出力する
 inline std::ostream& operator<<(std::ostream& os, Rank r) { os << (char)('a' + r); return os; }
@@ -225,8 +234,21 @@ inline Square Mir(Square sq) { return File(8-file_of(sq)) | rank_of(sq); }
 // "PRETTY_JP"をdefineしていなければ、数字のみの表示になる。例 → 88
 inline std::string pretty(Square sq) { return pretty(file_of(sq)) + pretty(rank_of(sq)); }
 
+// Squareを棋譜形式で出力する
+inline std::u32string kif_u32str(Square sq, SquareFormat fmt = SqFmt_ASCII)
+{
+	char32_t r[3];
+	r[0] = kif_char32(file_of(sq), fmt);
+	r[1] = kif_char32(rank_of(sq), fmt);
+	r[2] = (char32_t)NULL;
+	return std::u32string(r);
+}
+
 // USI形式でSquareを出力する
 inline std::ostream& operator<<(std::ostream& os, Square sq) { os << file_of(sq) << rank_of(sq); return os; }
+
+// Square書式設定の読み込み
+inline std::istream& operator>>(std::istream& is, SquareFormat& sqfmt) { int i; is >> i; sqfmt = (SquareFormat)i; return is; }
 
 // --------------------
 //   壁つきの升表現
@@ -505,6 +527,12 @@ std::string pretty(Piece pc);
 // ↑のpretty()だと先手の駒を表示したときに先頭にスペースが入るので、それが嫌な場合はこちらを用いる。
 inline std::string pretty2(Piece pc) { ASSERT_LV1(color_of(pc) == BLACK); auto s = pretty(pc); return s.substr(1, s.length() - 1); }
 
+// Pieceを日本語文字で出力する
+std::u32string kif_u32str(Piece pc);
+
+// PieceをCSA形式で出力する
+std::string csa(Piece pc);
+
 // USIで、盤上の駒を表現する文字列
 // ※　歩Pawn 香Lance 桂kNight 銀Silver 角Bishop 飛Rook 金Gold 王King
 extern std::string PieceToCharBW;
@@ -600,6 +628,13 @@ std::string pretty(Move m, Piece movedPieceType);
 
 // USI形式の文字列にする。
 std::string to_usi_string(Move m);
+// KIF形式の文字列にする。
+std::string to_kif1_string(Move m, Piece movedPieceType, Color c, Move prev_m = MOVE_NULL, SquareFormat fmt = SqFmt_ASCII);
+std::u32string to_kif1_u32string(Move m, Piece movedPieceType, Color c, Move prev_m = MOVE_NULL, SquareFormat fmt = SqFmt_ASCII);
+// 手番無しのCSA形式の文字列にする。
+std::string to_csa1_string(Move m, Piece movedPieceAfterType);
+// 手番有りのCSA形式の文字列にする。
+std::string to_csa_string(Move m, Piece movedPieceAfterType, Color c);
 
 // USI形式で指し手を表示する
 inline std::ostream& operator<<(std::ostream& os, Move m) { os << to_usi_string(m); return os; }

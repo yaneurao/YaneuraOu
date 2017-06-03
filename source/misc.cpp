@@ -23,9 +23,11 @@ extern "C" {
 
 #endif
 
+#include <codecvt>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <locale>
 #include <sstream>
 #include <ctime>    // std::ctime()
 
@@ -276,6 +278,36 @@ void prefetch2(void* addr)
 	prefetch((uint8_t*)addr + 64);
 }
 
+// --------------------------------
+//   char32_t -> utf-8 string 変換
+// --------------------------------
+
+namespace UniConv {
+
+	// std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> だとLNK2001をVS2015,VS2017が吐く不具合の回避。
+	// http://qiita.com/benikabocha/items/1fc76b8cea404e9591cf
+	// https://social.msdn.microsoft.com/Forums/en-US/8f40dcd8-c67f-4eba-9134-a19b9178e481/vs-2015-rc-linker-stdcodecvt-error
+
+#ifdef _MSC_VER // MSVCの場合
+	std::wstring_convert<std::codecvt_utf8<uint32_t>, uint32_t> char32_utf8_converter;
+#else // MSVC以外の場合
+	std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> char32_utf8_converter;
+#endif
+
+	std::string char32_to_utf8string(const char32_t * r)
+	{
+#ifdef _MSC_VER // MSVCの場合
+		return char32_utf8_converter.to_bytes((const uint32_t *)r);
+#else // MSVC以外の場合
+		return char32_utf8_converter.to_bytes(r);
+#endif
+	}
+
+}
+
+// --------------------
+//  全プロセッサを使う
+// --------------------
 
 namespace WinProcGroup {
 

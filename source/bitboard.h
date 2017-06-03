@@ -305,6 +305,20 @@ extern Bitboard RANK_BB[RANK_NB];
 // color == WHITEのとき、n段目よりBLACK側(n+1から9段目)を表現するBitboard。
 // このアイデアはAperyのもの。
 extern Bitboard InFrontBB[COLOR_NB][RANK_NB];
+// 後側を表現するBitboard。
+extern Bitboard InBackBB[COLOR_NB][RANK_NB];
+// 左側を表現するBitboard。
+extern Bitboard InLeftBB[COLOR_NB][FILE_NB];
+// 右側を表現するBitboard。
+extern Bitboard InRightBB[COLOR_NB][FILE_NB];
+// 以前を表現するBitboard。
+extern Bitboard OrFrontBB[COLOR_NB][RANK_NB];
+// 以後を表現するBitboard。
+extern Bitboard OrBackBB[COLOR_NB][RANK_NB];
+// 以左を表現するBitboard。
+extern Bitboard OrLeftBB[COLOR_NB][FILE_NB];
+// 以右を表現するBitboard。
+extern Bitboard OrRightBB[COLOR_NB][FILE_NB];
 
 // 先手から見て1段目からr段目までを表現するBB(US==WHITEなら、9段目から数える)
 inline const Bitboard rank1_n_bb(Color US, const Rank r) { ASSERT_LV2(is_ok(r));  return InFrontBB[US][(US == BLACK ? r + 1 : 7 - r)]; }
