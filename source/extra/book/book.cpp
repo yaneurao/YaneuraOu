@@ -128,16 +128,21 @@ namespace Book
 
 		if (from_sfen || from_thinking)
 		{
-			// sfenファイル名
-			is >> token;
-			string sfen_name = token;
-
+			string sfen_name;
 			// qh : from_sfenにしたときに先手だけ切り取る、後手だけ切り取るといった処理をしたい
 			string sfen_name_gote;
-			if(from_sfen){
+			// sfenファイル名
+			is >> token;
+
+			if(token == "bw"){
+			  is >> token;
+			  sfen_name = token;
 			  is >> token;
 			  sfen_name_gote = token;
+			}else{
+			  sfen_name = token;
 			}
+			
 			// 定跡ファイル名
 			string book_name;
 			is >> book_name;
@@ -279,13 +284,13 @@ namespace Book
 				{
 				  if (i < start_moves - 1)
 				    continue;
+				  // qh : 先手だけ使う棋譜、後手だけ使う棋譜に対応
+				  if( (isSente && i%2 ==1) || (!isSente && i%2 == 0)){
+				    continue;
+				  }
 				  
 				  if (from_sfen)
 				    {
-				      // qh : 先手だけ使う棋譜、後手だけ使う棋譜に対応
-				      if( (isSente && i%2 ==1) || (!isSente && i%2 == 0)){
-					continue;
-				      }
 				      // この場合、m[i + 1]が必要になるので、m.size()-1までしかループできない。
 				      BookPos bp(m[i], m[i + 1], VALUE_ZERO, 32, 1);
 				      insert_book_pos(book, sf[i], bp);
