@@ -14,8 +14,8 @@ YANEURAOU_EDITION = YANEURAOU_2017_EARLY_ENGINE
 #YANEURAOU_EDITION = MUST_CAPTURE_SHOGI_ENGINE
 
 # clangでコンパイルしたほうがgccより数%速いっぽい。
-# COMPILER = g++
-COMPILER = clang++
+COMPILER = g++
+# COMPILER = clang++
 
 # 標準的なコンパイルオプション
 CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
