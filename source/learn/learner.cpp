@@ -68,8 +68,9 @@
 #include "multi_think.h"
 
 #if defined(_MSC_VER)
-// C++のfilesystemは、C++17以降か、MSCでないと使えないようだ。
+// C++のfilesystemは、C++17以降か、MSVCでないと使えないようだ。
 // windows.hを使うようにしたが、msys2のg++だとうまくフォルダ内のファイルが取得できない。
+// 仕方ないのでdirent.hを用いる。
 #include <filesystem>
 #elif defined(__GNUC__)
 #include <dirent.h>
@@ -793,10 +794,10 @@ double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 // elmo(WCSC27)で使われている定数。要調整。
 // elmoのほうは式を内分していないので値が違う。
 // learnコマンドでこの値を設定できる。
-double LAMBDA = 0.33; // elmoの定数(0.5)相当
+double ELMO_LAMBDA = 0.33; // elmoの定数(0.5)相当
 
 // isWin : この手番側が最終的に勝利したかどうか
-double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
+double calc_grad(Value deep, Value shallow , const PackedSfenValue& psv)
 {
 	// elmo(WCSC27)方式
 	// 実際のゲームの勝敗で補正する。
@@ -809,10 +810,27 @@ double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 
 	// 実際の勝率を補正項として使っている。
 	// これがelmo(WCSC27)のアイデアで、現代のオーパーツ。
-	const double dsig = (1 - LAMBDA) * (eval_winrate - t) + LAMBDA * (eval_winrate - teacher_winrate);
+	const double dsig = (1 - ELMO_LAMBDA) * (eval_winrate - t) + ELMO_LAMBDA * (eval_winrate - teacher_winrate);
 
 	return dsig;
 }
+
+// 学習時の交差エントロピーの計算
+// elmo式の勝敗項と勝率項との個別の交差エントロピーが引数であるcross_entropy_evalとcross_entropy_winに返る。
+void calc_cross_entropy(Value deep, Value shallow, const PackedSfenValue& psv,
+	double& cross_entropy_eval, double& cross_entropy_win)
+{
+	const double p /* teacher_winrate */ = winning_percentage(deep);
+	const double q /* eval_winrate    */ = winning_percentage(shallow);
+	const double t = (psv.isWin) ? 1.0 : 0.0;
+
+	constexpr double epsilon = 0.000001;
+	cross_entropy_eval = ELMO_LAMBDA *
+		(-p * std::log(q + epsilon) - (1.0 - p) * std::log(1.0 - q + epsilon));
+	cross_entropy_win = (1.0 - ELMO_LAMBDA) *
+		(-t * std::log(q + epsilon) - (1.0 - t) * std::log(1.0 - q + epsilon));
+}
+
 #endif
 
 
@@ -866,11 +884,11 @@ struct SfenReader
 		file_worker_thread.join();
 	}
 
-	// mseの計算用に1万局面ほど読み込んでおく。
+	// mseの計算用に1000局面ほど読み込んでおく。
 	void read_for_mse()
 	{
 		Position& pos = Threads.main()->rootPos;
-		for (int i = 0; i < 10000; ++i)
+		for (int i = 0; i < 1000; ++i)
 		{
 			PackedSfenValue ps;
 			if (!read_to_thread_buffer(0, ps))
@@ -931,6 +949,11 @@ struct SfenReader
 		double sum_error2 = 0;
 		double sum_error3 = 0;
 
+#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
+		double cross_entropy_eval, cross_entropy_win;
+		double sum_cross_entropy_eval = 0, sum_cross_entropy_win = 0;
+#endif
+
 		// 平手の初期局面のeval()の値を表示させて、揺れを見る。
 		pos.set_hirate();
 		cout << endl << "hirate eval = " << Eval::evaluate(pos);
@@ -965,6 +988,18 @@ struct SfenReader
 			// 評価値の差の絶対値を足したもの
 			sum_error3 += abs(shallow_value - deep_value);
 
+
+			// --- 交差エントロピーの計算
+
+			// とりあえずelmo methodの時だけ勝率項と勝敗項に関して
+			// 交差エントロピーを計算して表示させる。
+
+#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
+			calc_cross_entropy(deep_value, shallow_value, ps , cross_entropy_eval, cross_entropy_win);
+			sum_cross_entropy_eval += cross_entropy_eval;
+			sum_cross_entropy_win  += cross_entropy_win;
+#endif
+
 #if 0
 			{
 				// 検証用にlogを書き出してみる。
@@ -982,7 +1017,12 @@ struct SfenReader
 		auto dsig_mae = sum_error2 / sfen_for_mse.size();
 		auto eval_mae = sum_error3 / sfen_for_mse.size();
 		cout << " , dsig rmse = " << dsig_rmse << " , dsig mae = " << dsig_mae
-			<< " , eval mae = " << eval_mae << endl;
+			<< " , eval mae = " << eval_mae
+#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
+			<< " , cross_entropy_eval = " << sum_cross_entropy_eval
+			<< " , cross_entropy_win = " << sum_cross_entropy_win
+#endif
+			<<  endl;
 	}
 
 	// [ASYNC] スレッドバッファに局面を10000局面ほど読み込む。
@@ -1468,7 +1508,7 @@ void learn(Position&, istringstream& is)
 
 #if defined (LOSS_FUNCTION_IS_ELMO_METHOD) || defined (LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
 		// LAMBDA
-		else if (option == "lambda")    is >> LAMBDA;
+		else if (option == "lambda")    is >> ELMO_LAMBDA;
 #endif
 
 		// さもなくば、それはファイル名である。
@@ -1545,7 +1585,7 @@ void learn(Position&, istringstream& is)
 	cout << "\nmini-batch size : " << mini_batch_size;
 	cout << "\nlearning rate   : " << eta;
 #if defined (LOSS_FUNCTION_IS_ELMO_METHOD) || defined (LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
-	cout << "\nLAMBDA          : " << LAMBDA;
+	cout << "\nLAMBDA          : " << ELMO_LAMBDA;
 #endif
 
 	// -----------------------------------

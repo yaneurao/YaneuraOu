@@ -178,10 +178,6 @@ typedef float LearnFloatType;
 #define ADA_GRAD_UPDATE
 //#define SGD_UPDATE
 
-// rmseなどの出力を減らして高速化。
-#undef LEARN_RMSE_OUTPUT_INTERVAL
-#define LEARN_RMSE_OUTPUT_INTERVAL 10
-
 // 実験時は1回だけの保存で良い。
 // #define EVAL_SAVE_ONLY_ONCE
 
