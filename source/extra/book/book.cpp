@@ -205,29 +205,24 @@ namespace Book
 			// 解析対象とするsfen集合。
 			// 読み込むべきsfenファイル名が2つ指定されている時は、
 			// 先手用と後手用の局面で個別のsfenファイルが指定されているということ。
-			vector<string> sfens;
+
+			// Colorは、例えばBLACKが指定されていれば、ここで与えられるsfenの一連の局面は
+			// 先手番のときのみ処理対象とする。
+			typedef pair<string, Color> SfenAndColor;
+			vector<SfenAndColor> sfens;
+			
 			if (bw_files)
 			{
-				read_all_lines(sfen_file_name[0], sfens);
+				vector<string> tmp_sfens;
+				read_all_lines(sfen_file_name[0], tmp_sfens);
+
+				// こちらは先後、どちらの手番でも解析対象とするのでCOLOR_NBを指定しておく。
+				for (auto& sfen : tmp_sfens)
+					sfens.push_back(SfenAndColor(sfen, COLOR_NB));
 			}
 			else
 			{
-				// sfenファイルの両方を読み込んで、フィルターを適用する。
-
-				// 与えられたsfen集合のうち、c側の手番の局面だけを返すフィルター。
-				auto sfen_filter_by_color = [&pos](const vector<string>& sfens_, Color c)
-				{
-					vector<string> result;
-					for (auto sfen : sfens_)
-					{
-						pos.set(sfen);
-						if (pos.side_to_move() == c)
-							result.push_back(sfen);
-					}
-					return result;
-				};
-
-				// sfenファイルを2つとも読み込み、手番でフィルターする。
+				// sfenファイルを2つとも読み込み、手番を指定しておく。
 				for (auto c : COLOR)
 				{
 					auto& filename = sfen_file_name[c];
@@ -237,11 +232,10 @@ namespace Book
 					if (filename == "no_file")
 						continue;
 
-					vector<string> sfens0;
-					read_all_lines(filename, sfens0);
-					auto result = sfen_filter_by_color(sfens0, c);
-					// sfens.append(result);
-					sfens.insert(sfens.end(), result.begin(),result.end());
+					vector<string> tmp_sfens;
+					read_all_lines(filename, tmp_sfens);
+					for (auto& sfen : tmp_sfens)
+						sfens.push_back(SfenAndColor(sfen, c));
 				}
 			}
 
@@ -272,7 +266,12 @@ namespace Book
 			// 各行の局面をparseして読み込む(このときに重複除去も行なう)
 			for (size_t k = 0; k < sfens.size(); ++k)
 			{
-				auto sfen = sfens[k];
+				// sfenを取り出す(普通のsfen文字列とは限らない。"startpos"から書かれているかも)
+				auto sfen = sfens[k].first;
+
+				// ここで指定されている手番の局面しか処理対象とはしない。
+				// ただしCOLOR_NBが指定されているときは、「希望する手番はない」の意味。
+				auto color = sfens[k].second;
 
 				if (sfen.length() == 0)
 					continue;
@@ -283,12 +282,27 @@ namespace Book
 					iss >> token;
 				} while (token == "startpos" || token == "moves");
 
-				vector<Move> m;    // 初手から(moves+1)手までの指し手格納用
-				vector<string> sf; // 初手から(moves+0)手までのsfen文字列格納用
+				vector<Move> m;				// 初手から(moves+1)手までの指し手格納用
+
+				// is_validは、この局面を処理対象とするかどうかのフラグ
+				// 処理対象としない局面でもとりあえずsfにpush_back()はしていく。(indexの番号が狂うため)
+				typedef pair<string, bool /*is_valid*/> SfenAndBool;
+				vector<SfenAndBool> sf;		// 初手から(moves+0)手までのsfen文字列格納用
 
 				StateInfo si[MAX_PLY];
 
 				pos.set_hirate();
+
+				// 変数sfに解析対象局面としてpush_backする。
+				// ただし、
+				// 1) color == COLOR_NB (希望する手番なし)のとき
+				// 2) この局面の手番が、希望する手番の局面のとき
+				// に限る。
+				auto append_to_sf = [&sf,pos,&color]()
+				{
+					sf.push_back(SfenAndBool(pos.sfen(),
+						/* is_valid = */ color == COLOR_NB || color == pos.side_to_move()));
+				};
 
 				// sfenから直接生成するときはponderのためにmoves + 1の局面まで調べる必要がある。
 				for (int i = 0; i < moves + (from_sfen ? 1 : 0); ++i)
@@ -303,7 +317,7 @@ namespace Book
 					{
 						// この局面、未知の局面なのでpushしないといけないのでは..
 						if (!from_sfen)
-							sf.push_back(pos.sfen());
+							append_to_sf();
 						break;
 					}
 
@@ -319,7 +333,7 @@ namespace Book
 					if (!is_ok(move))
 						break;
 
-					sf.push_back(pos.sfen());
+					append_to_sf();
 					m.push_back(move);
 
 					pos.do_move(move, si[i]);
@@ -330,17 +344,22 @@ namespace Book
 					if (i < start_moves - 1)
 						continue;
 
+					// 現局面の手番が望むべきものではないので解析をskipする。
+					if (!sf[i].second /* sf[i].is_valid */)
+						continue;
+
+					const auto& sfen = sf[i].first;
 					if (from_sfen)
 					{
 						// この場合、m[i + 1]が必要になるので、m.size()-1までしかループできない。
 						BookPos bp(m[i], m[i + 1], VALUE_ZERO, 32, 1);
-						insert_book_pos(book, sf[i], bp);
+						insert_book_pos(book, sfen, bp);
 					}
 					else if (from_thinking)
 					{
 						// posの局面で思考させてみる。(あとでまとめて)
-						if (thinking_sfens.count(sf[i]) == 0)
-							thinking_sfens.insert(sf[i]);
+						if (thinking_sfens.count(sfen) == 0)
+							thinking_sfens.insert(sfen);
 					}
 				}
 
