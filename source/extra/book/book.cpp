@@ -285,7 +285,7 @@ namespace Book
 				  if (i < start_moves - 1)
 				    continue;
 				  // qh : 先手だけ使う棋譜、後手だけ使う棋譜に対応
-				  if( (isSente && i%2 ==1) || (!isSente && i%2 == 0)){
+				  if( sfen_name_gote != "" && (isSente && i%2 ==1 || !isSente && i%2 == 0)){
 				    continue;
 				  }
 				  
