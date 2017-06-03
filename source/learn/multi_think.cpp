@@ -1,6 +1,6 @@
 ﻿#include "../shogi.h"
 
-#if defined(EVAL_LEARN)
+#if defined(EVAL_LEARN) && defined(YANEURAOU_2017_EARLY_ENGINE)
 
 #include "multi_think.h"
 
@@ -8,12 +8,25 @@ using namespace std;
 
 extern void is_ready();
 
-// いまのところ、やねうら王2016Mid/Lateしか、このスタブを持っていない。
+// いまのところ、やねうら王2017Earlyしか、このスタブを持っていない。
 namespace Learner
 {
-  extern pair<Value, vector<Move> >  search(Position& pos, Value alpha, Value beta, int depth);
-  extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta);
+  extern pair<Value, vector<Move> >  search(Position& pos, int depth);
+  extern pair<Value, vector<Move> > qsearch(Position& pos);
 }
+
+// [ASYNC] 通常探索をして、その結果を返す。
+std::pair<Value, std::vector<Move> >  MultiThink::search(Position& pos, int depth)
+{
+	return Learner::search(pos, depth);
+}
+
+// [ASYNC] 静止探索をして、その結果を返す。
+std::pair<Value, std::vector<Move> > MultiThink::qsearch(Position& pos)
+{
+	return Learner::qsearch(pos);
+}
+
 
 void MultiThink::go_think()
 {

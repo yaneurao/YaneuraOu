@@ -25,8 +25,9 @@ namespace Book
 	// USI拡張コマンド "makebook"(定跡作成)
 	// ----------------------------------
 
-	// 局面を与えて、その局面で思考させるために、やねうら王2016Midが必要。
-#if defined(EVAL_LEARN) && (defined(YANEURAOU_2016_MID_ENGINE) || defined(YANEURAOU_2016_LATE_ENGINE))
+	// 局面を与えて、その局面で思考させるために、やねうら王2017Earlyが必要。
+#if defined(EVAL_LEARN) && defined(YANEURAOU_2017_EARLY_ENGINE)
+
 	struct MultiThinkBook : public MultiThink
 	{
 		MultiThinkBook(int search_depth_, MemoryBook & book_)
@@ -66,8 +67,12 @@ namespace Book
 			if (pos.is_mated())
 				continue;
 
-			// depth手読みの評価値とPV(最善応手列)
-			search(pos, -VALUE_INFINITE, VALUE_INFINITE, search_depth);
+			// depth手読みの評価値とPV(最善応手列)を取得。
+			// ToDO : Learner::search()が、MultiPVを認めてないので厳密にはこのコード、まずい。
+			// 2番目以降の指し手の順序自体は保証されない。しかし、前のiterationで評価値順で並び替えては
+			// いるはずなのでdepthが深ければそこそこ正しいはずではある。
+			// いずれにせよ、のちほどLeaner::search()をMultiPVに対応させる。[2017/06/03]
+			search(pos, search_depth);
 
 			// MultiPVで局面を足す、的な
 
@@ -118,10 +123,10 @@ namespace Book
 		// 定跡の変換
 		bool convert_from_apery = token == "convert_from_apery";
 
-#if !defined(EVAL_LEARN) || !(defined(YANEURAOU_2016_MID_ENGINE) || defined(YANEURAOU_2016_LATE_ENGINE))
+#if !defined(EVAL_LEARN) || !defined(YANEURAOU_2017_EARLY_ENGINE)
 		if (from_thinking)
 		{
-			cout << "Error!:define EVAL_LEARN and ( YANEURAOU_2016_MID_ENGINE or LATE_ENGINE) " << endl;
+			cout << "Error!:define EVAL_LEARN and YANEURAOU_2017_EARLY_ENGINE " << endl;
 			return;
 		}
 #endif
@@ -287,7 +292,7 @@ namespace Book
 			}
 			cout << "done." << endl;
 
-#if defined(EVAL_LEARN) && (defined(YANEURAOU_2016_MID_ENGINE)||defined(YANEURAOU_2016_LATE_ENGINE))
+#if defined(EVAL_LEARN) && defined(YANEURAOU_2017_EARLY_ENGINE)
 
 			if (from_thinking)
 			{
