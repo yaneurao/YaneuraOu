@@ -57,6 +57,8 @@ std::string PieceToCharBW(" PLNSBRGK        plnsbrgk");
 std::string pretty(File f) { return pretty_jp ? std::string("１２３４５６７８９").substr((int32_t)f * 2, 2) : std::to_string((int32_t)f + 1); }
 std::string pretty(Rank r) { return pretty_jp ? std::string("一二三四五六七八九").substr((int32_t)r * 2, 2) : std::to_string((int32_t)r + 1); }
 
+#ifdef DO_IT_LATER
+
 char32_t kif_char32(File f, SquareFormat fmt)
 {
 	switch (fmt)
@@ -81,6 +83,8 @@ char32_t kif_char32(Rank r, SquareFormat fmt)
 		return U"123456789"[r];
 	}
 }
+
+#endif
 
 std::string pretty(Move m)
 {
@@ -158,6 +162,9 @@ std::string to_usi_string(Move m)
 	}
 	return ss.str();
 }
+
+#ifdef DO_IT_LATER
+
 void kiftoc32(char32_t ** s, Piece p)
 {
 	char32_t * c = *s;
@@ -585,6 +592,8 @@ std::string to_csa_string(Move m, Position& pos)
 	to_csa_string(&p, m, pos.moved_piece_after(m), pos.side_to_move());
 	return std::string(s);
 }
+#endif
+
 
 // ----------------------------------------
 // 探索用のglobalな変数

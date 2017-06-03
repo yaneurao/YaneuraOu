@@ -795,6 +795,8 @@ std::ostream& operator<<(std::ostream& os, const Position& pos);
 // depthに応じたZobrist Hashを得る。depthを含めてhash keyを求めたいときに用いる。
 HASH_KEY DepthHash(int depth);
 
+#ifdef DO_IT_LATER
+
 // --------------------
 //       指し手出力
 // --------------------
@@ -810,4 +812,6 @@ std::string to_csa1_string(Move m, Position& pos);
 // 手番有りのCSA形式の文字列にする。
 std::string to_csa_string(Move m, Position& pos);
 
-#endif // of #ifndef _SHOGI_H_
+#endif
+
+#endif // of #ifndef _POSITION_H_

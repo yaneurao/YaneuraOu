@@ -282,6 +282,7 @@ void prefetch2(void* addr)
 //   char32_t -> utf-8 string 変換
 // --------------------------------
 
+#ifdef DO_IT_LATER
 namespace UniConv {
 
 	// std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> だとLNK2001をVS2015,VS2017が吐く不具合の回避。
@@ -304,6 +305,7 @@ namespace UniConv {
 	}
 
 }
+#endif
 
 // --------------------
 //  全プロセッサを使う
