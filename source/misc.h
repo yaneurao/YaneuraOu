@@ -255,6 +255,7 @@ extern void prefetch(void* addr);
 // 連続する128バイトをprefetchするときに用いる。
 extern void prefetch2(void* addr);
 
+
 // --------------------------------
 //   char32_t -> utf-8 string 変換
 // --------------------------------

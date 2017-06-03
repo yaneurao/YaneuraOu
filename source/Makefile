@@ -113,6 +113,7 @@ SOURCES  = shogi.cpp                                                           \
 	extra/timeman.cpp                                                          \
 	extra/see.cpp                                                              \
 	extra/sfen_packer.cpp                                                      \
+	extra/kif_converter/kif_convert_tools.cpp                                  \
 	eval/evaluate_bona_piece.cpp                                               \
 	eval/evaluate_kpp.cpp                                                      \
 	eval/evaluate_kppt.cpp                                                     \

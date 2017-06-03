@@ -660,6 +660,7 @@
     <ClInclude Include="extra\book\mt64bit.h" />
     <ClInclude Include="extra\config.h" />
     <ClInclude Include="extra\key128.h" />
+    <ClInclude Include="extra\kif_converter\kif_convert_tools.h" />
     <ClInclude Include="extra\long_effect.h" />
     <ClInclude Include="extra\macros.h" />
     <ClInclude Include="extra\mate\mate1ply.h" />
@@ -709,6 +710,7 @@
     <ClCompile Include="extra\book\apery_book.cpp" />
     <ClCompile Include="extra\book\book.cpp" />
     <ClCompile Include="extra\entering_king_win.cpp" />
+    <ClCompile Include="extra\kif_converter\kif_convert_tools.cpp" />
     <ClCompile Include="extra\long_effect.cpp" />
     <ClCompile Include="extra\mate\mate1ply_without_effect.cpp" />
     <ClCompile Include="extra\mate\mate1ply_with_effect.cpp" />

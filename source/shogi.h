@@ -240,18 +240,6 @@ inline Square Mir(Square sq) { return File(8-file_of(sq)) | rank_of(sq); }
 // "PRETTY_JP"をdefineしていなければ、数字のみの表示になる。例 → 88
 inline std::string pretty(Square sq) { return pretty(file_of(sq)) + pretty(rank_of(sq)); }
 
-#ifdef DO_IT_LATER
-
-// Squareを棋譜形式で出力する
-inline std::u32string kif_u32str(Square sq, SquareFormat fmt = SqFmt_ASCII)
-{
-	char32_t r[3];
-	r[0] = kif_char32(file_of(sq), fmt);
-	r[1] = kif_char32(rank_of(sq), fmt);
-	r[2] = (char32_t)NULL;
-	return std::u32string(r);
-}
-#endif
 
 // USI形式でSquareを出力する
 inline std::ostream& operator<<(std::ostream& os, Square sq) { os << file_of(sq) << rank_of(sq); return os; }
@@ -538,12 +526,6 @@ std::string pretty(Piece pc);
 // ↑のpretty()だと先手の駒を表示したときに先頭にスペースが入るので、それが嫌な場合はこちらを用いる。
 inline std::string pretty2(Piece pc) { ASSERT_LV1(color_of(pc) == BLACK); auto s = pretty(pc); return s.substr(1, s.length() - 1); }
 
-// Pieceを日本語文字で出力する
-std::u32string kif_u32str(Piece pc);
-
-// PieceをCSA形式で出力する
-std::string csa(Piece pc);
-
 // USIで、盤上の駒を表現する文字列
 // ※　歩Pawn 香Lance 桂kNight 銀Silver 角Bishop 飛Rook 金Gold 王King
 extern std::string PieceToCharBW;
@@ -639,18 +621,6 @@ std::string pretty(Move m, Piece movedPieceType);
 
 // USI形式の文字列にする。
 std::string to_usi_string(Move m);
-
-#ifdef DO_IT_LATER
-
-// KIF形式の文字列にする。
-std::string to_kif1_string(Move m, Piece movedPieceType, Color c, Move prev_m = MOVE_NULL, SquareFormat fmt = SqFmt_ASCII);
-std::u32string to_kif1_u32string(Move m, Piece movedPieceType, Color c, Move prev_m = MOVE_NULL, SquareFormat fmt = SqFmt_ASCII);
-// 手番無しのCSA形式の文字列にする。
-std::string to_csa1_string(Move m, Piece movedPieceAfterType);
-// 手番有りのCSA形式の文字列にする。
-std::string to_csa_string(Move m, Piece movedPieceAfterType, Color c);
-
-#endif
 
 // USI形式で指し手を表示する
 inline std::ostream& operator<<(std::ostream& os, Move m) { os << to_usi_string(m); return os; }

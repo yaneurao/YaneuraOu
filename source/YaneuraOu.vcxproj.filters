@@ -86,6 +86,9 @@
     <Filter Include="リソース ファイル\extra\mate">
       <UniqueIdentifier>{d2aac0fd-42da-4a14-b6c2-22d534701934}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\extra\kif_converter">
+      <UniqueIdentifier>{d3015e32-f402-423d-8643-dcc571f62564}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -204,6 +207,9 @@
     </ClInclude>
     <ClInclude Include="extra\thread_win32.h">
       <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\kif_converter\kif_convert_tools.h">
+      <Filter>リソース ファイル\extra\kif_converter</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -356,6 +362,9 @@
     </ClCompile>
     <ClCompile Include="learn\learning_tools.cpp">
       <Filter>リソース ファイル\learn</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\kif_converter\kif_convert_tools.cpp">
+      <Filter>リソース ファイル\extra\kif_converter</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
