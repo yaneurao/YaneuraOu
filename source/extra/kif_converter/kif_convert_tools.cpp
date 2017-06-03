@@ -285,8 +285,14 @@ namespace KifConvertTools
 				// 駒種の出力
 				builder.append(pt);
 
+				// toのある升からdirの方角が1になっているbitboardを取得する。
+				// (例えば、dir == DIRECT_Rなら、sqより右にある升がすべて1)
+				// また、cがWHITEならdirを180度回転させて考える。
+				// dir_or_bbのほうは、toの升のある筋or段も含むbitboardが返る。
+				// (例えば、dir == DIRECT_Rなら、sqのある筋も1)
 				using namespace Effect8;
-				auto dir_bb = [c, to](Effect8::Direct dir) { return dir_bb_(c, to, dir); };
+				auto dir_bb = [c, to](Direct dir) { return dir_bb_(c, to, dir,false); };
+				auto dir_or_bb = [c, to](Direct dir) { return dir_bb_(c, to, dir,true); };
 
 				// 打ち駒ではないかどうか
 				if (!is_drop(m))
@@ -325,16 +331,16 @@ namespace KifConvertTools
 								if (is_like_goldsilver)
 									builder.ss << "直";
 								// 同じ筋・より右の筋に他に動ける駒がないなら「右」
-								else if ((attackerBB & dir_bb(DIRECT_R)) == fromBB)
+								else if ((attackerBB & dir_or_bb(DIRECT_R)) == fromBB)
 									builder.ss << "右";
 								// 同じ筋・より左の筋に他に動ける駒がないなら「左」
-								else if ((attackerBB & dir_bb(DIRECT_L)) == fromBB)
+								else if ((attackerBB & dir_or_bb(DIRECT_L)) == fromBB)
 									builder.ss << "左";
 								// 「右上」の判定
-								else if ((attackerBB & dir_bb(DIRECT_R) & dir_bb(DIRECT_D)) == fromBB)
+								else if ((attackerBB & dir_or_bb(DIRECT_R) & dir_bb(DIRECT_D)) == fromBB)
 									builder.ss << "右上";
 								// 「左上」の判定
-								else if ((attackerBB & dir_bb(DIRECT_L) & dir_bb(DIRECT_D)) == fromBB)
+								else if ((attackerBB & dir_or_bb(DIRECT_L) & dir_bb(DIRECT_D)) == fromBB)
 									builder.ss << "左上";
 							}
 							// 右から上がるMoveの場合
@@ -360,16 +366,16 @@ namespace KifConvertTools
 							// 真っ直ぐ引くMoveの場合
 							else if (from_file == to_file) {
 								// 同じ筋・より右の筋に他に動ける駒がないなら「右」
-								if ((attackerBB & dir_bb(DIRECT_R)) == fromBB)
+								if ((attackerBB & dir_or_bb(DIRECT_R)) == fromBB)
 									builder.ss << "右";
 								// 同じ筋・より左の筋に他に動ける駒がないなら「左」
-								else if ((attackerBB & dir_bb(DIRECT_L)) == fromBB)
+								else if ((attackerBB & dir_or_bb(DIRECT_L)) == fromBB)
 									builder.ss << "左";
 								// 「右引」の判定
-								else if ((attackerBB & dir_bb(DIRECT_R) & InFrontBB[c][to_rank]) == fromBB)
+								else if ((attackerBB & dir_or_bb(DIRECT_R) & InFrontBB[c][to_rank]) == fromBB)
 									builder.ss << "右引";
 								// 「左引」の判定
-								else if ((attackerBB & dir_bb(DIRECT_L) & InFrontBB[c][to_rank]) == fromBB)
+								else if ((attackerBB & dir_or_bb(DIRECT_L) & InFrontBB[c][to_rank]) == fromBB)
 									builder.ss << "左引";
 							}
 							// 右から引くMoveの場合
@@ -423,7 +429,8 @@ namespace KifConvertTools
 		// 判定しなければならず、そのためにある升のX側を示すBitboardが必要となる。
 		// sqの升を中心として、dir側の方角がすべて1になっているBitboardが返る。
 		// ただし、c == WHITEのときは盤面を180度回転させてdirの方角を考える。
-		static Bitboard dir_bb_(Color color , Square sq, Effect8::Direct dir)
+		// またor_flag == trueのときは、「sqの升を含む 筋 or 段」も1であるBitboardが返る。
+		static Bitboard dir_bb_(Color color , Square sq, Effect8::Direct dir , bool or_flag)
 		{
 			// このへんの定数の定義を変更されてしまうと以下のhackが成り立たなくなる。
 			static_assert(FILE_1 == FILE_ZERO, "");
@@ -433,13 +440,17 @@ namespace KifConvertTools
 
 			// color == WHITEならば逆の方角にする。
 			dir = (color == BLACK) ? dir : Effect8::Direct(7 - dir);
+
+			// スタートするときのoffset
+			int offset = or_flag ? 0 : 1;
+
 			Bitboard bb = ZERO_BB;
 			switch (dir)
 			{
-			case Effect8::DIRECT_R: for (File f = File(file_of(sq) - 1); f >= FILE_1; f--) bb |= FILE_BB[f]; break;
-			case Effect8::DIRECT_L: for (File f = File(file_of(sq) + 1); f <= FILE_9; f++) bb |= FILE_BB[f]; break;
-			case Effect8::DIRECT_U: for (Rank r = Rank(rank_of(sq) - 1); r >= RANK_1; r--) bb |= RANK_BB[r]; break;
-			case Effect8::DIRECT_D: for (Rank r = Rank(rank_of(sq) + 1); r <= RANK_9; r++) bb |= RANK_BB[r]; break;
+			case Effect8::DIRECT_R: for (File f = File(file_of(sq) - offset); f >= FILE_1; f--) bb |= FILE_BB[f]; break;
+			case Effect8::DIRECT_L: for (File f = File(file_of(sq) + offset); f <= FILE_9; f++) bb |= FILE_BB[f]; break;
+			case Effect8::DIRECT_U: for (Rank r = Rank(rank_of(sq) - offset); r >= RANK_1; r--) bb |= RANK_BB[r]; break;
+			case Effect8::DIRECT_D: for (Rank r = Rank(rank_of(sq) + offset); r <= RANK_9; r++) bb |= RANK_BB[r]; break;
 			default: ASSERT_LV1(false);
 			}
 			return bb;
