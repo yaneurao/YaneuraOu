@@ -2937,7 +2937,7 @@ namespace Learner
 					Value p = rootMoves[PVIdx].previousScore;
 
 					alpha = std::max(p - delta, -VALUE_INFINITE);
-					beta = std::min(p + delta, VALUE_INFINITE);
+					beta  = std::min(p + delta,  VALUE_INFINITE);
 				}
 
 				// aspiration search

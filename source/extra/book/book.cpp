@@ -68,10 +68,8 @@ namespace Book
 				continue;
 
 			// depth手読みの評価値とPV(最善応手列)を取得。
-			// ToDO : Learner::search()が、MultiPVを認めてないので厳密にはこのコード、まずい。
-			// 2番目以降の指し手の順序自体は保証されない。しかし、前のiterationで評価値順で並び替えては
-			// いるはずなのでdepthが深ければそこそこ正しいはずではある。
-			// いずれにせよ、のちほどLeaner::search()をMultiPVに対応させる。[2017/06/03]
+			// 内部的にはLearner::search()を呼び出す。
+			// Learner::search()は、現在のOptions["MultiPV"]の値に従い、MultiPVで思考することが保証されている。
 			search(pos, search_depth);
 
 			// MultiPVで局面を足す、的な
