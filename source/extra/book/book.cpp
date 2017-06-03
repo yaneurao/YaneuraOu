@@ -132,6 +132,12 @@ namespace Book
 			is >> token;
 			string sfen_name = token;
 
+			// qh : from_sfenにしたときに先手だけ切り取る、後手だけ切り取るといった処理をしたい
+			string sfen_name_gote;
+			if(from_sfen){
+			  is >> token;
+			  sfen_name_gote = token;
+			}
 			// 定跡ファイル名
 			string book_name;
 			is >> book_name;
@@ -179,9 +185,6 @@ namespace Book
 				<< " , depth = " << depth
 				<< " , cluster = " << cluster_id << "/" << cluster_num << endl;
 
-			vector<string> sfens;
-			read_all_lines(sfen_name, sfens);
-
 			cout << "..done" << endl;
 
 			MemoryBook book;
@@ -206,84 +209,99 @@ namespace Book
 			// 思考すべき局面のsfen
 			unordered_set<string> thinking_sfens;
 
-			// 各行の局面をparseして読み込む(このときに重複除去も行なう)
-			for (size_t k = 0; k < sfens.size(); ++k)
-			{
-				auto sfen = sfens[k];
+			for (bool isSente : {true, false} ){
+			  vector<string> sfens;
+			  if(!from_sfen && !isSente){
+			    break;
+			  }
+			  if(isSente){
+			    read_all_lines(sfen_name, sfens);
+			  }else{
+			    read_all_lines(sfen_name_gote, sfens);
+			  }
+			  // 各行の局面をparseして読み込む(このときに重複除去も行なう)
+			  for (size_t k = 0; k < sfens.size(); ++k)
+			    {
+			      auto sfen = sfens[k];
+			      
+			      if (sfen.length() == 0)
+				continue;
 
-				if (sfen.length() == 0)
-					continue;
-
-				istringstream iss(sfen);
-				token = "";
-				do {
-					iss >> token;
-				} while (token == "startpos" || token == "moves");
-
-				vector<Move> m;    // 初手から(moves+1)手までの指し手格納用
-				vector<string> sf; // 初手から(moves+0)手までのsfen文字列格納用
-
-				StateInfo si[MAX_PLY];
-
-				pos.set_hirate();
-
-				// sfenから直接生成するときはponderのためにmoves + 1の局面まで調べる必要がある。
-				for (int i = 0; i < moves + (from_sfen ? 1 : 0); ++i)
+			      istringstream iss(sfen);
+			      token = "";
+			      do {
+				iss >> token;
+			      } while (token == "startpos" || token == "moves");
+			      
+			      vector<Move> m;    // 初手から(moves+1)手までの指し手格納用
+			      vector<string> sf; // 初手から(moves+0)手までのsfen文字列格納用
+			      
+			      StateInfo si[MAX_PLY];
+			      
+			      pos.set_hirate();
+			      
+			      // sfenから直接生成するときはponderのためにmoves + 1の局面まで調べる必要がある。
+			      for (int i = 0; i < moves + (from_sfen ? 1 : 0); ++i)
 				{
-					// 初回は、↑でfeedしたtokenが入っているはず。
-					if (i != 0)
-					{
-						token = "";
-						iss >> token;
-					}
-					if (token == "")
-					{
-						// この局面、未知の局面なのでpushしないといけないのでは..
-						if (!from_sfen)
-							sf.push_back(pos.sfen());
-						break;
-					}
-
-					Move move = move_from_usi(pos, token);
-					// illigal moveであるとMOVE_NONEが返る。
-					if (move == MOVE_NONE)
-					{
-						cout << "illegal move : line = " << (k + 1) << " , " << sfen << " , move = " << token << endl;
-						break;
-					}
-
-					// MOVE_WIN,MOVE_RESIGNでは局面を進められないのでここで終了。
-					if (!is_ok(move))
-						break;
-
+				  // 初回は、↑でfeedしたtokenが入っているはず。
+				  if (i != 0)
+				    {
+				      token = "";
+				      iss >> token;
+				    }
+				  if (token == "")
+				    {
+				      // この局面、未知の局面なのでpushしないといけないのでは..
+				      if (!from_sfen)
 					sf.push_back(pos.sfen());
-					m.push_back(move);
-
-					pos.do_move(move, si[i]);
+				      break;
+				    }
+				  
+				  Move move = move_from_usi(pos, token);
+				  // illigal moveであるとMOVE_NONEが返る。
+				  if (move == MOVE_NONE)
+				    {
+				      cout << "illegal move : line = " << (k + 1) << " , " << sfen << " , move = " << token << endl;
+				      break;
+				    }
+				  
+				  // MOVE_WIN,MOVE_RESIGNでは局面を進められないのでここで終了。
+				  if (!is_ok(move))
+				    break;
+				  
+				  sf.push_back(pos.sfen());
+				  m.push_back(move);
+				  
+				  pos.do_move(move, si[i]);
 				}
-
-				for (int i = 0; i < (int)sf.size() - (from_sfen ? 1 : 0); ++i)
+			      
+			      for (int i = 0; i < (int)sf.size() - (from_sfen ? 1 : 0); ++i)
 				{
-					if (i < start_moves - 1)
-						continue;
-
-					if (from_sfen)
-					{
-						// この場合、m[i + 1]が必要になるので、m.size()-1までしかループできない。
-						BookPos bp(m[i], m[i + 1], VALUE_ZERO, 32, 1);
-						insert_book_pos(book, sf[i], bp);
-					}
-					else if (from_thinking)
-					{
-						// posの局面で思考させてみる。(あとでまとめて)
-						if (thinking_sfens.count(sf[i]) == 0)
-							thinking_sfens.insert(sf[i]);
-					}
+				  if (i < start_moves - 1)
+				    continue;
+				  
+				  if (from_sfen)
+				    {
+				      // qh : 先手だけ使う棋譜、後手だけ使う棋譜に対応
+				      if( (isSente && i%2 ==1) || (!isSente && i%2 == 0)){
+					continue;
+				      }
+				      // この場合、m[i + 1]が必要になるので、m.size()-1までしかループできない。
+				      BookPos bp(m[i], m[i + 1], VALUE_ZERO, 32, 1);
+				      insert_book_pos(book, sf[i], bp);
+				    }
+				  else if (from_thinking)
+				    {
+				      // posの局面で思考させてみる。(あとでまとめて)
+				      if (thinking_sfens.count(sf[i]) == 0)
+					thinking_sfens.insert(sf[i]);
+				    }
 				}
-
-				// sfenから生成するモードの場合、1000棋譜処理するごとにドットを出力。
-				if ((k % 1000) == 0)
-					cout << '.';
+			      
+			      // sfenから生成するモードの場合、1000棋譜処理するごとにドットを出力。
+			      if ((k % 1000) == 0)
+				cout << '.';
+			    }
 			}
 			cout << "done." << endl;
 
