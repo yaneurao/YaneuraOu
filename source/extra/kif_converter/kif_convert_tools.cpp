@@ -9,6 +9,10 @@
 
 namespace KifConvertTools
 {
+	// -----------------
+	//  for CSA format
+	// -----------------
+
 	// CSA文字列の構築器
 	struct CsaStringBuilder
 	{
@@ -67,23 +71,22 @@ namespace KifConvertTools
 
 				builder.append(move_to(m));
 				builder.append(type_of(movedPieceAfterType));
-
-				return (std::string)builder;
 			}
+			return (std::string)builder;
 		}
 
 	private:
 		// CSAの指し手文字列などで用いる1から9までの数。
 		const char* str_1to9 = "123456789";
 
-		const std::string piece_strings[18] = {
+		// 駒名。独自拡張として、金の成りのところはQUEENの意味で"QU"にしてある。
+		const std::string piece_strings[16] = {
 			"**", "FU", "KY" , "KE" , "GI" , "KA" , "HI" , "KI" ,
-			"OU", "TO", "NY", "NK" , "NG" ,  "UM" , "RY" , "KI" ,
+			"OU", "TO", "NY" , "NK" , "NG" , "UM" , "RY" , "QU" ,
 		};
 
 		// C#のStringBuilderのように用いる
 		std::stringstream ss;
-
 	};
 
 
@@ -97,143 +100,180 @@ namespace KifConvertTools
 		return  to_csa_string(m, pos.moved_piece_after(m), pos.side_to_move());
 	}
 
+	// -----------------
+	//  for KIF format
+	// -----------------
 
-	// --- UnitTest
+	// KIF文字列の構築器
+	// (CsaStringBuilderと同じ作り)
+	struct KifStringBuilder
+	{
+		// 暗黙の型変換子
+		operator std::string() { return ss.str(); }
+
+		void append(Rank r, SquareFormat fmt)
+		{
+			switch (fmt)
+			{
+			case SqFmt_FullWidthArabic:
+				// 2バイト文字をstd::stringで扱っているので2文字切り出す。
+				ss << str_1to9_full_width_arabic.substr(2 * r, 2);
+				break;
+			case SqFmt_FullWidthMix:
+				ss << str_1to9_kanji.substr(2 * r, 2);
+				break;
+			case SqFmt_ASCII:
+				ss << str_1to9[r];
+				break;
+			default:
+				UNREACHABLE;
+			}
+		}
+
+		void append(File f , SquareFormat fmt)
+		{
+			switch (fmt)
+			{
+			case SqFmt_FullWidthArabic:
+			case SqFmt_FullWidthMix:
+				ss << str_1to9_full_width_arabic.substr(f*2,2);
+				break;
+			case SqFmt_ASCII:
+				ss << str_1to9[f];
+				break;
+			default:
+				UNREACHABLE;
+			}
+		}
+
+		// 升目をKIF形式の文字列に変換して、ssに追加する。
+		void append(Square sq , SquareFormat fmt)
+		{
+			append(file_of(sq), fmt);
+			append(rank_of(sq), fmt);
+		}
+
+		// 手番をKIF形式の文字列に変換して、ssに追加する。
+		void append(Color c)
+		{
+			ss << ((c == BLACK) ? "▲" : "△");
+		}
+
+		// 駒名をKIF形式の文字列に変換して、ssに追加する。
+		void append(Piece pt)
+		{
+			ASSERT_LV3(type_of(pt) == pt);
+			ss << piece_strings[pt];
+		}
+
+		// KIF形式の指し手文字列に変換して返す。
+		// m			  : 今回の指し手
+		// prev_m		  : 直前の指し手
+		// movedPieceType : 移動させる駒(今回の指し手で成る場合は、成る前の駒)
+		static std::string to_kif_string(Move m, Piece movedPieceType, Move prev_m , Color c, SquareFormat fmt)
+		{
+			KifStringBuilder builder;
+
+			// 手番
+			builder.append(c);
+
+			switch (m)
+			{
+			case MOVE_NONE:
+				builder.ss << "エラー";
+			case MOVE_NULL:
+				builder.ss << "パス";
+				break;
+			case MOVE_RESIGN:
+				builder.ss << "投了";
+				break;
+			case MOVE_WIN:
+				builder.ss << "勝ち宣言";
+				break;
+			default:
+				// --- 普通の指し手
+
+				// 一つ前の指し手の移動先と、今回の移動先が同じ場合、"同"金のように表示する。
+				if (is_ok(prev_m) && move_to(prev_m) == move_to(m))
+				{
+					builder.ss << "同";
+					builder.append(movedPieceType);
+				}
+				else
+				{
+					builder.append(move_to(m), fmt);
+					builder.append(movedPieceType);
+				}
+				if (is_drop(m))
+					builder.ss << "打";
+				else if (is_promote(m))
+					builder.ss << "成";
+				else
+				{
+					// 参考用に駒の移動元を括弧表記で出力することになっている。
+					builder.ss << '(';
+					builder.append(move_from(m), SqFmt_ASCII);
+					builder.ss << ')';
+				}
+			}
+			return (std::string)builder;
+		}
+
+	private:
+		// KIFの指し手文字列などで用いる1から9までの数。
+		const char* str_1to9 = "123456789";
+		const std::string str_1to9_kanji = "一二三四五六七八九";
+		const std::string str_1to9_full_width_arabic = "１２３４５６７８９";
+
+		// 駒名。独自拡張として、金の成りのところは、QUEEN(女王)の意味で"女"としてある。
+		const std::string piece_strings[16] = {
+			"空", "歩", "香"  , "桂"   , "銀"   , "角" , "飛" , "金" ,
+			"玉", "と", "成香", "成桂" , "成銀" , "馬" , "龍" , "女" ,
+		};
+
+		// C#のStringBuilderのように用いる
+		std::stringstream ss;
+	};
+
+	std::string to_kif_string(Move m, Piece movedPieceBeforeType, Move prev_m , Color c , SquareFormat fmt)
+	{
+		return KifStringBuilder::to_kif_string(m, movedPieceBeforeType, prev_m, c , fmt);
+	}
+
+	// KIF形式の指し手表現文字列を取得する。
+	std::string to_kif_string(Position& pos, Move m , SquareFormat fmt)
+	{
+		return  to_kif_string(m, pos.moved_piece_before(m), pos.state()->lastMove , pos.side_to_move() , fmt);
+	}
+
+	// -----------------
+	//	   UnitTest
+	// -----------------
 
 	void UnitTest()
 	{
 		// is_ready()は事前に呼び出されているものとする。
 
+#if 0
 		// 初期局面ですべての合法な指し手を生成し、それをCSA文字列として出力してみるテスト。
 		Position pos;
 		pos.set_hirate();
 		for (auto m : MoveList<LEGAL>(pos))
 			std::cout << to_csa_string(pos, m.move) << " ";
+#endif
 
-		//std::cout << "TEST";
+#if 1
+		// 初期局面ですべての合法な指し手を生成し、それをKIF文字列として出力してみるテスト。
+		Position pos;
+		pos.set_hirate();
+		for (auto m : MoveList<LEGAL>(pos))
+			std::cout << to_kif_string(pos, m.move , SqFmt_FullWidthMix) << " ";
+
+#endif
 	}
 
 #if 0
 
-	void kiftoc32(char32_t ** s, Piece p)
-	{
-		char32_t * c = *s;
-		if (p & 8)
-			switch (p & 7)
-			{
-			case 0:
-				*c++ = U'玉'; break;
-			case 1:
-				*c++ = U'と'; break;
-			case 5:
-				*c++ = U'馬'; break;
-			case 6:
-				*c++ = U'龍'; break;
-			default:;
-				*c++ = U'成';
-				*c++ = U"玉と香桂銀馬龍金"[p & 7];
-			}
-		else
-			*c++ = U"　歩香桂銀角飛金玉"[p & 7];
-		*s = c;
-	}
-	void kiftoc32(char32_t ** s, Square sq, SquareFormat fmt)
-	{
-		char32_t * c = *s;
-		*c++ = kif_char32(file_of(sq), fmt);
-		*c++ = kif_char32(rank_of(sq), fmt);
-		*s = c;
-	}
-	void to_kif1_c32(char32_t ** s, Move m, Piece movedPieceType, Color c, Move prev_m, SquareFormat fmt)
-	{
-		char32_t * p = *s;
-		*p++ = ((~c) ? U'▲' : U'△');
-		if (!is_ok(m))
-		{
-			const std::u32string _none(U"エラー");
-			const std::u32string _null(U"パス");
-			const std::u32string _resign(U"投了");
-			const std::u32string _win(U"勝ち宣言");
-			switch (m) {
-			case MOVE_NONE:
-				std::char_traits<char32_t>::copy(p, _none.c_str(), _none.size());
-				p += _none.size();
-				break;
-			case MOVE_NULL:
-				std::char_traits<char32_t>::copy(p, _null.c_str(), _null.size());
-				p += _null.size();
-				break;
-			case MOVE_RESIGN:
-				std::char_traits<char32_t>::copy(p, _resign.c_str(), _resign.size());
-				p += _resign.size();
-				break;
-			case MOVE_WIN:
-				std::char_traits<char32_t>::copy(p, _win.c_str(), _win.size());
-				p += _win.size();
-				break;
-			default:;
-			}
-		}
-		else
-		{
-			if (is_ok(prev_m) && move_to(prev_m) == move_to(m))
-			{
-				*p++ = U'同';
-				kiftoc32(&p, movedPieceType);
-			}
-			else
-			{
-				kiftoc32(&p, move_to(m), fmt);
-				kiftoc32(&p, movedPieceType);
-			}
-			if (is_drop(m))
-				*p++ = U'打';
-			else if (is_promote(m))
-				*p++ = U'成';
-			else
-			{
-				Square from_sq = move_from(m);
-				*p++ = U'(';
-				*p++ = U"123456789"[file_of(from_sq)];
-				*p++ = U"123456789"[rank_of(from_sq)];
-				*p++ = U'(';
-			}
-		}
-		*p = U'\0';
-		*s = p;
-	}
-	void to_kif1_c32(char32_t ** s, Move m, Position& pos, Move prev_m, SquareFormat fmt)
-	{
-		return to_kif1_c32(s, m, pos.moved_piece_before(m), pos.side_to_move(), prev_m, fmt);
-	}
-	std::u32string to_kif1_u32string(Move m, Piece movedPieceType, Color c, Move prev_m, SquareFormat fmt)
-	{
-		char32_t r[32] = {};
-		char32_t * p = r;
-		to_kif1_c32(&p, m, movedPieceType, c, prev_m, fmt);
-		return std::u32string(r);
-	}
-	std::u32string to_kif1_u32string(Move m, Position& pos, Move prev_m, SquareFormat fmt)
-	{
-		char32_t r[32] = {};
-		char32_t * p = r;
-		to_kif1_c32(&p, m, pos, prev_m, fmt);
-		return std::u32string(r);
-	}
-	std::string to_kif1_string(Move m, Piece movedPieceType, Color c, Move prev_m, SquareFormat fmt)
-	{
-		char32_t r[32] = {};
-		char32_t * p = r;
-		to_kif1_c32(&p, m, movedPieceType, c, prev_m, fmt);
-		return UniConv::char32_to_utf8string(r);
-	}
-	std::string to_kif1_string(Move m, Position& pos, Move prev_m, SquareFormat fmt)
-	{
-		char32_t r[32] = {};
-		char32_t * p = r;
-		to_kif1_c32(&p, m, pos, prev_m, fmt);
-		return UniConv::char32_to_utf8string(r);
-	}
 	void to_kif2_c32(char32_t ** r, Move m, Position& pos, Move prev_m, SquareFormat fmt)
 	{
 		char32_t * s = *r;
@@ -417,61 +457,6 @@ namespace KifConvertTools
 		}
 		*s = U'\0';
 		*r = s;
-	}
-	std::string to_kif2_string(Move m, Position& pos, Move prev_m, SquareFormat fmt)
-	{
-		char32_t r[10] = {};
-		char32_t * p = r;
-		to_kif2_c32(&p, m, pos, prev_m, fmt);
-		return UniConv::char32_to_utf8string(r);
-	}
-	std::u32string to_kif2_u32string(Move m, Position& pos, Move prev_m, SquareFormat fmt)
-	{
-		char32_t r[10] = {};
-		char32_t * p = r;
-		to_kif2_c32(&p, m, pos, prev_m, fmt);
-		return std::u32string(r);
-	}
-	void to_csa1_string(char ** s, Move m, Piece movedPieceAfterType)
-	{
-		if (!is_ok(m))
-		{
-			**s = '\0';
-			return;
-		}
-		char * p = *s;
-		if (is_drop(m))
-		{
-			*p++ = '0';
-			*p++ = '0';
-		}
-		else
-		{
-			Square from_sq = move_from(m);
-			*p++ = "123456789"[file_of(from_sq)];
-			*p++ = "123456789"[rank_of(from_sq)];
-		}
-		Square to_sq = move_to(m);
-		*p++ = "123456789"[file_of(to_sq)];
-		*p++ = "123456789"[rank_of(to_sq)];
-		*p++ = "*FKKGKHKOTNNNURKOFKKGKHKOTNNNURKO"[movedPieceAfterType];
-		*p++ = "*UYEIAIIUOYKGMYIUUYEIAIIUOYKGMYIU"[movedPieceAfterType];
-		*p = '\0';
-		*s = p;
-	}
-	std::string to_csa1_string(Move m, Piece movedPieceAfterType)
-	{
-		char s[8] = {};
-		char * p = s;
-		to_csa1_string(&p, m, movedPieceAfterType);
-		return std::string(s);
-	}
-	std::string to_csa1_string(Move m, Position& pos)
-	{
-		char s[8] = {};
-		char * p = s;
-		to_csa1_string(&p, m, pos.moved_piece_after(m));
-		return std::string(s);
 	}
 
 #endif

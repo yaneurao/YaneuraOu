@@ -190,7 +190,7 @@
 
 // 棋譜の変換などを行なうツールセット。CSA,KIF,KI2形式などの入出力を担う。
 // これをdefineすると、extra/kif_converter/ フォルダにある棋譜や指し手表現の変換を行なう関数群が使用できるようになる。
- #define USE_KIF_CONVERT_TOOLS
+ //#define USE_KIF_CONVERT_TOOLS
 
 // --------------------
 // release configurations
@@ -587,6 +587,14 @@ const bool pretty_jp = false;
 #define PIECE_DROP 32
 #else
 #define PIECE_DROP 0
+#endif
+
+// --- lastMove
+
+// KIF形式に変換するときにPositionクラスにその局面へ至る直前の指し手が保存されていないと
+// "同"金のように出力できなくて困る。
+#ifdef USE_KIF_CONVERT_TOOLS
+#define KEEP_LAST_MOVE
 #endif
 
 // ----------------------------

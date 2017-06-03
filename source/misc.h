@@ -255,24 +255,6 @@ extern void prefetch(void* addr);
 // 連続する128バイトをprefetchするときに用いる。
 extern void prefetch2(void* addr);
 
-
-// --------------------------------
-//   char32_t -> utf-8 string 変換
-// --------------------------------
-
-#ifdef DO_IT_LATER
-namespace UniConv
-{
-
-	// std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> だとLNK2001をVS2015,VS2017が吐く不具合の回避。
-	// http://qiita.com/benikabocha/items/1fc76b8cea404e9591cf
-	// https://social.msdn.microsoft.com/Forums/en-US/8f40dcd8-c67f-4eba-9134-a19b9178e481/vs-2015-rc-linker-stdcodecvt-error
-
-	std::string char32_to_utf8string(const char32_t * r);
-
-}
-#endif
-
 // --------------------
 //  全プロセッサを使う
 // --------------------

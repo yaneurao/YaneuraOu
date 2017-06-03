@@ -81,11 +81,6 @@ std::ostream& operator<<(std::ostream& os, Color c);
 //        筋
 // --------------------
 
-#ifdef DO_IT_LATER
-// マス目の棋譜表記時の書式
-enum SquareFormat : int { SqFmt_ASCII, SqFmt_FullWidthArabic, SqFmt_FullWidthMix };
-#endif
-
 //  例) FILE_3なら3筋。
 enum File : int { FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8, FILE_9 , FILE_NB , FILE_ZERO=0 };
 
@@ -99,11 +94,6 @@ inline File toFile(char c) { return (File)(c - '1'); }
 // "PRETTY_JP"をdefineしていれば、日本語文字での表示になる。例 → ８
 // "PRETTY_JP"をdefineしていなければ、数字のみの表示になる。例 → 8
 std::string pretty(File f);
-
-#ifdef DO_IT_LATER
-// Fileを棋譜形式で出力する
-char32_t kif_char32(File f, SquareFormat fmt = SqFmt_ASCII);
-#endif
 
 // USI形式でFileを出力する
 inline std::ostream& operator<<(std::ostream& os, File f) { os << (char)('1' + f); return os; }
@@ -138,11 +128,6 @@ inline Rank toRank(char c) { return (Rank)(c - 'a'); }
 // "PRETTY_JP"をdefineしていれば、日本語文字での表示になる。例 → 八
 // "PRETTY_JP"をdefineしていなければ、数字のみの表示になる。例 → 8
 std::string pretty(Rank r);
-
-#ifdef DO_IT_LATER
-// Rankを棋譜形式で出力する
-char32_t kif_char32(Rank r, SquareFormat fmt = SqFmt_ASCII);
-#endif
 
 // USI形式でRankを出力する
 inline std::ostream& operator<<(std::ostream& os, Rank r) { os << (char)('a' + r); return os; }
@@ -243,11 +228,6 @@ inline std::string pretty(Square sq) { return pretty(file_of(sq)) + pretty(rank_
 
 // USI形式でSquareを出力する
 inline std::ostream& operator<<(std::ostream& os, Square sq) { os << file_of(sq) << rank_of(sq); return os; }
-
-#ifdef DO_IT_LATER
-// Square書式設定の読み込み
-inline std::istream& operator>>(std::istream& is, SquareFormat& sqfmt) { int i; is >> i; sqfmt = (SquareFormat)i; return is; }
-#endif
 
 // --------------------
 //   壁つきの升表現

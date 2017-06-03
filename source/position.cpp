@@ -138,26 +138,6 @@ std::string pretty(Piece pc) { return std::string(USI_PIECE).substr(pc * 2, 2); 
 std::string pretty(Piece pc) { return std::string(" □ 歩 香 桂 銀 角 飛 金 玉 と 杏 圭 全 馬 龍 菌 王^歩^香^桂^銀^角^飛^金^玉^と^杏^圭^全^馬^龍^菌^王").substr(pc * 3, 3); }
 #endif
 
-#ifdef DO_IT_LATER
-std::u32string kif_u32str(Piece pc)
-{
-	const std::u32string kifb[] = { U"",
-		U"歩", U"香", U"桂", U"銀", U"角", U"飛", U"金", U"玉",
-		U"と", U"成香", U"成桂", U"成銀", U"馬", U"龍", U"成金", U"王"
-	};
-	return kifb[pc & 15];
-}
-std::string csa(Piece pc)
-{
-	const std::string csab[] = { "**",
-		"FU", "KY", "KE", "GI", "KA", "HI", "KI", "OU",
-		"TO", "NY", "NK", "NG", "UM", "RY", "KI", "OU",
-		"FU", "KY", "KE", "GI", "KA", "HI", "KI", "OU",
-		"TO", "NY", "NK", "NG", "UM", "RY", "KI", "OU"
-	};
-	return csab[pc];
-}
-#endif
 
 // sfen文字列で盤面を設定する
 void Position::set(std::string sfen)
