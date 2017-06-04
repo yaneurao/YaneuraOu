@@ -190,7 +190,7 @@
 
 // 棋譜の変換などを行なうツールセット。CSA,KIF,KIF2(KI2)形式などの入出力を担う。
 // これをdefineすると、extra/kif_converter/ フォルダにある棋譜や指し手表現の変換を行なう関数群が使用できるようになる。
- //#define USE_KIF_CONVERT_TOOLS
+// #define USE_KIF_CONVERT_TOOLS
 
 // --------------------
 // release configurations

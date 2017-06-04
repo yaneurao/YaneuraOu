@@ -31,6 +31,8 @@ namespace KifConvertTools
 	};
 
 	// KIF形式の指し手表現文字列を取得する。
+	// 出力文字列のエンコードは、関数名にu8とついているのはutf-8。u16はutf-16、u32はutf-32。
+	// 何もついていないものはSJIS。
 
 	extern std::string to_kif_string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);
 	extern std::string to_kif_u8string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);
@@ -38,6 +40,8 @@ namespace KifConvertTools
 	extern std::u32string to_kif_u32string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);
 
 	// KIF2形式の指し手表現文字列を取得する。
+	// 出力文字列のエンコードは、関数名にu8とついているのはutf-8。u16はutf-16、u32はutf-32。
+	// 何もついていないものはSJIS。
 
 	extern std::string to_kif2_string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);
 	extern std::string to_kif2_u8string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);

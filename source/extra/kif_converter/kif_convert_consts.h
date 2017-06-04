@@ -1,5 +1,9 @@
 ﻿#if defined(USE_KIF_CONVERT_TOOLS)
 
+// kif_convert_tools.cppで用いる文字列定数。
+// SJIS、utf-8/16/32それぞれの文字列を用意してある。
+// ここの文字列を修正するときは、それぞれの文字列を修正すること。
+
 namespace KifConvertTools
 {
 
