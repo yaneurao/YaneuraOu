@@ -148,7 +148,7 @@ namespace EvalIO
 				{
 					// in_.element_numとout_.element_numの数が異なることがあるのだが…。
 					// とりあえずout_.element_numを基準に考える。
-					for (int i = 0; i < out_.element_num; ++i)
+					for (u64 i = 0; i < out_.element_num; ++i)
 					{
 						s64 n;
 						if (i < in_.element_num)
@@ -186,8 +186,8 @@ namespace EvalIO
 				switch (in_.feature)
 				{
 				case KK:
-					for(int k1=0;k1 < output.sq_nb ; ++k1)
-						for (int k2 = 0; k2 < output.sq_nb; ++k2)
+					for(u64 k1=0;k1 < output.sq_nb ; ++k1)
+						for (u64 k2 = 0; k2 < output.sq_nb; ++k2)
 						{
 							u64 input_index = (k1)* input.sq_nb + (k2);
 							u64 output_index = (k1)* output.sq_nb + (k2);
@@ -195,25 +195,25 @@ namespace EvalIO
 						}
 					break;
 				case KKP:
-					for (int k1 = 0; k1 < output.sq_nb; ++k1)
-						for (int k2 = 0; k2 < output.sq_nb; ++k2)
-							for (int p1 = 0; p1< output.fe_end;++p1)
+					for (u64 k1 = 0; k1 < output.sq_nb; ++k1)
+						for (u64 k2 = 0; k2 < output.sq_nb; ++k2)
+							for (u64 p1 = 0; p1< output.fe_end;++p1)
 							{
 								// mapが指定されていれば、input側のmap[p1]を参照する。
-								int input_p1 = map == nullptr ? p1 : map->at(p1);
+								u64 input_p1 = map == nullptr ? p1 : map->at(p1);
 								u64 input_index  = ((k1)* input.sq_nb  + (k2)) * input.fe_end  + input_p1;
 								u64 output_index = ((k1)* output.sq_nb + (k2)) * output.fe_end +       p1;
 								conv((u8*)in_ptr + input_index * input_feature_size, (u8*)out_ptr + output_index * output_feature_size);
 							}
 					break;
 				case KPP:
-					for (int k1 = 0; k1 < input.sq_nb; ++k1)
-						for (int p1 = 0; p1 < input.fe_end; ++p1)
+					for (u64 k1 = 0; k1 < input.sq_nb; ++k1)
+						for (u64 p1 = 0; p1 < input.fe_end; ++p1)
 						{
-							int input_p1 = map == nullptr ? p1 : map->at(p1);
-							for (int p2 = 0; p2 < input.fe_end; ++p2)
+							u64 input_p1 = map == nullptr ? p1 : map->at(p1);
+							for (u64 p2 = 0; p2 < input.fe_end; ++p2)
 							{
-								int input_p2 = map == nullptr ? p1 : map->at(p2);
+								u64 input_p2 = map == nullptr ? p1 : map->at(p2);
 								u64 input_index  = ((k1)* input.fe_end  + (input_p1)) * input.fe_end  + input_p2;
 								u64 output_index = ((k1)* output.fe_end + (      p1)) * output.fe_end +       p2;
 								conv((u8*)in_ptr + input_index * input_feature_size, (u8*)out_ptr + output_index * output_feature_size);

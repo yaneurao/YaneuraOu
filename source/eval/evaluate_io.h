@@ -104,7 +104,7 @@ namespace EvalIO
 	// 出力側のPがaのときに入力側のmap[a]のPとして扱う。
 	// この関数の返し値は、変換/読み込み/書き込みに成功するとtrueが返る。何らか失敗するとfalseが返る。
 	// この関数の使用例としては、evaluate_kppt.cppなどを見ること。
-	bool eval_convert(const EvalInfo& input, const EvalInfo& output, const std::vector<u16>* map);
+	extern bool eval_convert(const EvalInfo& input, const EvalInfo& output, const std::vector<u16>* map);
 
 }
 
