@@ -211,6 +211,12 @@
     <ClInclude Include="extra\kif_converter\kif_convert_tools.h">
       <Filter>リソース ファイル\extra\kif_converter</Filter>
     </ClInclude>
+    <ClInclude Include="extra\kif_converter\kif_convert_consts.h">
+      <Filter>リソース ファイル\extra\kif_converter</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\evaluate_io.h">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -365,6 +371,9 @@
     </ClCompile>
     <ClCompile Include="extra\kif_converter\kif_convert_tools.cpp">
       <Filter>リソース ファイル\extra\kif_converter</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\evaluate_io.cpp">
+      <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

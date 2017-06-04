@@ -14,6 +14,7 @@
 #include "../evaluate.h"
 #include "../eval/evaluate_kppt.h"
 #include "../eval/kppt_evalsum.h"
+#include "../eval/evaluate_io.h"
 #include "../position.h"
 #include "../misc.h"
 
@@ -248,23 +249,16 @@ namespace Eval
 
 			MKDIR(eval_dir);
 
-			// KK
-			std::ofstream ofsKK(path_combine(eval_dir, KK_BIN), std::ios::binary);
-			if (!ofsKK.write(reinterpret_cast<char*>(kk), sizeof(kk)))
-				goto Error;
-
-			// KKP
-			std::ofstream ofsKKP(path_combine(eval_dir, KKP_BIN), std::ios::binary);
-			if (!ofsKKP.write(reinterpret_cast<char*>(kkp), sizeof(kkp)))
-				goto Error;
-
-			// KPP
-			std::ofstream ofsKPP(path_combine(eval_dir, KPP_BIN), std::ios::binary);
-			if (!ofsKPP.write(reinterpret_cast<char*>(kpp), sizeof(kpp)))
+			// EvalIOを利用して評価関数ファイルに書き込む。
+			// 読み込みのときのinputとoutputとを入れ替えるとファイルに書き込める。EvalIo::eval_convert()マジ優秀。
+			using namespace EvalIO;
+			auto make_name = [&](std::string filename) { return path_combine(eval_dir, filename); };
+			auto input = EvalInfo::basic_kppt((void*)kk, (void*)kkp, (void*)kpp);
+			auto output = EvalInfo::basic_kppt(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+			if (!eval_convert(input, output, nullptr))
 				goto Error;
 
 			cout << "save_eval() finished. folder = " << eval_dir << endl;
-
 			return;
 		}
 
