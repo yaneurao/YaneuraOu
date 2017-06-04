@@ -119,6 +119,11 @@ namespace EvalIO
 	// また、引数のmap変数で、KPPTなどのP(BonaPiece)の値の変換テーブルを指定できる。
 	// 出力側のPがaのときに入力側のmap[a]のPとして扱う。
 	// このmapを指定したくないとき(Pに関して恒等変換で良い場合)は、mapとしてnullptrを渡すこと。
+	//
+	// 注意)
+	// input.fe_end < output.fe_endのように、fe_endを拡張するとき、
+	// mapを引数で渡して、拡張された領域が元の領域とどう対応するのか表現する必要がある。
+	//
 	extern bool eval_convert(const EvalInfo& input, const EvalInfo& output, const std::vector<u16>* map);
 
 }
