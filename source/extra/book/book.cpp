@@ -994,15 +994,22 @@ namespace Book
 				auto file_size = u64(file_end - file_start);
 
 				// 与えられたseek位置から"sfen"文字列を探し、それを返す。どこまでもなければ""が返る。
-				// hackとして、seek位置は-80しておく。
+				// hackとして、seek位置は-2しておく。(1行読み捨てるので、seek_fromぴったりのところに
+				// "sfen"から始まる文字列があるとそこを読み捨ててしまうため。-2してあれば、そこに
+				// CR+LFがあるはずだから、ここを読み捨てても大丈夫。)
 				auto next_sfen = [&](u64 seek_from)
 				{
 					string line;
 
-					fs.seekg(max(s64(0), (s64)seek_from - 80), fstream::beg);
-					getline(fs, line); // 1行読み捨てる
+					fs.seekg(max(s64(0), (s64)seek_from - 2), fstream::beg);
 
-									   // getlineはeof()を正しく反映させないのでgetline()の返し値を用いる必要がある。
+					// --- 1行読み捨てる
+
+					// seek_from == 0の場合も、ここで1行読み捨てられるが、1行目は
+					// ヘッダ行であり、問題ない。
+					getline(fs, line);
+
+					// getlineはeof()を正しく反映させないのでgetline()の返し値を用いる必要がある。
 					while (getline(fs, line))
 					{
 						if (!line.compare(0, 4, "sfen"))
@@ -1015,6 +1022,7 @@ namespace Book
 				};
 
 				// バイナリサーチ
+				// [s,e) の範囲で求める。
 
 				u64 s = 0, e = file_size, m;
 
@@ -1037,18 +1045,16 @@ namespace Book
 					}
 
 					// 40バイトより小さなsfenはありえないので探索範囲がこれより小さいなら終了。
-					// ただしs = 0のままだと先頭が探索されていないので..
 					// s,eは無符号型であることに注意。if (s-40 < e) と書くとs-40がマイナスになりかねない。
 					if (s + 40 > e)
 					{
-						if (s != 0 || e != 0)
-						{
-							// 見つからなかった
-							return book_body.end();
-						}
+						// ただしs = 0のままだと先頭要素が探索されていないということなので
+						// このケースに限り先頭要素を再探索
+						if (s == 0 && next_sfen(s) == sfen)
+							break;
 
-						// もしかしたら先頭付近にあるかも知れん..
-						e = 0; // この条件で再度サーチ
+						// 見つからなかった
+						return book_body.end();
 					}
 
 				}
@@ -1066,6 +1072,9 @@ namespace Book
 						bp.prob = float(bp.num) / num_sum;
 					num_sum = 0;
 				};
+
+				// sfen文字列が合致したところまでは確定しており、そこまでfileのseekは完了している。
+				// その直後に指し手が書かれているのでそれをgetline()で読み込めば良い。
 
 				while (!fs.eof())
 				{
