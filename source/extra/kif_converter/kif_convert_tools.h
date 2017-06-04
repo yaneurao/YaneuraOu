@@ -16,6 +16,8 @@ namespace KifConvertTools
 
 	// CSA形式の指し手表現文字列を取得する。(手番有り)
 	extern std::string to_csa_string(Position& pos, Move m);
+	// CSA形式の指し手表現文字列を取得する。(手番無し)
+	extern std::string to_csa1_string(Position& pos, Move m);
 
 	// --- KIF/KIF2(KI2)形式
 

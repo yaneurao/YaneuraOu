@@ -41,7 +41,7 @@ namespace KifConvertTools
 			ss << piece_strings[pt];
 		}
 
-		// csa形式の指し手文字列に変換して返す。
+		// csa形式の指し手文字列に変換して返す。（手番あり）
 		std::string to_csa_string(Move m, Piece movedPieceAfterType, Color c)
 		{
 			switch (m)
@@ -75,6 +75,37 @@ namespace KifConvertTools
 			return ss.str();
 		}
 
+		// csa形式の指し手文字列に変換して返す。（手番なし）
+		std::string to_csa1_string(Move m, Piece movedPieceAfterType, Color c)
+		{
+			switch (m)
+			{
+			case MOVE_NONE:
+			case MOVE_NULL:
+				ss << "%%ERROR";
+				break;
+			case MOVE_RESIGN:
+				ss << "%%TORYO";
+				break;
+			case MOVE_WIN:
+				ss << "%%WIN";
+				break;
+			default:
+				// --- 普通の指し手
+
+				// 打つ指し手のときは移動元の升は"00"と表現する。
+				// さもなくば、"77"のように移動元の升目をアラビア数字で表現。
+				if (is_drop(m))
+					ss << "00";
+				else
+					append(move_from(m));
+
+				append(move_to(m));
+				append(type_of(movedPieceAfterType));
+			}
+			return ss.str();
+		}
+
 	private:
 		// CSAの指し手文字列などで用いる1から9までの数。
 		const char* str_1to9 = "123456789";
@@ -94,11 +125,21 @@ namespace KifConvertTools
 		CsaStringBuilder builder;
 		return builder.to_csa_string(m, movedPieceAfterType, c);
 	}
+	std::string to_csa1_string(Move m, Piece movedPieceAfterType, Color c)
+	{
+		CsaStringBuilder builder;
+		return builder.to_csa1_string(m, movedPieceAfterType, c);
+	}
 
 	std::string to_csa_string(Position& pos, Move m)
 	{
 		CsaStringBuilder builder;
 		return builder.to_csa_string(m, pos.moved_piece_after(m), pos.side_to_move());
+	}
+	std::string to_csa1_string(Position& pos, Move m)
+	{
+		CsaStringBuilder builder;
+		return builder.to_csa1_string(m, pos.moved_piece_after(m), pos.side_to_move());
 	}
 
 	// -----------------
@@ -529,6 +570,14 @@ namespace KifConvertTools
 		pos.set_hirate();
 		for (auto m : MoveList<LEGAL>(pos))
 			std::cout << to_csa_string(pos, m.move) << " ";
+#endif
+
+#if 0
+		// 初期局面ですべての合法な指し手を生成し、それをCSA文字列として出力してみるテスト。
+		Position pos;
+		pos.set_hirate();
+		for (auto m : MoveList<LEGAL>(pos))
+			std::cout << to_csa1_string(pos, m.move) << " ";
 #endif
 
 #if 0
