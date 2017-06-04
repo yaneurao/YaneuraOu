@@ -7,6 +7,7 @@
 
 namespace EvalIO
 {
+
 	// 特徴因子名
 	enum EvalFeature { KK , KKP, KPP, PP , KPPP, KKPP };
 
@@ -16,6 +17,12 @@ namespace EvalIO
 	{
 		FileOrMemory(std::string filename_) : filename(filename_) , ptr(nullptr) {}
 		FileOrMemory(void* ptr_) : ptr(ptr_){}
+
+		// メモリを対象とするのか？
+		bool memory() const { return ptr != nullptr; }
+
+		// ファイルを対象とするのか？
+		bool file() const { return ptr == nullptr; }
 
 		// 実体を指し示すポインタ。
 		void* ptr;
@@ -98,12 +105,20 @@ namespace EvalIO
 		}
 	};
 
-	// 評価関数の変換＋α
-	// ファイルからメモリ、メモリからファイル、ファイルからファイルなどの変換、読み込み、書き込みが出来る。
-	// そのときにKPPTなどのP(BonaPiece)の値の変換テーブルを指定できる。
-	// 出力側のPがaのときに入力側のmap[a]のPとして扱う。
+	// 評価関数の変換＋αを行なう。
+	//
+	// ファイルからメモリ、メモリからファイル、ファイルからファイル、メモリからメモリ間での
+	// 評価関数のフォーマットの変換や、読み込み、書き込みが出来る。
+	//
+	// この関数の使用例としては、test_cmd.cppやevaluate_kppt.cppなどを見ること。
 	// この関数の返し値は、変換/読み込み/書き込みに成功するとtrueが返る。何らか失敗するとfalseが返る。
-	// この関数の使用例としては、evaluate_kppt.cppなどを見ること。
+	//
+	// また、inputとoutputに関してフォーマットが同じで、変換を要しないときは、単なるメモリコピーや
+	// ファイルコピーで済む実装になっており、オーバーヘッドは最小限で済むように実装されている。
+	//
+	// また、引数のmap変数で、KPPTなどのP(BonaPiece)の値の変換テーブルを指定できる。
+	// 出力側のPがaのときに入力側のmap[a]のPとして扱う。
+	// このmapを指定したくないとき(Pに関して恒等変換で良い場合)は、mapとしてnullptrを渡すこと。
 	extern bool eval_convert(const EvalInfo& input, const EvalInfo& output, const std::vector<u16>* map);
 
 }

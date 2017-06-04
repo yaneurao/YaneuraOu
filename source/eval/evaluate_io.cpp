@@ -48,7 +48,7 @@ namespace EvalIO
 
 			// 型変換の必要があるかどうかの判定
 			// inとoutの型が全く同じでかつ変換mapが指定されていないのであれば、
-			// 単にメモリコピー、ファイル入出力などで済む。このとき、オーバーヘッドは最も小さい。
+			// 単にメモリコピー、ファイル入出力などで済む。このとき、オーバーヘッドは最も小さくて済む。
 			bool convertless = 
 					   in_.element_size == out_.element_size
 					&& in_.element_num == out_.element_num
@@ -60,12 +60,12 @@ namespace EvalIO
 			if (convertless)
 			{
 				// memory to memory
-				if (in_.file_or_memory.ptr != nullptr && out_.file_or_memory.ptr != nullptr)
+				if (in_.file_or_memory.memory() && out_.file_or_memory.memory())
 				{
 					memcpy(out_.file_or_memory.ptr, in_.file_or_memory.ptr, input_block_size);
 				}
 				// file to memory
-				else if (in_.file_or_memory.ptr == nullptr && out_.file_or_memory.ptr != nullptr)
+				else if (in_.file_or_memory.file() && out_.file_or_memory.memory())
 				{
 					std::ifstream ifs(in_.file_or_memory.filename, std::ios::binary);
 					if (ifs) ifs.read(reinterpret_cast<char*>(out_.file_or_memory.ptr), input_block_size);
@@ -78,7 +78,7 @@ namespace EvalIO
 					}
 				}
 				// memory to file
-				else if (in_.file_or_memory.ptr != nullptr && out_.file_or_memory.ptr == nullptr)
+				else if (in_.file_or_memory.memory() && out_.file_or_memory.file())
 				{
 					std::ofstream ofs(out_.file_or_memory.filename, std::ios::binary);
 					if (ofs) ofs.write(reinterpret_cast<char*>(in_.file_or_memory.ptr), output_block_size);
@@ -89,7 +89,7 @@ namespace EvalIO
 					};
 				}
 				// file to file
-				else if (in_.file_or_memory.ptr == nullptr && out_.file_or_memory.ptr == nullptr)
+				else if (in_.file_or_memory.file() && out_.file_or_memory.file())
 				{
 					std::vector<u8> buffer(input_block_size);
 					std::ifstream ifs(in_.file_or_memory.filename, std::ios::binary);
