@@ -6,6 +6,7 @@
 #if defined(ENABLE_TEST_CMD)
 
 #include "all.h"
+#include "../eval/evaluate_io.h"
 #include <unordered_set>
 
 // 評価関数ファイルを読み込む。
@@ -1385,6 +1386,56 @@ void eval_merge(istringstream& is)
 
 	cout << "..done" << endl;
 }
+
+// 評価関数の変換
+void eval_convert(istringstream& is)
+{
+	// "test evalconvert kppt16 EVALDIR1 kppt32 EVALDIR2"
+	// のようにするとapery(WCSC27)の形式で格納されているEVALDIR1/の評価関数が、変換されて、
+	// やねうら王2017Early/apery(WCSC26)の形式でEVALDIR2/に格納される。
+
+	// "test evalconvert kppt32 EVALDIR1 kppt16 EVALDIR2"
+	// とすると、逆に、やねうら王2017Early/Apery(WCSC26)の形式で格納されているEVALDIR1/の評価関数が、変換されて
+	// Apery(WCSC27)の形式でEVALDIR2/に格納される。
+
+	std::string input_format, input_dir, output_format, output_dir;
+	is >> input_format >> input_dir >> output_format >> output_dir;
+
+	// EvalIOを使うとマジで簡単に変換できる。
+	auto get_info = [](std::string path , std::string format)
+	{
+		auto make_name = [&](std::string filename) { return path_combine(path, filename); };
+		if (format == "kppt32")
+			return EvalIO::EvalInfo::basic_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+		else if (format == "kppt16")
+			return EvalIO::EvalInfo::basic_kppt16(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+		else
+		{
+			// とりあえずダミーで何か返す。
+			return EvalIO::EvalInfo::basic_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+		}
+	};
+
+	auto is_valid_format = [](std::string format)
+	{
+		bool result =  (format == "kppt32" || format == "kppt16");
+		if (!result)
+			cout << "Error! Unknow format , format = " << format << endl;
+		return result;
+	};
+	if (!is_valid_format(input_format) || !is_valid_format(output_format))
+		return;
+
+	// 出力先のフォルダ、なければ掘る。
+	MKDIR(output_dir);
+
+	auto input = get_info(input_dir, input_format);
+	auto output = get_info(output_dir, output_format);
+	std::cout << "converting..";
+	EvalIO::eval_convert(input, output, nullptr);
+	std::cout << "..done." << std::endl;
+}
+
 #endif
 
 #ifdef EVAL_LEARN
@@ -1511,6 +1562,7 @@ void test_cmd(Position& pos, istringstream& is)
 #endif
 #ifdef EVAL_KPPT
 	else if (param == "evalmerge") eval_merge(is);                   // 評価関数の合成コマンド
+	else if (param == "evalconvert") eval_convert(is);               // 評価関数の変換コマンド
 #endif
 	else {
 		cout << "test unit               // UnitTest" << endl;

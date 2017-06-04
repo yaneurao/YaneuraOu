@@ -146,10 +146,6 @@ namespace Eval
 				}
 #endif
 
-#ifdef EVAL_LEARN
-			eval_learn_init();
-#endif
-
 		}
 
 		// 読み込みは成功した。

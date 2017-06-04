@@ -58,12 +58,12 @@ namespace Eval
 	void load_eval_impl()
 	{
 		// EvalIOを利用して評価関数ファイルを読み込む。
-		// ちなみに、inputのところにあるbasic_kppt()をbasic_kppt16()に変更するとApery(WCSC27)の評価関数ファイルが読み込める。
+		// ちなみに、inputのところにあるbasic_kppt32()をbasic_kppt16()に変更するとApery(WCSC27)の評価関数ファイルが読み込める。
 		// また、eval_convert()に渡している引数のinputとoutputを入れ替えるとファイルに書き出すことが出来る。EvalIOマジ、っょぃ。
 		using namespace EvalIO;
 		auto make_name = [&](std::string filename) { return path_combine((string)Options["EvalDir"], filename); };
-		auto input = EvalInfo::basic_kppt(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
-		auto output = EvalInfo::basic_kppt((void*)kk, (void*)kkp, (void*)kpp);
+		auto input = EvalInfo::basic_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+		auto output = EvalInfo::basic_kppt32((void*)kk, (void*)kkp, (void*)kpp);
 		if (!eval_convert(input, output, nullptr))
 			goto Error;
 
@@ -151,11 +151,6 @@ namespace Eval
 					cout << p1 << "," << p2 << " = " << (int)kpp[SQ_88][p1][p2][1] << endl;
 				}
 #endif
-
-#ifdef EVAL_LEARN
-			eval_learn_init();
-#endif
-
 		}
 
 		// 読み込みは成功した。

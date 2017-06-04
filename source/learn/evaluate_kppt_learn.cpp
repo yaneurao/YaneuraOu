@@ -32,9 +32,6 @@ namespace Eval
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
 	void update_weights(/*u64 epoch*/);
 
-	// 学習で使用するテーブル類の初期化
-	void eval_learn_init() { EvalLearningTools::init(); }
-
 	// 評価関数パラメーターをファイルに保存する。
 	void save_eval(std::string dir_name);
 }
@@ -55,6 +52,9 @@ namespace Eval
 	// 引数のetaは、AdaGradのときの定数η(eta)。
 	void init_grad(double eta)
 	{
+		// 学習で使用するテーブル類の初期化
+		EvalLearningTools::init();
+			
 		// 学習用配列の確保
 		u64 size = KPP::max_index();
 		weights.resize(size); // 確保できるかは知らん。確保できる環境で動かしてちょうだい。
@@ -253,8 +253,8 @@ namespace Eval
 			// 読み込みのときのinputとoutputとを入れ替えるとファイルに書き込める。EvalIo::eval_convert()マジ優秀。
 			using namespace EvalIO;
 			auto make_name = [&](std::string filename) { return path_combine(eval_dir, filename); };
-			auto input = EvalInfo::basic_kppt((void*)kk, (void*)kkp, (void*)kpp);
-			auto output = EvalInfo::basic_kppt(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+			auto input = EvalInfo::basic_kppt32((void*)kk, (void*)kkp, (void*)kpp);
+			auto output = EvalInfo::basic_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
 			if (!eval_convert(input, output, nullptr))
 				goto Error;
 

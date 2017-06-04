@@ -52,9 +52,6 @@ namespace Eval {
 	void print_eval_stat(Position& pos);
 
 #if defined(EVAL_LEARN) && (defined(EVAL_KKPT) || defined(EVAL_KPPT))
-	// 学習のための初期化(評価関数の読み込み時に行う。)
-	void eval_learn_init();
-
 	// 学習のときの勾配配列の初期化
 	// 学習率を引数に渡しておく。0.0なら、defaultの値を採用する。
 	void init_grad(double eta);

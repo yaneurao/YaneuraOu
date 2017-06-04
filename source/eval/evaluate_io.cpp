@@ -146,18 +146,29 @@ namespace EvalIO
 				u64 output_feature_size = out_.element_size * out_.element_num;
 				auto conv = [&](u8* src, u8* dst)
 				{
-					for (int i = 0; i < in_.element_num; ++i)
+					// in_.element_numとout_.element_numの数が異なることがあるのだが…。
+					// とりあえずout_.element_numを基準に考える。
+					for (int i = 0; i < out_.element_num; ++i)
 					{
 						s64 n;
-						switch (in_.element_size)
+						if (i < in_.element_num)
 						{
-						case 1: n = *(s8* )src; break;
-						case 2: n = *(s16*)src; break;
-						case 4: n = *(s32*)src; break;
-						case 8: n = *(s64*)src; break;
-						default:
-							UNREACHABLE;
+							switch (in_.element_size)
+							{
+							case 1: n = *(s8*)src; break;
+							case 2: n = *(s16*)src; break;
+							case 4: n = *(s32*)src; break;
+							case 8: n = *(s64*)src; break;
+							default:
+								UNREACHABLE;
+							}
 						}
+						else {
+							// out_.element_numのほうがin_.element_numより大きいので
+							// 余る分は0でpaddingしておく。
+							n = 0;
+						}
+
 						switch (out_.element_size)
 						{
 						case 1: *(s8* )dst = (s8 )n; break;
@@ -190,8 +201,8 @@ namespace EvalIO
 							{
 								// mapが指定されていれば、input側のmap[p1]を参照する。
 								int input_p1 = map == nullptr ? p1 : map->at(p1);
-								u64 input_index = ((k1)* input.sq_nb + (k2) ) * input.fe_end + input_p1;
-								u64 output_index = ((k1)* output.sq_nb + (k2)) * output.fe_end + p1;
+								u64 input_index  = ((k1)* input.sq_nb  + (k2)) * input.fe_end  + input_p1;
+								u64 output_index = ((k1)* output.sq_nb + (k2)) * output.fe_end +       p1;
 								conv((u8*)in_ptr + input_index * input_feature_size, (u8*)out_ptr + output_index * output_feature_size);
 							}
 					break;
@@ -203,8 +214,8 @@ namespace EvalIO
 							for (int p2 = 0; p2 < input.fe_end; ++p2)
 							{
 								int input_p2 = map == nullptr ? p1 : map->at(p2);
-								u64 input_index = ((k1)* input.fe_end + (input_p1)) * input.fe_end + input_p2;
-								u64 output_index = ((k1)* output.fe_end + (p1)) * output.fe_end + p2;
+								u64 input_index  = ((k1)* input.fe_end  + (input_p1)) * input.fe_end  + input_p2;
+								u64 output_index = ((k1)* output.fe_end + (      p1)) * output.fe_end +       p2;
 								conv((u8*)in_ptr + input_index * input_feature_size, (u8*)out_ptr + output_index * output_feature_size);
 							}
 						}
@@ -224,7 +235,7 @@ namespace EvalIO
 				if (out_.file_or_memory.ptr == nullptr)
 				{
 					std::ofstream ofs(out_.file_or_memory.filename, std::ios::binary);
-					if (ofs) ofs.write(reinterpret_cast<char*>(&out_ptr), output_block_size);
+					if (ofs) ofs.write(reinterpret_cast<char*>(out_ptr), output_block_size);
 					else
 					{
 						std::cout << "info string write file error , file = " << out_.file_or_memory.filename << std::endl;

@@ -76,7 +76,7 @@ namespace EvalIO
 		// やねうら王2016 , Apery(WCSC26)のKPPT型評価関数の型定義を返す。
 		// 引数にはFileOrMemoryのコンストラクタに渡す、std::string filenameかvoid* ptr を渡す。
 		template <typename T1, typename T2, typename T3>
-		static EvalInfo basic_kppt(T1 kk_, T2 kkp_, T3 kpp_)
+		static EvalInfo basic_kppt32(T1 kk_, T2 kkp_, T3 kpp_)
 		{
 			EvalInfo ei(81, 1548);
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KK , 4, 2 , FileOrMemory(kk_ ))); // KK は4バイト。(手番ありなので2つ)
