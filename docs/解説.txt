@@ -268,6 +268,11 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 1つ目のsfenファイルは、そのsfenファイルから先手の局面だけを抽出して使う。
 1つ目のsfenファイルは、そのsfenファイルから後手の局面だけを抽出して使う。
 
+また、このとき、sfenファイル名として"no_file"を指定すると、先手用 or 後手用のsfenファイルは無しであるというのを指定できる。
+
+例)
+> makebook from_sfen bw no_file white_book.sfen standard_book.db moves 16
+
 
 > makebook think 2016.sfen yaneura_book.db moves 16 depth 32
 	※　	やねうら王2017Earlyなど、この機能に対応している思考エンジンが必要。
@@ -508,3 +513,20 @@ book/book.bin
 またEVAL_HASH大きめにしてあるのでメモリはたくさん消費しますが、一度探索した局面は評価関数の計算を端折れます。
 2手前に思考した内容が生きるので通常対局においてはやや有利で、3～5%速いはずです。
 
+
+■　Apery(WCSC27)で使われている評価関数ファイルと、やねうら王2017Earlyで使われている評価関数ファイルとの相互変換について
+
+以下では
+「Apery(WCSC27)で使われている評価関数ファイル」のことを"kppt16"と呼びます。
+「やねうら王2017Earlyで使われている評価関数ファイル」のことを"kppt32"と呼びます。
+
+これらの相互変換は "test evalconvert"というコマンドで行なうことが出来ます。
+
+例)
+> test evalconvert kppt16 eval/elmo_apery27 kppt32 eval/elmo_yane27
+eval/elmo_apery27に格納されているkppt16の評価関数ファイルが、kppt32に変換されてeval/elmo_yane27に格納されます。
+出力先のフォルダが存在しない場合は自動的に作成されます。
+
+> test evalconvert kppt32 eval/elmo_yane27 kppt16 eval/elmo_apery27
+eval/elmo_yane27に格納されているkppt32の評価関数ファイルが、kppt16に変換されてeval/elmo_apery27に格納されます。
+出力先のフォルダが存在しない場合は自動的に作成されます。
