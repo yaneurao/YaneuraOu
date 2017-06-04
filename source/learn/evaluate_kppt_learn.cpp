@@ -10,6 +10,7 @@
 
 #include "learn.h"
 #include "learning_tools.h"
+#include "../eval/evaluate_io.h"
 
 #include "../evaluate.h"
 #include "../eval/evaluate_kppt.h"
@@ -251,11 +252,10 @@ namespace Eval
 
 			// EvalIOを利用して評価関数ファイルに書き込む。
 			// 読み込みのときのinputとoutputとを入れ替えるとファイルに書き込める。EvalIo::eval_convert()マジ優秀。
-			using namespace EvalIO;
 			auto make_name = [&](std::string filename) { return path_combine(eval_dir, filename); };
-			auto input = EvalInfo::basic_kppt32((void*)kk, (void*)kkp, (void*)kpp);
-			auto output = EvalInfo::basic_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
-			if (!eval_convert(input, output, nullptr))
+			auto input = EvalIO::EvalInfo::basic_kppt32((void*)kk, (void*)kkp, (void*)kpp);
+			auto output = EvalIO::EvalInfo::basic_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+			if (!EvalIO::eval_convert(input, output, nullptr))
 				goto Error;
 
 			cout << "save_eval() finished. folder = " << eval_dir << endl;
