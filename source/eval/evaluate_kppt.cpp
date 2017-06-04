@@ -11,7 +11,7 @@
 // I pay my respects to his great achievements.
 //
 
-#ifdef EVAL_KPPT
+#if defined (EVAL_KPPT) || defined(EVAL_EXPERIMENTAL)
 
 #include <fstream>
 #include <iostream>
@@ -60,11 +60,10 @@ namespace Eval
 		// EvalIOを利用して評価関数ファイルを読み込む。
 		// ちなみに、inputのところにあるbasic_kppt32()をbasic_kppt16()に変更するとApery(WCSC27)の評価関数ファイルが読み込める。
 		// また、eval_convert()に渡している引数のinputとoutputを入れ替えるとファイルに書き出すことが出来る。EvalIOマジ、っょぃ。
-		using namespace EvalIO;
 		auto make_name = [&](std::string filename) { return path_combine((string)Options["EvalDir"], filename); };
-		auto input = EvalInfo::basic_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
-		auto output = EvalInfo::basic_kppt32((void*)kk, (void*)kkp, (void*)kpp);
-		if (!eval_convert(input, output, nullptr))
+		auto input = EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+		auto output = EvalIO::EvalInfo::build_kppt32((void*)kk, (void*)kkp, (void*)kpp);
+		if (!EvalIO::eval_convert(input, output, nullptr))
 			goto Error;
 
 		{
@@ -519,7 +518,7 @@ namespace Eval
 	}
 
 
-#ifdef USE_EVAL_HASH
+#if defined (USE_EVAL_HASH)
 	EvaluateHashTable g_evalTable;
 
 	// prefetchする関数も用意しておく。
@@ -530,6 +529,7 @@ namespace Eval
 
 #endif
 
+#if !defined(EVAL_EXPERIMENTAL)
 	void evaluateBody(const Position& pos)
 	{
 		// 一つ前のノードからの評価値の差分を計算する。
@@ -824,6 +824,13 @@ namespace Eval
 		}
 
 	}
+#else
+	// 評価関数の実験のときは差分計算をせずに(実装するのが大変なため)、毎回全計算を行なう。
+	Value evaluateBody(const Position& pos)
+	{
+		return compute_eval(pos);
+	}
+#endif // EVAL_EXPERIMENTAL
 
 	// 評価関数
 	Value evaluate(const Position& pos)
@@ -894,9 +901,15 @@ namespace Eval
 
 	void evaluate_with_no_return(const Position& pos)
 	{
+		// 評価関数の実験のときには、どうせ差分計算を行わないので、
+		// ここでevaluate()を呼ぶのは無駄である。
+#if ! defined(EVAL_EXPERIMENTAL)
+
 		// まだ評価値が計算されていないなら
 		if (!pos.state()->sum.evaluated())
 			evaluate(pos);
+
+#endif
 	}
 
 	// 現在の局面の評価値の内訳を表示する。

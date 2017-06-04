@@ -1235,7 +1235,7 @@ void test_search(Position& pos, istringstream& is)
 }
 #endif
 
-#ifdef EVAL_KPPT
+#if defined (EVAL_KPPT) || defined(EVAL_EXPERIMENTAL)
 //
 // eval merge
 //  KKPT評価関数の合成用
@@ -1406,14 +1406,12 @@ void eval_convert(istringstream& is)
 	{
 		auto make_name = [&](std::string filename) { return path_combine(path, filename); };
 		if (format == "kppt32")
-			return EvalIO::EvalInfo::basic_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+			return EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
 		else if (format == "kppt16")
-			return EvalIO::EvalInfo::basic_kppt16(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+			return EvalIO::EvalInfo::build_kppt16(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
 		else
-		{
 			// とりあえずダミーで何か返す。
-			return EvalIO::EvalInfo::basic_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
-		}
+			return EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
 	};
 
 	auto is_valid_format = [](std::string format)

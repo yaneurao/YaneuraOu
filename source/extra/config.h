@@ -303,6 +303,10 @@
 #ifdef YANEURAOU_2017_EARLY_ENGINE
 #define ENGINE_NAME "YaneuraOu 2017 Early"
 #define EVAL_KPPT
+
+// 実験中の評価関数
+//#define EVAL_EXPERIMENTAL
+
 #define USE_EVAL_HASH
 #define USE_SEE
 #define USE_MOVE_PICKER_2017Q2
@@ -433,9 +437,8 @@
 // --------------------
 
 // 学習時にはEVAL_HASHを無効化しておかないと、rmseの計算のときなどにeval hashにhitしてしまい、
-// 正しく計算できない。
+// 正しく計算できない。そのため、EVAL_HASHを動的に無効化するためのオプションを用意する。
 #if defined(EVAL_LEARN)
-#undef USE_EVAL_HASH
 #define USE_GLOBAL_OPTIONS
 #endif
 

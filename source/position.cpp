@@ -271,7 +271,7 @@ void Position::set(std::string sfen)
 
 	// --- evaluate
 
-#ifndef EVAL_NO_USE
+#if !defined(EVAL_NO_USE)
 	st->materialValue = Eval::material(*this);
 	Eval::compute_eval(*this);
 #endif
@@ -1006,12 +1006,12 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 	// 評価値の差分計算用の初期化
 
-#ifdef EVAL_KPP
+#if defined (EVAL_KPP)
   // KPPのとき差分計算は遅延させるのでここではKPPの値を未計算であることを意味するINT_MAXを代入しておく。
   // これVALUNE_NONEにするとsumKKPが32bitなので偶然一致することがある。
 	st->sumKKP = VALUE_NOT_EVALUATED;
 #endif
-#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
+#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST) || defined(EVAL_EXPERIMENTAL)
 	// 上と同じ意味。
 	st->sum.p[0][0] = VALUE_NOT_EVALUATED;
 #endif

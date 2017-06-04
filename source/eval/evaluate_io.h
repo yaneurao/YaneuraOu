@@ -68,10 +68,10 @@ namespace EvalIO
 
 		// --- 以下、よく使いそうなものだけ定義しておく。あとは自分で定義して使うべし。
 
-		// やねうら王2015のKPP型評価関数の型定義を返す。
+		// やねうら王2015のKPP型評価関数の型定義を返すbuilder。
 		// 引数にはFileOrMemoryのコンストラクタに渡す、std::string filenameかvoid* ptr を渡す。
 		template <typename T1,typename T2, typename T3>
-		static EvalInfo basic_kpp(T1 kk_, T2 kkp_, T3 kpp_)
+		static EvalInfo build_kpp(T1 kk_, T2 kkp_, T3 kpp_)
 		{
 			EvalInfo ei(81 /* SQ_NB */ ,1535 /* EvalKPP::fe_end */);
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KK , 4, 1 , FileOrMemory(kk_ ))); // KK は4バイト。(手番なしなので1つ)
@@ -80,10 +80,10 @@ namespace EvalIO
 			return ei;
 		}
 
-		// やねうら王2016 , Apery(WCSC26)のKPPT型評価関数の型定義を返す。
+		// やねうら王2016 , Apery(WCSC26)のKPPT型評価関数の型定義を返すbuilder。
 		// 引数にはFileOrMemoryのコンストラクタに渡す、std::string filenameかvoid* ptr を渡す。
 		template <typename T1, typename T2, typename T3>
-		static EvalInfo basic_kppt32(T1 kk_, T2 kkp_, T3 kpp_)
+		static EvalInfo build_kppt32(T1 kk_, T2 kkp_, T3 kpp_)
 		{
 			EvalInfo ei(81 /* SQ_NB */, 1548 /* EvalKPPT::fe_end */);
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KK , 4, 2 , FileOrMemory(kk_ ))); // KK は4バイト。(手番ありなので2つ)
@@ -92,10 +92,10 @@ namespace EvalIO
 			return ei;
 		}
 
-		// Apery(WCSC27)のKPPT型評価関数の型定義を返す。KK,KKPが16bit化されている。
+		// Apery(WCSC27)のKPPT型評価関数の型定義を返すbuilder。KK,KKPが16bit化されている。
 		// 引数にはFileOrMemoryのコンストラクタに渡す、std::string filenameかvoid* ptr を渡す。
 		template <typename T1, typename T2, typename T3>
-		static EvalInfo basic_kppt16(T1 kk_, T2 kkp_, T3 kpp_)
+		static EvalInfo build_kppt16(T1 kk_, T2 kkp_, T3 kpp_)
 		{
 			EvalInfo ei(81 /* SQ_NB */, 1548 /* EvalKPPT::fe_end */);
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KK , 2, 2 , FileOrMemory(kk_  ))); // KK は2バイト。(手番ありなので2つ)
@@ -103,6 +103,7 @@ namespace EvalIO
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP, 2, 2 , FileOrMemory(kpp_ ))); // KPPは2バイト。
 			return ei;
 		}
+
 	};
 
 	// 評価関数の変換＋αを行なう。

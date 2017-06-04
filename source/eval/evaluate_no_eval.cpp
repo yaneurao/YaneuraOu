@@ -1,6 +1,6 @@
 ﻿#include "../shogi.h"
 
-#ifdef EVAL_NO_USE
+#if defined (EVAL_NO_USE)
 namespace Eval
 {
   void load_eval() {}

@@ -320,7 +320,7 @@ namespace USI
 
 		o["EvalDir"] << Option("eval");
 
-#if defined(EVAL_KPPT) && defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
+#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32) && (defined(EVAL_KPPT) || defined(EVAL_EXPERIMENTAL))
 		// 評価関数パラメーターを共有するか
 		o["EvalShare"] << Option(true);
 #endif

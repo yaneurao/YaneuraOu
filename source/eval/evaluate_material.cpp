@@ -4,7 +4,7 @@
 
 namespace Eval
 {
-#ifndef EVAL_NO_USE
+#if !defined (EVAL_NO_USE)
   // 何らかの評価関数を用いる以上、駒割りの計算は必須。
   // すなわち、EVAL_NO_USE以外のときはこの関数が必要。
 
