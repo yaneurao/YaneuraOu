@@ -66,7 +66,7 @@ namespace EvalIO
 		template <typename T1,typename T2, typename T3>
 		static EvalInfo basic_kpp(T1 kk_, T2 kkp_, T3 kpp_)
 		{
-			EvalInfo ei(81,1535);
+			EvalInfo ei(81 /* SQ_NB */ ,1535 /* EvalKPP::fe_end */);
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KK , 4, 1 , FileOrMemory(kk_ ))); // KK は4バイト。(手番なしなので1つ)
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP, 4, 1 , FileOrMemory(kkp_))); // KKPは4バイト。
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP, 2, 1 , FileOrMemory(kpp_))); // KPPは2バイト。
@@ -78,7 +78,7 @@ namespace EvalIO
 		template <typename T1, typename T2, typename T3>
 		static EvalInfo basic_kppt32(T1 kk_, T2 kkp_, T3 kpp_)
 		{
-			EvalInfo ei(81, 1548);
+			EvalInfo ei(81 /* SQ_NB */, 1548 /* EvalKPPT::fe_end */);
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KK , 4, 2 , FileOrMemory(kk_ ))); // KK は4バイト。(手番ありなので2つ)
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP, 4, 2 , FileOrMemory(kkp_))); // KKPは4バイト。
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP, 2, 2 , FileOrMemory(kpp_))); // KPPは2バイト。
@@ -90,7 +90,7 @@ namespace EvalIO
 		template <typename T1, typename T2, typename T3>
 		static EvalInfo basic_kppt16(T1 kk_, T2 kkp_, T3 kpp_)
 		{
-			EvalInfo ei(81, 1548);
+			EvalInfo ei(81 /* SQ_NB */, 1548 /* EvalKPPT::fe_end */);
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KK , 2, 2 , FileOrMemory(kk_  ))); // KK は2バイト。(手番ありなので2つ)
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP, 2, 2 , FileOrMemory(kkp_ ))); // KKPは2バイト。
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP, 2, 2 , FileOrMemory(kpp_ ))); // KPPは2バイト。

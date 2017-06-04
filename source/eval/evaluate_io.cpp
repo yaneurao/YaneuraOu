@@ -194,6 +194,7 @@ namespace EvalIO
 							conv((u8*)in_ptr + input_index * input_feature_size , (u8*)out_ptr + output_index * output_feature_size);
 						}
 					break;
+
 				case KKP:
 					for (u64 k1 = 0; k1 < output.sq_nb; ++k1)
 						for (u64 k2 = 0; k2 < output.sq_nb; ++k2)
@@ -206,6 +207,9 @@ namespace EvalIO
 								conv((u8*)in_ptr + input_index * input_feature_size, (u8*)out_ptr + output_index * output_feature_size);
 							}
 					break;
+
+				// --- ここ以下のコードはテストしていないので合ってるかどうかわからん…。
+
 				case KPP:
 					for (u64 k1 = 0; k1 < input.sq_nb; ++k1)
 						for (u64 p1 = 0; p1 < input.fe_end; ++p1)
@@ -213,7 +217,7 @@ namespace EvalIO
 							u64 input_p1 = map == nullptr ? p1 : map->at(p1);
 							for (u64 p2 = 0; p2 < input.fe_end; ++p2)
 							{
-								u64 input_p2 = map == nullptr ? p1 : map->at(p2);
+								u64 input_p2 = map == nullptr ? p2 : map->at(p2);
 								u64 input_index  = ((k1)* input.fe_end  + (input_p1)) * input.fe_end  + input_p2;
 								u64 output_index = ((k1)* output.fe_end + (      p1)) * output.fe_end +       p2;
 								conv((u8*)in_ptr + input_index * input_feature_size, (u8*)out_ptr + output_index * output_feature_size);
@@ -222,11 +226,52 @@ namespace EvalIO
 					break;
 
 				case PP:
+					for (u64 p1 = 0; p1 < input.fe_end; ++p1)
+					{
+						u64 input_p1 = map == nullptr ? p1 : map->at(p1);
+						for (u64 p2 = 0; p2 < input.fe_end; ++p2)
+						{
+							u64 input_p2 = map == nullptr ? p2 : map->at(p2);
+							u64 input_index =  (input_p1) * input.fe_end  + input_p2;
+							u64 output_index = (      p1) * output.fe_end + p2;
+							conv((u8*)in_ptr + input_index * input_feature_size, (u8*)out_ptr + output_index * output_feature_size);
+						}
+					}
+					break;
+
 				case KKPP:
+					for (u64 k1 = 0; k1 < input.sq_nb; ++k1)
+						for (u64 k2 = 0; k2 < input.sq_nb; ++k2)
+							for (u64 p1 = 0; p1 < input.fe_end; ++p1)
+							{
+								u64 input_p1 = map == nullptr ? p1 : map->at(p1);
+								for (u64 p2 = 0; p2 < input.fe_end; ++p2)
+								{
+									u64 input_p2 = map == nullptr ? p2 : map->at(p2);
+									u64 input_index  = ((k1*input.sq_nb  + k2) * input.fe_end  + (input_p1)) * input.fe_end  + input_p2;
+									u64 output_index = ((k1*output.sq_nb + k2) * output.fe_end + (      p1)) * output.fe_end +       p2;
+									conv((u8*)in_ptr + input_index * input_feature_size, (u8*)out_ptr + output_index * output_feature_size);
+								}
+							}
+					break;
+
 				case KPPP:
-					ASSERT_LV1(false);
-					// すまん、未実装だ。気が向いたら書く。
-					// あるいは、上のコードと同様に書いて、プルリクしてちょうだい。
+					for (u64 k1 = 0; k1 < input.sq_nb; ++k1)
+						for (u64 p1 = 0; p1 < input.fe_end; ++p1)
+						{
+							u64 input_p1 = map == nullptr ? p1 : map->at(p1);
+							for (u64 p2 = 0; p2 < input.fe_end; ++p2)
+							{
+								u64 input_p2 = map == nullptr ? p2 : map->at(p2);
+								for (u64 p3 = 0; p3 < input.fe_end; ++p3)
+								{
+									u64 input_p3 = map == nullptr ? p3 : map->at(p3);
+									u64 input_index  = (((k1)* input.fe_end  + (input_p1)) * input.fe_end  + input_p2)*input.fe_end  + input_p3;
+									u64 output_index = (((k1)* output.fe_end + (      p1)) * output.fe_end +       p2)*output.fe_end +       p3;
+									conv((u8*)in_ptr + input_index * input_feature_size, (u8*)out_ptr + output_index * output_feature_size);
+								}
+							}
+						}
 					break;
 				}
 
