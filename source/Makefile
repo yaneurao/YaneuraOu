@@ -119,6 +119,7 @@ SOURCES  = shogi.cpp                                                           \
 	eval/evaluate_kppt.cpp                                                     \
 	eval/evaluate_material.cpp                                                 \
 	eval/evaluate_no_eval.cpp                                                  \
+	eval/evaluate_io.cpp                                                       \
 	eval/progress.cpp                                                          \
 	engine/user-engine/user-search.cpp                                         \
 	engine/random-player-engine/random-player-search.cpp                       \
