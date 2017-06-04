@@ -1,4 +1,5 @@
 ﻿#include "kif_convert_tools.h"
+#include "kif_convert_consts.h"
 
 #if defined(USE_KIF_CONVERT_TOOLS)
 
@@ -41,39 +42,37 @@ namespace KifConvertTools
 		}
 
 		// csa形式の指し手文字列に変換して返す。
-		static std::string to_csa_string(Move m, Piece movedPieceAfterType, Color c)
+		std::string to_csa_string(Move m, Piece movedPieceAfterType, Color c)
 		{
-			CsaStringBuilder builder;
-
 			switch (m)
 			{
 			case MOVE_NONE:
 			case MOVE_NULL:
-				builder.ss << "%%ERROR";
+				ss << "%%ERROR";
 				break;
 			case MOVE_RESIGN:
-				builder.ss << "%%TORYO";
+				ss << "%%TORYO";
 				break;
 			case MOVE_WIN:
-				builder.ss << "%%WIN";
+				ss << "%%WIN";
 				break;
 			default:
 				// --- 普通の指し手
 
 				// 手番
-				builder.append(c);
+				append(c);
 
 				// 打つ指し手のときは移動元の升は"00"と表現する。
 				// さもなくば、"77"のように移動元の升目をアラビア数字で表現。
 				if (is_drop(m))
-					builder.ss << "00";
+					ss << "00";
 				else
-					builder.append(move_from(m));
+					append(move_from(m));
 
-				builder.append(move_to(m));
-				builder.append(type_of(movedPieceAfterType));
+				append(move_to(m));
+				append(type_of(movedPieceAfterType));
 			}
-			return (std::string)builder;
+			return ss.str();
 		}
 
 	private:
@@ -90,15 +89,16 @@ namespace KifConvertTools
 		std::stringstream ss;
 	};
 
-
 	std::string to_csa_string(Move m, Piece movedPieceAfterType, Color c)
 	{
-		return CsaStringBuilder::to_csa_string(m, movedPieceAfterType, c);
+		CsaStringBuilder builder;
+		return builder.to_csa_string(m, movedPieceAfterType, c);
 	}
 
 	std::string to_csa_string(Position& pos, Move m)
 	{
-		return  to_csa_string(m, pos.moved_piece_after(m), pos.side_to_move());
+		CsaStringBuilder builder;
+		return builder.to_csa_string(m, pos.moved_piece_after(m), pos.side_to_move());
 	}
 
 	// -----------------
@@ -107,10 +107,11 @@ namespace KifConvertTools
 
 	// KIF文字列の構築器
 	// (CsaStringBuilderと同じ作り)
+	template <class strT, class constT>
 	struct KifStringBuilder
 	{
 		// 暗黙の型変換子
-		operator std::string() { return ss.str(); }
+		operator strT() { return ss.str(); }
 
 		void append(Rank r, SquareFormat fmt)
 		{
@@ -118,13 +119,13 @@ namespace KifConvertTools
 			{
 			case SqFmt_FullWidthArabic:
 				// 2バイト文字をstd::stringで扱っているので2文字切り出す。
-				ss << str_1to9_full_width_arabic.substr(2 * r, 2);
+				ss << constStr.char1to9_full_width_arabic[r];
 				break;
 			case SqFmt_FullWidthMix:
-				ss << str_1to9_kanji.substr(2 * r, 2);
+				ss << constStr.char1to9_kanji[r];
 				break;
 			case SqFmt_ASCII:
-				ss << str_1to9[r];
+				ss << constStr.char1to9_ascii[r];
 				break;
 			default:
 				UNREACHABLE;
@@ -137,10 +138,10 @@ namespace KifConvertTools
 			{
 			case SqFmt_FullWidthArabic:
 			case SqFmt_FullWidthMix:
-				ss << str_1to9_full_width_arabic.substr(f*2,2);
+				ss << constStr.char1to9_full_width_arabic[f];
 				break;
 			case SqFmt_ASCII:
-				ss << str_1to9[f];
+				ss << constStr.char1to9_ascii[f];
 				break;
 			default:
 				UNREACHABLE;
@@ -157,39 +158,37 @@ namespace KifConvertTools
 		// 手番をKIF形式の文字列に変換して、ssに追加する。
 		void append(Color c)
 		{
-			ss << ((c == BLACK) ? "▲" : "△");
+			ss << ((c == BLACK) ? constStr.color_black : constStr.color_white);
 		}
 
 		// 駒名をKIF形式の文字列に変換して、ssに追加する。
 		void append(Piece pt)
 		{
 			ASSERT_LV3(type_of(pt) == pt);
-			ss << piece_strings[pt];
+			ss << constStr.piece_strings[pt];
 		}
 
 		// KIF形式の指し手文字列に変換して返す。
 		// m			  : 今回の指し手
 		// prev_m		  : 直前の指し手
 		// movedPieceType : 移動させる駒(今回の指し手で成る場合は、成る前の駒)
-		static std::string to_kif_string(Move m, Piece movedPieceType, Move prev_m , Color c, SquareFormat fmt)
+		strT to_kif_string(Move m, Piece movedPieceType, Move prev_m , Color c, SquareFormat fmt)
 		{
-			KifStringBuilder builder;
-
 			// 手番
-			builder.append(c);
+			append(c);
 
 			switch (m)
 			{
 			case MOVE_NONE:
-				builder.ss << "エラー";
+				ss << constStr.move_none;
 			case MOVE_NULL:
-				builder.ss << "パス";
+				ss << constStr.move_null;
 				break;
 			case MOVE_RESIGN:
-				builder.ss << "投了";
+				ss << constStr.move_resign;
 				break;
 			case MOVE_WIN:
-				builder.ss << "勝ち宣言";
+				ss << constStr.move_win;
 				break;
 			default:
 				// --- 普通の指し手
@@ -197,53 +196,51 @@ namespace KifConvertTools
 				// 一つ前の指し手の移動先と、今回の移動先が同じ場合、"同"金のように表示する。
 				if (is_ok(prev_m) && move_to(prev_m) == move_to(m))
 				{
-					builder.ss << "同";
-					builder.append(movedPieceType);
+					ss << constStr.move_samepos;
+					append(movedPieceType);
 				}
 				else
 				{
-					builder.append(move_to(m), fmt);
-					builder.append(movedPieceType);
+					append(move_to(m), fmt);
+					append(movedPieceType);
 				}
 				if (is_drop(m))
-					builder.ss << "打";
+					ss << constStr.move_strike;
 				else if (is_promote(m))
-					builder.ss << "成";
+					ss << constStr.move_promote;
 				else
 				{
 					// 参考用に駒の移動元を括弧表記で出力することになっている。
-					builder.ss << '(';
-					builder.append(move_from(m), SqFmt_ASCII);
-					builder.ss << ')';
+					ss << constStr.lbrack;
+					append(move_from(m), SqFmt_ASCII);
+					ss << constStr.rbrack;
 				}
 			}
-			return (std::string)builder;
+			return ss.str();
 		}
 
 		// KIF2形式の指し手文字列に変換して返す。
 		// m			  : 今回の指し手
 		// prev_m		  : 直前の指し手
 		// movedPieceType : 移動させる駒(今回の指し手で成る場合は、成る前の駒)
-		static std::string to_kif2_string(Position& pos, Move m, SquareFormat fmt)
+		strT to_kif2_string(Position& pos, Move m, SquareFormat fmt)
 		{
-			KifStringBuilder builder;
-
 			// 手番
 			Color c = pos.side_to_move();
-			builder.append(c);
+			append(c);
 
 			switch (m)
 			{
 			case MOVE_NONE:
-				builder.ss << "エラー";
+				ss << constStr.move_none;
 			case MOVE_NULL:
-				builder.ss << "パス";
+				ss << constStr.move_null;
 				break;
 			case MOVE_RESIGN:
-				builder.ss << "投了";
+				ss << constStr.move_resign;
 				break;
 			case MOVE_WIN:
-				builder.ss << "勝ち宣言";
+				ss << constStr.move_win;
 				break;
 			default:
 				// --- 普通の指し手
@@ -278,12 +275,12 @@ namespace KifConvertTools
 
 				// 移動先座標
 				if (is_ok(prev_m) && move_to(prev_m) == to)
-					builder.ss << "同";
+					ss << constStr.move_samepos;
 				else
-					builder.append(to, fmt);
+					append(to, fmt);
 
 				// 駒種の出力
-				builder.append(pt);
+				append(pt);
 
 				// toのある升からdirの方角が1になっているbitboardを取得する。
 				// (例えば、dir == DIRECT_Rなら、sqより右にある升がすべて1)
@@ -304,127 +301,116 @@ namespace KifConvertTools
 						{
 							// 真横に寄る同種駒がそれだけなら「寄」
 							if ((attackerBB & RANK_BB[to_rank]) == fromBB)
-								builder.ss << "寄";
+								ss << constStr.move_slide;
 							// 右から寄るなら「右」
 							else if ((fromBB & dir_bb(DIRECT_R)) == fromBB) {
-								builder.ss << "右";
+								ss << constStr.move_right;
 								// 右から動く駒がそれだけでは無いならさらに「寄」
 								if ((attackerBB & dir_bb(DIRECT_R)) != fromBB)
-									builder.ss << "寄";
+									ss << constStr.move_slide;
 							}
 							// 左から寄るなら「左」
 							else if ((fromBB & dir_bb(DIRECT_L)) == fromBB) {
-								builder.ss << "左";
+								ss << constStr.move_left;
 								// 左から動く駒がそれだけでは無いならさらに「寄」
 								if ((attackerBB & dir_bb(DIRECT_L)) != fromBB)
-									builder.ss << "寄";
+									ss << constStr.move_slide;
 							}
 						}
 						// 前に上がるMoveの場合
 						else if ((fromBB & dir_bb(DIRECT_D)) == fromBB) {
 							// 前に上がる同種駒がそれだけなら「上」
 							if ((attackerBB & dir_bb(DIRECT_D)) == fromBB)
-								builder.ss << "上";
+								ss << constStr.move_upper;
 							// 真っ直ぐ上がるMoveの場合
 							else if (from_file == to_file) {
 								// 金・銀・成金なら「直」
 								if (is_like_goldsilver)
-									builder.ss << "直";
+									ss << constStr.move_straight;
 								// 同じ筋・より右の筋に他に動ける駒がないなら「右」
 								else if ((attackerBB & dir_or_bb(DIRECT_R)) == fromBB)
-									builder.ss << "右";
+									ss << constStr.move_right;
 								// 同じ筋・より左の筋に他に動ける駒がないなら「左」
 								else if ((attackerBB & dir_or_bb(DIRECT_L)) == fromBB)
-									builder.ss << "左";
+									ss << constStr.move_left;
 								// 「右上」の判定
 								else if ((attackerBB & dir_or_bb(DIRECT_R) & dir_bb(DIRECT_D)) == fromBB)
-									builder.ss << "右上";
+									ss << constStr.move_right << constStr.move_upper;
 								// 「左上」の判定
 								else if ((attackerBB & dir_or_bb(DIRECT_L) & dir_bb(DIRECT_D)) == fromBB)
-									builder.ss << "左上";
+									ss << constStr.move_left << constStr.move_upper;
 							}
 							// 右から上がるMoveの場合
 							else if ((fromBB & dir_bb(DIRECT_R)) == fromBB) {
-								builder.ss << "右";
+								ss << constStr.move_right;
 								// 右から動ける駒が他にもあればさらに「上」
 								if ((attackerBB & dir_bb(DIRECT_R)) != fromBB)
-									builder.ss << "上";
+									ss << constStr.move_upper;
 							}
 							// 左から上がるMoveの場合
 							else if ((fromBB & dir_bb(DIRECT_L)) == fromBB) {
-								builder.ss << "左";
+								ss << constStr.move_left;
 								// 左から動ける駒が他にもあればさらに「上」
 								if ((attackerBB & dir_bb(DIRECT_L)) != fromBB)
-									builder.ss << "上";
+									ss << constStr.move_upper;
 							}
 						}
 						// 後ろに引くMoveの場合
 						else if ((fromBB & InFrontBB[c][to_rank]) == fromBB) {
 							// 後ろに引く同種駒がそれだけなら
 							if ((attackerBB & InFrontBB[c][to_rank]) == fromBB)
-								builder.ss << "引";
+								ss << constStr.move_lower;
 							// 真っ直ぐ引くMoveの場合
 							else if (from_file == to_file) {
 								// 同じ筋・より右の筋に他に動ける駒がないなら「右」
 								if ((attackerBB & dir_or_bb(DIRECT_R)) == fromBB)
-									builder.ss << "右";
+									ss << constStr.move_right;
 								// 同じ筋・より左の筋に他に動ける駒がないなら「左」
 								else if ((attackerBB & dir_or_bb(DIRECT_L)) == fromBB)
-									builder.ss << "左";
+									ss << constStr.move_left;
 								// 「右引」の判定
 								else if ((attackerBB & dir_or_bb(DIRECT_R) & InFrontBB[c][to_rank]) == fromBB)
-									builder.ss << "右引";
+									ss << constStr.move_right << constStr.move_lower;
 								// 「左引」の判定
 								else if ((attackerBB & dir_or_bb(DIRECT_L) & InFrontBB[c][to_rank]) == fromBB)
-									builder.ss << "左引";
+									ss << constStr.move_left << constStr.move_lower;
 							}
 							// 右から引くMoveの場合
 							else if ((fromBB & dir_bb(DIRECT_R)) == fromBB) {
-								builder.ss << "右";
+								ss << constStr.move_right;
 								// 右から動ける駒が他にもあればさらに「引」
 								if ((attackerBB & dir_bb(DIRECT_R)) != fromBB)
-									builder.ss << "引";
+									ss << constStr.move_lower;
 							}
 							// 左から引くMoveの場合
 							else if ((fromBB & dir_bb(DIRECT_L)) == fromBB) {
-								builder.ss << "左";
+								ss << constStr.move_left;
 								// 左から動ける駒が他にもあればさらに「引」
 								if ((attackerBB & dir_bb(DIRECT_L)) != fromBB)
-									builder.ss << "引";
+									ss << constStr.move_lower;
 							}
 						}
 					}
 
 					// 成ったなら必ず「成」
 					if (is_promote(m))
-						builder.ss << "成";
+						ss << constStr.move_promote;
 					// 成れるのに成らなかったなら「不成」
 					else if (pt < GOLD && canPromote(c, from, to))
-						builder.ss << "不成";
+						ss << constStr.move_not << constStr.move_promote;
 
 				}
 				// そこへ移動できる同種駒があるなら「打」
 				else if (attackerBB != ZERO_BB)
-					builder.ss << "打";
+					ss << constStr.move_strike;
 
 				break;
 			}
 
-			return (std::string)builder;
+			return ss.str();
 		}
 
 	private:
-		// KIFの指し手文字列などで用いる1から9までの数。
-		const char* str_1to9 = "123456789";
-		const std::string str_1to9_kanji = "一二三四五六七八九";
-		const std::string str_1to9_full_width_arabic = "１２３４５６７８９";
-
-		// 駒名。独自拡張として、金の成りのところは、QUEEN(女王)の意味で"女"としてある。
-		const std::string piece_strings[16] = {
-			"空", "歩", "香"  , "桂"   , "銀"   , "角" , "飛" , "金" ,
-			"玉", "と", "成香", "成桂" , "成銀" , "馬" , "龍" , "女" ,
-		};
-
 		// KIF2形式で、"同金右"のような出力をしないといけないので、ある升の右側に同種の駒があるかを
 		// 判定しなければならず、そのためにある升のX側を示すBitboardが必要となる。
 		// sqの升を中心として、dir側の方角がすべて1になっているBitboardが返る。
@@ -455,30 +441,78 @@ namespace KifConvertTools
 			}
 			return bb;
 		}
-
+		constT constStr;
 		// C#のStringBuilderのように用いる
-		std::stringstream ss;
+		std::basic_stringstream<typename strT::value_type> ss;
 	};
 
 	// KIF形式の指し手表現文字列を取得する。
 	std::string to_kif_string(Move m, Piece movedPieceBeforeType, Move prev_m , Color c , SquareFormat fmt)
 	{
-		return KifStringBuilder::to_kif_string(m, movedPieceBeforeType, prev_m, c , fmt);
+		KifStringBuilder<std::string, KifConstLocale> builder;
+		return builder.to_kif_string(m, movedPieceBeforeType, prev_m, c , fmt);
+	}
+	std::string to_kif_u8string(Move m, Piece movedPieceBeforeType, Move prev_m , Color c , SquareFormat fmt)
+	{
+		KifStringBuilder<std::string, KifConstUtf8> builder;
+		return builder.to_kif_string(m, movedPieceBeforeType, prev_m, c , fmt);
+	}
+	std::u16string to_kif_u16string(Move m, Piece movedPieceBeforeType, Move prev_m , Color c , SquareFormat fmt)
+	{
+		KifStringBuilder<std::u16string, KifConstUtf16> builder;
+		return builder.to_kif_string(m, movedPieceBeforeType, prev_m, c , fmt);
+	}
+	std::u32string to_kif_u32string(Move m, Piece movedPieceBeforeType, Move prev_m , Color c , SquareFormat fmt)
+	{
+		KifStringBuilder<std::u32string, KifConstUtf32> builder;
+		return builder.to_kif_string(m, movedPieceBeforeType, prev_m, c , fmt);
 	}
 
 	// KIF形式の指し手表現文字列を取得する。
 	std::string to_kif_string(Position& pos, Move m , SquareFormat fmt)
 	{
-		return  to_kif_string(m, pos.moved_piece_before(m), pos.state()->lastMove , pos.side_to_move() , fmt);
+		KifStringBuilder<std::string, KifConstLocale> builder;
+		return builder.to_kif_string(m, pos.moved_piece_before(m), pos.state()->lastMove , pos.side_to_move() , fmt);
+	}
+	std::string to_kif_u8string(Position& pos, Move m , SquareFormat fmt)
+	{
+		KifStringBuilder<std::string, KifConstUtf8> builder;
+		return builder.to_kif_string(m, pos.moved_piece_before(m), pos.state()->lastMove , pos.side_to_move() , fmt);
+	}
+	std::u16string to_kif_u16string(Position& pos, Move m , SquareFormat fmt)
+	{
+		KifStringBuilder<std::u16string, KifConstUtf16> builder;
+		return builder.to_kif_string(m, pos.moved_piece_before(m), pos.state()->lastMove , pos.side_to_move() , fmt);
+	}
+	std::u32string to_kif_u32string(Position& pos, Move m , SquareFormat fmt)
+	{
+		KifStringBuilder<std::u32string, KifConstUtf32> builder;
+		return builder.to_kif_string(m, pos.moved_piece_before(m), pos.state()->lastMove , pos.side_to_move() , fmt);
 	}
 
 	// KIF2形式の指し手表現文字列を取得する。
+	//   KIF2形式では、"同金左"のように表現しないといけないから、
+	//   同種の他の駒の位置関係がわかる必要があり、
+	//   盤面情報が必須であるから、Positionクラスが必要になる。
 	std::string to_kif2_string(Position& pos, Move m, SquareFormat fmt)
 	{
-		// KIF2形式では、"同金左"のように表現しないといけないから、
-		// 同種の他の駒の位置関係がわかる必要があり、
-		// 盤面情報が必須であるから、Positionクラスが必要になる。
-		return  KifStringBuilder::to_kif2_string(pos, m, fmt);
+		KifStringBuilder<std::string, KifConstLocale> builder;
+		return builder.to_kif2_string(pos, m, fmt);
+	}
+	std::string to_kif2_u8string(Position& pos, Move m, SquareFormat fmt)
+	{
+		KifStringBuilder<std::string, KifConstUtf8> builder;
+		return builder.to_kif2_string(pos, m, fmt);
+	}
+	std::u16string to_kif2_u16string(Position& pos, Move m, SquareFormat fmt)
+	{
+		KifStringBuilder<std::u16string, KifConstUtf16> builder;
+		return builder.to_kif2_string(pos, m, fmt);
+	}
+	std::u32string to_kif2_u32string(Position& pos, Move m, SquareFormat fmt)
+	{
+		KifStringBuilder<std::u32string, KifConstUtf32> builder;
+		return builder.to_kif2_string(pos, m, fmt);
 	}
 
 	// -----------------

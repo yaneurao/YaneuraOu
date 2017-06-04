@@ -28,9 +28,15 @@ namespace KifConvertTools
 
 	// KIF形式の指し手表現文字列を取得する。
 	extern std::string to_kif_string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);
+	extern std::string to_kif_u8string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);
+	extern std::u16string to_kif_u16string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);
+	extern std::u32string to_kif_u32string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);
 
 	// KIF2形式の指し手表現文字列を取得する。
 	extern std::string to_kif2_string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);
+	extern std::string to_kif2_u8string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);
+	extern std::u16string to_kif2_u16string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);
+	extern std::u32string to_kif2_u32string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);
 
 	// --- UnitTest
 
