@@ -306,6 +306,16 @@ namespace Effect8
 	// Directionsに相当するものを引数に渡して1つ方角を取り出す。
 	inline Direct pop_directions(Directions& d) { return (Direct)pop_lsb(d); }
 
+	// ある方角の反対の方角(180度回転させた方角)を得る。
+	inline Direct operator~(Direct d) {
+		// Directの定数値を変更したら、この関数はうまく動作しない。
+		static_assert(Effect8::DIRECT_R == 1, "");
+		static_assert(Effect8::DIRECT_L == 6, "");
+		// DIRECT_RUUなどは引数に渡してはならない。
+		ASSERT_LV3(d < DIRECT_NB);
+		return Direct(7 - d);
+	}
+
 	// DirectからDirectionsへの逆変換
 	inline Directions to_directions(Direct d) { return Directions(1 << d); }
 

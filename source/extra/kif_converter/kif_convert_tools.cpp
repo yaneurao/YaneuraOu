@@ -1,5 +1,4 @@
 ﻿#include "kif_convert_tools.h"
-#include "kif_convert_consts.h"
 
 #if defined(USE_KIF_CONVERT_TOOLS)
 
@@ -8,6 +7,8 @@
 
 #include "../../position.h"
 extern void is_ready();
+
+#include "kif_convert_consts.h"
 
 namespace KifConvertTools
 {
@@ -159,7 +160,6 @@ namespace KifConvertTools
 			switch (fmt)
 			{
 			case SqFmt_FullWidthArabic:
-				// 2バイト文字をstd::stringで扱っているので2文字切り出す。
 				ss << constStr.char1to9_full_width_arabic[r];
 				break;
 			case SqFmt_FullWidthMix:
@@ -443,7 +443,7 @@ namespace KifConvertTools
 				}
 				// そこへ移動できる同種駒があるなら「打」
 				else if (attackerBB != ZERO_BB)
-					ss << constStr.move_strike;
+					ss << constStr.move_drop;
 
 				break;
 			}
@@ -462,12 +462,10 @@ namespace KifConvertTools
 			// このへんの定数の定義を変更されてしまうと以下のhackが成り立たなくなる。
 			static_assert(FILE_1 == FILE_ZERO, "");
 			static_assert(RANK_1 == FILE_ZERO, "");
-			static_assert(Effect8::DIRECT_R == 1, "");
-			static_assert(Effect8::DIRECT_L == 6, "");
 
 			// color == WHITEならば逆の方角にする。
-			dir = (color == BLACK) ? dir : Effect8::Direct(7 - dir);
-
+			dir = (color == BLACK) ? dir : ~dir;
+			
 			// スタートするときのoffset
 			int offset = or_flag ? 0 : 1;
 
@@ -510,6 +508,7 @@ namespace KifConvertTools
 	}
 
 	// KIF形式の指し手表現文字列を取得する。
+
 	std::string to_kif_string(Position& pos, Move m , SquareFormat fmt)
 	{
 		KifStringBuilder<std::string, KifConstLocale> builder;
@@ -535,6 +534,7 @@ namespace KifConvertTools
 	//   KIF2形式では、"同金左"のように表現しないといけないから、
 	//   同種の他の駒の位置関係がわかる必要があり、
 	//   盤面情報が必須であるから、Positionクラスが必要になる。
+
 	std::string to_kif2_string(Position& pos, Move m, SquareFormat fmt)
 	{
 		KifStringBuilder<std::string, KifConstLocale> builder;

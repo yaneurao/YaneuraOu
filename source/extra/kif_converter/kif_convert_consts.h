@@ -1,4 +1,4 @@
-#if defined(USE_KIF_CONVERT_TOOLS)
+﻿#if defined(USE_KIF_CONVERT_TOOLS)
 
 namespace KifConvertTools
 {
@@ -14,7 +14,7 @@ namespace KifConvertTools
 		const char * const move_resign = "投了";
 		const char * const move_win = "勝ち宣言";
 		const char * const move_samepos = "同";
-		const char * const move_strike = "打";
+		const char * const move_drop = "打";
 		const char * const move_not = "不";
 		const char * const move_promote = "成";
 		const char * const move_straight = "直";
@@ -43,7 +43,7 @@ namespace KifConvertTools
 		const char * const move_resign = u8"投了";
 		const char * const move_win = u8"勝ち宣言";
 		const char * const move_samepos = u8"同";
-		const char * const move_strike = u8"打";
+		const char * const move_drop = u8"打";
 		const char * const move_not = u8"不";
 		const char * const move_promote = u8"成";
 		const char * const move_straight = u8"直";
@@ -72,7 +72,7 @@ namespace KifConvertTools
 		const char16_t * const move_resign = u"投了";
 		const char16_t * const move_win = u"勝ち宣言";
 		const char16_t * const move_samepos = u"同";
-		const char16_t * const move_strike = u"打";
+		const char16_t * const move_drop = u"打";
 		const char16_t * const move_not = u"不";
 		const char16_t * const move_promote = u"成";
 		const char16_t * const move_straight = u"直";
@@ -101,7 +101,7 @@ namespace KifConvertTools
 		const char32_t * const move_resign = U"投了";
 		const char32_t * const move_win = U"勝ち宣言";
 		const char32_t * const move_samepos = U"同";
-		const char32_t * const move_strike = U"打";
+		const char32_t * const move_drop = U"打";
 		const char32_t * const move_not = U"不";
 		const char32_t * const move_promote = U"成";
 		const char32_t * const move_straight = U"直";
