@@ -23,11 +23,9 @@ extern "C" {
 
 #endif
 
-#include <codecvt>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <locale>
 #include <sstream>
 #include <ctime>    // std::ctime()
 
