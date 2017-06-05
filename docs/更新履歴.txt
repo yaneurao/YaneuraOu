@@ -2,6 +2,49 @@
 やねうら王 更新履歴
 
 
+■　2017/06/06 V4.65
+
+・add "test kifconvert" , fix white turn convert to kif(Mizarさん)
+
+
+■　2017/06/05
+
+・EvalIO作った。eval/evaluate_io.h , cpp追加。KPPT型評価関数の入出力、型変換などが簡単に出来る。
+・評価関数の読み込み時にeval_learn_init()を呼び出すの、起動が遅くなるのでlearnコマンドの最初に行なうように変更。
+・testコマンドにApery(WCSC27)の評価関数を、やねうら王2017Earlyの評価関数に変換するコマンド追加。
+・解説.txtにtest evalconvertコマンドについての説明追記。
+・EVAL_EXPERIMENTAL導入。
+・EVAL_EXPERIMENTALの機能のいくつかを一般開放。
+・evaluate_material.cpp → evaluate.cppにrename。evaluate.cppに共通の処理は移動させた。
+・isreadyに対する応答の高速化。
+
+
+
+■　2017/06/04
+
+・makebookコマンドでbwを指定したときにno_fileを指定できるようにした。詳しくは解説.txtを。
+・makebookコマンド、bwを指定したときの処理、間違っていたので修正。
+・指し手のKIF/KIF2形式での出力、そこそこ書けた。
+・kifconv consts, utf8/16/32 string (Mizarさん)
+
+
+
+■　2017/06/03
+
+・config.hにinclude <functional>追加。
+・Windows環境用のmingw/gccのためにthread_win32.h追加。
+・学習時のrmseの計算に時間がかかるの本末転倒なので、1万局面→1000局面に減らす。
+・学習時に交差エントロピーを計算して表示するようにした。
+・千日手での引き分けを回避しやすくなるようにContemptのデフォルト値を1に変更。
+	→　すまん。1だと効果なかった。2に変更した。
+・MultiThinkまわり、古いエンジン対応コードになっていたので新しいエンジン(2017Early)に変更した。
+・makebookコマンドで処理対象sfenとして先後別のsfenを与えることが出来るようにした。詳しくは解説.txtを。
+・CSA, KIF, KI2 ライクな棋譜形式での文字列出力実装部。(Mizarさん)
+	- CSA, KIF, KI2 ライクな棋譜形式での文字列出力部、あとで作業するのでとりあえず#ifdef DO_IT_LATER～#endifで囲んだ。
+	- extra/kif_converter/ 追加。リファクタリング作業中。
+	- KIF形式での指し手出力、半分ぐらい出来たのでいったんcommit。
+
+
 ■　2017/06/02 V4.64
 
 ・misc.cppがMSVCでコンパイルしたときに警告出てたの修正。

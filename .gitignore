@@ -3,6 +3,8 @@
 
 # added by yaneurao
 
+evaluate_experimental.*
+evaluate_ppap.h
 *.gitattributes
 # *.gitignore
 *.bat
@@ -11,7 +13,6 @@ YaneuraOu_backup*.lnk
 バージョン履歴.txt
 実験記録*.txt
 *.bak
-evaluate_kppt_fast_body.cpp
 *Private.*
 *.vspx
 

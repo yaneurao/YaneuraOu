@@ -1,12 +1,8 @@
 ﻿
 # ToDO
 
-- 学習式 定数1/600→1/200,1/400とか試す。
 - EVAL_NO_USEの処理削除して、Position::do_move()単純化する。
-- EvalList、refactoringする。
-- evaluate KPPT 16bit化するか、上位16bitに進行度入れる。
-- evaluate()、無駄なBonaPieceの番号詰める。
-- PPAP評価関数 5*5
+- 学習式 定数1/600→1/200,1/400とか試す。
 
 - Stockfish
 	- 探索の性質が変わる変更はあとでまとめてやる。学習時の教師局面の性質が変わるのでその検証も大変。
@@ -16,11 +12,135 @@
 	- 探索から呼び出しても強くはならないだろうから、この作業は保留でいいや。
 
 
+## 2017/06/05
+
+- 手番項目の計測
+	sum KPPT[1] =  4228691466 // Apery(WCSC26)
+	sum KPPT[1] =  6613494000 // Ukamuse(sdt4)
+	sum KPPT[1] =  6235193054 // Qhapaq
+	sum KPPT[1] =  3379487988 // elmo(WCSC27)
+	sum KPPT[1] = 18322527000 // GokuYane20170602
+
+	あんま強さと関係なさげ..。やねうら王、でかすぎ。どこかオーバーフローしてたりして..
+	ああ、PV leafまで行かずに、値更新するので駒が当たってるときにevaluate()呼んだりしてたのかな。
+
+	// 計測用のコード。
+#if 1
+		{
+			u64 sum = 0;
+			u64 size = sizeof(kpp) / sizeof(u16);
+			s16* ptr = reinterpret_cast<s16*>(kpp);
+			for (u64 i = 0; i < size; i += 2)
+			{
+				// 手番の総和
+				sum += abs(*(ptr + i + 1));
+			}
+			cout << "sum KPPT[1] = " << sum << endl;
+		}
+#endif
+
+- evaluate KPPT 16bit化するか、上位16bitに進行度入れる。
+	- 評価関数がfixしてからでいいや…。
+
+- EvalList、refactoringする。
+	- どうもこうもならん気がしてきた。
+
+- PPAP、変換部のテストする。読み込みのテストする。学習部勾配足すところ書く。
+	- これ、まあ、いいや…。
+
+- evaluate()、無駄なBonaPieceの番号詰める。
+	- これ評価関数の形がfixしてからでいいや…。
+
+- 評価関数のコンバーター書いたが、よく考えたら要らなかった。
+
+	namespace Eval
+	{
+		// 旧評価関数を新しい評価関数に変換するコンバーター
+		void eval_converter(std::string save_dir)
+		{
+			std::cout << "convert.." << std::endl;
+
+			auto make_name = [&](std::string filename) { return path_combine((std::string)Options["EvalDir"], filename); };
+			auto input = EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+
+			auto make_name2 = [&](std::string filename) { return path_combine(save_dir, filename); };
+			auto output = EvalIO::EvalInfo::build_kppt32(make_name2(KK_BIN), make_name2(KKP_BIN), make_name2(KPP_BIN));
+			// fe_endの値を変更するだけで新しい評価関数に変換できる。すごい！
+			output.fe_end = Eval::fe_end;
+			if (!EvalIO::eval_convert(input, output, nullptr))
+				goto Error;
+
+			std::cout << "..done" << std::endl;
+			return;
+
+		Error:
+			std::cout << "..failed" << std::endl;
+		}
+	}
+
+
+- 削除
+// デバッグ作業中。
+//#include "extra/kif_converter/kif_convert_tools.h"
+
+	//KifConvertTools::UnitTest();
+
+- evaluate_experimental.h 追加する。
+	- このファイル、GitHubには上げない。
+
+- evaluate_io.h/cpp追加。
+- Apery(WCSC27)からの変換のコードの実装例としてtestコマンドに変換コマンド追加。
+- 評価関数の自由なマッピングが出来るようになったので、評価関数の拡張がやりやすくなった。
+
+
+## 2017/06/03
+
+- Learner::search()をMultiPVに対応させないと定跡生成のときに困ることが発覚。あとで修正する。
+	→　よく見たら、対応してた。
+
+			// depth手読みの評価値とPV(最善応手列)を取得。
+			// ToDO : Learner::search()が、MultiPVを認めてないので厳密にはこのコード、まずい。
+			// 2番目以降の指し手の順序自体は保証されない。しかし、前のiterationで評価値順で並び替えては
+			// いるはずなのでdepthが深ければそこそこ正しいはずではある。
+			// いずれにせよ、のちほどLeaner::search()をMultiPVに対応させる。[2017/06/03]
+
+
+
+- learn_416からdepth12で16億局面生成。
+	depth 12だと80htで20万局面の生成に30分ぐらいかかる模様。これはたまらん…。
+	depth 10で20億局面に変更。80htで100万局面20分程度。depth 10でも40c80htで1億生成に25時間かかる。
+
+
+- 学習時のrmseの計算に時間がかかるの本末転倒なので、1万局面→1000局面に減らす。
+- 学習時に交差エントロピーを計算して表示するようにした。
+
+
 ## 2017/06/01
 
 - GokuYane20170531からdepth 8で20億局面生成。400HTで20時間で2G局面。
 	201706021500D8 2.4G局面。
-		elmo lambda = 0.6 , 0.7 , 0.8 , 0.9
+		elmo lambda = 0.9 , 0.8 , 0.7 , 0.6
+		414,415,416,417
+
+	414)
+		T1,b3000,2488 - 64 - 2448(50.41% R2.82) win black : white = 51.58% : 48.42%
+		T1,b10000,1537 - 55 - 1388(52.55% R17.71) win black : white = 52.27% : 47.73%
+	415)
+		T1,b3000,2299 - 70 - 2631(46.63% R-23.43) win black : white = 50.71% : 49.29%
+		T1,b10000,1499 - 53 - 1438(51.04% R7.22) win black : white = 49.74% : 50.26%
+	416)
+		T1,b3000,2348 - 51 - 2601(47.44% R-17.78) win black : white = 51.53% : 48.47%
+		T1,b10000,1408 - 48 - 1514(48.19% R-12.61) win black : white = 51.4% : 48.6%
+	417)
+		T1,b3000,2410 - 62 - 2528(48.81% R-8.3) win black : white = 51.84% : 48.16%
+		T1,b10000,1429 - 60 - 1431(49.97% R-0.24) win black : white = 49.51% : 50.49%
+
+	一応、雑巾絞れてはいるのか…。結構きわどいな。
+	1手3秒対局5000回に6時間20分かかる。
+	1手6秒,12秒も計測したいところだが…。とりあえず今回は10秒だけ調べる。
+
+
+- 現在の学習ルーチン、10億局面 140分。AdaGrad , elmo method , 40c80t
 
 
 - 大きい評価関数作ると自己対戦すらままならないな。最初は9GBぐらいのにしとくか。
