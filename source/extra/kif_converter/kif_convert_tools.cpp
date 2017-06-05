@@ -296,8 +296,8 @@ namespace KifConvertTools
 				Piece pr = raw_type_of(pt);
 
 				// 金・銀・成金は直の表記が有り得る
-				bool is_like_goldsilver = (pr == SILVER || pr == GOLD || pr == PRO_PAWN || pr == PRO_LANCE
-					|| pr == PRO_KNIGHT || pr == PRO_SILVER);
+				bool is_like_goldsilver = (pt == SILVER || pt == GOLD || pt == PRO_PAWN || pt == PRO_LANCE
+					|| pt == PRO_KNIGHT || pt == PRO_SILVER);
 
 				// 移動元・移動先の座標
 				Square from = move_from(m), to = move_to(m);
@@ -512,22 +512,22 @@ namespace KifConvertTools
 	std::string to_kif_string(Position& pos, Move m , SquareFormat fmt)
 	{
 		KifStringBuilder<std::string, KifConstLocale> builder;
-		return builder.to_kif_string(m, pos.moved_piece_before(m), pos.state()->lastMove , pos.side_to_move() , fmt);
+		return builder.to_kif_string(m, type_of(pos.moved_piece_before(m)), pos.state()->lastMove , pos.side_to_move() , fmt);
 	}
 	std::string to_kif_u8string(Position& pos, Move m , SquareFormat fmt)
 	{
 		KifStringBuilder<std::string, KifConstUtf8> builder;
-		return builder.to_kif_string(m, pos.moved_piece_before(m), pos.state()->lastMove , pos.side_to_move() , fmt);
+		return builder.to_kif_string(m, type_of(pos.moved_piece_before(m)), pos.state()->lastMove , pos.side_to_move() , fmt);
 	}
 	std::u16string to_kif_u16string(Position& pos, Move m , SquareFormat fmt)
 	{
 		KifStringBuilder<std::u16string, KifConstUtf16> builder;
-		return builder.to_kif_string(m, pos.moved_piece_before(m), pos.state()->lastMove , pos.side_to_move() , fmt);
+		return builder.to_kif_string(m, type_of(pos.moved_piece_before(m)), pos.state()->lastMove , pos.side_to_move() , fmt);
 	}
 	std::u32string to_kif_u32string(Position& pos, Move m , SquareFormat fmt)
 	{
 		KifStringBuilder<std::u32string, KifConstUtf32> builder;
-		return builder.to_kif_string(m, pos.moved_piece_before(m), pos.state()->lastMove , pos.side_to_move() , fmt);
+		return builder.to_kif_string(m, type_of(pos.moved_piece_before(m)), pos.state()->lastMove , pos.side_to_move() , fmt);
 	}
 
 	// KIF2形式の指し手表現文字列を取得する。
