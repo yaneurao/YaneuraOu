@@ -1,6 +1,7 @@
 ﻿#include "../shogi.h"
 #include "../position.h"
 #include "../evaluate.h"
+#include "../misc.h"
 
 // 全評価関数に共通の処理などもここに記述する。
 
@@ -28,7 +29,7 @@ namespace Eval
 	}
 #endif
 
-#ifdef EVAL_MATERIAL
+#if defined (EVAL_MATERIAL)
 	// 駒得のみの評価関数のとき。
 	void init() {}
 	void load_eval() {}
@@ -39,6 +40,31 @@ namespace Eval
 		return pos.side_to_move() == BLACK ? score : -score;
 	}
 	Value compute_eval(const Position& pos) { return material(pos); }
+#endif
+
+#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
+	// calc_check_sum()を呼び出して返ってきた値を引数に渡すと、ソフト名を表示してくれる。
+	void print_softname(u64 check_sum)
+	{
+		// 評価関数ファイルの正体
+		std::string softname = "unknown";
+
+		// ソフト名自動判別
+		std::map<u64, std::string> list = {
+			{ 0x7171a5469027ebf , "ShinYane(20161010)" } ,
+			{ 0x71fc7fd40c668cc , "Ukamuse(sdt4)" } ,
+
+			{ 0x65cd7c55a9d4cd9 , "elmo(WCSC27)" } ,
+			{ 0x3aa68b055a020a8 , "Yomita(WCSC27)" } ,
+			{ 0x702fb2ee5672156 , "Qhapaq(WCSC27)" } ,
+			{ 0x6c54a1bcb654e37 , "tanuki(WCSC27)" } ,
+	};
+		if (list.count(check_sum))
+			softname = list[check_sum];
+
+		sync_cout << "info string Eval Check Sum = " << std::hex << check_sum << std::dec
+			<< " , Eval File = " << softname << sync_endl;
+	}
 #endif
 
 #if defined (USE_EVAL_MAKE_LIST_FUNCTION)

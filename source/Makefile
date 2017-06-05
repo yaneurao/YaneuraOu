@@ -117,7 +117,7 @@ SOURCES  = shogi.cpp                                                           \
 	eval/evaluate_bona_piece.cpp                                               \
 	eval/evaluate_kpp.cpp                                                      \
 	eval/evaluate_kppt.cpp                                                     \
-	eval/evaluate_material.cpp                                                 \
+	eval/evaluate.cpp                                                          \
 	eval/evaluate_no_eval.cpp                                                  \
 	eval/evaluate_io.cpp                                                       \
 	eval/progress.cpp                                                          \

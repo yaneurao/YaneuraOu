@@ -705,7 +705,7 @@
     <ClCompile Include="eval\evaluate_kkpt.cpp" />
     <ClCompile Include="eval\evaluate_kpp.cpp" />
     <ClCompile Include="eval\evaluate_kppt.cpp" />
-    <ClCompile Include="eval\evaluate_material.cpp" />
+    <ClCompile Include="eval\evaluate.cpp" />
     <ClCompile Include="eval\evaluate_no_eval.cpp" />
     <ClCompile Include="eval\progress.cpp" />
     <ClCompile Include="extra\benchmark.cpp" />

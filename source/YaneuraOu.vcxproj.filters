@@ -267,9 +267,6 @@
     <ClCompile Include="eval\evaluate_no_eval.cpp">
       <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
-    <ClCompile Include="eval\evaluate_material.cpp">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
     <ClCompile Include="extra\entering_king_win.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
@@ -373,6 +370,9 @@
       <Filter>リソース ファイル\extra\kif_converter</Filter>
     </ClCompile>
     <ClCompile Include="eval\evaluate_io.cpp">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\evaluate.cpp">
       <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
   </ItemGroup>

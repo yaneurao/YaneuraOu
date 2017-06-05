@@ -51,11 +51,15 @@ namespace Eval {
 	void prefetch_evalhash(const Key key);
 #endif
 
-	// 評価関数パラメーターのチェックサムを返す。
 #if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
+	// 評価関数パラメーターのチェックサムを返す。
 	u64 calc_check_sum();
+
+	// calc_check_sum()を呼び出して返ってきた値を引数に渡すと、ソフト名を表示してくれる。
+	void print_softname(u64 check_sum);
 #else
 	static u64 calc_check_sum() { return 0; }
+	static void print_softname(u64 check_sum) {}
 #endif
 
 	// 評価値の内訳表示(デバッグ用)
