@@ -104,6 +104,15 @@
 // KPPT評価関数の学習に使うときのモード
 // #define EVAL_LEARN
 
+// Eval::compute_eval()やLearner::add_grad()を呼び出す前にEvalListの組み換えを行なう機能を提供する。
+// 評価関数の実験に用いる。詳しくは、Eval::make_list_functionに書いてある説明などを読むこと。
+// #define USE_EVAL_MAKE_LIST_FUNCTION
+
+// この機能は、やねうら王の評価関数の開発/実験用の機能で、いまのところ一般ユーザーには提供していない。
+// 評価関数番号を指定するとその評価関数を持ち、その評価関数ファイルの読み込み/書き出しに自動的に対応して、
+// かつ評価関数の旧形式からの変換が"test convert"コマンドで自動的に出来るようになるという、わりかし凄い機能
+// #define EVAL_EXPERIMENTAL 0001
+
 // 長い利き(遠方駒の利き)のライブラリを用いるか。
 // 超高速1手詰め判定などではこのライブラリが必要。
 // do_move()のときに利きの差分更新を行なうので、do_move()は少し遅くなる。(その代わり、利きが使えるようになる)
@@ -305,7 +314,8 @@
 #define EVAL_KPPT
 
 // 実験中の評価関数
-//#define EVAL_EXPERIMENTAL
+// 評価関数の番号を選択できる。0000～9999みたいな。
+//#define EVAL_EXPERIMENTAL 0001
 
 #define USE_EVAL_HASH
 #define USE_SEE
@@ -440,6 +450,11 @@
 // 正しく計算できない。そのため、EVAL_HASHを動的に無効化するためのオプションを用意する。
 #if defined(EVAL_LEARN)
 #define USE_GLOBAL_OPTIONS
+#endif
+
+// 評価関数の実験用のときは、EvalListの組み換えが必要になる。
+#if defined(EVAL_EXPERIMENTAL)
+#define USE_EVAL_MAKE_LIST_FUNCTION
 #endif
 
 // --------------------

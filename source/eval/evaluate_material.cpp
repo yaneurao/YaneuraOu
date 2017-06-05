@@ -2,6 +2,8 @@
 #include "../position.h"
 #include "../evaluate.h"
 
+// 全評価関数に共通の処理などもここに記述する。
+
 namespace Eval
 {
 #if !defined (EVAL_NO_USE)
@@ -38,4 +40,15 @@ namespace Eval
 	}
 	Value compute_eval(const Position& pos) { return material(pos); }
 #endif
+
+#if defined (USE_EVAL_MAKE_LIST_FUNCTION)
+
+	// compute_eval()やLearner::add_grad()からBonaPiece番号の組み換えのために呼び出される関数
+	std::function<void(const Position&, BonaPiece[40], BonaPiece[40])> make_list_function;
+
+	// 旧評価関数から新評価関数に変換するときにKPPのP(BonaPiece)がどう写像されるのかを定義したmapper。
+	// EvalIO::eval_convert()の引数として渡される。
+	std::vector<u16 /*BonaPiece*/> eval_mapper;
+#endif
+
 }

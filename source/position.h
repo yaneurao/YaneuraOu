@@ -451,7 +451,7 @@ struct Position
 
 	// --- Evaluation
 
-#ifndef EVAL_NO_USE
+#if !defined (EVAL_NO_USE)
   // 評価関数で使うための、どの駒番号の駒がどこにあるかなどの情報。
 	const Eval::EvalList* eval_list() const { return &evalList; }
 #endif

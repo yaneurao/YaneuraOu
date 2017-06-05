@@ -103,8 +103,26 @@ namespace Eval
 
 		auto& pos_ = *const_cast<Position*>(&pos);
 
+#if !defined (USE_EVAL_MAKE_LIST_FUNCTION)
+
 		auto list_fb = pos_.eval_list()->piece_list_fb();
 		auto list_fw = pos_.eval_list()->piece_list_fw();
+
+#else
+		// -----------------------------------
+		// USE_EVAL_MAKE_LIST_FUNCTIONが定義されているときは
+		// ここでeval_listをコピーして、組み替える。
+		// -----------------------------------
+
+		// バッファを確保してコピー
+		BonaPiece list_fb[40];
+		BonaPiece list_fw[40];
+		memcpy(list_fb, pos_.eval_list()->piece_list_fb(), sizeof(BonaPiece) * 40);
+		memcpy(list_fw, pos_.eval_list()->piece_list_fw(), sizeof(BonaPiece) * 40);
+
+		// ユーザーは、この関数でBonaPiece番号の自由な組み換えを行なうものとする。
+		make_list_function(pos, list_fb, list_fw);
+#endif
 
 		// KK
 		weights[KK(sq_bk,sq_wk).toIndex()].g += g;

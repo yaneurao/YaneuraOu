@@ -1235,7 +1235,7 @@ void test_search(Position& pos, istringstream& is)
 }
 #endif
 
-#if defined (EVAL_KPPT) || defined(EVAL_EXPERIMENTAL)
+#if defined (EVAL_KPPT)
 //
 // eval merge
 //  KKPT評価関数の合成用
@@ -1409,7 +1409,8 @@ void eval_convert(istringstream& is)
 			return EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
 		else if (format == "kppt16")
 			return EvalIO::EvalInfo::build_kppt16(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
-#if defined(EVAL_EXPERIMENTAL)
+
+#if defined (USE_EVAL_MAKE_LIST_FUNCTION)
 		// 旧評価関数を実験中の評価関数に変換する裏コマンド
 		// "test evalconvert kppt32 EVALDIR1 now EVALDIR2"のように使う。
 		else if (format == "now")
@@ -1440,9 +1441,10 @@ void eval_convert(istringstream& is)
 	auto input = get_info(input_dir, input_format);
 	auto output = get_info(output_dir, output_format);
 	std::cout << "converting..";
-#if !defined(EVAL_EXPERIMENTAL)
+#if !defined (USE_EVAL_MAKE_LIST_FUNCTION)
 	EvalIO::eval_convert(input, output, nullptr);
 #else
+	// Eval::eval_mapperを用いて旧形式→新形式への変換を行なう。
 	if (output_format == "now")
 		EvalIO::eval_convert(input, output, &Eval::eval_mapper);
 	else

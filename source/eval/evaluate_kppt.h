@@ -5,7 +5,7 @@
 
 // KPPT評価関数で用いる共用header的なもの。
 
-#if defined(EVAL_KKPT) || defined (EVAL_KPPT) || defined(EVAL_EXPERIMENTAL)
+#if defined(EVAL_KKPT) || defined (EVAL_KPPT)
 
 #include "../evaluate.h"
 
@@ -85,7 +85,7 @@ namespace Eval
 
 }      // namespace Eval
 
-#endif // defined(EVAL_KKPT) || defined (EVAL_KPPT) || defined(EVAL_EXPERIMENTAL)
+#endif // defined(EVAL_KKPT) || defined (EVAL_KPPT)
 
 
 #endif

@@ -11,7 +11,7 @@
 // I pay my respects to his great achievements.
 //
 
-#if defined (EVAL_KPPT) || defined(EVAL_EXPERIMENTAL)
+#if defined (EVAL_KPPT)
 
 #include <fstream>
 #include <iostream>
@@ -25,7 +25,7 @@
 
 // 実験中の評価関数を読み込む。(現状非公開)
 #if defined (EVAL_EXPERIMENTAL)
-#include "experimental/evaluate_experimental.cpp"
+#include "experimental/evaluate_experimental.h"
 #endif
 
 // EvalShareの機能を使うために必要
@@ -331,7 +331,6 @@ namespace Eval
 	// KP,KPP,KKPのスケール
 	const int FV_SCALE = 32;
 
-#if !defined(EVAL_EXPERIMENTAL)
 	// 駒割り以外の全計算
 	// pos.st->BKPP,WKPP,KPPを初期化する。Position::set()で一度だけ呼び出される。(以降は差分計算)
 	// 手番側から見た評価値を返すので注意。(他の評価関数とは設計がこの点において異なる)
@@ -349,8 +348,27 @@ namespace Eval
 
 		auto& pos_ = *const_cast<Position*>(&pos);
 
+#if !defined (USE_EVAL_MAKE_LIST_FUNCTION)
+
 		auto list_fb = pos_.eval_list()->piece_list_fb();
 		auto list_fw = pos_.eval_list()->piece_list_fw();
+
+#else
+		// -----------------------------------
+		// USE_EVAL_MAKE_LIST_FUNCTIONが定義されているときは
+		// ここでeval_listをコピーして、組み替える。
+		// -----------------------------------
+
+		// バッファを確保してコピー
+		BonaPiece list_fb[40];
+		BonaPiece list_fw[40];
+		memcpy(list_fb, pos_.eval_list()->piece_list_fb(), sizeof(BonaPiece) * 40);
+		memcpy(list_fw, pos_.eval_list()->piece_list_fw(), sizeof(BonaPiece) * 40);
+
+		// ユーザーは、この関数でBonaPiece番号の自由な組み換えを行なうものとする。
+		make_list_function(pos, list_fb, list_fw);
+
+#endif
 
 		int i, j;
 		BonaPiece k0, k1, l0, l1;
@@ -404,7 +422,6 @@ namespace Eval
 
 		return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
 	}
-#endif
 
 	// 先手玉が移動したときに先手側の差分
 	std::array<s32, 2> do_a_black(const Position& pos, const ExtBonaPiece ebp) {
@@ -544,7 +561,7 @@ namespace Eval
 
 #endif
 
-#if !defined(EVAL_EXPERIMENTAL)
+#if !defined(USE_EVAL_MAKE_LIST_FUNCTION)
 	void evaluateBody(const Position& pos)
 	{
 		// 一つ前のノードからの評価値の差分を計算する。
@@ -559,7 +576,7 @@ namespace Eval
 		// を呼び出すので通常この関数が呼び出されることはないのだが、学習関係でこれが出来ないと
 		// コードが書きにくいのでEVAL_LEARNのときは、このチェックをする。
 		if (
-#ifdef EVAL_LEARN
+#if defined (EVAL_LEARN)
 			prev == nullptr ||
 #endif
 			!prev->sum.evaluated())
@@ -840,12 +857,12 @@ namespace Eval
 
 	}
 #else
-	// 評価関数の実験のときは差分計算をせずに(実装するのが大変なため)、毎回全計算を行なう。
+	// EvalListの組み換えを行なうときは差分計算をせずに(実装するのが大変なため)、毎回全計算を行なう。
 	Value evaluateBody(const Position& pos)
 	{
 		return compute_eval(pos);
 	}
-#endif // EVAL_EXPERIMENTAL
+#endif // USE_EVAL_MAKE_LIST_FUNCTION
 
 	// 評価関数
 	Value evaluate(const Position& pos)
@@ -918,12 +935,14 @@ namespace Eval
 	{
 		// 評価関数の実験のときには、どうせ差分計算を行わないので、
 		// ここでevaluate()を呼ぶのは無駄である。
-#if ! defined(EVAL_EXPERIMENTAL)
 
+#if !defined(USE_EVAL_MAKE_LIST_FUNCTION)
 		// まだ評価値が計算されていないなら
 		if (!pos.state()->sum.evaluated())
 			evaluate(pos);
-
+#else
+		// EvalListの組み換えを行なっているときは通常の差分計算ルーチンが機能しないので
+		// 差分計算をするための何かをする必要がない。
 #endif
 	}
 
@@ -1006,4 +1025,4 @@ namespace Eval
 
 }
 
-#endif // EVAL_KPPT
+#endif // defined (EVAL_KPPT)
