@@ -858,12 +858,8 @@ inline Value draw_value(RepetitionState rs, Color c) { ASSERT_LV3(is_ok(rs)); re
 
 namespace Eval
 {
-	// AVX2ありのときはKPPT評価関数をAVX2命令で高速化するためにBonaPieceは32bit化されていて欲しい。
-#if defined(USE_FAST_KPPT)
-	enum BonaPiece: int32_t;
-#else
-	enum BonaPiece: int16_t;
-#endif
+	// BonanzaでKKP/KPPと言うときのP(Piece)を表現する型。
+	enum BonaPiece: BonaPieceType;
 
 	// 評価関数本体。
 	// 戻り値は、

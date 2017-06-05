@@ -4,7 +4,7 @@
 #include "shogi.h"
 
 // 手番込みの評価関数であれば手番を込みで値を計算するhelper classを使う。
-#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
+#if defined(EVAL_KKPT) || defined(EVAL_KPPT)
 #include "eval/kppt_evalsum.h"
 #endif
 
@@ -107,7 +107,7 @@ namespace Eval {
 		DragonValue = 942,
 		KingValue = 15000,
 	};
-#elif defined(EVAL_KKPT) || defined (EVAL_KPPT) || defined (EVAL_KPPT_FAST)
+#elif defined(EVAL_KKPT) || defined (EVAL_KPPT)
 
 	// Aperyの駒割り
 	enum {
@@ -146,13 +146,9 @@ namespace Eval {
 	// (評価関数の実験のときには、BonaPieceは自由に定義したいのでここでは定義しない。)
 
 
-	// BonanzaのようにKPPを求めるときに、39の地点の歩のように、
-	// 升×駒種に対して一意な番号が必要となる。これをBonaPiece型と呼ぶことにする。
-#if defined(USE_FAST_KPPT)
-	enum BonaPiece : int32_t
-#else
-	enum BonaPiece : int16_t
-#endif
+	// BonanzaでKKP/KPPと言うときのP(Piece)を表現する型。
+	// Σ KPPを求めるときに、39の地点の歩のように、升×駒種に対して一意な番号が必要となる。
+	enum BonaPiece : BonaPieceType
 	{
 		// f = friend(≒先手)の意味。e = enemy(≒後手)の意味
 
@@ -182,7 +178,7 @@ namespace Eval {
 		e_hand_rook = f_hand_rook + 2,
 		fe_hand_end = e_hand_rook + 2,
 
-#elif defined(EVAL_KKPT) || defined (EVAL_KPPT) || defined(EVAL_KPPT_FAST)
+#elif defined(EVAL_KKPT) || defined (EVAL_KPPT)
 		// Apery(WCSC26)方式。0枚目の駒があるので少し隙間がある。
 		// 定数自体は1枚目の駒のindexなので、KPPの時と同様の処理で問題ない。
 

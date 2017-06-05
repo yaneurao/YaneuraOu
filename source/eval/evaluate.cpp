@@ -42,7 +42,7 @@ namespace Eval
 	Value compute_eval(const Position& pos) { return material(pos); }
 #endif
 
-#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
+#if defined(EVAL_KKPT) || defined(EVAL_KPPT)
 	// calc_check_sum()を呼び出して返ってきた値を引数に渡すと、ソフト名を表示してくれる。
 	void print_softname(u64 check_sum)
 	{

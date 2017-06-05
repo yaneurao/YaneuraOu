@@ -398,6 +398,9 @@
     <Text Include="..\docs\開発メモ2017.txt">
       <Filter>doc</Filter>
     </Text>
+    <Text Include="..\docs\開発ToDo.txt">
+      <Filter>doc</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md">

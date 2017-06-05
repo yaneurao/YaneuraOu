@@ -767,6 +767,11 @@ inline int MKDIR(std::string dir_name)
 // Skylake以降でないとほぼ効果がないが…。
 #if defined(EVAL_KPPT) && defined(USE_AVX2)
 #define USE_FAST_KPPT
+// AVX2を用いるので32bitであって欲しい。
+typedef int32_t BonaPieceType;
+#else
+// テーブルサイズを節約したいのでAVX2を使わないなら16bitで十分。
+typedef int16_t BonaPieceType;
 #endif
 
 // -- 評価関数の種類により、盤面の利きの更新ときの処理が異なる。(このタイミングで評価関数の差分計算をしたいので)
