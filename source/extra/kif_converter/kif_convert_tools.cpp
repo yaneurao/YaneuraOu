@@ -246,7 +246,7 @@ namespace KifConvertTools
 					append(movedPieceType);
 				}
 				if (is_drop(m))
-					ss << constStr.move_strike;
+					ss << constStr.move_drop;
 				else if (is_promote(m))
 					ss << constStr.move_promote;
 				else
@@ -461,7 +461,7 @@ namespace KifConvertTools
 		{
 			// このへんの定数の定義を変更されてしまうと以下のhackが成り立たなくなる。
 			static_assert(FILE_1 == FILE_ZERO, "");
-			static_assert(RANK_1 == FILE_ZERO, "");
+			static_assert(RANK_1 == RANK_ZERO, "");
 
 			// color == WHITEならば逆の方角にする。
 			dir = (color == BLACK) ? dir : ~dir;
