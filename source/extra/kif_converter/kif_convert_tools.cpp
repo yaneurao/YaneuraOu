@@ -296,8 +296,8 @@ namespace KifConvertTools
 				Piece pr = raw_type_of(pt);
 
 				// 金・銀・成金は直の表記が有り得る
-				bool is_like_goldsilver = (pr == SILVER || pr == GOLD || pr == PRO_PAWN || pr == PRO_LANCE
-					|| pr == PRO_KNIGHT || pr == PRO_SILVER);
+				bool is_like_goldsilver = (pt == SILVER || pt == GOLD || pt == PRO_PAWN || pt == PRO_LANCE
+					|| pt == PRO_KNIGHT || pt == PRO_SILVER);
 
 				// 移動元・移動先の座標
 				Square from = move_from(m), to = move_to(m);
