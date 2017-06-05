@@ -10,7 +10,7 @@
 
 // 実験中の評価関数。現状、非公開。
 #if defined(EVAL_EXPERIMENTAL)
-#include "eval/evaluate_experimental.h"
+#include "eval/experimental/evaluate_experimental.h"
 #endif
 
 
@@ -21,7 +21,7 @@
 namespace Eval {
 
 	// evaluateの起動時に行なう軽量な初期化はここで行なう。
-	inline void init() {}
+	extern void init();
 
 	// 評価関数ファイルを読み込む。
 	void load_eval();

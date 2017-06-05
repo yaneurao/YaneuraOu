@@ -5,7 +5,7 @@ using namespace std;
 
 namespace Eval
 {
-#ifndef EVAL_NO_USE
+#if !defined (EVAL_NO_USE)
 
   int PieceValue[PIECE_NB] =
   {

@@ -23,6 +23,11 @@
 #include "../position.h"
 #include "../misc.h"
 
+// 実験中の評価関数を読み込む。(現状非公開)
+#if defined (EVAL_EXPERIMENTAL)
+#include "experimental/evaluate_experimental.cpp"
+#endif
+
 // EvalShareの機能を使うために必要
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
 #include <codecvt>	 // mkdirするのにwstringが欲しいのでこれが必要
@@ -63,6 +68,10 @@ namespace Eval
 		auto make_name = [&](std::string filename) { return path_combine((string)Options["EvalDir"], filename); };
 		auto input = EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
 		auto output = EvalIO::EvalInfo::build_kppt32((void*)kk, (void*)kkp, (void*)kpp);
+
+		// 評価関数の実験のためにfe_endをKPPT32から変更しているかも知れないので現在のfe_endの値をもとに読み込む。
+		input.fe_end = output.fe_end = Eval::fe_end;
+
 		if (!EvalIO::eval_convert(input, output, nullptr))
 			goto Error;
 
@@ -181,6 +190,12 @@ namespace Eval
 		return sum;
 	}
 
+	void init()
+	{
+#if defined(EVAL_EXPERIMENTAL)
+		init_eval_experimental();
+#endif
+	}
 
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
 	// 評価関数の共有を行うための大掛かりな仕組み
@@ -316,17 +331,16 @@ namespace Eval
 	// KP,KPP,KKPのスケール
 	const int FV_SCALE = 32;
 
+#if !defined(EVAL_EXPERIMENTAL)
 	// 駒割り以外の全計算
 	// pos.st->BKPP,WKPP,KPPを初期化する。Position::set()で一度だけ呼び出される。(以降は差分計算)
 	// 手番側から見た評価値を返すので注意。(他の評価関数とは設計がこの点において異なる)
 	// なので、この関数の最適化は頑張らない。
 	Value compute_eval(const Position& pos)
 	{
-#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
-		// shared memoryを用いているときには、is_ready()で評価関数を読み込み、
+		// is_ready()で評価関数を読み込み、
 		// 初期化してからしかcompute_eval()を呼び出すことは出来ない。
 		ASSERT_LV1(kk_ != nullptr);
-#endif
 
 		Square sq_bk = pos.king_square(BLACK);
 		Square sq_wk = pos.king_square(WHITE);
@@ -390,6 +404,7 @@ namespace Eval
 
 		return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
 	}
+#endif
 
 	// 先手玉が移動したときに先手側の差分
 	std::array<s32, 2> do_a_black(const Position& pos, const ExtBonaPiece ebp) {

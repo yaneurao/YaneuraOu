@@ -40,6 +40,8 @@ namespace Eval
 
 #endif
 
+	void init() {}
+
 	// 評価関数ファイルを読み込む
 	void load_eval_impl()
 	{

@@ -1409,6 +1409,16 @@ void eval_convert(istringstream& is)
 			return EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
 		else if (format == "kppt16")
 			return EvalIO::EvalInfo::build_kppt16(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+#if defined(EVAL_EXPERIMENTAL)
+		// 旧評価関数を実験中の評価関数に変換する裏コマンド
+		// "test evalconvert kppt32 EVALDIR1 now EVALDIR2"のように使う。
+		else if (format == "now")
+		{
+			auto build = EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+			build.fe_end = Eval::fe_end;
+			return build;
+		}
+#endif
 		else
 			// とりあえずダミーで何か返す。
 			return EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
@@ -1416,7 +1426,7 @@ void eval_convert(istringstream& is)
 
 	auto is_valid_format = [](std::string format)
 	{
-		bool result =  (format == "kppt32" || format == "kppt16");
+		bool result =  (format == "kppt32" || format == "kppt16" || format == "now");
 		if (!result)
 			cout << "Error! Unknow format , format = " << format << endl;
 		return result;
@@ -1430,7 +1440,14 @@ void eval_convert(istringstream& is)
 	auto input = get_info(input_dir, input_format);
 	auto output = get_info(output_dir, output_format);
 	std::cout << "converting..";
+#if !defined(EVAL_EXPERIMENTAL)
 	EvalIO::eval_convert(input, output, nullptr);
+#else
+	if (output_format == "now")
+		EvalIO::eval_convert(input, output, &Eval::eval_mapper);
+	else
+		EvalIO::eval_convert(input, output, nullptr);
+#endif
 	std::cout << "..done." << std::endl;
 }
 
