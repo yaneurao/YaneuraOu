@@ -1555,6 +1555,75 @@ void dump_sfen(Position& pos, istringstream& is)
 }
 #endif
 
+#ifdef USE_KIF_CONVERT_TOOLS
+void test_kif_convert_tools(Position& pos, istringstream& is)
+{
+	is_ready();
+
+	std::string token = "";
+	is >> token;
+
+	bool sfen = false, csa = false, csa1 = false, kif = false, kif2 = false, all = (token == "");
+
+	while(true)
+	{
+		token = "";
+		is >> token;
+		if (token == "")
+			break;
+		if (token == "sfen")
+			sfen = true;
+		if (token == "csa")
+			csa = true;
+		else if (token == "csa1")
+			csa1 = true;
+		else if (token == "kif")
+			kif = true;
+		else if (token == "kif2")
+			kif2 = true;
+	}
+
+	std::cout << "position: " << pos.sfen() << std::endl;
+
+	if (all || sfen)
+	{
+		std::cout << "sfen:";
+		for (auto m : MoveList<LEGAL_ALL>(pos))
+			std::cout << " " << m.move;
+		std::cout << std::endl;
+	}
+	if (all || csa)
+	{
+		std::cout << "csa:";
+		for (auto m : MoveList<LEGAL_ALL>(pos))
+			std::cout << " " << KifConvertTools::to_csa_string(pos, m.move);
+		std::cout << std::endl;
+	}
+	if (all || csa1)
+	{
+		std::cout << "csa1:";
+		for (auto m : MoveList<LEGAL_ALL>(pos))
+			std::cout << " " << KifConvertTools::to_csa1_string(pos, m.move);
+		std::cout << std::endl;
+	}
+	if (all || kif)
+	{
+		std::cout << "kif:";
+		for (auto m : MoveList<LEGAL_ALL>(pos))
+			std::cout << " " << KifConvertTools::to_kif_string(pos, m.move);
+		std::cout << std::endl;
+	}
+	if (all || kif2)
+	{
+		std::cout << "kif2:";
+		for (auto m : MoveList<LEGAL_ALL>(pos))
+			std::cout << " " << KifConvertTools::to_kif2_string(pos, m.move);
+		std::cout << std::endl;
+	}
+
+}
+#endif // #ifdef USE_KIF_CONVERT_TOOLS
+
 void test_cmd(Position& pos, istringstream& is)
 {
 	// 探索をするかも知れないので初期化しておく。
@@ -1580,6 +1649,9 @@ void test_cmd(Position& pos, istringstream& is)
 #ifdef EVAL_KPPT
 	else if (param == "evalmerge") eval_merge(is);                   // 評価関数の合成コマンド
 	else if (param == "evalconvert") eval_convert(is);               // 評価関数の変換コマンド
+#endif
+#ifdef USE_KIF_CONVERT_TOOLS
+	else if (param == "kifconvert") test_kif_convert_tools(pos, is); // 現局面からの全合法手を各種形式で出力チェック
 #endif
 	else {
 		cout << "test unit               // UnitTest" << endl;
