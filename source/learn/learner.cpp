@@ -160,13 +160,15 @@ struct SfenWriter
 	// バッファに残っている分をファイルに書き出す。
 	void finalize(size_t thread_id)
 	{
+		std::unique_lock<Mutex> lk(mutex);
+
 		auto& buf = sfen_buffers[thread_id];
-		if (buf->size() != 0)
-		{
-			std::unique_lock<Mutex> lk(mutex);
+
+		// buf==nullptrであるケースもあるのでそのチェックが必要。
+		if (buf && buf->size() != 0)
 			sfen_buffers_pool.push_back(buf);
-			buf = nullptr;
-		}
+
+		buf = nullptr;
 	}
 
 	// write_workerスレッドを開始する。
