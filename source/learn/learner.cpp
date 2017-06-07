@@ -881,7 +881,8 @@ struct SfenReader
 	}
 	~SfenReader()
 	{
-		file_worker_thread.join();
+		if (file_worker_thread.joinable())
+			file_worker_thread.join();
 	}
 
 	// mseの計算用に1000局面ほど読み込んでおく。
@@ -1081,12 +1082,6 @@ struct SfenReader
 
 			fs.open(filename, ios::in | ios::binary);
 			cout << endl << "open filename = " << filename << " ";
-
-#if 0
-			// 棋譜の先頭2M局面ほど、探索の初期化が十分なされていないせいか、
-			// あまりいい探索結果ではないので、これを捨てる。
-			fs.seekp(sizeof(PackedSfenValue) * 2*1000*1000,ios::beg);
-#endif
 
 			return true;
 		};
@@ -1439,6 +1434,85 @@ void LearnerThink::save()
 #endif
 }
 
+// 教師局面のシャッフル
+void shuffle_files(vector<string> filenames)
+{
+	// 出力先のフォルダは
+	// tmp/               一時書き出し用
+	// shuffled_sfen.bin  シャッフルされたファイル
+
+	// テンポラリファイルは10M局面ずつtmp/フォルダにいったん書き出す
+	const u64 buffer_size = 10000000;
+
+	vector<PackedSfenValue> buf;
+	buf.resize(buffer_size);
+	// ↑のバッファ、どこまで使ったかを示すマーカー
+	u64 buf_write_marker = 0;
+
+	// 書き出すファイル名
+	u64 write_file_count = 0;
+
+	PRNG prng;
+
+	// テンポラリファイルの名前を生成する
+	auto make_filename = [](u64 i)
+	{
+		return "tmp/" + to_string(i) + ".bin";
+	};
+
+	auto write_buffer = [&](u64 size)
+	{
+		// 0～size-1までをshuffle
+		for (u64 i = 0; i < size; ++i)
+			swap(buf[i], buf[(u64)(prng.rand(size - i) + i)]);
+
+		// ファイルに書き出す
+		fstream fs;
+		fs.open(make_filename(write_file_count++), ios::out | ios::binary);
+		fs.write((char*)&buf[0], size * sizeof(PackedSfenValue));
+		fs.close();
+
+		buf_write_marker = 0;
+		cout << ".";
+	};
+
+	MKDIR("tmp");
+
+	for (auto filename : filenames)
+	{
+		fstream fs(filename, ios::in | ios::binary);
+		while (fs.read((char*)&buf[buf_write_marker], sizeof(PackedSfenValue)))
+			if (++buf_write_marker == buffer_size)
+				write_buffer(buffer_size);
+	}
+
+	// バッファにまだ残っている分があるならそれも書き出す。
+	if (buf_write_marker != 0)
+		write_buffer(buf_write_marker);
+
+	// シャッフルされたファイルがwrite_file_count個だけ書き出された。
+	// 2pass目として、これをすべて同時にオープンし、ランダムに1つずつ選択して1局面ずつ読み込めば
+	// これにてシャッフルされたことになる。
+
+	vector<fstream> afs;
+	for (u64 i = 0; i < write_file_count; ++i)
+		afs.emplace_back(fstream(make_filename(i),ios::in | ios::binary));
+
+	fstream fs("shuffled_sfen.bin", ios::out | ios::binary);
+	while (afs.size())
+	{
+		auto n = prng.rand(afs.size());
+		PackedSfenValue psv;
+		if (afs[n].read((char*)&psv, sizeof(PackedSfenValue)))
+			fs.write((char*)&psv, sizeof(PackedSfenValue));
+		else
+			// 読み込む要素がなくなったのならafsから除外していく。
+			afs.erase(afs.begin() + n);
+	}
+	fs.close();
+	cout << "done!" << endl;
+}
+
 // 生成した棋譜からの学習
 void learn(Position&, istringstream& is)
 {
@@ -1468,6 +1542,9 @@ void learn(Position&, istringstream& is)
 	GlobalOptions.use_eval_hash = false;
 	// 置換表にhitするとそこで以前の評価値で枝刈りがされることがあるのでオフにしておく。
 	GlobalOptions.use_hash_probe = false;
+
+	// 教師局面をシャッフルするだけの機能
+	bool shuffle = false;
 
 	// ファイル名が後ろにずらずらと書かれていると仮定している。
 	while (true)
@@ -1510,6 +1587,8 @@ void learn(Position&, istringstream& is)
 		// LAMBDA
 		else if (option == "lambda")    is >> ELMO_LAMBDA;
 #endif
+		else if (option == "shuffle")	shuffle = true;
+
 
 		// さもなくば、それはファイル名である。
 		else
@@ -1572,6 +1651,15 @@ void learn(Position&, istringstream& is)
 
 	cout << "\nbase dir        : " << base_dir;
 	cout << "\ntarget dir      : " << target_dir;
+
+	// シャッフルモード
+	if (shuffle)
+	{
+		cout << "\nshuffle mode.." << endl;
+		shuffle_files(filenames);
+		return;
+	}
+
 	cout << "\nloop            : " << loop;
 
 	// ループ回数分だけファイル名を突っ込む。

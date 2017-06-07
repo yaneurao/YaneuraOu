@@ -41,9 +41,6 @@
     <Filter Include="exe">
       <UniqueIdentifier>{a09b95c2-88ed-401e-ab31-7eb93f8fc490}</UniqueIdentifier>
     </Filter>
-    <Filter Include="doc">
-      <UniqueIdentifier>{8bb34244-8e89-49f6-a303-c043ef5d8647}</UniqueIdentifier>
-    </Filter>
     <Filter Include="exe\book">
       <UniqueIdentifier>{31783e68-60c1-4b07-a404-12463d7c1e30}</UniqueIdentifier>
     </Filter>
@@ -88,6 +85,9 @@
     </Filter>
     <Filter Include="リソース ファイル\extra\kif_converter">
       <UniqueIdentifier>{d3015e32-f402-423d-8643-dcc571f62564}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="docs">
+      <UniqueIdentifier>{8bb34244-8e89-49f6-a303-c043ef5d8647}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -378,39 +378,39 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">
-      <Filter>doc</Filter>
+      <Filter>docs</Filter>
     </Text>
     <Text Include="..\docs\解説.txt">
-      <Filter>doc</Filter>
+      <Filter>docs</Filter>
     </Text>
     <Text Include="..\exe\eval\readme.txt">
       <Filter>exe\eval</Filter>
     </Text>
     <Text Include="..\docs\やねうら大定跡.txt">
-      <Filter>doc</Filter>
+      <Filter>docs</Filter>
     </Text>
     <Text Include="..\docs\更新履歴.txt">
-      <Filter>doc</Filter>
+      <Filter>docs</Filter>
     </Text>
     <Text Include="..\script\readme.txt">
       <Filter>script</Filter>
     </Text>
     <Text Include="..\docs\開発メモ2017.txt">
-      <Filter>doc</Filter>
+      <Filter>docs</Filter>
     </Text>
     <Text Include="..\docs\開発ToDo.txt">
-      <Filter>doc</Filter>
+      <Filter>docs</Filter>
     </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md">
-      <Filter>doc</Filter>
+      <Filter>docs</Filter>
     </None>
     <None Include="..\exe\book\standard_book.db">
       <Filter>exe\book</Filter>
     </None>
     <None Include="Makefile">
-      <Filter>doc</Filter>
+      <Filter>docs</Filter>
     </None>
     <None Include="..\script\calc_rating.py">
       <Filter>script</Filter>
@@ -428,7 +428,7 @@
       <Filter>script</Filter>
     </None>
     <None Include="..\docs\README2017.md">
-      <Filter>doc</Filter>
+      <Filter>docs</Filter>
     </None>
   </ItemGroup>
 </Project>
