@@ -317,7 +317,7 @@ namespace Eval
 	{
 		// is_ready()で評価関数を読み込み、
 		// 初期化してからしかcompute_eval()を呼び出すことは出来ない。
-		ASSERT_LV1(kk != nullptr);
+		ASSERT_LV1(&(kk) != nullptr);
 		// →　32bit環境だとこの変数、単なるポインタなのでこのassertは意味がないのだが、
 		// とりあえず開発時に早期に気づくようにこのassertを入れておく。
 
