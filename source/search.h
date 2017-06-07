@@ -50,7 +50,7 @@ namespace Search {
 		LimitsType() {
 			nodes = time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = byoyomi[WHITE] = byoyomi[BLACK] = npmsec
 				= depth = movetime = mate = infinite = ponder = rtime = 0;
-			silent = bench = ponder_mode = consideration_mode = false;
+			silent = bench = ponder_mode = consideration_mode = outout_fail_lh_pv = false;
 			max_game_ply = 100000;
 			enteringKingRule = EKR_NONE;
 		}
@@ -118,6 +118,9 @@ namespace Search {
 
 		// 検討モード用のPVを出力するのか
 		bool consideration_mode;
+
+		// fail low/highのときのPVを出力するのか
+		bool outout_fail_lh_pv;
 
 		// ベンチマークモード(このときPVの出力時に置換表にアクセスしない)
 		bool bench;

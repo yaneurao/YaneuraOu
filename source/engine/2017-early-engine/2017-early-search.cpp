@@ -120,6 +120,9 @@ void USI::extra_option(USI::OptionsMap & o)
 
 	// 検討モード用のPVを出力するモード
 	o["ConsiderationMode"] << Option(false);
+
+	// fail low/highのときにPVを出力するかどうか。
+	o["OutputFailLHPV"] << Option(true);
 }
 
 // -----------------------
@@ -2246,6 +2249,9 @@ void Thread::search()
 	// 検討モード用のPVを出力するのか。
 	Limits.consideration_mode = Options["ConsiderationMode"];
 
+	// fail low/highのときにPVを出力するかどうか。
+	Limits.outout_fail_lh_pv = Options["OutputFailLHPV"];
+
 	// PVの出力間隔[ms]
 	// go infiniteはShogiGUIなどの検討モードで動作させていると考えられるので
 	// この場合は、PVを毎回出力しないと読み筋が出力されないことがある。
@@ -2397,8 +2403,9 @@ void Thread::search()
 					// また、go infiniteのときは、検討モードから使用しているわけで、PVは必ず出力する。
 					&& (rootDepth < 3 || lastInfoTime + pv_interval <= Time.elapsed())
 					// silent modeや検討モードなら出力を抑制する。
-					// 検討モードではfail high/fail lowのときのPVを出力しない。
-					&& !(Limits.silent || Limits.consideration_mode)
+					&& !Limits.silent
+					// ただし、outout_fail_lh_pvがfalseならfail high/fail lowのときのPVを出力しない。
+					&&  Limits.outout_fail_lh_pv
 					)
 				{
 					// 最後に出力した時刻を記録しておく。
