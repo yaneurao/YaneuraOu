@@ -51,7 +51,7 @@ namespace Eval {
 	void prefetch_evalhash(const Key key);
 #endif
 
-#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPPT_FAST)
+#if defined(EVAL_KKPT) || defined(EVAL_KPPT)
 	// 評価関数パラメーターのチェックサムを返す。
 	u64 calc_check_sum();
 

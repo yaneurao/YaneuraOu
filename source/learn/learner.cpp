@@ -55,17 +55,13 @@
 //    以下、実装部。
 // -----------------------------------
 
-
 #include <sstream>
 #include <fstream>
 #include <unordered_set>
 
-#include "../misc.h"
-#include "../thread.h"
-#include "../position.h"
-#include "../extra/book/book.h"
-#include "../tt.h"
-#include "multi_think.h"
+#if defined (_OPENMP)
+#include <omp.h>
+#endif
 
 #if defined(_MSC_VER)
 // C++のfilesystemは、C++17以降か、MSVCでないと使えないようだ。
@@ -76,10 +72,12 @@
 #include <dirent.h>
 #endif
 
-
-#ifdef _OPENMP
-#include <omp.h>
-#endif
+#include "../misc.h"
+#include "../thread.h"
+#include "../position.h"
+#include "../extra/book/book.h"
+#include "../tt.h"
+#include "multi_think.h"
 
 using namespace std;
 
@@ -1123,7 +1121,7 @@ struct SfenReader
 				}
 			}
 
-#ifndef LEARN_SFEN_NO_SHUFFLE
+#if !defined ( LEARN_SFEN_NO_SHUFFLE )
 			// この読み込んだ局面データをshuffleする。
 			// random shuffle by Fisher-Yates algorithm
 			{

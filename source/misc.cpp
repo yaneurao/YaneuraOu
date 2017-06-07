@@ -282,7 +282,7 @@ void prefetch2(void* addr)
 
 namespace WinProcGroup {
 
-#ifndef _WIN32
+#if !defined ( _WIN32 )
 
 	void bindThisThread(size_t) {}
 

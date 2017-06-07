@@ -8,6 +8,10 @@
 
 #if defined(EVAL_LEARN)
 
+#if defined(_OPENMP)
+#include <omp.h>
+#endif
+
 #include "learn.h"
 #include "learning_tools.h"
 #include "../eval/evaluate_io.h"
@@ -157,99 +161,111 @@ namespace Eval
 		u64 vector_length = KPP::max_index();
 
 		// 並列化を効かせたいので直列化されたWeight配列に対してループを回す。
-#pragma omp parallel for schedule(guided)
-		for (u64 index = 0; index < vector_length; ++index)
+
+#pragma omp parallel
 		{
-			// 自分が更新すべきやつか？
-			// 次元下げしたときのindexの小さいほうが自分でないならこの更新は行わない。
-			if (!min_index_flag[index])
-				continue;
 
-			if (KK::is_ok(index))
-			{
-				// KKは次元下げしていないので普通にupdate
-				KK x = KK::fromIndex(index);
-				weights[index].updateFV(kk[x.king0()][x.king1()]);
-				weights[index].g = { 0,0 };
-			}
-			else if (KKP::is_ok(index))
-			{
-				// KKPは次元下げがあるので..
-				KKP x = KKP::fromIndex(index);
-				KKP a[2];
-				x.toLowerDimensions(/*out*/a);
-
-				// a[0] == indexであることは保証されている。
-				u64 ids[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
-
-				// 勾配を合計して、とりあえずa[0]に格納し、
-				// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す。
-				// id[0]==id[1]==id[2]==id[3]みたいな可能性があるので、gは外部で合計する
-				array<LearnFloatType, 2> g_sum = { 0,0 };
-				for (auto id : ids)
-					g_sum += weights[id].g;
-
-				// 次元下げを考慮して、その勾配の合計が0であるなら、一切の更新をする必要はない。
-				if (is_zero(g_sum))
-					continue;
-
-				//cout << a[0].king0() << a[0].king1() << a[0].piece() << g_sum << endl;
-
-				auto& v = kkp[a[0].king0()][a[0].king1()][a[0].piece()];
-				weights[ids[0]].g = g_sum;
-				weights[ids[0]].updateFV(v);
-
-				kkp[a[1].king0()][a[1].king1()][a[1].piece()] = v;
-
-				// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
-				// この場合、毎回gを通常の2倍加算していることになるが、AdaGradは適応型なのでこれでもうまく学習できる。
-				for (auto id : ids)
-					weights[id].g = { 0,0 };
-			}
-			else if (KPP::is_ok(index))
-			{
-				KPP x = KPP::fromIndex(index);
-
-#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
-				KPP a[4];
-				x.toLowerDimensions(/*out*/a);
-				u64 ids[4] = { /*a[0].toIndex()*/ index , a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
-#else
-				// 3角配列を用いる場合、次元下げは2つ。
-				KPP a[2];
-				x.toLowerDimensions(/*out*/a);
-				u64 ids[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
-#endif
-				array<LearnFloatType, 2> g_sum = { 0,0 };
-				for (auto id : ids)
-					g_sum += weights[id].g;
-
-				if (is_zero(g_sum))
-					continue;
-
-				//cout << a[0].king() << a[0].piece0() << a[0].piece1() << g_sum << endl;
-
-				auto& v = kpp[a[0].king()][a[0].piece0()][a[0].piece1()];
-				weights[ids[0]].g = g_sum;
-				weights[ids[0]].updateFV(v);
-
-#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
-				for (int i = 1; i<4; ++i)
-					kpp[a[i].king()][a[i].piece0()][a[i].piece1()] = v;
-#else
-				// 三角配列の場合、KPP::toLowerDimensionsで、piece0とpiece1を入れ替えたものは返らないので
-				// (同じindexを指しているので)、自分で入れ替えてkpp配列にvの値を反映させる。
-				kpp[a[0].king()][a[0].piece1()][a[0].piece0()] = v;
-				kpp[a[1].king()][a[1].piece0()][a[1].piece1()] = v;
-				kpp[a[1].king()][a[1].piece1()][a[1].piece0()] = v;
+#if defined(_OPENMP)
+			// Windows環境下でCPUが２つあるときに、論理64コアまでしか使用されないのを防ぐために
+			// ここで明示的にCPUに割り当てる
+			int thread_index = omp_get_thread_num();    // 自分のthread numberを取得
+			WinProcGroup::bindThisThread(thread_index);
 #endif
 
-				for (auto id : ids)
-					weights[id].g = { 0 , 0 };
-			}
-			else
+#pragma omp for schedule(dynamic,1000)
+			for (u64 index = 0; index < vector_length; ++index)
 			{
-				ASSERT_LV3(false);
+				// 自分が更新すべきやつか？
+				// 次元下げしたときのindexの小さいほうが自分でないならこの更新は行わない。
+				if (!min_index_flag[index])
+					continue;
+
+				if (KK::is_ok(index))
+				{
+					// KKは次元下げしていないので普通にupdate
+					KK x = KK::fromIndex(index);
+					weights[index].updateFV(kk[x.king0()][x.king1()]);
+					weights[index].g = { 0,0 };
+				}
+				else if (KKP::is_ok(index))
+				{
+					// KKPは次元下げがあるので..
+					KKP x = KKP::fromIndex(index);
+					KKP a[2];
+					x.toLowerDimensions(/*out*/a);
+
+					// a[0] == indexであることは保証されている。
+					u64 ids[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
+
+					// 勾配を合計して、とりあえずa[0]に格納し、
+					// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す。
+					// id[0]==id[1]==id[2]==id[3]みたいな可能性があるので、gは外部で合計する
+					array<LearnFloatType, 2> g_sum = { 0,0 };
+					for (auto id : ids)
+						g_sum += weights[id].g;
+
+					// 次元下げを考慮して、その勾配の合計が0であるなら、一切の更新をする必要はない。
+					if (is_zero(g_sum))
+						continue;
+
+					//cout << a[0].king0() << a[0].king1() << a[0].piece() << g_sum << endl;
+
+					auto& v = kkp[a[0].king0()][a[0].king1()][a[0].piece()];
+					weights[ids[0]].g = g_sum;
+					weights[ids[0]].updateFV(v);
+
+					kkp[a[1].king0()][a[1].king1()][a[1].piece()] = v;
+
+					// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
+					// この場合、毎回gを通常の2倍加算していることになるが、AdaGradは適応型なのでこれでもうまく学習できる。
+					for (auto id : ids)
+						weights[id].g = { 0,0 };
+				}
+				else if (KPP::is_ok(index))
+				{
+					KPP x = KPP::fromIndex(index);
+
+#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
+					KPP a[4];
+					x.toLowerDimensions(/*out*/a);
+					u64 ids[4] = { /*a[0].toIndex()*/ index , a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
+#else
+					// 3角配列を用いる場合、次元下げは2つ。
+					KPP a[2];
+					x.toLowerDimensions(/*out*/a);
+					u64 ids[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
+#endif
+					array<LearnFloatType, 2> g_sum = { 0,0 };
+					for (auto id : ids)
+						g_sum += weights[id].g;
+
+					if (is_zero(g_sum))
+						continue;
+
+					//cout << a[0].king() << a[0].piece0() << a[0].piece1() << g_sum << endl;
+
+					auto& v = kpp[a[0].king()][a[0].piece0()][a[0].piece1()];
+					weights[ids[0]].g = g_sum;
+					weights[ids[0]].updateFV(v);
+
+#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
+					for (int i = 1; i < 4; ++i)
+						kpp[a[i].king()][a[i].piece0()][a[i].piece1()] = v;
+#else
+					// 三角配列の場合、KPP::toLowerDimensionsで、piece0とpiece1を入れ替えたものは返らないので
+					// (同じindexを指しているので)、自分で入れ替えてkpp配列にvの値を反映させる。
+					kpp[a[0].king()][a[0].piece1()][a[0].piece0()] = v;
+					kpp[a[1].king()][a[1].piece0()][a[1].piece1()] = v;
+					kpp[a[1].king()][a[1].piece1()][a[1].piece0()] = v;
+#endif
+
+					for (auto id : ids)
+						weights[id].g = { 0 , 0 };
+				}
+				else
+				{
+					ASSERT_LV3(false);
+				}
 			}
 		}
 	}
