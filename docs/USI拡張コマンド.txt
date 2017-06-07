@@ -146,6 +146,8 @@ set option name XXX value ...で設定できるoption
 		ShogiGUIなどの検討モードで用いるためのもので、このオプションをオンにすると
 		中途半端な読み筋が出力されることが減ります。
 
+	OutputFailLHPV    : fail low/highのときにPVを出力するかどうか。ConsiderationModeでも有効。
+
 
 	// 協力詰めsolver時
 
@@ -239,3 +241,12 @@ set option name XXX value ...で設定できるoption
 		保存するフォルダは"EvalSaveDir"で指定したフォルダ。
 		デフォルトでは"evalsave"。このフォルダは事前に用意されているものとする。
 		このフォルダ配下にフォルダを"0/","1/",…のように自動的に掘り、そこに評価関数ファイルを保存する。
+
+	教師局面のシャッフル
+	learn basedir BASE_DIR targetdir TARGET_DIR shuffle
+		basedir BASE_DIR と targetdir TARGET_DIR とは省略できる。
+		tmp/
+		というフォルダに一時ファイルが書き出され、最終的に
+		shuffled_sfen.bin
+		がカレントフォルダに書き出される。
+

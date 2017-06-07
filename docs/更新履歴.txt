@@ -2,9 +2,22 @@
 やねうら王 更新履歴
 
 
+■　2017/06/08 V4.66
+
+・教師局面の完全シャッフルを行なうコマンドを追加した。詳しくは docs/解説.txt を。
+・fail low/highのときにPVを出力するかどうかを思考エンジン設定で選べるようにした。OutputFailLHPV
+
+
+■　2017/06/07
+
+・教師局面の生成のときに最後、finalizeを呼び出す前にアクセス違反で落ちることがある問題の修正。(t-suzukiさん)
+・学習時にCPUが２つ以上あるときにすべてのCPUにきちんとthreadを割り振るようにした。(tanuki-さん)
+
+
 ■　2017/06/06 V4.65
 
 ・add "test kifconvert" , fix white turn convert to kif(Mizarさん)
+・EVAL_KPPT_FAST使ってないから削除。USE_FAST_KPPTも少しコード整理した。
 
 
 ■　2017/06/05

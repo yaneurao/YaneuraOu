@@ -55,8 +55,9 @@ EvalShare 評価関数を共有メモリに展開する
 EvalSaveDir 学習時の評価関数の保存先
 PvInterval PVの出力の抑制時間[ms]
 ConsiderationMode 検討モード用のPV出力
+OutputFailLHPV fail_low/highのときもPV出力
 
-nodestime nodes as time
+nodestime nodes_as_time
 EngineNuma EngineNuma
 ResignValue 投了スコア
 SlowMover 序盤重視率[%]
