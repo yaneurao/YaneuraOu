@@ -44,7 +44,7 @@ struct PieceToHistory : public PieceToBoards {
 	void update(Piece pc, Square to, int v) {
 
 		const int D = 936;
-		s16& entry = (*this)[to][pc];
+		auto& entry = (*this)[to][pc];
 
 		ASSERT_LV3(abs(v) <= D); // 下記の公式に対する一貫性チェック
 
@@ -62,7 +62,7 @@ struct ButterflyHistory : public ButterflyBoards {
 	void update(Color c, Move m, int v) {
 
 		const int D = 324;
-		s16& entry = (*this)[from_to(m)][c];
+		auto& entry = (*this)[from_to(m)][c];
 
 		ASSERT_LV3(abs(v) <= D); // 下記の公式に対する一貫性チェック
 
