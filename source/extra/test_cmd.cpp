@@ -209,7 +209,7 @@ void effect_check(Position& pos)
   WordBoard wb = pos.long_effect;
 
   LongEffect::calc_effect(pos);
-  
+
   for(auto c : COLOR)
     for(auto sq : SQ)
       if (bb[c].effect(sq) != pos.board_effect[c].effect(sq))
@@ -244,7 +244,7 @@ void effect_check(Position& pos)
 void random_player(Position& pos,uint64_t loop_max)
 {
 #ifdef MATE1PLY_CHECK
-  uint64_t mate_found = 0;    // 1手詰め判定で見つけた1手詰め局面の数 
+  uint64_t mate_found = 0;    // 1手詰め判定で見つけた1手詰め局面の数
   uint64_t mate_missed = 0;   // 1手詰め判定で見逃した1手詰め局面の数
 #endif
 
@@ -256,7 +256,7 @@ void random_player(Position& pos,uint64_t loop_max)
   int ply; // 初期局面からの手数
 
   PRNG prng(20160101);
-  
+
   for (uint64_t i = 0; i < loop_max; ++i)
   {
     for (ply = 0; ply < MAX_PLY; ++ply)
@@ -611,7 +611,7 @@ void generate_moves_cmd(Position& pos)
 void test_hand()
 {
   cout << "Test Hand start : is_superior()" << endl;
-  
+
   for (int i = 0; i < 128; ++i)
     for (int j = 0; j < 128; ++j)
     {
@@ -1015,12 +1015,12 @@ void exam_book(Position& pos)
 
 	string book_name = "yaneura_book1.db";
 	Book::read_book("book/" + book_name, book, (bool)Options["BookOnTheFly"]);
-	
+
 	string input_sfen_name = "book/records2016.sfen";
 	string output_sfen_name = "book/records2016new.sfen";
 
 	cout << "book examine from " << input_sfen_name << " to " << output_sfen_name << endl;
-	
+
 	fstream fs1, fs2;
 	fs1.open(input_sfen_name, ios::in);
 	fs2.open(output_sfen_name, ios::out);
@@ -1183,7 +1183,7 @@ void book_check_cmd(Position& pos, istringstream& is)
 	// とりあえずファイル名は固定でいいや。
 	string book_name = "yaneura_book3.db";
 
-	// bookの読み込み。	
+	// bookの読み込み。
 	Book::MemoryBook book;
 	Book::read_book("book/" + book_name, book, /*BookOnTheFly*/ false);
 	string sfen = "startpos moves";
@@ -1319,7 +1319,7 @@ struct KKPT_reader
 		auto r1 = percent / 100.0;
 		auto r2 = 1 - r1;
 		// p1:p2で合成する。
-		
+
 		for (auto k1 : SQ)
 			for (auto k2 : SQ)
 			{
@@ -1508,7 +1508,7 @@ void dump_sfen(Position& pos, istringstream& is)
 		// 指定番号になるまでskip
 		if (num < start_number)
 			goto NEXT;
-		
+
 		// 指定番号を超えたら終了。
 		if (num >= end_number)
 			break;
@@ -1561,26 +1561,28 @@ void test_kif_convert_tools(Position& pos, istringstream& is)
 	is_ready();
 
 	std::string token = "";
-	is >> token;
 
-	bool sfen = false, csa = false, csa1 = false, kif = false, kif2 = false, all = (token == "");
+	KifConvertTools::SquareFormat fmt = KifConvertTools::SquareFormat::SqFmt_ASCII;
+	int fmti = 0;
+	bool sfen = false, csa = false, csa1 = false, kif = false, kif2 = false, kif2v = false, all = true;
 
-	while(true)
+	while (true)
 	{
 		token = "";
 		is >> token;
-		if (token == "")
-			break;
-		if (token == "sfen")
-			sfen = true;
-		if (token == "csa")
-			csa = true;
-		else if (token == "csa1")
-			csa1 = true;
-		else if (token == "kif")
-			kif = true;
-		else if (token == "kif2")
-			kif2 = true;
+		if (token == "") break;
+		else if (token == "sfen") { all = false; sfen = true; }
+		else if (token == "csa") { all = false; csa = true; }
+		else if (token == "csa1") { all = false; csa1 = true; }
+		else if (token == "kif") { all = false; kif = true; }
+		else if (token == "kif2") { all = false; kif2 = true; }
+		else if (token == "kif2v") { all = false; kif2v = true; }
+		else if (token == "squareformat")
+		{
+			is >> fmti;
+			if (fmti >= 0 && fmti < (int)KifConvertTools::SquareFormat::SqFmt_NB)
+				fmt = (KifConvertTools::SquareFormat)fmti;
+		}
 	}
 
 	std::cout << "position: " << pos.sfen() << std::endl;
@@ -1610,14 +1612,21 @@ void test_kif_convert_tools(Position& pos, istringstream& is)
 	{
 		std::cout << "kif:";
 		for (auto m : MoveList<LEGAL_ALL>(pos))
-			std::cout << " " << KifConvertTools::to_kif_string(pos, m.move);
+			std::cout << " " << KifConvertTools::to_kif_string(pos, m.move, fmt);
 		std::cout << std::endl;
 	}
 	if (all || kif2)
 	{
 		std::cout << "kif2:";
 		for (auto m : MoveList<LEGAL_ALL>(pos))
-			std::cout << " " << KifConvertTools::to_kif2_string(pos, m.move);
+			std::cout << " " << KifConvertTools::to_kif2_string(pos, m.move, fmt);
+		std::cout << std::endl;
+	}
+	if (all || kif2v)
+	{
+		std::cout << "kif2v:";
+		for (auto m : MoveList<LEGAL_ALL>(pos))
+			std::cout << " " << KifConvertTools::to_kif2_string(pos, m.move, fmt, true);
 		std::cout << std::endl;
 	}
 
@@ -1637,7 +1646,7 @@ void test_cmd(Position& pos, istringstream& is)
 	else if (param == "cm") cooperation_mate_cmd(pos, is);           // 協力詰めルーチン
 	else if (param == "checks") test_genchecks(pos, is);             // 王手生成ルーチンのテスト
 	else if (param == "hand") test_hand();                           // 手駒の優劣関係などのテスト
-	else if (param == "records") test_read_record(pos, is);          // 棋譜の読み込みテスト 
+	else if (param == "records") test_read_record(pos, is);          // 棋譜の読み込みテスト
 	else if (param == "autoplay") auto_play(pos, is);                // 思考ルーチンを呼び出しての連続自己対戦
 	else if (param == "timeman") test_timeman();                     // TimeManagerのテスト
 	else if (param == "exambook") exam_book(pos);                    // 定跡の精査用コマンド

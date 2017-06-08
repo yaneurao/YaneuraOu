@@ -28,6 +28,7 @@ namespace KifConvertTools
 		SqFmt_ASCII           , // 普通のASCII形式
 		SqFmt_FullWidthArabic , // 全角アラビア数字
 		SqFmt_FullWidthMix    , // 全角漢数字・アラビア数字混在
+		SqFmt_NB // 番兵
 	};
 
 	// KIF形式の指し手表現文字列を取得する。
@@ -43,10 +44,10 @@ namespace KifConvertTools
 	// 出力文字列のエンコードは、関数名にu8とついているのはutf-8。u16はutf-16、u32はutf-32。
 	// 何もついていないものはSJIS。
 
-	extern std::string to_kif2_string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);
-	extern std::string to_kif2_u8string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);
-	extern std::u16string to_kif2_u16string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);
-	extern std::u32string to_kif2_u32string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII);
+	extern std::string to_kif2_string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII, bool verboseSamePos = false);
+	extern std::string to_kif2_u8string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII, bool verboseSamePos = false);
+	extern std::u16string to_kif2_u16string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII, bool verboseSamePos = false);
+	extern std::u32string to_kif2_u32string(Position& pos, Move m, SquareFormat fmt = SqFmt_ASCII, bool verboseSamePos = false);
 
 	// --- UnitTest
 

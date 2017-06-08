@@ -264,7 +264,7 @@ namespace KifConvertTools
 		// m			  : 今回の指し手
 		// prev_m		  : 直前の指し手
 		// movedPieceType : 移動させる駒(今回の指し手で成る場合は、成る前の駒)
-		strT to_kif2_string(Position& pos, Move m, SquareFormat fmt)
+		strT to_kif2_string(Position& pos, Move m, SquareFormat fmt, bool verboseSamePos)
 		{
 			// 手番
 			Color c = pos.side_to_move();
@@ -316,7 +316,12 @@ namespace KifConvertTools
 
 				// 移動先座標
 				if (is_ok(prev_m) && move_to(prev_m) == to)
+				{
+					// verboseSamePos が true の場合、座標＋「同」～の表記にする
+					if (verboseSamePos)
+						append(to, fmt);
 					ss << constStr.move_samepos;
+				}
 				else
 					append(to, fmt);
 
@@ -509,25 +514,25 @@ namespace KifConvertTools
 
 	// KIF形式の指し手表現文字列を取得する。
 
-	std::string to_kif_string(Position& pos, Move m , SquareFormat fmt)
+	std::string to_kif_string(Position& pos, Move m, SquareFormat fmt)
 	{
 		KifStringBuilder<std::string, KifConstLocale> builder;
-		return builder.to_kif_string(m, type_of(pos.moved_piece_before(m)), pos.state()->lastMove , pos.side_to_move() , fmt);
+		return builder.to_kif_string(m, type_of(pos.moved_piece_before(m)), pos.state()->lastMove, pos.side_to_move(), fmt);
 	}
-	std::string to_kif_u8string(Position& pos, Move m , SquareFormat fmt)
+	std::string to_kif_u8string(Position& pos, Move m, SquareFormat fmt)
 	{
 		KifStringBuilder<std::string, KifConstUtf8> builder;
-		return builder.to_kif_string(m, type_of(pos.moved_piece_before(m)), pos.state()->lastMove , pos.side_to_move() , fmt);
+		return builder.to_kif_string(m, type_of(pos.moved_piece_before(m)), pos.state()->lastMove, pos.side_to_move(), fmt);
 	}
-	std::u16string to_kif_u16string(Position& pos, Move m , SquareFormat fmt)
+	std::u16string to_kif_u16string(Position& pos, Move m, SquareFormat fmt)
 	{
 		KifStringBuilder<std::u16string, KifConstUtf16> builder;
-		return builder.to_kif_string(m, type_of(pos.moved_piece_before(m)), pos.state()->lastMove , pos.side_to_move() , fmt);
+		return builder.to_kif_string(m, type_of(pos.moved_piece_before(m)), pos.state()->lastMove, pos.side_to_move(), fmt);
 	}
-	std::u32string to_kif_u32string(Position& pos, Move m , SquareFormat fmt)
+	std::u32string to_kif_u32string(Position& pos, Move m, SquareFormat fmt)
 	{
 		KifStringBuilder<std::u32string, KifConstUtf32> builder;
-		return builder.to_kif_string(m, type_of(pos.moved_piece_before(m)), pos.state()->lastMove , pos.side_to_move() , fmt);
+		return builder.to_kif_string(m, type_of(pos.moved_piece_before(m)), pos.state()->lastMove, pos.side_to_move(), fmt);
 	}
 
 	// KIF2形式の指し手表現文字列を取得する。
@@ -535,25 +540,25 @@ namespace KifConvertTools
 	//   同種の他の駒の位置関係がわかる必要があり、
 	//   盤面情報が必須であるから、Positionクラスが必要になる。
 
-	std::string to_kif2_string(Position& pos, Move m, SquareFormat fmt)
+	std::string to_kif2_string(Position& pos, Move m, SquareFormat fmt, bool verboseSamePos)
 	{
 		KifStringBuilder<std::string, KifConstLocale> builder;
-		return builder.to_kif2_string(pos, m, fmt);
+		return builder.to_kif2_string(pos, m, fmt, verboseSamePos);
 	}
-	std::string to_kif2_u8string(Position& pos, Move m, SquareFormat fmt)
+	std::string to_kif2_u8string(Position& pos, Move m, SquareFormat fmt, bool verboseSamePos)
 	{
 		KifStringBuilder<std::string, KifConstUtf8> builder;
-		return builder.to_kif2_string(pos, m, fmt);
+		return builder.to_kif2_string(pos, m, fmt, verboseSamePos);
 	}
-	std::u16string to_kif2_u16string(Position& pos, Move m, SquareFormat fmt)
+	std::u16string to_kif2_u16string(Position& pos, Move m, SquareFormat fmt, bool verboseSamePos)
 	{
 		KifStringBuilder<std::u16string, KifConstUtf16> builder;
-		return builder.to_kif2_string(pos, m, fmt);
+		return builder.to_kif2_string(pos, m, fmt, verboseSamePos);
 	}
-	std::u32string to_kif2_u32string(Position& pos, Move m, SquareFormat fmt)
+	std::u32string to_kif2_u32string(Position& pos, Move m, SquareFormat fmt, bool verboseSamePos)
 	{
 		KifStringBuilder<std::u32string, KifConstUtf32> builder;
-		return builder.to_kif2_string(pos, m, fmt);
+		return builder.to_kif2_string(pos, m, fmt, verboseSamePos);
 	}
 
 	// -----------------
