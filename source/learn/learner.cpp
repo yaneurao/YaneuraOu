@@ -1442,6 +1442,7 @@ void shuffle_files(vector<string> filenames)
 	// shuffled_sfen.bin  シャッフルされたファイル
 
 	// テンポラリファイルは10M局面ずつtmp/フォルダにいったん書き出す
+	// 10M*40bytes = 400MBのバッファが必要。
 	const u64 buffer_size = 10000000;
 
 	vector<PackedSfenValue> buf;
@@ -1452,6 +1453,10 @@ void shuffle_files(vector<string> filenames)
 	// 書き出すファイル名
 	u64 write_file_count = 0;
 
+	// 読み込んだ局面数
+	u64 read_sfen_count = 0;
+
+	// シャッフルするための乱数
 	PRNG prng;
 
 	// テンポラリファイルの名前を生成する
@@ -1472,12 +1477,15 @@ void shuffle_files(vector<string> filenames)
 		fs.write((char*)&buf[0], size * sizeof(PackedSfenValue));
 		fs.close();
 
+		read_sfen_count += size;
+
 		buf_write_marker = 0;
 		cout << ".";
 	};
 
 	MKDIR("tmp");
 
+	// 10M局面の細切れファイルとしてシャッフルして書き出す。
 	for (auto filename : filenames)
 	{
 		fstream fs(filename, ios::in | ios::binary);
@@ -1498,17 +1506,34 @@ void shuffle_files(vector<string> filenames)
 	for (u64 i = 0; i < write_file_count; ++i)
 		afs.emplace_back(fstream(make_filename(i),ios::in | ios::binary));
 
+	// 書き出した局面数
+	u64 write_sfen_count = 0;
+
+	cout << endl;
+	auto print_status = [&]()
+	{
+		// 10M局面ごと、もしくは、すべての書き出しが終わったときに進捗を出力する
+		if (((write_sfen_count % buffer_size) == 0) ||
+			(write_sfen_count == read_sfen_count))
+			cout << write_sfen_count << " / " << read_sfen_count << endl;
+	};
+
 	fstream fs("shuffled_sfen.bin", ios::out | ios::binary);
 	while (afs.size())
 	{
 		auto n = prng.rand(afs.size());
 		PackedSfenValue psv;
 		if (afs[n].read((char*)&psv, sizeof(PackedSfenValue)))
+		{
 			fs.write((char*)&psv, sizeof(PackedSfenValue));
+			++write_sfen_count;
+			print_status();
+		}
 		else
 			// 読み込む要素がなくなったのならafsから除外していく。
 			afs.erase(afs.begin() + n);
 	}
+	print_status();
 	fs.close();
 	cout << "done!" << endl;
 }
