@@ -4,7 +4,6 @@
 #include "position.h"
 #include "misc.h"
 #include "tt.h"
-#include "thread.h"
 
 using namespace std;
 using namespace Effect8;

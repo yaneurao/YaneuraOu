@@ -170,7 +170,7 @@ private:
 	// スレッドごとに置換表を分けたいときのために
 	// 最大スレッド数を保持しておき、異なるエリアのなかのTTEntryを返すようにする。
 #if defined(USE_GLOBAL_OPTIONS)
-	static u32 max_thread;
+	static size_t max_thread;
 #endif
 
 	struct Cluster {

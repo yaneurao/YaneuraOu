@@ -3,7 +3,7 @@
 TranspositionTable TT; // 置換表をglobalに確保。
 
 #if defined(USE_GLOBAL_OPTIONS)
-u32 TranspositionTable::max_thread;
+size_t TranspositionTable::max_thread;
 #endif
 
 
