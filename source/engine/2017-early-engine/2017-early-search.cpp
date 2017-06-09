@@ -976,15 +976,31 @@ namespace YaneuraOu2017Early
 		// -----------------------
 
 		{
-			// 王手がかかってようがかかってまいが、宣言勝ちの判定は正しい。
-			// (トライルールのとき王手を回避しながら入玉することはありうるので)
-			Move m = pos.DeclarationWin();
-			if (m != MOVE_NONE)
+			// 宣言勝ちの指し手が置換表上に登録されていることがある
+			// ただしPV nodeではこれを信用しない。
+			if (ttMove == MOVE_WIN && !PvNode)
 			{
-				bestValue = mate_in(ss->ply + 1); // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
-				tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
-					DEPTH_MAX, m, ss->staticEval, TT.generation());
-				return bestValue;
+				return mate_in(ss->ply + 1);
+			}
+
+			// 置換表にhitしていないときは宣言勝ちの判定をまだやっていないということなので今回やる。
+			// PvNodeでは置換表の指し手を信用してはいけないので毎回やる。
+			if (!ttMove || PvNode)
+			{
+				// 王手がかかってようがかかってまいが、宣言勝ちの判定は正しい。
+				// (トライルールのとき王手を回避しながら入玉することはありうるので)
+				Move m = pos.DeclarationWin();
+				if (m != MOVE_NONE)
+				{
+					bestValue = mate_in(ss->ply + 1); // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
+					tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
+						DEPTH_MAX, m, ss->staticEval, TT.generation());
+
+					// 読み筋にMOVE_WINも出力するためには、このときpv配列を更新したほうが良いが
+					// ここから更新する手段がない…。
+
+					return bestValue;
+				}
 			}
 		}
 
@@ -2914,8 +2930,8 @@ namespace Learner
 			YaneuraOu2017Early::qsearch<PV, true >(pos, ss, -VALUE_INFINITE, VALUE_INFINITE) :
 			YaneuraOu2017Early::qsearch<PV, false>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE);
 
-		// 得られたPVを返す。
-		for (Move* p = &ss->pv[0]; is_ok(*p); ++p)
+		// 得られたPVを返す。MOVE_WINも返る。
+		for (Move* p = &ss->pv[0]; is_ok(*p) || *p==MOVE_WIN ; ++p)
 			pvs.push_back(*p);
 
 		return ValueAndPV(bestValue, pvs);
