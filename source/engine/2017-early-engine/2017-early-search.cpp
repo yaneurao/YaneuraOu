@@ -2393,9 +2393,13 @@ void Thread::search()
 				if (Signals.stop)
 					break;
 
-				// main threadでfail high/lowが起きたなら読み筋をGUIに出力する。
+				// main threadでfail low/highが起きたなら読み筋をGUIに出力する。
 				// ただし出力を散らかさないように思考開始から3秒経ってないときは抑制する。
 				if (mainThread
+					// MultiPVのとき、fail low/highのときにはfail low/highしたときのPVは出力しない。
+					// (Stockfishがこういうコードになっている。)
+					// MultiPVなのだから、別の指し手を指したときの読み筋自体はつねに出力されているわけで、
+					// fail low/highしたときの読み筋は役に立たないであろうという考え。
 					&& multiPV == 1
 					&& (bestValue <= alpha || beta <= bestValue)
 					&& Time.elapsed() > 3000
@@ -2645,6 +2649,12 @@ void MainThread::think()
 		{
 			// 宣言勝ちなのでroot movesの集合にはないかも知れない。強制的に書き換える。
 			rootMoves[0] = RootMove(bestMove);
+			// 1手詰めのときのスコアにしておく。
+			rootMoves[0].score = mate_in(/*ss->ply*/ 1 + 1);;
+			// rootで宣言勝ちのときにもそのPVを出力したほうが良い。
+			if (!Limits.silent)
+				sync_cout << USI::pv(rootPos, ONE_PLY, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
+
 			goto ID_END;
 		}
 	}
