@@ -4,6 +4,7 @@
 #include "position.h"
 #include "misc.h"
 #include "tt.h"
+#include "thread.h"
 
 using namespace std;
 using namespace Effect8;
@@ -414,7 +415,6 @@ void Position::update_bitboards()
 	// 金相当の駒とHDK
 	byTypeBB[GOLDS_HDK]		= pieces(GOLDS  , HDK);
 }
-
 
 // ----------------------------------
 //           Positionの表示

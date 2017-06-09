@@ -420,7 +420,11 @@ namespace YaneuraOu2017Early
 			: DEPTH_QS_NO_CHECKS;
 
 		posKey = pos.key();
-		tte = TT.probe(posKey, ttHit);
+		tte = TT.probe(posKey, ttHit
+#if defined(USE_GLOBAL_OPTIONS)
+			, pos.this_thread()->thread_id()
+#endif
+		);
 		ttMove = ttHit ? pos.move16_to_move(tte->move()) : MOVE_NONE;
 		ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
 
@@ -908,7 +912,11 @@ namespace YaneuraOu2017Early
 
 		bool ttHit;    // 置換表がhitしたか
 
-		TTEntry* tte = TT.probe(posKey, ttHit);
+		TTEntry* tte = TT.probe(posKey, ttHit
+#if defined(USE_GLOBAL_OPTIONS)
+			, pos.this_thread()->thread_id()
+#endif
+			);
 
 		// excludedMoveがある(singular extension時)は、ttValueとttMoveは無いものとして扱う。
 		// excludedMoveがあるときはfull depth searchしたときもsave()しないので置換表は破壊されない。
@@ -1282,7 +1290,11 @@ namespace YaneuraOu2017Early
 			Depth d = (3 * depth / (4 * ONE_PLY) - 2) * ONE_PLY;
 			search<NT>(pos, ss, alpha, beta, d , cutNode,true);
 
-			tte = TT.probe(posKey, ttHit);
+			tte = TT.probe(posKey, ttHit
+#if defined(USE_GLOBAL_OPTIONS)
+				,pos.this_thread()->thread_id()
+#endif
+			);
 			ttMove = ttHit ? pos.move16_to_move(tte->move()) : MOVE_NONE;
 		}
 

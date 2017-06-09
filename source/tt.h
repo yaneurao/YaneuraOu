@@ -117,7 +117,13 @@ struct TranspositionTable {
 	// 置換表のなかから与えられたkeyに対応するentryを探す。
 	// 見つかったならfound == trueにしてそのTT_ENTRY*を返す。
 	// 見つからなかったらfound == falseで、このとき置換表に書き戻すときに使うと良いTT_ENTRY*を返す。
-	TTEntry* probe(const Key key, bool& found) const;
+	// GlobalOptions.use_per_thread_tt == trueのときはスレッドごとに置換表の異なるエリアに属するTTEntryを
+	// 渡す必要があるので、引数としてthread_idを渡す。
+	TTEntry* probe(const Key key, bool& found
+#if defined(USE_GLOBAL_OPTIONS)
+		, size_t thread_id = -1
+#endif
+		) const;
 
 	// keyの下位bitをClusterのindexにしてその最初のTTEntry*を返す。
 	TTEntry* first_entry(const Key key) const {
@@ -131,7 +137,12 @@ struct TranspositionTable {
 	void clear() { memset(table, 0, clusterCount * sizeof(Cluster)); }
 
 	// 新しい探索ごとにこの関数を呼び出す。(generationを加算する。)
-	void new_search() { generation8 += 4; } // 下位2bitはTTEntryでBoundに使っているので4ずつ加算。
+	void new_search() {
+		generation8 += 4; 
+#if defined(USE_GLOBAL_OPTIONS)
+		max_thread = Options["Threads"];
+#endif
+	} // 下位2bitはTTEntryでBoundに使っているので4ずつ加算。
 
 	// 世代を返す。これはTTEntry.save()のときに使う。
 	uint8_t generation() const { return generation8; }
@@ -143,6 +154,7 @@ struct TranspositionTable {
 	~TranspositionTable() { free(mem); }
 
 private:
+
 	// TTEntryはこのサイズでalignされたメモリに配置する。(される)
 	static const int CacheLineSize = 64;
 
@@ -155,10 +167,16 @@ private:
 	static const int ClusterSize = 4;
 #endif
 
+	// スレッドごとに置換表を分けたいときのために
+	// 最大スレッド数を保持しておき、異なるエリアのなかのTTEntryを返すようにする。
+#if defined(USE_GLOBAL_OPTIONS)
+	static u32 max_thread;
+#endif
+
 	struct Cluster {
 		TTEntry entry[ClusterSize];
-#ifndef  NO_EVAL_IN_TT
-		int8_t padding[2]; // 全体を32byteぴったりにするためのpadding
+#if !defined (NO_EVAL_IN_TT)
+		u8 padding[2]; // 全体を32byteぴったりにするためのpadding
 #endif
 	};
 

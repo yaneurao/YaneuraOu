@@ -101,7 +101,7 @@
 // 学習に関するデバッグ設定
 // ----------------------
 
-// 学習時のrmseとタイムスタンプの出力をこの回数に1回に減らす。
+// 学習時のrmseの出力をこの回数に1回に減らす。
 // rmseの計算は1スレッドで行なうためそこそこ時間をとられるので出力を減らすと効果がある。
 #define LEARN_RMSE_OUTPUT_INTERVAL 1
 
@@ -184,6 +184,8 @@ typedef float LearnFloatType;
 // 実験時は1回だけの保存で良い。
 // #define EVAL_SAVE_ONLY_ONCE
 
+// 局面はシャッフルしてから渡すので読み込み時のシャッフルは不要。
+#define LEARN_SFEN_NO_SHUFFLE
 #endif
 
 

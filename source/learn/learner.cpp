@@ -654,6 +654,13 @@ void gen_sfen(Position&, istringstream& is)
 	int search_depth = 3;
 	int search_depth2 = INT_MIN;
 
+#if defined(USE_GLOBAL_OPTIONS)
+	// あとで復元するために保存しておく。
+	auto oldGlobalOptions = GlobalOptions;
+	// 置換表はスレッドごとに持っていてくれないと衝突して変な値を取ってきかねない
+	GlobalOptions.use_per_thread_tt = true;
+#endif
+
 	// 書き出すファイル名
 	string filename = "generated_kifu.bin";
 
@@ -710,6 +717,12 @@ void gen_sfen(Position&, istringstream& is)
 	}
 
 	std::cout << "gen_sfen finished." << endl;
+
+#if defined(USE_GLOBAL_OPTIONS)
+	// 復元
+	GlobalOptions = oldGlobalOptions;
+#endif
+
 }
 
 // -----------------------------------
@@ -1075,7 +1088,7 @@ struct SfenReader
 #endif
 	}
 
-	// [ASYNC] スレッドバッファに局面を500局面ほど読み込む。
+	// [ASYNC] スレッドバッファに局面をある程度読み込む。
 	bool read_to_thread_buffer_impl(size_t thread_id)
 	{
 		while (true)
@@ -1342,6 +1355,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 				// この計算をしているときにあまり処理が進みすぎると困るので停止させておくか…。
 				sr.calc_rmse(done);
 
+				// どこまで集計したかを記録しておく。
 				sr.last_done = sr.total_done;
 			}
 

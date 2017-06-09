@@ -2,6 +2,11 @@
 
 TranspositionTable TT; // 置換表をglobalに確保。
 
+#if defined(USE_GLOBAL_OPTIONS)
+u32 TranspositionTable::max_thread;
+#endif
+
+
 // 置換表のサイズを確保しなおす。
 void TranspositionTable::resize(size_t mbSize) {
 
@@ -29,7 +34,12 @@ void TranspositionTable::resize(size_t mbSize) {
 }
 
 
-TTEntry* TranspositionTable::probe(const Key key, bool& found) const
+TTEntry* TranspositionTable::probe(const Key key, bool& found
+#if defined(USE_GLOBAL_OPTIONS)
+	, size_t thread_id
+#endif
+	
+	) const
 {
 	ASSERT_LV3(clusterCount != 0);
 
@@ -42,9 +52,25 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found) const
 	}
 #endif
 
+	TTEntry* tte;
+#if defined(USE_GLOBAL_OPTIONS)
+	if (GlobalOptions.use_per_thread_tt)
+	{
+		// スレッドごとに置換表の異なるエリアを渡す必要がある。
+		// 置換表にはclusterCount個のクラスターがあるのでこれをスレッドの個数で均等に割って、
+		// そのthread_id番目のblockを使わせてあげる、的な考え。
+		size_t block = (clusterCount / max_thread);
+		tte = &table[((size_t)key % block) + thread_id * block].entry[0];
+	}
+	else {
+		tte = first_entry(key);
+	}
+
+#else
 	// 最初のTT_ENTRYのアドレス(このアドレスからTT_ENTRYがClusterSize分だけ連なっている)
 	// keyの下位bitをいくつか使って、このアドレスを求めるので、自ずと下位bitはいくらかは一致していることになる。
-	TTEntry* const tte = first_entry(key);
+	tte = first_entry(key);
+#endif
 
 	// 上位16bitが合致するTT_ENTRYを探す
 	const uint16_t key16 = key >> 48;

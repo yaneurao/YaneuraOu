@@ -475,9 +475,14 @@ struct GlobalOptions_
 	// (無効化するとTT.probe()が必ずmiss hitするようになる)
 	bool use_hash_probe;
 
+	// スレッドごとに置換表を用意する設定
+	// Learner::search()を呼ぶときにスレッドごとに置換表が用意されていないと嫌ならこれを呼び出す
+	bool use_per_thread_tt;
+
 	GlobalOptions_()
 	{
 		use_eval_hash = use_hash_probe = true;
+		use_per_thread_tt = false;
 	}
 };
 
