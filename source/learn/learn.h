@@ -33,6 +33,9 @@
 // 勾配の符号だけ見るSGD。省メモリで済むが精度は…。
 // #define SGD_UPDATE
 
+// RMSProp風のAdaGrad
+// #define ADA_PROP_UPDATE
+
 
 // ----------------------
 //    学習時の設定
@@ -177,6 +180,7 @@ typedef float LearnFloatType;
 
 #define ADA_GRAD_UPDATE
 //#define SGD_UPDATE
+//#define ADA_PROP_UPDATE
 
 // 実験時は1回だけの保存で良い。
 // #define EVAL_SAVE_ONLY_ONCE

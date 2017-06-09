@@ -43,7 +43,7 @@ namespace EvalLearningTools
 
 		// SGD_UPDATE の場合、この構造体はさらに10バイト減って、8バイトで済む。
 
-#if defined (ADA_GRAD_UPDATE)
+#if defined (ADA_GRAD_UPDATE) || defined(ADA_PROP_UPDATE)
 
 		// AdaGradの学習率η(eta)。
 		// updateFV()が呼び出されるまでに設定されているものとする。
@@ -73,6 +73,12 @@ namespace EvalLearningTools
 					continue;
 
 				g2[i] += g[i] * g[i];
+
+#if defined(ADA_PROP_UPDATE)
+				// 少しずつ減衰させることで、学習が硬直するのを防ぐ。
+				// (0.99)^100 ≒ 0.366
+				g2[i] = LearnFloatType(g2[i] * 0.99);
+#endif
 
 				// v8は小数部8bitを含んでいるのでこれを復元する。
 				// 128倍にすると、-1を保持できなくなるので127倍にしておく。

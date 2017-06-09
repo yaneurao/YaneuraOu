@@ -65,13 +65,14 @@ namespace Eval
 		weights.resize(size); // 確保できるかは知らん。確保できる環境で動かしてちょうだい。
 		memset(&weights[0], 0, sizeof(Weight) * size);
 
-#if defined(ADA_GRAD_UPDATE)
+#if defined(ADA_GRAD_UPDATE) || defined (ADA_PROP_UPDATE)
 		// 学習率の設定
 		if (eta != 0)
 			Weight::eta = eta;
 		else
 			Weight::eta = 30.0; // default値
 #endif
+
 	}
 
 	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。

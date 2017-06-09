@@ -37,6 +37,8 @@
 #define LEARN_UPDATE "AdaGrad"
 #elif defined(SGD_UPDATE)
 #define LEARN_UPDATE "SGD"
+#elif defined(ADA_PROP_UPDATE)
+#define LEARN_UPDATE "AdaProp"
 #endif
 
 #if defined(LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
@@ -84,6 +86,23 @@ using namespace std;
 // これは探索部で定義されているものとする。
 extern Book::BookMoveSelector book;
 extern void is_ready();
+
+// atomic<T>に対する足し算、引き算の定義
+// Apery/learner.hppにあるatomicAdd()に合わせてある。
+template <typename T>
+T operator += (std::atomic<T>& x, const T rhs)
+{
+	T old = x.load(std::memory_order_consume);
+	// このタイミングで他スレッドから値が書き換えられることは許容する。
+	// 値が破壊されなければ良しという考え。
+	T desired = old + rhs;
+	while (!x.compare_exchange_weak(old, desired, std::memory_order_release, std::memory_order_consume))
+		desired = old + rhs;
+	return desired;
+}
+template <typename T>
+T operator -= (std::atomic<T>& x, const T rhs) { return x += -rhs; }
+
 
 namespace Learner
 {
@@ -368,6 +387,16 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				break;
 			}
 
+			// 宣言勝ちと1手詰めはここで判定しておく。
+			if (pos.DeclarationWin() != MOVE_NONE ||
+				(!pos.checkers() && pos.mate1ply() != MOVE_NONE)
+				)
+			{
+				if (flush_psv(true))
+					goto FINALIZE;
+				break;
+			}
+
 			// 定跡を使用するのか？
 			if (pos.game_ply() <= book_ply)
 			{
@@ -387,6 +416,9 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 						// この指し手で1手進める。
 						m = bestMove;
 
+						// 定跡の局面は学習には用いない。
+						a_psv.clear();
+
 						// 定跡の局面であっても、一定確率でランダムムーブは行なう。
 						goto RANDOM_MOVE;
 					}
@@ -402,7 +434,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				auto pv_value1 = Learner::search(pos, depth);
 
 				auto value1 = pv_value1.first;
-				auto pv1 = pv_value1.second;
+				auto& pv1 = pv_value1.second;
 
 				// 評価値の絶対値がこの値以上の局面については
 				// その局面を学習に使うのはあまり意味がないのでこの試合を終了する。
@@ -877,6 +909,11 @@ struct SfenReader
 		// 比較実験がしたいので乱数を固定化しておく。
 		prng = PRNG(20160720);
 
+#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
+		learn_sum_cross_entropy_eval = 0.0;
+		learn_sum_cross_entropy_win = 0.0;
+#endif
+
 		hash.resize(READ_SFEN_HASH_SIZE);
 	}
 	~SfenReader()
@@ -935,6 +972,12 @@ struct SfenReader
 		return true;
 	}
 
+#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
+	// 学習用データのロスの計算用
+	atomic<double> learn_sum_cross_entropy_eval;
+	atomic<double> learn_sum_cross_entropy_win;
+#endif
+
 	// rmseを計算して表示する。
 	void calc_rmse()
 	{
@@ -951,8 +994,8 @@ struct SfenReader
 		double sum_error3 = 0;
 
 #if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
-		double cross_entropy_eval, cross_entropy_win;
-		double sum_cross_entropy_eval = 0, sum_cross_entropy_win = 0;
+		// 検証用データのロスの計算用
+		double test_sum_cross_entropy_eval = 0, test_sum_cross_entropy_win = 0;
 #endif
 
 		// 平手の初期局面のeval()の値を表示させて、揺れを見る。
@@ -996,9 +1039,10 @@ struct SfenReader
 			// 交差エントロピーを計算して表示させる。
 
 #if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
-			calc_cross_entropy(deep_value, shallow_value, ps , cross_entropy_eval, cross_entropy_win);
-			sum_cross_entropy_eval += cross_entropy_eval;
-			sum_cross_entropy_win  += cross_entropy_win;
+			double test_cross_entropy_eval, test_cross_entropy_win;
+			calc_cross_entropy(deep_value, shallow_value, ps , test_cross_entropy_eval, test_cross_entropy_win);
+			test_sum_cross_entropy_eval += test_cross_entropy_eval;
+			test_sum_cross_entropy_win  += test_cross_entropy_win;
 #endif
 
 #if 0
@@ -1020,10 +1064,21 @@ struct SfenReader
 		cout << " , dsig rmse = " << dsig_rmse << " , dsig mae = " << dsig_mae
 			<< " , eval mae = " << eval_mae
 #if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
-			<< " , cross_entropy_eval = " << sum_cross_entropy_eval
-			<< " , cross_entropy_win = " << sum_cross_entropy_win
+			<< " , test_cross_entropy_eval = " << test_sum_cross_entropy_eval
+			<< " , test_cross_entropy_win = " << test_sum_cross_entropy_win
+			<< " , test_cross_entropy = " << test_sum_cross_entropy_eval + test_sum_cross_entropy_win
+			<< " , learn_cross_entropy_eval = " << learn_sum_cross_entropy_eval
+			<< " , learn_cross_entropy_win = " << learn_sum_cross_entropy_win
+			<< " , learn_cross_entropy = " << learn_sum_cross_entropy_eval + learn_sum_cross_entropy_win
+			<< endl;
+
+		// 次回のために0クリアしておく。
+		learn_sum_cross_entropy_eval = 0.0;
+		learn_sum_cross_entropy_win = 0.0;
+
+#else
+			<< endl;
 #endif
-			<<  endl;
 	}
 
 	// [ASYNC] スレッドバッファに局面を10000局面ほど読み込む。
@@ -1351,6 +1406,14 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// 勾配
 		double dj_dw = calc_grad(deep_value, shallow_value , ps);
 
+#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
+		// 学習データに対するロスの計算
+		double learn_cross_entropy_eval, learn_cross_entropy_win;
+		calc_cross_entropy(deep_value, shallow_value, ps, learn_cross_entropy_eval , learn_cross_entropy_win);
+		sr.learn_sum_cross_entropy_eval += learn_cross_entropy_eval;
+		sr.learn_sum_cross_entropy_win += learn_cross_entropy_win;
+#endif
+
 		// 現在、leaf nodeで出現している特徴ベクトルに対する勾配(∂J/∂Wj)として、jd_dwを加算する。
 
 		// mini batchのほうが勾配が出ていいような気がする。
@@ -1467,7 +1530,7 @@ void shuffle_files(vector<string> filenames)
 
 	auto write_buffer = [&](u64 size)
 	{
-		// 0～size-1までをshuffle
+		// buf[0]～buf[size-1]までをshuffle
 		for (u64 i = 0; i < size; ++i)
 			swap(buf[i], buf[(u64)(prng.rand(size - i) + i)]);
 
@@ -1523,6 +1586,7 @@ void shuffle_files(vector<string> filenames)
 	{
 		auto n = prng.rand(afs.size());
 		PackedSfenValue psv;
+		// これ、パフォーマンスあんまりよくないまでまとめて読み書きしたほうが良いのだが…。
 		if (afs[n].read((char*)&psv, sizeof(PackedSfenValue)))
 		{
 			fs.write((char*)&psv, sizeof(PackedSfenValue));
