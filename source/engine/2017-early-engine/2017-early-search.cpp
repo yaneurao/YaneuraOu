@@ -2616,16 +2616,18 @@ void MainThread::think()
 	for (Thread* th : Threads)
 		th->completedDepth = DEPTH_ZERO;
 
+	// 現局面で詰んでいる。
 	if (rootMoves.size() == 0)
 	{
-		// 詰みなのでbestmoveを返す前に読み筋として詰みのスコアを出力すべき。
-		if (!Limits.silent)
-			sync_cout << "info depth 0 score "
-			<< USI::score_to_usi(-VALUE_MATE)
-			<< sync_endl;
-
-		// rootMoves.at(0)がbestmoveとしてGUIに対して出力される。
+		// 投了の指し手と評価値をrootMoves[0]に積んでおけばUSI::pv()が良きに計らってくれる。
+		// 読み筋にresignと出力されるが、将棋所、ShogiGUIともにバグらないのでこれで良しとする。
+		rootMoves.clear(); // 詰まされているので空のはずだが念のためクリアする。
 		rootMoves.push_back(RootMove(MOVE_RESIGN));
+		rootMoves[0].score = mated_in(0);
+
+		if (!Limits.silent)
+			sync_cout << USI::pv(rootPos, ONE_PLY, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
+
 		goto ID_END;
 	}
 
@@ -2647,7 +2649,10 @@ void MainThread::think()
 		auto bestMove = rootPos.DeclarationWin();
 		if (bestMove != MOVE_NONE)
 		{
-			// 宣言勝ちなのでroot movesの集合にはないかも知れない。強制的に書き換える。
+			// 宣言勝ちなのでroot movesの集合にはない。強制的に書き換える。
+			// 合法手がない場合は上の処理で投了しているのでrootMoves().size() != 0は保証されている。
+			ASSERT_LV1(rootMoves.size() != 0);
+
 			rootMoves[0] = RootMove(bestMove);
 			// 1手詰めのときのスコアにしておく。
 			rootMoves[0].score = mate_in(/*ss->ply*/ 1 + 1);;
@@ -2863,6 +2868,9 @@ namespace Learner
 
 	}
 	
+	// 読み筋と評価値のペア。Learner::search(),Learner::qsearch()が返す。
+	typedef std::pair<Value, std::vector<Move> > ValueAndPV;
+
 	// 静止探索。
 	//
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
@@ -2870,16 +2878,35 @@ namespace Learner
 	// 　search()から戻ったあと、Signals.stop == trueなら、その探索結果を用いてはならない。
 	// 　あと、呼び出し前は、Signals.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
 	//
+	// 返されるpv配列には宣言勝ち(MOVE_WIN)も含まれるので注意。
+	// また詰まされている場合は、MOVE_RESIGNが返る。
+	//
 	// 引数でalpha,betaを指定できるようにしていたが、これがその窓で探索したときの結果を
 	// 置換表に書き込むので、その窓に対して枝刈りが出来るような値が書き込まれて学習のときに
 	// 悪い影響があるので、窓の範囲を指定できるようにするのをやめることにした。
-	std::pair<Value, std::vector<Move> > qsearch(Position& pos)
+	ValueAndPV qsearch(Position& pos)
 	{
 		Stack stack[MAX_PLY + 7], *ss = stack + 4;
 		Move pv[MAX_PLY + 1];
+		std::vector<Move> pvs;
 
 		init_for_search(pos,ss);
 		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
+
+		// 詰まされているのか
+		if (pos.is_mated())
+		{
+			pvs.push_back(MOVE_RESIGN);
+			return ValueAndPV(mated_in(/*ss->ply*/ 0 + 1), pvs);
+		}
+			
+		// 宣言勝ち
+		if (pos.DeclarationWin() != MOVE_NONE)
+		{
+			pvs.push_back(MOVE_WIN);
+			return ValueAndPV(mate_in(/*ss->ply*/ 1 + 1), pvs);
+		}
+
 
 		// 現局面で王手がかかっているかで場合分け。
 		const bool inCheck = pos.in_check();
@@ -2888,11 +2915,10 @@ namespace Learner
 			YaneuraOu2017Early::qsearch<PV, false>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE);
 
 		// 得られたPVを返す。
-		std::vector<Move> pvs;
 		for (Move* p = &ss->pv[0]; is_ok(*p); ++p)
 			pvs.push_back(*p);
 
-		return std::pair<Value, std::vector<Move> >(bestValue, pvs);
+		return ValueAndPV(bestValue, pvs);
 	}
 
 	// 通常探索。深さdepth(整数で指定)。
@@ -2902,19 +2928,30 @@ namespace Learner
 	// v.firstに評価値、v.secondにPVが得られる。
 	// MultiPVが有効のときは、pos.this_thread()->rootMoves[N].pvにそのPV(読み筋)の配列が得られる。
 	//
+	// 返されるpv配列には宣言勝ち(MOVE_WIN)も含まれるので注意。
+	//
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
 	// 　また、Signals.stopが来ると探索を中断してしまうので、そのときのPVは正しくない。
 	// 　search()から戻ったあと、Signals.stop == trueなら、その探索結果を用いてはならない。
 	// 　あと、呼び出し前は、Signals.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
 
-	std::pair<Value, std::vector<Move> > search(Position& pos, int depth_)
+	ValueAndPV search(Position& pos, int depth_)
 	{
+		std::vector<Move> pvs;
+
 		Depth depth = depth_ * ONE_PLY;
 		if (depth < DEPTH_ZERO)
 			return std::pair<Value, std::vector<Move>>(Eval::evaluate(pos), std::vector<Move>());
 
 		if (depth == DEPTH_ZERO)
 			return qsearch(pos);
+
+		// 宣言勝ち
+		if (pos.DeclarationWin() != MOVE_NONE)
+		{
+			pvs.push_back(MOVE_WIN);
+			return ValueAndPV(mate_in(/*ss->ply*/ 1 + 1) , pvs);
+		}
 
 		Stack stack[MAX_PLY + 7], *ss = stack + 4;	
 		Move pv[MAX_PLY + 1];
@@ -2992,7 +3029,6 @@ namespace Learner
 		}
 
 		// このPV、途中でNULL_MOVEの可能性があるかも知れないので排除するためにis_ok()を通す。
-		std::vector<Move> pvs;
 		for (Move move : rootMoves[0].pv)
 		{
 			if (!is_ok(move))
@@ -3006,7 +3042,7 @@ namespace Learner
 		// multiPV時を考慮して、rootMoves[0]のscoreをbestValueとして返す。
 		bestValue = rootMoves[0].score;
 
-		return std::pair<Value, std::vector<Move> >(bestValue, pvs);
+		return ValueAndPV(bestValue, pvs);
 	}
 
 }
