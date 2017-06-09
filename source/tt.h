@@ -140,6 +140,7 @@ struct TranspositionTable {
 	void new_search() {
 		generation8 += 4; 
 #if defined(USE_GLOBAL_OPTIONS)
+		// このタイミングでスレッド数を取得。
 		max_thread = Options["Threads"];
 #endif
 	} // 下位2bitはTTEntryでBoundに使っているので4ずつ加算。
@@ -167,9 +168,10 @@ private:
 	static const int ClusterSize = 4;
 #endif
 
-	// スレッドごとに置換表を分けたいときのために
-	// 最大スレッド数を保持しておき、異なるエリアのなかのTTEntryを返すようにする。
 #if defined(USE_GLOBAL_OPTIONS)
+	// スレッド数
+	// スレッドごとに置換表を分けたいときのために現在のスレッド数を保持しておき、
+	// 異なるエリアのなかのTTEntryを返すようにする。
 	static size_t max_thread;
 #endif
 

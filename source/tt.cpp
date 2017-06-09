@@ -52,23 +52,33 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found
 	}
 #endif
 
+	// 最初のTT_ENTRYのアドレス(このアドレスからTT_ENTRYがClusterSize分だけ連なっている)
+	// keyの下位bitをいくつか使って、このアドレスを求めるので、自ずと下位bitはいくらかは一致していることになる。
 	TTEntry* tte;
+
 #if defined(USE_GLOBAL_OPTIONS)
 	if (GlobalOptions.use_per_thread_tt)
 	{
 		// スレッドごとに置換表の異なるエリアを渡す必要がある。
 		// 置換表にはclusterCount個のクラスターがあるのでこれをスレッドの個数で均等に割って、
 		// そのthread_id番目のblockを使わせてあげる、的な考え。
-		size_t block = (clusterCount / max_thread);
-		tte = &table[((size_t)key % block) + thread_id * block].entry[0];
+		//
+		// ただしkeyのbit0は手番bitであり、これはそのままindexのbit0に反映されている必要がある。
+		//
+		// また、blockは2の倍数になるように下丸めしておく。
+		// ・上丸めするとblock*max_thread > clusterCountになりかねない)
+		// ・2の倍数にしておかないと、(key % block)にkeyのbit0を反映させたときにこの値がblockと同じ値になる。
+		//   (各スレッドが使えるのは、( 0～(block-1) ) + (thread_id * block)のTTEntryなので、これはまずい。
+
+		size_t block = (clusterCount / max_thread) & ~1;
+		size_t index = (((size_t)key % block) & ~1 ) | ((size_t)key & 1);
+		tte = &table[index + thread_id * block].entry[0];
 	}
 	else {
 		tte = first_entry(key);
 	}
 
 #else
-	// 最初のTT_ENTRYのアドレス(このアドレスからTT_ENTRYがClusterSize分だけ連なっている)
-	// keyの下位bitをいくつか使って、このアドレスを求めるので、自ずと下位bitはいくらかは一致していることになる。
 	tte = first_entry(key);
 #endif
 
