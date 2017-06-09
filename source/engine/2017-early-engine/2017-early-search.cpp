@@ -2894,7 +2894,7 @@ namespace Learner
 	// 　search()から戻ったあと、Signals.stop == trueなら、その探索結果を用いてはならない。
 	// 　あと、呼び出し前は、Signals.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
 	//
-	// 返されるpv配列には宣言勝ち(MOVE_WIN)も含まれるので注意。
+	// 返されるpv配列には宣言勝ち(MOVE_WIN)が含まれるケースがあるので注意。
 	// また詰まされている場合は、MOVE_RESIGNが返る。
 	//
 	// 引数でalpha,betaを指定できるようにしていたが、これがその窓で探索したときの結果を
@@ -2930,7 +2930,10 @@ namespace Learner
 			YaneuraOu2017Early::qsearch<PV, true >(pos, ss, -VALUE_INFINITE, VALUE_INFINITE) :
 			YaneuraOu2017Early::qsearch<PV, false>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE);
 
-		// 得られたPVを返す。MOVE_WINも返る。
+		// 得られたPVを返す。
+		// pv配列にMOVE_WINが含まれているならMOVE_WINも返る。
+		// (ただし現状、search()で宣言勝ちを発見したときにpv配列の更新をしていないので
+		// 実際にはpv配列にMOVE_WINが含まれていることはない。)
 		for (Move* p = &ss->pv[0]; is_ok(*p) || *p==MOVE_WIN ; ++p)
 			pvs.push_back(*p);
 

@@ -104,7 +104,6 @@
 // 学習時のrmseとタイムスタンプの出力をこの回数に1回に減らす。
 // rmseの計算は1スレッドで行なうためそこそこ時間をとられるので出力を減らすと効果がある。
 #define LEARN_RMSE_OUTPUT_INTERVAL 1
-#define LEARN_TIMESTAMP_OUTPUT_INTERVAL 10
 
 
 // ----------------------
@@ -149,7 +148,7 @@ typedef float LearnFloatType;
 
 
 // ----------------------
-//    標準の学習方法
+//    標準の学習方法(普通の雑巾絞り)
 // ----------------------
 
 #if defined (LEARN_DEFAULT)
@@ -178,9 +177,9 @@ typedef float LearnFloatType;
 #define LOSS_FUNCTION_IS_ELMO_METHOD
 //#define LOSS_FUNCTION_IS_YANE_ELMO_METHOD
 
-#define ADA_GRAD_UPDATE
+//#define ADA_GRAD_UPDATE
 //#define SGD_UPDATE
-//#define ADA_PROP_UPDATE
+#define ADA_PROP_UPDATE
 
 // 実験時は1回だけの保存で良い。
 // #define EVAL_SAVE_ONLY_ONCE

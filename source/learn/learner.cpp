@@ -107,8 +107,9 @@ T operator -= (std::atomic<T>& x, const T rhs) { return x += -rhs; }
 namespace Learner
 {
 // いまのところ、やねうら王2017Early/王手将棋しか、このスタブを持っていない。
-extern pair<Value, vector<Move> > qsearch(Position& pos);
-extern pair<Value, vector<Move> >  search(Position& pos, int depth);
+typedef std::pair<Value, std::vector<Move> > ValueAndPV;
+extern ValueAndPV qsearch(Position& pos);
+extern ValueAndPV  search(Position& pos, int depth);
 
 // -----------------------------------
 //    局面のファイルへの書き出し
@@ -377,26 +378,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		// ply : 初期局面からの手数
 		for (int ply = 0; ply < MAX_PLY2 ; ++ply)
 		{
-			// 詰んでいるなら次の対局に
-			// 基本的にはここに来る前にsearch()でeval_limitを超えたスコアが返ってくるはず。
-			if (pos.is_mated())
-			{
-				// この局面では負けなので引数はfalseを渡す
-				if (flush_psv(false))
-					goto FINALIZE;
-				break;
-			}
-
-			// 宣言勝ちと1手詰めはここで判定しておく。
-			if (pos.DeclarationWin() != MOVE_NONE ||
-				(!pos.checkers() && pos.mate1ply() != MOVE_NONE)
-				)
-			{
-				if (flush_psv(true))
-					goto FINALIZE;
-				break;
-			}
-
 			// 定跡を使用するのか？
 			if (pos.game_ply() <= book_ply)
 			{
@@ -439,6 +420,10 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// 評価値の絶対値がこの値以上の局面については
 				// その局面を学習に使うのはあまり意味がないのでこの試合を終了する。
 				// これをもって勝敗がついたという扱いをする。
+
+				// 1手詰め、宣言勝ちならば、ここでmate_in(2)が返るのでeval_limitの上限値と同じ値になり、
+				// このif式は必ず真になる。
+
 				if (abs(value1) >= eval_limit)
 				{
 //					sync_cout << pos << "eval limit = " << eval_limit << " over , move = " << pv1[0] << sync_endl;
@@ -689,7 +674,11 @@ void gen_sfen(Position&, istringstream& is)
 		else if (token == "file")
 			is >> filename;
 		else if (token == "eval_limit")
+		{
 			is >> eval_limit;
+			// 最大値を1手詰みのスコアに制限する。(そうしないとループを終了しない可能性があるので)
+			eval_limit = std::min(eval_limit, (int)mate_in(2));
+		}
 		else
 			cout << "Error! : Illegal token " << token << endl;
 	}
@@ -923,11 +912,11 @@ struct SfenReader
 			file_worker_thread.join();
 	}
 
-	// mseの計算用に1000局面ほど読み込んでおく。
+	// mseの計算用に500局面ほど読み込んでおく。
 	void read_for_mse()
 	{
 		Position& pos = Threads.main()->rootPos;
-		for (int i = 0; i < 1000; ++i)
+		for (int i = 0; i < 500; ++i)
 		{
 			PackedSfenValue ps;
 			if (!read_to_thread_buffer(0, ps))
@@ -1006,6 +995,7 @@ struct SfenReader
 		cout << endl << "hirate eval = " << Eval::evaluate(pos);
 
 		int i = 0;
+		// ここ、並列化したほうが良いのだがちょっと面倒なので..
 		for (auto& ps : sfen_for_mse)
 		{
 //			auto sfen = pos.sfen_unpack(ps.data);
@@ -1044,6 +1034,7 @@ struct SfenReader
 #if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
 			double test_cross_entropy_eval, test_cross_entropy_win;
 			calc_cross_entropy(deep_value, shallow_value, ps , test_cross_entropy_eval, test_cross_entropy_win);
+			// 交差エントロピーの合計は定義的にabs()をとる必要がない。
 			test_sum_cross_entropy_eval += test_cross_entropy_eval;
 			test_sum_cross_entropy_win  += test_cross_entropy_win;
 #endif
@@ -1061,18 +1052,18 @@ struct SfenReader
 
 		// rmse = root mean square error : 平均二乗誤差
 		// mae  = mean absolute error    : 平均絶対誤差
-		auto dsig_rmse = std::sqrt(sum_error / sfen_for_mse.size());
-		auto dsig_mae = sum_error2 / sfen_for_mse.size();
-		auto eval_mae = sum_error3 / sfen_for_mse.size();
+		auto dsig_rmse = std::sqrt(sum_error / (sfen_for_mse.size() + epsilon));
+		auto dsig_mae = sum_error2 / (sfen_for_mse.size() + epsilon);
+		auto eval_mae = sum_error3 / (sfen_for_mse.size() + epsilon);
 		cout << " , dsig rmse = " << dsig_rmse << " , dsig mae = " << dsig_mae
 			<< " , eval mae = " << eval_mae
 #if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
-			<< " , test_cross_entropy_eval = " << test_sum_cross_entropy_eval
-			<< " , test_cross_entropy_win = " << test_sum_cross_entropy_win
-			<< " , test_cross_entropy = " << test_sum_cross_entropy_eval + test_sum_cross_entropy_win
+			<< " , test_cross_entropy_eval = "  << test_sum_cross_entropy_eval / (sfen_for_mse.size() + epsilon)
+			<< " , test_cross_entropy_win = "   << test_sum_cross_entropy_win / (sfen_for_mse.size() + epsilon)
+			<< " , test_cross_entropy = "       << (test_sum_cross_entropy_eval + test_sum_cross_entropy_win) / (sfen_for_mse.size() + epsilon)
 			<< " , learn_cross_entropy_eval = " << learn_sum_cross_entropy_eval / (done + epsilon)
-			<< " , learn_cross_entropy_win = " << learn_sum_cross_entropy_win / (done + epsilon)
-			<< " , learn_cross_entropy = " << (learn_sum_cross_entropy_eval + learn_sum_cross_entropy_win) / (done + epsilon)
+			<< " , learn_cross_entropy_win = "  << learn_sum_cross_entropy_win  / (done + epsilon)
+			<< " , learn_cross_entropy = "      << (learn_sum_cross_entropy_eval + learn_sum_cross_entropy_win) * sfen_for_mse.size() / (done + epsilon)
 			<< endl;
 
 		// 次回のために0クリアしておく。
@@ -1084,7 +1075,7 @@ struct SfenReader
 #endif
 	}
 
-	// [ASYNC] スレッドバッファに局面を10000局面ほど読み込む。
+	// [ASYNC] スレッドバッファに局面を500局面ほど読み込む。
 	bool read_to_thread_buffer_impl(size_t thread_id)
 	{
 		while (true)
@@ -1320,15 +1311,8 @@ void LearnerThink::thread_worker(size_t thread_id)
 			// 一応、他のスレッド停止させる。
 			updating_weight = true;
 
-			// 現在時刻を出力
-			static u64 sfens_output_count = 0;
-			if ((sfens_output_count++ % LEARN_TIMESTAMP_OUTPUT_INTERVAL) == 0)
-			{
-				cout << endl << sr.total_done << " sfens , at " << now_string() << flush;
-			} else {
-				// これぐらいは出力しておく。
-				cout << '.' << flush;
-			}
+			// 現在時刻を出力。毎回出力する。
+			cout << endl << sr.total_done << " sfens , at " << now_string() << flush;
 
 			// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 
@@ -1662,12 +1646,7 @@ void learn(Position&, istringstream& is)
 		}
 
 		// 棋譜が格納されているフォルダを指定して、根こそぎ対象とする。
-		else if (option == "targetdir")
-		{
-			is >> target_dir;
-
-			//			cout << "ERROR! : targetdir , this function is only for Windows." << endl;
-		}
+		else if (option == "targetdir") is >> target_dir;
 
 		// ループ回数の指定
 		else if (option == "loop")      is >> loop;

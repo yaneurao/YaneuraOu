@@ -15,7 +15,7 @@ struct TTEntry {
 	Move move() const { return (Move)move16; }
 	Value value() const { return (Value)value16; }
 
-#ifndef  NO_EVAL_IN_TT
+#if !defined (NO_EVAL_IN_TT)
 	// この局面でevaluate()を呼び出したときの値
 	Value eval() const { return (Value)eval16; }
 #endif
@@ -32,7 +32,7 @@ struct TTEntry {
 	//   m    : ベストな指し手
 	//   gen  : TT.generation()
 	void save(Key k, Value v, Bound b, Depth d, Move m,
-#ifndef NO_EVAL_IN_TT
+#if !defined (NO_EVAL_IN_TT)
 		Value eval,
 #endif
 		uint8_t gen)
@@ -65,7 +65,7 @@ struct TTEntry {
 		// 　少しの深さのマイナスなら許容)
 		// 3. BOUND_EXACT(これはPVnodeで探索した結果で、とても価値のある情報なので無条件で書き込む)
 		// 1. or 2. or 3.
-		if ((k >> 48) != key16
+		if (  (k >> 48) != key16
 			|| (d / ONE_PLY > depth8 - 4)
 			/*|| g != generation() // probe()において非0のkeyとマッチした場合、その瞬間に世代はrefreshされている。　*/
 			|| b == BOUND_EXACT
@@ -73,7 +73,7 @@ struct TTEntry {
 		{
 			key16 = (uint16_t)(k >> 48);
 			value16 = (int16_t)v;
-#ifndef NO_EVAL_IN_TT
+#if !defined (NO_EVAL_IN_TT)
 			eval16 = (int16_t)eval;
 #endif
 			genBound8 = (uint8_t)(gen | b);
@@ -94,7 +94,7 @@ private:
 	// このnodeでの探索の結果スコア
 	int16_t value16;
 
-#ifndef NO_EVAL_IN_TT
+#if !defined (NO_EVAL_IN_TT)
 	// 評価関数の評価値
 	int16_t eval16;
 #endif
@@ -146,7 +146,7 @@ private:
 	// TTEntryはこのサイズでalignされたメモリに配置する。(される)
 	static const int CacheLineSize = 64;
 
-#ifndef  NO_EVAL_IN_TT
+#if !defined (NO_EVAL_IN_TT)
 	// 1クラスターにおけるTTEntryの数
 	// TTEntry 10bytes×3つ + 2(padding) = 32bytes
 	static const int ClusterSize = 3;

@@ -203,6 +203,13 @@ namespace USI
 					ply++;
 					if (found)
 					{
+						// 宣言勝ちである
+						if (tte->move() == MOVE_WIN && pos.DeclarationWin() != MOVE_NONE)
+						{
+							ss << " " << MOVE_WIN;
+							break;
+						}
+
 						// 置換表にはpsudo_legalではない指し手が含まれるのでそれを弾く。
 						// legal()の判定もここでしておく。
 						Move m = pos.move16_to_move(tte->move());

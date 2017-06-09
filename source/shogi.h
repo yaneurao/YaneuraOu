@@ -596,6 +596,7 @@ constexpr Move make_move_drop(Piece pt, Square to) { return (Move)(to + (pt << 7
 // 指し手がおかしくないかをテストする
 // ただし、盤面のことは考慮していない。MOVE_NULLとMOVE_NONEであるとfalseが返る。
 // これら２つの定数は、移動元と移動先が等しい値になっている。このテストだけをする。
+// MOVE_WIN(宣言勝ちの指し手は)は、falseが返る。
 inline bool is_ok(Move m) {
   // return move_from(m)!=move_to(m);
   // とやりたいところだが、駒打ちでfromのbitを使ってしまっているのでそれだとまずい。
