@@ -48,7 +48,7 @@ def analyze_log(file_path):
     ax.plot(
             df['sfens'],
             df['dsig_rmse'],
-            '.-', color='blue', label='RMSE')
+            color='blue', label='RMSE')
     ax.set_xlabel('# SFENs')
     ax.set_ylabel('DSIG_RMSE')
     ax.legend(loc='upper left').get_frame().set_alpha(0.5)
@@ -57,7 +57,7 @@ def analyze_log(file_path):
     ax.plot(
             df['sfens'],
             df['cee'],
-		'.-', color='red', label='cee')
+		    color='red', label='cee')
     ax.set_xlabel('# SFENs')
     ax.set_ylabel('cee')
     ax.legend(loc='upper right').get_frame().set_alpha(0.5)
@@ -66,7 +66,7 @@ def analyze_log(file_path):
     ax.plot(
             df['sfens'],
             df['cew'],
-		'.-', color='green', label='cew')
+		    color='green', label='cew')
     ax.set_xlabel('# SFENs')
     ax.set_ylabel('cew')
     ax.legend(loc='lower right').get_frame().set_alpha(0.5)
