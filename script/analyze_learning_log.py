@@ -46,22 +46,14 @@ def analyze_log(file_path):
 
     # plot
     fig, ax = plt.subplots(1, 1)
-#    ax.plot(
-#            df['sfens'],
-#            df['dsig_rmse'],
-#            color='blue', label='RMSE')
-#    ax.set_xlabel('# SFENs')
-#    ax.set_ylabel('DSIG_RMSE')
-#    ax.legend(loc='upper left').get_frame().set_alpha(0.5)
 
-    ax = ax.twinx()
     ax.plot(
             df['sfens'],
             df['tce'],
 		    color='red', label='tce')
     ax.set_xlabel('# SFENs')
     ax.set_ylabel('tce')
-    ax.legend(loc='upper right').get_frame().set_alpha(0.5)
+    ax.legend(loc='upper left').get_frame().set_alpha(0.5)
 
     ax = ax.twinx()
     ax.plot(
@@ -70,7 +62,7 @@ def analyze_log(file_path):
 		    color='green', label='lce')
     ax.set_xlabel('# SFENs')
     ax.set_ylabel('lce')
-    ax.legend(loc='upper left').get_frame().set_alpha(0.5)
+    ax.legend(loc='upper right').get_frame().set_alpha(0.5)
 
     ax.set_title(file_path)
 
