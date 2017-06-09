@@ -902,7 +902,8 @@ struct SfenReader
 		packed_sfens.resize(thread_num);
 		total_read = 0;
 		total_done = 0;
-		next_update_weights = 0;
+		next_update_weights = LEARN_MINI_BATCH_SIZE;
+		last_done = 0;
 		save_count = 0;
 		end_of_files = false;
 
@@ -979,7 +980,8 @@ struct SfenReader
 #endif
 
 	// rmseを計算して表示する。
-	void calc_rmse()
+	// done : 今回処理した件数
+	void calc_rmse(u64 done)
 	{
 		// 置換表にhitされてもかなわんので、このタイミングで置換表の世代を新しくする。
 		// 置換表を無効にしているなら関係ないのだが。
@@ -996,6 +998,7 @@ struct SfenReader
 #if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
 		// 検証用データのロスの計算用
 		double test_sum_cross_entropy_eval = 0, test_sum_cross_entropy_win = 0;
+		const double epsilon = 0.00001;
 #endif
 
 		// 平手の初期局面のeval()の値を表示させて、揺れを見る。
@@ -1067,9 +1070,9 @@ struct SfenReader
 			<< " , test_cross_entropy_eval = " << test_sum_cross_entropy_eval
 			<< " , test_cross_entropy_win = " << test_sum_cross_entropy_win
 			<< " , test_cross_entropy = " << test_sum_cross_entropy_eval + test_sum_cross_entropy_win
-			<< " , learn_cross_entropy_eval = " << learn_sum_cross_entropy_eval
-			<< " , learn_cross_entropy_win = " << learn_sum_cross_entropy_win
-			<< " , learn_cross_entropy = " << learn_sum_cross_entropy_eval + learn_sum_cross_entropy_win
+			<< " , learn_cross_entropy_eval = " << learn_sum_cross_entropy_eval / (done + epsilon)
+			<< " , learn_cross_entropy_win = " << learn_sum_cross_entropy_win / (done + epsilon)
+			<< " , learn_cross_entropy = " << (learn_sum_cross_entropy_eval + learn_sum_cross_entropy_win) / (done + epsilon)
 			<< endl;
 
 		// 次回のために0クリアしておく。
@@ -1224,6 +1227,9 @@ struct SfenReader
 	// 処理した局面数
 	atomic<u64> total_done;
 
+	// 前回までに処理した件数
+	u64 last_done;
+
 	// total_readがこの値を超えたらupdate_weights()してmseの計算をする。
 	u64 next_update_weights;
 
@@ -1345,15 +1351,18 @@ void LearnerThink::thread_worker(size_t thread_id)
 			static u64 rmse_output_count = 0;
 			if ((++rmse_output_count % LEARN_RMSE_OUTPUT_INTERVAL) == 0)
 			{
+				// 今回処理した件数
+				u64 done = sr.total_done - sr.last_done;
+
 				// この計算自体も並列化すべきのような…。
 				// この計算をしているときにあまり処理が進みすぎると困るので停止させておくか…。
-				sr.calc_rmse();
+				sr.calc_rmse(done);
+
+				sr.last_done = sr.total_done;
 			}
 
-			// 次回、この一連の処理は、
-			// total_read + LEARN_MINI_BATCH_SIZE <= total_read
-			// となったときにやって欲しい。
-			sr.next_update_weights = sr.total_done + mini_batch_size;
+			// 次回、この一連の処理は、次回、mini_batch_sizeだけ処理したときに再度やって欲しい。
+			sr.next_update_weights += mini_batch_size;
 
 			// 他のスレッド再開。
 			updating_weight = false;
@@ -1383,9 +1392,6 @@ void LearnerThink::thread_worker(size_t thread_id)
 				goto RetryRead;
 			sr.hash[hash_index] = key; // 今回のkeyに入れ替えておく。
 		}
-
-		// このインクリメントはatomic
-		sr.total_done++;
 
 		auto th = Threads[thread_id];
 		pos.set_this_thread(th);
@@ -1467,6 +1473,9 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// leafに到達したのでこの局面に出現している特徴に勾配を加算しておく。
 		// 勾配に基づくupdateはのちほど行なう。
 		Eval::add_grad(pos,rootColor,dj_dw);
+
+		// 処理が終了したので処理した件数のカウンターをインクリメント
+		sr.total_done++;
 
 		// 局面を巻き戻す
 		for (auto it = pv.rbegin(); it != pv.rend(); ++it)
