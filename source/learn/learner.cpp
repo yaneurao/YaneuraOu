@@ -904,7 +904,7 @@ struct SfenReader
 		packed_sfens.resize(thread_num);
 		total_read = 0;
 		total_done = 0;
-		next_update_weights = LEARN_MINI_BATCH_SIZE;
+		next_update_weights = 0;
 		last_done = 0;
 		save_count = 0;
 		end_of_files = false;
@@ -1076,7 +1076,7 @@ struct SfenReader
 			<< " , test_cross_entropy = "       << (test_sum_cross_entropy_eval + test_sum_cross_entropy_win) / (sfen_for_mse.size() + epsilon)
 			<< " , learn_cross_entropy_eval = " << learn_sum_cross_entropy_eval / (done + epsilon)
 			<< " , learn_cross_entropy_win = "  << learn_sum_cross_entropy_win  / (done + epsilon)
-			<< " , learn_cross_entropy = "      << (learn_sum_cross_entropy_eval + learn_sum_cross_entropy_win) * sfen_for_mse.size() / (done + epsilon)
+			<< " , learn_cross_entropy = "      << (learn_sum_cross_entropy_eval + learn_sum_cross_entropy_win) / (done + epsilon)
 			<< endl;
 
 		// 次回のために0クリアしておく。
@@ -1321,6 +1321,13 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// ファイルから読み込んだ直後とかでいいような…。
 		if (thread_id == 0 && sr.next_update_weights <= sr.total_done)
 		{
+			// 初回
+			if (sr.next_update_weights == 0)
+			{
+				sr.next_update_weights += mini_batch_size;
+				continue;
+			}
+
 			// 一応、他のスレッド停止させる。
 			updating_weight = true;
 
