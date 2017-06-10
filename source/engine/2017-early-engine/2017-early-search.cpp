@@ -734,8 +734,9 @@ namespace YaneuraOu2017Early
 		// このnodeはrootからss->ply手進めた局面なのでここでss->plyより短い詰みがあるのはおかしいが、
 		// この関数はそんな値を返してしまう。しかしこれは通常探索ならば次のnodeでの
 		// mate distance pruningで補正されるので問題ない。 
+		// また、VALUE_INFINITEはint16_tの最大値よりMAX_PLY以上小さいなのでオーバーフローの心配はない。
 		//
-		// よってqsearch()内での正しいassertは次のように書くべきである。
+		// よってsearch(),qsearch()のassertは次のように書くべきである。
 
 		ASSERT_LV3(-VALUE_INFINITE < bestValue  && bestValue < VALUE_INFINITE);
 
@@ -1948,14 +1949,8 @@ namespace YaneuraOu2017Early
 				depth, bestMove, ss->staticEval, TT.generation());
 
 
-		//ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
-
-		// qsearch()内の末尾にあるassertの文の説明を併せて読むこと。
-		// search()のほうは、mate distance pruningで補正されるので
-		// この関数が、mate_in(ss->ply)より絶対値の小さな値を返すことはない。
-		// ゆえに以下のようにしたほうがより厳しいassertが書ける。
-
-		ASSERT_LV3(abs(bestValue) <= mate_in(ss->ply));
+		// qsearch()内の末尾にあるassertの文の説明を読むこと。
+		ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
 
 		return bestValue;
 	}
