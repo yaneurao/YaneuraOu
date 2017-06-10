@@ -76,7 +76,12 @@ std::string now_string()
 
 	auto now = std::chrono::system_clock::now();
 	auto tp = std::chrono::system_clock::to_time_t(now);
-	return string(std::ctime(&tp));
+	auto result = string(std::ctime(&tp));
+
+	// 末尾に改行コードが含まれているならこれを除去する
+	while (*result.rbegin() == '\n' || (*result.rbegin() == '\r'))
+		result.pop_back();
+	return result;
 }
 
 // --------------------

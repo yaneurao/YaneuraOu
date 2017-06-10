@@ -201,7 +201,7 @@ struct SfenWriter
 		auto output_status = [&]()
 		{
 			// 現在時刻も出力
-			cout << endl << sfen_write_count << " sfens , at " << now_string();
+			cout << endl << sfen_write_count << " sfens , at " << now_string() << endl;
 
 			// flush()はこのタイミングで十分。
 			fs.flush();
@@ -996,9 +996,11 @@ struct SfenReader
 		const int thread_id = 0;
 		auto& pos = Threads[thread_id]->rootPos;
 
+#if !defined(LOSS_FUNCTION_IS_ELMO_METHOD)
 		double sum_error = 0;
 		double sum_error2 = 0;
 		double sum_error3 = 0;
+#endif
 
 #if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
 		// 検証用データのロスの計算用
@@ -1008,7 +1010,7 @@ struct SfenReader
 
 		// 平手の初期局面のeval()の値を表示させて、揺れを見る。
 		pos.set_hirate();
-		cout << endl << "hirate eval = " << Eval::evaluate(pos);
+		cout << "hirate eval = " << Eval::evaluate(pos);
 
 		int i = 0;
 		// ここ、並列化したほうが良いのだがちょっと面倒なので..
@@ -1034,13 +1036,15 @@ struct SfenReader
 			// --- 誤差の計算
 
 			auto dsig = calc_grad(deep_value, shallow_value, ps);
+
+#if !defined(LOSS_FUNCTION_IS_ELMO_METHOD)
 			// rmse的なもの
 			sum_error += dsig*dsig;
 			// 勾配の絶対値を足したもの
 			sum_error2 += abs(dsig);
 			// 評価値の差の絶対値を足したもの
 			sum_error3 += abs(shallow_value - deep_value);
-
+#endif
 
 			// --- 交差エントロピーの計算
 
@@ -1066,14 +1070,18 @@ struct SfenReader
 #endif
 		}
 
+#if !defined(LOSS_FUNCTION_IS_ELMO_METHOD)
 		// rmse = root mean square error : 平均二乗誤差
 		// mae  = mean absolute error    : 平均絶対誤差
 		auto dsig_rmse = std::sqrt(sum_error / (sfen_for_mse.size() + epsilon));
 		auto dsig_mae = sum_error2 / (sfen_for_mse.size() + epsilon);
 		auto eval_mae = sum_error3 / (sfen_for_mse.size() + epsilon);
 		cout << " , dsig rmse = " << dsig_rmse << " , dsig mae = " << dsig_mae
-			<< " , eval mae = " << eval_mae
+			<< " , eval mae = " << eval_mae;
+#endif
+
 #if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
+		cout
 			<< " , test_cross_entropy_eval = "  << test_sum_cross_entropy_eval / (sfen_for_mse.size() + epsilon)
 			<< " , test_cross_entropy_win = "   << test_sum_cross_entropy_win / (sfen_for_mse.size() + epsilon)
 			<< " , test_cross_entropy = "       << (test_sum_cross_entropy_eval + test_sum_cross_entropy_win) / (sfen_for_mse.size() + epsilon)
@@ -1146,7 +1154,7 @@ struct SfenReader
 			filenames.pop_back();
 
 			fs.open(filename, ios::in | ios::binary);
-			cout << endl << "open filename = " << filename << " ";
+			cout << "open filename = " << filename << endl;
 
 			return true;
 		};
@@ -1174,7 +1182,7 @@ struct SfenReader
 					if (!open_next_file())
 					{
 						// 次のファイルもなかった。あぼーん。
-						cout << "..end of files.\n";
+						cout << "..end of files." << endl;
 						end_of_files = true;
 						return;
 					}
@@ -1344,7 +1352,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 				}
 
 				// 現在時刻を出力。毎回出力する。
-				cout << endl << sr.total_done << " sfens , at " << now_string() << flush;
+				cout << sr.total_done << " sfens , at " << now_string() << endl;
 
 				// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 
@@ -1761,19 +1769,20 @@ void learn(Position&, istringstream& is)
 	cout << "learn from ";
 	for (auto s : filenames)
 		cout << s << " , ";
+	cout << endl;
 
-	cout << "\nbase dir        : " << base_dir;
-	cout << "\ntarget dir      : " << target_dir;
+	cout << "base dir        : " << base_dir   << endl;
+	cout << "target dir      : " << target_dir << endl;
 
 	// シャッフルモード
 	if (shuffle)
 	{
-		cout << "\nshuffle mode.." << endl;
+		cout << "shuffle mode.." << endl;
 		shuffle_files(filenames);
 		return;
 	}
 
-	cout << "\nloop            : " << loop;
+	cout << "loop            : " << loop << endl;
 
 	// ループ回数分だけファイル名を突っ込む。
 	for (int i = 0; i < loop; ++i)
@@ -1781,24 +1790,24 @@ void learn(Position&, istringstream& is)
 		for (auto it = filenames.rbegin(); it != filenames.rend(); ++it)
 			sr.filenames.push_back(path_combine(base_dir, *it));
 
-	cout << "\nGradient Method : " << LEARN_UPDATE;
-	cout << "\nLoss Function   : " << LOSS_FUNCTION;
-	cout << "\nmini-batch size : " << mini_batch_size;
-	cout << "\nlearning rate   : " << eta;
+	cout << "Gradient Method : " << LEARN_UPDATE    << endl;
+	cout << "Loss Function   : " << LOSS_FUNCTION   << endl;
+	cout << "mini-batch size : " << mini_batch_size << endl;
+	cout << "learning rate   : " << eta             << endl;
 #if defined (LOSS_FUNCTION_IS_ELMO_METHOD) || defined (LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
-	cout << "\nLAMBDA          : " << ELMO_LAMBDA;
+	cout << "LAMBDA          : " << ELMO_LAMBDA     << endl;
 #endif
 
 	// -----------------------------------
 	//            各種初期化
 	// -----------------------------------
 
-	cout << "\ninit..";
+	cout << "init.." << endl;
 
 	// 評価関数パラメーターの読み込み
 	is_ready();
 
-	cout << "\ninit_grad..";
+	cout << "init_grad.." << endl;
 
 	// 評価関数パラメーターの勾配配列の初期化
 	Eval::init_grad(eta);
@@ -1819,7 +1828,7 @@ void learn(Position&, istringstream& is)
 	omp_set_num_threads((int)Options["Threads"]);
 #endif
 
-	cout << "\ninit done." << endl;
+	cout << "init done." << endl;
 
 	// 局面ファイルをバックグラウンドで読み込むスレッドを起動
 	// (これを開始しないとmseの計算が出来ない。)
