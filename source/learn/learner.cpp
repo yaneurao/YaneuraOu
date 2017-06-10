@@ -1288,7 +1288,7 @@ protected:
 // 複数スレッドでsfenを生成するためのクラス
 struct LearnerThink: public MultiThink
 {
-	LearnerThink(SfenReader& sr_):sr(sr_),updating_weight(false) {}
+	LearnerThink(SfenReader& sr_):sr(sr_),stop_flag(false) {}
 	virtual void thread_worker(size_t thread_id);
 
 	// 局面ファイルをバックグラウンドで読み込むスレッドを起動する。
@@ -1306,9 +1306,7 @@ struct LearnerThink: public MultiThink
 	// ミニバッチサイズのサイズ。必ずこのclassを使う側で設定すること。
 	u64 mini_batch_size = 1000*1000;
 
-	// weightのupdate中であるか。(このとき、sleepする)
-	// あるいはsleepさせたいときはこれをTrueにする。
-	atomic<bool> updating_weight;
+	bool stop_flag;
 };
 
 void LearnerThink::thread_worker(size_t thread_id)
@@ -1319,64 +1317,83 @@ void LearnerThink::thread_worker(size_t thread_id)
 	{
 		// mseの表示(これはthread 0のみときどき行う)
 		// ファイルから読み込んだ直後とかでいいような…。
-		if (thread_id == 0 && sr.next_update_weights <= sr.total_done)
+		if (sr.next_update_weights <= sr.total_done)
 		{
-			// 初回
-			if (sr.next_update_weights == 0)
+			if (thread_id != 0)
 			{
-				sr.next_update_weights += mini_batch_size;
+				// thread_id == 0以外は、待機。
+
+				if (stop_flag)
+					break;
+
+				sleep(1);
 				continue;
 			}
-
-			// 一応、他のスレッド停止させる。
-			updating_weight = true;
-
-			// 現在時刻を出力。毎回出力する。
-			cout << endl << sr.total_done << " sfens , at " << now_string() << flush;
-
-			// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
-
-			Eval::update_weights(/* ++epoch */);
-
-			// 8000万局面ごとに1回保存、ぐらいの感じで。
-
-			// ただし、update_weights(),calc_rmse()している間の時間経過は無視するものとする。
-			if (++sr.save_count * mini_batch_size >= LEARN_EVAL_SAVE_INTERVAL)
+			else
 			{
-				sr.save_count = 0;
+				// thread_id == 0だけが以下の更新処理を行なう。
 
-				// この間、gradientの計算が進むと値が大きくなりすぎて困る気がするので他のスレッドを停止させる。
-				save();
+				// 初回はweight配列の更新は行わない。
+				if (sr.next_update_weights == 0)
+				{
+					sr.next_update_weights += mini_batch_size;
+					continue;
+				}
+
+				// 現在時刻を出力。毎回出力する。
+				cout << endl << sr.total_done << " sfens , at " << now_string() << flush;
+
+				// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
+
+				Eval::update_weights(/* ++epoch */);
+
+				// 8000万局面ごとに1回保存、ぐらいの感じで。
+
+				// ただし、update_weights(),calc_rmse()している間の時間経過は無視するものとする。
+				if (++sr.save_count * mini_batch_size >= LEARN_EVAL_SAVE_INTERVAL)
+				{
+					sr.save_count = 0;
+
+					// この間、gradientの計算が進むと値が大きくなりすぎて困る気がするので他のスレッドを停止させる。
+					save();
+				}
+
+				// rmseを計算する。1万局面のサンプルに対して行う。
+				// 40コアでやると100万局面ごとにupdate_weightsするとして、特定のスレッドが
+				// つきっきりになってしまうのあまりよくないような気も…。
+				static u64 rmse_output_count = 0;
+				if ((++rmse_output_count % LEARN_RMSE_OUTPUT_INTERVAL) == 0)
+				{
+					// 今回処理した件数
+					u64 done = sr.total_done - sr.last_done;
+
+					// この計算自体も並列化すべきのような…。
+					// この計算をしているときにあまり処理が進みすぎると困るので停止させておくか…。
+					sr.calc_rmse(done);
+
+					// どこまで集計したかを記録しておく。
+					sr.last_done = sr.total_done;
+				}
+
+				// 次回、この一連の処理は、次回、mini_batch_sizeだけ処理したときに再度やって欲しい。
+				sr.next_update_weights += mini_batch_size;
+
+				// main thread以外は、このsr.next_update_weightsの更新を待っていたので
+				// この値が更新されると再度動き始める。
 			}
-
-			// rmseを計算する。1万局面のサンプルに対して行う。
-			// 40コアでやると100万局面ごとにupdate_weightsするとして、特定のスレッドが
-			// つきっきりになってしまうのあまりよくないような気も…。
-			static u64 rmse_output_count = 0;
-			if ((++rmse_output_count % LEARN_RMSE_OUTPUT_INTERVAL) == 0)
-			{
-				// 今回処理した件数
-				u64 done = sr.total_done - sr.last_done;
-
-				// この計算自体も並列化すべきのような…。
-				// この計算をしているときにあまり処理が進みすぎると困るので停止させておくか…。
-				sr.calc_rmse(done);
-
-				// どこまで集計したかを記録しておく。
-				sr.last_done = sr.total_done;
-			}
-
-			// 次回、この一連の処理は、次回、mini_batch_sizeだけ処理したときに再度やって欲しい。
-			sr.next_update_weights += mini_batch_size;
-
-			// 他のスレッド再開。
-			updating_weight = false;
 		}
 
 		PackedSfenValue ps;
 	RetryRead:;
 		if (!sr.read_to_thread_buffer(thread_id, ps))
+		{
+			// 自分のスレッド用の局面poolを使い尽くした。
+			// 局面がもうほとんど残っていないということだから、
+			// 他のスレッドもすべて終了させる。
+
+			stop_flag = true;
 			break;
+		}
 		
 #if 0
 		auto sfen = pos.sfen_unpack(ps.data);
@@ -1485,13 +1502,8 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// 局面を巻き戻す
 		for (auto it = pv.rbegin(); it != pv.rend(); ++it)
 			pos.undo_move(*it);
-
-		// weightの更新中であれば、そこはparallel forで回るので、こっちのスレッドは中断しておく。
-		// 保存のときに回られるのも勾配だけが更新され続けるので良くない。
-		while (updating_weight)
-			sleep(0);
-
 	}
+
 }
 
 void LearnerThink::save()
