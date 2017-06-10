@@ -359,10 +359,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				if (loop_count == UINT64_MAX)
 					return true;
 
-				// 100k局面に1回ぐらい置換表の世代を進める。
-				if ((loop_count % 100000) == 0)
-					TT.new_search();
-
 				// 局面を一つ書き出す。
 				sw.write(thread_id, *it);
 

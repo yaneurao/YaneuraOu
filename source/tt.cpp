@@ -55,8 +55,15 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found
 	// 最初のTT_ENTRYのアドレス(このアドレスからTT_ENTRYがClusterSize分だけ連なっている)
 	// keyの下位bitをいくつか使って、このアドレスを求めるので、自ずと下位bitはいくらかは一致していることになる。
 	TTEntry* tte;
+	u8 gen8;
 
-#if defined(USE_GLOBAL_OPTIONS)
+#if !defined(USE_GLOBAL_OPTIONS)
+
+	tte = first_entry(key);
+	gen8 = generation();
+
+#else
+
 	if (GlobalOptions.use_per_thread_tt)
 	{
 		// スレッドごとに置換表の異なるエリアを渡す必要がある。
@@ -73,13 +80,12 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found
 		size_t block = (clusterCount / max_thread) & ~1;
 		size_t index = (((size_t)key % block) & ~1 ) | ((size_t)key & 1);
 		tte = &table[index + thread_id * block].entry[0];
-	}
-	else {
+
+	}	else {
 		tte = first_entry(key);
 	}
+	gen8 = generation(thread_id);
 
-#else
-	tte = first_entry(key);
 #endif
 
 	// 上位16bitが合致するTT_ENTRYを探す
@@ -102,7 +108,7 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found
 		// 2.
 		if (tte[i].key16 == key16)
 		{
-			tte[i].set_generation(generation8); // Refresh
+			tte[i].set_generation(gen8); // Refresh
 			return found = true, &tte[i];
 		}
 	}
@@ -118,8 +124,8 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found
 		// 以上に基いてスコアリングする。
 		// 以上の合計が一番小さいTTEntryを使う。
 
-		if (replace->depth8 - ((259 + generation8 - replace->genBound8) & 0xFC) * 2
-		  >   tte[i].depth8 - ((259 + generation8 -   tte[i].genBound8) & 0xFC) * 2)
+		if (replace->depth8 - ((259 + gen8 - replace->genBound8) & 0xFC) * 2
+		  >   tte[i].depth8 - ((259 + gen8 -   tte[i].genBound8) & 0xFC) * 2)
 			replace = &tte[i];
 
 	// generationは256になるとオーバーフローして0になるのでそれをうまく処理できなければならない。

@@ -148,16 +148,39 @@ struct TranspositionTable {
 	void clear() { memset(table, 0, clusterCount * sizeof(Cluster)); }
 
 	// 新しい探索ごとにこの関数を呼び出す。(generationを加算する。)
+	// USE_GLOBAL_OPTIONSが有効のときは、このタイミングで、Options["Threads"]の値を
+	// キャプチャして、探索スレッドごとの置換表と世代カウンターを用意する。
 	void new_search() {
-		generation8 += 4; 
+		generation8 += 4;
+
 #if defined(USE_GLOBAL_OPTIONS)
-		// このタイミングでスレッド数を取得。
-		max_thread = Options["Threads"];
+		size_t m = Options["Threads"];
+		if (m != max_thread)
+		{
+			max_thread = m;
+			// スレッドごとの世代カウンター用の配列もこのタイミングで確保。
+			a_generation8.resize(m);
+		}
 #endif
 	} // 下位2bitはTTEntryでBoundに使っているので4ずつ加算。
 
 	// 世代を返す。これはTTEntry.save()のときに使う。
 	uint8_t generation() const { return generation8; }
+
+#if defined(USE_GLOBAL_OPTIONS)
+
+	// --- スレッドIDごとにgenerationを持っているとき用の処理。
+
+	uint8_t generation(size_t thread_id) const {
+		if (GlobalOptions.use_per_thread_tt)
+			return a_generation8[thread_id];
+		else
+			return generation8;
+	}
+
+	void new_search(size_t thread_id) { a_generation8[thread_id] += 4; } 
+
+#endif
 
 	// 置換表の使用率を1000分率で返す。(USIプロトコルで統計情報として出力するのに使う)
 	int hashfull() const;
@@ -184,6 +207,9 @@ private:
 	// スレッドごとに置換表を分けたいときのために現在のスレッド数を保持しておき、
 	// 異なるエリアのなかのTTEntryを返すようにする。
 	static size_t max_thread;
+
+	// スレッドごとに世代を持っている必要がある。
+	std::vector<u8> a_generation8;
 #endif
 
 	struct Cluster {
