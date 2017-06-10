@@ -37,10 +37,21 @@ struct TTEntry {
 #endif
 		uint8_t gen)
 	{
-		ASSERT_LV3((-VALUE_INFINITE < v && v < VALUE_INFINITE) || v == VALUE_NONE);
+		// ASSERT_LV3((-VALUE_INFINITE < v && v < VALUE_INFINITE) || v == VALUE_NONE);
 
-		// ToDo: 探索部によってはVALUE_INFINITEを書き込みたいのかも知れない…。うーん。
-		//  ASSERT_LV3((-VALUE_INFINITE <= v && v <= VALUE_INFINITE) || v == VALUE_NONE);
+		// 置換表にVALUE_INFINITE以上の値を書き込んでしまうのは本来はおかしいが、
+		// 実際には置換表が衝突したときにqsearch()から書き込んでしまう。
+		//
+		// 例えば、3手詰めの局面で、置換表衝突により1手詰めのスコアが返ってきた場合、VALUE_INFINITEより
+		// 大きな値を書き込む。
+		//
+		// 逆に置換表をprobe()したときにそのようなスコアが返ってくることがある。
+		// しかしこのようなスコアは、mate distance pruningで補正されるので問題ない。
+		// (ように、探索部を書くべきである。)
+		//
+		// Stockfishで、VALUE_INFINITEを32001(int16_tの最大値よりMAX_PLY以上小さな値)にしてあるのは
+		// そういった理由から。
+
 
 		// このif式だが、
 		// A = m!=MOVE_NONE

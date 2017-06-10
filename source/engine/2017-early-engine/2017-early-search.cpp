@@ -726,10 +726,16 @@ namespace YaneuraOu2017Early
 		}
 
 		// 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
-		// このassertを書くべきだし、Stockfishではこのassertが書かれているが、
-		// このnodeはrootからss->ply手進めた局面なのでここでss->plyより短い詰みがあるのはおかしい。
-		// この事実を利用したほうが、より厳しいassertが書ける。
-		ASSERT_LV3(abs(bestValue) <= mate_in(ss->ply));
+		// しかし置換表が衝突した場合はそうではない。3手詰めの局面で、置換表衝突により1手詰めのスコアが
+		// 返ってきた場合がそれである。
+
+		// ASSERT_LV3(abs(bestValue) <= mate_in(ss->ply));
+
+		// このnodeはrootからss->ply手進めた局面なのでここでss->plyより短い詰みがあるのはおかしいが、
+		// この関数はそんな値を返してしまう。しかしこれは次のnodeでのmate distance pruningで補正されるので問題ない。 
+		// よって正しいassertは次のように書くべきである。
+
+		ASSERT_LV3(-VALUE_INFINITE < bestValue  && bestValue < VALUE_INFINITE);
 
 		return bestValue;
 	}
@@ -860,12 +866,13 @@ namespace YaneuraOu2017Early
 			// -----------------------
 			// Step 3. Mate distance pruning.
 			// -----------------------
-			// 王手までの距離による枝刈り
+			// 詰みまでの手数による枝刈り
 
-			// rootから5手目の局面だとして、このnodeのスコアが
-			// 5手以内で詰ますときのスコアを上回ることもないし、
-			// 5手以内で詰まさせるときのスコアを下回ることもないので
-			// これを枝刈りする。
+			// rootから5手目の局面だとして、このnodeのスコアが5手以内で
+			// 詰ますときのスコアを上回ることもないし、
+			// 5手以内で詰まさせるときのスコアを下回ることもない。
+			// そこで、alpha , betaの値をまずこの範囲に補正したあと、
+			// alphaがbeta値を超えているならbeta cutする。
 
 			alpha = std::max(mated_in(ss->ply), alpha);
 			beta = std::min(mate_in(ss->ply + 1), beta);
