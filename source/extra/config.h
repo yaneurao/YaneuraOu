@@ -476,7 +476,9 @@ struct GlobalOptions_
 	bool use_hash_probe;
 
 	// スレッドごとに置換表を用意する設定
-	// Learner::search()を呼ぶときにスレッドごとに置換表が用意されていないと嫌ならこれを呼び出す
+	// Learner::search(),Leaner::qsearch()を呼ぶときにスレッドごとに置換表が用意されていないと嫌ならこれを呼び出す。
+	// この機能を有効にした場合、TT.new_search()を呼び出したときのOptions["Threads"]の値に従って、
+	// 置換表を分割するのでLearner::search()を呼ぶまでに事前にTT.new_search()を呼び出すこと。
 	bool use_per_thread_tt;
 
 	GlobalOptions_()

@@ -644,6 +644,9 @@ void gen_sfen(Position&, istringstream& is)
 	// スレッド数(これは、USIのsetoptionで与えられる)
 	u32 thread_num = Options["Threads"];
 
+	// これを呼んだタイミングで現在のOptions["Threads"]の値がコピーされることになっている。
+	TT.new_search();
+
 	// 生成棋譜の個数 default = 80億局面(Ponanza仕様)
 	u64 loop_max = 8000000000UL;
 
