@@ -2345,9 +2345,6 @@ void Thread::search()
 		mainThread->easyMovePlayed = mainThread->failedLow = false;
 		mainThread->bestMoveChanges = 0;
 
-		// --- 置換表のTTEntryの世代を進める。
-		TT.new_search();
-
 		// ponder用の指し手の初期化
 		// やねうら王では、ponderの指し手がないとき、一つ前のiterationのときのbestmoveを用いるという独自仕様。
 		// Stockfish本家もこうするべきだと思う。
@@ -2729,6 +2726,15 @@ void MainThread::think()
 		// --- 今回の思考時間の設定。
 
 		Time.init(Limits, us, rootPos.game_ply());
+
+		// --- 置換表のTTEntryの世代を進める。
+
+		// main threadが開始されてからだと、slaveがすでに少し探索している。
+		// それらは古い世代で置換表に書き込んでしまう。
+		// よってslaveが動く前であるこのタイミングで置換表の世代を進めるべきである。
+		// cf. https://github.com/official-stockfish/Stockfish/pull/1134
+
+		TT.new_search();
 
 		// ---------------------
 		// 各スレッドがsearch()を実行する
