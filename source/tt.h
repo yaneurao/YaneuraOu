@@ -178,7 +178,12 @@ struct TranspositionTable {
 			return generation8;
 	}
 
-	void new_search(size_t thread_id) { a_generation8[thread_id] += 4; } 
+	void new_search(size_t thread_id) {
+		if (GlobalOptions.use_per_thread_tt)
+			a_generation8[thread_id] += 4;
+		else
+			generation8 += 4;
+	}
 
 #endif
 

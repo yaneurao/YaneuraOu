@@ -637,9 +637,17 @@ FINALIZE:;
 // 棋譜を生成するコマンド
 void gen_sfen(Position&, istringstream& is)
 {
+#if defined(USE_GLOBAL_OPTIONS)
+	// あとで復元するために保存しておく。
+	auto oldGlobalOptions = GlobalOptions;
+	// 置換表はスレッドごとに持っていてくれないと衝突して変な値を取ってきかねない
+	GlobalOptions.use_per_thread_tt = true;
+#endif
+
 	// スレッド数(これは、USIのsetoptionで与えられる)
 	u32 thread_num = Options["Threads"];
 
+	// GlobalOptions.use_per_thread_tt == trueのときは、
 	// これを呼んだタイミングで現在のOptions["Threads"]の値がコピーされることになっている。
 	TT.new_search();
 
@@ -652,13 +660,6 @@ void gen_sfen(Position&, istringstream& is)
 	// 探索深さ
 	int search_depth = 3;
 	int search_depth2 = INT_MIN;
-
-#if defined(USE_GLOBAL_OPTIONS)
-	// あとで復元するために保存しておく。
-	auto oldGlobalOptions = GlobalOptions;
-	// 置換表はスレッドごとに持っていてくれないと衝突して変な値を取ってきかねない
-	GlobalOptions.use_per_thread_tt = true;
-#endif
 
 	// 書き出すファイル名
 	string filename = "generated_kifu.bin";
@@ -1658,12 +1659,14 @@ void learn(Position&, istringstream& is)
 	// 0であれば、デフォルト値になる。
 	double eta = 0.0;
 
+#if defined(USE_GLOBAL_OPTIONS)
 	// あとで復元するために保存しておく。
 	auto oldGlobalOptions = GlobalOptions;
 	// eval hashにhitするとrmseなどの計算ができなくなるのでオフにしておく。
 	GlobalOptions.use_eval_hash = false;
 	// 置換表にhitするとそこで以前の評価値で枝刈りがされることがあるのでオフにしておく。
 	GlobalOptions.use_hash_probe = false;
+#endif
 
 	// 教師局面をシャッフルするだけの機能
 	bool shuffle = false;
@@ -1848,8 +1851,10 @@ void learn(Position&, istringstream& is)
 	// 最後に一度保存。
 	learn_think.save();
 
+#if defined(USE_GLOBAL_OPTIONS)
 	// GlobalOptionsの復元。
 	GlobalOptions = oldGlobalOptions;
+#endif
 }
 
 

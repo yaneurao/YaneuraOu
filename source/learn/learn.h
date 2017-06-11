@@ -177,9 +177,9 @@ typedef float LearnFloatType;
 #define LOSS_FUNCTION_IS_ELMO_METHOD
 //#define LOSS_FUNCTION_IS_YANE_ELMO_METHOD
 
-//#define ADA_GRAD_UPDATE
+#define ADA_GRAD_UPDATE
 //#define SGD_UPDATE
-#define ADA_PROP_UPDATE
+//#define ADA_PROP_UPDATE
 
 // 実験時は1回だけの保存で良い。
 // #define EVAL_SAVE_ONLY_ONCE
