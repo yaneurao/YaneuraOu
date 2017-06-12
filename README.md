@@ -46,6 +46,14 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 - [やねうら王で使える評価関数ファイル28バリエーション公開しました](http://yaneuraou.yaneu.com/2016/07/22/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B%E3%81%A7%E4%BD%BF%E3%81%88%E3%82%8B%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB28%E3%83%90%E3%83%AA%E3%82%A8%E3%83%BC%E3%82%B7/)
 - また、Apery(WCSC26)、Apery(SDT4)＝「浮かむ瀬」の評価関数バイナリがそのまま使えます。
 
+### 「Re : ゼロから始める評価関数生活」プロジェクト(略して「リゼロ」)
+
+ゼロベクトルの評価関数(≒駒得のみの評価関数)から、「elmo絞り」(elmo(WCSC27)の手法)を用いて強化学習しました。従来のソフトにはない、不思議な囲いと終盤力が特徴です。
+やねうら王2017Earlyの評価関数ファイルと差し替えて使うことが出来ます。フォルダ名に書いてあるepochの数字が大きいものほど新しい世代(強い)です。
+
+- [リゼロ評価関数 epoch 1から4まで](https://drive.google.com/open?id=0Bzbi5rbfN85NNWY0RTJlc2x5czg)
+
+
 ## 定跡集
 
 やねうら王2016Mid以降で使える、各種定跡集。
