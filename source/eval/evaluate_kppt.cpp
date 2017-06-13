@@ -76,7 +76,7 @@ namespace Eval
 			goto Error;
 
 		{
-#if 0
+#if defined(EVAL_LEARN)
 			// kppのp1==p2のところ、値はゼロとなっていること。(参照はするけど学習のときに使いたくないので)
 			{
 				const ValueKpp kpp_zero = { 0,0 };
@@ -92,7 +92,7 @@ namespace Eval
 
 #endif
 
-#if 0
+#if defined(EVAL_LEARN)
 			// Aperyの評価関数バイナリ、kppのp=0のところでゴミが入っている。
 			// 駒落ちなどではここを利用したいので0クリアすべき。
 			{
