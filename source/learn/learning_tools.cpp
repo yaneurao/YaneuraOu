@@ -253,8 +253,12 @@ namespace EvalLearningTools
 	{
 		//std::cout << "EvalLearningTools init..";
 
-		init_min_index_flag();
+		// mir_piece()とinv_piece()を利用可能にする。
+		// このあとmin_index_flagの初期化を行なうが、そこが
+		// これに依存しているので、こちらを先に行なう必要がある。
 		init_mir_inv_tables();
+
+		init_min_index_flag();
 
 		//std::cout << "done." << std::endl;
 	}
