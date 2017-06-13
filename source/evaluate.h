@@ -359,6 +359,12 @@ namespace Eval {
 	};
 #endif
 
+#if defined(EVAL_KPPT)
+	// 評価関数のそれぞれのパラメーターに対して関数fを適用してくれるoperator。
+	// パラメーターの分析などに用いる。
+	void foreach_eval_param(std::function<void(s32,s32)>f);
+#endif
+
 #if defined (USE_EVAL_MAKE_LIST_FUNCTION)
 
 	// 評価関数の実験のためには、EvalListの組み換えが必要になるのでその機能を提供する。

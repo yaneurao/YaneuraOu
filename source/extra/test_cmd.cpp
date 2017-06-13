@@ -1236,6 +1236,44 @@ void test_search(Position& pos, istringstream& is)
 #endif
 
 #if defined (EVAL_KPPT)
+
+#include "../eval/evaluate_kppt.h"
+// 現在の評価関数のパラメーターについて調査して出力する。(分析用)
+void eval_exam(istringstream& is)
+{
+	cout << "eval_exam : " << endl;
+		
+	u64 sum0, sum1;
+
+	// ゼロの数を数える。
+	auto count_zero = [&sum0, &sum1](s32 v0, s32 v1) {
+		sum0 += (v0 == 0) ? 1 : 0;
+		sum1 += (v1 == 0) ? 1 : 0;
+	};
+	sum0 = sum1 = 0;
+	Eval::foreach_eval_param(count_zero);
+	cout << "count_zero       : " << sum0 << " , " << sum1 << endl;
+
+	// 絶対値を足し合わせる
+	auto sum_abs = [&sum0, &sum1](s32 v0, s32 v1) {
+		sum0 += abs(v0);
+		sum1 += abs(v1);
+	};
+	sum0 = sum1 = 0;
+	Eval::foreach_eval_param(sum_abs);
+	cout << "sum_abs          : " << sum0 << " , " << sum1 << endl;
+
+	// 絶対値が16未満の要素の数
+	auto count_abs_less16 = [&sum0, &sum1](s32 v0, s32 v1) {
+		sum0 += (abs(v0) < 16) ? 1 : 0;
+		sum1 += (abs(v1) < 16) ? 1 : 0;
+	};
+	sum0 = sum1 = 0;
+	Eval::foreach_eval_param(count_abs_less16);
+	cout << "count_abs_less16 : " << sum0 << " , " << sum1 << endl;
+
+}
+
 //
 // eval merge
 //  KKPT評価関数の合成用
@@ -1553,7 +1591,7 @@ void dump_sfen(Position& pos, istringstream& is)
 
 	cout << "sfen_dump , finished." << endl;
 }
-#endif
+#endif // EVAL_LEARN
 
 #ifdef USE_KIF_CONVERT_TOOLS
 void test_kif_convert_tools(Position& pos, istringstream& is)
@@ -1649,11 +1687,14 @@ void test_cmd(Position& pos, istringstream& is)
 #ifdef EVAL_KPPT
 	else if (param == "evalmerge") eval_merge(is);                   // 評価関数の合成コマンド
 	else if (param == "evalconvert") eval_convert(is);               // 評価関数の変換コマンド
+	else if (param == "evalexam") eval_exam(is);                     // 評価関数ファイルの調査用 
 #endif
 #ifdef USE_KIF_CONVERT_TOOLS
 	else if (param == "kifconvert") test_kif_convert_tools(pos, is); // 現局面からの全合法手を各種形式で出力チェック
 #endif
 	else {
+		// --- usage
+
 		cout << "test unit               // UnitTest" << endl;
 		cout << "test rp                 // Random Player" << endl;
 		cout << "test rpbench            // Random Player bench" << endl;
