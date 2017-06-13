@@ -220,6 +220,13 @@ namespace EvalLearningTools
 		Square king0_, king1_;
 	};
 
+	// デバッグ用出力。
+	static std::ostream& operator<<(std::ostream& os, KK rhs)
+	{
+		os << "KK(" << rhs.king0() << "," << rhs.king1() << ")";
+		return os;
+	}
+
 	struct KKP
 	{
 		KKP() {}
@@ -265,6 +272,14 @@ namespace EvalLearningTools
 		Square king0_, king1_;
 		Eval::BonaPiece piece_;
 	};
+
+	// デバッグ用出力。
+	static std::ostream& operator<<(std::ostream& os, KKP rhs)
+	{
+		os << "KKP(" << rhs.king0() << "," << rhs.king1() << "," << rhs.piece() << ")";
+		return os;
+	}
+
 
 	struct KPP
 	{
@@ -368,6 +383,13 @@ namespace EvalLearningTools
 		Square king_;
 		Eval::BonaPiece piece0_, piece1_;
 	};
+
+	// デバッグ用出力。
+	static std::ostream& operator<<(std::ostream& os, KPP rhs)
+	{
+		os << "KPP(" << rhs.king() << "," << rhs.piece0() << "," << rhs.piece1() << ")";
+		return os;
+	}
 
 }
 
