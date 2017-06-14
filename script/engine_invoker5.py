@@ -95,6 +95,7 @@ def create_option(engines,engine_threads,evals,times,hashes,numa,PARAMETERS_LOG_
 		byoyomi = 0
 		inc_time = 0
 		total_time = 0
+		depth_time = 0
 
 		nodes_time = False
 
@@ -115,6 +116,8 @@ def create_option(engines,engine_threads,evals,times,hashes,numa,PARAMETERS_LOG_
 				inc_time = t
 			elif c == "t":
 				total_time = t
+			elif c == "d":
+				depth_time = t
 
 		option = []
 		if ("Yane" in engines[i]):
@@ -122,6 +125,8 @@ def create_option(engines,engine_threads,evals,times,hashes,numa,PARAMETERS_LOG_
 				option.append("go rtime " + str(rtime))
 			elif inc_time:
 				option.append("go btime REST_TIME wtime REST_TIME inc " + str(inc_time))
+			elif depth_time:
+				option.append("go depth " + str(depth_time))
 			else:
 				option.append("go btime REST_TIME wtime REST_TIME byoyomi " + str(byoyomi))
 
@@ -153,6 +158,8 @@ def create_option(engines,engine_threads,evals,times,hashes,numa,PARAMETERS_LOG_
 				print "Error! " + engines[i] + " doesn't support rtime "
 			elif inc_time:
 				option.append("go btime REST_TIME wtime REST_TIME inc " + str(inc_time))
+			elif depth_time:
+				option.append("go depth " + str(depth_time))
 			else:
 				option.append("go btime REST_TIME wtime REST_TIME byoyomi " + str(byoyomi))
 
@@ -167,7 +174,7 @@ def create_option(engines,engine_threads,evals,times,hashes,numa,PARAMETERS_LOG_
 
 		options.append(option)
 
-		options2.append([total_time,inc_time,byoyomi,rtime])
+		options2.append([total_time,inc_time,byoyomi,rtime,depth_time])
 
 	options.append(options2[0])
 	options.append(options2[1])
@@ -636,6 +643,7 @@ def engine_to_full(e):
 #  R100    : random time 100 and nodes as time
 #  r100,r300   : ,で併記可能(それぞれの時間で対局する)
 #  b1000.b2000 : .で連結するとengine1とengine2とでそれぞれの持ち時間になる。
+#  d6      : depth 6
 
 # パラメーターのparse
 parser = argparse.ArgumentParser("engine_invoker5.py")
@@ -743,7 +751,7 @@ for evaldir in evaldirs:
 
 		for i in range(2):
 			print "option " + str(i+1) + " = " + ' / '.join(options[i])
-			print "time_setting = (total_time,inc_time,byoyomi,rtime) = " + str(options[i+2])
+			print "time_setting = (total_time,inc_time,byoyomi,rtime,depth_time) = " + str(options[i+2])
 
 		sys.stdout.flush()
 
