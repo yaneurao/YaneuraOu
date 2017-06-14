@@ -77,7 +77,9 @@ namespace Eval
 
 		{
 #if defined(EVAL_LEARN)
-			// kppのp1==p2のところ、値はゼロとなっていること。(参照はするけど学習のときに使いたくないので)
+			// kppのp1==p2のところ、値はゼロとなっていること。
+			// (差分計算のときにコードの単純化のために参照はするけど学習のときに使いたくないので)
+			// kppのp1==p2のときはkkpに足しこまれているという考え。
 			{
 				const ValueKpp kpp_zero = { 0,0 };
 				float sum = 0;
@@ -87,15 +89,20 @@ namespace Eval
 						sum += abs(kpp[sq][p][p][0]) + abs(kpp[sq][p][p][1]);
 						kpp[sq][p][p] = kpp_zero;
 					}
-				cout << "sum kp = " << sum << endl;
+			//	cout << "info string sum kp = " << sum << endl;
 			}
 
 #endif
 
 #if defined(EVAL_LEARN)
-			// Aperyの評価関数バイナリ、kppのp=0のところでゴミが入っている。
+			// 以前Aperyの評価関数バイナリ、kppのp=0のところでゴミが入っていた。
 			// 駒落ちなどではここを利用したいので0クリアすべき。
 			{
+				const ValueKkp kkp_zero = { 0,0 };
+				for (auto sq1 : SQ)
+					for (auto sq2 : SQ)
+						kkp[sq1][sq2][0] = kkp_zero;
+
 				const ValueKpp kpp_zero = { 0,0 };
 				for (auto sq : SQ)
 					for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
@@ -103,12 +110,6 @@ namespace Eval
 						kpp[sq][p1][0] = kpp_zero;
 						kpp[sq][0][p1] = kpp_zero;
 					}
-
-				const ValueKkp kkp_zero = { 0,0 };
-				for (auto sq1 : SQ)
-					for (auto sq2 : SQ)
-						kkp[sq1][sq2][0] = kkp_zero;
-
 			}
 #endif
 
