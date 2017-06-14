@@ -281,10 +281,6 @@ struct MultiThinkGenSfen : public MultiThink
 	MultiThinkGenSfen(int search_depth_, int search_depth2_, SfenWriter& sw_)
 		: search_depth(search_depth_), search_depth2(search_depth2_), sw(sw_)
 	{
-		// 乱数を時刻で初期化しないとまずい。
-		// (同じ乱数列だと同じ棋譜が生成されかねないため)
-		set_prng(PRNG());
-
 		hash.resize(GENSFEN_HASH_SIZE);
 	}
 
@@ -908,9 +904,6 @@ struct SfenReader
 		last_done = 0;
 		save_count = 0;
 		end_of_files = false;
-
-		// 比較実験がしたいので乱数を固定化しておく。
-		prng = PRNG(20160720);
 
 #if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
 		learn_sum_cross_entropy_eval = 0.0;

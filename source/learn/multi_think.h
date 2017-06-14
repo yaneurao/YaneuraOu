@@ -12,9 +12,7 @@
 // このクラスを派生させて用いる。
 struct MultiThink
 {
-	// 発生する乱数は再現性があるように同じものにしておく。
-	// この動作が気に要らないなら、set_prng()を用いるべし。
-	MultiThink() : prng(20160101) {}
+	MultiThink() {}
 
 	// マスタースレッドからこの関数を呼び出すと、スレッドがそれぞれ思考して、
 	// 思考終了条件を満たしたところで制御を返す。
@@ -68,12 +66,6 @@ protected:
 	uint64_t rand(size_t n) {
 		std::unique_lock<Mutex> lk(rand_mutex);
 		return prng.rand(n);
-	}
-
-	// 乱数の再初期化をしたいときに用いる。
-	void set_prng(PRNG prng_)
-	{
-		prng = prng_;
 	}
 
 private:
