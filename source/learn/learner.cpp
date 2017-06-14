@@ -477,7 +477,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 						pos.do_move(m, state[ply2++]);
 						
 						// 毎ノードevaluate()を呼び出さないと、evaluate()の差分計算が出来ないので注意！
-						Eval::evaluate(pos);
+						Eval::evaluate_with_no_return(pos);
 						//						cout << "move = m " << m << " , evaluate = " << Eval::evaluate(pos) << endl;
 					}
 
@@ -623,7 +623,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			pos.do_move(m, state[ply]);
 
 			// 差分計算を行なうために毎node evaluate()を呼び出しておく。
-			Eval::evaluate(pos);
+			Eval::evaluate_with_no_return(pos);
 		}
 	}
 FINALIZE:;
@@ -1431,7 +1431,8 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 		// 浅い探索(qsearch)の評価値
 		auto r = Learner::qsearch(pos);
-		auto shallow_value = r.first;
+//		auto shallow_value = r.first;
+		auto pv = r.second;
 
 		// qsearchではなくevaluate()の値をそのまま使う場合。
 		// auto shallow_value = Eval::evaluate(pos);
@@ -1439,25 +1440,10 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// 深い探索の評価値
 		auto deep_value = (Value)ps.score;
 
-		// 勾配
-		double dj_dw = calc_grad(deep_value, shallow_value , ps);
-
-#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
-		// 学習データに対するロスの計算
-		double learn_cross_entropy_eval, learn_cross_entropy_win;
-		calc_cross_entropy(deep_value, shallow_value, ps, learn_cross_entropy_eval , learn_cross_entropy_win);
-		sr.learn_sum_cross_entropy_eval += learn_cross_entropy_eval;
-		sr.learn_sum_cross_entropy_win += learn_cross_entropy_win;
-#endif
-
-		// 現在、leaf nodeで出現している特徴ベクトルに対する勾配(∂J/∂Wj)として、jd_dwを加算する。
-
 		// mini batchのほうが勾配が出ていいような気がする。
 		// このままleaf nodeに行って、勾配配列にだけ足しておき、あとでrmseの集計のときにAdaGradしてみる。
 
 		auto rootColor = pos.side_to_move();
-
-		auto pv = r.second;
 
 		// PVの初手が異なる場合は学習に用いないほうが良いのでは…。
 		// 全然違うところを探索した結果だとそれがノイズに成りかねない。
@@ -1496,9 +1482,32 @@ void LearnerThink::thread_worker(size_t thread_id)
 			}
 			pos.do_move(m, state[ply++]);
 			
-			// leafでevaluate()は呼ばないので差分計算していく必要はないのでevaluate()を呼び出す必要はない。
-			//	Eval::evaluate(pos);
+			// leafでevaluate()は呼ばないなら差分計算していく必要はないのでevaluate()を呼び出す必要はないが、
+			// leafでのevaluateの値を用いたほうがいい気がするので差分更新していく。
+			Eval::evaluate_with_no_return(pos);
 		}
+
+		// shallow_valueとして、leafでのevaluateの値を用いる。
+		// qsearch()の戻り値をshallow_valueとして用いると、
+		// PVが途中で途切れている場合、勾配を計算するのにevaluate()を呼び出した局面と、
+		// その勾配を与える局面とが異なることになるので、これはあまり好ましい性質ではないと思う。
+		// 置換表をオフにはしているのだが、1手詰みなどはpv配列を更新していないので…。
+		// [TODO] 比較実験する。
+
+		Value shallow_value = (rootColor == pos.side_to_move()) ? Eval::evaluate(pos) : -Eval::evaluate(pos);
+
+		// 勾配
+		double dj_dw = calc_grad(deep_value, shallow_value, ps);
+
+#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
+		// 学習データに対するロスの計算
+		double learn_cross_entropy_eval, learn_cross_entropy_win;
+		calc_cross_entropy(deep_value, shallow_value, ps, learn_cross_entropy_eval, learn_cross_entropy_win);
+		sr.learn_sum_cross_entropy_eval += learn_cross_entropy_eval;
+		sr.learn_sum_cross_entropy_win += learn_cross_entropy_win;
+#endif
+
+		// 現在、leaf nodeで出現している特徴ベクトルに対する勾配(∂J/∂Wj)として、jd_dwを加算する。
 
 		// leafに到達したのでこの局面に出現している特徴に勾配を加算しておく。
 		// 勾配に基づくupdateはのちほど行なう。
@@ -1531,7 +1540,7 @@ void LearnerThink::save()
 #endif
 }
 
-// 教師局面のシャッフル
+// 教師局面のシャッフル "learn shuffle"コマンドの下請け。
 void shuffle_files(vector<string> filenames)
 {
 	// 出力先のフォルダは
