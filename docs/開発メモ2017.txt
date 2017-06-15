@@ -1,7 +1,546 @@
 ﻿
-# ToDO
+## 2017/06/15
 
-- 学習式 定数1/600→1/200,1/400とか試す。
+depth 6同士での対局させてみたほうがいいかも知れん。
+
+engine1 = YaneuraOuV460.exe , eval = eval_zero_epoch1
+engine2 = YaneuraOuV460.exe , eval = eval_zero_epoch2
+T1,d6,3004 - 180 - 6816(30.59% R-142.33) win black : white = 49.18% : 50.82%
+T1,d8,2799 - 193 - 7008(28.54% R-159.44) win black : white = 49.89% : 50.11%
+T1,d10,2302 - 250 - 7448(23.61% R-203.97) win black : white = 49.71% : 50.29%
+
+
+engine1 = YaneuraOuV460.exe , eval = eval_zero_epoch2
+engine2 = YaneuraOuV460.exe , eval = eval_zero_epoch3
+T1,d6,4117 - 159 - 5724(41.84% R-57.25) win black : white = 49.36% : 50.64%
+T1,d8,3836 - 238 - 5926(39.3% R-75.55) win black : white = 48.87% : 51.13%
+T1,d10,3701 - 324 - 5975(38.25% R-83.21) win black : white = 49.82% : 50.18%
+
+
+engine1 = YaneuraOuV460.exe , eval = eval_zero_epoch3
+engine2 = YaneuraOuV460.exe , eval = eval_zero_epoch4
+T1,d6,4438 - 159 - 5403(45.1% R-34.18) win black : white = 49.75% : 50.25%
+T1,d8,4504 - 270 - 5226(46.29% R-25.83) win black : white = 49.86% : 50.14%
+T1,d10,4311 - 354 - 5335(44.69% R-37.02) win black : white = 49.93% : 50.07%
+
+
+engine1 = YaneuraOuV460.exe , eval = eval_zero_epoch4
+engine2 = YaneuraOuV460.exe , eval = eval_zero_epoch5
+T1,d6,4733 - 184 - 5083(48.22% R-12.39) win black : white = 49.72% : 50.28%
+T1,d8,4630 - 288 - 5082(47.67% R-16.18) win black : white = 49.33% : 50.67%
+T1,d10,4658 - 327 - 5015(48.15% R-12.83) win black : white = 49.88% : 50.12%
+
+
+engine1 = YaneuraOuV460.exe , eval = eval_zero_epoch5
+engine2 = YaneuraOuV460.exe , eval = eval_zero_epoch6
+T1,d6,4380 - 167 - 5453(44.54% R-38.06) win black : white = 49.21% : 50.79%
+T1,d8,4268 - 242 - 5490(43.74% R-43.74) win black : white = 49.15% : 50.85%
+T1,d10,4222 - 327 - 5451(43.65% R-44.38) win black : white = 50.49% : 49.51%
+
+
+engine1 = YaneuraOuV460.exe , eval = eval_zero_epoch6
+engine2 = YaneuraOuV460.exe , eval = eval_zero_epoch7
+
+T1,d6,4354 - 150 - 5496(44.2% R-40.46) win black : white = 49.12% : 50.88%
+T1,d8,4236 - 266 - 5498(43.52% R-45.3) win black : white = 49.16% : 50.84%
+T1,d10,4167 - 366 - 5467(43.25% R-47.17) win black : white = 48.47% : 51.53%
+
+
+engine1 = YaneuraOuV460.exe , eval = eval_zero_epoch7
+engine2 = YaneuraOuV460.exe , eval = elmo_WCSC27
+T1,d6,5148 - 110 - 4742(52.05% R14.27) win black : white = 49.11% : 50.89%
+T1,d8,5100 - 189 - 4711(51.98% R13.78) win black : white = 50.36% : 49.64%
+T1,d10,5015 - 216 - 4769(51.26% R8.74) win black : white = 49.88% : 50.12%
+
+ウワァァァァ。
+
+追加。
+T1,d6.d7,3427 - 119 - 6454(34.68% R-109.97) win black : white = 49.15% : 50.85%
+T1,d6.d8,1823 - 81 - 8096(18.38% R-258.99) win black : white = 48.79% : 51.21%
+T1,d6.d9,469 - 60 - 9471(4.72% R-522.09) win black : white = 49.29% : 50.71%
+
+
+- 1台hangするのメモリ不良？16GBにしてテストする。
+
+	教師局面の生成は6GBほどしか消費しないから16GBで足りるわな…。
+	学習も問題ないはず..
+	自己対局もEVAL_HASH有効でなければ160プロセス×100MB..うーん足りないかも知れん。
+
+	とりま、学習のほうは、30GBの評価関数であってもその2.5倍で76GBあれば足りるはず。
+	16GB + 16×4 = 80GB..ギリギリ足りるよな…。きわどいか。
+
+
+## 2017/06/14
+
+学習局面 10億 * 3周
+学習局面 15億 * 2周
+学習局面 30億 * 1周
+学習局面 30億 * 1周 // 完全シャッフルあり
+学習局面 30億 * 1周 // pv修正版 YaneuraOuV460learn_elmo_leafeval.exe
+
+厳密には29.5億だが…。
+
+	201706140000D6zero6
+	SSDに換装したが1億15分は変わらない。30億で450分。7.5時間かかる。22時だな、こりゃ。
+	→　Chipsetのdriverをupdateすると30億が300分で済むようになった。なんぞこれ。
+		ネットワークが腐ってたのか。SSDに換装したのと相乗効果か。
+
+	学習局面 10億 * 3周
+	#462
+		T2,b1000,606 - 9 - 385(61.15% R78.8) win black : white = 49.55% : 50.45%
+		T2,b2000,567 - 21 - 412(57.92% R55.47) win black : white = 53.52% : 46.48%
+
+	学習局面 15億 * 2周
+	#463
+		T2,b1000,560 - 19 - 421(57.08% R49.56) win black : white = 52.09% : 47.91%
+		T2,b2000,565 - 14 - 421(57.3% R51.11) win black : white = 51.83% : 48.17%
+
+	学習局面 30億 * 1周
+	#464
+		T2,b1000,513 - 20 - 467(52.35% R16.32) win black : white = 51.12% : 48.88%
+		T2,b2000,534 - 14 - 452(54.16% R28.96) win black : white = 49.7% : 50.3%
+
+	学習局面 30億 * 1周 // pv修正版 YaneuraOuV460learn_elmo_leafeval.exe
+	#465 →　バグってた。→　これ、明らかに性質が違うではないか…。hirate_evalの値が違う。なんでなん？
+	　　→　使ってる棋譜が違うからか。いまは気にせんとこ。
+	#466
+		T2,b1000,534 - 21 - 445(54.55% R31.67) win black : white = 53.63% : 46.37%
+		T2,b2000,531 - 25 - 444(54.46% R31.08) win black : white = 52.41% : 47.59%
+
+	学習局面 30億 * 1周 // 完全シャッフルあり
+	#467
+		T2,b1000,545 - 24 - 431(55.84% R40.77) win black : white = 51.33% : 48.67%
+		T2,b2000,543 - 22 - 435(55.52% R38.52) win black : white = 52.45% : 47.55%
+		→　成績良くないな…。運もあるのだろうか。計測誤差だろうか…。
+
+
+	1台だけやたら速い。	
+		→　理由はわからないが30%ぐらい速い。なんでなん？わからん。
+		→　ネットワークの帯域によるのかも。
+		→　もしかしてチップセットドライバのアップデートとかでネットワーク周り、高速化したのでは…。
+		→　うーん、そうか..
+		→　benchコマンド叩いておく。
+			1t 600k程度。80t で3つ目の局面3500万nps/80t = 43.75knps、そこまで悪くない気もする。
+			ネットワークのドライバの更新が利いてる気はする。
+
+	//　完全シャッフルに意味があるなら、各PCでシャッフルするのやめる。
+
+
+- evalstatみたいなコマンド、他にも要るのでは…。
+	test evalexamコマンド追加した。
+	
+	elmo(WCSC27)
+		count_zero       : 11502932 , 29764137
+		sum_abs          : 81444222396 , 3182439738
+		count_abs_less16 : 22622584 , 128596496
+
+	rezero epoch 5
+		count_zero       : 58607655 , 66405130
+		sum_abs          : 28766353898 , 14454283976
+		count_abs_less16 : 68724799 , 88399164
+
+	rezero epoch 6
+		count_zero       : 58117281 , 65944001
+		sum_abs          : 32696747279 , 16355980278
+		count_abs_less16 : 67076517 , 86520037
+
+	rezero epoch 6 - next(Kが5筋にいるときの問題修正後)
+		count_zero       : 41764515 , 49712052
+		sum_abs          : 40127627033 , 20306271423
+		count_abs_less16 : 51712848 , 71793355
+
+	これがelmoの特徴なのか…。やねうら王、手番の価値高すぎでは…。
+	手番の価値、なんでこんな高いんだろう…。v[0]とv[1]と同じだけ動かしたからかな…。
+	elmo、手番のsum、一桁少ない。なんぞこれ…。
+	学習時のコードの問題なのか…。
+
+	詰みのスコアが返ってきたときに、PV leafが詰みの局面でないと問題あるような…。
+	learner修正して比較テストしたほうがいいかも知れん。
+
+		// shallow_valueとして、leafでのevaluateの値を用いる。
+		// qsearch()の戻り値をshallow_valueとして用いると、
+		// PVが途中で途切れている場合、勾配を計算するのにevaluate()を呼び出した局面と、
+		// その勾配を与える局面とが異なることになるので、これはあまり好ましい性質ではないと思う。
+		// 置換表をオフにはしているのだが、1手詰みなどはpv配列を更新していないので…。
+		// [TODO] 比較実験する。
+
+
+## 2017/06/13
+
+- 前回同様
+	生成局面を20億にする。elmo式、シャッフル重要な気がしてきた。SSD届いたら比較したほうがいいな…。
+
+	- shuffleなし
+
+	457 : 201706130930D6zero5_20 , AdaGrad 1M , loop1 , eta = 30 , lambda = 0.5 , loop 1 // epoch_6
+		T2,b1000,637 - 16 - 347(64.74% R105.52) win black : white = 51.63% : 48.37%
+		T2,b2000,335 - 11 - 174(65.82% R113.8) win black : white = 56.97% : 43.03%
+
+	458 : 201706130930D6zero5_10 , AdaGrad 1M , loop1 , eta = 30 , lambda = 0.5 , loop 2
+		T2,b1000,670 - 20 - 310(68.37% R133.89) win black : white = 53.16% : 46.84%
+		T2,b2000,329 - 7 - 184(64.13% R100.95) win black : white = 52.44% : 47.56%
+
+	459 : 201706130930D6zero5_05 , AdaGrad 1M , loop1 , eta = 30 , lambda = 0.5 , loop 4
+		T2,b1000,688 - 13 - 299(69.71% R144.77) win black : white = 52.99% : 47.01%
+
+	learn修正したのでepoch6から201706130930D6zero5_05で1周回してみる。
+
+	+5億時点
+		T2,b1000,664 - 17 - 319(67.55% R127.35) win black : white = 50.56% : 49.44%
+		T2,b2000,626 - 15 - 359(63.55% R96.59) win black : white = 49.64% : 50.36%
+
+
+- KPP,KKP、5筋にいるときに学習失敗してた。
+
+				if (a[0].king() == SQ_59)
+				{
+					std::cout << a[0] << a[1] << std::endl;
+				}
+
+				if (a[0].king() == SQ_59 && a[0].piece0()==Eval::f_pawn + SQ_57 && a[0].piece1()==Eval::f_pawn + SQ_67)
+				{
+					std::cout << a[0] << a[1] << std::endl;
+				}
+
+	- 手駒に対するmir[]が0を返すので次元下げで0に書き込んでしまう。
+		- 初期化タイミングおかしかった。
+
+				KPP b[2];
+				a[1].toLowerDimensions(b);
+				if (b[1].toIndex() != a[0].toIndex())
+				{
+					std::cout << a[0] << a[1] << b[0] << b[1] << std::endl;
+				}
+
+				→　逆変換は一致するようで、問題なさげ。
+
+				KKP b[2];
+				a[1].toLowerDimensions(b);
+				if (b[1].toIndex() != a[0].toIndex())
+				{
+					std::cout << a[0] << a[1] << b[0] << b[1] << std::endl;
+				}
+
+				→　KKPに関しても問題なさげ。よしよし。
+
+
+## 2017/06/12
+
+- 前回同様
+	201706121700D6zero4
+	455 : AdaGrad 1M , loop1 , eta = 30 , lambda = 0.33
+		Apery(WCSC26) vs ..
+		T2,b1000,515 - 16 - 469(52.34% R16.25) win black : white = 49.9% : 50.1%
+		T2,b2000,522 - 18 - 460(53.16% R21.97) win black : white = 52.34% : 47.66%
+
+		浮かむ瀬 vs ..
+		T2,b1000,720 - 14 - 266(73.02% R172.98) win black : white = 51.83% : 48.17%
+		T2,b2000,717 - 14 - 269(72.72% R170.31) win black : white = 52.54% : 47.46%
+		T2,b4000,726 - 14 - 260(73.63% R178.39) win black : white = 52.43% : 47.57%
+
+	456 : AdaGrad 1M , loop1 , eta = 30 , lambda = 0.5 // epoch5
+		Apery(WCSC26) vs ..
+		T2,b1000,491 - 13 - 496(49.75% R-1.76) win black : white = 52.18% : 47.82%
+		T2,b2000,488 - 28 - 484(50.21% R1.43) win black : white = 50.51% : 49.49%
+
+		浮かむ瀬 vs ..
+		T2,b1000,695 - 15 - 290(70.56% R151.83) win black : white = 51.98% : 48.02%
+		T2,b2000,722 - 15 - 263(73.3% R175.43) win black : white = 52.28% : 47.72%
+		T2,b4000,452 - 10 - 188(70.63% R152.39) win black : white = 51.56% : 48.44%
+
+		lambda = 0.33は、やはり成績ちょっと悪いな。
+
+
+- 棋譜生成、特定のPCでshuffleコマンド実行中に落ちる。
+	CPU負荷が突然変異→disk負荷が突然上昇で電圧的な何かが起きるからかも。
+	生成のあとsleepを入れて対処。
+
+
+- 前回同様。
+	201706121040D6zero3
+
+	452 : AdaGrad 1M , loop1 , eta = 30 , lambda = 0.5
+
+		T2,b1000,543 - 20 - 437(55.41% R37.73) win black : white = 52.24% : 47.76%
+		T2,b2000,472 - 11 - 457(50.81% R5.61) win black : white = 53.07% : 46.93%
+		T2,b4000,516 - 24 - 460(52.87% R19.96) win black : white = 54.61% : 45.39%
+
+	453 : AdaGrad 1M , loop1 , eta = 20 , lambda = 0.5
+		T2,b1000,526 - 22 - 452(53.78% R26.34) win black : white = 51.84% : 48.16%
+
+	454 : AdaGrad 1M , loop1 , eta = 30 , lambda = 0.33
+		T2,b1000,540 - 16 - 444(54.88% R34.0) win black : white = 49.29% : 50.71%
+
+		// lambda = 0.5と0.33とで大差ないか…。
+
+
+- eval_zero_epoch2からdepth 6 , 50M×10局面 , 4.5億局面使う。eval_limit = 32000 , lambda = 0.5
+	201706120245D6zero2
+	
+	449 : AdaGrad mini-batch 1M * 1周 , eta = 30。 // eval_zero_epoch3
+		T2,b1000,609 - 20 - 371(62.14% R86.1) win black : white = 51.22% : 48.78%
+		T2,b2000,593 - 25 - 382(60.82% R76.4) win black : white = 51.38% : 48.62%
+
+	450 : AdaGrad mini-batch 0.5M * 1周 , eta = 30。
+		T2,b1000,610 - 24 - 366(62.5% R88.74) win black : white = 53.48% : 46.52%
+		T2,b2000,588 - 32 - 380(60.74% R75.84) win black : white = 53.51% : 46.49%
+
+	451 : AdaGrad mini-batch 1M * 1周 , eta = 15。
+		T2,b1000,610 - 18 - 372(62.12% R85.91) win black : white = 53.05% : 46.95%
+
+	
+	いまのところread待ちにはなっていないので学習時の読み込みがボトルネックになっているのではない(気がする)
+	今後のことを考えるとSSD 512GBでも足りるかどうか…。1TBでも怪しい。うむむ…。
+	SSD増設するのは今回見送りだ。そんな変わらんやろ。
+
+	よく考えるとほとんど出現しない特徴に関して、その特徴の値が収束するのって
+	AdaGradでは5G局面ぐらい要るのかも知れんな…。うーむ、そうか…。
+
+	こうして考えると最終的な変動量はetaに依存するのであって、局面数には依存しない。
+	局面数は十分あれば良い。5G～10G。それは収束のために必要なのであっていい値に持っていけるという問題ではない。
+
+	グラフを見る限り、完全shuffleはしたほうが良さげだな。うーむ。
+	1TBのSSD買うか…。
+
+
+・Stockfish : Call TT.new_search() earlier.
+	- https://github.com/official-stockfish/Stockfish/pull/1134
+
+
+## 2017/06/11
+
+- eval_zero_epoch1からdepth 6 , 50M×10局面 , 4.5億局面使う。eval_limit = 32000 , lambda = 0.5
+	445 : AdaGrad mini-batch 2M * 2周 , eta = 30。
+		T2,b1000,752 - 23 - 225(76.97% R209.61) win black : white = 51.07% : 48.93%
+	446 : AdaGrad mini-batch 1M * 1周 , eta = 30。 // eval_zero_epoch2
+		T2,b1000,758 - 15 - 227(76.95% R209.46) win black : white = 50.15% : 49.85%
+	447 : AdaGrad mini-batch 1M * 2周 , eta = 30。
+		T2,b1000,729 - 17 - 254(74.16% R183.16) win black : white = 49.14% : 50.86%
+		T2,b2000,254 - 7 - 89(74.05% R182.18) win black : white = 51.31% : 48.69%
+	448 : AdaGrad mini-batch 3M * 2周 , eta = 30。
+		T2,b1000,766 - 25 - 209(78.56% R225.63) win black : white = 52.72% : 47.28%
+
+
+
+- ゼロベクトルからの学習。
+	eval_zeroからdepth 6 , 50M×11局面 = 5.5億局面。eval_limit=32000
+
+	441 : mini-batch 200k*loop1 4.5億
+	442 : mini-batch 1M * loop1 4.5億
+	443 : mini-batch 2M * loop1 4.5億
+
+	442 zero vs ..
+		T2,b1000,3 - 0 - 297(1.0% R-798.25) win black : white = 47.67% : 52.33%
+		T2,b2000,1 - 0 - 129(0.77% R-844.24) win black : white = 40.77% : 59.23%
+	443 zero vs ..
+		T2,b1000,1 - 0 - 309(0.32% R-995.98) win black : white = 46.45% : 53.55%
+		T2,b2000,1 - 0 - 149(0.67% R-869.27) win black : white = 44.67% : 55.33%
+
+	441	AperyWCSC26 vs ..
+		T2,b1000,303 - 1 - 16(94.98% R510.93) win black : white = 51.41% : 48.59%
+		T2,b2000,145 - 0 - 5(96.67% R584.96) win black : white = 56.67% : 43.33%
+	442
+		T2,b1000,305 - 0 - 15(95.31% R523.28) win black : white = 53.13% : 46.88%
+		T2,b2000,134 - 0 - 6(95.71% R539.58) win black : white = 55.0% : 45.0%
+	443
+		T2,b1000,306 - 1 - 13(95.92% R548.71) win black : white = 53.29% : 46.71%
+
+		 learn_443/0 →　zero_epoch1
+
+	よく考えたら教師局面の生成のときにシャッフルしてしまえば良いのか…。そうか…。
+
+・jenkinsのjob : 学習flow
+start /NODE %EXECUTOR_NUMBER% /B /WAIT /D %YANEHOME% %YANEHOME%\exe\%ENGINE% evaldir eval/%EVAL_DIR% , threads %HT_CORES% , hash 4096 , bookmoves 8 , gensfen depth %DEPTH% loop %LOOP_MAX% eval_limit %EVAL_LIMIT% file %WORKSPACE%\%SFEN_FILENAME% , quit
+start /NODE %EXECUTOR_NUMBER% /B /WAIT move %WORKSPACE%\%SFEN_FILENAME% %YANEHOME%\%SFEN_DIR%\
+
+↓
+
+start /NODE %EXECUTOR_NUMBER% /B /WAIT /D %YANEHOME% %YANEHOME%\exe\%ENGINE% evaldir eval/%EVAL_DIR% , threads %HT_CORES% , hash 4096 , bookmoves 8 , gensfen depth %DEPTH% loop %LOOP_MAX% eval_limit %EVAL_LIMIT% file %WORKSPACE%\%SFEN_FILENAME% , quit
+start /NODE %EXECUTOR_NUMBER% /B /WAIT /D "%WORKSPACE%" %YANEHOME%\exe\%ENGINE% learn shuffle %WORKSPACE%\%SFEN_FILENAME% , quit
+start /NODE %EXECUTOR_NUMBER% /B /WAIT move %WORKSPACE%\shuffled_sfen.bin %YANEHOME%\%SFEN_DIR%\%SFEN_FILENAME%
+
+	→ これで、出来たっぽい。
+
+・jenkinsのjob : 生成flow
+rem mkdir %YANEHOME%\eval\learn_%BUILD_NUMBER%
+start /NODE %EXECUTOR_NUMBER% /B /WAIT /D %YANEHOME% %YANEHOME%\exe\%ENGINE% evaldir eval\%EVAL_DIR% , evalsavedir %YANEHOME%\eval\%EVAL_SAVE_DIR% , threads %HT_CORES% , hash 4096 , evalshare false , learn loop %LEARN_LOOP_MAX% basedir %YANEHOME%\%SFEN_DIR% %KIF_FILES% eta %ETA% batchsize %BATCH_SIZE% , quit
+
+
+- 局面生成のテスト
+	Apery20160505からdepth 6 , 50M×20局面,eval_limit=32000
+	201706102240D6AperyWCSC26
+
+	elmo lambda = 0.5 AdaPropで学習させてみる。loop = 2
+
+	435 , AdaProp eta = 10 , batch 200k
+	436 , AdaProp eta = 20 , batch 200k
+
+		5億時点
+			T2,b2000,124 - 15 - 351(26.11% R-180.75) win black : white = 50.11% : 49.89%
+		10億時点
+			浮かむ瀬 vs ..
+			T2,b2000,701 - 25 - 674(50.98% R6.82) win black : white = 51.56% : 48.44%
+			T2,b4000,334 - 17 - 309(51.94% R13.52) win black : white = 47.59% : 52.41%
+		20億時点
+			浮かむ瀬 vs ..
+			T2,b2000,640 - 19 - 421(60.32% R72.76) win black : white = 52.31% : 47.69%
+			T2,b4000,338 - 9 - 243(58.18% R57.32) win black : white = 54.56% : 45.44%
+			// 成績悪すぎ。やはりAdaPropあかんな。話にならんわ。
+
+	437 , AdaGrad eta = 30 , batch   1M
+		15億時点
+			T2,b2000,607 - 26 - 627(49.19% R-5.63) win black : white = 55.02% : 44.98%
+			T2,b4000,296 - 14 - 310(48.84% R-8.03) win black : white = 48.68% : 51.32%
+
+
+		// AdaGrad優秀。AdaProp、めったに出てこない特徴因子を変に動かし続けてそれで悪くしている雰囲気はある。
+		// AdaGradでmini batch sizeを上げるのが最強かも知れん。
+		// AdaGradで20億とか50億とかが一つのポイントになるのかも。
+	
+
+	AdaGradで5億1周だとelmo lambda = 0.33で以下の記録。
+		T1,b3000,1516 - 110 - 3374(31.0% R-138.98) win black : white = 50.63% : 49.37%
+	→　どうも以前のこの結果は十分に収束していなかったようだ。eval_limit=32000にしたのが利いているのか？
+
+	もしかしてzero vectorからでもこの手法なら一瞬で学習できるのか？
+
+- もしかして、置換表、TT.new_search()するときにgenをthreadごとに持ったほうが良いのか..
+
+
+## 2017/06/10
+
+- thread数 80ではなく78にしてみるだとか。
+
+365600071 sfens , at Sat Jun 10 09:13:06 2017
+hirate eval = 82 , dsig rmse = 0.196156 , dsig mae = 0.124082 , eval mae = 3403.04 , test_cross_entropy_eval = 0.16366 , test_cross_entropy_win = 0.166382 , test_cross_entropy = 0.330041 , learn_cross_entropy_eval = 0.148327 , learn_cross_entropy_win = 0.145013 , learn_cross_entropy = 0.29334
+366144092 sfens , at Sat Jun 10 09:13:11 2017
+
+hirate eval = 83 , dsig rmse = 0.195892 , dsig mae = 0.124006 , eval mae = 3402.77 , test_cross_entropy_eval = 0.16368 , test_cross_entropy_win = 0.166066 , test_cross_entropy = 0.329747 , learn_cross_entropy_eval = 0.147902 , learn_cross_entropy_win = 0.14459 , learn_cross_entropy = 0.292492
+
+366144199 sfens , at Sat Jun 10 09:13:12 2017
+hirate eval = 83 , dsig rmse = 0.195881 , dsig mae = 0.124002 , eval mae = 3402.73 , test_cross_entropy_eval = 0.163678 , test_cross_entropy_win = 0.166059 , test_cross_entropy = 0.329737 , learn_cross_entropy_eval = 0.158482 , learn_cross_entropy_win = 0.167616 , learn_cross_entropy = 0.326098
+
+// なんかおかしいと思ったら出力詰まっとるな…。readとかで詰まったのかも知れん..うーん、それはかなわん…。
+// やはり綺麗に書き直すべきなのか…。
+
+
+- depth 10で8億、depth 12 1億生成やってみる。
+
+- AdaGradとかで局面数が不揃いなの、気分悪いな。でも200Kに対する100って1/2000か。こんな勾配、誤差だな。
+
+- 投了のときにきちんとpvを出力する。
+	position startpos moves 7g7f 3c3d 2g2f 8c8d 2f2e 8d8e 6i7h 4a3b 2e2d 2c2d 2h2d 8e8f 8g8f 8b8f 5i6h 8f8b 2d3d 2b8h+ 7i8h 3b3c 3d3f B*2g 3i3h 2g3f+ 3g3f 8b2b P*2c 3c2c B*6f P*3c B*5f P*2g 3h3g 6a7b 3f3e 3a4b P*8d 7a8b 7h7i 5a5b 3e3d 7c7d 4g4f 4c4d 3d3c+ 4b3c 4f4e 2g2h+ 4e4d R*2g 3g3f 2g2f+ P*2d 2f2d 2i3g 3c4d 3f2e 2d3e P*2d 2c2d 2e2d 2b2d G*2e 2d2e 3g2e P*4b R*3d 3e2e 3d4d P*3c S*3d 2e3f P*4c G*3b 4c4b+ 3b4b P*4c 4b3b 3d3c+ 3b3c 4c4b+ 5b6b 4d7d P*7c 6f3c+ 7c7d 4b5b 6b5b 5f3d 3f3d 3c3d S*4c 3d1f P*3d P*4d 4c4d 1f3d S*4c G*5a 5b5a 3d4c G*5b R*2b 5b4c 2b7b+ R*4b 7b8a B*6a N*7c 8b7c 8d8c+ B*2g S*7b 5a4a 7b6a N*5a B*2c P*3b 8c7c 4a3a 4i5h N*4f 5h5i P*8g 8h8g 3a2b P*2d 4c3c 2c5f+ 2g4e+ P*4c 4b4c 6a5b 3c2d 5b4c 4e5f 5g5f B*1e 7i6i 5a4c R*4a 2b3c 4a2a+ 4c5e 8a4a 3c3d S*3f 1e5i+ 6i5i G*5h 6h7g 5e6g+ 7g8f P*8e 8f9f S*9e 9f9e 9c9d 9e8d 1c1d 4a3b P*3c B*4c
+
+- 宣言勝ちの読み筋のテスト
+	position startpos moves 7g7f 8c8d 2g2f 8d8e 2f2e 4a3b 2e2d 2c2d 2h2d P*2c 2d2f 8e8f 8g8f 8b8f 6i7h 8f8b 9g9f 3c3d P*8g 7a7b 3i3h 6c6d 1g1f 1c1d 4g4f 7b6c 4i5h 6c5d 3h4g 6a5b 4g5f 2b4d 8h4d 4c4d 7i6h 3a4b 5i6i 4b4c 6i7i 7c7d 3g3f 2a3c 6g6f 9c9d 6h6g 5a4a 7i8h 4a3a 2i3g 8a7c 7f7e 5d6c 4f4e 4d4e 3f3e 3d3e B*5e P*8f 8g8f 5c5d 7e7d 5d5e 7d7c+ 5e5f 7c8b 5f5g+ 5h5g B*5i R*7a 3a2b P*2d 2c2d P*4d 4c3d 2f2d S*2c N*2f 2c2d 2f3d 2b2c 7a2a+ 2c3d 2a3b 5i3g+ S*4c 5b4c 3b4c 3d2e P*2g 3g2g G*1h 2g1h 1i1h P*8g 7h8g R*6h G*7h 6h1h+ 4c6c N*7e B*4c 2e2f 4c7f+ P*5f 5g5h 7e6g+ 5h6g S*6i P*7i 6i7h+ 7i7h G*6i 8h9g N*8d 7f7g L*7e N*7f 5f5g+ 7f8d 7e7g+ 6g7g P*7f P*2g 2f2g 6c5d B*7i S*8h 7f7g+ 8i7g 7i6h+ 4d4c+ P*2c 8b9a S*8i 4c3c 2d3c P*2i 1h2i 5d5c 8i7h S*9h 7h8g+ 9h8g G*8i 9f9e 8i8h L*8i 8h9i 9g9f 9i8i 9f8e G*4b 5c6d 8i8h P*3d 3c3d S*5a 4b3c 5a4b 3c4c L*8i 8h8i 4b5c+ 6h7g 5c4c B*5h P*7f 7g8g 8e9d S*8b G*9c 8g8f 9c8b 8f6d 9d9c R*9g S*8c 9g9e+ P*9d 3d4c 8d7b+ 5h7f+ 9c9b 7f6f 9b8a G*8d 9a9b 8d8c 8b8c 9e9d 7b8b 2g1h N*8d 4e4f 8d7b+ 4f4g+ 9b9c 9d9h N*8e L*2g 8e7c+ 2g2h+ 7b6b 6d3g 7c7d S*2g 6b6c S*7h
+
+- TT上 hash keyは16bitだからgenが同じだと65536回に1回、hash衝突して全然違うvalue取ってきてるってことか。
+　そらノイズにもなりますわ…。詰みが絡んでくると特に…。
+
+	threadごとに違う hashkeyにするだとか
+	hash keyの下位をthread idに割り当てるだとか。
+	thread idもTTにしまうだとか。いやー、bitが足りんわ。
+	hash keyの下位7bitをthread idとして割り振るか..thread based tt
+
+
+## 2017/06/09
+
+- 40c80t , depth 10 , 5000局面生成 = 12時間
+
+	GokuYane20170609からdepth10で2億局面生成。eval limit = 3000。
+		201706100000D10shから学習。GokuYane20170609。loop 2
+
+		431,432
+		lambda = 0.5 , AdaGrad eta = 30 , mini-batch 1M
+			T2,b2000,495 - 10 - 495(50.0% R-0.0) win black : white = 53.54% : 46.46%
+			T2,b4000,471 - 16 - 513(47.87% R-14.84) win black : white = 51.12% : 48.88%
+			T2,b8000,522 - 16 - 462(53.05% R21.21) win black : white = 50.41% : 49.59%
+
+		lambda = 0.5 , AdaProp eta = 10 , mini-batch 200K
+			T2,b2000,449 - 16 - 535(45.63% R-30.44) win black : white = 51.93% : 48.07%
+			T2,b4000,534 - 17 - 449(54.32% R30.12) win black : white = 53.81% : 46.19% // 何故か戦績悪すぎ
+			T2,b8000,480 - 19 - 501(48.93% R-7.44) win black : white = 52.09% : 47.91%
+
+			// AdaPropのほうが優秀か？
+
+		431,432からさらに2億局面増やして合計4億局面でloop3。434,435
+
+		434
+			T2,b2000,537 - 13 - 450(54.41% R30.7) win black : white = 52.68% : 47.32%
+			T2,b4000,566 - 14 - 420(57.4% R51.83) win black : white = 51.62% : 48.38%
+			T2,b8000,369 - 10 - 281(56.77% R47.33) win black : white = 50.31% : 49.69%
+
+			// 過学習では。ceの下がり方おかしいし。
+
+		433 : eval_limit = 32000にしたやつでの学習。これ2億×4周 = 8周でce下がりきってないな…。そういうものなのか…。
+
+			T2,b2000,168 - 7 - 105(61.54% R81.65) win black : white = 50.18% : 49.82%
+			T2,b4000,88 - 1 - 31(73.95% R181.25) win black : white = 67.23% : 32.77%
+
+			しかもめっちゃ弱い。教師局面の生成、投了周り、何かおかしいのか。修正したやつで再度テストするか。
+
+
+		elmo(WCSC27)が強くならないの、AperyのAdaGradが悪い説が急浮上。
+		AperyのAdaGrad、etaとmini-batch size、どちらも大きすぎ。
+		ああ、50億局面ぐらい回すならそれでもいいのか…。
+		Aperyの場合、値の変動がなさすぎて、何度も追加学習で回さないといけないのか。
+
+		やねうら王はAdaGradの1周目で値壊していた疑惑。読み込みsfenが0に近いから勾配大きくて
+		g2小さいから動きが大きくて勾配不正確で…。
+
+		2億×loop 2 = 4億局面だとAdaGradするには少なすぎるのだろうか…。
+
+		eval_limit上げて学習させたものの成績が良くなかったのはこのへんが原因なのか…。
+
+
+- 学習のときに1/300で試す。
+- eval_limit上げておかしくなるの原因よく調べる
+- etaとかmini batch小さくしてみる。
+
+- 学習のときのtraining loss / learning lossの両方表示したほうがいいかも知れん。
+	- そうした
+
+- ADA_PROP_UPDATE追加。
+	これならeta = 8とか16ぐらいから始めてもいいのでは。
+
+
+## 2017/06/08
+
+
+- 入玉宣言勝ちのときのスコアの出力
+	- seleneの宣言勝ちの局面。
+		position startpos moves 7g7f 8c8d 2g2f 8d8e 2f2e 4a3b 2e2d 2c2d 2h2d P*2c 2d2f 8e8f 8g8f 8b8f 6i7h 8f8b 9g9f 3c3d P*8g 7a7b 3i3h 6c6d 1g1f 1c1d 4g4f 7b6c 4i5h 6c5d 3h4g 6a5b 4g5f 2b4d 8h4d 4c4d 7i6h 3a4b 5i6i 4b4c 6i7i 7c7d 3g3f 2a3c 6g6f 9c9d 6h6g 5a4a 7i8h 4a3a 2i3g 8a7c 7f7e 5d6c 4f4e 4d4e 3f3e 3d3e B*5e P*8f 8g8f 5c5d 7e7d 5d5e 7d7c+ 5e5f 7c8b 5f5g+ 5h5g B*5i R*7a 3a2b P*2d 2c2d P*4d 4c3d 2f2d S*2c N*2f 2c2d 2f3d 2b2c 7a2a+ 2c3d 2a3b 5i3g+ S*4c 5b4c 3b4c 3d2e P*2g 3g2g G*1h 2g1h 1i1h P*8g 7h8g R*6h G*7h 6h1h+ 4c6c N*7e B*4c 2e2f 4c7f+ P*5f 5g5h 7e6g+ 5h6g S*6i P*7i 6i7h+ 7i7h G*6i 8h9g N*8d 7f7g L*7e N*7f 5f5g+ 7f8d 7e7g+ 6g7g P*7f P*2g 2f2g 6c5d B*7i S*8h 7f7g+ 8i7g 7i6h+ 4d4c+ P*2c 8b9a S*8i 4c3c 2d3c P*2i 1h2i 5d5c 8i7h S*9h 7h8g+ 9h8g G*8i 9f9e 8i8h L*8i 8h9i 9g9f 9i8i 9f8e G*4b 5c6d 8i8h P*3d 3c3d S*5a 4b3c 5a4b 3c4c L*8i 8h8i 4b5c+ 6h7g 5c4c B*5h P*7f 7g8g 8e9d S*8b G*9c 8g8f 9c8b 8f6d 9d9c R*9g S*8c 9g9e+ P*9d 3d4c 8d7b+ 5h7f+ 9c9b 7f6f 9b8a G*8d 9a9b 8d8c 8b8c 9e9d 7b8b 2g1h N*8d 4e4f 8d7b+ 4f4g+ 9b9c 9d9h N*8e L*2g 8e7c+ 2g2h+ 7b6b 6d3g 7c7d S*2g 6b6c S*7h 6c5c
+
+- 40c80t , depth 8 , 5000局面生成 = 3時間
+	GokuYane20170608からdepth8で2億局面生成。eval limit = 32000。
+		201706090100D8shから学習。GokuYane20170609。loop 2
+		labmda = 0.3 , 0.5 , 0.7 , 0.5の定数1/600→1/300
+
+		elmo vs 426,427,428,429
+
+		// なんかおかしい。宣言勝ち絡みか？
+
+		lambda = 0.7
+			T2,b2000,536 - 10 - 454(54.14% R28.84) win black : white = 53.74% : 46.26%
+			T2,b4000,514 - 13 - 473(52.08% R14.44) win black : white = 54.1% : 45.9%
+
+		lambda = 0.5
+			T2,b2000,544 - 20 - 436(55.51% R38.44) win black : white = 49.39% : 50.61%
+			T2,b4000,556 - 20 - 414(57.32% R51.23) win black : white = 51.86% : 48.14%
+
+		lambda = 0.3
+			T2,b8000,253 - 13 - 164(60.67% R75.31) win black : white = 54.68% : 45.32%
+
+
+
+・Stockfish
+	- use auto& for histories : https://github.com/official-stockfish/Stockfish/commit/1781439fc2bfb12f8a4e89b2a75fdeac6cd58672
+		- 修正した。
+	- Don't score as an immediate draw 2-fold repetitions of the root position : https://github.com/official-stockfish/Stockfish/commit/6d89d0b64a99003576d3e0ed616b43333c9eca01
+		- rootで2回目に遭遇して千日手局面だと思うのは確かにおかしいのか…。うーん..。でも現実的に問題にはならないかな…。
+	- Reordering magic data : https://github.com/official-stockfish/Stockfish/commit/659990b43ff1a089be9878561048fa4c60ba2705
+		- magic bitboard使ってないので関係なさげ。
+
 
 
 ## 2017/06/07
@@ -35,19 +574,30 @@
 			T1,b3000,1348 - 32 - 1620(45.42% R-31.93) win black : white = 52.8% : 47.2%
 			T1,b6000,870 - 21 - 879(49.74% R-1.79) win black : white = 52.66% : 47.34%
 			T1,b12000,521 - 15 - 464(52.89% R20.13) win black : white = 50.66% : 49.34%
-		lambda = 0.40
+		lambda = 0.40 // GokuYane20170608
 			T1,b3000,1518 - 44 - 1438(51.35% R9.41) win black : white = 49.39% : 50.61%
 			T1,b6000,809 - 23 - 858(48.53% R-10.22) win black : white = 52.97% : 47.03%
 			T1,b12000,441 - 14 - 425(50.92% R6.42) win black : white = 51.15% : 48.85%
-		lambda = 0.3
+		lambda = 0.30 : 422
+			T2,b2000,491 - 15 - 494(49.85% R-1.06) win black : white = 51.57% : 48.43%
+			T2,b4000,512 - 20 - 468(52.24% R15.61) win black : white = 51.94% : 48.06%
+			T2,b8000,550 - 18 - 422(56.58% R46.02) win black : white = 50.62% : 49.38%
+		lambda = 0.15 : 423
+			T2,b2000,528 - 6 - 466(53.12% R21.7) win black : white = 52.31% : 47.69%
+			T2,b4000,525 - 18 - 457(53.46% R24.1) win black : white = 54.68% : 45.32%
+			T2,b8000,551 - 14 - 435(55.88% R41.06) win black : white = 54.77% : 45.23%
 
-		lambda = 0.15
+		lambda = 0.00 9億局面だけ
+			T2,b3000,363 - 7 - 240(60.2% R71.88) win black : white = 49.92% : 50.08%
+			T1,b12000,255 - 5 - 210(54.84% R33.73) win black : white = 52.69% : 47.31%
+			T1,b24000,167 - 2 - 121(57.99% R55.97) win black : white = 50.69% : 49.31%
 
-		lambda = 0.00
+		lambda = 0.5 , shuffled_sfen // GokuYane20170609
+			T2,b2000,470 - 15 - 515(47.72% R-15.88) win black : white = 51.57% : 48.43%
+			T2,b4000,482 - 15 - 503(48.93% R-7.41) win black : white = 52.89% : 47.11%
+			T2,b8000,501 - 27 - 472(51.49% R10.36) win black : white = 51.49% : 48.51%
 
-
-		lambda = 0.3 , shuffled_sfen
-
+			// これが現状ベストかも。
 		
 		t20170520
 			T1,b3000,359 - 14 - 637(36.04% R-99.62) win black : white = 54.42% : 45.58%
@@ -468,10 +1018,10 @@
 
 // デバッグ用学習コマンド
 evaldir eval
-evalsavedir \\WS2012_860C_YAN\yanehome\eval\learn_339
+evalsavedir \\WS2012_860C_YAN\yanehome\eval\Apery20160505
 hash 4096
 evalshare false
-learn loop 10 basedir \\WS2012_860C_YAN\yanehome batchsize 10000 eta 30 targetdir learn_sfen\201705211600D6
+learn loop 10 basedir \\WS2012_860C_YAN\yanehome batchsize 10000 eta 30 targetdir learn_sfen\201705260520D8AperyWCSC26
 
 →　実はうまく学習できていた可能性が微レ存。EVAL_HASHが有効になっていたのでrmseが下がらなかっただけっぽい。
 　あとは置換表にhitしていたっぽい。

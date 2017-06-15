@@ -2,6 +2,80 @@
 やねうら王 更新履歴
 
 
+■　2017/06/16 V4.67
+
+・ConsiderationModeで千日手があるときに長いPVが出力されていたの修正。
+・ConsiderationModeのときに読み筋に、千日手ならrep、宣言勝ちならwinと出力するようにした。
+・ConsiderationModeの件、解説.txtに追記
+・ConsiderationMode用にinsert_pv_in_tt()復活させた。
+
+
+■　2017/06/15
+
+・連続自己対局スクリプト、持ち時間として固定深さに対応
+・リゼロ評価関数epoch7公開。
+
+
+■　2017/06/14
+
+・test evalexamコマンド追加(あとで消すかも)
+・学習のときにleaf nodeでのevaluate()の値をshallow_valueとして使うようにした。
+・MultiThinkなどで乱数のseed固定するコードとかあまり意味なさげなので削除。
+
+
+■　2017/06/13
+
+・learning_tools.hのKK,KKP,KPPにデバッグ用の出力関数追加。
+・learning_toolsのmir_piece,inv_pieceの初期化タイミングおかしかったの修正。
+・EVAL_LEARNのとき、評価関数を読み込み時に、kppのp1=p2のときの値をゼロクリアしたり、
+	kppのp=0のときの値をゼロクリアしたりするようにした。
+・リゼロ評価関数epoch4,5,6公開。
+
+
+■　2017/06/12
+
+・Stockfish : Call TT.new_search() earlier.
+・リゼロ評価関数epoch1,2,3公開。
+
+
+■　2017/06/11
+
+・TTで詰み絡みのスコアでhashの衝突が起きたときに、探索部などでassertに引っかかることがあったのを修正。
+・learnコマンドで学習時の出力を少し整理した。
+・置換表の世代カウンターをスレッドごとに持つ機能を用意した。→　GlobalOptions.use_per_thread_tt
+・置換表の世代カウンターの処理、修正。
+・学習のログ解析スクリプト(analyze_learning_log.py)、新しい出力形式に変更。
+
+
+■　2017/06/10
+
+・詰んでいる局面と宣言勝ちの局面を渡された場合に読み筋に resign / winを出力することにした。
+　宣言勝ちのときは、将棋所とShogiGUIでこの出力に対応して欲しい気がする。(読み筋のところに「宣言勝ち」と表示させて欲しい)
+・ConsiderationModeで宣言勝ちが読み筋に含まれているとき、これを"win"として出力するようにした。
+・置換表に宣言勝ちの指し手が登録されていることを考慮するようにした。
+・search()での宣言勝ち判定は置換表にhitしなかったときのみにした。
+・LEARN_TIMESTAMP_OUTPUT_INTERVAL削除。
+・学習時に出力しているcross entropyの値、正規化するようにした。
+・学習時のcross entropyなどの計算に用いる局面数を500に減らした。
+・学習時に置換表をスレッドごとに用意する機能追加。→　GlobalOptions.use_per_thread_tt
+・学習時に、ファイルの読み込みで負荷がかかると、メインスレッドがweight配列の更新処理ができずに
+mini batch sizeを大幅に超えて局面を処理してしまうことがあったのを修正。
+
+
+■　2017/06/09
+
+・教師局面のシャッフルコマンドの実行時に進捗を出力することにした。
+・学習のログ解析スクリプト(analyze_learning_log.py)、新しい出力形式に変更。
+・Stockfish
+	- use auto& for histories
+・教師局面の生成部に宣言勝ちの処理追加。
+・学習時にRMSPropが使えるようにした。RMSPROP_UPDATE
+・script/analyze_learning_log.py、頂点のplotやめる。
+・rootで宣言勝ちのときにもPVを出力するようにした。
+・学習のときのtest loss(検証用データのロス) / learning loss(学習データのロス)の両方表示するようにした。
+・学習のときのrmse()の計算タイミング修正。
+
+
 ■　2017/06/08 V4.66
 
 ・教師局面の完全シャッフルを行なうコマンドを追加した。詳しくは docs/解説.txt を。

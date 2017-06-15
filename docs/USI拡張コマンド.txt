@@ -213,7 +213,7 @@ set option name XXX value ...で設定できるoption
 		go rtime 100
 	とすると、今回の思考時間として、100～300[ms]を使って思考する。
 
-	// やねうら王2016Mid LEARN版のみ
+	// やねうら王2017Early LEARN版のみ
 
 	gensfen [depth 探索深さ] [loop 生成する棋譜の数] [file ファイル名] [eval_limit 評価値]  : 学習用の自己対局棋譜の生成
 		例) gensfen depth 6  (残りは省略可)
