@@ -742,8 +742,6 @@
     <Text Include="..\docs\やねうら大定跡.txt" />
     <Text Include="..\docs\更新履歴.txt" />
     <Text Include="..\docs\解説.txt" />
-    <Text Include="..\docs\開発ToDo.txt" />
-    <Text Include="..\docs\開発メモ2017.txt" />
     <Text Include="..\exe\eval\readme.txt" />
     <Text Include="..\script\readme.txt" />
   </ItemGroup>

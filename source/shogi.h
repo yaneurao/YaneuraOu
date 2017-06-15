@@ -849,6 +849,9 @@ enum RepetitionState
 
 inline bool is_ok(RepetitionState rs) { return REPETITION_NONE <= rs && rs < REPETITION_NB; }
 
+// RepetitionStateを文字列化して出力する。PVの出力のときにUSI拡張として出力するのに用いる。
+std::ostream& operator<<(std::ostream& os, RepetitionState rs);
+
 // 引き分け時のスコア
 extern Value drawValueTable[REPETITION_NB][COLOR_NB];
 inline Value draw_value(RepetitionState rs, Color c) { ASSERT_LV3(is_ok(rs)); return drawValueTable[rs][c]; }

@@ -134,6 +134,20 @@ std::string to_usi_string(Move m)
 	return ss.str();
 }
 
+// 拡張USIプロトコルにおいてPVの出力に用いる。
+std::ostream& operator<<(std::ostream& os, RepetitionState rs)
+{
+	os << ((rs == REPETITION_NONE) ? "rep_none" : // これはデバッグ用であり、実際には出力はしない。
+		   (rs == REPETITION_WIN ) ? "rep_win" :
+		   (rs == REPETITION_LOSE) ? "rep_lose" :
+		   (rs == REPETITION_DRAW) ? "rep_draw" :
+		   (rs == REPETITION_SUPERIOR) ? "rep_sup" :
+		   (rs == REPETITION_INFERIOR) ? "rep_inf" :
+		"")
+		;
+	return os;
+}
+
 
 // ----------------------------------------
 // 探索用のglobalな変数
