@@ -189,10 +189,11 @@ struct PRNG
 {
 	PRNG(uint64_t seed) : s(seed) { ASSERT_LV1(seed); }
 
-	// C++11のrandom_device()によるseedの初期化
+	// 時刻などでseedを初期化する。
 	PRNG() {
+		// C++11のrandom_device()によるseedの初期化
 		// std::random_device rd; s = (u64)rd() + ((u64)rd() << 32);
-		// msys2のgccでbuildすると同じ値を返すっぽい。なんぞこれ…。
+		// →　msys2のgccでbuildすると同じ値を返すっぽい。なんぞこれ…。
 
 		// time値とか、thisとか色々加算しておく。
 		s = (u64)(time(NULL)) + ((u64)(this) << 32)

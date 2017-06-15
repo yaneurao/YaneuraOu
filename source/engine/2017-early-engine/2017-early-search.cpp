@@ -70,10 +70,10 @@ static fstream result_log;
 
 // 置換表の世代カウンター
 #if !defined(USE_GLOBAL_OPTIONS)
-#define TT_GEN (TT.generation())
+#define TT_GEN(POS) (TT.generation())
 #else
 // スレッドごとに置換表の世代カウンターを持っているので引数としてthread_idを渡す必要がある。
-#define TT_GEN (TT.generation(pos.this_thread()->thread_id()))
+#define TT_GEN(POS) (TT.generation((POS).this_thread()->thread_id()))
 #endif
 
 // USIに追加オプションを設定したいときは、この関数を定義すること。
@@ -543,7 +543,7 @@ namespace YaneuraOu2017Early
 				// Stockfishではここ、pos.key()になっているが、posKeyを使うべき。
 				if (!ttHit)
 					tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_LOWER,
-						DEPTH_NONE, MOVE_NONE, ss->staticEval, TT_GEN );
+						DEPTH_NONE, MOVE_NONE, ss->staticEval, TT_GEN(pos) );
 				return bestValue;
 			}
 
@@ -707,7 +707,7 @@ namespace YaneuraOu2017Early
 						// 1. nonPVでのalpha値の更新 →　もうこの時点でreturnしてしまっていい。(ざっくりした枝刈り)
 						// 2. PVでのvalue >= beta、すなわちfail high
 						tte->save(posKey, value_to_tt(value, ss->ply), BOUND_LOWER,
-							ttDepth, move, ss->staticEval, TT_GEN );
+							ttDepth, move, ss->staticEval, TT_GEN(pos) );
 						return value;
 					}
 				}
@@ -730,7 +730,7 @@ namespace YaneuraOu2017Early
 			// 詰みではなかったのでこれを書き出す。
 			tte->save(posKey, value_to_tt(bestValue, ss->ply),
 				(PvNode && bestValue > oldAlpha) ? BOUND_EXACT : BOUND_UPPER,
-				ttDepth, bestMove, ss->staticEval, TT_GEN );
+				ttDepth, bestMove, ss->staticEval, TT_GEN(pos) );
 		}
 
 		// 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
@@ -771,7 +771,7 @@ namespace YaneuraOu2017Early
 		const bool RootNode = PvNode && (ss - 1)->ply == 0;
 
 		// -----------------------
-		//     変数の宣言
+		//     変数宣言
 		// -----------------------
 
 		// このnodeからのPV line(読み筋)
@@ -1020,7 +1020,7 @@ namespace YaneuraOu2017Early
 				{
 					bestValue = mate_in(ss->ply + 1); // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
 					tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
-						DEPTH_MAX, m, ss->staticEval, TT_GEN );
+						DEPTH_MAX, m, ss->staticEval, TT_GEN(pos) );
 
 					// 読み筋にMOVE_WINも出力するためには、このときpv配列を更新したほうが良いが
 					// ここから更新する手段がない…。
@@ -1061,7 +1061,7 @@ namespace YaneuraOu2017Early
 
 						// staticEvalの代わりに詰みのスコア書いてもいいのでは..
 						tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
-							DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT_GEN );
+							DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT_GEN(pos) );
 
 						return bestValue;
 					}
@@ -1073,7 +1073,7 @@ namespace YaneuraOu2017Early
 						bestValue = mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
 
 						tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
-							DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT_GEN );
+							DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT_GEN(pos) );
 
 						return bestValue;
 					}
@@ -1135,7 +1135,7 @@ namespace YaneuraOu2017Early
 
 			// 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
 			tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE,
-					  ss->staticEval, TT_GEN );
+					  ss->staticEval, TT_GEN(pos) );
 			// どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないのだが、mate1ply()を
 			// 実行したという証にはなるので意味がある。
 		}
@@ -1954,7 +1954,7 @@ namespace YaneuraOu2017Early
 			tte->save(posKey, value_to_tt(bestValue, ss->ply),
 				bestValue >= beta ? BOUND_LOWER :
 				PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
-				depth, bestMove, ss->staticEval, TT_GEN );
+				depth, bestMove, ss->staticEval, TT_GEN(pos) );
 
 
 		// qsearch()内の末尾にあるassertの文の説明を読むこと。
@@ -2432,6 +2432,14 @@ void Thread::search()
 				// 用いないと前回の反復深化の結果によって得た並び順を変えてしまうことになるのでまずい。
 				std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
 
+				// 置換表からPVをかき集めるのであれば、置換表に対してPVを格納しなおしておかないと
+				// PVが破壊しされている可能性がある。
+				if (Limits.consideration_mode)
+				{
+					for(size_t i=0;i <= PVIdx ; ++i)
+						rootMoves[i].insert_pv_to_tt(rootPos , TT_GEN(rootPos) );
+				}
+				
 				if (Signals.stop)
 					break;
 

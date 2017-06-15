@@ -1424,7 +1424,10 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 		// 浅い探索(qsearch)の評価値
 		auto r = Learner::qsearch(pos);
-//		auto shallow_value = r.first;
+
+#if !defined(LEARN_USE_LEAF_EVAL)		
+		auto shallow_value = r.first;
+#endif
 		auto pv = r.second;
 
 		// qsearchではなくevaluate()の値をそのまま使う場合。
@@ -1475,19 +1478,31 @@ void LearnerThink::thread_worker(size_t thread_id)
 			}
 			pos.do_move(m, state[ply++]);
 			
+#if defined(LEARN_USE_LEAF_EVAL)		
 			// leafでevaluate()は呼ばないなら差分計算していく必要はないのでevaluate()を呼び出す必要はないが、
 			// leafでのevaluateの値を用いたほうがいい気がするので差分更新していく。
 			Eval::evaluate_with_no_return(pos);
+#endif
 		}
+
+#if defined(LEARN_USE_LEAF_EVAL)		
 
 		// shallow_valueとして、leafでのevaluateの値を用いる。
 		// qsearch()の戻り値をshallow_valueとして用いると、
 		// PVが途中で途切れている場合、勾配を計算するのにevaluate()を呼び出した局面と、
 		// その勾配を与える局面とが異なることになるので、これはあまり好ましい性質ではないと思う。
 		// 置換表をオフにはしているのだが、1手詰みなどはpv配列を更新していないので…。
-		// [TODO] 比較実験する。
 
 		Value shallow_value = (rootColor == pos.side_to_move()) ? Eval::evaluate(pos) : -Eval::evaluate(pos);
+
+		// →　比較実験した結果、どうも効果なさそう。
+		// 教師データがsearch()の返し値を用いているので、すなわちmateとか返ってくるので、
+		// ここでも同じようにqsearch()の返し値を用いて、mateとか返ってくる状態にしてあったほうが
+		// 差が少なくて済むというのはあるのかも。
+
+		// 逆に教師局面の生成時もleaf nodeのevaluate()の値を用いるようにしたほうが良いのかも知れない。
+
+#endif
 
 		// 勾配
 		double dj_dw = calc_grad(deep_value, shallow_value, ps);

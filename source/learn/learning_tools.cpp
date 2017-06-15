@@ -39,9 +39,13 @@ namespace EvalLearningTools
 
 	void init_min_index_flag()
 	{
+		// mir_piece、inv_pieceの初期化が終わっていなければならない。
+		ASSERT_LV1(mir_piece(Eval::f_hand_pawn) == Eval::f_hand_pawn);
+
 		// 次元下げ用フラグ配列の初期化
 		u64 size = KPP::max_index();
 		min_index_flag.resize(size);
+
 #pragma omp parallel for schedule(guided)
 		for (u64 index = 0; index < size; ++index)
 		{

@@ -1564,6 +1564,14 @@ void Position::undo_null_move()
 // 連続王手の千日手等で引き分けかどうかを返す(repPlyまで遡る)
 RepetitionState Position::is_repetition(const int repPly) const
 {
+	// 現在の局面と同じhash keyを持つ局面があれば、それは千日手局面であると判定する。
+
+	// 以下の処理は入れていない。(将棋でこの性質が必要なのかよくわからないため)
+	//   Don't score as an immediate draw 2-fold repetitions of the root position
+	//   https://github.com/official-stockfish/Stockfish/commit/6d89d0b64a99003576d3e0ed616b43333c9eca01
+	// →　rootより遡るなら、2度出現する(3度目の同一局面である)必要がある。
+	//     rootより遡らないなら、1度目(2度目の同一局面である)で千日手と判定する。
+
 	// 4手かけないと千日手にはならないから、4手前から調べていく。
 	const int Start = 4;
 	int i = Start;
