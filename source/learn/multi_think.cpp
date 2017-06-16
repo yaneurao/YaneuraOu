@@ -41,17 +41,22 @@ void MultiThink::go_think()
 	auto thread_num = (size_t)Options["Threads"];
 
 	// worker threadの終了フラグの確保
-	thread_finished.reset(new volatile bool[thread_num]);
-
+	thread_finished.resize(thread_num);
+	
 	// worker threadの起動
 	for (size_t i = 0; i < thread_num; ++i)
 	{
-		thread_finished.get()[i] = false;
+		thread_finished[i] = 0;
 		threads.push_back(std::thread([i, this]
 		{ 
 			// プロセッサの全スレッドを使い切る。
 			WinProcGroup::bindThisThread(i);
-			this->thread_worker(i); this->thread_finished.get()[i] = true;
+
+			// オーバーライドされている処理を実行
+			this->thread_worker(i);
+
+			// スレッドが終了したので終了フラグを立てる
+			this->thread_finished[i] = 1;
 		}));
 	}
 
@@ -72,8 +77,9 @@ void MultiThink::go_think()
 			this_thread::sleep_for(chrono::seconds(check_interval));
 
 			// すべてのスレッドが終了したか
-			for (size_t i = 0; i < thread_num; ++i)
-				if (!thread_finished.get()[i])
+			// ひとつでも終了していなければNEXTへ。
+			for (auto& f : thread_finished)
+				if (!f)
 					goto NEXT;
 
 			// すべてのthread_finished[i]に渡って、trueなのですべてのthreadが終了している。

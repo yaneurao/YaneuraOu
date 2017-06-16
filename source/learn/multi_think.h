@@ -6,6 +6,7 @@
 #if defined(EVAL_LEARN) && defined(YANEURAOU_2017_EARLY_ENGINE)
 
 #include "../misc.h"
+#include <atomic>
 
 // 棋譜からの学習や、自ら思考させて定跡を生成するときなど、
 // 複数スレッドが個別にSearch::think()を呼び出したいときに用いるヘルパクラス。
@@ -84,7 +85,9 @@ private:
 	Mutex rand_mutex;
 
 	// スレッドの終了フラグ。
-	std::shared_ptr<volatile bool> thread_finished;
+	// vector<bool>にすると複数スレッドから書き換えようとしたときに正しく反映されないことがある…はず。
+	typedef u8 Flag;
+	std::vector<Flag> thread_finished;
 
 };
 

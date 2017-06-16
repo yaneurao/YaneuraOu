@@ -1160,6 +1160,49 @@ protected:
 	std::unordered_set<Key> sfen_for_mse_hash;
 };
 
+// idle時間にtaskを処理する仕組み。
+// masterは好きなときにpush_task_async()でtaskを渡す。
+// slaveは暇なときにon_idle()を実行すると、taskを一つ取り出してqueueがなくなるまで実行を続ける。
+struct TaskDispatcher
+{
+	typedef function<void(size_t /* thread_id */)> Task;
+
+	// slaveはidle中にこの関数を呼び出す。
+	void on_idle(size_t thread_id)
+	{
+		Task task;
+		while ((task = get_task_async()) != nullptr)
+			task(thread_id);
+
+		sleep(1);
+	}
+
+	// [ASYNC] taskを一つ積む。
+	void push_task_async(Task task)
+	{
+		std::unique_lock<Mutex> lk(task_mutex);
+		tasks.push_back(task);
+	}
+
+protected:
+	// taskの集合
+	std::vector<Task> tasks;
+
+	// [ASYNC] taskを一つ取り出す。on_idle()から呼び出される。
+	Task get_task_async()
+	{
+		std::unique_lock<Mutex> lk(task_mutex);
+		if (tasks.size() == 0)
+			return nullptr;
+		Task task = *tasks.rbegin();
+		tasks.pop_back();
+		return task;
+	}
+
+	// tasksにアクセスするとき用のmutex
+	Mutex task_mutex;
+};
+
 
 // 複数スレッドでsfenを生成するためのクラス
 struct LearnerThink: public MultiThink
@@ -1203,50 +1246,9 @@ struct LearnerThink: public MultiThink
 	// done : 今回対象とした局面数
 	void calc_loss(size_t thread_id , u64 done);
 
-	// --- idle時間にtaskを処理する仕組み。
-	
-	typedef function<void(size_t /* thread_id */)> Task;
-
-	// slaveはidle中にこの関数を呼び出す。
-	void on_idle(size_t thread_id);
-
-	// taskの集合
-	std::vector<Task> tasks;
-
-	// tasksにアクセスするとき用のmutex
-	Mutex task_mutex;
-
-	// [ASYNC] taskを一つ取り出す。on_idle()から呼び出される。
-	Task get_task_async();
-
-	// [ASYNC] taskを一つ積む。
-	void push_task_async(Task task);
+	// ↑のlossの計算をタスクとして定義してやり、それを実行する
+	TaskDispatcher task_dispatcher;
 };
-
-LearnerThink::Task LearnerThink::get_task_async()
-{
-	std::unique_lock<Mutex> lk(task_mutex);
-	if (tasks.size() == 0)
-		return nullptr;
-	Task task = *tasks.rbegin();
-	tasks.pop_back();
-	return task;
-}
-
-void LearnerThink::push_task_async(LearnerThink::Task task)
-{
-	std::unique_lock<Mutex> lk(task_mutex);
-	tasks.push_back(task);
-}
-
-void LearnerThink::on_idle(size_t thread_id)
-{
-	Task task;
-	while ((task = get_task_async()) != nullptr)
-		task(thread_id);
-
-	sleep(1);
-}
 
 void LearnerThink::calc_loss(size_t thread_id, u64 done)
 {
@@ -1331,11 +1333,11 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			// こなしたのでタスク一つ減る
 			--task_count;
 		};
-		push_task_async(task);
+		task_dispatcher.push_task_async(task);
 	}
 
 	// 自分自身もslaveとして参加する
-	on_idle(thread_id);
+	task_dispatcher.on_idle(thread_id);
 
 	// すべてのtaskの完了を待つ
 	while (task_count)
@@ -1397,7 +1399,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 					break;
 
 				// rmseの計算などを並列化したいのでtask()が積まれていればそれを処理する。
-				on_idle(thread_id);
+				task_dispatcher.on_idle(thread_id);
 				continue;
 			}
 			else
