@@ -2724,12 +2724,24 @@ void MainThread::think()
 
 		// --- contempt factor(引き分けのスコア)
 
+		// Option["Contempt"]とOption["ContemptFromBlack"]をdrawValueTableに反映させる。
+
 		// Contempt: 引き分けを受け入れるスコア。歩を100とする。例えば、この値を100にすると引き分けの局面は
 		// 評価値が - 100とみなされる。(互角と思っている局面であるなら引き分けを選ばずに他の指し手を選ぶ)
+		// contempt_from_blackがtrueのときは、Contemptを常に先手から見たスコアだとみなす。
 
 		int contempt = Options["Contempt"] * PawnValue / 100;
-		drawValueTable[REPETITION_DRAW][ us] = VALUE_ZERO - Value(contempt);
-		drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
+		if (!Options["ContemptFromBlack"])
+		{
+			// contemptの値を現在の手番側(us)から見た値とみなす。
+			drawValueTable[REPETITION_DRAW][ us] = VALUE_ZERO - Value(contempt);
+			drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
+		}
+		else {
+			// contemptの値を、現在の手番ではなく先手から見た値だとみなす。
+			drawValueTable[REPETITION_DRAW][BLACK] = VALUE_ZERO - Value(contempt);
+			drawValueTable[REPETITION_DRAW][WHITE] = VALUE_ZERO + Value(contempt);
+		}
 
 		// --- 今回の思考時間の設定。
 

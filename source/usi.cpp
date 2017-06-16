@@ -380,6 +380,14 @@ namespace USI
 
 		o["Contempt"] << Option(2, -30000, 30000);
 
+		// Contemptの設定値を先手番から見た値とするオプション。Stockfishからの独自拡張。
+		// 先手のときは千日手を狙いたくなくて、後手のときは千日手を狙いたいような場合、
+		// このオプションをオンにすれば、Contemptをそういう解釈にしてくれる。
+		// この値がtrueのときは、Contemptを常に先手から見たスコアだとみなす。
+
+		o["ContemptFromBlack"] << Option(false);
+
+
 #ifdef USE_ENTERING_KING_WIN
 		// 入玉ルール
 		o["EnteringKingRule"] << Option(ekr_rules, ekr_rules[EKR_27_POINT], [](const Option& o) { set_entering_king_rule(o); });
