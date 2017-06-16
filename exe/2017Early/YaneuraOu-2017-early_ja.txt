@@ -8,6 +8,7 @@ NetworkDelay 通信の平均遅延時間[ms]
 NetworkDelay2 通信の最大遅延時間[ms]
 
 Contempt 引き分け時スコア(歩を100とする)
+ContemptFromBlack 引き分け時スコアを先手から見た値とみなす
 MultiPV MultiPV(指し手を上位N個求める)
 
 Param1 パラメータ自動調整用X軸
