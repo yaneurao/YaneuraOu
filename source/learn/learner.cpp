@@ -914,11 +914,11 @@ struct SfenReader
 			file_worker_thread.join();
 	}
 
-	// mseの計算用に500局面ほど読み込んでおく。
+	// mseの計算用に1000局面ほど読み込んでおく。
 	void read_for_mse()
 	{
 		Position& pos = Threads.main()->rootPos;
-		for (int i = 0; i < 500; ++i)
+		for (int i = 0; i < 1000; ++i)
 		{
 			PackedSfenValue ps;
 			if (!read_to_thread_buffer(0, ps))
@@ -933,7 +933,6 @@ struct SfenReader
 			sfen_for_mse_hash.insert(pos.key());
 		}
 	}
-
 
 	// 各スレッドがバッファリングしている局面数 0.1M局面。40HTで4M局面
 	const size_t THREAD_BUFFER_SIZE = 10 * 1000;
@@ -1263,7 +1262,9 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 
 #if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
 	// 検証用データのロスの計算用
-	atomic<double> test_sum_cross_entropy_eval = 0, test_sum_cross_entropy_win = 0;
+	atomic<double> test_sum_cross_entropy_eval,test_sum_cross_entropy_win;
+	test_sum_cross_entropy_eval = 0;
+	test_sum_cross_entropy_win = 0;
 	const double epsilon = 0.00001;
 #endif
 
