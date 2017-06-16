@@ -1277,7 +1277,8 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	// taskを呼び出すための仕組みを作ったのでそれを用いる。
 
 	// こなすべきtaskの数。
-	atomic<int> task_count = (int)sr.sfen_for_mse.size();
+	atomic<int> task_count;
+	task_count = (int)sr.sfen_for_mse.size();
 
 	// 局面の探索をするtaskを生成して各スレッドに振ってやる。
 	for (auto& ps : sr.sfen_for_mse)
