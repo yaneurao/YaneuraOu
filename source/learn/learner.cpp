@@ -905,13 +905,9 @@ struct SfenReader
 		save_count = 0;
 		end_of_files = false;
 
-#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
-		learn_sum_cross_entropy_eval = 0.0;
-		learn_sum_cross_entropy_win = 0.0;
-#endif
-
 		hash.resize(READ_SFEN_HASH_SIZE);
 	}
+
 	~SfenReader()
 	{
 		if (file_worker_thread.joinable())
@@ -966,135 +962,6 @@ struct SfenReader
 		thread_ps->pop_back();
 
 		return true;
-	}
-
-#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
-	// 学習用データのロスの計算用
-	atomic<double> learn_sum_cross_entropy_eval;
-	atomic<double> learn_sum_cross_entropy_win;
-#endif
-
-	// rmseを計算して表示する。
-	// done : 今回処理した件数
-	void calc_rmse(u64 done)
-	{
-		// 置換表にhitされてもかなわんので、このタイミングで置換表の世代を新しくする。
-		// 置換表を無効にしているなら関係ないのだが。
-		TT.new_search();
-
-		// thread_idは0に固定。(main threadで行わせるため)
-		const int thread_id = 0;
-		auto& pos = Threads[thread_id]->rootPos;
-
-#if !defined(LOSS_FUNCTION_IS_ELMO_METHOD)
-		double sum_error = 0;
-		double sum_error2 = 0;
-		double sum_error3 = 0;
-#endif
-
-#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
-		// 検証用データのロスの計算用
-		double test_sum_cross_entropy_eval = 0, test_sum_cross_entropy_win = 0;
-		const double epsilon = 0.00001;
-#endif
-
-		// 平手の初期局面のeval()の値を表示させて、揺れを見る。
-		pos.set_hirate();
-		cout << "hirate eval = " << Eval::evaluate(pos);
-
-		// ここ、並列化したほうが良いのだがslaveの前の探索が終わってなかったりして
-		// ちょっと面倒なのだ…。
-		for (auto& ps : sfen_for_mse)
-		{
-//			auto sfen = pos.sfen_unpack(ps.data);
-//			pos.set(sfen);
-
-			pos.set_from_packed_sfen(ps.sfen);
-
-			auto th = Threads[thread_id];
-			pos.set_this_thread(th);
-
-			// 浅い探索の評価値
-			// evaluate()の値を用いても良いのだが、ロスを計算するときにlearn_cross_entropyと
-			// 値が比較しにくくて困るのでqsearch()を用いる。
-			// EvalHashは事前に無効化してある。(そうしないと毎回同じ値が返ってしまう)
-			auto r = Learner::qsearch(pos);
-			auto shallow_value = r.first;
-
-			// 深い探索の評価値
-			auto deep_value = (Value)ps.score;
-
-			// --- 誤差の計算
-
-			auto dsig = calc_grad(deep_value, shallow_value, ps);
-
-#if !defined(LOSS_FUNCTION_IS_ELMO_METHOD)
-			// rmse的なもの
-			sum_error += dsig*dsig;
-			// 勾配の絶対値を足したもの
-			sum_error2 += abs(dsig);
-			// 評価値の差の絶対値を足したもの
-			sum_error3 += abs(shallow_value - deep_value);
-#endif
-
-			// --- 交差エントロピーの計算
-
-			// とりあえずelmo methodの時だけ勝率項と勝敗項に関して
-			// 交差エントロピーを計算して表示させる。
-
-#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
-			double test_cross_entropy_eval, test_cross_entropy_win;
-			calc_cross_entropy(deep_value, shallow_value, ps , test_cross_entropy_eval, test_cross_entropy_win);
-			// 交差エントロピーの合計は定義的にabs()をとる必要がない。
-			test_sum_cross_entropy_eval += test_cross_entropy_eval;
-			test_sum_cross_entropy_win  += test_cross_entropy_win;
-#endif
-
-#if 0
-			{
-				// 検証用にlogを書き出してみる。
-				static fstream log;
-				if (!log.is_open())
-					log.open("rmse_log.txt", ios::out);
-				log << this->total_done << ": [" << i++ << "]" << " = " << shallow_value << " , " << deep_value << endl;
-			}
-#endif
-		}
-
-#if !defined(LOSS_FUNCTION_IS_ELMO_METHOD)
-		// rmse = root mean square error : 平均二乗誤差
-		// mae  = mean absolute error    : 平均絶対誤差
-		auto dsig_rmse = std::sqrt(sum_error / (sfen_for_mse.size() + epsilon));
-		auto dsig_mae = sum_error2 / (sfen_for_mse.size() + epsilon);
-		auto eval_mae = sum_error3 / (sfen_for_mse.size() + epsilon);
-		cout << " , dsig rmse = " << dsig_rmse << " , dsig mae = " << dsig_mae
-			<< " , eval mae = " << eval_mae;
-#endif
-
-#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
-		// test_cross_entropyは、対象局面でevaluate()を呼び出して、lossを計算しているが、
-		// learn_cross_entropyは、qsearch()を呼び出して、lossを計算している。
-		// なので、微妙に値が異なるが、まあ、lossは学習の成否のためには
-		// 下がっていることだけ確認できれば良いので、こういう実装にしてある。
-		// (現状、test_cross_entropyを求めるときに並列化してなくて、ここの時間がもったいなかったため)
-		// 気が向いたら修正する。
-
-		cout
-			<< " , test_cross_entropy_eval = "  << test_sum_cross_entropy_eval / (sfen_for_mse.size() + epsilon)
-			<< " , test_cross_entropy_win = "   << test_sum_cross_entropy_win / (sfen_for_mse.size() + epsilon)
-			<< " , test_cross_entropy = "       << (test_sum_cross_entropy_eval + test_sum_cross_entropy_win) / (sfen_for_mse.size() + epsilon)
-			<< " , learn_cross_entropy_eval = " << learn_sum_cross_entropy_eval / (done + epsilon)
-			<< " , learn_cross_entropy_win = "  << learn_sum_cross_entropy_win  / (done + epsilon)
-			<< " , learn_cross_entropy = "      << (learn_sum_cross_entropy_eval + learn_sum_cross_entropy_win) / (done + epsilon)
-			<< endl;
-
-		// 次回のために0クリアしておく。
-		learn_sum_cross_entropy_eval = 0.0;
-		learn_sum_cross_entropy_win = 0.0;
-
-#else
-			<< endl;
-#endif
 	}
 
 	// [ASYNC] スレッドバッファに局面をある程度読み込む。
@@ -1261,6 +1128,9 @@ struct SfenReader
 	static const u64 READ_SFEN_HASH_SIZE = 64 * 1024 * 1024;
 	vector<Key> hash; // 64MB*8 = 512MB
 
+	// mse計算用のtest局面
+	std::vector<PackedSfenValue> sfen_for_mse;
+
 protected:
 
 	// fileをバックグラウンドで読み込みしているworker thread
@@ -1274,10 +1144,10 @@ protected:
 
 
 	// sfenファイルのハンドル
-	fstream fs;
+	std::fstream fs;
 
 	// 各スレッド用のsfen
-	vector<shared_ptr<vector<PackedSfenValue>>> packed_sfens;
+	std::vector<shared_ptr<vector<PackedSfenValue>>> packed_sfens;
 
 	// packed_sfens_poolにアクセスするときのmutex
 	Mutex mutex;
@@ -1285,10 +1155,8 @@ protected:
 	// sfenのpool。fileから読み込むworker threadはここに補充する。
 	// 各worker threadはここから自分のpacked_sfens[thread_id]に充填する。
 	// ※　mutexをlockしてアクセスすること。
-	vector<shared_ptr<vector<PackedSfenValue>>> packed_sfens_pool;
+	std::vector<shared_ptr<vector<PackedSfenValue>>> packed_sfens_pool;
 
-	// mse計算用のバッファ
-	vector<PackedSfenValue> sfen_for_mse;
 	// mse計算用の局面を学習に用いないためにhash keyを保持しておく。
 	std::unordered_set<Key> sfen_for_mse_hash;
 };
@@ -1297,7 +1165,14 @@ protected:
 // 複数スレッドでsfenを生成するためのクラス
 struct LearnerThink: public MultiThink
 {
-	LearnerThink(SfenReader& sr_):sr(sr_),stop_flag(false) {}
+	LearnerThink(SfenReader& sr_):sr(sr_),stop_flag(false)
+	{
+#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
+		learn_sum_cross_entropy_eval = 0.0;
+		learn_sum_cross_entropy_win = 0.0;
+#endif
+	}
+
 	virtual void thread_worker(size_t thread_id);
 
 	// 局面ファイルをバックグラウンドで読み込むスレッドを起動する。
@@ -1316,7 +1191,191 @@ struct LearnerThink: public MultiThink
 	u64 mini_batch_size = 1000*1000;
 
 	bool stop_flag;
+
+	// --- lossの計算
+
+#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
+	// 学習用データのロスの計算用
+	atomic<double> learn_sum_cross_entropy_eval;
+	atomic<double> learn_sum_cross_entropy_win;
+#endif
+
+	// ロスの計算。
+	// done : 今回対象とした局面数
+	void calc_loss(size_t thread_id , u64 done);
+
+	// --- idle時間にtaskを処理する仕組み。
+	
+	typedef function<void(size_t /* thread_id */)> Task;
+
+	// slaveはidle中にこの関数を呼び出す。
+	void on_idle(size_t thread_id);
+
+	// taskの集合
+	std::vector<Task> tasks;
+
+	// tasksにアクセスするとき用のmutex
+	Mutex task_mutex;
+
+	// [ASYNC] taskを一つ取り出す。on_idle()から呼び出される。
+	Task get_task_async();
+
+	// [ASYNC] taskを一つ積む。
+	void push_task_async(Task task);
 };
+
+LearnerThink::Task LearnerThink::get_task_async()
+{
+	std::unique_lock<Mutex> lk(task_mutex);
+	if (tasks.size() == 0)
+		return nullptr;
+	Task task = *tasks.rbegin();
+	tasks.pop_back();
+	return task;
+}
+
+void LearnerThink::push_task_async(LearnerThink::Task task)
+{
+	std::unique_lock<Mutex> lk(task_mutex);
+	tasks.push_back(task);
+}
+
+void LearnerThink::on_idle(size_t thread_id)
+{
+	Task task;
+	while ((task = get_task_async()) != nullptr)
+		task(thread_id);
+
+	sleep(1);
+}
+
+void LearnerThink::calc_loss(size_t thread_id, u64 done)
+{
+	// 置換表にhitされてもかなわんので、このタイミングで置換表の世代を新しくする。
+	// 置換表を無効にしているなら関係ないのだが。
+	TT.new_search();
+
+#if !defined(LOSS_FUNCTION_IS_ELMO_METHOD)
+	double sum_error = 0;
+	double sum_error2 = 0;
+	double sum_error3 = 0;
+#endif
+
+#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
+	// 検証用データのロスの計算用
+	atomic<double> test_sum_cross_entropy_eval = 0, test_sum_cross_entropy_win = 0;
+	const double epsilon = 0.00001;
+#endif
+
+	// 平手の初期局面のeval()の値を表示させて、揺れを見る。
+	auto& pos = Threads[thread_id]->rootPos;
+	pos.set_hirate();
+	cout << "hirate eval = " << Eval::evaluate(pos);
+
+	// ここ、並列化したほうが良いのだがslaveの前の探索が終わってなかったりしてちょっと面倒。
+	// taskを呼び出すための仕組みを作ったのでそれを用いる。
+
+	// こなすべきtaskの数。
+	atomic<int> task_count = (int)sr.sfen_for_mse.size();
+
+	// 局面の探索をするtaskを生成して各スレッドに振ってやる。
+	for (auto& ps : sr.sfen_for_mse)
+	{
+		auto task = [&](size_t thread_id)
+		{
+			// これ、C++ではループごとに新たなpsのインスタンスをちゃんとcaptureするのだろうか..
+			auto th = Threads[thread_id];
+			auto pos = th->rootPos;
+
+			pos.set_from_packed_sfen(ps.sfen);
+			pos.set_this_thread(th);
+
+			// 浅い探索の評価値
+			// evaluate()の値を用いても良いのだが、ロスを計算するときにlearn_cross_entropyと
+			// 値が比較しにくくて困るのでqsearch()を用いる。
+			// EvalHashは事前に無効化してある。(そうしないと毎回同じ値が返ってしまう)
+			auto r = Learner::qsearch(pos);
+			auto shallow_value = r.first;
+
+			// 深い探索の評価値
+			auto deep_value = (Value)ps.score;
+
+			// --- 誤差の計算
+
+			auto dsig = calc_grad(deep_value, shallow_value, ps);
+
+#if !defined(LOSS_FUNCTION_IS_ELMO_METHOD)
+			// rmse的なもの
+			sum_error += dsig*dsig;
+			// 勾配の絶対値を足したもの
+			sum_error2 += abs(dsig);
+			// 評価値の差の絶対値を足したもの
+			sum_error3 += abs(shallow_value - deep_value);
+#endif
+
+			// --- 交差エントロピーの計算
+
+			// とりあえずelmo methodの時だけ勝率項と勝敗項に関して
+			// 交差エントロピーを計算して表示させる。
+
+#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
+			double test_cross_entropy_eval, test_cross_entropy_win;
+			calc_cross_entropy(deep_value, shallow_value, ps, test_cross_entropy_eval, test_cross_entropy_win);
+			// 交差エントロピーの合計は定義的にabs()をとる必要がない。
+			test_sum_cross_entropy_eval += test_cross_entropy_eval;
+			test_sum_cross_entropy_win += test_cross_entropy_win;
+#endif
+
+			// こなしたのでタスク一つ減る
+			--task_count;
+		};
+		push_task_async(task);
+	}
+
+	// 自分自身もslaveとして参加する
+	on_idle(thread_id);
+
+	// すべてのtaskの完了を待つ
+	while (task_count)
+		sleep(1);
+
+
+#if !defined(LOSS_FUNCTION_IS_ELMO_METHOD)
+	// rmse = root mean square error : 平均二乗誤差
+	// mae  = mean absolute error    : 平均絶対誤差
+	auto dsig_rmse = std::sqrt(sum_error / (sfen_for_mse.size() + epsilon));
+	auto dsig_mae = sum_error2 / (sfen_for_mse.size() + epsilon);
+	auto eval_mae = sum_error3 / (sfen_for_mse.size() + epsilon);
+	cout << " , dsig rmse = " << dsig_rmse << " , dsig mae = " << dsig_mae
+		<< " , eval mae = " << eval_mae;
+#endif
+
+#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
+	// test_cross_entropyは、対象局面でevaluate()を呼び出して、lossを計算しているが、
+	// learn_cross_entropyは、qsearch()を呼び出して、lossを計算している。
+	// なので、微妙に値が異なるが、まあ、lossは学習の成否のためには
+	// 下がっていることだけ確認できれば良いので、こういう実装にしてある。
+	// (現状、test_cross_entropyを求めるときに並列化してなくて、ここの時間がもったいなかったため)
+	// 気が向いたら修正する。
+
+	cout
+		<< " , test_cross_entropy_eval = "  << test_sum_cross_entropy_eval / (sr.sfen_for_mse.size() + epsilon)
+		<< " , test_cross_entropy_win = "   << test_sum_cross_entropy_win / (sr.sfen_for_mse.size() + epsilon)
+		<< " , test_cross_entropy = "       << (test_sum_cross_entropy_eval + test_sum_cross_entropy_win) / (sr.sfen_for_mse.size() + epsilon)
+		<< " , learn_cross_entropy_eval = " << learn_sum_cross_entropy_eval / (done + epsilon)
+		<< " , learn_cross_entropy_win = "  << learn_sum_cross_entropy_win / (done + epsilon)
+		<< " , learn_cross_entropy = "      << (learn_sum_cross_entropy_eval + learn_sum_cross_entropy_win) / (done + epsilon)
+		<< endl;
+
+	// 次回のために0クリアしておく。
+	learn_sum_cross_entropy_eval = 0.0;
+	learn_sum_cross_entropy_win = 0.0;
+
+#else
+	<< endl;
+#endif
+}
+
 
 void LearnerThink::thread_worker(size_t thread_id)
 {
@@ -1335,7 +1394,8 @@ void LearnerThink::thread_worker(size_t thread_id)
 				if (stop_flag)
 					break;
 
-				sleep(1);
+				// rmseの計算などを並列化したいのでtask()が積まれていればそれを処理する。
+				on_idle(thread_id);
 				continue;
 			}
 			else
@@ -1376,8 +1436,8 @@ void LearnerThink::thread_worker(size_t thread_id)
 					// 今回処理した件数
 					u64 done = sr.total_done - sr.last_done;
 
-					// この計算自体も並列化すべきのような…。
-					sr.calc_rmse(done);
+					// lossの計算
+					calc_loss(thread_id , done);
 
 					// どこまで集計したかを記録しておく。
 					sr.last_done = sr.total_done;
@@ -1423,6 +1483,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 			sr.hash[hash_index] = key; // 今回のkeyに入れ替えておく。
 		}
 
+		// Learner::search()を呼ぶときは、set_this_thread()しておく必要がある。
 		auto th = Threads[thread_id];
 		pos.set_this_thread(th);
 
@@ -1518,8 +1579,8 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// 学習データに対するロスの計算
 		double learn_cross_entropy_eval, learn_cross_entropy_win;
 		calc_cross_entropy(deep_value, shallow_value, ps, learn_cross_entropy_eval, learn_cross_entropy_win);
-		sr.learn_sum_cross_entropy_eval += learn_cross_entropy_eval;
-		sr.learn_sum_cross_entropy_win += learn_cross_entropy_win;
+		learn_sum_cross_entropy_eval += learn_cross_entropy_eval;
+		learn_sum_cross_entropy_win += learn_cross_entropy_win;
 #endif
 
 		// 現在、leaf nodeで出現している特徴ベクトルに対する勾配(∂J/∂Wj)として、jd_dwを加算する。

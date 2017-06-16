@@ -2,6 +2,13 @@
 やねうら王 更新履歴
 
 
+■　2017/06/16
+
+・学習時の評価関数の保存タイミング、デフォルトで10億局面ごとに変更。
+・learn.hのEVAL_FILE_NAME_CHANGE_INTERVAL削除。
+・学習時のrmseの計算、qsearch()を呼び出すように変更。
+
+
 ■　2017/06/16 V4.67b
 
 ・ContemptFromBlackというオプションを試験的に追加。
