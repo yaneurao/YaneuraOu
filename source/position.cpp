@@ -170,8 +170,8 @@ void Position::set(std::string sfen)
 	evalList.clear();
 
 	// 先手玉のいない詰将棋とか、駒落ちに対応させるために、存在しない駒はすべてBONA_PIECE_ZEROにいることにする。
-	for (PieceNo pn = PIECE_NO_ZERO; pn < PIECE_NO_NB; ++pn)
-		evalList.put_piece(pn, SQ_ZERO, QUEEN); // QUEEN(金成り)はないのでこれでBONA_PIECE_ZEROとなる。
+	// ↑のevalList.clear()で、ゼロクリアしているので、それは達成しているはず。
+
 #endif
 
 	kingSquare[BLACK] = kingSquare[WHITE] = SQ_NB;
