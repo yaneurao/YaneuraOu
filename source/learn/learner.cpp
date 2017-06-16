@@ -1002,8 +1002,8 @@ struct SfenReader
 		pos.set_hirate();
 		cout << "hirate eval = " << Eval::evaluate(pos);
 
-		int i = 0;
-		// ここ、並列化したほうが良いのだがちょっと面倒なので..
+		// ここ、並列化したほうが良いのだがslaveの前の探索が終わってなかったりして
+		// ちょっと面倒なのだ…。
 		for (auto& ps : sfen_for_mse)
 		{
 //			auto sfen = pos.sfen_unpack(ps.data);
@@ -1015,11 +1015,12 @@ struct SfenReader
 			pos.set_this_thread(th);
 
 			// 浅い探索の評価値
-			// qsearch()だとそこそこ時間がかかるのでevaluate()にしておく。
-			// 目安としてはこれでいいだろう。
-			// EvalHashは事前に無効化してある。
-			auto shallow_value = Eval::evaluate(pos);
-			
+			// evaluate()の値を用いても良いのだが、ロスを計算するときにlearn_cross_entropyと
+			// 値が比較しにくくて困るのでqsearch()を用いる。
+			// EvalHashは事前に無効化してある。(そうしないと毎回同じ値が返ってしまう)
+			auto r = Learner::qsearch(pos);
+			auto shallow_value = r.first;
+
 			// 深い探索の評価値
 			auto deep_value = (Value)ps.score;
 
@@ -1071,6 +1072,13 @@ struct SfenReader
 #endif
 
 #if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
+		// test_cross_entropyは、対象局面でevaluate()を呼び出して、lossを計算しているが、
+		// learn_cross_entropyは、qsearch()を呼び出して、lossを計算している。
+		// なので、微妙に値が異なるが、まあ、lossは学習の成否のためには
+		// 下がっていることだけ確認できれば良いので、こういう実装にしてある。
+		// (現状、test_cross_entropyを求めるときに並列化してなくて、ここの時間がもったいなかったため)
+		// 気が向いたら修正する。
+
 		cout
 			<< " , test_cross_entropy_eval = "  << test_sum_cross_entropy_eval / (sfen_for_mse.size() + epsilon)
 			<< " , test_cross_entropy_win = "   << test_sum_cross_entropy_win / (sfen_for_mse.size() + epsilon)
@@ -1348,7 +1356,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 				Eval::update_weights(/* ++epoch */);
 
-				// 8000万局面ごとに1回保存、ぐらいの感じで。
+				// 10億局面ごとに1回保存、ぐらいの感じで。
 
 				// ただし、update_weights(),calc_rmse()している間の時間経過は無視するものとする。
 				if (++sr.save_count * mini_batch_size >= LEARN_EVAL_SAVE_INTERVAL)
@@ -1369,7 +1377,6 @@ void LearnerThink::thread_worker(size_t thread_id)
 					u64 done = sr.total_done - sr.last_done;
 
 					// この計算自体も並列化すべきのような…。
-					// この計算をしているときにあまり処理が進みすぎると困るので停止させておくか…。
 					sr.calc_rmse(done);
 
 					// どこまで集計したかを記録しておく。
@@ -1534,16 +1541,15 @@ void LearnerThink::thread_worker(size_t thread_id)
 void LearnerThink::save()
 {
 	// 定期的に保存
-	// 10億局面ごとにファイル名の拡張子部分を"0","1","2",..のように変えていく。
+	// 保存ごとにファイル名の拡張子部分を"0","1","2",..のように変えていく。
 	// (あとでそれぞれの評価関数パラメーターにおいて勝率を比較したいため)
-#ifndef EVAL_SAVE_ONLY_ONCE
-	u64 change_name_size = (u64)EVAL_FILE_NAME_CHANGE_INTERVAL;
-	Eval::save_eval(std::to_string(sr.total_read / change_name_size));
 
-	// sr.total_readは、処理した件数ではないので、ちょっとオーバーしている可能性はある。
-
+#if !defined (EVAL_SAVE_ONLY_ONCE)
+	static int dir_number = 0;
+	Eval::save_eval(std::to_string(dir_number++));
 #else
-	// 1度だけの保存のときはサブフォルダを掘らない。
+	// EVAL_SAVE_ONLY_ONCEが定義されているときは、
+	// 1度だけの保存としたいのでサブフォルダを掘らない。
 	Eval::save_eval("");
 #endif
 }
