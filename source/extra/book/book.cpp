@@ -276,11 +276,59 @@ namespace Book
 				if (sfen.length() == 0)
 					continue;
 
-				istringstream iss(sfen);
-				token = "";
-				do {
+				// issから次のtokenを取得する
+				auto feed_next = [](istringstream& iss)
+				{
+					string token = "";
 					iss >> token;
-				} while (token == "startpos" || token == "moves");
+					return token;
+				};
+
+				// "sfen"に後続するsfen文字列をissからfeedする
+				auto feed_sfen = [&feed_next](istringstream& iss)
+				{
+					stringstream sfen;
+
+					// ループではないが条件外であるときにbreakでreturnのところに行くためのhack
+					while(true)
+					{
+						string token;
+
+						// 盤面を表すsfen文字列
+						sfen << feed_next(iss);
+
+						// 手番
+						token = feed_next(iss);
+						if (token != "w" && token != "b")
+							break;
+						sfen << " " << token;
+
+						// 手駒
+						sfen << " " << feed_next(iss);
+
+						// 初期局面からの手数
+						sfen <<  " " << feed_next(iss);
+
+						break;
+					}
+					return sfen.str();
+				};
+
+				bool hirate = true;
+				istringstream iss(sfen);
+				do {
+					token = feed_next(iss);
+					if (token == "sfen")
+					{
+						// 駒落ちなどではsfen xxx movesとなるのでこれをfeedしなければならない。
+						auto sfen = feed_sfen(iss);
+						pos.set(sfen);
+						hirate = false;
+					}
+				} while (token == "startpos" || token == "moves" || token == "sfen");
+
+				if (hirate)
+					pos.set_hirate();
 
 				vector<Move> m;				// 初手から(moves+1)手までの指し手格納用
 
@@ -290,8 +338,6 @@ namespace Book
 				vector<SfenAndBool> sf;		// 初手から(moves+0)手までのsfen文字列格納用
 
 				StateInfo si[MAX_PLY];
-
-				pos.set_hirate();
 
 				// 変数sfに解析対象局面としてpush_backする。
 				// ただし、
