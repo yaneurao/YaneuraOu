@@ -70,7 +70,7 @@ namespace Book
 			// depth手読みの評価値とPV(最善応手列)を取得。
 			// 内部的にはLearner::search()を呼び出す。
 			// Learner::search()は、現在のOptions["MultiPV"]の値に従い、MultiPVで思考することが保証されている。
-			search(pos, search_depth);
+			Learner::search(pos, search_depth);
 
 			// MultiPVで局面を足す、的な
 

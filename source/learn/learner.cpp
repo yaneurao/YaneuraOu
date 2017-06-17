@@ -106,10 +106,6 @@ T operator -= (std::atomic<T>& x, const T rhs) { return x += -rhs; }
 
 namespace Learner
 {
-// いまのところ、やねうら王2017Early/王手将棋しか、このスタブを持っていない。
-typedef std::pair<Value, std::vector<Move> > ValueAndPV;
-extern ValueAndPV qsearch(Position& pos);
-extern ValueAndPV  search(Position& pos, int depth);
 
 // -----------------------------------
 //    局面のファイルへの書き出し
@@ -404,7 +400,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				int depth = search_depth + (int)rand(search_depth2 - search_depth + 1);
 
-				auto pv_value1 = Learner::search(pos, depth);
+				auto pv_value1 = search(pos, depth);
 
 				auto value1 = pv_value1.first;
 				auto& pv1 = pv_value1.second;
@@ -532,7 +528,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// depth 0の場合、pvが得られていないのでdepth 2で探索しなおす。
 				if (search_depth <= 0)
 				{
-					pv_value1 = Learner::search(pos, 2);
+					pv_value1 = search(pos, 2);
 					pv1 = pv_value1.second;
 				}
 
@@ -1160,50 +1156,6 @@ protected:
 	std::unordered_set<Key> sfen_for_mse_hash;
 };
 
-// idle時間にtaskを処理する仕組み。
-// masterは好きなときにpush_task_async()でtaskを渡す。
-// slaveは暇なときにon_idle()を実行すると、taskを一つ取り出してqueueがなくなるまで実行を続ける。
-struct TaskDispatcher
-{
-	typedef function<void(size_t /* thread_id */)> Task;
-
-	// slaveはidle中にこの関数を呼び出す。
-	void on_idle(size_t thread_id)
-	{
-		Task task;
-		while ((task = get_task_async()) != nullptr)
-			task(thread_id);
-
-		sleep(1);
-	}
-
-	// [ASYNC] taskを一つ積む。
-	void push_task_async(Task task)
-	{
-		std::unique_lock<Mutex> lk(task_mutex);
-		tasks.push_back(task);
-	}
-
-protected:
-	// taskの集合
-	std::vector<Task> tasks;
-
-	// [ASYNC] taskを一つ取り出す。on_idle()から呼び出される。
-	Task get_task_async()
-	{
-		std::unique_lock<Mutex> lk(task_mutex);
-		if (tasks.size() == 0)
-			return nullptr;
-		Task task = *tasks.rbegin();
-		tasks.pop_back();
-		return task;
-	}
-
-	// tasksにアクセスするとき用のmutex
-	Mutex task_mutex;
-};
-
-
 // 複数スレッドでsfenを生成するためのクラス
 struct LearnerThink: public MultiThink
 {
@@ -1285,6 +1237,8 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	// 局面の探索をするtaskを生成して各スレッドに振ってやる。
 	for (auto& ps : sr.sfen_for_mse)
 	{
+		// TaskDispatcherを用いて各スレッドに作業を振る。
+		// そのためのタスクの定義。
 		auto task = [&](size_t thread_id)
 		{
 			// これ、C++ではループごとに新たなpsのインスタンスをちゃんとcaptureするのだろうか..
@@ -1298,7 +1252,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			// evaluate()の値を用いても良いのだが、ロスを計算するときにlearn_cross_entropyと
 			// 値が比較しにくくて困るのでqsearch()を用いる。
 			// EvalHashは事前に無効化してある。(そうしないと毎回同じ値が返ってしまう)
-			auto r = Learner::qsearch(pos);
+			auto r = qsearch(pos);
 			auto shallow_value = r.first;
 
 			// 深い探索の評価値
@@ -1333,6 +1287,8 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			// こなしたのでタスク一つ減る
 			--task_count;
 		};
+
+		// 定義したタスクをslaveに投げる。
 		task_dispatcher.push_task_async(task);
 	}
 
@@ -1495,7 +1451,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 		//		cout << pos << value << endl;
 
 		// 浅い探索(qsearch)の評価値
-		auto r = Learner::qsearch(pos);
+		auto r = qsearch(pos);
 
 #if !defined(LEARN_USE_LEAF_EVAL)		
 		auto shallow_value = r.first;

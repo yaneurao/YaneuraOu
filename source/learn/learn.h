@@ -219,6 +219,16 @@ namespace Learner
 
 		// 32 + 2 + 2 + 2 + 1 + 1 = 40bytes
 	};
+
+	// 読み筋とそのときの評価値を返す型
+	// Learner::search() , Learner::qsearch()で用いる。
+	typedef std::pair<Value, std::vector<Move> > ValueAndPV;
+
+	// いまのところ、やねうら王2017Earlyしか、このスタブを持っていないが
+	// EVAL_LEARNをdefineするなら、このスタブが必須。
+	extern Learner::ValueAndPV  search(Position& pos, int depth);
+	extern Learner::ValueAndPV qsearch(Position& pos);
+
 }
 
 #endif
