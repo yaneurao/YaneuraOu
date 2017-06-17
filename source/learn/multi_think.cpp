@@ -56,7 +56,7 @@ void MultiThink::go_think()
 	};
 
 	// コールバック関数が設定されているならコールバックする。
-	auto do_callback = [&]()
+	auto do_a_callback = [&]()
 	{
 		if (callback_func)
 			callback_func();
@@ -74,14 +74,14 @@ void MultiThink::go_think()
 		// callback_secondsごとにcallback_func()が呼び出される。
 		if (++i == callback_seconds)
 		{
-			do_callback();
+			do_a_callback();
 			i = 0;
 		}
 	}
 
 	// 最後の保存。
 	std::cout << std::endl << "finalize..";
-	do_callback();
+	do_a_callback();
 
 	// 終了したフラグは立っているがスレッドの終了コードの実行中であるということはありうるので
 	// join()でその終了を待つ必要がある。
