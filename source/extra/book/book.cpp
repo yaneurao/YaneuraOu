@@ -211,7 +211,7 @@ namespace Book
 			typedef pair<string, Color> SfenAndColor;
 			vector<SfenAndColor> sfens;
 			
-			if (bw_files)
+			if (! bw_files)
 			{
 				vector<string> tmp_sfens;
 				read_all_lines(sfen_file_name[0], tmp_sfens);
@@ -298,7 +298,7 @@ namespace Book
 				// 1) color == COLOR_NB (希望する手番なし)のとき
 				// 2) この局面の手番が、希望する手番の局面のとき
 				// に限る。
-				auto append_to_sf = [&sf,pos,&color]()
+				auto append_to_sf = [&sf,&pos,&color]()
 				{
 					sf.push_back(SfenAndBool(pos.sfen(),
 						/* is_valid = */ color == COLOR_NB || color == pos.side_to_move()));
