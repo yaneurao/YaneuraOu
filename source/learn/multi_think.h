@@ -110,6 +110,12 @@ struct TaskDispatcher
 		tasks.push_back(task);
 	}
 
+	// task用の配列の要素をsize分だけ事前に確保する。
+	void task_reserve(size_t size)
+	{
+		tasks.reserve(size);
+	}
+
 protected:
 	// taskの集合
 	std::vector<Task> tasks;

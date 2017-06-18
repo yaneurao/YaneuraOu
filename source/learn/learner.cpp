@@ -230,7 +230,7 @@ struct SfenWriter
 					sfen_write_count += ptr->size();
 
 					// 棋譜を書き出すごとに'.'を出力。
-					cout << ".";
+					std::cout << ".";
 
 					// 40回×GEN_SFENS_TIMESTAMP_OUTPUT_INTERVALごとに処理した局面数を出力
 					if ((++time_stamp_count % (u64(40) * GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL)) == 0)
@@ -1225,7 +1225,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	// 平手の初期局面のeval()の値を表示させて、揺れを見る。
 	auto& pos = Threads[thread_id]->rootPos;
 	pos.set_hirate();
-	cout << "hirate eval = " << Eval::evaluate(pos);
+	std::cout << "hirate eval = " << Eval::evaluate(pos);
 
 	// ここ、並列化したほうが良いのだがslaveの前の探索が終わってなかったりしてちょっと面倒。
 	// taskを呼び出すための仕組みを作ったのでそれを用いる。
@@ -1233,17 +1233,18 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	// こなすべきtaskの数。
 	atomic<int> task_count;
 	task_count = (int)sr.sfen_for_mse.size();
+	task_dispatcher.task_reserve(task_count);
 
 	// 局面の探索をするtaskを生成して各スレッドに振ってやる。
-	for (auto& ps : sr.sfen_for_mse)
+	for (const auto& ps : sr.sfen_for_mse)
 	{
 		// TaskDispatcherを用いて各スレッドに作業を振る。
 		// そのためのタスクの定義。
 		auto task = [&](size_t thread_id)
 		{
-			// これ、C++ではループごとに新たなpsのインスタンスをちゃんとcaptureするのだろうか..
+			// これ、C++ではループごとに新たなpsのインスタンスをちゃんとcaptureするのだろうか.. →　するようだ。
 			auto th = Threads[thread_id];
-			auto pos = th->rootPos;
+			auto& pos = th->rootPos;
 
 			pos.set_from_packed_sfen(ps.sfen);
 			pos.set_this_thread(th);
