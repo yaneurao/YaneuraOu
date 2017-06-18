@@ -332,8 +332,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 		// a_psvに積まれている局面をファイルに書き出す。
 		// lastTurnIsWin : a_psvに積まれている最終局面の次の局面での勝敗
-		// 引き分けのときは0。勝ちのときは1。負けのときは-1を渡す。
-		// 返し値 : もう書き出せないので終了する場合にtrue。
+		// 勝ちのときは1。負けのときは-1。引き分けのときは0を渡す。
+		// 返し値 : もう規定局面数に達したので終了する場合にtrue。
 		auto flush_psv = [&](s8 lastTurnIsWin)
 		{
 			s8 isWin = lastTurnIsWin;
@@ -371,10 +371,12 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			// 長手数に達したのか
 			if (ply >= MAX_PLY2)
 			{
+#if defined (LEARN_GENSFEN_DRAW_RESULT)
 				// 勝敗 = 引き分けとして書き出す。
 				// こうしたほうが自分が入玉したときに、相手の入玉を許しにくい(かも)
 				if (flush_psv(0))
 					goto FINALIZE;
+#endif
 				break;
 			}
 
@@ -438,9 +440,11 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				auto draw_type = pos.is_repetition();
 				if (draw_type == REPETITION_DRAW)
 				{
+#if defined	(LEARN_GENSFEN_DRAW_RESULT)
 					// 千日手局面も引き分けとして書き出す。
 					if (flush_psv(0))
 						goto FINALIZE;
+#endif
 					break;
 				}
 
