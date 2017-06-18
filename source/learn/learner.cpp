@@ -332,17 +332,19 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 		// a_psvに積まれている局面をファイルに書き出す。
 		// lastTurnIsWin : a_psvに積まれている最終局面の次の局面での勝敗
+		// 引き分けのときは0。勝ちのときは1。負けのときは-1を渡す。
 		// 返し値 : もう書き出せないので終了する場合にtrue。
-		auto flush_psv = [&](bool lastTurnIsWin)
+		auto flush_psv = [&](s8 lastTurnIsWin)
 		{
-			bool isWin = lastTurnIsWin;
+			s8 isWin = lastTurnIsWin;
 
 			// 終局の局面(の一つ前)から初手に向けて、各局面に関して、対局の勝敗の情報を付与しておく。
 			// a_psvに保存されている局面は(手番的に)連続しているものとする。
 			for (auto it = a_psv.rbegin(); it != a_psv.rend(); ++it)
 			{
-				isWin = !isWin;
-				it->isWin = isWin;
+				// isWin == 0(引き分け)なら -1を掛けても 0(引き分け)のまま
+				isWin = - isWin;
+				it->game_result = isWin;
 
 				// 局面を書き出そうと思ったら規定回数に達していた。
 				// get_next_loop_count()内でカウンターを加算するので
@@ -364,8 +366,18 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 
 		// ply : 初期局面からの手数
-		for (int ply = 0; ply < MAX_PLY2 ; ++ply)
+		for (int ply = 0; ; ++ply)
 		{
+			// 長手数に達したのか
+			if (ply >= MAX_PLY2)
+			{
+				// 勝敗 = 引き分けとして書き出す。
+				// こうしたほうが自分が入玉したときに、相手の入玉を許しにくい(かも)
+				if (flush_psv(0))
+					goto FINALIZE;
+				break;
+			}
+
 			// 定跡を使用するのか？
 			if (pos.game_ply() <= book_ply)
 			{
@@ -417,18 +429,18 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 //					sync_cout << pos << "eval limit = " << eval_limit << " over , move = " << pv1[0] << sync_endl;
 
 					// この局面でvalue1 >= eval_limitならば、(この局面の手番側の)勝ちである。
-					if (flush_psv(value1 >= eval_limit))
+					if (flush_psv((value1 >= eval_limit)) ? 1 : -1)
 						goto FINALIZE;
 					break;
 				}
 
 				// 何らかの千日手局面に突入したので局面生成を終了する。
 				auto draw_type = pos.is_repetition();
-				if (draw_type != REPETITION_NONE)
+				if (draw_type == REPETITION_DRAW)
 				{
-					// 引き分けのときは、局面を書き出さない。
-					// (勝敗情報が書き出せないため。)
-//					sync_cout << pos << "repetition , move = " << pv1[0] << sync_endl;
+					// 千日手局面も引き分けとして書き出す。
+					if (flush_psv(0))
+						goto FINALIZE;
 					break;
 				}
 
@@ -822,7 +834,6 @@ double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 // learnコマンドでこの値を設定できる。
 double ELMO_LAMBDA = 0.33; // elmoの定数(0.5)相当
 
-// isWin : この手番側が最終的に勝利したかどうか
 double calc_grad(Value deep, Value shallow , const PackedSfenValue& psv)
 {
 	// elmo(WCSC27)方式
@@ -831,8 +842,9 @@ double calc_grad(Value deep, Value shallow , const PackedSfenValue& psv)
 	const double eval_winrate = winning_percentage(shallow);
 	const double teacher_winrate = winning_percentage(deep);
 
-	// 期待勝率を勝っていれば1、負けていれば 0として補正項として用いる。
-	const double t = (psv.isWin) ? 1.0 : 0.0;
+	// 期待勝率を勝っていれば1、負けていれば 0、引き分けなら0.5として補正項として用いる。
+	// game_result = 1,0,-1なので1足して2で割る。
+	const double t = double(psv.game_result + 1) / 2;
 
 	// 実際の勝率を補正項として使っている。
 	// これがelmo(WCSC27)のアイデアで、現代のオーパーツ。
@@ -848,7 +860,7 @@ void calc_cross_entropy(Value deep, Value shallow, const PackedSfenValue& psv,
 {
 	const double p /* teacher_winrate */ = winning_percentage(deep);
 	const double q /* eval_winrate    */ = winning_percentage(shallow);
-	const double t = (psv.isWin) ? 1.0 : 0.0;
+	const double t = double(psv.game_result + 1) / 2;
 
 	constexpr double epsilon = 0.000001;
 	cross_entropy_eval = ELMO_LAMBDA *
@@ -862,7 +874,6 @@ void calc_cross_entropy(Value deep, Value shallow, const PackedSfenValue& psv,
 
 #if defined( LOSS_FUNCTION_IS_YANE_ELMO_METHOD )
 
-// isWin : この手番側が最終的に勝利したかどうか
 double calc_grad(Value deep, Value shallow, PackedSfenValue& psv)
 {
 	// elmo(WCSC27)方式
@@ -872,7 +883,7 @@ double calc_grad(Value deep, Value shallow, PackedSfenValue& psv)
 	const double teacher_winrate = winning_percentage(deep);
 
 	// 期待勝率を勝っていれば1、負けていれば 0として補正項として用いる。
-	const double t = (psv.isWin) ? 1.0 : 0.0;
+	const double t = double(psv.game_result + 1) / 2;
 
 	// gamePly == 0なら  λ = 0.8ぐらい。(勝敗の影響を小さめにする)
 	// gamePly == ∞なら λ = 0.4ぐらい。(元のelmo式ぐらいの値になる)
