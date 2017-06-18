@@ -431,7 +431,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 //					sync_cout << pos << "eval limit = " << eval_limit << " over , move = " << pv1[0] << sync_endl;
 
 					// この局面でvalue1 >= eval_limitならば、(この局面の手番側の)勝ちである。
-					if (flush_psv((value1 >= eval_limit)) ? 1 : -1)
+					if (flush_psv((value1 >= eval_limit) ? 1 : -1))
 						goto FINALIZE;
 					break;
 				}
@@ -1327,12 +1327,9 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 #endif
 
 #if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
-	// test_cross_entropyは、対象局面でevaluate()を呼び出して、lossを計算しているが、
-	// learn_cross_entropyは、qsearch()を呼び出して、lossを計算している。
-	// なので、微妙に値が異なるが、まあ、lossは学習の成否のためには
-	// 下がっていることだけ確認できれば良いので、こういう実装にしてある。
-	// (現状、test_cross_entropyを求めるときに並列化してなくて、ここの時間がもったいなかったため)
-	// 気が向いたら修正する。
+
+	// learn_cross_entropyは、機械学習の世界ではtrain cross entropyと呼ぶべきかも知れないが、
+	// 頭文字を略するときに、lceと書いて、test cross entropy(tce)と区別出来たほうが嬉しいのでこうしてある。
 
 	cout
 		<< " , test_cross_entropy_eval = "  << test_sum_cross_entropy_eval / (sr.sfen_for_mse.size() + epsilon)

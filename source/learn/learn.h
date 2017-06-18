@@ -153,7 +153,7 @@ typedef float LearnFloatType;
 
 // 引き分けに至ったとき、それを教師局面として書き出す
 // これをするほうが良いかどうかは微妙。
-#define LEARN_GENSFEN_DRAW_RESULT
+// #define LEARN_GENSFEN_DRAW_RESULT
 
 
 // ======================
