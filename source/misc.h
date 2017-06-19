@@ -48,7 +48,13 @@ extern void start_logger(bool b);
 // ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。
 extern int read_all_lines(std::string filename, std::vector<std::string>& lines);
 
+// C++のfstreamでは一発で2GB以上のファイルの読み書きが出来ないのでそのためのwrapper
+// callback_funcは、ファイルがオープン出来た時点でそのファイルサイズを引数として
+// callbackされるので、バッファを確保して、その先頭ポインタを返す関数を渡すと、そこに読み込んでくれる。
+// これらの関数は、ファイルが見つからないときなどエラーの際には非0を返す。
 
+extern int read_file_to_memory(std::string filename, std::function<void*(u64)> callback_func);
+extern int write_memory_to_file(std::string filename, void *ptr, u64 size);
 
 // --------------------
 //  統計情報

@@ -1589,7 +1589,7 @@ void LearnerThink::save()
 }
 
 // 教師局面のシャッフル "learn shuffle"コマンドの下請け。
-void shuffle_files(vector<string> filenames)
+void shuffle_files(const vector<string>& filenames)
 {
 	// 出力先のフォルダは
 	// tmp/               一時書き出し用
@@ -1693,6 +1693,40 @@ void shuffle_files(vector<string> filenames)
 	cout << "done!" << endl;
 }
 
+// 教師局面のシャッフル "learn shufflem"コマンドの下請け。
+// メモリに丸読みして指定ファイル名で書き出す。
+void shuffle_files_on_memory(const vector<string>& filenames,const string output_file_name)
+{
+	std::vector<PackedSfenValue> buf;
+
+	for (auto filename : filenames)
+	{
+		std::cout << "read : " << filename << std::endl;
+		read_file_to_memory(filename, [&buf](u64 size) {
+			ASSERT_LV1((size % sizeof(PackedSfenValue)) == 0);
+			// バッファを拡充して、前回の末尾以降に読み込む。
+			u64 last = buf.size();
+			buf.resize(last + size / sizeof(PackedSfenValue));
+			return (void*)&buf[last];
+		});
+	}
+
+	// buf[0]～buf[size-1]までをshuffle
+	PRNG prng;
+	u64 size = buf.size();
+	std::cout << "shuffle buf.size() = " << size << std::endl;
+	for (u64 i = 0; i < size; ++i)
+		swap(buf[i], buf[(u64)(prng.rand(size - i) + i)]);
+
+	std::cout << "write : " << output_file_name << endl;
+
+	// 書き出すファイルが2GBを超えるとfstream::write一発では書き出せないのでwrapperを用いる。
+	write_memory_to_file(output_file_name, (void*)&buf[0], (u64)sizeof(PackedSfenValue)*(u64)buf.size());
+
+	std::cout << "..shuffle_on_memory done." << std::endl;
+}
+
+
 // 生成した棋譜からの学習
 void learn(Position&, istringstream& is)
 {
@@ -1727,6 +1761,9 @@ void learn(Position&, istringstream& is)
 
 	// 教師局面をシャッフルするだけの機能
 	bool shuffle = false;
+	// メモリにファイルを丸読みしてシャッフルする機能。(要、ファイルサイズのメモリ)
+	bool shuffle_on_memory = false;
+	string output_file_name = "";
 
 	// ファイル名が後ろにずらずらと書かれていると仮定している。
 	while (true)
@@ -1765,7 +1802,8 @@ void learn(Position&, istringstream& is)
 		else if (option == "lambda")    is >> ELMO_LAMBDA;
 #endif
 		else if (option == "shuffle")	shuffle = true;
-
+		else if (option == "shufflem")  shuffle_on_memory = true;
+		else if (option == "output_file_name") is >> output_file_name;
 
 		// さもなくば、それはファイル名である。
 		else
@@ -1837,6 +1875,13 @@ void learn(Position&, istringstream& is)
 		shuffle_files(filenames);
 		return;
 	}
+	if (shuffle_on_memory)
+	{
+		cout << "shuffle on memory.." << endl;
+		shuffle_files_on_memory(filenames,output_file_name);
+		return;
+	}
+
 
 	cout << "loop            : " << loop << endl;
 

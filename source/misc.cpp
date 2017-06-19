@@ -219,6 +219,63 @@ int read_all_lines(std::string filename, std::vector<std::string>& lines)
 	return 0;
 }
 
+int read_file_to_memory(std::string filename, std::function<void*(u64)> callback_func)
+{
+	fstream fs(filename, ios::in | ios::binary);
+	if (fs.fail())
+		return 1;
+
+	fs.seekg(0, fstream::end);
+	u64 eofPos = (u64)fs.tellg();
+	fs.clear(); // これをしないと次のseekに失敗することがある。
+	fs.seekg(0, fstream::beg);
+	u64 begPos = (u64)fs.tellg();
+	u64 file_size = eofPos - begPos;
+	//std::cout << " file_size = " << file_size << endl;
+
+	// ファイルサイズがわかったのでcallback_funcを呼び出してこの分のバッファを確保してもらい、
+	// そのポインターをもらう。
+	void* ptr = callback_func(file_size);
+
+	// 細切れに読み込む
+
+	const u64 block_size = 1024*1024*1024; // 1回のreadで読み込む要素の数(1GB)
+	for (u64 pos = 0; pos < file_size; pos += block_size)
+	{
+		// 今回読み込むサイズ
+		u64 read_size = (pos + block_size < file_size) ? block_size : (file_size - pos);
+		fs.read((char*)ptr + pos, read_size);
+
+		// ファイルの途中で読み込みエラーに至った。
+		if (fs.fail())
+			return 2;
+
+		//cout << ".";
+	}
+	fs.close();
+
+	return 0;
+}
+
+
+int write_memory_to_file(std::string filename, void *ptr, u64 size)
+{
+	fstream fs(filename, ios::out | ios::binary);
+	if (fs.fail())
+		return 1;
+
+	const u64 block_size = 1024*1024*1024; // 1回のwriteで書き出す要素の数(1GB)
+	for (u64 pos = 0; pos < size ; pos += block_size)
+	{
+		// 今回書き出すメモリサイズ
+		u64 write_size = (pos + block_size < size) ? block_size : (size - pos);
+		fs.write((char*)ptr + pos, write_size);
+		//cout << ".";
+	}
+	fs.close();
+	return 0;
+}
+
 // --------------------
 //       Math
 // --------------------
