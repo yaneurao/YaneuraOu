@@ -249,10 +249,19 @@ set option name XXX value ...で設定できるoption
 		このフォルダ配下にフォルダを"0/","1/",…のように自動的に掘り、そこに評価関数ファイルを保存する。
 
 	教師局面のシャッフル
-	learn basedir BASE_DIR targetdir TARGET_DIR shuffle
-		basedir BASE_DIR と targetdir TARGET_DIR とは省略できる。
-		tmp/
-		というフォルダに一時ファイルが書き出され、最終的に
-		shuffled_sfen.bin
-		がカレントフォルダに書き出される。
+		learn shuffle basedir BASE_DIR targetdir TARGET_DIR
+			basedir BASE_DIR と targetdir TARGET_DIR とは省略できる。
+			targetdirを省略してファイル名をそのあとに並べることも出来る。
+			tmp/
+			というフォルダに一時ファイルが書き出され、最終的に
+			shuffled_sfen.bin
+			がカレントフォルダに書き出される。
 
+			備考)
+			手抜き実装なのでシャッフル対象である局面数が、10M(1千万)の倍数でないと少し偏りが出る。(実用上は、問題ないはず)
+			また、生成するときに5千万局面とか1億局面とか10Mの倍数で生成することが多いと思うので、まあいいかなと。
+
+		learn shufflem basedir BASE_DIR targetdir TARGET_DIR output_file_name OUTPUT_FILE_NAME 
+			メモリに丸読みしてシャッフルして指定ファイル名で書き出す。
+			basedir BASE_DIR と targetdir TARGET_DIR とは省略できる。
+			targetdirを省略してファイル名をそのあとに並べることも出来る。

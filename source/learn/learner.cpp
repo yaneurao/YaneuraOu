@@ -436,7 +436,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					break;
 				}
 
-				// 何らかの千日手局面に突入したので局面生成を終了する。
+				// 普通の千日手局面に突入したので局面生成を終了する。
 				auto draw_type = pos.is_repetition();
 				if (draw_type == REPETITION_DRAW)
 				{
@@ -1687,6 +1687,9 @@ void shuffle_files(const vector<string>& filenames)
 		else
 			// 読み込む要素がなくなったのならafsから除外していく。
 			afs.erase(afs.begin() + n);
+
+		// この実装、読み込む局面数が10Mの倍数でないと、afsの最後のやつが10Mより小さいので
+		// この部分で偏りが出るが…実用上問題ないので良しとする。
 	}
 	print_status();
 	fs.close();
