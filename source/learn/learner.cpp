@@ -380,6 +380,24 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				break;
 			}
 
+			// 全駒されて詰んでいたりしないか？
+			if (pos.is_mated())
+			{
+				// (この局面の一つ前の局面までは書き出す)
+				if (flush_psv(-1))
+					goto FINALIZE;
+				break;
+			}
+
+			// 宣言勝ち
+			if (pos.DeclarationWin() != MOVE_NONE)
+			{
+				// (この局面の一つ前の局面までは書き出す)
+				if (flush_psv(1))
+					goto FINALIZE;
+				break;
+			}
+
 			// 定跡を使用するのか？
 			if (pos.game_ply() <= book_ply)
 			{
@@ -1455,6 +1473,12 @@ void LearnerThink::thread_worker(size_t thread_id)
 				goto RetryRead;
 			sr.hash[hash_index] = key; // 今回のkeyに入れ替えておく。
 		}
+
+		// 全駒されて詰んでいる可能性がある。
+		// また宣言勝ちの局面はPVの指し手でleafに行けないので学習から除外しておく。
+		// (教師局面、書き出すべきではないのだが古い生成ルーチンで書き出しているかも知れないので)
+		if (pos.is_mated() || pos.DeclarationWin() != MOVE_NONE)
+			goto RetryRead;
 
 		// Learner::search()を呼ぶときは、set_this_thread()しておく必要がある。
 		auto th = Threads[thread_id];
