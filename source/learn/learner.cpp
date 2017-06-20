@@ -870,9 +870,9 @@ double calc_grad(Value deep, Value shallow , const PackedSfenValue& psv)
 
 	// 実際の勝率を補正項として使っている。
 	// これがelmo(WCSC27)のアイデアで、現代のオーパーツ。
-	const double dsig = (1 - ELMO_LAMBDA) * (eval_winrate - t) + ELMO_LAMBDA * (eval_winrate - teacher_winrate);
+	const double grad = (1 - ELMO_LAMBDA) * (eval_winrate - t) + ELMO_LAMBDA * (eval_winrate - teacher_winrate);
 
-	return dsig;
+	return grad;
 }
 
 // 学習時の交差エントロピーの計算
@@ -911,9 +911,9 @@ double calc_grad(Value deep, Value shallow, PackedSfenValue& psv)
 	// gamePly == ∞なら λ = 0.4ぐらい。(元のelmo式ぐらいの値になる)
 	const double LAMBDA = 0.8 - (0.8-0.4)*(double)std::min((int)psv.gamePly, 100)/100.0;
 
-	const double dsig = (1 - LAMBDA) * (eval_winrate - t) + LAMBDA * (eval_winrate - teacher_winrate);
+	const double grad = (1 - LAMBDA) * (eval_winrate - t) + LAMBDA * (eval_winrate - teacher_winrate);
 
-	return dsig;
+	return grad;
 }
 #endif
 
@@ -1294,13 +1294,13 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 
 			// --- 誤差の計算
 
-			auto dsig = calc_grad(deep_value, shallow_value, ps);
+			auto grad = calc_grad(deep_value, shallow_value, ps);
 
 #if !defined(LOSS_FUNCTION_IS_ELMO_METHOD)
 			// rmse的なもの
-			sum_error += dsig*dsig;
+			sum_error += grad*grad;
 			// 勾配の絶対値を足したもの
-			sum_error2 += abs(dsig);
+			sum_error2 += abs(grad);
 			// 評価値の差の絶対値を足したもの
 			sum_error3 += abs(shallow_value - deep_value);
 #endif
@@ -1643,6 +1643,9 @@ void shuffle_files(const vector<string>& filenames)
 		return "tmp/" + to_string(i) + ".bin";
 	};
 
+	// 書き出したtmp/フォルダのファイル、それぞれに格納されている教師局面の数
+	vector<u64> a_count;
+
 	auto write_buffer = [&](u64 size)
 	{
 		// buf[0]～buf[size-1]までをshuffle
@@ -1654,6 +1657,7 @@ void shuffle_files(const vector<string>& filenames)
 		fs.open(make_filename(write_file_count++), ios::out | ios::binary);
 		fs.write((char*)&buf[0], size * sizeof(PackedSfenValue));
 		fs.close();
+		a_count.push_back(size);
 
 		read_sfen_count += size;
 
@@ -1697,9 +1701,30 @@ void shuffle_files(const vector<string>& filenames)
 	};
 
 	fstream fs("shuffled_sfen.bin", ios::out | ios::binary);
-	while (afs.size())
+
+	// 教師局面の合計
+	u64 sum = 0;
+	for (auto c : a_count)
+		sum += c;
+
+	while (sum != 0)
 	{
-		auto n = prng.rand(afs.size());
+		auto r = prng.rand(sum);
+
+		// fs[0]のファイルに格納されている局面 ... fs[1]のファイルに格納されている局面 ...
+		// のようにひと続きになっているものと考えて、rがどのファイルに格納されている局面を指しているかを確定させる。
+		// ファイルの中身はシャッフルされているので、そのファイルから次の要素を1つ取ってくれば良い。
+		// それぞれのファイルにはa_count[x]ずつ局面が残っているので、この処理は以下のように書ける。
+
+		u64 n = 0;
+		while (a_count[n] <= r)
+			r -= a_count[n++];
+
+		// これでnが確定した。忘れないうちに残り件数を減らしておく。
+
+		--a_count[n];
+		--sum;
+
 		PackedSfenValue psv;
 		// これ、パフォーマンスあんまりよくないまでまとめて読み書きしたほうが良いのだが…。
 		if (afs[n].read((char*)&psv, sizeof(PackedSfenValue)))
@@ -1708,12 +1733,6 @@ void shuffle_files(const vector<string>& filenames)
 			++write_sfen_count;
 			print_status();
 		}
-		else
-			// 読み込む要素がなくなったのならafsから除外していく。
-			afs.erase(afs.begin() + n);
-
-		// この実装、読み込む局面数が10Mの倍数でないと、afsの最後のやつが10Mより小さいので
-		// この部分で偏りが出るが…実用上問題ないので良しとする。
 	}
 	print_status();
 	fs.close();
