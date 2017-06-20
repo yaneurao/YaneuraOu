@@ -1859,7 +1859,7 @@ void learn(Position&, istringstream& is)
 	cout << "learn command , ";
 
 	// OpenMP無効なら警告を出すように。
-#ifndef _OPENMP
+#if !defined(_OPENMP)
 	cout << "Warning! OpenMP disabled." << endl;
 #endif
 

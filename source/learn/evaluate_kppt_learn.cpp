@@ -174,7 +174,8 @@ namespace Eval
 #endif
 
 #pragma omp for schedule(dynamic,1000)
-			for (u64 index = 0; index < vector_length; ++index)
+			// OpenMPではループ変数は符号型変数でなければならない。
+			for (s64 index = 0; index < (s64)vector_length; ++index)
 			{
 				// 自分が更新すべきやつか？
 				// 次元下げしたときのindexの小さいほうが自分でないならこの更新は行わない。
@@ -196,7 +197,7 @@ namespace Eval
 					x.toLowerDimensions(/*out*/a);
 
 					// a[0] == indexであることは保証されている。
-					u64 ids[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
+					u64 ids[2] = { /*a[0].toIndex()*/ (u64)index , a[1].toIndex() };
 
 					// 勾配を合計して、とりあえずa[0]に格納し、
 					// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す。
@@ -234,7 +235,7 @@ namespace Eval
 					// 3角配列を用いる場合、次元下げは2つ。
 					KPP a[2];
 					x.toLowerDimensions(/*out*/a);
-					u64 ids[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
+					u64 ids[2] = { /*a[0].toIndex()*/ (u64)index , a[1].toIndex() };
 #endif
 					array<LearnFloatType, 2> g_sum = { 0,0 };
 					for (auto id : ids)

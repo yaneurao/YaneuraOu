@@ -47,7 +47,7 @@ namespace EvalLearningTools
 		min_index_flag.resize(size);
 
 #pragma omp parallel for schedule(guided)
-		for (u64 index = 0; index < size; ++index)
+		for (s64 index = 0; index < (s64)size; ++index)
 		{
 			if (KK::is_ok(index))
 			{
