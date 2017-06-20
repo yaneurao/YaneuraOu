@@ -454,15 +454,30 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					break;
 				}
 
-				// 普通の千日手局面に突入したので局面生成を終了する。
+				// 各千日手に応じた処理。
+
+				s8 is_win = 0;
+				bool game_end = false;
 				auto draw_type = pos.is_repetition();
-				if (draw_type == REPETITION_DRAW)
+				switch (draw_type)
 				{
-#if defined	(LEARN_GENSFEN_DRAW_RESULT)
-					// 千日手局面も引き分けとして書き出す。
-					if (flush_psv(0))
-						goto FINALIZE;
+				case REPETITION_WIN      : is_win =  1; game_end = true; break;
+				case REPETITION_DRAW     : is_win =  0; game_end = true; break;
+				case REPETITION_LOSE     : is_win = -1; game_end = true; break;
+				case REPETITION_SUPERIOR : break;
+				case REPETITION_INFERIOR : break;
+				case REPETITION_NONE     : break;
+				}
+
+				if (game_end)
+				{
+#if !defined	(LEARN_GENSFEN_DRAW_RESULT)
+					// 引き分けは書き出さない。
+					if (is_win == 0)
+						break;
 #endif
+					if (flush_psv(is_win))
+						goto FINALIZE;
 					break;
 				}
 
@@ -1459,7 +1474,13 @@ void LearnerThink::thread_worker(size_t thread_id)
 		pos.set(sfen);
 #endif
 		// ↑sfenを経由すると遅いので専用の関数を作った。
-		pos.set_from_packed_sfen(ps.sfen);
+		if (pos.set_from_packed_sfen(ps.sfen) != 0)
+		{
+			// 変なsfenを掴かまされた。デバッグすべき！
+			// 不正なsfenなのでpos.sfen()で表示できるとは限らないが、しないよりマシ。
+			cout << "illigal packed sfen = " << pos.sfen() << endl;
+			goto RetryRead;
+		}
 		{
 			auto key = pos.key();
 			// rmseの計算用に使っている局面なら除外する。

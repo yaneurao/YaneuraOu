@@ -341,7 +341,8 @@ struct SfenPacker
 
 // 高速化のために直接unpackする関数を追加。かなりしんどい。
 // packer::unpack()とPosition::set()とを合体させて書く。
-void Position::set_from_packed_sfen(const PackedSfen& sfen)
+// 渡された局面に問題があって、エラーのときは非0を返す。
+int Position::set_from_packed_sfen(const PackedSfen& sfen)
 {
 	SfenPacker packer;
 	auto& stream = packer.stream;
@@ -360,9 +361,6 @@ void Position::set_from_packed_sfen(const PackedSfen& sfen)
 
 	evalList.clear();
 
-	// 先手玉のいない詰将棋とか、駒落ちに対応させるために、存在しない駒はすべてBONA_PIECE_ZEROにいることにする。
-	for (PieceNo pn = PIECE_NO_ZERO; pn < PIECE_NO_NB; ++pn)
-		evalList.put_piece(pn, SQ_ZERO, QUEEN); // QUEEN(金成り)はないのでこれでBONA_PIECE_ZEROとなる。
 #endif
 	kingSquare[BLACK] = kingSquare[WHITE] = SQ_NB;
 
@@ -404,7 +402,9 @@ void Position::set_from_packed_sfen(const PackedSfen& sfen)
 
 		//cout << sq << ' ' << board[sq] << ' ' << stream.get_cursor() << endl;
 
-		ASSERT_LV3(stream.get_cursor() <= 256);
+		if (stream.get_cursor() > 256)
+			return 1;
+		//ASSERT_LV3(stream.get_cursor() <= 256);
 	}
 
 	// 手駒
@@ -414,7 +414,7 @@ void Position::set_from_packed_sfen(const PackedSfen& sfen)
 	int i = 0;
 	Piece lastPc = NO_PIECE;
 #endif
-	while (stream.get_cursor() != 256)
+	while (stream.get_cursor() < 256)
 	{
 		// 256になるまで手駒が格納されているはず
 		auto pc = packer.read_hand_piece_from_stream();
@@ -432,6 +432,13 @@ void Position::set_from_packed_sfen(const PackedSfen& sfen)
 		ASSERT_LV1(is_ok(piece_no));
 		evalList.put_piece(piece_no, color_of(pc), rpc, i++);
 #endif
+	}
+	if (stream.get_cursor() != 256)
+	{
+		// こんな局面はおかしい。デバッグ用。
+		//cout << "Error : set_from_packed_sfen() , position = " << endl << *this << endl;
+		//ASSERT_LV1(false);
+		return 2;
 	}
 
 	gamePly = 0;
@@ -459,6 +466,7 @@ void Position::set_from_packed_sfen(const PackedSfen& sfen)
 	//if (!is_ok(*this))
 	//	std::cout << "info string Illigal Position?" << endl;
 
+	return 0;
 }
 
 // 盤面と手駒、手番を与えて、そのsfenを返す。

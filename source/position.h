@@ -590,7 +590,8 @@ struct Position
 
 	// ↑sfenを経由すると遅いので直接packされたsfenをセットする関数を作った。
 	// pos.set(sfen_unpack(data)); と等価。
-	void set_from_packed_sfen(const PackedSfen& sfen);
+	// 渡された局面に問題があって、エラーのときは非0を返す。
+	int set_from_packed_sfen(const PackedSfen& sfen);
 
 	// 盤面と手駒、手番を与えて、そのsfenを返す。
 	static std::string sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly);
