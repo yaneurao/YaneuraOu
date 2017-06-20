@@ -1476,7 +1476,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 		// 全駒されて詰んでいる可能性がある。
 		// また宣言勝ちの局面はPVの指し手でleafに行けないので学習から除外しておく。
-		// (教師局面、書き出すべきではないのだが古い生成ルーチンで書き出しているかも知れないので)
+		// (そのような教師局面自体を書き出すべきではないのだが古い生成ルーチンで書き出しているかも知れないので)
 		if (pos.is_mated() || pos.DeclarationWin() != MOVE_NONE)
 			goto RetryRead;
 
