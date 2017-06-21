@@ -47,8 +47,12 @@ namespace EvalLearningTools
 		min_index_flag.resize(size);
 
 #pragma omp parallel for schedule(guided)
-		for (s64 index = 0; index < (s64)size; ++index)
+		for (s64 index_ = 0; index_ < (s64)size; ++index_)
 		{
+			// OpenMPの制約からループ変数は符号型でないといけないらしいのだが、
+			// さすがに使いにくい。
+			u64 index = (u64)index_;
+
 			if (KK::is_ok(index))
 			{
 				min_index_flag[index] = true;

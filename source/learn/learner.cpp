@@ -476,9 +476,10 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				case REPETITION_WIN      : is_win =  1; game_end = true; break;
 				case REPETITION_DRAW     : is_win =  0; game_end = true; break;
 				case REPETITION_LOSE     : is_win = -1; game_end = true; break;
-				case REPETITION_SUPERIOR : break;
-				case REPETITION_INFERIOR : break;
-				case REPETITION_NONE     : break;
+
+				// case REPETITION_SUPERIOR: break;
+				// case REPETITION_INFERIOR: break;
+				default: break;
 				}
 
 				if (game_end)
