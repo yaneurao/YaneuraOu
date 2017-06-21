@@ -454,6 +454,18 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					break;
 				}
 
+				// おかしな指し手の検証
+				if (pv1.size() > 0
+					&& (pv1[0] == MOVE_RESIGN|| pv1[0] == MOVE_WIN || pv1[0] == MOVE_NONE)
+					)
+				{
+					// MOVE_WINは、この手前で宣言勝ちの局面であるかチェックしているので
+					// ここで宣言勝ちの指し手が返ってくることはないはず。
+					// また、MOVE_RESIGNのときvalue1は1手詰めのスコアであり、eval_limitの最小値(-31998)のはずなのだが…。
+					cout << pos.sfen() << m << value1 << endl;
+					break;
+				}
+
 				// 各千日手に応じた処理。
 
 				s8 is_win = 0;
@@ -507,12 +519,13 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 						// NULL_MOVEはこないものとする。
 
 						// 十分にテストしたのでコメントアウトで良い。
-#if 0
+#if 1
 						// 非合法手はやってこないはずなのだが。
+						// 宣言勝ちとmated()でないことは上でテストしているので
+						// 読み筋としてMOVE_WINとMOVE_RESIGNが来ないことは保証されている。(はずだが…)
 						if (!pos.pseudo_legal(m) || !pos.legal(m))
 						{
-							cout << pos << m << endl;
-							ASSERT_LV3(false);
+							cout << pos.sfen() << m << endl;
 						}
 #endif
 						pos.do_move(m, state[ply2++]);
