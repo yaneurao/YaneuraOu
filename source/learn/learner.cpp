@@ -17,12 +17,16 @@
 #include "learn.h"
 
 // ----------------------
-// 学習時に関する、あまり大した意味のない設定項目はここ。
+// 教師局面の生成時、学習時に関する、あまり大した意味のない設定項目はここ。
 // ----------------------
 
 // タイムスタンプの出力をこの回数に一回に抑制する。
 // スレッドを論理コアの最大数まで酷使するとコンソールが詰まるので調整用。
 #define GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL 1
+
+// gensfenのときに序盤でランダムムーブを採用する。
+// これは効果があるので、常に有効で良い。
+#define USE_RANDOM_LEGAL_MOVE
 
 // 学習時にsfenファイルを1万局面読み込むごとに'.'を出力する。
 //#define DISPLAY_STATS_IN_THREAD_READ_SFENS
@@ -364,6 +368,41 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			return false;
 		};
 
+#if defined (USE_RANDOM_LEGAL_MOVE)
+		// ply手目でランダムムーブをするかどうかのフラグ
+		vector<bool> random_move_flag;
+		{
+			// ランダムムーブを入れるならrandom_move_maxply手目までに絶対にrandom_move_count回入れる。
+			// そこそこばらけて欲しい。
+			// どれくらいがベストなのかはよくわからない。色々変えて実験中。
+#if 1
+			const u64 random_move_maxply = 24;
+			u64 random_move_count = 5;
+#endif
+
+#if 0
+			const u64 random_move_maxply = 32;
+			u64 random_move_count = 10;
+#endif
+
+			// a[0] = 0 , a[1] = 1, ... みたいな配列を作って、これを
+			// Fisher-Yates shuffleして先頭のN個を取り出せば良い。
+			// 実際には、N個欲しいだけなので先頭N個分だけFisher-Yatesでshuffleすれば良い。
+
+			vector<u64> a;
+			a.reserve(random_move_maxply);
+			for (u64 i = 0; i < random_move_maxply; ++i)
+				a.push_back(i);
+
+			random_move_flag.resize(random_move_maxply);
+			for (u64 i = 0; i < random_move_count; ++i)
+			{
+				swap(a[i], a[rand(random_move_maxply - i) + i]);
+				random_move_flag[a[i]] = true;
+			}
+		}
+
+#endif
 
 		// ply : 初期局面からの手数
 		for (int ply = 0; ; ++ply)
@@ -409,7 +448,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 					const auto& move_list = it->second;
 
-					const auto& move = move_list[(size_t)rand(move_list.size())];
+					const auto& move = move_list[(size_t)rand((u64)move_list.size())];
 					auto bestMove = move.bestMove;
 					// この指し手に不成があってもLEGALであるならこの指し手で進めるべき。
 					if (pos.pseudo_legal(bestMove) && pos.legal(bestMove))
@@ -651,20 +690,14 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 		RANDOM_MOVE:;
 
-//#if defined ( USE_RANDOM_LEGAL_MOVE )
-			// これは効果があるので、常に有効で良い。
-#if 1
+#if defined ( USE_RANDOM_LEGAL_MOVE )
 
 			// 合法手のなかからランダムに1手選ぶフェーズ
-			// plyが小さいときは高い確率で。そのあとはあまり選ばれなくて良い。
-			// 24手超えてrandom moveを選ぶと角のただ捨てなどの指し手が入って終局してしまう。
-			// まあ、それは書き出さないからいいか…。
-			// 20手目までに5回ぐらいrandom moveしてくれればいいか。
-			if (ply <= 20 && rand(4) == 0)
+			if (ply < (int)random_move_flag.size() && random_move_flag[ply])
 			{
 				// mateではないので合法手が1手はあるはず…。
 				MoveList<LEGAL> list(pos);
-				m = list.at((size_t)rand(list.size()));
+				m = list.at((size_t)rand((u64)list.size()));
 
 				// 玉の2手指しのコードを入れていたが、合法手から1手選べばそれに相当するはずで
 				// コードが複雑化するだけだから不要だと判断した。
@@ -1017,7 +1050,7 @@ struct SfenReader
 
 		ps = *(thread_ps->rbegin());
 		thread_ps->pop_back();
-
+		
 		return true;
 	}
 
@@ -1117,7 +1150,7 @@ struct SfenReader
 			{
 				auto size = sfens.size();
 				for (size_t i = 0; i < size; ++i)
-					swap(sfens[i], sfens[(size_t)(prng.rand(size - i) + i)]);
+					swap(sfens[i], sfens[(size_t)(prng.rand((u64)size - i) + i)]);
 			}
 #endif
 
@@ -1247,6 +1280,9 @@ struct LearnerThink: public MultiThink
 	u64 mini_batch_size = 1000*1000;
 
 	bool stop_flag;
+
+	// 教師局面の深い探索の評価値の絶対値がこの値を超えていたらその教師局面を捨てる。
+	int eval_limit;
 
 	// --- lossの計算
 
@@ -1482,7 +1518,11 @@ void LearnerThink::thread_worker(size_t thread_id)
 			stop_flag = true;
 			break;
 		}
-		
+
+		// 評価値が学習対象の値を超えている。
+		if (eval_limit < abs(ps.score))
+			goto RetryRead;
+
 #if 0
 		auto sfen = pos.sfen_unpack(ps.data);
 		pos.set(sfen);
@@ -1794,7 +1834,7 @@ void shuffle_files_on_memory(const vector<string>& filenames,const string output
 
 	// buf[0]～buf[size-1]までをshuffle
 	PRNG prng;
-	u64 size = buf.size();
+	u64 size = (u64)buf.size();
 	std::cout << "shuffle buf.size() = " << size << std::endl;
 	for (u64 i = 0; i < size; ++i)
 		swap(buf[i], buf[(u64)(prng.rand(size - i) + i)]);
@@ -1846,6 +1886,9 @@ void learn(Position&, istringstream& is)
 	bool shuffle_on_memory = false;
 	string output_file_name = "";
 
+	// 教師局面の深い探索での評価値の絶対値が、この値を超えていたらその局面は捨てる。
+	int eval_limit = 32000;
+
 	// ファイル名が後ろにずらずらと書かれていると仮定している。
 	while (true)
 	{
@@ -1885,6 +1928,8 @@ void learn(Position&, istringstream& is)
 		else if (option == "shuffle")	shuffle = true;
 		else if (option == "shufflem")  shuffle_on_memory = true;
 		else if (option == "output_file_name") is >> output_file_name;
+
+		else if (option == "eval_limit") is >> eval_limit;
 
 		// さもなくば、それはファイル名である。
 		else
@@ -1963,8 +2008,8 @@ void learn(Position&, istringstream& is)
 		return;
 	}
 
-
 	cout << "loop            : " << loop << endl;
+	cout << "eval_lmit       : " << eval_limit << endl;
 
 	// ループ回数分だけファイル名を突っ込む。
 	for (int i = 0; i < loop; ++i)
@@ -2011,6 +2056,8 @@ void learn(Position&, istringstream& is)
 #endif
 
 	cout << "init done." << endl;
+
+	learn_think.eval_limit = eval_limit;
 
 	// 局面ファイルをバックグラウンドで読み込むスレッドを起動
 	// (これを開始しないとmseの計算が出来ない。)
