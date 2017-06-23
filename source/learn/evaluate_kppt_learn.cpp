@@ -167,7 +167,7 @@ namespace Eval
 		{
 
 #if defined(_OPENMP)
-			// Windows環境下でCPUが２fbinつあるときに、論理64コアまでしか使用されないのを防ぐために
+			// Windows環境下でCPUが２つあるときに、論理64コアまでしか使用されないのを防ぐために
 			// ここで明示的にCPUに割り当てる
 			int thread_index = omp_get_thread_num();    // 自分のthread numberを取得
 			WinProcGroup::bindThisThread(thread_index);
