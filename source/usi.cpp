@@ -558,7 +558,10 @@ void position_cmd(Position& pos, istringstream& is)
 		// 1手進めるごとにStateInfoが積まれていく。これは千日手の検出のために必要。
 		// ToDoあとで考える。
 		SetupStates->push(StateInfo());
-		pos.do_move(m, SetupStates->top());
+		if (m == MOVE_NULL) // do_move に MOVE_NULL を与えると死ぬので
+			pos.do_null_move(SetupStates->top());
+		else
+			pos.do_move(m, SetupStates->top());
 	}
 }
 
@@ -962,6 +965,10 @@ Move move_from_usi(const Position& pos, const std::string& str)
 
 	if (str == "win")
 		return MOVE_WIN;
+
+	// パス(null move)入力への対応 {UCI: "0000", GPSfish: "pass"}
+	if (str == "0000" || str == "null" || str == "pass")
+		return MOVE_NULL;
 
 	// usi文字列をmoveに変換するやつがいるがな..
 	Move move = move_from_usi(str);
