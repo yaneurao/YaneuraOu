@@ -63,7 +63,7 @@ namespace Eval
 		// 学習用配列の確保
 		u64 size = KPP::max_index();
 		weights.resize(size); // 確保できるかは知らん。確保できる環境で動かしてちょうだい。
-		memset(&weights[0], 0, sizeof(Weight) * size);
+		memset(&weights[0], 0, sizeof(Weight) * weights.size());
 
 #if defined(ADA_GRAD_UPDATE) || defined (ADA_PROP_UPDATE)
 		// 学習率の設定

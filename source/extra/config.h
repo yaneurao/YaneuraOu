@@ -524,10 +524,13 @@ extern GlobalOptions_ GlobalOptions;
 
 // DEBUGビルドでないとassertが無効化されてしまうので無効化されないASSERT
 // 故意にメモリアクセス違反を起こすコード。
-#ifndef USE_DEBUG_ASSERT
+// USE_DEBUG_ASSERTが有効なときには、ASSERTの内容を出力したあと、3秒待ってから
+// アクセス違反になるようなコードを実行する。
+#if !defined (USE_DEBUG_ASSERT)
 #define ASSERT(X) { if (!(X)) *(int*)1 =0; }
 #else
-#define ASSERT(X) { if (!(X)) { std::cout << "\nError : ASSERT(" << #X << ")\n"; *(int*)1 =0;} }
+#define ASSERT(X) { if (!(X)) { std::cout << "\nError : ASSERT(" << #X << ")" << std::endl; \
+ std::this_thread::sleep_for(std::chrono::microseconds(3000)); *(int*)1 =0;} }
 #endif
 
 // ASSERT LVに応じたassert

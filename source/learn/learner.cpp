@@ -1338,13 +1338,18 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	{
 		// TaskDispatcherを用いて各スレッドに作業を振る。
 		// そのためのタスクの定義。
-		auto task = [&](size_t thread_id)
+		// ↑で使っているposをcaptureされるとたまらんのでcaptureしたい変数は一つずつ指定しておく。
+		auto task = [&ps,&test_sum_cross_entropy_eval,&test_sum_cross_entropy_win,&task_count](size_t thread_id)
 		{
 			// これ、C++ではループごとに新たなpsのインスタンスをちゃんとcaptureするのだろうか.. →　するようだ。
 			auto th = Threads[thread_id];
 			auto& pos = th->rootPos;
 
-			pos.set_from_packed_sfen(ps.sfen);
+			if (pos.set_from_packed_sfen(ps.sfen) != 0)
+			{
+				// 運悪くrmse計算用のsfenとして、不正なsfenを引いてしまっていた。
+				cout << "Error : illegal packed sfen " << pos.sfen() << endl;
+			}
 			pos.set_this_thread(th);
 
 			// 浅い探索の評価値
@@ -1903,7 +1908,6 @@ void learn(Position&, istringstream& is)
 		{
 			is >> mini_batch_size;
 			mini_batch_size *= 10000; // 単位は万
-
 		}
 
 		// 棋譜が格納されているフォルダを指定して、根こそぎ対象とする。
