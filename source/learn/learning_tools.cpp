@@ -2,6 +2,11 @@
 
 #if defined (EVAL_LEARN)
 
+#if defined(_OPENMP)
+#include <omp.h>
+#endif
+#include "../misc.h"
+
 namespace EvalLearningTools
 {
 
@@ -46,56 +51,67 @@ namespace EvalLearningTools
 		u64 size = KPP::max_index();
 		min_index_flag.resize(size);
 
-#pragma omp parallel for schedule(guided)
-		for (s64 index_ = 0; index_ < (s64)size; ++index_)
+#pragma omp parallel
 		{
-			// OpenMPの制約からループ変数は符号型でないといけないらしいのだが、
-			// さすがに使いにくい。
-			u64 index = (u64)index_;
+#if defined(_OPENMP)
+			// Windows環境下でCPUが２fbinつあるときに、論理64コアまでしか使用されないのを防ぐために
+			// ここで明示的にCPUに割り当てる
+			int thread_index = omp_get_thread_num();    // 自分のthread numberを取得
+			WinProcGroup::bindThisThread(thread_index);
+#endif
 
-			if (KK::is_ok(index))
+#pragma omp parallel for schedule(dynamic,20000)
+
+			for (s64 index_ = 0; index_ < (s64)size; ++index_)
 			{
-				min_index_flag[index] = true;
-				// indexからの変換と逆変換によって元のindexに戻ることを確認しておく。
-				// 起動時に1回しか実行しない処理なのでASSERT_LV1で書いておく。
-				ASSERT_LV1(KK::fromIndex(index).toIndex() == index);
-				// 次元下げの1つ目の要素が元のindexと同一であることを確認しておく。
-				KK a[1];
-				KK::fromIndex(index).toLowerDimensions(a);
-				ASSERT_LV1(a[0].toIndex() == index);
-			}
-			else if (KKP::is_ok(index))
-			{
-				KKP x = KKP::fromIndex(index);
-				KKP a[2];
-				x.toLowerDimensions(a);
-				u64 id[2] = { a[0].toIndex(),a[1].toIndex() };
-				min_index_flag[index] = (std::min({ id[0],id[1] }) == index);
-				ASSERT_LV1(id[0] == index);
-			}
-			else if (KPP::is_ok(index))
-			{
-				KPP x = KPP::fromIndex(index);
+				// OpenMPの制約からループ変数は符号型でないといけないらしいのだが、
+				// さすがに使いにくい。
+				u64 index = (u64)index_;
+
+				if (KK::is_ok(index))
+				{
+					min_index_flag[index] = true;
+					// indexからの変換と逆変換によって元のindexに戻ることを確認しておく。
+					// 起動時に1回しか実行しない処理なのでASSERT_LV1で書いておく。
+					ASSERT_LV1(KK::fromIndex(index).toIndex() == index);
+					// 次元下げの1つ目の要素が元のindexと同一であることを確認しておく。
+					KK a[1];
+					KK::fromIndex(index).toLowerDimensions(a);
+					ASSERT_LV1(a[0].toIndex() == index);
+				}
+				else if (KKP::is_ok(index))
+				{
+					KKP x = KKP::fromIndex(index);
+					KKP a[2];
+					x.toLowerDimensions(a);
+					u64 id[2] = { a[0].toIndex(),a[1].toIndex() };
+					min_index_flag[index] = (std::min({ id[0],id[1] }) == index);
+					ASSERT_LV1(id[0] == index);
+				}
+				else if (KPP::is_ok(index))
+				{
+					KPP x = KPP::fromIndex(index);
 
 #if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
-				// 普通の正方配列のとき、次元下げは4つ。
-				KPP a[4];
-				x.toLowerDimensions(a);
-				u64 id[4] = { a[0].toIndex() , a[1].toIndex(), a[2].toIndex() , a[3].toIndex()};
-				min_index_flag[index] = (std::min({ id[0],id[1],id[2],id[3] }) == index);
+					// 普通の正方配列のとき、次元下げは4つ。
+					KPP a[4];
+					x.toLowerDimensions(a);
+					u64 id[4] = { a[0].toIndex() , a[1].toIndex(), a[2].toIndex() , a[3].toIndex() };
+					min_index_flag[index] = (std::min({ id[0],id[1],id[2],id[3] }) == index);
 #else
-				// 3角配列を用いるなら、次元下げは2つ。
-				KPP a[2];
-				x.toLowerDimensions(a);
-				u64 id[2] = { a[0].toIndex() , a[1].toIndex()};
-				min_index_flag[index] = (std::min({ id[0],id[1] }) == index);
+					// 3角配列を用いるなら、次元下げは2つ。
+					KPP a[2];
+					x.toLowerDimensions(a);
+					u64 id[2] = { a[0].toIndex() , a[1].toIndex() };
+					min_index_flag[index] = (std::min({ id[0],id[1] }) == index);
 #endif
-				ASSERT_LV1(KPP::fromIndex(index).toIndex() == index);
-				ASSERT_LV1(id[0] == index);
-			}
-			else
-			{
-				ASSERT_LV3(false);
+					ASSERT_LV1(KPP::fromIndex(index).toIndex() == index);
+					ASSERT_LV1(id[0] == index);
+				}
+				else
+				{
+					ASSERT_LV3(false);
+				}
 			}
 		}
 	}

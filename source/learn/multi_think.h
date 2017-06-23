@@ -51,14 +51,8 @@ struct MultiThink
 
 protected:
 
-	// [ASYNC] 乱数を一つ取り出す。
-	template<typename T> T rand() {
-		std::unique_lock<Mutex> lk(rand_mutex);
-		return T(prng.rand<T>());
-	}
-
 	// [ASYNC] 0からn-1までの乱数を返す。(一様分布ではないが現実的にはこれで十分)
-	uint64_t rand(size_t n) {
+	u64 rand(u64 n) {
 		std::unique_lock<Mutex> lk(rand_mutex);
 		return prng.rand(n);
 	}
