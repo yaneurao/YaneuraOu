@@ -294,6 +294,11 @@ struct MultiThinkGenSfen : public MultiThink
 	// 生成する局面の評価値の上限
 	int eval_limit;
 
+	// ランダムムーブを行なう最大ply
+	int random_move_maxply;
+	// 1局のなかでランダムムーブを行なう回数
+	int random_move_count;
+
 	// sfenの書き出し器
 	SfenWriter& sw;
 
@@ -374,30 +379,21 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		{
 			// ランダムムーブを入れるならrandom_move_maxply手目までに絶対にrandom_move_count回入れる。
 			// そこそこばらけて欲しい。
-			// どれくらいがベストなのかはよくわからない。色々変えて実験中。
-#if 1
-			const u64 random_move_maxply = 24;
-			u64 random_move_count = 5;
-#endif
-
-#if 0
-			const u64 random_move_maxply = 32;
-			u64 random_move_count = 10;
-#endif
-
+			// どれくらいがベストなのかはよくわからない。色々条件を変えて実験中。
+			
 			// a[0] = 0 , a[1] = 1, ... みたいな配列を作って、これを
 			// Fisher-Yates shuffleして先頭のN個を取り出せば良い。
 			// 実際には、N個欲しいだけなので先頭N個分だけFisher-Yatesでshuffleすれば良い。
 
-			vector<u64> a;
-			a.reserve(random_move_maxply);
-			for (u64 i = 0; i < random_move_maxply; ++i)
+			vector<int> a;
+			a.reserve((size_t)random_move_maxply);
+			for (int i = 0; i < random_move_maxply; ++i)
 				a.push_back(i);
 
-			random_move_flag.resize(random_move_maxply);
-			for (u64 i = 0; i < random_move_count; ++i)
+			random_move_flag.resize((size_t)random_move_maxply);
+			for (int i = 0; i < random_move_count; ++i)
 			{
-				swap(a[i], a[rand(random_move_maxply - i) + i]);
+				swap(a[i], a[rand((u64)random_move_maxply - i) + i]);
 				random_move_flag[a[i]] = true;
 			}
 		}
@@ -749,6 +745,10 @@ void gen_sfen(Position&, istringstream& is)
 	int search_depth = 3;
 	int search_depth2 = INT_MIN;
 
+	// ランダムムーブを行なう最大plyと回数
+	int random_move_maxply = 24;
+	int random_move_count = 5;
+
 	// 書き出すファイル名
 	string filename = "generated_kifu.bin";
 
@@ -774,6 +774,10 @@ void gen_sfen(Position&, istringstream& is)
 			// 最大値を1手詰みのスコアに制限する。(そうしないとループを終了しない可能性があるので)
 			eval_limit = std::min(eval_limit, (int)mate_in(2));
 		}
+		else if (token == "random_move_maxply")
+			is >> random_move_maxply;
+		else if (token == "random_move_count")
+			is >> random_move_count;
 		else
 			cout << "Error! : Illegal token " << token << endl;
 	}
@@ -788,6 +792,8 @@ void gen_sfen(Position&, istringstream& is)
 		<< " , eval_limit = " << eval_limit
 		<< " , thread_num (set by USI setoption) = " << thread_num
 		<< " , book_moves (set by USI setoption) = " << Options["BookMoves"]
+		<< " , random_move_maxply = " << random_move_maxply
+		<< " , random_move_count  = " << random_move_count
 		<< " , filename = " << filename
 		<< endl;
 
@@ -797,6 +803,8 @@ void gen_sfen(Position&, istringstream& is)
 		MultiThinkGenSfen multi_think(search_depth, search_depth2, sw);
 		multi_think.set_loop_max(loop_max);
 		multi_think.eval_limit = eval_limit;
+		multi_think.random_move_maxply = random_move_maxply;
+		multi_think.random_move_count = random_move_count;
 		multi_think.start_file_write_worker();
 		multi_think.go_think();
 
