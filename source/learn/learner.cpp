@@ -501,7 +501,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					// MOVE_WINは、この手前で宣言勝ちの局面であるかチェックしているので
 					// ここで宣言勝ちの指し手が返ってくることはないはず。
 					// また、MOVE_RESIGNのときvalue1は1手詰めのスコアであり、eval_limitの最小値(-31998)のはずなのだが…。
-					cout << pos.sfen() << m << value1 << endl;
+					cout << "Error! : " << pos.sfen() << m << value1 << endl;
 					break;
 				}
 
@@ -545,7 +545,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				// 局面のsfen,3手読みでの最善手,0手読みでの評価値
 				// これをファイルか何かに書き出すと良い。
-				//      cout << pos.sfen() << "," << value1 << "," << value2 << "," << endl;
+				//      cout << "Error! : " << pos.sfen() << "," << value1 << "," << value2 << "," << endl;
 
 				// PVの指し手でleaf nodeまで進めて、そのleaf nodeでevaluate()を呼び出した値を用いる。
 				auto evaluate_leaf = [&](Position& pos , vector<Move>& pv)
@@ -565,7 +565,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 						// 読み筋としてMOVE_WINとMOVE_RESIGNが来ないことは保証されている。(はずだが…)
 						if (!pos.pseudo_legal(m) || !pos.legal(m))
 						{
-							cout << pos.sfen() << m << endl;
+							cout << "Error! : " << pos.sfen() << m << endl;
 						}
 #endif
 						pos.do_move(m, state[ply2++]);
@@ -991,8 +991,8 @@ struct SfenReader
 		packed_sfens.resize(thread_num);
 		total_read = 0;
 		total_done = 0;
-		next_update_weights = 0;
 		last_done = 0;
+		next_update_weights = 0;
 		save_count = 0;
 		end_of_files = false;
 
@@ -1317,7 +1317,6 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	atomic<double> test_sum_cross_entropy_eval,test_sum_cross_entropy_win;
 	test_sum_cross_entropy_eval = 0;
 	test_sum_cross_entropy_win = 0;
-	const double epsilon = 0.00001;
 #endif
 
 	// 平手の初期局面のeval()の値を表示させて、揺れを見る。
@@ -1348,7 +1347,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			if (pos.set_from_packed_sfen(ps.sfen) != 0)
 			{
 				// 運悪くrmse計算用のsfenとして、不正なsfenを引いてしまっていた。
-				cout << "Error : illegal packed sfen " << pos.sfen() << endl;
+				cout << "Error! : illegal packed sfen " << pos.sfen() << endl;
 			}
 			pos.set_this_thread(th);
 
@@ -1419,14 +1418,20 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	// learn_cross_entropyは、機械学習の世界ではtrain cross entropyと呼ぶべきかも知れないが、
 	// 頭文字を略するときに、lceと書いて、test cross entropy(tce)と区別出来たほうが嬉しいのでこうしてある。
 
-	cout
-		<< " , test_cross_entropy_eval = "  << test_sum_cross_entropy_eval / (sr.sfen_for_mse.size() + epsilon)
-		<< " , test_cross_entropy_win = "   << test_sum_cross_entropy_win / (sr.sfen_for_mse.size() + epsilon)
-		<< " , test_cross_entropy = "       << (test_sum_cross_entropy_eval + test_sum_cross_entropy_win) / (sr.sfen_for_mse.size() + epsilon)
-		<< " , learn_cross_entropy_eval = " << learn_sum_cross_entropy_eval / (done + epsilon)
-		<< " , learn_cross_entropy_win = "  << learn_sum_cross_entropy_win / (done + epsilon)
-		<< " , learn_cross_entropy = "      << (learn_sum_cross_entropy_eval + learn_sum_cross_entropy_win) / (done + epsilon)
-		<< endl;
+	if (sr.sfen_for_mse.size() && done)
+	{
+		cout
+			<< " , test_cross_entropy_eval = "  << test_sum_cross_entropy_eval / sr.sfen_for_mse.size()
+			<< " , test_cross_entropy_win = "   << test_sum_cross_entropy_win / sr.sfen_for_mse.size()
+			<< " , test_cross_entropy = "       << (test_sum_cross_entropy_eval + test_sum_cross_entropy_win) / sr.sfen_for_mse.size()
+			<< " , learn_cross_entropy_eval = " << learn_sum_cross_entropy_eval / done
+			<< " , learn_cross_entropy_win = "  << learn_sum_cross_entropy_win / done
+			<< " , learn_cross_entropy = "      << (learn_sum_cross_entropy_eval + learn_sum_cross_entropy_win) / done
+			<< endl;
+	}
+	else {
+		cout << "Error! : sr.sfen_for_mse.size() = " << sr.sfen_for_mse.size() << " ,  done = " << done << endl;
+	}
 
 	// 次回のために0クリアしておく。
 	learn_sum_cross_entropy_eval = 0.0;
@@ -1525,6 +1530,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 		}
 
 		// 評価値が学習対象の値を超えている。
+		// この局面情報を無視する。
 		if (eval_limit < abs(ps.score))
 			goto RetryRead;
 
@@ -1537,7 +1543,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 		{
 			// 変なsfenを掴かまされた。デバッグすべき！
 			// 不正なsfenなのでpos.sfen()で表示できるとは限らないが、しないよりマシ。
-			cout << "illigal packed sfen = " << pos.sfen() << endl;
+			cout << "Error! : illigal packed sfen = " << pos.sfen() << endl;
 			goto RetryRead;
 		}
 		{
