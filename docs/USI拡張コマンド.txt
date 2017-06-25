@@ -249,9 +249,10 @@ getoption オプション名
 		eval_limitオプション
 			教師局面の深い探索での評価値の絶対値が、この値を超えているならその局面を読み捨てる。
 			指定しないときは32000が指定されているものとする。
-		random_move_maxplyとrandom_move_countオプション
-			教師局面の生成時にランダムムーブを行なう最大手数と1局でランダムムーブを行なう回数
-			デフォルトではrandom_move_maxply = 24 , random_move_count = 5。
+		random_move_minply,random_move_maxplyとrandom_move_countオプション
+			教師局面の生成時にランダムムーブを行なう最小手数と最大手数と1局でランダムムーブを行なう回数
+			デフォルトではrandom_move_minply = 1 , random_move_maxply = 24 , random_move_count = 5。
+			// 初手から24手目までに5回のランダムムーブを行なうという意味
 			learn random_move_maxply 32 random_move_count 10 ...
 			みたいに指定する。
 

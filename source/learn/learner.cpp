@@ -294,6 +294,8 @@ struct MultiThinkGenSfen : public MultiThink
 	// 生成する局面の評価値の上限
 	int eval_limit;
 
+	// ランダムムーブを行なう最小ply
+	int random_move_minply;
 	// ランダムムーブを行なう最大ply
 	int random_move_maxply;
 	// 1局のなかでランダムムーブを行なう回数
@@ -387,11 +389,16 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 			vector<int> a;
 			a.reserve((size_t)random_move_maxply);
-			for (int i = 0; i < random_move_maxply; ++i)
+
+			// random_move_minply , random_move_maxplyは1 originで指定されるが、
+			// ここでは0 originで扱っているので注意。
+			for (int i = std::max(random_move_minply - 1 , 0) ; i < random_move_maxply; ++i)
 				a.push_back(i);
 
 			random_move_flag.resize((size_t)random_move_maxply);
-			for (int i = 0; i < random_move_count; ++i)
+
+			// a[]のsize()を超える回数のランダムムーブは適用できないので制限する。
+			for (int i = 0 ; i < std::min(random_move_count, (int)a.size()) ; ++i)
 			{
 				swap(a[i], a[rand((u64)random_move_maxply - i) + i]);
 				random_move_flag[a[i]] = true;
@@ -745,7 +752,8 @@ void gen_sfen(Position&, istringstream& is)
 	int search_depth = 3;
 	int search_depth2 = INT_MIN;
 
-	// ランダムムーブを行なう最大plyと回数
+	// ランダムムーブを行なう最小plyと最大plyと回数
+	int random_move_minply = 1;
 	int random_move_maxply = 24;
 	int random_move_count = 5;
 
@@ -774,6 +782,8 @@ void gen_sfen(Position&, istringstream& is)
 			// 最大値を1手詰みのスコアに制限する。(そうしないとループを終了しない可能性があるので)
 			eval_limit = std::min(eval_limit, (int)mate_in(2));
 		}
+		else if (token == "random_move_minply")
+			is >> random_move_minply;
 		else if (token == "random_move_maxply")
 			is >> random_move_maxply;
 		else if (token == "random_move_count")
@@ -781,9 +791,6 @@ void gen_sfen(Position&, istringstream& is)
 		else
 			cout << "Error! : Illegal token " << token << endl;
 	}
-
-	// random moveの回数が手数より多い場合には、適用できない。
-	random_move_count = std::min(random_move_count, random_move_maxply);
 
 	// search depth2が設定されていないなら、search depthと同じにしておく。
 	if (search_depth2 == INT_MIN)
@@ -795,6 +802,7 @@ void gen_sfen(Position&, istringstream& is)
 		<< " , eval_limit = " << eval_limit
 		<< " , thread_num (set by USI setoption) = " << thread_num
 		<< " , book_moves (set by USI setoption) = " << Options["BookMoves"]
+		<< " , random_move_minply = " << random_move_minply
 		<< " , random_move_maxply = " << random_move_maxply
 		<< " , random_move_count  = " << random_move_count
 		<< " , filename = " << filename
@@ -806,6 +814,7 @@ void gen_sfen(Position&, istringstream& is)
 		MultiThinkGenSfen multi_think(search_depth, search_depth2, sw);
 		multi_think.set_loop_max(loop_max);
 		multi_think.eval_limit = eval_limit;
+		multi_think.random_move_minply = random_move_minply;
 		multi_think.random_move_maxply = random_move_maxply;
 		multi_think.random_move_count = random_move_count;
 		multi_think.start_file_write_worker();
