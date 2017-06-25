@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.6
+VisualStudioVersion = 15.0.26430.13
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "YaneuraOu", "source\YaneuraOu.vcxproj", "{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}"
 EndProject
@@ -17,6 +17,8 @@ Global
 		Debug-user|x86 = Debug-user|x86
 		Release-2017Early|x64 = Release-2017Early|x64
 		Release-2017Early|x86 = Release-2017Early|x86
+		Release-2017EarlyLearn|x64 = Release-2017EarlyLearn|x64
+		Release-2017EarlyLearn|x86 = Release-2017EarlyLearn|x86
 		Release-2017Early-sse2|x64 = Release-2017Early-sse2|x64
 		Release-2017Early-sse2|x86 = Release-2017Early-sse2|x86
 		Release-2017Early-sse41|x64 = Release-2017Early-sse41|x64
@@ -69,6 +71,10 @@ Global
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2017Early|x64.Build.0 = Release-2017Early|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2017Early|x86.ActiveCfg = Release-2017Early|Win32
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2017Early|x86.Build.0 = Release-2017Early|Win32
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2017EarlyLearn|x64.ActiveCfg = Release-2017EarlyLearn|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2017EarlyLearn|x64.Build.0 = Release-2017EarlyLearn|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2017EarlyLearn|x86.ActiveCfg = Release-2017EarlyLearn|Win32
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2017EarlyLearn|x86.Build.0 = Release-2017EarlyLearn|Win32
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2017Early-sse2|x64.ActiveCfg = Release-2017Early-sse2|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2017Early-sse2|x64.Build.0 = Release-2017Early-sse2|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2017Early-sse2|x86.ActiveCfg = Release-2017Early-sse2|x64

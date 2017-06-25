@@ -98,7 +98,7 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found
 		// 1. keyが合致しているentryを見つけた。(found==trueにしてそのTT_ENTRYのアドレスを返す)
 		// 2. 空のエントリーを見つけた(そこまではkeyが合致していないので、found==falseにして新規TT_ENTRYのアドレスとして返す)
 
-		// Stockfishのコードだと、1.が成立したタイミングでもgenerationのrefleshをしているが、
+		// Stockfishのコードだと、1.が成立したタイミングでもgenerationのrefreshをしているが、
 		// save()のときにgenerationを書き出すため、このケースにおいてrefreshは必要ない。
 
 		// 1.
