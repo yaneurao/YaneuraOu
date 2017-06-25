@@ -595,19 +595,24 @@ void setoption_cmd(istringstream& is)
 void getoption_cmd(istringstream& is)
 {
 	// getoption オプション名
-	string name;
+	string name = "";
 	is >> name;
+
+	// すべてを出力するモード
+	bool all = name == "";
 
 	for (auto& o : Options)
 	{
-		// 大文字、小文字を無視して比較。
-		if (!_stricmp(name.c_str(), o.first.c_str()))
+		// 大文字、小文字を無視して比較。また、nameが指定されていなければすべてのオプション設定の現在の値を表示。
+		if ((!_stricmp(name.c_str(), o.first.c_str())) || all)
 		{
-			sync_cout << "Options[" << o.first << "] == " << Options[o.first] << sync_endl;
-			return;
+			sync_cout << "Options[" << o.first << "] == " << (string)Options[o.first] << sync_endl;
+			if (!all)
+				return;
 		}
 	}
-	sync_cout << "No such option: " << name << sync_endl;
+	if (!all)
+		sync_cout << "No such option: " << name << sync_endl;
 }
 
 
