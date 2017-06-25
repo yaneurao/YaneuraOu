@@ -274,8 +274,13 @@ getoption オプション名
 
 		learn shufflem basedir BASE_DIR targetdir TARGET_DIR output_file_name OUTPUT_FILE_NAME 
 			メモリに丸読みしてシャッフルして指定ファイル名で書き出す。
-			basedir BASE_DIR と targetdir TARGET_DIR と output_file_name OUTPUT_FILE_NAME とは省略できる。
-			targetdirを省略してファイル名をそのあとに並べることも出来る。
-			output_file_name OUTPUT_FILE_NAMEを省略時には
-				shuffled_sfen.bin
-			というファイル名でカレントフォルダに書き出される。
+			(メモリが教師局面の2倍ぐらい必要)
+			その他はlearn shuffleコマンドと同様。
+
+		learn shuffleq basedir BASE_DIR targetdir TARGET_DIR output_file_name OUTPUT_FILE_NAME 
+			それぞれの教師局面はファイル単位ではshuffleされていると仮定して、1passでシャッフルする。高速。
+			その他はlearn shuffleと同様。
+
+			複数台のPCで教師局面を生成するときに、各PCは生成直後に"learn shufflem"しているとして、
+			それらのファイルをホスト側で"learn shuffleq"してから学習に使うというような使い方を想定している。
+			

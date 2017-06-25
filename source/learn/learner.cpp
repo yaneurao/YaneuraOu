@@ -1718,93 +1718,31 @@ void LearnerThink::save()
 #endif
 }
 
-// 教師局面のシャッフル "learn shuffle"コマンドの下請け。
-void shuffle_files(const vector<string>& filenames , const string& output_file_name)
+// shuffle_files() , shuffle_files_quick()の下請けで、書き出し部分。
+// output_file_name : 書き出すファイル名
+// prng : 乱数
+// afs  : それぞれの教師局面ファイルのfstream
+// a_count : それぞれのファイルに内在する教師局面の数。
+void shuffle_write(const string& output_file_name , PRNG& prng , vector<fstream>& afs , vector<u64>& a_count)
 {
-	// 出力先のフォルダは
-	// tmp/               一時書き出し用
-	// shuffled_sfen.bin  シャッフルされたファイル
-
-	// テンポラリファイルは10M局面ずつtmp/フォルダにいったん書き出す
-	// 10M*40bytes = 400MBのバッファが必要。
-	const u64 buffer_size = 10000000;
-
-	vector<PackedSfenValue> buf;
-	buf.resize(buffer_size);
-	// ↑のバッファ、どこまで使ったかを示すマーカー
-	u64 buf_write_marker = 0;
-
-	// 書き出すファイル名
-	u64 write_file_count = 0;
-
-	// 読み込んだ局面数
-	u64 read_sfen_count = 0;
-
-	// シャッフルするための乱数
-	PRNG prng;
-
-	// テンポラリファイルの名前を生成する
-	auto make_filename = [](u64 i)
-	{
-		return "tmp/" + to_string(i) + ".bin";
-	};
-
-	// 書き出したtmp/フォルダのファイル、それぞれに格納されている教師局面の数
-	vector<u64> a_count;
-
-	auto write_buffer = [&](u64 size)
-	{
-		// buf[0]～buf[size-1]までをshuffle
-		for (u64 i = 0; i < size; ++i)
-			swap(buf[i], buf[(u64)(prng.rand(size - i) + i)]);
-
-		// ファイルに書き出す
-		fstream fs;
-		fs.open(make_filename(write_file_count++), ios::out | ios::binary);
-		fs.write((char*)&buf[0], size * sizeof(PackedSfenValue));
-		fs.close();
-		a_count.push_back(size);
-
-		read_sfen_count += size;
-
-		buf_write_marker = 0;
-		cout << ".";
-	};
-
-	MKDIR("tmp");
-
-	// 10M局面の細切れファイルとしてシャッフルして書き出す。
-	for (auto filename : filenames)
-	{
-		fstream fs(filename, ios::in | ios::binary);
-		while (fs.read((char*)&buf[buf_write_marker], sizeof(PackedSfenValue)))
-			if (++buf_write_marker == buffer_size)
-				write_buffer(buffer_size);
-	}
-
-	// バッファにまだ残っている分があるならそれも書き出す。
-	if (buf_write_marker != 0)
-		write_buffer(buf_write_marker);
-
-	// シャッフルされたファイルがwrite_file_count個だけ書き出された。
-	// 2pass目として、これをすべて同時にオープンし、ランダムに1つずつ選択して1局面ずつ読み込めば
-	// これにてシャッフルされたことになる。
-
-	vector<fstream> afs;
-	for (u64 i = 0; i < write_file_count; ++i)
-		afs.emplace_back(fstream(make_filename(i),ios::in | ios::binary));
+	u64 total_sfen_count = 0;
+	for (auto c : a_count)
+		total_sfen_count += c;
 
 	// 書き出した局面数
 	u64 write_sfen_count = 0;
 
-	cout << endl;
+	// 進捗をこの局面数ごとに画面に出力する。
+	const u64 buffer_size = 10000000;
+
 	auto print_status = [&]()
 	{
 		// 10M局面ごと、もしくは、すべての書き出しが終わったときに進捗を出力する
 		if (((write_sfen_count % buffer_size) == 0) ||
-			(write_sfen_count == read_sfen_count))
-			cout << write_sfen_count << " / " << read_sfen_count << endl;
+			(write_sfen_count == total_sfen_count))
+			cout << write_sfen_count << " / " << total_sfen_count << endl;
 	};
+
 
 	std::cout << "write : " << output_file_name << endl;
 
@@ -1845,6 +1783,129 @@ void shuffle_files(const vector<string>& filenames , const string& output_file_n
 	print_status();
 	fs.close();
 	cout << "done!" << endl;
+}
+
+// 教師局面のシャッフル "learn shuffle"コマンドの下請け。
+// output_file_name : シャッフルされた教師局面が書き出される出力ファイル名
+void shuffle_files(const vector<string>& filenames , const string& output_file_name)
+{
+	// 出力先のフォルダは
+	// tmp/               一時書き出し用
+
+	// テンポラリファイルは10M局面ずつtmp/フォルダにいったん書き出す
+	// 10M*40bytes = 400MBのバッファが必要。
+	const u64 buffer_size = 10000000;
+
+	vector<PackedSfenValue> buf;
+	buf.resize(buffer_size);
+	// ↑のバッファ、どこまで使ったかを示すマーカー
+	u64 buf_write_marker = 0;
+
+	// 書き出すファイル名(連番なのでインクリメンタルカウンター)
+	u64 write_file_count = 0;
+
+	// シャッフルするための乱数
+	PRNG prng;
+
+	// テンポラリファイルの名前を生成する
+	auto make_filename = [](u64 i)
+	{
+		return "tmp/" + to_string(i) + ".bin";
+	};
+
+	// 書き出したtmp/フォルダのファイル、それぞれに格納されている教師局面の数
+	vector<u64> a_count;
+
+	auto write_buffer = [&](u64 size)
+	{
+		// buf[0]～buf[size-1]までをshuffle
+		for (u64 i = 0; i < size; ++i)
+			swap(buf[i], buf[(u64)(prng.rand(size - i) + i)]);
+
+		// ファイルに書き出す
+		fstream fs;
+		fs.open(make_filename(write_file_count++), ios::out | ios::binary);
+		fs.write((char*)&buf[0], size * sizeof(PackedSfenValue));
+		fs.close();
+		a_count.push_back(size);
+
+		buf_write_marker = 0;
+		cout << ".";
+	};
+
+	MKDIR("tmp");
+
+	// 10M局面の細切れファイルとしてシャッフルして書き出す。
+	for (auto filename : filenames)
+	{
+		fstream fs(filename, ios::in | ios::binary);
+		while (fs.read((char*)&buf[buf_write_marker], sizeof(PackedSfenValue)))
+			if (++buf_write_marker == buffer_size)
+				write_buffer(buffer_size);
+	}
+
+	// バッファにまだ残っている分があるならそれも書き出す。
+	if (buf_write_marker != 0)
+		write_buffer(buf_write_marker);
+
+	// シャッフルされたファイルがwrite_file_count個だけ書き出された。
+	// 2pass目として、これをすべて同時にオープンし、ランダムに1つずつ選択して1局面ずつ読み込めば
+	// これにてシャッフルされたことになる。
+
+	vector<fstream> afs;
+	for (u64 i = 0; i < write_file_count; ++i)
+		afs.emplace_back(fstream(make_filename(i),ios::in | ios::binary));
+
+	// 下請け関数に丸投げして終わり。
+	shuffle_write(output_file_name, prng, afs, a_count);
+}
+
+// 教師局面のシャッフル "learn shuffleq"コマンドの下請け。
+// こちらは1passで書き出す。
+// output_file_name : シャッフルされた教師局面が書き出される出力ファイル名
+void shuffle_files_quick(const vector<string>& filenames, const string& output_file_name)
+{
+	// 読み込んだ局面数
+	u64 read_sfen_count = 0;
+
+	// シャッフルするための乱数
+	PRNG prng;
+
+	// ファイルの数
+	size_t file_count = filenames.size();
+
+	// filenamesのファイルそれぞれに格納されている教師局面の数
+	vector<u64> a_count(file_count);
+
+	// それぞれのファイルの教師局面の数をカウントする。
+	vector<fstream> afs(file_count);
+
+	for (size_t i = 0; i < file_count ; ++i)
+	{
+		auto filename = filenames[i];
+		auto& fs = afs[i];
+
+		fs.open(filename, ios::in | ios::binary);
+		fs.seekg(0, fstream::end);
+		u64 eofPos = (u64)fs.tellg();
+		fs.clear(); // これをしないと次のseekに失敗することがある。
+		fs.seekg(0, fstream::beg);
+		u64 begPos = (u64)fs.tellg();
+		u64 file_size = eofPos - begPos;
+		u64 sfen_count = file_size / sizeof(PackedSfenValue);
+		a_count[i] = sfen_count;
+
+		// 各ファイルに格納されていたsfenの数を出力する。
+		cout << filename << " = " << sfen_count << " sfens." << endl;
+	}
+
+	// それぞれのファイルのファイルサイズがわかったので、
+	// これらをすべて同時にオープンし(すでにオープンされている)、
+	// ランダムに1つずつ選択して1局面ずつ読み込めば
+	// これにてシャッフルされたことになる。
+
+	// 下請け関数に丸投げして終わり。
+	shuffle_write(output_file_name, prng, afs, a_count);
 }
 
 // 教師局面のシャッフル "learn shufflem"コマンドの下請け。
@@ -1913,11 +1974,15 @@ void learn(Position&, istringstream& is)
 	GlobalOptions.use_hash_probe = false;
 #endif
 
-	// 教師局面をシャッフルするだけの機能
-	bool shuffle = false;
+	// --- 教師局面をシャッフルするだけの機能
+
+	// 通常シャッフル
+	bool shuffle_normal = false;
+	// それぞれのファイルがシャッフルされていると仮定しての高速シャッフル
+	bool shuffle_quick = false;
 	// メモリにファイルを丸読みしてシャッフルする機能。(要、ファイルサイズのメモリ)
 	bool shuffle_on_memory = false;
-	// そのときに書き出すファイル名(デフォルトでは"shuffled_sfen.bin")
+	// それらのときに書き出すファイル名(デフォルトでは"shuffled_sfen.bin")
 	string output_file_name = "shuffled_sfen.bin";
 
 	// 教師局面の深い探索での評価値の絶対値が、この値を超えていたらその局面は捨てる。
@@ -1960,7 +2025,8 @@ void learn(Position&, istringstream& is)
 #endif
 
 		// シャッフル関連
-		else if (option == "shuffle")	shuffle = true;
+		else if (option == "shuffle")	shuffle_normal = true;
+		else if (option == "shuffleq")	shuffle_quick = true;
 		else if (option == "shufflem")  shuffle_on_memory = true;
 		else if (option == "output_file_name") is >> output_file_name;
 
@@ -2030,10 +2096,16 @@ void learn(Position&, istringstream& is)
 	cout << "target dir      : " << target_dir << endl;
 
 	// シャッフルモード
-	if (shuffle)
+	if (shuffle_normal)
 	{
 		cout << "shuffle mode.." << endl;
 		shuffle_files(filenames,output_file_name);
+		return;
+	}
+	if (shuffle_quick)
+	{
+		cout << "quick shuffle mode.." << endl;
+		shuffle_files_quick(filenames, output_file_name);
 		return;
 	}
 	if (shuffle_on_memory)
