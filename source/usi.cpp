@@ -590,6 +590,27 @@ void setoption_cmd(istringstream& is)
 	}
 }
 
+// getoptionコマンド応答(USI独自拡張)
+// オプションの値を取得する。
+void getoption_cmd(istringstream& is)
+{
+	// getoption オプション名
+	string name;
+	is >> name;
+
+	for (auto& o : Options)
+	{
+		// 大文字、小文字を無視して比較。
+		if (!_stricmp(name.c_str(), o.first.c_str()))
+		{
+			sync_cout << "Options[" << o.first << "] == " << Options[o.first] << sync_endl;
+			return;
+		}
+	}
+	sync_cout << "No such option: " << name << sync_endl;
+}
+
+
 // go()は、思考エンジンがUSIコマンドの"go"を受け取ったときに呼び出される。
 // この関数は、入力文字列から思考時間とその他のパラメーターをセットし、探索を開始する。
 void go_cmd(const Position& pos, istringstream& is) {
@@ -790,6 +811,9 @@ void USI::loop(int argc, char* argv[])
 
 		// オプションを設定する
 		else if (token == "setoption") setoption_cmd(is);
+
+		// オプションを取得する(USI独自拡張)
+		else if (token == "getoption") getoption_cmd(is);
 
 		// 思考エンジンの準備が出来たかの確認
 		else if (token == "isready") is_ready_cmd(pos);
