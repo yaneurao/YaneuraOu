@@ -228,6 +228,13 @@ getoption オプション名
 		例) gensfen depth 6  (残りは省略可)
 			eval_limitは、評価値の絶対値がこの値を上回った時点でその対局を終了するという値。
 
+		random_move_minply,random_move_maxplyとrandom_move_countオプション
+			教師局面の生成時にランダムムーブを行なう最小手数と最大手数と1局でランダムムーブを行なう回数
+			デフォルトではrandom_move_minply = 1 , random_move_maxply = 24 , random_move_count = 5。
+			// 初手から24手目までに5回のランダムムーブを行なうという意味
+			learn random_move_maxply 32 random_move_count 10 ...
+			みたいに指定する。
+
 	learn [ファイル名1] [ファイル名2] …   : 生成した棋譜から評価関数パラメーターの学習をさせる。
 
 		ファイル名はいくらでも書ける。
@@ -249,12 +256,6 @@ getoption オプション名
 		eval_limitオプション
 			教師局面の深い探索での評価値の絶対値が、この値を超えているならその局面を読み捨てる。
 			指定しないときは32000が指定されているものとする。
-		random_move_minply,random_move_maxplyとrandom_move_countオプション
-			教師局面の生成時にランダムムーブを行なう最小手数と最大手数と1局でランダムムーブを行なう回数
-			デフォルトではrandom_move_minply = 1 , random_move_maxply = 24 , random_move_count = 5。
-			// 初手から24手目までに5回のランダムムーブを行なうという意味
-			learn random_move_maxply 32 random_move_count 10 ...
-			みたいに指定する。
 
 		保存するフォルダは"EvalSaveDir"で指定したフォルダ。
 		デフォルトでは"evalsave"。このフォルダは事前に用意されているものとする。
