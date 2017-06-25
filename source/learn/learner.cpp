@@ -782,6 +782,9 @@ void gen_sfen(Position&, istringstream& is)
 			cout << "Error! : Illegal token " << token << endl;
 	}
 
+	// random moveの回数が手数より多い場合には、適用できない。
+	random_move_count = std::min(random_move_count, random_move_maxply);
+
 	// search depth2が設定されていないなら、search depthと同じにしておく。
 	if (search_depth2 == INT_MIN)
 		search_depth2 = search_depth;
@@ -1707,7 +1710,7 @@ void LearnerThink::save()
 }
 
 // 教師局面のシャッフル "learn shuffle"コマンドの下請け。
-void shuffle_files(const vector<string>& filenames)
+void shuffle_files(const vector<string>& filenames , const string& output_file_name)
 {
 	// 出力先のフォルダは
 	// tmp/               一時書き出し用
@@ -1794,7 +1797,9 @@ void shuffle_files(const vector<string>& filenames)
 			cout << write_sfen_count << " / " << read_sfen_count << endl;
 	};
 
-	fstream fs("shuffled_sfen.bin", ios::out | ios::binary);
+	std::cout << "write : " << output_file_name << endl;
+
+	fstream fs(output_file_name, ios::out | ios::binary);
 
 	// 教師局面の合計
 	u64 sum = 0;
@@ -1903,7 +1908,8 @@ void learn(Position&, istringstream& is)
 	bool shuffle = false;
 	// メモリにファイルを丸読みしてシャッフルする機能。(要、ファイルサイズのメモリ)
 	bool shuffle_on_memory = false;
-	string output_file_name = "";
+	// そのときに書き出すファイル名(デフォルトでは"shuffled_sfen.bin")
+	string output_file_name = "shuffled_sfen.bin";
 
 	// 教師局面の深い探索での評価値の絶対値が、この値を超えていたらその局面は捨てる。
 	int eval_limit = 32000;
@@ -1943,6 +1949,8 @@ void learn(Position&, istringstream& is)
 		// LAMBDA
 		else if (option == "lambda")    is >> ELMO_LAMBDA;
 #endif
+
+		// シャッフル関連
 		else if (option == "shuffle")	shuffle = true;
 		else if (option == "shufflem")  shuffle_on_memory = true;
 		else if (option == "output_file_name") is >> output_file_name;
@@ -2016,7 +2024,7 @@ void learn(Position&, istringstream& is)
 	if (shuffle)
 	{
 		cout << "shuffle mode.." << endl;
-		shuffle_files(filenames);
+		shuffle_files(filenames,output_file_name);
 		return;
 	}
 	if (shuffle_on_memory)
