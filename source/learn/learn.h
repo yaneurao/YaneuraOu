@@ -12,15 +12,13 @@
 // 以下のいずれかを選択すれば、そのあとの細々したものは自動的に選択される。
 // いずれも選択しない場合は、そのあとの細々したものをひとつひとつ設定する必要がある。
 
-// デフォルトの学習設定
-// #define LEARN_DEFAULT
-
-// elmo方式での学習設定。
-// #define LEARN_ELMO_METHOD
+// elmo方式での学習設定。これをデフォルト設定とする。
+// 標準の雑巾絞りにするためにはlearnコマンドで "lambda 1"を指定してやれば良い。
+#define LEARN_ELMO_METHOD
 
 // やねうら王2017GOKU用のデフォルトの学習設定
 // ※　このオプションは実験中なので使わないように。
-#define LEARN_YANEURAOU_2017_GOKU
+// #define LEARN_YANEURAOU_2017_GOKU
 
 
 // ----------------------
@@ -83,14 +81,6 @@
 // #define LOSS_FUNCTION_IS_ELMO_METHOD
 
 // ※　他、色々追加するかも。
-
-
-// ----------------------
-// 評価関数ファイルの保存
-// ----------------------
-
-// evalファイルの保存は(終了のときの)1度のみにする。
-//#define EVAL_SAVE_ONLY_ONCE
 
 
 // ----------------------
@@ -161,15 +151,6 @@ typedef float LearnFloatType;
 // ======================
 
 // ----------------------
-//    標準の学習方法(普通の雑巾絞り)
-// ----------------------
-
-#if defined (LEARN_DEFAULT)
-#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
-#define ADA_GRAD_UPDATE
-#endif
-
-// ----------------------
 //  elmo(WCSC27)の方法での学習
 // ----------------------
 
@@ -193,12 +174,6 @@ typedef float LearnFloatType;
 #define ADA_GRAD_UPDATE
 //#define SGD_UPDATE
 //#define ADA_PROP_UPDATE
-
-// 実験時は1回だけの保存で良い。
-// #define EVAL_SAVE_ONLY_ONCE
-
-// 局面はシャッフルしてから渡すので読み込み時のシャッフルは不要。
-#define LEARN_SFEN_NO_SHUFFLE
 #endif
 
 

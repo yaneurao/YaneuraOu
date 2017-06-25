@@ -1015,6 +1015,7 @@ struct SfenReader
 		next_update_weights = 0;
 		save_count = 0;
 		end_of_files = false;
+		no_shuffle = false;
 
 		hash.resize(READ_SFEN_HASH_SIZE);
 	}
@@ -1164,15 +1165,15 @@ struct SfenReader
 				}
 			}
 
-#if !defined ( LEARN_SFEN_NO_SHUFFLE )
 			// この読み込んだ局面データをshuffleする。
 			// random shuffle by Fisher-Yates algorithm
+
+			if (!no_shuffle)
 			{
 				auto size = sfens.size();
 				for (size_t i = 0; i < size; ++i)
 					swap(sfens[i], sfens[(size_t)(prng.rand((u64)size - i) + i)]);
 			}
-#endif
 
 			// これをTHREAD_BUFFER_SIZEごとの細切れにする。それがsize個あるはず。
 			// SFEN_READ_SIZEはTHREAD_BUFFER_SIZEの倍数であるものとする。
@@ -1225,6 +1226,9 @@ struct SfenReader
 
 	u64 save_count;
 
+	// 局面読み込み時のシャッフルを行わない。
+	bool no_shuffle;
+
 	// rmseの計算用の局面であるかどうかを判定する。
 	// (rmseの計算用の局面は学習のために使うべきではない。)
 	bool is_for_rmse(Key key) const
@@ -1274,7 +1278,7 @@ protected:
 // 複数スレッドでsfenを生成するためのクラス
 struct LearnerThink: public MultiThink
 {
-	LearnerThink(SfenReader& sr_):sr(sr_),stop_flag(false)
+	LearnerThink(SfenReader& sr_):sr(sr_),stop_flag(false), save_only_once(false)
 	{
 #if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
 		learn_sum_cross_entropy_eval = 0.0;
@@ -1303,6 +1307,9 @@ struct LearnerThink: public MultiThink
 
 	// 教師局面の深い探索の評価値の絶対値がこの値を超えていたらその教師局面を捨てる。
 	int eval_limit;
+
+	// 評価関数の保存は終了時に一度だけにするのか？
+	bool save_only_once;
 
 	// --- lossの計算
 
@@ -1708,14 +1715,16 @@ void LearnerThink::save()
 	// 保存ごとにファイル名の拡張子部分を"0","1","2",..のように変えていく。
 	// (あとでそれぞれの評価関数パラメーターにおいて勝率を比較したいため)
 
-#if !defined (EVAL_SAVE_ONLY_ONCE)
-	static int dir_number = 0;
-	Eval::save_eval(std::to_string(dir_number++));
-#else
-	// EVAL_SAVE_ONLY_ONCEが定義されているときは、
-	// 1度だけの保存としたいのでサブフォルダを掘らない。
-	Eval::save_eval("");
-#endif
+	if (save_only_once)
+	{
+		// EVAL_SAVE_ONLY_ONCEが定義されているときは、
+		// 1度だけの保存としたいのでサブフォルダを掘らない。
+		Eval::save_eval("");
+	}
+	else {
+		static int dir_number = 0;
+		Eval::save_eval(std::to_string(dir_number++));
+	}
 }
 
 // shuffle_files() , shuffle_files_quick()の下請けで、書き出し部分。
@@ -1988,6 +1997,13 @@ void learn(Position&, istringstream& is)
 	// 教師局面の深い探索での評価値の絶対値が、この値を超えていたらその局面は捨てる。
 	int eval_limit = 32000;
 
+	// 評価関数ファイルの保存は終了間際の1回に限定するかのフラグ。
+	bool save_only_once = false;
+
+	// 教師局面を先読みしている分に関してシャッフルする。(1000万局面単位ぐらいのシャッフル)
+	// 事前にシャッフルされているファイルを渡すならオンにすれば良い。
+	bool no_shuffle = false;
+
 	// ファイル名が後ろにずらずらと書かれていると仮定している。
 	while (true)
 	{
@@ -2031,6 +2047,8 @@ void learn(Position&, istringstream& is)
 		else if (option == "output_file_name") is >> output_file_name;
 
 		else if (option == "eval_limit") is >> eval_limit;
+		else if (option == "save_only_once") save_only_once = true;
+		else if (option == "no_shuffle") no_shuffle = true;
 
 		// さもなくば、それはファイル名である。
 		else
@@ -2117,6 +2135,8 @@ void learn(Position&, istringstream& is)
 
 	cout << "loop            : " << loop << endl;
 	cout << "eval_lmit       : " << eval_limit << endl;
+	cout << "save_only_once  : " << (save_only_once ? "true" : "false") << endl;
+	cout << "no_shuffle      : " << (no_shuffle ? "true" : "false") << endl;
 
 	// ループ回数分だけファイル名を突っ込む。
 	for (int i = 0; i < loop; ++i)
@@ -2164,7 +2184,10 @@ void learn(Position&, istringstream& is)
 
 	cout << "init done." << endl;
 
+	// その他、オプション設定を反映させる。
 	learn_think.eval_limit = eval_limit;
+	learn_think.save_only_once = save_only_once;
+	learn_think.sr.no_shuffle = no_shuffle;
 
 	// 局面ファイルをバックグラウンドで読み込むスレッドを起動
 	// (これを開始しないとmseの計算が出来ない。)
