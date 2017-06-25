@@ -758,7 +758,7 @@ void gen_sfen(Position&, istringstream& is)
 	int random_move_count = 5;
 
 	// 書き出すファイル名
-	string filename = "generated_kifu.bin";
+	string output_file_name = "generated_kifu.bin";
 
 	string token;
 	while (true)
@@ -774,8 +774,8 @@ void gen_sfen(Position&, istringstream& is)
 			is >> search_depth2;
 		else if (token == "loop")
 			is >> loop_max;
-		else if (token == "file")
-			is >> filename;
+		else if (token == "output_file_name")
+			is >> output_file_name;
 		else if (token == "eval_limit")
 		{
 			is >> eval_limit;
@@ -805,12 +805,12 @@ void gen_sfen(Position&, istringstream& is)
 		<< " , random_move_minply = " << random_move_minply
 		<< " , random_move_maxply = " << random_move_maxply
 		<< " , random_move_count  = " << random_move_count
-		<< " , filename = " << filename
+		<< " , output_file_name = " << output_file_name
 		<< endl;
 
 	// Options["Threads"]の数だけスレッドを作って実行。
 	{
-		SfenWriter sw(filename, thread_num);
+		SfenWriter sw(output_file_name, thread_num);
 		MultiThinkGenSfen multi_think(search_depth, search_depth2, sw);
 		multi_think.set_loop_max(loop_max);
 		multi_think.eval_limit = eval_limit;
