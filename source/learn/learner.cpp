@@ -107,9 +107,11 @@ T operator += (std::atomic<T>& x, const T rhs)
 template <typename T>
 T operator -= (std::atomic<T>& x, const T rhs) { return x += -rhs; }
 
-
 namespace Learner
 {
+
+// 局面の配列 : PSVector は packed sfen vector の略。
+typedef std::vector<PackedSfenValue> PSVector;
 
 // -----------------------------------
 //    局面のファイルへの書き出し
@@ -134,6 +136,11 @@ struct SfenWriter
 		finished = true;
 		file_worker_thread.join();
 		fs.close();
+
+		for (auto p : sfen_buffers)
+			delete p;
+		for (auto p : sfen_buffers_pool)
+			delete p;
 	}
 
 	// 各スレッドについて、この局面数ごとにファイルにflushする。
@@ -151,7 +158,7 @@ struct SfenWriter
 		// 初回とスレッドバッファを書き出した直後はbufがないので確保する。
 		if (!buf)
 		{
-			buf = shared_ptr<vector<PackedSfenValue>>(new vector<PackedSfenValue>());
+			buf = new PSVector();
 			buf->reserve(SFEN_WRITE_SIZE);
 		}
 
@@ -167,10 +174,7 @@ struct SfenWriter
 			std::unique_lock<Mutex> lk(mutex);
 			sfen_buffers_pool.push_back(buf);
 
-			// この瞬間、参照を剥がしておかないとこのスレッドとwrite workerのほうから同時に
-			// shared_ptrの参照カウントをいじることになってまずい。
 			buf = nullptr;
-
 			// buf == nullptrにしておけば次回にこの関数が呼び出されたときにバッファは確保される。
 		}
 	}
@@ -209,7 +213,7 @@ struct SfenWriter
 
 		while (!finished || sfen_buffers_pool.size())
 		{
-			vector<shared_ptr<vector<PackedSfenValue>>> buffers;
+			vector<PSVector*> buffers;
 			{
 				std::unique_lock<Mutex> lk(mutex);
 
@@ -239,6 +243,9 @@ struct SfenWriter
 					// 40回×GEN_SFENS_TIMESTAMP_OUTPUT_INTERVALごとに処理した局面数を出力
 					if ((++time_stamp_count % (u64(40) * GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL)) == 0)
 						output_status();
+
+					// このメモリは不要なのでこのタイミングで開放しておく。
+					delete ptr;
 				}
 			}
 		}
@@ -260,8 +267,8 @@ private:
 	u64 time_stamp_count = 0;
 
 	// ファイルに書き出す前のバッファ
-	vector<shared_ptr<vector<PackedSfenValue>>> sfen_buffers;
-	vector<shared_ptr<vector<PackedSfenValue>>> sfen_buffers_pool;
+	std::vector<PSVector*> sfen_buffers;
+	std::vector<PSVector*> sfen_buffers_pool;
 
 	// sfen_buffers_poolにアクセスするときに必要なmutex
 	Mutex mutex;
@@ -339,7 +346,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 		// 1局分の局面を保存しておき、終局のときに勝敗を含めて書き出す。
 		// 書き出す関数は、この下にあるflush_psv()である。
-		vector<PackedSfenValue> a_psv;
+		PSVector a_psv;
 
 		// a_psvに積まれている局面をファイルに書き出す。
 		// lastTurnIsWin : a_psvに積まれている最終局面の次の局面での勝敗
@@ -796,17 +803,16 @@ void gen_sfen(Position&, istringstream& is)
 	if (search_depth2 == INT_MIN)
 		search_depth2 = search_depth;
 
-	std::cout << "gen_sfen : "
-		<< "search_depth = " << search_depth << " to " << search_depth2
-		<< " , loop_max = " << loop_max
-		<< " , eval_limit = " << eval_limit
-		<< " , thread_num (set by USI setoption) = " << thread_num
-		<< " , book_moves (set by USI setoption) = " << Options["BookMoves"]
-		<< " , random_move_minply = " << random_move_minply
-		<< " , random_move_maxply = " << random_move_maxply
-		<< " , random_move_count  = " << random_move_count
-		<< " , output_file_name = " << output_file_name
-		<< endl;
+	std::cout << "gen_sfen : " << endl
+		<< "  search_depth = " << search_depth << " to " << search_depth2 << endl
+		<< "  loop_max = " << loop_max << endl
+		<< "  eval_limit = " << eval_limit << endl
+		<< "  thread_num (set by USI setoption) = " << thread_num << endl
+		<< "  book_moves (set by USI setoption) = " << Options["BookMoves"] << endl
+		<< "  random_move_minply = " << random_move_minply << endl
+		<< "  random_move_maxply = " << random_move_maxply << endl
+		<< "  random_move_count  = " << random_move_count << endl
+		<< "  output_file_name = " << output_file_name << endl;
 
 	// Options["Threads"]の数だけスレッドを作って実行。
 	{
@@ -1024,6 +1030,11 @@ struct SfenReader
 	{
 		if (file_worker_thread.joinable())
 			file_worker_thread.join();
+
+		for (auto p : packed_sfens)
+			delete p;
+		for (auto p : packed_sfens_pool)
+			delete p;
 	}
 
 	// mseの計算用に1000局面ほど読み込んでおく。
@@ -1072,6 +1083,13 @@ struct SfenReader
 		ps = *(thread_ps->rbegin());
 		thread_ps->pop_back();
 		
+		// バッファを使いきったのであれば自らdeleteを呼び出してこのバッファを開放する。
+		if (thread_ps->size() == 0)
+		{
+			delete thread_ps;
+			thread_ps = nullptr;
+		}
+
 		return true;
 	}
 
@@ -1142,7 +1160,7 @@ struct SfenReader
 			while (packed_sfens_pool.size() >= SFEN_READ_SIZE / THREAD_BUFFER_SIZE)
 				sleep(100);
 
-			vector<PackedSfenValue> sfens;
+			PSVector sfens;
 			sfens.reserve(SFEN_READ_SIZE);
 
 			// ファイルバッファにファイルから読み込む。
@@ -1180,12 +1198,13 @@ struct SfenReader
 			ASSERT_LV3((SFEN_READ_SIZE % THREAD_BUFFER_SIZE)==0);
 
 			auto size = size_t(SFEN_READ_SIZE / THREAD_BUFFER_SIZE);
-			vector<shared_ptr<vector<PackedSfenValue>>> ptrs;
+			std::vector<PSVector*> ptrs;
 			ptrs.reserve(size);
 
 			for (size_t i = 0; i < size; ++i)
 			{
-				shared_ptr<vector<PackedSfenValue>> ptr(new vector<PackedSfenValue>());
+				// このポインターのdeleteは、受け側で行なう。
+				PSVector* ptr = new PSVector();
 				ptr->resize(THREAD_BUFFER_SIZE);
 				memcpy(&((*ptr)[0]), &sfens[i * THREAD_BUFFER_SIZE], sizeof(PackedSfenValue) * THREAD_BUFFER_SIZE);
 
@@ -1196,15 +1215,11 @@ struct SfenReader
 			{
 				std::unique_lock<Mutex> lk(mutex);
 
-				// shared_ptrをコピーするだけなのでこの時間は無視できるはず…。
+				// ポインタをコピーするだけなのでこの時間は無視できるはず…。
 				// packed_sfens_poolの内容を変更するのでmutexのlockが必要。
 
 				for (size_t i = 0; i < size; ++i)
 					packed_sfens_pool.push_back(ptrs[i]);
-
-				// mutexをlockしている間にshared_ptrのデストラクタを呼び出さないと
-				// 参照カウントを複数スレッドから変更することになってまずい。
-				ptrs.clear();
 			}
 		}
 	}
@@ -1243,7 +1258,7 @@ struct SfenReader
 	vector<Key> hash; // 64MB*8 = 512MB
 
 	// mse計算用のtest局面
-	std::vector<PackedSfenValue> sfen_for_mse;
+	PSVector sfen_for_mse;
 
 protected:
 
@@ -1261,7 +1276,8 @@ protected:
 	std::fstream fs;
 
 	// 各スレッド用のsfen
-	std::vector<shared_ptr<vector<PackedSfenValue>>> packed_sfens;
+	// (使いきったときにスレッドが自らdeleteを呼び出して開放すべし。)
+	std::vector<PSVector*> packed_sfens;
 
 	// packed_sfens_poolにアクセスするときのmutex
 	Mutex mutex;
@@ -1269,7 +1285,7 @@ protected:
 	// sfenのpool。fileから読み込むworker threadはここに補充する。
 	// 各worker threadはここから自分のpacked_sfens[thread_id]に充填する。
 	// ※　mutexをlockしてアクセスすること。
-	std::vector<shared_ptr<vector<PackedSfenValue>>> packed_sfens_pool;
+	std::vector<PSVector*> packed_sfens_pool;
 
 	// mse計算用の局面を学習に用いないためにhash keyを保持しておく。
 	std::unordered_set<Key> sfen_for_mse_hash;
@@ -1506,7 +1522,6 @@ void LearnerThink::thread_worker(size_t thread_id)
 				cout << sr.total_done << " sfens , at " << now_string() << endl;
 
 				// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
-
 				Eval::update_weights(/* ++epoch */);
 
 				// 10億局面ごとに1回保存、ぐらいの感じで。
@@ -1805,7 +1820,7 @@ void shuffle_files(const vector<string>& filenames , const string& output_file_n
 	// 10M*40bytes = 400MBのバッファが必要。
 	const u64 buffer_size = 10000000;
 
-	vector<PackedSfenValue> buf;
+	PSVector buf;
 	buf.resize(buffer_size);
 	// ↑のバッファ、どこまで使ったかを示すマーカー
 	u64 buf_write_marker = 0;
@@ -1921,7 +1936,7 @@ void shuffle_files_quick(const vector<string>& filenames, const string& output_f
 // メモリに丸読みして指定ファイル名で書き出す。
 void shuffle_files_on_memory(const vector<string>& filenames,const string output_file_name)
 {
-	std::vector<PackedSfenValue> buf;
+	PSVector buf;
 
 	for (auto filename : filenames)
 	{
