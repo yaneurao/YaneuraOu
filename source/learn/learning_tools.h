@@ -319,17 +319,20 @@ namespace EvalLearningTools
 			// j = 0 の場合、i^2 + i - 2 * index2 == 0なので
 			// 2次方程式の解の公式から i = (sqrt(8*index2+1) - 1) / 2である。
 			// iを整数化したのちに、j = index2 - i * (i + 1) / 2としてjを求めれば良い。
-			Eval::BonaPiece piece1 = (Eval::BonaPiece)(((u64)sqrt(8 * index2 + 1) - 1) / 2);
-			Eval::BonaPiece piece0 = (Eval::BonaPiece)(index2 - piece1*(piece1 + 1) / 2);
 
-			ASSERT_LV3(piece1 < Eval::fe_end);
-			ASSERT_LV3(piece0 < Eval::fe_end);
+			// BonaPiece型は、AVX2以前では16bitであるので気をつけないと
+			// 掛け算などでオーバーフローする。そこでいったんu64で計算する。
+			u64 piece1t = u64(sqrt(8 * index2 + 1) - 1) / 2;
+			u64 piece0t = index2 - piece1t*(piece1t + 1) / 2;
+
+			ASSERT_LV3(piece1t < Eval::fe_end);
+			ASSERT_LV3(piece0t < Eval::fe_end);
 
 			index /= triangle_fe_end;
 #endif
 			Square king = (Square)(index  /* % SQ_NB */);
 			ASSERT_LV3(king < SQ_NB);
-			return KPP(king, piece0, piece1);
+			return KPP(king, (Eval::BonaPiece)piece0t, (Eval::BonaPiece)piece1t);
 		}
 
 		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
@@ -368,7 +371,9 @@ namespace EvalLearningTools
 				// この三角配列の(i,j)は、i行目のj列目の要素。
 				// i行目0列目は、そこまでの要素の合計であるから、1 + 2 + ... + i = i * (i+1) / 2
 				// i行目j列目は、これにjを足したもの。i * (i + 1) /2 + j
-				return (u64)k * triangle_fe_end + (u64)((i)*((i)+1) / 2 + (j));
+
+				// BonaPiece型は、AVX2以前では16bitなので気をつけないとオーバーフローする。
+				return (u64)k * triangle_fe_end + (u64)(u64(i)*(u64(i)+1) / 2 + u64(j));
 			};
 
 			auto k = king_;
