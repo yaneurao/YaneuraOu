@@ -11,7 +11,7 @@
 #include <fstream>
 #include <sstream>
 #include <unordered_set>
-#include <iomanip> 
+#include <iomanip>
 
 using namespace std;
 using std::cout;
@@ -226,7 +226,7 @@ namespace Book
 			// 先手番のときのみ処理対象とする。
 			typedef pair<string, Color> SfenAndColor;
 			vector<SfenAndColor> sfens;
-			
+
 			if (! bw_files)
 			{
 				vector<string> tmp_sfens;
@@ -639,7 +639,7 @@ namespace Book
 		}
 	}
 #endif
-	
+
 	// ----------------------------------
 	//			MemoryBook
 	// ----------------------------------
@@ -705,7 +705,7 @@ namespace Book
 					return 1;
 				}
 
-				on_the_fly = true;
+				this->on_the_fly = true;
 				book_name = filename;
 				return 0;
 			}
@@ -896,7 +896,7 @@ namespace Book
 			return PosMoveListPtr();
 
 		if (book_name == kAperyBookName) {
-			
+
 			PosMoveListPtr pml_entry(new PosMoveList());
 
 			// Apery定跡データベースを用いて指し手を選択する
@@ -1020,7 +1020,7 @@ namespace Book
 				uint64_t num_sum = 0;
 
 				auto calc_prob = [&] {
-					auto& move_list = *book_body[sfen];
+					auto& move_list = *pml_entry;
 					std::stable_sort(move_list.begin(), move_list.end());
 					num_sum = std::max(num_sum, UINT64_C(1)); // ゼロ除算対策
 					for (auto& bp : move_list)
@@ -1070,16 +1070,14 @@ namespace Book
 					else
 						next = move_from_usi(nextMove);
 
-					BookPos bp(best, next, value, depth, num);
+					// 定跡のMoveは16bitであり、rootMovesは32bitのMoveであるからこのタイミングで補正する。
+					BookPos bp(pos.move16_to_move(best), next, value, depth, num);
 					insert_book_pos(pml_entry , bp);
 					num_sum += num;
 				}
 				// ファイルが終わるときにも最後の局面に対するcalc_probが必要。
 				calc_prob();
 
-				// 定跡のMoveは16bitであり、rootMovesは32bitのMoveであるからこのタイミングで補正する。
-				for (auto& m : *pml_entry)
-					m.bestMove = pos.move16_to_move(m.bestMove);
 				return pml_entry;
 			}
 			else {
@@ -1355,7 +1353,7 @@ namespace Book
 						bestPos = move;
 				}
 			}
-			
+
 			bestMove = bestPos.bestMove;
 			ponderMove = bestPos.nextMove;
 			return true;
