@@ -729,8 +729,15 @@ void gen_sfen(Position&, istringstream& is)
 	GlobalOptions.use_per_thread_tt = true;
 #endif
 
+	// あとでOptionsの設定を復元するためにコピーで保持しておく。
+	auto oldOptions = Options;
+
 	// スレッド数(これは、USIのsetoptionで与えられる)
 	u32 thread_num = Options["Threads"];
+
+	// 定跡を用いる場合、on the flyで行なうとすごく時間がかかるので
+	// メモリに丸読みされている状態であることをここで保証する。
+	Options["BookOnTheFly"] = true;
 
 	// GlobalOptions.use_per_thread_tt == trueのときは、
 	// これを呼んだタイミングで現在のOptions["Threads"]の値がコピーされることになっている。
@@ -819,8 +826,11 @@ void gen_sfen(Position&, istringstream& is)
 
 	std::cout << "gen_sfen finished." << endl;
 
+	// Optionsを書き換えていたので復元する。
+	Options = oldOptions;
+
 #if defined(USE_GLOBAL_OPTIONS)
-	// 復元
+	// GlobalOptionsの復元
 	GlobalOptions = oldGlobalOptions;
 #endif
 

@@ -674,7 +674,7 @@ namespace Book
 			return 0;
 
 		// 別のファイルを開こうとしているので前回メモリに丸読みした定跡をクリアしておかないといけない。
-		clear();
+		book_body.clear();
 
 		// 読み込み済み、もしくは定跡を用いない(no_book)であるなら正常終了。
 		if (filename == "book/no_book")
