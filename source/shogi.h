@@ -526,9 +526,9 @@ std::ostream& operator<<(std::ostream& os, Piece pc);
 enum PieceNo : u8
 {
   PIECE_NO_PAWN = 0, PIECE_NO_LANCE = 18, PIECE_NO_KNIGHT = 22, PIECE_NO_SILVER = 26,
-  PIECE_NO_GOLD = 30, PIECE_NO_BISHOP = 34, PIECE_NO_ROOK = 36, PIECE_NO_KING = 38, 
+  PIECE_NO_GOLD = 30, PIECE_NO_BISHOP = 34, PIECE_NO_ROOK = 36, PIECE_NO_KING = 38,
   PIECE_NO_BKING = 38, PIECE_NO_WKING = 39, // 先手、後手の玉の番号が必要な場合はこっちを用いる
-  PIECE_NO_ZERO = 0, PIECE_NO_NB = 40, 
+  PIECE_NO_ZERO = 0, PIECE_NO_NB = 40,
 };
 
 // PieceNoの整合性の検査。assert用。
@@ -646,7 +646,7 @@ inline std::ostream& operator<<(std::ostream& os, ExtMove m) { os << m.move << '
 // 手駒
 // 歩の枚数を8bit、香、桂、銀、角、飛、金を4bitずつで持つ。こうすると16進数表示したときに綺麗に表示される。(なのはのアイデア)
 enum Hand : uint32_t { HAND_ZERO = 0, };
- 
+
 // 手駒のbit位置
 constexpr int PIECE_BITS[PIECE_HAND_NB] = { 0, 0 /*歩*/, 8 /*香*/, 12 /*桂*/, 16 /*銀*/, 20 /*角*/, 24 /*飛*/ , 28 /*金*/ };
 
@@ -906,8 +906,8 @@ namespace USI
 			defaultValue = currentValue = v ? "true" : "false";
 		}
 
-		// int型で(min,max)でデフォルトがv
-		Option(int v, int minv, int maxv, OnChange f = nullptr) : type("spin"), min(minv), max(maxv), on_change(f)
+		// long long型で(min,max)でデフォルトがv
+		Option(long long v, long long minv, long long maxv, OnChange f = nullptr) : type("spin"), min(minv), max(maxv), on_change(f)
 		{
 			defaultValue = currentValue = std::to_string(v);
 		}
@@ -926,17 +926,17 @@ namespace USI
 		// 起動時に設定を代入する。
 		void operator<<(const Option&);
 
-		// int,bool型への暗黙の変換子
-		operator int() const {
+		// long long,bool型への暗黙の変換子
+		operator long long() const {
 			ASSERT_LV1(type == "check" || type == "spin");
-			return type == "spin" ? stoi(currentValue) : currentValue == "true";
+			return type == "spin" ? stoll(currentValue) : currentValue == "true";
 		}
 
 		// string型への暗黙の変換子
 		// typeが"string"型のとき以外であっても何であれ変換できるようになっているほうが便利なので
 		// 変換できるようにしておく。
 		operator std::string() const {
-			ASSERT_LV1(type == "string" || type == "combo" || type == "spin" || type == "check"); 
+			ASSERT_LV1(type == "string" || type == "combo" || type == "spin" || type == "check");
 			return currentValue;
 		}
 
@@ -948,8 +948,8 @@ namespace USI
 
 		std::string defaultValue, currentValue, type;
 
-		// int型のときの最小と最大
-		int min, max;
+		// long long型のときの最小と最大
+		long long min, max;
 
 		// combo boxのときの表示する文字列リスト
 		std::vector<std::string> list;
