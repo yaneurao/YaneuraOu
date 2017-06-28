@@ -667,14 +667,22 @@ namespace Book
 	static const constexpr char* kAperyBookName = "book/book.bin";
 
 	// 定跡ファイルの読み込み(book.db)など。
-	int MemoryBook::read_book(const std::string& filename, bool on_the_fly)
+	int MemoryBook::read_book(const std::string& filename, bool on_the_fly_)
 	{
 		// 読み込み済であるかの判定
-		if (book_name == filename)
+		// 一度read_book()が呼び出されたなら、そのときに読み込んだ定跡ファイル名が
+		// book_nameに設定されているはずなので、これと一致したなら、ここでは今回の読み込み動作を終了して良い。
+		// ただしon_the_flyの状態が変更になっているのであればファイルの読み直し等の処理が必要となる。
+		// (前回はon_the_fly == trueであったのに今回はfalseであるというような場合、メモリに丸読みしなくては
+		// 　ならないので、ここで終了してしまってはまずい。また逆に、前回はon_the_fly == falseだったものが
+		// 　今回はtrueになった場合、本来ならメモリにすでに読み込まれているのだから読み直しは必要ないが、
+		//　 何らかの目的で変更したのであろうから、この場合もきちんと反映しないとまずい。)
+		if (book_name == filename && this->on_the_fly == on_the_fly_)
 			return 0;
 
 		// 別のファイルを開こうとしているので前回メモリに丸読みした定跡をクリアしておかないといけない。
 		book_body.clear();
+		on_the_fly = false;
 
 		// 読み込み済み、もしくは定跡を用いない(no_book)であるなら正常終了。
 		if (filename == "book/no_book")
@@ -693,7 +701,7 @@ namespace Book
 			// やねうら王定跡データベースを読み込む
 
 			// ファイルだけオープンして読み込んだことにする。
-			if (on_the_fly)
+			if (on_the_fly_)
 			{
 				if (fs.is_open())
 					fs.close();
@@ -705,6 +713,8 @@ namespace Book
 					return 1;
 				}
 
+				// 定跡ファイルのopenにも成功したし、on the flyできそう。
+				// このときに限りこのフラグをtrueにする。
 				this->on_the_fly = true;
 				book_name = filename;
 				return 0;

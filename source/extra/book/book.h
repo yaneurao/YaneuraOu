@@ -42,12 +42,14 @@ namespace Book
 	extern void insert_book_pos(PosMoveListPtr ptr, const BookPos& bp);
 
 	// メモリ上にある定跡ファイル
-	// sfen文字列をkeyとして、局面の指し手へ変換。(重複した指し手は除外するものとする)
+	// ・sfen文字列をkeyとして、局面の指し手へ変換するのが主な役割。(このとき重複した指し手は除外するものとする)
+	// ・on the flyが指定されているときは実際はメモリ上にはないがこれを透過的に扱う。
 	struct MemoryBook
 	{
 		// 定跡として登録されているかを調べて返す。
-		// readのときにon_the_flyが指定されていればファイルを調べに行く。
-		// 見つからなかった場合、nullptrが返る。
+		// ・見つからなかった場合、nullptrが返る。
+		// ・read_book()のときにon_the_flyが指定されていれば実際にはメモリ上には定跡データが存在しないので
+		// ファイルを調べに行き、PosMoveListをメモリ上に作って、それをくるんだPosMoveListPtrを返す。
 		PosMoveListPtr find(const Position& pos);
 
 		// 定跡を内部に読み込む。
@@ -56,9 +58,9 @@ namespace Book
 		//      Options["BookOnTheFly"]がtrueのときはon the flyで読み込むのでそれ用。
 		// 　　定跡作成時などはこれをtrueにしてはいけない。(メモリに読み込まれないため)
 		// ・同じファイルを二度目は読み込み動作をskipする。
-		// ・book_nameはpathとして"book/"を補完しないので生のpathを指定する。
+		// ・filenameはpathとして"book/"を補完しないので生のpathを指定する。
 		// ・返し値は正常終了なら0。さもなくば非0。
-		int read_book(const std::string& book_name, bool on_the_fly = false);
+		int read_book(const std::string& filename, bool on_the_fly = false);
 
 		// 定跡ファイルの書き出し
 		// ・sort = 書き出すときにsfen文字列で並び替えるのか。(書き出しにかかる時間増)
@@ -85,13 +87,17 @@ namespace Book
 
 		// メモリに丸読みせずにfind()のごとにファイルを調べにいくのか。
 		// これは思考エンジン設定のOptions["BookOnTheFly"]の値を反映したもの。
+		// ただし、read_book()のタイミングで定跡ファイルのopenに失敗したならfalseのままである。
+		// このフラグがtrueのときは、定跡ファイルのopen自体には成功していることが保証される。
 		bool on_the_fly = false;
 
 		// 上のon_the_fly == trueのときに、開いている定跡ファイルのファイルハンドル
 		std::fstream fs;
 
-		// 読み込んだbookの名前
-		// (読み込む前にこの名前を設定してはいけない)
+		// read_book()のときに読み込んだbookの名前
+		// ・on_the_fly == trueのときは、読み込む予定のファイルの名前。
+		// ・二度目のread_book()の呼び出しのときにすでに読み込んである(or ファイルをopenしてある)かどうかの
+		// 判定のためにファイル名を内部的に保持してある。
 		std::string book_name;
 	};
 
