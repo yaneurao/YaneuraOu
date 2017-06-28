@@ -34,20 +34,21 @@ namespace Book
 		bool operator < (const BookPos& rhs) const { return num > rhs.num; } // std::sortで降順ソートされて欲しいのでこう定義する。
 	};
 
+	// ある局面での指し手の集合
+	typedef std::vector<BookPos> PosMoveList;
+	typedef std::shared_ptr<PosMoveList> PosMoveListPtr;
+
+	// sfen文字列からPosMoveListへの集合。(これが定跡)
+	typedef std::unordered_map<std::string /* sfen */, PosMoveListPtr > BookType;
+
 	// メモリ上にある定跡ファイル
 	// sfen文字列をkeyとして、局面の指し手へ変換。(重複した指し手は除外するものとする)
 	struct MemoryBook
 	{
-		typedef std::unordered_map<std::string, std::vector<BookPos> > BookType;
-
 		// 定跡として登録されているかを調べて返す。
 		// readのときにon_the_flyが指定されていればファイルを調べに行く。
-		// (このとき、見つからなければthis::end()が返ってくる。
-		// ファイルに読み込みに行っていることを意識する必要はない。)
-		BookType::iterator find(const Position& pos);
-
-		// find()で見つからなかったときの値
-		const BookType::iterator end() { return book_body.end(); }
+		// 見つからなかった場合、nullptrが返る。
+		PosMoveListPtr find(const Position& pos);
 
 		// 定跡を内部に読み込む。
 		// 定跡ファイル : set_book_name()で事前に渡したファイル名のファイル。
@@ -82,8 +83,9 @@ namespace Book
 	// sort = 書き出すときにsfen文字列で並び替えるのか。(書き出しにかかる時間増)
 	extern int write_book(const std::string& filename, const MemoryBook& book, bool sort = false);
 
-	// bookにBookPosを一つ追加。(その局面ですでに同じbestMoveの指し手が登録されている場合は上書き動作)
+	// MemoryBookとかPosMoveListPrtとかにBookPosを一つ追加。(その局面ですでに同じbestMoveの指し手が登録されている場合は上書き動作)
 	extern void insert_book_pos(MemoryBook& book, const std::string sfen, const BookPos& bp);
+	extern void insert_book_pos(PosMoveListPtr ptr, const BookPos& bp);
 
 #ifdef ENABLE_MAKEBOOK_CMD
 	// USI拡張コマンド。"makebook"。定跡ファイルを作成する。
@@ -100,15 +102,25 @@ namespace Book
 		// 定跡ファイルの読み込み。Search::clear()で呼び出す。
 		void read_book() { memory_book.read_book(book_name); }
 
-		// 定跡の指し手の選択
-		// 定跡にhitした場合は、このままrootMoves[0]を指すようにすれば良い。
+		// --- 定跡の指し手の選択
+
+		// 定跡にhitした場合は、trueが返るので、このままrootMoves[0]を指すようにすれば良い。
 		bool probe(Thread& th , Search::LimitsType& limit ,  PRNG& prng);
+
+		// pos.RootMovesを持っていないときに、現在の局面が定跡にhitするか調べてhitしたらその指し手を返す。
+		// 画面には何も表示しない。
+		Move probe(Position& pos, PRNG& prng);
 
 		// メモリに読み込んだ定跡ファイル
 		MemoryBook memory_book;
 
 		// 読み込む予定の定跡ファイル名
 		std::string book_name;
+
+	private:
+		// probe()の下請け
+		bool BookMoveSelector::probe_impl(Position& rootPos, PRNG& prng, bool silent, Move& bestMove, Move& ponderMove);
+
 	};
 
 }

@@ -1078,9 +1078,9 @@ void exam_book(Position& pos)
 
 			// この局面で定跡を調べる。
 			auto it = book.find(pos);
-			if (it != book.end() && it->second.size() != 0)
+			if (it != nullptr )
 			{
-				int v = it->second[0].value;
+				int v = it->at(0).value;
 				// 得られた評価値が基準範囲内なので定跡として書き出す。
 				if (-100 <= v && v <= 100)
 				{
@@ -1113,11 +1113,9 @@ void book_check(Position& pos, Color rootTurn, Book::MemoryBook& book, string sf
 	StateInfo si;
 
 	auto it = book.find(pos);
-	if (it != book.end() && it->second.size() != 0) {
+	if (it != nullptr) {
 		// 定跡にhitした。逆順で出力しないと将棋所だと逆順にならないという問題があるので逆順で出力する。
-		// また、it->second->size()!=0をチェックしておかないと指し手のない定跡が登録されていたときに困る。
-
-		const auto& move_list = it->second;
+		const auto& move_list = *it;
 
 		// 上位N手で局面を進める。
 		size_t n;

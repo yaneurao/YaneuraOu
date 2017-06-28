@@ -326,8 +326,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 	StateInfo state[MAX_PLY2 + 20]; // StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
 	Move m = MOVE_NONE;
 
-	// 定跡の指し手を用いるモード
-	int book_ply = Options["BookMoves"];
+	// 定跡/ランダムムーブ用の乱数
+	PRNG prng(rand(100000000));
 
 	// 規定回数回になるまで繰り返し
 	while (true)
@@ -342,7 +342,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		pos.set_this_thread(th);
 
 		// 探索部で定義されているBookMoveSelectorのメンバを参照する。
-		auto& book = ::book.memory_book;
+		auto& book = ::book;
 
 		// 1局分の局面を保存しておき、終局のときに勝敗を含めて書き出す。
 		// 書き出す関数は、この下にあるflush_psv()である。
@@ -407,7 +407,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			// a[]のsize()を超える回数のランダムムーブは適用できないので制限する。
 			for (int i = 0 ; i < std::min(random_move_count, (int)a.size()) ; ++i)
 			{
-				swap(a[i], a[rand((u64)random_move_maxply - i) + i]);
+				swap(a[i], a[prng.rand((u64)random_move_maxply - i) + i]);
 				random_move_flag[a[i]] = true;
 			}
 		}
@@ -447,33 +447,20 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				break;
 			}
 
-			// 定跡を使用するのか？
-			if (pos.game_ply() <= book_ply)
+			// 定跡
+			if ((m = book.probe(pos,prng)) != MOVE_NONE)
 			{
-				auto it = book.find(pos);
-				if (it != book.end() && it->second.size() != 0)
-				{
-					// 定跡にhitした。it->second->size()!=0をチェックしておかないと
-					// 指し手のない定跡が登録されていたときに困る。
+				// 定跡にhitした。
+				// この指し手で1手進める。
+				//m = bestMove;
 
-					const auto& move_list = it->second;
+				// 定跡の局面は学習には用いない。
+				a_psv.clear();
 
-					const auto& move = move_list[(size_t)rand((u64)move_list.size())];
-					auto bestMove = move.bestMove;
-					// この指し手に不成があってもLEGALであるならこの指し手で進めるべき。
-					if (pos.pseudo_legal(bestMove) && pos.legal(bestMove))
-					{
-						// この指し手で1手進める。
-						m = bestMove;
-
-						// 定跡の局面は学習には用いない。
-						a_psv.clear();
-
-						// 定跡の局面であっても、一定確率でランダムムーブは行なう。
-						goto RANDOM_MOVE;
-					}
-				}
+				// 定跡の局面であっても、一定確率でランダムムーブは行なう。
+				goto RANDOM_MOVE;
 			}
+
 
 			{
 				// search_depth～search_depth2 手読みの評価値とPV(最善応手列)
