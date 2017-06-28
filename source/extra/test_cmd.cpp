@@ -1303,23 +1303,17 @@ struct KKPT_reader
 
 	void read(string dir)
 	{
-		{
-			std::ifstream ifsKK(path_combine(dir, KK_BIN), std::ios::binary);
-			if (ifsKK) ifsKK.read(reinterpret_cast<char*>(kk_), sizeof(*kk_));
-			else goto Error;
+		auto make_name = [&](std::string filename) { return path_combine(dir, filename); };
+		auto input = EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+		auto output = EvalIO::EvalInfo::build_kppt32((void*)kk_, (void*)kkp_, (void*)kpp_);
 
-			// KKP
-			std::ifstream ifsKKP(path_combine(dir, KKP_BIN), std::ios::binary);
-			if (ifsKKP) ifsKKP.read(reinterpret_cast<char*>(kkp_), sizeof(*kkp_));
-			else goto Error;
+		// 評価関数の実験のためにfe_endをKPPT32から変更しているかも知れないので現在のfe_endの値をもとに読み込む。
+		input.fe_end = output.fe_end = Eval::fe_end;
 
-			// KPP
-			std::ifstream ifsKPP(path_combine(dir, KPP_BIN), std::ios::binary);
-			if (ifsKPP) ifsKPP.read(reinterpret_cast<char*>(kpp_), sizeof(*kpp_));
-			else goto Error;
+		if (!EvalIO::eval_convert(input, output, nullptr))
+			goto Error;
 
-			return;
-		}
+		return;
 
 	Error:;
 		cout << "ERROR! : read error." << endl;
@@ -1327,23 +1321,17 @@ struct KKPT_reader
 
 	void write(string dir)
 	{
-		{
-			std::ofstream ofsKK(path_combine(dir, KK_BIN), std::ios::binary);
-			if (ofsKK) ofsKK.write(reinterpret_cast<char*>(kk_), sizeof(*kk_));
-			else goto Error;
+		// read()のときとinputとoutputを入れ替えると書き出せる。EvalIOマジ天使。
 
-			// KKP
-			std::ofstream ofsKKP(path_combine(dir, KKP_BIN), std::ios::binary);
-			if (ofsKKP) ofsKKP.write(reinterpret_cast<char*>(kkp_), sizeof(*kkp_));
-			else goto Error;
+		auto make_name = [&](std::string filename) { return path_combine(dir, filename); };
+		auto input = EvalIO::EvalInfo::build_kppt32((void*)kk_, (void*)kkp_, (void*)kpp_);
+		auto output = EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+		input.fe_end = output.fe_end = Eval::fe_end;
 
-			// KPP
-			std::ofstream ofsKPP(path_combine(dir, KPP_BIN), std::ios::binary);
-			if (ofsKPP) ofsKPP.write(reinterpret_cast<char*>(kpp_), sizeof(*kpp_));
-			else goto Error;
+		if (!EvalIO::eval_convert(input, output, nullptr))
+			goto Error;
 
-			return;
-		}
+		return;
 
 	Error:;
 		cout << "ERROR! : write error." << endl;
@@ -1398,11 +1386,14 @@ struct KKPT_reader
 };
 
 // "test evalmerge dir1 dir2 dir3 percent"
-// dir3は出力フォルダ。事前に生成しておくこと。
 void eval_merge(istringstream& is)
 {
 	string dir1, dir2,dir3;
 	double percent;
+
+	// デフォルトではnew_eval , 50%
+	dir3 = "new_eval";
+	percent = 50;
 
 	// dir1のほうの評価関数を何%で按分するか。
 	// 20を指定すると、dir1:dir2 = 20:80で按分する。
@@ -1412,6 +1403,8 @@ void eval_merge(istringstream& is)
 	cout << "\ndir2    : " << dir2;
 	cout << "\nOutDir  : " << dir3;
 	cout << "\npercent : " << percent << endl;
+
+	MKDIR(dir3);
 
 	KKPT_reader eval1, eval2;
 	eval1.read(dir1);

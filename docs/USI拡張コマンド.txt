@@ -212,7 +212,10 @@ getoption オプション名
 								正しく生成出来ているかをテストする。
 		test autoplay [回数] : 思考ルーチンを呼び出して連続自己対戦をさせる。
 		test timeman         : TimeManagerで消費する時間のテスト結果を表示する。(やねうら王classic-tce以降のみ)
-			
+		test evalmerge [DIR1] [DIR2] [DIR3] [PERCENT] : DIR1の評価関数とDIR2の評価関数を指定されたPERCENTで按分してDIR3に書き出す。
+				例) test evalmerge eval1 eval2 eval_out 20
+				  このときeval1が20%、eval2が80%の新しい評価関数ファイルがeval_out/フォルダに出力される。
+
 	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。
 
 	// MAKE_BOOK_CMDをdefineしてコンパイルしたときにのみ有効。
