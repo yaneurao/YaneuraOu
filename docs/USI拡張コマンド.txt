@@ -1,23 +1,37 @@
 ﻿
 USIプロトコルの独自拡張コマンド
 
-■　USI options
 
-set option name XXX value ...で設定できるoption
+■　USI options関連
 
-	簡略表現として、
+
+・setoptionの簡略表現
+
 	> Threads 1
 	のように指定したとき、
 	> setoption name Threads value 1
-	と等価なようになっている。
+	と等価なようになっている。オプション名のほうは大文字小文字を無視するので
+	> threads 1
+	のように書くことも出来る。
+
+	また、
+	> evalshare true
+	のようにすべて小文字で書けるが、
+	> evalshare True
+	のように設定値に大文字を用いることは出来ない。
 
 
-	注意) USI_Hash で設定された値は無視されます。これは将棋所で、エンジン同士を対局させるときに異なるハッシュの値に
-		設定することが出来ず、USI_Hashの値に従うと片側だけハッシュサイズを変更しての対局などのテストが出来なくなるためです。
+・set option name XXX value ...で設定できるoption項目の一覧
+
+
+	以下、set optionコマンドで設定できるoption項目の一覧
+
 
 	Threads			: 思考するスレッド数
 
 	Hash			: 置換表のサイズ(単位[MB])
+	注意) USI_Hash で設定された値は無視されます。これは将棋所で、エンジン同士を対局させるときに異なるハッシュの値に
+		設定することが出来ず、USI_Hashの値に従うと片側だけハッシュサイズを変更しての対局などのテストが出来なくなるためです。
 
 	USI_Ponder		: ponder(相手番での思考) on/off
 
@@ -140,6 +154,7 @@ set option name XXX value ...で設定できるoption
 	EngineNuma				: 評価関数バイナリを共有するときのプロセッサグループの番号。
 							異なるプロセッサグループの評価関数と共有すると速度が低下するので異なるプロセッサグループとは
 							共有しないためのオプション。-1なら、指定なし。
+							(LOCAL_GAME_SERVER時のみ指定可能)
 
 	// やねうら王 2016Late以降
 
@@ -172,12 +187,39 @@ set option name XXX value ...で設定できるoption
 							  book/book.sfen
 							  のように指定する。
 
-getoption オプション名
+
+・getoption
+
+
+	使い方)
+	getoption [オプション名]
+
 	USI独自拡張。setoptionの逆。オプション名を指定して、その現在の値を取得する。
 	オプション名は大文字小文字の違いは無視する。
 	オプション名を省略するとすべてのオプション項目の現在の値を出力する。
 
+
+■　goコマンドの拡張
+
+
+	go depth 6
+	depth指定での思考。
+	
+	go nodes 10000
+	探索node数を指定しての思考。あまり厳密に守るわけではない。(探索ノード数をチェックする間隔が甘いので厳密に守れない)
+
+	注意)
+		depthとnodesは、USIプロトコルの原案となったUCIプロトコルには存在する。
+		将棋所は対応しておらず。ShogiGUIでは対応しているはず。
+
+	go rtime 100
+	とすると、今回の思考時間として、100～300[ms]を使って思考する。
+	自己対局でレーティングを計測するときに指し手をバラけさせる効果がある…と思って用意したが、
+	いまとなっては使っていない。
+
+
 ■　USI拡張コマンド
+
 
 	d       : Debug デバッグ用に現在の局面を表示する。
 	s       : Sashite 指し手生成のスピードテストを行なう。
@@ -212,19 +254,25 @@ getoption オプション名
 								正しく生成出来ているかをテストする。
 		test autoplay [回数] : 思考ルーチンを呼び出して連続自己対戦をさせる。
 		test timeman         : TimeManagerで消費する時間のテスト結果を表示する。(やねうら王classic-tce以降のみ)
-		test evalmerge [DIR1] [DIR2] [DIR3] [PERCENT] : DIR1の評価関数とDIR2の評価関数を指定されたPERCENTで按分してDIR3に書き出す。
+		test evalmerge [DIR1] [DIR2] [DIR3] [PERCENT] : DIR1の評価関数とDIR2の評価関数を
+				指定されたPERCENTで按分してDIR3に書き出す。(やねうら王2017Early以降のみ)
 				例) test evalmerge eval1 eval2 eval_out 20
 				  このときeval1が20%、eval2が80%の新しい評価関数ファイルがeval_out/フォルダに出力される。
 
 	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。
 
-	// MAKE_BOOK_CMDをdefineしてコンパイルしたときにのみ有効。
 
+■　定跡生成
+
+
+	// MAKE_BOOK_CMDをdefineしてコンパイルしたときにのみ有効。
 	makebook : 定跡作成コマンド。詳しくは doc/解説.txt のほうを参考に。
 
-	goコマンドの拡張。
-		go rtime 100
-	とすると、今回の思考時間として、100～300[ms]を使って思考する。
+
+■　評価関数の学習関連
+
+
+・評価関数の学習で用いる教師局面の生成
 
 	// やねうら王2017Early LEARN版のみ
 
@@ -238,6 +286,9 @@ getoption オプション名
 			// 初手から24手目までに5回のランダムムーブを行なうという意味
 			learn random_move_maxply 32 random_move_count 10 ...
 			みたいに指定する。
+
+
+・教師局面から評価関数の学習
 
 	learn [教師棋譜ファイル名1] [教師棋譜ファイル名2] …   : 生成した棋譜から評価関数パラメーターの学習をさせる。
 
@@ -275,7 +326,10 @@ getoption オプション名
 		このフォルダ配下にフォルダを"0/","1/",…のように自動的に掘り、そこに評価関数ファイルを保存する。
 		save_only_onceが指定されているときは、"0/","1/"のようなフォルダは掘らない。
 
-	教師局面のシャッフル
+
+・教師局面のシャッフル
+
+
 		learn shuffle basedir BASE_DIR targetdir TARGET_DIR output_file_name OUTPUT_FILE_NAME [教師棋譜ファイル名1] [教師棋譜ファイル名2] ...
 
 			basedir BASE_DIR と targetdir TARGET_DIR と output_file_name OUTPUT_FILE_NAME とは省略できる。
@@ -304,4 +358,4 @@ getoption オプション名
 
 			複数台のPCで教師局面を生成するときに、各PCは生成直後に"learn shufflem"しているとして、
 			それらのファイルをホスト側で"learn shuffleq"してから学習に使うというような使い方を想定している。
-			
+
