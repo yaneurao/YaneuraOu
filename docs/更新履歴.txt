@@ -2,6 +2,21 @@
 やねうら王 更新履歴
 
 
+■　2017/06/27 V4.72
+
+・棋譜生成・学習部でshared_ptrでスレッド間のデータ受け渡しをしている部分、gcc/clangのランタイムで意図しない動作になるので修正。
+・SSE4.2以前でlearnコマンドでKPP配列の更新が正しく出ていなかったの修正。
+・book.cppのrefactoring。大改造になった。テストあまりしてないのでエンバグしてたら教えて欲しい。
+・gensfen時の定跡の採択の挙動を、2017Earlyと全く同一にした。
+・gensfen時に定跡ファイルとしてbook.binを指定できなかった問題を修正。
+・MemoryBook::probe()をthread safeに実装しなおした。
+・clangでコンパイル通らなくなっていたの修正。(mizarさん)
+・read_book()関係、整理。
+・book.h / book.cppソースコード整理、リファクタリング。
+・learn shuffleコマンドの引数の説明足りてなかったの補足。
+・test evalmerge、正式に公開する。
+
+
 ■　2017/06/26 V4.71
 
 ・learn shuffleコマンドでoutput_file_nameを指定できるようにした。
@@ -16,6 +31,7 @@
 ・getoptionコマンド、文字列型のときうまく表示できていなかったのを修正。
 ・getoptionコマンド、nameを省略したとき、すべてのオプション項目の現在の値を出力するようにした。
 ・gensfenコマンドの出力ファイル名のオプション名、learnコマンドに合わせて、output_file_nameに変更。
+・『Shivoray』V4.71公開。
 
 
 ■　2017/06/25
