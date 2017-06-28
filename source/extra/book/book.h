@@ -11,14 +11,6 @@ namespace Search { struct LimitsType; };
 // 定跡処理関係
 namespace Book
 {
-	struct MemoryBook;
-	// 定跡ファイルの読み込み(book.db)など。
-	// 同じファイルを二度目は読み込み動作をskipする。
-	// on_the_flyが指定されているとメモリに丸読みしない。
-	// 定跡作成時などはこれをtrueにしてはいけない。(メモリに読み込まれないため)
-	extern int read_book(const std::string& filename, MemoryBook& book, bool on_the_fly = false);
-
-
 	// 局面における指し手(定跡を格納するのに用いる)
 	struct BookPos
 	{
@@ -41,6 +33,9 @@ namespace Book
 	// sfen文字列からPosMoveListへの集合。(これが定跡)
 	typedef std::unordered_map<std::string /* sfen */, PosMoveListPtr > BookType;
 
+	// PosMoveListPrtにBookPosを一つ追加。(その局面ですでに同じbestMoveの指し手が登録されている場合は上書き動作)
+	extern void insert_book_pos(PosMoveListPtr ptr, const BookPos& bp);
+
 	// メモリ上にある定跡ファイル
 	// sfen文字列をkeyとして、局面の指し手へ変換。(重複した指し手は除外するものとする)
 	struct MemoryBook
@@ -51,41 +46,45 @@ namespace Book
 		PosMoveListPtr find(const Position& pos);
 
 		// 定跡を内部に読み込む。
-		// 定跡ファイル : set_book_name()で事前に渡したファイル名のファイル。
-		// Aperyの定跡ファイルは"book/book.bin"だと仮定。(これはon the fly読み込みに非対応なので丸読みする)
-		// やねうら王の定跡ファイルは、Options["BookOnTheFly"]がtrueのときはon the flyで読み込むので
-		// このタイミングでは実際にはメモリに読み込まない。
-		void read_book(const std::string& book_name)
-		{ Book::read_book("book/" + book_name, *this , (bool)Options["BookOnTheFly"]); }
+		// ・Aperyの定跡ファイルは"book/book.bin"だと仮定。(これはon the fly読み込みに非対応なので丸読みする)
+		// ・やねうら王の定跡ファイルは、on_the_flyが指定されているとメモリに丸読みしない。
+		//      Options["BookOnTheFly"]がtrueのときはon the flyで読み込むのでそれ用。
+		// 　　定跡作成時などはこれをtrueにしてはいけない。(メモリに読み込まれないため)
+		// ・同じファイルを二度目は読み込み動作をskipする。
+		// ・book_nameはpathとして"book/"を補完しないので生のpathを指定する。
+		int read_book(const std::string& book_name, bool on_the_fly = false);
 
-		// --- 以下のメンバ、普段は直接アクセスすべきではない。
+		// 定跡ファイルの書き出し
+		// sort = 書き出すときにsfen文字列で並び替えるのか。(書き出しにかかる時間増)
+		// ファイルへの書き出しは、*thisを書き換えないという意味においてconst性があるのでconstをつけておく。
+		int write_book(const std::string& filename, bool sort = false) const;
+
+		// Aperyの定跡ファイルを読み込む
+		int read_apery_book(const std::string& filename);
+
+		// --- 以下のメンバ、普段は外部から普段は直接アクセスすべきではない。
 
 		// 定跡本体
 		BookType book_body;
 
-		// 読み込んだbookの名前
-		// (読み込む前にこの名前を設定してはいけない)
-		std::string book_name;
-
 		// 内部に読み込んだ定跡のクリア
 		void clear() { book_body.clear(); }
+
+		// BookPosを一つ追加。(その局面ですでに同じbestMoveの指し手が登録されている場合は上書き動作)
+		void insert(const std::string sfen, const BookPos& bp);
+
+	protected:
 
 		// メモリに丸読みせずにfind()のごとにファイルを調べにいくのか。
 		bool on_the_fly = false;
 
 		// 上のon_the_fly == trueのときに、開いている定跡ファイルのファイルハンドル
 		std::fstream fs;
+
+		// 読み込んだbookの名前
+		// (読み込む前にこの名前を設定してはいけない)
+		std::string book_name;
 	};
-
-	extern int read_apery_book(const std::string& filename, MemoryBook& book);
-
-	// 定跡ファイルの書き出し
-	// sort = 書き出すときにsfen文字列で並び替えるのか。(書き出しにかかる時間増)
-	extern int write_book(const std::string& filename, const MemoryBook& book, bool sort = false);
-
-	// MemoryBookとかPosMoveListPrtとかにBookPosを一つ追加。(その局面ですでに同じbestMoveの指し手が登録されている場合は上書き動作)
-	extern void insert_book_pos(MemoryBook& book, const std::string sfen, const BookPos& bp);
-	extern void insert_book_pos(PosMoveListPtr ptr, const BookPos& bp);
 
 #ifdef ENABLE_MAKEBOOK_CMD
 	// USI拡張コマンド。"makebook"。定跡ファイルを作成する。
@@ -100,7 +99,7 @@ namespace Book
 		void init(USI::OptionsMap & o);
 
 		// 定跡ファイルの読み込み。Search::clear()で呼び出す。
-		void read_book() { memory_book.read_book(book_name); }
+		void read_book() { memory_book.read_book("book/" + book_name, (bool)Options["BookOnTheFly"]); }
 
 		// --- 定跡の指し手の選択
 

@@ -1014,7 +1014,7 @@ void exam_book(Position& pos)
 	Book::MemoryBook book;
 
 	string book_name = "yaneura_book1.db";
-	Book::read_book("book/" + book_name, book, (bool)Options["BookOnTheFly"]);
+	book.read_book("book/" + book_name, (bool)Options["BookOnTheFly"]);
 	
 	string input_sfen_name = "book/records2016.sfen";
 	string output_sfen_name = "book/records2016new.sfen";
@@ -1183,7 +1183,7 @@ void book_check_cmd(Position& pos, istringstream& is)
 
 	// bookの読み込み。	
 	Book::MemoryBook book;
-	Book::read_book("book/" + book_name, book, /*BookOnTheFly*/ false);
+	book.read_book("book/" + book_name, /*BookOnTheFly*/ false);
 	string sfen = "startpos moves";
 
 	if (turn == "all")
