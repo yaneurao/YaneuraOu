@@ -236,9 +236,11 @@ getoption オプション名
 			learn random_move_maxply 32 random_move_count 10 ...
 			みたいに指定する。
 
-	learn [ファイル名1] [ファイル名2] …   : 生成した棋譜から評価関数パラメーターの学習をさせる。
+	learn [教師棋譜ファイル名1] [教師棋譜ファイル名2] …   : 生成した棋譜から評価関数パラメーターの学習をさせる。
 
-		ファイル名はいくらでも書ける。
+		教師棋譜ファイル名はいくらでも書ける。
+		gensfenコマンドで生成したファイルを指定する。
+		このファイルを指定しない場合は、以下のtargetdirオプションで教師棋譜が入ったフォルダを指定する必要がある。
 		
 		batオプション
 			learn bat 200 [ファイル名1][ファイル名2]..のように mini batchのサイズを設定できる。
@@ -271,8 +273,14 @@ getoption オプション名
 		save_only_onceが指定されているときは、"0/","1/"のようなフォルダは掘らない。
 
 	教師局面のシャッフル
-		learn shuffle basedir BASE_DIR targetdir TARGET_DIR output_file_name OUTPUT_FILE_NAME 
+		learn shuffle basedir BASE_DIR targetdir TARGET_DIR output_file_name OUTPUT_FILE_NAME [教師棋譜ファイル名1] [教師棋譜ファイル名2] ...
+
 			basedir BASE_DIR と targetdir TARGET_DIR と output_file_name OUTPUT_FILE_NAME とは省略できる。
+			教師棋譜ファイル名も省略できる。教師棋譜ファイルはgensfenコマンドで生成したものとする。
+
+			shuffleしないときのコマンド同様、教師棋譜ファイルを指定しないときは、targetdirで教師局面ファイルが
+			入ったフォルダを指定してやる必要がある。
+
 			targetdirを省略してファイル名をそのあとに並べることも出来る。
 			tmp/
 			というフォルダに一時ファイルが書き出され、最終的に
@@ -282,12 +290,12 @@ getoption オプション名
 				shuffled_sfen.bin
 			というファイル名でカレントフォルダに書き出される。
 
-		learn shufflem basedir BASE_DIR targetdir TARGET_DIR output_file_name OUTPUT_FILE_NAME 
+		learn shufflem basedir BASE_DIR targetdir TARGET_DIR output_file_name OUTPUT_FILE_NAME [教師棋譜ファイル名1] [教師棋譜ファイル名2] ...
 			メモリに丸読みしてシャッフルして指定ファイル名で書き出す。
 			(メモリが教師局面の2倍ぐらい必要)
 			その他はlearn shuffleコマンドと同様。
 
-		learn shuffleq basedir BASE_DIR targetdir TARGET_DIR output_file_name OUTPUT_FILE_NAME 
+		learn shuffleq basedir BASE_DIR targetdir TARGET_DIR output_file_name OUTPUT_FILE_NAME [教師棋譜ファイル名1] [教師棋譜ファイル名2] ...
 			それぞれの教師局面はファイル単位ではshuffleされていると仮定して、1passでシャッフルする。高速。
 			その他はlearn shuffleと同様。
 
