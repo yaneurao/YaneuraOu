@@ -119,7 +119,7 @@ namespace Book
 
 	private:
 		// probe()の下請け
-		bool BookMoveSelector::probe_impl(Position& rootPos, PRNG& prng, bool silent, Move& bestMove, Move& ponderMove);
+		bool probe_impl(Position& rootPos, PRNG& prng, bool silent, Move& bestMove, Move& ponderMove);
 
 	};
 
