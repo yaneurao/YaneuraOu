@@ -1245,7 +1245,7 @@ namespace Book
 	}
 
 	// probe()の下請け
-	bool BookMoveSelector::probe_impl(Position& rootPos, PRNG& prng, bool silent , Move& bestMove , Move& ponderMove)
+	bool BookMoveSelector::probe_impl(Position& rootPos, bool silent , Move& bestMove , Move& ponderMove)
 	{
 		// 定跡を用いる手数
 		int book_ply = Options["BookMoves"];
@@ -1375,11 +1375,11 @@ namespace Book
 		return false;
 	}
 
-	Move BookMoveSelector::probe(Position& pos, PRNG& prng)
+	Move BookMoveSelector::probe(Position& pos)
 	{
 		const bool silent = true;
 		Move bestMove, ponderMove;
-		if (!probe_impl(pos, prng, silent, bestMove, ponderMove))
+		if (!probe_impl(pos, silent, bestMove, ponderMove))
 			return MOVE_NONE;
 
 		// bestMoveが合法かチェックしておく。
@@ -1396,10 +1396,10 @@ namespace Book
 	}
 
 	// 定跡の指し手の選択
-	bool BookMoveSelector::probe(Thread& th, Search::LimitsType& Limits, PRNG& prng)
+	bool BookMoveSelector::probe(Thread& th, Search::LimitsType& Limits)
 	{
 		Move bestMove, ponderMove;
-		if (probe_impl(th.rootPos, prng, Limits.silent, bestMove, ponderMove))
+		if (probe_impl(th.rootPos, Limits.silent, bestMove, ponderMove))
 		{
 			auto & rootMoves = th.rootMoves;
 

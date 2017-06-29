@@ -105,7 +105,7 @@ namespace EvalLearningTools
 
 #elif defined(SGD_UPDATE)
 
-		static PRNG prng;
+		static AsyncPRNG prng;
 
 		// 勾配の符号だけ見るSGDでupdateする
 		// この関数を実行しているときにgの値やメンバーが書き変わらないことは

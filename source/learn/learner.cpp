@@ -326,9 +326,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 	StateInfo state[MAX_PLY2 + 20]; // StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
 	Move m = MOVE_NONE;
 
-	// 定跡/ランダムムーブ用の乱数
-	PRNG prng(rand(100000000));
-
 	// 規定回数回になるまで繰り返し
 	while (true)
 	{
@@ -448,7 +445,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			}
 
 			// 定跡
-			if ((m = book.probe(pos,prng)) != MOVE_NONE)
+			if ((m = book.probe(pos)) != MOVE_NONE)
 			{
 				// 定跡にhitした。
 				// この指し手で1手進める。
@@ -466,7 +463,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// search_depth～search_depth2 手読みの評価値とPV(最善応手列)
 				// 探索窓を狭めておいても問題ないはず。
 
-				int depth = search_depth + (int)rand(search_depth2 - search_depth + 1);
+				int depth = search_depth + (int)prng.rand(search_depth2 - search_depth + 1);
 
 				auto pv_value1 = search(pos, depth);
 
@@ -694,7 +691,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			{
 				// mateではないので合法手が1手はあるはず…。
 				MoveList<LEGAL> list(pos);
-				m = list.at((size_t)rand((u64)list.size()));
+				m = list.at((size_t)prng.rand((u64)list.size()));
 
 				// 玉の2手指しのコードを入れていたが、合法手から1手選べばそれに相当するはずで
 				// コードが複雑化するだけだから不要だと判断した。

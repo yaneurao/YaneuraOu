@@ -50,12 +50,8 @@ struct MultiThink
 	Mutex io_mutex;
 
 protected:
-
-	// [ASYNC] 0からn-1までの乱数を返す。(一様分布ではないが現実的にはこれで十分)
-	u64 rand(u64 n) {
-		std::unique_lock<Mutex> lk(rand_mutex);
-		return prng.rand(n);
-	}
+	// 乱数発生器本体
+	AsyncPRNG prng;
 
 private:
 	// workerが処理する(Search::think()を呼び出す)回数
@@ -65,12 +61,6 @@ private:
 
 	// ↑の変数を変更するときのmutex
 	Mutex loop_mutex;
-
-	// 乱数発生器本体
-	PRNG prng;
-
-	// ↑の乱数を取得するときのmutex
-	Mutex rand_mutex;
 
 	// スレッドの終了フラグ。
 	// vector<bool>にすると複数スレッドから書き換えようとしたときに正しく反映されないことがある…はず。

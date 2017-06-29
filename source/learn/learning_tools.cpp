@@ -15,7 +15,7 @@ namespace EvalLearningTools
 #if defined (ADA_GRAD_UPDATE) || defined(ADA_PROP_UPDATE)
 	double Weight::eta;
 #elif defined (SGD_UPDATE)
-	PRNG Weight::prng;
+	AsyncPRNG Weight::prng;
 #endif
 
 	// --- tables

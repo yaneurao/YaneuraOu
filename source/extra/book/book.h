@@ -3,9 +3,9 @@
 
 #include "../../shogi.h"
 #include "../../position.h"
+#include "../../misc.h"
 #include <unordered_map>
 
-struct PRNG;
 namespace Search { struct LimitsType; };
 
 
@@ -129,7 +129,9 @@ namespace Book
 		// ・ただしrootMoves[0].pv[1]が合法手である保証はない。合法手でなければGUI側が弾くと思う。
 		// ・limit.silent == falseのときには画面に何故その指し手が選ばれたのか理由を出力する。
 		// ・この関数自体はthread safeなのでread_book()したあとは非同期に呼び出して問題ない。
-		bool probe(Thread& th , Search::LimitsType& limit ,  PRNG& prng);
+		// 　ただし、on_the_flyのときは、ディスクアクセスが必要で、その部分がthread safeではないので
+		//   on_the_fly == falseでなければ、非同期にこの関数を呼び出してはならない。
+		bool probe(Thread& th , Search::LimitsType& limit);
 
 		// 現在の局面が定跡に登録されているかを調べる。
 		// ・pos.RootMovesを持っていないときに、現在の局面が定跡にhitするか調べてhitしたらその指し手を返す。
@@ -137,7 +139,9 @@ namespace Book
 		// ・定跡にhitしなかった場合はMOVE_NONEが返る。
 		// ・画面には何も表示しない。
 		// ・この関数自体はthread safeなのでread_book()したあとは非同期に呼び出して問題ない。
-		Move probe(Position& pos, PRNG& prng);
+		// 　ただし、on_the_flyのときは、ディスクアクセスが必要で、その部分がthread safeではないので
+		//   on_the_fly == falseでなければ、非同期にこの関数を呼び出してはならない。
+		Move probe(Position& pos);
 
 	protected:
 		// メモリに読み込んだ定跡ファイル
@@ -147,8 +151,9 @@ namespace Book
 		std::string book_name;
 
 		// probe()の下請け
-		bool probe_impl(Position& rootPos, PRNG& prng, bool silent, Move& bestMove, Move& ponderMove);
+		bool probe_impl(Position& rootPos, bool silent, Move& bestMove, Move& ponderMove);
 
+		AsyncPRNG prng;
 	};
 
 }

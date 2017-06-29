@@ -144,9 +144,6 @@ namespace YaneuraOu2017Early
 	int param1 = 0;
 	int param2 = 0;
 
-	// 定跡等で用いる乱数
-	PRNG prng;
-
 	// Ponder用の指し手
 	Move ponder_candidate;
 
@@ -2685,7 +2682,7 @@ void MainThread::think()
 	//     定跡の選択部
 	// ---------------------
 
-	if (book.probe(*this, Limits, prng))
+	if (book.probe(*this, Limits))
 		goto ID_END;
 
 	// ---------------------
