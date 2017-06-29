@@ -89,7 +89,7 @@ inline TimePoint now() {
 // 指定されたミリ秒だけsleepする。
 inline void sleep(int ms)
 {
-	std::this_thread::sleep_for(std::chrono::microseconds(ms));
+	std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
 
 // 現在時刻を文字列化したもを返す。(評価関数の学習時などに用いる)
