@@ -737,7 +737,7 @@ void gen_sfen(Position&, istringstream& is)
 
 	// 定跡を用いる場合、on the flyで行なうとすごく時間がかかるので
 	// メモリに丸読みされている状態であることをここで保証する。
-	Options["BookOnTheFly"] = true;
+	Options["BookOnTheFly"] = "false";
 
 	// GlobalOptions.use_per_thread_tt == trueのときは、
 	// これを呼んだタイミングで現在のOptions["Threads"]の値がコピーされることになっている。

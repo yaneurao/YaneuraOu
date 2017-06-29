@@ -933,7 +933,12 @@ namespace USI
 		}
 
 		// string型への暗黙の変換子
-		operator std::string() const { ASSERT_LV1(type == "string" || type == "combo" || type == "spin");  return currentValue; }
+		// typeが"string"型のとき以外であっても何であれ変換できるようになっているほうが便利なので
+		// 変換できるようにしておく。
+		operator std::string() const {
+			ASSERT_LV1(type == "string" || type == "combo" || type == "spin" || type == "check"); 
+			return currentValue;
+		}
 
 	private:
 		friend std::ostream& operator<<(std::ostream& os, const OptionsMap& om);
