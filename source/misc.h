@@ -231,7 +231,7 @@ struct AsyncPRNG
 
 	// [ASYNC] 0からn-1までの乱数を返す。(一様分布ではないが現実的にはこれで十分)
 	u64 rand(u64 n) {
-		return prng.rand<u64>() % n;
+		return rand<u64>() % n;
 	}
 
 protected:
