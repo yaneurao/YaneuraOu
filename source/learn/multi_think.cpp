@@ -3,11 +3,31 @@
 #if defined(EVAL_LEARN) && defined(YANEURAOU_2017_EARLY_ENGINE)
 
 #include "multi_think.h"
+#include "../tt.h"
 
 extern void is_ready();
 
 void MultiThink::go_think()
 {
+#if defined(USE_GLOBAL_OPTIONS)
+	// あとで復元するために保存しておく。
+	auto oldGlobalOptions = GlobalOptions;
+	// 置換表はスレッドごとに持っていてくれないと衝突して変な値を取ってきかねない
+	GlobalOptions.use_per_thread_tt = true;
+	GlobalOptions.use_strict_generational_tt = true;
+#endif
+
+	// GlobalOptions.use_per_thread_tt == trueのときは、
+	// これを呼んだタイミングで現在のOptions["Threads"]の値がコピーされることになっている。
+	TT.new_search();
+
+	// あとでOptionsの設定を復元するためにコピーで保持しておく。
+	auto oldOptions = Options;
+
+	// 定跡を用いる場合、on the flyで行なうとすごく時間がかかる＆ファイルアクセスを行なう部分が
+	// thread safeではないので、メモリに丸読みされている状態であることをここで保証する。
+	Options["BookOnTheFly"] = "false";
+
 	// 評価関数の読み込み等
 	is_ready();
 
@@ -89,6 +109,14 @@ void MultiThink::go_think()
 		th.join();
 
 	std::cout << "..all works..done!!" << std::endl;
+
+	// Optionsを書き換えていたので復元する。
+	Options = oldOptions;
+
+#if defined(USE_GLOBAL_OPTIONS)
+	// GlobalOptionsの復元
+	GlobalOptions = oldGlobalOptions;
+#endif
 }
 
 

@@ -485,6 +485,8 @@ struct GlobalOptions_
 	// TT.probe()のときに、TTEntryとTT.generationとが厳密に一致しない場合は、
 	// 置換表にhitしても、そのTTEntryはVALUE_NONEを返す。
 	// こうすることで、hash衝突しておかしな値が書き込まれていてもそれを回避できる。
+	// gensfenコマンドでこの機能が必要だった。
+	// cf. http://yaneuraou.yaneu.com/2017/06/30/%E3%80%90%E8%A7%A3%E6%B1%BA%E3%80%91gensfen%E3%81%A7%E6%95%99%E5%B8%AB%E5%B1%80%E9%9D%A2%E7%94%9F%E6%88%90%E6%99%82%E3%81%AB%E9%81%85%E3%81%8F%E3%81%AA%E3%82%8B%E5%95%8F%E9%A1%8C/
 	bool use_strict_generational_tt;
 
 	GlobalOptions_()
