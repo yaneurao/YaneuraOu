@@ -444,7 +444,7 @@ namespace Eval
 		sum.p[1] = { 0, 0 };
 		sum.p[2] = kkp[sq_bk][sq_wk][ebp.fb];
 
-		const auto* pkppb = kpp[sq_bk][ebp.fb];
+		const auto* pkppb = kpp[sq_bk     ][ebp.fb];
 		const auto* pkppw = kpp[Inv(sq_wk)][ebp.fw];
 
 #if defined (USE_AVX2)

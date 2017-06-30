@@ -465,6 +465,12 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				int depth = search_depth + (int)prng.rand(search_depth2 - search_depth + 1);
 
+				// 置換表の世代カウンターを進めておかないと
+				// 初期局面周辺でhash衝突したTTEntryに当たり、変な評価値を拾ってきて、
+				// eval_limitが低いとそれをもって終了してしまうので、いつまでも教師局面が生成されなくなる。
+				// 置換表自体は、スレッドごとに保持しているので、ここでTT.new_search()を呼び出して問題ない。
+				TT.new_search();
+
 				auto pv_value1 = search(pos, depth);
 
 				auto value1 = pv_value1.first;
@@ -724,6 +730,7 @@ void gen_sfen(Position&, istringstream& is)
 	auto oldGlobalOptions = GlobalOptions;
 	// 置換表はスレッドごとに持っていてくれないと衝突して変な値を取ってきかねない
 	GlobalOptions.use_per_thread_tt = true;
+	GlobalOptions.use_strict_generational_tt = true;
 #endif
 
 	// あとでOptionsの設定を復元するためにコピーで保持しておく。

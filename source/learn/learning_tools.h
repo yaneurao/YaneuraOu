@@ -194,11 +194,11 @@ namespace EvalLearningTools
 		static KK fromIndex(u64 index)
 		{
 			index -= min_index();
-			Square king1 = (Square)(index % SQ_NB);
+			int king1 = (int)(index % SQ_NB);
 			index /= SQ_NB;
-			Square king0 = (Square)(index  /* % SQ_NB */);
+			int king0 = (int)(index  /* % SQ_NB */);
 			ASSERT_LV3(king0 < SQ_NB);
-			return KK(king0, king1);
+			return KK((Square)king0, (Square)king1);
 		}
 
 		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
@@ -243,13 +243,13 @@ namespace EvalLearningTools
 		static KKP fromIndex(u64 index)
 		{
 			index -= min_index();
-			Eval::BonaPiece piece = (Eval::BonaPiece)(index % Eval::fe_end);
+			int piece = (int)(index % Eval::fe_end);
 			index /= Eval::fe_end;
-			Square king1 = (Square)(index % SQ_NB);
+			int king1 = (int)(index % SQ_NB);
 			index /= SQ_NB;
-			Square king0 = (Square)(index  /* % SQ_NB */);
+			int king0 = (int)(index  /* % SQ_NB */);
 			ASSERT_LV3(king0 < SQ_NB);
-			return KKP(king0, king1, piece);
+			return KKP((Square)king0, (Square)king1, (Eval::BonaPiece)piece);
 		}
 
 		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
@@ -307,9 +307,9 @@ namespace EvalLearningTools
 			index -= min_index();
 
 #if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
-			Eval::BonaPiece piece1 = (Eval::BonaPiece)(index % Eval::fe_end);
+			int piece1 = (int)(index % Eval::fe_end);
 			index /= Eval::fe_end;
-			Eval::BonaPiece piece0 = (Eval::BonaPiece)(index % Eval::fe_end);
+			int piece0 = (int)(index % Eval::fe_end);
 			index /= Eval::fe_end;
 #else
 			u64 index2 = index % triangle_fe_end;
@@ -320,19 +320,18 @@ namespace EvalLearningTools
 			// 2次方程式の解の公式から i = (sqrt(8*index2+1) - 1) / 2である。
 			// iを整数化したのちに、j = index2 - i * (i + 1) / 2としてjを求めれば良い。
 
-			// BonaPiece型は、AVX2以前では16bitであるので気をつけないと
-			// 掛け算などでオーバーフローする。そこでいったんu64で計算する。
-			u64 piece1t = u64(sqrt(8 * index2 + 1) - 1) / 2;
-			u64 piece0t = index2 - piece1t*(piece1t + 1) / 2;
+			// BonaPieceは32bit(16bitに収まらない可能性)を想定しているのでこの掛け算は64bitでないといけない。
+			int piece1 = int(sqrt(8 * index2 + 1) - 1) / 2;
+			int piece0 = int(index2 - (u64)piece1*((u64)piece1 + 1) / 2);
 
-			ASSERT_LV3(piece1t < Eval::fe_end);
-			ASSERT_LV3(piece0t < Eval::fe_end);
+			ASSERT_LV3(piece1 < (int)Eval::fe_end);
+			ASSERT_LV3(piece0 < (int)Eval::fe_end);
 
 			index /= triangle_fe_end;
 #endif
-			Square king = (Square)(index  /* % SQ_NB */);
+			int king = (int)(index  /* % SQ_NB */);
 			ASSERT_LV3(king < SQ_NB);
-			return KPP(king, (Eval::BonaPiece)piece0t, (Eval::BonaPiece)piece1t);
+			return KPP((Square)king, (Eval::BonaPiece)piece0, (Eval::BonaPiece)piece1);
 		}
 
 		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
@@ -372,7 +371,7 @@ namespace EvalLearningTools
 				// i行目0列目は、そこまでの要素の合計であるから、1 + 2 + ... + i = i * (i+1) / 2
 				// i行目j列目は、これにjを足したもの。i * (i + 1) /2 + j
 
-				// BonaPiece型は、AVX2以前では16bitなので気をつけないとオーバーフローする。
+				// BonaPiece型は、32bitを想定しているので掛け算には気をつけないとオーバーフローする。
 				return (u64)k * triangle_fe_end + (u64)(u64(i)*(u64(i)+1) / 2 + u64(j));
 			};
 

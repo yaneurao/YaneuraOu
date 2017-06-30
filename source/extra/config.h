@@ -481,10 +481,16 @@ struct GlobalOptions_
 	// 置換表を分割するのでLearner::search()を呼ぶまでに事前にTT.new_search()を呼び出すこと。
 	bool use_per_thread_tt;
 
+	// 置換表とTTEntryの世代が異なるなら、値(TTEntry.value)は信用できないと仮定するフラグ。
+	// TT.probe()のときに、TTEntryとTT.generationとが厳密に一致しない場合は、
+	// 置換表にhitしても、そのTTEntryはVALUE_NONEを返す。
+	// こうすることで、hash衝突しておかしな値が書き込まれていてもそれを回避できる。
+	bool use_strict_generational_tt;
+
 	GlobalOptions_()
 	{
 		use_eval_hash = use_hash_probe = true;
-		use_per_thread_tt = false;
+		use_per_thread_tt = use_strict_generational_tt = false;
 	}
 };
 
@@ -771,17 +777,6 @@ inline int MKDIR(std::string dir_name)
 // また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
 #if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_PPE)
 #define USE_EVAL_DIFF
-#endif
-
-// AVX2を用いたKPPT評価関数は高速化できるので特別扱い。
-// Skylake以降でないとほぼ効果がないが…。
-#if defined(EVAL_KPPT) && defined(USE_AVX2)
-#define USE_FAST_KPPT
-// AVX2を用いるので32bitであって欲しい。
-typedef int32_t BonaPieceType;
-#else
-// テーブルサイズを節約したいのでAVX2を使わないなら16bitで十分。
-typedef int16_t BonaPieceType;
 #endif
 
 // -- 評価関数の種類により、盤面の利きの更新ときの処理が異なる。(このタイミングで評価関数の差分計算をしたいので)

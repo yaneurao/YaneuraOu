@@ -14,6 +14,7 @@ struct TTEntry {
 
 	Move move() const { return (Move)move16; }
 	Value value() const { return (Value)value16; }
+	void set_value(Value v) { value16 = v; }
 
 #if !defined (NO_EVAL_IN_TT)
 	// この局面でevaluate()を呼び出したときの値

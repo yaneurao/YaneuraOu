@@ -863,7 +863,12 @@ inline Value draw_value(RepetitionState rs, Color c) { ASSERT_LV3(is_ok(rs)); re
 namespace Eval
 {
 	// BonanzaでKKP/KPPと言うときのP(Piece)を表現する型。
-	enum BonaPiece: BonaPieceType;
+	// AVX2を用いて評価関数を最適化するときに32bitでないと困る。
+	// AVX2より前のCPUではこれは16bitでも構わないのだが、
+	// 　1) 16bitだと32bitだと思いこんでいてオーバーフローさせてしまうコードを書いてしまうことが多々あり、保守が困難。
+	// 　2) ここが32bitであってもそんなに速度低下しないし、それはSSE4.2以前に限るから許容範囲。
+	// という2つの理由から、32bitに固定する。
+	enum BonaPiece: int32_t;
 
 	// 評価関数本体。
 	// 戻り値は、
