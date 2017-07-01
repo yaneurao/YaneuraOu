@@ -404,7 +404,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			// a[]のsize()を超える回数のランダムムーブは適用できないので制限する。
 			for (int i = 0 ; i < std::min(random_move_count, (int)a.size()) ; ++i)
 			{
-				swap(a[i], a[prng.rand((u64)random_move_maxply - i) + i]);
+				swap(a[i], a[prng.rand((u64)a.size() - i) + i]);
 				random_move_flag[a[i]] = true;
 			}
 		}

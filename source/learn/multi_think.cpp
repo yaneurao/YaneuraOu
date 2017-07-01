@@ -15,6 +15,10 @@ void MultiThink::go_think()
 	// 置換表はスレッドごとに持っていてくれないと衝突して変な値を取ってきかねない
 	GlobalOptions.use_per_thread_tt = true;
 	GlobalOptions.use_strict_generational_tt = true;
+#else
+	// MultiThink関数を使うときはUSE_GLOBAL_OPTIONがdefineされていて欲しいので
+	// ここで警告を出力しておく。
+	cout << "WARNING!! : define USE_GLOBAL_OPTION!" << endl;
 #endif
 
 	// GlobalOptions.use_per_thread_tt == trueのときは、
