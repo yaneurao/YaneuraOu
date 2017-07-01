@@ -695,6 +695,7 @@ private:
 	// 駒番号を使わないとき用のダミー
 	PieceNo piece_no_of(Color c, Piece pt) const { return PIECE_NO_ZERO; }
 	PieceNo piece_no_of(Piece pc, Square sq) const { return PIECE_NO_ZERO; }
+	PieceNo piece_no_of(Square sq) const { return PIECE_NO_ZERO; }
 #endif
 	// ---
 
