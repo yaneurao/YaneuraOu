@@ -24,7 +24,7 @@
 // オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE を defineして 他のエンジンのソースコードを参考に
 //  engine/user-engine/ フォルダの中身を書くべし。
 
-#ifndef USE_MAKEFILE
+#if !defined (USE_MAKEFILE)
 
 //#define YANEURAOU_NANO_ENGINE            // やねうら王nano         (完成2016/01/31)
 //#define YANEURAOU_NANO_PLUS_ENGINE       // やねうら王nano plus    (完成2016/02/25)

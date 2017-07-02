@@ -30,11 +30,14 @@ namespace {
 
 Thread::Thread()
 {
-	resetCalls = exit = false;
+	exit = false;
 
 	// maxPlyを更新しない思考エンジンでseldepthの出力がおかしくなるのを防止するために
 	// ここでとりあえず初期化しておいてやる。
-	maxPly = callsCnt = 0;
+	maxPly = 0;
+
+	// 探索したノード数
+	nodes = 0;
 
 	idx = Threads.size();  // スレッド番号(MainThreadが0。slaveは1から順番に)
 
@@ -126,45 +129,46 @@ void ThreadPool::read_usi_options() {
 	}
 }
 
-void ThreadPool::init_for_slave(const Position& pos, const Search::LimitsType& limits)
+void ThreadPool::start_thinking(const Position& pos, Search::StateStackPtr& states , const Search::LimitsType& limits)
 {
+	// 思考中であれば停止するまで待つ。
+	main()->wait_for_search_finished();
+
+	// ponderに関して、StockfishではstopOnPonderhitというのがあるが、やねうら王にはこのフラグはない。
+	Signals.stop = false;
+
+	Search::Limits = limits;
+
+	Search::RootMoves rootMoves;
+
 	// 初期局面では合法手すべてを生成してそれをrootMovesに設定しておいてやる。
 	// このとき、歩の不成などの指し手は除く。(そのほうが勝率が上がるので)
 	// また、goコマンドでsearchmovesが指定されているなら、そこに含まれていないものは除く。
 	for (auto m : MoveList<LEGAL>(pos))
 		if (limits.searchmoves.empty()
-			|| count(limits.searchmoves.begin(), limits.searchmoves.end(), m))
-			main()->rootMoves.push_back(RootMove(m));
-
-	// おまけでslaveの初期局面も同じにしておいてやる。
-	for (auto th : *this)
-	{
-		if (th != main())
-		{
-			th->rootPos = Position(main()->rootPos);
-			th->rootMoves = main()->rootMoves;
-		}
-		// Positionクラスに対して、それを探索しているスレッドを設定しておいてやる。
-		th->rootPos.set_this_thread(th);
-	}
-}
-
-void ThreadPool::start_thinking(const Position& pos, const Search::LimitsType& limits, Search::StateStackPtr& states)
-{
-	// 思考中であれば停止するまで待つ。
-	main()->wait_for_search_finished();
-
-	Signals.stop = false;
-
-	main()->rootMoves.clear();
-	main()->rootPos = pos;
-	Limits = limits;
+			|| std::count(limits.searchmoves.begin(), limits.searchmoves.end(), m))
+			rootMoves.push_back(RootMove(m));
 
 	// statesが呼び出し元から渡されているならこの所有権をSearch::SetupStatesに移しておく。
 	if (states.get())
 		SetupStates = std::move(states);
 
-	init_for_slave(pos, limits);
+	// Position::set()によってst->previosがクリアされるので事前にコピーして保存する。
+	StateInfo tmp = SetupStates->top();
+
+	string sfen = pos.sfen();
+	for (auto th : *this)
+	{
+		th->maxPly = 0;
+		th->nodes = 0;
+		th->rootDepth = DEPTH_ZERO;
+		th->rootMoves = rootMoves;
+		th->rootPos.set(sfen);
+		th->rootPos.set_this_thread(th);
+	}
+
+	// Position::set()によってクリアされていた、st->previousを復元する。
+	SetupStates->top() = tmp;
 
 	main()->start_searching();
 }

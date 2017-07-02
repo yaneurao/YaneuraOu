@@ -218,9 +218,6 @@ struct Position
 	// 保持しているデータに矛盾がないかテストする。
 	bool pos_is_ok() const;
 
-	// 探索したノード数(≒do_move()が呼び出された回数)を取得する
-	uint64_t nodes_searched() const { return nodes; }
-
 	// 現局面に対して
 	// この指し手によって移動させる駒を返す。(移動前の駒)
 	// 後手の駒打ちは後手の駒が返る。
@@ -716,9 +713,6 @@ private:
 
 	// この局面クラスを用いて探索しているスレッド
 	Thread* thisThread;
-
-	// 探索ノード数 ≒do_move()の呼び出し回数。
-	uint64_t nodes;
 
 	// 現局面に対応するStateInfoのポインタ。
 	// do_move()で次の局面に進むときは次の局面のStateInfoへの参照をdo_move()の引数として渡される。

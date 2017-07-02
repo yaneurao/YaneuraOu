@@ -743,8 +743,7 @@ void auto_play(Position& pos, istringstream& is)
         break;
 
       Time.reset();
-      Threads.init_for_slave(pos, lm);
-      Threads.start_thinking(pos, lm, Search::SetupStates);
+      Threads.start_thinking(pos, Search::SetupStates , lm);
       Threads.main()->wait_for_search_finished();
       auto rootMoves = Threads.main()->rootMoves;
       if (rootMoves.size() == 0)

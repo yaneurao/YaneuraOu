@@ -31,7 +31,7 @@ static const char* BenchSfen[] = {
 	"l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1",
 };
 
-void bench_cmd(Position& pos, istringstream& is)
+void bench_cmd(Position& current, istringstream& is)
 {
 	string token;
 	Search::LimitsType limits;
@@ -89,7 +89,7 @@ void bench_cmd(Position& pos, istringstream& is)
 	if (fenFile == "default")
 		fens.assign(BenchSfen, BenchSfen + 3);
 	else if (fenFile == "current")
-		fens.push_back(pos.sfen());
+		fens.push_back(current.sfen());
 	else
 		read_all_lines(fenFile, fens);
 
@@ -101,15 +101,18 @@ void bench_cmd(Position& pos, istringstream& is)
 
 	// main threadが探索したノード数
 	int64_t nodes_main = 0;
-	Search::StateStackPtr st;
 
 	// ベンチの計測用タイマー
 	Timer time;
 	time.reset();
 
+	Position pos;
 	for (size_t i = 0; i < fens.size(); ++i)
 	{
-		Position pos;
+		// SetupStatesは破壊したくないのでローカルに確保
+		auto states = Search::StateStackPtr(new aligned_stack<StateInfo>);
+		states->push(StateInfo());
+
 		pos.set(fens[i]);
 		pos.set_this_thread(Threads.main());
 
@@ -118,11 +121,11 @@ void bench_cmd(Position& pos, istringstream& is)
 		// 探索時にnpsが表示されるが、それはこのglobalなTimerに基づくので探索ごとにリセットを行なうようにする。
 		Time.reset();
 
-		Threads.start_thinking(pos, limits, st);
+		Threads.start_thinking(pos, states , limits);
 		Threads.main()->wait_for_search_finished(); // 探索の終了を待つ。
 
 		nodes += Threads.nodes_searched();
-		nodes_main += Threads.main()->rootPos.nodes_searched();
+		nodes_main += Threads.main()->nodes.load(std::memory_order_relaxed);
 	}
 
 	auto elapsed = time.elapsed() + 1; // 0除算の回避のため

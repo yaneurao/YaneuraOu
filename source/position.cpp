@@ -4,6 +4,7 @@
 #include "position.h"
 #include "misc.h"
 #include "tt.h"
+#include "thread.h"
 
 using namespace std;
 using namespace Effect8;
@@ -117,8 +118,6 @@ Position& Position::operator=(const Position& pos) {
 	// コピー元にぶら下がっているStateInfoに依存してはならないのでコピーしてdetachする。
 	std::memcpy(&startState, st, sizeof(StateInfo));
 	st = &startState;
-
-	nodes = 0;
 
 	return *this;
 }
@@ -974,8 +973,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	ASSERT_LV3(is_ok(m));
 
 	ASSERT_LV3(&new_st != st);
-		
-	++nodes;
+
+	// 探索ノード数 ≒do_move()の呼び出し回数のインクリメント。
+	thisThread->nodes.fetch_add(1, std::memory_order_relaxed);
 
 	// ----------------------
 	//  StateInfoの更新

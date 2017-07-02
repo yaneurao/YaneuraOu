@@ -10,10 +10,6 @@
 
 using namespace std;
 
-// Positionクラスがそこにいたるまでの手順(捕獲された駒など)を保持しておかないと千日手判定が出来ないので
-// StateInfo型のstackのようなものが必要となるので、それをglobalに確保しておく。
-Search::StateStackPtr SetupStates;
-
 // ユーザーの実験用に開放している関数。
 // USI拡張コマンドで"user"と入力するとこの関数が呼び出される。
 // "user"コマンドの後続に指定されている文字列はisのほうに渡される。
@@ -32,6 +28,13 @@ extern void test_mate_engine_cmd(Position& pos, istringstream& is);
 
 // "bench"コマンドは、"test"コマンド群とは別。常に呼び出せるようにしてある。
 extern void bench_cmd(Position& pos, istringstream& is);
+
+namespace
+{
+	// Positionクラスがそこにいたるまでの手順(捕獲された駒など)を保持しておかないと千日手判定が出来ないので
+	// StateInfo型のstackのようなものが必要となるので、それをglobalに確保しておく。
+	Search::StateStackPtr States;
+}
 
 // 定跡を作るコマンド
 #ifdef ENABLE_MAKEBOOK_CMD
@@ -521,6 +524,11 @@ void is_ready_cmd(Position& pos)
 	// evalの値を返せるようにこのタイミングで平手局面で初期化してしまう。
 	pos.set(SFEN_HIRATE);
 
+	// このままgoコマンドが来た場合、Statesには1つStateInfoを積んでおかなければならないのに
+	// そうなっていないのでまずい。
+	States = Search::StateStackPtr(new aligned_stack<StateInfo>);
+	States->push(StateInfo());
+
 	sync_cout << "readyok" << sync_endl;
 }
 
@@ -550,18 +558,20 @@ void position_cmd(Position& pos, istringstream& is)
 
 	pos.set(sfen);
 
-	SetupStates = Search::StateStackPtr(new aligned_stack<StateInfo>);
+	States = Search::StateStackPtr(new aligned_stack<StateInfo>);
+	// 要素が一つもないとempty checkとか面倒なので積んでおくことになっている。
+	States->push(StateInfo());
 
 	// 指し手のリストをパースする(あるなら)
 	while (is >> token && (m = move_from_usi(pos, token)) != MOVE_NONE)
 	{
 		// 1手進めるごとにStateInfoが積まれていく。これは千日手の検出のために必要。
 		// ToDoあとで考える。
-		SetupStates->push(StateInfo());
+		States->push(StateInfo());
 		if (m == MOVE_NULL) // do_move に MOVE_NULL を与えると死ぬので
-			pos.do_null_move(SetupStates->top());
+			pos.do_null_move(States->top());
 		else
-			pos.do_move(m, SetupStates->top());
+			pos.do_move(m, States->top());
 	}
 }
 
@@ -700,7 +710,7 @@ void go_cmd(const Position& pos, istringstream& is) {
 
 	limits.ponder_mode = ponder_mode;
 
-	Threads.start_thinking(pos, limits, Search::SetupStates);
+	Threads.start_thinking(pos, States , limits);
 }
 
 

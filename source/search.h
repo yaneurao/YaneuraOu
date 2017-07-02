@@ -49,6 +49,8 @@ namespace Search {
 		std::vector<Move> pv;
 	};
 
+	typedef std::vector<RootMove> RootMoves;
+
 	// goコマンドでの探索時に用いる、持ち時間設定などが入った構造体
 	struct LimitsType {
 
