@@ -970,8 +970,11 @@ bool Position::pseudo_legal_s(const Move m) const {
 template <Color Us>
 void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 {
-	ASSERT_LV3(&new_st != st);
+	// MOVE_NONEはもちろん、MOVE_NULL , MOVE_RESIGNなどお断り。
+	ASSERT_LV3(is_ok(m));
 
+	ASSERT_LV3(&new_st != st);
+		
 	++nodes;
 
 	// ----------------------
