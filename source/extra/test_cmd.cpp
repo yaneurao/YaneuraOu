@@ -9,17 +9,13 @@
 #include "../eval/evaluate_io.h"
 #include <unordered_set>
 
+#if defined(EVAL_LEARN)
+#include "../learn/learn.h"
+#endif
+
 // 評価関数ファイルを読み込む。
 // 局面の初期化は行わないので必要ならばPosition::set()などで初期化すること。
 extern void is_ready();
-
-#if defined(EVAL_LEARN)
-namespace Learner
-{
-	extern pair<Value, vector<Move> > qsearch(Position& pos);
-	extern pair<Value, vector<Move> >  search(Position& pos, int depth);
-}
-#endif
 
 // ----------------------------------
 //  USI拡張コマンド "perft"(パフォーマンステスト)

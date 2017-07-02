@@ -165,12 +165,26 @@ namespace Search {
 		Value staticEval;		// 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
 
 #if defined (PER_STACK_HISTORY)
+
+#if defined (USE_MOVE_PICKER_2017Q2)
 		int statScore;			// 一度計算したhistoryの合計値をcacheしておくのに用いる。
+#else
+		Value history;			// 一度計算したhistoryの合計値をcacheしておくのに用いる。
+#endif
+
+#endif
+
+#if defined(YANEURAOU_NANO_PLUS_ENGINE) || defined(YANEURAOU_MINI_ENGINE) || defined(YANEURAOU_CLASSIC_ENGINE) \
+	 || defined(YANEURAOU_CLASSIC_TCE_ENGINE) || defined(YANEURAOU_2016_MID_ENGINE) || defined(YANEURAOU_2016_LATE_ENGINE)
+
+		bool skipEarlyPruning;	// 指し手生成前に行なう枝刈りを省略するか。(NULL MOVEの直後など)
 #endif
 
 		int moveCount;          // このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
 
-#if defined(USE_MOVE_PICKER_2017Q2)
+#if defined (USE_MOVE_PICKER_2016Q2) || defined (USE_MOVE_PICKER_2016Q3)
+		CounterMoveStats* counterMoves; // MovePickerから使いたいのでここにCounterMoveStatsを格納することになった。
+#elif defined(USE_MOVE_PICKER_2017Q2)
 		PieceToHistory* history;		// history絡み、refactoringにより名前が変わった。
 #endif
 	};

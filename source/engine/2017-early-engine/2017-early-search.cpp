@@ -2978,8 +2978,9 @@ namespace Learner
 	//   auto v = search(pos,3);
 	// のようにすべし。
 	// v.firstに評価値、v.secondにPVが得られる。
-	// MultiPVが有効のときは、pos.this_thread()->rootMoves[N].pvにそのPV(読み筋)の配列が得られる。
-	//
+	// multi pvが有効のときは、pos.this_thread()->rootMoves[N].pvにそのPV(読み筋)の配列が得られる。
+	// multi pvの指定はこの関数の引数multiPVで行なう。(Options["MultiPV"]の値は無視される)
+	// 
 	// 返されるpv配列には宣言勝ち(MOVE_WIN)も含まれるので注意。
 	//
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
@@ -2987,7 +2988,7 @@ namespace Learner
 	// 　search()から戻ったあと、Signals.stop == trueなら、その探索結果を用いてはならない。
 	// 　あと、呼び出し前は、Signals.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
 
-	ValueAndPV search(Position& pos, int depth_)
+	ValueAndPV search(Position& pos, int depth_ , size_t multiPV /* = 1*/)
 	{
 		std::vector<Move> pvs;
 
@@ -3020,7 +3021,8 @@ namespace Learner
 		auto& completedDepth = th->completedDepth;
 
 		// bestmoveとしてしこの局面の上位N個を探索する機能
-		size_t multiPV = Options["MultiPV"];
+		//size_t multiPV = Options["MultiPV"];
+
 		// この局面での指し手の数を上回ってはいけない
 		multiPV = std::min(multiPV, rootMoves.size());
 
