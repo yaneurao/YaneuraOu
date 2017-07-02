@@ -92,19 +92,11 @@ struct Thread
 	// このスレッドが探索したノード数(≒Position::do_move()を呼び出した回数)
 	std::atomic<uint64_t> nodes;
 
-#if !defined(YANEURAOU_2017_EARLY_ENGINE)
-	// 反復深化の深さ(Depth型ではないので注意)
-	int rootDepth;
-
-	// このスレッドに関して、終了した反復深化の深さ(Depth型ではないので注意)
-	int completedDepth;
-#else
 	// 反復深化の深さ
-	Depth rootDepth;
+	std::atomic<Depth> rootDepth;
 
 	// このスレッドに関して、終了した反復深化の深さ
 	Depth completedDepth;
-#endif
 
 	// ある種のMovePickerではオーダリングのために、
 	// スレッドごとにhistoryとcounter movesのtableを持たないといけない。

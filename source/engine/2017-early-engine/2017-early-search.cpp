@@ -2308,7 +2308,7 @@ void Thread::search()
 	// 2つ目のrootDepth (Threads.main()->rootDepth)は深さで探索量を制限するためのもの。
 	// main threadのrootDepthがLimits.depthを超えた時点で、
 	// slave threadはこのループを抜けて良いのでこういう書き方になっている。
-	while ((rootDepth += ONE_PLY) < DEPTH_MAX
+	while ((rootDepth = rootDepth + ONE_PLY) < DEPTH_MAX
 		&& !Signals.stop
 		&& (!Limits.depth || Threads.main()->rootDepth / ONE_PLY <= Limits.depth))
 	{
@@ -3031,7 +3031,7 @@ namespace Learner
 		Value delta = -VALUE_INFINITE;
 		Value bestValue = -VALUE_INFINITE;
 
-		while ((rootDepth+=ONE_PLY) <= depth)
+		while ((rootDepth = rootDepth + ONE_PLY) <= depth)
 		{
 			for (RootMove& rm : rootMoves)
 				rm.previousScore = rm.score;
