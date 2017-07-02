@@ -24,10 +24,6 @@
 // オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE を defineして 他のエンジンのソースコードを参考に
 //  engine/user-engine/ フォルダの中身を書くべし。
 
-//#undef USE_MAKEFILE
-//#undef YANEURAOU_2017_EARLY_ENGINE
-//#undef USE_AVX2
-
 #if !defined (USE_MAKEFILE)
 
 #define YANEURAOU_2017_EARLY_ENGINE      // やねうら王2017(EARLY)  (完成2017/05/05)     : elmo(WCSC27)などで使われたエンジン
@@ -42,6 +38,11 @@
 // Makefileを使ってビルドをするときは、Makefile側で選択する。
 
 #endif
+
+// Makefile使うけどやっぱり設定変えたいとき用。
+//#undef USE_MAKEFILE
+//#undef YANEURAOU_2017_EARLY_ENGINE
+//#undef USE_AVX2
 
 // --------------------
 // release configurations

@@ -11,9 +11,6 @@
     <Filter Include="リソース ファイル\engine">
       <UniqueIdentifier>{e9b3e69c-bd87-41b1-947e-68da1be9443a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\engine\help-mate-engine">
-      <UniqueIdentifier>{a4d89bd4-6529-49a7-9143-b0d2dff4684c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\engine\user-engine">
       <UniqueIdentifier>{6cab9abd-d0e7-4497-bbe3-67a203fe5dee}</UniqueIdentifier>
     </Filter>
@@ -44,12 +41,6 @@
     <Filter Include="リソース ファイル\engine\2017-early-engine">
       <UniqueIdentifier>{d3dd072e-59ab-4ec3-a846-36d845709d2c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\engine\check-shogi-engine">
-      <UniqueIdentifier>{11d51fe5-ad3a-4a26-a710-6db4f036a01a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\engine\must-capture-shogi-engine">
-      <UniqueIdentifier>{5dd99140-04f4-49f4-9699-713b1b7ee46a}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\extra\book">
       <UniqueIdentifier>{991f4422-aa69-47f9-96dc-ab57ff54f469}</UniqueIdentifier>
     </Filter>
@@ -64,6 +55,9 @@
     </Filter>
     <Filter Include="docs">
       <UniqueIdentifier>{8bb34244-8e89-49f6-a303-c043ef5d8647}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\engine\help-mate-engine">
+      <UniqueIdentifier>{4baa45aa-bdd2-4657-804f-9aa648ba0a2f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -115,9 +109,6 @@
     <ClInclude Include="engine\mate-engine\mate-search.h">
       <Filter>リソース ファイル\engine\mate-engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\help-mate-engine\help-mate-search.h">
-      <Filter>リソース ファイル\engine\help-mate-engine</Filter>
-    </ClInclude>
     <ClInclude Include="learn\multi_think.h">
       <Filter>リソース ファイル\learn</Filter>
     </ClInclude>
@@ -129,12 +120,6 @@
     </ClInclude>
     <ClInclude Include="engine\2017-early-engine\2017-early-param.h">
       <Filter>リソース ファイル\engine\2017-early-engine</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\check-shogi-engine\check-shogi-param.h">
-      <Filter>リソース ファイル\engine\check-shogi-engine</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\must-capture-shogi-engine\must-capture-shogi-param.h">
-      <Filter>リソース ファイル\engine\must-capture-shogi-engine</Filter>
     </ClInclude>
     <ClInclude Include="extra\book\apery_book.h">
       <Filter>リソース ファイル\extra\book</Filter>
@@ -174,6 +159,9 @@
     </ClInclude>
     <ClInclude Include="eval\evaluate_io.h">
       <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\help-mate-engine\help-mate-search.h">
+      <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -240,9 +228,6 @@
     <ClCompile Include="engine\mate-engine\mate-search.cpp">
       <Filter>リソース ファイル\engine\mate-engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\help-mate-engine\help-mate-search.cpp">
-      <Filter>リソース ファイル\engine\help-mate-engine</Filter>
-    </ClCompile>
     <ClCompile Include="learn\learner.cpp">
       <Filter>リソース ファイル\learn</Filter>
     </ClCompile>
@@ -257,12 +242,6 @@
     </ClCompile>
     <ClCompile Include="engine\2017-early-engine\2017-early-search.cpp">
       <Filter>リソース ファイル\engine\2017-early-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\check-shogi-engine\check-shogi.cpp">
-      <Filter>リソース ファイル\engine\check-shogi-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\must-capture-shogi-engine\must-capture-shogi.cpp">
-      <Filter>リソース ファイル\engine\must-capture-shogi-engine</Filter>
     </ClCompile>
     <ClCompile Include="extra\book\apery_book.cpp">
       <Filter>リソース ファイル\extra\book</Filter>
@@ -302,6 +281,9 @@
     </ClCompile>
     <ClCompile Include="eval\evaluate.cpp">
       <Filter>リソース ファイル\eval</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\help-mate-engine\help-mate-search.cpp">
+      <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

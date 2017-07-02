@@ -685,10 +685,8 @@
   <ItemGroup>
     <ClInclude Include="bitboard.h" />
     <ClInclude Include="engine\2017-early-engine\2017-early-param.h" />
-    <ClInclude Include="engine\check-shogi-engine\check-shogi-param.h" />
     <ClInclude Include="engine\help-mate-engine\help-mate-search.h" />
     <ClInclude Include="engine\mate-engine\mate-search.h" />
-    <ClInclude Include="engine\must-capture-shogi-engine\must-capture-shogi-param.h" />
     <ClInclude Include="evaluate.h" />
     <ClInclude Include="eval\evaluate_io.h" />
     <ClInclude Include="eval\evaluate_kppt.h" />
@@ -723,11 +721,9 @@
   <ItemGroup>
     <ClCompile Include="bitboard.cpp" />
     <ClCompile Include="engine\2017-early-engine\2017-early-search.cpp" />
-    <ClCompile Include="engine\check-shogi-engine\check-shogi.cpp" />
     <ClCompile Include="engine\help-mate-engine\help-mate-search.cpp" />
     <ClCompile Include="engine\local-game-server\local-game-server.cpp" />
     <ClCompile Include="engine\mate-engine\mate-search.cpp" />
-    <ClCompile Include="engine\must-capture-shogi-engine\must-capture-shogi.cpp" />
     <ClCompile Include="engine\user-engine\user-search.cpp" />
     <ClCompile Include="eval\evaluate_bona_piece.cpp" />
     <ClCompile Include="eval\evaluate_io.cpp" />

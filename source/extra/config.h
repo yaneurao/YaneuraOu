@@ -261,6 +261,18 @@
 #endif
 
 
+// --- 協力詰めエンジンとして実行ファイルを公開するとき用の設定集
+
+#ifdef HELP_MATE_ENGINE
+#define ENGINE_NAME "YaneuraOu help mate solver"
+#define KEEP_LAST_MOVE
+#undef  MAX_PLY_NUM
+#define MAX_PLY_NUM 65000
+#undef HASH_KEY_BITS
+#define HASH_KEY_BITS 128
+#define EVAL_NO_USE
+#endif
+
 // --- 詰将棋エンジンとして実行ファイルを公開するとき用の設定集
 
 #ifdef MATE_ENGINE

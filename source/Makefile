@@ -1,10 +1,9 @@
 ﻿# > Select YaneuraOu edition below.
 
-#YANEURAOU_EDITION = RANDOM_PLAYER_ENGINE
-#YANEURAOU_EDITION = HELP_MATE_ENGINE
 YANEURAOU_EDITION = YANEURAOU_2017_EARLY_ENGINE
-#YANEURAOU_EDITION = CHECK_SHOGI_ENGINE
-#YANEURAOU_EDITION = MUST_CAPTURE_SHOGI_ENGINE
+#YANEURAOU_EDITION = HELP_MATE_ENGINE
+#YANEURAOU_EDITION = MATE_ENGINE
+
 
 # clangでコンパイルしたほうがgccより数%速いっぽい。
 # COMPILER = g++
@@ -113,11 +112,8 @@ SOURCES  = shogi.cpp                                                           \
 	eval/evaluate_io.cpp                                                       \
 	eval/progress.cpp                                                          \
 	engine/user-engine/user-search.cpp                                         \
-	engine/random-player-engine/random-player-search.cpp                       \
 	engine/help-mate-engine/help-mate-search.cpp                               \
 	engine/2017-early-engine/2017-early-search.cpp                             \
-	engine/check-shogi-engine/check-shogi.cpp                                  \
-	engine/must-capture-shogi-engine/must-capture-shogi.cpp                    \
 	learn/learner.cpp                                                          \
 	learn/learning_tools.cpp                                                   \
 	learn/multi_think.cpp                                                      \
