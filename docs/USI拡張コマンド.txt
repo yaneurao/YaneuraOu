@@ -267,12 +267,17 @@ USIプロトコルの独自拡張コマンド
 		例) gensfen depth 6  (残りは省略可)
 			eval_limitは、評価値の絶対値がこの値を上回った時点でその対局を終了するという値。
 
+		その他に指定できるオプション
+
 		random_move_minply,random_move_maxplyとrandom_move_countオプション
 			教師局面の生成時にランダムムーブを行なう最小手数と最大手数と1局でランダムムーブを行なう回数
 			デフォルトではrandom_move_minply = 1 , random_move_maxply = 24 , random_move_count = 5。
 			// 初手から24手目までに5回のランダムムーブを行なうという意味
 			learn random_move_maxply 32 random_move_count 10 ...
 			みたいに指定する。
+
+		random_multipv N : ランダムムーブの代わりにMultiPV Nでrandom_move_count手指すオプション。
+			ConsiderBookMoveCount = trueと組み合わせると実現確率の高い局面からスタートできるかも…。
 
 
 ・教師局面から評価関数の学習

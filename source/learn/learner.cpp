@@ -307,6 +307,8 @@ struct MultiThinkGenSfen : public MultiThink
 	int random_move_maxply;
 	// 1局のなかでランダムムーブを行なう回数
 	int random_move_count;
+	// ランダムムーブの代わりにmulti pvを使うとき用。
+	int random_multi_pv;
 
 	// sfenの書き出し器
 	SfenWriter& sw;
@@ -414,6 +416,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		// ply : 初期局面からの手数
 		for (int ply = 0; ; ++ply)
 		{
+			int depth = search_depth + (int)prng.rand(search_depth2 - search_depth + 1);
+
 			// 長手数に達したのか
 			if (ply >= MAX_PLY2)
 			{
@@ -463,8 +467,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// search_depth～search_depth2 手読みの評価値とPV(最善応手列)
 				// 探索窓を狭めておいても問題ないはず。
 
-				int depth = search_depth + (int)prng.rand(search_depth2 - search_depth + 1);
-
 				// 置換表の世代カウンターを進めておかないと
 				// 初期局面周辺でhash衝突したTTEntryに当たり、変な評価値を拾ってきて、
 				// eval_limitが低いとそれをもって終了してしまうので、いつまでも教師局面が生成されなくなる。
@@ -481,7 +483,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// これをもって勝敗がついたという扱いをする。
 
 				// 1手詰め、宣言勝ちならば、ここでmate_in(2)が返るのでeval_limitの上限値と同じ値になり、
-				// このif式は必ず真になる。
+				// このif式は必ず真になる。resignについても同様。
 
 				if (abs(value1) >= eval_limit)
 				{
@@ -696,8 +698,23 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			if (ply < (int)random_move_flag.size() && random_move_flag[ply])
 			{
 				// mateではないので合法手が1手はあるはず…。
-				MoveList<LEGAL> list(pos);
-				m = list.at((size_t)prng.rand((u64)list.size()));
+				if (random_multi_pv == 1)
+				{
+					MoveList<LEGAL> list(pos);
+					m = list.at((size_t)prng.rand((u64)list.size()));
+				}
+				else {
+					// ロジックが複雑になるので、すまんがここで再度MultiPVで探索する。
+					Learner::search(pos, depth, random_multi_pv);
+					// rootMovesの上位N手のなかから一つ選択
+
+					auto& rm = pos.this_thread()->rootMoves;
+					m = rm[(size_t)prng.rand(min((u64)rm.size(), (u64)random_multi_pv))].pv[0];
+
+					// 終局してたのでもういいや。
+					if (!is_ok(m))
+						break;
+				}
 
 				// 玉の2手指しのコードを入れていたが、合法手から1手選べばそれに相当するはずで
 				// コードが複雑化するだけだから不要だと判断した。
@@ -739,9 +756,11 @@ void gen_sfen(Position&, istringstream& is)
 	int search_depth2 = INT_MIN;
 
 	// ランダムムーブを行なう最小plyと最大plyと回数
+	// ランダムムーブの代わりにmultipvで探索してそのなかからランダムに選ぶときはrandom_multi_pv = 1より大きな数にする。
 	int random_move_minply = 1;
 	int random_move_maxply = 24;
 	int random_move_count = 5;
+	int random_multi_pv = 1;
 
 	// 書き出すファイル名
 	string output_file_name = "generated_kifu.bin";
@@ -774,6 +793,8 @@ void gen_sfen(Position&, istringstream& is)
 			is >> random_move_maxply;
 		else if (token == "random_move_count")
 			is >> random_move_count;
+		else if (token == "random_multi_pv")
+			is >> random_multi_pv;
 		else
 			cout << "Error! : Illegal token " << token << endl;
 	}
@@ -791,7 +812,8 @@ void gen_sfen(Position&, istringstream& is)
 		<< "  random_move_minply = " << random_move_minply << endl
 		<< "  random_move_maxply = " << random_move_maxply << endl
 		<< "  random_move_count  = " << random_move_count << endl
-		<< "  output_file_name = " << output_file_name << endl;
+		<< "  random_multi_pv    = " << random_multi_pv << endl
+		<< "  output_file_name   = " << output_file_name << endl;
 
 	// Options["Threads"]の数だけスレッドを作って実行。
 	{
@@ -802,6 +824,7 @@ void gen_sfen(Position&, istringstream& is)
 		multi_think.random_move_minply = random_move_minply;
 		multi_think.random_move_maxply = random_move_maxply;
 		multi_think.random_move_count = random_move_count;
+		multi_think.random_multi_pv = random_multi_pv;
 		multi_think.start_file_write_worker();
 		multi_think.go_think();
 
