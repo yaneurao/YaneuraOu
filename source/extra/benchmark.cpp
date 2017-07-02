@@ -113,8 +113,7 @@ void bench_cmd(Position& current, istringstream& is)
 		auto states = Search::StateStackPtr(new aligned_stack<StateInfo>);
 		states->push(StateInfo());
 
-		pos.set(fens[i]);
-		pos.set_this_thread(Threads.main());
+		pos.set(fens[i],Threads.main());
 
 		sync_cout << "\nPosition: " << (i + 1) << '/' << fens.size() << sync_endl;
 

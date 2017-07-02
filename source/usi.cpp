@@ -524,7 +524,7 @@ void is_ready_cmd(Position& pos)
 
 	// Positionコマンドが送られてくるまで評価値の全計算をしていないの気持ち悪いのでisreadyコマンドに対して
 	// evalの値を返せるようにこのタイミングで平手局面で初期化してしまう。
-	pos.set(SFEN_HIRATE);
+	pos.set(SFEN_HIRATE , Threads.main());
 
 	// このままgoコマンドが来た場合、Statesには1つStateInfoを積んでおかなければならないのに
 	// そうなっていないのでまずい。
@@ -558,7 +558,7 @@ void position_cmd(Position& pos, istringstream& is)
 			sfen += token + " ";
 	}
 
-	pos.set(sfen);
+	pos.set(sfen , Threads.main());
 
 	States = Search::StateStackPtr(new aligned_stack<StateInfo>);
 	// 要素が一つもないとempty checkとか面倒なので積んでおくことになっている。
@@ -842,7 +842,7 @@ void USI::loop(int argc, char* argv[])
 		else if (token == "d") cout << pos << endl;
 
 		// 指し手生成祭りの局面をセットする。
-		else if (token == "matsuri") pos.set("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1");
+		else if (token == "matsuri") pos.set("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1",Threads.main());
 
 		// "position sfen"の略。
 		else if (token == "sfen") position_cmd(pos, is);

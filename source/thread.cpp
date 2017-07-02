@@ -163,8 +163,7 @@ void ThreadPool::start_thinking(const Position& pos, Search::StateStackPtr& stat
 		th->nodes = 0;
 		th->rootDepth = DEPTH_ZERO;
 		th->rootMoves = rootMoves;
-		th->rootPos.set(sfen);
-		th->rootPos.set_this_thread(th);
+		th->rootPos.set(sfen,th);
 	}
 
 	// Position::set()によってクリアされていた、st->previousを復元する。

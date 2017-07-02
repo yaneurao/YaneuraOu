@@ -244,7 +244,7 @@ void random_player(Position& pos,uint64_t loop_max)
   uint64_t mate_missed = 0;   // 1手詰め判定で見逃した1手詰め局面の数
 #endif
 
-  pos.set_hirate();
+  pos.set_hirate(Threads.main());
   const int MAX_PLY = 256; // 256手までテスト
 
   StateInfo state[MAX_PLY]; // StateInfoを最大手数分だけ
@@ -402,7 +402,7 @@ void random_player_bench_cmd(Position& pos, istringstream& is)
   is >> loop_max;
   cout << "Random Player bench test , loop_max = " << loop_max << endl;
 
-  pos.set_hirate();
+  pos.set_hirate(Threads.main());
   const int MAX_PLY = 256; // 256手までテスト
 
   StateInfo state[MAX_PLY]; // StateInfoを最大手数分だけ
@@ -680,7 +680,7 @@ void test_read_record(Position& pos, istringstream& is)
     auto& SetupStates = Search::SetupStates;
     SetupStates = Search::StateStackPtr(new aligned_stack<StateInfo>());
 
-    pos.set(sfen);
+    pos.set(sfen , Threads.main());
 
     while (ss >> token)
     {
@@ -731,7 +731,7 @@ void auto_play(Position& pos, istringstream& is)
 
   for (uint64_t i = 0; i < loop_max; ++i)
   {
-    pos.set_hirate();
+    pos.set_hirate(Threads.main());
     for (ply = 0; ply < MAX_PLY; ++ply)
     {
       MoveList<LEGAL_ALL> mg(pos);
@@ -958,11 +958,13 @@ void unit_test(Position& pos, istringstream& is)
   }
 #endif
 
+  Thread* th = Threads.main();
+
   // hash key
   // この値が変わると定跡DBがhitしなくなってしまうので変えてはならない。
   {
     cout << "> hash key check ";
-    pos.set_hirate();
+    pos.set_hirate(th);
     check( pos.state()->key() == UINT64_C(0x75a12070b8bd438a));
   }
 
@@ -971,13 +973,13 @@ void unit_test(Position& pos, istringstream& is)
     // 最多合法手局面
     const string POS593 = "R8/2K1S1SSk/4B4/9/9/9/9/9/1L1L1L3 b RBGSNLP3g3n17p 1";
     cout << "> genmove sfen = " << POS593;
-    pos.set(POS593);
+    pos.set(POS593,th);
     auto mg = MoveList<LEGAL_ALL>(pos);
     cout << " , moves = " << mg.size();
     check( mg.size() == 593);
 
     cout << "> perft depth 6 ";
-    pos.set_hirate();
+    pos.set_hirate(th);
     auto result = PerftSolver().Perft<true>(pos,6);
     check(  result.nodes == 547581517 && result.captures == 3387051
 #ifdef      KEEP_LAST_MOVE
@@ -1049,7 +1051,7 @@ void exam_book(Position& pos)
 			buf += token + " ";
 			if (token == "startpos")
 			{
-				pos.set_hirate();
+				pos.set_hirate(Threads.main());
 				continue;
 			}
 			else if (token == "moves")
@@ -1171,7 +1173,7 @@ void book_check_cmd(Position& pos, istringstream& is)
 
 	string file_name = "book_records.sfen";
 	ofstream of(file_name, ios::out);
-	pos.set_hirate();
+	pos.set_hirate(Threads.main());
 
 	// とりあえずファイル名は固定でいいや。
 	string book_name = "yaneura_book3.db";
@@ -1205,8 +1207,6 @@ void book_check_cmd(Position& pos, istringstream& is)
 // depthを指定しないときはdefaultでは6。
 void test_search(Position& pos, istringstream& is)
 {
-	pos.set_this_thread(Threads.main());
-
 	int depth = 6;
 	is >> depth;
 
@@ -1537,7 +1537,7 @@ void dump_sfen(Position& pos, istringstream& is)
 		if (num >= end_number)
 			break;
 
-		pos.set_from_packed_sfen(sfen.sfen);
+		pos.set_from_packed_sfen(sfen.sfen,Threads.main());
 #if 0
 		cout << pos;
 		cout << "value = " << sfen.score << " , num = " << num << endl;

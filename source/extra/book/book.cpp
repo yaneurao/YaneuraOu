@@ -75,10 +75,9 @@ namespace Book
 		{
 			auto sfen = sfens[id];
 
-			auto& pos = Threads[thread_id]->rootPos;
-			pos.set(sfen);
 			auto th = Threads[thread_id];
-			pos.set_this_thread(th);
+			auto& pos = th->rootPos;
+			pos.set(sfen,th);
 
 			if (pos.is_mated())
 				continue;
@@ -338,13 +337,13 @@ namespace Book
 					{
 						// 駒落ちなどではsfen xxx movesとなるのでこれをfeedしなければならない。
 						auto sfen = feed_sfen(iss);
-						pos.set(sfen);
+						pos.set(sfen,Threads.main());
 						hirate = false;
 					}
 				} while (token == "startpos" || token == "moves" || token == "sfen");
 
 				if (hirate)
-					pos.set_hirate();
+					pos.set_hirate(Threads.main());
 
 				vector<Move> m;				// 初手から(moves+1)手までの指し手格納用
 
@@ -836,7 +835,7 @@ namespace Book
 				// std::vectorにしてあるのでit.firstを書き換えてもitは無効にならないはず。
 				for (auto& it : vectored_book)
 				{
-					pos.set(it.first);
+					pos.set(it.first,Threads.main());
 					it.first = pos.sfen();
 				}
 			}
@@ -1181,7 +1180,7 @@ namespace Book
 		};
 
 		Position pos;
-		pos.set_hirate();
+		pos.set_hirate(Threads.main());
 		search(pos);
 		report();
 

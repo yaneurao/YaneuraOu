@@ -182,7 +182,7 @@ struct Position
 
 	// sfen文字列で盤面を設定する
 	// ※　内部的にinit()は呼び出される。
-	void set(std::string sfen);
+	void set(std::string sfen , Thread* th);
 
 	// 局面のsfen文字列を取得する
 	// ※ USIプロトコルにおいては不要な機能ではあるが、デバッグのために局面を標準出力に出力して
@@ -190,7 +190,7 @@ struct Position
 	const std::string sfen() const;
 
 	// 平手の初期盤面を設定する。
-	void set_hirate() { set(SFEN_HIRATE); }
+	void set_hirate(Thread* th) { set(SFEN_HIRATE,th); }
 
 	// --- properties
 
@@ -203,8 +203,6 @@ struct Position
 
 	// この局面クラスを用いて探索しているスレッドを返す。 
 	Thread* this_thread() const { return thisThread; }
-	// この局面クラスを用いて探索しているスレッドを設定する。(threads.cppのなかで設定してある。)
-	void set_this_thread(Thread*th) { thisThread = th; }
 
 	// 盤面上の駒を返す
 	Piece piece_on(Square sq) const { ASSERT_LV3(sq <= SQ_NB); return board[sq]; }
@@ -588,7 +586,7 @@ struct Position
 	// ↑sfenを経由すると遅いので直接packされたsfenをセットする関数を作った。
 	// pos.set(sfen_unpack(data)); と等価。
 	// 渡された局面に問題があって、エラーのときは非0を返す。
-	int set_from_packed_sfen(const PackedSfen& sfen);
+	int set_from_packed_sfen(const PackedSfen& sfen , Thread* th);
 
 	// 盤面と手駒、手番を与えて、そのsfenを返す。
 	static std::string sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly);

@@ -342,7 +342,7 @@ struct SfenPacker
 // 高速化のために直接unpackする関数を追加。かなりしんどい。
 // packer::unpack()とPosition::set()とを合体させて書く。
 // 渡された局面に問題があって、エラーのときは非0を返す。
-int Position::set_from_packed_sfen(const PackedSfen& sfen)
+int Position::set_from_packed_sfen(const PackedSfen& sfen , Thread* th)
 {
 	SfenPacker packer;
 	auto& stream = packer.stream;
@@ -465,6 +465,8 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen)
 
 	//if (!is_ok(*this))
 	//	std::cout << "info string Illigal Position?" << endl;
+
+	thisThread = th;
 
 	return 0;
 }

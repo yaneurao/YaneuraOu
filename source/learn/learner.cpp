@@ -337,8 +337,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		auto th = Threads[thread_id];
 
 		auto& pos = th->rootPos;
-		pos.set_hirate();
-		pos.set_this_thread(th);
+		pos.set_hirate(th);
 
 		// 探索部で定義されているBookMoveSelectorのメンバを参照する。
 		auto& book = ::book;
@@ -711,7 +710,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					auto& rm = pos.this_thread()->rootMoves;
 					m = rm[(size_t)prng.rand(min((u64)rm.size(), (u64)random_multi_pv))].pv[0];
 
-					// 終局してたのでもういいや。
+					// まだ1局面も書き出していないのに終局してたので書き出し処理は端折って次の対局に。
 					if (!is_ok(m))
 						break;
 				}
@@ -1036,7 +1035,8 @@ struct SfenReader
 	// mseの計算用に1000局面ほど読み込んでおく。
 	void read_for_mse()
 	{
-		Position& pos = Threads.main()->rootPos;
+		auto th = Threads.main();
+		Position& pos = th->rootPos;
 		for (int i = 0; i < 1000; ++i)
 		{
 			PackedSfenValue ps;
@@ -1048,7 +1048,7 @@ struct SfenReader
 			sfen_for_mse.push_back(ps);
 
 			// hash keyを求める。
-			pos.set_from_packed_sfen(ps.sfen);
+			pos.set_from_packed_sfen(ps.sfen,th);
 			sfen_for_mse_hash.insert(pos.key());
 		}
 	}
@@ -1359,8 +1359,9 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 #endif
 
 	// 平手の初期局面のeval()の値を表示させて、揺れを見る。
-	auto& pos = Threads[thread_id]->rootPos;
-	pos.set_hirate();
+	auto th = Threads[thread_id];
+	auto& pos = th->rootPos;
+	pos.set_hirate(th);
 	std::cout << "hirate eval = " << Eval::evaluate(pos);
 
 	// ここ、並列化したほうが良いのだがslaveの前の探索が終わってなかったりしてちょっと面倒。
@@ -1383,12 +1384,11 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			auto th = Threads[thread_id];
 			auto& pos = th->rootPos;
 
-			if (pos.set_from_packed_sfen(ps.sfen) != 0)
+			if (pos.set_from_packed_sfen(ps.sfen , th) != 0)
 			{
 				// 運悪くrmse計算用のsfenとして、不正なsfenを引いてしまっていた。
 				cout << "Error! : illegal packed sfen " << pos.sfen() << endl;
 			}
-			pos.set_this_thread(th);
 
 			// 浅い探索の評価値
 			// evaluate()の値を用いても良いのだが、ロスを計算するときにlearn_cross_entropyと
@@ -1484,7 +1484,8 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 
 void LearnerThink::thread_worker(size_t thread_id)
 {
-	auto& pos = Threads[thread_id]->rootPos;
+	auto th = Threads[thread_id];
+	auto& pos = th->rootPos;
 
 	while (true)
 	{
@@ -1577,7 +1578,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 		pos.set(sfen);
 #endif
 		// ↑sfenを経由すると遅いので専用の関数を作った。
-		if (pos.set_from_packed_sfen(ps.sfen) != 0)
+		if (pos.set_from_packed_sfen(ps.sfen,th) != 0)
 		{
 			// 変なsfenを掴かまされた。デバッグすべき！
 			// 不正なsfenなのでpos.sfen()で表示できるとは限らないが、しないよりマシ。
@@ -1603,10 +1604,6 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// (そのような教師局面自体を書き出すべきではないのだが古い生成ルーチンで書き出しているかも知れないので)
 		if (pos.is_mated() || pos.DeclarationWin() != MOVE_NONE)
 			goto RetryRead;
-
-		// Learner::search()を呼ぶときは、set_this_thread()しておく必要がある。
-		auto th = Threads[thread_id];
-		pos.set_this_thread(th);
 
 		// 読み込めたので試しに表示してみる。
 		//		cout << pos << value << endl;

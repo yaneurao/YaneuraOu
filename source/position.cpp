@@ -139,7 +139,7 @@ std::string pretty(Piece pc) { return std::string(" □ 歩 香 桂 銀 角 飛 
 
 
 // sfen文字列で盤面を設定する
-void Position::set(std::string sfen)
+void Position::set(std::string sfen , Thread* th)
 {
 	clear();
 
@@ -289,6 +289,8 @@ void Position::set(std::string sfen)
 	if (!is_ok(*this))
 		std::cout << "info string Illigal Position?" << endl;
 #endif
+
+	thisThread = th;
 }
 
 // 局面のsfen文字列を取得する。
