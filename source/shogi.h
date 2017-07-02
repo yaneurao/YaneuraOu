@@ -20,6 +20,11 @@
 //  思考エンジンの種類
 // --------------------
 
+// Makefile使うけどやっぱり設定変えたいとき用。
+//#undef USE_MAKEFILE
+//#undef YANEURAOU_2017_EARLY_ENGINE
+//#undef USE_AVX2
+
 // やねうら王の思考エンジンとしてリリースする場合、以下から選択。(どれか一つは必ず選択しなければならない)
 // オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE を defineして 他のエンジンのソースコードを参考に
 //  engine/user-engine/ フォルダの中身を書くべし。
@@ -38,11 +43,6 @@
 // Makefileを使ってビルドをするときは、Makefile側で選択する。
 
 #endif
-
-// Makefile使うけどやっぱり設定変えたいとき用。
-//#undef USE_MAKEFILE
-//#undef YANEURAOU_2017_EARLY_ENGINE
-//#undef USE_AVX2
 
 // --------------------
 // release configurations

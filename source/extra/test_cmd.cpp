@@ -1765,8 +1765,7 @@ void test_mate_engine_cmd(Position& pos, istringstream& is) {
 		states->push(StateInfo());
 
 		Position pos;
-		pos.set(sfen);
-		pos.set_this_thread(Threads.main());
+		pos.set(sfen, Threads.main());
 
 		sync_cout << "\nPosition: " << sfen << sync_endl;
 
