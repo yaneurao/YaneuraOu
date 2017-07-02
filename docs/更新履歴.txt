@@ -2,6 +2,53 @@
 やねうら王 更新履歴
 
 
+■　2017/07/02
+
+・Position::do_move()に指し手としてMOVE_RESIGNを渡すといけないのでassert追加。
+・Stockfish : Only main thread checks time
+	cf. https://github.com/official-stockfish/Stockfish/commit/05513a66410f96959f3a6e70be9aea72425cf7c7
+・Position::nodes_searched()削除
+・Threads.init_for_slave()削除。
+・search()のときに千日手判定でrootの局面以前まで遡っていなかったの修正。
+・以下のプロジェクトを削除。(保守しきれないため)
+	#define YANEURAOU_NANO_ENGINE            // やねうら王nano         (完成2016/01/31)
+	#define YANEURAOU_NANO_PLUS_ENGINE       // やねうら王nano plus    (完成2016/02/25)
+	#define YANEURAOU_MINI_ENGINE            // やねうら王mini         (完成2016/02/29)
+	#define YANEURAOU_CLASSIC_ENGINE         // やねうら王classic      (完成2016/04/03)
+	#define YANEURAOU_CLASSIC_TCE_ENGINE     // やねうら王classic tce  (完成2016/04/15)
+	#define YANEURAOU_2016_MID_ENGINE        // やねうら王2016(MID)    (完成2016/08/18)
+	#define YANEURAOU_2016_LATE_ENGINE       // やねうら王2016(LATE)   (完成2016/10/07)     : 真やねうら王
+	#define CHECK_SHOGI_ENGINE	             // やねうら王 王手将棋    (完成2016/11/30)
+	#define MUST_CAPTURE_SHOGI_ENGINE        // やねうら王 取る一手将棋(完成2016/12/04)
+	#define RANDOM_PLAYER_ENGINE             // ランダムプレイヤー
+　王手将棋と取る一手将棋はいずれ最新のエンジン部で実装しなおす。
+　ソースコード自体は、参考用にsource/old_engines/に移動。
+
+
+■　2017/06/30
+
+・BonaPieceを32bitに固定することにした。(理由はshogi.hのBonaPieceのところにコメントとして書いた)
+・learning_tools.hの型キャスト、ちょっとお行儀が悪かったので少し書き直した。
+・gensfenでeval_limitが小さいときに生成が次第に遅くなることがあったのを修正。(報告をしてくださった、滝澤さん、まふさんに感謝！)
+・GlobalOptions.use_strict_generational_tt追加。
+・スレッドごと置換表確保などはMultiThinkが行なうべきなのでそう修正した。これでmakebook thinkコマンドの精度も改善されるはず。
+・LOCAL_GAME_SERVER などで EVAL_NO_USE があるとビルドできなかったのを修正しました。(ishidakeiさん)
+・gensfenのときにrandom_move_minplyに1以外を指定すると落ちることがあったのを修正。
+
+
+■　2017/06/28
+
+・前回のリファクタリングでBookOnTheFly mode、壊れてしまっていたの修正。(mizarさん)
+・book.hがわかりにくかったのでコメント大量に追加して関数を少し整理した。
+・gensfenでOptions["BookOnTheFly"] = falseを強制するようにした。
+・read_book()でのon_the_flyのフラグ更新処理が怪しかったの修正。
+・gensfenでOptions["BookOnTheFly"] = falseを強制したはずがtrueにしてしまっていたので修正した。
+・Optionsのassert修正した。
+・AsyncPRNG追加。PRNGまわりのソースコード整理。
+・BookMoveSelectorにAsyncPRNGを持たせる実装に変更。
+・sleep()が間違って単位がマイクロセカンドになっていたのをミリセカンドに修正。
+
+
 ■　2017/06/27 V4.72
 
 ・棋譜生成・学習部でshared_ptrでスレッド間のデータ受け渡しをしている部分、gcc/clangのランタイムで意図しない動作になるので修正。
@@ -15,6 +62,7 @@
 ・book.h / book.cppソースコード整理、リファクタリング。
 ・learn shuffleコマンドの引数の説明足りてなかったの補足。
 ・test evalmerge、正式に公開する。
+・USI拡張コマンド.txt、内容を整理した。
 
 
 ■　2017/06/26 V4.71

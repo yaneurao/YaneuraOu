@@ -269,6 +269,7 @@ namespace USI
 						}
 					}
 
+#if defined (USE_ENTERING_KING_WIN)
 					// 宣言勝ちである
 					if (m == MOVE_WIN)
 					{
@@ -278,6 +279,7 @@ namespace USI
 
 						break;
 					}
+#endif
 
 					moves[ply] = m;
 					ss << " " << m;

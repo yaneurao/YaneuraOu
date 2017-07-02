@@ -684,9 +684,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="bitboard.h" />
-    <ClInclude Include="engine\2016-late-engine\2016-late-param.h" />
-    <ClInclude Include="engine\2016-late-engine\2016-late-param_body.h" />
-    <ClInclude Include="engine\2016-mid-engine\2016-mid-param.h" />
     <ClInclude Include="engine\2017-early-engine\2017-early-param.h" />
     <ClInclude Include="engine\check-shogi-engine\check-shogi-param.h" />
     <ClInclude Include="engine\help-mate-engine\help-mate-search.h" />
@@ -709,9 +706,6 @@
     <ClInclude Include="extra\long_effect.h" />
     <ClInclude Include="extra\macros.h" />
     <ClInclude Include="extra\mate\mate1ply.h" />
-    <ClInclude Include="extra\move_picker\move_picker_2015.h" />
-    <ClInclude Include="extra\move_picker\move_picker_2016Q2.h" />
-    <ClInclude Include="extra\move_picker\move_picker_2016Q3.h" />
     <ClInclude Include="extra\move_picker\move_picker_2017Q2.h" />
     <ClInclude Include="extra\thread_win32.h" />
     <ClInclude Include="learn\half_float.h" />
@@ -728,20 +722,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bitboard.cpp" />
-    <ClCompile Include="engine\2016-late-engine\2016-late-search.cpp" />
-    <ClCompile Include="engine\2016-mid-engine\2016-mid-search.cpp" />
     <ClCompile Include="engine\2017-early-engine\2017-early-search.cpp" />
     <ClCompile Include="engine\check-shogi-engine\check-shogi.cpp" />
-    <ClCompile Include="engine\classic-engine\classic-search.cpp" />
-    <ClCompile Include="engine\classic-tce-engine\classic-tce-search.cpp" />
     <ClCompile Include="engine\help-mate-engine\help-mate-search.cpp" />
     <ClCompile Include="engine\local-game-server\local-game-server.cpp" />
     <ClCompile Include="engine\mate-engine\mate-search.cpp" />
-    <ClCompile Include="engine\mini-engine\mini-search.cpp" />
     <ClCompile Include="engine\must-capture-shogi-engine\must-capture-shogi.cpp" />
-    <ClCompile Include="engine\nano-engine\nano-search.cpp" />
-    <ClCompile Include="engine\nano-plus-engine\nano-plus-search.cpp" />
-    <ClCompile Include="engine\random-player-engine\random-player-search.cpp" />
     <ClCompile Include="engine\user-engine\user-search.cpp" />
     <ClCompile Include="eval\evaluate_bona_piece.cpp" />
     <ClCompile Include="eval\evaluate_io.cpp" />
@@ -761,8 +747,6 @@
     <ClCompile Include="extra\mate\mate1ply_without_effect.cpp" />
     <ClCompile Include="extra\mate\mate1ply_with_effect.cpp" />
     <ClCompile Include="extra\mate\mate_n_ply.cpp" />
-    <ClCompile Include="extra\move_picker\move_picker_2016Q2.cpp" />
-    <ClCompile Include="extra\move_picker\move_picker_2016Q3.cpp" />
     <ClCompile Include="extra\move_picker\move_picker_2017Q2.cpp" />
     <ClCompile Include="extra\see.cpp" />
     <ClCompile Include="extra\sfen_packer.cpp" />

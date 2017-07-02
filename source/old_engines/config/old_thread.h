@@ -1,4 +1,4 @@
-﻿#ifndef _THREAD_H_
+#ifndef _THREAD_H_
 #define _THREAD_H_
 
 #include <atomic>
@@ -108,7 +108,14 @@ struct Thread
 
 	// ある種のMovePickerではオーダリングのために、
 	// スレッドごとにhistoryとcounter movesのtableを持たないといけない。
-#if defined ( USE_MOVE_PICKER_2017Q2 )
+#if defined( USE_MOVE_PICKER_2015 )
+	MoveStats counterMoves;
+	HistoryStats history;
+#elif defined( USE_MOVE_PICKER_2016Q2 ) || defined( USE_MOVE_PICKER_2016Q3 )
+	MoveStats counterMoves;
+	HistoryStats history;
+	FromToStats fromTo;
+#elif defined ( USE_MOVE_PICKER_2017Q2 )
 	CounterMoveStat counterMoves;
 	ButterflyHistory history;
 #endif

@@ -1758,13 +1758,16 @@ void test_mate_engine_cmd(Position& pos, istringstream& is) {
 
 	// main threadが探索したノード数
 	int64_t nodes_main = 0;
-	Search::StateStackPtr st;
 
 	// ベンチの計測用タイマー
 	Timer time;
 	time.reset();
 
 	for (const char* sfen : TestMateEngineSfen) {
+		Search::StateStackPtr st;
+		auto states = Search::StateStackPtr(new aligned_stack<StateInfo>);
+		states->push(StateInfo());
+
 		Position pos;
 		pos.set(sfen);
 		pos.set_this_thread(Threads.main());
@@ -1774,11 +1777,11 @@ void test_mate_engine_cmd(Position& pos, istringstream& is) {
 		// 探索時にnpsが表示されるが、それはこのglobalなTimerに基づくので探索ごとにリセットを行なうようにする。
 		Time.reset();
 
-		Threads.start_thinking(pos, limits, st);
+		Threads.start_thinking(pos, st , limits);
 		Threads.main()->wait_for_search_finished(); // 探索の終了を待つ。
 
 		nodes += Threads.nodes_searched();
-		nodes_main += Threads.main()->rootPos.nodes_searched();
+		nodes_main += Threads.main()->rootPos.this_thread()->nodes.load(memory_order_relaxed);
 	}
 
 	auto elapsed = time.elapsed() + 1; // 0除算の回避のため

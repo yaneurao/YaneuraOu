@@ -229,9 +229,9 @@ namespace MateEngine
       return;
     }
 
-    auto nodes_searched = n.nodes_searched();
+    auto nodes_searched = n.this_thread()->nodes.load(memory_order_relaxed);
     if (nodes_searched && nodes_searched % 10000000 == 0) {
-      sync_cout << "info string nodes_searched=" << n.nodes_searched() << sync_endl;
+      sync_cout << "info string nodes_searched=" << nodes_searched << sync_endl;
     }
 
     auto& entry = transposition_table.LookUp(n);
@@ -474,7 +474,7 @@ namespace MateEngine
     DFPNwithTCA(r, kInfinitePnDn, kInfinitePnDn, false, true, 0);
     const auto& entry = transposition_table.LookUp(r);
 
-    auto nodes_searched = r.nodes_searched();
+    auto nodes_searched = r.this_thread()->nodes.load(memory_order_relaxed);
     sync_cout << "info string" <<
       " pn " << entry.pn <<
       " dn " << entry.dn <<

@@ -198,6 +198,8 @@ namespace Eval {
 		e_hand_rook = 88,//f_hand_rook + 3,//87+1
 		fe_hand_end = 90,//e_hand_rook + 3,//90
 
+#else 
+		fe_hand_end = 0,
 #endif                     
 
 		// Bonanzaのように盤上のありえない升の歩や香の番号を詰めない。

@@ -156,7 +156,7 @@ namespace HelpMate
   // 協力詰め探索の反復深化のループ
   void id_loop(Position& pos, int thread_id, int thread_num)
   {
-    pos.set_nodes_searched(0);
+    pos.this_thread()->nodes = 0;
     auto start_time = now();
 
     // 協力詰めの反復深化は2手ずつ深くして良い。

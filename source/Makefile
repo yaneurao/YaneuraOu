@@ -2,13 +2,6 @@
 
 #YANEURAOU_EDITION = RANDOM_PLAYER_ENGINE
 #YANEURAOU_EDITION = HELP_MATE_ENGINE
-#YANEURAOU_EDITION = YANEURAOU_NANO_ENGINE
-#YANEURAOU_EDITION = YANEURAOU_NANO_PLUS_ENGINE
-#YANEURAOU_EDITION = YANEURAOU_MINI_ENGINE
-#YANEURAOU_EDITION = YANEURAOU_CLASSIC_ENGINE
-#YANEURAOU_EDITION = YANEURAOU_CLASSIC_TCE_ENGINE
-#YANEURAOU_EDITION = YANEURAOU_2016_MID_ENGINE
-#YANEURAOU_EDITION = YANEURAOU_2016_LATE_ENGINE
 YANEURAOU_EDITION = YANEURAOU_2017_EARLY_ENGINE
 #YANEURAOU_EDITION = CHECK_SHOGI_ENGINE
 #YANEURAOU_EDITION = MUST_CAPTURE_SHOGI_ENGINE
@@ -105,8 +98,6 @@ SOURCES  = shogi.cpp                                                           \
 	extra/mate/mate1ply_with_effect.cpp                                        \
 	extra/mate/mate1ply_without_effect.cpp                                     \
 	extra/mate/mate_n_ply.cpp                                                  \
-	extra/move_picker/move_picker_2016Q2.cpp                                   \
-	extra/move_picker/move_picker_2016Q3.cpp                                   \
 	extra/move_picker/move_picker_2017Q2.cpp                                   \
 	extra/benchmark.cpp                                                        \
 	extra/test_cmd.cpp                                                         \
@@ -124,13 +115,6 @@ SOURCES  = shogi.cpp                                                           \
 	engine/user-engine/user-search.cpp                                         \
 	engine/random-player-engine/random-player-search.cpp                       \
 	engine/help-mate-engine/help-mate-search.cpp                               \
-	engine/nano-engine/nano-search.cpp                                         \
-	engine/nano-plus-engine/nano-plus-search.cpp                               \
-	engine/mini-engine/mini-search.cpp                                         \
-	engine/classic-engine/classic-search.cpp                                   \
-	engine/classic-tce-engine/classic-tce-search.cpp                           \
-	engine/2016-mid-engine/2016-mid-search.cpp                                 \
-	engine/2016-late-engine/2016-late-search.cpp                               \
 	engine/2017-early-engine/2017-early-search.cpp                             \
 	engine/check-shogi-engine/check-shogi.cpp                                  \
 	engine/must-capture-shogi-engine/must-capture-shogi.cpp                    \

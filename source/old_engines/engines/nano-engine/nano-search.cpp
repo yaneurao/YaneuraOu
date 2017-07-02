@@ -36,12 +36,12 @@ using namespace Eval;
 // USI::init()のなかからコールバックされる。
 void USI::extra_option(USI::OptionsMap & o)
 {
-  //
-  //   パラメーターの外部からの自動調整
-  //
+	//
+	//   パラメーターの外部からの自動調整
+	//
 
-  o["Param1"] << Option(0, 0, 100000);
-  o["Param2"] << Option(0, 0, 100000);
+	o["Param1"] << Option(0, 0, 100000);
+	o["Param2"] << Option(0, 0, 100000);
 }
 
 namespace YaneuraOuNano
@@ -409,13 +409,13 @@ void Search::init() {}
 
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
 void  Search::clear() {
-  static bool first = true;
-  if (first)
-  {
-    Book::read_book("book/standard_book.db", book);
-    first = false;
-  }
-  TT.clear();
+	static bool first = true;
+	if (first)
+	{
+		Book::read_book("book/standard_book.db", book);
+		first = false;
+	}
+	TT.clear();
 }
 
 // 探索開始時に呼び出される。

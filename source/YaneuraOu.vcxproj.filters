@@ -11,23 +11,11 @@
     <Filter Include="リソース ファイル\engine">
       <UniqueIdentifier>{e9b3e69c-bd87-41b1-947e-68da1be9443a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\engine\classic-engine">
-      <UniqueIdentifier>{669f832c-7d68-44b0-aff9-048ac0923290}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\engine\help-mate-engine">
       <UniqueIdentifier>{a4d89bd4-6529-49a7-9143-b0d2dff4684c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\engine\mini-engine">
-      <UniqueIdentifier>{8d0d3c85-56bf-4b6c-aab6-7e5d30f44247}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\engine\nano-engine">
-      <UniqueIdentifier>{96d39d2d-8f79-4886-aee4-dca2a18a8ed5}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\engine\user-engine">
       <UniqueIdentifier>{6cab9abd-d0e7-4497-bbe3-67a203fe5dee}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\engine\random-player-engine">
-      <UniqueIdentifier>{bdf05885-9d14-44cb-b571-c77256d741ba}</UniqueIdentifier>
     </Filter>
     <Filter Include="リソース ファイル\engine\local-game-server">
       <UniqueIdentifier>{87ce55d3-78de-45c8-a6b3-a74a54ef2d0b}</UniqueIdentifier>
@@ -46,18 +34,6 @@
     </Filter>
     <Filter Include="exe\eval">
       <UniqueIdentifier>{022b52fb-a082-4f1e-9418-bfbc59a1c528}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\engine\nano-plus-engine">
-      <UniqueIdentifier>{f3ba1c3a-285c-4fbb-b041-1a46902f2f8c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\engine\classic-tce-engine">
-      <UniqueIdentifier>{c572f93f-e4d8-4d96-ad1f-2f6a5a11d108}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\engine\2016-mid-engine">
-      <UniqueIdentifier>{307735dd-d642-4bb7-a1c0-4b578152201a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\engine\2016-late-engine">
-      <UniqueIdentifier>{340f8b93-a0de-4836-a164-61971b2d3ce6}</UniqueIdentifier>
     </Filter>
     <Filter Include="リソース ファイル\learn">
       <UniqueIdentifier>{d7ca69f7-bd83-40ce-89c2-fe2d730b80be}</UniqueIdentifier>
@@ -136,9 +112,6 @@
     <ClInclude Include="eval\kppt_evalsum.h">
       <Filter>リソース ファイル\eval</Filter>
     </ClInclude>
-    <ClInclude Include="engine\2016-mid-engine\2016-mid-param.h">
-      <Filter>リソース ファイル\engine\2016-mid-engine</Filter>
-    </ClInclude>
     <ClInclude Include="engine\mate-engine\mate-search.h">
       <Filter>リソース ファイル\engine\mate-engine</Filter>
     </ClInclude>
@@ -153,12 +126,6 @@
     </ClInclude>
     <ClInclude Include="learn\learn.h">
       <Filter>リソース ファイル\learn</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\2016-late-engine\2016-late-param.h">
-      <Filter>リソース ファイル\engine\2016-late-engine</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\2016-late-engine\2016-late-param_body.h">
-      <Filter>リソース ファイル\engine\2016-late-engine</Filter>
     </ClInclude>
     <ClInclude Include="engine\2017-early-engine\2017-early-param.h">
       <Filter>リソース ファイル\engine\2017-early-engine</Filter>
@@ -180,15 +147,6 @@
     </ClInclude>
     <ClInclude Include="eval\progress.h">
       <Filter>リソース ファイル\eval</Filter>
-    </ClInclude>
-    <ClInclude Include="extra\move_picker\move_picker_2015.h">
-      <Filter>リソース ファイル\extra\move_picker</Filter>
-    </ClInclude>
-    <ClInclude Include="extra\move_picker\move_picker_2016Q2.h">
-      <Filter>リソース ファイル\extra\move_picker</Filter>
-    </ClInclude>
-    <ClInclude Include="extra\move_picker\move_picker_2016Q3.h">
-      <Filter>リソース ファイル\extra\move_picker</Filter>
     </ClInclude>
     <ClInclude Include="extra\move_picker\move_picker_2017Q2.h">
       <Filter>リソース ファイル\extra\move_picker</Filter>
@@ -273,32 +231,8 @@
     <ClCompile Include="extra\timeman.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
-    <ClCompile Include="engine\classic-tce-engine\classic-tce-search.cpp">
-      <Filter>リソース ファイル\engine\classic-tce-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\2016-mid-engine\2016-mid-search.cpp">
-      <Filter>リソース ファイル\engine\2016-mid-engine</Filter>
-    </ClCompile>
     <ClCompile Include="eval\evaluate_kppt.cpp">
       <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\2016-late-engine\2016-late-search.cpp">
-      <Filter>リソース ファイル\engine\2016-late-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\nano-engine\nano-search.cpp">
-      <Filter>リソース ファイル\engine\nano-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\nano-plus-engine\nano-plus-search.cpp">
-      <Filter>リソース ファイル\engine\nano-plus-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\mini-engine\mini-search.cpp">
-      <Filter>リソース ファイル\engine\mini-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\classic-engine\classic-search.cpp">
-      <Filter>リソース ファイル\engine\classic-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\random-player-engine\random-player-search.cpp">
-      <Filter>リソース ファイル\engine\random-player-engine</Filter>
     </ClCompile>
     <ClCompile Include="engine\user-engine\user-search.cpp">
       <Filter>リソース ファイル\engine\user-engine</Filter>
@@ -338,12 +272,6 @@
     </ClCompile>
     <ClCompile Include="eval\progress.cpp">
       <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\move_picker\move_picker_2016Q2.cpp">
-      <Filter>リソース ファイル\extra\move_picker</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\move_picker\move_picker_2016Q3.cpp">
-      <Filter>リソース ファイル\extra\move_picker</Filter>
     </ClCompile>
     <ClCompile Include="extra\move_picker\move_picker_2017Q2.cpp">
       <Filter>リソース ファイル\extra\move_picker</Filter>

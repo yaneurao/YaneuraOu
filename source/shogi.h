@@ -24,20 +24,14 @@
 // オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE を defineして 他のエンジンのソースコードを参考に
 //  engine/user-engine/ フォルダの中身を書くべし。
 
+//#undef USE_MAKEFILE
+//#undef YANEURAOU_2017_EARLY_ENGINE
+//#undef USE_AVX2
+
 #if !defined (USE_MAKEFILE)
 
-//#define YANEURAOU_NANO_ENGINE            // やねうら王nano         (完成2016/01/31)
-//#define YANEURAOU_NANO_PLUS_ENGINE       // やねうら王nano plus    (完成2016/02/25)
-//#define YANEURAOU_MINI_ENGINE            // やねうら王mini         (完成2016/02/29)
-//#define YANEURAOU_CLASSIC_ENGINE         // やねうら王classic      (完成2016/04/03)
-//#define YANEURAOU_CLASSIC_TCE_ENGINE     // やねうら王classic tce  (完成2016/04/15)
-//#define YANEURAOU_2016_MID_ENGINE        // やねうら王2016(MID)    (完成2016/08/18)
-//#define YANEURAOU_2016_LATE_ENGINE       // やねうら王2016(LATE)   (完成2016/10/07)     : 真やねうら王
 #define YANEURAOU_2017_EARLY_ENGINE      // やねうら王2017(EARLY)  (完成2017/05/05)     : elmo(WCSC27)などで使われたエンジン
 //#define YANEURAOU_2017_GOKU_ENGINE       // やねうら王2017(GOKU)   (開発中2017/05/06～) : 極やねうら王
-//#define CHECK_SHOGI_ENGINE	           // やねうら王 王手将棋    (完成2016/11/30)
-//#define MUST_CAPTURE_SHOGI_ENGINE        // やねうら王 取る一手将棋(完成2016/12/04)
-//#define RANDOM_PLAYER_ENGINE             // ランダムプレイヤー
 //#define MATE_ENGINE                      // 詰め将棋solverとしてリリースする場合。(開発中2017/05/06～)
 //#define HELP_MATE_ENGINE                 // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
 //#define LOCAL_GAME_SERVER                // 連続自動対局フレームワーク
