@@ -9,7 +9,7 @@ using namespace Effect8;
 
 namespace {
 
-  // min_attacker()はsee()で使われるヘルパー関数であり、(目的升toに利く)
+  // min_attacker()はsee_ge()で使われるヘルパー関数であり、(目的升toに利く)
   // 手番側の最も価値の低い攻撃駒の場所を特定し、その見つけた駒をビットボードから取り除き
   // その背後にあった遠方駒をスキャンする。(あればstmAttackersに追加する)
 
@@ -144,7 +144,7 @@ namespace {
 // このseeの最終的な値が、vを以上になるかどうかを判定する。
 // こういう設計にすることで早期にvを超えないことが確定した時点でreturn出来る。
 
-bool Position::see_ge(Move m, Value v) const
+bool Position::see_ge(Move m, Value threshold) const
 {
 	// null windowのときのαβ探索に似たアルゴリズムを用いる。
 
@@ -168,7 +168,7 @@ bool Position::see_ge(Move m, Value v) const
 	Value balance = (Value)Eval::CapturePieceValue[piece_on(to)];
 
 	// この時点でマイナスになっているので早期にリターン。
-	if (balance < v)
+	if (balance < threshold)
 		return false;
 
 	// 王が取られる指し手は考慮しなくて良いので、これは取られないものとしてプラス収支であるから
@@ -178,7 +178,7 @@ bool Position::see_ge(Move m, Value v) const
 
 	balance -= (Value)Eval::CapturePieceValue[nextVictim];
 
-	if (balance >= v)
+	if (balance >= threshold)
 		return true;
 
 	// true if the opponent is to move and false if we are to move
@@ -218,7 +218,7 @@ bool Position::see_ge(Move m, Value v) const
 							  : balance - (Value)Eval::CapturePieceValue[nextVictim];
 		relativeStm = !relativeStm;
 
-		if (relativeStm == (balance >= v))
+		if (relativeStm == (balance >= threshold))
 			return relativeStm;
 
 		stm = ~stm;
