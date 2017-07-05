@@ -1332,39 +1332,37 @@ struct KKPT_reader
 		cout << "ERROR! : write error." << endl;
 	}
 
-	// 按分する
-	void div(const KKPT_reader& eval2, double percent)
+	void apply_func(const KKPT_reader& eval2, function<s32(s32,s32)> f)
 	{
-		auto r1 = percent / 100.0;
-		auto r2 = 1 - r1;
-		// p1:p2で合成する。
-		
 		for (auto k1 : SQ)
 			for (auto k2 : SQ)
 			{
-				(*kk_)[k1][k2][0] = (s32)(r1 * (*kk_)[k1][k2][0] + r2 * (*eval2.kk_)[k1][k2][0]);
-				(*kk_)[k1][k2][1] = (s32)(r1 * (*kk_)[k1][k2][1] + r2 * (*eval2.kk_)[k1][k2][1]);
+				(*kk_)[k1][k2][0] = (s32)(f( (*kk_)[k1][k2][0] , (*eval2.kk_)[k1][k2][0]) );
+				(*kk_)[k1][k2][1] = (s32)(f( (*kk_)[k1][k2][1] , (*eval2.kk_)[k1][k2][1]) );
 			}
 
 		for (auto k1 : SQ)
-			for (int p1 = 0;p1<fe_end;++p1)
+			for (int p1 = 0; p1<fe_end; ++p1)
 				for (int p2 = 0; p2 < fe_end; ++p2)
 				{
-					(*kpp_)[k1][p1][p2][0] = (s16)(r1 * (*kpp_)[k1][p1][p2][0] + r2 * (*eval2.kpp_)[k1][p1][p2][0]);
-					(*kpp_)[k1][p1][p2][1] = (s16)(r1 * (*kpp_)[k1][p1][p2][1] + r2 * (*eval2.kpp_)[k1][p1][p2][1]);
+					(*kpp_)[k1][p1][p2][0] = (s16)(f( (*kpp_)[k1][p1][p2][0] , (*eval2.kpp_)[k1][p1][p2][0]) );
+					(*kpp_)[k1][p1][p2][1] = (s16)(f( (*kpp_)[k1][p1][p2][1] , (*eval2.kpp_)[k1][p1][p2][1]) );
 				}
 
 		for (auto k1 : SQ)
 			for (auto k2 : SQ)
 				for (int p1 = 0; p1 < fe_end; ++p1)
 				{
-					(*kkp_)[k1][k2][p1][0] = (s32)(r1 * (*kkp_)[k1][k2][p1][0] + r2 * (*eval2.kkp_)[k1][k2][p1][0]);
-					(*kkp_)[k1][k2][p1][1] = (s32)(r1 * (*kkp_)[k1][k2][p1][1] + r2 * (*eval2.kkp_)[k1][k2][p1][1]);
+					(*kkp_)[k1][k2][p1][0] = (s32)(f( (*kkp_)[k1][k2][p1][0] , (*eval2.kkp_)[k1][k2][p1][0]) );
+					(*kkp_)[k1][k2][p1][1] = (s32)(f( (*kkp_)[k1][k2][p1][1] , (*eval2.kkp_)[k1][k2][p1][1]) );
 				}
 	}
 
+	// KPPの手番はやめてPPの手番のみに(擬似的に)変更する。
 	void normalize_kpp()
 	{
+		cout << "normalize.." << endl;
+
 		for (int p1 = 0; p1 < fe_end; ++p1)
 			for (int p2 = 0; p2 < fe_end; ++p2)
 			{
@@ -1372,10 +1370,19 @@ struct KKPT_reader
 				for (auto sq : SQ)
 					sum += (*kpp_)[sq][p1][p2][1];
 
-				int z = sum / SQ_NB;
+				// 平均化する。
+				// kppでは、p1!=p2は保証されている(これはkkpで加算するため)
+				// また、当然ながらk!=p。よって、kppのk,p1,p2は盤上の3駒であるから、
+				// p1==kのときとp1==p2のときのkpp配列の値は0になっているので
+				// これを除外して考える必要がある。
+				int z = sum / (SQ_NB - 2);
 
+				// Kに依存せず、PPのみで値が決まるようにする。
 				for (auto sq : SQ)
 					(*kpp_)[sq][p1][p2][1] = z;
+
+				// またKK,KPは、KKPのほうに含まれ、そちらは手番があるので
+				// KPP+手番をKPP , PP+手番にする場合も、PPのPがKであるケースは考慮しなくて良い。
 			}
 	}
 };
@@ -1385,6 +1392,7 @@ void eval_merge(istringstream& is)
 {
 	string dir1, dir2,dir3;
 	double percent;
+	string opt;
 
 	// デフォルトではnew_eval , 50%
 	dir3 = "new_eval";
@@ -1392,20 +1400,49 @@ void eval_merge(istringstream& is)
 
 	// dir1のほうの評価関数を何%で按分するか。
 	// 20を指定すると、dir1:dir2 = 20:80で按分する。
-	is >> dir1 >> dir2 >> dir3 >> percent;
-	cout << "\neval merge KKPT"; // とりあえずKKPT型評価関数のmerge専用。
-	cout << "\ndir1    : " << dir1;
-	cout << "\ndir2    : " << dir2;
-	cout << "\nOutDir  : " << dir3;
-	cout << "\npercent : " << percent << endl;
+	is >> dir1 >> dir2 >> dir3 >> percent >> opt;
+
+	// 絶対値の大きなほう/小さなほうを採用する隠しコマンド
+	bool select_absmax = opt == "absmax";
+	bool select_absmin = opt == "absmin";
+	// KPPの手番をやめてPPの手番のみに変更するオプション
+	bool select_normalize = opt == "nor";
+
+	// 適用する関数
+	function<s32(s32, s32)> f;
+
+	cout << "eval merge KKPT" << endl; // とりあえずKKPT型評価関数のmerge専用。
+	cout << "dir1    : " << dir1 << endl;
+	cout << "dir2    : " << dir2 << endl;
+	cout << "OutDir  : " << dir3 << endl;
+	if (select_absmax)
+	{
+		f = [](s32 a, s32 b) { return (abs(a) > abs(b)) ? a : b; };
+		cout << "mode   : absmax mode " << endl;
+	}
+	else if (select_absmin)
+	{
+		f = [](s32 a, s32 b) { return (abs(a) < abs(b)) ? a : b; };
+		cout << "mode   : absmin mode " << endl;
+	}
+	else
+	{
+		auto r1 = percent / 100.0;
+		auto r2 = 1 - r1;
+		// r1:r2で合成する。
+		f = [r1, r2](s32 a, s32 b) { return (s32)(a*r1 + b*r2); };
+
+		cout << "mode : interpolation , percent = " << percent << endl;
+	}
 
 	MKDIR(dir3);
 
 	KKPT_reader eval1, eval2;
 	eval1.read(dir1);
 	eval2.read(dir2);
-	eval1.div(eval2, percent);
-//	eval1.normalize_kpp();
+	eval1.apply_func(eval2,f);
+	if (select_normalize)
+		eval1.normalize_kpp();
 	eval1.write(dir3);
 
 	cout << "..done" << endl;
