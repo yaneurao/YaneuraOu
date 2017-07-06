@@ -112,7 +112,7 @@ namespace Search {
 		int rtime;
 
 		// 今回のgoコマンドでの探索ノード数
-		int64_t nodes;
+		uint64_t nodes;
 
 		// 入玉ルール設定
 		EnteringKingRule enteringKingRule;

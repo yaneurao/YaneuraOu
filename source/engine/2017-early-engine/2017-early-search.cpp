@@ -2853,7 +2853,7 @@ void MainThread::check_time()
 	if ((Limits.use_time_management() &&
 		(elapsed > Time.maximum() - 10 || (Time.search_end > 0 && elapsed > Time.search_end - 10)))
 		|| (Limits.movetime && elapsed >= Limits.movetime)
-		|| (Limits.nodes && Threads.nodes_searched() >= (uint64_t)Limits.nodes))
+		|| (Limits.nodes && Threads.nodes_searched() >= Limits.nodes))
 		Signals.stop = true;
 }
 
