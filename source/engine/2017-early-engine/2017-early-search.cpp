@@ -2308,9 +2308,9 @@ void Thread::search()
 	// 2つ目のrootDepth (Threads.main()->rootDepth)は深さで探索量を制限するためのもの。
 	// main threadのrootDepthがLimits.depthを超えた時点で、
 	// slave threadはこのループを抜けて良いのでこういう書き方になっている。
-	while ((rootDepth = rootDepth + ONE_PLY) < DEPTH_MAX
+	while ((rootDepth += ONE_PLY) < DEPTH_MAX
 		&& !Signals.stop
-		&& (!Limits.depth || Threads.main()->rootDepth / ONE_PLY <= Limits.depth))
+		&& !(Limits.depth && mainThread && rootDepth / ONE_PLY > Limits.depth))
 	{
 		// ------------------------
 		// lazy SMPのための初期化
@@ -3031,7 +3031,7 @@ namespace Learner
 		Value delta = -VALUE_INFINITE;
 		Value bestValue = -VALUE_INFINITE;
 
-		while ((rootDepth = rootDepth + ONE_PLY) <= depth)
+		while ((rootDepth += ONE_PLY) <= depth)
 		{
 			for (RootMove& rm : rootMoves)
 				rm.previousScore = rm.score;

@@ -37,7 +37,7 @@ Bitboard RANK9_BB = Bitboard(UINT64_C(0x40201008040201) << 8, 0x201 << 8);
 Bitboard FILE_BB[FILE_NB] = { FILE1_BB,FILE2_BB,FILE3_BB,FILE4_BB,FILE5_BB,FILE6_BB,FILE7_BB,FILE8_BB,FILE9_BB };
 Bitboard RANK_BB[RANK_NB] = { RANK1_BB,RANK2_BB,RANK3_BB,RANK4_BB,RANK5_BB,RANK6_BB,RANK7_BB,RANK8_BB,RANK9_BB };
 
-Bitboard InFrontBB[COLOR_NB][RANK_NB] = {
+Bitboard ForwardRanksBB[COLOR_NB][RANK_NB] = {
   { ZERO_BB, RANK1_BB, RANK1_BB | RANK2_BB, RANK1_BB | RANK2_BB | RANK3_BB, RANK1_BB | RANK2_BB | RANK3_BB | RANK4_BB,
   ~(RANK9_BB | RANK8_BB | RANK7_BB | RANK6_BB), ~(RANK9_BB | RANK8_BB | RANK7_BB), ~(RANK9_BB | RANK8_BB), ~RANK9_BB },
   { ~RANK1_BB, ~(RANK1_BB | RANK2_BB), ~(RANK1_BB | RANK2_BB | RANK3_BB), ~(RANK1_BB | RANK2_BB | RANK3_BB | RANK4_BB),
@@ -366,7 +366,7 @@ void Bitboards::init()
 		for(auto sq : SQ)
 			// 障害物がないときの香の利き
 			// これを最初に初期化しないとlanceEffect()が使えない。
-			LanceStepEffectBB[sq][c] = rookFileEffect(sq,ZERO_BB) & InFrontBB[c][rank_of(sq)];
+			LanceStepEffectBB[sq][c] = rookFileEffect(sq,ZERO_BB) & ForwardRanksBB[c][rank_of(sq)];
 
 	for (auto c : COLOR)
 		for (auto sq : SQ)

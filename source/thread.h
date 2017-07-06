@@ -93,7 +93,7 @@ struct Thread
 	std::atomic<uint64_t> nodes;
 
 	// 反復深化の深さ
-	std::atomic<Depth> rootDepth;
+	Depth rootDepth;
 
 	// このスレッドに関して、終了した反復深化の深さ
 	Depth completedDepth;
