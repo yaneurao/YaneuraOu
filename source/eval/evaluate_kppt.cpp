@@ -440,8 +440,15 @@ namespace Eval
 		const auto list1 = pos.eval_list()->piece_list_fw();
 
 		EvalSum sum;
+
+		// sum.p[0](BKPP)とsum.p[1](WKPP)をゼロクリア
+#if defined(USE_SSE2)
+		sum.m[0] = _mm_setzero_si128();
+		sum.m[1] = _mm_setzero_si128();
+#else
 		sum.p[0] = { 0, 0 };
 		sum.p[1] = { 0, 0 };
+#endif
 		sum.p[2] = kkp[sq_bk][sq_wk][ebp.fb];
 
 		const auto* pkppb = kpp[sq_bk     ][ebp.fb];
