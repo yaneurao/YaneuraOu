@@ -335,7 +335,7 @@ namespace {
 
 	//
 	//　以下、本当ならPositionに用意すべきヘルパ関数
-	// 
+	//
 
 
 	// 上の関数群とは異なる。usのSliderの利きを列挙する。
@@ -408,7 +408,7 @@ namespace {
 
 		// 歩は普通でいい
 		Bitboard sum = pawnEffect(them, pos.pieces(them, PAWN));
-		
+
 		// ほとんどのケースにおいて候補になる駒はなく、whileで回らずに抜けると期待している。
 		bb = pos.pieces(them, KNIGHT) & check_around_bb(them, KNIGHT, sq_king);
 		while (bb)
@@ -479,7 +479,7 @@ namespace {
 
 		// 歩は普通でいい
 		Bitboard sum = pawnEffect(them, pos.pieces(them, PAWN));
-		
+
 		// ほとんどのケースにおいて候補になる駒はなく、whileで回らずに抜けると期待している。
 		bb = pos.pieces(them, KNIGHT) & check_around_bb(them, KNIGHT, sq_king) & avoid_bb;
 		while (bb)
@@ -1623,7 +1623,7 @@ DC_CHECK:;
 				return make_move_promote(from, to);
 			}
 			ASSERT_LV3(false); // こっちくんな
-
+			// FALLTHROUGH
 			case LANCE:
 				continue; // 香による両王手はない。
 
@@ -1697,6 +1697,7 @@ DC_CHECK:;
 			case PRO_KNIGHT:
 			case PRO_SILVER:
 				pt = GOLD; // 以下の処理でややこしいのでGOLD扱いにしてしまう。
+				// FALLTHROUGH
 			case GOLD:
 				// 王手になる見込みがない
 				if (!(check_around_bb(Us, GOLD, sq_king) & from)) continue;
@@ -2024,7 +2025,7 @@ DC_CHECK:;
 
 				// !!!
 				// !!!  以下の部分のコードを修正するときは、その下に銀の不成りのコードがあるのでそちらも修正すること！
-				// !!! 
+				// !!!
 
 				{
 					Square s1 = sq_king;
