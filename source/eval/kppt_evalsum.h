@@ -53,21 +53,21 @@ namespace Eval {
 
 #if defined(USE_AVX2)
 		EvalSum(const EvalSum& es) {
-			_mm256_store_si256(&mm, es.mm);
+		  _mm256_store_si256(&mm, es.mm);
 		}
 		EvalSum& operator = (const EvalSum& rhs) {
-			_mm256_store_si256(&mm, rhs.mm);
-			return *this;
+		  _mm256_store_si256(&mm, rhs.mm);
+		  return *this;
 		}
 #elif defined(USE_SSE2)
 		EvalSum(const EvalSum& es) {
-			_mm_store_si128(&m[0], es.m[0]);
-			_mm_store_si128(&m[1], es.m[1]);
+		  _mm_store_si128(&m[0], es.m[0]);
+		  _mm_store_si128(&m[1], es.m[1]);
 		}
 		EvalSum& operator = (const EvalSum& rhs) {
-			_mm_store_si128(&m[0], rhs.m[0]);
-			_mm_store_si128(&m[1], rhs.m[1]);
-			return *this;
+		  _mm_store_si128(&m[0], rhs.m[0]);
+		  _mm_store_si128(&m[1], rhs.m[1]);
+		  return *this;
 		}
 #endif
 
@@ -135,7 +135,7 @@ namespace Eval {
 #else
 			key ^= data[0] ^ data[1] ^ data[2];
 #endif
-		}
+	    }
 		// decode()はencode()の逆変換だが、xorなので逆変換も同じ変換。
 		void decode() { encode(); }
 
@@ -145,8 +145,8 @@ namespace Eval {
 
 		union {
 			// array<.. , 3>でいいが、この下のstructに合わせてpaddingしておく。
-			std::array<std::array<int32_t, 2>, 4> p = {};
-
+			std::array<std::array<int32_t, 2>, 4> p;
+      
 			struct {
 			u64 data[3];
 			u64 key; // EVAL_HASH用。pos.key() >> 1 したもの。
@@ -155,7 +155,7 @@ namespace Eval {
 			__m256i mm;
 			__m128i m[2];
 #elif defined(USE_SSE2)
-			__m128i m[2];
+	      __m128i m[2];
 #endif
 			};
 		};
