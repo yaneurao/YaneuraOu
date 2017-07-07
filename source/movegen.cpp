@@ -190,7 +190,7 @@ template <Piece Pt, Color Us, bool All> struct make_move_target {
 			}
 			else
 			{
-				auto target2 = target & enemy_field(Us);
+				target2 = target & enemy_field(Us);
 				MAKE_MOVE_TARGET_PRO_BR(target2);
 				target &= ~enemy_field(Us);
 				MAKE_MOVE_TARGET(target);
@@ -204,7 +204,7 @@ template <Piece Pt, Color Us, bool All> struct make_move_target {
 			}
 			else
 			{
-				auto target2 = target & enemy_field(Us);
+				target2 = target & enemy_field(Us);
 				MAKE_MOVE_TARGET_PRO_BR_UNKNOWN(target2);
 				target &= ~enemy_field(Us);
 				MAKE_MOVE_TARGET_UNKNOWN(target);
