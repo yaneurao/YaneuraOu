@@ -11,6 +11,8 @@
 
 #if defined(EVAL_LEARN)
 #include "../learn/learn.h"
+#include "../learn/learning_tools.h"
+using namespace EvalLearningTools;
 #endif
 
 // 評価関数ファイルを読み込む。
@@ -1359,10 +1361,12 @@ struct KKPT_reader
 	}
 
 	// KPPの手番はやめてPPの手番のみに(擬似的に)変更する。
-	void normalize_kpp()
+	void to_kkpt()
 	{
-		cout << "normalize.." << endl;
+#if defined(EVAL_LEARN)
+		cout << "to_kkpt.." << endl;
 
+		// まずKPPの手番の排除
 		for (int p1 = 0; p1 < fe_end; ++p1)
 			for (int p2 = 0; p2 < fe_end; ++p2)
 			{
@@ -1372,10 +1376,11 @@ struct KKPT_reader
 
 				// 平均化する。
 				// kppでは、p1!=p2は保証されている(これはkkpで加算するため)
-				// また、当然ながらk!=p。よって、kppのk,p1,p2は盤上の3駒であるから、
+				// また、当然ながらk!=p。よって、kppのk,p1,p2は盤上の3駒であるなら、
 				// p1==kのときとp1==p2のときのkpp配列の値は0になっているので
 				// これを除外して考える必要がある。
-				int z = sum / (SQ_NB - 2);
+				// p1,p2が盤上でないときはこの計算式ではないが、まあ誤差だろう..
+				int z = sum / (SQ_NB - 3);
 
 				// Kに依存せず、PPのみで値が決まるようにする。
 				for (auto sq : SQ)
@@ -1384,6 +1389,43 @@ struct KKPT_reader
 				// またKK,KPは、KKPのほうに含まれ、そちらは手番があるので
 				// KPP+手番をKPP , PP+手番にする場合も、PPのPがKであるケースは考慮しなくて良い。
 			}
+
+#if 1
+		// KK手番,KKP手番もPP手番に統合できると面白いのだが、KKPは玉が近接しているときに利いてきそう。
+		// まあ、とりあえずコードを書く。
+
+		// KK手番はPP版に含まれるのでここでは無視する。
+		// KKPをKK + KPに分解する必要がある。
+		// とりま、KKPに入っているKKは0と仮定する。
+		// 単にKPだけ抽出すれば良い。
+
+		Eval::ValueKkp kp[SQ_NB][Eval::fe_end] = {};
+
+		for (auto k1 : SQ)
+			for (auto p = 0; p < Eval::fe_end; ++p)
+			{
+				s64 sum0 = 0, sum1 = 0;
+				for (auto k2 : SQ)
+				{
+					sum0 += (*kkp_)[k1][k2][p][0];
+					sum1 += (*kkp_)[k1][k2][p][1];
+				}
+				// k2の位置に依存しない kkpの値が抽出できたので、これをkpとする。
+				kp[k1][p][0] = (s16)(sum0 / (SQ_NB - 3));
+				kp[k1][p][1] = (s16)(sum1 / (SQ_NB - 3));
+			}
+
+		// このkpを用いてkkpに再合成する。
+		for (auto k1 : SQ)
+			for (auto k2 : SQ)
+				for (auto p = Eval::BONA_PIECE_ZERO; p < Eval::fe_end; ++p)
+					for (int i = 0; i < 2; ++i)
+						(*kkp_)[k1][k2][p][i] = kp[k1][p][i] + kp[Inv(k2)][inv_piece(p)][i];
+#endif
+
+#else
+		cout << "to_kkpt() , not implemented." << endl;
+#endif // EVAL_LEARN
 	}
 };
 
@@ -1406,7 +1448,7 @@ void eval_merge(istringstream& is)
 	bool select_absmax = opt == "absmax";
 	bool select_absmin = opt == "absmin";
 	// KPPの手番をやめてPPの手番のみに変更するオプション
-	bool select_normalize = opt == "nor";
+	bool select_kkpt = opt == "kkpt";
 
 	// 適用する関数
 	function<s32(s32, s32)> f;
@@ -1441,8 +1483,8 @@ void eval_merge(istringstream& is)
 	eval1.read(dir1);
 	eval2.read(dir2);
 	eval1.apply_func(eval2,f);
-	if (select_normalize)
-		eval1.normalize_kpp();
+	if (select_kkpt)
+		eval1.to_kkpt();
 	eval1.write(dir3);
 
 	cout << "..done" << endl;
