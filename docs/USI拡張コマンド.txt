@@ -271,13 +271,16 @@ USIプロトコルの独自拡張コマンド
 
 		random_move_minply,random_move_maxplyとrandom_move_countオプション
 			教師局面の生成時にランダムムーブを行なう最小手数と最大手数と1局でランダムムーブを行なう回数
-			デフォルトではrandom_move_minply = 1 , random_move_maxply = 24 , random_move_count = 5。
-			// 初手から24手目までに5回のランダムムーブを行なうという意味
-			learn random_move_maxply 32 random_move_count 10 ...
+			デフォルトではrandom_move_minply = 16 , random_move_maxply = 32 , random_move_count = 5。
+			// 16手目から24手目までに5回のランダムムーブを行なうという意味
+			learn random_move_maxply 16 random_move_maxply 32 random_move_count 5 ...
 			みたいに指定する。
 
 		random_multipv N : ランダムムーブの代わりにMultiPV Nでrandom_move_count手指すオプション。
 			ConsiderBookMoveCount = trueと組み合わせると実現確率の高い局面からスタートできるかも…。
+		random_multi_pv_diff m : random_multipvでmulti pvで指し手を採択するときに、
+			1位の指し手の評価値との評価値の差がmに収まる範囲の指し手しか採択しない。
+			デフォルトでは32000。(範囲の限度なし)
 
 
 ・教師局面から評価関数の学習
@@ -306,7 +309,7 @@ USIプロトコルの独自拡張コマンド
 			教師局面の深い探索での評価値の絶対値が、この値を超えているならその局面を読み捨てる。
 			指定しないときは32000が指定されているものとする。
 		save_only_onceオプション
-			評価関数を10億局面ごとではなく、終了時に一度だけ保存するように変更する。
+			評価関数を保存するときに都度フォルダを掘らないようにするフラグ。
 			デフォルトではオフ。
 		no_shuffle
 			読み込み時に先読みでのシャッフルを行わない。
@@ -338,6 +341,14 @@ USIプロトコルの独自拡張コマンド
 			output_file_name OUTPUT_FILE_NAMEを省略時には
 				shuffled_sfen.bin
 			というファイル名でカレントフォルダに書き出される。
+
+			buffer_size BUFFER_SIZE
+				シャッフルするときにテンポラリファイルはbuffer_size局面ずつtmp/フォルダにいったん書き出す。
+				例えば、buffer_size = 20Mならば 20M*40bytes = 800MBのバッファが必要。
+				メモリが少ないPCでは、ここを減らすと良いと思う。
+				ただし、あまりファイル数が増えるとOSの制限などから同時にopen出来なくなる。
+				Windowsだと1プロセス512という制約があったはずなので、ここでopen出来るのが500として、
+				現在の設定で500ファイル×20M = 10G = 100億局面が限度。
 
 		learn shufflem basedir BASE_DIR targetdir TARGET_DIR output_file_name OUTPUT_FILE_NAME [教師棋譜ファイル名1] [教師棋譜ファイル名2] ...
 			メモリに丸読みしてシャッフルして指定ファイル名で書き出す。

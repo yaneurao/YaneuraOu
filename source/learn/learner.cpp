@@ -1342,7 +1342,8 @@ struct LearnerThink: public MultiThink
 	// 教師局面の深い探索の評価値の絶対値がこの値を超えていたらその教師局面を捨てる。
 	int eval_limit;
 
-	// 評価関数の保存は終了時に一度だけにするのか？
+	// 評価関数の保存するときに都度フォルダを掘るかのフラグ。
+	// trueだとフォルダを掘らない。
 	bool save_only_once;
 
 	// --- lossの計算
@@ -1826,14 +1827,17 @@ void shuffle_write(const string& output_file_name , PRNG& prng , vector<fstream>
 
 // 教師局面のシャッフル "learn shuffle"コマンドの下請け。
 // output_file_name : シャッフルされた教師局面が書き出される出力ファイル名
-void shuffle_files(const vector<string>& filenames , const string& output_file_name)
+void shuffle_files(const vector<string>& filenames , const string& output_file_name , u64 buffer_size )
 {
 	// 出力先のフォルダは
 	// tmp/               一時書き出し用
 
-	// テンポラリファイルは10M局面ずつtmp/フォルダにいったん書き出す
-	// 10M*40bytes = 400MBのバッファが必要。
-	const u64 buffer_size = 10000000;
+	// テンポラリファイルはbuffer_size局面ずつtmp/フォルダにいったん書き出す。
+	// 例えば、buffer_size = 20Mならば 20M*40bytes = 800MBのバッファが必要。
+	// メモリが少ないPCでは、ここを減らすと良いと思う。
+	// ただし、あまりファイル数が増えるとOSの制限などから同時にopen出来なくなる。
+	// Windowsだと1プロセス512という制約があったはずなので、ここでopen出来るのが500として、
+	// 現在の設定で500ファイル×20M = 10G = 100億局面が限度。
 
 	PSVector buf;
 	buf.resize(buffer_size);
@@ -2017,6 +2021,7 @@ void learn(Position&, istringstream& is)
 
 	// 通常シャッフル
 	bool shuffle_normal = false;
+	u64 buffer_size = 20000000;
 	// それぞれのファイルがシャッフルされていると仮定しての高速シャッフル
 	bool shuffle_quick = false;
 	// メモリにファイルを丸読みしてシャッフルする機能。(要、ファイルサイズのメモリ)
@@ -2072,8 +2077,9 @@ void learn(Position&, istringstream& is)
 
 		// シャッフル関連
 		else if (option == "shuffle")	shuffle_normal = true;
+		else if (option == "buffer_size") is >> buffer_size;
 		else if (option == "shuffleq")	shuffle_quick = true;
-		else if (option == "shufflem")  shuffle_on_memory = true;
+		else if (option == "shufflem")	shuffle_on_memory = true;
 		else if (option == "output_file_name") is >> output_file_name;
 
 		else if (option == "eval_limit") is >> eval_limit;
@@ -2146,8 +2152,9 @@ void learn(Position&, istringstream& is)
 	// シャッフルモード
 	if (shuffle_normal)
 	{
+		cout << "buffer_size     : " << buffer_size << endl;
 		cout << "shuffle mode.." << endl;
-		shuffle_files(filenames,output_file_name);
+		shuffle_files(filenames,output_file_name , buffer_size);
 		return;
 	}
 	if (shuffle_quick)
