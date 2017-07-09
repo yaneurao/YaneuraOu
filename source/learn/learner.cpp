@@ -308,7 +308,11 @@ struct MultiThinkGenSfen : public MultiThink
 	// 1局のなかでランダムムーブを行なう回数
 	int random_move_count;
 	// ランダムムーブの代わりにmulti pvを使うとき用。
+	// random_multi_pvは、MultiPVのときの候補手の数。
+	// 候補手の指し手を採択するとき、1位の指し手の評価値とN位の指し手の評価値との差が
+	// random_multi_pv_diffの範囲でなければならない。
 	int random_multi_pv;
+	int random_multi_pv_diff;
 
 	// sfenの書き出し器
 	SfenWriter& sw;
@@ -708,7 +712,20 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					// rootMovesの上位N手のなかから一つ選択
 
 					auto& rm = pos.this_thread()->rootMoves;
-					m = rm[(size_t)prng.rand(min((u64)rm.size(), (u64)random_multi_pv))].pv[0];
+
+					u64 s = min((u64)rm.size(), (u64)random_multi_pv);
+					for (u64 i = 1; i < s; ++i)
+					{
+						// rm[0]の評価値との差がrandom_multi_pv_diffの範囲でなければならない。
+						// rm[x].scoreは、降順に並んでいると仮定できる。 
+						if (rm[0].score > rm[i].score + random_multi_pv_diff)
+						{
+							s = i;
+							break;
+						}
+					}
+
+					m = rm[prng.rand(s)].pv[0];
 
 					// まだ1局面も書き出していないのに終局してたので書き出し処理は端折って次の対局に。
 					if (!is_ok(m))
@@ -760,6 +777,7 @@ void gen_sfen(Position&, istringstream& is)
 	int random_move_maxply = 24;
 	int random_move_count = 5;
 	int random_multi_pv = 1;
+	int random_multi_pv_diff = 32000;
 
 	// 書き出すファイル名
 	string output_file_name = "generated_kifu.bin";
@@ -794,6 +812,8 @@ void gen_sfen(Position&, istringstream& is)
 			is >> random_move_count;
 		else if (token == "random_multi_pv")
 			is >> random_multi_pv;
+		else if (token == "random_multi_pv_diff")
+			is >> random_multi_pv_diff;
 		else
 			cout << "Error! : Illegal token " << token << endl;
 	}
@@ -808,11 +828,12 @@ void gen_sfen(Position&, istringstream& is)
 		<< "  eval_limit = " << eval_limit << endl
 		<< "  thread_num (set by USI setoption) = " << thread_num << endl
 		<< "  book_moves (set by USI setoption) = " << Options["BookMoves"] << endl
-		<< "  random_move_minply = " << random_move_minply << endl
-		<< "  random_move_maxply = " << random_move_maxply << endl
-		<< "  random_move_count  = " << random_move_count << endl
-		<< "  random_multi_pv    = " << random_multi_pv << endl
-		<< "  output_file_name   = " << output_file_name << endl;
+		<< "  random_move_minply   = " << random_move_minply << endl
+		<< "  random_move_maxply   = " << random_move_maxply << endl
+		<< "  random_move_count    = " << random_move_count << endl
+		<< "  random_multi_pv      = " << random_multi_pv << endl
+		<< "  random_multi_pv_diff = " << random_multi_pv_diff << endl
+		<< "  output_file_name     = " << output_file_name << endl;
 
 	// Options["Threads"]の数だけスレッドを作って実行。
 	{
@@ -824,6 +845,7 @@ void gen_sfen(Position&, istringstream& is)
 		multi_think.random_move_maxply = random_move_maxply;
 		multi_think.random_move_count = random_move_count;
 		multi_think.random_multi_pv = random_multi_pv;
+		multi_think.random_multi_pv_diff = random_multi_pv_diff;
 		multi_think.start_file_write_worker();
 		multi_think.go_think();
 
