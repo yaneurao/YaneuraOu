@@ -1,4 +1,4 @@
-﻿# > Select YaneuraOu edition below.
+# > Select YaneuraOu edition below.
 
 YANEURAOU_EDITION = YANEURAOU_2017_EARLY_ENGINE
 #YANEURAOU_EDITION = HELP_MATE_ENGINE
