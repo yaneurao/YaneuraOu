@@ -386,7 +386,7 @@ namespace KifConvertTools
 					ss << constStr.kif_move_samepos;
 					// SamePosFmt_KIFsp の場合、「同」の後ろに全角空白を入れる
 					// SamePosFmt_KI2sp の場合、成り指し手、成香・成桂・成銀の指し手では全角空白を入れない
-					if (fmt.samepos_type == SamePosFmt_KIFsp || (fmt.samepos_type == SamePosFmt_KI2sp && !(is_promote(m)) && movedPieceType != PRO_LANCE && movedPieceType != PRO_KNIGHT && movedPieceType != PRO_KNIGHT))
+					if (fmt.samepos_type == SamePosFmt_KIFsp || (fmt.samepos_type == SamePosFmt_KI2sp && !(is_promote(m)) && type_of(movedPieceType) != PRO_LANCE && type_of(movedPieceType) != PRO_KNIGHT && type_of(movedPieceType) != PRO_KNIGHT))
 						ss << constStr.kif_fwsp;
 				}
 				else
