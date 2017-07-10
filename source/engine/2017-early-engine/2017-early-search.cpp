@@ -9,9 +9,7 @@
 // 開発方針
 // やねうら王2016(late)からの改造。
 // 特徴)
-//  1. 探索のためのパラメーターの完全自動調整。
-//  2. 進行度を用いたmargin
-
+//   探索のためのパラメーターの完全自動調整。
 
 // パラメーターを自動調整するのか
 // 自動調整が終われば、ファイルを固定してincludeしたほうが良い。
@@ -2495,25 +2493,31 @@ void Thread::search()
 		// main threadのときは探索の停止判定が必要
 		//
 
-		// go mateで詰み探索として呼び出されていた場合、その手数以内の詰みが見つかっていれば終了。
-		if (Limits.mate
-			&& bestValue >= VALUE_MATE_IN_MAX_PLY
-			&& VALUE_MATE - bestValue <= Limits.mate)
-			Signals.stop = true;
+		// multi_pvのときは一つのpvで詰みを見つけただけでは停止するのは良くないので
+		// 早期終了はmultiPV == 1のときのみ行なう。
 
-		// 勝ちを読みきっているのに将棋所の表示が追いつかずに、将棋所がフリーズしていて、その間の時間ロスで
-		// 時間切れで負けることがある。
-		// mateを読みきったとき、そのmateの倍以上、iterationを回しても仕方ない気がするので探索を打ち切るようにする。
-		if (!Limits.mate
-			&& bestValue >= VALUE_MATE_IN_MAX_PLY
-			&& (VALUE_MATE - bestValue) * 2 < (Value)(rootDepth / ONE_PLY))
-			break;
+		if (multiPV == 1)
+		{
+			// go mateで詰み探索として呼び出されていた場合、その手数以内の詰みが見つかっていれば終了。
+			if (Limits.mate
+				&& bestValue >= VALUE_MATE_IN_MAX_PLY
+				&& VALUE_MATE - bestValue <= Limits.mate)
+				Signals.stop = true;
 
-		// 詰まされる形についても同様。こちらはmateの2倍以上、iterationを回したなら探索を打ち切る。
-		if (!Limits.mate
-			&& bestValue <= VALUE_MATED_IN_MAX_PLY
-			&& (bestValue - (-VALUE_MATE)) * 2 < (Value)(rootDepth / ONE_PLY))
-			break;
+			// 勝ちを読みきっているのに将棋所の表示が追いつかずに、将棋所がフリーズしていて、その間の時間ロスで
+			// 時間切れで負けることがある。
+			// mateを読みきったとき、そのmateの倍以上、iterationを回しても仕方ない気がするので探索を打ち切るようにする。
+			if (!Limits.mate
+				&& bestValue >= VALUE_MATE_IN_MAX_PLY
+				&& (VALUE_MATE - bestValue) * 2 < (Value)(rootDepth / ONE_PLY))
+				break;
+
+			// 詰まされる形についても同様。こちらはmateの2倍以上、iterationを回したなら探索を打ち切る。
+			if (!Limits.mate
+				&& bestValue <= VALUE_MATED_IN_MAX_PLY
+				&& (bestValue - (-VALUE_MATE)) * 2 < (Value)(rootDepth / ONE_PLY))
+				break;
+		}
 
 		// 残り時間的に、次のiterationに行って良いのか、あるいは、探索をいますぐここでやめるべきか？
 		if (Limits.use_time_management())
