@@ -148,7 +148,7 @@ namespace KifConvertTools
 		const value_type kiflist_pad = SC(I,T," ");
 		const value_type kiflist_spendnotime = SC(I,T,"( 0:00/00:00:00)");
 		const value_type char0to9_ascii[10] = {
-			SC(I,T,"0"),SC(I,T,"１"), SC(I,T,"２"), SC(I,T,"３"), SC(I,T,"４"), SC(I,T,"５"), SC(I,T,"６"), SC(I,T,"７"), SC(I,T,"８"), SC(I,T,"９"),
+			SC(I,T,"0"),SC(I,T,"1"), SC(I,T,"2"), SC(I,T,"3"), SC(I,T,"4"), SC(I,T,"5"), SC(I,T,"6"), SC(I,T,"7"), SC(I,T,"8"), SC(I,T,"9"),
 		};
 	};
 
