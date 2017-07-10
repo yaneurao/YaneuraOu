@@ -6,6 +6,9 @@
 
 ・gensfenのUSE_RANDOM_LEGAL_MOVE、常に有効でいいので削除。
 ・kifconvert wip20170710a (#51) (Mizarさん)
+・kifconvert fix (Mizarさん)
+・MultiPVが1以外のときに詰みを発見すると探索が終了してしまうバグ修正。
+・random_multi_pv_depth追加。
 
 
 ■　2017/07/09
