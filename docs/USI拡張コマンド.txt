@@ -276,12 +276,12 @@ USIプロトコルの独自拡張コマンド
 			learn random_move_maxply 16 random_move_maxply 32 random_move_count 5 ...
 			みたいに指定する。
 
-		random_multipv N : ランダムムーブの代わりにMultiPV Nでrandom_move_count手指すオプション。
+		random_multi_pv N : ランダムムーブの代わりにMultiPV Nでrandom_move_count手指すオプション。
 			ConsiderBookMoveCount = trueと組み合わせると実現確率の高い局面からスタートできるかも…。
 		random_multi_pv_diff m : random_multipvでmulti pvで指し手を採択するときに、
 			1位の指し手の評価値との評価値の差がmに収まる範囲の指し手しか採択しない。
 			デフォルトでは32000。(範囲の限度なし)
-
+		random_multi_pv_depth : random_multipvするときの探索深さ。指定しない場合、gensfenで指定したdepth。
 
 ・教師局面から評価関数の学習
 

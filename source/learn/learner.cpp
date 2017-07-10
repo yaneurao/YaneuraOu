@@ -307,8 +307,10 @@ struct MultiThinkGenSfen : public MultiThink
 	// random_multi_pvは、MultiPVのときの候補手の数。
 	// 候補手の指し手を採択するとき、1位の指し手の評価値とN位の指し手の評価値との差が
 	// random_multi_pv_diffの範囲でなければならない。
+	// random_multi_pv_depthはMultiPVのときの探索深さ。
 	int random_multi_pv;
 	int random_multi_pv_diff;
+	int random_multi_pv_depth;
 
 	// sfenの書き出し器
 	SfenWriter& sw;
@@ -699,7 +701,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				}
 				else {
 					// ロジックが複雑になるので、すまんがここで再度MultiPVで探索する。
-					Learner::search(pos, depth, random_multi_pv);
+					Learner::search(pos, random_multi_pv_depth, random_multi_pv);
 					// rootMovesの上位N手のなかから一つ選択
 
 					auto& rm = pos.this_thread()->rootMoves;
@@ -768,6 +770,7 @@ void gen_sfen(Position&, istringstream& is)
 	int random_move_count = 5;
 	int random_multi_pv = 1;
 	int random_multi_pv_diff = 32000;
+	int random_multi_pv_depth = INT_MIN;
 
 	// 書き出すファイル名
 	string output_file_name = "generated_kifu.bin";
@@ -804,6 +807,8 @@ void gen_sfen(Position&, istringstream& is)
 			is >> random_multi_pv;
 		else if (token == "random_multi_pv_diff")
 			is >> random_multi_pv_diff;
+		else if (token == "random_multi_pv_depth")
+			is >> random_multi_pv_depth;
 		else
 			cout << "Error! : Illegal token " << token << endl;
 	}
@@ -811,6 +816,8 @@ void gen_sfen(Position&, istringstream& is)
 	// search depth2が設定されていないなら、search depthと同じにしておく。
 	if (search_depth2 == INT_MIN)
 		search_depth2 = search_depth;
+	if (random_multi_pv_depth == INT_MIN)
+		random_multi_pv_depth = search_depth;
 
 	std::cout << "gen_sfen : " << endl
 		<< "  search_depth = " << search_depth << " to " << search_depth2 << endl
@@ -823,6 +830,7 @@ void gen_sfen(Position&, istringstream& is)
 		<< "  random_move_count    = " << random_move_count << endl
 		<< "  random_multi_pv      = " << random_multi_pv << endl
 		<< "  random_multi_pv_diff = " << random_multi_pv_diff << endl
+		<< "  random_multi_pv_depth= " << random_multi_pv_depth << endl
 		<< "  output_file_name     = " << output_file_name << endl;
 
 	// Options["Threads"]の数だけスレッドを作って実行。
@@ -836,6 +844,7 @@ void gen_sfen(Position&, istringstream& is)
 		multi_think.random_move_count = random_move_count;
 		multi_think.random_multi_pv = random_multi_pv;
 		multi_think.random_multi_pv_diff = random_multi_pv_diff;
+		multi_think.random_multi_pv_depth = random_multi_pv_depth;
 		multi_think.start_file_write_worker();
 		multi_think.go_think();
 
