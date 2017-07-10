@@ -2,7 +2,7 @@
 やねうら王 更新履歴
 
 
-■　2017/07/10
+■　2017/07/10 V4.73
 
 ・gensfenのUSE_RANDOM_LEGAL_MOVE、常に有効でいいので削除。
 ・kifconvert wip20170710a (#51) (Mizarさん)
