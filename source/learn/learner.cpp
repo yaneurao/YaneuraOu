@@ -24,10 +24,6 @@
 // スレッドを論理コアの最大数まで酷使するとコンソールが詰まるので調整用。
 #define GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL 1
 
-// gensfenのときに序盤でランダムムーブを採用する。
-// これは効果があるので、常に有効で良い。
-#define USE_RANDOM_LEGAL_MOVE
-
 // 学習時にsfenファイルを1万局面読み込むごとに'.'を出力する。
 //#define DISPLAY_STATS_IN_THREAD_READ_SFENS
 
@@ -384,7 +380,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			return false;
 		};
 
-#if defined (USE_RANDOM_LEGAL_MOVE)
 		// ply手目でランダムムーブをするかどうかのフラグ
 		vector<bool> random_move_flag;
 		{
@@ -413,8 +408,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				random_move_flag[a[i]] = true;
 			}
 		}
-
-#endif
 
 		// ply : 初期局面からの手数
 		for (int ply = 0; ; ++ply)
@@ -695,8 +688,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 		RANDOM_MOVE:;
 
-#if defined ( USE_RANDOM_LEGAL_MOVE )
-
 			// 合法手のなかからランダムに1手選ぶフェーズ
 			if (ply < (int)random_move_flag.size() && random_move_flag[ply])
 			{
@@ -739,7 +730,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// 今回のrandom moveがあるので、ここ以前には及ばないようにする。
 				a_psv.clear(); // 保存していた局面のクリア
 			}
-#endif
 
 			pos.do_move(m, state[ply]);
 

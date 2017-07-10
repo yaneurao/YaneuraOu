@@ -1390,7 +1390,7 @@ struct KKPT_reader
 				// KPP+手番をKPP , PP+手番にする場合も、PPのPがKであるケースは考慮しなくて良い。
 			}
 
-#if 1
+#if 0
 		// KK手番,KKP手番もPP手番に統合できると面白いのだが、KKPは玉が近接しているときに利いてきそう。
 		// まあ、とりあえずコードを書く。
 
@@ -1398,6 +1398,8 @@ struct KKPT_reader
 		// KKPをKK + KPに分解する必要がある。
 		// とりま、KKPに入っているKKは0と仮定する。
 		// 単にKPだけ抽出すれば良い。
+		// → KKもきちんと分離したほうがよさげ。
+		// あとオーバーフローの問題もあるか…。
 
 		Eval::ValueKkp kp[SQ_NB][Eval::fe_end] = {};
 
@@ -1421,6 +1423,9 @@ struct KKPT_reader
 				for (auto p = Eval::BONA_PIECE_ZERO; p < Eval::fe_end; ++p)
 					for (int i = 0; i < 2; ++i)
 						(*kkp_)[k1][k2][p][i] = kp[k1][p][i] + kp[Inv(k2)][inv_piece(p)][i];
+		
+		// あまりいい合成の仕方ではない。
+		// ここに追加学習してどうなるか見るべきだと思う。
 #endif
 
 #else
