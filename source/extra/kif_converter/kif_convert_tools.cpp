@@ -6,10 +6,9 @@
 #include <string>
 #include <sstream>
 
+#include "kif_convert_consts.h"
 #include "../../position.h"
 extern void is_ready();
-
-#include "kif_convert_consts.h"
 
 namespace KifConvertTools
 {
@@ -31,14 +30,14 @@ namespace KifConvertTools
 			}
 			auto inisfen = pos.sfen();
 			if (inisfen == SFEN_HIRATE)
-				std::cout << "position startpos moves";
+				ss << "position startpos moves";
 			else
-				std::cout << "position sfen " << inisfen << " moves";
+				ss << "position sfen " << inisfen << " moves";
 			while (states.size())
 			{
 				auto& top = states.top();
 				Move m = top->lastMove;
-				std::cout << " " << m;
+				ss << " " << m;
 				pos.do_move(m, *top);
 				states.pop();
 			}

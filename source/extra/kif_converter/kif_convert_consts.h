@@ -21,7 +21,7 @@ namespace KifConvertTools
 	template <typename charT> struct KifConstEntry
 	{
 		KifConstEntry(const charT * _str, size_t _ealen) : str(_str), ealen(_ealen) {}
-		const std::basic_string<charT> str;
+		const charT * str;
 		const size_t ealen;
 	};
 
@@ -44,7 +44,7 @@ namespace KifConvertTools
 #if defined(__clang__) || defined(_LINUX)
 #define SCU(I, T, S, R) (KifConstEntry<T>(std::get<I>(std::make_tuple(S, u8"" S, u"" S, U"" S, L"" S)), eawidth(U"" S)))
 #else
-#define SCU(I, T, S, R) (KifConstEntry<T>(std::get<I>(std::make_tuple(R, u8"" S, u"" S, U"" S, L"" S)), eawidth(std::get<I>(std::make_tuple(U"" R, U"" S, U"" S, U"" S, U"" S)))))
+#define SCU(I, T, S, R) (KifConstEntry<T>(std::get<I>(std::make_tuple(R, u8"" S, u"" S, U"" S, L"" S)), std::get<I>(std::make_tuple(eawidth(U"" R), eawidth(U"" S), eawidth(U"" S), eawidth(U"" S), eawidth(U"" S)))))
 #endif
 
 	// 文字定数群
