@@ -135,7 +135,7 @@ void ThreadPool::start_thinking(const Position& pos, Search::StateStackPtr& stat
 	main()->wait_for_search_finished();
 
 	// ponderに関して、StockfishではstopOnPonderhitというのがあるが、やねうら王にはこのフラグはない。
-	Signals.stop = false;
+	Threads.stop = false;
 
 	Search::Limits = limits;
 

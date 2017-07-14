@@ -199,6 +199,9 @@ struct ThreadPool: public std::vector<Thread*>
 	// main()以外のスレッド
 	Slaves slaves;
 
+	// 探索中にこれがtrueになったら探索を即座に終了すること。
+	std::atomic_bool stop;
+
 	// USIプロトコルで指定されているスレッド数を反映させる。
 	void read_usi_options();
 };

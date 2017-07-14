@@ -509,7 +509,7 @@ void is_ready()
 	Time.availableNodes = 0;
 
 	ponder_mode = false;
-	Search::Signals.stop = false;
+	Threads.stop = false;
 }
 
 // isreadyコマンド処理部
@@ -805,7 +805,7 @@ void USI::loop(int argc, char* argv[])
 				gameover_handler(cmd);
 #endif
 
-			Search::Signals.stop = true;
+			Threads.stop = true;
 
 			// 思考を終えて寝てるかも知れないのでresume==trueにして呼び出してやる
 			Threads.main()->start_searching(true);

@@ -105,8 +105,8 @@ namespace Search {
 
 		// ponder   : ponder中であるかのフラグ
 		//  これがtrueのときはbestmoveがあっても探索を停止せずに"ponderhit"か"stop"が送られてきてから停止する。
-		//  ※ ただし今回用の探索時間を超えていれば、stopOnPonderhitフラグをtrueにしてあるのでponderhitに対して即座に停止する。
-		int ponder;
+		// main threadからしか参照しないのでatomicはつけてない。
+		bool ponder;
 
 		// "go rtime 100"とすると100～300msぐらい考える。
 		int rtime;
@@ -134,14 +134,8 @@ namespace Search {
 		bool bench;
 	};
 
-	struct SignalsType {
-		// これがtrueになったら探索を即座に終了すること。
-		std::atomic_bool stop;
-	};
-
 	typedef std::unique_ptr<aligned_stack<StateInfo>> StateStackPtr;
 
-	extern SignalsType Signals;
 	extern LimitsType Limits;
 	extern StateStackPtr SetupStates;
 

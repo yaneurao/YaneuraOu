@@ -810,7 +810,7 @@ namespace YaneuraOu2017Early
 				return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 
 			// 最大手数を超えている、もしくは停止命令が来ている。
-			if (Signals.stop.load(std::memory_order_relaxed) || (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply))
+			if (Threads.stop.load(std::memory_order_relaxed) || (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply))
 				return draw_value(REPETITION_DRAW, pos.side_to_move());
 
 			// -----------------------
@@ -1750,7 +1750,7 @@ namespace YaneuraOu2017Early
 			// 停止シグナルが来たときは、探索の結果の値は信頼できないので、
 			// best moveの更新をせず、PVや置換表を汚さずに終了する。
 
-			if (Signals.stop.load(std::memory_order_relaxed))
+			if (Threads.stop.load(std::memory_order_relaxed))
 				return VALUE_ZERO;
 
 			// -----------------------
@@ -2307,7 +2307,7 @@ void Thread::search()
 	// main threadのrootDepthがLimits.depthを超えた時点で、
 	// slave threadはこのループを抜けて良いのでこういう書き方になっている。
 	while ((rootDepth += ONE_PLY) < DEPTH_MAX
-		&& !Signals.stop
+		&& !Threads.stop
 		&& !(Limits.depth && mainThread && rootDepth / ONE_PLY > Limits.depth))
 	{
 		// ------------------------
@@ -2335,7 +2335,7 @@ void Thread::search()
 			rm.previousScore = rm.score;
 
 		// MultiPVのためにこの局面の候補手をN個選出する。
-		for (PVIdx = 0; PVIdx < multiPV && !Signals.stop; ++PVIdx)
+		for (PVIdx = 0; PVIdx < multiPV && !Threads.stop; ++PVIdx)
 		{
 			// ------------------------
 			// Aspiration window search
@@ -2379,7 +2379,7 @@ void Thread::search()
 						rootMoves[i].insert_pv_to_tt(rootPos , TT_GEN(rootPos) );
 				}
 				
-				if (Signals.stop)
+				if (Threads.stop)
 					break;
 
 				// main threadでfail low/highが起きたなら読み筋をGUIに出力する。
@@ -2459,14 +2459,14 @@ void Thread::search()
 				// 指し手を返したときに何も読み筋が出力されない。
 				// 検討モードのときは、stopのときには、PVを出力しないことにする。
 
-				if (Signals.stop ||
+				if (Threads.stop ||
 					// MultiPVのときは最後の候補手を求めた直後とする。
 					// ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
 					((PVIdx + 1 == multiPV || Time.elapsed() > 3000)
 						&& (rootDepth < 3 || lastInfoTime + pv_interval <= Time.elapsed())))
 				{
 					// 検討モードのときは、stopのときには、PVを出力しないことにする。
-					if (!(Signals.stop && Limits.consideration_mode))
+					if (!(Threads.stop && Limits.consideration_mode))
 					{
 						lastInfoTime = Time.elapsed();
 						sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
@@ -2477,7 +2477,7 @@ void Thread::search()
 		} // multi PV
 
 		  // ここでこの反復深化の1回分は終了したのでcompletedDepthに反映させておく。
-		if (!Signals.stop)
+		if (!Threads.stop)
 			completedDepth = rootDepth;
 
 		if (!mainThread)
@@ -2502,7 +2502,7 @@ void Thread::search()
 			if (Limits.mate
 				&& bestValue >= VALUE_MATE_IN_MAX_PLY
 				&& VALUE_MATE - bestValue <= Limits.mate)
-				Signals.stop = true;
+				Threads.stop = true;
 
 			// 勝ちを読みきっているのに将棋所の表示が追いつかずに、将棋所がフリーズしていて、その間の時間ロスで
 			// 時間切れで負けることがある。
@@ -2523,7 +2523,7 @@ void Thread::search()
 		if (Limits.use_time_management())
 		{
 			// まだ停止が確定していない
-			if (!Signals.stop && !Time.search_end)
+			if (!Threads.stop && !Time.search_end)
 			{
 
 				// 1つしか合法手がない(one reply)であるだとか、利用できる時間を使いきっているだとか、
@@ -2729,19 +2729,19 @@ ID_END:;
 	// USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまで
 	// best moveを出力すべきではない。
 	// それゆえ、単にここでGUIからそれらのいずれかのコマンドが送られてくるまで待つ。
-	if (!Signals.stop && (Limits.ponder || Limits.infinite))
+	if (!Threads.stop && (Limits.ponder || Limits.infinite))
 	{
 		// "stop"が送られてきたらSignals.stop == trueになる。
 		// "ponderhit"が送られてきたらLimits.ponder == 0になるので、それを待つ。(stopOnPonderhitは用いない)
 		//    また、このときSignals.stop == trueにはならない。(この点、Stockfishとは異なる。)
 		// "go infinite"に対してはstopが送られてくるまで待つ。
-		while (!Signals.stop && (Limits.ponder || Limits.infinite))
+		while (!Threads.stop && (Limits.ponder || Limits.infinite))
 			sleep(1);
 		//	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
 		// (思考のためには計算資源を使っていないので。)
 	}
 
-	Signals.stop = true;
+	Threads.stop = true;
 
 	// 各スレッドが終了するのを待機する(開始していなければいないで構わない)
 	for (Thread* th : Threads.slaves)
@@ -2858,7 +2858,7 @@ void MainThread::check_time()
 		(elapsed > Time.maximum() - 10 || (Time.search_end > 0 && elapsed > Time.search_end - 10)))
 		|| (Limits.movetime && elapsed >= Limits.movetime)
 		|| (Limits.nodes && Threads.nodes_searched() >= Limits.nodes))
-		Signals.stop = true;
+		Threads.stop = true;
 }
 
 #ifdef EVAL_LEARN
@@ -3041,7 +3041,7 @@ namespace Learner
 				rm.previousScore = rm.score;
 
 			// MultiPV
-			for (PVIdx = 0; PVIdx < multiPV && !Signals.stop; ++PVIdx)
+			for (PVIdx = 0; PVIdx < multiPV && !Threads.stop; ++PVIdx)
 			{
 				// depth 5以上においてはaspiration searchに切り替える。
 				if (rootDepth >= 5 * ONE_PLY)
