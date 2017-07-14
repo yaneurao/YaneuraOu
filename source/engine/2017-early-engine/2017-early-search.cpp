@@ -2338,6 +2338,9 @@ void Thread::search()
 		// MultiPVのためにこの局面の候補手をN個選出する。
 		for (PVIdx = 0; PVIdx < multiPV && !Threads.stop; ++PVIdx)
 		{
+			// それぞれのdepthとPV lineに対するUSI infoで出力するselDepth
+			selDepth = 0;
+
 			// ------------------------
 			// Aspiration window search
 			// ------------------------
@@ -3020,6 +3023,7 @@ namespace Learner
 		auto& PVIdx = th->PVIdx;
 		auto& rootMoves = th->rootMoves;
 		auto& completedDepth = th->completedDepth;
+		auto& selDepth = th->selDepth;
 
 		// bestmoveとしてしこの局面の上位N個を探索する機能
 		//size_t multiPV = Options["MultiPV"];
@@ -3040,6 +3044,9 @@ namespace Learner
 			// MultiPV
 			for (PVIdx = 0; PVIdx < multiPV && !Threads.stop; ++PVIdx)
 			{
+				// それぞれのdepthとPV lineに対するUSI infoで出力するselDepth
+				selDepth = 0;
+
 				// depth 5以上においてはaspiration searchに切り替える。
 				if (rootDepth >= 5 * ONE_PLY)
 				{
