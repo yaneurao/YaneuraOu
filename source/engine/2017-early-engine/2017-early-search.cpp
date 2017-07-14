@@ -776,8 +776,8 @@ namespace YaneuraOu2017Early
 		ss->ply = (ss - 1)->ply + 1;
 
 		// seldepthをGUIに出力するために、PVnodeであるならmaxPlyを更新してやる。
-		if (PvNode && thisThread->maxPly < ss->ply)
-			thisThread->maxPly = ss->ply;
+		if (PvNode && thisThread->selDepth < ss->ply)
+			thisThread->selDepth = ss->ply;
 
 		// -----------------------
 		//  Timerの監視
@@ -1771,6 +1771,7 @@ namespace YaneuraOu2017Early
 					// (iterationの終わりでsortするのでそのときに指し手が入れ替わる。)
 
 					rm.score = value;
+					rm.selDepth = thisThread->selDepth;
 					rm.pv.resize(1);
 					// PVは変化するはずなのでいったんリセット
 
@@ -2706,12 +2707,8 @@ void MainThread::think()
 		// ---------------------
 
 		for (Thread* th : Threads)
-		{
-			th->maxPly = 0;
-			th->rootDepth = DEPTH_ZERO;
 			if (th != this)
 				th->start_searching();
-		}
 
 		Thread::search();
 
@@ -2898,7 +2895,7 @@ namespace Learner
 			auto th = pos.this_thread();
 
 			th->completedDepth = DEPTH_ZERO;
-			th->maxPly = 0;
+			th->selDepth = 0;
 			th->rootDepth = DEPTH_ZERO;
 
 			for (int i = 4; i > 0; i--)

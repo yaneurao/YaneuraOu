@@ -189,10 +189,10 @@ namespace USI
 			// maxPlyは更新しない思考エンジンがあるので、0で初期化しておき、
 			// dのほうが大きければそれをそのまま表示することで回避する。
 
-			ss << "info"
-				<< " depth " << d
-				<< " seldepth " << max(d, pos.this_thread()->maxPly)
-				<< " score " << USI::score_to_usi(v);
+			ss  << "info"
+				<< " depth "    << d
+				<< " seldepth " << max(d, rootMoves[i].selDepth)
+				<< " score "    << USI::score_to_usi(v);
 
 			// これが現在探索中の指し手であるなら、それがlowerboundかupperboundかは表示させる
 			if (i == PVIdx)

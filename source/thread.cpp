@@ -32,9 +32,9 @@ Thread::Thread()
 {
 	exit = false;
 
-	// maxPlyを更新しない思考エンジンでseldepthの出力がおかしくなるのを防止するために
+	// selDepthを更新しない思考エンジンでseldepthの出力がおかしくなるのを防止するために
 	// ここでとりあえず初期化しておいてやる。
-	maxPly = 0;
+	selDepth = 0;
 
 	// 探索したノード数
 	nodes = 0;
@@ -159,7 +159,6 @@ void ThreadPool::start_thinking(const Position& pos, Search::StateStackPtr& stat
 	string sfen = pos.sfen();
 	for (auto th : *this)
 	{
-		th->maxPly = 0;
 		th->nodes = 0;
 		th->rootDepth = DEPTH_ZERO;
 		th->rootMoves = rootMoves;

@@ -87,7 +87,7 @@ struct Thread
 	size_t PVIdx;
 
 	// rootから最大、何手目まで探索したか(選択深さの最大)
-	int maxPly;
+	int selDepth;
 
 	// このスレッドが探索したノード数(≒Position::do_move()を呼び出した回数)
 	std::atomic<uint64_t> nodes;
