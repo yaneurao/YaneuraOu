@@ -114,8 +114,10 @@ void MultiThink::go_think()
 
 	std::cout << "..all works..done!!" << std::endl;
 
-	// Optionsを書き換えていたので復元する。
-	Options = oldOptions;
+	// Optionsを書き換えたので復元。
+	// 値を代入しないとハンドラが起動しないのでこうやって復元する。
+	for (auto& s : oldOptions)
+		Options[s.first] = std::string(s.second);
 
 #if defined(USE_GLOBAL_OPTIONS)
 	// GlobalOptionsの復元
