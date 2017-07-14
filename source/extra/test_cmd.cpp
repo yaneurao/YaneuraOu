@@ -1238,35 +1238,51 @@ void eval_exam(istringstream& is)
 {
 	cout << "eval_exam : " << endl;
 
-	u64 sum0, sum1;
+	const char* feature_type[4] = {"ALL", "KK", "KKP", "KPP"};
+	for (int i = -1; i < 3; ++i)
+	{
+		cout << "FeatureType : " << feature_type[i+1] << endl;
 
-	// ゼロの数を数える。
-	auto count_zero = [&sum0, &sum1](s32 v0, s32 v1) {
-		sum0 += (v0 == 0) ? 1 : 0;
-		sum1 += (v1 == 0) ? 1 : 0;
-	};
-	sum0 = sum1 = 0;
-	Eval::foreach_eval_param(count_zero);
-	cout << "count_zero       : " << sum0 << " , " << sum1 << endl;
+		u64 sum0, sum1;
 
-	// 絶対値を足し合わせる
-	auto sum_abs = [&sum0, &sum1](s32 v0, s32 v1) {
-		sum0 += abs(v0);
-		sum1 += abs(v1);
-	};
-	sum0 = sum1 = 0;
-	Eval::foreach_eval_param(sum_abs);
-	cout << "sum_abs          : " << sum0 << " , " << sum1 << endl;
+		// ゼロの数を数える。
+		auto count_zero = [&sum0, &sum1](s32 v0, s32 v1) {
+			sum0 += (v0 == 0) ? 1 : 0;
+			sum1 += (v1 == 0) ? 1 : 0;
+		};
+		sum0 = sum1 = 0;
+		Eval::foreach_eval_param(count_zero,i);
+		cout << "count_zero       : " << sum0 << " , " << sum1 << endl;
 
-	// 絶対値が16未満の要素の数
-	auto count_abs_less16 = [&sum0, &sum1](s32 v0, s32 v1) {
-		sum0 += (abs(v0) < 16) ? 1 : 0;
-		sum1 += (abs(v1) < 16) ? 1 : 0;
-	};
-	sum0 = sum1 = 0;
-	Eval::foreach_eval_param(count_abs_less16);
-	cout << "count_abs_less16 : " << sum0 << " , " << sum1 << endl;
+		// 絶対値を足し合わせる
+		auto sum_abs = [&sum0, &sum1](s32 v0, s32 v1) {
+			sum0 += abs(v0);
+			sum1 += abs(v1);
+		};
+		sum0 = sum1 = 0;
+		Eval::foreach_eval_param(sum_abs,i);
+		cout << "sum_abs          : " << sum0 << " , " << sum1 << endl;
 
+		// 絶対値が16未満の要素の数
+		auto count_abs_less16 = [&sum0, &sum1](s32 v0, s32 v1) {
+			sum0 += (abs(v0) < 16) ? 1 : 0;
+			sum1 += (abs(v1) < 16) ? 1 : 0;
+		};
+		sum0 = sum1 = 0;
+		Eval::foreach_eval_param(count_abs_less16,i);
+		cout << "count_abs_less16 : " << sum0 << " , " << sum1 << endl;
+
+		// 絶対値が最大のものを求める
+		auto max_abs = [&sum0, &sum1](s32 v0, s32 v1)
+		{
+			sum0 = std::max(sum0, (u64)abs(v0));
+			sum1 = std::max(sum1, (u64)abs(v1));
+		};
+		sum0 = sum1 = 0;
+		Eval::foreach_eval_param(max_abs, i);
+		cout << "max_abs : " << sum0 << " , " << sum1 << endl;
+	}
+	cout << "done!" << endl;
 }
 
 //

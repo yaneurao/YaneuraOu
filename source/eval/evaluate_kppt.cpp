@@ -1013,27 +1013,36 @@ namespace Eval
 
 	// 評価関数のそれぞれのパラメーターに対して関数fを適用してくれるoperator。
 	// パラメーターの分析などに用いる。
-	void foreach_eval_param(std::function<void(s32,s32)>f)
+	void foreach_eval_param(std::function<void(s32,s32)>f , int type)
 	{
 		// KK
-		for (u64 i = 0; i < (u64)SQ_NB * (u64)SQ_NB; ++i)
+		if (type == -1 || type == 0)
 		{
-			auto v = ((ValueKk*)kk)[i];
-			f(v[0], v[1]);
+			for (u64 i = 0; i < (u64)SQ_NB * (u64)SQ_NB; ++i)
+			{
+				auto v = ((ValueKk*)kk)[i];
+				f(v[0], v[1]);
+			}
 		}
 
 		// KKP
-		for (u64 i = 0; i < (u64)SQ_NB * (u64)SQ_NB * (u64)fe_end; ++i)
+		if (type == -1 || type == 1)
 		{
-			auto v = ((ValueKkp*)kkp)[i];
-			f(v[0], v[1]);
+			for (u64 i = 0; i < (u64)SQ_NB * (u64)SQ_NB * (u64)fe_end; ++i)
+			{
+				auto v = ((ValueKkp*)kkp)[i];
+				f(v[0], v[1]);
+			}
 		}
 
 		// KPP
-		for (u64 i = 0; i < (u64)SQ_NB * (u64)fe_end * (u64)fe_end; ++i)
+		if (type == -1 || type == 2)
 		{
-			auto v = ((ValueKpp*)kkp)[i];
-			f(v[0], v[1]);
+			for (u64 i = 0; i < (u64)SQ_NB * (u64)fe_end * (u64)fe_end; ++i)
+			{
+				auto v = ((ValueKpp*)kkp)[i];
+				f(v[0], v[1]);
+			}
 		}
 	}
 
