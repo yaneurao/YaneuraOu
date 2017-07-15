@@ -1022,6 +1022,9 @@ namespace Eval
 			{
 				auto v = ((ValueKk*)kk)[i];
 				f(v[0], v[1]);
+
+				//if (v[0] == 0) cout << "v[0]==0" << (Square)(i / SQ_NB) << (Square)(i % SQ_NB) << endl;
+				//if (v[1] == 0) cout << "v[1]==0" << (Square)(i / SQ_NB) << (Square)(i % SQ_NB) << endl;
 			}
 		}
 

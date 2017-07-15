@@ -419,7 +419,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			// 長手数に達したのか
 			if (ply >= MAX_PLY2)
 			{
-#if defined (LEARN_GENSFEN_DRAW_RESULT)
+#if defined (LEARN_GENSFEN_USE_DRAW_RESULT)
 				// 勝敗 = 引き分けとして書き出す。
 				// こうしたほうが自分が入玉したときに、相手の入玉を許しにくい(かも)
 				if (flush_psv(0))
@@ -450,8 +450,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			if ((m = book.probe(pos)) != MOVE_NONE)
 			{
 				// 定跡にhitした。
-				// この指し手で1手進める。
-				//m = bestMove;
+				// その指し手はmに格納された。
 
 				// 定跡の局面は学習には用いない。
 				a_psv.clear();
@@ -518,12 +517,13 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				// case REPETITION_SUPERIOR: break;
 				// case REPETITION_INFERIOR: break;
+					// これらは意味があるので無視して良い。
 				default: break;
 				}
 
 				if (game_end)
 				{
-#if !defined	(LEARN_GENSFEN_DRAW_RESULT)
+#if !defined	(LEARN_GENSFEN_USE_DRAW_RESULT)
 					// 引き分けは書き出さない。
 					if (is_win == 0)
 						break;
@@ -532,20 +532,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 						goto FINALIZE;
 					break;
 				}
-
-#if 0
-				// 0手読み(静止探索のみ)の評価値とPV(最善応手列)
-				auto pv_value2 = qsearch(pos);
-				auto value2 = pv_value2.first;
-				auto pv2 = pv_value2.second;
-#endif
-
-				// 上のように、search()の直後にqsearch()をすると、search()で置換表に格納されてしまって、
-				// qsearch()が置換表にhitして、search()と同じ評価値が返るので注意。
-
-				// 局面のsfen,3手読みでの最善手,0手読みでの評価値
-				// これをファイルか何かに書き出すと良い。
-				//      cout << "Error! : " << pos.sfen() << "," << value1 << "," << value2 << "," << endl;
 
 				// PVの指し手でleaf nodeまで進めて、そのleaf nodeでevaluate()を呼び出した値を用いる。
 				auto evaluate_leaf = [&](Position& pos , vector<Move>& pv)
@@ -594,37 +580,21 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					return v;
 				};
 
-				// leaf nodeでのroot colorから見たevaluate()の値を取得。
-				// auto leaf_value = evaluate_leaf(pos , pv1);
-
-				// →　置換表にhitしたとき、PVが途中で枝刈りされてしまうので、
-				// 駒の取り合いの途中の変な局面までのPVしかないと、局面の評価値として
-				// 適切ではない気がする。
-
-				auto leaf_value = value1;
+				// PV lineのleaf nodeでのroot colorから見たevaluate()の値を取得。
+				// search()の返し値をそのまま使うのとこうするのとの善悪は良くわからない。
+				auto leaf_value = evaluate_leaf(pos , pv1);
 
 #if 0
-				//	cout << pv_value1.first << " , " << leaf_value << endl;
-				// dbg_hit_on(pv_value1.first == leaf_value);
-				// Total 150402 Hits 127195 hit rate (%) 84.569
+				dbg_hit_on(pv_value1.first == leaf_value);
+				// gensfen depth 3 eval_limit 32000
+				// Total 217749 Hits 203579 hit rate (%) 93.490
+				// gensfen depth 6 eval_limit 32000
+				// Total 78407 Hits 69190 hit rate (%) 88.245
+				// gensfen depth 6 eval_limit 3000
+				// Total 53879 Hits 43713 hit rate (%) 81.132
 
-				// qsearch()中に置換表の指し手で枝刈りされたのか..。
-				// これ、教師としては少し気持ち悪いので、そういう局面を除外する。
-				// これによって教師が偏るということはないと思うが..
-				if (pv_value1.first != leaf_value)
-					goto NEXT_MOVE;
-
-				// →　局面が偏るのが怖いので実験してからでいいや。
-#endif
-
-#if 0
-				//	dbg_hit_on(pv1.size() >= search_depth);
-				// Total 101949 Hits 101794 hit rate (%) 99.847
-				// 置換表にヒットするなどしてPVが途中で切れるケースは全体の0.15%程度。
-				// このケースを捨てたほうがいいかも知れん。
-
-				if ((int)pv1.size() < search_depth)
-					goto NEXT_MOVE;
+				// 置換表の指し手で枝刈りされるなどの問題。
+				// これ、教師としては少し気持ち悪いが…。
 #endif
 
 				// depth 0の場合、pvが得られていないのでdepth 2で探索しなおす。
@@ -1632,14 +1602,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 		// 浅い探索(qsearch)の評価値
 		auto r = qsearch(pos);
-
-#if !defined(LEARN_USE_LEAF_EVAL)		
-		auto shallow_value = r.first;
-#endif
 		auto pv = r.second;
-
-		// qsearchではなくevaluate()の値をそのまま使う場合。
-		// auto shallow_value = Eval::evaluate(pos);
 
 		// 深い探索の評価値
 		auto deep_value = (Value)ps.score;
@@ -1673,7 +1636,6 @@ void LearnerThink::thread_worker(size_t thread_id)
 		//		dbg_hit_on(true);
 #endif
 
-
 		int ply = 0;
 		StateInfo state[MAX_PLY]; // qsearchのPVがそんなに長くなることはありえない。
 		for (auto m : pv)
@@ -1686,14 +1648,9 @@ void LearnerThink::thread_worker(size_t thread_id)
 			}
 			pos.do_move(m, state[ply++]);
 			
-#if defined(LEARN_USE_LEAF_EVAL)		
-			// leafでevaluate()は呼ばないなら差分計算していく必要はないのでevaluate()を呼び出す必要はないが、
-			// leafでのevaluateの値を用いたほうがいい気がするので差分更新していく。
+			// leafでのevaluateの値を用いるので差分更新していく。
 			Eval::evaluate_with_no_return(pos);
-#endif
 		}
-
-#if defined(LEARN_USE_LEAF_EVAL)		
 
 		// shallow_valueとして、leafでのevaluateの値を用いる。
 		// qsearch()の戻り値をshallow_valueとして用いると、
@@ -1702,15 +1659,6 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// 置換表をオフにはしているのだが、1手詰みなどはpv配列を更新していないので…。
 
 		Value shallow_value = (rootColor == pos.side_to_move()) ? Eval::evaluate(pos) : -Eval::evaluate(pos);
-
-		// →　比較実験した結果、どうも効果なさそう。
-		// 教師データがsearch()の返し値を用いているので、すなわちmateとか返ってくるので、
-		// ここでも同じようにqsearch()の返し値を用いて、mateとか返ってくる状態にしてあったほうが
-		// 差が少なくて済むというのはあるのかも。
-
-		// 逆に教師局面の生成時もleaf nodeのevaluate()の値を用いるようにしたほうが良いのかも知れない。
-
-#endif
 
 		// 勾配
 		double dj_dw = calc_grad(deep_value, shallow_value, ps);
