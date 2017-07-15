@@ -73,7 +73,7 @@ namespace HelpMate
   void search(Position& pos, uint32_t depth, int& no_mate_depth)
   {
     // 強制停止
-    if (Signals.stop || mate_found)
+    if (Threads.stop || mate_found)
     {
       no_mate_depth = MAX_PLY;
       return;
@@ -100,7 +100,7 @@ namespace HelpMate
 
     no_mate_depth = MAX_PLY; // 有効な指し手が一つもなければこのnodeはいくらdepthがあろうと詰まない。
 
-    while ((m = mp.next_move()) && !Signals.stop && !mate_found)
+    while ((m = mp.next_move()) && !Threads.stop && !mate_found)
     {
       if (!pos.legal(m))
         continue;
@@ -113,7 +113,7 @@ namespace HelpMate
         if (pos.side_to_move() == WHITE)
         {
           // 現在詰まないことが判明している探索深さ(search_depth)+2の長さの詰みを発見したときのみ。
-          while (!Signals.stop && !mate_found) // 他のスレッドが見つけるかも知れないのでそれを待ちながら…。
+          while (!Threads.stop && !mate_found) // 他のスレッドが見つけるかも知れないのでそれを待ちながら…。
           {
             if (search_depth + 2 >= id_depth_thread /*- depth + 1*/)
             {
@@ -171,7 +171,7 @@ namespace HelpMate
       id_depth_thread = depth;
       search(pos, depth, no_mate_depth);
 
-      if (Signals.stop || mate_found)
+      if (Threads.stop || mate_found)
         break;
 
       // 定期的にdepth、nodes、npsを出力する。
@@ -212,7 +212,7 @@ namespace HelpMate
 
   void finalize()
   {
-    if (!Signals.stop && !mate_found)
+    if (!Threads.stop && !mate_found)
     {
       sync_cout << "info string give up." << sync_endl;
       sync_cout << "checkmate nomate" << sync_endl; // checkmateコマンドを返さないと将棋所が待機したままになる

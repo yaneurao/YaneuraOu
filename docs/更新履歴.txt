@@ -2,14 +2,76 @@
 やねうら王 更新履歴
 
 
-■　2017/07/02
+■　2017/07/10 V4.73
+
+・gensfenのUSE_RANDOM_LEGAL_MOVE、常に有効でいいので削除。
+・kifconvert wip20170710a (#51) (Mizarさん)
+・kifconvert fix (Mizarさん)
+・MultiPVが1以外のときに詰みを発見すると探索が終了してしまうバグ修正。
+・random_multi_pv_depth追加。
+
+
+■　2017/07/09
+
+・gensfenコマンドにrandom_multi_pv_diffオプション追加。
+・test mergeコマンドにkkptオプション追加。仮想的にpp手番にする実験コード追加。
+・learn shuffleコマンドにbuffer_sizeオプション追加。
+・Makefile BOMをなしに変更。
+       BOMありだとMacでビルドしたときにLLVM8.1とgcc7.1でmissing separator errorになるらしい。
+
+
+■　2017/07/08
+
+・GCC 7.1.0での警告に対する修正。BitboardとEvalSum。
+
+
+■　2017/07/07
+
+・GCC 7.1.0での警告に対する修正。(Mizarさん)
+
+
+
+■　2017/07/06
+
+・Stockfish : Tidy up
+       cf. https://github.com/official-stockfish/Stockfish/commit/6d24ef8585c2ed5618eb9b4ab1d8ee35a05ce2cd
+       InFrontBB→ForwardRanksBBにリネーム。
+・Stockfish : Don't uselessy share rootDepth
+       cf . https://github.com/official-stockfish/Stockfish/commit/802fca6fdd562c4c52397521eb0ac05cb2be9046
+・Stockfish : Use unsigned int for nodes in Limits.
+       cf . https://github.com/official-stockfish/Stockfish/pull/1163/files
+・makebook thinkコマンド、エンバグしていたの修正。
+MultiPVで使うときに、2手目以降の評価値が-32001になっていた。
+
+
+
+■　2017/07/05
+
+・"test evalmerge"コマンド、リファクタリング。
+・Pieceのデバッグ出力のたときに漢字を2バイトと仮定していた部分、修正。
+
+
+■　2017/07/03
+
+・gensfenのときにファイルのflushを一定書き出しごとに行なうようにした。→　間違い。なってた。
+・see_ge()の変数名のリネーム。
+・一つ前のgensfenのflushをrevert。
+
+
+ ■　2017/07/02
 
 ・Position::do_move()に指し手としてMOVE_RESIGNを渡すといけないのでassert追加。
 ・Stockfish : Only main thread checks time
-	cf. https://github.com/official-stockfish/Stockfish/commit/05513a66410f96959f3a6e70be9aea72425cf7c7
+        cf. https://github.com/official-stockfish/Stockfish/commit/05513a66410f96959f3a6e70be9aea72425cf7c7
+・Stockfish : Fix four data races.
+       cf. https://github.com/official-stockfish/Stockfish/commit/3cb02004596f868ae405b09fbf3a2038a680a989
 ・Position::nodes_searched()削除
 ・Threads.init_for_slave()削除。
 ・search()のときに千日手判定でrootの局面以前まで遡っていなかったの修正。
+・Learner::search()をスレッドごとのmulti pvに対応させた。
+・gensfenコマンドにrandom_multi_pvオプション追加。
+・Position::set_this_thread()廃止。set()などのときなどにthread指定するようにした。
+・makebookコマンドなどさきほどの変更に伴って動かなくなっていたの修正。
 ・以下のプロジェクトを削除。(保守しきれないため)
 	#define YANEURAOU_NANO_ENGINE            // やねうら王nano         (完成2016/01/31)
 	#define YANEURAOU_NANO_PLUS_ENGINE       // やねうら王nano plus    (完成2016/02/25)

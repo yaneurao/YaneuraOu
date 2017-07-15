@@ -10,6 +10,12 @@
 // Bitboard関連のテーブル初期化のための関数
 namespace Bitboards { void init(); }
 
+// Bitboardクラスは、コンストラクタでの初期化が保証できないので(オーバーヘッドがあるのでやりたくないので)
+// GCC 7.1.0以降で警告が出るのを回避できない。ゆえに、このクラスではこの警告を抑制する。
+#if defined (__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
 // Bitboard本体クラス
 
 struct alignas(16) Bitboard
@@ -149,6 +155,10 @@ struct alignas(16) Bitboard
 	void operator++() {}
 };
 
+// 抑制していた警告を元に戻す。
+#if defined (__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic warning "-Wmaybe-uninitialized"
+#endif
 
 // --- Bitboardの実装
 
@@ -297,17 +307,17 @@ extern Bitboard FILE_BB[FILE_NB];
 // 各段を表現するBitboard配列
 extern Bitboard RANK_BB[RANK_NB];
 
-// InFrontBBの定義)
-//    c側の香の利き = 飛車の利き & InFrontBB[c][rank_of(sq)]
+// ForwardRanksBBの定義)
+//    c側の香の利き = 飛車の利き & ForwardRanksBB[c][rank_of(sq)]
 //
 // すなわち、
 // color == BLACKのとき、n段目よりWHITE側(1からn-1段目)を表現するBitboard。
 // color == WHITEのとき、n段目よりBLACK側(n+1から9段目)を表現するBitboard。
 // このアイデアはAperyのもの。
-extern Bitboard InFrontBB[COLOR_NB][RANK_NB];
+extern Bitboard ForwardRanksBB[COLOR_NB][RANK_NB];
 
 // 先手から見て1段目からr段目までを表現するBB(US==WHITEなら、9段目から数える)
-inline const Bitboard rank1_n_bb(Color US, const Rank r) { ASSERT_LV2(is_ok(r));  return InFrontBB[US][(US == BLACK ? r + 1 : 7 - r)]; }
+inline const Bitboard rank1_n_bb(Color US, const Rank r) { ASSERT_LV2(is_ok(r));  return ForwardRanksBB[US][(US == BLACK ? r + 1 : 7 - r)]; }
 
 // 敵陣を表現するBitboard。
 extern Bitboard EnemyField[COLOR_NB];

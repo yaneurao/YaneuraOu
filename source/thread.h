@@ -87,13 +87,13 @@ struct Thread
 	size_t PVIdx;
 
 	// rootから最大、何手目まで探索したか(選択深さの最大)
-	int maxPly;
+	int selDepth;
 
 	// このスレッドが探索したノード数(≒Position::do_move()を呼び出した回数)
 	std::atomic<uint64_t> nodes;
 
 	// 反復深化の深さ
-	std::atomic<Depth> rootDepth;
+	Depth rootDepth;
 
 	// このスレッドに関して、終了した反復深化の深さ
 	Depth completedDepth;
@@ -198,6 +198,9 @@ struct ThreadPool: public std::vector<Thread*>
 
 	// main()以外のスレッド
 	Slaves slaves;
+
+	// 探索中にこれがtrueになったら探索を即座に終了すること。
+	std::atomic_bool stop;
 
 	// USIプロトコルで指定されているスレッド数を反映させる。
 	void read_usi_options();

@@ -9,9 +9,7 @@
 // 開発方針
 // やねうら王2016(late)からの改造。
 // 特徴)
-//  1. 探索のためのパラメーターの完全自動調整。
-//  2. 進行度を用いたmargin
-
+//   探索のためのパラメーターの完全自動調整。
 
 // パラメーターを自動調整するのか
 // 自動調整が終われば、ファイルを固定してincludeしたほうが良い。
@@ -778,8 +776,8 @@ namespace YaneuraOu2017Early
 		ss->ply = (ss - 1)->ply + 1;
 
 		// seldepthをGUIに出力するために、PVnodeであるならmaxPlyを更新してやる。
-		if (PvNode && thisThread->maxPly < ss->ply)
-			thisThread->maxPly = ss->ply;
+		if (PvNode && thisThread->selDepth < ss->ply)
+			thisThread->selDepth = ss->ply;
 
 		// -----------------------
 		//  Timerの監視
@@ -812,7 +810,7 @@ namespace YaneuraOu2017Early
 				return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 
 			// 最大手数を超えている、もしくは停止命令が来ている。
-			if (Signals.stop.load(std::memory_order_relaxed) || (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply))
+			if (Threads.stop.load(std::memory_order_relaxed) || (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply))
 				return draw_value(REPETITION_DRAW, pos.side_to_move());
 
 			// -----------------------
@@ -1752,7 +1750,7 @@ namespace YaneuraOu2017Early
 			// 停止シグナルが来たときは、探索の結果の値は信頼できないので、
 			// best moveの更新をせず、PVや置換表を汚さずに終了する。
 
-			if (Signals.stop.load(std::memory_order_relaxed))
+			if (Threads.stop.load(std::memory_order_relaxed))
 				return VALUE_ZERO;
 
 			// -----------------------
@@ -1773,6 +1771,7 @@ namespace YaneuraOu2017Early
 					// (iterationの終わりでsortするのでそのときに指し手が入れ替わる。)
 
 					rm.score = value;
+					rm.selDepth = thisThread->selDepth;
 					rm.pv.resize(1);
 					// PVは変化するはずなのでいったんリセット
 
@@ -2308,9 +2307,9 @@ void Thread::search()
 	// 2つ目のrootDepth (Threads.main()->rootDepth)は深さで探索量を制限するためのもの。
 	// main threadのrootDepthがLimits.depthを超えた時点で、
 	// slave threadはこのループを抜けて良いのでこういう書き方になっている。
-	while ((rootDepth = rootDepth + ONE_PLY) < DEPTH_MAX
-		&& !Signals.stop
-		&& (!Limits.depth || Threads.main()->rootDepth / ONE_PLY <= Limits.depth))
+	while ((rootDepth += ONE_PLY) < DEPTH_MAX
+		&& !Threads.stop
+		&& !(Limits.depth && mainThread && rootDepth / ONE_PLY > Limits.depth))
 	{
 		// ------------------------
 		// lazy SMPのための初期化
@@ -2337,8 +2336,11 @@ void Thread::search()
 			rm.previousScore = rm.score;
 
 		// MultiPVのためにこの局面の候補手をN個選出する。
-		for (PVIdx = 0; PVIdx < multiPV && !Signals.stop; ++PVIdx)
+		for (PVIdx = 0; PVIdx < multiPV && !Threads.stop; ++PVIdx)
 		{
+			// それぞれのdepthとPV lineに対するUSI infoで出力するselDepth
+			selDepth = 0;
+
 			// ------------------------
 			// Aspiration window search
 			// ------------------------
@@ -2381,7 +2383,7 @@ void Thread::search()
 						rootMoves[i].insert_pv_to_tt(rootPos , TT_GEN(rootPos) );
 				}
 				
-				if (Signals.stop)
+				if (Threads.stop)
 					break;
 
 				// main threadでfail low/highが起きたなら読み筋をGUIに出力する。
@@ -2461,14 +2463,14 @@ void Thread::search()
 				// 指し手を返したときに何も読み筋が出力されない。
 				// 検討モードのときは、stopのときには、PVを出力しないことにする。
 
-				if (Signals.stop ||
+				if (Threads.stop ||
 					// MultiPVのときは最後の候補手を求めた直後とする。
 					// ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
 					((PVIdx + 1 == multiPV || Time.elapsed() > 3000)
 						&& (rootDepth < 3 || lastInfoTime + pv_interval <= Time.elapsed())))
 				{
 					// 検討モードのときは、stopのときには、PVを出力しないことにする。
-					if (!(Signals.stop && Limits.consideration_mode))
+					if (!(Threads.stop && Limits.consideration_mode))
 					{
 						lastInfoTime = Time.elapsed();
 						sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
@@ -2479,7 +2481,7 @@ void Thread::search()
 		} // multi PV
 
 		  // ここでこの反復深化の1回分は終了したのでcompletedDepthに反映させておく。
-		if (!Signals.stop)
+		if (!Threads.stop)
 			completedDepth = rootDepth;
 
 		if (!mainThread)
@@ -2495,31 +2497,37 @@ void Thread::search()
 		// main threadのときは探索の停止判定が必要
 		//
 
-		// go mateで詰み探索として呼び出されていた場合、その手数以内の詰みが見つかっていれば終了。
-		if (Limits.mate
-			&& bestValue >= VALUE_MATE_IN_MAX_PLY
-			&& VALUE_MATE - bestValue <= Limits.mate)
-			Signals.stop = true;
+		// multi_pvのときは一つのpvで詰みを見つけただけでは停止するのは良くないので
+		// 早期終了はmultiPV == 1のときのみ行なう。
 
-		// 勝ちを読みきっているのに将棋所の表示が追いつかずに、将棋所がフリーズしていて、その間の時間ロスで
-		// 時間切れで負けることがある。
-		// mateを読みきったとき、そのmateの倍以上、iterationを回しても仕方ない気がするので探索を打ち切るようにする。
-		if (!Limits.mate
-			&& bestValue >= VALUE_MATE_IN_MAX_PLY
-			&& (VALUE_MATE - bestValue) * 2 < (Value)(rootDepth / ONE_PLY))
-			break;
+		if (multiPV == 1)
+		{
+			// go mateで詰み探索として呼び出されていた場合、その手数以内の詰みが見つかっていれば終了。
+			if (Limits.mate
+				&& bestValue >= VALUE_MATE_IN_MAX_PLY
+				&& VALUE_MATE - bestValue <= Limits.mate)
+				Threads.stop = true;
 
-		// 詰まされる形についても同様。こちらはmateの2倍以上、iterationを回したなら探索を打ち切る。
-		if (!Limits.mate
-			&& bestValue <= VALUE_MATED_IN_MAX_PLY
-			&& (bestValue - (-VALUE_MATE)) * 2 < (Value)(rootDepth / ONE_PLY))
-			break;
+			// 勝ちを読みきっているのに将棋所の表示が追いつかずに、将棋所がフリーズしていて、その間の時間ロスで
+			// 時間切れで負けることがある。
+			// mateを読みきったとき、そのmateの倍以上、iterationを回しても仕方ない気がするので探索を打ち切るようにする。
+			if (!Limits.mate
+				&& bestValue >= VALUE_MATE_IN_MAX_PLY
+				&& (VALUE_MATE - bestValue) * 2 < (Value)(rootDepth / ONE_PLY))
+				break;
+
+			// 詰まされる形についても同様。こちらはmateの2倍以上、iterationを回したなら探索を打ち切る。
+			if (!Limits.mate
+				&& bestValue <= VALUE_MATED_IN_MAX_PLY
+				&& (bestValue - (-VALUE_MATE)) * 2 < (Value)(rootDepth / ONE_PLY))
+				break;
+		}
 
 		// 残り時間的に、次のiterationに行って良いのか、あるいは、探索をいますぐここでやめるべきか？
 		if (Limits.use_time_management())
 		{
 			// まだ停止が確定していない
-			if (!Signals.stop && !Time.search_end)
+			if (!Threads.stop && !Time.search_end)
 			{
 
 				// 1つしか合法手がない(one reply)であるだとか、利用できる時間を使いきっているだとか、
@@ -2702,12 +2710,8 @@ void MainThread::think()
 		// ---------------------
 
 		for (Thread* th : Threads)
-		{
-			th->maxPly = 0;
-			th->rootDepth = DEPTH_ZERO;
 			if (th != this)
 				th->start_searching();
-		}
 
 		Thread::search();
 
@@ -2725,19 +2729,19 @@ ID_END:;
 	// USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまで
 	// best moveを出力すべきではない。
 	// それゆえ、単にここでGUIからそれらのいずれかのコマンドが送られてくるまで待つ。
-	if (!Signals.stop && (Limits.ponder || Limits.infinite))
+	if (!Threads.stop && (Limits.ponder || Limits.infinite))
 	{
 		// "stop"が送られてきたらSignals.stop == trueになる。
 		// "ponderhit"が送られてきたらLimits.ponder == 0になるので、それを待つ。(stopOnPonderhitは用いない)
 		//    また、このときSignals.stop == trueにはならない。(この点、Stockfishとは異なる。)
 		// "go infinite"に対してはstopが送られてくるまで待つ。
-		while (!Signals.stop && (Limits.ponder || Limits.infinite))
+		while (!Threads.stop && (Limits.ponder || Limits.infinite))
 			sleep(1);
 		//	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
 		// (思考のためには計算資源を使っていないので。)
 	}
 
-	Signals.stop = true;
+	Threads.stop = true;
 
 	// 各スレッドが終了するのを待機する(開始していなければいないで構わない)
 	for (Thread* th : Threads.slaves)
@@ -2853,8 +2857,8 @@ void MainThread::check_time()
 	if ((Limits.use_time_management() &&
 		(elapsed > Time.maximum() - 10 || (Time.search_end > 0 && elapsed > Time.search_end - 10)))
 		|| (Limits.movetime && elapsed >= Limits.movetime)
-		|| (Limits.nodes && Threads.nodes_searched() >= (uint64_t)Limits.nodes))
-		Signals.stop = true;
+		|| (Limits.nodes && Threads.nodes_searched() >= Limits.nodes))
+		Threads.stop = true;
 }
 
 #ifdef EVAL_LEARN
@@ -2894,7 +2898,7 @@ namespace Learner
 			auto th = pos.this_thread();
 
 			th->completedDepth = DEPTH_ZERO;
-			th->maxPly = 0;
+			th->selDepth = 0;
 			th->rootDepth = DEPTH_ZERO;
 
 			for (int i = 4; i > 0; i--)
@@ -3019,6 +3023,7 @@ namespace Learner
 		auto& PVIdx = th->PVIdx;
 		auto& rootMoves = th->rootMoves;
 		auto& completedDepth = th->completedDepth;
+		auto& selDepth = th->selDepth;
 
 		// bestmoveとしてしこの局面の上位N個を探索する機能
 		//size_t multiPV = Options["MultiPV"];
@@ -3031,14 +3036,17 @@ namespace Learner
 		Value delta = -VALUE_INFINITE;
 		Value bestValue = -VALUE_INFINITE;
 
-		while ((rootDepth = rootDepth + ONE_PLY) <= depth)
+		while ((rootDepth += ONE_PLY) <= depth)
 		{
 			for (RootMove& rm : rootMoves)
 				rm.previousScore = rm.score;
 
 			// MultiPV
-			for (PVIdx = 0; PVIdx < multiPV && !Signals.stop; ++PVIdx)
+			for (PVIdx = 0; PVIdx < multiPV && !Threads.stop; ++PVIdx)
 			{
+				// それぞれのdepthとPV lineに対するUSI infoで出力するselDepth
+				selDepth = 0;
+
 				// depth 5以上においてはaspiration searchに切り替える。
 				if (rootDepth >= 5 * ONE_PLY)
 				{

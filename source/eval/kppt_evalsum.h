@@ -49,6 +49,12 @@ namespace Eval {
 	// (それぞれに手番は加味されているものとする)
 	// sum.sum() == ΣBKPP - ΣWKPP + ΣKK
 
+	// EvalSumクラスは、コンストラクタでの初期化が保証できないので(オーバーヘッドがあるのでやりたくないので)
+	// GCC 7.1.0以降で警告が出るのを回避できない。ゆえに、このクラスではこの警告を抑制する。
+#if defined (__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
 	struct alignas(32) EvalSum {
 
 #if defined(USE_AVX2)
@@ -159,6 +165,11 @@ namespace Eval {
 #endif
 			};
 		};
+
+	// 抑制していた警告を元に戻す。
+#if defined (__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic warning "-Wmaybe-uninitialized"
+#endif
 
 	// 出力用　デバッグ用。
 	static std::ostream& operator<<(std::ostream& os, const EvalSum& sum)

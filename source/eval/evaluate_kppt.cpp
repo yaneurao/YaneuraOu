@@ -440,8 +440,15 @@ namespace Eval
 		const auto list1 = pos.eval_list()->piece_list_fw();
 
 		EvalSum sum;
+
+		// sum.p[0](BKPP)とsum.p[1](WKPP)をゼロクリア
+#if defined(USE_SSE2)
+		sum.m[0] = _mm_setzero_si128();
+		sum.m[1] = _mm_setzero_si128();
+#else
 		sum.p[0] = { 0, 0 };
 		sum.p[1] = { 0, 0 };
+#endif
 		sum.p[2] = kkp[sq_bk][sq_wk][ebp.fb];
 
 		const auto* pkppb = kpp[sq_bk     ][ebp.fb];
@@ -1006,27 +1013,39 @@ namespace Eval
 
 	// 評価関数のそれぞれのパラメーターに対して関数fを適用してくれるoperator。
 	// パラメーターの分析などに用いる。
-	void foreach_eval_param(std::function<void(s32,s32)>f)
+	void foreach_eval_param(std::function<void(s32,s32)>f , int type)
 	{
 		// KK
-		for (u64 i = 0; i < (u64)SQ_NB * (u64)SQ_NB; ++i)
+		if (type == -1 || type == 0)
 		{
-			auto v = ((ValueKk*)kk)[i];
-			f(v[0], v[1]);
+			for (u64 i = 0; i < (u64)SQ_NB * (u64)SQ_NB; ++i)
+			{
+				auto v = ((ValueKk*)kk)[i];
+				f(v[0], v[1]);
+
+				//if (v[0] == 0) cout << "v[0]==0" << (Square)(i / SQ_NB) << (Square)(i % SQ_NB) << endl;
+				//if (v[1] == 0) cout << "v[1]==0" << (Square)(i / SQ_NB) << (Square)(i % SQ_NB) << endl;
+			}
 		}
 
 		// KKP
-		for (u64 i = 0; i < (u64)SQ_NB * (u64)SQ_NB * (u64)fe_end; ++i)
+		if (type == -1 || type == 1)
 		{
-			auto v = ((ValueKkp*)kkp)[i];
-			f(v[0], v[1]);
+			for (u64 i = 0; i < (u64)SQ_NB * (u64)SQ_NB * (u64)fe_end; ++i)
+			{
+				auto v = ((ValueKkp*)kkp)[i];
+				f(v[0], v[1]);
+			}
 		}
 
 		// KPP
-		for (u64 i = 0; i < (u64)SQ_NB * (u64)fe_end * (u64)fe_end; ++i)
+		if (type == -1 || type == 2)
 		{
-			auto v = ((ValueKpp*)kkp)[i];
-			f(v[0], v[1]);
+			for (u64 i = 0; i < (u64)SQ_NB * (u64)fe_end * (u64)fe_end; ++i)
+			{
+				auto v = ((ValueKpp*)kkp)[i];
+				f(v[0], v[1]);
+			}
 		}
 	}
 

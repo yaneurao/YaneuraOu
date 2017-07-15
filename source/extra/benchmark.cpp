@@ -33,6 +33,9 @@ static const char* BenchSfen[] = {
 
 void bench_cmd(Position& current, istringstream& is)
 {
+	// Optionsを書き換えるのであとで復元する。
+	auto oldOptions = Options;
+
 	string token;
 	Search::LimitsType limits;
 	vector<string> fens;
@@ -141,6 +144,10 @@ void bench_cmd(Position& current, istringstream& is)
 
 	cout << sync_endl;
 
+	// Optionsを書き換えたので復元。
+	// 値を代入しないとハンドラが起動しないのでこうやって復元する。
+	for (auto& s : oldOptions)
+		Options[s.first] = std::string(s.second);
 }
 
 

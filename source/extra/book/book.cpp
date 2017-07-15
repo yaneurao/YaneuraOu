@@ -71,6 +71,8 @@ namespace Book
 	{
 		// g_loop_maxになるまで繰り返し
 		u64 id;
+		int multi_pv = Options["MultiPV"];
+
 		while ((id = get_next_loop_count()) != UINT64_MAX)
 		{
 			auto sfen = sfens[id];
@@ -85,14 +87,14 @@ namespace Book
 			// depth手読みの評価値とPV(最善応手列)を取得。
 			// 内部的にはLearner::search()を呼び出す。
 			// Learner::search()は、現在のOptions["MultiPV"]の値に従い、MultiPVで思考することが保証されている。
-			Learner::search(pos, search_depth);
+			Learner::search(pos, search_depth , multi_pv);
 
 			// MultiPVで局面を足す、的な
+			int m = std::min(multi_pv, (int)th->rootMoves.size());
 
 			PosMoveListPtr move_list(new PosMoveList());
 
-			int multi_pv = std::min((int)Options["MultiPV"], (int)th->rootMoves.size());
-			for (int i = 0; i < multi_pv; ++i)
+			for (int i = 0; i < m ; ++i)
 			{
 				// 出現頻度は、バージョンナンバーを100倍したものにしておく)
 				Move nextMove = (th->rootMoves[i].pv.size() >= 1) ? th->rootMoves[i].pv[1] : MOVE_NONE;
@@ -264,7 +266,7 @@ namespace Book
 				// 初回はファイルがないので読み込みに失敗するが無視して続行。
 				if (book.read_book(book_name) != 0)
 				{
-					cout << "..but , create new file." << endl;
+					cout << "..failed but , create new file." << endl;
 				}
 				else
 					cout << "..done" << endl;

@@ -134,8 +134,8 @@ template <Piece Pt, Color Us, bool All> struct make_move_target {
 			target2 = target & enemy_field(Us);
 			MAKE_MOVE_TARGET_PRO_ONLY(target2);
 			// 不成で移動する升
-			target &= All ? (Us == BLACK ? InFrontBB[WHITE][RANK_1] : InFrontBB[BLACK][RANK_9]) :
-				(Us == BLACK ? InFrontBB[WHITE][RANK_2] : InFrontBB[BLACK][RANK_8]);
+			target &= All ? (Us == BLACK ? ForwardRanksBB[WHITE][RANK_1] : ForwardRanksBB[BLACK][RANK_9]) :
+							(Us == BLACK ? ForwardRanksBB[WHITE][RANK_2] : ForwardRanksBB[BLACK][RANK_8]);
 			MAKE_MOVE_TARGET(target);
 		}
 		break;
@@ -190,7 +190,7 @@ template <Piece Pt, Color Us, bool All> struct make_move_target {
 			}
 			else
 			{
-				auto target2 = target & enemy_field(Us);
+				target2 = target & enemy_field(Us);
 				MAKE_MOVE_TARGET_PRO_BR(target2);
 				target &= ~enemy_field(Us);
 				MAKE_MOVE_TARGET(target);
@@ -204,7 +204,7 @@ template <Piece Pt, Color Us, bool All> struct make_move_target {
 			}
 			else
 			{
-				auto target2 = target & enemy_field(Us);
+				target2 = target & enemy_field(Us);
 				MAKE_MOVE_TARGET_PRO_BR_UNKNOWN(target2);
 				target &= ~enemy_field(Us);
 				MAKE_MOVE_TARGET_UNKNOWN(target);

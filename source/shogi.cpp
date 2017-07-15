@@ -154,7 +154,6 @@ std::ostream& operator<<(std::ostream& os, RepetitionState rs)
 // ----------------------------------------
 
 namespace Search {
-	SignalsType Signals;
 	LimitsType Limits;
 	StateStackPtr SetupStates;
 

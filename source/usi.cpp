@@ -189,10 +189,10 @@ namespace USI
 			// maxPlyは更新しない思考エンジンがあるので、0で初期化しておき、
 			// dのほうが大きければそれをそのまま表示することで回避する。
 
-			ss << "info"
-				<< " depth " << d
-				<< " seldepth " << max(d, pos.this_thread()->maxPly)
-				<< " score " << USI::score_to_usi(v);
+			ss  << "info"
+				<< " depth "    << d
+				<< " seldepth " << max(d, rootMoves[i].selDepth)
+				<< " score "    << USI::score_to_usi(v);
 
 			// これが現在探索中の指し手であるなら、それがlowerboundかupperboundかは表示させる
 			if (i == PVIdx)
@@ -402,7 +402,8 @@ namespace USI
 
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32) && (defined(EVAL_KPPT) || defined(EVAL_EXPERIMENTAL))
 		// 評価関数パラメーターを共有するか
-		o["EvalShare"] << Option(true);
+		// 異種評価関数との自己対局のときにこの設定で引っかかる人が後を絶たないのでデフォルトでオフにする。
+		o["EvalShare"] << Option(false);
 #endif
 
 #if defined(LOCAL_GAME_SERVER)
@@ -509,7 +510,7 @@ void is_ready()
 	Time.availableNodes = 0;
 
 	ponder_mode = false;
-	Search::Signals.stop = false;
+	Threads.stop = false;
 }
 
 // isreadyコマンド処理部
@@ -805,7 +806,7 @@ void USI::loop(int argc, char* argv[])
 				gameover_handler(cmd);
 #endif
 
-			Search::Signals.stop = true;
+			Threads.stop = true;
 
 			// 思考を終えて寝てるかも知れないのでresume==trueにして呼び出してやる
 			Threads.main()->start_searching(true);

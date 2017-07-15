@@ -367,7 +367,12 @@ namespace Eval {
 #if defined(EVAL_KPPT)
 	// 評価関数のそれぞれのパラメーターに対して関数fを適用してくれるoperator。
 	// パラメーターの分析などに用いる。
-	void foreach_eval_param(std::function<void(s32,s32)>f);
+	// typeは調査対象を表す。
+	//   type = -1 : KK,KKP,KPPすべて
+	//   type = 0  : KK のみ 
+	//   type = 1  : KKPのみ 
+	//   type = 2  : KPPのみ 
+	void foreach_eval_param(std::function<void(s32,s32)>f , int type = -1);
 #endif
 
 #if defined (USE_EVAL_MAKE_LIST_FUNCTION)

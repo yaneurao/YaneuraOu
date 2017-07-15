@@ -45,6 +45,9 @@ namespace Search {
 		// 次のiteration時の探索窓の範囲を決めるときに使う。
 		Value previousScore = -VALUE_INFINITE;
 
+		// このスレッドがrootから最大、何手目まで探索したか(選択深さの最大)
+		int selDepth = 0;
+
 		// この指し手で進めたときのpv
 		std::vector<Move> pv;
 	};
@@ -105,14 +108,14 @@ namespace Search {
 
 		// ponder   : ponder中であるかのフラグ
 		//  これがtrueのときはbestmoveがあっても探索を停止せずに"ponderhit"か"stop"が送られてきてから停止する。
-		//  ※ ただし今回用の探索時間を超えていれば、stopOnPonderhitフラグをtrueにしてあるのでponderhitに対して即座に停止する。
-		int ponder;
+		// main threadからしか参照しないのでatomicはつけてない。
+		bool ponder;
 
 		// "go rtime 100"とすると100～300msぐらい考える。
 		int rtime;
 
 		// 今回のgoコマンドでの探索ノード数
-		int64_t nodes;
+		uint64_t nodes;
 
 		// 入玉ルール設定
 		EnteringKingRule enteringKingRule;
@@ -134,14 +137,8 @@ namespace Search {
 		bool bench;
 	};
 
-	struct SignalsType {
-		// これがtrueになったら探索を即座に終了すること。
-		std::atomic_bool stop;
-	};
-
 	typedef std::unique_ptr<aligned_stack<StateInfo>> StateStackPtr;
 
-	extern SignalsType Signals;
 	extern LimitsType Limits;
 	extern StateStackPtr SetupStates;
 
