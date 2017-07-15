@@ -402,7 +402,8 @@ namespace USI
 
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32) && (defined(EVAL_KPPT) || defined(EVAL_EXPERIMENTAL))
 		// 評価関数パラメーターを共有するか
-		o["EvalShare"] << Option(true);
+		// 異種評価関数との自己対局のときにこの設定で引っかかる人が後を絶たないのでデフォルトでオフにする。
+		o["EvalShare"] << Option(false);
 #endif
 
 #if defined(LOCAL_GAME_SERVER)
