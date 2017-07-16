@@ -1389,15 +1389,18 @@ struct KKPT_reader
 	//   3 : KKPの  手番側
 	//   4 : KPPの非手番側
 	//   5 : KPPの  手番側
+	//   6 : KK
+	//   7 : KKP
+	//   8 : KPP
 	void apply_func(const KKPT_reader& eval2, function<s32(s32, s32)> f,int merge_features)
 	{
 		for (auto k1 : SQ)
 			for (auto k2 : SQ)
 			{
-				if (merge_features == -1 || merge_features == 0)
+				if (merge_features == -1 || merge_features == 0 || merge_features == 6)
 					(*kk_)[k1][k2][0] = (s32)(f((*kk_)[k1][k2][0], (*eval2.kk_)[k1][k2][0]));
 
-				if (merge_features == -1 || merge_features == 1)
+				if (merge_features == -1 || merge_features == 1 || merge_features == 6)
 					(*kk_)[k1][k2][1] = (s32)(f((*kk_)[k1][k2][1], (*eval2.kk_)[k1][k2][1]));
 			}
 
@@ -1405,10 +1408,10 @@ struct KKPT_reader
 			for (auto k2 : SQ)
 				for (int p1 = 0; p1 < fe_end; ++p1)
 				{
-					if (merge_features == -1 || merge_features == 2)
+					if (merge_features == -1 || merge_features == 2 || merge_features == 7)
 						(*kkp_)[k1][k2][p1][0] = (s32)(f((*kkp_)[k1][k2][p1][0], (*eval2.kkp_)[k1][k2][p1][0]));
 
-					if (merge_features == -1 || merge_features == 3)
+					if (merge_features == -1 || merge_features == 3 || merge_features == 7)
 					(*kkp_)[k1][k2][p1][1] = (s32)(f((*kkp_)[k1][k2][p1][1], (*eval2.kkp_)[k1][k2][p1][1]));
 				}
 
@@ -1416,10 +1419,10 @@ struct KKPT_reader
 			for (int p1 = 0; p1<fe_end; ++p1)
 				for (int p2 = 0; p2 < fe_end; ++p2)
 				{
-					if (merge_features == -1 || merge_features == 4)
+					if (merge_features == -1 || merge_features == 4 || merge_features == 8)
 						(*kpp_)[k1][p1][p2][0] = (s16)(f((*kpp_)[k1][p1][p2][0], (*eval2.kpp_)[k1][p1][p2][0]));
 
-					if (merge_features == -1 || merge_features == 5)
+					if (merge_features == -1 || merge_features == 5 || merge_features == 8)
 						(*kpp_)[k1][p1][p2][1] = (s16)(f((*kpp_)[k1][p1][p2][1], (*eval2.kpp_)[k1][p1][p2][1]));
 				}
 	}
