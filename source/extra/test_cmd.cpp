@@ -1351,56 +1351,57 @@ struct KKPT_reader
 	}
 
 	// 内積を求める。各々の評価関数の内積を駆使すれば合成された関数も分解できるはず
-	double product(const KKPT_reader& eval2){
-	  double total = 0;
-	  for (auto k1 : SQ)
-	    for (auto k2 : SQ)
-	      {
-		total += (*kk_)[k1][k2][0] * (*eval2.kk_)[k1][k2][0];
-		total += (*kk_)[k1][k2][1] * (*eval2.kk_)[k1][k2][1];
-	      }
-	  
-	  for (auto k1 : SQ)
-	    for (int p1 = 0;p1<fe_end;++p1)
-	      for (int p2 = 0; p2 < fe_end; ++p2)
-		{
-		  total += (*kpp_)[k1][p1][p2][0] * (*eval2.kpp_)[k1][p1][p2][0];
-		  total += (*kpp_)[k1][p1][p2][1] * (*eval2.kpp_)[k1][p1][p2][1];
-		}
-	  
-	  for (auto k1 : SQ)
-	    for (auto k2 : SQ)
-	      for (int p1 = 0; p1 < fe_end; ++p1)
-		{
-		  total += (*kkp_)[k1][k2][p1][0] * (*eval2.kkp_)[k1][k2][p1][0];
-		  total += (*kkp_)[k1][k2][p1][1] * (*eval2.kkp_)[k1][k2][p1][1];
-		}
-	  return total;
-	}
-  
-	void apply_func(const KKPT_reader& eval2, function<s32(s32,s32)> f)
+	double product(const KKPT_reader& eval2)
 	{
+		double total = 0;
 		for (auto k1 : SQ)
 			for (auto k2 : SQ)
 			{
-				(*kk_)[k1][k2][0] = (s32)(f( (*kk_)[k1][k2][0] , (*eval2.kk_)[k1][k2][0]) );
-				(*kk_)[k1][k2][1] = (s32)(f( (*kk_)[k1][k2][1] , (*eval2.kk_)[k1][k2][1]) );
+				total += (*kk_)[k1][k2][0] * (*eval2.kk_)[k1][k2][0];
+				total += (*kk_)[k1][k2][1] * (*eval2.kk_)[k1][k2][1];
 			}
 
 		for (auto k1 : SQ)
 			for (int p1 = 0; p1<fe_end; ++p1)
 				for (int p2 = 0; p2 < fe_end; ++p2)
 				{
-					(*kpp_)[k1][p1][p2][0] = (s16)(f( (*kpp_)[k1][p1][p2][0] , (*eval2.kpp_)[k1][p1][p2][0]) );
-					(*kpp_)[k1][p1][p2][1] = (s16)(f( (*kpp_)[k1][p1][p2][1] , (*eval2.kpp_)[k1][p1][p2][1]) );
+					total += (*kpp_)[k1][p1][p2][0] * (*eval2.kpp_)[k1][p1][p2][0];
+					total += (*kpp_)[k1][p1][p2][1] * (*eval2.kpp_)[k1][p1][p2][1];
 				}
 
 		for (auto k1 : SQ)
 			for (auto k2 : SQ)
 				for (int p1 = 0; p1 < fe_end; ++p1)
 				{
-					(*kkp_)[k1][k2][p1][0] = (s32)(f( (*kkp_)[k1][k2][p1][0] , (*eval2.kkp_)[k1][k2][p1][0]) );
-					(*kkp_)[k1][k2][p1][1] = (s32)(f( (*kkp_)[k1][k2][p1][1] , (*eval2.kkp_)[k1][k2][p1][1]) );
+					total += (*kkp_)[k1][k2][p1][0] * (*eval2.kkp_)[k1][k2][p1][0];
+					total += (*kkp_)[k1][k2][p1][1] * (*eval2.kkp_)[k1][k2][p1][1];
+				}
+		return total;
+	}
+
+	void apply_func(const KKPT_reader& eval2, function<s32(s32, s32)> f)
+	{
+		for (auto k1 : SQ)
+			for (auto k2 : SQ)
+			{
+				(*kk_)[k1][k2][0] = (s32)(f((*kk_)[k1][k2][0], (*eval2.kk_)[k1][k2][0]));
+				(*kk_)[k1][k2][1] = (s32)(f((*kk_)[k1][k2][1], (*eval2.kk_)[k1][k2][1]));
+			}
+
+		for (auto k1 : SQ)
+			for (int p1 = 0; p1<fe_end; ++p1)
+				for (int p2 = 0; p2 < fe_end; ++p2)
+				{
+					(*kpp_)[k1][p1][p2][0] = (s16)(f((*kpp_)[k1][p1][p2][0], (*eval2.kpp_)[k1][p1][p2][0]));
+					(*kpp_)[k1][p1][p2][1] = (s16)(f((*kpp_)[k1][p1][p2][1], (*eval2.kpp_)[k1][p1][p2][1]));
+				}
+
+		for (auto k1 : SQ)
+			for (auto k2 : SQ)
+				for (int p1 = 0; p1 < fe_end; ++p1)
+				{
+					(*kkp_)[k1][k2][p1][0] = (s32)(f((*kkp_)[k1][k2][p1][0], (*eval2.kkp_)[k1][k2][p1][0]));
+					(*kkp_)[k1][k2][p1][1] = (s32)(f((*kkp_)[k1][k2][p1][1], (*eval2.kkp_)[k1][k2][p1][1]));
 				}
 	}
 
@@ -1543,103 +1544,106 @@ void eval_merge(istringstream& is)
    逆行列計算。ライブラリを使うほうが早くて正確なのだが、クッソ小さい行列の計算如きで
    ライブラリ依存を増やすのが許せないので自前実装
 */
-void GZ(const  vector< vector<double> > &prodaa, const vector<double>  &prodva, vector<double> &out){
-  const int refsize = prodva.size();
-  // ガウスザイデル法を使う
-  out.resize(refsize);
-  // 114514回回しても収束しないことは無いはず。
-  double dsum = 0;
-  for(int l=0;l<114514;++l){
-    dsum = 0;
-    for(int i=0;i<refsize;++i){
-      double temp = prodva[i];
-      for(int j=0; j<refsize;++j){
-	if(i==j){continue;}
-	temp -= prodaa[i][j] * out[j];
-      }
-      dsum += fabs(temp / prodaa[i][i] - out[i]);
-      out[i] = temp / prodaa[i][i];
-    }
-    if(dsum < 0.00001){
-      cout<<"converge in "<<l<<" loop"<<endl;
-      return;
-    }
-  }
-  cout<<"warning noconverge "<<dsum<<endl;
+void GZ(const  vector< vector<double> > &prodaa, const vector<double>  &prodva, vector<double> &out)
+{
+	const int refsize = (int)prodva.size();
+	// ガウスザイデル法を使う
+	out.resize(refsize);
+	// 114514回回しても収束しないことは無いはず。
+	double dsum = 0;
+	for (int l = 0; l<114514; ++l) {
+		dsum = 0;
+		for (int i = 0; i<refsize; ++i) {
+			double temp = prodva[i];
+			for (int j = 0; j<refsize; ++j) {
+				if (i == j) { continue; }
+				temp -= prodaa[i][j] * out[j];
+			}
+			dsum += fabs(temp / prodaa[i][i] - out[i]);
+			out[i] = temp / prodaa[i][i];
+		}
+		if (dsum < 0.00001) {
+			cout << "converge in " << l << " loop" << endl;
+			return;
+		}
+	}
+	cout << "warning noconverge " << dsum << endl;
 }
 
-void eval_resolve(istringstream& is){
-  //略してREMU エンジン。疑わしきは罰せよ
-  string dirin; // 分解する評価関数
-  vector<string> dirref; //参照する評価関数
-  is >> dirin;
-  while(1){
-    string token = "";
-    is >> token;
-    if(token==""){
-      break;
-    }
-    dirref.push_back(token);
-  }
+void eval_resolve(istringstream& is)
+{
+	//略してREMU エンジン。疑わしきは罰せよ
+	string dirin; // 分解する評価関数
+	vector<string> dirref; //参照する評価関数
+	is >> dirin;
+	while (1) {
+		string token = "";
+		is >> token;
+		if (token == "") {
+			break;
+		}
+		dirref.push_back(token);
+	}
 
-  cout << "REsolve MUtation engine target = " << dirin << ", reference = ";
-  for(auto dirr : dirref){
-    cout << dirr <<",";
-  }
-  cout<<endl;
+	cout << "REsolve MUtation engine target = " << dirin << ", reference = ";
+	for (auto dirr : dirref) {
+		cout << dirr << ",";
+	}
+	cout << endl;
 
-  const int refsize = dirref.size();
-  KKPT_reader eval1, eval2, eval3;
-  vector<double> prodva; // dirinとdirrefの内積
-  vector< vector<double> > prodaa; //dirref同士の内積
-  vector<double> out; // dirinとdirrefの内積
-  
-  prodva.resize(refsize);
-  prodaa.resize(refsize);
-  for(int i=0; i<refsize; ++i){
-    prodaa[i].resize(refsize);
-  }
-  
-  eval1.read(dirin);
-  // 元関数のnormを求めておく
-  const double vnorm = eval1.product(eval1);
-  
-  for(int i=0; i<refsize;++i){
-    eval2.read(dirref[i]);
-    prodva[i] = double(eval1.product(eval2));
-    for(int j=0;j<=i;++j){
-      if(j!=i){
-	eval3.read(dirref[j]);
-	prodaa[i][j] = double(eval2.product(eval3));
-	prodaa[j][i] = double(prodaa[i][j]);
-      }else{
-	prodaa[i][j] = double(eval2.product(eval2));
-      }
-    }
-  }
+	const int refsize = (int)dirref.size();
+	KKPT_reader eval1, eval2, eval3;
+	vector<double> prodva; // dirinとdirrefの内積
+	vector< vector<double> > prodaa; //dirref同士の内積
+	vector<double> out; // dirinとdirrefの内積
 
-  cout<<"prodmatrix"<<endl;
-  for(int i=0; i<refsize;++i){
-    for(int j=0; j<refsize;++j){
-      cout << prodaa[i][j]<<",";
-    }
-    cout<<endl;
-  }
+	prodva.resize(refsize);
+	prodaa.resize(refsize);
+	for (int i = 0; i<refsize; ++i) {
+		prodaa[i].resize(refsize);
+	}
 
-  GZ(prodaa, prodva, out);
-  double delta2 = vnorm;
-  for(int i=0;i<refsize;++i){
-    delta2 -= 2.0 * out[i] * prodva[i];
-    for(int j=0;j<refsize;++j){
-      delta2 += out[i] * out[j] * prodaa[i][j];
-    }
-  }
-  delta2 = sqrt(delta2 / vnorm);
-  cout<<"result : " << dirin << " = ";
-  for(int i=0;i<refsize;++i){
-    cout<<out[i] << " x "<<dirref[i]<<" + ";
-  }
-  cout<<delta2<<"(diff ratio)"<<endl;
+	eval1.read(dirin);
+	// 元関数のnormを求めておく
+	const double vnorm = eval1.product(eval1);
+
+	for (int i = 0; i<refsize; ++i) {
+		eval2.read(dirref[i]);
+		prodva[i] = double(eval1.product(eval2));
+		for (int j = 0; j <= i; ++j) {
+			if (j != i) {
+				eval3.read(dirref[j]);
+				prodaa[i][j] = double(eval2.product(eval3));
+				prodaa[j][i] = double(prodaa[i][j]);
+			}
+			else {
+				prodaa[i][j] = double(eval2.product(eval2));
+			}
+		}
+	}
+
+	cout << "prodmatrix" << endl;
+	for (int i = 0; i<refsize; ++i) {
+		for (int j = 0; j<refsize; ++j) {
+			cout << prodaa[i][j] << ",";
+		}
+		cout << endl;
+	}
+
+	GZ(prodaa, prodva, out);
+	double delta2 = vnorm;
+	for (int i = 0; i<refsize; ++i) {
+		delta2 -= 2.0 * out[i] * prodva[i];
+		for (int j = 0; j<refsize; ++j) {
+			delta2 += out[i] * out[j] * prodaa[i][j];
+		}
+	}
+	delta2 = sqrt(delta2 / vnorm);
+	cout << "result : " << dirin << " = ";
+	for (int i = 0; i<refsize; ++i) {
+		cout << out[i] << " x " << dirref[i] << " + ";
+	}
+	cout << delta2 << "(diff ratio)" << endl;
 }
 
 // 評価関数の変換
@@ -1949,7 +1953,7 @@ void test_cmd(Position& pos, istringstream& is)
 	else if (param == "evalmerge") eval_merge(is);                   // 評価関数の合成コマンド
 	else if (param == "evalconvert") eval_convert(is);               // 評価関数の変換コマンド
 	else if (param == "evalexam") eval_exam(is);                     // 評価関数ファイルの調査用
-	else if (param == "evalresolve") eval_resolve(is);                     // 評価関数ファイルの調査用
+	else if (param == "evalresolve") eval_resolve(is);               // 評価関数ファイルの調査用
 #endif
 #ifdef USE_KIF_CONVERT_TOOLS
 	else if (param == "kifconvert") test_kif_convert_tools(pos, is); // 現局面からの全合法手を各種形式で出力チェック

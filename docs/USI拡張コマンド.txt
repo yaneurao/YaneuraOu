@@ -245,6 +245,11 @@ USIプロトコルの独自拡張コマンド
 				指定されたPERCENTで按分してDIR3に書き出す。(やねうら王2017Early以降のみ)
 				例) test evalmerge eval1 eval2 eval_out 20
 				  このときeval1が20%、eval2が80%の新しい評価関数ファイルがeval_out/フォルダに出力される。
+		test evalresolve [DIR0] [DIR1] [DIR2] ...
+				DIR0,DIR1,DIR2,…は、評価関数フォルダ。
+				DIR0の評価関数が、DIR1,DIR2,…の、どの評価関数からevalmergeされているのかを調べる。
+					X1 DIR1 + X2 DIR2 + X3 DIR3 + ...
+				のような形で分解した結果を教えてくれる。
 
 	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。
 
