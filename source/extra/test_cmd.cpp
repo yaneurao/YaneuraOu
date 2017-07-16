@@ -1379,29 +1379,48 @@ struct KKPT_reader
 		return total;
 	}
 
-	void apply_func(const KKPT_reader& eval2, function<s32(s32, s32)> f)
+	// 評価関数を合成する。
+	// f : 適用する関数
+	// merge_features : 適用する特徴
+	//  -1 : ALL
+	//   0 : KK の非手番側
+	//   1 : KK の  手番側
+	//   2 : KKPの非手番側
+	//   3 : KKPの  手番側
+	//   4 : KPPの非手番側
+	//   5 : KPPの  手番側
+	void apply_func(const KKPT_reader& eval2, function<s32(s32, s32)> f,int merge_features)
 	{
 		for (auto k1 : SQ)
 			for (auto k2 : SQ)
 			{
-				(*kk_)[k1][k2][0] = (s32)(f((*kk_)[k1][k2][0], (*eval2.kk_)[k1][k2][0]));
-				(*kk_)[k1][k2][1] = (s32)(f((*kk_)[k1][k2][1], (*eval2.kk_)[k1][k2][1]));
-			}
+				if (merge_features == -1 || merge_features == 0)
+					(*kk_)[k1][k2][0] = (s32)(f((*kk_)[k1][k2][0], (*eval2.kk_)[k1][k2][0]));
 
-		for (auto k1 : SQ)
-			for (int p1 = 0; p1<fe_end; ++p1)
-				for (int p2 = 0; p2 < fe_end; ++p2)
-				{
-					(*kpp_)[k1][p1][p2][0] = (s16)(f((*kpp_)[k1][p1][p2][0], (*eval2.kpp_)[k1][p1][p2][0]));
-					(*kpp_)[k1][p1][p2][1] = (s16)(f((*kpp_)[k1][p1][p2][1], (*eval2.kpp_)[k1][p1][p2][1]));
-				}
+				if (merge_features == -1 || merge_features == 1)
+					(*kk_)[k1][k2][1] = (s32)(f((*kk_)[k1][k2][1], (*eval2.kk_)[k1][k2][1]));
+			}
 
 		for (auto k1 : SQ)
 			for (auto k2 : SQ)
 				for (int p1 = 0; p1 < fe_end; ++p1)
 				{
-					(*kkp_)[k1][k2][p1][0] = (s32)(f((*kkp_)[k1][k2][p1][0], (*eval2.kkp_)[k1][k2][p1][0]));
+					if (merge_features == -1 || merge_features == 2)
+						(*kkp_)[k1][k2][p1][0] = (s32)(f((*kkp_)[k1][k2][p1][0], (*eval2.kkp_)[k1][k2][p1][0]));
+
+					if (merge_features == -1 || merge_features == 3)
 					(*kkp_)[k1][k2][p1][1] = (s32)(f((*kkp_)[k1][k2][p1][1], (*eval2.kkp_)[k1][k2][p1][1]));
+				}
+
+		for (auto k1 : SQ)
+			for (int p1 = 0; p1<fe_end; ++p1)
+				for (int p2 = 0; p2 < fe_end; ++p2)
+				{
+					if (merge_features == -1 || merge_features == 4)
+						(*kpp_)[k1][p1][p2][0] = (s16)(f((*kpp_)[k1][p1][p2][0], (*eval2.kpp_)[k1][p1][p2][0]));
+
+					if (merge_features == -1 || merge_features == 5)
+						(*kpp_)[k1][p1][p2][1] = (s16)(f((*kpp_)[k1][p1][p2][1], (*eval2.kpp_)[k1][p1][p2][1]));
 				}
 	}
 
@@ -1485,6 +1504,7 @@ void eval_merge(istringstream& is)
 	string dir1, dir2,dir3;
 	double percent;
 	string opt;
+	int merge_features = -1; // merge対象がKK,KKP,KPPのどれであるか。-1 = all
 
 	// デフォルトではnew_eval , 50%
 	dir3 = "new_eval";
@@ -1497,6 +1517,7 @@ void eval_merge(istringstream& is)
 	// 絶対値の大きなほう/小さなほうを採用する隠しコマンド
 	bool select_absmax = opt == "absmax";
 	bool select_absmin = opt == "absmin";
+
 	// KPPの手番をやめてPPの手番のみに変更するオプション
 	bool select_kkpt = opt == "kkpt";
 
@@ -1525,6 +1546,14 @@ void eval_merge(istringstream& is)
 		f = [r1, r2](s32 a, s32 b) { return (s32)(a*r1 + b*r2); };
 
 		cout << "mode : interpolation , percent = " << percent << endl;
+
+		// mergeするfeatureを選択する隠しオプション
+		// ここで指定する値は、apply_func()の第三引数。
+		if (opt == "feature")
+		{
+			is >> merge_features;
+			cout << "merge features = " << merge_features << endl;
+		}
 	}
 
 	MKDIR(dir3);
@@ -1532,7 +1561,7 @@ void eval_merge(istringstream& is)
 	KKPT_reader eval1, eval2;
 	eval1.read(dir1);
 	eval2.read(dir2);
-	eval1.apply_func(eval2,f);
+	eval1.apply_func(eval2,f,merge_features);
 	if (select_kkpt)
 		eval1.to_kkpt();
 	eval1.write(dir3);
