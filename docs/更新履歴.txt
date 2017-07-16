@@ -2,6 +2,40 @@
 やねうら王 更新履歴
 
 
+■　2017/07/16 V4.74
+
+・評価関数分解エンジンの実装 (#54) (Qhapaqさん)
+・"test evalresolve"コマンドの説明追記
+	- Makefile元に戻す
+	- reformatting
+	- VC++で警告出ていたのを修正
+・"test evalmerge"コマンドにfeatureオプション追加。(隠し)
+
+
+■　2017/07/15
+
+・EvalShareオプション、異種評価関数との自己対局のときにこの設定で引っかかる人が後を絶たないのでデフォルトでオフにする。
+・learn.h/cpp整理
+	- gensfenのときにPV lineのleaf nodeでevaluate()した値を用いることに変更。
+	- LEARN_GENSFEN_DRAW_RESULT →  LEARN_GENSFEN_USE_DRAW_RESULTに名前変更。
+	- gensfenまわりのソースコード整理。
+	- learnコマンドでもshallow valueとしてPV lineのleaf nodeでのevaluate()の値を用いるように変更。
+
+■　2017/07/14
+
+・"test evalexam"コマンド、KK,KKP,KPP別の集計を行なうように変更。
+・Stockfish : Move stop signal to Threads
+	- cf. https://github.com/official-stockfish/Stockfish/commit/36a93d90f76d32e16a5f2acb09b7de2d67225021
+・"bench"コマンド実行時にOptionsを破壊していたので復元するようにした。
+・MultiThinkのOptionsの復元のコードが良くなかったので修正した。
+・Stockfish : Move stop signal to Threadsその2
+	- 2017Early以外の思考エンジンに対しても修正。
+・Stockfish : Provide selective search depth info for each pv move
+	- cf. https://github.com/official-stockfish/Stockfish/commit/377d77dbe922b99ee34d686e4fe180698a9b535a
+	- スレッドごとにselDepthを出力できるようになった。
+	- selDepthの初期化忘れ修正。
+
+
 ■　2017/07/10 V4.73
 
 ・gensfenのUSE_RANDOM_LEGAL_MOVE、常に有効でいいので削除。
