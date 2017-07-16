@@ -144,6 +144,11 @@ void ThreadPool::start_thinking(const Position& pos, Search::StateStackPtr& stat
 	// 初期局面では合法手すべてを生成してそれをrootMovesに設定しておいてやる。
 	// このとき、歩の不成などの指し手は除く。(そのほうが勝率が上がるので)
 	// また、goコマンドでsearchmovesが指定されているなら、そこに含まれていないものは除く。
+	// あと宣言勝ちできるなら、その指し手を先頭に入れておいてやる。
+
+	if (pos.DeclarationWin() == MOVE_WIN)
+		rootMoves.push_back(RootMove(MOVE_WIN));
+
 	for (auto m : MoveList<LEGAL>(pos))
 		if (limits.searchmoves.empty()
 			|| std::count(limits.searchmoves.begin(), limits.searchmoves.end(), m))

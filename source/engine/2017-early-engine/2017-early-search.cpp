@@ -2648,18 +2648,27 @@ void MainThread::think()
 		auto bestMove = rootPos.DeclarationWin();
 		if (bestMove != MOVE_NONE)
 		{
-			// 宣言勝ちなのでroot movesの集合にはない。強制的に書き換える。
-			// 合法手がない場合は上の処理で投了しているのでrootMoves().size() != 0は保証されている。
-			ASSERT_LV1(rootMoves.size() != 0);
+			// root movesの集合に突っ込んであるはず。
+			// このときMultiPVが利かないが、ここ真面目にMultiPVして指し手を返すのは
+			// プログラムがくちゃくちゃになるのでいまはこれは仕様としておく。
 
-			rootMoves[0] = RootMove(bestMove);
-			// 1手詰めのときのスコアにしておく。
-			rootMoves[0].score = mate_in(/*ss->ply*/ 1 + 1);;
-			// rootで宣言勝ちのときにもそのPVを出力したほうが良い。
-			if (!Limits.silent)
-				sync_cout << USI::pv(rootPos, ONE_PLY, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
+			// トライルールのとき、その指し手がgoコマンドで指定された指し手集合に含まれることを
+			// 保証しないといけないのでrootMovesのなかにこの指し手が見つからないなら指すわけにはいかない。
 
-			goto ID_END;
+			auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
+			if (it_move != rootMoves.end())
+			{
+				std::swap(rootMoves[0], *it_move);
+
+				// 1手詰めのときのスコアにしておく。
+				rootMoves[0].score = mate_in(/*ss->ply*/ 1 + 1);;
+
+				// rootで宣言勝ちのときにもそのPVを出力したほうが良い。
+				if (!Limits.silent)
+					sync_cout << USI::pv(rootPos, ONE_PLY, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
+
+				goto ID_END;
+			}
 		}
 	}
 
@@ -2908,6 +2917,8 @@ namespace Learner
 			auto& rootMoves = th->rootMoves;
 
 			rootMoves.clear();
+			if (pos.DeclarationWin() == MOVE_WIN)
+				rootMoves.push_back(Search::RootMove(MOVE_WIN));
 			for (auto m : MoveList<LEGAL>(pos))
 				rootMoves.push_back(Search::RootMove(m));
 
@@ -2931,8 +2942,7 @@ namespace Learner
 	// 　search()から戻ったあと、Signals.stop == trueなら、その探索結果を用いてはならない。
 	// 　あと、呼び出し前は、Signals.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
 	//
-	// 返されるpv配列には宣言勝ち(MOVE_WIN)が含まれるケースがあるので注意。
-	// また詰まされている場合は、MOVE_RESIGNが返る。
+	// 詰まされている場合は、PV配列にMOVE_RESIGNが返る。
 	//
 	// 引数でalpha,betaを指定できるようにしていたが、これがその窓で探索したときの結果を
 	// 置換表に書き込むので、その窓に対して枝刈りが出来るような値が書き込まれて学習のときに
@@ -2953,14 +2963,6 @@ namespace Learner
 			return ValueAndPV(mated_in(/*ss->ply*/ 0 + 1), pvs);
 		}
 			
-		// 宣言勝ち
-		if (pos.DeclarationWin() != MOVE_NONE)
-		{
-			pvs.push_back(MOVE_WIN);
-			return ValueAndPV(mate_in(/*ss->ply*/ 1 + 1), pvs);
-		}
-
-
 		// 現局面で王手がかかっているかで場合分け。
 		const bool inCheck = pos.in_check();
 		auto bestValue = inCheck ?
@@ -2985,7 +2987,8 @@ namespace Learner
 	// multi pvが有効のときは、pos.this_thread()->rootMoves[N].pvにそのPV(読み筋)の配列が得られる。
 	// multi pvの指定はこの関数の引数multiPVで行なう。(Options["MultiPV"]の値は無視される)
 	// 
-	// 返されるpv配列には宣言勝ち(MOVE_WIN)も含まれるので注意。
+	// rootでの宣言勝ち判定はしないので(扱いが面倒なので)、ここでは行わない。
+	// 呼び出し側で処理すること。
 	//
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
 	// 　また、Signals.stopが来ると探索を中断してしまうので、そのときのPVは正しくない。
@@ -2994,6 +2997,14 @@ namespace Learner
 
 	ValueAndPV search(Position& pos, int depth_ , size_t multiPV /* = 1*/)
 	{
+		// this_threadに関連する変数の初期化
+		auto th = pos.this_thread();
+		auto& rootDepth = th->rootDepth;
+		auto& PVIdx = th->PVIdx;
+		auto& rootMoves = th->rootMoves;
+		auto& completedDepth = th->completedDepth;
+		auto& selDepth = th->selDepth;
+
 		std::vector<Move> pvs;
 
 		Depth depth = depth_ * ONE_PLY;
@@ -3003,13 +3014,6 @@ namespace Learner
 		if (depth == DEPTH_ZERO)
 			return qsearch(pos);
 
-		// 宣言勝ち
-		if (pos.DeclarationWin() != MOVE_NONE)
-		{
-			pvs.push_back(MOVE_WIN);
-			return ValueAndPV(mate_in(/*ss->ply*/ 1 + 1) , pvs);
-		}
-
 		Stack stack[MAX_PLY + 7], *ss = stack + 4;	
 		Move pv[MAX_PLY + 1];
 
@@ -3017,13 +3021,6 @@ namespace Learner
 
 		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
-		// this_threadに関連する変数の初期化
-		auto th = pos.this_thread();
-		auto& rootDepth = th->rootDepth;
-		auto& PVIdx = th->PVIdx;
-		auto& rootMoves = th->rootMoves;
-		auto& completedDepth = th->completedDepth;
-		auto& selDepth = th->selDepth;
 
 		// bestmoveとしてしこの局面の上位N個を探索する機能
 		//size_t multiPV = Options["MultiPV"];
@@ -3091,15 +3088,14 @@ namespace Learner
 		}
 
 		// このPV、途中でNULL_MOVEの可能性があるかも知れないので排除するためにis_ok()を通す。
+		// →　PVなのでNULL_MOVEはしないことになっているはず。
+		// →　MOVE_WINが突っ込まれていることはある。(かも)
 		for (Move move : rootMoves[0].pv)
 		{
 			if (!is_ok(move))
 				break;
 			pvs.push_back(move);
 		}
-
-		// 引数で指定されたalpha,betaの範囲外の値を返すときは、fail low/highなので、
-		// PVが正しい保証はない。
 
 		// multiPV時を考慮して、rootMoves[0]のscoreをbestValueとして返す。
 		bestValue = rootMoves[0].score;
