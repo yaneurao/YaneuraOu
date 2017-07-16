@@ -2642,9 +2642,12 @@ void MainThread::think()
 	// ---------------------
 
 	{
-		// 宣言勝ちもあるのでこのは局面で1手勝ちならその指し手を選択
+		// 宣言勝ちならその指し手を選択。
 		// 王手がかかっていても、回避しながらトライすることもあるので王手がかかっていようが
 		// Position::DeclarationWin()で判定して良い。
+		// 1手詰めは、ここでは判定しない。
+		// (MultiPVのときに1手詰めを見つけたからと言って探索を終了したくないから。)
+
 		auto bestMove = rootPos.DeclarationWin();
 		if (bestMove != MOVE_NONE)
 		{
@@ -2917,8 +2920,6 @@ namespace Learner
 			auto& rootMoves = th->rootMoves;
 
 			rootMoves.clear();
-			if (pos.DeclarationWin() == MOVE_WIN)
-				rootMoves.push_back(Search::RootMove(MOVE_WIN));
 			for (auto m : MoveList<LEGAL>(pos))
 				rootMoves.push_back(Search::RootMove(m));
 
@@ -2997,14 +2998,6 @@ namespace Learner
 
 	ValueAndPV search(Position& pos, int depth_ , size_t multiPV /* = 1*/)
 	{
-		// this_threadに関連する変数の初期化
-		auto th = pos.this_thread();
-		auto& rootDepth = th->rootDepth;
-		auto& PVIdx = th->PVIdx;
-		auto& rootMoves = th->rootMoves;
-		auto& completedDepth = th->completedDepth;
-		auto& selDepth = th->selDepth;
-
 		std::vector<Move> pvs;
 
 		Depth depth = depth_ * ONE_PLY;
@@ -3021,6 +3014,13 @@ namespace Learner
 
 		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
+		// this_threadに関連する変数の初期化
+		auto th = pos.this_thread();
+		auto& rootDepth = th->rootDepth;
+		auto& PVIdx = th->PVIdx;
+		auto& rootMoves = th->rootMoves;
+		auto& completedDepth = th->completedDepth;
+		auto& selDepth = th->selDepth;
 
 		// bestmoveとしてしこの局面の上位N個を探索する機能
 		//size_t multiPV = Options["MultiPV"];
@@ -3088,8 +3088,8 @@ namespace Learner
 		}
 
 		// このPV、途中でNULL_MOVEの可能性があるかも知れないので排除するためにis_ok()を通す。
-		// →　PVなのでNULL_MOVEはしないことになっているはず。
-		// →　MOVE_WINが突っ込まれていることはある。(かも)
+		// →　PVなのでNULL_MOVEはしないことになっているはずだし、
+		//     MOVE_WINも突っ込まれていることはない。(いまのところ)
 		for (Move move : rootMoves[0].pv)
 		{
 			if (!is_ok(move))
