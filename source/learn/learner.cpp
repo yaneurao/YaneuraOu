@@ -285,6 +285,9 @@ struct MultiThinkGenSfen : public MultiThink
 		: search_depth(search_depth_), search_depth2(search_depth2_), sw(sw_)
 	{
 		hash.resize(GENSFEN_HASH_SIZE);
+
+		// PCを並列化してgensfenするときに同じ乱数seedを引いていないか確認用の出力。
+		std::cout << prng << std::endl;
 	}
 
 	virtual void thread_worker(size_t thread_id);
@@ -421,6 +424,10 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		// ply : 初期局面からの手数
 		for (int ply = 0; ; ++ply)
 		{
+			// 今回の探索depth
+			// gotoで飛ぶので先に宣言しておく。
+			int depth = search_depth + (int)prng.rand(search_depth2 - search_depth + 1);
+
 			// 長手数に達したのか
 			if (ply >= MAX_PLY2)
 			{
@@ -460,9 +467,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// 定跡の局面であっても、一定確率でランダムムーブは行なう。
 				goto RANDOM_MOVE;
 			}
-
-			// 今回の探索depth
-			int depth = search_depth + (int)prng.rand(search_depth2 - search_depth + 1);
 
 			{
 				// search_depth～search_depth2 手読みの評価値とPV(最善応手列)

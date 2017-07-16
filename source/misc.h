@@ -212,6 +212,9 @@ struct PRNG
 	// 0からn-1までの乱数を返す。(一様分布ではないが現実的にはこれで十分)
 	u64 rand(u64 n) { return rand<u64>() % n; }
 
+	// 内部で使用している乱数seedを返す。
+	u64 get_seed() const { return s;  }
+
 private:
 	u64 s;
 	u64 rand64() {
@@ -219,6 +222,9 @@ private:
 		return s * 2685821657736338717LL;
 	}
 };
+
+// 乱数のseedを表示する。(デバッグ用)
+inline std::ostream& operator<<(std::ostream& os, PRNG& prng) { os << "PRNG::seed = " << prng.get_seed(); return os; }
 
 // PRNGのasync版
 struct AsyncPRNG
@@ -235,10 +241,16 @@ struct AsyncPRNG
 		return prng.rand(n);
 	}
 
+	// 内部で使用している乱数seedを返す。
+	u64 get_seed() const { return prng.get_seed(); }
+
 protected:
 	Mutex mutex;
 	PRNG prng;
 };
+
+// 乱数のseedを表示する。(デバッグ用)
+inline std::ostream& operator<<(std::ostream& os, AsyncPRNG& prng) { os << "AsyncPRNG::seed = " << prng.get_seed(); return os; }
 
 // --------------------
 //       Math
