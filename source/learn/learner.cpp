@@ -330,8 +330,11 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 	StateInfo state[MAX_PLY2 + 20]; // StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
 	Move m = MOVE_NONE;
 
+	// 終了フラグ
+	bool quit = false;
+
 	// 規定回数回になるまで繰り返し
-	while (true)
+	while (!quit)
 	{
 		// Positionに対して従属スレッドの設定が必要。
 		// 並列化するときは、Threads (これが実体が vector<Thread*>なので、
@@ -369,7 +372,11 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// 局面を出力したときにこれを呼び出さないとカウンターが狂う。
 				auto loop_count = get_next_loop_count();
 				if (loop_count == UINT64_MAX)
-					return true;
+				{
+					// 終了フラグを立てておく。
+					quit = true;
+					return;
+				}
 
 				// 局面を一つ書き出す。
 				sw.write(thread_id, *it);
@@ -379,7 +386,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				cout << pos << "Win : " << it->isWin << " , " << it->score << endl;
 #endif
 			}
-			return false;
 		};
 
 		// ply手目でランダムムーブをするかどうかのフラグ
@@ -414,16 +420,13 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		// ply : 初期局面からの手数
 		for (int ply = 0; ; ++ply)
 		{
-			int depth = search_depth + (int)prng.rand(search_depth2 - search_depth + 1);
-
 			// 長手数に達したのか
 			if (ply >= MAX_PLY2)
 			{
 #if defined (LEARN_GENSFEN_USE_DRAW_RESULT)
 				// 勝敗 = 引き分けとして書き出す。
 				// こうしたほうが自分が入玉したときに、相手の入玉を許しにくい(かも)
-				if (flush_psv(0))
-					goto FINALIZE;
+				flush_psv(0);
 #endif
 				break;
 			}
@@ -432,8 +435,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			if (pos.is_mated())
 			{
 				// (この局面の一つ前の局面までは書き出す)
-				if (flush_psv(-1))
-					goto FINALIZE;
+				flush_psv(-1);
 				break;
 			}
 
@@ -441,8 +443,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			if (pos.DeclarationWin() != MOVE_NONE)
 			{
 				// (この局面の一つ前の局面までは書き出す)
-				if (flush_psv(1))
-					goto FINALIZE;
+				flush_psv(1);
 				break;
 			}
 
@@ -459,6 +460,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				goto RANDOM_MOVE;
 			}
 
+			// 今回の探索depth
+			int depth = search_depth + (int)prng.rand(search_depth2 - search_depth + 1);
 
 			{
 				// search_depth～search_depth2 手読みの評価値とPV(最善応手列)
@@ -487,14 +490,13 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 //					sync_cout << pos << "eval limit = " << eval_limit << " over , move = " << pv1[0] << sync_endl;
 
 					// この局面でvalue1 >= eval_limitならば、(この局面の手番側の)勝ちである。
-					if (flush_psv((value1 >= eval_limit) ? 1 : -1))
-						goto FINALIZE;
+					flush_psv((value1 >= eval_limit) ? 1 : -1);
 					break;
 				}
 
 				// おかしな指し手の検証
 				if (pv1.size() > 0
-					&& (pv1[0] == MOVE_RESIGN|| pv1[0] == MOVE_WIN || pv1[0] == MOVE_NONE)
+					&& (pv1[0] == MOVE_RESIGN || pv1[0] == MOVE_WIN || pv1[0] == MOVE_NONE)
 					)
 				{
 					// MOVE_WINは、この手前で宣言勝ちの局面であるかチェックしているので
@@ -523,13 +525,10 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				if (game_end)
 				{
-#if !defined	(LEARN_GENSFEN_USE_DRAW_RESULT)
-					// 引き分けは書き出さない。
-					if (is_win == 0)
-						break;
+#if defined	(LEARN_GENSFEN_USE_DRAW_RESULT)
+					// 引き分けを書き出すとき
+					flush_psv(is_win);
 #endif
-					if (flush_psv(is_win))
-						goto FINALIZE;
 					break;
 				}
 
@@ -604,13 +603,16 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					pv1 = pv_value1.second;
 				}
 
-				// 16手目までの局面、類似局面ばかりなので
+#if 1
+				// 16手目までの局面は類似局面ばかりなので
 				// 学習に用いると過学習になりかねないから書き出さない。
+				// →　比較実験すべき
 				if (ply < 16)
 				{
 					a_psv.clear();
 					goto SKIP_SAVE;
 				}
+#endif
 
 				// 同一局面を書き出したところか？
 				// これ、複数のPCで並列して生成していると同じ局面が含まれることがあるので
@@ -650,7 +652,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 			SKIP_SAVE:;
 
-				// 何故かPVが得られなかった(置換表などにhitして詰んでいた？)ので次に行く。
+				// 何故かPVが得られなかった(置換表などにhitして詰んでいた？)ので次の対局に行く。
 				if (pv1.size() == 0)
 					break;
 				
@@ -708,8 +710,9 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			// 差分計算を行なうために毎node evaluate()を呼び出しておく。
 			Eval::evaluate_with_no_return(pos);
 		}
-	}
-FINALIZE:;
+	
+	} // while(!quit)
+	
 	sw.finalize(thread_id);
 }
 
@@ -928,7 +931,8 @@ double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 // elmo(WCSC27)で使われている定数。要調整。
 // elmoのほうは式を内分していないので値が違う。
 // learnコマンドでこの値を設定できる。
-double ELMO_LAMBDA = 0.33; // elmoの定数(0.5)相当
+// 0.33は、elmo(WCSC27)で使われていた定数(0.5)相当
+double ELMO_LAMBDA = 0.33;
 
 double calc_grad(Value deep, Value shallow , const PackedSfenValue& psv)
 {

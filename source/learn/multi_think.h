@@ -7,6 +7,7 @@
 
 #include "../misc.h"
 #include "../learn/learn.h"
+#include <atomic>
 
 // 棋譜からの学習や、自ら思考させて定跡を生成するときなど、
 // 複数スレッドが個別にSearch::think()を呼び出したいときに用いるヘルパクラス。
@@ -60,9 +61,9 @@ protected:
 
 private:
 	// workerが処理する(Search::think()を呼び出す)回数
-	volatile u64 loop_max;
+	std::atomic<u64> loop_max;
 	// workerが処理した(Search::think()を呼び出した)回数
-	volatile u64 loop_count = 0;
+	std::atomic<u64> loop_count = 0;
 
 	// ↑の変数を変更するときのmutex
 	Mutex loop_mutex;
