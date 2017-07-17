@@ -93,7 +93,13 @@ namespace Search {
 			ASSERT_LV3(MoveList<LEGAL>(pos).contains(m) || m == MOVE_WIN);
 
 			auto* tte = TT.probe(pos.key(), ttHit);
-			if (!ttHit || pos.move16_to_move(tte->move()) != m)
+
+			// PVの初手はMultiPVのときにそれぞれ異なる指し手であるから、
+			// 探索中にこれを書き出されてしまうと、他のスレッドがそれを信じて
+			// 探索してしまい、途中で探索が打ち切られると変な指し手を指しかねない。
+			// そのため、初手(ply==0)のときは置換表に書き出すべきではない。
+
+			if (!ttHit || (pos.move16_to_move(tte->move()) != m && ply ))
 				tte->save(pos.key(), VALUE_NONE, BOUND_NONE, DEPTH_NONE, m, VALUE_NONE, tt_gen);
 
 			// MOVE_WINの指し手で局面を進められないのでここで打ち切る。

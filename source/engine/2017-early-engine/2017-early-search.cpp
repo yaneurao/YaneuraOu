@@ -2470,7 +2470,7 @@ void Thread::search()
 					((PVIdx + 1 == multiPV || Time.elapsed() > 3000)
 						&& (rootDepth < 3 || lastInfoTime + pv_interval <= Time.elapsed())))
 				{
-					// 検討モードのときは、stopのときには、PVを出力しないことにする。
+					// ただし検討モードのときは、stopのときにPVを出力しないことにする。
 					if (!(Threads.stop && Limits.consideration_mode))
 					{
 						lastInfoTime = Time.elapsed();
@@ -2617,11 +2617,10 @@ void MainThread::think()
 		th->completedDepth = DEPTH_ZERO;
 
 	// 現局面で詰んでいる。
-	if (rootMoves.size() == 0)
+	if (rootMoves.empty())
 	{
 		// 投了の指し手と評価値をrootMoves[0]に積んでおけばUSI::pv()が良きに計らってくれる。
 		// 読み筋にresignと出力されるが、将棋所、ShogiGUIともにバグらないのでこれで良しとする。
-		rootMoves.clear(); // 詰まされているので空のはずだが念のためクリアする。
 		rootMoves.push_back(RootMove(MOVE_RESIGN));
 		rootMoves[0].score = mated_in(0);
 
@@ -2779,7 +2778,7 @@ ID_END:;
 		{
 			// やねうら王では、resignのときは、main threadにresignの指し手をpushしているが、
 			// 他のスレッドはこれをpushされていないので、rootMoves[0]にアクセスできない。
-			if (th->rootMoves.size() == 0)
+			if (th->rootMoves.empty())
 				continue;
 
 			Depth depthDiff = th->completedDepth - bestThread->completedDepth;
@@ -2926,7 +2925,7 @@ namespace Learner
 			for (auto m : MoveList<LEGAL>(pos))
 				rootMoves.push_back(Search::RootMove(m));
 
-			ASSERT_LV3(rootMoves.size() != 0);
+			ASSERT_LV3(!rootMoves.empty());
 
 #if defined(USE_GLOBAL_OPTIONS)
 			// 探索スレッドごとの置換表の世代を管理しているはずなので、
