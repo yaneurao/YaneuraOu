@@ -77,43 +77,6 @@ bool ponder_mode;
 // INT_MAXにすると残り手数を計算するときにあふれかねない。
 int max_game_ply = 100000;
 
-// ConsiderationModeのときにTTからPVをかき集めるのでTTのPVが破壊されていると困るから
-// PV配列をTTに書き戻すことでそれをなるべく防ぐ。
-// 旧Stockfishにあった機能。Stockfish7あたりでなくなった。
-namespace Search {
-	// tt_gen : TT.generation()に相当するもの。
-	void RootMove::insert_pv_to_tt(Position& pos , u8 tt_gen)
-	{
-		StateInfo state[MAX_PLY];
-		bool ttHit;
-
-		int ply = 0;
-		for (Move m : pv)
-		{
-			ASSERT_LV3(MoveList<LEGAL>(pos).contains(m) || m == MOVE_WIN);
-
-			auto* tte = TT.probe(pos.key(), ttHit);
-
-			// PVの初手はMultiPVのときにそれぞれ異なる指し手であるから、
-			// 探索中にこれを書き出されてしまうと、他のスレッドがそれを信じて
-			// 探索してしまい、途中で探索が打ち切られると変な指し手を指しかねない。
-			// そのため、初手(ply==0)のときは置換表に書き出すべきではない。
-
-			if (!ttHit || (pos.move16_to_move(tte->move()) != m && ply ))
-				tte->save(pos.key(), VALUE_NONE, BOUND_NONE, DEPTH_NONE, m, VALUE_NONE, tt_gen);
-
-			// MOVE_WINの指し手で局面を進められないのでここで打ち切る。
-			if (m == MOVE_WIN)
-				break;
-
-			pos.do_move(m, state[ply++]);
-		}
-
-		while(ply > 0)
-			pos.undo_move(pv[--ply]);
-	}
-}
-
 namespace USI
 {
 	// 入玉ルール

@@ -2375,14 +2375,6 @@ void Thread::search()
 				// 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
 				// 用いないと前回の反復深化の結果によって得た並び順を変えてしまうことになるのでまずい。
 				std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
-
-				// 置換表からPVをかき集めるのであれば、置換表に対してPVを格納しなおしておかないと
-				// PVが破壊しされている可能性がある。競合すると嫌なのでmainThreadだけでいいか…。
-				if (Limits.consideration_mode && mainThread)
-				{
-					for(size_t i=0;i <= PVIdx ; ++i)
-						rootMoves[i].insert_pv_to_tt(rootPos , TT_GEN(rootPos) );
-				}
 				
 				if (Threads.stop)
 					break;
