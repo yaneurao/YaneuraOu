@@ -221,11 +221,12 @@ namespace YaneuraOu2017Early
 
 			ASSERT_LV3(newPv.size() >= 3);
 
-			// pvの3手目以降が変化がない回数をカウントしておく。
+			// pvの3手目までが変化がない回数をカウントしておく。
 			stableCnt = (newPv[2] == pv[2]) ? stableCnt + 1 : 0;
 
 			if (!std::equal(newPv.begin(), newPv.begin() + 3, pv))
 			{
+				// 3手目までの指し手が異なっていたので新しいPVの3手目までをコピー。
 				std::copy(newPv.begin(), newPv.begin() + 3, pv);
 
 				StateInfo st[2];
@@ -2376,8 +2377,8 @@ void Thread::search()
 				std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
 
 				// 置換表からPVをかき集めるのであれば、置換表に対してPVを格納しなおしておかないと
-				// PVが破壊しされている可能性がある。
-				if (Limits.consideration_mode)
+				// PVが破壊しされている可能性がある。競合すると嫌なのでmainThreadだけでいいか…。
+				if (Limits.consideration_mode && mainThread)
 				{
 					for(size_t i=0;i <= PVIdx ; ++i)
 						rootMoves[i].insert_pv_to_tt(rootPos , TT_GEN(rootPos) );
@@ -2569,12 +2570,12 @@ void Thread::search()
 			}
 
 			// pvが3手以上あるならEasyMoveに記録しておく。
+			// 前回の3手目までのPVから変化があったかどうかを計測する。
 			if (rootMoves[0].pv.size() >= 3)
 				EasyMove.update(rootPos, rootMoves[0].pv);
 			else
 				EasyMove.clear();
 		}
-
 
 	} // iterative deeping
 
@@ -2878,6 +2879,8 @@ void MainThread::check_time()
 namespace Learner
 {
 	// 学習用に、1つのスレッドからsearch,qsearch()を呼び出せるようなスタブを用意する。
+	// いまにして思えば、AperyのようにSearcherを持ってスレッドごとに置換表などを用意するほうが
+	// 良かったかも知れない。
 
 	// 学習のための初期化。
 	// Learner::search(),Learner::qsearch()から呼び出される。
@@ -2886,7 +2889,7 @@ namespace Learner
 		memset(ss - 4, 0, 7 * sizeof(Stack));
 
 		// Search::Limitsに関して
-		// これの変数はglobalなので他のスレッドに影響を及ぼすので気をつけること。
+		// このメンバー変数はglobalなので他のスレッドに影響を及ぼすので気をつけること。
 		{
 			auto& limits = Search::Limits;
 
@@ -2971,10 +2974,7 @@ namespace Learner
 			YaneuraOu2017Early::qsearch<PV, false>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE);
 
 		// 得られたPVを返す。
-		// pv配列にMOVE_WINが含まれているならMOVE_WINも返る。
-		// (ただし現状、search()で宣言勝ちを発見したときにpv配列の更新をしていないので
-		// 実際にはpv配列にMOVE_WINが含まれていることはない。)
-		for (Move* p = &ss->pv[0]; is_ok(*p) || *p==MOVE_WIN ; ++p)
+		for (Move* p = &ss->pv[0]; is_ok(*p) ; ++p)
 			pvs.push_back(*p);
 
 		return ValueAndPV(bestValue, pvs);

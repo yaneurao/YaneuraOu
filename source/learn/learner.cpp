@@ -1692,6 +1692,14 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// 局面を巻き戻す
 		for (auto it = pv.rbegin(); it != pv.rend(); ++it)
 			pos.undo_move(*it);
+
+#if 0
+		// rootの局面にも勾配を加算する場合
+		shallow_value = (rootColor == pos.side_to_move()) ? Eval::evaluate(pos) : -Eval::evaluate(pos);
+		dj_dw = calc_grad(deep_value, shallow_value, ps);
+		Eval::add_grad(pos, rootColor, dj_dw);
+#endif
+
 	}
 
 }
