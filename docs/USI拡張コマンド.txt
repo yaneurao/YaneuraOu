@@ -281,6 +281,11 @@ USIプロトコルの独自拡張コマンド
 
 		その他に指定できるオプション
 
+		write_minply N : 初期局面周辺は、類似局面ばかりなのでこの手数未満の局面は教師局面として書き出さない。
+			デフォルトでは16。
+		write_maxply N : 書き出す局面の初期局面からの手数の最大。この手数を超えると引き分け扱いとする。
+			デフォルトでは400。
+
 		random_move_minply,random_move_maxplyとrandom_move_countオプション
 			教師局面の生成時にランダムムーブを行なう最小手数と最大手数と1局でランダムムーブを行なう回数
 			デフォルトではrandom_move_minply = 16 , random_move_maxply = 32 , random_move_count = 5。

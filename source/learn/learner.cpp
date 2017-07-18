@@ -312,6 +312,10 @@ struct MultiThinkGenSfen : public MultiThink
 	int random_multi_pv_diff;
 	int random_multi_pv_depth;
 
+	// 書き出す局面のply(初期局面からの手数)の最小、最大。
+	int write_minply;
+	int write_maxply;
+
 	// sfenの書き出し器
 	SfenWriter& sw;
 
@@ -325,9 +329,14 @@ struct MultiThinkGenSfen : public MultiThink
 //  thread_id    = 0..Threads.size()-1
 void MultiThinkGenSfen::thread_worker(size_t thread_id)
 {
-	const int MAX_PLY2 = 400;
+	// とりあえず、書き出す手数の最大のところで引き分け扱いになるものとする。
+	const int MAX_PLY2 = write_maxply;
 
-	StateInfo state[MAX_PLY2 + 20]; // StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
+	// StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
+	std::vector<StateInfo> state;
+	state.resize(MAX_PLY2 + 20);
+	
+	// 今回の指し手。この指し手で局面を進める。
 	Move m = MOVE_NONE;
 
 	// 終了フラグ
@@ -604,16 +613,14 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					pv1 = pv_value1.second;
 				}
 
-#if 1
-				// 16手目までの局面は類似局面ばかりなので
+				// 初期局面周辺はは類似局面ばかりなので
 				// 学習に用いると過学習になりかねないから書き出さない。
 				// →　比較実験すべき
-				if (ply < 16)
+				if (ply < write_minply)
 				{
 					a_psv.clear();
 					goto SKIP_SAVE;
 				}
-#endif
 
 				// 同一局面を書き出したところか？
 				// これ、複数のPCで並列して生成していると同じ局面が含まれることがあるので
@@ -796,6 +803,10 @@ void gen_sfen(Position&, istringstream& is)
 	int random_multi_pv_diff = 32000;
 	int random_multi_pv_depth = INT_MIN;
 
+	// 書き出す局面のply(初期局面からの手数)の最小、最大。
+	int write_minply = 16;
+	int write_maxply = 400;
+
 	// 書き出すファイル名
 	string output_file_name = "generated_kifu.bin";
 
@@ -835,6 +846,10 @@ void gen_sfen(Position&, istringstream& is)
 			is >> random_multi_pv_diff;
 		else if (token == "random_multi_pv_depth")
 			is >> random_multi_pv_depth;
+		else if (token == "write_minply")
+			is >> write_minply;
+		else if (token == "write_maxply")
+			is >> write_maxply;
 		else
 			cout << "Error! : Illegal token " << token << endl;
 	}
@@ -858,6 +873,8 @@ void gen_sfen(Position&, istringstream& is)
 		<< "  random_multi_pv        = " << random_multi_pv << endl
 		<< "  random_multi_pv_diff   = " << random_multi_pv_diff << endl
 		<< "  random_multi_pv_depth  = " << random_multi_pv_depth << endl
+		<< "  write_minply           = " << write_minply << endl
+		<< "  write_maxply           = " << write_maxply << endl
 		<< "  output_file_name       = " << output_file_name << endl;
 
 	// Options["Threads"]の数だけスレッドを作って実行。
@@ -873,6 +890,8 @@ void gen_sfen(Position&, istringstream& is)
 		multi_think.random_multi_pv = random_multi_pv;
 		multi_think.random_multi_pv_diff = random_multi_pv_diff;
 		multi_think.random_multi_pv_depth = random_multi_pv_depth;
+		multi_think.write_minply = write_minply;
+		multi_think.write_maxply = write_maxply;
 		multi_think.start_file_write_worker();
 		multi_think.go_think();
 
