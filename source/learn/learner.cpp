@@ -333,9 +333,9 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 	const int MAX_PLY2 = write_maxply;
 
 	// StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
-	std::vector<StateInfo> state;
+	aligned_vector<StateInfo> state;
 	state.resize(MAX_PLY2 + 20);
-	
+
 	// 今回の指し手。この指し手で局面を進める。
 	Move m = MOVE_NONE;
 
