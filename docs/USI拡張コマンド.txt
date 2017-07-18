@@ -288,6 +288,12 @@ USIプロトコルの独自拡張コマンド
 			learn random_move_maxply 16 random_move_maxply 32 random_move_count 5 ...
 			みたいに指定する。
 
+		random_move_like_apery N : ランダムムーブのときに玉を移動させる指し手の確率を上げる。
+			例えば、N = 3を指定すれば1/3の確率で玉を移動させる。
+				(そしてこのとき、玉を移動させたあとは1/2の確率で相手番もランダムムーブが入る。)
+				玉を移動させないときは普通に合法手から1手選択。(玉を移動させる指し手も含まれる)
+			このオプションに0を指定すると、この機能は無効化される。
+
 		random_multi_pv N : ランダムムーブの代わりにMultiPV Nでrandom_move_count手指すオプション。
 			ConsiderBookMoveCount = trueと組み合わせると実現確率の高い局面からスタートできるかも…。
 		random_multi_pv_diff m : random_multipvでmulti pvで指し手を採択するときに、

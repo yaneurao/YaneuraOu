@@ -112,7 +112,9 @@ void MultiThink::go_think()
 	for (auto& th : threads)
 		th.join();
 
-	std::cout << "..all works..done!!" << std::endl;
+	// 全スレッドが終了しただけでfileの書き出しスレッドなどはまだ動いていて
+	// 作業自体は完了していない可能性があるのでスレッドがすべて終了したことだけ出力する。
+	std::cout << "all threads are joined." << std::endl;
 
 	// Optionsを書き換えたので復元。
 	// 値を代入しないとハンドラが起動しないのでこうやって復元する。

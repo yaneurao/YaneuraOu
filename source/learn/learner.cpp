@@ -298,6 +298,11 @@ struct MultiThinkGenSfen : public MultiThink
 	int random_move_maxply;
 	// 1局のなかでランダムムーブを行なう回数
 	int random_move_count;
+	// Aperyのようにランダムムーブのときに1/Nの確率で玉を動かす。
+	// また玉を動かしたときは1/Nの確率で相手番で1回ランダムムーブする。
+	// AperyはN=2。ここ0を指定するとこの機能を無効化する。
+	int random_move_like_apery;
+
 	// ランダムムーブの代わりにmulti pvを使うとき用。
 	// random_multi_pvは、MultiPVのときの候補手の数。
 	// 候補手の指し手を採択するとき、1位の指し手の評価値とN位の指し手の評価値との差が
@@ -403,7 +408,9 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			for (int i = std::max(random_move_minply - 1 , 0) ; i < random_move_maxply; ++i)
 				a.push_back(i);
 
-			random_move_flag.resize((size_t)random_move_maxply);
+			// Apery方式のランダムムーブの場合、insert()がrandom_move_count回呼び出される可能性があるので
+			// それを考慮したサイズだけ確保しておく。
+			random_move_flag.resize((size_t)random_move_maxply + random_move_count);
 
 			// a[]のsize()を超える回数のランダムムーブは適用できないので制限する。
 			for (int i = 0 ; i < std::min(random_move_count, (int)a.size()) ; ++i)
@@ -666,9 +673,40 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// mateではないので合法手が1手はあるはず…。
 				if (random_multi_pv == 1)
 				{
-					// ここをApery方式にするのとの善悪はよくわからない。
 					MoveList<LEGAL> list(pos);
-					m = list.at((size_t)prng.rand((u64)list.size()));
+
+					// ここをApery方式にするのとの善悪はよくわからない。
+					if (random_move_like_apery == 0
+						|| prng.rand(random_move_like_apery) != 0
+					)
+					{
+						// 普通に合法手から1手選択
+						m = list.at((size_t)prng.rand((u64)list.size()));
+					}
+					else {
+						// 玉が動かせるなら玉を動かす
+						Move moves[8]; // 8近傍
+						Move* p = &moves[0];
+						for (auto& m : list)
+							if (type_of(pos.moved_piece_after(m)) == KING)
+								*(p++) = m;
+						size_t n = p - &moves[0];
+						if (n != 0)
+						{
+							// 玉を動かす指し手
+							m = moves[prng.rand(n)];
+
+							// Apery方式ではこのとき1/2の確率で相手もランダムムーブ
+							if (prng.rand(2) == 0)
+							{
+								// random_move_flag[ply]の次のところに"1"を追加するのがシンプルなhackか。
+								random_move_flag.insert(random_move_flag.begin() + ply + 1, 1, true);
+							}
+						}
+						else
+							// 普通に合法手から1手選択
+							m = list.at((size_t)prng.rand((u64)list.size()));
+					}
 
 					// 玉の2手指しのコードを入れていたが、合法手から1手選べばそれに相当するはずで
 					// コードが複雑化するだけだから不要だと判断した。
@@ -747,10 +785,13 @@ void gen_sfen(Position&, istringstream& is)
 	int search_depth2 = INT_MIN;
 
 	// ランダムムーブを行なう最小plyと最大plyと回数
-	// ランダムムーブの代わりにmultipvで探索してそのなかからランダムに選ぶときはrandom_multi_pv = 1より大きな数にする。
 	int random_move_minply = 1;
 	int random_move_maxply = 24;
 	int random_move_count = 5;
+	// ランダムムーブをAperyのように玉を主に動かす機能
+	// これを例えば3にすると1/3の確率で玉を動かす。
+	int random_move_like_apery = 0;
+	// ランダムムーブの代わりにmultipvで探索してそのなかからランダムに選ぶときはrandom_multi_pv = 1より大きな数にする。
 	int random_multi_pv = 1;
 	int random_multi_pv_diff = 32000;
 	int random_multi_pv_depth = INT_MIN;
@@ -786,6 +827,8 @@ void gen_sfen(Position&, istringstream& is)
 			is >> random_move_maxply;
 		else if (token == "random_move_count")
 			is >> random_move_count;
+		else if (token == "random_move_like_apery")
+			is >> random_move_like_apery;
 		else if (token == "random_multi_pv")
 			is >> random_multi_pv;
 		else if (token == "random_multi_pv_diff")
@@ -808,13 +851,14 @@ void gen_sfen(Position&, istringstream& is)
 		<< "  eval_limit = " << eval_limit << endl
 		<< "  thread_num (set by USI setoption) = " << thread_num << endl
 		<< "  book_moves (set by USI setoption) = " << Options["BookMoves"] << endl
-		<< "  random_move_minply   = " << random_move_minply << endl
-		<< "  random_move_maxply   = " << random_move_maxply << endl
-		<< "  random_move_count    = " << random_move_count << endl
-		<< "  random_multi_pv      = " << random_multi_pv << endl
-		<< "  random_multi_pv_diff = " << random_multi_pv_diff << endl
-		<< "  random_multi_pv_depth= " << random_multi_pv_depth << endl
-		<< "  output_file_name     = " << output_file_name << endl;
+		<< "  random_move_minply     = " << random_move_minply << endl
+		<< "  random_move_maxply     = " << random_move_maxply << endl
+		<< "  random_move_count      = " << random_move_count << endl
+		<< "  random_move_like_apery = " << random_move_like_apery << endl
+		<< "  random_multi_pv        = " << random_multi_pv << endl
+		<< "  random_multi_pv_diff   = " << random_multi_pv_diff << endl
+		<< "  random_multi_pv_depth  = " << random_multi_pv_depth << endl
+		<< "  output_file_name       = " << output_file_name << endl;
 
 	// Options["Threads"]の数だけスレッドを作って実行。
 	{
@@ -825,6 +869,7 @@ void gen_sfen(Position&, istringstream& is)
 		multi_think.random_move_minply = random_move_minply;
 		multi_think.random_move_maxply = random_move_maxply;
 		multi_think.random_move_count = random_move_count;
+		multi_think.random_move_like_apery = random_move_like_apery;
 		multi_think.random_multi_pv = random_multi_pv;
 		multi_think.random_multi_pv_diff = random_multi_pv_diff;
 		multi_think.random_multi_pv_depth = random_multi_pv_depth;
