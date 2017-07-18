@@ -175,7 +175,7 @@ struct SfenWriter
 		}
 	}
 
-	// バッファに残っている分をファイルに書き出す。
+	// 自分のスレッド用のバッファに残っている分をファイルに書き出すためのバッファに移動させる。
 	void finalize(size_t thread_id)
 	{
 		std::unique_lock<Mutex> lk(mutex);
@@ -223,20 +223,17 @@ struct SfenWriter
 				sleep(100);
 			else
 			{
-				// バッファがどれだけ積まれているのかデバッグのために出力
-				//cout << "[" << buffers.size() << "]";
-
 				for (auto ptr : buffers)
 				{
 					fs.write((const char*)&((*ptr)[0]), sizeof(PackedSfenValue) * ptr->size());
 
-//					cout << "[" << ptr->size() << "]";
 					sfen_write_count += ptr->size();
 
 					// 棋譜を書き出すごとに'.'を出力。
 					std::cout << ".";
 
 					// 40回×GEN_SFENS_TIMESTAMP_OUTPUT_INTERVALごとに処理した局面数を出力
+					// 最後、各スレッドの教師局面の余りを書き出すので中途半端な数が表示されるが、まあいいか…。
 					if ((++time_stamp_count % (u64(40) * GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL)) == 0)
 						output_status();
 
@@ -256,13 +253,16 @@ private:
 
 	// ファイルに書き込む用のthread
 	std::thread file_worker_thread;
-	// 終了したかのフラグ
+	// すべてのスレッドが終了したかのフラグ
 	atomic<bool> finished;
 
 	// タイムスタンプの出力用のカウンター
 	u64 time_stamp_count = 0;
 
 	// ファイルに書き出す前のバッファ
+	// sfen_buffersは各スレッドに対するバッファ
+	// sfen_buffers_poolは書き出しのためのバッファ。
+	// 前者のバッファに局面をSFEN_WRITE_SIZEだけ積んだら、後者に積み替える。
 	std::vector<PSVector*> sfen_buffers;
 	std::vector<PSVector*> sfen_buffers_pool;
 
@@ -561,8 +561,9 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 						pos.do_move(m, state[ply2++]);
 						
 						// 毎ノードevaluate()を呼び出さないと、evaluate()の差分計算が出来ないので注意！
-						Eval::evaluate_with_no_return(pos);
-						//						cout << "move = m " << m << " , evaluate = " << Eval::evaluate(pos) << endl;
+						// depthが6以上だとこの差分計算はしないほうが速いと思われる。
+						if (depth < 6)
+							Eval::evaluate_with_no_return(pos);
 					}
 
 					// leafに到達
@@ -583,10 +584,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 					return v;
 				};
-
-				// PV lineのleaf nodeでのroot colorから見たevaluate()の値を取得。
-				// search()の返し値をそのまま使うのとこうするのとの善悪は良くわからない。
-				auto leaf_value = evaluate_leaf(pos , pv1);
 
 #if 0
 				dbg_hit_on(pv_value1.first == leaf_value);
@@ -646,7 +643,10 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					// packを要求されているならpackされたsfenとそのときの評価値を書き出す。
 					// 最終的な書き出しは、勝敗がついてから。
 					pos.sfen_pack(psv.sfen);
-					psv.score = leaf_value;
+
+					// PV lineのleaf nodeでのroot colorから見たevaluate()の値を取得。
+					// search()の返し値をそのまま使うのとこうするのとの善悪は良くわからない。
+					psv.score = evaluate_leaf(pos, pv1);
 					psv.gamePly = ply;
 
 					// PVの初手を取り出す。これはdepth 0でない限りは存在するはず。
@@ -658,6 +658,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			SKIP_SAVE:;
 
 				// 何故かPVが得られなかった(置換表などにhitして詰んでいた？)ので次の対局に行く。
+				// かなりのレアケースなので無視して良いと思う。
 				if (pv1.size() == 0)
 					break;
 				
@@ -673,8 +674,12 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// mateではないので合法手が1手はあるはず…。
 				if (random_multi_pv == 1)
 				{
+					// ここをApery方式にするのとの善悪はよくわからない。
 					MoveList<LEGAL> list(pos);
 					m = list.at((size_t)prng.rand((u64)list.size()));
+
+					// 玉の2手指しのコードを入れていたが、合法手から1手選べばそれに相当するはずで
+					// コードが複雑化するだけだから不要だと判断した。
 				}
 				else {
 					// ロジックが複雑になるので、すまんがここで再度MultiPVで探索する。
@@ -702,9 +707,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 						break;
 				}
 
-				// 玉の2手指しのコードを入れていたが、合法手から1手選べばそれに相当するはずで
-				// コードが複雑化するだけだから不要だと判断した。
-
 				// ゲームの勝敗から指し手を評価しようとするとき、
 				// 今回のrandom moveがあるので、ここ以前には及ばないようにする。
 				a_psv.clear(); // 保存していた局面のクリア
@@ -714,7 +716,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 			// 差分計算を行なうために毎node evaluate()を呼び出しておく。
 			Eval::evaluate_with_no_return(pos);
-		}
+
+		} // for (int ply = 0; ; ++ply)
 	
 	} // while(!quit)
 	
