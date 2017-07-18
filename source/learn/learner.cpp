@@ -1,31 +1,23 @@
 ﻿#include "../shogi.h"
 
 // 学習関係のルーチン
+//
 // 1) 棋譜の自動生成
-//   → gensfenコマンド
+//   → "gensfen"コマンド
 // 2) 生成した棋譜からの評価関数パラメーターの学習
-//   → learnコマンド
+//   → "learn"コマンド
+//   → 教師局面のshuffleもこのコマンドの拡張として行なう。
+//   例) "learn shuffle"
 // 3) 定跡の自動生成
-//   → makebook thinkコマンド
+//   → "makebook think"コマンド
+//   → extra/book/book.cppで実装
 // 4) 局後自動検討モード
-//   →　考え中
+//   →　GUIが補佐すべき問題なのでエンジンでは関与しないことにする。
 // etc..
-
 
 #if defined(EVAL_LEARN)
 
 #include "learn.h"
-
-// ----------------------
-// 教師局面の生成時、学習時に関する、あまり大した意味のない設定項目はここ。
-// ----------------------
-
-// タイムスタンプの出力をこの回数に一回に抑制する。
-// スレッドを論理コアの最大数まで酷使するとコンソールが詰まるので調整用。
-#define GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL 1
-
-// 学習時にsfenファイルを1万局面読み込むごとに'.'を出力する。
-//#define DISPLAY_STATS_IN_THREAD_READ_SFENS
 
 // ----------------------
 // 設定内容に基づく定数文字列
@@ -133,10 +125,9 @@ struct SfenWriter
 		file_worker_thread.join();
 		fs.close();
 
-		for (auto p : sfen_buffers)
-			delete p;
-		for (auto p : sfen_buffers_pool)
-			delete p;
+		// file_worker_threadがすべて書き出したあとなのでbufferはすべて空のはずなのだが..
+		for (auto p : sfen_buffers) { ASSERT_LV1(p == nullptr); }
+		ASSERT_LV1(sfen_buffers_pool.empty());
 	}
 
 	// 各スレッドについて、この局面数ごとにファイルにflushする。
@@ -232,9 +223,10 @@ struct SfenWriter
 					// 棋譜を書き出すごとに'.'を出力。
 					std::cout << ".";
 
-					// 40回×GEN_SFENS_TIMESTAMP_OUTPUT_INTERVALごとに処理した局面数を出力
+					// 40回ごとに処理した局面数を出力
 					// 最後、各スレッドの教師局面の余りを書き出すので中途半端な数が表示されるが、まあいいか…。
-					if ((++time_stamp_count % (u64(40) * GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL)) == 0)
+					// スレッドを論理コアの最大数まで酷使するとコンソールが詰まるのでもう少し間隔甘くてもいいと思う。
+					if ((++time_stamp_count % 40) == 0)
 						output_status();
 
 					// このメモリは不要なのでこのタイミングで開放しておく。
@@ -735,8 +727,9 @@ void gen_sfen(Position&, istringstream& is)
 	// あとで復元するために保存しておく。
 	auto oldGlobalOptions = GlobalOptions;
 	// eval hashにhitすると初期局面付近の評価値として、hash衝突して大きな値を書き込まれてしまうと
-	// 毎回eval_limitを超えてしまい局面の生成が進まなくなる。
+	// eval_limitが小さく設定されているときに初期局面で毎回eval_limitを超えてしまい局面の生成が進まなくなる。
 	// そのため、eval hashは無効化する必要がある。
+	// あとeval hashのhash衝突したときに、変な値の評価値が使われ、それを教師に使うのが気分が悪いというのもある。
 	GlobalOptions.use_eval_hash = false;
 #endif
 

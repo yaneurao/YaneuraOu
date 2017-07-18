@@ -224,7 +224,11 @@ private:
 };
 
 // 乱数のseedを表示する。(デバッグ用)
-inline std::ostream& operator<<(std::ostream& os, PRNG& prng) { os << "PRNG::seed = " << prng.get_seed(); return os; }
+inline std::ostream& operator<<(std::ostream& os, PRNG& prng)
+{
+	os << "PRNG::seed = " << std::hex << prng.get_seed() << std::dec;
+	return os;
+}
 
 // PRNGのasync版
 struct AsyncPRNG
@@ -250,7 +254,11 @@ protected:
 };
 
 // 乱数のseedを表示する。(デバッグ用)
-inline std::ostream& operator<<(std::ostream& os, AsyncPRNG& prng) { os << "AsyncPRNG::seed = " << prng.get_seed(); return os; }
+inline std::ostream& operator<<(std::ostream& os, AsyncPRNG& prng)
+{
+	os << "AsyncPRNG::seed = " << std::hex << prng.get_seed() << std::dec;
+	return os;
+}
 
 // --------------------
 //       Math
