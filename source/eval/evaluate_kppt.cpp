@@ -1043,7 +1043,7 @@ namespace Eval
 		{
 			for (u64 i = 0; i < (u64)SQ_NB * (u64)fe_end * (u64)fe_end; ++i)
 			{
-				auto v = ((ValueKpp*)kkp)[i];
+				auto v = ((ValueKpp*)kpp)[i];
 				f(v[0], v[1]);
 			}
 		}
