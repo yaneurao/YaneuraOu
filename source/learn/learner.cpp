@@ -731,6 +731,15 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 // 棋譜を生成するコマンド
 void gen_sfen(Position&, istringstream& is)
 {
+#if defined(USE_GLOBAL_OPTIONS)
+	// あとで復元するために保存しておく。
+	auto oldGlobalOptions = GlobalOptions;
+	// eval hashにhitすると初期局面付近の評価値として、hash衝突して大きな値を書き込まれてしまうと
+	// 毎回eval_limitを超えてしまい局面の生成が進まなくなる。
+	// そのため、eval hashは無効化する必要がある。
+	GlobalOptions.use_eval_hash = false;
+#endif
+
 	// スレッド数(これは、USIのsetoptionで与えられる)
 	u32 thread_num = Options["Threads"];
 
@@ -834,6 +843,12 @@ void gen_sfen(Position&, istringstream& is)
 	}
 
 	std::cout << "gen_sfen finished." << endl;
+
+#if defined(USE_GLOBAL_OPTIONS)
+	// GlobalOptionsの復元。
+	GlobalOptions = oldGlobalOptions;
+#endif
+
 }
 
 // -----------------------------------
