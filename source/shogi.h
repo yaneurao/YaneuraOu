@@ -906,8 +906,8 @@ namespace USI
 			defaultValue = currentValue = v ? "true" : "false";
 		}
 
-		// long long型で(min,max)でデフォルトがv
-		Option(long long v, long long minv, long long maxv, OnChange f = nullptr) : type("spin"), min(minv), max(maxv), on_change(f)
+		// s64型で(min,max)でデフォルトがv
+		Option(s64 v, s64 minv, s64 maxv, OnChange f = nullptr) : type("spin"), min(minv), max(maxv), on_change(f)
 		{
 			defaultValue = currentValue = std::to_string(v);
 		}
@@ -926,8 +926,8 @@ namespace USI
 		// 起動時に設定を代入する。
 		void operator<<(const Option&);
 
-		// long long,bool型への暗黙の変換子
-		operator long long() const {
+		// s64,bool型への暗黙の変換子
+		operator s64() const {
 			ASSERT_LV1(type == "check" || type == "spin");
 			return type == "spin" ? stoll(currentValue) : currentValue == "true";
 		}
@@ -948,8 +948,8 @@ namespace USI
 
 		std::string defaultValue, currentValue, type;
 
-		// long long型のときの最小と最大
-		long long min, max;
+		// s64型のときの最小と最大
+		s64 min, max;
 
 		// combo boxのときの表示する文字列リスト
 		std::vector<std::string> list;

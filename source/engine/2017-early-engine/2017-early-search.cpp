@@ -2592,8 +2592,8 @@ void MainThread::think()
 	// 探索パラメーターの自動調整用
 	// ---------------------
 
-	param1 = Options["Param1"];
-	param2 = Options["Param2"];
+	param1 = (int)Options["Param1"];
+	param2 = (int)Options["Param2"];
 
 	// ---------------------
 	// 合法手がないならここで投了
@@ -2683,7 +2683,7 @@ void MainThread::think()
 		// 評価値が - 100とみなされる。(互角と思っている局面であるなら引き分けを選ばずに他の指し手を選ぶ)
 		// contempt_from_blackがtrueのときは、Contemptを常に先手から見たスコアだとみなす。
 
-		int contempt = Options["Contempt"] * PawnValue / 100;
+		int contempt = (int)(Options["Contempt"] * PawnValue / 100);
 		if (!Options["ContemptFromBlack"])
 		{
 			// contemptの値を現在の手番側(us)から見た値とみなす。
@@ -2894,7 +2894,7 @@ namespace Learner
 		// DrawValueの設定
 		{
 			Color us = pos.side_to_move();
-			int contempt = Options["Contempt"] * PawnValue / 100;
+			int contempt = int(Options["Contempt"] * PawnValue / 100);
 			drawValueTable[REPETITION_DRAW][us] = VALUE_ZERO - Value(contempt);
 			drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
 		}
