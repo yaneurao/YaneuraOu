@@ -344,6 +344,12 @@ namespace USI
 		// 0なら無制限。(桁あふれすると良くないので内部的には100000として扱う)
 		o["MaxMovesToDraw"] << Option(0, 0, 100000, [](const Option& o) { max_game_ply = (o == 0) ? 100000 : (int)o; });
 
+		// 探索深さ制限。0なら無制限。
+		o["DepthLimit"] << Option(0, 0, INT_MAX);
+
+		// 探索ノード制限。0なら無制限。
+		o["NodesLimit"] << Option(0, 0, LLONG_MAX);
+
 		// 引き分けを受け入れるスコア
 		// 歩を100とする。例えば、この値を100にすると引き分けの局面は評価値が -100とみなされる。
 
@@ -378,7 +384,7 @@ namespace USI
 #if defined(LOCAL_GAME_SERVER)
 		// 子プロセスでEngineを実行するプロセッサグループ(Numa node)
 		// -1なら、指定なし。
-		o["EngineNuma"] << Option(-1, 0, 99999);
+		o["EngineNuma"] << Option(-1, -1, 99999);
 #endif
 
 		// 各エンジンがOptionを追加したいだろうから、コールバックする。
@@ -613,6 +619,10 @@ void go_cmd(const Position& pos, istringstream& is) {
 
 	// 終局(引き分け)になるまでの手数
 	limits.max_game_ply = max_game_ply;
+
+	// エンジンオプションによる探索制限(0なら無制限)
+	if (Options["DepthLimit"] >= 0)    limits.depth = Options["DepthLimit"];
+	if (Options["NodesLimit"] >= 0)    limits.nodes = Options["NodesLimit"];
 
 	while (is >> token)
 	{
