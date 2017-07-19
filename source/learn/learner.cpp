@@ -569,8 +569,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 						pos.do_move(m, state[ply2++]);
 						
 						// 毎ノードevaluate()を呼び出さないと、evaluate()の差分計算が出来ないので注意！
-						// depthが6以上だとこの差分計算はしないほうが速いと思われる。
-						if (depth < 6)
+						// depthが8以上だとこの差分計算はしないほうが速いと思われる。
+						if (depth < 8)
 							Eval::evaluate_with_no_return(pos);
 					}
 
@@ -779,7 +779,7 @@ void gen_sfen(Position&, istringstream& is)
 #endif
 
 	// スレッド数(これは、USIのsetoptionで与えられる)
-	u32 thread_num = Options["Threads"];
+	u32 thread_num = (u32)Options["Threads"];
 
 	// 生成棋譜の個数 default = 80億局面(Ponanza仕様)
 	u64 loop_max = 8000000000UL;

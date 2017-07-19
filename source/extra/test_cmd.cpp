@@ -766,8 +766,8 @@ void test_timeman()
 	{
 //		Options["NetworkDelay2"] = "1200";
 
-		int delay = Options["NetworkDelay"];
-		int delay2 = Options["NetworkDelay2"];
+		int delay = (int)Options["NetworkDelay"];
+		int delay2 = (int)Options["NetworkDelay2"];
 
 		// 最小思考時間が1秒設定でもうまく動くかな？
 //		Options["MinimumThinkingTime"] = "1000";

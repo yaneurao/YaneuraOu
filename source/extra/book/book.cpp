@@ -71,7 +71,7 @@ namespace Book
 	{
 		// g_loop_maxになるまで繰り返し
 		u64 id;
-		int multi_pv = Options["MultiPV"];
+		size_t multi_pv = (size_t)Options["MultiPV"];
 
 		while ((id = get_next_loop_count()) != UINT64_MAX)
 		{
@@ -90,11 +90,11 @@ namespace Book
 			Learner::search(pos, search_depth , multi_pv);
 
 			// MultiPVで局面を足す、的な
-			int m = std::min(multi_pv, (int)th->rootMoves.size());
+			size_t m = std::min(multi_pv, th->rootMoves.size());
 
 			PosMoveListPtr move_list(new PosMoveList());
 
-			for (int i = 0; i < m ; ++i)
+			for (size_t i = 0; i < m ; ++i)
 			{
 				// 出現頻度は、バージョンナンバーを100倍したものにしておく)
 				Move nextMove = (th->rootMoves[i].pv.size() >= 1) ? th->rootMoves[i].pv[1] : MOVE_NONE;
@@ -438,7 +438,7 @@ namespace Book
 			{
 				// thinking_sfensを並列的に探索して思考する。
 				// スレッド数(これは、USIのsetoptionで与えられる)
-				u32 multi_pv = Options["MultiPV"];
+				size_t multi_pv = (size_t)Options["MultiPV"];
 
 				// 思考する局面をsfensに突っ込んで、この局面数をg_loop_maxに代入しておき、この回数だけ思考する。
 				MultiThinkBook multi_think(depth, book);
@@ -1249,7 +1249,7 @@ namespace Book
 	bool BookMoveSelector::probe_impl(Position& rootPos, bool silent , Move& bestMove , Move& ponderMove)
 	{
 		// 定跡を用いる手数
-		int book_ply = Options["BookMoves"];
+		int book_ply = (int)Options["BookMoves"];
 		if (rootPos.game_ply() > book_ply)
 			return false;
 

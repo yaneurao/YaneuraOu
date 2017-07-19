@@ -23,7 +23,7 @@ namespace {
 void Timer::init(Search::LimitsType& limits, Color us, int ply)
 {
 	// nodes as timeモード
-	int npmsec = Options["nodestime"];
+	int npmsec = (int)Options["nodestime"];
 
 	// npmsecがUSI optionで指定されていれば、時間の代わりに、ここで指定されたnode数をベースに思考を行なう。
 	// nodes per milli secondの意味。
@@ -48,23 +48,23 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 
 	// ネットワークのDelayを考慮して少し減らすべき。
 	// かつ、minimumとmaximumは端数をなくすべき
-	network_delay = Options["NetworkDelay"];
+	network_delay = (int)Options["NetworkDelay"];
 
 	// 探索終了予定時刻。このタイミングで初期化しておく。
 	search_end = 0;
 
 	// 今回の最大残り時間(これを超えてはならない)
-	remain_time = limits.time[us] + limits.byoyomi[us] - Options["NetworkDelay2"];
+	remain_time = limits.time[us] + limits.byoyomi[us] - (int)Options["NetworkDelay2"];
 	// ここを0にすると時間切れのあと自爆するのでとりあえず100にしておく。
 	remain_time = std::max(remain_time, 100);
 
 	// 最小思考時間
-	minimum_thinking_time = Options["MinimumThinkingTime"];
+	minimum_thinking_time = (int)Options["MinimumThinkingTime"];
 
 	// 序盤重視率
 	// 　これはこんなパラメーターとして手で調整するべきではなく、探索パラメーターの一種として
 	//   別の方法で調整すべき。ただ、対人でソフトに早指ししたいときには意味があるような…。
-	int slowMover = Options["SlowMover"];
+	int slowMover = (int)Options["SlowMover"];
 
 	if (limits.rtime)
 	{

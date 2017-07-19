@@ -621,8 +621,8 @@ void go_cmd(const Position& pos, istringstream& is) {
 	limits.max_game_ply = max_game_ply;
 
 	// エンジンオプションによる探索制限(0なら無制限)
-	if (Options["DepthLimit"] >= 0)    limits.depth = Options["DepthLimit"];
-	if (Options["NodesLimit"] >= 0)    limits.nodes = Options["NodesLimit"];
+	if (Options["DepthLimit"] >= 0)    limits.depth = (int)Options["DepthLimit"];
+	if (Options["NodesLimit"] >= 0)    limits.nodes = (u64)Options["NodesLimit"];
 
 	while (is >> token)
 	{
