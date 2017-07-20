@@ -9,7 +9,7 @@ using namespace Effect8;
 
 namespace {
 
-  // min_attacker()はsee()で使われるヘルパー関数であり、(目的升toに利く)
+  // min_attacker()はsee_ge()で使われるヘルパー関数であり、(目的升toに利く)
   // 手番側の最も価値の低い攻撃駒の場所を特定し、その見つけた駒をビットボードから取り除き
   // その背後にあった遠方駒をスキャンする。(あればstmAttackersに追加する)
 
@@ -48,10 +48,10 @@ namespace {
 	  b = stmAttackers & pos.pieces(HORSE);  if (b) goto found;
 	  b = stmAttackers & pos.pieces(DRAGON); if (b) goto found;
 
-	  // 攻撃駒があるというのが前提条件だから、以上の駒で取れなければ、最後は玉でtoの升に移動出来て
-	  // 駒を取れるはず。
+	  // 攻撃駒があるというのが前提条件だから、以上の駒で取れなければ、最後は玉でtoの升に移動出来て駒を取れるはず。
+	  // 玉を移動させた結果、影になっていた遠方駒によってこの王が取られることはないから、
+	  // sqに利く遠方駒が追加されることはなく、このままreturnすれば良い。
 
-	  // ここでサイクルは停止するのだ。
 	  return KING;
 
   found:;
@@ -64,42 +64,48 @@ namespace {
 	  // このときpinされているかの判定を入れられるなら入れたほうが良いのだが…。
 	  // この攻撃駒の種類によって場合分け
 
+	  // sqにあった駒が消えるので、toから見てsqの延長線上にある駒を追加する。
+
 	  auto dirs = directions_of(to, sq);
 	  if (dirs) switch (pop_directions(dirs))
 	  {
-	  case DIRECT_RU: case DIRECT_RD: case DIRECT_LU: case DIRECT_LD:
+	  case DIRECT_RU: case DIRECT_LD:
 		  // 斜め方向なら斜め方向の升をスキャンしてその上にある角・馬を足す
-		  attackers |= bishopEffect(to, occupied) & pos.pieces(BISHOP_HORSE);
+		  attackers |= bishopEffect0(to, occupied) & pos.pieces(BISHOP_HORSE);
 
+		  ASSERT_LV3((bishopStepEffect(to) & sq));
+		  break;
+
+	  case DIRECT_RD: case DIRECT_LU:
+		  attackers |= bishopEffect1(to, occupied) & pos.pieces(BISHOP_HORSE);
 		  ASSERT_LV3((bishopStepEffect(to) & sq));
 		  break;
 
 	  case DIRECT_U:
 		  // 後手の香 + 先後の飛車
-		  attackers |= rookEffect(to, occupied) & lanceStepEffect(BLACK, to)
-			  & (pos.pieces(ROOK_DRAGON) | pos.pieces(WHITE,LANCE));
+		  attackers |= lanceEffect(BLACK , to, occupied) & (pos.pieces(ROOK_DRAGON) | pos.pieces(WHITE, LANCE));
 
 		  ASSERT_LV3((lanceStepEffect(BLACK, to) & sq));
 		  break;
 
 	  case DIRECT_D:
 		  // 先手の香 + 先後の飛車
-		  attackers |= rookEffect(to, occupied) & lanceStepEffect(WHITE, to)
-			  & (pos.pieces(ROOK_DRAGON) | pos.pieces(BLACK,LANCE));
+		  attackers |= lanceEffect(WHITE , to, occupied) & (pos.pieces(ROOK_DRAGON) | pos.pieces(BLACK, LANCE));
 
 		  ASSERT_LV3((lanceStepEffect(WHITE, to) & sq));
 		  break;
 
 	  case DIRECT_L: case DIRECT_R:
 		  // 左右なので先後の飛車
-		  attackers |= rookEffect(to, occupied) & pos.pieces(ROOK_DRAGON);
+		  attackers |= rookRankEffect(to, occupied) & pos.pieces(ROOK_DRAGON);
 
 		  ASSERT_LV3(((rookStepEffect(to) & sq)));
 		  break;
 
 	  default:
 		  UNREACHABLE;
-	  } else {
+	  }
+	  else {
 		  // DIRECT_MISC
 		  ASSERT_LV3(!(bishopStepEffect(to) & sq));
 		  ASSERT_LV3(!((rookStepEffect(to) & sq)));
@@ -138,7 +144,7 @@ namespace {
 // このseeの最終的な値が、vを以上になるかどうかを判定する。
 // こういう設計にすることで早期にvを超えないことが確定した時点でreturn出来る。
 
-bool Position::see_ge(Move m, Value v) const
+bool Position::see_ge(Move m, Value threshold) const
 {
 	// null windowのときのαβ探索に似たアルゴリズムを用いる。
 
@@ -162,7 +168,7 @@ bool Position::see_ge(Move m, Value v) const
 	Value balance = (Value)Eval::CapturePieceValue[piece_on(to)];
 
 	// この時点でマイナスになっているので早期にリターン。
-	if (balance < v)
+	if (balance < threshold)
 		return false;
 
 	// 王が取られる指し手は考慮しなくて良いので、これは取られないものとしてプラス収支であるから
@@ -172,7 +178,7 @@ bool Position::see_ge(Move m, Value v) const
 
 	balance -= (Value)Eval::CapturePieceValue[nextVictim];
 
-	if (balance >= v)
+	if (balance >= threshold)
 		return true;
 
 	// true if the opponent is to move and false if we are to move
@@ -212,7 +218,7 @@ bool Position::see_ge(Move m, Value v) const
 							  : balance - (Value)Eval::CapturePieceValue[nextVictim];
 		relativeStm = !relativeStm;
 
-		if (relativeStm == (balance >= v))
+		if (relativeStm == (balance >= threshold))
 			return relativeStm;
 
 		stm = ~stm;

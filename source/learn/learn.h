@@ -1,60 +1,38 @@
 ﻿#ifndef _LEARN_H_
 #define _LEARN_H_
 
+#include "../shogi.h"
+
+#if defined(EVAL_LEARN)
+
 // =====================
 //  学習時の設定
 // =====================
 
 // 以下のいずれかを選択すれば、そのあとの細々したものは自動的に選択される。
-// 以下のいずれも選択しない場合は、そのあとの細々したものをひとつひとつ設定する必要がある。
+// いずれも選択しない場合は、そのあとの細々したものをひとつひとつ設定する必要がある。
 
-// デフォルトの学習設定
+// elmo方式での学習設定。これをデフォルト設定とする。
+// 標準の雑巾絞りにするためにはlearnコマンドで "lambda 1"を指定してやれば良い。
+#define LEARN_ELMO_METHOD
 
-#define LEARN_DEFAULT
-
-// やねうら王2016Late用デフォルトの学習設定。
-//
-// 置換表を無効化するので通常対局は出来ない。learnコマンド用の実行ファイル専用。
-//                       ~~~~~~~~~~~~~~~~~~
-// ※　色々実験中なので使わないように。
-
-//#define LEARN_YANEURAOU_2016_LATE
-//#define EVAL_SAVE_ONLY_ONCE
-
-
-// =====================
-// 教師局面生成時の設定
-// =====================
-
-// 教師局面の生成時にPVの初手も保存するならこれをdefineすること。
-// 2016年9月までに公開したした教師データを用いる場合、これをdefineしてはならない。
-// #define GENSFEN_SAVE_FIRST_MOVE
+// やねうら王2017GOKU用のデフォルトの学習設定
+// ※　このオプションは実験中なので使わないように。
+// #define LEARN_YANEURAOU_2017_GOKU
 
 
 // ----------------------
-//  重みベクトルの更新式
+//        更新式
 // ----------------------
 
-// update_weights()の更新式を以下のなかから一つ選択すべし。
-// 詳しい説明は、evaluate_kppt_learn.cppを見ること。
+// AdaGrad。これが安定しているのでお勧め。
+// #define ADA_GRAD_UPDATE
 
-// 1) SGDによるupdate
-//  これは普通のSGD
+// 勾配の符号だけ見るSGD。省メモリで済むが精度は…。
+// #define SGD_UPDATE
 
-//#define USE_SGD_UPDATE
-
-
-// 2) AdaGradによるupdate
-//  これは普通のAdaGrad
-
-//#define USE_ADA_GRAD_UPDATE
-
-
-// 3) Adamによるupdate
-//  これは普通のAdam 評価関数ファイルの16倍ぐらいWeight用のメモリが必要。
-
-//#define USE_ADAM_UPDATE
-
+// RMSProp風のAdaGrad
+// #define ADA_PROP_UPDATE
 
 
 // ----------------------
@@ -65,6 +43,7 @@
 // この数だけの局面をまとめて勾配を計算する。
 // 小さくするとupdate_weights()の回数が増えるので収束が速くなる。勾配が不正確になる。
 // 大きくするとupdate_weights()の回数が減るので収束が遅くなる。勾配は正確に出るようになる。
+// 多くの場合において、この値を変更する必要はないと思う。
 
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 
@@ -75,22 +54,11 @@
 #define LEARN_SFEN_READ_SIZE (1000 * 1000 * 10)
 
 // 学習時の評価関数の保存間隔。この局面数だけ学習させるごとに保存。
-#define LEARN_EVAL_SAVE_INTERVAL (80000000ULL)
+// 当然ながら、保存間隔を長くしたほうが学習時間は短くなる。
+// フォルダ名は 0/ , 1/ , 2/ ...のように保存ごとにインクリメントされていく。
+// デフォルトでは10億局面に1回。
+#define LEARN_EVAL_SAVE_INTERVAL (1000000000ULL)
 
-
-// KKP,KPPの評価値、ミラーを考慮するか(ミラーの位置にある評価値を同じ値にする)
-// #define USE_KKP_MIRROR_WRITE
-// #define USE_KPP_MIRROR_WRITE
-
-// KKPの評価値、フリップを考慮するか(盤面を180度回転させた位置にある評価値を同じ値にする)
-// #define USE_KKP_FLIP_WRITE
-
-// 毎回wを更新する。ただし評価関数パラメーターに反映させるのは、
-// mini-batch回数に1回。
-// #define LEARN_UPDATE_EVERYTIME
-
-// 評価関数ファイルを出力するときに指数移動平均(EMA)を用いた平均化を行なう。
-// #define LEARN_USE_EMA
 
 // ----------------------
 //    目的関数の選択
@@ -103,28 +71,25 @@
 
 // 目的関数が交差エントロピー
 // 詳しい説明は、learner.cppを見ること。
-
+// いわゆる、普通の「雑巾絞り」
 //#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
 
 // 目的関数が交差エントロピーだが、勝率の関数を通さない版
 // #define LOSS_FUNCTION_IS_CROSS_ENTOROPY_FOR_VALUE
 
+// elmo(WCSC27)の方式
+// #define LOSS_FUNCTION_IS_ELMO_METHOD
 
 // ※　他、色々追加するかも。
 
 
 // ----------------------
-//    浅い探索の選択
+// 学習に関するデバッグ設定
 // ----------------------
 
-// 浅い探索の値としてevaluate()を用いる
-//#define USE_EVALUATE_FOR_SHALLOW_VALUE
-
-// 浅い探索の値としてqsearch()を用いる。
-//#define USE_QSEARCH_FOR_SHALLOW_VALUE
-
-
-// ※　他、色々追加するかも。
+// 学習時のrmseの出力をこの回数に1回に減らす。
+// rmseの計算は1スレッドで行なうためそこそこ時間をとられるので出力を減らすと効果がある。
+#define LEARN_RMSE_OUTPUT_INTERVAL 1
 
 
 // ----------------------
@@ -140,186 +105,75 @@
 
 
 // ----------------------
-//        置換表
-// ----------------------
-
-// 置換表を用いない。(やねうら王Mid2016/Late2016のみ対応)
-// これをオンにすると通常対局時にも置換表を参照しなくなってしまうので棋譜からの学習を行う実行ファイルでのみオンにする。
-// 棋譜からの学習時にはオンにしたほうがよさげ。
-// 理由) 置換表にhitするとPV learが評価値の局面ではなくなってしまう。
-
-//#define DISABLE_TT_PROBE
-
-
-// ----------------------
-// 評価関数ファイルの保存
-// ----------------------
-
-// 保存するときのフォルダ番号を、この局面数ごとにインクリメントしていく。
-// (Windows環境限定)
-// 例) "0/KK_synthesized.bin" →　"1/KK_synthesized.bin"
-// ※　Linux環境でファイルの上書きが嫌ならconfig.hのMKDIRのコードを有効にしてください。
-// 現状、10億局面ずつ。
-#define EVAL_FILE_NAME_CHANGE_INTERVAL (u64)1000000000
-
-// evalファイルの保存は1度のみにする。
-//#define EVAL_SAVE_ONLY_ONCE
-
-// ----------------------
-// 学習に関するデバッグ設定
-// ----------------------
-
-// 学習時にsfenファイルを1万局面読み込むごとに'.'を出力する。
-//#define DISPLAY_STATS_IN_THREAD_READ_SFENS
-
-// 学習時のrmseとタイムスタンプの出力をこの回数に1回に減らす
-#define LEARN_RMSE_OUTPUT_INTERVAL 1
-#define LEARN_TIMESTAMP_OUTPUT_INTERVAL 10
-
-// ----------------------
 //  学習のときの浮動小数
 // ----------------------
 
 // これをdoubleにしたほうが計算精度は上がるが、重み配列絡みのメモリが倍必要になる。
+// 現状、ここをfloatにした場合、評価関数ファイルに対して、重み配列はその4.5倍のサイズ。(KPPTで4.5GB程度)
+// double型にしても収束の仕方にほとんど差異がなかったのでfloatに固定する。
+
+// floatを使う場合
 typedef float LearnFloatType;
 
+// doubleを使う場合
+//typedef double LearnFloatType;
+
+// float16を使う場合
+//#include "half_float.h"
+//typedef HalfFloat::float16 LearnFloatType;
+
 
 // ----------------------
-//   棋譜生成時の設定
+//  省メモリ化
 // ----------------------
 
-// これはgensfenコマンドに関する設定。
-// これらは、configureの設定では変化しない。
+// Weight配列(のうちのKPP)に三角配列を用いて省メモリ化する。
+// これを用いると、学習用の重み配列は評価関数ファイルの2.5倍程度で済むようになる。
 
-// packされたsfenを書き出す
-#define WRITE_PACKED_SFEN
-
-// search()のleaf nodeまでの手順が合法手であるかを検証する。
-//#define TEST_LEGAL_LEAF
-
-// packしたsfenをunpackして元の局面と一致するかをテストする。
-// →　十分テストしたのでもう大丈夫やろ…。
-//#define TEST_UNPACK_SFEN
-
-// 棋譜を生成するときに一定手数の局面まで定跡を用いる機能
-// これはOptions["BookMoves"]の値が反映される。この値が0なら、定跡を用いない。
-// 用いる定跡は、Options["BookFile"]が反映される。
-
-// 2駒の入れ替えを5手に1回ぐらいの確率で行なう。
-//#define USE_SWAPPING_PIECES
-
-// ときどき合法手のなかからランダムに1手選ぶ。(Apery方式)
-//#define USE_RANDOM_LEGAL_MOVE
+#define USE_TRIANGLE_WEIGHT_ARRAY
 
 
-// タイムスタンプの出力をこの回数に一回に抑制する。
-// スレッドを論理コアの最大数まで酷使するとコンソールが詰まるので…。
-#define GEN_SFENS_TIMESTAMP_OUTPUT_INTERVAL 1
+// ======================
+//  教師局面生成時の設定
+// ======================
 
 // ----------------------
-// configureの内容を反映
+//  引き分けを書き出す
 // ----------------------
 
-#ifdef LEARN_DEFAULT
-#define USE_SGD_UPDATE
-#define USE_KPP_MIRROR_WRITE
-#undef LEARN_MINI_BATCH_SIZE
-#define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
-#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
-#define USE_QSEARCH_FOR_SHALLOW_VALUE
-#undef EVAL_FILE_NAME_CHANGE_INTERVAL
-#define EVAL_FILE_NAME_CHANGE_INTERVAL 1000000000
-#define USE_RANDOM_LEGAL_MOVE
+// 引き分けに至ったとき、それを教師局面として書き出す
+// これをするほうが良いかどうかは微妙。
+// #define LEARN_GENSFEN_USE_DRAW_RESULT
+
+
+// ======================
+//       configure
+// ======================
+
+// ----------------------
+//  elmo(WCSC27)の方法での学習
+// ----------------------
+
+#if defined( LEARN_ELMO_METHOD )
+#define LOSS_FUNCTION_IS_ELMO_METHOD
+#define ADA_GRAD_UPDATE
 #endif
 
-#ifdef LEARN_YANEURAOU_2016_LATE
+// ----------------------
+//  やねうら王2017GOKUの方法
+// ----------------------
 
-// SGDによる標準的なupdate
-#if 0
-#define USE_SGD_UPDATE
-#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
-#endif
+#if defined(LEARN_YANEURAOU_2017_GOKU)
 
-// AdaGradによるリアルタイムupdate
-#if 1
-#define USE_ADA_GRAD_UPDATE
-#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
-#define LEARN_UPDATE_EVERYTIME
-#endif
-
-// Adamによるupdate
-#if 0
-#define USE_ADAM_UPDATE
-#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
-#define LEARN_UPDATE_EVERYTIME
-#endif
-
-#if 0
-
-//#define USE_SGD_UPDATE
-//#define USE_ADAM_UPDATE
-//#define USE_ADA_GRAD_UPDATE
-
-//#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
+// 損失関数、比較実験中。
 //#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
-//define LOSS_FUNCTION_IS_CROSS_ENTOROPY_FOR_VALUE
+//#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
+#define LOSS_FUNCTION_IS_ELMO_METHOD
+//#define LOSS_FUNCTION_IS_YANE_ELMO_METHOD
 
-#endif
-
-#undef LEARN_MINI_BATCH_SIZE
-#define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
-#define USE_QSEARCH_FOR_SHALLOW_VALUE
-//#define USE_EVALUATE_FOR_SHALLOW_VALUE
-#define DISABLE_TT_PROBE
-#undef EVAL_FILE_NAME_CHANGE_INTERVAL
-#define EVAL_FILE_NAME_CHANGE_INTERVAL (250000000ULL)
-
-#undef LEARN_RMSE_OUTPUT_INTERVAL
-#define LEARN_RMSE_OUTPUT_INTERVAL 10
-
-// 2.5億に1回ぐらいのペースでいいんじゃね？
-#undef LEARN_EVAL_SAVE_INTERVAL
-#define LEARN_EVAL_SAVE_INTERVAL (250000000ULL)
-
-#define USE_KPP_MIRROR_WRITE
-#define USE_KKP_FLIP_WRITE
-#define USE_KKP_MIRROR_WRITE
-#define LEARN_USE_EMA
-
-//#define USE_RANDOM_LEGAL_MOVE
-
-#endif
-
-// ----------------------
-// 設定内容に基づく定数文字列
-// ----------------------
-
-// 更新式に応じた文字列。(デバッグ用に出力する。)
-#if defined(USE_SGD_UPDATE)
-#define LEARN_UPDATE "SGD"
-#elif defined(USE_YANE_SGD_UPDATE)
-#define LEARN_UPDATE "YaneSGD"
-#elif defined(USE_ADA_GRAD_UPDATE)
-#define LEARN_UPDATE "AdaGrad"
-#elif defined(USE_ADAM_UPDATE)
-#define LEARN_UPDATE "Adam"
-#endif
-
-#if defined(LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
-#define LOSS_FUNCTION "WINNING_PERCENTAGE"
-#elif defined(LOSS_FUNCTION_IS_CROSS_ENTOROPY)
-#define LOSS_FUNCTION "CROSS_ENTOROPY"
-#elif defined(LOSS_FUNCTION_IS_CROSS_ENTOROPY_FOR_VALUE)
-#define LOSS_FUNCTION "CROSS_ENTOROPY_FOR_VALUE"
-#endif
-
-// rmseの観測用
-#if 0
-#undef LEARN_RMSE_OUTPUT_INTERVAL
-#define LEARN_RMSE_OUTPUT_INTERVAL 1
-#define LEARN_SFEN_NO_SHUFFLE
-#undef LEARN_SFEN_READ_SIZE
-#define LEARN_SFEN_READ_SIZE 100000 
+#define ADA_GRAD_UPDATE
+//#define SGD_UPDATE
+//#define ADA_PROP_UPDATE
 #endif
 
 
@@ -331,15 +185,46 @@ typedef float LearnFloatType;
 namespace Learner
 {
 	// PackedSfenと評価値が一体化した構造体
+	// オプションごとに書き出す内容が異なると教師棋譜を再利用するときに困るので
+	// とりあえず、以下のメンバーはオプションによらずすべて書き出しておく。
 	struct PackedSfenValue
 	{
+		// 局面
 		PackedSfen sfen;
-		s16 score; // PV leafでの評価値
 
-#ifdef	GENSFEN_SAVE_FIRST_MOVE
-		u16 move; // PVの初手
-#endif
+		// Learner::search()から返ってきた評価値
+		s16 score;
+
+		// PVの初手
+		u16 move;
+
+		// 初期局面からの局面の手数。
+		u16 gamePly;
+
+		// この局面の手番側が、ゲームを最終的に勝っているなら1。負けているなら-1。
+		// 引き分けに至った場合は、0。
+		// 引き分けは、教師局面生成コマンドgensfenにおいて、
+		// LEARN_GENSFEN_DRAW_RESULTが有効なときにだけ書き出す。
+		s8 game_result;
+
+		// 教師局面を書き出したファイルを他の人とやりとりするときに
+		// この構造体サイズが不定だと困るため、paddingしてどの環境でも必ず40bytesになるようにしておく。
+		u8 padding;
+
+		// 32 + 2 + 2 + 2 + 1 + 1 = 40bytes
 	};
+
+	// 読み筋とそのときの評価値を返す型
+	// Learner::search() , Learner::qsearch()で用いる。
+	typedef std::pair<Value, std::vector<Move> > ValueAndPV;
+
+	// いまのところ、やねうら王2017Earlyしか、このスタブを持っていないが
+	// EVAL_LEARNをdefineするなら、このスタブが必須。
+	extern Learner::ValueAndPV  search(Position& pos, int depth , size_t multiPV = 1);
+	extern Learner::ValueAndPV qsearch(Position& pos);
+
 }
+
+#endif
 
 #endif // ifndef _LEARN_H_

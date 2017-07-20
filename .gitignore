@@ -3,6 +3,8 @@
 
 # added by yaneurao
 
+evaluate_experimental.*
+evaluate_ppap.h
 *.gitattributes
 # *.gitignore
 *.bat
@@ -10,8 +12,9 @@
 YaneuraOu_backup*.lnk
 バージョン履歴.txt
 実験記録*.txt
+開発メモ2017.txt
+コマンドのメモ.txt
 *.bak
-evaluate_kppt_fast_body.cpp
 *Private.*
 *.vspx
 
@@ -41,9 +44,11 @@ build/
 bld/
 [Bb]in/
 [Oo]bj/
+exe/
 
 # Visual Studio 2015 cache/options directory
 .vs/
+enc_temp_folder
 
 # MSTest test Results
 [Tt]est[Rr]esult*/

@@ -2,6 +2,583 @@
 やねうら王 更新履歴
 
 
+■　2017/07/17
+
+・gensfenコマンドの処理、リファクタリング。
+・宣言勝ち周り、リファクタリング。何かバグってたらごめん。
+・gensfenのときに乱数seed表示するようにしたなど。
+・ConsiderationModeがオンのとき、PVを置換表に書き戻す処理を入れているが、それをメインスレッドでしか行わないようにした。など。
+
+
+■　2017/07/16 V4.74
+
+・評価関数分解エンジンの実装 (#54) (Qhapaqさん)
+・"test evalresolve"コマンドの説明追記
+	- Makefile元に戻す
+	- reformatting
+	- VC++で警告出ていたのを修正
+・"test evalmerge"コマンドにfeatureオプション追加。(隠し)
+
+
+■　2017/07/15
+
+・EvalShareオプション、異種評価関数との自己対局のときにこの設定で引っかかる人が後を絶たないのでデフォルトでオフにする。
+・learn.h/cpp整理
+	- gensfenのときにPV lineのleaf nodeでevaluate()した値を用いることに変更。
+	- LEARN_GENSFEN_DRAW_RESULT →  LEARN_GENSFEN_USE_DRAW_RESULTに名前変更。
+	- gensfenまわりのソースコード整理。
+	- learnコマンドでもshallow valueとしてPV lineのleaf nodeでのevaluate()の値を用いるように変更。
+
+■　2017/07/14
+
+・"test evalexam"コマンド、KK,KKP,KPP別の集計を行なうように変更。
+・Stockfish : Move stop signal to Threads
+	- cf. https://github.com/official-stockfish/Stockfish/commit/36a93d90f76d32e16a5f2acb09b7de2d67225021
+・"bench"コマンド実行時にOptionsを破壊していたので復元するようにした。
+・MultiThinkのOptionsの復元のコードが良くなかったので修正した。
+・Stockfish : Move stop signal to Threadsその2
+	- 2017Early以外の思考エンジンに対しても修正。
+・Stockfish : Provide selective search depth info for each pv move
+	- cf. https://github.com/official-stockfish/Stockfish/commit/377d77dbe922b99ee34d686e4fe180698a9b535a
+	- スレッドごとにselDepthを出力できるようになった。
+	- selDepthの初期化忘れ修正。
+
+
+■　2017/07/10 V4.73
+
+・gensfenのUSE_RANDOM_LEGAL_MOVE、常に有効でいいので削除。
+・kifconvert wip20170710a (#51) (Mizarさん)
+・kifconvert fix (Mizarさん)
+・MultiPVが1以外のときに詰みを発見すると探索が終了してしまうバグ修正。
+・random_multi_pv_depth追加。
+
+
+■　2017/07/09
+
+・gensfenコマンドにrandom_multi_pv_diffオプション追加。
+・test mergeコマンドにkkptオプション追加。仮想的にpp手番にする実験コード追加。
+・learn shuffleコマンドにbuffer_sizeオプション追加。
+・Makefile BOMをなしに変更。
+       BOMありだとMacでビルドしたときにLLVM8.1とgcc7.1でmissing separator errorになるらしい。
+
+
+■　2017/07/08
+
+・GCC 7.1.0での警告に対する修正。BitboardとEvalSum。
+
+
+■　2017/07/07
+
+・GCC 7.1.0での警告に対する修正。(Mizarさん)
+
+
+
+■　2017/07/06
+
+・Stockfish : Tidy up
+       cf. https://github.com/official-stockfish/Stockfish/commit/6d24ef8585c2ed5618eb9b4ab1d8ee35a05ce2cd
+       InFrontBB→ForwardRanksBBにリネーム。
+・Stockfish : Don't uselessy share rootDepth
+       cf . https://github.com/official-stockfish/Stockfish/commit/802fca6fdd562c4c52397521eb0ac05cb2be9046
+・Stockfish : Use unsigned int for nodes in Limits.
+       cf . https://github.com/official-stockfish/Stockfish/pull/1163/files
+・makebook thinkコマンド、エンバグしていたの修正。
+MultiPVで使うときに、2手目以降の評価値が-32001になっていた。
+
+
+
+■　2017/07/05
+
+・"test evalmerge"コマンド、リファクタリング。
+・Pieceのデバッグ出力のたときに漢字を2バイトと仮定していた部分、修正。
+
+
+■　2017/07/03
+
+・gensfenのときにファイルのflushを一定書き出しごとに行なうようにした。→　間違い。なってた。
+・see_ge()の変数名のリネーム。
+・一つ前のgensfenのflushをrevert。
+
+
+ ■　2017/07/02
+
+・Position::do_move()に指し手としてMOVE_RESIGNを渡すといけないのでassert追加。
+・Stockfish : Only main thread checks time
+        cf. https://github.com/official-stockfish/Stockfish/commit/05513a66410f96959f3a6e70be9aea72425cf7c7
+・Stockfish : Fix four data races.
+       cf. https://github.com/official-stockfish/Stockfish/commit/3cb02004596f868ae405b09fbf3a2038a680a989
+・Position::nodes_searched()削除
+・Threads.init_for_slave()削除。
+・search()のときに千日手判定でrootの局面以前まで遡っていなかったの修正。
+・Learner::search()をスレッドごとのmulti pvに対応させた。
+・gensfenコマンドにrandom_multi_pvオプション追加。
+・Position::set_this_thread()廃止。set()などのときなどにthread指定するようにした。
+・makebookコマンドなどさきほどの変更に伴って動かなくなっていたの修正。
+・以下のプロジェクトを削除。(保守しきれないため)
+	#define YANEURAOU_NANO_ENGINE            // やねうら王nano         (完成2016/01/31)
+	#define YANEURAOU_NANO_PLUS_ENGINE       // やねうら王nano plus    (完成2016/02/25)
+	#define YANEURAOU_MINI_ENGINE            // やねうら王mini         (完成2016/02/29)
+	#define YANEURAOU_CLASSIC_ENGINE         // やねうら王classic      (完成2016/04/03)
+	#define YANEURAOU_CLASSIC_TCE_ENGINE     // やねうら王classic tce  (完成2016/04/15)
+	#define YANEURAOU_2016_MID_ENGINE        // やねうら王2016(MID)    (完成2016/08/18)
+	#define YANEURAOU_2016_LATE_ENGINE       // やねうら王2016(LATE)   (完成2016/10/07)     : 真やねうら王
+	#define CHECK_SHOGI_ENGINE	             // やねうら王 王手将棋    (完成2016/11/30)
+	#define MUST_CAPTURE_SHOGI_ENGINE        // やねうら王 取る一手将棋(完成2016/12/04)
+	#define RANDOM_PLAYER_ENGINE             // ランダムプレイヤー
+　王手将棋と取る一手将棋はいずれ最新のエンジン部で実装しなおす。
+　ソースコード自体は、参考用にsource/old_engines/に移動。
+
+
+■　2017/06/30
+
+・BonaPieceを32bitに固定することにした。(理由はshogi.hのBonaPieceのところにコメントとして書いた)
+・learning_tools.hの型キャスト、ちょっとお行儀が悪かったので少し書き直した。
+・gensfenでeval_limitが小さいときに生成が次第に遅くなることがあったのを修正。(報告をしてくださった、滝澤さん、まふさんに感謝！)
+・GlobalOptions.use_strict_generational_tt追加。
+・スレッドごと置換表確保などはMultiThinkが行なうべきなのでそう修正した。これでmakebook thinkコマンドの精度も改善されるはず。
+・LOCAL_GAME_SERVER などで EVAL_NO_USE があるとビルドできなかったのを修正しました。(ishidakeiさん)
+・gensfenのときにrandom_move_minplyに1以外を指定すると落ちることがあったのを修正。
+
+
+■　2017/06/28
+
+・前回のリファクタリングでBookOnTheFly mode、壊れてしまっていたの修正。(mizarさん)
+・book.hがわかりにくかったのでコメント大量に追加して関数を少し整理した。
+・gensfenでOptions["BookOnTheFly"] = falseを強制するようにした。
+・read_book()でのon_the_flyのフラグ更新処理が怪しかったの修正。
+・gensfenでOptions["BookOnTheFly"] = falseを強制したはずがtrueにしてしまっていたので修正した。
+・Optionsのassert修正した。
+・AsyncPRNG追加。PRNGまわりのソースコード整理。
+・BookMoveSelectorにAsyncPRNGを持たせる実装に変更。
+・sleep()が間違って単位がマイクロセカンドになっていたのをミリセカンドに修正。
+
+
+■　2017/06/27 V4.72
+
+・棋譜生成・学習部でshared_ptrでスレッド間のデータ受け渡しをしている部分、gcc/clangのランタイムで意図しない動作になるので修正。
+・SSE4.2以前でlearnコマンドでKPP配列の更新が正しく出ていなかったの修正。
+・book.cppのrefactoring。大改造になった。テストあまりしてないのでエンバグしてたら教えて欲しい。
+・gensfen時の定跡の採択の挙動を、2017Earlyと全く同一にした。
+・gensfen時に定跡ファイルとしてbook.binを指定できなかった問題を修正。
+・MemoryBook::probe()をthread safeに実装しなおした。
+・clangでコンパイル通らなくなっていたの修正。(mizarさん)
+・read_book()関係、整理。
+・book.h / book.cppソースコード整理、リファクタリング。
+・learn shuffleコマンドの引数の説明足りてなかったの補足。
+・test evalmerge、正式に公開する。
+・USI拡張コマンド.txt、内容を整理した。
+
+
+■　2017/06/26 V4.71
+
+・learn shuffleコマンドでoutput_file_nameを指定できるようにした。
+・learn shufflemコマンドでoutput_file_nameを省略できるようにした。
+・learn shufflemコマンドのデフォルトの出力ファイル名をshuffled_sfen.binにした。
+・learnコマンドでrandom_move_minplyを指定できるようにした。
+・USI拡張コマンドとしてgetoption コマンドを追加した。(これがないときちんと現在値を設定できているのか確認できないので)
+・learn shuffleqコマンド追加。
+・EVAL_SAVE_ONLY_ONCE,LEARN_SFEN_NO_SHUFFLEをlearn.hで定義するのをやめて、learnコマンドのオプションに変更する。
+・learnコマンドにsave_only_onceオプション追加。
+・learn.hのデフォルト動作をelmo methodに変更。LEARN_DEFAULT削除。
+・getoptionコマンド、文字列型のときうまく表示できていなかったのを修正。
+・getoptionコマンド、nameを省略したとき、すべてのオプション項目の現在の値を出力するようにした。
+・gensfenコマンドの出力ファイル名のオプション名、learnコマンドに合わせて、output_file_nameに変更。
+・『Shivoray』V4.71公開。
+
+
+■　2017/06/25
+
+・学習部のエラーメッセージに"Error"の文字列を入れた。(検索しにくいため)
+・learnコマンドでrandom_move_maxplyとrandom_move_countを指定できるようにした。
+
+
+■　2017/06/24
+
+・learnコマンド、初回、rmseの計算で落ちることがあるのを修正。(まだ修正出来てないかも。よくわからない)
+
+
+■　2017/06/23
+
+・GUIの「パス」入力（例: ShogiGUI）を受け入れる。(mizarさん) cf. https://github.com/yaneurao/YaneuraOu/pull/46
+・learnコマンドでもeval_limitを指定できるようにした。
+
+
+■　2017/06/21
+
+・学習部の並列化、OpenMPのループ変数、無符号型にしていたの修正。(VC++でのコンパイルが通らなかった)
+・gensfenで千日手のときの処理、間違っていたの修正。
+・learnコマンドで不正なsfenが与えられたときのリカバリー処理追加。
+・gensfenのエラーチェック強化。
+・clangで警告出ていたの修正。
+・リゼロ評価関数epoch8公開。
+・PRNG、rand()の引数をsize_tではなくu64に変更。(32bit環境でまずいため)
+
+
+■　2017/06/20
+
+・shuffleコマンド、マジで完全シャッフルするように変更した。
+
+
+■　2017/06/20 V4.70
+
+・gensfenコマンド、depth 3とかでstalemateの局面を書き出すbug fix
+・リゼロ評価関数epoch 0公開。
+・リゼロ評価関数epoch 0.5公開。
+
+
+■　2017/06/19
+
+・gensfenコマンド、壊していたの修正。
+・learn shufflemコマンド追加。
+
+
+■　2017/06/18
+
+・学習部の微修正。
+・教師生成のときに引き分けを書き出すようにした。
+・教師局面からの学習のときに引き分けを処理するようにした。
+・教師局面生成のときに引き分けの局面を書き出すの、良し悪しあるので選べるようにした。LEARN_GENSFEN_DRAW_RESULT
+
+
+■　2017/06/17
+
+・駒落ちの棋譜に対するmakebookが出来るようにした。
+
+
+■　2017/06/17 V4.69
+
+・learner.cppでLearner::search(),qsearch()を呼び出していたの、MultiThinkのほうを呼び出すように変更。
+・learner、リファクタリングその2。
+・makebookコマンド壊していたの修正。
+
+
+■　2017/06/16 V4.68
+
+・学習時の評価関数の保存タイミング、デフォルトで10億局面ごとに変更。
+・learn.hのEVAL_FILE_NAME_CHANGE_INTERVAL削除。
+・学習時のrmseの計算、qsearch()を呼び出すように変更。
+・学習時のrmseの計算、500→1000局面に変更。
+・学習時のrmseの計算、並列化した。(デバッグ中)
+・使わない駒があるとき、BonaPieceの後手から見た番号の初期化が間違っていたの修正。(駒落ち弱かったのこれが原因)
+・learner.cpp、clangでコンパイル通らなくなっていたの修正。
+・learner、リファクタリング。
+
+
+■　2017/06/16 V4.67b
+
+・ContemptFromBlackというオプションを試験的に追加。
+
+
+■　2017/06/16 V4.67a
+
+・千日手で打ち切るときに理由を表示するようにした。解説.txtに追記。
+
+
+■　2017/06/16 V4.67
+
+・ConsiderationModeで千日手があるときに長いPVが出力されていたの修正。
+・ConsiderationModeのときに読み筋に、千日手ならrep、宣言勝ちならwinと出力するようにした。
+・ConsiderationModeの件、解説.txtに追記
+・ConsiderationMode用にinsert_pv_in_tt()復活させた。
+
+
+■　2017/06/15
+
+・連続自己対局スクリプト、持ち時間として固定深さに対応
+・リゼロ評価関数epoch7公開。
+
+
+■　2017/06/14
+
+・test evalexamコマンド追加(あとで消すかも)
+・学習のときにleaf nodeでのevaluate()の値をshallow_valueとして使うようにした。
+・MultiThinkなどで乱数のseed固定するコードとかあまり意味なさげなので削除。
+
+
+■　2017/06/13
+
+・learning_tools.hのKK,KKP,KPPにデバッグ用の出力関数追加。
+・learning_toolsのmir_piece,inv_pieceの初期化タイミングおかしかったの修正。
+・EVAL_LEARNのとき、評価関数を読み込み時に、kppのp1=p2のときの値をゼロクリアしたり、
+	kppのp=0のときの値をゼロクリアしたりするようにした。
+・リゼロ評価関数epoch4,5,6公開。
+
+
+■　2017/06/12
+
+・Stockfish : Call TT.new_search() earlier.
+・リゼロ評価関数epoch1,2,3公開。
+
+
+■　2017/06/11
+
+・TTで詰み絡みのスコアでhashの衝突が起きたときに、探索部などでassertに引っかかることがあったのを修正。
+・learnコマンドで学習時の出力を少し整理した。
+・置換表の世代カウンターをスレッドごとに持つ機能を用意した。→　GlobalOptions.use_per_thread_tt
+・置換表の世代カウンターの処理、修正。
+・学習のログ解析スクリプト(analyze_learning_log.py)、新しい出力形式に変更。
+
+
+■　2017/06/10
+
+・詰んでいる局面と宣言勝ちの局面を渡された場合に読み筋に resign / winを出力することにした。
+　宣言勝ちのときは、将棋所とShogiGUIでこの出力に対応して欲しい気がする。(読み筋のところに「宣言勝ち」と表示させて欲しい)
+・ConsiderationModeで宣言勝ちが読み筋に含まれているとき、これを"win"として出力するようにした。
+・置換表に宣言勝ちの指し手が登録されていることを考慮するようにした。
+・search()での宣言勝ち判定は置換表にhitしなかったときのみにした。
+・LEARN_TIMESTAMP_OUTPUT_INTERVAL削除。
+・学習時に出力しているcross entropyの値、正規化するようにした。
+・学習時のcross entropyなどの計算に用いる局面数を500に減らした。
+・学習時に置換表をスレッドごとに用意する機能追加。→　GlobalOptions.use_per_thread_tt
+・学習時に、ファイルの読み込みで負荷がかかると、メインスレッドがweight配列の更新処理ができずに
+mini batch sizeを大幅に超えて局面を処理してしまうことがあったのを修正。
+
+
+■　2017/06/09
+
+・教師局面のシャッフルコマンドの実行時に進捗を出力することにした。
+・学習のログ解析スクリプト(analyze_learning_log.py)、新しい出力形式に変更。
+・Stockfish
+	- use auto& for histories
+・教師局面の生成部に宣言勝ちの処理追加。
+・学習時にRMSPropが使えるようにした。RMSPROP_UPDATE
+・script/analyze_learning_log.py、頂点のplotやめる。
+・rootで宣言勝ちのときにもPVを出力するようにした。
+・学習のときのtest loss(検証用データのロス) / learning loss(学習データのロス)の両方表示するようにした。
+・学習のときのrmse()の計算タイミング修正。
+
+
+■　2017/06/08 V4.66
+
+・教師局面の完全シャッフルを行なうコマンドを追加した。詳しくは docs/解説.txt を。
+・fail low/highのときにPVを出力するかどうかを思考エンジン設定で選べるようにした。OutputFailLHPV
+
+
+■　2017/06/07
+
+・教師局面の生成のときに最後、finalizeを呼び出す前にアクセス違反で落ちることがある問題の修正。(t-suzukiさん)
+・学習時にCPUが２つ以上あるときにすべてのCPUにきちんとthreadを割り振るようにした。(tanuki-さん)
+
+
+■　2017/06/06 V4.65
+
+・add "test kifconvert" , fix white turn convert to kif(Mizarさん)
+・EVAL_KPPT_FAST使ってないから削除。USE_FAST_KPPTも少しコード整理した。
+
+
+■　2017/06/05
+
+・EvalIO作った。eval/evaluate_io.h , cpp追加。KPPT型評価関数の入出力、型変換などが簡単に出来る。
+・評価関数の読み込み時にeval_learn_init()を呼び出すの、起動が遅くなるのでlearnコマンドの最初に行なうように変更。
+・testコマンドにApery(WCSC27)の評価関数を、やねうら王2017Earlyの評価関数に変換するコマンド追加。
+・解説.txtにtest evalconvertコマンドについての説明追記。
+・EVAL_EXPERIMENTAL導入。
+・EVAL_EXPERIMENTALの機能のいくつかを一般開放。
+・evaluate_material.cpp → evaluate.cppにrename。evaluate.cppに共通の処理は移動させた。
+・isreadyに対する応答の高速化。
+
+
+
+■　2017/06/04
+
+・makebookコマンドでbwを指定したときにno_fileを指定できるようにした。詳しくは解説.txtを。
+・makebookコマンド、bwを指定したときの処理、間違っていたので修正。
+・指し手のKIF/KIF2形式での出力、そこそこ書けた。
+・kifconv consts, utf8/16/32 string (Mizarさん)
+
+
+
+■　2017/06/03
+
+・config.hにinclude <functional>追加。
+・Windows環境用のmingw/gccのためにthread_win32.h追加。
+・学習時のrmseの計算に時間がかかるの本末転倒なので、1万局面→1000局面に減らす。
+・学習時に交差エントロピーを計算して表示するようにした。
+・千日手での引き分けを回避しやすくなるようにContemptのデフォルト値を1に変更。
+	→　すまん。1だと効果なかった。2に変更した。
+・MultiThinkまわり、古いエンジン対応コードになっていたので新しいエンジン(2017Early)に変更した。
+・makebookコマンドで処理対象sfenとして先後別のsfenを与えることが出来るようにした。詳しくは解説.txtを。
+・CSA, KIF, KI2 ライクな棋譜形式での文字列出力実装部。(Mizarさん)
+	- CSA, KIF, KI2 ライクな棋譜形式での文字列出力部、あとで作業するのでとりあえず#ifdef DO_IT_LATER～#endifで囲んだ。
+	- extra/kif_converter/ 追加。リファクタリング作業中。
+	- KIF形式での指し手出力、半分ぐらい出来たのでいったんcommit。
+
+
+■　2017/06/02 V4.64
+
+・misc.cppがMSVCでコンパイルしたときに警告出てたの修正。
+・learn.h全体をifdef EVAL_LEARNで囲うようにした。
+・clangでコンパイルした実行ファイルを配布。
+
+
+■　2017/06/01
+
+・clangでwarning出るのでkey128.h少し修正。
+・Makefile、clang用に修正。msys2用のclangでwarning出さずにコンパイルが通ることを確認。
+・Makefile、デフォルトでclangでコンパイルすることに変更。
+
+
+■　2017/05/31
+
+・学習時に用いるEval::Weightをlearn/learning_tools.hとして切り離す。
+・学習でSGDを使用するときにメモリ大量に使ってたの修正。
+・学習時に用いる重み配列を3角配列化した。(デバッグ中)
+・3角配列の学習部、添字間違っていたの修正。
+・3角配列でうまく学習できたので、defaultで有効にする。
+・SGDでrand(3)==0ときだけ値を動かすコード、削除。
+・clangでコンパイルしたときのwarning、いくつか出ないようにした。
+・使ってないinclude文削除。
+
+
+■　2017/05/29 V4.63
+
+・学習式がelmo(WCSC27)のとき、LAMBDAの値を指定できるようにした。
+・learn.hでAdaGradとSGDとを選択できるようにした。
+・half float実装
+・SlowMoverオプション導入。
+・MultiThinkの乱数取得コード修正。(clangでコンパイルが通らなかったらしい)
+・学習部でSGDを選択したときにそれを出力していなかったの修正。
+
+
+■　2017/05/28 V4.62
+
+・トーナメント用実行ファイル、コンパイルエラーになっていたの修正。
+・SfenWriterのデストラクタでclose()を呼び出すように修正。
+・ConsiderationModeのとき、置換表からPVをかき集めるように変更。
+・PVの出力のコード、refactoring。
+・Stockfishに合わせて、from_to()導入。
+・Stockfish : History code rewrite
+・新しい学習部にSGDでの更新実装。学習時の評価関数の保存は4.5億局面に1回に変更。
+
+
+■　2017/05/26
+
+・学習に関するオプション項目、大幅に整理。学習部の調整。
+・LearnFloatTypeまわりでstd::atomicを導入しなくても良いことを説明するコメント追加。
+・学習部、コメント追加。学習時のオプションなど整理。
+・学習部のelmoの更新式、内分をとる形に変形。
+・学習時の誤差の表示名変更。
+
+
+■　2017/05/25
+
+・Windows用のmakefileでstacksizeを大きめに確保するように変更。(mizarさん)
+・EVAL_LEARNはデフォルトでオフにする。Makefile修正した。
+・学習部、かなりデバッグできた。(実際に学習を回してテスト中)
+・GlobalOptions導入。USE_FALSE_PROBE_IN_TT削除。
+
+
+■　2017/05/24
+
+・学習部のコード、刷新した。動作確認はまだ。
+※　開発者の方は、しばらくはApery(elmo)の学習部をお使いください。
+
+
+■　2017/05/22
+
+・C++11でコンパイルが通るように修正。
+・gensfenのときにhashに一致したときにそれ以前の勝敗の情報が間違っていたのを修正。
+・gensfenの2駒交換のコード、削除。効果なさげだしコードが複雑になる。
+・learnからLEARN_UPDATE_EVERYTIME関連、削除。コードが複雑化する。
+・learn絡みのKPP_MIRROR_WRITEとKKP_MIRROR_WRITE関連のコード削除。これはデフォルトでオンでいい。
+
+
+■　2017/05/21 V4.61
+
+・learner.cppのフォルダ内のファイル取得、gccのためにwindows.hを用いて書き直した。→msys2でうまく動かない
+・gensfenコマンドでgamePlyを書き出すようにした。
+・learnで用いていたrmse計算用の損失関数、変更した。
+・gcc用のフォルダの作成、ファイルの列挙のコード、修正。
+・学習用のビルドオプションをMakefileに追加。
+・対局用に公開している実行ファイル、openmpなしでコンパイルするように変更。
+・learn.hから2016LATE用の学習オプション削除。
+・gensfenコマンドでmatedのときに局面を書き出していなかったの修正。
+・gensfenコマンドでのrandom moveの条件、緩和。
+・詰みの局面を渡されたときにinfo stringでmate 1と出力していたの修正。
+	USIプロトコルは、詰みのときには"info string score mate -0"と出力するときちんと定めるべき！
+
+
+■　2017/05/20
+
+・BetweenBB、シュリンクした。
+・see_ge()でPosition::piece_on(SQ_NB)にアクセスしてたのでpiece_on側を修正。
+・mate1ply()で用いるbitboardの添字の順番入れ替え。
+・Positionの各メンバにASSERT追加。
+・Position::moved_piece_before()高速化
+・CheckCandidateBB、少しシュリンクした。
+・engine_invoker5.py、パラメーターの型を間違っていたところ修正。
+・engine_invoker5.py、先手の勝率の計算が間違っていたのを修正。
+・elmo(WCSC27) learning method support
+・packed sfen以外での教師局面の書き出しコード、使ってないので削除する。
+
+
+■　2017/05/19 V4.60
+
+・PieceNoをu8に変更。
+・Stockfish : Fix memory access in Search::clear()
+・EvalList、refactoringした。
+・解説.txtにトーナメント用実行ファイルの説明追加。
+・Position.hで使っているSlide、u8に変更など。
+・LineBB配列、シュリンクした。
+・min_attacker()高速化
+・RookEffectRank → RookRankEffectにrename
+
+
+■　2017/05/18 V4.59
+
+・do_move_impl()での王手している駒の利きの更新を最適化。
+・UpdateBitboards()を重複してやっている箇所があったので修正。
+・Position::put_piece_simple()追加。少しdo_move()を高速化。
+・VC++でSSE2用のコンパイル時にwarning出てたの修正。
+・color_of()少し高速化。
+・mate1plyの実装、templateにして先後区別する。
+・Position::piece_bb →　byTypeBBに、occupied → byColorBBにrename。
+・do_move()のときのmemcpy()をやらないようにした。
+・玉が盤上にいないときにrookEffectがアクセス違反になっていたの修正
+・mate engineに対するVC++のプロパティシート追加
+・KEEP_PIECE_IN_GENERATE_MOVESが定義されていないときのundo_move()の動作修正
+・LONG_EFFECT_LIBRARYをdefineしたときにコンパイルエラーになっていたの修正
+・トーナメント用のbuild、FOR_TOURNAMENTオプション追加。AVX2用でEVAL_HASH大きめ。EVAL_LEARN、TEST_CMD使用不可。
+
+
+■　2017/05/17 V4.58
+
+・lanceEffect()はrookFileEffect()を使うように変更。
+・飛車の利きを求めるための利きテーブルを無くした。
+・飛車の利き用のテーブルさらに小さくした。
+・角の利き用のテーブル小さくした。
+・working memory、だいぶ減ったかも。置換表を小さくすればいままでせ動かなかったスマホでも動くかも。
+
+
+■　2017/05/16
+
+・Learner::search、max_game_plyの値を変更しないようにした。
+・Limits.max_game_plyに一本化していたの、やめた。
+・MaxMovesToDrawを0に設定されたとき内部的にINT_MAXにしていたの、100000に変更。
+・is_ready()のなかでSignals.stopなどの変数を初期化するように変更。
+・Stockfish
+	- Execute an implied ucinewgame at startup
+・position::gives_check() リファクタリング。
+・position.cpp reformatting
+・ベンチマークだけTEST_CMDから移動させる。これは常に必要。
+・reformatting position.h
+・step effectリファクタリング
+・Position::attackers_to()、高速化。
+・prefetch()にassert追加。
+・NextSquareテーブル、u8に変更。
+・mate1ply_without_effect.cpp reformatting
+・pawnEffect(Color,Bitboard)追加。Shift<>(Bitboard)削除。
+・歩の打てるところを調べるコード、テーブルを2つに分割。先後の区別なしにする。
+・Bitboard(u64,u64)のSSE2用コードを追加。
+
+
+■　2017/05/15 V4.57
+
+・検討モード用の読み筋出力として、ConsiderationMode "検討モード用のPV出力" を用意。
+・テスト用に"test search"コマンド追加。
+・SILVER_HDK、GOLDS_HDK追加。
+
+
 ■　2017/05/14 V4.56
 
 ・定跡読み込み部、リファクタリングしたときに若干壊してたの修正。(定跡ファイルの対局途中での変更ができなかった)

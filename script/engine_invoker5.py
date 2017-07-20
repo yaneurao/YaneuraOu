@@ -55,15 +55,11 @@ def output_rating(win,draw,lose,win_black,win_white,opt2):
 	if total != 0 :
 		# 普通の勝率
 		win_rate = win / float(win+lose)
+		# 先手番/後手番のときの勝率内訳
+		win_rate_black = win_black / float(win + lose)
+		win_rate_white = win_white / float(win + lose)
 	else:
 		win_rate = 0
-
-	if win != 0:
-		# 先手番のときの勝率内訳
-		win_rate_black = win_black / float(win)
-		# 後手番のときの勝率内訳
-		win_rate_white = win_white / float(win)
-	else:
 		win_rate_black = 0
 		win_rate_white = 0
 
@@ -99,6 +95,7 @@ def create_option(engines,engine_threads,evals,times,hashes,numa,PARAMETERS_LOG_
 		byoyomi = 0
 		inc_time = 0
 		total_time = 0
+		depth_time = 0
 
 		nodes_time = False
 
@@ -119,6 +116,8 @@ def create_option(engines,engine_threads,evals,times,hashes,numa,PARAMETERS_LOG_
 				inc_time = t
 			elif c == "t":
 				total_time = t
+			elif c == "d":
+				depth_time = t
 
 		option = []
 		if ("Yane" in engines[i]):
@@ -126,6 +125,8 @@ def create_option(engines,engine_threads,evals,times,hashes,numa,PARAMETERS_LOG_
 				option.append("go rtime " + str(rtime))
 			elif inc_time:
 				option.append("go btime REST_TIME wtime REST_TIME inc " + str(inc_time))
+			elif depth_time:
+				option.append("go depth " + str(depth_time))
 			else:
 				option.append("go btime REST_TIME wtime REST_TIME byoyomi " + str(byoyomi))
 
@@ -157,6 +158,8 @@ def create_option(engines,engine_threads,evals,times,hashes,numa,PARAMETERS_LOG_
 				print "Error! " + engines[i] + " doesn't support rtime "
 			elif inc_time:
 				option.append("go btime REST_TIME wtime REST_TIME inc " + str(inc_time))
+			elif depth_time:
+				option.append("go depth " + str(depth_time))
 			else:
 				option.append("go btime REST_TIME wtime REST_TIME byoyomi " + str(byoyomi))
 
@@ -171,7 +174,7 @@ def create_option(engines,engine_threads,evals,times,hashes,numa,PARAMETERS_LOG_
 
 		options.append(option)
 
-		options2.append([total_time,inc_time,byoyomi,rtime])
+		options2.append([total_time,inc_time,byoyomi,rtime,depth_time])
 
 	options.append(options2[0])
 	options.append(options2[1])
@@ -490,27 +493,27 @@ def vs_match(engines_full,options,threads,loop,cpu,book_sfens,fileLogging,opt2,b
 					if "resign" in line:
 						if (i%2)==1:
 							win += 1
-							if (moves[i/2] & 1 == 1):
-								win_black += 1
-							else:
-								win_white += 1
 							gameover = 1 # 1P勝ち
 						else:
 							lose += 1
 							gameover = 2 # 2P勝ち
+						if (moves[i/2] & 1 == 1):
+							win_black += 1
+						else:
+							win_white += 1
 						update = True
 
 					elif "win" in line:
 						if (i%2)==0:
 							win += 1
-							if (moves[i/2] & 1 == 0):
-								win_black += 1
-							else:
-								win_white += 1
 							gameover = 1 # 1P勝ち
 						else:
 							lose += 1
 							gameover = 2 # 2P勝ち
+						if (moves[i/2] & 1 == 0):
+							win_black += 1
+						else:
+							win_white += 1
 						update = True
 
 					else:
@@ -640,6 +643,7 @@ def engine_to_full(e):
 #  R100    : random time 100 and nodes as time
 #  r100,r300   : ,で併記可能(それぞれの時間で対局する)
 #  b1000.b2000 : .で連結するとengine1とengine2とでそれぞれの持ち時間になる。
+#  d6      : depth 6
 
 # パラメーターのparse
 parser = argparse.ArgumentParser("engine_invoker5.py")
@@ -657,7 +661,7 @@ parser.add_argument('--hash2', type=str, default="", help=u"思考エンジン2�
 parser.add_argument('--time', type=str, default="", help=u"time");
 parser.add_argument('--rand_book', type=int, default=0, help=u"定跡の順番をランダム化(rand_book=1を指定したとき)");
 parser.add_argument('--book_moves', type=int, default=24, help=u"何手目まで定跡で指させるか");
-parser.add_argument('--PARAMETERS_LOG_FILE_PATH', type=int, default=24, help=u"同optionのpath指定 (ここに\"_2.log\"のような文字列が自動的に付与される。)");
+parser.add_argument('--PARAMETERS_LOG_FILE_PATH', type=str, default="", help=u"同optionのpath指定 (ここに\"_2.log\"のような文字列が自動的に付与される。)");
 args = parser.parse_args()
 
 home = args.home
@@ -747,7 +751,7 @@ for evaldir in evaldirs:
 
 		for i in range(2):
 			print "option " + str(i+1) + " = " + ' / '.join(options[i])
-			print "time_setting = (total_time,inc_time,byoyomi,rtime) = " + str(options[i+2])
+			print "time_setting = (total_time,inc_time,byoyomi,rtime,depth_time) = " + str(options[i+2])
 
 		sys.stdout.flush()
 

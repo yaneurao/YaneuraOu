@@ -600,7 +600,7 @@ void Thread::search()
 
 	// 対局開始時のハンドラ
 	auto game_start = [&] {
-		rootPos.set_hirate();
+		rootPos.set_hirate(this);
 		game_started = true;
 
 		// 定跡が設定されているならその局面まで進める

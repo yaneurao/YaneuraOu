@@ -87,42 +87,28 @@ struct Thread
 	size_t PVIdx;
 
 	// rootから最大、何手目まで探索したか(選択深さの最大)
-	int maxPly;
+	int selDepth;
 
-#if !defined(YANEURAOU_2017_EARLY_ENGINE)
-	// 反復深化の深さ(Depth型ではないので注意)
-	int rootDepth;
+	// このスレッドが探索したノード数(≒Position::do_move()を呼び出した回数)
+	std::atomic<uint64_t> nodes;
 
-	// このスレッドに関して、終了した反復深化の深さ(Depth型ではないので注意)
-	int completedDepth;
-#else
 	// 反復深化の深さ
 	Depth rootDepth;
 
 	// このスレッドに関して、終了した反復深化の深さ
 	Depth completedDepth;
-#endif
 
-	// 探索でsearch()が呼び出された回数を集計する用。
-	std::atomic_bool resetCalls;
-	int callsCnt;
-
-#if defined( USE_MOVE_PICKER_2015 ) || defined( USE_MOVE_PICKER_2016Q2 ) || defined( USE_MOVE_PICKER_2016Q3 ) || defined ( USE_MOVE_PICKER_2017Q2 )
 	// ある種のMovePickerではオーダリングのために、
 	// スレッドごとにhistoryとcounter movesのtableを持たないといけない。
-
-	MoveStats counterMoves;
-	HistoryStats history;
-#endif
-
-#if defined( USE_MOVE_PICKER_2016Q2 ) || defined( USE_MOVE_PICKER_2016Q3 )
-	FromToStats fromTo;
+#if defined ( USE_MOVE_PICKER_2017Q2 )
+	CounterMoveStat counterMoves;
+	ButterflyHistory history;
 #endif
 
 #if defined( PER_THREAD_COUNTERMOVEHISTORY )
 	// コア数が多いか、長い持ち時間においては、スレッドごとにCounterMoveHistoryを確保したほうが良い。
 	// cf. https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
-	CounterMoveHistoryStats counterMoveHistory;
+	CounterMoveHistoryStat counterMoveHistory;
 #endif
 
 	// ------------------------------
@@ -160,13 +146,14 @@ struct MainThread: public Thread
 	// MainThread::think()から呼び出すべきは、Thread::search()
 	virtual void search() { think(); }
 
+	// 思考時間の終わりが来たかをチェックする。
+	void check_time();
+
 	// 思考を開始する。engine/*/*_search.cpp等で定義されているthink()が呼び出される。
 	void think();
 
-	// 前回の探索時のスコア。
-	// 次回の探索のときに何らか使えるかも。
-	Value previousScore;
-
+	// 反復深化のときにPVがあまり変化がないなら探索が安定しているということだから
+	// 短めの思考時間で指す機能のためのフラグ。
 	bool easyMovePlayed;
 
 	// root nodeでfail lowが起きているのか
@@ -175,6 +162,13 @@ struct MainThread: public Thread
 	// 反復深化においてbestMoveが変わった回数。nodeの安定性の指標として使う。
 	double bestMoveChanges;
 
+	// 前回の探索時のスコア。
+	// 次回の探索のときに何らか使えるかも。
+	Value previousScore;
+
+	// check_time()で用いるカウンター。
+	// デクリメントしていきこれが0になるごとに思考をストップするのか判定する。
+	int callsCnt = 0;
 };
 
 struct Slaves
@@ -197,28 +191,19 @@ struct ThreadPool: public std::vector<Thread*>
 	MainThread* main() { return static_cast<MainThread*>(at(0)); }
 
 	// mainスレッドに思考を開始させる。
-	void start_thinking(const Position& pos, const Search::LimitsType& limits, Search::StateStackPtr& states);
+	void start_thinking(const Position& pos, Search::StateStackPtr& states , const Search::LimitsType& limits);
 
 	// 今回、goコマンド以降に探索したノード数
-	uint64_t nodes_searched() { uint64_t nodes = 0; for (auto*th : *this) nodes += th->rootPos.nodes_searched(); return nodes; }
+	uint64_t nodes_searched() { uint64_t nodes = 0; for (auto*th : *this) nodes += th->nodes.load(std::memory_order_relaxed); return nodes; }
 
 	// main()以外のスレッド
 	Slaves slaves;
 
+	// 探索中にこれがtrueになったら探索を即座に終了すること。
+	std::atomic_bool stop;
+
 	// USIプロトコルで指定されているスレッド数を反映させる。
 	void read_usi_options();
-
-	// 探索開始前のslaveの初期化
-	// 探索部を単体でどこかから呼び出したいときに用いる。
-	/*
-	例)
-	  Search::clear();                                      // isreadyが呼び出されたものとする。
-	  Time.init();                                          // 思考開始時刻の初期化
-	  Threads.init_for_slave(pos, lm);                      // 局面をslaveにもコピーする
-	  Threads.start_thinking(pos, lm, Search::SetupStates); // 思考させる
-	  Threads.main()->wait_for_search_finished();           // 思考の終了を待つ
-	*/
-	void init_for_slave(const Position& pos, const Search::LimitsType& limits);
 };
 
 // ThreadPoolのglobalな実体

@@ -3,6 +3,11 @@ cp -r c:/Users/yaneen/Dropbox/project2/YaneuraOu2017/source ~/shogi-msys64
 cd source
 
 mingw32-make clean
+mingw32-make -j8 tournament YANEURAOU_EDITION=YANEURAOU_2017_EARLY_ENGINE
+cp YaneuraOu-by-gcc.exe c:/Users/yaneen/Dropbox/project2/YaneuraOu2017/exe/2017Early/YaneuraOu-2017-early-tournament.exe
+cp YaneuraOu-by-gcc.exe c:/Users/yaneen/Dropbox/project2/YaneuraOu2016Engine/YaneuraOu-2017-early-tournament.exe
+
+mingw32-make clean
 mingw32-make -j8 avx2 YANEURAOU_EDITION=YANEURAOU_2017_EARLY_ENGINE
 cp YaneuraOu-by-gcc.exe c:/Users/yaneen/Dropbox/project2/YaneuraOu2017/exe/2017Early/YaneuraOu-2017-early.exe
 

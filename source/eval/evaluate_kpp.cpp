@@ -34,6 +34,8 @@ namespace Eval
   // [][][fe_end]のところはKK定数にしてあるものとする。
   ValueKkp kkp[SQ_NB_PLUS1][SQ_NB_PLUS1][fe_end + 1];
 
+  void init() {}
+
   // 評価関数ファイルを読み込む
   void load_eval()
   {

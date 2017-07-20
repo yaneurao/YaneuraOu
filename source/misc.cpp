@@ -27,6 +27,7 @@ extern "C" {
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <ctime>    // std::ctime()
 
 #include "misc.h"
 #include "thread.h"
@@ -62,6 +63,27 @@ Timer Time;
 int Timer::elapsed() const { return int(Search::Limits.npmsec ? Threads.nodes_searched() : now() - startTime); }
 int Timer::elapsed_from_ponderhit() const { return int(Search::Limits.npmsec ? Threads.nodes_searched()/*これ正しくないがこのモードでponder使わないからいいや*/ : now() - startTimeFromPonderhit); }
 
+// 現在時刻を文字列化したもを返す。(評価関数の学習時などに用いる)
+std::string now_string()
+{
+	// std::ctime(), localtime()を使うと、MSVCでセキュアでないという警告が出る。
+	// C++標準的にはそんなことないはずなのだが…。
+
+#if defined(_MSC_VER)
+	// C4996 : 'ctime' : This function or variable may be unsafe.Consider using ctime_s instead.
+#pragma warning(disable : 4996)
+#endif
+
+	auto now = std::chrono::system_clock::now();
+	auto tp = std::chrono::system_clock::to_time_t(now);
+	auto result = string(std::ctime(&tp));
+
+	// 末尾に改行コードが含まれているならこれを除去する
+	while (*result.rbegin() == '\n' || (*result.rbegin() == '\r'))
+		result.pop_back();
+	return result;
+}
+
 // --------------------
 //  engine info
 // --------------------
@@ -90,7 +112,11 @@ const string engine_info() {
 			<< EVAL_TYPE_NAME << ' '
 			<< ENGINE_VERSION << setfill('0')
 			<< (Is64Bit ? " 64" : " 32")
-			<< TARGET_CPU << endl
+			<< TARGET_CPU
+#if defined(FOR_TOURNAMENT)
+			<< " TOURNAMENT"
+#endif
+			<< endl 
 			<< "id author by yaneurao" << endl;
 	}
 
@@ -159,7 +185,13 @@ private:
 	Tie in, out;   // 標準入力とファイル、標準出力とファイルのひも付け
 	ofstream file; // ログを書き出すファイル
 
+	// clangだとここ警告が出るので一時的に警告を抑制する。
+#pragma warning (disable : 4068) // MSVC用の不明なpragmaの抑制
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wuninitialized"
 	Logger() : in(cin.rdbuf(), file.rdbuf()), out(cout.rdbuf(), file.rdbuf()) {}
+#pragma clang diagnostic pop
+
 	~Logger() { start(false); }
 };
 
@@ -182,6 +214,63 @@ int read_all_lines(std::string filename, std::vector<std::string>& lines)
 		getline(fs, line);
 		if (line.length())
 			lines.push_back(line);
+	}
+	fs.close();
+	return 0;
+}
+
+int read_file_to_memory(std::string filename, std::function<void*(u64)> callback_func)
+{
+	fstream fs(filename, ios::in | ios::binary);
+	if (fs.fail())
+		return 1;
+
+	fs.seekg(0, fstream::end);
+	u64 eofPos = (u64)fs.tellg();
+	fs.clear(); // これをしないと次のseekに失敗することがある。
+	fs.seekg(0, fstream::beg);
+	u64 begPos = (u64)fs.tellg();
+	u64 file_size = eofPos - begPos;
+	//std::cout << " file_size = " << file_size << endl;
+
+	// ファイルサイズがわかったのでcallback_funcを呼び出してこの分のバッファを確保してもらい、
+	// そのポインターをもらう。
+	void* ptr = callback_func(file_size);
+
+	// 細切れに読み込む
+
+	const u64 block_size = 1024*1024*1024; // 1回のreadで読み込む要素の数(1GB)
+	for (u64 pos = 0; pos < file_size; pos += block_size)
+	{
+		// 今回読み込むサイズ
+		u64 read_size = (pos + block_size < file_size) ? block_size : (file_size - pos);
+		fs.read((char*)ptr + pos, read_size);
+
+		// ファイルの途中で読み込みエラーに至った。
+		if (fs.fail())
+			return 2;
+
+		//cout << ".";
+	}
+	fs.close();
+
+	return 0;
+}
+
+
+int write_memory_to_file(std::string filename, void *ptr, u64 size)
+{
+	fstream fs(filename, ios::out | ios::binary);
+	if (fs.fail())
+		return 1;
+
+	const u64 block_size = 1024*1024*1024; // 1回のwriteで書き出す要素の数(1GB)
+	for (u64 pos = 0; pos < size ; pos += block_size)
+	{
+		// 今回書き出すメモリサイズ
+		u64 write_size = (pos + block_size < size) ? block_size : (size - pos);
+		fs.write((char*)ptr + pos, write_size);
+		//cout << ".";
 	}
 	fs.close();
 	return 0;
@@ -215,6 +304,10 @@ void prefetch(void* addr) {
 	// SSEの命令なのでSSE2が使える状況でのみ使用する。
 #ifdef USE_SSE2
 
+	// 下位5bitが0でないような中途半端なアドレスのprefetchは、
+	// そもそも構造体がalignされていない可能性があり、バグに違いない。
+	ASSERT_LV3(((u64)addr & 0x1f) == 0);
+
 #  if defined(__INTEL_COMPILER)
 	// 最適化でprefetch命令を削除するのを回避するhack。MSVCとgccは問題ない。
 	__asm__("");
@@ -226,6 +319,7 @@ void prefetch(void* addr) {
 
 #  if defined(__INTEL_COMPILER) || defined(_MSC_VER)
 	_mm_prefetch((char*)addr, _MM_HINT_T0);
+//	cout << hex << (u64)addr << endl;
 #  else
 	__builtin_prefetch(addr);
 #  endif
@@ -235,15 +329,22 @@ void prefetch(void* addr) {
 
 #endif
 
-void prefetch2(void* addr) {
+void prefetch2(void* addr)
+{
+	// Stockfishのコードはこうなっている。
+	// cache lineが32byteなら、あと2回やる必要があるように思うのだが…。
+
 	prefetch(addr);
 	prefetch((uint8_t*)addr + 64);
 }
 
+// --------------------
+//  全プロセッサを使う
+// --------------------
 
 namespace WinProcGroup {
 
-#ifndef _WIN32
+#if !defined ( _WIN32 )
 
 	void bindThisThread(size_t) {}
 

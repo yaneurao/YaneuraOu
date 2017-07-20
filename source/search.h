@@ -4,18 +4,8 @@
 #include <atomic>
 
 #include "position.h"
+#include "move_picker.h"
 #include "misc.h"
-
-// CounterMoveStatsの前方宣言。
-#if defined(USE_MOVE_PICKER_2016Q2) || defined(USE_MOVE_PICKER_2016Q3)
-template<typename T, bool CM> struct Stats;
-typedef Stats<Value, true> CounterMoveStats;
-#endif
-
-#if defined(USE_MOVE_PICKER_2017Q2)
-template<typename T> struct Stats;
-typedef Stats<int16_t> CounterMoveStats;
-#endif
 
 // 探索関係
 namespace Search {
@@ -42,6 +32,12 @@ namespace Search {
 		// それすらなかった場合はfalseを返す。
 		bool extract_ponder_from_tt(Position& pos, Move ponder_candidate);
 
+		// ConsiderationModeのときにTTからPVをかき集めるのでTTのPVが破壊されていると困るから
+		// PV配列をTTに書き戻すことでそれをなるべく防ぐ。
+		// 旧Stockfishにあった機能。Stockfish7あたりでなくなった。
+		// tt_gen : TT.generation()に相当するもの。
+		void insert_pv_to_tt(Position& pos , u8 tt_gen);
+
 		// 今回の(反復深化の)iterationでの探索結果のスコア
 		Value score = -VALUE_INFINITE;
 
@@ -49,9 +45,14 @@ namespace Search {
 		// 次のiteration時の探索窓の範囲を決めるときに使う。
 		Value previousScore = -VALUE_INFINITE;
 
+		// このスレッドがrootから最大、何手目まで探索したか(選択深さの最大)
+		int selDepth = 0;
+
 		// この指し手で進めたときのpv
 		std::vector<Move> pv;
 	};
+
+	typedef std::vector<RootMove> RootMoves;
 
 	// goコマンドでの探索時に用いる、持ち時間設定などが入った構造体
 	struct LimitsType {
@@ -60,9 +61,8 @@ namespace Search {
 		LimitsType() {
 			nodes = time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = byoyomi[WHITE] = byoyomi[BLACK] = npmsec
 				= depth = movetime = mate = infinite = ponder = rtime = 0;
-			silent = bench = false;
+			silent = bench = ponder_mode = consideration_mode = outout_fail_lh_pv = false;
 			max_game_ply = 100000;
-			ponder_mode = false;
 			enteringKingRule = EKR_NONE;
 		}
 
@@ -108,14 +108,14 @@ namespace Search {
 
 		// ponder   : ponder中であるかのフラグ
 		//  これがtrueのときはbestmoveがあっても探索を停止せずに"ponderhit"か"stop"が送られてきてから停止する。
-		//  ※ ただし今回用の探索時間を超えていれば、stopOnPonderhitフラグをtrueにしてあるのでponderhitに対して即座に停止する。
-		int ponder;
+		// main threadからしか参照しないのでatomicはつけてない。
+		bool ponder;
 
 		// "go rtime 100"とすると100～300msぐらい考える。
 		int rtime;
 
 		// 今回のgoコマンドでの探索ノード数
-		int64_t nodes;
+		uint64_t nodes;
 
 		// 入玉ルール設定
 		EnteringKingRule enteringKingRule;
@@ -124,21 +124,21 @@ namespace Search {
 		// このときPVを出力しない。
 		bool silent;
 
-		// ベンチマークモード(このときPVの出力時に置換表にアクセスしない)
-		bool bench;
-
 		// 試合開始後、ponderが一度でも送られてきたか
 		bool ponder_mode;
-	};
 
-	struct SignalsType {
-		// これがtrueになったら探索を即座に終了すること。
-		std::atomic_bool stop;
+		// 検討モード用のPVを出力するのか
+		bool consideration_mode;
+
+		// fail low/highのときのPVを出力するのか
+		bool outout_fail_lh_pv;
+
+		// ベンチマークモード(このときPVの出力時に置換表にアクセスしない)
+		bool bench;
 	};
 
 	typedef std::unique_ptr<aligned_stack<StateInfo>> StateStackPtr;
 
-	extern SignalsType Signals;
 	extern LimitsType Limits;
 	extern StateStackPtr SetupStates;
 
@@ -162,25 +162,13 @@ namespace Search {
 		Value staticEval;		// 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
 
 #if defined (PER_STACK_HISTORY)
-
-#if defined (USE_MOVE_PICKER_2017Q2)
-		int history;			// 一度計算したhistoryの合計値をcacheしておくのに用いる。
-#else
-		Value history;			// 一度計算したhistoryの合計値をcacheしておくのに用いる。
-#endif
-
-#endif
-
-#if defined(YANEURAOU_NANO_PLUS_ENGINE) || defined(YANEURAOU_MINI_ENGINE) || defined(YANEURAOU_CLASSIC_ENGINE) \
-	 || defined(YANEURAOU_CLASSIC_TCE_ENGINE) || defined(YANEURAOU_2016_MID_ENGINE) || defined(YANEURAOU_2016_LATE_ENGINE)
-
-		bool skipEarlyPruning;	// 指し手生成前に行なう枝刈りを省略するか。(NULL MOVEの直後など)
+		int statScore;			// 一度計算したhistoryの合計値をcacheしておくのに用いる。
 #endif
 
 		int moveCount;          // このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
 
-#if defined (USE_MOVE_PICKER_2016Q2) || defined (USE_MOVE_PICKER_2016Q3) || defined(USE_MOVE_PICKER_2017Q2)
-		CounterMoveStats* counterMoves; // MovePickerから使いたいのでここにCounterMoveStatsを格納することになった。
+#if defined(USE_MOVE_PICKER_2017Q2)
+		PieceToHistory* history;		// history絡み、refactoringにより名前が変わった。
 #endif
 	};
 

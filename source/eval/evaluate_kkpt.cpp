@@ -40,6 +40,8 @@ namespace Eval
 
 #endif
 
+	void init() {}
+
 	// 評価関数ファイルを読み込む
 	void load_eval_impl()
 	{
@@ -146,10 +148,6 @@ namespace Eval
 				}
 #endif
 
-#ifdef EVAL_LEARN
-			eval_learn_init();
-#endif
-
 		}
 
 		// 読み込みは成功した。
@@ -187,6 +185,8 @@ namespace Eval
 	// gccでコンパイルするときもWindows環境であれば、これが有効になって欲しいので defined(_WIN32) で判定。
 
 #include <windows.h>
+#include <codecvt>	// mkdirするのにwstringが欲しいのでこれが必要
+#include <locale>   // wstring_convertにこれが必要。
 
 	void load_eval()
 	{

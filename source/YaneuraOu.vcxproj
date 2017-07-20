@@ -13,6 +13,22 @@
       <Configuration>Debug-2017Goku</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug-mate|Win32">
+      <Configuration>Debug-mate</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug-mate|x64">
+      <Configuration>Debug-mate</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug-user|Win32">
+      <Configuration>Debug-user</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug-user|x64">
+      <Configuration>Debug-user</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release-2017Early-sse2|x64">
       <Configuration>Release-2017Early-sse2</Configuration>
       <Platform>x64</Platform>
@@ -23,6 +39,14 @@
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release-2017Early-sse42|x64">
       <Configuration>Release-2017Early-sse42</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-2017EarlyLearn|Win32">
+      <Configuration>Release-2017EarlyLearn</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-2017EarlyLearn|x64">
+      <Configuration>Release-2017EarlyLearn</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release-2017Early|Win32">
@@ -57,6 +81,14 @@
       <Configuration>Release-2017Goku</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-mate-sse2|x64">
+      <Configuration>Release-mate-sse2</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-mate-sse41|x64">
+      <Configuration>Release-mate-sse41</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release-mate-sse42|x64">
       <Configuration>Release-mate-sse42</Configuration>
       <Platform>x64</Platform>
@@ -67,6 +99,14 @@
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release-mate|x64">
       <Configuration>Release-mate</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-user-sse2|x64">
+      <Configuration>Release-user-sse2</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-user-sse41|x64">
+      <Configuration>Release-user-sse41</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release-user-sse42|x64">
@@ -95,6 +135,18 @@
     <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-mate|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-user|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-2017Goku|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
@@ -102,6 +154,13 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Early|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017EarlyLearn|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
@@ -135,6 +194,18 @@
     <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-mate|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-user|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-2017Goku|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
@@ -142,6 +213,13 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Early|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017EarlyLearn|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
@@ -211,6 +289,20 @@
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate-sse41|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate-sse2|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-user|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
@@ -219,6 +311,20 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-user-sse42|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-user-sse41|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-user-sse2|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
@@ -237,6 +343,20 @@
     <Import Project="props\YaneuraOuEdition-2017Early.props" />
     <Import Project="props\YaneuraOuCpu-x86-nosse.props" />
   </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug-mate|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-debug-win32.props" />
+    <Import Project="props\YaneuraOuEdition-mate.props" />
+    <Import Project="props\YaneuraOuCpu-x86-nosse.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug-user|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-debug-win32.props" />
+    <Import Project="props\YaneuraOuEdition-user.props" />
+    <Import Project="props\YaneuraOuCpu-x86-nosse.props" />
+  </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug-2017Goku|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="props\YaneuraOu-common.props" />
@@ -245,6 +365,13 @@
     <Import Project="props\YaneuraOuCpu-x86-nosse.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release-2017Early|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-release-win32.props" />
+    <Import Project="props\YaneuraOuEdition-2017Early.props" />
+    <Import Project="props\YaneuraOuCpu-x86-nosse.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017EarlyLearn|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="props\YaneuraOu-common.props" />
     <Import Project="props\YaneuraOuSolution-release-win32.props" />
@@ -279,6 +406,20 @@
     <Import Project="props\YaneuraOuEdition-2017Early.props" />
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
   </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug-mate|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-debug-x64.props" />
+    <Import Project="props\YaneuraOuEdition-mate.props" />
+    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug-user|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-debug-x64.props" />
+    <Import Project="props\YaneuraOuEdition-user.props" />
+    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
+  </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug-2017Goku|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="props\YaneuraOu-common.props" />
@@ -287,6 +428,13 @@
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release-2017Early|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-release-x64.props" />
+    <Import Project="props\YaneuraOuEdition-2017Early.props" />
+    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017EarlyLearn|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="props\YaneuraOu-common.props" />
     <Import Project="props\YaneuraOuSolution-release-x64.props" />
@@ -356,6 +504,20 @@
     <Import Project="props\YaneuraOuEdition-mate.props" />
     <Import Project="props\YaneuraOuCpu-x64-sse42.props" />
   </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate-sse41|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-release-x64.props" />
+    <Import Project="props\YaneuraOuEdition-mate.props" />
+    <Import Project="props\YaneuraOuCpu-x64-sse41.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate-sse2|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-release-x64.props" />
+    <Import Project="props\YaneuraOuEdition-mate.props" />
+    <Import Project="props\YaneuraOuCpu-x64-sse2.props" />
+  </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-user|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="props\YaneuraOu-common.props" />
@@ -370,38 +532,163 @@
     <Import Project="props\YaneuraOuEdition-user.props" />
     <Import Project="props\YaneuraOuCpu-x64-sse42.props" />
   </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-user-sse41|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-release-x64.props" />
+    <Import Project="props\YaneuraOuEdition-user.props" />
+    <Import Project="props\YaneuraOuCpu-x64-sse41.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-user-sse2|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-release-x64.props" />
+    <Import Project="props\YaneuraOuEdition-user.props" />
+    <Import Project="props\YaneuraOuCpu-x64-sse2.props" />
+  </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-2017Early|Win32'" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-mate|Win32'" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-user|Win32'" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-2017Goku|Win32'" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-2017Early|x64'" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-2017Goku|x64'" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-2017Early|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-mate|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-user|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-2017Goku|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Early|Win32'" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017EarlyLearn|Win32'" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Goku|Win32'" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate|Win32'" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-user|Win32'" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Early|x64'" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Early-sse2|x64'" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Early-sse41|x64'" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Early-sse42|x64'" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Goku|x64'" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Goku-sse42|x64'" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Goku-sse41|x64'" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Goku-sse2|x64'" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate|x64'" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate-sse42|x64'" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-user|x64'" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-user-sse42|x64'" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Early|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017EarlyLearn|x64'">
+    <ClCompile>
+      <OpenMPSupport>true</OpenMPSupport>
+      <PreprocessorDefinitions>USE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Early-sse2|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Early-sse41|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Early-sse42|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Goku|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Goku-sse42|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Goku-sse41|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2017Goku-sse2|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate-sse42|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate-sse41|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate-sse2|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-user|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-user-sse42|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-user-sse41|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-user-sse2|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="bitboard.h" />
-    <ClInclude Include="engine\2016-late-engine\2016-late-param.h" />
-    <ClInclude Include="engine\2016-late-engine\2016-late-param_body.h" />
-    <ClInclude Include="engine\2016-mid-engine\2016-mid-param.h" />
     <ClInclude Include="engine\2017-early-engine\2017-early-param.h" />
-    <ClInclude Include="engine\check-shogi-engine\check-shogi-param.h" />
     <ClInclude Include="engine\help-mate-engine\help-mate-search.h" />
     <ClInclude Include="engine\mate-engine\mate-search.h" />
-    <ClInclude Include="engine\must-capture-shogi-engine\must-capture-shogi-param.h" />
     <ClInclude Include="evaluate.h" />
+    <ClInclude Include="eval\evaluate_io.h" />
     <ClInclude Include="eval\evaluate_kppt.h" />
     <ClInclude Include="eval\kppt_evalsum.h" />
     <ClInclude Include="eval\progress.h" />
@@ -411,15 +698,17 @@
     <ClInclude Include="extra\book\book.h" />
     <ClInclude Include="extra\book\mt64bit.h" />
     <ClInclude Include="extra\config.h" />
-    <ClInclude Include="extra\long_effect.h" />
     <ClInclude Include="extra\key128.h" />
+    <ClInclude Include="extra\kif_converter\kif_convert_consts.h" />
+    <ClInclude Include="extra\kif_converter\kif_convert_tools.h" />
+    <ClInclude Include="extra\long_effect.h" />
     <ClInclude Include="extra\macros.h" />
     <ClInclude Include="extra\mate\mate1ply.h" />
-    <ClInclude Include="extra\move_picker\move_picker_2015.h" />
-    <ClInclude Include="extra\move_picker\move_picker_2016Q2.h" />
-    <ClInclude Include="extra\move_picker\move_picker_2016Q3.h" />
     <ClInclude Include="extra\move_picker\move_picker_2017Q2.h" />
+    <ClInclude Include="extra\thread_win32.h" />
+    <ClInclude Include="learn\half_float.h" />
     <ClInclude Include="learn\learn.h" />
+    <ClInclude Include="learn\learning_tools.h" />
     <ClInclude Include="learn\multi_think.h" />
     <ClInclude Include="misc.h" />
     <ClInclude Include="move_picker.h" />
@@ -431,38 +720,29 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bitboard.cpp" />
-    <ClCompile Include="engine\2016-late-engine\2016-late-search.cpp" />
-    <ClCompile Include="engine\2016-mid-engine\2016-mid-search.cpp" />
     <ClCompile Include="engine\2017-early-engine\2017-early-search.cpp" />
-    <ClCompile Include="engine\check-shogi-engine\check-shogi.cpp" />
-    <ClCompile Include="engine\classic-engine\classic-search.cpp" />
-    <ClCompile Include="engine\classic-tce-engine\classic-tce-search.cpp" />
     <ClCompile Include="engine\help-mate-engine\help-mate-search.cpp" />
     <ClCompile Include="engine\local-game-server\local-game-server.cpp" />
     <ClCompile Include="engine\mate-engine\mate-search.cpp" />
-    <ClCompile Include="engine\mini-engine\mini-search.cpp" />
-    <ClCompile Include="engine\must-capture-shogi-engine\must-capture-shogi.cpp" />
-    <ClCompile Include="engine\nano-engine\nano-search.cpp" />
-    <ClCompile Include="engine\nano-plus-engine\nano-plus-search.cpp" />
-    <ClCompile Include="engine\random-player-engine\random-player-search.cpp" />
     <ClCompile Include="engine\user-engine\user-search.cpp" />
     <ClCompile Include="eval\evaluate_bona_piece.cpp" />
+    <ClCompile Include="eval\evaluate_io.cpp" />
     <ClCompile Include="eval\evaluate_kkpt.cpp" />
     <ClCompile Include="eval\evaluate_kpp.cpp" />
     <ClCompile Include="eval\evaluate_kppt.cpp" />
-    <ClCompile Include="eval\evaluate_material.cpp" />
+    <ClCompile Include="eval\evaluate.cpp" />
     <ClCompile Include="eval\evaluate_no_eval.cpp" />
     <ClCompile Include="eval\progress.cpp" />
+    <ClCompile Include="extra\benchmark.cpp" />
     <ClCompile Include="extra\bitop.cpp" />
     <ClCompile Include="extra\book\apery_book.cpp" />
     <ClCompile Include="extra\book\book.cpp" />
     <ClCompile Include="extra\entering_king_win.cpp" />
+    <ClCompile Include="extra\kif_converter\kif_convert_tools.cpp" />
     <ClCompile Include="extra\long_effect.cpp" />
     <ClCompile Include="extra\mate\mate1ply_without_effect.cpp" />
     <ClCompile Include="extra\mate\mate1ply_with_effect.cpp" />
     <ClCompile Include="extra\mate\mate_n_ply.cpp" />
-    <ClCompile Include="extra\move_picker\move_picker_2016Q2.cpp" />
-    <ClCompile Include="extra\move_picker\move_picker_2016Q3.cpp" />
     <ClCompile Include="extra\move_picker\move_picker_2017Q2.cpp" />
     <ClCompile Include="extra\see.cpp" />
     <ClCompile Include="extra\sfen_packer.cpp" />
@@ -470,6 +750,7 @@
     <ClCompile Include="extra\timeman.cpp" />
     <ClCompile Include="learn\evaluate_kppt_learn.cpp" />
     <ClCompile Include="learn\learner.cpp" />
+    <ClCompile Include="learn\learning_tools.cpp" />
     <ClCompile Include="learn\multi_think.cpp" />
     <ClCompile Include="misc.cpp" />
     <ClCompile Include="movegen.cpp" />
@@ -484,7 +765,6 @@
     <Text Include="..\docs\やねうら大定跡.txt" />
     <Text Include="..\docs\更新履歴.txt" />
     <Text Include="..\docs\解説.txt" />
-    <Text Include="..\docs\開発メモ2017.txt" />
     <Text Include="..\exe\eval\readme.txt" />
     <Text Include="..\script\readme.txt" />
   </ItemGroup>

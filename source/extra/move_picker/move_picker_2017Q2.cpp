@@ -90,6 +90,8 @@ enum Stages: int {
 
 // partial_insertion_sort()は指し手を与えられたlimitまで降順でソートする。
 // limitよりも小さい値の指し手の順序については、不定。
+// 将棋だと指し手の数が多い(ことがある)ので、数が多いときは途中で打ち切ったほうがいいかも。
+// 現状、全体時間の7%程度をこの関数で消費している。
 void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 
 	for (ExtMove *sortedEnd = begin, *p = begin + 1; p < end; ++p)
@@ -145,6 +147,9 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Search::Stack*s)
 	checkMustCapture();
 #endif
 
+	// (ss - 1)->currentMove == MOVE_NONEである可能性はある。
+	// そのときは、prevPc == NO_PIECEになり、それでもうまく動作する。
+
 	Square prevSq = to_sq((ss - 1)->currentMove);
 	Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
 	countermove = pos.this_thread()->counterMoves[prevSq][prevPc];
@@ -197,7 +202,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Square recapSq)
 	// 置換表の指し手がないなら、次のstageから開始する。
 	stage += (ttMove == MOVE_NONE);
 }
-  
+
 // 通常探索時にProbCutの処理から呼び出されるの専用
 // th = 枝刈りのしきい値
 MovePicker::MovePicker(const Position& p, Move ttm, Value th)
@@ -255,11 +260,11 @@ void MovePicker::score<CAPTURES>()
 template<>
 void MovePicker::score<QUIETS>()
 {
-	const HistoryStats& history = pos.this_thread()->history;
+	const ButterflyHistory& history = pos.this_thread()->history;
 
-	const CounterMoveStats& cmh = *(ss - 1)->counterMoves;
-	const CounterMoveStats& fmh = *(ss - 2)->counterMoves;
-	const CounterMoveStats& fm2 = *(ss - 4)->counterMoves;
+	const PieceToHistory& cmh = *(ss - 1)->history;
+	const PieceToHistory& fmh = *(ss - 2)->history;
+	const PieceToHistory& fm2 = *(ss - 4)->history;
 
 	Color c = pos.side_to_move();
 
@@ -271,7 +276,7 @@ void MovePicker::score<QUIETS>()
 		m.value = cmh[msq][mpc]
 				+ fmh[msq][mpc]
 				+ fm2[msq][mpc]
-				+ history.get(c, m);
+				+ history[from_to(m)][c];
 	}
 }
 
@@ -279,7 +284,7 @@ void MovePicker::score<QUIETS>()
 template<>
 void MovePicker::score<EVASIONS>()
 {
-	const HistoryStats& history = pos.this_thread()->history;
+	const ButterflyHistory& history = pos.this_thread()->history;
 	Color c = pos.side_to_move();
 
 	for (auto& m : *this)
@@ -288,20 +293,29 @@ void MovePicker::score<EVASIONS>()
 		// あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
 		// 価値が高いので(例えば合駒に安い駒を使う的な…)
 
-		//  成るなら、その成りの価値を加算したほうが見積もりとしては正しい気がするが、
+		//  ・成るなら、その成りの価値を加算したほうが見積もりとしては正しい？
 		// 　それは取り返されないことが前提にあるから、そうでもない。
 		//		T1,r300,2491 - 78 - 2421(50.71% R4.95)
 		//		T1,b1000,2483 - 103 - 2404(50.81% R5.62)
 		//      T1,b3000,2459 - 148 - 2383(50.78% R5.45)
 		//   →　やはり、改造前のほうが良い。[2016/10/06]
 
+		// ・moved_piece_before()とmoved_piece_after()との比較
+		// 　厳密なLVAではなくなるが、afterのほうが良さげ。
+		// 　例えば、歩を成って取るのと、桂で取るのとでは、安い駒は歩だが、桂で行ったほうが、
+		// 　歩はあとで成れるとすれば潜在的な価値はそちらのほうが高いから、そちらを残しておくという理屈はあるのか。
+		//		T1, b1000, 2402 - 138 - 2460(49.4% R - 4.14) win black : white = 51.04% : 48.96%
+		//		T1,b3000,1241 - 108 - 1231(50.2% R1.41) win black : white = 50.53% : 49.47%
+		//		T1,b5000,1095 - 118 - 1047(51.12% R7.79) win black : white = 52.33% : 47.67%
+		//  →　moved_piece_before()のほうで問題なさげ。[2017/5/20]
+
 		if (pos.capture(m))
 			// 捕獲する指し手に関しては簡易SEE + MVV/LVA
 			m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
-			- Value(LVA(type_of(pos.moved_piece_before(m)))) + HistoryStats::Max;
+			-Value(LVA(type_of(pos.moved_piece_before(m)))) + Value(1 << 28);
 		else
 			// 捕獲しない指し手に関してはhistoryの値の順番
-			m.value = history.get(c, m);
+			m.value = history[from_to(m)][c];
 }
 
 // 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。
@@ -499,7 +513,7 @@ Move MovePicker::next_move2() {
 		if (stage == QCAPTURES_2)
 			break;
 		cur = moves;
-		// CAPTURES_PRO_PLUSで生成していたので、歩の成る指し手は除外された王手となる指し手生成が必要。
+		// CAPTURES_PRO_PLUSで生成していたので、歩の成る指し手は除外された成る指し手＋王手の指し手生成が必要。
 		// QUIET_CHECKS_PRO_MINUSがあれば良いのだが、実装が難しいので、このあと除外する。
 		endMoves = generateMoves<QUIET_CHECKS>(pos, cur);
 		++stage;

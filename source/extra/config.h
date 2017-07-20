@@ -41,7 +41,7 @@
 
 // 通例hash keyは64bitだが、これを128にするとPosition::state()->long_key()から128bit hash keyが
 // 得られるようになる。研究時に局面が厳密に合致しているかどうかを判定したいときなどに用いる。
-// ※　やねうら王nanoではこの機能は削除する予定。
+// 実験用の機能なので、128bit,256bitのhash keyのサポートはAVX2のみ。
 #define HASH_KEY_BITS 64
 //#define HASH_KEY_BITS 128
 //#define HASH_KEY_BITS 256
@@ -104,6 +104,15 @@
 // KPPT評価関数の学習に使うときのモード
 // #define EVAL_LEARN
 
+// Eval::compute_eval()やLearner::add_grad()を呼び出す前にEvalListの組み換えを行なう機能を提供する。
+// 評価関数の実験に用いる。詳しくは、Eval::make_list_functionに書いてある説明などを読むこと。
+// #define USE_EVAL_MAKE_LIST_FUNCTION
+
+// この機能は、やねうら王の評価関数の開発/実験用の機能で、いまのところ一般ユーザーには提供していない。
+// 評価関数番号を指定するとその評価関数を持ち、その評価関数ファイルの読み込み/書き出しに自動的に対応して、
+// かつ評価関数の旧形式からの変換が"test convert"コマンドで自動的に出来るようになるという、わりかし凄い機能
+// #define EVAL_EXPERIMENTAL 0001
+
 // 長い利き(遠方駒の利き)のライブラリを用いるか。
 // 超高速1手詰め判定などではこのライブラリが必要。
 // do_move()のときに利きの差分更新を行なうので、do_move()は少し遅くなる。(その代わり、利きが使えるようになる)
@@ -122,9 +131,9 @@
 // これはPVの更新が不要なので実装が簡単だが、Ponderの指し手を返すためには
 // PVが常に正常に更新されていないといけないので最近はこの方法は好まれない。
 // ただしShogiGUIの解析モードでは思考エンジンが出力した最後の読み筋を記録するようなので、
-// fail low/fail highしたときのものが棋譜に残る。このとき、読み筋は途中までしか出力されないが、
-// これはまずい。かと言って、ShogiGUIが棋譜解析のときにfail low/fail highした読み筋を無視するようにすると、
-// それはbest moveとは異なる可能性があるので、それはよろしくない。結論的には、USE_TT_PVは有効にすべき。
+// 思考を途中で打ち切るときに、fail low/fail highが起きていると、中途半端なPVが出力され、それが棋譜に残る。
+// かと言って、そのときにPVの出力をしないと、最後に出力されたPVとbest moveとは異なる可能性があるので、
+// それはよろしくない。検討モード用の思考オプションを用意すべき。
 // #define USE_TT_PV
 
 // 定跡を作るコマンド("makebook")を有効にする。
@@ -181,123 +190,34 @@
 // これをONすると数%高速化する代わりに、メモリ使用量が1GBほど増える。
 // #define USE_LARGE_EVAL_HASH
 
+// GlobalOptionという、EVAL_HASHを有効/無効を切り替えたり、置換表の有効/無効を切り替えたりする
+// オプションのための変数が使えるようになる。スピードが1%ぐらい遅くなるので大会用のビルドではオフを推奨。
+// #define USE_GLOBAL_OPTIONS
+
+// トーナメント(大会)用のビルド。最新CPU(いまはAVX2)用でEVAL_HASH大きめ。EVAL_LEARN、TEST_CMD使用不可。ASSERTなし。GlobalOptionsなし。
+// #define FOR_TOURNAMENT
+
+// 棋譜の変換などを行なうツールセット。CSA,KIF,KIF2(KI2)形式などの入出力を担う。
+// これをdefineすると、extra/kif_converter/ フォルダにある棋譜や指し手表現の変換を行なう関数群が使用できるようになる。
+// #define USE_KIF_CONVERT_TOOLS
+
 // --------------------
 // release configurations
 // --------------------
 
 // --- 通常の思考エンジンとして実行ファイルを公開するとき用の設定集
 
-#ifdef YANEURAOU_NANO_ENGINE
-#define ENGINE_NAME "YaneuraOu nano"
-#define ENABLE_TEST_CMD
-#define EVAL_KPP
-#define USE_TT_PV
-#define KEEP_LAST_MOVE
-#define KEEP_PIECE_IN_GENERATE_MOVES
-#endif
-
-#ifdef YANEURAOU_NANO_PLUS_ENGINE
-#define ENGINE_NAME "YaneuraOu nano plus"
-#define ENABLE_TEST_CMD
-#define EVAL_KPP
-#define USE_TT_PV
-#define USE_SEE
-#define USE_MOVE_PICKER_2015
-#define LONG_EFFECT_LIBRARY
-#define USE_MATE_1PLY
-#define KEEP_PIECE_IN_GENERATE_MOVES
-#endif
-
-#ifdef YANEURAOU_MINI_ENGINE
-#define ENGINE_NAME "YaneuraOu mini"
-#define ENABLE_TEST_CMD
-#define EVAL_KPP
-#define USE_SEE
-#define USE_MOVE_PICKER_2015
-#define LONG_EFFECT_LIBRARY
-#define USE_MATE_1PLY
-#define USE_DROPBIT_IN_STATS
-#define KEEP_PIECE_IN_GENERATE_MOVES
-#endif
-
-#ifdef YANEURAOU_CLASSIC_ENGINE
-#define ENGINE_NAME "YaneuraOu classic"
-#define ENABLE_TEST_CMD
-#define EVAL_KPP
-#define USE_SEE
-#define USE_MOVE_PICKER_2015
-#define LONG_EFFECT_LIBRARY
-#define USE_MATE_1PLY
-#define USE_ENTERING_KING_WIN
-#define USE_DROPBIT_IN_STATS
-#define KEEP_PIECE_IN_GENERATE_MOVES
-#endif
-
-#ifdef YANEURAOU_CLASSIC_TCE_ENGINE
-#define ENGINE_NAME "YaneuraOu classic-tce"
-#define ENABLE_TEST_CMD
-#define EVAL_KPP
-#define USE_SEE
-#define USE_MOVE_PICKER_2015
-#define LONG_EFFECT_LIBRARY
-#define USE_MATE_1PLY
-#define USE_ENTERING_KING_WIN
-#define USE_TIME_MANAGEMENT
-#define USE_DROPBIT_IN_STATS
-#define KEEP_PIECE_IN_GENERATE_MOVES
-#endif
-
-#ifdef YANEURAOU_2016_MID_ENGINE
-#define ENGINE_NAME "YaneuraOu 2016 Mid"
-#define EVAL_KPPT
-//#define USE_EVAL_HASH
-#define USE_SEE
-#define USE_MOVE_PICKER_2016Q2
-#define USE_MATE_1PLY
-#define USE_ENTERING_KING_WIN
-#define USE_TIME_MANAGEMENT
-#define KEEP_PIECE_IN_GENERATE_MOVES
-#define ONE_PLY_EQ_1
-#define ENABLE_TEST_CMD
-// 定跡生成絡み
-#define ENABLE_MAKEBOOK_CMD
-// 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
-#define USE_SHARED_MEMORY_IN_EVAL
-#endif
-
-#ifdef YANEURAOU_2016_LATE_ENGINE
-#define ENGINE_NAME "YaneuraOu 2016 Late"
-#define EVAL_KPPT
-//#define USE_EVAL_HASH
-#define USE_SEE
-#define USE_MOVE_PICKER_2016Q3
-#define USE_MATE_1PLY
-#define USE_ENTERING_KING_WIN
-#define USE_TIME_MANAGEMENT
-#define KEEP_PIECE_IN_GENERATE_MOVES
-#define ONE_PLY_EQ_1
-#define PER_THREAD_COUNTERMOVEHISTORY
-#define PER_STACK_HISTORY
-
-#define ENABLE_TEST_CMD
-// 定跡生成絡み
-#define ENABLE_MAKEBOOK_CMD
-// 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
-#define USE_SHARED_MEMORY_IN_EVAL
-// パラメーターの自動調整絡み
-#define USE_GAMEOVER_HANDLER
-//#define LONG_EFFECT_LIBRARY
-#endif
-
 #ifdef YANEURAOU_2017_EARLY_ENGINE
 #define ENGINE_NAME "YaneuraOu 2017 Early"
 #define EVAL_KPPT
-//#define EVAL_KKPT
+
+// 実験中の評価関数
+// 評価関数の番号を選択できる。0001～9999から選ぶ。
+// 番号として、0000は、if EVAL_EXPERIMENTAL == 0000と判定しようとしたときに、C++の言語仕様として
+// シンボルが定義されていないときこの条件式が真だと判定されてしまうので使えない。
+//#define EVAL_EXPERIMENTAL 0001
 
 #define USE_EVAL_HASH
-//#define USE_LARGE_EVAL_HASH
-
-#define USE_TT_PV
 #define USE_SEE
 #define USE_MOVE_PICKER_2017Q2
 #define USE_MATE_1PLY
@@ -315,6 +235,7 @@
 #define ENABLE_TEST_CMD
 // 学習絡みのオプション
 #define USE_SFEN_PACKER
+// 学習機能を有効にするオプション。
 #define EVAL_LEARN
 
 // 定跡生成絡み
@@ -324,44 +245,11 @@
 // パラメーターの自動調整絡み
 #define USE_GAMEOVER_HANDLER
 //#define LONG_EFFECT_LIBRARY
+
+// GlobalOptionsは有効にしておく。
+#define USE_GLOBAL_OPTIONS
 #endif
 
-#ifdef MUST_CAPTURE_SHOGI_ENGINE
-#define ENGINE_NAME "YaneuraOu MustCaptureShogi"
-#define EVAL_KPPT
-//#define USE_EVAL_HASH
-#define USE_SEE
-#define USE_MOVE_PICKER_2016Q3
-#define USE_ENTERING_KING_WIN
-#define USE_TIME_MANAGEMENT
-#define KEEP_PIECE_IN_GENERATE_MOVES
-#define ONE_PLY_EQ_1
-#define PER_THREAD_COUNTERMOVEHISTORY
-#define PER_STACK_HISTORY
-
-// デバッグ絡み
-#define ASSERT_LV 3
-#define USE_DEBUG_ASSERT
-
-#define ENABLE_TEST_CMD
-// 学習絡みのオプション
-#define USE_SFEN_PACKER
-#define EVAL_LEARN
-// 定跡生成絡み
-#define ENABLE_MAKEBOOK_CMD
-// 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
-#define USE_SHARED_MEMORY_IN_EVAL
-// パラメーターの自動調整絡み
-#define USE_GAMEOVER_HANDLER
-//#define LONG_EFFECT_LIBRARY
-#endif
-
-
-#ifdef RANDOM_PLAYER_ENGINE
-#define ENGINE_NAME "YaneuraOu random player"
-#define EVAL_NO_USE
-#define ASSERT_LV 3
-#endif
 
 #ifdef LOCAL_GAME_SERVER
 #define ENGINE_NAME "YaneuraOu Local Game Server"
@@ -371,6 +259,7 @@
 #define EVAL_NO_USE
 #define USE_ENTERING_KING_WIN
 #endif
+
 
 // --- 協力詰めエンジンとして実行ファイルを公開するとき用の設定集
 
@@ -406,6 +295,75 @@
 #endif
 
 // --------------------
+//   for tournament
+// --------------------
+
+// トーナメント(大会)用に、対局に不要なものをすべて削ぎ落とす。
+#if defined(FOR_TOURNAMENT)
+#undef ASSERT_LV
+#undef EVAL_LEARN
+#undef ENABLE_TEST_CMD
+#define USE_LARGE_EVAL_HASH
+#undef USE_GLOBAL_OPTIONS
+#endif
+
+// --------------------
+//   for learner
+// --------------------
+
+// 学習時にはEVAL_HASHを無効化しておかないと、rmseの計算のときなどにeval hashにhitしてしまい、
+// 正しく計算できない。そのため、EVAL_HASHを動的に無効化するためのオプションを用意する。
+#if defined(EVAL_LEARN)
+#define USE_GLOBAL_OPTIONS
+#endif
+
+// 評価関数の実験用のときは、EvalListの組み換えが必要になる。
+#if defined(EVAL_EXPERIMENTAL)
+#define USE_EVAL_MAKE_LIST_FUNCTION
+#endif
+
+// --------------------
+//   GlobalOptions
+// --------------------
+
+#if defined(USE_GLOBAL_OPTIONS)
+
+struct GlobalOptions_
+{
+	// eval hashを有効/無効化する。
+	// (USE_EVAL_HASHがdefineされていないと有効にはならない。)
+	bool use_eval_hash;
+
+	// 置換表のprobe()を有効化/無効化する。
+	// (無効化するとTT.probe()が必ずmiss hitするようになる)
+	bool use_hash_probe;
+
+	// スレッドごとに置換表を用意する設定
+	// Learner::search(),Leaner::qsearch()を呼ぶときにスレッドごとに置換表が用意されていないと嫌ならこれを呼び出す。
+	// この機能を有効にした場合、TT.new_search()を呼び出したときのOptions["Threads"]の値に従って、
+	// 置換表を分割するのでLearner::search()を呼ぶまでに事前にTT.new_search()を呼び出すこと。
+	bool use_per_thread_tt;
+
+	// 置換表とTTEntryの世代が異なるなら、値(TTEntry.value)は信用できないと仮定するフラグ。
+	// TT.probe()のときに、TTEntryとTT.generationとが厳密に一致しない場合は、
+	// 置換表にhitしても、そのTTEntryはVALUE_NONEを返す。
+	// こうすることで、hash衝突しておかしな値が書き込まれていてもそれを回避できる。
+	// gensfenコマンドでこの機能が必要だった。
+	// cf. http://yaneuraou.yaneu.com/2017/06/30/%E3%80%90%E8%A7%A3%E6%B1%BA%E3%80%91gensfen%E3%81%A7%E6%95%99%E5%B8%AB%E5%B1%80%E9%9D%A2%E7%94%9F%E6%88%90%E6%99%82%E3%81%AB%E9%81%85%E3%81%8F%E3%81%AA%E3%82%8B%E5%95%8F%E9%A1%8C/
+	bool use_strict_generational_tt;
+
+	GlobalOptions_()
+	{
+		use_eval_hash = use_hash_probe = true;
+		use_per_thread_tt = use_strict_generational_tt = false;
+	}
+};
+
+extern GlobalOptions_ GlobalOptions;
+
+#endif
+
+// --------------------
 //      include
 // --------------------
 
@@ -419,45 +377,14 @@
 #include <iostream>
 #include <fstream>
 #include <mutex>
-#include <thread>   // このあとMutexをtypedefするので
+#include <thread>		// このあとMutexをtypedefするので
 #include <condition_variable>
-#include <cstring>  // std::memcpy()
-#include <cmath>    // log(),std::round()
-#include <climits>  // INT_MAX
-#include <ctime>    // std::ctime()
-#include <random>   // random_device
-#include <cstddef>  // offsetof
-
-// --------------------
-//   diable warnings
-// --------------------
-
-// うざいので無効化するwarning
-
-// for MSVC or Intel on Windows
-
-#if defined(_MSC_VER)
-// C4800 : 'unsigned int': ブール値を 'true' または 'false' に強制的に設定します
-// →　static_cast<bool>(...)において出る。
-#pragma warning(disable : 4800)
-
-// C4996 : 'ctime' : This function or variable may be unsafe.Consider using ctime_s instead.
-#pragma warning(disable : 4996)
-#endif
-
-// C4102 : ラベルは 1 度も参照されません。
-#pragma warning(disable : 4102)
-
-
-// for GCC
-#if defined(__GNUC__)
-#endif
-
-// for Clang
-//#pragma clang diagnostic ignored "-Wunused-value"     // 未使用な変数に対する警告
-//#pragma clang diagnostic ignored "-Wnull-dereference" // *(int*)0 = 0; のようにnullptrに対する参照に対する警告
-//#pragma clang diagnostic ignored "-Wparentheses"      // while (m = mp.next()) {.. } みたいな副作用についての警告
-//#pragma clang diagnostic ignored "-Wmicrosoft"        // 括弧のなかからの gotoでの警告
+#include <cstring>		// std::memcpy()
+#include <cmath>		// log(),std::round()
+#include <climits>		// INT_MAX
+#include <cstddef>		// offsetof
+#include <array>
+#include <functional>	// function 
 
 
 // --------------------
@@ -468,10 +395,13 @@
 
 // DEBUGビルドでないとassertが無効化されてしまうので無効化されないASSERT
 // 故意にメモリアクセス違反を起こすコード。
-#ifndef USE_DEBUG_ASSERT
+// USE_DEBUG_ASSERTが有効なときには、ASSERTの内容を出力したあと、3秒待ってから
+// アクセス違反になるようなコードを実行する。
+#if !defined (USE_DEBUG_ASSERT)
 #define ASSERT(X) { if (!(X)) *(int*)1 =0; }
 #else
-#define ASSERT(X) { if (!(X)) { std::cout << "\nError : ASSERT(" << #X << ")\n"; *(int*)1 =0;} }
+#define ASSERT(X) { if (!(X)) { std::cout << "\nError : ASSERT(" << #X << ")" << std::endl; \
+ std::this_thread::sleep_for(std::chrono::microseconds(3000)); *(int*)1 =0;} }
 #endif
 
 // ASSERT LVに応じたassert
@@ -560,6 +490,14 @@ const bool pretty_jp = false;
 #define PIECE_DROP 0
 #endif
 
+// --- lastMove
+
+// KIF形式に変換するときにPositionクラスにその局面へ至る直前の指し手が保存されていないと
+// "同"金のように出力できなくて困る。
+#ifdef USE_KIF_CONVERT_TOOLS
+#define KEEP_LAST_MOVE
+#endif
+
 // ----------------------------
 //      CPU environment
 // ----------------------------
@@ -625,30 +563,39 @@ const bool Is64Bit = false;
 //     mutex wrapper
 // ----------------------------
 
-// std::mutexをもっと速い実装に差し替えたい時のためにwrapしておく。
-typedef std::mutex Mutex;
-typedef std::condition_variable ConditionVariable;
+// Windows用のmingw、gcc環境下でstd::mutexをもっと速い実装に差し替えたい時のためにwrapしてある。
+// そのためstd::mutex、std::condition_variableを直接用いるのではなく、Mutex、ConditionVariableを用いる。
 
+#include "thread_win32.h"
 
 // ----------------------------
 //     mkdir wrapper
 // ----------------------------
 
-#if defined(_WIN32)
+// カレントフォルダ相対で指定する。成功すれば0、失敗すれば非0が返る。
+// フォルダを作成する。日本語は使っていないものとする。
+// どうもmsys2環境下のgccだと_wmkdir()だとフォルダの作成に失敗する。原因不明。
+// 仕方ないので_mkdir()を用いる。
 
+#if defined(_WIN32)
 // Windows用
 
+#if defined(_MSC_VER)
 #include <codecvt>	// mkdirするのにwstringが欲しいのでこれが必要
 #include <locale>   // wstring_convertにこれが必要。
-
-// フォルダを作成する。日本語は使っていないものとする。
-// カレントフォルダ相対で指定する。
-// 成功すれば0、失敗すれば非0が返る。
 inline int MKDIR(std::string dir_name)
 {
 	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
 	return _wmkdir(cv.from_bytes(dir_name).c_str());
+//	::CreateDirectory(cv.from_bytes(dir_name).c_str(),NULL);
 }
+#elif defined(__GNUC__) 
+#include <direct.h>
+inline int MKDIR(std::string dir_name)
+{
+	return _mkdir(dir_name.c_str());
+}
+#endif
 #elif defined(_LINUX)
 // linux環境において、この_LINUXというシンボルはmakefileにて定義されるものとする。
 
@@ -695,12 +642,6 @@ inline int MKDIR(std::string dir_name)
 // また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
 #if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_PPE)
 #define USE_EVAL_DIFF
-#endif
-
-// AVX2を用いたKPPT評価関数は高速化できるので特別扱い。
-// Skylake以降でないとほぼ効果がないが…。
-#if defined(EVAL_KPPT) && defined(USE_AVX2)
-#define USE_FAST_KPPT
 #endif
 
 // -- 評価関数の種類により、盤面の利きの更新ときの処理が異なる。(このタイミングで評価関数の差分計算をしたいので)

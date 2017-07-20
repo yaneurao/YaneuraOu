@@ -49,7 +49,6 @@ public:
 private:
     static void init();
 
-    static MT64bit mt64bit_; // 定跡のhash生成用なので、seedは固定でデフォルト値を使う。
     std::vector<AperyBookEntry> empty_entries_;
     std::unordered_map<Key, std::vector<AperyBookEntry>> book_;
 

@@ -32,8 +32,8 @@ namespace Eval
 	// 先手から見て、先手の手番がないときの評価値 =  [0] - [1]
 	// 後手から見て、後手の手番があるときの評価値 = -[0] + [1]
 	typedef std::array<int32_t, 2> ValueKk;
-	typedef std::array<int16_t, 2> ValueKpp;
 	typedef std::array<int32_t, 2> ValueKkp;
+	typedef std::array<int16_t, 2> ValueKpp;
 
 	// -----------------------------
 	//     評価関数パラメーター
@@ -57,15 +57,15 @@ namespace Eval
 
 	// 以下のマクロ定義して、ポインタではない場合と同じ挙動になるようにする。
 #define kk (*kk_)
-#define kpp (*kpp_)
 #define kkp (*kkp_)
+#define kpp (*kpp_)
 
 	// memory mapped fileを介して共有するデータ
 	struct SharedEval
 	{
 		ValueKk kk_[SQ_NB][SQ_NB];
-		ValueKpp kpp_[SQ_NB][fe_end][fe_end];
 		ValueKkp kkp_[SQ_NB][SQ_NB][fe_end];
+		ValueKpp kpp_[SQ_NB][fe_end][fe_end];
 	};
 
 #else
@@ -75,18 +75,17 @@ namespace Eval
 	// KK
 	extern ALIGNED(32) ValueKk kk[SQ_NB][SQ_NB];
 
-	// KPP
-	extern ALIGNED(32) ValueKpp kpp[SQ_NB][fe_end][fe_end];
-
 	// KKP
 	extern ALIGNED(32) ValueKkp kkp[SQ_NB][SQ_NB][fe_end];
 
-#endif
+	// KPP
+	extern ALIGNED(32) ValueKpp kpp[SQ_NB][fe_end][fe_end];
 
+#endif // defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
 
-}
+}      // namespace Eval
 
-#endif // EVAL_KPPT
+#endif // defined(EVAL_KKPT) || defined (EVAL_KPPT)
 
 
 #endif

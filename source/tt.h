@@ -2,7 +2,6 @@
 #define _TT_H_
 
 #include "shogi.h"
-#include "extra/key128.h"
 
 // --------------------
 //       置換表
@@ -15,8 +14,9 @@ struct TTEntry {
 
 	Move move() const { return (Move)move16; }
 	Value value() const { return (Value)value16; }
+	void set_value(Value v) { value16 = v; }
 
-#ifndef  NO_EVAL_IN_TT
+#if !defined (NO_EVAL_IN_TT)
 	// この局面でevaluate()を呼び出したときの値
 	Value eval() const { return (Value)eval16; }
 #endif
@@ -33,15 +33,26 @@ struct TTEntry {
 	//   m    : ベストな指し手
 	//   gen  : TT.generation()
 	void save(Key k, Value v, Bound b, Depth d, Move m,
-#ifndef NO_EVAL_IN_TT
+#if !defined (NO_EVAL_IN_TT)
 		Value eval,
 #endif
 		uint8_t gen)
 	{
-		ASSERT_LV3((-VALUE_INFINITE < v && v < VALUE_INFINITE) || v == VALUE_NONE);
+		// ASSERT_LV3((-VALUE_INFINITE < v && v < VALUE_INFINITE) || v == VALUE_NONE);
 
-		// ToDo: 探索部によってはVALUE_INFINITEを書き込みたいのかも知れない…。うーん。
-		//  ASSERT_LV3((-VALUE_INFINITE <= v && v <= VALUE_INFINITE) || v == VALUE_NONE);
+		// 置換表にVALUE_INFINITE以上の値を書き込んでしまうのは本来はおかしいが、
+		// 実際には置換表が衝突したときにqsearch()から書き込んでしまう。
+		//
+		// 例えば、3手詰めの局面で、置換表衝突により1手詰めのスコアが返ってきた場合、VALUE_INFINITEより
+		// 大きな値を書き込む。
+		//
+		// 逆に置換表をprobe()したときにそのようなスコアが返ってくることがある。
+		// しかしこのようなスコアは、mate distance pruningで補正されるので問題ない。
+		// (ように、探索部を書くべきである。)
+		//
+		// Stockfishで、VALUE_INFINITEを32001(int16_tの最大値よりMAX_PLY以上小さな値)にしてあるのは
+		// そういった理由から。
+
 
 		// このif式だが、
 		// A = m!=MOVE_NONE
@@ -66,7 +77,7 @@ struct TTEntry {
 		// 　少しの深さのマイナスなら許容)
 		// 3. BOUND_EXACT(これはPVnodeで探索した結果で、とても価値のある情報なので無条件で書き込む)
 		// 1. or 2. or 3.
-		if ((k >> 48) != key16
+		if (  (k >> 48) != key16
 			|| (d / ONE_PLY > depth8 - 4)
 			/*|| g != generation() // probe()において非0のkeyとマッチした場合、その瞬間に世代はrefreshされている。　*/
 			|| b == BOUND_EXACT
@@ -74,7 +85,7 @@ struct TTEntry {
 		{
 			key16 = (uint16_t)(k >> 48);
 			value16 = (int16_t)v;
-#ifndef NO_EVAL_IN_TT
+#if !defined (NO_EVAL_IN_TT)
 			eval16 = (int16_t)eval;
 #endif
 			genBound8 = (uint8_t)(gen | b);
@@ -95,7 +106,7 @@ private:
 	// このnodeでの探索の結果スコア
 	int16_t value16;
 
-#ifndef NO_EVAL_IN_TT
+#if !defined (NO_EVAL_IN_TT)
 	// 評価関数の評価値
 	int16_t eval16;
 #endif
@@ -118,7 +129,13 @@ struct TranspositionTable {
 	// 置換表のなかから与えられたkeyに対応するentryを探す。
 	// 見つかったならfound == trueにしてそのTT_ENTRY*を返す。
 	// 見つからなかったらfound == falseで、このとき置換表に書き戻すときに使うと良いTT_ENTRY*を返す。
-	TTEntry* probe(const Key key, bool& found) const;
+	// GlobalOptions.use_per_thread_tt == trueのときはスレッドごとに置換表の異なるエリアに属するTTEntryを
+	// 渡す必要があるので、引数としてthread_idを渡す。
+	TTEntry* probe(const Key key, bool& found
+#if defined(USE_GLOBAL_OPTIONS)
+		, size_t thread_id = -1
+#endif
+		) const;
 
 	// keyの下位bitをClusterのindexにしてその最初のTTEntry*を返す。
 	TTEntry* first_entry(const Key key) const {
@@ -132,10 +149,44 @@ struct TranspositionTable {
 	void clear() { memset(table, 0, clusterCount * sizeof(Cluster)); }
 
 	// 新しい探索ごとにこの関数を呼び出す。(generationを加算する。)
-	void new_search() { generation8 += 4; } // 下位2bitはTTEntryでBoundに使っているので4ずつ加算。
+	// USE_GLOBAL_OPTIONSが有効のときは、このタイミングで、Options["Threads"]の値を
+	// キャプチャして、探索スレッドごとの置換表と世代カウンターを用意する。
+	void new_search() {
+		generation8 += 4;
+
+#if defined(USE_GLOBAL_OPTIONS)
+		size_t m = Options["Threads"];
+		if (m != max_thread)
+		{
+			max_thread = m;
+			// スレッドごとの世代カウンター用の配列もこのタイミングで確保。
+			a_generation8.resize(m);
+		}
+#endif
+	} // 下位2bitはTTEntryでBoundに使っているので4ずつ加算。
 
 	// 世代を返す。これはTTEntry.save()のときに使う。
 	uint8_t generation() const { return generation8; }
+
+#if defined(USE_GLOBAL_OPTIONS)
+
+	// --- スレッドIDごとにgenerationを持っているとき用の処理。
+
+	uint8_t generation(size_t thread_id) const {
+		if (GlobalOptions.use_per_thread_tt)
+			return a_generation8[thread_id];
+		else
+			return generation8;
+	}
+
+	void new_search(size_t thread_id) {
+		if (GlobalOptions.use_per_thread_tt)
+			a_generation8[thread_id] += 4;
+		else
+			generation8 += 4;
+	}
+
+#endif
 
 	// 置換表の使用率を1000分率で返す。(USIプロトコルで統計情報として出力するのに使う)
 	int hashfull() const;
@@ -144,10 +195,11 @@ struct TranspositionTable {
 	~TranspositionTable() { free(mem); }
 
 private:
+
 	// TTEntryはこのサイズでalignされたメモリに配置する。(される)
 	static const int CacheLineSize = 64;
 
-#ifndef  NO_EVAL_IN_TT
+#if !defined (NO_EVAL_IN_TT)
 	// 1クラスターにおけるTTEntryの数
 	// TTEntry 10bytes×3つ + 2(padding) = 32bytes
 	static const int ClusterSize = 3;
@@ -156,10 +208,20 @@ private:
 	static const int ClusterSize = 4;
 #endif
 
+#if defined(USE_GLOBAL_OPTIONS)
+	// スレッド数
+	// スレッドごとに置換表を分けたいときのために現在のスレッド数を保持しておき、
+	// 異なるエリアのなかのTTEntryを返すようにする。
+	static size_t max_thread;
+
+	// スレッドごとに世代を持っている必要がある。
+	std::vector<u8> a_generation8;
+#endif
+
 	struct Cluster {
 		TTEntry entry[ClusterSize];
-#ifndef  NO_EVAL_IN_TT
-		int8_t padding[2]; // 全体を32byteぴったりにするためのpadding
+#if !defined (NO_EVAL_IN_TT)
+		u8 padding[2]; // 全体を32byteぴったりにするためのpadding
 #endif
 	};
 

@@ -1,22 +1,37 @@
 ﻿#include "../shogi.h"
 
-#if defined(EVAL_LEARN)
+#if defined(EVAL_LEARN) && defined(YANEURAOU_2017_EARLY_ENGINE)
 
 #include "multi_think.h"
-
-using namespace std;
+#include "../tt.h"
 
 extern void is_ready();
 
-// いまのところ、やねうら王2016Mid/Lateしか、このスタブを持っていない。
-namespace Learner
-{
-  extern pair<Value, vector<Move> >  search(Position& pos, Value alpha, Value beta, int depth);
-  extern pair<Value, vector<Move> > qsearch(Position& pos, Value alpha, Value beta);
-}
-
 void MultiThink::go_think()
 {
+#if defined(USE_GLOBAL_OPTIONS)
+	// あとで復元するために保存しておく。
+	auto oldGlobalOptions = GlobalOptions;
+	// 置換表はスレッドごとに持っていてくれないと衝突して変な値を取ってきかねない
+	GlobalOptions.use_per_thread_tt = true;
+	GlobalOptions.use_strict_generational_tt = true;
+#else
+	// MultiThink関数を使うときはUSE_GLOBAL_OPTIONがdefineされていて欲しいので
+	// ここで警告を出力しておく。
+	cout << "WARNING!! : define USE_GLOBAL_OPTION!" << endl;
+#endif
+
+	// GlobalOptions.use_per_thread_tt == trueのときは、
+	// これを呼んだタイミングで現在のOptions["Threads"]の値がコピーされることになっている。
+	TT.new_search();
+
+	// あとでOptionsの設定を復元するためにコピーで保持しておく。
+	auto oldOptions = Options;
+
+	// 定跡を用いる場合、on the flyで行なうとすごく時間がかかる＆ファイルアクセスを行なう部分が
+	// thread safeではないので、メモリに丸読みされている状態であることをここで保証する。
+	Options["BookOnTheFly"] = "false";
+
 	// 評価関数の読み込み等
 	is_ready();
 
@@ -24,21 +39,26 @@ void MultiThink::go_think()
 	loop_count = 0;
 
 	// threadをOptions["Threads"]の数だけ生成して思考開始。
-	vector<std::thread> threads;
+	std::vector<std::thread> threads;
 	auto thread_num = (size_t)Options["Threads"];
 
 	// worker threadの終了フラグの確保
-	thread_finished.reset(new volatile bool[thread_num]);
-
+	thread_finished.resize(thread_num);
+	
 	// worker threadの起動
 	for (size_t i = 0; i < thread_num; ++i)
 	{
-		thread_finished.get()[i] = false;
+		thread_finished[i] = 0;
 		threads.push_back(std::thread([i, this]
 		{ 
 			// プロセッサの全スレッドを使い切る。
 			WinProcGroup::bindThisThread(i);
-			this->thread_worker(i); this->thread_finished.get()[i] = true;
+
+			// オーバーライドされている処理を実行
+			this->thread_worker(i);
+
+			// スレッドが終了したので終了フラグを立てる
+			this->thread_finished[i] = 1;
 		}));
 	}
 
@@ -49,46 +69,62 @@ void MultiThink::go_think()
 	// その間、callback_func()が呼び出せず、セーブできなくなる。
 	// そこで終了フラグを自前でチェックする必要がある。
 
-	while (true)
+	// すべてのスレッドが終了したかを判定する関数
+	auto threads_done = [&]()
 	{
-		// 5秒ごとにスレッドの終了をチェックする。
-		const int check_interval = 5;
+		// ひとつでも終了していなければfalseを返す
+		for (auto& f : thread_finished)
+			if (!f)
+				return false;
+		return true;
+	};
 
-		for (int i = 0; i < callback_seconds / check_interval; ++i)
-		{
-			this_thread::sleep_for(chrono::seconds(check_interval));
-
-			// すべてのスレッドが終了したか
-			for (size_t i = 0; i < thread_num; ++i)
-				if (!thread_finished.get()[i])
-					goto NEXT;
-
-			// すべてのthread_finished[i]に渡って、trueなのですべてのthreadが終了している。
-			goto FINISH;
-
-		NEXT:;
-		}
-
-		// callback_secondsごとにcallback_func()が呼び出される。
+	// コールバック関数が設定されているならコールバックする。
+	auto do_a_callback = [&]()
+	{
 		if (callback_func)
 			callback_func();
-	}
-FINISH:;
+	};
 
+
+	for (u64 i = 0 ; ; )
+	{
+		// 全スレッドが終了していたら、ループを抜ける。
+		if (threads_done())
+			break;
+
+		sleep(1000);
+
+		// callback_secondsごとにcallback_func()が呼び出される。
+		if (++i == callback_seconds)
+		{
+			do_a_callback();
+			i = 0;
+		}
+	}
 
 	// 最後の保存。
-	if (callback_func)
-	{
-		cout << endl << "finalize..";
-		callback_func();
-	}
+	std::cout << std::endl << "finalize..";
+	do_a_callback();
 
 	// 終了したフラグは立っているがスレッドの終了コードの実行中であるということはありうるので
 	// join()でその終了を待つ必要がある。
-	for (size_t i = 0; i < thread_num; ++i)
-		threads[i].join();
+	for (auto& th : threads)
+		th.join();
 
-	cout << "..all works..done!!" << endl;
+	// 全スレッドが終了しただけでfileの書き出しスレッドなどはまだ動いていて
+	// 作業自体は完了していない可能性があるのでスレッドがすべて終了したことだけ出力する。
+	std::cout << "all threads are joined." << std::endl;
+
+	// Optionsを書き換えたので復元。
+	// 値を代入しないとハンドラが起動しないのでこうやって復元する。
+	for (auto& s : oldOptions)
+		Options[s.first] = std::string(s.second);
+
+#if defined(USE_GLOBAL_OPTIONS)
+	// GlobalOptionsの復元
+	GlobalOptions = oldGlobalOptions;
+#endif
 }
 
 

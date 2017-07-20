@@ -225,13 +225,13 @@ namespace MateEngine
 
   // TODO(tanuki-): ネガマックス法的な書き方に変更する
   void DFPNwithTCA(Position& n, int thpn, int thdn, bool inc_flag, bool or_node, int depth) {
-    if (Signals.stop.load(std::memory_order_relaxed)) {
+    if (Threads.stop.load(std::memory_order_relaxed)) {
       return;
     }
 
-    auto nodes_searched = n.nodes_searched();
+    auto nodes_searched = n.this_thread()->nodes.load(memory_order_relaxed);
     if (nodes_searched && nodes_searched % 10000000 == 0) {
-      sync_cout << "info string nodes_searched=" << n.nodes_searched() << sync_endl;
+      sync_cout << "info string nodes_searched=" << nodes_searched << sync_endl;
     }
 
     auto& entry = transposition_table.LookUp(n);
@@ -277,7 +277,7 @@ namespace MateEngine
     entry.minimum_distance = std::min(entry.minimum_distance, depth);
 
     bool first_time = true;
-    while (!Signals.stop.load(std::memory_order_relaxed)) {
+    while (!Threads.stop.load(std::memory_order_relaxed)) {
       ++entry.num_searched;
 
       // determine whether thpn and thdn are increased.
@@ -474,7 +474,7 @@ namespace MateEngine
     DFPNwithTCA(r, kInfinitePnDn, kInfinitePnDn, false, true, 0);
     const auto& entry = transposition_table.LookUp(r);
 
-    auto nodes_searched = r.nodes_searched();
+    auto nodes_searched = r.this_thread()->nodes.load(memory_order_relaxed);
     sync_cout << "info string" <<
       " pn " << entry.pn <<
       " dn " << entry.dn <<
@@ -498,11 +498,11 @@ namespace MateEngine
       sync_cout << oss.str() << sync_endl;
     }
 
-    // "stop"が送られてきたらSignals.stop == trueになる。
+    // "stop"が送られてきたらThreads.stop == trueになる。
     // "ponderhit"が送られてきたらLimits.ponder == 0になるので、それを待つ。(stopOnPonderhitは用いない)
-    //    また、このときSignals.stop == trueにはならない。(この点、Stockfishとは異なる。)
+    //    また、このときThreads.stop == trueにはならない。(この点、Stockfishとは異なる。)
     // "go infinite"に対してはstopが送られてくるまで待つ。
-    while (!Signals.stop && (Limits.ponder || Limits.infinite))
+    while (!Threads.stop && (Limits.ponder || Limits.infinite))
       sleep(1);
     //	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
     // (思考のためには計算資源を使っていないので。)
@@ -517,7 +517,7 @@ namespace MateEngine
       sync_cout << "bestmove " << moves[0] << " ponder " << moves[1] << sync_endl;
     }
 
-    Signals.stop = true;
+    Threads.stop = true;
   }
 }
 

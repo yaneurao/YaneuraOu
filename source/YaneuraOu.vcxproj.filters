@@ -11,23 +11,8 @@
     <Filter Include="リソース ファイル\engine">
       <UniqueIdentifier>{e9b3e69c-bd87-41b1-947e-68da1be9443a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\engine\classic-engine">
-      <UniqueIdentifier>{669f832c-7d68-44b0-aff9-048ac0923290}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\engine\help-mate-engine">
-      <UniqueIdentifier>{a4d89bd4-6529-49a7-9143-b0d2dff4684c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\engine\mini-engine">
-      <UniqueIdentifier>{8d0d3c85-56bf-4b6c-aab6-7e5d30f44247}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\engine\nano-engine">
-      <UniqueIdentifier>{96d39d2d-8f79-4886-aee4-dca2a18a8ed5}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\engine\user-engine">
       <UniqueIdentifier>{6cab9abd-d0e7-4497-bbe3-67a203fe5dee}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\engine\random-player-engine">
-      <UniqueIdentifier>{bdf05885-9d14-44cb-b571-c77256d741ba}</UniqueIdentifier>
     </Filter>
     <Filter Include="リソース ファイル\engine\local-game-server">
       <UniqueIdentifier>{87ce55d3-78de-45c8-a6b3-a74a54ef2d0b}</UniqueIdentifier>
@@ -41,26 +26,11 @@
     <Filter Include="exe">
       <UniqueIdentifier>{a09b95c2-88ed-401e-ab31-7eb93f8fc490}</UniqueIdentifier>
     </Filter>
-    <Filter Include="doc">
-      <UniqueIdentifier>{8bb34244-8e89-49f6-a303-c043ef5d8647}</UniqueIdentifier>
-    </Filter>
     <Filter Include="exe\book">
       <UniqueIdentifier>{31783e68-60c1-4b07-a404-12463d7c1e30}</UniqueIdentifier>
     </Filter>
     <Filter Include="exe\eval">
       <UniqueIdentifier>{022b52fb-a082-4f1e-9418-bfbc59a1c528}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\engine\nano-plus-engine">
-      <UniqueIdentifier>{f3ba1c3a-285c-4fbb-b041-1a46902f2f8c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\engine\classic-tce-engine">
-      <UniqueIdentifier>{c572f93f-e4d8-4d96-ad1f-2f6a5a11d108}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\engine\2016-mid-engine">
-      <UniqueIdentifier>{307735dd-d642-4bb7-a1c0-4b578152201a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\engine\2016-late-engine">
-      <UniqueIdentifier>{340f8b93-a0de-4836-a164-61971b2d3ce6}</UniqueIdentifier>
     </Filter>
     <Filter Include="リソース ファイル\learn">
       <UniqueIdentifier>{d7ca69f7-bd83-40ce-89c2-fe2d730b80be}</UniqueIdentifier>
@@ -71,12 +41,6 @@
     <Filter Include="リソース ファイル\engine\2017-early-engine">
       <UniqueIdentifier>{d3dd072e-59ab-4ec3-a846-36d845709d2c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\engine\check-shogi-engine">
-      <UniqueIdentifier>{11d51fe5-ad3a-4a26-a710-6db4f036a01a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\engine\must-capture-shogi-engine">
-      <UniqueIdentifier>{5dd99140-04f4-49f4-9699-713b1b7ee46a}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\extra\book">
       <UniqueIdentifier>{991f4422-aa69-47f9-96dc-ab57ff54f469}</UniqueIdentifier>
     </Filter>
@@ -85,6 +49,15 @@
     </Filter>
     <Filter Include="リソース ファイル\extra\mate">
       <UniqueIdentifier>{d2aac0fd-42da-4a14-b6c2-22d534701934}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\extra\kif_converter">
+      <UniqueIdentifier>{d3015e32-f402-423d-8643-dcc571f62564}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="docs">
+      <UniqueIdentifier>{8bb34244-8e89-49f6-a303-c043ef5d8647}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\engine\help-mate-engine">
+      <UniqueIdentifier>{4baa45aa-bdd2-4657-804f-9aa648ba0a2f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -112,9 +85,6 @@
     <ClInclude Include="extra\all.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
-    <ClInclude Include="extra\key128.h">
-      <Filter>リソース ファイル\extra</Filter>
-    </ClInclude>
     <ClInclude Include="extra\bitop.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
@@ -136,14 +106,8 @@
     <ClInclude Include="eval\kppt_evalsum.h">
       <Filter>リソース ファイル\eval</Filter>
     </ClInclude>
-    <ClInclude Include="engine\2016-mid-engine\2016-mid-param.h">
-      <Filter>リソース ファイル\engine\2016-mid-engine</Filter>
-    </ClInclude>
     <ClInclude Include="engine\mate-engine\mate-search.h">
       <Filter>リソース ファイル\engine\mate-engine</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\help-mate-engine\help-mate-search.h">
-      <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClInclude>
     <ClInclude Include="learn\multi_think.h">
       <Filter>リソース ファイル\learn</Filter>
@@ -154,20 +118,8 @@
     <ClInclude Include="learn\learn.h">
       <Filter>リソース ファイル\learn</Filter>
     </ClInclude>
-    <ClInclude Include="engine\2016-late-engine\2016-late-param.h">
-      <Filter>リソース ファイル\engine\2016-late-engine</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\2016-late-engine\2016-late-param_body.h">
-      <Filter>リソース ファイル\engine\2016-late-engine</Filter>
-    </ClInclude>
     <ClInclude Include="engine\2017-early-engine\2017-early-param.h">
       <Filter>リソース ファイル\engine\2017-early-engine</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\check-shogi-engine\check-shogi-param.h">
-      <Filter>リソース ファイル\engine\check-shogi-engine</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\must-capture-shogi-engine\must-capture-shogi-param.h">
-      <Filter>リソース ファイル\engine\must-capture-shogi-engine</Filter>
     </ClInclude>
     <ClInclude Include="extra\book\apery_book.h">
       <Filter>リソース ファイル\extra\book</Filter>
@@ -181,20 +133,35 @@
     <ClInclude Include="eval\progress.h">
       <Filter>リソース ファイル\eval</Filter>
     </ClInclude>
-    <ClInclude Include="extra\move_picker\move_picker_2015.h">
-      <Filter>リソース ファイル\extra\move_picker</Filter>
-    </ClInclude>
-    <ClInclude Include="extra\move_picker\move_picker_2016Q2.h">
-      <Filter>リソース ファイル\extra\move_picker</Filter>
-    </ClInclude>
-    <ClInclude Include="extra\move_picker\move_picker_2016Q3.h">
-      <Filter>リソース ファイル\extra\move_picker</Filter>
-    </ClInclude>
     <ClInclude Include="extra\move_picker\move_picker_2017Q2.h">
       <Filter>リソース ファイル\extra\move_picker</Filter>
     </ClInclude>
     <ClInclude Include="extra\mate\mate1ply.h">
       <Filter>リソース ファイル\extra\mate</Filter>
+    </ClInclude>
+    <ClInclude Include="learn\half_float.h">
+      <Filter>リソース ファイル\learn</Filter>
+    </ClInclude>
+    <ClInclude Include="learn\learning_tools.h">
+      <Filter>リソース ファイル\learn</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\key128.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\thread_win32.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\kif_converter\kif_convert_tools.h">
+      <Filter>リソース ファイル\extra\kif_converter</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\kif_converter\kif_convert_consts.h">
+      <Filter>リソース ファイル\extra\kif_converter</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\evaluate_io.h">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\help-mate-engine\help-mate-search.h">
+      <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -246,50 +213,20 @@
     <ClCompile Include="eval\evaluate_no_eval.cpp">
       <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
-    <ClCompile Include="eval\evaluate_material.cpp">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
     <ClCompile Include="extra\entering_king_win.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
     <ClCompile Include="extra\timeman.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
-    <ClCompile Include="engine\classic-tce-engine\classic-tce-search.cpp">
-      <Filter>リソース ファイル\engine\classic-tce-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\2016-mid-engine\2016-mid-search.cpp">
-      <Filter>リソース ファイル\engine\2016-mid-engine</Filter>
-    </ClCompile>
     <ClCompile Include="eval\evaluate_kppt.cpp">
       <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\2016-late-engine\2016-late-search.cpp">
-      <Filter>リソース ファイル\engine\2016-late-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\nano-engine\nano-search.cpp">
-      <Filter>リソース ファイル\engine\nano-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\nano-plus-engine\nano-plus-search.cpp">
-      <Filter>リソース ファイル\engine\nano-plus-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\mini-engine\mini-search.cpp">
-      <Filter>リソース ファイル\engine\mini-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\classic-engine\classic-search.cpp">
-      <Filter>リソース ファイル\engine\classic-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\random-player-engine\random-player-search.cpp">
-      <Filter>リソース ファイル\engine\random-player-engine</Filter>
     </ClCompile>
     <ClCompile Include="engine\user-engine\user-search.cpp">
       <Filter>リソース ファイル\engine\user-engine</Filter>
     </ClCompile>
     <ClCompile Include="engine\mate-engine\mate-search.cpp">
       <Filter>リソース ファイル\engine\mate-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\help-mate-engine\help-mate-search.cpp">
-      <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClCompile>
     <ClCompile Include="learn\learner.cpp">
       <Filter>リソース ファイル\learn</Filter>
@@ -306,12 +243,6 @@
     <ClCompile Include="engine\2017-early-engine\2017-early-search.cpp">
       <Filter>リソース ファイル\engine\2017-early-engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\check-shogi-engine\check-shogi.cpp">
-      <Filter>リソース ファイル\engine\check-shogi-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\must-capture-shogi-engine\must-capture-shogi.cpp">
-      <Filter>リソース ファイル\engine\must-capture-shogi-engine</Filter>
-    </ClCompile>
     <ClCompile Include="extra\book\apery_book.cpp">
       <Filter>リソース ファイル\extra\book</Filter>
     </ClCompile>
@@ -320,12 +251,6 @@
     </ClCompile>
     <ClCompile Include="eval\progress.cpp">
       <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\move_picker\move_picker_2016Q2.cpp">
-      <Filter>リソース ファイル\extra\move_picker</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\move_picker\move_picker_2016Q3.cpp">
-      <Filter>リソース ファイル\extra\move_picker</Filter>
     </ClCompile>
     <ClCompile Include="extra\move_picker\move_picker_2017Q2.cpp">
       <Filter>リソース ファイル\extra\move_picker</Filter>
@@ -342,39 +267,54 @@
     <ClCompile Include="eval\evaluate_kkpt.cpp">
       <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
+    <ClCompile Include="extra\benchmark.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="learn\learning_tools.cpp">
+      <Filter>リソース ファイル\learn</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\kif_converter\kif_convert_tools.cpp">
+      <Filter>リソース ファイル\extra\kif_converter</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\evaluate_io.cpp">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\evaluate.cpp">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\help-mate-engine\help-mate-search.cpp">
+      <Filter>リソース ファイル\engine\help-mate-engine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">
-      <Filter>doc</Filter>
+      <Filter>docs</Filter>
     </Text>
     <Text Include="..\docs\解説.txt">
-      <Filter>doc</Filter>
+      <Filter>docs</Filter>
     </Text>
     <Text Include="..\exe\eval\readme.txt">
       <Filter>exe\eval</Filter>
     </Text>
     <Text Include="..\docs\やねうら大定跡.txt">
-      <Filter>doc</Filter>
+      <Filter>docs</Filter>
     </Text>
     <Text Include="..\docs\更新履歴.txt">
-      <Filter>doc</Filter>
+      <Filter>docs</Filter>
     </Text>
     <Text Include="..\script\readme.txt">
       <Filter>script</Filter>
     </Text>
-    <Text Include="..\docs\開発メモ2017.txt">
-      <Filter>doc</Filter>
-    </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md">
-      <Filter>doc</Filter>
+      <Filter>docs</Filter>
     </None>
     <None Include="..\exe\book\standard_book.db">
       <Filter>exe\book</Filter>
     </None>
     <None Include="Makefile">
-      <Filter>doc</Filter>
+      <Filter>docs</Filter>
     </None>
     <None Include="..\script\calc_rating.py">
       <Filter>script</Filter>
@@ -392,7 +332,7 @@
       <Filter>script</Filter>
     </None>
     <None Include="..\docs\README2017.md">
-      <Filter>doc</Filter>
+      <Filter>docs</Filter>
     </None>
   </ItemGroup>
 </Project>

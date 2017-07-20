@@ -10,106 +10,78 @@
 #ifdef USE_MOVE_PICKER_2017Q2
 
 // -----------------------
-//  history , counter move
+//		history
 // -----------------------
 
-// fromの駒をtoに移動させることに対するhistory
-// 駒打ちはfromが特殊な値になっていて、盤上のfromとは区別される。
-struct HistoryStats
-{
-	// 値の最大値
-	static const int Max = Value(1 << 28);
+// StatBoardsは汎用的な2次元配列であり、様々な統計情報を格納するために用いる。
+template<int Size1, int Size2, typename T = s16>
+struct StatBoards : public std::array<std::array<T, Size2>, Size1> {
 
-	int get(Color c, Move m) const { return table[from_sq(m)][to_sq(m)][c]; }
-	void clear() { std::memset(table, 0, sizeof(table)); }
+	// ある値でこの2次元配列を丸ごと埋める。
+	void fill(const T& v) {
+		T* p = &(*this)[0][0];
+		std::fill(p, p + sizeof(*this) / sizeof(*p), v);
+	}
+};
 
-	void update(Color c, Move m, int v)
-	{
-		Square from = from_sq(m);
-		Square to = to_sq(m);
+// ButterflyBoardsは、2つのテーブル(1つの手番ごとに1つ)があり、「指し手の移動元と移動先」によってindexされる。
+// cf. http://chessprogramming.wikispaces.com/Butterfly+Boards
+// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+// 簡単に言うと、fromの駒をtoに移動させることに対するhistory。
+// やねうら王では、ここで用いられるfromは、駒打ちのときに特殊な値になっていて、盤上のfromとは区別される。
+// そのため、(SQ_NB + 7)まで移動元がある。
+typedef StatBoards<int(SQ_NB + 7) * int(SQ_NB), COLOR_NB> ButterflyBoards;
 
-		ASSERT_LV3(from < SQ_NB + 7);
+/// PieceToBoardsは、指し手の[to][piece]の情報によってaddressされる。
+// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+// 2つ目の添字のほう、USE_DROPBIT_IN_STATSを考慮したほうがいいのだが、
+// 以前計測したときには効果がなかったのでそのコードは削除した。
+typedef StatBoards<SQ_NB, PIECE_NB> PieceToBoards;
+
+/// PieceToHistoryは、ButterflyHistoryに似ているが、PieceToBoardsに基づく。
+struct PieceToHistory : public PieceToBoards {
+
+	void update(Piece pc, Square to, int v) {
+
+		const int D = 936;
+		auto& entry = (*this)[to][pc];
+
+		ASSERT_LV3(abs(v) <= D); // 下記の公式に対する一貫性チェック
+
+		entry += v * 32 - entry * abs(v) / D;
+
+		ASSERT_LV3(abs(entry) <= 32 * D);
+	}
+};
+
+// ButterflyHistoryは、 現在の探索中にquietな指し手がどれくらい成功/失敗したかを記録し、
+// reductionと指し手オーダリングの決定のために用いられる。
+// ButterflyBoardsをこの情報の格納のために用いる。
+struct ButterflyHistory : public ButterflyBoards {
+
+	void update(Color c, Move m, int v) {
 
 		const int D = 324;
+		auto& entry = (*this)[from_to(m)][c];
 
-		ASSERT_LV3(abs(v) <= D && 32 * D <= 32768); // 下記の公式に対する一貫性チェック
-		
-		table[from][to][c] -= table[from][to][c] * abs(v) / D;
-		table[from][to][c] += v * 32;
+		ASSERT_LV3(abs(v) <= D); // 下記の公式に対する一貫性チェック
+
+		entry += v * 32 - entry * abs(v) / D;
+
+		ASSERT_LV3(abs(entry) <= 32 * D);
 	}
-private:
-	// 駒打ちを分類すべきだと思うので、駒種に応じてfromの位置を調整する。
-	// Stockfishのコードとなるべく互換性を保つためにfrom_sq()と同名の関数名にしておく。
-	Square from_sq(Move m) const { return (Square)(::from_sq(m) + (is_drop(m) ? (SQ_NB - 1) : 0)); }
-
-	// table[from][to][color]となっているが、fromはSQ_NB_PLUS1 + 打ち駒の7種
-	int16_t table[SQ_NB + 7][SQ_NB][COLOR_NB];
 };
 
+// CounterMoveStatは、直前の指し手の[to][piece]でindexされるcounter moves(応手)である。
+// cf. http://chessprogramming.wikispaces.com/Countermove+Heuristic
+// ※　Stockfishとは、1,2番目の添字を入れ替えてあるので注意。
+typedef StatBoards<SQ_NB, PIECE_NB, Move> CounterMoveStat;
 
-// Pieceを升sqに移動させるときの値(T型)
-// 移動先のみ。移動元に関しては情報を持っていない。
-template<typename T>
-struct Stats {
+// CounterMoveHistoryStatは、CounterMoveStatに似ているが、指し手の代わりに、
+// full history(ButterflyBoardsの代わりに用いられるPieceTo boards)を格納する。
+// ※　Stockfishとは、1,2番目の添字を入れ替えてあるので注意。
+typedef StatBoards<SQ_NB, PIECE_NB, PieceToHistory> CounterMoveHistoryStat;
 
-  // このtableの要素の最大値
-  static const Value Max = Value(1 << 28);
-
-  // tableの要素の値を取り出す
-  const T* operator[](Square to) const {
-    ASSERT_LV4(is_ok(to));
-    return table[to];
-  }
-  T* operator[](Square to) {
-    ASSERT_LV4(is_ok(to));
-    return table[to];
-  }
-
-  // tableのclear
-  void clear() { memset(table, 0, sizeof(table)); }
-
-  // tableに指し手を格納する。(Tの型がMoveのとき)
-  void update(Piece pc, Square to, Move m)
-  {
-    ASSERT_LV4(is_ok(to));
-    table[to][pc] = m;
-  }
-
-  // tableに値を格納する(Tの型がValueのとき)
-  void update(Piece pc, Square to, int v) {
-
-    // USE_DROPBIT_IN_STATSが有効なときはpcとして +32したものを駒打ちとして格納する。
-    // なので is_ok(pc)というassertは書けない。
-
-    ASSERT_LV4(is_ok(to));
-
-	const int D = 936;
-
-	ASSERT_LV3(abs(v) <= D && 32 * D <= 32768); // 下記の公式に対する一貫性チェック
-
-	table[to][pc] -= table[to][pc] * abs(v) / D;
-    table[to][pc] += v * 32;
-  }
-
-private:
-  // Pieceを升sqに移動させるときの値
-  // ※　Stockfishとは添字が逆順だが、将棋ではPIECE_NBのほうだけが2^Nなので仕方がない。
-  // NULL_MOVEのときは、[color][NO_PIECE]を用いる
-#ifndef USE_DROPBIT_IN_STATS
-  T table[SQ_NB][PIECE_NB];
-#else
-  T table[SQ_NB][(int)PIECE_NB*2];
-#endif
-};
-
-// Statsは、pcをsqの升に移動させる指し手に対してT型の値を保存する。
-// TがMoveのときは、指し手に対する指し手、すなわち、"応手"となる。
-// TがValueのときは指し手に対するスコアとなる。これがhistory table(HistoryStatsとCounterMoveStats)
-// このStats<CounterMoveStats>は、直前の指し手に対する、あらゆる指し手に対するスコアである。
-
-typedef Stats<Move            > MoveStats;
-typedef Stats<int16_t         > CounterMoveStats;
-typedef Stats<CounterMoveStats> CounterMoveHistoryStats;
 
 enum Stages : int;
 namespace Search { struct Stack; }

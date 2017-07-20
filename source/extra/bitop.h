@@ -277,12 +277,24 @@ extern ymm ymm_one;   // all packed bytes are 1.
 
 // C++11では、std::stack<StateInfo>がalignasを無視するために、代わりにstack相当のものを自作。
 template <typename T> struct aligned_stack {
-  void push(const T& t) { auto ptr = (T*)_mm_malloc(sizeof(T), alignof(T)); *ptr = t; container.push_back(ptr); }
-  T& top() const { return **container.rbegin(); }
-  void clear() { for (auto ptr : container) _mm_free(ptr); container.clear(); }
-  ~aligned_stack() { clear(); }
+	void push(const T& t) { auto ptr = (T*)_mm_malloc(sizeof(T), alignof(T)); *ptr = t; container.push_back(ptr); }
+	T& top() const { return *container.back(); }
+	void clear() { for (auto ptr : container) _mm_free(ptr); container.clear(); }
+	size_t size() const { return container.size(); }
+	~aligned_stack() { clear(); }
 private:
-  std::vector<T*> container;
+	std::vector<T*> container;
+};
+
+// aligned_stackのvector版
+template <typename T> struct aligned_vector {
+	aligned_vector() : container(nullptr) {}
+	~aligned_vector() { clear(); }
+	void clear() { if (container) _mm_free(container); }
+	void resize(size_t t) { clear(); container = (T*)_mm_malloc(sizeof(T)*t, alignof(T)); }
+	T& operator[](size_t t) { return container[t]; }
+private:
+	T* container;
 };
 
 // ----------------------------
