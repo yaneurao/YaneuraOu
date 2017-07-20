@@ -57,7 +57,7 @@ namespace Eval
 			{ 0x65cd7c55a9d4cd9 , "elmo(WCSC27)" } ,
 			{ 0x3aa68b055a020a8 , "Yomita(WCSC27)" } ,
 			{ 0x702fb2ee5672156 , "Qhapaq(WCSC27)" } ,
-			{ 0x6c54a1bcb654e37 , "tanuki(WCSC27)" } ,
+			{ 0x6c54a1bcb5a6338 , "tanuki(WCSC27)" } ,
 	};
 		if (list.count(check_sum))
 			softname = list[check_sum];
