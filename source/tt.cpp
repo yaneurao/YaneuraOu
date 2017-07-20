@@ -111,7 +111,8 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found
 #if defined(USE_GLOBAL_OPTIONS)
 			// 置換表とTTEntryの世代が異なるなら、信用できないと仮定するフラグ。
 			if (GlobalOptions.use_strict_generational_tt)
-				return found = false, &tte[i];
+				if (tte[i].generation() != gen8)
+					return found = false, &tte[i];
 #endif
 
 			tte[i].set_generation(gen8); // Refresh
