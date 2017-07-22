@@ -2,12 +2,49 @@
 やねうら王 更新履歴
 
 
+■　2017/07/22
+
+・option value check: int -> long long (#58) (Mizarさん)
+
+
+■　2017/07/21
+
+・tanuki-(WCSC27)のcheck_sumの値を修正 (#57) (tttakさん)
+
+
+■　2017/07/20
+
+・Optionクラスが内部的に保持する値をs64化したときにVC++でのコンパイル時に警告出ていた箇所を修正。
+・GlobalOptions.use_strict_generational_ttの挙動変更する。
+
+
+■　2017/07/19
+
+・gensfenコマンドにrandom_move_like_aperyオプション追加。
+・gensfenコマンドにwrite_minply,write_maxplyオプション追加。
+・gensfenコマンド、gcc+AVX2だとアクセス違反で落ちていたの修正。aligned_vector追加。
+・kifconvert wip20170719b (#55) (Mizarさん)
+・エンジンオプションによる探索制限 #56(Mizarさん)
+・long long→s64に変更。DepthLimit,NodesLimitの件をUSI拡張コマンド.txtに追記。
+
+
+■　2017/07/18
+
+・gensfenまわり、ソースコード少し整理。
+・foreach_eval_param、KPPのところ、KKPを調べてたの修正。
+	"test evalexam"コマンドの結果に影響あり。
+・gensfenのときにEVAL_HASH無効化する。
+・PRNG、AsnycPRNGのoperator<<(std::ostream& os)、16進数表示に変更。
+
+
 ■　2017/07/17
 
 ・gensfenコマンドの処理、リファクタリング。
 ・宣言勝ち周り、リファクタリング。何かバグってたらごめん。
 ・gensfenのときに乱数seed表示するようにしたなど。
 ・ConsiderationModeがオンのとき、PVを置換表に書き戻す処理を入れているが、それをメインスレッドでしか行わないようにした。など。
+・insert_pv_to_tt()のコード、少し修正。
+・insert_pv_to_tt()自体、lazySMPと相性悪いので削除する。読み筋が途切れるなら置換表を大きく確保してもらうしか。
 
 
 ■　2017/07/16 V4.74
