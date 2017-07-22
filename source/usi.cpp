@@ -348,7 +348,7 @@ namespace USI
 		o["DepthLimit"] << Option(0, 0, INT_MAX);
 
 		// 探索ノード制限。0なら無制限。
-		o["NodesLimit"] << Option(0, 0, LLONG_MAX);
+		o["NodesLimit"] << Option(0, 0, INT64_MAX);
 
 		// 引き分けを受け入れるスコア
 		// 歩を100とする。例えば、この値を100にすると引き分けの局面は評価値が -100とみなされる。
@@ -399,7 +399,7 @@ namespace USI
 		// 範囲外
 		if ((type != "button" && v.empty())
 			|| (type == "check" && v != "true" && v != "false")
-			|| (type == "spin" && (stoi(v) < min || stoi(v) > max)))
+			|| (type == "spin" && (stoll(v) < min || stoll(v) > max)))
 			return *this;
 
 		// ボタン型は値を設定するものではなく、単なるトリガーボタン。
