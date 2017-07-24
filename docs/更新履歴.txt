@@ -2,6 +2,12 @@
 やねうら王 更新履歴
 
 
+■　2017/07/24
+
+・elmo式にlambda2,lambda_limitを追加。
+・LOSS_FUNCTION_IS_YANE_ELMO_METHOD削除。
+
+
 ■　2017/07/22
 
 ・option value check: int -> long long (#58) (Mizarさん)

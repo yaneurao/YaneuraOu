@@ -41,8 +41,6 @@
 #define LOSS_FUNCTION "CROSS_ENTOROPY_FOR_VALUE"
 #elif defined(LOSS_FUNCTION_IS_ELMO_METHOD)
 #define LOSS_FUNCTION "ELMO_METHOD(WCSC27)"
-#elif defined(LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
-#define LOSS_FUNCTION "YANE_ELMO_METHOD(WCSC27)"
 #endif
 
 // -----------------------------------
@@ -1013,6 +1011,8 @@ double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 // learnコマンドでこの値を設定できる。
 // 0.33は、elmo(WCSC27)で使われていた定数(0.5)相当
 double ELMO_LAMBDA = 0.33;
+double ELMO_LAMBDA2 = 0.33;
+double ELMO_LAMBDA_LIMIT = 32000;
 
 double calc_grad(Value deep, Value shallow , const PackedSfenValue& psv)
 {
@@ -1026,9 +1026,12 @@ double calc_grad(Value deep, Value shallow , const PackedSfenValue& psv)
 	// game_result = 1,0,-1なので1足して2で割る。
 	const double t = double(psv.game_result + 1) / 2;
 
+	// 深い探索での評価値がELMO_LAMBDA_LIMITを超えているならELMO_LAMBDAではなくELMO_LAMBDA2を適用する。
+	const double lambda = (abs(deep) >= ELMO_LAMBDA_LIMIT) ? ELMO_LAMBDA2 : ELMO_LAMBDA;
+
 	// 実際の勝率を補正項として使っている。
 	// これがelmo(WCSC27)のアイデアで、現代のオーパーツ。
-	const double grad = (1 - ELMO_LAMBDA) * (eval_winrate - t) + ELMO_LAMBDA * (eval_winrate - teacher_winrate);
+	const double grad = (1 - lambda) * (eval_winrate - t) + lambda * (eval_winrate - teacher_winrate);
 
 	return grad;
 }
@@ -1043,36 +1046,16 @@ void calc_cross_entropy(Value deep, Value shallow, const PackedSfenValue& psv,
 	const double t = double(psv.game_result + 1) / 2;
 
 	constexpr double epsilon = 0.000001;
-	cross_entropy_eval = ELMO_LAMBDA *
+
+	// 深い探索での評価値がELMO_LAMBDA_LIMITを超えているならELMO_LAMBDAではなくELMO_LAMBDA2を適用する。
+	const double lambda = (abs(deep) >= ELMO_LAMBDA_LIMIT) ? ELMO_LAMBDA2 : ELMO_LAMBDA;
+
+	cross_entropy_eval = lambda *
 		(-p * std::log(q + epsilon) - (1.0 - p) * std::log(1.0 - q + epsilon));
-	cross_entropy_win = (1.0 - ELMO_LAMBDA) *
+	cross_entropy_win = (1.0 - lambda) *
 		(-t * std::log(q + epsilon) - (1.0 - t) * std::log(1.0 - q + epsilon));
 }
 
-#endif
-
-
-#if defined( LOSS_FUNCTION_IS_YANE_ELMO_METHOD )
-
-double calc_grad(Value deep, Value shallow, PackedSfenValue& psv)
-{
-	// elmo(WCSC27)方式
-	// 実際のゲームの勝敗で補正する。
-
-	const double eval_winrate = winning_percentage(shallow);
-	const double teacher_winrate = winning_percentage(deep);
-
-	// 期待勝率を勝っていれば1、負けていれば 0として補正項として用いる。
-	const double t = double(psv.game_result + 1) / 2;
-
-	// gamePly == 0なら  λ = 0.8ぐらい。(勝敗の影響を小さめにする)
-	// gamePly == ∞なら λ = 0.4ぐらい。(元のelmo式ぐらいの値になる)
-	const double LAMBDA = 0.8 - (0.8-0.4)*(double)std::min((int)psv.gamePly, 100)/100.0;
-
-	const double grad = (1 - LAMBDA) * (eval_winrate - t) + LAMBDA * (eval_winrate - teacher_winrate);
-
-	return grad;
-}
 #endif
 
 
@@ -2078,6 +2061,13 @@ void learn(Position&, istringstream& is)
 	// 事前にシャッフルされているファイルを渡すならオンにすれば良い。
 	bool no_shuffle = false;
 
+#if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
+	// elmo lambda
+	ELMO_LAMBDA = 0.33;
+	ELMO_LAMBDA2 = 0.33;
+	ELMO_LAMBDA_LIMIT = 32000;
+#endif
+
 	// ファイル名が後ろにずらずらと書かれていると仮定している。
 	while (true)
 	{
@@ -2109,9 +2099,12 @@ void learn(Position&, istringstream& is)
 		// 学習率
 		else if (option == "eta")       is >> eta;
 
-#if defined (LOSS_FUNCTION_IS_ELMO_METHOD) || defined (LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
+#if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
 		// LAMBDA
-		else if (option == "lambda")    is >> ELMO_LAMBDA;
+		else if (option == "lambda")       is >> ELMO_LAMBDA;
+		else if (option == "lambda2")      is >> ELMO_LAMBDA2;
+		else if (option == "lambda_limit") is >> ELMO_LAMBDA_LIMIT;
+
 #endif
 
 		// シャッフル関連
@@ -2220,12 +2213,14 @@ void learn(Position&, istringstream& is)
 		for (auto it = filenames.rbegin(); it != filenames.rend(); ++it)
 			sr.filenames.push_back(path_combine(base_dir, *it));
 
-	cout << "Gradient Method : " << LEARN_UPDATE    << endl;
-	cout << "Loss Function   : " << LOSS_FUNCTION   << endl;
-	cout << "mini-batch size : " << mini_batch_size << endl;
-	cout << "learning rate   : " << eta             << endl;
-#if defined (LOSS_FUNCTION_IS_ELMO_METHOD) || defined (LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
-	cout << "LAMBDA          : " << ELMO_LAMBDA     << endl;
+	cout << "Gradient Method : " << LEARN_UPDATE      << endl;
+	cout << "Loss Function   : " << LOSS_FUNCTION     << endl;
+	cout << "mini-batch size : " << mini_batch_size   << endl;
+	cout << "learning rate   : " << eta               << endl;
+#if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
+	cout << "LAMBDA          : " << ELMO_LAMBDA       << endl;
+	cout << "LAMBDA2         : " << ELMO_LAMBDA2      << endl;
+	cout << "LAMBDA_LIMIT    : " << ELMO_LAMBDA_LIMIT << endl;
 #endif
 
 	// -----------------------------------

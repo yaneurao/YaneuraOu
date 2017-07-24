@@ -298,7 +298,7 @@ USIプロトコルの独自拡張コマンド
 			教師局面の生成時にランダムムーブを行なう最小手数と最大手数と1局でランダムムーブを行なう回数
 			デフォルトではrandom_move_minply = 16 , random_move_maxply = 32 , random_move_count = 5。
 			// 16手目から24手目までに5回のランダムムーブを行なうという意味
-			learn random_move_maxply 16 random_move_maxply 32 random_move_count 5 ...
+			gensfen random_move_maxply 16 random_move_maxply 32 random_move_count 5 ...
 			みたいに指定する。
 
 		random_move_like_apery N : ランダムムーブのときに玉を移動させる指し手の確率を上げる。
@@ -346,6 +346,13 @@ USIプロトコルの独自拡張コマンド
 			読み込み時に先読みでのシャッフルを行わない。
 			これを指定しないときは1000万局面ごとにシャッフルしながら読み込む。
 			(デフォルトではオフ)
+		lambda elmo(WCSC27)式を内分形式にしたときのlambda。
+			elmo(WCSC27)と同じにするには0.33を指定すれば良い。
+			参考)
+				grad = (1 - lambda) * (eval_winrate - t) + lambda * (eval_winrate - teacher_winrate);
+		lambda2 , lambda_limit
+			深い探索の評価値の絶対値がlambda_limit以上のときは、lambdaではなくlambda2のほうを適用する。
+			デフォルトではlambda_limit = 32000なのでlambda2は適用されることはない。
 
 		保存するフォルダは"EvalSaveDir"で指定したフォルダ。
 		デフォルトでは"evalsave"。このフォルダは事前に用意されているものとする。
