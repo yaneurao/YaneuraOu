@@ -2419,14 +2419,12 @@ void Thread::search()
 
 				}
 				else if (bestValue >= beta)
-				{
 					// fails high
 
-					// fails lowのときと同じ意味の処理。
-					alpha = (alpha + beta) / 2;
+					// このときalphaは動かさないほうが良いらしい。
+					// cf. https://github.com/official-stockfish/Stockfish/commit/a6ae2d3a31e93000e65bdfd8f0b6d9a3e6b8ce1b
 					beta = std::min(bestValue + delta, VALUE_INFINITE);
 
-				}
 				else
 					// 正常な探索結果なのでこれにてaspiration window searchは終了
 					break;
@@ -3060,10 +3058,7 @@ namespace Learner
 						alpha = std::max(bestValue - delta, -VALUE_INFINITE);
 					}
 					else if (bestValue >= beta)
-					{
-						alpha = (alpha + beta) / 2;
 						beta = std::min(bestValue + delta, VALUE_INFINITE);
-					}
 					else
 						break;
 
