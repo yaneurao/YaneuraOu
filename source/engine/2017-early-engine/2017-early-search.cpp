@@ -474,8 +474,8 @@ namespace YaneuraOu2017Early
 
 				// 置換表に格納されていたスコアは、この局面で今回探索するものと同等か少しだけ劣るぐらいの
 				// 精度で探索されたものであるなら、それをbestValueの初期値として使う。
-				if (ttValue != VALUE_NONE)
-					if (tte->bound() & (ttValue > bestValue ? BOUND_LOWER : BOUND_UPPER))
+				if (ttValue != VALUE_NONE
+					&& (tte->bound() & (ttValue > bestValue ? BOUND_LOWER : BOUND_UPPER)))
 						bestValue = ttValue;
 
 			} else {
@@ -1052,8 +1052,8 @@ namespace YaneuraOu2017Early
 			//   evalとしてttValueを採用して良い。
 			// 2. ttValue < evaluate()でかつ、ttValueがBOUND_UPPERなら、真の値はこれより小さいはずだから、
 			//   evalとしてttValueを採用したほうがこの局面に対する評価値の見積りとして適切である。
-			if (ttValue != VALUE_NONE)
-				if (tte->bound() & (ttValue > eval ? BOUND_LOWER : BOUND_UPPER))
+			if (ttValue != VALUE_NONE
+				&& (tte->bound() & (ttValue > eval ? BOUND_LOWER : BOUND_UPPER)))
 					eval = ttValue;
 
 		}
