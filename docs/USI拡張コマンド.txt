@@ -289,7 +289,7 @@ USIプロトコルの独自拡張コマンド
 		write_minply N :
 			初期局面周辺は、類似局面ばかりなので、初期局面から数えてN手未満の局面は教師局面として書き出さない。
 			デフォルトでは16。
-			初期局面を書き出すなら、Nに0を指定する。(1を指定するのではない)
+			初期局面を書き出すなら、Nに1を指定する。
 		write_maxply N :
 			書き出す局面の初期局面からの手数の最大。この手数を超えると引き分け扱いとする。
 			デフォルトでは400。
@@ -352,7 +352,7 @@ USIプロトコルの独自拡張コマンド
 				grad = (1 - lambda) * (eval_winrate - t) + lambda * (eval_winrate - teacher_winrate);
 		lambda2 , lambda_limit
 			深い探索の評価値の絶対値がlambda_limit以上のときは、lambdaではなくlambda2のほうを適用する。
-			デフォルトではlambda_limit = 32000なのでlambda2は適用されることはない。
+			デフォルトではlambda_limit = 32000なのでlambda2が適用されることはない。
 
 		保存するフォルダは"EvalSaveDir"で指定したフォルダ。
 		デフォルトでは"evalsave"。このフォルダは事前に用意されているものとする。

@@ -614,7 +614,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// 初期局面周辺はは類似局面ばかりなので
 				// 学習に用いると過学習になりかねないから書き出さない。
 				// →　比較実験すべき
-				if (ply < write_minply)
+				if (ply < write_minply - 1)
 				{
 					a_psv.clear();
 					goto SKIP_SAVE;
