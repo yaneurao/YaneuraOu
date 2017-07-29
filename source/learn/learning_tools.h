@@ -260,7 +260,11 @@ namespace EvalLearningTools
 		// 低次元の配列のindexを得る。ミラーしたものがkkp_[1]に返る。
 		void toLowerDimensions(/*out*/ KKP kkp_[2]) const {
 			kkp_[0] = KKP(king0_, king1_, piece_);
+#if defined(USE_KKP_MIRROR_WRITE)
 			kkp_[1] = KKP(Mir(king0_), Mir(king1_), mir_piece(piece_));
+#else
+			kkp_[1] = kkp_[0];
+#endif
 		}
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
@@ -344,15 +348,24 @@ namespace EvalLearningTools
 		void toLowerDimensions(/*out*/ KPP kpp_[4]) const {
 			kpp_[0] = KPP(king_, piece0_, piece1_);
 			kpp_[1] = KPP(king_, piece1_, piece0_);
-			kpp_[2] = KPP(Mir(king_), mir_piece[piece0_], mir_piece[piece1_]);
-			kpp_[3] = KPP(Mir(king_), mir_piece[piece1_], mir_piece[piece0_]);
+#if defined(USE_KPP_MIRROR_WRITE)
+			kpp_[2] = KPP(Mir(king_), mir_piece(piece0_), mir_piece(piece1_));
+			kpp_[3] = KPP(Mir(king_), mir_piece(piece1_), mir_piece(piece0_));
+#else
+			kpp_[2] = kpp_[0];
+			kpp_[3] = kpp_[1];
+#endif
 		}
 #else
 		// 低次元の配列のindexを得る。p1,p2を入れ替えたもの、ミラーしたものが返る。
 		// piece0とpiece1を入れ替えたものは返らないので注意。
 		void toLowerDimensions(/*out*/ KPP kpp_[2]) const {
 			kpp_[0] = KPP(king_, piece0_, piece1_);
+#if defined(USE_KPP_MIRROR_WRITE)
 			kpp_[1] = KPP(Mir(king_), mir_piece(piece0_), mir_piece(piece1_));
+#else
+			kpp_[1] = kpp_[0];
+#endif
 		}
 #endif
 

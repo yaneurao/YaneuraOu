@@ -16,10 +16,6 @@
 // 標準の雑巾絞りにするためにはlearnコマンドで "lambda 1"を指定してやれば良い。
 #define LEARN_ELMO_METHOD
 
-// やねうら王2017GOKU用のデフォルトの学習設定
-// ※　このオプションは実験中なので使わないように。
-// #define LEARN_YANEURAOU_2017_GOKU
-
 
 // ----------------------
 //        更新式
@@ -132,6 +128,16 @@ typedef float LearnFloatType;
 
 #define USE_TRIANGLE_WEIGHT_ARRAY
 
+// ----------------------
+//  次元下げ
+// ----------------------
+
+// ミラーに関して次元下げを行なう。
+// KKPはともかく、KPPのほうをオフにすると倍ぐらい教師局面が必要になる。
+
+#define USE_KKP_MIRROR_WRITE
+#define USE_KPP_MIRROR_WRITE
+
 
 // ======================
 //  教師局面生成時の設定
@@ -157,22 +163,6 @@ typedef float LearnFloatType;
 #if defined( LEARN_ELMO_METHOD )
 #define LOSS_FUNCTION_IS_ELMO_METHOD
 #define ADA_GRAD_UPDATE
-#endif
-
-// ----------------------
-//  やねうら王2017GOKUの方法
-// ----------------------
-
-#if defined(LEARN_YANEURAOU_2017_GOKU)
-
-// 損失関数、比較実験中。
-//#define LOSS_FUNCTION_IS_CROSS_ENTOROPY
-//#define LOSS_FUNCTION_IS_WINNING_PERCENTAGE
-#define LOSS_FUNCTION_IS_ELMO_METHOD
-/
-#define ADA_GRAD_UPDATE
-//#define SGD_UPDATE
-//#define ADA_PROP_UPDATE
 #endif
 
 
