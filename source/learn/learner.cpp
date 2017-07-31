@@ -1459,6 +1459,8 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			// 深い探索の評価値
 			auto deep_value = (Value)ps.score;
 
+			// 注) このコードは、learnコマンドでeval_limitを指定しているときのことを考慮してない。
+
 			// --- 誤差の計算
 
 			auto grad = calc_grad(deep_value, shallow_value, ps);

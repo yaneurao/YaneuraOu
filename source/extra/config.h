@@ -215,7 +215,7 @@
 // 評価関数の番号を選択できる。0001～9999から選ぶ。
 // 番号として、0000は、if EVAL_EXPERIMENTAL == 0000と判定しようとしたときに、C++の言語仕様として
 // シンボルが定義されていないときこの条件式が真だと判定されてしまうので使えない。
-//#define EVAL_EXPERIMENTAL 0001
+//#define EVAL_EXPERIMENTAL 0003
 
 #define USE_EVAL_HASH
 #define USE_SEE

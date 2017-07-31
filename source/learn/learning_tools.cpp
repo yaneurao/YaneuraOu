@@ -39,6 +39,8 @@ namespace EvalLearningTools
 	// 盤面上のあるBonaPieceをミラーした位置にあるものを返す。
 	Eval::BonaPiece mir_piece(Eval::BonaPiece p) { return (Eval::BonaPiece)mir_piece_[p]; }
 
+	std::function<void()> mir_piece_init_function;
+
 
 	// --- 個別のテーブルごとの初期化
 
@@ -195,14 +197,15 @@ namespace EvalLearningTools
 			}
 		}
 
+		if (mir_piece_init_function)
+			mir_piece_init_function();
+
 		for (BonaPiece p = BONA_PIECE_ZERO; p < fe_end; ++p)
-			if (inv_piece_[p] == BONA_PIECE_NOT_INIT
-				|| mir_piece_[p] == BONA_PIECE_NOT_INIT
-				)
-			{
-				// 未初期化のままになっている。上のテーブルの初期化コードがおかしい。
-				ASSERT(false);
-			}
+		{
+			// 未初期化のままになっている。上のテーブルの初期化コードがおかしい。
+			ASSERT_LV1(mir_piece_[p] != BONA_PIECE_NOT_INIT && mir_piece_[p] < fe_end);
+			ASSERT_LV1(inv_piece_[p] != BONA_PIECE_NOT_INIT && inv_piece_[p] < fe_end);
+		}
 
 #if 0
 		// 評価関数のミラーをしても大丈夫であるかの事前検証
@@ -326,6 +329,8 @@ namespace EvalLearningTools
 		init_mir_inv_tables();
 
 		//learning_tools_unit_test();
+		// UnitTestを実行するの最後でも良いのだが、init_min_index_flag()にとても時間がかかるので
+		// デバッグ時はこのタイミングで行いたい。
 
 		init_min_index_flag();
 

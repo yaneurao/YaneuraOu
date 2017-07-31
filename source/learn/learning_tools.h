@@ -179,6 +179,15 @@ namespace EvalLearningTools
 	// この配列もinit()によって初期化される。
 	extern std::vector<bool> min_index_flag;
 
+	// mir_piece/inv_pieceの初期化のときに呼び出されるcallback
+	// fe_endをユーザー側で拡張するときに用いる。
+	// この初期化のときに必要なのでinv_piece_とinv_piece_を公開している。
+	// mir_piece_init_functionが呼び出されたタイミングで、fe_old_endまでは
+	// これらのテーブルの初期化が完了していることが保証されている。
+	extern std::function<void()> mir_piece_init_function;
+	extern s16 mir_piece_[Eval::fe_end];
+	extern s16 inv_piece_[Eval::fe_end];
+
 	// -------------------------------------------------
 	// Weight配列を直列化したときのindexを計算したりするヘルパー。
 	// -------------------------------------------------

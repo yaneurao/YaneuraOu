@@ -244,6 +244,9 @@ namespace Eval
 					for (auto id : ids)
 						g_sum += weights[id].g;
 
+					//// KPPの手番は動かさないとき。
+					//g_sum[1] = 0;
+
 					if (is_zero(g_sum))
 						continue;
 
