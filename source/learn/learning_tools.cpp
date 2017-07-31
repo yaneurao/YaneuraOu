@@ -271,6 +271,49 @@ namespace EvalLearningTools
 #endif
 	}
 
+	void learning_tools_unit_test()
+	{
+		// KPPの三角配列化にバグがないかテストする
+		// k-p0-p1のすべての組み合わせがきちんとKPPの扱う対象になっていかと、そのときの次元下げが
+		// 正しいかを判定する。
+
+		std::vector<bool> f;
+		f.resize(KPP::max_index() - KPP::min_index());
+
+		for(auto k = SQ_ZERO ; k < SQ_NB ; ++k)
+			for(auto p0 = BonaPiece::BONA_PIECE_ZERO; p0 < fe_end ; ++p0)
+				for (auto p1 = BonaPiece::BONA_PIECE_ZERO; p1 < fe_end; ++p1)
+				{
+					KPP kpp_org(k,p0,p1);
+					KPP kpp0;
+					KPP kpp1(Mir(k), mir_piece(p0), mir_piece(p1));
+					KPP kpp_array[2];
+
+					auto index = kpp_org.toIndex();
+					ASSERT_LV3(KPP::is_ok(index));
+
+					kpp0 = KPP::fromIndex(index);
+
+					//if (kpp0 != kpp_org)
+					//	std::cout << "index = " << index << "," << kpp_org << "," << kpp0 << std::endl;
+
+					kpp0.toLowerDimensions(kpp_array);
+
+					ASSERT_LV3(kpp_array[0] == kpp0);
+					ASSERT_LV3(kpp0 == kpp_org);
+					ASSERT_LV3(kpp_array[1] == kpp1);
+
+					auto index2 = kpp1.toIndex();
+					f[index - KPP::min_index()] = f[index2-KPP::min_index()] = true;
+				}
+
+		// 抜けてるindexがなかったかの確認。
+		for(size_t index = 0 ; index < f.size(); index++)
+			if (!f[index])
+			{
+				std::cout << index << KPP::fromIndex(index + KPP::min_index()) <<  std::endl;
+			}
+	}
 
 	// このEvalLearningTools全体の初期化
 	void init()
@@ -281,6 +324,8 @@ namespace EvalLearningTools
 		// このあとmin_index_flagの初期化を行なうが、そこが
 		// これに依存しているので、こちらを先に行なう必要がある。
 		init_mir_inv_tables();
+
+		//learning_tools_unit_test();
 
 		init_min_index_flag();
 

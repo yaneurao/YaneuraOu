@@ -118,6 +118,12 @@ typedef float LearnFloatType;
 //#include "half_float.h"
 //typedef HalfFloat::float16 LearnFloatType;
 
+// ----------------------
+
+// Vの小数部を保持する変数のbit数
+
+//#define V_FRACTION_BITS 8
+#define V_FRACTION_BITS 16
 
 // ----------------------
 //  省メモリ化

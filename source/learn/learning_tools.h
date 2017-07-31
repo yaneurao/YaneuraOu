@@ -11,6 +11,12 @@
 #include "../misc.h"  // PRNG
 #endif
 
+#if V_FRACTION_BITS == 8
+typedef s8 V_FRACTION_TYPE;
+#elif V_FRACTION_BITS == 16
+typedef s16 V_FRACTION_TYPE;
+#endif
+
 namespace EvalLearningTools
 {
 	// -------------------------------------------------
@@ -53,7 +59,7 @@ namespace EvalLearningTools
 		std::array<LearnFloatType, 2> g2;
 
 		// vの小数部上位8bit。(vをfloatで持つのもったいないのでvの補助bitとして8bitで持つ)
-		std::array<s8, 2> v8;
+		std::array<V_FRACTION_TYPE, 2> v_frac;
 
 		// AdaGradでupdateする
 		// この関数を実行しているときにgの値やメンバーが書き変わらないことは
@@ -86,7 +92,9 @@ namespace EvalLearningTools
 				// std::round()限定なら-0.5～+0.5の範囲なので255倍でも良いが、
 				// どんな丸め方をするかはわからないので余裕を持たせてある。
 
-				double V = v[i] + ((double)v8[i] / 127);
+				const double m = (s32)1 << (V_FRACTION_BITS - 1);
+
+				double V = v[i] + ((double)v_frac[i] / m);
 
 				V -= eta * (double)g[i] / sqrt((double)g2[i] + epsilon);
 
@@ -95,7 +103,7 @@ namespace EvalLearningTools
 				V = std::max((double)INT16_MIN * 3 / 4, V);
 
 				v[i] = (T)round(V);
-				v8[i] = (s8)((V - v[i]) * 127);
+				v_frac[i] = (V_FRACTION_TYPE)((V - v[i]) * m);
 
 				// この要素に関するmini-batchの1回分の更新が終わったのでgをクリア
 				//g[i] = 0;
@@ -216,6 +224,10 @@ namespace EvalLearningTools
 			return min_index() + (u64)king0_ * (u64)SQ_NB + (u64)king1_;
 		}
 
+		// 比較演算子
+		bool operator==(const KK& rhs) { return king0() == rhs.king0() && king1() == rhs.king1(); }
+		bool operator!=(const KK& rhs) { return !(*this == rhs); }
+
 	private:
 		Square king0_, king1_;
 	};
@@ -271,6 +283,10 @@ namespace EvalLearningTools
 		u64 toIndex() const {
 			return min_index() + ((u64)king0_ * (u64)SQ_NB + (u64)king1_) * (u64)Eval::fe_end + (u64)piece_;
 		}
+
+		// 比較演算子
+		bool operator==(const KKP& rhs) { return king0() == rhs.king0() && king1() == rhs.king1() && piece() == rhs.piece(); }
+		bool operator!=(const KKP& rhs) { return !(*this == rhs); }
 
 	private:
 		Square king0_, king1_;
@@ -395,6 +411,18 @@ namespace EvalLearningTools
 			return min_index() + ( (i >= j) ? PcPcOnSq(k, i, j) : PcPcOnSq(k, j, i));
 #endif
 		}
+
+		// 比較演算子
+		bool operator==(const KPP& rhs) {
+			return king() == rhs.king() &&
+				((piece0() == rhs.piece0() && piece1() == rhs.piece1())
+#if defined(USE_TRIANGLE_WEIGHT_ARRAY)
+					// 三角配列を用いるときはpiece0とpiece1の入れ替わりを許容する。
+				|| (piece0() == rhs.piece1() && piece1() == rhs.piece0())
+#endif
+					); }
+		bool operator!=(const KPP& rhs) { return !(*this == rhs); }
+
 
 	private:
 		Square king_;

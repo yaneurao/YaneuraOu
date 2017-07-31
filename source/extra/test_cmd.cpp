@@ -1282,6 +1282,7 @@ void eval_exam(istringstream& is)
 		Eval::foreach_eval_param(max_abs, i);
 		cout << "max_abs : " << sum0 << " , " << sum1 << endl;
 	}
+
 	cout << "done!" << endl;
 }
 
