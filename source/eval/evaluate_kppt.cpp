@@ -263,9 +263,15 @@ namespace Eval
 			if (shared_eval_ptr == nullptr)
 			{
 				sync_cout << "info string can't allocate shared eval memory." << sync_endl;
+				exit(1);
 			}
 			else
 			{
+				// shared_eval_ptrは、32bytesにalignされていると仮定している。
+				// Windows環境ではそうなっているっぽいし、このコードはWindows環境専用なので
+				// とりあえず、良しとする。
+				ASSERT_LV1(((u64)shared_eval_ptr & 0x1f) == 0);
+
 				eval_assign(shared_eval_ptr);
 
 				if (!already_exists)
@@ -310,11 +316,9 @@ namespace Eval
 	// KP,KPP,KKPのスケール
 	const int FV_SCALE = 32;
 
-	// 駒割り以外の全計算
-	// pos.st->BKPP,WKPP,KPPを初期化する。Position::set()で一度だけ呼び出される。(以降は差分計算)
-	// 手番側から見た評価値を返すので注意。(他の評価関数とは設計がこの点において異なる)
-	// なので、この関数の最適化は頑張らない。
-	Value compute_eval(const Position& pos)
+	// 評価関数。全計算。(駒割りは差分)
+	// 返し値は持たず、計算結果としてpos.state()->sumに値を代入する。
+	void compute_eval_impl(const Position& pos)
 	{
 		// is_ready()で評価関数を読み込み、
 		// 初期化してからしかcompute_eval()を呼び出すことは出来ない。
@@ -400,8 +404,16 @@ namespace Eval
 		sum.p[2][0] += st->materialValue * FV_SCALE;
 
 		st->sum = sum;
+	}
 
-		return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
+	// 評価関数。差分計算ではなく全計算する。
+	// Position::set()で一度だけ呼び出される。(以降は差分計算)
+	// 手番側から見た評価値を返すので注意。(他の評価関数とは設計がこの点において異なる)
+	// なので、この関数の最適化は頑張らない。
+	Value compute_eval(const Position& pos)
+	{
+		compute_eval_impl(pos);
+		return Value(pos.state()->sum.sum(pos.side_to_move()) / FV_SCALE);
 	}
 
 	// 先手玉が移動したときに先手側の差分
@@ -549,7 +561,7 @@ namespace Eval
 
 #endif
 
-#if !defined(USE_EVAL_MAKE_LIST_FUNCTION)
+#if !defined(USE_EVAL_MAKE_LIST_FUNCTION) || true
 	void evaluateBody(const Position& pos)
 	{
 		// 一つ前のノードからの評価値の差分を計算する。
@@ -570,7 +582,7 @@ namespace Eval
 			!prev->sum.evaluated())
 		{
 			// 全計算
-			compute_eval(pos);
+			compute_eval_impl(pos);
 
 			return;
 			// 結果は、pos->state().sumから取り出すべし。
@@ -620,6 +632,10 @@ namespace Eval
 				__m256i diffp1 = zero;
 				for (int i = 0; i < PIECE_NO_KING; ++i)
 				{
+					// KKPの値は、後手側から見た計算だとややこしいので、先手から見た計算でやる。
+					// 後手から見た場合、kkp[inv(sq_wk)][inv(sq_bk)][k1]になるが、これ次元下げで同じ値を書いているとは限らない。
+					diff.p[2] += kkp[sq_bk][sq_wk][list0[i]];
+
 					const int k1 = list1[i];
 					const auto* pkppw = ppkppw[k1];
 					int j = 0;
@@ -637,7 +653,7 @@ namespace Eval
 						__m256i whi = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w, 1));
 						// diffp1に足し合わせる
 						diffp1 = _mm256_add_epi32(diffp1, whi);
-			}
+					}
 
 					for (; j + 4 < i; j += 4) {
 						// list1[j]から4要素ロードする
@@ -655,14 +671,7 @@ namespace Eval
 						const int l1 = list1[j];
 						diff.p[1] += pkppw[l1];
 					}
-
-					// KKPのWK分。BKは移動していないから、BK側には影響ない。
-
-					// 後手から見たKKP。後手から見ているのでマイナス
-					diff.p[2][0] -= kkp[Inv(sq_wk)][Inv(sq_bk)][k1][0];
-					// 後手から見たKKP手番。後手から見るのでマイナスだが、手番は先手から見たスコアを格納するのでさらにマイナスになって、プラス。
-					diff.p[2][1] += kkp[Inv(sq_wk)][Inv(sq_bk)][k1][1];
-		}
+				}
 
 				// diffp1とdiffp1の上位128ビットと下位128ビットを独立して8バイトシフトしたものを足し合わせる
 				diffp1 = _mm256_add_epi32(diffp1, _mm256_srli_si256(diffp1, 8));
@@ -723,6 +732,10 @@ namespace Eval
 				{
 					const int k0 = list0[i];
 					const auto* pkppb = ppkppb[k0];
+
+					// KKP
+					diff.p[2] += kkp[sq_bk][sq_wk][k0];
+
 					int j = 0;
 					for (; j + 8 < i; j += 8)
 					{
@@ -738,7 +751,7 @@ namespace Eval
 						__m256i whi = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w, 1));
 						// diffp0に足し合わせる
 						diffp0 = _mm256_add_epi32(diffp0, whi);
-		  }
+					}
 
 					for (; j + 4 < i; j += 4) {
 						// list0[j]から4要素ロードする
@@ -757,8 +770,7 @@ namespace Eval
 						diff.p[0] += pkppb[l0];
 					}
 
-					diff.p[2] += kkp[sq_bk][sq_wk][k0];
-		}
+				}
 
 				// diffp0とdiffp0の上位128ビットと下位128ビットを独立して8バイトシフトしたものを足し合わせる
 				diffp0 = _mm256_add_epi32(diffp0, _mm256_srli_si256(diffp0, 8));
@@ -846,9 +858,9 @@ namespace Eval
 	}
 #else
 	// EvalListの組み換えを行なうときは差分計算をせずに(実装するのが大変なため)、毎回全計算を行なう。
-	Value evaluateBody(const Position& pos)
+	void evaluateBody(const Position& pos)
 	{
-		return compute_eval(pos);
+		compute_eval_impl(pos);
 	}
 #endif // USE_EVAL_MAKE_LIST_FUNCTION
 
@@ -907,7 +919,7 @@ namespace Eval
 		ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));
 		// 差分計算と非差分計算との計算結果が合致するかのテスト。(さすがに重いのでコメントアウトしておく)
 		// ASSERT_LV5(Value(st->sum.sum(pos.side_to_move()) / FV_SCALE) == compute_eval(pos));
-
+		
 #if 0
 		if (!(Value(st->sum.sum(pos.side_to_move()) / FV_SCALE) == compute_eval(pos)))
 		{

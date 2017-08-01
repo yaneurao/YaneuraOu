@@ -208,8 +208,6 @@ namespace EvalIO
 							}
 					break;
 
-				// --- ここ以下のコードはテストしていないので合ってるかどうかわからん…。
-
 				case KPP:
 					for (u64 k1 = 0; k1 < output.sq_nb; ++k1)
 						for (u64 p1 = 0; p1 < output.fe_end; ++p1)
@@ -225,6 +223,7 @@ namespace EvalIO
 						}
 					break;
 
+				// ここから下のコードはテストしていない。間違っていても知らん。
 				case PP:
 					for (u64 p1 = 0; p1 < output.fe_end; ++p1)
 					{
