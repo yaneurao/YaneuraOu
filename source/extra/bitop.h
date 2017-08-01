@@ -275,11 +275,23 @@ extern ymm ymm_one;   // all packed bytes are 1.
 //    custom allocator
 // ----------------------------
 
+inline void* aligned_malloc(size_t size, size_t align)
+{
+	void* p = _mm_malloc(size, align);
+	if (p == nullptr)
+	{
+		std::cout << "info string can't allocate memory." << std::endl;
+		exit(1);
+	}
+	return p;
+}
+inline void aligned_free(void* ptr) { _mm_free(ptr); }
+
 // C++11では、std::stack<StateInfo>がalignasを無視するために、代わりにstack相当のものを自作。
 template <typename T> struct aligned_stack {
-	void push(const T& t) { auto ptr = (T*)_mm_malloc(sizeof(T), alignof(T)); *ptr = t; container.push_back(ptr); }
+	void push(const T& t) { auto ptr = (T*)aligned_malloc(sizeof(T), alignof(T)); *ptr = t; container.push_back(ptr); }
 	T& top() const { return *container.back(); }
-	void clear() { for (auto ptr : container) _mm_free(ptr); container.clear(); }
+	void clear() { for (auto ptr : container) aligned_free(ptr); container.clear(); }
 	size_t size() const { return container.size(); }
 	~aligned_stack() { clear(); }
 private:

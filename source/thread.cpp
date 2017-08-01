@@ -12,7 +12,7 @@ namespace {
 	// std::thread派生型であるT型のthreadを一つ作って、そのidle_loopを実行するためのマクロ。
 	// 生成されたスレッドはidle_loop()で仕事が来るのを待機している。
 	template<typename T> T* new_thread() {
-		void* dst = _mm_malloc(sizeof(T), alignof(T));
+		void* dst = aligned_malloc(sizeof(T), alignof(T));
 		// 確保に成功したならゼロクリアしておく。
 		if (dst)
 			std::memset(dst, 0, sizeof(T));
@@ -24,7 +24,7 @@ namespace {
 	// new_thread()の逆。エンジン終了時に呼び出される。
 	void delete_thread(Thread *th) {
 		th->terminate();
-		_mm_free(th);
+		aligned_free(th);
 	}
 }
 

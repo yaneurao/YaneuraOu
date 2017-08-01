@@ -28,6 +28,7 @@ namespace Eval {
 	extern void init();
 
 	// 評価関数ファイルを読み込む。
+	// これは、is_readyの応答時に1回呼び出されるだけ。2度呼び出すことは想定していない。
 	void load_eval();
 
 	// 駒割りを計算する。Position::set()から呼び出されて、以降do_move()では差分計算されるのでこの関数は呼び出されない。

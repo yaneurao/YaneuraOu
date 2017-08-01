@@ -22,6 +22,7 @@
 #include "../evaluate.h"
 #include "../position.h"
 #include "../misc.h"
+#include "../extra//bitop.h"
 
 // 実験中の評価関数を読み込む。(現状非公開)
 #if defined (EVAL_EXPERIMENTAL)
@@ -40,24 +41,12 @@ using namespace std;
 namespace Eval
 {
 
-// 評価関数パラメーター
-#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
-
-	// 共有メモリ上に確保する場合。
+	// 評価関数パラメーター
+	// 2GBを超える配列は確保できないようなのでポインターにしておき、動的に確保する。
 
 	ValueKk(*kk_)[SQ_NB][SQ_NB];
-	ValueKpp(*kpp_)[SQ_NB][fe_end][fe_end];
 	ValueKkp(*kkp_)[SQ_NB][SQ_NB][fe_end];
-
-#else
-
-	// 通常の評価関数テーブル。
-
-	ALIGNED(32) ValueKk kk[SQ_NB][SQ_NB];
-	ALIGNED(32) ValueKpp kpp[SQ_NB][fe_end][fe_end];
-	ALIGNED(32) ValueKkp kkp[SQ_NB][SQ_NB][fe_end];
-
-#endif
+	ValueKpp(*kpp_)[SQ_NB][fe_end][fe_end];
 
 	// 評価関数ファイルを読み込む
 	void load_eval_impl()
@@ -89,7 +78,7 @@ namespace Eval
 						sum += abs(kpp[sq][p][p][0]) + abs(kpp[sq][p][p][1]);
 						kpp[sq][p][p] = kpp_zero;
 					}
-			//	cout << "info string sum kp = " << sum << endl;
+				//	cout << "info string sum kp = " << sum << endl;
 			}
 
 #endif
@@ -147,8 +136,8 @@ namespace Eval
 				for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_hand_end; ++p1)
 					for (BonaPiece p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
 					{
-							kpp[sq][p1][p2][1] = 0;
-							kpp[sq][p2][p1][1] = 0;
+						kpp[sq][p1][p2][1] = 0;
+						kpp[sq][p2][p1][1] = 0;
 					}
 #endif
 
@@ -184,9 +173,12 @@ namespace Eval
 				sum += ptr[i];
 		};
 
-		add_sum(reinterpret_cast<u32*>(kk), sizeof(kk) / sizeof(u32));
-		add_sum(reinterpret_cast<u32*>(kkp), sizeof(kkp) / sizeof(u32));
-		add_sum(reinterpret_cast<u32*>(kpp), sizeof(kpp) / sizeof(u32));
+		// sizeof演算子、2GB以上の配列に対して機能しない。VC++でC2070になる。
+		// そのため、sizeof(kpp)のようにせず、自前で計算している。
+
+		add_sum(reinterpret_cast<u32*>(kk) , size_of_kk  / sizeof(u32));
+		add_sum(reinterpret_cast<u32*>(kkp), size_of_kkp / sizeof(u32));
+		add_sum(reinterpret_cast<u32*>(kpp), size_of_kpp / sizeof(u32));
 
 		return sum;
 	}
@@ -198,6 +190,24 @@ namespace Eval
 #endif
 	}
 
+	// 与えられたsize_of_evalサイズの連続したalign 32されているメモリに、kk_,kkp_,kpp_を割り当てる。
+	void eval_assign(void* ptr)
+	{
+		s8* p = (s8*)ptr;
+		kk_ = (ValueKk(*)[SQ_NB][SQ_NB]) (p);
+		kkp_ = (ValueKkp(*)[SQ_NB][SQ_NB][fe_end]) (p + size_of_kk);
+		kpp_ = (ValueKpp(*)[SQ_NB][fe_end][fe_end]) (p + size_of_kk + size_of_kkp);
+	}
+
+	void eval_malloc()
+	{
+		ASSERT_LV1(kk_ == nullptr);
+
+		// メモリ確保は一回にして、連続性のある確保にする。
+		// このメモリは、プロセス終了のときに自動開放されることを期待している。
+		eval_assign(aligned_malloc(size_of_eval, 32));
+	}
+
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
 	// 評価関数の共有を行うための大掛かりな仕組み
 	// gccでコンパイルするときもWindows環境であれば、これが有効になって欲しいので defined(_WIN32) で判定。
@@ -207,23 +217,12 @@ namespace Eval
 		// 評価関数を共有するのか
 		if (!(bool)Options["EvalShare"])
 		{
-			// このメモリは、プロセス終了のときに自動開放されることを期待している。
-			auto shared_eval_ptr = new SharedEval();
+			eval_malloc();
+			load_eval_impl();
 
-			if (shared_eval_ptr == nullptr)
-			{
-				sync_cout << "info string can't allocate eval memory." << sync_endl;
-			}
-			else
-			{
-				kk_  = &(shared_eval_ptr->kk_ );
-				kkp_ = &(shared_eval_ptr->kkp_);
-				kpp_ = &(shared_eval_ptr->kpp_);
+			// 共有されていないメモリを用いる。
+			sync_cout << "info string use non-shared eval_memory." << sync_endl;
 
-				load_eval_impl();
-				// 共有されていないメモリを用いる。
-				sync_cout << "info string use non-shared eval_memory." << sync_endl;
-			}
 			return;
 		}
 
@@ -252,13 +251,13 @@ namespace Eval
 			auto hMap = CreateFileMapping(INVALID_HANDLE_VALUE,
 				NULL,
 				PAGE_READWRITE, // | /**SEC_COMMIT/**/ /*SEC_RESERVE/**/,
-				0, sizeof(SharedEval),
+				0, size_of_eval,
 				mapped_file_name.c_str());
 
 			bool already_exists = (GetLastError() == ERROR_ALREADY_EXISTS);
 
 			// ビュー
-			auto shared_eval_ptr = (SharedEval *)MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(SharedEval));
+			auto shared_eval_ptr = (void *)MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0, 0, size_of_eval);
 
 			// メモリが確保できないときはshared_eval_ptr == null。このチェックをしたほうがいいような..。
 			if (shared_eval_ptr == nullptr)
@@ -267,9 +266,7 @@ namespace Eval
 			}
 			else
 			{
-				kk_  = &(shared_eval_ptr->kk_ );
-				kkp_ = &(shared_eval_ptr->kkp_);
-				kpp_ = &(shared_eval_ptr->kpp_);
+				eval_assign(shared_eval_ptr);
 
 				if (!already_exists)
 				{
@@ -296,6 +293,7 @@ namespace Eval
 		// 1) ::ReleaseMutex()
 		// 2) ::UnmapVieOfFile()
 		// が必要であるが、1),2)がプロセスが解体されるときに自動でなされるので、この処理は特に入れない。
+	}
 
 #else
 
@@ -303,9 +301,11 @@ namespace Eval
 	// load_eval_impl()を呼び出すだけで良い。
 	void load_eval()
 	{
+		eval_malloc();
 		load_eval_impl();
-#endif
 	}
+
+#endif
 
 	// KP,KPP,KKPのスケール
 	const int FV_SCALE = 32;
