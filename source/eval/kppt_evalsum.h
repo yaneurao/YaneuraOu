@@ -21,6 +21,14 @@ namespace Eval {
 		lhs[1] -= rhs[1];
 		return lhs;
 	}
+	template <typename Tl, typename Tr>
+	FORCE_INLINE bool operator == (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
+		return lhs[0] == rhs[0] && lhs[1] == rhs[1];
+	}
+	template <typename Tl, typename Tr>
+	FORCE_INLINE bool operator != (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
+		return !(lhs == rhs);
+	}
 
 	// 与えられたarrayが0ベクトルであるかどうかを判定する。
 	template <typename T>
@@ -174,11 +182,16 @@ namespace Eval {
 	// 出力用　デバッグ用。
 	static std::ostream& operator<<(std::ostream& os, const EvalSum& sum)
 	{
-		os << "sum BKPP = " << sum.p[0][0] << " + " << sum.p[0][1] << std::endl;
-		os << "sum WKPP = " << sum.p[1][0] << " + " << sum.p[1][1] << std::endl;
-		os << "sum KK   = " << sum.p[2][0] << " + " << sum.p[2][1] << std::endl;
+		os << "sum BKPP   = " << sum.p[0][0] << " + " << sum.p[0][1] << std::endl;
+		os << "sum WKPP   = " << sum.p[1][0] << " + " << sum.p[1][1] << std::endl;
+		os << "sum KK,KKP = " << sum.p[2][0] << " + " << sum.p[2][1] << std::endl;
 		return os;
 	}
+
+	// 比較演算子
+
+	static bool operator == (const EvalSum& lhs, const EvalSum rhs) { return lhs.p[0] == rhs.p[0] && lhs.p[1] == rhs.p[1] && lhs.p[2] == rhs.p[2]; }
+	static bool operator != (const EvalSum& lhs, const EvalSum rhs)	{ return !(lhs == rhs);	}
 
 #ifdef USE_EVAL_HASH
 	// シンプルなHashTableの実装。
