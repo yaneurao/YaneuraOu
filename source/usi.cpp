@@ -34,6 +34,9 @@ namespace
 	// Positionクラスがそこにいたるまでの手順(捕獲された駒など)を保持しておかないと千日手判定が出来ないので
 	// StateInfo型のstackのようなものが必要となるので、それをglobalに確保しておく。
 	Search::StateStackPtr States;
+
+	// 評価関数を読み込んだかのフラグ。これはevaldirの変更にともなってfalseにする。
+	bool load_eval_finished = false;
 }
 
 // 定跡を作るコマンド
@@ -372,8 +375,8 @@ namespace USI
 		// 入玉ルール
 		o["EnteringKingRule"] << Option(ekr_rules, ekr_rules[EKR_27_POINT], [](const Option& o) { set_entering_king_rule(o); });
 #endif
-
-		o["EvalDir"] << Option("eval");
+		// 評価関数フォルダ。これを変更したとき、評価関数を次のisreadyタイミングで読み直す必要がある。
+		o["EvalDir"] << Option("eval", [](const USI::Option&o) { load_eval_finished = false; });
 
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32) && (defined(EVAL_KPPT) || defined(EVAL_EXPERIMENTAL))
 		// 評価関数パラメーターを共有するか
@@ -446,17 +449,16 @@ namespace USI
 // USI関係のコマンド処理
 // --------------------
 
+// check sumを計算したとき、それを保存しておいてあとで次回以降、整合性のチェックを行なう。
 u64 eval_sum;
 
 // is_ready_cmd()を外部から呼び出せるようにしておく。(benchコマンドなどから呼び出したいため)
 // 局面は初期化されないので注意。
 void is_ready()
 {
-	static bool first = true;
-
 	// 評価関数の読み込みなど時間のかかるであろう処理はこのタイミングで行なう。
 	// 起動時に時間のかかる処理をしてしまうと将棋所がタイムアウト判定をして、思考エンジンとしての認識をリタイアしてしまう。
-	if (first)
+	if (!load_eval_finished)
 	{
 		// 評価関数の読み込み
 		Eval::load_eval();
@@ -467,7 +469,7 @@ void is_ready()
 		// ソフト名の表示
 		Eval::print_softname(eval_sum);
 
-		first = false;
+		load_eval_finished = true;
 
 	} else {
 
