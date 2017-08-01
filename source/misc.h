@@ -54,6 +54,9 @@ extern int read_all_lines(std::string filename, std::vector<std::string>& lines)
 // read_file_to_memory()の引数のcallback_funcは、ファイルがオープン出来た時点でそのファイルサイズを引数として
 // callbackされるので、バッファを確保して、その先頭ポインタを返す関数を渡すと、そこに読み込んでくれる。
 // これらの関数は、ファイルが見つからないときなどエラーの際には非0を返す。
+//
+// また、callbackされた関数のなかでバッファが確保できなかった場合や、想定していたファイルサイズと異なった場合は、
+// nullptrを返せば良い。このとき、read_file_to_memory()は、読み込みを中断し、エラーリターンする。
 
 extern int read_file_to_memory(std::string filename, std::function<void*(u64)> callback_func);
 extern int write_memory_to_file(std::string filename, void *ptr, u64 size);

@@ -561,7 +561,7 @@ namespace Eval
 
 #endif
 
-#if !defined(USE_EVAL_MAKE_LIST_FUNCTION) || true
+#if !defined(USE_EVAL_MAKE_LIST_FUNCTION)
 	void evaluateBody(const Position& pos)
 	{
 		// 一つ前のノードからの評価値の差分を計算する。
@@ -769,7 +769,6 @@ namespace Eval
 						const int l0 = list0[j];
 						diff.p[0] += pkppb[l0];
 					}
-
 				}
 
 				// diffp0とdiffp0の上位128ビットと下位128ビットを独立して8バイトシフトしたものを足し合わせる

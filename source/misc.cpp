@@ -231,11 +231,16 @@ int read_file_to_memory(std::string filename, std::function<void*(u64)> callback
 	fs.seekg(0, fstream::beg);
 	u64 begPos = (u64)fs.tellg();
 	u64 file_size = eofPos - begPos;
-	//std::cout << " file_size = " << file_size << endl;
+	//std::cout << "filename = " << filename << " , file_size = " << file_size << endl;
 
 	// ファイルサイズがわかったのでcallback_funcを呼び出してこの分のバッファを確保してもらい、
 	// そのポインターをもらう。
 	void* ptr = callback_func(file_size);
+
+	// バッファが確保できなかった場合や、想定していたファイルサイズと異なった場合は、
+	// nullptrを返すことになっている。このとき、読み込みを中断し、エラーリターンする。
+	if (ptr == nullptr)
+		return 2;
 
 	// 細切れに読み込む
 

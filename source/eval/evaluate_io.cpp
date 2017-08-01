@@ -1,4 +1,5 @@
 ﻿#include "evaluate_io.h"
+#include "../misc.h"
 
 namespace EvalIO
 {
@@ -67,12 +68,16 @@ namespace EvalIO
 				// file to memory
 				else if (in_.file_or_memory.file() && out_.file_or_memory.memory())
 				{
-					std::ifstream ifs(in_.file_or_memory.filename, std::ios::binary);
-					if (ifs) ifs.read(reinterpret_cast<char*>(out_.file_or_memory.ptr), input_block_size);
-					else
+					if (read_file_to_memory(in_.file_or_memory.filename, [&](u64 size) {
+						if (size != input_block_size)
+						{
+							std::cout << "info string file size incorrect , file = " << in_.file_or_memory.filename
+								<< " , actual size = "<< size << " , needed_size = " << input_block_size << std::endl;
+							return (void*)nullptr;
+						}
+						return out_.file_or_memory.ptr;
+					}) != 0)
 					{
-						// ToDo : read()自体に失敗したことも検出すべきなのだが、うまい書き方がよくわからない。
-
 						std::cout << "info string read file error , file = " << in_.file_or_memory.filename << std::endl;
 						return false;
 					}
@@ -80,9 +85,7 @@ namespace EvalIO
 				// memory to file
 				else if (in_.file_or_memory.memory() && out_.file_or_memory.file())
 				{
-					std::ofstream ofs(out_.file_or_memory.filename, std::ios::binary);
-					if (ofs) ofs.write(reinterpret_cast<char*>(in_.file_or_memory.ptr), output_block_size);
-					else
+					if (write_memory_to_file(out_.file_or_memory.filename, in_.file_or_memory.ptr, output_block_size) != 0)
 					{
 						std::cout << "info string write file error , file = " << out_.file_or_memory.filename << std::endl;
 						return false;
@@ -131,13 +134,15 @@ namespace EvalIO
 					input_buffer.resize(input_block_size);
 					in_ptr = (void*)&input_buffer[0];
 
-					std::ifstream ifs(in_.file_or_memory.filename, std::ios::binary);
-					if (ifs) ifs.read(reinterpret_cast<char*>(in_ptr), input_block_size);
-					else
-					{
-						std::cout << "info string read file error , file = " << in_.file_or_memory.filename << std::endl;
+					if (read_file_to_memory(in_.file_or_memory.filename, [&](u64 file_size) {
+						if (file_size != input_block_size)
+						{
+							std::cout << "info string Error! file_size = " << file_size << " , input_block_size = " << input_block_size << std::endl;
+							return (void*)nullptr;
+						}
+						return in_ptr;
+					}) != 0)
 						return false;
-					}
 				}
 
 				// 3) 変換する
@@ -278,9 +283,7 @@ namespace EvalIO
 
 				if (out_.file_or_memory.ptr == nullptr)
 				{
-					std::ofstream ofs(out_.file_or_memory.filename, std::ios::binary);
-					if (ofs) ofs.write(reinterpret_cast<char*>(out_ptr), output_block_size);
-					else
+					if (write_memory_to_file(out_.file_or_memory.filename, out_ptr,output_block_size)!=0)
 					{
 						std::cout << "info string write file error , file = " << out_.file_or_memory.filename << std::endl;
 						return false;

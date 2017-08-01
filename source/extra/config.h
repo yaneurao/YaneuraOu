@@ -318,7 +318,7 @@
 #endif
 
 // 評価関数の実験用のときは、EvalListの組み換えが必要になる。
-#if defined(EVAL_EXPERIMENTAL)
+#if EVAL_EXPERIMENTAL >= 0001
 #define USE_EVAL_MAKE_LIST_FUNCTION
 #endif
 
