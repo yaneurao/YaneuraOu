@@ -205,6 +205,10 @@ namespace EvalLearningTools
 			// 未初期化のままになっている。上のテーブルの初期化コードがおかしい。
 			ASSERT_LV1(mir_piece_[p] != BONA_PIECE_NOT_INIT && mir_piece_[p] < fe_end);
 			ASSERT_LV1(inv_piece_[p] != BONA_PIECE_NOT_INIT && inv_piece_[p] < fe_end);
+
+			// mirとinvは、2回適用したら元の座標に戻る。
+			ASSERT_LV1(mir_piece_[mir_piece_[p]] == p);
+			ASSERT_LV1(inv_piece_[inv_piece_[p]] == p);
 		}
 
 #if 0

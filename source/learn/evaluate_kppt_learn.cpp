@@ -297,6 +297,10 @@ namespace Eval
 			auto make_name = [&](std::string filename) { return path_combine(eval_dir, filename); };
 			auto input = EvalIO::EvalInfo::build_kppt32((void*)kk, (void*)kkp, (void*)kpp);
 			auto output = EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+
+			// 評価関数の実験のためにfe_endをKPPT32から変更しているかも知れないので現在のfe_endの値をもとに書き込む。
+			input.fe_end = output.fe_end = Eval::fe_end;
+
 			if (!EvalIO::eval_convert(input, output, nullptr))
 				goto Error;
 
