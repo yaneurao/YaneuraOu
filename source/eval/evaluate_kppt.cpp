@@ -957,8 +957,46 @@ namespace Eval
 
 		auto& pos_ = *const_cast<Position*>(&pos);
 
+#if !defined (USE_EVAL_MAKE_LIST_FUNCTION)
+
 		auto list_fb = pos_.eval_list()->piece_list_fb();
 		auto list_fw = pos_.eval_list()->piece_list_fw();
+
+#else
+		// -----------------------------------
+		// USE_EVAL_MAKE_LIST_FUNCTIONが定義されているときは
+		// ここでeval_listをコピーして、組み替える。
+		// -----------------------------------
+
+		// バッファを確保してコピー
+		BonaPiece list_fb[40];
+		BonaPiece list_fw[40];
+		memcpy(list_fb, pos_.eval_list()->piece_list_fb(), sizeof(BonaPiece) * 40);
+		memcpy(list_fw, pos_.eval_list()->piece_list_fw(), sizeof(BonaPiece) * 40);
+
+		// ユーザーは、この関数でBonaPiece番号の自由な組み換えを行なうものとする。
+		make_list_function(pos, list_fb, list_fw);
+
+		EvalLearningTools::init();
+		for (PieceNo i = PIECE_NO_ZERO; i < PIECE_NO_NB; ++i)
+		{
+			// 組み替えて異なる番号になったものだけ出力。
+			auto fb = pos_.eval_list()->piece_list_fb()[i];
+			auto fw = pos_.eval_list()->piece_list_fw()[i];
+			auto fb_new = list_fb[i];
+			auto fw_new = list_fw[i];
+			
+			// この変換後のfb,fwに対して、きちんと情報が設定されているかの確認。
+			if (fb != fb_new || fw != fw_new)
+				std::cout << "PieceNo = " << i << " , fb = " << (int)fb << ":" << fb << " , fw = " << (int)fw << ":" << fw
+				<< " , fb_new = " << (int)fb_new << " , fw_new = " << (int)fw_new
+				<< " , mir(fb_new) = " << (int)EvalLearningTools::mir_piece(fb_new)
+				<< " , mir(fw_new) = " << (int)EvalLearningTools::mir_piece(fw_new)
+				<< " , inv(fb_new) = " << (int)EvalLearningTools::inv_piece(fb_new)
+				<< " , inv(fw_new) = " << (int)EvalLearningTools::inv_piece(fw_new)
+				<< std::endl;
+		}
+#endif
 
 		int i, j;
 		BonaPiece k0, k1, l0, l1;
