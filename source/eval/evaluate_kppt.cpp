@@ -251,7 +251,7 @@ namespace Eval
 			auto hMap = CreateFileMapping(INVALID_HANDLE_VALUE,
 				NULL,
 				PAGE_READWRITE, // | /**SEC_COMMIT/**/ /*SEC_RESERVE/**/,
-				0, size_of_eval,
+				(u32)(size_of_eval>>32), (u32)size_of_eval,
 				mapped_file_name.c_str());
 
 			bool already_exists = (GetLastError() == ERROR_ALREADY_EXISTS);
