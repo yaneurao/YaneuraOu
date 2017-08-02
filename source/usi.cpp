@@ -390,6 +390,15 @@ namespace USI
 		o["EngineNuma"] << Option(-1, -1, 99999);
 #endif
 
+#if defined(USE_EVAL_MAKE_LIST_FUNCTION)
+		// isreadyタイミングで評価関数を読み込まれると、新しい評価関数の変換のために
+		// test evalconvertコマンドを叩きたいのに、その新しい評価関数がないがために
+		// このコマンドの実行前に異常終了してしまう。
+		// そこでこの隠しオプションでisready時の評価関数の読み込みを抑制して、
+		// test evalconvertコマンドを叩く。
+		o["SkipLoadingEval"] << Option(false);
+#endif
+
 		// 各エンジンがOptionを追加したいだろうから、コールバックする。
 		USI::extra_option(o);
 	}
@@ -458,25 +467,31 @@ void is_ready()
 {
 	// 評価関数の読み込みなど時間のかかるであろう処理はこのタイミングで行なう。
 	// 起動時に時間のかかる処理をしてしまうと将棋所がタイムアウト判定をして、思考エンジンとしての認識をリタイアしてしまう。
-	if (!load_eval_finished)
+#if defined(USE_EVAL_MAKE_LIST_FUNCTION)
+	if (!Options["SkipLoadingEval"])
+#endif
 	{
-		// 評価関数の読み込み
-		Eval::load_eval();
+		if (!load_eval_finished)
+		{
+			// 評価関数の読み込み
+			Eval::load_eval();
 
-		// チェックサムの計算と保存(その後のメモリ破損のチェックのため)
-		eval_sum = Eval::calc_check_sum();
+			// チェックサムの計算と保存(その後のメモリ破損のチェックのため)
+			eval_sum = Eval::calc_check_sum();
 
-		// ソフト名の表示
-		Eval::print_softname(eval_sum);
+			// ソフト名の表示
+			Eval::print_softname(eval_sum);
 
-		load_eval_finished = true;
+			load_eval_finished = true;
 
-	} else {
+		}
+		else {
 
-		// メモリが破壊されていないかを調べるためにチェックサムを毎回調べる。
-		// 時間が少しもったいない気もするが.. 0.1秒ぐらいのことなので良しとする。
-		if (eval_sum != Eval::calc_check_sum())
-			sync_cout << "Error! : evaluate memory is corrupted" << sync_endl;
+			// メモリが破壊されていないかを調べるためにチェックサムを毎回調べる。
+			// 時間が少しもったいない気もするが.. 0.1秒ぐらいのことなので良しとする。
+			if (eval_sum != Eval::calc_check_sum())
+				sync_cout << "Error! : evaluate memory is corrupted" << sync_endl;
+		}
 	}
 
 	// isreadyに対してはreadyokを返すまで次のコマンドが来ないことは約束されているので
