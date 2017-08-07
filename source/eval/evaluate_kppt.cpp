@@ -416,7 +416,7 @@ namespace Eval
 		return Value(pos.state()->sum.sum(pos.side_to_move()) / FV_SCALE);
 	}
 
-	// 先手玉が移動したときに先手側の差分
+	// 後手玉が移動したときの先手玉に対するの差分
 	std::array<s32, 2> do_a_black(const Position& pos, const ExtBonaPiece ebp) {
 		const Square sq_bk = pos.king_square(BLACK);
 		const auto* list0 = pos.eval_list()->piece_list_fb();
@@ -430,7 +430,7 @@ namespace Eval
 		return sum;
 	}
 
-	// 後手玉が移動したときの後手側の差分
+	// 先手玉が移動したときの後手玉に対する差分
 	std::array<s32, 2> do_a_white(const Position& pos, const ExtBonaPiece ebp) {
 		const Square sq_wk = pos.king_square(WHITE);
 		const auto* list1 = pos.eval_list()->piece_list_fw();
@@ -446,6 +446,13 @@ namespace Eval
 
 	// 玉以外の駒が移動したときの差分
 	EvalSum do_a_pc(const Position& pos, const ExtBonaPiece ebp) {
+		/*
+			 移動した駒がm駒あるなら、これらの駒をeval_list()[]のn-1,n-2,…,n-mに移動させて、
+			 for(i=1..m)
+			   do_a_black(pos,n-i)
+			 みたいなことをすべきだが、mはたかだか2なので、
+			 こうはせずに、引きすぎた重複分(kpp[k][n-1][n-2])をあとで加算している。
+		*/
 		const Square sq_bk = pos.king_square(BLACK);
 		const Square sq_wk = pos.king_square(WHITE);
 		const auto list0 = pos.eval_list()->piece_list_fb();
@@ -465,6 +472,9 @@ namespace Eval
 
 		const auto* pkppb = kpp[sq_bk     ][ebp.fb];
 		const auto* pkppw = kpp[Inv(sq_wk)][ebp.fw];
+
+		// ここ、AVX512なら、_mm512_i32gather_epi32()が使える。
+		// 気が向いたらコード書く。
 
 #if defined (USE_AVX2)
 		
