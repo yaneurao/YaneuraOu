@@ -1415,6 +1415,10 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	atomic<double> test_sum_cross_entropy_eval,test_sum_cross_entropy_win;
 	test_sum_cross_entropy_eval = 0;
 	test_sum_cross_entropy_win = 0;
+
+	// 学習時のnorm
+	atomic<double> sum_norm;
+	sum_norm = 0;
 #endif
 
 	// 平手の初期局面のeval()の値を表示させて、揺れを見る。
@@ -1437,7 +1441,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 		// TaskDispatcherを用いて各スレッドに作業を振る。
 		// そのためのタスクの定義。
 		// ↑で使っているposをcaptureされるとたまらんのでcaptureしたい変数は一つずつ指定しておく。
-		auto task = [&ps,&test_sum_cross_entropy_eval,&test_sum_cross_entropy_win,&task_count](size_t thread_id)
+		auto task = [&ps,&test_sum_cross_entropy_eval,&test_sum_cross_entropy_win, &sum_norm,&task_count](size_t thread_id)
 		{
 			// これ、C++ではループごとに新たなpsのインスタンスをちゃんとcaptureするのだろうか.. →　するようだ。
 			auto th = Threads[thread_id];
@@ -1485,6 +1489,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			// 交差エントロピーの合計は定義的にabs()をとる必要がない。
 			test_sum_cross_entropy_eval += test_cross_entropy_eval;
 			test_sum_cross_entropy_win += test_cross_entropy_win;
+			sum_norm += (double)abs(shallow_value);
 #endif
 
 			// こなしたのでタスク一つ減る
@@ -1527,6 +1532,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			<< " , learn_cross_entropy_eval = " << learn_sum_cross_entropy_eval / done
 			<< " , learn_cross_entropy_win = "  << learn_sum_cross_entropy_win / done
 			<< " , learn_cross_entropy = "      << (learn_sum_cross_entropy_eval + learn_sum_cross_entropy_win) / done
+			<< " , norm = "						<< sum_norm
 			<< endl;
 	}
 	else {
@@ -1536,7 +1542,6 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	// 次回のために0クリアしておく。
 	learn_sum_cross_entropy_eval = 0.0;
 	learn_sum_cross_entropy_win = 0.0;
-
 #else
 	<< endl;
 #endif
