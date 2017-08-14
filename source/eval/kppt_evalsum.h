@@ -29,6 +29,13 @@ namespace Eval {
 	FORCE_INLINE bool operator != (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
 		return !(lhs == rhs);
 	}
+	template <typename Tl>
+	FORCE_INLINE std::array<Tl, 2> operator - (std::array<Tl, 2>& rhs) {
+		std::array<Tl, 2> a;
+		a[0] = -rhs[0];
+		a[1] = -rhs[1];
+		return a;
+	}
 
 	// 与えられたarrayが0ベクトルであるかどうかを判定する。
 	template <typename T>
