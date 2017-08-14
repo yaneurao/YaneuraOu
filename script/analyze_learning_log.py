@@ -15,7 +15,7 @@ def analyze_log(file_path):
         sfens_pat = re.compile(r'^(?P<sfens>\d+) sfens ,')
 #        record_pat = re.compile(r'^hirate eval = (?P<hirate_eval>.*) , dsig rmse = (?P<dsig_rmse>.*) , dsig mae = (?P<dsig_mae>.*) , eval mae = (?P<eval_mae>.*) , test_cross_entropy_eval = (?P<tcee>.*) , test_cross_entropy_win = (?P<tcew>.*) , test_cross_entropy = (?P<tce>.*) , learn_cross_entropy_eval = (?P<lcee>.*) , learn_cross_entropy_win = (?P<lcew>.*) , learn_cross_entropy = (?P<lce>.*)')
 
-        record_pat = re.compile(r'^hirate eval = (?P<hirate_eval>.*) , test_cross_entropy_eval = (?P<tcee>.*) , test_cross_entropy_win = (?P<tcew>.*) , test_cross_entropy = (?P<tce>.*) , learn_cross_entropy_eval = (?P<lcee>.*) , learn_cross_entropy_win = (?P<lcew>.*) , learn_cross_entropy = (?P<lce>.*)')
+        record_pat = re.compile(r'^hirate eval = (?P<hirate_eval>.*) , test_cross_entropy_eval = (?P<tcee>.*) , test_cross_entropy_win = (?P<tcew>.*) , test_cross_entropy = (?P<tce>.*) , learn_cross_entropy_eval = (?P<lcee>.*) , learn_cross_entropy_win = (?P<lcew>.*) , learn_cross_entropy = (?P<lce>.*) , norm = (?P<norm>.*)')
 
         log = []
         for line in fi.readlines():
@@ -37,8 +37,9 @@ def analyze_log(file_path):
 
                 tce         = float(mo.groupdict()['tce'])
                 lce         = float(mo.groupdict()['lce'])
+                norm        = float(mo.groupdict()['norm'])
 #                log.append((sfens, hirate_eval, dsig_rmse , dsig_mae , eval_mae , tce , lce))
-                log.append((sfens, hirate_eval, tce , lce))
+                log.append((sfens, hirate_eval, tce , lce , norm))
 
     if len(log) == 0:
         print('{}: Empty'.format(file_path))
@@ -48,7 +49,7 @@ def analyze_log(file_path):
 
     # dataframe
 #    df = pd.DataFrame(data=log, columns='sfens hirate_eval dsig_rmse dsig_mae eval_mae tce lce'.split())
-    df = pd.DataFrame(data=log, columns='sfens hirate_eval tce lce'.split())
+    df = pd.DataFrame(data=log, columns='sfens hirate_eval tce lce norm'.split())
 
     # plot
     fig, ax = plt.subplots(1, 1)
@@ -64,6 +65,11 @@ def analyze_log(file_path):
             df['lce'],
 		    color='green', label='lce')
     ax.legend(loc='upper right').get_frame().set_alpha(0.5)
+
+#    ax.plot(
+#           df['sfens'],
+#           df['norm'],
+#		    color='black', label='norm')
 
     ax.set_title(file_path)
 
