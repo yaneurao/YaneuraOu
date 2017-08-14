@@ -278,14 +278,29 @@ namespace EvalLearningTools
 		Square king1() const { return king1_; }
 		Eval::BonaPiece piece() const { return piece_; }
 
+		// KKPの次元下げの数
+#if defined(USE_KKP_INVERSE_WRITE)
+		#define KKP_LOWER_COUNT 4
+#else
+		#define KKP_LOWER_COUNT 2
+#endif
 		// 低次元の配列のindexを得る。ミラーしたものがkkp_[1]に返る。
-		void toLowerDimensions(/*out*/ KKP kkp_[2]) const {
-			kkp_[0] = KKP(king0_, king1_, piece_);
+		// USE_KKP_INVERSE_WRITEが有効なときは、それらをinverseしたものが[2],[3]に入る。
+		// この次元下げに関して、gradの符号は反転させないといけないので注意すること。
+		void toLowerDimensions(/*out*/ KKP kkp_[KKP_LOWER_COUNT]) const {
+				kkp_[0] = KKP(king0_, king1_, piece_);
 #if defined(USE_KKP_MIRROR_WRITE)
 			kkp_[1] = KKP(Mir(king0_), Mir(king1_), mir_piece(piece_));
+#if defined(USE_KKP_INVERSE_WRITE)
+			kkp_[2] = KKP( Inv(king1_), Inv(king0_), inv_piece(piece_));
+			kkp_[3] = KKP( Inv(Mir(king1_)), Inv(Mir(king0_)) , inv_piece(mir_piece(piece_)));
+#endif
+
 #else
 			kkp_[1] = kkp_[0];
 #endif
+
+
 		}
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
