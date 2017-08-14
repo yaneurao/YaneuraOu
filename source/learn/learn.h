@@ -144,6 +144,13 @@ typedef float LearnFloatType;
 #define USE_KKP_MIRROR_WRITE
 #define USE_KPP_MIRROR_WRITE
 
+// 先後対称性を利用した次元下げを行なう。(効果のほどは不明)
+// これをオンにするときは、USE_KKP_MIRROR_WRITEもオンになっていなければならない。
+// #define USE_KKP_INVERSE_WRITE
+
+// 未実装
+// USE_KK_MIRROR_WRITE
+// USE_KK_INVERSE_WRITE
 
 // ======================
 //  教師局面生成時の設定

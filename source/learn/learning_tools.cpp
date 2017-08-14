@@ -84,10 +84,15 @@ namespace EvalLearningTools
 				else if (KKP::is_ok(index))
 				{
 					KKP x = KKP::fromIndex(index);
-					KKP a[2];
+					KKP a[KKP_LOWER_COUNT];
 					x.toLowerDimensions(a);
+#if KKP_LOWER_COUNT == 2
 					u64 id[2] = { a[0].toIndex(),a[1].toIndex() };
 					min_index_flag[index] = (std::min({ id[0],id[1] }) == index);
+#elif KKP_LOWER_COUNT == 4
+					u64 id[4] = { a[0].toIndex(),a[1].toIndex(),a[2].toIndex() , a[3].toIndex() };
+					min_index_flag[index] = (std::min({ id[0],id[1],id[2],id[3] }) == index);
+#endif
 					ASSERT_LV1(id[0] == index);
 				}
 				else if (KPP::is_ok(index))
@@ -325,20 +330,28 @@ namespace EvalLearningTools
 	// このEvalLearningTools全体の初期化
 	void init()
 	{
-		//std::cout << "EvalLearningTools init..";
+		// 初期化は、起動後1回限りで良いのでそのためのフラグ。
+		static bool first = true;
 
-		// mir_piece()とinv_piece()を利用可能にする。
-		// このあとmin_index_flagの初期化を行なうが、そこが
-		// これに依存しているので、こちらを先に行なう必要がある。
-		init_mir_inv_tables();
+		if (first)
+		{
+			std::cout << "EvalLearningTools init..";
 
-		//learning_tools_unit_test();
-		// UnitTestを実行するの最後でも良いのだが、init_min_index_flag()にとても時間がかかるので
-		// デバッグ時はこのタイミングで行いたい。
+			// mir_piece()とinv_piece()を利用可能にする。
+			// このあとmin_index_flagの初期化を行なうが、そこが
+			// これに依存しているので、こちらを先に行なう必要がある。
+			init_mir_inv_tables();
 
-		init_min_index_flag();
+			//learning_tools_unit_test();
+			// UnitTestを実行するの最後でも良いのだが、init_min_index_flag()にとても時間がかかるので
+			// デバッグ時はこのタイミングで行いたい。
 
-		//std::cout << "done." << std::endl;
+			init_min_index_flag();
+
+			std::cout << "done." << std::endl;
+
+			first = false;
+		}
 	}
 }
 
