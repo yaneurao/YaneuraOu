@@ -1066,7 +1066,63 @@ namespace Eval
 
 		cout << "Material = " << pos.state()->materialValue << endl;
 		cout << sum;
-		cout << "---\n";
+		cout << "---" << endl;
+
+#if 0
+		// KKのKの値を出力する実験的コード
+
+		auto for_all_sq = [](std::function<void(Square)> func) {
+			for (int r = RANK_1; r <= RANK_9; ++r)
+			{
+				for (int f = FILE_1; f <= FILE_9; ++f)
+				{
+					auto sq = (File)f | (Rank)r;
+					func(sq);
+				}
+				cout << endl;
+			}
+			cout << endl;
+		};
+
+		// 先手から。
+		cout << "BK = " << endl;
+		for_all_sq([](Square sq) {
+			array<s32,2> sum = { 0,0 };
+			array<s32, 2> sum2 = { 0,0 };
+			for (auto sq2 = 0; sq2 < SQ_NB; ++sq2)
+			{
+				sum += kk[sq][sq2];
+				for (auto p = 0; p < fe_end; ++p)
+					sum2 += kkp[sq][sq2][p];
+			}
+			sum[0] /= SQ_NB;
+			sum[1] /= SQ_NB;
+			sum2[0] /= fe_end;
+			sum2[1] /= fe_end;
+
+			cout << "{" << sum[0] << "+" << sum2[0] << "," << sum[1] << "+" << sum2[1] << "} ";
+		});
+
+		// 後手から。
+		cout << "WK = " << endl;
+		for_all_sq([](Square sq) {
+			array<s32, 2> sum = { 0,0 };
+			array<s32, 2> sum2 = { 0,0 };
+			for (auto sq2 = 0; sq2 < SQ_NB; ++sq2)
+			{
+				sum += kk[sq2][sq];
+				for (auto p = 0; p < fe_end; ++p)
+					sum2 += kkp[sq2][sq][p];
+			}
+			sum[0] /= SQ_NB;
+			sum[1] /= SQ_NB;
+			sum2[0] /= fe_end;
+			sum2[1] /= fe_end;
+
+			cout << "{" << sum[0] << "+" << sum2[0] << "," << sum[1] << "+" << sum2[1] << "} ";
+		});
+
+#endif
 
 	}
 
