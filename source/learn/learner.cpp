@@ -1375,6 +1375,9 @@ struct LearnerThink: public MultiThink
 
 	bool stop_flag;
 
+	// 割引率
+	double discount_rate;
+
 	// 教師局面の深い探索の評価値の絶対値がこの値を超えていたらその教師局面を捨てる。
 	int eval_limit;
 
@@ -1711,6 +1714,42 @@ void LearnerThink::thread_worker(size_t thread_id)
 #endif
 
 		int ply = 0;
+
+		// 現在の局面に対して勾配を加算するヘルパー関数。
+		auto pos_add_grad = [&]() {
+			// shallow_valueとして、leafでのevaluateの値を用いる。
+			// qsearch()の戻り値をshallow_valueとして用いると、
+			// PVが途中で途切れている場合、勾配を計算するのにevaluate()を呼び出した局面と、
+			// その勾配を与える局面とが異なることになるので、これはあまり好ましい性質ではないと思う。
+			// 置換表をオフにはしているのだが、1手詰みなどはpv配列を更新していないので…。
+
+			Value shallow_value = (rootColor == pos.side_to_move()) ? Eval::evaluate(pos) : -Eval::evaluate(pos);
+
+			// 勾配
+			double dj_dw = calc_grad(deep_value, shallow_value, ps);
+
+#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
+			// 学習データに対するロスの計算
+			double learn_cross_entropy_eval, learn_cross_entropy_win;
+			calc_cross_entropy(deep_value, shallow_value, ps, learn_cross_entropy_eval, learn_cross_entropy_win);
+			learn_sum_cross_entropy_eval += learn_cross_entropy_eval;
+			learn_sum_cross_entropy_win += learn_cross_entropy_win;
+#endif
+
+			// 現在、leaf nodeで出現している特徴ベクトルに対する勾配(∂J/∂Wj)として、jd_dwを加算する。
+
+			// PV終端でなければ割引率みたいなものを適用。
+			if (discount_rate != 0 && ply != (int)pv.size())
+				dj_dw *= discount_rate;
+
+			// leafに到達したのでこの局面に出現している特徴に勾配を加算しておく。
+			// 勾配に基づくupdateはのちほど行なう。
+			Eval::add_grad(pos, rootColor, dj_dw);
+
+			// 処理が終了したので処理した件数のカウンターをインクリメント
+			sr.total_done++;
+		};
+
 		StateInfo state[MAX_PLY]; // qsearchのPVがそんなに長くなることはありえない。
 		for (auto m : pv)
 		{
@@ -1720,39 +1759,20 @@ void LearnerThink::thread_worker(size_t thread_id)
 				cout << pos << m << endl;
 				ASSERT_LV3(false);
 			}
+
+			// 各PV上のnodeでも勾配を加算する場合の処理。
+			// discount_rateが0のときはこの処理は行わない。
+			if (discount_rate != 0)
+				pos_add_grad();
+
 			pos.do_move(m, state[ply++]);
 			
 			// leafでのevaluateの値を用いるので差分更新していく。
 			Eval::evaluate_with_no_return(pos);
 		}
 
-		// shallow_valueとして、leafでのevaluateの値を用いる。
-		// qsearch()の戻り値をshallow_valueとして用いると、
-		// PVが途中で途切れている場合、勾配を計算するのにevaluate()を呼び出した局面と、
-		// その勾配を与える局面とが異なることになるので、これはあまり好ましい性質ではないと思う。
-		// 置換表をオフにはしているのだが、1手詰みなどはpv配列を更新していないので…。
-
-		Value shallow_value = (rootColor == pos.side_to_move()) ? Eval::evaluate(pos) : -Eval::evaluate(pos);
-
-		// 勾配
-		double dj_dw = calc_grad(deep_value, shallow_value, ps);
-
-#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
-		// 学習データに対するロスの計算
-		double learn_cross_entropy_eval, learn_cross_entropy_win;
-		calc_cross_entropy(deep_value, shallow_value, ps, learn_cross_entropy_eval, learn_cross_entropy_win);
-		learn_sum_cross_entropy_eval += learn_cross_entropy_eval;
-		learn_sum_cross_entropy_win += learn_cross_entropy_win;
-#endif
-
-		// 現在、leaf nodeで出現している特徴ベクトルに対する勾配(∂J/∂Wj)として、jd_dwを加算する。
-
-		// leafに到達したのでこの局面に出現している特徴に勾配を加算しておく。
-		// 勾配に基づくupdateはのちほど行なう。
-		Eval::add_grad(pos,rootColor,dj_dw);
-
-		// 処理が終了したので処理した件数のカウンターをインクリメント
-		sr.total_done++;
+		// PVの終端局面に達したので、ここで勾配を加算する。
+		pos_add_grad();
 
 		// 局面を巻き戻す
 		for (auto it = pv.rbegin(); it != pv.rend(); ++it)
@@ -2075,6 +2095,9 @@ void learn(Position&, istringstream& is)
 	ELMO_LAMBDA_LIMIT = 32000;
 #endif
 
+	// 割引率。これを0以外にすると、PV終端以外でも勾配を加算する。(そのとき、この割引率を適用する)
+	double discount_rate = 0;
+
 	// ファイル名が後ろにずらずらと書かれていると仮定している。
 	while (true)
 	{
@@ -2105,6 +2128,9 @@ void learn(Position&, istringstream& is)
 
 		// 学習率
 		else if (option == "eta")       is >> eta;
+
+		// 割引率
+		else if (option == "discount_rate") is >> discount_rate;
 
 #if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
 		// LAMBDA
@@ -2224,6 +2250,7 @@ void learn(Position&, istringstream& is)
 	cout << "Loss Function   : " << LOSS_FUNCTION     << endl;
 	cout << "mini-batch size : " << mini_batch_size   << endl;
 	cout << "learning rate   : " << eta               << endl;
+	cout << "discount rate   : " << discount_rate     << endl;
 #if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
 	cout << "LAMBDA          : " << ELMO_LAMBDA       << endl;
 	cout << "LAMBDA2         : " << ELMO_LAMBDA2      << endl;
@@ -2263,6 +2290,7 @@ void learn(Position&, istringstream& is)
 	cout << "init done." << endl;
 
 	// その他、オプション設定を反映させる。
+	learn_think.discount_rate = discount_rate;
 	learn_think.eval_limit = eval_limit;
 	learn_think.save_only_once = save_only_once;
 	learn_think.sr.no_shuffle = no_shuffle;
