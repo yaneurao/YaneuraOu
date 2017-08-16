@@ -1087,39 +1087,53 @@ namespace Eval
 		// 先手から。
 		cout << "BK = " << endl;
 		for_all_sq([](Square sq) {
-			array<s32,2> sum = { 0,0 };
-			array<s32, 2> sum2 = { 0,0 };
+			array<s32,2> sum_kk = { 0,0 };
+			array<s32, 2> sum_kkp = { 0,0 };
+			array<s32, 2> sum_kpp = { 0,0 };
 			for (auto sq2 = 0; sq2 < SQ_NB; ++sq2)
 			{
-				sum += kk[sq][sq2];
+				sum_kk += kk[sq][sq2];
 				for (auto p = 0; p < fe_end; ++p)
-					sum2 += kkp[sq][sq2][p];
+					sum_kkp += kkp[sq][sq2][p];
 			}
-			sum[0] /= SQ_NB;
-			sum[1] /= SQ_NB;
-			sum2[0] /= fe_end;
-			sum2[1] /= fe_end;
+			for (auto p1 = 0; p1 < fe_end; ++p1)
+				for (auto p2 = 0; p2 < fe_end; ++p2)
+					sum_kpp += kpp[sq][p1][p2];
 
-			cout << "{" << sum[0] << "+" << sum2[0] << "," << sum[1] << "+" << sum2[1] << "} ";
+			for (int i = 0; i < 2; ++i)
+			{
+				sum_kk[i] /= SQ_NB;
+				sum_kkp[i] = 38 * sum_kkp[i] / (fe_end * (int)SQ_NB);
+				sum_kpp[i] = (38*37/2) * sum_kpp[i] / (fe_end * (int)fe_end);
+			}
+			cout << "{" << sum_kk[0] << ":" << sum_kkp[0] << ":" << sum_kpp[0] << ","
+						<< sum_kk[1] << ":" << sum_kkp[1] << ":" << sum_kpp[1] << "} ";
 		});
 
 		// 後手から。
 		cout << "WK = " << endl;
 		for_all_sq([](Square sq) {
-			array<s32, 2> sum = { 0,0 };
-			array<s32, 2> sum2 = { 0,0 };
+			array<s32, 2> sum_kk = { 0,0 };
+			array<s32, 2> sum_kkp = { 0,0 };
+			array<s32, 2> sum_kpp = { 0,0 };
 			for (auto sq2 = 0; sq2 < SQ_NB; ++sq2)
 			{
-				sum += kk[sq2][sq];
+				sum_kk += kk[sq2][sq];
 				for (auto p = 0; p < fe_end; ++p)
-					sum2 += kkp[sq2][sq][p];
+					sum_kkp += kkp[sq2][sq][p];
 			}
-			sum[0] /= SQ_NB;
-			sum[1] /= SQ_NB;
-			sum2[0] /= fe_end;
-			sum2[1] /= fe_end;
+			for (auto p1 = 0; p1 < fe_end; ++p1)
+				for (auto p2 = 0; p2 < fe_end; ++p2)
+					sum_kpp += kpp[sq][p1][p2];
 
-			cout << "{" << sum[0] << "+" << sum2[0] << "," << sum[1] << "+" << sum2[1] << "} ";
+			for (int i = 0; i < 2; ++i)
+			{
+				sum_kk[i] /= SQ_NB;
+				sum_kkp[i] = 38 * sum_kkp[i] / (fe_end * (int)SQ_NB);
+				sum_kpp[i] = (38 * 37 / 2) * sum_kpp[i] / (fe_end * (int)fe_end);
+			}
+			cout << "{" << sum_kk[0] << ":" << sum_kkp[0] << ":" << sum_kpp[0] << ","
+				<< sum_kk[1] << ":" << sum_kkp[1] << ":" << sum_kpp[1] << "} ";
 		});
 
 #endif
