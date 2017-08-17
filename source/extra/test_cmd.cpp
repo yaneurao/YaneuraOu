@@ -1573,6 +1573,17 @@ void eval_merge(istringstream& is)
 	cout << "..done" << endl;
 }
 
+// "test regkk save_dir"
+void regularize_kk_cmd(istringstream& is)
+{
+	cout << "input  eval dir = " << (string)Options["EvalDir"] << endl;
+	cout << "output eval dir = " << (string)Options["EvalSaveDir"] << endl;
+
+	Eval::regularize_kk();
+	Eval::save_eval("");
+}
+
+
 /* 
    逆行列計算。ライブラリを使うほうが早くて正確なのだが、クッソ小さい行列の計算如きで
    ライブラリ依存を増やすのが許せないので自前実装
@@ -1978,15 +1989,18 @@ void test_cmd(Position& pos, istringstream& is)
 	else if (param == "timeman") test_timeman();                     // TimeManagerのテスト
 	else if (param == "exambook") exam_book(pos);                    // 定跡の精査用コマンド
 	else if (param == "bookcheck") book_check_cmd(pos,is);           // 定跡のチェックコマンド
-#ifdef EVAL_LEARN
+#if defined (EVAL_LEARN)
 	else if (param == "search") test_search(pos, is);                // 現局面からLearner::search()を呼び出して探索させる
 	else if (param == "dumpsfen") dump_sfen(pos, is);                // gensfenコマンドで生成した教師局面のダンプ
 #endif
-#ifdef EVAL_KPPT
+#if defined (EVAL_KPPT)
 	else if (param == "evalmerge") eval_merge(is);                   // 評価関数の合成コマンド
 	else if (param == "evalconvert") eval_convert(is);               // 評価関数の変換コマンド
 	else if (param == "evalexam") eval_exam(is);                     // 評価関数ファイルの調査用
 	else if (param == "evalresolve") eval_resolve(is);               // 評価関数ファイルの調査用
+#if defined(EVAL_LEARN)
+	else if (param == "regkk") regularize_kk_cmd(is);				 // 評価関数のKKの正規化
+#endif
 #endif
 #ifdef USE_KIF_CONVERT_TOOLS
 	else if (param == "kifconvert") test_kif_convert_tools(pos, is); // 現局面からの全合法手を各種形式で出力チェック

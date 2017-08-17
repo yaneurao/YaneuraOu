@@ -112,6 +112,8 @@ struct SfenWriter
 		sfen_buffers_pool.reserve(thread_num * 10);
 		sfen_buffers.resize(thread_num);
 
+		// 追加学習するとき、評価関数の学習後も生成される教師の質はあまり変わらず、教師局面数を稼ぎたいので
+		// 古い教師も使うのが好ましいのでこういう仕様にしてある。
 		fs.open(filename, ios::out | ios::binary | ios::app);
 
 		finished = false;

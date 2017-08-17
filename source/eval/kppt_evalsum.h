@@ -11,14 +11,14 @@ namespace Eval {
 	// std::array<T,2>に対して 基本的な演算を提供する。
 	template <typename Tl, typename Tr>
 	FORCE_INLINE std::array<Tl, 2> operator += (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
-		lhs[0] += rhs[0];
-		lhs[1] += rhs[1];
+		lhs[0] += (Tl)rhs[0];
+		lhs[1] += (Tl)rhs[1];
 		return lhs;
 	}
 	template <typename Tl, typename Tr>
 	FORCE_INLINE std::array<Tl, 2> operator -= (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
-		lhs[0] -= rhs[0];
-		lhs[1] -= rhs[1];
+		lhs[0] -= (Tl)rhs[0];
+		lhs[1] -= (Tl)rhs[1];
 		return lhs;
 	}
 	template <typename Tl, typename Tr>
