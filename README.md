@@ -8,6 +8,11 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 
 [やねうら王公式 ](http://yaneuraou.yaneu.com/)
 
+# お知らせ
+
+- SDT(将棋電王トーナメント)の直前はプルリクエストの処理が出来ません。
+- SDT直前は大改造をすることがあるので、動作等が安定していない可能性が高いです。(現状、V4.75が安定)
+
 # 現在進行中のサブプロジェクト
 
 ## やねうら王2017 Early

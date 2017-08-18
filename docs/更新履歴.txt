@@ -2,10 +2,78 @@
 やねうら王 更新履歴
 
 
+■　2017/08/17 V4.75
+
+・learnコマンドで割引率discount_rateを指定できるようにした。
+・evalstatにKKのKの値を出力する実験的コード追加。
+・実験的に"test regkk"コマンド追加。
+
+
+■　2017/08/14
+
+・学習時のnormの出力に対応。
+・USE_KKP_INVERSE_WRITE実装
+・学習時にPVの各nodeで勾配を加算する実験コード追加。
+
+
+■　2017/08/08
+
+・evaluate_kppp.cppのソースコード上のコメントがおかしかったの修正。
+
+
+■　2017/08/02
+
+・SkipLoadingEvalオプション追加。(隠し)
+・evalstatコマンドでUSE_EVAL_MAKE_LIST_FUNCTIONが有効のときにもう少し情報を細かく出力するようにした。
+・EvalLearningToolsのmir/invの計算にassert追加。
+・EvalLearningToolsの初期化は起動後1回限りにするコード追加。同init()時にメッセージを出力するように変更。
+・EvalShareで4GB以上の評価関数を共有できなかったバグ修正。
+
+
+■　2017/08/01
+
+・mir_piece、inv_piece初期化時のcallback関数を設定できるようにしたなど。
+・2GB以上の評価関数を扱うための拡張。
+・evaldir変更してからのisreadyで評価関数ファイルを読み直さないのを修正。
+・EvalSumなどに比較演算子追加。
+・評価関数の差分計算、KKPの値が回転対称であることを前提としていたコード、修正。
+(elmoではその仮定が出来るので問題ないが、やねうら王の学習部はその次元下げはやらないことにしていたので問題がある。
+あまり表面化しないはずではあるが…。)
+・EvalIOでのファイルの入出力にmisc.hにあるファイルの入出力を呼び出してなかったの修正。
+・read_file_to_memory、callback関数内でnullptrを返したときにエラーリターンするように変更。
+・評価関数などのファイルのサイズが想定サイズと異なるときは読み込みをリタイアするように変更。
+
+
+■　2017/07/31
+
+・学習時のVの小数部のbit数、learn.hで8と16を選べるようにした。デフォルト16に変更。
+・learn時の三角配列化、バグがないか検証コード追加した。
+
+
+■　2017/07/30
+
+
+・USE_TRIANGLE_WEIGHT_ARRAYをdefineしたときにコンパイルが通らなかったの修正。
+・USE_KKP_MIRROR_WRITE、USE_KPP_MIRROR_WRITEのオプション追加。
+
+
+■　2017/07/28
+
+・Stockfish : Remove redundant if-statements
+	cf. https://github.com/official-stockfish/Stockfish/commit/722e1e0da6187916d76a2663f98ac105bc620763
+
+
+■　2017/07/26
+
+・learnコマンドのwrite_minply、1 originに変更。
+
+
 ■　2017/07/24
 
 ・elmo式にlambda2,lambda_limitを追加。
 ・LOSS_FUNCTION_IS_YANE_ELMO_METHOD削除。
+・Stockfish : Simplify aspiration window
+	- cf : https://github.com/official-stockfish/Stockfish/commit/a6ae2d3a31e93000e65bdfd8f0b6d9a3e6b8ce1b
 
 
 ■　2017/07/22
