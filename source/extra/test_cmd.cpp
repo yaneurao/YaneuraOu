@@ -1573,6 +1573,7 @@ void eval_merge(istringstream& is)
 	cout << "..done" << endl;
 }
 
+#if defined(EVAL_LEARN)
 // "test regkk save_dir"
 void regularize_kk_cmd(istringstream& is)
 {
@@ -1582,7 +1583,7 @@ void regularize_kk_cmd(istringstream& is)
 	Eval::regularize_kk();
 	Eval::save_eval("");
 }
-
+#endif
 
 /* 
    逆行列計算。ライブラリを使うほうが早くて正確なのだが、クッソ小さい行列の計算如きで
