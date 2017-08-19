@@ -768,16 +768,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 // 棋譜を生成するコマンド
 void gen_sfen(Position&, istringstream& is)
 {
-#if defined(USE_GLOBAL_OPTIONS)
-	// あとで復元するために保存しておく。
-	auto oldGlobalOptions = GlobalOptions;
-	// eval hashにhitすると初期局面付近の評価値として、hash衝突して大きな値を書き込まれてしまうと
-	// eval_limitが小さく設定されているときに初期局面で毎回eval_limitを超えてしまい局面の生成が進まなくなる。
-	// そのため、eval hashは無効化する必要がある。
-	// あとeval hashのhash衝突したときに、変な値の評価値が使われ、それを教師に使うのが気分が悪いというのもある。
-	GlobalOptions.use_eval_hash = false;
-#endif
-
 	// スレッド数(これは、USIのsetoptionで与えられる)
 	u32 thread_num = (u32)Options["Threads"];
 
@@ -811,6 +801,13 @@ void gen_sfen(Position&, istringstream& is)
 	string output_file_name = "generated_kifu.bin";
 
 	string token;
+
+	// eval hashにhitすると初期局面付近の評価値として、hash衝突して大きな値を書き込まれてしまうと
+	// eval_limitが小さく設定されているときに初期局面で毎回eval_limitを超えてしまい局面の生成が進まなくなる。
+	// そのため、eval hashは無効化する必要がある。
+	// あとeval hashのhash衝突したときに、変な値の評価値が使われ、それを教師に使うのが気分が悪いというのもある。
+	bool use_eval_hash = false;
+
 	while (true)
 	{
 		token = "";
@@ -850,9 +847,17 @@ void gen_sfen(Position&, istringstream& is)
 			is >> write_minply;
 		else if (token == "write_maxply")
 			is >> write_maxply;
+		else if (token == "use_eval_hash")
+			is >> use_eval_hash;
 		else
 			cout << "Error! : Illegal token " << token << endl;
 	}
+
+#if defined(USE_GLOBAL_OPTIONS)
+	// あとで復元するために保存しておく。
+	auto oldGlobalOptions = GlobalOptions;
+	GlobalOptions.use_eval_hash = use_eval_hash;
+#endif
 
 	// search depth2が設定されていないなら、search depthと同じにしておく。
 	if (search_depth2 == INT_MIN)
@@ -875,7 +880,8 @@ void gen_sfen(Position&, istringstream& is)
 		<< "  random_multi_pv_depth  = " << random_multi_pv_depth << endl
 		<< "  write_minply           = " << write_minply << endl
 		<< "  write_maxply           = " << write_maxply << endl
-		<< "  output_file_name       = " << output_file_name << endl;
+		<< "  output_file_name       = " << output_file_name << endl
+		<< "  use_eval_hash          = " << use_eval_hash;
 
 	// Options["Threads"]の数だけスレッドを作って実行。
 	{
