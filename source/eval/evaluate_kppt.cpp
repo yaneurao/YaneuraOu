@@ -206,7 +206,13 @@ namespace Eval
 
 	void eval_malloc()
 	{
-		ASSERT_LV1(kk_ == nullptr);
+		// benchコマンドなどでOptionsを保存して復元するのでこのときEvalDirが変更されたことになって、
+		// 評価関数の再読込の必要があるというフラグを立てるため、この関数は2度呼び出されることがある。
+		if (kk_ != nullptr)
+		{
+			aligned_free((void*)kk_);
+			kk_ = nullptr;
+		}
 
 		// メモリ確保は一回にして、連続性のある確保にする。
 		// このメモリは、プロセス終了のときに自動開放されることを期待している。
