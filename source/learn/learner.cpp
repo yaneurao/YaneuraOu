@@ -1596,10 +1596,14 @@ void LearnerThink::thread_worker(size_t thread_id)
 				}
 
 				// 現在時刻を出力。毎回出力する。
-				cout << sr.total_done << " sfens , at " << now_string() << endl;
+				std::cout << sr.total_done << " sfens , at " << now_string() << std::endl;
 
 				// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
-				Eval::update_weights(epoch++ , without_kpp);
+				Eval::update_weights(epoch , without_kpp);
+
+				// デバッグ用にepochと現在のetaを表示してやる。
+				std::cout << "epoch = " << epoch << " , eta = " << Eval::get_eta() << std::endl;
+				++epoch;
 
 				// 10億局面ごとに1回保存、ぐらいの感じで。
 
@@ -1620,11 +1624,6 @@ void LearnerThink::thread_worker(size_t thread_id)
 				{
 					// 今回処理した件数
 					u64 done = sr.total_done - sr.last_done;
-
-#if 1
-					// デバッグ用にepochと現在のetaを表示してやる。
-					std::cout << "epoch = " << epoch << " , eta = " << Eval::get_eta() << std::endl;
-#endif
 
 					// lossの計算
 					calc_loss(thread_id , done);

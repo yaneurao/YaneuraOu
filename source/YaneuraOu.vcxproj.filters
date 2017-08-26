@@ -163,6 +163,9 @@
     <ClInclude Include="engine\help-mate-engine\help-mate-search.h">
       <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClInclude>
+    <ClInclude Include="eval\evaluate_kpp_ppt.h">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -264,9 +267,6 @@
     <ClCompile Include="extra\mate\mate1ply_without_effect.cpp">
       <Filter>リソース ファイル\extra\mate</Filter>
     </ClCompile>
-    <ClCompile Include="eval\evaluate_kkpt.cpp">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
     <ClCompile Include="extra\benchmark.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
@@ -284,6 +284,9 @@
     </ClCompile>
     <ClCompile Include="engine\help-mate-engine\help-mate-search.cpp">
       <Filter>リソース ファイル\engine\help-mate-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\evaluate_kpp_ppt.cpp">
+      <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

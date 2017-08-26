@@ -93,13 +93,15 @@
 
 // #define EVAL_NO_USE    // 評価関数を用いないとき。
 // #define EVAL_MATERIAL  // 駒得のみの評価関数
-// #define EVAL_PP        // ツツカナ型 2駒関係(開発するかも)
+// #define EVAL_PP        // ツツカナ型 2駒関係(開発予定なし)
 // #define EVAL_KPP       // Bonanza型 3駒関係
 // #define EVAL_KPPT      // Bonanza型 3駒関係、手番つき(Apery WCSC26相当)
-// #define EVAL_KKPT      // KKP手番あり + KPP手番なし(Ponanza WCSC26相当)
-// #define EVAL_PPET      // 技巧型 2駒+利き+手番(開発するかも/しないかも)
-// #define EVAL_KKPPT     // KKPPT型 4駒関係ね手番つき(55将棋、56将棋で用いる)
-// #define EVAL_PPAT      // 3駒 + Piece-Piece-and Pawn型
+// #define EVAL_KPP_PPT   // PP手番あり + KKP手番あり + KPP手番なし(Ponanza WCSC26相当？)
+// #define EVAL_KKPPT     // KPPTよりevaluateが倍ぐらい速くなる。メモリ使用量64倍。(実装予定なし)
+// #define EVAL_KPPP_PPT  // PP手番あり + KKP手番あり + KPPP(4駒関係)手番なし。(実装するかも)
+// #define EVAL_PPET      // 技巧型 2駒+利き+手番(実装予定なし)
+// #define EVAL_KKPPT     // KKPPT型 4駒関係 手番(55将棋、56将棋で用いるかも)(実装するかも)
+// #define EVAL_PPAT      // 3駒 + Piece-Piece-and Pawn型(実装するかも)
 
 // KPPT評価関数の学習に使うときのモード
 // #define EVAL_LEARN
@@ -210,6 +212,7 @@
 #ifdef YANEURAOU_2017_EARLY_ENGINE
 #define ENGINE_NAME "YaneuraOu 2017 Early"
 #define EVAL_KPPT
+//#define EVAL_KPP_PPT
 
 // 実験中の評価関数
 // 評価関数の番号を選択できる。0001～9999から選ぶ。
