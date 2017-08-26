@@ -43,7 +43,7 @@ namespace Eval
 	// 評価関数パラメーター
 	// 2GBを超える配列は確保できないようなのでポインターにしておき、動的に確保する。
 
-	ValuePp(*pp_)[fe_end2][fe_end2];
+	ValuePp(*pp_)[fe_end][fe_end];
 	ValueKkp(*kkp_)[SQ_NB][SQ_NB][fe_end];
 	ValueKpp(*kpp_)[SQ_NB][fe_end][fe_end];
 
@@ -57,7 +57,7 @@ namespace Eval
 		auto input = EvalIO::EvalInfo::build_kpp_ppt(make_name(PP_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
 		auto output = EvalIO::EvalInfo::build_kpp_ppt((void*)pp, (void*)kkp, (void*)kpp);
 
-		// 評価関数の実験のためにfe_endをKPPT32から変更しているかも知れないので現在のfe_endの値をもとに読み込む。
+		// 評価関数の実験のためにfe_endをbuild_kpp_ppt()の値から変更しているかも知れないので現在のfe_endの値をもとに読み込む。
 		input.fe_end = output.fe_end = Eval::fe_end;
 
 		if (!EvalIO::eval_convert(input, output, nullptr))
@@ -144,7 +144,7 @@ namespace Eval
 	void eval_assign(void* ptr)
 	{
 		s8* p = (s8*)ptr;
-		pp_ = (ValuePp(*)[fe_end2][fe_end2]) (p);
+		pp_  = (ValuePp(*)[fe_end][fe_end]) (p);
 		kkp_ = (ValueKkp(*)[SQ_NB][SQ_NB][fe_end]) (p + size_of_pp);
 		kpp_ = (ValueKpp(*)[SQ_NB][fe_end][fe_end]) (p + size_of_pp + size_of_kkp);
 	}
@@ -317,16 +317,13 @@ namespace Eval
 		// 評価値の合計
 		EvalSum sum;
 
-
 #if defined(USE_SSE2)
-		// sum.p[0](BKPP)とsum.p[1](WKPP)をゼロクリア
+		// sum.p[0](BKPP)とsum.p[1](WKPP),sum.p[2](PP)をゼロクリア
 		sum.m[0] = _mm_setzero_si128();
+		sum.m[1] = _mm_setzero_si128();
 #else
-		sum.p[0][0] = sum.p[0][1] = sum.p[1][0] = sum.p[1][1] = 0;
+		sum.p[0][0] = sum.p[0][1] = sum.p[1][0] = sum.p[1][1] = sum.p[2][0] = sum.p[2][1] = 0;
 #endif
-
-		// KK
-		sum.p[2] = kk[sq_bk][sq_wk];
 
 		for (i = 0; i < PIECE_NO_KING; ++i)
 		{
@@ -339,20 +336,15 @@ namespace Eval
 				l0 = list_fb[j];
 				l1 = list_fw[j];
 
-#if defined(USE_SSE41)
-				// SSEによる実装
+				// KPP
+				sum.p[0][0] += pkppb[l0];
+				sum.p[1][0] += pkppw[l1];
 
-				// pkppw[l1][0],pkppw[l1][1],pkppb[l0][0],pkppb[l0][1]の16bit変数4つを整数拡張で32bit化して足し合わせる
-				__m128i tmp;
-				tmp = _mm_set_epi32(0, 0, *reinterpret_cast<const int32_t*>(&pkppw[l1][0]), *reinterpret_cast<const int32_t*>(&pkppb[l0][0]));
-				// この命令SSE4.1の命令のはず..
-				tmp = _mm_cvtepi16_epi32(tmp);
-				sum.m[0] = _mm_add_epi32(sum.m[0], tmp);
-#else
-				sum.p[0] += pkppb[l0];
-				sum.p[1] += pkppw[l1];
-#endif
+				// PP
+				sum.p[2] += pp[k0][l0];
+
 			}
+			// KKP
 			sum.p[2] += kkp[sq_bk][sq_wk][k0];
 		}
 
@@ -416,16 +408,16 @@ namespace Eval
 
 		EvalSum sum;
 
-		// sum.p[0](BKPP)とsum.p[1](WKPP)をゼロクリア
 #if defined(USE_SSE2)
+		// sum.p[0](BKPP)とsum.p[1](WKPP),sum.p[2](PP)をゼロクリア
 		sum.m[0] = _mm_setzero_si128();
 		sum.m[1] = _mm_setzero_si128();
 #else
-		sum.p[0] = { 0, 0 };
-		sum.p[1] = { 0, 0 };
+		sum.p[0][0] = sum.p[0][1] = sum.p[1][0] = sum.p[1][1] = sum.p[2][0] = sum.p[2][1] = 0;
 #endif
-		sum.p[2] = kkp[sq_bk][sq_wk][ebp.fb];
 
+		// ToDo :ppの計算
+		
 		const auto* pkppb = kpp[sq_bk][ebp.fb];
 		const auto* pkppw = kpp[Inv(sq_wk)][ebp.fw];
 
@@ -1055,15 +1047,12 @@ namespace Eval
 		EvalSum sum;
 
 #if defined(USE_SSE2)
-		// sum.p[0](BKPP)とsum.p[1](WKPP)をゼロクリア
+		// sum.p[0](BKPP)とsum.p[1](WKPP),sum.p[2](PP)をゼロクリア
 		sum.m[0] = _mm_setzero_si128();
+		sum.m[1] = _mm_setzero_si128();
 #else
-		sum.p[0][0] = sum.p[0][1] = sum.p[1][0] = sum.p[1][1] = 0;
+		sum.p[0][0] = sum.p[0][1] = sum.p[1][0] = sum.p[1][1] = sum.p[2][0] = sum.p[2][1] = 0;
 #endif
-
-		// KK
-		sum.p[2] = kk[sq_bk][sq_wk];
-		cout << "KKC : " << sq_bk << " " << sq_wk << " = " << kk[sq_bk][sq_wk][0] << " + " << kk[sq_bk][sq_wk][1] << "\n";
 
 		for (i = 0; i < PIECE_NO_KING; ++i)
 		{
@@ -1076,27 +1065,19 @@ namespace Eval
 				l0 = list_fb[j];
 				l1 = list_fw[j];
 
-#if defined(USE_SSE41)
-				// SSEによる実装
+				sum.p[0][0] += pkppb[l0];
+				sum.p[1][0] += pkppw[l1];
 
-				// pkppw[l1][0],pkppw[l1][1],pkppb[l0][0],pkppb[l0][1]の16bit変数4つを整数拡張で32bit化して足し合わせる
-				__m128i tmp;
-				tmp = _mm_set_epi32(0, 0, *reinterpret_cast<const int32_t*>(&pkppw[l1][0]), *reinterpret_cast<const int32_t*>(&pkppb[l0][0]));
-				// この命令SSE4.1の命令のはず
-				tmp = _mm_cvtepi16_epi32(tmp);
-				sum.m[0] = _mm_add_epi32(sum.m[0], tmp);
+				// PP
+				sum.p[2] += pp[k0][l0];
 
-				cout << "BKPP : " << sq_bk << " " << k0 << " " << l0 << " = " << pkppb[l0][0] << " + " << pkppb[l0][1] << "\n";
-				cout << "WKPP : " << sq_wk << " " << k1 << " " << l1 << " = " << pkppw[l1][0] << " + " << pkppw[l1][1] << "\n";
-
-#else
-				sum.p[0] += pkppb[l0];
-				sum.p[1] += pkppw[l1];
-#endif
+				cout << "BKPP : " << sq_bk << " " << k0 << " " << l0 << " = " << pkppb[l0] << endl;
+				cout << "WKPP : " << sq_wk << " " << k1 << " " << l1 << " = " << pkppw[l1] << endl;
+				cout << "PP   : " << k0 << " " << l0 << " = " << pp[k0][l0][0] << " + " << pp[k0][l0][1] << endl;
 			}
 			sum.p[2] += kkp[sq_bk][sq_wk][k0];
 
-			cout << "KKP : " << sq_bk << " " << sq_wk << " " << k0 << " = " << kkp[sq_bk][sq_wk][k0][0] << " + " << kkp[sq_bk][sq_wk][k0][1] << "\n";
+			cout << "KKP : " << sq_bk << " " << sq_wk << " " << k0 << " = " << kkp[sq_bk][sq_wk][k0][0] << " + " << kkp[sq_bk][sq_wk][k0][1] << endl;
 
 		}
 
@@ -1206,12 +1187,12 @@ namespace Eval
 	// パラメーターの分析などに用いる。
 	void foreach_eval_param(std::function<void(s32, s32)>f, int type)
 	{
-		// KK
+		// PP
 		if (type == -1 || type == 0)
 		{
-			for (u64 i = 0; i < (u64)SQ_NB * (u64)SQ_NB; ++i)
+			for (u64 i = 0; i < (u64)fe_end * (u64)fe_end; ++i)
 			{
-				auto v = ((ValueKk*)kk)[i];
+				auto v = ((ValuePp*)pp)[i];
 				f(v[0], v[1]);
 
 				//if (v[0] == 0) cout << "v[0]==0" << (Square)(i / SQ_NB) << (Square)(i % SQ_NB) << endl;
@@ -1235,7 +1216,7 @@ namespace Eval
 			for (u64 i = 0; i < (u64)SQ_NB * (u64)fe_end * (u64)fe_end; ++i)
 			{
 				auto v = ((ValueKpp*)kpp)[i];
-				f(v[0], v[1]);
+				f(v, 0); /* 手番なしなのでダミーで0を渡しておく */
 			}
 		}
 	}

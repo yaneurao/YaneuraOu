@@ -43,12 +43,13 @@ namespace Eval
 	// -----------------------------
 
 	// 以下では、SQ_NBではなくSQ_NB_PLUS1まで確保したいが、Apery(WCSC26)の評価関数バイナリを読み込んで変換するのが面倒なので
-	// ここではやらない。ゆえに片側の玉や、駒落ちの盤面には対応出来ない。
+	// ここではやらない。ゆえに片側の玉には対応出来ない。
 
+	// PPは、PがKのときはKKPに含まれると考えられるので入れないことにする。
 
 	// 評価関数
 
-	extern ValuePp(*pp_)[fe_end2][fe_end2];
+	extern ValuePp(*pp_)[fe_end][fe_end];
 	extern ValueKkp(*kkp_)[SQ_NB][SQ_NB][fe_end];
 	extern ValueKpp(*kpp_)[SQ_NB][fe_end][fe_end];
 

@@ -643,9 +643,15 @@ inline int MKDIR(std::string dir_name)
 
 // PP,KPP,KKPT,KPPT,PPEならdo_move()のときに移動した駒の管理をして差分計算
 // また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
-#if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_PPE)
-#define USE_EVAL_DIFF
+// あらゆる局面でP(駒)の数が増えないFV38と呼ばれる形式の差分計算用。
+#if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_PPE) || defined(EVAL_KPP_PPT)
+#define USE_FV38
 #endif
+
+// P(駒)の数が増えたり減ったりするタイプの差分計算用
+// 平均的には30枚以下のPで済むのでこの方式をFV30と命名
+//#define USE_FV30
+
 
 // -- 評価関数の種類により、盤面の利きの更新ときの処理が異なる。(このタイミングで評価関数の差分計算をしたいので)
 

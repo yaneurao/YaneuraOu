@@ -32,12 +32,12 @@ namespace EvalIO
 				// 型ごとにサイズが異なる
 				switch (feature)
 				{
-				case KK  : block_size *= (sq_nb ) * (sq_nb)                       ; break;
-				case KKP : block_size *= (sq_nb ) * (sq_nb)  * (fe_end)           ; break;
-				case KPP : block_size *= (sq_nb ) * (fe_end) * (fe_end)           ; break;
-				case PP  : block_size *= (fe_end) * (fe_end)                      ; break;
-				case KKPP: block_size *= (sq_nb ) * (sq_nb)  * (fe_end) * (fe_end); break;
-				case KPPP: block_size *= (sq_nb ) * (fe_end) * (fe_end) * (fe_end); break;
+				case KK  : block_size *= (sq_nb  ) * (sq_nb  )                      ; break;
+				case KKP : block_size *= (sq_nb  ) * (sq_nb  ) * (fe_end)           ; break;
+				case KPP : block_size *= (sq_nb  ) * (fe_end ) * (fe_end)           ; break;
+				case PP  : block_size *= (fe_end ) * (fe_end )                      ; break;
+				case KKPP: block_size *= (sq_nb  ) * (sq_nb  ) * (fe_end) * (fe_end); break;
+				case KPPP: block_size *= (sq_nb  ) * (fe_end ) * (fe_end) * (fe_end); break;
 				default:
 					ASSERT_LV1(false);
 				}

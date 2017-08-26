@@ -4,7 +4,8 @@
 #include "../shogi.h"
 #include <array>
 
-// KPPTで使うためのヘルパクラス
+// KPPT,KPP_PPTで使うためのヘルパクラス
+// 手番つきの評価値の合計を計算するために用いる。
 
 namespace Eval {
 
@@ -60,9 +61,9 @@ namespace Eval {
 	// に対して
 	// sum.p[0] = ΣBKKP
 	// sum.p[1] = ΣWKPP
-	// sum.p[2] = ΣKK
+	// sum.p[2] = ΣKK (or ΣPPなど)
 	// (それぞれに手番は加味されているものとする)
-	// sum.sum() == ΣBKPP - ΣWKPP + ΣKK
+	// sum.sum() == ΣBKPP - ΣWKPP + ΣKK (or ΣPPなど)
 
 	// EvalSumクラスは、コンストラクタでの初期化が保証できないので(オーバーヘッドがあるのでやりたくないので)
 	// GCC 7.1.0以降で警告が出るのを回避できない。ゆえに、このクラスではこの警告を抑制する。

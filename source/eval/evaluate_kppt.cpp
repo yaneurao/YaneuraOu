@@ -1115,7 +1115,7 @@ namespace Eval
 
 		// KK
 		sum.p[2] = kk[sq_bk][sq_wk];
-		cout << "KKC : " << sq_bk << " " << sq_wk << " = " << kk[sq_bk][sq_wk][0] << " + " << kk[sq_bk][sq_wk][1] << "\n";
+		cout << "KKC : " << sq_bk << " " << sq_wk << " = " << kk[sq_bk][sq_wk][0] << " + " << kk[sq_bk][sq_wk][1] << endl;
 
 		for (i = 0; i < PIECE_NO_KING; ++i)
 		{
@@ -1138,8 +1138,8 @@ namespace Eval
 				tmp = _mm_cvtepi16_epi32(tmp);
 				sum.m[0] = _mm_add_epi32(sum.m[0], tmp);
 
-				cout << "BKPP : " << sq_bk << " " << k0 << " " << l0 << " = " << pkppb[l0][0] << " + " << pkppb[l0][1] << "\n";
-				cout << "WKPP : " << sq_wk << " " << k1 << " " << l1 << " = " << pkppw[l1][0] << " + " << pkppw[l1][1] << "\n";
+				cout << "BKPP : " << sq_bk << " " << k0 << " " << l0 << " = " << pkppb[l0][0] << " + " << pkppb[l0][1] << endl;
+				cout << "WKPP : " << sq_wk << " " << k1 << " " << l1 << " = " << pkppw[l1][0] << " + " << pkppw[l1][1] << endl;
 
 #else
 				sum.p[0] += pkppb[l0];
@@ -1148,7 +1148,7 @@ namespace Eval
 			}
 			sum.p[2] += kkp[sq_bk][sq_wk][k0];
 
-			cout << "KKP : " << sq_bk << " " << sq_wk << " " << k0 << " = " << kkp[sq_bk][sq_wk][k0][0] << " + " << kkp[sq_bk][sq_wk][k0][1] << "\n";
+			cout << "KKP : " << sq_bk << " " << sq_wk << " " << k0 << " = " << kkp[sq_bk][sq_wk][k0][0] << " + " << kkp[sq_bk][sq_wk][k0][1] << endl;
 
 		}
 

@@ -1043,7 +1043,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	int materialDiff;
 #endif
 
-#ifdef USE_EVAL_DIFF
+#ifdef USE_FV38
 	auto& dp = st->dirtyPiece;
 #endif
 
@@ -1073,7 +1073,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		PieceNo piece_no = piece_no_of(Us, pr);
 		ASSERT_LV3(is_ok(piece_no));
 
-#ifdef USE_EVAL_DIFF
+#ifdef USE_FV38
 		// KPPの差分計算のために移動した駒をStateInfoに記録しておく。
 		dp.dirty_num = 1; // 動いた駒は1個
 		dp.pieceNo[0] = piece_no;
@@ -1082,7 +1082,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 		put_piece_simple(to, pc, piece_no);
 
-#ifdef USE_EVAL_DIFF
+#ifdef USE_FV38
 		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no);
 #endif
 
@@ -1161,7 +1161,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			PieceNo piece_no = piece_no_of(to);
 			ASSERT_LV3(is_ok(piece_no));
 
-#if defined (USE_EVAL_DIFF)
+#if defined (USE_FV38)
 			dp.dirty_num = 2; // 動いた駒は2個
 			dp.pieceNo[1] = piece_no;
 			dp.changed_piece[1].old_piece = evalList.bona_piece(piece_no);
@@ -1171,7 +1171,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			evalList.put_piece(piece_no, Us, pr, hand_count(hand[Us], pr));
 #endif
 
-#if defined (USE_EVAL_DIFF)
+#if defined (USE_FV38)
 			dp.changed_piece[1].new_piece = evalList.bona_piece(piece_no);
 #endif
 
@@ -1198,11 +1198,11 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 			st->capturedPiece = NO_PIECE;
 
-#ifdef LONG_EFFECT_LIBRARY
+#if defined (LONG_EFFECT_LIBRARY)
 			// 移動先で駒を捕獲しないときの利きの更新
 			LongEffect::update_by_no_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc);
 #endif
-#ifdef USE_EVAL_DIFF
+#if defined (USE_FV38)
 			dp.dirty_num = 1; // 動いた駒は1個
 #endif
 		}
@@ -1210,7 +1210,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// 移動元にあった駒のpiece_noを得る
 		PieceNo piece_no2 = piece_no_of(from);
 
-#ifdef USE_EVAL_DIFF
+#if defined (USE_FV38)
 		dp.pieceNo[0] = piece_no2;
 		dp.changed_piece[0].old_piece = evalList.bona_piece(piece_no2);
 #endif
@@ -1220,7 +1220,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 		put_piece_simple(to, moved_after_pc, piece_no2);
 
-#ifdef USE_EVAL_DIFF
+#if defined (USE_FV38)
 		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no2);
 #endif
 

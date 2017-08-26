@@ -55,16 +55,13 @@ namespace EvalIO
 	// よく使う評価関数の型情報を返すためのbuilder
 	struct EvalInfo
 	{
-		EvalInfo(u64 SQ_NB_, u64 fe_end_ , u64 fe_end2_ = 0) : sq_nb(SQ_NB_), fe_end(fe_end_) , fe_end2(fe_end2_) {}
+		EvalInfo(u64 SQ_NB_, u64 fe_end_ ) : sq_nb(SQ_NB_), fe_end(fe_end_) {}
 
 		// Kの配置できる升の数
 		u64 sq_nb;
 
 		// Pの数
 		u64 fe_end;
-
-		// PPで用いるときのPの数
-		u64 fe_end2;
 
 		// 評価関数すべての型を定義する型
 		std::vector<EvalArrayInfo> eval_info_array;
@@ -100,7 +97,7 @@ namespace EvalIO
 		template <typename T1, typename T2, typename T3>
 		static EvalInfo build_kppt16(T1 kk_, T2 kkp_, T3 kpp_)
 		{
-			EvalInfo ei(81 /* SQ_NB */, 1548 /* EvalKPPT::fe_end */ , 1620);
+			EvalInfo ei(81 /* SQ_NB */, 1548 /* EvalKPPT::fe_end */);
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KK , 2, 2 , FileOrMemory(kk_  ))); // KK は2バイト。(手番ありなので2つ)
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP, 2, 2 , FileOrMemory(kkp_ ))); // KKPは2バイト。
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP, 2, 2 , FileOrMemory(kpp_ ))); // KPPは2バイト。
@@ -112,7 +109,7 @@ namespace EvalIO
 		template <typename T1, typename T2, typename T3>
 		static EvalInfo build_kpp_ppt(T1 pp_, T2 kkp_, T3 kpp_)
 		{
-			EvalInfo ei(81 /* SQ_NB */, 1548 /* EvalKPPT::fe_end */ , 1620 /* EvalKPP_PPT::fe_end2 */);
+			EvalInfo ei(81 /* SQ_NB */, 1548 /* EvalKPPT::fe_end */);
 			ei.eval_info_array.emplace_back(EvalArrayInfo(PP , 2, 2, FileOrMemory(pp_)));  // PPは2バイト。(手番ありなので2つ)
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP, 2, 2, FileOrMemory(kkp_))); // KKPは2バイト。(手番ありなので2つ)
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP, 2, 1, FileOrMemory(kpp_))); // KPPは2バイト。(手番なしなので1つ)

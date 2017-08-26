@@ -19,7 +19,7 @@ extern std::string SFEN_HIRATE;
 //     局面の情報
 // --------------------
 
-#ifdef USE_EVAL_DIFF
+#if defined (USE_FV38)
 // 評価値の差分計算の管理用
 // 前の局面から移動した駒番号を管理するための構造体
 struct DirtyPiece
@@ -108,13 +108,13 @@ struct StateInfo
 	int sumWKPP;
 	#endif
 
-	#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_EXPERIMENTAL)
+	#if defined(EVAL_KPPT) || defined(EVAL_KPP_PPT) || defined(EVAL_KKPT) || defined(EVAL_EXPERIMENTAL)
 	// 評価値。(次の局面で評価値を差分計算するときに用いる)
 	// まだ計算されていなければsum.p[2][0]の値はINT_MAX
 	Eval::EvalSum sum;
 	#endif
 
-	#if defined(USE_EVAL_DIFF)
+	#if defined(USE_FV38)
 	// 評価値の差分計算の管理用
 	DirtyPiece dirtyPiece;
 	#endif
