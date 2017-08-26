@@ -1621,6 +1621,11 @@ void LearnerThink::thread_worker(size_t thread_id)
 					// 今回処理した件数
 					u64 done = sr.total_done - sr.last_done;
 
+#if 1
+					// デバッグ用にepochと現在のetaを表示してやる。
+					std::cout << "epoch = " << epoch << " , eta = " << Eval::get_eta() << std::endl;
+#endif
+
 					// lossの計算
 					calc_loss(thread_id , done);
 
@@ -2066,7 +2071,11 @@ void learn(Position&, istringstream& is)
 	string target_dir;
 
 	// 0であれば、デフォルト値になる。
-	double eta = 0.0;
+	double eta1 = 0.0;
+	double eta2 = 0.0;
+	double eta3 = 0.0;
+	u64 eta1_epoch = 0; // defaultではeta2は適用されない
+	u64 eta2_epoch = 0; // defaultではeta3は適用されない
 
 #if defined(USE_GLOBAL_OPTIONS)
 	// あとで復元するために保存しておく。
@@ -2141,7 +2150,12 @@ void learn(Position&, istringstream& is)
 		else if (option == "batchsize") is >> mini_batch_size;
 
 		// 学習率
-		else if (option == "eta")       is >> eta;
+		else if (option == "eta")        is >> eta1;
+		else if (option == "eta1")       is >> eta1; // alias
+		else if (option == "eta2")       is >> eta2;
+		else if (option == "eta3")       is >> eta3;
+		else if (option == "eta1_epoch") is >> eta1_epoch;
+		else if (option == "eta2_epoch") is >> eta2_epoch;
 
 		// 割引率
 		else if (option == "discount_rate") is >> discount_rate;
@@ -2266,7 +2280,8 @@ void learn(Position&, istringstream& is)
 	cout << "Gradient Method : " << LEARN_UPDATE      << endl;
 	cout << "Loss Function   : " << LOSS_FUNCTION     << endl;
 	cout << "mini-batch size : " << mini_batch_size   << endl;
-	cout << "learning rate   : " << eta               << endl;
+	cout << "learning rate   : " << eta1 << " , " << eta2 << " , " << eta3 << endl;
+	cout << "eta_epoch       : " << eta1_epoch << " , " << eta2_epoch << endl;
 	cout << "discount rate   : " << discount_rate     << endl;
 	cout << "without_kpp     : " << without_kpp       << endl;
 #if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
@@ -2287,7 +2302,7 @@ void learn(Position&, istringstream& is)
 	cout << "init_grad.." << endl;
 
 	// 評価関数パラメーターの勾配配列の初期化
-	Eval::init_grad(eta);
+	Eval::init_grad(eta1,eta1_epoch,eta2,eta2_epoch,eta3);
 
 #if 0
 	// 平手の初期局面に対して1.0の勾配を与えてみるテスト。

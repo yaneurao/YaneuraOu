@@ -28,14 +28,14 @@ using namespace std;
 namespace Eval
 {
 	// 学習のときの勾配配列の初期化
-	void init_grad(double eta);
+	void init_grad(double eta1, u64 eta_epoch, double eta2, u64 eta2_epoch, double eta3);
 
 	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
 	// 現局面は、leaf nodeであるものとする。
-	void add_grad(Position& pos, Color rootColor, double delta_grad);
+	void add_grad(Position& pos, Color rootColor, double delta_grad,bool without_kpp);
 
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
-	void update_weights(/*u64 epoch*/);
+	void update_weights(u64 epoch,bool without_kpp);
 
 	// 評価関数パラメーターをファイルに保存する。
 	void save_eval(std::string dir_name);
@@ -55,7 +55,7 @@ namespace Eval
 
 	// 学習のときの勾配配列の初期化
 	// 引数のetaは、AdaGradのときの定数η(eta)。
-	void init_grad(double eta)
+	void init_grad(double eta1, u64 eta1_epoch, double eta2, u64 eta2_epoch, double eta3)
 	{
 		// 学習で使用するテーブル類の初期化
 		EvalLearningTools::init();
@@ -67,10 +67,11 @@ namespace Eval
 
 #if defined(ADA_GRAD_UPDATE) || defined (ADA_PROP_UPDATE)
 		// 学習率の設定
-		if (eta != 0)
-			Weight::eta = eta;
-		else
-			Weight::eta = 30.0; // default値
+		Weight::eta1 = (eta1 != 0) ? eta1 : 30.0;
+		Weight::eta2 = (eta2 != 0) ? eta2 : 30.0;
+		Weight::eta3 = (eta3 != 0) ? eta3 : 30.0;
+		Weight::eta1_epoch = (eta1_epoch != 0) ? eta1_epoch : 0;
+		Weight::eta2_epoch = (eta2_epoch != 0) ? eta2_epoch : 0;
 #endif
 
 	}
@@ -160,6 +161,8 @@ namespace Eval
 	}
 
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
+	// epoch       : 世代カウンター(0から始まる)
+	// without_kpp : kppは学習させないフラグ
 	void update_weights(u64 epoch, bool without_kpp)
 	{
 		u64 vector_length = KPP::max_index();
@@ -167,6 +170,20 @@ namespace Eval
 		// KPPを学習させないなら、KKPのmaxまでだけで良い。
 		if (without_kpp)
 			vector_length = KKP::max_index();
+
+		// epochに応じたetaを設定してやる。
+		if (Weight::eta1_epoch == 0) // eta2適用除外
+			Weight::eta = Weight::eta1;
+		else if (epoch < Weight::eta1_epoch)
+			// 按分する
+			Weight::eta = Weight::eta1 + (Weight::eta2 - Weight::eta1) * epoch / Weight::eta1_epoch;
+		else if (Weight::eta2_epoch == 0) // eta3適用除外
+			Weight::eta = Weight::eta2;
+		else if (epoch < Weight::eta2_epoch)
+			Weight::eta = Weight::eta2 + (Weight::eta3 - Weight::eta2) * (epoch - Weight::eta1_epoch) / (Weight::eta2_epoch - Weight::eta1_epoch);
+		else
+			Weight::eta = Weight::eta3;
+
 
 		// 並列化を効かせたいので直列化されたWeight配列に対してループを回す。
 
@@ -346,6 +363,11 @@ namespace Eval
 
 	Error:;
 		cout << "Error : save_eval() failed" << endl;
+	}
+
+	// 現在のetaを取得する。
+	double get_eta() {
+		return Weight::eta;
 	}
 
 }

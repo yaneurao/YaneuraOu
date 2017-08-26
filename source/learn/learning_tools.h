@@ -52,8 +52,15 @@ namespace EvalLearningTools
 #if defined (ADA_GRAD_UPDATE) || defined(ADA_PROP_UPDATE)
 
 		// AdaGradの学習率η(eta)。
-		// updateFV()が呼び出されるまでに設定されているものとする。
+		// updateFV()が呼び出されるまでにeta1,2,3,eta1_epoch,eta2_epochは設定されているものとする。
+		// update_weights()のepochが、eta1_epochまでeta1から徐々にeta2に変化する。
+		// eta2_epoch以降は、eta2から徐々にeta3に変化する。
 		static double eta;
+		static double eta1;
+		static double eta2;
+		static double eta3;
+		static u64 eta1_epoch;
+		static u64 eta2_epoch;
 
 		// AdaGradのg2
 		std::array<LearnFloatType, 2> g2;
