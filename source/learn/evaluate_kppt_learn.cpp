@@ -77,7 +77,7 @@ namespace Eval
 
 	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
 	// 現局面は、leaf nodeであるものとする。
-	void add_grad(Position& pos, Color rootColor, double delta_grad)
+	void add_grad(Position& pos, Color rootColor, double delta_grad , bool without_kpp)
 	{
 		// LearnFloatTypeにatomicつけてないが、2つのスレッドが、それぞれx += yと x += z を実行しようとしたとき
 		// 極稀にどちらか一方しか実行されなくともAdaGradでは問題とならないので気にしないことにする。
@@ -140,15 +140,18 @@ namespace Eval
 			BonaPiece k0 = list_fb[i];
 			BonaPiece k1 = list_fw[i];
 
-			// このループではk0 == l0は出現しない。(させない)
-			// それはKPであり、KKPの計算に含まれると考えられるから。
-			for (int j = 0; j < i; ++j)
+			if (!without_kpp)
 			{
-				BonaPiece l0 = list_fb[j];
-				BonaPiece l1 = list_fw[j];
+				// このループではk0 == l0は出現しない。(させない)
+				// それはKPであり、KKPの計算に含まれると考えられるから。
+				for (int j = 0; j < i; ++j)
+				{
+					BonaPiece l0 = list_fb[j];
+					BonaPiece l1 = list_fw[j];
 
-				weights[KPP(sq_bk, k0, l0).toIndex()].g += g;
-				weights[KPP(Inv(sq_wk), k1, l1).toIndex()].g += g_flip;
+					weights[KPP(sq_bk, k0, l0).toIndex()].g += g;
+					weights[KPP(Inv(sq_wk), k1, l1).toIndex()].g += g_flip;
+				}
 			}
 
 			// KKP
@@ -157,9 +160,13 @@ namespace Eval
 	}
 
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
-	void update_weights(/*u64 epoch*/)
+	void update_weights(u64 epoch, bool without_kpp)
 	{
 		u64 vector_length = KPP::max_index();
+
+		// KPPを学習させないなら、KKPのmaxまでだけで良い。
+		if (without_kpp)
+			vector_length = KKP::max_index();
 
 		// 並列化を効かせたいので直列化されたWeight配列に対してループを回す。
 

@@ -1386,6 +1386,9 @@ struct LearnerThink: public MultiThink
 	// 割引率
 	double discount_rate;
 
+	// kppを学習させないオプション
+	bool without_kpp;
+
 	// 教師局面の深い探索の評価値の絶対値がこの値を超えていたらその教師局面を捨てる。
 	int eval_limit;
 
@@ -1596,7 +1599,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 				cout << sr.total_done << " sfens , at " << now_string() << endl;
 
 				// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
-				Eval::update_weights(/* ++epoch */);
+				Eval::update_weights(epoch++ , without_kpp);
 
 				// 10億局面ごとに1回保存、ぐらいの感じで。
 
@@ -1752,7 +1755,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 			// leafに到達したのでこの局面に出現している特徴に勾配を加算しておく。
 			// 勾配に基づくupdateはのちほど行なう。
-			Eval::add_grad(pos, rootColor, dj_dw);
+			Eval::add_grad(pos, rootColor, dj_dw, without_kpp);
 
 			// 処理が終了したので処理した件数のカウンターをインクリメント
 			sr.total_done++;
@@ -1790,7 +1793,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// rootの局面にも勾配を加算する場合
 		shallow_value = (rootColor == pos.side_to_move()) ? Eval::evaluate(pos) : -Eval::evaluate(pos);
 		dj_dw = calc_grad(deep_value, shallow_value, ps);
-		Eval::add_grad(pos, rootColor, dj_dw);
+		Eval::add_grad(pos, rootColor, dj_dw , without_kpp);
 #endif
 
 	}
@@ -2106,6 +2109,9 @@ void learn(Position&, istringstream& is)
 	// 割引率。これを0以外にすると、PV終端以外でも勾配を加算する。(そのとき、この割引率を適用する)
 	double discount_rate = 0;
 
+	// KPPを学習させないオプション項目
+	bool without_kpp = false;
+
 	// ファイル名が後ろにずらずらと書かれていると仮定している。
 	while (true)
 	{
@@ -2139,6 +2145,9 @@ void learn(Position&, istringstream& is)
 
 		// 割引率
 		else if (option == "discount_rate") is >> discount_rate;
+
+		// KPPの学習なし。
+		else if (option == "without_kpp") is >> without_kpp;
 
 #if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
 		// LAMBDA
@@ -2259,6 +2268,7 @@ void learn(Position&, istringstream& is)
 	cout << "mini-batch size : " << mini_batch_size   << endl;
 	cout << "learning rate   : " << eta               << endl;
 	cout << "discount rate   : " << discount_rate     << endl;
+	cout << "without_kpp     : " << without_kpp       << endl;
 #if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
 	cout << "LAMBDA          : " << ELMO_LAMBDA       << endl;
 	cout << "LAMBDA2         : " << ELMO_LAMBDA2      << endl;
@@ -2284,7 +2294,7 @@ void learn(Position&, istringstream& is)
 	pos.set_hirate();
 	cout << Eval::evaluate(pos) << endl;
 	//Eval::print_eval_stat(pos);
-	Eval::add_grad(pos, BLACK, 32.0);
+	Eval::add_grad(pos, BLACK, 32.0 , false);
 	Eval::update_weights(1);
 	pos.state()->sum.p[2][0] = VALUE_NOT_EVALUATED;
 	cout << Eval::evaluate(pos) << endl;
@@ -2302,7 +2312,8 @@ void learn(Position&, istringstream& is)
 	learn_think.eval_limit = eval_limit;
 	learn_think.save_only_once = save_only_once;
 	learn_think.sr.no_shuffle = no_shuffle;
-
+	learn_think.without_kpp = without_kpp;
+	
 	// 局面ファイルをバックグラウンドで読み込むスレッドを起動
 	// (これを開始しないとmseの計算が出来ない。)
 	learn_think.start_file_read_worker();

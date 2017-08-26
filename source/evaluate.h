@@ -72,10 +72,10 @@ namespace Eval {
 	void init_grad(double eta);
 
 	// 現在の局面で出現している特徴すべてに対して、勾配の差分値を勾配配列に加算する。
-	void add_grad(Position& pos, Color rootColor, double delt_grad);
+	void add_grad(Position& pos, Color rootColor, double delt_grad , bool without_kpp);
 
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
-	void update_weights(/*u64 epoch*/);
+	void update_weights(u64 epoch , bool without_kpp);
 
 	// 評価関数パラメーターをファイルに保存する。
 	// ファイルの末尾につける拡張子を指定できる。
