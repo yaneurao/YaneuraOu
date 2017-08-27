@@ -420,17 +420,96 @@ namespace Eval
 		const auto* pkppb = kpp[sq_bk][ebp.fb];
 		const auto* pkppw = kpp[Inv(sq_wk)][ebp.fw];
 
-		// ToDo : ここ、SSE2/SSE4/AVX2で最適化する。
+        // AVX2化前
+        // Nodes/second    : 778853
+        // Nodes/second    : 770243
+        // Nodes/second    : 768885
+        // Function	Samples	% of Hotspot Samples	Module
+        // Eval::do_a_pc(struct Position const &, struct Eval::ExtBonaPiece)	6794	13.5	YaneuraOu - 2017 - early.exe
+        //
+        // AVX2化後
+        // Nodes/second    : 793650
+        // Nodes/second    : 788538
+        // Nodes/second    : 784886
+        // Function	Samples	% of Hotspot Samples	Module
+        // Eval::do_a_pc(struct Position const &, struct Eval::ExtBonaPiece)	5870	11.9399996	YaneuraOu - 2017 - early.exe
+        //
+        // NPSが2.3%程度向上した
 
-		sum.p[0][0] = pkppb[list0[0]];
-		sum.p[1][0] = pkppw[list1[0]];
-		for (int i = 1; i < PIECE_NO_KING; ++i) {
-			sum.p[0][0] += pkppb[list0[i]];
-			sum.p[1][0] += pkppw[list1[i]];
-		}
+#ifdef USE_AVX2
+        __m256i sum0 = _mm256_setzero_si256();
+        __m256i sum1 = _mm256_setzero_si256();
+        int i = 0;
+        for (; i + 8 < PIECE_NO_KING; i += 8) {
+            // 1要素が16-bitでvgatherdd命令が使えないため
+            // 通常のメモリアクセスで評価値をロードする
+            __m256i w0 = _mm256_set_epi32(
+                pkppb[list0[i + 7]],
+                pkppb[list0[i + 6]],
+                pkppb[list0[i + 5]],
+                pkppb[list0[i + 4]],
+                pkppb[list0[i + 3]],
+                pkppb[list0[i + 2]],
+                pkppb[list0[i + 1]],
+                pkppb[list0[i + 0]]);
+            __m256i w1 = _mm256_set_epi32(
+                pkppw[list1[i + 7]],
+                pkppw[list1[i + 6]],
+                pkppw[list1[i + 5]],
+                pkppw[list1[i + 4]],
+                pkppw[list1[i + 3]],
+                pkppw[list1[i + 2]],
+                pkppw[list1[i + 1]],
+                pkppw[list1[i + 0]]);
+            sum0 = _mm256_add_epi32(sum0, w0);
+            sum1 = _mm256_add_epi32(sum1, w1);
+        }
 
-		return sum;
-	}
+        // 端数の6要素分の処理
+        {
+            __m256i w0 = _mm256_set_epi32(
+                0,
+                0,
+                pkppb[list0[i + 5]],
+                pkppb[list0[i + 4]],
+                pkppb[list0[i + 3]],
+                pkppb[list0[i + 2]],
+                pkppb[list0[i + 1]],
+                pkppb[list0[i + 0]]);
+            __m256i w1 = _mm256_set_epi32(
+                0,
+                0,
+                pkppw[list1[i + 5]],
+                pkppw[list1[i + 4]],
+                pkppw[list1[i + 3]],
+                pkppw[list1[i + 2]],
+                pkppw[list1[i + 1]],
+                pkppw[list1[i + 0]]);
+            sum0 = _mm256_add_epi32(sum0, w0);
+            sum1 = _mm256_add_epi32(sum1, w1);
+        }
+
+        // _mm256_srli_si256()は128ビット境界毎にシフトされる点に注意する
+        sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 8));
+        sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 4));
+        sum.p[0][0] = _mm_extract_epi32(_mm256_extracti128_si256(sum0, 0), 0) +
+            _mm_extract_epi32(_mm256_extracti128_si256(sum0, 1), 0);
+        
+        sum1 = _mm256_add_epi32(sum1, _mm256_srli_si256(sum1, 8));
+        sum1 = _mm256_add_epi32(sum1, _mm256_srli_si256(sum1, 4));
+        sum.p[1][0] = _mm_extract_epi32(_mm256_extracti128_si256(sum1, 0), 0) +
+            _mm_extract_epi32(_mm256_extracti128_si256(sum1, 1), 0);
+#else
+        sum.p[0][0] = pkppb[list0[0]];
+        sum.p[1][0] = pkppw[list1[0]];
+        for (int i = 1; i < PIECE_NO_KING; ++i) {
+            sum.p[0][0] += pkppb[list0[i]];
+            sum.p[1][0] += pkppw[list1[i]];
+        }
+#endif
+
+        return sum;
+    }
 
 
 #if defined (USE_EVAL_HASH)
@@ -509,8 +588,72 @@ namespace Eval
 				diff.p[1][0] = 0;
 				diff.p[1][1] = 0;
 
-				// ToDo : ここ、SSE2/SSE4/AVX2で最適化する。
+                // AVX2化前
+                // Nodes/second    : 793650
+                // Nodes/second    : 788538
+                // Nodes/second    : 784886
+                // Function	Samples	% of Hotspot Samples	Module
+                // Eval::evaluateBody(struct Position const &)	6195	12.5900002	YaneuraOu - 2017 - early.exe
+                // 
+                // AVX2化後
+                // Nodes/second    : 795766
+                // Nodes/second    : 788859
+                // Nodes/second    : 790836
+                // Function	Samples	% of Hotspot Samples	Module
+                // Eval::evaluateBody(struct Position const &)	6306	12.8400002	YaneuraOu - 2017 - early.exe
+                //
+                // NPSが0.3%程度しか向上しなかった
 
+#ifdef USE_AVX2
+                __m256i sum1_256 = _mm256_setzero_si256();
+                __m128i sum1_128 = _mm_setzero_si128();
+
+                for (int i = 0; i < PIECE_NO_KING; ++i)
+                {
+                    const int k1 = list1[i];
+                    const auto* pkppw = ppkppw[k1];
+                    int j = 0;
+                    for (; j + 8 < i; j += 8) {
+                        // 1要素が16-bitでvgatherdd命令が使えないため
+                        // 通常のメモリアクセスで評価値をロードする
+                        __m256i w1 = _mm256_set_epi32(
+                            pkppw[list1[j + 7]],
+                            pkppw[list1[j + 6]],
+                            pkppw[list1[j + 5]],
+                            pkppw[list1[j + 4]],
+                            pkppw[list1[j + 3]],
+                            pkppw[list1[j + 2]],
+                            pkppw[list1[j + 1]],
+                            pkppw[list1[j + 0]]);
+                        sum1_256 = _mm256_add_epi32(sum1_256, w1);
+                    }
+
+                    for (; j + 4 < i; j += 4) {
+                        __m128i w1 = _mm_set_epi32(
+                            pkppw[list1[j + 3]],
+                            pkppw[list1[j + 2]],
+                            pkppw[list1[j + 1]],
+                            pkppw[list1[j + 0]]);
+                        sum1_128 = _mm_add_epi32(sum1_128, w1);
+                    }
+
+                    for (; j < i; ++j) {
+                        diff.p[1][0] += pkppw[list1[j]];
+                    }
+
+                    // KKPのWK分。BKは移動していないから、BK側には影響ない。
+
+                    // 後手から見たKKP。後手から見ているのでマイナス
+                    diff.p[2][0] -= kkp[Inv(sq_wk)][Inv(sq_bk)][k1][0];
+                    // 後手から見たKKP手番。後手から見るのでマイナスだが、手番は先手から見たスコアを格納するのでさらにマイナスになって、プラス。
+                    diff.p[2][1] += kkp[Inv(sq_wk)][Inv(sq_bk)][k1][1];
+                }
+                sum1_128 = _mm_add_epi32(sum1_128, _mm256_extracti128_si256(sum1_256, 0));
+                sum1_128 = _mm_add_epi32(sum1_128, _mm256_extracti128_si256(sum1_256, 1));
+                sum1_128 = _mm_add_epi32(sum1_128, _mm_srli_si128(sum1_128, 8));
+                sum1_128 = _mm_add_epi32(sum1_128, _mm_srli_si128(sum1_128, 4));
+                diff.p[1][0] += _mm_extract_epi32(sum1_128, 0);
+#else
 				for (int i = 0; i < PIECE_NO_KING; ++i)
 				{
 					const int k1 = list1[i];
@@ -528,6 +671,7 @@ namespace Eval
 					// 後手から見たKKP手番。後手から見るのでマイナスだが、手番は先手から見たスコアを格納するのでさらにマイナスになって、プラス。
 					diff.p[2][1] += kkp[Inv(sq_wk)][Inv(sq_bk)][k1][1];
 				}
+#endif
 
 				// 動かした駒が２つ
 				if (moved_piece_num == 2)
@@ -552,18 +696,62 @@ namespace Eval
 				diff.p[0][0] = 0;
 				diff.p[0][1] = 0;
 
-				// ToDo : ここ、SSE2/SSE4/AVX2で最適化する。
+#ifdef USE_AVX2
+                __m256i sum0_256 = _mm256_setzero_si256();
+                __m128i sum0_128 = _mm_setzero_si128();
 
-				for (int i = 0; i < PIECE_NO_KING; ++i)
-				{
-					const int k0 = list0[i];
-					const auto* pkppb = ppkppb[k0];
-					for (int j = 0; j < i; ++j) {
-						const int l0 = list0[j];
-						diff.p[0][0] += pkppb[l0];
-					}
-					diff.p[2] += kkp[sq_bk][sq_wk][k0];
-				}
+                for (int i = 0; i < PIECE_NO_KING; ++i)
+                {
+                    const int k0 = list0[i];
+                    const auto* pkppb = ppkppb[k0];
+                    int j = 0;
+                    for (; j + 8 < i; j += 8) {
+                        // 1要素が16-bitでvgatherdd命令が使えないため
+                        // 通常のメモリアクセスで評価値をロードする
+                        __m256i w1 = _mm256_set_epi32(
+                            pkppb[list0[j + 7]],
+                            pkppb[list0[j + 6]],
+                            pkppb[list0[j + 5]],
+                            pkppb[list0[j + 4]],
+                            pkppb[list0[j + 3]],
+                            pkppb[list0[j + 2]],
+                            pkppb[list0[j + 1]],
+                            pkppb[list0[j + 0]]);
+                        sum0_256 = _mm256_add_epi32(sum0_256, w1);
+                    }
+
+                    for (; j + 4 < i; j += 4) {
+                        __m128i w1 = _mm_set_epi32(
+                            pkppb[list0[j + 3]],
+                            pkppb[list0[j + 2]],
+                            pkppb[list0[j + 1]],
+                            pkppb[list0[j + 0]]);
+                        sum0_128 = _mm_add_epi32(sum0_128, w1);
+                    }
+
+                    for (; j < i; ++j) {
+                        diff.p[0][0] += pkppb[list0[j]];
+                    }
+
+                    diff.p[2] += kkp[sq_bk][sq_wk][k0];
+                }
+                sum0_128 = _mm_add_epi32(sum0_128, _mm256_extracti128_si256(sum0_256, 0));
+                sum0_128 = _mm_add_epi32(sum0_128, _mm256_extracti128_si256(sum0_256, 1));
+                sum0_128 = _mm_add_epi32(sum0_128, _mm_srli_si128(sum0_128, 8));
+                sum0_128 = _mm_add_epi32(sum0_128, _mm_srli_si128(sum0_128, 4));
+                diff.p[0][0] += _mm_extract_epi32(sum0_128, 0);
+#else
+                for (int i = 0; i < PIECE_NO_KING; ++i)
+                {
+                    const int k0 = list0[i];
+                    const auto* pkppb = ppkppb[k0];
+                    for (int j = 0; j < i; ++j) {
+                        const int l0 = list0[j];
+                        diff.p[0][0] += pkppb[l0];
+                    }
+                    diff.p[2] += kkp[sq_bk][sq_wk][k0];
+                }
+#endif
 
 				if (moved_piece_num == 2) {
 					const int listIndex_cap = dp.pieceNo[1];
