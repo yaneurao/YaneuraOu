@@ -389,7 +389,7 @@ extern GlobalOptions_ GlobalOptions;
 #include <cstddef>		// offsetof
 #include <array>
 #include <functional>	// function 
-
+#include <limits>       // numeric_limits
 
 // --------------------
 //      configure

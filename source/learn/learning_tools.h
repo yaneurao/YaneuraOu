@@ -6,7 +6,6 @@
 #include "learn.h"
 #if defined (EVAL_LEARN)
 
-
 #if defined(SGD_UPDATE)
 #include "../misc.h"  // PRNG
 #endif
@@ -86,7 +85,6 @@ namespace EvalLearningTools
 				Weight::eta = Weight::eta3;
 		}
 
-
 #if defined (ADA_GRAD_UPDATE) || defined(ADA_PROP_UPDATE)
 
 		// AdaGradのg2
@@ -131,10 +129,11 @@ namespace EvalLearningTools
 
 			V -= eta * (double)g / sqrt((double)g2 + epsilon);
 
-			// Vの値をINT16の範囲に収まるように制約を課す。
-			// どうせ計算は32bitで行なうのでこの制約は甘めでいいや。
-			V = std::min((double)INT16_MAX * 15 / 16, V);
-			V = std::max((double)INT16_MIN * 15 / 16, V);
+			// Vの値を型の範囲に収まるように制限する。
+			// ちなみに、windows.hがmin,maxマクロを定義してしまうのでそれを回避するために、
+			// ここでは括弧で括ることで関数形式マクロとして扱われないようにしている。
+			V = std::min((double)(std::numeric_limits<T>::max)() , V);
+			V = std::max((double)(std::numeric_limits<T>::min)() , V);
 
 			v = (T)round(V);
 			v_frac = (V_FRACTION_TYPE)((V - v) * m);
