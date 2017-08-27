@@ -100,7 +100,7 @@ namespace Eval
   Error:;
     // 評価関数ファイルの読み込みに失敗した場合、思考を開始しないように抑制したほうがいいと思う。
     cout << "\ninfo string Error! open evaluation file failed.\n";
-    exit(EXIT_FAILURE);
+	my_exit();
   }
 
   // KKPのスケール

@@ -1,12 +1,12 @@
-﻿#ifndef _EVALUATE_KPPT_LEARN_CPP_
-#define _EVALUATE_KPPT_LEARN_CPP_
+﻿#ifndef _EVALUATE_LEARN_KPPT_CPP_
+#define _EVALUATE_LEARN_KPPT_CPP_
 
 // KPPT評価関数の学習時用のコード
 // tanuki-さんの学習部のコードをかなり参考にさせていただきました。
 
 #include "../shogi.h"
 
-#if defined(EVAL_LEARN)
+#if defined(EVAL_LEARN) && defined(EVAL_KPPT)
 
 #if defined(_OPENMP)
 #include <omp.h>
@@ -51,7 +51,7 @@ namespace Eval
 
 	// KK,KKP,KPPのWeightを保持している配列
 	// 直列化してあるので1次元配列
-	std::vector<Weight> weights;
+	std::vector<Weight2> weights;
 
 	// 学習のときの勾配配列の初期化
 	// 引数のetaは、AdaGradのときの定数η(eta)。
@@ -63,17 +63,10 @@ namespace Eval
 		// 学習用配列の確保
 		u64 size = KPP::max_index();
 		weights.resize(size); // 確保できるかは知らん。確保できる環境で動かしてちょうだい。
-		memset(&weights[0], 0, sizeof(Weight) * weights.size());
+		memset(&weights[0], 0, sizeof(Weight2) * weights.size());
 
-#if defined(ADA_GRAD_UPDATE) || defined (ADA_PROP_UPDATE)
 		// 学習率の設定
-		Weight::eta1 = (eta1 != 0) ? eta1 : 30.0;
-		Weight::eta2 = (eta2 != 0) ? eta2 : 30.0;
-		Weight::eta3 = (eta3 != 0) ? eta3 : 30.0;
-		Weight::eta1_epoch = (eta1_epoch != 0) ? eta1_epoch : 0;
-		Weight::eta2_epoch = (eta2_epoch != 0) ? eta2_epoch : 0;
-#endif
-
+		Weight::init_eta(eta1, eta2, eta3, eta1_epoch, eta2_epoch);
 	}
 
 	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
@@ -131,7 +124,7 @@ namespace Eval
 #endif
 
 		// KK
-		weights[KK(sq_bk,sq_wk).toIndex()].g += g;
+		weights[KK(sq_bk,sq_wk).toIndex()].add_grad(g);
 
 		// flipした位置関係にも書き込む
 		//kk_w[Inv(sq_wk)][Inv(sq_bk)].g += g_flip;
@@ -150,13 +143,13 @@ namespace Eval
 					BonaPiece l0 = list_fb[j];
 					BonaPiece l1 = list_fw[j];
 
-					weights[KPP(sq_bk, k0, l0).toIndex()].g += g;
-					weights[KPP(Inv(sq_wk), k1, l1).toIndex()].g += g_flip;
+					weights[KPP(sq_bk, k0, l0).toIndex()].add_grad(g);
+					weights[KPP(Inv(sq_wk), k1, l1).toIndex()].add_grad(g_flip);
 				}
 			}
 
 			// KKP
-			weights[KKP(sq_bk, sq_wk, k0).toIndex()].g += g;
+			weights[KKP(sq_bk, sq_wk, k0).toIndex()].add_grad(g);
 		}
 	}
 
@@ -172,18 +165,9 @@ namespace Eval
 			vector_length = KKP::max_index();
 
 		// epochに応じたetaを設定してやる。
-		if (Weight::eta1_epoch == 0) // eta2適用除外
-			Weight::eta = Weight::eta1;
-		else if (epoch < Weight::eta1_epoch)
-			// 按分する
-			Weight::eta = Weight::eta1 + (Weight::eta2 - Weight::eta1) * epoch / Weight::eta1_epoch;
-		else if (Weight::eta2_epoch == 0) // eta3適用除外
-			Weight::eta = Weight::eta2;
-		else if (epoch < Weight::eta2_epoch)
-			Weight::eta = Weight::eta2 + (Weight::eta3 - Weight::eta2) * (epoch - Weight::eta1_epoch) / (Weight::eta2_epoch - Weight::eta1_epoch);
-		else
-			Weight::eta = Weight::eta3;
+		Weight::calc_eta(epoch);
 
+		const auto zero = array<LearnFloatType, 2>{ 0, 0 };
 
 		// 並列化を効かせたいので直列化されたWeight配列に対してループを回す。
 
@@ -214,7 +198,7 @@ namespace Eval
 					// KKは次元下げしていないので普通にupdate
 					KK x = KK::fromIndex(index);
 					weights[index].updateFV(kk[x.king0()][x.king1()]);
-					weights[index].g = { 0,0 };
+					weights[index].set_grad(zero);
 				}
 				else if (KKP::is_ok(index))
 				{
@@ -231,7 +215,7 @@ namespace Eval
 					// id[0]==id[1]==id[2]==id[3]みたいな可能性があるので、gは外部で合計する
 					array<LearnFloatType, 2> g_sum = { 0,0 };
 					for (auto id : ids)
-						g_sum += weights[id].g;
+						g_sum += weights[id].get_grad();
 
 					// 次元下げを考慮して、その勾配の合計が0であるなら、一切の更新をする必要はない。
 					if (is_zero(g_sum))
@@ -240,7 +224,7 @@ namespace Eval
 					//cout << a[0].king0() << a[0].king1() << a[0].piece() << g_sum << endl;
 
 					auto& v = kkp[a[0].king0()][a[0].king1()][a[0].piece()];
-					weights[ids[0]].g = g_sum;
+					weights[ids[0]].set_grad(g_sum);
 					weights[ids[0]].updateFV(v);
 
 					kkp[a[1].king0()][a[1].king1()][a[1].piece()] = v;
@@ -248,7 +232,7 @@ namespace Eval
 					// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
 					// この場合、毎回gを通常の2倍加算していることになるが、AdaGradは適応型なのでこれでもうまく学習できる。
 					for (auto id : ids)
-						weights[id].g = { 0,0 };
+						weights[id].set_grad(zero);
 
 #elif KKP_LOWER_COUNT==4
 					u64 ids1[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
@@ -256,8 +240,8 @@ namespace Eval
 
 					// ids2はinverseしたものだから符号が逆になるので注意。
 					array<LearnFloatType, 2> g_sum = { 0,0 };
-					for (auto id : ids1) g_sum += weights[id].g;
-					for (auto id : ids2) g_sum -= weights[id].g;
+					for (auto id : ids1) g_sum += weights[id].get_grad();
+					for (auto id : ids2) g_sum -= weights[id].get_grad();
 
 					// 次元下げを考慮して、その勾配の合計が0であるなら、一切の更新をする必要はない。
 					if (is_zero(g_sum))
@@ -266,7 +250,7 @@ namespace Eval
 					//cout << a[0].king0() << a[0].king1() << a[0].piece() << g_sum << endl;
 
 					auto& v = kkp[a[0].king0()][a[0].king1()][a[0].piece()];
-					weights[ids1[0]].g = g_sum;
+					weights[ids1[0]].set_grad(g_sum);
 					weights[ids1[0]].updateFV(v);
 
 					kkp[a[1].king0()][a[1].king1()][a[1].piece()] = v;
@@ -295,7 +279,7 @@ namespace Eval
 #endif
 					array<LearnFloatType, 2> g_sum = { 0,0 };
 					for (auto id : ids)
-						g_sum += weights[id].g;
+						g_sum += weights[id].get_grad();
 
 					//// KPPの手番は動かさないとき。
 					//g_sum[1] = 0;
@@ -306,7 +290,7 @@ namespace Eval
 					//cout << a[0].king() << a[0].piece0() << a[0].piece1() << g_sum << endl;
 
 					auto& v = kpp[a[0].king()][a[0].piece0()][a[0].piece1()];
-					weights[ids[0]].g = g_sum;
+					weights[ids[0]].set_grad(g_sum);
 					weights[ids[0]].updateFV(v);
 
 #if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
@@ -321,7 +305,7 @@ namespace Eval
 #endif
 
 					for (auto id : ids)
-						weights[id].g = { 0 , 0 };
+						weights[id].set_grad(zero);
 				}
 				else
 				{
@@ -373,4 +357,4 @@ namespace Eval
 }
 
 #endif // EVAL_LEARN
-#endif // _EVALUATE_LEARN_CPP_
+#endif // _EVALUATE_LEARN_KPPT_CPP_

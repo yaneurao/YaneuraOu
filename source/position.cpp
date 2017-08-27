@@ -163,7 +163,7 @@ void Position::set(std::string sfen , Thread* th)
 	bool promote = false;
 	size_t idx;
 
-#ifndef EVAL_NO_USE
+#if !defined (EVAL_NO_USE)
 	// PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
 	// それぞれの駒をどこまで使ったかのカウンター
 	PieceNo piece_no_count[KING] = { PIECE_NO_ZERO,PIECE_NO_PAWN,PIECE_NO_LANCE,PIECE_NO_KNIGHT,
@@ -198,7 +198,7 @@ void Position::set(std::string sfen , Thread* th)
 			PieceNo piece_no =
 				(idx == B_KING) ? PIECE_NO_BKING : // 先手玉
 				(idx == W_KING) ? PIECE_NO_WKING : // 後手玉
-#ifndef EVAL_NO_USE
+#if !defined (EVAL_NO_USE)
 				piece_no_count[raw_type_of(Piece(idx))]++; // それ以外
 #else
 				PIECE_NO_ZERO; // とりあえず駒番号は使わないので全部ゼロにしておけばいい。
@@ -245,7 +245,7 @@ void Position::set(std::string sfen , Thread* th)
 			ct = max(ct, 1);
 			add_hand(hand[color_of(Piece(idx))], type_of(Piece(idx)), ct);
 
-#ifndef EVAL_NO_USE
+#if !defined (EVAL_NO_USE)
 			// FV38などではこの個数分だけpieceListに突っ込まないといけない。
 			for (int i = 0; i < ct; ++i)
 			{

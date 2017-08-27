@@ -107,6 +107,7 @@ SOURCES  = shogi.cpp                                                           \
 	eval/evaluate_bona_piece.cpp                                               \
 	eval/evaluate_kpp.cpp                                                      \
 	eval/evaluate_kppt.cpp                                                     \
+	eval/evaluate_kpp_kkpt.cpp                                                 \
 	eval/evaluate.cpp                                                          \
 	eval/evaluate_no_eval.cpp                                                  \
 	eval/evaluate_io.cpp                                                       \
@@ -117,7 +118,8 @@ SOURCES  = shogi.cpp                                                           \
 	learn/learner.cpp                                                          \
 	learn/learning_tools.cpp                                                   \
 	learn/multi_think.cpp                                                      \
-	learn/evaluate_kppt_learn.cpp   
+	learn/evaluate_learn_kppt.cpp                                              \
+	learn/evaluate_learn_kpp_kkpt.cpp
 
 #ifeq ($(YANEURAOU_EDITION),YANEURAOU_2017_GOKU_ENGINE)                        
 #	SOURCES += engine/2017-goku-engine/2017-goku-search.cpp                    \

@@ -39,7 +39,7 @@ namespace EvalLearningTools
 	struct Weight
 	{
 		// mini-batch 1回分の勾配の累積値
-		std::array<LearnFloatType, 2> g;
+		LearnFloatType g;
 
 		// ADA_GRAD_UPDATEのとき。LearnFloatType == floatとして、
 		// 合計 4*2 + 4*2 + 1*2 = 18 bytes
@@ -49,9 +49,7 @@ namespace EvalLearningTools
 
 		// SGD_UPDATE の場合、この構造体はさらに10バイト減って、8バイトで済む。
 
-#if defined (ADA_GRAD_UPDATE) || defined(ADA_PROP_UPDATE)
-
-		// AdaGradの学習率η(eta)。
+		// AdaGradなどの学習率η(eta)。
 		// updateFV()が呼び出されるまでにeta1,2,3,eta1_epoch,eta2_epochは設定されているものとする。
 		// update_weights()のepochが、eta1_epochまでeta1から徐々にeta2に変化する。
 		// eta2_epoch以降は、eta2から徐々にeta3に変化する。
@@ -62,17 +60,46 @@ namespace EvalLearningTools
 		static u64 eta1_epoch;
 		static u64 eta2_epoch;
 
+		// etaの一括初期化。0が渡された場合、デフォルト値が設定される。
+		static void init_eta(double eta1, double eta2, double eta3, u64 eta1_epoch, u64 eta2_epoch)
+		{
+			Weight::eta1 = (eta1 != 0) ? eta1 : 30.0;
+			Weight::eta2 = (eta2 != 0) ? eta2 : 30.0;
+			Weight::eta3 = (eta3 != 0) ? eta3 : 30.0;
+			Weight::eta1_epoch = (eta1_epoch != 0) ? eta1_epoch : 0;
+			Weight::eta2_epoch = (eta2_epoch != 0) ? eta2_epoch : 0;
+		}
+
+		// epochに応じたetaを設定してやる。
+		static void calc_eta(u64 epoch)
+		{
+			if (Weight::eta1_epoch == 0) // eta2適用除外
+				Weight::eta = Weight::eta1;
+			else if (epoch < Weight::eta1_epoch)
+				// 按分する
+				Weight::eta = Weight::eta1 + (Weight::eta2 - Weight::eta1) * epoch / Weight::eta1_epoch;
+			else if (Weight::eta2_epoch == 0) // eta3適用除外
+				Weight::eta = Weight::eta2;
+			else if (epoch < Weight::eta2_epoch)
+				Weight::eta = Weight::eta2 + (Weight::eta3 - Weight::eta2) * (epoch - Weight::eta1_epoch) / (Weight::eta2_epoch - Weight::eta1_epoch);
+			else
+				Weight::eta = Weight::eta3;
+		}
+
+
+#if defined (ADA_GRAD_UPDATE) || defined(ADA_PROP_UPDATE)
+
 		// AdaGradのg2
-		std::array<LearnFloatType, 2> g2;
+		LearnFloatType g2;
 
 		// vの小数部上位8bit。(vをfloatで持つのもったいないのでvの補助bitとして8bitで持つ)
-		std::array<V_FRACTION_TYPE, 2> v_frac;
+		V_FRACTION_TYPE v_frac;
 
 		// AdaGradでupdateする
 		// この関数を実行しているときにgの値やメンバーが書き変わらないことは
 		// 呼び出し側で保証されている。atomic演算である必要はない。
 		template <typename T>
-		void updateFV(std::array<T, 2>& v)
+		void updateFV(T& v)
 		{
 			// AdaGradの更新式
 			//   勾配ベクトルをg、更新したいベクトルをv、η(eta)は定数として、
@@ -80,42 +107,41 @@ namespace EvalLearningTools
 			//     v = v - ηg/sqrt(g2)
 
 			constexpr double epsilon = 0.000001;
-			for (int i = 0; i < 2; ++i)
-			{
-				if (g[i] == LearnFloatType(0))
-					continue;
 
-				g2[i] += g[i] * g[i];
+			if (g == LearnFloatType(0))
+				return;
+
+			g2 += g * g;
 
 #if defined(ADA_PROP_UPDATE)
-				// 少しずつ減衰させることで、学習が硬直するのを防ぐ。
-				// (0.99)^100 ≒ 0.366
-				g2[i] = LearnFloatType(g2[i] * 0.99);
+			// 少しずつ減衰させることで、学習が硬直するのを防ぐ。
+			// (0.99)^100 ≒ 0.366
+			g2 = LearnFloatType(g2 * 0.99);
 #endif
 
-				// v8は小数部8bitを含んでいるのでこれを復元する。
-				// 128倍にすると、-1を保持できなくなるので127倍にしておく。
-				// -1.0～+1.0を-127～127で保持している。
-				// std::round()限定なら-0.5～+0.5の範囲なので255倍でも良いが、
-				// どんな丸め方をするかはわからないので余裕を持たせてある。
+			// v8は小数部8bitを含んでいるのでこれを復元する。
+			// 128倍にすると、-1を保持できなくなるので127倍にしておく。
+			// -1.0～+1.0を-127～127で保持している。
+			// std::round()限定なら-0.5～+0.5の範囲なので255倍でも良いが、
+			// どんな丸め方をするかはわからないので余裕を持たせてある。
 
-				const double m = (s32)1 << (V_FRACTION_BITS - 1);
+			const double m = (s32)1 << (V_FRACTION_BITS - 1);
 
-				double V = v[i] + ((double)v_frac[i] / m);
+			double V = v + ((double)v_frac / m);
 
-				V -= eta * (double)g[i] / sqrt((double)g2[i] + epsilon);
+			V -= eta * (double)g / sqrt((double)g2 + epsilon);
 
-				// Vの値をINT16の範囲に収まるように制約を課す。
-				V = std::min((double)INT16_MAX * 3 / 4, V);
-				V = std::max((double)INT16_MIN * 3 / 4, V);
+			// Vの値をINT16の範囲に収まるように制約を課す。
+			// どうせ計算は32bitで行なうのでこの制約は甘めでいいや。
+			V = std::min((double)INT16_MAX * 15 / 16, V);
+			V = std::max((double)INT16_MIN * 15 / 16, V);
 
-				v[i] = (T)round(V);
-				v_frac[i] = (V_FRACTION_TYPE)((V - v[i]) * m);
+			v = (T)round(V);
+			v_frac = (V_FRACTION_TYPE)((V - v) * m);
 
-				// この要素に関するmini-batchの1回分の更新が終わったのでgをクリア
-				//g[i] = 0;
-				// これは呼び出し側で行なうことにする。
-			}
+			// この要素に関するmini-batchの1回分の更新が終わったのでgをクリア
+			//g[i] = 0;
+			// これは呼び出し側で行なうことにする。
 		}
 
 #elif defined(SGD_UPDATE)
@@ -126,45 +152,63 @@ namespace EvalLearningTools
 		// この関数を実行しているときにgの値やメンバーが書き変わらないことは
 		// 呼び出し側で保証されている。atomic演算である必要はない。
 		template <typename T>
-		void updateFV(std::array<T, 2>& v)
+		void updateFV(T & v)
 		{
-			for (int i = 0; i < 2; ++i)
-			{
-				if (g[i] == 0)
-					continue;
+			if (g == 0)
+				return;
 
-				// g[i]の符号だけ見てupdateする。
-				// g[i] < 0 なら vを少し足す。
-				// g[i] > 0 なら vを少し引く。
+			// gの符号だけ見てupdateする。
+			// g < 0 なら vを少し足す。
+			// g > 0 なら vを少し引く。
 
-				// 整数しか足さないので小数部不要。
+			// 整数しか足さないので小数部不要。
 
-				// 0～5ぐらいずつ動かすのがよさげ。
-				// ガウス分布っぽいほうが良いので5bitの乱数を発生させて(それぞれのbitは1/2の確率で1である)、
-				// それをpop_count()する。このとき、二項分布になっている。
-				s16 diff = (s16)POPCNT32((u32)prng.rand(31));
+			// 0～5ぐらいずつ動かすのがよさげ。
+			// ガウス分布っぽいほうが良いので5bitの乱数を発生させて(それぞれのbitは1/2の確率で1である)、
+			// それをpop_count()する。このとき、二項分布になっている。
+			s16 diff = (s16)POPCNT32((u32)prng.rand(31));
 
-				auto V = v[i];
-				if (g[i] > 0.0)
-					V-= diff;
-				else
-					V+= diff;
+			auto V = v;
+			if (g > 0.0)
+				V-= diff;
+			else
+				V+= diff;
 
-				// Vの値をINT16の範囲に収まるように制約を課す。
-				V = std::min((s16)((double)INT16_MAX * 3 / 4), (s16)(V));
-				V = std::max((s16)((double)INT16_MIN * 3 / 4), (s16)(V));
+			// Vの値をINT16の範囲に収まるように制約を課す。
+			V = std::min((s16)((double)INT16_MAX * 15 / 16), (s16)(V));
+			V = std::max((s16)((double)INT16_MIN * 15 / 16), (s16)(V));
 
-				v[i] = (T)V;
-			}
+			v = (T)V;
 		}
 
 #endif
+
+		// gradの設定
+		template <typename T> void set_grad(const T& g_) { g = g_; }
+
+		// gradの加算
+		template <typename T> void add_grad(const T& g_) { g += g_; }
+
+		LearnFloatType get_grad() const { return g; }
 	};
 #if defined(_MSC_VER)
 #pragma pack(pop)
 #elif defined(__GNUC__)
 #pragma pack(0)
 #endif
+
+	// 手番つきのweight配列
+	// 透過的に扱えるようにするために、Weightと同じメンバを持たせておいてやる。
+	struct Weight2
+	{
+		Weight w[2];
+
+		template <typename T> void updateFV(std::array<T, 2>& v) { for (int i = 0; i<2; ++i) w[i].updateFV(v[i]); }
+		template <typename T> void set_grad(const std::array<T, 2>& g) { for (int i = 0; i<2; ++i) w[i].set_grad(g[i]); }
+		template <typename T> void add_grad(const std::array<T, 2>& g) { for (int i = 0; i<2; ++i) w[i].add_grad(g[i]); }
+
+		std::array<LearnFloatType, 2> get_grad() const { return std::array<LearnFloatType, 2>{w[0].get_grad(), w[1].get_grad()}; }
+	};
 
 	// -------------------------------------------------
 	//                  tables

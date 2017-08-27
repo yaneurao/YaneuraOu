@@ -690,6 +690,7 @@
     <ClInclude Include="evaluate.h" />
     <ClInclude Include="eval\evaluate_io.h" />
     <ClInclude Include="eval\evaluate_kppt.h" />
+    <ClInclude Include="eval\evaluate_kpp_kkpt.h" />
     <ClInclude Include="eval\evaluate_kpp_ppt.h" />
     <ClInclude Include="eval\kppt_evalsum.h" />
     <ClInclude Include="eval\progress.h" />
@@ -728,6 +729,7 @@
     <ClCompile Include="engine\user-engine\user-search.cpp" />
     <ClCompile Include="eval\evaluate_bona_piece.cpp" />
     <ClCompile Include="eval\evaluate_io.cpp" />
+    <ClCompile Include="eval\evaluate_kpp_kkpt.cpp" />
     <ClCompile Include="eval\evaluate_kpp_ppt.cpp" />
     <ClCompile Include="eval\evaluate_kpp.cpp" />
     <ClCompile Include="eval\evaluate_kppt.cpp" />
@@ -749,7 +751,8 @@
     <ClCompile Include="extra\sfen_packer.cpp" />
     <ClCompile Include="extra\test_cmd.cpp" />
     <ClCompile Include="extra\timeman.cpp" />
-    <ClCompile Include="learn\evaluate_kppt_learn.cpp" />
+    <ClCompile Include="learn\evaluate_learn_kppt.cpp" />
+    <ClCompile Include="learn\evaluate_learn_kpp_kkpt.cpp" />
     <ClCompile Include="learn\learner.cpp" />
     <ClCompile Include="learn\learning_tools.cpp" />
     <ClCompile Include="learn\multi_think.cpp" />

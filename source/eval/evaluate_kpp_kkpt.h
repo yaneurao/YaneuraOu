@@ -1,16 +1,16 @@
-﻿#ifndef _EVALUATE_KPP_PPT_H_
-#define _EVALUATE_KPP_PPT_H_
+﻿#ifndef _EVALUATE_KPP_KKPT_H_
+#define _EVALUATE_KPP_KKPT_H_
 
 #include "../shogi.h"
 
-// KPP_PPT型評価関数で用いる共用header的なもの。
+// KPP_KKPT型評価関数で用いる共用header的なもの。
 
-#if defined(EVAL_KPP_PPT)
+#if defined(EVAL_KPP_KKPT)
 
 #include "../evaluate.h"
 
-// PPファイル名
-#define PP_BIN "PP_synthesized.bin"
+// KKファイル名
+#define KK_BIN "KK_synthesized.bin"
 
 // KKPファイル名
 #define KKP_BIN "KKP_synthesized.bin"
@@ -31,11 +31,12 @@ namespace Eval
 	// 先手から見て、先手の手番がないときの評価値 =  [0] - [1]
 	// 後手から見て、後手の手番があるときの評価値 = -[0] + [1]
 
-	// KPPTのときとは異なり、KKPが16bit化されている点とKPPが手番なしになっている点が少し異なる。
-	// 16bitにしていてもぎりぎりオーバーフローしないはず。
-
-	typedef std::array<int16_t, 2> ValuePp;
-	typedef std::array<int16_t, 2> ValueKkp;
+	// KPPTのときとは異なり、KPPが手番なしになっている点が異なる。
+	// KK、KKPは16bitでも事足りそうではあるが、ちょっと危ないし、
+	// KPPTのKKとKKPのファイルは使いまわしたいので互換性重視でこうしておく。
+	
+	typedef std::array<int32_t, 2> ValueKk;
+	typedef std::array<int32_t, 2> ValueKkp;
 	typedef int16_t ValueKpp;
 
 	// -----------------------------
@@ -45,24 +46,22 @@ namespace Eval
 	// 以下では、SQ_NBではなくSQ_NB_PLUS1まで確保したいが、Apery(WCSC26)の評価関数バイナリを読み込んで変換するのが面倒なので
 	// ここではやらない。ゆえに片側の玉には対応出来ない。
 
-	// PPは、PがKのときはKKPに含まれると考えられるので入れないことにする。
-
 	// 評価関数
 
-	extern ValuePp(*pp_)[fe_end][fe_end];
+	extern ValueKk(*kk_)[SQ_NB][SQ_NB];
 	extern ValueKkp(*kkp_)[SQ_NB][SQ_NB][fe_end];
 	extern ValueKpp(*kpp_)[SQ_NB][fe_end][fe_end];
 
 	// 以下のマクロ定義して、ポインタではない場合と同じ挙動になるようにする。
-#define pp (*pp_)
+#define kk (*kk_)
 #define kkp (*kkp_)
 #define kpp (*kpp_)
 
 	// 配列のサイズ
-	const u64 size_of_pp = (u64)fe_end*(u64)fe_end*(u64)sizeof(ValuePp);
+	const u64 size_of_kk = (u64)SQ_NB*(u64)SQ_NB*(u64)sizeof(ValueKk);
 	const u64 size_of_kkp = (u64)SQ_NB*(u64)SQ_NB*(u64)fe_end*(u64)sizeof(ValueKkp);
 	const u64 size_of_kpp = (u64)SQ_NB*(u64)fe_end*(u64)fe_end*(u64)sizeof(ValueKpp);
-	const u64 size_of_eval = size_of_pp + size_of_kkp + size_of_kpp;
+	const u64 size_of_eval = size_of_kk + size_of_kkp + size_of_kpp;
 
 }      // namespace Eval
 

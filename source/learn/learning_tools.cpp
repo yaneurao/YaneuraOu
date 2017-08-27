@@ -12,14 +12,14 @@ namespace EvalLearningTools
 
 	// --- static variables
 
-#if defined (ADA_GRAD_UPDATE) || defined(ADA_PROP_UPDATE)
 	double Weight::eta;
 	double Weight::eta1;
 	double Weight::eta2;
 	double Weight::eta3;
 	u64 Weight::eta1_epoch;
 	u64 Weight::eta2_epoch;
-#elif defined (SGD_UPDATE)
+
+#if defined (SGD_UPDATE)
 	AsyncPRNG Weight::prng;
 #endif
 

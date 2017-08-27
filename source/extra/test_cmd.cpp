@@ -1230,9 +1230,14 @@ void test_search(Position& pos, istringstream& is)
 }
 #endif
 
-#if defined (EVAL_KPPT)
+#if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 
+#if defined (EVAL_KPPT)
 #include "../eval/evaluate_kppt.h"
+#elif defined(EVAL_KPP_KKPT)
+#include "../eval/evaluate_kpp_kkpt.h"
+#endif
+
 // 現在の評価関数のパラメーターについて調査して出力する。(分析用)
 void eval_exam(istringstream& is)
 {
@@ -1702,6 +1707,10 @@ void eval_convert(istringstream& is)
 	// とすると、逆に、やねうら王2017Early/Apery(WCSC26)の形式で格納されているEVALDIR1/の評価関数が、変換されて
 	// Apery(WCSC27)の形式でEVALDIR2/に格納される。
 
+	// 変換に際して、isreadyコマンドが走るので、このときに評価関数ファイルがEvalDirにないといけないが、
+	// このファイルを用意できていなくて読み込みに失敗する場合は、SkipLoadingEval true(これにより、読み込みがスキップされる)
+	// としてから、この"test evalconvert"コマンドを実行すると良い。
+
 	std::string input_format, input_dir, output_format, output_dir;
 	is >> input_format >> input_dir >> output_format >> output_dir;
 
@@ -1713,6 +1722,8 @@ void eval_convert(istringstream& is)
 			return EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
 		else if (format == "kppt16")
 			return EvalIO::EvalInfo::build_kppt16(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+		else if (format == "kpp_kkpt32")
+			return EvalIO::EvalInfo::build_kpp_kkpt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
 
 #if defined (USE_EVAL_MAKE_LIST_FUNCTION)
 		// 旧評価関数を実験中の評価関数に変換する裏コマンド
@@ -1731,7 +1742,7 @@ void eval_convert(istringstream& is)
 
 	auto is_valid_format = [](std::string format)
 	{
-		bool result =  (format == "kppt32" || format == "kppt16" || format == "now");
+		bool result =  (format == "kppt32" || format == "kppt16" || format == "kpp_kkpt32" || format == "now");
 		if (!result)
 			cout << "Error! Unknow format , format = " << format << endl;
 		return result;
@@ -1994,7 +2005,7 @@ void test_cmd(Position& pos, istringstream& is)
 	else if (param == "search") test_search(pos, is);                // 現局面からLearner::search()を呼び出して探索させる
 	else if (param == "dumpsfen") dump_sfen(pos, is);                // gensfenコマンドで生成した教師局面のダンプ
 #endif
-#if defined (EVAL_KPPT)
+#if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 	else if (param == "evalmerge") eval_merge(is);                   // 評価関数の合成コマンド
 	else if (param == "evalconvert") eval_convert(is);               // 評価関数の変換コマンド
 	else if (param == "evalexam") eval_exam(is);                     // 評価関数ファイルの調査用

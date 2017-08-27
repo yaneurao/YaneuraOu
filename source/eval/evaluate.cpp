@@ -42,7 +42,8 @@ namespace Eval
 	Value compute_eval(const Position& pos) { return material(pos); }
 #endif
 
-#if defined(EVAL_KKPT) || defined(EVAL_KPPT)
+#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+
 	// calc_check_sum()を呼び出して返ってきた値を引数に渡すと、ソフト名を表示してくれる。
 	void print_softname(u64 check_sum)
 	{
@@ -58,7 +59,8 @@ namespace Eval
 			{ 0x3aa68b055a020a8 , "Yomita(WCSC27)" } ,
 			{ 0x702fb2ee5672156 , "Qhapaq(WCSC27)" } ,
 			{ 0x6c54a1bcb5a6338 , "tanuki(WCSC27)" } ,
-	};
+		};
+
 		if (list.count(check_sum))
 			softname = list[check_sum];
 

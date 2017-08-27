@@ -506,6 +506,7 @@ book/book.bin
 以下では
 「Apery(WCSC27)で使われている評価関数ファイル」のことを"kppt16"と呼びます。
 「やねうら王2017Earlyで使われている評価関数ファイル」のことを"kppt32"と呼びます。
+「ponanza(WCSC26)で使われているらしい評価関数ファイル」のことを"kpp_kkpt32"と呼びます。
 
 これらの相互変換は "test evalconvert"というコマンドで行なうことが出来ます。
 
@@ -517,3 +518,9 @@ eval/elmo_apery27に格納されているkppt16の評価関数ファイルが、
 > test evalconvert kppt32 eval/elmo_yane27 kppt16 eval/elmo_apery27
 eval/elmo_yane27に格納されているkppt32の評価関数ファイルが、kppt16に変換されてeval/elmo_apery27に格納されます。
 出力先のフォルダが存在しない場合は自動的に作成されます。
+
+備考)
+	変換に際して、isreadyコマンドが走るので、このときに評価関数ファイルがEvalDirにないといけないが、
+	このファイルを用意できていなくて読み込みに失敗する場合は、SkipLoadingEval true
+	(これにより、読み込みがスキップされる)としてから、この"test evalconvert"コマンドを実行すると良い。
+	SkipLoadingEvalオプションは、EVAL_LEARNをdefineしてビルドした実行ファイルでのみ使える隠しコマンド。

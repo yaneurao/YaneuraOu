@@ -96,7 +96,8 @@
 // #define EVAL_PP        // ツツカナ型 2駒関係(開発予定なし)
 // #define EVAL_KPP       // Bonanza型 3駒関係
 // #define EVAL_KPPT      // Bonanza型 3駒関係、手番つき(Apery WCSC26相当)
-// #define EVAL_KPP_PPT   // PP手番あり + KKP手番あり + KPP手番なし(Ponanza WCSC26相当？)
+// #define EVAL_KPP_KKPT  // KK手番あり + KKP手番あり + KPP手番なし(Ponanza WCSC26相当？)
+// #define EVAL_KPP_PPT   // PP手番あり + KKP手番あり + KPP手番なし(実装、途中まで)
 // #define EVAL_KKPPT     // KPPTよりevaluateが倍ぐらい速くなる。メモリ使用量64倍。(実装予定なし)
 // #define EVAL_KPPP_PPT  // PP手番あり + KKP手番あり + KPPP(4駒関係)手番なし。(実装するかも)
 // #define EVAL_PPET      // 技巧型 2駒+利き+手番(実装予定なし)
@@ -212,7 +213,8 @@
 #ifdef YANEURAOU_2017_EARLY_ENGINE
 #define ENGINE_NAME "YaneuraOu 2017 Early"
 #define EVAL_KPPT
-//#define EVAL_KPP_PPT
+//#define EVAL_KPP_KKPT
+
 
 // 実験中の評価関数
 // 評価関数の番号を選択できる。0001～9999から選ぶ。
@@ -637,6 +639,8 @@ inline int MKDIR(std::string dir_name)
 #define EVAL_TYPE_NAME "PPE"
 #elif defined(EVAL_KPPT)
 #define EVAL_TYPE_NAME "KPPT"
+#elif defined(EVAL_KPP_KKPT)
+#define EVAL_TYPE_NAME "KPP_KKPT"
 #else
 #define EVAL_TYPE_NAME ""
 #endif
@@ -644,7 +648,8 @@ inline int MKDIR(std::string dir_name)
 // PP,KPP,KKPT,KPPT,PPEならdo_move()のときに移動した駒の管理をして差分計算
 // また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
 // あらゆる局面でP(駒)の数が増えないFV38と呼ばれる形式の差分計算用。
-#if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_PPE) || defined(EVAL_KPP_PPT)
+#if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) \
+	 || defined(EVAL_PPE) || defined(EVAL_KPP_PPT)
 #define USE_FV38
 #endif
 

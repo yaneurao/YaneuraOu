@@ -166,6 +166,9 @@
     <ClInclude Include="eval\evaluate_kpp_ppt.h">
       <Filter>リソース ファイル\eval</Filter>
     </ClInclude>
+    <ClInclude Include="eval\evaluate_kpp_kkpt.h">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -240,9 +243,6 @@
     <ClCompile Include="learn\multi_think.cpp">
       <Filter>リソース ファイル\learn</Filter>
     </ClCompile>
-    <ClCompile Include="learn\evaluate_kppt_learn.cpp">
-      <Filter>リソース ファイル\learn</Filter>
-    </ClCompile>
     <ClCompile Include="engine\2017-early-engine\2017-early-search.cpp">
       <Filter>リソース ファイル\engine\2017-early-engine</Filter>
     </ClCompile>
@@ -287,6 +287,15 @@
     </ClCompile>
     <ClCompile Include="eval\evaluate_kpp_ppt.cpp">
       <Filter>リソース ファイル\eval</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\evaluate_kpp_kkpt.cpp">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClCompile>
+    <ClCompile Include="learn\evaluate_learn_kpp_kkpt.cpp">
+      <Filter>リソース ファイル\learn</Filter>
+    </ClCompile>
+    <ClCompile Include="learn\evaluate_learn_kppt.cpp">
+      <Filter>リソース ファイル\learn</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

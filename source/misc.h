@@ -296,6 +296,17 @@ inline std::string path_combine(const std::string& folder, const std::string& fi
 }
 
 // --------------------
+//       misc
+// --------------------
+
+// 途中での終了処理のためのwrapper
+static void my_exit()
+{
+	sleep(3000); // エラーメッセージが出力される前に終了するのはまずいのでwaitを入れておく。
+	exit(EXIT_FAILURE);
+}
+
+// --------------------
 //    prefetch命令
 // --------------------
 

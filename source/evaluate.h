@@ -4,7 +4,7 @@
 #include "shogi.h"
 
 // 手番込みの評価関数であれば手番を込みで値を計算するhelper classを使う。
-#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPP_PPT)
+#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPP_PPT) || defined(EVAL_KPP_KKPT)
 #include "eval/kppt_evalsum.h"
 #endif
 
@@ -47,12 +47,12 @@ namespace Eval {
 	// あるいは差分計算が不可能なときに呼び出される。
 	Value compute_eval(const Position& pos);
 
-#if defined(USE_EVAL_HASH) && (defined(EVAL_KKPT) || defined(EVAL_KPPT) )
+#if defined(USE_EVAL_HASH) && ( defined(EVAL_KPPT) || defined(EVAL_KPP_PPT) || defined(EVAL_KPP_KKPT) )
 	// prefetchする関数
 	void prefetch_evalhash(const Key key);
 #endif
 
-#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPP_PPT)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_PPT) || defined(EVAL_KPP_KKPT)
 	// 評価関数パラメーターのチェックサムを返す。
 	u64 calc_check_sum();
 
@@ -66,7 +66,7 @@ namespace Eval {
 	// 評価値の内訳表示(デバッグ用)
 	void print_eval_stat(Position& pos);
 
-#if defined(EVAL_LEARN) && (defined(EVAL_KKPT) || defined(EVAL_KPPT))
+#if defined(EVAL_LEARN) && ( defined(EVAL_KPPT) || defined(EVAL_KPP_PPT) || defined(EVAL_KPP_KKPT) )
 	// 学習のときの勾配配列の初期化
 	// 学習率を引数に渡しておく。0.0なら、defaultの値を採用する。
 	// update_weights()のepochが、eta_epochまでetaから徐々にeta2に変化する。
@@ -115,7 +115,7 @@ namespace Eval {
 		KingValue = 15000,
 	};
 
-#elif defined(EVAL_KKPT) || defined (EVAL_KPPT) || defined(EVAL_KPP_PPT)
+#elif defined(EVAL_KKPT) || defined (EVAL_KPPT) || defined(EVAL_KPP_PPT) || defined(EVAL_KPP_KKPT)
 
 	// Apery(WCSC26)の駒割り
 	enum {
@@ -186,7 +186,7 @@ namespace Eval {
 		e_hand_rook = f_hand_rook + 2,
 		fe_hand_end = e_hand_rook + 2,
 
-#elif defined(EVAL_KKPT) || defined (EVAL_KPPT) || defined (EVAL_KPP_PPT)
+#elif defined(EVAL_KKPT) || defined (EVAL_KPPT) || defined (EVAL_KPP_PPT) || defined(EVAL_KPP_KKPT)
 		// Apery(WCSC26)方式。0枚目の駒があるので少し隙間がある。
 		// 定数自体は1枚目の駒のindexなので、KPPの時と同様の処理で問題ない。
 
@@ -350,7 +350,7 @@ namespace Eval {
 		}
 
 		// 駒リスト。駒番号(PieceNo)いくつの駒がどこにあるのか(BonaPiece)を示す。FV38などで用いる。
-#if defined(EVAL_KPPT) && defined(USE_AVX2)
+#if (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)) && defined(USE_AVX2)
 		// AVX2を用いたKPPT評価関数は高速化できるので特別扱い。
 		// Skylake以降でないとほぼ効果がないが…。
 
@@ -372,7 +372,7 @@ namespace Eval {
 	};
 #endif
 
-#if defined(EVAL_KPPT)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 	// 評価関数のそれぞれのパラメーターに対して関数fを適用してくれるoperator。
 	// パラメーターの分析などに用いる。
 	// typeは調査対象を表す。

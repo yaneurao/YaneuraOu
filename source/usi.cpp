@@ -378,7 +378,8 @@ namespace USI
 		// 評価関数フォルダ。これを変更したとき、評価関数を次のisreadyタイミングで読み直す必要がある。
 		o["EvalDir"] << Option("eval", [](const USI::Option&o) { load_eval_finished = false; });
 
-#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32) && (defined(EVAL_KPPT) || defined(EVAL_EXPERIMENTAL))
+#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32) && \
+	 (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) ||  defined(EVAL_EXPERIMENTAL))
 		// 評価関数パラメーターを共有するか
 		// 異種評価関数との自己対局のときにこの設定で引っかかる人が後を絶たないのでデフォルトでオフにする。
 		o["EvalShare"] << Option(false);
@@ -390,7 +391,7 @@ namespace USI
 		o["EngineNuma"] << Option(-1, -1, 99999);
 #endif
 
-#if defined(USE_EVAL_MAKE_LIST_FUNCTION)
+#if defined(EVAL_LEARN)
 		// isreadyタイミングで評価関数を読み込まれると、新しい評価関数の変換のために
 		// test evalconvertコマンドを叩きたいのに、その新しい評価関数がないがために
 		// このコマンドの実行前に異常終了してしまう。
@@ -467,7 +468,7 @@ void is_ready()
 {
 	// 評価関数の読み込みなど時間のかかるであろう処理はこのタイミングで行なう。
 	// 起動時に時間のかかる処理をしてしまうと将棋所がタイムアウト判定をして、思考エンジンとしての認識をリタイアしてしまう。
-#if defined(USE_EVAL_MAKE_LIST_FUNCTION)
+#if defined(EVAL_LEARN)
 	if (!Options["SkipLoadingEval"])
 #endif
 	{
