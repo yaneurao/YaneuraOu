@@ -365,8 +365,11 @@ USIプロトコルの独自拡張コマンド
 			深い探索の評価値の絶対値がlambda_limit以上のときは、lambdaではなくlambda2のほうを適用する。
 			デフォルトではlambda_limit = 32000なのでlambda2が適用されることはない。
 
-		without_kpp bool : KK,KKP,KPPのうちKPPを学習させないオプション。trueにするとKPPは学習しない。
-			オンにするにはwithout_kpp 1のように1を指定する。オフにするには0を指定する。
+		freeze_kk  bool : 
+		freeze_kkp bool : 
+		freeze_kpp bool :
+			KK,KKP,KPPのうち、KK/KKP/KPPを学習させないオプション。trueにするとその特徴因子は学習しない。
+			オンにするにはfreeze_kpp 1のように1を指定する。オフにするには0を指定する。
 
 		eta 学習率
 			AdaGradの学習率を設定する。30.0が標準的な学習率。

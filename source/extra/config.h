@@ -215,7 +215,6 @@
 #define EVAL_KPPT
 //#define EVAL_KPP_KKPT
 
-
 // 実験中の評価関数
 // 評価関数の番号を選択できる。0001～9999から選ぶ。
 // 番号として、0000は、if EVAL_EXPERIMENTAL == 0000と判定しようとしたときに、C++の言語仕様として

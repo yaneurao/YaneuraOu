@@ -78,8 +78,10 @@ namespace Eval {
 
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
 	// epoch       : 世代カウンター(0から始まる)
-	// without_kpp : kppは学習させないフラグ
-	void update_weights(u64 epoch , bool without_kpp);
+	// freeze_kk   : kkは学習させないフラグ
+	// freeze_kkp  : kkpは学習させないフラグ
+	// freeze_kpp  : kppは学習させないフラグ
+	void update_weights(u64 epoch , bool freeze_kk , bool freeze_kkp , bool freeze_kpp);
 
 	// 評価関数パラメーターをファイルに保存する。
 	// ファイルの末尾につける拡張子を指定できる。

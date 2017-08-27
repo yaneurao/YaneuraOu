@@ -35,7 +35,7 @@ namespace Eval
 	void add_grad(Position& pos, Color rootColor, double delta_grad,bool without_kpp);
 
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
-	void update_weights(u64 epoch,bool without_kpp);
+	void update_weights(u64 epoch, bool freeze_kk , bool freeze_kkp , bool freeze_kpp);
 
 	// 評価関数パラメーターをファイルに保存する。
 	void save_eval(std::string dir_name);
@@ -71,7 +71,7 @@ namespace Eval
 
 	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
 	// 現局面は、leaf nodeであるものとする。
-	void add_grad(Position& pos, Color rootColor, double delta_grad , bool without_kpp)
+	void add_grad(Position& pos, Color rootColor, double delta_grad , bool freeze_kpp)
 	{
 		// LearnFloatTypeにatomicつけてないが、2つのスレッドが、それぞれx += yと x += z を実行しようとしたとき
 		// 極稀にどちらか一方しか実行されなくともAdaGradでは問題とならないので気にしないことにする。
@@ -134,7 +134,7 @@ namespace Eval
 			BonaPiece k0 = list_fb[i];
 			BonaPiece k1 = list_fw[i];
 
-			if (!without_kpp)
+			if (!freeze_kpp)
 			{
 				// このループではk0 == l0は出現しない。(させない)
 				// それはKPであり、KKPの計算に含まれると考えられるから。
@@ -155,13 +155,15 @@ namespace Eval
 
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
 	// epoch       : 世代カウンター(0から始まる)
-	// without_kpp : kppは学習させないフラグ
-	void update_weights(u64 epoch, bool without_kpp)
+	// freeze_kk   : kkは学習させないフラグ
+	// freeze_kkp  : kkpは学習させないフラグ
+	// freeze_kpp  : kppは学習させないフラグ
+	void update_weights(u64 epoch, bool freeze_kk, bool freeze_kkp, bool freeze_kpp)
 	{
 		u64 vector_length = KPP::max_index();
 
-		// KPPを学習させないなら、KKPのmaxまでだけで良い。
-		if (without_kpp)
+		// KPPを学習させないなら、KKPのmaxまでだけで良い。あとは数が少ないからまあいいや。
+		if (freeze_kpp)
 			vector_length = KKP::max_index();
 
 		// epochに応じたetaを設定してやる。
@@ -193,14 +195,14 @@ namespace Eval
 				if (!min_index_flag[index])
 					continue;
 
-				if (KK::is_ok(index))
+				if (KK::is_ok(index) && !freeze_kk)
 				{
 					// KKは次元下げしていないので普通にupdate
 					KK x = KK::fromIndex(index);
 					weights[index].updateFV(kk[x.king0()][x.king1()]);
 					weights[index].set_grad(zero);
 				}
-				else if (KKP::is_ok(index))
+				else if (KKP::is_ok(index) && !freeze_kkp)
 				{
 					// KKPは次元下げがあるので..
 					KKP x = KKP::fromIndex(index);
@@ -263,7 +265,7 @@ namespace Eval
 #endif
 
 				}
-				else if (KPP::is_ok(index))
+				else if (KPP::is_ok(index) && !freeze_kpp)
 				{
 					KPP x = KPP::fromIndex(index);
 
@@ -306,10 +308,6 @@ namespace Eval
 
 					for (auto id : ids)
 						weights[id].set_grad(zero);
-				}
-				else
-				{
-					ASSERT_LV3(false);
 				}
 			}
 		}

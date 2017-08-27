@@ -1386,8 +1386,10 @@ struct LearnerThink: public MultiThink
 	// 割引率
 	double discount_rate;
 
-	// kppを学習させないオプション
-	bool without_kpp;
+	// kk/kkp/kppを学習させないオプション
+	bool freeze_kk;
+	bool freeze_kkp;
+	bool freeze_kpp;
 
 	// 教師局面の深い探索の評価値の絶対値がこの値を超えていたらその教師局面を捨てる。
 	int eval_limit;
@@ -1599,7 +1601,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 				std::cout << sr.total_done << " sfens , at " << now_string() << std::endl;
 
 				// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
-				Eval::update_weights(epoch , without_kpp);
+				Eval::update_weights(epoch , freeze_kk, freeze_kkp , freeze_kpp);
 
 				// デバッグ用にepochと現在のetaを表示してやる。
 				std::cout << "epoch = " << epoch << " , eta = " << Eval::get_eta() << std::endl;
@@ -1759,7 +1761,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 			// leafに到達したのでこの局面に出現している特徴に勾配を加算しておく。
 			// 勾配に基づくupdateはのちほど行なう。
-			Eval::add_grad(pos, rootColor, dj_dw, without_kpp);
+			Eval::add_grad(pos, rootColor, dj_dw, freeze_kkp);
 
 			// 処理が終了したので処理した件数のカウンターをインクリメント
 			sr.total_done++;
@@ -2117,8 +2119,10 @@ void learn(Position&, istringstream& is)
 	// 割引率。これを0以外にすると、PV終端以外でも勾配を加算する。(そのとき、この割引率を適用する)
 	double discount_rate = 0;
 
-	// KPPを学習させないオプション項目
-	bool without_kpp = false;
+	// KK/KKP/KPPを学習させないオプション項目
+	bool freeze_kk = false;
+	bool freeze_kkp = false;
+	bool freeze_kpp = false;
 
 	// ファイル名が後ろにずらずらと書かれていると仮定している。
 	while (true)
@@ -2159,8 +2163,10 @@ void learn(Position&, istringstream& is)
 		// 割引率
 		else if (option == "discount_rate") is >> discount_rate;
 
-		// KPPの学習なし。
-		else if (option == "without_kpp") is >> without_kpp;
+		// KK/KKP/KPPの学習なし。
+		else if (option == "freeze_kk")  is >> freeze_kk;
+		else if (option == "freeze_kkp") is >> freeze_kkp;
+		else if (option == "freeze_kpp") is >> freeze_kpp;
 
 #if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
 		// LAMBDA
@@ -2265,10 +2271,10 @@ void learn(Position&, istringstream& is)
 		return;
 	}
 
-	cout << "loop            : " << loop << endl;
-	cout << "eval_lmit       : " << eval_limit << endl;
-	cout << "save_only_once  : " << (save_only_once ? "true" : "false") << endl;
-	cout << "no_shuffle      : " << (no_shuffle ? "true" : "false") << endl;
+	cout << "loop              : " << loop << endl;
+	cout << "eval_lmit         : " << eval_limit << endl;
+	cout << "save_only_once    : " << (save_only_once ? "true" : "false") << endl;
+	cout << "no_shuffle        : " << (no_shuffle ? "true" : "false") << endl;
 
 	// ループ回数分だけファイル名を突っ込む。
 	for (int i = 0; i < loop; ++i)
@@ -2276,17 +2282,17 @@ void learn(Position&, istringstream& is)
 		for (auto it = filenames.rbegin(); it != filenames.rend(); ++it)
 			sr.filenames.push_back(path_combine(base_dir, *it));
 
-	cout << "Gradient Method : " << LEARN_UPDATE      << endl;
-	cout << "Loss Function   : " << LOSS_FUNCTION     << endl;
-	cout << "mini-batch size : " << mini_batch_size   << endl;
-	cout << "learning rate   : " << eta1 << " , " << eta2 << " , " << eta3 << endl;
-	cout << "eta_epoch       : " << eta1_epoch << " , " << eta2_epoch << endl;
-	cout << "discount rate   : " << discount_rate     << endl;
-	cout << "without_kpp     : " << without_kpp       << endl;
+	cout << "Gradient Method   : " << LEARN_UPDATE      << endl;
+	cout << "Loss Function     : " << LOSS_FUNCTION     << endl;
+	cout << "mini-batch size   : " << mini_batch_size   << endl;
+	cout << "learning rate     : " << eta1 << " , " << eta2 << " , " << eta3 << endl;
+	cout << "eta_epoch         : " << eta1_epoch << " , " << eta2_epoch << endl;
+	cout << "discount rate     : " << discount_rate     << endl;
+	cout << "freeze_kk/kkp/kpp : " << freeze_kk << " , " << freeze_kkp << " , " << freeze_kpp << endl;
 #if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
-	cout << "LAMBDA          : " << ELMO_LAMBDA       << endl;
-	cout << "LAMBDA2         : " << ELMO_LAMBDA2      << endl;
-	cout << "LAMBDA_LIMIT    : " << ELMO_LAMBDA_LIMIT << endl;
+	cout << "LAMBDA            : " << ELMO_LAMBDA       << endl;
+	cout << "LAMBDA2           : " << ELMO_LAMBDA2      << endl;
+	cout << "LAMBDA_LIMIT      : " << ELMO_LAMBDA_LIMIT << endl;
 #endif
 
 	// -----------------------------------
@@ -2326,8 +2332,10 @@ void learn(Position&, istringstream& is)
 	learn_think.eval_limit = eval_limit;
 	learn_think.save_only_once = save_only_once;
 	learn_think.sr.no_shuffle = no_shuffle;
-	learn_think.without_kpp = without_kpp;
-	
+	learn_think.freeze_kk = freeze_kk;
+	learn_think.freeze_kkp = freeze_kkp;
+	learn_think.freeze_kpp = freeze_kpp;
+
 	// 局面ファイルをバックグラウンドで読み込むスレッドを起動
 	// (これを開始しないとmseの計算が出来ない。)
 	learn_think.start_file_read_worker();
