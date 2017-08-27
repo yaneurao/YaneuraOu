@@ -434,7 +434,7 @@ std::ostream& operator<<(std::ostream& os, const Position& pos)
 		os << endl;
 	}
 
-#ifndef PRETTY_JP
+#if !defined (PRETTY_JP)
 	// 手駒
 	os << "BLACK HAND : " << pos.hand[BLACK] << " , WHITE HAND : " << pos.hand[WHITE] << endl;
 
@@ -451,7 +451,7 @@ std::ostream& operator<<(std::ostream& os, const Position& pos)
 	return os;
 }
 
-#ifdef KEEP_LAST_MOVE
+#if defined (KEEP_LAST_MOVE)
 #include <stack>
 
 // 開始局面からこの局面にいたるまでの指し手を表示する。
@@ -1018,14 +1018,14 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
   // これVALUNE_NONEにするとsumKKPが32bitなので偶然一致することがある。
 	st->sumKKP = VALUE_NOT_EVALUATED;
 #endif
-#if defined(EVAL_KKPT) || defined(EVAL_KPPT)
+#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 	// 上と同じ意味。
 	st->sum.p[0][0] = VALUE_NOT_EVALUATED;
 #endif
 
 	// 直前の指し手を保存するならばここで行なう。
 
-#ifdef KEEP_LAST_MOVE
+#if defined (KEEP_LAST_MOVE)
 	st->lastMove = m;
 	st->lastMovedPieceType = is_drop(m) ? (Piece)move_from(m) : type_of(piece_on(move_from(m)));
 #endif
@@ -1043,7 +1043,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	int materialDiff;
 #endif
 
-#ifdef USE_FV38
+#if defined (USE_FV38)
 	auto& dp = st->dirtyPiece;
 #endif
 
@@ -1073,7 +1073,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		PieceNo piece_no = piece_no_of(Us, pr);
 		ASSERT_LV3(is_ok(piece_no));
 
-#ifdef USE_FV38
+#if defined (USE_FV38)
 		// KPPの差分計算のために移動した駒をStateInfoに記録しておく。
 		dp.dirty_num = 1; // 動いた駒は1個
 		dp.pieceNo[0] = piece_no;
@@ -1082,7 +1082,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 		put_piece_simple(to, pc, piece_no);
 
-#ifdef USE_FV38
+#if defined (USE_FV38)
 		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no);
 #endif
 
@@ -1145,7 +1145,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		{
 			// --- capture(駒の捕獲)
 
-#ifdef LONG_EFFECT_LIBRARY
+#if defined(LONG_EFFECT_LIBRARY)
 	  // 移動先で駒を捕獲するときの利きの更新
 			LongEffect::update_by_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc, to_pc);
 #endif
@@ -1188,7 +1188,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			// 捕獲した駒をStateInfoに保存しておく。(undo_moveのため)
 			st->capturedPiece = to_pc;
 
-#ifndef EVAL_NO_USE
+#if !defined (EVAL_NO_USE)
 			// 評価関数で使う駒割りの値も更新
 			materialDiff += Eval::CapturePieceValue[to_pc];
 #endif
@@ -1310,7 +1310,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	// 相手番のほうは関係ないので前ノードの値をそのまま受け継ぐ。
 	st->continuousCheck[~Us] = prev->continuousCheck[~Us];
 
-#ifndef EVAL_NO_USE
+#if !defined (EVAL_NO_USE)
 	st->materialValue = (Value)(st->previous->materialValue + (Us == BLACK ? materialDiff : -materialDiff));
 	//ASSERT_LV5(st->materialValue == Eval::material(*this));
 #endif
@@ -1433,7 +1433,7 @@ void Position::undo_move_impl(Move m)
 		// toの場所にある駒を手駒に戻す
 		Piece pt = raw_type_of(moved_after_pc);
 
-#ifndef EVAL_NO_USE
+#if !defined(EVAL_NO_USE)
 		evalList.put_piece(piece_no, Us, pt, hand_count(hand[Us], pt));
 #endif
 		add_hand(hand[Us], pt);
@@ -1441,7 +1441,7 @@ void Position::undo_move_impl(Move m)
 		// toの場所から駒を消す
 		remove_piece(to);
 
-#ifdef LONG_EFFECT_LIBRARY
+#if defined(LONG_EFFECT_LIBRARY)
 		// 駒打ちのundoによる利きの復元
 		LongEffect::rewind_by_dropping_piece<Us>(*this, to, moved_after_pc);
 #endif
@@ -1475,7 +1475,7 @@ void Position::undo_move_impl(Move m)
 			// 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
 			put_piece_simple(from, moved_pc, piece_no);
 
-#ifdef LONG_EFFECT_LIBRARY
+#if defined(LONG_EFFECT_LIBRARY)
 			// 移動先で駒を捕獲するときの利きの更新
 			LongEffect::rewind_by_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc, to_pc);
 #endif
@@ -1485,7 +1485,7 @@ void Position::undo_move_impl(Move m)
 			// 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
 			put_piece_simple(from, moved_pc, piece_no);
 
-#ifdef LONG_EFFECT_LIBRARY
+#if defined(LONG_EFFECT_LIBRARY)
 			// 移動先で駒を捕獲しないときの利きの更新
 			LongEffect::rewind_by_no_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc);
 #endif

@@ -413,6 +413,8 @@ namespace Eval
 		sum.p[0] = { 0, 0 };
 		sum.p[1] = { 0, 0 };
 #endif
+
+		// KK
 		sum.p[2] = kkp[sq_bk][sq_wk][ebp.fb];
 
 		const auto* pkppb = kpp[sq_bk][ebp.fb];
@@ -626,7 +628,7 @@ namespace Eval
 
 			now->sum = diff + prev->sum;
 		}
-
+		
 	}
 #else
 	// EvalListの組み換えを行なうときは差分計算をせずに(実装するのが大変なため)、毎回全計算を行なう。
