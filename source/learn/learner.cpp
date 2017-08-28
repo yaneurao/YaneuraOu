@@ -1761,7 +1761,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 			// leafに到達したのでこの局面に出現している特徴に勾配を加算しておく。
 			// 勾配に基づくupdateはのちほど行なう。
-			Eval::add_grad(pos, rootColor, dj_dw, freeze_kkp);
+			Eval::add_grad(pos, rootColor, dj_dw, freeze_kpp);
 
 			// 処理が終了したので処理した件数のカウンターをインクリメント
 			sr.total_done++;
