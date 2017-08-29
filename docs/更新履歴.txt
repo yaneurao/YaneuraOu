@@ -1,9 +1,40 @@
 ﻿
 やねうら王 更新履歴
 
+
+■　2017/08/29 V4.76
+
+・V4.76公開。
+
+
+■　2017/08/28
+
+・freeze_kkpの処理、間違ってたの修正。
+
+
+■　2017/08/27
+
+・KPPの手番なし(KK,KKP手番あり)型評価関数 EVAL_KPP_KKPというのを実装した。学習部も一通り書けた。
+・エラー時の終了処理、3秒待つようにした。
+・"test evalconvert"で変換できる評価関数の型にkpp_kkpt32型を追加。
+・SkipLoadingEvalオプションの説明追加。EVAL_LEARNがdefineされていればこのオプションが使えるようにした。
+・learnコマンドのwithout_kppをfreeze_kppに変更。freeze_kk,freeze_kkpも追加。
+・学習時のwの値の範囲を16bitぎりぎりの値まで許容するように変更。
+・学習時のwの値の範囲をKK/KPPが32bitなら32bitの値を許容するように変更。
+・kpp_kkpt評価関数のAVX2化(tanuki-さん)
+
+
+■　2017/08/26
+
+・learnコマンドにKPPを学習させないオプション設定追加。
+・learnコマンドにeta2,eta3,eta1_epoch,eta2_epoch導入。
+・KPPの手番なし(PP,KKP手番あり)型評価関数 EVAL_KPP_PPT、1/3ぐらい書けた。
+
+
 ■　2017/08/19
 
 ・gensfenコマンドにuse_eval_hashオプション追加。
+・benchコマンド連続して2回叩くとassertに引っかかっていたの修正。
 
 
 ■　2017/08/17 V4.75

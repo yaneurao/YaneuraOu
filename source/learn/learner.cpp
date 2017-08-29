@@ -2272,7 +2272,7 @@ void learn(Position&, istringstream& is)
 	}
 
 	cout << "loop              : " << loop << endl;
-	cout << "eval_lmit         : " << eval_limit << endl;
+	cout << "eval_limit        : " << eval_limit << endl;
 	cout << "save_only_once    : " << (save_only_once ? "true" : "false") << endl;
 	cout << "no_shuffle        : " << (no_shuffle ? "true" : "false") << endl;
 
