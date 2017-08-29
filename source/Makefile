@@ -70,7 +70,16 @@ LDFLAGS += -Wl,-s
 
 # OpenMPを使うときにCFLAGSとして指定するオプション
 # ※ 学習部ではOpenMpを用いるので、学習用のビルドではこのオプションを指定する。
-OPENMP   = -fopenmp
+# あと、clangでは、gccのincludeフォルダにあるomp.hを
+# pathの通っているところに配置しないといけないようだ。
+# 例) ln -s /mingw64/lib/gcc/x86_64-w64-mingw32/7.2.0/include/omp.h omp.h
+
+ifeq ($(findstring g++,$(COMPILER)),g++)
+	OPENMP   = -fopenmp
+endif
+ifeq ($(findstring clang++,$(COMPILER)),clang++)
+	OPENMP   = -fopenmp=libgomp
+endif
 
 CFLAGS += -DNO_EXCEPTIONS
 LDFLAGS += -lpthread
