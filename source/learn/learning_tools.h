@@ -248,7 +248,8 @@ namespace EvalLearningTools
 	struct KK
 	{
 		KK() {}
-		KK(Square king0, Square king1) : king0_(king0), king1_(king1) {}
+		KK(Square king0, Square king1) : king0_(king0), king1_(king1), inverse_(false) {}
+		KK(Square king0, Square king1,bool inverse) : king0_(king0), king1_(king1) , inverse_(inverse) {}
 
 		// KK,KKP,KPP配列を直列化するときの通し番号の、KKの最小値、最大値。
 		static u64 min_index() { return 0; }
@@ -265,7 +266,7 @@ namespace EvalLearningTools
 			index /= SQ_NB;
 			int king0 = (int)(index  /* % SQ_NB */);
 			ASSERT_LV3(king0 < SQ_NB);
-			return KK((Square)king0, (Square)king1);
+			return KK((Square)king0, (Square)king1 , false);
 		}
 
 		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
@@ -289,13 +290,14 @@ namespace EvalLearningTools
 		// 低次元の配列のindexを得る。
 		// USE_KK_INVERSE_WRITEが有効なときは、それらをinverseしたものが[2],[3]に入る。
 		// この次元下げに関して、gradの符号は反転させないといけないので注意すること。
+		// is_inverse()で判定できるのでこれを利用すると良い。
 		void toLowerDimensions(/*out*/KK kk_[KK_LOWER_COUNT]) const {
-			kk_[0] = KK(king0_, king1_);
+			kk_[0] = KK(king0_, king1_,false);
 #if defined(USE_KK_MIRROR_WRITE)
-			kk_[1] = KK(Mir(king0_),Mir(king1_));
+			kk_[1] = KK(Mir(king0_),Mir(king1_),false);
 #if defined(USE_KK_INVERSE_WRITE)
-			kk_[2] = KK(Inv(king1_), Inv(king0_));
-			kk_[3] = KK(Inv(Mir(king1_)) , Inv(Mir(king0_)));
+			kk_[2] = KK(Inv(king1_), Inv(king0_),true);
+			kk_[3] = KK(Inv(Mir(king1_)) , Inv(Mir(king0_)),true);
 #endif
 #endif
 		}
@@ -305,12 +307,18 @@ namespace EvalLearningTools
 			return min_index() + (u64)king0_ * (u64)SQ_NB + (u64)king1_;
 		}
 
+		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
+		bool is_inverse() const {
+			return inverse_;
+		}
+
 		// 比較演算子
 		bool operator==(const KK& rhs) { return king0() == rhs.king0() && king1() == rhs.king1(); }
 		bool operator!=(const KK& rhs) { return !(*this == rhs); }
 
 	private:
-		Square king0_, king1_;
+		Square king0_, king1_ ;
+		bool inverse_;
 	};
 
 	// デバッグ用出力。
@@ -323,7 +331,8 @@ namespace EvalLearningTools
 	struct KKP
 	{
 		KKP() {}
-		KKP(Square king0, Square king1, Eval::BonaPiece p) : king0_(king0), king1_(king1), piece_(p) {}
+		KKP(Square king0, Square king1, Eval::BonaPiece p) : king0_(king0), king1_(king1), piece_(p), inverse_(false) {}
+		KKP(Square king0, Square king1, Eval::BonaPiece p,bool inverse) : king0_(king0), king1_(king1), piece_(p),inverse_(inverse) {}
 
 		// KK,KKP,KPP配列を直列化するときの通し番号の、KKPの最小値、最大値。
 		static u64 min_index() { return KK::max_index(); }
@@ -342,7 +351,7 @@ namespace EvalLearningTools
 			index /= SQ_NB;
 			int king0 = (int)(index  /* % SQ_NB */);
 			ASSERT_LV3(king0 < SQ_NB);
-			return KKP((Square)king0, (Square)king1, (Eval::BonaPiece)piece);
+			return KKP((Square)king0, (Square)king1, (Eval::BonaPiece)piece,false);
 		}
 
 		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
@@ -367,21 +376,26 @@ namespace EvalLearningTools
 		// 低次元の配列のindexを得る。ミラーしたものがkkp_[1]に返る。
 		// USE_KKP_INVERSE_WRITEが有効なときは、それらをinverseしたものが[2],[3]に入る。
 		// この次元下げに関して、gradの符号は反転させないといけないので注意すること。
+		// is_inverse()で判定できるのでこれを利用すると良い。
 		void toLowerDimensions(/*out*/ KKP kkp_[KKP_LOWER_COUNT]) const {
-			kkp_[0] = KKP(king0_, king1_, piece_);
+			kkp_[0] = KKP(king0_, king1_, piece_,false);
 #if defined(USE_KKP_MIRROR_WRITE)
-			kkp_[1] = KKP(Mir(king0_), Mir(king1_), mir_piece(piece_));
+			kkp_[1] = KKP(Mir(king0_), Mir(king1_), mir_piece(piece_),false);
 #if defined(USE_KKP_INVERSE_WRITE)
-			kkp_[2] = KKP( Inv(king1_), Inv(king0_), inv_piece(piece_));
-			kkp_[3] = KKP( Inv(Mir(king1_)), Inv(Mir(king0_)) , inv_piece(mir_piece(piece_)));
+			kkp_[2] = KKP( Inv(king1_), Inv(king0_), inv_piece(piece_),true);
+			kkp_[3] = KKP( Inv(Mir(king1_)), Inv(Mir(king0_)) , inv_piece(mir_piece(piece_)),true);
 #endif
 #endif
-
 		}
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
 		u64 toIndex() const {
 			return min_index() + ((u64)king0_ * (u64)SQ_NB + (u64)king1_) * (u64)Eval::fe_end + (u64)piece_;
+		}
+
+		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
+		bool is_inverse() const {
+			return inverse_;
 		}
 
 		// 比較演算子
@@ -391,6 +405,7 @@ namespace EvalLearningTools
 	private:
 		Square king0_, king1_;
 		Eval::BonaPiece piece_;
+		bool inverse_;
 	};
 
 	// デバッグ用出力。

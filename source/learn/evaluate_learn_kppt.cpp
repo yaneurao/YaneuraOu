@@ -201,21 +201,23 @@ namespace Eval
 				{
 					KK x = KK::fromIndex(index);
 
-#if KK_LOWER_COUNT == 1
-					// 次元下げがないとき
-					weights[index].updateFV(kk[x.king0()][x.king1()]);
-					weights[index].set_grad(zero_t);
-#else
-					// 次元下げがあるので下げてみる
+					// 次元下げ
 					KK a[KK_LOWER_COUNT];
 					x.toLowerDimensions(/*out*/a);
 
-#if  KK_LOWER_COUNT == 2 
+					// 次元下げで得た情報を元に、それぞれのindexを得る。
+					u64 ids[KK_LOWER_COUNT];
+					for (int i = 0; i < KK_LOWER_COUNT; ++i)
+						ids[i] = a[i].toIndex();
 
-					u64 ids[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
-					array<LearnFloatType, 2> g_sum = { 0,0 };
-					for (auto id : ids)
-						g_sum += weights[id].get_grad();
+					// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す。
+					// ids[0]==ids[1]==ids[2]==ids[3]みたいな可能性があるので、gは外部で合計する。
+					array<LearnFloatType, 2> g_sum = zero_t;
+					for (int i = 0; i <KK_LOWER_COUNT; ++i)
+						// inverseした次元下げに関しては符号が逆になる。
+						g_sum += (!a[i].is_inverse()) ? weights[ids[i]].get_grad() : -weights[ids[i]].get_grad();
+					
+					// 次元下げを考慮して、その勾配の合計が0であるなら、一切の更新をする必要はない。
 					if (is_zero(g_sum))
 						continue;
 
@@ -223,118 +225,51 @@ namespace Eval
 					weights[ids[0]].set_grad(g_sum);
 					weights[ids[0]].updateFV(v);
 
+#if KK_LOWER_COUNT >= 2
 					// mirror
 					kk[a[1].king0()][a[1].king1()] = v;
-
-					for (auto id : ids)
-						weights[id].set_grad(zero_t);
-
-#elif KK_LOWER_COUNT == 4
-
-					u64 ids1[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
-					u64 ids2[2] = { a[2].toIndex() ,a[3].toIndex() };
-
-					// ids2はinverseしたものだから符号が逆になるので注意。
-					array<LearnFloatType, 2> g_sum = { 0,0 };
-					for (auto id : ids1) g_sum += weights[id].get_grad();
-					for (auto id : ids2) g_sum -= weights[id].get_grad();
-
-					if (is_zero(g_sum))
-						continue;
-
-					auto& v = kk[a[0].king0()][a[0].king1()];
-					weights[ids1[0]].set_grad(g_sum);
-					weights[ids1[0]].updateFV(v);
-
-					// mirror
-					kk[a[1].king0()][a[1].king1()] = v;
-
+#endif
+#if KK_LOWER_COUNT == 4
 					// inverse
 					kk[a[2].king0()][a[2].king1()] = -v;
 					kk[a[3].king0()][a[3].king1()] = -v;
-
-					for (auto id : ids1) weights[id].set_grad(zero_t);
-					for (auto id : ids2) weights[id].set_grad(zero_t);
-
 #endif
-#endif
-				}
-				else if (KKP::is_ok(index) && !freeze_kkp)
-				{
-					KKP x = KKP::fromIndex(index);
-
-#if KKP_LOWER_COUNT==1
-					// 次元下げがない場合
-					array<LearnFloatType, 2> g_sum = weights[index].get_grad();
-
-					// 次元下げを考慮して、その勾配の合計が0であるなら、一切の更新をする必要はない。
-					if (is_zero(g_sum))
-						continue;
-
-					auto& v = kkp[x.king0()][x.king1()][x.piece()];
-					weights[index].updateFV(v);
-					weights[index].set_grad(zero_t);
-#else
-
-					// 次元下げがある場合
-					KKP a[KKP_LOWER_COUNT];
-					x.toLowerDimensions(/*out*/a);
-
-					// a[0] == indexであることは保証されている。
-
-#if KKP_LOWER_COUNT==2
-					u64 ids[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
-					// 勾配を合計して、とりあえずa[0]に格納し、
-					// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す。
-					// id[0]==id[1]==id[2]==id[3]みたいな可能性があるので、gは外部で合計する
-					array<LearnFloatType, 2> g_sum = { 0,0 };
-					for (auto id : ids)
-						g_sum += weights[id].get_grad();
-
-					// 次元下げを考慮して、その勾配の合計が0であるなら、一切の更新をする必要はない。
-					if (is_zero(g_sum))
-						continue;
-
-					//cout << a[0].king0() << a[0].king1() << a[0].piece() << g_sum << endl;
-
-					auto& v = kkp[a[0].king0()][a[0].king1()][a[0].piece()];
-					weights[ids[0]].set_grad(g_sum);
-					weights[ids[0]].updateFV(v);
-
-					kkp[a[1].king0()][a[1].king1()][a[1].piece()] = v;
 
 					// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
 					// この場合、毎回gを通常の2倍加算していることになるが、AdaGradは適応型なのでこれでもうまく学習できる。
 					for (auto id : ids)
 						weights[id].set_grad(zero_t);
 
-#elif KKP_LOWER_COUNT==4
-					u64 ids1[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
-					u64 ids2[2] = { a[2].toIndex() ,a[3].toIndex() };
+				}
+				else if (KKP::is_ok(index) && !freeze_kkp)
+				{
+					// KKの処理と同様
 
-					// ids2はinverseしたものだから符号が逆になるので注意。
-					array<LearnFloatType, 2> g_sum = { 0,0 };
-					for (auto id : ids1) g_sum += weights[id].get_grad();
-					for (auto id : ids2) g_sum -= weights[id].get_grad();
+					KKP x = KKP::fromIndex(index);
 
-					// 次元下げを考慮して、その勾配の合計が0であるなら、一切の更新をする必要はない。
+					KKP a[KKP_LOWER_COUNT];
+					x.toLowerDimensions(/*out*/a);
+
+					u64 ids[KKP_LOWER_COUNT];
+					for (int i = 0; i < KKP_LOWER_COUNT; ++i)
+						ids[i] = a[i].toIndex();
+
+					array<LearnFloatType, 2> g_sum = zero_t;
+					for (int i = 0; i <KKP_LOWER_COUNT; ++i)
+						g_sum += (!a[i].is_inverse()) ? weights[ids[i]].get_grad() : -weights[ids[i]].get_grad();
+
 					if (is_zero(g_sum))
 						continue;
 
-					//cout << a[0].king0() << a[0].king1() << a[0].piece() << g_sum << endl;
-
 					auto& v = kkp[a[0].king0()][a[0].king1()][a[0].piece()];
-					weights[ids1[0]].set_grad(g_sum);
-					weights[ids1[0]].updateFV(v);
+					weights[ids[0]].set_grad(g_sum);
+					weights[ids[0]].updateFV(v);
 
-					kkp[a[1].king0()][a[1].king1()][a[1].piece()] = v;
-					kkp[a[2].king0()][a[2].king1()][a[2].piece()] = -v;
-					kkp[a[3].king0()][a[3].king1()][a[3].piece()] = -v;
+					for (int i = 1; i < KKP_LOWER_COUNT; ++i)
+						kkp[a[i].king0()][a[i].king1()][a[i].piece()] = (!a[i].is_inverse()) ? v : -v;
 
-					for (auto id : ids1) weights[id].set_grad(zero_t);
-					for (auto id : ids2) weights[id].set_grad(zero_t);
-#endif					
-#endif
+					for (auto id : ids)
+						weights[id].set_grad(zero_t);
 
 				}
 				else if (KPP::is_ok(index) && !freeze_kpp)
@@ -344,22 +279,18 @@ namespace Eval
 					KPP a[KPP_LOWER_COUNT];
 					x.toLowerDimensions(/*out*/a);
 
-#if KPP_LOWER_COUNT == 4
-					u64 ids[KPP_LOWER_COUNT] = { /*a[0].toIndex()*/ index , a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
-#elif KPP_LOWER_COUNT == 2 
-					u64 ids[KPP_LOWER_COUNT] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
-#else // KPP_LOWER_COUNT == 1
-					u64 ids[KPP_LOWER_COUNT] = { /*a[0].toIndex()*/ index };
-#endif
+					u64 ids[KPP_LOWER_COUNT];
+					for (int i = 0; i < KPP_LOWER_COUNT; ++i)
+						ids[i] = a[i].toIndex();
 
-					array<LearnFloatType, 2> g_sum = { 0,0 };
+					// KPPに関してはinverseの次元下げがないので、inverseの判定は不要。
+
+					array<LearnFloatType, 2> g_sum = zero_t;
 					for (auto id : ids)
 						g_sum += weights[id].get_grad();
 
 					if (is_zero(g_sum))
 						continue;
-
-					//cout << a[0].king() << a[0].piece0() << a[0].piece1() << g_sum << endl;
 
 					auto& v = kpp[a[0].king()][a[0].piece0()][a[0].piece1()];
 					weights[ids[0]].set_grad(g_sum);
@@ -369,7 +300,6 @@ namespace Eval
 					for (int i = 1; i < KPP_LOWER_COUNT; ++i)
 						kpp[a[i].king()][a[i].piece0()][a[i].piece1()] = v;
 #else
-
 					// 三角配列の場合、KPP::toLowerDimensionsで、piece0とpiece1を入れ替えたものは返らないので
 					// (同じindexを指しているので)、自分で入れ替えてkpp配列にvの値を反映させる。
 					kpp[a[0].king()][a[0].piece1()][a[0].piece0()] = v;
@@ -377,7 +307,6 @@ namespace Eval
 					kpp[a[1].king()][a[1].piece0()][a[1].piece1()] = v;
 					kpp[a[1].king()][a[1].piece1()][a[1].piece0()] = v;
 #endif
-
 #endif
 
 					for (auto id : ids)

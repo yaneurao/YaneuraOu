@@ -31,7 +31,7 @@ namespace Eval {
 		return !(lhs == rhs);
 	}
 	template <typename Tl>
-	FORCE_INLINE std::array<Tl, 2> operator - (std::array<Tl, 2>& rhs) {
+	FORCE_INLINE std::array<Tl, 2> operator - (const std::array<Tl, 2>& rhs) {
 		std::array<Tl, 2> a;
 		a[0] = -rhs[0];
 		a[1] = -rhs[1];

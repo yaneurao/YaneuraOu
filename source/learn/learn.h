@@ -130,7 +130,7 @@ typedef float LearnFloatType;
 // ----------------------
 
 // Weight配列(のうちのKPP)に三角配列を用いて省メモリ化する。
-// これを用いると、学習用の重み配列は評価関数ファイルの2.5倍程度で済むようになる。
+// これを用いると、学習用の重み配列は評価関数ファイルの3倍程度で済むようになる。
 
 #define USE_TRIANGLE_WEIGHT_ARRAY
 
@@ -138,21 +138,21 @@ typedef float LearnFloatType;
 //  次元下げ
 // ----------------------
 
-// ミラーに関して次元下げを行なう。
-// KKPはともかく、KPPのほうをオフにすると倍ぐらい教師局面が必要になる。
+// ミラー(左右対称性)、インバース(先後対称性)に関して次元下げを行なう。
+// デフォルトではすべてオン。
 
-#define USE_KKP_MIRROR_WRITE
-#define USE_KPP_MIRROR_WRITE
-
-// KKPに対して先後対称性を利用した次元下げを行なう。(効果のほどは不明)
-// これをオンにするときは、USE_KKP_MIRROR_WRITEもオンになっていなければならない。
-//#define USE_KKP_INVERSE_WRITE
-
-// KKに対してミラーおよび先後対称性を利用した次元下げを行なう。(効果のほどは不明)
+// KKに対してミラー、インバースを利用した次元下げを行なう。(効果のほどは不明)
 // USE_KK_INVERSE_WRITEをオンにするときはUSE_KK_MIRROR_WRITEもオンでなければならない。
 //#define USE_KK_MIRROR_WRITE
 //#define USE_KK_INVERSE_WRITE
 
+// KKPに対してミラー、インバースを利用した次元下げを行なう。(インバースのほうは効果のほどは不明)
+// USE_KKP_INVERSE_WRITEをオンにするときは、USE_KKP_MIRROR_WRITEもオンになっていなければならない。
+#define USE_KKP_MIRROR_WRITE
+//#define USE_KKP_INVERSE_WRITE
+
+// KPPに対してミラーを利用した次元下げを行なう。(これをオフにすると教師局面が倍ぐらい必要になる)
+#define USE_KPP_MIRROR_WRITE
 
 // ======================
 //  教師局面生成時の設定
