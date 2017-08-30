@@ -2,6 +2,14 @@
 やねうら王 更新履歴
 
 
+■　2017/08/30
+
+・clangでlearn版(OpenMPを使用)のビルドが通るようにMakefileを修正した。(たまさん)
+・USE_KK_MIRROR_WRITE、USE_KK_INVERSE_WRITE実装。
+・USE_KKP_MIRROR_WRITE、USE_KKP_INVERSE_WRITEの両方のシンボルが定義されていないときの処理が間違っていたの修正。
+KKの次元下げのコード、間違っていたの修正。
+
+
 ■　2017/08/29 V4.76
 
 ・V4.76公開。

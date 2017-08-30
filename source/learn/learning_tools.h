@@ -287,13 +287,15 @@ namespace EvalLearningTools
 #endif
 
 		// 低次元の配列のindexを得る。
+		// USE_KK_INVERSE_WRITEが有効なときは、それらをinverseしたものが[2],[3]に入る。
+		// この次元下げに関して、gradの符号は反転させないといけないので注意すること。
 		void toLowerDimensions(/*out*/KK kk_[KK_LOWER_COUNT]) const {
 			kk_[0] = KK(king0_, king1_);
 #if defined(USE_KK_MIRROR_WRITE)
 			kk_[1] = KK(Mir(king0_),Mir(king1_));
 #if defined(USE_KK_INVERSE_WRITE)
-			kk_[1] = KK(Inv(king1_), Inv(king0_));
-			kk_[2] = KK(Inv(Mir(king1_)) , Inv(Mir(king0_)));
+			kk_[2] = KK(Inv(king1_), Inv(king0_));
+			kk_[3] = KK(Inv(Mir(king1_)) , Inv(Mir(king0_)));
 #endif
 #endif
 		}
@@ -366,18 +368,14 @@ namespace EvalLearningTools
 		// USE_KKP_INVERSE_WRITEが有効なときは、それらをinverseしたものが[2],[3]に入る。
 		// この次元下げに関して、gradの符号は反転させないといけないので注意すること。
 		void toLowerDimensions(/*out*/ KKP kkp_[KKP_LOWER_COUNT]) const {
-				kkp_[0] = KKP(king0_, king1_, piece_);
+			kkp_[0] = KKP(king0_, king1_, piece_);
 #if defined(USE_KKP_MIRROR_WRITE)
 			kkp_[1] = KKP(Mir(king0_), Mir(king1_), mir_piece(piece_));
 #if defined(USE_KKP_INVERSE_WRITE)
 			kkp_[2] = KKP( Inv(king1_), Inv(king0_), inv_piece(piece_));
 			kkp_[3] = KKP( Inv(Mir(king1_)), Inv(Mir(king0_)) , inv_piece(mir_piece(piece_)));
 #endif
-
-#else
-			kkp_[1] = kkp_[0];
 #endif
-
 
 		}
 

@@ -198,7 +198,7 @@ namespace Eval
 
 				if (KK::is_ok(index) && !freeze_kk)
 				{
-#if KK_LOWER_COUNT==1
+#if KK_LOWER_COUNT == 1
 					// 次元下げがないとき
 					KK x = KK::fromIndex(index);
 					weights[index].updateFV(kk[x.king0()][x.king1()]);

@@ -533,3 +533,5 @@ clangでは、gccのincludeフォルダにあるomp.hをpathの通っている�
   ln -s /mingw64/lib/gcc/x86_64-w64-mingw32/7.2.0/include/omp.h omp.h
 	※　上記のはシンボリックリンクを用いる例ですが、
 	単にファイルをやねうら王のshogi.hなどがあるフォルダにコピーして来ても良いです。
+
+→　clangでコンパイルしたとき、OpenMPがプリプロセッサで有効になっていないようだ。[調査中]
