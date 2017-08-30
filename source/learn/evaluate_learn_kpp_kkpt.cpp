@@ -347,24 +347,22 @@ namespace Eval
 				{
 					KPP x = KPP::fromIndex(index);
 
-#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
-					KPP a[4];
+					KPP a[KPP_LOWER_COUNT];
 					x.toLowerDimensions(/*out*/a);
-					u64 ids[4] = { /*a[0].toIndex()*/ index , a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
-#else
-					// 3角配列を用いる場合、次元下げは2つ。
-					KPP a[2];
-					x.toLowerDimensions(/*out*/a);
-					u64 ids[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
+
+#if KPP_LOWER_COUNT == 4
+					u64 ids[KPP_LOWER_COUNT] = { /*a[0].toIndex()*/ index , a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
+#elif KPP_LOWER_COUNT == 2 
+					u64 ids[KPP_LOWER_COUNT] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
+#else // KPP_LOWER_COUNT == 1
+					u64 ids[KPP_LOWER_COUNT] = { /*a[0].toIndex()*/ index };
 #endif
 					// KPPは手番なし
+					// (ここがKPPT型と唯一異なる)
 
 					LearnFloatType g_sum = zero;
 					for (auto id : ids)
 						g_sum += weights_kpp[id - KPP::min_index()].get_grad();
-
-					//// KPPの手番は動かさないとき。
-					//g_sum[1] = 0;
 
 					if (g_sum == 0)
 						continue;
@@ -376,22 +374,22 @@ namespace Eval
 					weights_kpp[ids[0] - KPP::min_index()].updateFV(v);
 
 #if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
-					for (int i = 1; i < 4; ++i)
+					for (int i = 1; i < KPP_LOWER_COUNT; ++i)
 						kpp[a[i].king()][a[i].piece0()][a[i].piece1()] = v;
 #else
+
 					// 三角配列の場合、KPP::toLowerDimensionsで、piece0とpiece1を入れ替えたものは返らないので
 					// (同じindexを指しているので)、自分で入れ替えてkpp配列にvの値を反映させる。
 					kpp[a[0].king()][a[0].piece1()][a[0].piece0()] = v;
+#if KPP_LOWER_COUNT == 2
 					kpp[a[1].king()][a[1].piece0()][a[1].piece1()] = v;
 					kpp[a[1].king()][a[1].piece1()][a[1].piece0()] = v;
 #endif
 
+#endif
+
 					for (auto id : ids)
 						weights_kpp[id - KPP::min_index()].set_grad(zero);
-				}
-				else
-				{
-					ASSERT_LV3(false);
 				}
 			}
 		}

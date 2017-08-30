@@ -459,31 +459,42 @@ namespace EvalLearningTools
 		Eval::BonaPiece piece0() const { return piece0_; }
 		Eval::BonaPiece piece1() const { return piece1_; }
 
-#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
+
+		// 次元下げの数
+#if defined(USE_KPP_MIRROR_WRITE)
+	#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
+		#define KPP_LOWER_COUNT 4
+	#else
+		#define KPP_LOWER_COUNT 2
+	#endif
+#else
+	#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
+		#define KPP_LOWER_COUNT 2
+	#else
+		#define KPP_LOWER_COUNT 1
+	#endif
+#endif
+
 		// 低次元の配列のindexを得る。p1,p2を入れ替えたもの、ミラーしたものなどが返る。
-		void toLowerDimensions(/*out*/ KPP kpp_[4]) const {
+		void toLowerDimensions(/*out*/ KPP kpp_[KPP_LOWER_COUNT]) const {
+
+#if defined(USE_TRIANGLE_WEIGHT_ARRAY)
+			// 三角配列を用いる場合は、piece0とpiece1を入れ替えたものは返らないので注意。
+			kpp_[0] = KPP(king_, piece0_, piece1_);
+#if defined(USE_KPP_MIRROR_WRITE)
+			kpp_[1] = KPP(Mir(king_), mir_piece(piece0_), mir_piece(piece1_));
+#endif
+
+#else
+			// 三角配列を用いない場合
 			kpp_[0] = KPP(king_, piece0_, piece1_);
 			kpp_[1] = KPP(king_, piece1_, piece0_);
 #if defined(USE_KPP_MIRROR_WRITE)
 			kpp_[2] = KPP(Mir(king_), mir_piece(piece0_), mir_piece(piece1_));
 			kpp_[3] = KPP(Mir(king_), mir_piece(piece1_), mir_piece(piece0_));
-#else
-			kpp_[2] = kpp_[0];
-			kpp_[3] = kpp_[1];
+#endif
 #endif
 		}
-#else
-		// 低次元の配列のindexを得る。p1,p2を入れ替えたもの、ミラーしたものが返る。
-		// piece0とpiece1を入れ替えたものは返らないので注意。
-		void toLowerDimensions(/*out*/ KPP kpp_[2]) const {
-			kpp_[0] = KPP(king_, piece0_, piece1_);
-#if defined(USE_KPP_MIRROR_WRITE)
-			kpp_[1] = KPP(Mir(king_), mir_piece(piece0_), mir_piece(piece1_));
-#else
-			kpp_[1] = kpp_[0];
-#endif
-		}
-#endif
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
 		u64 toIndex() const

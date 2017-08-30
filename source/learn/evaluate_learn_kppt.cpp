@@ -187,8 +187,9 @@ namespace Eval
 #pragma omp for schedule(dynamic,20000)
 			for (s64 index_ = 0; (u64)index_ < vector_length; ++index_)
 			{
-				// OpenMPではループ変数は符号型変数でなければならないが
-				// さすがに使いにくい。
+				// OpenMPではループ変数は符号型変数でなければならないが、さすがに使いにくい。
+				// ※　この制限はOpenMP 2.5までの制限で、OpenMP 3.0では解除されている。
+				//   Visual C++ 2017はOpenMP 3.0に対応していない。PPLを推奨している模様。
 				u64 index = (u64)index_;
 
 				// 自分が更新すべきやつか？
@@ -198,14 +199,14 @@ namespace Eval
 
 				if (KK::is_ok(index) && !freeze_kk)
 				{
+					KK x = KK::fromIndex(index);
+
 #if KK_LOWER_COUNT == 1
 					// 次元下げがないとき
-					KK x = KK::fromIndex(index);
 					weights[index].updateFV(kk[x.king0()][x.king1()]);
 					weights[index].set_grad(zero_t);
 #else
-					
-					KK x = KK::fromIndex(index);
+					// 次元下げがあるので下げてみる
 					KK a[KK_LOWER_COUNT];
 					x.toLowerDimensions(/*out*/a);
 
@@ -260,20 +261,22 @@ namespace Eval
 				}
 				else if (KKP::is_ok(index) && !freeze_kkp)
 				{
+					KKP x = KKP::fromIndex(index);
+
 #if KKP_LOWER_COUNT==1
+					// 次元下げがない場合
 					array<LearnFloatType, 2> g_sum = weights[index].get_grad();
 
 					// 次元下げを考慮して、その勾配の合計が0であるなら、一切の更新をする必要はない。
 					if (is_zero(g_sum))
 						continue;
 
-					auto& v = kkp[a[0].king0()][a[0].king1()][a[0].piece()];
+					auto& v = kkp[x.king0()][x.king1()][x.piece()];
 					weights[index].updateFV(v);
 					weights[index].set_grad(zero_t);
 #else
 
-					// KKPは次元下げがあるので..
-					KKP x = KKP::fromIndex(index);
+					// 次元下げがある場合
 					KKP a[KKP_LOWER_COUNT];
 					x.toLowerDimensions(/*out*/a);
 
@@ -338,22 +341,20 @@ namespace Eval
 				{
 					KPP x = KPP::fromIndex(index);
 
-#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
-					KPP a[4];
+					KPP a[KPP_LOWER_COUNT];
 					x.toLowerDimensions(/*out*/a);
-					u64 ids[4] = { /*a[0].toIndex()*/ index , a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
-#else
-					// 3角配列を用いる場合、次元下げは2つ。
-					KPP a[2];
-					x.toLowerDimensions(/*out*/a);
-					u64 ids[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
+
+#if KPP_LOWER_COUNT == 4
+					u64 ids[KPP_LOWER_COUNT] = { /*a[0].toIndex()*/ index , a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
+#elif KPP_LOWER_COUNT == 2 
+					u64 ids[KPP_LOWER_COUNT] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
+#else // KPP_LOWER_COUNT == 1
+					u64 ids[KPP_LOWER_COUNT] = { /*a[0].toIndex()*/ index };
 #endif
+
 					array<LearnFloatType, 2> g_sum = { 0,0 };
 					for (auto id : ids)
 						g_sum += weights[id].get_grad();
-
-					//// KPPの手番は動かさないとき。
-					//g_sum[1] = 0;
 
 					if (is_zero(g_sum))
 						continue;
@@ -365,14 +366,18 @@ namespace Eval
 					weights[ids[0]].updateFV(v);
 
 #if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
-					for (int i = 1; i < 4; ++i)
+					for (int i = 1; i < KPP_LOWER_COUNT; ++i)
 						kpp[a[i].king()][a[i].piece0()][a[i].piece1()] = v;
 #else
+
 					// 三角配列の場合、KPP::toLowerDimensionsで、piece0とpiece1を入れ替えたものは返らないので
 					// (同じindexを指しているので)、自分で入れ替えてkpp配列にvの値を反映させる。
 					kpp[a[0].king()][a[0].piece1()][a[0].piece0()] = v;
+#if KPP_LOWER_COUNT == 2
 					kpp[a[1].king()][a[1].piece0()][a[1].piece1()] = v;
 					kpp[a[1].king()][a[1].piece1()][a[1].piece0()] = v;
+#endif
+
 #endif
 
 					for (auto id : ids)
