@@ -225,15 +225,8 @@ namespace Eval
 					weights[ids[0]].set_grad(g_sum);
 					weights[ids[0]].updateFV(v);
 
-#if KK_LOWER_COUNT >= 2
-					// mirror
-					kk[a[1].king0()][a[1].king1()] = v;
-#endif
-#if KK_LOWER_COUNT == 4
-					// inverse
-					kk[a[2].king0()][a[2].king1()] = -v;
-					kk[a[3].king0()][a[3].king1()] = -v;
-#endif
+					for (int i = 1; i< KK_LOWER_COUNT; ++i)
+						kk[a[i].king0()][a[i].king1()] = (!a[i].is_inverse()) ? v : -v;
 
 					// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
 					// この場合、毎回gを通常の2倍加算していることになるが、AdaGradは適応型なのでこれでもうまく学習できる。

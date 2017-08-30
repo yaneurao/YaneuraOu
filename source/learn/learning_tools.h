@@ -14,6 +14,10 @@
 typedef s8 V_FRACTION_TYPE;
 #elif V_FRACTION_BITS == 16
 typedef s16 V_FRACTION_TYPE;
+#elif V_FRACTION_BITS == 32
+typedef s32 V_FRACTION_TYPE;
+#elif V_FRACTION_BITS == 64
+typedef s64 V_FRACTION_TYPE;
 #endif
 
 namespace EvalLearningTools
@@ -117,13 +121,13 @@ namespace EvalLearningTools
 			g2 = LearnFloatType(g2 * 0.99);
 #endif
 
-			// v8は小数部8bitを含んでいるのでこれを復元する。
+			// v8は小数部8bit(V_FRACTION_BITS==8のとき)を含んでいるのでこれを復元する。
 			// 128倍にすると、-1を保持できなくなるので127倍にしておく。
 			// -1.0～+1.0を-127～127で保持している。
 			// std::round()限定なら-0.5～+0.5の範囲なので255倍でも良いが、
 			// どんな丸め方をするかはわからないので余裕を持たせてある。
 
-			const double m = (s32)1 << (V_FRACTION_BITS - 1);
+			const double m = (s64)1 << (V_FRACTION_BITS - 1);
 
 			double V = v + ((double)v_frac / m);
 
@@ -536,6 +540,12 @@ namespace EvalLearningTools
 
 			return min_index() + ( (i >= j) ? PcPcOnSq(k, i, j) : PcPcOnSq(k, j, i));
 #endif
+		}
+
+		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
+		// KK,KKPとinterfaceを合せるために用意してある。このKPPクラスでは、このメソッドは常にfalseを返す。
+		bool is_inverse() const {
+			return false;
 		}
 
 		// 比較演算子

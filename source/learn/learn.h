@@ -121,9 +121,13 @@ typedef float LearnFloatType;
 // ----------------------
 
 // Vの小数部を保持する変数のbit数
+//  8-bitsだと少し心もとない。
+// 16-bitsで十分だと思われる。
 
 //#define V_FRACTION_BITS 8
 #define V_FRACTION_BITS 16
+//#define V_FRACTION_BITS 32
+//#define V_FRACTION_BITS 64
 
 // ----------------------
 //  省メモリ化
@@ -143,16 +147,18 @@ typedef float LearnFloatType;
 
 // KKに対してミラー、インバースを利用した次元下げを行なう。(効果のほどは不明)
 // USE_KK_INVERSE_WRITEをオンにするときはUSE_KK_MIRROR_WRITEもオンでなければならない。
-//#define USE_KK_MIRROR_WRITE
-//#define USE_KK_INVERSE_WRITE
+#define USE_KK_MIRROR_WRITE
+#define USE_KK_INVERSE_WRITE
 
 // KKPに対してミラー、インバースを利用した次元下げを行なう。(インバースのほうは効果のほどは不明)
 // USE_KKP_INVERSE_WRITEをオンにするときは、USE_KKP_MIRROR_WRITEもオンになっていなければならない。
 #define USE_KKP_MIRROR_WRITE
-//#define USE_KKP_INVERSE_WRITE
+#define USE_KKP_INVERSE_WRITE
 
 // KPPに対してミラーを利用した次元下げを行なう。(これをオフにすると教師局面が倍ぐらい必要になる)
+// KPPにはインバースはない。(先手側のKしかないので)
 #define USE_KPP_MIRROR_WRITE
+
 
 // ======================
 //  教師局面生成時の設定
