@@ -272,10 +272,30 @@ namespace EvalLearningTools
 		Square king0() const { return king0_; }
 		Square king1() const { return king1_; }
 
+// 次元下げの数
+#if defined(USE_KK_INVERSE_WRITE)
+	#define KK_LOWER_COUNT 4
+#elif defined(USE_KK_MIRROR_WRITE)
+	#define KK_LOWER_COUNT 2
+#else 
+	#define KK_LOWER_COUNT 1
+#endif
+
+#if defined(USE_KK_INVERSE_WRITE) && !defined(USE_KK_MIRROR_WRITE) 
+		// USE_KK_INVERSE_WRITEわ使うならUSE_KK_MIRROR_WRITEも定義して欲しい。
+		static_assert(false, "define also USE_KK_MIRROR_WRITE!");
+#endif
+
 		// 低次元の配列のindexを得る。
-		// KKはミラーの次元下げを行わないので、そのままの値。
-		void toLowerDimensions(/*out*/KK kk_[1]) const {
+		void toLowerDimensions(/*out*/KK kk_[KK_LOWER_COUNT]) const {
 			kk_[0] = KK(king0_, king1_);
+#if defined(USE_KK_MIRROR_WRITE)
+			kk_[1] = KK(Mir(king0_),Mir(king1_));
+#if defined(USE_KK_INVERSE_WRITE)
+			kk_[1] = KK(Inv(king1_), Inv(king0_));
+			kk_[2] = KK(Inv(Mir(king1_)) , Inv(Mir(king0_)));
+#endif
+#endif
 		}
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
@@ -331,9 +351,17 @@ namespace EvalLearningTools
 		// KKPの次元下げの数
 #if defined(USE_KKP_INVERSE_WRITE)
 		#define KKP_LOWER_COUNT 4
-#else
+#elif defined(USE_KKP_MIRROR_WRITE)
 		#define KKP_LOWER_COUNT 2
+#else
+		#define KKP_LOWER_COUNT 1
 #endif
+
+#if defined(USE_KKP_INVERSE_WRITE) && !defined(USE_KKP_MIRROR_WRITE) 
+		// USE_KKP_INVERSE_WRITEわ使うならUSE_KKP_MIRROR_WRITEも定義して欲しい。
+		static_assert(false, "define also USE_KKP_MIRROR_WRITE!");
+#endif
+
 		// 低次元の配列のindexを得る。ミラーしたものがkkp_[1]に返る。
 		// USE_KKP_INVERSE_WRITEが有効なときは、それらをinverseしたものが[2],[3]に入る。
 		// この次元下げに関して、gradの符号は反転させないといけないので注意すること。

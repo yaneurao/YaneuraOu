@@ -169,7 +169,8 @@ namespace Eval
 		// epochに応じたetaを設定してやる。
 		Weight::calc_eta(epoch);
 
-		const auto zero = array<LearnFloatType, 2>{ 0, 0 };
+		// 手番つきのゼロ
+		const auto zero_t = array<LearnFloatType, 2>{ 0, 0 };
 
 		// 並列化を効かせたいので直列化されたWeight配列に対してループを回す。
 
@@ -197,19 +198,87 @@ namespace Eval
 
 				if (KK::is_ok(index) && !freeze_kk)
 				{
-					// KKは次元下げしていないので普通にupdate
+#if KK_LOWER_COUNT==1
+					// 次元下げがないとき
 					KK x = KK::fromIndex(index);
 					weights[index].updateFV(kk[x.king0()][x.king1()]);
-					weights[index].set_grad(zero);
+					weights[index].set_grad(zero_t);
+#else
+					
+					KK x = KK::fromIndex(index);
+					KK a[KK_LOWER_COUNT];
+					x.toLowerDimensions(/*out*/a);
+
+#if  KK_LOWER_COUNT == 2 
+
+					u64 ids[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
+					array<LearnFloatType, 2> g_sum = { 0,0 };
+					for (auto id : ids)
+						g_sum += weights[id].get_grad();
+					if (is_zero(g_sum))
+						continue;
+
+					auto& v = kk[a[0].king0()][a[0].king1()];
+					weights[ids[0]].set_grad(g_sum);
+					weights[ids[0]].updateFV(v);
+
+					// mirror
+					kk[a[1].king0()][a[1].king1()] = v;
+
+					for (auto id : ids)
+						weights[id].set_grad(zero_t);
+
+#elif KK_LOWER_COUNT == 4
+
+					u64 ids1[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
+					u64 ids2[2] = { a[2].toIndex() ,a[3].toIndex() };
+
+					// ids2はinverseしたものだから符号が逆になるので注意。
+					array<LearnFloatType, 2> g_sum = { 0,0 };
+					for (auto id : ids1) g_sum += weights[id].get_grad();
+					for (auto id : ids2) g_sum -= weights[id].get_grad();
+
+					if (is_zero(g_sum))
+						continue;
+
+					auto& v = kk[a[0].king0()][a[0].king1()];
+					weights[ids1[0]].set_grad(g_sum);
+					weights[ids1[0]].updateFV(v);
+
+					// mirror
+					kk[a[1].king0()][a[1].king1()] = v;
+
+					// inverse
+					kk[a[2].king0()][a[2].king1()] = -v;
+					kk[a[3].king0()][a[3].king1()] = -v;
+
+					for (auto id : ids1) weights[id].set_grad(zero_t);
+					for (auto id : ids2) weights[id].set_grad(zero_t);
+
+#endif
+#endif
 				}
 				else if (KKP::is_ok(index) && !freeze_kkp)
 				{
+#if KKP_LOWER_COUNT==1
+					array<LearnFloatType, 2> g_sum = weights[index].get_grad();
+
+					// 次元下げを考慮して、その勾配の合計が0であるなら、一切の更新をする必要はない。
+					if (is_zero(g_sum))
+						continue;
+
+					auto& v = kkp[a[0].king0()][a[0].king1()][a[0].piece()];
+					weights[index].updateFV(v);
+					weights[index].set_grad(zero_t);
+#else
+
 					// KKPは次元下げがあるので..
 					KKP x = KKP::fromIndex(index);
 					KKP a[KKP_LOWER_COUNT];
 					x.toLowerDimensions(/*out*/a);
 
 					// a[0] == indexであることは保証されている。
+
 #if KKP_LOWER_COUNT==2
 					u64 ids[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
 					// 勾配を合計して、とりあえずa[0]に格納し、
@@ -234,7 +303,7 @@ namespace Eval
 					// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
 					// この場合、毎回gを通常の2倍加算していることになるが、AdaGradは適応型なのでこれでもうまく学習できる。
 					for (auto id : ids)
-						weights[id].set_grad(zero);
+						weights[id].set_grad(zero_t);
 
 #elif KKP_LOWER_COUNT==4
 					u64 ids1[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
@@ -259,9 +328,9 @@ namespace Eval
 					kkp[a[2].king0()][a[2].king1()][a[2].piece()] = -v;
 					kkp[a[3].king0()][a[3].king1()][a[3].piece()] = -v;
 
-					for (auto id : ids1) weights[id].g = { 0,0 };
-					for (auto id : ids2) weights[id].g = { 0,0 };
-
+					for (auto id : ids1) weights[id].set_grad(zero_t);
+					for (auto id : ids2) weights[id].set_grad(zero_t);
+#endif					
 #endif
 
 				}
@@ -307,7 +376,7 @@ namespace Eval
 #endif
 
 					for (auto id : ids)
-						weights[id].set_grad(zero);
+						weights[id].set_grad(zero_t);
 				}
 			}
 		}
