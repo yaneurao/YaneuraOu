@@ -94,7 +94,8 @@ namespace EvalLearningTools
 		// AdaGradのg2
 		LearnFloatType g2;
 
-		// vの小数部上位8bit。(vをfloatで持つのもったいないのでvの補助bitとして8bitで持つ)
+		// vの固定小数表現 8-bits。(vをfloatで持つのもったいないのでvの補助bitとして小数部を持つ)
+		// 何bit持つかは、V_FRACTION_BITSの設定で変更できる。
 		V_FRACTION_TYPE v_frac;
 
 		// AdaGradでupdateする
@@ -143,8 +144,8 @@ namespace EvalLearningTools
 			v_frac = (V_FRACTION_TYPE)((V - v) * m);
 
 			// この要素に関するmini-batchの1回分の更新が終わったのでgをクリア
-			//g[i] = 0;
-			// これは呼び出し側で行なうことにする。
+			// g[i] = 0;
+			// →次元下げの問題があるので、これは呼び出し側で行なうことにする。
 		}
 
 #elif defined(SGD_UPDATE)
@@ -177,9 +178,8 @@ namespace EvalLearningTools
 			else
 				V+= diff;
 
-			// Vの値をINT16の範囲に収まるように制約を課す。
-			V = std::min((s16)((double)INT16_MAX * 15 / 16), (s16)(V));
-			V = std::max((s16)((double)INT16_MIN * 15 / 16), (s16)(V));
+			V = std::min((double)(std::numeric_limits<T>::max)(), V);
+			V = std::max((double)(std::numeric_limits<T>::min)(), V);
 
 			v = (T)V;
 		}

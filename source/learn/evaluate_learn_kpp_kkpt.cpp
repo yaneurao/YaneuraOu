@@ -194,7 +194,7 @@ namespace Eval
 #endif
 
 #pragma omp for schedule(dynamic,20000)
-			for (s64 index_ = 0; (u64)index_ < vector_length; ++index_)
+			for (s64 index_ = 0; index_ < (s64)vector_length; ++index_)
 			{
 				// OpenMPではループ変数は符号型変数でなければならないが
 				// さすがに使いにくい。

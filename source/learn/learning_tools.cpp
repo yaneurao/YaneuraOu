@@ -77,60 +77,50 @@ namespace EvalLearningTools
 
 				if (KK::is_ok(index))
 				{
-					min_index_flag[index] = true;
 					// indexからの変換と逆変換によって元のindexに戻ることを確認しておく。
 					// 起動時に1回しか実行しない処理なのでASSERT_LV1で書いておく。
 					ASSERT_LV1(KK::fromIndex(index).toIndex() == index);
-					// 次元下げの1つ目の要素が元のindexと同一であることを確認しておく。
+
 					KK a[KK_LOWER_COUNT];
 					KK::fromIndex(index).toLowerDimensions(a);
-#if KK_LOWER_COUNT == 1
-					min_index_flag[index] = true;
-#elif KK_LOWER_COUNT == 2
-					u64 id[2] = { a[0].toIndex(),a[1].toIndex() };
-					min_index_flag[index] = (std::min({ id[0],id[1] }) == index);
-#elif KK_LOWER_COUNT == 4
-					u64 id[4] = { a[0].toIndex(),a[1].toIndex(),a[2].toIndex() , a[3].toIndex() };
-					min_index_flag[index] = (std::min({ id[0],id[1],id[2],id[3] }) == index);
-#endif
 
+					// 次元下げの1つ目の要素が元のindexと同一であることを確認しておく。
 					ASSERT_LV1(a[0].toIndex() == index);
+
+					u64 min_index = UINT64_MAX;
+					for (auto& e : a)
+						min_index = std::min(min_index, e.toIndex());
+					min_index_flag[index] = (min_index == index);
 				}
 				else if (KKP::is_ok(index))
 				{
+					ASSERT_LV1(KKP::fromIndex(index).toIndex() == index);
+
 					KKP x = KKP::fromIndex(index);
 					KKP a[KKP_LOWER_COUNT];
 					x.toLowerDimensions(a);
-#if KKP_LOWER_COUNT == 1
-					min_index_flag[index] = true;
-#elif KKP_LOWER_COUNT == 2
-					u64 id[2] = { a[0].toIndex(),a[1].toIndex() };
-					min_index_flag[index] = (std::min({ id[0],id[1] }) == index);
-#elif KKP_LOWER_COUNT == 4
-					u64 id[4] = { a[0].toIndex(),a[1].toIndex(),a[2].toIndex() , a[3].toIndex() };
-					min_index_flag[index] = (std::min({ id[0],id[1],id[2],id[3] }) == index);
-#endif
-					ASSERT_LV1(id[0] == index);
+
+					ASSERT_LV1(a[0].toIndex() == index);
+
+					u64 min_index = UINT64_MAX;
+					for (auto& e : a)
+						min_index = std::min(min_index, e.toIndex());
+					min_index_flag[index] = (min_index == index);
 				}
 				else if (KPP::is_ok(index))
 				{
-					KPP x = KPP::fromIndex(index);
-
-#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
-					// 普通の正方配列のとき、次元下げは4つ。
-					KPP a[4];
-					x.toLowerDimensions(a);
-					u64 id[4] = { a[0].toIndex() , a[1].toIndex(), a[2].toIndex() , a[3].toIndex() };
-					min_index_flag[index] = (std::min({ id[0],id[1],id[2],id[3] }) == index);
-#else
-					// 3角配列を用いるなら、次元下げは2つ。
-					KPP a[2];
-					x.toLowerDimensions(a);
-					u64 id[2] = { a[0].toIndex() , a[1].toIndex() };
-					min_index_flag[index] = (std::min({ id[0],id[1] }) == index);
-#endif
 					ASSERT_LV1(KPP::fromIndex(index).toIndex() == index);
-					ASSERT_LV1(id[0] == index);
+
+					KPP x = KPP::fromIndex(index);
+					KPP a[KPP_LOWER_COUNT];
+					x.toLowerDimensions(a);
+
+					ASSERT_LV1(a[0].toIndex() == index);
+
+					u64 min_index = UINT64_MAX;
+					for (auto& e : a)
+						min_index = std::min(min_index, e.toIndex());
+					min_index_flag[index] = (min_index == index);
 				}
 				else
 				{
