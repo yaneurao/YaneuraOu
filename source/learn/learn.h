@@ -159,6 +159,10 @@ typedef float LearnFloatType;
 // KPPにはインバースはない。(先手側のKしかないので)
 #define USE_KPP_MIRROR_WRITE
 
+// KPPPに対してミラーを利用した次元下げを行なう。(これをオフにすると教師局面が倍ぐらい必要になる)
+// KPPPにもインバースはない。(先手側のKしかないので)
+#define USE_KPPP_MIRROR_WRITE
+
 
 // ======================
 //  教師局面生成時の設定

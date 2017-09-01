@@ -1,6 +1,6 @@
 ﻿#include "../shogi.h"
 
-// KPP+KPPTの実験用コード。
+// KPP+KKPTの実験用コード。
 // ほとんどevaluate_kppt.cppと同じ。
 
 #if defined (EVAL_KPP_KKPT)
@@ -192,8 +192,8 @@ namespace Eval
 		std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
 		cv.from_bytes(dir_name).c_str();
 
-		auto mapped_file_name = TEXT("YANEURAOU_KPP_PPT_MMF" ENGINE_VERSION) + cv.from_bytes(dir_name);
-		auto mutex_name = TEXT("YANEURAOU_KPP_PPT_MUTEX" ENGINE_VERSION) + cv.from_bytes(dir_name);
+		auto mapped_file_name = TEXT("YANEURAOU_KPP_KKPT_MMF" ENGINE_VERSION) + cv.from_bytes(dir_name);
+		auto mutex_name = TEXT("YANEURAOU_KPP_KKPT_MUTEX" ENGINE_VERSION) + cv.from_bytes(dir_name);
 
 		// プロセス間の排他用mutex
 		auto hMutex = CreateMutex(NULL, FALSE, mutex_name.c_str());
@@ -638,7 +638,8 @@ namespace Eval
                     }
 
                     for (; j < i; ++j) {
-                        diff.p[1][0] += pkppw[list1[j]];
+						const int l1 = list1[j];
+						diff.p[1][0] += pkppw[l1];
                     }
 
                     // KKPのWK分。BKは移動していないから、BK側には影響ない。
@@ -730,7 +731,8 @@ namespace Eval
                     }
 
                     for (; j < i; ++j) {
-                        diff.p[0][0] += pkppb[list0[j]];
+						const int l0 = list0[j];
+						diff.p[0][0] += pkppb[l0];
                     }
 
                     diff.p[2] += kkp[sq_bk][sq_wk][k0];
@@ -1072,11 +1074,11 @@ namespace Eval
 				l0 = list_fb[j];
 				l1 = list_fw[j];
 
-				sum.p[0][0] += pkppb[l0];
-				sum.p[1][0] += pkppw[l1];
-
 				cout << "BKPP : " << sq_bk << " " << k0 << " " << l0 << " = " << pkppb[l0] << endl;
 				cout << "WKPP : " << sq_wk << " " << k1 << " " << l1 << " = " << pkppw[l1] << endl;
+
+				sum.p[0][0] += pkppb[l0];
+				sum.p[1][0] += pkppw[l1];
 			}
 			sum.p[2] += kkp[sq_bk][sq_wk][k0];
 
@@ -1190,10 +1192,10 @@ namespace Eval
 	// パラメーターの分析などに用いる。
 	void foreach_eval_param(std::function<void(s32, s32)>f, int type)
 	{
-		// PP
+		// KK
 		if (type == -1 || type == 0)
 		{
-			for (u64 i = 0; i < (u64)fe_end * (u64)fe_end; ++i)
+			for (u64 i = 0; i < (u64)SQ_NB * (u64)SQ_NB; ++i)
 			{
 				auto v = ((ValueKk*)kk)[i];
 				f(v[0], v[1]);

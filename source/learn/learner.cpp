@@ -1443,6 +1443,8 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	pos.set_hirate(th);
 	std::cout << "hirate eval = " << Eval::evaluate(pos);
 
+	//Eval::print_eval_stat(pos);
+
 	// ここ、並列化したほうが良いのだがslaveの前の探索が終わってなかったりしてちょっと面倒。
 	// taskを呼び出すための仕組みを作ったのでそれを用いる。
 

@@ -70,17 +70,8 @@ LDFLAGS += -Wl,-s
 
 # OpenMPを使うときにCFLAGSとして指定するオプション
 # ※ 学習部ではOpenMpを用いるので、学習用のビルドではこのオプションを指定する。
-# あと、clangでは、gccのincludeフォルダにあるomp.hを
-# pathの通っているところに配置しないといけないようだ。
-# 例) ln -s /mingw64/lib/gcc/x86_64-w64-mingw32/7.2.0/include/omp.h omp.h
-# →　clangでコンパイルしたとき、OpenMPがプリプロセッサで有効になっていないようだ。[調査中]
-
-ifeq ($(findstring g++,$(COMPILER)),g++)
-	OPENMP   = -fopenmp
-endif
-ifeq ($(findstring clang++,$(COMPILER)),clang++)
-	OPENMP   = -fopenmp=libgomp
-endif
+# clangでコンパイルする方法は調査中。
+OPENMP = -fopenmp
 
 CFLAGS += -DNO_EXCEPTIONS
 LDFLAGS += -lpthread

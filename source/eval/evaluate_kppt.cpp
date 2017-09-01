@@ -273,7 +273,7 @@ namespace Eval
 			if (shared_eval_ptr == nullptr)
 			{
 				sync_cout << "info string can't allocate shared eval memory." << sync_endl;
-				exit(1);
+				my_exit();
 			}
 			else
 			{
@@ -393,6 +393,7 @@ namespace Eval
 				l0 = list_fb[j];
 				l1 = list_fw[j];
 
+				// KPP
 #if defined(USE_SSE41)
 				// SSEによる実装
 
@@ -407,6 +408,8 @@ namespace Eval
 				sum.p[1] += pkppw[l1];
 #endif
 			}
+
+			// KKP
 			sum.p[2] += kkp[sq_bk][sq_wk][k0];
 		}
 
@@ -477,6 +480,7 @@ namespace Eval
 		sum.p[0] = { 0, 0 };
 		sum.p[1] = { 0, 0 };
 #endif
+		// KK
 		sum.p[2] = kkp[sq_bk][sq_wk][ebp.fb];
 
 		const auto* pkppb = kpp[sq_bk     ][ebp.fb];

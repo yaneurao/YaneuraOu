@@ -316,6 +316,13 @@ namespace EvalLearningTools
 			return inverse_;
 		}
 
+		// is_inverse() == trueのときに、gradの手番ではないほうの符号を反転させて返す。
+		template <typename T>
+		std::array<T, 2> adjust_grad(const std::array<T, 2>& rhs)
+		{
+			return !is_inverse() ? rhs : std::array<T, 2>{-rhs[0], rhs[1]};
+		}
+
 		// 比較演算子
 		bool operator==(const KK& rhs) { return king0() == rhs.king0() && king1() == rhs.king1(); }
 		bool operator!=(const KK& rhs) { return !(*this == rhs); }
@@ -400,6 +407,13 @@ namespace EvalLearningTools
 		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
 		bool is_inverse() const {
 			return inverse_;
+		}
+
+		// is_inverse() == trueのときに、gradの手番ではないほうの符号を反転させて返す。
+		template <typename T>
+		std::array<T, 2> adjust_grad(const std::array<T, 2>& rhs)
+		{
+			return !is_inverse() ? rhs : std::array<T, 2>{-rhs[0], rhs[1]};
 		}
 
 		// 比較演算子
@@ -572,6 +586,193 @@ namespace EvalLearningTools
 		return os;
 	}
 
+	// KPPPの4駒関係。ただし、手番ありでミラー等を考慮しないと学習に2TB以上のメモリが必要…。
+	// 三角配列を使っても学習のために50GB×12バイト = 600GB必要。
+	// ミラーしたもののみを格納するようにしてもの半分ぐらい必要。
+	struct KPPP
+	{
+		KPPP() {}
+		KPPP(Square king, Eval::BonaPiece p0, Eval::BonaPiece p1, Eval::BonaPiece p2) : king_(king), piece0_(p0), piece1_(p1), piece2_(p2) {}
+
+		// KK,KKP,KPP,KPPP配列を直列化するときの通し番号の、KPPPの最小値、最大値。
+		static u64 min_index() { return KPP::max_index(); }
+
+		// KPPPのときに扱う玉の升の数。3段×ミラーなら3段×5筋 = 15みたいな感じ。
+		static u64 king_sq() {
+#define KPPP_KING_SQ 15
+			return KPPP_KING_SQ;
+		}
+
+#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
+		static u64 max_index() { return min_index() + (u64)SQ_NB*(u64)Eval::fe_end*(u64)Eval::fe_end*(u64)Eval::fe_end; }
+#else
+		// kppp[king_sq][fe_end][fe_end][fe_end]の[fe_end][fe_end][fe_end]な正方配列の部分を三角配列化する。
+		// kppp[king_sq][triangle_fe_end]とすると、この三角配列の1行目は要素1個、2行目は3個、…,n行目はn(n+1)/2個。
+		// ゆえに、
+		// triangle_fe_end = Σn(n+1)/2 , n=1..fe_end
+		//                 =  fe_end(fe_end + 1)(fe_end + 2) / 6
+		static const u64 triangle_fe_end = (u64)Eval::fe_end*((u64)Eval::fe_end + 1)*((u64)Eval::fe_end + 2) / 6;
+		static u64 max_index() { return min_index() + (u64)king_sq()*triangle_fe_end; }
+#endif
+
+		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
+		static bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
+
+
+		// 次元下げの数
+#if defined(USE_KPPP_MIRROR_WRITE)
+#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
+#define KPPP_LOWER_COUNT 12
+#else
+#define KPPP_LOWER_COUNT 2
+#endif
+#else
+#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
+#define KPPP_LOWER_COUNT 6
+#else
+#define KPPP_LOWER_COUNT 1
+#endif
+#endif
+
+		// 低次元の配列のindexを得る。p1,p2を入れ替えたもの、ミラーしたものなどが返る。
+		void toLowerDimensions(/*out*/ KPPP kppp_[KPPP_LOWER_COUNT]) const {
+
+#if defined(USE_TRIANGLE_WEIGHT_ARRAY)
+			// 三角配列を用いる場合は、piece0とpiece1,piece2を入れ替えたものは返らないので注意。
+			kppp_[0] = KPPP(king_, piece0_, piece1_,piece2_);
+#if defined(USE_KPPP_MIRROR_WRITE)
+			kppp_[1] = KPPP(Mir(king_), mir_piece(piece0_), mir_piece(piece1_) , mir_piece(piece2_));
+#endif
+
+#else
+			// 三角配列を用いない場合
+			kppp_[0] = KPPP(king_, piece0_, piece1_ , piece2_);
+			kppp_[1] = KPPP(king_, piece0_, piece2_ , piece1_);
+			kppp_[2] = KPPP(king_, piece1_, piece0_, piece2_);
+			kppp_[3] = KPPP(king_, piece1_, piece2_, piece0_);
+			kppp_[4] = KPPP(king_, piece2_, piece0_, piece1_);
+			kppp_[5] = KPPP(king_, piece2_, piece1_, piece0_);
+#if defined(USE_KPPP_MIRROR_WRITE)
+			kppp_[6]  = KPPP(Mir(king_), mir_piece(piece0_), mir_piece(piece1_), mir_piece(piece2_));
+			kppp_[7]  = KPPP(Mir(king_), mir_piece(piece0_), mir_piece(piece2_), mir_piece(piece1_));
+			kppp_[8]  = KPPP(Mir(king_), mir_piece(piece1_), mir_piece(piece0_), mir_piece(piece2_));
+			kppp_[9]  = KPPP(Mir(king_), mir_piece(piece1_), mir_piece(piece2_), mir_piece(piece0_));
+			kppp_[10] = KPPP(Mir(king_), mir_piece(piece2_), mir_piece(piece0_), mir_piece(piece1_));
+			kppp_[11] = KPPP(Mir(king_), mir_piece(piece2_), mir_piece(piece1_), mir_piece(piece0_));
+#endif
+#endif
+		}
+
+		// indexからKPPPのオブジェクトを生成するbuilder
+		static KPPP fromIndex(u64 index)
+		{
+			index -= min_index();
+
+#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
+			int piece2 = (int)(index % Eval::fe_end);
+			index /= Eval::fe_end;
+			int piece1 = (int)(index % Eval::fe_end);
+			index /= Eval::fe_end;
+			int piece0 = (int)(index % Eval::fe_end);
+			index /= Eval::fe_end;
+#else
+			u64 index2 = index % triangle_fe_end;
+
+			// TODO:あとで書く。
+			// ここにindex2からpiece0,piece1を求める式を書く。
+			// これは index2 = i * (i+1) / 2 + j の逆関数となる。
+			// j = 0 の場合、i^2 + i - 2 * index2 == 0なので
+			// 2次方程式の解の公式から i = (sqrt(8*index2+1) - 1) / 2である。
+			// iを整数化したのちに、j = index2 - i * (i + 1) / 2としてjを求めれば良い。
+
+			// BonaPieceは32bit(16bitに収まらない可能性)を想定しているのでこの掛け算は64bitでないといけない。
+			int piece2 = int(sqrt(8 * index2 + 1) - 1) / 2; // TODO:書きかけ。あとで書く
+			int piece1 = int(sqrt(8 * index2 + 1) - 1) / 2;
+			int piece0 = int(index2 - (u64)piece1*((u64)piece1 + 1) / 2);
+
+			ASSERT_LV3(piece2 < (int)Eval::fe_end);
+			ASSERT_LV3(piece1 < (int)Eval::fe_end);
+			ASSERT_LV3(piece0 < (int)Eval::fe_end);
+
+			index /= triangle_fe_end;
+#endif
+			int king = (int)(index  /* % SQ_NB */);
+			ASSERT_LV3(king < SQ_NB);
+			return KPPP((Square)king, (Eval::BonaPiece)piece0, (Eval::BonaPiece)piece1 , (Eval::BonaPiece)piece2);
+		}
+
+		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
+		u64 toIndex() const
+		{
+#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
+
+			return min_index() +
+				(((u64)king_ * (u64)Eval::fe_end + (u64)piece0_) * (u64)Eval::fe_end + (u64)piece1_ ) * (u64)Eval::fe_end + (u64)piece2_;
+
+#else
+			// Bonanza6.0で使われているのに似せたマクロ
+			auto PcPcPcOnSq = [](Square king, Eval::BonaPiece i, Eval::BonaPiece j , Eval::BonaPiece k)
+			{
+				// この三角配列の(i,j)は、i行目のj列目の要素。
+				// i行目0列目は、そこまでの要素の合計であるから、1 + 2 + ... + i = i * (i+1) / 2
+				// i行目j列目は、これにjを足したもの。i * (i + 1) /2 + j
+
+				// BonaPiece型は、32bitを想定しているので掛け算には気をつけないとオーバーフローする。
+				return (u64)king * triangle_fe_end + (u64)(u64(i)*(u64(i) + 1) / 2 + u64(j));
+
+				// TODO: kの計算わからん。あとで書く。
+			};
+
+			auto king = king_;
+			auto i = piece0_;
+			auto j = piece1_;
+			auto k = piece2_;
+
+			// TODO : 並び替え
+			return min_index() + ((i >= j) ? PcPcPcOnSq(king, i, j , k) : PcPcPcOnSq(king, j, i , k));
+#endif
+		}
+
+		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
+		Square king() const { return king_; }
+		Eval::BonaPiece piece0() const { return piece0_; }
+		Eval::BonaPiece piece1() const { return piece1_; }
+		Eval::BonaPiece piece2() const { return piece2_; }
+
+		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
+		// KK,KKPとinterfaceを合せるために用意してある。このKPPPクラスでは、このメソッドは常にfalseを返す。
+		bool is_inverse() const {
+			return false;
+		}
+
+		// 比較演算子
+		bool operator==(const KPPP& rhs) {
+			return king() == rhs.king() &&
+				((piece0() == rhs.piece0() && piece1() == rhs.piece1() && piece2() == rhs.piece2())
+#if defined(USE_TRIANGLE_WEIGHT_ARRAY)
+					// 三角配列を用いるときはpiece0とpiece1の入れ替わりを許容する。
+					|| (piece0() == rhs.piece0() && piece1() == rhs.piece2() && piece2() == rhs.piece1())
+					|| (piece0() == rhs.piece1() && piece1() == rhs.piece0() && piece2() == rhs.piece2())
+					|| (piece0() == rhs.piece1() && piece1() == rhs.piece2() && piece2() == rhs.piece0())
+					|| (piece0() == rhs.piece2() && piece1() == rhs.piece0() && piece2() == rhs.piece1())
+					|| (piece0() == rhs.piece2() && piece1() == rhs.piece1() && piece2() == rhs.piece0())
+#endif
+					);
+		}
+		bool operator!=(const KPPP& rhs) { return !(*this == rhs); }
+
+	private:
+		Square king_;
+		Eval::BonaPiece piece0_, piece1_,piece2_;
+
+	};
+
+	// デバッグ用出力。
+	static std::ostream& operator<<(std::ostream& os, KPPP rhs)
+	{
+		os << "KPPP(" << rhs.king() << "," << rhs.piece0() << "," << rhs.piece1() << "," << rhs.piece2() << ")";
+		return os;
+	}
 }
 
 #endif // defined (EVAL_LEARN)
