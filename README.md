@@ -40,8 +40,8 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 
 ## やねうら王評価関数ファイル
 
-やねうら王2017Early用 - Apery(WCSC26)、Apery(SDT4)＝「浮かむ瀬」の評価関数バイナリがそのまま使えます。
-やねうら王2017 KPP_KPPT型評価関数 - 以下のKPP_KPPT型ビルド用評価関数のところにあるものが使えます。
+- やねうら王2017Early用 - Apery(WCSC26)、Apery(SDT4)＝「浮かむ瀬」の評価関数バイナリがそのまま使えます。
+- やねうら王2017 KPP_KPPT型評価関数 - 以下のKPP_KPPT型ビルド用評価関数のところにあるものが使えます。
 
 ### 「Re : ゼロから始める評価関数生活」プロジェクト(略して「リゼロ」)
 

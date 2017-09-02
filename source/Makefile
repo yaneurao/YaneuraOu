@@ -70,8 +70,15 @@ LDFLAGS += -Wl,-s
 
 # OpenMPを使うときにCFLAGSとして指定するオプション
 # ※ 学習部ではOpenMpを用いるので、学習用のビルドではこのオプションを指定する。
-# clangでコンパイルする方法は調査中。
-OPENMP = -fopenmp
+# clangでOPENMPを有効にしてビルドする方法については、解説.txtを参照のこと。
+
+ifeq ($(findstring g++,$(COMPILER)),g++)
+        OPENMP   = -fopenmp
+endif
+ifeq ($(findstring clang++,$(COMPILER)),clang++)
+        OPENMP   = -fopenmp
+        LDFLAGS += -lomp
+endif
 
 CFLAGS += -DNO_EXCEPTIONS
 LDFLAGS += -lpthread
@@ -141,9 +148,9 @@ all: clean $(TARGET)
 
 # 学習用バイナリのときは、openmpを有効にする。
 evallearn:
-	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(OPENMP) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 evallearn-sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(OPENMP) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 tournament:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -DFOR_TOURNAMENT -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)

@@ -2,12 +2,35 @@
 やねうら王 更新履歴
 
 
+■　2017/09/02
+
+・KPP_KKPT型評価関数ビルド公開。
+・rezero KPP_KKPT epoch4公開。
+・Msys2環境にてclangでOpenMPを有効にしてビルド出来るようにmakefileを修正。(たまさん)
+
+
+■　2017/09/01
+
+・EvalLearningTools::KPPP半分ぐらい書いた。
+・KK,KKPのinverseの計算、間違ってたような気がするので修正した。(気がする)
+
+
+■　2017/08/31
+
+・KK,KKPの次元下げのコード、害はなさそうなのですべてオンをデフォルトと変更する。
+・EvalLearningTools::KPPクラスにis_inverse()追加。
+・V_FRACTION_BITS、32bit,64bitを用意。
+・SGDで学習させるときのvの値の絶対値をAdaGradのときと同様にした。
+・EvalLearningToolsの初期化コード、整理した。
+
+
 ■　2017/08/30
 
 ・clangでlearn版(OpenMPを使用)のビルドが通るようにMakefileを修正した。(たまさん)
 ・USE_KK_MIRROR_WRITE、USE_KK_INVERSE_WRITE実装。
 ・USE_KKP_MIRROR_WRITE、USE_KKP_INVERSE_WRITEの両方のシンボルが定義されていないときの処理が間違っていたの修正。
-KKの次元下げのコード、間違っていたの修正。
+	KKの次元下げのコード、間違っていたの修正。
+・KK,KKP,KPPの次元下げのコード、リファクタリングした。
 
 
 ■　2017/08/29 V4.76
