@@ -163,9 +163,6 @@
     <ClInclude Include="engine\help-mate-engine\help-mate-search.h">
       <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClInclude>
-    <ClInclude Include="eval\evaluate_kpp_ppt.h">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClInclude>
     <ClInclude Include="eval\evaluate_kpp_kkpt.h">
       <Filter>リソース ファイル\eval</Filter>
     </ClInclude>
@@ -284,9 +281,6 @@
     </ClCompile>
     <ClCompile Include="engine\help-mate-engine\help-mate-search.cpp">
       <Filter>リソース ファイル\engine\help-mate-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="eval\evaluate_kpp_ppt.cpp">
-      <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
     <ClCompile Include="eval\evaluate_kpp_kkpt.cpp">
       <Filter>リソース ファイル\eval</Filter>
