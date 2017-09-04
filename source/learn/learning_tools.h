@@ -642,7 +642,7 @@ namespace EvalLearningTools
 			u64 index2 = index % triangle_fe_end;
 
 			// ここにindex2からpiece0,piece1,piece2を求める式を書く。
-			// これは index2 = i(i-1)(i-2)/6-1 + j(j-1)/2-1 + k の逆関数となる。
+			// これは index2 = i(i-1)(i-2)/6-1 + j(j+1)/2 + k の逆関数となる。
 			// j = k = 0 の場合、3次方程式の解の公式から実根は、 i = ...である。(以下式)
 			// iを整数化したのちに、最初の式に入れてKPPのとき同様にjを求めれば良い。
 
@@ -654,21 +654,28 @@ namespace EvalLearningTools
 			}
 			else {
 				double t = pow(sqrt((243 * index2 * index2 - 1) * 3) + 27 * index2, 1.0 / 3);
-				piece2 = int(t / pow(3.0, 2.0 / 3) + 1 / (pow(3.0, 1.0 / 3) * t)) + 1;
+
+				// 丸めのときに計算誤差でわずかに足りないのを防ぐためのデルタ
+				// 大きすぎると1大きい数になってしまう時があるので調整が必要。
+				const double delta = 0.000001;
+
+				piece2 = int(t / pow(3.0, 2.0 / 3) + 1.0 / (pow(3.0, 1.0 / 3) * t) + delta) + 1;
 				// ううう。ほんまにこんなことせんとあかんのか？(´ω｀)
+
+				// 計算誤差で、piece2==782のところで計算合わへん。くそー。
+				// あとでよく考える。
 			}
 
 			// 上式のi(i-1)(i-2)/6(=aとする)のiにpiece2を代入。また、k = 0を代入。
-			// j(j-1)/2 -1 = index2 - a
+			// j(j+1)/2 = index2 - a
 			// 2次方程式の解の公式より..
 
-
-			// TODO:ここの計算間違ってる。あとで直す。
-			u64 a = piece2*(piece2 - 1)*(piece2 - 2) / 6;
-			int piece1 = int((1 + sqrt(8 * (index2 - a ) + 9)) / 2) - 1;
-			u64 b = piece1 * (piece1 - 1) / 2;
+			u64 a = (u64)piece2*(piece2 - 1)*(piece2 - 2) / 6;
+			int piece1 = int((1 + sqrt(8 * (index2 - a ) + 1)) / 2);
+			u64 b = (u64)piece1 * (piece1 - 1) / 2;
 			int piece0 = int(index2 - a - b);
 
+			ASSERT_LV3(piece0 < piece1 && piece1 < piece2);
 			ASSERT_LV3(piece2 < (int)Eval::fe_end);
 			ASSERT_LV3(piece1 < (int)Eval::fe_end);
 			ASSERT_LV3(piece0 < (int)Eval::fe_end);

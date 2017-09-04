@@ -345,7 +345,7 @@ namespace EvalLearningTools
 		for (u64 index = min_index; index < max_index; ++index)
 		{
 			KPPP x = KPPP::fromIndex(index);
-			std::cout << x << std::endl;
+			//std::cout << x << std::endl;
 
 			// 書きかけ
 		}
@@ -368,7 +368,7 @@ namespace EvalLearningTools
 			init_mir_inv_tables();
 
 			//learning_tools_unit_test_kpp();
-			//learning_tools_unit_test_kppp();
+			learning_tools_unit_test_kppp();
 			// UnitTestを実行するの最後でも良いのだが、init_min_index_flag()にとても時間がかかるので
 			// デバッグ時はこのタイミングで行いたい。
 
