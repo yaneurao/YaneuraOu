@@ -1233,9 +1233,9 @@ void test_search(Position& pos, istringstream& is)
 #if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 
 #if defined (EVAL_KPPT)
-#include "../eval/evaluate_kppt.h"
+#include "../eval/kppt/evaluate_kppt.h"
 #elif defined(EVAL_KPP_KKPT)
-#include "../eval/evaluate_kpp_kkpt.h"
+#include "../eval/kpp_kkpt/evaluate_kpp_kkpt.h"
 #endif
 
 // 現在の評価関数のパラメーターについて調査して出力する。(分析用)

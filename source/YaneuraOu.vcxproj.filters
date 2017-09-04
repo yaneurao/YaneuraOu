@@ -59,6 +59,12 @@
     <Filter Include="リソース ファイル\engine\help-mate-engine">
       <UniqueIdentifier>{4baa45aa-bdd2-4657-804f-9aa648ba0a2f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\eval\kppt">
+      <UniqueIdentifier>{9199b172-8762-466b-aab3-debc3741c786}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\eval\kpp_kkpt">
+      <UniqueIdentifier>{da7e0fa7-bf52-4802-ac0e-7b3db259ddf6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -109,9 +115,6 @@
     <ClInclude Include="learn\multi_think.h">
       <Filter>リソース ファイル\learn</Filter>
     </ClInclude>
-    <ClInclude Include="eval\evaluate_kppt.h">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClInclude>
     <ClInclude Include="learn\learn.h">
       <Filter>リソース ファイル\learn</Filter>
     </ClInclude>
@@ -157,14 +160,17 @@
     <ClInclude Include="engine\help-mate-engine\help-mate-search.h">
       <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClInclude>
-    <ClInclude Include="eval\evaluate_kpp_kkpt.h">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClInclude>
     <ClInclude Include="eval\evaluate_common.h">
       <Filter>リソース ファイル\eval</Filter>
     </ClInclude>
     <ClInclude Include="eval\evalsum.h">
       <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\kppt\evaluate_kppt.h">
+      <Filter>リソース ファイル\eval\kppt</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\kpp_kkpt\evaluate_kpp_kkpt.h">
+      <Filter>リソース ファイル\eval\kpp_kkpt</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -218,9 +224,6 @@
     </ClCompile>
     <ClCompile Include="extra\timeman.cpp">
       <Filter>リソース ファイル\extra</Filter>
-    </ClCompile>
-    <ClCompile Include="eval\evaluate_kppt.cpp">
-      <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
     <ClCompile Include="engine\user-engine\user-search.cpp">
       <Filter>リソース ファイル\engine\user-engine</Filter>
@@ -276,14 +279,17 @@
     <ClCompile Include="engine\help-mate-engine\help-mate-search.cpp">
       <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClCompile>
-    <ClCompile Include="eval\evaluate_kpp_kkpt.cpp">
-      <Filter>リソース ファイル\eval</Filter>
+    <ClCompile Include="eval\kppt\evaluate_kppt.cpp">
+      <Filter>リソース ファイル\eval\kppt</Filter>
     </ClCompile>
-    <ClCompile Include="learn\evaluate_learn_kpp_kkpt.cpp">
-      <Filter>リソース ファイル\learn</Filter>
+    <ClCompile Include="eval\kppt\evaluate_learn_kppt.cpp">
+      <Filter>リソース ファイル\eval\kppt</Filter>
     </ClCompile>
-    <ClCompile Include="learn\evaluate_learn_kppt.cpp">
-      <Filter>リソース ファイル\learn</Filter>
+    <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt.cpp">
+      <Filter>リソース ファイル\eval\kpp_kkpt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kpp_kkpt\evaluate_learn_kpp_kkpt.cpp">
+      <Filter>リソース ファイル\eval\kpp_kkpt</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -33,13 +33,6 @@ namespace Eval
 	//   type = 2  : KPPのみ 
 	void foreach_eval_param(std::function<void(s32, s32)>f, int type = -1);
 
-#if defined(EVAL_LEARN)
-	// KKを正規化する関数。元の評価関数と完全に等価にはならないので注意。
-	// kkp,kppの値をなるべくゼロに近づけることで、学習中に出現しなかった特徴因子の値(ゼロになっている)が
-	// 妥当であることを保証しようという考え。
-	void regularize_kk();
-#endif
-
 	// --------------------------
 	//        学習用
 	// --------------------------
@@ -67,6 +60,14 @@ namespace Eval
 
 	// 現在のetaを取得する。
 	double get_eta();
+
+	// -- 学習に関連したコマンド
+
+	// KKを正規化する関数。元の評価関数と完全に等価にはならないので注意。
+	// kkp,kppの値をなるべくゼロに近づけることで、学習中に出現しなかった特徴因子の値(ゼロになっている)が
+	// 妥当であることを保証しようという考え。
+	void regularize_kk();
+
 #endif
 
 

@@ -1,14 +1,14 @@
-﻿#ifndef _EVALUATE_KPPT_H_
-#define _EVALUATE_KPPT_H_
+﻿#ifndef _EVALUATE_KPP_KKPT_H_
+#define _EVALUATE_KPP_KKPT_H_
 
-#include "../shogi.h"
+#include "../../shogi.h"
 
-// KPPT評価関数で用いるheader
+// KPP_KKPT型評価関数で用いるheader
 
-#if defined (EVAL_KPPT)
+#if defined(EVAL_KPP_KKPT)
 
-#include "../evaluate.h"
-#include "evaluate_common.h"
+#include "../../evaluate.h"
+#include "../evaluate_common.h"
 
 namespace Eval
 {
@@ -22,16 +22,21 @@ namespace Eval
 	// 先手から見て、先手の手番があるときの評価値 =  [0] + [1]
 	// 先手から見て、先手の手番がないときの評価値 =  [0] - [1]
 	// 後手から見て、後手の手番があるときの評価値 = -[0] + [1]
+
+	// KPPTのときとは異なり、KPPが手番なしになっている点が異なる。
+	// KK、KKPは16bitでも事足りそうではあるが、ちょっと危ないし、
+	// KPPTのKKとKKPのファイルは使いまわしたいので互換性重視でこうしておく。
+	
 	typedef std::array<int32_t, 2> ValueKk;
 	typedef std::array<int32_t, 2> ValueKkp;
-	typedef std::array<int16_t, 2> ValueKpp;
+	typedef int16_t ValueKpp;
 
 	// -----------------------------
 	//     評価関数パラメーター
 	// -----------------------------
 
 	// 以下では、SQ_NBではなくSQ_NB_PLUS1まで確保したいが、Apery(WCSC26)の評価関数バイナリを読み込んで変換するのが面倒なので
-	// ここではやらない。ゆえに片側の玉や、駒落ちの盤面には対応出来ない。
+	// ここではやらない。ゆえに片側の玉には対応出来ない。
 
 	// 評価関数
 
@@ -52,7 +57,7 @@ namespace Eval
 
 }      // namespace Eval
 
-#endif // defined (EVAL_KPPT)
+#endif // defined(EVAL_KPP_PPT)
 
 
 #endif
