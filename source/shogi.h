@@ -415,7 +415,7 @@ enum Value: int32_t
 	VALUE_SUPERIOR = 28000,
 
 	// 評価関数の返す値の最大値(2**14ぐらいに収まっていて欲しいところだが..)
-	VALUE_MAX_EVAL = 25000,
+	VALUE_MAX_EVAL = 27000,
 
 	// 評価関数がまだ呼び出されていないということを示すのに使う特殊な定数
 	VALUE_NOT_EVALUATED = 32003,

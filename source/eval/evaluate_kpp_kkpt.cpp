@@ -892,7 +892,13 @@ namespace Eval
 		}
 #endif
 
-		return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
+		auto v = Value(sum.sum(pos.side_to_move()) / FV_SCALE);
+
+		// 返す値の絶対値がVALUE_MAX_EVALを超えてないことを保証しないといけないのだが…。
+		// いまの評価関数、手番を過学習したりして、ときどき超えてそう…。
+		//ASSERT_LV3(abs(v) < VALUE_MAX_EVAL);
+
+		return v;
 	}
 
 	void evaluate_with_no_return(const Position& pos)
