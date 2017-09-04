@@ -127,9 +127,6 @@
     <ClInclude Include="extra\book\mt64bit.h">
       <Filter>リソース ファイル\extra\book</Filter>
     </ClInclude>
-    <ClInclude Include="eval\progress.h">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClInclude>
     <ClInclude Include="extra\move_picker\move_picker_2017Q2.h">
       <Filter>リソース ファイル\extra\move_picker</Filter>
     </ClInclude>
@@ -210,9 +207,6 @@
     <ClCompile Include="extra\bitop.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
-    <ClCompile Include="eval\evaluate_kpp.cpp">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
     <ClCompile Include="eval\evaluate_bona_piece.cpp">
       <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
@@ -251,9 +245,6 @@
     </ClCompile>
     <ClCompile Include="extra\book\book.cpp">
       <Filter>リソース ファイル\extra\book</Filter>
-    </ClCompile>
-    <ClCompile Include="eval\progress.cpp">
-      <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
     <ClCompile Include="extra\move_picker\move_picker_2017Q2.cpp">
       <Filter>リソース ファイル\extra\move_picker</Filter>

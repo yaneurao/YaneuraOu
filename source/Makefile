@@ -120,7 +120,6 @@ SOURCES  = shogi.cpp                                                           \
 	eval/evaluate.cpp                                                          \
 	eval/evaluate_no_eval.cpp                                                  \
 	eval/evaluate_io.cpp                                                       \
-	eval/progress.cpp                                                          \
 	engine/user-engine/user-search.cpp                                         \
 	engine/help-mate-engine/help-mate-search.cpp                               \
 	engine/2017-early-engine/2017-early-search.cpp                             \

@@ -14,11 +14,9 @@
 
 #include "learn.h"
 #include "learning_tools.h"
-#include "../eval/evaluate_io.h"
 
 #include "../evaluate.h"
 #include "../eval/evaluate_kppt.h"
-#include "../eval/evalsum.h"
 #include "../eval/evaluate_io.h"
 #include "../eval/evaluate_common.h"
 #include "../position.h"

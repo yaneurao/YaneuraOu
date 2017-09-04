@@ -1,5 +1,5 @@
-﻿#ifndef _EVALUATE_H_
-#define _EVALUATE_H_
+﻿#ifndef EVALUATE_H
+#define EVALUATE_H
 
 #include "shogi.h"
 
@@ -63,14 +63,34 @@ namespace Eval {
 	// 評価値の内訳表示(デバッグ用)
 	void print_eval_stat(Position& pos);
 
+
 #if defined (EVAL_NO_USE)
 
 	// 評価関数を用いないときもValueを正規化するときに歩の価値は必要。
-	enum { PawnValue = 90 };
+	enum { PawnValue = 86 };
 
 #else
 
-#if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+#if defined (EVAL_MATERIAL) || defined(EVAL_KPP)
+	// Bona6の駒割りを初期値に。それぞれの駒の価値。
+	enum {
+		PawnValue = 86,
+		LanceValue = 227,
+		KnightValue = 256,
+		SilverValue = 365,
+		GoldValue = 439,
+		BishopValue = 563,
+		RookValue = 629,
+		ProPawnValue = 540,
+		ProLanceValue = 508,
+		ProKnightValue = 517,
+		ProSilverValue = 502,
+		HorseValue = 826,
+		DragonValue = 942,
+		KingValue = 15000,
+	};
+
+#elif defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 
 	// Apery(WCSC26)の駒割り
 	enum {
@@ -123,7 +143,7 @@ namespace Eval {
 
 		// --- 手駒
 
-#if defined (EVAL_MATERIAL)
+#if defined (EVAL_MATERIAL) || defined(EVAL_KPP)
 
 		f_hand_pawn = BONA_PIECE_ZERO + 1,
 		e_hand_pawn = f_hand_pawn + 18,
