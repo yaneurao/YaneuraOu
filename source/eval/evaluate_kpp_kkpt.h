@@ -3,20 +3,12 @@
 
 #include "../shogi.h"
 
-// KPP_KKPT型評価関数で用いる共用header的なもの。
+// KPP_KKPT型評価関数で用いるheader
 
 #if defined(EVAL_KPP_KKPT)
 
 #include "../evaluate.h"
-
-// KKファイル名
-#define KK_BIN "KK_synthesized.bin"
-
-// KKPファイル名
-#define KKP_BIN "KKP_synthesized.bin"
-
-// KPPファイル名
-#define KPP_BIN "KPP_synthesized.bin"
+#include "evaluate_common.h"
 
 namespace Eval
 {

@@ -6,6 +6,10 @@
 #include "tt.h"
 #include "thread.h"
 
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+#include "eval/evaluate_common.h"
+#endif
+
 using namespace std;
 using namespace Effect8;
 

@@ -103,9 +103,6 @@
     <ClInclude Include="move_picker.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="eval\kppt_evalsum.h">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClInclude>
     <ClInclude Include="engine\mate-engine\mate-search.h">
       <Filter>リソース ファイル\engine\mate-engine</Filter>
     </ClInclude>
@@ -164,6 +161,12 @@
       <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClInclude>
     <ClInclude Include="eval\evaluate_kpp_kkpt.h">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\evaluate_common.h">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\evalsum.h">
       <Filter>リソース ファイル\eval</Filter>
     </ClInclude>
   </ItemGroup>

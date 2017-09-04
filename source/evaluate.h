@@ -3,9 +3,12 @@
 
 #include "shogi.h"
 
-// 手番込みの評価関数であれば手番を込みで値を計算するhelper classを使う。
-#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPP_PPT) || defined(EVAL_KPP_KKPT)
-#include "eval/kppt_evalsum.h"
+// -------------------------------------
+//   評価関数に対応するheaderの読み込み
+// -------------------------------------
+
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+#include "eval/evalsum.h"
 #endif
 
 // 実験中の評価関数。現状、非公開。
@@ -17,10 +20,9 @@
 #define BonaPieceExpansion 0
 #endif
 
-
-// --------------------
-//    評価関数
-// --------------------
+// -------------------------------------
+//             評価関数
+// -------------------------------------
 
 namespace Eval {
 
@@ -47,12 +49,7 @@ namespace Eval {
 	// あるいは差分計算が不可能なときに呼び出される。
 	Value compute_eval(const Position& pos);
 
-#if defined(USE_EVAL_HASH) && ( defined(EVAL_KPPT) || defined(EVAL_KPP_PPT) || defined(EVAL_KPP_KKPT) )
-	// prefetchする関数
-	void prefetch_evalhash(const Key key);
-#endif
-
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_PPT) || defined(EVAL_KPP_KKPT)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 	// 評価関数パラメーターのチェックサムを返す。
 	u64 calc_check_sum();
 
@@ -66,30 +63,6 @@ namespace Eval {
 	// 評価値の内訳表示(デバッグ用)
 	void print_eval_stat(Position& pos);
 
-#if defined(EVAL_LEARN) && ( defined(EVAL_KPPT) || defined(EVAL_KPP_PPT) || defined(EVAL_KPP_KKPT) )
-	// 学習のときの勾配配列の初期化
-	// 学習率を引数に渡しておく。0.0なら、defaultの値を採用する。
-	// update_weights()のepochが、eta_epochまでetaから徐々にeta2に変化する。
-	// eta2_epoch以降は、eta2から徐々にeta3に変化する。
-	void init_grad(double eta1, u64 eta_epoch , double eta2 , u64 eta2_epoch , double eta3);
-
-	// 現在の局面で出現している特徴すべてに対して、勾配の差分値を勾配配列に加算する。
-	void add_grad(Position& pos, Color rootColor, double delt_grad , bool without_kpp);
-
-	// 現在の勾配をもとにSGDかAdaGradか何かする。
-	// epoch       : 世代カウンター(0から始まる)
-	// freeze_kk   : kkは学習させないフラグ
-	// freeze_kkp  : kkpは学習させないフラグ
-	// freeze_kpp  : kppは学習させないフラグ
-	void update_weights(u64 epoch , bool freeze_kk , bool freeze_kkp , bool freeze_kpp);
-
-	// 評価関数パラメーターをファイルに保存する。
-	// ファイルの末尾につける拡張子を指定できる。
-	void save_eval(std::string suffix);
-
-	// 現在のetaを取得する。
-	double get_eta();
-#endif
 
 #if defined (EVAL_NO_USE)
 
@@ -117,7 +90,7 @@ namespace Eval {
 		KingValue = 15000,
 	};
 
-#elif defined(EVAL_KKPT) || defined (EVAL_KPPT) || defined(EVAL_KPP_PPT) || defined(EVAL_KPP_KKPT)
+#elif defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 
 	// Apery(WCSC26)の駒割り
 	enum {
@@ -188,9 +161,9 @@ namespace Eval {
 		e_hand_rook = f_hand_rook + 2,
 		fe_hand_end = e_hand_rook + 2,
 
-#elif defined(EVAL_KKPT) || defined (EVAL_KPPT) || defined (EVAL_KPP_PPT) || defined(EVAL_KPP_KKPT)
+#elif defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 		// Apery(WCSC26)方式。0枚目の駒があるので少し隙間がある。
-		// 定数自体は1枚目の駒のindexなので、KPPの時と同様の処理で問題ない。
+		// 定数自体は1枚目の駒のindexなので、EVAL_KPPの時と同様の処理で問題ない。
 
 		f_hand_pawn = BONA_PIECE_ZERO + 1,//0//0+1
 		e_hand_pawn = 20,//f_hand_pawn + 19,//19+1
@@ -213,7 +186,7 @@ namespace Eval {
 #endif                     
 
 		// Bonanzaのように盤上のありえない升の歩や香の番号を詰めない。
-		// 理由1) 学習のときに相対PPで1段目に香がいるときがあって、それが逆変換において正しく表示するのが難しい。
+		// 理由1) 学習のときに相対PPで1段目に香がいるときがあって、それを逆変換において正しく表示するのが難しい。
 		// 理由2) 縦型BitboardだとSquareからの変換に困る。
 
 		// --- 盤上の駒
@@ -372,25 +345,6 @@ namespace Eval {
 		// SQ_NBの玉を移動させないので、この値を使うことはないはず。
 		PieceNo piece_no_list_board[SQ_NB_PLUS1];
 	};
-#endif
-
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
-	// 評価関数のそれぞれのパラメーターに対して関数fを適用してくれるoperator。
-	// パラメーターの分析などに用いる。
-	// typeは調査対象を表す。
-	//   type = -1 : KK,KKP,KPPすべて
-	//   type = 0  : KK のみ 
-	//   type = 1  : KKPのみ 
-	//   type = 2  : KPPのみ 
-	void foreach_eval_param(std::function<void(s32,s32)>f , int type = -1);
-
-#if defined(EVAL_LEARN)
-	// KKを正規化する関数。元の評価関数と完全に等価にはならないので注意。
-	// kkp,kppの値をなるべくゼロに近づけることで、学習中に出現しなかった特徴因子の値(ゼロになっている)が
-	// 妥当であることを保証しようという考え。
-	void regularize_kk();
-#endif
-
 #endif
 
 #if defined (USE_EVAL_MAKE_LIST_FUNCTION)

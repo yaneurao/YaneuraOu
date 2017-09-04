@@ -1,5 +1,5 @@
-﻿#ifndef _KPPT_EVAL_SUM_H_
-#define _KPPT_EVAL_SUM_H_
+﻿#ifndef _EVAL_SUM_H_
+#define _EVAL_SUM_H_
 
 #include "../shogi.h"
 #include <array>

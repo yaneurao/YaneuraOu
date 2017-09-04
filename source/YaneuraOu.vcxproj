@@ -690,8 +690,9 @@
     <ClInclude Include="evaluate.h" />
     <ClInclude Include="eval\evaluate_io.h" />
     <ClInclude Include="eval\evaluate_kppt.h" />
+    <ClInclude Include="eval\evaluate_common.h" />
     <ClInclude Include="eval\evaluate_kpp_kkpt.h" />
-    <ClInclude Include="eval\kppt_evalsum.h" />
+    <ClInclude Include="eval\evalsum.h" />
     <ClInclude Include="eval\progress.h" />
     <ClInclude Include="extra\all.h" />
     <ClInclude Include="extra\bitop.h" />

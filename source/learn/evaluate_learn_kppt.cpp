@@ -18,8 +18,9 @@
 
 #include "../evaluate.h"
 #include "../eval/evaluate_kppt.h"
-#include "../eval/kppt_evalsum.h"
+#include "../eval/evalsum.h"
 #include "../eval/evaluate_io.h"
+#include "../eval/evaluate_common.h"
 #include "../position.h"
 #include "../misc.h"
 

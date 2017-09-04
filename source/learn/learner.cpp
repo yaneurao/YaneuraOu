@@ -19,6 +19,9 @@
 
 #include "learn.h"
 
+// 学習用のevaluate絡みのheader
+#include "../eval/evaluate_common.h"
+
 // ----------------------
 // 設定内容に基づく定数文字列
 // ----------------------
