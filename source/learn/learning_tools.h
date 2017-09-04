@@ -614,11 +614,11 @@ namespace EvalLearningTools
 		}
 
 		// kppp[king_sq][fe_end][fe_end][fe_end]の[fe_end][fe_end][fe_end]な正方配列の部分を三角配列化する。
-		// kppp[king_sq][triangle_fe_end]とすると、この三角配列の0行目は要素0個、1行目1個、2行目は3個、…,n行目はn(n-1)/2個。
+		// kppp[king_sq][triangle_fe_end]とすると、この三角配列の0行目から要素数は、0,0,1,3,…,n行目はn(n-1)/2個。
 		// ゆえに、
 		// triangle_fe_end = Σn(n-1)/2 , n=0..fe_end-1
-		//                 =  (fe_end - 1) * fe_end * (fe_end + 1) / 6
-		static const u64 triangle_fe_end = (u64)Eval::fe_end*((u64)Eval::fe_end + 1)*((u64)Eval::fe_end - 1) / 6;
+		//                 =  fe_end * (fe_end - 1) * (fe_end - 2) / 6
+		static const u64 triangle_fe_end = ((u64)Eval::fe_end)*((u64)Eval::fe_end - 1)*((u64)Eval::fe_end - 2) / 6;
 		static u64 max_index() { return min_index() + (u64)king_sq()*triangle_fe_end; }
 
 		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
@@ -637,6 +637,8 @@ namespace EvalLearningTools
 		// indexからKPPPのオブジェクトを生成するbuilder
 		static KPPP fromIndex(u64 index)
 		{
+			ASSERT_LV3(index >= min_index());
+
 			index -= min_index();
 
 			u64 index2 = index % triangle_fe_end;
@@ -647,33 +649,48 @@ namespace EvalLearningTools
 			// iを整数化したのちに、最初の式に入れてKPPのとき同様にjを求めれば良い。
 
 			int piece2;
-			if (index == 0)
+			if (index2 <= 1)
 			{
-				// index == 0のときだけ実数解が3つあるので…。
-				piece2 = 2;
-			}
-			else {
-				double t = pow(sqrt((243 * index2 * index2 - 1) * 3) + 27 * index2, 1.0 / 3);
+				// index == 0,1のときだけ実数解が複数ある。
+				piece2 = (int)index2 + 2;
 
+			} else {
+
+				//double t = pow(sqrt((243 *index2 * index2 - 1) * 3) + 27 * index2, 1.0 / 3);
+				// →　これだとindex2が大きくなるとsqrt()の中身、オーバーフローする。
+
+				double t;
+				
+				if (index2 < 100000000)
+					t = pow(sqrt((243.0 *index2 * index2 - 1)) * sqrt(3.0) + 27 * index2, 1.0 / 3);
+				else
+					// index2が非常に大きいとき、sqrtの中身、近似的に √243 * index2とみなせるだろう。
+					t = pow( index2 * sqrt(243 * 3.0) + 27 * index2, 1.0 / 3);
+				
 				// 丸めのときに計算誤差でわずかに足りないのを防ぐためのデルタ
 				// 大きすぎると1大きい数になってしまう時があるので調整が必要。
-				const double delta = 0.000001;
+				
+				const double delta = 0.000000001;
 
 				piece2 = int(t / pow(3.0, 2.0 / 3) + 1.0 / (pow(3.0, 1.0 / 3) * t) + delta) + 1;
 				// ううう。ほんまにこんなことせんとあかんのか？(´ω｀)
-
-				// 計算誤差で、piece2==782のところで計算合わへん。くそー。
-				// あとでよく考える。
 			}
 
 			// 上式のi(i-1)(i-2)/6(=aとする)のiにpiece2を代入。また、k = 0を代入。
 			// j(j+1)/2 = index2 - a
 			// 2次方程式の解の公式より..
 
-			u64 a = (u64)piece2*(piece2 - 1)*(piece2 - 2) / 6;
-			int piece1 = int((1 + sqrt(8 * (index2 - a ) + 1)) / 2);
+			u64 a = (u64)piece2*((u64)piece2 - 1)*((u64)piece2 - 2) / 6;
+			int piece1 = int((1 + sqrt(8.0 * (index2 - a ) + 1)) / 2);
 			u64 b = (u64)piece1 * (piece1 - 1) / 2;
 			int piece0 = int(index2 - a - b);
+
+#if 0
+			if (!((piece0 < piece1 && piece1 < piece2)))
+			{
+				std::cout << index << " , " << index2 << "," << a << "," << sqrt(8.0 * (index2 - a) + 1);
+			}
+#endif
 
 			ASSERT_LV3(piece0 < piece1 && piece1 < piece2);
 			ASSERT_LV3(piece2 < (int)Eval::fe_end);
@@ -703,7 +720,7 @@ namespace EvalLearningTools
 
 				// BonaPiece型は、32bitを想定しているので掛け算には気をつけないとオーバーフローする。
 				return (u64)king * triangle_fe_end + (u64)(
-						  u64(i)*(u64(i)-1)*(u64(i)-2) / 6
+						  u64(i)*(u64(i) - 1) * (u64(i) - 2) / 6
 						+ u64(j)*(u64(j) - 1) / 2
 						+ u64(k)
 					);

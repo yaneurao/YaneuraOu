@@ -342,12 +342,29 @@ namespace EvalLearningTools
 		u64 min_index = KPPP::min_index();
 		u64 max_index = KPPP::max_index();
 
+		// 最後の要素の確認。
+		//KPPP x = KPPP::fromIndex(max_index-1);
+		//std::cout << x << std::endl;
+
 		for (u64 index = min_index; index < max_index; ++index)
 		{
 			KPPP x = KPPP::fromIndex(index);
 			//std::cout << x << std::endl;
 
-			// 書きかけ
+#if 0
+			if ((index % 10000000) == 0)
+				std::cout << "index = " << index << std::endl;
+
+			// index = 9360000000
+			//	done.
+
+			if (x.toIndex() != index)
+			{
+				std::cout << "assertion failed , index = " << index << std::endl;
+			}
+#endif
+
+			ASSERT(x.toIndex() == index);
 		}
 
 	}
@@ -368,7 +385,7 @@ namespace EvalLearningTools
 			init_mir_inv_tables();
 
 			//learning_tools_unit_test_kpp();
-			learning_tools_unit_test_kppp();
+			//learning_tools_unit_test_kppp();
 			// UnitTestを実行するの最後でも良いのだが、init_min_index_flag()にとても時間がかかるので
 			// デバッグ時はこのタイミングで行いたい。
 
