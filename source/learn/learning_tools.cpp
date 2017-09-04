@@ -290,8 +290,9 @@ namespace EvalLearningTools
 #endif
 	}
 
-	void learning_tools_unit_test()
+	void learning_tools_unit_test_kpp()
 	{
+
 		// KPPの三角配列化にバグがないかテストする
 		// k-p0-p1のすべての組み合わせがきちんとKPPの扱う対象になっていかと、そのときの次元下げが
 		// 正しいかを判定する。
@@ -334,6 +335,23 @@ namespace EvalLearningTools
 			}
 	}
 
+	void learning_tools_unit_test_kppp()
+	{
+		// KPPPの計算に抜けがないかをテストする
+
+		u64 min_index = KPPP::min_index();
+		u64 max_index = KPPP::max_index();
+
+		for (u64 index = min_index; index < max_index; ++index)
+		{
+			KPPP x = KPPP::fromIndex(index);
+			std::cout << x << std::endl;
+
+			// 書きかけ
+		}
+
+	}
+
 	// このEvalLearningTools全体の初期化
 	void init()
 	{
@@ -349,7 +367,8 @@ namespace EvalLearningTools
 			// これに依存しているので、こちらを先に行なう必要がある。
 			init_mir_inv_tables();
 
-			//learning_tools_unit_test();
+			//learning_tools_unit_test_kpp();
+			//learning_tools_unit_test_kppp();
 			// UnitTestを実行するの最後でも良いのだが、init_min_index_flag()にとても時間がかかるので
 			// デバッグ時はこのタイミングで行いたい。
 

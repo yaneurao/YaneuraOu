@@ -642,17 +642,32 @@ namespace EvalLearningTools
 			u64 index2 = index % triangle_fe_end;
 
 			// ここにindex2からpiece0,piece1,piece2を求める式を書く。
-			// これは index2 = (i-1)i(i+1)/6 + j(j-1) / 2 + k の逆関数となる。
-			// j = k = 0 の場合、i^3 - i - 6 * index2 == 0なので
-			// 3次方程式の解の公式から実根は、 i = ...である。(以下式)
+			// これは index2 = i(i-1)(i-2)/6-1 + j(j-1)/2-1 + k の逆関数となる。
+			// j = k = 0 の場合、3次方程式の解の公式から実根は、 i = ...である。(以下式)
 			// iを整数化したのちに、最初の式に入れてKPPのとき同様にjを求めれば良い。
 
-			double t = pow(sqrt((243 * index2 * index2 - 1) * 3) + 27 * index2 , 1/3);
-			int piece2 = int(t / pow(3, 2 / 3) + 1 / (pow(3, 1 / 3) * t));
-			// ううう。ほんまにこんなことせんとあかんのか？(´ω｀)
+			int piece2;
+			if (index == 0)
+			{
+				// index == 0のときだけ実数解が3つあるので…。
+				piece2 = 2;
+			}
+			else {
+				double t = pow(sqrt((243 * index2 * index2 - 1) * 3) + 27 * index2, 1.0 / 3);
+				piece2 = int(t / pow(3.0, 2.0 / 3) + 1 / (pow(3.0, 1.0 / 3) * t)) + 1;
+				// ううう。ほんまにこんなことせんとあかんのか？(´ω｀)
+			}
 
-			int piece1 = int(sqrt(8 * index2 + 1) - 1) / 2;
-			int piece0 = int(index2 - (u64)piece2*(piece2 + 1)*piece2 / 6 - (u64)piece1 * (piece1-1) / 2);
+			// 上式のi(i-1)(i-2)/6(=aとする)のiにpiece2を代入。また、k = 0を代入。
+			// j(j-1)/2 -1 = index2 - a
+			// 2次方程式の解の公式より..
+
+
+			// TODO:ここの計算間違ってる。あとで直す。
+			u64 a = piece2*(piece2 - 1)*(piece2 - 2) / 6;
+			int piece1 = int((1 + sqrt(8 * (index2 - a ) + 9)) / 2) - 1;
+			u64 b = piece1 * (piece1 - 1) / 2;
+			int piece0 = int(index2 - a - b);
 
 			ASSERT_LV3(piece2 < (int)Eval::fe_end);
 			ASSERT_LV3(piece1 < (int)Eval::fe_end);
@@ -668,20 +683,20 @@ namespace EvalLearningTools
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
 		u64 toIndex() const
 		{
-			// Bonanza6.0で使われているのに似せたマクロ
+			// Bonanza 6.0で使われているのに似せたマクロ
 			// 前提条件) i > j > k であること。
 			// i==j,j==kのケースはNG。
 			auto PcPcPcOnSq = [](Square king, Eval::BonaPiece i, Eval::BonaPiece j , Eval::BonaPiece k)
 			{
 				// この三角配列の(i,j,k)は、i行目のj列目の要素。
-				// i行目0列0番目は、そこまでの要素の合計であるから、0 + 1 + 3 + ... + i*(i-1)/2 = i*(i+1)*(i-1)/ 6
+				// i行目0列0番目は、そこまでの要素の合計であるから、0 + 0 + 1 + 3 + 6 + ... + (i)*(i-1)/2 = i*(i-1)*(i-2)/ 6
 				// i行目j列0番目は、そこにjを加味したもの。 + j*(j-1) / 2
 				// i行目j列k番目は、そこにkを足したもの。   + k
 				ASSERT_LV3(i > j && j > k);
 
 				// BonaPiece型は、32bitを想定しているので掛け算には気をつけないとオーバーフローする。
 				return (u64)king * triangle_fe_end + (u64)(
-						  u64(i)*(u64(i)+1)*(u64(i)-1) / 6
+						  u64(i)*(u64(i)-1)*(u64(i)-2) / 6
 						+ u64(j)*(u64(j) - 1) / 2
 						+ u64(k)
 					);
@@ -737,7 +752,7 @@ namespace EvalLearningTools
 				k = mir_piece(k);
 			}
 
-			// i > j > k となるように並び替える。
+			// 並び替え
 			std::array<int,3> a = { i,j,k };
 			std::sort(a.begin(), a.end());
 
