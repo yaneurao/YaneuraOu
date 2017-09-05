@@ -731,9 +731,9 @@
     <ClCompile Include="eval\evaluate.cpp" />
     <ClCompile Include="eval\evaluate_no_eval.cpp" />
     <ClCompile Include="eval\kppt\evaluate_kppt.cpp" />
-    <ClCompile Include="eval\kppt\evaluate_learn_kppt.cpp" />
+    <ClCompile Include="eval\kppt\evaluate_kppt_learner.cpp" />
     <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt.cpp" />
-    <ClCompile Include="eval\kpp_kkpt\evaluate_learn_kpp_kkpt.cpp" />
+    <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt_learner.cpp" />
     <ClCompile Include="extra\benchmark.cpp" />
     <ClCompile Include="extra\bitop.cpp" />
     <ClCompile Include="extra\book\apery_book.cpp" />

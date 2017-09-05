@@ -5,6 +5,20 @@
 
 // 全評価関数に共通の処理などもここに記述する。
 
+// 実験中の(非公開の)評価関数の.cppの読み込みはここで行なう。
+#if defined (EVAL_KPPP_KKPT)
+#include "kppp_kkpt/evaluate_kppp_kkpt.cpp"
+#include "kppp_kkpt/evaluate_kppp_kkpt_learn.cpp"
+#endif
+#if defined (EVAL_NABLA)
+#include "nabla/evaluate_nabla.cpp"
+#include "nabla/evaluate_nabla_learn.cpp"
+#endif
+#if defined (EVAL_AKASHIC)
+#include "akashic/evaluate_akashic.cpp"
+#include "akashic/evaluate_akashic_learn.cpp"
+#endif
+
 namespace Eval
 {
 #if !defined (EVAL_NO_USE)

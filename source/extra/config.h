@@ -109,6 +109,8 @@
 // #define EVAL_PPET      // ×　技巧型 2駒+利き+手番(実装予定なし)
 // #define EVAL_KKPPT     // ？　KKPPT型 4駒関係 手番(55将棋、56将棋で用いるかも)(実装するかも)
 // #define EVAL_PPAP      // ？　3駒 + Piece-Piece-and Pawn型(実装するかも)
+// #define EVAL_NABLA     // ？  ∇(ナブラ) 評価関数
+// #define EVAL_AKASHIC   // ？  Akashic Records 評価関数
 
 // KPPT評価関数の学習に使うときのモード
 // #define EVAL_LEARN

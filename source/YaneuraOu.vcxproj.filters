@@ -282,14 +282,14 @@
     <ClCompile Include="eval\kppt\evaluate_kppt.cpp">
       <Filter>リソース ファイル\eval\kppt</Filter>
     </ClCompile>
-    <ClCompile Include="eval\kppt\evaluate_learn_kppt.cpp">
-      <Filter>リソース ファイル\eval\kppt</Filter>
-    </ClCompile>
     <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt.cpp">
       <Filter>リソース ファイル\eval\kpp_kkpt</Filter>
     </ClCompile>
-    <ClCompile Include="eval\kpp_kkpt\evaluate_learn_kpp_kkpt.cpp">
+    <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt_learner.cpp">
       <Filter>リソース ファイル\eval\kpp_kkpt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kppt\evaluate_kppt_learner.cpp">
+      <Filter>リソース ファイル\eval\kppt</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

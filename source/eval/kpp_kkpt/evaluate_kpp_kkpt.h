@@ -57,7 +57,7 @@ namespace Eval
 
 }      // namespace Eval
 
-#endif // defined(EVAL_KPP_PPT)
+#endif // defined(EVAL_KPP_KKPT)
 
 
 #endif

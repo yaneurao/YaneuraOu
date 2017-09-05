@@ -1,12 +1,9 @@
-﻿#ifndef _EVALUATE_LEARN_KPPT_CPP_
-#define _EVALUATE_LEARN_KPPT_CPP_
-
-// KPPT評価関数の学習時用のコード
-// tanuki-さんの学習部のコードをかなり参考にさせていただきました。
+﻿// KPP_KKPT評価関数の学習時用のコード
+// KPPTの学習用コードのコピペから少しいじった感じ。
 
 #include "../../shogi.h"
 
-#if defined(EVAL_LEARN) && defined(EVAL_KPPT)
+#if defined(EVAL_LEARN) && defined(EVAL_KPP_KKPT)
 
 #if defined(_OPENMP)
 #include <omp.h>
@@ -22,7 +19,7 @@
 #include "../evaluate_io.h"
 #include "../evaluate_common.h"
 
-#include "evaluate_kppt.h"
+#include "evaluate_kpp_kkpt.h"
 
 using namespace std;
 
@@ -33,7 +30,7 @@ namespace Eval
 
 	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
 	// 現局面は、leaf nodeであるものとする。
-	void add_grad(Position& pos, Color rootColor, double delta_grad,bool without_kpp);
+	void add_grad(Position& pos, Color rootColor, double delta_grad,bool freeze_kpp);
 
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
 	void update_weights(u64 epoch, bool freeze_kk , bool freeze_kkp , bool freeze_kpp);
@@ -50,9 +47,12 @@ namespace Eval
 
 	// 評価関数学習用の構造体
 
-	// KK,KKP,KPPのWeightを保持している配列
+	// KK,KKPのWeightを保持している配列
 	// 直列化してあるので1次元配列
 	std::vector<Weight2> weights;
+
+	// KPPは手番なしなので手番なし用の1次元配列。
+	std::vector<Weight> weights_kpp;
 
 	// 学習のときの勾配配列の初期化
 	// 引数のetaは、AdaGradのときの定数η(eta)。
@@ -62,12 +62,17 @@ namespace Eval
 		EvalLearningTools::init();
 			
 		// 学習用配列の確保
-		u64 size = KPP::max_index();
+		u64 size = KKP::max_index();
 		weights.resize(size); // 確保できるかは知らん。確保できる環境で動かしてちょうだい。
 		memset(&weights[0], 0, sizeof(Weight2) * weights.size());
 
+		u64 size_kpp = KPP::max_index() - KPP::min_index();
+		weights_kpp.resize(size_kpp);
+		memset(&weights_kpp[0], 0, sizeof(Weight) * weights_kpp.size());
+
 		// 学習率の設定
 		Weight::init_eta(eta1, eta2, eta3, eta1_epoch, eta2_epoch);
+
 	}
 
 	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
@@ -144,8 +149,8 @@ namespace Eval
 					BonaPiece l0 = list_fb[j];
 					BonaPiece l1 = list_fw[j];
 
-					weights[KPP(sq_bk, k0, l0).toIndex()].add_grad(g);
-					weights[KPP(Inv(sq_wk), k1, l1).toIndex()].add_grad(g_flip);
+					weights_kpp[KPP(sq_bk, k0, l0).toIndex() - KPP::min_index()].add_grad(g[0]);
+					weights_kpp[KPP(Inv(sq_wk), k1, l1).toIndex() - KPP::min_index()].add_grad(g_flip[0]);
 				}
 			}
 
@@ -159,7 +164,7 @@ namespace Eval
 	// freeze_kk   : kkは学習させないフラグ
 	// freeze_kkp  : kkpは学習させないフラグ
 	// freeze_kpp  : kppは学習させないフラグ
-	void update_weights(u64 epoch, bool freeze_kk, bool freeze_kkp, bool freeze_kpp)
+	void update_weights(u64 epoch, bool freeze_kk , bool freeze_kkp , bool freeze_kpp)
 	{
 		u64 vector_length = KPP::max_index();
 
@@ -170,9 +175,10 @@ namespace Eval
 		// epochに応じたetaを設定してやる。
 		Weight::calc_eta(epoch);
 
-		// 手番つきのゼロ
-		const auto zero_t = array<LearnFloatType, 2>{ 0, 0 };
-
+		// ゼロ定数 手番つき、手番なし
+		const auto zero_t = std::array<LearnFloatType, 2> {0, 0};
+		const auto zero = LearnFloatType(0);
+		
 		// 並列化を効かせたいので直列化されたWeight配列に対してループを回す。
 
 #pragma omp parallel
@@ -188,9 +194,8 @@ namespace Eval
 #pragma omp for schedule(dynamic,20000)
 			for (s64 index_ = 0; index_ < (s64)vector_length; ++index_)
 			{
-				// OpenMPではループ変数は符号型変数でなければならないが、さすがに使いにくい。
-				// ※　この制限はOpenMP 2.5までの制限で、OpenMP 3.0では解除されている。
-				//   Visual C++ 2017はOpenMP 3.0に対応していない。PPLを推奨している模様。
+				// OpenMPではループ変数は符号型変数でなければならないが
+				// さすがに使いにくい。
 				u64 index = (u64)index_;
 
 				// 自分が更新すべきやつか？
@@ -216,7 +221,7 @@ namespace Eval
 					array<LearnFloatType, 2> g_sum = zero_t;
 
 					// inverseした次元下げに関しては符号が逆になるのでadjust_grad()を経由して計算する。
-					for (int i = 0; i <KK_LOWER_COUNT; ++i)
+					for (int i = 0; i < KK_LOWER_COUNT; ++i)
 						g_sum += a[i].adjust_grad(weights[ids[i]].get_grad());
 					
 					// 次元下げを考慮して、その勾配の合計が0であるなら、一切の更新をする必要はない。
@@ -227,7 +232,7 @@ namespace Eval
 					weights[ids[0]].set_grad(g_sum);
 					weights[ids[0]].updateFV(v);
 
-					for (int i = 1; i< KK_LOWER_COUNT; ++i)
+					for (int i = 1; i < KK_LOWER_COUNT; ++i)
 						kk[a[i].king0()][a[i].king1()] = a[i].adjust_grad(v);
 					
 					// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
@@ -280,16 +285,17 @@ namespace Eval
 
 					// KPPに関してはinverseの次元下げがないので、inverseの判定は不要。
 
-					array<LearnFloatType, 2> g_sum = zero_t;
+					// KPPTとの違いは、ここに手番がないというだけ。
+					LearnFloatType g_sum = zero;
 					for (auto id : ids)
-						g_sum += weights[id].get_grad();
+						g_sum += weights_kpp[id - KPP::min_index()].get_grad();
 
-					if (is_zero(g_sum))
+					if (g_sum == 0)
 						continue;
 
 					auto& v = kpp[a[0].king()][a[0].piece0()][a[0].piece1()];
-					weights[ids[0]].set_grad(g_sum);
-					weights[ids[0]].updateFV(v);
+					weights_kpp[ids[0] - KPP::min_index()].set_grad(g_sum);
+					weights_kpp[ids[0] - KPP::min_index()].updateFV(v);
 
 #if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
 					for (int i = 1; i < KPP_LOWER_COUNT; ++i)
@@ -305,7 +311,7 @@ namespace Eval
 #endif
 
 					for (auto id : ids)
-						weights[id].set_grad(zero_t);
+						weights_kpp[id - KPP::min_index()].set_grad(zero);
 				}
 			}
 		}
@@ -328,8 +334,8 @@ namespace Eval
 			// EvalIOを利用して評価関数ファイルに書き込む。
 			// 読み込みのときのinputとoutputとを入れ替えるとファイルに書き込める。EvalIo::eval_convert()マジ優秀。
 			auto make_name = [&](std::string filename) { return path_combine(eval_dir, filename); };
-			auto input = EvalIO::EvalInfo::build_kppt32((void*)kk, (void*)kkp, (void*)kpp);
-			auto output = EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+			auto input = EvalIO::EvalInfo::build_kpp_kkpt32((void*)kk, (void*)kkp, (void*)kpp);
+			auto output = EvalIO::EvalInfo::build_kpp_kkpt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
 
 			// 評価関数の実験のためにfe_endをKPPT32から変更しているかも知れないので現在のfe_endの値をもとに書き込む。
 			input.fe_end = output.fe_end = Eval::fe_end;
@@ -353,4 +359,3 @@ namespace Eval
 }
 
 #endif // EVAL_LEARN
-#endif // _EVALUATE_LEARN_KPPT_CPP_

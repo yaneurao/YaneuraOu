@@ -115,9 +115,9 @@ SOURCES  = shogi.cpp                                                           \
 	extra/kif_converter/kif_convert_tools.cpp                                  \
 	eval/evaluate_bona_piece.cpp                                               \
 	eval/kppt/evaluate_kppt.cpp                                                \
-	eval/kppt/evaluate_learn_kppt.cpp                                          \
+	eval/kppt/evaluate_kppt_learner.cpp                                        \
 	eval/kpp_kkpt/evaluate_kpp_kkpt.cpp                                        \
-	eval/kpp_kkpt/evaluate_learn_kpp_kkpt.cpp                                  \
+	eval/kpp_kkpt/evaluate_kpp_kkpt_learner.cpp                                \
 	eval/evaluate.cpp                                                          \
 	eval/evaluate_no_eval.cpp                                                  \
 	eval/evaluate_io.cpp                                                       \
