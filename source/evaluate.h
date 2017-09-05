@@ -7,7 +7,7 @@
 //   評価関数に対応するheaderの読み込み
 // -------------------------------------
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPP_KKPT)
 #include "eval/evalsum.h"
 #endif
 
@@ -49,7 +49,7 @@ namespace Eval {
 	// あるいは差分計算が不可能なときに呼び出される。
 	Value compute_eval(const Position& pos);
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPP_KKPT)
 	// 評価関数パラメーターのチェックサムを返す。
 	u64 calc_check_sum();
 
@@ -70,7 +70,7 @@ namespace Eval {
 
 #else
 
-#if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+#if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPP_KKPT)
 
 	// Apery(WCSC26)の駒割り
 	enum {
@@ -123,25 +123,7 @@ namespace Eval {
 
 		// --- 手駒
 
-#if defined (EVAL_MATERIAL)
-
-		f_hand_pawn = BONA_PIECE_ZERO + 1,
-		e_hand_pawn = f_hand_pawn + 18,
-		f_hand_lance = e_hand_pawn + 18,
-		e_hand_lance = f_hand_lance + 4,
-		f_hand_knight = e_hand_lance + 4,
-		e_hand_knight = f_hand_knight + 4,
-		f_hand_silver = e_hand_knight + 4,
-		e_hand_silver = f_hand_silver + 4,
-		f_hand_gold = e_hand_silver + 4,
-		e_hand_gold = f_hand_gold + 4,
-		f_hand_bishop = e_hand_gold + 4,
-		e_hand_bishop = f_hand_bishop + 2,
-		f_hand_rook = e_hand_bishop + 2,
-		e_hand_rook = f_hand_rook + 2,
-		fe_hand_end = e_hand_rook + 2,
-
-#elif defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+#if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPP_KKPT)
 		// Apery(WCSC26)方式。0枚目の駒があるので少し隙間がある。
 		// 定数自体は1枚目の駒のindexなので、EVAL_KPPの時と同様の処理で問題ない。
 
@@ -305,7 +287,7 @@ namespace Eval {
 		}
 
 		// 駒リスト。駒番号(PieceNo)いくつの駒がどこにあるのか(BonaPiece)を示す。FV38などで用いる。
-#if (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)) && defined(USE_AVX2)
+#if (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPP_KKPT) ) && defined(USE_AVX2)
 		// AVX2を用いたKPPT評価関数は高速化できるので特別扱い。
 		// Skylake以降でないとほぼ効果がないが…。
 

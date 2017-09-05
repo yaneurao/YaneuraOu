@@ -884,7 +884,7 @@ void gen_sfen(Position&, istringstream& is)
 		<< "  write_minply           = " << write_minply << endl
 		<< "  write_maxply           = " << write_maxply << endl
 		<< "  output_file_name       = " << output_file_name << endl
-		<< "  use_eval_hash          = " << use_eval_hash;
+		<< "  use_eval_hash          = " << use_eval_hash << endl;
 
 	// Options["Threads"]の数だけスレッドを作って実行。
 	{

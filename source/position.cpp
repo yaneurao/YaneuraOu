@@ -6,7 +6,7 @@
 #include "tt.h"
 #include "thread.h"
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPP_KKPT)
 #include "eval/evaluate_common.h"
 #endif
 
@@ -1017,13 +1017,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 	// 評価値の差分計算用の初期化
 
-#if defined (EVAL_KPP)
-  // KPPのとき差分計算は遅延させるのでここではKPPの値を未計算であることを意味するINT_MAXを代入しておく。
-  // これVALUNE_NONEにするとsumKKPが32bitなので偶然一致することがある。
-	st->sumKKP = VALUE_NOT_EVALUATED;
-#endif
-#if defined(EVAL_KKPT) || defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
-	// 上と同じ意味。
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPP_KKPT)
 	st->sum.p[0][0] = VALUE_NOT_EVALUATED;
 #endif
 

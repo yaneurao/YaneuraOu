@@ -3,9 +3,7 @@
 
 // いまどきの手番つき評価関数(EVAL_KPPTとEVAL_KPP_KKPT)の共用header的なもの。
 
-#if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
-
-#include "evalsum.h"
+#if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPP_KKPT)
 
 // KKファイル名
 #define KK_BIN "KK_synthesized.bin"
@@ -15,6 +13,11 @@
 
 // KPPファイル名
 #define KPP_BIN "KPP_synthesized.bin"
+
+#if defined(EVAL_KPPP_KKPT)
+// KPPPファイル名
+#define KPPP_BIN "KPPP_synthesized.bin"
+#endif
 
 namespace Eval
 {

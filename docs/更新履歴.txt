@@ -2,6 +2,37 @@
 やねうら王 更新履歴
 
 
+■　2017/09/06
+
+・EVAL_MATERIALのときのBonaPieceのdefineを他のものと統合。
+・EVAL_KPPP_KKPT関連のコード少し書いた。
+・gensfen時のuse_eval_hashのあとの表示で改行忘れ修正。
+
+
+■　2017/09/05
+
+・VALUE_MAX_EVAL、少し上げて、27000に変更。これでもまだevaluate()の返し値が超えるときがありそう。
+・Makefile、OpenMPをインストールしていないclang環境用に少し修正。
+・evaluate絡みのファイル、整理およびリファクタリング。
+・KPP(手番なし)型評価関数、削除。評価関数まわりのリファクタリング。
+・progress.h/cppを削除。(資料館に移動)
+・eval/kppt/ , eval/kpp_kkpt/ を作成。eval関連のソースコード整理。
+・evalフォルダ整理。evaluate_learn_kppt.cppをevaluate_kppt_learner.cppとリネームなど。
+
+
+■　2017/09/04
+
+・EvalLearningTools::KPPPのfromIndex()で3次方程式の解の公式間違ってたの修正。
+・EvalLearningTools::KPPPのfromIndex()、数式自体は修正できた。しかし、計算誤差で計算が合わない。
+・EvalLearningTools::KPPPのfromIndex(),toIndex()、UnitTest通った。
+
+
+■　2017/09/03
+
+・KPP_PPT型のソースコード、破棄。
+・EvalLearningTools::KPPTのコード書けた。(計算が合ってる自信なし)
+
+
 ■　2017/09/02
 
 ・KPP_KKPT型評価関数ビルド公開。

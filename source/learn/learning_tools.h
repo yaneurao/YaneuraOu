@@ -137,8 +137,8 @@ namespace EvalLearningTools
 			// Vの値を型の範囲に収まるように制限する。
 			// ちなみに、windows.hがmin,maxマクロを定義してしまうのでそれを回避するために、
 			// ここでは括弧で括ることで関数形式マクロとして扱われないようにしている。
-			V = std::min((double)(std::numeric_limits<T>::max)() , V);
-			V = std::max((double)(std::numeric_limits<T>::min)() , V);
+			V = (std::min)((double)(std::numeric_limits<T>::max)() , V);
+			V = (std::max)((double)(std::numeric_limits<T>::min)() , V);
 
 			v = (T)round(V);
 			v_frac = (V_FRACTION_TYPE)((V - v) * m);

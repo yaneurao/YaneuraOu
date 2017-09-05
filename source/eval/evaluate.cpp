@@ -8,15 +8,15 @@
 // 実験中の(非公開の)評価関数の.cppの読み込みはここで行なう。
 #if defined (EVAL_KPPP_KKPT)
 #include "kppp_kkpt/evaluate_kppp_kkpt.cpp"
-#include "kppp_kkpt/evaluate_kppp_kkpt_learn.cpp"
+#include "kppp_kkpt/evaluate_kppp_kkpt_learner.cpp"
 #endif
 #if defined (EVAL_NABLA)
 #include "nabla/evaluate_nabla.cpp"
-#include "nabla/evaluate_nabla_learn.cpp"
+#include "nabla/evaluate_nabla_learner.cpp"
 #endif
 #if defined (EVAL_AKASHIC)
 #include "akashic/evaluate_akashic.cpp"
-#include "akashic/evaluate_akashic_learn.cpp"
+#include "akashic/evaluate_akashic_learner.cpp"
 #endif
 
 namespace Eval
@@ -56,7 +56,7 @@ namespace Eval
 	Value compute_eval(const Position& pos) { return material(pos); }
 #endif
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPP_KKPT)
 
 	// calc_check_sum()を呼び出して返ってきた値を引数に渡すと、ソフト名を表示してくれる。
 	void print_softname(u64 check_sum)

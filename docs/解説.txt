@@ -3,10 +3,10 @@
 
 docs/
 source/
-  2017-early-engine/            やねうら王2017 Ealryの探索部
-  check-shogi-engine/           やねうら王 王手将棋エディション探索部
-  local-game-server/            自動対局フレームワーク
-  user-engine/                  ユーザーが独自のエンジンを作るときの作業用フォルダ
+  engine/
+	2017-early-engine/          やねうら王2017 Ealryの探索部
+	local-game-server/          自動対局フレームワーク
+	user-engine/                ユーザーが独自のエンジンを作るときの作業用フォルダ
 						     
   shogi.h/.cpp                  コンパイル時の設定や、各種構造体の定義。
   bitboard.h/.cpp               Bitboard(盤面の駒のある場所や、ある駒による利きなどを表現するのに使う)
@@ -39,13 +39,13 @@ source/
 	learn.h                     ここで学習関係のオプション設定を行なうことが出来る。
     learner.cpp                 棋譜自動生成等(あとで整理する予定)
 	multi_think.h/cpp           マルチスレッドで、Search::think関数を呼び出したいときに用いるthread worker
-	evaluate_kppt_learn.cpp     学習のときに(損失関数の勾配を計算するのに)用いるkppt評価関数。
 
   eval/
 	evaluate_no_eval.cpp        評価関数なしのときのダミーヘッダ
 	evaluate_material.cpp       駒割りに関する評価関数
     evaluate_bona_piece.cpp     BonaPieceを用いるときの共通ヘッダ
-	evaluate_kpp.cpp            KPP型の3駒の評価関数
+	kppt/						KPPT型の評価関数とその学習用
+	kpp_kkpt/					KPP_KKPT型の評価関数とその学習用
 	
 
 ■　解説記事等
@@ -524,6 +524,7 @@ eval/elmo_yane27に格納されているkppt32の評価関数ファイルが、k
 	このファイルを用意できていなくて読み込みに失敗する場合は、SkipLoadingEval true
 	(これにより、読み込みがスキップされる)としてから、この"test evalconvert"コマンドを実行すると良い。
 	SkipLoadingEvalオプションは、EVAL_LEARNをdefineしてビルドした実行ファイルでのみ使える隠しコマンド。
+
 
 ■　clangでlearn版(学習用)の実行ファイルのmakeが出来ない件
 

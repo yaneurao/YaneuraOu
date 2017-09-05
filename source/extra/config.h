@@ -96,19 +96,19 @@
 // 「？」がついているもの..実装するかも
 // 「！」がついているもの..かつて実装していたがサポートを終了したもの。
 
-// #define EVAL_NO_USE    // ○　評価関数を用いないとき。
-// #define EVAL_MATERIAL  // ○　駒得のみの評価関数
-// #define EVAL_PP        // ×　ツツカナ型 2駒関係(開発予定なし)
-// #define EVAL_KPP       // ！　Bonanza型 3駒関係、手番なし
-// #define EVAL_KPPT      // ○　Bonanza型 3駒関係、手番つき(Apery WCSC26相当)
-// #define EVAL_KPP_KKPT  // ○　KK手番あり + KKP手番あり + KPP手番なし(Ponanza WCSC26相当？)
-// #define EVAL_KPP_PPT   // ×　PP手番あり + KKP手番あり + KPP手番なし(実装、途中まで)
-// #define EVAL_KKPPT     // ×　KPPTよりevaluateが倍ぐらい速くなる。メモリ使用量64倍。(実装予定なし)
-// #define EVAL_KPPP_KKPT // ？　KKP手番あり + KPP手番なし + KPPP(4駒関係)手番なし。(実装するかも)
-// #define EVAL_KPPPT     // ×　KPPP(4駒関係)手番あり。(実装予定なし)
-// #define EVAL_PPET      // ×　技巧型 2駒+利き+手番(実装予定なし)
-// #define EVAL_KKPPT     // ？　KKPPT型 4駒関係 手番(55将棋、56将棋で用いるかも)(実装するかも)
-// #define EVAL_PPAP      // ？　3駒 + Piece-Piece-and Pawn型(実装するかも)
+// #define EVAL_NO_USE    // ○  評価関数を用いないとき。
+// #define EVAL_MATERIAL  // ○  駒得のみの評価関数
+// #define EVAL_PP        // ×  ツツカナ型 2駒関係(開発予定なし)
+// #define EVAL_KPP       // ！  Bonanza型 3駒関係、手番なし
+// #define EVAL_KPPT      // ○  Bonanza型 3駒関係、手番つき(Apery WCSC26相当)
+// #define EVAL_KPP_KKPT  // ○  KK手番あり + KKP手番あり + KPP手番なし(Ponanza WCSC26相当？)
+// #define EVAL_KPP_PPT   // ×  PP手番あり + KKP手番あり + KPP手番なし(実装、途中まで)
+// #define EVAL_KKPPT     // ×  KPPTよりevaluateが倍ぐらい速くなる。メモリ使用量64倍。(実装予定なし)
+// #define EVAL_KPPP_KKPT // ？  KKP手番あり + KPP手番なし + KPPP(4駒関係)手番なし。(実装するかも)
+// #define EVAL_KPPPT     // ×  KPPP(4駒関係)手番あり。(実装予定なし)
+// #define EVAL_PPET      // ×  技巧型 2駒+利き+手番(実装予定なし)
+// #define EVAL_KKPPT     // ？  KKPPT型 4駒関係 手番(55将棋、56将棋で用いるかも)(実装するかも)
+// #define EVAL_PPAP      // ？  3駒 + Piece-Piece-and Pawn型(実装するかも)
 // #define EVAL_NABLA     // ？  ∇(ナブラ) 評価関数
 // #define EVAL_AKASHIC   // ？  Akashic Records 評価関数
 
@@ -222,6 +222,9 @@
 #define ENGINE_NAME "YaneuraOu 2017 Early"
 #define EVAL_KPPT
 //#define EVAL_KPP_KKPT
+//#define EVAL_KPPP_KKPT
+//#define EVAL_NABLA
+//#define EVAL_AKASHIC
 
 // 実験中の評価関数
 // 評価関数の番号を選択できる。0001～9999から選ぶ。
@@ -638,20 +641,20 @@ inline int MKDIR(std::string dir_name)
 // -- 評価関数の種類によりエンジン名に使用する文字列を変更する。
 #if defined(EVAL_MATERIAL)
 #define EVAL_TYPE_NAME "Material"
-#elif defined(EVAL_KPP)
-#define EVAL_TYPE_NAME "KPP"
 #elif defined(EVAL_KPPT)
 #define EVAL_TYPE_NAME "KPPT"
 #elif defined(EVAL_KPP_KKPT)
 #define EVAL_TYPE_NAME "KPP_KKPT"
+#elif defined(EVAL_KPPP_KKPT)
+#define EVAL_TYPE_NAME "KPPP_KKPT"
 #else
 #define EVAL_TYPE_NAME ""
 #endif
 
-// PP,KPP,KKPT,KPPT,PPEならdo_move()のときに移動した駒の管理をして差分計算
+// do_move()のときに移動した駒の管理をして差分計算
 // また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
 // あらゆる局面でP(駒)の数が増えないFV38と呼ばれる形式の差分計算用。
-#if defined(EVAL_KPP) || defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPP_KKPT)
 #define USE_FV38
 #endif
 
