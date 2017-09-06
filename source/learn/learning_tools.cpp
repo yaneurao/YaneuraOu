@@ -23,6 +23,8 @@ namespace EvalLearningTools
 	AsyncPRNG Weight::prng;
 #endif
 
+	u64 KPPP::king_sq = 15;
+
 	// --- tables
 
 	// あるBonaPieceを相手側から見たときの値

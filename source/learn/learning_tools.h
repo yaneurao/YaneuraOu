@@ -608,18 +608,15 @@ namespace EvalLearningTools
 		// KPPPのときに扱う玉の升の数。
 		// 3段×ミラーなら3段×5筋 = 15みたいな感じ。
 		// 2段×ミラーなしなら2×9筋 = 18みたいな感じ。
-		static u64 king_sq() {
-#define KPPP_KING_SQ 15
-			return KPPP_KING_SQ;
-		}
-
+		static u64 king_sq;
+		
 		// kppp[king_sq][fe_end][fe_end][fe_end]の[fe_end][fe_end][fe_end]な正方配列の部分を三角配列化する。
 		// kppp[king_sq][triangle_fe_end]とすると、この三角配列の0行目から要素数は、0,0,1,3,…,n行目はn(n-1)/2個。
 		// ゆえに、
 		// triangle_fe_end = Σn(n-1)/2 , n=0..fe_end-1
 		//                 =  fe_end * (fe_end - 1) * (fe_end - 2) / 6
 		static const u64 triangle_fe_end = ((u64)Eval::fe_end)*((u64)Eval::fe_end - 1)*((u64)Eval::fe_end - 2) / 6;
-		static u64 max_index() { return min_index() + (u64)king_sq()*triangle_fe_end; }
+		static u64 max_index() { return min_index() + (u64)king_sq*triangle_fe_end; }
 
 		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
 		static bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }

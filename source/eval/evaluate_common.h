@@ -48,14 +48,19 @@ namespace Eval
 	void init_grad(double eta1, u64 eta_epoch, double eta2, u64 eta2_epoch, double eta3);
 
 	// 現在の局面で出現している特徴すべてに対して、勾配の差分値を勾配配列に加算する。
-	void add_grad(Position& pos, Color rootColor, double delt_grad, bool without_kpp);
+	// freeze[0]  : kkは学習させないフラグ
+	// freeze[1]  : kkpは学習させないフラグ
+	// freeze[2]  : kppは学習させないフラグ
+	// freeze[3]  : kpppは学習させないフラグ
+	void add_grad(Position& pos, Color rootColor, double delt_grad, const std::array<bool, 4>& freeze);
 
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
-	// epoch       : 世代カウンター(0から始まる)
-	// freeze_kk   : kkは学習させないフラグ
-	// freeze_kkp  : kkpは学習させないフラグ
-	// freeze_kpp  : kppは学習させないフラグ
-	void update_weights(u64 epoch, bool freeze_kk, bool freeze_kkp, bool freeze_kpp);
+	// epoch      : 世代カウンター(0から始まる)
+	// freeze[0]  : kkは学習させないフラグ
+	// freeze[1]  : kkpは学習させないフラグ
+	// freeze[2]  : kppは学習させないフラグ
+	// freeze[3]  : kpppは学習させないフラグ
+	void update_weights(u64 epoch, const std::array<bool,4>& freeze);
 
 	// 評価関数パラメーターをファイルに保存する。
 	// ファイルの末尾につける拡張子を指定できる。

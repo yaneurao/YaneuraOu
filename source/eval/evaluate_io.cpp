@@ -38,6 +38,7 @@ namespace EvalIO
 				case PP  : block_size *= (fe_end ) * (fe_end )                      ; break;
 				case KKPP: block_size *= (sq_nb  ) * (sq_nb  ) * (fe_end) * (fe_end); break;
 				case KPPP: block_size *= (sq_nb  ) * (fe_end ) * (fe_end) * (fe_end); break;
+				case VAR : block_size *= 1; break;
 				default:
 					ASSERT_LV1(false);
 				}
@@ -276,6 +277,10 @@ namespace EvalIO
 								}
 							}
 						}
+					break;
+
+				case VAR:
+					// あとで書く。
 					break;
 				}
 

@@ -21,24 +21,6 @@
 
 #include "evaluate_kpp_kkpt.h"
 
-using namespace std;
-
-namespace Eval
-{
-	// 学習のときの勾配配列の初期化
-	void init_grad(double eta1, u64 eta_epoch, double eta2, u64 eta2_epoch, double eta3);
-
-	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
-	// 現局面は、leaf nodeであるものとする。
-	void add_grad(Position& pos, Color rootColor, double delta_grad,bool freeze_kpp);
-
-	// 現在の勾配をもとにSGDかAdaGradか何かする。
-	void update_weights(u64 epoch, bool freeze_kk , bool freeze_kkp , bool freeze_kpp);
-
-	// 評価関数パラメーターをファイルに保存する。
-	void save_eval(std::string dir_name);
-}
-
 // --- 以下、定義
 
 namespace Eval
@@ -77,8 +59,10 @@ namespace Eval
 
 	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
 	// 現局面は、leaf nodeであるものとする。
-	void add_grad(Position& pos, Color rootColor, double delta_grad , bool freeze_kpp)
+	void add_grad(Position& pos, Color rootColor, double delta_grad , const std::array<bool, 4>& freeze)
 	{
+		const bool freeze_kpp = freeze[2];
+
 		// LearnFloatTypeにatomicつけてないが、2つのスレッドが、それぞれx += yと x += z を実行しようとしたとき
 		// 極稀にどちらか一方しか実行されなくともAdaGradでは問題とならないので気にしないことにする。
 		// double型にしたときにWeight.gが破壊されるケースは多少困るが、double型の下位4バイトが破壊されたところで
@@ -91,7 +75,7 @@ namespace Eval
 		delta_grad /= 32.0 /*FV_SCALE*/;
 
 		// 勾配
-		array<LearnFloatType,2> g =
+		std::array<LearnFloatType,2> g =
 		{
 			// 手番を考慮しない値
 			(rootColor == BLACK             ) ? LearnFloatType(delta_grad) : -LearnFloatType(delta_grad),
@@ -101,7 +85,7 @@ namespace Eval
 		};
 
 		// 180度盤面を回転させた位置関係に対する勾配
-		array<LearnFloatType,2> g_flip = { -g[0] , g[1] };
+		std::array<LearnFloatType,2> g_flip = { -g[0] , g[1] };
 
 		Square sq_bk = pos.king_square(BLACK);
 		Square sq_wk = pos.king_square(WHITE);
@@ -161,12 +145,13 @@ namespace Eval
 
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
 	// epoch       : 世代カウンター(0から始まる)
-	// freeze_kk   : kkは学習させないフラグ
-	// freeze_kkp  : kkpは学習させないフラグ
-	// freeze_kpp  : kppは学習させないフラグ
-	void update_weights(u64 epoch, bool freeze_kk , bool freeze_kkp , bool freeze_kpp)
+	void update_weights(u64 epoch , const std::array<bool, 4>& freeze)
 	{
 		u64 vector_length = KPP::max_index();
+
+		const bool freeze_kk = freeze[0];
+		const bool freeze_kkp = freeze[1];
+		const bool freeze_kpp = freeze[2];
 
 		// KPPを学習させないなら、KKPのmaxまでだけで良い。あとは数が少ないからまあいいや。
 		if (freeze_kpp)
@@ -218,7 +203,7 @@ namespace Eval
 
 					// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す。
 					// ids[0]==ids[1]==ids[2]==ids[3]みたいな可能性があるので、gは外部で合計する。
-					array<LearnFloatType, 2> g_sum = zero_t;
+					std::array<LearnFloatType, 2> g_sum = zero_t;
 
 					// inverseした次元下げに関しては符号が逆になるのでadjust_grad()を経由して計算する。
 					for (int i = 0; i < KK_LOWER_COUNT; ++i)
@@ -254,7 +239,7 @@ namespace Eval
 					for (int i = 0; i < KKP_LOWER_COUNT; ++i)
 						ids[i] = a[i].toIndex();
 
-					array<LearnFloatType, 2> g_sum = zero_t;
+					std::array<LearnFloatType, 2> g_sum = zero_t;
 					for (int i = 0; i <KKP_LOWER_COUNT; ++i)
 						g_sum += a[i].adjust_grad(weights[ids[i]].get_grad());
 					
@@ -321,9 +306,9 @@ namespace Eval
 	void save_eval(std::string dir_name)
 	{
 		{
-			auto eval_dir = path_combine((string)Options["EvalSaveDir"], dir_name);
+			auto eval_dir = path_combine((std::string)Options["EvalSaveDir"], dir_name);
 
-			cout << "save_eval() start. folder = " << eval_dir << endl;
+			std::cout << "save_eval() start. folder = " << eval_dir << std::endl;
 
 			// すでにこのフォルダがあるならmkdir()に失敗するが、
 			// 別にそれは構わない。なければ作って欲しいだけ。
@@ -343,12 +328,12 @@ namespace Eval
 			if (!EvalIO::eval_convert(input, output, nullptr))
 				goto Error;
 
-			cout << "save_eval() finished. folder = " << eval_dir << endl;
+			std::cout << "save_eval() finished. folder = " << eval_dir << std::endl;
 			return;
 		}
 
 	Error:;
-		cout << "Error : save_eval() failed" << endl;
+		std::cout << "Error : save_eval() failed" << std::endl;
 	}
 
 	// 現在のetaを取得する。

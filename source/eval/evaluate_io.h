@@ -9,7 +9,8 @@ namespace EvalIO
 {
 
 	// 特徴因子名
-	enum EvalFeature { KK , KKP, KPP, PP , KPPP, KKPP };
+	// "VAR"は一次元配列。
+	enum EvalFeature { KK , KKP, KPP, PP , KPPP, KKPP , VAR };
 
 	// 実体がメモリにあるときは、そのポインタ、
 	// 実体がファイルにあるときは、そのファイル名を保持する構造体
@@ -107,27 +108,28 @@ namespace EvalIO
 		// Ponanza(WCSC26)っぽいKPP_PPT型評価関数の型定義を返すbuilder。
 		// 引数にはFileOrMemoryのコンストラクタに渡す、std::string filenameかvoid* ptr を渡す。
 		template <typename T1, typename T2, typename T3>
-		static EvalInfo build_kpp_kkpt32(T1 pp_, T2 kkp_, T3 kpp_)
+		static EvalInfo build_kpp_kkpt32(T1 kk_, T2 kkp_, T3 kpp_)
 		{
 			EvalInfo ei(81 /* SQ_NB */, 1548 /* EvalKPPT::fe_end */);
-			ei.eval_info_array.emplace_back(EvalArrayInfo(KK , 4, 2, FileOrMemory(pp_)));  // PP は4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KK , 4, 2, FileOrMemory(kk_)));  // KK は4バイト。(手番ありなので2つ)
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP, 4, 2, FileOrMemory(kkp_))); // KKPは4バイト。(手番ありなので2つ)
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP, 2, 1, FileOrMemory(kpp_))); // KPPは2バイト。(手番なしなので1つ)
 			return ei;
 		}
 
-		// KPP_PPT型評価関数の型定義を返すbuilder。
+		// KPPP_KKPT型評価関数の型定義を返すbuilder。
 		// 引数にはFileOrMemoryのコンストラクタに渡す、std::string filenameかvoid* ptr を渡す。
-		template <typename T1, typename T2, typename T3>
-		static EvalInfo build_kpp_ppt(T1 pp_, T2 kkp_, T3 kpp_)
+		template <typename T1, typename T2, typename T3, typename T4>
+		static EvalInfo build_kppp_kkpt32(T1 kk_, T2 kkp_, T3 kpp_ , T4 kppp_)
 		{
 			EvalInfo ei(81 /* SQ_NB */, 1548 /* EvalKPPT::fe_end */);
-			ei.eval_info_array.emplace_back(EvalArrayInfo(PP , 2, 2, FileOrMemory(pp_)));  // PP は2バイト。(手番ありなので2つ)
-			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP, 2, 2, FileOrMemory(kkp_))); // KKPは2バイト。(手番ありなので2つ)
-			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP, 2, 1, FileOrMemory(kpp_))); // KPPは2バイト。(手番なしなので1つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KK  , 4, 2, FileOrMemory(kk_)));   // KK  は4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP , 4, 2, FileOrMemory(kkp_)));  // KKP は4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP , 2, 1, FileOrMemory(kpp_)));  // KPP は2バイト。(手番なしなので1つ)
+			// あとで考える。
+			ei.eval_info_array.emplace_back(EvalArrayInfo(VAR , 2, 1, FileOrMemory(kppp_))); // KPPPは2バイト。(手番なしなので1つ)
 			return ei;
 		}
-
 	};
 
 	// 評価関数の変換＋αを行なう。

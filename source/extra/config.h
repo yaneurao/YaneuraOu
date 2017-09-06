@@ -222,7 +222,7 @@
 #define ENGINE_NAME "YaneuraOu 2017 Early"
 #define EVAL_KPPT
 //#define EVAL_KPP_KKPT
-//#define EVAL_KPPP_KKPT
+//#define EVAL_KPPP_KKPT 81
 //#define EVAL_NABLA
 //#define EVAL_AKASHIC
 
@@ -661,7 +661,6 @@ inline int MKDIR(std::string dir_name)
 // P(駒)の数が増えたり減ったりするタイプの差分計算用
 // 平均的には30枚以下のPで済むのでこの方式をFV30と命名
 //#define USE_FV30
-
 
 // -- 評価関数の種類により、盤面の利きの更新ときの処理が異なる。(このタイミングで評価関数の差分計算をしたいので)
 
