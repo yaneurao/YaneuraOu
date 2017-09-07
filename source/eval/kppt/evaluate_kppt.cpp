@@ -107,6 +107,15 @@ namespace Eval
 			}
 #endif
 
+#if defined(EVAL_LEARN) && defined(USE_KK_INVERSE_WRITE)
+			// KKの先後対称性から、kk[bk][wk][0] == -kk[Inv(wk)][Inv(bk)][0]である。
+			// bk == Inv(wk)であるときも、この式が成立するので、このとき、kk[bk][wk][0] == 0である。
+			{
+				for (auto sq : SQ)
+					kk[sq][Inv(sq)][0] = 0;
+			}
+#endif
+
 #if 0
 			// Aperyの評価関数バイナリ、kkptは意味があるけどkpptはあまり意味がないので
 			// 手番価値をクリアする実験用のコード

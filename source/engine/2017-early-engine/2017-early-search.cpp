@@ -2374,7 +2374,9 @@ void Thread::search()
 				// それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
 				// 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
 				// 用いないと前回の反復深化の結果によって得た並び順を変えてしまうことになるのでまずい。
-				std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
+				
+				 stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
+				//my_stable_sort(rootPos.this_thread()->thread_id(),&rootMoves[0] + PVIdx, rootMoves.size() - PVIdx);
 				
 				if (Threads.stop)
 					break;
@@ -2437,7 +2439,9 @@ void Thread::search()
 
 			// MultiPVの候補手をスコア順に再度並び替えておく。
 			// (二番目だと思っていたほうの指し手のほうが評価値が良い可能性があるので…)
-			std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
+
+			stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
+			//my_stable_sort(rootPos.this_thread()->thread_id(),&rootMoves[0],PVIdx + 1);
 
 			if (!mainThread)
 				continue;
@@ -3048,7 +3052,9 @@ namespace Learner
 				while (true)
 				{
 					bestValue = YaneuraOu2017Early::search<PV>(pos, ss, alpha, beta, rootDepth, false , false);
-					std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
+
+					stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
+					//my_stable_sort(pos.this_thread()->thread_id(),&rootMoves[0] + PVIdx, rootMoves.size() - PVIdx);
 
 					// fail low/highに対してaspiration windowを広げる。
 					// ただし、引数で指定されていた値になっていたら、もうfail low/high扱いとしてbreakする。
@@ -3066,7 +3072,8 @@ namespace Learner
 					ASSERT_LV3(-VALUE_INFINITE <= alpha && beta <= VALUE_INFINITE);
 				}
 
-				std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
+				stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
+				//my_stable_sort(pos.this_thread()->thread_id() , &rootMoves[0] , PVIdx + 1);
 
 			} // multi PV
 

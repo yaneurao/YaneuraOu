@@ -299,6 +299,26 @@ inline std::string path_combine(const std::string& folder, const std::string& fi
 //       misc
 // --------------------
 
+// insertion sort
+// 昇順に並び替える。
+template <typename T >
+void my_insertion_sort(T* arr, int left, int right)
+{
+	for (int i = left + 1; i < right; i++)
+	{
+		auto key = arr[i];
+		int j = i - 1;
+
+		// keyより大きな arr[0..i-1]の要素を現在処理中の先頭へ。
+		while (j >= left && !(arr[j] > key))
+		{
+			arr[j + 1] = arr[j];
+			j = j - 1;
+		}
+		arr[j + 1] = key;
+	}
+}
+
 // 途中での終了処理のためのwrapper
 static void my_exit()
 {

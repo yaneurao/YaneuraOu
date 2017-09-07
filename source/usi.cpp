@@ -468,31 +468,26 @@ void is_ready()
 {
 	// 評価関数の読み込みなど時間のかかるであろう処理はこのタイミングで行なう。
 	// 起動時に時間のかかる処理をしてしまうと将棋所がタイムアウト判定をして、思考エンジンとしての認識をリタイアしてしまう。
-#if defined(EVAL_LEARN)
-	if (!Options["SkipLoadingEval"])
-#endif
+	if (!load_eval_finished)
 	{
-		if (!load_eval_finished)
-		{
-			// 評価関数の読み込み
-			Eval::load_eval();
+		// 評価関数の読み込み
+		Eval::load_eval();
 
-			// チェックサムの計算と保存(その後のメモリ破損のチェックのため)
-			eval_sum = Eval::calc_check_sum();
+		// チェックサムの計算と保存(その後のメモリ破損のチェックのため)
+		eval_sum = Eval::calc_check_sum();
 
-			// ソフト名の表示
-			Eval::print_softname(eval_sum);
+		// ソフト名の表示
+		Eval::print_softname(eval_sum);
 
-			load_eval_finished = true;
+		load_eval_finished = true;
 
-		}
-		else {
+	}
+	else {
 
-			// メモリが破壊されていないかを調べるためにチェックサムを毎回調べる。
-			// 時間が少しもったいない気もするが.. 0.1秒ぐらいのことなので良しとする。
-			if (eval_sum != Eval::calc_check_sum())
-				sync_cout << "Error! : evaluate memory is corrupted" << sync_endl;
-		}
+		// メモリが破壊されていないかを調べるためにチェックサムを毎回調べる。
+		// 時間が少しもったいない気もするが.. 0.1秒ぐらいのことなので良しとする。
+		if (eval_sum != Eval::calc_check_sum())
+			sync_cout << "Error! : evaluate memory is corrupted" << sync_endl;
 	}
 
 	// isreadyに対してはreadyokを返すまで次のコマンドが来ないことは約束されているので

@@ -522,9 +522,8 @@ eval/elmo_yane27に格納されているkppt32の評価関数ファイルが、k
 備考)
 	変換に際して、isreadyコマンドが走るので、このときに評価関数ファイルがEvalDirにないといけないが、
 	このファイルを用意できていなくて読み込みに失敗する場合は、SkipLoadingEval true
-	(これにより、読み込みがスキップされる)としてから、この"test evalconvert"コマンドを実行すると良い。
+	(これにより、ファイルがないときにゼロクリアされたファイルを読み込んだことにする)としてから、この"test evalconvert"コマンドを実行すると良い。
 	SkipLoadingEvalオプションは、EVAL_LEARNをdefineしてビルドした実行ファイルでのみ使える隠しコマンド。
-
 
 ■　clangでlearn版(学習用)の実行ファイルのmakeが出来ない件
 

@@ -117,11 +117,11 @@ void ThreadPool::read_usi_options() {
 	size_t requested = Options["Threads"];
 	ASSERT_LV1(requested > 0);
 
-	// 足りなければ生成
+	// スレッドが足りなければ生成
 	while (size() < requested)
 		push_back(new_thread<Thread>());
 
-	// 余っていれば解体
+	// スレッドが余っていれば解体
 	while (size() > requested)
 	{
 		delete_thread(back());

@@ -2,11 +2,19 @@
 やねうら王 更新履歴
 
 
+■　2017/09/07
+
+・KK_INVERSE_WRITE時にKK[sq][Inv(sq)][0]==0を保証するように修正。
+・SkipLoadingEvalの仕様変更。ファイルが存在しないときはゼロクリアされたファイルを読み込んだことにする。
+
+
 ■　2017/09/06
 
 ・EVAL_MATERIALのときのBonaPieceのdefineを他のものと統合。
 ・EVAL_KPPP_KKPT関連のコード少し書いた。
 ・gensfen時のuse_eval_hashのあとの表示で改行忘れ修正。
+・EVAL_KPP関連のコード削除。
+・learnコマンドのfreeze周り、整理した。EVAL_KPPP_KKPT周り、少し書いた。
 
 
 ■　2017/09/05

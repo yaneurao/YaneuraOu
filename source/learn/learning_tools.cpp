@@ -137,6 +137,11 @@ namespace EvalLearningTools
 	{
 		// mirrorとinverseのテーブルの初期化。
 
+		// 初期化は1回に限る。
+		static bool first = true;
+		if (!first) return;
+		first = false;
+
 			// fとeとの交換
 		int t[] = {
 			f_hand_pawn - 1    , e_hand_pawn - 1   ,

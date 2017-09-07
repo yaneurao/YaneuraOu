@@ -219,7 +219,9 @@ namespace EvalLearningTools
 
 	// 	--- BonaPieceに対してMirrorとInverseを提供する。
 
-	// これらの配列は、init();を呼び出すと初期化される。
+	// これらの配列は、init()かinit_mir_inv_tables();を呼び出すと初期化される。
+	// このテーブルのみを評価関数のほうから使いたいときは、評価関数の初期化のときに
+	// init_mir_inv_tables()を呼び出すと良い。
 	// これらの配列は、以下のKK/KKP/KPPクラスから参照される。
 
 	// あるBonaPieceを相手側から見たときの値を返す
@@ -241,6 +243,9 @@ namespace EvalLearningTools
 	extern std::function<void()> mir_piece_init_function;
 	extern s16 mir_piece_[Eval::fe_end];
 	extern s16 inv_piece_[Eval::fe_end];
+
+	// この関数を明示的に呼び出すか、init()を呼び出すかしたときに、上のテーブルが初期化される。
+	void init_mir_inv_tables();
 
 	// -------------------------------------------------
 	// Weight配列を直列化したときのindexを計算したりするヘルパー。
@@ -642,19 +647,25 @@ namespace EvalLearningTools
 
 			// ここにindex2からpiece0,piece1,piece2を求める式を書く。
 			// これは index2 = i(i-1)(i-2)/6-1 + j(j+1)/2 + k の逆関数となる。
-			// j = k = 0 の場合、3次方程式の解の公式から実根は、 i = ...である。(以下式)
-			// iを整数化したのちに、最初の式に入れてKPPのとき同様にjを求めれば良い。
+			// j = k = 0 の場合、3次方程式の解の公式から実根は、 i = ...である。(以下式) 
+			// ただしindex2が0,1のときは実数解が複数ある。これを考慮しないといけない。計算精度が足りないことに対する対策必要。
+			// iが求まったあとはiを整数化したのちに、最初の式に入れてKPPのとき同様にjを求めれば良い。
+
+			// この処理、数値計算としてわりと難しい。色々工夫が必要。
 
 			int piece2;
 			if (index2 <= 1)
 			{
-				// index == 0,1のときだけ実数解が複数ある。
+				// index2 == 0,1のときだけ実数解が複数ある。
 				piece2 = (int)index2 + 2;
 
 			} else {
 
 				//double t = pow(sqrt((243 *index2 * index2 - 1) * 3) + 27 * index2, 1.0 / 3);
 				// →　これだとindex2が大きくなるとsqrt()の中身、オーバーフローする。
+
+				// sqrt()の中身がオーバーフローするので、sqrtのなかで3.0を掛けずにsqrtの外側でsqrt(3.0)を掛ける。
+				// sqrt()の中身がオーバーフローするので、index2が大きいときは近似式を用いる。
 
 				double t;
 				
@@ -664,7 +675,7 @@ namespace EvalLearningTools
 					// index2が非常に大きいとき、sqrtの中身、近似的に √243 * index2とみなせるだろう。
 					t = pow( index2 * sqrt(243 * 3.0) + 27 * index2, 1.0 / 3);
 				
-				// 丸めのときに計算誤差でわずかに足りないのを防ぐためのデルタ
+				// 丸めのときに計算誤差でわずかに足りないのを防ぐためデルタを加算する。
 				// 大きすぎると1大きい数になってしまう時があるので調整が必要。
 				
 				const double delta = 0.000000001;
@@ -673,9 +684,9 @@ namespace EvalLearningTools
 				// ううう。ほんまにこんなことせんとあかんのか？(´ω｀)
 			}
 
-			// 上式のi(i-1)(i-2)/6(=aとする)のiにpiece2を代入。また、k = 0を代入。
+			// piece2が求まったので、上式のi(i-1)(i-2)/6(=aとする)のiにpiece2を代入。また、k = 0を代入。
 			// j(j+1)/2 = index2 - a
-			// 2次方程式の解の公式より..
+			// これは、2次方程式の解の公式より..
 
 			u64 a = (u64)piece2*((u64)piece2 - 1)*((u64)piece2 - 2) / 6;
 			int piece1 = int((1 + sqrt(8.0 * (index2 - a ) + 1)) / 2);

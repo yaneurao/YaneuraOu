@@ -222,7 +222,7 @@
 #define ENGINE_NAME "YaneuraOu 2017 Early"
 #define EVAL_KPPT
 //#define EVAL_KPP_KKPT
-//#define EVAL_KPPP_KKPT 81
+//#define EVAL_KPPP_KKPT 18
 //#define EVAL_NABLA
 //#define EVAL_AKASHIC
 
@@ -244,7 +244,7 @@
 #define PER_STACK_HISTORY
 
 // デバッグ絡み
-#define ASSERT_LV 3
+//#define ASSERT_LV 3
 //#define USE_DEBUG_ASSERT
 
 #define ENABLE_TEST_CMD

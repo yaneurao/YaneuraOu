@@ -97,6 +97,16 @@ namespace Eval
 					}
 			}
 #endif
+
+#if defined(EVAL_LEARN) && defined(USE_KK_INVERSE_WRITE)
+			// KKの先後対称性から、kk[bk][wk][0] == -kk[Inv(wk)][Inv(bk)][0]である。
+			// bk == Inv(wk)であるときも、この式が成立するので、このとき、kk[bk][wk][0] == 0である。
+			{
+				for (auto sq : SQ)
+					kk[sq][Inv(sq)][0] = 0;
+			}
+#endif
+
 		}
 
 		// 読み込みは成功した。

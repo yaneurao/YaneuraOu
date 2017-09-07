@@ -79,8 +79,19 @@ namespace EvalIO
 						return out_.file_or_memory.ptr;
 					}) != 0)
 					{
-						std::cout << "info string read file error , file = " << in_.file_or_memory.filename << std::endl;
-						return false;
+#if defined(EVAL_LEARN)
+						if (Options["SkipLoadingEval"])
+						{
+							std::cout << "info string read file error , file = " << in_.file_or_memory.filename << " , but SkipLoadingEval == true , so ignore this." << std::endl;
+							memset(out_.file_or_memory.ptr, 0, input_block_size);
+							return true;
+						}
+						else
+#endif
+						{
+							std::cout << "info string read file error , file = " << in_.file_or_memory.filename << std::endl;
+							return false;
+						}
 					}
 				}
 				// memory to file
@@ -261,6 +272,7 @@ namespace EvalIO
 					break;
 
 				case KPPP:
+					// こんな正方配列は、メモリきつすぎ。
 					for (u64 k1 = 0; k1 < output.sq_nb; ++k1)
 						for (u64 p1 = 0; p1 < output.fe_end; ++p1)
 						{
@@ -280,7 +292,7 @@ namespace EvalIO
 					break;
 
 				case VAR:
-					// あとで書く。
+					conv((u8*)in_ptr , (u8*)out_ptr);
 					break;
 				}
 
@@ -288,7 +300,7 @@ namespace EvalIO
 
 				if (out_.file_or_memory.ptr == nullptr)
 				{
-					if (write_memory_to_file(out_.file_or_memory.filename, out_ptr,output_block_size)!=0)
+					if (write_memory_to_file(out_.file_or_memory.filename , out_ptr , output_block_size) != 0)
 					{
 						std::cout << "info string write file error , file = " << out_.file_or_memory.filename << std::endl;
 						return false;
