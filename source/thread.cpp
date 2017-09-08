@@ -1,34 +1,31 @@
 ﻿#include "thread.h"
 
-#include "misc.h"
-
-ThreadPool Threads;
-
-using namespace std;
-using namespace Search;
+ThreadPool Threads;		// Global object
 
 namespace {
 
 	// std::thread派生型であるT型のthreadを一つ作って、そのidle_loopを実行するためのマクロ。
+	// Threadクラスがalignされていることを要求するのでこうやって生成している。
+	// (C++のnewがalignasを無視するのがおかしいのだが…)
 	// 生成されたスレッドはidle_loop()で仕事が来るのを待機している。
-	template<typename T> T* new_thread() {
+	template<typename T> T* new_thread(size_t n) {
 		void* dst = aligned_malloc(sizeof(T), alignof(T));
 		// 確保に成功したならゼロクリアしておく。
 		if (dst)
 			std::memset(dst, 0, sizeof(T));
 
-		T* th = new (dst) T();
+		T* th = new (dst) T(n);
 		return (T*)th;
 	}
 
-	// new_thread()の逆。エンジン終了時に呼び出される。
+	// new_thread()の逆。スレッド解体時に呼び出される。
 	void delete_thread(Thread *th) {
-		th->terminate();
+		th->~Thread();
 		aligned_free(th);
 	}
 }
 
-Thread::Thread()
+Thread::Thread(size_t n) : idx(n)
 {
 	exit = false;
 
@@ -39,25 +36,29 @@ Thread::Thread()
 	// 探索したノード数
 	nodes = 0;
 
-	idx = Threads.size();  // スレッド番号(MainThreadが0。slaveは1から順番に)
-
 	// スレッドを一度起動してworkerのほう待機状態にさせておく
 	std::unique_lock<Mutex> lk(mutex);
 	searching = true;
-	nativeThread = std::thread(&Thread::idle_loop, this);
-	sleepCondition.wait(lk, [&] {return !searching; });
+	stdThread = std::thread(&Thread::idle_loop, this);
+	cv.wait(lk, [&] {return !searching; });
 }
 
-// std::threadの終了を待つ(デストラクタに相当する)
-// Threadクラスがnewするときにalignasが利かないので自前でnew_thread(),delete_thread()を
-// 呼び出しているのでデストラクタで書くわけにはいかない。
-void Thread::terminate() {
+// std::threadの終了を待つ
+Thread::~Thread() {
 
 	mutex.lock();
 	exit = true; // 探索は終わっているはずなのでこのフラグをセットして待機する。
-	sleepCondition.notify_one();
+	cv.notify_one();
 	mutex.unlock();
-	nativeThread.join();
+	stdThread.join();
+}
+
+
+// 探索が終わるのを待機する。(searchingフラグがfalseになるのを待つ)
+void Thread::wait_for_search_finished()
+{
+	std::unique_lock<Mutex> lk(mutex);
+	cv.wait(lk, [&] { return !searching; });
 }
 
 // 探索するときのmaster,slave用のidle_loop。探索開始するまで待っている。
@@ -73,60 +74,44 @@ void Thread::idle_loop() {
 
 		while (!searching && !exit)
 		{
-			sleepCondition.notify_one(); // 他のスレッドがこのスレッドを待機待ちしてるならそれを起こす
-			sleepCondition.wait(lk);
+			cv.notify_one(); // 他のスレッドがこのスレッドを待機待ちしてるならそれを起こす
+			cv.wait(lk);
 		}
+
+		if (exit)
+			return;
 
 		lk.unlock();
 
-		// !exitで抜けてきたということはsearch == trueというわけだから探索する。
-		// exit == true && search == trueというケースにおいてはsearch()を呼び出してはならないので
-		// こういう書き方をしてある。
-		if (!exit)
-			search();
+		// exit == falseということはsearch == trueというわけだから探索する。
+		search();
 	}
 }
 
-std::vector<Thread*>::iterator Slaves::begin() const { return Threads.begin() + 1; }
-std::vector<Thread*>::iterator Slaves::end() const { return Threads.end(); }
-
-void ThreadPool::init() {
-	// MainThreadを一つ生成して、そのあとusi_optionを呼び出す。
-	// そのなかにスレッド数が書いてあるので足りなければその数だけスレッドが生成される。
-
-	push_back(new_thread<MainThread>());
-	read_usi_options();
+// MainThreadを一つ生成して、そのあとrequestedで要求された分だけスレッドを生成する。(MainThreadも含めて数える)
+void ThreadPool::init(size_t requested)
+{
+	push_back(new_thread<MainThread>(0));
+	set(requested);
 }
 
 void ThreadPool::exit()
 {
-	// 逆順で解体する必要がある。
-	while (size())
-	{
-		delete_thread(back());
-		pop_back();
-	}
+	// 探索の終了を待つ
+	main()->wait_for_search_finished();
+	set(0);
 }
 
-// USIプロトコルで指定されているスレッド数を反映させる。
-void ThreadPool::read_usi_options() {
-
-	// MainThreadが生成されてからしかworker threadを生成してはいけない作りになっているので
-	// USI::Optionsの初期化のタイミングでこの関数を呼び出すわけにはいかない。
-	// ゆえにUSI::Optionを引数に取らず、USI::Options["Threads"]から値をもらうようにする。
-	size_t requested = Options["Threads"];
-	ASSERT_LV1(requested > 0);
-
+// スレッド数を変更する。
+void ThreadPool::set(size_t requested)
+{
 	// スレッドが足りなければ生成
 	while (size() < requested)
-		push_back(new_thread<Thread>());
+		push_back(new_thread<Thread>(size()));
 
 	// スレッドが余っていれば解体
 	while (size() > requested)
-	{
-		delete_thread(back());
-		pop_back();
-	}
+		delete_thread(back()), pop_back();
 }
 
 void ThreadPool::start_thinking(const Position& pos, Search::StateStackPtr& states , const Search::LimitsType& limits)
@@ -149,31 +134,31 @@ void ThreadPool::start_thinking(const Position& pos, Search::StateStackPtr& stat
 	// (ただし、トライルールのときはMOVE_WINではないので、トライする指し手はsearchmovesに含まれていなければ
 	// 指しては駄目な手なのでrootMovesに追加しない。)
 	if (pos.DeclarationWin() == MOVE_WIN)
-		rootMoves.push_back(RootMove(MOVE_WIN));
+		rootMoves.push_back(Search::RootMove(MOVE_WIN));
 
 	for (auto m : MoveList<LEGAL>(pos))
 		if (limits.searchmoves.empty()
 			|| std::count(limits.searchmoves.begin(), limits.searchmoves.end(), m))
-			rootMoves.push_back(RootMove(m));
+			rootMoves.push_back(Search::RootMove(m));
 
 	// statesが呼び出し元から渡されているならこの所有権をSearch::SetupStatesに移しておく。
 	if (states.get())
-		SetupStates = std::move(states);
+		Search::SetupStates = std::move(states);
 
 	// Position::set()によってst->previosがクリアされるので事前にコピーして保存する。
-	StateInfo tmp = SetupStates->top();
+	StateInfo tmp = Search::SetupStates->top();
 
-	string sfen = pos.sfen();
+	auto sfen = pos.sfen();
 	for (auto th : *this)
 	{
 		th->nodes = 0;
-		th->rootDepth = DEPTH_ZERO;
+		th->rootDepth = th->completedDepth = DEPTH_ZERO;
 		th->rootMoves = rootMoves;
 		th->rootPos.set(sfen,th);
 	}
 
 	// Position::set()によってクリアされていた、st->previousを復元する。
-	SetupStates->top() = tmp;
+	Search::SetupStates->top() = tmp;
 
 	main()->start_searching();
 }

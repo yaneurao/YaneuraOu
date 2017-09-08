@@ -7,7 +7,7 @@
 #include "extra/key128.h"
 #include "extra/long_effect.h"
 
-struct Thread;
+class Thread;
 
 // --------------------
 //     局面の定数

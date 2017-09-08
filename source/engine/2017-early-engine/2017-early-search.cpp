@@ -2750,8 +2750,9 @@ ID_END:;
 	Threads.stop = true;
 
 	// 各スレッドが終了するのを待機する(開始していなければいないで構わない)
-	for (Thread* th : Threads.slaves)
-		th->wait_for_search_finished();
+	for (Thread* th : Threads)
+		if (th != this)
+			th->wait_for_search_finished();
 
 	// ---------------------
 	// lazy SMPの結果を取り出す

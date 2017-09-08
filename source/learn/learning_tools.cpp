@@ -57,6 +57,8 @@ namespace EvalLearningTools
 		ASSERT_LV1(mir_piece(Eval::f_hand_pawn) == Eval::f_hand_pawn);
 
 		// 次元下げ用フラグ配列の初期化
+		// KPPPに関しては関与しない。
+
 		u64 size = KPP::max_index();
 		min_index_flag.resize(size);
 

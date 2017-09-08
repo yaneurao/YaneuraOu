@@ -751,7 +751,8 @@ void Thread::search()
 	if (games == max_games)
 		game_over(false);
 
-	if (is_main())
+	// メインスレッドならエンジン名を反映
+	if (thread_id() == 0)
 	{
 		usi_engine_name[0] = es[0].engine_name();
 		usi_engine_name[1] = es[1].engine_name();

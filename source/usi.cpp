@@ -309,7 +309,7 @@ namespace USI
 		// 並列探索するときのスレッド数
 		// CPUの搭載コア数をデフォルトとすべきかも知れないが余計なお世話のような気もするのでしていない。
 
-		o["Threads"] << Option(4, 1, 512, [](const Option& ) { Threads.read_usi_options(); });
+		o["Threads"] << Option(4, 1, 512, [](const Option& o) { Threads.set(o); });
 
 		// USIプロトコルでは、"USI_Hash"なのだが、
 		// 置換表サイズを変更しての自己対戦などをさせたいので、
@@ -379,7 +379,7 @@ namespace USI
 		o["EvalDir"] << Option("eval", [](const USI::Option&o) { load_eval_finished = false; });
 
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32) && \
-	 (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) ||  defined(EVAL_EXPERIMENTAL))
+	 (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_EXPERIMENTAL))
 		// 評価関数パラメーターを共有するか
 		// 異種評価関数との自己対局のときにこの設定で引っかかる人が後を絶たないのでデフォルトでオフにする。
 		o["EvalShare"] << Option(false);

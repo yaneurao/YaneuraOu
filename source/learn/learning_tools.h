@@ -233,6 +233,8 @@ namespace EvalLearningTools
 	// 次元下げしたときに、そのなかの一番小さなindexになることが
 	// わかっているindexに対してtrueとなっているフラグ配列。
 	// この配列もinit()によって初期化される。
+	// KPPPに関しては、関与しない。
+	// ゆえに、この配列の有効なindexの範囲は、KK::min_index()～KPP::max_index()まで。
 	extern std::vector<bool> min_index_flag;
 
 	// mir_piece/inv_pieceの初期化のときに呼び出されるcallback
@@ -601,6 +603,8 @@ namespace EvalLearningTools
 	// 定数)
 	//   KPPP_KING_SQ
 	//
+	// また、このクラスのking()は、実際のkingのSquareとは限らず、単に、0～(king_sq-1)までの値が返る。
+	// これは、ミラーを利用した圧縮を行なう場合など、利用側で適切な玉の位置に変換してやる必要がある。
 	struct KPPP
 	{
 		KPPP() {}
@@ -700,7 +704,9 @@ namespace EvalLearningTools
 			}
 #endif
 
+			// ここでは、こうなっているが、KPPPのコンストラクタで格納するときにsortされ、piece0 > piece1 > piece2になる。
 			ASSERT_LV3(piece0 < piece1 && piece1 < piece2);
+
 			ASSERT_LV3(piece2 < (int)Eval::fe_end);
 			ASSERT_LV3(piece1 < (int)Eval::fe_end);
 			ASSERT_LV3(piece0 < (int)Eval::fe_end);

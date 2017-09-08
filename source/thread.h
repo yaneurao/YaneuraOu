@@ -18,14 +18,42 @@
 // 探索時に用いる、それぞれのスレッド
 // これを思考スレッド数だけ確保する。
 // ただしメインスレッドはこのclassを継承してMainThreadにして使う。
-struct Thread
+class Thread
 {
+	// exitフラグやsearchingフラグの状態を変更するときのmutex
+	Mutex mutex;
+
+	// idle_loop()で待機しているときに待つ対象
+	ConditionVariable cv;
+
+	// thread id。main threadなら0。slaveなら1から順番に値が割当てられる。
+	size_t idx;
+
+	// このフラグが立ったら終了する。
+	bool exit = false;
+
+	// 探索中であるかを表すフラグ。プログラムを簡素化するため、事前にtrueにしてある。
+	bool searching = true;
+
+	// wrapしているstd::thread
+	std::thread stdThread;
+
+public:
+
+	// ThreadPoolで何番目のthreadであるかをコンストラクタで渡すこと。この値は、idx(スレッドID)となる。
+	explicit Thread(size_t n);
+	virtual ~Thread();
+
+
 	// slaveは、main threadから
-	// for(auto th : Threads.slavle) th->start_searching();のようにされると
-	// この関数が呼び出される。
+	//   for(auto th : Threads) th->start_searching();
+	// のようにされるとこの関数が呼び出される。
 	// MainThread::search()はvirtualになっていてthink()が呼び出されるので、MainThread::think()から
 	// この関数を呼び出したいときは、Thread::search()とすること。
 	virtual void search();
+
+	// このクラスが保持している探索で必要なテーブルをクリアする。(あとで実装する)
+	//void clear();
 
 	// スレッド起動後、この関数が呼び出される。
 	void idle_loop();
@@ -43,33 +71,20 @@ struct Thread
 		std::unique_lock<Mutex> lk(mutex);
 		if (!resume)
 			searching = true;
-		sleepCondition.notify_one();
+		cv.notify_one();
 	}
 
 	// 探索が終わるのを待機する。(searchingフラグがfalseになるのを待つ)
-	void wait_for_search_finished()
-	{
-		std::unique_lock<Mutex> lk(mutex);
-		sleepCondition.wait(lk, [&] { return !searching; });
-	}
-
-	// bの状態がtrueになるのを待つ。
-	// 他のスレッドからは、この待機を解除するには、bをtrueにしてからnotify_one()を呼ぶこと。
-	void wait(std::atomic_bool& condition) {
-		std::unique_lock<Mutex> lk(mutex);
-		sleepCondition.wait(lk, [&] { return bool(condition); });
-	}
+	void wait_for_search_finished();
 
 	// ------------------------------
 	//       プロパティ
 	// ------------------------------
 
-	// スレッドidが返る。
+	// スレッドidが返る。Stockfishにはないメソッドだが、
+	// スレッドごとにメモリ領域を割り当てたいときなどに必要となる。
 	// MainThreadなら0、slaveなら1,2,3,...
 	size_t thread_id() const { return idx; }
-
-	// main threadであるならtrueを返す。
-	bool is_main() const { return idx == 0; }
 
 	// ------------------------------
 	//       探索に必要なもの
@@ -80,7 +95,7 @@ struct Thread
 
 	// 探索開始局面で思考対象とする指し手の集合。
 	// goコマンドで渡されていなければ、全合法手(ただし歩の不成などは除く)とする。
-	std::vector<Search::RootMove> rootMoves;
+	Search::RootMoves rootMoves;
 
 	// このスレッドでMultiPVを用いているとして、rootMovesの(0から数えて)何番目のPVの指し手を探索中であるか
 	// MultiPVでないときはこの変数の値は0。
@@ -110,38 +125,15 @@ struct Thread
 	// cf. https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
 	CounterMoveHistoryStat counterMoveHistory;
 #endif
-
-	// ------------------------------
-	//       constructor ..
-	// ------------------------------
-
-	Thread();
-	void terminate();
-
-protected:
-
-	Mutex mutex;
-
-	// idle_loop()で待機しているときに待つ対象
-	ConditionVariable sleepCondition;
-
-	// exitフラグが立ったら終了する。
-	bool exit;
-
-	// 探索中であるかを表すフラグ
-	bool searching;
-
-	// thread id
-	size_t idx;
-
-	// wrapしているstd::thread
-	std::thread nativeThread;
 };
   
 
 // 探索時のmainスレッド(これがmasterであり、これ以外はslaveとみなす)
 struct MainThread: public Thread
 {
+	// constructorはThreadのものそのまま使う。
+	using Thread::Thread;
+
 	// この関数はvirtualになっていてthink()が呼び出される。
 	// MainThread::think()から呼び出すべきは、Thread::search()
 	virtual void search() { think(); }
@@ -171,39 +163,52 @@ struct MainThread: public Thread
 	int callsCnt = 0;
 };
 
-struct Slaves
-{
-	std::vector<Thread*>::iterator begin() const;
-	std::vector<Thread*>::iterator end() const;
-};
 
 // 思考で用いるスレッドの集合体
-// 継承はあまり使いたくないが、for(auto* th:Threads) ... のようにして回せて便利なのでこうしておく。
+// 継承はあまり使いたくないが、for(auto* th:Threads) ... のようにして回せて便利なのでこうしてある。
 struct ThreadPool: public std::vector<Thread*>
 {
-	// 起動時に呼び出される。Main
-	void init();
+	// このクラスにコンストラクタとデストラクタは存在しない。
+
+	// Threads(スレッドオブジェクト)はglobalに配置するし、スレッドの初期化の際には
+	// スレッドが保持する思考エンジンが使う変数等がすべてが初期化されていて欲しいからである。
+
+	// 起動時に一度だけ呼び出す。そのときにMainThreadが生成される。
+	// requested : 生成するスレッドの数(MainThreadも含めて数える)
+	// スレッド数が変更になったときは、set()のほうを呼び出すこと。
+	void init(size_t requested);
 
 	// 終了時に呼び出される
 	void exit();
 
-	// mainスレッドを取得する。これはthis[0]がそう。
-	MainThread* main() { return static_cast<MainThread*>(at(0)); }
-
 	// mainスレッドに思考を開始させる。
 	void start_thinking(const Position& pos, Search::StateStackPtr& states , const Search::LimitsType& limits);
 
-	// 今回、goコマンド以降に探索したノード数
-	uint64_t nodes_searched() { uint64_t nodes = 0; for (auto*th : *this) nodes += th->nodes.load(std::memory_order_relaxed); return nodes; }
+	// スレッド数を変更する。
+	void set(size_t requested);
 
-	// main()以外のスレッド
-	Slaves slaves;
+	// mainスレッドを取得する。これはthis[0]がそう。
+	MainThread* main() { return static_cast<MainThread*>(at(0)); }
+
+	// 今回、goコマンド以降に探索したノード数
+	uint64_t nodes_searched() { return accumulate(&Thread::nodes); }
 
 	// 探索中にこれがtrueになったら探索を即座に終了すること。
 	std::atomic_bool stop;
+	// ponder →　これはSearch::Limitsのほうにある。
+	// stopOnPonderhit →　Stockfishのこのフラグは、やねうら王では用いない。
 
-	// USIプロトコルで指定されているスレッド数を反映させる。
-	void read_usi_options();
+private:
+
+	// Threadクラスの特定のメンバー変数を足し合わせたものを返す。
+	uint64_t accumulate(std::atomic<uint64_t> Thread::* member) const {
+
+		uint64_t sum = 0;
+		for (Thread* th : *this)
+			sum += (th->*member).load(std::memory_order_relaxed);
+		return sum;
+	}
+
 };
 
 // ThreadPoolのglobalな実体
