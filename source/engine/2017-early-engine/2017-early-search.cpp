@@ -2364,7 +2364,7 @@ void Thread::search()
 				delta = Value(18);
 
 				alpha = std::max(rootMoves[PVIdx].previousScore - delta, -VALUE_INFINITE);
-				beta = std::min(rootMoves[PVIdx].previousScore + delta, VALUE_INFINITE);
+				beta  = std::min(rootMoves[PVIdx].previousScore + delta,  VALUE_INFINITE);
 			}
 
 			while (true)

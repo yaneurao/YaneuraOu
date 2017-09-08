@@ -132,7 +132,8 @@ namespace USI
 		return s.str();
 	}
 
-	std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta)
+	// depth : iteration深さ
+	std::string pv(const Position& pos, Depth depth, Value alpha, Value beta)
 	{
 		std::stringstream ss;
 		int elapsed = Time.elapsed() + 1;
@@ -149,21 +150,28 @@ namespace USI
 			// この指し手のpvの更新が終わっているのか
 			bool updated = (i <= PVIdx && rootMoves[i].score != -VALUE_INFINITE);
 
-			if (iteration_depth == ONE_PLY && !updated)
+			if (depth == ONE_PLY && !updated)
 				continue;
 
-			int d = updated ? iteration_depth : iteration_depth - 1;
+			Depth d = updated ? depth : depth - ONE_PLY;
 			Value v = updated ? rootMoves[i].score : rootMoves[i].previousScore;
+
+			// multi pv時、例えば3個目の候補手までしか評価が終わっていなくて(PVIdx==2)、このとき、
+			// 3,4,5個目にあるのは前回のiterationまでずっと評価されていなかった指し手であるような場合に、
+			// これらのpreviousScoreが-VALUE_INFINITE(未初期化状態)でありうる。
+			// (multi pv状態で"go infinite"～"stop"を繰り返すとこの現象が発生する。おそらく置換表にhitしまくる結果ではないかと思う。)
+			// なので、このとき、その評価値を出力するわけにはいかないので、この場合、その出力処理を省略するのが正しいと思う。
+			// おそらく2017/09/09時点で最新のStockfishにも同様の問題があり、何らかの対策コードが必要ではないかと思う。
+			// (Stockfishのテスト環境がないため、試してはいない。)
+			if (v == -VALUE_INFINITE)
+				continue;
 
 			if (ss.rdbuf()->in_avail()) // 1行目でないなら連結のための改行を出力
 				ss << endl;
 
-			// maxPlyは更新しない思考エンジンがあるので、0で初期化しておき、
-			// dのほうが大きければそれをそのまま表示することで回避する。
-
 			ss  << "info"
 				<< " depth "    << d
-				<< " seldepth " << max(d, rootMoves[i].selDepth)
+				<< " seldepth " << rootMoves[i].selDepth
 				<< " score "    << USI::score_to_usi(v);
 
 			// これが現在探索中の指し手であるなら、それがlowerboundかupperboundかは表示させる
@@ -175,14 +183,14 @@ namespace USI
 				ss << " multipv " << (i + 1);
 
 			ss << " nodes " << nodes_searched
-				<< " nps " << nodes_searched * 1000 / elapsed;
+			   << " nps " << nodes_searched * 1000 / elapsed;
 
 			// 置換表使用率。経過時間が短いときは意味をなさないので出力しない。
 			if (elapsed > 1000)
 				ss << " hashfull " << TT.hashfull();
 
 			ss << " time " << elapsed
-				<< " pv";
+			   << " pv";
 
 
 			// PV配列からPVを出力する。

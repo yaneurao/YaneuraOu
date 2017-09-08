@@ -965,8 +965,8 @@ namespace USI
 	void init(OptionsMap&);
 
 	// pv(読み筋)をUSIプロトコルに基いて出力する。
-	// iteration_depth : 反復深化のiteration深さ。
-	std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta);
+	// depth : 反復深化のiteration深さ。
+	std::string pv(const Position& pos, Depth depth, Value alpha, Value beta);
 
 	// USIプロトコルで、idxの順番でoptionを出力する。
 	std::ostream& operator<<(std::ostream& os, const OptionsMap& om);
