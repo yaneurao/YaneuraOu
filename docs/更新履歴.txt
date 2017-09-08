@@ -2,10 +2,22 @@
 やねうら王 更新履歴
 
 
+■　2017/09/09 V4.77
+
+・Threadのコード、最新のStockfish風に変更。
+・ThreadPool、最新のStockfish風にリファクタリング。
+・Threadの終了、デストラクタで書くように変更。
+・Threadの変更に合わせてponderの処理など、書き換えた。挙動が何かおかしければ報告欲しい。
+・MultiPV時に"go infinite"～"stop"を繰り返すと、PVの出力時に落ちることがあったのを修正。このbugはStockfishのほうでもおそらく存在する。
+
+
 ■　2017/09/07
 
 ・KK_INVERSE_WRITE時にKK[sq][Inv(sq)][0]==0を保証するように修正。
 ・SkipLoadingEvalの仕様変更。ファイルが存在しないときはゼロクリアされたファイルを読み込んだことにする。
+・insertion_sortのコードをmisc.hに追加。
+・ASSERT無効をデフォルトに変更。
+・EVAL_KPPP_KKPTのときにEvalShareオプションが使えなかったの修正。
 
 
 ■　2017/09/06
