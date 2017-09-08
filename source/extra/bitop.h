@@ -288,6 +288,7 @@ inline void* aligned_malloc(size_t size, size_t align)
 inline void aligned_free(void* ptr) { _mm_free(ptr); }
 
 // C++11では、std::stack<StateInfo>がalignasを無視するために、代わりにstack相当のものを自作。
+// ※　StockfishのStateListPrtは、Search::StateStackPtrで置き換えること。
 template <typename T> struct aligned_stack {
 	void push(const T& t) { auto ptr = (T*)aligned_malloc(sizeof(T), alignof(T)); *ptr = t; container.push_back(ptr); }
 	T& top() const { return *container.back(); }
@@ -298,7 +299,7 @@ private:
 	std::vector<T*> container;
 };
 
-// aligned_stackのvector版
+// aligned_stackのvector版(learner.cppでちょっとだけ使っている。要らないかも。)
 template <typename T> struct aligned_vector {
 	aligned_vector() : container(nullptr) {}
 	~aligned_vector() { clear(); }

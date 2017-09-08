@@ -2551,7 +2551,7 @@ void Thread::search()
 					// 思考を継続したほうが得なので、思考自体は継続して、キリの良い時間になったらcheck_time()にて停止する。
 
 					// ponder中なら、終了時刻はponderhit後から計算して、Time.minimum()。
-					if (Limits.ponder)
+					if (Threads.ponder)
 						Time.search_end = Time.minimum();
 					else
 					{
@@ -2735,13 +2735,13 @@ ID_END:;
 	// USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまで
 	// best moveを出力すべきではない。
 	// それゆえ、単にここでGUIからそれらのいずれかのコマンドが送られてくるまで待つ。
-	if (!Threads.stop && (Limits.ponder || Limits.infinite))
+	if (!Threads.stop && (Threads.ponder || Limits.infinite))
 	{
 		// "stop"が送られてきたらSignals.stop == trueになる。
 		// "ponderhit"が送られてきたらLimits.ponder == 0になるので、それを待つ。(stopOnPonderhitは用いない)
 		//    また、このときSignals.stop == trueにはならない。(この点、Stockfishとは異なる。)
 		// "go infinite"に対してはstopが送られてくるまで待つ。
-		while (!Threads.stop && (Limits.ponder || Limits.infinite))
+		while (!Threads.stop && (Threads.ponder || Limits.infinite))
 			sleep(1);
 		//	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
 		// (思考のためには計算資源を使っていないので。)
@@ -2850,7 +2850,7 @@ void MainThread::check_time()
 	}
 
 	// ponder中においては、GUIがstopとかponderhitとか言ってくるまでは止まるべきではない。
-	if (Limits.ponder)
+	if (Threads.ponder)
 		return;
 
 	// "ponderhit"時は、そこからの経過時間で考えないと、elapsed > Time.maximum()になってしまう。

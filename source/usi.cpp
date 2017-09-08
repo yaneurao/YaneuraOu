@@ -524,7 +524,7 @@ void is_ready_cmd(Position& pos)
 }
 
 // "position"コマンド処理部
-void position_cmd(Position& pos, istringstream& is)
+void position_cmd(Position& pos, istringstream& is , Search::StateStackPtr/*StateListPtr*/& states)
 {
 	Move m;
 	string token, sfen;
@@ -549,16 +549,15 @@ void position_cmd(Position& pos, istringstream& is)
 
 	pos.set(sfen , Threads.main());
 
-	States = Search::StateStackPtr(new aligned_stack<StateInfo>);
+	states = Search::StateStackPtr(new aligned_stack<StateInfo>);
 	// 要素が一つもないとempty checkとか面倒なので積んでおくことになっている。
-	States->push(StateInfo());
+	states->push(StateInfo());
 
 	// 指し手のリストをパースする(あるなら)
 	while (is >> token && (m = move_from_usi(pos, token)) != MOVE_NONE)
 	{
 		// 1手進めるごとにStateInfoが積まれていく。これは千日手の検出のために必要。
-		// ToDoあとで考える。
-		States->push(StateInfo());
+		states->push(StateInfo());
 		if (m == MOVE_NULL) // do_move に MOVE_NULL を与えると死ぬので
 			pos.do_null_move(States->top());
 		else
@@ -619,10 +618,11 @@ void getoption_cmd(istringstream& is)
 
 // go()は、思考エンジンがUSIコマンドの"go"を受け取ったときに呼び出される。
 // この関数は、入力文字列から思考時間とその他のパラメーターをセットし、探索を開始する。
-void go_cmd(const Position& pos, istringstream& is) {
+void go_cmd(const Position& pos, istringstream& is , Search::StateStackPtr/*StateListPtr*/& states) {
 
 	Search::LimitsType limits;
 	string token;
+	bool ponderMode = false;
 
 	// 思考開始時刻の初期化。なるべく早い段階でこれをしておかないとサーバー時間との誤差が大きくなる。
 	Time.reset();
@@ -691,10 +691,10 @@ void go_cmd(const Position& pos, istringstream& is) {
 		// ponderモードでの思考。
 		else if (token == "ponder")
 		{
-			limits.ponder = 1;
+			ponderMode = true;
 
 			// 試合開始後、一度でも"go ponder"が送られてきたら、それを記録しておく。
-			ponder_mode = true;
+			limits.ponder_mode = true;
 		}
 	}
 
@@ -703,9 +703,7 @@ void go_cmd(const Position& pos, istringstream& is) {
 	if (limits.byoyomi[BLACK] == 0 && limits.inc[BLACK] == 0 && limits.time[BLACK] == 0 && limits.rtime == 0)
 		limits.byoyomi[BLACK] = limits.byoyomi[WHITE] = 1000;
 
-	limits.ponder_mode = ponder_mode;
-
-	Threads.start_thinking(pos, States , limits);
+	Threads.start_thinking(pos, states , limits , ponderMode);
 }
 
 
@@ -722,6 +720,11 @@ void USI::loop(int argc, char* argv[])
 
 	string cmd, token;
 
+	// 局面を遡るためのStateInfoのlist。alignしないといけないので専用のクラスを用いる。
+	// StateListPtr states(new std::deque<StateInfo>(1));
+	Search::StateStackPtr states = Search::StateStackPtr(new aligned_stack<StateInfo>);
+	states->push(StateInfo());
+	
 	// 先行入力されているコマンド
 	// コマンドは前から取り出すのでqueueを用いる。
 	queue<string> cmds;
@@ -798,22 +801,21 @@ void USI::loop(int argc, char* argv[])
 				gameover_handler(cmd);
 #endif
 
+			// "go infinite" , "go ponder"などで思考を終えて寝てるかも知れないが、
+			// そいつらはThreads.stopを待っているので問題ない。
 			Threads.stop = true;
-
-			// 思考を終えて寝てるかも知れないのでresume==trueにして呼び出してやる
-			Threads.main()->start_searching(true);
 
 		} else if (token == "ponderhit")
 		{
 			Time.reset_for_ponderhit(); // ponderhitから計測しなおすべきである。
-			Search::Limits.ponder = 0; // 通常探索に切り替える。
+			Threads.ponder = false; // 通常探索に切り替える。
 		}
 
 		// 与えられた局面について思考するコマンド
-		else if (token == "go") go_cmd(pos, is);
+		else if (token == "go") go_cmd(pos, is , states);
 
 		// (思考などに使うための)開始局面(root)を設定する
-		else if (token == "position") position_cmd(pos, is);
+		else if (token == "position") position_cmd(pos, is , states);
 
 		// 起動時いきなりこれが飛んでくるので速攻応答しないとタイムアウトになる。
 		else if (token == "usi")
@@ -838,7 +840,7 @@ void USI::loop(int argc, char* argv[])
 		else if (token == "matsuri") pos.set("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1",Threads.main());
 
 		// "position sfen"の略。
-		else if (token == "sfen") position_cmd(pos, is);
+		else if (token == "sfen") position_cmd(pos, is , states);
 
 		// ログファイルの書き出しのon
 		else if (token == "log") start_logger(true);

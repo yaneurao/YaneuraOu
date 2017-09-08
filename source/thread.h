@@ -52,8 +52,8 @@ public:
 	// この関数を呼び出したいときは、Thread::search()とすること。
 	virtual void search();
 
-	// このクラスが保持している探索で必要なテーブルをクリアする。(あとで実装する)
-	//void clear();
+	// このクラスが保持している探索で必要なテーブル(historyなど)をクリアする。
+	void clear();
 
 	// スレッド起動後、この関数が呼び出される。
 	void idle_loop();
@@ -62,17 +62,8 @@ public:
 	//      同期待ちのwait等
 	// ------------------------------
 
-	// MainThreadがslaveを起こして、Thread::search()を開始させるときに呼び出す。
-	// resume == falseなら(探索中断～再開時でないなら)searchingフラグをtrueにする。
-	// これはstopコマンドかponderhitコマンドを受信したときにスレッドが(すでに思考を終えて)
-	// 寝てるのを起こすときに使う。
-	void start_searching(bool resume = false)
-	{
-		std::unique_lock<Mutex> lk(mutex);
-		if (!resume)
-			searching = true;
-		cv.notify_one();
-	}
+	// Thread::search()を開始させるときに呼び出す。
+	void start_searching();
 
 	// 探索が終わるのを待機する。(searchingフラグがfalseになるのを待つ)
 	void wait_for_search_finished();
@@ -182,7 +173,7 @@ struct ThreadPool: public std::vector<Thread*>
 	void exit();
 
 	// mainスレッドに思考を開始させる。
-	void start_thinking(const Position& pos, Search::StateStackPtr& states , const Search::LimitsType& limits);
+	void start_thinking(const Position& pos, Search::StateStackPtr/*StateListPtr*/& states , const Search::LimitsType& limits , bool ponderMode = false);
 
 	// スレッド数を変更する。
 	void set(size_t requested);
@@ -193,12 +184,18 @@ struct ThreadPool: public std::vector<Thread*>
 	// 今回、goコマンド以降に探索したノード数
 	uint64_t nodes_searched() { return accumulate(&Thread::nodes); }
 
-	// 探索中にこれがtrueになったら探索を即座に終了すること。
-	std::atomic_bool stop;
-	// ponder →　これはSearch::Limitsのほうにある。
-	// stopOnPonderhit →　Stockfishのこのフラグは、やねうら王では用いない。
+	// stop   : 探索中にこれがtrueになったら探索を即座に終了すること。
+	// ponder : "go ponder" コマンドでの探索中であるかを示すフラグ
+	// stopOnPonderhit : Stockfishのこのフラグは、やねうら王では用いない。(もっと上手にponderの時間を活用したいため)
+	// 備考) ponderのフラグを変更するのはUSIコマンドで"ponderhit"などが送られてきたときであり、探索スレッドからは、探索中は
+	//       ponderの値はreadonlyであるから複雑な同期処理は必要がない。
+	//       (途中で値が変更されるのは、ponder == trueで探索が始まり、途中でfalseに変更されるケースのみ)
+	//       そこで単にatomic_boolにしておけば十分である。
+	std::atomic_bool stop , ponder /*, stopOnPonderhit*/;
 
 private:
+
+	Search::StateStackPtr/*StateListPtr*/ setupStates;
 
 	// Threadクラスの特定のメンバー変数を足し合わせたものを返す。
 	uint64_t accumulate(std::atomic<uint64_t> Thread::* member) const {

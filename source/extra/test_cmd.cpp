@@ -679,8 +679,7 @@ void test_read_record(Position& pos, istringstream& is)
 			while (ss >> token && token != "moves")
 				sfen += token;
 
-		auto& SetupStates = Search::SetupStates;
-		SetupStates = Search::StateStackPtr(new aligned_stack<StateInfo>());
+		auto setupStates = Search::StateStackPtr(new aligned_stack<StateInfo>());
 
 		pos.set(sfen , Threads.main());
 
@@ -690,8 +689,8 @@ void test_read_record(Position& pos, istringstream& is)
 			{
 				if (token == to_usi_string(m))
 				{
-					SetupStates->push(StateInfo());
-					pos.do_move(m, SetupStates->top());
+					setupStates->push(StateInfo());
+					pos.do_move(m, setupStates->top());
 					goto Ok;
 				}
 			}
@@ -731,6 +730,8 @@ void auto_play(Position& pos, istringstream& is)
 	// isreadyが呼び出されたものとする。
 	Search::clear();
 
+	auto setupStates = Search::StateStackPtr(new aligned_stack<StateInfo>());
+
 	for (uint64_t i = 0; i < loop_max; ++i)
 	{
 		pos.set_hirate(Threads.main());
@@ -741,7 +742,7 @@ void auto_play(Position& pos, istringstream& is)
 				break;
 
 			Time.reset();
-			Threads.start_thinking(pos, Search::SetupStates , lm);
+			Threads.start_thinking(pos, setupStates, lm);
 			Threads.main()->wait_for_search_finished();
 			auto rootMoves = Threads.main()->rootMoves;
 			if (rootMoves.size() == 0)

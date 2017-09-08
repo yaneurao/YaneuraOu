@@ -8,9 +8,10 @@ namespace {
 	// Threadクラスがalignされていることを要求するのでこうやって生成している。
 	// (C++のnewがalignasを無視するのがおかしいのだが…)
 	// 生成されたスレッドはidle_loop()で仕事が来るのを待機している。
+	// このnew_thread()の引数のnはThreadのコンストラクタにそのまま渡す。
 	template<typename T> T* new_thread(size_t n) {
 		void* dst = aligned_malloc(sizeof(T), alignof(T));
-		// 確保に成功したならゼロクリアしておく。
+		// 確保に成功したならサービスでゼロクリアしておく。
 		if (dst)
 			std::memset(dst, 0, sizeof(T));
 
@@ -25,34 +26,49 @@ namespace {
 	}
 }
 
-Thread::Thread(size_t n) : idx(n)
+Thread::Thread(size_t n) : idx(n) , stdThread(&Thread::idle_loop, this)
 {
-	exit = false;
+	// スレッドはsearching == trueで開始するので、このままworkerのほう待機状態にさせておく
+	wait_for_search_finished();
 
-	// selDepthを更新しない思考エンジンでseldepthの出力がおかしくなるのを防止するために
-	// ここでとりあえず初期化しておいてやる。
-	selDepth = 0;
-
-	// 探索したノード数
-	nodes = 0;
-
-	// スレッドを一度起動してworkerのほう待機状態にさせておく
-	std::unique_lock<Mutex> lk(mutex);
-	searching = true;
-	stdThread = std::thread(&Thread::idle_loop, this);
-	cv.wait(lk, [&] {return !searching; });
+	// historyなどをゼロクリアする。
+	// ただ、スレッドのオブジェクトはnew_thread()で生成しており、そこでゼロクリアしているのでこの処理は省略する。
+	// clear();
 }
 
 // std::threadの終了を待つ
-Thread::~Thread() {
+Thread::~Thread()
+{
+	// 探索中にスレッドオブジェクトが解体されることはない。
+	ASSERT_LV3(!searching);
 
-	mutex.lock();
-	exit = true; // 探索は終わっているはずなのでこのフラグをセットして待機する。
-	cv.notify_one();
-	mutex.unlock();
+	// 探索は終わっているのでexitフラグをセットしてstart_searching()を呼べば終了するはず。
+	exit = true;
+	start_searching();
 	stdThread.join();
 }
 
+// 
+void Thread::clear()
+{
+#if 0 // あとでちゃんと実装する。
+	counterMoves.fill(MOVE_NONE);
+	mainHistory.fill(0);
+
+	for (auto& to : contHistory)
+		for (auto& h : to)
+			h.fill(0);
+
+	contHistory[NO_PIECE][0].fill(Search::CounterMovePruneThreshold - 1);
+#endif
+}
+
+void Thread::start_searching()
+{
+	std::unique_lock<Mutex> lk(mutex);
+	searching = true;
+	cv.notify_one(); // idle_loop()で回っているスレッドを起こす。(次の処理をさせる)
+}
 
 // 探索が終わるのを待機する。(searchingフラグがfalseになるのを待つ)
 void Thread::wait_for_search_finished()
@@ -114,16 +130,15 @@ void ThreadPool::set(size_t requested)
 		delete_thread(back()), pop_back();
 }
 
-void ThreadPool::start_thinking(const Position& pos, Search::StateStackPtr& states , const Search::LimitsType& limits)
+void ThreadPool::start_thinking(const Position& pos, Search::StateStackPtr& states , const Search::LimitsType& limits , bool ponderMode)
 {
 	// 思考中であれば停止するまで待つ。
 	main()->wait_for_search_finished();
 
 	// ponderに関して、StockfishではstopOnPonderhitというのがあるが、やねうら王にはこのフラグはない。
-	Threads.stop = false;
-
+	/* stopOnPonderhit = */ stop = false;
+	ponder = ponderMode;
 	Search::Limits = limits;
-
 	Search::RootMoves rootMoves;
 
 	// 初期局面では合法手すべてを生成してそれをrootMovesに設定しておいてやる。
@@ -139,14 +154,18 @@ void ThreadPool::start_thinking(const Position& pos, Search::StateStackPtr& stat
 	for (auto m : MoveList<LEGAL>(pos))
 		if (limits.searchmoves.empty()
 			|| std::count(limits.searchmoves.begin(), limits.searchmoves.end(), m))
-			rootMoves.push_back(Search::RootMove(m));
+			rootMoves.emplace_back(m);
+
+	// 所有権の移動後、statesが空になるので、探索を停止させ、
+	// "go"をstate.get() == NULLである新しいpositionをセットせずに再度呼び出す。
+	ASSERT_LV3(states.get() || setupStates.get());
 
 	// statesが呼び出し元から渡されているならこの所有権をSearch::SetupStatesに移しておく。
 	if (states.get())
-		Search::SetupStates = std::move(states);
+		setupStates = std::move(states);
 
 	// Position::set()によってst->previosがクリアされるので事前にコピーして保存する。
-	StateInfo tmp = Search::SetupStates->top();
+	StateInfo tmp = setupStates->top();
 
 	auto sfen = pos.sfen();
 	for (auto th : *this)
@@ -158,7 +177,7 @@ void ThreadPool::start_thinking(const Position& pos, Search::StateStackPtr& stat
 	}
 
 	// Position::set()によってクリアされていた、st->previousを復元する。
-	Search::SetupStates->top() = tmp;
+	setupStates->top() = tmp;
 
 	main()->start_searching();
 }

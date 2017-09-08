@@ -49,12 +49,13 @@ namespace Search {
 	typedef std::vector<RootMove> RootMoves;
 
 	// goコマンドでの探索時に用いる、持ち時間設定などが入った構造体
+	// "ponder"のフラグはここに含まれず、Threads.ponderにあるので注意。
 	struct LimitsType {
 
 		// PODでない型をmemsetでゼロクリアするとMSVCは破壊してしまうので明示的に初期化する。
 		LimitsType() {
 			nodes = time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = byoyomi[WHITE] = byoyomi[BLACK] = npmsec
-				= depth = movetime = mate = infinite = ponder = rtime = 0;
+				= depth = movetime = mate = infinite = rtime = 0;
 			silent = bench = ponder_mode = consideration_mode = outout_fail_lh_pv = false;
 			max_game_ply = 100000;
 			enteringKingRule = EKR_NONE;
@@ -100,11 +101,6 @@ namespace Search {
 		// infinite : 思考時間無制限かどうかのフラグ。非0なら無制限。
 		int infinite;
 
-		// ponder   : ponder中であるかのフラグ
-		//  これがtrueのときはbestmoveがあっても探索を停止せずに"ponderhit"か"stop"が送られてきてから停止する。
-		// main threadからしか参照しないのでatomicはつけてない。
-		bool ponder;
-
 		// "go rtime 100"とすると100～300msぐらい考える。
 		int rtime;
 
@@ -134,7 +130,6 @@ namespace Search {
 	typedef std::unique_ptr<aligned_stack<StateInfo>> StateStackPtr;
 
 	extern LimitsType Limits;
-	extern StateStackPtr SetupStates;
 
 	// 探索部の初期化。
 	void init();
