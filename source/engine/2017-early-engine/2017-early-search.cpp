@@ -2731,20 +2731,21 @@ ID_END:;
 		Time.availableNodes = std::max(Time.availableNodes + Limits.inc[us] - (s64)Threads.nodes_searched(), (s64)0);
 
 	// 最大depth深さに到達したときに、ここまで実行が到達するが、
-	// まだSignals.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
-	// USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまで
-	// best moveを出力すべきではない。
+	// まだThreads.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
+	// USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまでbest moveを出力してはならない。
 	// それゆえ、単にここでGUIからそれらのいずれかのコマンドが送られてくるまで待つ。
-	if (!Threads.stop && (Threads.ponder || Limits.infinite))
+	// "stop"が送られてきたらThreads.stop == trueになる。
+	// "ponderhit"が送られてきたらThreads.ponder == falseになるので、それを待つ。(stopOnPonderhitは用いない)
+	// "go infinite"に対してはstopが送られてくるまで待つ。
+	// ちなみにStockfishのほう、ここのコードに長らく同期上のバグがあった。
+	// やねうら王のほうは、かなり早くからこの構造で書いていた。最近のStockfishではこの書き方に追随した。
+	while (!Threads.stop && (Threads.ponder || Limits.infinite))
 	{
-		// "stop"が送られてきたらSignals.stop == trueになる。
-		// "ponderhit"が送られてきたらLimits.ponder == 0になるので、それを待つ。(stopOnPonderhitは用いない)
-		//    また、このときSignals.stop == trueにはならない。(この点、Stockfishとは異なる。)
-		// "go infinite"に対してはstopが送られてくるまで待つ。
-		while (!Threads.stop && (Threads.ponder || Limits.infinite))
-			sleep(1);
 		//	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
 		// (思考のためには計算資源を使っていないので。)
+		sleep(1);
+
+		// Stockfishのコード、ここ、busy waitになっているが、さすがにそれは良くないと思う。
 	}
 
 	Threads.stop = true;
@@ -2825,7 +2826,7 @@ ID_END:;
 
 }
 
-// 残り時間をチェックして、時間になっていればSignals.stopをtrueにする。
+// 残り時間をチェックして、時間になっていればThreads.stopをtrueにする。
 // main threadからしか呼び出されないのでロジックがシンプルになっている。
 void MainThread::check_time()
 {
@@ -2936,9 +2937,9 @@ namespace Learner
 	// 静止探索。
 	//
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
-	// 　また、Signals.stopが来ると探索を中断してしまうので、そのときのPVは正しくない。
-	// 　search()から戻ったあと、Signals.stop == trueなら、その探索結果を用いてはならない。
-	// 　あと、呼び出し前は、Signals.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
+	// 　また、Threads.stopが来ると探索を中断してしまうので、そのときのPVは正しくない。
+	// 　search()から戻ったあと、Threads.stop == trueなら、その探索結果を用いてはならない。
+	// 　あと、呼び出し前は、Threads.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
 	//
 	// 詰まされている場合は、PV配列にMOVE_RESIGNが返る。
 	//
@@ -2986,9 +2987,9 @@ namespace Learner
 	// 呼び出し側で処理すること。
 	//
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
-	// 　また、Signals.stopが来ると探索を中断してしまうので、そのときのPVは正しくない。
-	// 　search()から戻ったあと、Signals.stop == trueなら、その探索結果を用いてはならない。
-	// 　あと、呼び出し前は、Signals.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
+	// 　また、Threads.stopが来ると探索を中断してしまうので、そのときのPVは正しくない。
+	// 　search()から戻ったあと、Threads.stop == trueなら、その探索結果を用いてはならない。
+	// 　あと、呼び出し前は、Threads.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
 
 	ValueAndPV search(Position& pos, int depth_ , size_t multiPV /* = 1*/)
 	{

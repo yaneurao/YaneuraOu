@@ -691,7 +691,7 @@ void Thread::search()
 	};
 
 	string line;
-	while (/*!Search::Signals.stop &&*/ games < max_games)
+	while (/*!Threads.stop &&*/ games < max_games)
 	{
 		// stopは受け付けないようにする。
 		// そうしないとコマンドラインから実行するときにquitコマンドをqueueに積んでおくことが出来ない。

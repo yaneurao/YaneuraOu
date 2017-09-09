@@ -151,7 +151,7 @@ struct MainThread: public Thread
 
 	// check_time()で用いるカウンター。
 	// デクリメントしていきこれが0になるごとに思考をストップするのか判定する。
-	int callsCnt = 0;
+	int callsCnt;
 };
 
 
@@ -195,6 +195,7 @@ struct ThreadPool: public std::vector<Thread*>
 
 private:
 
+	// 現局面までのStateInfoのlist
 	Search::StateStackPtr/*StateListPtr*/ setupStates;
 
 	// Threadクラスの特定のメンバー変数を足し合わせたものを返す。
