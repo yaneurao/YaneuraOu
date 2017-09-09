@@ -66,13 +66,19 @@ namespace Eval
 
 		// ソフト名自動判別
 		std::map<u64, std::string> list = {
-			{ 0x7171a5469027ebf , "ShinYane(20161010)" } ,
-			{ 0x71fc7fd40c668cc , "Ukamuse(sdt4)" } ,
+			{ 0x0000da0f36d1b4b , "Apery(WCSC26)"         } , // Apery(WCSC26)
+			{ 0x0000d7213c45779 , "Ukamuse(sdt4)"         } , // 浮かむ瀬     = Apery(sdt4)
 
-			{ 0x65cd7c55a9d4cd9 , "elmo(WCSC27)" } ,
-			{ 0x3aa68b055a020a8 , "Yomita(WCSC27)" } ,
-			{ 0x702fb2ee5672156 , "Qhapaq(WCSC27)" } ,
-			{ 0x6c54a1bcb5a6338 , "tanuki(WCSC27)" } ,
+			{ 0x0000c9e81cef72b , "elmo(WCSC27)"          } , // elmo(WCSC27)
+			{ 0x0000900f1fbe7a6 , "Yomita(WCSC27)"        } , // 読み太(WCSC27)   
+			{ 0x0000d5214c4e6d8 , "Qhapaq(WCSC27)"        } , // Qhapaq(WCSC27)
+			{ 0x0000d291a9942bb , "tanuki(WCSC27)"        } , // tanuki(WCSC27)
+
+			{ 0x0000a516345897e , "rezero epoch8"         } , // リゼロ評価関数epoch8
+			{ 0x0000a6fbc5087ce , "yaseiyomita(20170703)" } , // 野生の読みの太(20170703)
+
+			// ここに加えて欲しい評価関数があれば、
+			// "isready"コマンドに対する応答時に表示されるcheck sumの値を連絡ください(｀･ω･´)ｂ
 		};
 
 		if (list.count(check_sum))

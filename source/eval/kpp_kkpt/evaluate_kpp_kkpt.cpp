@@ -61,56 +61,9 @@ namespace Eval
 		if (!EvalIO::eval_convert(input, output, nullptr))
 			goto Error;
 
-		{
-#if defined(EVAL_LEARN)
-			// kppのp1==p2のところ、値はゼロとなっていること。
-			// (差分計算のときにコードの単純化のために参照はするけど学習のときに使いたくないので)
-			// kppのp1==p2のときはkkpに足しこまれているという考え。
-			{
-				const ValueKpp kpp_zero = 0;
-				float sum = 0;
-				for (auto sq : SQ)
-					for (auto p = BONA_PIECE_ZERO; p < fe_end; ++p)
-					{
-						sum += abs(kpp[sq][p][p]);
-						kpp[sq][p][p] = kpp_zero;
-					}
-				//	cout << "info string sum kp = " << sum << endl;
-			}
-#endif
-
-#if defined(EVAL_LEARN)
-			// 以前Aperyの評価関数バイナリ、kppのp=0のところでゴミが入っていた。
-			// 駒落ちなどではここを利用したいので0クリアすべき。
-			{
-				const ValueKkp kkp_zero = { 0,0 };
-				for (auto sq1 : SQ)
-					for (auto sq2 : SQ)
-						kkp[sq1][sq2][0] = kkp_zero;
-
-				const ValueKpp kpp_zero = 0;
-				for (auto sq : SQ)
-					for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
-					{
-						kpp[sq][p1][0] = kpp_zero;
-						kpp[sq][0][p1] = kpp_zero;
-					}
-			}
-#endif
-
-#if defined(EVAL_LEARN) && defined(USE_KK_INVERSE_WRITE)
-			// KKの先後対称性から、kk[bk][wk][0] == -kk[Inv(wk)][Inv(bk)][0]である。
-			// bk == Inv(wk)であるときも、この式が成立するので、このとき、kk[bk][wk][0] == 0である。
-			{
-				for (auto sq : SQ)
-					kk[sq][Inv(sq)][0] = 0;
-			}
-#endif
-
-		}
+		// ここに実験用のコードなどを書くかも。
 
 		// 読み込みは成功した。
-
 		return;
 
 	Error:;
@@ -124,7 +77,7 @@ namespace Eval
 	{
 		u64 sum = 0;
 
-		auto add_sum = [&](u32*ptr, size_t t)
+		auto add_sum = [&](u16*ptr, size_t t)
 		{
 			for (size_t i = 0; i < t; ++i)
 				sum += ptr[i];
@@ -133,9 +86,14 @@ namespace Eval
 		// sizeof演算子、2GB以上の配列に対して機能しない。VC++でC2070になる。
 		// そのため、sizeof(kpp)のようにせず、自前で計算している。
 
-		add_sum(reinterpret_cast<u32*>(kk) , size_of_kk  / sizeof(u32));
-		add_sum(reinterpret_cast<u32*>(kkp), size_of_kkp / sizeof(u32));
-		add_sum(reinterpret_cast<u32*>(kpp), size_of_kpp / sizeof(u32));
+		// データは2 or 4バイトなので、endiannessがどちらであっても
+		// これでcheck sumの値は変わらない。
+		// また、データが2 or 4バイトなので2バイトずつ加算していくとき、
+		// データの余りは出ない。
+
+		add_sum(reinterpret_cast<u16*>(kk), size_of_kk / sizeof(u16));
+		add_sum(reinterpret_cast<u16*>(kkp), size_of_kkp / sizeof(u16));
+		add_sum(reinterpret_cast<u16*>(kpp), size_of_kpp / sizeof(u16));
 
 		return sum;
 	}
