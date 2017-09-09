@@ -605,11 +605,19 @@ namespace EvalLearningTools
 	//
 	// また、このクラスのking()は、実際のkingのSquareとは限らず、単に、0～(king_sq-1)までの値が返る。
 	// これは、ミラーを利用した圧縮を行なう場合など、利用側で適切な玉の位置に変換してやる必要がある。
+	// 
+	// あと、このクラスの返すpiece0,1,2に関して、
+	//   piece0() > piece1() > piece2()
+	// であり、コンストラクタでpiece0,1,2を渡すときも、この制約を守る必要がある。
 	struct KPPP
 	{
 		KPPP() {}
 		KPPP(Square king, Eval::BonaPiece p0, Eval::BonaPiece p1, Eval::BonaPiece p2) :
-			king_(king), piece0_(p0), piece1_(p1), piece2_(p2) { sort_piece(); }
+			king_(king), piece0_(p0), piece1_(p1), piece2_(p2)
+		{
+			ASSERT_LV3(piece0_ > piece1_ && piece1_ > piece2_);
+			/* sort_piece(); */
+		}
 
 		// KK,KKP,KPP,KPPP配列を直列化するときの通し番号の、KPPPの最小値、最大値。
 		static u64 min_index() { return KPP::max_index(); }
@@ -657,11 +665,11 @@ namespace EvalLearningTools
 
 			// この処理、数値計算としてわりと難しい。色々工夫が必要。
 
-			int piece2;
+			int piece0;
 			if (index2 <= 1)
 			{
 				// index2 == 0,1のときだけ実数解が複数ある。
-				piece2 = (int)index2 + 2;
+				piece0 = (int)index2 + 2;
 
 			} else {
 
@@ -684,7 +692,7 @@ namespace EvalLearningTools
 				
 				const double delta = 0.000000001;
 
-				piece2 = int(t / pow(3.0, 2.0 / 3) + 1.0 / (pow(3.0, 1.0 / 3) * t) + delta) + 1;
+				piece0 = int(t / pow(3.0, 2.0 / 3) + 1.0 / (pow(3.0, 1.0 / 3) * t) + delta) + 1;
 				// ううう。ほんまにこんなことせんとあかんのか？(´ω｀)
 			}
 
@@ -692,20 +700,19 @@ namespace EvalLearningTools
 			// j(j+1)/2 = index2 - a
 			// これは、2次方程式の解の公式より..
 
-			u64 a = (u64)piece2*((u64)piece2 - 1)*((u64)piece2 - 2) / 6;
+			u64 a = (u64)piece0*((u64)piece0 - 1)*((u64)piece0 - 2) / 6;
 			int piece1 = int((1 + sqrt(8.0 * (index2 - a ) + 1)) / 2);
 			u64 b = (u64)piece1 * (piece1 - 1) / 2;
-			int piece0 = int(index2 - a - b);
+			int piece2 = int(index2 - a - b);
 
 #if 0
-			if (!((piece0 < piece1 && piece1 < piece2)))
+			if (!((piece0 > piece1 && piece1 > piece2)))
 			{
 				std::cout << index << " , " << index2 << "," << a << "," << sqrt(8.0 * (index2 - a) + 1);
 			}
 #endif
 
-			// ここでは、こうなっているが、KPPPのコンストラクタで格納するときにsortされ、piece0 > piece1 > piece2になる。
-			ASSERT_LV3(piece0 < piece1 && piece1 < piece2);
+			ASSERT_LV3(piece0 > piece1 && piece1 > piece2);
 
 			ASSERT_LV3(piece2 < (int)Eval::fe_end);
 			ASSERT_LV3(piece1 < (int)Eval::fe_end);
@@ -757,49 +764,12 @@ namespace EvalLearningTools
 
 		// 比較演算子
 		bool operator==(const KPPP& rhs) {
-			return king() == rhs.king() &&
-				((piece0() == rhs.piece0() && piece1() == rhs.piece1() && piece2() == rhs.piece2())
-#if defined(USE_TRIANGLE_WEIGHT_ARRAY)
-					// 三角配列を用いるときはpiece0とpiece1の入れ替わりを許容する。
-					|| (piece0() == rhs.piece0() && piece1() == rhs.piece2() && piece2() == rhs.piece1())
-					|| (piece0() == rhs.piece1() && piece1() == rhs.piece0() && piece2() == rhs.piece2())
-					|| (piece0() == rhs.piece1() && piece1() == rhs.piece2() && piece2() == rhs.piece0())
-					|| (piece0() == rhs.piece2() && piece1() == rhs.piece0() && piece2() == rhs.piece1())
-					|| (piece0() == rhs.piece2() && piece1() == rhs.piece1() && piece2() == rhs.piece0())
-#endif
-					);
+			// piece0 > piece1 > piece2を前提とするので、入れ替わりの可能性はない。
+			return king() == rhs.king() && piece0() == rhs.piece0() && piece1() == rhs.piece1() && piece2() == rhs.piece2();
 		}
 		bool operator!=(const KPPP& rhs) { return !(*this == rhs); }
 
 	private:
-
-		// piece0,1,2を降順に並び替える。
-		void sort_piece()
-		{
-			auto king = king_;
-			auto i = piece0_;
-			auto j = piece1_;
-			auto k = piece2_;
-
-			// ミラーの処理(これはメモリが足りなくなるので強制で行なう)
-			if (file_of(king) > FILE_5)
-			{
-				king = Mir(king);
-				i = mir_piece(i);
-				j = mir_piece(j);
-				k = mir_piece(k);
-			}
-
-			// 並び替え
-			std::array<int,3> a = { i,j,k };
-			std::sort(a.begin(), a.end());
-
-			piece2_ = (Eval::BonaPiece)a[0];
-			piece1_ = (Eval::BonaPiece)a[1];
-			piece0_ = (Eval::BonaPiece)a[2];
-
-			ASSERT_LV3(piece0_ > piece1_ && piece1_ > piece2_);
-		}
 
 		Square king_;
 		Eval::BonaPiece piece0_, piece1_,piece2_;

@@ -66,7 +66,8 @@ namespace Eval
 
 		// ソフト名自動判別
 		std::map<u64, std::string> list = {
-			{ 0x0000d6799926233 , "ShinYane(20161010)"    } , // 真やねうら王
+			// KPPT型
+			{ 0x0000d6799926233 , "ShinYane(20161010)"    } , // 真やねうら王 = やねうら王(2016)
 			{ 0x0000da0f36d1b4b , "Apery(WCSC26)"         } , // Apery(WCSC26)
 			{ 0x0000d7213c45779 , "Ukamuse(sdt4)"         } , // 浮かむ瀬     = Apery(sdt4)
 
@@ -94,6 +95,7 @@ namespace Eval
 			{ 0x0000c62cf4f6b91 , "relmo8"                } , // リゼロ評価関数epoch8とelmo(WCSC27)を1:1でブレンド
 			{ 0x0000c85005252ee , "yaselmo(20170705)"     } , // 野生の読み太(20170703)とelmo(WCSC27)を1:1でブレンド
 
+			// KPP_KKPT型
 			{ 0x0000574a685513c , "kppkkpt rezero epoch4" } , // KPP_KKPT型リゼロ評価関数epoch4
 
 			// ここに加えて欲しい評価関数があれば、
