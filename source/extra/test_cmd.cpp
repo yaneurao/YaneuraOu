@@ -679,7 +679,7 @@ void test_read_record(Position& pos, istringstream& is)
 			while (ss >> token && token != "moves")
 				sfen += token;
 
-		auto setupStates = Search::StateStackPtr(new aligned_stack<StateInfo>());
+		auto states = StateListPtr(new StateList(1));
 
 		pos.set(sfen , Threads.main());
 
@@ -689,8 +689,8 @@ void test_read_record(Position& pos, istringstream& is)
 			{
 				if (token == to_usi_string(m))
 				{
-					setupStates->push(StateInfo());
-					pos.do_move(m, setupStates->top());
+					states->emplace_back();
+					pos.do_move(m, states->back());
 					goto Ok;
 				}
 			}
@@ -730,11 +730,11 @@ void auto_play(Position& pos, istringstream& is)
 	// isreadyが呼び出されたものとする。
 	Search::clear();
 
-	auto setupStates = Search::StateStackPtr(new aligned_stack<StateInfo>());
-
 	for (uint64_t i = 0; i < loop_max; ++i)
 	{
 		pos.set_hirate(Threads.main());
+		auto states = StateListPtr(new StateList(1));
+		
 		for (ply = 0; ply < MAX_PLY; ++ply)
 		{
 			MoveList<LEGAL_ALL> mg(pos);
@@ -742,14 +742,15 @@ void auto_play(Position& pos, istringstream& is)
 				break;
 
 			Time.reset();
-			Threads.start_thinking(pos, setupStates, lm);
+			Threads.start_thinking(pos, states , lm);
 			Threads.main()->wait_for_search_finished();
 			auto rootMoves = Threads.main()->rootMoves;
 			if (rootMoves.size() == 0)
 				break;
 			Move m = rootMoves.at(0).pv[0]; // 1番目に並び変わっているはず。
 
-			pos.do_move(m, state[ply]);
+			states->emplace_back();
+			pos.do_move(m, states->back());
 			moves[ply] = m;
 		}
 		// 1局ごとに'.'を出力(進んでいることがわかるように)

@@ -137,7 +137,17 @@ struct StateInfo
 	//   計算出来るから問題ない。
 	StateInfo* previous;
 
+	// Bitboardクラスにはalignasが指定されているが、StateListPtrは、このStateInfoクラスを内部的にnewするときに
+	// alignasを無視するのでcustom allocatorを定義しておいてやる。
+	void* operator new(std::size_t s);
+	void operator delete(void*p) noexcept;
 };
+
+// setup moves("position"コマンドで設定される、現局面までの指し手)に沿った局面の状態を追跡するためのStateInfoのlist。
+// 千日手の判定のためにこれが必要。std::dequeを使っているのは、StateInfoがポインターを内包しているので、resizeに対して
+// 無効化されないように。
+typedef std::deque<StateInfo, AlignedAllocator<StateInfo>> StateList;
+typedef std::unique_ptr<StateList> StateListPtr;
 
 // --------------------
 //       盤面

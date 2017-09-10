@@ -2,29 +2,8 @@
 
 ThreadPool Threads;		// Global object
 
-namespace {
-
-	// std::thread派生型であるT型のthreadを一つ作って、そのidle_loopを実行するためのマクロ。
-	// Threadクラスがalignされていることを要求するのでこうやって生成している。
-	// (C++のnewがalignasを無視するのがおかしいのだが…)
-	// 生成されたスレッドはidle_loop()で仕事が来るのを待機している。
-	// このnew_thread()の引数のnはThreadのコンストラクタにそのまま渡す。
-	template<typename T> T* new_thread(size_t n) {
-		void* dst = aligned_malloc(sizeof(T), alignof(T));
-		// 確保に成功したならサービスでゼロクリアしておく。
-		if (dst)
-			std::memset(dst, 0, sizeof(T));
-
-		T* th = new (dst) T(n);
-		return (T*)th;
-	}
-
-	// new_thread()の逆。スレッド解体時に呼び出される。
-	void delete_thread(Thread *th) {
-		th->~Thread();
-		aligned_free(th);
-	}
-}
+void* Thread::operator new(size_t s) { return aligned_malloc(s, alignof(Thread)); }
+void Thread::operator delete(void*p) noexcept { aligned_free(p); }
 
 Thread::Thread(size_t n) : idx(n) , stdThread(&Thread::idle_loop, this)
 {
@@ -32,8 +11,7 @@ Thread::Thread(size_t n) : idx(n) , stdThread(&Thread::idle_loop, this)
 	wait_for_search_finished();
 
 	// historyなどをゼロクリアする。
-	// ただ、スレッドのオブジェクトはnew_thread()で生成しており、そこでゼロクリアしているのでこの処理は省略する。
-	// clear();
+	clear();
 }
 
 // std::threadの終了を待つ
@@ -48,19 +26,19 @@ Thread::~Thread()
 	stdThread.join();
 }
 
-// 
+// このクラスが保持している探索で必要なテーブル(historyなど)をクリアする。
 void Thread::clear()
 {
-#if 0 // あとでちゃんと実装する。
 	counterMoves.fill(MOVE_NONE);
-	mainHistory.fill(0);
+	history.fill(0);
 
-	for (auto& to : contHistory)
+	// ここは、未初期化のときに[SQ_ZERO][NO_PIECE]を指すので、ここを-1で初期化しておくことによって、
+	// history > 0 を条件にすれば自ずと未初期化のときは除外されるようになる。
+	for (auto& to : counterMoveHistory)
 		for (auto& h : to)
 			h.fill(0);
 
-	contHistory[NO_PIECE][0].fill(Search::CounterMovePruneThreshold - 1);
-#endif
+	counterMoveHistory[SQ_ZERO][NO_PIECE].fill(Search::CounterMovePruneThreshold - 1);
 }
 
 void Thread::start_searching()
@@ -107,7 +85,7 @@ void Thread::idle_loop() {
 // MainThreadを一つ生成して、そのあとrequestedで要求された分だけスレッドを生成する。(MainThreadも含めて数える)
 void ThreadPool::init(size_t requested)
 {
-	push_back(new_thread<MainThread>(0));
+	push_back(new MainThread(0));
 	set(requested);
 }
 
@@ -123,14 +101,15 @@ void ThreadPool::set(size_t requested)
 {
 	// スレッドが足りなければ生成
 	while (size() < requested)
-		push_back(new_thread<Thread>(size()));
+		push_back(new Thread(size()));
 
 	// スレッドが余っていれば解体
 	while (size() > requested)
-		delete_thread(back()), pop_back();
+		delete back(), pop_back();
 }
 
-void ThreadPool::start_thinking(const Position& pos, Search::StateStackPtr& states , const Search::LimitsType& limits , bool ponderMode)
+void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
+								const Search::LimitsType& limits , bool ponderMode)
 {
 	// 思考中であれば停止するまで待つ。
 	main()->wait_for_search_finished();
@@ -165,7 +144,7 @@ void ThreadPool::start_thinking(const Position& pos, Search::StateStackPtr& stat
 		setupStates = std::move(states);
 
 	// Position::set()によってst->previosがクリアされるので事前にコピーして保存する。
-	StateInfo tmp = setupStates->top();
+	StateInfo tmp = setupStates->back();
 
 	auto sfen = pos.sfen();
 	for (auto th : *this)
@@ -177,7 +156,7 @@ void ThreadPool::start_thinking(const Position& pos, Search::StateStackPtr& stat
 	}
 
 	// Position::set()によってクリアされていた、st->previousを復元する。
-	setupStates->top() = tmp;
+	setupStates->back() = tmp;
 
 	main()->start_searching();
 }

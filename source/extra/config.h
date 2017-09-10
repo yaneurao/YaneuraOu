@@ -223,6 +223,7 @@
 #define EVAL_KPPT
 //#define EVAL_KPP_KKPT
 //#define EVAL_KPPP_KKPT 18
+//#define EVAL_KPPP_KKPT 36
 //#define EVAL_NABLA
 //#define EVAL_AKASHIC
 

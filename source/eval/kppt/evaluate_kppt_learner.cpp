@@ -156,14 +156,12 @@ namespace Eval
 		// KK
 		weights[KK(sq_bk,sq_wk).toIndex()].add_grad(g);
 
-		// flipした位置関係にも書き込む
-		//kk_w[Inv(sq_wk)][Inv(sq_bk)].g += g_flip;
-
 		for (int i = 0; i < PIECE_NO_KING; ++i)
 		{
 			BonaPiece k0 = list_fb[i];
 			BonaPiece k1 = list_fw[i];
 
+			// KPP
 			if (!freeze_kpp)
 			{
 				// このループではk0 == l0は出現しない。(させない)
@@ -173,7 +171,7 @@ namespace Eval
 					BonaPiece l0 = list_fb[j];
 					BonaPiece l1 = list_fw[j];
 
-					weights[KPP(sq_bk, k0, l0).toIndex()].add_grad(g);
+					weights[KPP(sq_bk     , k0, l0).toIndex()].add_grad(g);
 					weights[KPP(Inv(sq_wk), k1, l1).toIndex()].add_grad(g_flip);
 				}
 			}

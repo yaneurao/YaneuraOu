@@ -31,10 +31,6 @@ extern void bench_cmd(Position& pos, istringstream& is);
 
 namespace
 {
-	// Positionクラスがそこにいたるまでの手順(捕獲された駒など)を保持しておかないと千日手判定が出来ないので
-	// StateInfo型のstackのようなものが必要となるので、それをglobalに確保しておく。
-	Search::StateStackPtr States;
-
 	// 評価関数を読み込んだかのフラグ。これはevaldirの変更にともなってfalseにする。
 	bool load_eval_finished = false;
 }
@@ -523,16 +519,11 @@ void is_ready_cmd(Position& pos)
 	// evalの値を返せるようにこのタイミングで平手局面で初期化してしまう。
 	pos.set(SFEN_HIRATE , Threads.main());
 
-	// このままgoコマンドが来た場合、Statesには1つStateInfoを積んでおかなければならないのに
-	// そうなっていないのでまずい。
-	States = Search::StateStackPtr(new aligned_stack<StateInfo>);
-	States->push(StateInfo());
-
 	sync_cout << "readyok" << sync_endl;
 }
 
 // "position"コマンド処理部
-void position_cmd(Position& pos, istringstream& is , Search::StateStackPtr/*StateListPtr*/& states)
+void position_cmd(Position& pos, istringstream& is , StateListPtr& states)
 {
 	Move m;
 	string token, sfen;
@@ -557,19 +548,18 @@ void position_cmd(Position& pos, istringstream& is , Search::StateStackPtr/*Stat
 
 	pos.set(sfen , Threads.main());
 
-	states = Search::StateStackPtr(new aligned_stack<StateInfo>);
-	// 要素が一つもないとempty checkとか面倒なので積んでおくことになっている。
-	states->push(StateInfo());
+	// 古いものは捨てて新しいものを作る。
+	states = StateListPtr(new StateList(1));
 
 	// 指し手のリストをパースする(あるなら)
 	while (is >> token && (m = move_from_usi(pos, token)) != MOVE_NONE)
 	{
 		// 1手進めるごとにStateInfoが積まれていく。これは千日手の検出のために必要。
-		states->push(StateInfo());
+		states->emplace_back();
 		if (m == MOVE_NULL) // do_move に MOVE_NULL を与えると死ぬので
-			pos.do_null_move(States->top());
+			pos.do_null_move(states->back());
 		else
-			pos.do_move(m, States->top());
+			pos.do_move(m, states->back());
 	}
 }
 
@@ -626,7 +616,7 @@ void getoption_cmd(istringstream& is)
 
 // go()は、思考エンジンがUSIコマンドの"go"を受け取ったときに呼び出される。
 // この関数は、入力文字列から思考時間とその他のパラメーターをセットし、探索を開始する。
-void go_cmd(const Position& pos, istringstream& is , Search::StateStackPtr/*StateListPtr*/& states) {
+void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 
 	Search::LimitsType limits;
 	string token;
@@ -728,10 +718,8 @@ void USI::loop(int argc, char* argv[])
 
 	string cmd, token;
 
-	// 局面を遡るためのStateInfoのlist。alignしないといけないので専用のクラスを用いる。
-	// StateListPtr states(new std::deque<StateInfo>(1));
-	Search::StateStackPtr states = Search::StateStackPtr(new aligned_stack<StateInfo>);
-	states->push(StateInfo());
+	// 局面を遡るためのStateInfoのlist。
+	StateListPtr states(new StateList(1));
 	
 	// 先行入力されているコマンド
 	// コマンドは前から取り出すのでqueueを用いる。

@@ -10,6 +10,9 @@
 // 探索関係
 namespace Search {
 
+	// countermoves based pruningで使う閾値
+	const int CounterMovePruneThreshold = 0;
+
 	// root(探索開始局面)での指し手として使われる。それぞれのroot moveに対して、
 	// その指し手で進めたときのscore(評価値)とPVを持っている。(PVはfail lowしたときには信用できない)
 	// scoreはnon-pvの指し手では-VALUE_INFINITEで初期化される。
@@ -126,8 +129,6 @@ namespace Search {
 		// ベンチマークモード(このときPVの出力時に置換表にアクセスしない)
 		bool bench;
 	};
-
-	typedef std::unique_ptr<aligned_stack<StateInfo>> StateStackPtr;
 
 	extern LimitsType Limits;
 

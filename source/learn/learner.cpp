@@ -336,9 +336,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 	const int MAX_PLY2 = write_maxply;
 
 	// StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
-	aligned_vector<StateInfo> state;
-	state.resize(MAX_PLY2 + 20);
-
+	std::vector<StateInfo,AlignedAllocator<StateInfo>> states(MAX_PLY2 + 50 /* search_depth */);
+	
 	// 今回の指し手。この指し手で局面を進める。
 	Move m = MOVE_NONE;
 
@@ -362,7 +361,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		// 1局分の局面を保存しておき、終局のときに勝敗を含めて書き出す。
 		// 書き出す関数は、この下にあるflush_psv()である。
 		PSVector a_psv;
-		a_psv.reserve(MAX_PLY2);
+		a_psv.reserve(MAX_PLY2 + 50);
 
 		// a_psvに積まれている局面をファイルに書き出す。
 		// lastTurnIsWin : a_psvに積まれている最終局面の次の局面での勝敗
@@ -569,7 +568,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 							cout << "Error! : " << pos.sfen() << m << endl;
 						}
 #endif
-						pos.do_move(m, state[ply2++]);
+						pos.do_move(m, states[ply2++]);
 						
 						// 毎ノードevaluate()を呼び出さないと、evaluate()の差分計算が出来ないので注意！
 						// depthが8以上だとこの差分計算はしないほうが速いと思われる。
@@ -752,7 +751,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				a_psv.clear(); // 保存していた局面のクリア
 			}
 
-			pos.do_move(m, state[ply]);
+			pos.do_move(m, states[ply]);
 
 			// 差分計算を行なうために毎node evaluate()を呼び出しておく。
 			Eval::evaluate_with_no_return(pos);

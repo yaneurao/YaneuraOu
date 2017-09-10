@@ -44,7 +44,6 @@ public:
 	explicit Thread(size_t n);
 	virtual ~Thread();
 
-
 	// slaveは、main threadから
 	//   for(auto th : Threads) th->start_searching();
 	// のようにされるとこの関数が呼び出される。
@@ -116,6 +115,11 @@ public:
 	// cf. https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
 	CounterMoveHistoryStat counterMoveHistory;
 #endif
+
+	// PositionクラスのEvalListにalignasを指定されていて、Positionクラスを保持するこのThreadクラスをnewするが、
+	// そのときにalignasを無視されるのでcustom allocatorを定義しておいてやる。
+	void* operator new(std::size_t s);
+	void operator delete(void*p) noexcept;
 };
   
 
@@ -173,7 +177,7 @@ struct ThreadPool: public std::vector<Thread*>
 	void exit();
 
 	// mainスレッドに思考を開始させる。
-	void start_thinking(const Position& pos, Search::StateStackPtr/*StateListPtr*/& states , const Search::LimitsType& limits , bool ponderMode = false);
+	void start_thinking(const Position& pos, StateListPtr& states , const Search::LimitsType& limits , bool ponderMode = false);
 
 	// スレッド数を変更する。
 	void set(size_t requested);
@@ -196,7 +200,7 @@ struct ThreadPool: public std::vector<Thread*>
 private:
 
 	// 現局面までのStateInfoのlist
-	Search::StateStackPtr/*StateListPtr*/ setupStates;
+	StateListPtr setupStates;
 
 	// Threadクラスの特定のメンバー変数を足し合わせたものを返す。
 	uint64_t accumulate(std::atomic<uint64_t> Thread::* member) const {
