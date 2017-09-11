@@ -468,7 +468,7 @@ u64 eval_sum;
 
 // is_ready_cmd()を外部から呼び出せるようにしておく。(benchコマンドなどから呼び出したいため)
 // 局面は初期化されないので注意。
-void is_ready()
+void is_ready(bool skipCorruptCheck)
 {
 	// 評価関数の読み込みなど時間のかかるであろう処理はこのタイミングで行なう。
 	// 起動時に時間のかかる処理をしてしまうと将棋所がタイムアウト判定をして、思考エンジンとしての認識をリタイアしてしまう。
@@ -486,11 +486,11 @@ void is_ready()
 		load_eval_finished = true;
 
 	}
-	else {
-
+	else
+	{
 		// メモリが破壊されていないかを調べるためにチェックサムを毎回調べる。
 		// 時間が少しもったいない気もするが.. 0.1秒ぐらいのことなので良しとする。
-		if (eval_sum != Eval::calc_check_sum())
+		if (!skipCorruptCheck && eval_sum != Eval::calc_check_sum())
 			sync_cout << "Error! : evaluate memory is corrupted" << sync_endl;
 	}
 

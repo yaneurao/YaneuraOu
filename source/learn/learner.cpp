@@ -78,7 +78,6 @@ using namespace std;
 
 // これは探索部で定義されているものとする。
 extern Book::BookMoveSelector book;
-extern void is_ready();
 
 // atomic<T>に対する足し算、引き算の定義
 // Apery/learner.hppにあるatomicAdd()に合わせてある。
@@ -336,7 +335,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 	const int MAX_PLY2 = write_maxply;
 
 	// StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
-	std::vector<StateInfo,AlignedAllocator<StateInfo>> states(MAX_PLY2 + 50 /* search_depth */);
+	std::vector<StateInfo,AlignedAllocator<StateInfo>> states(MAX_PLY2 + 50 /* == search_depth + α */);
 	
 	// 今回の指し手。この指し手で局面を進める。
 	Move m = MOVE_NONE;
@@ -1808,9 +1807,12 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 }
 
+// 評価関数ファイルの書き出し。
 void LearnerThink::save()
 {
-	// 定期的に保存
+	// 保存前にcheck sumを計算して出力しておく。(次に読み込んだときに合致するか調べるため)
+	std::cout << "Check Sum = " << std::hex << Eval::calc_check_sum() << std::dec << std::endl;
+
 	// 保存ごとにファイル名の拡張子部分を"0","1","2",..のように変えていく。
 	// (あとでそれぞれの評価関数パラメーターにおいて勝率を比較したいため)
 

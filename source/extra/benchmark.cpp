@@ -6,7 +6,6 @@
 #include "../thread.h"
 
 using namespace std;
-extern void is_ready();
 
 // ----------------------------------
 //  USI拡張コマンド "bench"(ベンチマーク)

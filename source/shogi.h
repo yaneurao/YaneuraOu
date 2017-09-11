@@ -993,6 +993,11 @@ Move move_from_usi(const Position& pos, const std::string& str);
 // Position::move16_to_move()を呼び出す必要がある。
 Move move_from_usi(const std::string& str);
 
+// USIの"isready"コマンドが呼び出されたときの処理。このときに評価関数の読み込みなどを行なう。
+// benchmarkコマンドのハンドラなどで"isready"が来ていないときに評価関数を読み込ませたいときに用いる。
+// skipCorruptCheck == trueのときは評価関数の2度目の読み込みのときのcheck sumによるメモリ破損チェックを省略する。
+extern void is_ready(bool skipCorruptCheck = false);
+
 // --------------------
 //  operators and macros
 // --------------------
