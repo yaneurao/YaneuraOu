@@ -150,9 +150,6 @@
 // 定跡を作るコマンド("makebook")を有効にする。
 // #define ENABLE_MAKEBOOK_CMD
 
-// 標準で用意されているMovePickerを用いるか
-// #define USE_MOVE_PICKER_2016Q2
-
 // 入玉時の宣言勝ちを用いるか
 // #define USE_ENTERING_KING_WIN
 
@@ -170,12 +167,6 @@
 
 // 指し手生成のときに上位16bitにto(移動後の升)に来る駒を格納する。
 // #define KEEP_PIECE_IN_GENERATE_MOVES
-
-// 探索スレッドごとにCounterMoveHistoryを持つ。
-// #define PER_THREAD_COUNTERMOVEHISTORY
-
-// 探索StackごとにHistoryを持つ。
-// #define PER_STACK_HISTORY
 
 // 評価関数を計算したときに、それをHashTableに記憶しておく機能。KPPT評価関数においてのみサポート。
 // #define USE_EVAL_HASH
@@ -235,14 +226,11 @@
 
 #define USE_EVAL_HASH
 #define USE_SEE
-#define USE_MOVE_PICKER_2017Q2
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
 #define KEEP_PIECE_IN_GENERATE_MOVES
 #define ONE_PLY_EQ_1
-#define PER_THREAD_COUNTERMOVEHISTORY
-#define PER_STACK_HISTORY
 
 // デバッグ絡み
 //#define ASSERT_LV 3

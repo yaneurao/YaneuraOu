@@ -98,6 +98,7 @@ SOURCES  = shogi.cpp                                                           \
 	usi.cpp                                                                    \
 	thread.cpp                                                                 \
 	tt.cpp                                                                     \
+	move_picker.cpp                                                            \
 	extra/book/apery_book.cpp                                                  \
 	extra/book/book.cpp                                                        \
 	extra/bitop.cpp                                                            \
@@ -106,7 +107,6 @@ SOURCES  = shogi.cpp                                                           \
 	extra/mate/mate1ply_with_effect.cpp                                        \
 	extra/mate/mate1ply_without_effect.cpp                                     \
 	extra/mate/mate_n_ply.cpp                                                  \
-	extra/move_picker/move_picker_2017Q2.cpp                                   \
 	extra/benchmark.cpp                                                        \
 	extra/test_cmd.cpp                                                         \
 	extra/timeman.cpp                                                          \

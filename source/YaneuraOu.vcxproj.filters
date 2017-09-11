@@ -44,9 +44,6 @@
     <Filter Include="リソース ファイル\extra\book">
       <UniqueIdentifier>{991f4422-aa69-47f9-96dc-ab57ff54f469}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\extra\move_picker">
-      <UniqueIdentifier>{c51fef6e-8adf-4b09-a7d7-6e8af13a0628}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\extra\mate">
       <UniqueIdentifier>{d2aac0fd-42da-4a14-b6c2-22d534701934}</UniqueIdentifier>
     </Filter>
@@ -129,9 +126,6 @@
     </ClInclude>
     <ClInclude Include="extra\book\mt64bit.h">
       <Filter>リソース ファイル\extra\book</Filter>
-    </ClInclude>
-    <ClInclude Include="extra\move_picker\move_picker_2017Q2.h">
-      <Filter>リソース ファイル\extra\move_picker</Filter>
     </ClInclude>
     <ClInclude Include="extra\mate\mate1ply.h">
       <Filter>リソース ファイル\extra\mate</Filter>
@@ -249,9 +243,6 @@
     <ClCompile Include="extra\book\book.cpp">
       <Filter>リソース ファイル\extra\book</Filter>
     </ClCompile>
-    <ClCompile Include="extra\move_picker\move_picker_2017Q2.cpp">
-      <Filter>リソース ファイル\extra\move_picker</Filter>
-    </ClCompile>
     <ClCompile Include="extra\mate\mate_n_ply.cpp">
       <Filter>リソース ファイル\extra\mate</Filter>
     </ClCompile>
@@ -290,6 +281,9 @@
     </ClCompile>
     <ClCompile Include="eval\kppt\evaluate_kppt_learner.cpp">
       <Filter>リソース ファイル\eval\kppt</Filter>
+    </ClCompile>
+    <ClCompile Include="move_picker.cpp">
+      <Filter>リソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

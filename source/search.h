@@ -97,8 +97,9 @@ namespace Search {
 		int movetime;
 
 		// mate     : 詰み専用探索(USIの'go mate'コマンドを使ったとき)
-		//  詰み探索モードのときは、ここに思考時間が指定されている。
-		//  この思考時間いっぱいまで考えて良い。
+		//  詰み探索モードのときは、ここに詰みの手数が指定されている。
+		// その手数以内の詰みが見つかったら探索を終了する。
+		// ※　Stockfishの場合、この変数は先後分として将棋の場合の半分の手数が格納されているので注意。
 		int mate;
 
 		// infinite : 思考時間無制限かどうかのフラグ。非0なら無制限。
@@ -144,22 +145,16 @@ namespace Search {
 	// -----------------------
 
 	struct Stack {
-		Move* pv;				// PVへのポインター。RootMovesのvector<Move> pvを指している。
-		int ply;				// rootからの手数
-		Move currentMove;		// そのスレッドの探索においてこの局面で現在選択されている指し手
-		Move excludedMove;		// singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手
-		Move killers[2];		// killer move
-		Value staticEval;		// 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
-
-#if defined (PER_STACK_HISTORY)
-		int statScore;			// 一度計算したhistoryの合計値をcacheしておくのに用いる。
-#endif
-
-		int moveCount;          // このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
-
-#if defined(USE_MOVE_PICKER_2017Q2)
-		PieceToHistory* history;		// history絡み、refactoringにより名前が変わった。
-#endif
+		Move* pv;					// PVへのポインター。RootMovesのvector<Move> pvを指している。
+		int ply;					// rootからの手数
+		Move currentMove;			// そのスレッドの探索においてこの局面で現在選択されている指し手
+		Move excludedMove;			// singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手
+		Move killers[2];			// killer move
+		Value staticEval;			// 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
+		int statScore;				// 一度計算したhistoryの合計値をcacheしておくのに用いる。
+		int moveCount;				// このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
+		PieceToHistory* history;    // historyのうち、counter moveに関するhistoryへのポインタ。実体はThreadが持っている。
+//		PieceToHistory* contHistory;// historyのうち、counter moveに関するhistoryへのポインタ。実体はThreadが持っている。
 	};
 
 } // end of namespace Search

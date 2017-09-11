@@ -11,6 +11,7 @@ Thread::Thread(size_t n) : idx(n) , stdThread(&Thread::idle_loop, this)
 	wait_for_search_finished();
 
 	// historyなどをゼロクリアする。
+	// このタイミングでやらないとgccで変数が未初期化扱いされてしまう。
 	clear();
 }
 
@@ -30,6 +31,7 @@ Thread::~Thread()
 void Thread::clear()
 {
 	counterMoves.fill(MOVE_NONE);
+//	mainHistory.fill(0);
 	history.fill(0);
 
 	// ここは、未初期化のときに[SQ_ZERO][NO_PIECE]を指すので、ここを-1で初期化しておくことによって、

@@ -21,12 +21,12 @@ namespace Eval
   int CapturePieceValue[PIECE_NB] =
   {
     VALUE_ZERO             , PawnValue * 2   , LanceValue * 2   , KnightValue * 2   , SilverValue * 2  ,
-    BishopValue * 2, RookValue * 2, GoldValue * 2, VALUE_ZERO ,
+    BishopValue * 2, RookValue * 2, GoldValue * 2, 0 /* SEEやfutilityで用いるため王の価値は0にしておかないといけない */ ,
     ProPawnValue + PawnValue, ProLanceValue + LanceValue, ProKnightValue + KnightValue, ProSilverValue + SilverValue,
     HorseValue + BishopValue, DragonValue + RookValue, VALUE_ZERO /* PRO_GOLD */,
  
     VALUE_ZERO             , PawnValue * 2   , LanceValue * 2   , KnightValue * 2   , SilverValue * 2  ,
-    BishopValue * 2, RookValue * 2, GoldValue * 2, VALUE_ZERO ,
+    BishopValue * 2, RookValue * 2, GoldValue * 2, 0 ,
     ProPawnValue + PawnValue, ProLanceValue + LanceValue, ProKnightValue + KnightValue, ProSilverValue + SilverValue,
     HorseValue + BishopValue, DragonValue + RookValue, VALUE_ZERO /* PRO_GOLD */,
   };

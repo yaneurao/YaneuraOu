@@ -103,18 +103,15 @@ public:
 	// このスレッドに関して、終了した反復深化の深さ
 	Depth completedDepth;
 
-	// ある種のMovePickerではオーダリングのために、
-	// スレッドごとにhistoryとcounter movesのtableを持たないといけない。
-#if defined ( USE_MOVE_PICKER_2017Q2 )
+	// 近代的なMovePickerではオーダリングのために、スレッドごとにhistoryとcounter movesのtableを持たないといけない。
 	CounterMoveStat counterMoves;
 	ButterflyHistory history;
-#endif
+//	ButterflyHistory mainHistory;
 
-#if defined( PER_THREAD_COUNTERMOVEHISTORY )
-	// コア数が多いか、長い持ち時間においては、スレッドごとにCounterMoveHistoryを確保したほうが良い。
+	// コア数が多いか、長い持ち時間においては、ContinuationHistoryもスレッドごとに確保したほうが良いらしい。
 	// cf. https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
+	// ContinuationHistory counterMoveHistory;
 	CounterMoveHistoryStat counterMoveHistory;
-#endif
 
 	// PositionクラスのEvalListにalignasを指定されていて、Positionクラスを保持するこのThreadクラスをnewするが、
 	// そのときにalignasを無視されるのでcustom allocatorを定義しておいてやる。

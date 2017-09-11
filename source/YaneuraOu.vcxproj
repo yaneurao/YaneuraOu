@@ -705,7 +705,6 @@
     <ClInclude Include="extra\long_effect.h" />
     <ClInclude Include="extra\macros.h" />
     <ClInclude Include="extra\mate\mate1ply.h" />
-    <ClInclude Include="extra\move_picker\move_picker_2017Q2.h" />
     <ClInclude Include="extra\thread_win32.h" />
     <ClInclude Include="learn\half_float.h" />
     <ClInclude Include="learn\learn.h" />
@@ -744,7 +743,6 @@
     <ClCompile Include="extra\mate\mate1ply_without_effect.cpp" />
     <ClCompile Include="extra\mate\mate1ply_with_effect.cpp" />
     <ClCompile Include="extra\mate\mate_n_ply.cpp" />
-    <ClCompile Include="extra\move_picker\move_picker_2017Q2.cpp" />
     <ClCompile Include="extra\see.cpp" />
     <ClCompile Include="extra\sfen_packer.cpp" />
     <ClCompile Include="extra\test_cmd.cpp" />
@@ -754,6 +752,7 @@
     <ClCompile Include="learn\multi_think.cpp" />
     <ClCompile Include="misc.cpp" />
     <ClCompile Include="movegen.cpp" />
+    <ClCompile Include="move_picker.cpp" />
     <ClCompile Include="shogi.cpp" />
     <ClCompile Include="position.cpp" />
     <ClCompile Include="thread.cpp" />
