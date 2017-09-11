@@ -626,6 +626,11 @@ struct ExtMove {
 
 	operator Move() const { return move; }
 	void operator=(Move m) { move = m; }
+
+	// 望まない暗黙のMoveへの変換を禁止するために
+	// 曖昧な変換でコンパイルエラーになるようにしておく。
+	// cf. Fix involuntary conversions of ExtMove to Move : https://github.com/official-stockfish/Stockfish/commit/d482e3a8905ee194bda3f67a21dda5132c21f30b
+	operator float() const;
 };
 
 // ExtMoveの並べ替えを行なうので比較オペレーターを定義しておく。

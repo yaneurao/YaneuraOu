@@ -31,8 +31,7 @@ Thread::~Thread()
 void Thread::clear()
 {
 	counterMoves.fill(MOVE_NONE);
-//	mainHistory.fill(0);
-	history.fill(0);
+	mainHistory.fill(0);
 
 	// ここは、未初期化のときに[SQ_ZERO][NO_PIECE]を指すので、ここを-1で初期化しておくことによって、
 	// history > 0 を条件にすれば自ずと未初期化のときは除外されるようになる。
@@ -130,7 +129,7 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 	// (ただし、トライルールのときはMOVE_WINではないので、トライする指し手はsearchmovesに含まれていなければ
 	// 指しては駄目な手なのでrootMovesに追加しない。)
 	if (pos.DeclarationWin() == MOVE_WIN)
-		rootMoves.push_back(Search::RootMove(MOVE_WIN));
+		rootMoves.emplace_back(MOVE_WIN);
 
 	for (auto m : MoveList<LEGAL>(pos))
 		if (limits.searchmoves.empty()
@@ -146,6 +145,7 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 		setupStates = std::move(states);
 
 	// Position::set()によってst->previosがクリアされるので事前にコピーして保存する。
+	// cf. Fix incorrect StateInfo : https://github.com/official-stockfish/Stockfish/commit/232c50fed0b80a0f39322a925575f760648ae0a5
 	StateInfo tmp = setupStates->back();
 
 	auto sfen = pos.sfen();

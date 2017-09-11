@@ -110,7 +110,7 @@ Move pick_best(ExtMove* begin, ExtMove* end)
 }
 } // end of namespace
 
-#ifdef MUST_CAPTURE_SHOGI_ENGINE
+#if defined (MUST_CAPTURE_SHOGI_ENGINE)
 void MovePicker::checkMustCapture()
 {
 	// このnodeで合法なcaptureの指し手が1手でもあれば、必ずcaptureしなければならない。
@@ -134,25 +134,17 @@ void MovePicker::checkMustCapture()
 // 指し手オーダリング器
 
 // 通常探索から呼び出されるとき用。
-MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Search::Stack*s)
-	: pos(p), ss(s), depth(d)
+MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh,
+	const PieceToHistory** ch, Move cm, Move* killers_p)
+	: pos(p), mainHistory(mh), contHistory(ch), countermove(cm),
+	killers{ killers_p[0], killers_p[1] }, depth(d)
 {
 	// 通常探索から呼び出されているので残り深さはゼロより大きい。
 	ASSERT_LV3(d > DEPTH_ZERO);
 
-#ifdef MUST_CAPTURE_SHOGI_ENGINE
+#if defined (MUST_CAPTURE_SHOGI_ENGINE)
 	checkMustCapture();
 #endif
-
-	// (ss - 1)->currentMove == MOVE_NONEである可能性はある。
-	// そのときは、prevPc == NO_PIECEになり、それでもうまく動作する。
-
-	Square prevSq = to_sq((ss - 1)->currentMove);
-	Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
-	countermove = pos.this_thread()->counterMoves[prevSq][prevPc];
-
-	killers[0] = ss->killers[0];
-	killers[1] = ss->killers[1];
 
 	// 次の指し手生成の段階
 	// 王手がかかっているなら回避手、かかっていないなら通常探索用の指し手生成
@@ -165,10 +157,9 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Search::Stack*s)
 	stage += (ttMove == MOVE_NONE);
 }
 
-  // 静止探索から呼び出される時用。
-MovePicker::MovePicker(const Position& p, Move ttm, Depth d, Square recapSq)
-	: pos(p)
-{
+// 静止探索から呼び出される時用。
+MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh, Square recapSq)
+	: pos(p), mainHistory(mh) {
 
 #ifdef MUST_CAPTURE_SHOGI_ENGINE
 	checkMustCapture();
@@ -207,7 +198,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Value th)
 
 	ASSERT_LV3(!pos.in_check());
 
-#ifdef MUST_CAPTURE_SHOGI_ENGINE
+#if defined (MUST_CAPTURE_SHOGI_ENGINE)
 	checkMustCapture();
 #endif
 
@@ -224,96 +215,86 @@ MovePicker::MovePicker(const Position& p, Move ttm, Value th)
 	stage += (ttMove == MOVE_NONE);
 }
 
-
-// CAPTUREの指し手をオーダリング
-template<>
-void MovePicker::score<CAPTURES>()
+// QUIET、EVASIONS、CAPTURESのスコアリング。似た処理なので一本化。
+template<MOVE_GEN_TYPE Type>
+void MovePicker::score()
 {
-	// Position::see()を用いると遅い。単に取る駒の価値順に調べたほうがパフォーマンス的にもいい。
-	// 歩が成る指し手もあるのでこれはある程度優先されないといけない。
-	// CAPTURE系である以上、打つ指し手は除外されている。
-	for (auto& m : *this)
-	{
-		// CAPTURES_PRO_PLUSで生成しているので歩の成る指し手が混じる。これは金と歩の価値の差の点数とする。
-
-		// 移動させる駒の駒種。駒取りなので移動元は盤上であることは保証されている。
-		auto pt = type_of(pos.piece_on(move_from(m)));
-		// bool pawn_promo = is_promote(m) && pt == PAWN;
-
-		// MVV-LVAに、歩の成りに加点する形にしておく。
-		// →　歩の成りは加点しないほうがよさげ？
-		m.value =// (pawn_promo ? (Value)(Eval::ProDiffPieceValue[PAWN]) : VALUE_ZERO) +
-			(Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
-			- LVA(pt);
-
-		// 盤の上のほうの段にあるほど価値があるので下の方の段に対して小さなペナルティを課す。
-		// (基本的には取る駒の価値が大きいほど優先であるから..)
-		// m.value -= Value(1 * relative_rank(pos.side_to_move(), rank_of(move_to(m))));
-		// →　将棋ではあまりよくないアイデア。
-	}
-}
-
-// QUIETの指し手をスコアリングする。
-template<>
-void MovePicker::score<QUIETS>()
-{
-	const ButterflyHistory& history = pos.this_thread()->history;
-
-	const PieceToHistory& cmh = *(ss - 1)->history;
-	const PieceToHistory& fmh = *(ss - 2)->history;
-	const PieceToHistory& fm2 = *(ss - 4)->history;
-
 	Color c = pos.side_to_move();
 
 	for (auto& m : *this)
 	{
-		Piece mpc = pos.moved_piece_after(m);
-		Square msq = to_sq(m);
+		if (Type == CAPTURES)
+		{
+			// Position::see()を用いると遅い。単に取る駒の価値順に調べたほうがパフォーマンス的にもいい。
+			// 歩が成る指し手もあるのでこれはある程度優先されないといけない。
+			// CAPTURE系である以上、打つ指し手は除外されている。
 
-		m.value = cmh[msq][mpc]
-				+ fmh[msq][mpc]
-				+ fm2[msq][mpc]
-				+ history[from_to(m)][c];
+			// CAPTURES_PRO_PLUSで生成しているので歩の成る指し手が混じる。これは金と歩の価値の差の点数とする。
+
+			// 移動させる駒の駒種。駒取りなので移動元は盤上であることは保証されている。
+			auto pt = type_of(pos.piece_on(move_from(m)));
+			// bool pawn_promo = is_promote(m) && pt == PAWN;
+
+			// MVV-LVAに、歩の成りに加点する形にしておく。
+			// →　歩の成りは加点しないほうがよさげ？
+			m.value = // (pawn_promo ? (Value)(Eval::ProDiffPieceValue[PAWN]) : VALUE_ZERO) +
+				(Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
+				- LVA(pt);
+
+			// 盤の上のほうの段にあるほど価値があるので下の方の段に対して小さなペナルティを課す。
+			// (基本的には取る駒の価値が大きいほど優先であるから..)
+			// m.value -= Value(1 * relative_rank(pos.side_to_move(), rank_of(move_to(m))));
+			// →　将棋ではあまりよくないアイデア。
+
+		}
+		else if (Type == QUIETS)
+		{
+			// 駒を取らない指し手をオーダリングする。
+
+			Piece mpc = pos.moved_piece_after(m);
+			Square msq = to_sq(m);
+
+			m.value = (*mainHistory)[from_to(m)][c]
+				+ (*contHistory[0])[msq][mpc]
+				+ (*contHistory[1])[msq][mpc]
+				+ (*contHistory[3])[msq][mpc];
+		}
+		else // Type == EVASIONS
+		{
+			// 王手回避の指し手をスコアリングする。
+
+			// 駒を取る指し手ならseeがプラスだったということなのでプラスの符号になるようにStats::Maxを足す。
+			// あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
+			// 価値が高いので(例えば合駒に安い駒を使う的な…)
+
+			//  ・成るなら、その成りの価値を加算したほうが見積もりとしては正しい？
+			// 　それは取り返されないことが前提にあるから、そうでもない。
+			//		T1,r300,2491 - 78 - 2421(50.71% R4.95)
+			//		T1,b1000,2483 - 103 - 2404(50.81% R5.62)
+			//      T1,b3000,2459 - 148 - 2383(50.78% R5.45)
+			//   →　やはり、改造前のほうが良い。[2016/10/06]
+
+			// ・moved_piece_before()とmoved_piece_after()との比較
+			// 　厳密なLVAではなくなるが、afterのほうが良さげ。
+			// 　例えば、歩を成って取るのと、桂で取るのとでは、安い駒は歩だが、桂で行ったほうが、
+			// 　歩はあとで成れるとすれば潜在的な価値はそちらのほうが高いから、そちらを残しておくという理屈はあるのか。
+			//		T1, b1000, 2402 - 138 - 2460(49.4% R - 4.14) win black : white = 51.04% : 48.96%
+			//		T1,b3000,1241 - 108 - 1231(50.2% R1.41) win black : white = 50.53% : 49.47%
+			//		T1,b5000,1095 - 118 - 1047(51.12% R7.79) win black : white = 52.33% : 47.67%
+			//  →　moved_piece_before()のほうで問題なさげ。[2017/5/20]
+
+			if (pos.capture(m))
+				// 捕獲する指し手に関しては簡易SEE + MVV/LVA
+				m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
+				        - (Value)(LVA(type_of(pos.moved_piece_before(m)))) + Value(1 << 28);
+			else
+				// 捕獲しない指し手に関してはhistoryの値の順番
+				m.value = (*mainHistory)[from_to(m)][c];
+
+		}
 	}
 }
 
-// 王手回避の指し手をスコアリングする。
-template<>
-void MovePicker::score<EVASIONS>()
-{
-	const ButterflyHistory& history = pos.this_thread()->history;
-	Color c = pos.side_to_move();
-
-	for (auto& m : *this)
-
-		// 駒を取る指し手ならseeがプラスだったということなのでプラスの符号になるようにStats::Maxを足す。
-		// あとは取る駒の価値を足して、動かす駒の番号を引いておく(小さな価値の駒で王手を回避したほうが
-		// 価値が高いので(例えば合駒に安い駒を使う的な…)
-
-		//  ・成るなら、その成りの価値を加算したほうが見積もりとしては正しい？
-		// 　それは取り返されないことが前提にあるから、そうでもない。
-		//		T1,r300,2491 - 78 - 2421(50.71% R4.95)
-		//		T1,b1000,2483 - 103 - 2404(50.81% R5.62)
-		//      T1,b3000,2459 - 148 - 2383(50.78% R5.45)
-		//   →　やはり、改造前のほうが良い。[2016/10/06]
-
-		// ・moved_piece_before()とmoved_piece_after()との比較
-		// 　厳密なLVAではなくなるが、afterのほうが良さげ。
-		// 　例えば、歩を成って取るのと、桂で取るのとでは、安い駒は歩だが、桂で行ったほうが、
-		// 　歩はあとで成れるとすれば潜在的な価値はそちらのほうが高いから、そちらを残しておくという理屈はあるのか。
-		//		T1, b1000, 2402 - 138 - 2460(49.4% R - 4.14) win black : white = 51.04% : 48.96%
-		//		T1,b3000,1241 - 108 - 1231(50.2% R1.41) win black : white = 50.53% : 49.47%
-		//		T1,b5000,1095 - 118 - 1047(51.12% R7.79) win black : white = 52.33% : 47.67%
-		//  →　moved_piece_before()のほうで問題なさげ。[2017/5/20]
-
-		if (pos.capture(m))
-			// 捕獲する指し手に関しては簡易SEE + MVV/LVA
-			m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
-			-Value(LVA(type_of(pos.moved_piece_before(m)))) + Value(1 << 28);
-		else
-			// 捕獲しない指し手に関してはhistoryの値の順番
-			m.value = history[from_to(m)][c];
-}
 
 // 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。
 // 指し手が尽きればMOVE_NONEが返る。

@@ -105,13 +105,11 @@ public:
 
 	// 近代的なMovePickerではオーダリングのために、スレッドごとにhistoryとcounter movesのtableを持たないといけない。
 	CounterMoveStat counterMoves;
-	ButterflyHistory history;
-//	ButterflyHistory mainHistory;
+	ButterflyHistory mainHistory;
 
 	// コア数が多いか、長い持ち時間においては、ContinuationHistoryもスレッドごとに確保したほうが良いらしい。
 	// cf. https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
-	// ContinuationHistory counterMoveHistory;
-	CounterMoveHistoryStat counterMoveHistory;
+	ContinuationHistory counterMoveHistory;
 
 	// PositionクラスのEvalListにalignasを指定されていて、Positionクラスを保持するこのThreadクラスをnewするが、
 	// そのときにalignasを無視されるのでcustom allocatorを定義しておいてやる。
@@ -188,11 +186,16 @@ struct ThreadPool: public std::vector<Thread*>
 	// stop   : 探索中にこれがtrueになったら探索を即座に終了すること。
 	// ponder : "go ponder" コマンドでの探索中であるかを示すフラグ
 	// stopOnPonderhit : Stockfishのこのフラグは、やねうら王では用いない。(もっと上手にponderの時間を活用したいため)
+	// received_go_ponder : Stockfishにはこのコードはないが、試合開始後、"go ponder"が一度でも送られてきたかのフラグ。これにより思考時間を自動調整する。
+	// 本来は、Options["Ponder"]で設定すべきだが(UCIではそうなっている)、USIプロトコルだとGUIが勝手に設定するので、思考エンジン側からPonder有りのモードなのかどうかが取得できない。
+	// ゆえに、このようにして判定している。
 	// 備考) ponderのフラグを変更するのはUSIコマンドで"ponderhit"などが送られてきたときであり、探索スレッドからは、探索中は
 	//       ponderの値はreadonlyであるから複雑な同期処理は必要がない。
 	//       (途中で値が変更されるのは、ponder == trueで探索が始まり、途中でfalseに変更されるケースのみ)
 	//       そこで単にatomic_boolにしておけば十分である。
-	std::atomic_bool stop , ponder /*, stopOnPonderhit*/;
+	// 
+	std::atomic_bool stop , ponder /*, stopOnPonderhit*/ , received_go_ponder;
+
 
 private:
 

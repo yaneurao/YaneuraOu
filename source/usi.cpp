@@ -65,12 +65,6 @@ extern void gameover_handler(const string& cmd);
 // Option設定が格納されたglobal object。
 USI::OptionsMap Options;
 
-// 試合開始後、一度でも"go ponder"が送られてきたかのフラグ
-// 本来は、Options["Ponder"]で設定すべきだが(UCIではそうなっている)、
-// USIプロトコルだとGUIが勝手に設定するので、思考エンジン側からPonder有りのモードなのかどうかが取得できない。
-// ゆえに、このようにして判定している。
-bool ponder_mode;
-
 // 引き分けになるまでの手数。(MaxMovesToDrawとして定義される)
 // これは、"go"コマンドのときにLimits.max_game_plyに反映される。
 // INT_MAXにすると残り手数を計算するときにあふれかねない。
@@ -501,7 +495,7 @@ void is_ready(bool skipCorruptCheck)
 	Search::clear();
 	Time.availableNodes = 0;
 
-	ponder_mode = false;
+	Threads.received_go_ponder = false;
 	Threads.stop = false;
 }
 
@@ -692,7 +686,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 			ponderMode = true;
 
 			// 試合開始後、一度でも"go ponder"が送られてきたら、それを記録しておく。
-			limits.ponder_mode = true;
+			Threads.received_go_ponder = true;
 		}
 	}
 

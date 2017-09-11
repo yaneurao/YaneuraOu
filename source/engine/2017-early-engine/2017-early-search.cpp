@@ -260,7 +260,7 @@ namespace YaneuraOu2017Early
 	{
 		for (int i : { 1, 2, 4})
 			if (is_ok((ss - i)->currentMove))
-				(ss - i)->history->update(pc, s, bonus);
+				(ss - i)->contHistory->update(pc, s, bonus);
 	}
 
 	// いい探索結果だったときにkiller等を更新する
@@ -284,7 +284,7 @@ namespace YaneuraOu2017Early
 		Color c = pos.side_to_move();
 
 		Thread* thisThread = pos.this_thread();
-		thisThread->history.update(c, move, bonus);
+		thisThread->mainHistory.update(c, move, bonus);
 		update_cm_stats(ss, pos.moved_piece_after(move), to_sq(move), bonus);
 
 		if (is_ok((ss - 1)->currentMove))
@@ -300,7 +300,7 @@ namespace YaneuraOu2017Early
 		// その他のすべてのquiet movesを減少させる。
 		for (int i = 0; i < quietsCnt; ++i)
 		{
-			thisThread->history.update(c, quiets[i], -bonus);
+			thisThread->mainHistory.update(c, quiets[i], -bonus);
 			update_cm_stats(ss, pos.moved_piece_after(quiets[i]), to_sq(quiets[i]), -bonus);
 		}
 	}
@@ -526,7 +526,7 @@ namespace YaneuraOu2017Early
 		// 取り合いの指し手だけ生成する
 		// searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうるが、
 		// 静止探索の1つ目の深さではrecaptureを生成しないならこれは問題とならない。
-		MovePicker mp(pos, ttMove, depth, to_sq((ss - 1)->currentMove));
+		MovePicker mp(pos, ttMove, depth, &pos.this_thread()->mainHistory, to_sq((ss - 1)->currentMove));
 		Move move;
 		Value value;
 
@@ -836,10 +836,10 @@ namespace YaneuraOu2017Early
 		// -----------------------
 
 		// historyの合計値を計算してcacheしておく用。
-		ss->history = 0;
+		ss->statScore = 0;
 
 		ss->currentMove = MOVE_NONE;
-		ss->history = &thisThread->counterMoveHistory[SQ_ZERO][NO_PIECE];
+		ss->contHistory = &thisThread->counterMoveHistory[SQ_ZERO][NO_PIECE];
 
 		// ss->moveCountはこのあとMovePickerがこのnodeの指し手を生成するより前に
 		// 枝刈り等でsearch()を再帰的に呼び出すことがあり、そのときに親局面のmoveCountベースで
@@ -929,7 +929,7 @@ namespace YaneuraOu2017Early
 				else if (!pos.capture_or_promotion(ttMove))
 				{
 					int penalty = -stat_bonus(depth);
-					thisThread->history.update(pos.side_to_move(), ttMove, penalty);
+					thisThread->mainHistory.update(pos.side_to_move(), ttMove, penalty);
 					update_cm_stats(ss, pos.moved_piece_after(ttMove), to_sq(ttMove), penalty);
 				}
 			}
@@ -1138,7 +1138,7 @@ namespace YaneuraOu2017Early
 			return eval;
 		// 次のようにするより、単にevalを返したほうが良いらしい。
 		//	 return eval - futility_margin(depth);
-		// cf. https://github.com/official-stockfish/Stockfish/commit/f799610d4bb48bc280ea7f58cd5f78ab21028bf5
+		// cf. Simplify futility pruning return value : https://github.com/official-stockfish/Stockfish/commit/f799610d4bb48bc280ea7f58cd5f78ab21028bf5
 
 		// -----------------------
 		// Step 8. Null move search with verification search (is omitted in PV nodes)
@@ -1159,7 +1159,7 @@ namespace YaneuraOu2017Early
 				+ std::min((int)((eval - beta) / PawnValue), 3)) * ONE_PLY;
 
 			ss->currentMove = MOVE_NONE;
-			ss->history = &thisThread->counterMoveHistory[SQ_ZERO][NO_PIECE];
+			ss->contHistory = &thisThread->counterMoveHistory[SQ_ZERO][NO_PIECE];
 
 			pos.do_null_move(st);
 
@@ -1220,7 +1220,7 @@ namespace YaneuraOu2017Early
 				if (pos.legal(move))
 				{
 					ss->currentMove = move;
-					ss->history = &thisThread->counterMoveHistory[to_sq(move)][pos.moved_piece_after(move)];
+					ss->contHistory = &thisThread->counterMoveHistory[to_sq(move)][pos.moved_piece_after(move)];
 
 					pos.do_move(move, st, pos.gives_check(move));
 					value = -search<NonPV>(pos, ss + 1, -rbeta, -rbeta + 1, rdepth, !cutNode,false);
@@ -1263,9 +1263,9 @@ namespace YaneuraOu2017Early
 		// cmh  = Counter Move History    : ある指し手が指されたときの応手
 		// fmh  = Follow up Move History  : 2手前の自分の指し手の継続手
 		// fm2  = Follow up Move History2 : 4手前からの継続手
-		const PieceToHistory& cmh  = *(ss - 1)->history;
-		const PieceToHistory& fmh  = *(ss - 2)->history;
-		const PieceToHistory& fm2  = *(ss - 4)->history;
+		const PieceToHistory& cmh  = *(ss - 1)->contHistory;
+		const PieceToHistory& fmh  = *(ss - 2)->contHistory;
+		const PieceToHistory& fm2  = *(ss - 4)->contHistory;
 
 		// 評価値が2手前の局面から上がって行っているのかのフラグ
 		// 上がって行っているなら枝刈りを甘くする。
@@ -1308,7 +1308,13 @@ namespace YaneuraOu2017Early
 		// ss->staticEvalに代入するとimprovingの判定間違うのでそれはしないほうがよさげ。
 		evaluate_with_no_return(pos);
 
-		MovePicker mp(pos, ttMove, depth, ss);
+		Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
+
+		// (ss - 1)->currentMove == MOVE_NONEである可能性はある。
+		// そのときは、prevPc == NO_PIECEになり、それでもうまく動作する。
+		Move countermove = thisThread->counterMoves[prevSq][prevPc];
+		const PieceToHistory* contHist[] = { (ss - 1)->contHistory, (ss - 2)->contHistory, nullptr, (ss - 4)->contHistory };
+		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory, contHist, countermove, ss->killers);
 
 #if defined(__GNUC__)
 		// g++でコンパイルするときにvalueが未初期化かも知れないという警告が出るのでその回避策。
@@ -1496,7 +1502,7 @@ namespace YaneuraOu2017Early
 			if (  !RootNode
 			//	&& !inCheck
 			// →　王手がかかっていても以下の枝刈りはしたほうが良いらしいが…。
-			// cf. 	https://github.com/official-stockfish/Stockfish/commit/ab26c61971c2f73d312b003e6d024373fbacf8e6
+			// cf. Allow inCheck pruning  : https://github.com/official-stockfish/Stockfish/commit/ab26c61971c2f73d312b003e6d024373fbacf8e6
 			// T1,r300,2501 - 73 - 2426(50.76% R5.29)
 			// T1,b1000,2428 - 97 - 2465(49.62% R-2.63)
 			// 1秒のほうではやや勝ち越し。計測できない程度の差だが良しとする。
@@ -1593,7 +1599,7 @@ namespace YaneuraOu2017Early
 
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
-			ss->history = &thisThread->counterMoveHistory[moved_sq][moved_pc];
+			ss->contHistory = &thisThread->counterMoveHistory[moved_sq][moved_pc];
 
 			// -----------------------
 			// Step 14. Make the move
@@ -1663,21 +1669,16 @@ namespace YaneuraOu2017Early
 					ss->statScore = cmh[moved_sq][moved_piece]
 								  + fmh[moved_sq][moved_piece]
 								  + fm2[moved_sq][moved_piece]
-								  + thisThread->history[from_to(move)][~pos.side_to_move()]
+								  + thisThread->mainHistory[from_to(move)][~pos.side_to_move()]
 								  - PARAM_REDUCTION_BY_HISTORY; // 修正項
 
-
 					// historyの値に応じて指し手のreduction量を増減する。
-#if 0
 
-					// これ、やったほうがいいかどうかは微妙。1秒、3秒においてはやると弱くなるようだが…。
-					// T1,b1000,2135 - 84 - 2071(50.76% R5.29)
-					// T1,b3000,640 - 34 - 576(52.63% R18.3)
-
-					if (ss->history > 0 && (ss - 1)->history < 0)
+#if 0	// ToDo : 新コードで計測しなおす。
+					if (ss->statScore > 0 && (ss - 1)->statScore < 0)
 						r -= ONE_PLY;
 
-					else if (ss->history < 0 && (ss - 1)->history > 0)
+					else if (ss->statScore < 0 && (ss - 1)->statScore > 0)
 						r += ONE_PLY;
 #endif
 
@@ -2255,7 +2256,7 @@ void Thread::search()
 
 	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
 	for (int i = 4; i > 0; i--)
-		(ss - i)->history = &this->counterMoveHistory[SQ_ZERO][NO_PIECE];
+		(ss - i)->contHistory = &this->counterMoveHistory[SQ_ZERO][NO_PIECE];
 
 	// 反復深化のiterationが浅いうちはaspiration searchを使わない。
 	// 探索窓を (-VALUE_INFINITE , +VALUE_INFINITE)とする。
@@ -2413,7 +2414,7 @@ void Thread::search()
 					// fails high
 
 					// このときalphaは動かさないほうが良いらしい。
-					// cf. https://github.com/official-stockfish/Stockfish/commit/a6ae2d3a31e93000e65bdfd8f0b6d9a3e6b8ce1b
+					// cf. Simplify aspiration window : https://github.com/official-stockfish/Stockfish/commit/a6ae2d3a31e93000e65bdfd8f0b6d9a3e6b8ce1b
 					beta = std::min(bestValue + delta, VALUE_INFINITE);
 
 				else
@@ -2593,9 +2594,10 @@ void MainThread::think()
 	// root nodeにおける自分の手番
 	auto us = rootPos.side_to_move();
 
+	// Stockfishには存在しないコードではあるが、
 	// lazy SMPではcompletedDepthを最後に比較するのでこれをゼロ初期化しておかないと
 	// 探索しないときにThreads.main()の指し手が選ばれない。
-	// 将棋用に改造する際に、定跡の指し手を指せるように改造しているので、その影響。
+	// 将棋用に改造する際に、定跡の指し手を指せるようにStockfishから改造しているので、その影響。
 	for (Thread* th : Threads)
 		th->completedDepth = DEPTH_ZERO;
 
@@ -2696,7 +2698,7 @@ void MainThread::think()
 		// main threadが開始されてからだと、slaveがすでに少し探索している。
 		// それらは古い世代で置換表に書き込んでしまう。
 		// よってslaveが動く前であるこのタイミングで置換表の世代を進めるべきである。
-		// cf. https://github.com/official-stockfish/Stockfish/pull/1134
+		// cf. Call TT.new_search() earlier.  : https://github.com/official-stockfish/Stockfish/commit/ebc563059c5fc103ca6d79edb04bb6d5f182eaf5
 
 		TT.new_search();
 
@@ -2852,7 +2854,7 @@ void MainThread::check_time()
 	// 反復深化のループ内でそろそろ終了して良い頃合いになると、Time.search_endに停止させて欲しい時間が代入される。
 	// (それまではTime.search_endはゼロであり、これは終了予定時刻が未確定であることを示している。)
 	if ((Limits.use_time_management() &&
-		(elapsed > Time.maximum() - 10 || (Time.search_end > 0 && elapsed > Time.search_end - 10)))
+		(elapsed > Time.maximum() || (Time.search_end > 0 && elapsed > Time.search_end )))
 		|| (Limits.movetime && elapsed >= Limits.movetime)
 		|| (Limits.nodes && Threads.nodes_searched() >= Limits.nodes))
 		Threads.stop = true;
@@ -2901,7 +2903,7 @@ namespace Learner
 			th->rootDepth = DEPTH_ZERO;
 
 			for (int i = 4; i > 0; i--)
-				(ss - i)->history = &th->counterMoveHistory[SQ_ZERO][NO_PIECE];
+				(ss - i)->contHistory = &th->counterMoveHistory[SQ_ZERO][NO_PIECE];
 
 			// rootMovesの設定
 			auto& rootMoves = th->rootMoves;

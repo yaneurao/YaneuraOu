@@ -55,11 +55,11 @@ namespace Search {
 	// "ponder"のフラグはここに含まれず、Threads.ponderにあるので注意。
 	struct LimitsType {
 
-		// PODでない型をmemsetでゼロクリアするとMSVCは破壊してしまうので明示的に初期化する。
+		// PODでない型をmemsetでゼロクリアすると破壊してしまうので明示的に初期化する。
 		LimitsType() {
 			nodes = time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = byoyomi[WHITE] = byoyomi[BLACK] = npmsec
 				= depth = movetime = mate = infinite = rtime = 0;
-			silent = bench = ponder_mode = consideration_mode = outout_fail_lh_pv = false;
+			silent = bench = consideration_mode = outout_fail_lh_pv = false;
 			max_game_ply = 100000;
 			enteringKingRule = EKR_NONE;
 		}
@@ -118,9 +118,6 @@ namespace Search {
 		// このときPVを出力しない。
 		bool silent;
 
-		// 試合開始後、ponderが一度でも送られてきたか
-		bool ponder_mode;
-
 		// 検討モード用のPVを出力するのか
 		bool consideration_mode;
 
@@ -153,8 +150,7 @@ namespace Search {
 		Value staticEval;			// 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
 		int statScore;				// 一度計算したhistoryの合計値をcacheしておくのに用いる。
 		int moveCount;				// このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
-		PieceToHistory* history;    // historyのうち、counter moveに関するhistoryへのポインタ。実体はThreadが持っている。
-//		PieceToHistory* contHistory;// historyのうち、counter moveに関するhistoryへのポインタ。実体はThreadが持っている。
+		PieceToHistory* contHistory;// historyのうち、counter moveに関するhistoryへのポインタ。実体はThreadが持っている。
 	};
 
 } // end of namespace Search
