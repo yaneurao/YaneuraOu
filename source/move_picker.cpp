@@ -251,13 +251,13 @@ void MovePicker::score()
 		{
 			// 駒を取らない指し手をオーダリングする。
 
-			Piece mpc = pos.moved_piece_after(m);
-			Square msq = to_sq(m);
+			Piece movedPiece = pos.moved_piece_after(m);
+			Square movedSq = to_sq(m);
 
 			m.value = (*mainHistory)[from_to(m)][c]
-				+ (*contHistory[0])[msq][mpc]
-				+ (*contHistory[1])[msq][mpc]
-				+ (*contHistory[3])[msq][mpc];
+					+ (*contHistory[0])[movedSq][movedPiece]
+					+ (*contHistory[1])[movedSq][movedPiece]
+					+ (*contHistory[3])[movedSq][movedPiece];
 		}
 		else // Type == EVASIONS
 		{

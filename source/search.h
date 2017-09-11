@@ -1,8 +1,6 @@
 ﻿#ifndef _SEARCH_H_
 #define _SEARCH_H_
 
-#include <atomic>
-
 #include "position.h"
 #include "move_picker.h"
 #include "misc.h"

@@ -153,7 +153,7 @@ namespace YaneuraOu2017Early
 	// Rootはここでは用意しない。Rootに特化した関数を用意するのが少し無駄なので。
 	enum NodeType { NonPV , PV };
 
-	//  lazy SMPで用いるテーブル
+	//  Lazy SMPで用いるテーブル
 
 	// スレッド間の探索深さを分散させるために使用されるスキップブロックに対するsizeとphase。
 	const int skipSize[]  = { 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4 };
@@ -474,7 +474,7 @@ namespace YaneuraOu2017Early
 
 				// 置換表に格納されていたスコアは、この局面で今回探索するものと同等か少しだけ劣るぐらいの
 				// 精度で探索されたものであるなら、それをbestValueの初期値として使う。
-				if (ttValue != VALUE_NONE
+				if (   ttValue != VALUE_NONE
 					&& (tte->bound() & (ttValue > bestValue ? BOUND_LOWER : BOUND_UPPER)))
 						bestValue = ttValue;
 
@@ -1260,13 +1260,6 @@ namespace YaneuraOu2017Early
 		// 王手がかかっている局面では、探索はここから始まる。
 	moves_loop:
 
-		// cmh  = Counter Move History    : ある指し手が指されたときの応手
-		// fmh  = Follow up Move History  : 2手前の自分の指し手の継続手
-		// fm2  = Follow up Move History2 : 4手前からの継続手
-		const PieceToHistory& cmh  = *(ss - 1)->contHistory;
-		const PieceToHistory& fmh  = *(ss - 2)->contHistory;
-		const PieceToHistory& fm2  = *(ss - 4)->contHistory;
-
 		// 評価値が2手前の局面から上がって行っているのかのフラグ
 		// 上がって行っているなら枝刈りを甘くする。
 		// ※ VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
@@ -1313,6 +1306,10 @@ namespace YaneuraOu2017Early
 		// (ss - 1)->currentMove == MOVE_NONEである可能性はある。
 		// そのときは、prevPc == NO_PIECEになり、それでもうまく動作する。
 		Move countermove = thisThread->counterMoves[prevSq][prevPc];
+
+		// contHist[0]  = Counter Move History    : ある指し手が指されたときの応手
+		// contHist[1]  = Follow up Move History  : 2手前の自分の指し手の継続手
+		// contHist[3]  = Follow up Move History2 : 4手前からの継続手
 		const PieceToHistory* contHist[] = { (ss - 1)->contHistory, (ss - 2)->contHistory, nullptr, (ss - 4)->contHistory };
 		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory, contHist, countermove, ss->killers);
 
@@ -1396,7 +1393,7 @@ namespace YaneuraOu2017Early
 			bool captureOrPawnPromotion = pos.capture_or_pawn_promotion(move);
 
 			// 今回移動させる駒(移動後の駒。駒打ちの場合は区別する)
-			Piece moved_piece = pos.moved_piece_after(move);
+			Piece movedPiece = pos.moved_piece_after(move);
 
 			// 今回の指し手で王手になるかどうか
 			bool givesCheck = pos.gives_check(move);
@@ -1494,10 +1491,8 @@ namespace YaneuraOu2017Early
 			// 浅い深さでの枝刈り
 
 
-			// このあと、この指し手のhistoryの値などを調べたいのでいま求めてしまう。
-			Square moved_sq = to_sq(move);
-			Piece moved_pc = pos.moved_piece_after(move);
-
+			// この指し手による駒の移動先の升。historyの値などを調べたいのでいま求めてしまう。
+			Square movedSq = to_sq(move);
 
 			if (  !RootNode
 			//	&& !inCheck
@@ -1534,8 +1529,8 @@ namespace YaneuraOu2017Early
  					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH
 						//					&& move != ss->killers[0]
 						// →　このkillerの判定は入れないほうが強いらしい。
-						&& (cmh[moved_sq][moved_piece] < CounterMovePruneThreshold) 
-						&& (fmh[moved_sq][moved_piece] < CounterMovePruneThreshold))
+						&& ((*contHist[0])[movedSq][movedPiece] < CounterMovePruneThreshold)
+						&& ((*contHist[1])[movedSq][movedPiece] < CounterMovePruneThreshold))
 						continue;
 
 					// Futility pruning: at parent node
@@ -1599,7 +1594,7 @@ namespace YaneuraOu2017Early
 
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
-			ss->contHistory = &thisThread->counterMoveHistory[moved_sq][moved_pc];
+			ss->contHistory = &thisThread->counterMoveHistory[movedSq][movedPiece];
 
 			// -----------------------
 			// Step 14. Make the move
@@ -1666,10 +1661,10 @@ namespace YaneuraOu2017Early
 #endif
 
 					// ToDo:ここ、fmh,fmh2を見たほうがいいかは微妙。
-					ss->statScore = cmh[moved_sq][moved_piece]
-								  + fmh[moved_sq][moved_piece]
-								  + fm2[moved_sq][moved_piece]
-								  + thisThread->mainHistory[from_to(move)][~pos.side_to_move()]
+					ss->statScore = thisThread->mainHistory[from_to(move)][~pos.side_to_move()]
+								  + (*contHist[0])[movedSq][movedPiece]
+								  + (*contHist[1])[movedSq][movedPiece]
+								  + (*contHist[3])[movedSq][movedPiece]
 								  - PARAM_REDUCTION_BY_HISTORY; // 修正項
 
 					// historyの値に応じて指し手のreduction量を増減する。
@@ -2129,6 +2124,10 @@ void gameover_handler(const std::string& cmd)
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
 void Search::clear()
 {
+	// 前の探索の終了を待たないと、"bestmove"応答を受け取る前に次のisreadyコマンドを送ってくる不埒なGUIがあるとも限らない。
+	// 実際、"bestmove"を受け取るのを待つコードを書くと受信側のコードが複雑化するので、ここで一つ前の探索の終了を待ってあげるのは良いコード。
+	Threads.main()->wait_for_search_finished();
+
 	// -----------------------
 	//   探索パラメーターの初期化
 	// -----------------------
@@ -2199,6 +2198,7 @@ void Search::clear()
 	//   置換表のクリアなど
 	// -----------------------
 
+	Time.availableNodes = 0;
 	TT.clear();
 
 	// Threadsが変更になってからisreadyが送られてこないとisreadyでthread数だけ初期化しているものはこれではまずい。
@@ -2211,7 +2211,7 @@ void Search::clear()
 
 
 // 探索本体。並列化している場合、ここがslaveのエントリーポイント。
-// lazy SMPなので、それぞれのスレッドが勝手に探索しているだけ。
+// Lazy SMPなので、それぞれのスレッドが勝手に探索しているだけ。
 void Thread::search()
 {
 	// ---------------------
@@ -2303,7 +2303,7 @@ void Thread::search()
 		&& !(Limits.depth && mainThread && rootDepth / ONE_PLY > Limits.depth))
 	{
 		// ------------------------
-		// lazy SMPのための初期化
+		// Lazy SMPのための初期化
 		// ------------------------
 
 		// スレッド間の探索深さの分散
@@ -2595,7 +2595,7 @@ void MainThread::think()
 	auto us = rootPos.side_to_move();
 
 	// Stockfishには存在しないコードではあるが、
-	// lazy SMPではcompletedDepthを最後に比較するのでこれをゼロ初期化しておかないと
+	// Lazy SMPではcompletedDepthを最後に比較するのでこれをゼロ初期化しておかないと
 	// 探索しないときにThreads.main()の指し手が選ばれない。
 	// 将棋用に改造する際に、定跡の指し手を指せるようにStockfishから改造しているので、その影響。
 	for (Thread* th : Threads)
@@ -2747,7 +2747,7 @@ ID_END:;
 			th->wait_for_search_finished();
 
 	// ---------------------
-	// lazy SMPの結果を取り出す
+	// Lazy SMPの結果を取り出す
 	// ---------------------
 
 	Thread* bestThread = this;

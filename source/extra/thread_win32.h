@@ -11,7 +11,7 @@
 // race状態になるが、それでもSRW lockと同様のスピードである。
 
 // 注記)
-// Stockfish、新しくなってから探索部はlazy SMPで、Mutexで同期を取る必要がなく(USIへの出力の時ぐらい？)
+// Stockfish、新しくなってから探索部はLazy SMPで、Mutexで同期を取る必要がなく(USIへの出力の時ぐらい？)
 // この部分のパフォーマンスが性能に及ぼす影響はほとんどない。
 
 #include <condition_variable>

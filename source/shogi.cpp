@@ -221,7 +221,7 @@ int main(int argc, char* argv[])
 	Position::init();
 	Search::init();
 	Threads.init(Options["Threads"]);
-	// 簡単な初期化のみで評価関数の読み込みはisreadyに応じて行なう。
+	TT.resize(Options["Hash"]);
 	Eval::init();
 
 	// USIコマンドの応答部

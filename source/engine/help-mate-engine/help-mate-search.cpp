@@ -160,7 +160,7 @@ namespace HelpMate
     auto start_time = now();
 
     // 協力詰めの反復深化は2手ずつ深くして良い。
-    // lazy SMPっぽい並列化をする。
+    // Lazy SMPっぽい並列化をする。
     for (uint32_t depth = 1 + thread_id * 2; depth < MAX_PLY; depth += 2 * thread_num)
     {
       // 置換表のgenerationをインクリメントするのはmain threadだけ。
