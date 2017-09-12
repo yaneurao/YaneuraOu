@@ -242,6 +242,8 @@ USIプロトコルの独自拡張コマンド
 
 
 	test    : テスト用コマンド
+		実験的に実装してあるコマンドで、突然無くなることがあります。
+
 		test unit            : unit test
 		test perft [depth]   : perft(パフォーマンステスト)。深さを指定できる。
 		test rp    [回数]    : random playerのテスト。回数を指定できる。
@@ -254,6 +256,7 @@ USIプロトコルの独自拡張コマンド
 				指定されたPERCENTで按分してDIR3に書き出す。(やねうら王2017Early以降のみ)
 				例) test evalmerge eval1 eval2 eval_out 20
 				  このときeval1が20%、eval2が80%の新しい評価関数ファイルがeval_out/フォルダに出力される。
+		test evalsave        : 現在の評価関数をファイルに保存。"EvalSaveDir"オプションで指定したフォルダに保存。
 		test evalresolve [DIR0] [DIR1] [DIR2] ...
 				DIR0,DIR1,DIR2,…は、評価関数フォルダ。
 				DIR0の評価関数が、DIR1,DIR2,…の、どの評価関数からevalmergeされているのかを調べる。
@@ -266,6 +269,7 @@ USIプロトコルの独自拡張コマンド
 					http://qhapaq.hatenablog.com/entry/2017/07/16/040830
 				・REsolve MUtationエンジンの使い方
 					http://qhapaq.hatenablog.com/entry/2017/07/17/001152
+
 
 	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。
 

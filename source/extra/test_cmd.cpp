@@ -1228,13 +1228,8 @@ void test_search(Position& pos, istringstream& is)
 }
 #endif
 
-#if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
-
-#if defined (EVAL_KPPT)
-#include "../eval/kppt/evaluate_kppt.h"
-#elif defined(EVAL_KPP_KKPT)
-#include "../eval/kpp_kkpt/evaluate_kpp_kkpt.h"
-#endif
+#if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPP_KKPT)
+#include "../eval/evaluate_common.h"
 
 // 現在の評価関数のパラメーターについて調査して出力する。(分析用)
 void eval_exam(istringstream& is)
@@ -2002,6 +1997,7 @@ void test_cmd(Position& pos, istringstream& is)
 #if defined (EVAL_LEARN)
 	else if (param == "search") test_search(pos, is);                // 現局面からLearner::search()を呼び出して探索させる
 	else if (param == "dumpsfen") dump_sfen(pos, is);                // gensfenコマンドで生成した教師局面のダンプ
+	else if (param == "evalsave") Eval::save_eval("");               // 現在の評価関数のパラメーターをファイルに保存
 #endif
 #if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 	else if (param == "evalmerge") eval_merge(is);                   // 評価関数の合成コマンド
