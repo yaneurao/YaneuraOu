@@ -53,6 +53,7 @@
 #include <sstream>
 #include <fstream>
 #include <unordered_set>
+#include <iomanip>
 
 #if defined (_OPENMP)
 #include <omp.h>
@@ -1436,6 +1437,10 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	sum_norm = 0;
 #endif
 
+	// 深い探索のpvの初手と、合法手のなかでevaluateが最大になる指し手が一致した回数。
+	atomic<int> move_accord_count;
+	move_accord_count = 0;
+
 	// 平手の初期局面のeval()の値を表示させて、揺れを見る。
 	auto th = Threads[thread_id];
 	auto& pos = th->rootPos;
@@ -1458,7 +1463,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 		// TaskDispatcherを用いて各スレッドに作業を振る。
 		// そのためのタスクの定義。
 		// ↑で使っているposをcaptureされるとたまらんのでcaptureしたい変数は一つずつ指定しておく。
-		auto task = [&ps,&test_sum_cross_entropy_eval,&test_sum_cross_entropy_win, &sum_norm,&task_count](size_t thread_id)
+		auto task = [&ps,&test_sum_cross_entropy_eval,&test_sum_cross_entropy_win, &sum_norm,&task_count ,&move_accord_count](size_t thread_id)
 		{
 			// これ、C++ではループごとに新たなpsのインスタンスをちゃんとcaptureするのだろうか.. →　するようだ。
 			auto th = Threads[thread_id];
@@ -1475,6 +1480,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			// 値が比較しにくくて困るのでqsearch()を用いる。
 			// EvalHashは事前に無効化してある。(そうしないと毎回同じ値が返ってしまう)
 			auto r = qsearch(pos);
+
 			auto shallow_value = r.first;
 
 			// 深い探索の評価値
@@ -1508,6 +1514,13 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			test_sum_cross_entropy_win += test_cross_entropy_win;
 			sum_norm += (double)abs(shallow_value);
 #endif
+
+			// 教師の指し手と浅い探索のスコアが一致するかの判定
+			{
+				auto r = search(pos,1);
+				if ((u16)r.second[0] == ps.move)
+					move_accord_count.fetch_add(1, std::memory_order_relaxed);
+			}
 
 			// こなしたのでタスク一つ減る
 			--task_count;
@@ -1550,6 +1563,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			<< " , learn_cross_entropy_win = "  << learn_sum_cross_entropy_win / done
 			<< " , learn_cross_entropy = "      << (learn_sum_cross_entropy_eval + learn_sum_cross_entropy_win) / done
 			<< " , norm = "						<< sum_norm
+			<< " , move accuracy = "			<< (move_accord_count * 100.0 / sr.sfen_for_mse.size()) << "%"
 			<< endl;
 	}
 	else {

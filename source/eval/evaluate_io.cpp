@@ -72,7 +72,7 @@ namespace EvalIO
 					if (read_file_to_memory(in_.file_or_memory.filename, [&](u64 size) {
 						if (size != input_block_size)
 						{
-							std::cout << "info string file size incorrect , file = " << in_.file_or_memory.filename
+							std::cout << "info string Error! : file size incorrect , file = " << in_.file_or_memory.filename
 								<< " , actual size = "<< size << " , needed_size = " << input_block_size << std::endl;
 							return (void*)nullptr;
 						}
@@ -89,7 +89,7 @@ namespace EvalIO
 						else
 #endif
 						{
-							std::cout << "info string read file error , file = " << in_.file_or_memory.filename << std::endl;
+							std::cout << "info string Error! : read file error , file = " << in_.file_or_memory.filename << std::endl;
 							return false;
 						}
 					}
