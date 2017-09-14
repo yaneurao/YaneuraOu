@@ -35,7 +35,7 @@ void MultiThink::go_think()
 	// 評価関数の読み込み等
 	// learnコマンドの場合、評価関数読み込み後に評価関数の値を補正している可能性があるので、
 	// メモリの破損チェックは省略する。
-	is_ready(false);
+	is_ready(true);
 
 	// ループ上限はset_loop_max()で設定されているものとする。
 	loop_count = 0;

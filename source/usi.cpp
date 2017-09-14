@@ -485,7 +485,7 @@ void is_ready(bool skipCorruptCheck)
 		// メモリが破壊されていないかを調べるためにチェックサムを毎回調べる。
 		// 時間が少しもったいない気もするが.. 0.1秒ぐらいのことなので良しとする。
 		if (!skipCorruptCheck && eval_sum != Eval::calc_check_sum())
-			sync_cout << "Error! : evaluate memory is corrupted" << sync_endl;
+			sync_cout << "Error! : EVAL memory is corrupted" << sync_endl;
 	}
 
 	// isreadyに対してはreadyokを返すまで次のコマンドが来ないことは約束されているので
