@@ -2319,7 +2319,7 @@ void learn(Position&, istringstream& is)
 	cout << "init.." << endl;
 
 	// 評価関数パラメーターの読み込み
-	is_ready();
+	is_ready(true);
 
 	cout << "init_grad.." << endl;
 

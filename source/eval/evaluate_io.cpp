@@ -84,7 +84,6 @@ namespace EvalIO
 						{
 							std::cout << "info string read file error , file = " << in_.file_or_memory.filename << " , but SkipLoadingEval == true , so ignore this." << std::endl;
 							memset(out_.file_or_memory.ptr, 0, input_block_size);
-							return true;
 						}
 						else
 #endif
