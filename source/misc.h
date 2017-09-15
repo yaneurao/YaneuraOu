@@ -310,7 +310,7 @@ void my_insertion_sort(T* arr, int left, int right)
 		int j = i - 1;
 
 		// keyより大きな arr[0..i-1]の要素を現在処理中の先頭へ。
-		while (j >= left && !(arr[j] > key))
+		while (j >= left && (arr[j] > key))
 		{
 			arr[j + 1] = arr[j];
 			j = j - 1;
