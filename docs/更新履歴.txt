@@ -2,7 +2,98 @@
 やねうら王 更新履歴
 
 
-■　2017/09/09 V4.77
+■　2017/09/15
+
+・KPPPT対応。(しばらく非公開)
+
+
+■　2017/09/14
+
+・SkipLoadingEvalがtrueのときに読み込みが失敗した一つ目のファイルにしかエラーを出力しなかったのを修正。
+・learnコマンド時の評価関数メモリのcorruptチェックを省略するように修正。
+・MultiThinkでcorrputチェック、フラグの指定間違えてたの修正。
+・learnコマンド時のrmse計算用の局面数を1000から2000に変更。
+
+
+■　2017/09/13
+
+・learnコマンドで学習時に、教師局面との指し手一致率を出力するようにした。
+・python用の学習ログ解析スクリプトを新ログ形式に対応させた。
+
+
+■　2017/09/11
+
+・"test evalsave"コマンド追加。
+
+
+■　2017/09/10
+
+・learnコマンドでcheck sumが一致せず、corrupt checkに引っかかることがあるのを修正。
+・Stockfishの最新版にcatch upその1。
+	- Small simplication of see_ge() : https://github.com/official-stockfish/Stockfish/commit/741523eda8e0d1fb418d579c7cda9a73040b8914
+	- Fix uninitialized memory usage : https://github.com/official-stockfish/Stockfish/commit/e385f194e970f0675bd4c3509bca4a6c81b6df5e →　スレッドのコード整理したときにすでにやってた。
+	- Simplify away non-normal moves in SEE  … : https://github.com/official-stockfish/Stockfish/commit/bf485f4affc37cd408a65b66b8a3aad059bad5f3 →　将棋で関係なかった。
+	- Improve multi-threaded mate finding  … : https://github.com/official-stockfish/Stockfish/commit/d5f883ab29d43b35746ff605cf13c3722df56041
+	- PER_STACK_HISTORY削除
+	- PER_THREAD_COUNTERMOVEHISTORY削除
+	- USE_MOVE_PICKER_2017Q2削除。move_picker.h/cppを./に移動。
+
+	// 以上、探索結果には影響がないので棋力は向上してない。(わずかに速度が速くなっているかも知れないが計測できるレベルではない)
+・Stockfishの最新版にcatch upその2。
+	- Avoid constructing an empty tuple in qsearch  … : https://github.com/official-stockfish/Stockfish/commit/002bf4d8dbf804ce8303e01733341a0922af2e71
+	- Collect more corrections to optimum/maximum : https://github.com/official-stockfish/Stockfish/commit/daf0fe1f57337d33f9e0af5a8aa8ef0868b20417 →　指し手を時間の10ms前で判定するのやめた。
+	- Clarify stats range : https://github.com/official-stockfish/Stockfish/commit/9c35b9365d75a3522cee47536419534b1de91f48
+	- Fix involuntary conversions of ExtMove to Move : https://github.com/official-stockfish/Stockfish/commit/d482e3a8905ee194bda3f67a21dda5132c21f30b
+	- Unify stats update() : https://github.com/official-stockfish/Stockfish/commit/9001f55147fa304223623a6de0025ffe79f5fcc3
+	- Use int16_t in History values : https://github.com/official-stockfish/Stockfish/commit/ae6a4ebf1f44cb05e96f8f33342ec281b41b0cc0 →　すでにやってた
+	- Fix incorrect StateInfo : https://github.com/official-stockfish/Stockfish/commit/232c50fed0b80a0f39322a925575f760648ae0a5 →　すでにやってた
+	- Thread code reformat : https://github.com/official-stockfish/Stockfish/commit/df6cb446eaf21c5d07bbd15496da0471aff6ab3f →　すでにやってた
+	- Retire States global variable : https://github.com/official-stockfish/Stockfish/commit/bdeda52efd55c97d0f5da908267c01f973371e5d →　すでにやってた
+	- Simplify finished search in ponder/infinite mode. : https://github.com/official-stockfish/Stockfish/commit/2783203428300cf0a6305b64691ad38fa340f253 →　すでにやってた
+	- Re-apply the fix for Limits::ponder race : https://github.com/official-stockfish/Stockfish/commit/66c5eaebd8c3ecc00a21a9c7f214cb59db4ce4e5
+	- Fix a race on Limits::ponder : https://github.com/official-stockfish/Stockfish/commit/5410424e3d036b43715c7989aa99e449cdcde18e →　これはこのあと修正がある。
+	- ponder_modeのフラグをreceived_go_ponderとリネーム。Threadsに移動。
+	- ss->statScore初期化していなかったの修正。(あとのnodeで使ってなかったので探索には影響なさげ…)
+	- StatBoardsのリファクタリング。
+	- move_pickerのリファクタリング。
+	- ソースコード上のStockfishのcommitに対するリンクに、タイトル名を追記。
+
+・Stockfishの最新版にcatch upその3。
+	- Fix some races and clarify the code : https://github.com/official-stockfish/Stockfish/commit/750dfa0521472e86c67f870fe7ca413d670cafe2 →　uiThreadを作るところは採用せず。
+	- Make variable naming consistent :	https://github.com/official-stockfish/Stockfish/commit/dbc984d9f87ba79db3c7802310450f60e95e89e4
+	- Unify scoring functions in MovePicker : https://github.com/official-stockfish/Stockfish/commit/f731bcadb7908f03c42e3d63fefe82552f09c926 →　move_picker整理したときに、すでにやってた
+	- Remove Stack/thread dependence in movepick : https://github.com/official-stockfish/Stockfish/commit/b40e45c1cc51bd228898314264d6d241478b23d8
+	- Remove redundant if-statements : https://github.com/official-stockfish/Stockfish/commit/722e1e0da6187916d76a2663f98ac105bc620763 →　すでにやってた
+	- Simplify aspiration window : https://github.com/official-stockfish/Stockfish/commit/a6ae2d3a31e93000e65bdfd8f0b6d9a3e6b8ce1b →　すでにやってた
+	- Provide selective search depth info for each pv move : https://github.com/official-stockfish/Stockfish/commit/377d77dbe922b99ee34d686e4fe180698a9b535a →　すでにやってた
+	- Move stop signal to Threads : https://github.com/official-stockfish/Stockfish/commit/36a93d90f76d32e16a5f2acb09b7de2d67225021 →　すでにやってた
+	- Don't uselessy share rootDepth : https://github.com/official-stockfish/Stockfish/commit/802fca6fdd562c4c52397521eb0ac05cb2be9046 →　すでにやってた
+	- Only main thread checks time : https://github.com/official-stockfish/Stockfish/commit/05513a66410f96959f3a6e70be9aea72425cf7c7 →　すでにやってた
+	- コメント上でlazySMPなどとなっていた箇所を"Lazy SMP"と表記を統一した。
+
+
+■　2017/09/09
+
+・go infiniteで詰みを見つけて探索が終了したときのbusy waitのコードとコメントを整理した。
+・ソースコードのコメントでSignals.stopになっていたところをThreads.stopに修正。
+・トーナメント版と通常版とでcheck sumの値が異なるときがあったの修正。(SurfLaprasさん)
+・評価関数の読み込み後の補正処理をlearnコマンド実行時に移動させた。(checksumが変化してしまうので)
+・check sumによるソフト名判定にソフト追加。
+・endiannessを考慮してcheck sumの計算ルーチンを修正。これにより、check sunの値が変わってしまったが仕方ない。
+・各種評価関数のchecksumを追加(SurfLaprasさん)
+・EvalLearningTools::KPPP単純化した。
+・ThreadクラスとStateInfoクラスにcustom allocator導入。
+・gensfenコマンドでdepth 10以上のときに極稀に落ちていたのを修正。
+
+
+■　2017/09/09  V4.77
+
+・V4.77リリース。
+・今回はASSERT無効にしておく。(不評だったので)
+・しかしASSERTに引っかかったからこそ、PV表示のバグが見つけられたので無効にするのは個人的には気が進まないのだが…。
+
+
+■　2017/09/09
 
 ・Threadのコード、最新のStockfish風に変更。
 ・ThreadPool、最新のStockfish風にリファクタリング。

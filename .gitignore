@@ -22,6 +22,7 @@ evaluate_experimental.*
 evaluate_ppap*
 evaluate_nabla*
 evaluate_kppp_kkpt*
+evaluate_kpppt*
 
 # cf. https://twitter.com/496_/status/673758920846917632
 YaneuraOu.VC.opendb
