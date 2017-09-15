@@ -213,9 +213,14 @@
 #define ENGINE_NAME "YaneuraOu 2017 Early"
 #define EVAL_KPPT
 //#define EVAL_KPP_KKPT
+
 //#define EVAL_KPPP_KKPT 18
-//#define USE_KPPP_KKPT_MIRROR
 //#define EVAL_KPPP_KKPT 36
+//#define USE_KPPP_KKPT_MIRROR
+
+//#define EVAL_KPPPT 18
+//#define USE_KPPPT_MIRROR
+
 //#define EVAL_NABLA
 //#define EVAL_AKASHIC
 
@@ -635,6 +640,8 @@ inline int MKDIR(std::string dir_name)
 #define EVAL_TYPE_NAME "KPPT"
 #elif defined(EVAL_KPP_KKPT)
 #define EVAL_TYPE_NAME "KPP_KKPT"
+#elif defined(EVAL_KPPPT)
+#define EVAL_TYPE_NAME "KPPPT"
 #elif defined(EVAL_KPPP_KKPT)
 #define EVAL_TYPE_NAME "KPPP_KKPT"
 #else
@@ -644,7 +651,7 @@ inline int MKDIR(std::string dir_name)
 // do_move()のときに移動した駒の管理をして差分計算
 // また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
 // あらゆる局面でP(駒)の数が増えないFV38と呼ばれる形式の差分計算用。
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPP_KKPT)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT)
 #define USE_FV38
 #endif
 

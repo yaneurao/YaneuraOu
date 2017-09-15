@@ -10,6 +10,10 @@
 #include "kppp_kkpt/evaluate_kppp_kkpt.cpp"
 #include "kppp_kkpt/evaluate_kppp_kkpt_learner.cpp"
 #endif
+#if defined (EVAL_KPPPT)
+#include "kpppt/evaluate_kpppt.cpp"
+#include "kpppt/evaluate_kpppt_learner.cpp"
+#endif
 #if defined (EVAL_NABLA)
 #include "nabla/evaluate_nabla.cpp"
 #include "nabla/evaluate_nabla_learner.cpp"
@@ -56,7 +60,7 @@ namespace Eval
 	Value compute_eval(const Position& pos) { return material(pos); }
 #endif
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPP_KKPT)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT)
 
 	// calc_check_sum()を呼び出して返ってきた値を引数に渡すと、ソフト名を表示してくれる。
 	void print_softname(u64 check_sum)

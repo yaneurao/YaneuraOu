@@ -2902,6 +2902,9 @@ namespace Learner
 			th->selDepth = 0;
 			th->rootDepth = DEPTH_ZERO;
 
+			// history類を全部クリアする。この初期化は少し時間がかかるし、探索の精度はむしろ下がるので善悪はよくわからない。
+			// th->clear();
+
 			for (int i = 4; i > 0; i--)
 				(ss - i)->contHistory = &th->counterMoveHistory[SQ_ZERO][NO_PIECE];
 

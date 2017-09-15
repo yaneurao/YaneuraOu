@@ -37,6 +37,20 @@ namespace Eval {
 		a[1] = -rhs[1];
 		return a;
 	}
+	template <typename Tl>
+	FORCE_INLINE std::array<Tl, 2> operator * (const std::array<Tl, 2>& rhs, int n) {
+		std::array<Tl, 2> a;
+		a[0] = rhs[0] * n;
+		a[1] = rhs[1] * n;
+		return a;
+	}
+	template <typename Tl>
+	FORCE_INLINE std::array<Tl, 2> operator / (const std::array<Tl, 2>& rhs , int n) {
+		std::array<Tl, 2> a;
+		a[0] = rhs[0] / n;
+		a[1] = rhs[1] / n;
+		return a;
+	}
 
 	// 与えられたarrayが0ベクトルであるかどうかを判定する。
 	template <typename T>

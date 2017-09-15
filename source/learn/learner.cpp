@@ -1100,12 +1100,17 @@ struct SfenReader
 			delete p;
 	}
 
-	// mseの計算用に1000局面ほど読み込んでおく。
+	// mseなどの計算用に用いる局面数
+	// mini-batch size = 1Mが標準的なので、その0.2%程度なら時間的には無視できるはず。
+	// 指し手一致率の計算でdepth = 1でsearch()をするので、単純比較はできないが…。
+	const u64 sfen_for_mse_size = 2000;
+
+	// mseなどの計算用に局面を読み込んでおく。
 	void read_for_mse()
 	{
 		auto th = Threads.main();
 		Position& pos = th->rootPos;
-		for (int i = 0; i < 1000; ++i)
+		for (u64 i = 0; i < sfen_for_mse_size; ++i)
 		{
 			PackedSfenValue ps;
 			if (!read_to_thread_buffer(0, ps))
