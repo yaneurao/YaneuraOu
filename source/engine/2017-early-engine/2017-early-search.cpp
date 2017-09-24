@@ -1,6 +1,10 @@
 ﻿#include "../../shogi.h"
 
-#ifdef YANEURAOU_2017_EARLY_ENGINE
+#if defined(YANEURAOU_2017_GOKU_ENGINE)
+#include "../2017-goku-engine/2017-goku-search.cpp"
+#endif
+
+#if defined(YANEURAOU_2017_EARLY_ENGINE)
 
 // -----------------------
 //   やねうら王2017(early)設定部
@@ -255,8 +259,8 @@ namespace YaneuraOu2017Early
 	//     Statsのupdate
 	// -----------------------
 
-	// update_cm_stats()は、countermoveとfollow-up move historyを更新する。
-	void update_cm_stats(Stack* ss, Piece pc, Square s, int bonus)
+	// update_continuation_histories()は、countermoveとfollow-up move historyを更新する。
+	void update_continuation_histories(Stack* ss, Piece pc, Square s, int bonus)
 	{
 		for (int i : { 1, 2, 4})
 			if (is_ok((ss - i)->currentMove))
@@ -285,7 +289,7 @@ namespace YaneuraOu2017Early
 
 		Thread* thisThread = pos.this_thread();
 		thisThread->mainHistory.update(c, move, bonus);
-		update_cm_stats(ss, pos.moved_piece_after(move), to_sq(move), bonus);
+		update_continuation_histories(ss, pos.moved_piece_after(move), to_sq(move), bonus);
 
 		if (is_ok((ss - 1)->currentMove))
 		{
@@ -301,7 +305,7 @@ namespace YaneuraOu2017Early
 		for (int i = 0; i < quietsCnt; ++i)
 		{
 			thisThread->mainHistory.update(c, quiets[i], -bonus);
-			update_cm_stats(ss, pos.moved_piece_after(quiets[i]), to_sq(quiets[i]), -bonus);
+			update_continuation_histories(ss, pos.moved_piece_after(quiets[i]), to_sq(quiets[i]), -bonus);
 		}
 	}
 
@@ -921,7 +925,7 @@ namespace YaneuraOu2017Early
 					// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
 					// ToDo : ここ、captureだけではなくpawn_promotionも含めるべきかも。
 					if ((ss - 1)->moveCount == 1 && !pos.captured_piece())
-						update_cm_stats(ss - 1, pos.piece_on(prevSq), prevSq, -stat_bonus(depth + ONE_PLY));
+						update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_bonus(depth + ONE_PLY));
 					// ToDo : Stockfish本家のコード、ここ、pos.piece_on()ではなく、pos.moved_piece()にしたほうが良いのでは…。
 
 				}
@@ -930,7 +934,7 @@ namespace YaneuraOu2017Early
 				{
 					int penalty = -stat_bonus(depth);
 					thisThread->mainHistory.update(pos.side_to_move(), ttMove, penalty);
-					update_cm_stats(ss, pos.moved_piece_after(ttMove), to_sq(ttMove), penalty);
+					update_continuation_histories(ss, pos.moved_piece_after(ttMove), to_sq(ttMove), penalty);
 				}
 			}
 
@@ -1304,7 +1308,7 @@ namespace YaneuraOu2017Early
 		Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
 
 		// (ss - 1)->currentMove == MOVE_NONEである可能性はある。
-		// そのときは、prevPc == NO_PIECEになり、それでもうまく動作する。
+		// move_piece_after()を用いると、そのとき、prevPc == NO_PIECEになり、うまく動作する。
 		Move countermove = thisThread->counterMoves[prevSq][prevPc];
 
 		// contHist[0]  = Counter Move History    : ある指し手が指されたときの応手
@@ -1864,7 +1868,7 @@ namespace YaneuraOu2017Early
 			// 反駁された1手前の置換表のquietな指し手に対する追加ペナルティを課す。
 			// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
 			if ((ss - 1)->moveCount == 1 && !pos.captured_piece())
-				update_cm_stats(ss - 1, pos.moved_piece_after((ss - 1)->currentMove), prevSq, -stat_bonus(depth + ONE_PLY));
+				update_continuation_histories(ss - 1, pos.moved_piece_after((ss - 1)->currentMove), prevSq, -stat_bonus(depth + ONE_PLY));
 		}
 
 		// bestMoveがない == fail lowしているケース。
@@ -1874,7 +1878,7 @@ namespace YaneuraOu2017Early
 		else if (   depth >= 3 * ONE_PLY
 				&& !pos.captured_piece()
 				&& is_ok((ss - 1)->currentMove))
-			update_cm_stats(ss - 1, pos.moved_piece_after((ss - 1)->currentMove), prevSq, stat_bonus(depth));
+			update_continuation_histories(ss - 1, pos.moved_piece_after((ss - 1)->currentMove), prevSq, stat_bonus(depth));
 
 		// -----------------------
 		//  置換表に保存する
@@ -1941,7 +1945,9 @@ void init_param()
 
 			"PARAM_QUIET_SEARCH_COUNT",
 
-			"PARAM_QSEARCH_MATE1","PARAM_SEARCH_MATE1","PARAM_WEAK_MATE_PLY"
+			"PARAM_QSEARCH_MATE1","PARAM_SEARCH_MATE1","PARAM_WEAK_MATE_PLY",
+
+			"PARAM_ASPIRATION_SEARCH_DELTA"
 
 		};
 
@@ -1979,6 +1985,7 @@ void init_param()
 
 			&PARAM_QSEARCH_MATE1,&PARAM_SEARCH_MATE1,&PARAM_WEAK_MATE_PLY,
 
+			&PARAM_ASPIRATION_SEARCH_DELTA
 		};
 
 		fstream fs;
@@ -2351,7 +2358,7 @@ void Thread::search()
 				// やねうら王のKPP評価関数では35～40ぐらいがベスト。
 				// やねうら王のKPPT(Apery WCSC26)ではStockfishのまま(18付近)がベスト。
 				// もっと精度の高い評価関数を用意すべき。
-				delta = Value(18);
+				delta = Value(PARAM_ASPIRATION_SEARCH_DELTA);
 
 				alpha = std::max(rootMoves[PVIdx].previousScore - delta, -VALUE_INFINITE);
 				beta  = std::min(rootMoves[PVIdx].previousScore + delta,  VALUE_INFINITE);
@@ -3036,7 +3043,7 @@ namespace Learner
 				// depth 5以上においてはaspiration searchに切り替える。
 				if (rootDepth >= 5 * ONE_PLY)
 				{
-					delta = Value(18);
+					delta = Value(PARAM_ASPIRATION_SEARCH_DELTA);
 
 					Value p = rootMoves[PVIdx].previousScore;
 

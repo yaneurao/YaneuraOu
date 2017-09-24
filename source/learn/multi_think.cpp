@@ -1,11 +1,10 @@
 ﻿#include "../shogi.h"
 
-#if defined(EVAL_LEARN) && defined(YANEURAOU_2017_EARLY_ENGINE)
+#if defined(EVAL_LEARN) && \
+	(defined(YANEURAOU_2017_EARLY_ENGINE) || defined(YANEURAOU_2017_GOKU_ENGINE))
 
 #include "multi_think.h"
 #include "../tt.h"
-
-extern void is_ready();
 
 void MultiThink::go_think()
 {

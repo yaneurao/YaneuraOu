@@ -505,8 +505,8 @@ struct Position
 	// 直前の指し手によって捕獲した駒。先後の区別あり。
 	Piece captured_piece() const { return st->capturedPiece; }
 
-	// 捕獲する指し手か、成りの指し手であるかを返す。
-	bool capture_or_promotion(Move m) const { return (m & MOVE_PROMOTE) || capture(m); }
+	// 捕獲する指し手か、成りの指し手であるかを判定する。
+	bool capture_or_promotion(Move m) const { return is_promote(m) || capture(m); }
 
 	// 歩の成る指し手であるか？
 	bool pawn_promotion(Move m) const

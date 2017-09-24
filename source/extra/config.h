@@ -209,17 +209,56 @@
 
 // --- 通常の思考エンジンとして実行ファイルを公開するとき用の設定集
 
-#ifdef YANEURAOU_2017_EARLY_ENGINE
+// やねうら王2017Early
+#if defined(YANEURAOU_2017_EARLY_ENGINE)
 #define ENGINE_NAME "YaneuraOu 2017 Early"
 #define EVAL_KPPT
 //#define EVAL_KPP_KKPT
 
+#define USE_EVAL_HASH
+#define USE_SEE
+#define USE_MATE_1PLY
+#define USE_ENTERING_KING_WIN
+#define USE_TIME_MANAGEMENT
+#define KEEP_PIECE_IN_GENERATE_MOVES
+#define ONE_PLY_EQ_1
+
+// デバッグ絡み
+//#define ASSERT_LV 3
+//#define USE_DEBUG_ASSERT
+
+#define ENABLE_TEST_CMD
+// 学習絡みのオプション
+#define USE_SFEN_PACKER
+// 学習機能を有効にするオプション。
+#define EVAL_LEARN
+
+// 定跡生成絡み
+#define ENABLE_MAKEBOOK_CMD
+// 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
+#define USE_SHARED_MEMORY_IN_EVAL
+// パラメーターの自動調整絡み
+#define USE_GAMEOVER_HANDLER
+//#define LONG_EFFECT_LIBRARY
+
+// GlobalOptionsは有効にしておく。
+#define USE_GLOBAL_OPTIONS
+#endif
+
+
+// 極やねうら王(非公開)
+#if defined(YANEURAOU_2017_GOKU_ENGINE)
+#define ENGINE_NAME "YaneuraOu 2017 GOKU"
+//#define EVAL_KPPT
+#define EVAL_KPP_KKPT
+
+//#define USE_KPPP_KKPT_MIRROR
 //#define EVAL_KPPP_KKPT 18
 //#define EVAL_KPPP_KKPT 36
-//#define USE_KPPP_KKPT_MIRROR
 
-//#define EVAL_KPPPT 18
 //#define USE_KPPPT_MIRROR
+//#define EVAL_KPPPT 27
+//#define EVAL_KPPPT 18
 
 //#define EVAL_NABLA
 //#define EVAL_AKASHIC

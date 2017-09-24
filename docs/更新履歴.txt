@@ -2,9 +2,32 @@
 やねうら王 更新履歴
 
 
+■　2017/09/24
+
+・kpp_kkpt評価関数をAVX2でVPGATHERDDを使うようにして高速化。(tanuki-さん)
+
+
+■　2017/09/17
+
+・探索の調整パラメーターにPARAM_ASPIRATION_SEARCH_DELTA追加。
+・update_cm_stats→update_continuation_historiesにrename。
+・Stockfishにcatch up。
+	- Move depth calculation in probCut : https://github.com/official-stockfish/Stockfish/commit/f907d5b7d93a161bc88aeaec403631de9de092f9
+		- これはspeed upしない、間違った理解に基づくcommitなので反映させないことにする。
+	- Adjust moveCount history only at LMR : https://github.com/official-stockfish/Stockfish/commit/7b4c9852e1421ebe6ec326c38f04ad575ad91053
+		- これはすでにやっていた。
+	- Use moveCount history for reduction : https://github.com/official-stockfish/Stockfish/commit/5ef94eb970bc1e4f95ebc13ec2c31b191ea46f87
+		- この後に変更が来てた。
+・実験中
+	- statScoreによる延長
+	- Evasion Pruning Tweak : https://github.com/official-stockfish/Stockfish/commit/1d31065e1d1f04ecf47fc959523c560e8657fbfa
+	- Increase reduction if tt-move is a capture : https://github.com/official-stockfish/Stockfish/commit/77342126d8417469bd6a398cfc6c0594b1f02f82
+
+
 ■　2017/09/15
 
 ・KPPPT対応。(しばらく非公開)
+・miscにあるinsertion_sort、昇順になってなかったの修正。(降順になっていた)
 
 
 ■　2017/09/14

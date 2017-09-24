@@ -12,6 +12,7 @@ YaneuraOu_backup*.lnk
 実験記録*.txt
 開発メモ2017.txt
 コマンドのメモ.txt
+計測資料.txt
 *.bak
 *Private.*
 *.vspx
@@ -21,8 +22,10 @@ YaneuraOu_backup*.lnk
 evaluate_experimental.*
 evaluate_ppap*
 evaluate_nabla*
+evaluate_akashic*
 evaluate_kppp_kkpt*
 evaluate_kpppt*
+2017-goku-engine/
 
 # cf. https://twitter.com/496_/status/673758920846917632
 YaneuraOu.VC.opendb
