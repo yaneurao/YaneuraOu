@@ -421,47 +421,38 @@ namespace Eval
 		const auto* pkppw = kpp[Inv(sq_wk)][ebp.fw];
 
         // AVX2化前
-        // Nodes/second    : 778853
-        // Nodes/second    : 770243
-        // Nodes/second    : 768885
+        // Nodes/second    : 772205
+        // Nodes/second    : 775461
+        // Nodes/second    : 778807
         // Function	Samples	% of Hotspot Samples	Module
-        // Eval::do_a_pc(struct Position const &, struct Eval::ExtBonaPiece)	6794	13.5	YaneuraOu - 2017 - early.exe
-        //
-        // AVX2化後
-        // Nodes/second    : 793650
-        // Nodes/second    : 788538
-        // Nodes/second    : 784886
+        // Eval::do_a_pc(struct Position const &, struct Eval::ExtBonaPiece)	6946	13.4399996	YaneuraOu - 2017 - early.exe
+        // Eval::evaluateBody(struct Position const &)	6047	11.6999998	YaneuraOu - 2017 - early.exe
+
+        // AVX2化後 (VGATHERDDあり)
+        // Nodes/second    : 812391
+        // Nodes/second    : 819043
+        // Nodes/second    : 817886
         // Function	Samples	% of Hotspot Samples	Module
-        // Eval::do_a_pc(struct Position const &, struct Eval::ExtBonaPiece)	5870	11.9399996	YaneuraOu - 2017 - early.exe
-        //
-        // NPSが2.3%程度向上した
+        // Eval::evaluateBody(struct Position const &)	5240	11.04	YaneuraOu - 2017 - early.exe
+        // Eval::do_a_pc(struct Position const &, struct Eval::ExtBonaPiece)	5184	10.9200001	YaneuraOu - 2017 - early.exe
+
+        // NPSが約5.5%程度向上した
 
 #ifdef USE_AVX2
         __m256i sum0 = _mm256_setzero_si256();
         __m256i sum1 = _mm256_setzero_si256();
         int i = 0;
         for (; i + 8 < PIECE_NO_KING; i += 8) {
-            // 1要素が16-bitでvgatherdd命令が使えないため
-            // 通常のメモリアクセスで評価値をロードする
-            __m256i w0 = _mm256_set_epi32(
-                pkppb[list0[i + 7]],
-                pkppb[list0[i + 6]],
-                pkppb[list0[i + 5]],
-                pkppb[list0[i + 4]],
-                pkppb[list0[i + 3]],
-                pkppb[list0[i + 2]],
-                pkppb[list0[i + 1]],
-                pkppb[list0[i + 0]]);
-            __m256i w1 = _mm256_set_epi32(
-                pkppw[list1[i + 7]],
-                pkppw[list1[i + 6]],
-                pkppw[list1[i + 5]],
-                pkppw[list1[i + 4]],
-                pkppw[list1[i + 3]],
-                pkppw[list1[i + 2]],
-                pkppw[list1[i + 1]],
-                pkppw[list1[i + 0]]);
+            __m256i index0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list0 + i));
+            __m256i w0 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(pkppb), index0, 2);
+            w0 = _mm256_slli_epi32(w0, 16);
+            w0 = _mm256_srai_epi32(w0, 16);
             sum0 = _mm256_add_epi32(sum0, w0);
+
+            __m256i index1 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list1 + i));
+            __m256i w1 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(pkppw), index1, 2);
+            w1 = _mm256_slli_epi32(w1, 16);
+            w1 = _mm256_srai_epi32(w1, 16);
             sum1 = _mm256_add_epi32(sum1, w1);
         }
 
@@ -588,22 +579,6 @@ namespace Eval
 				diff.p[1][0] = 0;
 				diff.p[1][1] = 0;
 
-                // AVX2化前
-                // Nodes/second    : 793650
-                // Nodes/second    : 788538
-                // Nodes/second    : 784886
-                // Function	Samples	% of Hotspot Samples	Module
-                // Eval::evaluateBody(struct Position const &)	6195	12.5900002	YaneuraOu - 2017 - early.exe
-                // 
-                // AVX2化後
-                // Nodes/second    : 795766
-                // Nodes/second    : 788859
-                // Nodes/second    : 790836
-                // Function	Samples	% of Hotspot Samples	Module
-                // Eval::evaluateBody(struct Position const &)	6306	12.8400002	YaneuraOu - 2017 - early.exe
-                //
-                // NPSが0.3%程度しか向上しなかった
-
 #ifdef USE_AVX2
                 __m256i sum1_256 = _mm256_setzero_si256();
                 __m128i sum1_128 = _mm_setzero_si128();
@@ -614,26 +589,18 @@ namespace Eval
                     const auto* pkppw = ppkppw[k1];
                     int j = 0;
                     for (; j + 8 < i; j += 8) {
-                        // 1要素が16-bitでvgatherdd命令が使えないため
-                        // 通常のメモリアクセスで評価値をロードする
-                        __m256i w1 = _mm256_set_epi32(
-                            pkppw[list1[j + 7]],
-                            pkppw[list1[j + 6]],
-                            pkppw[list1[j + 5]],
-                            pkppw[list1[j + 4]],
-                            pkppw[list1[j + 3]],
-                            pkppw[list1[j + 2]],
-                            pkppw[list1[j + 1]],
-                            pkppw[list1[j + 0]]);
+                        __m256i index1 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list1 + j));
+                        __m256i w1 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(pkppw), index1, 2);
+                        w1 = _mm256_slli_epi32(w1, 16);
+                        w1 = _mm256_srai_epi32(w1, 16);
                         sum1_256 = _mm256_add_epi32(sum1_256, w1);
                     }
 
                     for (; j + 4 < i; j += 4) {
-                        __m128i w1 = _mm_set_epi32(
-                            pkppw[list1[j + 3]],
-                            pkppw[list1[j + 2]],
-                            pkppw[list1[j + 1]],
-                            pkppw[list1[j + 0]]);
+                        __m128i index1 = _mm_load_si128(reinterpret_cast<const __m128i*>(list1 + j));
+                        __m128i w1 = _mm_i32gather_epi32(reinterpret_cast<const int*>(pkppw), index1, 2);
+                        w1 = _mm_slli_epi32(w1, 16);
+                        w1 = _mm_srai_epi32(w1, 16);
                         sum1_128 = _mm_add_epi32(sum1_128, w1);
                     }
 
@@ -706,27 +673,19 @@ namespace Eval
                     const auto* pkppb = ppkppb[k0];
                     int j = 0;
                     for (; j + 8 < i; j += 8) {
-                        // 1要素が16-bitでvgatherdd命令が使えないため
-                        // 通常のメモリアクセスで評価値をロードする
-                        __m256i w1 = _mm256_set_epi32(
-                            pkppb[list0[j + 7]],
-                            pkppb[list0[j + 6]],
-                            pkppb[list0[j + 5]],
-                            pkppb[list0[j + 4]],
-                            pkppb[list0[j + 3]],
-                            pkppb[list0[j + 2]],
-                            pkppb[list0[j + 1]],
-                            pkppb[list0[j + 0]]);
-                        sum0_256 = _mm256_add_epi32(sum0_256, w1);
+                        __m256i index0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list0 + j));
+                        __m256i w0 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(pkppb), index0, 2);
+                        w0 = _mm256_slli_epi32(w0, 16);
+                        w0 = _mm256_srai_epi32(w0, 16);
+                        sum0_256 = _mm256_add_epi32(sum0_256, w0);
                     }
 
                     for (; j + 4 < i; j += 4) {
-                        __m128i w1 = _mm_set_epi32(
-                            pkppb[list0[j + 3]],
-                            pkppb[list0[j + 2]],
-                            pkppb[list0[j + 1]],
-                            pkppb[list0[j + 0]]);
-                        sum0_128 = _mm_add_epi32(sum0_128, w1);
+                        __m128i index0 = _mm_load_si128(reinterpret_cast<const __m128i*>(list0 + j));
+                        __m128i w0 = _mm_i32gather_epi32(reinterpret_cast<const int*>(pkppb), index0, 2);
+                        w0 = _mm_slli_epi32(w0, 16);
+                        w0 = _mm_srai_epi32(w0, 16);
+                        sum0_128 = _mm_add_epi32(sum0_128, w0);
                     }
 
                     for (; j < i; ++j) {
