@@ -6,7 +6,8 @@
 #include "evaluate.h"
 #include "extra/key128.h"
 #include "extra/long_effect.h"
-struct Thread;
+
+class Thread;
 
 // --------------------
 //     局面の定数
@@ -100,15 +101,7 @@ struct StateInfo
 	Value materialValue;
 	#endif
 
-	#if defined(EVAL_KPP)
-	// 評価値。(次の局面で評価値を差分計算するときに用いる)
-	// まだ計算されていなければsumKPPの値は、INT_MAX
-	int sumKKP;
-	int sumBKPP;
-	int sumWKPP;
-	#endif
-
-	#if defined(EVAL_KPPT) || defined(EVAL_KPP_PPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_EXPERIMENTAL)
+	#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_EXPERIMENTAL)
 	// 評価値。(次の局面で評価値を差分計算するときに用いる)
 	// まだ計算されていなければsum.p[2][0]の値はINT_MAX
 	Eval::EvalSum sum;
@@ -144,7 +137,17 @@ struct StateInfo
 	//   計算出来るから問題ない。
 	StateInfo* previous;
 
+	// Bitboardクラスにはalignasが指定されているが、StateListPtrは、このStateInfoクラスを内部的にnewするときに
+	// alignasを無視するのでcustom allocatorを定義しておいてやる。
+	void* operator new(std::size_t s);
+	void operator delete(void*p) noexcept;
 };
+
+// setup moves("position"コマンドで設定される、現局面までの指し手)に沿った局面の状態を追跡するためのStateInfoのlist。
+// 千日手の判定のためにこれが必要。std::dequeを使っているのは、StateInfoがポインターを内包しているので、resizeに対して
+// 無効化されないように。
+typedef std::deque<StateInfo, AlignedAllocator<StateInfo>> StateList;
+typedef std::unique_ptr<StateList> StateListPtr;
 
 // --------------------
 //       盤面

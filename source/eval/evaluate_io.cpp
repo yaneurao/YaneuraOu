@@ -38,6 +38,7 @@ namespace EvalIO
 				case PP  : block_size *= (fe_end ) * (fe_end )                      ; break;
 				case KKPP: block_size *= (sq_nb  ) * (sq_nb  ) * (fe_end) * (fe_end); break;
 				case KPPP: block_size *= (sq_nb  ) * (fe_end ) * (fe_end) * (fe_end); break;
+				case VAR : block_size *= 1; break;
 				default:
 					ASSERT_LV1(false);
 				}
@@ -71,15 +72,25 @@ namespace EvalIO
 					if (read_file_to_memory(in_.file_or_memory.filename, [&](u64 size) {
 						if (size != input_block_size)
 						{
-							std::cout << "info string file size incorrect , file = " << in_.file_or_memory.filename
+							std::cout << "info string Error! : file size incorrect , file = " << in_.file_or_memory.filename
 								<< " , actual size = "<< size << " , needed_size = " << input_block_size << std::endl;
 							return (void*)nullptr;
 						}
 						return out_.file_or_memory.ptr;
 					}) != 0)
 					{
-						std::cout << "info string read file error , file = " << in_.file_or_memory.filename << std::endl;
-						return false;
+#if defined(EVAL_LEARN)
+						if (Options["SkipLoadingEval"])
+						{
+							std::cout << "info string read file error , file = " << in_.file_or_memory.filename << " , but SkipLoadingEval == true , so ignore this." << std::endl;
+							memset(out_.file_or_memory.ptr, 0, input_block_size);
+						}
+						else
+#endif
+						{
+							std::cout << "info string Error! : read file error , file = " << in_.file_or_memory.filename << std::endl;
+							return false;
+						}
 					}
 				}
 				// memory to file
@@ -260,6 +271,7 @@ namespace EvalIO
 					break;
 
 				case KPPP:
+					// こんな正方配列は、メモリきつすぎ。
 					for (u64 k1 = 0; k1 < output.sq_nb; ++k1)
 						for (u64 p1 = 0; p1 < output.fe_end; ++p1)
 						{
@@ -277,13 +289,17 @@ namespace EvalIO
 							}
 						}
 					break;
+
+				case VAR:
+					conv((u8*)in_ptr , (u8*)out_ptr);
+					break;
 				}
 
 				// 4) 出力先がファイルなら、出力バッファの内容を書き出す
 
 				if (out_.file_or_memory.ptr == nullptr)
 				{
-					if (write_memory_to_file(out_.file_or_memory.filename, out_ptr,output_block_size)!=0)
+					if (write_memory_to_file(out_.file_or_memory.filename , out_ptr , output_block_size) != 0)
 					{
 						std::cout << "info string write file error , file = " << out_.file_or_memory.filename << std::endl;
 						return false;

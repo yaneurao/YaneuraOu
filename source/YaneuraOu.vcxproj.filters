@@ -44,9 +44,6 @@
     <Filter Include="リソース ファイル\extra\book">
       <UniqueIdentifier>{991f4422-aa69-47f9-96dc-ab57ff54f469}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\extra\move_picker">
-      <UniqueIdentifier>{c51fef6e-8adf-4b09-a7d7-6e8af13a0628}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\extra\mate">
       <UniqueIdentifier>{d2aac0fd-42da-4a14-b6c2-22d534701934}</UniqueIdentifier>
     </Filter>
@@ -58,6 +55,12 @@
     </Filter>
     <Filter Include="リソース ファイル\engine\help-mate-engine">
       <UniqueIdentifier>{4baa45aa-bdd2-4657-804f-9aa648ba0a2f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\eval\kppt">
+      <UniqueIdentifier>{9199b172-8762-466b-aab3-debc3741c786}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\eval\kpp_kkpt">
+      <UniqueIdentifier>{da7e0fa7-bf52-4802-ac0e-7b3db259ddf6}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -103,17 +106,11 @@
     <ClInclude Include="move_picker.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="eval\kppt_evalsum.h">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClInclude>
     <ClInclude Include="engine\mate-engine\mate-search.h">
       <Filter>リソース ファイル\engine\mate-engine</Filter>
     </ClInclude>
     <ClInclude Include="learn\multi_think.h">
       <Filter>リソース ファイル\learn</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\evaluate_kppt.h">
-      <Filter>リソース ファイル\eval</Filter>
     </ClInclude>
     <ClInclude Include="learn\learn.h">
       <Filter>リソース ファイル\learn</Filter>
@@ -129,12 +126,6 @@
     </ClInclude>
     <ClInclude Include="extra\book\mt64bit.h">
       <Filter>リソース ファイル\extra\book</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\progress.h">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClInclude>
-    <ClInclude Include="extra\move_picker\move_picker_2017Q2.h">
-      <Filter>リソース ファイル\extra\move_picker</Filter>
     </ClInclude>
     <ClInclude Include="extra\mate\mate1ply.h">
       <Filter>リソース ファイル\extra\mate</Filter>
@@ -163,11 +154,17 @@
     <ClInclude Include="engine\help-mate-engine\help-mate-search.h">
       <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClInclude>
-    <ClInclude Include="eval\evaluate_kpp_ppt.h">
+    <ClInclude Include="eval\evaluate_common.h">
       <Filter>リソース ファイル\eval</Filter>
     </ClInclude>
-    <ClInclude Include="eval\evaluate_kpp_kkpt.h">
+    <ClInclude Include="eval\evalsum.h">
       <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\kppt\evaluate_kppt.h">
+      <Filter>リソース ファイル\eval\kppt</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\kpp_kkpt\evaluate_kpp_kkpt.h">
+      <Filter>リソース ファイル\eval\kpp_kkpt</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -210,9 +207,6 @@
     <ClCompile Include="extra\bitop.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
-    <ClCompile Include="eval\evaluate_kpp.cpp">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
     <ClCompile Include="eval\evaluate_bona_piece.cpp">
       <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
@@ -224,9 +218,6 @@
     </ClCompile>
     <ClCompile Include="extra\timeman.cpp">
       <Filter>リソース ファイル\extra</Filter>
-    </ClCompile>
-    <ClCompile Include="eval\evaluate_kppt.cpp">
-      <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
     <ClCompile Include="engine\user-engine\user-search.cpp">
       <Filter>リソース ファイル\engine\user-engine</Filter>
@@ -251,12 +242,6 @@
     </ClCompile>
     <ClCompile Include="extra\book\book.cpp">
       <Filter>リソース ファイル\extra\book</Filter>
-    </ClCompile>
-    <ClCompile Include="eval\progress.cpp">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\move_picker\move_picker_2017Q2.cpp">
-      <Filter>リソース ファイル\extra\move_picker</Filter>
     </ClCompile>
     <ClCompile Include="extra\mate\mate_n_ply.cpp">
       <Filter>リソース ファイル\extra\mate</Filter>
@@ -285,17 +270,20 @@
     <ClCompile Include="engine\help-mate-engine\help-mate-search.cpp">
       <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClCompile>
-    <ClCompile Include="eval\evaluate_kpp_ppt.cpp">
-      <Filter>リソース ファイル\eval</Filter>
+    <ClCompile Include="eval\kppt\evaluate_kppt.cpp">
+      <Filter>リソース ファイル\eval\kppt</Filter>
     </ClCompile>
-    <ClCompile Include="eval\evaluate_kpp_kkpt.cpp">
-      <Filter>リソース ファイル\eval</Filter>
+    <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt.cpp">
+      <Filter>リソース ファイル\eval\kpp_kkpt</Filter>
     </ClCompile>
-    <ClCompile Include="learn\evaluate_learn_kpp_kkpt.cpp">
-      <Filter>リソース ファイル\learn</Filter>
+    <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt_learner.cpp">
+      <Filter>リソース ファイル\eval\kpp_kkpt</Filter>
     </ClCompile>
-    <ClCompile Include="learn\evaluate_learn_kppt.cpp">
-      <Filter>リソース ファイル\learn</Filter>
+    <ClCompile Include="eval\kppt\evaluate_kppt_learner.cpp">
+      <Filter>リソース ファイル\eval\kppt</Filter>
+    </ClCompile>
+    <ClCompile Include="move_picker.cpp">
+      <Filter>リソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -155,7 +155,6 @@ std::ostream& operator<<(std::ostream& os, RepetitionState rs)
 
 namespace Search {
 	LimitsType Limits;
-	StateStackPtr SetupStates;
 
 	// 探索を抜ける前にponderの指し手がないとき(rootでfail highしているだとか)にこの関数を呼び出す。
 	// ponderの指し手として何かを指定したほうが、その分、相手の手番において考えられて得なので。
@@ -214,7 +213,6 @@ GlobalOptions_ GlobalOptions;
 //  main()
 // ----------------------------------------
 
-
 int main(int argc, char* argv[])
 {
 	// --- 全体的な初期化
@@ -222,8 +220,8 @@ int main(int argc, char* argv[])
 	Bitboards::init();
 	Position::init();
 	Search::init();
-	Threads.init();
-	// 簡単な初期化のみで評価関数の読み込みはisreadyに応じて行なう。
+	Threads.init(Options["Threads"]);
+	TT.resize(Options["Hash"]);
 	Eval::init();
 
 	// USIコマンドの応答部

@@ -191,7 +191,7 @@ struct TranspositionTable {
 	// 置換表の使用率を1000分率で返す。(USIプロトコルで統計情報として出力するのに使う)
 	int hashfull() const;
 
-	TranspositionTable() { mem = nullptr; clusterCount = 0; resize(16);/*デバッグ時ようにデフォルトで16MB確保*/ }
+	TranspositionTable() { mem = nullptr; clusterCount = 0; }
 	~TranspositionTable() { free(mem); }
 
 private:

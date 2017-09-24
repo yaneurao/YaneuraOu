@@ -16,8 +16,6 @@
 using namespace std;
 using std::cout;
 
-void is_ready();
-
 namespace Book
 {
 	// Aperyの指し手の変換。

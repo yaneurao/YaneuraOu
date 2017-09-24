@@ -15,10 +15,6 @@
 using namespace EvalLearningTools;
 #endif
 
-// 評価関数ファイルを読み込む。
-// 局面の初期化は行わないので必要ならばPosition::set()などで初期化すること。
-extern void is_ready();
-
 // ----------------------------------
 //  USI拡張コマンド "perft"(パフォーマンステスト)
 // ----------------------------------
@@ -679,8 +675,7 @@ void test_read_record(Position& pos, istringstream& is)
 			while (ss >> token && token != "moves")
 				sfen += token;
 
-		auto& SetupStates = Search::SetupStates;
-		SetupStates = Search::StateStackPtr(new aligned_stack<StateInfo>());
+		auto states = StateListPtr(new StateList(1));
 
 		pos.set(sfen , Threads.main());
 
@@ -690,8 +685,8 @@ void test_read_record(Position& pos, istringstream& is)
 			{
 				if (token == to_usi_string(m))
 				{
-					SetupStates->push(StateInfo());
-					pos.do_move(m, SetupStates->top());
+					states->emplace_back();
+					pos.do_move(m, states->back());
 					goto Ok;
 				}
 			}
@@ -734,6 +729,8 @@ void auto_play(Position& pos, istringstream& is)
 	for (uint64_t i = 0; i < loop_max; ++i)
 	{
 		pos.set_hirate(Threads.main());
+		auto states = StateListPtr(new StateList(1));
+		
 		for (ply = 0; ply < MAX_PLY; ++ply)
 		{
 			MoveList<LEGAL_ALL> mg(pos);
@@ -741,14 +738,15 @@ void auto_play(Position& pos, istringstream& is)
 				break;
 
 			Time.reset();
-			Threads.start_thinking(pos, Search::SetupStates , lm);
+			Threads.start_thinking(pos, states , lm);
 			Threads.main()->wait_for_search_finished();
 			auto rootMoves = Threads.main()->rootMoves;
 			if (rootMoves.size() == 0)
 				break;
 			Move m = rootMoves.at(0).pv[0]; // 1番目に並び変わっているはず。
 
-			pos.do_move(m, state[ply]);
+			states->emplace_back();
+			pos.do_move(m, states->back());
 			moves[ply] = m;
 		}
 		// 1局ごとに'.'を出力(進んでいることがわかるように)
@@ -1230,13 +1228,8 @@ void test_search(Position& pos, istringstream& is)
 }
 #endif
 
-#if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
-
-#if defined (EVAL_KPPT)
-#include "../eval/evaluate_kppt.h"
-#elif defined(EVAL_KPP_KKPT)
-#include "../eval/evaluate_kpp_kkpt.h"
-#endif
+#if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined (EVAL_KPPPT) || defined(EVAL_KPPP_KKPT)
+#include "../eval/evaluate_common.h"
 
 // 現在の評価関数のパラメーターについて調査して出力する。(分析用)
 void eval_exam(istringstream& is)
@@ -2004,6 +1997,7 @@ void test_cmd(Position& pos, istringstream& is)
 #if defined (EVAL_LEARN)
 	else if (param == "search") test_search(pos, is);                // 現局面からLearner::search()を呼び出して探索させる
 	else if (param == "dumpsfen") dump_sfen(pos, is);                // gensfenコマンドで生成した教師局面のダンプ
+	else if (param == "evalsave") Eval::save_eval("");               // 現在の評価関数のパラメーターをファイルに保存
 #endif
 #if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 	else if (param == "evalmerge") eval_merge(is);                   // 評価関数の合成コマンド

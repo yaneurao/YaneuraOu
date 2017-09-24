@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "4.75"
+#define ENGINE_VERSION "4.77"
 
 // --------------------
 // コンパイル時の設定
@@ -415,7 +415,7 @@ enum Value: int32_t
 	VALUE_SUPERIOR = 28000,
 
 	// 評価関数の返す値の最大値(2**14ぐらいに収まっていて欲しいところだが..)
-	VALUE_MAX_EVAL = 25000,
+	VALUE_MAX_EVAL = 27000,
 
 	// 評価関数がまだ呼び出されていないということを示すのに使う特殊な定数
 	VALUE_NOT_EVALUATED = 32003,
@@ -620,16 +620,17 @@ inline std::ostream& operator<<(std::ostream& os, Move m) { os << to_usi_string(
 struct ExtMove {
 
 	Move move;   // 指し手(32bit)
-#if defined(USE_MOVE_PICKER_2017Q2)
 	int value;
-#else
-	Value value;   // これはMovePickerが指し手オーダリングのために並び替えるときに用いる値(≠評価値)。
-#endif
 
 	// Move型とは暗黙で変換できていい。
 
 	operator Move() const { return move; }
 	void operator=(Move m) { move = m; }
+
+	// 望まない暗黙のMoveへの変換を禁止するために
+	// 曖昧な変換でコンパイルエラーになるようにしておく。
+	// cf. Fix involuntary conversions of ExtMove to Move : https://github.com/official-stockfish/Stockfish/commit/d482e3a8905ee194bda3f67a21dda5132c21f30b
+	operator float() const;
 };
 
 // ExtMoveの並べ替えを行なうので比較オペレーターを定義しておく。
@@ -965,8 +966,8 @@ namespace USI
 	void init(OptionsMap&);
 
 	// pv(読み筋)をUSIプロトコルに基いて出力する。
-	// iteration_depth : 反復深化のiteration深さ。
-	std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta);
+	// depth : 反復深化のiteration深さ。
+	std::string pv(const Position& pos, Depth depth, Value alpha, Value beta);
 
 	// USIプロトコルで、idxの順番でoptionを出力する。
 	std::ostream& operator<<(std::ostream& os, const OptionsMap& om);
@@ -992,6 +993,11 @@ Move move_from_usi(const Position& pos, const std::string& str);
 // 返ってくるのは16bitのMoveなので、これを32bitのMoveに変換するには
 // Position::move16_to_move()を呼び出す必要がある。
 Move move_from_usi(const std::string& str);
+
+// USIの"isready"コマンドが呼び出されたときの処理。このときに評価関数の読み込みなどを行なう。
+// benchmarkコマンドのハンドラなどで"isready"が来ていないときに評価関数を読み込ませたいときに用いる。
+// skipCorruptCheck == trueのときは評価関数の2度目の読み込みのときのcheck sumによるメモリ破損チェックを省略する。
+extern void is_ready(bool skipCorruptCheck = false);
 
 // --------------------
 //  operators and macros

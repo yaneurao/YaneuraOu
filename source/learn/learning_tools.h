@@ -6,7 +6,6 @@
 #include "learn.h"
 #if defined (EVAL_LEARN)
 
-
 #if defined(SGD_UPDATE)
 #include "../misc.h"  // PRNG
 #endif
@@ -15,6 +14,10 @@
 typedef s8 V_FRACTION_TYPE;
 #elif V_FRACTION_BITS == 16
 typedef s16 V_FRACTION_TYPE;
+#elif V_FRACTION_BITS == 32
+typedef s32 V_FRACTION_TYPE;
+#elif V_FRACTION_BITS == 64
+typedef s64 V_FRACTION_TYPE;
 #endif
 
 namespace EvalLearningTools
@@ -86,13 +89,13 @@ namespace EvalLearningTools
 				Weight::eta = Weight::eta3;
 		}
 
-
 #if defined (ADA_GRAD_UPDATE) || defined(ADA_PROP_UPDATE)
 
 		// AdaGradのg2
 		LearnFloatType g2;
 
-		// vの小数部上位8bit。(vをfloatで持つのもったいないのでvの補助bitとして8bitで持つ)
+		// vの固定小数表現 8-bits。(vをfloatで持つのもったいないのでvの補助bitとして小数部を持つ)
+		// 何bit持つかは、V_FRACTION_BITSの設定で変更できる。
 		V_FRACTION_TYPE v_frac;
 
 		// AdaGradでupdateする
@@ -119,29 +122,30 @@ namespace EvalLearningTools
 			g2 = LearnFloatType(g2 * 0.99);
 #endif
 
-			// v8は小数部8bitを含んでいるのでこれを復元する。
+			// v8は小数部8bit(V_FRACTION_BITS==8のとき)を含んでいるのでこれを復元する。
 			// 128倍にすると、-1を保持できなくなるので127倍にしておく。
 			// -1.0～+1.0を-127～127で保持している。
 			// std::round()限定なら-0.5～+0.5の範囲なので255倍でも良いが、
 			// どんな丸め方をするかはわからないので余裕を持たせてある。
 
-			const double m = (s32)1 << (V_FRACTION_BITS - 1);
+			const double m = (s64)1 << (V_FRACTION_BITS - 1);
 
 			double V = v + ((double)v_frac / m);
 
 			V -= eta * (double)g / sqrt((double)g2 + epsilon);
 
-			// Vの値をINT16の範囲に収まるように制約を課す。
-			// どうせ計算は32bitで行なうのでこの制約は甘めでいいや。
-			V = std::min((double)INT16_MAX * 15 / 16, V);
-			V = std::max((double)INT16_MIN * 15 / 16, V);
+			// Vの値を型の範囲に収まるように制限する。
+			// ちなみに、windows.hがmin,maxマクロを定義してしまうのでそれを回避するために、
+			// ここでは括弧で括ることで関数形式マクロとして扱われないようにしている。
+			V = (std::min)((double)(std::numeric_limits<T>::max)() , V);
+			V = (std::max)((double)(std::numeric_limits<T>::min)() , V);
 
 			v = (T)round(V);
 			v_frac = (V_FRACTION_TYPE)((V - v) * m);
 
 			// この要素に関するmini-batchの1回分の更新が終わったのでgをクリア
-			//g[i] = 0;
-			// これは呼び出し側で行なうことにする。
+			// g[i] = 0;
+			// →次元下げの問題があるので、これは呼び出し側で行なうことにする。
 		}
 
 #elif defined(SGD_UPDATE)
@@ -174,9 +178,8 @@ namespace EvalLearningTools
 			else
 				V+= diff;
 
-			// Vの値をINT16の範囲に収まるように制約を課す。
-			V = std::min((s16)((double)INT16_MAX * 15 / 16), (s16)(V));
-			V = std::max((s16)((double)INT16_MIN * 15 / 16), (s16)(V));
+			V = std::min((double)(std::numeric_limits<T>::max)(), V);
+			V = std::max((double)(std::numeric_limits<T>::min)(), V);
 
 			v = (T)V;
 		}
@@ -216,7 +219,9 @@ namespace EvalLearningTools
 
 	// 	--- BonaPieceに対してMirrorとInverseを提供する。
 
-	// これらの配列は、init();を呼び出すと初期化される。
+	// これらの配列は、init()かinit_mir_inv_tables();を呼び出すと初期化される。
+	// このテーブルのみを評価関数のほうから使いたいときは、評価関数の初期化のときに
+	// init_mir_inv_tables()を呼び出すと良い。
 	// これらの配列は、以下のKK/KKP/KPPクラスから参照される。
 
 	// あるBonaPieceを相手側から見たときの値を返す
@@ -228,6 +233,8 @@ namespace EvalLearningTools
 	// 次元下げしたときに、そのなかの一番小さなindexになることが
 	// わかっているindexに対してtrueとなっているフラグ配列。
 	// この配列もinit()によって初期化される。
+	// KPPPに関しては、関与しない。
+	// ゆえに、この配列の有効なindexの範囲は、KK::min_index()～KPP::max_index()まで。
 	extern std::vector<bool> min_index_flag;
 
 	// mir_piece/inv_pieceの初期化のときに呼び出されるcallback
@@ -239,6 +246,9 @@ namespace EvalLearningTools
 	extern s16 mir_piece_[Eval::fe_end];
 	extern s16 inv_piece_[Eval::fe_end];
 
+	// この関数を明示的に呼び出すか、init()を呼び出すかしたときに、上のテーブルが初期化される。
+	void init_mir_inv_tables();
+
 	// -------------------------------------------------
 	// Weight配列を直列化したときのindexを計算したりするヘルパー。
 	// -------------------------------------------------
@@ -249,7 +259,8 @@ namespace EvalLearningTools
 	struct KK
 	{
 		KK() {}
-		KK(Square king0, Square king1) : king0_(king0), king1_(king1) {}
+		KK(Square king0, Square king1) : king0_(king0), king1_(king1), inverse_(false) {}
+		KK(Square king0, Square king1,bool inverse) : king0_(king0), king1_(king1) , inverse_(inverse) {}
 
 		// KK,KKP,KPP配列を直列化するときの通し番号の、KKの最小値、最大値。
 		static u64 min_index() { return 0; }
@@ -266,17 +277,40 @@ namespace EvalLearningTools
 			index /= SQ_NB;
 			int king0 = (int)(index  /* % SQ_NB */);
 			ASSERT_LV3(king0 < SQ_NB);
-			return KK((Square)king0, (Square)king1);
+			return KK((Square)king0, (Square)king1 , false);
 		}
 
 		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
 		Square king0() const { return king0_; }
 		Square king1() const { return king1_; }
 
+// 次元下げの数
+#if defined(USE_KK_INVERSE_WRITE)
+	#define KK_LOWER_COUNT 4
+#elif defined(USE_KK_MIRROR_WRITE)
+	#define KK_LOWER_COUNT 2
+#else 
+	#define KK_LOWER_COUNT 1
+#endif
+
+#if defined(USE_KK_INVERSE_WRITE) && !defined(USE_KK_MIRROR_WRITE) 
+		// USE_KK_INVERSE_WRITEわ使うならUSE_KK_MIRROR_WRITEも定義して欲しい。
+		static_assert(false, "define also USE_KK_MIRROR_WRITE!");
+#endif
+
 		// 低次元の配列のindexを得る。
-		// KKはミラーの次元下げを行わないので、そのままの値。
-		void toLowerDimensions(/*out*/KK kk_[1]) const {
-			kk_[0] = KK(king0_, king1_);
+		// USE_KK_INVERSE_WRITEが有効なときは、それらをinverseしたものが[2],[3]に入る。
+		// この次元下げに関して、gradの符号は反転させないといけないので注意すること。
+		// is_inverse()で判定できるのでこれを利用すると良い。
+		void toLowerDimensions(/*out*/KK kk_[KK_LOWER_COUNT]) const {
+			kk_[0] = KK(king0_, king1_,false);
+#if defined(USE_KK_MIRROR_WRITE)
+			kk_[1] = KK(Mir(king0_),Mir(king1_),false);
+#if defined(USE_KK_INVERSE_WRITE)
+			kk_[2] = KK(Inv(king1_), Inv(king0_),true);
+			kk_[3] = KK(Inv(Mir(king1_)) , Inv(Mir(king0_)),true);
+#endif
+#endif
 		}
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
@@ -284,12 +318,25 @@ namespace EvalLearningTools
 			return min_index() + (u64)king0_ * (u64)SQ_NB + (u64)king1_;
 		}
 
+		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
+		bool is_inverse() const {
+			return inverse_;
+		}
+
+		// is_inverse() == trueのときに、gradの手番ではないほうの符号を反転させて返す。
+		template <typename T>
+		std::array<T, 2> adjust_grad(const std::array<T, 2>& rhs)
+		{
+			return !is_inverse() ? rhs : std::array<T, 2>{-rhs[0], rhs[1]};
+		}
+
 		// 比較演算子
 		bool operator==(const KK& rhs) { return king0() == rhs.king0() && king1() == rhs.king1(); }
 		bool operator!=(const KK& rhs) { return !(*this == rhs); }
 
 	private:
-		Square king0_, king1_;
+		Square king0_, king1_ ;
+		bool inverse_;
 	};
 
 	// デバッグ用出力。
@@ -302,7 +349,8 @@ namespace EvalLearningTools
 	struct KKP
 	{
 		KKP() {}
-		KKP(Square king0, Square king1, Eval::BonaPiece p) : king0_(king0), king1_(king1), piece_(p) {}
+		KKP(Square king0, Square king1, Eval::BonaPiece p) : king0_(king0), king1_(king1), piece_(p), inverse_(false) {}
+		KKP(Square king0, Square king1, Eval::BonaPiece p,bool inverse) : king0_(king0), king1_(king1), piece_(p),inverse_(inverse) {}
 
 		// KK,KKP,KPP配列を直列化するときの通し番号の、KKPの最小値、最大値。
 		static u64 min_index() { return KK::max_index(); }
@@ -321,7 +369,7 @@ namespace EvalLearningTools
 			index /= SQ_NB;
 			int king0 = (int)(index  /* % SQ_NB */);
 			ASSERT_LV3(king0 < SQ_NB);
-			return KKP((Square)king0, (Square)king1, (Eval::BonaPiece)piece);
+			return KKP((Square)king0, (Square)king1, (Eval::BonaPiece)piece,false);
 		}
 
 		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
@@ -332,31 +380,47 @@ namespace EvalLearningTools
 		// KKPの次元下げの数
 #if defined(USE_KKP_INVERSE_WRITE)
 		#define KKP_LOWER_COUNT 4
-#else
+#elif defined(USE_KKP_MIRROR_WRITE)
 		#define KKP_LOWER_COUNT 2
+#else
+		#define KKP_LOWER_COUNT 1
 #endif
+
+#if defined(USE_KKP_INVERSE_WRITE) && !defined(USE_KKP_MIRROR_WRITE) 
+		// USE_KKP_INVERSE_WRITEわ使うならUSE_KKP_MIRROR_WRITEも定義して欲しい。
+		static_assert(false, "define also USE_KKP_MIRROR_WRITE!");
+#endif
+
 		// 低次元の配列のindexを得る。ミラーしたものがkkp_[1]に返る。
 		// USE_KKP_INVERSE_WRITEが有効なときは、それらをinverseしたものが[2],[3]に入る。
 		// この次元下げに関して、gradの符号は反転させないといけないので注意すること。
+		// is_inverse()で判定できるのでこれを利用すると良い。
 		void toLowerDimensions(/*out*/ KKP kkp_[KKP_LOWER_COUNT]) const {
-				kkp_[0] = KKP(king0_, king1_, piece_);
+			kkp_[0] = KKP(king0_, king1_, piece_,false);
 #if defined(USE_KKP_MIRROR_WRITE)
-			kkp_[1] = KKP(Mir(king0_), Mir(king1_), mir_piece(piece_));
+			kkp_[1] = KKP(Mir(king0_), Mir(king1_), mir_piece(piece_),false);
 #if defined(USE_KKP_INVERSE_WRITE)
-			kkp_[2] = KKP( Inv(king1_), Inv(king0_), inv_piece(piece_));
-			kkp_[3] = KKP( Inv(Mir(king1_)), Inv(Mir(king0_)) , inv_piece(mir_piece(piece_)));
+			kkp_[2] = KKP( Inv(king1_), Inv(king0_), inv_piece(piece_),true);
+			kkp_[3] = KKP( Inv(Mir(king1_)), Inv(Mir(king0_)) , inv_piece(mir_piece(piece_)),true);
 #endif
-
-#else
-			kkp_[1] = kkp_[0];
 #endif
-
-
 		}
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
 		u64 toIndex() const {
 			return min_index() + ((u64)king0_ * (u64)SQ_NB + (u64)king1_) * (u64)Eval::fe_end + (u64)piece_;
+		}
+
+		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
+		bool is_inverse() const {
+			return inverse_;
+		}
+
+		// is_inverse() == trueのときに、gradの手番ではないほうの符号を反転させて返す。
+		template <typename T>
+		std::array<T, 2> adjust_grad(const std::array<T, 2>& rhs)
+		{
+			return !is_inverse() ? rhs : std::array<T, 2>{-rhs[0], rhs[1]};
 		}
 
 		// 比較演算子
@@ -366,6 +430,7 @@ namespace EvalLearningTools
 	private:
 		Square king0_, king1_;
 		Eval::BonaPiece piece_;
+		bool inverse_;
 	};
 
 	// デバッグ用出力。
@@ -434,31 +499,42 @@ namespace EvalLearningTools
 		Eval::BonaPiece piece0() const { return piece0_; }
 		Eval::BonaPiece piece1() const { return piece1_; }
 
-#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
+
+		// 次元下げの数
+#if defined(USE_KPP_MIRROR_WRITE)
+	#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
+		#define KPP_LOWER_COUNT 4
+	#else
+		#define KPP_LOWER_COUNT 2
+	#endif
+#else
+	#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
+		#define KPP_LOWER_COUNT 2
+	#else
+		#define KPP_LOWER_COUNT 1
+	#endif
+#endif
+
 		// 低次元の配列のindexを得る。p1,p2を入れ替えたもの、ミラーしたものなどが返る。
-		void toLowerDimensions(/*out*/ KPP kpp_[4]) const {
+		void toLowerDimensions(/*out*/ KPP kpp_[KPP_LOWER_COUNT]) const {
+
+#if defined(USE_TRIANGLE_WEIGHT_ARRAY)
+			// 三角配列を用いる場合は、piece0とpiece1を入れ替えたものは返らないので注意。
+			kpp_[0] = KPP(king_, piece0_, piece1_);
+#if defined(USE_KPP_MIRROR_WRITE)
+			kpp_[1] = KPP(Mir(king_), mir_piece(piece0_), mir_piece(piece1_));
+#endif
+
+#else
+			// 三角配列を用いない場合
 			kpp_[0] = KPP(king_, piece0_, piece1_);
 			kpp_[1] = KPP(king_, piece1_, piece0_);
 #if defined(USE_KPP_MIRROR_WRITE)
 			kpp_[2] = KPP(Mir(king_), mir_piece(piece0_), mir_piece(piece1_));
 			kpp_[3] = KPP(Mir(king_), mir_piece(piece1_), mir_piece(piece0_));
-#else
-			kpp_[2] = kpp_[0];
-			kpp_[3] = kpp_[1];
+#endif
 #endif
 		}
-#else
-		// 低次元の配列のindexを得る。p1,p2を入れ替えたもの、ミラーしたものが返る。
-		// piece0とpiece1を入れ替えたものは返らないので注意。
-		void toLowerDimensions(/*out*/ KPP kpp_[2]) const {
-			kpp_[0] = KPP(king_, piece0_, piece1_);
-#if defined(USE_KPP_MIRROR_WRITE)
-			kpp_[1] = KPP(Mir(king_), mir_piece(piece0_), mir_piece(piece1_));
-#else
-			kpp_[1] = kpp_[0];
-#endif
-		}
-#endif
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
 		u64 toIndex() const
@@ -487,6 +563,12 @@ namespace EvalLearningTools
 #endif
 		}
 
+		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
+		// KK,KKPとinterfaceを合せるために用意してある。このKPPクラスでは、このメソッドは常にfalseを返す。
+		bool is_inverse() const {
+			return false;
+		}
+
 		// 比較演算子
 		bool operator==(const KPP& rhs) {
 			return king() == rhs.king() &&
@@ -511,6 +593,195 @@ namespace EvalLearningTools
 		return os;
 	}
 
+	// KPPPの4駒関係。ただし、手番ありでミラー等を考慮しないと学習に2TB以上のメモリが必要…。
+	// 三角配列を使っても学習のために50GB×12バイト = 600GB必要。
+	// ミラーしたもののみを格納するようにしてもの半分ぐらい必要。
+	// ここでは、三角配列は必ず用いて、かつミラーしたものを格納するものとする。
+	//
+	// 事前に以下の定数を定義すること。
+	//
+	// 定数)
+	//   KPPP_KING_SQ
+	//
+	// また、このクラスのking()は、実際のkingのSquareとは限らず、単に、0～(king_sq-1)までの値が返る。
+	// これは、ミラーを利用した圧縮を行なう場合など、利用側で適切な玉の位置に変換してやる必要がある。
+	// 
+	// あと、このクラスの返すpiece0,1,2に関して、
+	//   piece0() > piece1() > piece2()
+	// であり、コンストラクタでpiece0,1,2を渡すときも、この制約を守る必要がある。
+	struct KPPP
+	{
+		KPPP() {}
+		KPPP(Square king, Eval::BonaPiece p0, Eval::BonaPiece p1, Eval::BonaPiece p2) :
+			king_(king), piece0_(p0), piece1_(p1), piece2_(p2)
+		{
+			ASSERT_LV3(piece0_ > piece1_ && piece1_ > piece2_);
+			/* sort_piece(); */
+		}
+
+		// KK,KKP,KPP,KPPP配列を直列化するときの通し番号の、KPPPの最小値、最大値。
+		static u64 min_index() { return KPP::max_index(); }
+
+		// KPPPのときに扱う玉の升の数。
+		// 3段×ミラーなら3段×5筋 = 15みたいな感じ。
+		// 2段×ミラーなしなら2×9筋 = 18みたいな感じ。
+		static u64 king_sq;
+		
+		// kppp[king_sq][fe_end][fe_end][fe_end]の[fe_end][fe_end][fe_end]な正方配列の部分を三角配列化する。
+		// kppp[king_sq][triangle_fe_end]とすると、この三角配列の0行目から要素数は、0,0,1,3,…,n行目はn(n-1)/2個。
+		// ゆえに、
+		// triangle_fe_end = Σn(n-1)/2 , n=0..fe_end-1
+		//                 =  fe_end * (fe_end - 1) * (fe_end - 2) / 6
+		static const u64 triangle_fe_end = ((u64)Eval::fe_end)*((u64)Eval::fe_end - 1)*((u64)Eval::fe_end - 2) / 6;
+		static u64 max_index() { return min_index() + (u64)king_sq*triangle_fe_end; }
+
+		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
+		static bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
+
+		// 次元下げの数
+#define KPPP_LOWER_COUNT 1
+
+		// 低次元の配列のindexを得る。
+		// ミラーしたものも、p0,p1,p2を入れ替えたものも返らないので注意。
+		void toLowerDimensions(/*out*/ KPPP kppp_[KPPP_LOWER_COUNT]) const
+		{
+			kppp_[0] = KPPP(king_, piece0_, piece1_,piece2_);
+		}
+
+		// indexからKPPPのオブジェクトを生成するbuilder
+		static KPPP fromIndex(u64 index)
+		{
+			ASSERT_LV3(index >= min_index());
+
+			index -= min_index();
+
+			u64 index2 = index % triangle_fe_end;
+
+			// ここにindex2からpiece0,piece1,piece2を求める式を書く。
+			// これは index2 = i(i-1)(i-2)/6-1 + j(j+1)/2 + k の逆関数となる。
+			// j = k = 0 の場合、3次方程式の解の公式から実根は、 i = ...である。(以下式) 
+			// ただしindex2が0,1のときは実数解が複数ある。これを考慮しないといけない。計算精度が足りないことに対する対策必要。
+			// iが求まったあとはiを整数化したのちに、最初の式に入れてKPPのとき同様にjを求めれば良い。
+
+			// この処理、数値計算としてわりと難しい。色々工夫が必要。
+
+			int piece0;
+			if (index2 <= 1)
+			{
+				// index2 == 0,1のときだけ実数解が複数ある。
+				piece0 = (int)index2 + 2;
+
+			} else {
+
+				//double t = pow(sqrt((243 *index2 * index2 - 1) * 3) + 27 * index2, 1.0 / 3);
+				// →　これだとindex2が大きくなるとsqrt()の中身、オーバーフローする。
+
+				// sqrt()の中身がオーバーフローするので、sqrtのなかで3.0を掛けずにsqrtの外側でsqrt(3.0)を掛ける。
+				// sqrt()の中身がオーバーフローするので、index2が大きいときは近似式を用いる。
+
+				double t;
+				
+				if (index2 < 100000000)
+					t = pow(sqrt((243.0 *index2 * index2 - 1)) * sqrt(3.0) + 27 * index2, 1.0 / 3);
+				else
+					// index2が非常に大きいとき、sqrtの中身、近似的に √243 * index2とみなせるだろう。
+					t = pow( index2 * sqrt(243 * 3.0) + 27 * index2, 1.0 / 3);
+				
+				// 丸めのときに計算誤差でわずかに足りないのを防ぐためデルタを加算する。
+				// 大きすぎると1大きい数になってしまう時があるので調整が必要。
+				
+				const double delta = 0.000000001;
+
+				piece0 = int(t / pow(3.0, 2.0 / 3) + 1.0 / (pow(3.0, 1.0 / 3) * t) + delta) + 1;
+				// ううう。ほんまにこんなことせんとあかんのか？(´ω｀)
+			}
+
+			// piece2が求まったので、上式のi(i-1)(i-2)/6(=aとする)のiにpiece2を代入。また、k = 0を代入。
+			// j(j+1)/2 = index2 - a
+			// これは、2次方程式の解の公式より..
+
+			u64 a = (u64)piece0*((u64)piece0 - 1)*((u64)piece0 - 2) / 6;
+			int piece1 = int((1 + sqrt(8.0 * (index2 - a ) + 1)) / 2);
+			u64 b = (u64)piece1 * (piece1 - 1) / 2;
+			int piece2 = int(index2 - a - b);
+
+#if 0
+			if (!((piece0 > piece1 && piece1 > piece2)))
+			{
+				std::cout << index << " , " << index2 << "," << a << "," << sqrt(8.0 * (index2 - a) + 1);
+			}
+#endif
+
+			ASSERT_LV3(piece0 > piece1 && piece1 > piece2);
+
+			ASSERT_LV3(piece2 < (int)Eval::fe_end);
+			ASSERT_LV3(piece1 < (int)Eval::fe_end);
+			ASSERT_LV3(piece0 < (int)Eval::fe_end);
+
+			index /= triangle_fe_end;
+
+			int king = (int)(index  /* % SQ_NB */);
+			ASSERT_LV3(king < SQ_NB);
+			return KPPP((Square)king, (Eval::BonaPiece)piece0, (Eval::BonaPiece)piece1 , (Eval::BonaPiece)piece2);
+		}
+
+		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
+		u64 toIndex() const
+		{
+			// Bonanza 6.0で使われているのに似せたマクロ
+			// 前提条件) i > j > k であること。
+			// i==j,j==kのケースはNG。
+			auto PcPcPcOnSq = [](Square king, Eval::BonaPiece i, Eval::BonaPiece j , Eval::BonaPiece k)
+			{
+				// この三角配列の(i,j,k)は、i行目のj列目の要素。
+				// i行目0列0番目は、そこまでの要素の合計であるから、0 + 0 + 1 + 3 + 6 + ... + (i)*(i-1)/2 = i*(i-1)*(i-2)/ 6
+				// i行目j列0番目は、そこにjを加味したもの。 + j*(j-1) / 2
+				// i行目j列k番目は、そこにkを足したもの。   + k
+				ASSERT_LV3(i > j && j > k);
+
+				// BonaPiece型は、32bitを想定しているので掛け算には気をつけないとオーバーフローする。
+				return (u64)king * triangle_fe_end + (u64)(
+						  u64(i)*(u64(i) - 1) * (u64(i) - 2) / 6
+						+ u64(j)*(u64(j) - 1) / 2
+						+ u64(k)
+					);
+			};
+
+			return min_index() + PcPcPcOnSq(king_, piece0_, piece1_, piece2_);
+		}
+
+		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
+		Square king() const { return king_; }
+		Eval::BonaPiece piece0() const { return piece0_; }
+		Eval::BonaPiece piece1() const { return piece1_; }
+		Eval::BonaPiece piece2() const { return piece2_; }
+
+		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
+		// KK,KKPとinterfaceを合せるために用意してある。このKPPPクラスでは、このメソッドは常にfalseを返す。
+		bool is_inverse() const {
+			return false;
+		}
+
+		// 比較演算子
+		bool operator==(const KPPP& rhs) {
+			// piece0 > piece1 > piece2を前提とするので、入れ替わりの可能性はない。
+			return king() == rhs.king() && piece0() == rhs.piece0() && piece1() == rhs.piece1() && piece2() == rhs.piece2();
+		}
+		bool operator!=(const KPPP& rhs) { return !(*this == rhs); }
+
+	private:
+
+		Square king_;
+		Eval::BonaPiece piece0_, piece1_,piece2_;
+
+	};
+
+	// デバッグ用出力。
+	static std::ostream& operator<<(std::ostream& os, KPPP rhs)
+	{
+		os << "KPPP(" << rhs.king() << "," << rhs.piece0() << "," << rhs.piece1() << "," << rhs.piece2() << ")";
+		return os;
+	}
 }
 
 #endif // defined (EVAL_LEARN)

@@ -1,5 +1,5 @@
-﻿#ifndef _EVALUATE_H_
-#define _EVALUATE_H_
+﻿#ifndef EVALUATE_H
+#define EVALUATE_H
 
 #include "shogi.h"
 
@@ -7,7 +7,7 @@
 //   評価関数に対応するheaderの読み込み
 // -------------------------------------
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 #include "eval/evalsum.h"
 #endif
 
@@ -27,12 +27,10 @@
 namespace Eval {
 
 	// evaluateの起動時に行なう軽量な初期化はここで行なう。
-	//評価関数の読み込みは"isready"コマンドの応答で行なう。(そうしないと時間がかかり、タイムアウトになるので)
 	extern void init();
 
 	// 評価関数ファイルを読み込む。
-	// これは、"is_ready"コマンドの応答時に1度だけ呼び出される。2度呼び出すことは想定していない。
-	// (ただし、EvalDir(評価関数フォルダ)が変更になったあと、isreadyが再度送られてきたら読みなおす。)
+	// これは、is_readyの応答時に1回呼び出されるだけ。2度呼び出すことは想定していない。
 	void load_eval();
 
 	// 駒割りを計算する。Position::set()から呼び出されて、以降do_move()では差分計算されるのでこの関数は呼び出されない。
@@ -51,7 +49,7 @@ namespace Eval {
 	// あるいは差分計算が不可能なときに呼び出される。
 	Value compute_eval(const Position& pos);
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 	// 評価関数パラメーターのチェックサムを返す。
 	u64 calc_check_sum();
 
@@ -65,14 +63,34 @@ namespace Eval {
 	// 評価値の内訳表示(デバッグ用)
 	void print_eval_stat(Position& pos);
 
+
 #if defined (EVAL_NO_USE)
 
 	// 評価関数を用いないときもValueを正規化するときに歩の価値は必要。
-	enum { PawnValue = 90 };
+	enum { PawnValue = 86 };
 
 #else
 
-#if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT)
+#if defined (EVAL_MATERIAL) || defined(EVAL_KPP)
+	// Bona6の駒割りを初期値に。それぞれの駒の価値。
+	enum {
+		PawnValue = 86,
+		LanceValue = 227,
+		KnightValue = 256,
+		SilverValue = 365,
+		GoldValue = 439,
+		BishopValue = 563,
+		RookValue = 629,
+		ProPawnValue = 540,
+		ProLanceValue = 508,
+		ProKnightValue = 517,
+		ProSilverValue = 502,
+		HorseValue = 826,
+		DragonValue = 942,
+		KingValue = 15000,
+	};
+
+#elif defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 
 	// Apery(WCSC26)の駒割り
 	enum {
@@ -125,7 +143,25 @@ namespace Eval {
 
 		// --- 手駒
 
-#if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT)
+#if defined (EVAL_MATERIAL) || defined(EVAL_KPP)
+
+		f_hand_pawn = BONA_PIECE_ZERO + 1,
+		e_hand_pawn = f_hand_pawn + 18,
+		f_hand_lance = e_hand_pawn + 18,
+		e_hand_lance = f_hand_lance + 4,
+		f_hand_knight = e_hand_lance + 4,
+		e_hand_knight = f_hand_knight + 4,
+		f_hand_silver = e_hand_knight + 4,
+		e_hand_silver = f_hand_silver + 4,
+		f_hand_gold = e_hand_silver + 4,
+		e_hand_gold = f_hand_gold + 4,
+		f_hand_bishop = e_hand_gold + 4,
+		e_hand_bishop = f_hand_bishop + 2,
+		f_hand_rook = e_hand_bishop + 2,
+		e_hand_rook = f_hand_rook + 2,
+		fe_hand_end = e_hand_rook + 2,
+
+#elif defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 		// Apery(WCSC26)方式。0枚目の駒があるので少し隙間がある。
 		// 定数自体は1枚目の駒のindexなので、EVAL_KPPの時と同様の処理で問題ない。
 
@@ -289,7 +325,7 @@ namespace Eval {
 		}
 
 		// 駒リスト。駒番号(PieceNo)いくつの駒がどこにあるのか(BonaPiece)を示す。FV38などで用いる。
-#if (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) ) && defined(USE_AVX2)
+#if (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)) && defined(USE_AVX2)
 		// AVX2を用いたKPPT評価関数は高速化できるので特別扱い。
 		// Skylake以降でないとほぼ効果がないが…。
 

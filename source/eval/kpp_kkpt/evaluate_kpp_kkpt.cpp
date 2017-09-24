@@ -1,26 +1,24 @@
-﻿#include "../shogi.h"
+﻿#include "../../shogi.h"
 
-// KPP+KPPTの実験用コード。
+// KPP+KKPTの実験用コード。
 // ほとんどevaluate_kppt.cppと同じ。
 
 #if defined (EVAL_KPP_KKPT)
-
-#include "../shogi.h"
 
 #include <fstream>
 #include <iostream>
 #include <unordered_set>
 
+#include "../../evaluate.h"
+#include "../../position.h"
+#include "../../misc.h"
+#include "../../extra/bitop.h"
+#include "../evaluate_io.h"
 #include "evaluate_kpp_kkpt.h"
-#include "evaluate_io.h"
-#include "../evaluate.h"
-#include "../position.h"
-#include "../misc.h"
-#include "../extra/bitop.h"
 
 // 実験中の評価関数を読み込む。(現状非公開)
 #if defined (EVAL_EXPERIMENTAL)
-#include "experimental/evaluate_experimental.h"
+#include "../experimental/evaluate_experimental.h"
 #endif
 
 // EvalShareの機能を使うために必要
@@ -31,7 +29,7 @@
 #endif
 
 #if defined(EVAL_LEARN)
-#include "../learn/learning_tools.h"
+#include "../../learn/learning_tools.h"
 using namespace EvalLearningTools;
 #endif
 
@@ -63,46 +61,9 @@ namespace Eval
 		if (!EvalIO::eval_convert(input, output, nullptr))
 			goto Error;
 
-		{
-#if defined(EVAL_LEARN)
-			// kppのp1==p2のところ、値はゼロとなっていること。
-			// (差分計算のときにコードの単純化のために参照はするけど学習のときに使いたくないので)
-			// kppのp1==p2のときはkkpに足しこまれているという考え。
-			{
-				const ValueKpp kpp_zero = 0;
-				float sum = 0;
-				for (auto sq : SQ)
-					for (auto p = BONA_PIECE_ZERO; p < fe_end; ++p)
-					{
-						sum += abs(kpp[sq][p][p]);
-						kpp[sq][p][p] = kpp_zero;
-					}
-				//	cout << "info string sum kp = " << sum << endl;
-			}
-#endif
-
-#if defined(EVAL_LEARN)
-			// 以前Aperyの評価関数バイナリ、kppのp=0のところでゴミが入っていた。
-			// 駒落ちなどではここを利用したいので0クリアすべき。
-			{
-				const ValueKkp kkp_zero = { 0,0 };
-				for (auto sq1 : SQ)
-					for (auto sq2 : SQ)
-						kkp[sq1][sq2][0] = kkp_zero;
-
-				const ValueKpp kpp_zero = 0;
-				for (auto sq : SQ)
-					for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
-					{
-						kpp[sq][p1][0] = kpp_zero;
-						kpp[sq][0][p1] = kpp_zero;
-					}
-			}
-#endif
-		}
+		// ここに実験用のコードなどを書くかも。
 
 		// 読み込みは成功した。
-
 		return;
 
 	Error:;
@@ -116,7 +77,7 @@ namespace Eval
 	{
 		u64 sum = 0;
 
-		auto add_sum = [&](u32*ptr, size_t t)
+		auto add_sum = [&](u16*ptr, size_t t)
 		{
 			for (size_t i = 0; i < t; ++i)
 				sum += ptr[i];
@@ -125,9 +86,14 @@ namespace Eval
 		// sizeof演算子、2GB以上の配列に対して機能しない。VC++でC2070になる。
 		// そのため、sizeof(kpp)のようにせず、自前で計算している。
 
-		add_sum(reinterpret_cast<u32*>(kk) , size_of_kk  / sizeof(u32));
-		add_sum(reinterpret_cast<u32*>(kkp), size_of_kkp / sizeof(u32));
-		add_sum(reinterpret_cast<u32*>(kpp), size_of_kpp / sizeof(u32));
+		// データは2 or 4バイトなので、endiannessがどちらであっても
+		// これでcheck sumの値は変わらない。
+		// また、データが2 or 4バイトなので2バイトずつ加算していくとき、
+		// データの余りは出ない。
+
+		add_sum(reinterpret_cast<u16*>(kk), size_of_kk / sizeof(u16));
+		add_sum(reinterpret_cast<u16*>(kkp), size_of_kkp / sizeof(u16));
+		add_sum(reinterpret_cast<u16*>(kpp), size_of_kpp / sizeof(u16));
 
 		return sum;
 	}
@@ -192,8 +158,8 @@ namespace Eval
 		std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
 		cv.from_bytes(dir_name).c_str();
 
-		auto mapped_file_name = TEXT("YANEURAOU_KPP_PPT_MMF" ENGINE_VERSION) + cv.from_bytes(dir_name);
-		auto mutex_name = TEXT("YANEURAOU_KPP_PPT_MUTEX" ENGINE_VERSION) + cv.from_bytes(dir_name);
+		auto mapped_file_name = TEXT("YANEURAOU_KPP_KKPT_MMF" ENGINE_VERSION) + cv.from_bytes(dir_name);
+		auto mutex_name = TEXT("YANEURAOU_KPP_KKPT_MUTEX" ENGINE_VERSION) + cv.from_bytes(dir_name);
 
 		// プロセス間の排他用mutex
 		auto hMutex = CreateMutex(NULL, FALSE, mutex_name.c_str());
@@ -421,22 +387,22 @@ namespace Eval
 		const auto* pkppw = kpp[Inv(sq_wk)][ebp.fw];
 
         // AVX2化前
-        // Nodes/second    : 772205
-        // Nodes/second    : 775461
-        // Nodes/second    : 778807
+        // Nodes/second    : 874819
+        // Nodes/second    : 870346
+        // Nodes/second    : 861860
         // Function	Samples	% of Hotspot Samples	Module
-        // Eval::do_a_pc(struct Position const &, struct Eval::ExtBonaPiece)	6946	13.4399996	YaneuraOu - 2017 - early.exe
-        // Eval::evaluateBody(struct Position const &)	6047	11.6999998	YaneuraOu - 2017 - early.exe
+        // Eval::do_a_pc(struct Position const &, struct Eval::ExtBonaPiece)	6509	14.6000004	YaneuraOu - 2017 - early.exe
+        // Eval::evaluateBody(struct Position const &)	6201	13.9099998	YaneuraOu - 2017 - early.exe
 
         // AVX2化後 (VGATHERDDあり)
-        // Nodes/second    : 812391
-        // Nodes/second    : 819043
-        // Nodes/second    : 817886
+        // Nodes/second    : 920074
+        // Nodes/second    : 927817
+        // Nodes/second    : 923094
         // Function	Samples	% of Hotspot Samples	Module
-        // Eval::evaluateBody(struct Position const &)	5240	11.04	YaneuraOu - 2017 - early.exe
-        // Eval::do_a_pc(struct Position const &, struct Eval::ExtBonaPiece)	5184	10.9200001	YaneuraOu - 2017 - early.exe
+        // Eval::evaluateBody(struct Position const &)	5169	12.3500004	YaneuraOu - 2017 - early.exe
+        // Eval::do_a_pc(struct Position const &, struct Eval::ExtBonaPiece)	5100	12.1800003	YaneuraOu - 2017 - early.exe
 
-        // NPSが約5.5%程度向上した
+        // NPSが約6.1%程度向上した
 
 #ifdef USE_AVX2
         __m256i sum0 = _mm256_setzero_si256();
@@ -849,7 +815,13 @@ namespace Eval
 		}
 #endif
 
-		return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
+		auto v = Value(sum.sum(pos.side_to_move()) / FV_SCALE);
+
+		// 返す値の絶対値がVALUE_MAX_EVALを超えてないことを保証しないといけないのだが…。
+		// いまの評価関数、手番を過学習したりして、ときどき超えてそう…。
+		//ASSERT_LV3(abs(v) < VALUE_MAX_EVAL);
+
+		return v;
 	}
 
 	void evaluate_with_no_return(const Position& pos)
@@ -1031,11 +1003,11 @@ namespace Eval
 				l0 = list_fb[j];
 				l1 = list_fw[j];
 
-				sum.p[0][0] += pkppb[l0];
-				sum.p[1][0] += pkppw[l1];
-
 				cout << "BKPP : " << sq_bk << " " << k0 << " " << l0 << " = " << pkppb[l0] << endl;
 				cout << "WKPP : " << sq_wk << " " << k1 << " " << l1 << " = " << pkppw[l1] << endl;
+
+				sum.p[0][0] += pkppb[l0];
+				sum.p[1][0] += pkppw[l1];
 			}
 			sum.p[2] += kkp[sq_bk][sq_wk][k0];
 
@@ -1149,10 +1121,10 @@ namespace Eval
 	// パラメーターの分析などに用いる。
 	void foreach_eval_param(std::function<void(s32, s32)>f, int type)
 	{
-		// PP
+		// KK
 		if (type == -1 || type == 0)
 		{
-			for (u64 i = 0; i < (u64)fe_end * (u64)fe_end; ++i)
+			for (u64 i = 0; i < (u64)SQ_NB * (u64)SQ_NB; ++i)
 			{
 				auto v = ((ValueKk*)kk)[i];
 				f(v[0], v[1]);

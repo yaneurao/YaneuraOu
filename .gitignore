@@ -3,8 +3,6 @@
 
 # added by yaneurao
 
-evaluate_experimental.*
-evaluate_ppap.h
 *.gitattributes
 # *.gitignore
 *.bat
@@ -17,6 +15,14 @@ YaneuraOu_backup*.lnk
 *.bak
 *Private.*
 *.vspx
+
+# experimental
+
+evaluate_experimental.*
+evaluate_ppap*
+evaluate_nabla*
+evaluate_kppp_kkpt*
+evaluate_kpppt*
 
 # cf. https://twitter.com/496_/status/673758920846917632
 YaneuraOu.VC.opendb

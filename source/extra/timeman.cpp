@@ -4,6 +4,7 @@
 
 #include "../misc.h"
 #include "../search.h"
+#include "../thread.h"
 
 namespace {
 
@@ -152,7 +153,8 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 		maximumTime = std::min(t2, maximumTime);
 
 		// Ponderが有効になっている場合、ponderhitすると時間が本来の予測より余っていくので思考時間を心持ち多めにとっておく。
-		if (limits.ponder_mode)
+		// これ本当はゲーム開始時にUSIコマンドで送られてくるべきだと思う。USI 2.0を策定するか…。
+		if (Threads.received_go_ponder)
 			optimumTime += optimumTime / 4;
 	}
 

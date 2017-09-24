@@ -31,10 +31,6 @@ extern void bench_cmd(Position& pos, istringstream& is);
 
 namespace
 {
-	// Positionクラスがそこにいたるまでの手順(捕獲された駒など)を保持しておかないと千日手判定が出来ないので
-	// StateInfo型のstackのようなものが必要となるので、それをglobalに確保しておく。
-	Search::StateStackPtr States;
-
 	// 評価関数を読み込んだかのフラグ。これはevaldirの変更にともなってfalseにする。
 	bool load_eval_finished = false;
 }
@@ -68,12 +64,6 @@ extern void gameover_handler(const string& cmd);
 
 // Option設定が格納されたglobal object。
 USI::OptionsMap Options;
-
-// 試合開始後、一度でも"go ponder"が送られてきたかのフラグ
-// 本来は、Options["Ponder"]で設定すべきだが(UCIではそうなっている)、
-// USIプロトコルだとGUIが勝手に設定するので、思考エンジン側からPonder有りのモードなのかどうかが取得できない。
-// ゆえに、このようにして判定している。
-bool ponder_mode;
 
 // 引き分けになるまでの手数。(MaxMovesToDrawとして定義される)
 // これは、"go"コマンドのときにLimits.max_game_plyに反映される。
@@ -132,7 +122,8 @@ namespace USI
 		return s.str();
 	}
 
-	std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta)
+	// depth : iteration深さ
+	std::string pv(const Position& pos, Depth depth, Value alpha, Value beta)
 	{
 		std::stringstream ss;
 		int elapsed = Time.elapsed() + 1;
@@ -149,21 +140,28 @@ namespace USI
 			// この指し手のpvの更新が終わっているのか
 			bool updated = (i <= PVIdx && rootMoves[i].score != -VALUE_INFINITE);
 
-			if (iteration_depth == ONE_PLY && !updated)
+			if (depth == ONE_PLY && !updated)
 				continue;
 
-			int d = updated ? iteration_depth : iteration_depth - 1;
+			Depth d = updated ? depth : depth - ONE_PLY;
 			Value v = updated ? rootMoves[i].score : rootMoves[i].previousScore;
+
+			// multi pv時、例えば3個目の候補手までしか評価が終わっていなくて(PVIdx==2)、このとき、
+			// 3,4,5個目にあるのは前回のiterationまでずっと評価されていなかった指し手であるような場合に、
+			// これらのpreviousScoreが-VALUE_INFINITE(未初期化状態)でありうる。
+			// (multi pv状態で"go infinite"～"stop"を繰り返すとこの現象が発生する。おそらく置換表にhitしまくる結果ではないかと思う。)
+			// なので、このとき、その評価値を出力するわけにはいかないので、この場合、その出力処理を省略するのが正しいと思う。
+			// おそらく2017/09/09時点で最新のStockfishにも同様の問題があり、何らかの対策コードが必要ではないかと思う。
+			// (Stockfishのテスト環境がないため、試してはいない。)
+			if (v == -VALUE_INFINITE)
+				continue;
 
 			if (ss.rdbuf()->in_avail()) // 1行目でないなら連結のための改行を出力
 				ss << endl;
 
-			// maxPlyは更新しない思考エンジンがあるので、0で初期化しておき、
-			// dのほうが大きければそれをそのまま表示することで回避する。
-
 			ss  << "info"
 				<< " depth "    << d
-				<< " seldepth " << max(d, rootMoves[i].selDepth)
+				<< " seldepth " << rootMoves[i].selDepth
 				<< " score "    << USI::score_to_usi(v);
 
 			// これが現在探索中の指し手であるなら、それがlowerboundかupperboundかは表示させる
@@ -175,14 +173,14 @@ namespace USI
 				ss << " multipv " << (i + 1);
 
 			ss << " nodes " << nodes_searched
-				<< " nps " << nodes_searched * 1000 / elapsed;
+			   << " nps " << nodes_searched * 1000 / elapsed;
 
 			// 置換表使用率。経過時間が短いときは意味をなさないので出力しない。
 			if (elapsed > 1000)
 				ss << " hashfull " << TT.hashfull();
 
 			ss << " time " << elapsed
-				<< " pv";
+			   << " pv";
 
 
 			// PV配列からPVを出力する。
@@ -309,7 +307,7 @@ namespace USI
 		// 並列探索するときのスレッド数
 		// CPUの搭載コア数をデフォルトとすべきかも知れないが余計なお世話のような気もするのでしていない。
 
-		o["Threads"] << Option(4, 1, 512, [](const Option& ) { Threads.read_usi_options(); });
+		o["Threads"] << Option(4, 1, 512, [](const Option& o) { Threads.set(o); });
 
 		// USIプロトコルでは、"USI_Hash"なのだが、
 		// 置換表サイズを変更しての自己対戦などをさせたいので、
@@ -379,7 +377,7 @@ namespace USI
 		o["EvalDir"] << Option("eval", [](const USI::Option&o) { load_eval_finished = false; });
 
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32) && \
-	 (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) ||  defined(EVAL_EXPERIMENTAL))
+	 (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_EXPERIMENTAL))
 		// 評価関数パラメーターを共有するか
 		// 異種評価関数との自己対局のときにこの設定で引っかかる人が後を絶たないのでデフォルトでオフにする。
 		o["EvalShare"] << Option(false);
@@ -464,35 +462,30 @@ u64 eval_sum;
 
 // is_ready_cmd()を外部から呼び出せるようにしておく。(benchコマンドなどから呼び出したいため)
 // 局面は初期化されないので注意。
-void is_ready()
+void is_ready(bool skipCorruptCheck)
 {
 	// 評価関数の読み込みなど時間のかかるであろう処理はこのタイミングで行なう。
 	// 起動時に時間のかかる処理をしてしまうと将棋所がタイムアウト判定をして、思考エンジンとしての認識をリタイアしてしまう。
-#if defined(EVAL_LEARN)
-	if (!Options["SkipLoadingEval"])
-#endif
+	if (!load_eval_finished)
 	{
-		if (!load_eval_finished)
-		{
-			// 評価関数の読み込み
-			Eval::load_eval();
+		// 評価関数の読み込み
+		Eval::load_eval();
 
-			// チェックサムの計算と保存(その後のメモリ破損のチェックのため)
-			eval_sum = Eval::calc_check_sum();
+		// チェックサムの計算と保存(その後のメモリ破損のチェックのため)
+		eval_sum = Eval::calc_check_sum();
 
-			// ソフト名の表示
-			Eval::print_softname(eval_sum);
+		// ソフト名の表示
+		Eval::print_softname(eval_sum);
 
-			load_eval_finished = true;
+		load_eval_finished = true;
 
-		}
-		else {
-
-			// メモリが破壊されていないかを調べるためにチェックサムを毎回調べる。
-			// 時間が少しもったいない気もするが.. 0.1秒ぐらいのことなので良しとする。
-			if (eval_sum != Eval::calc_check_sum())
-				sync_cout << "Error! : evaluate memory is corrupted" << sync_endl;
-		}
+	}
+	else
+	{
+		// メモリが破壊されていないかを調べるためにチェックサムを毎回調べる。
+		// 時間が少しもったいない気もするが.. 0.1秒ぐらいのことなので良しとする。
+		if (!skipCorruptCheck && eval_sum != Eval::calc_check_sum())
+			sync_cout << "Error! : EVAL memory is corrupted" << sync_endl;
 	}
 
 	// isreadyに対してはreadyokを返すまで次のコマンドが来ないことは約束されているので
@@ -502,7 +495,7 @@ void is_ready()
 	Search::clear();
 	Time.availableNodes = 0;
 
-	ponder_mode = false;
+	Threads.received_go_ponder = false;
 	Threads.stop = false;
 }
 
@@ -520,16 +513,11 @@ void is_ready_cmd(Position& pos)
 	// evalの値を返せるようにこのタイミングで平手局面で初期化してしまう。
 	pos.set(SFEN_HIRATE , Threads.main());
 
-	// このままgoコマンドが来た場合、Statesには1つStateInfoを積んでおかなければならないのに
-	// そうなっていないのでまずい。
-	States = Search::StateStackPtr(new aligned_stack<StateInfo>);
-	States->push(StateInfo());
-
 	sync_cout << "readyok" << sync_endl;
 }
 
 // "position"コマンド処理部
-void position_cmd(Position& pos, istringstream& is)
+void position_cmd(Position& pos, istringstream& is , StateListPtr& states)
 {
 	Move m;
 	string token, sfen;
@@ -554,20 +542,18 @@ void position_cmd(Position& pos, istringstream& is)
 
 	pos.set(sfen , Threads.main());
 
-	States = Search::StateStackPtr(new aligned_stack<StateInfo>);
-	// 要素が一つもないとempty checkとか面倒なので積んでおくことになっている。
-	States->push(StateInfo());
+	// 古いものは捨てて新しいものを作る。
+	states = StateListPtr(new StateList(1));
 
 	// 指し手のリストをパースする(あるなら)
 	while (is >> token && (m = move_from_usi(pos, token)) != MOVE_NONE)
 	{
 		// 1手進めるごとにStateInfoが積まれていく。これは千日手の検出のために必要。
-		// ToDoあとで考える。
-		States->push(StateInfo());
+		states->emplace_back();
 		if (m == MOVE_NULL) // do_move に MOVE_NULL を与えると死ぬので
-			pos.do_null_move(States->top());
+			pos.do_null_move(states->back());
 		else
-			pos.do_move(m, States->top());
+			pos.do_move(m, states->back());
 	}
 }
 
@@ -624,10 +610,11 @@ void getoption_cmd(istringstream& is)
 
 // go()は、思考エンジンがUSIコマンドの"go"を受け取ったときに呼び出される。
 // この関数は、入力文字列から思考時間とその他のパラメーターをセットし、探索を開始する。
-void go_cmd(const Position& pos, istringstream& is) {
+void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 
 	Search::LimitsType limits;
 	string token;
+	bool ponderMode = false;
 
 	// 思考開始時刻の初期化。なるべく早い段階でこれをしておかないとサーバー時間との誤差が大きくなる。
 	Time.reset();
@@ -696,10 +683,10 @@ void go_cmd(const Position& pos, istringstream& is) {
 		// ponderモードでの思考。
 		else if (token == "ponder")
 		{
-			limits.ponder = 1;
+			ponderMode = true;
 
 			// 試合開始後、一度でも"go ponder"が送られてきたら、それを記録しておく。
-			ponder_mode = true;
+			Threads.received_go_ponder = true;
 		}
 	}
 
@@ -708,9 +695,7 @@ void go_cmd(const Position& pos, istringstream& is) {
 	if (limits.byoyomi[BLACK] == 0 && limits.inc[BLACK] == 0 && limits.time[BLACK] == 0 && limits.rtime == 0)
 		limits.byoyomi[BLACK] = limits.byoyomi[WHITE] = 1000;
 
-	limits.ponder_mode = ponder_mode;
-
-	Threads.start_thinking(pos, States , limits);
+	Threads.start_thinking(pos, states , limits , ponderMode);
 }
 
 
@@ -727,6 +712,9 @@ void USI::loop(int argc, char* argv[])
 
 	string cmd, token;
 
+	// 局面を遡るためのStateInfoのlist。
+	StateListPtr states(new StateList(1));
+	
 	// 先行入力されているコマンド
 	// コマンドは前から取り出すのでqueueを用いる。
 	queue<string> cmds;
@@ -803,22 +791,21 @@ void USI::loop(int argc, char* argv[])
 				gameover_handler(cmd);
 #endif
 
+			// "go infinite" , "go ponder"などで思考を終えて寝てるかも知れないが、
+			// そいつらはThreads.stopを待っているので問題ない。
 			Threads.stop = true;
-
-			// 思考を終えて寝てるかも知れないのでresume==trueにして呼び出してやる
-			Threads.main()->start_searching(true);
 
 		} else if (token == "ponderhit")
 		{
 			Time.reset_for_ponderhit(); // ponderhitから計測しなおすべきである。
-			Search::Limits.ponder = 0; // 通常探索に切り替える。
+			Threads.ponder = false; // 通常探索に切り替える。
 		}
 
 		// 与えられた局面について思考するコマンド
-		else if (token == "go") go_cmd(pos, is);
+		else if (token == "go") go_cmd(pos, is , states);
 
 		// (思考などに使うための)開始局面(root)を設定する
-		else if (token == "position") position_cmd(pos, is);
+		else if (token == "position") position_cmd(pos, is , states);
 
 		// 起動時いきなりこれが飛んでくるので速攻応答しないとタイムアウトになる。
 		else if (token == "usi")
@@ -843,7 +830,7 @@ void USI::loop(int argc, char* argv[])
 		else if (token == "matsuri") pos.set("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1",Threads.main());
 
 		// "position sfen"の略。
-		else if (token == "sfen") position_cmd(pos, is);
+		else if (token == "sfen") position_cmd(pos, is , states);
 
 		// ログファイルの書き出しのon
 		else if (token == "log") start_logger(true);

@@ -91,18 +91,26 @@
 // 確保するのはもったいないので、そのテーブルを確保するかどうかを選択するためのオプション。
 // 評価関数を用いるなら、どれか一つを選択すべし。
 
-// #define EVAL_NO_USE    // 評価関数を用いないとき。
-// #define EVAL_MATERIAL  // 駒得のみの評価関数
-// #define EVAL_PP        // ツツカナ型 2駒関係(開発予定なし)
-// #define EVAL_KPP       // Bonanza型 3駒関係
-// #define EVAL_KPPT      // Bonanza型 3駒関係、手番つき(Apery WCSC26相当)
-// #define EVAL_KPP_KKPT  // KK手番あり + KKP手番あり + KPP手番なし(Ponanza WCSC26相当？)
-// #define EVAL_KPP_PPT   // PP手番あり + KKP手番あり + KPP手番なし(実装、途中まで)
-// #define EVAL_KKPPT     // KPPTよりevaluateが倍ぐらい速くなる。メモリ使用量64倍。(実装予定なし)
-// #define EVAL_KPPP_PPT  // PP手番あり + KKP手番あり + KPPP(4駒関係)手番なし。(実装するかも)
-// #define EVAL_PPET      // 技巧型 2駒+利き+手番(実装予定なし)
-// #define EVAL_KKPPT     // KKPPT型 4駒関係 手番(55将棋、56将棋で用いるかも)(実装するかも)
-// #define EVAL_PPAT      // 3駒 + Piece-Piece-and Pawn型(実装するかも)
+// 「○」がついているもの..実装済み
+// 「×」がついているもの..実装予定なし
+// 「？」がついているもの..実装するかも
+// 「！」がついているもの..かつて実装していたがサポートを終了したもの。
+
+// #define EVAL_NO_USE    // ○  評価関数を用いないとき。
+// #define EVAL_MATERIAL  // ○  駒得のみの評価関数
+// #define EVAL_PP        // ×  ツツカナ型 2駒関係(開発予定なし)
+// #define EVAL_KPP       // ！  Bonanza型 3駒関係、手番なし
+// #define EVAL_KPPT      // ○  Bonanza型 3駒関係、手番つき(Apery WCSC26相当)
+// #define EVAL_KPP_KKPT  // ○  KK手番あり + KKP手番あり + KPP手番なし(Ponanza WCSC26相当？)
+// #define EVAL_KPP_PPT   // ×  PP手番あり + KKP手番あり + KPP手番なし(実装、途中まで)
+// #define EVAL_KKPPT     // ×  KPPTよりevaluateが倍ぐらい速くなる。メモリ使用量64倍。(実装予定なし)
+// #define EVAL_KPPP_KKPT // ？  KKP手番あり + KPP手番なし + KPPP(4駒関係)手番なし。(実装するかも)
+// #define EVAL_KPPPT     // ×  KPPP(4駒関係)手番あり。(実装予定なし)
+// #define EVAL_PPET      // ×  技巧型 2駒+利き+手番(実装予定なし)
+// #define EVAL_KKPPT     // ？  KKPPT型 4駒関係 手番(55将棋、56将棋で用いるかも)(実装するかも)
+// #define EVAL_PPAP      // ？  3駒 + Piece-Piece-and Pawn型(実装するかも)
+// #define EVAL_NABLA     // ？  ∇(ナブラ) 評価関数
+// #define EVAL_AKASHIC   // ？  Akashic Records 評価関数
 
 // KPPT評価関数の学習に使うときのモード
 // #define EVAL_LEARN
@@ -142,9 +150,6 @@
 // 定跡を作るコマンド("makebook")を有効にする。
 // #define ENABLE_MAKEBOOK_CMD
 
-// 標準で用意されているMovePickerを用いるか
-// #define USE_MOVE_PICKER_2016Q2
-
 // 入玉時の宣言勝ちを用いるか
 // #define USE_ENTERING_KING_WIN
 
@@ -162,12 +167,6 @@
 
 // 指し手生成のときに上位16bitにto(移動後の升)に来る駒を格納する。
 // #define KEEP_PIECE_IN_GENERATE_MOVES
-
-// 探索スレッドごとにCounterMoveHistoryを持つ。
-// #define PER_THREAD_COUNTERMOVEHISTORY
-
-// 探索StackごとにHistoryを持つ。
-// #define PER_STACK_HISTORY
 
 // 評価関数を計算したときに、それをHashTableに記憶しておく機能。KPPT評価関数においてのみサポート。
 // #define USE_EVAL_HASH
@@ -215,6 +214,15 @@
 #define EVAL_KPPT
 //#define EVAL_KPP_KKPT
 
+//#define EVAL_KPPP_KKPT 18
+//#define EVAL_KPPP_KKPT 36
+//#define USE_KPPP_KKPT_MIRROR
+
+//#define EVAL_KPPPT 18
+//#define USE_KPPPT_MIRROR
+
+//#define EVAL_NABLA
+//#define EVAL_AKASHIC
 
 // 実験中の評価関数
 // 評価関数の番号を選択できる。0001～9999から選ぶ。
@@ -224,17 +232,14 @@
 
 #define USE_EVAL_HASH
 #define USE_SEE
-#define USE_MOVE_PICKER_2017Q2
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
 #define KEEP_PIECE_IN_GENERATE_MOVES
 #define ONE_PLY_EQ_1
-#define PER_THREAD_COUNTERMOVEHISTORY
-#define PER_STACK_HISTORY
 
 // デバッグ絡み
-#define ASSERT_LV 3
+//#define ASSERT_LV 3
 //#define USE_DEBUG_ASSERT
 
 #define ENABLE_TEST_CMD
@@ -390,7 +395,7 @@ extern GlobalOptions_ GlobalOptions;
 #include <cstddef>		// offsetof
 #include <array>
 #include <functional>	// function 
-
+#include <limits>       // numeric_limits
 
 // --------------------
 //      configure
@@ -403,7 +408,7 @@ extern GlobalOptions_ GlobalOptions;
 // USE_DEBUG_ASSERTが有効なときには、ASSERTの内容を出力したあと、3秒待ってから
 // アクセス違反になるようなコードを実行する。
 #if !defined (USE_DEBUG_ASSERT)
-#define ASSERT(X) { if (!(X)) *(int*)1 =0; }
+#define ASSERT(X) { if (!(X)) *(int*)1 = 0; }
 #else
 #define ASSERT(X) { if (!(X)) { std::cout << "\nError : ASSERT(" << #X << ")" << std::endl; \
  std::this_thread::sleep_for(std::chrono::microseconds(3000)); *(int*)1 =0;} }
@@ -631,32 +636,28 @@ inline int MKDIR(std::string dir_name)
 // -- 評価関数の種類によりエンジン名に使用する文字列を変更する。
 #if defined(EVAL_MATERIAL)
 #define EVAL_TYPE_NAME "Material"
-#elif defined(EVAL_PP)
-#define EVAL_TYPE_NAME "PP"
-#elif defined(EVAL_KPP)
-#define EVAL_TYPE_NAME "KPP"
-#elif defined(EVAL_PPE)
-#define EVAL_TYPE_NAME "PPE"
 #elif defined(EVAL_KPPT)
 #define EVAL_TYPE_NAME "KPPT"
 #elif defined(EVAL_KPP_KKPT)
 #define EVAL_TYPE_NAME "KPP_KKPT"
+#elif defined(EVAL_KPPPT)
+#define EVAL_TYPE_NAME "KPPPT"
+#elif defined(EVAL_KPPP_KKPT)
+#define EVAL_TYPE_NAME "KPPP_KKPT"
 #else
 #define EVAL_TYPE_NAME ""
 #endif
 
-// PP,KPP,KKPT,KPPT,PPEならdo_move()のときに移動した駒の管理をして差分計算
+// do_move()のときに移動した駒の管理をして差分計算
 // また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
 // あらゆる局面でP(駒)の数が増えないFV38と呼ばれる形式の差分計算用。
-#if defined(EVAL_PP) || defined(EVAL_KPP) || defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) \
-	 || defined(EVAL_PPE) || defined(EVAL_KPP_PPT)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT)
 #define USE_FV38
 #endif
 
 // P(駒)の数が増えたり減ったりするタイプの差分計算用
 // 平均的には30枚以下のPで済むのでこの方式をFV30と命名
 //#define USE_FV30
-
 
 // -- 評価関数の種類により、盤面の利きの更新ときの処理が異なる。(このタイミングで評価関数の差分計算をしたいので)
 

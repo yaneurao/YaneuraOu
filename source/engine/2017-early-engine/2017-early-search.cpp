@@ -153,7 +153,7 @@ namespace YaneuraOu2017Early
 	// Rootはここでは用意しない。Rootに特化した関数を用意するのが少し無駄なので。
 	enum NodeType { NonPV , PV };
 
-	//  lazy SMPで用いるテーブル
+	//  Lazy SMPで用いるテーブル
 
 	// スレッド間の探索深さを分散させるために使用されるスキップブロックに対するsizeとphase。
 	const int skipSize[]  = { 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4 };
@@ -260,7 +260,7 @@ namespace YaneuraOu2017Early
 	{
 		for (int i : { 1, 2, 4})
 			if (is_ok((ss - i)->currentMove))
-				(ss - i)->history->update(pc, s, bonus);
+				(ss - i)->contHistory->update(pc, s, bonus);
 	}
 
 	// いい探索結果だったときにkiller等を更新する
@@ -284,7 +284,7 @@ namespace YaneuraOu2017Early
 		Color c = pos.side_to_move();
 
 		Thread* thisThread = pos.this_thread();
-		thisThread->history.update(c, move, bonus);
+		thisThread->mainHistory.update(c, move, bonus);
 		update_cm_stats(ss, pos.moved_piece_after(move), to_sq(move), bonus);
 
 		if (is_ok((ss - 1)->currentMove))
@@ -300,7 +300,7 @@ namespace YaneuraOu2017Early
 		// その他のすべてのquiet movesを減少させる。
 		for (int i = 0; i < quietsCnt; ++i)
 		{
-			thisThread->history.update(c, quiets[i], -bonus);
+			thisThread->mainHistory.update(c, quiets[i], -bonus);
 			update_cm_stats(ss, pos.moved_piece_after(quiets[i]), to_sq(quiets[i]), -bonus);
 		}
 	}
@@ -474,7 +474,7 @@ namespace YaneuraOu2017Early
 
 				// 置換表に格納されていたスコアは、この局面で今回探索するものと同等か少しだけ劣るぐらいの
 				// 精度で探索されたものであるなら、それをbestValueの初期値として使う。
-				if (ttValue != VALUE_NONE
+				if (   ttValue != VALUE_NONE
 					&& (tte->bound() & (ttValue > bestValue ? BOUND_LOWER : BOUND_UPPER)))
 						bestValue = ttValue;
 
@@ -526,7 +526,7 @@ namespace YaneuraOu2017Early
 		// 取り合いの指し手だけ生成する
 		// searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうるが、
 		// 静止探索の1つ目の深さではrecaptureを生成しないならこれは問題とならない。
-		MovePicker mp(pos, ttMove, depth, to_sq((ss - 1)->currentMove));
+		MovePicker mp(pos, ttMove, depth, &pos.this_thread()->mainHistory, to_sq((ss - 1)->currentMove));
 		Move move;
 		Value value;
 
@@ -836,10 +836,10 @@ namespace YaneuraOu2017Early
 		// -----------------------
 
 		// historyの合計値を計算してcacheしておく用。
-		ss->history = 0;
+		ss->statScore = 0;
 
 		ss->currentMove = MOVE_NONE;
-		ss->history = &thisThread->counterMoveHistory[SQ_ZERO][NO_PIECE];
+		ss->contHistory = &thisThread->counterMoveHistory[SQ_ZERO][NO_PIECE];
 
 		// ss->moveCountはこのあとMovePickerがこのnodeの指し手を生成するより前に
 		// 枝刈り等でsearch()を再帰的に呼び出すことがあり、そのときに親局面のmoveCountベースで
@@ -929,7 +929,7 @@ namespace YaneuraOu2017Early
 				else if (!pos.capture_or_promotion(ttMove))
 				{
 					int penalty = -stat_bonus(depth);
-					thisThread->history.update(pos.side_to_move(), ttMove, penalty);
+					thisThread->mainHistory.update(pos.side_to_move(), ttMove, penalty);
 					update_cm_stats(ss, pos.moved_piece_after(ttMove), to_sq(ttMove), penalty);
 				}
 			}
@@ -1138,7 +1138,7 @@ namespace YaneuraOu2017Early
 			return eval;
 		// 次のようにするより、単にevalを返したほうが良いらしい。
 		//	 return eval - futility_margin(depth);
-		// cf. https://github.com/official-stockfish/Stockfish/commit/f799610d4bb48bc280ea7f58cd5f78ab21028bf5
+		// cf. Simplify futility pruning return value : https://github.com/official-stockfish/Stockfish/commit/f799610d4bb48bc280ea7f58cd5f78ab21028bf5
 
 		// -----------------------
 		// Step 8. Null move search with verification search (is omitted in PV nodes)
@@ -1159,7 +1159,7 @@ namespace YaneuraOu2017Early
 				+ std::min((int)((eval - beta) / PawnValue), 3)) * ONE_PLY;
 
 			ss->currentMove = MOVE_NONE;
-			ss->history = &thisThread->counterMoveHistory[SQ_ZERO][NO_PIECE];
+			ss->contHistory = &thisThread->counterMoveHistory[SQ_ZERO][NO_PIECE];
 
 			pos.do_null_move(st);
 
@@ -1220,7 +1220,7 @@ namespace YaneuraOu2017Early
 				if (pos.legal(move))
 				{
 					ss->currentMove = move;
-					ss->history = &thisThread->counterMoveHistory[to_sq(move)][pos.moved_piece_after(move)];
+					ss->contHistory = &thisThread->counterMoveHistory[to_sq(move)][pos.moved_piece_after(move)];
 
 					pos.do_move(move, st, pos.gives_check(move));
 					value = -search<NonPV>(pos, ss + 1, -rbeta, -rbeta + 1, rdepth, !cutNode,false);
@@ -1259,13 +1259,6 @@ namespace YaneuraOu2017Early
 
 		// 王手がかかっている局面では、探索はここから始まる。
 	moves_loop:
-
-		// cmh  = Counter Move History    : ある指し手が指されたときの応手
-		// fmh  = Follow up Move History  : 2手前の自分の指し手の継続手
-		// fm2  = Follow up Move History2 : 4手前からの継続手
-		const PieceToHistory& cmh  = *(ss - 1)->history;
-		const PieceToHistory& fmh  = *(ss - 2)->history;
-		const PieceToHistory& fm2  = *(ss - 4)->history;
 
 		// 評価値が2手前の局面から上がって行っているのかのフラグ
 		// 上がって行っているなら枝刈りを甘くする。
@@ -1308,7 +1301,17 @@ namespace YaneuraOu2017Early
 		// ss->staticEvalに代入するとimprovingの判定間違うのでそれはしないほうがよさげ。
 		evaluate_with_no_return(pos);
 
-		MovePicker mp(pos, ttMove, depth, ss);
+		Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
+
+		// (ss - 1)->currentMove == MOVE_NONEである可能性はある。
+		// そのときは、prevPc == NO_PIECEになり、それでもうまく動作する。
+		Move countermove = thisThread->counterMoves[prevSq][prevPc];
+
+		// contHist[0]  = Counter Move History    : ある指し手が指されたときの応手
+		// contHist[1]  = Follow up Move History  : 2手前の自分の指し手の継続手
+		// contHist[3]  = Follow up Move History2 : 4手前からの継続手
+		const PieceToHistory* contHist[] = { (ss - 1)->contHistory, (ss - 2)->contHistory, nullptr, (ss - 4)->contHistory };
+		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory, contHist, countermove, ss->killers);
 
 #if defined(__GNUC__)
 		// g++でコンパイルするときにvalueが未初期化かも知れないという警告が出るのでその回避策。
@@ -1390,7 +1393,7 @@ namespace YaneuraOu2017Early
 			bool captureOrPawnPromotion = pos.capture_or_pawn_promotion(move);
 
 			// 今回移動させる駒(移動後の駒。駒打ちの場合は区別する)
-			Piece moved_piece = pos.moved_piece_after(move);
+			Piece movedPiece = pos.moved_piece_after(move);
 
 			// 今回の指し手で王手になるかどうか
 			bool givesCheck = pos.gives_check(move);
@@ -1488,15 +1491,13 @@ namespace YaneuraOu2017Early
 			// 浅い深さでの枝刈り
 
 
-			// このあと、この指し手のhistoryの値などを調べたいのでいま求めてしまう。
-			Square moved_sq = to_sq(move);
-			Piece moved_pc = pos.moved_piece_after(move);
-
+			// この指し手による駒の移動先の升。historyの値などを調べたいのでいま求めてしまう。
+			Square movedSq = to_sq(move);
 
 			if (  !RootNode
 			//	&& !inCheck
 			// →　王手がかかっていても以下の枝刈りはしたほうが良いらしいが…。
-			// cf. 	https://github.com/official-stockfish/Stockfish/commit/ab26c61971c2f73d312b003e6d024373fbacf8e6
+			// cf. Allow inCheck pruning  : https://github.com/official-stockfish/Stockfish/commit/ab26c61971c2f73d312b003e6d024373fbacf8e6
 			// T1,r300,2501 - 73 - 2426(50.76% R5.29)
 			// T1,b1000,2428 - 97 - 2465(49.62% R-2.63)
 			// 1秒のほうではやや勝ち越し。計測できない程度の差だが良しとする。
@@ -1528,8 +1529,8 @@ namespace YaneuraOu2017Early
  					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH
 						//					&& move != ss->killers[0]
 						// →　このkillerの判定は入れないほうが強いらしい。
-						&& (cmh[moved_sq][moved_piece] < CounterMovePruneThreshold) 
-						&& (fmh[moved_sq][moved_piece] < CounterMovePruneThreshold))
+						&& ((*contHist[0])[movedSq][movedPiece] < CounterMovePruneThreshold)
+						&& ((*contHist[1])[movedSq][movedPiece] < CounterMovePruneThreshold))
 						continue;
 
 					// Futility pruning: at parent node
@@ -1593,7 +1594,7 @@ namespace YaneuraOu2017Early
 
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
-			ss->history = &thisThread->counterMoveHistory[moved_sq][moved_pc];
+			ss->contHistory = &thisThread->counterMoveHistory[movedSq][movedPiece];
 
 			// -----------------------
 			// Step 14. Make the move
@@ -1660,24 +1661,19 @@ namespace YaneuraOu2017Early
 #endif
 
 					// ToDo:ここ、fmh,fmh2を見たほうがいいかは微妙。
-					ss->statScore = cmh[moved_sq][moved_piece]
-								  + fmh[moved_sq][moved_piece]
-								  + fm2[moved_sq][moved_piece]
-								  + thisThread->history[from_to(move)][~pos.side_to_move()]
+					ss->statScore = thisThread->mainHistory[from_to(move)][~pos.side_to_move()]
+								  + (*contHist[0])[movedSq][movedPiece]
+								  + (*contHist[1])[movedSq][movedPiece]
+								  + (*contHist[3])[movedSq][movedPiece]
 								  - PARAM_REDUCTION_BY_HISTORY; // 修正項
 
-
 					// historyの値に応じて指し手のreduction量を増減する。
-#if 0
 
-					// これ、やったほうがいいかどうかは微妙。1秒、3秒においてはやると弱くなるようだが…。
-					// T1,b1000,2135 - 84 - 2071(50.76% R5.29)
-					// T1,b3000,640 - 34 - 576(52.63% R18.3)
-
-					if (ss->history > 0 && (ss - 1)->history < 0)
+#if 0	// ToDo : 新コードで計測しなおす。
+					if (ss->statScore > 0 && (ss - 1)->statScore < 0)
 						r -= ONE_PLY;
 
-					else if (ss->history < 0 && (ss - 1)->history > 0)
+					else if (ss->statScore < 0 && (ss - 1)->statScore > 0)
 						r += ONE_PLY;
 #endif
 
@@ -2128,6 +2124,10 @@ void gameover_handler(const std::string& cmd)
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
 void Search::clear()
 {
+	// 前の探索の終了を待たないと、"bestmove"応答を受け取る前に次のisreadyコマンドを送ってくる不埒なGUIがあるとも限らない。
+	// 実際、"bestmove"を受け取るのを待つコードを書くと受信側のコードが複雑化するので、ここで一つ前の探索の終了を待ってあげるのは良いコード。
+	Threads.main()->wait_for_search_finished();
+
 	// -----------------------
 	//   探索パラメーターの初期化
 	// -----------------------
@@ -2198,22 +2198,12 @@ void Search::clear()
 	//   置換表のクリアなど
 	// -----------------------
 
+	Time.availableNodes = 0;
 	TT.clear();
 
 	// Threadsが変更になってからisreadyが送られてこないとisreadyでthread数だけ初期化しているものはこれではまずい。
 	for (Thread* th : Threads)
-	{
-		th->counterMoves.fill(MOVE_NONE);
-		th->history.fill(0);
-
-		// ここは、未初期化のときに[SQ_ZERO][NO_PIECE]を指すので、ここを-1で初期化しておくことによって、
-		// history > 0 を条件にすれば自ずと未初期化のときは除外されるようになる。
-		for (auto& to : th->counterMoveHistory)
-			for (auto& h : to)
-				h.fill(0);
-
-		th->counterMoveHistory[SQ_ZERO][NO_PIECE].fill(CounterMovePruneThreshold - 1);
-	}
+		th->clear();
 
 	Threads.main()->callsCnt = 0;
 	Threads.main()->previousScore = VALUE_INFINITE;
@@ -2221,7 +2211,7 @@ void Search::clear()
 
 
 // 探索本体。並列化している場合、ここがslaveのエントリーポイント。
-// lazy SMPなので、それぞれのスレッドが勝手に探索しているだけ。
+// Lazy SMPなので、それぞれのスレッドが勝手に探索しているだけ。
 void Thread::search()
 {
 	// ---------------------
@@ -2266,7 +2256,7 @@ void Thread::search()
 
 	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
 	for (int i = 4; i > 0; i--)
-		(ss - i)->history = &this->counterMoveHistory[SQ_ZERO][NO_PIECE];
+		(ss - i)->contHistory = &this->counterMoveHistory[SQ_ZERO][NO_PIECE];
 
 	// 反復深化のiterationが浅いうちはaspiration searchを使わない。
 	// 探索窓を (-VALUE_INFINITE , +VALUE_INFINITE)とする。
@@ -2313,7 +2303,7 @@ void Thread::search()
 		&& !(Limits.depth && mainThread && rootDepth / ONE_PLY > Limits.depth))
 	{
 		// ------------------------
-		// lazy SMPのための初期化
+		// Lazy SMPのための初期化
 		// ------------------------
 
 		// スレッド間の探索深さの分散
@@ -2364,7 +2354,7 @@ void Thread::search()
 				delta = Value(18);
 
 				alpha = std::max(rootMoves[PVIdx].previousScore - delta, -VALUE_INFINITE);
-				beta = std::min(rootMoves[PVIdx].previousScore + delta, VALUE_INFINITE);
+				beta  = std::min(rootMoves[PVIdx].previousScore + delta,  VALUE_INFINITE);
 			}
 
 			while (true)
@@ -2374,7 +2364,9 @@ void Thread::search()
 				// それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
 				// 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
 				// 用いないと前回の反復深化の結果によって得た並び順を変えてしまうことになるのでまずい。
-				std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
+				
+				 stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
+				//my_stable_sort(rootPos.this_thread()->thread_id(),&rootMoves[0] + PVIdx, rootMoves.size() - PVIdx);
 				
 				if (Threads.stop)
 					break;
@@ -2422,7 +2414,7 @@ void Thread::search()
 					// fails high
 
 					// このときalphaは動かさないほうが良いらしい。
-					// cf. https://github.com/official-stockfish/Stockfish/commit/a6ae2d3a31e93000e65bdfd8f0b6d9a3e6b8ce1b
+					// cf. Simplify aspiration window : https://github.com/official-stockfish/Stockfish/commit/a6ae2d3a31e93000e65bdfd8f0b6d9a3e6b8ce1b
 					beta = std::min(bestValue + delta, VALUE_INFINITE);
 
 				else
@@ -2437,7 +2429,9 @@ void Thread::search()
 
 			// MultiPVの候補手をスコア順に再度並び替えておく。
 			// (二番目だと思っていたほうの指し手のほうが評価値が良い可能性があるので…)
-			std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
+
+			stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
+			//my_stable_sort(rootPos.this_thread()->thread_id(),&rootMoves[0],PVIdx + 1);
 
 			if (!mainThread)
 				continue;
@@ -2547,7 +2541,7 @@ void Thread::search()
 					// 思考を継続したほうが得なので、思考自体は継続して、キリの良い時間になったらcheck_time()にて停止する。
 
 					// ponder中なら、終了時刻はponderhit後から計算して、Time.minimum()。
-					if (Limits.ponder)
+					if (Threads.ponder)
 						Time.search_end = Time.minimum();
 					else
 					{
@@ -2600,9 +2594,10 @@ void MainThread::think()
 	// root nodeにおける自分の手番
 	auto us = rootPos.side_to_move();
 
-	// lazy SMPではcompletedDepthを最後に比較するのでこれをゼロ初期化しておかないと
+	// Stockfishには存在しないコードではあるが、
+	// Lazy SMPではcompletedDepthを最後に比較するのでこれをゼロ初期化しておかないと
 	// 探索しないときにThreads.main()の指し手が選ばれない。
-	// 将棋用に改造する際に、定跡の指し手を指せるように改造しているので、その影響。
+	// 将棋用に改造する際に、定跡の指し手を指せるようにStockfishから改造しているので、その影響。
 	for (Thread* th : Threads)
 		th->completedDepth = DEPTH_ZERO;
 
@@ -2703,7 +2698,7 @@ void MainThread::think()
 		// main threadが開始されてからだと、slaveがすでに少し探索している。
 		// それらは古い世代で置換表に書き込んでしまう。
 		// よってslaveが動く前であるこのタイミングで置換表の世代を進めるべきである。
-		// cf. https://github.com/official-stockfish/Stockfish/pull/1134
+		// cf. Call TT.new_search() earlier.  : https://github.com/official-stockfish/Stockfish/commit/ebc563059c5fc103ca6d79edb04bb6d5f182eaf5
 
 		TT.new_search();
 
@@ -2727,30 +2722,32 @@ ID_END:;
 		Time.availableNodes = std::max(Time.availableNodes + Limits.inc[us] - (s64)Threads.nodes_searched(), (s64)0);
 
 	// 最大depth深さに到達したときに、ここまで実行が到達するが、
-	// まだSignals.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
-	// USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまで
-	// best moveを出力すべきではない。
+	// まだThreads.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
+	// USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまでbest moveを出力してはならない。
 	// それゆえ、単にここでGUIからそれらのいずれかのコマンドが送られてくるまで待つ。
-	if (!Threads.stop && (Limits.ponder || Limits.infinite))
+	// "stop"が送られてきたらThreads.stop == trueになる。
+	// "ponderhit"が送られてきたらThreads.ponder == falseになるので、それを待つ。(stopOnPonderhitは用いない)
+	// "go infinite"に対してはstopが送られてくるまで待つ。
+	// ちなみにStockfishのほう、ここのコードに長らく同期上のバグがあった。
+	// やねうら王のほうは、かなり早くからこの構造で書いていた。最近のStockfishではこの書き方に追随した。
+	while (!Threads.stop && (Threads.ponder || Limits.infinite))
 	{
-		// "stop"が送られてきたらSignals.stop == trueになる。
-		// "ponderhit"が送られてきたらLimits.ponder == 0になるので、それを待つ。(stopOnPonderhitは用いない)
-		//    また、このときSignals.stop == trueにはならない。(この点、Stockfishとは異なる。)
-		// "go infinite"に対してはstopが送られてくるまで待つ。
-		while (!Threads.stop && (Limits.ponder || Limits.infinite))
-			sleep(1);
 		//	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
 		// (思考のためには計算資源を使っていないので。)
+		sleep(1);
+
+		// Stockfishのコード、ここ、busy waitになっているが、さすがにそれは良くないと思う。
 	}
 
 	Threads.stop = true;
 
 	// 各スレッドが終了するのを待機する(開始していなければいないで構わない)
-	for (Thread* th : Threads.slaves)
-		th->wait_for_search_finished();
+	for (Thread* th : Threads)
+		if (th != this)
+			th->wait_for_search_finished();
 
 	// ---------------------
-	// lazy SMPの結果を取り出す
+	// Lazy SMPの結果を取り出す
 	// ---------------------
 
 	Thread* bestThread = this;
@@ -2820,7 +2817,7 @@ ID_END:;
 
 }
 
-// 残り時間をチェックして、時間になっていればSignals.stopをtrueにする。
+// 残り時間をチェックして、時間になっていればThreads.stopをtrueにする。
 // main threadからしか呼び出されないのでロジックがシンプルになっている。
 void MainThread::check_time()
 {
@@ -2845,7 +2842,7 @@ void MainThread::check_time()
 	}
 
 	// ponder中においては、GUIがstopとかponderhitとか言ってくるまでは止まるべきではない。
-	if (Limits.ponder)
+	if (Threads.ponder)
 		return;
 
 	// "ponderhit"時は、そこからの経過時間で考えないと、elapsed > Time.maximum()になってしまう。
@@ -2857,7 +2854,7 @@ void MainThread::check_time()
 	// 反復深化のループ内でそろそろ終了して良い頃合いになると、Time.search_endに停止させて欲しい時間が代入される。
 	// (それまではTime.search_endはゼロであり、これは終了予定時刻が未確定であることを示している。)
 	if ((Limits.use_time_management() &&
-		(elapsed > Time.maximum() - 10 || (Time.search_end > 0 && elapsed > Time.search_end - 10)))
+		(elapsed > Time.maximum() || (Time.search_end > 0 && elapsed > Time.search_end )))
 		|| (Limits.movetime && elapsed >= Limits.movetime)
 		|| (Limits.nodes && Threads.nodes_searched() >= Limits.nodes))
 		Threads.stop = true;
@@ -2905,8 +2902,11 @@ namespace Learner
 			th->selDepth = 0;
 			th->rootDepth = DEPTH_ZERO;
 
+			// history類を全部クリアする。この初期化は少し時間がかかるし、探索の精度はむしろ下がるので善悪はよくわからない。
+			// th->clear();
+
 			for (int i = 4; i > 0; i--)
-				(ss - i)->history = &th->counterMoveHistory[SQ_ZERO][NO_PIECE];
+				(ss - i)->contHistory = &th->counterMoveHistory[SQ_ZERO][NO_PIECE];
 
 			// rootMovesの設定
 			auto& rootMoves = th->rootMoves;
@@ -2931,9 +2931,9 @@ namespace Learner
 	// 静止探索。
 	//
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
-	// 　また、Signals.stopが来ると探索を中断してしまうので、そのときのPVは正しくない。
-	// 　search()から戻ったあと、Signals.stop == trueなら、その探索結果を用いてはならない。
-	// 　あと、呼び出し前は、Signals.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
+	// 　また、Threads.stopが来ると探索を中断してしまうので、そのときのPVは正しくない。
+	// 　search()から戻ったあと、Threads.stop == trueなら、その探索結果を用いてはならない。
+	// 　あと、呼び出し前は、Threads.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
 	//
 	// 詰まされている場合は、PV配列にMOVE_RESIGNが返る。
 	//
@@ -2981,9 +2981,9 @@ namespace Learner
 	// 呼び出し側で処理すること。
 	//
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
-	// 　また、Signals.stopが来ると探索を中断してしまうので、そのときのPVは正しくない。
-	// 　search()から戻ったあと、Signals.stop == trueなら、その探索結果を用いてはならない。
-	// 　あと、呼び出し前は、Signals.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
+	// 　また、Threads.stopが来ると探索を中断してしまうので、そのときのPVは正しくない。
+	// 　search()から戻ったあと、Threads.stop == trueなら、その探索結果を用いてはならない。
+	// 　あと、呼び出し前は、Threads.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
 
 	ValueAndPV search(Position& pos, int depth_ , size_t multiPV /* = 1*/)
 	{
@@ -3048,7 +3048,9 @@ namespace Learner
 				while (true)
 				{
 					bestValue = YaneuraOu2017Early::search<PV>(pos, ss, alpha, beta, rootDepth, false , false);
-					std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
+
+					stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
+					//my_stable_sort(pos.this_thread()->thread_id(),&rootMoves[0] + PVIdx, rootMoves.size() - PVIdx);
 
 					// fail low/highに対してaspiration windowを広げる。
 					// ただし、引数で指定されていた値になっていたら、もうfail low/high扱いとしてbreakする。
@@ -3066,7 +3068,8 @@ namespace Learner
 					ASSERT_LV3(-VALUE_INFINITE <= alpha && beta <= VALUE_INFINITE);
 				}
 
-				std::stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
+				stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
+				//my_stable_sort(pos.this_thread()->thread_id() , &rootMoves[0] , PVIdx + 1);
 
 			} // multi PV
 

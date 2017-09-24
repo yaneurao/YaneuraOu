@@ -1,10 +1,7 @@
-﻿#ifndef _EVALUATE_LEARN_KPP_KKPT_CPP_
-#define _EVALUATE_LEARN_KPP_KKPT_CPP_
-
-// KPP_KKPT評価関数の学習時用のコード
+﻿// KPP_KKPT評価関数の学習時用のコード
 // KPPTの学習用コードのコピペから少しいじった感じ。
 
-#include "../shogi.h"
+#include "../../shogi.h"
 
 #if defined(EVAL_LEARN) && defined(EVAL_KPP_KKPT)
 
@@ -12,40 +9,69 @@
 #include <omp.h>
 #endif
 
-#include "learn.h"
-#include "learning_tools.h"
-#include "../eval/evaluate_io.h"
+#include "../../learn/learn.h"
+#include "../../learn/learning_tools.h"
 
-#include "../evaluate.h"
-#include "../eval/evaluate_kpp_kkpt.h"
-#include "../eval/kppt_evalsum.h"
-#include "../eval/evaluate_io.h"
-#include "../position.h"
-#include "../misc.h"
+#include "../../evaluate.h"
+#include "../../position.h"
+#include "../../misc.h"
 
-using namespace std;
+#include "../evaluate_io.h"
+#include "../evaluate_common.h"
 
-namespace Eval
-{
-	// 学習のときの勾配配列の初期化
-	void init_grad(double eta1, u64 eta_epoch, double eta2, u64 eta2_epoch, double eta3);
-
-	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
-	// 現局面は、leaf nodeであるものとする。
-	void add_grad(Position& pos, Color rootColor, double delta_grad,bool without_kpp);
-
-	// 現在の勾配をもとにSGDかAdaGradか何かする。
-	void update_weights(u64 epoch,bool without_kpp);
-
-	// 評価関数パラメーターをファイルに保存する。
-	void save_eval(std::string dir_name);
-}
+#include "evaluate_kpp_kkpt.h"
 
 // --- 以下、定義
 
 namespace Eval
 {
 	using namespace EvalLearningTools;
+
+	// bugなどにより間違って書き込まれた値を補正する。
+	void correct_eval()
+	{
+		// kppのp1==p2のところ、値はゼロとなっていること。
+		// (差分計算のときにコードの単純化のために参照はするけど学習のときに使いたくないので)
+		// kppのp1==p2のときはkkpに足しこまれているという考え。
+		{
+			const ValueKpp kpp_zero = 0;
+			float sum = 0;
+			for (auto sq : SQ)
+				for (auto p = BONA_PIECE_ZERO; p < fe_end; ++p)
+				{
+					sum += abs(kpp[sq][p][p]);
+					kpp[sq][p][p] = kpp_zero;
+				}
+			//	cout << "info string sum kp = " << sum << endl;
+		}
+
+		// 以前Aperyの評価関数バイナリ、kppのp=0のところでゴミが入っていた。
+		// 駒落ちなどではここを利用したいので0クリアすべき。
+		{
+			const ValueKkp kkp_zero = { 0,0 };
+			for (auto sq1 : SQ)
+				for (auto sq2 : SQ)
+					kkp[sq1][sq2][0] = kkp_zero;
+
+			const ValueKpp kpp_zero = 0;
+			for (auto sq : SQ)
+				for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
+				{
+					kpp[sq][p1][0] = kpp_zero;
+					kpp[sq][0][p1] = kpp_zero;
+				}
+		}
+
+#if defined(USE_KK_INVERSE_WRITE)
+		// KKの先後対称性から、kk[bk][wk][0] == -kk[Inv(wk)][Inv(bk)][0]である。
+		// bk == Inv(wk)であるときも、この式が成立するので、このとき、kk[bk][wk][0] == 0である。
+		{
+			for (auto sq : SQ)
+				kk[sq][Inv(sq)][0] = 0;
+		}
+#endif
+	}
+
 
 	// 評価関数学習用の構造体
 
@@ -60,6 +86,9 @@ namespace Eval
 	// 引数のetaは、AdaGradのときの定数η(eta)。
 	void init_grad(double eta1, u64 eta1_epoch, double eta2, u64 eta2_epoch, double eta3)
 	{
+		// bugなどにより誤って書き込まれた値を補正する。
+		correct_eval();
+
 		// 学習で使用するテーブル類の初期化
 		EvalLearningTools::init();
 			
@@ -79,8 +108,10 @@ namespace Eval
 
 	// 現在の局面で出現している特徴すべてに対して、勾配値を勾配配列に加算する。
 	// 現局面は、leaf nodeであるものとする。
-	void add_grad(Position& pos, Color rootColor, double delta_grad , bool without_kpp)
+	void add_grad(Position& pos, Color rootColor, double delta_grad , const std::array<bool, 4>& freeze)
 	{
+		const bool freeze_kpp = freeze[2];
+
 		// LearnFloatTypeにatomicつけてないが、2つのスレッドが、それぞれx += yと x += z を実行しようとしたとき
 		// 極稀にどちらか一方しか実行されなくともAdaGradでは問題とならないので気にしないことにする。
 		// double型にしたときにWeight.gが破壊されるケースは多少困るが、double型の下位4バイトが破壊されたところで
@@ -93,7 +124,7 @@ namespace Eval
 		delta_grad /= 32.0 /*FV_SCALE*/;
 
 		// 勾配
-		array<LearnFloatType,2> g =
+		std::array<LearnFloatType,2> g =
 		{
 			// 手番を考慮しない値
 			(rootColor == BLACK             ) ? LearnFloatType(delta_grad) : -LearnFloatType(delta_grad),
@@ -103,7 +134,7 @@ namespace Eval
 		};
 
 		// 180度盤面を回転させた位置関係に対する勾配
-		array<LearnFloatType,2> g_flip = { -g[0] , g[1] };
+		std::array<LearnFloatType,2> g_flip = { -g[0] , g[1] };
 
 		Square sq_bk = pos.king_square(BLACK);
 		Square sq_wk = pos.king_square(WHITE);
@@ -134,15 +165,13 @@ namespace Eval
 		// KK
 		weights[KK(sq_bk,sq_wk).toIndex()].add_grad(g);
 
-		// flipした位置関係にも書き込む
-		//kk_w[Inv(sq_wk)][Inv(sq_bk)].g += g_flip;
-
 		for (int i = 0; i < PIECE_NO_KING; ++i)
 		{
 			BonaPiece k0 = list_fb[i];
 			BonaPiece k1 = list_fw[i];
 
-			if (!without_kpp)
+			// KPP
+			if (!freeze_kpp)
 			{
 				// このループではk0 == l0は出現しない。(させない)
 				// それはKPであり、KKPの計算に含まれると考えられるから。
@@ -151,7 +180,7 @@ namespace Eval
 					BonaPiece l0 = list_fb[j];
 					BonaPiece l1 = list_fw[j];
 
-					weights_kpp[KPP(sq_bk, k0, l0).toIndex() - KPP::min_index()].add_grad(g[0]);
+					weights_kpp[KPP(sq_bk     , k0, l0).toIndex() - KPP::min_index()].add_grad(g[0]);
 					weights_kpp[KPP(Inv(sq_wk), k1, l1).toIndex() - KPP::min_index()].add_grad(g_flip[0]);
 				}
 			}
@@ -163,13 +192,16 @@ namespace Eval
 
 	// 現在の勾配をもとにSGDかAdaGradか何かする。
 	// epoch       : 世代カウンター(0から始まる)
-	// without_kpp : kppは学習させないフラグ
-	void update_weights(u64 epoch, bool without_kpp)
+	void update_weights(u64 epoch , const std::array<bool, 4>& freeze)
 	{
 		u64 vector_length = KPP::max_index();
 
-		// KPPを学習させないなら、KKPのmaxまでだけで良い。
-		if (without_kpp)
+		const bool freeze_kk = freeze[0];
+		const bool freeze_kkp = freeze[1];
+		const bool freeze_kpp = freeze[2];
+
+		// KPPを学習させないなら、KKPのmaxまでだけで良い。あとは数が少ないからまあいいや。
+		if (freeze_kpp)
 			vector_length = KKP::max_index();
 
 		// epochに応じたetaを設定してやる。
@@ -192,7 +224,7 @@ namespace Eval
 #endif
 
 #pragma omp for schedule(dynamic,20000)
-			for (s64 index_ = 0; (u64)index_ < vector_length; ++index_)
+			for (s64 index_ = 0; index_ < (s64)vector_length; ++index_)
 			{
 				// OpenMPではループ変数は符号型変数でなければならないが
 				// さすがに使いにくい。
@@ -203,125 +235,115 @@ namespace Eval
 				if (!min_index_flag[index])
 					continue;
 
-				if (KK::is_ok(index))
+				if (KK::is_ok(index) && !freeze_kk)
 				{
-					// KKは次元下げしていないので普通にupdate
 					KK x = KK::fromIndex(index);
-					weights[index].updateFV(kk[x.king0()][x.king1()]);
-					weights[index].set_grad(zero_t);
-				}
-				else if (KKP::is_ok(index))
-				{
-					// KKPは次元下げがあるので..
-					KKP x = KKP::fromIndex(index);
-					KKP a[KKP_LOWER_COUNT];
+
+					// 次元下げ
+					KK a[KK_LOWER_COUNT];
 					x.toLowerDimensions(/*out*/a);
 
-					// a[0] == indexであることは保証されている。
-#if KKP_LOWER_COUNT==2
-					u64 ids[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
-					// 勾配を合計して、とりあえずa[0]に格納し、
-					// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す。
-					// id[0]==id[1]==id[2]==id[3]みたいな可能性があるので、gは外部で合計する
-					array<LearnFloatType, 2> g_sum = zero_t;
-					for (auto id : ids)
-						g_sum += weights[id].get_grad();
+					// 次元下げで得た情報を元に、それぞれのindexを得る。
+					u64 ids[KK_LOWER_COUNT];
+					for (int i = 0; i < KK_LOWER_COUNT; ++i)
+						ids[i] = a[i].toIndex();
 
+					// それに基いてvの更新を行い、そのvをlowerDimensionsそれぞれに書き出す。
+					// ids[0]==ids[1]==ids[2]==ids[3]みたいな可能性があるので、gは外部で合計する。
+					std::array<LearnFloatType, 2> g_sum = zero_t;
+
+					// inverseした次元下げに関しては符号が逆になるのでadjust_grad()を経由して計算する。
+					for (int i = 0; i < KK_LOWER_COUNT; ++i)
+						g_sum += a[i].adjust_grad(weights[ids[i]].get_grad());
+					
 					// 次元下げを考慮して、その勾配の合計が0であるなら、一切の更新をする必要はない。
 					if (is_zero(g_sum))
 						continue;
 
-					//cout << a[0].king0() << a[0].king1() << a[0].piece() << g_sum << endl;
+					auto& v = kk[a[0].king0()][a[0].king1()];
+					weights[ids[0]].set_grad(g_sum);
+					weights[ids[0]].updateFV(v);
+
+					for (int i = 1; i < KK_LOWER_COUNT; ++i)
+						kk[a[i].king0()][a[i].king1()] = a[i].adjust_grad(v);
+					
+					// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
+					// この場合、毎回gを通常の2倍加算していることになるが、AdaGradは適応型なのでこれでもうまく学習できる。
+					for (auto id : ids)
+						weights[id].set_grad(zero_t);
+
+				}
+				else if (KKP::is_ok(index) && !freeze_kkp)
+				{
+					// KKの処理と同様
+
+					KKP x = KKP::fromIndex(index);
+
+					KKP a[KKP_LOWER_COUNT];
+					x.toLowerDimensions(/*out*/a);
+
+					u64 ids[KKP_LOWER_COUNT];
+					for (int i = 0; i < KKP_LOWER_COUNT; ++i)
+						ids[i] = a[i].toIndex();
+
+					std::array<LearnFloatType, 2> g_sum = zero_t;
+					for (int i = 0; i <KKP_LOWER_COUNT; ++i)
+						g_sum += a[i].adjust_grad(weights[ids[i]].get_grad());
+					
+					if (is_zero(g_sum))
+						continue;
 
 					auto& v = kkp[a[0].king0()][a[0].king1()][a[0].piece()];
 					weights[ids[0]].set_grad(g_sum);
 					weights[ids[0]].updateFV(v);
 
-					kkp[a[1].king0()][a[1].king1()][a[1].piece()] = v;
-
-					// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
-					// この場合、毎回gを通常の2倍加算していることになるが、AdaGradは適応型なのでこれでもうまく学習できる。
+					for (int i = 1; i < KKP_LOWER_COUNT; ++i)
+						kkp[a[i].king0()][a[i].king1()][a[i].piece()] = a[i].adjust_grad(v);
+					
 					for (auto id : ids)
 						weights[id].set_grad(zero_t);
-					
-#elif KKP_LOWER_COUNT==4
-					u64 ids1[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
-					u64 ids2[2] = { a[2].toIndex() ,a[3].toIndex() };
-
-					// ids2はinverseしたものだから符号が逆になるので注意。
-					array<LearnFloatType, 2> g_sum = { 0,0 };
-					for (auto id : ids1) g_sum += weights[id].g;
-					for (auto id : ids2) g_sum -= weights[id].g;
-
-					// 次元下げを考慮して、その勾配の合計が0であるなら、一切の更新をする必要はない。
-					if (is_zero(g_sum))
-						continue;
-
-					//cout << a[0].king0() << a[0].king1() << a[0].piece() << g_sum << endl;
-
-					auto& v = kkp[a[0].king0()][a[0].king1()][a[0].piece()];
-					weights[ids1[0]].g = g_sum;
-					weights[ids1[0]].updateFV(v);
-
-					kkp[a[1].king0()][a[1].king1()][a[1].piece()] = v;
-					kkp[a[2].king0()][a[2].king1()][a[2].piece()] = -v;
-					kkp[a[3].king0()][a[3].king1()][a[3].piece()] = -v;
-
-					for (auto id : ids1) weights[id].g = { 0,0 };
-					for (auto id : ids2) weights[id].g = { 0,0 };
-
-#endif
 
 				}
-				else if (KPP::is_ok(index))
+				else if (KPP::is_ok(index) && !freeze_kpp)
 				{
 					KPP x = KPP::fromIndex(index);
 
-#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
-					KPP a[4];
+					KPP a[KPP_LOWER_COUNT];
 					x.toLowerDimensions(/*out*/a);
-					u64 ids[4] = { /*a[0].toIndex()*/ index , a[1].toIndex() , a[2].toIndex() , a[3].toIndex() };
-#else
-					// 3角配列を用いる場合、次元下げは2つ。
-					KPP a[2];
-					x.toLowerDimensions(/*out*/a);
-					u64 ids[2] = { /*a[0].toIndex()*/ index , a[1].toIndex() };
-#endif
-					// KPPは手番なし
 
+					u64 ids[KPP_LOWER_COUNT];
+					for (int i = 0; i < KPP_LOWER_COUNT; ++i)
+						ids[i] = a[i].toIndex();
+
+					// KPPに関してはinverseの次元下げがないので、inverseの判定は不要。
+
+					// KPPTとの違いは、ここに手番がないというだけ。
 					LearnFloatType g_sum = zero;
 					for (auto id : ids)
 						g_sum += weights_kpp[id - KPP::min_index()].get_grad();
 
-					//// KPPの手番は動かさないとき。
-					//g_sum[1] = 0;
-
 					if (g_sum == 0)
 						continue;
-
-					//cout << a[0].king() << a[0].piece0() << a[0].piece1() << g_sum << endl;
 
 					auto& v = kpp[a[0].king()][a[0].piece0()][a[0].piece1()];
 					weights_kpp[ids[0] - KPP::min_index()].set_grad(g_sum);
 					weights_kpp[ids[0] - KPP::min_index()].updateFV(v);
 
 #if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
-					for (int i = 1; i < 4; ++i)
+					for (int i = 1; i < KPP_LOWER_COUNT; ++i)
 						kpp[a[i].king()][a[i].piece0()][a[i].piece1()] = v;
 #else
 					// 三角配列の場合、KPP::toLowerDimensionsで、piece0とpiece1を入れ替えたものは返らないので
 					// (同じindexを指しているので)、自分で入れ替えてkpp配列にvの値を反映させる。
 					kpp[a[0].king()][a[0].piece1()][a[0].piece0()] = v;
+#if KPP_LOWER_COUNT == 2
 					kpp[a[1].king()][a[1].piece0()][a[1].piece1()] = v;
 					kpp[a[1].king()][a[1].piece1()][a[1].piece0()] = v;
+#endif
 #endif
 
 					for (auto id : ids)
 						weights_kpp[id - KPP::min_index()].set_grad(zero);
-				}
-				else
-				{
-					ASSERT_LV3(false);
 				}
 			}
 		}
@@ -331,9 +353,9 @@ namespace Eval
 	void save_eval(std::string dir_name)
 	{
 		{
-			auto eval_dir = path_combine((string)Options["EvalSaveDir"], dir_name);
+			auto eval_dir = path_combine((std::string)Options["EvalSaveDir"], dir_name);
 
-			cout << "save_eval() start. folder = " << eval_dir << endl;
+			std::cout << "save_eval() start. folder = " << eval_dir << std::endl;
 
 			// すでにこのフォルダがあるならmkdir()に失敗するが、
 			// 別にそれは構わない。なければ作って欲しいだけ。
@@ -353,12 +375,12 @@ namespace Eval
 			if (!EvalIO::eval_convert(input, output, nullptr))
 				goto Error;
 
-			cout << "save_eval() finished. folder = " << eval_dir << endl;
+			std::cout << "save_eval() finished. folder = " << eval_dir << std::endl;
 			return;
 		}
 
 	Error:;
-		cout << "Error : save_eval() failed" << endl;
+		std::cout << "Error : save_eval() failed" << std::endl;
 	}
 
 	// 現在のetaを取得する。
@@ -369,4 +391,3 @@ namespace Eval
 }
 
 #endif // EVAL_LEARN
-#endif // _EVALUATE_LEARN_KPP_KPPT_CPP_

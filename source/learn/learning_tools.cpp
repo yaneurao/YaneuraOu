@@ -23,6 +23,8 @@ namespace EvalLearningTools
 	AsyncPRNG Weight::prng;
 #endif
 
+	u64 KPPP::king_sq = 15;
+
 	// --- tables
 
 	// あるBonaPieceを相手側から見たときの値
@@ -55,6 +57,8 @@ namespace EvalLearningTools
 		ASSERT_LV1(mir_piece(Eval::f_hand_pawn) == Eval::f_hand_pawn);
 
 		// 次元下げ用フラグ配列の初期化
+		// KPPPに関しては関与しない。
+
 		u64 size = KPP::max_index();
 		min_index_flag.resize(size);
 
@@ -77,48 +81,50 @@ namespace EvalLearningTools
 
 				if (KK::is_ok(index))
 				{
-					min_index_flag[index] = true;
 					// indexからの変換と逆変換によって元のindexに戻ることを確認しておく。
 					// 起動時に1回しか実行しない処理なのでASSERT_LV1で書いておく。
 					ASSERT_LV1(KK::fromIndex(index).toIndex() == index);
-					// 次元下げの1つ目の要素が元のindexと同一であることを確認しておく。
-					KK a[1];
+
+					KK a[KK_LOWER_COUNT];
 					KK::fromIndex(index).toLowerDimensions(a);
+
+					// 次元下げの1つ目の要素が元のindexと同一であることを確認しておく。
 					ASSERT_LV1(a[0].toIndex() == index);
+
+					u64 min_index = UINT64_MAX;
+					for (auto& e : a)
+						min_index = std::min(min_index, e.toIndex());
+					min_index_flag[index] = (min_index == index);
 				}
 				else if (KKP::is_ok(index))
 				{
+					ASSERT_LV1(KKP::fromIndex(index).toIndex() == index);
+
 					KKP x = KKP::fromIndex(index);
 					KKP a[KKP_LOWER_COUNT];
 					x.toLowerDimensions(a);
-#if KKP_LOWER_COUNT == 2
-					u64 id[2] = { a[0].toIndex(),a[1].toIndex() };
-					min_index_flag[index] = (std::min({ id[0],id[1] }) == index);
-#elif KKP_LOWER_COUNT == 4
-					u64 id[4] = { a[0].toIndex(),a[1].toIndex(),a[2].toIndex() , a[3].toIndex() };
-					min_index_flag[index] = (std::min({ id[0],id[1],id[2],id[3] }) == index);
-#endif
-					ASSERT_LV1(id[0] == index);
+
+					ASSERT_LV1(a[0].toIndex() == index);
+
+					u64 min_index = UINT64_MAX;
+					for (auto& e : a)
+						min_index = std::min(min_index, e.toIndex());
+					min_index_flag[index] = (min_index == index);
 				}
 				else if (KPP::is_ok(index))
 				{
-					KPP x = KPP::fromIndex(index);
-
-#if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
-					// 普通の正方配列のとき、次元下げは4つ。
-					KPP a[4];
-					x.toLowerDimensions(a);
-					u64 id[4] = { a[0].toIndex() , a[1].toIndex(), a[2].toIndex() , a[3].toIndex() };
-					min_index_flag[index] = (std::min({ id[0],id[1],id[2],id[3] }) == index);
-#else
-					// 3角配列を用いるなら、次元下げは2つ。
-					KPP a[2];
-					x.toLowerDimensions(a);
-					u64 id[2] = { a[0].toIndex() , a[1].toIndex() };
-					min_index_flag[index] = (std::min({ id[0],id[1] }) == index);
-#endif
 					ASSERT_LV1(KPP::fromIndex(index).toIndex() == index);
-					ASSERT_LV1(id[0] == index);
+
+					KPP x = KPP::fromIndex(index);
+					KPP a[KPP_LOWER_COUNT];
+					x.toLowerDimensions(a);
+
+					ASSERT_LV1(a[0].toIndex() == index);
+
+					u64 min_index = UINT64_MAX;
+					for (auto& e : a)
+						min_index = std::min(min_index, e.toIndex());
+					min_index_flag[index] = (min_index == index);
 				}
 				else
 				{
@@ -132,6 +138,11 @@ namespace EvalLearningTools
 	void init_mir_inv_tables()
 	{
 		// mirrorとinverseのテーブルの初期化。
+
+		// 初期化は1回に限る。
+		static bool first = true;
+		if (!first) return;
+		first = false;
 
 			// fとeとの交換
 		int t[] = {
@@ -288,8 +299,9 @@ namespace EvalLearningTools
 #endif
 	}
 
-	void learning_tools_unit_test()
+	void learning_tools_unit_test_kpp()
 	{
+
 		// KPPの三角配列化にバグがないかテストする
 		// k-p0-p1のすべての組み合わせがきちんとKPPの扱う対象になっていかと、そのときの次元下げが
 		// 正しいかを判定する。
@@ -332,6 +344,42 @@ namespace EvalLearningTools
 			}
 	}
 
+	void learning_tools_unit_test_kppp()
+	{
+		// KPPPの計算に抜けがないかをテストする
+
+		u64 min_index = KPPP::min_index();
+		u64 max_index = KPPP::max_index();
+
+		// 最後の要素の確認。
+		//KPPP x = KPPP::fromIndex(max_index-1);
+		//std::cout << x << std::endl;
+
+		for (u64 index = min_index; index < max_index; ++index)
+		{
+			KPPP x = KPPP::fromIndex(index);
+			//std::cout << x << std::endl;
+
+#if 0
+			if ((index % 10000000) == 0)
+				std::cout << "index = " << index << std::endl;
+
+			// index = 9360000000
+			//	done.
+
+			if (x.toIndex() != index)
+			{
+				std::cout << "assertion failed , index = " << index << std::endl;
+			}
+#endif
+
+			ASSERT(x.toIndex() == index);
+
+//			ASSERT((&kppp_ksq_pcpcpc(x.king(), x.piece0(), x.piece1(), x.piece2()) - &kppp[0][0]) == (index - min_index));
+		}
+
+	}
+
 	// このEvalLearningTools全体の初期化
 	void init()
 	{
@@ -347,7 +395,8 @@ namespace EvalLearningTools
 			// これに依存しているので、こちらを先に行なう必要がある。
 			init_mir_inv_tables();
 
-			//learning_tools_unit_test();
+			//learning_tools_unit_test_kpp();
+			//learning_tools_unit_test_kppp();
 			// UnitTestを実行するの最後でも良いのだが、init_min_index_flag()にとても時間がかかるので
 			// デバッグ時はこのタイミングで行いたい。
 

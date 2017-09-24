@@ -1,23 +1,14 @@
 ﻿#ifndef _EVALUATE_KPPT_H_
 #define _EVALUATE_KPPT_H_
 
-#include "../shogi.h"
+#include "../../shogi.h"
 
-// KPPT評価関数で用いる共用header的なもの。
+// KPPT評価関数で用いるheader
 
-#if defined(EVAL_KKPT) || defined (EVAL_KPPT)
+#if defined (EVAL_KPPT)
 
-#include "../evaluate.h"
-
-
-// KKファイル名
-#define KK_BIN "KK_synthesized.bin"
-
-// KKPファイル名
-#define KKP_BIN "KKP_synthesized.bin"
-
-// KPPファイル名
-#define KPP_BIN "KPP_synthesized.bin"
+#include "../../evaluate.h"
+#include "../evaluate_common.h"
 
 namespace Eval
 {
@@ -42,7 +33,6 @@ namespace Eval
 	// 以下では、SQ_NBではなくSQ_NB_PLUS1まで確保したいが、Apery(WCSC26)の評価関数バイナリを読み込んで変換するのが面倒なので
 	// ここではやらない。ゆえに片側の玉や、駒落ちの盤面には対応出来ない。
 
-
 	// 評価関数
 
 	extern ValueKk(*kk_)[SQ_NB][SQ_NB];
@@ -62,7 +52,7 @@ namespace Eval
 
 }      // namespace Eval
 
-#endif // defined(EVAL_KKPT) || defined (EVAL_KPPT)
+#endif // defined (EVAL_KPPT)
 
 
 #endif

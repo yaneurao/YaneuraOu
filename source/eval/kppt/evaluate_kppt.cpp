@@ -1,4 +1,4 @@
-﻿#include "../shogi.h"
+﻿#include "../../shogi.h"
 
 //
 // Apery WCSC26の評価関数バイナリを読み込むための仕組み。
@@ -18,15 +18,15 @@
 #include <unordered_set>
 
 #include "evaluate_kppt.h"
-#include "evaluate_io.h"
-#include "../evaluate.h"
-#include "../position.h"
-#include "../misc.h"
-#include "../extra/bitop.h"
+#include "../evaluate_io.h"
+#include "../../evaluate.h"
+#include "../../position.h"
+#include "../../misc.h"
+#include "../../extra/bitop.h"
 
 // 実験中の評価関数を読み込む。(現状非公開)
 #if defined (EVAL_EXPERIMENTAL)
-#include "experimental/evaluate_experimental.h"
+#include "../experimental/evaluate_experimental.h"
 #endif
 
 // EvalShareの機能を使うために必要
@@ -37,7 +37,7 @@
 #endif
 
 #if defined(EVAL_LEARN)
-#include "../learn/learning_tools.h"
+#include "../../learn/learning_tools.h"
 using namespace EvalLearningTools;
 #endif
 
@@ -70,42 +70,8 @@ namespace Eval
 			goto Error;
 
 		{
-#if defined(EVAL_LEARN)
-			// kppのp1==p2のところ、値はゼロとなっていること。
-			// (差分計算のときにコードの単純化のために参照はするけど学習のときに使いたくないので)
-			// kppのp1==p2のときはkkpに足しこまれているという考え。
-			{
-				const ValueKpp kpp_zero = { 0,0 };
-				float sum = 0;
-				for (auto sq : SQ)
-					for (auto p = BONA_PIECE_ZERO; p < fe_end; ++p)
-					{
-						sum += abs(kpp[sq][p][p][0]) + abs(kpp[sq][p][p][1]);
-						kpp[sq][p][p] = kpp_zero;
-					}
-				//	cout << "info string sum kp = " << sum << endl;
-			}
-
-#endif
-
-#if defined(EVAL_LEARN)
-			// 以前Aperyの評価関数バイナリ、kppのp=0のところでゴミが入っていた。
-			// 駒落ちなどではここを利用したいので0クリアすべき。
-			{
-				const ValueKkp kkp_zero = { 0,0 };
-				for (auto sq1 : SQ)
-					for (auto sq2 : SQ)
-						kkp[sq1][sq2][0] = kkp_zero;
-
-				const ValueKpp kpp_zero = { 0,0 };
-				for (auto sq : SQ)
-					for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
-					{
-						kpp[sq][p1][0] = kpp_zero;
-						kpp[sq][0][p1] = kpp_zero;
-					}
-			}
-#endif
+			// 読み込み後に値を補正するとcheck sumが変化してしまうので、値の補正はlearnコマンド実行時にやるように変更した。
+			// ここではそれ以外の実験用の補正コードを書いておく。
 
 #if 0
 			// Aperyの評価関数バイナリ、kkptは意味があるけどkpptはあまり意味がないので
@@ -166,12 +132,11 @@ namespace Eval
 		my_exit();
 	}
 
-
 	u64 calc_check_sum()
 	{
 		u64 sum = 0;
 
-		auto add_sum = [&](u32*ptr, size_t t)
+		auto add_sum = [&](u16*ptr, size_t t)
 		{
 			for (size_t i = 0; i < t; ++i)
 				sum += ptr[i];
@@ -180,9 +145,14 @@ namespace Eval
 		// sizeof演算子、2GB以上の配列に対して機能しない。VC++でC2070になる。
 		// そのため、sizeof(kpp)のようにせず、自前で計算している。
 
-		add_sum(reinterpret_cast<u32*>(kk) , size_of_kk  / sizeof(u32));
-		add_sum(reinterpret_cast<u32*>(kkp), size_of_kkp / sizeof(u32));
-		add_sum(reinterpret_cast<u32*>(kpp), size_of_kpp / sizeof(u32));
+		// データは2 or 4バイトなので、endiannessがどちらであっても
+		// これでcheck sumの値は変わらない。
+		// また、データが2 or 4バイトなので2バイトずつ加算していくとき、
+		// データの余りは出ない。
+
+		add_sum(reinterpret_cast<u16*>(kk) , size_of_kk  / sizeof(u16));
+		add_sum(reinterpret_cast<u16*>(kkp), size_of_kkp / sizeof(u16));
+		add_sum(reinterpret_cast<u16*>(kpp), size_of_kpp / sizeof(u16));
 
 		return sum;
 	}
@@ -273,7 +243,7 @@ namespace Eval
 			if (shared_eval_ptr == nullptr)
 			{
 				sync_cout << "info string can't allocate shared eval memory." << sync_endl;
-				exit(1);
+				my_exit();
 			}
 			else
 			{
@@ -393,6 +363,7 @@ namespace Eval
 				l0 = list_fb[j];
 				l1 = list_fw[j];
 
+				// KPP
 #if defined(USE_SSE41)
 				// SSEによる実装
 
@@ -407,6 +378,8 @@ namespace Eval
 				sum.p[1] += pkppw[l1];
 #endif
 			}
+
+			// KKP
 			sum.p[2] += kkp[sq_bk][sq_wk][k0];
 		}
 
@@ -477,6 +450,7 @@ namespace Eval
 		sum.p[0] = { 0, 0 };
 		sum.p[1] = { 0, 0 };
 #endif
+		// KK
 		sum.p[2] = kkp[sq_bk][sq_wk][ebp.fb];
 
 		const auto* pkppb = kpp[sq_bk     ][ebp.fb];
@@ -946,7 +920,17 @@ namespace Eval
 		}
 #endif
 
-		return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
+		auto v = Value(sum.sum(pos.side_to_move()) / FV_SCALE);
+
+		// 返す値の絶対値がVALUE_MAX_EVALを超えてないことを保証しないといけないのだが…。
+		// いまの評価関数、手番を過学習したりして、ときどき超えてそう…。
+		//ASSERT_LV3(abs(v) < VALUE_MAX_EVAL);
+#if 0
+		if (!((abs(v) < VALUE_MAX_EVAL)))
+			std::cout << pos << std::endl;
+#endif
+
+		return v;
 	}
 
 	void evaluate_with_no_return(const Position& pos)

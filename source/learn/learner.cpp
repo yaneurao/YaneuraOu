@@ -19,6 +19,9 @@
 
 #include "learn.h"
 
+// 学習用のevaluate絡みのheader
+#include "../eval/evaluate_common.h"
+
 // ----------------------
 // 設定内容に基づく定数文字列
 // ----------------------
@@ -50,6 +53,7 @@
 #include <sstream>
 #include <fstream>
 #include <unordered_set>
+#include <iomanip>
 
 #if defined (_OPENMP)
 #include <omp.h>
@@ -75,7 +79,6 @@ using namespace std;
 
 // これは探索部で定義されているものとする。
 extern Book::BookMoveSelector book;
-extern void is_ready();
 
 // atomic<T>に対する足し算、引き算の定義
 // Apery/learner.hppにあるatomicAdd()に合わせてある。
@@ -333,9 +336,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 	const int MAX_PLY2 = write_maxply;
 
 	// StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
-	aligned_vector<StateInfo> state;
-	state.resize(MAX_PLY2 + 20);
-
+	std::vector<StateInfo,AlignedAllocator<StateInfo>> states(MAX_PLY2 + 50 /* == search_depth + α */);
+	
 	// 今回の指し手。この指し手で局面を進める。
 	Move m = MOVE_NONE;
 
@@ -359,7 +361,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		// 1局分の局面を保存しておき、終局のときに勝敗を含めて書き出す。
 		// 書き出す関数は、この下にあるflush_psv()である。
 		PSVector a_psv;
-		a_psv.reserve(MAX_PLY2);
+		a_psv.reserve(MAX_PLY2 + 50);
 
 		// a_psvに積まれている局面をファイルに書き出す。
 		// lastTurnIsWin : a_psvに積まれている最終局面の次の局面での勝敗
@@ -566,7 +568,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 							cout << "Error! : " << pos.sfen() << m << endl;
 						}
 #endif
-						pos.do_move(m, state[ply2++]);
+						pos.do_move(m, states[ply2++]);
 						
 						// 毎ノードevaluate()を呼び出さないと、evaluate()の差分計算が出来ないので注意！
 						// depthが8以上だとこの差分計算はしないほうが速いと思われる。
@@ -749,7 +751,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				a_psv.clear(); // 保存していた局面のクリア
 			}
 
-			pos.do_move(m, state[ply]);
+			pos.do_move(m, states[ply]);
 
 			// 差分計算を行なうために毎node evaluate()を呼び出しておく。
 			Eval::evaluate_with_no_return(pos);
@@ -881,7 +883,7 @@ void gen_sfen(Position&, istringstream& is)
 		<< "  write_minply           = " << write_minply << endl
 		<< "  write_maxply           = " << write_maxply << endl
 		<< "  output_file_name       = " << output_file_name << endl
-		<< "  use_eval_hash          = " << use_eval_hash;
+		<< "  use_eval_hash          = " << use_eval_hash << endl;
 
 	// Options["Threads"]の数だけスレッドを作って実行。
 	{
@@ -1098,12 +1100,17 @@ struct SfenReader
 			delete p;
 	}
 
-	// mseの計算用に1000局面ほど読み込んでおく。
+	// mseなどの計算用に用いる局面数
+	// mini-batch size = 1Mが標準的なので、その0.2%程度なら時間的には無視できるはず。
+	// 指し手一致率の計算でdepth = 1でsearch()をするので、単純比較はできないが…。
+	const u64 sfen_for_mse_size = 2000;
+
+	// mseなどの計算用に局面を読み込んでおく。
 	void read_for_mse()
 	{
 		auto th = Threads.main();
 		Position& pos = th->rootPos;
-		for (int i = 0; i < 1000; ++i)
+		for (u64 i = 0; i < sfen_for_mse_size; ++i)
 		{
 			PackedSfenValue ps;
 			if (!read_to_thread_buffer(0, ps))
@@ -1386,8 +1393,8 @@ struct LearnerThink: public MultiThink
 	// 割引率
 	double discount_rate;
 
-	// kppを学習させないオプション
-	bool without_kpp;
+	// kk/kkp/kpp/kpppを学習させないオプション
+	std::array<bool,4> freeze;
 
 	// 教師局面の深い探索の評価値の絶対値がこの値を超えていたらその教師局面を捨てる。
 	int eval_limit;
@@ -1435,11 +1442,17 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	sum_norm = 0;
 #endif
 
+	// 深い探索のpvの初手と、合法手のなかでevaluateが最大になる指し手が一致した回数。
+	atomic<int> move_accord_count;
+	move_accord_count = 0;
+
 	// 平手の初期局面のeval()の値を表示させて、揺れを見る。
 	auto th = Threads[thread_id];
 	auto& pos = th->rootPos;
 	pos.set_hirate(th);
 	std::cout << "hirate eval = " << Eval::evaluate(pos);
+
+	//Eval::print_eval_stat(pos);
 
 	// ここ、並列化したほうが良いのだがslaveの前の探索が終わってなかったりしてちょっと面倒。
 	// taskを呼び出すための仕組みを作ったのでそれを用いる。
@@ -1455,7 +1468,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 		// TaskDispatcherを用いて各スレッドに作業を振る。
 		// そのためのタスクの定義。
 		// ↑で使っているposをcaptureされるとたまらんのでcaptureしたい変数は一つずつ指定しておく。
-		auto task = [&ps,&test_sum_cross_entropy_eval,&test_sum_cross_entropy_win, &sum_norm,&task_count](size_t thread_id)
+		auto task = [&ps,&test_sum_cross_entropy_eval,&test_sum_cross_entropy_win, &sum_norm,&task_count ,&move_accord_count](size_t thread_id)
 		{
 			// これ、C++ではループごとに新たなpsのインスタンスをちゃんとcaptureするのだろうか.. →　するようだ。
 			auto th = Threads[thread_id];
@@ -1472,6 +1485,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			// 値が比較しにくくて困るのでqsearch()を用いる。
 			// EvalHashは事前に無効化してある。(そうしないと毎回同じ値が返ってしまう)
 			auto r = qsearch(pos);
+
 			auto shallow_value = r.first;
 
 			// 深い探索の評価値
@@ -1505,6 +1519,13 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			test_sum_cross_entropy_win += test_cross_entropy_win;
 			sum_norm += (double)abs(shallow_value);
 #endif
+
+			// 教師の指し手と浅い探索のスコアが一致するかの判定
+			{
+				auto r = search(pos,1);
+				if ((u16)r.second[0] == ps.move)
+					move_accord_count.fetch_add(1, std::memory_order_relaxed);
+			}
 
 			// こなしたのでタスク一つ減る
 			--task_count;
@@ -1547,6 +1568,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			<< " , learn_cross_entropy_win = "  << learn_sum_cross_entropy_win / done
 			<< " , learn_cross_entropy = "      << (learn_sum_cross_entropy_eval + learn_sum_cross_entropy_win) / done
 			<< " , norm = "						<< sum_norm
+			<< " , move accuracy = "			<< (move_accord_count * 100.0 / sr.sfen_for_mse.size()) << "%"
 			<< endl;
 	}
 	else {
@@ -1599,7 +1621,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 				std::cout << sr.total_done << " sfens , at " << now_string() << std::endl;
 
 				// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
-				Eval::update_weights(epoch , without_kpp);
+				Eval::update_weights(epoch , freeze);
 
 				// デバッグ用にepochと現在のetaを表示してやる。
 				std::cout << "epoch = " << epoch << " , eta = " << Eval::get_eta() << std::endl;
@@ -1759,7 +1781,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 			// leafに到達したのでこの局面に出現している特徴に勾配を加算しておく。
 			// 勾配に基づくupdateはのちほど行なう。
-			Eval::add_grad(pos, rootColor, dj_dw, without_kpp);
+			Eval::add_grad(pos, rootColor, dj_dw, freeze);
 
 			// 処理が終了したので処理した件数のカウンターをインクリメント
 			sr.total_done++;
@@ -1804,9 +1826,12 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 }
 
+// 評価関数ファイルの書き出し。
 void LearnerThink::save()
 {
-	// 定期的に保存
+	// 保存前にcheck sumを計算して出力しておく。(次に読み込んだときに合致するか調べるため)
+	std::cout << "Check Sum = " << std::hex << Eval::calc_check_sum() << std::dec << std::endl;
+
 	// 保存ごとにファイル名の拡張子部分を"0","1","2",..のように変えていく。
 	// (あとでそれぞれの評価関数パラメーターにおいて勝率を比較したいため)
 
@@ -2117,9 +2142,9 @@ void learn(Position&, istringstream& is)
 	// 割引率。これを0以外にすると、PV終端以外でも勾配を加算する。(そのとき、この割引率を適用する)
 	double discount_rate = 0;
 
-	// KPPを学習させないオプション項目
-	bool without_kpp = false;
-
+	// KK/KKP/KPP/KPPPを学習させないオプション項目
+	array<bool,4> freeze = {};
+	
 	// ファイル名が後ろにずらずらと書かれていると仮定している。
 	while (true)
 	{
@@ -2159,8 +2184,11 @@ void learn(Position&, istringstream& is)
 		// 割引率
 		else if (option == "discount_rate") is >> discount_rate;
 
-		// KPPの学習なし。
-		else if (option == "without_kpp") is >> without_kpp;
+		// KK/KKP/KPP/KPPPの学習なし。
+		else if (option == "freeze_kk")    is >> freeze[0];
+		else if (option == "freeze_kkp")   is >> freeze[1];
+		else if (option == "freeze_kpp")   is >> freeze[2];
+		else if (option == "freeze_kppp")  is >> freeze[3];
 
 #if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
 		// LAMBDA
@@ -2265,10 +2293,10 @@ void learn(Position&, istringstream& is)
 		return;
 	}
 
-	cout << "loop            : " << loop << endl;
-	cout << "eval_lmit       : " << eval_limit << endl;
-	cout << "save_only_once  : " << (save_only_once ? "true" : "false") << endl;
-	cout << "no_shuffle      : " << (no_shuffle ? "true" : "false") << endl;
+	cout << "loop              : " << loop << endl;
+	cout << "eval_limit        : " << eval_limit << endl;
+	cout << "save_only_once    : " << (save_only_once ? "true" : "false") << endl;
+	cout << "no_shuffle        : " << (no_shuffle ? "true" : "false") << endl;
 
 	// ループ回数分だけファイル名を突っ込む。
 	for (int i = 0; i < loop; ++i)
@@ -2276,18 +2304,18 @@ void learn(Position&, istringstream& is)
 		for (auto it = filenames.rbegin(); it != filenames.rend(); ++it)
 			sr.filenames.push_back(path_combine(base_dir, *it));
 
-	cout << "Gradient Method : " << LEARN_UPDATE      << endl;
-	cout << "Loss Function   : " << LOSS_FUNCTION     << endl;
-	cout << "mini-batch size : " << mini_batch_size   << endl;
-	cout << "learning rate   : " << eta1 << " , " << eta2 << " , " << eta3 << endl;
-	cout << "eta_epoch       : " << eta1_epoch << " , " << eta2_epoch << endl;
-	cout << "discount rate   : " << discount_rate     << endl;
-	cout << "without_kpp     : " << without_kpp       << endl;
+	cout << "Gradient Method   : " << LEARN_UPDATE      << endl;
+	cout << "Loss Function     : " << LOSS_FUNCTION     << endl;
+	cout << "mini-batch size   : " << mini_batch_size   << endl;
+	cout << "learning rate     : " << eta1 << " , " << eta2 << " , " << eta3 << endl;
+	cout << "eta_epoch         : " << eta1_epoch << " , " << eta2_epoch << endl;
+	cout << "discount rate     : " << discount_rate     << endl;
 #if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
-	cout << "LAMBDA          : " << ELMO_LAMBDA       << endl;
-	cout << "LAMBDA2         : " << ELMO_LAMBDA2      << endl;
-	cout << "LAMBDA_LIMIT    : " << ELMO_LAMBDA_LIMIT << endl;
+	cout << "LAMBDA            : " << ELMO_LAMBDA       << endl;
+	cout << "LAMBDA2           : " << ELMO_LAMBDA2      << endl;
+	cout << "LAMBDA_LIMIT      : " << ELMO_LAMBDA_LIMIT << endl;
 #endif
+	cout << "freeze_kk/kkp/kpp/kppp : " << freeze[0] << " , " << freeze[1] << " , " << freeze[2] << " , " << freeze[3] << endl;
 
 	// -----------------------------------
 	//            各種初期化
@@ -2296,7 +2324,7 @@ void learn(Position&, istringstream& is)
 	cout << "init.." << endl;
 
 	// 評価関数パラメーターの読み込み
-	is_ready();
+	is_ready(true);
 
 	cout << "init_grad.." << endl;
 
@@ -2326,8 +2354,8 @@ void learn(Position&, istringstream& is)
 	learn_think.eval_limit = eval_limit;
 	learn_think.save_only_once = save_only_once;
 	learn_think.sr.no_shuffle = no_shuffle;
-	learn_think.without_kpp = without_kpp;
-	
+	learn_think.freeze = freeze;
+
 	// 局面ファイルをバックグラウンドで読み込むスレッドを起動
 	// (これを開始しないとmseの計算が出来ない。)
 	learn_think.start_file_read_worker();

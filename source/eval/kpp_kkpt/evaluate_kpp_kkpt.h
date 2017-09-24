@@ -1,22 +1,14 @@
 ﻿#ifndef _EVALUATE_KPP_KKPT_H_
 #define _EVALUATE_KPP_KKPT_H_
 
-#include "../shogi.h"
+#include "../../shogi.h"
 
-// KPP_KKPT型評価関数で用いる共用header的なもの。
+// KPP_KKPT型評価関数で用いるheader
 
 #if defined(EVAL_KPP_KKPT)
 
-#include "../evaluate.h"
-
-// KKファイル名
-#define KK_BIN "KK_synthesized.bin"
-
-// KKPファイル名
-#define KKP_BIN "KKP_synthesized.bin"
-
-// KPPファイル名
-#define KPP_BIN "KPP_synthesized.bin"
+#include "../../evaluate.h"
+#include "../evaluate_common.h"
 
 namespace Eval
 {
@@ -65,7 +57,7 @@ namespace Eval
 
 }      // namespace Eval
 
-#endif // defined(EVAL_KPP_PPT)
+#endif // defined(EVAL_KPP_KKPT)
 
 
 #endif
