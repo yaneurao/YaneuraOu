@@ -407,8 +407,9 @@ namespace USI
 
 		ASSERT_LV1(!type.empty());
 
-		// 範囲外
-		if ((type != "button" && v.empty())
+		// 範囲外なら設定せずに返る。
+		// "EvalDir"などでstringの場合は空の文字列を設定したいことがあるので"string"に対して空の文字チェックは行わない。
+		if (((type != "button" && type != "string") && v.empty())
 			|| (type == "check" && v != "true" && v != "false")
 			|| (type == "spin" && (stoll(v) < min || stoll(v) > max)))
 			return *this;
