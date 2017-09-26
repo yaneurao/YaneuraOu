@@ -315,7 +315,12 @@ namespace EvalLearningTools
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
 		u64 toIndex() const {
-			return min_index() + (u64)king0_ * (u64)SQ_NB + (u64)king1_;
+			return min_index() + toRawIndex();
+		}
+
+		// このクラスのmin_index()の値を0として数えたときのindexを取得する。
+		u64 toRawIndex() const {
+			return (u64)king0_ * (u64)SQ_NB + (u64)king1_;
 		}
 
 		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
@@ -408,7 +413,12 @@ namespace EvalLearningTools
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
 		u64 toIndex() const {
-			return min_index() + ((u64)king0_ * (u64)SQ_NB + (u64)king1_) * (u64)Eval::fe_end + (u64)piece_;
+			return min_index() + toRawIndex();
+		}
+
+		// このクラスのmin_index()の値を0として数えたときのindexを取得する。
+		u64 toRawIndex() const {
+			return  ((u64)king0_ * (u64)SQ_NB + (u64)king1_) * (u64)Eval::fe_end + (u64)piece_;
 		}
 
 		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
@@ -537,11 +547,16 @@ namespace EvalLearningTools
 		}
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
-		u64 toIndex() const
-		{
+		u64 toIndex() const {
+			return min_index() + toRawIndex();
+		}
+
+		// このクラスのmin_index()の値を0として数えたときのindexを取得する。
+		u64 toRawIndex() const {
+
 #if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
 
-			return min_index() + ((u64)king_ * (u64)Eval::fe_end + (u64)piece0_) * (u64)Eval::fe_end + (u64)piece1_;
+			return ((u64)king_ * (u64)Eval::fe_end + (u64)piece0_) * (u64)Eval::fe_end + (u64)piece1_;
 
 #else
 			// Bonanza6.0で使われているのに似せたマクロ
@@ -559,7 +574,7 @@ namespace EvalLearningTools
 			auto i = piece0_;
 			auto j = piece1_;
 
-			return min_index() + ( (i >= j) ? PcPcOnSq(k, i, j) : PcPcOnSq(k, j, i));
+			return (i >= j) ? PcPcOnSq(k, i, j) : PcPcOnSq(k, j, i);
 #endif
 		}
 
@@ -726,8 +741,13 @@ namespace EvalLearningTools
 		}
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
-		u64 toIndex() const
-		{
+		u64 toIndex() const {
+			return min_index() + toRawIndex();
+		}
+
+		// このクラスのmin_index()の値を0として数えたときのindexを取得する。
+		u64 toRawIndex() const {
+
 			// Bonanza 6.0で使われているのに似せたマクロ
 			// 前提条件) i > j > k であること。
 			// i==j,j==kのケースはNG。
@@ -747,7 +767,7 @@ namespace EvalLearningTools
 					);
 			};
 
-			return min_index() + PcPcPcOnSq(king_, piece0_, piece1_, piece2_);
+			return PcPcPcOnSq(king_, piece0_, piece1_, piece2_);
 		}
 
 		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
