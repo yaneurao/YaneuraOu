@@ -67,7 +67,7 @@ Book::BookMoveSelector book;
 
 #if defined (USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
 // 変更したパラメーター一覧と、リザルト(勝敗)を書き出すためのファイルハンドル
-static fstream result_log;
+static std::fstream result_log;
 #endif
 
 // 置換表の世代カウンター
@@ -1917,7 +1917,7 @@ void init_param()
 	// -----------------------
 #if defined (USE_AUTO_TUNE_PARAMETERS) || defined(USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
 	{
-		vector<string> param_names = {
+		std::vector<std::string> param_names = {
 			"PARAM_FUTILITY_MARGIN_ALPHA" , "PARAM_FUTILITY_MARGIN_BETA" ,
 			"PARAM_FUTILITY_MARGIN_QUIET" , "PARAM_FUTILITY_RETURN_DEPTH",
 			
@@ -1952,9 +1952,9 @@ void init_param()
 		};
 
 #ifdef 		ENABLE_OUTPUT_GAME_RESULT
-		vector<const int*> param_vars = {
+		std::vector<const int*> param_vars = {
 #else
-		vector<int*> param_vars = {
+		std::vector<int*> param_vars = {
 #endif
 			&PARAM_FUTILITY_MARGIN_ALPHA , &PARAM_FUTILITY_MARGIN_BETA,
 			&PARAM_FUTILITY_MARGIN_QUIET , &PARAM_FUTILITY_RETURN_DEPTH,
@@ -1988,34 +1988,34 @@ void init_param()
 			&PARAM_ASPIRATION_SEARCH_DELTA
 		};
 
-		fstream fs;
-		fs.open("param\\" PARAM_FILE, ios::in);
+		std::fstream fs;
+		fs.open("param\\" PARAM_FILE, std::ios::in);
 		if (fs.fail())
 		{
-			cout << "info string Error! : can't read " PARAM_FILE << endl;
+			std::cout << "info string Error! : can't read " PARAM_FILE << std::endl;
 			return;
 		}
 
-		int count = 0;
-		string line, last_line;
+		size_t count = 0;
+		std::string line, last_line;
 
 		// bufのなかにある部分文字列strの右側にある数値を読む。
-		auto get_num = [](const string& buf, const string& str)
+		auto get_num = [](const std::string& buf, const std::string& str)
 		{
 			auto pos = buf.find(str);
-			ASSERT_LV3(pos != -1);
+			ASSERT_LV3(pos != std::string::npos);
 			return stoi(buf.substr(pos + str.size()));
 		};
 
-		vector<bool> founds(param_vars.size());
+		std::vector<bool> founds(param_vars.size());
 
 		while (!fs.eof())
 		{
 			getline(fs, line);
 			if (line.find("PARAM_DEFINE") != -1)
 			{
-				for (int i = 0; i < param_names.size(); ++i)
-					if (line.find(param_names[i]) != -1)
+				for (size_t i = 0; i < param_names.size(); ++i)
+					if (line.find(param_names[i]) != std::string::npos)
 					{
 						count++;
 
@@ -2036,7 +2036,7 @@ void init_param()
 						// [PARAM] min:100,max:240,step:3,interval:1,time_rate:1,fixed
 
 						// "fixed"と書かれているパラメーターはないものとして扱う。
-						if (last_line.find("fixed") != -1)
+						if (last_line.find("fixed") != std::string::npos)
 						{
 							param_names[i] = "FIXED";
 							goto NEXT;
@@ -2052,13 +2052,13 @@ void init_param()
 						int v = *param_vars[i];
 
 						// とりうる値の候補
-						vector<int> a;
+						std::vector<int> a;
 						
 						for (int j = 0; j <= param_interval; ++j)
 						{
 							// j==0のときは同じ値であり、これはのちに除外される。
-							a.push_back(max(v - param_step*j,param_min));
-							a.push_back(min(v + param_step*j,param_max));
+							a.push_back(std::max(v - param_step*j,param_min));
+							a.push_back(std::min(v + param_step*j,param_max));
 						}
 
 						// 重複除去。
@@ -2070,7 +2070,7 @@ void init_param()
 						// 残ったものから1つをランダムに選択
 						if (a.size() == 0)
 						{
-							cout << "Error : param is out of range -> " << line << endl;
+							std::cout << "Error : param is out of range -> " << line << std::endl;
 						} else {
 							*param_vars[i] = a[rand.rand(a.size())];
 						}
@@ -2079,7 +2079,7 @@ void init_param()
 						//            cout << param_names[i] << " = " << *param_vars[i] << endl;
 						goto NEXT;
 					}
-				cout << "Error : param not found! in parameters.h -> " << line << endl;
+				std::cout << "Error : param not found! in parameters.h -> " << line << std::endl;
 
 			NEXT:;
 			}
@@ -2091,24 +2091,24 @@ void init_param()
 		// 見つかっていなかったパラメーターを表示させる。
 		if (count != param_names.size())
 		{
-			for (int i = 0; i < founds.size(); ++i)
+			for (size_t i = 0; i < founds.size(); ++i)
 				if (!founds[i])
-					cout << "Error : param not found in " << PARAM_FILE << " -> " << param_names[i] << endl;
+					std::cout << "Error : param not found in " << PARAM_FILE << " -> " << param_names[i] << std::endl;
 		}
 
 #if defined (USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
 		{
 			if (!result_log.is_open())
-				result_log.open(Options["PARAMETERS_LOG_FILE_PATH"], ios::app);
+				result_log.open(Options["PARAMETERS_LOG_FILE_PATH"], std::ios::app);
 			// 今回のパラメーターをログファイルに書き出す。
-			for (int i = 0; i < param_names.size(); ++i)
+			for (size_t i = 0; i < param_names.size(); ++i)
 			{
 				if (param_names[i] == "FIXED")
 					continue;
 
 				result_log << param_names[i] << ":" << *param_vars[i] << ",";
 			}
-			result_log << endl << flush;
+			result_log << std::endl << std::flush;
 		}
 #endif
 
@@ -2124,7 +2124,7 @@ void Search::init() {}
 void gameover_handler(const std::string& cmd)
 {
 #if defined (USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
-	result_log << cmd << endl << flush;
+	result_log << cmd << std::endl << std::flush;
 #endif
 }
 
