@@ -180,8 +180,8 @@ namespace Eval
 					BonaPiece l0 = list_fb[j];
 					BonaPiece l1 = list_fw[j];
 
-					weights_kpp[KPP(sq_bk     , k0, l0).toIndex() - KPP::min_index()].add_grad(g[0]);
-					weights_kpp[KPP(Inv(sq_wk), k1, l1).toIndex() - KPP::min_index()].add_grad(g_flip[0]);
+					weights_kpp[KPP(sq_bk     , k0, l0).toRawIndex()].add_grad(g[0]);
+					weights_kpp[KPP(Inv(sq_wk), k1, l1).toRawIndex()].add_grad(g_flip[0]);
 				}
 			}
 
@@ -313,21 +313,21 @@ namespace Eval
 
 					u64 ids[KPP_LOWER_COUNT];
 					for (int i = 0; i < KPP_LOWER_COUNT; ++i)
-						ids[i] = a[i].toIndex();
+						ids[i] = a[i].toRawIndex();
 
 					// KPPに関してはinverseの次元下げがないので、inverseの判定は不要。
 
 					// KPPTとの違いは、ここに手番がないというだけ。
 					LearnFloatType g_sum = zero;
 					for (auto id : ids)
-						g_sum += weights_kpp[id - KPP::min_index()].get_grad();
+						g_sum += weights_kpp[id].get_grad();
 
 					if (g_sum == 0)
 						continue;
 
 					auto& v = kpp[a[0].king()][a[0].piece0()][a[0].piece1()];
-					weights_kpp[ids[0] - KPP::min_index()].set_grad(g_sum);
-					weights_kpp[ids[0] - KPP::min_index()].updateFV(v);
+					weights_kpp[ids[0]].set_grad(g_sum);
+					weights_kpp[ids[0]].updateFV(v);
 
 #if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
 					for (int i = 1; i < KPP_LOWER_COUNT; ++i)
@@ -343,7 +343,7 @@ namespace Eval
 #endif
 
 					for (auto id : ids)
-						weights_kpp[id - KPP::min_index()].set_grad(zero);
+						weights_kpp[id].set_grad(zero);
 				}
 			}
 		}

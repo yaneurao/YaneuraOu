@@ -627,7 +627,7 @@ namespace EvalLearningTools
 	struct KPPP
 	{
 		KPPP() {}
-		KPPP(Square king, Eval::BonaPiece p0, Eval::BonaPiece p1, Eval::BonaPiece p2) :
+		KPPP(int king, Eval::BonaPiece p0, Eval::BonaPiece p1, Eval::BonaPiece p2) :
 			king_(king), piece0_(p0), piece1_(p1), piece2_(p2)
 		{
 			ASSERT_LV3(piece0_ > piece1_ && piece1_ > piece2_);
@@ -751,7 +751,7 @@ namespace EvalLearningTools
 			// Bonanza 6.0で使われているのに似せたマクロ
 			// 前提条件) i > j > k であること。
 			// i==j,j==kのケースはNG。
-			auto PcPcPcOnSq = [](Square king, Eval::BonaPiece i, Eval::BonaPiece j , Eval::BonaPiece k)
+			auto PcPcPcOnSq = [](int king, Eval::BonaPiece i, Eval::BonaPiece j , Eval::BonaPiece k)
 			{
 				// この三角配列の(i,j,k)は、i行目のj列目の要素。
 				// i行目0列0番目は、そこまでの要素の合計であるから、0 + 0 + 1 + 3 + 6 + ... + (i)*(i-1)/2 = i*(i-1)*(i-2)/ 6
@@ -771,7 +771,7 @@ namespace EvalLearningTools
 		}
 
 		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
-		Square king() const { return king_; }
+		int king() const { return king_; }
 		Eval::BonaPiece piece0() const { return piece0_; }
 		Eval::BonaPiece piece1() const { return piece1_; }
 		Eval::BonaPiece piece2() const { return piece2_; }
@@ -791,7 +791,7 @@ namespace EvalLearningTools
 
 	private:
 
-		Square king_;
+		int king_;
 		Eval::BonaPiece piece0_, piece1_,piece2_;
 
 	};
