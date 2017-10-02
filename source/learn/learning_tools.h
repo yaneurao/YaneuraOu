@@ -259,8 +259,8 @@ namespace EvalLearningTools
 	struct KK
 	{
 		KK() {}
-		KK(Square king0, Square king1) : king0_(king0), king1_(king1), inverse_(false) {}
-		KK(Square king0, Square king1,bool inverse) : king0_(king0), king1_(king1) , inverse_(inverse) {}
+		KK(Square king0, Square king1) : king0_(king0), king1_(king1), inverse_sign(false) {}
+		KK(Square king0, Square king1,bool inverse) : king0_(king0), king1_(king1) , inverse_sign(inverse) {}
 
 		// KK,KKP,KPP配列を直列化するときの通し番号の、KKの最小値、最大値。
 		static u64 min_index() { return 0; }
@@ -325,12 +325,12 @@ namespace EvalLearningTools
 
 		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
 		bool is_inverse() const {
-			return inverse_;
+			return inverse_sign;
 		}
 
 		// is_inverse() == trueのときに、gradの手番ではないほうの符号を反転させて返す。
 		template <typename T>
-		std::array<T, 2> adjust_grad(const std::array<T, 2>& rhs)
+		std::array<T, 2> apply_inverse_sign(const std::array<T, 2>& rhs)
 		{
 			return !is_inverse() ? rhs : std::array<T, 2>{-rhs[0], rhs[1]};
 		}
@@ -341,7 +341,7 @@ namespace EvalLearningTools
 
 	private:
 		Square king0_, king1_ ;
-		bool inverse_;
+		bool inverse_sign;
 	};
 
 	// デバッグ用出力。
@@ -354,8 +354,8 @@ namespace EvalLearningTools
 	struct KKP
 	{
 		KKP() {}
-		KKP(Square king0, Square king1, Eval::BonaPiece p) : king0_(king0), king1_(king1), piece_(p), inverse_(false) {}
-		KKP(Square king0, Square king1, Eval::BonaPiece p,bool inverse) : king0_(king0), king1_(king1), piece_(p),inverse_(inverse) {}
+		KKP(Square king0, Square king1, Eval::BonaPiece p) : king0_(king0), king1_(king1), piece_(p), inverse_sign(false) {}
+		KKP(Square king0, Square king1, Eval::BonaPiece p,bool inverse) : king0_(king0), king1_(king1), piece_(p),inverse_sign(inverse) {}
 
 		// KK,KKP,KPP配列を直列化するときの通し番号の、KKPの最小値、最大値。
 		static u64 min_index() { return KK::max_index(); }
@@ -423,12 +423,12 @@ namespace EvalLearningTools
 
 		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
 		bool is_inverse() const {
-			return inverse_;
+			return inverse_sign;
 		}
 
 		// is_inverse() == trueのときに、gradの手番ではないほうの符号を反転させて返す。
 		template <typename T>
-		std::array<T, 2> adjust_grad(const std::array<T, 2>& rhs)
+		std::array<T, 2> apply_inverse_sign(const std::array<T, 2>& rhs)
 		{
 			return !is_inverse() ? rhs : std::array<T, 2>{-rhs[0], rhs[1]};
 		}
@@ -440,7 +440,7 @@ namespace EvalLearningTools
 	private:
 		Square king0_, king1_;
 		Eval::BonaPiece piece_;
-		bool inverse_;
+		bool inverse_sign;
 	};
 
 	// デバッグ用出力。
@@ -613,20 +613,22 @@ namespace EvalLearningTools
 	// ミラーしたもののみを格納するようにしてもの半分ぐらい必要。
 	// ここでは、三角配列は必ず用いて、かつミラーしたものを格納するものとする。
 	//
-	// 事前に以下の定数を定義すること。
-	//
-	// 定数)
-	//   KPPP_KING_SQ
-	//
 	// また、このクラスのking()は、実際のkingのSquareとは限らず、単に、0～(king_sq-1)までの値が返る。
 	// これは、ミラーを利用した圧縮を行なう場合など、利用側で適切な玉の位置に変換してやる必要がある。
 	// 
 	// あと、このクラスの返すpiece0,1,2に関して、
 	//   piece0() > piece1() > piece2()
 	// であり、コンストラクタでpiece0,1,2を渡すときも、この制約を守る必要がある。
+	//
+	// また、max_index()を計算するためにset()でfe_endとking_sqを設定してやる必要がある。
+	// max_index()はKK/KKP/KPPクラスとは違い、staticな関数ではないので注意。
 	struct KPPP
 	{
 		KPPP() {}
+
+		// set()を内部的に呼び出すコンストラクタ
+		KPPP(int king_sq, u64 fe_end) { set(king_sq, fe_end); }
+
 		KPPP(int king, Eval::BonaPiece p0, Eval::BonaPiece p1, Eval::BonaPiece p2) :
 			king_(king), piece0_(p0), piece1_(p1), piece2_(p2)
 		{
@@ -635,23 +637,23 @@ namespace EvalLearningTools
 		}
 
 		// KK,KKP,KPP,KPPP配列を直列化するときの通し番号の、KPPPの最小値、最大値。
-		static u64 min_index() { return KPP::max_index(); }
+		 u64 min_index() const { return KPP::max_index(); }
+		 u64 max_index() const { return min_index() + (u64)king_sq_*triangle_fe_end; }
 
-		// KPPPのときに扱う玉の升の数。
-		// 3段×ミラーなら3段×5筋 = 15みたいな感じ。
-		// 2段×ミラーなしなら2×9筋 = 18みたいな感じ。
-		static u64 king_sq;
-		
-		// kppp[king_sq][fe_end][fe_end][fe_end]の[fe_end][fe_end][fe_end]な正方配列の部分を三角配列化する。
-		// kppp[king_sq][triangle_fe_end]とすると、この三角配列の0行目から要素数は、0,0,1,3,…,n行目はn(n-1)/2個。
-		// ゆえに、
-		// triangle_fe_end = Σn(n-1)/2 , n=0..fe_end-1
-		//                 =  fe_end * (fe_end - 1) * (fe_end - 2) / 6
-		static const u64 triangle_fe_end = ((u64)Eval::fe_end)*((u64)Eval::fe_end - 1)*((u64)Eval::fe_end - 2) / 6;
-		static u64 max_index() { return min_index() + (u64)king_sq*triangle_fe_end; }
+		// fe_endとking_sqを設定する。
+		// fe_end : このKPPPクラスの想定するfe_end
+		// king_sq : KPPPのときに扱う玉の升の数。
+		//  3段×ミラーなら3段×5筋 = 15みたいな感じ。
+		//  2段×ミラーなしなら2×9筋 = 18みたいな感じ。
+		//  これをこのKPPPクラスを使う側でset()を用いて最初に設定する。
+		void set(int king_sq, u64 fe_end) {
+			king_sq_ = king_sq;
+			fe_end_ = fe_end;
+			triangle_fe_end = fe_end_*(fe_end - 1)*(fe_end - 2) / 6;
+		}
 
 		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
-		static bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
+		bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
 
 		// 次元下げの数
 #define KPPP_LOWER_COUNT 1
@@ -664,7 +666,7 @@ namespace EvalLearningTools
 		}
 
 		// indexからKPPPのオブジェクトを生成するbuilder
-		static KPPP fromIndex(u64 index)
+		KPPP fromIndex(u64 index)
 		{
 			ASSERT_LV3(index >= min_index());
 
@@ -737,7 +739,10 @@ namespace EvalLearningTools
 
 			int king = (int)(index  /* % SQ_NB */);
 			ASSERT_LV3(king < SQ_NB);
-			return KPPP((Square)king, (Eval::BonaPiece)piece0, (Eval::BonaPiece)piece1 , (Eval::BonaPiece)piece2);
+			KPPP my_kppp((Square)king, (Eval::BonaPiece)piece0, (Eval::BonaPiece)piece1 , (Eval::BonaPiece)piece2);
+			// king_sqとfe_endに関しては伝播させる。
+			my_kppp.set(king_sq_, fe_end_);
+			return my_kppp;
 		}
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
@@ -751,7 +756,7 @@ namespace EvalLearningTools
 			// Bonanza 6.0で使われているのに似せたマクロ
 			// 前提条件) i > j > k であること。
 			// i==j,j==kのケースはNG。
-			auto PcPcPcOnSq = [](int king, Eval::BonaPiece i, Eval::BonaPiece j , Eval::BonaPiece k)
+			auto PcPcPcOnSq = [this](int king, Eval::BonaPiece i, Eval::BonaPiece j , Eval::BonaPiece k)
 			{
 				// この三角配列の(i,j,k)は、i行目のj列目の要素。
 				// i行目0列0番目は、そこまでの要素の合計であるから、0 + 0 + 1 + 3 + 6 + ... + (i)*(i-1)/2 = i*(i-1)*(i-2)/ 6
@@ -775,12 +780,15 @@ namespace EvalLearningTools
 		Eval::BonaPiece piece0() const { return piece0_; }
 		Eval::BonaPiece piece1() const { return piece1_; }
 		Eval::BonaPiece piece2() const { return piece2_; }
-
 		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
 		// KK,KKPとinterfaceを合せるために用意してある。このKPPPクラスでは、このメソッドは常にfalseを返す。
 		bool is_inverse() const {
 			return false;
 		}
+
+		// 3角配列化したときの要素の数を返す。kppp配列が、以下のような2次元配列だと想定している。
+		//   kppp[king_sq][triangle_fe_end];
+		u64 get_triangle_fe_end() const { return triangle_fe_end; }
 
 		// 比較演算子
 		bool operator==(const KPPP& rhs) {
@@ -794,6 +802,15 @@ namespace EvalLearningTools
 		int king_;
 		Eval::BonaPiece piece0_, piece1_,piece2_;
 
+		u64 fe_end_ = 0;
+		int king_sq_ = 0;
+
+		// kppp[king_sq][fe_end][fe_end][fe_end]の[fe_end][fe_end][fe_end]な正方配列の部分を三角配列化する。
+		// kppp[king_sq][triangle_fe_end]とすると、この三角配列の0行目から要素数は、0,0,1,3,…,n行目はn(n-1)/2個。
+		// ゆえに、
+		// triangle_fe_end = Σn(n-1)/2 , n=0..fe_end-1
+		//                 =  fe_end * (fe_end - 1) * (fe_end - 2) / 6
+		u64 triangle_fe_end = 0; // ((u64)Eval::fe_end)*((u64)Eval::fe_end - 1)*((u64)Eval::fe_end - 2) / 6;
 	};
 
 	// デバッグ用出力。

@@ -23,8 +23,6 @@ namespace EvalLearningTools
 	AsyncPRNG Weight::prng;
 #endif
 
-	u64 KPPP::king_sq = 15;
-
 	// --- tables
 
 	// あるBonaPieceを相手側から見たときの値
@@ -348,8 +346,9 @@ namespace EvalLearningTools
 	{
 		// KPPPの計算に抜けがないかをテストする
 
-		u64 min_index = KPPP::min_index();
-		u64 max_index = KPPP::max_index();
+		KPPP g_kppp(15, Eval::fe_end);
+		u64 min_index = g_kppp.min_index();
+		u64 max_index = g_kppp.max_index();
 
 		// 最後の要素の確認。
 		//KPPP x = KPPP::fromIndex(max_index-1);
@@ -357,7 +356,7 @@ namespace EvalLearningTools
 
 		for (u64 index = min_index; index < max_index; ++index)
 		{
-			KPPP x = KPPP::fromIndex(index);
+			KPPP x = g_kppp.fromIndex(index);
 			//std::cout << x << std::endl;
 
 #if 0

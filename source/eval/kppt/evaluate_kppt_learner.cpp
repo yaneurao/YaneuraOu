@@ -245,7 +245,7 @@ namespace Eval
 
 					// inverseした次元下げに関しては符号が逆になるのでadjust_grad()を経由して計算する。
 					for (int i = 0; i <KK_LOWER_COUNT; ++i)
-						g_sum += a[i].adjust_grad(weights[ids[i]].get_grad());
+						g_sum += a[i].apply_inverse_sign(weights[ids[i]].get_grad());
 					
 					// 次元下げを考慮して、その勾配の合計が0であるなら、一切の更新をする必要はない。
 					if (is_zero(g_sum))
@@ -256,7 +256,7 @@ namespace Eval
 					weights[ids[0]].updateFV(v);
 
 					for (int i = 1; i< KK_LOWER_COUNT; ++i)
-						kk[a[i].king0()][a[i].king1()] = a[i].adjust_grad(v);
+						kk[a[i].king0()][a[i].king1()] = a[i].apply_inverse_sign(v);
 					
 					// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
 					// この場合、毎回gを通常の2倍加算していることになるが、AdaGradは適応型なのでこれでもうまく学習できる。
@@ -279,7 +279,7 @@ namespace Eval
 
 					std::array<LearnFloatType, 2> g_sum = zero_t;
 					for (int i = 0; i <KKP_LOWER_COUNT; ++i)
-						g_sum += a[i].adjust_grad(weights[ids[i]].get_grad());
+						g_sum += a[i].apply_inverse_sign(weights[ids[i]].get_grad());
 					
 					if (is_zero(g_sum))
 						continue;
@@ -289,7 +289,7 @@ namespace Eval
 					weights[ids[0]].updateFV(v);
 
 					for (int i = 1; i < KKP_LOWER_COUNT; ++i)
-						kkp[a[i].king0()][a[i].king1()][a[i].piece()] = a[i].adjust_grad(v);
+						kkp[a[i].king0()][a[i].king1()][a[i].piece()] = a[i].apply_inverse_sign(v);
 					
 					for (auto id : ids)
 						weights[id].set_grad(zero_t);
