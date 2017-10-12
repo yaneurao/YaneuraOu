@@ -680,8 +680,10 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			if (ply < (int)random_move_flag.size() && random_move_flag[ply])
 			{
 				// mateではないので合法手が1手はあるはず…。
-				if (random_multi_pv == 1)
+				if (random_multi_pv == 0)
 				{
+					// 普通のランダムムーブ
+
 					MoveList<LEGAL> list(pos);
 
 					// ここをApery方式にするのとの善悪はよくわからない。
@@ -790,8 +792,8 @@ void gen_sfen(Position&, istringstream& is)
 	// ランダムムーブをAperyのように玉を主に動かす機能
 	// これを例えば3にすると1/3の確率で玉を動かす。
 	int random_move_like_apery = 0;
-	// ランダムムーブの代わりにmultipvで探索してそのなかからランダムに選ぶときはrandom_multi_pv = 1より大きな数にする。
-	int random_multi_pv = 1;
+	// ランダムムーブの代わりにmultipvで探索してそのなかからランダムに選ぶときはrandom_multi_pv = 1以上の数にする。
+	int random_multi_pv = 0;
 	int random_multi_pv_diff = 32000;
 	int random_multi_pv_depth = INT_MIN;
 

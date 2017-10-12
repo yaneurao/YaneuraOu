@@ -317,6 +317,7 @@ USIプロトコルの独自拡張コマンド
 
 		random_multi_pv N : ランダムムーブの代わりにMultiPV Nでrandom_move_count手指すオプション。
 			ConsiderBookMoveCount = trueと組み合わせると実現確率の高い局面からスタートできるかも…。
+			0を指定するとこの機能は無効。
 		random_multi_pv_diff m : random_multipvでmulti pvで指し手を採択するときに、
 			1位の指し手の評価値との評価値の差がmに収まる範囲の指し手しか採択しない。
 			デフォルトでは32000。(範囲の限度なし)
