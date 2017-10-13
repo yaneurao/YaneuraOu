@@ -1758,7 +1758,9 @@ namespace YaneuraOu2017Early
 			//  root node用の特別な処理
 			// -----------------------
 
-			// これは、Step 19.だと思うが、StockfishにはStep 19.のコメントが抜けている。
+			// StockfishにはStep 19.のコメントが抜けている。
+			// Step 19.は、かつてYBWC用のコードが書いてあったところで、LazySMPになり、YBWCの処理が完全に取り払われたのでStep 19.が欠番になった。
+			// YBWCが復活する可能性もなくはないので、番号を詰めることはしていない模様。
 
 			if (RootNode)
 			{
@@ -2244,7 +2246,7 @@ void Thread::search()
 	//      variables
 	// ---------------------
 
-	// (ss-4)と(ss+2)にアクセスしたいので余分に確保しておく。
+	// (ss-4)から(ss+2)までにアクセスしたいので余分に確保しておく。
 	Stack stack[MAX_PLY + 7], *ss = stack + 4;
 
 	// aspiration searchの窓の範囲(alpha,beta)
@@ -2724,10 +2726,6 @@ void MainThread::think()
 	// 反復深化の終了。
 ID_END:;
 
-	// nodes as time(時間としてnodesを用いるモード)のときは、利用可能なノード数から探索したノード数を引き算する。
-	if (Limits.npmsec)
-		Time.availableNodes = std::max(Time.availableNodes + Limits.inc[us] - (s64)Threads.nodes_searched(), (s64)0);
-
 	// 最大depth深さに到達したときに、ここまで実行が到達するが、
 	// まだThreads.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
 	// USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまでbest moveを出力してはならない。
@@ -2752,6 +2750,10 @@ ID_END:;
 	for (Thread* th : Threads)
 		if (th != this)
 			th->wait_for_search_finished();
+
+	// nodes as time(時間としてnodesを用いるモード)のときは、利用可能なノード数から探索したノード数を引き算する。
+	if (Limits.npmsec)
+		Time.availableNodes += Limits.inc[us] - Threads.nodes_searched();
 
 	// ---------------------
 	// Lazy SMPの結果を取り出す

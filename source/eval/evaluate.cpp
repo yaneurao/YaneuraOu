@@ -6,14 +6,6 @@
 // 全評価関数に共通の処理などもここに記述する。
 
 // 実験中の(非公開の)評価関数の.cppの読み込みはここで行なう。
-#if defined (EVAL_KPPP_KKPT)
-#include "kppp_kkpt/evaluate_kppp_kkpt.cpp"
-#include "kppp_kkpt/evaluate_kppp_kkpt_learner.cpp"
-#endif
-#if defined (EVAL_KPPPT)
-#include "kpppt/evaluate_kpppt.cpp"
-#include "kpppt/evaluate_kpppt_learner.cpp"
-#endif
 #if defined (EVAL_NABLA)
 #include "nabla/evaluate_nabla.cpp"
 #include "nabla/evaluate_nabla_learner.cpp"

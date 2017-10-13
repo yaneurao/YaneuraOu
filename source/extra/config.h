@@ -92,6 +92,7 @@
 // 評価関数を用いるなら、どれか一つを選択すべし。
 
 // 「○」がついているもの..実装済み
+// 「△」がついているもの..参考実装。
 // 「×」がついているもの..実装予定なし
 // 「？」がついているもの..実装するかも
 // 「！」がついているもの..かつて実装していたがサポートを終了したもの。
@@ -102,15 +103,21 @@
 // #define EVAL_KPP       // ！  Bonanza型 3駒関係、手番なし
 // #define EVAL_KPPT      // ○  Bonanza型 3駒関係、手番つき(Apery WCSC26相当)
 // #define EVAL_KPP_KKPT  // ○  KK手番あり + KKP手番あり + KPP手番なし(Ponanza WCSC26相当？)
-// #define EVAL_KPP_PPT   // ×  PP手番あり + KKP手番あり + KPP手番なし(実装、途中まで)
-// #define EVAL_KKPPT     // ×  KPPTよりevaluateが倍ぐらい速くなる。メモリ使用量64倍。(実装予定なし)
-// #define EVAL_KPPP_KKPT // ？  KKP手番あり + KPP手番なし + KPPP(4駒関係)手番なし。(実装するかも)
-// #define EVAL_KPPPT     // ×  KPPP(4駒関係)手番あり。(実装予定なし)
+// #define EVAL_KPP_PPT   // ×  PP手番あり + KKP手番あり + KPP手番なし(実装、途中まで)※1
+// #define EVAL_KPPP_KKPT // △  KKP手番あり + KPP手番なし + KPPP(4駒関係)手番なし。→　※2,※3
+// #define EVAL_KPPPT     // △  KPPP(4駒関係)手番あり。→　実装したけどいまひとつだったので差分計算実装せず。※2,※3
 // #define EVAL_PPET      // ×  技巧型 2駒+利き+手番(実装予定なし)
-// #define EVAL_KKPPT     // ？  KKPPT型 4駒関係 手番(55将棋、56将棋で用いるかも)(実装するかも)
+// #define EVAL_KKPPT     // ？  KKPP型 4駒関係 手番あり。(55将棋、56将棋でも使えそう)(実装するかも)
+// #define EVAL_KKPP_KKPT // ？  KKPP型 4駒関係 手番はKK,KKPTにのみあり。(実装するかも)
 // #define EVAL_PPAP      // ？  3駒 + Piece-Piece-and Pawn型(実装するかも)
 // #define EVAL_NABLA     // ？  ∇(ナブラ) 評価関数
 // #define EVAL_AKASHIC   // ？  Akashic Records 評価関数
+
+// ※1 : KPP_PPTは、差分計算が面倒で割に合わないことが判明したのでこれを使うぐらいならKPP_KKPTで十分だという結論。
+// ※2 : 実装したけどいまひとつだったので差分計算実装せず。そのため遅すぎて、実質使い物にならない。ソースコードの参考用。
+// ※3 : このシンボルの値として対象とする王の升の数を指定する。例えばEVAL_KPPPTを27とdefineすると玉が自陣(3*9升 = 27)に
+//       いるときのみがKPPPTの評価対象となる。(そこ以外に玉があるときは普通のKPPT)
+
 
 // KPPT評価関数の学習に使うときのモード
 // #define EVAL_LEARN

@@ -62,6 +62,12 @@
     <Filter Include="リソース ファイル\eval\kpp_kkpt">
       <UniqueIdentifier>{da7e0fa7-bf52-4802-ac0e-7b3db259ddf6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\eval\kpppt">
+      <UniqueIdentifier>{7fab4fe0-faef-4c34-b464-557998e74f4b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\eval\kppp_kkpt">
+      <UniqueIdentifier>{ad765c72-3c65-4c8a-b959-b678542fa5ee}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -165,6 +171,12 @@
     </ClInclude>
     <ClInclude Include="eval\kpp_kkpt\evaluate_kpp_kkpt.h">
       <Filter>リソース ファイル\eval\kpp_kkpt</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\kpppt\evaluate_kpppt.h">
+      <Filter>リソース ファイル\eval\kpppt</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\kppp_kkpt\evaluate_kppp_kkpt.h">
+      <Filter>リソース ファイル\eval\kppp_kkpt</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -284,6 +296,18 @@
     </ClCompile>
     <ClCompile Include="move_picker.cpp">
       <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kpppt\evaluate_kpppt.cpp">
+      <Filter>リソース ファイル\eval\kpppt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kpppt\evaluate_kpppt_learner.cpp">
+      <Filter>リソース ファイル\eval\kpppt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kppp_kkpt\evaluate_kppp_kkpt.cpp">
+      <Filter>リソース ファイル\eval\kppp_kkpt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kppp_kkpt\evaluate_kppp_kkpt_learner.cpp">
+      <Filter>リソース ファイル\eval\kppp_kkpt</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
