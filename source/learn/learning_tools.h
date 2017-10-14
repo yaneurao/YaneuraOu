@@ -745,6 +745,15 @@ namespace EvalLearningTools
 			return my_kppp;
 		}
 
+		// k,p0,p1,p2を指定してKPPPのインスタンスをbuildする。
+		// king_sqとfe_endは引き継ぐ。
+		KPPP fromKPPP(int king, Eval::BonaPiece p0, Eval::BonaPiece p1, Eval::BonaPiece p2)
+		{
+			KPPP my_kppp(king, p0, p1, p2);
+			my_kppp.set(king_sq_, fe_end_);
+			return my_kppp;
+		}
+
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
 		u64 toIndex() const {
 			return min_index() + toRawIndex();

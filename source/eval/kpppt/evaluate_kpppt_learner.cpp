@@ -243,6 +243,8 @@ namespace Eval
 		my_insertion_sort(list_fb, 0, 38);
 		my_insertion_sort(list_fw, 0, 38);
 
+		KPPP g_kppp(KPPP_KING_SQ, fe_end);
+
 		int i, j, k;
 		BonaPiece k0, k1, l0, l1, m0, m1;
 
@@ -287,7 +289,7 @@ namespace Eval
 					for (k = 0; k < j; ++k)
 					{
 						m0 = list_fb[k];
-						weights_kppp[KPPP((int)sq_bk_for_kppp, k0, l0, m0).toRawIndex()].add_grad(g);
+						weights_kppp[g_kppp.fromKPPP((int)sq_bk_for_kppp, k0, l0, m0).toRawIndex()].add_grad(g);
 					}
 					break;
 				case 2:
@@ -295,7 +297,7 @@ namespace Eval
 					for (k = 0; k < j; ++k)
 					{
 						m1 = list_fw[k];
-						weights_kppp[KPPP((int)sq_wk_for_kppp, k1, l1, m1).toRawIndex()].add_grad(g_flip);
+						weights_kppp[g_kppp.fromKPPP((int)sq_wk_for_kppp, k1, l1, m1).toRawIndex()].add_grad(g_flip);
 					}
 					break;
 				case 3:
@@ -305,8 +307,8 @@ namespace Eval
 						m0 = list_fb[k];
 						m1 = list_fw[k];
 
-						weights_kppp[KPPP((int)sq_bk_for_kppp, k0, l0, m0).toRawIndex()].add_grad(g);
-						weights_kppp[KPPP((int)sq_wk_for_kppp, k1, l1, m1).toRawIndex()].add_grad(g_flip);
+						weights_kppp[g_kppp.fromKPPP((int)sq_bk_for_kppp, k0, l0, m0).toRawIndex()].add_grad(g);
+						weights_kppp[g_kppp.fromKPPP((int)sq_wk_for_kppp, k1, l1, m1).toRawIndex()].add_grad(g_flip);
 					}
 					break;
 				}

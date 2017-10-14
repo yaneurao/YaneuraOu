@@ -273,6 +273,8 @@
 
 //#define EVAL_KPPT
 //#define EVAL_KPP_KKPT
+
+//#define USE_HELICES_MIRROR
 #define EVAL_HELICES 81
 
 //#define USE_KPPP_KKPT_MIRROR
