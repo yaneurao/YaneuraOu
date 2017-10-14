@@ -6,6 +6,10 @@
 // 全評価関数に共通の処理などもここに記述する。
 
 // 実験中の(非公開の)評価関数の.cppの読み込みはここで行なう。
+#if defined (EVAL_HELICES)
+#include "helices/evaluate_helices.cpp"
+#include "helices/evaluate_helices_learner.cpp"
+#endif
 #if defined (EVAL_NABLA)
 #include "nabla/evaluate_nabla.cpp"
 #include "nabla/evaluate_nabla_learner.cpp"
@@ -52,7 +56,7 @@ namespace Eval
 	Value compute_eval(const Position& pos) { return material(pos); }
 #endif
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
 
 	// calc_check_sum()を呼び出して返ってきた値を引数に渡すと、ソフト名を表示してくれる。
 	void print_softname(u64 check_sum)

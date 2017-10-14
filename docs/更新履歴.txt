@@ -2,6 +2,60 @@
 やねうら王 更新履歴
 
 
+■　保留中の作業
+
+- Let ss->ply denote the number of plies from the root to the current node  : https://github.com/official-stockfish/Stockfish/commit/ba4e215493de31263b9bd352af79d00193e545bf
+	- いまここいじったら、エンバグしかねないのでSDT5終わってから。
+
+
+■　2017/10/14
+
+・evaluate_helices、追加準備。
+
+
+■　2017/10/13
+
+・BonaPiece inverse hackのための改造その1。たぶん数%速くなる程度なので残りはSDT5が終わってから実装することにする。
+
+・KPPPT/KPPP_KKPT型評価関数を公開。差分計算実装していないので使い物にならない。ソースコードの参考用。
+
+・learnコマンドでrandom_multi_pv == 0は、multi_pv無効の意味になっているべきなのでそういう扱いにする。
+・learnコマンドでrandom_multi_pv == 1は、multi_pv無効ではなく、multi_pv == 1の意味に変更する。
+・learnコマンドのrandom_multi_pvのデフォルト値を0に変更する。
+
+
+■　2017/10/06
+
+
+- Stockfish
+	- Tweak statScore condition : https://github.com/official-stockfish/Stockfish/commit/0e949ac2c956dc5ac03dc9da7050d895b3fb964a
+	- Measure nodes after search finished. : https://github.com/official-stockfish/Stockfish/commit/c33af32dada1be9f6aed851e8cf87599203e2eb2
+	- Decrease reduction for exact PV nodes : https://github.com/official-stockfish/Stockfish/commit/07b5a28a68b4cc67f1447fce85fc910aa209b319
+
+
+■　2017/10/03
+
+・EvalLearningTools::KPPPのクラス、少しリファクタリング。
+・EvalLearningToolsのinverse_→inverse_sign , adjust_grad→apply_inverse_signにrename。
+
+
+■　2017/09/30
+
+・KPP_KKPTのlearnerのupdate、toRawIndex()を使って書きかえ。
+
+
+■　2017/09/28
+
+・探索パラメーターの自動調整のコード、コンパイルが通らなくなっていたのを修正。
+・EvalLearningTools::KPPPのkingをint型に変更。
+
+
+■　2017/09/27
+
+・setoptionコマンドでstring型に対して空の文字列を設定できるように変更した。("EvalDir"などに対して空の文字列を設定したいことがあるため)
+・EvalLearningTools::KK,KKP,…に、toRawIndex()導入。
+
+
 ■　2017/09/24
 
 ・kpp_kkpt評価関数をAVX2でVPGATHERDDを使うようにして高速化。(tanuki-さん)

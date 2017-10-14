@@ -2752,6 +2752,7 @@ ID_END:;
 			th->wait_for_search_finished();
 
 	// nodes as time(時間としてnodesを用いるモード)のときは、利用可能なノード数から探索したノード数を引き算する。
+	// 時間切れの場合、負の数になりうる。
 	if (Limits.npmsec)
 		Time.availableNodes += Limits.inc[us] - Threads.nodes_searched();
 

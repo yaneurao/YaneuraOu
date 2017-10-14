@@ -112,6 +112,7 @@
 // #define EVAL_PPAP      // ？  3駒 + Piece-Piece-and Pawn型(実装するかも)
 // #define EVAL_NABLA     // ？  ∇(ナブラ) 評価関数
 // #define EVAL_AKASHIC   // ？  Akashic Records 評価関数
+// #define EVAL_HELICES   // ？  螺旋評価関数
 
 // ※1 : KPP_PPTは、差分計算が面倒で割に合わないことが判明したのでこれを使うぐらいならKPP_KKPTで十分だという結論。
 // ※2 : 実装したけどいまひとつだったので差分計算実装せず。そのため遅すぎて、実質使い物にならない。ソースコードの参考用。
@@ -218,6 +219,7 @@
 // こうなっていれば、inverse()に表引きが不要になる。
 // ただし、評価関数ファイルの互換性はなくなるので注意。
 // たぶん数%速くなる程度なので、SDT5が終わってから実装することにする。
+// cf. http://yaneuraou.yaneu.com/2017/10/13/bonapiece-inverse-hack%E3%81%A8%E3%81%AF%E4%BD%95%E3%81%8B%EF%BC%9F/
 // #define BONA_PIECE_INVERSE_HACK
 
 // --------------------
@@ -270,7 +272,8 @@
 //#define BONA_PIECE_INVERSE_HACK
 
 //#define EVAL_KPPT
-#define EVAL_KPP_KKPT
+//#define EVAL_KPP_KKPT
+#define EVAL_HELICES 81
 
 //#define USE_KPPP_KKPT_MIRROR
 //#define EVAL_KPPP_KKPT 18
@@ -710,7 +713,7 @@ inline int MKDIR(std::string dir_name)
 // do_move()のときに移動した駒の管理をして差分計算
 // また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
 // あらゆる局面でP(駒)の数が増えないFV38と呼ばれる形式の差分計算用。
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
 #define USE_FV38
 #endif
 
