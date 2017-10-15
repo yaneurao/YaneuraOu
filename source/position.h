@@ -29,7 +29,7 @@ struct DirtyPiece
 	Eval::ChangedBonaPiece changed_piece[2];
 
 	// dirtyになった駒番号
-	PieceNo pieceNo[2];
+	PieceNumber pieceNo[2];
 
 	// dirtyになった個数。
 	// null moveだと0ということもありうる。
@@ -649,8 +649,8 @@ private:
 	// また、put_piece_simple()は、put_piece()の王の升(kingSquare)を更新しない版。do_move()で用いる。
 
 	// 駒を配置して、内部的に保持しているBitboardなどを更新する。
-	void put_piece(Square sq, Piece pc, PieceNo piece_no);
-	void put_piece_simple(Square sq, Piece pc, PieceNo piece_no);
+	void put_piece(Square sq, Piece pc, PieceNumber piece_no);
+	void put_piece_simple(Square sq, Piece pc, PieceNumber piece_no);
 
 	// 駒を盤面から取り除き、内部的に保持しているBitboardも更新する。
 	void remove_piece(Square sq);
@@ -673,22 +673,22 @@ private:
 		return (Eval::BonaPiece)(Eval::kpp_hand_index[c][pt].fb + ct - 1);
 	}
 
-	// c側の手駒ptの(最後の1枚の)PieceNoを返す。
-	PieceNo piece_no_of(Color c, Piece pt) const { return evalList.piece_no_of_hand(bona_piece_of(c, pt)); }
+	// c側の手駒ptの(最後の1枚の)PieceNumberを返す。
+	PieceNumber piece_no_of(Color c, Piece pt) const { return evalList.piece_no_of_hand(bona_piece_of(c, pt)); }
 
-	// 盤上のsqの升にある駒のPieceNoを返す。
-	PieceNo piece_no_of(Square sq) const
+	// 盤上のsqの升にある駒のPieceNumberを返す。
+	PieceNumber piece_no_of(Square sq) const
 	{
 		ASSERT_LV3(piece_on(sq) != NO_PIECE);
-		PieceNo n = evalList.piece_no_of_board(sq);
+		PieceNumber n = evalList.piece_no_of_board(sq);
 		ASSERT_LV3(is_ok(n));
 		return n;
 	}
 #else
 	// 駒番号を使わないとき用のダミー
-	PieceNo piece_no_of(Color c, Piece pt) const { return PIECE_NO_ZERO; }
-	PieceNo piece_no_of(Piece pc, Square sq) const { return PIECE_NO_ZERO; }
-	PieceNo piece_no_of(Square sq) const { return PIECE_NO_ZERO; }
+	PieceNumber piece_no_of(Color c, Piece pt) const { return PIECE_NUMBER_ZERO; }
+	PieceNumber piece_no_of(Piece pc, Square sq) const { return PIECE_NUMBER_ZERO; }
+	PieceNumber piece_no_of(Square sq) const { return PIECE_NUMBER_ZERO; }
 #endif
 	// ---
 
@@ -737,7 +737,7 @@ inline void Position::xor_piece(Piece pc, Square sq)
 }
 
 // 駒を配置して、内部的に保持しているBitboardも更新する。
-inline void Position::put_piece(Square sq, Piece pc,PieceNo piece_no)
+inline void Position::put_piece(Square sq, Piece pc,PieceNumber piece_no)
 {
 	ASSERT_LV2(board[sq] == NO_PIECE);
 	board[sq] = pc;
@@ -758,7 +758,7 @@ inline void Position::put_piece(Square sq, Piece pc,PieceNo piece_no)
 }
 
 // put_piece()の王の升(kingSquare)を更新しない版
-inline void Position::put_piece_simple(Square sq, Piece pc, PieceNo piece_no)
+inline void Position::put_piece_simple(Square sq, Piece pc, PieceNumber piece_no)
 {
 	ASSERT_LV2(board[sq] == NO_PIECE);
 	board[sq] = pc;

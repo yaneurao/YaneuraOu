@@ -397,7 +397,7 @@ namespace Eval
 		switch (kppp_case)
 		{
 		case 0:
-			for (i = 0; i < PIECE_NO_KING; ++i)
+			for (i = 0; i < PIECE_NUMBER_KING; ++i)
 			{
 				k0 = list_fb[i];
 				k1 = list_fw[i];
@@ -423,7 +423,7 @@ namespace Eval
 			break;
 
 		case 1:
-			for (i = 0; i < PIECE_NO_KING; ++i)
+			for (i = 0; i < PIECE_NUMBER_KING; ++i)
 			{
 				k0 = list_fb[i];
 				k1 = list_fw[i];
@@ -451,7 +451,7 @@ namespace Eval
 			break;
 
 		case 2:
-			for (i = 0; i < PIECE_NO_KING; ++i)
+			for (i = 0; i < PIECE_NUMBER_KING; ++i)
 			{
 				k0 = list_fb[i];
 				k1 = list_fw[i];
@@ -479,7 +479,7 @@ namespace Eval
 			break;
 
 		case 3:
-			for (i = 0; i < PIECE_NO_KING; ++i)
+			for (i = 0; i < PIECE_NUMBER_KING; ++i)
 			{
 				k0 = list_fb[i];
 				k1 = list_fw[i];
@@ -554,7 +554,7 @@ namespace Eval
 		// KPPは手番なしなので0を突っ込んでおく。
 		std::array<s32, 2> sum = { pkppb[list0[0]], 0 };
 
-		for (int i = 1; i < PIECE_NO_KING; ++i) {
+		for (int i = 1; i < PIECE_NUMBER_KING; ++i) {
 			sum[0] += pkppb[list0[i]];
 		}
 		return sum;
@@ -567,7 +567,7 @@ namespace Eval
 
 		const auto* pkppw = kpp[Inv(sq_wk)][ebp.fw];
 		std::array<s32, 2> sum = { pkppw[list1[0]], 0 };
-		for (int i = 1; i < PIECE_NO_KING; ++i) {
+		for (int i = 1; i < PIECE_NUMBER_KING; ++i) {
 			sum[0] += pkppw[list1[i]];
 		}
 		return sum;
@@ -623,7 +623,7 @@ namespace Eval
         __m256i sum0 = _mm256_setzero_si256();
         __m256i sum1 = _mm256_setzero_si256();
         int i = 0;
-        for (; i + 8 < PIECE_NO_KING; i += 8) {
+        for (; i + 8 < PIECE_NUMBER_KING; i += 8) {
             // 1要素が16-bitでvgatherdd命令が使えないため
             // 通常のメモリアクセスで評価値をロードする
             __m256i w0 = _mm256_set_epi32(
@@ -685,7 +685,7 @@ namespace Eval
 #else
         sum.p[0][0] = pkppb[list0[0]];
         sum.p[1][0] = pkppw[list1[0]];
-        for (int i = 1; i < PIECE_NO_KING; ++i) {
+        for (int i = 1; i < PIECE_NUMBER_KING; ++i) {
             sum.p[0][0] += pkppb[list0[i]];
             sum.p[1][0] += pkppw[list1[i]];
         }
@@ -749,7 +749,7 @@ namespace Eval
 		auto dirty = dp.pieceNo[0];
 
 		// 移動させた駒は王か？
-		if (dirty >= PIECE_NO_KING)
+		if (dirty >= PIECE_NUMBER_KING)
 		{
 			// 前のnodeの評価値からの増分を計算していく。
 			// (直接この変数に加算していく)
@@ -764,7 +764,7 @@ namespace Eval
 			diff.p[2][0] += now->materialValue * FV_SCALE;
 
 			// 後手玉の移動(片側分のKPPを丸ごと求める)
-			if (dirty == PIECE_NO_WKING)
+			if (dirty == PIECE_NUMBER_WKING)
 			{
 				const auto ppkppw = kpp[Inv(sq_wk)];
 
@@ -792,7 +792,7 @@ namespace Eval
                 __m256i sum1_256 = _mm256_setzero_si256();
                 __m128i sum1_128 = _mm_setzero_si128();
 
-                for (int i = 0; i < PIECE_NO_KING; ++i)
+                for (int i = 0; i < PIECE_NUMBER_KING; ++i)
                 {
                     const int k1 = list1[i];
                     const auto* pkppw = ppkppw[k1];
@@ -839,7 +839,7 @@ namespace Eval
                 sum1_128 = _mm_add_epi32(sum1_128, _mm_srli_si128(sum1_128, 4));
                 diff.p[1][0] += _mm_extract_epi32(sum1_128, 0);
 #else
-				for (int i = 0; i < PIECE_NO_KING; ++i)
+				for (int i = 0; i < PIECE_NUMBER_KING; ++i)
 				{
 					const int k1 = list1[i];
 					const auto* pkppw = ppkppw[k1];
@@ -885,7 +885,7 @@ namespace Eval
                 __m256i sum0_256 = _mm256_setzero_si256();
                 __m128i sum0_128 = _mm_setzero_si128();
 
-                for (int i = 0; i < PIECE_NO_KING; ++i)
+                for (int i = 0; i < PIECE_NUMBER_KING; ++i)
                 {
                     const int k0 = list0[i];
                     const auto* pkppb = ppkppb[k0];
@@ -927,7 +927,7 @@ namespace Eval
                 sum0_128 = _mm_add_epi32(sum0_128, _mm_srli_si128(sum0_128, 4));
                 diff.p[0][0] += _mm_extract_epi32(sum0_128, 0);
 #else
-                for (int i = 0; i < PIECE_NO_KING; ++i)
+                for (int i = 0; i < PIECE_NUMBER_KING; ++i)
                 {
                     const int k0 = list0[i];
                     const auto* pkppb = ppkppb[k0];
@@ -979,7 +979,7 @@ namespace Eval
 				diff.p[0][0] -= kpp[sq_bk][dp.changed_piece[0].new_piece.fb][dp.changed_piece[1].new_piece.fb];
 				diff.p[1][0] -= kpp[Inv(sq_wk)][dp.changed_piece[0].new_piece.fw][dp.changed_piece[1].new_piece.fw];
 
-				const PieceNo listIndex_cap = dp.pieceNo[1];
+				const PieceNumber listIndex_cap = dp.pieceNo[1];
 				list0[listIndex_cap] = dp.changed_piece[1].old_piece.fb;
 				list1[listIndex_cap] = dp.changed_piece[1].old_piece.fw;
 
@@ -1212,7 +1212,7 @@ namespace Eval
 		make_list_function(pos, list_fb, list_fw);
 
 		EvalLearningTools::init();
-		for (PieceNo i = PIECE_NO_ZERO; i < PIECE_NO_NB; ++i)
+		for (PieceNumber i = PIECE_NUMBER_ZERO; i < PIECE_NUMBER_NB; ++i)
 		{
 			// 組み替えて異なる番号になったものだけ出力。
 			auto fb = pos_.eval_list()->piece_list_fb()[i];
@@ -1222,7 +1222,7 @@ namespace Eval
 
 			// この変換後のfb,fwに対して、きちんと情報が設定されているかの確認。
 			if (fb != fb_new || fw != fw_new)
-				std::cout << "PieceNo = " << i << " , fb = " << (int)fb << ":" << fb << " , fw = " << (int)fw << ":" << fw
+				std::cout << "PieceNumber = " << i << " , fb = " << (int)fb << ":" << fb << " , fw = " << (int)fw << ":" << fw
 				<< " , fb_new = " << (int)fb_new << " , fw_new = " << (int)fw_new
 				<< " , mir(fb_new) = " << (int)EvalLearningTools::mir_piece(fb_new)
 				<< " , mir(fw_new) = " << (int)EvalLearningTools::mir_piece(fw_new)
@@ -1236,7 +1236,7 @@ namespace Eval
 		BonaPiece k0, k1, l0, l1;
 
 		// 38枚の駒を表示
-		for (i = 0; i < PIECE_NO_KING; ++i)
+		for (i = 0; i < PIECE_NUMBER_KING; ++i)
 			cout << int(list_fb[i]) << " = " << list_fb[i] << " , " << int(list_fw[i]) << " =  " << list_fw[i] << endl;
 
 		// 評価値の合計
@@ -1253,7 +1253,7 @@ namespace Eval
 		sum.p[2] = kk[sq_bk][sq_wk];
 		cout << "KKC : " << sq_bk << " " << sq_wk << " = " << kk[sq_bk][sq_wk][0] << " + " << kk[sq_bk][sq_wk][1] << endl;
 
-		for (i = 0; i < PIECE_NO_KING; ++i)
+		for (i = 0; i < PIECE_NUMBER_KING; ++i)
 		{
 			k0 = list_fb[i];
 			k1 = list_fw[i];

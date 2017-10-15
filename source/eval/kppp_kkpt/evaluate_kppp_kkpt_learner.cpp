@@ -262,7 +262,7 @@ namespace Eval
 		if (freeze_kppp)
 			kppp_case = 0;
 
-		for (i = 0; i < PIECE_NO_KING; ++i)
+		for (i = 0; i < PIECE_NUMBER_KING; ++i)
 		{
 			k0 = list_fb[i];
 			k1 = list_fw[i];

@@ -156,7 +156,7 @@ namespace Eval
 		// KK
 		weights[KK(sq_bk,sq_wk).toIndex()].add_grad(g);
 
-		for (int i = 0; i < PIECE_NO_KING; ++i)
+		for (int i = 0; i < PIECE_NUMBER_KING; ++i)
 		{
 			BonaPiece k0 = list_fb[i];
 			BonaPiece k1 = list_fw[i];

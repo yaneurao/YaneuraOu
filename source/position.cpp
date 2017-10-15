@@ -175,8 +175,8 @@ void Position::set(std::string sfen , Thread* th)
 #if !defined (EVAL_NO_USE)
 	// PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
 	// それぞれの駒をどこまで使ったかのカウンター
-	PieceNo piece_no_count[KING] = { PIECE_NO_ZERO,PIECE_NO_PAWN,PIECE_NO_LANCE,PIECE_NO_KNIGHT,
-	  PIECE_NO_SILVER, PIECE_NO_BISHOP, PIECE_NO_ROOK,PIECE_NO_GOLD };
+	PieceNumber piece_no_count[KING] = { PIECE_NUMBER_ZERO,PIECE_NUMBER_PAWN,PIECE_NUMBER_LANCE,PIECE_NUMBER_KNIGHT,
+	  PIECE_NUMBER_SILVER, PIECE_NUMBER_BISHOP, PIECE_NUMBER_ROOK,PIECE_NUMBER_GOLD };
 
 	evalList.clear();
 
@@ -204,13 +204,13 @@ void Position::set(std::string sfen , Thread* th)
 		// 駒文字列か？
 		else if ((idx = PieceToCharBW.find(token)) != string::npos)
 		{
-			PieceNo piece_no =
-				(idx == B_KING) ? PIECE_NO_BKING : // 先手玉
-				(idx == W_KING) ? PIECE_NO_WKING : // 後手玉
+			PieceNumber piece_no =
+				(idx == B_KING) ? PIECE_NUMBER_BKING : // 先手玉
+				(idx == W_KING) ? PIECE_NUMBER_WKING : // 後手玉
 #if !defined (EVAL_NO_USE)
 				piece_no_count[raw_type_of(Piece(idx))]++; // それ以外
 #else
-				PIECE_NO_ZERO; // とりあえず駒番号は使わないので全部ゼロにしておけばいい。
+				PIECE_NUMBER_ZERO; // とりあえず駒番号は使わないので全部ゼロにしておけばいい。
 #endif
 
 			// 盤面の(f,r)の駒を設定する
@@ -259,7 +259,7 @@ void Position::set(std::string sfen , Thread* th)
 			for (int i = 0; i < ct; ++i)
 			{
 				Piece rpc = raw_type_of(Piece(idx));
-				PieceNo piece_no = piece_no_count[rpc]++;
+				PieceNumber piece_no = piece_no_count[rpc]++;
 				ASSERT_LV1(is_ok(piece_no));
 				evalList.put_piece(piece_no, color_of(Piece(idx)), rpc, i);
 			}
@@ -1073,7 +1073,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		Eval::prefetch_evalhash(key);
 #endif
 
-		PieceNo piece_no = piece_no_of(Us, pr);
+		PieceNumber piece_no = piece_no_of(Us, pr);
 		ASSERT_LV3(is_ok(piece_no));
 
 #if defined (USE_FV38)
@@ -1160,8 +1160,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 			Piece pr = raw_type_of(to_pc);
 
-			// このPieceNoの駒が手駒に移動したのでEvalListのほうを更新しておく。
-			PieceNo piece_no = piece_no_of(to);
+			// このPieceNumberの駒が手駒に移動したのでEvalListのほうを更新しておく。
+			PieceNumber piece_no = piece_no_of(to);
 			ASSERT_LV3(is_ok(piece_no));
 
 #if defined (USE_FV38)
@@ -1211,7 +1211,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		}
 
 		// 移動元にあった駒のpiece_noを得る
-		PieceNo piece_no2 = piece_no_of(from);
+		PieceNumber piece_no2 = piece_no_of(from);
 
 #if defined (USE_FV38)
 		dp.pieceNo[0] = piece_no2;
@@ -1418,7 +1418,7 @@ void Position::undo_move_impl(Move m)
 		piece_on(to);
 #endif
 
-	PieceNo piece_no = piece_no_of(to); // 移動元のpiece_no == いまtoの場所にある駒のpiece_no
+	PieceNumber piece_no = piece_no_of(to); // 移動元のpiece_no == いまtoの場所にある駒のpiece_no
 	ASSERT_LV3(is_ok(piece_no));
 
 	// 移動前の駒
@@ -1467,7 +1467,7 @@ void Position::undo_move_impl(Move m)
 			Piece to_pc = st->capturedPiece;
 
 			// 盤面のtoの地点に捕獲されていた駒を復元する
-			PieceNo piece_no2 = piece_no_of(Us, raw_type_of(to_pc)); // 捕っていた駒(手駒にある)のpiece_no
+			PieceNumber piece_no2 = piece_no_of(Us, raw_type_of(to_pc)); // 捕っていた駒(手駒にある)のpiece_no
 			ASSERT_LV3(is_ok(piece_no2));
 
 			put_piece_simple(to, to_pc , piece_no2);
