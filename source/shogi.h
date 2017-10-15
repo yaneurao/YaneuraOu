@@ -523,6 +523,7 @@ std::ostream& operator<<(std::ostream& os, Piece pc);
 // --------------------
 
 // Positionクラスで用いる、駒リスト(どの駒がどこにあるのか)を管理するときの番号。
+// TODO:PieceNumとリネームしたほうが良い気がする。SDT5終わってから。
 enum PieceNo : u8
 {
   PIECE_NO_PAWN = 0, PIECE_NO_LANCE = 18, PIECE_NO_KNIGHT = 22, PIECE_NO_SILVER = 26,
