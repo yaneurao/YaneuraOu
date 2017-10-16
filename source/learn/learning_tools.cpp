@@ -19,10 +19,6 @@ namespace EvalLearningTools
 	u64 Weight::eta1_epoch;
 	u64 Weight::eta2_epoch;
 
-#if defined (SGD_UPDATE)
-	AsyncPRNG Weight::prng;
-#endif
-
 	// --- tables
 
 	// あるBonaPieceを相手側から見たときの値

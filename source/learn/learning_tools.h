@@ -150,8 +150,6 @@ namespace EvalLearningTools
 
 #elif defined(SGD_UPDATE)
 
-		static AsyncPRNG prng;
-
 		// 勾配の符号だけ見るSGDでupdateする
 		// この関数を実行しているときにgの値やメンバーが書き変わらないことは
 		// 呼び出し側で保証されている。atomic演算である必要はない。
@@ -170,7 +168,9 @@ namespace EvalLearningTools
 			// 0～5ぐらいずつ動かすのがよさげ。
 			// ガウス分布っぽいほうが良いので5bitの乱数を発生させて(それぞれのbitは1/2の確率で1である)、
 			// それをpop_count()する。このとき、二項分布になっている。
-			s16 diff = (s16)POPCNT32((u32)prng.rand(31));
+			//s16 diff = (s16)POPCNT32((u32)prng.rand(31));
+			// →　これ80スレッドでやったら、このAsyncPRNG::rand()がlockするのでslow downした。この実装良くない。
+			s16 diff = 1;
 
 			double V = v;
 			if (g > 0.0)
