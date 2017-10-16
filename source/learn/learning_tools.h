@@ -6,8 +6,8 @@
 #include "learn.h"
 #if defined (EVAL_LEARN)
 
-#if defined(SGD_UPDATE)
-#include "../misc.h"  // PRNG
+#if defined(SGD_UPDATE) || defined(USE_KPPP_MIRROR_WRITE)
+#include "../misc.h"  // PRNG , my_insertion_sort
 #endif
 
 #if V_FRACTION_BITS == 8
@@ -172,14 +172,14 @@ namespace EvalLearningTools
 			// それをpop_count()する。このとき、二項分布になっている。
 			s16 diff = (s16)POPCNT32((u32)prng.rand(31));
 
-			auto V = v;
+			double V = v;
 			if (g > 0.0)
 				V-= diff;
 			else
 				V+= diff;
 
-			V = std::min((double)(std::numeric_limits<T>::max)(), V);
-			V = std::max((double)(std::numeric_limits<T>::min)(), V);
+			V = (std::min)((double)(std::numeric_limits<T>::max)(), V);
+			V = (std::max)((double)(std::numeric_limits<T>::min)(), V);
 
 			v = (T)V;
 		}
@@ -656,13 +656,29 @@ namespace EvalLearningTools
 		bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
 
 		// 次元下げの数
+		// とりあえず、ミラーの次元下げ非対応。ここでやることもないかと…。
+/*
+#if defined(USE_KPPP_MIRROR_WRITE)
+#define KPPP_LOWER_COUNT 2
+#else
+#define KPPP_LOWER_COUNT 1
+#endif
+*/
 #define KPPP_LOWER_COUNT 1
 
 		// 低次元の配列のindexを得る。
-		// ミラーしたものも、p0,p1,p2を入れ替えたものも返らないので注意。
+		// p0,p1,p2を入れ替えたものは返らないので注意。
+		// またミラーしたものも、USE_KPPP_MIRROR_WRITEが有効なときしか返さない。
 		void toLowerDimensions(/*out*/ KPPP kppp_[KPPP_LOWER_COUNT]) const
 		{
 			kppp_[0] = KPPP(king_, piece0_, piece1_,piece2_);
+			kppp_[0].set(king_sq_, fe_end_);
+#if KPPP_LOWER_COUNT > 1
+			// mir_pieceするとsortされてない状態になる。sortするコードが必要。
+			Eval::BonaPiece p_list[3] = { mir_piece(piece2_), mir_piece(piece1_), mir_piece(piece0_) };
+			my_insertion_sort(p_list, 0, 3);
+			kppp_[1] = KPPP((int)Mir((Square)king_), p_list[2] , p_list[1], p_list[0]);
+#endif
 		}
 
 		// indexからKPPPのオブジェクトを生成するbuilder
