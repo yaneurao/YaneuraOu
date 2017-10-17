@@ -649,7 +649,7 @@ namespace EvalLearningTools
 		void set(int king_sq, u64 fe_end) {
 			king_sq_ = king_sq;
 			fe_end_ = fe_end;
-			triangle_fe_end = fe_end_*(fe_end - 1)*(fe_end - 2) / 6;
+			triangle_fe_end = fe_end * (fe_end - 1) * (fe_end - 2) / 6;
 		}
 
 		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
@@ -671,13 +671,12 @@ namespace EvalLearningTools
 		// またミラーしたものも、USE_KPPP_MIRROR_WRITEが有効なときしか返さない。
 		void toLowerDimensions(/*out*/ KPPP kppp_[KPPP_LOWER_COUNT]) const
 		{
-			kppp_[0] = KPPP(king_, piece0_, piece1_,piece2_);
-			kppp_[0].set(king_sq_, fe_end_);
+			kppp_[0] = fromKPPP(king_, piece0_, piece1_,piece2_);
 #if KPPP_LOWER_COUNT > 1
 			// mir_pieceするとsortされてない状態になる。sortするコードが必要。
 			Eval::BonaPiece p_list[3] = { mir_piece(piece2_), mir_piece(piece1_), mir_piece(piece0_) };
 			my_insertion_sort(p_list, 0, 3);
-			kppp_[1] = KPPP((int)Mir((Square)king_), p_list[2] , p_list[1], p_list[0]);
+			kppp_[1] = fromKPPP((int)Mir((Square)king_), p_list[2] , p_list[1], p_list[0]);
 #endif
 		}
 
@@ -747,23 +746,22 @@ namespace EvalLearningTools
 
 			ASSERT_LV3(piece0 > piece1 && piece1 > piece2);
 
-			ASSERT_LV3(piece2 < (int)Eval::fe_end);
-			ASSERT_LV3(piece1 < (int)Eval::fe_end);
-			ASSERT_LV3(piece0 < (int)Eval::fe_end);
+			ASSERT_LV3(piece2 < (int)fe_end_);
+			ASSERT_LV3(piece1 < (int)fe_end_);
+			ASSERT_LV3(piece0 < (int)fe_end_);
 
 			index /= triangle_fe_end;
 
 			int king = (int)(index  /* % SQ_NB */);
 			ASSERT_LV3(king < SQ_NB);
-			KPPP my_kppp((Square)king, (Eval::BonaPiece)piece0, (Eval::BonaPiece)piece1 , (Eval::BonaPiece)piece2);
+
 			// king_sqとfe_endに関しては伝播させる。
-			my_kppp.set(king_sq_, fe_end_);
-			return my_kppp;
+			return fromKPPP((Square)king, (Eval::BonaPiece)piece0, (Eval::BonaPiece)piece1 , (Eval::BonaPiece)piece2);
 		}
 
 		// k,p0,p1,p2を指定してKPPPのインスタンスをbuildする。
-		// king_sqとfe_endは引き継ぐ。
-		KPPP fromKPPP(int king, Eval::BonaPiece p0, Eval::BonaPiece p1, Eval::BonaPiece p2)
+		// 内部的に保持しているset()で渡されたking_sqとfe_endは引き継ぐ。
+		KPPP fromKPPP(int king, Eval::BonaPiece p0, Eval::BonaPiece p1, Eval::BonaPiece p2) const
 		{
 			KPPP my_kppp(king, p0, p1, p2);
 			my_kppp.set(king_sq_, fe_end_);

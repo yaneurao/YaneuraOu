@@ -162,10 +162,10 @@ namespace Eval
 		auto& pos_ = *const_cast<Position*>(&pos);
 
 		// バッファを確保してコピー
-		BonaPiece list_fb[38];
-		BonaPiece list_fw[38];
-		memcpy(list_fb, pos_.eval_list()->piece_list_fb(), sizeof(BonaPiece) * 38);
-		memcpy(list_fw, pos_.eval_list()->piece_list_fw(), sizeof(BonaPiece) * 38);
+		BonaPiece list_fb[PIECE_NUMBER_KING];
+		BonaPiece list_fw[PIECE_NUMBER_KING];
+		memcpy(list_fb, pos_.eval_list()->piece_list_fb(), sizeof(BonaPiece) * PIECE_NUMBER_KING);
+		memcpy(list_fw, pos_.eval_list()->piece_list_fw(), sizeof(BonaPiece) * PIECE_NUMBER_KING);
 
 		// ユーザーは、この関数でBonaPiece番号の自由な組み換えを行なうものとする。
 		// make_list_function(pos, list_fb, list_fw);
@@ -194,7 +194,7 @@ namespace Eval
 				sq_bk_for_kppp = sq_bk = Mir(sq_bk);
 				sq_wk = Mir(sq_wk);
 
-				for (int i = 0; i < 38; ++i)
+				for (int i = 0; i < PIECE_NUMBER_KING ; ++i)
 					list_fb[i] = EvalLearningTools::mir_piece(list_fb[i]);
 			}
 			// 玉の位置を詰める
@@ -219,9 +219,9 @@ namespace Eval
 			{
 				// WKPP は、inv_sq_wk     , Wから見たPに依存するので、これらまとめてミラーしているので合ってる。
 				// WKPPPは、sq_wk_for_kppp, Wから見たPに依存するので、これらまとめてミラーしているからこのコードで合ってる。
-				sq_wk_for_kppp = inv_sq_wk = Mir(sq_wk_for_kppp);
+				sq_wk_for_kppp = inv_sq_wk = Mir(inv_sq_wk);
 
-				for (int i = 0; i < 38; ++i)
+				for (int i = 0; i < PIECE_NUMBER_KING ; ++i)
 					list_fw[i] = EvalLearningTools::mir_piece(list_fw[i]);
 			}
 
