@@ -240,8 +240,9 @@ namespace Eval
 #endif
 
 		// step 3. list_fb,list_fwを昇順に並び替える。
-		my_insertion_sort(list_fb, 0, 38);
-		my_insertion_sort(list_fw, 0, 38);
+		// 注) PIECE_NUMBER_KPPP_START～PIECE_NUMBER_KINGの範囲だけ入れ替えないと配列の中身(対応する駒)がぐちゃぐちゃになる。
+		my_insertion_sort(list_fb, PIECE_NUMBER_KPPP_START, PIECE_NUMBER_KING);
+		my_insertion_sort(list_fw, PIECE_NUMBER_KPPP_START, PIECE_NUMBER_KING);
 
 		KPPP g_kppp(KPPP_KING_SQ, fe_end);
 
@@ -286,7 +287,7 @@ namespace Eval
 				case 0: break;
 				case 1:
 					// BKPPP
-					for (k = 0; k < j; ++k)
+					for (k = PIECE_NUMBER_KPPP_START; k < j; ++k)
 					{
 						m0 = list_fb[k];
 						weights_kppp[g_kppp.fromKPPP((int)sq_bk_for_kppp, k0, l0, m0).toRawIndex()].add_grad(g[0]);
@@ -294,7 +295,7 @@ namespace Eval
 					break;
 				case 2:
 					// WKPPP
-					for (k = 0; k < j; ++k)
+					for (k = PIECE_NUMBER_KPPP_START; k < j; ++k)
 					{
 						m1 = list_fw[k];
 						weights_kppp[g_kppp.fromKPPP((int)sq_wk_for_kppp, k1, l1, m1).toRawIndex()].add_grad(g_flip[0]);
@@ -302,7 +303,7 @@ namespace Eval
 					break;
 				case 3:
 					// KPPP
-					for (k = 0; k < j; ++k)
+					for (k = PIECE_NUMBER_KPPP_START; k < j; ++k)
 					{
 						m0 = list_fb[k];
 						m1 = list_fw[k];

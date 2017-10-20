@@ -67,7 +67,6 @@ namespace Eval
 		if (!EvalIO::eval_convert(input, output, nullptr))
 			goto Error;
 
-
 		// 読み込みは成功した。
 
 		return;
@@ -257,16 +256,9 @@ namespace Eval
 	// KP,KKP,KPP,KPPPのスケール
 	const int FV_SCALE = 32;
 
-	// 評価関数。全計算。(駒割りは差分)
-	// 返し値は持たず、計算結果としてpos.state()->sumに値を代入する。
-	void compute_eval_impl(const Position& pos)
+	// kpppの計算をしてpos.state()->sum->p[0][1]と[1][1]に代入する。
+	void evaluate_kppp(const Position& pos)
 	{
-		// is_ready()で評価関数を読み込み、
-		// 初期化してからしかcompute_eval()を呼び出すことは出来ない。
-		ASSERT_LV1(&(kk) != nullptr);
-		// →　32bit環境だとこの変数、単なるポインタなのでこのassertは意味がないのだが、
-		// とりあえず開発時に早期に気づくようにこのassertを入れておく。
-
 		Square sq_bk = pos.king_square(BLACK);
 		Square sq_wk = pos.king_square(WHITE);
 		Square inv_sq_wk = Inv(sq_wk);
@@ -306,7 +298,7 @@ namespace Eval
 				sq_bk_for_kppp = sq_bk = Mir(sq_bk);
 				sq_wk = Mir(sq_wk);
 
-				for (int i = 0; i < PIECE_NUMBER_KING ; ++i)
+				for (int i = PIECE_NUMBER_KPPP_START; i < PIECE_NUMBER_KING; ++i)
 					list_fb[i] = EvalLearningTools::mir_piece(list_fb[i]);
 			}
 			// 玉の位置を詰める
@@ -315,7 +307,7 @@ namespace Eval
 #else
 			sq_bk_for_kppp = (Square)((int)file_of(sq_bk_for_kppp) + ((int)rank_of(sq_bk_for_kppp) - KPPP_KING_RANK) * 9);
 #endif
-			
+
 			ASSERT_LV3((int)sq_bk_for_kppp < KPPP_KING_SQ);
 		}
 #if KPPP_NULL_KING_SQ == 1
@@ -333,7 +325,7 @@ namespace Eval
 				// WKPPPは、sq_wk_for_kppp, Wから見たPに依存するので、これらまとめてミラーしているからこのコードで合ってる。
 				sq_wk_for_kppp = inv_sq_wk = Mir(sq_wk_for_kppp);
 
-				for (int i = 0; i < PIECE_NUMBER_KING ; ++i)
+				for (int i = PIECE_NUMBER_KPPP_START; i < PIECE_NUMBER_KING; ++i)
 					list_fw[i] = EvalLearningTools::mir_piece(list_fw[i]);
 			}
 
@@ -351,30 +343,14 @@ namespace Eval
 		}
 #endif
 
-		const auto* ppkppb = kpp[    sq_bk];
-		const auto* ppkppw = kpp[inv_sq_wk];
-
 		// step 3. list_fb,list_fwを昇順に並び替える。
-		my_insertion_sort(list_fb, 0, 38);
-		my_insertion_sort(list_fw, 0, 38);
+
+		// 注) PIECE_NUMBER_KPPP_START～PIECE_NUMBER_KINGの範囲だけ入れ替えないと配列の中身(対応する駒)がぐちゃぐちゃになる。
+		my_insertion_sort(list_fb, PIECE_NUMBER_KPPP_START, PIECE_NUMBER_KING);
+		my_insertion_sort(list_fw, PIECE_NUMBER_KPPP_START, PIECE_NUMBER_KING);
 
 		int i, j, k;
 		BonaPiece k0, k1, l0, l1, m0, m1;
-
-		// 評価値の合計
-		EvalSum sum;
-
-#if defined(USE_SSE2)
-		// sum.p[0](BKPP)とsum.p[1](WKPP)をゼロクリア
-		sum.m[0] = _mm_setzero_si128();
-#else
-		sum.p[0][0] = sum.p[0][1] = sum.p[1][0] = sum.p[1][1] = 0;
-#endif
-
-		// KK
-		sum.p[2] = kk[sq_bk][sq_wk];
-
-		//ASSERT(kk[sq_bk][sq_wk] == kk[Mir(sq_bk)][Mir(sq_wk)]);
 
 		// KPPPは、Kが対象範囲にないと適用できないので、
 		// case 0. KPPPなし
@@ -397,105 +373,60 @@ namespace Eval
 		switch (kppp_case)
 		{
 		case 0:
-			for (i = 0; i < PIECE_NUMBER_KING; ++i)
-			{
-				k0 = list_fb[i];
-				k1 = list_fw[i];
-				const auto* pkppb = ppkppb[k0];
-				const auto* pkppw = ppkppw[k1];
-				for (j = 0; j < i; ++j)
-				{
-					l0 = list_fb[j];
-					l1 = list_fw[j];
-
-					// KPP
-					sum.p[0][0] += pkppb[l0];
-					sum.p[1][0] += pkppw[l1];
-
-					//ASSERT(pkppb[l0] == kpp[Mir(sq_bk    )][mir_piece(k0)][mir_piece(l0)]);
-					//ASSERT(pkppw[l1] == kpp[Mir(inv_sq_wk)][mir_piece(k1)][mir_piece(l1)]);
-				}
-				// KKP
-				sum.p[2] += kkp[sq_bk][sq_wk][k0];
-
-				//ASSERT(kkp[sq_bk][sq_wk][k0] == kkp[Mir(sq_bk)][Mir(sq_wk)][mir_piece(k0)]);
-			}
 			break;
 
 		case 1:
-			for (i = 0; i < PIECE_NUMBER_KING; ++i)
+			for (i = PIECE_NUMBER_KPPP_START + 2; i < PIECE_NUMBER_KING; ++i)
 			{
 				k0 = list_fb[i];
 				k1 = list_fw[i];
-				const auto* pkppb = ppkppb[k0];
-				const auto* pkppw = ppkppw[k1];
-				for (j = 0; j < i; ++j)
+				for (j = PIECE_NUMBER_KPPP_START + 1; j < i; ++j)
 				{
 					l0 = list_fb[j];
 					l1 = list_fw[j];
 
-					// KPP
-					sum.p[0][0] += pkppb[l0];
-					sum.p[1][0] += pkppw[l1];
-
 					// BKPPP
-					for (k = 0; k < j; ++k)
+					for (k = PIECE_NUMBER_KPPP_START; k < j; ++k)
 					{
 						m0 = list_fb[k];
-						sum_bkppp += kppp_ksq_pcpcpc((int)sq_bk_for_kppp, k0 , l0 , m0);
+						sum_bkppp += kppp_ksq_pcpcpc((int)sq_bk_for_kppp, k0, l0, m0);
 					}
 				}
-				// KKP
-				sum.p[2] += kkp[sq_bk][sq_wk][k0];
 			}
 			break;
 
 		case 2:
-			for (i = 0; i < PIECE_NUMBER_KING; ++i)
+			for (i = PIECE_NUMBER_KPPP_START + 2; i < PIECE_NUMBER_KING; ++i)
 			{
 				k0 = list_fb[i];
 				k1 = list_fw[i];
-				const auto* pkppb = ppkppb[k0];
-				const auto* pkppw = ppkppw[k1];
-				for (j = 0; j < i; ++j)
+				for (j = PIECE_NUMBER_KPPP_START + 1; j < i; ++j)
 				{
 					l0 = list_fb[j];
 					l1 = list_fw[j];
 
-					// KPP
-					sum.p[0][0] += pkppb[l0];
-					sum.p[1][0] += pkppw[l1];
-
 					// WKPPP
-					for (k = 0; k < j; ++k)
+					for (k = PIECE_NUMBER_KPPP_START; k < j; ++k)
 					{
 						m1 = list_fw[k];
-						sum_wkppp += kppp_ksq_pcpcpc((int)sq_wk_for_kppp, k1 , l1 , m1);
+						sum_wkppp += kppp_ksq_pcpcpc((int)sq_wk_for_kppp, k1, l1, m1);
 					}
 				}
-				// KKP
-				sum.p[2] += kkp[sq_bk][sq_wk][k0];
 			}
 			break;
 
 		case 3:
-			for (i = 0; i < PIECE_NUMBER_KING; ++i)
+			for (i = PIECE_NUMBER_KPPP_START + 2; i < PIECE_NUMBER_KING; ++i)
 			{
 				k0 = list_fb[i];
 				k1 = list_fw[i];
-				const auto* pkppb = ppkppb[k0];
-				const auto* pkppw = ppkppw[k1];
-				for (j = 0; j < i; ++j)
+				for (j = PIECE_NUMBER_KPPP_START + 1; j < i; ++j)
 				{
 					l0 = list_fb[j];
 					l1 = list_fw[j];
 
-					// KPP
-					sum.p[0][0] += pkppb[l0];
-					sum.p[1][0] += pkppw[l1];
-
 					// KPPP
-					for (k = 0; k < j; ++k)
+					for (k = PIECE_NUMBER_KPPP_START; k < j; ++k)
 					{
 						m0 = list_fb[k];
 						m1 = list_fw[k];
@@ -507,12 +438,10 @@ namespace Eval
 						// いま k < j < i で、list_fb,list_fwが昇順でソートされているから、m0 < l0 < k0
 						// これを逆順で渡せばkppp_ksq_pcpcpcの前提条件を満たす
 
-						sum_bkppp += kppp_ksq_pcpcpc((int)sq_bk_for_kppp, k0 , l0 , m0 );
-						sum_wkppp += kppp_ksq_pcpcpc((int)sq_wk_for_kppp, k1 , l1 , m1 );
+						sum_bkppp += kppp_ksq_pcpcpc((int)sq_bk_for_kppp, k0, l0, m0);
+						sum_wkppp += kppp_ksq_pcpcpc((int)sq_wk_for_kppp, k1, l1, m1);
 					}
 				}
-				// KKP
-				sum.p[2] += kkp[sq_bk][sq_wk][k0];
 			}
 			break;
 		}
@@ -523,14 +452,83 @@ namespace Eval
 		// いい感じなのではないかと予想。2のべき乗でないの気持ち悪いので4にしとくか。
 		// →　4で試したら8より指し手一致率低かった。32と8なら、8のほうが学習速い＆指し手一致率高かった。
 		// 　　8より大きくすると学習遅くなるし、8でいいなら8にしておく。
-		const s32 FV_SCALE2 = 2;
-		sum.p[0][0] += sum_bkppp / FV_SCALE2;
-		sum.p[1][0] += sum_wkppp / FV_SCALE2;
+		//const s32 FV_SCALE2 = 4;
+		const s32 FV_SCALE2 = 1;
+		auto& sum = pos.state()->sum;
+		sum.p[0][1] = sum_bkppp / FV_SCALE2;
+		sum.p[1][1] = sum_wkppp / FV_SCALE2;
+	}
+
+	// 評価関数。全計算。(駒割りは差分)
+	// 返し値は持たず、計算結果としてpos.state()->sumに値を代入する。
+	void compute_eval_impl(const Position& pos)
+	{
+		// is_ready()で評価関数を読み込み、
+		// 初期化してからしかcompute_eval()を呼び出すことは出来ない。
+		ASSERT_LV1(&(kk) != nullptr);
+		// →　32bit環境だとこの変数、単なるポインタなのでこのassertは意味がないのだが、
+		// とりあえず開発時に早期に気づくようにこのassertを入れておく。
+
+		Square sq_bk = pos.king_square(BLACK);
+		Square sq_wk = pos.king_square(WHITE);
+		Square inv_sq_wk = Inv(sq_wk);
+
+		auto& pos_ = *const_cast<Position*>(&pos);
+
+		const auto* list_fb = pos_.eval_list()->piece_list_fb();
+		const auto* list_fw = pos_.eval_list()->piece_list_fw();
+
+		const auto* ppkppb = kpp[    sq_bk];
+		const auto* ppkppw = kpp[inv_sq_wk];
+
+		int i, j;
+		BonaPiece k0, k1, l0, l1;
+
+		// 評価値の合計
+		EvalSum sum;
+
+#if defined(USE_SSE2)
+		// sum.p[0](BKPP)とsum.p[1](WKPP)をゼロクリア
+		sum.m[0] = _mm_setzero_si128();
+#else
+		sum.p[0][0] = sum.p[0][1] = sum.p[1][0] = sum.p[1][1] = 0;
+#endif
+
+		// KK
+		sum.p[2] = kk[sq_bk][sq_wk];
+
+		//ASSERT(kk[sq_bk][sq_wk] == kk[Mir(sq_bk)][Mir(sq_wk)]);
+
+		for (i = 0; i < PIECE_NUMBER_KING; ++i)
+		{
+			k0 = list_fb[i];
+			k1 = list_fw[i];
+			const auto* pkppb = ppkppb[k0];
+			const auto* pkppw = ppkppw[k1];
+			for (j = 0; j < i; ++j)
+			{
+				l0 = list_fb[j];
+				l1 = list_fw[j];
+
+				// KPP
+				sum.p[0][0] += pkppb[l0];
+				sum.p[1][0] += pkppw[l1];
+
+				//ASSERT(pkppb[l0] == kpp[Mir(sq_bk    )][mir_piece(k0)][mir_piece(l0)]);
+				//ASSERT(pkppw[l1] == kpp[Mir(inv_sq_wk)][mir_piece(k1)][mir_piece(l1)]);
+			}
+			// KKP
+			sum.p[2] += kkp[sq_bk][sq_wk][k0];
+
+			//ASSERT(kkp[sq_bk][sq_wk][k0] == kkp[Mir(sq_bk)][Mir(sq_wk)][mir_piece(k0)]);
+		}
+
 
 		auto st = pos.state();
 		sum.p[2][0] += st->materialValue * FV_SCALE;
-
 		st->sum = sum;
+
+		evaluate_kppp(pos);
 	}
 
 
@@ -706,7 +704,7 @@ namespace Eval
 
 #endif
 
-#if !defined(USE_EVAL_MAKE_LIST_FUNCTION) && 0 // 差分計算無効化
+#if !defined(USE_EVAL_MAKE_LIST_FUNCTION)
 	void evaluateBody(const Position& pos)
 	{
 
@@ -1003,6 +1001,7 @@ namespace Eval
 			now->sum = diff + prev->sum;
 		}
 		
+		evaluate_kppp(pos);
 	}
 #else
 	// EvalListの組み換えを行なうときは差分計算をせずに(実装するのが大変なため)、毎回全計算を行なう。
@@ -1080,7 +1079,7 @@ namespace Eval
 
 		// 返す値の絶対値がVALUE_MAX_EVALを超えてないことを保証しないといけないのだが…。
 		// いまの評価関数、手番を過学習したりして、ときどき超えてそう…。
-		//ASSERT_LV3(abs(v) < VALUE_MAX_EVAL);
+		ASSERT_LV3(abs(v) < VALUE_MAX_EVAL);
 
 		return v;
 	}

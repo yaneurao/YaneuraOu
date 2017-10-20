@@ -240,8 +240,8 @@ namespace Eval
 #endif
 
 		// step 3. list_fb,list_fwを昇順に並び替える。
-		my_insertion_sort(list_fb, 0, 38);
-		my_insertion_sort(list_fw, 0, 38);
+		my_insertion_sort(list_fb, 0, PIECE_NUMBER_KING);
+		my_insertion_sort(list_fw, 0, PIECE_NUMBER_KING);
 
 		KPPP g_kppp(KPPP_KING_SQ, fe_end);
 

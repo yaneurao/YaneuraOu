@@ -32,6 +32,12 @@ namespace Eval
 	typedef int16_t ValueKpp;
 	typedef int16_t ValueKppp;
 
+
+	// この駒以降をKPPPの計算対象とする。
+	static const int PIECE_NUMBER_KPPP_START = PIECE_NUMBER_ZERO;   // 全駒
+	//static const int PIECE_NUMBER_KPPP_START = PIECE_NUMBER_LANCE;  // 香以降。(歩を除外)
+	//static const int PIECE_NUMBER_KPPP_START = PIECE_NUMBER_KNIGHT; // 桂以降。(歩香とそれらの成りを除外)
+
 	// -----------------------------
 	//     評価関数パラメーター
 	// -----------------------------
