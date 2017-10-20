@@ -328,31 +328,30 @@ namespace Eval
 	}
 
 	// 後手玉が移動したときの先手玉に対するの差分
-	std::array<s32, 2> do_a_black(const Position& pos, const ExtBonaPiece ebp) {
+	s32 do_a_black(const Position& pos, const ExtBonaPiece ebp) {
 		const Square sq_bk = pos.king_square(BLACK);
 		const auto* list0 = pos.eval_list()->piece_list_fb();
 
 		const auto* pkppb = kpp[sq_bk][ebp.fb];
 
-		// KPPは手番なしなので0を突っ込んでおく。
-		std::array<s32, 2> sum = { pkppb[list0[0]], 0 };
+		s32 sum = 0;
+		for (int i = 0; i < PIECE_NUMBER_KING; ++i)
+			sum += pkppb[list0[i]];
 
-		for (int i = 1; i < PIECE_NUMBER_KING; ++i) {
-			sum[0] += pkppb[list0[i]];
-		}
 		return sum;
 	}
 
 	// 先手玉が移動したときの後手玉に対する差分
-	std::array<s32, 2> do_a_white(const Position& pos, const ExtBonaPiece ebp) {
+	s32 do_a_white(const Position& pos, const ExtBonaPiece ebp) {
 		const Square sq_wk = pos.king_square(WHITE);
 		const auto* list1 = pos.eval_list()->piece_list_fw();
 
 		const auto* pkppw = kpp[Inv(sq_wk)][ebp.fw];
-		std::array<s32, 2> sum = { pkppw[list1[0]], 0 };
-		for (int i = 1; i < PIECE_NUMBER_KING; ++i) {
-			sum[0] += pkppw[list1[i]];
-		}
+
+		s32 sum = 0;
+		for (int i = 0; i < PIECE_NUMBER_KING; ++i)
+			sum += pkppw[list1[i]];
+
 		return sum;
 	}
 
@@ -613,9 +612,9 @@ namespace Eval
 					// こうすることで前nodeのpiece_listを持たなくて済む。
 
 					const int listIndex_cap = dp.pieceNo[1];
-					diff.p[0] += do_a_black(pos, dp.changed_piece[1].new_piece);
+					diff.p[0][0] += do_a_black(pos, dp.changed_piece[1].new_piece);
 					list0[listIndex_cap] = dp.changed_piece[1].old_piece.fb;
-					diff.p[0] -= do_a_black(pos, dp.changed_piece[1].old_piece);
+					diff.p[0][0] -= do_a_black(pos, dp.changed_piece[1].old_piece);
 					list0[listIndex_cap] = dp.changed_piece[1].new_piece.fb;
 				}
 
@@ -680,9 +679,9 @@ namespace Eval
 
 				if (moved_piece_num == 2) {
 					const int listIndex_cap = dp.pieceNo[1];
-					diff.p[1] += do_a_white(pos, dp.changed_piece[1].new_piece);
+					diff.p[1][0] += do_a_white(pos, dp.changed_piece[1].new_piece);
 					list1[listIndex_cap] = dp.changed_piece[1].old_piece.fw;
-					diff.p[1] -= do_a_white(pos, dp.changed_piece[1].old_piece);
+					diff.p[1][0] -= do_a_white(pos, dp.changed_piece[1].old_piece);
 					list1[listIndex_cap] = dp.changed_piece[1].new_piece.fw;
 				}
 			}
@@ -760,6 +759,7 @@ namespace Eval
 		// すでに計算済(Null Moveなどで)であるなら、それを返す。
 		if (sum.evaluated())
 			return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
+		// ここで未初期化な値が返っているなら、それはPosition::do_move()のところでVALUE_NOT_EVALUATEDを代入していないからだ。
 
 #if defined(USE_GLOBAL_OPTIONS)
 		// GlobalOptionsでeval hashを用いない設定になっているなら

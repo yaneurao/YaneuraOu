@@ -1020,6 +1020,7 @@ namespace Eval
 		// すでに計算済(Null Moveなどで)であるなら、それを返す。
 		if (sum.evaluated())
 			return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
+		// ここで未初期化な値が返っているなら、それはPosition::do_move()のところでVALUE_NOT_EVALUATEDを代入していないからだ。
 
 #if defined(USE_GLOBAL_OPTIONS)
 		// GlobalOptionsでeval hashを用いない設定になっているなら

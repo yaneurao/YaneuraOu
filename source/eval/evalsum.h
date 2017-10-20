@@ -121,6 +121,13 @@ namespace Eval {
 			// 手番に依存する評価値合計
 			const int32_t scoreTurn = p[2][1];
 
+#elif defined(EVAL_KPP_KKPT) || defined(EVAL_HELICES)|| defined(EVAL_NABLA)			
+
+			// p[0][1]とp[1][1]は使っていないタイプのEvalSum
+			const int32_t scoreBoard = p[0][0] - p[1][0] + p[2][0];
+			// 手番に依存する評価値合計
+			const int32_t scoreTurn = p[2][1];
+
 #else // EVAL_KPPTなどはこちら。
 
 			// 手番に依存しない評価値合計
