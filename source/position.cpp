@@ -6,7 +6,7 @@
 #include "tt.h"
 #include "thread.h"
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
 #include "eval/evaluate_common.h"
 #endif
 

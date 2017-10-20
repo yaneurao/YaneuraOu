@@ -275,7 +275,7 @@
 //#define EVAL_KPP_KKPT
 
 //#define USE_HELICES_MIRROR
-#define EVAL_HELICES 81
+//#define EVAL_HELICES 81
 
 //#define USE_KPPP_KKPT_MIRROR
 //#define EVAL_KPPP_KKPT 18
@@ -285,8 +285,7 @@
 //#define EVAL_KPPPT 27
 //#define EVAL_KPPPT 18
 
-//#define EVAL_NABLA
-//#define EVAL_AKASHIC
+#define EVAL_NABLA
 
 // 実験中の評価関数
 // 評価関数の番号を選択できる。0001～9999から選ぶ。
@@ -303,7 +302,7 @@
 #define ONE_PLY_EQ_1
 
 // デバッグ絡み
-//#define ASSERT_LV 3
+#define ASSERT_LV 3
 //#define USE_DEBUG_ASSERT
 
 #define ENABLE_TEST_CMD
@@ -708,6 +707,8 @@ inline int MKDIR(std::string dir_name)
 #define EVAL_TYPE_NAME "KPPPT"
 #elif defined(EVAL_KPPP_KKPT)
 #define EVAL_TYPE_NAME "KPPP_KKPT"
+#elif defined(EVAL_NABLA)
+#define EVAL_TYPE_NAME "NABLA"
 #else
 #define EVAL_TYPE_NAME ""
 #endif
@@ -715,7 +716,7 @@ inline int MKDIR(std::string dir_name)
 // do_move()のときに移動した駒の管理をして差分計算
 // また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
 // あらゆる局面でP(駒)の数が増えないFV38と呼ばれる形式の差分計算用。
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
 #define USE_FV38
 #endif
 

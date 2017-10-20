@@ -1228,7 +1228,7 @@ void test_search(Position& pos, istringstream& is)
 }
 #endif
 
-#if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined (EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
+#if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined (EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
 #include "../eval/evaluate_common.h"
 
 // 現在の評価関数のパラメーターについて調査して出力する。(分析用)
