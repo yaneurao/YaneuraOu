@@ -753,7 +753,7 @@ namespace EvalLearningTools
 			index /= triangle_fe_end;
 
 			int king = (int)(index  /* % SQ_NB */);
-			ASSERT_LV3(king < SQ_NB);
+			ASSERT_LV3(king < king_sq_);
 
 			// king_sqとfe_endに関しては伝播させる。
 			return fromKPPP((Square)king, (Eval::BonaPiece)piece0, (Eval::BonaPiece)piece1 , (Eval::BonaPiece)piece2);
@@ -842,6 +842,175 @@ namespace EvalLearningTools
 		os << "KPPP(" << rhs.king() << "," << rhs.piece0() << "," << rhs.piece1() << "," << rhs.piece2() << ")";
 		return os;
 	}
+
+	// KKPPによる4駒関係の学習用。
+	//
+	// KPPPクラスと同じ設計。KPPPクラスで、pが一枚少ないものとして扱う。
+	// ２つの玉の位置は0～king_sq-1までの値としてencodeされているものとする。
+	//
+	// あと、このクラスの返すpiece0,1に関して、
+	//   piece0() > piece1()
+	// であり、コンストラクタでpiece0,1を渡すときも、この制約を守る必要がある。
+	// この制約から、BonaPieceZeroを渡すことは出来ない。駒落ちに対応させるならevaluate()で工夫が必要。
+	//
+	// また、max_index()を計算するためにset()でfe_endとking_sqを設定してやる必要がある。
+	// max_index()はKK/KKP/KPPクラスとは違い、staticな関数ではないので注意。
+	struct KKPP
+	{
+		KKPP() {}
+
+		// set()を内部的に呼び出すコンストラクタ
+		KKPP(int king_sq, u64 fe_end) { set(king_sq, fe_end); }
+
+		KKPP(int king, Eval::BonaPiece p0, Eval::BonaPiece p1) :
+			king_(king), piece0_(p0), piece1_(p1)
+		{
+			ASSERT_LV3(piece0_ > piece1_ );
+			/* sort_piece(); */
+		}
+
+		// KK,KKP,KKPP配列を直列化するときの通し番号の、KKPPの最小値、最大値。
+		u64 min_index() const { return KKP::max_index(); }
+		u64 max_index() const { return min_index() + (u64)king_sq_*triangle_fe_end; }
+
+
+		// fe_endとking_sqを設定する。
+		// fe_end : このKPPPクラスの想定するfe_end
+		// king_sq : KPPPのときに扱う玉の升の数。
+		//  9段×ミラーなら9段×5筋の2乗(先後の玉) = 45*45 = 2025 みたいな感じ。
+		//  これをこのKKPPクラスを使う側でset()を用いて最初に設定する。
+		void set(int king_sq, u64 fe_end) {
+			king_sq_ = king_sq;
+			fe_end_ = fe_end;
+			triangle_fe_end = fe_end * (fe_end - 1) / 2;
+		}
+
+		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
+		bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
+
+		// 次元下げの数
+		// とりあえず、ミラーの次元下げ非対応。ここでやることもないかと…。(学習用のメモリがもったいないので)
+#define KKPP_LOWER_COUNT 1
+
+		// 低次元の配列のindexを得る。
+		// p0,p1,p2を入れ替えたものは返らないので注意。
+		// またミラーしたものも、USE_KPPP_MIRROR_WRITEが有効なときしか返さない。
+		void toLowerDimensions(/*out*/ KKPP kkpp_[KPPP_LOWER_COUNT]) const
+		{
+			kkpp_[0] = fromKKPP(king_, piece0_, piece1_);
+
+			// ミラーする場合、mir_pieceするとsortされてない状態になる。sortするコードが必要。
+			// あとking_に対するミラーを定義する必要も。
+		}
+
+		// indexからKKPPのオブジェクトを生成するbuilder
+		KKPP fromIndex(u64 index)
+		{
+			ASSERT_LV3(index >= min_index());
+
+			index -= min_index();
+
+			u64 index2 = index % triangle_fe_end;
+
+			// ここにindex2からpiece0,piece1,piece2を求める式を書く。
+			// これは index2 = i(i-1)/2 + j の逆関数となる。
+			// j=0として、二次方程式の解の公式を用いる。
+			// index2=0のときは重根だが小さいほうはi>jを満たさないので無視。
+
+			int piece0 = (int(sqrt(8 * index2 + 1)) + 1)/2;
+			int piece1 = int(index2 - piece0 * (piece0 - 1) /2 );
+
+			ASSERT_LV3(piece0 > piece1);
+
+			ASSERT_LV3(piece1 < (int)fe_end_);
+			ASSERT_LV3(piece0 < (int)fe_end_);
+
+			index /= triangle_fe_end;
+
+			int king = (int)(index  /* % SQ_NB */);
+			ASSERT_LV3(king < king_sq_);
+
+			// king_sqとfe_endに関しては伝播させる。
+			return fromKKPP(king, (Eval::BonaPiece)piece0, (Eval::BonaPiece)piece1);
+		}
+
+		// k,p0,p1を指定してKKPPのインスタンスをbuildする。
+		// 内部的に保持しているset()で渡されたking_sqとfe_endは引き継ぐ。
+		KKPP fromKKPP(int king, Eval::BonaPiece p0, Eval::BonaPiece p1) const
+		{
+			KKPP my_kkpp(king, p0, p1);
+			my_kkpp.set(king_sq_, fe_end_);
+			return my_kkpp;
+		}
+
+		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
+		u64 toIndex() const {
+			return min_index() + toRawIndex();
+		}
+
+		// このクラスのmin_index()の値を0として数えたときのindexを取得する。
+		u64 toRawIndex() const {
+
+			// Bonanza 6.0で使われているのに似せたマクロ
+			// 前提条件) i > jであること。
+			// i==j,j==kのケースはNG。
+			auto PcPcOnSq = [this](int king, Eval::BonaPiece i, Eval::BonaPiece j)
+			{
+				ASSERT_LV3(i > j);
+
+				// BonaPiece型は、32bitを想定しているので掛け算には気をつけないとオーバーフローする。
+				return (u64)king * triangle_fe_end + (u64)(
+					+ u64(i)*(u64(i) - 1) / 2
+					+ u64(j)
+					);
+			};
+
+			return PcPcOnSq(king_, piece0_, piece1_);
+		}
+
+		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
+		int king() const { return king_; }
+		Eval::BonaPiece piece0() const { return piece0_; }
+		Eval::BonaPiece piece1() const { return piece1_; }
+
+		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
+		// KK,KKPとinterfaceを合せるために用意してある。このKKPPクラスでは、このメソッドは常にfalseを返す。
+		bool is_inverse() const {
+			return false;
+		}
+
+		// 3角配列化したときの要素の数を返す。kkpp配列が、以下のような2次元配列だと想定している。
+		//   kkpp[king_sq][triangle_fe_end];
+		u64 get_triangle_fe_end() const { return triangle_fe_end; }
+
+		// 比較演算子
+		bool operator==(const KKPP& rhs) {
+			// piece0 > piece1を前提とするので、入れ替わりの可能性はない。
+			return king() == rhs.king() && piece0() == rhs.piece0() && piece1() == rhs.piece1();
+		}
+		bool operator!=(const KKPP& rhs) { return !(*this == rhs); }
+
+	private:
+
+		int king_;
+		Eval::BonaPiece piece0_, piece1_;
+
+		u64 fe_end_ = 0;
+		int king_sq_ = 0;
+
+		// kppp[king_sq][fe_end][fe_end]の[fe_end][fe_end]な正方配列の部分を三角配列化する。
+		u64 triangle_fe_end = 0;
+		
+	};
+
+	// デバッグ用出力。
+	static std::ostream& operator<<(std::ostream& os, KKPP rhs)
+	{
+		os << "KKPP(" << rhs.king() << "," << rhs.piece0() << "," << rhs.piece1() << ")";
+		return os;
+	}
+
+
 }
 
 #endif // defined (EVAL_LEARN)

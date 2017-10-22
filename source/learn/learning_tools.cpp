@@ -375,6 +375,22 @@ namespace EvalLearningTools
 
 	}
 
+	void learning_tools_unit_test_kkpp()
+	{
+		KKPP g_kkpp(SQ_NB, 10000);
+		u64 n = 0;
+		for (int k = 0; k<SQ_NB; ++k)
+			for (int i = 0; i<10000; ++i) // 試しに、かなり大きなfe_endを想定して10000で回してみる。
+				for (int j = 0; j < i; ++j)
+				{
+					auto kkpp = g_kkpp.fromKKPP(k, (BonaPiece)i, (BonaPiece)j);
+					auto r = kkpp.toRawIndex();
+					ASSERT_LV3(n++ == r);
+					auto kkpp2 = g_kkpp.fromIndex(r + g_kkpp.min_index());
+					ASSERT_LV3(kkpp2.king() == k && kkpp2.piece0() == i && kkpp2.piece1() == j);
+				}
+	}
+
 	// このEvalLearningTools全体の初期化
 	void init()
 	{
@@ -392,6 +408,8 @@ namespace EvalLearningTools
 
 			//learning_tools_unit_test_kpp();
 			//learning_tools_unit_test_kppp();
+			//learning_tools_unit_test_kkpp();
+
 			// UnitTestを実行するの最後でも良いのだが、init_min_index_flag()にとても時間がかかるので
 			// デバッグ時はこのタイミングで行いたい。
 
