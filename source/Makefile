@@ -122,6 +122,8 @@ SOURCES  = shogi.cpp                                                           \
 	eval/kpppt/evaluate_kpppt_learner.cpp                                      \
 	eval/kppp_kkpt/evaluate_kppp_kkpt.cpp                                      \
 	eval/kppp_kkpt/evaluate_kppp_kkpt_learner.cpp                              \
+	eval/kkpp_kkpt/evaluate_kkpp_kkpt.cpp                                      \
+	eval/kkpp_kkpt/evaluate_kkpp_kkpt_learner.cpp                              \
 	eval/evaluate.cpp                                                          \
 	eval/evaluate_no_eval.cpp                                                  \
 	eval/evaluate_io.cpp                                                       \

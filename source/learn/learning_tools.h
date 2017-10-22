@@ -851,7 +851,9 @@ namespace EvalLearningTools
 	// あと、このクラスの返すpiece0,1に関して、
 	//   piece0() > piece1()
 	// であり、コンストラクタでpiece0,1を渡すときも、この制約を守る必要がある。
-	// この制約から、BonaPieceZeroを渡すことは出来ない。駒落ちに対応させるならevaluate()で工夫が必要。
+	//
+	// この制約から、BonaPieceZeroをpiece0,piece1に同時に代入して渡すことは出来ない。
+	// 駒落ちの学習に対応させるならevaluate()で工夫が必要。
 	//
 	// また、max_index()を計算するためにset()でfe_endとking_sqを設定してやる必要がある。
 	// max_index()はKK/KKP/KPPクラスとは違い、staticな関数ではないので注意。
@@ -869,10 +871,12 @@ namespace EvalLearningTools
 			/* sort_piece(); */
 		}
 
-		// KK,KKP,KKPP配列を直列化するときの通し番号の、KKPPの最小値、最大値。
-		u64 min_index() const { return KKP::max_index(); }
+		// KK,KKP,KPP,KKPP配列を直列化するときの通し番号の、KKPPの最小値、最大値。
+		// KKPPを用いるときにKPP配列も使う前提のコードになっているが、使わないなら、そこのindexを無視するコードが必要。
+		// (あるいは、min_index()が返す値をKPP::max_index()ではなく、KKP::max_index()と書き換えるなど。)
+		// ここ、柔軟に直列化できたほうが良いと思うが、そういう設計はわりと使いづらくなるのでここでは採用しない。
+		u64 min_index() const { return KPP::max_index(); }
 		u64 max_index() const { return min_index() + (u64)king_sq_*triangle_fe_end; }
-
 
 		// fe_endとking_sqを設定する。
 		// fe_end : このKPPPクラスの想定するfe_end

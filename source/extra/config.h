@@ -108,7 +108,7 @@
 // #define EVAL_KPPPT     // △  KPPP(4駒関係)手番あり。→　実装したけどいまひとつだったので差分計算実装せず。※2,※3
 // #define EVAL_PPET      // ×  技巧型 2駒+利き+手番(実装予定なし)
 // #define EVAL_KKPPT     // ？  KKPP型 4駒関係 手番あり。(55将棋、56将棋でも使えそう)(実装するかも)
-// #define EVAL_KKPP_KKPT // ？  KKPP型 4駒関係 手番はKK,KKPTにのみあり。(実装するかも)
+// #define EVAL_KKPP_KKPT // ○  KKPP型 4駒関係 手番はKK,KKPTにのみあり。
 // #define EVAL_PPAP      // ？  3駒 + Piece-Piece-and Pawn型(実装するかも)
 // #define EVAL_NABLA     // ？  ∇(ナブラ) 評価関数
 // #define EVAL_AKASHIC   // ？  Akashic Records 評価関数
@@ -285,7 +285,10 @@
 //#define EVAL_KPPPT 27
 //#define EVAL_KPPPT 18
 
-#define EVAL_NABLA
+#define EVAL_KKPP_KKPT 36
+
+//#define EVAL_NABLA
+
 
 // 実験中の評価関数
 // 評価関数の番号を選択できる。0001～9999から選ぶ。
@@ -707,6 +710,8 @@ inline int MKDIR(std::string dir_name)
 #define EVAL_TYPE_NAME "KPPPT"
 #elif defined(EVAL_KPPP_KKPT)
 #define EVAL_TYPE_NAME "KPPP_KKPT"
+#elif defined(EVAL_KKPP_KKPT)
+#define EVAL_TYPE_NAME "KKPP_KKPT"
 #elif defined(EVAL_NABLA)
 #define EVAL_TYPE_NAME "NABLA"
 #else
@@ -716,7 +721,7 @@ inline int MKDIR(std::string dir_name)
 // do_move()のときに移動した駒の管理をして差分計算
 // また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
 // あらゆる局面でP(駒)の数が増えないFV38と呼ばれる形式の差分計算用。
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
 #define USE_FV38
 #endif
 

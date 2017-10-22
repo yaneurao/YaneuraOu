@@ -691,6 +691,7 @@
     <ClInclude Include="eval\evaluate_io.h" />
     <ClInclude Include="eval\evaluate_common.h" />
     <ClInclude Include="eval\evalsum.h" />
+    <ClInclude Include="eval\kkpp_kkpt\evaluate_kkpp_kkpt.h" />
     <ClInclude Include="eval\kpppt\evaluate_kpppt.h" />
     <ClInclude Include="eval\kppp_kkpt\evaluate_kppp_kkpt.h" />
     <ClInclude Include="eval\kppt\evaluate_kppt.h" />
@@ -731,6 +732,8 @@
     <ClCompile Include="eval\evaluate_io.cpp" />
     <ClCompile Include="eval\evaluate.cpp" />
     <ClCompile Include="eval\evaluate_no_eval.cpp" />
+    <ClCompile Include="eval\kkpp_kkpt\evaluate_kkpp_kkpt.cpp" />
+    <ClCompile Include="eval\kkpp_kkpt\evaluate_kkpp_kkpt_learner.cpp" />
     <ClCompile Include="eval\kpppt\evaluate_kpppt.cpp" />
     <ClCompile Include="eval\kpppt\evaluate_kpppt_learner.cpp" />
     <ClCompile Include="eval\kppp_kkpt\evaluate_kppp_kkpt.cpp" />

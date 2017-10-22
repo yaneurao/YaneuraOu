@@ -68,6 +68,9 @@
     <Filter Include="リソース ファイル\eval\kppp_kkpt">
       <UniqueIdentifier>{ad765c72-3c65-4c8a-b959-b678542fa5ee}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\eval\kkpp_kkpt">
+      <UniqueIdentifier>{69537126-46c7-406d-af34-58773bd0e950}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -177,6 +180,9 @@
     </ClInclude>
     <ClInclude Include="eval\kppp_kkpt\evaluate_kppp_kkpt.h">
       <Filter>リソース ファイル\eval\kppp_kkpt</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\kkpp_kkpt\evaluate_kkpp_kkpt.h">
+      <Filter>リソース ファイル\eval\kkpp_kkpt</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -308,6 +314,12 @@
     </ClCompile>
     <ClCompile Include="eval\kppp_kkpt\evaluate_kppp_kkpt_learner.cpp">
       <Filter>リソース ファイル\eval\kppp_kkpt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kkpp_kkpt\evaluate_kkpp_kkpt.cpp">
+      <Filter>リソース ファイル\eval\kkpp_kkpt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kkpp_kkpt\evaluate_kkpp_kkpt_learner.cpp">
+      <Filter>リソース ファイル\eval\kkpp_kkpt</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
