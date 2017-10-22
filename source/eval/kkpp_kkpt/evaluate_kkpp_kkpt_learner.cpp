@@ -93,6 +93,17 @@ namespace Eval
 	// KPPは手番なしなので手番なし用の1次元配列。
 	std::vector<Weight> weights_kpp;
 
+	// KKPPも手番なしなので手番なし用の1次元配列。
+	std::vector<Weight> weights_kkpp;
+
+	// KK,KKP,KPP,KKPPの内部デザイン。
+	namespace {
+		KK g_kk;
+		KKP g_kkp;
+		KPP g_kpp;
+		KKPP g_kkpp;
+	}
+
 	// 学習のときの勾配配列の初期化
 	// 引数のetaは、AdaGradのときの定数η(eta)。
 	void init_grad(double eta1, u64 eta1_epoch, double eta2, u64 eta2_epoch, double eta3)
@@ -102,15 +113,25 @@ namespace Eval
 
 		// 学習で使用するテーブル類の初期化
 		EvalLearningTools::init();
-			
+
+		// KK,KKP,KPP,KKPPの内部デザイン。
+		g_kk.set(SQ_NB, Eval::fe_end, 0);
+		g_kkp.set(SQ_NB, Eval::fe_end, g_kk.max_index());
+		g_kpp.set(SQ_NB, Eval::fe_end, g_kkp.max_index());
+		g_kkpp.set(KKPP_KING_SQ, Eval::fe_end, g_kpp.max_index());
+
 		// 学習用配列の確保
-		u64 size = KKP::max_index();
+		u64 size = g_kkp.max_index();
 		weights.resize(size); // 確保できるかは知らん。確保できる環境で動かしてちょうだい。
 		memset(&weights[0], 0, sizeof(Weight2) * weights.size());
 
-		u64 size_kpp = KPP::max_index() - KPP::min_index();
+		u64 size_kpp = g_kpp.size();
 		weights_kpp.resize(size_kpp);
 		memset(&weights_kpp[0], 0, sizeof(Weight) * weights_kpp.size());
+
+		u64 size_kkpp = g_kkpp.size();
+		weights_kpp.resize(size_kpp);
+		memset(&weights_kkpp[0], 0, sizeof(Weight) * weights_kkpp.size());
 
 		// 学習率の設定
 		Weight::init_eta(eta1, eta2, eta3, eta1_epoch, eta2_epoch);
@@ -174,7 +195,7 @@ namespace Eval
 #endif
 
 		// KK
-		weights[KK(sq_bk,sq_wk).toIndex()].add_grad(g);
+		weights[g_kk.fromKK(sq_bk,sq_wk).toIndex()].add_grad(g);
 
 		for (int i = 0; i < PIECE_NUMBER_KING; ++i)
 		{
@@ -191,13 +212,13 @@ namespace Eval
 					BonaPiece l0 = list_fb[j];
 					BonaPiece l1 = list_fw[j];
 
-					weights_kpp[KPP(sq_bk     , k0, l0).toRawIndex()].add_grad(g[0]);
-					weights_kpp[KPP(Inv(sq_wk), k1, l1).toRawIndex()].add_grad(g_flip[0]);
+					weights_kpp[g_kpp.fromKPP(sq_bk     , k0, l0).toRawIndex()].add_grad(g[0]);
+					weights_kpp[g_kpp.fromKPP(Inv(sq_wk), k1, l1).toRawIndex()].add_grad(g_flip[0]);
 				}
 			}
 
 			// KKP
-			weights[KKP(sq_bk, sq_wk, k0).toIndex()].add_grad(g);
+			weights[g_kkp.fromKKP(sq_bk, sq_wk, k0).toIndex()].add_grad(g);
 		}
 	}
 
@@ -205,7 +226,7 @@ namespace Eval
 	// epoch       : 世代カウンター(0から始まる)
 	void update_weights(u64 epoch , const std::array<bool, 4>& freeze)
 	{
-		u64 vector_length = KPP::max_index();
+		u64 vector_length = g_kpp.max_index();
 
 		const bool freeze_kk = freeze[0];
 		const bool freeze_kkp = freeze[1];
@@ -213,7 +234,7 @@ namespace Eval
 
 		// KPPを学習させないなら、KKPのmaxまでだけで良い。あとは数が少ないからまあいいや。
 		if (freeze_kpp)
-			vector_length = KKP::max_index();
+			vector_length = g_kkp.max_index();
 
 		// epochに応じたetaを設定してやる。
 		Weight::calc_eta(epoch);
@@ -246,9 +267,9 @@ namespace Eval
 				if (!min_index_flag[index])
 					continue;
 
-				if (KK::is_ok(index) && !freeze_kk)
+				if (g_kk.is_ok(index) && !freeze_kk)
 				{
-					KK x = KK::fromIndex(index);
+					KK x = g_kk.fromIndex(index);
 
 					// 次元下げ
 					KK a[KK_LOWER_COUNT];
@@ -284,11 +305,11 @@ namespace Eval
 						weights[id].set_grad(zero_t);
 
 				}
-				else if (KKP::is_ok(index) && !freeze_kkp)
+				else if (g_kkp.is_ok(index) && !freeze_kkp)
 				{
 					// KKの処理と同様
 
-					KKP x = KKP::fromIndex(index);
+					KKP x = g_kkp.fromIndex(index);
 
 					KKP a[KKP_LOWER_COUNT];
 					x.toLowerDimensions(/*out*/a);
@@ -315,9 +336,9 @@ namespace Eval
 						weights[id].set_grad(zero_t);
 
 				}
-				else if (KPP::is_ok(index) && !freeze_kpp)
+				else if (g_kpp.is_ok(index) && !freeze_kpp)
 				{
-					KPP x = KPP::fromIndex(index);
+					KPP x = g_kpp.fromIndex(index);
 
 					KPP a[KPP_LOWER_COUNT];
 					x.toLowerDimensions(/*out*/a);

@@ -111,7 +111,7 @@ namespace Eval
 		kk_  = (ValueKk (*)[SQ_NB][SQ_NB]) (p);
 		kkp_ = (ValueKkp(*)[SQ_NB][SQ_NB][fe_end]) (p + size_of_kk);
 		kpp_ = (ValueKpp(*) /*[SQ_NB][fe_end][fe_end] */) (p + size_of_kk + size_of_kkp);
-		kkpp_ = (ValueKkpp(*) /*[KKPP_KING_SQ][fe_end][fe_end] */) (p + size_of_kk + size_of_kkp + size_of_kkpp);
+		kkpp_ = (ValueKkpp(*) /*[KKPP_KING_SQ][fe_end][fe_end] */) (p + size_of_kk + size_of_kkp + size_of_kpp);
 	}
 
 	void eval_malloc()

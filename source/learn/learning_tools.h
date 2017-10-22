@@ -253,32 +253,93 @@ namespace EvalLearningTools
 	// Weight配列を直列化したときのindexを計算したりするヘルパー。
 	// -------------------------------------------------
 
-	// 注意 : 上記のinv_piece/mir_pieceを間接的に参照するので、
-	// 最初にinit()を呼び出して初期化すること。
-
-	struct KK
+	// KK,KKP,KPP,KKPPの基底クラス
+	// これらのクラスの使い方
+	// 
+	// 1. まずset()で初期化する。例) KK g_kk; g_kk.set(SQ_NB,fe_end,0);
+	// 2. 次にfromIndex(),fromKK()などでインスタンスを生成
+	// 3. king(),piece0(),piece1()などのプロパティを用いてアクセス。
+	// 
+	// この説明だけではわかりにくいかも知れないが、学習部のinit_grad(),add_grad(),update_weights()などを見れば
+	// 必要性を含めて理解できると思う。
+	//
+	// 注意 : この派生クラスでは次元下げのために上記のinv_piece/mir_pieceを間接的に参照することがあるので、
+	// 最初にEvalLearningTools::init()かinit_mir_inv_tables()を呼び出して初期化すること。
+	//
+	struct SerializerBase
 	{
-		KK() {}
-		KK(Square king0, Square king1) : king0_(king0), king1_(king1), inverse_sign(false) {}
-		KK(Square king0, Square king1,bool inverse) : king0_(king0), king1_(king1) , inverse_sign(inverse) {}
 
-		// KK,KKP,KPP配列を直列化するときの通し番号の、KKの最小値、最大値。
-		static u64 min_index() { return 0; }
-		static u64 max_index() { return min_index() + (u64)SQ_NB*(u64)SQ_NB; }
+		// KK,KKP,KPP配列を直列化するときの通し番号の最小値、最大値+1。
+		u64 min_index() const { return min_index_; }
+		u64 max_index() const { return min_index() + max_raw_index_; }
+
+		// max_index() - min_index()の値。
+		// 派生クラス側でking_sq_,fe_end_などから、値を計算して返すようにする。
+		virtual u64 size() const = 0;
 
 		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
-		static bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
+		bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
+
+		// 必ずこのset()を呼び出して使う。さもなくば、派生クラス側のfromKK()/fromIndex()などでインスタンスを構築して使う。
+		virtual void set(int king_sq, u64 fe_end, u64 min_index)
+		{
+			king_sq_ = king_sq;
+			fe_end_ = fe_end;
+			min_index_ = min_index;
+			max_raw_index_ = size();
+		}
+
+		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
+		virtual u64 toIndex() const {
+			return min_index() + toRawIndex();
+		}
+
+		// 直列化するときのindexを返す。(min_index()の値は加算する前のもの)
+		virtual u64 toRawIndex() const = 0;
+
+	protected:
+		// このクラスの返すmin_index()の値
+		u64 min_index_;
+
+		// このクラスの返すmax_index()の値 = min_index() + max_raw_index_
+		// この変数は派生クラスのsize()で計算されたもの。
+		u64 max_raw_index_;
+
+		// サポートする玉の升の数(通常SQ_NB)
+		int king_sq_;
+
+		// サポートするBonaPieceの最大値
+		u64 fe_end_;
+
+	};
+
+	struct KK : public SerializerBase
+	{
+	protected:
+		KK(Square king0, Square king1,bool inverse) : king0_(king0), king1_(king1) , inverse_sign(inverse) {}
+	public:
+		KK() {}
+
+		virtual u64 size() const { return king_sq_ * king_sq_; }
 
 		// indexからKKのオブジェクトを生成するbuilder
-		static KK fromIndex(u64 index)
+		KK fromIndex(u64 index) const
 		{
 			index -= min_index();
 			int king1 = (int)(index % SQ_NB);
 			index /= SQ_NB;
 			int king0 = (int)(index  /* % SQ_NB */);
 			ASSERT_LV3(king0 < SQ_NB);
-			return KK((Square)king0, (Square)king1 , false);
+			return fromKK((Square)king0, (Square)king1 , false);
 		}
+		KK fromKK(Square king0, Square king1 , bool inverse) const
+		{
+			// kkという変数名はEval::kk配列などで使っているので別の名前にする必要がある。(以下、KKP,KPPクラスなどでも同様)
+			KK my_kk(king0, king1, inverse);
+			my_kk.set(king_sq_, fe_end_, min_index());
+			return my_kk;
+		}
+		KK fromKK(Square king0, Square king1) const { return fromKK(king0, king1, false); }
 
 		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
 		Square king0() const { return king0_; }
@@ -303,24 +364,19 @@ namespace EvalLearningTools
 		// この次元下げに関して、gradの符号は反転させないといけないので注意すること。
 		// is_inverse()で判定できるのでこれを利用すると良い。
 		void toLowerDimensions(/*out*/KK kk_[KK_LOWER_COUNT]) const {
-			kk_[0] = KK(king0_, king1_,false);
+			kk_[0] = fromKK(king0_, king1_,false);
 #if defined(USE_KK_MIRROR_WRITE)
-			kk_[1] = KK(Mir(king0_),Mir(king1_),false);
+			kk_[1] = fromKK(Mir(king0_),Mir(king1_),false);
 #if defined(USE_KK_INVERSE_WRITE)
-			kk_[2] = KK(Inv(king1_), Inv(king0_),true);
-			kk_[3] = KK(Inv(Mir(king1_)) , Inv(Mir(king0_)),true);
+			kk_[2] = fromKK(Inv(king1_), Inv(king0_),true);
+			kk_[3] = fromKK(Inv(Mir(king1_)) , Inv(Mir(king0_)),true);
 #endif
 #endif
-		}
-
-		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
-		u64 toIndex() const {
-			return min_index() + toRawIndex();
 		}
 
 		// このクラスのmin_index()の値を0として数えたときのindexを取得する。
-		u64 toRawIndex() const {
-			return (u64)king0_ * (u64)SQ_NB + (u64)king1_;
+		virtual u64 toRawIndex() const {
+			return (u64)king0_ * (u64)king_sq_ + (u64)king1_;
 		}
 
 		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
@@ -351,21 +407,19 @@ namespace EvalLearningTools
 		return os;
 	}
 
-	struct KKP
+	// KKと同じく。KKP用。
+	struct KKP : public SerializerBase
 	{
-		KKP() {}
+	protected:
 		KKP(Square king0, Square king1, Eval::BonaPiece p) : king0_(king0), king1_(king1), piece_(p), inverse_sign(false) {}
-		KKP(Square king0, Square king1, Eval::BonaPiece p,bool inverse) : king0_(king0), king1_(king1), piece_(p),inverse_sign(inverse) {}
+		KKP(Square king0, Square king1, Eval::BonaPiece p, bool inverse) : king0_(king0), king1_(king1), piece_(p),inverse_sign(inverse) {}
+	public:
+		KKP() {}
 
-		// KK,KKP,KPP配列を直列化するときの通し番号の、KKPの最小値、最大値。
-		static u64 min_index() { return KK::max_index(); }
-		static u64 max_index() { return min_index() + (u64)SQ_NB*(u64)SQ_NB*(u64)Eval::fe_end; }
-
-		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
-		static bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
+		virtual u64 size() const { return (u64)king_sq_*(u64)king_sq_*(u64)fe_end_; }
 
 		// indexからKKPのオブジェクトを生成するbuilder
-		static KKP fromIndex(u64 index)
+		KKP fromIndex(u64 index) const
 		{
 			index -= min_index();
 			int piece = (int)(index % Eval::fe_end);
@@ -374,8 +428,16 @@ namespace EvalLearningTools
 			index /= SQ_NB;
 			int king0 = (int)(index  /* % SQ_NB */);
 			ASSERT_LV3(king0 < SQ_NB);
-			return KKP((Square)king0, (Square)king1, (Eval::BonaPiece)piece,false);
+			return fromKKP((Square)king0, (Square)king1, (Eval::BonaPiece)piece,false);
 		}
+
+		KKP fromKKP(Square king0, Square king1, Eval::BonaPiece p, bool inverse) const
+		{
+			KKP my_kkp(king0, king1, p, inverse);
+			my_kkp.set(king_sq_,fe_end_,min_index());
+			return my_kkp;
+		}
+		KKP fromKKP(Square king0, Square king1, Eval::BonaPiece p) const { return fromKKP(king0, king1, p, false); }
 
 		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
 		Square king0() const { return king0_; }
@@ -411,14 +473,9 @@ namespace EvalLearningTools
 #endif
 		}
 
-		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
-		u64 toIndex() const {
-			return min_index() + toRawIndex();
-		}
-
 		// このクラスのmin_index()の値を0として数えたときのindexを取得する。
-		u64 toRawIndex() const {
-			return  ((u64)king0_ * (u64)SQ_NB + (u64)king1_) * (u64)Eval::fe_end + (u64)piece_;
+		virtual u64 toRawIndex() const {
+			return  ((u64)king0_ * (u64)king_sq_ + (u64)king1_) * (u64)fe_end_ + (u64)piece_;
 		}
 
 		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
@@ -451,36 +508,43 @@ namespace EvalLearningTools
 	}
 
 
-	struct KPP
+	// KK,KKPと同様。KPP用
+	struct KPP : public SerializerBase
 	{
-		KPP() {}
+	protected:
 		KPP(Square king, Eval::BonaPiece p0, Eval::BonaPiece p1) : king_(king), piece0_(p0), piece1_(p1) {}
 
+	public:
+		KPP() {}
+
 		// KK,KKP,KPP配列を直列化するときの通し番号の、KPPの最小値、最大値。
-		static u64 min_index() { return KKP::max_index(); }
 #if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
-		static u64 max_index() { return min_index() + (u64)SQ_NB*(u64)Eval::fe_end*(u64)Eval::fe_end; }
+		virtual u64 size() const { return (u64)king_sq_*(u64)fe_end_*(u64)fe_end_; }
 #else
 		// kpp[SQ_NB][fe_end][fe_end]の[fe_end][fe_end]な正方配列の部分を三角配列化する。
 		// kpp[SQ_NB][triangle_fe_end]とすると、この三角配列の1行目は要素1個、2行目は2個、…。
 		// ゆえに、triangle_fe_end = 1 + 2 + .. + fe_end = fe_end * (fe_end + 1) / 2
-		static const u64 triangle_fe_end = (u64)Eval::fe_end*((u64)Eval::fe_end + 1) / 2;
-		static u64 max_index() { return min_index() + (u64)SQ_NB*triangle_fe_end; }
+		virtual u64 size() const { return (u64)king_sq_*(u64)triangle_fe_end; }
 #endif
 
-		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
-		static bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
+		virtual void set(int king_sq, u64 fe_end, u64 min_index)
+		{
+			SerializerBase::set(king_sq, fe_end, min_index);
+			triangle_fe_end = (u64)fe_end*((u64)fe_end + 1) / 2;
+		}
 
 		// indexからKPPのオブジェクトを生成するbuilder
-		static KPP fromIndex(u64 index)
+		KPP fromIndex(u64 index) const
 		{
 			index -= min_index();
 
+			const u64 triangle_fe_end = (u64)fe_end_*((u64)fe_end_ + 1) / 2;
+
 #if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
-			int piece1 = (int)(index % Eval::fe_end);
-			index /= Eval::fe_end;
-			int piece0 = (int)(index % Eval::fe_end);
-			index /= Eval::fe_end;
+			int piece1 = (int)(index % fe_end_);
+			index /= fe_end_;
+			int piece0 = (int)(index % fe_end_);
+			index /= fe_end_;
 #else
 			u64 index2 = index % triangle_fe_end;
 
@@ -494,14 +558,21 @@ namespace EvalLearningTools
 			int piece1 = int(sqrt(8 * index2 + 1) - 1) / 2;
 			int piece0 = int(index2 - (u64)piece1*((u64)piece1 + 1) / 2);
 
-			ASSERT_LV3(piece1 < (int)Eval::fe_end);
-			ASSERT_LV3(piece0 < (int)Eval::fe_end);
+			ASSERT_LV3(piece1 < (int)fe_end_);
+			ASSERT_LV3(piece0 < (int)fe_end_);
 
 			index /= triangle_fe_end;
 #endif
 			int king = (int)(index  /* % SQ_NB */);
-			ASSERT_LV3(king < SQ_NB);
-			return KPP((Square)king, (Eval::BonaPiece)piece0, (Eval::BonaPiece)piece1);
+			ASSERT_LV3(king < king_sq_);
+			return fromKPP((Square)king, (Eval::BonaPiece)piece0, (Eval::BonaPiece)piece1);
+		}
+
+		KPP fromKPP(Square king, Eval::BonaPiece p0, Eval::BonaPiece p1) const
+		{
+			KPP my_kpp(king, p0, p1);
+			my_kpp.set(king_sq_,fe_end_,min_index());
+			return my_kpp;
 		}
 
 		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
@@ -546,22 +617,18 @@ namespace EvalLearningTools
 #endif
 		}
 
-		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
-		u64 toIndex() const {
-			return min_index() + toRawIndex();
-		}
-
 		// このクラスのmin_index()の値を0として数えたときのindexを取得する。
 		u64 toRawIndex() const {
 
 #if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
 
-			return ((u64)king_ * (u64)Eval::fe_end + (u64)piece0_) * (u64)Eval::fe_end + (u64)piece1_;
+			return ((u64)king_ * (u64)fe_end_ + (u64)piece0_) * (u64)fe_end_ + (u64)piece1_;
 
 #else
 			// Bonanza6.0で使われているのに似せたマクロ
-			auto PcPcOnSq = [](Square k, Eval::BonaPiece i, Eval::BonaPiece j)
+			auto PcPcOnSq = [&](Square k, Eval::BonaPiece i, Eval::BonaPiece j)
 			{
+
 				// この三角配列の(i,j)は、i行目のj列目の要素。
 				// i行目0列目は、そこまでの要素の合計であるから、1 + 2 + ... + i = i * (i+1) / 2
 				// i行目j列目は、これにjを足したもの。i * (i + 1) /2 + j
@@ -599,6 +666,8 @@ namespace EvalLearningTools
 	private:
 		Square king_;
 		Eval::BonaPiece piece0_, piece1_;
+
+		u64 triangle_fe_end; // = (u64)fe_end_*((u64)fe_end_ + 1) / 2;
 	};
 
 	// デバッグ用出力。
@@ -619,16 +688,9 @@ namespace EvalLearningTools
 	// あと、このクラスの返すpiece0,1,2に関して、
 	//   piece0() > piece1() > piece2()
 	// であり、コンストラクタでpiece0,1,2を渡すときも、この制約を守る必要がある。
-	//
-	// また、max_index()を計算するためにset()でfe_endとking_sqを設定してやる必要がある。
-	// max_index()はKK/KKP/KPPクラスとは違い、staticな関数ではないので注意。
-	struct KPPP
+	struct KPPP : public SerializerBase
 	{
-		KPPP() {}
-
-		// set()を内部的に呼び出すコンストラクタ
-		KPPP(int king_sq, u64 fe_end) { set(king_sq, fe_end); }
-
+	protected:
 		KPPP(int king, Eval::BonaPiece p0, Eval::BonaPiece p1, Eval::BonaPiece p2) :
 			king_(king), piece0_(p0), piece1_(p1), piece2_(p2)
 		{
@@ -636,9 +698,10 @@ namespace EvalLearningTools
 			/* sort_piece(); */
 		}
 
-		// KK,KKP,KPP,KPPP配列を直列化するときの通し番号の、KPPPの最小値、最大値。
-		 u64 min_index() const { return KPP::max_index(); }
-		 u64 max_index() const { return min_index() + (u64)king_sq_*triangle_fe_end; }
+	public:
+		KPPP() {}
+
+		virtual u64 size() const { return (u64)king_sq_*triangle_fe_end; }
 
 		// fe_endとking_sqを設定する。
 		// fe_end : このKPPPクラスの想定するfe_end
@@ -646,14 +709,10 @@ namespace EvalLearningTools
 		//  3段×ミラーなら3段×5筋 = 15みたいな感じ。
 		//  2段×ミラーなしなら2×9筋 = 18みたいな感じ。
 		//  これをこのKPPPクラスを使う側でset()を用いて最初に設定する。
-		void set(int king_sq, u64 fe_end) {
-			king_sq_ = king_sq;
-			fe_end_ = fe_end;
+		virtual void set(int king_sq, u64 fe_end,u64 min_index) {
+			SerializerBase::set(king_sq, fe_end, min_index);
 			triangle_fe_end = fe_end * (fe_end - 1) * (fe_end - 2) / 6;
 		}
-
-		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
-		bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
 
 		// 次元下げの数
 		// とりあえず、ミラーの次元下げ非対応。ここでやることもないかと…。
@@ -681,7 +740,7 @@ namespace EvalLearningTools
 		}
 
 		// indexからKPPPのオブジェクトを生成するbuilder
-		KPPP fromIndex(u64 index)
+		KPPP fromIndex(u64 index) const
 		{
 			ASSERT_LV3(index >= min_index());
 
@@ -763,14 +822,9 @@ namespace EvalLearningTools
 		// 内部的に保持しているset()で渡されたking_sqとfe_endは引き継ぐ。
 		KPPP fromKPPP(int king, Eval::BonaPiece p0, Eval::BonaPiece p1, Eval::BonaPiece p2) const
 		{
-			KPPP my_kppp(king, p0, p1, p2);
-			my_kppp.set(king_sq_, fe_end_);
-			return my_kppp;
-		}
-
-		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
-		u64 toIndex() const {
-			return min_index() + toRawIndex();
+			KPPP kppp(king, p0, p1, p2);
+			kppp.set(king_sq_, fe_end_,min_index());
+			return kppp;
 		}
 
 		// このクラスのmin_index()の値を0として数えたときのindexを取得する。
@@ -833,7 +887,7 @@ namespace EvalLearningTools
 		// ゆえに、
 		// triangle_fe_end = Σn(n-1)/2 , n=0..fe_end-1
 		//                 =  fe_end * (fe_end - 1) * (fe_end - 2) / 6
-		u64 triangle_fe_end = 0; // ((u64)Eval::fe_end)*((u64)Eval::fe_end - 1)*((u64)Eval::fe_end - 2) / 6;
+		u64 triangle_fe_end; // ((u64)Eval::fe_end)*((u64)Eval::fe_end - 1)*((u64)Eval::fe_end - 2) / 6;
 	};
 
 	// デバッグ用出力。
@@ -854,43 +908,30 @@ namespace EvalLearningTools
 	//
 	// この制約から、BonaPieceZeroをpiece0,piece1に同時に代入して渡すことは出来ない。
 	// 駒落ちの学習に対応させるならevaluate()で工夫が必要。
-	//
-	// また、max_index()を計算するためにset()でfe_endとking_sqを設定してやる必要がある。
-	// max_index()はKK/KKP/KPPクラスとは違い、staticな関数ではないので注意。
-	struct KKPP
+	struct KKPP : SerializerBase
 	{
-		KKPP() {}
-
-		// set()を内部的に呼び出すコンストラクタ
-		KKPP(int king_sq, u64 fe_end) { set(king_sq, fe_end); }
-
+	protected:
 		KKPP(int king, Eval::BonaPiece p0, Eval::BonaPiece p1) :
 			king_(king), piece0_(p0), piece1_(p1)
 		{
-			ASSERT_LV3(piece0_ > piece1_ );
+			ASSERT_LV3(piece0_ > piece1_);
 			/* sort_piece(); */
 		}
 
-		// KK,KKP,KPP,KKPP配列を直列化するときの通し番号の、KKPPの最小値、最大値。
-		// KKPPを用いるときにKPP配列も使う前提のコードになっているが、使わないなら、そこのindexを無視するコードが必要。
-		// (あるいは、min_index()が返す値をKPP::max_index()ではなく、KKP::max_index()と書き換えるなど。)
-		// ここ、柔軟に直列化できたほうが良いと思うが、そういう設計はわりと使いづらくなるのでここでは採用しない。
-		u64 min_index() const { return KPP::max_index(); }
-		u64 max_index() const { return min_index() + (u64)king_sq_*triangle_fe_end; }
+	public:
+		KKPP() {}
+
+		u64 size() const { return (u64)king_sq_*triangle_fe_end; }
 
 		// fe_endとking_sqを設定する。
 		// fe_end : このKPPPクラスの想定するfe_end
 		// king_sq : KPPPのときに扱う玉の升の数。
 		//  9段×ミラーなら9段×5筋の2乗(先後の玉) = 45*45 = 2025 みたいな感じ。
 		//  これをこのKKPPクラスを使う側でset()を用いて最初に設定する。
-		void set(int king_sq, u64 fe_end) {
-			king_sq_ = king_sq;
-			fe_end_ = fe_end;
+		void set(int king_sq, u64 fe_end , u64 min_index) {
+			SerializerBase::set(king_sq, fe_end, min_index);
 			triangle_fe_end = fe_end * (fe_end - 1) / 2;
 		}
-
-		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
-		bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
 
 		// 次元下げの数
 		// とりあえず、ミラーの次元下げ非対応。ここでやることもないかと…。(学習用のメモリがもったいないので)
@@ -908,7 +949,7 @@ namespace EvalLearningTools
 		}
 
 		// indexからKKPPのオブジェクトを生成するbuilder
-		KKPP fromIndex(u64 index)
+		KKPP fromIndex(u64 index) const
 		{
 			ASSERT_LV3(index >= min_index());
 
@@ -942,18 +983,13 @@ namespace EvalLearningTools
 		// 内部的に保持しているset()で渡されたking_sqとfe_endは引き継ぐ。
 		KKPP fromKKPP(int king, Eval::BonaPiece p0, Eval::BonaPiece p1) const
 		{
-			KKPP my_kkpp(king, p0, p1);
-			my_kkpp.set(king_sq_, fe_end_);
-			return my_kkpp;
-		}
-
-		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
-		u64 toIndex() const {
-			return min_index() + toRawIndex();
+			KKPP kkpp(king, p0, p1);
+			kkpp.set(king_sq_, fe_end_,min_index());
+			return kkpp;
 		}
 
 		// このクラスのmin_index()の値を0として数えたときのindexを取得する。
-		u64 toRawIndex() const {
+		virtual u64 toRawIndex() const {
 
 			// Bonanza 6.0で使われているのに似せたマクロ
 			// 前提条件) i > jであること。

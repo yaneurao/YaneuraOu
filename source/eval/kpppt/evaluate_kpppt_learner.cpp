@@ -84,6 +84,15 @@ namespace Eval
 	// 手番ありに変更するかも知れないので、配列をkppと分けておく。
 	std::vector<Weight2> weights_kppp;
 
+	// 学習配列のデザイン
+	namespace
+	{
+		KK g_kk;
+		KKP g_kkp;
+		KPP g_kpp;
+		KPPP g_kppp;
+	}
+
 	// 学習のときの勾配配列の初期化
 	// 引数のetaは、AdaGradのときの定数η(eta)。
 	void init_grad(double eta1, u64 eta1_epoch, double eta2, u64 eta2_epoch, double eta3)
@@ -91,22 +100,26 @@ namespace Eval
 		// bugなどにより間違って書き込まれた値を補正する。
 		correct_eval();
 
-		// 学習で使用するテーブル類の初期化
-		KPPP g_kppp(Eval::KPPP_KING_SQ, Eval::fe_end);
+		// 学習配列のデザイン
+		g_kk.set(SQ_NB, Eval::fe_end, 0);
+		g_kkp.set(SQ_NB, Eval::fe_end, g_kk.max_index());
+		g_kpp.set(SQ_NB, Eval::fe_end, g_kkp.max_index());
+		g_kppp.set(Eval::KPPP_KING_SQ, Eval::fe_end, g_kpp.max_index());
 		ASSERT(g_kppp.get_triangle_fe_end() == Eval::kppp_triangle_fe_end);
 
+		// 学習で使用するテーブル類の初期化
 		EvalLearningTools::init();
 			
 		// 学習用配列の確保
 
 		// KK,KKP
-		u64 size = KKP::max_index();
+		u64 size = g_kkp.max_index();
 		weights.resize(size); // 確保できるかは知らん。確保できる環境で動かしてちょうだい。
 		memset(&weights[0], 0, sizeof(Weight2) * weights.size());
 
 		// KPP
-		u64 size_kpp = KPP::max_index() - KPP::min_index();
-
+		u64 size_kpp = g_kpp.size();
+		
 		// 三角配列を用いる場合、このassert式は成り立たない…。
 		//ASSERT_LV1(size_kpp == size_of_kpp / sizeof(ValueKpp));
 
@@ -114,7 +127,7 @@ namespace Eval
 		memset(&weights_kpp[0], 0, sizeof(Weight2) * weights_kpp.size());
 
 		// KPPP
-		u64 size_kppp = g_kppp.max_index() - g_kppp.min_index();
+		u64 size_kppp = g_kppp.size();
 		ASSERT_LV1(size_kppp == size_of_kppp / sizeof(ValueKppp));
 		weights_kppp.resize(size_kppp);
 		memset(&weights_kppp[0], 0, sizeof(Weight2) * weights_kppp.size());
@@ -164,8 +177,8 @@ namespace Eval
 		// バッファを確保してコピー
 		BonaPiece list_fb[PIECE_NUMBER_KING];
 		BonaPiece list_fw[PIECE_NUMBER_KING];
-		memcpy(list_fb, pos_.eval_list()->piece_list_fb(), sizeof(BonaPiece) * PIECE_NUMBER_KING);
-		memcpy(list_fw, pos_.eval_list()->piece_list_fw(), sizeof(BonaPiece) * PIECE_NUMBER_KING);
+		memcpy(list_fb, pos_.eval_list()->piece_list_fb(), sizeof(BonaPiece) * (int)PIECE_NUMBER_KING);
+		memcpy(list_fw, pos_.eval_list()->piece_list_fw(), sizeof(BonaPiece) * (int)PIECE_NUMBER_KING);
 
 		// ユーザーは、この関数でBonaPiece番号の自由な組み換えを行なうものとする。
 		// make_list_function(pos, list_fb, list_fw);
@@ -243,13 +256,11 @@ namespace Eval
 		my_insertion_sort(list_fb, 0, PIECE_NUMBER_KING);
 		my_insertion_sort(list_fw, 0, PIECE_NUMBER_KING);
 
-		KPPP g_kppp(KPPP_KING_SQ, fe_end);
-
 		int i, j, k;
 		BonaPiece k0, k1, l0, l1, m0, m1;
 
 		// KK
-		weights[KK(sq_bk,sq_wk).toIndex()].add_grad(g);
+		weights[g_kk.fromKK(sq_bk,sq_wk).toIndex()].add_grad(g);
 
 		// KPPPは、Kが対象範囲にないと適用できないので、
 		// case 0. KPPPなし
@@ -276,8 +287,8 @@ namespace Eval
 
 				if (!freeze_kpp)
 				{
-					weights_kpp[KPP(sq_bk    , k0, l0).toRawIndex()].add_grad(g);
-					weights_kpp[KPP(inv_sq_wk, k1, l1).toRawIndex()].add_grad(g_flip);
+					weights_kpp[g_kpp.fromKPP(sq_bk    , k0, l0).toRawIndex()].add_grad(g);
+					weights_kpp[g_kpp.fromKPP(inv_sq_wk, k1, l1).toRawIndex()].add_grad(g_flip);
 				}
 
 				// KPPP
@@ -315,7 +326,7 @@ namespace Eval
 			}
 
 			// KKP
-			weights[KKP(sq_bk, sq_wk, k0).toIndex()].add_grad(g);
+			weights[g_kkp.fromKKP(sq_bk, sq_wk, k0).toIndex()].add_grad(g);
 		}
 	}
 
@@ -327,7 +338,6 @@ namespace Eval
 	// freeze_kppp : kpppは学習させないフラグ
 	void update_weights(u64 epoch, const std::array<bool, 4>& freeze)
 	{
-		KPPP g_kppp(Eval::KPPP_KING_SQ,Eval::kppp_triangle_fe_end);
 		u64 vector_length = g_kppp.max_index();
 
 		const bool freeze_kk = freeze[0];
@@ -365,12 +375,12 @@ namespace Eval
 				// ただし、KPPP配列に関しては無条件でokである。
 				// "index < KPPP::min_index()"のほうを先に書かないと、"min_index_flag[index]"のindexが配列の範囲外となる。
 
-				if (index < KPP::max_index() && !min_index_flag[index])
+				if (index < g_kpp.max_index() && !min_index_flag[index])
 					continue;
 
-				if (KK::is_ok(index) && !freeze_kk)
+				if (g_kk.is_ok(index) && !freeze_kk)
 				{
-					KK x = KK::fromIndex(index);
+					KK x = g_kk.fromIndex(index);
 
 					// 次元下げ
 					KK a[KK_LOWER_COUNT];
@@ -406,11 +416,11 @@ namespace Eval
 						weights[id].set_grad(zero_t);
 
 				}
-				else if (KKP::is_ok(index) && !freeze_kkp)
+				else if (g_kkp.is_ok(index) && !freeze_kkp)
 				{
 					// KKの処理と同様
 
-					KKP x = KKP::fromIndex(index);
+					KKP x = g_kkp.fromIndex(index);
 
 					KKP a[KKP_LOWER_COUNT];
 					x.toLowerDimensions(/*out*/a);
@@ -437,9 +447,9 @@ namespace Eval
 						weights[id].set_grad(zero_t);
 
 				}
-				else if (KPP::is_ok(index) && !freeze_kpp)
+				else if (g_kpp.is_ok(index) && !freeze_kpp)
 				{
-					KPP x = KPP::fromIndex(index);
+					KPP x = g_kpp.fromIndex(index);
 
 					KPP a[KPP_LOWER_COUNT];
 					x.toLowerDimensions(/*out*/a);

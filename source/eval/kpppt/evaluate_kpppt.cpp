@@ -276,8 +276,8 @@ namespace Eval
 		// バッファを確保してコピー
 		BonaPiece list_fb[PIECE_NUMBER_KING];
 		BonaPiece list_fw[PIECE_NUMBER_KING];
-		memcpy(list_fb, pos_.eval_list()->piece_list_fb(), sizeof(BonaPiece) * PIECE_NUMBER_KING);
-		memcpy(list_fw, pos_.eval_list()->piece_list_fw(), sizeof(BonaPiece) * PIECE_NUMBER_KING);
+		memcpy(list_fb, pos_.eval_list()->piece_list_fb(), sizeof(BonaPiece) * (int)PIECE_NUMBER_KING);
+		memcpy(list_fw, pos_.eval_list()->piece_list_fw(), sizeof(BonaPiece) * (int)PIECE_NUMBER_KING);
 
 		// ユーザーは、この関数でBonaPiece番号の自由な組み換えを行なうものとする。
 		// make_list_function(pos, list_fb, list_fw);

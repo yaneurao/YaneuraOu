@@ -53,7 +53,14 @@ namespace EvalLearningTools
 		// 次元下げ用フラグ配列の初期化
 		// KPPPに関しては関与しない。
 
-		u64 size = KPP::max_index();
+		KK g_kk;
+		g_kk.set(SQ_NB, Eval::fe_end, 0);
+		KKP g_kkp;
+		g_kkp.set(SQ_NB, Eval::fe_end, g_kk.max_index());
+		KPP g_kpp;
+		g_kpp.set(SQ_NB, Eval::fe_end, g_kkp.max_index());
+
+		u64 size = g_kpp.max_index();
 		min_index_flag.resize(size);
 
 #pragma omp parallel
@@ -73,14 +80,14 @@ namespace EvalLearningTools
 				// さすがに使いにくい。
 				u64 index = (u64)index_;
 
-				if (KK::is_ok(index))
+				if (g_kk.is_ok(index))
 				{
 					// indexからの変換と逆変換によって元のindexに戻ることを確認しておく。
 					// 起動時に1回しか実行しない処理なのでASSERT_LV1で書いておく。
-					ASSERT_LV1(KK::fromIndex(index).toIndex() == index);
+					ASSERT_LV1(g_kk.fromIndex(index).toIndex() == index);
 
 					KK a[KK_LOWER_COUNT];
-					KK::fromIndex(index).toLowerDimensions(a);
+					g_kk.fromIndex(index).toLowerDimensions(a);
 
 					// 次元下げの1つ目の要素が元のindexと同一であることを確認しておく。
 					ASSERT_LV1(a[0].toIndex() == index);
@@ -90,11 +97,11 @@ namespace EvalLearningTools
 						min_index = std::min(min_index, e.toIndex());
 					min_index_flag[index] = (min_index == index);
 				}
-				else if (KKP::is_ok(index))
+				else if (g_kkp.is_ok(index))
 				{
-					ASSERT_LV1(KKP::fromIndex(index).toIndex() == index);
+					ASSERT_LV1(g_kkp.fromIndex(index).toIndex() == index);
 
-					KKP x = KKP::fromIndex(index);
+					KKP x = g_kkp.fromIndex(index);
 					KKP a[KKP_LOWER_COUNT];
 					x.toLowerDimensions(a);
 
@@ -105,11 +112,11 @@ namespace EvalLearningTools
 						min_index = std::min(min_index, e.toIndex());
 					min_index_flag[index] = (min_index == index);
 				}
-				else if (KPP::is_ok(index))
+				else if (g_kpp.is_ok(index))
 				{
-					ASSERT_LV1(KPP::fromIndex(index).toIndex() == index);
+					ASSERT_LV1(g_kpp.fromIndex(index).toIndex() == index);
 
-					KPP x = KPP::fromIndex(index);
+					KPP x = g_kpp.fromIndex(index);
 					KPP a[KPP_LOWER_COUNT];
 					x.toLowerDimensions(a);
 
@@ -300,22 +307,29 @@ namespace EvalLearningTools
 		// k-p0-p1のすべての組み合わせがきちんとKPPの扱う対象になっていかと、そのときの次元下げが
 		// 正しいかを判定する。
 
+		KK g_kk;
+		g_kk.set(SQ_NB, Eval::fe_end, 0);
+		KKP g_kkp;
+		g_kkp.set(SQ_NB, Eval::fe_end, g_kk.max_index());
+		KPP g_kpp;
+		g_kpp.set(SQ_NB, Eval::fe_end, g_kkp.max_index());
+
 		std::vector<bool> f;
-		f.resize(KPP::max_index() - KPP::min_index());
+		f.resize(g_kpp.max_index() - g_kpp.min_index());
 
 		for(auto k = SQ_ZERO ; k < SQ_NB ; ++k)
 			for(auto p0 = BonaPiece::BONA_PIECE_ZERO; p0 < fe_end ; ++p0)
 				for (auto p1 = BonaPiece::BONA_PIECE_ZERO; p1 < fe_end; ++p1)
 				{
-					KPP kpp_org(k,p0,p1);
+					KPP kpp_org = g_kpp.fromKPP(k,p0,p1);
 					KPP kpp0;
-					KPP kpp1(Mir(k), mir_piece(p0), mir_piece(p1));
+					KPP kpp1 = g_kpp.fromKPP(Mir(k), mir_piece(p0), mir_piece(p1));
 					KPP kpp_array[2];
 
 					auto index = kpp_org.toIndex();
-					ASSERT_LV3(KPP::is_ok(index));
+					ASSERT_LV3(g_kpp.is_ok(index));
 
-					kpp0 = KPP::fromIndex(index);
+					kpp0 = g_kpp.fromIndex(index);
 
 					//if (kpp0 != kpp_org)
 					//	std::cout << "index = " << index << "," << kpp_org << "," << kpp0 << std::endl;
@@ -327,14 +341,14 @@ namespace EvalLearningTools
 					ASSERT_LV3(kpp_array[1] == kpp1);
 
 					auto index2 = kpp1.toIndex();
-					f[index - KPP::min_index()] = f[index2-KPP::min_index()] = true;
+					f[index - g_kpp.min_index()] = f[index2-g_kpp.min_index()] = true;
 				}
 
 		// 抜けてるindexがなかったかの確認。
 		for(size_t index = 0 ; index < f.size(); index++)
 			if (!f[index])
 			{
-				std::cout << index << KPP::fromIndex(index + KPP::min_index()) <<  std::endl;
+				std::cout << index << g_kpp.fromIndex(index + g_kpp.min_index()) <<  std::endl;
 			}
 	}
 
@@ -342,7 +356,8 @@ namespace EvalLearningTools
 	{
 		// KPPPの計算に抜けがないかをテストする
 
-		KPPP g_kppp(15, Eval::fe_end);
+		KPPP g_kppp;
+		g_kppp.set(15, Eval::fe_end,0);
 		u64 min_index = g_kppp.min_index();
 		u64 max_index = g_kppp.max_index();
 
@@ -377,7 +392,8 @@ namespace EvalLearningTools
 
 	void learning_tools_unit_test_kkpp()
 	{
-		KKPP g_kkpp(SQ_NB, 10000);
+		KKPP g_kkpp;
+		g_kkpp.set(SQ_NB, 10000 , 0);
 		u64 n = 0;
 		for (int k = 0; k<SQ_NB; ++k)
 			for (int i = 0; i<10000; ++i) // 試しに、かなり大きなfe_endを想定して10000で回してみる。
