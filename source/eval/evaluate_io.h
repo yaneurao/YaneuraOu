@@ -141,6 +141,18 @@ namespace EvalIO
 			ei.eval_info_array.emplace_back(EvalArrayInfo(VAR, 2, size_of_kppp /2 , FileOrMemory(kppp_))); // KPPPは2バイト。(手番ありなので2つ)
 			return ei;
 		}
+		// KKPP_KKPT型評価関数の型定義を返すbuilder。
+		// 引数にはFileOrMemoryのコンストラクタに渡す、std::string filenameかvoid* ptr を渡す。
+		template <typename T1, typename T2, typename T3, typename T4>
+		static EvalInfo build_kkpp_kkpt32(T1 kk_, T2 kkp_, T3 kpp_, T4 kkpp_, u64 size_of_kkpp)
+		{
+			EvalInfo ei(81 /* SQ_NB */, 1548 /* EvalKPPT::fe_end */);
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KK , 4, 2, FileOrMemory(kk_)));   // KK  は4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP, 4, 2, FileOrMemory(kkp_)));  // KKP は4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP, 2, 1, FileOrMemory(kpp_)));  // KPP は2バイト。(手番なしなので1つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(VAR, 2, size_of_kkpp / 2, FileOrMemory(kkpp_))); // KKPPは2バイト。(手番なしなので1つ)
+			return ei;
+		}
 	};
 
 	// 評価関数の変換＋αを行なう。

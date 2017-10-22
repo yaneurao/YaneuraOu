@@ -1286,11 +1286,11 @@ void eval_exam(istringstream& is)
 
 //
 // eval merge
-//  KKPT評価関数の合成用
+//  KPPT評価関数の合成用
 //   実験的に作ったもの。あとで消すかも。
 //
 
-struct KKPT_reader
+struct KPPT_reader
 {
 	static const int fe_end = 1548;
 
@@ -1305,8 +1305,9 @@ struct KKPT_reader
 #define KK_BIN "KK_synthesized.bin"
 #define KKP_BIN "KKP_synthesized.bin"
 #define KPP_BIN "KPP_synthesized.bin"
+#define KKPP_BIN "KKPP_synthesized.bin"
 
-	KKPT_reader()
+	KPPT_reader()
 	{
 		kk_ = (ValueKk(*)[SQ_NB][SQ_NB])new ValueKk[int(SQ_NB)*int(SQ_NB)];
 		kpp_ = (ValueKpp(*)[SQ_NB][fe_end][fe_end])new ValueKpp[int(SQ_NB)*int(fe_end)*int(fe_end)];
@@ -1350,7 +1351,7 @@ struct KKPT_reader
 	}
 
 	// 内積を求める。各々の評価関数の内積を駆使すれば合成された関数も分解できるはず
-	double product(const KKPT_reader& eval2)
+	double product(const KPPT_reader& eval2)
 	{
 		double total = 0;
 		for (auto k1 : SQ)
@@ -1391,7 +1392,7 @@ struct KKPT_reader
 	//   6 : KK
 	//   7 : KKP
 	//   8 : KPP
-	void apply_func(const KKPT_reader& eval2, function<s32(s32, s32)> f,int merge_features)
+	void apply_func(const KPPT_reader& eval2, function<s32(s32, s32)> f,int merge_features)
 	{
 		for (auto k1 : SQ)
 			for (auto k2 : SQ)
@@ -1526,7 +1527,7 @@ void eval_merge(istringstream& is)
 	// 適用する関数
 	function<s32(s32, s32)> f;
 
-	cout << "eval merge KKPT" << endl; // とりあえずKKPT型評価関数のmerge専用。
+	cout << "eval merge KPPT" << endl; // とりあえずKKPT型評価関数のmerge専用。
 	cout << "dir1    : " << dir1 << endl;
 	cout << "dir2    : " << dir2 << endl;
 	cout << "OutDir  : " << dir3 << endl;
@@ -1560,7 +1561,7 @@ void eval_merge(istringstream& is)
 
 	MKDIR(dir3);
 
-	KKPT_reader eval1, eval2;
+	KPPT_reader eval1, eval2;
 	eval1.read(dir1);
 	eval2.read(dir2);
 	eval1.apply_func(eval2,f,merge_features);
@@ -1635,7 +1636,7 @@ void eval_resolve(istringstream& is)
 	cout << endl;
 
 	const int refsize = (int)dirref.size();
-	KKPT_reader eval1, eval2, eval3;
+	KPPT_reader eval1, eval2, eval3;
 	vector<double> prodva; // dirinとdirrefの内積
 	vector< vector<double> > prodaa; //dirref同士の内積
 	vector<double> out; // dirinとdirrefの内積

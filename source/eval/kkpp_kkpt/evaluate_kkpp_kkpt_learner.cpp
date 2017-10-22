@@ -231,10 +231,7 @@ namespace Eval
 		const bool freeze_kk = freeze[0];
 		const bool freeze_kkp = freeze[1];
 		const bool freeze_kpp = freeze[2];
-
-		// KPPを学習させないなら、KKPのmaxまでだけで良い。あとは数が少ないからまあいいや。
-		if (freeze_kpp)
-			vector_length = g_kkp.max_index();
+		const bool freeze_kkpp = freeze[3];
 
 		// epochに応じたetaを設定してやる。
 		Weight::calc_eta(epoch);
@@ -287,7 +284,7 @@ namespace Eval
 					// inverseした次元下げに関しては符号が逆になるのでadjust_grad()を経由して計算する。
 					for (int i = 0; i < KK_LOWER_COUNT; ++i)
 						g_sum += a[i].apply_inverse_sign(weights[ids[i]].get_grad());
-					
+
 					// 次元下げを考慮して、その勾配の合計が0であるなら、一切の更新をする必要はない。
 					if (is_zero(g_sum))
 						continue;
@@ -298,7 +295,7 @@ namespace Eval
 
 					for (int i = 1; i < KK_LOWER_COUNT; ++i)
 						kk[a[i].king0()][a[i].king1()] = a[i].apply_inverse_sign(v);
-					
+
 					// mirrorした場所が同じindexである可能性があるので、gのクリアはこのタイミングで行なう。
 					// この場合、毎回gを通常の2倍加算していることになるが、AdaGradは適応型なのでこれでもうまく学習できる。
 					for (auto id : ids)
@@ -319,9 +316,9 @@ namespace Eval
 						ids[i] = a[i].toIndex();
 
 					std::array<LearnFloatType, 2> g_sum = zero_t;
-					for (int i = 0; i <KKP_LOWER_COUNT; ++i)
+					for (int i = 0; i < KKP_LOWER_COUNT; ++i)
 						g_sum += a[i].apply_inverse_sign(weights[ids[i]].get_grad());
-					
+
 					if (is_zero(g_sum))
 						continue;
 
@@ -331,7 +328,7 @@ namespace Eval
 
 					for (int i = 1; i < KKP_LOWER_COUNT; ++i)
 						kkp[a[i].king0()][a[i].king1()][a[i].piece()] = a[i].apply_inverse_sign(v);
-					
+
 					for (auto id : ids)
 						weights[id].set_grad(zero_t);
 
@@ -377,13 +374,73 @@ namespace Eval
 					for (auto id : ids)
 						weights_kpp[id].set_grad(zero);
 				}
+				else if (g_kkpp.is_ok(index) && !freeze_kkpp)
+				{
+					// TODO:あとで書く。
+				}
 			}
 		}
+	}
+
+	// SkipLoadingEval trueにしてKPP_KKPT型の評価関数を読み込む。このときkkpp配列はゼロで埋められた状態になる。
+	// この状態から、kpp配列をkkpp配列に展開するコード。
+	// save_eval()の手前でこの関数を呼びたすようにして、ビルドしたのちに、
+	// isreadyコマンドで評価関数ファイルを読み込み、"test evalsave"コマンドでsave_eval()を呼び出すと変換したものが書き出されるという考え。
+	// 誰もが使えたほうが良いのかも知れないがコマンド型にするのが面倒なのでとりあえずこれで凌ぐ。
+	/*
+	変換時のコマンド例)
+		EvalDir rezero_kpp_kkpt_epoch5
+		SkipLoadingEval true
+		isready
+		EvalSaveDir rezero_kkpp_kkpt_epoch5
+		test evalsave
+	*/
+	void expand_kpp_to_kkpp()
+	{
+		EvalLearningTools::init_mir_inv_tables();
+
+		std::cout << "expand_kpp_to_kkpp" << std::endl;
+
+		for (auto bk : SQ) // 先手玉
+			for (auto wk : SQ) // 後手玉
+			{
+				// ミラーがあるので6～9筋は無視
+				if (file_of(bk) >= FILE_6)
+					continue;
+				// KKPPの対象の段でないなら無視
+				if (rank_of(bk) < KKPP_KING_RANK)
+					continue;
+
+				// 同様に後手玉側も。
+				auto inv_wk = Inv(wk);
+				if (rank_of(inv_wk) < KKPP_KING_RANK)
+					continue;
+
+				// encode
+				int k0 = ((int)rank_of(bk) - (int)KKPP_KING_RANK) * 5 + (int)file_of(bk);
+				int k1 = ((int)rank_of(inv_wk) - (int)KKPP_KING_RANK) * 9 + (int)file_of(inv_wk);
+				int k = k0 * EVAL_KKPP_KKPT + k1;
+
+				ASSERT_LV3(k < KKPP_KING_SQ);
+
+				for (auto p0 = BONA_PIECE_ZERO; p0 < Eval::fe_end; ++p0)
+					for (auto p1 = BONA_PIECE_ZERO; p1 < Eval::fe_end; ++p1)
+					{
+						int sum_bk = kpp_ksq_pcpc(bk, p0, p1);
+						int sum_wk = kpp_ksq_pcpc(inv_wk, inv_piece(p0), inv_piece(p1));
+
+						// これを合わせたものがkkppテーブルに書き込まれるべき。
+						kkpp_ksq_pcpc(k, p0, p1) = sum_bk - sum_wk;
+					}
+			}
 	}
 
 	// 評価関数パラメーターをファイルに保存する。
 	void save_eval(std::string dir_name)
 	{
+		// KPP_KKPT型の評価関数から変換するとき。
+		//expand_kpp_to_kkpp();
+
 		{
 			auto eval_dir = path_combine((std::string)Options["EvalSaveDir"], dir_name);
 
@@ -398,8 +455,8 @@ namespace Eval
 			// EvalIOを利用して評価関数ファイルに書き込む。
 			// 読み込みのときのinputとoutputとを入れ替えるとファイルに書き込める。EvalIo::eval_convert()マジ優秀。
 			auto make_name = [&](std::string filename) { return path_combine(eval_dir, filename); };
-			auto input = EvalIO::EvalInfo::build_kpp_kkpt32((void*)kk, (void*)kkp, (void*)kpp);
-			auto output = EvalIO::EvalInfo::build_kpp_kkpt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
+			auto input = EvalIO::EvalInfo::build_kkpp_kkpt32((void*)kk, (void*)kkp, (void*)kpp, (void*)kkpp, size_of_kkpp);
+			auto output = EvalIO::EvalInfo::build_kkpp_kkpt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN), make_name(KKPP_BIN), size_of_kkpp);
 
 			// 評価関数の実験のためにfe_endをKPPT32から変更しているかも知れないので現在のfe_endの値をもとに書き込む。
 			input.fe_end = output.fe_end = Eval::fe_end;

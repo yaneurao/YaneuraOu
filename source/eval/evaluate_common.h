@@ -21,7 +21,7 @@
 
 #if defined(EVAL_KKPP_KKPT)
 // KKPPファイル名
-#define KPPP_BIN "KKPP_synthesized.bin"
+#define KKPP_BIN "KKPP_synthesized.bin"
 #endif
 
 
