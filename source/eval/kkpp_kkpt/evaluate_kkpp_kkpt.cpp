@@ -233,41 +233,6 @@ namespace Eval
 
 #endif
 
-	// 先手玉の位置、後手玉の位置を引数に渡して、
-	// それをkkpp配列の第一パラメーターとして使えるように符号化する。
-	// kkppの対象升でない場合は、-1が返る。
-	// USE_KKPP_KKPT_MIRRORがdefineされてるときはミラーを考慮した処理が必要なのだが、未実装。
-	int encode_kk(Square bk, Square wk)
-	{
-#if defined(USE_KKPP_KKPT_MIRROR)
-		// ミラーがあるので6～9筋は無視
-		if (file_of(bk) >= FILE_6)
-			continue;
-#endif
-		// KKPPの対象の段でないなら無視
-		if (rank_of(bk) < KKPP_KING_RANK)
-			return -1;
-
-		// 同様に後手玉側も。
-		auto inv_wk = Inv(wk);
-		if (rank_of(inv_wk) < KKPP_KING_RANK)
-			return -1;
-
-		// encode
-
-#if defined(USE_KKPP_KKPT_MIRROR)
-		int k0 = ((int)rank_of(bk) - (int)KKPP_KING_RANK) * 5 + (int)file_of(bk);
-#else
-		int k0 = ((int)rank_of(bk) - (int)KKPP_KING_RANK) * 9 + (int)file_of(bk);
-#endif
-		int k1 = ((int)rank_of(inv_wk) - (int)KKPP_KING_RANK) * 9 + (int)file_of(inv_wk);
-
-		int k = k0 * KKPP_WK_SQ + k1;
-		ASSERT_LV3(k < KKPP_KING_SQ);
-
-		return k;
-	}
-
 	// KP,KPP,KKPのスケール
 	const int FV_SCALE = 32;
 
@@ -495,9 +460,9 @@ namespace Eval
 	// なので、この関数の最適化は頑張らない。
 	Value compute_eval(const Position& pos)
 	{
-		int encoded_kk = encode_kk(pos.king_square(BLACK), pos.king_square(WHITE));
-		compute_eval_impl(pos , encoded_kk);
-		pos.state()->sum.p[0][1] = encoded_kk; // ここ使っていないのでここにencoded_kkを埋めておくことにする。
+		int encoded_eval_kk = encode_to_eval_kk(pos.king_square(BLACK), pos.king_square(WHITE));
+		compute_eval_impl(pos , encoded_eval_kk);
+		pos.state()->sum.p[0][1] = encoded_eval_kk; // ここ使っていないのでここにencoded_eval_kkを埋めておくことにする。
 		return Value(pos.state()->sum.sum(pos.side_to_move()) / FV_SCALE);
 	}
 
@@ -647,7 +612,7 @@ namespace Eval
 	}
 
 	// 玉以外の駒が移動したときの差分(kkppテーブルを用いるとき)
-	EvalSum kkpp_do_a_pc(const Position& pos, const ExtBonaPiece ebp , int encoded_kk) {
+	EvalSum kkpp_do_a_pc(const Position& pos, const ExtBonaPiece ebp , int encoded_eval_kk) {
 
 		const Square sq_bk = pos.king_square(BLACK);
 		const Square sq_wk = pos.king_square(WHITE);
@@ -666,7 +631,7 @@ namespace Eval
 		// KK
 		sum.p[2] = kkp[sq_bk][sq_wk][ebp.fb];
 
-		const auto* kkpp_kp_fb = &kkpp_ksq_pcpc(encoded_kk, ebp.fb, BONA_PIECE_ZERO);
+		const auto* kkpp_kp_fb = &kkpp_ksq_pcpc(encoded_eval_kk, ebp.fb, BONA_PIECE_ZERO);
 
 		const int PIECE_LIST_LENGTH = PIECE_NUMBER_KING;
 
@@ -727,7 +692,7 @@ namespace Eval
 #endif
 
 #if !defined(USE_EVAL_MAKE_LIST_FUNCTION)
-	void evaluateBody_kpp(const Position& pos , int encoded_kk)
+	void evaluateBody_kpp(const Position& pos)
 	{
 		// 一つ前のノードからの評価値の差分を計算する。
 		// kkppテーブルではなくkppテーブルを用いて求める。
@@ -974,7 +939,7 @@ namespace Eval
 
 	// 一つ前のノードからの評価値の差分を計算する。
 	// kkppテーブルを用いて求める。
-	void evaluateBody_kkpp(const Position& pos, int last_encoded_kk , int encoded_kk)
+	void evaluateBody_kkpp(const Position& pos, int last_encoded_eval_kk , int encoded_eval_kk)
 	{
 		auto now = pos.state();
 		auto prev = now->previous;
@@ -993,7 +958,7 @@ namespace Eval
 		if (dirty >= PIECE_NUMBER_KING)
 		{
 			// kkppテーブルを用いるならこのとき全計算して良い。
-			compute_eval_impl(pos, encoded_kk);
+			compute_eval_impl(pos, encoded_eval_kk);
 
 		} else {
 
@@ -1002,12 +967,12 @@ namespace Eval
 
 			const int listIndex = dp.pieceNo[0];
 
-			auto diff = kkpp_do_a_pc(pos, dp.changed_piece[0].new_piece , encoded_kk);
+			auto diff = kkpp_do_a_pc(pos, dp.changed_piece[0].new_piece , encoded_eval_kk);
 			if (moved_piece_num == 1) {
 
 				// 動いた駒が1つ。
 				list0[listIndex] = dp.changed_piece[0].old_piece.fb;
-				diff -= kkpp_do_a_pc(pos, dp.changed_piece[0].old_piece , encoded_kk);
+				diff -= kkpp_do_a_pc(pos, dp.changed_piece[0].old_piece , encoded_eval_kk);
 			}
 			else {
 
@@ -1016,16 +981,16 @@ namespace Eval
 				auto sq_bk = pos.king_square(BLACK);
 				auto sq_wk = pos.king_square(WHITE);
 
-				diff += kkpp_do_a_pc(pos, dp.changed_piece[1].new_piece , encoded_kk);
-				diff.p[0][0] -= kkpp_ksq_pcpc(encoded_kk , dp.changed_piece[0].new_piece.fb, dp.changed_piece[1].new_piece.fb);
+				diff += kkpp_do_a_pc(pos, dp.changed_piece[1].new_piece , encoded_eval_kk);
+				diff.p[0][0] -= kkpp_ksq_pcpc(encoded_eval_kk, dp.changed_piece[0].new_piece.fb, dp.changed_piece[1].new_piece.fb);
 
 				const PieceNumber listIndex_cap = dp.pieceNo[1];
 				list0[listIndex_cap] = dp.changed_piece[1].old_piece.fb;
 				list0[listIndex] = dp.changed_piece[0].old_piece.fb;
-				diff -= kkpp_do_a_pc(pos, dp.changed_piece[0].old_piece , encoded_kk);
-				diff -= kkpp_do_a_pc(pos, dp.changed_piece[1].old_piece , encoded_kk);
+				diff -= kkpp_do_a_pc(pos, dp.changed_piece[0].old_piece , encoded_eval_kk);
+				diff -= kkpp_do_a_pc(pos, dp.changed_piece[1].old_piece , encoded_eval_kk);
 
-				diff.p[0][0] += kkpp_ksq_pcpc(encoded_kk, dp.changed_piece[0].old_piece.fb, dp.changed_piece[1].old_piece.fb);
+				diff.p[0][0] += kkpp_ksq_pcpc(encoded_eval_kk, dp.changed_piece[0].old_piece.fb, dp.changed_piece[1].old_piece.fb);
 				list0[listIndex_cap] = dp.changed_piece[1].new_piece.fb;
 			}
 
@@ -1044,7 +1009,7 @@ namespace Eval
 
 		auto sq_bk = pos.king_square(BLACK);
 		auto sq_wk = pos.king_square(WHITE);
-		int encoded_kk = encode_kk(sq_bk, sq_wk);
+		int encoded_eval_kk = encode_to_eval_kk(sq_bk, sq_wk);
 
 		auto now = pos.state();
 		auto prev = now->previous;
@@ -1062,12 +1027,12 @@ namespace Eval
 			!prev->sum.evaluated())
 		{
 			// 全計算
-			compute_eval_impl(pos, encoded_kk);
+			compute_eval_impl(pos, encoded_eval_kk);
 			goto kk_save;
 		}
 
 		{
-			int last_encoded_kk = prev->sum.p[0][1];
+			int last_encoded_eval_kk = prev->sum.p[0][1];
 
 			// 4つの場合に分けられる
 			// 1) 前回が-1で今回も-1     →　kkpp対象外なのでkkpテーブルで従来通り計算する。
@@ -1078,29 +1043,28 @@ namespace Eval
 			//  4b) 値が同じならkkppテーブルを用いた差分計算。
 
 			// 2) or 3)
-			if ((last_encoded_kk == -1 && encoded_kk != -1) ||
-				(last_encoded_kk != -1 && encoded_kk == -1))
+			if ((last_encoded_eval_kk == -1 && encoded_eval_kk != -1) ||
+				(last_encoded_eval_kk != -1 && encoded_eval_kk == -1))
 			{
 				// 全計算
-				compute_eval_impl(pos, encoded_kk);
+				compute_eval_impl(pos, encoded_eval_kk);
 				goto kk_save;
 			}
 
 			// 4)
-			if (last_encoded_kk != -1 && encoded_kk != -1)
+			if (last_encoded_eval_kk != -1 && encoded_eval_kk != -1)
 			{
 				// kkppテーブルで差分計算を行なう。
-				evaluateBody_kkpp(pos, last_encoded_kk, encoded_kk);
+				evaluateBody_kkpp(pos, last_encoded_eval_kk, encoded_eval_kk);
 				goto kk_save;
 			}
 
 			// 1) 従来のkppで差分計算を行なう。
-			evaluateBody_kpp(pos, encoded_kk);
+			evaluateBody_kpp(pos);
 		}
 
 	kk_save:;
-		pos.state()->sum.p[0][1] = encoded_kk;
-
+		pos.state()->sum.p[0][1] = encoded_eval_kk;
 
 		// 結果は、pos->state().sumから取り出すべし。
 	}

@@ -25,7 +25,6 @@
 namespace Eval
 {
 	using namespace EvalLearningTools;
-	int encode_kk(Square bk, Square wk);
 
 	// bugなどにより間違って書き込まれた値を補正する。
 	void correct_eval()
@@ -44,7 +43,7 @@ namespace Eval
 				}
 
 			const ValueKkpp kkpp_zero = 0;
-			for (int sq = 0; sq < KKPP_KING_SQ ; ++sq)
+			for (int sq = 0; sq < KKPP_EVAL_KING_SQ ; ++sq)
 			{
 				for (auto p = BONA_PIECE_ZERO; p < fe_end; ++p)
 				{
@@ -119,7 +118,7 @@ namespace Eval
 		g_kk.set(SQ_NB, Eval::fe_end, 0);
 		g_kkp.set(SQ_NB, Eval::fe_end, g_kk.max_index());
 		g_kpp.set(SQ_NB, Eval::fe_end, g_kkp.max_index());
-		g_kkpp.set(KKPP_KING_SQ, Eval::fe_end, g_kpp.max_index());
+		g_kkpp.set(KKPP_LEARN_KING_SQ, Eval::fe_end, g_kpp.max_index());
 
 		// 学習用配列の確保
 		u64 size = g_kkp.max_index();
@@ -377,7 +376,31 @@ namespace Eval
 				}
 				else if (g_kkpp.is_ok(index) && !freeze_kkpp)
 				{
-					// TODO:あとで書く。
+					// ミラーの次元下げとpiece0(),piece1()の入れ替えは学習配列に勾配を加算するときに行われているとみなせるので
+					// ここでは次元下げをする必要がない。
+					KKPP x = g_kkpp.fromIndex(index);
+					u64 raw_index = x.toRawIndex();
+
+					LearnFloatType g_sum = weights_kkpp[raw_index].get_grad();
+
+					if (g_sum == 0)
+						continue;
+
+					Square bk, wk;
+					decode_from_learn_kk(x.king(), bk, wk);
+					int encoded_eval_kk = encode_to_eval_kk(bk, wk);
+
+					auto& v = kkpp_ksq_pcpc(encoded_eval_kk, x.piece0(), x.piece1());
+					weights_kkpp[raw_index].updateFV(v);
+
+					// 自前でミラーしたところと、piece0(),piece1()を入れ替えたところに書き出す
+					int mir_encoded_eval_kk = encode_to_eval_kk(Mir(bk),Mir(wk));
+
+					kkpp_ksq_pcpc(encoded_eval_kk     ,           x.piece1() ,           x.piece0() ) = v;
+					kkpp_ksq_pcpc(mir_encoded_eval_kk , mir_piece(x.piece0()), mir_piece(x.piece1())) = v;
+					kkpp_ksq_pcpc(mir_encoded_eval_kk , mir_piece(x.piece1()), mir_piece(x.piece0())) = v;
+
+					weights_kkpp[raw_index].set_grad(zero);
 				}
 			}
 		}
@@ -405,11 +428,9 @@ namespace Eval
 		for (auto bk : SQ) // 先手玉
 			for (auto wk : SQ) // 後手玉
 			{
-				int k = encode_kk((Square)bk, (Square)wk);
+				int k = encode_to_eval_kk((Square)bk, (Square)wk);
 				if (k == -1)
 					continue;
-
-				ASSERT_LV3(k < KKPP_KING_SQ);
 
 				for (auto p0 = BONA_PIECE_ZERO; p0 < Eval::fe_end; ++p0)
 					for (auto p1 = BONA_PIECE_ZERO; p1 < Eval::fe_end; ++p1)

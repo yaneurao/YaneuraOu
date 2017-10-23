@@ -41,16 +41,21 @@ namespace Eval
 	// piece_list()の更新処理が難しくなるので、ミラー対応は後回しにする。
 #if defined(USE_KKPP_KKPT_MIRROR)
 	// KKPP対象の先手玉の升の数(ミラーありなので5/9倍)
-	static const int KKPP_BK_SQ = 5 * (EVAL_KKPP_KKPT / 9);
+	static const int KKPP_LEARN_BK_SQ = 5 * (EVAL_KKPP_KKPT / 9);
 #else
-	static const int KKPP_BK_SQ = 9 * (EVAL_KKPP_KKPT / 9);
+	static const int KKPP_LEARN_BK_SQ = 9 * (EVAL_KKPP_KKPT / 9);
 #endif
 	// KKPP対象の後手玉の升の数
-	static const int KKPP_WK_SQ = 9 * (EVAL_KKPP_KKPT / 9);
+	static const int KKPP_LEARN_WK_SQ = 9 * (EVAL_KKPP_KKPT / 9);
 
-	// 先手玉×後手玉の組み合わせの数
-	static const int KKPP_KING_SQ = KKPP_BK_SQ * KKPP_WK_SQ;
+	static const int KKPP_EVAL_BK_SQ = 9 * (EVAL_KKPP_KKPT / 9);
+	static const int KKPP_EVAL_WK_SQ = 9 * (EVAL_KKPP_KKPT / 9);
 
+	// 先手玉×後手玉の組み合わせの数(学習配列のKKPPに用いる)
+	static const int KKPP_LEARN_KING_SQ = KKPP_LEARN_BK_SQ * KKPP_LEARN_WK_SQ;
+
+	// eval用の正方配列に用いる玉の組み合わせの数
+	static const int KKPP_EVAL_KING_SQ = KKPP_EVAL_BK_SQ * KKPP_EVAL_WK_SQ;
 
 	// KKPP配列に三角配列を用いる場合の、PPの部分の要素の数。
 	//const u64 kkpp_triangle_fe_end = fe_end * (fe_end - 1) / 2;
@@ -86,7 +91,7 @@ namespace Eval
 	const u64 size_of_kk = (u64)SQ_NB*(u64)SQ_NB*(u64)sizeof(ValueKk);
 	const u64 size_of_kkp = (u64)SQ_NB*(u64)SQ_NB*(u64)fe_end*(u64)sizeof(ValueKkp);
 	const u64 size_of_kpp = (u64)SQ_NB*(u64)fe_end*(u64)fe_end*(u64)sizeof(ValueKpp);
-	const u64 size_of_kkpp = (u64)KKPP_KING_SQ*(u64)kkpp_square_fe_end*(u64)sizeof(ValueKkpp);
+	const u64 size_of_kkpp = (u64)KKPP_EVAL_KING_SQ*(u64)kkpp_square_fe_end*(u64)sizeof(ValueKkpp);
 	const u64 size_of_eval = size_of_kk + size_of_kkp + size_of_kpp + size_of_kkpp;
 
 	// kppの配列の位置を返すマクロ
@@ -99,6 +104,79 @@ namespace Eval
 	// i,j = piece0,piece1
 	static ValueKkpp& kkpp_ksq_pcpc(int king_, BonaPiece i_, BonaPiece j_) {
 		return *(kkpp_ + (u64)king_ * kkpp_square_fe_end + u64(i_)*fe_end + u64(j_));
+	}
+
+	// 先手玉の位置、後手玉の位置を引数に渡して、
+	// それをkkpp配列の第一パラメーターとして使えるように符号化する。
+	// kkppの対象升でない場合は、-1が返る。
+	// USE_KKPP_KKPT_MIRRORがdefineされてるときはミラーを考慮した処理が必要なのだが、未実装。
+	static int encode_to_eval_kk(Square bk, Square wk)
+	{
+		// KKPPの対象の段でないなら無視
+		if (rank_of(bk) < KKPP_KING_RANK)
+			return -1;
+
+		// 同様に後手玉側も。
+		auto inv_wk = Inv(wk);
+		if (rank_of(inv_wk) < KKPP_KING_RANK)
+			return -1;
+
+		// encode
+
+		int k0 = ((int)rank_of(bk    ) - (int)KKPP_KING_RANK) * 9 + (int)file_of(bk);
+		int k1 = ((int)rank_of(inv_wk) - (int)KKPP_KING_RANK) * 9 + (int)file_of(inv_wk);
+
+		int k = k0 * KKPP_EVAL_WK_SQ + k1;
+		ASSERT_LV3(k < KKPP_EVAL_KING_SQ);
+
+		return k;
+	}
+	
+	// encode_to_eval_kk()の逆変換
+	static void decode_from_eval_kk(int encoded_kk, Square& bk, Square& wk)
+	{
+		// KKPP_EVAL_WK_SQ進数表記だとみなしてKKPP_WK_SQ進数変換の逆変換を行なう。
+		int k1 = encoded_kk % KKPP_EVAL_WK_SQ;
+		int k0 = encoded_kk / KKPP_EVAL_WK_SQ;
+
+		bk            = ((File)(k0 % 9)) | ((Rank)((k0 / 9) + KKPP_KING_RANK));
+		Square inv_wk = ((File)(k1 % 9)) | ((Rank)((k1 / 9) + KKPP_KING_RANK));
+
+		wk = Inv(inv_wk);
+	}
+
+	// KKPPの学習配列で用いるencoded_kk
+	static int encode_to_learn_kk(Square bk, Square wk)
+	{
+		ASSERT_LV3(file_of(bk) <= FILE_5);
+		ASSERT_LV3(rank_of(bk) >= KKPP_KING_RANK);
+
+		auto inv_wk = Inv(wk);
+		ASSERT_LV3(rank_of(inv_wk) >= KKPP_KING_RANK);
+
+		// encode
+
+		int k0 = ((int)rank_of(bk    ) - (int)KKPP_KING_RANK) * 5 + (int)file_of(bk);
+		int k1 = ((int)rank_of(inv_wk) - (int)KKPP_KING_RANK) * 9 + (int)file_of(inv_wk);
+
+		int k = k0 * KKPP_LEARN_WK_SQ + k1;
+		ASSERT_LV3(k < KKPP_LEARN_KING_SQ);
+
+		return k;
+	}
+
+	// encode_to_learn_kk()の逆変換
+	static void decode_from_learn_kk(int encoded_learn_kk , Square& bk, Square &wk)
+	{
+		ASSERT_LV3(encoded_learn_kk < KKPP_LEARN_KING_SQ);
+
+		// KKPP_LEARN_WK_SQ進数表記だとみなしてKKPP_WK_SQ進数変換の逆変換を行なう。
+		int k1 = encoded_learn_kk % KKPP_LEARN_WK_SQ;
+		int k0 = encoded_learn_kk / KKPP_LEARN_WK_SQ;
+
+		bk            = ((File)(k0 % 5)) | ((Rank)((k0 / 5) + KKPP_KING_RANK));
+		Square inv_wk = ((File)(k1 % 9)) | ((Rank)((k1 / 9) + KKPP_KING_RANK));
+		wk = Inv(inv_wk);
 	}
 
 }      // namespace Eval
