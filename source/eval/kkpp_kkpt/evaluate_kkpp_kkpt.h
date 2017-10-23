@@ -133,11 +133,13 @@ namespace Eval
 	}
 	
 	// encode_to_eval_kk()の逆変換
-	static void decode_from_eval_kk(int encoded_kk, Square& bk, Square& wk)
+	static void decode_from_eval_kk(int encoded_eval_kk, Square& bk, Square& wk)
 	{
+		ASSERT_LV3(0 <= encoded_eval_kk && encoded_eval_kk < KKPP_LEARN_KING_SQ);
+
 		// KKPP_EVAL_WK_SQ進数表記だとみなしてKKPP_WK_SQ進数変換の逆変換を行なう。
-		int k1 = encoded_kk % KKPP_EVAL_WK_SQ;
-		int k0 = encoded_kk / KKPP_EVAL_WK_SQ;
+		int k1 = encoded_eval_kk % KKPP_EVAL_WK_SQ;
+		int k0 = encoded_eval_kk / KKPP_EVAL_WK_SQ;
 
 		bk            = ((File)(k0 % 9)) | ((Rank)((k0 / 9) + KKPP_KING_RANK));
 		Square inv_wk = ((File)(k1 % 9)) | ((Rank)((k1 / 9) + KKPP_KING_RANK));
@@ -148,15 +150,23 @@ namespace Eval
 	// KKPPの学習配列で用いるencoded_kk
 	static int encode_to_learn_kk(Square bk, Square wk)
 	{
-		ASSERT_LV3(file_of(bk) <= FILE_5);
-		ASSERT_LV3(rank_of(bk) >= KKPP_KING_RANK);
+		//ASSERT_LV3(file_of(bk) <= FILE_5);
+		//ASSERT_LV3(rank_of(bk) >= KKPP_KING_RANK);
+
+		if (file_of(bk) > FILE_5)
+			return -1;
+		if (rank_of(bk) < KKPP_KING_RANK)
+			return -1;
 
 		auto inv_wk = Inv(wk);
-		ASSERT_LV3(rank_of(inv_wk) >= KKPP_KING_RANK);
+		//ASSERT_LV3(rank_of(inv_wk) >= KKPP_KING_RANK);
+
+		if (rank_of(inv_wk) < KKPP_KING_RANK)
+			return -1;
 
 		// encode
 
-		int k0 = ((int)rank_of(bk    ) - (int)KKPP_KING_RANK) * 5 + (int)file_of(bk);
+		int k0 = ((int)rank_of(bk    ) - (int)KKPP_KING_RANK) * 5 + (int)file_of(    bk);
 		int k1 = ((int)rank_of(inv_wk) - (int)KKPP_KING_RANK) * 9 + (int)file_of(inv_wk);
 
 		int k = k0 * KKPP_LEARN_WK_SQ + k1;
@@ -168,7 +178,7 @@ namespace Eval
 	// encode_to_learn_kk()の逆変換
 	static void decode_from_learn_kk(int encoded_learn_kk , Square& bk, Square &wk)
 	{
-		ASSERT_LV3(encoded_learn_kk < KKPP_LEARN_KING_SQ);
+		ASSERT_LV3(0 <= encoded_learn_kk && encoded_learn_kk < KKPP_LEARN_KING_SQ);
 
 		// KKPP_LEARN_WK_SQ進数表記だとみなしてKKPP_WK_SQ進数変換の逆変換を行なう。
 		int k1 = encoded_learn_kk % KKPP_LEARN_WK_SQ;
@@ -177,6 +187,31 @@ namespace Eval
 		bk            = ((File)(k0 % 5)) | ((Rank)((k0 / 5) + KKPP_KING_RANK));
 		Square inv_wk = ((File)(k1 % 9)) | ((Rank)((k1 / 9) + KKPP_KING_RANK));
 		wk = Inv(inv_wk);
+	}
+
+	// 上記の変換と逆変換関数のためのUnit Test的なもの。
+	static void encode_and_decode_test()
+	{
+		std::cout << "encode_kk_test..";
+		for (auto sq_bk : SQ)
+			for (auto sq_wk : SQ)
+			{
+				int encoded_eval_kk = encode_to_eval_kk(sq_bk, sq_wk);
+				if (encoded_eval_kk != -1)
+				{
+					Square sq_bk2, sq_wk2;
+					decode_from_eval_kk(encoded_eval_kk, sq_bk2, sq_wk2);
+					ASSERT_LV1(sq_bk == sq_bk2 && sq_wk == sq_wk2);
+				}
+				int encoded_learn_kk = encode_to_learn_kk(sq_bk, sq_wk);
+				if (encoded_learn_kk != -1)
+				{
+					Square sq_bk2, sq_wk2;
+					decode_from_learn_kk(encoded_learn_kk, sq_bk2, sq_wk2);
+					ASSERT_LV1(sq_bk == sq_bk2 && sq_wk == sq_wk2);
+				}
+			}
+		std::cout << "done." << std::endl;
 	}
 
 }      // namespace Eval

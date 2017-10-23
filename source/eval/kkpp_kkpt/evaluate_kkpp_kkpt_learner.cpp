@@ -172,23 +172,17 @@ namespace Eval
 		Square sq_bk = pos.king_square(BLACK);
 		Square sq_wk = pos.king_square(WHITE);
 
-		auto list_fb = pos.eval_list()->piece_list_fb();
-		auto list_fw = pos.eval_list()->piece_list_fw();
-
 		// KKPPのことを考慮しないといけない。
 
 		int encoded_eval_kk = encode_to_eval_kk(sq_bk, sq_wk);
 		if (encoded_eval_kk != -1)
 		{
-			// KKPPで計算する
+			// KKPPで計算する(KKPPで計算できる状況)
 
 			// バッファを確保してコピー。(どうせsortが必要なので、そのためにはコピーしておかなければならない)
-			BonaPiece list_fb_[PIECE_NUMBER_KING];
-			BonaPiece list_fw_[PIECE_NUMBER_KING];
-			memcpy(list_fb_, list_fb , sizeof(BonaPiece) * (int)PIECE_NUMBER_KING);
-			memcpy(list_fw_, list_fw , sizeof(BonaPiece) * (int)PIECE_NUMBER_KING);
-			list_fb = list_fb_;
-			list_fw = list_fw_;
+			// なお、list_fwは用いないので不要。
+			BonaPiece list_fb[PIECE_NUMBER_KING];
+			memcpy(list_fb, pos.eval_list()->piece_list_fb() , sizeof(BonaPiece) * (int)PIECE_NUMBER_KING);
 
 			// ただし、file_of(sq_bk) > FILE_5なら、ここでミラーしてから、学習配列の勾配を加算。
 			if (file_of(sq_bk) > FILE_5)
@@ -197,17 +191,13 @@ namespace Eval
 				sq_wk = Mir(sq_wk);
 
 				for (PieceNumber n = PIECE_NUMBER_ZERO; n < PIECE_NUMBER_KING; ++n)
-				{
 					list_fb[n] = mir_piece(list_fb[n]);
-					list_fw[n] = mir_piece(list_fw[n]);
-				}
 			}
 
 			// KKPPの学習配列は、piece0 > piece1でなければならないので、ここで
 			// piece_listのsortしておく。
 
 			my_insertion_sort(list_fb, 0, PIECE_NUMBER_KING);
-			my_insertion_sort(list_fw, 0, PIECE_NUMBER_KING);
 
 			int encoded_learn_kk = encode_to_learn_kk(sq_bk, sq_wk);
 			ASSERT_LV3(encoded_learn_kk != -1);
@@ -239,6 +229,9 @@ namespace Eval
 		else {
 
 			// 通常のKPP
+
+			auto list_fb = pos.eval_list()->piece_list_fb();
+			auto list_fw = pos.eval_list()->piece_list_fw();
 
 			// KK
 			weights[g_kk.fromKK(sq_bk, sq_wk).toIndex()].add_grad(g);
@@ -273,7 +266,7 @@ namespace Eval
 	// epoch       : 世代カウンター(0から始まる)
 	void update_weights(u64 epoch , const std::array<bool, 4>& freeze)
 	{
-		u64 vector_length = g_kpp.max_index();
+		u64 vector_length = g_kkpp.max_index();
 
 		const bool freeze_kk = freeze[0];
 		const bool freeze_kkp = freeze[1];
@@ -308,7 +301,10 @@ namespace Eval
 
 				// 自分が更新すべきやつか？
 				// 次元下げしたときのindexの小さいほうが自分でないならこの更新は行わない。
-				if (!min_index_flag[index])
+				// ただし、KKPP配列に関しては無条件でokである。
+				// "index < g_kpp.max_index()"のほうを先に書かないと、"min_index_flag[index]"のindexが配列の範囲外となる。
+
+				if (index < g_kpp.max_index() && !min_index_flag[index])
 					continue;
 
 				if (g_kk.is_ok(index) && !freeze_kk)
@@ -425,23 +421,26 @@ namespace Eval
 				{
 					// ミラーの次元下げとpiece0(),piece1()の入れ替えは学習配列に勾配を加算するときに行われているとみなせるので
 					// ここでは次元下げをする必要がない。
-					KKPP x = g_kkpp.fromIndex(index);
-					u64 raw_index = x.toRawIndex();
 
+					u64 raw_index = index - g_kkpp.min_index();
 					LearnFloatType g_sum = weights_kkpp[raw_index].get_grad();
 
 					if (g_sum == 0)
 						continue;
 
+					KKPP x = g_kkpp.fromIndex(index);
+
 					Square bk, wk;
 					decode_from_learn_kk(x.king(), bk, wk);
 					int encoded_eval_kk = encode_to_eval_kk(bk, wk);
+					ASSERT_LV3(encoded_eval_kk != -1);
 
 					auto& v = kkpp_ksq_pcpc(encoded_eval_kk, x.piece0(), x.piece1());
 					weights_kkpp[raw_index].updateFV(v);
 
-					// 自前でミラーしたところと、piece0(),piece1()を入れ替えたところに書き出す
+					// 自前で、ミラーしたところと、piece0(),piece1()を入れ替えたところに書き出す
 					int mir_encoded_eval_kk = encode_to_eval_kk(Mir(bk),Mir(wk));
+					ASSERT_LV3(mir_encoded_eval_kk != -1);
 
 					kkpp_ksq_pcpc(    encoded_eval_kk ,           x.piece1() ,           x.piece0() ) = v;
 					kkpp_ksq_pcpc(mir_encoded_eval_kk , mir_piece(x.piece0()), mir_piece(x.piece1())) = v;
@@ -470,7 +469,7 @@ namespace Eval
 	{
 		EvalLearningTools::init_mir_inv_tables();
 
-		std::cout << "expand_kpp_to_kkpp" << std::endl;
+		std::cout << "expand_kpp_to_kkpp..";
 
 		for (auto bk : SQ) // 先手玉
 			for (auto wk : SQ) // 後手玉
@@ -489,6 +488,8 @@ namespace Eval
 						kkpp_ksq_pcpc(k, p0, p1) = sum_bk - sum_wk;
 					}
 			}
+
+		std::cout << "done." << std::endl;
 	}
 
 	// 評価関数パラメーターをファイルに保存する。

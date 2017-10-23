@@ -375,7 +375,7 @@ namespace Eval
 				// 自分が更新すべきやつか？
 				// 次元下げしたときのindexの小さいほうが自分でないならこの更新は行わない。
 				// ただし、KPPP配列に関しては無条件でokである。
-				// "index < KPPP::min_index()"のほうを先に書かないと、"min_index_flag[index]"のindexが配列の範囲外となる。
+				// "index < g_kpp.max_index()"のほうを先に書かないと、"min_index_flag[index]"のindexが配列の範囲外となる。
 
 				if (index < g_kpp.max_index() && !min_index_flag[index])
 					continue;
