@@ -130,7 +130,7 @@ namespace Eval
 		memset(&weights_kpp[0], 0, sizeof(Weight) * weights_kpp.size());
 
 		u64 size_kkpp = g_kkpp.size();
-		weights_kpp.resize(size_kpp);
+		weights_kkpp.resize(size_kkpp);
 		memset(&weights_kkpp[0], 0, sizeof(Weight) * weights_kkpp.size());
 
 		// 学習率の設定
@@ -185,8 +185,8 @@ namespace Eval
 			// バッファを確保してコピー。(どうせsortが必要なので、そのためにはコピーしておかなければならない)
 			BonaPiece list_fb_[PIECE_NUMBER_KING];
 			BonaPiece list_fw_[PIECE_NUMBER_KING];
-			memcpy(list_fb_, pos.eval_list()->piece_list_fb(), sizeof(BonaPiece) * (int)PIECE_NUMBER_KING);
-			memcpy(list_fw_, pos.eval_list()->piece_list_fw(), sizeof(BonaPiece) * (int)PIECE_NUMBER_KING);
+			memcpy(list_fb_, list_fb , sizeof(BonaPiece) * (int)PIECE_NUMBER_KING);
+			memcpy(list_fw_, list_fw , sizeof(BonaPiece) * (int)PIECE_NUMBER_KING);
 			list_fb = list_fb_;
 			list_fw = list_fw_;
 
