@@ -37,16 +37,15 @@ namespace Eval
 	static const Rank KKPP_KING_RANK = (Rank)(RANK_9 - EVAL_KKPP_KKPT / 9 + 1);
 
 
+
+	// 学習配列のKKPP対象の先手玉の升の数(ミラーありなので5/9倍)
+	static const int KKPP_LEARN_BK_SQ = 5 * (EVAL_KKPP_KKPT / 9);
+
+	// 学習配列のKKPP対象の後手玉の升の数
+	static const int KKPP_LEARN_WK_SQ = 9 * (EVAL_KKPP_KKPT / 9);
+
 	// ミラーありにしても、後手玉のほうはミラーできないので、5/9になるだけ。
 	// piece_list()の更新処理が難しくなるので、ミラー対応は後回しにする。
-#if defined(USE_KKPP_KKPT_MIRROR)
-	// KKPP対象の先手玉の升の数(ミラーありなので5/9倍)
-	static const int KKPP_LEARN_BK_SQ = 5 * (EVAL_KKPP_KKPT / 9);
-#else
-	static const int KKPP_LEARN_BK_SQ = 9 * (EVAL_KKPP_KKPT / 9);
-#endif
-	// KKPP対象の後手玉の升の数
-	static const int KKPP_LEARN_WK_SQ = 9 * (EVAL_KKPP_KKPT / 9);
 
 	static const int KKPP_EVAL_BK_SQ = 9 * (EVAL_KKPP_KKPT / 9);
 	static const int KKPP_EVAL_WK_SQ = 9 * (EVAL_KKPP_KKPT / 9);
@@ -100,10 +99,11 @@ namespace Eval
 		return *(kpp_ + (u64)king_ * kkpp_square_fe_end + u64(i_)*fe_end + u64(j_));
 	}
 
-	// kpppの配列の位置を返すマクロ
+	// kkppの配列の位置を返すマクロ
 	// i,j = piece0,piece1
-	static ValueKkpp& kkpp_ksq_pcpc(int king_, BonaPiece i_, BonaPiece j_) {
-		return *(kkpp_ + (u64)king_ * kkpp_square_fe_end + u64(i_)*fe_end + u64(j_));
+	// encoded_eval_kk = encode_to_eval_kk()でencodeした先手玉、後手玉の升。
+	static ValueKkpp& kkpp_ksq_pcpc(int encoded_eval_kk, BonaPiece i_, BonaPiece j_) {
+		return *(kkpp_ + (u64)encoded_eval_kk * kkpp_square_fe_end + u64(i_)*fe_end + u64(j_));
 	}
 
 	// 先手玉の位置、後手玉の位置を引数に渡して、
@@ -135,7 +135,7 @@ namespace Eval
 	// encode_to_eval_kk()の逆変換
 	static void decode_from_eval_kk(int encoded_eval_kk, Square& bk, Square& wk)
 	{
-		ASSERT_LV3(0 <= encoded_eval_kk && encoded_eval_kk < KKPP_LEARN_KING_SQ);
+		ASSERT_LV3(0 <= encoded_eval_kk && encoded_eval_kk < KKPP_EVAL_KING_SQ);
 
 		// KKPP_EVAL_WK_SQ進数表記だとみなしてKKPP_WK_SQ進数変換の逆変換を行なう。
 		int k1 = encoded_eval_kk % KKPP_EVAL_WK_SQ;

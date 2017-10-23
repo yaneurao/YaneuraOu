@@ -274,16 +274,16 @@ namespace EvalLearningTools
 		u64 max_index() const { return min_index() + max_raw_index_; }
 
 		// max_index() - min_index()の値。
-		// 派生クラス側でking_sq_,fe_end_などから、値を計算して返すようにする。
+		// 派生クラス側でmax_king_sq_,fe_end_などから、値を計算して返すようにする。
 		virtual u64 size() const = 0;
 
 		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
 		bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
 
 		// 必ずこのset()を呼び出して使う。さもなくば、派生クラス側のfromKK()/fromIndex()などでインスタンスを構築して使う。
-		virtual void set(int king_sq, u64 fe_end, u64 min_index)
+		virtual void set(int max_king_sq, u64 fe_end, u64 min_index)
 		{
-			king_sq_ = king_sq;
+			max_king_sq_ = max_king_sq;
 			fe_end_ = fe_end;
 			min_index_ = min_index;
 			max_raw_index_ = size();
@@ -306,7 +306,7 @@ namespace EvalLearningTools
 		u64 max_raw_index_;
 
 		// サポートする玉の升の数(通常SQ_NB)
-		int king_sq_;
+		int max_king_sq_;
 
 		// サポートするBonaPieceの最大値
 		u64 fe_end_;
@@ -320,7 +320,7 @@ namespace EvalLearningTools
 	public:
 		KK() {}
 
-		virtual u64 size() const { return king_sq_ * king_sq_; }
+		virtual u64 size() const { return max_king_sq_ * max_king_sq_; }
 
 		// indexからKKのオブジェクトを生成するbuilder
 		KK fromIndex(u64 index) const
@@ -336,7 +336,7 @@ namespace EvalLearningTools
 		{
 			// kkという変数名はEval::kk配列などで使っているので別の名前にする必要がある。(以下、KKP,KPPクラスなどでも同様)
 			KK my_kk(king0, king1, inverse);
-			my_kk.set(king_sq_, fe_end_, min_index());
+			my_kk.set(max_king_sq_, fe_end_, min_index());
 			return my_kk;
 		}
 		KK fromKK(Square king0, Square king1) const { return fromKK(king0, king1, false); }
@@ -376,7 +376,7 @@ namespace EvalLearningTools
 
 		// このクラスのmin_index()の値を0として数えたときのindexを取得する。
 		virtual u64 toRawIndex() const {
-			return (u64)king0_ * (u64)king_sq_ + (u64)king1_;
+			return (u64)king0_ * (u64)max_king_sq_ + (u64)king1_;
 		}
 
 		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
@@ -416,7 +416,7 @@ namespace EvalLearningTools
 	public:
 		KKP() {}
 
-		virtual u64 size() const { return (u64)king_sq_*(u64)king_sq_*(u64)fe_end_; }
+		virtual u64 size() const { return (u64)max_king_sq_*(u64)max_king_sq_*(u64)fe_end_; }
 
 		// indexからKKPのオブジェクトを生成するbuilder
 		KKP fromIndex(u64 index) const
@@ -434,7 +434,7 @@ namespace EvalLearningTools
 		KKP fromKKP(Square king0, Square king1, Eval::BonaPiece p, bool inverse) const
 		{
 			KKP my_kkp(king0, king1, p, inverse);
-			my_kkp.set(king_sq_,fe_end_,min_index());
+			my_kkp.set(max_king_sq_,fe_end_,min_index());
 			return my_kkp;
 		}
 		KKP fromKKP(Square king0, Square king1, Eval::BonaPiece p) const { return fromKKP(king0, king1, p, false); }
@@ -475,7 +475,7 @@ namespace EvalLearningTools
 
 		// このクラスのmin_index()の値を0として数えたときのindexを取得する。
 		virtual u64 toRawIndex() const {
-			return  ((u64)king0_ * (u64)king_sq_ + (u64)king1_) * (u64)fe_end_ + (u64)piece_;
+			return  ((u64)king0_ * (u64)max_king_sq_ + (u64)king1_) * (u64)fe_end_ + (u64)piece_;
 		}
 
 		// toLowerDimensionsで次元下げしたものがinverseしたものであるかを返す。
@@ -519,20 +519,20 @@ namespace EvalLearningTools
 
 		// KK,KKP,KPP配列を直列化するときの通し番号の、KPPの最小値、最大値。
 #if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
-		virtual u64 size() const { return (u64)king_sq_*(u64)fe_end_*(u64)fe_end_; }
+		virtual u64 size() const { return (u64)max_king_sq_*(u64)fe_end_*(u64)fe_end_; }
 #else
 		// kpp[SQ_NB][fe_end][fe_end]の[fe_end][fe_end]な正方配列の部分を三角配列化する。
 		// kpp[SQ_NB][triangle_fe_end]とすると、この三角配列の1行目は要素1個、2行目は2個、…。
 		// ゆえに、triangle_fe_end = 1 + 2 + .. + fe_end = fe_end * (fe_end + 1) / 2
-		virtual u64 size() const { return (u64)king_sq_*(u64)triangle_fe_end; }
+		virtual u64 size() const { return (u64)max_king_sq_*(u64)triangle_fe_end; }
 #endif
 
-		virtual void set(int king_sq, u64 fe_end, u64 min_index)
+		virtual void set(int max_king_sq, u64 fe_end, u64 min_index)
 		{
 			// この値、size()で用いていて、SerializerBase::set()でsize()を使うので先に計算する。
 			triangle_fe_end = (u64)fe_end*((u64)fe_end + 1) / 2;
 
-			SerializerBase::set(king_sq, fe_end, min_index);
+			SerializerBase::set(max_king_sq, fe_end, min_index);
 		}
 
 		// indexからKPPのオブジェクトを生成するbuilder
@@ -566,14 +566,14 @@ namespace EvalLearningTools
 			index /= triangle_fe_end;
 #endif
 			int king = (int)(index  /* % SQ_NB */);
-			ASSERT_LV3(king < king_sq_);
+			ASSERT_LV3(king < max_king_sq_);
 			return fromKPP((Square)king, (Eval::BonaPiece)piece0, (Eval::BonaPiece)piece1);
 		}
 
 		KPP fromKPP(Square king, Eval::BonaPiece p0, Eval::BonaPiece p1) const
 		{
 			KPP my_kpp(king, p0, p1);
-			my_kpp.set(king_sq_,fe_end_,min_index());
+			my_kpp.set(max_king_sq_,fe_end_,min_index());
 			return my_kpp;
 		}
 
@@ -703,7 +703,7 @@ namespace EvalLearningTools
 	public:
 		KPPP() {}
 
-		virtual u64 size() const { return (u64)king_sq_*triangle_fe_end; }
+		virtual u64 size() const { return (u64)max_king_sq_*triangle_fe_end; }
 
 		// fe_endとking_sqを設定する。
 		// fe_end : このKPPPクラスの想定するfe_end
@@ -711,11 +711,11 @@ namespace EvalLearningTools
 		//  3段×ミラーなら3段×5筋 = 15みたいな感じ。
 		//  2段×ミラーなしなら2×9筋 = 18みたいな感じ。
 		//  これをこのKPPPクラスを使う側でset()を用いて最初に設定する。
-		virtual void set(int king_sq, u64 fe_end,u64 min_index) {
+		virtual void set(int max_king_sq, u64 fe_end,u64 min_index) {
 			// この値、size()で用いていて、SerializerBase::set()でsize()を使うので先に計算する。
 			triangle_fe_end = fe_end * (fe_end - 1) * (fe_end - 2) / 6;
 
-			SerializerBase::set(king_sq, fe_end, min_index);
+			SerializerBase::set(max_king_sq, fe_end, min_index);
 		}
 
 		// 次元下げの数
@@ -816,7 +816,7 @@ namespace EvalLearningTools
 			index /= triangle_fe_end;
 
 			int king = (int)(index  /* % SQ_NB */);
-			ASSERT_LV3(king < king_sq_);
+			ASSERT_LV3(king < max_king_sq_);
 
 			// king_sqとfe_endに関しては伝播させる。
 			return fromKPPP((Square)king, (Eval::BonaPiece)piece0, (Eval::BonaPiece)piece1 , (Eval::BonaPiece)piece2);
@@ -827,7 +827,7 @@ namespace EvalLearningTools
 		KPPP fromKPPP(int king, Eval::BonaPiece p0, Eval::BonaPiece p1, Eval::BonaPiece p2) const
 		{
 			KPPP kppp(king, p0, p1, p2);
-			kppp.set(king_sq_, fe_end_,min_index());
+			kppp.set(max_king_sq_, fe_end_,min_index());
 			return kppp;
 		}
 
@@ -922,18 +922,18 @@ namespace EvalLearningTools
 	public:
 		KKPP() {}
 
-		virtual u64 size() const { return (u64)king_sq_*triangle_fe_end; }
+		virtual u64 size() const { return (u64)max_king_sq_*triangle_fe_end; }
 
 		// fe_endとking_sqを設定する。
 		// fe_end : このKPPPクラスの想定するfe_end
 		// king_sq : KPPPのときに扱う玉の升の数。
 		//  9段×ミラーなら9段×5筋の2乗(先後の玉) = 45*45 = 2025 みたいな感じ。
 		//  これをこのKKPPクラスを使う側でset()を用いて最初に設定する。
-		void set(int king_sq, u64 fe_end , u64 min_index) {
+		void set(int max_king_sq, u64 fe_end , u64 min_index) {
 			// この値、size()で用いていて、SerializerBase::set()でsize()を使うので先に計算する。
 			triangle_fe_end = fe_end * (fe_end - 1) / 2;
 
-			SerializerBase::set(king_sq, fe_end, min_index);
+			SerializerBase::set(max_king_sq, fe_end, min_index);
 		}
 
 		// 次元下げの数
@@ -976,7 +976,7 @@ namespace EvalLearningTools
 			index /= triangle_fe_end;
 
 			int king = (int)(index  /* % SQ_NB */);
-			ASSERT_LV3(king < king_sq_);
+			ASSERT_LV3(king < max_king_sq_);
 
 			// king_sqとfe_endに関しては伝播させる。
 			return fromKKPP(king, (Eval::BonaPiece)piece0, (Eval::BonaPiece)piece1);
@@ -987,7 +987,7 @@ namespace EvalLearningTools
 		KKPP fromKKPP(int king, Eval::BonaPiece p0, Eval::BonaPiece p1) const
 		{
 			KKPP kkpp(king, p0, p1);
-			kkpp.set(king_sq_, fe_end_,min_index());
+			kkpp.set(max_king_sq_, fe_end_,min_index());
 			return kkpp;
 		}
 

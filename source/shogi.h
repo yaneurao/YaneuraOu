@@ -213,7 +213,7 @@ inline bool canPromote(const Color c, const Square from, const Square to)
 inline Square Inv(Square sq) { return (Square)((SQ_NB - 1) - sq); }
 
 // 盤面をミラーしたときの升目を返す
-inline Square Mir(Square sq) { return File(8-file_of(sq)) | rank_of(sq); }
+inline Square Mir(Square sq) { return File(8-(int)file_of(sq)) | rank_of(sq); }
 
 // Squareを綺麗に出力する(USI形式ではない)
 // "PRETTY_JP"をdefineしていれば、日本語文字での表示になる。例 → ８八

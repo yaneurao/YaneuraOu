@@ -96,7 +96,7 @@ namespace Eval
 	// KKPPも手番なしなので手番なし用の1次元配列。
 	std::vector<Weight> weights_kkpp;
 
-	// KK,KKP,KPP,KKPPの内部デザイン。
+	// 学習配列のKK,KKP,KPP,KKPPの内部デザイン。
 	namespace {
 		KK g_kk;
 		KKP g_kkp;
@@ -114,7 +114,7 @@ namespace Eval
 		// 学習で使用するテーブル類の初期化
 		EvalLearningTools::init();
 
-		// KK,KKP,KPP,KKPPの内部デザイン。
+		// 学習配列のKK,KKP,KPP,KKPPの内部デザイン。
 		g_kk.set(SQ_NB, Eval::fe_end, 0);
 		g_kkp.set(SQ_NB, Eval::fe_end, g_kk.max_index());
 		g_kpp.set(SQ_NB, Eval::fe_end, g_kkp.max_index());
@@ -177,7 +177,7 @@ namespace Eval
 		int encoded_eval_kk = encode_to_eval_kk(sq_bk, sq_wk);
 		if (encoded_eval_kk != -1)
 		{
-			// KKPPで計算する(KKPPで計算できる状況)
+			// KKPPで計算する(先手玉・後手玉の位置的にKKPPで計算できる状況)
 
 			// バッファを確保してコピー。(どうせsortが必要なので、そのためにはコピーしておかなければならない)
 			// なお、list_fwは用いないので不要。
@@ -190,8 +190,8 @@ namespace Eval
 				sq_bk = Mir(sq_bk);
 				sq_wk = Mir(sq_wk);
 
-				for (PieceNumber n = PIECE_NUMBER_ZERO; n < PIECE_NUMBER_KING; ++n)
-					list_fb[n] = mir_piece(list_fb[n]);
+				for (int i = 0 ; i < PIECE_NUMBER_KING; ++i)
+					list_fb[i] = mir_piece(list_fb[i]);
 			}
 
 			// KKPPの学習配列は、piece0 > piece1でなければならないので、ここで

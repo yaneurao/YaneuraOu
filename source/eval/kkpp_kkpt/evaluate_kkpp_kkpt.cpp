@@ -101,6 +101,8 @@ namespace Eval
 #if defined(EVAL_EXPERIMENTAL)
 		init_eval_experimental();
 #endif
+
+		//encode_and_decode_test();
 	}
 
 	// 与えられたsize_of_evalサイズの連続したalign 32されているメモリに、kk_,kkp_,kpp_を割り当てる。
@@ -517,7 +519,7 @@ namespace Eval
 		sum.p[1][0] = 0;
 #endif
 
-		// KK
+		// KKP
 		sum.p[2] = kkp[sq_bk][sq_wk][ebp.fb];
 
 		const auto* kpp_kp_fb = &kpp_ksq_pcpc(sq_bk, ebp.fb, BONA_PIECE_ZERO);
@@ -628,7 +630,7 @@ namespace Eval
 		sum.p[1][0] = 0;
 #endif
 
-		// KK
+		// KKP
 		sum.p[2] = kkp[sq_bk][sq_wk][ebp.fb];
 
 		const auto* kkpp_kp_fb = &kkpp_ksq_pcpc(encoded_eval_kk, ebp.fb, BONA_PIECE_ZERO);
