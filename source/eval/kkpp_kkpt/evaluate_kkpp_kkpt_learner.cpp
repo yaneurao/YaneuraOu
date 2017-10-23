@@ -143,6 +143,7 @@ namespace Eval
 	void add_grad(Position& pos, Color rootColor, double delta_grad , const std::array<bool, 4>& freeze)
 	{
 		const bool freeze_kpp = freeze[2];
+		const bool freeze_kkpp = freeze[3];
 
 		// LearnFloatTypeにatomicつけてないが、2つのスレッドが、それぞれx += yと x += z を実行しようとしたとき
 		// 極稀にどちらか一方しか実行されなくともAdaGradでは問題とならないので気にしないことにする。
@@ -171,54 +172,100 @@ namespace Eval
 		Square sq_bk = pos.king_square(BLACK);
 		Square sq_wk = pos.king_square(WHITE);
 
-		auto& pos_ = *const_cast<Position*>(&pos);
+		auto list_fb = pos.eval_list()->piece_list_fb();
+		auto list_fw = pos.eval_list()->piece_list_fw();
 
-#if !defined (USE_EVAL_MAKE_LIST_FUNCTION)
+		// KKPPのことを考慮しないといけない。
 
-		auto list_fb = pos_.eval_list()->piece_list_fb();
-		auto list_fw = pos_.eval_list()->piece_list_fw();
-
-#else
-		// -----------------------------------
-		// USE_EVAL_MAKE_LIST_FUNCTIONが定義されているときは
-		// ここでeval_listをコピーして、組み替える。
-		// -----------------------------------
-
-		// バッファを確保してコピー
-		BonaPiece list_fb[40];
-		BonaPiece list_fw[40];
-		memcpy(list_fb, pos_.eval_list()->piece_list_fb(), sizeof(BonaPiece) * 40);
-		memcpy(list_fw, pos_.eval_list()->piece_list_fw(), sizeof(BonaPiece) * 40);
-
-		// ユーザーは、この関数でBonaPiece番号の自由な組み換えを行なうものとする。
-		make_list_function(pos, list_fb, list_fw);
-#endif
-
-		// KK
-		weights[g_kk.fromKK(sq_bk,sq_wk).toIndex()].add_grad(g);
-
-		for (int i = 0; i < PIECE_NUMBER_KING; ++i)
+		int encoded_eval_kk = encode_to_eval_kk(sq_bk, sq_wk);
+		if (encoded_eval_kk != -1)
 		{
-			BonaPiece k0 = list_fb[i];
-			BonaPiece k1 = list_fw[i];
+			// KKPPで計算する
 
-			// KPP
-			if (!freeze_kpp)
+			// バッファを確保してコピー。(どうせsortが必要なので、そのためにはコピーしておかなければならない)
+			BonaPiece list_fb_[PIECE_NUMBER_KING];
+			BonaPiece list_fw_[PIECE_NUMBER_KING];
+			memcpy(list_fb_, pos.eval_list()->piece_list_fb(), sizeof(BonaPiece) * (int)PIECE_NUMBER_KING);
+			memcpy(list_fw_, pos.eval_list()->piece_list_fw(), sizeof(BonaPiece) * (int)PIECE_NUMBER_KING);
+			list_fb = list_fb_;
+			list_fw = list_fw_;
+
+			// ただし、file_of(sq_bk) > FILE_5なら、ここでミラーしてから、学習配列の勾配を加算。
+			if (file_of(sq_bk) > FILE_5)
 			{
-				// このループではk0 == l0は出現しない。(させない)
-				// それはKPであり、KKPの計算に含まれると考えられるから。
-				for (int j = 0; j < i; ++j)
-				{
-					BonaPiece l0 = list_fb[j];
-					BonaPiece l1 = list_fw[j];
+				sq_bk = Mir(sq_bk);
+				sq_wk = Mir(sq_wk);
 
-					weights_kpp[g_kpp.fromKPP(sq_bk     , k0, l0).toRawIndex()].add_grad(g[0]);
-					weights_kpp[g_kpp.fromKPP(Inv(sq_wk), k1, l1).toRawIndex()].add_grad(g_flip[0]);
+				for (PieceNumber n = PIECE_NUMBER_ZERO; n < PIECE_NUMBER_KING; ++n)
+				{
+					list_fb[n] = mir_piece(list_fb[n]);
+					list_fw[n] = mir_piece(list_fw[n]);
 				}
 			}
 
-			// KKP
-			weights[g_kkp.fromKKP(sq_bk, sq_wk, k0).toIndex()].add_grad(g);
+			// KKPPの学習配列は、piece0 > piece1でなければならないので、ここで
+			// piece_listのsortしておく。
+
+			my_insertion_sort(list_fb, 0, PIECE_NUMBER_KING);
+			my_insertion_sort(list_fw, 0, PIECE_NUMBER_KING);
+
+			int encoded_learn_kk = encode_to_learn_kk(sq_bk, sq_wk);
+			ASSERT_LV3(encoded_learn_kk != -1);
+
+			// 準備は整った。以下、compute_eval()と似た感じの構成。
+
+			// KK
+			weights[g_kk.fromKK(sq_bk, sq_wk).toIndex()].add_grad(g);
+
+			for (int i = 0; i < PIECE_NUMBER_KING; ++i)
+			{
+				BonaPiece k0 = list_fb[i];
+
+				// KKPP
+				if (!freeze_kkpp)
+					for (int j = 0; j < i; ++j)
+					{
+						BonaPiece l0 = list_fb[j];
+						weights_kkpp[g_kkpp.fromKKPP(encoded_learn_kk, k0, l0).toRawIndex()].add_grad(g[0]);
+					}
+
+				// KKP
+				weights[g_kkp.fromKKP(sq_bk, sq_wk, k0).toIndex()].add_grad(g);
+			}
+
+			// 上記のループ、AVX2を使わないコードだとすこぶる明快。
+
+		}
+		else {
+
+			// 通常のKPP
+
+			// KK
+			weights[g_kk.fromKK(sq_bk, sq_wk).toIndex()].add_grad(g);
+
+			for (int i = 0; i < PIECE_NUMBER_KING; ++i)
+			{
+				BonaPiece k0 = list_fb[i];
+				BonaPiece k1 = list_fw[i];
+
+				// KPP
+				if (!freeze_kpp)
+				{
+					// このループではk0 == l0は出現しない。(させない)
+					// それはKPであり、KKPの計算に含まれると考えられるから。
+					for (int j = 0; j < i; ++j)
+					{
+						BonaPiece l0 = list_fb[j];
+						BonaPiece l1 = list_fw[j];
+
+						weights_kpp[g_kpp.fromKPP(sq_bk, k0, l0).toRawIndex()].add_grad(g[0]);
+						weights_kpp[g_kpp.fromKPP(Inv(sq_wk), k1, l1).toRawIndex()].add_grad(g_flip[0]);
+					}
+				}
+
+				// KKP
+				weights[g_kkp.fromKKP(sq_bk, sq_wk, k0).toIndex()].add_grad(g);
+			}
 		}
 	}
 
@@ -396,7 +443,7 @@ namespace Eval
 					// 自前でミラーしたところと、piece0(),piece1()を入れ替えたところに書き出す
 					int mir_encoded_eval_kk = encode_to_eval_kk(Mir(bk),Mir(wk));
 
-					kkpp_ksq_pcpc(encoded_eval_kk     ,           x.piece1() ,           x.piece0() ) = v;
+					kkpp_ksq_pcpc(    encoded_eval_kk ,           x.piece1() ,           x.piece0() ) = v;
 					kkpp_ksq_pcpc(mir_encoded_eval_kk , mir_piece(x.piece0()), mir_piece(x.piece1())) = v;
 					kkpp_ksq_pcpc(mir_encoded_eval_kk , mir_piece(x.piece1()), mir_piece(x.piece0())) = v;
 
