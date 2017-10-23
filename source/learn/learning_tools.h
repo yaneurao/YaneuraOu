@@ -463,12 +463,12 @@ namespace EvalLearningTools
 		// この次元下げに関して、gradの符号は反転させないといけないので注意すること。
 		// is_inverse()で判定できるのでこれを利用すると良い。
 		void toLowerDimensions(/*out*/ KKP kkp_[KKP_LOWER_COUNT]) const {
-			kkp_[0] = KKP(king0_, king1_, piece_,false);
+			kkp_[0] = fromKKP(king0_, king1_, piece_,false);
 #if defined(USE_KKP_MIRROR_WRITE)
-			kkp_[1] = KKP(Mir(king0_), Mir(king1_), mir_piece(piece_),false);
+			kkp_[1] = fromKKP(Mir(king0_), Mir(king1_), mir_piece(piece_),false);
 #if defined(USE_KKP_INVERSE_WRITE)
-			kkp_[2] = KKP( Inv(king1_), Inv(king0_), inv_piece(piece_),true);
-			kkp_[3] = KKP( Inv(Mir(king1_)), Inv(Mir(king0_)) , inv_piece(mir_piece(piece_)),true);
+			kkp_[2] = fromKKP( Inv(king1_), Inv(king0_), inv_piece(piece_),true);
+			kkp_[3] = fromKKP( Inv(Mir(king1_)), Inv(Mir(king0_)) , inv_piece(mir_piece(piece_)),true);
 #endif
 #endif
 		}
@@ -529,8 +529,10 @@ namespace EvalLearningTools
 
 		virtual void set(int king_sq, u64 fe_end, u64 min_index)
 		{
-			SerializerBase::set(king_sq, fe_end, min_index);
+			// この値、size()で用いていて、SerializerBase::set()でsize()を使うので先に計算する。
 			triangle_fe_end = (u64)fe_end*((u64)fe_end + 1) / 2;
+
+			SerializerBase::set(king_sq, fe_end, min_index);
 		}
 
 		// indexからKPPのオブジェクトを生成するbuilder
@@ -601,18 +603,18 @@ namespace EvalLearningTools
 
 #if defined(USE_TRIANGLE_WEIGHT_ARRAY)
 			// 三角配列を用いる場合は、piece0とpiece1を入れ替えたものは返らないので注意。
-			kpp_[0] = KPP(king_, piece0_, piece1_);
+			kpp_[0] = fromKPP(king_, piece0_, piece1_);
 #if defined(USE_KPP_MIRROR_WRITE)
-			kpp_[1] = KPP(Mir(king_), mir_piece(piece0_), mir_piece(piece1_));
+			kpp_[1] = fromKPP(Mir(king_), mir_piece(piece0_), mir_piece(piece1_));
 #endif
 
 #else
 			// 三角配列を用いない場合
-			kpp_[0] = KPP(king_, piece0_, piece1_);
-			kpp_[1] = KPP(king_, piece1_, piece0_);
+			kpp_[0] = fromKPP(king_, piece0_, piece1_);
+			kpp_[1] = fromKPP(king_, piece1_, piece0_);
 #if defined(USE_KPP_MIRROR_WRITE)
-			kpp_[2] = KPP(Mir(king_), mir_piece(piece0_), mir_piece(piece1_));
-			kpp_[3] = KPP(Mir(king_), mir_piece(piece1_), mir_piece(piece0_));
+			kpp_[2] = fromKPP(Mir(king_), mir_piece(piece0_), mir_piece(piece1_));
+			kpp_[3] = fromKPP(Mir(king_), mir_piece(piece1_), mir_piece(piece0_));
 #endif
 #endif
 		}
@@ -710,8 +712,10 @@ namespace EvalLearningTools
 		//  2段×ミラーなしなら2×9筋 = 18みたいな感じ。
 		//  これをこのKPPPクラスを使う側でset()を用いて最初に設定する。
 		virtual void set(int king_sq, u64 fe_end,u64 min_index) {
-			SerializerBase::set(king_sq, fe_end, min_index);
+			// この値、size()で用いていて、SerializerBase::set()でsize()を使うので先に計算する。
 			triangle_fe_end = fe_end * (fe_end - 1) * (fe_end - 2) / 6;
+
+			SerializerBase::set(king_sq, fe_end, min_index);
 		}
 
 		// 次元下げの数
@@ -879,9 +883,6 @@ namespace EvalLearningTools
 		int king_;
 		Eval::BonaPiece piece0_, piece1_,piece2_;
 
-		u64 fe_end_ = 0;
-		int king_sq_ = 0;
-
 		// kppp[king_sq][fe_end][fe_end][fe_end]の[fe_end][fe_end][fe_end]な正方配列の部分を三角配列化する。
 		// kppp[king_sq][triangle_fe_end]とすると、この三角配列の0行目から要素数は、0,0,1,3,…,n行目はn(n-1)/2個。
 		// ゆえに、
@@ -921,7 +922,7 @@ namespace EvalLearningTools
 	public:
 		KKPP() {}
 
-		u64 size() const { return (u64)king_sq_*triangle_fe_end; }
+		virtual u64 size() const { return (u64)king_sq_*triangle_fe_end; }
 
 		// fe_endとking_sqを設定する。
 		// fe_end : このKPPPクラスの想定するfe_end
@@ -929,8 +930,10 @@ namespace EvalLearningTools
 		//  9段×ミラーなら9段×5筋の2乗(先後の玉) = 45*45 = 2025 みたいな感じ。
 		//  これをこのKKPPクラスを使う側でset()を用いて最初に設定する。
 		void set(int king_sq, u64 fe_end , u64 min_index) {
-			SerializerBase::set(king_sq, fe_end, min_index);
+			// この値、size()で用いていて、SerializerBase::set()でsize()を使うので先に計算する。
 			triangle_fe_end = fe_end * (fe_end - 1) / 2;
+
+			SerializerBase::set(king_sq, fe_end, min_index);
 		}
 
 		// 次元下げの数
@@ -1034,9 +1037,6 @@ namespace EvalLearningTools
 
 		int king_;
 		Eval::BonaPiece piece0_, piece1_;
-
-		u64 fe_end_ = 0;
-		int king_sq_ = 0;
 
 		// kppp[king_sq][fe_end][fe_end]の[fe_end][fe_end]な正方配列の部分を三角配列化する。
 		u64 triangle_fe_end = 0;

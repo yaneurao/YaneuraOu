@@ -2195,7 +2195,7 @@ void learn(Position&, istringstream& is)
 
 #elif defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
 		else if (option == "freeze_kppp")  is >> freeze[3];
-#elif defined(EVAL_KKPP_KPPT) || defined(EVAL_NABLA)
+#elif defined(EVAL_KKPP_KKPT) || defined(EVAL_NABLA)
 		else if (option == "freeze_kkpp")  is >> freeze[3];
 #endif
 
@@ -2329,7 +2329,7 @@ void learn(Position&, istringstream& is)
 	cout << "freeze_kk/kkp/kpp      : " << freeze[0] << " , " << freeze[1] << " , " << freeze[2] << endl;
 #elif defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
 	cout << "freeze_kk/kkp/kpp/kppp : " << freeze[0] << " , " << freeze[1] << " , " << freeze[2] << " , " << freeze[3] << endl;
-#elif defined(EVAL_KKPP_KPPT) || defined(EVAL_NABLA)
+#elif defined(EVAL_KKPP_KKPT) || defined(EVAL_NABLA)
 	cout << "freeze_kk/kkp/kpp/kkpp : " << freeze[0] << " , " << freeze[1] << " , " << freeze[2] << " , " << freeze[3] << endl;
 #endif
 
