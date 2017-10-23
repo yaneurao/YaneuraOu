@@ -36,8 +36,21 @@ namespace Eval
 	// この計算対象にない場合は、普通のKPPテーブルを用いて計算する。
 	static const Rank KKPP_KING_RANK = (Rank)(RANK_9 - EVAL_KKPP_KKPT / 9 + 1);
 
-	// ミラーありなので..
-	static const int KKPP_KING_SQ = 5 * (EVAL_KKPP_KKPT/9) * 9 * (EVAL_KKPP_KKPT/9);
+
+	// ミラーありにしても、後手玉のほうはミラーできないので、5/9になるだけ。
+	// piece_list()の更新処理が難しくなるので、ミラー対応は後回しにする。
+#if defined(USE_KKPP_KKPT_MIRROR)
+	// KKPP対象の先手玉の升の数(ミラーありなので5/9倍)
+	static const int KKPP_BK_SQ = 5 * (EVAL_KKPP_KKPT / 9);
+#else
+	static const int KKPP_BK_SQ = 9 * (EVAL_KKPP_KKPT / 9);
+#endif
+	// KKPP対象の後手玉の升の数
+	static const int KKPP_WK_SQ = 9 * (EVAL_KKPP_KKPT / 9);
+
+	// 先手玉×後手玉の組み合わせの数
+	static const int KKPP_KING_SQ = KKPP_BK_SQ * KKPP_WK_SQ;
+
 
 	// KKPP配列に三角配列を用いる場合の、PPの部分の要素の数。
 	//const u64 kkpp_triangle_fe_end = fe_end * (fe_end - 1) / 2;
@@ -85,7 +98,7 @@ namespace Eval
 	// kpppの配列の位置を返すマクロ
 	// i,j = piece0,piece1
 	static ValueKkpp& kkpp_ksq_pcpc(int king_, BonaPiece i_, BonaPiece j_) {
-		return *(kpp_ + (u64)king_ * kkpp_square_fe_end + u64(i_)*fe_end + u64(j_));
+		return *(kkpp_ + (u64)king_ * kkpp_square_fe_end + u64(i_)*fe_end + u64(j_));
 	}
 
 }      // namespace Eval

@@ -233,12 +233,47 @@ namespace Eval
 
 #endif
 
+	// 先手玉の位置、後手玉の位置を引数に渡して、
+	// それをkkpp配列の第一パラメーターとして使えるように符号化する。
+	// kkppの対象升でない場合は、-1が返る。
+	// USE_KKPP_KKPT_MIRRORがdefineされてるときはミラーを考慮した処理が必要なのだが、未実装。
+	int encode_kk(Square bk, Square wk)
+	{
+#if defined(USE_KKPP_KKPT_MIRROR)
+		// ミラーがあるので6～9筋は無視
+		if (file_of(bk) >= FILE_6)
+			continue;
+#endif
+		// KKPPの対象の段でないなら無視
+		if (rank_of(bk) < KKPP_KING_RANK)
+			return -1;
+
+		// 同様に後手玉側も。
+		auto inv_wk = Inv(wk);
+		if (rank_of(inv_wk) < KKPP_KING_RANK)
+			return -1;
+
+		// encode
+
+#if defined(USE_KKPP_KKPT_MIRROR)
+		int k0 = ((int)rank_of(bk) - (int)KKPP_KING_RANK) * 5 + (int)file_of(bk);
+#else
+		int k0 = ((int)rank_of(bk) - (int)KKPP_KING_RANK) * 9 + (int)file_of(bk);
+#endif
+		int k1 = ((int)rank_of(inv_wk) - (int)KKPP_KING_RANK) * 9 + (int)file_of(inv_wk);
+
+		int k = k0 * KKPP_WK_SQ + k1;
+		ASSERT_LV3(k < KKPP_KING_SQ);
+
+		return k;
+	}
+
 	// KP,KPP,KKPのスケール
 	const int FV_SCALE = 32;
 
 	// 評価関数。全計算。(駒割りは差分)
 	// 返し値は持たず、計算結果としてpos.state()->sumに値を代入する。
-	void compute_eval_impl(const Position& pos)
+	void compute_eval_impl(const Position& pos , int encoded_kk)
 	{
 		// is_ready()で評価関数を読み込み、
 		// 初期化してからしかcompute_eval()を呼び出すことは出来ない。
@@ -248,39 +283,9 @@ namespace Eval
 
 		Square sq_bk = pos.king_square(BLACK);
 		Square sq_wk = pos.king_square(WHITE);
-		const auto* kpp_k_fb = &kpp_ksq_pcpc(sq_bk, BONA_PIECE_ZERO, BONA_PIECE_ZERO);
-		const auto* kpp_k_fw = &kpp_ksq_pcpc(Inv(sq_wk), BONA_PIECE_ZERO, BONA_PIECE_ZERO);
-
-		auto& pos_ = *const_cast<Position*>(&pos);
-
-#if !defined (USE_EVAL_MAKE_LIST_FUNCTION)
-
-		auto list_fb = pos_.eval_list()->piece_list_fb();
-		auto list_fw = pos_.eval_list()->piece_list_fw();
-
-#else
-		// -----------------------------------
-		// USE_EVAL_MAKE_LIST_FUNCTIONが定義されているときは
-		// ここでeval_listをコピーして、組み替える。
-		// -----------------------------------
-
-		// バッファを確保してコピー
-		BonaPiece list_fb[40];
-		BonaPiece list_fw[40];
-		memcpy(list_fb, pos_.eval_list()->piece_list_fb(), sizeof(BonaPiece) * 40);
-		memcpy(list_fw, pos_.eval_list()->piece_list_fw(), sizeof(BonaPiece) * 40);
-
-		// ユーザーは、この関数でBonaPiece番号の自由な組み換えを行なうものとする。
-		make_list_function(pos, list_fb, list_fw);
-
-#endif
-
-		int i, j;
-		BonaPiece k0, k1, l0, l1;
 
 		// 評価値の合計
 		EvalSum sum;
-
 #if defined(USE_SSE2)
 		// sum.p[0](BKPP)とsum.p[1](WKPP)をゼロクリア
 		sum.m[0] = _mm_setzero_si128();
@@ -288,32 +293,200 @@ namespace Eval
 		sum.p[0][0] = /*sum.p[0][1] =*/ sum.p[1][0] = /*sum.p[1][1] =*/ 0;
 #endif
 
-		// KK
-		sum.p[2] = kk[sq_bk][sq_wk];
-
-		for (i = 0; i < PIECE_NUMBER_KING; ++i)
+		if (encoded_kk != -1)
 		{
-			k0 = list_fb[i];
-			k1 = list_fw[i];
-			const auto* kpp_kp_fb = kpp_k_fb + k0 * fe_end;
-			const auto* kpp_kp_fw = kpp_k_fw + k1 * fe_end;
-			for (j = 0; j < i; ++j)
+			// KKPP配列を用いた全計算
+			const auto* kkpp_k_fb = &kkpp_ksq_pcpc(encoded_kk, BONA_PIECE_ZERO, BONA_PIECE_ZERO);
+			auto list_fb = pos.eval_list()->piece_list_fb();
+
+			int i, j;
+
+			// KK
+			sum.p[2] = kk[sq_bk][sq_wk];
+
+#if defined(USE_AVX2)
+			BonaPiece k0;
+			__m256i sum0 = _mm256_setzero_si256();
+#else
+			BonaPiece k0,l0;
+#endif
+
+			for (i = 0; i < PIECE_NUMBER_KING; ++i)
 			{
-				l0 = list_fb[j];
-				l1 = list_fw[j];
+				k0 = list_fb[i];
+				const auto* kkpp_kp_fb = kkpp_k_fb + k0 * fe_end;
 
-				// KPP
-				sum.p[0][0] += kpp_kp_fb[l0];
-				sum.p[1][0] += kpp_kp_fw[l1];
+#if defined(USE_AVX2)
+				for (j = 0 ; j + 8 < i; j += 8) {
+					__m256i index0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list_fb + j));
+					__m256i w0 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kkpp_kp_fb), index0, 2);
+					w0 = _mm256_slli_epi32(w0, 16);
+					w0 = _mm256_srai_epi32(w0, 16);
+					sum0 = _mm256_add_epi32(sum0, w0);
+				}
+				// 端数の処理その1
+				if (j + 4 < i)
+				{
+					__m256i w0 = _mm256_set_epi32(
+						0, 0, 0, 0,
+						kkpp_kp_fb[list_fb[j + 3]],
+						kkpp_kp_fb[list_fb[j + 2]],
+						kkpp_kp_fb[list_fb[j + 1]],
+						kkpp_kp_fb[list_fb[j + 0]]);
+					sum0 = _mm256_add_epi32(sum0, w0);
+					j += 4;
+				}
+				// 端数の処理その2
+				for (; j < i; ++j)
+					sum.p[0][0] += kkpp_kp_fb[list_fb[j]];
+
+#else
+				for (j = 0; j < i; ++j)
+				{
+					l0 = list_fb[j];
+
+					// KKPP
+					sum.p[0][0] += kkpp_kp_fb[l0];
+
+					// WKPP側不要。(というか分離して計算できない)
+				}
+#endif
+
+				// KKP
+				sum.p[2] += kkp[sq_bk][sq_wk][k0];
 			}
-			// KKP
-			sum.p[2] += kkp[sq_bk][sq_wk][k0];
+
+#if defined(USE_AVX2)
+			// sum0_に加算していたものをsum.p[0][0]に足し込む。
+
+			sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 8));
+			sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 4));
+			sum.p[0][0] += _mm_extract_epi32(_mm256_extracti128_si256(sum0, 0), 0) +
+				_mm_extract_epi32(_mm256_extracti128_si256(sum0, 1), 0);
+#endif
+
+			auto st = pos.state();
+			sum.p[2][0] += st->materialValue * FV_SCALE;
+
+			st->sum = sum;
+
 		}
+		else
+		{
+			// KPP配列を用いた全計算
 
-		auto st = pos.state();
-		sum.p[2][0] += st->materialValue * FV_SCALE;
+			const auto* kpp_k_fb = &kpp_ksq_pcpc(sq_bk, BONA_PIECE_ZERO, BONA_PIECE_ZERO);
+			const auto* kpp_k_fw = &kpp_ksq_pcpc(Inv(sq_wk), BONA_PIECE_ZERO, BONA_PIECE_ZERO);
 
-		st->sum = sum;
+			auto list_fb = pos.eval_list()->piece_list_fb();
+			auto list_fw = pos.eval_list()->piece_list_fw();
+
+			int i, j;
+			BonaPiece k0, k1;
+
+			// 評価値の合計
+			EvalSum sum;
+
+#if defined(USE_SSE2)
+			// sum.p[0](BKPP)とsum.p[1](WKPP)をゼロクリア
+			sum.m[0] = _mm_setzero_si128();
+#else
+			sum.p[0][0] = /*sum.p[0][1] =*/ sum.p[1][0] = /*sum.p[1][1] =*/ 0;
+#endif
+
+			// KK
+			sum.p[2] = kk[sq_bk][sq_wk];
+
+			// ここ、encoded_kkが-1に切り替わるタイミングごとに呼び出されるので
+			// KPP_KKPTの時と違い、AVX2で高速化しておく。
+
+#if defined(USE_AVX2)
+			__m256i sum0 = _mm256_setzero_si256();
+			__m256i sum1 = _mm256_setzero_si256();
+#else
+			BonaPiece l0, l1;
+#endif
+
+			for (i = 0; i < PIECE_NUMBER_KING; ++i)
+			{
+				k0 = list_fb[i];
+				k1 = list_fw[i];
+				const auto* kpp_kp_fb = kpp_k_fb + k0 * fe_end;
+				const auto* kpp_kp_fw = kpp_k_fw + k1 * fe_end;
+#if defined(USE_AVX2)
+				for (j = 0; j + 8 < i; j += 8) {
+					__m256i index0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list_fb + j));
+					__m256i w0 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fb), index0, 2);
+					w0 = _mm256_slli_epi32(w0, 16);
+					w0 = _mm256_srai_epi32(w0, 16);
+					sum0 = _mm256_add_epi32(sum0, w0);
+
+					__m256i index1 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list_fw + j));
+					__m256i w1 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fw), index1, 2);
+					w1 = _mm256_slli_epi32(w1, 16);
+					w1 = _mm256_srai_epi32(w1, 16);
+					sum1 = _mm256_add_epi32(sum1, w1);
+				}
+				// 端数の処理その1
+				if (j + 4 < i)
+				{
+					__m256i w0 = _mm256_set_epi32(
+						0, 0, 0, 0,
+						kpp_kp_fb[list_fb[j + 3]],
+						kpp_kp_fb[list_fb[j + 2]],
+						kpp_kp_fb[list_fb[j + 1]],
+						kpp_kp_fb[list_fb[j + 0]]);
+					__m256i w1 = _mm256_set_epi32(
+						0, 0, 0, 0,
+						kpp_kp_fw[list_fw[j + 3]],
+						kpp_kp_fw[list_fw[j + 2]],
+						kpp_kp_fw[list_fw[j + 1]],
+						kpp_kp_fw[list_fw[j + 0]]);
+					sum0 = _mm256_add_epi32(sum0, w0);
+					sum1 = _mm256_add_epi32(sum1, w1);
+					j += 4;
+				}
+				// 端数の処理その2
+				for (; j < i; ++j)
+				{
+					sum.p[0][0] += kpp_kp_fb[list_fb[j]];
+					sum.p[1][0] += kpp_kp_fw[list_fw[j]];
+				}
+#else
+				for (j = 0; j < i; ++j)
+				{
+					l0 = list_fb[j];
+					l1 = list_fw[j];
+
+					// KPP
+					sum.p[0][0] += kpp_kp_fb[l0];
+					sum.p[1][0] += kpp_kp_fw[l1];
+				}
+#endif
+				// KKP
+				sum.p[2] += kkp[sq_bk][sq_wk][k0];
+			}
+
+#if defined(USE_AVX2)
+			// sum0_に加算していたものをsum.p[0][0]とsum.p[1][0]に足し込む。
+
+			sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 8));
+			sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 4));
+			sum.p[0][0] += _mm_extract_epi32(_mm256_extracti128_si256(sum0, 0), 0) +
+				_mm_extract_epi32(_mm256_extracti128_si256(sum0, 1), 0);
+
+			sum1 = _mm256_add_epi32(sum1, _mm256_srli_si256(sum1, 8));
+			sum1 = _mm256_add_epi32(sum1, _mm256_srli_si256(sum1, 4));
+			sum.p[1][0] += _mm_extract_epi32(_mm256_extracti128_si256(sum1, 0), 0) +
+				_mm_extract_epi32(_mm256_extracti128_si256(sum1, 1), 0);
+
+#endif
+
+			auto st = pos.state();
+			sum.p[2][0] += st->materialValue * FV_SCALE;
+
+			st->sum = sum;
+		}
 	}
 
 	// 評価関数。差分計算ではなく全計算する。
@@ -322,7 +495,9 @@ namespace Eval
 	// なので、この関数の最適化は頑張らない。
 	Value compute_eval(const Position& pos)
 	{
-		compute_eval_impl(pos);
+		int encoded_kk = encode_kk(pos.king_square(BLACK), pos.king_square(WHITE));
+		compute_eval_impl(pos , encoded_kk);
+		pos.state()->sum.p[0][1] = encoded_kk; // ここ使っていないのでここにencoded_kkを埋めておくことにする。
 		return Value(pos.state()->sum.sum(pos.side_to_move()) / FV_SCALE);
 	}
 
@@ -471,6 +646,75 @@ namespace Eval
 		return sum;
 	}
 
+	// 玉以外の駒が移動したときの差分(kkppテーブルを用いるとき)
+	EvalSum kkpp_do_a_pc(const Position& pos, const ExtBonaPiece ebp , int encoded_kk) {
+
+		const Square sq_bk = pos.king_square(BLACK);
+		const Square sq_wk = pos.king_square(WHITE);
+		const auto list0 = pos.eval_list()->piece_list_fb();
+
+		EvalSum sum;
+
+		// sum.p[0](BKPP)とsum.p[1](WKPP)をゼロクリア
+#if defined(USE_SSE2)
+		sum.m[0] = _mm_setzero_si128();
+#else
+		sum.p[0][0] = 0;
+		sum.p[1][0] = 0;
+#endif
+
+		// KK
+		sum.p[2] = kkp[sq_bk][sq_wk][ebp.fb];
+
+		const auto* kkpp_kp_fb = &kkpp_ksq_pcpc(encoded_kk, ebp.fb, BONA_PIECE_ZERO);
+
+		const int PIECE_LIST_LENGTH = PIECE_NUMBER_KING;
+
+#if defined(USE_AVX2)
+		__m256i sum0 = _mm256_setzero_si256();
+		int i = 0;
+		for (; i + 8 < PIECE_LIST_LENGTH; i += 8) {
+			__m256i index0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list0 + i));
+			__m256i w0 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kkpp_kp_fb), index0, 2);
+			w0 = _mm256_slli_epi32(w0, 16);
+			w0 = _mm256_srai_epi32(w0, 16);
+			sum0 = _mm256_add_epi32(sum0, w0);
+		}
+
+		// 端数の処理その1
+		if (i + 4 < PIECE_LIST_LENGTH)
+		{
+			__m256i w0 = _mm256_set_epi32(
+				0, 0, 0, 0,
+				kkpp_kp_fb[list0[i + 3]],
+				kkpp_kp_fb[list0[i + 2]],
+				kkpp_kp_fb[list0[i + 1]],
+				kkpp_kp_fb[list0[i + 0]]);
+			sum0 = _mm256_add_epi32(sum0, w0);
+			i += 4;
+		}
+
+		// _mm256_srli_si256()は128ビット境界毎にシフトされる点に注意する
+		sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 8));
+		sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 4));
+		sum.p[0][0] = _mm_extract_epi32(_mm256_extracti128_si256(sum0, 0), 0) +
+			_mm_extract_epi32(_mm256_extracti128_si256(sum0, 1), 0);
+
+		// 端数の処理その2
+		for (; i < PIECE_LIST_LENGTH; ++i)
+			sum.p[0][0] += kkpp_kp_fb[list0[i]];
+
+#else
+		sum.p[0][0] = kkpp_kp_fb[list0[0]];
+		for (int i = 1; i < PIECE_LIST_LENGTH; ++i) {
+			sum.p[0][0] += kpp_kp_fb[list0[i]];
+		}
+#endif
+
+		return sum;
+	}
+
+
 #if defined (USE_EVAL_HASH)
 	EvaluateHashTable g_evalTable;
 
@@ -483,31 +727,13 @@ namespace Eval
 #endif
 
 #if !defined(USE_EVAL_MAKE_LIST_FUNCTION)
-	void evaluateBody(const Position& pos)
+	void evaluateBody_kpp(const Position& pos , int encoded_kk)
 	{
 		// 一つ前のノードからの評価値の差分を計算する。
+		// kkppテーブルではなくkppテーブルを用いて求める。
 
 		auto now = pos.state();
 		auto prev = now->previous;
-
-		// nodeごとにevaluate()は呼び出しているので絶対に差分計算できるはず。
-		// 一つ前のnodeでevaluate()されているはず。
-		//
-		// root nodeではprevious == nullptrであるが、root nodeではPosition::set()でcompute_eval()
-		// を呼び出すので通常この関数が呼び出されることはないのだが、学習関係でこれが出来ないと
-		// コードが書きにくいのでEVAL_LEARNのときは、このチェックをする。
-		if (
-#if defined (EVAL_LEARN)
-			prev == nullptr ||
-#endif
-			!prev->sum.evaluated())
-		{
-			// 全計算
-			compute_eval_impl(pos);
-
-			return;
-			// 結果は、pos->state().sumから取り出すべし。
-		}
 
 		// 遡るnodeは一つだけ
 		// ひとつずつ遡りながらsumKPPがVALUE_NONEでないところまで探してそこからの差分を計算することは出来るが
@@ -745,6 +971,140 @@ namespace Eval
 		}
 
 	}
+
+	// 一つ前のノードからの評価値の差分を計算する。
+	// kkppテーブルを用いて求める。
+	void evaluateBody_kkpp(const Position& pos, int last_encoded_kk , int encoded_kk)
+	{
+		auto now = pos.state();
+		auto prev = now->previous;
+
+		auto& dp = now->dirtyPiece;
+
+		// 移動させた駒は最大2つある。その数
+		int moved_piece_num = dp.dirty_num;
+
+		auto list0 = pos.eval_list()->piece_list_fb();
+		auto list1 = pos.eval_list()->piece_list_fw();
+
+		auto dirty = dp.pieceNo[0];
+
+		// 移動させた駒は王か？
+		if (dirty >= PIECE_NUMBER_KING)
+		{
+			// kkppテーブルを用いるならこのとき全計算して良い。
+			compute_eval_impl(pos, encoded_kk);
+
+		} else {
+
+			// 王以外の駒が移動したケース
+			// 今回の差分を計算して、そこに加算する。
+
+			const int listIndex = dp.pieceNo[0];
+
+			auto diff = kkpp_do_a_pc(pos, dp.changed_piece[0].new_piece , encoded_kk);
+			if (moved_piece_num == 1) {
+
+				// 動いた駒が1つ。
+				list0[listIndex] = dp.changed_piece[0].old_piece.fb;
+				diff -= kkpp_do_a_pc(pos, dp.changed_piece[0].old_piece , encoded_kk);
+			}
+			else {
+
+				// 動いた駒が2つ。
+
+				auto sq_bk = pos.king_square(BLACK);
+				auto sq_wk = pos.king_square(WHITE);
+
+				diff += kkpp_do_a_pc(pos, dp.changed_piece[1].new_piece , encoded_kk);
+				diff.p[0][0] -= kkpp_ksq_pcpc(encoded_kk , dp.changed_piece[0].new_piece.fb, dp.changed_piece[1].new_piece.fb);
+
+				const PieceNumber listIndex_cap = dp.pieceNo[1];
+				list0[listIndex_cap] = dp.changed_piece[1].old_piece.fb;
+				list0[listIndex] = dp.changed_piece[0].old_piece.fb;
+				diff -= kkpp_do_a_pc(pos, dp.changed_piece[0].old_piece , encoded_kk);
+				diff -= kkpp_do_a_pc(pos, dp.changed_piece[1].old_piece , encoded_kk);
+
+				diff.p[0][0] += kkpp_ksq_pcpc(encoded_kk, dp.changed_piece[0].old_piece.fb, dp.changed_piece[1].old_piece.fb);
+				list0[listIndex_cap] = dp.changed_piece[1].new_piece.fb;
+			}
+
+			list0[listIndex] = dp.changed_piece[0].new_piece.fb;
+
+			// 前nodeからの駒割りの増分を加算。
+			diff.p[2][0] += (now->materialValue - prev->materialValue) * FV_SCALE;
+			now->sum = diff + prev->sum;
+		}
+
+	}
+
+	void evaluateBody(const Position& pos)
+	{
+		// 一つ前のノードからの評価値の差分を計算する。
+
+		auto sq_bk = pos.king_square(BLACK);
+		auto sq_wk = pos.king_square(WHITE);
+		int encoded_kk = encode_kk(sq_bk, sq_wk);
+
+		auto now = pos.state();
+		auto prev = now->previous;
+
+		// nodeごとにevaluate()は呼び出しているので絶対に差分計算できるはず。
+		// 一つ前のnodeでevaluate()されているはず。
+		//
+		// root nodeではprevious == nullptrであるが、root nodeではPosition::set()でcompute_eval()
+		// を呼び出すので通常この関数が呼び出されることはないのだが、学習関係でこれが出来ないと
+		// コードが書きにくいのでEVAL_LEARNのときは、このチェックをする。
+		if (
+#if defined (EVAL_LEARN)
+			prev == nullptr ||
+#endif
+			!prev->sum.evaluated())
+		{
+			// 全計算
+			compute_eval_impl(pos, encoded_kk);
+			goto kk_save;
+		}
+
+		{
+			int last_encoded_kk = prev->sum.p[0][1];
+
+			// 4つの場合に分けられる
+			// 1) 前回が-1で今回も-1     →　kkpp対象外なのでkkpテーブルで従来通り計算する。
+			// 2) 前回が-1で今回が-1以外 →  kkpp対象に玉が移動したのでkkppテーブルで全計算
+			// 3) 前回が-1以外で今回が-1 →  kkpp対象外に玉が移動したのでkkpテーブルで全計算
+			// 4) 前回が-1以外で今回も-1以外 → kkpp対象内の移動。
+			//  4a) 前回と今回で値が違うなら、kkppテーブルを用いて全計算。
+			//  4b) 値が同じならkkppテーブルを用いた差分計算。
+
+			// 2) or 3)
+			if ((last_encoded_kk == -1 && encoded_kk != -1) ||
+				(last_encoded_kk != -1 && encoded_kk == -1))
+			{
+				// 全計算
+				compute_eval_impl(pos, encoded_kk);
+				goto kk_save;
+			}
+
+			// 4)
+			if (last_encoded_kk != -1 && encoded_kk != -1)
+			{
+				// kkppテーブルで差分計算を行なう。
+				evaluateBody_kkpp(pos, last_encoded_kk, encoded_kk);
+				goto kk_save;
+			}
+
+			// 1) 従来のkppで差分計算を行なう。
+			evaluateBody_kpp(pos, encoded_kk);
+		}
+
+	kk_save:;
+		pos.state()->sum.p[0][1] = encoded_kk;
+
+
+		// 結果は、pos->state().sumから取り出すべし。
+	}
+
 #else
 	// EvalListの組み換えを行なうときは差分計算をせずに(実装するのが大変なため)、毎回全計算を行なう。
 	void evaluateBody(const Position& pos)

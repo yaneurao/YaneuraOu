@@ -25,6 +25,7 @@
 namespace Eval
 {
 	using namespace EvalLearningTools;
+	int encode_kk(Square bk, Square wk);
 
 	// bugなどにより間違って書き込まれた値を補正する。
 	void correct_eval()
@@ -404,30 +405,17 @@ namespace Eval
 		for (auto bk : SQ) // 先手玉
 			for (auto wk : SQ) // 後手玉
 			{
-				// ミラーがあるので6～9筋は無視
-				if (file_of(bk) >= FILE_6)
+				int k = encode_kk((Square)bk, (Square)wk);
+				if (k == -1)
 					continue;
-				// KKPPの対象の段でないなら無視
-				if (rank_of(bk) < KKPP_KING_RANK)
-					continue;
-
-				// 同様に後手玉側も。
-				auto inv_wk = Inv(wk);
-				if (rank_of(inv_wk) < KKPP_KING_RANK)
-					continue;
-
-				// encode
-				int k0 = ((int)rank_of(bk) - (int)KKPP_KING_RANK) * 5 + (int)file_of(bk);
-				int k1 = ((int)rank_of(inv_wk) - (int)KKPP_KING_RANK) * 9 + (int)file_of(inv_wk);
-				int k = k0 * EVAL_KKPP_KKPT + k1;
 
 				ASSERT_LV3(k < KKPP_KING_SQ);
 
 				for (auto p0 = BONA_PIECE_ZERO; p0 < Eval::fe_end; ++p0)
 					for (auto p1 = BONA_PIECE_ZERO; p1 < Eval::fe_end; ++p1)
 					{
-						int sum_bk = kpp_ksq_pcpc(bk, p0, p1);
-						int sum_wk = kpp_ksq_pcpc(inv_wk, inv_piece(p0), inv_piece(p1));
+						int sum_bk = kpp_ksq_pcpc(    bk , p0, p1);
+						int sum_wk = kpp_ksq_pcpc(Inv(wk), inv_piece(p0), inv_piece(p1));
 
 						// これを合わせたものがkkppテーブルに書き込まれるべき。
 						kkpp_ksq_pcpc(k, p0, p1) = sum_bk - sum_wk;
