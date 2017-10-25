@@ -674,7 +674,7 @@ namespace Eval
 #else
 		sum.p[0][0] = kkpp_kp_fb[list0[0]];
 		for (int i = 1; i < PIECE_LIST_LENGTH; ++i) {
-			sum.p[0][0] += kpp_kp_fb[list0[i]];
+			sum.p[0][0] += kkpp_kp_fb[list0[i]];
 		}
 #endif
 
