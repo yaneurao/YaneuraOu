@@ -284,23 +284,23 @@ namespace Eval
 				const auto* kkpp_kp_fb = kkpp_k_fb + k0 * fe_end;
 
 #if defined(USE_AVX2)
-				for (j = 0 ; j + 8 < i; j += 8) {
-					__m256i index0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list_fb + j));
-					__m256i w0 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kkpp_kp_fb), index0, 2);
-					w0 = _mm256_slli_epi32(w0, 16);
-					w0 = _mm256_srai_epi32(w0, 16);
-					sum0 = _mm256_add_epi32(sum0, w0);
+				for (j = 0 ; j + 8 < i; j += 8)
+				{
+					__m256i indexes0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(&list_fb[j]));
+					__m256i w0 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kkpp_kp_fb), indexes0, 4);
+					__m256i w0lo = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w0, 0));
+					sum0 = _mm256_add_epi32(sum0, w0lo);
+					__m256i w0hi = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w0, 1));
+					sum0 = _mm256_add_epi32(sum0, w0hi);
 				}
 				// 端数の処理その1
 				if (j + 4 < i)
 				{
-					__m256i w0 = _mm256_set_epi32(
-						0, 0, 0, 0,
-						kkpp_kp_fb[list_fb[j + 3]],
-						kkpp_kp_fb[list_fb[j + 2]],
-						kkpp_kp_fb[list_fb[j + 1]],
-						kkpp_kp_fb[list_fb[j + 0]]);
-					sum0 = _mm256_add_epi32(sum0, w0);
+					__m128i indexes0 = _mm_load_si128(reinterpret_cast<const __m128i*>(&list_fb[j]));
+					__m128i w0 = _mm_i32gather_epi32(reinterpret_cast<const int*>(kkpp_kp_fb), indexes0, 4);
+
+					__m256i w0lo = _mm256_cvtepi16_epi32(w0);
+					sum0 = _mm256_add_epi32(sum0, w0lo);
 					j += 4;
 				}
 				// 端数の処理その2
@@ -313,7 +313,7 @@ namespace Eval
 					l0 = list_fb[j];
 
 					// KKPP
-					sum.p[0][0] += kkpp_kp_fb[l0];
+					sum.p[0] += kkpp_kp_fb[l0];
 
 					// WKPP側不要。(というか分離して計算できない)
 				}
@@ -324,13 +324,18 @@ namespace Eval
 			}
 
 #if defined(USE_AVX2)
-			// sum0_に加算していたものをsum.p[0][0]に足し込む。
+			// sum0_に加算していたものをsum.p[0]に足し込む。
 
+			// sum0とsum0の上位128ビットと下位128ビットを独立して8バイトシフトしたものを足し合わせる
 			sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 8));
-			sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 4));
-			sum.p[0][0] += _mm_extract_epi32(_mm256_extracti128_si256(sum0, 0), 0) +
-				_mm_extract_epi32(_mm256_extracti128_si256(sum0, 1), 0);
+			// sum0の上位128ビットと下位128ビットを足しあわせてsum0_128に代入する
+			__m128i sum0_128 = _mm_add_epi32(_mm256_extracti128_si256(sum0, 0), _mm256_extracti128_si256(sum0, 1));
+			// sum0_128の下位64ビットをdiff.p[1]にストアする
+			std::array<int32_t, 2> sum0_array;
+			_mm_storel_epi64(reinterpret_cast<__m128i*>(&sum0_array), sum0_128);
+			sum.p[0] += sum0_array;
 #endif
+			// SSE4.1用のコードはサポート外でいいだろう…。キリがない。
 
 			auto st = pos.state();
 			sum.p[2][0] += st->materialValue * FV_SCALE;
@@ -381,36 +386,45 @@ namespace Eval
 				const auto* kpp_kp_fb = kpp_k_fb + k0 * fe_end;
 				const auto* kpp_kp_fw = kpp_k_fw + k1 * fe_end;
 #if defined(USE_AVX2)
-				for (j = 0; j + 8 < i; j += 8) {
-					__m256i index0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list_fb + j));
-					__m256i w0 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fb), index0, 2);
-					w0 = _mm256_slli_epi32(w0, 16);
-					w0 = _mm256_srai_epi32(w0, 16);
-					sum0 = _mm256_add_epi32(sum0, w0);
+				for (j = 0; j + 8 < i; j += 8)
+				{
+					{
+						__m256i indexes0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(&list_fb[j]));
+						__m256i w0 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fb), indexes0, 4);
+						__m256i w0lo = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w0, 0));
+						sum0 = _mm256_add_epi32(sum0, w0lo);
+						__m256i w0hi = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w0, 1));
+						sum0 = _mm256_add_epi32(sum0, w0hi);
+					}
 
-					__m256i index1 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list_fw + j));
-					__m256i w1 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fw), index1, 2);
-					w1 = _mm256_slli_epi32(w1, 16);
-					w1 = _mm256_srai_epi32(w1, 16);
-					sum1 = _mm256_add_epi32(sum1, w1);
+					{
+						__m256i indexes1 = _mm256_load_si256(reinterpret_cast<const __m256i*>(&list_fw[j]));
+						__m256i w1 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fw), indexes1, 4);
+						__m256i w1lo = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w1, 0));
+						sum1 = _mm256_add_epi32(sum1, w1lo);
+						__m256i w1hi = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w1, 1));
+						sum1 = _mm256_add_epi32(sum1, w1hi);
+					}
 				}
 				// 端数の処理その1
 				if (j + 4 < i)
 				{
-					__m256i w0 = _mm256_set_epi32(
-						0, 0, 0, 0,
-						kpp_kp_fb[list_fb[j + 3]],
-						kpp_kp_fb[list_fb[j + 2]],
-						kpp_kp_fb[list_fb[j + 1]],
-						kpp_kp_fb[list_fb[j + 0]]);
-					__m256i w1 = _mm256_set_epi32(
-						0, 0, 0, 0,
-						kpp_kp_fw[list_fw[j + 3]],
-						kpp_kp_fw[list_fw[j + 2]],
-						kpp_kp_fw[list_fw[j + 1]],
-						kpp_kp_fw[list_fw[j + 0]]);
-					sum0 = _mm256_add_epi32(sum0, w0);
-					sum1 = _mm256_add_epi32(sum1, w1);
+					{
+						__m128i indexes0 = _mm_load_si128(reinterpret_cast<const __m128i*>(&list_fb[j]));
+						__m128i w0 = _mm_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fb), indexes0, 4);
+
+						__m256i w0lo = _mm256_cvtepi16_epi32(w0);
+						sum0 = _mm256_add_epi32(sum0, w0lo);
+					}
+
+					{
+						__m128i indexes1 = _mm_load_si128(reinterpret_cast<const __m128i*>(&list_fw[j]));
+						__m128i w1 = _mm_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fw), indexes1, 4);
+
+						__m256i w1lo = _mm256_cvtepi16_epi32(w1);
+						sum1 = _mm256_add_epi32(sum1, w1lo);
+					}
+
 					j += 4;
 				}
 				// 端数の処理その2
@@ -435,17 +449,26 @@ namespace Eval
 			}
 
 #if defined(USE_AVX2)
-			// sum0_に加算していたものをsum.p[0][0]とsum.p[1][0]に足し込む。
+			// sum0_に加算していたものをsum.p[0]とsum.p[1]に足し込む。
 
-			sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 8));
-			sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 4));
-			sum.p[0][0] += _mm_extract_epi32(_mm256_extracti128_si256(sum0, 0), 0) +
-				_mm_extract_epi32(_mm256_extracti128_si256(sum0, 1), 0);
+			{
+				// sum0とsum0の上位128ビットと下位128ビットを独立して8バイトシフトしたものを足し合わせる
+				sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 8));
+				// sum0の上位128ビットと下位128ビットを足しあわせてsum0_128に代入する
+				__m128i sum0_128 = _mm_add_epi32(_mm256_extracti128_si256(sum0, 0), _mm256_extracti128_si256(sum0, 1));
+				// sum0_128の下位64ビットをdiff.p[1]にストアする
+				std::array<int32_t, 2> sum0_array;
+				_mm_storel_epi64(reinterpret_cast<__m128i*>(&sum0_array), sum0_128);
+				sum.p[0] += sum0_array;
+			}
 
-			sum1 = _mm256_add_epi32(sum1, _mm256_srli_si256(sum1, 8));
-			sum1 = _mm256_add_epi32(sum1, _mm256_srli_si256(sum1, 4));
-			sum.p[1][0] += _mm_extract_epi32(_mm256_extracti128_si256(sum1, 0), 0) +
-				_mm_extract_epi32(_mm256_extracti128_si256(sum1, 1), 0);
+			{
+				sum1 = _mm256_add_epi32(sum1, _mm256_srli_si256(sum1, 8));
+				__m128i sum1_128 = _mm_add_epi32(_mm256_extracti128_si256(sum1, 0), _mm256_extracti128_si256(sum1, 1));
+				std::array<int32_t, 2> sum1_array;
+				_mm_storel_epi64(reinterpret_cast<__m128i*>(&sum1_array), sum1_128);
+				sum.p[1] += sum1_array;
+			}
 
 #endif
 
@@ -525,74 +548,71 @@ namespace Eval
 		const auto* kpp_kp_fb = &kpp_ksq_pcpc(    sq_bk , ebp.fb, BONA_PIECE_ZERO);
 		const auto* kpp_kp_fw = &kpp_ksq_pcpc(Inv(sq_wk), ebp.fw, BONA_PIECE_ZERO);
 
-		// AVX2化前
-		// Nodes/second    : 874819
-		// Nodes/second    : 870346
-		// Nodes/second    : 861860
-		// Function	Samples	% of Hotspot Samples	Module
-		// Eval::do_a_pc(struct Position const &, struct Eval::ExtBonaPiece)	6509	14.6000004	YaneuraOu - 2017 - early.exe
-		// Eval::evaluateBody(struct Position const &)	6201	13.9099998	YaneuraOu - 2017 - early.exe
-
-		// AVX2化後 (VGATHERDDあり)
-		// Nodes/second    : 920074
-		// Nodes/second    : 927817
-		// Nodes/second    : 923094
-		// Function	Samples	% of Hotspot Samples	Module
-		// Eval::evaluateBody(struct Position const &)	5169	12.3500004	YaneuraOu - 2017 - early.exe
-		// Eval::do_a_pc(struct Position const &, struct Eval::ExtBonaPiece)	5100	12.1800003	YaneuraOu - 2017 - early.exe
-
-		// NPSが約6.1%程度向上した
-
 		const int PIECE_LIST_LENGTH = PIECE_NUMBER_KING;
 
 #if defined(USE_AVX2)
 		__m256i sum0 = _mm256_setzero_si256();
 		__m256i sum1 = _mm256_setzero_si256();
 		int i = 0;
-		for (; i + 8 < PIECE_LIST_LENGTH; i += 8) {
-			__m256i index0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list0 + i));
-			__m256i w0 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fb), index0, 2);
-			w0 = _mm256_slli_epi32(w0, 16);
-			w0 = _mm256_srai_epi32(w0, 16);
-			sum0 = _mm256_add_epi32(sum0, w0);
+		for (; i + 8 < PIECE_LIST_LENGTH; i += 8)
+		{
+			{
+				__m256i indexes0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list0 + i));
+				__m256i w0 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fb), indexes0, 4);
+				__m256i w0lo = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w0, 0));
+				sum0 = _mm256_add_epi32(sum0, w0lo);
+				__m256i w0hi = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w0, 1));
+				sum0 = _mm256_add_epi32(sum0, w0hi);
+			}
 
-			__m256i index1 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list1 + i));
-			__m256i w1 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fw), index1, 2);
-			w1 = _mm256_slli_epi32(w1, 16);
-			w1 = _mm256_srai_epi32(w1, 16);
-			sum1 = _mm256_add_epi32(sum1, w1);
+			{
+				__m256i indexes1 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list1 + i));
+				__m256i w1 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fw), indexes1, 4);
+				__m256i w1lo = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w1, 0));
+				sum1 = _mm256_add_epi32(sum1, w1lo);
+				__m256i w1hi = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w1, 1));
+				sum1 = _mm256_add_epi32(sum1, w1hi);
+			}
 		}
 
 		// 端数の処理その1
 		if (i + 4 < PIECE_LIST_LENGTH)
 		{
-			__m256i w0 = _mm256_set_epi32(
-				0, 0, 0, 0,
-				kpp_kp_fb[list0[i + 3]],
-				kpp_kp_fb[list0[i + 2]],
-				kpp_kp_fb[list0[i + 1]],
-				kpp_kp_fb[list0[i + 0]]);
-			__m256i w1 = _mm256_set_epi32(
-				0, 0, 0, 0,
-				kpp_kp_fw[list1[i + 3]],
-				kpp_kp_fw[list1[i + 2]],
-				kpp_kp_fw[list1[i + 1]],
-				kpp_kp_fw[list1[i + 0]]);
-			sum0 = _mm256_add_epi32(sum0, w0);
-			sum1 = _mm256_add_epi32(sum1, w1);
+			{
+				__m128i indexes0 = _mm_load_si128(reinterpret_cast<const __m128i*>(list0 + i));
+				__m128i w0 = _mm_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fb), indexes0, 4);
+
+				__m256i w0lo = _mm256_cvtepi16_epi32(w0);
+				sum0 = _mm256_add_epi32(sum0, w0lo);
+			}
+			{
+				__m128i indexes1 = _mm_load_si128(reinterpret_cast<const __m128i*>(list1 + i));
+				__m128i w1 = _mm_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fw), indexes1, 4);
+
+				__m256i w1lo = _mm256_cvtepi16_epi32(w1);
+				sum1 = _mm256_add_epi32(sum1, w1lo);
+			}
 			i += 4;
 		}
 
-		// _mm256_srli_si256()は128ビット境界毎にシフトされる点に注意する
-		sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 8));
-		sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 4));
-		sum.p[0][0] = _mm_extract_epi32(_mm256_extracti128_si256(sum0, 0), 0) +
-			_mm_extract_epi32(_mm256_extracti128_si256(sum0, 1), 0);
+		// 足し合わせ。
+		{
+			sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 8));
+			// sum0の上位128ビットと下位128ビットを足しあわせてsum0_128に代入する
+			__m128i sum0_128 = _mm_add_epi32(_mm256_extracti128_si256(sum0, 0), _mm256_extracti128_si256(sum0, 1));
+			// sum0_128の下位64ビットをdiff.p[1]にストアする
+			std::array<int32_t, 2> sum0_array;
+			_mm_storel_epi64(reinterpret_cast<__m128i*>(&sum0_array), sum0_128);
+			sum.p[0] += sum0_array;
+		}
 
-		sum1 = _mm256_add_epi32(sum1, _mm256_srli_si256(sum1, 8));
-		sum1 = _mm256_add_epi32(sum1, _mm256_srli_si256(sum1, 4));
-		sum.p[1][0] = _mm_extract_epi32(_mm256_extracti128_si256(sum1, 0), 0) +
-			_mm_extract_epi32(_mm256_extracti128_si256(sum1, 1), 0);
+		{
+			sum1 = _mm256_add_epi32(sum1, _mm256_srli_si256(sum1, 8));
+			__m128i sum1_128 = _mm_add_epi32(_mm256_extracti128_si256(sum1, 0), _mm256_extracti128_si256(sum1, 1));
+			std::array<int32_t, 2> sum1_array;
+			_mm_storel_epi64(reinterpret_cast<__m128i*>(&sum1_array), sum1_128);
+			sum.p[1] += sum1_array;
+		}
 
 		// 端数の処理その2
 		for (; i < PIECE_LIST_LENGTH; ++i)
@@ -641,31 +661,31 @@ namespace Eval
 		__m256i sum0 = _mm256_setzero_si256();
 		int i = 0;
 		for (; i + 8 < PIECE_LIST_LENGTH; i += 8) {
-			__m256i index0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list0 + i));
-			__m256i w0 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kkpp_kp_fb), index0, 2);
-			w0 = _mm256_slli_epi32(w0, 16);
-			w0 = _mm256_srai_epi32(w0, 16);
-			sum0 = _mm256_add_epi32(sum0, w0);
+			__m256i indexes0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(&list0[i]));
+			__m256i w0 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kkpp_kp_fb), indexes0, 4);
+			__m256i w0lo = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w0, 0));
+			sum0 = _mm256_add_epi32(sum0, w0lo);
+			__m256i w0hi = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w0, 1));
+			sum0 = _mm256_add_epi32(sum0, w0hi);
 		}
 
 		// 端数の処理その1
 		if (i + 4 < PIECE_LIST_LENGTH)
 		{
-			__m256i w0 = _mm256_set_epi32(
-				0, 0, 0, 0,
-				kkpp_kp_fb[list0[i + 3]],
-				kkpp_kp_fb[list0[i + 2]],
-				kkpp_kp_fb[list0[i + 1]],
-				kkpp_kp_fb[list0[i + 0]]);
-			sum0 = _mm256_add_epi32(sum0, w0);
+			__m128i indexes0 = _mm_load_si128(reinterpret_cast<const __m128i*>(&list0[i]));
+			__m128i w0 = _mm_i32gather_epi32(reinterpret_cast<const int*>(kkpp_kp_fb), indexes0, 4);
+
+			__m256i w0lo = _mm256_cvtepi16_epi32(w0);
+			sum0 = _mm256_add_epi32(sum0, w0lo);
 			i += 4;
 		}
 
-		// _mm256_srli_si256()は128ビット境界毎にシフトされる点に注意する
+		// 残り足し合わせ
 		sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 8));
-		sum0 = _mm256_add_epi32(sum0, _mm256_srli_si256(sum0, 4));
-		sum.p[0][0] = _mm_extract_epi32(_mm256_extracti128_si256(sum0, 0), 0) +
-			_mm_extract_epi32(_mm256_extracti128_si256(sum0, 1), 0);
+		__m128i sum0_128 = _mm_add_epi32(_mm256_extracti128_si256(sum0, 0), _mm256_extracti128_si256(sum0, 1));
+		std::array<int32_t, 2> sum0_array;
+		_mm_storel_epi64(reinterpret_cast<__m128i*>(&sum0_array), sum0_128);
+		sum.p[0] += sum0_array;
 
 		// 端数の処理その2
 		for (; i < PIECE_LIST_LENGTH; ++i)
