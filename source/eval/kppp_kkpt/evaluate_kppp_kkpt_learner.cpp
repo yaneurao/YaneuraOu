@@ -73,8 +73,10 @@ namespace Eval
 
 	// 評価関数学習用の構造体
 
-	// KK,KKPのWeightを保持している配列
+	// Weightを保持している学習用配列
 	// 直列化してあるので1次元配列
+
+	// KK,KKP用
 	std::vector<Weight2> weights;
 
 	// KPPは手番なしなので手番なし用の1次元配列。

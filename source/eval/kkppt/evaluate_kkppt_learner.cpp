@@ -33,21 +33,23 @@ namespace Eval
 		// (差分計算のときにコードの単純化のために参照はするけど学習のときに使いたくないので)
 		// kppのp1==p2のときはkkpに足しこまれているという考え。
 		{
-			const ValueKpp kpp_zero = 0;
-			float sum = 0;
+			const ValueKpp kpp_zero = { 0,0 };
+			ValueKpp sum = { 0,0 };
 			for (auto sq : SQ)
 				for (auto p = BONA_PIECE_ZERO; p < fe_end; ++p)
 				{
-					sum += abs(kpp_ksq_pcpc(sq,p,p));
+					sum[0] += kpp_ksq_pcpc(sq, p, p)[0];
+					sum[1] += kpp_ksq_pcpc(sq, p, p)[1];
 					kpp_ksq_pcpc(sq,p,p) = kpp_zero;
 				}
 
-			const ValueKkpp kkpp_zero = 0;
+			const ValueKkpp kkpp_zero = { 0, 0};
 			for (int sq = 0; sq < KKPP_EVAL_KING_SQ ; ++sq)
 			{
 				for (auto p = BONA_PIECE_ZERO; p < fe_end; ++p)
 				{
-					sum += abs(kkpp_ksq_pcpc(sq, p, p));
+					sum[0] += kkpp_ksq_pcpc(sq, p, p)[0];
+					sum[1] += kkpp_ksq_pcpc(sq, p, p)[1];
 					kkpp_ksq_pcpc(sq, p, p) = kkpp_zero;
 				}
 			}
@@ -64,7 +66,7 @@ namespace Eval
 				for (auto sq2 : SQ)
 					kkp[sq1][sq2][0] = kkp_zero;
 
-			const ValueKpp kpp_zero = 0;
+			const ValueKpp kpp_zero = { 0,0 };
 			for (auto sq : SQ)
 				for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
 				{
@@ -86,15 +88,15 @@ namespace Eval
 
 	// 評価関数学習用の構造体
 
-	// KK,KKPのWeightを保持している配列
+	// Weightを保持している学習用配列
 	// 直列化してあるので1次元配列
+
+	// KK,KKP用
 	std::vector<Weight2> weights;
-
-	// KPPは手番なしなので手番なし用の1次元配列。
-	std::vector<Weight> weights_kpp;
-
-	// KKPPも手番なしなので手番なし用の1次元配列。
-	std::vector<Weight> weights_kkpp;
+	// KPP用
+	std::vector<Weight2> weights_kpp;
+	// KKPP用
+	std::vector<Weight2> weights_kkpp;
 
 	// 学習配列のKK,KKP,KPP,KKPPの内部デザイン。
 	namespace {
@@ -216,7 +218,7 @@ namespace Eval
 					for (int j = 0; j < i; ++j)
 					{
 						BonaPiece l0 = list_fb[j];
-						weights_kkpp[g_kkpp.fromKKPP(encoded_learn_kk, k0, l0).toRawIndex()].add_grad(g[0]);
+						weights_kkpp[g_kkpp.fromKKPP(encoded_learn_kk, k0, l0).toRawIndex()].add_grad(g);
 					}
 
 				// KKP
@@ -251,8 +253,8 @@ namespace Eval
 						BonaPiece l0 = list_fb[j];
 						BonaPiece l1 = list_fw[j];
 
-						weights_kpp[g_kpp.fromKPP(    sq_bk , k0, l0).toRawIndex()].add_grad(g[0]);
-						weights_kpp[g_kpp.fromKPP(Inv(sq_wk), k1, l1).toRawIndex()].add_grad(g_flip[0]);
+						weights_kpp[g_kpp.fromKPP(    sq_bk , k0, l0).toRawIndex()].add_grad(g);
+						weights_kpp[g_kpp.fromKPP(Inv(sq_wk), k1, l1).toRawIndex()].add_grad(g_flip);
 					}
 				}
 
@@ -390,11 +392,11 @@ namespace Eval
 					// KPPに関してはinverseの次元下げがないので、inverseの判定は不要。
 
 					// KPPTとの違いは、ここに手番がないというだけ。
-					LearnFloatType g_sum = zero;
+					std::array<LearnFloatType, 2> g_sum = zero_t;
 					for (auto id : ids)
 						g_sum += weights_kpp[id].get_grad();
 
-					if (g_sum == 0)
+					if (is_zero(g_sum))
 						continue;
 
 					auto& v = kpp_ksq_pcpc(a[0].king(), a[0].piece0(), a[0].piece1());
@@ -415,7 +417,7 @@ namespace Eval
 #endif
 
 					for (auto id : ids)
-						weights_kpp[id].set_grad(zero);
+						weights_kpp[id].set_grad(zero_t);
 				}
 				else if (g_kkpp.is_ok(index) && !freeze_kkpp)
 				{
@@ -423,9 +425,9 @@ namespace Eval
 					// ここでは次元下げをする必要がない。
 
 					u64 raw_index = index - g_kkpp.min_index();
-					LearnFloatType g_sum = weights_kkpp[raw_index].get_grad();
+					std::array<LearnFloatType, 2> g_sum = weights_kkpp[raw_index].get_grad();
 
-					if (g_sum == 0)
+					if (is_zero(g_sum))
 						continue;
 
 					KKPP x = g_kkpp.fromRawIndex(raw_index);
@@ -449,23 +451,23 @@ namespace Eval
 					// inverseしたところには書き出さない。
 					// inverseの次元下げ入れたほうが良いかも知れない…。
 
-					weights_kkpp[raw_index].set_grad(zero);
+					weights_kkpp[raw_index].set_grad(zero_t);
 				}
 			}
 		}
 	}
 
-	// SkipLoadingEval trueにしてKPP_KKPT型の評価関数を読み込む。このときkkpp配列はゼロで埋められた状態になる。
+	// SkipLoadingEval trueにしてKPPT型の評価関数を読み込む。このときkkpp配列はゼロで埋められた状態になる。
 	// この状態から、kpp配列をkkpp配列に展開するコード。
 	// save_eval()の手前でこの関数を呼びたすようにして、ビルドしたのちに、
 	// isreadyコマンドで評価関数ファイルを読み込み、"test evalsave"コマンドでsave_eval()を呼び出すと変換したものが書き出されるという考え。
 	// 誰もが使えたほうが良いのかも知れないがコマンド型にするのが面倒なのでとりあえずこれで凌ぐ。
 	/*
 	変換時のコマンド例)
-		EvalDir rezero_kpp_kkpt_epoch5
+		EvalDir rezero_kppt_epoch5
 		SkipLoadingEval true
 		isready
-		EvalSaveDir rezero_kkpp_kkpt_epoch5
+		EvalSaveDir rezero_kkppt_epoch5
 		test evalsave
 	*/
 	void expand_kpp_to_kkpp()
@@ -484,8 +486,8 @@ namespace Eval
 				for (auto p0 = BONA_PIECE_ZERO; p0 < Eval::fe_end; ++p0)
 					for (auto p1 = BONA_PIECE_ZERO; p1 < Eval::fe_end; ++p1)
 					{
-						int sum_bk = kpp_ksq_pcpc(    bk , p0, p1);
-						int sum_wk = kpp_ksq_pcpc(Inv(wk), inv_piece(p0), inv_piece(p1));
+						auto sum_bk = kpp_ksq_pcpc(    bk ,           p0 ,           p1 );
+						auto sum_wk = kpp_ksq_pcpc(Inv(wk), inv_piece(p0), inv_piece(p1));
 
 						// これを合わせたものがkkppテーブルに書き込まれるべき。
 						kkpp_ksq_pcpc(k, p0, p1) = sum_bk - sum_wk;

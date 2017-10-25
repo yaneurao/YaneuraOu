@@ -11,7 +11,7 @@
 #include "../../misc.h"
 #include "../../extra/bitop.h"
 #include "../evaluate_io.h"
-#include "evaluate_kkpp_kkpt.h"
+#include "evaluate_kkppt.h"
 
 // 実験中の評価関数を読み込む。(現状非公開)
 #if defined (EVAL_EXPERIMENTAL)
@@ -49,8 +49,8 @@ namespace Eval
 		// EvalIOを利用して評価関数ファイルを読み込む。
 		// また、eval_convert()に渡している引数のinputとoutputを入れ替えるとファイルに書き出すことが出来る。EvalIOマジ、っょぃ。
 		auto make_name = [&](std::string filename) { return path_combine((string)Options["EvalDir"], filename); };
-		auto input = EvalIO::EvalInfo::build_kkpp_kkpt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN), make_name(KKPP_BIN) , size_of_kkpp);
-		auto output = EvalIO::EvalInfo::build_kkpp_kkpt32((void*)kk, (void*)kkp, (void*)kpp, (void*)kkpp , size_of_kkpp);
+		auto input = EvalIO::EvalInfo::build_kkppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN), make_name(KKPP_BIN) , size_of_kkpp);
+		auto output = EvalIO::EvalInfo::build_kkppt32((void*)kk, (void*)kkp, (void*)kpp, (void*)kkpp , size_of_kkpp);
 
 		// 評価関数の実験のためにfe_endをbuild_kpp_ppt()の値から変更しているかも知れないので現在のfe_endの値をもとに読み込む。
 		input.fe_end = output.fe_end = Eval::fe_end;
@@ -105,7 +105,7 @@ namespace Eval
 		//encode_and_decode_test();
 	}
 
-	// 与えられたsize_of_evalサイズの連続したalign 32されているメモリに、kk_,kkp_,kpp_を割り当てる。
+	// 与えられたsize_of_evalサイズの連続したalign 32されているメモリに、kk_,kkp_,kpp_,kkpp_を割り当てる。
 	void eval_assign(void* ptr)
 	{
 		s8* p = (s8*)ptr;
@@ -159,8 +159,8 @@ namespace Eval
 		std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
 		cv.from_bytes(dir_name).c_str();
 
-		auto mapped_file_name = TEXT("YANEURAOU_KKPP_KKPT_MMF" ENGINE_VERSION) + cv.from_bytes(dir_name);
-		auto mutex_name = TEXT("YANEURAOU_KKPP_KKPT_MUTEX" ENGINE_VERSION) + cv.from_bytes(dir_name);
+		auto mapped_file_name = TEXT("YANEURAOU_KKPPT_MMF" ENGINE_VERSION) + cv.from_bytes(dir_name);
+		auto mutex_name = TEXT("YANEURAOU_KKPPT_MUTEX" ENGINE_VERSION) + cv.from_bytes(dir_name);
 
 		// プロセス間の排他用mutex
 		auto hMutex = CreateMutex(NULL, FALSE, mutex_name.c_str());
@@ -305,7 +305,7 @@ namespace Eval
 				}
 				// 端数の処理その2
 				for (; j < i; ++j)
-					sum.p[0][0] += kkpp_kp_fb[list_fb[j]];
+					sum.p[0] += kkpp_kp_fb[list_fb[j]];
 
 #else
 				for (j = 0; j < i; ++j)
@@ -416,8 +416,8 @@ namespace Eval
 				// 端数の処理その2
 				for (; j < i; ++j)
 				{
-					sum.p[0][0] += kpp_kp_fb[list_fb[j]];
-					sum.p[1][0] += kpp_kp_fw[list_fw[j]];
+					sum.p[0] += kpp_kp_fb[list_fb[j]];
+					sum.p[1] += kpp_kp_fw[list_fw[j]];
 				}
 #else
 				for (j = 0; j < i; ++j)
@@ -426,8 +426,8 @@ namespace Eval
 					l1 = list_fw[j];
 
 					// KPP
-					sum.p[0][0] += kpp_kp_fb[l0];
-					sum.p[1][0] += kpp_kp_fw[l1];
+					sum.p[0] += kpp_kp_fb[l0];
+					sum.p[1] += kpp_kp_fw[l1];
 				}
 #endif
 				// KKP
@@ -464,18 +464,18 @@ namespace Eval
 	{
 		int encoded_eval_kk = encode_to_eval_kk(pos.king_square(BLACK), pos.king_square(WHITE));
 		compute_eval_impl(pos , encoded_eval_kk);
-		pos.state()->sum.p[0][1] = encoded_eval_kk; // ここ使っていないのでここにencoded_eval_kkを埋めておくことにする。
+		pos.state()->encoded_eval_kk = encoded_eval_kk;
 		return Value(pos.state()->sum.sum(pos.side_to_move()) / FV_SCALE);
 	}
 
 	// 後手玉が移動したときの先手玉に対するの差分
-	s32 do_a_black(const Position& pos, const ExtBonaPiece ebp) {
+	std::array<s32,2> do_a_black(const Position& pos, const ExtBonaPiece ebp) {
 		const Square sq_bk = pos.king_square(BLACK);
 		const auto* list0 = pos.eval_list()->piece_list_fb();
 
 		const auto* kpp_kp_fb = &kpp_ksq_pcpc(sq_bk, ebp.fb, BONA_PIECE_ZERO);
 
-		s32 sum = 0;
+		std::array<s32, 2> sum = { 0 , 0 };
 		for (int i = 0; i < PIECE_NUMBER_KING; ++i) {
 			sum += kpp_kp_fb[list0[i]];
 		}
@@ -483,12 +483,12 @@ namespace Eval
 	}
 
 	// 先手玉が移動したときの後手玉に対する差分
-	s32 do_a_white(const Position& pos, const ExtBonaPiece ebp) {
+	std::array<s32, 2> do_a_white(const Position& pos, const ExtBonaPiece ebp) {
 		const Square sq_wk = pos.king_square(WHITE);
 		const auto* list1 = pos.eval_list()->piece_list_fw();
 
 		const auto* kpp_kp_fw = &kpp_ksq_pcpc(Inv(sq_wk), ebp.fw, BONA_PIECE_ZERO);
-		s32 sum = 0;
+		std::array<s32, 2> sum = { 0 , 0 };
 		for (int i = 0; i < PIECE_NUMBER_KING; ++i) {
 			sum += kpp_kp_fw[list1[i]];
 		}
@@ -597,16 +597,16 @@ namespace Eval
 		// 端数の処理その2
 		for (; i < PIECE_LIST_LENGTH; ++i)
 		{
-			sum.p[0][0] += kpp_kp_fb[list0[i]];
-			sum.p[1][0] += kpp_kp_fw[list1[i]];
+			sum.p[0] += kpp_kp_fb[list0[i]];
+			sum.p[1] += kpp_kp_fw[list1[i]];
 		}
 
 #else
-		sum.p[0][0] = kpp_kp_fb[list0[0]];
-		sum.p[1][0] = kpp_kp_fw[list1[0]];
+		sum.p[0] = kpp_kp_fb[list0[0]];
+		sum.p[1] = kpp_kp_fw[list1[0]];
 		for (int i = 1; i < PIECE_LIST_LENGTH; ++i) {
-			sum.p[0][0] += kpp_kp_fb[list0[i]];
-			sum.p[1][0] += kpp_kp_fw[list1[i]];
+			sum.p[0] += kpp_kp_fb[list0[i]];
+			sum.p[1] += kpp_kp_fw[list1[i]];
 		}
 #endif
 
@@ -669,7 +669,7 @@ namespace Eval
 
 		// 端数の処理その2
 		for (; i < PIECE_LIST_LENGTH; ++i)
-			sum.p[0][0] += kkpp_kp_fb[list0[i]];
+			sum.p[0] += kkpp_kp_fb[list0[i]];
 
 #else
 		sum.p[0][0] = kkpp_kp_fb[list0[0]];
@@ -766,7 +766,7 @@ namespace Eval
 					}
 
 					for (; j < i; ++j) {
-						diff.p[1][0] += kpp_kp_fw[list1[j]];
+						diff.p[1] += kpp_kp_fw[list1[j]];
 					}
 
 					// KKPのWK分。BKは移動していないから、BK側には影響ない。
@@ -808,9 +808,9 @@ namespace Eval
 					// こうすることで前nodeのpiece_listを持たなくて済む。
 
 					const int listIndex_cap = dp.pieceNo[1];
-					diff.p[0][0] += do_a_black(pos, dp.changed_piece[1].new_piece);
+					diff.p[0] += do_a_black(pos, dp.changed_piece[1].new_piece);
 					list0[listIndex_cap] = dp.changed_piece[1].old_piece.fb;
-					diff.p[0][0] -= do_a_black(pos, dp.changed_piece[1].old_piece);
+					diff.p[0] -= do_a_black(pos, dp.changed_piece[1].old_piece);
 					list0[listIndex_cap] = dp.changed_piece[1].new_piece.fb;
 				}
 
@@ -850,7 +850,7 @@ namespace Eval
 					}
 
 					for (; j < i; ++j) {
-						diff.p[0][0] += kpp_kp_fb[list0[j]];
+						diff.p[0] += kpp_kp_fb[list0[j]];
 					}
 
 					diff.p[2] += kkp[sq_bk][sq_wk][k0];
@@ -875,9 +875,9 @@ namespace Eval
 
 				if (moved_piece_num == 2) {
 					const int listIndex_cap = dp.pieceNo[1];
-					diff.p[1][0] += do_a_white(pos, dp.changed_piece[1].new_piece);
+					diff.p[1] += do_a_white(pos, dp.changed_piece[1].new_piece);
 					list1[listIndex_cap] = dp.changed_piece[1].old_piece.fw;
-					diff.p[1][0] -= do_a_white(pos, dp.changed_piece[1].old_piece);
+					diff.p[1] -= do_a_white(pos, dp.changed_piece[1].old_piece);
 					list1[listIndex_cap] = dp.changed_piece[1].new_piece.fw;
 				}
 	}
@@ -910,8 +910,8 @@ namespace Eval
 				auto sq_wk = pos.king_square(WHITE);
 
 				diff += do_a_pc(pos, dp.changed_piece[1].new_piece);
-				diff.p[0][0] -= kpp_ksq_pcpc(sq_bk, dp.changed_piece[0].new_piece.fb, dp.changed_piece[1].new_piece.fb);
-				diff.p[1][0] -= kpp_ksq_pcpc(Inv(sq_wk), dp.changed_piece[0].new_piece.fw, dp.changed_piece[1].new_piece.fw);
+				diff.p[0] -= kpp_ksq_pcpc(sq_bk, dp.changed_piece[0].new_piece.fb, dp.changed_piece[1].new_piece.fb);
+				diff.p[1] -= kpp_ksq_pcpc(Inv(sq_wk), dp.changed_piece[0].new_piece.fw, dp.changed_piece[1].new_piece.fw);
 
 				const PieceNumber listIndex_cap = dp.pieceNo[1];
 				list0[listIndex_cap] = dp.changed_piece[1].old_piece.fb;
@@ -922,8 +922,8 @@ namespace Eval
 				diff -= do_a_pc(pos, dp.changed_piece[0].old_piece);
 				diff -= do_a_pc(pos, dp.changed_piece[1].old_piece);
 
-				diff.p[0][0] += kpp_ksq_pcpc(sq_bk, dp.changed_piece[0].old_piece.fb, dp.changed_piece[1].old_piece.fb);
-				diff.p[1][0] += kpp_ksq_pcpc(Inv(sq_wk), dp.changed_piece[0].old_piece.fw, dp.changed_piece[1].old_piece.fw);
+				diff.p[0] += kpp_ksq_pcpc(sq_bk, dp.changed_piece[0].old_piece.fb, dp.changed_piece[1].old_piece.fb);
+				diff.p[1] += kpp_ksq_pcpc(Inv(sq_wk), dp.changed_piece[0].old_piece.fw, dp.changed_piece[1].old_piece.fw);
 				list0[listIndex_cap] = dp.changed_piece[1].new_piece.fb;
 				list1[listIndex_cap] = dp.changed_piece[1].new_piece.fw;
 			}
@@ -984,7 +984,7 @@ namespace Eval
 				auto sq_wk = pos.king_square(WHITE);
 
 				diff += kkpp_do_a_pc(pos, dp.changed_piece[1].new_piece , encoded_eval_kk);
-				diff.p[0][0] -= kkpp_ksq_pcpc(encoded_eval_kk, dp.changed_piece[0].new_piece.fb, dp.changed_piece[1].new_piece.fb);
+				diff.p[0] -= kkpp_ksq_pcpc(encoded_eval_kk, dp.changed_piece[0].new_piece.fb, dp.changed_piece[1].new_piece.fb);
 
 				const PieceNumber listIndex_cap = dp.pieceNo[1];
 				list0[listIndex_cap] = dp.changed_piece[1].old_piece.fb;
@@ -992,7 +992,7 @@ namespace Eval
 				diff -= kkpp_do_a_pc(pos, dp.changed_piece[0].old_piece , encoded_eval_kk);
 				diff -= kkpp_do_a_pc(pos, dp.changed_piece[1].old_piece , encoded_eval_kk);
 
-				diff.p[0][0] += kkpp_ksq_pcpc(encoded_eval_kk, dp.changed_piece[0].old_piece.fb, dp.changed_piece[1].old_piece.fb);
+				diff.p[0] += kkpp_ksq_pcpc(encoded_eval_kk, dp.changed_piece[0].old_piece.fb, dp.changed_piece[1].old_piece.fb);
 				list0[listIndex_cap] = dp.changed_piece[1].new_piece.fb;
 			}
 
@@ -1034,7 +1034,7 @@ namespace Eval
 		}
 
 		{
-			int last_encoded_eval_kk = prev->sum.p[0][1];
+			int last_encoded_eval_kk = prev->encoded_eval_kk;
 
 			// 4つの場合に分けられる
 			// 1) 前回が-1で今回も-1     →　kkpp対象外なのでkkpテーブルで従来通り計算する。
@@ -1060,8 +1060,7 @@ namespace Eval
 		}
 
 	kk_save:;
-		// KPP/KKPPに手番なしの場合、p[0][1]は、使わないので、encoded_eval_kkは、ここに格納しておくことにする。
-		pos.state()->sum.p[0][1] = encoded_eval_kk;
+		pos.state()->encoded_eval_kk = encoded_eval_kk;
 
 		// 結果は、pos->state().sumから取り出すべし。
 	}
@@ -1196,7 +1195,7 @@ namespace Eval
 			}
 			for (auto p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
 				for (auto p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
-					sum_kpp[0] += kpp_ksq_pcpc(sq,p1,p2);
+					sum_kpp += kpp_ksq_pcpc(sq,p1,p2);
 
 			for (int i = 0; i < 2; ++i)
 			{
@@ -1224,7 +1223,8 @@ namespace Eval
 				for (BonaPiece p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
 				{
 					// kpp、invしたときも、手番は先手から見た値なので符号逆にしない
-					sum_kpp[0] -= kpp_ksq_pcpc(Inv(sq),inv_piece(p1),inv_piece(p2));
+					sum_kpp[0] -= kpp_ksq_pcpc(Inv(sq), inv_piece(p1), inv_piece(p2))[0];
+					sum_kpp[1] += kpp_ksq_pcpc(Inv(sq), inv_piece(p1), inv_piece(p2))[1];
 
 					//sum_kpp[0] -= kpp[Inv(sq)][inv_piece(p1)][inv_piece(p2)][0];
 					//sum_kpp[1] += kpp[Inv(sq)][inv_piece(p1)][inv_piece(p2)][1];
@@ -1330,8 +1330,8 @@ namespace Eval
 				cout << "BKPP : " << sq_bk << " " << k0 << " " << l0 << " = " << kpp_kp_fb[l0] << endl;
 				cout << "WKPP : " << sq_wk << " " << k1 << " " << l1 << " = " << kpp_kp_fw[l1] << endl;
 
-				sum.p[0][0] += kpp_kp_fb[l0];
-				sum.p[1][0] += kpp_kp_fw[l1];
+				sum.p[0] += kpp_kp_fb[l0];
+				sum.p[1] += kpp_kp_fw[l1];
 			}
 			sum.p[2] += kkp[sq_bk][sq_wk][k0];
 
@@ -1383,7 +1383,7 @@ namespace Eval
 			}
 			for (auto p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
 				for (auto p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
-					sum_kpp[0] += kpp_ksq_pcpc(sq,p1,p2);
+					sum_kpp += kpp_ksq_pcpc(sq,p1,p2);
 
 			for (int i = 0; i < 2; ++i)
 			{
@@ -1424,8 +1424,8 @@ namespace Eval
 			for (auto p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
 				for (auto p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
 					// ゼロの要素は書き換えない　またp1==0とかp2==0とかp1==p2のところは0になっているべき。
-					if (kpp_ksq_pcpc(sq,p1,p2) && p1 != p2 && p1 && p2)
-						kpp_ksq_pcpc(sq,p1,p2) = (ValueKpp)(kpp_ksq_pcpc(sq,p1,p2) -  kpp_offset[sq][0]);
+					if (!is_zero(kpp_ksq_pcpc(sq,p1,p2)) && p1 != p2 && p1 && p2)
+						kpp_ksq_pcpc(sq, p1, p2) = (ValueKpp)(kpp_ksq_pcpc(sq, p1, p2) - ValueKpp{ (int16_t)(kpp_offset[sq][0]), (int16_t)(kpp_offset[sq][1]) });
 		}
 
 	}
@@ -1474,11 +1474,11 @@ namespace Eval
 			for (u64 i = 0; i < (u64)SQ_NB * (u64)fe_end * (u64)fe_end; ++i)
 			{
 				auto v = ((ValueKpp*)kpp)[i];
-				f(v, 0); /* 手番なしなのでダミーで0を渡しておく */
+				f(v[0], v[1]);
 			}
 		}
 	}
 
 }
 
-#endif // defined (EVAL_KPP_KKPT)
+#endif // defined (EVAL_KPPT)

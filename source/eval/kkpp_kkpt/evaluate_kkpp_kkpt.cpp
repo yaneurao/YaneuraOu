@@ -105,7 +105,7 @@ namespace Eval
 		//encode_and_decode_test();
 	}
 
-	// 与えられたsize_of_evalサイズの連続したalign 32されているメモリに、kk_,kkp_,kpp_を割り当てる。
+	// 与えられたsize_of_evalサイズの連続したalign 32されているメモリに、kk_,kkp_,kpp_kkpp_を割り当てる。
 	void eval_assign(void* ptr)
 	{
 		s8* p = (s8*)ptr;

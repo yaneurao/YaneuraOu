@@ -22,33 +22,29 @@ namespace Eval
 	// 先手から見て、先手の手番があるときの評価値 =  [0] + [1]
 	// 先手から見て、先手の手番がないときの評価値 =  [0] - [1]
 	// 後手から見て、後手の手番があるときの評価値 = -[0] + [1]
-
-	// KPPTのときとは異なり、KPPが手番なしになっている点が異なる。
-	// KK、KKPは16bitでも事足りそうではあるが、ちょっと危ないし、
-	// KPPTのKKとKKPのファイルは使いまわしたいので互換性重視でこうしておく。
 	
 	typedef std::array<int32_t, 2> ValueKk;
 	typedef std::array<int32_t, 2> ValueKkp;
-	typedef int16_t ValueKpp;
-	typedef int16_t ValueKkpp;
+	typedef std::array<int16_t, 2> ValueKpp;
+	typedef std::array<int16_t, 2> ValueKkpp;
 
 	// KKPPの計算対象とする王の段(3段ぐらいを想定している。9段のときはkpp配列自体が要らないが、それは想定していない)
 	// この計算対象にない場合は、普通のKPPテーブルを用いて計算する。
-	static const Rank KKPP_KING_RANK = (Rank)(RANK_9 - EVAL_KKPP_KKPT / 9 + 1);
+	static const Rank KKPP_KING_RANK = (Rank)(RANK_9 - EVAL_KKPPT / 9 + 1);
 
 
 
 	// 学習配列のKKPP対象の先手玉の升の数(ミラーありなので5/9倍)
-	static const int KKPP_LEARN_BK_SQ = 5 * (EVAL_KKPP_KKPT / 9);
+	static const int KKPP_LEARN_BK_SQ = 5 * (EVAL_KKPPT / 9);
 
 	// 学習配列のKKPP対象の後手玉の升の数
-	static const int KKPP_LEARN_WK_SQ = 9 * (EVAL_KKPP_KKPT / 9);
+	static const int KKPP_LEARN_WK_SQ = 9 * (EVAL_KKPPT / 9);
 
 	// ミラーありにしても、後手玉のほうはミラーできないので、5/9になるだけ。
 	// piece_list()の更新処理が難しくなるので、ミラー対応は後回しにする。
 
-	static const int KKPP_EVAL_BK_SQ = 9 * (EVAL_KKPP_KKPT / 9);
-	static const int KKPP_EVAL_WK_SQ = 9 * (EVAL_KKPP_KKPT / 9);
+	static const int KKPP_EVAL_BK_SQ = 9 * (EVAL_KKPPT / 9);
+	static const int KKPP_EVAL_WK_SQ = 9 * (EVAL_KKPPT / 9);
 
 	// 先手玉×後手玉の組み合わせの数(学習配列のKKPPに用いる)
 	static const int KKPP_LEARN_KING_SQ = KKPP_LEARN_BK_SQ * KKPP_LEARN_WK_SQ;

@@ -38,6 +38,18 @@ namespace Eval {
 		return a;
 	}
 	template <typename Tl>
+	FORCE_INLINE std::array<Tl, 2> operator + (const std::array<Tl, 2>& lhs, const std::array<Tl, 2>& rhs) {
+		std::array<Tl, 2> tmp = lhs;
+		tmp += rhs;
+		return tmp;
+	}
+	template <typename Tl>
+	FORCE_INLINE std::array<Tl, 2> operator - (const std::array<Tl, 2>& lhs, const std::array<Tl, 2>& rhs) {
+		std::array<Tl, 2> tmp = lhs;
+		tmp -= rhs;
+		return tmp;
+	}
+	template <typename Tl>
 	FORCE_INLINE std::array<Tl, 2> operator * (const std::array<Tl, 2>& rhs, int n) {
 		std::array<Tl, 2> a;
 		a[0] = rhs[0] * n;
@@ -128,13 +140,13 @@ namespace Eval {
 			// 手番に依存する評価値合計
 			const int32_t scoreTurn = p[2][1];
 
-#else // EVAL_KPPTなどはこちら。
+#else // EVAL_KPPT , EVAL_KKPPT などはこちら。
 
 			// 手番に依存しない評価値合計
 			// p[1][0]はΣWKPPなので符号はマイナス。
 			const int32_t scoreBoard = p[0][0] - p[1][0] + p[2][0];
 			// 手番に依存する評価値合計
-			const int32_t scoreTurn = p[0][1] + p[1][1] + p[2][1];
+			const int32_t scoreTurn  = p[0][1] + p[1][1] + p[2][1];
 #endif
 
 			// この関数は手番側から見た評価値を返すのでscoreTurnは必ずプラス

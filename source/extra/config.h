@@ -283,7 +283,8 @@
 //#define EVAL_KPPPT 27
 //#define EVAL_KPPPT 18
 
-#define EVAL_KKPP_KKPT 36
+//#define EVAL_KKPP_KKPT 36
+#define EVAL_KKPPT 36
 
 //#define EVAL_NABLA
 
@@ -710,6 +711,8 @@ inline int MKDIR(std::string dir_name)
 #define EVAL_TYPE_NAME "KPPP_KKPT"
 #elif defined(EVAL_KKPP_KKPT)
 #define EVAL_TYPE_NAME "KKPP_KKPT"
+#elif defined(EVAL_KKPPT)
+#define EVAL_TYPE_NAME "KKPPT"
 #elif defined(EVAL_NABLA)
 #define EVAL_TYPE_NAME "NABLA"
 #else
@@ -719,7 +722,7 @@ inline int MKDIR(std::string dir_name)
 // do_move()のときに移動した駒の管理をして差分計算
 // また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
 // あらゆる局面でP(駒)の数が増えないFV38と呼ばれる形式の差分計算用。
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
 #define USE_FV38
 #endif
 
