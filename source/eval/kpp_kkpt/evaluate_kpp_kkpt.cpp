@@ -550,7 +550,11 @@ namespace Eval
 
                 for (int i = 0; i < PIECE_NUMBER_KING; ++i)
                 {
-                    const int k1 = list1[i];
+					// KKPの値は、後手側から見た計算だとややこしいので、先手から見た計算でやる。
+					// 後手から見た場合、kkp[inv(sq_wk)][inv(sq_bk)][k1]になるが、これ次元下げで同じ値を書いているとは限らない。
+					diff.p[2] += kkp[sq_bk][sq_wk][list0[i]];
+					
+					const int k1 = list1[i];
                     const auto* pkppw = ppkppw[k1];
                     int j = 0;
                     for (; j + 8 < i; j += 8) {
@@ -572,13 +576,6 @@ namespace Eval
                     for (; j < i; ++j) {
                         diff.p[1][0] += pkppw[list1[j]];
                     }
-
-                    // KKPのWK分。BKは移動していないから、BK側には影響ない。
-
-                    // 後手から見たKKP。後手から見ているのでマイナス
-                    diff.p[2][0] -= kkp[Inv(sq_wk)][Inv(sq_bk)][k1][0];
-                    // 後手から見たKKP手番。後手から見るのでマイナスだが、手番は先手から見たスコアを格納するのでさらにマイナスになって、プラス。
-                    diff.p[2][1] += kkp[Inv(sq_wk)][Inv(sq_bk)][k1][1];
                 }
                 sum1_128 = _mm_add_epi32(sum1_128, _mm256_extracti128_si256(sum1_256, 0));
                 sum1_128 = _mm_add_epi32(sum1_128, _mm256_extracti128_si256(sum1_256, 1));
@@ -588,6 +585,8 @@ namespace Eval
 #else
 				for (int i = 0; i < PIECE_NUMBER_KING; ++i)
 				{
+					diff.p[2] += kkp[sq_bk][sq_wk][list0[i]];
+
 					const int k1 = list1[i];
 					const auto* pkppw = ppkppw[k1];
 					for (int j = 0; j < i; ++j)
@@ -595,13 +594,6 @@ namespace Eval
 						const int l1 = list1[j];
 						diff.p[1][0] += pkppw[l1];
 					}
-
-					// KKPのWK分。BKは移動していないから、BK側には影響ない。
-
-					// 後手から見たKKP。後手から見ているのでマイナス
-					diff.p[2][0] -= kkp[Inv(sq_wk)][Inv(sq_bk)][k1][0];
-					// 後手から見たKKP手番。後手から見るのでマイナスだが、手番は先手から見たスコアを格納するのでさらにマイナスになって、プラス。
-					diff.p[2][1] += kkp[Inv(sq_wk)][Inv(sq_bk)][k1][1];
 				}
 #endif
 
