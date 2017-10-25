@@ -107,7 +107,7 @@
 // #define EVAL_KPPP_KKPT // △  KKP手番あり + KPP手番なし + KPPP(4駒関係)手番なし。→　※2,※3
 // #define EVAL_KPPPT     // △  KPPP(4駒関係)手番あり。→　実装したけどいまひとつだったので差分計算実装せず。※2,※3
 // #define EVAL_PPET      // ×  技巧型 2駒+利き+手番(実装予定なし)
-// #define EVAL_KKPPT     // ？  KKPP型 4駒関係 手番あり。(55将棋、56将棋でも使えそう)(実装するかも)
+// #define EVAL_KKPPT     // ○  KKPP型 4駒関係 手番あり。(55将棋、56将棋でも使えそう)※3
 // #define EVAL_KKPP_KKPT // ○  KKPP型 4駒関係 手番はKK,KKPTにのみあり。※3
 // #define EVAL_NABLA     // ？  ∇(ナブラ) 評価関数
 // #define EVAL_HELICES   // ？  螺旋評価関数

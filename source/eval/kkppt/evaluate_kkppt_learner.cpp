@@ -2,7 +2,7 @@
 
 #include "../../shogi.h"
 
-#if defined(EVAL_LEARN) && defined(EVAL_KKPP_KKPT)
+#if defined(EVAL_LEARN) && defined(EVAL_KKPPT)
 
 #if defined(_OPENMP)
 #include <omp.h>
@@ -18,7 +18,7 @@
 #include "../evaluate_io.h"
 #include "../evaluate_common.h"
 
-#include "evaluate_kkpp_kkpt.h"
+#include "evaluate_kkppt.h"
 
 // --- 以下、定義
 
@@ -484,11 +484,11 @@ namespace Eval
 				for (auto p0 = BONA_PIECE_ZERO; p0 < Eval::fe_end; ++p0)
 					for (auto p1 = BONA_PIECE_ZERO; p1 < Eval::fe_end; ++p1)
 					{
-						int sum_bkpp = kpp_ksq_pcpc(    bk , p0, p1);
-						int sum_wkpp = kpp_ksq_pcpc(Inv(wk), inv_piece(p0), inv_piece(p1));
+						int sum_bk = kpp_ksq_pcpc(    bk , p0, p1);
+						int sum_wk = kpp_ksq_pcpc(Inv(wk), inv_piece(p0), inv_piece(p1));
 
 						// これを合わせたものがkkppテーブルに書き込まれるべき。
-						kkpp_ksq_pcpc(k, p0, p1) = sum_bkpp - sum_wkpp;
+						kkpp_ksq_pcpc(k, p0, p1) = sum_bk - sum_wk;
 					}
 			}
 

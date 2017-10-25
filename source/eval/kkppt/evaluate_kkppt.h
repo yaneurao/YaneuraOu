@@ -1,11 +1,11 @@
-﻿#ifndef _EVALUATE_KKPP_KKPT_H_
-#define _EVALUATE_KKPP_KKPT_H_
+﻿#ifndef _EVALUATE_KKPPT_H_
+#define _EVALUATE_KKPPT_H_
 
 #include "../../shogi.h"
 
-// KKPP_KKPT型評価関数で用いるheader
+// KKPPT型評価関数で用いるheader
 
-#if defined(EVAL_KKPP_KKPT)
+#if defined(EVAL_KKPPT)
 
 #include "../../evaluate.h"
 #include "../evaluate_common.h"

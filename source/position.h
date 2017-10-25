@@ -107,6 +107,11 @@ struct StateInfo
 	Eval::EvalSum sum;
 	#endif
 
+	#if defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT)
+	// 評価関数で用いる、前回のencoded_eval_kkを保存しておく。
+	int encoded_eval_kk;
+	#endif
+
 	#if defined(USE_FV38)
 	// 評価値の差分計算の管理用
 	DirtyPiece dirtyPiece;

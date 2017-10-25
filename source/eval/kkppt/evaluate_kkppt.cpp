@@ -1,6 +1,6 @@
 ﻿#include "../../shogi.h"
 
-#if defined (EVAL_KKPP_KKPT)
+#if defined (EVAL_KKPPT)
 
 #include <fstream>
 #include <iostream>
@@ -464,7 +464,7 @@ namespace Eval
 	{
 		int encoded_eval_kk = encode_to_eval_kk(pos.king_square(BLACK), pos.king_square(WHITE));
 		compute_eval_impl(pos , encoded_eval_kk);
-		pos.state()->encoded_eval_kk = encoded_eval_kk;
+		pos.state()->sum.p[0][1] = encoded_eval_kk; // ここ使っていないのでここにencoded_eval_kkを埋めておくことにする。
 		return Value(pos.state()->sum.sum(pos.side_to_move()) / FV_SCALE);
 	}
 
@@ -822,6 +822,7 @@ namespace Eval
 
 				const auto* kpp_k_fb = &kpp_ksq_pcpc(sq_bk, BONA_PIECE_ZERO, BONA_PIECE_ZERO);
 				diff.p[0][0] = 0;
+				diff.p[0][1] = 0;
 
 #if defined(USE_AVX2)
 				__m256i sum0_256 = _mm256_setzero_si256();
@@ -1033,7 +1034,7 @@ namespace Eval
 		}
 
 		{
-			int last_encoded_eval_kk = prev->encoded_eval_kk;
+			int last_encoded_eval_kk = prev->sum.p[0][1];
 
 			// 4つの場合に分けられる
 			// 1) 前回が-1で今回も-1     →　kkpp対象外なのでkkpテーブルで従来通り計算する。
@@ -1059,7 +1060,8 @@ namespace Eval
 		}
 
 	kk_save:;
-		pos.state()->encoded_eval_kk = encoded_eval_kk;
+		// KPP/KKPPに手番なしの場合、p[0][1]は、使わないので、encoded_eval_kkは、ここに格納しておくことにする。
+		pos.state()->sum.p[0][1] = encoded_eval_kk;
 
 		// 結果は、pos->state().sumから取り出すべし。
 	}
@@ -1479,4 +1481,4 @@ namespace Eval
 
 }
 
-#endif // defined (EVAL_KKPP_KKPT)
+#endif // defined (EVAL_KPP_KKPT)
