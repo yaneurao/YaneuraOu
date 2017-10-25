@@ -406,10 +406,8 @@ namespace Eval
 
 		const auto* pkppb = kpp[sq_bk][ebp.fb];
 		std::array<s32, 2> sum = { { pkppb[list0[0]][0], pkppb[list0[0]][1] } };
-		for (int i = 1; i < PIECE_NUMBER_KING; ++i) {
-			sum[0] += pkppb[list0[i]][0];
-			sum[1] += pkppb[list0[i]][1];
-		}
+		for (int i = 1; i < PIECE_NUMBER_KING; ++i)
+			sum += pkppb[list0[i]];
 		return sum;
 	}
 
@@ -420,10 +418,8 @@ namespace Eval
 
 		const auto* pkppw = kpp[Inv(sq_wk)][ebp.fw];
 		std::array<s32, 2> sum = { { pkppw[list1[0]][0], pkppw[list1[0]][1] } };
-		for (int i = 1; i < PIECE_NUMBER_KING; ++i) {
-			sum[0] += pkppw[list1[i]][0];
-			sum[1] += pkppw[list1[i]][1];
-		}
+		for (int i = 1; i < PIECE_NUMBER_KING; ++i)
+			sum += pkppw[list1[i]];
 		return sum;
 	}
 
@@ -616,8 +612,7 @@ namespace Eval
 				const auto ppkppw = kpp[Inv(sq_wk)];
 
 				// ΣWKPP
-				diff.p[1][0] = 0;
-				diff.p[1][1] = 0;
+				diff.p[1] = { 0 , 0 };
 
 #if defined(USE_AVX2)
 				
@@ -709,8 +704,8 @@ namespace Eval
 				// さきほどの処理と同様。
 
 				const auto* ppkppb = kpp[sq_bk];
-				diff.p[0][0] = 0;
-				diff.p[0][1] = 0;
+				// ΣBKPP
+				diff.p[0] = { 0,0 };
 
 #if defined(USE_AVX2)
 
