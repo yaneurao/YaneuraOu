@@ -240,7 +240,7 @@ namespace Eval
 
 	// 評価関数。全計算。(駒割りは差分)
 	// 返し値は持たず、計算結果としてpos.state()->sumに値を代入する。
-	void compute_eval_impl(const Position& pos , int encoded_kk)
+	void compute_eval_impl(const Position& pos , int encoded_eval_kk)
 	{
 		// is_ready()で評価関数を読み込み、
 		// 初期化してからしかcompute_eval()を呼び出すことは出来ない。
@@ -260,10 +260,10 @@ namespace Eval
 		sum.p[0][0] = /*sum.p[0][1] =*/ sum.p[1][0] = /*sum.p[1][1] =*/ 0;
 #endif
 
-		if (encoded_kk != -1)
+		if (encoded_eval_kk != -1)
 		{
 			// KKPP配列を用いた全計算
-			const auto* kkpp_k_fb = &kkpp_ksq_pcpc(encoded_kk, BONA_PIECE_ZERO, BONA_PIECE_ZERO);
+			const auto* kkpp_k_fb = &kkpp_ksq_pcpc(encoded_eval_kk, BONA_PIECE_ZERO, BONA_PIECE_ZERO);
 			auto list_fb = pos.eval_list()->piece_list_fb();
 
 			int i, j;
@@ -522,7 +522,7 @@ namespace Eval
 		// KKP
 		sum.p[2] = kkp[sq_bk][sq_wk][ebp.fb];
 
-		const auto* kpp_kp_fb = &kpp_ksq_pcpc(sq_bk, ebp.fb, BONA_PIECE_ZERO);
+		const auto* kpp_kp_fb = &kpp_ksq_pcpc(    sq_bk , ebp.fb, BONA_PIECE_ZERO);
 		const auto* kpp_kp_fw = &kpp_ksq_pcpc(Inv(sq_wk), ebp.fw, BONA_PIECE_ZERO);
 
 		// AVX2化前
@@ -1038,34 +1038,29 @@ namespace Eval
 
 			// 4つの場合に分けられる
 			// 1) 前回が-1で今回も-1     →　kkpp対象外なのでkkpテーブルで従来通り計算する。
-			// 2) 前回が-1で今回が-1以外 →  kkpp対象に玉が移動したのでkkppテーブルで全計算
-			// 3) 前回が-1以外で今回が-1 →  kkpp対象外に玉が移動したのでkkpテーブルで全計算
+			// 2) 前回が-1で今回が-1以外 →  kkpp対象外からkkpp対象内に玉が移動したのでkkppテーブルで全計算
+			// 3) 前回が-1以外で今回が-1 →  kkpp対象内からkkpp対象外に玉が移動したのでkkpテーブルで全計算
 			// 4) 前回が-1以外で今回も-1以外 → kkpp対象内の移動。
 			//  4a) 前回と今回で値が違うなら、kkppテーブルを用いて全計算。
 			//  4b) 値が同じならkkppテーブルを用いた差分計算。
 
-			// 2) or 3)
+			// 2) or 3) 全計算
 			if ((last_encoded_eval_kk == -1 && encoded_eval_kk != -1) ||
 				(last_encoded_eval_kk != -1 && encoded_eval_kk == -1))
-			{
-				// 全計算
+				/* (last_encoded_eval_kk == -1) ^ (encoded_eval_kk == -1) と書けるが、わかりにくいのでこのままでいいや。*/
 				compute_eval_impl(pos, encoded_eval_kk);
-				goto kk_save;
-			}
 
-			// 4)
-			if (last_encoded_eval_kk != -1 && encoded_eval_kk != -1)
-			{
-				// kkppテーブルで差分計算を行なう。
+			// 4) kkppテーブルで差分計算を行なう。
+			else if (last_encoded_eval_kk != -1 && encoded_eval_kk != -1)
 				evaluateBody_kkpp(pos, last_encoded_eval_kk, encoded_eval_kk);
-				goto kk_save;
-			}
 
 			// 1) 従来のkppで差分計算を行なう。
-			evaluateBody_kpp(pos);
+			else
+				evaluateBody_kpp(pos);
 		}
 
 	kk_save:;
+		// KPP/KKPPに手番なしの場合、p[0][1]は、使わないので、encoded_eval_kkは、ここに格納しておくことにする。
 		pos.state()->sum.p[0][1] = encoded_eval_kk;
 
 		// 結果は、pos->state().sumから取り出すべし。

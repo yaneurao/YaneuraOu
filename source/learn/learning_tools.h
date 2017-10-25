@@ -266,19 +266,23 @@ namespace EvalLearningTools
 	// 注意 : この派生クラスでは次元下げのために上記のinv_piece/mir_pieceを間接的に参照することがあるので、
 	// 最初にEvalLearningTools::init()かinit_mir_inv_tables()を呼び出して初期化すること。
 	//
+	// 備考) 派生クラス側でoverrideすべきではない関数名には/*final*/と書いてある。
+	//       派生クラス側でoverrideすべき関数は "= 0"をつけて、純粋仮想関数にしてある。
+	//       派生クラス側でoverrideしてもしなくても良い関数はvirtualだけつけてある。
+	//
 	struct SerializerBase
 	{
 
 		// KK,KKP,KPP配列を直列化するときの通し番号の最小値、最大値+1。
-		u64 min_index() const { return min_index_; }
-		u64 max_index() const { return min_index() + max_raw_index_; }
+		/*final*/ u64 min_index() const { return min_index_; }
+		/*final*/ u64 max_index() const { return min_index() + max_raw_index_; }
 
 		// max_index() - min_index()の値。
 		// 派生クラス側でmax_king_sq_,fe_end_などから、値を計算して返すようにする。
 		virtual u64 size() const = 0;
 
 		// 与えられたindexが、min_index()以上、max_index()未満にあるかを判定する。
-		bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
+		/*final*/ bool is_ok(u64 index) { return min_index() <= index && index < max_index(); }
 
 		// 必ずこのset()を呼び出して使う。さもなくば、派生クラス側のfromKK()/fromIndex()などでインスタンスを構築して使う。
 		virtual void set(int max_king_sq, u64 fe_end, u64 min_index)
@@ -290,7 +294,7 @@ namespace EvalLearningTools
 		}
 
 		// 現在のメンバの値に基いて、直列化されたときのindexを取得する。
-		virtual u64 toIndex() const {
+		/*final*/ u64 toIndex() const {
 			return min_index() + toRawIndex();
 		}
 
@@ -322,13 +326,15 @@ namespace EvalLearningTools
 
 		virtual u64 size() const { return max_king_sq_ * max_king_sq_; }
 
-		// indexからKKのオブジェクトを生成するbuilder
-		KK fromIndex(u64 index) const
+		// index(通し番号)からKKのオブジェクトを生成するbuilder
+		KK fromIndex(u64 index) const { ASSERT_LV3(index >= min_index()); return fromRawIndex(index - min_index()); }
+
+		// raw_index(通し番号ではなく0から始まる番号)からKKのオブジェクトを生成するbuilder
+		KK fromRawIndex(u64 raw_index) const
 		{
-			index -= min_index();
-			int king1 = (int)(index % SQ_NB);
-			index /= SQ_NB;
-			int king0 = (int)(index  /* % SQ_NB */);
+			int king1 = (int)(raw_index % SQ_NB);
+			raw_index /= SQ_NB;
+			int king0 = (int)(raw_index  /* % SQ_NB */);
 			ASSERT_LV3(king0 < SQ_NB);
 			return fromKK((Square)king0, (Square)king1 , false);
 		}
@@ -418,15 +424,17 @@ namespace EvalLearningTools
 
 		virtual u64 size() const { return (u64)max_king_sq_*(u64)max_king_sq_*(u64)fe_end_; }
 
-		// indexからKKPのオブジェクトを生成するbuilder
-		KKP fromIndex(u64 index) const
+		// index(通し番号)からKKPのオブジェクトを生成するbuilder
+		KKP fromIndex(u64 index) const { ASSERT_LV3(index >= min_index()); return fromRawIndex(index - min_index()); }
+
+		// raw_index(通し番号ではなく0から始まる番号)からKKPのオブジェクトを生成するbuilder
+		KKP fromRawIndex(u64 raw_index) const
 		{
-			index -= min_index();
-			int piece = (int)(index % Eval::fe_end);
-			index /= Eval::fe_end;
-			int king1 = (int)(index % SQ_NB);
-			index /= SQ_NB;
-			int king0 = (int)(index  /* % SQ_NB */);
+			int piece = (int)(raw_index % Eval::fe_end);
+			raw_index /= Eval::fe_end;
+			int king1 = (int)(raw_index % SQ_NB);
+			raw_index /= SQ_NB;
+			int king0 = (int)(raw_index  /* % SQ_NB */);
 			ASSERT_LV3(king0 < SQ_NB);
 			return fromKKP((Square)king0, (Square)king1, (Eval::BonaPiece)piece,false);
 		}
@@ -535,20 +543,21 @@ namespace EvalLearningTools
 			SerializerBase::set(max_king_sq, fe_end, min_index);
 		}
 
-		// indexからKPPのオブジェクトを生成するbuilder
-		KPP fromIndex(u64 index) const
-		{
-			index -= min_index();
+		// index(通し番号)からKPPのオブジェクトを生成するbuilder
+		KPP fromIndex(u64 index) const { ASSERT_LV3(index >= min_index()); return fromRawIndex(index - min_index()); }
 
+		// raw_index(通し番号ではなく0から始まる番号)からKPPのオブジェクトを生成するbuilder
+		KPP fromRawIndex(u64 raw_index) const
+		{
 			const u64 triangle_fe_end = (u64)fe_end_*((u64)fe_end_ + 1) / 2;
 
 #if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
-			int piece1 = (int)(index % fe_end_);
-			index /= fe_end_;
-			int piece0 = (int)(index % fe_end_);
-			index /= fe_end_;
+			int piece1 = (int)(raw_index % fe_end_);
+			raw_index /= fe_end_;
+			int piece0 = (int)(raw_index % fe_end_);
+			raw_index /= fe_end_;
 #else
-			u64 index2 = index % triangle_fe_end;
+			u64 index2 = raw_index % triangle_fe_end;
 
 			// ここにindex2からpiece0,piece1を求める式を書く。
 			// これは index2 = i * (i+1) / 2 + j の逆関数となる。
@@ -563,9 +572,9 @@ namespace EvalLearningTools
 			ASSERT_LV3(piece1 < (int)fe_end_);
 			ASSERT_LV3(piece0 < (int)fe_end_);
 
-			index /= triangle_fe_end;
+			raw_index /= triangle_fe_end;
 #endif
-			int king = (int)(index  /* % SQ_NB */);
+			int king = (int)(raw_index  /* % SQ_NB */);
 			ASSERT_LV3(king < max_king_sq_);
 			return fromKPP((Square)king, (Eval::BonaPiece)piece0, (Eval::BonaPiece)piece1);
 		}
@@ -620,7 +629,7 @@ namespace EvalLearningTools
 		}
 
 		// このクラスのmin_index()の値を0として数えたときのindexを取得する。
-		u64 toRawIndex() const {
+		virtual u64 toRawIndex() const {
 
 #if !defined(USE_TRIANGLE_WEIGHT_ARRAY)
 
@@ -743,14 +752,13 @@ namespace EvalLearningTools
 #endif
 		}
 
-		// indexからKPPPのオブジェクトを生成するbuilder
-		KPPP fromIndex(u64 index) const
+		// index(通し番号)からKPPPのオブジェクトを生成するbuilder
+		KPPP fromIndex(u64 index) const { ASSERT_LV3(index >= min_index()); return fromRawIndex(index - min_index()); }
+
+		// raw_index(通し番号ではなく0から始まる番号)からKPPPのオブジェクトを生成するbuilder
+		KPPP fromRawIndex(u64 raw_index) const
 		{
-			ASSERT_LV3(index >= min_index());
-
-			index -= min_index();
-
-			u64 index2 = index % triangle_fe_end;
+			u64 index2 = raw_index % triangle_fe_end;
 
 			// ここにindex2からpiece0,piece1,piece2を求める式を書く。
 			// これは index2 = i(i-1)(i-2)/6-1 + j(j+1)/2 + k の逆関数となる。
@@ -813,9 +821,9 @@ namespace EvalLearningTools
 			ASSERT_LV3(piece1 < (int)fe_end_);
 			ASSERT_LV3(piece0 < (int)fe_end_);
 
-			index /= triangle_fe_end;
+			raw_index /= triangle_fe_end;
 
-			int king = (int)(index  /* % SQ_NB */);
+			int king = (int)(raw_index  /* % SQ_NB */);
 			ASSERT_LV3(king < max_king_sq_);
 
 			// king_sqとfe_endに関しては伝播させる。
@@ -832,7 +840,7 @@ namespace EvalLearningTools
 		}
 
 		// このクラスのmin_index()の値を0として数えたときのindexを取得する。
-		u64 toRawIndex() const {
+		virtual u64 toRawIndex() const {
 
 			// Bonanza 6.0で使われているのに似せたマクロ
 			// 前提条件) i > j > k であること。
@@ -951,14 +959,13 @@ namespace EvalLearningTools
 			// あとking_に対するミラーを定義する必要も。
 		}
 
-		// indexからKKPPのオブジェクトを生成するbuilder
-		KKPP fromIndex(u64 index) const
+		// index(通し番号)からKKPPのオブジェクトを生成するbuilder
+		KKPP fromIndex(u64 index) const { ASSERT_LV3(index >= min_index()); return fromRawIndex(index - min_index()); }
+
+		// raw_index(通し番号ではなく0から始まる番号)からKKPPのオブジェクトを生成するbuilder
+		KKPP fromRawIndex(u64 raw_index) const
 		{
-			ASSERT_LV3(index >= min_index());
-
-			index -= min_index();
-
-			u64 index2 = index % triangle_fe_end;
+			u64 index2 = raw_index % triangle_fe_end;
 
 			// ここにindex2からpiece0,piece1,piece2を求める式を書く。
 			// これは index2 = i(i-1)/2 + j の逆関数となる。
@@ -973,9 +980,9 @@ namespace EvalLearningTools
 			ASSERT_LV3(piece1 < (int)fe_end_);
 			ASSERT_LV3(piece0 < (int)fe_end_);
 
-			index /= triangle_fe_end;
+			raw_index /= triangle_fe_end;
 
-			int king = (int)(index  /* % SQ_NB */);
+			int king = (int)(raw_index  /* % SQ_NB */);
 			ASSERT_LV3(king < max_king_sq_);
 
 			// king_sqとfe_endに関しては伝播させる。
@@ -1011,7 +1018,7 @@ namespace EvalLearningTools
 			return PcPcOnSq(king_, piece0_, piece1_);
 		}
 
-		// fromIndex()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
+		// fromIndex(),fromKKPP()を用いてこのオブジェクトを構築したときに、以下のアクセッサで情報が得られる。
 		int king() const { return king_; }
 		Eval::BonaPiece piece0() const { return piece0_; }
 		Eval::BonaPiece piece1() const { return piece1_; }

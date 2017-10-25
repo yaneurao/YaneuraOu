@@ -251,7 +251,7 @@ namespace Eval
 						BonaPiece l0 = list_fb[j];
 						BonaPiece l1 = list_fw[j];
 
-						weights_kpp[g_kpp.fromKPP(sq_bk, k0, l0).toRawIndex()].add_grad(g[0]);
+						weights_kpp[g_kpp.fromKPP(    sq_bk , k0, l0).toRawIndex()].add_grad(g[0]);
 						weights_kpp[g_kpp.fromKPP(Inv(sq_wk), k1, l1).toRawIndex()].add_grad(g_flip[0]);
 					}
 				}
@@ -428,7 +428,7 @@ namespace Eval
 					if (g_sum == 0)
 						continue;
 
-					KKPP x = g_kkpp.fromIndex(index);
+					KKPP x = g_kkpp.fromRawIndex(raw_index);
 
 					Square bk, wk;
 					decode_from_learn_kk(x.king(), bk, wk);
@@ -445,6 +445,9 @@ namespace Eval
 					kkpp_ksq_pcpc(    encoded_eval_kk ,           x.piece1() ,           x.piece0() ) = v;
 					kkpp_ksq_pcpc(mir_encoded_eval_kk , mir_piece(x.piece0()), mir_piece(x.piece1())) = v;
 					kkpp_ksq_pcpc(mir_encoded_eval_kk , mir_piece(x.piece1()), mir_piece(x.piece0())) = v;
+
+					// inverseしたところには書き出さない。
+					// inverseの次元下げ入れたほうが良いかも知れない…。
 
 					weights_kkpp[raw_index].set_grad(zero);
 				}

@@ -1444,7 +1444,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	sum_norm = 0;
 #endif
 
-	// 深い探索のpvの初手と、合法手のなかでevaluateが最大になる指し手が一致した回数。
+	// 深い探索のpvの初手と、search(1)のpvの初手の指し手が一致した回数。
 	atomic<int> move_accord_count;
 	move_accord_count = 0;
 

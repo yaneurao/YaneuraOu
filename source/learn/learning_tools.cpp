@@ -231,6 +231,12 @@ namespace EvalLearningTools
 			// mirとinvは、2回適用したら元の座標に戻る。
 			ASSERT_LV1(mir_piece_[mir_piece_[p]] == p);
 			ASSERT_LV1(inv_piece_[inv_piece_[p]] == p);
+
+			// mir->inv->mir->invは元の場所でなければならない。
+			ASSERT_LV1(p == inv_piece(mir_piece(inv_piece(mir_piece(p)))));
+
+			// inv->mir->inv->mirは元の場所でなければならない。
+			ASSERT_LV1(p == mir_piece(inv_piece(mir_piece(inv_piece(p)))));
 		}
 
 #if 0

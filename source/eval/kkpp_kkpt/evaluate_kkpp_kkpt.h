@@ -86,20 +86,20 @@ namespace Eval
 #define kpp  ( kpp_ )
 #define kkpp ( kkpp_)
 
-	// 配列のサイズ
+	// eval用の配列のサイズ
 	const u64 size_of_kk = (u64)SQ_NB*(u64)SQ_NB*(u64)sizeof(ValueKk);
 	const u64 size_of_kkp = (u64)SQ_NB*(u64)SQ_NB*(u64)fe_end*(u64)sizeof(ValueKkp);
 	const u64 size_of_kpp = (u64)SQ_NB*(u64)fe_end*(u64)fe_end*(u64)sizeof(ValueKpp);
 	const u64 size_of_kkpp = (u64)KKPP_EVAL_KING_SQ*(u64)kkpp_square_fe_end*(u64)sizeof(ValueKkpp);
 	const u64 size_of_eval = size_of_kk + size_of_kkp + size_of_kpp + size_of_kkpp;
 
-	// kppの配列の位置を返すマクロ
+	// eval用のkpp配列の位置を返すマクロ
 	// i,j = piece0,piece1
 	static ValueKpp& kpp_ksq_pcpc(int king_, BonaPiece i_, BonaPiece j_) {
 		return *(kpp_ + (u64)king_ * kkpp_square_fe_end + u64(i_)*fe_end + u64(j_));
 	}
 
-	// kkppの配列の位置を返すマクロ
+	// eval用のkkpp配列の位置を返すマクロ
 	// i,j = piece0,piece1
 	// encoded_eval_kk = encode_to_eval_kk()でencodeした先手玉、後手玉の升。
 	static ValueKkpp& kkpp_ksq_pcpc(int encoded_eval_kk, BonaPiece i_, BonaPiece j_) {
@@ -123,7 +123,7 @@ namespace Eval
 
 		// encode
 
-		int k0 = ((int)rank_of(bk    ) - (int)KKPP_KING_RANK) * 9 + (int)file_of(bk);
+		int k0 = ((int)rank_of(bk    ) - (int)KKPP_KING_RANK) * 9 + (int)file_of(    bk);
 		int k1 = ((int)rank_of(inv_wk) - (int)KKPP_KING_RANK) * 9 + (int)file_of(inv_wk);
 
 		int k = k0 * KKPP_EVAL_WK_SQ + k1;
@@ -137,7 +137,7 @@ namespace Eval
 	{
 		ASSERT_LV3(0 <= encoded_eval_kk && encoded_eval_kk < KKPP_EVAL_KING_SQ);
 
-		// KKPP_EVAL_WK_SQ進数表記だとみなしてKKPP_WK_SQ進数変換の逆変換を行なう。
+		// KKPP_EVAL_WK_SQ進数表現だとみなしてKKPP_WK_SQ進数変換の逆変換を行なう。
 		int k1 = encoded_eval_kk % KKPP_EVAL_WK_SQ;
 		int k0 = encoded_eval_kk / KKPP_EVAL_WK_SQ;
 
@@ -150,16 +150,12 @@ namespace Eval
 	// KKPPの学習配列で用いるencoded_kk
 	static int encode_to_learn_kk(Square bk, Square wk)
 	{
-		//ASSERT_LV3(file_of(bk) <= FILE_5);
-		//ASSERT_LV3(rank_of(bk) >= KKPP_KING_RANK);
-
 		if (file_of(bk) > FILE_5)
 			return -1;
 		if (rank_of(bk) < KKPP_KING_RANK)
 			return -1;
 
 		auto inv_wk = Inv(wk);
-		//ASSERT_LV3(rank_of(inv_wk) >= KKPP_KING_RANK);
 
 		if (rank_of(inv_wk) < KKPP_KING_RANK)
 			return -1;
@@ -193,6 +189,7 @@ namespace Eval
 	static void encode_and_decode_test()
 	{
 		std::cout << "encode_kk_test..";
+
 		for (auto sq_bk : SQ)
 			for (auto sq_wk : SQ)
 			{
@@ -202,15 +199,22 @@ namespace Eval
 					Square sq_bk2, sq_wk2;
 					decode_from_eval_kk(encoded_eval_kk, sq_bk2, sq_wk2);
 					ASSERT_LV1(sq_bk == sq_bk2 && sq_wk == sq_wk2);
-				}
-				int encoded_learn_kk = encode_to_learn_kk(sq_bk, sq_wk);
-				if (encoded_learn_kk != -1)
-				{
-					Square sq_bk2, sq_wk2;
+
+					// encode_to_learn_kk()を呼び出すとき、sq_bkは1～5筋にいなければならない。
+					if (file_of(sq_bk) > FILE_5)
+					{
+						sq_bk = Mir(sq_bk);
+						sq_wk = Mir(sq_wk);
+					}
+
+					int encoded_learn_kk = encode_to_learn_kk(sq_bk, sq_wk);
+					ASSERT_LV1(encoded_learn_kk != -1);
+
 					decode_from_learn_kk(encoded_learn_kk, sq_bk2, sq_wk2);
 					ASSERT_LV1(sq_bk == sq_bk2 && sq_wk == sq_wk2);
 				}
 			}
+
 		std::cout << "done." << std::endl;
 	}
 
