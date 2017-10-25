@@ -216,7 +216,7 @@ namespace Eval
 
 }      // namespace Eval
 
-#endif // defined(EVAL_KPP_KKPT)
+#endif // defined(EVAL_KKPT)
 
 
 #endif

@@ -486,11 +486,12 @@ namespace Eval
 				for (auto p0 = BONA_PIECE_ZERO; p0 < Eval::fe_end; ++p0)
 					for (auto p1 = BONA_PIECE_ZERO; p1 < Eval::fe_end; ++p1)
 					{
-						auto sum_bk = kpp_ksq_pcpc(    bk ,           p0 ,           p1 );
-						auto sum_wk = kpp_ksq_pcpc(Inv(wk), inv_piece(p0), inv_piece(p1));
+						auto bkpp = kpp_ksq_pcpc(    bk ,           p0 ,           p1 );
+						auto wkpp = kpp_ksq_pcpc(Inv(wk), inv_piece(p0), inv_piece(p1));
 
 						// これを合わせたものがkkppテーブルに書き込まれるべき。
-						kkpp_ksq_pcpc(k, p0, p1) = sum_bk - sum_wk;
+						// ただし、[1]は手番自体の価値なので符号に注意すること。
+						kkpp_ksq_pcpc(k, p0, p1) = { bkpp[0] - wkpp[0] , bkpp[1] + wkpp[1] };
 					}
 			}
 
@@ -500,7 +501,7 @@ namespace Eval
 	// 評価関数パラメーターをファイルに保存する。
 	void save_eval(std::string dir_name)
 	{
-		// KPP_KKPT型の評価関数から変換するとき。
+		// KPPT型の評価関数から変換するとき。
 		//expand_kpp_to_kkpp();
 
 		{
@@ -517,8 +518,8 @@ namespace Eval
 			// EvalIOを利用して評価関数ファイルに書き込む。
 			// 読み込みのときのinputとoutputとを入れ替えるとファイルに書き込める。EvalIo::eval_convert()マジ優秀。
 			auto make_name = [&](std::string filename) { return path_combine(eval_dir, filename); };
-			auto input = EvalIO::EvalInfo::build_kkpp_kkpt32((void*)kk, (void*)kkp, (void*)kpp, (void*)kkpp, size_of_kkpp);
-			auto output = EvalIO::EvalInfo::build_kkpp_kkpt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN), make_name(KKPP_BIN), size_of_kkpp);
+			auto input = EvalIO::EvalInfo::build_kkppt32((void*)kk, (void*)kkp, (void*)kpp, (void*)kkpp, size_of_kkpp);
+			auto output = EvalIO::EvalInfo::build_kkppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN), make_name(KKPP_BIN), size_of_kkpp);
 
 			// 評価関数の実験のためにfe_endをKPPT32から変更しているかも知れないので現在のfe_endの値をもとに書き込む。
 			input.fe_end = output.fe_end = Eval::fe_end;

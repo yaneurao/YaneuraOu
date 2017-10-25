@@ -615,7 +615,7 @@ namespace Eval
 			{
 				const auto ppkppw = kpp[Inv(sq_wk)];
 
-				// ΣWKPP = 0
+				// ΣWKPP
 				diff.p[1][0] = 0;
 				diff.p[1][1] = 0;
 
@@ -678,6 +678,8 @@ namespace Eval
 
 				for (int i = 0; i < PIECE_NUMBER_KING; ++i)
 				{
+					diff.p[2] += kkp[sq_bk][sq_wk][list0[i]];
+
 					const int k1 = list1[i];
 					const auto* pkppw = ppkppw[k1];
 					for (int j = 0; j < i; ++j)
@@ -685,13 +687,6 @@ namespace Eval
 						const int l1 = list1[j];
 						diff.p[1] += pkppw[l1];
 					}
-
-					// KKPのWK分。BKは移動していないから、BK側には影響ない。
-
-					// 後手から見たKKP。後手から見ているのでマイナス
-					diff.p[2][0] -= kkp[Inv(sq_wk)][Inv(sq_bk)][k1][0];
-					// 後手から見たKKP手番。後手から見るのでマイナスだが、手番は先手から見たスコアを格納するのでさらにマイナスになって、プラス。
-					diff.p[2][1] += kkp[Inv(sq_wk)][Inv(sq_bk)][k1][1];
 				}
 #endif
 
@@ -820,7 +815,7 @@ namespace Eval
 				auto sq_wk = pos.king_square(WHITE);
 
 				diff += do_a_pc(pos, dp.changed_piece[1].new_piece);
-				diff.p[0] -= kpp[sq_bk][dp.changed_piece[0].new_piece.fb][dp.changed_piece[1].new_piece.fb];
+				diff.p[0] -= kpp[    sq_bk ][dp.changed_piece[0].new_piece.fb][dp.changed_piece[1].new_piece.fb];
 				diff.p[1] -= kpp[Inv(sq_wk)][dp.changed_piece[0].new_piece.fw][dp.changed_piece[1].new_piece.fw];
 
 				const PieceNumber listIndex_cap = dp.pieceNo[1];
@@ -832,7 +827,7 @@ namespace Eval
 				diff -= do_a_pc(pos, dp.changed_piece[0].old_piece);
 				diff -= do_a_pc(pos, dp.changed_piece[1].old_piece);
 
-				diff.p[0] += kpp[sq_bk][dp.changed_piece[0].old_piece.fb][dp.changed_piece[1].old_piece.fb];
+				diff.p[0] += kpp[    sq_bk ][dp.changed_piece[0].old_piece.fb][dp.changed_piece[1].old_piece.fb];
 				diff.p[1] += kpp[Inv(sq_wk)][dp.changed_piece[0].old_piece.fw][dp.changed_piece[1].old_piece.fw];
 				list0[listIndex_cap] = dp.changed_piece[1].new_piece.fb;
 				list1[listIndex_cap] = dp.changed_piece[1].new_piece.fw;

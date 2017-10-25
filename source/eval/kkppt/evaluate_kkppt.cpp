@@ -103,6 +103,8 @@ namespace Eval
 #endif
 
 		//encode_and_decode_test();
+
+		// EvalLearningTools::init_mir_inv_tables();
 	}
 
 	// 与えられたsize_of_evalサイズの連続したalign 32されているメモリに、kk_,kkp_,kpp_,kkpp_を割り当てる。
@@ -257,7 +259,7 @@ namespace Eval
 		// sum.p[0](BKPP)とsum.p[1](WKPP)をゼロクリア
 		sum.m[0] = _mm_setzero_si128();
 #else
-		sum.p[0][0] = /*sum.p[0][1] =*/ sum.p[1][0] = /*sum.p[1][1] =*/ 0;
+		sum.p[0][0] = sum.p[0][1] = sum.p[1][0] = sum.p[1][1] = 0;
 #endif
 
 		if (encoded_eval_kk != -1)
@@ -347,7 +349,7 @@ namespace Eval
 		{
 			// KPP配列を用いた全計算
 
-			const auto* kpp_k_fb = &kpp_ksq_pcpc(sq_bk, BONA_PIECE_ZERO, BONA_PIECE_ZERO);
+			const auto* kpp_k_fb = &kpp_ksq_pcpc(    sq_bk , BONA_PIECE_ZERO, BONA_PIECE_ZERO);
 			const auto* kpp_k_fw = &kpp_ksq_pcpc(Inv(sq_wk), BONA_PIECE_ZERO, BONA_PIECE_ZERO);
 
 			auto list_fb = pos.eval_list()->piece_list_fb();
@@ -363,7 +365,7 @@ namespace Eval
 			// sum.p[0](BKPP)とsum.p[1](WKPP)をゼロクリア
 			sum.m[0] = _mm_setzero_si128();
 #else
-			sum.p[0][0] = /*sum.p[0][1] =*/ sum.p[1][0] = /*sum.p[1][1] =*/ 0;
+			sum.p[0][0] = sum.p[0][1] = sum.p[1][0] = sum.p[1][1] = 0;
 #endif
 
 			// KK
@@ -622,8 +624,8 @@ namespace Eval
 		}
 
 #else
-		sum.p[0] = kpp_kp_fb[list0[0]];
-		sum.p[1] = kpp_kp_fw[list1[0]];
+		sum.p[0] = { kpp_kp_fb[list0[0]][0] , kpp_kp_fb[list0[0]][1] };
+		sum.p[1] = { kpp_kp_fw[list1[0]][0] , kpp_kp_fw[list1[0]][1] };
 		for (int i = 1; i < PIECE_LIST_LENGTH; ++i) {
 			sum.p[0] += kpp_kp_fb[list0[i]];
 			sum.p[1] += kpp_kp_fw[list1[i]];
@@ -692,9 +694,9 @@ namespace Eval
 			sum.p[0] += kkpp_kp_fb[list0[i]];
 
 #else
-		sum.p[0][0] = kkpp_kp_fb[list0[0]];
+		sum.p[0] = { kkpp_kp_fb[list0[0]][0] , kkpp_kp_fb[list0[0]][1] };
 		for (int i = 1; i < PIECE_LIST_LENGTH; ++i) {
-			sum.p[0][0] += kpp_kp_fb[list0[i]];
+			sum.p[0] += kkpp_kp_fb[list0[i]];
 		}
 #endif
 
@@ -756,9 +758,9 @@ namespace Eval
 			{
 				const auto kpp_k_fw = &kpp_ksq_pcpc(Inv(sq_wk), BONA_PIECE_ZERO, BONA_PIECE_ZERO);
 
-				// ΣWKPP = 0
+				// ΣWKPP
 				diff.p[1][0] = 0;
-				//diff.p[1][1] = 0;
+				diff.p[1][1] = 0;
 
 #if defined(USE_AVX2)
 				__m256i sum1_256 = _mm256_setzero_si256();
@@ -766,6 +768,10 @@ namespace Eval
 
 				for (int i = 0; i < PIECE_NUMBER_KING; ++i)
 				{
+					// KKPの値は、後手側から見た計算だとややこしいので、先手から見た計算でやる。
+					// 後手から見た場合、kkp[inv(sq_wk)][inv(sq_bk)][k1]になるが、これ次元下げで同じ値を書いているとは限らない。
+					diff.p[2] += kkp[sq_bk][sq_wk][list0[i]];
+
 					const int k1 = list1[i];
 					const auto* kpp_kp_fw = kpp_k_fw + k1 * fe_end;
 					int j = 0;
@@ -788,13 +794,6 @@ namespace Eval
 					for (; j < i; ++j) {
 						diff.p[1] += kpp_kp_fw[list1[j]];
 					}
-
-					// KKPのWK分。BKは移動していないから、BK側には影響ない。
-
-					// 後手から見たKKP。後手から見ているのでマイナス
-					diff.p[2][0] -= kkp[Inv(sq_wk)][Inv(sq_bk)][k1][0];
-					// 後手から見たKKP手番。後手から見るのでマイナスだが、手番は先手から見たスコアを格納するのでさらにマイナスになって、プラス。
-					diff.p[2][1] += kkp[Inv(sq_wk)][Inv(sq_bk)][k1][1];
 				}
 				sum1_128 = _mm_add_epi32(sum1_128, _mm256_extracti128_si256(sum1_256, 0));
 				sum1_128 = _mm_add_epi32(sum1_128, _mm256_extracti128_si256(sum1_256, 1));
@@ -809,7 +808,7 @@ namespace Eval
 					for (int j = 0; j < i; ++j)
 					{
 						const int l1 = list1[j];
-						diff.p[1][0] += kpp_kp_fw[l1];
+						diff.p[1] += kpp_kp_fw[l1];
 					}
 
 					// KKPのWK分。BKは移動していないから、BK側には影響ない。
@@ -841,6 +840,8 @@ namespace Eval
 				// さきほどの処理と同様。
 
 				const auto* kpp_k_fb = &kpp_ksq_pcpc(sq_bk, BONA_PIECE_ZERO, BONA_PIECE_ZERO);
+
+				// ΣBKPP
 				diff.p[0][0] = 0;
 				diff.p[0][1] = 0;
 
@@ -887,7 +888,7 @@ namespace Eval
 					const auto* kpp_kp_fb = kpp_k_fb + k0 * fe_end;
 					for (int j = 0; j < i; ++j) {
 						const int l0 = list0[j];
-						diff.p[0][0] += kpp_kp_fb[l0];
+						diff.p[0] += kpp_kp_fb[l0];
 					}
 					diff.p[2] += kkp[sq_bk][sq_wk][k0];
 			}
@@ -1329,7 +1330,7 @@ namespace Eval
 		// sum.p[0](BKPP)とsum.p[1](WKPP)をゼロクリア
 		sum.m[0] = _mm_setzero_si128();
 #else
-		sum.p[0][0] = /*sum.p[0][1] =*/ sum.p[1][0] = /*sum.p[1][1] =*/ 0;
+		sum.p[0][0] = sum.p[0][1] = sum.p[1][0] = sum.p[1][1] = 0;
 #endif
 
 		// KK
@@ -1501,4 +1502,4 @@ namespace Eval
 
 }
 
-#endif // defined (EVAL_KPPT)
+#endif // defined (EVAL_KKPPT)

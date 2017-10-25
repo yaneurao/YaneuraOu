@@ -105,7 +105,7 @@ namespace EvalIO
 			return ei;
 		}
 
-		// Ponanza(WCSC26)っぽいKPP_PPT型評価関数の型定義を返すbuilder。
+		// Ponanza(WCSC26)っぽいKPP_KKPT型評価関数の型定義を返すbuilder。
 		// 引数にはFileOrMemoryのコンストラクタに渡す、std::string filenameかvoid* ptr を渡す。
 		template <typename T1, typename T2, typename T3>
 		static EvalInfo build_kpp_kkpt32(T1 kk_, T2 kkp_, T3 kpp_)
