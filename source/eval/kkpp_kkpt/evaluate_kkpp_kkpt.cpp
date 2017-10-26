@@ -1102,6 +1102,14 @@ namespace Eval
 
 			// あった！
 			sum = entry;
+
+			// このときにencoded_eval_kkが未初期化状態になるのは良くない(次のnodeで困る)ので更新する。
+			{
+				auto sq_bk = pos.king_square(BLACK);
+				auto sq_wk = pos.king_square(WHITE);
+				pos.state()->encoded_eval_kk = encode_to_eval_kk(sq_bk, sq_wk);
+			}
+
 			return Value(entry.sum(pos.side_to_move()) / FV_SCALE);
 		}
 		//		dbg_hit_on(false);

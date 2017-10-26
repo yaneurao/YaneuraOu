@@ -478,7 +478,8 @@ namespace Eval
 			sum1 = _mm256_add_epi32(sum1, w1hi);
 		}
 
-		for (; i + 4 < PIECE_NUMBER_KING; i += 4) {
+		if (i + 4 < PIECE_NUMBER_KING)
+		{
 			__m128i indexes0 = _mm_load_si128(reinterpret_cast<const __m128i*>(&list0[i]));
 			__m128i indexes1 = _mm_load_si128(reinterpret_cast<const __m128i*>(&list1[i]));
 			__m128i w0 = _mm_i32gather_epi32(reinterpret_cast<const int*>(pkppb), indexes0, 4);
@@ -489,6 +490,7 @@ namespace Eval
 
 			__m256i w1lo = _mm256_cvtepi16_epi32(w1);
 			sum1 = _mm256_add_epi32(sum1, w1lo);
+			i += 4;
 		}
 
 		for (; i < PIECE_NUMBER_KING; ++i) {
@@ -525,10 +527,8 @@ namespace Eval
 			sum.m[0] = _mm_add_epi32(sum.m[0], tmp);
 		}
 #else
-		sum.p[0][0] = pkppb[list0[0]][0];
-		sum.p[0][1] = pkppb[list0[0]][1];
-		sum.p[1][0] = pkppw[list1[0]][0];
-		sum.p[1][1] = pkppw[list1[0]][1];
+		sum.p[0] = { pkppb[list0[0]][0] , pkppb[list0[0]][1] };
+		sum.p[1] = { pkppw[list1[0]][0] , pkppw[list1[0]][1] };
 		for (int i = 1; i < PIECE_NUMBER_KING; ++i) {
 			sum.p[0] += pkppb[list0[i]];
 			sum.p[1] += pkppw[list1[i]];
@@ -612,7 +612,8 @@ namespace Eval
 				const auto ppkppw = kpp[Inv(sq_wk)];
 
 				// ΣWKPP
-				diff.p[1] = { 0 , 0 };
+				diff.p[1][0] = 0;
+				diff.p[1][1] = 0;
 
 #if defined(USE_AVX2)
 				
@@ -704,8 +705,8 @@ namespace Eval
 				// さきほどの処理と同様。
 
 				const auto* ppkppb = kpp[sq_bk];
-				// ΣBKPP
-				diff.p[0] = { 0,0 };
+				diff.p[0][0] = 0;
+				diff.p[0][1] = 0;
 
 #if defined(USE_AVX2)
 

@@ -500,10 +500,9 @@ namespace Eval
 
 		const auto* kpp_kp_fb = &kpp_ksq_pcpc(sq_bk, ebp.fb, BONA_PIECE_ZERO);
 
-		std::array<s32, 2> sum = { 0 , 0 };
-		for (int i = 0; i < PIECE_NUMBER_KING; ++i) {
+		std::array<s32, 2> sum = { kpp_kp_fb[list0[0]][0] , kpp_kp_fb[list0[0]][1] };
+		for (int i = 1; i < PIECE_NUMBER_KING; ++i)
 			sum += kpp_kp_fb[list0[i]];
-		}
 		return sum;
 	}
 
@@ -513,10 +512,9 @@ namespace Eval
 		const auto* list1 = pos.eval_list()->piece_list_fw();
 
 		const auto* kpp_kp_fw = &kpp_ksq_pcpc(Inv(sq_wk), ebp.fw, BONA_PIECE_ZERO);
-		std::array<s32, 2> sum = { 0 , 0 };
-		for (int i = 0; i < PIECE_NUMBER_KING; ++i) {
+		std::array<s32, 2> sum = { kpp_kp_fw[list1[0]][0] , kpp_kp_fw[list1[0]][1] };
+		for (int i = 1; i < PIECE_NUMBER_KING; ++i)
 			sum += kpp_kp_fw[list1[i]];
-		}
 		return sum;
 	}
 
@@ -540,8 +538,8 @@ namespace Eval
 #if defined(USE_SSE2)
 		sum.m[0] = _mm_setzero_si128();
 #else
-		sum.p[0][0] = 0;
-		sum.p[1][0] = 0;
+		sum.p[0] = { 0,0 };
+		sum.p[1] = { 0,0 };
 #endif
 
 		// KKP
@@ -648,8 +646,8 @@ namespace Eval
 #if defined(USE_SSE2)
 		sum.m[0] = _mm_setzero_si128();
 #else
-		sum.p[0][0] = 0;
-		sum.p[1][0] = 0;
+		sum.p[0] = { 0 , 0 };
+		sum.p[1] = { 0 , 0 };
 #endif
 
 		// KKP
@@ -759,12 +757,11 @@ namespace Eval
 				const auto kpp_k_fw = &kpp_ksq_pcpc(Inv(sq_wk), BONA_PIECE_ZERO, BONA_PIECE_ZERO);
 
 				// ΣWKPP
-				diff.p[1][0] = 0;
-				diff.p[1][1] = 0;
+				diff.p[1] = { 0 , 0 };
 
 #if defined(USE_AVX2)
-				__m256i sum1_256 = _mm256_setzero_si256();
-				__m128i sum1_128 = _mm_setzero_si128();
+				__m256i zero = _mm256_setzero_si256();
+				__m256i diffp1 = zero;
 
 				for (int i = 0; i < PIECE_NUMBER_KING; ++i)
 				{
@@ -775,34 +772,54 @@ namespace Eval
 					const int k1 = list1[i];
 					const auto* kpp_kp_fw = kpp_k_fw + k1 * fe_end;
 					int j = 0;
-					for (; j + 8 < i; j += 8) {
-						__m256i index1 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list1 + j));
-						__m256i w1 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fw), index1, 2);
-						w1 = _mm256_slli_epi32(w1, 16);
-						w1 = _mm256_srai_epi32(w1, 16);
-						sum1_256 = _mm256_add_epi32(sum1_256, w1);
+					for (; j + 8 < i; j += 8)
+					{
+						// list1[j]から8要素ロードする
+						__m256i indexes = _mm256_load_si256(reinterpret_cast<const __m256i*>(&list1[j]));
+						// indexesのオフセットに従い、pkppwから8要素ギャザーする
+						__m256i w = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fw), indexes, 4);
+						// 下位128ビットを16ビット整数→32ビット整数に変換する
+						__m256i wlo = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w, 0));
+						// diffp1に足し合わせる
+						diffp1 = _mm256_add_epi32(diffp1, wlo);
+						// 上位128ビットを16ビット整数→32ビット整数に変換する
+						__m256i whi = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w, 1));
+						// diffp1に足し合わせる
+						diffp1 = _mm256_add_epi32(diffp1, whi);
 					}
 
 					for (; j + 4 < i; j += 4) {
-						__m128i index1 = _mm_load_si128(reinterpret_cast<const __m128i*>(list1 + j));
-						__m128i w1 = _mm_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fw), index1, 2);
-						w1 = _mm_slli_epi32(w1, 16);
-						w1 = _mm_srai_epi32(w1, 16);
-						sum1_128 = _mm_add_epi32(sum1_128, w1);
+						// list1[j]から4要素ロードする
+						__m128i indexes = _mm_load_si128(reinterpret_cast<const __m128i*>(&list1[j]));
+						// indexesのオフセットに従い、pkppwから4要素ギャザーする
+						__m128i w = _mm_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fw), indexes, 4);
+						// 16ビット整数→32ビット整数に変換する
+						__m256i wlo = _mm256_cvtepi16_epi32(w);
+						// diffp1に足し合わせる
+						diffp1 = _mm256_add_epi32(diffp1, wlo);
 					}
 
-					for (; j < i; ++j) {
-						diff.p[1] += kpp_kp_fw[list1[j]];
+					for (; j < i; ++j)
+					{
+						const int l1 = list1[j];
+						diff.p[1] += kpp_kp_fw[l1];
 					}
 				}
-				sum1_128 = _mm_add_epi32(sum1_128, _mm256_extracti128_si256(sum1_256, 0));
-				sum1_128 = _mm_add_epi32(sum1_128, _mm256_extracti128_si256(sum1_256, 1));
-				sum1_128 = _mm_add_epi32(sum1_128, _mm_srli_si128(sum1_128, 8));
-				sum1_128 = _mm_add_epi32(sum1_128, _mm_srli_si128(sum1_128, 4));
-				diff.p[1][0] += _mm_extract_epi32(sum1_128, 0);
+
+				// diffp1とdiffp1の上位128ビットと下位128ビットを独立して8バイトシフトしたものを足し合わせる
+				diffp1 = _mm256_add_epi32(diffp1, _mm256_srli_si256(diffp1, 8));
+				// diffp1の上位128ビットと下位128ビットを足しあわせてdiffp1_128に代入する
+				__m128i diffp1_128 = _mm_add_epi32(_mm256_extracti128_si256(diffp1, 0), _mm256_extracti128_si256(diffp1, 1));
+				// diffp1_128の下位64ビットをdiff.p[1]にストアする
+				std::array<int32_t, 2> diffp1_sum;
+				_mm_storel_epi64(reinterpret_cast<__m128i*>(&diffp1_sum), diffp1_128);
+				diff.p[1] += diffp1_sum;
+
 #else
 				for (int i = 0; i < PIECE_NUMBER_KING; ++i)
 				{
+					diff.p[2] += kkp[sq_bk][sq_wk][list0[i]];
+
 					const int k1 = list1[i];
 					const auto* kpp_kp_fw = kpp_k_fw + k1*fe_end;
 					for (int j = 0; j < i; ++j)
@@ -810,13 +827,6 @@ namespace Eval
 						const int l1 = list1[j];
 						diff.p[1] += kpp_kp_fw[l1];
 					}
-
-					// KKPのWK分。BKは移動していないから、BK側には影響ない。
-
-					// 後手から見たKKP。後手から見ているのでマイナス
-					diff.p[2][0] -= kkp[Inv(sq_wk)][Inv(sq_bk)][k1][0];
-					// 後手から見たKKP手番。後手から見るのでマイナスだが、手番は先手から見たスコアを格納するのでさらにマイナスになって、プラス。
-					diff.p[2][1] += kkp[Inv(sq_wk)][Inv(sq_bk)][k1][1];
 			}
 #endif
 
@@ -833,7 +843,7 @@ namespace Eval
 					list0[listIndex_cap] = dp.changed_piece[1].new_piece.fb;
 				}
 
-		}
+			}
 			else {
 
 				// 先手玉の移動
@@ -842,56 +852,74 @@ namespace Eval
 				const auto* kpp_k_fb = &kpp_ksq_pcpc(sq_bk, BONA_PIECE_ZERO, BONA_PIECE_ZERO);
 
 				// ΣBKPP
-				diff.p[0][0] = 0;
-				diff.p[0][1] = 0;
+				diff.p[0] = { 0 , 0 };
 
 #if defined(USE_AVX2)
-				__m256i sum0_256 = _mm256_setzero_si256();
-				__m128i sum0_128 = _mm_setzero_si128();
-
+				__m256i zero = _mm256_setzero_si256();
+				__m256i diffp0 = zero;
 				for (int i = 0; i < PIECE_NUMBER_KING; ++i)
 				{
 					const int k0 = list0[i];
 					const auto* kpp_kp_fb = kpp_k_fb + k0 * fe_end;
+
+					// KKP
+					diff.p[2] += kkp[sq_bk][sq_wk][k0];
+
 					int j = 0;
-					for (; j + 8 < i; j += 8) {
-						__m256i index0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list0 + j));
-						__m256i w0 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fb), index0, 2);
-						w0 = _mm256_slli_epi32(w0, 16);
-						w0 = _mm256_srai_epi32(w0, 16);
-						sum0_256 = _mm256_add_epi32(sum0_256, w0);
+					for (; j + 8 < i; j += 8)
+					{
+						// list0[j]から8要素ロードする
+						__m256i indexes = _mm256_load_si256(reinterpret_cast<const __m256i*>(&list0[j]));
+						// indexesのオフセットに従い、pkppwから8要素ギャザーする
+						__m256i w = _mm256_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fb), indexes, 4);
+						// 下位128ビットを16ビット整数→32ビット整数に変換する
+						__m256i wlo = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w, 0));
+						// diffp0に足し合わせる
+						diffp0 = _mm256_add_epi32(diffp0, wlo);
+						// 上位128ビットを16ビット整数→32ビット整数に変換する
+						__m256i whi = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w, 1));
+						// diffp0に足し合わせる
+						diffp0 = _mm256_add_epi32(diffp0, whi);
 					}
 
 					for (; j + 4 < i; j += 4) {
-						__m128i index0 = _mm_load_si128(reinterpret_cast<const __m128i*>(list0 + j));
-						__m128i w0 = _mm_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fb), index0, 2);
-						w0 = _mm_slli_epi32(w0, 16);
-						w0 = _mm_srai_epi32(w0, 16);
-						sum0_128 = _mm_add_epi32(sum0_128, w0);
+						// list0[j]から4要素ロードする
+						__m128i indexes = _mm_load_si128(reinterpret_cast<const __m128i*>(&list0[j]));
+						// indexesのオフセットに従い、pkppwから4要素ギャザーする
+						__m128i w = _mm_i32gather_epi32(reinterpret_cast<const int*>(kpp_kp_fb), indexes, 4);
+						// 16ビット整数→32ビット整数に変換する
+						__m256i wlo = _mm256_cvtepi16_epi32(w);
+						// diffp0に足し合わせる
+						diffp0 = _mm256_add_epi32(diffp0, wlo);
 					}
 
-					for (; j < i; ++j) {
-						diff.p[0] += kpp_kp_fb[list0[j]];
+					for (; j < i; ++j)
+					{
+						const int l0 = list0[j];
+						diff.p[0] += kpp_kp_fb[l0];
 					}
-
-					diff.p[2] += kkp[sq_bk][sq_wk][k0];
 				}
-				sum0_128 = _mm_add_epi32(sum0_128, _mm256_extracti128_si256(sum0_256, 0));
-				sum0_128 = _mm_add_epi32(sum0_128, _mm256_extracti128_si256(sum0_256, 1));
-				sum0_128 = _mm_add_epi32(sum0_128, _mm_srli_si128(sum0_128, 8));
-				sum0_128 = _mm_add_epi32(sum0_128, _mm_srli_si128(sum0_128, 4));
-				diff.p[0][0] += _mm_extract_epi32(sum0_128, 0);
+
+				// diffp0とdiffp0の上位128ビットと下位128ビットを独立して8バイトシフトしたものを足し合わせる
+				diffp0 = _mm256_add_epi32(diffp0, _mm256_srli_si256(diffp0, 8));
+				// diffp0の上位128ビットと下位128ビットを足しあわせてdiffp0_128に代入する
+				__m128i diffp0_128 = _mm_add_epi32(_mm256_extracti128_si256(diffp0, 0), _mm256_extracti128_si256(diffp0, 1));
+				// diffp0_128の下位64ビットをdiff.p[1]にストアする
+				std::array<int32_t, 2> diffp0_sum;
+				_mm_storel_epi64(reinterpret_cast<__m128i*>(&diffp0_sum), diffp0_128);
+				diff.p[0] += diffp0_sum;
 #else
 				for (int i = 0; i < PIECE_NUMBER_KING; ++i)
 				{
 					const int k0 = list0[i];
 					const auto* kpp_kp_fb = kpp_k_fb + k0 * fe_end;
-					for (int j = 0; j < i; ++j) {
+					for (int j = 0; j < i; ++j)
+					{
 						const int l0 = list0[j];
 						diff.p[0] += kpp_kp_fb[l0];
 					}
 					diff.p[2] += kkp[sq_bk][sq_wk][k0];
-			}
+				}
 #endif
 
 				if (moved_piece_num == 2) {
@@ -901,7 +929,7 @@ namespace Eval
 					diff.p[1] -= do_a_white(pos, dp.changed_piece[1].old_piece);
 					list1[listIndex_cap] = dp.changed_piece[1].new_piece.fw;
 				}
-	}
+			}
 
 			// sumの計算が終わったのでpos.state()->sumに反映させておく。(これがこの関数の返し値に相当する。)
 			now->sum = diff;
@@ -931,7 +959,7 @@ namespace Eval
 				auto sq_wk = pos.king_square(WHITE);
 
 				diff += do_a_pc(pos, dp.changed_piece[1].new_piece);
-				diff.p[0] -= kpp_ksq_pcpc(sq_bk, dp.changed_piece[0].new_piece.fb, dp.changed_piece[1].new_piece.fb);
+				diff.p[0] -= kpp_ksq_pcpc(    sq_bk , dp.changed_piece[0].new_piece.fb, dp.changed_piece[1].new_piece.fb);
 				diff.p[1] -= kpp_ksq_pcpc(Inv(sq_wk), dp.changed_piece[0].new_piece.fw, dp.changed_piece[1].new_piece.fw);
 
 				const PieceNumber listIndex_cap = dp.pieceNo[1];
@@ -943,7 +971,7 @@ namespace Eval
 				diff -= do_a_pc(pos, dp.changed_piece[0].old_piece);
 				diff -= do_a_pc(pos, dp.changed_piece[1].old_piece);
 
-				diff.p[0] += kpp_ksq_pcpc(sq_bk, dp.changed_piece[0].old_piece.fb, dp.changed_piece[1].old_piece.fb);
+				diff.p[0] += kpp_ksq_pcpc(    sq_bk , dp.changed_piece[0].old_piece.fb, dp.changed_piece[1].old_piece.fb);
 				diff.p[1] += kpp_ksq_pcpc(Inv(sq_wk), dp.changed_piece[0].old_piece.fw, dp.changed_piece[1].old_piece.fw);
 				list0[listIndex_cap] = dp.changed_piece[1].new_piece.fb;
 				list1[listIndex_cap] = dp.changed_piece[1].new_piece.fw;
@@ -1131,6 +1159,14 @@ namespace Eval
 
 			// あった！
 			sum = entry;
+
+			// このときにencoded_eval_kkが未初期化状態になるのは良くない(次のnodeで困る)ので更新する。
+			{
+				auto sq_bk = pos.king_square(BLACK);
+				auto sq_wk = pos.king_square(WHITE);
+				pos.state()->encoded_eval_kk = encode_to_eval_kk(sq_bk, sq_wk);
+			}
+
 			return Value(entry.sum(pos.side_to_move()) / FV_SCALE);
 		}
 		//		dbg_hit_on(false);
