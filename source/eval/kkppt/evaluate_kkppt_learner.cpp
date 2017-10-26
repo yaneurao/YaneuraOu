@@ -491,7 +491,7 @@ namespace Eval
 
 						// これを合わせたものがkkppテーブルに書き込まれるべき。
 						// ただし、[1]は手番自体の価値なので符号に注意すること。
-						kkpp_ksq_pcpc(k, p0, p1) = { bkpp[0] - wkpp[0] , bkpp[1] + wkpp[1] };
+						kkpp_ksq_pcpc(k, p0, p1) = { (s16)(bkpp[0] - wkpp[0]) , (s16)(bkpp[1] + wkpp[1]) };
 					}
 			}
 
