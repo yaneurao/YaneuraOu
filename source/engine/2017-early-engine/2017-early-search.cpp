@@ -375,7 +375,7 @@ namespace YaneuraOu2017Early
 		ss->currentMove = bestMove = MOVE_NONE;
 
 		// rootからの手数
-		ss->ply = (ss - 1)->ply + 1;
+		(ss + 1)->ply = ss->ply + 1;
 
 		// -----------------------
 		//    最大手数へ到達したか？
@@ -383,6 +383,8 @@ namespace YaneuraOu2017Early
 
 		if (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
 			return draw_value(REPETITION_DRAW, pos.side_to_move());
+
+		ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
 
 		// -----------------------
 		//     置換表のprobe
@@ -734,7 +736,7 @@ namespace YaneuraOu2017Early
 		const bool PvNode = NT == PV;
 
 		// root nodeであるか
-		const bool RootNode = PvNode && (ss - 1)->ply == 0;
+		const bool RootNode = PvNode && ss->ply == 0;
 
 		// -----------------------
 		//     変数宣言
@@ -777,12 +779,9 @@ namespace YaneuraOu2017Early
 
 		Thread* thisThread = pos.this_thread();
 
-		// rootからの手数
-		ss->ply = (ss - 1)->ply + 1;
-
 		// seldepthをGUIに出力するために、PVnodeであるならmaxPlyを更新してやる。
-		if (PvNode && thisThread->selDepth < ss->ply)
-			thisThread->selDepth = ss->ply;
+		if (PvNode && thisThread->selDepth < ss->ply + 1)
+			thisThread->selDepth = ss->ply + 1;
 
 		// -----------------------
 		//  Timerの監視
@@ -841,6 +840,10 @@ namespace YaneuraOu2017Early
 
 		// historyの合計値を計算してcacheしておく用。
 		ss->statScore = 0;
+
+		// rootからの手数
+		ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
+		(ss + 1)->ply = ss->ply + 1;
 
 		ss->currentMove = MOVE_NONE;
 		ss->contHistory = &thisThread->counterMoveHistory[SQ_ZERO][NO_PIECE];

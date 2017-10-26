@@ -270,7 +270,7 @@
 //#define BONA_PIECE_INVERSE_HACK
 
 //#define EVAL_KPPT
-//#define EVAL_KPP_KKPT
+#define EVAL_KPP_KKPT
 
 //#define USE_HELICES_MIRROR
 //#define EVAL_HELICES 81
@@ -284,7 +284,7 @@
 //#define EVAL_KPPPT 18
 
 //#define EVAL_KKPP_KKPT 36
-#define EVAL_KKPPT 36
+//#define EVAL_KKPPT 36
 
 //#define EVAL_NABLA
 
