@@ -201,9 +201,7 @@ namespace Eval {
 	struct ExtBonaPiece
 	{
 		BonaPiece fb; // from black
-#if !defined(BONA_PIECE_INVERSE_HACK)
 		BonaPiece fw; // from white
-#endif
 	};
 
 	// BonaPiece、f側だけを表示する。
@@ -224,55 +222,32 @@ namespace Eval {
 	extern ExtBonaPiece kpp_board_index[PIECE_NB];
 
 	// KPPの手駒テーブル
-#if !defined( BONA_PIECE_INVERSE_HACK)
 	extern ExtBonaPiece kpp_hand_index[COLOR_NB][KING];
-#else
-	extern ExtBonaPiece kpp_hand_index[KING];
-#endif
 
 	// 評価関数で用いる駒リスト。どの駒(PieceNumber)がどこにあるのか(BonaPiece)を保持している構造体
 	struct EvalList
 	{
 		// 評価関数(FV38型)で用いる駒番号のリスト
 		BonaPiece* piece_list_fb() const { return const_cast<BonaPiece*>(pieceListFb); }
-#if !defined(BONA_PIECE_INVERSE_HACK)
 		BonaPiece* piece_list_fw() const { return const_cast<BonaPiece*>(pieceListFw); }
-#endif
 
 		// 指定されたpiece_noの駒をExtBonaPiece型に変換して返す。
 		ExtBonaPiece bona_piece(PieceNumber piece_no) const
 		{
 			ExtBonaPiece bp;
 			bp.fb = pieceListFb[piece_no];
-#if !defined(BONA_PIECE_INVERSE_HACK)
 			bp.fw = pieceListFw[piece_no];
-#endif
 			return bp;
 		}
 
 		// 盤上のsqの升にpiece_noのpcの駒を配置する
 		void put_piece(PieceNumber piece_no, Square sq, Piece pc) {
-#if !defined(BONA_PIECE_INVERSE_HACK)
 			set_piece_on_board(piece_no, BonaPiece(kpp_board_index[pc].fb + sq), BonaPiece(kpp_board_index[pc].fw + Inv(sq)),sq);
-#else
-			if (color_of(pc) == BLACK)
-				set_piece_on_board(piece_no, BonaPiece(kpp_board_index[pc].fb + sq), sq);
-			else
-				set_piece_on_board(piece_no, BonaPiece(kpp_board_index[type_of(pc)].fb + Inv(sq) + fe_end / 2), sq);
-			// type_of()で先手の駒化して、Inv(sq)で180度回転させた升にあるBonaPieceを求め、そこにfe_end/2を足してBonaPieceとしてinverseしている。
-#endif
 		}
 
 		// c側の手駒ptのi+1枚目の駒のPieceNumberを設定する。(1枚目の駒のPieceNumberを設定したいならi==0にして呼び出すの意味)
 		void put_piece(PieceNumber piece_no, Color c, Piece pt, int i) {
-#if !defined(BONA_PIECE_INVERSE_HACK)
 			set_piece_on_hand(piece_no, BonaPiece(kpp_hand_index[c][pt].fb + i), BonaPiece(kpp_hand_index[c][pt].fw + i));
-#else
-			if (c == BLACK)
-				set_piece_on_hand(piece_no, BonaPiece(kpp_hand_index[pt].fb + i));
-			else
-				set_piece_on_hand(piece_no, BonaPiece(kpp_hand_index[pt].fb + i + fe_end / 2));
-#endif
 		}
 
 		// あるBonaPieceに対応するPieceNumberを返す。
@@ -289,12 +264,12 @@ namespace Eval {
 			for (auto& p : pieceListFb)
 				p = BONA_PIECE_ZERO;
 
-#if !defined(BONA_PIECE_INVERSE_HACK)
 			for (auto& p : pieceListFw)
 				p = BONA_PIECE_ZERO;
-#endif
+
 			for (auto& v : piece_no_list_hand)
 				v = PIECE_NUMBER_NB;
+
 			for (auto& v : piece_no_list_board)
 				v = PIECE_NUMBER_NB;
 		}
@@ -302,52 +277,48 @@ namespace Eval {
 	protected:
 
 		// 盤上sqにあるpiece_noの駒のBonaPieceがfb,fwであることを設定する。
-		inline void set_piece_on_board(PieceNumber piece_no, BonaPiece fb
-#if !defined(BONA_PIECE_INVERSE_HACK)
-			, BonaPiece fw
-#endif
-			, Square sq)
+		inline void set_piece_on_board(PieceNumber piece_no, BonaPiece fb , BonaPiece fw, Square sq)
 		{
 			ASSERT_LV3(is_ok(piece_no));
 			pieceListFb[piece_no] = fb;
-#if !defined(BONA_PIECE_INVERSE_HACK)
 			pieceListFw[piece_no] = fw;
-#endif
 			piece_no_list_board[sq] = piece_no;
 		}
 
 		// 手駒であるpiece_noの駒のBonaPieceがfb,fwであることを設定する。
-		inline void set_piece_on_hand(PieceNumber piece_no, BonaPiece fb
-#if !defined(BONA_PIECE_INVERSE_HACK)
-			, BonaPiece fw
-#endif
-		)
+		inline void set_piece_on_hand(PieceNumber piece_no, BonaPiece fb, BonaPiece fw)
 		{
 			ASSERT_LV3(is_ok(piece_no));
 			pieceListFb[piece_no] = fb;
-#if !defined(BONA_PIECE_INVERSE_HACK)
 			pieceListFw[piece_no] = fw;
-#endif
 			piece_no_list_hand[fb] = piece_no;
 		}
 
 		// 駒リスト。駒番号(PieceNumber)いくつの駒がどこにあるのか(BonaPiece)を示す。FV38などで用いる。
-#if (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_NABLA)) && defined(USE_AVX2)
+
+		// 駒リストの長さ
+#if defined(USE_FV38)
+		// 38固定
+		int length() const { return PIECE_NUMBER_KING; }
+		static const int max_length = PIECE_NUMBER_KING;
+#elif defined(USE_FV_VAR)
+		// 可変長piece_list
+		int length() const { return length_; }
+		int length_;
+		static const int max_length = 38 + 6; // とりま6だけ拡張しとく。あとで考える。
+#endif
+
+#if defined(USE_AVX2)
 		// AVX2を用いたKPPT評価関数は高速化できるので特別扱い。
 		// Skylake以降でないとほぼ効果がないが…。
 
 		// AVX2の命令でアクセスするのでalignas(32)が必要。
-		alignas(32) BonaPiece pieceListFb[PIECE_NUMBER_NB];
-#if !defined(BONA_PIECE_INVERSE_HACK)
-		alignas(32) BonaPiece pieceListFw[PIECE_NUMBER_NB];
-#endif
+		alignas(32) BonaPiece pieceListFb[max_length];
+		alignas(32) BonaPiece pieceListFw[max_length];
 
 #else
-		BonaPiece pieceListFb[PIECE_NUMBER_NB];
-
-#if !defined(BONA_PIECE_INVERSE_HACK)
-		BonaPiece pieceListFw[PIECE_NUMBER_NB];
-#endif
+		BonaPiece pieceListFb[max_length];
+		BonaPiece pieceListFw[max_length];
 
 #endif
 
@@ -377,4 +348,4 @@ namespace Eval {
 #endif
 }
 
-#endif // #ifndef EVALUATE_H
+#endif // #ifndef _EVALUATE_H_

@@ -39,7 +39,6 @@ namespace Eval
     VALUE_ZERO, ProPawnValue - PawnValue, ProLanceValue - LanceValue, ProKnightValue - KnightValue, ProSilverValue - SilverValue, HorseValue - BishopValue, DragonValue - RookValue, VALUE_ZERO ,
   };
 
-#if !defined( BONA_PIECE_INVERSE_HACK)
   ExtBonaPiece kpp_board_index[PIECE_NB] = {
     { BONA_PIECE_ZERO, BONA_PIECE_ZERO },
     { f_pawn, e_pawn },
@@ -99,39 +98,6 @@ namespace Eval
       { e_hand_gold, f_hand_gold },
     },
   };
-#else
-
-  // BONA_PIECE_INVERSE_HACKが有効なときは、後手から見た値が不要になる。(fe_end/2を加算するだけで求まるため)
-
-  ExtBonaPiece kpp_board_index[PIECE_NB] = {
-	BONA_PIECE_ZERO ,
-	f_pawn   ,
-	f_lance  , 
-	f_knight ,
-	f_silver ,
-	f_bishop ,
-	f_rook   ,
-	f_gold   ,
-	f_king   ,
-	f_gold   ,// 成歩
-	f_gold   ,// 成香
-	f_gold   ,// 成桂
-	f_gold   ,// 成銀
-	f_horse  ,// 馬
-	f_dragon , // 龍
-	BONA_PIECE_ZERO, BONA_PIECE_ZERO , // 金の成りはない
-  };
-  ExtBonaPiece kpp_hand_index[KING] = {
-	BONA_PIECE_ZERO,
-	f_hand_pawn    ,
-	f_hand_lance   ,
-	f_hand_knight  ,
-	f_hand_silver  ,
-	f_hand_bishop  ,
-	f_hand_rook    ,
-	f_hand_gold    ,
-  };
-#endif
 
   // BonaPieceの内容を表示する。手駒ならH,盤上の駒なら升目。例) HP3 (3枚目の手駒の歩)
   std::ostream& operator<<(std::ostream& os, BonaPiece bp)

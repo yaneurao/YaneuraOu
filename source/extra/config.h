@@ -209,17 +209,6 @@
 // これをdefineすると、extra/kif_converter/ フォルダにある棋譜や指し手表現の変換を行なう関数群が使用できるようになる。
 // #define USE_KIF_CONVERT_TOOLS
 
-// BonaPiece型で、inverse(盤面を180度回転させたときの駒を求める関数)を次の計算で済むようにするためにBonaPieceの定義を変更する。
-// xは、
-//   x < fe_end/2
-// を満たし、同時に、先手の盤上の駒もしくは先手の手駒として、
-//    BonaPiece inverse(x) = { return x + fe_end/2;}
-// こうなっていれば、inverse()に表引きが不要になる。
-// ただし、評価関数ファイルの互換性はなくなるので注意。
-// たぶん数%速くなる程度なので、SDT5が終わってから実装することにする。
-// cf. http://yaneuraou.yaneu.com/2017/10/13/bonapiece-inverse-hack%E3%81%A8%E3%81%AF%E4%BD%95%E3%81%8B%EF%BC%9F/
-// #define BONA_PIECE_INVERSE_HACK
-
 // --------------------
 // release configurations
 // --------------------
@@ -266,8 +255,6 @@
 // 極やねうら王(非公開)
 #if defined(YANEURAOU_2017_GOKU_ENGINE)
 #define ENGINE_NAME "YaneuraOu 2017 GOKU"
-
-//#define BONA_PIECE_INVERSE_HACK
 
 //#define EVAL_KPPT
 #define EVAL_KPP_KKPT
@@ -727,8 +714,8 @@ inline int MKDIR(std::string dir_name)
 #endif
 
 // P(駒)の数が増えたり減ったりするタイプの差分計算用
-// 平均的には30枚以下のPで済むのでこの方式をFV30と命名
-//#define USE_FV30
+// FV38とは異なり、可変長piece_list。
+//#define USE_FV_VAR
 
 // -- 評価関数の種類により、盤面の利きの更新ときの処理が異なる。(このタイミングで評価関数の差分計算をしたいので)
 
