@@ -23,6 +23,7 @@ extern std::string SFEN_HIRATE;
 #if defined (USE_FV38)
 // 評価値の差分計算の管理用
 // 前の局面から移動した駒番号を管理するための構造体
+// 動く駒は、最大で2個。
 struct DirtyPiece
 {
 	// その駒番号の駒が何から何に変わったのか
@@ -36,6 +37,47 @@ struct DirtyPiece
 	// 動く駒と取られる駒とで最大で2つ。
 	int dirty_num;
 
+};
+#endif
+
+#if defined (USE_FV_VAR)
+
+// vector<BonaPiece>みたいなコンテナ。
+// 駒の移動の際に追加になる駒/削除される駒を管理するコンテナ。
+struct BonaPieceList
+{
+	static const int MAX_LENGTH = 4;
+
+	Eval::BonaPiece at(int index) const { return pieces[index]; }
+	int length() const { return length_; }
+	void clear() { length_ = 0; }
+	void insert(Eval::BonaPiece p) {
+		ASSERT_LV3(length_ != MAX_LENGTH);
+		pieces[length_++] = p;
+	}
+
+	// range-based forで使いたいのでbegin(),end()を定義しておく。
+	Eval::BonaPiece* begin() { return &(pieces[0]); }
+	Eval::BonaPiece* end() { return &(pieces[length_]); }
+private:
+	Eval::BonaPiece pieces[MAX_LENGTH];
+	int length_;
+};
+
+// 評価値の差分計算の管理用
+// 前の局面から移動した駒番号を管理するための構造体
+// 動く駒の数は可変。まあ、最大で4個でいいと思う。
+struct DirtyPiece
+{
+	// 追加になる駒(玉は除く)
+	BonaPieceList add_list;
+
+	// 削除される駒(玉は除く)
+	BonaPieceList remove_list;
+
+	// 玉が移動した場合は、この変数の値がBLACK/WHITEになる。
+	// 玉の移動がない場合は、COLOR_NB。
+	Color moved_king;
 };
 #endif
 
@@ -112,7 +154,7 @@ struct StateInfo
 	int encoded_eval_kk;
 	#endif
 
-	#if defined(USE_FV38)
+	#if defined(USE_FV38) || defined(USE_FV_VAR)
 	// 評価値の差分計算の管理用
 	DirtyPiece dirtyPiece;
 	#endif
@@ -649,8 +691,17 @@ private:
 	// また、put_piece_simple()は、put_piece()の王の升(kingSquare)を更新しない版。do_move()で用いる。
 
 	// 駒を配置して、内部的に保持しているBitboardなどを更新する。
-	void put_piece(Square sq, Piece pc, PieceNumber piece_no);
-	void put_piece_simple(Square sq, Piece pc, PieceNumber piece_no);
+	// 注意 : kingを配置したときには、このクラスのkingSqaure[]を更新しないといけないが、
+	// この関数のなかでは行っていないので呼び出し側で更新すること。
+	// 例) 
+	// if (type_of(pc) == KING)
+	//		kingSquare[color_of(pc)] = sq;
+	// もしくはupdate_kingSquare()を呼び出すこと。
+	void put_piece(Square sq, Piece pc
+#if defined(USE_FV38)
+		, PieceNumber piece_no
+#endif	
+	);
 
 	// 駒を盤面から取り除き、内部的に保持しているBitboardも更新する。
 	void remove_piece(Square sq);
@@ -662,7 +713,12 @@ private:
 	// put_piece(),remove_piece(),xor_piece()を用いたあとに呼び出す必要がある。
 	void update_bitboards();
 
-#if !defined(EVAL_NO_USE)
+	// このクラスが保持しているkingSquare[]の更新。
+	// put_piece(),remove_piece(),xor_piece()では玉の位置(kingSquare[])を
+	// 更新してくれないので、自前で更新するか、一連の処理のあとにこの関数を呼び出す必要がある。
+	void update_kingSquare();
+
+#if defined(USE_FV38)
 	// --- 盤面を更新するときにEvalListの更新のために必要なヘルパー関数
 
 	// c側の手駒ptの最後の1枚のBonaPiece番号を返す
@@ -684,6 +740,8 @@ private:
 		ASSERT_LV3(is_ok(n));
 		return n;
 	}
+#elif defined(USE_FV_VAR)
+
 #else
 	// 駒番号を使わないとき用のダミー
 	PieceNumber piece_no_of(Color c, Piece pt) const { return PIECE_NUMBER_ZERO; }
@@ -737,36 +795,23 @@ inline void Position::xor_piece(Piece pc, Square sq)
 }
 
 // 駒を配置して、内部的に保持しているBitboardも更新する。
-inline void Position::put_piece(Square sq, Piece pc,PieceNumber piece_no)
+inline void Position::put_piece(Square sq, Piece pc
+#if defined(USE_FV38)
+	,PieceNumber piece_no
+#endif
+)
 {
 	ASSERT_LV2(board[sq] == NO_PIECE);
 	board[sq] = pc;
 	xor_piece(pc, sq);
 
+#if defined (USE_FV38)
 	// 駒番号をセットしておく必要がある。
 	ASSERT_LV3(is_ok(piece_no));
-
-#if !defined (EVAL_NO_USE)
 	// evalListのほうを更新しないといけない
 	evalList.put_piece(piece_no, sq, pc); // sqの升にpcの駒を配置する
-#endif
-
-	// 王なら、その升を記憶しておく。
-	// (王の升はBitboardなどをみればわかるが、頻繁にアクセスするのでcacheしている。)
-	if (type_of(pc) == KING)
-		kingSquare[color_of(pc)] = sq;
-}
-
-// put_piece()の王の升(kingSquare)を更新しない版
-inline void Position::put_piece_simple(Square sq, Piece pc, PieceNumber piece_no)
-{
-	ASSERT_LV2(board[sq] == NO_PIECE);
-	board[sq] = pc;
-	xor_piece(pc, sq);
-
-#if !defined(EVAL_NO_USE)
-	ASSERT_LV3(is_ok(piece_no));
-	evalList.put_piece(piece_no, sq, pc);
+#elif defined(USE_FV_VAR)
+	evalList.put_piece(sq, pc); // sqの升にpcの駒を配置する
 #endif
 }
 

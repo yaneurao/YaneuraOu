@@ -231,6 +231,7 @@ namespace Eval {
 		BonaPiece* piece_list_fb() const { return const_cast<BonaPiece*>(pieceListFb); }
 		BonaPiece* piece_list_fw() const { return const_cast<BonaPiece*>(pieceListFw); }
 
+#if defined(USE_FV38)
 		// 指定されたpiece_noの駒をExtBonaPiece型に変換して返す。
 		ExtBonaPiece bona_piece(PieceNumber piece_no) const
 		{
@@ -255,12 +256,26 @@ namespace Eval {
 		// 盤上のある升sqに対応するPieceNumberを返す。
 		PieceNumber piece_no_of_board(Square sq) const { return piece_no_list_board[sq]; }
 
+#elif defined(USE_FV_VAR)
+
+		// 盤上のsqの升にpiece_noのpcの駒を配置する
+		void put_piece(Square sq, Piece pc) {
+			add(BonaPiece(kpp_board_index[pc].fb + sq), BonaPiece(kpp_board_index[pc].fw + Inv(sq)));
+		}
+
+		// c側の手駒ptのi+1枚目の駒のPieceNumberを設定する。(1枚目の駒のPieceNumberを設定したいならi==0にして呼び出すの意味)
+		void put_piece( Color c, Piece pt, int i) {
+			add(BonaPiece(kpp_hand_index[c][pt].fb + i), BonaPiece(kpp_hand_index[c][pt].fw + i));
+		}
+#endif
+
 		// pieceListを初期化する。
 		// 駒落ちに対応させる時のために、未使用の駒の値はBONA_PIECE_ZEROにしておく。
 		// 通常の評価関数を駒落ちの評価関数として流用できる。
 		// piece_no_listのほうはデバッグが捗るようにPIECE_NUMBER_NBで初期化。
 		void clear()
 		{
+#if defined(USE_FV38)
 			for (auto& p : pieceListFb)
 				p = BONA_PIECE_ZERO;
 
@@ -272,10 +287,45 @@ namespace Eval {
 
 			for (auto& v : piece_no_list_board)
 				v = PIECE_NUMBER_NB;
+#endif
+
+#if defined(USE_FV_VAR)
+			// listが可変のときはadd/removeで増やしていくのでこれで十分。
+			length_ = 0;
+#endif
 		}
+
+#if defined(USE_FV_VAR)
+		// list長が可変のときは、add()/remove()をサポートする。
+
+		// listにadd()する。
+		void add(BonaPiece fb , BonaPiece fw)
+		{
+			pieceListFb[length_] = fb;
+			pieceListFw[length_] = fw;
+
+			bonapiece_to_piece_number[fb] = length_;
+			length_++;
+		}
+
+		// listからremoveする。
+		void remove(BonaPiece fb)
+		{
+			--length_;
+			
+			BonaPiece last_fb = pieceListFb[length_];
+			BonaPiece last_fw = pieceListFw[length_];
+
+			// この番号のものを末尾のものと入れ替える(末尾のfb,fwがここに埋まる)
+			int pn = bonapiece_to_piece_number[fb];
+			pieceListFb[pn] = last_fb;
+			pieceListFw[pn] = last_fw;
+		}
+#endif
 
 	protected:
 
+#if defined(USE_FV38)
 		// 盤上sqにあるpiece_noの駒のBonaPieceがfb,fwであることを設定する。
 		inline void set_piece_on_board(PieceNumber piece_no, BonaPiece fb , BonaPiece fw, Square sq)
 		{
@@ -293,6 +343,7 @@ namespace Eval {
 			pieceListFw[piece_no] = fw;
 			piece_no_list_hand[fb] = piece_no;
 		}
+#endif
 
 		// 駒リスト。駒番号(PieceNumber)いくつの駒がどこにあるのか(BonaPiece)を示す。FV38などで用いる。
 
@@ -309,7 +360,7 @@ namespace Eval {
 		int length() const { return length_; }
 		static const int MAX_LENGTH = 38 + 6; // VPGATHERDDを使う都合、4の倍数でなければならない。とりま6だけ拡張しとく。
 	private:
-		int length_;
+		int length_ = 0;
 #endif
 
 #if defined(USE_AVX2)
@@ -326,6 +377,7 @@ namespace Eval {
 
 #endif
 
+#if defined(USE_FV38)
 		// 手駒である、任意のBonaPieceに対して、その駒番号(PieceNumber)を保持している配列
 		PieceNumber piece_no_list_hand[fe_hand_end];
 
@@ -333,6 +385,14 @@ namespace Eval {
 		// 玉がSQ_NBに移動しているとき用に+1まで保持しておくが、
 		// SQ_NBの玉を移動させないので、この値を使うことはないはず。
 		PieceNumber piece_no_list_board[SQ_NB_PLUS1];
+#endif
+
+#if defined(USE_FV_VAR)
+
+		// あるBonaPiece(fb)のPieceNumberを求めるテーブル
+		// fe_endが大きいとこのテーブルが肥大化するので、working setを小さく保つためにu8で確保する。
+		u8 bonapiece_to_piece_number[fe_end];
+#endif
 	};
 #endif
 
