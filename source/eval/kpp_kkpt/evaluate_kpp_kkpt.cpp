@@ -253,6 +253,7 @@ namespace Eval
 		const auto* ppkppw = kpp[Inv(sq_wk)];
 
 		auto& pos_ = *const_cast<Position*>(&pos);
+		const int length = pos_.eval_list()->length();
 
 #if !defined (USE_EVAL_MAKE_LIST_FUNCTION)
 
@@ -292,7 +293,7 @@ namespace Eval
 		// KK
 		sum.p[2] = kk[sq_bk][sq_wk];
 
-		for (i = 0; i < PIECE_NUMBER_KING; ++i)
+		for (i = 0; i < length; ++i)
 		{
 			k0 = list_fb[i];
 			k1 = list_fw[i];
@@ -331,11 +332,12 @@ namespace Eval
 	s32 do_a_black(const Position& pos, const ExtBonaPiece ebp) {
 		const Square sq_bk = pos.king_square(BLACK);
 		const auto* list0 = pos.eval_list()->piece_list_fb();
+		const int length = pos.eval_list()->length();
 
 		const auto* pkppb = kpp[sq_bk][ebp.fb];
 
-		s32 sum = 0;
-		for (int i = 0; i < PIECE_NUMBER_KING; ++i)
+		s32 sum = pkppb[list0[0]];
+		for (int i = 1; i < length; ++i)
 			sum += pkppb[list0[i]];
 
 		return sum;
@@ -345,11 +347,12 @@ namespace Eval
 	s32 do_a_white(const Position& pos, const ExtBonaPiece ebp) {
 		const Square sq_wk = pos.king_square(WHITE);
 		const auto* list1 = pos.eval_list()->piece_list_fw();
+		const int length = pos.eval_list()->length();
 
 		const auto* pkppw = kpp[Inv(sq_wk)][ebp.fw];
 
-		s32 sum = 0;
-		for (int i = 0; i < PIECE_NUMBER_KING; ++i)
+		s32 sum = pkppw[list1[0]];
+		for (int i = 1; i < length ; ++i)
 			sum += pkppw[list1[i]];
 
 		return sum;
@@ -368,6 +371,7 @@ namespace Eval
 		const Square sq_wk = pos.king_square(WHITE);
 		const auto list0 = pos.eval_list()->piece_list_fb();
 		const auto list1 = pos.eval_list()->piece_list_fw();
+		const int length = pos.eval_list()->length();
 
 		EvalSum sum;
 
@@ -407,7 +411,7 @@ namespace Eval
         __m256i sum0 = _mm256_setzero_si256();
         __m256i sum1 = _mm256_setzero_si256();
         int i = 0;
-        for (; i + 8 < PIECE_NUMBER_KING; i += 8) {
+        for (; i + 8 < length; i += 8) {
             __m256i index0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(list0 + i));
             __m256i w0 = _mm256_i32gather_epi32(reinterpret_cast<const int*>(pkppb), index0, 2);
             w0 = _mm256_slli_epi32(w0, 16);
@@ -422,7 +426,10 @@ namespace Eval
         }
 
         // 端数の6要素分の処理
-        {
+		// ※　ここ38固定の処理になっている。
+		// 　ここを可変の処理にするには、evaluate_kkpp_kkpt.cppのようにすべき。
+		//　 いまのところメリットがないのでここは変更しないでおく。
+		{
             __m256i w0 = _mm256_set_epi32(
                 0,
                 0,
@@ -458,7 +465,7 @@ namespace Eval
 #else
         sum.p[0][0] = pkppb[list0[0]];
         sum.p[1][0] = pkppw[list1[0]];
-        for (int i = 1; i < PIECE_NUMBER_KING; ++i) {
+        for (int i = 1; i < length; ++i) {
             sum.p[0][0] += pkppb[list0[i]];
             sum.p[1][0] += pkppw[list1[i]];
         }
@@ -517,6 +524,7 @@ namespace Eval
 
 		auto list0 = pos.eval_list()->piece_list_fb();
 		auto list1 = pos.eval_list()->piece_list_fw();
+		auto length = pos.eval_list()->length();
 
 		auto dirty = dp.pieceNo[0];
 
@@ -548,7 +556,7 @@ namespace Eval
                 __m256i sum1_256 = _mm256_setzero_si256();
                 __m128i sum1_128 = _mm_setzero_si128();
 
-                for (int i = 0; i < PIECE_NUMBER_KING; ++i)
+                for (int i = 0; i < length ; ++i)
                 {
 					// KKPの値は、後手側から見た計算だとややこしいので、先手から見た計算でやる。
 					// 後手から見た場合、kkp[inv(sq_wk)][inv(sq_bk)][k1]になるが、これ次元下げで同じ値を書いているとは限らない。
@@ -583,7 +591,7 @@ namespace Eval
                 sum1_128 = _mm_add_epi32(sum1_128, _mm_srli_si128(sum1_128, 4));
                 diff.p[1][0] += _mm_extract_epi32(sum1_128, 0);
 #else
-				for (int i = 0; i < PIECE_NUMBER_KING; ++i)
+				for (int i = 0; i < length ; ++i)
 				{
 					diff.p[2] += kkp[sq_bk][sq_wk][list0[i]];
 
@@ -624,7 +632,7 @@ namespace Eval
                 __m256i sum0_256 = _mm256_setzero_si256();
                 __m128i sum0_128 = _mm_setzero_si128();
 
-                for (int i = 0; i < PIECE_NUMBER_KING; ++i)
+                for (int i = 0; i < length ; ++i)
                 {
                     const int k0 = list0[i];
                     const auto* pkppb = ppkppb[k0];
@@ -657,7 +665,7 @@ namespace Eval
                 sum0_128 = _mm_add_epi32(sum0_128, _mm_srli_si128(sum0_128, 4));
                 diff.p[0][0] += _mm_extract_epi32(sum0_128, 0);
 #else
-                for (int i = 0; i < PIECE_NUMBER_KING; ++i)
+                for (int i = 0; i < length ; ++i)
                 {
                     const int k0 = list0[i];
                     const auto* pkppb = ppkppb[k0];
@@ -706,7 +714,7 @@ namespace Eval
 				auto sq_wk = pos.king_square(WHITE);
 
 				diff += do_a_pc(pos, dp.changed_piece[1].new_piece);
-				diff.p[0][0] -= kpp[sq_bk][dp.changed_piece[0].new_piece.fb][dp.changed_piece[1].new_piece.fb];
+				diff.p[0][0] -= kpp[    sq_bk ][dp.changed_piece[0].new_piece.fb][dp.changed_piece[1].new_piece.fb];
 				diff.p[1][0] -= kpp[Inv(sq_wk)][dp.changed_piece[0].new_piece.fw][dp.changed_piece[1].new_piece.fw];
 
 				const PieceNumber listIndex_cap = dp.pieceNo[1];
@@ -718,7 +726,7 @@ namespace Eval
 				diff -= do_a_pc(pos, dp.changed_piece[0].old_piece);
 				diff -= do_a_pc(pos, dp.changed_piece[1].old_piece);
 
-				diff.p[0][0] += kpp[sq_bk][dp.changed_piece[0].old_piece.fb][dp.changed_piece[1].old_piece.fb];
+				diff.p[0][0] += kpp[    sq_bk ][dp.changed_piece[0].old_piece.fb][dp.changed_piece[1].old_piece.fb];
 				diff.p[1][0] += kpp[Inv(sq_wk)][dp.changed_piece[0].old_piece.fw][dp.changed_piece[1].old_piece.fw];
 				list0[listIndex_cap] = dp.changed_piece[1].new_piece.fb;
 				list1[listIndex_cap] = dp.changed_piece[1].new_piece.fw;

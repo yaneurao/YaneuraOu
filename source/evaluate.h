@@ -299,13 +299,17 @@ namespace Eval {
 		// 駒リストの長さ
 #if defined(USE_FV38)
 		// 38固定
+	public:
 		int length() const { return PIECE_NUMBER_KING; }
-		static const int max_length = PIECE_NUMBER_KING;
+		static const int MAX_LENGTH = 40; // VPGATHERDDを使う都合、4の倍数でなければならない。
+	private:
 #elif defined(USE_FV_VAR)
 		// 可変長piece_list
+	public:
 		int length() const { return length_; }
+		static const int MAX_LENGTH = 38 + 6; // VPGATHERDDを使う都合、4の倍数でなければならない。とりま6だけ拡張しとく。
+	private:
 		int length_;
-		static const int max_length = 38 + 6; // とりま6だけ拡張しとく。あとで考える。
 #endif
 
 #if defined(USE_AVX2)
@@ -313,12 +317,12 @@ namespace Eval {
 		// Skylake以降でないとほぼ効果がないが…。
 
 		// AVX2の命令でアクセスするのでalignas(32)が必要。
-		alignas(32) BonaPiece pieceListFb[max_length];
-		alignas(32) BonaPiece pieceListFw[max_length];
+		alignas(32) BonaPiece pieceListFb[MAX_LENGTH];
+		alignas(32) BonaPiece pieceListFw[MAX_LENGTH];
 
 #else
-		BonaPiece pieceListFb[max_length];
-		BonaPiece pieceListFw[max_length];
+		BonaPiece pieceListFb[MAX_LENGTH];
+		BonaPiece pieceListFw[MAX_LENGTH];
 
 #endif
 
