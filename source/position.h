@@ -691,17 +691,14 @@ private:
 	// また、put_piece_simple()は、put_piece()の王の升(kingSquare)を更新しない版。do_move()で用いる。
 
 	// 駒を配置して、内部的に保持しているBitboardなどを更新する。
-	// 注意 : kingを配置したときには、このクラスのkingSqaure[]を更新しないといけないが、
+	// 注意1 : kingを配置したときには、このクラスのkingSqaure[]を更新しないといけないが、
 	// この関数のなかでは行っていないので呼び出し側で更新すること。
+	// 注意2 : evalListのほうの更新もこの関数のなかでは行っていないので必要ならば呼び出し側で更新すること。
 	// 例) 
 	// if (type_of(pc) == KING)
 	//		kingSquare[color_of(pc)] = sq;
 	// もしくはupdate_kingSquare()を呼び出すこと。
-	void put_piece(Square sq, Piece pc
-#if defined(USE_FV38)
-		, PieceNumber piece_no
-#endif	
-	);
+	void put_piece(Square sq, Piece pc);
 
 	// 駒を盤面から取り除き、内部的に保持しているBitboardも更新する。
 	void remove_piece(Square sq);
@@ -795,24 +792,11 @@ inline void Position::xor_piece(Piece pc, Square sq)
 }
 
 // 駒を配置して、内部的に保持しているBitboardも更新する。
-inline void Position::put_piece(Square sq, Piece pc
-#if defined(USE_FV38)
-	,PieceNumber piece_no
-#endif
-)
+inline void Position::put_piece(Square sq, Piece pc)
 {
 	ASSERT_LV2(board[sq] == NO_PIECE);
 	board[sq] = pc;
 	xor_piece(pc, sq);
-
-#if defined (USE_FV38)
-	// 駒番号をセットしておく必要がある。
-	ASSERT_LV3(is_ok(piece_no));
-	// evalListのほうを更新しないといけない
-	evalList.put_piece(piece_no, sq, pc); // sqの升にpcの駒を配置する
-#elif defined(USE_FV_VAR)
-	evalList.put_piece(sq, pc); // sqの升にpcの駒を配置する
-#endif
 }
 
 // 駒を盤面から取り除き、内部的に保持しているBitboardも更新する。

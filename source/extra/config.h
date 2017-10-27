@@ -97,7 +97,7 @@
 // 「？」がついているもの..実装するかも
 // 「！」がついているもの..かつて実装していたがサポートを終了したもの。
 
-// #define EVAL_NO_USE    // ○  評価関数を用いないとき。
+// #define EVAL_NO_USE    // ！　評価関数なし。※4
 // #define EVAL_MATERIAL  // ○  駒得のみの評価関数
 // #define EVAL_PP        // ×  ツツカナ型 2駒関係(開発予定なし)
 // #define EVAL_KPP       // ！  Bonanza型 3駒関係、手番なし
@@ -116,9 +116,11 @@
 // ※2 : 実装したけどいまひとつだったので差分計算実装せず。そのため遅すぎて、実質使い物にならない。ソースコードの参考用。
 // ※3 : このシンボルの値として対象とする王の升の数を指定する。例えばEVAL_KPPPTを27とdefineすると玉が自陣(3*9升 = 27)に
 //       いるときのみがKPPPTの評価対象となる。(そこ以外に玉があるときは普通のKPPT)
+// ※4 : 以前、EVAL_NO_USEという評価関数なしのものが選択できるようになっていたが、
+//       需要がほとんどない上に、ソースコードがifdefの嵐になるので読みづらいのでバッサリ削除した。
+//		代わりにEVAL_MATERIALを使うと良い。追加コストはほぼ無視できる。
 
-
-// KPPT評価関数の学習に使うときのモード
+// 評価関数を教師局面から学習させるときに使うときのモード
 // #define EVAL_LEARN
 
 // Eval::compute_eval()やLearner::add_grad()を呼び出す前にEvalListの組み換えを行なう機能を提供する。
@@ -274,7 +276,7 @@
 //#define EVAL_KKPPT 36
 
 //#define EVAL_NABLA
-
+//#define EVAL_MATERIAL
 
 // 実験中の評価関数
 // 評価関数の番号を選択できる。0001～9999から選ぶ。
@@ -315,10 +317,9 @@
 
 #ifdef LOCAL_GAME_SERVER
 #define ENGINE_NAME "YaneuraOu Local Game Server"
-#define EVAL_NO_USE
+#define EVAL_MATERIAL
 #define ASSERT_LV 3 // ローカルゲームサーバー、host側の速度はそれほど要求されないのでASSERT_LVを3にしておく。
 #define KEEP_LAST_MOVE
-#define EVAL_NO_USE
 #define USE_ENTERING_KING_WIN
 #endif
 
@@ -332,7 +333,7 @@
 #define MAX_PLY_NUM 65000
 #undef HASH_KEY_BITS
 #define HASH_KEY_BITS 128
-#define EVAL_NO_USE
+#define EVAL_MATERIAL
 #endif
 
 // --- 詰将棋エンジンとして実行ファイルを公開するとき用の設定集
@@ -343,7 +344,7 @@
 #undef  MAX_PLY_NUM
 #define MAX_PLY_NUM 2000
 #define USE_MATE_1PLY
-#define EVAL_NO_USE
+#define EVAL_MATERIAL
 #define LONG_EFFECT_LIBRARY
 #define USE_KEY_AFTER
 #define ENABLE_TEST_CMD
@@ -706,16 +707,31 @@ inline int MKDIR(std::string dir_name)
 #define EVAL_TYPE_NAME ""
 #endif
 
-// do_move()のときに移動した駒の管理をして差分計算
-// また、それらの評価関数は駒割りの計算(EVAL_MATERIAL)に依存するので、それをdefineしてやる。
+// -- do_move()のときに移動した駒の管理をして差分計算
+
+// 1. 駒番号を管理しているpiece_listについて
+//   これはPosition::eval_list()で取得可能。
+// 2. 移動した駒の管理について
+//   これは、Position::state()->dirtyPiece。
+//   FV38だと最大で2個。
+//   FV_VARだとn個(可変)。
+// 3. FV38だとある駒番号が何の駒であるかが決まっている。(PieceNumber型)
+// 4. FV_VARだとある駒番号が何の駒であるかは定まっていない。必要な駒だけがeval_list()に格納されている。
+//    駒落ちの場合、BonaPieceZeroは使われない。(必要ない駒はeval_list()に格納されていないため。)
+//    また、銀10枚のように特定の駒種の駒を増やすことにも対応できる。(EvalList::MAX_LENGTHを変更する必要はあるが。)
+// 5. FV38かFV_VARかどちらかを選択しなければならない。
+//    本来なら、そのどちらも用いないようにも出来ると良いのだが、ソースコードがぐちゃぐちゃになるのでそれはやらないことにした。
+
 // あらゆる局面でP(駒)の数が増えないFV38と呼ばれる形式の差分計算用。
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_HELICES)
 #define USE_FV38
 #endif
 
 // P(駒)の数が増えたり減ったりするタイプの差分計算用
 // FV38とは異なり、可変長piece_list。
-//#define USE_FV_VAR
+#if defined(EVAL_MATERIAL) || defined(EVAL_NABLA)
+#define USE_FV_VAR
+#endif
 
 // -- 評価関数の種類により、盤面の利きの更新ときの処理が異なる。(このタイミングで評価関数の差分計算をしたいので)
 

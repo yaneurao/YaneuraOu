@@ -355,15 +355,15 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thre
 	// 手番
 	sideToMove = (Color)stream.read_one_bit();
 
-#if !defined( EVAL_NO_USE )
+#if defined(USE_FV38)
 	// PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
 	// それぞれの駒をどこまで使ったかのカウンター
 	PieceNumber piece_no_count[KING] = { PIECE_NUMBER_ZERO,PIECE_NUMBER_PAWN,PIECE_NUMBER_LANCE,PIECE_NUMBER_KNIGHT,
 		PIECE_NUMBER_SILVER, PIECE_NUMBER_BISHOP, PIECE_NUMBER_ROOK,PIECE_NUMBER_GOLD };
 
 	evalList.clear();
-
 #endif
+
 	kingSquare[BLACK] = kingSquare[WHITE] = SQ_NB;
 
 	// まず玉の位置
@@ -390,17 +390,19 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thre
 		if (pc == NO_PIECE)
 			continue;
 
+		put_piece(sq, Piece(pc));
+
+		// evalListの更新
+#if defined(USE_FV38)
 		PieceNumber piece_no =
 			(pc == B_KING) ? PIECE_NUMBER_BKING : // 先手玉
 			(pc == W_KING) ? PIECE_NUMBER_WKING : // 後手玉
-#if !defined(EVAL_NO_USE)
 			piece_no_count[raw_type_of(pc)]++; // それ以外
-#else
-			PIECE_NUMBER_ZERO; // とりあえず駒番号は使わないので全部ゼロにしておけばいい。
+
+		evalList.put_piece(piece_no, sq, pc); // sqの升にpcの駒を配置する
+#elif defined(USE_FV_VAR)
+		evalList.put_piece(sq, pc);
 #endif
-
-		put_piece(sq, Piece(pc), piece_no);
-
 
 		//cout << sq << ' ' << board[sq] << ' ' << stream.get_cursor() << endl;
 
@@ -422,7 +424,7 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thre
 		auto pc = packer.read_hand_piece_from_stream();
 		add_hand(hand[(int)color_of(pc)], type_of(pc));
 
-#ifndef EVAL_NO_USE
+#if defined (USE_FV38)
 		// 何枚目のその駒であるかをカウントしておく。
 		if (lastPc != pc)
 			i = 0;
@@ -448,13 +450,12 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thre
 	// put_piece()したのでこのタイミングでupdate
 	// set_state()で駒種別のbitboardを参照するのでそれまでにこの関数を呼び出す必要がある。
 	update_bitboards();
+	update_kingSquare();
 
 	set_state(st);
 
-#if !defined(EVAL_NO_USE)
 	st->materialValue = Eval::material(*this);
 	Eval::compute_eval(*this);
-#endif
 
 	// --- effect
 
