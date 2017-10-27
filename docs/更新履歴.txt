@@ -2,15 +2,91 @@
 やねうら王 更新履歴
 
 
-■　保留中の作業
+■　2017/10/27 V4.78
 
 - Let ss->ply denote the number of plies from the root to the current node  : https://github.com/official-stockfish/Stockfish/commit/ba4e215493de31263b9bd352af79d00193e545bf
-	- いまここいじったら、エンバグしかねないのでSDT5終わってから。
+- Don't score as an immediate draw 2-fold repetitions of the root position : https://github.com/official-stockfish/Stockfish/commit/6d89d0b64a99003576d3e0ed616b43333c9eca01
+	- Position::is_repetition()の引数の意味が変更になるので注意！
+	- Position::set()の引数の仕様が変更になるので注意！
+	- Positionのコピーコンストラクタ、削除。
+	- Position::startState廃止。
+	- Position::set_hirateでStateInfo*を要求するように変更。
+- goコマンドのときに探索開始局面までの手順を考慮していなかったのを修正。(千日手判定などに影響)
+- ここまでをV4.78としてリリース。
+
+
+■　2017/10/26
+
+・EvalLearningTools、small refactoring。
+・KKPPT追加準備。
+・KKPPTのコードその1。とりあえずKKPP_KKPTからportingしてきた。AVX2用コードまだ。
+・KKPPTのコードその2。AVX2用コードをKPPTからporting。とりあえずコンパイル通ったところまで。
+・KKPP_KKPTのコードその9。SSE4.1用のコンパイルが通らなかったの修正。
+・KKPPTのコードその3。SSE4.1用のコードのコンパイルが通らなかったの修正。
+・KPP_KKPT/KKPP_KKPTについて後手玉が移動したときのKKPの計算、古いコードになっていたのを修正。
+・KKPPTのコードその4。KPPTからの変換部のバグ修正など。
+・KPPT、small refactoring。
+・KKPPTのコードその5。evaluate()でeval hashにhitしたときのバグ修正など。
+・KKPPTのコードその6。学習部のfreezeオプション対応。
+
+
+■　2017/10/24
+
+・EvalLearningToolsを大改造したときに残ってたバグ修正。
+・KKPP_KKPTのコードその6。学習部の初期化のバグ修正。なお、まだ何かバグっている模様。
+・KKPP_KKPTのコードその7。学習部のバグ修正。
+・KKPP_KKPTのコードその8。学習部の定数定義修正。
+
+
+■　2017/10/23
+
+・KKPP_KKPT対応。evaluate_kkpp_kkpt/ 追加。
+・KKPP_KKPTのコードその1。KKPPを使う部分のコードとload/save()と学習部がまだ。
+・EvalLearningTools::KK,KKP,KPPの設計変更。自由に組み合わせられるようにした。大改造になった。学習部、何かバグがあれば教えて欲しい。
+・KKPP_KKPTのコードその2。load()/save()実装,KPP_KKPTからの変換関数を用意。
+・KKPP_KKPTのコードその3。evaluate()のほう、KKPP配列を用いるように変更。変換関数のバグ取った。ミラーの処理、削除。
+・KKPP_KKPTのコードその4。KKPPで用いるkkのencode/decode関係のコードを整理。
+・KKPP_KKPTのコードその5。学習部を書いた。ただし未デバッグ。
+
+
+■　2017/10/22
+
+・EvalLearningTools::KKPPクラス追加。
+
+
+■　2017/10/21
+
+・EVAL_NABLA実装準備。
+・EVAL_KPP_KKPT、少し高速化。
+
+
+■　2017/10/20
+
+・EVAL_KPPP_KKPT、KPPPの計算を行なう駒の開始番号を指定できるようにした。
+
+
+■　2017/10/17
+
+・EvalLearningToolsなど少しリファクタリング。
+
+
+
+■　2017/10/16
+
+・学習部、SGD_UPDATEを指定したときにコンパイルが通らなくなっていたの修正。
+・SGD_UPDATEのときに乱数使うのやめる。
+
+
+■　2017/10/15
+
+・helices対応その2。
+・PieceNo型、NO(ノー)と紛らわしいので、PieceNumberとrenameする。
 
 
 ■　2017/10/14
 
 ・evaluate_helices、追加準備。
+・4駒系の学習部のバグ修正。add_gradするときのindex壊してたっぽい…。
 
 
 ■　2017/10/13

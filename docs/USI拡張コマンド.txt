@@ -373,8 +373,12 @@ USIプロトコルの独自拡張コマンド
 		freeze_kk  bool : 
 		freeze_kkp bool : 
 		freeze_kpp bool :
+
 			KK,KKP,KPPのうち、KK/KKP/KPPを学習させないオプション。trueにするとその特徴因子は学習しない。
 			オンにするにはfreeze_kpp 1のように1を指定する。オフにするには0を指定する。
+
+			また、KKPP_KPPTのようなKKPPを持つ評価関数の場合、freeze_kkppというオプションが使える。
+			同様に、KPPP_KPPTのようなKPPPを持つ評価関数の場合、freeze_kpppというオプションが使える。
 
 		eta 学習率
 			AdaGradの学習率を設定する。30.0が標準的な学習率。
