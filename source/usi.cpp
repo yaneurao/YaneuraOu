@@ -117,7 +117,7 @@ namespace USI
 			// ShogiGUIだと、これできちんと"+詰"と出力されるようである。
 			s << "mate -0";
 		else
-			s << "mate " << (v > 0 ? VALUE_MATE - v - 1 : -VALUE_MATE - v + 1);
+			s << "mate " << (v > 0 ? VALUE_MATE - v : -VALUE_MATE - v);
 
 		return s.str();
 	}
