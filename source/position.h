@@ -166,26 +166,22 @@ struct Position
 {
 	// --- ctor
 
-	Position() {
-		clear();
+	// Positionのコンストラクタで平手に初期化すると、compute_eval()が呼び出され、このときに
+	// 評価関数テーブルを参照するが、isready()が呼び出されていないのでこの初期化が出来ない。
+	Position() = default;
 
-		// Positionのコンストラクタで平手に初期化すると、compute_eval()が呼び出され、このときに
-		// 評価関数テーブルを参照するが、isready()が呼び出されていないのでこの初期化が出来ない。
-	}
-
-	// コピー。startStateもコピーして、外部のデータに依存しないように(detach)する。
-	// 積極的に使うべきではない。探索開始時にslaveに局面をコピーするときに仕方なく使っているだけ。
-	Position& operator=(const Position& pos);
-
-	// 初期化
-	void clear();
+	Position(const Position&) = delete;
+	Position& operator=(const Position&) = delete;
 
 	// Positionで用いるZobristテーブルの初期化
 	static void init();
 
 	// sfen文字列で盤面を設定する
 	// ※　内部的にinit()は呼び出される。
-	void set(std::string sfen , Thread* th);
+	// 局面を遡るために、rootまでの局面の情報が必要であるから、それを引数のsiで渡してやる。
+	// 遡る必要がない場合は、StateInfo si;に対して&siなどとして渡しておけば良い。
+	// 内部的にmemset(si,0,sizeof(StateInfo))として、この渡されたインスタンスをクリアしている。
+	void set(std::string sfen , StateInfo* si , Thread* th);
 
 	// 局面のsfen文字列を取得する
 	// ※ USIプロトコルにおいては不要な機能ではあるが、デバッグのために局面を標準出力に出力して
@@ -193,7 +189,8 @@ struct Position
 	const std::string sfen() const;
 
 	// 平手の初期盤面を設定する。
-	void set_hirate(Thread* th) { set(SFEN_HIRATE,th); }
+	// siについては、上記のset()にある説明を読むこと。
+	void set_hirate(StateInfo*si,Thread* th) { set(SFEN_HIRATE,si,th); }
 
 	// --- properties
 
@@ -272,7 +269,8 @@ struct Position
 	}
 
 	// 連続王手の千日手等で引き分けかどうかを返す
-	RepetitionState is_repetition(const int repPly = 16) const;
+	// plyには、ss->plyを渡すこと。
+	RepetitionState is_repetition(int ply) const;
 
 	// --- Bitboard
 
@@ -587,9 +585,9 @@ struct Position
 	static std::string sfen_unpack(const PackedSfen& sfen);
 
 	// ↑sfenを経由すると遅いので直接packされたsfenをセットする関数を作った。
-	// pos.set(sfen_unpack(data)); と等価。
+	// pos.set(sfen_unpack(data),si,th); と等価。
 	// 渡された局面に問題があって、エラーのときは非0を返す。
-	int set_from_packed_sfen(const PackedSfen& sfen , Thread* th);
+	int set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si , Thread* th);
 
 	// 盤面と手駒、手番を与えて、そのsfenを返す。
 	static std::string sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly);
@@ -645,9 +643,6 @@ private:
 	// 駒が存在する升を表すBitboard。先後混在。
 	// pieces()の引数と同じく、ALL_PIECES,HDKなどのPieceで定義されている特殊な定数が使える。
 	Bitboard byTypeBB[PIECE_BB_NB];
-
-	// stが初期状態で指している、空のStateInfo
-	StateInfo startState;
 
 	// put_piece()やremove_piece()、xor_piece()を用いたときは、最後にupdate_bitboards()を呼び出して
 	// bitboardの整合性を保つこと。

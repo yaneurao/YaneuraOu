@@ -242,12 +242,14 @@ void random_player(Position& pos,uint64_t loop_max)
 	uint64_t mate_missed = 0;   // 1手詰め判定で見逃した1手詰め局面の数
 #endif
 
-	pos.set_hirate(Threads.main());
 	const int MAX_PLY = 256; // 256手までテスト
 
 	StateInfo state[MAX_PLY]; // StateInfoを最大手数分だけ
 	Move moves[MAX_PLY]; // 局面の巻き戻し用に指し手を記憶
 	int ply; // 初期局面からの手数
+
+	StateInfo si;
+	pos.set_hirate(&si,Threads.main());
 
 	PRNG prng(20160101);
 
@@ -400,7 +402,8 @@ void random_player_bench_cmd(Position& pos, istringstream& is)
 	is >> loop_max;
 	cout << "Random Player bench test , loop_max = " << loop_max << endl;
 
-	pos.set_hirate(Threads.main());
+	StateInfo si;
+	pos.set_hirate(&si,Threads.main());
 	const int MAX_PLY = 256; // 256手までテスト
 
 	StateInfo state[MAX_PLY]; // StateInfoを最大手数分だけ
@@ -677,7 +680,7 @@ void test_read_record(Position& pos, istringstream& is)
 
 		auto states = StateListPtr(new StateList(1));
 
-		pos.set(sfen , Threads.main());
+		pos.set(sfen , &states->back() , Threads.main());
 
 		while (ss >> token)
 		{
@@ -728,9 +731,9 @@ void auto_play(Position& pos, istringstream& is)
 
 	for (uint64_t i = 0; i < loop_max; ++i)
 	{
-		pos.set_hirate(Threads.main());
 		auto states = StateListPtr(new StateList(1));
-		
+		pos.set_hirate(&states->back(),Threads.main());
+
 		for (ply = 0; ply < MAX_PLY; ++ply)
 		{
 			MoveList<LEGAL_ALL> mg(pos);
@@ -960,11 +963,13 @@ void unit_test(Position& pos, istringstream& is)
 
 	Thread* th = Threads.main();
 
+	StateInfo si;
+
 	// hash key
 	// この値が変わると定跡DBがhitしなくなってしまうので変えてはならない。
 	{
 		cout << "> hash key check ";
-		pos.set_hirate(th);
+		pos.set_hirate(&si,th);
 		check( pos.state()->key() == UINT64_C(0x75a12070b8bd438a));
 	}
 
@@ -973,13 +978,13 @@ void unit_test(Position& pos, istringstream& is)
 		// 最多合法手局面
 		const string POS593 = "R8/2K1S1SSk/4B4/9/9/9/9/9/1L1L1L3 b RBGSNLP3g3n17p 1";
 		cout << "> genmove sfen = " << POS593;
-		pos.set(POS593,th);
+		pos.set(POS593,&si,th);
 		auto mg = MoveList<LEGAL_ALL>(pos);
 		cout << " , moves = " << mg.size();
 		check( mg.size() == 593);
 
 		cout << "> perft depth 6 ";
-		pos.set_hirate(th);
+		pos.set_hirate(&si,th);
 		auto result = PerftSolver().Perft<true>(pos,6);
 		check(  result.nodes == 547581517 && result.captures == 3387051
 #ifdef      KEEP_LAST_MOVE
@@ -1029,6 +1034,7 @@ void exam_book(Position& pos)
 	int k = 0;
 	string line;
 	vector<StateInfo> si(moves);
+	StateInfo state; // rootまでの局面
 
 	// 探索済みのsfen(重複局面の除去用)
 	std::unordered_set<string> sfens;
@@ -1051,7 +1057,7 @@ void exam_book(Position& pos)
 			buf += token + " ";
 			if (token == "startpos")
 			{
-				pos.set_hirate(Threads.main());
+				pos.set_hirate(&state,Threads.main());
 				continue;
 			}
 			else if (token == "moves")
@@ -1173,7 +1179,8 @@ void book_check_cmd(Position& pos, istringstream& is)
 
 	string file_name = "book_records.sfen";
 	ofstream of(file_name, ios::out);
-	pos.set_hirate(Threads.main());
+	StateInfo si;
+	pos.set_hirate(&si,Threads.main());
 
 	// とりあえずファイル名は固定でいいや。
 	string book_name = "yaneura_book3.db";
@@ -1809,6 +1816,7 @@ void dump_sfen(Position& pos, istringstream& is)
 	double vari = 0.0;
 #endif
 
+	StateInfo si;
 	while (!fs.eof())
 	{
 		if (!fs.read((char*)&sfen, sizeof(Learner::PackedSfenValue)))
@@ -1822,7 +1830,7 @@ void dump_sfen(Position& pos, istringstream& is)
 		if (num >= end_number)
 			break;
 
-		pos.set_from_packed_sfen(sfen.sfen,Threads.main());
+		pos.set_from_packed_sfen(sfen.sfen,&si,Threads.main());
 #if 0
 		cout << pos;
 		cout << "value = " << sfen.score << " , num = " << num << endl;

@@ -141,6 +141,8 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 	ASSERT_LV3(states.get() || setupStates.get());
 
 	// statesが呼び出し元から渡されているならこの所有権をSearch::SetupStatesに移しておく。
+	// このstatesは、positionコマンドに対して用いたStateInfoでなければならない。(CheckInfoが異なるため)
+	// 引数で渡されているstatesは、そうなっているものとする。
 	if (states.get())
 		setupStates = std::move(states);
 
@@ -154,7 +156,9 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 		th->nodes = 0;
 		th->rootDepth = th->completedDepth = DEPTH_ZERO;
 		th->rootMoves = rootMoves;
-		th->rootPos.set(sfen,th);
+
+		// setupStatesを渡して、これをコピーしておかないと局面を遡れない。
+		th->rootPos.set(sfen, &setupStates->back(),th);
 	}
 
 	// Position::set()によってクリアされていた、st->previousを復元する。

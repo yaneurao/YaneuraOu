@@ -337,7 +337,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 	// StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
 	std::vector<StateInfo,AlignedAllocator<StateInfo>> states(MAX_PLY2 + 50 /* == search_depth + α */);
-	
+	StateInfo si;
+
 	// 今回の指し手。この指し手で局面を進める。
 	Move m = MOVE_NONE;
 
@@ -353,7 +354,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		auto th = Threads[thread_id];
 
 		auto& pos = th->rootPos;
-		pos.set_hirate(th);
+		pos.set_hirate(&si,th);
 
 		// 探索部で定義されているBookMoveSelectorのメンバを参照する。
 		auto& book = ::book;
@@ -525,7 +526,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				s8 is_win = 0;
 				bool game_end = false;
-				auto draw_type = pos.is_repetition();
+				auto draw_type = pos.is_repetition(0);
 				switch (draw_type)
 				{
 				case REPETITION_WIN      : is_win =  1; game_end = true; break;
@@ -1123,7 +1124,8 @@ struct SfenReader
 			sfen_for_mse.push_back(ps);
 
 			// hash keyを求める。
-			pos.set_from_packed_sfen(ps.sfen,th);
+			StateInfo si;
+			pos.set_from_packed_sfen(ps.sfen,&si,th);
 			sfen_for_mse_hash.insert(pos.key());
 		}
 	}
@@ -1451,7 +1453,8 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	// 平手の初期局面のeval()の値を表示させて、揺れを見る。
 	auto th = Threads[thread_id];
 	auto& pos = th->rootPos;
-	pos.set_hirate(th);
+	StateInfo si;
+	pos.set_hirate(&si,th);
 	std::cout << "hirate eval = " << Eval::evaluate(pos);
 
 	//Eval::print_eval_stat(pos);
@@ -1475,8 +1478,8 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			// これ、C++ではループごとに新たなpsのインスタンスをちゃんとcaptureするのだろうか.. →　するようだ。
 			auto th = Threads[thread_id];
 			auto& pos = th->rootPos;
-
-			if (pos.set_from_packed_sfen(ps.sfen , th) != 0)
+			StateInfo si;
+			if (pos.set_from_packed_sfen(ps.sfen ,&si, th) != 0)
 			{
 				// 運悪くrmse計算用のsfenとして、不正なsfenを引いてしまっていた。
 				cout << "Error! : illegal packed sfen " << pos.sfen() << endl;
@@ -1686,7 +1689,8 @@ void LearnerThink::thread_worker(size_t thread_id)
 		pos.set(sfen);
 #endif
 		// ↑sfenを経由すると遅いので専用の関数を作った。
-		if (pos.set_from_packed_sfen(ps.sfen,th) != 0)
+		StateInfo si;
+		if (pos.set_from_packed_sfen(ps.sfen,&si,th) != 0)
 		{
 			// 変なsfenを掴かまされた。デバッグすべき！
 			// 不正なsfenなのでpos.sfen()で表示できるとは限らないが、しないよりマシ。

@@ -120,25 +120,6 @@ HASH_KEY DepthHash(int depth) { return Zobrist::depth[depth]; }
 //  Position::set()とその逆変換sfen()
 // ----------------------------------
 
-Position& Position::operator=(const Position& pos) {
-
-	std::memcpy(this, &pos, sizeof(Position));
-
-	// コピー元にぶら下がっているStateInfoに依存してはならないのでコピーしてdetachする。
-	std::memcpy(&startState, st, sizeof(StateInfo));
-	st = &startState;
-
-	return *this;
-}
-
-void Position::clear()
-{
-	// このゼロクリアによりstateStateもゼロクリアされる
-	std::memset(this, 0, sizeof(Position));
-	st = &startState;
-}
-
-
 // Pieceを綺麗に出力する(USI形式ではない) 先手の駒は大文字、後手の駒は小文字、成り駒は先頭に+がつく。盤面表示に使う。
 #if !defined (PRETTY_JP)
 std::string pretty(Piece pc) { return std::string(USI_PIECE).substr(pc * 2, 2); }
@@ -151,9 +132,15 @@ std::string pretty(Piece pc) { return USI_PIECE_KANJI[pc]; }
 #endif
 
 // sfen文字列で盤面を設定する
-void Position::set(std::string sfen , Thread* th)
+void Position::set(std::string sfen , StateInfo* si , Thread* th)
 {
-	clear();
+	std::memset(this, 0, sizeof(Position));
+
+	// 局面をrootより遡るためには、ここまでの局面情報が必要で、それは引数のsiとして渡されているという解釈。
+	// ThreadPool::start_thinking()では、
+	// ここをいったんゼロクリアしたのちに、呼び出し側で、そのsiを復元することにより、局面を遡る。
+	std::memset(si, 0, sizeof(StateInfo));
+	st = si;
 
 	// 変な入力をされることはあまり想定していない。
 	// sfen文字列は、普通GUI側から渡ってくるのでおかしい入力であることはありえないからである。
@@ -1572,41 +1559,52 @@ void Position::undo_null_move()
 //      千日手判定
 // ----------------------------------
 
-// 連続王手の千日手等で引き分けかどうかを返す(repPlyまで遡る)
-RepetitionState Position::is_repetition(const int repPly) const
+// 連続王手の千日手等で引き分けかどうかを返す
+RepetitionState Position::is_repetition(int ply) const
 {
+	// repPlyまで遡る
+	// rootより遡るのであれば2度同一局面が出現する必要があるので16の倍にしておく。
+	// この値が増えるの、多少、気分が悪いところではあるが…。
+	const int repPly = 16 * 2;
+
 	// 現在の局面と同じhash keyを持つ局面があれば、それは千日手局面であると判定する。
 
-	// 以下の処理は入れていない。(将棋でこの性質が必要なのかよくわからないため)
+	// 　rootより遡るなら、2度出現する(3度目の同一局面である)必要がある。
+	//   rootより遡らないなら、1度目(2度目の同一局面である)で千日手と判定する。
+	// cf.
 	//   Don't score as an immediate draw 2-fold repetitions of the root position
 	//   https://github.com/official-stockfish/Stockfish/commit/6d89d0b64a99003576d3e0ed616b43333c9eca01
-	// →　rootより遡るなら、2度出現する(3度目の同一局面である)必要がある。
-	//     rootより遡らないなら、1度目(2度目の同一局面である)で千日手と判定する。
-
-	// 4手かけないと千日手にはならないから、4手前から調べていく。
-	const int Start = 4;
-	int i = Start;
-
-	// 遡り可能な手数。
-	// 最大でもrepPly手までしか遡らないことにする。
-	const int e = min(repPly, st->pliesFromNull);
 
 	// pliesFromNullが未初期化になっていないかのチェックのためのassert
 	ASSERT_LV3(st->pliesFromNull >= 0);
 
-	if (i <= e)
+	// 遡り可能な手数。
+	// 最大でもrepPly手までしか遡らないことにする。
+	int end = std::min(repPly, st->pliesFromNull);
+
+	// 4手かけないと千日手にはならないから、4手前から調べていく。
+	if (end < 4)
+		return REPETITION_NONE;
+
+	StateInfo* stp = st->previous->previous;
+
+	// 盤上の駒が同一である局面が出現した回数
+	int cnt = 0;
+
+	for (int i = 4; i <= end; i += 2)
 	{
-		auto stp = st->previous->previous;
-		auto key = st->board_key(); // 盤上の駒のみのhash(手駒を除く)
+		stp = stp->previous->previous;
 
-		do {
-			stp = stp->previous->previous;
-
-			// 同じboard hash keyの局面であるか？
-			if (stp->board_key() == key)
+		// board_key : 盤上の駒のみのhash(手駒を除く)
+		// 盤上の駒が同じ状態であるかを判定する。
+		if (stp->board_key() == st->board_key())
+		{
+			// 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
+			if (stp->hand == st->hand)
 			{
-				// 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
-				if (stp->hand == st->hand)
+				// root(==ply)より遡る(ply <= i)なら2度出現(cnt == 2)する必要がある。
+				// rootより遡らない(ply > i)なら1度目の出現(cnt == 1)で千日手と判定する。
+				if (++cnt + (ply > i) == 2)
 				{
 					// 自分が王手をしている連続王手の千日手なのか？
 					if (i <= st->continuousCheck[sideToMove])
@@ -1618,16 +1616,15 @@ RepetitionState Position::is_repetition(const int repPly) const
 
 					return REPETITION_DRAW;
 				}
-				else {
-					// 優等局面か劣等局面であるか。(手番が相手番になっている場合はいま考えない)
-					if (hand_is_equal_or_superior(st->hand, stp->hand))
-						return REPETITION_SUPERIOR;
-					if (hand_is_equal_or_superior(stp->hand, st->hand))
-						return REPETITION_INFERIOR;
-				}
 			}
-			i += 2;
-		} while (i <= e);
+			else {
+				// 優等局面か劣等局面であるか。(手番が相手番になっている場合はいま考えない)
+				if (hand_is_equal_or_superior(st->hand, stp->hand))
+					return REPETITION_SUPERIOR;
+				if (hand_is_equal_or_superior(stp->hand, st->hand))
+					return REPETITION_INFERIOR;
+			}
+		}
 	}
 
 	// 同じhash keyの局面が見つからなかったので…。

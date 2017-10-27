@@ -203,7 +203,7 @@ namespace USI
 					// 千日手はそこで終了。ただし初手はPVを出力。
 					// 千日手がベストのとき、置換表を更新していないので
 					// 置換表上はMOVE_NONEがベストの指し手になっている可能性があるので早めに検出する。
-					auto rep = pos.is_repetition();
+					auto rep = pos.is_repetition(ply);
 					if (rep != REPETITION_NONE && ply >= 1)
 					{
 						// 千日手でPVを打ち切るときはその旨を表示
@@ -501,7 +501,7 @@ void is_ready(bool skipCorruptCheck)
 }
 
 // isreadyコマンド処理部
-void is_ready_cmd(Position& pos)
+void is_ready_cmd(Position& pos, StateListPtr& states)
 {
 	// 対局ごとに"isready","usinewgame"の両方が来るはずだが、
 	// "isready"は起動後に1度だけしか来ないGUI実装がありうるかも知れない。
@@ -512,7 +512,7 @@ void is_ready_cmd(Position& pos)
 
 	// Positionコマンドが送られてくるまで評価値の全計算をしていないの気持ち悪いのでisreadyコマンドに対して
 	// evalの値を返せるようにこのタイミングで平手局面で初期化してしまう。
-	pos.set(SFEN_HIRATE , Threads.main());
+	pos.set_hirate(&states->back(),Threads.main());
 
 	sync_cout << "readyok" << sync_endl;
 }
@@ -541,10 +541,9 @@ void position_cmd(Position& pos, istringstream& is , StateListPtr& states)
 			sfen += token + " ";
 	}
 
-	pos.set(sfen , Threads.main());
-
 	// 古いものは捨てて新しいものを作る。
 	states = StateListPtr(new StateList(1));
+	pos.set(sfen , &states->back() , Threads.main());
 
 	// 指し手のリストをパースする(あるなら)
 	while (is >> token && (m = move_from_usi(pos, token)) != MOVE_NONE)
@@ -819,7 +818,7 @@ void USI::loop(int argc, char* argv[])
 		else if (token == "getoption") getoption_cmd(is);
 
 		// 思考エンジンの準備が出来たかの確認
-		else if (token == "isready") is_ready_cmd(pos);
+		else if (token == "isready") is_ready_cmd(pos,states);
 
 		// ユーザーによる実験用コマンド。user.cppのuser()が呼び出される。
 		else if (token == "user") user_test(pos, is);
@@ -828,7 +827,7 @@ void USI::loop(int argc, char* argv[])
 		else if (token == "d") cout << pos << endl;
 
 		// 指し手生成祭りの局面をセットする。
-		else if (token == "matsuri") pos.set("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1",Threads.main());
+		else if (token == "matsuri") pos.set("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1",nullptr,Threads.main());
 
 		// "position sfen"の略。
 		else if (token == "sfen") position_cmd(pos, is , states);

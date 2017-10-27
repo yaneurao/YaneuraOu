@@ -114,7 +114,7 @@ void bench_cmd(Position& current, istringstream& is)
 		// SetupStatesは破壊したくないのでローカルに確保
 		StateListPtr states(new StateList(1));
 
-		pos.set(fens[i],Threads.main());
+		pos.set(fens[i] ,&states->back() , Threads.main());
 
 		sync_cout << "\nPosition: " << (i + 1) << '/' << fens.size() << sync_endl;
 

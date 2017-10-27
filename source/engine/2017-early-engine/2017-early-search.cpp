@@ -809,7 +809,7 @@ namespace YaneuraOu2017Early
 
 			// 教師局面生成時には、これをオフにしたほうが良いかも知れない。
 			// ただし、そのときであっても連続王手の千日手は有効にしておく。
-			auto draw_type = pos.is_repetition();
+			auto draw_type = pos.is_repetition(ss->ply);
 			if (draw_type != REPETITION_NONE)
 				return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 

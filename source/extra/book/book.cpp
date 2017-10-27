@@ -40,7 +40,7 @@ namespace Book
 	// ----------------------------------
 
 	// 局面を与えて、その局面で思考させるために、やねうら王2017Earlyが必要。
-#if defined(EVAL_LEARN) && defined(YANEURAOU_2017_EARLY_ENGINE)
+#if defined(EVAL_LEARN) && (defined(YANEURAOU_2017_EARLY_ENGINE) || defined(YANEURAOU_2017_GOKU_ENGINE))
 
 	struct MultiThinkBook : public MultiThink
 	{
@@ -77,7 +77,8 @@ namespace Book
 
 			auto th = Threads[thread_id];
 			auto& pos = th->rootPos;
-			pos.set(sfen,th);
+			StateInfo si;
+			pos.set(sfen,&si,th);
 
 			if (pos.is_mated())
 				continue;
@@ -329,6 +330,8 @@ namespace Book
 					return sfen.str();
 				};
 
+				StateInfo state;
+
 				bool hirate = true;
 				istringstream iss(sfen);
 				do {
@@ -337,13 +340,13 @@ namespace Book
 					{
 						// 駒落ちなどではsfen xxx movesとなるのでこれをfeedしなければならない。
 						auto sfen = feed_sfen(iss);
-						pos.set(sfen,Threads.main());
+						pos.set(sfen,&state,Threads.main());
 						hirate = false;
 					}
 				} while (token == "startpos" || token == "moves" || token == "sfen");
 
 				if (hirate)
-					pos.set_hirate(Threads.main());
+					pos.set_hirate(&state,Threads.main());
 
 				vector<Move> m;				// 初手から(moves+1)手までの指し手格納用
 
@@ -430,7 +433,7 @@ namespace Book
 			}
 			cout << "done." << endl;
 
-#if defined(EVAL_LEARN) && defined(YANEURAOU_2017_EARLY_ENGINE)
+#if defined(EVAL_LEARN) && (defined(YANEURAOU_2017_EARLY_ENGINE) || defined(YANEURAOU_2017_GOKU_ENGINE))
 
 			if (from_thinking)
 			{
@@ -835,7 +838,8 @@ namespace Book
 				// std::vectorにしてあるのでit.firstを書き換えてもitは無効にならないはず。
 				for (auto& it : vectored_book)
 				{
-					pos.set(it.first,Threads.main());
+					StateInfo si;
+					pos.set(it.first,&si,Threads.main());
 					it.first = pos.sfen();
 				}
 			}
@@ -1180,7 +1184,8 @@ namespace Book
 		};
 
 		Position pos;
-		pos.set_hirate(Threads.main());
+		StateInfo si;
+		pos.set_hirate(&si,Threads.main());
 		search(pos);
 		report();
 
