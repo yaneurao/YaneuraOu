@@ -432,9 +432,15 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			}
 		}
 
+		// random moveを行なった回数をカウントしておくカウンター
+		// random_move_minply == -1のときに、連続してランダムムーブを行なうので、このときに用いる。
+		int random_move_c = 0;
+
 		// ply : 初期局面からの手数
 		for (int ply = 0; ; ++ply)
 		{
+			//cout << pos << endl;
+
 			// 今回の探索depth
 			// gotoで飛ぶので先に宣言しておく。
 			int depth = search_depth + (int)prng.rand(search_depth2 - search_depth + 1);
@@ -475,8 +481,14 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// 定跡の局面は学習には用いない。
 				a_psv.clear();
 
-				// 定跡の局面であっても、一定確率でランダムムーブは行なう。
-				goto RANDOM_MOVE;
+				if (random_move_minply != -1)
+					// 定跡の局面であっても、一定確率でランダムムーブは行なう。
+					goto RANDOM_MOVE;
+				else
+					// random_move_minplyとして-1が指定されているときは定跡を抜けるところまでは定跡に従って指す。
+					// 巨大定跡を用いて、ConsiderBookMoveCount trueとして定跡を抜けた局面を無数に用意しておき、
+					// そこから5回ランダムムーブを行なう、などの用途に用いる。
+					goto DO_MOVE;
 			}
 
 			{
@@ -678,8 +690,14 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		RANDOM_MOVE:;
 
 			// 合法手のなかからランダムに1手選ぶフェーズ
-			if (ply < (int)random_move_flag.size() && random_move_flag[ply])
+			if (
+				// 1. random_move_minplyからrandom_move_maxplyの間でrandom_move_count回のランダムムーブを行なうモード
+				(random_move_minply != -1 && ply < (int)random_move_flag.size() && random_move_flag[ply]) ||
+				// 2. 定跡を抜けたあとにまとめてrandom_move_count回のランダムムーブを行なうモード
+				(random_move_minply == -1 && random_move_c < random_move_count))
 			{
+				++random_move_c;
+
 				// mateではないので合法手が1手はあるはず…。
 				if (random_multi_pv == 0)
 				{
@@ -754,6 +772,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				a_psv.clear(); // 保存していた局面のクリア
 			}
 
+		DO_MOVE:;
 			pos.do_move(m, states[ply]);
 
 			// 差分計算を行なうために毎node evaluate()を呼び出しておく。
