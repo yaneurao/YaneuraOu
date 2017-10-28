@@ -293,7 +293,7 @@
 #define ONE_PLY_EQ_1
 
 // デバッグ絡み
-#define ASSERT_LV 3
+//#define ASSERT_LV 3
 //#define USE_DEBUG_ASSERT
 
 #define ENABLE_TEST_CMD
@@ -721,6 +721,8 @@ inline int MKDIR(std::string dir_name)
 //    また、銀10枚のように特定の駒種の駒を増やすことにも対応できる。(EvalList::MAX_LENGTHを変更する必要はあるが。)
 // 5. FV38かFV_VARかどちらかを選択しなければならない。
 //    本来なら、そのどちらも用いないようにも出来ると良いのだが、ソースコードがぐちゃぐちゃになるのでそれはやらないことにした。
+// 6. FV_VAR方式は、Position::do_move()ではpiece_listは更新されず、dirtyPieceの情報のみが更新される。
+//    ゆえに、evaluate()ではdirtyPieceの情報に基づき、piece_listの更新もしなければならない。
 
 // あらゆる局面でP(駒)の数が増えないFV38と呼ばれる形式の差分計算用。
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_HELICES)

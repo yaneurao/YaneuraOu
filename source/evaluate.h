@@ -202,6 +202,9 @@ namespace Eval {
 	{
 		BonaPiece fb; // from black
 		BonaPiece fw; // from white
+
+		ExtBonaPiece() {}
+		ExtBonaPiece(BonaPiece fb_, BonaPiece fw_) : fb(fb_) , fw(fw_){}
 	};
 
 	// BonaPiece、f側だけを表示する。
@@ -263,27 +266,31 @@ namespace Eval {
 		void add_piece(Square sq, Piece pc)
 		{
 			ASSERT_LV3(type_of(pc) != KING);
-			add(BonaPiece(kpp_board_index[pc].fb + sq), BonaPiece(kpp_board_index[pc].fw + Inv(sq)));
+			ExtBonaPiece p(BonaPiece(kpp_board_index[pc].fb + sq), BonaPiece(kpp_board_index[pc].fw + Inv(sq)));
+			add(p);
 		}
 
 
 		// c側の手駒ptのi+1枚目の駒のPieceNumberを設定する。(1枚目の駒のPieceNumberを設定したいならi==0にして呼び出すの意味)
 		void add_piece( Color c, Piece pt, int i)
 		{
-			add(BonaPiece(kpp_hand_index[c][pt].fb + i), BonaPiece(kpp_hand_index[c][pt].fw + i));
+			ExtBonaPiece p(BonaPiece(kpp_hand_index[c][pt].fb + i), BonaPiece(kpp_hand_index[c][pt].fw + i));
+			add(p);
 		}
 		
 		// add_piece(Square,Piece)の逆変換
 		void remove_piece(Square sq, Piece pc)
 		{
 			ASSERT_LV3(type_of(pc) != KING);
-			remove(BonaPiece(kpp_board_index[pc].fb + sq));
+			ExtBonaPiece p(BonaPiece(kpp_board_index[pc].fb + sq), BonaPiece(kpp_board_index[pc].fw + Inv(sq)));
+			remove(p);
 		}
 
 		// add_piece(Color,Piece,int)の逆変換
 		void remove_piece(Color c, Piece pt, int i)
 		{
-			remove(BonaPiece(kpp_hand_index[c][pt].fb + i));
+			ExtBonaPiece p(BonaPiece(kpp_hand_index[c][pt].fb + i), BonaPiece(kpp_hand_index[c][pt].fw + i));
+			remove(p);
 		}
 #endif
 
@@ -317,17 +324,17 @@ namespace Eval {
 		// list長が可変のときは、add()/remove()をサポートする。
 
 		// listにadd()する。
-		void add(BonaPiece fb , BonaPiece fw)
+		void add(ExtBonaPiece p)
 		{
-			pieceListFb[length_] = fb;
-			pieceListFw[length_] = fw;
+			pieceListFb[length_] = p.fb;
+			pieceListFw[length_] = p.fw;
 
-			bonapiece_to_piece_number[fb] = length_;
+			bonapiece_to_piece_number[p.fb] = length_;
 			length_++;
 		}
 
 		// listからremoveする。
-		void remove(BonaPiece fb)
+		void remove(ExtBonaPiece p)
 		{
 			--length_;
 			
@@ -335,10 +342,10 @@ namespace Eval {
 			BonaPiece last_fw = pieceListFw[length_];
 
 			// この番号のものを末尾のものと入れ替える(末尾のfb,fwがここに埋まる)
-			int pn = bonapiece_to_piece_number[fb];
+			int pn = bonapiece_to_piece_number[p.fb];
 
 			// 存在しない駒をremoveしようとしていないか？
-			ASSERT_LV3(pn != PIECE_NUMBER_NB && fb == pieceListFb[pn]);
+			ASSERT_LV3(pn != PIECE_NUMBER_NB && p.fb == pieceListFb[pn]);
 
 			pieceListFb[pn] = last_fb;
 			pieceListFw[pn] = last_fw;
@@ -422,6 +429,150 @@ namespace Eval {
 		// fe_endが大きいとこのテーブルが肥大化するので、working setを小さく保つためにu8で確保する。
 		u8 bonapiece_to_piece_number[fe_end];
 #endif
+	};
+#endif
+
+	// --- 局面の評価値の差分更新用
+	// 局面の評価値を差分更新するために、移動した駒を管理する必要がある。
+	// この移動した駒のことをDirtyPieceと呼ぶ。
+	// 1) FV38方式だと、DirtyPieceはたかだか2個。
+	// 2) FV_VAR方式だと、DirtyPieceは可変。
+
+#if defined (USE_FV38)
+	// 評価値の差分計算の管理用
+	// 前の局面から移動した駒番号を管理するための構造体
+	// 動く駒は、最大で2個。
+	struct DirtyPiece
+	{
+		// その駒番号の駒が何から何に変わったのか
+		Eval::ChangedBonaPiece changed_piece[2];
+
+		// dirtyになった駒番号
+		PieceNumber pieceNo[2];
+
+		// dirtyになった個数。
+		// null moveだと0ということもありうる。
+		// 動く駒と取られる駒とで最大で2つ。
+		int dirty_num;
+
+};
+#endif
+
+#if defined (USE_FV_VAR)
+
+	// vector<BonaPiece>みたいなコンテナ。
+	// 駒の移動の際に追加になる駒/削除される駒を管理するコンテナ。
+	struct BonaPieceList
+	{
+		static const int MAX_LENGTH = 4;
+
+		Eval::ExtBonaPiece at(int index) const { return pieces[index]; }
+		int length() const { return length_; }
+		void clear() { length_ = 0; }
+		void push_back(Eval::ExtBonaPiece p) {
+			ASSERT_LV3(length_ != MAX_LENGTH);
+			pieces[length_++] = p;
+		}
+
+		// range-based forで使いたいのでbegin(),end()を定義しておく。
+		Eval::ExtBonaPiece* begin() { return &(pieces[0]); }
+		Eval::ExtBonaPiece* end() { return &(pieces[length_]); }
+	private:
+		Eval::ExtBonaPiece pieces[MAX_LENGTH];
+		int length_;
+	};
+
+	// 評価値の差分計算の管理用
+	// 前の局面から移動した駒番号を管理するための構造体
+	// 動く駒の数は可変。まあ、最大で4個でいいと思う。
+	struct DirtyPiece
+	{
+		// 追加になる駒(玉は除く)
+		BonaPieceList add_list;
+
+		// 削除される駒(玉は除く)
+		BonaPieceList remove_list;
+
+		// 玉が移動した場合は、この変数の値がBLACK/WHITEになる。
+		// 玉の移動がない場合は、COLOR_NB。
+		Color moved_king;
+
+		// add_list,remove_listの初期化
+		void clear()
+		{
+			add_list.clear();
+			remove_list.clear();
+			updated_ = false;
+		}
+
+		//
+		// 以下、EvalListのほうと同じ名前、同じ機能の関数。
+		// Position::do_move()ではEvalListを直接更新せずevaluate()のほうで遅延更新したいので
+		// これらの関数が必要となる。
+		//
+
+		// 盤上のsqの升にpiece_noのpcの駒を配置する
+		// 注意 : 玉はpiece_listで保持しないことになっているのでtype_of(pc)==KINGでこの関数を呼び出してはならない。
+		void add_piece(Square sq, Piece pc)
+		{
+			ASSERT_LV3(type_of(pc) != KING);
+			ExtBonaPiece p(BonaPiece(kpp_board_index[pc].fb + sq), BonaPiece(kpp_board_index[pc].fw + Inv(sq)));
+			add_list.push_back(p);
+		}
+
+		// c側の手駒ptのi+1枚目の駒のPieceNumberを設定する。(1枚目の駒のPieceNumberを設定したいならi==0にして呼び出すの意味)
+		void add_piece(Color c, Piece pt, int i)
+		{
+			ExtBonaPiece p(BonaPiece(kpp_hand_index[c][pt].fb + i), BonaPiece(kpp_hand_index[c][pt].fw + i));
+			add_list.push_back(p);
+		}
+
+		// add_piece(Square,Piece)の逆変換
+		void remove_piece(Square sq, Piece pc)
+		{
+			ASSERT_LV3(type_of(pc) != KING);
+			ExtBonaPiece p(BonaPiece(kpp_board_index[pc].fb + sq), BonaPiece(kpp_board_index[pc].fw + Inv(sq)));
+			remove_list.push_back(p);
+		}
+
+		// add_piece(Color,Piece,int)の逆変換
+		void remove_piece(Color c, Piece pt, int i)
+		{
+			ExtBonaPiece p(BonaPiece(kpp_hand_index[c][pt].fb + i), BonaPiece(kpp_hand_index[c][pt].fw + i));
+			remove_list.push_back(p);
+		}
+
+		// 現在のこのクラスの内容に基づきEvalListを更新するのと、巻き戻すの。
+
+		void do_update(EvalList& eval_list)
+		{
+			for (auto p : remove_list)
+				eval_list.remove(p);
+
+			for (auto p : add_list)
+				eval_list.add(p);
+
+			updated_ = true;
+		}
+
+		void undo_update(EvalList& eval_list)
+		{
+			// すでに更新が適用されているので逆手順で巻き戻す
+
+			for (auto p : remove_list)
+				eval_list.add(p);
+
+			for (auto p : add_list)
+				eval_list.remove(p);
+		}
+
+		// do_update()されたあとであるかを判定。
+		// Position::undo_move()のときにこのクラスのundo_update()を呼び出す必要があるかどうかを判定するため。
+		// 自前でevaluate()などでdo_update()相当の処理を行なった場合は、update_のフラグを自分でtrueにする必要がある。
+		bool updated() const { return updated_; }
+
+	// private:
+		bool updated_;
 	};
 #endif
 

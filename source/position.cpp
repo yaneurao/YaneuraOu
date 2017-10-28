@@ -997,6 +997,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	// 探索ノード数 ≒do_move()の呼び出し回数のインクリメント。
 	thisThread->nodes.fetch_add(1, std::memory_order_relaxed);
 
+	//std::cout << *this << m << std::endl;
+
 	// ----------------------
 	//  StateInfoの更新
 	// ----------------------
@@ -1052,6 +1054,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 #if defined (USE_FV38)
 	auto& dp = st->dirtyPiece;
+#elif defined(USE_FV_VAR)
+	auto& dp = st->dirtyPiece;
+	dp.clear();
 #endif
 
 	if (is_drop(m))
@@ -1100,8 +1105,11 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		sub_hand(hand[Us], pr);
 
 		// 駒打ちなのでpcが玉である可能性はない。
-		evalList.remove_piece(Us, pr, hand_count(hand[Us], pr));
-		evalList.add_piece(to, pc);
+		dp.remove_piece(Us, pr, hand_count(hand[Us], pr));
+		dp.add_piece(to, pc);
+
+		// 玉の移動ではないことを示しておく。
+		dp.moved_king = COLOR_NB;
 #endif
 		
 		// 王手している駒のbitboardを更新する。
@@ -1181,8 +1189,10 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #elif defined(USE_FV_VAR)
 
 			// 捕獲された駒の処理なので、これが玉である可能性はない。
-			evalList.remove_piece(to,to_pc);
-			evalList.add_piece(Us, pr, hand_count(hand[Us], pr));
+			dp.remove_piece(to,to_pc);
+			dp.add_piece(Us, pr, hand_count(hand[Us], pr));
+
+			//std::cout << hand_count(hand[Us], pr) << Us << pr << std::endl;
 
 #endif
 
@@ -1237,12 +1247,17 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 #elif defined(USE_FV_VAR)
 		// 移動させる駒が玉であるときはevalListを更新する必要がない。
+		// ただし、玉が移動したことを示す必要はある。
 		if (type_of(moved_pc) == KING)
+		{
 			kingSquare[Us] = to;
+			dp.moved_king = Us;
+		}
 		else
 		{
-			evalList.remove_piece(from, moved_pc);
-			evalList.add_piece(to, moved_after_pc);
+			dp.remove_piece(from, moved_pc);
+			dp.add_piece(to, moved_after_pc);
+			dp.moved_king = COLOR_NB; // 玉の移動ではないことを示しておく。
 		}
 #endif
 
@@ -1342,6 +1357,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	set_check_info<false>(st);
 
 	//ASSERT_LV5(evalList.is_valid(*this));
+
+	//state()->dirtyPiece.do_update(evalList);
+	//evalList.is_valid(*this);
 }
 
 #if defined(USE_KEY_AFTER)
@@ -1434,6 +1452,11 @@ void Position::undo_move_impl(Move m)
 #if defined(USE_FV38)
 	PieceNumber piece_no = piece_no_of(to); // 移動元のpiece_no == いまtoの場所にある駒のpiece_no
 	ASSERT_LV3(is_ok(piece_no));
+#elif defined(USE_FV_VAR)
+	// do_move()のあとevaluate()を呼び出していないなら、eval_listの更新がなされていないのでundo不要。
+	auto&dp = st->dirtyPiece;
+	if (dp.updated())
+		st->dirtyPiece.undo_update(evalList);
 #endif
 
 	// 移動前の駒
@@ -1453,10 +1476,6 @@ void Position::undo_move_impl(Move m)
 
 #if defined(USE_FV38)
 		evalList.put_piece(piece_no, Us, pt, hand_count(hand[Us], pt));
-#elif defined(USE_FV_VAR)
-		// 駒打ちなので、これが玉であることはない。玉チェック不要。
-		evalList.remove_piece(to, moved_after_pc);
-		evalList.add_piece(Us,pt, hand_count(hand[Us], pt));
 #endif
 
 		add_hand(hand[Us], pt);
@@ -1503,21 +1522,9 @@ void Position::undo_move_impl(Move m)
 			// moved_pcが玉であることはあるが、いまkingSquareを更新してしまうと
 			// rewind_by_capturing_piece()でその位置を用いているのでまずい。(かも)
 			evalList.put_piece(piece_no, from , moved_pc);
-
-#elif defined(USE_FV_VAR)
-			// 捕獲されていた駒を手駒から盤上に戻す。
-			// 玉が取られることはないのでこれは玉ではない。玉チェック不要。
-			Piece pt = raw_type_of(to_pc);
+#else
+			// 手駒から減らす
 			sub_hand(hand[Us], raw_type_of(to_pc));
-			evalList.remove_piece(Us, pt , hand_count(hand[Us], pt));
-			evalList.add_piece(to, to_pc);
-
-			// 盤上で移動させた駒を元の升に戻す
-			if (type_of(moved_pc) != KING)
-			{
-				evalList.remove_piece(to, moved_after_pc);
-				evalList.add_piece(from, moved_pc);
-			}
 #endif
 
 #if defined(LONG_EFFECT_LIBRARY)
@@ -1533,12 +1540,6 @@ void Position::undo_move_impl(Move m)
 #if defined(USE_FV38)
 			// 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
 			evalList.put_piece(piece_no, from, moved_pc);
-#elif defined(USE_FV_VAR)
-			if (type_of(moved_pc) != KING)
-			{
-				evalList.remove_piece(to, moved_after_pc);
-				evalList.add_piece(from, moved_pc);
-			}
 #endif
 
 #if defined(LONG_EFFECT_LIBRARY)
@@ -1565,6 +1566,7 @@ void Position::undo_move_impl(Move m)
 	--gamePly;
 
 	// ASSERT_LV5(evalList.is_valid(*this));
+	//evalList.is_valid(*this);
 }
 
 // do_move()を先後分けたdo_move_impl<>()を呼び出す。

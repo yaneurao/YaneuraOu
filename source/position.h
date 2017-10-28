@@ -20,67 +20,6 @@ extern std::string SFEN_HIRATE;
 //     局面の情報
 // --------------------
 
-#if defined (USE_FV38)
-// 評価値の差分計算の管理用
-// 前の局面から移動した駒番号を管理するための構造体
-// 動く駒は、最大で2個。
-struct DirtyPiece
-{
-	// その駒番号の駒が何から何に変わったのか
-	Eval::ChangedBonaPiece changed_piece[2];
-
-	// dirtyになった駒番号
-	PieceNumber pieceNo[2];
-
-	// dirtyになった個数。
-	// null moveだと0ということもありうる。
-	// 動く駒と取られる駒とで最大で2つ。
-	int dirty_num;
-
-};
-#endif
-
-#if defined (USE_FV_VAR)
-
-// vector<BonaPiece>みたいなコンテナ。
-// 駒の移動の際に追加になる駒/削除される駒を管理するコンテナ。
-struct BonaPieceList
-{
-	static const int MAX_LENGTH = 4;
-
-	Eval::BonaPiece at(int index) const { return pieces[index]; }
-	int length() const { return length_; }
-	void clear() { length_ = 0; }
-	void insert(Eval::BonaPiece p) {
-		ASSERT_LV3(length_ != MAX_LENGTH);
-		pieces[length_++] = p;
-	}
-
-	// range-based forで使いたいのでbegin(),end()を定義しておく。
-	Eval::BonaPiece* begin() { return &(pieces[0]); }
-	Eval::BonaPiece* end() { return &(pieces[length_]); }
-private:
-	Eval::BonaPiece pieces[MAX_LENGTH];
-	int length_;
-};
-
-// 評価値の差分計算の管理用
-// 前の局面から移動した駒番号を管理するための構造体
-// 動く駒の数は可変。まあ、最大で4個でいいと思う。
-struct DirtyPiece
-{
-	// 追加になる駒(玉は除く)
-	BonaPieceList add_list;
-
-	// 削除される駒(玉は除く)
-	BonaPieceList remove_list;
-
-	// 玉が移動した場合は、この変数の値がBLACK/WHITEになる。
-	// 玉の移動がない場合は、COLOR_NB。
-	Color moved_king;
-};
-#endif
-
 // StateInfoは、undo_move()で局面を戻すときに情報を元の状態に戻すのが面倒なものを詰め込んでおくための構造体。
 // do_move()のときは、ブロックコピーで済むのでそこそこ高速。
 struct StateInfo
@@ -156,7 +95,7 @@ struct StateInfo
 
 	#if defined(USE_FV38) || defined(USE_FV_VAR)
 	// 評価値の差分計算の管理用
-	DirtyPiece dirtyPiece;
+	Eval::DirtyPiece dirtyPiece;
 	#endif
 
 	#if defined(KEEP_LAST_MOVE)

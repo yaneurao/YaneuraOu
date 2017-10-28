@@ -415,17 +415,16 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thre
 	// 手駒
 	hand[BLACK] = hand[WHITE] = (Hand)0;
 
-#if !defined (EVAL_NO_USE)
 	int i = 0;
 	Piece lastPc = NO_PIECE;
-#endif
+
 	while (stream.get_cursor() < 256)
 	{
 		// 256になるまで手駒が格納されているはず
 		auto pc = packer.read_hand_piece_from_stream();
 		add_hand(hand[(int)color_of(pc)], type_of(pc));
 
-#if defined (USE_FV38)
+#if defined(USE_FV38) || defined(USE_FV_VAR)
 		// 何枚目のその駒であるかをカウントしておく。
 		if (lastPc != pc)
 			i = 0;
@@ -433,9 +432,14 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thre
 
 		// FV38などではこの個数分だけpieceListに突っ込まないといけない。
 		Piece rpc = raw_type_of(pc);
+#endif
+
+#if defined (USE_FV38)
 		PieceNumber piece_no = piece_no_count[rpc]++;
 		ASSERT_LV1(is_ok(piece_no));
 		evalList.put_piece(piece_no, color_of(pc), rpc, i++);
+#elif defined(USE_FV_VAR)
+		evalList.add_piece(color_of(pc), rpc, i++);
 #endif
 	}
 	if (stream.get_cursor() != 256)
