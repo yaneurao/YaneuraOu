@@ -1359,12 +1359,24 @@ namespace Book
 				// 1-passで採択率に従って指し手を決めるオンラインアルゴリズム
 				// http://yaneuraou.yaneu.com/2015/01/03/stockfish-dd-book-%E5%AE%9A%E8%B7%A1%E9%83%A8/
 
+				// 採用回数が0になっている定跡ファイルがあるらしい。
+				// cf. https://github.com/yaneurao/YaneuraOu/issues/65
+				// 1.すべての指し手の採用回数が0の場合 →　すべての指し手の採用回数を1とみなす
+				// 2.特定の指し手の採用回数が0の場合 → 0割にならないように気をつける
+				// 上記1.のため2-passとなってしまう…。
+
+				// 採用回数の合計。
+				u64 sum = 0;
+				for (auto &move : move_list)
+					sum += move.num;
+
 				u64 sum_move_counts = 0;
 				for (auto &move : move_list)
 				{
-					u64 move_count = std::max<u64>(1, move.num);
+					u64 move_count = (sum == 0) ? 1 : move.num; // 上記 1.
 					sum_move_counts += move_count;
-					if (prng.rand(sum_move_counts) < move_count)
+					if (sum_move_counts != 0 // 上記 2.
+						&& prng.rand(sum_move_counts) < move_count)
 						bestPos = move;
 				}
 			}
