@@ -2,6 +2,27 @@
 やねうら王 更新履歴
 
 
+■　2017/10/28 V4.79
+
+- FV38のコード、少し整理。
+	- Position::put_piece()整理
+	- Position::update_kingSquare()追加。
+- Position::put_piece() refactoring
+	- EVAL_NO_USE , 削除
+- ss->plyの意味を変更したときに詰みまでの手数が1手短く出力されるようになっていたのを修正。
+- EvalList::is_valid()追加。
+	- USE_FV_VARのときの更新処理、benchの値が一致するところまでは進めた。
+- DirtyPieceをevaluate.hに移動
+	- FV_VAR方式のとき、Position::do_move()ではこのDirtyPieceのほうを更新することに変更。
+- VALUE_NOT_EVALUATEDの値が小さすぎたの修正。
+- FV_VAR方式のpiece_listのデバッグ完了。無事動いた。
+- Position::set()にゴミの行があったの修正。(thx.ishidakeiさん) : https://github.com/yaneurao/YaneuraOu/issues/64
+- gensfenコマンドでrandom_move_minplyとして-1を指定すると定跡を抜けたあと連続したランダムムーブになるようにした。
+- 連続対局、二度目で落ちる件、修正。
+- 定跡で採択率0の指し手が採用される件、修正。(thx.tanuki-さん) : https://github.com/yaneurao/YaneuraOu/issues/65
+- Aperyの定跡ファイル読み込み時に、すべての指し手の採択回数が0のときに0割になる件、修正。(thx.tanuki-さん) : https://github.com/yaneurao/YaneuraOu/issues/65
+
+
 ■　2017/10/27 V4.78
 
 - Let ss->ply denote the number of plies from the root to the current node  : https://github.com/official-stockfish/Stockfish/commit/ba4e215493de31263b9bd352af79d00193e545bf
@@ -13,6 +34,8 @@
 	- Position::set_hirateでStateInfo*を要求するように変更。
 - goコマンドのときに探索開始局面までの手順を考慮していなかったのを修正。(千日手判定などに影響)
 - ここまでをV4.78としてリリース。
+- BonaPiece inverse hack、revertする。可変長piece_listを導入準備。
+- 可変長piece_list、KPPTに対応。KPP_KKPTは半分ぐらい対応。
 
 
 ■　2017/10/26

@@ -1636,6 +1636,7 @@ RepetitionState Position::is_repetition(int ply) const
 	// repPlyまで遡る
 	// rootより遡るのであれば2度同一局面が出現する必要があるので16の倍にしておく。
 	// この値が増えるの、多少、気分が悪いところではあるが…。
+	// これ16→32で1%ぐらい速度低下するようだ。16手目までに1度も同一局面が出現しなければリタイアするか。
 	const int repPly = 16 * 2;
 
 	// 現在の局面と同じhash keyを持つ局面があれば、それは千日手局面であると判定する。
@@ -1662,7 +1663,7 @@ RepetitionState Position::is_repetition(int ply) const
 	// 盤上の駒が同一である局面が出現した回数
 	int cnt = 0;
 
-	for (int i = 4; i <= end; i += 2)
+	for (int i = 4; i <= end ; i += 2)
 	{
 		stp = stp->previous->previous;
 
