@@ -259,13 +259,31 @@ namespace Eval {
 #elif defined(USE_FV_VAR)
 
 		// 盤上のsqの升にpiece_noのpcの駒を配置する
-		void put_piece(Square sq, Piece pc) {
+		// 注意 : 玉はpiece_listで保持しないことになっているのでtype_of(pc)==KINGでこの関数を呼び出してはならない。
+		void add_piece(Square sq, Piece pc)
+		{
+			ASSERT_LV3(type_of(pc) != KING);
 			add(BonaPiece(kpp_board_index[pc].fb + sq), BonaPiece(kpp_board_index[pc].fw + Inv(sq)));
 		}
 
+
 		// c側の手駒ptのi+1枚目の駒のPieceNumberを設定する。(1枚目の駒のPieceNumberを設定したいならi==0にして呼び出すの意味)
-		void put_piece( Color c, Piece pt, int i) {
+		void add_piece( Color c, Piece pt, int i)
+		{
 			add(BonaPiece(kpp_hand_index[c][pt].fb + i), BonaPiece(kpp_hand_index[c][pt].fw + i));
+		}
+		
+		// add_piece(Square,Piece)の逆変換
+		void remove_piece(Square sq, Piece pc)
+		{
+			ASSERT_LV3(type_of(pc) != KING);
+			remove(BonaPiece(kpp_board_index[pc].fb + sq));
+		}
+
+		// add_piece(Color,Piece,int)の逆変換
+		void remove_piece(Color c, Piece pt, int i)
+		{
+			remove(BonaPiece(kpp_hand_index[c][pt].fb + i));
 		}
 #endif
 
@@ -318,10 +336,21 @@ namespace Eval {
 
 			// この番号のものを末尾のものと入れ替える(末尾のfb,fwがここに埋まる)
 			int pn = bonapiece_to_piece_number[fb];
+
+			// 存在しない駒をremoveしようとしていないか？
+			ASSERT_LV3(pn != PIECE_NUMBER_NB && fb == pieceListFb[pn]);
+
 			pieceListFb[pn] = last_fb;
 			pieceListFw[pn] = last_fw;
+
+			// last_fbがpieceListFb[pn]の場所に移動したので、bonapiece_to_piece_numberのほうを更新しておく。
+			bonapiece_to_piece_number[last_fb] = pn;
 		}
 #endif
+
+		// 内部で保持しているpieceListFb[]が正しいBonaPieceであるかを検査する。
+		// 注 : デバッグ用。遅い。
+		bool is_valid(const Position& pos);
 
 	protected:
 

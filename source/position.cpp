@@ -203,7 +203,8 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 				PIECE_NUMBER_ZERO; // とりあえず駒番号は使わないので全部ゼロにしておけばいい。
 			evalList.put_piece(piece_no, sq, pc); // sqの升にpcの駒を配置する
 #elif defined(USE_FV_VAR)
-			evalList.put_piece(sq, pc);
+			if (type_of(pc) != KING)
+				evalList.add_piece(sq, pc);
 #endif
 
 			// 1升進める
@@ -256,7 +257,7 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 				ASSERT_LV1(is_ok(piece_no));
 				evalList.put_piece(piece_no, color_of(Piece(idx)), rpc, i);
 #elif defined(USE_FV_VAR)
-				evalList.put_piece(color_of(Piece(idx)), rpc, i);
+				evalList.add_piece(color_of(Piece(idx)), rpc, i);
 #endif
 			}
 			ct = 0;
@@ -1076,6 +1077,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		Eval::prefetch_evalhash(key);
 #endif
 
+		put_piece(to, pc);
+
+		// 打駒した駒に関するevalListの更新。
 #if defined (USE_FV38)
 		PieceNumber piece_no = piece_no_of(Us, pr);
 		ASSERT_LV3(is_ok(piece_no));
@@ -1084,20 +1088,22 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		dp.dirty_num = 1; // 動いた駒は1個
 		dp.pieceNo[0] = piece_no;
 		dp.changed_piece[0].old_piece = evalList.bona_piece(piece_no);
-		put_piece(to, pc);
 		evalList.put_piece(piece_no , to, pc);
 		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no);
 
-#elif defined(USE_FV_VAR)
-
-		put_piece(to, pc);
-		evalList.put_piece(to, pc);
-
-#endif
-		
-		// 駒打ちなので手駒が減る
+		// piece_no_of()のときにこの手駒の枚数を参照するのであとで更新。
 		sub_hand(hand[Us], pr);
 
+#elif defined(USE_FV_VAR)
+
+		// 駒打ちなので手駒が減る。この場合は次のhand_countで必要なので先に更新。
+		sub_hand(hand[Us], pr);
+
+		// 駒打ちなのでpcが玉である可能性はない。
+		evalList.remove_piece(Us, pr, hand_count(hand[Us], pr));
+		evalList.add_piece(to, pc);
+#endif
+		
 		// 王手している駒のbitboardを更新する。
 		// 駒打ちなのでこの駒で王手になったに違いない。駒打ちで両王手はありえないので王手している駒はいまtoに置いた駒のみ。
 		if (givesCheck)
@@ -1162,6 +1168,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 			Piece pr = raw_type_of(to_pc);
 
+			// 捕獲した駒に関するevalListの更新
 #if defined (USE_FV38)
 			// このPieceNumberの駒が手駒に移動したのでEvalListのほうを更新しておく。
 			PieceNumber piece_no = piece_no_of(to);
@@ -1173,7 +1180,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			dp.changed_piece[1].new_piece = evalList.bona_piece(piece_no);
 #elif defined(USE_FV_VAR)
 
-			evalList.put_piece( Us, pr, hand_count(hand[Us], pr));
+			// 捕獲された駒の処理なので、これが玉である可能性はない。
+			evalList.remove_piece(to,to_pc);
+			evalList.add_piece(Us, pr, hand_count(hand[Us], pr));
 
 #endif
 
@@ -1207,23 +1216,34 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #endif
 		}
 
+		// 移動元の升からの駒の除去
+		remove_piece(from);
+		// 移動先の升に駒を配置
+		put_piece(to, moved_after_pc);
+
 #if defined (USE_FV38)
 		// 移動元にあった駒のpiece_noを得る
 		PieceNumber piece_no2 = piece_no_of(from);
 		dp.pieceNo[0] = piece_no2;
 		dp.changed_piece[0].old_piece = evalList.bona_piece(piece_no2);
-#endif
-
-		// 移動元の升からの駒の除去
-		remove_piece(from);
-
-		put_piece(to, moved_after_pc);
-
-#if defined (USE_FV38)
 		evalList.put_piece(piece_no2, to, moved_after_pc);
 		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no2);
-#elif defined(USE_FV_VAR)
 
+		// 王を移動させる手であるなら、kingSquareを更新しておく。
+		// 王は駒打できないのでdropの指し手に含まれていることはないから
+		// dropのときにはkingSquareを更新する必要はない。
+		if (type_of(moved_pc) == KING)
+			kingSquare[Us] = to;
+
+#elif defined(USE_FV_VAR)
+		// 移動させる駒が玉であるときはevalListを更新する必要がない。
+		if (type_of(moved_pc) == KING)
+			kingSquare[Us] = to;
+		else
+		{
+			evalList.remove_piece(from, moved_pc);
+			evalList.add_piece(to, moved_after_pc);
+		}
 #endif
 
 		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
@@ -1236,12 +1256,6 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #if defined(USE_EVAL_HASH)
 		Eval::prefetch_evalhash(key);
 #endif
-
-		// 王を移動させる手であるなら、kingSquareを更新しておく。
-		// 王は駒打できないのでdropの指し手に含まれていることはないから
-		// dropのときにはkingSquareを更新する必要はない。
-		if (type_of(moved_pc) == KING)
-			kingSquare[Us] = to;
 
 		// put_piece()などを用いたのでupdateする。
 		// ROOK_DRAGONなどをこの直後で用いるのでここより後ろにやるわけにはいかない。
@@ -1326,6 +1340,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 	// このタイミングで王手関係の情報を更新しておいてやる。
 	set_check_info<false>(st);
+
+	//ASSERT_LV5(evalList.is_valid(*this));
 }
 
 #if defined(USE_KEY_AFTER)
@@ -1437,7 +1453,12 @@ void Position::undo_move_impl(Move m)
 
 #if defined(USE_FV38)
 		evalList.put_piece(piece_no, Us, pt, hand_count(hand[Us], pt));
+#elif defined(USE_FV_VAR)
+		// 駒打ちなので、これが玉であることはない。玉チェック不要。
+		evalList.remove_piece(to, moved_after_pc);
+		evalList.add_piece(Us,pt, hand_count(hand[Us], pt));
 #endif
+
 		add_hand(hand[Us], pt);
 
 		// toの場所から駒を消す
@@ -1466,11 +1487,13 @@ void Position::undo_move_impl(Move m)
 			Piece to_pc = st->capturedPiece;
 
 			// 盤面のtoの地点に捕獲されていた駒を復元する
+			put_piece(to, to_pc);
+			put_piece(from, moved_pc);
+
 #if defined(USE_FV38)
 			PieceNumber piece_no2 = piece_no_of(Us, raw_type_of(to_pc)); // 捕っていた駒(手駒にある)のpiece_no
 			ASSERT_LV3(is_ok(piece_no2));
 
-			put_piece(to, to_pc);
 			evalList.put_piece(piece_no2, to, to_pc);
 
 			// 手駒から減らす
@@ -1479,14 +1502,22 @@ void Position::undo_move_impl(Move m)
 			// 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
 			// moved_pcが玉であることはあるが、いまkingSquareを更新してしまうと
 			// rewind_by_capturing_piece()でその位置を用いているのでまずい。(かも)
-			put_piece(from, moved_pc);
 			evalList.put_piece(piece_no, from , moved_pc);
 
 #elif defined(USE_FV_VAR)
-			// TODO:evalListの更新
-			put_piece(to, to_pc);
+			// 捕獲されていた駒を手駒から盤上に戻す。
+			// 玉が取られることはないのでこれは玉ではない。玉チェック不要。
+			Piece pt = raw_type_of(to_pc);
 			sub_hand(hand[Us], raw_type_of(to_pc));
-			put_piece(from, moved_pc);
+			evalList.remove_piece(Us, pt , hand_count(hand[Us], pt));
+			evalList.add_piece(to, to_pc);
+
+			// 盤上で移動させた駒を元の升に戻す
+			if (type_of(moved_pc) != KING)
+			{
+				evalList.remove_piece(to, moved_after_pc);
+				evalList.add_piece(from, moved_pc);
+			}
 #endif
 
 #if defined(LONG_EFFECT_LIBRARY)
@@ -1494,19 +1525,25 @@ void Position::undo_move_impl(Move m)
 			LongEffect::rewind_by_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc, to_pc);
 #endif
 
-		} else {
+		}
+		else {
+
+			put_piece(from, moved_pc);
 
 #if defined(USE_FV38)
 			// 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
-			put_piece(from, moved_pc);
 			evalList.put_piece(piece_no, from, moved_pc);
 #elif defined(USE_FV_VAR)
-			//	 TODO:eval_listの更新
-			put_piece(from, moved_pc);
+			if (type_of(moved_pc) != KING)
+			{
+				evalList.remove_piece(to, moved_after_pc);
+				evalList.add_piece(from, moved_pc);
+			}
 #endif
 
 #if defined(LONG_EFFECT_LIBRARY)
 			// 移動先で駒を捕獲しないときの利きの更新
+			// このときに元あった玉の位置を用いるのでkingSquareはまだ更新してはならない。
 			LongEffect::rewind_by_no_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc);
 #endif
 		}
@@ -1515,7 +1552,8 @@ void Position::undo_move_impl(Move m)
 			kingSquare[Us] = from;
 	}
 
-	// put_piece()などを使ったので更新する。
+	// put_piece()などを使ったのでbitboardを更新する。
+	// kingSquareは自前で更新したのでupdate_kingSquare()を呼び出す必要はない。
 	update_bitboards();
 
 	// --- 相手番に変更
@@ -1525,6 +1563,8 @@ void Position::undo_move_impl(Move m)
 	st = st->previous;
 
 	--gamePly;
+
+	// ASSERT_LV5(evalList.is_valid(*this));
 }
 
 // do_move()を先後分けたdo_move_impl<>()を呼び出す。

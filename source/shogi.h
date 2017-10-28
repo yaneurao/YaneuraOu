@@ -393,7 +393,8 @@ enum Value: int32_t
 {
 	VALUE_ZERO = 0,
 
-	// 1手詰めのスコア(例えば、3手詰めならこの値より2少ない)
+	// 0手詰めのスコア(rootで詰んでいるときのscore)
+	// 例えば、3手詰めならこの値より3少ない。
 	VALUE_MATE = 32000,
 
 	// Valueの取りうる最大値(最小値はこの符号を反転させた値)
@@ -402,7 +403,7 @@ enum Value: int32_t
 	// 無効な値
 	VALUE_NONE = 32002,
 
-	VALUE_MATE_IN_MAX_PLY = int(VALUE_MATE) - MAX_PLY,   // MAX_PLYでの詰みのときのスコア。
+	VALUE_MATE_IN_MAX_PLY  =  int(VALUE_MATE) - MAX_PLY , // MAX_PLYでの詰みのときのスコア。
 	VALUE_MATED_IN_MAX_PLY = -int(VALUE_MATE_IN_MAX_PLY), // MAX_PLYで詰まされるときのスコア。
 
 	// 勝ち手順が何らか証明されているときのスコア下限値

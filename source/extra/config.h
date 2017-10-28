@@ -259,7 +259,7 @@
 #define ENGINE_NAME "YaneuraOu 2017 GOKU"
 
 //#define EVAL_KPPT
-#define EVAL_KPP_KKPT
+//#define EVAL_KPP_KKPT
 
 //#define USE_HELICES_MIRROR
 //#define EVAL_HELICES 81
@@ -275,7 +275,7 @@
 //#define EVAL_KKPP_KKPT 36
 //#define EVAL_KKPPT 36
 
-//#define EVAL_NABLA
+#define EVAL_NABLA
 //#define EVAL_MATERIAL
 
 // 実験中の評価関数

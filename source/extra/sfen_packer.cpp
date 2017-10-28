@@ -401,7 +401,8 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thre
 
 		evalList.put_piece(piece_no, sq, pc); // sqの升にpcの駒を配置する
 #elif defined(USE_FV_VAR)
-		evalList.put_piece(sq, pc);
+		if (type_of(pc) != KING)
+			evalList.add_piece(sq, pc);
 #endif
 
 		//cout << sq << ' ' << board[sq] << ' ' << stream.get_cursor() << endl;
