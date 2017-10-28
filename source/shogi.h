@@ -419,7 +419,9 @@ enum Value: int32_t
 	VALUE_MAX_EVAL = 27000,
 
 	// 評価関数がまだ呼び出されていないということを示すのに使う特殊な定数
-	VALUE_NOT_EVALUATED = 32003,
+	// StateInfo::sum.p[0][0]にこの値を格納して、マーカーとするのだが、このsumのp[0][0]は、ΣBKPPの計算結果であり、
+	// 16bitの範囲で収まるとは限らないため、もっと大きな数にしておく必要がある。
+	VALUE_NOT_EVALUATED = INT32_MAX,
 };
 
 // ply手で詰ませるときのスコア
