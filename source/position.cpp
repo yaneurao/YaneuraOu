@@ -200,7 +200,6 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 				(idx == B_KING) ? PIECE_NUMBER_BKING : // 先手玉
 				(idx == W_KING) ? PIECE_NUMBER_WKING : // 後手玉
 				piece_no_count[raw_type_of(Piece(idx))]++; // それ以外
-				PIECE_NUMBER_ZERO; // とりあえず駒番号は使わないので全部ゼロにしておけばいい。
 			evalList.put_piece(piece_no, sq, pc); // sqの升にpcの駒を配置する
 #elif defined(USE_FV_VAR)
 			if (type_of(pc) != KING)
