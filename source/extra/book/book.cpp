@@ -919,9 +919,13 @@ namespace Book
 				sum_count += entry.count;
 			}
 
-			for (const auto& entry : apery_book->get_entries(pos)) {
+			// 定跡ファイルによっては、採用率がすべて0ということがありうる。
+			// cf. https://github.com/yaneurao/YaneuraOu/issues/65
+			// この場合、sum_count == 0になるので、採用率を当確率だとみなして、1.0 / entries.size() にしておく。
+
+			for (const auto& entry : entries) {
 				BookPos book_pos(pos.move16_to_move(convert_move_from_apery(entry.fromToPro)), MOVE_NONE, entry.score, 256, entry.count);
-				book_pos.prob = entry.count / static_cast<float>(sum_count);
+				book_pos.prob = (sum_count != 0) ? (entry.count / static_cast<float>(sum_count) ) : (1.0f / entries.size());
 				insert_book_pos(pml_entry , book_pos);
 			}
 
