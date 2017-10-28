@@ -512,6 +512,9 @@ void is_ready_cmd(Position& pos, StateListPtr& states)
 
 	// Positionコマンドが送られてくるまで評価値の全計算をしていないの気持ち悪いのでisreadyコマンドに対して
 	// evalの値を返せるようにこのタイミングで平手局面で初期化してしまう。
+
+	// 新しく渡す局面なので古いものは捨てて新しいものを作る。
+	states = StateListPtr(new StateList(1));
 	pos.set_hirate(&states->back(),Threads.main());
 
 	sync_cout << "readyok" << sync_endl;
@@ -541,7 +544,7 @@ void position_cmd(Position& pos, istringstream& is , StateListPtr& states)
 			sfen += token + " ";
 	}
 
-	// 古いものは捨てて新しいものを作る。
+	// 新しく渡す局面なので古いものは捨てて新しいものを作る。
 	states = StateListPtr(new StateList(1));
 	pos.set(sfen , &states->back() , Threads.main());
 
