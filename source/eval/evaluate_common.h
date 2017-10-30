@@ -3,7 +3,8 @@
 
 // いまどきの手番つき評価関数(EVAL_KPPTとEVAL_KPP_KKPT)の共用header的なもの。
 
-#if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined (EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+#if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined (EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || \
+	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
 
 // KKファイル名
 #define KK_BIN "KK_synthesized.bin"
@@ -14,11 +15,13 @@
 // KPPファイル名
 #define KPP_BIN "KPP_synthesized.bin"
 
+// KPPPありの評価関数向け。
 #if defined (EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
 // KPPPファイル名
 #define KPPP_BIN "KPPP_synthesized.bin"
 #endif
 
+// KKPPありの評価関数向け。
 #if defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT)
 // KKPPファイル名
 #define KKPP_BIN "KKPP_synthesized.bin"

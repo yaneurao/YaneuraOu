@@ -161,6 +161,12 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 		th->rootPos.set(sfen, &setupStates->back(),th);
 	}
 
+#if defined(USE_FV_VAR)
+	// Position::set()によって、dirtyPieceはevalListに反映されていることになるのだが、
+	// 次にst->previousを復元してしまうと、その更新したことを示すフラグを潰してしまう。ここでフラグを立て直す。
+	tmp.dirtyPiece.updated_ = true;
+#endif
+
 	// Position::set()によってクリアされていた、st->previousを復元する。
 	setupStates->back() = tmp;
 

@@ -126,8 +126,9 @@ SOURCES  = shogi.cpp                                                           \
 	eval/kkpp_kkpt/evaluate_kkpp_kkpt_learner.cpp                              \
 	eval/kkppt/evaluate_kkppt.cpp                                              \
 	eval/kkppt/evaluate_kkppt_learner.cpp                                      \
+	eval/kpp_kkpt_fv_var/evaluate_kpp_kkpt_fv_var.cpp                          \
+	eval/kpp_kkpt_fv_var/evaluate_kpp_kkpt_fv_var_learner.cpp                  \
 	eval/evaluate.cpp                                                          \
-	eval/evaluate_no_eval.cpp                                                  \
 	eval/evaluate_io.cpp                                                       \
 	engine/user-engine/user-search.cpp                                         \
 	engine/help-mate-engine/help-mate-search.cpp                               \

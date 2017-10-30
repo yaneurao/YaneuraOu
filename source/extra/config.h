@@ -103,6 +103,7 @@
 // #define EVAL_KPP       // ！  Bonanza型 3駒関係、手番なし
 // #define EVAL_KPPT      // ○  Bonanza型 3駒関係、手番つき(Apery WCSC26相当)
 // #define EVAL_KPP_KKPT  // ○  KK手番あり + KKP手番あり + KPP手番なし(Ponanza WCSC26相当？)
+// #define EVAL_KPP_KKPT_FV_VAR // ○ KPP_KKPTと同一。※5
 // #define EVAL_KPP_PPT   // ×  PP手番あり + KKP手番あり + KPP手番なし(実装、途中まで)※1
 // #define EVAL_KPPP_KKPT // △  KKP手番あり + KPP手番なし + KPPP(4駒関係)手番なし。→　※2,※3
 // #define EVAL_KPPPT     // △  KPPP(4駒関係)手番あり。→　実装したけどいまひとつだったので差分計算実装せず。※2,※3
@@ -119,6 +120,9 @@
 // ※4 : 以前、EVAL_NO_USEという評価関数なしのものが選択できるようになっていたが、
 //       需要がほとんどない上に、ソースコードがifdefの嵐になるので読みづらいのでバッサリ削除した。
 //		代わりにEVAL_MATERIALを使うと良い。追加コストはほぼ無視できる。
+// ※5 : 可変長EvalListを用いるリファレンス実装。KPP_KKPT型に比べてわずかに遅いが、拡張性が非常に高く、
+//      極めて美しい実装なので、今後、評価関数の拡張は、これをベースにやっていくことになると思う。
+
 
 // 評価関数を教師局面から学習させるときに使うときのモード
 // #define EVAL_LEARN
@@ -275,7 +279,9 @@
 //#define EVAL_KKPP_KKPT 36
 //#define EVAL_KKPPT 36
 
-#define EVAL_NABLA
+#define EVAL_KPP_KKPT_FV_VAR
+
+//#define EVAL_NABLA
 //#define EVAL_MATERIAL
 
 // 実験中の評価関数
@@ -701,6 +707,8 @@ inline int MKDIR(std::string dir_name)
 #define EVAL_TYPE_NAME "KKPP_KKPT"
 #elif defined(EVAL_KKPPT)
 #define EVAL_TYPE_NAME "KKPPT"
+#elif defined(EVAL_KPP_KKPT_FV_VAR)
+#define EVAL_TYPE_NAME "KPP_KKPT_FV_VAR"
 #elif defined(EVAL_NABLA)
 #define EVAL_TYPE_NAME "NABLA"
 #else
@@ -723,6 +731,10 @@ inline int MKDIR(std::string dir_name)
 //    本来なら、そのどちらも用いないようにも出来ると良いのだが、ソースコードがぐちゃぐちゃになるのでそれはやらないことにした。
 // 6. FV_VAR方式は、Position::do_move()ではpiece_listは更新されず、dirtyPieceの情報のみが更新される。
 //    ゆえに、evaluate()ではdirtyPieceの情報に基づき、piece_listの更新もしなければならない。
+//    →　DirtyPiece::do_update()などを見ること。
+//    また、inv_piece()を用いるので、評価関数の初期化タイミングでEvalLearningTools::init_mir_inv_tables()を呼び出して
+//    inv_piece()が使える状態にしておかなければならない。
+// 7. FV_VAR方式のリファレンス実装として、EVAL_KPP_KKPT_FV_VARがあるので、そのソースコードを見ること。
 
 // あらゆる局面でP(駒)の数が増えないFV38と呼ばれる形式の差分計算用。
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_HELICES)
@@ -731,7 +743,7 @@ inline int MKDIR(std::string dir_name)
 
 // P(駒)の数が増えたり減ったりするタイプの差分計算用
 // FV38とは異なり、可変長piece_list。
-#if defined(EVAL_MATERIAL) || defined(EVAL_NABLA)
+#if defined(EVAL_MATERIAL) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA)
 #define USE_FV_VAR
 #endif
 

@@ -571,6 +571,7 @@ namespace EvalLearningTools
 
 			ASSERT_LV3(piece1 < (int)fe_end_);
 			ASSERT_LV3(piece0 < (int)fe_end_);
+			ASSERT_LV3(piece0 > piece1);
 
 			raw_index /= triangle_fe_end;
 #endif

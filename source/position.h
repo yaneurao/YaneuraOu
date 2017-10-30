@@ -77,34 +77,35 @@ struct StateInfo
 
 	// --- evaluate
 
-	#if !defined(EVAL_NO_USE)
 	// この局面での評価関数の駒割
 	Value materialValue;
-	#endif
 
-	#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_EXPERIMENTAL) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || \
+	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_EXPERIMENTAL) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+
 	// 評価値。(次の局面で評価値を差分計算するときに用いる)
 	// まだ計算されていなければsum.p[2][0]の値はINT_MAX
 	Eval::EvalSum sum;
-	#endif
 
-	#if defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT)
+#endif
+
+#if defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT)
 	// 評価関数で用いる、前回のencoded_eval_kkを保存しておく。
 	int encoded_eval_kk;
-	#endif
+#endif
 
-	#if defined(USE_FV38) || defined(USE_FV_VAR)
+#if defined(USE_FV38) || defined(USE_FV_VAR)
 	// 評価値の差分計算の管理用
 	Eval::DirtyPiece dirtyPiece;
-	#endif
+#endif
 
-	#if defined(KEEP_LAST_MOVE)
+#if defined(KEEP_LAST_MOVE)
 	// 直前の指し手。デバッグ時などにおいてその局面までの手順を表示出来ると便利なことがあるのでそのための機能
 	Move lastMove;
 
 	// lastMoveで移動させた駒(先後の区別なし)
 	Piece lastMovedPieceType;
-	#endif
+#endif
 
 	// 盤面(盤上の駒)と手駒に関するhash key
 	// 直接アクセスせずに、hand_key()、board_key(),key()を用いること。

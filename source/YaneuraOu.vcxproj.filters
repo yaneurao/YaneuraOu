@@ -74,6 +74,9 @@
     <Filter Include="リソース ファイル\eval\kkppt">
       <UniqueIdentifier>{8ca76b77-8998-41b4-9f52-b59666e1d93c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\eval\kpp_kkpt_fv_var">
+      <UniqueIdentifier>{002e5881-2553-464d-a5ca-7a8d84717077}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -190,6 +193,9 @@
     <ClInclude Include="eval\kkppt\evaluate_kkppt.h">
       <Filter>リソース ファイル\eval\kkppt</Filter>
     </ClInclude>
+    <ClInclude Include="eval\kpp_kkpt_fv_var\evaluate_kpp_kkpt_fv_var.h">
+      <Filter>リソース ファイル\eval\kpp_kkpt_fv_var</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -232,9 +238,6 @@
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
     <ClCompile Include="eval\evaluate_bona_piece.cpp">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
-    <ClCompile Include="eval\evaluate_no_eval.cpp">
       <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
     <ClCompile Include="extra\entering_king_win.cpp">
@@ -332,6 +335,12 @@
     </ClCompile>
     <ClCompile Include="eval\kkppt\evaluate_kkppt_learner.cpp">
       <Filter>リソース ファイル\eval\kkppt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kpp_kkpt_fv_var\evaluate_kpp_kkpt_fv_var.cpp">
+      <Filter>リソース ファイル\eval\kpp_kkpt_fv_var</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kpp_kkpt_fv_var\evaluate_kpp_kkpt_fv_var_learner.cpp">
+      <Filter>リソース ファイル\eval\kpp_kkpt_fv_var</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

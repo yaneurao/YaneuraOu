@@ -7,7 +7,8 @@
 //   評価関数に対応するheaderの読み込み
 // -------------------------------------
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || \
+	defined(EVAL_KKPPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
 #include "eval/evalsum.h"
 #endif
 
@@ -51,7 +52,8 @@ namespace Eval {
 	// あるいは差分計算が不可能なときに呼び出される。
 	Value compute_eval(const Position& pos);
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || \
+	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
 	// 評価関数パラメーターのチェックサムを返す。
 	u64 calc_check_sum();
 
@@ -65,14 +67,8 @@ namespace Eval {
 	// 評価値の内訳表示(デバッグ用)
 	void print_eval_stat(Position& pos);
 
-#if defined (EVAL_NO_USE)
-
-	// 評価関数を用いないときもValueを正規化するときに歩の価値は必要。
-	enum { PawnValue = 90 };
-
-#else
-
-#if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+#if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || \
+	defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
 
 	// Apery(WCSC26)の駒割り
 	enum {
@@ -125,7 +121,8 @@ namespace Eval {
 
 		// --- 手駒
 
-#if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+#if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || \
+	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
 		// Apery(WCSC26)方式。0枚目の駒があるので少し隙間がある。
 		// 定数自体は1枚目の駒のindexなので、EVAL_KPPの時と同様の処理で問題ない。
 		// 例)
@@ -258,40 +255,6 @@ namespace Eval {
 		PieceNumber piece_no_of_hand(BonaPiece bp) const { return piece_no_list_hand[bp]; }
 		// 盤上のある升sqに対応するPieceNumberを返す。
 		PieceNumber piece_no_of_board(Square sq) const { return piece_no_list_board[sq]; }
-
-#elif defined(USE_FV_VAR)
-
-		// 盤上のsqの升にpiece_noのpcの駒を配置する
-		// 注意 : 玉はpiece_listで保持しないことになっているのでtype_of(pc)==KINGでこの関数を呼び出してはならない。
-		void add_piece(Square sq, Piece pc)
-		{
-			ASSERT_LV3(type_of(pc) != KING);
-			ExtBonaPiece p(BonaPiece(kpp_board_index[pc].fb + sq), BonaPiece(kpp_board_index[pc].fw + Inv(sq)));
-			add(p);
-		}
-
-
-		// c側の手駒ptのi+1枚目の駒のPieceNumberを設定する。(1枚目の駒のPieceNumberを設定したいならi==0にして呼び出すの意味)
-		void add_piece( Color c, Piece pt, int i)
-		{
-			ExtBonaPiece p(BonaPiece(kpp_hand_index[c][pt].fb + i), BonaPiece(kpp_hand_index[c][pt].fw + i));
-			add(p);
-		}
-		
-		// add_piece(Square,Piece)の逆変換
-		void remove_piece(Square sq, Piece pc)
-		{
-			ASSERT_LV3(type_of(pc) != KING);
-			ExtBonaPiece p(BonaPiece(kpp_board_index[pc].fb + sq), BonaPiece(kpp_board_index[pc].fw + Inv(sq)));
-			remove(p);
-		}
-
-		// add_piece(Color,Piece,int)の逆変換
-		void remove_piece(Color c, Piece pt, int i)
-		{
-			ExtBonaPiece p(BonaPiece(kpp_hand_index[c][pt].fb + i), BonaPiece(kpp_hand_index[c][pt].fw + i));
-			remove(p);
-		}
 #endif
 
 		// pieceListを初期化する。
@@ -322,37 +285,13 @@ namespace Eval {
 
 #if defined(USE_FV_VAR)
 		// list長が可変のときは、add()/remove()をサポートする。
+		// DirtyPieceのほうから呼び出される。
 
 		// listにadd()する。
-		void add(ExtBonaPiece p)
-		{
-			pieceListFb[length_] = p.fb;
-			pieceListFw[length_] = p.fw;
-
-			bonapiece_to_piece_number[p.fb] = length_;
-			length_++;
-		}
+		void add(BonaPiece fb);
 
 		// listからremoveする。
-		void remove(ExtBonaPiece p)
-		{
-			--length_;
-			
-			BonaPiece last_fb = pieceListFb[length_];
-			BonaPiece last_fw = pieceListFw[length_];
-
-			// この番号のものを末尾のものと入れ替える(末尾のfb,fwがここに埋まる)
-			int pn = bonapiece_to_piece_number[p.fb];
-
-			// 存在しない駒をremoveしようとしていないか？
-			ASSERT_LV3(pn != PIECE_NUMBER_NB && p.fb == pieceListFb[pn]);
-
-			pieceListFb[pn] = last_fb;
-			pieceListFw[pn] = last_fw;
-
-			// last_fbがpieceListFb[pn]の場所に移動したので、bonapiece_to_piece_numberのほうを更新しておく。
-			bonapiece_to_piece_number[last_fb] = pn;
-		}
+		void remove(BonaPiece fb);
 #endif
 
 		// 内部で保持しているpieceListFb[]が正しいBonaPieceであるかを検査する。
@@ -388,7 +327,11 @@ namespace Eval {
 		// 38固定
 	public:
 		int length() const { return PIECE_NUMBER_KING; }
-		static const int MAX_LENGTH = 40; // VPGATHERDDを使う都合、4の倍数でなければならない。
+
+		// VPGATHERDDを使う都合、4の倍数でなければならない。
+		// また、KPPT型評価関数などは、39,40番目の要素がゼロであることを前提とした
+		// アクセスをしている箇所があるので注意すること。
+		static const int MAX_LENGTH = 40;
 	private:
 #elif defined(USE_FV_VAR)
 		// 可変長piece_list
@@ -430,7 +373,6 @@ namespace Eval {
 		u8 bonapiece_to_piece_number[fe_end];
 #endif
 	};
-#endif
 
 	// --- 局面の評価値の差分更新用
 	// 局面の評価値を差分更新するために、移動した駒を管理する必要がある。
@@ -466,19 +408,19 @@ namespace Eval {
 	{
 		static const int MAX_LENGTH = 4;
 
-		Eval::ExtBonaPiece at(int index) const { return pieces[index]; }
+		Eval::BonaPiece at(int index) const { return pieces[index]; }
 		int length() const { return length_; }
 		void clear() { length_ = 0; }
-		void push_back(Eval::ExtBonaPiece p) {
+		void push_back(Eval::BonaPiece fb) {
 			ASSERT_LV3(length_ != MAX_LENGTH);
-			pieces[length_++] = p;
+			pieces[length_++] = fb;
 		}
 
 		// range-based forで使いたいのでbegin(),end()を定義しておく。
-		Eval::ExtBonaPiece* begin() { return &(pieces[0]); }
-		Eval::ExtBonaPiece* end() { return &(pieces[length_]); }
+		Eval::BonaPiece* begin() { return &(pieces[0]); }
+		Eval::BonaPiece* end() { return &(pieces[length_]); }
 	private:
-		Eval::ExtBonaPiece pieces[MAX_LENGTH];
+		Eval::BonaPiece pieces[MAX_LENGTH];
 		int length_;
 	};
 
@@ -510,37 +452,25 @@ namespace Eval {
 		// Position::do_move()ではEvalListを直接更新せずevaluate()のほうで遅延更新したいので
 		// これらの関数が必要となる。
 		//
+		// BonaPieceの組み換えを行なうならば、これらの関数を書き換えるべし。
+		//
 
 		// 盤上のsqの升にpiece_noのpcの駒を配置する
 		// 注意 : 玉はpiece_listで保持しないことになっているのでtype_of(pc)==KINGでこの関数を呼び出してはならない。
-		void add_piece(Square sq, Piece pc)
-		{
-			ASSERT_LV3(type_of(pc) != KING);
-			ExtBonaPiece p(BonaPiece(kpp_board_index[pc].fb + sq), BonaPiece(kpp_board_index[pc].fw + Inv(sq)));
-			add_list.push_back(p);
-		}
+		void add_piece(Square sq, Piece pc);
+
+		// ある駒の盤上の移動。内部的にショートカット可能な場合がある。
+		void remove_and_add_piece(Square from, Piece moved_pc, Square to, Piece moved_after_pc);
 
 		// c側の手駒ptのi+1枚目の駒のPieceNumberを設定する。(1枚目の駒のPieceNumberを設定したいならi==0にして呼び出すの意味)
-		void add_piece(Color c, Piece pt, int i)
-		{
-			ExtBonaPiece p(BonaPiece(kpp_hand_index[c][pt].fb + i), BonaPiece(kpp_hand_index[c][pt].fw + i));
-			add_list.push_back(p);
-		}
+		void add_piece(Color c, Piece pt, int i);
 
 		// add_piece(Square,Piece)の逆変換
-		void remove_piece(Square sq, Piece pc)
-		{
-			ASSERT_LV3(type_of(pc) != KING);
-			ExtBonaPiece p(BonaPiece(kpp_board_index[pc].fb + sq), BonaPiece(kpp_board_index[pc].fw + Inv(sq)));
-			remove_list.push_back(p);
-		}
+		void remove_piece(Square sq, Piece pc);
 
 		// add_piece(Color,Piece,int)の逆変換
-		void remove_piece(Color c, Piece pt, int i)
-		{
-			ExtBonaPiece p(BonaPiece(kpp_hand_index[c][pt].fb + i), BonaPiece(kpp_hand_index[c][pt].fw + i));
-			remove_list.push_back(p);
-		}
+		void remove_piece(Color c, Piece pt, int i);
+
 
 		// 現在のこのクラスの内容に基づきEvalListを更新するのと、巻き戻すの。
 

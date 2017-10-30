@@ -697,6 +697,7 @@
     <ClInclude Include="eval\kppp_kkpt\evaluate_kppp_kkpt.h" />
     <ClInclude Include="eval\kppt\evaluate_kppt.h" />
     <ClInclude Include="eval\kpp_kkpt\evaluate_kpp_kkpt.h" />
+    <ClInclude Include="eval\kpp_kkpt_fv_var\evaluate_kpp_kkpt_fv_var.h" />
     <ClInclude Include="extra\all.h" />
     <ClInclude Include="extra\bitop.h" />
     <ClInclude Include="extra\book\apery_book.h" />
@@ -732,7 +733,6 @@
     <ClCompile Include="eval\evaluate_bona_piece.cpp" />
     <ClCompile Include="eval\evaluate_io.cpp" />
     <ClCompile Include="eval\evaluate.cpp" />
-    <ClCompile Include="eval\evaluate_no_eval.cpp" />
     <ClCompile Include="eval\kkppt\evaluate_kkppt.cpp" />
     <ClCompile Include="eval\kkppt\evaluate_kkppt_learner.cpp" />
     <ClCompile Include="eval\kkpp_kkpt\evaluate_kkpp_kkpt.cpp" />
@@ -745,6 +745,8 @@
     <ClCompile Include="eval\kppt\evaluate_kppt_learner.cpp" />
     <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt.cpp" />
     <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt_learner.cpp" />
+    <ClCompile Include="eval\kpp_kkpt_fv_var\evaluate_kpp_kkpt_fv_var.cpp" />
+    <ClCompile Include="eval\kpp_kkpt_fv_var\evaluate_kpp_kkpt_fv_var_learner.cpp" />
     <ClCompile Include="extra\benchmark.cpp" />
     <ClCompile Include="extra\bitop.cpp" />
     <ClCompile Include="extra\book\apery_book.cpp" />
