@@ -217,7 +217,10 @@ namespace EvalIO
 							for (u64 p1 = 0; p1< output.fe_end;++p1)
 							{
 								// mapが指定されていれば、input側のmap[p1]を参照する。
+								// ただし、input.fe_endを超えることは出来ないので、その点、注意が必要。
 								u64 input_p1 = map == nullptr ? p1 : map->at(p1);
+								if (input_p1 >= input.fe_end)
+									input_p1 = 0;
 								u64 input_index  = ((k1)* input.sq_nb  + (k2)) * input.fe_end  + input_p1;
 								u64 output_index = ((k1)* output.sq_nb + (k2)) * output.fe_end +       p1;
 								conv((u8*)in_ptr + input_index * input_feature_size, (u8*)out_ptr + output_index * output_feature_size);
@@ -229,9 +232,13 @@ namespace EvalIO
 						for (u64 p1 = 0; p1 < output.fe_end; ++p1)
 						{
 							u64 input_p1 = map == nullptr ? p1 : map->at(p1);
+							if (input_p1 >= input.fe_end)
+								input_p1 = 0;
 							for (u64 p2 = 0; p2 < output.fe_end; ++p2)
 							{
 								u64 input_p2 = map == nullptr ? p2 : map->at(p2);
+								if (input_p2 >= input.fe_end)
+									input_p2 = 0;
 								u64 input_index  = ((k1)* input.fe_end  + (input_p1)) * input.fe_end  + input_p2;
 								u64 output_index = ((k1)* output.fe_end + (      p1)) * output.fe_end +       p2;
 								conv((u8*)in_ptr + input_index * input_feature_size, (u8*)out_ptr + output_index * output_feature_size);
@@ -239,14 +246,21 @@ namespace EvalIO
 						}
 					break;
 
-				// ここから下のコードはテストしていない。間違っていても知らん。
+				//
+				// --- ここから下のコードはテストしていない。間違っていても知らん。
+				//
+
 				case PP:
 					for (u64 p1 = 0; p1 < output.fe_end; ++p1)
 					{
 						u64 input_p1 = map == nullptr ? p1 : map->at(p1);
+						if (input_p1 >= input.fe_end)
+							input_p1 = 0;
 						for (u64 p2 = 0; p2 < output.fe_end; ++p2)
 						{
 							u64 input_p2 = map == nullptr ? p2 : map->at(p2);
+							if (input_p2 >= input.fe_end)
+								input_p2 = 0;
 							u64 input_index =  (input_p1) * input.fe_end  + input_p2;
 							u64 output_index = (      p1) * output.fe_end + p2;
 							conv((u8*)in_ptr + input_index * input_feature_size, (u8*)out_ptr + output_index * output_feature_size);
@@ -260,9 +274,13 @@ namespace EvalIO
 							for (u64 p1 = 0; p1 < output.fe_end; ++p1)
 							{
 								u64 input_p1 = map == nullptr ? p1 : map->at(p1);
+								if (input_p1 >= input.fe_end)
+									input_p1 = 0;
 								for (u64 p2 = 0; p2 < output.fe_end; ++p2)
 								{
 									u64 input_p2 = map == nullptr ? p2 : map->at(p2);
+									if (input_p2 >= input.fe_end)
+										input_p2 = 0;
 									u64 input_index  = ((k1*input.sq_nb  + k2) * input.fe_end  + (input_p1)) * input.fe_end  + input_p2;
 									u64 output_index = ((k1*output.sq_nb + k2) * output.fe_end + (      p1)) * output.fe_end +       p2;
 									conv((u8*)in_ptr + input_index * input_feature_size, (u8*)out_ptr + output_index * output_feature_size);
@@ -272,16 +290,23 @@ namespace EvalIO
 
 				case KPPP:
 					// こんな正方配列は、メモリきつすぎ。
+					// こんな確保の仕方をしないと思うので、このコードは実際は使わない。
 					for (u64 k1 = 0; k1 < output.sq_nb; ++k1)
 						for (u64 p1 = 0; p1 < output.fe_end; ++p1)
 						{
 							u64 input_p1 = map == nullptr ? p1 : map->at(p1);
+							if (input_p1 >= input.fe_end)
+								input_p1 = 0;
 							for (u64 p2 = 0; p2 < output.fe_end; ++p2)
 							{
 								u64 input_p2 = map == nullptr ? p2 : map->at(p2);
+								if (input_p2 >= input.fe_end)
+									input_p2 = 0;
 								for (u64 p3 = 0; p3 < output.fe_end; ++p3)
 								{
 									u64 input_p3 = map == nullptr ? p3 : map->at(p3);
+									if (input_p3 >= input.fe_end)
+										input_p3 = 0;
 									u64 input_index  = (((k1)* input.fe_end  + (input_p1)) * input.fe_end  + input_p2)*input.fe_end  + input_p3;
 									u64 output_index = (((k1)* output.fe_end + (      p1)) * output.fe_end +       p2)*output.fe_end +       p3;
 									conv((u8*)in_ptr + input_index * input_feature_size, (u8*)out_ptr + output_index * output_feature_size);
