@@ -279,9 +279,9 @@
 //#define EVAL_KKPP_KKPT 36
 //#define EVAL_KKPPT 36
 
-#define EVAL_KPP_KKPT_FV_VAR
+//#define EVAL_KPP_KKPT_FV_VAR
 
-//#define EVAL_NABLA
+#define EVAL_NABLA
 //#define EVAL_MATERIAL
 
 // 実験中の評価関数

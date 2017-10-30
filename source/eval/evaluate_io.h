@@ -165,6 +165,17 @@ namespace EvalIO
 			ei.eval_info_array.emplace_back(EvalArrayInfo(VAR, 2, size_of_kkpp / 2, FileOrMemory(kkpp_))); // KKPPは2バイト。(手番ありなので2つ)
 			return ei;
 		}
+		// NABLA型評価関数の型定義を返すbuilder。
+		template <typename T1, typename T2, typename T3>
+		static EvalInfo build_nabla(T1 kk_, T2 kkp_, T3 kpp_)
+		{
+			EvalInfo ei(81 /* SQ_NB */, 1548 + 1024*4 /* EvalKPPT::fe_end */);
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KK, 4, 2, FileOrMemory(kk_)));   // KK は4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP, 4, 2, FileOrMemory(kkp_))); // KKPは4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP, 2, 1, FileOrMemory(kpp_))); // KPPは2バイト。(手番なしなので1つ)
+			return ei;
+		}
+
 	};
 
 	// 評価関数の変換＋αを行なう。
