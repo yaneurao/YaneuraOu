@@ -27,6 +27,8 @@
 //             評価関数
 // -------------------------------------
 
+struct StateInfo;
+
 namespace Eval {
 
 	// evaluateの起動時に行なう軽量な初期化はここで行なう。
@@ -68,6 +70,16 @@ namespace Eval {
 
 	// 評価値の内訳表示(デバッグ用)
 	void print_eval_stat(Position& pos);
+
+#if defined(EVAL_NABLA)
+	// これ、あとで整備する。
+
+	// 現在のeval listを出力する。
+	void print_eval_list(Position& pos);
+
+	// 現在のeval listのvalidation
+	void is_valid_nabra_eval_list(const Position& pos);
+#endif
 
 #if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || \
 	defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
@@ -300,9 +312,10 @@ namespace Eval {
 		// 注 : デバッグ用。遅い。
 		bool is_valid(const Position& pos);
 
-	protected:
 
 #if defined(USE_FV38)
+	protected:
+
 		// 盤上sqにあるpiece_noの駒のBonaPieceがfb,fwであることを設定する。
 		inline void set_piece_on_board(PieceNumber piece_no, BonaPiece fb , BonaPiece fw, Square sq)
 		{
@@ -374,6 +387,7 @@ namespace Eval {
 		// fe_endが大きいとこのテーブルが肥大化するので、working setを小さく保つためにu8で確保する。
 		u8 bonapiece_to_piece_number[fe_end];
 #endif
+
 	};
 
 	// --- 局面の評価値の差分更新用
@@ -383,6 +397,7 @@ namespace Eval {
 	// 2) FV_VAR方式だと、DirtyPieceは可変。
 
 #if defined (USE_FV38)
+
 	// 評価値の差分計算の管理用
 	// 前の局面から移動した駒番号を管理するための構造体
 	// 動く駒は、最大で2個。
@@ -408,13 +423,14 @@ namespace Eval {
 	// 駒の移動の際に追加になる駒/削除される駒を管理するコンテナ。
 	struct BonaPieceList
 	{
-		static const int MAX_LENGTH = 4;
+		static const int MAX_LENGTH = 8;
 
 		Eval::BonaPiece at(int index) const { return pieces[index]; }
 		int length() const { return length_; }
 		void clear() { length_ = 0; }
 		void push_back(Eval::BonaPiece fb) {
-			ASSERT_LV3(length_ != MAX_LENGTH);
+			ASSERT_LV3(length_ < MAX_LENGTH);
+			ASSERT_LV3(fb < Eval::fe_end);
 			pieces[length_++] = fb;
 		}
 
@@ -448,6 +464,14 @@ namespace Eval {
 			remove_list.clear();
 			updated_ = false;
 		}
+
+		// Position::set()やdo_move()で設定されることになっている。
+		// StateInfoのworkをこのクラス内部から参照したい場合、state()を用いる。
+		void set_state_info(StateInfo* si)
+		{
+			st_ = si;
+		}
+		StateInfo* state() { return st_; }
 
 		//
 		// 以下、EvalListのほうと同じ名前、同じ機能の関数。
@@ -491,11 +515,11 @@ namespace Eval {
 		{
 			// すでに更新が適用されているので逆手順で巻き戻す
 
-			for (auto p : remove_list)
-				eval_list.add(p);
-
 			for (auto p : add_list)
 				eval_list.remove(p);
+
+			for (auto p : remove_list)
+				eval_list.add(p);
 		}
 
 		// do_update()されたあとであるかを判定。
@@ -505,6 +529,9 @@ namespace Eval {
 
 	// private:
 		bool updated_;
+
+	private:
+		StateInfo* st_;
 	};
 #endif
 

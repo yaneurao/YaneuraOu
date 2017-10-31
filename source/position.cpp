@@ -175,6 +175,7 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 	auto& dp = st->dirtyPiece;
 	// FV_VARのときは直接evalListに追加せず、DirtyPieceにいったん追加して、
 	// そのあと、DirtyPiece::update()でevalListに追加する。このupdate()の時に組み換えなどの操作をしたいため。
+	dp.set_state_info(st);
 #endif
 
 	kingSquare[BLACK] = kingSquare[WHITE] = SQ_NB;
@@ -214,6 +215,8 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 				dp.do_update(evalList);
 				dp.clear();
 				// DirtyPieceのBonaPieceを格納するバッファ、極めて小さいのでevalListに反映させるごとにクリアしておく。
+
+				//Eval::print_eval_list(*this);
 			}
 #endif
 
@@ -1036,6 +1039,12 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	// std::memcpy(&new_st, st, offsetof(StateInfo, checkersBB));
 	// 将棋ではこの処理、要らないのでは…。
 
+	// ここ、もう少し汎用的な記述手段をあとで考える。
+#if defined(EVAL_NABLA)
+	// 前のnodeの値をコピーする。
+	std::memcpy(&new_st.nabla_work , &st->nabla_work , sizeof(u16)*4);
+#endif
+
 	// StateInfoを遡れるようにpreviousを設定しておいてやる。
 	StateInfo* prev;
 	new_st.previous = prev = st;
@@ -1079,6 +1088,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #if defined(USE_FV_VAR)
 	// add()していくので、length = 0にしないといけない。
 	dp.clear();
+	dp.set_state_info(st);
 #endif
 
 	if (is_drop(m))

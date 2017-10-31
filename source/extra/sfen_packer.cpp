@@ -367,6 +367,7 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thre
 	auto& dp = st->dirtyPiece;
 	// FV_VARのときは直接evalListに追加せず、DirtyPieceにいったん追加して、
 	// そのあと、DirtyPiece::update()でevalListに追加する。このupdate()の時に組み換えなどの操作をしたいため。
+	dp.set_state_info(st);
 #endif
 
 	kingSquare[BLACK] = kingSquare[WHITE] = SQ_NB;

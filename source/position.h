@@ -94,6 +94,13 @@ struct StateInfo
 	int encoded_eval_kk;
 #endif
 
+#if defined(EVAL_NABLA)
+	// 作業用のwork
+	// do_move()のときに前nodeからコピーされる。
+	// undo_move()のとき自動的に破棄される。
+	u16 nabla_work[4];
+#endif
+
 #if defined(USE_FV38) || defined(USE_FV_VAR)
 	// 評価値の差分計算の管理用
 	Eval::DirtyPiece dirtyPiece;
