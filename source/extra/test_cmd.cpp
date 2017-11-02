@@ -1110,6 +1110,37 @@ void exam_book(Position& pos)
 }
 
 
+/*
+	定跡を思考によって生成するときに、思考対象局面をリストアップする関数。
+	ソースコードは書き殴ってあり、隠しコマンドでもあるので、積極的に使って欲しいコマンドではなくあくまで参考用。
+
+	// 以下にbatファイルとJenkinsのjobの例を書いておくので、わかる人だけわかって。
+
+	// 思考対象局面のsfenを生成するbatファイルの例
+	// 1. 前回のiteration(JenkinsのJob)で生成した定跡ファイルがa.dbとリネームして、カレントフォルダに存在するものとする。
+	// 2. makebook sortコマンドを使って定跡DBのソートを行ない書き出す。(これをしておかないと二分探索できない)
+	// 3. yaneura_book4.dbが生成される定跡DBである。
+	// 4. ファイル名に日付をつけてバックアップ用のフォルダに保存する処理が書いてある。
+
+		set dt=%date%& set tm=%time%
+		if "%tm:~0,5%"==" 0:00" set dt=%date%
+
+		YaneuraOuGoku_KPPT.exe makebook sort a.db a.db , quit
+		copy book\yaneura_book4.db "%YANEHOME%\book\old\yaneura_book4 - %dt:~-10,4%%dt:~-5,2%%dt:~-2,2%%tm:~0,2%%tm:~3,2%%tm:~6,2%.db"
+		copy a.db book\yaneura_book4.db
+		YaneuraOuGoku_KPPT.exe test bookcheck , quit
+		copy book_records.sfen %YANEHOME%\book\records2017.sfen
+		copy book\yaneura_book4.db \\SHOGI_SERVER\yanehome\book
+
+		pause
+
+	// makebook thinkコマンドで思考するJenkins用のjobの例)
+
+		copy %YANEHOME%\book\yaneura_book4.db  %YANEHOME%\book_work\%BUILD_NUMBER%.db
+		start /B /WAIT /D %YANEHOME% %YANEHOME%\exe\YaneuraOuGoku_KPPT.exe multipv %MULTI_PV% , bookfile yaneura_book4.db , evaldir eval/%EVAL_DIR% , threads %HT_CORES% , hash 16384 , makebook think %YANEHOME%\book\%THINK_SFEN% %YANEHOME%\book_work\%BUILD_NUMBER%.db startmoves %START_MOVES% moves %END_MOVES% depth %DEPTH% cluster %CLUSTER% , quit
+
+
+*/
 void book_check(Position& pos, Color rootTurn, Book::MemoryBook& book, string sfen, ofstream& of)
 {
 	int ply = pos.game_ply();
@@ -1183,7 +1214,7 @@ void book_check_cmd(Position& pos, istringstream& is)
 	pos.set_hirate(&si,Threads.main());
 
 	// とりあえずファイル名は固定でいいや。
-	string book_name = "yaneura_book3.db";
+	string book_name = "yaneura_book4.db";
 
 	// bookの読み込み。
 	Book::MemoryBook book;
