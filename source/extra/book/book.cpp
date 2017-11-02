@@ -115,7 +115,12 @@ namespace Book
 			}
 
 			// 1局面思考するごとに'.'をひとつ出力する。
-			cout << '.' << flush;
+			//cout << '.' << flush;
+
+#if 1
+			// 思考、極めて遅いのでログにタイムスタンプを出力して残しておいたほうが良いのでは…。
+			cout << "[" << thread_id << "] " << now_string() << " : " << sfen << endl;
+#endif
 		}
 	}
 #endif

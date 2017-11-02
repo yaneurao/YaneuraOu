@@ -1175,6 +1175,17 @@ void book_check(Position& pos, Color rootTurn, Book::MemoryBook& book, string sf
 			if (move_list.size() <= i)
 				break;
 
+#if 1
+			// 定跡生成のときにevalが-400以下とかなら、その枝、それ以上生成しなくていいような…。
+			// 自分側から見て-400になるような局面に行く指し手を自分は選ばないはずだし、
+			// 相手側から見て-400以下の局面に到達したなら、あとは自力で勝てるだろうから…。
+			// ※　評価値の絶対値が大きい局面は終盤に近く、depth固定だとあまりiterationが回らず、定跡生成に
+			// 極端に時間がかかる原因となるのでこのような枝刈りが必須。
+
+			if (move_list[i].value <= -400)
+				continue;
+#endif
+
 			Move m = move_list[i].bestMove;
 
 			pos.do_move(m, si);
