@@ -38,6 +38,7 @@ void MultiThink::go_think()
 
 	// ループ上限はset_loop_max()で設定されているものとする。
 	loop_count = 0;
+	done_count = 0;
 
 	// threadをOptions["Threads"]の数だけ生成して思考開始。
 	std::vector<std::thread> threads;

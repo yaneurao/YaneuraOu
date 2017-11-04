@@ -44,6 +44,9 @@ struct MultiThink
 
 	// workerが処理する(Search::think()を呼び出す)回数を設定する。
 	void set_loop_max(u64 loop_max_) { loop_max = loop_max_; }
+	
+	// set_loop_max()で設定した値を取得する。
+	u64 get_loop_max() const { return loop_max; }
 
 	// [ASYNC] ループカウンターの値を取り出して、取り出し後にループカウンターを加算する。
 	// もしループカウンターがloop_maxに達していたらUINT64_MAXを返す。
@@ -54,6 +57,12 @@ struct MultiThink
 		if (loop_count >= loop_max)
 			return UINT64_MAX;
 		return loop_count++;
+	}
+
+	// [ASYNC] 処理した個数を返す用。呼び出されるごとにインクリメントされたカウンターが返る。
+	u64 get_done_count() {
+		std::unique_lock<Mutex> lk(loop_mutex);
+		return ++done_count;
 	}
 
 	// worker threadがI/Oにアクセスするときのmutex
@@ -68,6 +77,8 @@ private:
 	std::atomic<u64> loop_max;
 	// workerが処理した(Search::think()を呼び出した)回数
 	std::atomic<u64> loop_count;
+	// 処理した回数を返す用。
+	std::atomic<u64> done_count;
 
 	// ↑の変数を変更するときのmutex
 	Mutex loop_mutex;
