@@ -118,6 +118,7 @@ struct SfenWriter
 		// 追加学習するとき、評価関数の学習後も生成される教師の質はあまり変わらず、教師局面数を稼ぎたいので
 		// 古い教師も使うのが好ましいのでこういう仕様にしてある。
 		fs.open(filename, ios::out | ios::binary | ios::app);
+		filename_ = filename;
 
 		finished = false;
 	}
@@ -223,6 +224,25 @@ struct SfenWriter
 
 					sfen_write_count += ptr->size();
 
+#if 1
+					// 処理した件数をここに加算していき、save_everyを超えたら、ファイル名を変更し、このカウンターをリセットする。
+					save_every_counter += ptr->size();
+					if (save_every_counter >= save_every)
+					{
+						save_every_counter = 0;
+						// ファイル名を変更。
+
+						fs.close();
+
+						// ファイルにつける連番
+						int n = (int)(sfen_write_count / save_every);
+						// ファイル名を変更して再度openする。上書き考慮してios::appをつけておく。(運用によっては、ないほうがいいかも..)
+						string filename = filename_ + std::to_string(n);
+						fs.open(filename, ios::out | ios::binary | ios::app);
+						cout << endl << "output sfen file = " << filename << endl;
+					}
+#endif
+
 					// 棋譜を書き出すごとに'.'を出力。
 					std::cout << ".";
 
@@ -242,9 +262,18 @@ struct SfenWriter
 		output_status();
 	}
 
+	// この単位でファイル名を変更する。
+	u64 save_every = UINT64_MAX;
+
 private:
 
 	fstream fs;
+
+	// コンストラクタで渡されたファイル名
+	std::string filename_;
+
+	// 処理した件数をここに加算していき、save_everyを超えたら、ファイル名を変更し、このカウンターをリセットする。
+	u64 save_every_counter = 0;
 
 	// ファイルに書き込む用のthread
 	std::thread file_worker_thread;
@@ -266,7 +295,6 @@ private:
 
 	// 書きだした局面の数
 	u64 sfen_write_count = 0;
-
 };
 
 // -----------------------------------
@@ -832,6 +860,10 @@ void gen_sfen(Position&, istringstream& is)
 	// あとeval hashのhash衝突したときに、変な値の評価値が使われ、それを教師に使うのが気分が悪いというのもある。
 	bool use_eval_hash = false;
 
+	// この単位でファイルに保存する。
+	// ファイル名は file_1.bin , file_2.binのように連番がつく。
+	u64 save_every = UINT64_MAX;
+
 	while (true)
 	{
 		token = "";
@@ -873,6 +905,8 @@ void gen_sfen(Position&, istringstream& is)
 			is >> write_maxply;
 		else if (token == "use_eval_hash")
 			is >> use_eval_hash;
+		else if (token == "save_every")
+			is >> save_every;
 		else
 			cout << "Error! : Illegal token " << token << endl;
 	}
@@ -905,11 +939,14 @@ void gen_sfen(Position&, istringstream& is)
 		<< "  write_minply           = " << write_minply << endl
 		<< "  write_maxply           = " << write_maxply << endl
 		<< "  output_file_name       = " << output_file_name << endl
-		<< "  use_eval_hash          = " << use_eval_hash << endl;
+		<< "  use_eval_hash          = " << use_eval_hash << endl
+		<< "  save_every             = " << save_every << endl;
 
 	// Options["Threads"]の数だけスレッドを作って実行。
 	{
 		SfenWriter sw(output_file_name, thread_num);
+		sw.save_every = save_every;
+
 		MultiThinkGenSfen multi_think(search_depth, search_depth2, sw);
 		multi_think.set_loop_max(loop_max);
 		multi_think.eval_limit = eval_limit;
