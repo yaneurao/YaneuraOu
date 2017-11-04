@@ -72,7 +72,7 @@ namespace EvalLearningTools
 			WinProcGroup::bindThisThread(thread_index);
 #endif
 
-#pragma omp parallel for schedule(dynamic,20000)
+#pragma omp for schedule(dynamic,20000)
 
 			for (s64 index_ = 0; index_ < (s64)size; ++index_)
 			{
