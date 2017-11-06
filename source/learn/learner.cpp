@@ -864,6 +864,9 @@ void gen_sfen(Position&, istringstream& is)
 	// ファイル名は file_1.bin , file_2.binのように連番がつく。
 	u64 save_every = UINT64_MAX;
 
+	// ファイル名の末尾にランダムな数値を付与する。
+	bool random_file_name = false;
+
 	while (true)
 	{
 		token = "";
@@ -907,6 +910,8 @@ void gen_sfen(Position&, istringstream& is)
 			is >> use_eval_hash;
 		else if (token == "save_every")
 			is >> save_every;
+		else if (token == "random_file_name")
+			is >> random_file_name;
 		else
 			cout << "Error! : Illegal token " << token << endl;
 	}
@@ -922,6 +927,22 @@ void gen_sfen(Position&, istringstream& is)
 		search_depth2 = search_depth;
 	if (random_multi_pv_depth == INT_MIN)
 		random_multi_pv_depth = search_depth;
+
+	if (random_file_name)
+	{
+		// output_file_nameにこの時点でランダムな数値を付与してしまう。
+		PRNG r;
+		// 念のため乱数振り直しておく。
+		for(int i=0;i<10;++i)
+			r.rand(1);
+		auto to_hex = [](u64 u){
+			std::stringstream ss;
+			ss << std::hex << u;
+			return ss.str();
+		};
+		// 64bitの数値で偶然かぶると嫌なので念のため64bitの数値２つくっつけておく。
+		output_file_name = output_file_name + "_" + to_hex(r.rand<u64>()) + to_hex(r.rand<u64>());
+	}
 
 	std::cout << "gen_sfen : " << endl
 		<< "  search_depth = " << search_depth << " to " << search_depth2 << endl
@@ -940,7 +961,8 @@ void gen_sfen(Position&, istringstream& is)
 		<< "  write_maxply           = " << write_maxply << endl
 		<< "  output_file_name       = " << output_file_name << endl
 		<< "  use_eval_hash          = " << use_eval_hash << endl
-		<< "  save_every             = " << save_every << endl;
+		<< "  save_every             = " << save_every << endl
+		<< "  random_file_name       = " << random_file_name << endl;
 
 	// Options["Threads"]の数だけスレッドを作って実行。
 	{
