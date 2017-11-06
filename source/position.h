@@ -439,10 +439,8 @@ struct Position
 
 	// --- Evaluation
 
-#if !defined (EVAL_NO_USE)
-  // 評価関数で使うための、どの駒番号の駒がどこにあるかなどの情報。
+	// 評価関数で使うための、どの駒番号の駒がどこにあるかなどの情報。
 	const Eval::EvalList* eval_list() const { return &evalList; }
-#endif
 
 #if defined (USE_SEE)
 	// 指し手mのsee(Static Exchange Evaluation : 静的取り合い評価)において
@@ -721,11 +719,8 @@ private:
 	// undo_move()で前の局面に戻るときはStateInfo::previousから辿って戻る。
 	StateInfo* st;
 
-#ifndef EVAL_NO_USE
 	// 評価関数で用いる駒のリスト
 	Eval::EvalList evalList;
-#endif
-
 };
 
 inline void Position::xor_piece(Piece pc, Square sq)
