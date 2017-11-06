@@ -340,6 +340,17 @@ USIプロトコルの独自拡張コマンド
 			AWSのspot instanceのterminate対策。
 			mは1万の倍数を指定する。端数は無視される。
 
+		random_file_name b : 生成されるファイル名をランダム化するオプション
+			random_file_name 1と指定すると有効。
+			random_file_name 0と指定すると無効。デフォルト、無効。
+			このオプションが有効だとoutput_file_nameで指定したファイル名にランダムな数字を結合する。
+			例) output_sfen_2549869
+			さらにsave_everyオプションと組み合わせると
+			例) output_sfen_2549869 , output_sfen_2549869_1 , output_sfen_2549869_2 , ..
+			のように連番で保存されていく。
+			※　AWSで複数インスタンスを立ち上げるときに、startupのスクリプトでgensfenコマンドを叩きたいときに
+			それぞれのインスタンスで出力ファイル名が違っていて欲しいため。
+
 
 ・教師局面から評価関数の学習
 

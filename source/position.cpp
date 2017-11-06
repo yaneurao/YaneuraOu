@@ -7,7 +7,7 @@
 #include "thread.h"
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || \
-	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA) || defined(EVAL_NABLA2)
 #include "eval/evaluate_common.h"
 #endif
 
@@ -1040,9 +1040,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	// 将棋ではこの処理、要らないのでは…。
 
 	// ここ、もう少し汎用的な記述手段をあとで考える。
-#if defined(EVAL_NABLA)
+#if defined(EVAL_NABLA) || defined(EVAL_NABLA2)
 	// 前のnodeの値をコピーする。
-	std::memcpy(&new_st.nabla_work , &st->nabla_work , sizeof(u16)*4);
+	std::memcpy(&new_st.nabla_work , &st->nabla_work , sizeof(StateInfo::nabla_work));
 #endif
 
 	// StateInfoを遡れるようにpreviousを設定しておいてやる。
