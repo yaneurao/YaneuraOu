@@ -1204,7 +1204,10 @@ void book_check(Position& pos, Color rootTurn, Book::MemoryBook& book, string sf
 			if (move_list[i].value <= -200)
 				continue;
 
-			if (move_list[0].value - move_list[i].value >= 50)
+			// 4手目までにこの条件を入れてしまうと、いまのコンピュータ将棋では振り飛車をかなり悪く評価しているので
+			// 初手から86歩34歩76歩44歩の44歩だが、best valueとの差が100以上あってここで枝刈りされてしまう。
+			// そこで5手目まではこの条件を有効にしない。
+			if (pos.game_ply() >= 5 && move_list[0].value - move_list[i].value >= 50)
 				continue;
 #endif
 
