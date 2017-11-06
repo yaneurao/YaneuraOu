@@ -110,7 +110,8 @@
 // #define EVAL_PPET      // ×  技巧型 2駒+利き+手番(実装予定なし)
 // #define EVAL_KKPPT     // ○  KKPP型 4駒関係 手番あり。(55将棋、56将棋でも使えそう)※3
 // #define EVAL_KKPP_KKPT // ○  KKPP型 4駒関係 手番はKK,KKPTにのみあり。※3
-// #define EVAL_NABLA     // ？  ∇(ナブラ) 評価関数
+// #define EVAL_NABLA     // ○  ∇(ナブラ) 評価関数(現状、非公開)
+// #define EVAL_NABLA2    // ○  ∇(ナブラ)2 評価関数(現状、非公開)
 // #define EVAL_HELICES   // ？  螺旋評価関数
 
 // ※1 : KPP_PPTは、差分計算が面倒で割に合わないことが判明したのでこれを使うぐらいならKPP_KKPTで十分だという結論。
@@ -281,7 +282,9 @@
 
 //#define EVAL_KPP_KKPT_FV_VAR
 
-#define EVAL_NABLA
+//#define EVAL_NABLA
+#define EVAL_NABLA2
+
 //#define EVAL_MATERIAL
 
 // 実験中の評価関数
@@ -711,6 +714,8 @@ inline int MKDIR(std::string dir_name)
 #define EVAL_TYPE_NAME "KPP_KKPT_FV_VAR"
 #elif defined(EVAL_NABLA)
 #define EVAL_TYPE_NAME "NABLA"
+#elif defined(EVAL_NABLA2)
+#define EVAL_TYPE_NAME "NABLA2"
 #else
 #define EVAL_TYPE_NAME ""
 #endif
@@ -743,7 +748,7 @@ inline int MKDIR(std::string dir_name)
 
 // P(駒)の数が増えたり減ったりするタイプの差分計算用
 // FV38とは異なり、可変長piece_list。
-#if defined(EVAL_MATERIAL) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA)
+#if defined(EVAL_MATERIAL) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA) || defined(EVAL_NABLA2)
 #define USE_FV_VAR
 #endif
 

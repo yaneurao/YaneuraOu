@@ -1166,7 +1166,14 @@ void book_check(Position& pos, Color rootTurn, Book::MemoryBook& book, string sf
 				n = 2;
 #else
 			// 常に相手側の平均分岐数は4に設定すればどうか。
-			n = 4;
+			// →　上限がmove_list.size()すなわち、MultiPVで設定した値になっているはずなので(候補手がある限りは)
+			// ここは制限せずに、大きく10としておき、best moveの評価値との差が50以上ある指し手を枝刈りするなどして
+			// 調整したほうが良い。
+
+			// 備考 : 平手の開始局面から84歩と指した局面でdepth 34でMultiPV10で探索させたところ、34歩が5番目の
+			// 指し手になっていて、この指し手のtreeが得られていなかった。
+
+			n = 10;
 #endif
 		}
 
@@ -1175,7 +1182,7 @@ void book_check(Position& pos, Color rootTurn, Book::MemoryBook& book, string sf
 			if (move_list.size() <= i)
 				break;
 
-#if 1
+#if 0
 			// 定跡生成のときにevalが-400以下とかなら、その枝、それ以上生成しなくていいような…。
 			// 自分側から見て-400になるような局面に行く指し手を自分は選ばないはずだし、
 			// 相手側から見て-400以下の局面に到達したなら、あとは自力で勝てるだろうから…。
@@ -1183,6 +1190,21 @@ void book_check(Position& pos, Color rootTurn, Book::MemoryBook& book, string sf
 			// 極端に時間がかかる原因となるのでこのような枝刈りが必須。
 
 			if (move_list[i].value <= -400)
+				continue;
+
+			if (move_list[0].value - move_list[i].value >= 100)
+				continue;
+#endif
+
+#if 1
+			// 定跡の生成を進めていくときに(ply >= 10ぐらいから)、
+			// 途中までの経路において、valueが-200以下だとか、
+			// best moveとのvalueの差が50～100以上なら、そんな指し手も枝刈りしていいだろう…。
+
+			if (move_list[i].value <= -200)
+				continue;
+
+			if (move_list[0].value - move_list[i].value >= 50)
 				continue;
 #endif
 
@@ -1278,7 +1300,7 @@ void test_search(Position& pos, istringstream& is)
 #endif
 
 #if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined (EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || \
-	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA) || defined(EVAL_NABLA2)
 #include "../eval/evaluate_common.h"
 
 // 現在の評価関数のパラメーターについて調査して出力する。(分析用)

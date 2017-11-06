@@ -237,7 +237,7 @@ struct SfenWriter
 						// ファイルにつける連番
 						int n = (int)(sfen_write_count / save_every);
 						// ファイル名を変更して再度openする。上書き考慮してios::appをつけておく。(運用によっては、ないほうがいいかも..)
-						string filename = filename_ + std::to_string(n);
+						string filename = filename_ + "_" + std::to_string(n);
 						fs.open(filename, ios::out | ios::binary | ios::app);
 						cout << endl << "output sfen file = " << filename << endl;
 					}
@@ -2251,7 +2251,7 @@ void learn(Position&, istringstream& is)
 		else if (option == "freeze_kkp")   is >> freeze[1];
 		else if (option == "freeze_kpp")   is >> freeze[2];
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA) || defined(EVAL_NABLA2)
 
 #elif defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
 		else if (option == "freeze_kppp")  is >> freeze[3];
@@ -2385,7 +2385,7 @@ void learn(Position&, istringstream& is)
 	cout << "LAMBDA_LIMIT      : " << ELMO_LAMBDA_LIMIT << endl;
 #endif
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA) || defined(EVAL_NABLA2)
 	cout << "freeze_kk/kkp/kpp      : " << freeze[0] << " , " << freeze[1] << " , " << freeze[2] << endl;
 #elif defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
 	cout << "freeze_kk/kkp/kpp/kppp : " << freeze[0] << " , " << freeze[1] << " , " << freeze[2] << " , " << freeze[3] << endl;
