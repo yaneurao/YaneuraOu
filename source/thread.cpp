@@ -128,8 +128,10 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 	// あと宣言勝ちできるなら、その指し手を先頭に入れておいてやる。
 	// (ただし、トライルールのときはMOVE_WINではないので、トライする指し手はsearchmovesに含まれていなければ
 	// 指しては駄目な手なのでrootMovesに追加しない。)
+#if defined (USE_ENTERING_KING_WIN)
 	if (pos.DeclarationWin() == MOVE_WIN)
 		rootMoves.emplace_back(MOVE_WIN);
+#endif
 
 	for (auto m : MoveList<LEGAL>(pos))
 		if (limits.searchmoves.empty()

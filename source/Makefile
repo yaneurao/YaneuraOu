@@ -137,6 +137,9 @@ SOURCES  = shogi.cpp                                                           \
 	learn/learning_tools.cpp                                                   \
 	learn/multi_think.cpp
 
+ifeq ($(YANEURAOU_EDITION),MATE_ENGINE)
+	SOURCES += engine/mate-engine/mate-search.cpp
+endif
 #ifeq ($(YANEURAOU_EDITION),YANEURAOU_2017_GOKU_ENGINE)                        
 #	SOURCES += engine/2017-goku-engine/2017-goku-search.cpp                    \
 #	           eval/evaluate_ppap.cpp                                          

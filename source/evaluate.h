@@ -239,6 +239,7 @@ namespace Eval {
 	extern ExtBonaPiece kpp_hand_index[COLOR_NB][KING];
 
 	// 評価関数で用いる駒リスト。どの駒(PieceNumber)がどこにあるのか(BonaPiece)を保持している構造体
+#if !defined(EVAL_MATERIAL)
 	struct EvalList
 	{
 		// 評価関数(FV38型)で用いる駒番号のリスト
@@ -389,6 +390,7 @@ namespace Eval {
 #endif
 
 	};
+#endif
 
 	// --- 局面の評価値の差分更新用
 	// 局面の評価値を差分更新するために、移動した駒を管理する必要がある。

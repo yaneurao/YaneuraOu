@@ -39,7 +39,7 @@ using namespace Search;
 // Kishimoto, A.: Dealing with infinite loops, underestimation, and overestimation of depth-first
 // proof-number search. In: Proceedings of the AAAI-10, pp. 108-113 (2010)
 //
-// A. Kishimoto, M. Winands, M. Müller and J. Saito. Game-Tree Search Using Proof Numbers: The First
+// A. Kishimoto, M. Winands, M. Muller and J. Saito. Game-Tree Search Using Proof Numbers: The First
 // Twenty Years. ICGA Journal 35(3), 131-156, 2012. 
 //
 // A. Kishimoto and M. Mueller, Tutorial 4: Proof-Number Search Algorithms
@@ -333,7 +333,7 @@ namespace MateEngine
         thdn = std::min(thdn, kInfinitePnDn);
       }
 
-      // if (pn(n) ≥ thpn || dn(n) ≥ thdn)
+      // if (pn(n) ≧ thpn || dn(n) ≧ thdn)
       //   break; // termination condition is satisfied
       if (entry.pn >= thpn || entry.dn >= thdn) {
         break;
@@ -487,7 +487,8 @@ namespace MateEngine
     auto end = std::chrono::system_clock::now();
     if (!moves.empty()) {
       auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-      time_ms = std::max(time_ms, 1LL);
+      ///time_ms = std::max(time_ms, 1LL);	// これだとcygwin clang++3.9.1でエラーになるようだ
+      time_ms = time_ms ? time_ms : 1LL;
       int64_t nps = nodes_searched * 1000LL / time_ms;
       std::ostringstream oss;
       oss << "info depth " << moves.size() << " time " << time_ms << " nodes " << nodes_searched << " pv";
@@ -502,7 +503,7 @@ namespace MateEngine
     // "ponderhit"が送られてきたらLimits.ponder == 0になるので、それを待つ。(stopOnPonderhitは用いない)
     //    また、このときThreads.stop == trueにはならない。(この点、Stockfishとは異なる。)
     // "go infinite"に対してはstopが送られてくるまで待つ。
-    while (!Threads.stop && (Limits.ponder || Limits.infinite))
+    while (!Threads.stop && (Threads.ponder || Limits.infinite))
       sleep(1);
     //	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
     // (思考のためには計算資源を使っていないので。)

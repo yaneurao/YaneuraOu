@@ -112,6 +112,7 @@ namespace Eval
 
 	// 内部で保持しているpieceListFb[]が正しいBonaPieceであるかを検査する。
 	// 注 : デバッグ用。遅い。
+#if !defined (EVAL_MATERIAL)
 	bool EvalList::is_valid(const Position& pos)
 	{
 		// 各駒種の手駒の最大枚数
@@ -184,6 +185,7 @@ namespace Eval
 
 		return true;
 	}
+#endif
 
 #if defined(USE_FV_VAR)
 	// listにadd()する。

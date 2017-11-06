@@ -349,6 +349,7 @@
 #define KEEP_LAST_MOVE
 #undef  MAX_PLY_NUM
 #define MAX_PLY_NUM 2000
+#define USE_SEE
 #define USE_MATE_1PLY
 #define EVAL_MATERIAL
 #define LONG_EFFECT_LIBRARY
@@ -743,7 +744,7 @@ inline int MKDIR(std::string dir_name)
 
 // P(駒)の数が増えたり減ったりするタイプの差分計算用
 // FV38とは異なり、可変長piece_list。
-#if defined(EVAL_MATERIAL) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA)
+#if /*defined(EVAL_MATERIAL) ||*/ defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA)
 #define USE_FV_VAR
 #endif
 

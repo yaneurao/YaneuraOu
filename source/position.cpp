@@ -161,7 +161,9 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 	size_t idx;
 
 	// evalListのclear。上でmemsetでゼロクリアしたときにクリアされているが…。
+#if !defined(EVAL_MATERIAL)
 	evalList.clear();
+#endif
 
 #if defined (USE_FV38)
 	// PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
@@ -1083,7 +1085,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	// 駒割りの差分計算用
 	int materialDiff;
 
+#if !defined(EVAL_MATERIAL)
 	auto& dp = st->dirtyPiece;
+#endif
 
 #if defined(USE_FV_VAR)
 	// add()していくので、length = 0にしないといけない。

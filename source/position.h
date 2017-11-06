@@ -436,7 +436,7 @@ struct Position
 
 	// --- Evaluation
 
-#if !defined (EVAL_NO_USE)
+#if !defined (EVAL_MATERIAL)
   // 評価関数で使うための、どの駒番号の駒がどこにあるかなどの情報。
 	const Eval::EvalList* eval_list() const { return &evalList; }
 #endif
@@ -718,7 +718,7 @@ private:
 	// undo_move()で前の局面に戻るときはStateInfo::previousから辿って戻る。
 	StateInfo* st;
 
-#ifndef EVAL_NO_USE
+#ifndef EVAL_MATERIAL
 	// 評価関数で用いる駒のリスト
 	Eval::EvalList evalList;
 #endif
