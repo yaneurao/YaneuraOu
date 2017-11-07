@@ -120,7 +120,8 @@ namespace Book
 #if 1
 			// 思考、極めて遅いのでログにタイムスタンプを出力して残しておいたほうが良いのでは…。
 			// id番号(連番)とthread idと現在の時刻を出力する。
-			cout << "[" << get_done_count() << "/" << get_loop_max() << ":" << thread_id << "] " << now_string() << " : " << sfen << endl;
+			sync_cout << "[" << get_done_count() << "/" << get_loop_max() << ":" << thread_id << "] "
+				      << now_string() << " : " << sfen << sync_endl;
 #endif
 		}
 	}
@@ -507,7 +508,7 @@ namespace Book
 					if (multi_think.appended)
 					{
 						book.write_book(book_name);
-						cout << "Save : " << now_string() << endl;
+						sync_cout << "Save : " << now_string() << sync_endl;
 						multi_think.appended = false;
 					}
 					else {
