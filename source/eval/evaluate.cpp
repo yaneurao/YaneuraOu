@@ -4,7 +4,7 @@
 #include "../misc.h"
 
 #if defined(USE_FV_VAR)
-#include "../learn/learning_tools.h" // inv_piece()関数が必要。
+#include "evaluate_mir_inv_tools.h" // inv_piece()関数が必要。
 #endif
 
 // 全評価関数に共通の処理などもここに記述する。
@@ -48,7 +48,11 @@ namespace Eval
 
 #if defined (EVAL_MATERIAL)
 	// 駒得のみの評価関数のとき。
-	void init() {}
+	void init() {
+#if defined(USE_FV_VAR)
+		init_mir_inv_tables();
+#endif
+	}
 	void load_eval() {}
 	void print_eval_stat(Position& pos) {}
 	Value evaluate(const Position& pos) {
@@ -57,6 +61,7 @@ namespace Eval
 		return pos.side_to_move() == BLACK ? score : -score;
 	}
 	Value compute_eval(const Position& pos) { return material(pos); }
+	void evaluate_with_no_return(const Position& pos) {}
 #endif
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) \
@@ -194,7 +199,7 @@ namespace Eval
 	void EvalList::add(BonaPiece fb)
 	{
 		pieceListFb[length_] = fb;
-		pieceListFw[length_] = EvalLearningTools::inv_piece(fb);
+		pieceListFw[length_] = inv_piece(fb);
 
 		bonapiece_to_piece_number[fb] = length_;
 		length_++;

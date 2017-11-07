@@ -19,7 +19,7 @@
 #undef EVAL_EXPERIMENTAL_HEADER
 #elif defined(EVAL_NABLA)
 #define BonaPieceExpansion (1024*4)
-elif defined(EVAL_NABLA2)
+#elif defined(EVAL_NABLA2)
 #define BonaPieceExpansion (1024*4)
 #else
 #define BonaPieceExpansion 0

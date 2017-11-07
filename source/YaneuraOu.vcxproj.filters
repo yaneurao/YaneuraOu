@@ -196,6 +196,9 @@
     <ClInclude Include="eval\kpp_kkpt_fv_var\evaluate_kpp_kkpt_fv_var.h">
       <Filter>リソース ファイル\eval\kpp_kkpt_fv_var</Filter>
     </ClInclude>
+    <ClInclude Include="eval\evaluate_mir_inv_tools.h">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -341,6 +344,9 @@
     </ClCompile>
     <ClCompile Include="eval\kpp_kkpt_fv_var\evaluate_kpp_kkpt_fv_var_learner.cpp">
       <Filter>リソース ファイル\eval\kpp_kkpt_fv_var</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\evaluate_mir_inv_tools.cpp">
+      <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

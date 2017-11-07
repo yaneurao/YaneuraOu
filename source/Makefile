@@ -130,6 +130,7 @@ SOURCES  = shogi.cpp                                                           \
 	eval/kpp_kkpt_fv_var/evaluate_kpp_kkpt_fv_var_learner.cpp                  \
 	eval/evaluate.cpp                                                          \
 	eval/evaluate_io.cpp                                                       \
+	eval/evaluate_mir_inv_tools.cpp                                            \
 	engine/user-engine/user-search.cpp                                         \
 	engine/help-mate-engine/help-mate-search.cpp                               \
 	engine/2017-early-engine/2017-early-search.cpp                             \
