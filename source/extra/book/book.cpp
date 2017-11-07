@@ -497,9 +497,9 @@ namespace Book
 
 				multi_think.set_loop_max(sfens_.size());
 
-				// 30分ごとに保存
+				// 15分ごとに保存
 				// (ファイルが大きくなってくると保存の時間も馬鹿にならないのでこれくらいの間隔で妥協)
-				multi_think.callback_seconds = 30 * 60;
+				multi_think.callback_seconds = 15 * 60;
 				multi_think.callback_func = [&]()
 				{
 					std::unique_lock<Mutex> lk(multi_think.io_mutex);
@@ -507,13 +507,14 @@ namespace Book
 					if (multi_think.appended)
 					{
 						book.write_book(book_name);
-						cout << 'S' << endl;
+						cout << "Save : " << now_string() << endl;
 						multi_think.appended = false;
 					}
 					else {
 						// 追加されていないときは小文字のsマークを表示して
 						// ファイルへの書き出しは行わないように変更。
-						cout << 's' << endl;
+						//cout << 's' << endl;
+						// →　この出力要らんような気がしてきた。
 					}
 
 					// 置換表が同じ世代で埋め尽くされるとまずいのでこのタイミングで世代カウンターを足しておく。
