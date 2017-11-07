@@ -780,12 +780,10 @@
     <Text Include="..\docs\やねうら大定跡.txt" />
     <Text Include="..\docs\更新履歴.txt" />
     <Text Include="..\docs\解説.txt" />
-    <Text Include="..\exe\eval\readme.txt" />
     <Text Include="..\script\readme.txt" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\docs\README2017.md" />
-    <None Include="..\exe\book\standard_book.db" />
     <None Include="..\README.md" />
     <None Include="..\script\analyze_result_log.py" />
     <None Include="..\script\analyze_yane_log.py" />
