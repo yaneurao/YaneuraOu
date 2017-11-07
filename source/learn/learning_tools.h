@@ -5,6 +5,7 @@
 
 #include "learn.h"
 #if defined (EVAL_LEARN)
+#include "../eval/evaluate_mir_inv_tools.h"
 
 #if defined(SGD_UPDATE) || defined(USE_KPPP_MIRROR_WRITE)
 #include "../misc.h"  // PRNG , my_insertion_sort
@@ -28,7 +29,20 @@ namespace EvalLearningTools
 
 	// このEvalLearningTools名前空間にあるテーブル類を初期化する。
 	// 学習の開始までに必ず一度呼び出すこと。
+	// この関数のなかで、init_mir_inv_tables()も呼び出している。
+	// (この関数を呼ぶときは、init_mir_inv_tables()を呼び出す必要はない。)
 	void init();
+
+	// -------------------------------------------------
+	//                     flags
+	// -------------------------------------------------
+
+	// 次元下げしたときに、そのなかの一番小さなindexになることが
+	// わかっているindexに対してtrueとなっているフラグ配列。
+	// この配列もinit()によって初期化される。
+	// KPPPに関しては、関与しない。
+	// ゆえに、この配列の有効なindexの範囲は、KK::min_index()～KPP::max_index()まで。
+	extern std::vector<bool> min_index_flag;
 
 	// -------------------------------------------------
 	//       勾配等を格納している学習用の配列
@@ -212,42 +226,6 @@ namespace EvalLearningTools
 
 		std::array<LearnFloatType, 2> get_grad() const { return std::array<LearnFloatType, 2>{w[0].get_grad(), w[1].get_grad()}; }
 	};
-
-	// -------------------------------------------------
-	//                  tables
-	// -------------------------------------------------
-
-	// 	--- BonaPieceに対してMirrorとInverseを提供する。
-
-	// これらの配列は、init()かinit_mir_inv_tables();を呼び出すと初期化される。
-	// このテーブルのみを評価関数のほうから使いたいときは、評価関数の初期化のときに
-	// init_mir_inv_tables()を呼び出すと良い。
-	// これらの配列は、以下のKK/KKP/KPPクラスから参照される。
-
-	// あるBonaPieceを相手側から見たときの値を返す
-	extern Eval::BonaPiece inv_piece(Eval::BonaPiece p);
-
-	// 盤面上のあるBonaPieceをミラーした位置にあるものを返す。
-	extern Eval::BonaPiece mir_piece(Eval::BonaPiece p);
-
-	// 次元下げしたときに、そのなかの一番小さなindexになることが
-	// わかっているindexに対してtrueとなっているフラグ配列。
-	// この配列もinit()によって初期化される。
-	// KPPPに関しては、関与しない。
-	// ゆえに、この配列の有効なindexの範囲は、KK::min_index()～KPP::max_index()まで。
-	extern std::vector<bool> min_index_flag;
-
-	// mir_piece/inv_pieceの初期化のときに呼び出されるcallback
-	// fe_endをユーザー側で拡張するときに用いる。
-	// この初期化のときに必要なのでinv_piece_とinv_piece_を公開している。
-	// mir_piece_init_functionが呼び出されたタイミングで、fe_old_endまでは
-	// これらのテーブルの初期化が完了していることが保証されている。
-	extern std::function<void()> mir_piece_init_function;
-	extern s16 mir_piece_[Eval::fe_end];
-	extern s16 inv_piece_[Eval::fe_end];
-
-	// この関数を明示的に呼び出すか、init()を呼び出すかしたときに、上のテーブルが初期化される。
-	void init_mir_inv_tables();
 
 	// -------------------------------------------------
 	// Weight配列を直列化したときのindexを計算したりするヘルパー。
