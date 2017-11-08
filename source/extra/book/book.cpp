@@ -507,8 +507,9 @@ namespace Book
 					// 前回書き出し時からレコードが追加された？
 					if (multi_think.appended)
 					{
+						sync_cout << "Save start : " << now_string() << sync_endl;
 						book.write_book(book_name);
-						sync_cout << "Save : " << now_string() << sync_endl;
+						sync_cout << "Save..done" << now_string() << sync_endl;
 						multi_think.appended = false;
 					}
 					else {
@@ -519,7 +520,10 @@ namespace Book
 					}
 
 					// 置換表が同じ世代で埋め尽くされるとまずいのでこのタイミングで世代カウンターを足しておく。
-					TT.new_search();
+					//TT.new_search();
+
+					// →　EVAL_LEARNモードなら、Learner::new_search()のほうで行っているのでここではやらなくて良い。
+
 				};
 
 				multi_think.go_think();
