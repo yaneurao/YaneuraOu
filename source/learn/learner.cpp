@@ -2055,6 +2055,7 @@ void shuffle_files(const vector<string>& filenames , const string& output_file_n
 	for (auto filename : filenames)
 	{
 		fstream fs(filename, ios::in | ios::binary);
+		cout << endl << "open file = " << filename;
 		while (fs.read((char*)&buf[buf_write_marker], sizeof(PackedSfenValue)))
 			if (++buf_write_marker == buffer_size)
 				write_buffer(buffer_size);
@@ -2067,6 +2068,12 @@ void shuffle_files(const vector<string>& filenames , const string& output_file_n
 	// シャッフルされたファイルがwrite_file_count個だけ書き出された。
 	// 2pass目として、これをすべて同時にオープンし、ランダムに1つずつ選択して1局面ずつ読み込めば
 	// これにてシャッフルされたことになる。
+
+	// シャツフルする元ファイル+tmpファイル+書き出すファイルで元ファイルの3倍のストレージ容量が必要になる。
+	// 100億局面400GBなのでシャッフルするために1TBのSSDでは足りない。
+	// tmpに書き出しが終わったこのタイミングで元ファイルを消す(あるいは手で削除してしまう)なら、
+	// 元ファイルの2倍程度のストレージ容量で済む。
+	// だから、元ファイルを消すためのオプションを用意すべきかも知れない。
 
 	vector<fstream> afs;
 	for (u64 i = 0; i < write_file_count; ++i)
@@ -2344,7 +2351,8 @@ void learn(Position&, istringstream& is)
 			do {
 				entry = readdir(dp);
 				// ".bin"で終わるファイルのみを列挙
-				if (entry != NULL && ends_with(entry->d_name, ".bin"))
+				// →　連番でファイル生成するときにこの制約ちょっと嫌だな…。
+				if (entry != NULL  && ends_with(entry->d_name, ".bin")  )
 				{
 					//cout << entry->d_name << endl;
 					filenames.push_back(path_combine(target_dir, entry->d_name));
