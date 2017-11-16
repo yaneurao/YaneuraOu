@@ -2280,7 +2280,7 @@ void learn(Position&, istringstream& is)
 		else if (option == "freeze_kkp")   is >> freeze[1];
 		else if (option == "freeze_kpp")   is >> freeze[2];
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA) || defined(EVAL_NABLA2)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA)
 
 #elif defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
 		else if (option == "freeze_kppp")  is >> freeze[3];
@@ -2415,7 +2415,7 @@ void learn(Position&, istringstream& is)
 	cout << "LAMBDA_LIMIT      : " << ELMO_LAMBDA_LIMIT << endl;
 #endif
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA) || defined(EVAL_NABLA2)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA)
 	cout << "freeze_kk/kkp/kpp      : " << freeze[0] << " , " << freeze[1] << " , " << freeze[2] << endl;
 #elif defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
 	cout << "freeze_kk/kkp/kpp/kppp : " << freeze[0] << " , " << freeze[1] << " , " << freeze[2] << " , " << freeze[3] << endl;

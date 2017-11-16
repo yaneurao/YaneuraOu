@@ -1158,23 +1158,15 @@ void book_check(Position& pos, Color rootTurn, Book::MemoryBook& book, string sf
 			// 自分の手番なのでN=1
 			n = 1;
 		} else {
-#if 0
-			// 4手目までは4手ずつ候補をあげる。
-			if (ply <= 4)
-				n = 4;
-			else
-				n = 2;
-#else
 			// 常に相手側の平均分岐数は4に設定すればどうか。
 			// →　上限がmove_list.size()すなわち、MultiPVで設定した値になっているはずなので(候補手がある限りは)
 			// ここは制限せずに、大きく10としておき、best moveの評価値との差が50以上ある指し手を枝刈りするなどして
 			// 調整したほうが良い。
 
 			// 備考 : 平手の開始局面から84歩と指した局面でdepth 34でMultiPV10で探索させたところ、34歩が5番目の
-			// 指し手になっていて、この指し手のtreeが得られていなかった。
+			// 指し手になっていて、そこ以降の指し手treeが得られていなかった。
 
 			n = 10;
-#endif
 		}
 
 		for (size_t i = 0; i < n; ++i)
@@ -1196,7 +1188,7 @@ void book_check(Position& pos, Color rootTurn, Book::MemoryBook& book, string sf
 				continue;
 #endif
 
-#if 1
+#if 0
 			// 定跡の生成を進めていくときに(ply >= 10ぐらいから)、
 			// 途中までの経路において、valueが-200以下だとか、
 			// best moveとのvalueの差が50～100以上なら、そんな指し手も枝刈りしていいだろう…。
@@ -1208,6 +1200,36 @@ void book_check(Position& pos, Color rootTurn, Book::MemoryBook& book, string sf
 			// 初手から86歩34歩76歩44歩の44歩だが、best valueとの差が100以上あってここで枝刈りされてしまう。
 			// そこで5手目まではこの条件を有効にしない。
 			if (pos.game_ply() >= 5 && move_list[0].value - move_list[i].value >= 50)
+				continue;
+#endif
+
+#if 1
+			// 上の式でもply=14ぐらいから組み合わせ爆発がひどい。もう少し厳し目の条件で考えてみる。
+
+			// 先手なら -50～+150まで
+			// 後手なら-150～+100まで
+			// bestmoveとの差、50まで。
+
+			if ((pos.side_to_move() == BLACK && !( -50 <= move_list[i].value && move_list[i].value <= 150))
+			||  (pos.side_to_move() == WHITE && !(-150 <= move_list[i].value && move_list[i].value <= 100)))
+				continue;
+
+			if (pos.game_ply() >= 5 && move_list[0].value - move_list[i].value >= 50)
+				continue;
+#endif
+
+#if 0
+			// もっともっと厳しい条件
+
+			// 先手なら -20～+120まで
+			// 後手なら-150～+100まで
+			// bestmoveとの差、30まで。
+
+			if ((pos.side_to_move() == BLACK && !( -20 <= move_list[i].value && move_list[i].value <= 120))
+			 || (pos.side_to_move() == WHITE && !(-150 <= move_list[i].value && move_list[i].value <= 100)))
+				continue;
+
+			if (pos.game_ply() >= 5 && move_list[0].value - move_list[i].value >= 30)
 				continue;
 #endif
 
@@ -1303,7 +1325,7 @@ void test_search(Position& pos, istringstream& is)
 #endif
 
 #if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined (EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || \
-	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA) || defined(EVAL_NABLA2)
+	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
 #include "../eval/evaluate_common.h"
 
 // 現在の評価関数のパラメーターについて調査して出力する。(分析用)

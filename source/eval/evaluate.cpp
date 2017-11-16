@@ -18,10 +18,6 @@
 #include "nabla/evaluate_nabla.cpp"
 #include "nabla/evaluate_nabla_learner.cpp"
 #endif
-#if defined (EVAL_NABLA2)
-#include "nabla2/evaluate_nabla2.cpp"
-#include "nabla2/evaluate_nabla2_learner.cpp"
-#endif
 
 namespace Eval
 {
@@ -65,7 +61,7 @@ namespace Eval
 #endif
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) \
-	|| defined(EVAL_KKPPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA) || defined(EVAL_NABLA2)
+	|| defined(EVAL_KKPPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
 
 	// calc_check_sum()を呼び出して返ってきた値を引数に渡すと、ソフト名を表示してくれる。
 	void print_softname(u64 check_sum)
@@ -230,7 +226,7 @@ namespace Eval
 	// BonaPieceの組み換えを行なうなら、以下の関数を何らか変更すること。
 	//
 
-#if defined(EVAL_NABLA) || defined(EVAL_NABLA2)
+#if defined(EVAL_NABLA)
 
 	// 評価関数の.cppのほうで定義する。
 

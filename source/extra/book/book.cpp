@@ -179,6 +179,7 @@ namespace Book
 			}
 
 			// 定跡ファイル名
+			// Option["book_file"]ではなく、ここで指定したものが処理対象である。
 			string book_name;
 			is >> book_name;
 
@@ -217,6 +218,12 @@ namespace Book
 					return;
 				}
 			}
+
+			// 処理対象ファイル名の出力
+			cout << "makebook think.." << endl;
+			cout << "sfen_file_name[BLACK] = " << sfen_file_name[BLACK] << endl;
+			cout << "sfen_file_name[WHITE] = " << sfen_file_name[WHITE] << endl;
+			cout << "book_name             = " << book_name << endl;
 
 			if (from_sfen)
 				cout << "read sfen moves " << moves << endl;
@@ -509,7 +516,7 @@ namespace Book
 					{
 						sync_cout << "Save start : " << now_string() << sync_endl;
 						book.write_book(book_name);
-						sync_cout << "Save..done" << now_string() << sync_endl;
+						sync_cout << "Save done  : " << now_string() << sync_endl;
 						multi_think.appended = false;
 					}
 					else {

@@ -163,6 +163,11 @@ typedef float LearnFloatType;
 // KPPPにもインバースはない。(先手側のKしかないので)
 #define USE_KPPP_MIRROR_WRITE
 
+// KKPP成分に対して学習時にKPPによる次元下げを行なう。
+// 学習、めっちゃ遅くなる。
+// 未デバッグなので使わないこと。
+//#define USE_KKPP_LOWER_DIM
+
 
 // ======================
 //  教師局面生成時の設定

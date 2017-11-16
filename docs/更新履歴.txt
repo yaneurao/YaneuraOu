@@ -2,6 +2,74 @@
 やねうら王 更新履歴
 
 
+■　2017/11/09
+
+- KKPP_KPPT型評価関数、学習時の次元下げコード追加。
+	- learn.hのUSE_KKPP_LOWER_DIMをdefineすると学習時の次元下げが有効になる。
+
+
+■　2017/11/08
+
+- learn shuffleコマンド、読み込み中の教師局面ファイル名を出力するように変更。
+- maekbook thinkコマンド、保存開始と終了を出力するように変更。
+	- TT.new_search()やっていたの、無駄なのでコメントアウト。
+
+
+■　2017/11/07
+
+- makebook thinkコマンドで定跡の保存間隔を15分単位に変更。
+	- 保存するときに現在時刻を出力するように変更。
+- EvalLearningToolsからmir_piece()とinv_pieceをevaluate_mir_inv_tools.h/.cppに分離。
+	- USE_FV_VARを定義したときにEVAL_LEARNが必要になるのがおかしいので。(kazu-nanohaさんからの指摘)
+- makebook thinkでログ出力のときにsync_coutを使っていなかったの修正。
+- EvalLearningToolsからmir_piece()とinv_pieceをevaluate_mir_inv_tools.h/.cppに分離その2。
+	- learning_tools.h/.cppのほうcommit忘れていたの修正。
+- Visual Studioのソリューションで古いexeフォルダを含んでいたの修正。
+
+
+■　2017/11/06
+
+- evaluate_nabla2実装準備
+- gensfenコマンドのときに生成されるファイル名をランダムな名前にするオプション追加。
+	- AWSで複数インスタンスを立ち上げるときにstartupのスクリプトのなかでgensfenコマンドを実行したいため。
+- bookcheckコマンド、4手目までは枝刈りを甘く変更。
+- position.hにEVAL_NO_USEが残っていたのなど修正。(kazu-nanohaさん)
+	- thread.cppでUSE_ENTERING_KING_WINがdefineされていないときにMOVE_WINを指し手候補に入れていたの修正。
+
+
+■　2017/11/04
+
+- "makebook think"コマンドで指し手で1手生成ごとに通し番号を出力することにした。
+- time management、極やねうら王向け調整。
+- 学習部、omp parallel の中で omp parallel for をするのは無駄(kazu-nanohaさん)
+	- cf. https://github.com/yaneurao/YaneuraOu/pull/67
+- gensfenコマンドで生成されるファイルの分割保存のためのsave_everyオプション追加。
+	- AWSのspot instanceのterminate対策。
+	
+
+■　2017/11/02
+
+- "test bookcheck"コマンドの説明、ソースコード上に追記。
+- "test bookcheck"のときに評価値が低くなった時点で枝刈りをするコード、追加。
+	- "makebook think"コマンドで指し手で1手生成ごとにthread idとタイムスタンプを出力するようにした。
+
+
+■　2017/10/31
+
+- KPP_KKPT_FV_VAR公開。KPP_KKPTのUSE_FV_VAR(可変長EvalList)を用いたリファレンス実装。
+	-  KPP_KKPT型に比べてわずかに遅いが、拡張性が非常に高く、極めて美しい実装なので、
+		今後、評価関数の拡張は、これをベースにやっていくことになると思う。
+	- 来年以降、可変長EvalListが主流になると思う。
+- EvalIO、評価関数の型が違うときの変換コード、修正。
+- nabla対応コードその1。
+- nabla対応コードその2。
+
+
+■　2017/10/29
+
+- EVAL_NO_USE廃止につき、evaluate_no_eval.cpp削除
+
+
 ■　2017/10/28 V4.79
 
 - FV38のコード、少し整理。

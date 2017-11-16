@@ -271,6 +271,10 @@ namespace Eval {
 	// →　あまり変わらないし、メモリもったいないのでデフォルトでは↑の設定で良いか…。
 	// 1GB(魔女のAVX2の時の設定)
 	struct EvaluateHashTable : HashTable<EvalSum, 0x2000000> {};
+
+	// メモリが潤沢にあるならもっとメモリを確保したいのだが、
+	// VC++には配列合計が4GBという制約があり…。
+
 #endif
 
 	extern EvaluateHashTable g_evalTable;
