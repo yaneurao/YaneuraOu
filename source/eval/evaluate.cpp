@@ -26,7 +26,7 @@ namespace Eval
 	// 実行時のオーバーヘッドは小さいので、そこまで考慮することもなさげ。
 
 	// 駒割りの計算
-	// 手番側から見た評価値
+	// 先手側から見た評価値
 	Value material(const Position& pos)
 	{
 		int v = VALUE_ZERO;
@@ -51,12 +51,12 @@ namespace Eval
 	}
 	void load_eval() {}
 	void print_eval_stat(Position& pos) {}
-	Value evaluate(const Position& pos) {
+	Value evaluate(const Position& pos) { return compute_eval(pos); }
+	Value compute_eval(const Position& pos) {
 		auto score = pos.state()->materialValue;
 		ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));
 		return pos.side_to_move() == BLACK ? score : -score;
 	}
-	Value compute_eval(const Position& pos) { return material(pos); }
 	void evaluate_with_no_return(const Position& pos) {}
 #endif
 
