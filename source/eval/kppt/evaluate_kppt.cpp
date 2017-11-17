@@ -460,12 +460,14 @@ namespace Eval
 		// 気が向いたらコード書く。
 
 #if defined (USE_AVX2)
-		
+
 		__m256i zero = _mm256_setzero_si256();
 		__m256i sum0 = zero;
 		__m256i sum1 = zero;
 
 		// list0[38],list0[39],list1[38],list1[39]が0であることを期待したコード
+		ASSERT_LV3(list0[38] == 0);
+
 		for (int i = 0; i < length ; i += 8)
 		{
 			__m256i indexes0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(&list0[i]));

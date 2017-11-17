@@ -75,6 +75,10 @@
 #include "../tt.h"
 #include "multi_think.h"
 
+#if defined(USE_GENSFEN2018)
+#include "gensfen2018.cpp"
+#endif
+
 using namespace std;
 
 // これは探索部で定義されているものとする。

@@ -46,14 +46,20 @@ namespace Book { extern void makebook_cmd(Position& pos, istringstream& is); }
 #endif
 
 // 棋譜を自動生成するコマンド
-#ifdef EVAL_LEARN
+#if defined (EVAL_LEARN)
 namespace Learner
 {
-  // 棋譜の自動生成。
+  // 教師局面の自動生成
   void gen_sfen(Position& pos, istringstream& is);
 
   // 生成した棋譜からの学習
   void learn(Position& pos, istringstream& is);
+
+#if defined(USE_GENSFEN2018)
+  // 開発中の教師局面の自動生成コマンド
+  void gen_sfen2018(Position& pos, istringstream& is);
+#endif
+
 }
 #endif
 
@@ -884,9 +890,14 @@ void USI::loop(int argc, char* argv[])
 		else if (token == "makebook") Book::makebook_cmd(pos, is);
 #endif
 
-#ifdef EVAL_LEARN
+#if defined (EVAL_LEARN)
 		else if (token == "gensfen") Learner::gen_sfen(pos, is);
 		else if (token == "learn") Learner::learn(pos, is);
+#if defined (USE_GENSFEN2018)
+		// 開発中の教師局面生成コマンド
+		else if (token == "gensfen2018") Learner::gen_sfen2018(pos, is);
+#endif
+
 #endif
 		// "usinewgame"はゲーム中にsetoptionなどを送らないことを宣言するためのものだが、
 		// 我々はこれに関知しないので単に無視すれば良い。

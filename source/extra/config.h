@@ -309,6 +309,8 @@
 #define USE_SFEN_PACKER
 // 学習機能を有効にするオプション。
 #define EVAL_LEARN
+// 開発中の教師局面の生成コマンド
+#define USE_GENSFEN2018
 
 // 定跡生成絡み
 #define ENABLE_MAKEBOOK_CMD
