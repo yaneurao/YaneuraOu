@@ -75,10 +75,6 @@
 #include "../tt.h"
 #include "multi_think.h"
 
-#if defined(USE_GENSFEN2018)
-#include "gensfen2018.cpp"
-#endif
-
 using namespace std;
 
 // これは探索部で定義されているものとする。
@@ -200,7 +196,7 @@ struct SfenWriter
 		auto output_status = [&]()
 		{
 			// 現在時刻も出力
-			cout << endl << sfen_write_count << " sfens , at " << now_string() << endl;
+			sync_cout << endl << sfen_write_count << " sfens , at " << now_string() << sync_endl;
 
 			// flush()はこのタイミングで十分。
 			fs.flush();
@@ -948,7 +944,7 @@ void gen_sfen(Position&, istringstream& is)
 		output_file_name = output_file_name + "_" + to_hex(r.rand<u64>()) + to_hex(r.rand<u64>());
 	}
 
-	std::cout << "gen_sfen : " << endl
+	std::cout << "gensfen : " << endl
 		<< "  search_depth = " << search_depth << " to " << search_depth2 << endl
 		<< "  loop_max = " << loop_max << endl
 		<< "  eval_limit = " << eval_limit << endl
@@ -992,7 +988,7 @@ void gen_sfen(Position&, istringstream& is)
 		// 表示させるべきなのでここをブロックで囲む。
 	}
 
-	std::cout << "gen_sfen finished." << endl;
+	std::cout << "gensfen finished." << endl;
 
 #if defined(USE_GLOBAL_OPTIONS)
 	// GlobalOptionsの復元。
@@ -1479,6 +1475,9 @@ struct LearnerThink: public MultiThink
 	// 割引率
 	double discount_rate;
 
+	// 序盤を学習対象から外すオプション
+	int reduction_gameply;
+
 	// kk/kkp/kpp/kpppを学習させないオプション
 	std::array<bool,4> freeze;
 
@@ -1764,6 +1763,10 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// 評価値が学習対象の値を超えている。
 		// この局面情報を無視する。
 		if (eval_limit < abs(ps.score))
+			goto RetryRead;
+
+		// 序盤局面に関する読み飛ばし
+		if (ps.gamePly < prng.rand(reduction_gameply))
 			goto RetryRead;
 
 #if 0
@@ -2237,6 +2240,11 @@ void learn(Position&, istringstream& is)
 	// 割引率。これを0以外にすると、PV終端以外でも勾配を加算する。(そのとき、この割引率を適用する)
 	double discount_rate = 0;
 
+	// if (gamePly < rand(reduction_gameply)) continue;
+	// のようにして、序盤を学習対象から程よく除外するためのオプション
+	// 1にしてあるとrand(1)==0なので、何も除外されない。
+	int reduction_gameply = 1;
+
 	// KK/KKP/KPP/KPPPを学習させないオプション項目
 	array<bool,4> freeze = {};
 	
@@ -2299,6 +2307,7 @@ void learn(Position&, istringstream& is)
 		else if (option == "lambda_limit") is >> ELMO_LAMBDA_LIMIT;
 
 #endif
+		else if (option == "reduction_gameply") is >> reduction_gameply;
 
 		// シャッフル関連
 		else if (option == "shuffle")	shuffle_normal = true;
@@ -2413,6 +2422,11 @@ void learn(Position&, istringstream& is)
 	cout << "learning rate     : " << eta1 << " , " << eta2 << " , " << eta3 << endl;
 	cout << "eta_epoch         : " << eta1_epoch << " , " << eta2_epoch << endl;
 	cout << "discount rate     : " << discount_rate     << endl;
+
+	// reduction_gameplyに0を設定されるとrand(0)が0除算になってしまうので1に補正。
+	reduction_gameply = max(reduction_gameply, 1);
+	cout << "reduction_gameply : " << reduction_gameply << endl;
+
 #if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
 	cout << "LAMBDA            : " << ELMO_LAMBDA       << endl;
 	cout << "LAMBDA2           : " << ELMO_LAMBDA2      << endl;
@@ -2465,6 +2479,7 @@ void learn(Position&, istringstream& is)
 	learn_think.save_only_once = save_only_once;
 	learn_think.sr.no_shuffle = no_shuffle;
 	learn_think.freeze = freeze;
+	learn_think.reduction_gameply = reduction_gameply;
 
 	// 局面ファイルをバックグラウンドで読み込むスレッドを起動
 	// (これを開始しないとmseの計算が出来ない。)
@@ -2496,5 +2511,10 @@ void learn(Position&, istringstream& is)
 
 
 } // namespace Learner
+
+#if defined(USE_GENSFEN2018)
+#include "gensfen2018.cpp"
+#endif
+
 
 #endif // EVAL_LEARN
