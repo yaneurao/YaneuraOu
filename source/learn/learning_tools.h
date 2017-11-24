@@ -97,9 +97,13 @@ namespace EvalLearningTools
 
 #if defined (ADA_GRAD_UPDATE)
 
+		// floatで正確に計算できる最大値はINT16_MAX*256-1なのでそれより
+		// 小さい値をマーカーにしておく。
+		const LearnFloatType V0_NOT_INIT = (INT16_MAX * 128);
+
 		// vを内部的に保持しているもの。以前の実装ではメモリの節約のために固定小数で小数部だけを保持していたが
 		// 精度的に怪しいし、見通しが悪くなるので廃止した。
-		LearnFloatType v0 = LearnFloatType(INT16_MAX);
+		LearnFloatType v0 = LearnFloatType(V0_NOT_INIT);
 
 		// AdaGradのg2
 		LearnFloatType g2 = LearnFloatType(0);
@@ -123,9 +127,9 @@ namespace EvalLearningTools
 
 			g2 += g * g;
 
-			// v0がINT16_MAXであるなら、値がKK/KKP/KPP配列の値で初期化されていないということだから、
+			// v0がV0_NOT_INITであるなら、値がKK/KKP/KPP配列の値で初期化されていないということだから、
 			// この場合、vの値を引数で渡されたものから読み込む。
-			double V = (v0 == INT16_MAX) ? v : v0;
+			double V = (v0 == V0_NOT_INIT) ? v : v0;
 
 			V -= k * eta * (double)g / sqrt((double)g2 + epsilon);
 
@@ -202,7 +206,7 @@ namespace EvalLearningTools
 		Weight w[2];
 
 		// 手番評価、etaを1/8に評価しておく。
-		template <typename T> void updateFV(std::array<T, 2>& v) { w[0].updateFV(v[0]); w[1].updateFV(v[1],1/8.0); }
+		template <typename T> void updateFV(std::array<T, 2>& v) { w[0].updateFV(v[0] , 1.0); w[1].updateFV(v[1],1.0/8.0); }
 
 		template <typename T> void set_grad(const std::array<T, 2>& g) { for (int i = 0; i<2; ++i) w[i].set_grad(g[i]); }
 		template <typename T> void add_grad(const std::array<T, 2>& g) { for (int i = 0; i<2; ++i) w[i].add_grad(g[i]); }
