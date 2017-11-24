@@ -27,10 +27,6 @@
 // 勾配の符号だけ見るSGD。省メモリで済むが精度は…。
 // #define SGD_UPDATE
 
-// RMSProp風のAdaGrad
-// #define ADA_PROP_UPDATE
-
-
 // ----------------------
 //    学習時の設定
 // ----------------------
@@ -44,7 +40,7 @@
 #define LEARN_MINI_BATCH_SIZE (1000 * 1000 * 1)
 
 // ファイルから1回に読み込む局面数。これだけ読み込んだあとshuffleする。
-// ある程度大きいほうが良いが、この数×34byte×3倍ぐらいのメモリを消費する。10M局面なら340MB*3程度消費する。
+// ある程度大きいほうが良いが、この数×40byte×3倍ぐらいのメモリを消費する。10M局面なら400MB*3程度消費する。
 // THREAD_BUFFER_SIZE(=10000)の倍数にすること。
 
 #define LEARN_SFEN_READ_SIZE (1000 * 1000 * 10)
@@ -117,17 +113,6 @@ typedef float LearnFloatType;
 // float16を使う場合
 //#include "half_float.h"
 //typedef HalfFloat::float16 LearnFloatType;
-
-// ----------------------
-
-// Vの小数部を保持する変数のbit数
-//  8-bitsだと少し心もとない。
-// 16-bitsで十分だと思われる。
-
-//#define V_FRACTION_BITS 8
-#define V_FRACTION_BITS 16
-//#define V_FRACTION_BITS 32
-//#define V_FRACTION_BITS 64
 
 // ----------------------
 //  省メモリ化
