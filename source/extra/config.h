@@ -353,6 +353,7 @@
 #define KEEP_LAST_MOVE
 #undef  MAX_PLY_NUM
 #define MAX_PLY_NUM 2000
+#define USE_SEE
 #define USE_MATE_1PLY
 #define EVAL_MATERIAL
 #define LONG_EFFECT_LIBRARY
