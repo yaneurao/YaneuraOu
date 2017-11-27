@@ -123,15 +123,12 @@ namespace Eval
 		// 学習用配列の確保
 		u64 size = g_kkp.max_index();
 		weights.resize(size); // 確保できるかは知らん。確保できる環境で動かしてちょうだい。
-		memset(&weights[0], 0, sizeof(Weight2) * weights.size());
 
 		u64 size_kpp = g_kpp.size();
 		weights_kpp.resize(size_kpp);
-		memset(&weights_kpp[0], 0, sizeof(Weight) * weights_kpp.size());
 
 		u64 size_kkpp = g_kkpp.size();
 		weights_kkpp.resize(size_kkpp);
-		memset(&weights_kkpp[0], 0, sizeof(Weight) * weights_kkpp.size());
 
 		// 学習率の設定
 		Weight::init_eta(eta1, eta2, eta3, eta1_epoch, eta2_epoch);
@@ -183,6 +180,11 @@ namespace Eval
 			// なお、list_fwは用いないので不要。
 			BonaPiece list_fb[PIECE_NUMBER_KING];
 			memcpy(list_fb, pos.eval_list()->piece_list_fb() , sizeof(BonaPiece) * (int)PIECE_NUMBER_KING);
+#if defined(USE_KKPP_LOWER_DIM)
+			// sq_wkを使うので元の値を保存しておく。
+			Square sq_wk_org = sq_wk;
+			BonaPiece* list_fw = pos.eval_list()->piece_list_fw();
+#endif
 
 			// ただし、file_of(sq_bk) > FILE_5なら、ここでミラーしてから、学習配列の勾配を加算。
 			if (file_of(sq_bk) > FILE_5)
@@ -211,12 +213,29 @@ namespace Eval
 			{
 				BonaPiece k0 = list_fb[i];
 
+#if defined(USE_KKPP_LOWER_DIM)
+				BonaPiece k1 = list_fw[i];
+#endif
+
 				// KKPP
 				if (!freeze_kkpp)
 					for (int j = 0; j < i; ++j)
 					{
 						BonaPiece l0 = list_fb[j];
 						weights_kkpp[g_kkpp.fromKKPP(encoded_learn_kk, k0, l0).toRawIndex()].add_grad(g[0]);
+
+#if defined(USE_KKPP_LOWER_DIM)
+						// 次元下げをするなら、この成分をKPPにもadd_gradしておく。
+						if (!freeze_kpp)
+							for (int j = 0; j < i; ++j)
+							{
+								BonaPiece l0 = list_fb[j];
+								BonaPiece l1 = list_fw[j];
+
+								weights_kpp[g_kpp.fromKPP(sq_bk         , k0, l0).toRawIndex()].add_grad(g[0]);
+								weights_kpp[g_kpp.fromKPP(Inv(sq_wk_org), k1, l1).toRawIndex()].add_grad(g_flip[0]);
+							}
+#endif
 					}
 
 				// KKP
@@ -398,6 +417,13 @@ namespace Eval
 						continue;
 
 					auto& v = kpp_ksq_pcpc(a[0].king(), a[0].piece0(), a[0].piece1());
+
+#if defined(USE_KKPP_LOWER_DIM)
+					// 次元下げを行なうのであれば、vの変化量を記録しておき、この変化量をKKPP成分に足し込んでやることで
+					// 実質的に次元下げされていることにする。
+					auto v_org = v;
+#endif
+
 					weights_kpp[ids[0]].set_grad(g_sum);
 					weights_kpp[ids[0]].updateFV(v);
 
@@ -413,9 +439,71 @@ namespace Eval
 					kpp_ksq_pcpc(a[1].king(), a[1].piece1(), a[1].piece0()) = v;
 #endif
 #endif
-
 					for (auto id : ids)
 						weights_kpp[id].set_grad(zero);
+
+
+#if defined(USE_KKPP_LOWER_DIM)
+					// 今回の変化量。これをKKPP成分へ。
+					auto diff = v - v_org;
+
+					std::vector<ValueKkpp*> vec_bk;
+					std::vector<ValueKkpp*> vec_wk;
+
+					vec_bk.reserve(KPP_LOWER_COUNT * (int)SQ_NB * 4);
+					vec_wk.reserve(KPP_LOWER_COUNT * (int)SQ_NB * 4);
+
+					for (int i = 0; i < KPP_LOWER_COUNT; ++i)
+					{
+						Square bk = a[i].king();
+						// 任意のwk
+						for (Square wk : SQ)
+						{
+							int encoded_eval_kk_from_bk = encode_to_eval_kk(bk, wk);
+							if (encoded_eval_kk_from_bk == -1)
+								continue;
+							
+							// KPPがすべて5筋にいる場合、同一の値になるので、その場合は加算だとおかしくなる..
+							// 重複が削除されていないといけない。難しい。
+							
+							vec_bk.push_back(&kkpp_ksq_pcpc(encoded_eval_kk_from_bk, a[i].piece0(), a[i].piece1()));
+							vec_bk.push_back(&kkpp_ksq_pcpc(encoded_eval_kk_from_bk, a[i].piece1(), a[i].piece0()));
+
+							// ミラー位置にも書き込んでしまう。これ、KKPPに対してもやったほうがいいのかどうかはよくわからん。
+							// 比較実験すべき。
+							int mir_encoded_eval_kk_from_bk = encode_to_eval_kk(Mir(bk), Mir(wk));
+							ASSERT_LV3(mir_encoded_eval_kk_from_bk != -1);
+
+							vec_bk.push_back(&kkpp_ksq_pcpc(mir_encoded_eval_kk_from_bk, mir_piece(a[i].piece0()), mir_piece(a[i].piece1())));
+							vec_bk.push_back(&kkpp_ksq_pcpc(mir_encoded_eval_kk_from_bk, mir_piece(a[i].piece1()), mir_piece(a[i].piece0())));
+
+							// WK側から見たとき。
+
+							int encoded_eval_kk_from_wk = encode_to_eval_kk(Inv(wk),Inv(bk));
+							ASSERT_LV3(encoded_eval_kk_from_wk != -1);
+
+							vec_wk.push_back(&kkpp_ksq_pcpc(encoded_eval_kk_from_wk, inv_piece(a[i].piece0()), inv_piece(a[i].piece1())));
+							vec_wk.push_back(&kkpp_ksq_pcpc(encoded_eval_kk_from_wk, inv_piece(a[i].piece1()), inv_piece(a[i].piece0())));
+
+							int mir_encoded_eval_kk_from_wk = encode_to_eval_kk(Mir(Inv(wk)), Mir(Inv(bk)));
+							ASSERT_LV3(mir_encoded_eval_kk_from_wk != -1);
+
+							vec_wk.push_back(&kkpp_ksq_pcpc(mir_encoded_eval_kk_from_wk, mir_piece(inv_piece(a[i].piece0())), mir_piece((inv_piece(a[i].piece1())))));
+							vec_wk.push_back(&kkpp_ksq_pcpc(mir_encoded_eval_kk_from_wk, mir_piece(inv_piece(a[i].piece1())), mir_piece((inv_piece(a[i].piece0())))));
+						}
+					}
+					// 力技だが、sortして重複削除してしまう。
+					std::sort(vec_bk.begin(), vec_bk.end());
+					vec_bk.erase(std::unique(vec_bk.begin(), vec_bk.end()) , vec_bk.end());
+
+					// ここで得られたKKPP成分すべてに今回の差分を加算する。
+					for (auto ptr : vec_bk)
+						*ptr += diff;
+					for (auto ptr : vec_wk)
+						*ptr -= diff;
+
+#endif
+
 				}
 				else if (g_kkpp.is_ok(index) && !freeze_kkpp)
 				{
@@ -470,7 +558,7 @@ namespace Eval
 	*/
 	void expand_kpp_to_kkpp()
 	{
-		EvalLearningTools::init_mir_inv_tables();
+		init_mir_inv_tables();
 
 		std::cout << "expand_kpp_to_kkpp..";
 

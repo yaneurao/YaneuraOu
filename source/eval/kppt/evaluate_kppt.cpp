@@ -460,12 +460,15 @@ namespace Eval
 		// 気が向いたらコード書く。
 
 #if defined (USE_AVX2)
-		
+
 		__m256i zero = _mm256_setzero_si256();
 		__m256i sum0 = zero;
 		__m256i sum1 = zero;
-		int i = 0;
-		for (; i + 8 < length ; i += 8)
+
+		// list0[38],list0[39],list1[38],list1[39]が0であることを期待したコード
+		ASSERT_LV3(list0[38] == 0);
+
+		for (int i = 0; i < length ; i += 8)
 		{
 			__m256i indexes0 = _mm256_load_si256(reinterpret_cast<const __m256i*>(&list0[i]));
 			__m256i indexes1 = _mm256_load_si256(reinterpret_cast<const __m256i*>(&list1[i]));
@@ -481,28 +484,6 @@ namespace Eval
 			sum1 = _mm256_add_epi32(sum1, w1lo);
 			__m256i w1hi = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(w1, 1));
 			sum1 = _mm256_add_epi32(sum1, w1hi);
-		}
-
-		if ( i + 4 < length)
-		{
-			__m128i indexes0 = _mm_load_si128(reinterpret_cast<const __m128i*>(&list0[i]));
-			__m128i indexes1 = _mm_load_si128(reinterpret_cast<const __m128i*>(&list1[i]));
-			__m128i w0 = _mm_i32gather_epi32(reinterpret_cast<const int*>(pkppb), indexes0, 4);
-			__m128i w1 = _mm_i32gather_epi32(reinterpret_cast<const int*>(pkppw), indexes1, 4);
-
-			__m256i w0lo = _mm256_cvtepi16_epi32(w0);
-			sum0 = _mm256_add_epi32(sum0, w0lo);
-
-			__m256i w1lo = _mm256_cvtepi16_epi32(w1);
-			sum1 = _mm256_add_epi32(sum1, w1lo);
-
-			i += 4;
-		}
-
-		for (; i < length ; ++i)
-		{
-			sum.p[0] += pkppb[list0[i]];
-			sum.p[1] += pkppw[list1[i]];
 		}
 
 		// sum0とsum0の上位128ビットと下位128ビットを独立して8バイトシフトしたものを足し合わせる
@@ -626,6 +607,7 @@ namespace Eval
 				
 				__m256i zero = _mm256_setzero_si256();
 				__m256i diffp1 = zero;
+				#pragma unroll
 				for (int i = 0; i < length ; ++i)
 				{
 					// KKPの値は、後手側から見た計算だとややこしいので、先手から見た計算でやる。
@@ -720,6 +702,7 @@ namespace Eval
 				__m256i zero = _mm256_setzero_si256();
 				__m256i diffp0 = zero;
 
+				#pragma unroll
 				for (int i = 0; i < length; ++i)
 				{
 					const int k0 = list0[i];
@@ -802,6 +785,12 @@ namespace Eval
 			// 今回の差分を計算して、そこに加算する。
 
 			const int listIndex = dp.pieceNo[0];
+
+			// do_a_pc()の最適化の関係で使わない玉の情報を吹き飛ばし、0にする
+			list0[38] = static_cast<BonaPiece>(0);
+			list0[39] = static_cast<BonaPiece>(0);
+			list1[38] = static_cast<BonaPiece>(0);
+			list1[39] = static_cast<BonaPiece>(0);
 
 			auto diff = do_a_pc(pos, dp.changed_piece[0].new_piece);
 			if (moved_piece_num == 1) {

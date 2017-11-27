@@ -46,14 +46,20 @@ namespace Book { extern void makebook_cmd(Position& pos, istringstream& is); }
 #endif
 
 // 棋譜を自動生成するコマンド
-#ifdef EVAL_LEARN
+#if defined (EVAL_LEARN)
 namespace Learner
 {
-  // 棋譜の自動生成。
+  // 教師局面の自動生成
   void gen_sfen(Position& pos, istringstream& is);
 
   // 生成した棋譜からの学習
   void learn(Position& pos, istringstream& is);
+
+#if defined(USE_GENSFEN2018)
+  // 開発中の教師局面の自動生成コマンド
+  void gen_sfen2018(Position& pos, istringstream& is);
+#endif
+
 }
 #endif
 
@@ -378,7 +384,7 @@ namespace USI
 
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32) && \
 	 (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || \
-	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_KKPPT) ||defined(EVAL_EXPERIMENTAL) || defined(EVAL_HELICES) || defined(EVAL_NABLA) || defined(EVAL_NABLA2) )
+	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_KKPPT) ||defined(EVAL_EXPERIMENTAL) || defined(EVAL_HELICES) || defined(EVAL_NABLA) )
 		// 評価関数パラメーターを共有するか
 		// 異種評価関数との自己対局のときにこの設定で引っかかる人が後を絶たないのでデフォルトでオフにする。
 		o["EvalShare"] << Option(false);
@@ -884,9 +890,14 @@ void USI::loop(int argc, char* argv[])
 		else if (token == "makebook") Book::makebook_cmd(pos, is);
 #endif
 
-#ifdef EVAL_LEARN
+#if defined (EVAL_LEARN)
 		else if (token == "gensfen") Learner::gen_sfen(pos, is);
 		else if (token == "learn") Learner::learn(pos, is);
+#if defined (USE_GENSFEN2018)
+		// 開発中の教師局面生成コマンド
+		else if (token == "gensfen2018") Learner::gen_sfen2018(pos, is);
+#endif
+
 #endif
 		// "usinewgame"はゲーム中にsetoptionなどを送らないことを宣言するためのものだが、
 		// 我々はこれに関知しないので単に無視すれば良い。

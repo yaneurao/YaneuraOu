@@ -115,7 +115,6 @@ namespace Eval
 		// KK,KKP
 		u64 size = g_kkp.max_index();
 		weights.resize(size); // 確保できるかは知らん。確保できる環境で動かしてちょうだい。
-		memset(&weights[0], 0, sizeof(Weight2) * weights.size());
 
 		// KPP
 		u64 size_kpp = g_kpp.size();
@@ -124,13 +123,11 @@ namespace Eval
 		//ASSERT_LV1(size_kpp == size_of_kpp / sizeof(ValueKpp));
 
 		weights_kpp.resize(size_kpp);
-		memset(&weights_kpp[0], 0, sizeof(Weight2) * weights_kpp.size());
 
 		// KPPP
 		u64 size_kppp = g_kppp.size();
 		ASSERT_LV1(size_kppp == size_of_kppp / sizeof(ValueKppp));
 		weights_kppp.resize(size_kppp);
-		memset(&weights_kppp[0], 0, sizeof(Weight2) * weights_kppp.size());
 
 		// 学習率の設定
 		Weight::init_eta(eta1, eta2, eta3, eta1_epoch, eta2_epoch);

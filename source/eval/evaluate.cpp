@@ -4,7 +4,7 @@
 #include "../misc.h"
 
 #if defined(USE_FV_VAR)
-#include "../learn/learning_tools.h" // inv_piece()関数が必要。
+#include "evaluate_mir_inv_tools.h" // inv_piece()関数が必要。
 #endif
 
 // 全評価関数に共通の処理などもここに記述する。
@@ -18,10 +18,6 @@
 #include "nabla/evaluate_nabla.cpp"
 #include "nabla/evaluate_nabla_learner.cpp"
 #endif
-#if defined (EVAL_NABLA2)
-#include "nabla2/evaluate_nabla2.cpp"
-#include "nabla2/evaluate_nabla2_learner.cpp"
-#endif
 
 namespace Eval
 {
@@ -30,7 +26,7 @@ namespace Eval
 	// 実行時のオーバーヘッドは小さいので、そこまで考慮することもなさげ。
 
 	// 駒割りの計算
-	// 手番側から見た評価値
+	// 先手側から見た評価値
 	Value material(const Position& pos)
 	{
 		int v = VALUE_ZERO;
@@ -48,19 +44,24 @@ namespace Eval
 
 #if defined (EVAL_MATERIAL)
 	// 駒得のみの評価関数のとき。
-	void init() {}
+	void init() {
+#if defined(USE_FV_VAR)
+		init_mir_inv_tables();
+#endif
+	}
 	void load_eval() {}
 	void print_eval_stat(Position& pos) {}
-	Value evaluate(const Position& pos) {
+	Value evaluate(const Position& pos) { return compute_eval(pos); }
+	Value compute_eval(const Position& pos) {
 		auto score = pos.state()->materialValue;
 		ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));
 		return pos.side_to_move() == BLACK ? score : -score;
 	}
-	Value compute_eval(const Position& pos) { return material(pos); }
+	void evaluate_with_no_return(const Position& pos) {}
 #endif
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) \
-	|| defined(EVAL_KKPPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA) || defined(EVAL_NABLA2)
+	|| defined(EVAL_KKPPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
 
 	// calc_check_sum()を呼び出して返ってきた値を引数に渡すと、ソフト名を表示してくれる。
 	void print_softname(u64 check_sum)
@@ -194,7 +195,7 @@ namespace Eval
 	void EvalList::add(BonaPiece fb)
 	{
 		pieceListFb[length_] = fb;
-		pieceListFw[length_] = EvalLearningTools::inv_piece(fb);
+		pieceListFw[length_] = inv_piece(fb);
 
 		bonapiece_to_piece_number[fb] = length_;
 		length_++;
@@ -225,7 +226,7 @@ namespace Eval
 	// BonaPieceの組み換えを行なうなら、以下の関数を何らか変更すること。
 	//
 
-#if defined(EVAL_NABLA) || defined(EVAL_NABLA2)
+#if defined(EVAL_NABLA)
 
 	// 評価関数の.cppのほうで定義する。
 

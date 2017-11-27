@@ -120,7 +120,8 @@ namespace Book
 #if 1
 			// 思考、極めて遅いのでログにタイムスタンプを出力して残しておいたほうが良いのでは…。
 			// id番号(連番)とthread idと現在の時刻を出力する。
-			cout << "[" << get_done_count() << "/" << get_loop_max() << ":" << thread_id << "] " << now_string() << " : " << sfen << endl;
+			sync_cout << "[" << get_done_count() << "/" << get_loop_max() << ":" << thread_id << "] "
+				      << now_string() << " : " << sfen << sync_endl;
 #endif
 		}
 	}
@@ -178,6 +179,7 @@ namespace Book
 			}
 
 			// 定跡ファイル名
+			// Option["book_file"]ではなく、ここで指定したものが処理対象である。
 			string book_name;
 			is >> book_name;
 
@@ -216,6 +218,12 @@ namespace Book
 					return;
 				}
 			}
+
+			// 処理対象ファイル名の出力
+			cout << "makebook think.." << endl;
+			cout << "sfen_file_name[BLACK] = " << sfen_file_name[BLACK] << endl;
+			cout << "sfen_file_name[WHITE] = " << sfen_file_name[WHITE] << endl;
+			cout << "book_name             = " << book_name << endl;
 
 			if (from_sfen)
 				cout << "read sfen moves " << moves << endl;
@@ -497,27 +505,32 @@ namespace Book
 
 				multi_think.set_loop_max(sfens_.size());
 
-				// 30分ごとに保存
+				// 15分ごとに保存
 				// (ファイルが大きくなってくると保存の時間も馬鹿にならないのでこれくらいの間隔で妥協)
-				multi_think.callback_seconds = 30 * 60;
+				multi_think.callback_seconds = 15 * 60;
 				multi_think.callback_func = [&]()
 				{
 					std::unique_lock<Mutex> lk(multi_think.io_mutex);
 					// 前回書き出し時からレコードが追加された？
 					if (multi_think.appended)
 					{
+						sync_cout << "Save start : " << now_string() << sync_endl;
 						book.write_book(book_name);
-						cout << 'S' << endl;
+						sync_cout << "Save done  : " << now_string() << sync_endl;
 						multi_think.appended = false;
 					}
 					else {
 						// 追加されていないときは小文字のsマークを表示して
 						// ファイルへの書き出しは行わないように変更。
-						cout << 's' << endl;
+						//cout << 's' << endl;
+						// →　この出力要らんような気がしてきた。
 					}
 
 					// 置換表が同じ世代で埋め尽くされるとまずいのでこのタイミングで世代カウンターを足しておく。
-					TT.new_search();
+					//TT.new_search();
+
+					// →　EVAL_LEARNモードなら、Learner::new_search()のほうで行っているのでここではやらなくて良い。
+
 				};
 
 				multi_think.go_think();

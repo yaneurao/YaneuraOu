@@ -23,15 +23,6 @@
     <Filter Include="リソース ファイル\eval">
       <UniqueIdentifier>{74e286a5-5565-4995-9fc2-737328172971}</UniqueIdentifier>
     </Filter>
-    <Filter Include="exe">
-      <UniqueIdentifier>{a09b95c2-88ed-401e-ab31-7eb93f8fc490}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="exe\book">
-      <UniqueIdentifier>{31783e68-60c1-4b07-a404-12463d7c1e30}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="exe\eval">
-      <UniqueIdentifier>{022b52fb-a082-4f1e-9418-bfbc59a1c528}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\learn">
       <UniqueIdentifier>{d7ca69f7-bd83-40ce-89c2-fe2d730b80be}</UniqueIdentifier>
     </Filter>
@@ -196,6 +187,9 @@
     <ClInclude Include="eval\kpp_kkpt_fv_var\evaluate_kpp_kkpt_fv_var.h">
       <Filter>リソース ファイル\eval\kpp_kkpt_fv_var</Filter>
     </ClInclude>
+    <ClInclude Include="eval\evaluate_mir_inv_tools.h">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -342,6 +336,9 @@
     <ClCompile Include="eval\kpp_kkpt_fv_var\evaluate_kpp_kkpt_fv_var_learner.cpp">
       <Filter>リソース ファイル\eval\kpp_kkpt_fv_var</Filter>
     </ClCompile>
+    <ClCompile Include="eval\evaluate_mir_inv_tools.cpp">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">
@@ -349,9 +346,6 @@
     </Text>
     <Text Include="..\docs\解説.txt">
       <Filter>docs</Filter>
-    </Text>
-    <Text Include="..\exe\eval\readme.txt">
-      <Filter>exe\eval</Filter>
     </Text>
     <Text Include="..\docs\やねうら大定跡.txt">
       <Filter>docs</Filter>
@@ -366,9 +360,6 @@
   <ItemGroup>
     <None Include="..\README.md">
       <Filter>docs</Filter>
-    </None>
-    <None Include="..\exe\book\standard_book.db">
-      <Filter>exe\book</Filter>
     </None>
     <None Include="Makefile">
       <Filter>docs</Filter>

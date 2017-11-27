@@ -5,19 +5,10 @@
 
 #include "learn.h"
 #if defined (EVAL_LEARN)
+#include "../eval/evaluate_mir_inv_tools.h"
 
 #if defined(SGD_UPDATE) || defined(USE_KPPP_MIRROR_WRITE)
 #include "../misc.h"  // PRNG , my_insertion_sort
-#endif
-
-#if V_FRACTION_BITS == 8
-typedef s8 V_FRACTION_TYPE;
-#elif V_FRACTION_BITS == 16
-typedef s16 V_FRACTION_TYPE;
-#elif V_FRACTION_BITS == 32
-typedef s32 V_FRACTION_TYPE;
-#elif V_FRACTION_BITS == 64
-typedef s64 V_FRACTION_TYPE;
 #endif
 
 namespace EvalLearningTools
@@ -28,7 +19,20 @@ namespace EvalLearningTools
 
 	// このEvalLearningTools名前空間にあるテーブル類を初期化する。
 	// 学習の開始までに必ず一度呼び出すこと。
+	// この関数のなかで、init_mir_inv_tables()も呼び出している。
+	// (この関数を呼ぶときは、init_mir_inv_tables()を呼び出す必要はない。)
 	void init();
+
+	// -------------------------------------------------
+	//                     flags
+	// -------------------------------------------------
+
+	// 次元下げしたときに、そのなかの一番小さなindexになることが
+	// わかっているindexに対してtrueとなっているフラグ配列。
+	// この配列もinit()によって初期化される。
+	// KPPPに関しては、関与しない。
+	// ゆえに、この配列の有効なindexの範囲は、KK::min_index()～KPP::max_index()まで。
+	extern std::vector<bool> min_index_flag;
 
 	// -------------------------------------------------
 	//       勾配等を格納している学習用の配列
@@ -42,7 +46,7 @@ namespace EvalLearningTools
 	struct Weight
 	{
 		// mini-batch 1回分の勾配の累積値
-		LearnFloatType g;
+		LearnFloatType g = LearnFloatType(0);
 
 		// ADA_GRAD_UPDATEのとき。LearnFloatType == floatとして、
 		// 合計 4*2 + 4*2 + 1*2 = 18 bytes
@@ -89,20 +93,27 @@ namespace EvalLearningTools
 				Weight::eta = Weight::eta3;
 		}
 
-#if defined (ADA_GRAD_UPDATE) || defined(ADA_PROP_UPDATE)
+		template <typename T> void updateFV(T& v) { updateFV(v, 1.0); }
+
+#if defined (ADA_GRAD_UPDATE)
+
+		// floatで正確に計算できる最大値はINT16_MAX*256-1なのでそれより
+		// 小さい値をマーカーにしておく。
+		const LearnFloatType V0_NOT_INIT = (INT16_MAX * 128);
+
+		// vを内部的に保持しているもの。以前の実装ではメモリの節約のために固定小数で小数部だけを保持していたが
+		// 精度的に怪しいし、見通しが悪くなるので廃止した。
+		LearnFloatType v0 = LearnFloatType(V0_NOT_INIT);
 
 		// AdaGradのg2
-		LearnFloatType g2;
-
-		// vの固定小数表現 8-bits。(vをfloatで持つのもったいないのでvの補助bitとして小数部を持つ)
-		// 何bit持つかは、V_FRACTION_BITSの設定で変更できる。
-		V_FRACTION_TYPE v_frac;
+		LearnFloatType g2 = LearnFloatType(0);
 
 		// AdaGradでupdateする
 		// この関数を実行しているときにgの値やメンバーが書き変わらないことは
 		// 呼び出し側で保証されている。atomic演算である必要はない。
+		// kはetaに掛かる係数。普通は1.0で良い。手番項に対してetaを下げたいときにここを1/8.0などとする。
 		template <typename T>
-		void updateFV(T& v)
+		void updateFV(T& v,double k)
 		{
 			// AdaGradの更新式
 			//   勾配ベクトルをg、更新したいベクトルをv、η(eta)は定数として、
@@ -116,23 +127,11 @@ namespace EvalLearningTools
 
 			g2 += g * g;
 
-#if defined(ADA_PROP_UPDATE)
-			// 少しずつ減衰させることで、学習が硬直するのを防ぐ。
-			// (0.99)^100 ≒ 0.366
-			g2 = LearnFloatType(g2 * 0.99);
-#endif
+			// v0がV0_NOT_INITであるなら、値がKK/KKP/KPP配列の値で初期化されていないということだから、
+			// この場合、vの値を引数で渡されたものから読み込む。
+			double V = (v0 == V0_NOT_INIT) ? v : v0;
 
-			// v8は小数部8bit(V_FRACTION_BITS==8のとき)を含んでいるのでこれを復元する。
-			// 128倍にすると、-1を保持できなくなるので127倍にしておく。
-			// -1.0～+1.0を-127～127で保持している。
-			// std::round()限定なら-0.5～+0.5の範囲なので255倍でも良いが、
-			// どんな丸め方をするかはわからないので余裕を持たせてある。
-
-			const double m = (s64)1 << (V_FRACTION_BITS - 1);
-
-			double V = v + ((double)v_frac / m);
-
-			V -= eta * (double)g / sqrt((double)g2 + epsilon);
+			V -= k * eta * (double)g / sqrt((double)g2 + epsilon);
 
 			// Vの値を型の範囲に収まるように制限する。
 			// ちなみに、windows.hがmin,maxマクロを定義してしまうのでそれを回避するために、
@@ -140,8 +139,8 @@ namespace EvalLearningTools
 			V = (std::min)((double)(std::numeric_limits<T>::max)() , V);
 			V = (std::max)((double)(std::numeric_limits<T>::min)() , V);
 
+			v0 = (LearnFloatType)V;
 			v = (T)round(V);
-			v_frac = (V_FRACTION_TYPE)((V - v) * m);
 
 			// この要素に関するmini-batchの1回分の更新が終わったのでgをクリア
 			// g[i] = 0;
@@ -154,7 +153,7 @@ namespace EvalLearningTools
 		// この関数を実行しているときにgの値やメンバーが書き変わらないことは
 		// 呼び出し側で保証されている。atomic演算である必要はない。
 		template <typename T>
-		void updateFV(T & v)
+		void updateFV(T & v , double k)
 		{
 			if (g == 0)
 				return;
@@ -206,48 +205,14 @@ namespace EvalLearningTools
 	{
 		Weight w[2];
 
-		template <typename T> void updateFV(std::array<T, 2>& v) { for (int i = 0; i<2; ++i) w[i].updateFV(v[i]); }
+		// 手番評価、etaを1/8に評価しておく。
+		template <typename T> void updateFV(std::array<T, 2>& v) { w[0].updateFV(v[0] , 1.0); w[1].updateFV(v[1],1.0/8.0); }
+
 		template <typename T> void set_grad(const std::array<T, 2>& g) { for (int i = 0; i<2; ++i) w[i].set_grad(g[i]); }
 		template <typename T> void add_grad(const std::array<T, 2>& g) { for (int i = 0; i<2; ++i) w[i].add_grad(g[i]); }
 
 		std::array<LearnFloatType, 2> get_grad() const { return std::array<LearnFloatType, 2>{w[0].get_grad(), w[1].get_grad()}; }
 	};
-
-	// -------------------------------------------------
-	//                  tables
-	// -------------------------------------------------
-
-	// 	--- BonaPieceに対してMirrorとInverseを提供する。
-
-	// これらの配列は、init()かinit_mir_inv_tables();を呼び出すと初期化される。
-	// このテーブルのみを評価関数のほうから使いたいときは、評価関数の初期化のときに
-	// init_mir_inv_tables()を呼び出すと良い。
-	// これらの配列は、以下のKK/KKP/KPPクラスから参照される。
-
-	// あるBonaPieceを相手側から見たときの値を返す
-	extern Eval::BonaPiece inv_piece(Eval::BonaPiece p);
-
-	// 盤面上のあるBonaPieceをミラーした位置にあるものを返す。
-	extern Eval::BonaPiece mir_piece(Eval::BonaPiece p);
-
-	// 次元下げしたときに、そのなかの一番小さなindexになることが
-	// わかっているindexに対してtrueとなっているフラグ配列。
-	// この配列もinit()によって初期化される。
-	// KPPPに関しては、関与しない。
-	// ゆえに、この配列の有効なindexの範囲は、KK::min_index()～KPP::max_index()まで。
-	extern std::vector<bool> min_index_flag;
-
-	// mir_piece/inv_pieceの初期化のときに呼び出されるcallback
-	// fe_endをユーザー側で拡張するときに用いる。
-	// この初期化のときに必要なのでinv_piece_とinv_piece_を公開している。
-	// mir_piece_init_functionが呼び出されたタイミングで、fe_old_endまでは
-	// これらのテーブルの初期化が完了していることが保証されている。
-	extern std::function<void()> mir_piece_init_function;
-	extern s16 mir_piece_[Eval::fe_end];
-	extern s16 inv_piece_[Eval::fe_end];
-
-	// この関数を明示的に呼び出すか、init()を呼び出すかしたときに、上のテーブルが初期化される。
-	void init_mir_inv_tables();
 
 	// -------------------------------------------------
 	// Weight配列を直列化したときのindexを計算したりするヘルパー。

@@ -125,15 +125,12 @@ namespace Eval
 		// 学習用配列の確保
 		u64 size = g_kkp.max_index();
 		weights.resize(size); // 確保できるかは知らん。確保できる環境で動かしてちょうだい。
-		memset(&weights[0], 0, sizeof(Weight2) * weights.size());
 
 		u64 size_kpp = g_kpp.size();
 		weights_kpp.resize(size_kpp);
-		memset(&weights_kpp[0], 0, sizeof(Weight) * weights_kpp.size());
 
 		u64 size_kkpp = g_kkpp.size();
 		weights_kkpp.resize(size_kkpp);
-		memset(&weights_kkpp[0], 0, sizeof(Weight) * weights_kkpp.size());
 
 		// 学習率の設定
 		Weight::init_eta(eta1, eta2, eta3, eta1_epoch, eta2_epoch);
