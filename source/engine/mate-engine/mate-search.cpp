@@ -486,10 +486,11 @@ namespace MateEngine
 
     auto end = std::chrono::system_clock::now();
     if (!moves.empty()) {
+      // millisecondsは、最低でも45bitを持つ符号付き整数型であることしか保証されていないので、
+	  // VC++だとlong long、clangだとlongであったりする。そこでmax()などを呼ぶとき、注意が必要である。
       auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-      //time_ms = std::max(time_ms, 1LL);	// これだと Cygwin clang v 3.9.1 でエラーになる…
-      time_ms = time_ms > 1LL ? time_ms : 1LL;
-      int64_t nps = nodes_searched * 1000LL / time_ms;
+      time_ms = std::max(time_ms, decltype(time_ms)(1));
+	  int64_t nps = nodes_searched * 1000LL / time_ms;
       std::ostringstream oss;
       oss << "info depth " << moves.size() << " time " << time_ms << " nodes " << nodes_searched << " pv";
       for (const auto& move : moves) {
