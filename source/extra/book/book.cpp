@@ -1232,6 +1232,9 @@ namespace Book
 		// 定跡の指し手を何手目まで用いるか
 		o["BookMoves"] << Option(16, 0, 10000);
 
+		// 一定の確率で定跡を無視して自力で思考させる
+		o["BookIgnoreRate"] << Option(0, 0, 100);
+
 		// 定跡ファイル名
 
 		//  no_book          定跡なし
@@ -1274,6 +1277,11 @@ namespace Book
 	// probe()の下請け
 	bool BookMoveSelector::probe_impl(Position& rootPos, bool silent , Move& bestMove , Move& ponderMove)
 	{
+		// 一定確率で定跡を無視
+	        if ( (int)Options["BookIgnoreRate"] > prng.rand(100)){
+			return false;		 
+	        }
+	  
 		// 定跡を用いる手数
 		int book_ply = (int)Options["BookMoves"];
 		if (rootPos.game_ply() > book_ply)
