@@ -1962,7 +1962,7 @@ void shuffle_write(const string& output_file_name , PRNG& prng , vector<fstream>
 	};
 
 
-	std::cout << "write : " << output_file_name << endl;
+	cout << endl <<  "write : " << output_file_name << endl;
 
 	fstream fs(output_file_name, ios::out | ios::binary);
 
@@ -2079,6 +2079,9 @@ void shuffle_files(const vector<string>& filenames , const string& output_file_n
 	// tmpに書き出しが終わったこのタイミングで元ファイルを消す(あるいは手で削除してしまう)なら、
 	// 元ファイルの2倍程度のストレージ容量で済む。
 	// だから、元ファイルを消すためのオプションを用意すべきかも知れない。
+
+	// ファイルの同時openをしている。これがFOPEN_MAXなどを超える可能性は高い。
+	// その場合、buffer_sizeを調整して、ファイルの数を減らすよりない。
 
 	vector<fstream> afs;
 	for (u64 i = 0; i < write_file_count; ++i)

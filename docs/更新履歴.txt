@@ -2,7 +2,44 @@
 やねうら王 更新履歴
 
 
-■　2017/11/09
+■　2017/12/02
+
+- デバッグ用にqsearch,searchコマンド追加。
+
+
+■　2017/12/01
+
+- mate engineがコンパイル通らなくなっていたので修正。(かず@なのはさん)
+- mate-search.cppでclangでコンパイルが通らなかったの修正。(かず@なのはさん)
+
+
+■　2017/11/25
+
+- 学習部、少し整理
+	- 学習時の手番のetaを非手番側の1/8に変更。(like Apery)
+	- ADA_PROP削除
+	- V_FRACTION_BITS廃止。
+	- Weight配列をmemsetで初期化するの廃止。
+
+
+■　2017/11/23
+
+- learnコマンドに序盤を学習対象から外すオプション追加。(実験中なので現時点では隠しオプション)
+	- reduction_gameply
+
+
+■　2017/11/18
+
+- gensfen2018コマンド追加準備。(現状、非公開)
+
+
+■　2017/11/17 
+
+- evaluate_kpptの高速化(yuk-toさん) : https://github.com/yaneurao/YaneuraOu/pull/69
+- EVAL_MATERIALのときのcompute_eval()やコメントがおかしかったの修正。(tanuki-さん)
+
+
+■　2017/11/09 SDT5 version
 
 - KKPP_KPPT型評価関数、学習時の次元下げコード追加。
 	- learn.hのUSE_KKPP_LOWER_DIMをdefineすると学習時の次元下げが有効になる。
