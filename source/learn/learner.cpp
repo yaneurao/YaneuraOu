@@ -2174,87 +2174,94 @@ void shuffle_files_on_memory(const vector<string>& filenames,const string output
 
 void convert_bin(const vector<string>& filenames , const string& output_file_name)
 {
-  fstream fs;
-  auto th = Threads.main();
-  auto &tpos = th->rootPos;
-  // plain形式の雑巾をやねうら王用のpackedsfenvalueに変換する
-  fs.open(output_file_name, ios::app | ios::binary);
-  
-  for(auto filename : filenames){
-    std::cout<<"convert "<<filename<<" ... ";
-    std::string line;
-    ifstream ifs;
-    ifs.open(filename);
-    PackedSfenValue p;
-    p.gamePly = 1; // apery形式では含まれない。一応初期化するべし
-    while(std::getline(ifs,line)){
-      std::stringstream ss(line);
-      std::string token;
-      std::string value;
-      ss >> token;
-      if(token == "sfen"){
-        StateInfo si;
-        tpos.set(line.substr(5), &si , Threads.main());
-        tpos.sfen_pack(p.sfen);
-      }else if(token == "move"){
-        ss >> value;
-        p.move = move_from_usi(value);
-      }else if(token == "score"){
-        ss >> p.score;
-      }else if(token == "ply"){
-        int temp;
-        ss >> temp;
-        p.gamePly = u16(temp); // 此処のキャストいらない？
-      }else if(token == "result"){
-        int temp;
-        ss >> temp;
-        p.game_result = s8(temp); // 此処のキャストいらない？
-      }else if(token == "e"){
-        fs.write((char*)&p, sizeof(PackedSfenValue));
-        // debug
-        /*
-          std::cout<<tpos<<std::endl;
-          std::cout<<to_usi_string(Move(p.move))<<","<<p.score<<","<<int(p.gamePly)<<","<<int(p.game_result)<<std::endl;
-        */
-      }
-    }
-    std::cout<<"done"<<std::endl;
-    ifs.close();
-  }
-  std::cout<<"all done"<<std::endl;
-  fs.close();
+	std::fstream fs;
+	auto th = Threads.main();
+	auto &tpos = th->rootPos;
+	// plain形式の雑巾をやねうら王用のpackedsfenvalueに変換する
+	fs.open(output_file_name, ios::app | ios::binary);
+
+	for (auto filename : filenames) {
+		std::cout << "convert " << filename << " ... ";
+		std::string line;
+		ifstream ifs;
+		ifs.open(filename);
+		PackedSfenValue p;
+		p.gamePly = 1; // apery形式では含まれない。一応初期化するべし
+		while (std::getline(ifs, line)) {
+			std::stringstream ss(line);
+			std::string token;
+			std::string value;
+			ss >> token;
+			if (token == "sfen") {
+				StateInfo si;
+				tpos.set(line.substr(5), &si, Threads.main());
+				tpos.sfen_pack(p.sfen);
+			}
+			else if (token == "move") {
+				ss >> value;
+				p.move = move_from_usi(value);
+			}
+			else if (token == "score") {
+				ss >> p.score;
+			}
+			else if (token == "ply") {
+				int temp;
+				ss >> temp;
+				p.gamePly = u16(temp); // 此処のキャストいらない？
+			}
+			else if (token == "result") {
+				int temp;
+				ss >> temp;
+				p.game_result = s8(temp); // 此処のキャストいらない？
+			}
+			else if (token == "e") {
+				fs.write((char*)&p, sizeof(PackedSfenValue));
+				// debug
+				/*
+				std::cout<<tpos<<std::endl;
+				std::cout<<to_usi_string(Move(p.move))<<","<<p.score<<","<<int(p.gamePly)<<","<<int(p.game_result)<<std::endl;
+				*/
+			}
+		}
+		std::cout << "done" << std::endl;
+		ifs.close();
+	}
+	std::cout << "all done" << std::endl;
+	fs.close();
 }
   
 void convert_plain(const vector<string>& filenames , const string& output_file_name)
 {
-  Position tpos;
-  ofstream ofs;
-  ofs.open(output_file_name, ios::app);
-  for(auto filename : filenames){
-    std::cout<<"convert "<<filename<<" ... ";
-    // 只管packedsfenvalueをテキストに変換する
-    fstream fs;
-    
-    fs.open(filename, ios::in | ios::binary);
-    PackedSfenValue p;
-    while(1){
-      if (fs.read((char*)&p, sizeof(PackedSfenValue))){
-	// plain textとして書き込む
-	ofs <<"sfen "<< tpos.sfen_unpack(p.sfen)<<std::endl;
-	ofs <<"move "<< to_usi_string(Move(p.move))<<std::endl;
-	ofs <<"score "<< p.score<<std::endl;
-	ofs <<"ply "<< int(p.gamePly)<<std::endl;
-	ofs <<"result "<< int(p.game_result)<<std::endl;
-	ofs <<"e"<<std::endl;
-      }else{
-	break;
-      }
-    }
-    fs.close();
-    std::cout<<"done"<<std::endl;
-  }
-  ofs.close();
-  std::cout<<"all done"<<std::endl;
+	Position tpos;
+	std::ofstream ofs;
+	ofs.open(output_file_name, ios::app);
+	for (auto filename : filenames) {
+		std::cout << "convert " << filename << " ... ";
+
+		// ひたすらpackedsfenvalueをテキストに変換する
+		std::fstream fs;
+		fs.open(filename, ios::in | ios::binary);
+		PackedSfenValue p;
+		while (true)
+		{
+			if (fs.read((char*)&p, sizeof(PackedSfenValue))) {
+				// plain textとして書き込む
+				ofs << "sfen " << tpos.sfen_unpack(p.sfen) << std::endl;
+				ofs << "move " << to_usi_string(Move(p.move)) << std::endl;
+				ofs << "score " << p.score << std::endl;
+				ofs << "ply " << int(p.gamePly) << std::endl;
+				ofs << "result " << int(p.game_result) << std::endl;
+				ofs << "e" << std::endl;
+			}
+			else {
+				break;
+			}
+		}
+		fs.close();
+		std::cout << "done" << std::endl;
+	}
+	ofs.close();
+	std::cout << "all done" << std::endl;
 }
 
 // 生成した棋譜からの学習

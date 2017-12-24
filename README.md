@@ -23,7 +23,12 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 
 ## やねうら王2017 GOKU
 
-《開発計画中》
+2017年11月の第5回将棋電王トーナメントに参加してきました。(探索部の強さ、前バージョンからあまり変わらず)　Apery(SDT5)などの評価関数を用いるとXeon 24コアでR4200程度の模様。
+
+
+## やねうら王2018
+
+《開発中》
 
 ## やねうら王詰め将棋solver
 
