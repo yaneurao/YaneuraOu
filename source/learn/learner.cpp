@@ -2183,35 +2183,36 @@ void convert_bin(const vector<string>& filenames , const string& output_file_nam
     ifstream ifs;
     ifs.open(filename);
     PackedSfenValue p;
+    p.gamePly = 1; // apery形式では含まれない。一応初期化するべし
     while(std::getline(ifs,line)){
       std::stringstream ss(line);
       std::string token;
       std::string value;
       ss >> token;
       if(token == "sfen"){
-	StateInfo si;
-	tpos.set(line.substr(5), &si , Threads.main());
-	tpos.sfen_pack(p.sfen);
+        StateInfo si;
+        tpos.set(line.substr(5), &si , Threads.main());
+        tpos.sfen_pack(p.sfen);
       }else if(token == "move"){
-	ss >> value;
-	p.move = move_from_usi(value);
+        ss >> value;
+        p.move = move_from_usi(value);
       }else if(token == "score"){
-	ss >> p.score;
+        ss >> p.score;
       }else if(token == "ply"){
-	int temp;
-	ss >> temp;
-	p.gamePly = u16(temp); // 此処のキャストいらない？
+        int temp;
+        ss >> temp;
+        p.gamePly = u16(temp); // 此処のキャストいらない？
       }else if(token == "result"){
-	int temp;
-	ss >> temp;
-	p.game_result = s8(temp); // 此処のキャストいらない？
+        int temp;
+        ss >> temp;
+        p.game_result = s8(temp); // 此処のキャストいらない？
       }else if(token == "e"){
-	fs.write((char*)&p, sizeof(PackedSfenValue));
-	// debug
-	/*
-	std::cout<<tpos<<std::endl;
-	std::cout<<to_usi_string(Move(p.move))<<","<<p.score<<","<<int(p.gamePly)<<","<<int(p.game_result)<<std::endl;
-	*/
+        fs.write((char*)&p, sizeof(PackedSfenValue));
+        // debug
+        /*
+          std::cout<<tpos<<std::endl;
+          std::cout<<to_usi_string(Move(p.move))<<","<<p.score<<","<<int(p.gamePly)<<","<<int(p.game_result)<<std::endl;
+        */
       }
     }
     std::cout<<"done"<<std::endl;
@@ -2494,6 +2495,7 @@ void learn(Position&, istringstream& is)
 	}
 	if (use_convert_plain)
 	{
+	  	is_ready(true);
 		cout << "convert_plain.." << endl;
 		convert_plain(filenames,output_file_name);
 		return;
@@ -2501,6 +2503,7 @@ void learn(Position&, istringstream& is)
 	}
 	if (use_convert_bin)
 	{
+	  	is_ready(true);
 		cout << "convert_bin.." << endl;
 		convert_bin(filenames,output_file_name);
 		return;
