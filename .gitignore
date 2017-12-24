@@ -16,6 +16,8 @@ YaneuraOu_backup*.lnk
 *.bak
 *Private.*
 *.vspx
+*~
+~*
 
 # experimental
 
