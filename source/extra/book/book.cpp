@@ -1278,7 +1278,7 @@ namespace Book
 	bool BookMoveSelector::probe_impl(Position& rootPos, bool silent , Move& bestMove , Move& ponderMove)
 	{
 		// 一定確率で定跡を無視
-	        if ( (int)Options["BookIgnoreRate"] > prng.rand(100)){
+	        if ( (int)Options["BookIgnoreRate"] > (int)prng.rand(100)){
 			return false;		 
 	        }
 	  
