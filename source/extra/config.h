@@ -221,9 +221,9 @@
 
 // --- 通常の思考エンジンとして実行ファイルを公開するとき用の設定集
 
-// やねうら王2017Early
-#if defined(YANEURAOU_2017_EARLY_ENGINE)
-#define ENGINE_NAME "YaneuraOu 2017 Early"
+// やねうら王2018 with お多福ラボ
+#if defined(YANEURAOU_2018_OTAFUKU_ENGINE)
+#define ENGINE_NAME "YaneuraOu 2018 Otafuku"
 #define EVAL_KPPT
 //#define EVAL_KPP_KKPT
 
@@ -258,9 +258,10 @@
 #endif
 
 
-// 極やねうら王(非公開)
-#if defined(YANEURAOU_2017_GOKU_ENGINE)
-#define ENGINE_NAME "YaneuraOu 2017 GOKU"
+
+// 極やねうら王2018(非公開)
+#if defined(YANEURAOU_2018_GOKU_ENGINE)
+#define ENGINE_NAME "YaneuraOu 2018 GOKU"
 
 //#define EVAL_KPPT
 #define EVAL_KPP_KKPT

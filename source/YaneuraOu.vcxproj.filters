@@ -29,9 +29,6 @@
     <Filter Include="script">
       <UniqueIdentifier>{efb5b189-918a-4b2a-ba65-731c674603a7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\engine\2017-early-engine">
-      <UniqueIdentifier>{d3dd072e-59ab-4ec3-a846-36d845709d2c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\extra\book">
       <UniqueIdentifier>{991f4422-aa69-47f9-96dc-ab57ff54f469}</UniqueIdentifier>
     </Filter>
@@ -67,6 +64,9 @@
     </Filter>
     <Filter Include="リソース ファイル\eval\kpp_kkpt_fv_var">
       <UniqueIdentifier>{002e5881-2553-464d-a5ca-7a8d84717077}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\engine\2018-otafuku-engine">
+      <UniqueIdentifier>{1822c23d-4270-4155-8c9b-ed15821d29ba}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -120,9 +120,6 @@
     </ClInclude>
     <ClInclude Include="learn\learn.h">
       <Filter>リソース ファイル\learn</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\2017-early-engine\2017-early-param.h">
-      <Filter>リソース ファイル\engine\2017-early-engine</Filter>
     </ClInclude>
     <ClInclude Include="extra\book\apery_book.h">
       <Filter>リソース ファイル\extra\book</Filter>
@@ -190,6 +187,9 @@
     <ClInclude Include="eval\evaluate_mir_inv_tools.h">
       <Filter>リソース ファイル\eval</Filter>
     </ClInclude>
+    <ClInclude Include="engine\2018-otafuku-engine\2018-otafuku-param.h">
+      <Filter>リソース ファイル\engine\2018-otafuku-engine</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -254,9 +254,6 @@
     </ClCompile>
     <ClCompile Include="learn\multi_think.cpp">
       <Filter>リソース ファイル\learn</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\2017-early-engine\2017-early-search.cpp">
-      <Filter>リソース ファイル\engine\2017-early-engine</Filter>
     </ClCompile>
     <ClCompile Include="extra\book\apery_book.cpp">
       <Filter>リソース ファイル\extra\book</Filter>
@@ -338,6 +335,9 @@
     </ClCompile>
     <ClCompile Include="eval\evaluate_mir_inv_tools.cpp">
       <Filter>リソース ファイル\eval</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\2018-otafuku-engine\2018-otafuku-search.cpp">
+      <Filter>リソース ファイル\engine\2018-otafuku-engine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

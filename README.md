@@ -21,14 +21,15 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 
 - 思考エンジン本体のダウンロードは[こちら](https://github.com/yaneurao/YaneuraOu/releases/)
 
-## やねうら王2017 GOKU
+## やねうら王2017 GOKU : SDT5に『極やねうら王』として出場。
 
 2017年11月の第5回将棋電王トーナメントに参加してきました。(探索部の強さ、前バージョンからあまり変わらず)　Apery(SDT5)などの評価関数を用いるとXeon 24コアでR4200程度の模様。
 
 
-## やねうら王2018
+## やねうら王2018 OTAFUKU (やねうら王2018 with お多福ラボ)
 
-《開発中》
+今年は一年、これでいきます。
+
 
 ## やねうら王詰め将棋solver
 
@@ -47,6 +48,8 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 
 - やねうら王2017Early用 - Apery(WCSC26)、Apery(SDT4)＝「浮かむ瀬」の評価関数バイナリがそのまま使えます。
 - やねうら王2017 KPP_KKPT型評価関数 - 以下のKPP_KKPT型ビルド用評価関数のところにあるものが使えます。
+- やねうら王2018 Otafuku用 KPPT型　→ やねうら王2017Early(KPPT)と同様
+- やねうら王2018 Otafuku用 KPP_KKPT型　→ やねうら王2017Early(KPP_KKPT)と同様
 
 ### 「Re : ゼロから始める評価関数生活」プロジェクト(略して「リゼロ」)
 

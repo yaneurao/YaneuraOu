@@ -1,6 +1,6 @@
 # > Select YaneuraOu edition below.
 
-YANEURAOU_EDITION = YANEURAOU_2017_EARLY_ENGINE
+YANEURAOU_EDITION = YANEURAOU_2018_OTAFUKU_ENGINE
 #YANEURAOU_EDITION = HELP_MATE_ENGINE
 #YANEURAOU_EDITION = MATE_ENGINE
 
@@ -133,7 +133,7 @@ SOURCES  = shogi.cpp                                                           \
 	eval/evaluate_mir_inv_tools.cpp                                            \
 	engine/user-engine/user-search.cpp                                         \
 	engine/help-mate-engine/help-mate-search.cpp                               \
-	engine/2017-early-engine/2017-early-search.cpp                             \
+	engine/2018-otafuku-engine/2018-otafuku-search.cpp                         \
 	learn/learner.cpp                                                          \
 	learn/learning_tools.cpp                                                   \
 	learn/multi_think.cpp
@@ -142,10 +142,6 @@ ifeq ($(YANEURAOU_EDITION),MATE_ENGINE)
 	SOURCES += engine/mate-engine/mate-search.cpp
 endif
 
-#ifeq ($(YANEURAOU_EDITION),YANEURAOU_2017_GOKU_ENGINE)                        
-#	SOURCES += engine/2017-goku-engine/2017-goku-search.cpp                    \
-#	           eval/evaluate_ppap.cpp                                          
-#endif
 
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
 DEPENDS  = $(OBJECTS:.o=.d)
