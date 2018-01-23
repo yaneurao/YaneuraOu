@@ -2433,7 +2433,7 @@ void Thread::search()
 					&& Time.elapsed() > 3000
 					// 将棋所のコンソールが詰まるのを予防するために出力を少し抑制する。
 					// また、go infiniteのときは、検討モードから使用しているわけで、PVは必ず出力する。
-					&& (rootDepth < 3 || lastInfoTime + pv_interval <= Time.elapsed())
+					&& (rootDepth < 3 * ONE_PLY || lastInfoTime + pv_interval <= Time.elapsed())
 					// silent modeや検討モードなら出力を抑制する。
 					&& !Limits.silent
 					// ただし、outout_fail_lh_pvがfalseならfail high/fail lowのときのPVを出力しない。
@@ -2502,7 +2502,7 @@ void Thread::search()
 					// MultiPVのときは最後の候補手を求めた直後とする。
 					// ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
 					((PVIdx + 1 == multiPV || Time.elapsed() > 3000)
-						&& (rootDepth < 3 || lastInfoTime + pv_interval <= Time.elapsed())))
+						&& (rootDepth < 3 * ONE_PLY || lastInfoTime + pv_interval <= Time.elapsed())))
 				{
 					// ただし検討モードのときは、stopのときにPVを出力しないことにする。
 					if (!(Threads.stop && Limits.consideration_mode))
