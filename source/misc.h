@@ -48,10 +48,15 @@ extern void start_logger(bool b);
 // ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。
 extern int read_all_lines(std::string filename, std::vector<std::string>& lines);
 
-// C++のfstreamでは一発で2GB以上のファイルの読み書きが出来ないのでそのためのwrapper
-// callback_funcは、ファイルがオープン出来た時点でそのファイルサイズを引数として
+// msys2、Windows Subsystem for Linuxなどのgcc/clangでコンパイルした場合、
+// C++のstd::ifstreamで::read()は、一発で2GB以上のファイルの読み書きが出来ないのでそのためのwrapperである。
+//
+// read_file_to_memory()の引数のcallback_funcは、ファイルがオープン出来た時点でそのファイルサイズを引数として
 // callbackされるので、バッファを確保して、その先頭ポインタを返す関数を渡すと、そこに読み込んでくれる。
 // これらの関数は、ファイルが見つからないときなどエラーの際には非0を返す。
+//
+// また、callbackされた関数のなかでバッファが確保できなかった場合や、想定していたファイルサイズと異なった場合は、
+// nullptrを返せば良い。このとき、read_file_to_memory()は、読み込みを中断し、エラーリターンする。
 
 extern int read_file_to_memory(std::string filename, std::function<void*(u64)> callback_func);
 extern int write_memory_to_file(std::string filename, void *ptr, u64 size);
@@ -288,6 +293,37 @@ inline std::string path_combine(const std::string& folder, const std::string& fi
 		return folder + "/" + filename;
 
 	return folder + filename;
+}
+
+// --------------------
+//       misc
+// --------------------
+
+// insertion sort
+// 昇順に並び替える。
+template <typename T >
+void my_insertion_sort(T* arr, int left, int right)
+{
+	for (int i = left + 1; i < right; i++)
+	{
+		auto key = arr[i];
+		int j = i - 1;
+
+		// keyより大きな arr[0..i-1]の要素を現在処理中の先頭へ。
+		while (j >= left && (arr[j] > key))
+		{
+			arr[j + 1] = arr[j];
+			j = j - 1;
+		}
+		arr[j + 1] = key;
+	}
+}
+
+// 途中での終了処理のためのwrapper
+static void my_exit()
+{
+	sleep(3000); // エラーメッセージが出力される前に終了するのはまずいのでwaitを入れておく。
+	exit(EXIT_FAILURE);
 }
 
 // --------------------

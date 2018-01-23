@@ -6,7 +6,6 @@
 #include "../thread.h"
 
 using namespace std;
-extern void is_ready();
 
 // ----------------------------------
 //  USI拡張コマンド "bench"(ベンチマーク)
@@ -113,10 +112,9 @@ void bench_cmd(Position& current, istringstream& is)
 	for (size_t i = 0; i < fens.size(); ++i)
 	{
 		// SetupStatesは破壊したくないのでローカルに確保
-		auto states = Search::StateStackPtr(new aligned_stack<StateInfo>);
-		states->push(StateInfo());
+		StateListPtr states(new StateList(1));
 
-		pos.set(fens[i],Threads.main());
+		pos.set(fens[i] ,&states->back() , Threads.main());
 
 		sync_cout << "\nPosition: " << (i + 1) << '/' << fens.size() << sync_endl;
 

@@ -342,26 +342,34 @@ struct SfenPacker
 // 高速化のために直接unpackする関数を追加。かなりしんどい。
 // packer::unpack()とPosition::set()とを合体させて書く。
 // 渡された局面に問題があって、エラーのときは非0を返す。
-int Position::set_from_packed_sfen(const PackedSfen& sfen , Thread* th)
+int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thread* th)
 {
 	SfenPacker packer;
 	auto& stream = packer.stream;
 	stream.set_data((u8*)&sfen);
 
-	clear();
+	std::memset(this, 0, sizeof(Position));
+	std::memset(si, 0, sizeof(StateInfo));
+	st = si;
 
 	// 手番
 	sideToMove = (Color)stream.read_one_bit();
 
-#if !defined( EVAL_NO_USE )
-	// PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
-	// それぞれの駒をどこまで使ったかのカウンター
-	PieceNo piece_no_count[KING] = { PIECE_NO_ZERO,PIECE_NO_PAWN,PIECE_NO_LANCE,PIECE_NO_KNIGHT,
-		PIECE_NO_SILVER, PIECE_NO_BISHOP, PIECE_NO_ROOK,PIECE_NO_GOLD };
-
+	// evalListのclear。上でmemsetでゼロクリアしたときにクリアされているが…。
 	evalList.clear();
 
+#if defined(USE_FV38)
+	// PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
+	// それぞれの駒をどこまで使ったかのカウンター
+	PieceNumber piece_no_count[KING] = { PIECE_NUMBER_ZERO,PIECE_NUMBER_PAWN,PIECE_NUMBER_LANCE,PIECE_NUMBER_KNIGHT,
+		PIECE_NUMBER_SILVER, PIECE_NUMBER_BISHOP, PIECE_NUMBER_ROOK,PIECE_NUMBER_GOLD };
+#elif defined(USE_FV_VAR)
+	auto& dp = st->dirtyPiece;
+	// FV_VARのときは直接evalListに追加せず、DirtyPieceにいったん追加して、
+	// そのあと、DirtyPiece::update()でevalListに追加する。このupdate()の時に組み換えなどの操作をしたいため。
+	dp.set_state_info(st);
 #endif
+
 	kingSquare[BLACK] = kingSquare[WHITE] = SQ_NB;
 
 	// まず玉の位置
@@ -388,17 +396,25 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , Thread* th)
 		if (pc == NO_PIECE)
 			continue;
 
-		PieceNo piece_no =
-			(pc == B_KING) ? PIECE_NO_BKING : // 先手玉
-			(pc == W_KING) ? PIECE_NO_WKING : // 後手玉
-#if !defined(EVAL_NO_USE)
+		put_piece(sq, Piece(pc));
+
+		// evalListの更新
+#if defined(USE_FV38)
+		PieceNumber piece_no =
+			(pc == B_KING) ? PIECE_NUMBER_BKING : // 先手玉
+			(pc == W_KING) ? PIECE_NUMBER_WKING : // 後手玉
 			piece_no_count[raw_type_of(pc)]++; // それ以外
-#else
-			PIECE_NO_ZERO; // とりあえず駒番号は使わないので全部ゼロにしておけばいい。
+
+		evalList.put_piece(piece_no, sq, pc); // sqの升にpcの駒を配置する
+#elif defined(USE_FV_VAR)
+		if (type_of(pc) != KING)
+		{
+			dp.add_piece(sq, pc);
+			dp.do_update(evalList);
+			dp.clear();
+			// DirtyPieceのBonaPieceを格納するバッファ、極めて小さいのでevalListに反映させるごとにクリアしておく。
+		}
 #endif
-
-		put_piece(sq, Piece(pc), piece_no);
-
 
 		//cout << sq << ' ' << board[sq] << ' ' << stream.get_cursor() << endl;
 
@@ -410,17 +426,16 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , Thread* th)
 	// 手駒
 	hand[BLACK] = hand[WHITE] = (Hand)0;
 
-#if !defined (EVAL_NO_USE)
 	int i = 0;
 	Piece lastPc = NO_PIECE;
-#endif
+
 	while (stream.get_cursor() < 256)
 	{
 		// 256になるまで手駒が格納されているはず
 		auto pc = packer.read_hand_piece_from_stream();
 		add_hand(hand[(int)color_of(pc)], type_of(pc));
 
-#ifndef EVAL_NO_USE
+#if defined(USE_FV38) || defined(USE_FV_VAR)
 		// 何枚目のその駒であるかをカウントしておく。
 		if (lastPc != pc)
 			i = 0;
@@ -428,11 +443,19 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , Thread* th)
 
 		// FV38などではこの個数分だけpieceListに突っ込まないといけない。
 		Piece rpc = raw_type_of(pc);
-		PieceNo piece_no = piece_no_count[rpc]++;
+#endif
+
+#if defined (USE_FV38)
+		PieceNumber piece_no = piece_no_count[rpc]++;
 		ASSERT_LV1(is_ok(piece_no));
 		evalList.put_piece(piece_no, color_of(pc), rpc, i++);
+#elif defined(USE_FV_VAR)
+		dp.add_piece(color_of(pc), rpc, i++);
+		dp.do_update(evalList);
+		dp.clear();
 #endif
 	}
+
 	if (stream.get_cursor() != 256)
 	{
 		// こんな局面はおかしい。デバッグ用。
@@ -446,13 +469,14 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , Thread* th)
 	// put_piece()したのでこのタイミングでupdate
 	// set_state()で駒種別のbitboardを参照するのでそれまでにこの関数を呼び出す必要がある。
 	update_bitboards();
+	update_kingSquare();
 
 	set_state(st);
 
-#if !defined(EVAL_NO_USE)
+	// --- evaluate
+
 	st->materialValue = Eval::material(*this);
 	Eval::compute_eval(*this);
-#endif
 
 	// --- effect
 

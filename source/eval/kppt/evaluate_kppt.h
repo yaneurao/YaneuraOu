@@ -1,23 +1,14 @@
 ﻿#ifndef _EVALUATE_KPPT_H_
 #define _EVALUATE_KPPT_H_
 
-#include "../shogi.h"
+#include "../../shogi.h"
 
-// KPPT評価関数で用いる共用header的なもの。
+// KPPT評価関数で用いるheader
 
-#if defined(EVAL_KKPT) || defined (EVAL_KPPT)
+#if defined (EVAL_KPPT)
 
-#include "../evaluate.h"
-
-
-// KKファイル名
-#define KK_BIN "KK_synthesized.bin"
-
-// KKPファイル名
-#define KKP_BIN "KKP_synthesized.bin"
-
-// KPPファイル名
-#define KPP_BIN "KPP_synthesized.bin"
+#include "../../evaluate.h"
+#include "../evaluate_common.h"
 
 namespace Eval
 {
@@ -42,50 +33,26 @@ namespace Eval
 	// 以下では、SQ_NBではなくSQ_NB_PLUS1まで確保したいが、Apery(WCSC26)の評価関数バイナリを読み込んで変換するのが面倒なので
 	// ここではやらない。ゆえに片側の玉や、駒落ちの盤面には対応出来ない。
 
-#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
+	// 評価関数
 
-	// 評価関数パラメーターを他プロセスと共有するための機能。
-
-	// KK
 	extern ValueKk(*kk_)[SQ_NB][SQ_NB];
-
-	// KPP
-	extern ValueKpp(*kpp_)[SQ_NB][fe_end][fe_end];
-
-	// KKP
 	extern ValueKkp(*kkp_)[SQ_NB][SQ_NB][fe_end];
+	extern ValueKpp(*kpp_)[SQ_NB][fe_end][fe_end];
 
 	// 以下のマクロ定義して、ポインタではない場合と同じ挙動になるようにする。
 #define kk (*kk_)
 #define kkp (*kkp_)
 #define kpp (*kpp_)
 
-	// memory mapped fileを介して共有するデータ
-	struct SharedEval
-	{
-		ValueKk kk_[SQ_NB][SQ_NB];
-		ValueKkp kkp_[SQ_NB][SQ_NB][fe_end];
-		ValueKpp kpp_[SQ_NB][fe_end][fe_end];
-	};
-
-#else
-
-	// 通常の評価関数テーブル
-
-	// KK
-	extern ALIGNED(32) ValueKk kk[SQ_NB][SQ_NB];
-
-	// KKP
-	extern ALIGNED(32) ValueKkp kkp[SQ_NB][SQ_NB][fe_end];
-
-	// KPP
-	extern ALIGNED(32) ValueKpp kpp[SQ_NB][fe_end][fe_end];
-
-#endif // defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
+	// 配列のサイズ
+	const u64 size_of_kk = (u64)SQ_NB*(u64)SQ_NB*(u64)sizeof(ValueKk);
+	const u64 size_of_kkp = (u64)SQ_NB*(u64)SQ_NB*(u64)fe_end*(u64)sizeof(ValueKkp);
+	const u64 size_of_kpp = (u64)SQ_NB*(u64)fe_end*(u64)fe_end*(u64)sizeof(ValueKpp);
+	const u64 size_of_eval = size_of_kk + size_of_kkp + size_of_kpp;
 
 }      // namespace Eval
 
-#endif // defined(EVAL_KKPT) || defined (EVAL_KPPT)
+#endif // defined (EVAL_KPPT)
 
 
 #endif

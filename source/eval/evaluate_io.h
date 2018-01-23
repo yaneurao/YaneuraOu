@@ -9,7 +9,8 @@ namespace EvalIO
 {
 
 	// 特徴因子名
-	enum EvalFeature { KK , KKP, KPP, PP , KPPP, KKPP };
+	// "VAR"は一次元配列。
+	enum EvalFeature { KK , KKP, KPP, PP , KPPP, KKPP , VAR };
 
 	// 実体がメモリにあるときは、そのポインタ、
 	// 実体がファイルにあるときは、そのファイル名を保持する構造体
@@ -55,7 +56,7 @@ namespace EvalIO
 	// よく使う評価関数の型情報を返すためのbuilder
 	struct EvalInfo
 	{
-		EvalInfo(u64 SQ_NB_, u64 fe_end_) : sq_nb(SQ_NB_), fe_end(fe_end_) {}
+		EvalInfo(u64 SQ_NB_, u64 fe_end_ ) : sq_nb(SQ_NB_), fe_end(fe_end_) {}
 
 		// Kの配置できる升の数
 		u64 sq_nb;
@@ -101,6 +102,77 @@ namespace EvalIO
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KK , 2, 2 , FileOrMemory(kk_  ))); // KK は2バイト。(手番ありなので2つ)
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP, 2, 2 , FileOrMemory(kkp_ ))); // KKPは2バイト。
 			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP, 2, 2 , FileOrMemory(kpp_ ))); // KPPは2バイト。
+			return ei;
+		}
+
+		// Ponanza(WCSC26)っぽいKPP_KKPT型評価関数の型定義を返すbuilder。
+		// 引数にはFileOrMemoryのコンストラクタに渡す、std::string filenameかvoid* ptr を渡す。
+		template <typename T1, typename T2, typename T3>
+		static EvalInfo build_kpp_kkpt32(T1 kk_, T2 kkp_, T3 kpp_)
+		{
+			EvalInfo ei(81 /* SQ_NB */, 1548 /* EvalKPPT::fe_end */);
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KK , 4, 2, FileOrMemory(kk_)));  // KK は4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP, 4, 2, FileOrMemory(kkp_))); // KKPは4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP, 2, 1, FileOrMemory(kpp_))); // KPPは2バイト。(手番なしなので1つ)
+			return ei;
+		}
+
+		// KPPP_KKPT型評価関数の型定義を返すbuilder。
+		// 引数にはFileOrMemoryのコンストラクタに渡す、std::string filenameかvoid* ptr を渡す。
+		template <typename T1, typename T2, typename T3, typename T4>
+		static EvalInfo build_kppp_kkpt32(T1 kk_, T2 kkp_, T3 kpp_ , T4 kppp_ , u64 size_of_kppp)
+		{
+			EvalInfo ei(81 /* SQ_NB */, 1548 /* EvalKPPT::fe_end */);
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KK  , 4, 2, FileOrMemory(kk_)));   // KK  は4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP , 4, 2, FileOrMemory(kkp_)));  // KKP は4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP , 2, 1, FileOrMemory(kpp_)));  // KPP は2バイト。(手番なしなので1つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(VAR , 2, size_of_kppp / 2 , FileOrMemory(kppp_))); // KPPPは2バイト。(手番なしなので1つ)
+			return ei;
+		}
+		// KPPPT型評価関数の型定義を返すbuilder。
+		// 引数にはFileOrMemoryのコンストラクタに渡す、std::string filenameかvoid* ptr を渡す。
+		template <typename T1, typename T2, typename T3, typename T4>
+		static EvalInfo build_kpppt32(T1 kk_, T2 kkp_, T3 kpp_, T4 kppp_, u64 size_of_kppp)
+		{
+			EvalInfo ei(81 /* SQ_NB */, 1548 /* EvalKPPT::fe_end */);
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KK , 4, 2, FileOrMemory(kk_)));   // KK  は4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP, 4, 2, FileOrMemory(kkp_)));  // KKP は4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP, 2, 2, FileOrMemory(kpp_)));  // KPP は2バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(VAR, 2, size_of_kppp /2 , FileOrMemory(kppp_))); // KPPPは2バイト。(手番ありなので2つ)
+			return ei;
+		}
+		// KKPP_KKPT型評価関数の型定義を返すbuilder。
+		// 引数にはFileOrMemoryのコンストラクタに渡す、std::string filenameかvoid* ptr を渡す。
+		template <typename T1, typename T2, typename T3, typename T4>
+		static EvalInfo build_kkpp_kkpt32(T1 kk_, T2 kkp_, T3 kpp_, T4 kkpp_, u64 size_of_kkpp)
+		{
+			EvalInfo ei(81 /* SQ_NB */, 1548 /* EvalKPPT::fe_end */);
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KK , 4, 2, FileOrMemory(kk_)));   // KK  は4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP, 4, 2, FileOrMemory(kkp_)));  // KKP は4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP, 2, 1, FileOrMemory(kpp_)));  // KPP は2バイト。(手番なしなので1つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(VAR, 2, size_of_kkpp / 2, FileOrMemory(kkpp_))); // KKPPは2バイト。(手番なしなので1つ)
+			return ei;
+		}
+		// KKPPT型評価関数の型定義を返すbuilder。
+		// 引数にはFileOrMemoryのコンストラクタに渡す、std::string filenameかvoid* ptr を渡す。
+		template <typename T1, typename T2, typename T3, typename T4>
+		static EvalInfo build_kkppt32(T1 kk_, T2 kkp_, T3 kpp_, T4 kkpp_, u64 size_of_kkpp)
+		{
+			EvalInfo ei(81 /* SQ_NB */, 1548 /* EvalKPPT::fe_end */);
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KK , 4, 2, FileOrMemory(kk_)));   // KK  は4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP, 4, 2, FileOrMemory(kkp_)));  // KKP は4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP, 2, 2, FileOrMemory(kpp_)));  // KPP は2バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(VAR, 2, size_of_kkpp / 2, FileOrMemory(kkpp_))); // KKPPは2バイト。(手番ありなので2つ)
+			return ei;
+		}
+		// NABLA型評価関数の型定義を返すbuilder。
+		template <typename T1, typename T2, typename T3>
+		static EvalInfo build_nabla(T1 kk_, T2 kkp_, T3 kpp_)
+		{
+			EvalInfo ei(81 /* SQ_NB */, 1548 + 1024*4 /* EvalKPPT::fe_end */);
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KK, 4, 2, FileOrMemory(kk_)));   // KK は4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KKP, 4, 2, FileOrMemory(kkp_))); // KKPは4バイト。(手番ありなので2つ)
+			ei.eval_info_array.emplace_back(EvalArrayInfo(KPP, 2, 1, FileOrMemory(kpp_))); // KPPは2バイト。(手番なしなので1つ)
 			return ei;
 		}
 

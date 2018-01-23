@@ -243,4 +243,10 @@ PARAM_DEFINE PARAM_SEARCH_MATE1 = 1;
 PARAM_DEFINE PARAM_WEAK_MATE_PLY = 1;
 
 
+// aspiration searchの増加量
+// 元の値 = 18
+// [PARAM] min:12,max:40,step:3,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 18;
+
+
 #endif

@@ -16,8 +16,6 @@
 using namespace std;
 using std::cout;
 
-void is_ready();
-
 namespace Book
 {
 	// Aperyの指し手の変換。
@@ -42,7 +40,7 @@ namespace Book
 	// ----------------------------------
 
 	// 局面を与えて、その局面で思考させるために、やねうら王2017Earlyが必要。
-#if defined(EVAL_LEARN) && defined(YANEURAOU_2017_EARLY_ENGINE)
+#if defined(EVAL_LEARN) && (defined(YANEURAOU_2017_EARLY_ENGINE) || defined(YANEURAOU_2017_GOKU_ENGINE))
 
 	struct MultiThinkBook : public MultiThink
 	{
@@ -79,7 +77,8 @@ namespace Book
 
 			auto th = Threads[thread_id];
 			auto& pos = th->rootPos;
-			pos.set(sfen,th);
+			StateInfo si;
+			pos.set(sfen,&si,th);
 
 			if (pos.is_mated())
 				continue;
@@ -116,7 +115,14 @@ namespace Book
 			}
 
 			// 1局面思考するごとに'.'をひとつ出力する。
-			cout << '.' << flush;
+			//cout << '.' << flush;
+
+#if 1
+			// 思考、極めて遅いのでログにタイムスタンプを出力して残しておいたほうが良いのでは…。
+			// id番号(連番)とthread idと現在の時刻を出力する。
+			sync_cout << "[" << get_done_count() << "/" << get_loop_max() << ":" << thread_id << "] "
+				      << now_string() << " : " << sfen << sync_endl;
+#endif
 		}
 	}
 #endif
@@ -138,10 +144,10 @@ namespace Book
 		// 定跡の変換
 		bool convert_from_apery = token == "convert_from_apery";
 
-#if !defined(EVAL_LEARN) || !defined(YANEURAOU_2017_EARLY_ENGINE)
+#if !(defined(EVAL_LEARN) && (defined(YANEURAOU_2017_EARLY_ENGINE) || defined(YANEURAOU_2017_GOKU_ENGINE)))
 		if (from_thinking)
 		{
-			cout << "Error!:define EVAL_LEARN and YANEURAOU_2017_EARLY_ENGINE " << endl;
+			cout << "Error!:define EVAL_LEARN and YANEURAOU_2017_EARLY_ENGINE/YANEURAOU_2017_GOKU_ENGINE " << endl;
 			return;
 		}
 #endif
@@ -173,6 +179,7 @@ namespace Book
 			}
 
 			// 定跡ファイル名
+			// Option["book_file"]ではなく、ここで指定したものが処理対象である。
 			string book_name;
 			is >> book_name;
 
@@ -211,6 +218,12 @@ namespace Book
 					return;
 				}
 			}
+
+			// 処理対象ファイル名の出力
+			cout << "makebook think.." << endl;
+			cout << "sfen_file_name[BLACK] = " << sfen_file_name[BLACK] << endl;
+			cout << "sfen_file_name[WHITE] = " << sfen_file_name[WHITE] << endl;
+			cout << "book_name             = " << book_name << endl;
 
 			if (from_sfen)
 				cout << "read sfen moves " << moves << endl;
@@ -331,6 +344,8 @@ namespace Book
 					return sfen.str();
 				};
 
+				StateInfo state;
+
 				bool hirate = true;
 				istringstream iss(sfen);
 				do {
@@ -339,13 +354,13 @@ namespace Book
 					{
 						// 駒落ちなどではsfen xxx movesとなるのでこれをfeedしなければならない。
 						auto sfen = feed_sfen(iss);
-						pos.set(sfen,Threads.main());
+						pos.set(sfen,&state,Threads.main());
 						hirate = false;
 					}
 				} while (token == "startpos" || token == "moves" || token == "sfen");
 
 				if (hirate)
-					pos.set_hirate(Threads.main());
+					pos.set_hirate(&state,Threads.main());
 
 				vector<Move> m;				// 初手から(moves+1)手までの指し手格納用
 
@@ -432,7 +447,7 @@ namespace Book
 			}
 			cout << "done." << endl;
 
-#if defined(EVAL_LEARN) && defined(YANEURAOU_2017_EARLY_ENGINE)
+#if defined(EVAL_LEARN) && (defined(YANEURAOU_2017_EARLY_ENGINE) || defined(YANEURAOU_2017_GOKU_ENGINE))
 
 			if (from_thinking)
 			{
@@ -490,27 +505,32 @@ namespace Book
 
 				multi_think.set_loop_max(sfens_.size());
 
-				// 30分ごとに保存
+				// 15分ごとに保存
 				// (ファイルが大きくなってくると保存の時間も馬鹿にならないのでこれくらいの間隔で妥協)
-				multi_think.callback_seconds = 30 * 60;
+				multi_think.callback_seconds = 15 * 60;
 				multi_think.callback_func = [&]()
 				{
 					std::unique_lock<Mutex> lk(multi_think.io_mutex);
 					// 前回書き出し時からレコードが追加された？
 					if (multi_think.appended)
 					{
+						sync_cout << "Save start : " << now_string() << sync_endl;
 						book.write_book(book_name);
-						cout << 'S' << endl;
+						sync_cout << "Save done  : " << now_string() << sync_endl;
 						multi_think.appended = false;
 					}
 					else {
 						// 追加されていないときは小文字のsマークを表示して
 						// ファイルへの書き出しは行わないように変更。
-						cout << 's' << endl;
+						//cout << 's' << endl;
+						// →　この出力要らんような気がしてきた。
 					}
 
 					// 置換表が同じ世代で埋め尽くされるとまずいのでこのタイミングで世代カウンターを足しておく。
-					TT.new_search();
+					//TT.new_search();
+
+					// →　EVAL_LEARNモードなら、Learner::new_search()のほうで行っているのでここではやらなくて良い。
+
 				};
 
 				multi_think.go_think();
@@ -837,7 +857,8 @@ namespace Book
 				// std::vectorにしてあるのでit.firstを書き換えてもitは無効にならないはず。
 				for (auto& it : vectored_book)
 				{
-					pos.set(it.first,Threads.main());
+					StateInfo si;
+					pos.set(it.first,&si,Threads.main());
 					it.first = pos.sfen();
 				}
 			}
@@ -917,9 +938,13 @@ namespace Book
 				sum_count += entry.count;
 			}
 
-			for (const auto& entry : apery_book->get_entries(pos)) {
+			// 定跡ファイルによっては、採用率がすべて0ということがありうる。
+			// cf. https://github.com/yaneurao/YaneuraOu/issues/65
+			// この場合、sum_count == 0になるので、採用率を当確率だとみなして、1.0 / entries.size() にしておく。
+
+			for (const auto& entry : entries) {
 				BookPos book_pos(pos.move16_to_move(convert_move_from_apery(entry.fromToPro)), MOVE_NONE, entry.score, 256, entry.count);
-				book_pos.prob = entry.count / static_cast<float>(sum_count);
+				book_pos.prob = (sum_count != 0) ? (entry.count / static_cast<float>(sum_count) ) : (1.0f / entries.size());
 				insert_book_pos(pml_entry , book_pos);
 			}
 
@@ -1182,7 +1207,8 @@ namespace Book
 		};
 
 		Position pos;
-		pos.set_hirate(Threads.main());
+		StateInfo si;
+		pos.set_hirate(&si,Threads.main());
 		search(pos);
 		report();
 
@@ -1205,6 +1231,9 @@ namespace Book
 
 		// 定跡の指し手を何手目まで用いるか
 		o["BookMoves"] << Option(16, 0, 10000);
+
+		// 一定の確率で定跡を無視して自力で思考させる
+		o["BookIgnoreRate"] << Option(0, 0, 100);
 
 		// 定跡ファイル名
 
@@ -1248,6 +1277,11 @@ namespace Book
 	// probe()の下請け
 	bool BookMoveSelector::probe_impl(Position& rootPos, bool silent , Move& bestMove , Move& ponderMove)
 	{
+		// 一定確率で定跡を無視
+	        if ( (int)Options["BookIgnoreRate"] > (int)prng.rand(100)){
+			return false;		 
+	        }
+	  
 		// 定跡を用いる手数
 		int book_ply = (int)Options["BookMoves"];
 		if (rootPos.game_ply() > book_ply)
@@ -1356,12 +1390,24 @@ namespace Book
 				// 1-passで採択率に従って指し手を決めるオンラインアルゴリズム
 				// http://yaneuraou.yaneu.com/2015/01/03/stockfish-dd-book-%E5%AE%9A%E8%B7%A1%E9%83%A8/
 
+				// 採用回数が0になっている定跡ファイルがあるらしい。
+				// cf. https://github.com/yaneurao/YaneuraOu/issues/65
+				// 1.すべての指し手の採用回数が0の場合 →　すべての指し手の採用回数を1とみなす
+				// 2.特定の指し手の採用回数が0の場合 → 0割にならないように気をつける
+				// 上記1.のため2-passとなってしまう…。
+
+				// 採用回数の合計。
+				u64 sum = 0;
+				for (auto &move : move_list)
+					sum += move.num;
+
 				u64 sum_move_counts = 0;
 				for (auto &move : move_list)
 				{
-					u64 move_count = std::max<u64>(1, move.num);
+					u64 move_count = (sum == 0) ? 1 : move.num; // 上記 1.
 					sum_move_counts += move_count;
-					if (prng.rand(sum_move_counts) < move_count)
+					if (sum_move_counts != 0 // 上記 2.
+						&& prng.rand(sum_move_counts) < move_count)
 						bestPos = move;
 				}
 			}

@@ -22,6 +22,21 @@ struct StatBoards : public std::array<std::array<T, Size2>, Size1> {
 		T* p = &(*this)[0][0];
 		std::fill(p, p + sizeof(*this) / sizeof(*p), v);
 	}
+
+	// bonus値に基づくupdate
+	// Dはbonusの絶対値の上限。
+	void update(T& entry, int bonus, const int D) {
+
+		// bonusの絶対値をD以内に保つことで、このentryの値の範囲を[-32 * D , 32 * D]に保つ。
+		ASSERT_LV3(abs(bonus) <= D);
+
+		// オーバーフローしていないことを保証する。
+		ASSERT_LV3(abs(32 * D) < INT16_MAX);
+
+		entry += bonus * 32 - entry * abs(bonus) / D;
+
+		ASSERT_LV3(abs(entry) <= 32 * D);
+	}
 };
 
 // ButterflyBoardsは、2つのテーブル(1つの手番ごとに1つ)があり、「指し手の移動元と移動先」によってindexされる。
@@ -38,37 +53,21 @@ typedef StatBoards<int(SQ_NB + 7) * int(SQ_NB), COLOR_NB> ButterflyBoards;
 // 以前計測したときには効果がなかったのでそのコードは削除した。
 typedef StatBoards<SQ_NB, PIECE_NB> PieceToBoards;
 
-/// PieceToHistoryは、ButterflyHistoryに似ているが、PieceToBoardsに基づく。
-struct PieceToHistory : public PieceToBoards {
-
-	void update(Piece pc, Square to, int v) {
-
-		const int D = 936;
-		auto& entry = (*this)[to][pc];
-
-		ASSERT_LV3(abs(v) <= D); // 下記の公式に対する一貫性チェック
-
-		entry += v * 32 - entry * abs(v) / D;
-
-		ASSERT_LV3(abs(entry) <= 32 * D);
-	}
-};
-
 // ButterflyHistoryは、 現在の探索中にquietな指し手がどれくらい成功/失敗したかを記録し、
 // reductionと指し手オーダリングの決定のために用いられる。
 // ButterflyBoardsをこの情報の格納のために用いる。
 struct ButterflyHistory : public ButterflyBoards {
 
-	void update(Color c, Move m, int v) {
+	void update(Color c, Move m, int bonus) {
+		StatBoards::update((*this)[from_to(m)][c], bonus, 324);
+	}
+};
 
-		const int D = 324;
-		auto& entry = (*this)[from_to(m)][c];
+/// PieceToHistoryは、ButterflyHistoryに似ているが、PieceToBoardsに基づく。
+struct PieceToHistory : public PieceToBoards {
 
-		ASSERT_LV3(abs(v) <= D); // 下記の公式に対する一貫性チェック
-
-		entry += v * 32 - entry * abs(v) / D;
-
-		ASSERT_LV3(abs(entry) <= 32 * D);
+	void update(Piece pc, Square to, int bonus) {
+		StatBoards::update((*this)[to][pc], bonus, 936);
 	}
 };
 
@@ -80,7 +79,7 @@ typedef StatBoards<SQ_NB, PIECE_NB, Move> CounterMoveStat;
 // CounterMoveHistoryStatは、CounterMoveStatに似ているが、指し手の代わりに、
 // full history(ButterflyBoardsの代わりに用いられるPieceTo boards)を格納する。
 // ※　Stockfishとは、1,2番目の添字を入れ替えてあるので注意。
-typedef StatBoards<SQ_NB, PIECE_NB, PieceToHistory> CounterMoveHistoryStat;
+typedef StatBoards<SQ_NB, PIECE_NB, PieceToHistory> ContinuationHistory;
 
 
 enum Stages : int;
@@ -97,10 +96,10 @@ struct MovePicker
 	MovePicker(const Position& pos_, Move ttMove_, Value threshold_);
 
 	// 静止探索から呼び出される時用。recapSq = 直前に動かした駒の行き先の升(取り返される升)
-	MovePicker(const Position& pos_, Move ttMove_, Depth depth_, Square recapSq);
+	MovePicker(const Position& pos_, Move ttMove_, Depth depth_, const ButterflyHistory* , Square recapSq);
 
 	// 通常探索から呼び出されるとき用。
-	MovePicker(const Position& pos_, Move ttMove_, Depth depth_, Search::Stack*ss_);
+	MovePicker(const Position& pos_, Move ttMove_, Depth depth_, const ButterflyHistory* , const PieceToHistory** , Search::Stack*ss_);
 
 
 	// 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。

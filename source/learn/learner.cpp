@@ -19,6 +19,9 @@
 
 #include "learn.h"
 
+// 学習用のevaluate絡みのheader
+#include "../eval/evaluate_common.h"
+
 // ----------------------
 // 設定内容に基づく定数文字列
 // ----------------------
@@ -29,8 +32,6 @@
 #define LEARN_UPDATE "AdaGrad"
 #elif defined(SGD_UPDATE)
 #define LEARN_UPDATE "SGD"
-#elif defined(ADA_PROP_UPDATE)
-#define LEARN_UPDATE "AdaProp"
 #endif
 
 #if defined(LOSS_FUNCTION_IS_WINNING_PERCENTAGE)
@@ -41,8 +42,6 @@
 #define LOSS_FUNCTION "CROSS_ENTOROPY_FOR_VALUE"
 #elif defined(LOSS_FUNCTION_IS_ELMO_METHOD)
 #define LOSS_FUNCTION "ELMO_METHOD(WCSC27)"
-#elif defined(LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
-#define LOSS_FUNCTION "YANE_ELMO_METHOD(WCSC27)"
 #endif
 
 // -----------------------------------
@@ -52,6 +51,7 @@
 #include <sstream>
 #include <fstream>
 #include <unordered_set>
+#include <iomanip>
 
 #if defined (_OPENMP)
 #include <omp.h>
@@ -77,7 +77,6 @@ using namespace std;
 
 // これは探索部で定義されているものとする。
 extern Book::BookMoveSelector book;
-extern void is_ready();
 
 // atomic<T>に対する足し算、引き算の定義
 // Apery/learner.hppにあるatomicAdd()に合わせてある。
@@ -114,7 +113,10 @@ struct SfenWriter
 		sfen_buffers_pool.reserve(thread_num * 10);
 		sfen_buffers.resize(thread_num);
 
+		// 追加学習するとき、評価関数の学習後も生成される教師の質はあまり変わらず、教師局面数を稼ぎたいので
+		// 古い教師も使うのが好ましいのでこういう仕様にしてある。
 		fs.open(filename, ios::out | ios::binary | ios::app);
+		filename_ = filename;
 
 		finished = false;
 	}
@@ -192,7 +194,7 @@ struct SfenWriter
 		auto output_status = [&]()
 		{
 			// 現在時刻も出力
-			cout << endl << sfen_write_count << " sfens , at " << now_string() << endl;
+			sync_cout << endl << sfen_write_count << " sfens , at " << now_string() << sync_endl;
 
 			// flush()はこのタイミングで十分。
 			fs.flush();
@@ -220,6 +222,25 @@ struct SfenWriter
 
 					sfen_write_count += ptr->size();
 
+#if 1
+					// 処理した件数をここに加算していき、save_everyを超えたら、ファイル名を変更し、このカウンターをリセットする。
+					save_every_counter += ptr->size();
+					if (save_every_counter >= save_every)
+					{
+						save_every_counter = 0;
+						// ファイル名を変更。
+
+						fs.close();
+
+						// ファイルにつける連番
+						int n = (int)(sfen_write_count / save_every);
+						// ファイル名を変更して再度openする。上書き考慮してios::appをつけておく。(運用によっては、ないほうがいいかも..)
+						string filename = filename_ + "_" + std::to_string(n);
+						fs.open(filename, ios::out | ios::binary | ios::app);
+						cout << endl << "output sfen file = " << filename << endl;
+					}
+#endif
+
 					// 棋譜を書き出すごとに'.'を出力。
 					std::cout << ".";
 
@@ -239,9 +260,18 @@ struct SfenWriter
 		output_status();
 	}
 
+	// この単位でファイル名を変更する。
+	u64 save_every = UINT64_MAX;
+
 private:
 
 	fstream fs;
+
+	// コンストラクタで渡されたファイル名
+	std::string filename_;
+
+	// 処理した件数をここに加算していき、save_everyを超えたら、ファイル名を変更し、このカウンターをリセットする。
+	u64 save_every_counter = 0;
 
 	// ファイルに書き込む用のthread
 	std::thread file_worker_thread;
@@ -263,7 +293,6 @@ private:
 
 	// 書きだした局面の数
 	u64 sfen_write_count = 0;
-
 };
 
 // -----------------------------------
@@ -333,8 +362,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 	const int MAX_PLY2 = write_maxply;
 
 	// StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
-	aligned_vector<StateInfo> state;
-	state.resize(MAX_PLY2 + 20);
+	std::vector<StateInfo,AlignedAllocator<StateInfo>> states(MAX_PLY2 + 50 /* == search_depth + α */);
+	StateInfo si;
 
 	// 今回の指し手。この指し手で局面を進める。
 	Move m = MOVE_NONE;
@@ -351,7 +380,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		auto th = Threads[thread_id];
 
 		auto& pos = th->rootPos;
-		pos.set_hirate(th);
+		pos.set_hirate(&si,th);
 
 		// 探索部で定義されているBookMoveSelectorのメンバを参照する。
 		auto& book = ::book;
@@ -359,7 +388,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		// 1局分の局面を保存しておき、終局のときに勝敗を含めて書き出す。
 		// 書き出す関数は、この下にあるflush_psv()である。
 		PSVector a_psv;
-		a_psv.reserve(MAX_PLY2);
+		a_psv.reserve(MAX_PLY2 + 50);
 
 		// a_psvに積まれている局面をファイルに書き出す。
 		// lastTurnIsWin : a_psvに積まれている最終局面の次の局面での勝敗
@@ -429,9 +458,15 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			}
 		}
 
+		// random moveを行なった回数をカウントしておくカウンター
+		// random_move_minply == -1のときに、連続してランダムムーブを行なうので、このときに用いる。
+		int random_move_c = 0;
+
 		// ply : 初期局面からの手数
 		for (int ply = 0; ; ++ply)
 		{
+			//cout << pos << endl;
+
 			// 今回の探索depth
 			// gotoで飛ぶので先に宣言しておく。
 			int depth = search_depth + (int)prng.rand(search_depth2 - search_depth + 1);
@@ -472,8 +507,14 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// 定跡の局面は学習には用いない。
 				a_psv.clear();
 
-				// 定跡の局面であっても、一定確率でランダムムーブは行なう。
-				goto RANDOM_MOVE;
+				if (random_move_minply != -1)
+					// 定跡の局面であっても、一定確率でランダムムーブは行なう。
+					goto RANDOM_MOVE;
+				else
+					// random_move_minplyとして-1が指定されているときは定跡を抜けるところまでは定跡に従って指す。
+					// 巨大定跡を用いて、ConsiderBookMoveCount trueとして定跡を抜けた局面を無数に用意しておき、
+					// そこから5回ランダムムーブを行なう、などの用途に用いる。
+					goto DO_MOVE;
 			}
 
 			{
@@ -523,7 +564,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				s8 is_win = 0;
 				bool game_end = false;
-				auto draw_type = pos.is_repetition();
+				auto draw_type = pos.is_repetition(0);
 				switch (draw_type)
 				{
 				case REPETITION_WIN      : is_win =  1; game_end = true; break;
@@ -566,7 +607,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 							cout << "Error! : " << pos.sfen() << m << endl;
 						}
 #endif
-						pos.do_move(m, state[ply2++]);
+						pos.do_move(m, states[ply2++]);
 						
 						// 毎ノードevaluate()を呼び出さないと、evaluate()の差分計算が出来ないので注意！
 						// depthが8以上だとこの差分計算はしないほうが速いと思われる。
@@ -616,7 +657,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// 初期局面周辺はは類似局面ばかりなので
 				// 学習に用いると過学習になりかねないから書き出さない。
 				// →　比較実験すべき
-				if (ply < write_minply)
+				if (ply < write_minply - 1)
 				{
 					a_psv.clear();
 					goto SKIP_SAVE;
@@ -675,11 +716,19 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		RANDOM_MOVE:;
 
 			// 合法手のなかからランダムに1手選ぶフェーズ
-			if (ply < (int)random_move_flag.size() && random_move_flag[ply])
+			if (
+				// 1. random_move_minplyからrandom_move_maxplyの間でrandom_move_count回のランダムムーブを行なうモード
+				(random_move_minply != -1 && ply < (int)random_move_flag.size() && random_move_flag[ply]) ||
+				// 2. 定跡を抜けたあとにまとめてrandom_move_count回のランダムムーブを行なうモード
+				(random_move_minply == -1 && random_move_c < random_move_count))
 			{
+				++random_move_c;
+
 				// mateではないので合法手が1手はあるはず…。
-				if (random_multi_pv == 1)
+				if (random_multi_pv == 0)
 				{
+					// 普通のランダムムーブ
+
 					MoveList<LEGAL> list(pos);
 
 					// ここをApery方式にするのとの善悪はよくわからない。
@@ -749,7 +798,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				a_psv.clear(); // 保存していた局面のクリア
 			}
 
-			pos.do_move(m, state[ply]);
+		DO_MOVE:;
+			pos.do_move(m, states[ply]);
 
 			// 差分計算を行なうために毎node evaluate()を呼び出しておく。
 			Eval::evaluate_with_no_return(pos);
@@ -768,16 +818,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 // 棋譜を生成するコマンド
 void gen_sfen(Position&, istringstream& is)
 {
-#if defined(USE_GLOBAL_OPTIONS)
-	// あとで復元するために保存しておく。
-	auto oldGlobalOptions = GlobalOptions;
-	// eval hashにhitすると初期局面付近の評価値として、hash衝突して大きな値を書き込まれてしまうと
-	// eval_limitが小さく設定されているときに初期局面で毎回eval_limitを超えてしまい局面の生成が進まなくなる。
-	// そのため、eval hashは無効化する必要がある。
-	// あとeval hashのhash衝突したときに、変な値の評価値が使われ、それを教師に使うのが気分が悪いというのもある。
-	GlobalOptions.use_eval_hash = false;
-#endif
-
 	// スレッド数(これは、USIのsetoptionで与えられる)
 	u32 thread_num = (u32)Options["Threads"];
 
@@ -798,8 +838,8 @@ void gen_sfen(Position&, istringstream& is)
 	// ランダムムーブをAperyのように玉を主に動かす機能
 	// これを例えば3にすると1/3の確率で玉を動かす。
 	int random_move_like_apery = 0;
-	// ランダムムーブの代わりにmultipvで探索してそのなかからランダムに選ぶときはrandom_multi_pv = 1より大きな数にする。
-	int random_multi_pv = 1;
+	// ランダムムーブの代わりにmultipvで探索してそのなかからランダムに選ぶときはrandom_multi_pv = 1以上の数にする。
+	int random_multi_pv = 0;
 	int random_multi_pv_diff = 32000;
 	int random_multi_pv_depth = INT_MIN;
 
@@ -811,6 +851,20 @@ void gen_sfen(Position&, istringstream& is)
 	string output_file_name = "generated_kifu.bin";
 
 	string token;
+
+	// eval hashにhitすると初期局面付近の評価値として、hash衝突して大きな値を書き込まれてしまうと
+	// eval_limitが小さく設定されているときに初期局面で毎回eval_limitを超えてしまい局面の生成が進まなくなる。
+	// そのため、eval hashは無効化する必要がある。
+	// あとeval hashのhash衝突したときに、変な値の評価値が使われ、それを教師に使うのが気分が悪いというのもある。
+	bool use_eval_hash = false;
+
+	// この単位でファイルに保存する。
+	// ファイル名は file_1.bin , file_2.binのように連番がつく。
+	u64 save_every = UINT64_MAX;
+
+	// ファイル名の末尾にランダムな数値を付与する。
+	bool random_file_name = false;
+
 	while (true)
 	{
 		token = "";
@@ -850,9 +904,21 @@ void gen_sfen(Position&, istringstream& is)
 			is >> write_minply;
 		else if (token == "write_maxply")
 			is >> write_maxply;
+		else if (token == "use_eval_hash")
+			is >> use_eval_hash;
+		else if (token == "save_every")
+			is >> save_every;
+		else if (token == "random_file_name")
+			is >> random_file_name;
 		else
 			cout << "Error! : Illegal token " << token << endl;
 	}
+
+#if defined(USE_GLOBAL_OPTIONS)
+	// あとで復元するために保存しておく。
+	auto oldGlobalOptions = GlobalOptions;
+	GlobalOptions.use_eval_hash = use_eval_hash;
+#endif
 
 	// search depth2が設定されていないなら、search depthと同じにしておく。
 	if (search_depth2 == INT_MIN)
@@ -860,7 +926,23 @@ void gen_sfen(Position&, istringstream& is)
 	if (random_multi_pv_depth == INT_MIN)
 		random_multi_pv_depth = search_depth;
 
-	std::cout << "gen_sfen : " << endl
+	if (random_file_name)
+	{
+		// output_file_nameにこの時点でランダムな数値を付与してしまう。
+		PRNG r;
+		// 念のため乱数振り直しておく。
+		for(int i=0;i<10;++i)
+			r.rand(1);
+		auto to_hex = [](u64 u){
+			std::stringstream ss;
+			ss << std::hex << u;
+			return ss.str();
+		};
+		// 64bitの数値で偶然かぶると嫌なので念のため64bitの数値２つくっつけておく。
+		output_file_name = output_file_name + "_" + to_hex(r.rand<u64>()) + to_hex(r.rand<u64>());
+	}
+
+	std::cout << "gensfen : " << endl
 		<< "  search_depth = " << search_depth << " to " << search_depth2 << endl
 		<< "  loop_max = " << loop_max << endl
 		<< "  eval_limit = " << eval_limit << endl
@@ -875,11 +957,16 @@ void gen_sfen(Position&, istringstream& is)
 		<< "  random_multi_pv_depth  = " << random_multi_pv_depth << endl
 		<< "  write_minply           = " << write_minply << endl
 		<< "  write_maxply           = " << write_maxply << endl
-		<< "  output_file_name       = " << output_file_name << endl;
+		<< "  output_file_name       = " << output_file_name << endl
+		<< "  use_eval_hash          = " << use_eval_hash << endl
+		<< "  save_every             = " << save_every << endl
+		<< "  random_file_name       = " << random_file_name << endl;
 
 	// Options["Threads"]の数だけスレッドを作って実行。
 	{
 		SfenWriter sw(output_file_name, thread_num);
+		sw.save_every = save_every;
+
 		MultiThinkGenSfen multi_think(search_depth, search_depth2, sw);
 		multi_think.set_loop_max(loop_max);
 		multi_think.eval_limit = eval_limit;
@@ -899,7 +986,7 @@ void gen_sfen(Position&, istringstream& is)
 		// 表示させるべきなのでここをブロックで囲む。
 	}
 
-	std::cout << "gen_sfen finished." << endl;
+	std::cout << "gensfen finished." << endl;
 
 #if defined(USE_GLOBAL_OPTIONS)
 	// GlobalOptionsの復元。
@@ -1013,6 +1100,8 @@ double calc_grad(Value deep, Value shallow , PackedSfenValue& psv)
 // learnコマンドでこの値を設定できる。
 // 0.33は、elmo(WCSC27)で使われていた定数(0.5)相当
 double ELMO_LAMBDA = 0.33;
+double ELMO_LAMBDA2 = 0.33;
+double ELMO_LAMBDA_LIMIT = 32000;
 
 double calc_grad(Value deep, Value shallow , const PackedSfenValue& psv)
 {
@@ -1026,9 +1115,12 @@ double calc_grad(Value deep, Value shallow , const PackedSfenValue& psv)
 	// game_result = 1,0,-1なので1足して2で割る。
 	const double t = double(psv.game_result + 1) / 2;
 
+	// 深い探索での評価値がELMO_LAMBDA_LIMITを超えているならELMO_LAMBDAではなくELMO_LAMBDA2を適用する。
+	const double lambda = (abs(deep) >= ELMO_LAMBDA_LIMIT) ? ELMO_LAMBDA2 : ELMO_LAMBDA;
+
 	// 実際の勝率を補正項として使っている。
 	// これがelmo(WCSC27)のアイデアで、現代のオーパーツ。
-	const double grad = (1 - ELMO_LAMBDA) * (eval_winrate - t) + ELMO_LAMBDA * (eval_winrate - teacher_winrate);
+	const double grad = (1 - lambda) * (eval_winrate - t) + lambda * (eval_winrate - teacher_winrate);
 
 	return grad;
 }
@@ -1043,36 +1135,16 @@ void calc_cross_entropy(Value deep, Value shallow, const PackedSfenValue& psv,
 	const double t = double(psv.game_result + 1) / 2;
 
 	constexpr double epsilon = 0.000001;
-	cross_entropy_eval = ELMO_LAMBDA *
+
+	// 深い探索での評価値がELMO_LAMBDA_LIMITを超えているならELMO_LAMBDAではなくELMO_LAMBDA2を適用する。
+	const double lambda = (abs(deep) >= ELMO_LAMBDA_LIMIT) ? ELMO_LAMBDA2 : ELMO_LAMBDA;
+
+	cross_entropy_eval = lambda *
 		(-p * std::log(q + epsilon) - (1.0 - p) * std::log(1.0 - q + epsilon));
-	cross_entropy_win = (1.0 - ELMO_LAMBDA) *
+	cross_entropy_win = (1.0 - lambda) *
 		(-t * std::log(q + epsilon) - (1.0 - t) * std::log(1.0 - q + epsilon));
 }
 
-#endif
-
-
-#if defined( LOSS_FUNCTION_IS_YANE_ELMO_METHOD )
-
-double calc_grad(Value deep, Value shallow, PackedSfenValue& psv)
-{
-	// elmo(WCSC27)方式
-	// 実際のゲームの勝敗で補正する。
-
-	const double eval_winrate = winning_percentage(shallow);
-	const double teacher_winrate = winning_percentage(deep);
-
-	// 期待勝率を勝っていれば1、負けていれば 0として補正項として用いる。
-	const double t = double(psv.game_result + 1) / 2;
-
-	// gamePly == 0なら  λ = 0.8ぐらい。(勝敗の影響を小さめにする)
-	// gamePly == ∞なら λ = 0.4ぐらい。(元のelmo式ぐらいの値になる)
-	const double LAMBDA = 0.8 - (0.8-0.4)*(double)std::min((int)psv.gamePly, 100)/100.0;
-
-	const double grad = (1 - LAMBDA) * (eval_winrate - t) + LAMBDA * (eval_winrate - teacher_winrate);
-
-	return grad;
-}
 #endif
 
 
@@ -1107,12 +1179,17 @@ struct SfenReader
 			delete p;
 	}
 
-	// mseの計算用に1000局面ほど読み込んでおく。
+	// mseなどの計算用に用いる局面数
+	// mini-batch size = 1Mが標準的なので、その0.2%程度なら時間的には無視できるはず。
+	// 指し手一致率の計算でdepth = 1でsearch()をするので、単純比較はできないが…。
+	const u64 sfen_for_mse_size = 2000;
+
+	// mseなどの計算用に局面を読み込んでおく。
 	void read_for_mse()
 	{
 		auto th = Threads.main();
 		Position& pos = th->rootPos;
-		for (int i = 0; i < 1000; ++i)
+		for (u64 i = 0; i < sfen_for_mse_size; ++i)
 		{
 			PackedSfenValue ps;
 			if (!read_to_thread_buffer(0, ps))
@@ -1123,7 +1200,8 @@ struct SfenReader
 			sfen_for_mse.push_back(ps);
 
 			// hash keyを求める。
-			pos.set_from_packed_sfen(ps.sfen,th);
+			StateInfo si;
+			pos.set_from_packed_sfen(ps.sfen,&si,th);
 			sfen_for_mse_hash.insert(pos.key());
 		}
 	}
@@ -1392,6 +1470,15 @@ struct LearnerThink: public MultiThink
 
 	bool stop_flag;
 
+	// 割引率
+	double discount_rate;
+
+	// 序盤を学習対象から外すオプション
+	int reduction_gameply;
+
+	// kk/kkp/kpp/kpppを学習させないオプション
+	std::array<bool,4> freeze;
+
 	// 教師局面の深い探索の評価値の絶対値がこの値を超えていたらその教師局面を捨てる。
 	int eval_limit;
 
@@ -1432,13 +1519,24 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	atomic<double> test_sum_cross_entropy_eval,test_sum_cross_entropy_win;
 	test_sum_cross_entropy_eval = 0;
 	test_sum_cross_entropy_win = 0;
+
+	// 学習時のnorm
+	atomic<double> sum_norm;
+	sum_norm = 0;
 #endif
+
+	// 深い探索のpvの初手と、search(1)のpvの初手の指し手が一致した回数。
+	atomic<int> move_accord_count;
+	move_accord_count = 0;
 
 	// 平手の初期局面のeval()の値を表示させて、揺れを見る。
 	auto th = Threads[thread_id];
 	auto& pos = th->rootPos;
-	pos.set_hirate(th);
+	StateInfo si;
+	pos.set_hirate(&si,th);
 	std::cout << "hirate eval = " << Eval::evaluate(pos);
+
+	//Eval::print_eval_stat(pos);
 
 	// ここ、並列化したほうが良いのだがslaveの前の探索が終わってなかったりしてちょっと面倒。
 	// taskを呼び出すための仕組みを作ったのでそれを用いる。
@@ -1454,13 +1552,13 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 		// TaskDispatcherを用いて各スレッドに作業を振る。
 		// そのためのタスクの定義。
 		// ↑で使っているposをcaptureされるとたまらんのでcaptureしたい変数は一つずつ指定しておく。
-		auto task = [&ps,&test_sum_cross_entropy_eval,&test_sum_cross_entropy_win,&task_count](size_t thread_id)
+		auto task = [&ps,&test_sum_cross_entropy_eval,&test_sum_cross_entropy_win, &sum_norm,&task_count ,&move_accord_count](size_t thread_id)
 		{
 			// これ、C++ではループごとに新たなpsのインスタンスをちゃんとcaptureするのだろうか.. →　するようだ。
 			auto th = Threads[thread_id];
 			auto& pos = th->rootPos;
-
-			if (pos.set_from_packed_sfen(ps.sfen , th) != 0)
+			StateInfo si;
+			if (pos.set_from_packed_sfen(ps.sfen ,&si, th) != 0)
 			{
 				// 運悪くrmse計算用のsfenとして、不正なsfenを引いてしまっていた。
 				cout << "Error! : illegal packed sfen " << pos.sfen() << endl;
@@ -1471,10 +1569,13 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			// 値が比較しにくくて困るのでqsearch()を用いる。
 			// EvalHashは事前に無効化してある。(そうしないと毎回同じ値が返ってしまう)
 			auto r = qsearch(pos);
+
 			auto shallow_value = r.first;
 
 			// 深い探索の評価値
 			auto deep_value = (Value)ps.score;
+
+			// 注) このコードは、learnコマンドでeval_limitを指定しているときのことを考慮してない。
 
 			// --- 誤差の計算
 
@@ -1500,7 +1601,15 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			// 交差エントロピーの合計は定義的にabs()をとる必要がない。
 			test_sum_cross_entropy_eval += test_cross_entropy_eval;
 			test_sum_cross_entropy_win += test_cross_entropy_win;
+			sum_norm += (double)abs(shallow_value);
 #endif
+
+			// 教師の指し手と浅い探索のスコアが一致するかの判定
+			{
+				auto r = search(pos,1);
+				if ((u16)r.second[0] == ps.move)
+					move_accord_count.fetch_add(1, std::memory_order_relaxed);
+			}
 
 			// こなしたのでタスク一つ減る
 			--task_count;
@@ -1542,6 +1651,8 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			<< " , learn_cross_entropy_eval = " << learn_sum_cross_entropy_eval / done
 			<< " , learn_cross_entropy_win = "  << learn_sum_cross_entropy_win / done
 			<< " , learn_cross_entropy = "      << (learn_sum_cross_entropy_eval + learn_sum_cross_entropy_win) / done
+			<< " , norm = "						<< sum_norm
+			<< " , move accuracy = "			<< (move_accord_count * 100.0 / sr.sfen_for_mse.size()) << "%"
 			<< endl;
 	}
 	else {
@@ -1551,7 +1662,6 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	// 次回のために0クリアしておく。
 	learn_sum_cross_entropy_eval = 0.0;
 	learn_sum_cross_entropy_win = 0.0;
-
 #else
 	<< endl;
 #endif
@@ -1592,10 +1702,14 @@ void LearnerThink::thread_worker(size_t thread_id)
 				}
 
 				// 現在時刻を出力。毎回出力する。
-				cout << sr.total_done << " sfens , at " << now_string() << endl;
+				std::cout << sr.total_done << " sfens , at " << now_string() << std::endl;
 
 				// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
-				Eval::update_weights(/* ++epoch */);
+				Eval::update_weights(epoch , freeze);
+
+				// デバッグ用にepochと現在のetaを表示してやる。
+				std::cout << "epoch = " << epoch << " , eta = " << Eval::get_eta() << std::endl;
+				++epoch;
 
 				// 10億局面ごとに1回保存、ぐらいの感じで。
 
@@ -1649,12 +1763,17 @@ void LearnerThink::thread_worker(size_t thread_id)
 		if (eval_limit < abs(ps.score))
 			goto RetryRead;
 
+		// 序盤局面に関する読み飛ばし
+		if (ps.gamePly < prng.rand(reduction_gameply))
+			goto RetryRead;
+
 #if 0
 		auto sfen = pos.sfen_unpack(ps.data);
 		pos.set(sfen);
 #endif
 		// ↑sfenを経由すると遅いので専用の関数を作った。
-		if (pos.set_from_packed_sfen(ps.sfen,th) != 0)
+		StateInfo si;
+		if (pos.set_from_packed_sfen(ps.sfen,&si,th) != 0)
 		{
 			// 変なsfenを掴かまされた。デバッグすべき！
 			// 不正なsfenなのでpos.sfen()で表示できるとは限らないが、しないよりマシ。
@@ -1721,6 +1840,42 @@ void LearnerThink::thread_worker(size_t thread_id)
 #endif
 
 		int ply = 0;
+
+		// 現在の局面に対して勾配を加算するヘルパー関数。
+		auto pos_add_grad = [&]() {
+			// shallow_valueとして、leafでのevaluateの値を用いる。
+			// qsearch()の戻り値をshallow_valueとして用いると、
+			// PVが途中で途切れている場合、勾配を計算するのにevaluate()を呼び出した局面と、
+			// その勾配を与える局面とが異なることになるので、これはあまり好ましい性質ではないと思う。
+			// 置換表をオフにはしているのだが、1手詰みなどはpv配列を更新していないので…。
+
+			Value shallow_value = (rootColor == pos.side_to_move()) ? Eval::evaluate(pos) : -Eval::evaluate(pos);
+
+			// 勾配
+			double dj_dw = calc_grad(deep_value, shallow_value, ps);
+
+#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
+			// 学習データに対するロスの計算
+			double learn_cross_entropy_eval, learn_cross_entropy_win;
+			calc_cross_entropy(deep_value, shallow_value, ps, learn_cross_entropy_eval, learn_cross_entropy_win);
+			learn_sum_cross_entropy_eval += learn_cross_entropy_eval;
+			learn_sum_cross_entropy_win += learn_cross_entropy_win;
+#endif
+
+			// 現在、leaf nodeで出現している特徴ベクトルに対する勾配(∂J/∂Wj)として、jd_dwを加算する。
+
+			// PV終端でなければ割引率みたいなものを適用。
+			if (discount_rate != 0 && ply != (int)pv.size())
+				dj_dw *= discount_rate;
+
+			// leafに到達したのでこの局面に出現している特徴に勾配を加算しておく。
+			// 勾配に基づくupdateはのちほど行なう。
+			Eval::add_grad(pos, rootColor, dj_dw, freeze);
+
+			// 処理が終了したので処理した件数のカウンターをインクリメント
+			sr.total_done++;
+		};
+
 		StateInfo state[MAX_PLY]; // qsearchのPVがそんなに長くなることはありえない。
 		for (auto m : pv)
 		{
@@ -1730,39 +1885,20 @@ void LearnerThink::thread_worker(size_t thread_id)
 				cout << pos << m << endl;
 				ASSERT_LV3(false);
 			}
+
+			// 各PV上のnodeでも勾配を加算する場合の処理。
+			// discount_rateが0のときはこの処理は行わない。
+			if (discount_rate != 0)
+				pos_add_grad();
+
 			pos.do_move(m, state[ply++]);
 			
 			// leafでのevaluateの値を用いるので差分更新していく。
 			Eval::evaluate_with_no_return(pos);
 		}
 
-		// shallow_valueとして、leafでのevaluateの値を用いる。
-		// qsearch()の戻り値をshallow_valueとして用いると、
-		// PVが途中で途切れている場合、勾配を計算するのにevaluate()を呼び出した局面と、
-		// その勾配を与える局面とが異なることになるので、これはあまり好ましい性質ではないと思う。
-		// 置換表をオフにはしているのだが、1手詰みなどはpv配列を更新していないので…。
-
-		Value shallow_value = (rootColor == pos.side_to_move()) ? Eval::evaluate(pos) : -Eval::evaluate(pos);
-
-		// 勾配
-		double dj_dw = calc_grad(deep_value, shallow_value, ps);
-
-#if defined ( LOSS_FUNCTION_IS_ELMO_METHOD )
-		// 学習データに対するロスの計算
-		double learn_cross_entropy_eval, learn_cross_entropy_win;
-		calc_cross_entropy(deep_value, shallow_value, ps, learn_cross_entropy_eval, learn_cross_entropy_win);
-		learn_sum_cross_entropy_eval += learn_cross_entropy_eval;
-		learn_sum_cross_entropy_win += learn_cross_entropy_win;
-#endif
-
-		// 現在、leaf nodeで出現している特徴ベクトルに対する勾配(∂J/∂Wj)として、jd_dwを加算する。
-
-		// leafに到達したのでこの局面に出現している特徴に勾配を加算しておく。
-		// 勾配に基づくupdateはのちほど行なう。
-		Eval::add_grad(pos,rootColor,dj_dw);
-
-		// 処理が終了したので処理した件数のカウンターをインクリメント
-		sr.total_done++;
+		// PVの終端局面に達したので、ここで勾配を加算する。
+		pos_add_grad();
 
 		// 局面を巻き戻す
 		for (auto it = pv.rbegin(); it != pv.rend(); ++it)
@@ -1772,16 +1908,19 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// rootの局面にも勾配を加算する場合
 		shallow_value = (rootColor == pos.side_to_move()) ? Eval::evaluate(pos) : -Eval::evaluate(pos);
 		dj_dw = calc_grad(deep_value, shallow_value, ps);
-		Eval::add_grad(pos, rootColor, dj_dw);
+		Eval::add_grad(pos, rootColor, dj_dw , without_kpp);
 #endif
 
 	}
 
 }
 
+// 評価関数ファイルの書き出し。
 void LearnerThink::save()
 {
-	// 定期的に保存
+	// 保存前にcheck sumを計算して出力しておく。(次に読み込んだときに合致するか調べるため)
+	std::cout << "Check Sum = " << std::hex << Eval::calc_check_sum() << std::dec << std::endl;
+
 	// 保存ごとにファイル名の拡張子部分を"0","1","2",..のように変えていく。
 	// (あとでそれぞれの評価関数パラメーターにおいて勝率を比較したいため)
 
@@ -1823,7 +1962,7 @@ void shuffle_write(const string& output_file_name , PRNG& prng , vector<fstream>
 	};
 
 
-	std::cout << "write : " << output_file_name << endl;
+	cout << endl <<  "write : " << output_file_name << endl;
 
 	fstream fs(output_file_name, ios::out | ios::binary);
 
@@ -1921,6 +2060,7 @@ void shuffle_files(const vector<string>& filenames , const string& output_file_n
 	for (auto filename : filenames)
 	{
 		fstream fs(filename, ios::in | ios::binary);
+		cout << endl << "open file = " << filename;
 		while (fs.read((char*)&buf[buf_write_marker], sizeof(PackedSfenValue)))
 			if (++buf_write_marker == buffer_size)
 				write_buffer(buffer_size);
@@ -1933,6 +2073,15 @@ void shuffle_files(const vector<string>& filenames , const string& output_file_n
 	// シャッフルされたファイルがwrite_file_count個だけ書き出された。
 	// 2pass目として、これをすべて同時にオープンし、ランダムに1つずつ選択して1局面ずつ読み込めば
 	// これにてシャッフルされたことになる。
+
+	// シャツフルする元ファイル+tmpファイル+書き出すファイルで元ファイルの3倍のストレージ容量が必要になる。
+	// 100億局面400GBなのでシャッフルするために1TBのSSDでは足りない。
+	// tmpに書き出しが終わったこのタイミングで元ファイルを消す(あるいは手で削除してしまう)なら、
+	// 元ファイルの2倍程度のストレージ容量で済む。
+	// だから、元ファイルを消すためのオプションを用意すべきかも知れない。
+
+	// ファイルの同時openをしている。これがFOPEN_MAXなどを超える可能性は高い。
+	// その場合、buffer_sizeを調整して、ファイルの数を減らすよりない。
 
 	vector<fstream> afs;
 	for (u64 i = 0; i < write_file_count; ++i)
@@ -2023,6 +2172,97 @@ void shuffle_files_on_memory(const vector<string>& filenames,const string output
 	std::cout << "..shuffle_on_memory done." << std::endl;
 }
 
+void convert_bin(const vector<string>& filenames , const string& output_file_name)
+{
+	std::fstream fs;
+	auto th = Threads.main();
+	auto &tpos = th->rootPos;
+	// plain形式の雑巾をやねうら王用のpackedsfenvalueに変換する
+	fs.open(output_file_name, ios::app | ios::binary);
+
+	for (auto filename : filenames) {
+		std::cout << "convert " << filename << " ... ";
+		std::string line;
+		ifstream ifs;
+		ifs.open(filename);
+		PackedSfenValue p;
+		p.gamePly = 1; // apery形式では含まれない。一応初期化するべし
+		while (std::getline(ifs, line)) {
+			std::stringstream ss(line);
+			std::string token;
+			std::string value;
+			ss >> token;
+			if (token == "sfen") {
+				StateInfo si;
+				tpos.set(line.substr(5), &si, Threads.main());
+				tpos.sfen_pack(p.sfen);
+			}
+			else if (token == "move") {
+				ss >> value;
+				p.move = move_from_usi(value);
+			}
+			else if (token == "score") {
+				ss >> p.score;
+			}
+			else if (token == "ply") {
+				int temp;
+				ss >> temp;
+				p.gamePly = u16(temp); // 此処のキャストいらない？
+			}
+			else if (token == "result") {
+				int temp;
+				ss >> temp;
+				p.game_result = s8(temp); // 此処のキャストいらない？
+			}
+			else if (token == "e") {
+				fs.write((char*)&p, sizeof(PackedSfenValue));
+				// debug
+				/*
+				std::cout<<tpos<<std::endl;
+				std::cout<<to_usi_string(Move(p.move))<<","<<p.score<<","<<int(p.gamePly)<<","<<int(p.game_result)<<std::endl;
+				*/
+			}
+		}
+		std::cout << "done" << std::endl;
+		ifs.close();
+	}
+	std::cout << "all done" << std::endl;
+	fs.close();
+}
+  
+void convert_plain(const vector<string>& filenames , const string& output_file_name)
+{
+	Position tpos;
+	std::ofstream ofs;
+	ofs.open(output_file_name, ios::app);
+	for (auto filename : filenames) {
+		std::cout << "convert " << filename << " ... ";
+
+		// ひたすらpackedsfenvalueをテキストに変換する
+		std::fstream fs;
+		fs.open(filename, ios::in | ios::binary);
+		PackedSfenValue p;
+		while (true)
+		{
+			if (fs.read((char*)&p, sizeof(PackedSfenValue))) {
+				// plain textとして書き込む
+				ofs << "sfen " << tpos.sfen_unpack(p.sfen) << std::endl;
+				ofs << "move " << to_usi_string(Move(p.move)) << std::endl;
+				ofs << "score " << p.score << std::endl;
+				ofs << "ply " << int(p.gamePly) << std::endl;
+				ofs << "result " << int(p.game_result) << std::endl;
+				ofs << "e" << std::endl;
+			}
+			else {
+				break;
+			}
+		}
+		fs.close();
+		std::cout << "done" << std::endl;
+	}
+	ofs.close();
+	std::cout << "all done" << std::endl;
+}
 
 // 生成した棋譜からの学習
 void learn(Position&, istringstream& is)
@@ -2045,7 +2285,11 @@ void learn(Position&, istringstream& is)
 	string target_dir;
 
 	// 0であれば、デフォルト値になる。
-	double eta = 0.0;
+	double eta1 = 0.0;
+	double eta2 = 0.0;
+	double eta3 = 0.0;
+	u64 eta1_epoch = 0; // defaultではeta2は適用されない
+	u64 eta2_epoch = 0; // defaultではeta3は適用されない
 
 #if defined(USE_GLOBAL_OPTIONS)
 	// あとで復元するために保存しておく。
@@ -2065,6 +2309,10 @@ void learn(Position&, istringstream& is)
 	bool shuffle_quick = false;
 	// メモリにファイルを丸読みしてシャッフルする機能。(要、ファイルサイズのメモリ)
 	bool shuffle_on_memory = false;
+	// packed sfenの変換。plainではsfen(string), 評価値(整数), 指し手(例：7g7f, string)、結果(負け-1、勝ち1、引き分け0)からなる
+	bool use_convert_plain = false;
+	// plain形式の教師をやねうら王のbinに変換する
+	bool use_convert_bin = false;
 	// それらのときに書き出すファイル名(デフォルトでは"shuffled_sfen.bin")
 	string output_file_name = "shuffled_sfen.bin";
 
@@ -2078,6 +2326,24 @@ void learn(Position&, istringstream& is)
 	// 事前にシャッフルされているファイルを渡すならオンにすれば良い。
 	bool no_shuffle = false;
 
+#if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
+	// elmo lambda
+	ELMO_LAMBDA = 0.33;
+	ELMO_LAMBDA2 = 0.33;
+	ELMO_LAMBDA_LIMIT = 32000;
+#endif
+
+	// 割引率。これを0以外にすると、PV終端以外でも勾配を加算する。(そのとき、この割引率を適用する)
+	double discount_rate = 0;
+
+	// if (gamePly < rand(reduction_gameply)) continue;
+	// のようにして、序盤を学習対象から程よく除外するためのオプション
+	// 1にしてあるとrand(1)==0なので、何も除外されない。
+	int reduction_gameply = 1;
+
+	// KK/KKP/KPP/KPPPを学習させないオプション項目
+	array<bool,4> freeze = {};
+	
 	// ファイル名が後ろにずらずらと書かれていると仮定している。
 	while (true)
 	{
@@ -2107,12 +2373,37 @@ void learn(Position&, istringstream& is)
 		else if (option == "batchsize") is >> mini_batch_size;
 
 		// 学習率
-		else if (option == "eta")       is >> eta;
+		else if (option == "eta")        is >> eta1;
+		else if (option == "eta1")       is >> eta1; // alias
+		else if (option == "eta2")       is >> eta2;
+		else if (option == "eta3")       is >> eta3;
+		else if (option == "eta1_epoch") is >> eta1_epoch;
+		else if (option == "eta2_epoch") is >> eta2_epoch;
 
-#if defined (LOSS_FUNCTION_IS_ELMO_METHOD) || defined (LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
-		// LAMBDA
-		else if (option == "lambda")    is >> ELMO_LAMBDA;
+		// 割引率
+		else if (option == "discount_rate") is >> discount_rate;
+
+		// KK/KKP/KPP/KPPPの学習なし。
+		else if (option == "freeze_kk")    is >> freeze[0];
+		else if (option == "freeze_kkp")   is >> freeze[1];
+		else if (option == "freeze_kpp")   is >> freeze[2];
+
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA)
+
+#elif defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
+		else if (option == "freeze_kppp")  is >> freeze[3];
+#elif defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT)
+		else if (option == "freeze_kkpp")  is >> freeze[3];
 #endif
+
+#if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
+		// LAMBDA
+		else if (option == "lambda")       is >> ELMO_LAMBDA;
+		else if (option == "lambda2")      is >> ELMO_LAMBDA2;
+		else if (option == "lambda_limit") is >> ELMO_LAMBDA_LIMIT;
+
+#endif
+		else if (option == "reduction_gameply") is >> reduction_gameply;
 
 		// シャッフル関連
 		else if (option == "shuffle")	shuffle_normal = true;
@@ -2124,7 +2415,10 @@ void learn(Position&, istringstream& is)
 		else if (option == "eval_limit") is >> eval_limit;
 		else if (option == "save_only_once") save_only_once = true;
 		else if (option == "no_shuffle") no_shuffle = true;
-
+		
+		// 雑巾のconvert関連
+		else if (option == "convert_plain") use_convert_plain = true;
+		else if (option == "convert_bin") use_convert_bin = true;
 		// さもなくば、それはファイル名である。
 		else
 			filenames.push_back(option);
@@ -2169,7 +2463,8 @@ void learn(Position&, istringstream& is)
 			do {
 				entry = readdir(dp);
 				// ".bin"で終わるファイルのみを列挙
-				if (entry != NULL && ends_with(entry->d_name, ".bin"))
+				// →　連番でファイル生成するときにこの制約ちょっと嫌だな…。
+				if (entry != NULL  && ends_with(entry->d_name, ".bin")  )
 				{
 					//cout << entry->d_name << endl;
 					filenames.push_back(path_combine(target_dir, entry->d_name));
@@ -2208,11 +2503,27 @@ void learn(Position&, istringstream& is)
 		shuffle_files_on_memory(filenames,output_file_name);
 		return;
 	}
+	if (use_convert_plain)
+	{
+	  	is_ready(true);
+		cout << "convert_plain.." << endl;
+		convert_plain(filenames,output_file_name);
+		return;
+		
+	}
+	if (use_convert_bin)
+	{
+	  	is_ready(true);
+		cout << "convert_bin.." << endl;
+		convert_bin(filenames,output_file_name);
+		return;
+		
+	}
 
-	cout << "loop            : " << loop << endl;
-	cout << "eval_lmit       : " << eval_limit << endl;
-	cout << "save_only_once  : " << (save_only_once ? "true" : "false") << endl;
-	cout << "no_shuffle      : " << (no_shuffle ? "true" : "false") << endl;
+	cout << "loop              : " << loop << endl;
+	cout << "eval_limit        : " << eval_limit << endl;
+	cout << "save_only_once    : " << (save_only_once ? "true" : "false") << endl;
+	cout << "no_shuffle        : " << (no_shuffle ? "true" : "false") << endl;
 
 	// ループ回数分だけファイル名を突っ込む。
 	for (int i = 0; i < loop; ++i)
@@ -2220,12 +2531,29 @@ void learn(Position&, istringstream& is)
 		for (auto it = filenames.rbegin(); it != filenames.rend(); ++it)
 			sr.filenames.push_back(path_combine(base_dir, *it));
 
-	cout << "Gradient Method : " << LEARN_UPDATE    << endl;
-	cout << "Loss Function   : " << LOSS_FUNCTION   << endl;
-	cout << "mini-batch size : " << mini_batch_size << endl;
-	cout << "learning rate   : " << eta             << endl;
-#if defined (LOSS_FUNCTION_IS_ELMO_METHOD) || defined (LOSS_FUNCTION_IS_YANE_ELMO_METHOD)
-	cout << "LAMBDA          : " << ELMO_LAMBDA     << endl;
+	cout << "Gradient Method   : " << LEARN_UPDATE      << endl;
+	cout << "Loss Function     : " << LOSS_FUNCTION     << endl;
+	cout << "mini-batch size   : " << mini_batch_size   << endl;
+	cout << "learning rate     : " << eta1 << " , " << eta2 << " , " << eta3 << endl;
+	cout << "eta_epoch         : " << eta1_epoch << " , " << eta2_epoch << endl;
+	cout << "discount rate     : " << discount_rate     << endl;
+
+	// reduction_gameplyに0を設定されるとrand(0)が0除算になってしまうので1に補正。
+	reduction_gameply = max(reduction_gameply, 1);
+	cout << "reduction_gameply : " << reduction_gameply << endl;
+
+#if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
+	cout << "LAMBDA            : " << ELMO_LAMBDA       << endl;
+	cout << "LAMBDA2           : " << ELMO_LAMBDA2      << endl;
+	cout << "LAMBDA_LIMIT      : " << ELMO_LAMBDA_LIMIT << endl;
+#endif
+
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA)
+	cout << "freeze_kk/kkp/kpp      : " << freeze[0] << " , " << freeze[1] << " , " << freeze[2] << endl;
+#elif defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
+	cout << "freeze_kk/kkp/kpp/kppp : " << freeze[0] << " , " << freeze[1] << " , " << freeze[2] << " , " << freeze[3] << endl;
+#elif defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT)
+	cout << "freeze_kk/kkp/kpp/kkpp : " << freeze[0] << " , " << freeze[1] << " , " << freeze[2] << " , " << freeze[3] << endl;
 #endif
 
 	// -----------------------------------
@@ -2235,19 +2563,19 @@ void learn(Position&, istringstream& is)
 	cout << "init.." << endl;
 
 	// 評価関数パラメーターの読み込み
-	is_ready();
+	is_ready(true);
 
 	cout << "init_grad.." << endl;
 
 	// 評価関数パラメーターの勾配配列の初期化
-	Eval::init_grad(eta);
+	Eval::init_grad(eta1,eta1_epoch,eta2,eta2_epoch,eta3);
 
 #if 0
 	// 平手の初期局面に対して1.0の勾配を与えてみるテスト。
 	pos.set_hirate();
 	cout << Eval::evaluate(pos) << endl;
 	//Eval::print_eval_stat(pos);
-	Eval::add_grad(pos, BLACK, 32.0);
+	Eval::add_grad(pos, BLACK, 32.0 , false);
 	Eval::update_weights(1);
 	pos.state()->sum.p[2][0] = VALUE_NOT_EVALUATED;
 	cout << Eval::evaluate(pos) << endl;
@@ -2261,9 +2589,12 @@ void learn(Position&, istringstream& is)
 	cout << "init done." << endl;
 
 	// その他、オプション設定を反映させる。
+	learn_think.discount_rate = discount_rate;
 	learn_think.eval_limit = eval_limit;
 	learn_think.save_only_once = save_only_once;
 	learn_think.sr.no_shuffle = no_shuffle;
+	learn_think.freeze = freeze;
+	learn_think.reduction_gameply = reduction_gameply;
 
 	// 局面ファイルをバックグラウンドで読み込むスレッドを起動
 	// (これを開始しないとmseの計算が出来ない。)
@@ -2295,5 +2626,10 @@ void learn(Position&, istringstream& is)
 
 
 } // namespace Learner
+
+#if defined(USE_GENSFEN2018)
+#include "gensfen2018.cpp"
+#endif
+
 
 #endif // EVAL_LEARN

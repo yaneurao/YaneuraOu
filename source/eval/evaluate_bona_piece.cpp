@@ -21,12 +21,12 @@ namespace Eval
   int CapturePieceValue[PIECE_NB] =
   {
     VALUE_ZERO             , PawnValue * 2   , LanceValue * 2   , KnightValue * 2   , SilverValue * 2  ,
-    BishopValue * 2, RookValue * 2, GoldValue * 2, VALUE_ZERO ,
+    BishopValue * 2, RookValue * 2, GoldValue * 2, 0 /* SEEやfutilityで用いるため王の価値は0にしておかないといけない */ ,
     ProPawnValue + PawnValue, ProLanceValue + LanceValue, ProKnightValue + KnightValue, ProSilverValue + SilverValue,
     HorseValue + BishopValue, DragonValue + RookValue, VALUE_ZERO /* PRO_GOLD */,
  
     VALUE_ZERO             , PawnValue * 2   , LanceValue * 2   , KnightValue * 2   , SilverValue * 2  ,
-    BishopValue * 2, RookValue * 2, GoldValue * 2, VALUE_ZERO ,
+    BishopValue * 2, RookValue * 2, GoldValue * 2, 0 ,
     ProPawnValue + PawnValue, ProLanceValue + LanceValue, ProKnightValue + KnightValue, ProSilverValue + SilverValue,
     HorseValue + BishopValue, DragonValue + RookValue, VALUE_ZERO /* PRO_GOLD */,
   };
@@ -57,7 +57,7 @@ namespace Eval
     { f_dragon, e_dragon }, // 龍
     { BONA_PIECE_ZERO, BONA_PIECE_ZERO }, // 金の成りはない
 
-                                          // 後手から見た場合。fとeが入れ替わる。
+    // 後手から見た場合。fとeが入れ替わる。
     { BONA_PIECE_ZERO, BONA_PIECE_ZERO },
     { e_pawn, f_pawn },
     { e_lance, f_lance },

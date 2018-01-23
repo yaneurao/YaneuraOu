@@ -23,29 +23,14 @@
     <Filter Include="リソース ファイル\eval">
       <UniqueIdentifier>{74e286a5-5565-4995-9fc2-737328172971}</UniqueIdentifier>
     </Filter>
-    <Filter Include="exe">
-      <UniqueIdentifier>{a09b95c2-88ed-401e-ab31-7eb93f8fc490}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="exe\book">
-      <UniqueIdentifier>{31783e68-60c1-4b07-a404-12463d7c1e30}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="exe\eval">
-      <UniqueIdentifier>{022b52fb-a082-4f1e-9418-bfbc59a1c528}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\learn">
       <UniqueIdentifier>{d7ca69f7-bd83-40ce-89c2-fe2d730b80be}</UniqueIdentifier>
     </Filter>
     <Filter Include="script">
       <UniqueIdentifier>{efb5b189-918a-4b2a-ba65-731c674603a7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\engine\2017-early-engine">
-      <UniqueIdentifier>{d3dd072e-59ab-4ec3-a846-36d845709d2c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\extra\book">
       <UniqueIdentifier>{991f4422-aa69-47f9-96dc-ab57ff54f469}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\extra\move_picker">
-      <UniqueIdentifier>{c51fef6e-8adf-4b09-a7d7-6e8af13a0628}</UniqueIdentifier>
     </Filter>
     <Filter Include="リソース ファイル\extra\mate">
       <UniqueIdentifier>{d2aac0fd-42da-4a14-b6c2-22d534701934}</UniqueIdentifier>
@@ -58,6 +43,30 @@
     </Filter>
     <Filter Include="リソース ファイル\engine\help-mate-engine">
       <UniqueIdentifier>{4baa45aa-bdd2-4657-804f-9aa648ba0a2f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\eval\kppt">
+      <UniqueIdentifier>{9199b172-8762-466b-aab3-debc3741c786}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\eval\kpp_kkpt">
+      <UniqueIdentifier>{da7e0fa7-bf52-4802-ac0e-7b3db259ddf6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\eval\kpppt">
+      <UniqueIdentifier>{7fab4fe0-faef-4c34-b464-557998e74f4b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\eval\kppp_kkpt">
+      <UniqueIdentifier>{ad765c72-3c65-4c8a-b959-b678542fa5ee}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\eval\kkpp_kkpt">
+      <UniqueIdentifier>{69537126-46c7-406d-af34-58773bd0e950}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\eval\kkppt">
+      <UniqueIdentifier>{8ca76b77-8998-41b4-9f52-b59666e1d93c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\eval\kpp_kkpt_fv_var">
+      <UniqueIdentifier>{002e5881-2553-464d-a5ca-7a8d84717077}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\engine\2018-otafuku-engine">
+      <UniqueIdentifier>{1822c23d-4270-4155-8c9b-ed15821d29ba}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -103,23 +112,14 @@
     <ClInclude Include="move_picker.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="eval\kppt_evalsum.h">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClInclude>
     <ClInclude Include="engine\mate-engine\mate-search.h">
       <Filter>リソース ファイル\engine\mate-engine</Filter>
     </ClInclude>
     <ClInclude Include="learn\multi_think.h">
       <Filter>リソース ファイル\learn</Filter>
     </ClInclude>
-    <ClInclude Include="eval\evaluate_kppt.h">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClInclude>
     <ClInclude Include="learn\learn.h">
       <Filter>リソース ファイル\learn</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\2017-early-engine\2017-early-param.h">
-      <Filter>リソース ファイル\engine\2017-early-engine</Filter>
     </ClInclude>
     <ClInclude Include="extra\book\apery_book.h">
       <Filter>リソース ファイル\extra\book</Filter>
@@ -129,12 +129,6 @@
     </ClInclude>
     <ClInclude Include="extra\book\mt64bit.h">
       <Filter>リソース ファイル\extra\book</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\progress.h">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClInclude>
-    <ClInclude Include="extra\move_picker\move_picker_2017Q2.h">
-      <Filter>リソース ファイル\extra\move_picker</Filter>
     </ClInclude>
     <ClInclude Include="extra\mate\mate1ply.h">
       <Filter>リソース ファイル\extra\mate</Filter>
@@ -162,6 +156,39 @@
     </ClInclude>
     <ClInclude Include="engine\help-mate-engine\help-mate-search.h">
       <Filter>リソース ファイル\engine\help-mate-engine</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\evaluate_common.h">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\evalsum.h">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\kppt\evaluate_kppt.h">
+      <Filter>リソース ファイル\eval\kppt</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\kpp_kkpt\evaluate_kpp_kkpt.h">
+      <Filter>リソース ファイル\eval\kpp_kkpt</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\kpppt\evaluate_kpppt.h">
+      <Filter>リソース ファイル\eval\kpppt</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\kppp_kkpt\evaluate_kppp_kkpt.h">
+      <Filter>リソース ファイル\eval\kppp_kkpt</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\kkpp_kkpt\evaluate_kkpp_kkpt.h">
+      <Filter>リソース ファイル\eval\kkpp_kkpt</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\kkppt\evaluate_kkppt.h">
+      <Filter>リソース ファイル\eval\kkppt</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\kpp_kkpt_fv_var\evaluate_kpp_kkpt_fv_var.h">
+      <Filter>リソース ファイル\eval\kpp_kkpt_fv_var</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\evaluate_mir_inv_tools.h">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\2018-otafuku-engine\2018-otafuku-param.h">
+      <Filter>リソース ファイル\engine\2018-otafuku-engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -204,13 +231,7 @@
     <ClCompile Include="extra\bitop.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
-    <ClCompile Include="eval\evaluate_kpp.cpp">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
     <ClCompile Include="eval\evaluate_bona_piece.cpp">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
-    <ClCompile Include="eval\evaluate_no_eval.cpp">
       <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
     <ClCompile Include="extra\entering_king_win.cpp">
@@ -218,9 +239,6 @@
     </ClCompile>
     <ClCompile Include="extra\timeman.cpp">
       <Filter>リソース ファイル\extra</Filter>
-    </ClCompile>
-    <ClCompile Include="eval\evaluate_kppt.cpp">
-      <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
     <ClCompile Include="engine\user-engine\user-search.cpp">
       <Filter>リソース ファイル\engine\user-engine</Filter>
@@ -237,23 +255,11 @@
     <ClCompile Include="learn\multi_think.cpp">
       <Filter>リソース ファイル\learn</Filter>
     </ClCompile>
-    <ClCompile Include="learn\evaluate_kppt_learn.cpp">
-      <Filter>リソース ファイル\learn</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\2017-early-engine\2017-early-search.cpp">
-      <Filter>リソース ファイル\engine\2017-early-engine</Filter>
-    </ClCompile>
     <ClCompile Include="extra\book\apery_book.cpp">
       <Filter>リソース ファイル\extra\book</Filter>
     </ClCompile>
     <ClCompile Include="extra\book\book.cpp">
       <Filter>リソース ファイル\extra\book</Filter>
-    </ClCompile>
-    <ClCompile Include="eval\progress.cpp">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\move_picker\move_picker_2017Q2.cpp">
-      <Filter>リソース ファイル\extra\move_picker</Filter>
     </ClCompile>
     <ClCompile Include="extra\mate\mate_n_ply.cpp">
       <Filter>リソース ファイル\extra\mate</Filter>
@@ -263,9 +269,6 @@
     </ClCompile>
     <ClCompile Include="extra\mate\mate1ply_without_effect.cpp">
       <Filter>リソース ファイル\extra\mate</Filter>
-    </ClCompile>
-    <ClCompile Include="eval\evaluate_kkpt.cpp">
-      <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
     <ClCompile Include="extra\benchmark.cpp">
       <Filter>リソース ファイル\extra</Filter>
@@ -285,6 +288,57 @@
     <ClCompile Include="engine\help-mate-engine\help-mate-search.cpp">
       <Filter>リソース ファイル\engine\help-mate-engine</Filter>
     </ClCompile>
+    <ClCompile Include="eval\kppt\evaluate_kppt.cpp">
+      <Filter>リソース ファイル\eval\kppt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt.cpp">
+      <Filter>リソース ファイル\eval\kpp_kkpt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt_learner.cpp">
+      <Filter>リソース ファイル\eval\kpp_kkpt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kppt\evaluate_kppt_learner.cpp">
+      <Filter>リソース ファイル\eval\kppt</Filter>
+    </ClCompile>
+    <ClCompile Include="move_picker.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kpppt\evaluate_kpppt.cpp">
+      <Filter>リソース ファイル\eval\kpppt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kpppt\evaluate_kpppt_learner.cpp">
+      <Filter>リソース ファイル\eval\kpppt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kppp_kkpt\evaluate_kppp_kkpt.cpp">
+      <Filter>リソース ファイル\eval\kppp_kkpt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kppp_kkpt\evaluate_kppp_kkpt_learner.cpp">
+      <Filter>リソース ファイル\eval\kppp_kkpt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kkpp_kkpt\evaluate_kkpp_kkpt.cpp">
+      <Filter>リソース ファイル\eval\kkpp_kkpt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kkpp_kkpt\evaluate_kkpp_kkpt_learner.cpp">
+      <Filter>リソース ファイル\eval\kkpp_kkpt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kkppt\evaluate_kkppt.cpp">
+      <Filter>リソース ファイル\eval\kkppt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kkppt\evaluate_kkppt_learner.cpp">
+      <Filter>リソース ファイル\eval\kkppt</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kpp_kkpt_fv_var\evaluate_kpp_kkpt_fv_var.cpp">
+      <Filter>リソース ファイル\eval\kpp_kkpt_fv_var</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\kpp_kkpt_fv_var\evaluate_kpp_kkpt_fv_var_learner.cpp">
+      <Filter>リソース ファイル\eval\kpp_kkpt_fv_var</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\evaluate_mir_inv_tools.cpp">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\2018-otafuku-engine\2018-otafuku-search.cpp">
+      <Filter>リソース ファイル\engine\2018-otafuku-engine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">
@@ -292,9 +346,6 @@
     </Text>
     <Text Include="..\docs\解説.txt">
       <Filter>docs</Filter>
-    </Text>
-    <Text Include="..\exe\eval\readme.txt">
-      <Filter>exe\eval</Filter>
     </Text>
     <Text Include="..\docs\やねうら大定跡.txt">
       <Filter>docs</Filter>
@@ -309,9 +360,6 @@
   <ItemGroup>
     <None Include="..\README.md">
       <Filter>docs</Filter>
-    </None>
-    <None Include="..\exe\book\standard_book.db">
-      <Filter>exe\book</Filter>
     </None>
     <None Include="Makefile">
       <Filter>docs</Filter>

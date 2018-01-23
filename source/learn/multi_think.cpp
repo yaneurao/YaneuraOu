@@ -1,11 +1,10 @@
 ﻿#include "../shogi.h"
 
-#if defined(EVAL_LEARN) && defined(YANEURAOU_2017_EARLY_ENGINE)
+#if defined(EVAL_LEARN) && \
+	(defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE))
 
 #include "multi_think.h"
 #include "../tt.h"
-
-extern void is_ready();
 
 void MultiThink::go_think()
 {
@@ -33,10 +32,13 @@ void MultiThink::go_think()
 	Options["BookOnTheFly"] = "false";
 
 	// 評価関数の読み込み等
-	is_ready();
+	// learnコマンドの場合、評価関数読み込み後に評価関数の値を補正している可能性があるので、
+	// メモリの破損チェックは省略する。
+	is_ready(true);
 
 	// ループ上限はset_loop_max()で設定されているものとする。
 	loop_count = 0;
+	done_count = 0;
 
 	// threadをOptions["Threads"]の数だけ生成して思考開始。
 	std::vector<std::thread> threads;

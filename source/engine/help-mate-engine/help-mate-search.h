@@ -154,7 +154,7 @@ namespace HelpMate
       if (!mem)
       {
         std::cout << "failed to calloc\n";
-        exit(EXIT_FAILURE);
+		my_exiT();
       }
       table = (Cluster*)((uintptr_t(mem) + CacheLineSize - 1) & ~(CacheLineSize - 1));
     }

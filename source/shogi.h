@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "4.74"
+#define ENGINE_VERSION "4.80"
 
 // --------------------
 // コンパイル時の設定
@@ -22,7 +22,7 @@
 
 // Makefile使うけどやっぱり設定変えたいとき用。
 //#undef USE_MAKEFILE
-//#undef YANEURAOU_2017_EARLY_ENGINE
+//#undef YANEURAOU_2018_OTAFUKU_ENGINE
 //#undef USE_AVX2
 
 // やねうら王の思考エンジンとしてリリースする場合、以下から選択。(どれか一つは必ず選択しなければならない)
@@ -31,8 +31,8 @@
 
 #if !defined (USE_MAKEFILE)
 
-#define YANEURAOU_2017_EARLY_ENGINE      // やねうら王2017(EARLY)  (完成2017/05/05)     : elmo(WCSC27)などで使われたエンジン
-//#define YANEURAOU_2017_GOKU_ENGINE       // やねうら王2017(GOKU)   (開発中2017/05/06～) : 極やねうら王
+//#define YANEURAOU_2017_GOKU_ENGINE       // やねうら王2017(GOKU)   (完成2017/12/31) : 極やねうら王
+#define YANEURAOU_2018_OTAFUKU_ENGINE    // やねうら王2018 with お多福Lab。(開発中2018/01/01～)
 //#define MATE_ENGINE                      // 詰め将棋solverとしてリリースする場合。(開発中2017/05/06～)
 //#define HELP_MATE_ENGINE                 // 協力詰めsolverとしてリリースする場合。協力詰めの最長は49909手。「寿限無3」 cf. http://www.ne.jp/asahi/tetsu/toybox/kato/fbaka4.htm
 //#define LOCAL_GAME_SERVER                // 連続自動対局フレームワーク
@@ -213,7 +213,7 @@ inline bool canPromote(const Color c, const Square from, const Square to)
 inline Square Inv(Square sq) { return (Square)((SQ_NB - 1) - sq); }
 
 // 盤面をミラーしたときの升目を返す
-inline Square Mir(Square sq) { return File(8-file_of(sq)) | rank_of(sq); }
+inline Square Mir(Square sq) { return File(8-(int)file_of(sq)) | rank_of(sq); }
 
 // Squareを綺麗に出力する(USI形式ではない)
 // "PRETTY_JP"をdefineしていれば、日本語文字での表示になる。例 → ８八
@@ -393,7 +393,8 @@ enum Value: int32_t
 {
 	VALUE_ZERO = 0,
 
-	// 1手詰めのスコア(例えば、3手詰めならこの値より2少ない)
+	// 0手詰めのスコア(rootで詰んでいるときのscore)
+	// 例えば、3手詰めならこの値より3少ない。
 	VALUE_MATE = 32000,
 
 	// Valueの取りうる最大値(最小値はこの符号を反転させた値)
@@ -402,7 +403,7 @@ enum Value: int32_t
 	// 無効な値
 	VALUE_NONE = 32002,
 
-	VALUE_MATE_IN_MAX_PLY = int(VALUE_MATE) - MAX_PLY,   // MAX_PLYでの詰みのときのスコア。
+	VALUE_MATE_IN_MAX_PLY  =  int(VALUE_MATE) - MAX_PLY , // MAX_PLYでの詰みのときのスコア。
 	VALUE_MATED_IN_MAX_PLY = -int(VALUE_MATE_IN_MAX_PLY), // MAX_PLYで詰まされるときのスコア。
 
 	// 勝ち手順が何らか証明されているときのスコア下限値
@@ -415,10 +416,12 @@ enum Value: int32_t
 	VALUE_SUPERIOR = 28000,
 
 	// 評価関数の返す値の最大値(2**14ぐらいに収まっていて欲しいところだが..)
-	VALUE_MAX_EVAL = 25000,
+	VALUE_MAX_EVAL = 27000,
 
 	// 評価関数がまだ呼び出されていないということを示すのに使う特殊な定数
-	VALUE_NOT_EVALUATED = 32003,
+	// StateInfo::sum.p[0][0]にこの値を格納して、マーカーとするのだが、このsumのp[0][0]は、ΣBKPPの計算結果であり、
+	// 16bitの範囲で収まるとは限らないため、もっと大きな数にしておく必要がある。
+	VALUE_NOT_EVALUATED = INT32_MAX,
 };
 
 // ply手で詰ませるときのスコア
@@ -523,16 +526,16 @@ std::ostream& operator<<(std::ostream& os, Piece pc);
 // --------------------
 
 // Positionクラスで用いる、駒リスト(どの駒がどこにあるのか)を管理するときの番号。
-enum PieceNo : u8
+enum PieceNumber : u8
 {
-  PIECE_NO_PAWN = 0, PIECE_NO_LANCE = 18, PIECE_NO_KNIGHT = 22, PIECE_NO_SILVER = 26,
-  PIECE_NO_GOLD = 30, PIECE_NO_BISHOP = 34, PIECE_NO_ROOK = 36, PIECE_NO_KING = 38,
-  PIECE_NO_BKING = 38, PIECE_NO_WKING = 39, // 先手、後手の玉の番号が必要な場合はこっちを用いる
-  PIECE_NO_ZERO = 0, PIECE_NO_NB = 40,
+  PIECE_NUMBER_PAWN = 0, PIECE_NUMBER_LANCE = 18, PIECE_NUMBER_KNIGHT = 22, PIECE_NUMBER_SILVER = 26,
+  PIECE_NUMBER_GOLD = 30, PIECE_NUMBER_BISHOP = 34, PIECE_NUMBER_ROOK = 36, PIECE_NUMBER_KING = 38,
+  PIECE_NUMBER_BKING = 38, PIECE_NUMBER_WKING = 39, // 先手、後手の玉の番号が必要な場合はこっちを用いる
+  PIECE_NUMBER_ZERO = 0, PIECE_NUMBER_NB = 40,
 };
 
-// PieceNoの整合性の検査。assert用。
-constexpr bool is_ok(PieceNo pn) { return pn < PIECE_NO_NB; }
+// PieceNumberの整合性の検査。assert用。
+constexpr bool is_ok(PieceNumber pn) { return pn < PIECE_NUMBER_NB; }
 
 // --------------------
 //       指し手
@@ -620,16 +623,17 @@ inline std::ostream& operator<<(std::ostream& os, Move m) { os << to_usi_string(
 struct ExtMove {
 
 	Move move;   // 指し手(32bit)
-#if defined(USE_MOVE_PICKER_2017Q2)
 	int value;
-#else
-	Value value;   // これはMovePickerが指し手オーダリングのために並び替えるときに用いる値(≠評価値)。
-#endif
 
 	// Move型とは暗黙で変換できていい。
 
 	operator Move() const { return move; }
 	void operator=(Move m) { move = m; }
+
+	// 望まない暗黙のMoveへの変換を禁止するために
+	// 曖昧な変換でコンパイルエラーになるようにしておく。
+	// cf. Fix involuntary conversions of ExtMove to Move : https://github.com/official-stockfish/Stockfish/commit/d482e3a8905ee194bda3f67a21dda5132c21f30b
+	operator float() const;
 };
 
 // ExtMoveの並べ替えを行なうので比較オペレーターを定義しておく。
@@ -965,8 +969,8 @@ namespace USI
 	void init(OptionsMap&);
 
 	// pv(読み筋)をUSIプロトコルに基いて出力する。
-	// iteration_depth : 反復深化のiteration深さ。
-	std::string pv(const Position& pos, int iteration_depth, Value alpha, Value beta);
+	// depth : 反復深化のiteration深さ。
+	std::string pv(const Position& pos, Depth depth, Value alpha, Value beta);
 
 	// USIプロトコルで、idxの順番でoptionを出力する。
 	std::ostream& operator<<(std::ostream& os, const OptionsMap& om);
@@ -992,6 +996,11 @@ Move move_from_usi(const Position& pos, const std::string& str);
 // 返ってくるのは16bitのMoveなので、これを32bitのMoveに変換するには
 // Position::move16_to_move()を呼び出す必要がある。
 Move move_from_usi(const std::string& str);
+
+// USIの"isready"コマンドが呼び出されたときの処理。このときに評価関数の読み込みなどを行なう。
+// benchmarkコマンドのハンドラなどで"isready"が来ていないときに評価関数を読み込ませたいときに用いる。
+// skipCorruptCheck == trueのときは評価関数の2度目の読み込みのときのcheck sumによるメモリ破損チェックを省略する。
+extern void is_ready(bool skipCorruptCheck = false);
 
 // --------------------
 //  operators and macros

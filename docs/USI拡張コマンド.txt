@@ -180,6 +180,10 @@ USIプロトコルの独自拡張コマンド
 			とりあえずGUI側がそうなっていないので用意した。
 			NodesLimitは正確にそのnodeで停止するわけではなく多少の誤差はある。
 
+	SkipLoadingEval  : 評価関数の読み込みをskipさせる。ゼロで埋めた評価関数を用意できないときや、
+		新しい形式の評価関数が用意できないときに、評価関数の読み込みをskipさせるために用いる。
+		"test evalconvert"コマンドと組み合わせて使う。詳しくは、解説.txtのほうを参照のこと。
+
 ・getoption
 
 
@@ -223,6 +227,10 @@ USIプロトコルの独自拡張コマンド
 	key		: 現在の局面に対して局面のhash keyを出力
 	mated   : 現在の局面に対して詰み判定を呼び出す。詰んでいれば1。さもなくば0。
 	mate1   : 現在の局面に対してmate1ply()を呼び出す。
+	qsearch : 現在の局面に対してLearner::qsearch()を直接呼び出して評価値と読み筋を表示する。
+				(デバッグ用 , EVAL_LEARNを有効にしてコンパイルした実行ファイルのみ使える。)
+	search  : 現在の局面に対してLearner::search()を直接呼び出して評価値と読み筋を表示する。
+				(デバッグ用 , EVAL_LEARNを有効にしてコンパイルした実行ファイルのみ使える。)
 
 	bench   : ベンチマーク
 		bench [置換表サイズ][スレッド数][→の指定][LimitType = depth , nodes, time][局面の指定]
@@ -238,6 +246,8 @@ USIプロトコルの独自拡張コマンド
 
 
 	test    : テスト用コマンド
+		実験的に実装してあるコマンドで、突然無くなることがあります。
+
 		test unit            : unit test
 		test perft [depth]   : perft(パフォーマンステスト)。深さを指定できる。
 		test rp    [回数]    : random playerのテスト。回数を指定できる。
@@ -250,6 +260,7 @@ USIプロトコルの独自拡張コマンド
 				指定されたPERCENTで按分してDIR3に書き出す。(やねうら王2017Early以降のみ)
 				例) test evalmerge eval1 eval2 eval_out 20
 				  このときeval1が20%、eval2が80%の新しい評価関数ファイルがeval_out/フォルダに出力される。
+		test evalsave        : 現在の評価関数をファイルに保存。"EvalSaveDir"オプションで指定したフォルダに保存。
 		test evalresolve [DIR0] [DIR1] [DIR2] ...
 				DIR0,DIR1,DIR2,…は、評価関数フォルダ。
 				DIR0の評価関数が、DIR1,DIR2,…の、どの評価関数からevalmergeされているのかを調べる。
@@ -262,6 +273,7 @@ USIプロトコルの独自拡張コマンド
 					http://qhapaq.hatenablog.com/entry/2017/07/16/040830
 				・REsolve MUtationエンジンの使い方
 					http://qhapaq.hatenablog.com/entry/2017/07/17/001152
+
 
 	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。
 
@@ -289,7 +301,7 @@ USIプロトコルの独自拡張コマンド
 		write_minply N :
 			初期局面周辺は、類似局面ばかりなので、初期局面から数えてN手未満の局面は教師局面として書き出さない。
 			デフォルトでは16。
-			初期局面を書き出すなら、Nに0を指定する。(1を指定するのではない)
+			初期局面を書き出すなら、Nに1を指定する。
 		write_maxply N :
 			書き出す局面の初期局面からの手数の最大。この手数を超えると引き分け扱いとする。
 			デフォルトでは400。
@@ -298,8 +310,13 @@ USIプロトコルの独自拡張コマンド
 			教師局面の生成時にランダムムーブを行なう最小手数と最大手数と1局でランダムムーブを行なう回数
 			デフォルトではrandom_move_minply = 16 , random_move_maxply = 32 , random_move_count = 5。
 			// 16手目から24手目までに5回のランダムムーブを行なうという意味
-			learn random_move_maxply 16 random_move_maxply 32 random_move_count 5 ...
+			gensfen random_move_maxply 16 random_move_maxply 32 random_move_count 5 ...
 			みたいに指定する。
+
+			特殊な指定として、
+			random_move_minplyに-1を指定すると、
+			定跡を抜けるところまで定跡に従って指して、そのあと定跡局面を抜けた直後に
+			random_move_count回のランダムムーブを行なうという挙動になる。
 
 		random_move_like_apery N : ランダムムーブのときに玉を移動させる指し手の確率を上げる。
 			例えば、N = 3を指定すれば1/3の確率で玉を移動させる。
@@ -309,10 +326,35 @@ USIプロトコルの独自拡張コマンド
 
 		random_multi_pv N : ランダムムーブの代わりにMultiPV Nでrandom_move_count手指すオプション。
 			ConsiderBookMoveCount = trueと組み合わせると実現確率の高い局面からスタートできるかも…。
+			0を指定するとこの機能は無効。
 		random_multi_pv_diff m : random_multipvでmulti pvで指し手を採択するときに、
 			1位の指し手の評価値との評価値の差がmに収まる範囲の指し手しか採択しない。
 			デフォルトでは32000。(範囲の限度なし)
 		random_multi_pv_depth : random_multipvするときの探索深さ。指定しない場合、gensfenで指定したdepth。
+
+		use_eval_hash b : 同じ局面に遭遇したときのために評価値を保存しておく機能。
+			これをオンにすると、hash衝突したときに間違った局面の評価値を使ってしまうため、
+			オフにすることを推奨。ただし、eval_limitを32000などのように大きくとる場合、
+			間違った評価値でもいずれは新しい局面で上書きされるため、影響は軽微であるからオンのほうが良いかも。
+			(オンにしないと局面の生成が2割ぐらい遅くなりかねないので)
+			オンにするにはuse_eval_hash 1のようにbのところに1を指定する。オフにするには0を指定する。
+
+		save_every m : ファイルの分割保存オプション。
+			教師局面をmだけ書き出すごとにファイルに保存する。
+			AWSのspot instanceのterminate対策。
+			mは1万の倍数を指定する。端数は無視される。
+
+		random_file_name b : 生成されるファイル名をランダム化するオプション
+			random_file_name 1と指定すると有効。
+			random_file_name 0と指定すると無効。デフォルト、無効。
+			このオプションが有効だとoutput_file_nameで指定したファイル名にランダムな数字を結合する。
+			例) output_sfen_2549869
+			さらにsave_everyオプションと組み合わせると
+			例) output_sfen_2549869 , output_sfen_2549869_1 , output_sfen_2549869_2 , ..
+			のように連番で保存されていく。
+			※　AWSで複数インスタンスを立ち上げるときに、startupのスクリプトでgensfenコマンドを叩きたいときに
+			それぞれのインスタンスで出力ファイル名が違っていて欲しいため。
+
 
 ・教師局面から評価関数の学習
 
@@ -346,11 +388,61 @@ USIプロトコルの独自拡張コマンド
 			読み込み時に先読みでのシャッフルを行わない。
 			これを指定しないときは1000万局面ごとにシャッフルしながら読み込む。
 			(デフォルトではオフ)
+		lambda elmo(WCSC27)式を内分形式にしたときのlambda。
+			elmo(WCSC27)と同じにするには0.33を指定すれば良い。
+			参考)
+				grad = (1 - lambda) * (eval_winrate - t) + lambda * (eval_winrate - teacher_winrate);
+		lambda2 , lambda_limit
+			深い探索の評価値の絶対値がlambda_limit以上のときは、lambdaではなくlambda2のほうを適用する。
+			デフォルトではlambda_limit = 32000なのでlambda2が適用されることはない。
+
+		freeze_kk  bool : 
+		freeze_kkp bool : 
+		freeze_kpp bool :
+
+			KK,KKP,KPPのうち、KK/KKP/KPPを学習させないオプション。trueにするとその特徴因子は学習しない。
+			オンにするにはfreeze_kpp 1のように1を指定する。オフにするには0を指定する。
+
+			また、KKPP_KPPTのようなKKPPを持つ評価関数の場合、freeze_kkppというオプションが使える。
+			同様に、KPPP_KPPTのようなKPPPを持つ評価関数の場合、freeze_kpppというオプションが使える。
+
+		eta 学習率
+			AdaGradの学習率を設定する。30.0が標準的な学習率。
+			これを上げるとパラメーターの更新のときの一回の変化量が大きくなる。
+			(大きければ良いというわけでもない)
+			etaの代わりにeta1と指定しても良い。
+			また0を指定するとデフォルト値(30.0)になる。
+
+			etaを連続的に変化させるには、
+				eta1 0.01 eta2 500 eta1_epoch 100 eta3 30 eta2_epoch 500
+			のように指定する。
+
+			この場合、etaは0.01から始まり、epoch 100までに徐々に増加し、epoch 100で500になる。
+			そのあと、徐々に減り、epoch 500で30になる。そこ以降は30のまま。
+			eta1_epoch , eta2_epochを指定しなければこのような機能はオフになる。
+			たとえばeta2_epochを指定しない場合、eta3は無視される。
+
 
 		保存するフォルダは"EvalSaveDir"で指定したフォルダ。
 		デフォルトでは"evalsave"。このフォルダは事前に用意されているものとする。
 		このフォルダ配下にフォルダを"0/","1/",…のように自動的に掘り、そこに評価関数ファイルを保存する。
 		save_only_onceが指定されているときは、"0/","1/"のようなフォルダは掘らない。
+
+・教師局面の変換
+
+		cf. http://qhapaq.hatenablog.com/entry/2017/12/25/002820
+
+		簡単な説明) 「バイナリ形式」とは、 通常の教師局面形式。
+			「テキスト形式」とは、テキスト(sfenと何か)で書かれた教師局面形式。
+			詳しい形式については、learn.cppのconvert_plain()を見ればわかる。
+
+		learn convert_bin output_file_name [出力ファイル名] [入力ファイル名1] [入力ファイル名2]
+			入力ファイル名1,2,…で指定されたテキスト形式の教師局面を読み込み、出力ファイル名のファイルに
+			バイナリ形式で出力する。
+
+		learn convert_plain output_file_name [出力ファイル名] [入力ファイル名1] [入力ファイル名2]
+			入力ファイル名1,2,…で指定されたバイナリ形式の教師局面を読み込み、出力ファイル名のファイルに
+			テキスト形式で出力する。
 
 
 ・教師局面のシャッフル
@@ -375,7 +467,7 @@ USIプロトコルの独自拡張コマンド
 
 			buffer_size BUFFER_SIZE
 				シャッフルするときにテンポラリファイルはbuffer_size局面ずつtmp/フォルダにいったん書き出す。
-				例えば、buffer_size = 20Mならば 20M*40bytes = 800MBのバッファが必要。
+				例えば、buffer_size = 20000000 (20M)ならば 20M*40bytes = 800MBのバッファが必要。
 				メモリが少ないPCでは、ここを減らすと良いと思う。
 				ただし、あまりファイル数が増えるとOSの制限などから同時にopen出来なくなる。
 				Windowsだと1プロセス512という制約があったはずなので、ここでopen出来るのが500として、

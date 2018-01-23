@@ -1,13 +1,13 @@
 # > Select YaneuraOu edition below.
 
-YANEURAOU_EDITION = YANEURAOU_2017_EARLY_ENGINE
+YANEURAOU_EDITION = YANEURAOU_2018_OTAFUKU_ENGINE
 #YANEURAOU_EDITION = HELP_MATE_ENGINE
 #YANEURAOU_EDITION = MATE_ENGINE
 
 
 # clangでコンパイルしたほうがgccより数%速いっぽい。
-# COMPILER = g++
-COMPILER = clang++
+COMPILER = g++
+#COMPILER = clang++
 
 # 標準的なコンパイルオプション
 CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
@@ -70,7 +70,16 @@ LDFLAGS += -Wl,-s
 
 # OpenMPを使うときにCFLAGSとして指定するオプション
 # ※ 学習部ではOpenMpを用いるので、学習用のビルドではこのオプションを指定する。
-OPENMP   = -fopenmp
+# clangでOPENMPを有効にしてビルドする方法については、解説.txtを参照のこと。
+
+ifeq ($(findstring g++,$(COMPILER)),g++)
+        OPENMP   = -fopenmp
+        OPENMP_LDFLAGS =
+endif
+ifeq ($(findstring clang++,$(COMPILER)),clang++)
+        OPENMP   = -fopenmp
+        OPENMP_LDFLAGS = -lomp
+endif
 
 CFLAGS += -DNO_EXCEPTIONS
 LDFLAGS += -lpthread
@@ -89,6 +98,7 @@ SOURCES  = shogi.cpp                                                           \
 	usi.cpp                                                                    \
 	thread.cpp                                                                 \
 	tt.cpp                                                                     \
+	move_picker.cpp                                                            \
 	extra/book/apery_book.cpp                                                  \
 	extra/book/book.cpp                                                        \
 	extra/bitop.cpp                                                            \
@@ -97,7 +107,6 @@ SOURCES  = shogi.cpp                                                           \
 	extra/mate/mate1ply_with_effect.cpp                                        \
 	extra/mate/mate1ply_without_effect.cpp                                     \
 	extra/mate/mate_n_ply.cpp                                                  \
-	extra/move_picker/move_picker_2017Q2.cpp                                   \
 	extra/benchmark.cpp                                                        \
 	extra/test_cmd.cpp                                                         \
 	extra/timeman.cpp                                                          \
@@ -105,24 +114,34 @@ SOURCES  = shogi.cpp                                                           \
 	extra/sfen_packer.cpp                                                      \
 	extra/kif_converter/kif_convert_tools.cpp                                  \
 	eval/evaluate_bona_piece.cpp                                               \
-	eval/evaluate_kpp.cpp                                                      \
-	eval/evaluate_kppt.cpp                                                     \
+	eval/kppt/evaluate_kppt.cpp                                                \
+	eval/kppt/evaluate_kppt_learner.cpp                                        \
+	eval/kpp_kkpt/evaluate_kpp_kkpt.cpp                                        \
+	eval/kpp_kkpt/evaluate_kpp_kkpt_learner.cpp                                \
+	eval/kpppt/evaluate_kpppt.cpp                                              \
+	eval/kpppt/evaluate_kpppt_learner.cpp                                      \
+	eval/kppp_kkpt/evaluate_kppp_kkpt.cpp                                      \
+	eval/kppp_kkpt/evaluate_kppp_kkpt_learner.cpp                              \
+	eval/kkpp_kkpt/evaluate_kkpp_kkpt.cpp                                      \
+	eval/kkpp_kkpt/evaluate_kkpp_kkpt_learner.cpp                              \
+	eval/kkppt/evaluate_kkppt.cpp                                              \
+	eval/kkppt/evaluate_kkppt_learner.cpp                                      \
+	eval/kpp_kkpt_fv_var/evaluate_kpp_kkpt_fv_var.cpp                          \
+	eval/kpp_kkpt_fv_var/evaluate_kpp_kkpt_fv_var_learner.cpp                  \
 	eval/evaluate.cpp                                                          \
-	eval/evaluate_no_eval.cpp                                                  \
 	eval/evaluate_io.cpp                                                       \
-	eval/progress.cpp                                                          \
+	eval/evaluate_mir_inv_tools.cpp                                            \
 	engine/user-engine/user-search.cpp                                         \
 	engine/help-mate-engine/help-mate-search.cpp                               \
-	engine/2017-early-engine/2017-early-search.cpp                             \
+	engine/2018-otafuku-engine/2018-otafuku-search.cpp                         \
 	learn/learner.cpp                                                          \
 	learn/learning_tools.cpp                                                   \
-	learn/multi_think.cpp                                                      \
-	learn/evaluate_kppt_learn.cpp   
+	learn/multi_think.cpp
 
-#ifeq ($(YANEURAOU_EDITION),YANEURAOU_2017_GOKU_ENGINE)                        
-#	SOURCES += engine/2017-goku-engine/2017-goku-search.cpp                    \
-#	           eval/evaluate_ppap.cpp                                          
-#endif
+ifeq ($(YANEURAOU_EDITION),MATE_ENGINE)
+	SOURCES += engine/mate-engine/mate-search.cpp
+endif
+
 
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
 DEPENDS  = $(OBJECTS:.o=.d)
@@ -138,9 +157,9 @@ all: clean $(TARGET)
 
 # 学習用バイナリのときは、openmpを有効にする。
 evallearn:
-	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(LTOFLAGS)' $(TARGET)
 evallearn-sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 tournament:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi2 -mavx2 -DFOR_TOURNAMENT -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)

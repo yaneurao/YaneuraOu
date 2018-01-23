@@ -3,16 +3,17 @@
 
 docs/
 source/
-  2017-early-engine/            やねうら王2017 Ealryの探索部
-  check-shogi-engine/           やねうら王 王手将棋エディション探索部
-  local-game-server/            自動対局フレームワーク
-  user-engine/                  ユーザーが独自のエンジンを作るときの作業用フォルダ
+  engine/
+	2017-early-engine/          やねうら王2017 Ealryの探索部
+	local-game-server/          自動対局フレームワーク
+	user-engine/                ユーザーが独自のエンジンを作るときの作業用フォルダ
 						     
   shogi.h/.cpp                  コンパイル時の設定や、各種構造体の定義。
   bitboard.h/.cpp               Bitboard(盤面の駒のある場所や、ある駒による利きなどを表現するのに使う)
   evaluate.h/.cpp               評価関数
   misc.h/.cpp                   バージョン情報など
   movegen.cpp                   指し手生成器(おそらく世界最速)
+  move_picker.h/.cpp            指し手のオーダリング器
   position.h/.cpp               盤面クラス
   search.h/.cpp                 探索部
   thread.h/.cpp                 スレッド関係
@@ -39,13 +40,13 @@ source/
 	learn.h                     ここで学習関係のオプション設定を行なうことが出来る。
     learner.cpp                 棋譜自動生成等(あとで整理する予定)
 	multi_think.h/cpp           マルチスレッドで、Search::think関数を呼び出したいときに用いるthread worker
-	evaluate_kppt_learn.cpp     学習のときに(損失関数の勾配を計算するのに)用いるkppt評価関数。
 
   eval/
 	evaluate_no_eval.cpp        評価関数なしのときのダミーヘッダ
 	evaluate_material.cpp       駒割りに関する評価関数
     evaluate_bona_piece.cpp     BonaPieceを用いるときの共通ヘッダ
-	evaluate_kpp.cpp            KPP型の3駒の評価関数
+	kppt/						KPPT型の評価関数とその学習用
+	kpp_kkpt/					KPP_KKPT型の評価関数とその学習用
 	
 
 ■　解説記事等
@@ -408,7 +409,7 @@ Msys2環境下のgcc/clangで
 Ubuntu16.04、Mac OSでbuild出来ることも確認しました。
 
 やねうら王プロジェクトでは、local-game-server以外はWindows環境に依存するコードは混じっておらず、
-標準的なC++14コンパイラでコンパイル出来るはずです。
+標準的なC++11/c++14コンパイラでコンパイル出来るはずです。
 
 	
 
@@ -449,6 +450,7 @@ isreadyコマンドに対して評価関数ファイルを読み込むときに�
 	use shared eval memory.      →　EvalShareがオンになっていて、他に起動している同じバージョンのやねうら王がすでに存在したので
 	　　　　　　　　　　　　　　　　その共有メモリ上にある評価関数パラメーターを利用させてもらうことにした。
 
+
 ■　ShogiGUIの検討/棋譜解析モードで読み筋が途中までしか出力されない問題
 
 やねうら王、2017Early以降では、思考エンジン設定でPvIntervalを0にすればこの問題は解決されます。
@@ -456,11 +458,13 @@ isreadyコマンドに対して評価関数ファイルを読み込むときに�
 	go infinite
 で思考が開始されるはずで、このとき、PvIntervalを強制的に0にみなすようになっています。
 
+
 ■　エンジン名の偽装方法について
 
 GUIで連続対局をさせる場合など、エンジン名として任意の名前をつけたいことがあります。
 思考エンジンのあるフォルダに"engine_name.txt"というファイルを用意しておけば、
 そこに書かれている1行目の内容をエンジン名、2行目をエンジン作者名としてGUIに返します。
+
 
 ■　Aperyの定跡DB / まふ定跡の読み込みについて
 
@@ -506,6 +510,7 @@ book/book.bin
 以下では
 「Apery(WCSC27)で使われている評価関数ファイル」のことを"kppt16"と呼びます。
 「やねうら王2017Earlyで使われている評価関数ファイル」のことを"kppt32"と呼びます。
+「ponanza(WCSC26)で使われているらしい評価関数ファイル」のことを"kpp_kkpt32"と呼びます。
 
 これらの相互変換は "test evalconvert"というコマンドで行なうことが出来ます。
 
@@ -517,3 +522,36 @@ eval/elmo_apery27に格納されているkppt16の評価関数ファイルが、
 > test evalconvert kppt32 eval/elmo_yane27 kppt16 eval/elmo_apery27
 eval/elmo_yane27に格納されているkppt32の評価関数ファイルが、kppt16に変換されてeval/elmo_apery27に格納されます。
 出力先のフォルダが存在しない場合は自動的に作成されます。
+
+備考)
+	変換に際して、isreadyコマンドが走るので、このときに評価関数ファイルがEvalDirにないといけないが、
+	このファイルを用意できていなくて読み込みに失敗する場合は、SkipLoadingEval true
+	(これにより、ファイルがないときにゼロクリアされたファイルを読み込んだことにする)としてから、この"test evalconvert"コマンドを実行すると良い。
+	SkipLoadingEvalオプションは、EVAL_LEARNをdefineしてビルドした実行ファイルでのみ使える隠しコマンド。
+
+
+■　ゼロクリアされた評価関数ファイルの作り方
+
+色々作り方はあると思いますが、やねうら王のLEARN版を使えば、以下の手順で作れます。
+
+EvalDir xyz              // 存在しないフォルダを評価関数の読み込みフォルダに指定する
+SkipLoadingEval true     // こうしておけば評価関数ファイルの読み込みに失敗してもエラーにならない
+isready                  // このタイミングで評価関数が読み込まれるが存在しないフォルダから読み込むのでゼロクリアされた評価関数を読み込んだことになる。
+EvalSaveDir eval_zero    // 保存フォルダ名を"eval_zero"に設定(何でも良い)
+test evalsave            // メモリ上の評価関数を保存するコマンド
+
+これでeval_zeroフォルダにゼロクリアされた評価関数ファイルが保存されます。
+
+
+■　clangでlearn版(学習用)の実行ファイルのmakeが出来ない件
+
+Ubuntu 17.04,clang4では問題なくビルド出来るらしい。
+
+Msys2では、たまさんの情報によると…。
+
+  OpenMP部分がダイナミックライブラリになってしまいますが、以下の方法で動かせます。
+  １．LLVM4.0.1のWindows版をDLしてきて、適当なところにインストールする
+  ※ホントはソースからビルドすれば、全てをスタティックライブラリにできるのですが、LLVMのビルドを通すのは糸を針の穴に通すより難しいです。敷居はこれが一番低いです。
+  ２．（LLVMをインストールしたディレクトリ）/libにある「libomp.lib」をlibgomp.aが配置されているディレクトリに「libomp.a」としてコピーする→これがlibgomp.aの代わりになる
+  ３．exeの格納ディレクトリと同じところに（LLVMをインストールしたディレクトリ）/bin/libomp.dllをコピーする
+  これで動きます。が、libomp.dllを含めて配布するのは何かと問題になりそうです。あくまで解決の参考としてください。

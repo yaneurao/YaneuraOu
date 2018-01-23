@@ -1,25 +1,67 @@
-﻿#ifndef _KPPT_EVAL_SUM_H_
-#define _KPPT_EVAL_SUM_H_
+﻿#ifndef _EVAL_SUM_H_
+#define _EVAL_SUM_H_
 
 #include "../shogi.h"
 #include <array>
 
-// KPPTで使うためのヘルパクラス
+// KPPT,KPP_PPTで使うためのヘルパクラス
+// 手番つきの評価値の合計を計算するために用いる。
 
 namespace Eval {
 
 	// std::array<T,2>に対して 基本的な演算を提供する。
 	template <typename Tl, typename Tr>
 	FORCE_INLINE std::array<Tl, 2> operator += (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
-		lhs[0] += rhs[0];
-		lhs[1] += rhs[1];
+		lhs[0] += (Tl)rhs[0];
+		lhs[1] += (Tl)rhs[1];
 		return lhs;
 	}
 	template <typename Tl, typename Tr>
 	FORCE_INLINE std::array<Tl, 2> operator -= (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
-		lhs[0] -= rhs[0];
-		lhs[1] -= rhs[1];
+		lhs[0] -= (Tl)rhs[0];
+		lhs[1] -= (Tl)rhs[1];
 		return lhs;
+	}
+	template <typename Tl, typename Tr>
+	FORCE_INLINE bool operator == (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
+		return lhs[0] == rhs[0] && lhs[1] == rhs[1];
+	}
+	template <typename Tl, typename Tr>
+	FORCE_INLINE bool operator != (std::array<Tl, 2>& lhs, const std::array<Tr, 2>& rhs) {
+		return !(lhs == rhs);
+	}
+	template <typename Tl>
+	FORCE_INLINE std::array<Tl, 2> operator - (const std::array<Tl, 2>& rhs) {
+		std::array<Tl, 2> a;
+		a[0] = -rhs[0];
+		a[1] = -rhs[1];
+		return a;
+	}
+	template <typename Tl>
+	FORCE_INLINE std::array<Tl, 2> operator + (const std::array<Tl, 2>& lhs, const std::array<Tl, 2>& rhs) {
+		std::array<Tl, 2> tmp = lhs;
+		tmp += rhs;
+		return tmp;
+	}
+	template <typename Tl>
+	FORCE_INLINE std::array<Tl, 2> operator - (const std::array<Tl, 2>& lhs, const std::array<Tl, 2>& rhs) {
+		std::array<Tl, 2> tmp = lhs;
+		tmp -= rhs;
+		return tmp;
+	}
+	template <typename Tl>
+	FORCE_INLINE std::array<Tl, 2> operator * (const std::array<Tl, 2>& rhs, int n) {
+		std::array<Tl, 2> a;
+		a[0] = rhs[0] * n;
+		a[1] = rhs[1] * n;
+		return a;
+	}
+	template <typename Tl>
+	FORCE_INLINE std::array<Tl, 2> operator / (const std::array<Tl, 2>& rhs , int n) {
+		std::array<Tl, 2> a;
+		a[0] = rhs[0] / n;
+		a[1] = rhs[1] / n;
+		return a;
 	}
 
 	// 与えられたarrayが0ベクトルであるかどうかを判定する。
@@ -45,9 +87,9 @@ namespace Eval {
 	// に対して
 	// sum.p[0] = ΣBKKP
 	// sum.p[1] = ΣWKPP
-	// sum.p[2] = ΣKK
+	// sum.p[2] = ΣKK (or ΣPPなど)
 	// (それぞれに手番は加味されているものとする)
-	// sum.sum() == ΣBKPP - ΣWKPP + ΣKK
+	// sum.sum() == ΣBKPP - ΣWKPP + ΣKK (or ΣPPなど)
 
 	// EvalSumクラスは、コンストラクタでの初期化が保証できないので(オーバーヘッドがあるのでやりたくないので)
 	// GCC 7.1.0以降で警告が出るのを回避できない。ゆえに、このクラスではこの警告を抑制する。
@@ -85,11 +127,27 @@ namespace Eval {
 			// NDF(2014)の手番評価の手法。
 			// cf. http://www.computer-shogi.org/wcsc24/appeal/NineDayFever/NDF.txt
 
+#if defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
+			// p[0][1] = ΣBKPPP , p[1][1] = ΣWKPPPが入っているタイプのEvalSum
+			const int32_t scoreBoard = (p[0][0] + p[0][1]) - (p[1][0] + p[1][1]) + p[2][0];
+			// 手番に依存する評価値合計
+			const int32_t scoreTurn = p[2][1];
+
+#elif defined(EVAL_KPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)			
+
+			// p[0][1]とp[1][1]は使っていないタイプのEvalSum
+			const int32_t scoreBoard = p[0][0] - p[1][0] + p[2][0];
+			// 手番に依存する評価値合計
+			const int32_t scoreTurn = p[2][1];
+
+#else // EVAL_KPPT , EVAL_KKPPT などはこちら。
+
 			// 手番に依存しない評価値合計
 			// p[1][0]はΣWKPPなので符号はマイナス。
 			const int32_t scoreBoard = p[0][0] - p[1][0] + p[2][0];
 			// 手番に依存する評価値合計
 			const int32_t scoreTurn  = p[0][1] + p[1][1] + p[2][1];
+#endif
 
 			// この関数は手番側から見た評価値を返すのでscoreTurnは必ずプラス
 
@@ -146,7 +204,8 @@ namespace Eval {
 		void decode() { encode(); }
 
 		// 評価値が計算済みであるかを判定する。
-		// このEvalSumに値が入っていないときはp[0][0]をVALUE_NOT_EVALUATEDを設定することになっている。
+		// このEvalSumに値が入っていないときは、Position::do_move()にて
+		// p[0][0]にVALUE_NOT_EVALUATEDを設定することになっている。
 		bool evaluated() const { return p[0][0] != VALUE_NOT_EVALUATED; }
 
 		union {
@@ -174,11 +233,16 @@ namespace Eval {
 	// 出力用　デバッグ用。
 	static std::ostream& operator<<(std::ostream& os, const EvalSum& sum)
 	{
-		os << "sum BKPP = " << sum.p[0][0] << " + " << sum.p[0][1] << std::endl;
-		os << "sum WKPP = " << sum.p[1][0] << " + " << sum.p[1][1] << std::endl;
-		os << "sum KK   = " << sum.p[2][0] << " + " << sum.p[2][1] << std::endl;
+		os << "sum BKPP   = " << sum.p[0][0] << " + " << sum.p[0][1] << std::endl;
+		os << "sum WKPP   = " << sum.p[1][0] << " + " << sum.p[1][1] << std::endl;
+		os << "sum KK,KKP = " << sum.p[2][0] << " + " << sum.p[2][1] << std::endl;
 		return os;
 	}
+
+	// 比較演算子
+
+	static bool operator == (const EvalSum& lhs, const EvalSum rhs) { return lhs.p[0] == rhs.p[0] && lhs.p[1] == rhs.p[1] && lhs.p[2] == rhs.p[2]; }
+	static bool operator != (const EvalSum& lhs, const EvalSum rhs)	{ return !(lhs == rhs);	}
 
 #ifdef USE_EVAL_HASH
 	// シンプルなHashTableの実装。
@@ -207,6 +271,10 @@ namespace Eval {
 	// →　あまり変わらないし、メモリもったいないのでデフォルトでは↑の設定で良いか…。
 	// 1GB(魔女のAVX2の時の設定)
 	struct EvaluateHashTable : HashTable<EvalSum, 0x2000000> {};
+
+	// メモリが潤沢にあるならもっとメモリを確保したいのだが、
+	// VC++には配列合計が4GBという制約があり…。
+
 #endif
 
 	extern EvaluateHashTable g_evalTable;

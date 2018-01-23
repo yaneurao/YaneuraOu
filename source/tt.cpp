@@ -1,4 +1,5 @@
 ﻿#include "tt.h"
+#include "misc.h"
 
 TranspositionTable TT; // 置換表をglobalに確保。
 
@@ -27,7 +28,7 @@ void TranspositionTable::resize(size_t mbSize) {
 	{
 		std::cout << "info string Error : Failed to allocate " << mbSize
 			<< "MB for transposition table. ClusterCount = " << newClusterCount << std::endl;
-		exit(EXIT_FAILURE);
+		my_exit();
 	}
 
 	table = (Cluster*)((uintptr_t(mem) + CacheLineSize - 1) & ~(CacheLineSize - 1));
