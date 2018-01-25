@@ -172,7 +172,7 @@ namespace USI
 				ss << endl;
 
 			ss  << "info"
-				<< " depth "    << d
+				<< " depth "    << d / ONE_PLY
 				<< " seldepth " << rootMoves[i].selDepth
 				<< " score "    << USI::score_to_usi(v);
 
