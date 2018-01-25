@@ -1,6 +1,6 @@
 ﻿#include "../../shogi.h"
 
-#if defined (YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2017_GOKU_ENGINE)
+#if defined (YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE)
 
 // -----------------------
 //   やねうら王2018(otafuku)設定部
@@ -3155,4 +3155,4 @@ namespace Learner
 }
 #endif
 
-#endif // YANEURAOU_2017_GOKU_ENGINE
+#endif // YANEURAOU_2018_OTAFUKU_ENGINE || YANEURAOU_2018_GOKU_ENGINE
