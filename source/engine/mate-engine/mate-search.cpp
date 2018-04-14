@@ -253,6 +253,37 @@ namespace MateEngine
 			return;
 		}
 
+		auto draw_type = n.is_repetition(n.game_ply());
+		switch (draw_type) {
+		case REPETITION_WIN:
+			if (or_node) {
+				// ここは通らないはず
+				entry.pn = 0;
+				entry.dn = kInfinitePnDn;
+				entry.minimum_distance = std::min(entry.minimum_distance, depth);
+			}
+			else {
+				entry.pn = kInfinitePnDn;
+				entry.dn = 0;
+				entry.minimum_distance = std::min(entry.minimum_distance, depth);
+			}
+			return;
+		case REPETITION_LOSE:
+		case REPETITION_DRAW:
+			if (or_node) {
+				entry.pn = kInfinitePnDn;
+				entry.dn = 0;
+				entry.minimum_distance = std::min(entry.minimum_distance, depth);
+			}
+			else {
+				// ここは通らないはず
+				entry.pn = 0;
+				entry.dn = kInfinitePnDn;
+				entry.minimum_distance = std::min(entry.minimum_distance, depth);
+			}
+			return;
+		}
+
 		MovePicker move_picker(n, or_node);
 		if (move_picker.empty()) {
 			// nが先端ノード
