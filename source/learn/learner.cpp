@@ -2438,6 +2438,11 @@ void learn(Position&, istringstream& is)
 
 		// このフォルダを根こそぎ取る。base_dir相対にしておく。
 #if defined(_MSC_VER)
+		// std::tr2を使用するとwaring C4996が出るので抑制。
+		// ※　std::tr2は、std:c++14 の下では既定で非推奨の警告を出し、/std:c++17 では既定で削除された。
+		#pragma warning(push)
+		#pragma warning(disable:4996)
+
 		namespace sys = std::tr2::sys;
 		sys::path p(kif_base_dir); // 列挙の起点
 		std::for_each(sys::directory_iterator(p), sys::directory_iterator(),
@@ -2445,6 +2450,8 @@ void learn(Position&, istringstream& is)
 			if (sys::is_regular_file(p))
 				filenames.push_back(path_combine(target_dir, p.filename().generic_string()));
 		});
+		#pragma warning(pop)
+
 #elif defined(__GNUC__)
 
 		auto ends_with = [](std::string const & value, std::string const & ending)
