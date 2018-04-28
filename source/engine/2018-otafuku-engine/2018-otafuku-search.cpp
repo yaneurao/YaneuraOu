@@ -190,7 +190,12 @@ namespace YaneuraOu2018GOKU
 	// depthに基づく、historyとstatsのupdate bonus
 	int stat_bonus(Depth depth) {
 		int d = depth / ONE_PLY;
-		return d > 17 ? 0 : d * d + 2 * d - 2;
+		// Stockfish 9になって、move_picker.hのupdateで32倍していたのをやめたので、
+		// ここでbonusの計算のときに32倍しておくことになった。
+		return d > 17 ? 0 : 32 * d * d + 64 * d - 64;
+
+		// depth 17超えだとstat_bonusが0になるのたが、これが本当に良いのかどうかはよくわからない。
+		// TODO : 調整すべき
 	}
 
 	// -----------------------
@@ -1416,7 +1421,7 @@ namespace YaneuraOu2018GOKU
 		pvExact = PvNode && ttHit && tte->bound() == BOUND_EXACT;
 
 		// -----------------------
-		// Step 11. Loop through moves
+		// Step 12. Loop through moves
 		// -----------------------
 
 		//  一手ずつ調べていく
@@ -1480,12 +1485,14 @@ namespace YaneuraOu2018GOKU
 
 
 			// -----------------------
-			// Step 12. Singular and Gives Check Extensions.
+			// Step 13. Singular and Gives Check Extensions. : ~70 Elo
 			// -----------------------
 
 			// singular延長と王手延長。
 
 #if 1
+			// Singular extension search : ~60 Elo
+
 			// (alpha-s,beta-s)の探索(sはマージン値)において1手以外がすべてfail lowして、
 			// 1手のみが(alpha,beta)においてfail highしたなら、指し手はsingularであり、延長されるべきである。
 			// これを調べるために、ttMove以外の探索深さを減らして探索して、
@@ -1538,7 +1545,7 @@ namespace YaneuraOu2018GOKU
 				// dbg_hit_on(extension == ONE_PLY);
 			}
 
-			// 王手延長
+			// 王手延長 : ~2 Elo
 
 			// 王手となる指し手でSEE >= 0であれば残り探索深さに1手分だけ足す。
 			// また、moveCountPruningでない指し手(置換表の指し手とか)も延長対象。
@@ -1560,7 +1567,7 @@ namespace YaneuraOu2018GOKU
 			newDepth = depth - ONE_PLY + extension;
 
 			// -----------------------
-			// Step 13. Pruning at shallow depth
+			// Step 14. Pruning at shallow depth : ~170 Elo
 			// -----------------------
 
 			// 浅い深さでの枝刈り
@@ -1584,7 +1591,7 @@ namespace YaneuraOu2018GOKU
 					)
 				{
 
-					// Move countに基づいた枝刈り(futilityの亜種)
+					// Move countに基づいた枝刈り(futilityの亜種) : ~30 Elo
 
 					if (moveCountPruning)
 					{
@@ -1595,7 +1602,7 @@ namespace YaneuraOu2018GOKU
 					// 次のLMR探索における軽減された深さ
 					int lmrDepth = std::max(newDepth - reduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO) / ONE_PLY;
 
-					// Historyに基づいた枝刈り(historyの値が悪いものに関してはskip)
+					// Countermovesに基づいた枝刈り(historyの値が悪いものに関してはskip) : ~20 Elo
 
 					// 【計測資料 10.】historyに基づく枝刈りに、contHist[1],contHist[3]を利用するかどうか。
  					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH
@@ -1603,7 +1610,7 @@ namespace YaneuraOu2018GOKU
 						&& ((*contHist[1])[movedSq][movedPiece] < CounterMovePruneThreshold))
 						continue;
 
-					// Futility pruning: parent node
+					// Futility pruning: parent node : ~2 Elo
 					// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
 
 					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH
@@ -1614,7 +1621,7 @@ namespace YaneuraOu2018GOKU
 
 					// ※　このLMRまわり、棋力に極めて重大な影響があるので枝刈りを入れるかどうかを含めて慎重に調整すべき。
 
-					// Prune moves with negative SEE
+					// Prune moves with negative SEE : ~10 Elo
 					// SEEが負の指し手を枝刈り
 
 					// 将棋ではseeが負の指し手もそのあと詰むような場合があるから、あまり無碍にも出来ないようだが…。
@@ -1631,6 +1638,7 @@ namespace YaneuraOu2018GOKU
 				// 【計測資料 19.】 浅い深さでの枝刈りについて
 
 #if 0
+				// ~20 Elo
 				// 2017/04/17現在のStockfish相当。これだとR30ぐらい弱くなる。
 				else if (depth < 7 * ONE_PLY
 					&& !extension
@@ -1677,14 +1685,14 @@ namespace YaneuraOu2018GOKU
 			ss->contHistory = thisThread->contHistory[movedSq][movedPiece].get();
 
 			// -----------------------
-			// Step 14. Make the move
+			// Step 15. Make the move
 			// -----------------------
 
 			// 指し手で1手進める
 			pos.do_move(move, st, givesCheck);
 
 			// -----------------------
-			// // Step 15. Reduced depth search (LMR).
+			// Step 16. Reduced depth search (LMR).
 			// -----------------------
 
 			// depthを減らした探索。LMR(Late Move Reduction)
@@ -1699,7 +1707,7 @@ namespace YaneuraOu2018GOKU
 				// Reduction量
 				Depth r = reduction<PvNode>(improving, depth, moveCount);
 
-				if (captureOrPawnPromotion)
+				if (captureOrPawnPromotion) // ~5 Elo
 					r -= r ? ONE_PLY : DEPTH_ZERO;
 				else
 				{
@@ -1708,7 +1716,7 @@ namespace YaneuraOu2018GOKU
 
 					// 【計測資料 4.】相手のmoveCountが高いときにreductionを減らす
 #if 0
-					if ((ss - 1)->moveCount > 15)
+					if ((ss - 1)->moveCount > 15) // ~5 Elo
 						r -= ONE_PLY;
 #endif
 
@@ -1717,6 +1725,7 @@ namespace YaneuraOu2018GOKU
 					// 【計測資料 21.】pvExact時のreduction軽減
 
 #if 0
+					// ~0 Elo
 					if (pvExact)
 						r -= ONE_PLY;
 #endif
@@ -1726,6 +1735,7 @@ namespace YaneuraOu2018GOKU
 
 					// 【計測資料 3.】置換表の指し手がcaptureのときにreduction量を増やす。
 
+					// ~0 Elo
 					if (ttCapture)
 						r += ONE_PLY;
 
@@ -1736,6 +1746,7 @@ namespace YaneuraOu2018GOKU
 
 					// 【計測資料 18.】cut nodeのときにreductionを増やすかどうか。
 
+					// ~5 Elo
 					if (cutNode)
 						r += 2 * ONE_PLY;
 
@@ -1754,6 +1765,7 @@ namespace YaneuraOu2018GOKU
 					// 【計測資料 17.】捕獲から逃れる指し手はreduction量を減らす。
 
 #if 0
+					// ~5 Elo
 					else if (!is_drop(move) // type_of(move) == NORMAL
 						&& !pos.see_ge(make_move(to_sq(move), from_sq(move))))
 						r -= 2 * ONE_PLY;
@@ -1767,14 +1779,17 @@ namespace YaneuraOu2018GOKU
 								  - PARAM_REDUCTION_BY_HISTORY; // 修正項
 
 					// historyの値に応じて指し手のreduction量を増減する。
-
+					
 					// 【計測資料 1.】
+
+					// ~ 10 Elo
 					if (ss->statScore >= 0 && (ss - 1)->statScore < 0)
 						r -= ONE_PLY;
 
 					else if ((ss - 1)->statScore >= 0 && ss->statScore < 0)
 						r += ONE_PLY;
 
+					// ~30 Elo
 					r = std::max(DEPTH_ZERO, (r / ONE_PLY - ss->statScore / 20000) * ONE_PLY);
 				}
 
@@ -1799,7 +1814,7 @@ namespace YaneuraOu2018GOKU
 			}
 
 			// -----------------------
-			// Step 16. Full depth search when LMR is skipped or fails high
+			// Step 17. Full depth search when LMR is skipped or fails high
 			// -----------------------
 
 			// Full depth search。LMRがskipされたか、LMRにおいてfail highを起こしたなら元の探索深さで探索する。
@@ -1824,7 +1839,7 @@ namespace YaneuraOu2018GOKU
 			}
 
 			// -----------------------
-			// Step 17. Undo move
+			// Step 18. Undo move
 			// -----------------------
 
 			//      1手戻す
@@ -1834,7 +1849,7 @@ namespace YaneuraOu2018GOKU
 			ASSERT_LV3(-VALUE_INFINITE < value && value < VALUE_INFINITE);
 
 			// -----------------------
-			// Step 18. Check for a new best move
+			// Step 19. Check for a new best move
 			// -----------------------
 
 			// 指し手を探索するのを終了する。
@@ -1847,10 +1862,6 @@ namespace YaneuraOu2018GOKU
 			// -----------------------
 			//  root node用の特別な処理
 			// -----------------------
-
-			// StockfishにはStep 19.のコメントが抜けている。
-			// Step 19.は、かつてYBWC用のコードが書いてあったところで、LazySMPになり、YBWCの処理が完全に取り払われたのでStep 19.が欠番になった。
-			// YBWCが復活する可能性もなくはないので、番号を詰めることはしていない模様。
 
 			if (rootNode)
 			{
@@ -2005,7 +2016,6 @@ namespace YaneuraOu2018GOKU
 				bestValue >= beta ? BOUND_LOWER :
 				PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
 				depth, bestMove, ss->staticEval, TT_GEN(pos) );
-
 
 		// qsearch()内の末尾にあるassertの文の説明を読むこと。
 		ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);

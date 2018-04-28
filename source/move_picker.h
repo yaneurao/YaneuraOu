@@ -40,11 +40,10 @@ public:
 	}
 };
 
-/// Stats is a generic N-dimensional array used to store various statistics.
-/// The first template parameter T is the base type of the array, the second
-/// template parameter D limits the range of updates in [-D, D] when we update
-/// values with the << operator, while the last parameters (Size and Sizes)
-/// encode the dimensions of the array.
+/// Statsは、様々な統計情報を格納するために用いられる汎用的なN-次元配列である。
+/// 1つ目のtemplate parameterであるTは、配列の基本的な型を示し、2つ目の
+/// template parameterであるDは、<< operatorで値を更新するときに、値を[-D,D]の範囲に
+/// 制限する。最後のparameter(SizeとSizes)は、配列の次元に用いられる。
 template <typename T, int D, int Size, int... Sizes>
 struct Stats : public std::array<Stats<T, D, Sizes...>, Size>
 {

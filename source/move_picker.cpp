@@ -35,7 +35,7 @@ enum Stages: int {
 	QUIET_,						// CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す。SEE値の悪い手は後回し。
 	BAD_CAPTURE,				// 捕獲する悪い指し手(SEE < 0 の指し手だが、将棋においてそこまで悪い手とは限らないが…)
 
-	// 将棋ではBAD_CAPTURESをQUIETSの前にやったほうが良いという従来説は以下の実験データにより覆った。
+	// 将棋ではBAD_CAPTUREをQUIET_の前にやったほうが良いという従来説は以下の実験データにより覆った。
 	//  r300, 2585 - 62 - 2993(46.34% R - 25.46)[2016/08/19]
 	// b1000, 1051 - 43 - 1256(45.56% R - 30.95)[2016/08/19]
 
@@ -114,6 +114,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 }
 
 // 静止探索から呼び出される時用。
+// rs : recapture square
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh,
 						const CapturePieceToHistory* cph, Square rs)
 	: pos(p), mainHistory(mh), captureHistory(cph) , recaptureSquare(rs), depth(d) {
@@ -122,7 +123,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 	ASSERT_LV3(d <= DEPTH_ZERO);
 
 	// 王手がかかっているなら王手回避のフェーズへ。さもなくばQSEARCHのフェーズへ。
-	stage = (pos.in_check()) ? EVASION_TT : QSEARCH_TT;
+	stage = pos.in_check() ? EVASION_TT : QSEARCH_TT;
 
 	// 歩の不成、香の2段目への不成、大駒の不成を除外
 	ttMove =   ttm
@@ -256,7 +257,7 @@ Move MovePicker::next_move(bool skipQuiets) {
 top:
 	switch (stage)
 	{
-		// 置換表の指し手を返すフェーズ
+	// 置換表の指し手を返すフェーズ
 	case MAIN_TT:
 	case EVASION_TT:
 	case QSEARCH_TT:
@@ -264,7 +265,7 @@ top:
 		++stage;
 		return ttMove;
 
-		// 置換表の指し手を返したあとのフェーズ
+	// 置換表の指し手を返したあとのフェーズ
 	case CAPTURE_INIT:
 	case PROBCUT_INIT:
 	case QCAPTURE_INIT:
@@ -277,15 +278,15 @@ top:
 		++stage;
 		goto top;
 
-		// 置換表の指し手を返したあとのフェーズ
-		// (killer moveの前のフェーズなのでkiller除去は不要)
-		// SSEの値が悪いものはbad captureのほうに回す。
+	// 置換表の指し手を返したあとのフェーズ
+	// (killer moveの前のフェーズなのでkiller除去は不要)
+	// SSEの値が悪いものはbad captureのほうに回す。
 	case GOOD_CAPTURE:
 		if (select<Best>([&]() {
-			// moveは駒打ちではないからsee()の内部での駒打ちは判定不要だが…。
-			return pos.see_ge(move, Value(-55 * (cur - 1)->value / 1024)) ?
-				// 損をする捕獲する指し手はあとのほうで試行されるようにendBadCapturesに移動させる
-				true : (*endBadCaptures++ = move, false); }))
+				// moveは駒打ちではないからsee()の内部での駒打ちは判定不要だが…。
+				return pos.see_ge(move, Value(-55 * (cur - 1)->value / 1024)) ?
+						// 損をする捕獲する指し手はあとのほうで試行されるようにendBadCapturesに移動させる
+						true : (*endBadCaptures++ = move, false); }))
 			return move;
 
 			// refutations配列に対して繰り返すためにポインターを準備する。
@@ -294,7 +295,7 @@ top:
 
 			// countermoveがkillerと同じならばそれをskipする。
 			// ※　killer[]は32bit化されている(上位に移動後の駒が格納されている)と仮定している。
-			if (refutations[0].move == refutations[2].move
+			if (   refutations[0].move == refutations[2].move
 				|| refutations[1].move == refutations[2].move)
 				--endMoves;
 
@@ -309,13 +310,14 @@ top:
 		// 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
 		// pseudo_legalでない指し手以外に歩や大駒の不成なども除外
 		if (select<Next>([&]() { return    move != MOVE_NONE
-			&& !pos.capture_or_pawn_promotion(move)
-			&& pos.pseudo_legal_s<false>(move); }))
-
+										&& !pos.capture_or_pawn_promotion(move)
+										&&  pos.pseudo_legal_s<false>(move); }))
 			return move;
+
 		++stage;
 		/* fallthrough */
 
+	// 駒を捕獲しない指し手を生成してオーダリング
 	case QUIET_INIT:
 		cur = endBadCaptures;
 		endMoves = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, cur);
@@ -330,14 +332,14 @@ top:
 		++stage;
 		/* fallthrough */
 
-	// 捕獲しない指し手を返す。
+	// 駒を捕獲しない指し手を返す。
 	// (置換表の指し手とkillerの指し手は返したあとなのでこれらの指し手は除外する必要がある)
 	// ※　これ、指し手の数が多い場合、AVXを使って一気に削除しておいたほうが良いのでは..
 	case QUIET_:
-		if (!skipQuiets
+		if (   !skipQuiets
 			&& select<Next>([&]() {return  move != refutations[0]
-				&& move != refutations[1]
-				&& move != refutations[2]; }))
+										&& move != refutations[1]
+										&& move != refutations[2]; }))
 
 			return move;
 
@@ -349,11 +351,9 @@ top:
 		++stage;
 		/* fallthrough */
 
-		// see()が負の指し手を返す。
+	// see()が負の指し手を返す。
 	case BAD_CAPTURE:
 		return select<Next>(Any);
-
-		// ここでcaseのfall throughは終わり。
 
 	// 王手回避手の生成
 	case EVASION_INIT:
@@ -362,6 +362,7 @@ top:
 
 		// 王手を回避する指し手に対してオーダリングのためのスコアをつける
 		score<EVASIONS>();
+
 		++stage;
 		/* fallthrough */
 
@@ -378,12 +379,12 @@ top:
 	// 静止探索用の指し手を返す処理
 	case QCAPTURE_:
 		// depthがDEPTH_QS_RECAPTURES(-5)より深いなら、recaptureの升に移動する指し手のみを生成。
-		if (select<Best>([&]() { return   depth > DEPTH_QS_RECAPTURES
-								|| to_sq(move) == recaptureSquare; }))
+		if (select<Best>([&]() { return    depth > DEPTH_QS_RECAPTURES
+										|| to_sq(move) == recaptureSquare; }))
 			return move;
 
 		// 指し手がなくて、depthが0(DEPTH_QS_CHECKS)より深いなら、これで終了
-		// depthが0のときは特別に、王手になる指し手も試す。
+		// depthが0のときは特別に、王手になる指し手も試す。ただし、他にcaptureの指し手がないなら、王手も試さない。
 		if (depth != DEPTH_QS_CHECKS)
 			return MOVE_NONE;
 
@@ -402,7 +403,7 @@ top:
 
 	// 王手になる指し手を一手ずつ返すフェーズ
 	case QCHECK_:
-		//return select<Next>(Any);
+		// return select<Next>(Any);
 		return select<Next>([&]() { return !pos.pawn_promotion(move); });
 
 	default:
