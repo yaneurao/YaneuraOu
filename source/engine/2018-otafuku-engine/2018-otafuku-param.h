@@ -165,7 +165,7 @@ PARAM_DEFINE PARAM_IID_MARGIN_ALPHA = 251;
 // この値は、未使用。razoringはdepth < ONE_PLYでは行わないため。
 // 元の値 = 0
 // [PARAM] min:0,max:0,step:1,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_RAZORING_MARGIN1 = 483;
+PARAM_DEFINE PARAM_RAZORING_MARGIN1 = 0;
 
 // 以下、変更しても計測できるほどの差ではないようなので元の値にしておく。
 // 元の値 = 570

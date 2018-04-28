@@ -127,10 +127,10 @@ void USI::extra_option(USI::OptionsMap & o)
 }
 
 // -----------------------
-//   やねうら王2017(goku)探索部
+//   やねうら王2018(otafuku)探索部
 // -----------------------
 
-namespace YaneuraOu2017GOKU
+namespace YaneuraOu2018GOKU
 {
 
 	// 外部から調整される探索パラメーター
@@ -243,7 +243,7 @@ namespace YaneuraOu2017GOKU
 	template <NodeType NT>
 	Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode, bool skipEarlyPruning);
 
-	template <NodeType NT, bool InCheck>
+	template <NodeType NT>
 	Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth = DEPTH_ZERO);
 
 	// -----------------------
@@ -330,8 +330,7 @@ namespace YaneuraOu2017GOKU
 	// search()で残り探索深さが0以下になったときに呼び出される。
 	// (より正確に言うなら、残り探索深さがONE_PLY未満になったときに呼び出される)
 
-	// InCheck : 王手がかかっているか
-	template <NodeType NT, bool InCheck>
+	template <NodeType NT>
 	Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	{
 		// -----------------------
@@ -339,9 +338,8 @@ namespace YaneuraOu2017GOKU
 		// -----------------------
 
 		// PV nodeであるか。
-		const bool PvNode = NT == PV;
+		constexpr bool PvNode = NT == PV;
 
-		ASSERT_LV3(InCheck == !!pos.checkers());
 		ASSERT_LV3(-VALUE_INFINITE <= alpha && alpha < beta && beta <= VALUE_INFINITE);
 		ASSERT_LV3(PvNode || alpha == beta - 1);
 		ASSERT_LV3(depth <= DEPTH_ZERO);
@@ -352,24 +350,40 @@ namespace YaneuraOu2017GOKU
 		// (これnonPVでは不要なので、nonPVでは参照していないの削除される。)
 		Move pv[MAX_PLY + 1];
 
-		// 評価値の最大を求めるために必要なもの
-		Value bestValue;       // この局面での指し手のベストなスコア(alphaとは違う)
-		Move bestMove;         // そのときの指し手
-		Value oldAlpha;        // 関数が呼び出されたときのalpha値
-		Value futilityBase;    // futility pruningの基準となる値
+		// make_move()のときに必要
+		StateInfo st;
 
-		// hash key関係
-		TTEntry* tte;          // 置換表にhitしたときの置換表のエントリーへのポインタ
-		Key posKey;            // この局面のhash key
-		bool ttHit;            // 置換表にhitしたかのフラグ
-		Move ttMove;           // 置換表に登録されていた指し手
-		Value ttValue;         // 置換表に登録されていたスコア
-		Depth ttDepth;         // このnodeに関して置換表に登録するときの残り探索深さ
-		int moveCount;		   // このnodeで何手目の指し手であるか
+		// 置換表にhitしたときの置換表のエントリーへのポインタ
+		TTEntry* tte;
 
-		// 王手関係
-		bool givesCheck;       // MovePickerから取り出した指し手で王手になるか
+		// この局面のhash key
+		Key posKey;
+		
+		// ttMove			: 置換表に登録されていた指し手
+		// move				: MovePickerからもらった現在の指し手
+		// bestMove			: この局面でのベストな指し手
+		Move ttMove , move , bestMove;
 
+		// このnodeに関して置換表に登録するときのdepth(残り探索深さ)
+		Depth ttDepth;
+
+		// bestValue		: best moveに対する探索スコア(alphaとは異なる)
+		// value			: 現在のmoveに対する探索スコア
+		// ttValue			: 置換表に登録されていたスコア
+		// futilityValue	: futility pruningに用いるスコア
+		// futilityBase		: futility pruningの基準となる値
+		// oldAlpha			: この関数が呼び出された時点でのalpha値
+		Value bestValue , value , ttValue , futilityValue , futilityBase , oldAlpha;
+
+		// ttHit			: 置換表にhitしたかのフラグ
+		// inCheck			: この局面で王手がかかっているか
+		// givesCheck		: MovePickerから取り出した指し手で王手になるか
+		// evasionPrunable	: 枝刈り候補となる回避手であるか
+		bool ttHit , inCheck , givesCheck , evasionPrunable;
+
+		// このnodeで何手目の指し手であるか
+		int moveCount;
+		
 		// -----------------------
 		//     nodeの初期化
 		// -----------------------
@@ -387,11 +401,11 @@ namespace YaneuraOu2017GOKU
 			ss->pv[0] = MOVE_NONE;
 		}
 
-		ss->currentMove = bestMove = MOVE_NONE;
-
 		// rootからの手数
 		(ss + 1)->ply = ss->ply + 1;
 
+		ss->currentMove = bestMove = MOVE_NONE;
+		inCheck = pos.checkers();
 		moveCount = 0;
 
 		// -----------------------
@@ -409,7 +423,7 @@ namespace YaneuraOu2017GOKU
 
 		// 置換表に登録するdepthはあまりマイナスの値だとおかしいので、
 		// 王手がかかっているときは、DEPTH_QS_CHECKS(=0)、王手がかかっていないときはDEPTH_QS_NO_CHECKS(-1)とみなす。
-		ttDepth = InCheck || depth >= DEPTH_QS_CHECKS ? DEPTH_QS_CHECKS
+		ttDepth = inCheck || depth >= DEPTH_QS_CHECKS ? DEPTH_QS_CHECKS
 													  : DEPTH_QS_NO_CHECKS;
 
 		posKey = pos.key();
@@ -440,7 +454,7 @@ namespace YaneuraOu2017GOKU
 		//     eval呼び出し
 		// -----------------------
 
-		if (InCheck)
+		if (inCheck)
 		{
 
 			ss->staticEval = VALUE_NONE;
@@ -553,10 +567,6 @@ namespace YaneuraOu2017GOKU
 		// 静止探索の1つ目の深さではrecaptureを生成しないならこれは問題とならない。
 		MovePicker mp(pos, ttMove, depth, &pos.this_thread()->mainHistory , &pos.this_thread()->captureHistory , to_sq((ss - 1)->currentMove));
 
-		Move move;
-		Value value;
-		StateInfo st;
-
 		// このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
 		// evaluate()を呼び出していないなら呼び出しておく。
 		evaluate_with_no_return(pos);
@@ -582,13 +592,13 @@ namespace YaneuraOu2017GOKU
 			// 今回捕獲されるであろう駒による評価値の上昇分を
 			// 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
 
-			if (!InCheck
+			if (!inCheck
 				&& !givesCheck
 				&&  futilityBase > -VALUE_KNOWN_WIN)
 			{
 				// moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになるはず。
 				// 【計測資料 14.】 futility pruningのときにpromoteを考慮するかどうか。
-				Value futilityValue = futilityBase + (Value)CapturePieceValue[pos.piece_on(to_sq(move))]
+				futilityValue = futilityBase + (Value)CapturePieceValue[pos.piece_on(to_sq(move))]
 							   + (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(move_from(move))] : VALUE_ZERO);
 
 				// futilityValueは今回捕獲するであろう駒の価値の分を上乗せしているのに
@@ -624,12 +634,12 @@ namespace YaneuraOu2017GOKU
 
 			// 枝刈りの候補となりうる捕獲しない回避手を検出する。
 			// 【計測資料 2.】moveCountを利用するかしないか
-			bool evasionPrunable =  InCheck
+			evasionPrunable =  inCheck
 								&&  (depth != DEPTH_ZERO || moveCount > 2)
 								&&  bestValue > VALUE_MATED_IN_MAX_PLY
 								&& !pos.capture(move);
 
-			if ((!InCheck || evasionPrunable)
+			if ((!inCheck || evasionPrunable)
 				// 【計測資料 5.】!is_promote()と!pawn_promotion()との比較。
 #if 0
 				// Stockfish8相当のコード
@@ -656,10 +666,9 @@ namespace YaneuraOu2017GOKU
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
 
+			// 1手動かして、再帰的にqsearch()を呼ぶ
 			pos.do_move(move, st, givesCheck);
-			value = givesCheck ? -qsearch<NT, true >(pos, ss + 1, -beta, -alpha, depth - ONE_PLY)
-				               : -qsearch<NT, false>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
-
+			value = -qsearch<NT>(pos, ss + 1, -beta, -alpha, depth - ONE_PLY);
 			pos.undo_move(move);
 
 			ASSERT_LV3(-VALUE_INFINITE < value && value < VALUE_INFINITE);
@@ -702,7 +711,7 @@ namespace YaneuraOu2017GOKU
 		// どうせ指し手がないということだから、次にこのnodeに訪問しても、指し手生成後に詰みであることは
 		// わかるわけだし、そもそもこのnodeが詰みだとわかるとこのnodeに再訪問する確率は極めて低く、
 		// 置換表に保存しても得しない。
-		if (InCheck && bestValue == -VALUE_INFINITE)
+		if (inCheck && bestValue == -VALUE_INFINITE)
 		{
 			bestValue = mated_in(ss->ply); // rootからの手数による詰みである。
 
@@ -740,46 +749,19 @@ namespace YaneuraOu2017GOKU
 	template <NodeType NT>
 	Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode, bool skipEarlyPruning)
 	{
+		// 残り探索深さが1手未満であるなら静止探索を呼び出す
+		if (depth < ONE_PLY)
+			return qsearch<NT>(pos, ss, alpha, beta);
+
 		// -----------------------
 		//     nodeの種類
 		// -----------------------
 
 		// PV nodeであるか(root nodeはPV nodeに含まれる)
-		const bool PvNode = NT == PV;
+		constexpr bool PvNode = NT == PV;
 
 		// root nodeであるか
-		const bool RootNode = PvNode && ss->ply == 0;
-
-		// -----------------------
-		//     変数宣言
-		// -----------------------
-
-		// このnodeからのPV line(読み筋)
-		Move pv[MAX_PLY + 1];
-
-		// do_move()するときに必要
-		StateInfo st;
-
-		// MovePickerから1手ずつもらうときの一時変数
-		Move move;
-
-		// LMRのときにfail highが起きるなどしたので元の残り探索深さで探索することを示すフラグ
-		bool doFullDepthSearch;
-
-		// この局面でのベストのスコア
-		Value bestValue = -VALUE_INFINITE;
-
-		// search()の戻り値を受ける一時変数
-		Value value;
-
-		// この局面に対する評価値の見積り。
-		Value eval;
-
-		// -----------------------
-		// Step 1. Initialize node
-		// -----------------------
-
-		//     nodeの初期化
+		const bool rootNode = PvNode && ss->ply == 0;
 
 		ASSERT_LV3(-VALUE_INFINITE <= alpha && alpha < beta && beta <= VALUE_INFINITE);
 		ASSERT_LV3(PvNode || (alpha == beta - 1));
@@ -789,25 +771,104 @@ namespace YaneuraOu2017GOKU
 		// depthがONE_PLYの倍数であるかのチェック
 		ASSERT_LV3(depth / ONE_PLY * ONE_PLY == depth);
 
+		// -----------------------
+		//     変数宣言
+		// -----------------------
+
+		// このnodeからのPV line(読み筋)
+		Move pv[MAX_PLY + 1];
+
+		// 駒を捕獲する指し手(+歩の成り)
+		Move capturesSearched[32];
+
+		// 駒を捕獲しない指し手(-歩の成り)
+		// ここ、PARAM_QUIET_SEARCH_COUNTにしたいが、これは自動調整時はstatic変数なので指定できない。
+		Move quietsSearched[
+#if defined (USE_AUTO_TUNE_PARAMETERS) || defined(USE_RANDOM_PARAMETERS)
+			128
+#else
+			PARAM_QUIET_SEARCH_COUNT
+#endif
+		];
+
+		// do_move()するときに必要
+		StateInfo st;
+
+		// TTのprobe()の返し値
+		TTEntry* tte;
+
+		// このnodeのhash key
+		Key posKey;
+
+		// ttMove				: 置換表の指し手
+		// move					: MovePickerから1手ずつもらうときの一時変数
+		// excludedMove			: singular extemsionのときに除外する指し手
+		// bestMove				: このnodeのbest move
+		Move ttMove , move , excludedMove , bestMove;
+
+		// extension			: 延長する深さ
+		// newDepth				: 新しいdepth(残り探索深さ)
+		Depth extension, newDepth;
+
+		// bestValue			: このnodeのbestな探索スコア
+		// value				: 探索スコアを受け取る一時変数
+		// ttValue				: 置換表上のスコア
+		// eval					: このnodeの静的評価値(の見積り)
+		Value bestValue, value, ttValue, eval /*, maxValue */;
+
+		// ttHit				: 置換表がhitしたか
+		// inCheck				: このnodeで王手がかかっているのか
+		// givesCheck			: moveによって王手になるのか
+		// improving			: 直前のnodeから評価値が上がってきているのか
+
+		bool ttHit, inCheck, givesCheck, improving;
+
+		// captureOrPawnPromotion : moveが駒を捕獲する指し手もしくは歩を成る手であるか
+		// doFullDepthSearch	: LMRのときにfail highが起きるなどしたので元の残り探索深さで探索することを示すフラグ
+		// moveCountPruning		: moveCountによって枝刈りをするかのフラグ(quietの指し手を生成しない)
+		// skipQuiets			: quietの指し手を生成しない
+		// ttCapture			: 置換表の指し手がcaptureする指し手であるか
+		// pvExact				: PvNodeで置換表にhitして、しかもBOUND_EXACT
+		bool captureOrPawnPromotion, doFullDepthSearch, moveCountPruning, skipQuiets, ttCapture, pvExact;
+
+		// moveによって移動させる駒
+		Piece movedPiece;
+
+		// 調べた指し手を残しておいて、statsのupdateを行なうときに使う。
+		// moveCount			: 調べた指し手の数(合法手に限る)
+		// captureCount			: 調べた駒を捕獲する指し手の数(capturesSearched[]用のカウンター)
+		// quietCount			: 調べた駒を捕獲しない指し手の数(quietsSearched[]用のカウンター)
+		int moveCount, captureCount, quietCount;
+
+		// -----------------------
+		// Step 1. Initialize node
+		// -----------------------
+
+		//     nodeの初期化
+
 		Thread* thisThread = pos.this_thread();
+		inCheck = pos.checkers();
+		moveCount = captureCount = quietCount = ss->moveCount = 0;
+		bestValue = -VALUE_INFINITE;
+//		maxValue = VALUE_INFINITE;
+
+		//  Timerの監視
+
+		// これはメインスレッドのみが行なう。
+		if (thisThread == Threads.main())
+			static_cast<MainThread*>(thisThread)->check_time();
+
+		//  USIで出力するためのselDepthの更新
 
 		// seldepthをGUIに出力するために、PVnodeであるならmaxPlyを更新してやる。
 		if (PvNode && thisThread->selDepth < ss->ply + 1)
 			thisThread->selDepth = ss->ply + 1;
 
 		// -----------------------
-		//  Timerの監視
-		// -----------------------
-
-		// これはメインスレッドのみが行なう。
-		if (thisThread == Threads.main())
-			static_cast<MainThread*>(thisThread)->check_time();
-
-		// -----------------------
 		//  RootNode以外での処理
 		// -----------------------
 
-		if (!RootNode)
+		if (!rootNode)
 		{
 			// -----------------------
 			// Step 2. Check for aborted search and immediate draw
@@ -850,30 +911,24 @@ namespace YaneuraOu2017GOKU
 		//  探索Stackの初期化
 		// -----------------------
 
-		// historyの合計値を計算してcacheしておく用。
-		ss->statScore = 0;
-
 		// rootからの手数
 		ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
 		(ss + 1)->ply = ss->ply + 1;
 
-		ss->currentMove = MOVE_NONE;
+		ss->currentMove = (ss + 1)->excludedMove = bestMove = MOVE_NONE;
 		ss->contHistory = thisThread->contHistory[SQ_ZERO][NO_PIECE].get();
-
-		// ss->moveCountはこのあとMovePickerがこのnodeの指し手を生成するより前に
-		// 枝刈り等でsearch()を再帰的に呼び出すことがあり、そのときに親局面のmoveCountベースで
-		// 枝刈り等を行ないたいのでこのタイミングで初期化しなければならない。
-		// ss->moveCountではなく、moveCountのほうはMovePickerで指し手を生成するとき以降で良い。
-		ss->moveCount = 0;
-
-		// 1手先のexcludedMoveの初期化
-		(ss + 1)->excludedMove = MOVE_NONE;
 
 		// 2手先のkillerの初期化。
 		(ss + 2)->killers[0] = (ss + 2)->killers[1] = MOVE_NONE;
 
 		// 前の指し手で移動させた先の升目
 		Square prevSq = to_sq((ss - 1)->currentMove);
+
+		// statScoreを現nodeの孫nodeのためにゼロ初期化。
+		// statScoreは孫nodeの間でshareされるので、最初の孫だけがstatScore = 0で開始する。
+		// そのあと、孫は前の孫が計算したstatScoreから計算していく。
+		// このように計算された親局面のstatScoreは、LMRにおけるreduction rulesに影響を与える。
+		(ss + 2)->statScore = 0;
 
 		// -----------------------
 		// Step 4. Transposition table lookup.
@@ -883,33 +938,29 @@ namespace YaneuraOu2017GOKU
 		// 欲しくないので、excluded moveがある場合には異なる局面キーを用いる。
 
 		// このnodeで探索から除外する指し手。ss->excludedMoveのコピー。
-		Move excludedMove = ss->excludedMove;
+		excludedMove = ss->excludedMove;
 
-		Key posKey = pos.key();
+		// excludedMoveがある(singular extension時)は、異なるentryにアクセスするように。
+		posKey = pos.key() ^ Key(excludedMove << 16);
 
-		bool ttHit;    // 置換表がhitしたか
-
-		TTEntry* tte = TT.probe(posKey, ttHit
+		tte = TT.probe(posKey, ttHit
 #if defined(USE_GLOBAL_OPTIONS)
 			, pos.this_thread()->thread_id()
 #endif
 			);
 
-		// excludedMoveがある(singular extension時)は、ttValueとttMoveは無いものとして扱う。
-		// excludedMoveがあるときはfull depth searchしたときもsave()しないので置換表は破壊されない。
-
 		// 置換表上のスコア
 		// 置換表にhitしなければVALUE_NONE
 
-		Value ttValue = ttHit && !excludedMove ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
+		ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
 
 		// 置換表の指し手
 		// 置換表にhitしなければMOVE_NONE
 		// RootNodeであるなら、(MultiPVなどでも)現在注目している1手だけがベストの指し手と仮定できるから、
 		// それが置換表にあったものとして指し手を進める。
 
-		Move ttMove = RootNode ? thisThread->rootMoves[thisThread->PVIdx].pv[0]
-					: ttHit && !excludedMove ? pos.move16_to_move(tte->move()) : MOVE_NONE;
+		ttMove =  rootNode ? thisThread->rootMoves[thisThread->PVIdx].pv[0]
+				: ttHit    ? pos.move16_to_move(tte->move()) : MOVE_NONE;
 
 		// 置換表の値による枝刈り
 
@@ -976,6 +1027,10 @@ namespace YaneuraOu2017GOKU
 		//     宣言勝ち
 		// -----------------------
 
+		// Step 5. Tablebases probe
+		// chessだと終盤データベースというのがる。
+		// 将棋にはないが、将棋には宣言勝ちというのがある。
+
 		{
 			// 宣言勝ちの指し手が置換表上に登録されていることがある
 			// ただしPV nodeではこれを信用しない。
@@ -1009,9 +1064,6 @@ namespace YaneuraOu2017GOKU
 		//    1手詰みか？
 		// -----------------------
 
-		Move bestMove = MOVE_NONE;
-		const bool inCheck = pos.checkers();
-
 		if (PARAM_SEARCH_MATE1)
 		{
 			// RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
@@ -1019,7 +1071,7 @@ namespace YaneuraOu2017GOKU
 			// depthの残りがある程度ないと、1手詰めはどうせこのあとすぐに見つけてしまうわけで1手詰めを
 			// 見つけたときのリターン(見返り)が少ない。
 			// ただ、静止探索で入れている以上、depth == ONE_PLYでも1手詰めを判定したほうがよさげではある。
-			if (!RootNode && !ttHit && !inCheck)
+			if (!rootNode && !ttHit && !inCheck)
 			{
 				// 1手詰めは入れたほうがよさげ。
 				// play_time = b1000, 1471 - 57 - 1472(49.98% R - 0.12) [2016/08/19]
@@ -1059,7 +1111,7 @@ namespace YaneuraOu2017GOKU
 		}
 
 		// -----------------------
-		// Step 5. Evaluate the position statically
+		// Step 6. Evaluate the position statically
 		// -----------------------
 
 		//  局面を評価値によって静的に評価
@@ -1069,6 +1121,7 @@ namespace YaneuraOu2017GOKU
 
 		// 【計測資料 23.】moves_loopに入る前に毎回evaluate()を呼ぶかどうか。
 
+		// どうせ差分計算のためにevaluate()は呼び出す必要がある。
 		ss->staticEval = eval = evaluate(pos);
 
 		if (inCheck)
@@ -1077,6 +1130,7 @@ namespace YaneuraOu2017GOKU
 			// このnodeでは評価値を用いないであろうから、置換表にこのnodeの評価値があることに意味がない。
 
 			ss->staticEval = eval = VALUE_NONE;
+			improving = false;
 			goto moves_loop;
 
 		}
@@ -1086,7 +1140,6 @@ namespace YaneuraOu2017GOKU
 
 			//if ((ss->staticEval = eval = tte->eval()) == VALUE_NONE)
 			//	eval = ss->staticEval = evaluate(pos);
-
 
 			// 置換表にhitしたなら、評価値が記録されているはずだから、それを取り出しておく。
 			// あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
@@ -1126,6 +1179,16 @@ namespace YaneuraOu2017GOKU
 			// 実行したという証にはなるので意味がある。
 		}
 
+		// 評価値が2手前の局面から上がって行っているのかのフラグ
+		// 上がって行っているなら枝刈りを甘くする。
+		// ※ VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
+		//   枝刈りを甘くして調べないといけないのでimproving扱いとする。
+		improving = ss->staticEval >= (ss - 2)->staticEval
+			//			  || ss->staticEval == VALUE_NONE
+			// この条件は一つ上の式に暗黙的に含んでいる。
+			// ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはないので。
+			|| (ss - 2)->staticEval == VALUE_NONE;
+
 		// このnodeで指し手生成前の枝刈りを省略するなら指し手生成ループへ。
 		if (skipEarlyPruning)
 			goto moves_loop;
@@ -1138,7 +1201,7 @@ namespace YaneuraOu2017GOKU
 		// 王手のときはここにはこない。(上のinCheckのなかでMOVES_LOOPに突入。)
 
 		// -----------------------
-		// Step 6. Razoring (skipped when in check)
+		// Step 7. Razoring (skipped when in check) : ~2 Elo
 		// -----------------------
 
 		//  Razoring (王手がかかっているときはスキップする)
@@ -1156,18 +1219,18 @@ namespace YaneuraOu2017GOKU
 				// しかしそれは前提条件として満たしているので結局、ここでは単にqsearch()を
 				// 呼び出して良いように思う。
 				)
-				return qsearch<NonPV, false>(pos, ss, alpha, alpha + 1);
+				return qsearch<NonPV>(pos, ss, alpha, alpha + 1);
 
 			// 残り探索深さが1～3手ぐらいあるときに、alpha - razor_marginを上回るかだけ調べて
 			// 上回りそうにないならもうリターンする。
 			Value ralpha = alpha - razor_margin[depth/ONE_PLY];
-			Value v = qsearch<NonPV, false>(pos, ss, ralpha, ralpha + 1);
+			Value v = qsearch<NonPV>(pos, ss, ralpha, ralpha + 1);
 			if (v <= ralpha)
 				return v;
 		}
 
 		// -----------------------
-		// Step 7. Futility pruning: child node (skipped when in check)
+		// Step 8. Futility pruning: child node (skipped when in check) : ~30 Elo
 		// -----------------------
 
 		//   Futility pruning : 子ノード (王手がかかっているときはスキップする)
@@ -1177,7 +1240,7 @@ namespace YaneuraOu2017GOKU
 		// ただし、将棋の終盤では評価値の変動の幅は大きくなっていくので、進行度に応じたfutility_marginが必要となる。
 		// ここでは進行度としてgamePly()を用いる。このへんはあとで調整すべき。
 
-		if (   !RootNode
+		if (   !rootNode
 			&&  depth < PARAM_FUTILITY_RETURN_DEPTH * ONE_PLY
 			&&  eval - futility_margin(depth) >= beta
 			&&  eval < VALUE_KNOWN_WIN) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
@@ -1187,7 +1250,7 @@ namespace YaneuraOu2017GOKU
 		// cf. Simplify futility pruning return value : https://github.com/official-stockfish/Stockfish/commit/f799610d4bb48bc280ea7f58cd5f78ab21028bf5
 
 		// -----------------------
-		// Step 8. Null move search with verification search (is omitted in PV nodes)
+		// Step 9. Null move search with verification search (is omitted in PV nodes) : ~40 Elo
 		// -----------------------
 
 		//  検証用の探索つきのnull move探索。PV nodeではやらない。
@@ -1210,8 +1273,8 @@ namespace YaneuraOu2017GOKU
 			pos.do_null_move(st);
 
 			//  王手がかかっているときはここに来ていないのでqsearchはinCheck == falseのほうを呼ぶ。
-			Value nullValue = depth - R < ONE_PLY ? -qsearch<NonPV, false>(pos, ss + 1, -beta, -beta + 1)
-												  : - search<NonPV       >(pos, ss + 1, -beta, -beta + 1, depth - R, !cutNode,true);
+			Value nullValue = depth - R < ONE_PLY ? -qsearch<NonPV>(pos, ss + 1, -beta, -beta + 1)
+												  : - search<NonPV>(pos, ss + 1, -beta, -beta + 1, depth - R, !cutNode,true);
 			pos.undo_null_move();
 
 			if (nullValue >= beta)
@@ -1227,8 +1290,8 @@ namespace YaneuraOu2017GOKU
 					return nullValue;
 
 				// nullMoveせずに(現在のnodeと同じ手番で)同じ深さで探索しなおして本当にbetaを超えるか検証する。cutNodeにしない。
-				Value v = depth - R < ONE_PLY ? qsearch<NonPV, false>(pos, ss, beta - 1, beta)
-											  :  search<NonPV       >(pos, ss, beta - 1, beta, depth - R, false , true);
+				Value v = depth - R < ONE_PLY ? qsearch<NonPV>(pos, ss, beta - 1, beta)
+											  :  search<NonPV>(pos, ss, beta - 1, beta, depth - R, false , true);
 
 				if (v >= beta)
 					return nullValue;
@@ -1236,7 +1299,7 @@ namespace YaneuraOu2017GOKU
 		}
 
 		// -----------------------
-		// Step 9. ProbCut (skipped when in check)
+		// Step 10. ProbCut (skipped when in check) : ~10 Elo
 		// -----------------------
 
 		// ProbCut(王手のときはスキップする)
@@ -1278,7 +1341,7 @@ namespace YaneuraOu2017GOKU
 		}
 
 		// -----------------------
-		// Step 10. Internal iterative deepening (skipped when in check)
+		// Step 11. Internal iterative deepening (skipped when in check) : ~2 Elo
 		// -----------------------
 
 		// 多重反復深化 (王手のときはこの処理はスキップする)
@@ -1306,18 +1369,8 @@ namespace YaneuraOu2017GOKU
 		// 王手がかかっている局面では、探索はここから始まる。
 	moves_loop:
 
-		// 評価値が2手前の局面から上がって行っているのかのフラグ
-		// 上がって行っているなら枝刈りを甘くする。
-		// ※ VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
-		//   枝刈りを甘くして調べないといけないのでimproving扱いとする。
-		bool improving = ss->staticEval >= (ss - 2)->staticEval
-		//			  || ss->staticEval == VALUE_NONE
-		// この条件は一つ上の式に暗黙的に含んでいる。
-		// ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはないので。
-					  || (ss - 2)->staticEval == VALUE_NONE;
-
 		// singular延長をするnodeであるか。
-		bool singularExtensionNode = !RootNode
+		bool singularExtensionNode = !rootNode
 			&&  depth >= PARAM_SINGULAR_EXTENSION_DEPTH * ONE_PLY
 			&&  ttMove != MOVE_NONE
 			&&  ttValue != VALUE_NONE // 詰み絡みのスコアであってもsingular extensionはしたほうが良いらしい。
@@ -1328,61 +1381,39 @@ namespace YaneuraOu2017GOKU
 		// (そうでないとsingularの指し手以外に他の有望な指し手がないかどうかを調べるために
 		// null window searchするときに大きなコストを伴いかねないから。)
 
-		//
-		// 調べた指し手を残しておいて、statsのupdateを行なうときに使う。
-		//
-
-		// 駒を捕獲する指し手(+歩の成り)
-		Move capturesSearched[32];
-		int captureCount = 0;
-
-		// 駒を捕獲しない指し手(-歩の成り)
-		// ここ、PARAM_QUIET_SEARCH_COUNTにしたいが、これは自動調整時はstatic変数なので指定できない。
-		Move quietsSearched[
-#if defined (USE_AUTO_TUNE_PARAMETERS) || defined(USE_RANDOM_PARAMETERS)
-			128
-#else
-			PARAM_QUIET_SEARCH_COUNT
-#endif
-		];
-		int quietCount = 0;
-
-		// このnodeでdo_move()された合法手の数
-		int moveCount = 0;
-
 		// このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
 		// evaluate()を呼び出していないなら呼び出しておく。
-		// ss->staticEvalに代入するとimprovingの判定間違うのでそれはしないほうがよさげ。
-		evaluate_with_no_return(pos);
-
-		Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
-
-		// (ss - 1)->currentMove == MOVE_NONEである可能性はある。
-		// move_piece_after()を用いると、そのとき、prevPc == NO_PIECEになり、うまく動作する。
-		Move countermove = thisThread->counterMoves[prevSq][prevPc];
+		// evaluate_with_no_return(pos);
+		// →　ここに来るまでに呼び出しているはず…。
 
 		// contHist[0]  = Counter Move History    : ある指し手が指されたときの応手
 		// contHist[1]  = Follow up Move History  : 2手前の自分の指し手の継続手
 		// contHist[3]  = Follow up Move History2 : 4手前からの継続手
 		const PieceToHistory* contHist[] = { (ss - 1)->contHistory, (ss - 2)->contHistory, nullptr, (ss - 4)->contHistory };
+
+		// (ss - 1)->currentMove == MOVE_NONEである可能性はある。
+		// move_piece_after()を用いると、そのとき、prevPc == NO_PIECEになり、うまく動作する。
+		Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
+		Move countermove = thisThread->counterMoves[prevSq][prevPc];
+
 		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory, &thisThread->captureHistory , contHist, countermove, ss->killers);
 
 #if defined(__GNUC__)
-		// g++でコンパイルするときにvalueが未初期化かも知れないという警告が出るのでその回避策。
+		// gccでコンパイルするときにvalueが未初期化かも知れないという警告が出るのでその回避策。
 		value = bestValue;
 #endif
 
 		// 指し手生成のときにquietの指し手を省略するか。
-		bool skipQuiets = false;
+		skipQuiets = false;
 
 		// 置換表の指し手がcaptureOrPromotionであるか。
 		// 置換表の指し手がcaptureOrPromotionなら高い確率でこの指し手がベストなので、他の指し手を
 		// そんなに読まなくても大丈夫。なので、このnodeのすべての指し手のreductionを増やす。
 		// ※　この判定、whileループのなかではなく、ここでやってしまったほうが良いような気が少しする。
-		bool ttCapture = false;
+		ttCapture = false;
 
 		// PV nodeで、置換表にhitして、その内容がBOUND_EXACTであるなら、reduction量を減らす。(もっと先まで読めるので読んだほうが良いはず！)
-		bool pvExact = PvNode && ttHit && tte->bound() == BOUND_EXACT;
+		pvExact = PvNode && ttHit && tte->bound() == BOUND_EXACT;
 
 		// -----------------------
 		// Step 11. Loop through moves
@@ -1400,7 +1431,7 @@ namespace YaneuraOu2017GOKU
 				continue;
 
 			// root nodeでは、rootMoves()の集合に含まれていない指し手は探索をスキップする。
-			if (RootNode && !std::count(thisThread->rootMoves.begin() + thisThread->PVIdx,
+			if (rootNode && !std::count(thisThread->rootMoves.begin() + thisThread->PVIdx,
 										thisThread->rootMoves.end(), move))
 				continue;
 
@@ -1412,7 +1443,7 @@ namespace YaneuraOu2017GOKU
 			// Stockfish本家のこの読み筋の出力、細かすぎるので時間をロスする。しないほうがいいと思う。
 #if 0
 			// 3秒以上経過しているなら現在探索している指し手をGUIに出力する。
-			if (RootNode && !Limits.silent && thisThread == Threads.main() && Time.elapsed() > 3000)
+			if (rootNode && !Limits.silent && thisThread == Threads.main() && Time.elapsed() > 3000)
 				sync_cout << "info depth " << depth / ONE_PLY
 				<< " currmove " << move
 				<< " currmovenumber " << moveCount + thisThread->PVIdx << sync_endl;
@@ -1430,21 +1461,21 @@ namespace YaneuraOu2017GOKU
 			// Extend checks
 			//
 
-			Depth extension = DEPTH_ZERO;
+			extension = DEPTH_ZERO;
 
 			// 指し手で捕獲する指し手、もしくは歩の成りである。
 			// 【検証資料 12.】extend checksのときのcaptureOrPawnPromotionをどう扱うか。
-			bool captureOrPawnPromotion = pos.capture_or_pawn_promotion(move);
+			captureOrPawnPromotion = pos.capture_or_pawn_promotion(move);
 
 			// 今回移動させる駒(移動後の駒。駒打ちの場合は区別する)
-			Piece movedPiece = pos.moved_piece_after(move);
+			movedPiece = pos.moved_piece_after(move);
 
 			// 今回の指し手で王手になるかどうか
-			bool givesCheck = pos.gives_check(move);
+			givesCheck = pos.gives_check(move);
 
 			// move countベースの枝刈りを実行するかどうかのフラグ
 
-			bool moveCountPruning = depth < PARAM_PRUNING_BY_MOVE_COUNT_DEPTH * ONE_PLY
+			moveCountPruning = depth < PARAM_PRUNING_BY_MOVE_COUNT_DEPTH * ONE_PLY
 								&&  moveCount >= FutilityMoveCounts[improving][depth / ONE_PLY];
 
 
@@ -1526,7 +1557,7 @@ namespace YaneuraOu2017GOKU
 
 			// 再帰的にsearchを呼び出すとき、search関数に渡す残り探索深さ。
 			// これはsingluar extensionの探索が終わってから決めなければならない。(singularなら延長したいので)
-			Depth newDepth = depth - ONE_PLY + extension;
+			newDepth = depth - ONE_PLY + extension;
 
 			// -----------------------
 			// Step 13. Pruning at shallow depth
@@ -1538,7 +1569,7 @@ namespace YaneuraOu2017GOKU
 			// この指し手による駒の移動先の升。historyの値などを調べたいのでいま求めてしまう。
 			Square movedSq = to_sq(move);
 
-			if (  !RootNode
+			if (  !rootNode
 #if 0
 				// 【計測資料 7.】 浅い深さでの枝刈りを行なうときに王手がかかっていないことを条件に入れる/入れない
 				&& !inCheck
@@ -1630,7 +1661,7 @@ namespace YaneuraOu2017GOKU
 
 			// legal()のチェック。root nodeだとlegal()だとわかっているのでこのチェックは不要。
 			// 非合法手はほとんど含まれていないからこの判定はdo_move()の直前まで遅延させたほうが得。
-			if (!RootNode && !pos.legal(move))
+			if (!rootNode && !pos.legal(move))
 			{
 				// 足してしまったmoveCountを元に戻す。
 				ss->moveCount = --moveCount;
@@ -1775,24 +1806,20 @@ namespace YaneuraOu2017GOKU
 
 			// ※　静止探索は残り探索深さはDEPTH_ZEROとして開始されるべきである。(端数があるとややこしいため)
 			if (doFullDepthSearch)
-				value = newDepth < ONE_PLY ?
-					givesCheck ? -qsearch<NonPV,  true>(pos, ss + 1, -(alpha + 1), -alpha)
-							   : -qsearch<NonPV, false>(pos, ss + 1, -(alpha + 1), -alpha)
-							   :  -search<NonPV       >(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode , false);
+				value = newDepth < ONE_PLY ? -qsearch<NonPV>(pos, ss + 1, -(alpha + 1), -alpha)
+										   : - search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode , false);
 
 			// PV nodeにおいては、full depth searchがfail highしたならPV nodeとしてsearchしなおす。
 			// ただし、value >= betaなら、正確な値を求めることにはあまり意味がないので、これはせずにbeta cutしてしまう。
-			if (PvNode && (moveCount == 1 || (value > alpha && (RootNode || value < beta))))
+			if (PvNode && (moveCount == 1 || (value > alpha && (rootNode || value < beta))))
 			{
 				// 次のnodeのPVポインターはこのnodeのpvバッファを指すようにしておく。
 				(ss + 1)->pv = pv;
 				(ss + 1)->pv[0] = MOVE_NONE;
 
 				// full depthで探索するときはcutNodeにしてはいけない。
-				value = newDepth < ONE_PLY  ?
-								givesCheck  ? -qsearch<PV,  true>(pos, ss + 1, -beta, -alpha)
-											: -qsearch<PV, false>(pos, ss + 1, -beta, -alpha)
-											: - search<PV       >(pos, ss + 1, -beta, -alpha, newDepth, false , false);
+				value = newDepth < ONE_PLY  ? -qsearch<PV>(pos, ss + 1, -beta, -alpha)
+											: - search<PV>(pos, ss + 1, -beta, -alpha, newDepth, false , false);
 
 			}
 
@@ -1825,7 +1852,7 @@ namespace YaneuraOu2017GOKU
 			// Step 19.は、かつてYBWC用のコードが書いてあったところで、LazySMPになり、YBWCの処理が完全に取り払われたのでStep 19.が欠番になった。
 			// YBWCが復活する可能性もなくはないので、番号を詰めることはしていない模様。
 
-			if (RootNode)
+			if (rootNode)
 			{
 				RootMove& rm = *std::find(thisThread->rootMoves.begin(),
 									  thisThread->rootMoves.end(), move);
@@ -1874,7 +1901,7 @@ namespace YaneuraOu2017GOKU
 					bestMove = move;
 
 					// fail-highのときにもPVをupdateする。
-					if (PvNode && !RootNode)
+					if (PvNode && !rootNode)
 						update_pv(ss->pv, move, (ss + 1)->pv);
 
 					// alpha値を更新したので更新しておく
@@ -1909,7 +1936,7 @@ namespace YaneuraOu2017GOKU
 				// 探索した駒を捕獲しない指し手を64手目までquietsSearchedに登録しておく。
 				// あとでhistoryなどのテーブルに加点/減点するときに使う。
 
-				if (!captureOrPawnPromotion && move != bestMove && quietCount < PARAM_QUIET_SEARCH_COUNT)
+				if (!captureOrPawnPromotion && quietCount < PARAM_QUIET_SEARCH_COUNT)
 					quietsSearched[quietCount++] = move;
 			}
 		}
@@ -1949,7 +1976,7 @@ namespace YaneuraOu2017GOKU
 			// 【計測資料 16.】quietな指し手に対するhistory update
 
 			if ((ss - 1)->moveCount == 1 && !pos.captured_piece())
-				update_continuation_histories(ss - 1, pos.moved_piece_after((ss - 1)->currentMove), prevSq, -stat_bonus(depth + ONE_PLY));
+				update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_bonus(depth + ONE_PLY));
 		}
 
 		// bestMoveがない == fail lowしているケース。
@@ -1960,7 +1987,7 @@ namespace YaneuraOu2017GOKU
 		else if (   depth >= 3 * ONE_PLY
 				&& !pos.captured_piece()
 				&& is_ok((ss - 1)->currentMove))
-			update_continuation_histories(ss - 1, pos.moved_piece_after((ss - 1)->currentMove), prevSq, stat_bonus(depth));
+			update_continuation_histories(ss - 1, pos.piece_on(prevSq) , prevSq, stat_bonus(depth));
 
 		// -----------------------
 		//  置換表に保存する
@@ -1987,7 +2014,7 @@ namespace YaneuraOu2017GOKU
 	}
 }
 
-using namespace YaneuraOu2017GOKU;
+using namespace YaneuraOu2018GOKU;
 
 // --- 以下に好きなように探索のプログラムを書くべし。
 
@@ -2451,7 +2478,7 @@ void Thread::search()
 
 			while (true)
 			{
-				bestValue = YaneuraOu2017GOKU::search<PV>(rootPos, ss, alpha, beta, rootDepth, false, false);
+				bestValue = YaneuraOu2018GOKU::search<PV>(rootPos, ss, alpha, beta, rootDepth, false, false);
 
 				// それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
 				// 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
@@ -3058,11 +3085,7 @@ namespace Learner
 			return ValueAndPV(mated_in(/*ss->ply*/ 0 + 1), pvs);
 		}
 			
-		// 現局面で王手がかかっているかで場合分け。
-		const bool inCheck = pos.in_check();
-		auto bestValue = inCheck ?
-			YaneuraOu2017GOKU::qsearch<PV, true >(pos, ss, -VALUE_INFINITE, VALUE_INFINITE) :
-			YaneuraOu2017GOKU::qsearch<PV, false>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE);
+		auto bestValue = YaneuraOu2018GOKU::qsearch<PV>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE);
 
 		// 得られたPVを返す。
 		for (Move* p = &ss->pv[0]; is_ok(*p) ; ++p)
@@ -3149,7 +3172,7 @@ namespace Learner
 				// aspiration search
 				while (true)
 				{
-					bestValue = YaneuraOu2017GOKU::search<PV>(pos, ss, alpha, beta, rootDepth, false , false);
+					bestValue = YaneuraOu2018GOKU::search<PV>(pos, ss, alpha, beta, rootDepth, false , false);
 
 					stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
 					//my_stable_sort(pos.this_thread()->thread_id(),&rootMoves[0] + PVIdx, rootMoves.size() - PVIdx);
