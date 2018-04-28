@@ -453,6 +453,7 @@ enum Piece : uint32_t
 	// --- 特殊な定数
 
 	PIECE_PROMOTE = 8, // 成り駒と非成り駒との差(この定数を足すと成り駒になる)
+	PIECE_TYPE_NB = 16,// 駒種の数。(成りを含める)
 	PIECE_WHITE = 16,  // これを先手の駒に加算すると後手の駒になる。
 	PIECE_RAW_NB = 8,  // 非成駒の終端
 

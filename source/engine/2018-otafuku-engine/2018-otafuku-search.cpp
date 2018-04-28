@@ -250,20 +250,46 @@ namespace YaneuraOu2017GOKU
 	//     Statsのupdate
 	// -----------------------
 
-	// update_continuation_histories()は、countermoveとfollow-up move historyを更新する。
-	void update_continuation_histories(Stack* ss, Piece pc, Square s, int bonus)
+	// update_continuation_histories()は、1,2,4手前の指し手と現在の指し手との指し手ペアによって
+	// contHistoryを更新する。
+	// 1手前に対する現在の指し手 ≒ counterMove  (応手)
+	// 2手前に対する現在の指し手 ≒ followupMove (継続手)
+	// 4手前に対する現在の指し手 ≒ followupMove (継続手)
+	void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus)
 	{
 		for (int i : { 1, 2, 4})
 			if (is_ok((ss - i)->currentMove))
-				(ss - i)->contHistory->update(pc, s, bonus);
+				(*(ss - i)->contHistory)[to][pc] << bonus;
 	}
 
-	// いい探索結果だったときにkiller等を更新する
+	// update_capture_stats()は、新しいcapture best move(駒を捕獲するbest move)が見つかったときに
+	// move sorting heuristicsを更新する。
+	
+	void update_capture_stats(const Position& pos, Move move,
+							  Move* captures, int captureCnt, int bonus) {
+
+		CapturePieceToHistory& captureHistory = pos.this_thread()->captureHistory;
+		Piece moved_piece = pos.moved_piece_after(move);
+		Piece captured = type_of(pos.piece_on(to_sq(move)));
+		captureHistory[to_sq(move)][moved_piece][captured] << bonus;
+
+		// 他の試行されたすべてのcapture moves(のstat tableのentryの値)を減らす
+		for (int i = 0; i < captureCnt; ++i)
+		{
+			moved_piece = pos.moved_piece_after(captures[i]);
+			captured = type_of(pos.piece_on(to_sq(captures[i])));
+			captureHistory[to_sq(captures[i])][moved_piece][captured] << -bonus;
+		}
+	}
+
+
+	// update_quiet_stats()は、新しいbest moveが見つかったときにmove soring heuristicsを更新する。
+	// 具体的には駒を取らない指し手のstat tables、killer等を更新する。
 
 	// move      = これが良かった指し手
 	// quiets    = 悪かった指し手(このnodeで生成した指し手)
 	// quietsCnt = ↑の数
-	inline void update_stats(const Position& pos, Stack* ss, Move move,
+	inline void update_quiet_stats(const Position& pos, Stack* ss, Move move,
 				Move* quiets, int quietsCnt, int bonus)
 	{
 		//   killerのupdate
@@ -276,26 +302,23 @@ namespace YaneuraOu2017GOKU
 		}
 
 		//   historyのupdate
-		Color c = pos.side_to_move();
+		Color us = pos.side_to_move();
 
 		Thread* thisThread = pos.this_thread();
-		thisThread->mainHistory.update(c, move, bonus);
+		thisThread->mainHistory[from_to(move)][us] << bonus;
 		update_continuation_histories(ss, pos.moved_piece_after(move), to_sq(move), bonus);
 
 		if (is_ok((ss - 1)->currentMove))
 		{
 			// 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
 			Square prevSq = to_sq((ss - 1)->currentMove);
-
-			// moved_piece_after(..)のところはpos.piece_on(prevSq)でも良いが、
-			// Moveのなかに移動後の駒が格納されているからそれを取り出して使う。
-			thisThread->counterMoves[prevSq][pos.moved_piece_after((ss - 1)->currentMove)] = move;
+			thisThread->counterMoves[prevSq][pos.piece_on(prevSq)] = move;
 		}
 
 		// その他のすべてのquiet movesを減少させる。
 		for (int i = 0; i < quietsCnt; ++i)
 		{
-			thisThread->mainHistory.update(c, quiets[i], -bonus);
+			thisThread->mainHistory[from_to(quiets[i])][us] << -bonus;
 			update_continuation_histories(ss, pos.moved_piece_after(quiets[i]), to_sq(quiets[i]), -bonus);
 		}
 	}
@@ -384,10 +407,10 @@ namespace YaneuraOu2017GOKU
 		//     置換表のprobe
 		// -----------------------
 
-		// 置換表に登録するdepthは、あまりマイナスの値が登録されてもおかしいので、
-		// 王手がかかっているときは、DEPTH_QS_CHECKS(=0)、王手がかかっていないときはDEPTH_QS_NO_CHECKSの深さとみなす。
+		// 置換表に登録するdepthはあまりマイナスの値だとおかしいので、
+		// 王手がかかっているときは、DEPTH_QS_CHECKS(=0)、王手がかかっていないときはDEPTH_QS_NO_CHECKS(-1)とみなす。
 		ttDepth = InCheck || depth >= DEPTH_QS_CHECKS ? DEPTH_QS_CHECKS
-			: DEPTH_QS_NO_CHECKS;
+													  : DEPTH_QS_NO_CHECKS;
 
 		posKey = pos.key();
 		tte = TT.probe(posKey, ttHit
@@ -493,6 +516,7 @@ namespace YaneuraOu2017GOKU
 					                                   : -(ss - 1)->staticEval + 2 * PARAM_EVAL_TEMPO;
 #else
 				// search()のほうの結果から考えると長い持ち時間では、ここ、きちんと評価したほうが良いかも。
+				// TODO : きちんと計測する。
 				ss->staticEval = bestValue = evaluate(pos);
 #endif
 			}
@@ -506,6 +530,7 @@ namespace YaneuraOu2017GOKU
 				if (!ttHit)
 					tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_LOWER,
 						DEPTH_NONE, MOVE_NONE, ss->staticEval, TT_GEN(pos) );
+
 				return bestValue;
 			}
 
@@ -526,10 +551,10 @@ namespace YaneuraOu2017GOKU
 		// 取り合いの指し手だけ生成する
 		// searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうるが、
 		// 静止探索の1つ目の深さではrecaptureを生成しないならこれは問題とならない。
-		MovePicker mp(pos, ttMove, depth, &pos.this_thread()->mainHistory, to_sq((ss - 1)->currentMove));
+		MovePicker mp(pos, ttMove, depth, &pos.this_thread()->mainHistory , &pos.this_thread()->captureHistory , to_sq((ss - 1)->currentMove));
+
 		Move move;
 		Value value;
-
 		StateInfo st;
 
 		// このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
@@ -833,7 +858,7 @@ namespace YaneuraOu2017GOKU
 		(ss + 1)->ply = ss->ply + 1;
 
 		ss->currentMove = MOVE_NONE;
-		ss->contHistory = &thisThread->counterMoveHistory[SQ_ZERO][NO_PIECE];
+		ss->contHistory = thisThread->contHistory[SQ_ZERO][NO_PIECE].get();
 
 		// ss->moveCountはこのあとMovePickerがこのnodeの指し手を生成するより前に
 		// 枝刈り等でsearch()を再帰的に呼び出すことがあり、そのときに親局面のmoveCountベースで
@@ -908,12 +933,11 @@ namespace YaneuraOu2017GOKU
 				{
 					// 【計測資料 8.】 capture()とcaputure_or_pawn_promotion()の比較
 #if 1
-					// Stockfish相当のコード
 					if (!pos.capture(ttMove))
 #else
 					if (!pos.capture_or_pawn_promotion(ttMove))
 #endif
-						update_stats(pos, ss, ttMove, nullptr, 0, stat_bonus(depth));
+						update_quiet_stats(pos, ss, ttMove, nullptr, 0, stat_bonus(depth));
 
 					// 反駁された1手前の置換表のquietな指し手に対する追加ペナルティを課す。
 					// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
@@ -940,7 +964,7 @@ namespace YaneuraOu2017GOKU
 #endif
 				{
 					int penalty = -stat_bonus(depth);
-					thisThread->mainHistory.update(pos.side_to_move(), ttMove, penalty);
+					thisThread->mainHistory[from_to(ttMove)][pos.side_to_move()] << penalty;
 					update_continuation_histories(ss, pos.moved_piece_after(ttMove), to_sq(ttMove), penalty);
 				}
 			}
@@ -1181,7 +1205,7 @@ namespace YaneuraOu2017GOKU
 				+ std::min((int)((eval - beta) / PawnValue), 3)) * ONE_PLY;
 
 			ss->currentMove = MOVE_NONE;
-			ss->contHistory = &thisThread->counterMoveHistory[SQ_ZERO][NO_PIECE];
+			ss->contHistory = thisThread->contHistory[SQ_ZERO][NO_PIECE].get();
 
 			pos.do_null_move(st);
 
@@ -1233,7 +1257,7 @@ namespace YaneuraOu2017GOKU
 			ASSERT_LV3(is_ok((ss - 1)->currentMove));
 
 			// rbeta - ss->staticEvalを上回るcaptureの指し手のみを生成。
-			MovePicker mp(pos, ttMove, rbeta - ss->staticEval);
+			MovePicker mp(pos, ttMove, rbeta - ss->staticEval , &thisThread->captureHistory);
 
 			while ((move = mp.next_move()) != MOVE_NONE)
 			{
@@ -1242,7 +1266,7 @@ namespace YaneuraOu2017GOKU
 				if (pos.legal(move))
 				{
 					ss->currentMove = move;
-					ss->contHistory = &thisThread->counterMoveHistory[to_sq(move)][pos.moved_piece_after(move)];
+					ss->contHistory = thisThread->contHistory[to_sq(move)][pos.moved_piece_after(move)].get();
 
 					pos.do_move(move, st, pos.gives_check(move));
 					value = -search<NonPV>(pos, ss + 1, -rbeta, -rbeta + 1, rdepth, !cutNode,false);
@@ -1304,7 +1328,15 @@ namespace YaneuraOu2017GOKU
 		// (そうでないとsingularの指し手以外に他の有望な指し手がないかどうかを調べるために
 		// null window searchするときに大きなコストを伴いかねないから。)
 
-		// 調べた指し手を残しておいて、statusのupdateを行なうときに使う。
+		//
+		// 調べた指し手を残しておいて、statsのupdateを行なうときに使う。
+		//
+
+		// 駒を捕獲する指し手(+歩の成り)
+		Move capturesSearched[32];
+		int captureCount = 0;
+
+		// 駒を捕獲しない指し手(-歩の成り)
 		// ここ、PARAM_QUIET_SEARCH_COUNTにしたいが、これは自動調整時はstatic変数なので指定できない。
 		Move quietsSearched[
 #if defined (USE_AUTO_TUNE_PARAMETERS) || defined(USE_RANDOM_PARAMETERS)
@@ -1333,7 +1365,7 @@ namespace YaneuraOu2017GOKU
 		// contHist[1]  = Follow up Move History  : 2手前の自分の指し手の継続手
 		// contHist[3]  = Follow up Move History2 : 4手前からの継続手
 		const PieceToHistory* contHist[] = { (ss - 1)->contHistory, (ss - 2)->contHistory, nullptr, (ss - 4)->contHistory };
-		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory, contHist, countermove, ss->killers);
+		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory, &thisThread->captureHistory , contHist, countermove, ss->killers);
 
 #if defined(__GNUC__)
 		// g++でコンパイルするときにvalueが未初期化かも知れないという警告が出るのでその回避策。
@@ -1611,7 +1643,7 @@ namespace YaneuraOu2017GOKU
 
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
-			ss->contHistory = &thisThread->counterMoveHistory[movedSq][movedPiece];
+			ss->contHistory = thisThread->contHistory[movedSq][movedPiece].get();
 
 			// -----------------------
 			// Step 14. Make the move
@@ -1868,12 +1900,18 @@ namespace YaneuraOu2017GOKU
 				}
 			}
 
-			// 探索した指し手を64手目までquietsSearchedに登録しておく。
-			// あとでhistoryなどのテーブルに加点/減点するときに使う。
+			if (move != bestMove)
+			{
+				// 探索した駒を捕獲する指し手を32手目まで
+				if (captureOrPawnPromotion && captureCount < 32)
+					capturesSearched[captureCount++] = move;
 
-			if (!captureOrPawnPromotion && move != bestMove && quietCount < PARAM_QUIET_SEARCH_COUNT)
-				quietsSearched[quietCount++] = move;
+				// 探索した駒を捕獲しない指し手を64手目までquietsSearchedに登録しておく。
+				// あとでhistoryなどのテーブルに加点/減点するときに使う。
 
+				if (!captureOrPawnPromotion && move != bestMove && quietCount < PARAM_QUIET_SEARCH_COUNT)
+					quietsSearched[quietCount++] = move;
+			}
 		}
 		// end of while
 
@@ -1896,10 +1934,14 @@ namespace YaneuraOu2017GOKU
 		{
 			// quietな(駒を捕獲しない)best moveなのでkillerとhistoryとcountermovesを更新する。
 
-			// 【計測資料 13.】quietな指し手に対するupdate_stats
+			// 【計測資料 13.】quietな指し手に対するupdate_quiet_stats
+
+			// TODO:ここ、elseでupdate_capture_stats()するようになったので、計測しなおす。
 
 			if (!pos.capture_or_pawn_promotion(bestMove))
-				update_stats(pos, ss, bestMove, quietsSearched, quietCount, stat_bonus(depth));
+				update_quiet_stats(pos, ss, bestMove, quietsSearched, quietCount, stat_bonus(depth));
+			else
+				update_capture_stats(pos, bestMove, capturesSearched, captureCount, stat_bonus(depth));
 
 			// 反駁された1手前の置換表のquietな指し手に対する追加ペナルティを課す。
 			// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
@@ -2306,7 +2348,7 @@ void Thread::search()
 
 	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
 	for (int i = 4; i > 0; i--)
-		(ss - i)->contHistory = &this->counterMoveHistory[SQ_ZERO][NO_PIECE];
+		(ss - i)->contHistory = this->contHistory[SQ_ZERO][NO_PIECE].get();
 
 	// 反復深化のiterationが浅いうちはaspiration searchを使わない。
 	// 探索窓を (-VALUE_INFINITE , +VALUE_INFINITE)とする。
@@ -2966,7 +3008,7 @@ namespace Learner
 			// th->clear();
 
 			for (int i = 4; i > 0; i--)
-				(ss - i)->contHistory = &th->counterMoveHistory[SQ_ZERO][NO_PIECE];
+				(ss - i)->contHistory = th->contHistory[SQ_ZERO][NO_PIECE].get();
 
 			// rootMovesの設定
 			auto& rootMoves = th->rootMoves;

@@ -32,14 +32,15 @@ void Thread::clear()
 {
 	counterMoves.fill(MOVE_NONE);
 	mainHistory.fill(0);
+	captureHistory.fill(0);
 
 	// ここは、未初期化のときに[SQ_ZERO][NO_PIECE]を指すので、ここを-1で初期化しておくことによって、
 	// history > 0 を条件にすれば自ずと未初期化のときは除外されるようになる。
-	for (auto& to : counterMoveHistory)
+	for (auto& to : contHistory)
 		for (auto& h : to)
-			h.fill(0);
+			h.get()->fill(0);
 
-	counterMoveHistory[SQ_ZERO][NO_PIECE].fill(Search::CounterMovePruneThreshold - 1);
+	contHistory[SQ_ZERO][NO_PIECE].get()->fill(Search::CounterMovePruneThreshold - 1);
 }
 
 void Thread::start_searching()
