@@ -10,21 +10,14 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 
 # お知らせ
 
-- SDT5(第5回 将棋電王トーナメント)のため、10月1日～11月12日はプルリクエストが処理できません。
-- SDT5直前は大改造をすることがあるので、動作等が安定していない可能性が高いです。(現状、V4.76が安定)
+WCSC28に向けて探索部のアップデート作業中です。
+
+# やねうら王エンジンの大会での戦績
+
+2017年 世界コンピュータ将棋選手権(WCSC27) 『elmo』優勝
+2017年 第5回将棋電王トーナメント(SDT5) 『平成将棋合戦ぽんぽこ』優勝
 
 # 現在進行中のサブプロジェクト
-
-## やねうら王2017 Early
-
-2017年5月5日完成。この思考エンジンを用いたelmoがWCSC27で優勝しました。elmo(WCSC27)や蒼天幻想ナイツ・オブ・タヌキ(WCSC27出場)の評価関数を用いるとXeon 24コアでR4000程度の模様。
-
-- 思考エンジン本体のダウンロードは[こちら](https://github.com/yaneurao/YaneuraOu/releases/)
-
-## やねうら王2017 GOKU : SDT5に『極やねうら王』として出場。
-
-2017年11月の第5回将棋電王トーナメントに参加してきました。(探索部の強さ、前バージョンからあまり変わらず)　Apery(SDT5)などの評価関数を用いるとXeon 24コアでR4200程度の模様。
-
 
 ## やねうら王2018 OTAFUKU (やねうら王2018 with お多福ラボ)
 
@@ -36,7 +29,6 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 《tanuki-さんが開発中》
 
 長手数の詰将棋が解けるsolverです。
-
 
 # 過去のサブプロジェクト
 
