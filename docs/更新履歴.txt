@@ -2,7 +2,47 @@
 やねうら王 更新履歴
 
 
-■　2018/04/28 V4.81
+■　2018/04/30 V4.82
+
+- ProbCutのパラメーター導入
+	- PARAM_PROBCUT_MARGIN1 , PARAM_PROBCUT_MARGIN2
+- ProbCutのマージン、手で調整する。
+	PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 194 + 16/2;
+	PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 48/2;
+- NUMA環境のマルチスレッド対策。
+	- 8スレッド未満だと異なるNUMAに割り振られることがあり、パフォーマンス激減するのでその回避策。
+	- Upon changing the number of threads, make sure all threads are bound : https://github.com/official-stockfish/Stockfish/commit/1c50d8cbf554733c0db6ab423b413d75cc0c1928
+- gccだとconstexprをつけたところでエラーになっていたのを修正。
+- V4.82リリース
+	engine1 = YaneuraOu-2018-OtafukuV480.exe , eval = Apery20171111
+	engine2 = YaneuraOu-2018-OtafukuV482.exe , eval = Apery20171111
+	T1,b1000,435 - 25 - 540(44.62% R-37.56) win black : white = 49.33% : 50.67%
+	T1,b2000,440 - 31 - 499(46.86% R-21.86) win black : white = 54.42% : 45.58%
+	T1,b4000,209 - 19 - 232(47.39% R-18.14) win black : white = 51.93% : 48.07%
+	T1,b8000,86 - 12 - 112(43.43% R-45.89) win black : white = 46.97% : 53.03%
+	T2,b2000,93 - 11 - 126(42.47% R-52.76) win black : white = 55.71% : 44.29%
+	// 時間なくてこれだけしか計測できていないが、V4.80と比べて弱くはなさそうなのでこれをV4.82とする。
+
+
+■　2018/04/29
+
+- futility_marginの計算にimproving導入。
+- futility_marginのパラメーターの値、変更。143→172
+- ProbCutにimproving導入
+- ProbCutの指し手の試行回数を3回に制限
+- Singular Extensionのコード、少し整理
+- IIDの条件式単純化
+	- Simplifiy IID condition : https://github.com/official-stockfish/Stockfish/commit/d6252ef202f43d42d05b80145f3014da4d22863e
+- "PARAM_IID_MARGIN_ALPHA"削除
+- Singular Extensionのフラグ変数削除
+	- Simplify Singular Extension condition : https://github.com/official-stockfish/Stockfish/commit/0cfb653eeca1bc44b9d331498a9ccb3e9b97a9c1
+- 置換表をcallocではなくmallocで確保するように変更。
+	- Explicitly zero TT upon resize. : https://github.com/official-stockfish/Stockfish/commit/2ba47416cbdd5db2c7c79257072cd8675b61721f
+- shogi.hなどの定数、可能なところはconstexprに変更。0.2%ぐらい速くなったかも。(計測誤差？)
+	- Use constexpr when makes sense : https://github.com/official-stockfish/Stockfish/commit/28b6a457c24d9202ba43a6d6703221250f0f8749
+
+
+■　2018/04/28 V4.81 (V4.80から+R15～25程度)
 
 - stat_bonus 32倍するの忘れてた。これで元の強さぐらいになった。
 - 探索部に、Eloに関するコメント追加。(これはStockfish 9のソースコードのそのまま)
