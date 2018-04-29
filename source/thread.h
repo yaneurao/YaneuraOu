@@ -158,25 +158,21 @@ struct MainThread: public Thread
 
 // 思考で用いるスレッドの集合体
 // 継承はあまり使いたくないが、for(auto* th:Threads) ... のようにして回せて便利なのでこうしてある。
+//
+// このクラスにコンストラクタとデストラクタは存在しない。
+// Threads(スレッドオブジェクト)はglobalに配置するし、スレッドの初期化の際には
+// スレッドが保持する思考エンジンが使う変数等がすべてが初期化されていて欲しいからである。
+// スレッドの生成はset(options["Threads"])で行い、スレッドの終了はset(0)で行なう。
 struct ThreadPool: public std::vector<Thread*>
 {
-	// このクラスにコンストラクタとデストラクタは存在しない。
-
-	// Threads(スレッドオブジェクト)はglobalに配置するし、スレッドの初期化の際には
-	// スレッドが保持する思考エンジンが使う変数等がすべてが初期化されていて欲しいからである。
-
-	// 起動時に一度だけ呼び出す。そのときにMainThreadが生成される。
-	// requested : 生成するスレッドの数(MainThreadも含めて数える)
-	// スレッド数が変更になったときは、set()のほうを呼び出すこと。
-	void init(size_t requested);
-
-	// 終了時に呼び出される
-	void exit();
-
 	// mainスレッドに思考を開始させる。
 	void start_thinking(const Position& pos, StateListPtr& states , const Search::LimitsType& limits , bool ponderMode = false);
 
+	// set()で生成したスレッドの初期化
+	void clear();
+
 	// スレッド数を変更する。
+	// 終了時は明示的にset(0)として呼び出すこと。(すべてのスレッドの終了を待つ必要があるため)
 	void set(size_t requested);
 
 	// mainスレッドを取得する。これはthis[0]がそう。

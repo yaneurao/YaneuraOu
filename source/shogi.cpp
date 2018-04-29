@@ -220,7 +220,7 @@ int main(int argc, char* argv[])
 	Bitboards::init();
 	Position::init();
 	Search::init();
-	Threads.init(Options["Threads"]);
+	Threads.set(Options["Threads"]);
 	TT.resize(Options["Hash"]);
 	Eval::init();
 
@@ -228,7 +228,7 @@ int main(int argc, char* argv[])
 	USI::loop(argc, argv);
 
 	// 生成して、待機させていたスレッドの停止
-	Threads.exit();
+	Threads.set(0);
 
 	return 0;
 }
