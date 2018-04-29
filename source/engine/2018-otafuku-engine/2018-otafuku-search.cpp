@@ -649,7 +649,9 @@ namespace YaneuraOu2018GOKU
 			if ((!inCheck || evasionPrunable)
 				// 【計測資料 5.】!is_promote()と!pawn_promotion()との比較。
 #if 0
-				// Stockfish8相当のコード
+				// Stockfish 8相当のコード
+				// Stockfish 9では、see_ge()でpromoteならすぐにreturnするからこの判定は不要だということで、このコードは消された。
+				// Simplify away redundant SEE pruning condition : cf. https://github.com/official-stockfish/Stockfish/commit/b61759e907e508d436b7c0b7ff8ab866454f7ca6
 				&& !is_promote(move)
 #else
 				// 成る手ではなく、歩が成る手のみを除外
@@ -827,6 +829,9 @@ namespace YaneuraOu2018GOKU
 		// inCheck				: このnodeで王手がかかっているのか
 		// givesCheck			: moveによって王手になるのか
 		// improving			: 直前のnodeから評価値が上がってきているのか
+		//   このフラグを各種枝刈りのmarginの決定に用いる
+		//   cf. Tweak probcut margin with 'improving' flag : https://github.com/official-stockfish/Stockfish/commit/c5f6bd517c68e16c3ead7892e1d83a6b1bb89b69
+		//   cf. Use evaluation trend to adjust futility margin : https://github.com/official-stockfish/Stockfish/commit/65c3bb8586eba11277f8297ef0f55c121772d82c
 		bool ttHit, inCheck, givesCheck, improving;
 
 		// captureOrPawnPromotion : moveが駒を捕獲する指し手もしくは歩を成る手であるか
@@ -958,6 +963,9 @@ namespace YaneuraOu2018GOKU
 
 		// 置換表上のスコア
 		// 置換表にhitしなければVALUE_NONE
+
+		// singular searchとIIDとのスレッド競合を考慮して、ttValue , ttMoveの順で取り出さないといけないらしい。
+		// cf. More robust interaction of singular search and iid : https://github.com/official-stockfish/Stockfish/commit/16b31bb249ccb9f4f625001f9772799d286e2f04
 
 		ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
 
@@ -1315,14 +1323,15 @@ namespace YaneuraOu2018GOKU
 		{
 			ASSERT_LV3(is_ok((ss - 1)->currentMove));
 
-			Value rbeta = std::min(beta + (PARAM_PROBCUT_MARGIN+16) - 48 * improving , VALUE_INFINITE);
-			// TODO : ここ improving導入する。
+			Value rbeta = std::min(beta + PARAM_PROBCUT_MARGIN1 - PARAM_PROBCUT_MARGIN2 * improving , VALUE_INFINITE);
+			// TODO : ここ improving導入するのが良いかどうかも含め、パラメーターの調整をすべき。
 
 			// rbeta - ss->staticEvalを上回るcaptureの指し手のみを生成。
 			MovePicker mp(pos, ttMove, rbeta - ss->staticEval , &thisThread->captureHistory);
 			int probCutCount = 0;
 
 			// 試行回数は3回までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
+			// cf. Do move-count pruning in probcut : https://github.com/official-stockfish/Stockfish/commit/b87308692a434d6725da72bbbb38a38d3cac1d5f
 			while ((move = mp.next_move()) != MOVE_NONE
 				&& probCutCount < 3)
 			{
@@ -1924,7 +1933,7 @@ namespace YaneuraOu2018GOKU
 						ASSERT_LV3(value >= beta);
 
 						// fail highのときには、負のstatScoreをリセットしたほうが良いらしい。
-						// cf. https://github.com/official-stockfish/Stockfish/commit/b88374b14a7baa2f8e4c37b16a2e653e7472adcc
+						// cf. Reset negative statScore on fail high : https://github.com/official-stockfish/Stockfish/commit/b88374b14a7baa2f8e4c37b16a2e653e7472adcc
 						ss->statScore = std::max(ss->statScore, 0);
 						break;
 					}
@@ -2043,7 +2052,7 @@ void init_param()
 			"PARAM_NULL_MOVE_DYNAMIC_ALPHA","PARAM_NULL_MOVE_DYNAMIC_BETA",
 			"PARAM_NULL_MOVE_MARGIN","PARAM_NULL_MOVE_RETURN_DEPTH",
 
-			"PARAM_PROBCUT_DEPTH","PARAM_PROBCUT_MARGIN",
+			"PARAM_PROBCUT_DEPTH","PARAM_PROBCUT_MARGIN1","PARAM_PROBCUT_MARGIN2",
 			
 			"PARAM_SINGULAR_EXTENSION_DEPTH","PARAM_SINGULAR_MARGIN","PARAM_SINGULAR_SEARCH_DEPTH_ALPHA",
 			
@@ -2082,7 +2091,7 @@ void init_param()
 			&PARAM_NULL_MOVE_DYNAMIC_ALPHA, &PARAM_NULL_MOVE_DYNAMIC_BETA,
 			&PARAM_NULL_MOVE_MARGIN,&PARAM_NULL_MOVE_RETURN_DEPTH,
 			
-			&PARAM_PROBCUT_DEPTH, &PARAM_PROBCUT_MARGIN,
+			&PARAM_PROBCUT_DEPTH, &PARAM_PROBCUT_MARGIN1,&PARAM_PROBCUT_MARGIN2,
 
 			&PARAM_SINGULAR_EXTENSION_DEPTH, &PARAM_SINGULAR_MARGIN,&PARAM_SINGULAR_SEARCH_DEPTH_ALPHA,
 			
@@ -2321,13 +2330,7 @@ void Search::clear()
 
 	Time.availableNodes = 0;
 	TT.clear();
-
-	// Threadsが変更になってからisreadyが送られてこないとisreadyでthread数だけ初期化しているものはこれではまずい。
-	for (Thread* th : Threads)
-		th->clear();
-
-	Threads.main()->callsCnt = 0;
-	Threads.main()->previousScore = VALUE_INFINITE;
+	Threads.clear();
 }
 
 
@@ -2958,6 +2961,9 @@ void MainThread::check_time()
 
 	// Limits.nodesが指定されているときは、そのnodesの0.1%程度になるごとにチェック。
 	// さもなくばデフォルトの値を使う。
+	// このデフォルト値、ある程度小さくしておかないと、通信遅延分のマージンを削ったときに
+	// ちょうど1秒を超えて計測2秒になり、損をしうるという議論があるようだ。
+	// cf. Check the clock every 1024 nodes : https://github.com/official-stockfish/Stockfish/commit/8db75dd9ec05410136898aa2f8c6dc720b755eb8
 	callsCnt = Limits.nodes ? std::min(4096, int(Limits.nodes / 1024)) : 4096;
 
 	// 1秒ごとにdbg_print()を呼び出す処理。
@@ -3021,7 +3027,7 @@ namespace Learner
 		{
 			Color us = pos.side_to_move();
 			int contempt = int(Options["Contempt"] * PawnValue / 100);
-			drawValueTable[REPETITION_DRAW][us] = VALUE_ZERO - Value(contempt);
+			drawValueTable[REPETITION_DRAW][ us] = VALUE_ZERO - Value(contempt);
 			drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
 		}
 
