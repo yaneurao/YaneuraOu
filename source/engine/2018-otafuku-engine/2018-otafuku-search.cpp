@@ -1359,9 +1359,8 @@ namespace YaneuraOu2018GOKU
 		// (たぶん置換表のエントリーを上書きされた)、浅い探索をして、その指し手を置換表の指し手として用いる。
 		// 置換表用のメモリが潤沢にあるときはこれによる効果はほとんどないはずではあるのだが…。
 
-		if (depth >= 6 * ONE_PLY
-			&& !ttMove
-			&& (PvNode || ss->staticEval + PARAM_IID_MARGIN_ALPHA >= beta))
+		if (depth >= 8 * ONE_PLY
+			&& !ttMove)
 		{
 			Depth d = 3 * depth / 4 - 2 * ONE_PLY;
 			search<NT>(pos, ss, alpha, beta, d , cutNode,true);
@@ -1739,7 +1738,6 @@ namespace YaneuraOu2018GOKU
 					if (ttCapture)
 						r += ONE_PLY;
 
-
 					// cut nodeにおいてhistoryの値が悪い指し手に対してはreduction量を増やす。
 					// ※　PVnodeではIID時でもcutNode == trueでは呼ばないことにしたので、
 					// if (cutNode)という条件式は暗黙に && !PvNode を含む。
@@ -2054,7 +2052,6 @@ void init_param()
 			"PARAM_SINGULAR_EXTENSION_DEPTH","PARAM_SINGULAR_MARGIN","PARAM_SINGULAR_SEARCH_DEPTH_ALPHA",
 			
 			"PARAM_PRUNING_BY_MOVE_COUNT_DEPTH","PARAM_PRUNING_BY_HISTORY_DEPTH","PARAM_REDUCTION_BY_HISTORY",
-			"PARAM_IID_MARGIN_ALPHA",
 			"PARAM_RAZORING_MARGIN1","PARAM_RAZORING_MARGIN2","PARAM_RAZORING_MARGIN3",
 
 			"PARAM_REDUCTION_ALPHA",
@@ -2094,7 +2091,6 @@ void init_param()
 			&PARAM_SINGULAR_EXTENSION_DEPTH, &PARAM_SINGULAR_MARGIN,&PARAM_SINGULAR_SEARCH_DEPTH_ALPHA,
 			
 			&PARAM_PRUNING_BY_MOVE_COUNT_DEPTH, &PARAM_PRUNING_BY_HISTORY_DEPTH,&PARAM_REDUCTION_BY_HISTORY,
-			&PARAM_IID_MARGIN_ALPHA,
 			&PARAM_RAZORING_MARGIN1,&PARAM_RAZORING_MARGIN2,&PARAM_RAZORING_MARGIN3,
 
 			&PARAM_REDUCTION_ALPHA,
