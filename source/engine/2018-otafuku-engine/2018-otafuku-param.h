@@ -153,9 +153,9 @@ PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 4000;
 // 
 
 // 置換表に指し手が登録されていないときに浅い探索をするときの深さに関する係数
-// 元の値 = 256
-// [PARAM] min:128,max:384,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_IID_MARGIN_ALPHA = 251;
+// 元の値 = 128
+// [PARAM] min:64,max:256,step:5,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_IID_MARGIN_ALPHA = 128;
 
 
 //

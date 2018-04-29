@@ -155,8 +155,8 @@ namespace YaneuraOu2018GOKU
 	const int skipPhase[] = { 0, 1, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7 };
 
 	// Razoringのdepthに応じたマージン値
-	// razor_margin[0]は、search()のなかでは depth >= ONE_PLY であるから使われない。
-	int razor_margin[4];
+	// Razor_margin[0]は、search()のなかでは depth >= ONE_PLY であるから使われない。
+	int RazorMargin[3];
 	
 	// depth(残り探索深さ)に応じたfutility margin。
 	Value futility_margin(Depth d) { return Value( PARAM_FUTILITY_MARGIN_ALPHA * d / ONE_PLY); }
@@ -825,7 +825,6 @@ namespace YaneuraOu2018GOKU
 		// inCheck				: このnodeで王手がかかっているのか
 		// givesCheck			: moveによって王手になるのか
 		// improving			: 直前のnodeから評価値が上がってきているのか
-
 		bool ttHit, inCheck, givesCheck, improving;
 
 		// captureOrPawnPromotion : moveが駒を捕獲する指し手もしくは歩を成る手であるか
@@ -927,6 +926,7 @@ namespace YaneuraOu2018GOKU
 		(ss + 2)->killers[0] = (ss + 2)->killers[1] = MOVE_NONE;
 
 		// 前の指し手で移動させた先の升目
+		// TODO : null moveのときにprevSq == 1 == SQ_12になるのどうなのか…。
 		Square prevSq = to_sq((ss - 1)->currentMove);
 
 		// statScoreを現nodeの孫nodeのためにゼロ初期化。
@@ -1033,8 +1033,8 @@ namespace YaneuraOu2018GOKU
 		// -----------------------
 
 		// Step 5. Tablebases probe
-		// chessだと終盤データベースというのがる。
-		// 将棋にはないが、将棋には宣言勝ちというのがある。
+		// chessだと終盤データベースというのがある。
+		// これは将棋にはないが、将棋には代わりに宣言勝ちというのがある。
 
 		{
 			// 宣言勝ちの指し手が置換表上に登録されていることがある
@@ -1211,10 +1211,13 @@ namespace YaneuraOu2018GOKU
 
 		//  Razoring (王手がかかっているときはスキップする)
 
+		// 【計測資料 24.】RazoringをStockfish 8と9とで比較
+
 		// 残り探索深さが少ないときに、その手数でalphaを上回りそうにないとき用の枝刈り。
+#if 0
 		if (   !PvNode
 			&&  depth < 4 * ONE_PLY
-			&&  eval + razor_margin[depth/ONE_PLY] <= alpha)
+			&&  eval <= alpha - razor_margin[depth / ONE_PLY])
 		{
 
 			// 残り探索深さがONE_PLY以下で、alphaを確実に下回りそうなら、ここで静止探索を呼び出してしまう。
@@ -1233,7 +1236,22 @@ namespace YaneuraOu2018GOKU
 			if (v <= ralpha)
 				return v;
 		}
+#else
+		if (   !PvNode
+			&&  depth < 3 * ONE_PLY
+			&&  eval <= alpha - RazorMargin[depth / ONE_PLY])
+		{
+			// 残り探索深さが1,2手のときに、alpha - razor_marginを上回るかだけ簡単に
+			// (qsearchを用いてnull windowで)調べて、上回りそうにないなら
+			// このnodeの探索はここ終了してリターンする。
 
+			Value ralpha = alpha - (depth >= 2 * ONE_PLY) * RazorMargin[depth / ONE_PLY];
+			Value v = qsearch<NonPV>(pos, ss, ralpha, ralpha + 1);
+			if (depth < 2 * ONE_PLY || v <= ralpha)
+				return v;
+		}
+
+#endif
 		// -----------------------
 		// Step 8. Futility pruning: child node (skipped when in check) : ~30 Elo
 		// -----------------------
@@ -1359,7 +1377,7 @@ namespace YaneuraOu2018GOKU
 			&& !ttMove
 			&& (PvNode || ss->staticEval + PARAM_IID_MARGIN_ALPHA >= beta))
 		{
-			Depth d = (3 * depth / (4 * ONE_PLY) - 2) * ONE_PLY;
+			Depth d = 3 * depth / 4 - 2 * ONE_PLY;
 			search<NT>(pos, ss, alpha, beta, d , cutNode,true);
 
 			tte = TT.probe(posKey, ttHit
@@ -1367,6 +1385,7 @@ namespace YaneuraOu2018GOKU
 				,pos.this_thread()->thread_id()
 #endif
 			);
+			ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
 			ttMove = ttHit ? pos.move16_to_move(tte->move()) : MOVE_NONE;
 		}
 
@@ -1396,9 +1415,7 @@ namespace YaneuraOu2018GOKU
 		// contHist[3]  = Follow up Move History2 : 4手前からの継続手
 		const PieceToHistory* contHist[] = { (ss - 1)->contHistory, (ss - 2)->contHistory, nullptr, (ss - 4)->contHistory };
 
-		// (ss - 1)->currentMove == MOVE_NONEである可能性はある。
-		// move_piece_after()を用いると、そのとき、prevPc == NO_PIECEになり、うまく動作する。
-		Piece prevPc = pos.moved_piece_after((ss - 1)->currentMove);
+		Piece prevPc = pos.piece_on(prevSq);
 		Move countermove = thisThread->counterMoves[prevSq][prevPc];
 
 		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory, &thisThread->captureHistory , contHist, countermove, ss->killers);
@@ -1472,7 +1489,7 @@ namespace YaneuraOu2018GOKU
 			// 【検証資料 12.】extend checksのときのcaptureOrPawnPromotionをどう扱うか。
 			captureOrPawnPromotion = pos.capture_or_pawn_promotion(move);
 
-			// 今回移動させる駒(移動後の駒。駒打ちの場合は区別する)
+			// 今回移動させる駒(移動後の駒)
 			movedPiece = pos.moved_piece_after(move);
 
 			// 今回の指し手で王手になるかどうか
@@ -1572,7 +1589,6 @@ namespace YaneuraOu2018GOKU
 
 			// 浅い深さでの枝刈り
 
-
 			// この指し手による駒の移動先の升。historyの値などを調べたいのでいま求めてしまう。
 			Square movedSq = to_sq(move);
 
@@ -1643,6 +1659,14 @@ namespace YaneuraOu2018GOKU
 				else if (depth < 7 * ONE_PLY
 					&& !extension
 					&& !pos.see_ge(move, Value(-PawnValue * (depth / ONE_PLY))))
+					continue;
+#endif
+
+#if 0
+				// Stockfish 9相当のコード 
+				else if (depth < 7 * ONE_PLY // (~20 Elo)
+					&& !extension
+					&& !pos.see_ge(move, - (11 * PawnValue) * depth / ONE_PLY))
 					continue;
 #endif
 
@@ -1821,8 +1845,7 @@ namespace YaneuraOu2018GOKU
 
 			// ※　静止探索は残り探索深さはDEPTH_ZEROとして開始されるべきである。(端数があるとややこしいため)
 			if (doFullDepthSearch)
-				value = newDepth < ONE_PLY ? -qsearch<NonPV>(pos, ss + 1, -(alpha + 1), -alpha)
-										   : - search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode , false);
+				value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode , false);
 
 			// PV nodeにおいては、full depth searchがfail highしたならPV nodeとしてsearchしなおす。
 			// ただし、value >= betaなら、正確な値を求めることにはあまり意味がないので、これはせずにbeta cutしてしまう。
@@ -1833,8 +1856,7 @@ namespace YaneuraOu2018GOKU
 				(ss + 1)->pv[0] = MOVE_NONE;
 
 				// full depthで探索するときはcutNodeにしてはいけない。
-				value = newDepth < ONE_PLY  ? -qsearch<PV>(pos, ss + 1, -beta, -alpha)
-											: - search<PV>(pos, ss + 1, -beta, -alpha, newDepth, false , false);
+				value = -search<PV>(pos, ss + 1, -beta, -alpha, newDepth, false , false);
 
 			}
 
@@ -1933,6 +1955,7 @@ namespace YaneuraOu2018GOKU
 						// beta cutである。
 
 						ASSERT_LV3(value >= beta);
+						ss->statScore = std::max(ss->statScore, 0);
 						break;
 					}
 				}
@@ -2312,10 +2335,10 @@ void Search::clear()
 
 	// razor marginの初期化
 
-	razor_margin[0] = PARAM_RAZORING_MARGIN1; // 未使用
-	razor_margin[1] = PARAM_RAZORING_MARGIN2;
-	razor_margin[2] = PARAM_RAZORING_MARGIN3;
-	razor_margin[3] = PARAM_RAZORING_MARGIN4;
+	RazorMargin[0] = PARAM_RAZORING_MARGIN1; // 未使用
+	RazorMargin[1] = PARAM_RAZORING_MARGIN2;
+	RazorMargin[2] = PARAM_RAZORING_MARGIN3;
+//	razor_margin[3] = PARAM_RAZORING_MARGIN4;
 
 	// -----------------------
 	//   定跡の読み込み
