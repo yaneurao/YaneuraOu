@@ -1261,6 +1261,7 @@ namespace YaneuraOu2018GOKU
 		if (   !PvNode
 			&&  eval >= beta
 			&& (ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN * (depth / ONE_PLY - 6) || depth >= 13 * ONE_PLY)
+			// TODO : このへん調整すべき
 			)
 		{
 			ASSERT_LV3(eval - beta >= 0);
@@ -1274,9 +1275,8 @@ namespace YaneuraOu2018GOKU
 
 			pos.do_null_move(st);
 
-			//  王手がかかっているときはここに来ていないのでqsearchはinCheck == falseのほうを呼ぶ。
-			Value nullValue = depth - R < ONE_PLY ? -qsearch<NonPV>(pos, ss + 1, -beta, -beta + 1)
-												  : - search<NonPV>(pos, ss + 1, -beta, -beta + 1, depth - R, !cutNode,true);
+			Value nullValue = -search<NonPV>(pos, ss + 1, -beta, -beta + 1, depth - R, !cutNode,true);
+
 			pos.undo_null_move();
 
 			if (nullValue >= beta)
@@ -1288,7 +1288,7 @@ namespace YaneuraOu2018GOKU
 				if (nullValue >= VALUE_MATE_IN_MAX_PLY)
 					nullValue = beta;
 
-				if (depth < PARAM_NULL_MOVE_RETURN_DEPTH * ONE_PLY && abs(beta) < VALUE_KNOWN_WIN)
+				if (abs(beta) < VALUE_KNOWN_WIN && depth < PARAM_NULL_MOVE_RETURN_DEPTH * ONE_PLY)
 					return nullValue;
 
 				// nullMoveせずに(現在のnodeと同じ手番で)同じ深さで探索しなおして本当にbetaを超えるか検証する。cutNodeにしない。
@@ -1313,28 +1313,35 @@ namespace YaneuraOu2018GOKU
 			&&  depth >= PARAM_PROBCUT_DEPTH * ONE_PLY
 			&&  abs(beta) < VALUE_MATE_IN_MAX_PLY)
 		{
-			Value rbeta = std::min(beta + PARAM_PROBCUT_MARGIN, VALUE_INFINITE);
-
-			// 大胆に探索depthを減らす
-			Depth rdepth = depth - (PARAM_PROBCUT_DEPTH - 1) * ONE_PLY;
-
-			ASSERT_LV3(rdepth >= ONE_PLY);
 			ASSERT_LV3(is_ok((ss - 1)->currentMove));
+
+			Value rbeta = std::min(beta + (PARAM_PROBCUT_MARGIN+16) - 48 * improving , VALUE_INFINITE);
+			// TODO : ここ improving導入する。
 
 			// rbeta - ss->staticEvalを上回るcaptureの指し手のみを生成。
 			MovePicker mp(pos, ttMove, rbeta - ss->staticEval , &thisThread->captureHistory);
+			int probCutCount = 0;
 
-			while ((move = mp.next_move()) != MOVE_NONE)
+			// 試行回数は3回までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
+			while ((move = mp.next_move()) != MOVE_NONE
+				&& probCutCount < 3)
 			{
-				ASSERT_LV3(pos.pseudo_legal(move));
-
 				if (pos.legal(move))
 				{
+					probCutCount++;
+
 					ss->currentMove = move;
 					ss->contHistory = thisThread->contHistory[to_sq(move)][pos.moved_piece_after(move)].get();
 
+					ASSERT_LV3(depth >= 5 * ONE_PLY);
+
 					pos.do_move(move, st, pos.gives_check(move));
-					value = -search<NonPV>(pos, ss + 1, -rbeta, -rbeta + 1, rdepth, !cutNode,false);
+					// この指し手がよさげであることを確認するための予備的なqsearch
+					value = -qsearch<NonPV>(pos, ss + 1, -rbeta, -rbeta + 1);
+
+					if (value >= rbeta)
+						value = -search<NonPV>(pos, ss + 1, -rbeta, -rbeta + 1, depth - (PARAM_PROBCUT_DEPTH - 1) * ONE_PLY, !cutNode, false);
+					
 					pos.undo_move(move);
 					if (value >= rbeta)
 						return value;
@@ -1630,32 +1637,29 @@ namespace YaneuraOu2018GOKU
 
 				// 浅い深さでの、危険な指し手を枝刈りする。
 
-				// 【計測資料 19.】 浅い深さでの枝刈りについて
+				// 【計測資料 19.】 浅い深さでの枝刈りについて Stockfish 8のコードとの比較
+				// 【計測資料 25.】 浅い深さでの枝刈りについて Stockfish 9のコードとの比較
 
 #if 0
-				// ~20 Elo
 				// 2017/04/17現在のStockfish相当。これだとR30ぐらい弱くなる。
-				else if (depth < 7 * ONE_PLY
+				// その後、PawnValueのところ、CaptureMarginという配列に変わったが、内容的にはほぼ同じ。
+				else if (depth < 7 * ONE_PLY // ~20 Elo
 					&& !extension
 					&& !pos.see_ge(move, Value(-PawnValue * (depth / ONE_PLY))))
 					continue;
 #endif
 
-#if 0
-				// Stockfish 9相当のコード 
-				else if (depth < 7 * ONE_PLY // (~20 Elo)
-					&& !extension
-					&& !pos.see_ge(move, - (11 * PawnValue) * depth / ONE_PLY))
-					continue;
-#endif
-
+#if 1
 				// やねうら王の独自のコード。depthの2乗に比例したseeマージン。適用depthに制限なし。
+				// しかしdepthの2乗に比例しているのでdepth 10ぐらいから無意味かと..
+				// こうするぐらいなら、CaptureMargin[depth/ONE_PLY]のような配列にしてそれぞれの要素を調整するほうが良いか…。
+				// TODO : CaptureMarginを導入する。
 				else if (!extension
 					&& !pos.see_ge(move, Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 * (depth / ONE_PLY) * (depth / ONE_PLY))
 						// PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2を少し大きめにして調整したほうがよさげ。
 					))
 					continue;
-
+#endif
 			}
 
 			// -----------------------
