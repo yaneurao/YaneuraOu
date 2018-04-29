@@ -1261,7 +1261,8 @@ namespace YaneuraOu2018GOKU
 		if (   !PvNode
 			&&  eval >= beta
 			&& (ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN * (depth / ONE_PLY - 6) || depth >= 13 * ONE_PLY)
-			// TODO : このへん調整すべき
+			// TODO : このへん調整すべき , improving導入すべき
+			// TODO : thisThread->nmp_plyとnmp_oddは検証に時間かかるので時間あるときに。
 			)
 		{
 			ASSERT_LV3(eval - beta >= 0);
@@ -1292,8 +1293,7 @@ namespace YaneuraOu2018GOKU
 					return nullValue;
 
 				// nullMoveせずに(現在のnodeと同じ手番で)同じ深さで探索しなおして本当にbetaを超えるか検証する。cutNodeにしない。
-				Value v = depth - R < ONE_PLY ? qsearch<NonPV>(pos, ss, beta - 1, beta)
-											  :  search<NonPV>(pos, ss, beta - 1, beta, depth - R, false , true);
+				Value v = search<NonPV>(pos, ss, beta - 1, beta, depth - R, false , true);
 
 				if (v >= beta)
 					return nullValue;
@@ -1379,23 +1379,6 @@ namespace YaneuraOu2018GOKU
 		// 王手がかかっている局面では、探索はここから始まる。
 	moves_loop:
 
-		// singular延長をするnodeであるか。
-		bool singularExtensionNode = !rootNode
-			&&  depth >= PARAM_SINGULAR_EXTENSION_DEPTH * ONE_PLY
-			&&  ttMove != MOVE_NONE
-			&&  ttValue != VALUE_NONE // 詰み絡みのスコアであってもsingular extensionはしたほうが良いらしい。
-			&& !excludedMove // 再帰的なsingular延長はすべきではない
-			&& (tte->bound() & BOUND_LOWER)
-			&& tte->depth() >= depth - 3 * ONE_PLY;
-		// このnodeについてある程度調べたことが置換表によって証明されている。
-		// (そうでないとsingularの指し手以外に他の有望な指し手がないかどうかを調べるために
-		// null window searchするときに大きなコストを伴いかねないから。)
-
-		// このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
-		// evaluate()を呼び出していないなら呼び出しておく。
-		// evaluate_with_no_return(pos);
-		// →　ここに来るまでに呼び出しているはず…。
-
 		// contHist[0]  = Counter Move History    : ある指し手が指されたときの応手
 		// contHist[1]  = Follow up Move History  : 2手前の自分の指し手の継続手
 		// contHist[3]  = Follow up Move History2 : 4手前からの継続手
@@ -1422,6 +1405,27 @@ namespace YaneuraOu2018GOKU
 
 		// PV nodeで、置換表にhitして、その内容がBOUND_EXACTであるなら、reduction量を減らす。(もっと先まで読めるので読んだほうが良いはず！)
 		pvExact = PvNode && ttHit && tte->bound() == BOUND_EXACT;
+
+		// singular延長をするnodeであるか。
+		// (以下のwhileループの外に出したほうが若干高速であるはず)
+		bool singularExtensionNode =
+				depth >= PARAM_SINGULAR_EXTENSION_DEPTH * ONE_PLY
+		//  && move == ttMove // のちほどのifで判定する
+			&& !rootNode
+			&& !excludedMove // 再帰的なsingular延長はすべきではない
+			&&  ttValue != VALUE_NONE // 詰み絡みのスコアであってもsingular extensionはしたほうが良いらしい。
+			&& (tte->bound() & BOUND_LOWER)
+			&& tte->depth() >= depth - 3 * ONE_PLY
+		//  &&  pos.legal(move) // 	のちほどのifで判定する
+			;
+		// このnodeについてある程度調べたことが置換表によって証明されている。
+		// (そうでないとsingularの指し手以外に他の有望な指し手がないかどうかを調べるために
+		// null window searchするときに大きなコストを伴いかねないから。)
+
+		// このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
+		// evaluate()を呼び出していないなら呼び出しておく。
+		// evaluate_with_no_return(pos);
+		// →　ここに来るまでに呼び出しているはず…。
 
 		// -----------------------
 		// Step 12. Loop through moves
@@ -1519,19 +1523,8 @@ namespace YaneuraOu2018GOKU
 				&&  pos.legal(move))
 			{
 				// このmargin値は評価関数の性質に合わせて調整されるべき。
-				// PARAM_SINGULAR_MARGIN == 128(無調整)のときはdefault動作。
-				Value rBeta;
-				if (PARAM_SINGULAR_MARGIN == 128)
-					rBeta = std::max(ttValue - 2 * depth / ONE_PLY, -VALUE_MATE);
-				else
-					rBeta = std::max(ttValue - PARAM_SINGULAR_MARGIN * depth / (64 * ONE_PLY), -VALUE_MATE);
-
-				// PARAM_SINGULAR_SEARCH_DEPTH_ALPHAが16(無調整)のときはデフォルト動作。
-				Depth d;
-				if (PARAM_SINGULAR_SEARCH_DEPTH_ALPHA == 16)
-					d = (depth / (2 * ONE_PLY)) * ONE_PLY;
-				else
-					d = (depth * PARAM_SINGULAR_SEARCH_DEPTH_ALPHA / (32 * ONE_PLY)) * ONE_PLY;
+				Value rBeta = std::max(ttValue - PARAM_SINGULAR_MARGIN * depth / (64 * ONE_PLY), -VALUE_MATE);
+				Depth d = (depth * PARAM_SINGULAR_SEARCH_DEPTH_ALPHA / (32 * ONE_PLY)) * ONE_PLY;
 
 				// ttMoveの指し手を以下のsearch()での探索から除外
 				ss->excludedMove = move;
@@ -1576,7 +1569,7 @@ namespace YaneuraOu2018GOKU
 			// 浅い深さでの枝刈り
 
 			// この指し手による駒の移動先の升。historyの値などを調べたいのでいま求めてしまう。
-			Square movedSq = to_sq(move);
+			const Square movedSq = to_sq(move);
 
 			if (  !rootNode
 #if 0
