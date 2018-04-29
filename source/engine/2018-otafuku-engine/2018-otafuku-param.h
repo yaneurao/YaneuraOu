@@ -13,12 +13,18 @@
 //
 
 // 深さに比例したfutility pruning
-// depth手先で評価値が変動する幅が = depth * PARAM_FUTILITY_MARGIN_DEPTH
-// 元の値 = 150
+// depth手先で評価値が変動する幅が = depth * (PARAM_FUTILITY_MARGIN_ALPHA1 - improving*PARAM_FUTILITY_MARGIN_ALPHA2)
+// 元の値 = 175
 // [PARAM] min:100,max:240,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 147;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 172;
+
+// 元の値 = 50
+// [PARAM] min:25,max:100,step:2,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 50;
+
 
 // 
+
 // 元の値 = 200
 // [PARAM] min:100,max:240,step:2,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 195;

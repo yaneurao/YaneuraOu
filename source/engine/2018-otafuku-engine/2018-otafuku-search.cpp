@@ -159,7 +159,9 @@ namespace YaneuraOu2018GOKU
 	int RazorMargin[3];
 	
 	// depth(残り探索深さ)に応じたfutility margin。
-	Value futility_margin(Depth d) { return Value( PARAM_FUTILITY_MARGIN_ALPHA * d / ONE_PLY); }
+	Value futility_margin(Depth d , bool improving) {
+		return Value( (PARAM_FUTILITY_MARGIN_ALPHA1 - PARAM_FUTILITY_MARGIN_ALPHA2 * improving) * d / ONE_PLY);
+	}
 
 	// 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
 	// 枝刈りしてしまうためのmoveCountベースのfutilityで用いるテーブル
@@ -1242,7 +1244,7 @@ namespace YaneuraOu2018GOKU
 
 		if (   !rootNode
 			&&  depth < PARAM_FUTILITY_RETURN_DEPTH * ONE_PLY
-			&&  eval - futility_margin(depth) >= beta
+			&&  eval - futility_margin(depth , improving) >= beta
 			&&  eval < VALUE_KNOWN_WIN) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
 			return eval;
 		// 次のようにするより、単にevalを返したほうが良いらしい。
@@ -2037,7 +2039,8 @@ void init_param()
 #if defined (USE_AUTO_TUNE_PARAMETERS) || defined(USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
 	{
 		std::vector<std::string> param_names = {
-			"PARAM_FUTILITY_MARGIN_ALPHA" , "PARAM_FUTILITY_MARGIN_BETA" ,
+			"PARAM_FUTILITY_MARGIN_ALPHA1" ,"PARAM_FUTILITY_MARGIN_ALPHA2" , 
+			"PARAM_FUTILITY_MARGIN_BETA" ,
 			"PARAM_FUTILITY_MARGIN_QUIET" , "PARAM_FUTILITY_RETURN_DEPTH",
 			
 			"PARAM_FUTILITY_AT_PARENT_NODE_DEPTH",
@@ -2055,7 +2058,7 @@ void init_param()
 			
 			"PARAM_PRUNING_BY_MOVE_COUNT_DEPTH","PARAM_PRUNING_BY_HISTORY_DEPTH","PARAM_REDUCTION_BY_HISTORY",
 			"PARAM_IID_MARGIN_ALPHA",
-			"PARAM_RAZORING_MARGIN1","PARAM_RAZORING_MARGIN2","PARAM_RAZORING_MARGIN3","PARAM_RAZORING_MARGIN4",
+			"PARAM_RAZORING_MARGIN1","PARAM_RAZORING_MARGIN2","PARAM_RAZORING_MARGIN3",
 
 			"PARAM_REDUCTION_ALPHA",
 
@@ -2076,7 +2079,8 @@ void init_param()
 #else
 		std::vector<int*> param_vars = {
 #endif
-			&PARAM_FUTILITY_MARGIN_ALPHA , &PARAM_FUTILITY_MARGIN_BETA,
+			&PARAM_FUTILITY_MARGIN_ALPHA1 , &PARAM_FUTILITY_MARGIN_ALPHA2,
+			&PARAM_FUTILITY_MARGIN_BETA,
 			&PARAM_FUTILITY_MARGIN_QUIET , &PARAM_FUTILITY_RETURN_DEPTH,
 			
 			&PARAM_FUTILITY_AT_PARENT_NODE_DEPTH,
@@ -2094,7 +2098,7 @@ void init_param()
 			
 			&PARAM_PRUNING_BY_MOVE_COUNT_DEPTH, &PARAM_PRUNING_BY_HISTORY_DEPTH,&PARAM_REDUCTION_BY_HISTORY,
 			&PARAM_IID_MARGIN_ALPHA,
-			&PARAM_RAZORING_MARGIN1,&PARAM_RAZORING_MARGIN2,&PARAM_RAZORING_MARGIN3,&PARAM_RAZORING_MARGIN4,
+			&PARAM_RAZORING_MARGIN1,&PARAM_RAZORING_MARGIN2,&PARAM_RAZORING_MARGIN3,
 
 			&PARAM_REDUCTION_ALPHA,
 
