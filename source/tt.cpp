@@ -22,7 +22,10 @@ void TranspositionTable::resize(size_t mbSize) {
 	free(mem);
 
 	// tableはCacheLineSizeでalignされたメモリに配置したいので、CacheLineSize-1だけ余分に確保する。
-	mem = calloc(clusterCount * sizeof(Cluster) + CacheLineSize - 1, 1);
+	// callocではなくmallocにしないと初回の探索でTTにアクセスするとき、特に巨大なTTだと
+	// 極めて遅くなるので、mallocで確保して、ゼロクリアすることでこれを回避する。
+	// cf. Explicitly zero TT upon resize. : https://github.com/official-stockfish/Stockfish/commit/2ba47416cbdd5db2c7c79257072cd8675b61721f
+	mem = malloc(clusterCount * sizeof(Cluster) + CacheLineSize - 1);
 
 	if (!mem)
 	{
