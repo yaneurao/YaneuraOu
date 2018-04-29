@@ -539,10 +539,10 @@ inline bool getline(std::fstream& fs, std::string& s)
 // --- output for Japanese notation
 
 // PRETTY_JPが定義されているかどうかによって三項演算子などを使いたいので。
-#ifdef PRETTY_JP
-const bool pretty_jp = true;
+#if defined (PRETTY_JP)
+constexpr bool pretty_jp = true;
 #else
-const bool pretty_jp = false;
+constexpr bool pretty_jp = false;
 #endif
 
 
@@ -579,10 +579,10 @@ const bool pretty_jp = false;
 
 // ターゲットが64bitOSかどうか
 #if (defined(_WIN64) && defined(_MSC_VER)) || (defined(__GNUC__) && defined(__x86_64__))
-const bool Is64Bit = true;
+constexpr bool Is64Bit = true;
 #define IS_64BIT
 #else
-const bool Is64Bit = false;
+constexpr bool Is64Bit = false;
 #endif
 
 #if defined(USE_AVX512)

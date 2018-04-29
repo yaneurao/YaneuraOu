@@ -83,7 +83,7 @@ enum File : int { FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8
 constexpr bool is_ok(File f) { return FILE_ZERO <= f && f < FILE_NB; }
 
 // USIの指し手文字列などで筋を表す文字列をここで定義されたFileに変換する。
-inline File toFile(char c) { return (File)(c - '1'); }
+constexpr File toFile(char c) { return (File)(c - '1'); }
 
 // Fileを綺麗に出力する(USI形式ではない)
 // "PRETTY_JP"をdefineしていれば、日本語文字での表示になる。例 → ８
@@ -104,8 +104,8 @@ enum Rank : int { RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8
 constexpr bool is_ok(Rank r) { return RANK_ZERO <= r && r < RANK_NB; }
 
 // 移動元、もしくは移動先の升のrankを与えたときに、そこが成れるかどうかを判定する。
-inline bool canPromote(const Color c, const Rank fromOrToRank) {
-	ASSERT_LV1(is_ok(c) && is_ok(fromOrToRank));
+constexpr bool canPromote(const Color c, const Rank fromOrToRank) {
+	// ASSERT_LV1(is_ok(c) && is_ok(fromOrToRank));
 	// 先手9bit(9段) + 後手9bit(9段) = 18bitのbit列に対して、判定すればいい。
 	// ただし ×9みたいな掛け算をするのは嫌なのでbit shiftで済むように先手16bit、後手16bitの32bitのbit列に対して判定する。
 	// このcastにおいて、VC++2015ではwarning C4800が出る。
@@ -114,10 +114,10 @@ inline bool canPromote(const Color c, const Rank fromOrToRank) {
 
 // 後手の段なら先手から見た段を返す。
 // 例) relative_rank(WHITE,RANK_1) == RANK_9
-inline Rank relative_rank(Color c, Rank r) { return c == BLACK ? r : (Rank)(8 - r); }
+constexpr Rank relative_rank(Color c, Rank r) { return c == BLACK ? r : (Rank)(8 - r); }
 
 // USIの指し手文字列などで段を表す文字列をここで定義されたRankに変換する。
-inline Rank toRank(char c) { return (Rank)(c - 'a'); }
+constexpr Rank toRank(char c) { return (Rank)(c - 'a'); }
 
 // Rankを綺麗に出力する(USI形式ではない)
 // "PRETTY_JP"をdefineしていれば、日本語文字での表示になる。例 → 八
@@ -182,38 +182,38 @@ extern File SquareToFile[SQ_NB_PLUS1];
 
 // 与えられたSquareに対応する筋を返す。
 // →　行数は長くなるが速度面においてテーブルを用いる。
-inline File file_of(Square sq) { /* return (File)(sq / 9); */ ASSERT_LV2(is_ok(sq)); return SquareToFile[sq]; }
+constexpr File file_of(Square sq) { /* return (File)(sq / 9); */ /* ASSERT_LV2(is_ok(sq)); */ return SquareToFile[sq]; }
 
 extern Rank SquareToRank[SQ_NB_PLUS1];
 
 // 与えられたSquareに対応する段を返す。
 // →　行数は長くなるが速度面においてテーブルを用いる。
-inline Rank rank_of(Square sq) { /* return (Rank)(sq % 9); */ ASSERT_LV2(is_ok(sq)); return SquareToRank[sq]; }
+constexpr Rank rank_of(Square sq) { /* return (Rank)(sq % 9); */ /* ASSERT_LV2(is_ok(sq));*/ return SquareToRank[sq]; }
 
 // 筋(File)と段(Rank)から、それに対応する升(Square)を返す。
-inline Square operator | (File f, Rank r) { Square sq = (Square)(f * 9 + r); ASSERT_LV2(is_ok(sq)); return sq; }
+constexpr Square operator | (File f, Rank r) { Square sq = (Square)(f * 9 + r); /* ASSERT_LV2(is_ok(sq));*/ return sq; }
 
 // ２つの升のfileの差、rankの差のうち大きいほうの距離を返す。sq1,sq2のどちらかが盤外ならINT_MAXが返る。
-inline int dist(Square sq1, Square sq2) { return (!is_ok(sq1) || !is_ok(sq2)) ? INT_MAX : std::max(abs(file_of(sq1)-file_of(sq2)) , abs(rank_of(sq1) - rank_of(sq2))); }
+constexpr int dist(Square sq1, Square sq2) { return (!is_ok(sq1) || !is_ok(sq2)) ? INT_MAX : std::max(abs(file_of(sq1)-file_of(sq2)) , abs(rank_of(sq1) - rank_of(sq2))); }
 
 // 移動元、もしくは移動先の升sqを与えたときに、そこが成れるかどうかを判定する。
-inline bool canPromote(const Color c, const Square fromOrTo) {
-  ASSERT_LV2(is_ok(fromOrTo));
-  return canPromote(c, rank_of(fromOrTo));
+constexpr bool canPromote(const Color c, const Square fromOrTo) {
+	// ASSERT_LV2(is_ok(fromOrTo));
+	return canPromote(c, rank_of(fromOrTo));
 }
 
 // 移動元と移動先の升を与えて、成れるかどうかを判定する。
 // (移動元か移動先かのどちらかが敵陣であれば成れる)
-inline bool canPromote(const Color c, const Square from, const Square to)
+constexpr bool canPromote(const Color c, const Square from, const Square to)
 {
   return canPromote(c, from) || canPromote(c, to);
 }
 
 // 盤面を180°回したときの升目を返す
-inline Square Inv(Square sq) { return (Square)((SQ_NB - 1) - sq); }
+constexpr Square Inv(Square sq) { return (Square)((SQ_NB - 1) - sq); }
 
 // 盤面をミラーしたときの升目を返す
-inline Square Mir(Square sq) { return File(8-(int)file_of(sq)) | rank_of(sq); }
+constexpr Square Mir(Square sq) { return File(8-(int)file_of(sq)) | rank_of(sq); }
 
 // Squareを綺麗に出力する(USI形式ではない)
 // "PRETTY_JP"をdefineしていれば、日本語文字での表示になる。例 → ８八
@@ -253,15 +253,15 @@ enum SquareWithWall: int32_t {
 };
 
 // 型変換。下位8bit == Square
-inline Square sqww_to_sq(SquareWithWall sqww) { return Square(sqww & 0xff); }
+constexpr Square sqww_to_sq(SquareWithWall sqww) { return Square(sqww & 0xff); }
 
 extern SquareWithWall sqww_table[SQ_NB_PLUS1];
 
 // 型変換。Square型から。
-inline SquareWithWall to_sqww(Square sq) { return sqww_table[sq]; }
+constexpr SquareWithWall to_sqww(Square sq) { return sqww_table[sq]; }
 
 // 盤内か。壁(盤外)だとfalseになる。
-inline bool is_ok(SquareWithWall sqww) { return (sqww & SQWW_BORROW_MASK) == 0; }
+constexpr bool is_ok(SquareWithWall sqww) { return (sqww & SQWW_BORROW_MASK) == 0; }
 
 // 単にSQの升を出力する。
 inline std::ostream& operator<<(std::ostream& os, SquareWithWall sqww) { os << sqww_to_sq(sqww); return os; }
@@ -289,7 +289,7 @@ namespace Effect8
 	// "Direction"ではなく"Directions"を返したほうが、縦横十字方向や、斜め方向の位置関係にある場合、
 	// DIRECTIONS_CROSSやDIRECTIONS_DIAGのような定数が使えて便利。
 	extern Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1];
-	inline Directions directions_of(Square sq1, Square sq2) { return direc_table[sq1][sq2]; }
+	constexpr Directions directions_of(Square sq1, Square sq2) { return direc_table[sq1][sq2]; }
 
 	// Directionsをpopしたもの。複数の方角を同時に表すことはない。
 	// おまけで桂馬の移動も追加しておく。
@@ -302,30 +302,30 @@ namespace Effect8
 	inline Direct pop_directions(Directions& d) { return (Direct)pop_lsb(d); }
 
 	// ある方角の反対の方角(180度回転させた方角)を得る。
-	inline Direct operator~(Direct d) {
+	constexpr Direct operator~(Direct d) {
 		// Directの定数値を変更したら、この関数はうまく動作しない。
 		static_assert(Effect8::DIRECT_R == 1, "");
 		static_assert(Effect8::DIRECT_L == 6, "");
 		// DIRECT_RUUなどは引数に渡してはならない。
-		ASSERT_LV3(d < DIRECT_NB);
+		// ASSERT_LV3(d < DIRECT_NB);
 		return Direct(7 - d);
 	}
 
 	// DirectからDirectionsへの逆変換
-	inline Directions to_directions(Direct d) { return Directions(1 << d); }
+	constexpr Directions to_directions(Direct d) { return Directions(1 << d); }
 
-	inline bool is_ok(Direct d) { return DIRECT_ZERO <= d && d < DIRECT_NB_PLUS4; }
+	constexpr bool is_ok(Direct d) { return DIRECT_ZERO <= d && d < DIRECT_NB_PLUS4; }
 
 	// DirectをSquareWithWall型の差分値で表現したもの。
 	const SquareWithWall DirectToDeltaWW_[DIRECT_NB] = { SQWW_RU,SQWW_R,SQWW_RD,SQWW_U,SQWW_D,SQWW_LU,SQWW_L,SQWW_LD, };
-	inline SquareWithWall DirectToDeltaWW(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDeltaWW_[d]; }
+	constexpr SquareWithWall DirectToDeltaWW(Direct d) { /* ASSERT_LV3(is_ok(d)); */ return DirectToDeltaWW_[d]; }
 }
 
 // 与えられた3升が縦横斜めの1直線上にあるか。駒を移動させたときに開き王手になるかどうかを判定するのに使う。
 // 例) 王がsq1, pinされている駒がsq2にあるときに、pinされている駒をsq3に移動させたときにaligned(sq1,sq2,sq3)であれば、
 //  pinされている方向に沿った移動なので開き王手にはならないと判定できる。
 // ただし玉はsq3として、sq1,sq2は同じ側にいるものとする。(玉を挟んでの一直線は一直線とはみなさない)
-inline bool aligned(Square sq1, Square sq2, Square sq3/* is ksq */)
+constexpr bool aligned(Square sq1, Square sq2, Square sq3/* is ksq */)
 {
   auto d1 = Effect8::directions_of(sq1, sq3);
   return d1 ? d1 == Effect8::directions_of(sq2, sq3) : false;
@@ -336,7 +336,7 @@ inline bool aligned(Square sq1, Square sq2, Square sq3/* is ksq */)
 // --------------------
 
 // 通常探索時の最大探索深さ
-const int MAX_PLY = MAX_PLY_NUM;
+constexpr int MAX_PLY = MAX_PLY_NUM;
 
 // 探索深さを表現するためのenum
 enum Depth: int32_t
@@ -425,10 +425,10 @@ enum Value: int32_t
 };
 
 // ply手で詰ませるときのスコア
-inline Value mate_in(int ply) {  return (Value)(VALUE_MATE - ply);}
+constexpr Value mate_in(int ply) {  return (Value)(VALUE_MATE - ply);}
 
 // ply手で詰まされるときのスコア
-inline Value mated_in(int ply) {  return (Value)(-VALUE_MATE + ply);}
+constexpr Value mated_in(int ply) {  return (Value)(-VALUE_MATE + ply);}
 
 
 // --------------------
@@ -500,10 +500,10 @@ constexpr Piece type_of(Piece pc) { return (Piece)(pc & 15); }
 constexpr Piece raw_type_of(Piece pc) { return (Piece)(pc & 7); }
 
 // pcとして先手の駒を渡し、cが後手なら後手の駒を返す。cが先手なら先手の駒のまま。pcとしてNO_PIECEは渡してはならない。
-inline Piece make_piece(Color c, Piece pt) { ASSERT_LV3(color_of(pt) == BLACK && pt!=NO_PIECE);  return (Piece)((c << 4) + pt); }
+constexpr Piece make_piece(Color c, Piece pt) { /*ASSERT_LV3(color_of(pt) == BLACK && pt!=NO_PIECE); */ return (Piece)((c << 4) + pt); }
 
 // pcが遠方駒であるかを判定する。LANCE,BISHOP(5),ROOK(6),HORSE(13),DRAGON(14)
-inline bool has_long_effect(Piece pc) { return (type_of(pc) == LANCE) || (((pc+1) & 6)==6); }
+constexpr bool has_long_effect(Piece pc) { return (type_of(pc) == LANCE) || (((pc+1) & 6)==6); }
 
 // Pieceの整合性の検査。assert用。
 constexpr bool is_ok(Piece pc) { return NO_PIECE <= pc && pc < PIECE_NB; }
@@ -596,7 +596,7 @@ constexpr Move make_move_drop(Piece pt, Square to) { return (Move)(to + (pt << 7
 // ただし、盤面のことは考慮していない。MOVE_NULLとMOVE_NONEであるとfalseが返る。
 // これら２つの定数は、移動元と移動先が等しい値になっている。このテストだけをする。
 // MOVE_WIN(宣言勝ちの指し手は)は、falseが返る。
-inline bool is_ok(Move m) {
+constexpr bool is_ok(Move m) {
   // return move_from(m)!=move_to(m);
   // とやりたいところだが、駒打ちでfromのbitを使ってしまっているのでそれだとまずい。
   // 駒打ちのbitも考慮に入れるために次のように書く。
@@ -638,7 +638,7 @@ struct ExtMove {
 };
 
 // ExtMoveの並べ替えを行なうので比較オペレーターを定義しておく。
-inline bool operator<(const ExtMove& first, const ExtMove& second) {
+constexpr bool operator<(const ExtMove& first, const ExtMove& second) {
 	return first.value < second.value;
 }
 
@@ -676,22 +676,22 @@ constexpr int32_t HAND_BORROW_MASK = (HAND_BIT_MASK << 1) & ~HAND_BIT_MASK;
 
 
 // 手駒pcの枚数を返す。
-inline int hand_count(Hand hand, Piece pr) { ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); return (hand >> PIECE_BITS[pr]) & PIECE_BIT_MASK[pr]; }
+constexpr int hand_count(Hand hand, Piece pr) { /* ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); */ return (hand >> PIECE_BITS[pr]) & PIECE_BIT_MASK[pr]; }
 
 // 手駒pcを持っているかどうかを返す。
-inline int hand_exists(Hand hand, Piece pr) { ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); return hand & PIECE_BIT_MASK2[pr]; }
+constexpr int hand_exists(Hand hand, Piece pr) { /* ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); */ return hand & PIECE_BIT_MASK2[pr]; }
 
 // 手駒にpcをc枚加える
-inline void add_hand(Hand &hand, Piece pr, int c = 1) { hand = (Hand)(hand + PIECE_TO_HAND[pr] * c); }
+constexpr void add_hand(Hand &hand, Piece pr, int c = 1) { hand = (Hand)(hand + PIECE_TO_HAND[pr] * c); }
 
 // 手駒からpcをc枚減ずる
-inline void sub_hand(Hand &hand, Piece pr, int c = 1) { hand = (Hand)(hand - PIECE_TO_HAND[pr] * c); }
+constexpr void sub_hand(Hand &hand, Piece pr, int c = 1) { hand = (Hand)(hand - PIECE_TO_HAND[pr] * c); }
 
 
 // 手駒h1のほうがh2より優れているか。(すべての種類の手駒がh2のそれ以上ある)
 // 優等局面の判定のとき、局面のhash key(StateInfo::key() )が一致していなくて、盤面のhash key(StateInfo::board_key() )が
 // 一致しているときに手駒の比較に用いるので、手駒がequalというケースは前提により除外されているから、この関数を以ってsuperiorであるという判定が出来る。
-inline bool hand_is_equal_or_superior(Hand h1, Hand h2) { return ((h1-h2) & HAND_BORROW_MASK) == 0; }
+constexpr bool hand_is_equal_or_superior(Hand h1, Hand h2) { return ((h1-h2) & HAND_BORROW_MASK) == 0; }
 
 // 手駒を表示する(USI形式ではない) デバッグ用
 std::ostream& operator<<(std::ostream& os, Hand hand);
@@ -712,10 +712,10 @@ enum HandKind : uint32_t { HAND_KIND_PAWN = 1 << (PAWN-1), HAND_KIND_LANCE=1 << 
 inline HandKind toHandKind(Hand h) {return (HandKind)PEXT32(h + HAND_BIT_MASK, HAND_BORROW_MASK);}
 
 // 特定種類の駒を持っているかを判定する
-inline bool hand_exists(HandKind hk, Piece pt) { ASSERT_LV2(PIECE_HAND_ZERO <= pt && pt < PIECE_HAND_NB);  return static_cast<bool>(hk & (1 << (pt - 1))); }
+constexpr bool hand_exists(HandKind hk, Piece pt) { /* ASSERT_LV2(PIECE_HAND_ZERO <= pt && pt < PIECE_HAND_NB); */ return static_cast<bool>(hk & (1 << (pt - 1))); }
 
 // 歩以外の手駒を持っているかを判定する
-inline bool hand_exceptPawnExists(HandKind hk) { return hk & ~HAND_KIND_PAWN; }
+constexpr bool hand_exceptPawnExists(HandKind hk) { return hk & ~HAND_KIND_PAWN; }
 
 // 手駒の有無を表示する(USI形式ではない) デバッグ用
 std::ostream& operator<<(std::ostream& os, HandKind hk);
@@ -725,7 +725,7 @@ std::ostream& operator<<(std::ostream& os, HandKind hk);
 // --------------------
 
 // 将棋のある局面の合法手の最大数。593らしいが、保険をかけて少し大きめにしておく。
-const int MAX_MOVES = 600;
+constexpr int MAX_MOVES = 600;
 
 // 生成する指し手の種類
 enum MOVE_GEN_TYPE
@@ -847,14 +847,14 @@ enum RepetitionState
 	REPETITION_NB,
 };
 
-inline bool is_ok(RepetitionState rs) { return REPETITION_NONE <= rs && rs < REPETITION_NB; }
+constexpr bool is_ok(RepetitionState rs) { return REPETITION_NONE <= rs && rs < REPETITION_NB; }
 
 // RepetitionStateを文字列化して出力する。PVの出力のときにUSI拡張として出力するのに用いる。
 std::ostream& operator<<(std::ostream& os, RepetitionState rs);
 
 // 引き分け時のスコア
 extern Value drawValueTable[REPETITION_NB][COLOR_NB];
-inline Value draw_value(RepetitionState rs, Color c) { ASSERT_LV3(is_ok(rs)); return drawValueTable[rs][c]; }
+constexpr Value draw_value(RepetitionState rs, Color c) { /* ASSERT_LV3(is_ok(rs)); */ return drawValueTable[rs][c]; }
 
 // --------------------
 //      評価関数
