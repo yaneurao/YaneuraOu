@@ -1405,22 +1405,6 @@ namespace YaneuraOu2018GOKU
 		// PV nodeで、置換表にhitして、その内容がBOUND_EXACTであるなら、reduction量を減らす。(もっと先まで読めるので読んだほうが良いはず！)
 		pvExact = PvNode && ttHit && tte->bound() == BOUND_EXACT;
 
-		// singular延長をするnodeであるか。
-		// (以下のwhileループの外に出したほうが若干高速であるはず)
-		bool singularExtensionNode =
-				depth >= PARAM_SINGULAR_EXTENSION_DEPTH * ONE_PLY
-		//  && move == ttMove // のちほどのifで判定する
-			&& !rootNode
-			&& !excludedMove // 再帰的なsingular延長はすべきではない
-			&&  ttValue != VALUE_NONE // 詰み絡みのスコアであってもsingular extensionはしたほうが良いらしい。
-			&& (tte->bound() & BOUND_LOWER)
-			&& tte->depth() >= depth - 3 * ONE_PLY
-		//  &&  pos.legal(move) // 	のちほどのifで判定する
-			;
-		// このnodeについてある程度調べたことが置換表によって証明されている。
-		// (そうでないとsingularの指し手以外に他の有望な指し手がないかどうかを調べるために
-		// null window searchするときに大きなコストを伴いかねないから。)
-
 		// このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
 		// evaluate()を呼び出していないなら呼び出しておく。
 		// evaluate_with_no_return(pos);
@@ -1517,9 +1501,18 @@ namespace YaneuraOu2018GOKU
 			// そう考えるとベストな指し手のスコアと2番目にベストな指し手のスコアとの差に応じて1手延長するのが正しいのだが、
 			// 2番目にベストな指し手のスコアを小さなコストで求めることは出来ないので…。
 
-			if (    singularExtensionNode
-				&&  move == ttMove
+			// singular延長をするnodeであるか。
+			if ( depth >= PARAM_SINGULAR_EXTENSION_DEPTH * ONE_PLY
+				&& move == ttMove
+				&& !rootNode
+				&& !excludedMove // 再帰的なsingular延長はすべきではない
+				&&  ttValue != VALUE_NONE // 詰み絡みのスコアであってもsingular extensionはしたほうが良いらしい。
+				&& (tte->bound() & BOUND_LOWER)
+				&&  tte->depth() >= depth - 3 * ONE_PLY
 				&&  pos.legal(move))
+			// このnodeについてある程度調べたことが置換表によって証明されている。(ttMove == moveなのでttMove != MOVE_NONE)
+			// (そうでないとsingularの指し手以外に他の有望な指し手がないかどうかを調べるために
+			// null window searchするときに大きなコストを伴いかねないから。)
 			{
 				// このmargin値は評価関数の性質に合わせて調整されるべき。
 				Value rBeta = std::max(ttValue - PARAM_SINGULAR_MARGIN * depth / (64 * ONE_PLY), -VALUE_MATE);
@@ -1929,6 +1922,9 @@ namespace YaneuraOu2018GOKU
 						// beta cutである。
 
 						ASSERT_LV3(value >= beta);
+
+						// fail highのときには、負のstatScoreをリセットしたほうが良いらしい。
+						// cf. https://github.com/official-stockfish/Stockfish/commit/b88374b14a7baa2f8e4c37b16a2e653e7472adcc
 						ss->statScore = std::max(ss->statScore, 0);
 						break;
 					}
