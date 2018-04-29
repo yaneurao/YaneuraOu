@@ -2,6 +2,15 @@
 やねうら王 更新履歴
 
 
+■　2018/04/28 V4.81
+
+- stat_bonus 32倍するの忘れてた。これで元の強さぐらいになった。
+- 探索部に、Eloに関するコメント追加。(これはStockfish 9のソースコードのそのまま)
+- IIDでttValue代入していなかったの修正。IIDのparameter 256→128に変更。
+- fail lowのときにstatScoreをゼロにするように変更。
+- RazorMarginのパラメータ、Stockfish 9に合せた。
+
+
 ■　2018/04/27
 
 - Stockfish 9にキャッチアップのために準備
@@ -13,6 +22,7 @@
 - 使用するWindows SDKのバージョンを10.0.16299.0に変更。
 
 - move_pickerをStockfish 9に準拠。R100ぐらい弱くなった。原因究明中。
+- search()、変数を整理した。Stockfish 9に変数宣言をする場所を極力合わせた。
 
 
 ■　2018/01/25

@@ -224,8 +224,8 @@ struct Position
 #endif
 	}
 
-	// moved_pieceの拡張版。駒打ちのときは、打ち駒(+32 == PIECE_DROP)を加算した駒種を返す。
-	// historyなどでUSE_DROPBIT_IN_STATSを有効にするときに用いる。
+	// moved_pieceの拡張版。
+	// USE_DROPBIT_IN_STATSがdefineされていると駒打ちのときは、打ち駒(+32 == PIECE_DROP)を加算した駒種を返す。
 	// 成りの指し手のときは成りの指し手を返す。(移動後の駒)
 	// KEEP_PIECE_IN_GENERATE_MOVESのときは単にmoveの上位16bitを返す。
 	Piece moved_piece_after(Move m) const

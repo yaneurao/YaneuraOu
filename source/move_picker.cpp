@@ -393,8 +393,8 @@ top:
 
 	// 王手となる指し手の生成
 	case QCHECK_INIT:
-		// CAPTURES_PRO_PLUSで生成していたので、歩の成る指し手は除外された成る指し手＋王手の指し手生成が必要。
-		// QUIET_CHECKS_PRO_MINUSがあれば良いのだが、実装が難しいので、このあとQCHECK_で除外する。
+		// CAPTURES_PRO_PLUSで生成していたので、駒を取らない王手の指し手生成(QUIET_CHECKS) - 歩の成る指し手の除外 が必要。
+		// QUIET_CHECKS_PRO_MINUSがあれば良いのだが、実装が難しいので、QUIET_CHECKSで生成して、このあとQCHECK_で歩の成る指し手を除外する。
 		cur = moves;
 		endMoves = generateMoves<QUIET_CHECKS>(pos, cur);
 
