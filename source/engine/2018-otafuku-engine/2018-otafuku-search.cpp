@@ -1214,29 +1214,7 @@ namespace YaneuraOu2018GOKU
 		// 【計測資料 24.】RazoringをStockfish 8と9とで比較
 
 		// 残り探索深さが少ないときに、その手数でalphaを上回りそうにないとき用の枝刈り。
-#if 0
-		if (   !PvNode
-			&&  depth < 4 * ONE_PLY
-			&&  eval <= alpha - razor_margin[depth / ONE_PLY])
-		{
 
-			// 残り探索深さがONE_PLY以下で、alphaを確実に下回りそうなら、ここで静止探索を呼び出してしまう。
-			if (depth <= ONE_PLY
-			//	&& eval + razor_margin[3] <= alpha
-				// →　ここ、razoringとしてはrazor_margin[ZERO_DEPTH]を参照すべき。
-				// しかしそれは前提条件として満たしているので結局、ここでは単にqsearch()を
-				// 呼び出して良いように思う。
-				)
-				return qsearch<NonPV>(pos, ss, alpha, alpha + 1);
-
-			// 残り探索深さが1～3手ぐらいあるときに、alpha - razor_marginを上回るかだけ調べて
-			// 上回りそうにないならもうリターンする。
-			Value ralpha = alpha - razor_margin[depth/ONE_PLY];
-			Value v = qsearch<NonPV>(pos, ss, ralpha, ralpha + 1);
-			if (v <= ralpha)
-				return v;
-		}
-#else
 		if (   !PvNode
 			&&  depth < 3 * ONE_PLY
 			&&  eval <= alpha - RazorMargin[depth / ONE_PLY])
@@ -1251,7 +1229,6 @@ namespace YaneuraOu2018GOKU
 				return v;
 		}
 
-#endif
 		// -----------------------
 		// Step 8. Futility pruning: child node (skipped when in check) : ~30 Elo
 		// -----------------------
@@ -2338,7 +2315,6 @@ void Search::clear()
 	RazorMargin[0] = PARAM_RAZORING_MARGIN1; // 未使用
 	RazorMargin[1] = PARAM_RAZORING_MARGIN2;
 	RazorMargin[2] = PARAM_RAZORING_MARGIN3;
-//	razor_margin[3] = PARAM_RAZORING_MARGIN4;
 
 	// -----------------------
 	//   定跡の読み込み

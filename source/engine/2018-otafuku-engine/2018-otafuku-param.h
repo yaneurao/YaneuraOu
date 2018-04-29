@@ -168,17 +168,13 @@ PARAM_DEFINE PARAM_IID_MARGIN_ALPHA = 128;
 PARAM_DEFINE PARAM_RAZORING_MARGIN1 = 0;
 
 // 以下、変更しても計測できるほどの差ではないようなので元の値にしておく。
-// 元の値 = 570
+// 元の値 = 590
 // [PARAM] min:400,max:700,step:10,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_RAZORING_MARGIN2 = 570;
+PARAM_DEFINE PARAM_RAZORING_MARGIN2 = 590;
 
-// 元の値 = 603
+// 元の値 = 604
 // [PARAM] min:400,max:700,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_RAZORING_MARGIN3 = 603;
-
-// 元の値 = 554
-// [PARAM] min:400,max:700,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_RAZORING_MARGIN4 = 554;
+PARAM_DEFINE PARAM_RAZORING_MARGIN3 = 604;
 
 
 //
