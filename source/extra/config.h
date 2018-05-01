@@ -221,9 +221,9 @@
 
 // --- 通常の思考エンジンとして実行ファイルを公開するとき用の設定集
 
-// やねうら王2017Early
-#if defined(YANEURAOU_2017_EARLY_ENGINE)
-#define ENGINE_NAME "YaneuraOu 2017 Early"
+// やねうら王2018 with お多福ラボ
+#if defined(YANEURAOU_2018_OTAFUKU_ENGINE)
+#define ENGINE_NAME "YaneuraOu 2018 Otafuku"
 #define EVAL_KPPT
 //#define EVAL_KPP_KKPT
 
@@ -258,9 +258,10 @@
 #endif
 
 
-// 極やねうら王(非公開)
-#if defined(YANEURAOU_2017_GOKU_ENGINE)
-#define ENGINE_NAME "YaneuraOu 2017 GOKU"
+
+// 極やねうら王2018(非公開)
+#if defined(YANEURAOU_2018_GOKU_ENGINE)
+#define ENGINE_NAME "YaneuraOu 2018 GOKU"
 
 //#define EVAL_KPPT
 #define EVAL_KPP_KKPT
@@ -353,6 +354,7 @@
 #define KEEP_LAST_MOVE
 #undef  MAX_PLY_NUM
 #define MAX_PLY_NUM 2000
+#define USE_SEE
 #define USE_MATE_1PLY
 #define EVAL_MATERIAL
 #define LONG_EFFECT_LIBRARY
@@ -537,10 +539,10 @@ inline bool getline(std::fstream& fs, std::string& s)
 // --- output for Japanese notation
 
 // PRETTY_JPが定義されているかどうかによって三項演算子などを使いたいので。
-#ifdef PRETTY_JP
-const bool pretty_jp = true;
+#if defined (PRETTY_JP)
+constexpr bool pretty_jp = true;
 #else
-const bool pretty_jp = false;
+constexpr bool pretty_jp = false;
 #endif
 
 
@@ -577,10 +579,10 @@ const bool pretty_jp = false;
 
 // ターゲットが64bitOSかどうか
 #if (defined(_WIN64) && defined(_MSC_VER)) || (defined(__GNUC__) && defined(__x86_64__))
-const bool Is64Bit = true;
+constexpr bool Is64Bit = true;
 #define IS_64BIT
 #else
-const bool Is64Bit = false;
+constexpr bool Is64Bit = false;
 #endif
 
 #if defined(USE_AVX512)

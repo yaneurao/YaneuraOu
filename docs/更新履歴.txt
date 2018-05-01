@@ -2,7 +2,127 @@
 やねうら王 更新履歴
 
 
-■　2017/11/09
+■　2018/04/30 V4.82
+
+- ProbCutのパラメーター導入
+	- PARAM_PROBCUT_MARGIN1 , PARAM_PROBCUT_MARGIN2
+- ProbCutのマージン、手で調整する。
+	PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 194 + 16/2;
+	PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 48/2;
+- NUMA環境のマルチスレッド対策。
+	- 8スレッド未満だと異なるNUMAに割り振られることがあり、パフォーマンス激減するのでその回避策。
+	- Upon changing the number of threads, make sure all threads are bound : https://github.com/official-stockfish/Stockfish/commit/1c50d8cbf554733c0db6ab423b413d75cc0c1928
+- gccだとconstexprをつけたところでエラーになっていたのを修正。
+- V4.82リリース
+	engine1 = YaneuraOu-2018-OtafukuV480.exe , eval = Apery20171111
+	engine2 = YaneuraOu-2018-OtafukuV482.exe , eval = Apery20171111
+	T1,b1000,435 - 25 - 540(44.62% R-37.56) win black : white = 49.33% : 50.67%
+	T1,b2000,440 - 31 - 499(46.86% R-21.86) win black : white = 54.42% : 45.58%
+	T1,b4000,209 - 19 - 232(47.39% R-18.14) win black : white = 51.93% : 48.07%
+	T1,b8000,86 - 12 - 112(43.43% R-45.89) win black : white = 46.97% : 53.03%
+	T2,b2000,93 - 11 - 126(42.47% R-52.76) win black : white = 55.71% : 44.29%
+	// 時間なくてこれだけしか計測できていないが、V4.80と比べて弱くはなさそうなのでこれをV4.82とする。
+
+
+■　2018/04/29
+
+- futility_marginの計算にimproving導入。
+- futility_marginのパラメーターの値、変更。143→172
+- ProbCutにimproving導入
+- ProbCutの指し手の試行回数を3回に制限
+- Singular Extensionのコード、少し整理
+- IIDの条件式単純化
+	- Simplifiy IID condition : https://github.com/official-stockfish/Stockfish/commit/d6252ef202f43d42d05b80145f3014da4d22863e
+- "PARAM_IID_MARGIN_ALPHA"削除
+- Singular Extensionのフラグ変数削除
+	- Simplify Singular Extension condition : https://github.com/official-stockfish/Stockfish/commit/0cfb653eeca1bc44b9d331498a9ccb3e9b97a9c1
+- 置換表をcallocではなくmallocで確保するように変更。
+	- Explicitly zero TT upon resize. : https://github.com/official-stockfish/Stockfish/commit/2ba47416cbdd5db2c7c79257072cd8675b61721f
+- shogi.hなどの定数、可能なところはconstexprに変更。0.2%ぐらい速くなったかも。(計測誤差？)
+	- Use constexpr when makes sense : https://github.com/official-stockfish/Stockfish/commit/28b6a457c24d9202ba43a6d6703221250f0f8749
+
+
+■　2018/04/28 V4.81 (V4.80から+R15～25程度)
+
+- stat_bonus 32倍するの忘れてた。これで元の強さぐらいになった。
+- 探索部に、Eloに関するコメント追加。(これはStockfish 9のソースコードのそのまま)
+- IIDでttValue代入していなかったの修正。IIDのparameter 256→128に変更。
+- fail lowのときにstatScoreをゼロにするように変更。
+- RazorMarginのパラメータ、Stockfish 9に合せた。
+
+
+■　2018/04/27
+
+- Stockfish 9にキャッチアップのために準備
+ - 旧エンジン(探索部とmove_picker)をsource/old_enginesにコピー。
+
+- C++14でstd::tr2を使用するとwaring C4996が出るので抑制。
+
+- Visual Studio用の2017GOKUのソリューションを削除
+- 使用するWindows SDKのバージョンを10.0.16299.0に変更。
+
+- move_pickerをStockfish 9に準拠。R100ぐらい弱くなった。原因究明中。
+- search()、変数を整理した。Stockfish 9に変数宣言をする場所を極力合わせた。
+
+
+■　2018/01/25
+
+- ONE_PLYが1以外の場合のinfo depth等を修正(tttakさん)
+
+- やねうら王2018になって、makebookコマンドが有効になっていなかったの修正。
+- Makefile、gccがデフォルトになっていたのclangに修正。
+
+
+■　2018/01/12 V4.80
+
+- 探索部の改良のために比較実験したときの計測資料公開
+	- docs/計測資料.txt
+
+- BookIgnoreRateの処理のところでgccだとwarningが出ていたの修正。
+
+- やねうら王2018 with お多福ラボ 公開。このコミットにおいては、SDT5版とほぼ同様。
+	- やねうら王2017Earlyの探索部をsource/old_engines/ に移動
+	- やねうら王 V4.80として公開。
+
+
+■　2017/12/02
+
+- デバッグ用にqsearch,searchコマンド追加。
+
+
+■　2017/12/01
+
+- mate engineがコンパイル通らなくなっていたので修正。(かず@なのはさん)
+- mate-search.cppでclangでコンパイルが通らなかったの修正。(かず@なのはさん)
+
+
+■　2017/11/25
+
+- 学習部、少し整理
+	- 学習時の手番のetaを非手番側の1/8に変更。(like Apery)
+	- ADA_PROP削除
+	- V_FRACTION_BITS廃止。
+	- Weight配列をmemsetで初期化するの廃止。
+
+
+■　2017/11/23
+
+- learnコマンドに序盤を学習対象から外すオプション追加。(実験中なので現時点では隠しオプション)
+	- reduction_gameply
+
+
+■　2017/11/18
+
+- gensfen2018コマンド追加準備。(現状、非公開)
+
+
+■　2017/11/17 
+
+- evaluate_kpptの高速化(yuk-toさん) : https://github.com/yaneurao/YaneuraOu/pull/69
+- EVAL_MATERIALのときのcompute_eval()やコメントがおかしかったの修正。(tanuki-さん)
+
+
+■　2017/11/09 SDT5 version
 
 - KKPP_KPPT型評価関数、学習時の次元下げコード追加。
 	- learn.hのUSE_KKPP_LOWER_DIMをdefineすると学習時の次元下げが有効になる。

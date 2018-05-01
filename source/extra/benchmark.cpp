@@ -73,7 +73,7 @@ void bench_cmd(Position& current, istringstream& is)
 	Options["Hash"] = ttSize;
 	Options["Threads"] = threads;
 
-#if defined(YANEURAOU_2017_EARLY_ENGINE)
+#if defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE)
 	// 定跡にhitされるとベンチマークにならない。
 	Options["BookFile"] = "no_book";
 #endif

@@ -1,0 +1,917 @@
+﻿
+【計測資料】
+
+　探索部の改良に関して、改良前と改良後とを比較してその勝率などを記録しておく。
+　例えば探索部で「【計測資料 1.】」とコメントがあれば、このファイルの「■　1.」のところにその詳しい内容がある。
+
+■　25. 浅い深さでの枝刈りについて Stockfish 9のコードとの比較
+
+	※　計測資料 19.と同じ比較だが、他の部分がStockfish 9相当である部分が違う。
+
+#if 1
+				// Stockfish 9相当のコード
+				// 実際には、-PawnValue の部分にはCaptureMargin[]が使われている。
+				else if (depth < 7 * ONE_PLY
+					&& !extension
+					&& !pos.see_ge(move, Value(-PawnValue * (depth / ONE_PLY))))
+					continue;
+#endif
+
+#if 0
+				// やねうら王の独自のコード。depthの2乗に比例したseeマージン。適用depthに制限なし。
+				else if (!extension
+					&& !pos.see_ge(move, Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 * (depth / ONE_PLY) * (depth / ONE_PLY))
+						// PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2を少し大きめにして調整したほうがよさげ。
+					))
+					continue;
+#endif
+
+	YaneuraOu-2018-OtafukuV481a.exe : やねうら王の独自コード
+	YaneuraOu-2018-OtafukuV481b.exe : Stockfish 9相当のコード
+	T1,b1000,538 - 38 - 424(55.93% R41.37) win black : white = 48.86% : 51.14%
+	T1,b2000,537 - 40 - 423(55.94% R41.45) win black : white = 49.58% : 50.42%
+	T1,b4000,381 - 41 - 298(56.11% R42.68) win black : white = 51.84% : 48.16%
+
+	// Stockfish 9のコードのこの部分、
+	// CaptureMarginをきちんと調整しないと明らかに弱くなる。
+
+
+■　24.RazoringをStockfish 8と9とで比較
+
+// 改造前(Stockfish 8方式のコード)
+
+		//  Razoring (王手がかかっているときはスキップする)
+
+		// 【計測資料 24.】RazoringをStockfish 8と9とで比較
+
+		// 残り探索深さが少ないときに、その手数でalphaを上回りそうにないとき用の枝刈り。
+		if (   !PvNode
+			&&  depth < 4 * ONE_PLY
+			&&  eval <= alpha - razor_margin[depth / ONE_PLY])
+		{
+
+			// 残り探索深さがONE_PLY以下で、alphaを確実に下回りそうなら、ここで静止探索を呼び出してしまう。
+			if (depth <= ONE_PLY
+			//	&& eval + razor_margin[3] <= alpha
+				// →　ここ、razoringとしてはrazor_margin[ZERO_DEPTH]を参照すべき。
+				// しかしそれは前提条件として満たしているので結局、ここでは単にqsearch()を
+				// 呼び出して良いように思う。
+				)
+				return qsearch<NonPV>(pos, ss, alpha, alpha + 1);
+
+			// 残り探索深さが1～3手ぐらいあるときに、alpha - razor_marginを上回るかだけ調べて
+			// 上回りそうにないならもうリターンする。
+			Value ralpha = alpha - razor_margin[depth/ONE_PLY];
+			Value v = qsearch<NonPV>(pos, ss, ralpha, ralpha + 1);
+			if (v <= ralpha)
+				return v;
+		}
+
+改造後(Stockfish 9方式のコード)
+・depth == 3 * ONE_PLYでのrazoringの適用をしなくなった
+
+		if (!PvNode
+			&&  depth < 3 * ONE_PLY
+			&&  eval <= alpha - razor_margin[depth / ONE_PLY])
+		{
+			// 残り探索深さが1,2手のときに、alpha - razor_marginを上回るかだけ簡単に
+			// (qsearchを用いてnull windowで)調べて、上回りそうにないなら
+			// このnodeの探索はここ終了してリターンする。
+
+			Value ralpha = alpha - (depth >= 2 * ONE_PLY) * RazorMargin[depth / ONE_PLY];
+			Value v = qsearch<NonPV>(pos, ss, ralpha, ralpha + 1);
+			if (depth < 2 * ONE_PLY || v <= ralpha)
+				return v;
+		}
+
+	// 計測時、校舎のRazoringのパラメーターもStockfish 8のときの値になっていた。
+	// これは、のちにStockfish 9相当のパラメーターに変更。
+
+	改造前 : YaneuraOu-2018-OtafukuV480sf9_v2d.exe
+	改造後 : YaneuraOu-2018-OtafukuV480sf9_v2e.exe
+
+	T1,b1000,488 - 39 - 473(50.78% R5.42) win black : white = 49.84% : 50.16%
+	T1,b2000,487 - 41 - 472(50.78% R5.43) win black : white = 50.78% : 49.22%
+	T1,b4000,483 - 54 - 463(51.06% R7.35) win black : white = 52.85% : 47.15%
+
+	// 少し負けているが、計測できるほどの差ではなさそうだ。
+	// 後者のほうがコードがシンプルだし、調整するパラメーターが1つ減っているし、
+	// また、新しいStockfishに倣うべきだと思うので後者を採用する。
+
+
+■　23.moves_loopに入る前に毎回evaluate()を呼ぶかどうか。
+
+	// 改造前
+
+		ss->staticEval = eval = evaluate(pos);
+
+	// 改造後(Stockfish相当のコード)
+
+		//ss->staticEval = eval = evaluate(pos);
+
+		if (inCheck)
+		{
+			ss->staticEval = eval = VALUE_NONE;
+			goto moves_loop;
+
+		}
+		else if (ttHit)
+		{
+			if ((ss->staticEval = eval = tte->eval()) == VALUE_NONE)
+				eval = ss->staticEval = evaluate(pos);
+
+			if (ttValue != VALUE_NONE
+				&& (tte->bound() & (ttValue > eval ? BOUND_LOWER : BOUND_UPPER)))
+					eval = ttValue;
+		}
+		else
+		{
+			eval = ss->staticEval =
+				(ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
+				: -(ss - 1)->staticEval + 2 * 20;
+
+		...
+
+		engine1 = YaneuraOuGoku_tuned.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test23.exe , eval = rezero_kpp_kkpt_epoch5
+		T4,b4000,948 - 131 - 921(50.72% R5.02) win black : white = 52.11% : 47.89%
+		T4,b4000,970 - 140 - 890(52.15% R14.95) win black : white = 51.4% : 48.6%
+
+
+■　22.1手前の指し手がnull move時のstaticEvalの計算
+
+		// 古いコード上のコメント
+
+			// この処理、入れたほうがいいようだ。一見するとevaluate()は上で手番つきで求めているから
+			// これをやると不正確になるだけのようであるが、null moveした局面で手番つきの評価関数を呼ぶと
+			// 駒に当たっているものがプラス評価されて、評価値として大きく出すぎて悪作用があるようだ。
+
+			// →　長い持ち時間ではそうでもないかも。
+			//  play_time = b5000, 468 - 32 - 500(48.35% R - 11.49) [2016/08/19]
+			//  手番込みの評価関数で手番がそれなりに正しく評価されているなら意味があるようだ。
+
+
+		// 改造前のコード
+
+		else
+		{
+			// 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
+			tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE,
+					  ss->staticEval, TT_GEN(pos) );
+			// どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないのだが、mate1ply()を
+			// 実行したという証にはなるので意味がある。
+		}
+
+		// 改造後のコード1 : YaneuraOuGoku_test22a.exe
+
+		else
+		{
+			if ((ss - 1)->currentMove == MOVE_NULL)
+				eval = ss->staticEval = -(ss - 1)->staticEval + 2 * /*Tempo*/ 20;
+
+			// 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
+			tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE,
+					  ss->staticEval, TT_GEN(pos) );
+			// どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないのだが、mate1ply()を
+			// 実行したという証にはなるので意味がある。
+		}
+
+		engine1 = YaneuraOuGoku_tuned.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test22a.exe , eval = rezero_kpp_kkpt_epoch5
+		T4,b4000,943 - 148 - 909(50.92% R6.38) win black : white = 51.19% : 48.81%
+		T4,b4000,917 - 145 - 938(49.43% R-3.93) win black : white = 53.42% : 46.58%
+
+		// よくなさそう。
+
+
+■　21.pvExact時のreduction軽減
+
+
+	// 改造前 : YaneuraOuGoku_tuned.exe
+		reduction軽減なし
+
+	// 改造後 : YaneuraOuGoku_test21.exe
+		if (pvExact)
+			r -= ONE_PLY;
+
+		engine1 = YaneuraOuGoku_tuned.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test21.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b1000,458 - 35 - 507(47.46% R-17.66) win black : white = 51.3% : 48.7%
+		T2,b2000,471 - 52 - 477(49.68% R-2.2) win black : white = 52.32% : 47.68%
+		T2,b4000,484 - 63 - 453(51.65% R11.5) win black : white = 48.77% : 51.23%
+		T2,b4000,495 - 52 - 463(51.67% R11.61) win black : white = 50.52% : 49.48%
+		T2,b4000,477 - 60 - 463(50.74% R5.17) win black : white = 51.7% : 48.3%
+		T4,b4000,970 - 115 - 915(51.46% R10.14) win black : white = 48.65% : 51.35%
+		T4,b4000,912 - 142 - 946(49.09% R-6.36) win black : white = 52.42% : 47.58%
+		T4,b4000,924 - 149 - 927(49.92% R-0.56) win black : white = 51.16% : 48.84%
+
+		// よくなさげ..??
+
+
+■　20.SEEが負の指し手を枝刈りする/しない
+
+	// 改造前
+					// 【計測資料 20.】SEEが負の指し手を枝刈りする/しない
+					if (!pos.see_ge(move , Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 * lmrDepth * lmrDepth)))
+						continue;
+
+	// 改造後
+		コメントアウト
+
+		engine1 = YaneuraOuGoku_test17.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test20.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,168 - 18 - 144(53.85% R26.78) win black : white = 50.0% : 50.0%
+		T2,b8000,165 - 20 - 145(53.23% R22.45) win black : white = 51.61% : 48.39%
+		T2,b8000,158 - 25 - 137(53.56% R24.77) win black : white = 47.8% : 52.2%
+		T2,b8000,150 - 22 - 138(52.08% R14.48) win black : white = 50.35% : 49.65%
+		T2,b8000,164 - 21 - 155(51.41% R9.8) win black : white = 48.28% : 51.72%
+
+		// R20ぐらい悪化した。
+
+
+■　19.	浅い深さでの枝刈りについて Stockfish 8のコードとの比較
+
+	// 改造前(古いStockfishのコード)
+				// 浅い深さでの、危険な指し手を枝刈りする。
+
+				else if (!extension
+					&& !pos.see_ge(move, Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 * (depth / ONE_PLY) * (depth / ONE_PLY))
+						// PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2を少し大きめにして調整したほうがよさげ。
+					))
+					continue;
+
+		// 改造後1(現在のStockfishのコード)
+
+#if 1 // Stockfish 2017/04/17相当 これだとR50ぐらい弱くなる。
+				else if (	depth < 7 * ONE_PLY
+						&& !extension
+						&& !pos.see_ge(move, Value(-PawnValue * (depth / ONE_PLY))))
+						continue;
+#endif
+
+		// 改造後2 : YaneuraOuGoku_test19b.exe
+			丸ごとコメントアウト
+
+		engine1 = YaneuraOuGoku_test17.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test19.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,377 - 36 - 287(56.78% R47.38) win black : white = 54.22% : 45.78%
+		T2,b8000,346 - 41 - 293(54.15% R28.88) win black : white = 47.26% : 52.74%
+		T2,b8000,370 - 37 - 303(54.98% R34.7) win black : white = 48.29% : 51.71%
+		T2,b8000,362 - 42 - 276(56.74% R47.12) win black : white = 52.35% : 47.65%
+		T2,b8000,358 - 34 - 308(53.75% R26.13) win black : white = 52.25% : 47.75%
+		T2,b8000,368 - 45 - 277(57.05% R49.35) win black : white = 53.95% : 46.05%
+
+		// R30ぐらい悪そう
+
+		engine1 = YaneuraOuGoku_test17.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test19b.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,316 - 44 - 260(54.86% R33.89) win black : white = 50.87% : 49.13%
+		T2,b8000,307 - 41 - 292(51.25% R8.7) win black : white = 54.76% : 45.24%
+		T2,b8000,297 - 37 - 296(50.08% R0.59) win black : white = 51.77% : 48.23%
+		T2,b8000,307 - 42 - 291(51.34% R9.3) win black : white = 51.34% : 48.66%
+		T2,b8000,303 - 40 - 297(50.5% R3.47) win black : white = 55.67% : 44.33%
+
+		// R10ぐらい悪そう
+
+		結論的には、いまの枝刈り、なしにするとR10ぐらい悪い。
+		Stockfishのいまのコードは、なしにするよりさらにR20ぐらい悪い。　
+
+
+■　18. cut nodeのときにreductionを増やすかどうか。
+
+	// 改造前
+					// cut nodeにおいてhistoryの値が悪い指し手に対してはreduction量を増やす。
+					// ※　PVnodeではIID時でもcutNode == trueでは呼ばないことにしたので、
+					// if (cutNode)という条件式は暗黙に && !PvNode を含む。
+
+					// 2 * ONE_PLYは、将棋においてはやりすぎの可能性もある。
+					// もう少し細かく調整したほうが好ましいのだが、ONE_PLY == 1のままだと少し難しい。
+
+					// 【計測資料 18.】cut nodeのときにreductionを増やすかどうか。
+
+					if (cutNode)
+						r += 2 * ONE_PLY;
+
+	// 改造後1.
+		コメントアウト
+
+	// 改造後2～5.
+					if (cutNode)
+						r += 1 * ONE_PLY;
+
+					if (cutNode)
+						r += 3 * ONE_PLY;
+
+					if (cutNode)
+						r += 4 * ONE_PLY;
+
+					if (cutNode)
+						r += 5 * ONE_PLY;
+
+		engine1 = YaneuraOuGoku_test17.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test18.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,84 - 10 - 56(60.0% R70.44) win black : white = 48.57% : 51.43%
+		T2,b8000,101 - 8 - 51(66.45% R118.7) win black : white = 53.95% : 46.05%
+		T2,b8000,71 - 19 - 60(54.2% R29.24) win black : white = 44.27% : 55.73%
+		T2,b8000,73 - 12 - 65(52.9% R20.16) win black : white = 55.8% : 44.2%
+		T2,b8000,79 - 9 - 72(52.32% R16.12) win black : white = 48.34% : 51.66%
+		T2,b8000,1049 - 136 - 815(56.28% R43.85) win black : white = 49.52% : 50.48%
+
+	// cutNodeでreductionを増やすことにこんなに効果があるなら、
+	// もっとreductionを増やせばいいのではないのか..
+	// singular extensionと同じく、自己対局だけの特徴かも知れんが…。
+
+	// 他のソフトとも対局させてみる。
+
+		engine1 = YaneuraOuGoku_test17.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test18_1ply.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,880 - 135 - 905(49.3% R-4.87) win black : white = 52.61% : 47.39%
+		T2,b8000,930 - 140 - 870(51.67% R11.59) win black : white = 50.83% : 49.17%
+
+		engine1 = YaneuraOuGoku_test17.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test18_3ply.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,929 - 123 - 908(50.57% R3.97) win black : white = 52.26% : 47.74%
+
+		engine1 = YaneuraOuGoku_test17.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test18_4ply.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,943 - 145 - 852(52.53% R17.63) win black : white = 49.19% : 50.81%
+
+		engine1 = YaneuraOuGoku_test17.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test18_5ply.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,1017 - 122 - 801(55.94% R41.48) win black : white = 51.21% : 48.79%
+
+		// 1,2,3手でそんなに差はないけど2手がベストということにはなりそう。
+
+
+■　17.捕獲から逃れる指し手はreduction量を減らす。
+
+	// 改造前(古いStockfishのコード)
+					else if (!is_drop(move) // type_of(move) == NORMAL
+						&& type_of(pos.piece_on(to_sq(move))) != PAWN
+						&& !pos.see_ge(make_move(to_sq(move), from_sq(move))))
+						r -= 2 * ONE_PLY;
+
+
+			この2行目、do_moveした直後なので次のように書けるはずなのだが。
+						&& type_of(pos.moved_piece_after(move)) != PAWN
+
+
+	// 改造後1 : YaneuraOuGoku_test17.exe
+		丸ごとコメントアウト
+
+	// 改造後2 : YaneuraOuGoku_test17b.exe
+		歩以外の駒であるかの判定を削除。(Stockfishの最新のコードはこうなっている)
+
+					else if (!is_drop(move) // type_of(move) == NORMAL
+						&& !pos.see_ge(make_move(to_sq(move), from_sq(move))))
+						r -= 2 * ONE_PLY;
+
+
+		engine1 = YaneuraOuGoku_test8_avx2fast.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test17.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,320 - 53 - 317(50.24% R1.64) win black : white = 53.69% : 46.31%
+		T2,b8000,293 - 55 - 342(46.14% R-26.86) win black : white = 51.18% : 48.82%
+		T2,b8000,306 - 50 - 344(47.08% R-20.33) win black : white = 55.38% : 44.62%
+		T2,b8000,326 - 44 - 330(49.7% R-2.12) win black : white = 52.13% : 47.87%
+		T2,b8000,323 - 46 - 341(48.64% R-9.42) win black : white = 53.46% : 46.54%
+		T2,b8000,149 - 23 - 178(45.57% R-30.89) win black : white = 51.38% : 48.62%
+
+		// どう見ても不要です。本当にありがとうございました。
+
+		engine1 = YaneuraOuGoku_test8_avx2fast.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test17b.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,375 - 49 - 386(49.28% R-5.02) win black : white = 50.33% : 49.67%
+		T2,b8000,375 - 66 - 349(51.8% R12.48) win black : white = 52.76% : 47.24%
+		T2,b8000,394 - 52 - 374(51.3% R9.05) win black : white = 55.34% : 44.66%
+		// 悪化した
+
+		engine1 = YaneuraOuGoku_test17.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test17b.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,406 - 46 - 358(53.14% R21.86) win black : white = 52.09% : 47.91%
+		T2,b8000,398 - 46 - 376(51.42% R9.88) win black : white = 52.84% : 47.16%
+		T2,b8000,412 - 45 - 353(53.86% R26.85) win black : white = 53.73% : 46.27%
+		// Stockfishの元のコード、やはり不要と言わざるをえない。
+
+
+■　16.quietな指し手に対するhistory update
+
+	// 改造前
+			// 反駁された1手前の置換表のquietな指し手に対する追加ペナルティを課す。
+			// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
+			if ((ss - 1)->moveCount == 1 && !pos.captured_piece())
+				update_continuation_histories(ss - 1, pos.moved_piece_after((ss - 1)->currentMove), prevSq, -stat_bonus(depth + ONE_PLY));
+
+	// 改造後
+
+			if ((ss - 1)->moveCount == 1 && !pos.captured_piece() && !is_promote((ss - 1)->currentMove))
+				update_continuation_histories(ss - 1, pos.moved_piece_after((ss - 1)->currentMove), prevSq, -stat_bonus(depth + ONE_PLY));
+
+		engine1 = YaneuraOuGoku_test8_avx2fast.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test16.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,939 - 147 - 914(50.67% R4.69) win black : white = 50.78% : 49.22%
+		T2,b8000,994 - 124 - 882(52.99% R20.77) win black : white = 52.35% : 47.65%
+		T2,b8000,918 - 142 - 940(49.41% R-4.11) win black : white = 50.81% : 49.19%
+		T2,b8000,965 - 150 - 885(52.16% R15.03) win black : white = 53.84% : 46.16%
+		T2,b8000,867 - 128 - 815(51.55% R10.74) win black : white = 51.78% : 48.22%
+
+		// かなり悪化しているので採用しない。
+
+
+■　15.search()でfail lowしているときにhistoryのupdateを行なう条件
+
+	// 改造前
+
+		// bestMoveがない == fail lowしているケース。
+		// fail lowを引き起こした前nodeでのcounter moveに対してボーナスを加点する。
+		else if (   depth >= 3 * ONE_PLY
+				&& !pos.captured_piece()
+				&& is_ok((ss - 1)->currentMove))
+			update_continuation_histories(ss - 1, pos.moved_piece_after((ss - 1)->currentMove), prevSq, stat_bonus(depth));
+
+	// 改造後1
+		else if (   depth >= 3 * ONE_PLY
+				&& !pos.captured_piece()
+				&& !is_promote((ss - 1)->currentMove)
+				&& is_ok((ss - 1)->currentMove))
+			update_continuation_histories(ss - 1, pos.moved_piece_after((ss - 1)->currentMove), prevSq, stat_bonus(depth));
+
+	// 改造後2
+		else if (   depth >= 3 * ONE_PLY
+				&& !pos.captured_piece()
+				&& !pos.pawn_promotion((ss - 1)->currentMove)
+				&& is_ok((ss - 1)->currentMove))
+			update_continuation_histories(ss - 1, pos.moved_piece_after((ss - 1)->currentMove), prevSq, stat_bonus(depth));
+
+
+		engine1 = YaneuraOuGoku_kpp_kkpt_test8.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test15a.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,941 - 140 - 919(50.59% R4.11) win black : white = 53.28% : 46.72%
+		T2,b8000,923 - 122 - 955(49.15% R-5.92) win black : white = 52.5% : 47.5%
+		T2,b8000,954 - 119 - 927(50.72% R4.99) win black : white = 51.36% : 48.64%
+		T2,b8000,940 - 112 - 948(49.79% R-1.47) win black : white = 53.28% : 46.72%
+			3758 - 3749
+			// 計測できる差ではなさそうだが悪いので採用しない。
+
+		engine1 = YaneuraOuGoku_kpp_kkpt_test8.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test15b.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,932 - 138 - 930(50.05% R0.37) win black : white = 54.3% : 45.7%
+		T2,b8000,939 - 133 - 928(50.29% R2.05) win black : white = 51.69% : 48.31%
+
+
+
+
+■　14.  futility pruningのときにpromoteを考慮するかどうか。
+
+	// 以前のデータ
+				// TODO調べ直す
+				// is_promote()以下、ないほうがいい？
+				// 			T1,b1000,4947 - 256 - 4797(50.77% R5.35)[2016/09/03]
+				//			T1,b3000,2416 - 183 - 2401(50.16% R1.08)[2016/09/04]
+				// →　有ったほうが良い…かも…。
+
+	// 改造前
+				Value futilityValue = futilityBase + (Value)CapturePieceValue[pos.piece_on(to_sq(move))]
+							   + (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(move_from(move))] : VALUE_ZERO);
+
+	// 改造後
+				Value futilityValue = futilityBase + (Value)CapturePieceValue[pos.piece_on(to_sq(move))];
+
+		engine1 = YaneuraOuGoku_kpp_kkpt_test8.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test14.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,858 - 129 - 823(51.04% R7.23) win black : white = 52.41% : 47.59%
+		T2,b8000,843 - 138 - 809(51.03% R7.15) win black : white = 51.63% : 48.37%
+		T2,b8000,847 - 110 - 813(51.02% R7.12) win black : white = 51.51% : 48.49%
+
+
+■　13. quietな指し手に対するupdate_stats
+
+	// 改造前
+
+		else if (bestMove)
+		{
+			// quietな(駒を捕獲しない)best moveなのでkillerとhistoryとcountermovesを更新する。
+			if (!pos.capture_or_pawn_promotion(bestMove))
+				update_stats(pos, ss, bestMove, quietsSearched, quietCount, stat_bonus(depth));
+
+	// 改造後1 : YaneuraOuGoku_test13a.exe
+
+		else if (bestMove)
+		{
+			// quietな(駒を捕獲しない)best moveなのでkillerとhistoryとcountermovesを更新する。
+			if (!pos.capture_or_promotion(bestMove))
+				update_stats(pos, ss, bestMove, quietsSearched, quietCount, stat_bonus(depth));
+
+	// 改造後2 : YaneuraOuGoku_test13b.exe
+
+		else if (bestMove)
+		{
+			// quietな(駒を捕獲しない)best moveなのでkillerとhistoryとcountermovesを更新する。
+			if (!pos.capture(bestMove))
+				update_stats(pos, ss, bestMove, quietsSearched, quietCount, stat_bonus(depth));
+
+
+			engine1 = YaneuraOuGoku_kpp_kkpt_test8.exe , eval = rezero_kpp_kkpt_epoch5
+			engine2 = YaneuraOuGoku_test13a.exe , eval = rezero_kpp_kkpt_epoch5
+			T2,b8000,931 - 131 - 938(49.81% R-1.3) win black : white = 52.49% : 47.51%
+			T2,b8000,947 - 131 - 922(50.67% R4.65) win black : white = 53.72% : 46.28%
+			T2,b8000,908 - 146 - 946(48.98% R-7.12) win black : white = 52.1% : 47.9%
+				2786 - 2806
+
+			engine1 = YaneuraOuGoku_kpp_kkpt_test8.exe , eval = rezero_kpp_kkpt_epoch5
+			engine2 = YaneuraOuGoku_test13b.exe , eval = rezero_kpp_kkpt_epoch5
+			T2,b8000,923 - 141 - 936(49.65% R-2.43) win black : white = 50.4% : 49.6%
+			T2,b8000,938 - 125 - 937(50.03% R0.19) win black : white = 50.88% : 49.12%
+			T2,b8000,940 - 116 - 944(49.89% R-0.74) win black : white = 52.6% : 47.4%
+				2801 - 2817
+
+			// 計測不可な差。採用しない。
+
+
+■　12. extend checksのときのcaptureOrPawnPromotionをどう扱うか。
+
+	以前の検証。
+
+			//
+			// Extend checks
+			//
+
+			Depth extension = DEPTH_ZERO;
+
+			// bool captureOrPawnPromotion = pos.capture_or_promotion(move);
+
+			// これはpromotionをもっと絞ったほうがよさそうだ。
+			// (大きく加点されるのは、駒取りと歩の成りだけで、それ以外はそんなに大きな点数上昇ではないから。)
+
+			//  play_time = r300, 2626 - 73 - 2301(53.3% R22.95) [2016/08/20]
+			//	play_time = b1000, 1191 - 49 - 1010(54.11% R28.64) [2016/08/20]
+
+
+			//	bool captureOrPawnPromotion = pos.capture_or_valuable_promotion(move);
+
+			//	捕獲＋歩を捕獲 + 歩、角、飛の成りにした場合弱くなる。
+			//	成りを増やすのはオーダリングにいい影響を与えないようだ。
+			// 	play_time = r300 ,  2566 - 76 - 2358(52.11% R14.69) [2016/08/20]
+			//	play_time = b1000, 311 - 9 - 280(52.62% R18.24)[2016/08/20]
+
+			//	bool captureOrPawnPromotion = pos.capture(move);
+
+			// captureだけにするのは、やりすぎのようだ。
+
+			// TODO:ここ比較しなおす
+			// 指し手で捕獲する指し手、もしくは歩の成りである。
+			bool captureOrPawnPromotion = pos.capture_or_pawn_promotion(move);
+
+	// 改造前
+			bool captureOrPawnPromotion = pos.capture_or_pawn_promotion(move);
+	// 改造後1
+			bool captureOrPawnPromotion = pos.capture(move);
+	// 改造後2
+			bool captureOrPawnPromotion = pos.capture_or_promotion(move);
+
+
+			engine1 = YaneuraOuGoku_kpp_kkpt_test8.exe , eval = rezero_kpp_kkpt_epoch5
+			engine2 = YaneuraOuGoku_test12_capture.exe , eval = rezero_kpp_kkpt_epoch5
+			T2,b8000,402 - 50 - 358(52.89% R20.14) win black : white = 51.05% : 48.95%
+			T2,b8000,403 - 55 - 352(53.38% R23.5) win black : white = 55.36% : 44.64%
+			T2,b8000,380 - 63 - 367(50.87% R6.05) win black : white = 53.41% : 46.59%
+
+			engine1 = YaneuraOuGoku_kpp_kkpt_test8.exe , eval = rezero_kpp_kkpt_epoch5
+			engine2 = YaneuraOuGoku_test12_cap_pro.exe , eval = rezero_kpp_kkpt_epoch5
+			T2,b8000,425 - 58 - 327(56.52% R45.54) win black : white = 49.87% : 50.13%
+			T2,b8000,438 - 52 - 320(57.78% R54.53) win black : white = 53.03% : 46.97%
+			T2,b8000,407 - 53 - 360(53.06% R21.32) win black : white = 53.46% : 46.54%
+
+
+■　11. statScoreの計算でcontHist[3]も調べるかどうか。
+
+		// 改造前
+					// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
+					ss->statScore = thisThread->mainHistory[from_to(move)][~pos.side_to_move()]
+								  + (*contHist[0])[movedSq][movedPiece]
+								  + (*contHist[1])[movedSq][movedPiece]
+								  + (*contHist[3])[movedSq][movedPiece]
+								  - PARAM_REDUCTION_BY_HISTORY; // 修正項
+
+		// 改造後
+
+
+					ss->statScore = thisThread->mainHistory[from_to(move)][~pos.side_to_move()]
+								  + (*contHist[0])[movedSq][movedPiece]
+								  + (*contHist[1])[movedSq][movedPiece]
+								  - PARAM_REDUCTION_BY_HISTORY; // 修正項
+
+			engine1 = YaneuraOuGoku_kpp_kkpt_test8.exe , eval = rezero_kpp_kkpt_epoch5
+			engine2 = YaneuraOuGoku_test11.exe , eval = rezero_kpp_kkpt_epoch5
+			T2,b8000,493 - 61 - 446(52.5% R17.4) win black : white = 53.89% : 46.11%
+			T2,b8000,493 - 61 - 446(52.5% R17.4) win black : white = 53.89% : 46.11%
+			T2,b8000,465 - 71 - 464(50.05% R0.37) win black : white = 54.47% : 45.53%
+			T2,b8000,503 - 58 - 439(53.4% R23.64) win black : white = 50.64% : 49.36%
+			T2,b8000,455 - 65 - 480(48.66% R-9.29) win black : white = 53.37% : 46.63%
+
+
+■　10. historyに基づいた枝刈り。contHist[1],contHist[3]を用いるか
+
+					// ここ、fmh,fmh2を調べるほうが良いかは微妙
+					// [2017/05/03] fmh2を調べないように変更があった。
+					// [2017/09/17] 名前が変わってfmhは、contHist[1]になった。
+
+	改造前
+ 					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH
+						&& ((*contHist[0])[movedSq][movedPiece] < CounterMovePruneThreshold)
+						&& ((*contHist[1])[movedSq][movedPiece] < CounterMovePruneThreshold)
+						)
+						continue;
+
+	改造後1 : YaneuraOuGoku_test10.exe
+ 					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH
+						&& ((*contHist[0])[movedSq][movedPiece] < CounterMovePruneThreshold)
+						)
+						continue;
+
+	改造後2 : YaneuraOuGoku_test10_2.exe
+ 					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH
+						&& ((*contHist[0])[movedSq][movedPiece] < CounterMovePruneThreshold)
+						&& ((*contHist[1])[movedSq][movedPiece] < CounterMovePruneThreshold)
+						&& ((*contHist[3])[movedSq][movedPiece] < CounterMovePruneThreshold)
+						)
+						continue;
+
+		engine1 = YaneuraOuGoku_kpp_kkpt_test8.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test10.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,437 - 48 - 345(55.88% R41.06) win black : white = 50.9% : 49.1%
+		T2,b8000,441 - 41 - 348(55.89% R41.14) win black : white = 51.84% : 48.16%
+		T2,b8000,474 - 44 - 292(61.88% R84.16) win black : white = 50.52% : 49.48%
+
+		// めっちゃ悪化した。
+
+		engine1 = YaneuraOuGoku_kpp_kkpt_test8.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test10_2.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b8000,476 - 82 - 442(51.85% R12.87) win black : white = 50.98% : 49.02%
+		T2,b8000,490 - 65 - 445(52.41% R16.73) win black : white = 57.01% : 42.99%
+		T2,b8000,483 - 72 - 445(52.05% R14.23) win black : white = 48.92% : 51.08%
+		T2,b8000,476 - 53 - 471(50.26% R1.83) win black : white = 53.22% : 46.78%
+		T2,b8000,479 - 65 - 456(51.23% R8.55) win black : white = 51.76% : 48.24%
+		T2,b8000,501 - 66 - 433(53.64% R25.34) win black : white = 51.28% : 48.72%
+
+		// よくなさげ..
+
+■　9. fails lowのときのquiet ttMoveに対するペナルティ。capture_or_promotion、capture()とcaputure_or_pawn_promotion()の比較
+
+					// fails lowのときのquiet ttMoveに対するペナルティ
+					// 【計測資料 9.】capture_or_promotion(),capture_or_pawn_promotion(),capture()での比較
+	// 改造前
+					// Stockfish相当のコード
+					else if (!pos.capture_or_promotion(ttMove))
+	// 改造後1
+					else if (!pos.capture_or_pawn_promotion(ttMove))
+	// 改造後2
+					else if (!pos.capture(ttMove))
+					{
+						int penalty = -stat_bonus(depth);
+						thisThread->mainHistory.update(pos.side_to_move(), ttMove, penalty);
+						update_continuation_histories(ss, pos.moved_piece_after(ttMove), to_sq(ttMove), penalty);
+					}
+
+	改造後1)
+	YaneuraOuGoku_test9_cap_pawn.exe
+	改造後2)
+	YaneuraOuGoku_test9_cap.exe
+
+		engine1 = YaneuraOuGoku_kpp_kkpt_test8.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test9_cap_pawn.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b1000,478 - 34 - 488(49.48% R-3.6) win black : white = 48.96% : 51.04%
+		T2,b2000,475 - 49 - 476(49.95% R-0.37) win black : white = 51.74% : 48.26%
+		T2,b4000,477 - 57 - 466(50.58% R4.05) win black : white = 51.43% : 48.57%
+		T2,b8000,463 - 66 - 471(49.57% R-2.98) win black : white = 53.0% : 47.0%
+		T2,b8000,475 - 68 - 457(50.97% R6.71) win black : white = 50.64% : 49.36%
+		T2,b8000,495 - 62 - 443(52.77% R19.28) win black : white = 52.24% : 47.76%
+		T2,b8000,470 - 64 - 466(50.21% R1.48) win black : white = 52.99% : 47.01%
+		T2,b8000,467 - 74 - 459(50.43% R3.0) win black : white = 55.29% : 44.71%
+
+		engine1 = YaneuraOuGoku_kpp_kkpt_test8.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_test9_cap.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b1000,480 - 31 - 489(49.54% R-3.23) win black : white = 53.77% : 46.23%
+		T2,b2000,471 - 59 - 470(50.05% R0.37) win black : white = 53.77% : 46.23%
+		T2,b4000,503 - 36 - 461(52.18% R15.15) win black : white = 52.59% : 47.41%
+		T2,b8000,466 - 81 - 453(50.71% R4.92) win black : white = 51.8% : 48.2%
+		T2,b8000,470 - 61 - 469(50.05% R0.37) win black : white = 52.18% : 47.82%
+
+		// やや、悪化している気はする。
+
+■　8. searchでkiller登録のときにcapture()とcaputure_or_pawn_promotion()の比較
+
+					if (ttValue >= beta)
+					{
+						// 【計測資料 8.】 capture()とcaputure_or_pawn_promotion()の比較
+	#if 1
+	// 改造後(Stockfish相当のコード)
+						if (!pos.capture(ttMove))
+	#else
+	// 改造前(やねうら王2017Earlyのコード)
+						if (!pos.capture_or_pawn_promotion(ttMove))
+	#endif
+							update_stats(pos, ss, ttMove, nullptr, 0, stat_bonus(depth));
+
+
+		engine1 = YaneuraOuGoku_kpp_kkpt_test6.exe , eval = rezero_kpp_kkpt_epoch5
+		engine2 = YaneuraOuGoku_kpp_kkpt_test8.exe , eval = rezero_kpp_kkpt_epoch5
+		T2,b1000,476 - 36 - 488(49.38% R-4.33) win black : white = 50.21% : 49.79%
+		T2,b2000,460 - 37 - 503(47.77% R-15.52) win black : white = 50.57% : 49.43%
+		T2,b4000,450 - 60 - 490(47.87% R-14.79) win black : white = 52.13% : 47.87%
+		T2,b8000,470 - 72 - 458(50.65% R4.49) win black : white = 52.69% : 47.31%
+		T2,b8000,442 - 79 - 479(47.99% R-13.97) win black : white = 50.6% : 49.4%
+		T2,b8000,459 - 83 - 458(50.05% R0.38) win black : white = 53.22% : 46.78%
+		T2,b8000,464 - 70 - 466(49.89% R-0.75) win black : white = 53.12% : 46.88%
+		T2,b8000,475 - 61 - 464(50.59% R4.07) win black : white = 52.4% : 47.6%
+		T2,b8000,435 - 71 - 494(46.82% R-22.1) win black : white = 50.48% : 49.52%
+
+		// この改造は意味がありそうだ。うーむ、そうなのか…。
+		// 採用する。
+
+
+■　7. 浅い深さでの枝刈りを行なうときに王手がかかっていないことを条件に入れる/入れない
+
+	// 改造後
+			if (  !RootNode
+				// 【計測資料 7.】 浅い深さでの枝刈りを行なうときに王手がかかっていないことを条件に入れる/入れない
+				&& !inCheck
+//				&& pos.non_pawn_material(pos.side_to_move())
+				&& bestValue > VALUE_MATED_IN_MAX_PLY)
+			{
+
+				if (   !captureOrPawnPromotion
+
+
+			// →　王手がかかっていても以下の枝刈りはしたほうが良いらしいが…。
+			// cf. Allow inCheck pruning  : https://github.com/official-stockfish/Stockfish/commit/ab26c61971c2f73d312b003e6d024373fbacf8e6
+
+	engine1 = YaneuraOuGoku_kpp_kkpt_ttcapture.exe , eval = rezero_kpp_kkpt_epoch5
+	engine2 = YaneuraOuGoku_kpp_kkpt_test7.exe , eval = rezero_kpp_kkpt_epoch5
+	T2,b1000,515 - 39 - 446(53.59% R24.99) win black : white = 49.74% : 50.26%
+	T2,b2000,516 - 44 - 440(53.97% R27.68) win black : white = 52.41% : 47.59%
+	T2,b4000,487 - 58 - 455(51.7% R11.81) win black : white = 54.88% : 45.12%
+	T2,b8000,510 - 66 - 424(54.6% R32.08) win black : white = 52.14% : 47.86%
+	T2,b8000,469 - 62 - 469(50.0% R-0.0) win black : white = 51.71% : 48.29%
+	T2,b8000,494 - 62 - 444(52.67% R18.54) win black : white = 49.68% : 50.32%
+
+	// 悪化した。
+
+■　6. 反駁された1手前の置換表のquietな指し手に対する追加ペナルティ、captured_pieceとcapture_or_pawn_promotionとの比較。
+
+
+					// 反駁された1手前の置換表のquietな指し手に対する追加ペナルティを課す。
+					// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
+
+	改造前
+#if 0
+					if ((ss - 1)->moveCount == 1 && !pos.captured_piece())
+	改造後
+#else
+					if ((ss - 1)->moveCount == 1 && !pos.capture_or_pawn_promotion((ss-1)->currentMove))
+#endif
+						update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_bonus(depth + ONE_PLY));
+
+
+	engine1 = YaneuraOuGoku_kpp_kkpt_ttcapture.exe , eval = rezero_kpp_kkpt_epoch5
+	engine2 = YaneuraOuGoku_kpp_kkpt_test6.exe , eval = rezero_kpp_kkpt_epoch5
+	T2,b1000,456 - 44 - 500(47.7% R-16.0) win black : white = 50.73% : 49.27%
+	T2,b2000,515 - 46 - 439(53.98% R27.74) win black : white = 51.26% : 48.74%
+	T2,b4000,473 - 59 - 468(50.27% R1.85) win black : white = 51.22% : 48.78%
+	T2,b8000,448 - 57 - 495(47.51% R-17.33) win black : white = 51.22% : 48.78%
+	T2,b8000,459 - 63 - 478(48.99% R-7.05) win black : white = 51.76% : 48.24%
+	T2,b8000,487 - 75 - 438(52.65% R18.42) win black : white = 53.62% : 46.38%
+	T2,b8000,462 - 68 - 470(49.57% R-2.98) win black : white = 50.43% : 49.57%
+	T2,b8000,464 - 75 - 461(50.16% R1.13) win black : white = 50.81% : 49.19%
+			2320   -  2342
+	// 計測できる差ではなさそう。一応採用する。
+
+■　5. evasionPrunableのときに除外するのをpawn_promotionとpromoteで比較。
+
+	改造前 : やねうら王2017Earlyのコード
+			if ((!InCheck || evasionPrunable)
+				&& !pos.pawn_promotion(move)
+				&& !pos.see_ge(move))
+				continue;
+
+	改造後 : Stockfish風のコード
+			if ((!InCheck || evasionPrunable)
+				&& !is_promote(move)
+				&& !pos.see_ge(move))
+				continue;
+
+	engine1 = YaneuraOuGoku_kpp_kkpt_ttcapture.exe , eval = rezero_kpp_kkpt_epoch5
+	engine2 = YaneuraOuGoku_kpp_kkpt_test5.exe , eval = rezero_kpp_kkpt_epoch5
+	T2,b2000,534 - 42 - 424(55.74% R40.07) win black : white = 53.13% : 46.87%
+	T2,b4000,507 - 62 - 431(54.05% R28.21) win black : white = 50.75% : 49.25%
+
+	// むっちゃ悪くなった。元に戻す。
+
+■　4. 相手のmoveCountが高いときにreductionを減らす
+
+	cf. Streamlline reduction based on movecount : https://github.com/official-stockfish/Stockfish/commit/3ac47c84d35b7cdeea50ecbcf3ad0f73fa848668
+
+	変更後
+			// 相手の指し手(1手前の指し手)のmove countが高い場合、reduction量を減らす。
+			// 相手の指し手をたくさん読んでいるのにこちらだけreductionするとバランスが悪いから。
+			if ((ss - 1)->moveCount > 15)
+				r -= ONE_PLY;
+
+	強さがずいぶん変わるようなら、この15を調整する。
+
+YaneuraOuGoku_kpp_kkpt_moveCountHigh.exe
+
+	engine1 = YaneuraOuGoku_kpp_kkpt_ttcapture.exe , eval = rezero_kpp_kkpt_epoch5
+	engine2 = YaneuraOuGoku_kpp_kkpt_moveCountHigh.exe , eval = rezero_kpp_kkpt_epoch5
+	T2,b1000,481 - 29 - 490(49.54% R-3.22) win black : white = 49.85% : 50.15%
+	T2,b2000,498 - 43 - 459(52.04% R14.17) win black : white = 53.29% : 46.71%
+	T2,b4000,470 - 65 - 465(50.27% R1.86) win black : white = 51.02% : 48.98%
+	T2,b8000,485 - 63 - 452(51.76% R12.24) win black : white = 52.72% : 47.28%
+	T2,b8000,483 - 59 - 458(51.33% R9.23) win black : white = 53.77% : 46.23%
+	T2,b8000,461 - 67 - 472(49.41% R-4.1) win black : white = 52.09% : 47.91%
+	T2,b8000,484 - 63 - 453(51.65% R11.5) win black : white = 53.68% : 46.32%
+
+	// どうも悪い気がする。採用しない。
+
+
+■　3. search()で、置換表の指し手がcaptureのときにreduction量を増やす。
+
+	cf. Increase reduction if tt-move is a capture : https://github.com/official-stockfish/Stockfish/commit/77342126d8417469bd6a398cfc6c0594b1f02f82
+
+	// captureとcaptureOrPawnPromotionとで違いがあるかどうかは調べていないが
+	// いままでの結果からして、おそらくcaptureOrPawnPromotionのほうが良い結果になるはず。
+
+	変更後
+             // Increase reduction if ttMove is a capture
+              if (ttCapture)
+                  r += ONE_PLY;
+
+YaneuraOuGoku_kpp_kkpt_ttcapture.exe
+
+	engine1 = YaneuraOuGoku_kpp_kkpt_evasion_pruning.exe , eval = rezero_kpp_kkpt_epoch5
+	engine2 = YaneuraOuGoku_kpp_kkpt_ttcapture.exe , eval = rezero_kpp_kkpt_epoch5
+	T2,b1000,477 - 39 - 484(49.64% R-2.53) win black : white = 50.88% : 49.12%
+	T2,b2000,520 - 28 - 452(53.5% R24.35) win black : white = 52.47% : 47.53%
+	T2,b4000,466 - 48 - 486(48.95% R-7.3) win black : white = 51.26% : 48.74%
+	T2,b8000,474 - 53 - 473(50.05% R0.37) win black : white = 51.11% : 48.89%
+
+	// 計測できる差ではなさげ。採用しとく。
+
+
+■　2. qsearchでmoveCountを利用したevasionPruning、なし/ありでの比較
+
+	cf. Evasion Pruning Tweak : https://github.com/official-stockfish/Stockfish/commit/1d31065e1d1f04ecf47fc959523c560e8657fbfa
+
+[2017/09/17]
+
+	変更前
+			bool evasionPrunable =  InCheck
+								&&  depth != DEPTH_ZERO
+								&&  bestValue > VALUE_MATED_IN_MAX_PLY
+								&& !pos.capture(move);
+
+	変更後
+			bool evasionPrunable =  InCheck
+								&&  (depth != DEPTH_ZERO || moveCount > 2)
+								&&  bestValue > VALUE_MATED_IN_MAX_PLY
+								&& !pos.capture(move);
+
+
+	engine1 = YaneuraOuGoku_kpp_kkpt_statScore.exe , eval = rezero_kpp_kkpt_epoch5
+	engine2 = YaneuraOuGoku_kpp_kkpt_evasion_pruning.exe , eval = rezero_kpp_kkpt_epoch5
+	T2,b1000,486 - 38 - 476(50.52% R3.61) win black : white = 56.44% : 43.56%
+	T2,b2000,473 - 46 - 481(49.58% R-2.91) win black : white = 51.89% : 48.11%
+	T2,b4000,499 - 44 - 457(52.2% R15.27) win black : white = 53.66% : 46.34%
+	T2,b8000,450 - 73 - 477(48.54% R-10.12) win black : white = 51.24% : 48.76%
+	T2,b8000,462 - 65 - 473(49.41% R-4.09) win black : white = 50.27% : 49.73%
+	T2,b8000,474 - 59 - 467(50.37% R2.58) win black : white = 48.25% : 51.75%
+
+	// 計測できる差ではなさげ。採用する。
+
+	1.+2.なしと、1.+2.ありとの比較
+	engine1 = YaneuraOuGoku_kpp_kkpt.exe , eval = rezero_kpp_kkpt_epoch5
+	engine2 = YaneuraOuGoku_kpp_kkpt_evasion_pruning.exe , eval = rezero_kpp_kkpt_epoch5
+	T2,b4000,458 - 47 - 495(48.06% R-13.5) win black : white = 52.57% : 47.43%
+
+
+■　1. statScoreによる延長、なし/ありでの比較。
+
+[2017/09/17] 
+
+	変更後
+					if (ss->statScore > 0 && (ss - 1)->statScore < 0)
+						r -= ONE_PLY;
+
+					else if (ss->statScore < 0 && (ss - 1)->statScore > 0)
+						r += ONE_PLY;
+
+	engine1 = YaneuraOuGoku_kpp_kkpt.exe , eval = rezero_kpp_kkpt_epoch5
+	engine2 = YaneuraOuGoku_kpp_kkpt_statScore.exe , eval = rezero_kpp_kkpt_epoch5
+	T2,b1000,472 - 53 - 475(49.84% R-1.1) win black : white = 50.37% : 49.63%
+	T2,b2000,491 - 50 - 459(51.68% R11.71) win black : white = 53.16% : 46.84%
+	T2,b4000,442 - 59 - 499(46.97% R-21.07) win black : white = 53.88% : 46.12%
+	T2,b8000,483 - 53 - 464(51.0% R6.97) win black : white = 50.69% : 49.31%
+	T2,b8000,448 - 65 - 487(47.91% R-14.5) win black : white = 51.23% : 48.77%
+
+
+	// 長い時間ではやや強いっぽいので採用。
+

@@ -1962,7 +1962,7 @@ void shuffle_write(const string& output_file_name , PRNG& prng , vector<fstream>
 	};
 
 
-	std::cout << "write : " << output_file_name << endl;
+	cout << endl <<  "write : " << output_file_name << endl;
 
 	fstream fs(output_file_name, ios::out | ios::binary);
 
@@ -2080,6 +2080,9 @@ void shuffle_files(const vector<string>& filenames , const string& output_file_n
 	// 元ファイルの2倍程度のストレージ容量で済む。
 	// だから、元ファイルを消すためのオプションを用意すべきかも知れない。
 
+	// ファイルの同時openをしている。これがFOPEN_MAXなどを超える可能性は高い。
+	// その場合、buffer_sizeを調整して、ファイルの数を減らすよりない。
+
 	vector<fstream> afs;
 	for (u64 i = 0; i < write_file_count; ++i)
 		afs.emplace_back(fstream(make_filename(i),ios::in | ios::binary));
@@ -2169,6 +2172,97 @@ void shuffle_files_on_memory(const vector<string>& filenames,const string output
 	std::cout << "..shuffle_on_memory done." << std::endl;
 }
 
+void convert_bin(const vector<string>& filenames , const string& output_file_name)
+{
+	std::fstream fs;
+	auto th = Threads.main();
+	auto &tpos = th->rootPos;
+	// plain形式の雑巾をやねうら王用のpackedsfenvalueに変換する
+	fs.open(output_file_name, ios::app | ios::binary);
+
+	for (auto filename : filenames) {
+		std::cout << "convert " << filename << " ... ";
+		std::string line;
+		ifstream ifs;
+		ifs.open(filename);
+		PackedSfenValue p;
+		p.gamePly = 1; // apery形式では含まれない。一応初期化するべし
+		while (std::getline(ifs, line)) {
+			std::stringstream ss(line);
+			std::string token;
+			std::string value;
+			ss >> token;
+			if (token == "sfen") {
+				StateInfo si;
+				tpos.set(line.substr(5), &si, Threads.main());
+				tpos.sfen_pack(p.sfen);
+			}
+			else if (token == "move") {
+				ss >> value;
+				p.move = move_from_usi(value);
+			}
+			else if (token == "score") {
+				ss >> p.score;
+			}
+			else if (token == "ply") {
+				int temp;
+				ss >> temp;
+				p.gamePly = u16(temp); // 此処のキャストいらない？
+			}
+			else if (token == "result") {
+				int temp;
+				ss >> temp;
+				p.game_result = s8(temp); // 此処のキャストいらない？
+			}
+			else if (token == "e") {
+				fs.write((char*)&p, sizeof(PackedSfenValue));
+				// debug
+				/*
+				std::cout<<tpos<<std::endl;
+				std::cout<<to_usi_string(Move(p.move))<<","<<p.score<<","<<int(p.gamePly)<<","<<int(p.game_result)<<std::endl;
+				*/
+			}
+		}
+		std::cout << "done" << std::endl;
+		ifs.close();
+	}
+	std::cout << "all done" << std::endl;
+	fs.close();
+}
+  
+void convert_plain(const vector<string>& filenames , const string& output_file_name)
+{
+	Position tpos;
+	std::ofstream ofs;
+	ofs.open(output_file_name, ios::app);
+	for (auto filename : filenames) {
+		std::cout << "convert " << filename << " ... ";
+
+		// ひたすらpackedsfenvalueをテキストに変換する
+		std::fstream fs;
+		fs.open(filename, ios::in | ios::binary);
+		PackedSfenValue p;
+		while (true)
+		{
+			if (fs.read((char*)&p, sizeof(PackedSfenValue))) {
+				// plain textとして書き込む
+				ofs << "sfen " << tpos.sfen_unpack(p.sfen) << std::endl;
+				ofs << "move " << to_usi_string(Move(p.move)) << std::endl;
+				ofs << "score " << p.score << std::endl;
+				ofs << "ply " << int(p.gamePly) << std::endl;
+				ofs << "result " << int(p.game_result) << std::endl;
+				ofs << "e" << std::endl;
+			}
+			else {
+				break;
+			}
+		}
+		fs.close();
+		std::cout << "done" << std::endl;
+	}
+	ofs.close();
+	std::cout << "all done" << std::endl;
+}
 
 // 生成した棋譜からの学習
 void learn(Position&, istringstream& is)
@@ -2215,6 +2309,10 @@ void learn(Position&, istringstream& is)
 	bool shuffle_quick = false;
 	// メモリにファイルを丸読みしてシャッフルする機能。(要、ファイルサイズのメモリ)
 	bool shuffle_on_memory = false;
+	// packed sfenの変換。plainではsfen(string), 評価値(整数), 指し手(例：7g7f, string)、結果(負け-1、勝ち1、引き分け0)からなる
+	bool use_convert_plain = false;
+	// plain形式の教師をやねうら王のbinに変換する
+	bool use_convert_bin = false;
 	// それらのときに書き出すファイル名(デフォルトでは"shuffled_sfen.bin")
 	string output_file_name = "shuffled_sfen.bin";
 
@@ -2317,7 +2415,10 @@ void learn(Position&, istringstream& is)
 		else if (option == "eval_limit") is >> eval_limit;
 		else if (option == "save_only_once") save_only_once = true;
 		else if (option == "no_shuffle") no_shuffle = true;
-
+		
+		// 雑巾のconvert関連
+		else if (option == "convert_plain") use_convert_plain = true;
+		else if (option == "convert_bin") use_convert_bin = true;
 		// さもなくば、それはファイル名である。
 		else
 			filenames.push_back(option);
@@ -2337,6 +2438,11 @@ void learn(Position&, istringstream& is)
 
 		// このフォルダを根こそぎ取る。base_dir相対にしておく。
 #if defined(_MSC_VER)
+		// std::tr2を使用するとwaring C4996が出るので抑制。
+		// ※　std::tr2は、std:c++14 の下では既定で非推奨の警告を出し、/std:c++17 では既定で削除された。
+		#pragma warning(push)
+		#pragma warning(disable:4996)
+
 		namespace sys = std::tr2::sys;
 		sys::path p(kif_base_dir); // 列挙の起点
 		std::for_each(sys::directory_iterator(p), sys::directory_iterator(),
@@ -2344,6 +2450,8 @@ void learn(Position&, istringstream& is)
 			if (sys::is_regular_file(p))
 				filenames.push_back(path_combine(target_dir, p.filename().generic_string()));
 		});
+		#pragma warning(pop)
+
 #elif defined(__GNUC__)
 
 		auto ends_with = [](std::string const & value, std::string const & ending)
@@ -2401,6 +2509,22 @@ void learn(Position&, istringstream& is)
 		cout << "shuffle on memory.." << endl;
 		shuffle_files_on_memory(filenames,output_file_name);
 		return;
+	}
+	if (use_convert_plain)
+	{
+	  	is_ready(true);
+		cout << "convert_plain.." << endl;
+		convert_plain(filenames,output_file_name);
+		return;
+		
+	}
+	if (use_convert_bin)
+	{
+	  	is_ready(true);
+		cout << "convert_bin.." << endl;
+		convert_bin(filenames,output_file_name);
+		return;
+		
 	}
 
 	cout << "loop              : " << loop << endl;

@@ -1,9 +1,5 @@
 ﻿#include "../../shogi.h"
 
-#if defined(YANEURAOU_2017_GOKU_ENGINE)
-#include "../2017-goku-engine/2017-goku-search.cpp"
-#endif
-
 #if defined(YANEURAOU_2017_EARLY_ENGINE)
 
 // -----------------------

@@ -60,6 +60,12 @@ namespace Learner
   void gen_sfen2018(Position& pos, istringstream& is);
 #endif
 
+  // 読み筋と評価値のペア。Learner::search(),Learner::qsearch()が返す。
+  typedef std::pair<Value, std::vector<Move> > ValueAndPV;
+
+  ValueAndPV qsearch(Position& pos);
+  ValueAndPV search(Position& pos, int depth_, size_t multiPV /* = 1*/);
+
 }
 #endif
 
@@ -166,7 +172,7 @@ namespace USI
 				ss << endl;
 
 			ss  << "info"
-				<< " depth "    << d
+				<< " depth "    << d / ONE_PLY
 				<< " seldepth " << rootMoves[i].selDepth
 				<< " score "    << USI::score_to_usi(v);
 
@@ -708,7 +714,43 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 	Threads.start_thinking(pos, states , limits , ponderMode);
 }
 
+// --------------------
+// テスト用にqsearch(),search()を直接呼ぶ
+// --------------------
 
+#if defined(EVAL_LEARN)
+void qsearch_cmd(Position& pos)
+{
+	cout << "qsearch : ";
+	auto pv = Learner::qsearch(pos);
+	cout << "Value = " << pv.first << " , PV = ";
+	for (auto m : pv.second)
+		cout << m << " ";
+	cout << endl;
+}
+
+void search_cmd(Position& pos, istringstream& is)
+{
+	string token;
+	int depth = 1;
+	int multi_pv = (int)Options["MultiPV"];
+	while (is >> token)
+	{
+		if (token == "depth")
+			is >> depth;
+		if (token == "multipv")
+			is >> multi_pv;
+	}
+
+	cout << "search depth = " << depth << " , multi_pv = " << multi_pv << " : ";
+	auto pv = Learner::search(pos , depth , multi_pv);
+	cout << "Value = " << pv.first << " , PV = ";
+	for (auto m : pv.second)
+		cout << m << " ";
+	cout << endl;
+}
+
+#endif
 
 // --------------------
 // 　　USI応答部
@@ -848,6 +890,12 @@ void USI::loop(int argc, char* argv[])
 		// 現在の局面について評価関数を呼び出して、その値を返す。
 		else if (token == "eval") cout << "eval = " << Eval::compute_eval(pos) << endl;
 		else if (token == "evalstat") Eval::print_eval_stat(pos);
+
+#if defined(EVAL_LEARN)
+		// テスト用にqsearch(),search()を直接呼ぶコマンド
+		else if (token == "qsearch") qsearch_cmd(pos);
+		else if (token == "search") search_cmd(pos,is);
+#endif
 
 		// この局面での指し手をすべて出力
 		else if (token == "moves") {

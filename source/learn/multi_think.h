@@ -4,7 +4,7 @@
 #include "../shogi.h"
 
 #if defined(EVAL_LEARN) && \
-	(defined(YANEURAOU_2017_EARLY_ENGINE) || defined(YANEURAOU_2017_GOKU_ENGINE))
+	(defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE))
 
 #include "../misc.h"
 #include "../learn/learn.h"
@@ -140,6 +140,6 @@ protected:
 	Mutex task_mutex;
 };
 
-#endif // defined(EVAL_LEARN) && defined(YANEURAOU_2017_EARLY_ENGINE)
+#endif // defined(EVAL_LEARN) && ( defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE))
 
 #endif

@@ -2192,12 +2192,9 @@ void test_mate_engine_cmd(Position& pos, istringstream& is) {
 	time.reset();
 
 	for (const char* sfen : TestMateEngineSfen) {
-		Search::StateStackPtr st;
-		auto states = Search::StateStackPtr(new aligned_stack<StateInfo>);
-		states->push(StateInfo());
-
 		Position pos;
-		pos.set(sfen, Threads.main());
+		StateListPtr st(new StateList(1));
+		pos.set(sfen, &st->back(), Threads.main());
 
 		sync_cout << "\nPosition: " << sfen << sync_endl;
 

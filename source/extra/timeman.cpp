@@ -135,7 +135,7 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 		// -- maximumTime
 		float max_ratio = 5.0f;
 
-#if	defined(YANEURAOU_2017_GOKU_ENGINE)
+#if	defined(YANEURAOU_2018_GOKU_ENGINE)
 
 		// 20手目までにそんなに大きな勝負所が来ることはあまりないので
 		// max_ratioとoptimumTimeを抑制しておく。(根拠は特にない)

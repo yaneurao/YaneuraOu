@@ -10,27 +10,27 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 
 # お知らせ
 
-- SDT5(第5回 将棋電王トーナメント)のため、10月1日～11月12日はプルリクエストが処理できません。
-- SDT5直前は大改造をすることがあるので、動作等が安定していない可能性が高いです。(現状、V4.76が安定)
+- 2018/4/28 23:00 WCSC28に向けて探索部のアップデート作業中です。
+- 2018/4/30 06:00 探索部のアップデート完了。やねうら王2018 OTAFUKU V4.82。実行ファイルを公開しました。
+
+
+# やねうら王エンジンの大会での戦績
+
+- 2017年 世界コンピュータ将棋選手権(WCSC27) 『elmo』優勝
+- 2017年 第5回将棋電王トーナメント(SDT5) 『平成将棋合戦ぽんぽこ』優勝
 
 # 現在進行中のサブプロジェクト
 
-## やねうら王2017 Early
+## やねうら王2018 OTAFUKU (やねうら王2018 with お多福ラボ)
 
-2017年5月5日完成。この思考エンジンを用いたelmoがWCSC27で優勝しました。elmo(WCSC27)や蒼天幻想ナイツ・オブ・タヌキ(WCSC27出場)の評価関数を用いるとXeon 24コアでR4000程度の模様。
+今年は一年、これでいきます。
 
-- 思考エンジン本体のダウンロードは[こちら](https://github.com/yaneurao/YaneuraOu/releases/)
-
-## やねうら王2017 GOKU
-
-《開発計画中》
 
 ## やねうら王詰め将棋solver
 
 《tanuki-さんが開発中》
 
 長手数の詰将棋が解けるsolverです。
-
 
 # 過去のサブプロジェクト
 
@@ -41,7 +41,9 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 ## やねうら王評価関数ファイル
 
 - やねうら王2017Early用 - Apery(WCSC26)、Apery(SDT4)＝「浮かむ瀬」の評価関数バイナリがそのまま使えます。
-- やねうら王2017 KPP_KPPT型評価関数 - 以下のKPP_KPPT型ビルド用評価関数のところにあるものが使えます。
+- やねうら王2017 KPP_KKPT型評価関数 - 以下のKPP_KKPT型ビルド用評価関数のところにあるものが使えます。
+- やねうら王2018 Otafuku用 KPPT型　→ やねうら王2017Early(KPPT)と同様
+- やねうら王2018 Otafuku用 KPP_KKPT型　→ やねうら王2017Early(KPP_KKPT)と同様
 
 ### 「Re : ゼロから始める評価関数生活」プロジェクト(略して「リゼロ」)
 
@@ -55,11 +57,11 @@ YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educationa
 - [リゼロ評価関数 epoch 7](https://drive.google.com/open?id=0Bzbi5rbfN85NWWloTFdMRjI5LWs) : [解説記事](http://yaneuraou.yaneu.com/2017/06/15/%E7%B6%9A2-%E4%BA%BA%E9%96%93%E3%81%AE%E6%A3%8B%E8%AD%9C%E3%82%92%E7%94%A8%E3%81%84%E3%81%9A%E3%81%AB%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%81%AE%E5%AD%A6%E7%BF%92/)
 - [リゼロ評価関数 epoch 8](https://drive.google.com/open?id=0Bzbi5rbfN85NMHd0OEUxcUVJQW8) : [解説記事](http://yaneuraou.yaneu.com/2017/06/21/%E3%83%AA%E3%82%BC%E3%83%AD%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0epoch8%E5%85%AC%E9%96%8B%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F%E3%80%82/)
 
-### やねうら王 KPP_KPPT型ビルド用評価関数
+### やねうら王 KPP_KKPT型ビルド用評価関数
 
-やねうら王2017 KPP_KPPT型ビルドで使える評価関数です。
+やねうら王2017 KPP_KKPT型ビルドで使える評価関数です。
 
-- [リゼロ評価関数 KPP_KPPT型 epoch4](https://drive.google.com/open?id=0Bzbi5rbfN85NSk1qQ042U0RnUEU) : [解説記事](http://yaneuraou.yaneu.com/2017/09/02/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B%E3%80%81kpp_kkpt%E5%9E%8B%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%81%AB%E5%AF%BE%E5%BF%9C%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F/)
+- [リゼロ評価関数 KPP_KKPT型 epoch4](https://drive.google.com/open?id=0Bzbi5rbfN85NSk1qQ042U0RnUEU) : [解説記事](http://yaneuraou.yaneu.com/2017/09/02/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B%E3%80%81kpp_kkpt%E5%9E%8B%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%81%AB%E5%AF%BE%E5%BF%9C%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F/)
 
 ### Shivoray(シボレー) 全自動雑巾絞り機
 

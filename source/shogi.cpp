@@ -20,33 +20,6 @@ const char* USI_PIECE = ". P L N S B R G K +P+L+N+S+B+R+G+.p l n s b r g k +p+l+
 // これはshogi.hで定義しているのでLONG_EFFECT_LIBRARYがdefineされていないときにも必要。
 namespace Effect8 { Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1]; }
 
-File SquareToFile[SQ_NB_PLUS1] =
-{
-	FILE_1, FILE_1, FILE_1, FILE_1, FILE_1, FILE_1, FILE_1, FILE_1, FILE_1,
-	FILE_2, FILE_2, FILE_2, FILE_2, FILE_2, FILE_2, FILE_2, FILE_2, FILE_2,
-	FILE_3, FILE_3, FILE_3, FILE_3, FILE_3, FILE_3, FILE_3, FILE_3, FILE_3,
-	FILE_4, FILE_4, FILE_4, FILE_4, FILE_4, FILE_4, FILE_4, FILE_4, FILE_4,
-	FILE_5, FILE_5, FILE_5, FILE_5, FILE_5, FILE_5, FILE_5, FILE_5, FILE_5,
-	FILE_6, FILE_6, FILE_6, FILE_6, FILE_6, FILE_6, FILE_6, FILE_6, FILE_6,
-	FILE_7, FILE_7, FILE_7, FILE_7, FILE_7, FILE_7, FILE_7, FILE_7, FILE_7,
-	FILE_8, FILE_8, FILE_8, FILE_8, FILE_8, FILE_8, FILE_8, FILE_8, FILE_8,
-	FILE_9, FILE_9, FILE_9, FILE_9, FILE_9, FILE_9, FILE_9, FILE_9, FILE_9,
-	FILE_NB, // 玉が盤上にないときにこの位置に移動させることがあるので
-};
-
-Rank SquareToRank[SQ_NB_PLUS1] = {
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_NB, // 玉が盤上にないときにこの位置に移動させることがあるので
-};
-
 std::string PieceToCharBW(" PLNSBRGK        plnsbrgk");
 
 
@@ -220,7 +193,7 @@ int main(int argc, char* argv[])
 	Bitboards::init();
 	Position::init();
 	Search::init();
-	Threads.init(Options["Threads"]);
+	Threads.set(Options["Threads"]);
 	TT.resize(Options["Hash"]);
 	Eval::init();
 
@@ -228,7 +201,7 @@ int main(int argc, char* argv[])
 	USI::loop(argc, argv);
 
 	// 生成して、待機させていたスレッドの停止
-	Threads.exit();
+	Threads.set(0);
 
 	return 0;
 }

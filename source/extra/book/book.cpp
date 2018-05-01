@@ -39,8 +39,8 @@ namespace Book
 	// USI拡張コマンド "makebook"(定跡作成)
 	// ----------------------------------
 
-	// 局面を与えて、その局面で思考させるために、やねうら王2017Earlyが必要。
-#if defined(EVAL_LEARN) && (defined(YANEURAOU_2017_EARLY_ENGINE) || defined(YANEURAOU_2017_GOKU_ENGINE))
+	// 局面を与えて、その局面で思考させるために、やねうら王2018が必要。
+#if defined(EVAL_LEARN) && (defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE))
 
 	struct MultiThinkBook : public MultiThink
 	{
@@ -144,10 +144,10 @@ namespace Book
 		// 定跡の変換
 		bool convert_from_apery = token == "convert_from_apery";
 
-#if !(defined(EVAL_LEARN) && (defined(YANEURAOU_2017_EARLY_ENGINE) || defined(YANEURAOU_2017_GOKU_ENGINE)))
+#if !(defined(EVAL_LEARN) && (defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE)))
 		if (from_thinking)
 		{
-			cout << "Error!:define EVAL_LEARN and YANEURAOU_2017_EARLY_ENGINE/YANEURAOU_2017_GOKU_ENGINE " << endl;
+			cout << "Error!:define EVAL_LEARN and YANEURAOU_2018_OTAFUKU_ENGINE/YANEURAOU_2018_GOKU_ENGINE " << endl;
 			return;
 		}
 #endif
@@ -447,7 +447,7 @@ namespace Book
 			}
 			cout << "done." << endl;
 
-#if defined(EVAL_LEARN) && (defined(YANEURAOU_2017_EARLY_ENGINE) || defined(YANEURAOU_2017_GOKU_ENGINE))
+#if defined(EVAL_LEARN) && (defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE))
 
 			if (from_thinking)
 			{
@@ -1232,6 +1232,9 @@ namespace Book
 		// 定跡の指し手を何手目まで用いるか
 		o["BookMoves"] << Option(16, 0, 10000);
 
+		// 一定の確率で定跡を無視して自力で思考させる
+		o["BookIgnoreRate"] << Option(0, 0, 100);
+
 		// 定跡ファイル名
 
 		//  no_book          定跡なし
@@ -1274,6 +1277,11 @@ namespace Book
 	// probe()の下請け
 	bool BookMoveSelector::probe_impl(Position& rootPos, bool silent , Move& bestMove , Move& ponderMove)
 	{
+		// 一定確率で定跡を無視
+	        if ( (int)Options["BookIgnoreRate"] > (int)prng.rand(100)){
+			return false;		 
+	        }
+	  
 		// 定跡を用いる手数
 		int book_ply = (int)Options["BookMoves"];
 		if (rootPos.game_ply() > book_ply)
