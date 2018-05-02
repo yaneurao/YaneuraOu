@@ -93,9 +93,16 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found
 		// key >> 1としてbit0を使わないようにしておく。
 
 		size_t block = (clusterCount / max_thread) & ~1;
+
+#if defined (IS_64BIT) && defined(USE_SSE2)
+		uint64_t highProduct;
+		_umul128(key + (key << 32), block, &highProduct);
+		size_t index = (highProduct & ~1) | (key & 1);
+#else
 		size_t index = (((uint32_t(key >> 1) * uint64_t(block)) >> 32) & ~1) | (key & 1);
 		// uint32_t(key)*block / 2^32 は、0～(block-1)の値。
 		// keyの下位1bitは、先後フラグなのでindexのbit0に反映されなければならない。
+#endif
 
 		tte = &table[index + thread_id * block].entry[0];
 
