@@ -11,7 +11,15 @@ size_t TranspositionTable::max_thread;
 // 置換表のサイズを確保しなおす。
 void TranspositionTable::resize(size_t mbSize) {
 
-	size_t newClusterCount = size_t(1) << MSB64((mbSize * 1024 * 1024) / sizeof(Cluster));
+	// mbSizeの単位は[MB]なので、ここでは1MBの倍数単位のメモリが確保されるが、
+	// 仕様上は、1MBの倍数である必要はない。
+	size_t newClusterCount = mbSize * 1024 * 1024 / sizeof(Cluster);
+
+	// clusterCountは偶数でなければならない。
+	// この理由については、TTEntry::first_entry()のコメントを見よ。
+	// しかし、1024 * 1024 / sizeof(Cluster)の部分、sizeof(Cluster)==64なので、
+	// これを掛け算するから2の倍数である。
+	ASSERT_LV3((newClusterCount & 1) == 0);
 
 	// 同じサイズなら確保しなおす必要はない。
 	if (newClusterCount == clusterCount)
@@ -80,9 +88,15 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found
 		// ・上丸めするとblock*max_thread > clusterCountになりかねない)
 		// ・2の倍数にしておかないと、(key % block)にkeyのbit0を反映させたときにこの値がblockと同じ値になる。
 		//   (各スレッドが使えるのは、( 0～(block-1) ) + (thread_id * block)のTTEntryなので、これはまずい。
+		//
+		// あと、(uint32_t(key) * uint64_t(block)) >> 32)だとkeyのbit0を計算に使ってしまうので、
+		// key >> 1としてbit0を使わないようにしておく。
 
 		size_t block = (clusterCount / max_thread) & ~1;
-		size_t index = (((size_t)key % block) & ~1 ) | ((size_t)key & 1);
+		size_t index = (((uint32_t(key >> 1) * uint64_t(block)) >> 32) & ~1) | (key & 1);
+		// uint32_t(key)*block / 2^32 は、0～(block-1)の値。
+		// keyの下位1bitは、先後フラグなのでindexのbit0に反映されなければならない。
+
 		tte = &table[index + thread_id * block].entry[0];
 
 	}	else {

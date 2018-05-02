@@ -140,7 +140,20 @@ struct TranspositionTable {
 
 	// keyの下位bitをClusterのindexにしてその最初のTTEntry*を返す。
 	TTEntry* first_entry(const Key key) const {
-		return &table[(size_t)key & (clusterCount - 1)].entry[0];
+		// 下位32bit × clusterCount / 2^32 なので、この値は 0 ～ clusterCount - 1 である。
+		// 掛け算が必要にはなるが、こうすることで custerCountを2^Nで確保しないといけないという制約が外れる。
+		// cf. Allow for general transposition table sizes. : https://github.com/official-stockfish/Stockfish/commit/2198cd0524574f0d9df8c0ec9aaf14ad8c94402b
+
+		// return &table[(uint32_t(key) * uint64_t(clusterCount)) >> 32].entry[0];
+		// →　(key & 1)が保存される必要性があるので(ここが先後フラグなので)、もうちょい工夫する。
+		// このときclusterCountが奇数だと、最後の(clusterCount & ~1) | (key & 1) の値が、
+		// (clusterCount - 1)が上限であるべきなのにclusterCountになりかねない。
+		// そこでclusterCountは偶数であるという制約を課す。
+		// また、(uint32_t(key) * uint64_t(clusterCount)だとkeyのbit0を使ってしまうので(31bitしか
+		// indexを求めるのに使っていなくて精度がやや落ちるので)、(key >> 1)を使う。
+		ASSERT_LV3((clusterCount & 1) == 0);
+
+		return &table[(((uint32_t(key >> 1) * uint64_t(clusterCount)) >> 32) & ~1) | (key & 1)].entry[0];
 	}
 
 	// 置換表のサイズを変更する。mbSize == 確保するメモリサイズ。MB単位。
