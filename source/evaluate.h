@@ -82,7 +82,7 @@ namespace Eval {
 #endif
 
 #if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || \
-	defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+	defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA) || defined(EVAL_NNUE)
 
 	// Apery(WCSC26)の駒割り
 	enum {
@@ -136,7 +136,7 @@ namespace Eval {
 		// --- 手駒
 
 #if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || \
-	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA) || defined(EVAL_NNUE)
 		// Apery(WCSC26)方式。0枚目の駒があるので少し隙間がある。
 		// 定数自体は1枚目の駒のindexなので、EVAL_KPPの時と同様の処理で問題ない。
 		// 例)
@@ -209,10 +209,13 @@ namespace Eval {
 
 	// BonaPieceを後手から見たとき(先手の39の歩を後手から見ると後手の71の歩)の番号とを
 	// ペアにしたものをExtBonaPiece型と呼ぶことにする。
-	struct ExtBonaPiece
+	union ExtBonaPiece
 	{
-		BonaPiece fb; // from black
-		BonaPiece fw; // from white
+		struct {
+			BonaPiece fb; // from black
+			BonaPiece fw; // from white
+		};
+		BonaPiece from[2];
 
 		ExtBonaPiece() {}
 		ExtBonaPiece(BonaPiece fb_, BonaPiece fw_) : fb(fb_) , fw(fw_){}

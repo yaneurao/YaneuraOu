@@ -4,6 +4,7 @@ YANEURAOU_EDITION = YANEURAOU_2018_OTAFUKU_ENGINE
 #YANEURAOU_EDITION = HELP_MATE_ENGINE
 #YANEURAOU_EDITION = MATE_ENGINE
 #YANEURAOU_EDITION = YANEURAOU_2018_GOKU_ENGINE
+#YANEURAOU_EDITION = YANEURAOU_2018_TNK_ENGINE
 
 
 # clangでコンパイルしたほうがgccより数%速いっぽい。
@@ -143,6 +144,15 @@ ifeq ($(YANEURAOU_EDITION),MATE_ENGINE)
 	SOURCES += engine/mate-engine/mate-search.cpp
 endif
 
+ifeq ($(YANEURAOU_EDITION),YANEURAOU_2018_TNK_ENGINE)
+	SOURCES += eval/nnue/evaluate_nnue.cpp                                     \
+	           eval/nnue/evaluate_nnue_learner.cpp                             \
+	           eval/nnue/nnue_test_command.cpp                                 \
+	           eval/nnue/features/k.cpp                                        \
+	           eval/nnue/features/p.cpp                                        \
+	           eval/nnue/features/half_kp.cpp                                  \
+	           eval/nnue/features/half_relative_kp.cpp
+endif
 
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
 DEPENDS  = $(OBJECTS:.o=.d)

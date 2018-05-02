@@ -342,7 +342,7 @@ struct SfenPacker
 // 高速化のために直接unpackする関数を追加。かなりしんどい。
 // packer::unpack()とPosition::set()とを合体させて書く。
 // 渡された局面に問題があって、エラーのときは非0を返す。
-int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thread* th)
+int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thread* th, bool mirror)
 {
 	SfenPacker packer;
 	auto& stream = packer.stream;
@@ -373,12 +373,23 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thre
 	kingSquare[BLACK] = kingSquare[WHITE] = SQ_NB;
 
 	// まず玉の位置
-	for (auto c : COLOR)
-		board[stream.read_n_bit(7)] = make_piece(c, KING);
+	if (mirror)
+	{
+		for (auto c : COLOR)
+			board[Mir((Square)stream.read_n_bit(7))] = make_piece(c, KING);
+	}
+	else
+	{
+		for (auto c : COLOR)
+			board[stream.read_n_bit(7)] = make_piece(c, KING);
+	}
 
 	// 盤上の駒
 	for (auto sq : SQ)
 	{
+		if (mirror)
+			sq = Mir(sq);
+
 		// すでに玉がいるようだ
 		Piece pc;
 		if (type_of(board[sq]) != KING)

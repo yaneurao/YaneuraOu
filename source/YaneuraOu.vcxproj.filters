@@ -68,6 +68,24 @@
     <Filter Include="リソース ファイル\engine\2018-otafuku-engine">
       <UniqueIdentifier>{1822c23d-4270-4155-8c9b-ed15821d29ba}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\eval\nnue">
+      <UniqueIdentifier>{f8a06299-f305-4fab-af37-06d5d05b9690}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\eval\nnue\architectures">
+      <UniqueIdentifier>{f5b056d1-3ff2-456f-b355-2e1bf03c8047}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\eval\nnue\features">
+      <UniqueIdentifier>{834f320f-c9fd-430a-9768-3a781b14b0b4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\eval\nnue\layers">
+      <UniqueIdentifier>{4c668a86-42fd-403c-9b17-80360d9c8db9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\eval\nnue\trainer">
+      <UniqueIdentifier>{2891115c-d34a-4fcb-8512-c135a8450793}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\eval\nnue\trainer\features">
+      <UniqueIdentifier>{6e8ef4d1-31b3-42c5-b6a5-a0b811d671bb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -189,6 +207,93 @@
     </ClInclude>
     <ClInclude Include="engine\2018-otafuku-engine\2018-otafuku-param.h">
       <Filter>リソース ファイル\engine\2018-otafuku-engine</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\evaluate_nnue.h">
+      <Filter>リソース ファイル\eval\nnue</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\evaluate_nnue_learner.h">
+      <Filter>リソース ファイル\eval\nnue</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\nnue_accumulator.h">
+      <Filter>リソース ファイル\eval\nnue</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\nnue_architecture.h">
+      <Filter>リソース ファイル\eval\nnue</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\nnue_common.h">
+      <Filter>リソース ファイル\eval\nnue</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\nnue_feature_transformer.h">
+      <Filter>リソース ファイル\eval\nnue</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\nnue_test_command.h">
+      <Filter>リソース ファイル\eval\nnue</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\features\feature_set.h">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\features\features_common.h">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\features\half_kp.h">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\features\half_relative_kp.h">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\features\index_list.h">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\features\k.h">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\features\p.h">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\layers\affine_transform.h">
+      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\layers\clipped_relu.h">
+      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\layers\input_slice.h">
+      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\layers\sum.h">
+      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\trainer\trainer.h">
+      <Filter>リソース ファイル\eval\nnue\trainer</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\trainer\trainer_affine_transform.h">
+      <Filter>リソース ファイル\eval\nnue\trainer</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\trainer\trainer_clipped_relu.h">
+      <Filter>リソース ファイル\eval\nnue\trainer</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\trainer\trainer_feature_transformer.h">
+      <Filter>リソース ファイル\eval\nnue\trainer</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\trainer\trainer_input_slice.h">
+      <Filter>リソース ファイル\eval\nnue\trainer</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\trainer\trainer_sum.h">
+      <Filter>リソース ファイル\eval\nnue\trainer</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\architectures\halfkp_256x2-32-32.h">
+      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\architectures\k-p_256x2-32-32.h">
+      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\trainer\features\factorizer.h">
+      <Filter>リソース ファイル\eval\nnue\trainer\features</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\trainer\features\factorizer_feature_set.h">
+      <Filter>リソース ファイル\eval\nnue\trainer\features</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\trainer\features\factorizer_half_kp.h">
+      <Filter>リソース ファイル\eval\nnue\trainer\features</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -338,6 +443,27 @@
     </ClCompile>
     <ClCompile Include="engine\2018-otafuku-engine\2018-otafuku-search.cpp">
       <Filter>リソース ファイル\engine\2018-otafuku-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\nnue\evaluate_nnue.cpp">
+      <Filter>リソース ファイル\eval\nnue</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\nnue\evaluate_nnue_learner.cpp">
+      <Filter>リソース ファイル\eval\nnue</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\nnue\nnue_test_command.cpp">
+      <Filter>リソース ファイル\eval\nnue</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\nnue\features\half_kp.cpp">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\nnue\features\half_relative_kp.cpp">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\nnue\features\k.cpp">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\nnue\features\p.cpp">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
