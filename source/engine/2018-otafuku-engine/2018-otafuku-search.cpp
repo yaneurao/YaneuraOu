@@ -959,6 +959,7 @@ namespace YaneuraOu2018GOKU
 		// 格納されているのでこれも込みでposKeyを生成したほうが良い性質のhash keyになる気はする。
 		posKey = pos.key() ^ Key(uint64_t(excludedMove) << 16);
 
+
 		tte = TT.probe(posKey, ttHit
 #if defined(USE_GLOBAL_OPTIONS)
 			, pos.this_thread()->thread_id()

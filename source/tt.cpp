@@ -88,20 +88,18 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found
 		// ・上丸めするとblock*max_thread > clusterCountになりかねない)
 		// ・2の倍数にしておかないと、(key % block)にkeyのbit0を反映させたときにこの値がblockと同じ値になる。
 		//   (各スレッドが使えるのは、( 0～(block-1) ) + (thread_id * block)のTTEntryなので、これはまずい。
-		//
-		// あと、(uint32_t(key) * uint64_t(block)) >> 32)だとkeyのbit0を計算に使ってしまうので、
-		// key >> 1としてbit0を使わないようにしておく。
 
 		size_t block = (clusterCount / max_thread) & ~1;
 
-#if defined (IS_64BIT) && defined(USE_SSE2)
+		// Stockfish公式で置換表サイズ128GB超えに対応するまでデフォルトで無効にしておく。
+#if defined (IS_64BIT) && defined(USE_SSE2) && defined(USE_HUGE_HASH)
 		uint64_t highProduct;
 		_umul128(key + (key << 32), block, &highProduct);
 		size_t index = (highProduct & ~1) | (key & 1);
 #else
 		size_t index = (((uint32_t(key >> 1) * uint64_t(block)) >> 32) & ~1) | (key & 1);
 		// uint32_t(key)*block / 2^32 は、0～(block-1)の値。
-		// keyの下位1bitは、先後フラグなのでindexのbit0に反映されなければならない。
+		// keyのbit0は、先後フラグなのでindexのbit0に反映されなければならない。
 #endif
 
 		tte = &table[index + thread_id * block].entry[0];

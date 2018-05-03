@@ -151,13 +151,15 @@ struct TranspositionTable {
 		// そこでclusterCountは偶数であるという制約を課す。
 		ASSERT_LV3((clusterCount & 1) == 0);
 
-		// デバッグ中
 		// cf. 置換表の128GB制限を取っ払う冴えない方法 : http://yaneuraou.yaneu.com/2018/05/03/%E7%BD%AE%E6%8F%9B%E8%A1%A8%E3%81%AE128gb%E5%88%B6%E9%99%90%E3%82%92%E5%8F%96%E3%81%A3%E6%89%95%E3%81%86%E5%86%B4%E3%81%88%E3%81%AA%E3%81%84%E6%96%B9%E6%B3%95/
-#if defined (IS_64BIT) && defined(USE_SSE2)
+		// Stockfish公式で対応されるまでデフォルトでは無効にしておく。
+#if defined (IS_64BIT) && defined(USE_SSE2) && defined(USE_HUGE_HASH)
 
 		// cf. 128 GB TT size limitation : https://github.com/official-stockfish/Stockfish/issues/1349
 		uint64_t highProduct;
-		_umul128(key + (key << 32) , clusterCount, &highProduct);
+//		_umul128(key + (key << 32) , clusterCount, &highProduct);
+		_umul128(key << 16, clusterCount, &highProduct);
+
 		// この計算ではhighProductに第1パラメーターの上位bit周辺が色濃く反映されることに注意。
 		// 上のStockfishのissuesに書かれている修正案は、あまりよろしくない。
 		// TTEntry::key16はKeyの上位16bitの一致を見ているので、この16bitを計算に用いないか何らかの工夫が必要。
@@ -168,6 +170,8 @@ struct TranspositionTable {
 #else
 		// また、(uint32_t(key) * uint64_t(clusterCount)だとkeyのbit0を使ってしまうので(31bitしか
 		// indexを求めるのに使っていなくて精度がやや落ちるので)、(key >> 1)を使う。
+		// ただ、Hashが小さいときにkeyの下位から取ると、singularのときのkeyとして
+		// excludedMoveはbit16..31にしか反映させないので、あまりいい性質でもないような…。
 		return &table[(((uint32_t(key >> 1) * uint64_t(clusterCount)) >> 32) & ~1) | (key & 1)].entry[0];
 #endif
 	}
