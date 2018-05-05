@@ -690,7 +690,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 			if (token == "infinite")
 				limits.mate = INT32_MAX;
 			else
-				is >> limits.mate;
+				limits.mate = stoi(token);;
 		}
 
 		// 時間無制限。
