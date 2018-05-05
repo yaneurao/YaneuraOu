@@ -310,10 +310,7 @@ public:
 
 // 最下位bitをresetする命令。
 
-// gccでコンパイルするとき-marchとして具体的なCPU名を指定したときに、_blsr_u64がinline展開できないようで
-// コンパイルエラーになる。
-
-#if (defined(USE_AVX2) && defined(IS_64BIT)) && !defined(__GNUC__)
+#if (defined(USE_AVX2) && defined(IS_64BIT))
 #define BLSR(x) _blsr_u64(x)
 #else
 #define BLSR(x) (x & (x-1))

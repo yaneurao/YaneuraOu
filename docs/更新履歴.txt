@@ -1,6 +1,49 @@
 ﻿
 やねうら王 更新履歴
 
+■　2018/05/03
+
+- 128GB超えの置換表を扱うのはデフォルトでは無効にする。
+	- config.hでUSE_HUGE_HASHをdefineしたときのみ有効に。
+
+
+■　2018/05/02
+
+- 置換表サイズの2^Nという制約を取り除く。(ただし、2MB単位で確保する)
+	- Allow for general transposition table sizes. (#1341) : https://github.com/official-stockfish/Stockfish/commit/2198cd0524574f0d9df8c0ec9aaf14ad8c94402b
+	- わずかに遅くなるがそれは棋力にはほぼ影響はないはず…。
+	- 16GBメモリの環境でHashの値として以前は14000(≒14GB)などと指定しても以前は8192(8GB)までしか使われなかったのが
+		今回の変更により14000ぴったりまで使われるようになったので、以前より置換表をめいいっぱい確保でき、このおかげで
+		探索効率が改善して強くなるという効果は期待できる。(長い持ち時間で置換表を使い尽くしているような状況ならば)
+
+	例) Hashとして3を指定して1秒対局。以前のバージョンでは置換表は2MBの確保になり、本バージョンでは、3MBの確保となる。)
+
+			// TTEntry*を求めるところ
+			return &table[(((uint32_t(key) * uint64_t(clusterCount)) >> 32) & ~1) | (key & 1)].entry[0];
+
+	engine1 = YaneuraOu-2018-OtafukuV482.exe , eval = Apery20171111
+	engine2 = YaneuraOu-2018-OtafukuV482a.exe , eval = Apery20171111
+	T1,b1000,618 - 51 - 941(39.64% R-73.04) win black : white = 51.57% : 48.43%
+
+			// これだとkeyのbit0が(uint32_t(key))に含まれているので、以下のように改良した
+			return &table[(((uint32_t(key >> 1) * uint64_t(clusterCount)) >> 32) & ~1) | (key & 1)].entry[0];
+
+	engine1 = YaneuraOu-2018-OtafukuV482.exe , eval = Apery20171111
+	engine2 = YaneuraOu-2018-OtafukuV482b.exe , eval = Apery20171111
+	T1,b1000,289 - 21 - 510(36.17% R-98.67) win black : white = 50.44% : 49.56%
+
+- 置換表の128GB制限を解除する
+	- 128 GB TT size limitation : https://github.com/official-stockfish/Stockfish/issues/1349
+		- このスレッドに書かれている修正案、いくつかの点においてよろしくない。
+			- cf. 置換表の128GB制限を取っ払う冴えない方法 : http://yaneuraou.yaneu.com/2018/05/03/%E7%BD%AE%E6%8F%9B%E8%A1%A8%E3%81%AE128gb%E5%88%B6%E9%99%90%E3%82%92%E5%8F%96%E3%81%A3%E6%89%95%E3%81%86%E5%86%B4%E3%81%88%E3%81%AA%E3%81%84%E6%96%B9%E6%B3%95/
+	- singular extension時のhash keyを求めるコード、改良。
+
+
+
+■　2018/05/01
+
+- _blsr_u64()をgccでインライン展開するには-mbmiが必要(-mbmi2ではやってくれない)
+	kazu-nanohaさんからのプルリクエスト
 
 ■　2018/04/30 V4.82
 
@@ -116,7 +159,7 @@
 - gensfen2018コマンド追加準備。(現状、非公開)
 
 
-■　2017/11/17 
+■　2017/11/17
 
 - evaluate_kpptの高速化(yuk-toさん) : https://github.com/yaneurao/YaneuraOu/pull/69
 - EVAL_MATERIALのときのcompute_eval()やコメントがおかしかったの修正。(tanuki-さん)
@@ -165,7 +208,7 @@
 	- cf. https://github.com/yaneurao/YaneuraOu/pull/67
 - gensfenコマンドで生成されるファイルの分割保存のためのsave_everyオプション追加。
 	- AWSのspot instanceのterminate対策。
-	
+
 
 ■　2017/11/02
 

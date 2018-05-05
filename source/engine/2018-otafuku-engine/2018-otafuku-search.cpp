@@ -953,7 +953,12 @@ namespace YaneuraOu2018GOKU
 		excludedMove = ss->excludedMove;
 
 		// excludedMoveがある(singular extension時)は、異なるentryにアクセスするように。
-		posKey = pos.key() ^ Key(excludedMove << 16);
+		// posKey = pos.key() ^ Key(excludedMove << 16);
+
+		// →　やねうら王の指し手生成の場合、動かす駒がexcludedMoveのbit16..に
+		// 格納されているのでこれも込みでposKeyを生成したほうが良い性質のhash keyになる気はする。
+		posKey = pos.key() ^ Key(uint64_t(excludedMove) << 16);
+
 
 		tte = TT.probe(posKey, ttHit
 #if defined(USE_GLOBAL_OPTIONS)
