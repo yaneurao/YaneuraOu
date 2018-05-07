@@ -460,8 +460,9 @@ namespace MateEngine
 	// 詰将棋探索のエントリポイント
 	void dfpn(Position& r) {
 		if (r.in_check()) {
+			// 逆王手からの詰みは対応しないので、notimplementedを返す.
 			sync_cout << "info string The king is checked... df-pn is skipped..." << sync_endl;
-			sync_cout << "bestmove None" << sync_endl;
+			sync_cout << "checkmate notimplemented" << sync_endl;
 			return;
 		}
 
@@ -491,12 +492,13 @@ namespace MateEngine
 			auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 			time_ms = std::max(time_ms, decltype(time_ms)(1));
 			int64_t nps = nodes_searched * 1000LL / time_ms;
+			// pv サブコマンドは info コマンドの最後に書く。
 			std::ostringstream oss;
-			oss << "info depth " << moves.size() << " time " << time_ms << " nodes " << nodes_searched << " pv";
+			oss << "info depth " << moves.size() << " time " << time_ms << " nodes " << nodes_searched
+			    << " score mate + nps " << nps << " pv";
 			for (const auto& move : moves) {
 				oss << " " << move;
 			}
-			oss << " score mate + nps " << nps;
 			sync_cout << oss.str() << sync_endl;
 		}
 
@@ -510,13 +512,17 @@ namespace MateEngine
 		// (思考のためには計算資源を使っていないので。)
 
 		if (moves.empty()) {
-			sync_cout << "bestmove None" << sync_endl;
-		}
-		else if (moves.size() == 1) {
-			sync_cout << "bestmove " << moves[0] << sync_endl;
+			// 詰みの手がない。
+			sync_cout << "checkmate nomate" << sync_endl;
 		}
 		else {
-			sync_cout << "bestmove " << moves[0] << " ponder " << moves[1] << sync_endl;
+			// 詰む手を返す。
+			std::ostringstream oss;
+			oss << "checkmate";
+			for (const auto& move : moves) {
+				oss << " " << move;
+			}
+			sync_cout << oss.str() << sync_endl;
 		}
 
 		Threads.stop = true;
@@ -533,6 +539,15 @@ void MainThread::think() {
 	Thread::search();
 }
 void Thread::search() {
+	// 通常のgoコマンドで呼ばれたときは、resignを返す。
+	// 詰み用のworkerでそれだと支障がある場合は適宜変更する。
+	if (Search::Limits.mate == 0) {
+		// "go infinite"に対してはstopが送られてくるまで待つ。
+		while (!Threads.stop && Limits.infinite)
+			sleep(1);
+		sync_cout << "bestmove resign" << sync_endl;
+		return;
+	}
 	MateEngine::dfpn(rootPos);
 }
 
