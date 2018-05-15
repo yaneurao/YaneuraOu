@@ -228,6 +228,8 @@ namespace Learner
 	extern Learner::ValueAndPV  search(Position& pos, int depth , size_t multiPV = 1);
 	extern Learner::ValueAndPV qsearch(Position& pos);
 
+	double calc_grad(Value shallow, const PackedSfenValue& psv);
+
 }
 
 #endif
