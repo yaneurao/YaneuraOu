@@ -72,9 +72,8 @@ struct StateInfo
 	// この局面における手番側の持ち駒。優等局面の判定のために必要。
 	Hand hand;
 
-	// この局面で捕獲された駒
+	// この局面で捕獲された駒。先後の区別あり。
 	// ※　次の局面にdo_move()で進むときにこの値が設定される
-	// 先後の区別はなし。馬とか龍など成り駒である可能性はある。
 	Piece capturedPiece;
 
 	friend struct Position;

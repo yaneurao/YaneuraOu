@@ -291,6 +291,9 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 
 	set_state(st);
 
+	// 現局面で王手がかかっているならst->continuous_check[them] = 1にしないと
+	// 連続王手の千日手の判定が不正確な気がするが、どのみち2回目の出現を負け扱いしているのでまあいいか..
+
 	// --- evaluate
 
 	st->materialValue = Eval::material(*this);
