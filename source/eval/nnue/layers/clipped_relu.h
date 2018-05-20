@@ -68,7 +68,7 @@ class ClippedReLU {
         transformed_features, buffer + kSelfBufferSize);
     const auto output = reinterpret_cast<OutputType*>(buffer);
 #if defined(USE_AVX2)
-    constexpr IndexType kNumChunks = kInputDimensions / 32;
+    constexpr IndexType kNumChunks = kInputDimensions / kSimdWidth;
     const __m256i kZero = _mm256_setzero_si256();
     const __m256i kOffsets = _mm256_set_epi32(7, 3, 6, 2, 5, 1, 4, 0);
     const auto in = reinterpret_cast<const __m256i*>(input);
@@ -83,9 +83,9 @@ class ClippedReLU {
       _mm256_store_si256(&out[i], _mm256_permutevar8x32_epi32(_mm256_max_epi8(
           _mm256_packs_epi16(words0, words1), kZero), kOffsets));
     }
-    constexpr IndexType kStart = kNumChunks * 32;
+    constexpr IndexType kStart = kNumChunks * kSimdWidth;
 #elif defined(USE_SSE41)
-    constexpr IndexType kNumChunks = kInputDimensions / 16;
+    constexpr IndexType kNumChunks = kInputDimensions / kSimdWidth;
     const __m128i kZero = _mm_setzero_si128();
     const auto in = reinterpret_cast<const __m128i*>(input);
     const auto out = reinterpret_cast<__m128i*>(output);
@@ -99,7 +99,20 @@ class ClippedReLU {
       _mm_store_si128(&out[i], _mm_max_epi8(
           _mm_packs_epi16(words0, words1), kZero));
     }
-    constexpr IndexType kStart = kNumChunks * 16;
+    constexpr IndexType kStart = kNumChunks * kSimdWidth;
+#elif defined(IS_ARM)
+    constexpr IndexType kNumChunks = kInputDimensions / (kSimdWidth / 2);
+    const int8x8_t kZero = {0};
+    const auto in = reinterpret_cast<const int32x4_t*>(input);
+    const auto out = reinterpret_cast<int8x8_t*>(output);
+    for (IndexType i = 0; i < kNumChunks; ++i) {
+      int16x8_t shifted;
+      const auto pack = reinterpret_cast<int16x4_t*>(&shifted);
+      pack[0] = vqshrn_n_s32(in[i * 2 + 0], kWeightScaleBits);
+      pack[1] = vqshrn_n_s32(in[i * 2 + 1], kWeightScaleBits);
+      out[i] = vmax_s8(vqmovn_s16(shifted), kZero);
+    }
+    constexpr IndexType kStart = kNumChunks * (kSimdWidth / 2);
 #else
     constexpr IndexType kStart = 0;
 #endif
