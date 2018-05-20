@@ -90,6 +90,9 @@ class FeatureTransformer {
 #elif defined(USE_SSE41)
     constexpr IndexType kNumChunks = kHalfDimensions / kSimdWidth;
     const __m128i kZero = _mm_setzero_si128();
+#elif defined(IS_ARM)
+    constexpr IndexType kNumChunks = kHalfDimensions / (kSimdWidth / 2);
+    const int8x8_t kZero = {0};
 #endif
     const Color perspectives[2] = {pos.side_to_move(), ~pos.side_to_move()};
     for (IndexType p = 0; p < 2; ++p) {
@@ -125,6 +128,17 @@ class FeatureTransformer {
         }
         _mm_store_si128(&out[j], _mm_max_epi8(
             _mm_packs_epi16(sum0, sum1), kZero));
+      }
+#elif defined(IS_ARM)
+      const auto out = reinterpret_cast<int8x8_t*>(&output[offset]);
+      for (IndexType j = 0; j < kNumChunks; ++j) {
+        int16x8_t sum = reinterpret_cast<const int16x8_t*>(
+            accumulation[perspectives[p]][0])[j];
+        for (IndexType i = 1; i < kRefreshTriggers.size(); ++i) {
+          sum = vaddq_s16(sum, reinterpret_cast<const int16x8_t*>(
+              accumulation[perspectives[p]][i])[j]);
+        }
+        out[j] = vmax_s8(vqmovn_s16(sum), kZero);
       }
 #else
       for (IndexType j = 0; j < kHalfDimensions; ++j) {
@@ -173,6 +187,14 @@ class FeatureTransformer {
           for (IndexType j = 0; j < kNumChunks; ++j) {
             accumulation[j] = _mm_add_epi16(accumulation[j], column[j]);
           }
+#elif defined(IS_ARM)
+          auto accumulation = reinterpret_cast<int16x8_t*>(
+              &accumulator.accumulation[perspective][i][0]);
+          auto column = reinterpret_cast<const int16x8_t*>(&weights_[offset]);
+          constexpr IndexType kNumChunks = kHalfDimensions / (kSimdWidth / 2);
+          for (IndexType j = 0; j < kNumChunks; ++j) {
+            accumulation[j] = vaddq_s16(accumulation[j], column[j]);
+          }
 #else
           for (IndexType j = 0; j < kHalfDimensions; ++j) {
             accumulator.accumulation[perspective][i][j] += weights_[offset + j];
@@ -204,6 +226,10 @@ class FeatureTransformer {
         constexpr IndexType kNumChunks = kHalfDimensions / (kSimdWidth / 2);
         auto accumulation = reinterpret_cast<__m128i*>(
             &accumulator.accumulation[perspective][i][0]);
+#elif defined(IS_ARM)
+        constexpr IndexType kNumChunks = kHalfDimensions / (kSimdWidth / 2);
+        auto accumulation = reinterpret_cast<int16x8_t*>(
+            &accumulator.accumulation[perspective][i][0]);
 #endif
         if (reset[perspective]) {
           if (i == 0) {
@@ -229,6 +255,11 @@ class FeatureTransformer {
             for (IndexType j = 0; j < kNumChunks; ++j) {
               accumulation[j] = _mm_sub_epi16(accumulation[j], column[j]);
             }
+#elif defined(IS_ARM)
+            auto column = reinterpret_cast<const int16x8_t*>(&weights_[offset]);
+            for (IndexType j = 0; j < kNumChunks; ++j) {
+              accumulation[j] = vsubq_s16(accumulation[j], column[j]);
+            }
 #else
             for (IndexType j = 0; j < kHalfDimensions; ++j) {
               accumulator.accumulation[perspective][i][j] -=
@@ -249,6 +280,11 @@ class FeatureTransformer {
             auto column = reinterpret_cast<const __m128i*>(&weights_[offset]);
             for (IndexType j = 0; j < kNumChunks; ++j) {
               accumulation[j] = _mm_add_epi16(accumulation[j], column[j]);
+            }
+#elif defined(IS_ARM)
+            auto column = reinterpret_cast<const int16x8_t*>(&weights_[offset]);
+            for (IndexType j = 0; j < kNumChunks; ++j) {
+              accumulation[j] = vaddq_s16(accumulation[j], column[j]);
             }
 #else
             for (IndexType j = 0; j < kHalfDimensions; ++j) {

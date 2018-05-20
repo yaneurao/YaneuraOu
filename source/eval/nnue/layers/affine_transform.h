@@ -92,6 +92,9 @@ class AffineTransform {
     constexpr IndexType kNumChunks = kPaddedInputDimensions / kSimdWidth;
     const __m128i kOnes = _mm_set1_epi16(1);
     const auto input_vector = reinterpret_cast<const __m128i*>(input);
+#elif defined(IS_ARM)
+    constexpr IndexType kNumChunks = kPaddedInputDimensions / kSimdWidth;
+    const auto input_vector = reinterpret_cast<const int8x8_t*>(input);
 #endif
     for (IndexType i = 0; i < kOutputDimensions; ++i) {
       const IndexType offset = i * kPaddedInputDimensions;
@@ -121,6 +124,15 @@ class AffineTransform {
       sum = _mm_hadd_epi32(sum, sum);
       sum = _mm_hadd_epi32(sum, sum);
       output[i] = _mm_cvtsi128_si32(sum);
+#elif defined(IS_ARM)
+      int32x4_t sum = {biases_[i]};
+      const auto row = reinterpret_cast<const int8x8_t*>(&weights_[offset]);
+      for (IndexType j = 0; j < kNumChunks; ++j) {
+        int16x8_t product = vmull_s8(input_vector[j * 2], row[j * 2]);
+        product = vmlal_s8(product, input_vector[j * 2 + 1], row[j * 2 + 1]);
+        sum = vpadalq_s16(sum, product);
+      }
+      output[i] = sum[0] + sum[1] + sum[2] + sum[3];
 #else
       OutputType sum = biases_[i];
       for (IndexType j = 0; j < kInputDimensions; ++j) {

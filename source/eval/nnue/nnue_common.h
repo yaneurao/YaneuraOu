@@ -26,6 +26,8 @@ constexpr std::size_t kCacheLineSize = 64;
 constexpr std::size_t kSimdWidth = 32;
 #elif defined(USE_SSE2)
 constexpr std::size_t kSimdWidth = 16;
+#elif defined(IS_ARM)
+constexpr std::size_t kSimdWidth = 16;
 #endif
 constexpr std::size_t kMaxSimdWidth = 32;
 
