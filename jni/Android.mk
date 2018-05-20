@@ -32,7 +32,8 @@ ifeq ($(ENGINE_TARGET),YANEURAOU_2018_TNK_ENGINE)
 endif
 
 ifeq ($(TARGET_ARCH_ABI),arm64-v8a)
-  ARCH_DEF += -DIS_64BIT -DIS_ARM
+  ARCH_DEF += -DIS_64BIT -DIS_ARM -mfpu=neon
+  LOCAL_ARM_NEON := true
 endif
 
 ifeq ($(TARGET_ARCH_ABI),x86_64)
@@ -44,7 +45,8 @@ ifeq ($(TARGET_ARCH_ABI),x86)
 endif
 
 ifeq ($(TARGET_ARCH_ABI),armeabi-v7a)
-  ARCH_DEF += -DIS_ARM
+  ARCH_DEF += -DIS_ARM -mfpu=neon
+  LOCAL_ARM_NEON := true
 endif
 
 LOCAL_MODULE    := $(ENGINE_NAME)-$(TARGET_ARCH_ABI)
