@@ -459,6 +459,8 @@ namespace MateEngine
 
 	// 詰将棋探索のエントリポイント
 	void dfpn(Position& r) {
+        Threads.stop = false;
+
 		if (r.in_check()) {
 			// 逆王手からの詰みは対応しないので、notimplementedを返す.
 			sync_cout << "info string The king is checked... df-pn is skipped..." << sync_endl;
