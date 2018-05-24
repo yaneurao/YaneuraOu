@@ -253,6 +253,55 @@ namespace MateEngine
 			return;
 		}
 
+		// 千日手のチェック
+		// 対局規定（抄録）｜よくある質問｜日本将棋連盟 https://www.shogi.or.jp/faq/taikyoku-kitei.html
+		// 第8条 反則
+		// 7. 連続王手の千日手とは、同一局面が４回出現した一連の手順中、片方の手が
+		// すべて王手だった場合を指し、王手を続けた側がその時点で負けとなる。
+		// 従って開始局面により、連続王手の千日手成立局面が王手をかけた状態と
+		// 王手を解除した状態の二つのケースがある。 （※）
+		// （※）は平成25年10月1日より暫定施行。
+		auto draw_type = n.is_repetition(n.game_ply());
+		switch (draw_type) {
+		case REPETITION_WIN:
+			// 連続王手の千日手による勝ち
+			if (or_node) {
+				// ここは通らないはず
+				entry.pn = 0;
+				entry.dn = kInfinitePnDn;
+				entry.minimum_distance = std::min(entry.minimum_distance, depth);
+			}
+			else {
+				entry.pn = kInfinitePnDn;
+				entry.dn = 0;
+				entry.minimum_distance = std::min(entry.minimum_distance, depth);
+			}
+			return;
+
+		case REPETITION_LOSE:
+			// 連続王手の千日手による負け
+			if (or_node) {
+				entry.pn = kInfinitePnDn;
+				entry.dn = 0;
+				entry.minimum_distance = std::min(entry.minimum_distance, depth);
+			}
+			else {
+				// ここは通らないはず
+				entry.pn = 0;
+				entry.dn = kInfinitePnDn;
+				entry.minimum_distance = std::min(entry.minimum_distance, depth);
+			}
+			return;
+
+		case REPETITION_DRAW:
+			// 普通の千日手
+			// ここは通らないはず
+			entry.pn = kInfinitePnDn;
+			entry.dn = 0;
+			entry.minimum_distance = std::min(entry.minimum_distance, depth);
+			return;
+		}
+
 		MovePicker move_picker(n, or_node);
 		if (move_picker.empty()) {
 			// nが先端ノード
@@ -459,7 +508,7 @@ namespace MateEngine
 
 	// 詰将棋探索のエントリポイント
 	void dfpn(Position& r) {
-        Threads.stop = false;
+		Threads.stop = false;
 
 		if (r.in_check()) {
 			// 逆王手からの詰みは対応しないので、notimplementedを返す.
@@ -497,7 +546,7 @@ namespace MateEngine
 			// pv サブコマンドは info コマンドの最後に書く。
 			std::ostringstream oss;
 			oss << "info depth " << moves.size() << " time " << time_ms << " nodes " << nodes_searched
-			    << " score mate + nps " << nps << " pv";
+				<< " score mate + nps " << nps << " pv";
 			for (const auto& move : moves) {
 				oss << " " << move;
 			}
