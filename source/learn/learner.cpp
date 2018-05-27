@@ -1802,6 +1802,10 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 
 void LearnerThink::thread_worker(size_t thread_id)
 {
+#if defined(_OPENMP)
+	omp_set_num_threads((int)Options["Threads"]);
+#endif
+
 	auto th = Threads[thread_id];
 	auto& pos = th->rootPos;
 
@@ -2862,10 +2866,6 @@ void learn(Position&, istringstream& is)
 	pos.state()->sum.p[2][0] = VALUE_NOT_EVALUATED;
 	cout << Eval::evaluate(pos) << endl;
 	//Eval::print_eval_stat(pos);
-#endif
-
-#if defined( _OPENMP )
-	omp_set_num_threads((int)Options["Threads"]);
 #endif
 
 	cout << "init done." << endl;
