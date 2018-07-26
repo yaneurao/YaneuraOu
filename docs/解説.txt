@@ -466,6 +466,20 @@ GUIで連続対局をさせる場合など、エンジン名として任意の�
 そこに書かれている1行目の内容をエンジン名、2行目をエンジン作者名としてGUIに返します。
 
 
+■　エンジンオプションのデフォルト値の変更
+
+"usi"に対して返すオプションリストのオプションのデフォルト値を変更する機能
+カレントフォルダに"engine_options.txt"というファイルを配置して、
+ここにOptionを構築するための文字列を書きます。(この"option"で始まる文字列は、
+"usi"に対して応答として返している文字列なので、コマンドプロンプト上でエンジンを
+実行して、"usi"とタイプして、返ってきた文字列一覧をコピペして編集すると良い)
+
+例)
+option name EvalDir type string default ../eval/YaneuraOu_2018
+option name EvalShare type check default true
+option name BookDir type string default ../book
+
+
 ■　Aperyの定跡DB / まふ定跡の読み込みについて
 
 まふ定跡はAperyの定跡フォーマットで提供されています。
@@ -555,3 +569,4 @@ Msys2では、たまさんの情報によると…。
   ２．（LLVMをインストールしたディレクトリ）/libにある「libomp.lib」をlibgomp.aが配置されているディレクトリに「libomp.a」としてコピーする→これがlibgomp.aの代わりになる
   ３．exeの格納ディレクトリと同じところに（LLVMをインストールしたディレクトリ）/bin/libomp.dllをコピーする
   これで動きます。が、libomp.dllを含めて配布するのは何かと問題になりそうです。あくまで解決の参考としてください。
+

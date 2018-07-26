@@ -5,8 +5,11 @@
 ■　2018/07/27
 
 
-- "BookDir" option追加。
+- 起動時に、"engine_option.txt"を読み込み、Optionsに反映するように。
+	- エンジンオプションのデフォルト値の変更について、解説.txtに追記
+ 
 
+- "BookDir" option追加。
 
 
 ■　2018/05/27

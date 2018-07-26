@@ -294,6 +294,52 @@ double Math::dsigmoid(double x) {
 }
 
 // --------------------
+//       Parser
+// --------------------
+
+/*
+	LineScanner parser("AAA BBB CCC DDD");
+	auto token = parser.peek_text();
+	cout << token << endl;
+	token = parser.get_text();
+	cout << token << endl;
+	token = parser.get_text();
+	cout << token << endl;
+	token = parser.get_text();
+	cout << token << endl;
+	token = parser.get_text();
+	cout << token << endl;
+*/
+
+// 次のtokenを先読みして返す。get_token()するまで解析位置は進まない。
+std::string LineScanner::peek_text()
+{
+	// 二重にpeek_text()してないか？
+	//ASSERT_LV1(token.empty());
+
+	while (!eof())
+	{
+		char c = line[pos++];
+		if (c == ' ')
+			break;
+		token += c;
+	}
+	return token;
+}
+
+// 次のtokenを返す。
+std::string LineScanner::get_text()
+{
+	if (token.empty())
+		peek_text();
+
+	auto t = token;
+	token.clear();
+	return t;
+}
+
+
+// --------------------
 //  prefetch命令
 // --------------------
 

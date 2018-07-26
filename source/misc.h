@@ -296,6 +296,38 @@ inline std::string path_combine(const std::string& folder, const std::string& fi
 }
 
 // --------------------
+//       Parser
+// --------------------
+
+// スペースで区切られた文字列を解析するためのparser
+struct LineScanner
+{
+	// 解析したい文字列を渡す(スペースをセパレータとする)
+	LineScanner(std::string line_) : line(line_), pos(0) {}
+
+	// 次のtokenを先読みして返す。get_token()するまで解析位置は進まない。
+	std::string peek_text();
+
+	// 次のtokenを返す。
+	std::string get_text();
+
+	// 解析位置(カーソル)が行の末尾まで進んだのか？
+	// peek_text()したときにeof() == trueになることはあるので注意。
+	bool eof() const { return !(pos < line.length()); }
+
+private:
+	// 解析対象の行
+	std::string line;
+
+	// 解析カーソル(現在の解析位置)
+	unsigned int pos;
+
+	// peek_text()した文字列
+	std::string token;
+};
+
+
+// --------------------
 //       misc
 // --------------------
 

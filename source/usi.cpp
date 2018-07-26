@@ -302,13 +302,72 @@ namespace USI
 	//     USI::Option
 	// --------------------
 
-	  // この関数はUSI::init()から起動時に呼び出されるだけ。
+	// この関数はUSI::init()から起動時に呼び出されるだけ。
 	void Option::operator<<(const Option& o)
 	{
 		static size_t insert_order = 0;
 		*this = o;
 		idx = insert_order++; // idxは0から連番で番号を振る
 	}
+
+	// idxの値を書き換えないoperator "<<"
+	void Option::overwrite(const Option& o)
+	{
+		auto idx_ = idx; // backup
+		*this = o;
+		idx = idx_; // restore
+	}
+
+	// 思考エンジンがGUIからの"usi"に対して返す"option ..."文字列から
+	// Optionオブジェクトを構築して、それをOptions[]に突っ込む。
+	// "engine_options.txt"というファイルの各行からOptionオブジェクト構築して
+	// Options[]の値を上書きするためにこの関数が必要。
+	// "option name USI_Hash type spin default 256"
+	// のような文字列が引数として渡される。
+	void build_option(string line)
+	{
+		LineScanner scanner(line);
+		if (scanner.get_text() != "option") return;
+
+		string name, value, option_type;
+		int64_t min_value, max_value;
+		vector<string> combo_list;
+		while (!scanner.eof())
+		{
+			auto token = scanner.get_text();
+			if (token == "name") name = scanner.get_text();
+			else if (token == "type") option_type = scanner.get_text();
+			else if (token == "default") value = scanner.get_text();
+			else if (token == "min") min_value = stoll(scanner.get_text());
+			else if (token == "max") max_value = stoll(scanner.get_text());
+			else if (token == "var") {
+				auto varText = scanner.get_text();
+				combo_list.push_back(varText);
+			}
+			else {
+				cout << "Error : invalid command: " << token;
+			}
+		}
+
+		// typeに応じたOptionの型を生成して代入する。このときに "<<"を用いるとidxが変わってしまうので "="で代入する。
+		if (option_type == "check") Options[name].overwrite( Option(value == "true"));
+		else if (option_type == "spin") Options[name].overwrite( Option(stoll(value), min_value, max_value));
+		else if (option_type == "string") Options[name].overwrite( Option(value.c_str()));
+		else if (option_type == "combo") Options[name].overwrite( Option(combo_list , value));
+	}
+
+	// カレントフォルダに"engine_option.txt"があればそれをオプションとしてOptions[]の値をオーバーライドする機能。
+	void read_engine_options()
+	{
+		ifstream ifs("engine_options.txt");
+		if (!ifs.fail())
+		{
+			string str;
+			while (getline(ifs, str))
+				build_option(str);
+		}
+	}
+
 
 	// optionのdefault値を設定する。
 	void init(OptionsMap& o)
@@ -413,7 +472,11 @@ namespace USI
 
 		// 各エンジンがOptionを追加したいだろうから、コールバックする。
 		USI::extra_option(o);
+
+		// カレントフォルダに"engine_option.txt"があればそれをオプションとしてOptions[]の値をオーバーライドする機能。
+		read_engine_options();
 	}
+
 
 	// USIプロトコル経由で値を設定されたときにそれをcurrentValueに反映させる。
 	Option& Option::operator=(const string& v) {

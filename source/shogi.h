@@ -957,6 +957,9 @@ namespace USI
 		// 起動時に設定を代入する。
 		void operator<<(const Option&);
 
+		// idxの値を変えずに上書きする
+		void overwrite(const Option&);
+
 		// s64,bool型への暗黙の変換子
 		operator s64() const {
 			ASSERT_LV1(type == "check" || type == "spin");
