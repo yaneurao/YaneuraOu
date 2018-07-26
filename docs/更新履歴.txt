@@ -2,9 +2,43 @@
 やねうら王 更新履歴
 
 
+■　2018/07/27
+
+
+- "BookDir" option追加。
+
+
+
+■　2018/05/27
+
+
+- Move omp_set_num_threads() call to worker threads (#80) (ynasu87さん)
+	- NNUEで学習のときにスレッドの分散が適切に出来ないことがある問題の修正。
+
+
+■　2018/05/24
+
+
+- * 連続王手の千日手のチェックを追加した
+  * 対局規定第8条第7項に従って修正した
+  * ソースコードのフォーマットを修正した
+	cf. https://github.com/yaneurao/YaneuraOu/pull/79
+	(tanuki-さん)
+
+
+- Mateエンジンで、探索が開始しないバグを修正した(tanuki-さん)
+
+
+■　2018/05/20
+
+- 祝！Android公式サポート (#76) (Mizarさん)
+- Support NEON for NNUE evaluation functions (#77) (ynasu87さん)
+	- NEON向けNNUE最適化。
+
+
 ■　2018/05/17
 
-- StateInfo.capturedPcの説明が間違っていたの修正。
+- StateInfo::capturedPcの説明が間違っていたの修正。
 
 
 ■　2018/05/15

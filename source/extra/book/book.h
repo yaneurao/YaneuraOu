@@ -118,7 +118,7 @@ namespace Book
 		// ・Search::clear()は、USIのisreadyコマンドのときに呼び出されるので
 		// 　定跡をメモリに丸読みするのであればこのタイミングで行なう。
 		// ・Search::clear()が呼び出されたときのOptions["BookOnTheFly"]の値をcaptureして使う。(ことになる)
-		void read_book() { memory_book.read_book("book/" + book_name, (bool)Options["BookOnTheFly"]); }
+		void read_book() { memory_book.read_book(get_book_name(), (bool)Options["BookOnTheFly"]); }
 
 		// --- 定跡の指し手の選択
 
@@ -149,6 +149,10 @@ namespace Book
 
 		// 読み込む予定の定跡ファイル名
 		std::string book_name;
+
+		// 定跡ファイル名を返す。
+		// Option["BookDir"]が定跡ファイルの入っているフォルダなのでこれを連結した定跡ファイルのファイル名を返す。
+		std::string get_book_name() const { return path_combine((std::string)Options["BookDir"], book_name); }
 
 		// probe()の下請け
 		bool probe_impl(Position& rootPos, bool silent, Move& bestMove, Move& ponderMove);

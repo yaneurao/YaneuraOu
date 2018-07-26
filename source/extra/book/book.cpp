@@ -1255,6 +1255,8 @@ namespace Book
 		o["BookFile"] << Option(book_list, book_list[1], [&](const Option& o){ this->book_name = string(o); });
 		book_name = book_list[1];
 
+		o["BookDir"] << Option("book");
+
 		//  BookEvalDiff: 定跡の指し手で1番目の候補の指し手と、2番目以降の候補の指し手との評価値の差が、
 		//    この範囲内であれば採用する。(1番目の候補の指し手しか選ばれて欲しくないときは0を指定する)
 		//  BookEvalBlackLimit : 定跡の指し手のうち、先手のときの評価値の下限。これより評価値が低くなる指し手は選択しない。
