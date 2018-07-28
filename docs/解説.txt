@@ -570,3 +570,22 @@ Msys2では、たまさんの情報によると…。
   ３．exeの格納ディレクトリと同じところに（LLVMをインストールしたディレクトリ）/bin/libomp.dllをコピーする
   これで動きます。が、libomp.dllを含めて配布するのは何かと問題になりそうです。あくまで解決の参考としてください。
 
+
+■　MSYS2上でNNUEのAVX2以外の評価関数の実行ファイルがビルドできない件
+
+toolchainの問題かと思います。例えば以下のようにすると32bit NO SSE版がビルドできるようです。
+
+(MSYS2 MinGW 32-bit上で)
+$ pacman -S mingw-w64-i686-clang mingw-w64-i686-toolchain
+$ pacman -Syuu
+$ mingw32-make -j8 nosse YANEURAOU_EDITION=YANEURAOU_2018_TNK_ENGINE 2>&1 | tee 2018tnk_nosse.log｀
+
+64bit版
+$ pacman -S mingw-w64-x86_64-clang mingw-w64-x86_64-toolchain
+
+注意点)
+makefileを使ってcleanするときに、.oファイルを削除しないといけないが、そのときにYANEURAOU_EDITIONを指定していないと
+コンパイル対象のソースファイルとしてNNUE用の評価関数のソースコードファイルが追加されず、.oファイルが全部消えないので
+コンパイルに失敗することがある。cleanするときは、この点に注意すること。
+
+mingw32-make clean YANEURAOU_EDITION=YANEURAOU_2018_TNK_ENGINE
