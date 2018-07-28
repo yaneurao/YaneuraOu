@@ -330,7 +330,7 @@ namespace USI
 		if (scanner.get_text() != "option") return;
 
 		string name, value, option_type;
-		int64_t min_value, max_value;
+		int64_t min_value = 0 , max_value = 1;
 		vector<string> combo_list;
 		while (!scanner.eof())
 		{
