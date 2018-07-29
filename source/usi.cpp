@@ -330,7 +330,7 @@ namespace USI
 		if (scanner.get_text() != "option") return;
 
 		string name, value, option_type;
-		int64_t min_value = 0 , max_value = 1;
+		int64_t min_value = 0, max_value = 1;
 		vector<string> combo_list;
 		while (!scanner.eof())
 		{
@@ -345,15 +345,21 @@ namespace USI
 				combo_list.push_back(varText);
 			}
 			else {
-				cout << "Error : invalid command: " << token;
+				cout << "Error : invalid command: " << token << endl;
 			}
 		}
 
-		// typeに応じたOptionの型を生成して代入する。このときに "<<"を用いるとidxが変わってしまうので "="で代入する。
-		if (option_type == "check") Options[name].overwrite( Option(value == "true"));
-		else if (option_type == "spin") Options[name].overwrite( Option(stoll(value), min_value, max_value));
-		else if (option_type == "string") Options[name].overwrite( Option(value.c_str()));
-		else if (option_type == "combo") Options[name].overwrite( Option(combo_list , value));
+		if (Options.count(name) != 0)
+		{
+			// typeに応じたOptionの型を生成して代入する。このときに "<<"を用いるとidxが変わってしまうので overwriteで代入する。
+			if (option_type == "check") Options[name].overwrite(Option(value == "true"));
+			else if (option_type == "spin") Options[name].overwrite(Option(stoll(value), min_value, max_value));
+			else if (option_type == "string") Options[name].overwrite(Option(value.c_str()));
+			else if (option_type == "combo") Options[name].overwrite(Option(combo_list, value));
+		}
+		else
+			cout << "Error : option name not found : " << name << endl;
+
 	}
 
 	// カレントフォルダに"engine_option.txt"があればそれをオプションとしてOptions[]の値をオーバーライドする機能。
