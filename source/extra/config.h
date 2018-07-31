@@ -249,12 +249,13 @@
 // 学習絡みのオプション
 #define USE_SFEN_PACKER
 // 学習機能を有効にするオプション。
-#define EVAL_LEARN
+//#define EVAL_LEARN
 
 // 定跡生成絡み
 #define ENABLE_MAKEBOOK_CMD
 // 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
 #define USE_SHARED_MEMORY_IN_EVAL
+
 // パラメーターの自動調整絡み
 #define USE_GAMEOVER_HANDLER
 //#define LONG_EFFECT_LIBRARY
@@ -672,7 +673,7 @@ constexpr bool Is64Bit = false;
 // 32bit環境ではメモリが足りなくなるので以下の2つは強制的にオフにしておく。
 
 #undef USE_EVAL_HASH
-#undef USE_SHARED_MEMORY_IN_EVAL
+//#undef USE_SHARED_MEMORY_IN_EVAL
 
 // 機械学習用の配列もメモリ空間に収まりきらないのでコンパイルエラーとなるから
 // これもオフにしておく。
