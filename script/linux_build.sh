@@ -57,7 +57,7 @@ do
 done
 
 # Bash on Windows (Ubuntu 18.04 Bionic) 環境の場合は http://apt.llvm.org/ を参考に clang++-7 を導入する。
-# sudo apt install build-essential clang-7 lldb-7 lld-7
+# sudo apt install build-essential clang-7 lldb-7 lld-7 libopenblas-dev
 COMPILER=clang++-7
 BUILDDIR=../build/2018tnk
 mkdir -p ${BUILDDIR}
@@ -145,7 +145,7 @@ done
 # ここでは、 https://launchpad.net/~jonathonf/+archive/ubuntu/gcc より g++-8 を導入してビルドに用いる。
 # sudo add-apt-repository ppa:jonathonf/gcc
 # sudo apt update
-# sudo apt install g++-8
+# sudo apt install g++-8 libopenblas-dev
 COMPILER=g++-8
 BUILDDIR=../build/2018tnk
 mkdir -p ${BUILDDIR}

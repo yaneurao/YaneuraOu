@@ -20,31 +20,31 @@ INCLUDE  = # -I../include
 
 # clang用にCFLAGSなどを変更
 ifeq ($(findstring clang++,$(COMPILER)),clang++)
-  # stdlib
-  CFLAGS += -stdlib=libstdc++
+	# stdlib
+	CFLAGS += -stdlib=libstdc++
 
-  # 関数の引数が関数本体で使われていないときに警告出るのうざすぎるので抑制。
-  CFLAGS += -Wno-unused-parameter
+	# 関数の引数が関数本体で使われていないときに警告出るのうざすぎるので抑制。
+	CFLAGS += -Wno-unused-parameter
 
-  # static リンクを行う際に __cxa_guard_acquire __cxa_guard_release の生成を抑止
-  #   undefined reference to `__imp___cxa_guard_acquire'
-  #   undefined reference to `__imp___cxa_guard_release'
-  # static 変数を初期化したかを pthread_mutex_t でロックを取って確認し、
-  # 最初の実行なら初期化するスレッドセーフなコードを生成するためのもの。
-  # → 本当に消してしまっても大丈夫か？
-  WCFLAGS += -fno-threadsafe-statics
+	# static リンクを行う際に __cxa_guard_acquire __cxa_guard_release の生成を抑止
+	#   undefined reference to `__imp___cxa_guard_acquire'
+	#   undefined reference to `__imp___cxa_guard_release'
+	# static 変数を初期化したかを pthread_mutex_t でロックを取って確認し、
+	# 最初の実行なら初期化するスレッドセーフなコードを生成するためのもの。
+	# → 本当に消してしまっても大丈夫か？
+	WCFLAGS += -fno-threadsafe-statics
 
-  # msys2用のclangでは、OpenMP使えない？インスコ仕方がわからん。
+	# msys2用のclangでは、OpenMP使えない？インスコ仕方がわからん。
 
 endif
 
 ifeq ($(OS),Windows_NT)
-  CFLAGS += $(WCFLAGS)
-  LDFLAGS += -static -Wl,--stack,25000000
-  TARGET = YaneuraOu-by-gcc.exe
+	CFLAGS += $(WCFLAGS)
+	LDFLAGS += -static -Wl,--stack,25000000
+	TARGET = YaneuraOu-by-gcc.exe
 else
-  CFLAGS += -D_LINUX
-  TARGET = YaneuraOu-by-gcc
+	CFLAGS += -D_LINUX
+	TARGET = YaneuraOu-by-gcc
 endif
 
 # リンク時最適化。これをつけるとmsys2環境だとセグフォで落ちる。
@@ -75,12 +75,26 @@ LDFLAGS += -Wl,-s
 # clangでOPENMPを有効にしてビルドする方法については、解説.txtを参照のこと。
 
 ifeq ($(findstring g++,$(COMPILER)),g++)
-        OPENMP   = -fopenmp
-        OPENMP_LDFLAGS =
+	OPENMP   = -fopenmp
+	OPENMP_LDFLAGS =
+	ifeq ($(YANEURAOU_EDITION),YANEURAOU_2018_TNK_ENGINE)
+		BLAS = -DUSE_BLAS
+		BLAS_LDFLAGS = -lopenblas
+		ifeq ($(MSYSTEM),MINGW64)
+			BLAS += -I$(shell cygpath -aw /mingw64/include/OpenBLAS)
+		endif
+	endif
 endif
 ifeq ($(findstring clang++,$(COMPILER)),clang++)
-        OPENMP   = -fopenmp
-        OPENMP_LDFLAGS = -lomp
+	OPENMP   = -fopenmp
+	OPENMP_LDFLAGS = -lomp
+	ifeq ($(YANEURAOU_EDITION),YANEURAOU_2018_TNK_ENGINE)
+		BLAS = -DUSE_BLAS
+		BLAS_LDFLAGS = -lopenblas
+		ifeq ($(MSYSTEM),MINGW64)
+			BLAS += -I$(shell cygpath -aw /mingw64/include/OpenBLAS)
+		endif
+	endif
 endif
 
 CFLAGS += -DNO_EXCEPTIONS
@@ -89,7 +103,7 @@ LDFLAGS += -v
 
 OBJDIR   = ../obj
 ifeq "$(strip $(OBJDIR))" ""
-  OBJDIR = ..
+	OBJDIR = ..
 endif
 #SOURCES  = $(wildcard *.cpp)
 SOURCES  = shogi.cpp                                                           \
@@ -168,9 +182,9 @@ all: clean $(TARGET)
 
 # 学習用バイナリのときは、openmpを有効にする。
 evallearn:
-	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
 evallearn-sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 tournament:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -DFOR_TOURNAMENT -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)

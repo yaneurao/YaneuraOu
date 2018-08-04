@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # MSYS2 (MinGW 64-bit) 上で Windows バイナリのビルド
 # ビルド用パッケージの導入、パッケージの選択を促される画面ではそのままEnterキーを入力（全部をインストール）
-# $ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-clang
+# $ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-clang mingw-w64-x86_64-openblas
 # MSYS2パッケージの更新、更新出来る項目が無くなるまで繰り返し実行、場合によってはMinGWの再起動が必要
 # $ pacman -Syuu
 OS=Windows_NT
