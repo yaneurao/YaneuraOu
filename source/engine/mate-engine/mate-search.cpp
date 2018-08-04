@@ -220,6 +220,7 @@ namespace MateEngine
 
 	static const constexpr int kInfinitePnDn = 100000000;
 	static const constexpr int kMaxDepth = MAX_PLY;
+	static const constexpr char* kMorePreciseMatePv = "MorePreciseMatePv";
 
 	TranspositionTable transposition_table;
 
@@ -459,7 +460,7 @@ namespace MateEngine
 
 	// 詰み手順を1つ返す
 	// 最短の詰み手順である保証はない
-	bool dfs(bool or_node, Position& pos, std::vector<Move>& moves, std::unordered_set<Key>& visited) {
+	bool SearchMatePvFast(bool or_node, Position& pos, std::vector<Move>& moves, std::unordered_set<Key>& visited) {
 		// 一度探索したノードを探索しない
 		if (visited.find(pos.key()) != visited.end()) {
 			return false;
@@ -495,7 +496,7 @@ namespace MateEngine
 			StateInfo state_info;
 			pos.do_move(move, state_info);
 			moves.push_back(move);
-			if (dfs(!or_node, pos, moves, visited)) {
+			if (SearchMatePvFast(!or_node, pos, moves, visited)) {
 				pos.undo_move(move);
 				return true;
 			}
@@ -504,6 +505,122 @@ namespace MateEngine
 		}
 
 		return false;
+	}
+
+	// 探索中のノードを表す
+	static constexpr const int kSearching = -1;
+	// 詰み手順にループが含まれることを表す
+	static constexpr const int kLoop = -2;
+	// 不詰みを表す
+	static constexpr const int kNotMate = -3;
+
+	struct MateState {
+		int num_moves_to_mate = kSearching;
+		Move move_to_mate = Move::MOVE_NONE;
+	};
+
+	// 詰み手順を1つ返す
+	// df-pn探索ルーチンが探索したノードの中で、攻め側からみて最短、受け側から見て最長の手順を返す
+	// SearchMatePvFast()に比べて遅い
+	// df-pn探索ルーチンが詰将棋の詰み手順として正規の手順を探索していない場合、
+	// このルーチンも正規の詰み手順を返さない
+	// (詰み手順は返すが詰将棋の詰み手順として正規のものである保証はない)
+	// or_node ORノード=攻め側の手番の場合はtrue、そうでない場合はfalse
+	// pos 盤面
+	// memo 過去に探索した盤面のキーと探索状況のmap
+	// return 詰みまでの手数、詰みの局面は0、ループがある場合はkLoop、不詰みの場合はkNotMated
+	int SearchMatePvMorePrecise(bool or_node, Position& pos, std::unordered_map<Key, MateState>& memo) {
+		// 過去にこのノードを探索していないか調べる
+		auto key = pos.key();
+		if (memo.find(key) != memo.end()) {
+			auto& mate_state = memo[key];
+			if (mate_state.num_moves_to_mate == kSearching) {
+				// 読み筋がループしている
+				return kLoop;
+			}
+			else if (mate_state.num_moves_to_mate == kNotMate) {
+				return kNotMate;
+			}
+			else {
+				return mate_state.num_moves_to_mate;
+			}
+		}
+		auto& mate_state = memo[key];
+
+		auto mate1ply = pos.mate1ply();
+		if (mate1ply) {
+			mate_state.num_moves_to_mate = 1;
+			mate_state.move_to_mate = mate1ply;
+
+			// 詰みの局面をメモしておく
+			StateInfo state_info = { 0 };
+			pos.do_move(mate1ply, state_info);
+			auto& mate_state_mated = memo[pos.key()];
+			mate_state_mated.num_moves_to_mate = 0;
+			pos.undo_move(mate1ply);
+			return 1;
+		}
+
+		MovePicker move_picker(pos, or_node);
+		if (move_picker.empty()) {
+			if (or_node) {
+				// 攻め側にもかかわらず王手が続かなかった
+				// dfpnで弾いているため、ここを通ることはないはず
+				mate_state.num_moves_to_mate = kNotMate;
+				return kNotMate;
+			}
+			else {
+				// 受け側にもかかわらず玉が逃げることができなかった
+				// 詰み
+				mate_state.num_moves_to_mate = 0;
+				return 0;
+			}
+		}
+
+		auto best_num_moves_to_mate = or_node ? INT_MAX : INT_MIN;
+		auto best_move_to_mate = Move::MOVE_NONE;
+		const auto& entry = transposition_table.LookUp(pos);
+
+		for (const auto& move : move_picker) {
+			const auto& child_entry = transposition_table.LookUpChildEntry(pos, move);
+			if (child_entry.pn != 0) {
+				continue;
+			}
+
+			StateInfo state_info;
+			pos.do_move(move, state_info);
+			int num_moves_to_mate_candidate = SearchMatePvMorePrecise(!or_node, pos, memo);
+			pos.undo_move(move);
+
+			if (num_moves_to_mate_candidate < 0) {
+				continue;
+			}
+			else if (or_node) {
+				// ORノード=攻め側の場合は最短手順を選択する
+				if (best_num_moves_to_mate > num_moves_to_mate_candidate) {
+					best_num_moves_to_mate = num_moves_to_mate_candidate;
+					best_move_to_mate = move;
+				}
+			}
+			else {
+				// ANDノード=受け側の場合は最長手順を選択する
+				if (best_num_moves_to_mate < num_moves_to_mate_candidate) {
+					best_num_moves_to_mate = num_moves_to_mate_candidate;
+					best_move_to_mate = move;
+				}
+			}
+		}
+
+		if (best_num_moves_to_mate == INT_MAX || best_num_moves_to_mate == INT_MIN) {
+			mate_state.num_moves_to_mate = kNotMate;
+			return kNotMate;
+		}
+		else {
+			ASSERT_LV3(best_num_moves_to_mate >= 0);
+			mate_state.num_moves_to_mate = best_num_moves_to_mate + 1;
+			mate_state.move_to_mate = best_move_to_mate;
+			return best_num_moves_to_mate + 1;
+		}
 	}
 
 	// 詰将棋探索のエントリポイント
@@ -533,8 +650,41 @@ namespace MateEngine
 			" nodes_searched " << nodes_searched << sync_endl;
 
 		std::vector<Move> moves;
-		std::unordered_set<Key> visited;
-		dfs(true, r, moves, visited);
+		if (Options[kMorePreciseMatePv]) {
+			std::unordered_map<Key, MateState> memo;
+			SearchMatePvMorePrecise(true, r, memo);
+
+			// 探索メモから詰み手順を再構築する
+			StateInfo state_info[2048] = { 0 };
+			bool found = false;
+			for (int play = 0; ; ++play) {
+				const auto& mate_state = memo[r.key()];
+				if (mate_state.num_moves_to_mate == kNotMate) {
+					break;
+				}
+				else if (mate_state.num_moves_to_mate == 0) {
+					found = true;
+					break;
+				}
+
+				moves.push_back(mate_state.move_to_mate);
+				r.do_move(mate_state.move_to_mate, state_info[play]);
+			}
+
+			// 局面をもとに戻す
+			for (int play = static_cast<int>(moves.size()) - 1; play >= 0; --play) {
+				r.undo_move(moves[play]);
+			}
+
+			// 詰み手順が見つからなかった場合は詰み手順をクリアする
+			if (!found) {
+				moves.clear();
+			}
+		}
+		else {
+			std::unordered_set<Key> visited;
+			SearchMatePvFast(true, r, moves, visited);
+		}
 
 		auto end = std::chrono::system_clock::now();
 		if (!moves.empty()) {
@@ -580,7 +730,9 @@ namespace MateEngine
 	}
 }
 
-void USI::extra_option(USI::OptionsMap & o) {}
+void USI::extra_option(USI::OptionsMap & o) {
+	o[MateEngine::kMorePreciseMatePv] << USI::Option(true);
+}
 
 // --- Search
 
