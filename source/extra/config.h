@@ -228,12 +228,28 @@
 // --- 通常の思考エンジンとして実行ファイルを公開するとき用の設定集
 
 // やねうら王2018 with お多福ラボ
-#if defined(YANEURAOU_2018_OTAFUKU_ENGINE)
+#if defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_OTAFUKU_ENGINE_KPPT) || defined(YANEURAOU_2018_OTAFUKU_ENGINE_KPP_KKPT) || defined(YANEURAOU_2018_OTAFUKU_ENGINE_MATERIAL)
 #define ENGINE_NAME "YaneuraOu 2018 Otafuku"
+#if defined(YANEURAOU_2018_OTAFUKU_ENGINE)
 #define EVAL_KPPT
 //#define EVAL_KPP_KKPT
+#endif
+#if defined(YANEURAOU_2018_OTAFUKU_ENGINE_KPPT)
+#define EVAL_KPPT
+#endif
+#if defined(YANEURAOU_2018_OTAFUKU_ENGINE_KPP_KKPT)
+#define EVAL_KPP_KKPT
+#endif
+#if defined(YANEURAOU_2018_OTAFUKU_ENGINE_MATERIAL)
+#define EVAL_MATERIAL
+#endif
+#if !defined(YANEURAOU_2018_OTAFUKU_ENGINE)
+#define YANEURAOU_2018_OTAFUKU_ENGINE
+#endif
 
+#if !defined(YANEURAOU_2018_OTAFUKU_ENGINE_MATERIAL)
 #define USE_EVAL_HASH
+#endif
 #define USE_SEE
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
@@ -249,12 +265,16 @@
 // 学習絡みのオプション
 #define USE_SFEN_PACKER
 // 学習機能を有効にするオプション。
-//#define EVAL_LEARN
+#if !defined(YANEURAOU_2018_OTAFUKU_ENGINE_MATERIAL)
+#define EVAL_LEARN
+#endif
 
 // 定跡生成絡み
 #define ENABLE_MAKEBOOK_CMD
 // 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
+#if !defined(YANEURAOU_2018_OTAFUKU_ENGINE_MATERIAL)
 #define USE_SHARED_MEMORY_IN_EVAL
+#endif
 
 // パラメーターの自動調整絡み
 #define USE_GAMEOVER_HANDLER
