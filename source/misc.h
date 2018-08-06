@@ -312,8 +312,7 @@ struct LineScanner
 	std::string get_text();
 
 	// 解析位置(カーソル)が行の末尾まで進んだのか？
-	// peek_text()したときにeof() == trueになることはあるので注意。
-	bool eof() const { return !(pos < line.length()); }
+	bool eof() const { return token.empty() && !(pos < line.length()); }
 
 private:
 	// 解析対象の行
