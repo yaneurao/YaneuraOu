@@ -560,7 +560,7 @@ namespace MateEngine
 		auto& mate_state = memo[key];
 
 		auto mate1ply = pos.mate1ply();
-		if (mate1ply) {
+		if (or_node && !pos.in_check() && mate1ply) {
 			mate_state.num_moves_to_mate = 1;
 			mate_state.move_to_mate = mate1ply;
 
