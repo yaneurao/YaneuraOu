@@ -225,7 +225,7 @@ namespace MateEngine
 	TranspositionTable transposition_table;
 
 	// TODO(tanuki-): ネガマックス法的な書き方に変更する
-	void DFPNwithTCA(Position& n, int thpn, int thdn, bool inc_flag, bool or_node, int depth) {
+	void DFPNwithTCA(Position& n, int thpn, int thdn, bool inc_flag, bool or_node, int depth, bool& timeup) {
 		if (Threads.stop.load(std::memory_order_relaxed)) {
 			return;
 		}
@@ -233,6 +233,18 @@ namespace MateEngine
 		auto nodes_searched = n.this_thread()->nodes.load(memory_order_relaxed);
 		if (nodes_searched && nodes_searched % 10000000 == 0) {
 			sync_cout << "info string nodes_searched=" << nodes_searched << sync_endl;
+		}
+
+		// 制限時間をチェックする
+		// 頻繁にチェックすると遅くなるため、4096回に1回の割合でチェックする
+		// go mate infiniteの場合、Limits.mateにはINT32MAXが代入されている点に注意する
+		if (Limits.mate != INT32_MAX && nodes_searched % 4096 == 0) {
+			auto elapsed_ms = Time.elapsed_from_ponderhit();
+			if (elapsed_ms > Limits.mate) {
+				timeup = true;
+				Threads.stop = true;
+				return;
+			}
 		}
 
 		auto& entry = transposition_table.LookUp(n);
@@ -453,7 +465,7 @@ namespace MateEngine
 
 			StateInfo state_info;
 			n.do_move(best_move, state_info);
-			DFPNwithTCA(n, thpn_child, thdn_child, inc_flag, !or_node, depth + 1);
+			DFPNwithTCA(n, thpn_child, thdn_child, inc_flag, !or_node, depth + 1, timeup);
 			n.undo_move(best_move);
 		}
 	}
@@ -640,7 +652,8 @@ namespace MateEngine
 
 		auto start = std::chrono::system_clock::now();
 
-		DFPNwithTCA(r, kInfinitePnDn, kInfinitePnDn, false, true, 0);
+		bool timeup = false;
+		DFPNwithTCA(r, kInfinitePnDn, kInfinitePnDn, false, true, 0, timeup);
 		const auto& entry = transposition_table.LookUp(r);
 
 		auto nodes_searched = r.this_thread()->nodes.load(memory_order_relaxed);
@@ -712,7 +725,11 @@ namespace MateEngine
 		//	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
 		// (思考のためには計算資源を使っていないので。)
 
-		if (moves.empty()) {
+		if (timeup) {
+			// 制限時間を超えた
+			sync_cout << "checkmate timeout" << sync_endl;
+		}
+		else if (moves.empty()) {
 			// 詰みの手がない。
 			sync_cout << "checkmate nomate" << sync_endl;
 		}
