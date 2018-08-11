@@ -221,7 +221,6 @@ namespace MateEngine
 	static const constexpr int kInfinitePnDn = 100000000;
 	static const constexpr int kMaxDepth = MAX_PLY;
 	static const constexpr char* kMorePreciseMatePv = "MorePreciseMatePv";
-	static const constexpr char* kReturnNotImplementedIfChecked = "ReturnNotImplementedIfChecked";
 
 	TranspositionTable transposition_table;
 
@@ -628,13 +627,6 @@ namespace MateEngine
 	void dfpn(Position& r) {
 		Threads.stop = false;
 
-		if (Options[kReturnNotImplementedIfChecked] && r.in_check()) {
-			// 逆王手からの詰みは対応しないので、notimplementedを返す.
-			sync_cout << "info string The king is checked... df-pn is skipped..." << sync_endl;
-			sync_cout << "checkmate notimplemented" << sync_endl;
-			return;
-		}
-
 		transposition_table.Resize();
 		// キャッシュの世代を進める
 		transposition_table.NewSearch();
@@ -733,7 +725,6 @@ namespace MateEngine
 
 void USI::extra_option(USI::OptionsMap & o) {
 	o[MateEngine::kMorePreciseMatePv] << USI::Option(true);
-	o[MateEngine::kReturnNotImplementedIfChecked] << USI::Option(true);
 }
 
 // --- Search
