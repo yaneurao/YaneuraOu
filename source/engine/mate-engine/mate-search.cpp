@@ -313,6 +313,9 @@ namespace MateEngine
 			entry.dn = 0;
 			entry.minimum_distance = std::min(entry.minimum_distance, depth);
 			return;
+
+		default:
+			break;
 		}
 
 		MovePicker move_picker(n, or_node);
@@ -424,7 +427,7 @@ namespace MateEngine
 				for (const auto& move : move_picker) {
 					const auto& child_entry = transposition_table.LookUpChildEntry(n, move);
 					if (child_entry.pn < best_pn ||
-						child_entry.pn == best_pn && best_num_search > child_entry.num_searched) {
+						(child_entry.pn == best_pn && best_num_search > child_entry.num_searched)) {
 						second_best_pn = best_pn;
 						best_pn = child_entry.pn;
 						best_dn = child_entry.dn;
@@ -448,7 +451,7 @@ namespace MateEngine
 				for (const auto& move : move_picker) {
 					const auto& child_entry = transposition_table.LookUpChildEntry(n, move);
 					if (child_entry.dn < best_dn ||
-						child_entry.dn == best_dn && best_num_search > child_entry.num_searched) {
+						(child_entry.dn == best_dn && best_num_search > child_entry.num_searched)) {
 						second_best_dn = best_dn;
 						best_dn = child_entry.dn;
 						best_pn = child_entry.pn;
@@ -565,7 +568,7 @@ namespace MateEngine
 			mate_state.move_to_mate = mate1ply;
 
 			// 詰みの局面をメモしておく
-			StateInfo state_info = { 0 };
+			StateInfo state_info = {};
 			pos.do_move(mate1ply, state_info);
 			auto& mate_state_mated = memo[pos.key()];
 			mate_state_mated.num_moves_to_mate = 0;
@@ -661,7 +664,7 @@ namespace MateEngine
 			SearchMatePvMorePrecise(true, r, memo);
 
 			// 探索メモから詰み手順を再構築する
-			StateInfo state_info[2048] = { 0 };
+			StateInfo state_info[2048] = {};
 			bool found = false;
 			for (int play = 0; ; ++play) {
 				const auto& mate_state = memo[r.key()];
