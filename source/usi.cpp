@@ -392,7 +392,11 @@ namespace USI
 		// ゆえにGUIでの対局設定は無視して、思考エンジンの設定ダイアログのところで
 		// 個別設定が出来るようにする。
 
+#if !defined(MATE_ENGINE)
 		o["Hash"] << Option(16, 1, MaxHashMB, [](const Option&o) { TT.resize(o); });
+#else
+		o["Hash"] << Option(4096, 1, MaxHashMB);
+#endif
 
 		// その局面での上位N個の候補手を調べる機能
 		o["MultiPV"] << Option(1, 1, 800);

@@ -185,9 +185,9 @@ namespace MateEngine
 
 		void Resize() {
 			int64_t hash_size_mb = (int)Options["Hash"];
-			if (hash_size_mb == 16) {
-				hash_size_mb = 4096;
-			}
+			//if (hash_size_mb == 16) {
+			//	hash_size_mb = 4096;
+			//}
 			int64_t new_num_clusters = 1LL << MSB64((hash_size_mb * 1024 * 1024) / sizeof(Cluster));
 			if (new_num_clusters == num_clusters) {
 				return;
