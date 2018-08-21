@@ -11,6 +11,11 @@ size_t TranspositionTable::max_thread;
 // 置換表のサイズを確保しなおす。
 void TranspositionTable::resize(size_t mbSize) {
 
+#if defined(MATE_ENGINE)
+	// MateEngineではこの置換表は用いないので確保しない。
+	return;
+#endif
+
 	// mbSizeの単位は[MB]なので、ここでは1MBの倍数単位のメモリが確保されるが、
 	// 仕様上は、1MBの倍数である必要はない。
 	size_t newClusterCount = mbSize * 1024 * 1024 / sizeof(Cluster);
