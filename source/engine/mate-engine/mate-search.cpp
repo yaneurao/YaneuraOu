@@ -147,10 +147,14 @@ namespace MateEngine
 				}
 			}
 
-			// 合致するエントリが見つからなかったので
+			// 合致するエントリが見つからなかったので古いエントリをつぶす
+			// 優先度は
+			// - 世代が一番古いもの
+			// - 探索ノード数が小さいもの
 			// 世代が一番古いエントリをつぶす
 			TTEntry* best_entry = nullptr;
 			uint32_t best_generation = UINT_MAX;
+			int best_num_searched = INT_MAX;
 			for (auto& entry : entries.entries) {
 				uint32_t temp_generation;
 				if (generation < entry.generation) {
@@ -160,9 +164,11 @@ namespace MateEngine
 					temp_generation = generation - entry.generation;
 				}
 
-				if (best_generation > temp_generation) {
+				if (best_generation > temp_generation ||
+					(best_generation == temp_generation && best_num_searched > entry.num_searched)) {
 					best_entry = &entry;
 					best_generation = temp_generation;
+					best_num_searched = entry.num_searched;
 				}
 			}
 			best_entry->hash_high = hash_high;
