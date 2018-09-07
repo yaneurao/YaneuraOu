@@ -125,7 +125,7 @@ namespace MateEngine
 
 		TTEntry& LookUp(Key key, Color root_color) {
 			auto& entries = tt[key & clusters_mask];
-			uint32_t hash_high = (key >> 32) & 0xfffffffe | root_color;
+			uint32_t hash_high = ((key >> 32) & ~1) | root_color;
 			// 検索条件に合致するエントリを返す
 			for (auto& entry : entries.entries) {
 				if (entry.hash_high == 0) {
