@@ -97,14 +97,13 @@ namespace MateEngine
 		struct TTEntry {
 			// ハッシュの上位32ビット
 			uint32_t hash_high; // 0
-								// TTEntryのインスタンスを作成したタイミングで先端ノードを表すよう1で初期化する
+			// TTEntryのインスタンスを作成したタイミングで先端ノードを表すよう1で初期化する
 			int pn; // 1
 			int dn; // 1
-			uint32_t generation : 8; // 0
-									 // ルートノードからの最短距離
-									 // 初期値を∞として全てのノードより最短距離が長いとみなす
-			int minimum_distance : 24; // UINT_MAX
-									   // TODO(nodchip): 指し手が1手しかない場合の手を追加する
+			// ルートノードからの最短距離
+			// 初期値を∞として全てのノードより最短距離が長いとみなす
+			int minimum_distance; // UINT_MAX
+			// TODO(nodchip): 指し手が1手しかない場合の手を追加する
 			int num_searched; // 0
 		};
 		static_assert(sizeof(TTEntry) == 20, "");
@@ -124,17 +123,16 @@ namespace MateEngine
 			}
 		}
 
-		TTEntry& LookUp(Key key) {
+		TTEntry& LookUp(Key key, Color root_color) {
 			auto& entries = tt[key & clusters_mask];
-			uint32_t hash_high = key >> 32;
+			uint32_t hash_high = (key >> 32) & 0xfffffffe | root_color;
 			// 検索条件に合致するエントリを返す
 			for (auto& entry : entries.entries) {
-				if (entry.hash_high == 0 || entry.generation != generation) {
+				if (entry.hash_high == 0) {
 					// 空のエントリが見つかった場合
 					entry.hash_high = hash_high;
 					entry.pn = 1;
 					entry.dn = 1;
-					entry.generation = generation;
 					entry.minimum_distance = kInfiniteDepth;
 					entry.num_searched = 0;
 					return entry;
@@ -142,7 +140,6 @@ namespace MateEngine
 
 				if (hash_high == entry.hash_high) {
 					// keyが合致するエントリを見つけた場合
-					entry.generation = generation;
 					return entry;
 				}
 			}
@@ -162,19 +159,18 @@ namespace MateEngine
 			best_entry->hash_high = hash_high;
 			best_entry->pn = 1;
 			best_entry->dn = 1;
-			best_entry->generation = generation;
 			best_entry->minimum_distance = kInfiniteDepth;
 			best_entry->num_searched = 0;
 			return *best_entry;
 		}
 
-		TTEntry& LookUp(Position& n) {
-			return LookUp(n.key());
+		TTEntry& LookUp(Position& n, Color root_color) {
+			return LookUp(n.key(), root_color);
 		}
 
 		// moveを指した後の子ノードの置換表エントリを返す
-		TTEntry& LookUpChildEntry(Position& n, Move move) {
-			return LookUp(n.key_after(move));
+		TTEntry& LookUpChildEntry(Position& n, Move move, Color root_color) {
+			return LookUp(n.key_after(move), root_color);
 		}
 
 		void Resize() {
@@ -201,7 +197,7 @@ namespace MateEngine
 		}
 
 		void NewSearch() {
-			generation = (generation + 1) & 0xff;
+			// 何もしない
 		}
 
 		int tt_mask = 0;
@@ -209,7 +205,6 @@ namespace MateEngine
 		Cluster* tt = nullptr;
 		int64_t num_clusters = 0;
 		int64_t clusters_mask = 0;
-		uint32_t generation = 0; // 256で一周する
 	};
 
 	static const constexpr int kInfinitePnDn = 100000000;
@@ -219,7 +214,7 @@ namespace MateEngine
 	TranspositionTable transposition_table;
 
 	// TODO(tanuki-): ネガマックス法的な書き方に変更する
-	void DFPNwithTCA(Position& n, int thpn, int thdn, bool inc_flag, bool or_node, int depth, bool& timeup) {
+	void DFPNwithTCA(Position& n, int thpn, int thdn, bool inc_flag, bool or_node, int depth, Color root_color, bool& timeup) {
 		if (Threads.stop.load(std::memory_order_relaxed)) {
 			return;
 		}
@@ -241,7 +236,7 @@ namespace MateEngine
 			}
 		}
 
-		auto& entry = transposition_table.LookUp(n);
+		auto& entry = transposition_table.LookUp(n, root_color);
 
 		if (depth > kMaxDepth) {
 			entry.pn = kInfinitePnDn;
@@ -349,7 +344,7 @@ namespace MateEngine
 			for (const auto& move : move_picker) {
 				// unproven old childの定義はminimum distanceがこのノードよりも小さいノードだと理解しているのだけど、
 				// 合っているか自信ない
-				const auto& child_entry = transposition_table.LookUpChildEntry(n, move);
+				const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
 				if (entry.minimum_distance > child_entry.minimum_distance &&
 					child_entry.pn != kInfinitePnDn &&
 					child_entry.dn != kInfinitePnDn) {
@@ -363,7 +358,7 @@ namespace MateEngine
 				entry.pn = kInfinitePnDn;
 				entry.dn = 0;
 				for (const auto& move : move_picker) {
-					const auto& child_entry = transposition_table.LookUpChildEntry(n, move);
+					const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
 					entry.pn = std::min(entry.pn, child_entry.pn);
 					entry.dn += child_entry.dn;
 				}
@@ -373,7 +368,7 @@ namespace MateEngine
 				entry.pn = 0;
 				entry.dn = kInfinitePnDn;
 				for (const auto& move : move_picker) {
-					const auto& child_entry = transposition_table.LookUpChildEntry(n, move);
+					const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
 					entry.pn += child_entry.pn;
 					entry.dn = std::min(entry.dn, child_entry.dn);
 				}
@@ -419,7 +414,7 @@ namespace MateEngine
 				int best_dn = 0;
 				int best_num_search = INT_MAX;
 				for (const auto& move : move_picker) {
-					const auto& child_entry = transposition_table.LookUpChildEntry(n, move);
+					const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
 					if (child_entry.pn < best_pn ||
 						(child_entry.pn == best_pn && best_num_search > child_entry.num_searched)) {
 						second_best_pn = best_pn;
@@ -443,7 +438,7 @@ namespace MateEngine
 				int best_pn = 0;
 				int best_num_search = INT_MAX;
 				for (const auto& move : move_picker) {
-					const auto& child_entry = transposition_table.LookUpChildEntry(n, move);
+					const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
 					if (child_entry.dn < best_dn ||
 						(child_entry.dn == best_dn && best_num_search > child_entry.num_searched)) {
 						second_best_dn = best_dn;
@@ -462,14 +457,14 @@ namespace MateEngine
 
 			StateInfo state_info;
 			n.do_move(best_move, state_info);
-			DFPNwithTCA(n, thpn_child, thdn_child, inc_flag, !or_node, depth + 1, timeup);
+			DFPNwithTCA(n, thpn_child, thdn_child, inc_flag, !or_node, depth + 1, root_color, timeup);
 			n.undo_move(best_move);
 		}
 	}
 
 	// 詰み手順を1つ返す
 	// 最短の詰み手順である保証はない
-	bool SearchMatePvFast(bool or_node, Position& pos, std::vector<Move>& moves, std::unordered_set<Key>& visited) {
+	bool SearchMatePvFast(bool or_node, Color root_color, Position& pos, std::vector<Move>& moves, std::unordered_set<Key>& visited) {
 		// 一度探索したノードを探索しない
 		if (visited.find(pos.key()) != visited.end()) {
 			return false;
@@ -494,10 +489,10 @@ namespace MateEngine
 			return true;
 		}
 
-		const auto& entry = transposition_table.LookUp(pos);
+		const auto& entry = transposition_table.LookUp(pos, root_color);
 
 		for (const auto& move : move_picker) {
-			const auto& child_entry = transposition_table.LookUpChildEntry(pos, move);
+			const auto& child_entry = transposition_table.LookUpChildEntry(pos, move, root_color);
 			if (child_entry.pn != 0) {
 				continue;
 			}
@@ -505,7 +500,7 @@ namespace MateEngine
 			StateInfo state_info;
 			pos.do_move(move, state_info);
 			moves.push_back(move);
-			if (SearchMatePvFast(!or_node, pos, moves, visited)) {
+			if (SearchMatePvFast(!or_node, root_color, pos, moves, visited)) {
 				pos.undo_move(move);
 				return true;
 			}
@@ -538,7 +533,7 @@ namespace MateEngine
 	// pos 盤面
 	// memo 過去に探索した盤面のキーと探索状況のmap
 	// return 詰みまでの手数、詰みの局面は0、ループがある場合はkLoop、不詰みの場合はkNotMated
-	int SearchMatePvMorePrecise(bool or_node, Position& pos, std::unordered_map<Key, MateState>& memo) {
+	int SearchMatePvMorePrecise(bool or_node, Color root_color, Position& pos, std::unordered_map<Key, MateState>& memo) {
 		// 過去にこのノードを探索していないか調べる
 		auto key = pos.key();
 		if (memo.find(key) != memo.end()) {
@@ -588,17 +583,17 @@ namespace MateEngine
 
 		auto best_num_moves_to_mate = or_node ? INT_MAX : INT_MIN;
 		auto best_move_to_mate = Move::MOVE_NONE;
-		const auto& entry = transposition_table.LookUp(pos);
+		const auto& entry = transposition_table.LookUp(pos, root_color);
 
 		for (const auto& move : move_picker) {
-			const auto& child_entry = transposition_table.LookUpChildEntry(pos, move);
+			const auto& child_entry = transposition_table.LookUpChildEntry(pos, move, root_color);
 			if (child_entry.pn != 0) {
 				continue;
 			}
 
 			StateInfo state_info;
 			pos.do_move(move, state_info);
-			int num_moves_to_mate_candidate = SearchMatePvMorePrecise(!or_node, pos, memo);
+			int num_moves_to_mate_candidate = SearchMatePvMorePrecise(!or_node, root_color, pos, memo);
 			pos.undo_move(move);
 
 			if (num_moves_to_mate_candidate < 0) {
@@ -643,8 +638,9 @@ namespace MateEngine
 		auto start = std::chrono::system_clock::now();
 
 		bool timeup = false;
-		DFPNwithTCA(r, kInfinitePnDn, kInfinitePnDn, false, true, 0, timeup);
-		const auto& entry = transposition_table.LookUp(r);
+		Color root_color = r.side_to_move();
+		DFPNwithTCA(r, kInfinitePnDn, kInfinitePnDn, false, true, 0, root_color, timeup);
+		const auto& entry = transposition_table.LookUp(r, root_color);
 
 		auto nodes_searched = r.this_thread()->nodes.load(memory_order_relaxed);
 		sync_cout << "info string" <<
@@ -655,7 +651,7 @@ namespace MateEngine
 		std::vector<Move> moves;
 		if (Options[kMorePreciseMatePv]) {
 			std::unordered_map<Key, MateState> memo;
-			SearchMatePvMorePrecise(true, r, memo);
+			SearchMatePvMorePrecise(true, root_color, r, memo);
 
 			// 探索メモから詰み手順を再構築する
 			StateInfo state_info[2048] = {};
@@ -686,7 +682,7 @@ namespace MateEngine
 		}
 		else {
 			std::unordered_set<Key> visited;
-			SearchMatePvFast(true, r, moves, visited);
+			SearchMatePvFast(true, root_color, r, moves, visited);
 		}
 
 		auto end = std::chrono::system_clock::now();
