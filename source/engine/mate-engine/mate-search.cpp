@@ -109,7 +109,8 @@ namespace MateEngine
 		static_assert(sizeof(TTEntry) == 20, "");
 
 		struct Cluster {
-			TTEntry entries[3];
+			static constexpr int kNumEntries = 3;
+			TTEntry entries[kNumEntries];
 			int padding;
 		};
 		static_assert(sizeof(Cluster) == 64, "");
@@ -200,6 +201,21 @@ namespace MateEngine
 			// 何もしない
 		}
 
+		int hashfull() const {
+			int num_used = 0;
+			int num_checked = 0;
+			for (int cluster_index = 0; num_checked < 1000; ++cluster_index) {
+				for (int entry_index = 0; num_checked < 1000 && entry_index < Cluster::kNumEntries;
+					++entry_index) {
+					if (tt[cluster_index].entries[entry_index].hash_high) {
+						++num_used;
+					}
+					++num_checked;
+				}
+			}
+			return num_used;
+		}
+
 		int tt_mask = 0;
 		void* tt_raw = nullptr;
 		Cluster* tt = nullptr;
@@ -214,14 +230,22 @@ namespace MateEngine
 	TranspositionTable transposition_table;
 
 	// TODO(tanuki-): ネガマックス法的な書き方に変更する
-	void DFPNwithTCA(Position& n, int thpn, int thdn, bool inc_flag, bool or_node, int depth, Color root_color, bool& timeup) {
+	void DFPNwithTCA(Position& n, int thpn, int thdn, bool inc_flag, bool or_node, int depth,
+		Color root_color, const std::chrono::system_clock::time_point& start_time, bool& timeup) {
 		if (Threads.stop.load(std::memory_order_relaxed)) {
 			return;
 		}
 
 		auto nodes_searched = n.this_thread()->nodes.load(memory_order_relaxed);
-		if (nodes_searched && nodes_searched % 10000000 == 0) {
-			sync_cout << "info string nodes_searched=" << nodes_searched << sync_endl;
+		if (nodes_searched && (nodes_searched & ((1 << 21) - 1)) == 0) {
+			auto current_time = std::chrono::system_clock::now();
+			auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+				current_time - start_time).count();
+			time_ms = std::max(time_ms, decltype(time_ms)(1));
+			int64_t nps = nodes_searched * 1000LL / time_ms;
+
+			sync_cout << "info  time " << time_ms << " nodes " << nodes_searched << " nps "
+				<< nps << " hashfull " << transposition_table.hashfull() << sync_endl;
 		}
 
 		// 制限時間をチェックする
@@ -457,7 +481,8 @@ namespace MateEngine
 
 			StateInfo state_info;
 			n.do_move(best_move, state_info);
-			DFPNwithTCA(n, thpn_child, thdn_child, inc_flag, !or_node, depth + 1, root_color, timeup);
+			DFPNwithTCA(n, thpn_child, thdn_child, inc_flag, !or_node, depth + 1, root_color,
+				start_time, timeup);
 			n.undo_move(best_move);
 		}
 	}
@@ -639,7 +664,7 @@ namespace MateEngine
 
 		bool timeup = false;
 		Color root_color = r.side_to_move();
-		DFPNwithTCA(r, kInfinitePnDn, kInfinitePnDn, false, true, 0, root_color, timeup);
+		DFPNwithTCA(r, kInfinitePnDn, kInfinitePnDn, false, true, 0, root_color, start, timeup);
 		const auto& entry = transposition_table.LookUp(r, root_color);
 
 		auto nodes_searched = r.this_thread()->nodes.load(memory_order_relaxed);
@@ -692,14 +717,8 @@ namespace MateEngine
 			auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 			time_ms = std::max(time_ms, decltype(time_ms)(1));
 			int64_t nps = nodes_searched * 1000LL / time_ms;
-			// pv サブコマンドは info コマンドの最後に書く。
-			std::ostringstream oss;
-			oss << "info depth " << moves.size() << " time " << time_ms << " nodes " << nodes_searched
-				<< " score mate + nps " << nps << " pv";
-			for (const auto& move : moves) {
-				oss << " " << move;
-			}
-			sync_cout << oss.str() << sync_endl;
+			sync_cout << "info  time " << time_ms << " nodes " << nodes_searched << " nps "
+				<< nps << " hashfull " << transposition_table.hashfull() << sync_endl;
 		}
 
 		// "stop"が送られてきたらThreads.stop == trueになる。
