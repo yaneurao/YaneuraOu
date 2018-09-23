@@ -394,12 +394,15 @@ namespace USI
 
 #if !defined(MATE_ENGINE)
 		o["Hash"] << Option(16, 1, MaxHashMB, [](const Option&o) { TT.resize(o); });
-#else
-		o["Hash"] << Option(4096, 1, MaxHashMB);
-#endif
 
 		// その局面での上位N個の候補手を調べる機能
 		o["MultiPV"] << Option(1, 1, 800);
+
+		// 弱くするために調整する。20なら手加減なし。0が最弱。
+		o["SkillLevel"] << Option(20, 0, 20);
+#else
+		o["Hash"] << Option(4096, 1, MaxHashMB);
+#endif
 
 		// cin/coutの入出力をファイルにリダイレクトする
 		o["WriteDebugLog"] << Option(false, [](const Option& o) { start_logger(o); });
@@ -450,7 +453,7 @@ namespace USI
 		o["ContemptFromBlack"] << Option(false);
 
 
-#ifdef USE_ENTERING_KING_WIN
+#if defined (USE_ENTERING_KING_WIN)
 		// 入玉ルール
 		o["EnteringKingRule"] << Option(ekr_rules, ekr_rules[EKR_27_POINT], [](const Option& o) { set_entering_king_rule(o); });
 #endif
@@ -463,12 +466,6 @@ namespace USI
 		// 評価関数パラメーターを共有するか
 		// 異種評価関数との自己対局のときにこの設定で引っかかる人が後を絶たないのでデフォルトでオフにする。
 		o["EvalShare"] << Option(false);
-#endif
-
-#if defined(LOCAL_GAME_SERVER)
-		// 子プロセスでEngineを実行するプロセッサグループ(Numa node)
-		// -1なら、指定なし。
-		o["EngineNuma"] << Option(-1, -1, 99999);
 #endif
 
 #if defined(EVAL_LEARN)

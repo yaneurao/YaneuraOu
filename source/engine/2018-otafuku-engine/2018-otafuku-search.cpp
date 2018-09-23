@@ -78,9 +78,7 @@ void USI::extra_option(USI::OptionsMap & o)
 	book.init(o);
 
 	//  PVの出力の抑制のために前回出力時間からの間隔を指定できる。
-
 	o["PvInterval"] << Option(300, 0, 100000);
-
 
 	// 投了スコア
 	o["ResignValue"] << Option(99999, 0, 99999);
@@ -199,6 +197,29 @@ namespace YaneuraOu2018GOKU
 		// depth 17超えだとstat_bonusが0になるのたが、これが本当に良いのかどうかはよくわからない。
 		// TODO : 調整すべき
 	}
+
+	// Skill構造体は強さの制限の実装に用いられる。
+	// (わざと手加減して指すために用いる)
+	struct Skill {
+		// 引数のlは、SkillLevel(手加減のレベル)。
+		// 20未満であれば手加減が有効。0が一番弱い。(R2000以上下がる)
+		explicit Skill(int l) : level(l) {}
+
+		// 手加減が有効であるか。
+		bool enabled() const { return level < 20; }
+
+		// SkillLevelがNなら探索深さもNぐらいにしておきたいので、
+		// depthがSkillLevelに達したのかを判定する。
+		bool time_to_pick(Depth depth) const { return depth / ONE_PLY == 1 + level; }
+
+		// 手加減が有効のときはMultiPV = 4で探索
+		Move pick_best(size_t multiPV);
+
+		// SkillLevel
+		int level;
+
+		Move best = MOVE_NONE;
+	};
 
 	// -----------------------
 	//  EasyMoveの判定用
@@ -328,6 +349,39 @@ namespace YaneuraOu2018GOKU
 			thisThread->mainHistory[from_to(quiets[i])][us] << -bonus;
 			update_continuation_histories(ss, pos.moved_piece_after(quiets[i]), to_sq(quiets[i]), -bonus);
 		}
+	}
+
+	// 手加減が有効であるなら、best moveを'level'に依存する統計ルールに基づくRootMovesの集合から選ぶ。
+	// Heinz van Saanenのアイデア。
+
+	Move Skill::pick_best(size_t multiPV) {
+
+		const RootMoves& rootMoves = Threads.main()->rootMoves;
+		static PRNG rng(now()); // 乱数ジェネレーターは非決定的であるべき。
+
+		// RootMovesはすでにscoreで降順にソートされている。
+		Value topScore = rootMoves[0].score;
+		int delta = std::min(topScore - rootMoves[multiPV - 1].score , (Value)PawnValue);
+		int weakness = 120 - 2 * level;
+		int maxScore = -VALUE_INFINITE;
+
+		// best moveを選ぶ。それぞれの指し手に対して弱さに依存する2つのterm(用語)を追加する。
+		// 1つは、決定的で、弱いレベルでは大きくなるもので、1つはランダムである。
+		// 次に得点がもっとも高い指し手を選択する。
+		for (size_t i = 0; i < multiPV; ++i)
+		{
+			// これが魔法の公式
+			int push = (weakness * int(topScore - rootMoves[i].score)
+				+ delta * (rng.rand<unsigned>() % weakness)) / 128;
+
+			if (rootMoves[i].score + push >= maxScore)
+			{
+				maxScore = rootMoves[i].score + push;
+				best = rootMoves[i].pv[0];
+			}
+		}
+
+		return best;
 	}
 
 	// -----------------------
@@ -2416,6 +2470,14 @@ void Thread::search()
 	// bestmoveとしてしこの局面の上位N個を探索する機能
 	size_t multiPV = Options["MultiPV"];
 
+	// SkillLevelの実装
+	Skill skill((int)Options["SkillLevel"]);
+
+	// 強さの手加減が有効であるとき、MultiPVを有効にして、その指し手のなかから舞台裏で指し手を探す。
+	// ※　SkillLevelが有効(設定された値が20未満)のときは、MultiPV = 4で探索。
+	if (skill.enabled())
+		multiPV = std::max(multiPV, (size_t)4);
+
 	// この局面での指し手の数を上回ってはいけない
 	multiPV = std::min(multiPV, rootMoves.size());
 
@@ -2637,6 +2699,10 @@ void Thread::search()
 				break;
 		}
 
+		// もしSkillLevelが有効であり、時間いっぱいになったなら、準最適なbest moveを選ぶ。
+		if (skill.enabled() && skill.time_to_pick(rootDepth))
+			skill.pick_best(multiPV);
+
 		// 残り時間的に、次のiterationに行って良いのか、あるいは、探索をいますぐここでやめるべきか？
 		if (Limits.use_time_management())
 		{
@@ -2710,6 +2776,10 @@ void Thread::search()
 	if (EasyMove.stableCnt < 6 || mainThread->easyMovePlayed)
 		EasyMove.clear();
 
+	// もしSkillLevelが有効なら、最善応手列を準最適なそれと入れ替える。
+	if (skill.enabled())
+		std::swap(rootMoves[0], *std::find(rootMoves.begin(), rootMoves.end(),
+			skill.best ? skill.best : skill.pick_best(multiPV)));
 }
 
 // 探索開始時に呼び出される。
@@ -2895,6 +2965,7 @@ ID_END:;
 	if (   !this->easyMovePlayed
 		&&  Options["MultiPV"] == 1
 		&& !Limits.depth
+		&& !Skill(Options["SkillLevel"]).enabled()
 		&&  rootMoves[0].pv[0] != MOVE_NONE)
 	{
 		// 深くまで探索できていて、かつそっちの評価値のほうが優れているならそのスレッドの指し手を採用する
