@@ -2,6 +2,16 @@
 やねうら王 更新履歴
 
 
+■　2018/09/24
+
+
+- LineScanner、少しリファクタリング。(挙動はほぼ変わらず)
+
+
+- engine_options.txtの読み込み時にbuffer overrunすることがあったの修正。
+	- LineScannerのEof()判定、間違っていた。
+
+
 ■　2018/09/23
 
 

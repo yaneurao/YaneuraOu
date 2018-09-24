@@ -327,7 +327,7 @@ private:
 	// 解析カーソル(現在の解析位置)
 	unsigned int pos;
 
-	// peek_text()した文字列
+	// peek_text()した文字列。get_text()のときにこれを返す。
 	std::string token;
 };
 

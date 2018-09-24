@@ -314,8 +314,11 @@ double Math::dsigmoid(double x) {
 // 次のtokenを先読みして返す。get_token()するまで解析位置は進まない。
 std::string LineScanner::peek_text()
 {
-	// 二重にpeek_text()してないか？
-	//ASSERT_LV1(token.empty());
+	// 二重にpeek_text()を呼び出すのは合法であるものとする。
+	if (!token.empty())
+		return token;
+
+	// assert(token.empty());
 
 	while (!raw_eof())
 	{
@@ -330,12 +333,9 @@ std::string LineScanner::peek_text()
 // 次のtokenを返す。
 std::string LineScanner::get_text()
 {
-	if (token.empty())
-		peek_text();
-
-	auto t = token;
+	auto result = (!token.empty() ? token : peek_text());
 	token.clear();
-	return t;
+	return result;
 }
 
 
