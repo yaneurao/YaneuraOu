@@ -2965,7 +2965,7 @@ ID_END:;
 	if (   !this->easyMovePlayed
 		&&  Options["MultiPV"] == 1
 		&& !Limits.depth
-		&& !Skill(Options["SkillLevel"]).enabled()
+		&& !Skill((int)Options["SkillLevel"]).enabled()
 		&&  rootMoves[0].pv[0] != MOVE_NONE)
 	{
 		// 深くまで探索できていて、かつそっちの評価値のほうが優れているならそのスレッドの指し手を採用する

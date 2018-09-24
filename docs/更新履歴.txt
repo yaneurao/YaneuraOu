@@ -5,7 +5,7 @@
 ■　2018/09/23
 
 
-- SkillLevel実装。(Stockfishの"Skill Level")
+- SkillLevel実装。(Stockfishの"Skill Level"を忠実に移植。)
 
 
 ■　2018/09/15

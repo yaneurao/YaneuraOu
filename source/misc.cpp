@@ -317,7 +317,7 @@ std::string LineScanner::peek_text()
 	// 二重にpeek_text()してないか？
 	//ASSERT_LV1(token.empty());
 
-	while (!eof())
+	while (!raw_eof())
 	{
 		char c = line[pos++];
 		if (c == ' ')

@@ -312,9 +312,15 @@ struct LineScanner
 	std::string get_text();
 
 	// 解析位置(カーソル)が行の末尾まで進んだのか？
-	bool eof() const { return token.empty() && !(pos < line.length()); }
+	// get_text()をしてpeek_text()したときに保持していたものがなくなるまではこの関数はfalseを返し続ける。
+	// このクラスの内部からeof()を呼ばないほうが無難。(token.empty() == trueが保証されていないといけないので)
+	// 内部から呼び出すならraw_eof()のほうではないかと。
+	bool eof() const { return token.empty() && raw_eof(); }
 
 private:
+	// 解析位置(カーソル)が行の末尾まで進んだのか？(内部実装用)
+	bool raw_eof() const { return !(pos < line.length()); }
+
 	// 解析対象の行
 	std::string line;
 
