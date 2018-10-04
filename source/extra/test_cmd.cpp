@@ -1418,7 +1418,7 @@ struct KPPT_reader
 
 	void read(string dir)
 	{
-		auto make_name = [&](std::string filename) { return path_combine(dir, filename); };
+		auto make_name = [&](std::string filename) { return Path::Combine(dir, filename); };
 		auto input = EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
 		auto output = EvalIO::EvalInfo::build_kppt32((void*)kk_, (void*)kkp_, (void*)kpp_);
 
@@ -1438,7 +1438,7 @@ struct KPPT_reader
 	{
 		// read()のときとinputとoutputを入れ替えると書き出せる。EvalIOマジ天使。
 
-		auto make_name = [&](std::string filename) { return path_combine(dir, filename); };
+		auto make_name = [&](std::string filename) { return Path::Combine(dir, filename); };
 		auto input = EvalIO::EvalInfo::build_kppt32((void*)kk_, (void*)kkp_, (void*)kpp_);
 		auto output = EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
 		input.fe_end = output.fe_end = Eval::fe_end;
@@ -1813,7 +1813,7 @@ void eval_convert(istringstream& is)
 	// EvalIOを使うとマジで簡単に変換できる。
 	auto get_info = [](std::string path , std::string format)
 	{
-		auto make_name = [&](std::string filename) { return path_combine(path, filename); };
+		auto make_name = [&](std::string filename) { return Path::Combine(path, filename); };
 		if (format == "kppt32")
 			return EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
 		else if (format == "kppt16")

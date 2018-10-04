@@ -99,6 +99,7 @@ namespace Book
 		// ・二度目のread_book()の呼び出しのときにすでに読み込んである(or ファイルをopenしてある)かどうかの
 		// 判定のためにファイル名を内部的に保持してある。
 		std::string book_name;
+		std::string pure_book_name; // book_nameからフォルダ名を取り除いたもの。
 	};
 
 #ifdef ENABLE_MAKEBOOK_CMD
@@ -152,7 +153,7 @@ namespace Book
 
 		// 定跡ファイル名を返す。
 		// Option["BookDir"]が定跡ファイルの入っているフォルダなのでこれを連結した定跡ファイルのファイル名を返す。
-		std::string get_book_name() const { return path_combine((std::string)Options["BookDir"], book_name); }
+		std::string get_book_name() const { return Path::Combine((std::string)Options["BookDir"], book_name); }
 
 		// probe()の下請け
 		bool probe_impl(Position& rootPos, bool silent, Move& bestMove, Move& ponderMove);

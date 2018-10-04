@@ -41,7 +41,7 @@ struct AperyBookEntry {
 
 class AperyBook {
 public:
-    explicit AperyBook(const char* fName);
+    explicit AperyBook(const std::string& filename);
     const std::vector<AperyBookEntry>& get_entries(const Position& pos) const;
     static Key bookKey(const Position& pos);
     size_t size() const { return book_.size(); }

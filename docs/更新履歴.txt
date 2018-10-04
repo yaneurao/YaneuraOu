@@ -2,7 +2,22 @@
 やねうら王 更新履歴
 
 
+■　2018/10/04
+
+
+- BookDirを変更したときに、Aperyの定跡ファイル(book.bin)が読み込めなくなるのを修正。(ohtaroさんの報告) (修正内容の指摘、tttakさん)
+	cf. https://github.com/yaneurao/MyShogi/issues/57
+- フォルダ名を変更したときに、定跡を使わない場合にも"no_book"というファイルを読みに行っていたのを修正。
+- misc.hにPathクラス追加。
+	- C#のメソッド名に合わせる。
+	- path_combine → Combineにrename
+	- GetFileName()追加
+
+
 ■　2018/09/24
+
+
+- MSYS2上でNNUE型の評価関数の実行ファイルがビルドできない件を解説.txtに追記
 
 
 - LineScanner、少しリファクタリング。(挙動はほぼ変わらず)

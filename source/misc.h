@@ -285,15 +285,31 @@ namespace Math {
 //       Path
 // --------------------
 
-// path名とファイル名を結合して、それを返す。
-// folder名のほうは空文字列でないときに、末尾に'/'か'\\'がなければそれを付与する。
-inline std::string path_combine(const std::string& folder, const std::string& filename)
+// C#にあるPathクラス的なもの。ファイル名の操作。
+// C#のメソッド名に合わせておく。
+struct Path
 {
-	if (folder.length() >= 1 && *folder.rbegin() != '/' && *folder.rbegin() != '\\')
-		return folder + "/" + filename;
+	// path名とファイル名を結合して、それを返す。
+	// folder名のほうは空文字列でないときに、末尾に'/'か'\\'がなければそれを付与する。
+	static std::string Combine(const std::string& folder, const std::string& filename)
+	{
+		if (folder.length() >= 1 && *folder.rbegin() != '/' && *folder.rbegin() != '\\')
+			return folder + "/" + filename;
 
-	return folder + filename;
-}
+		return folder + filename;
+	}
+
+	// full path表現から、(フォルダ名を除いた)ファイル名の部分を取得する。
+	static std::string GetFileName(const std::string& path)
+	{
+		// "\"か"/"か、どちらを使ってあるかはわからない。
+		auto path_index1 = path.find_last_of("\\") + 1;
+		auto path_index2 = path.find_last_of("/") + 1;
+		auto path_index = std::max(path_index1, path_index2);
+
+		return path.substr(path_index);
+	}
+};
 
 // --------------------
 //       Parser

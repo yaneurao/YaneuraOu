@@ -364,7 +364,7 @@ namespace Eval
 	void save_eval(std::string dir_name)
 	{
 		{
-			auto eval_dir = path_combine((std::string)Options["EvalSaveDir"], dir_name);
+			auto eval_dir = Path::Combine((std::string)Options["EvalSaveDir"], dir_name);
 
 			std::cout << "save_eval() start. folder = " << eval_dir << std::endl;
 
@@ -376,7 +376,7 @@ namespace Eval
 
 			// EvalIOを利用して評価関数ファイルに書き込む。
 			// 読み込みのときのinputとoutputとを入れ替えるとファイルに書き込める。EvalIo::eval_convert()マジ優秀。
-			auto make_name = [&](std::string filename) { return path_combine(eval_dir, filename); };
+			auto make_name = [&](std::string filename) { return Path::Combine(eval_dir, filename); };
 			auto input = EvalIO::EvalInfo::build_kpp_kkpt32((void*)kk, (void*)kkp, (void*)kpp);
 			auto output = EvalIO::EvalInfo::build_kpp_kkpt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
 

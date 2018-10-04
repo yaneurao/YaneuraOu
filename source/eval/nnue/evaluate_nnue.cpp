@@ -221,7 +221,7 @@ void load_eval() {
 #endif
   {
     const std::string dir_name = Options["EvalDir"];
-    const std::string file_name = path_combine(dir_name, NNUE::kFileName);
+    const std::string file_name = Path::Combine(dir_name, NNUE::kFileName);
     std::ifstream stream(file_name, std::ios::binary);
     const bool result = NNUE::ReadParameters(stream);
     ASSERT(result);
