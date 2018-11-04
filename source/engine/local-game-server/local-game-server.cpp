@@ -501,8 +501,8 @@ void MainThread::think() {
   // 設定の読み込み
   fstream f[2];
   string config_dir = Options["EngineConfigDir"];
-  f[0].open(path_combine(config_dir,"engine-config1.txt"));
-  f[1].open(path_combine(config_dir,"engine-config2.txt"));
+  f[0].open(Path::Combine(config_dir,"engine-config1.txt"));
+  f[1].open(Path::Combine(config_dir,"engine-config2.txt"));
 
   getline(f[0], engine_name[0]);
   getline(f[1], engine_name[1]);

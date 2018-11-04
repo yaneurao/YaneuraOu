@@ -7,16 +7,12 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "YaneuraOu", "source\Yaneura
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug-2018-Goku|x64 = Debug-2018-Goku|x64
-		Debug-2018-Goku|x86 = Debug-2018-Goku|x86
 		Debug-2018-Otafuku|x64 = Debug-2018-Otafuku|x64
 		Debug-2018-Otafuku|x86 = Debug-2018-Otafuku|x86
 		Debug-mate|x64 = Debug-mate|x64
 		Debug-mate|x86 = Debug-mate|x86
 		Debug-user|x64 = Debug-user|x64
 		Debug-user|x86 = Debug-user|x86
-		Release-2018-Goku|x64 = Release-2018-Goku|x64
-		Release-2018-Goku|x86 = Release-2018-Goku|x86
 		Release-2018-Otafuku|x64 = Release-2018-Otafuku|x64
 		Release-2018-Otafuku|x86 = Release-2018-Otafuku|x86
 		Release-2018-OtafukuLearn|x64 = Release-2018-OtafukuLearn|x64
@@ -27,6 +23,10 @@ Global
 		Release-2018-Otafuku-sse41|x86 = Release-2018-Otafuku-sse41|x86
 		Release-2018-Otafuku-sse42|x64 = Release-2018-Otafuku-sse42|x64
 		Release-2018-Otafuku-sse42|x86 = Release-2018-Otafuku-sse42|x86
+		Release-2018-TNK|x64 = Release-2018-TNK|x64
+		Release-2018-TNK|x86 = Release-2018-TNK|x86
+		Release-2018-TNK-sse42|x64 = Release-2018-TNK-sse42|x64
+		Release-2018-TNK-sse42|x86 = Release-2018-TNK-sse42|x86
 		Release-mate|x64 = Release-mate|x64
 		Release-mate|x86 = Release-mate|x86
 		Release-mate-sse2|x64 = Release-mate-sse2|x64
@@ -45,9 +45,6 @@ Global
 		Release-user-sse42|x86 = Release-user-sse42|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-2018-Goku|x64.ActiveCfg = Debug-2018-Goku|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-2018-Goku|x64.Build.0 = Debug-2018-Goku|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-2018-Goku|x86.ActiveCfg = Debug-2018-Goku|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-2018-Otafuku|x64.ActiveCfg = Debug-2018-Otafuku|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-2018-Otafuku|x64.Build.0 = Debug-2018-Otafuku|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-2018-Otafuku|x86.ActiveCfg = Debug-2018-Otafuku|Win32
@@ -60,10 +57,6 @@ Global
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-user|x64.Build.0 = Debug-user|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-user|x86.ActiveCfg = Debug-user|Win32
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-user|x86.Build.0 = Debug-user|Win32
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-Goku|x64.ActiveCfg = Release-2018-Otafuku-sse41|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-Goku|x64.Build.0 = Release-2018-Otafuku-sse41|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-Goku|x86.ActiveCfg = Release-2018-OtafukuLearn|Win32
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-Goku|x86.Build.0 = Release-2018-OtafukuLearn|Win32
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-Otafuku|x64.ActiveCfg = Release-2018-Otafuku|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-Otafuku|x64.Build.0 = Release-2018-Otafuku|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-Otafuku|x86.ActiveCfg = Release-2018-Otafuku|Win32
@@ -81,6 +74,13 @@ Global
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-Otafuku-sse42|x64.ActiveCfg = Release-2018-Otafuku-sse42|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-Otafuku-sse42|x64.Build.0 = Release-2018-Otafuku-sse42|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-Otafuku-sse42|x86.ActiveCfg = Release-2018-Otafuku-sse42|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-TNK|x64.ActiveCfg = Release-2018-TNK|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-TNK|x64.Build.0 = Release-2018-TNK|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-TNK|x86.ActiveCfg = Release-2018-TNK|Win32
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-TNK|x86.Build.0 = Release-2018-TNK|Win32
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-TNK-sse42|x64.ActiveCfg = Release-2018-TNK-sse42|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-TNK-sse42|x64.Build.0 = Release-2018-TNK-sse42|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-2018-TNK-sse42|x86.ActiveCfg = Release-2018-TNK-sse42|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate|x64.ActiveCfg = Release-mate|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate|x64.Build.0 = Release-mate|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate|x86.ActiveCfg = Release-mate|Win32

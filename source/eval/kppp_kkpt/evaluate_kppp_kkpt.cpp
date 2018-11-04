@@ -59,7 +59,7 @@ namespace Eval
 		// EvalIOを利用して評価関数ファイルを読み込む。
 		// ちなみに、inputのところにあるbasic_kppt32()をbasic_kppt16()に変更するとApery(WCSC27)の評価関数ファイルが読み込める。
 		// また、eval_convert()に渡している引数のinputとoutputを入れ替えるとファイルに書き出すことが出来る。EvalIOマジ、っょぃ。
-		auto make_name = [&](std::string filename) { return path_combine((string)Options["EvalDir"], filename); };
+		auto make_name = [&](std::string filename) { return Path::Combine((string)Options["EvalDir"], filename); };
 		auto input = EvalIO::EvalInfo::build_kppp_kkpt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN), make_name(KPPP_BIN) , size_of_kppp);
 		auto output = EvalIO::EvalInfo::build_kppp_kkpt32((void*)kk, (void*)kkp, (void*)kpp , (void*)kppp , size_of_kppp);
 		// 評価関数の実験のためにfe_endをKPPT32から変更しているかも知れないので現在のfe_endの値をもとに書き込む。

@@ -294,6 +294,52 @@ double Math::dsigmoid(double x) {
 }
 
 // --------------------
+//       Parser
+// --------------------
+
+/*
+	LineScanner parser("AAA BBB CCC DDD");
+	auto token = parser.peek_text();
+	cout << token << endl;
+	token = parser.get_text();
+	cout << token << endl;
+	token = parser.get_text();
+	cout << token << endl;
+	token = parser.get_text();
+	cout << token << endl;
+	token = parser.get_text();
+	cout << token << endl;
+*/
+
+// 次のtokenを先読みして返す。get_token()するまで解析位置は進まない。
+std::string LineScanner::peek_text()
+{
+	// 二重にpeek_text()を呼び出すのは合法であるものとする。
+	if (!token.empty())
+		return token;
+
+	// assert(token.empty());
+
+	while (!raw_eof())
+	{
+		char c = line[pos++];
+		if (c == ' ')
+			break;
+		token += c;
+	}
+	return token;
+}
+
+// 次のtokenを返す。
+std::string LineScanner::get_text()
+{
+	auto result = (!token.empty() ? token : peek_text());
+	token.clear();
+	return result;
+}
+
+
+// --------------------
 //  prefetch命令
 // --------------------
 
@@ -461,14 +507,6 @@ namespace WinProcGroup {
 	/// bindThisThread() set the group affinity of the current thread
 
 	void bindThisThread(size_t idx) {
-
-		// If OS already scheduled us on a different group than 0 then don't overwrite
-		// the choice, eventually we are one of many one-threaded processes running on
-		// some Windows NUMA hardware, for instance in fishtest. To make it simple,
-		// just check if running threads are below a threshold, in this case all this
-		// NUMA machinery is not needed.
-		if (Threads.size() < 8)
-			return;
 
 		// Use only local variables to be thread-safe
 		int group = get_group(idx);

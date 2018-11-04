@@ -22,8 +22,11 @@
 #include <nmmintrin.h>
 #elif defined(USE_SSE41)
 #include <smmintrin.h>
-#elif defined (USE_SSE2)
+#elif defined(USE_SSE2)
 #include <emmintrin.h>
+#elif defined(IS_ARM)
+#include <arm_neon.h>
+#include <mm_malloc.h> // for _mm_alloc()
 #else
 #if defined (__GNUC__) 
 #include <mm_malloc.h> // for _mm_alloc()
@@ -158,7 +161,7 @@ FORCE_INLINE int MSB32(uint32_t v) { ASSERT_LV3(v != 0); unsigned long index; _B
 FORCE_INLINE int MSB64(uint64_t v) { ASSERT_LV3(v != 0); return uint32_t(v >> 32) ? 32 + MSB32(uint32_t(v >> 32)) : MSB32(uint32_t(v)); }
 #endif
 
-#elif defined(__GNUC__) && ( defined(__i386__) || defined(__x86_64__) )
+#elif defined(__GNUC__) && ( defined(__i386__) || defined(__x86_64__) || defined(__ANDROID__) )
 
 FORCE_INLINE int LSB32(const u32 v) { ASSERT_LV3(v != 0); return __builtin_ctzll(v); }
 FORCE_INLINE int LSB64(const u64 v) { ASSERT_LV3(v != 0); return __builtin_ctzll(v); }
@@ -310,10 +313,7 @@ public:
 
 // 最下位bitをresetする命令。
 
-// gccでコンパイルするとき-marchとして具体的なCPU名を指定したときに、_blsr_u64がinline展開できないようで
-// コンパイルエラーになる。
-
-#if (defined(USE_AVX2) && defined(IS_64BIT)) && !defined(__GNUC__)
+#if (defined(USE_AVX2) && defined(IS_64BIT))
 #define BLSR(x) _blsr_u64(x)
 #else
 #define BLSR(x) (x & (x-1))

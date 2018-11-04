@@ -215,6 +215,12 @@
 // これをdefineすると、extra/kif_converter/ フォルダにある棋譜や指し手表現の変換を行なう関数群が使用できるようになる。
 // #define USE_KIF_CONVERT_TOOLS
 
+// 128GB超えの置換表を使いたいとき用。
+// このシンボルを定義するとOptions["Hash"]として131072(=128*1024[MB]。すなわち128GB)超えの置換表が扱えるようになる。
+// Stockfishのコミュニティではまだ議論中なのでデフォルトでオフにしておく。
+// cf. 128 GB TT size limitation : https://github.com/official-stockfish/Stockfish/issues/1349
+// #define USE_HUGE_HASH
+
 // --------------------
 // release configurations
 // --------------------
@@ -222,12 +228,28 @@
 // --- 通常の思考エンジンとして実行ファイルを公開するとき用の設定集
 
 // やねうら王2018 with お多福ラボ
-#if defined(YANEURAOU_2018_OTAFUKU_ENGINE)
+#if defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_OTAFUKU_ENGINE_KPPT) || defined(YANEURAOU_2018_OTAFUKU_ENGINE_KPP_KKPT) || defined(YANEURAOU_2018_OTAFUKU_ENGINE_MATERIAL)
 #define ENGINE_NAME "YaneuraOu 2018 Otafuku"
+#if defined(YANEURAOU_2018_OTAFUKU_ENGINE)
 #define EVAL_KPPT
 //#define EVAL_KPP_KKPT
+#endif
+#if defined(YANEURAOU_2018_OTAFUKU_ENGINE_KPPT)
+#define EVAL_KPPT
+#endif
+#if defined(YANEURAOU_2018_OTAFUKU_ENGINE_KPP_KKPT)
+#define EVAL_KPP_KKPT
+#endif
+#if defined(YANEURAOU_2018_OTAFUKU_ENGINE_MATERIAL)
+#define EVAL_MATERIAL
+#endif
+#if !defined(YANEURAOU_2018_OTAFUKU_ENGINE)
+#define YANEURAOU_2018_OTAFUKU_ENGINE
+#endif
 
+#if !defined(YANEURAOU_2018_OTAFUKU_ENGINE_MATERIAL)
 #define USE_EVAL_HASH
+#endif
 #define USE_SEE
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
@@ -243,12 +265,17 @@
 // 学習絡みのオプション
 #define USE_SFEN_PACKER
 // 学習機能を有効にするオプション。
+#if !defined(YANEURAOU_2018_OTAFUKU_ENGINE_MATERIAL)
 #define EVAL_LEARN
+#endif
 
 // 定跡生成絡み
 #define ENABLE_MAKEBOOK_CMD
 // 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
+#if !defined(YANEURAOU_2018_OTAFUKU_ENGINE_MATERIAL)
 #define USE_SHARED_MEMORY_IN_EVAL
+#endif
+
 // パラメーターの自動調整絡み
 #define USE_GAMEOVER_HANDLER
 //#define LONG_EFFECT_LIBRARY
@@ -323,6 +350,44 @@
 
 // GlobalOptionsは有効にしておく。
 #define USE_GLOBAL_OPTIONS
+#endif
+
+
+#if defined(YANEURAOU_2018_TNK_ENGINE)
+#define ENGINE_NAME "YaneuraOu 2018 T.N.K."
+#define EVAL_NNUE
+
+#define USE_EVAL_HASH
+#define USE_SEE
+#define USE_MATE_1PLY
+#define USE_ENTERING_KING_WIN
+#define USE_TIME_MANAGEMENT
+#define KEEP_PIECE_IN_GENERATE_MOVES
+#define ONE_PLY_EQ_1
+
+// デバッグ絡み
+//#define ASSERT_LV 3
+//#define USE_DEBUG_ASSERT
+
+#define ENABLE_TEST_CMD
+// 学習絡みのオプション
+#define USE_SFEN_PACKER
+// 学習機能を有効にするオプション。
+#define EVAL_LEARN
+
+// 定跡生成絡み
+#define ENABLE_MAKEBOOK_CMD
+// 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
+//#define USE_SHARED_MEMORY_IN_EVAL
+// パラメーターの自動調整絡み
+#define USE_GAMEOVER_HANDLER
+//#define LONG_EFFECT_LIBRARY
+
+// GlobalOptionsは有効にしておく。
+#define USE_GLOBAL_OPTIONS
+
+// 探索部はYANEURAOU_2018_OTAFUKU_ENGINEを使う。
+#define YANEURAOU_2018_OTAFUKU_ENGINE
 #endif
 
 
@@ -475,7 +540,7 @@ extern GlobalOptions_ GlobalOptions;
 #if !defined (USE_DEBUG_ASSERT)
 #define ASSERT(X) { if (!(X)) *(int*)1 = 0; }
 #else
-#define ASSERT(X) { if (!(X)) { std::cout << "\nError : ASSERT(" << #X << ")" << std::endl; \
+#define ASSERT(X) { if (!(X)) { std::cout << "\nError : ASSERT(" << #X << "), " << __FILE__ << "(" << __LINE__ << "): " << __func__ << std::endl; \
  std::this_thread::sleep_for(std::chrono::microseconds(3000)); *(int*)1 =0;} }
 #endif
 
@@ -539,10 +604,10 @@ inline bool getline(std::fstream& fs, std::string& s)
 // --- output for Japanese notation
 
 // PRETTY_JPが定義されているかどうかによって三項演算子などを使いたいので。
-#ifdef PRETTY_JP
-const bool pretty_jp = true;
+#if defined (PRETTY_JP)
+constexpr bool pretty_jp = true;
 #else
-const bool pretty_jp = false;
+constexpr bool pretty_jp = false;
 #endif
 
 
@@ -578,11 +643,13 @@ const bool pretty_jp = false;
 // ----------------------------
 
 // ターゲットが64bitOSかどうか
-#if (defined(_WIN64) && defined(_MSC_VER)) || (defined(__GNUC__) && defined(__x86_64__))
-const bool Is64Bit = true;
+#if (defined(_WIN64) && defined(_MSC_VER)) || (defined(__GNUC__) && defined(__x86_64__)) || defined(IS_64BIT)
+constexpr bool Is64Bit = true;
+#ifndef IS_64BIT
 #define IS_64BIT
+#endif
 #else
-const bool Is64Bit = false;
+constexpr bool Is64Bit = false;
 #endif
 
 #if defined(USE_AVX512)
@@ -626,7 +693,7 @@ const bool Is64Bit = false;
 // 32bit環境ではメモリが足りなくなるので以下の2つは強制的にオフにしておく。
 
 #undef USE_EVAL_HASH
-#undef USE_SHARED_MEMORY_IN_EVAL
+//#undef USE_SHARED_MEMORY_IN_EVAL
 
 // 機械学習用の配列もメモリ空間に収まりきらないのでコンパイルエラーとなるから
 // これもオフにしておく。
@@ -717,6 +784,8 @@ inline int MKDIR(std::string dir_name)
 #define EVAL_TYPE_NAME "KPP_KKPT_FV_VAR"
 #elif defined(EVAL_NABLA)
 #define EVAL_TYPE_NAME "NABLA V2"
+#elif defined(EVAL_NNUE)
+#define EVAL_TYPE_NAME "NNUE"
 #else
 #define EVAL_TYPE_NAME ""
 #endif
@@ -743,7 +812,7 @@ inline int MKDIR(std::string dir_name)
 // 7. FV_VAR方式のリファレンス実装として、EVAL_KPP_KKPT_FV_VARがあるので、そのソースコードを見ること。
 
 // あらゆる局面でP(駒)の数が増えないFV38と呼ばれる形式の差分計算用。
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_HELICES)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_HELICES) || defined(EVAL_NNUE)
 #define USE_FV38
 #endif
 

@@ -5,10 +5,6 @@
       <Configuration>Debug-2018-Otafuku</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Debug-2018-Goku|x64">
-      <Configuration>Debug-2018-Goku</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug-mate|Win32">
       <Configuration>Debug-mate</Configuration>
       <Platform>Win32</Platform>
@@ -55,6 +51,18 @@
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release-2018-Otafuku|x64">
       <Configuration>Release-2018-Otafuku</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-2018-TNK-sse42|x64">
+      <Configuration>Release-2018-TNK-sse42</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-2018-TNK|Win32">
+      <Configuration>Release-2018-TNK</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-2018-TNK|x64">
+      <Configuration>Release-2018-TNK</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release-2018Goku|x64">
@@ -106,7 +114,7 @@
     <ProjectGuid>{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>YaneuraOu</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-2018-Otafuku|Win32'" Label="Configuration">
@@ -135,6 +143,13 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-2018-OtafukuLearn|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-2018-TNK|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
@@ -173,12 +188,6 @@
     <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-2018-Goku|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-2018-Otafuku|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
@@ -208,6 +217,20 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-2018-Otafuku-sse42|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-2018-TNK|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-2018-TNK-sse42|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
@@ -317,6 +340,13 @@
     <Import Project="props\YaneuraOuEdition-2017Early.props" />
     <Import Project="props\YaneuraOuCpu-x86-nosse.props" />
   </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-2018-TNK|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-release-win32.props" />
+    <Import Project="props\YaneuraOuEdition-2018TNK.props" />
+    <Import Project="props\YaneuraOuCpu-x86-nosse.props" />
+  </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="props\YaneuraOu-common.props" />
@@ -352,13 +382,6 @@
     <Import Project="props\YaneuraOuEdition-user.props" />
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
   </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug-2018-Goku|x64'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="props\YaneuraOu-common.props" />
-    <Import Project="props\YaneuraOuSolution-debug-x64.props" />
-    <Import Project="props\YaneuraOuEdition-2017Goku.props" />
-    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
-  </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release-2018-Otafuku|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="props\YaneuraOu-common.props" />
@@ -392,6 +415,20 @@
     <Import Project="props\YaneuraOu-common.props" />
     <Import Project="props\YaneuraOuSolution-release-x64.props" />
     <Import Project="props\YaneuraOuEdition-2017Early.props" />
+    <Import Project="props\YaneuraOuCpu-x64-sse42.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-2018-TNK|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-release-x64.props" />
+    <Import Project="props\YaneuraOuEdition-2018TNK.props" />
+    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-2018-TNK-sse42|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-release-x64.props" />
+    <Import Project="props\YaneuraOuEdition-2018TNK.props" />
     <Import Project="props\YaneuraOuCpu-x64-sse42.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release-2018Goku|x64'">
@@ -479,14 +516,9 @@
       </OpenMPSupport>
     </ClCompile>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-2018-Goku|x64'">
-    <ClCompile>
-      <OpenMPSupport>
-      </OpenMPSupport>
-    </ClCompile>
-  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2018-Otafuku|Win32'" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2018-OtafukuLearn|Win32'" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2018-TNK|Win32'" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate|Win32'" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-user|Win32'" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2018-Otafuku|x64'">
@@ -514,6 +546,18 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2018-Otafuku-sse42|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2018-TNK|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-2018-TNK-sse42|x64'">
     <ClCompile>
       <OpenMPSupport>
       </OpenMPSupport>
@@ -590,6 +634,35 @@
     <ClInclude Include="eval\kppt\evaluate_kppt.h" />
     <ClInclude Include="eval\kpp_kkpt\evaluate_kpp_kkpt.h" />
     <ClInclude Include="eval\kpp_kkpt_fv_var\evaluate_kpp_kkpt_fv_var.h" />
+    <ClInclude Include="eval\nnue\architectures\halfkp_256x2-32-32.h" />
+    <ClInclude Include="eval\nnue\architectures\k-p_256x2-32-32.h" />
+    <ClInclude Include="eval\nnue\evaluate_nnue.h" />
+    <ClInclude Include="eval\nnue\evaluate_nnue_learner.h" />
+    <ClInclude Include="eval\nnue\features\features_common.h" />
+    <ClInclude Include="eval\nnue\features\feature_set.h" />
+    <ClInclude Include="eval\nnue\features\half_kp.h" />
+    <ClInclude Include="eval\nnue\features\half_relative_kp.h" />
+    <ClInclude Include="eval\nnue\features\index_list.h" />
+    <ClInclude Include="eval\nnue\features\k.h" />
+    <ClInclude Include="eval\nnue\features\p.h" />
+    <ClInclude Include="eval\nnue\layers\affine_transform.h" />
+    <ClInclude Include="eval\nnue\layers\clipped_relu.h" />
+    <ClInclude Include="eval\nnue\layers\input_slice.h" />
+    <ClInclude Include="eval\nnue\layers\sum.h" />
+    <ClInclude Include="eval\nnue\nnue_accumulator.h" />
+    <ClInclude Include="eval\nnue\nnue_architecture.h" />
+    <ClInclude Include="eval\nnue\nnue_common.h" />
+    <ClInclude Include="eval\nnue\nnue_feature_transformer.h" />
+    <ClInclude Include="eval\nnue\nnue_test_command.h" />
+    <ClInclude Include="eval\nnue\trainer\features\factorizer.h" />
+    <ClInclude Include="eval\nnue\trainer\features\factorizer_feature_set.h" />
+    <ClInclude Include="eval\nnue\trainer\features\factorizer_half_kp.h" />
+    <ClInclude Include="eval\nnue\trainer\trainer.h" />
+    <ClInclude Include="eval\nnue\trainer\trainer_affine_transform.h" />
+    <ClInclude Include="eval\nnue\trainer\trainer_clipped_relu.h" />
+    <ClInclude Include="eval\nnue\trainer\trainer_feature_transformer.h" />
+    <ClInclude Include="eval\nnue\trainer\trainer_input_slice.h" />
+    <ClInclude Include="eval\nnue\trainer\trainer_sum.h" />
     <ClInclude Include="extra\all.h" />
     <ClInclude Include="extra\bitop.h" />
     <ClInclude Include="extra\book\apery_book.h" />
@@ -640,6 +713,13 @@
     <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt_learner.cpp" />
     <ClCompile Include="eval\kpp_kkpt_fv_var\evaluate_kpp_kkpt_fv_var.cpp" />
     <ClCompile Include="eval\kpp_kkpt_fv_var\evaluate_kpp_kkpt_fv_var_learner.cpp" />
+    <ClCompile Include="eval\nnue\evaluate_nnue.cpp" />
+    <ClCompile Include="eval\nnue\evaluate_nnue_learner.cpp" />
+    <ClCompile Include="eval\nnue\features\half_kp.cpp" />
+    <ClCompile Include="eval\nnue\features\half_relative_kp.cpp" />
+    <ClCompile Include="eval\nnue\features\k.cpp" />
+    <ClCompile Include="eval\nnue\features\p.cpp" />
+    <ClCompile Include="eval\nnue\nnue_test_command.cpp" />
     <ClCompile Include="extra\benchmark.cpp" />
     <ClCompile Include="extra\bitop.cpp" />
     <ClCompile Include="extra\book\apery_book.cpp" />

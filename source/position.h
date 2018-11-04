@@ -7,6 +7,10 @@
 #include "extra/key128.h"
 #include "extra/long_effect.h"
 
+#if defined(EVAL_NNUE)
+#include "eval/nnue/nnue_accumulator.h"
+#endif
+
 class Thread;
 
 // --------------------
@@ -68,9 +72,8 @@ struct StateInfo
 	// この局面における手番側の持ち駒。優等局面の判定のために必要。
 	Hand hand;
 
-	// この局面で捕獲された駒
+	// この局面で捕獲された駒。先後の区別あり。
 	// ※　次の局面にdo_move()で進むときにこの値が設定される
-	// 先後の区別はなし。馬とか龍など成り駒である可能性はある。
 	Piece capturedPiece;
 
 	friend struct Position;
@@ -87,6 +90,10 @@ struct StateInfo
 	// まだ計算されていなければsum.p[2][0]の値はINT_MAX
 	Eval::EvalSum sum;
 
+#endif
+
+#if defined(EVAL_NNUE)
+	Eval::NNUE::Accumulator accumulator;
 #endif
 
 #if defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT)
@@ -224,8 +231,8 @@ struct Position
 #endif
 	}
 
-	// moved_pieceの拡張版。駒打ちのときは、打ち駒(+32 == PIECE_DROP)を加算した駒種を返す。
-	// historyなどでUSE_DROPBIT_IN_STATSを有効にするときに用いる。
+	// moved_pieceの拡張版。
+	// USE_DROPBIT_IN_STATSがdefineされていると駒打ちのときは、打ち駒(+32 == PIECE_DROP)を加算した駒種を返す。
 	// 成りの指し手のときは成りの指し手を返す。(移動後の駒)
 	// KEEP_PIECE_IN_GENERATE_MOVESのときは単にmoveの上位16bitを返す。
 	Piece moved_piece_after(Move m) const
@@ -574,7 +581,7 @@ struct Position
 	// ↑sfenを経由すると遅いので直接packされたsfenをセットする関数を作った。
 	// pos.set(sfen_unpack(data),si,th); と等価。
 	// 渡された局面に問題があって、エラーのときは非0を返す。
-	int set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si , Thread* th);
+	int set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si , Thread* th, bool mirror=false);
 
 	// 盤面と手駒、手番を与えて、そのsfenを返す。
 	static std::string sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly);

@@ -2,7 +2,101 @@
 【計測資料】
 
 　探索部の改良に関して、改良前と改良後とを比較してその勝率などを記録しておく。
-　例えば探索部で「計測資料 1.」とコメントがあれば、このファイルの「■　1.」のところにその詳しい内容がある。
+　例えば探索部で「【計測資料 1.】」とコメントがあれば、このファイルの「■　1.」のところにその詳しい内容がある。
+
+■　25. 浅い深さでの枝刈りについて Stockfish 9のコードとの比較
+
+	※　計測資料 19.と同じ比較だが、他の部分がStockfish 9相当である部分が違う。
+
+#if 1
+				// Stockfish 9相当のコード
+				// 実際には、-PawnValue の部分にはCaptureMargin[]が使われている。
+				else if (depth < 7 * ONE_PLY
+					&& !extension
+					&& !pos.see_ge(move, Value(-PawnValue * (depth / ONE_PLY))))
+					continue;
+#endif
+
+#if 0
+				// やねうら王の独自のコード。depthの2乗に比例したseeマージン。適用depthに制限なし。
+				else if (!extension
+					&& !pos.see_ge(move, Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 * (depth / ONE_PLY) * (depth / ONE_PLY))
+						// PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2を少し大きめにして調整したほうがよさげ。
+					))
+					continue;
+#endif
+
+	YaneuraOu-2018-OtafukuV481a.exe : やねうら王の独自コード
+	YaneuraOu-2018-OtafukuV481b.exe : Stockfish 9相当のコード
+	T1,b1000,538 - 38 - 424(55.93% R41.37) win black : white = 48.86% : 51.14%
+	T1,b2000,537 - 40 - 423(55.94% R41.45) win black : white = 49.58% : 50.42%
+	T1,b4000,381 - 41 - 298(56.11% R42.68) win black : white = 51.84% : 48.16%
+
+	// Stockfish 9のコードのこの部分、
+	// CaptureMarginをきちんと調整しないと明らかに弱くなる。
+
+
+■　24.RazoringをStockfish 8と9とで比較
+
+// 改造前(Stockfish 8方式のコード)
+
+		//  Razoring (王手がかかっているときはスキップする)
+
+		// 【計測資料 24.】RazoringをStockfish 8と9とで比較
+
+		// 残り探索深さが少ないときに、その手数でalphaを上回りそうにないとき用の枝刈り。
+		if (   !PvNode
+			&&  depth < 4 * ONE_PLY
+			&&  eval <= alpha - razor_margin[depth / ONE_PLY])
+		{
+
+			// 残り探索深さがONE_PLY以下で、alphaを確実に下回りそうなら、ここで静止探索を呼び出してしまう。
+			if (depth <= ONE_PLY
+			//	&& eval + razor_margin[3] <= alpha
+				// →　ここ、razoringとしてはrazor_margin[ZERO_DEPTH]を参照すべき。
+				// しかしそれは前提条件として満たしているので結局、ここでは単にqsearch()を
+				// 呼び出して良いように思う。
+				)
+				return qsearch<NonPV>(pos, ss, alpha, alpha + 1);
+
+			// 残り探索深さが1～3手ぐらいあるときに、alpha - razor_marginを上回るかだけ調べて
+			// 上回りそうにないならもうリターンする。
+			Value ralpha = alpha - razor_margin[depth/ONE_PLY];
+			Value v = qsearch<NonPV>(pos, ss, ralpha, ralpha + 1);
+			if (v <= ralpha)
+				return v;
+		}
+
+改造後(Stockfish 9方式のコード)
+・depth == 3 * ONE_PLYでのrazoringの適用をしなくなった
+
+		if (!PvNode
+			&&  depth < 3 * ONE_PLY
+			&&  eval <= alpha - razor_margin[depth / ONE_PLY])
+		{
+			// 残り探索深さが1,2手のときに、alpha - razor_marginを上回るかだけ簡単に
+			// (qsearchを用いてnull windowで)調べて、上回りそうにないなら
+			// このnodeの探索はここ終了してリターンする。
+
+			Value ralpha = alpha - (depth >= 2 * ONE_PLY) * RazorMargin[depth / ONE_PLY];
+			Value v = qsearch<NonPV>(pos, ss, ralpha, ralpha + 1);
+			if (depth < 2 * ONE_PLY || v <= ralpha)
+				return v;
+		}
+
+	// 計測時、校舎のRazoringのパラメーターもStockfish 8のときの値になっていた。
+	// これは、のちにStockfish 9相当のパラメーターに変更。
+
+	改造前 : YaneuraOu-2018-OtafukuV480sf9_v2d.exe
+	改造後 : YaneuraOu-2018-OtafukuV480sf9_v2e.exe
+
+	T1,b1000,488 - 39 - 473(50.78% R5.42) win black : white = 49.84% : 50.16%
+	T1,b2000,487 - 41 - 472(50.78% R5.43) win black : white = 50.78% : 49.22%
+	T1,b4000,483 - 54 - 463(51.06% R7.35) win black : white = 52.85% : 47.15%
+
+	// 少し負けているが、計測できるほどの差ではなさそうだ。
+	// 後者のほうがコードがシンプルだし、調整するパラメーターが1つ減っているし、
+	// また、新しいStockfishに倣うべきだと思うので後者を採用する。
 
 
 ■　23.moves_loopに入る前に毎回evaluate()を呼ぶかどうか。
@@ -135,7 +229,7 @@
 		// R20ぐらい悪化した。
 
 
-■　19.	浅い深さでの枝刈りについて
+■　19.	浅い深さでの枝刈りについて Stockfish 8のコードとの比較
 
 	// 改造前(古いStockfishのコード)
 				// 浅い深さでの、危険な指し手を枝刈りする。

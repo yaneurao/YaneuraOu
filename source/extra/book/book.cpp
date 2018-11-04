@@ -39,8 +39,8 @@ namespace Book
 	// USI拡張コマンド "makebook"(定跡作成)
 	// ----------------------------------
 
-	// 局面を与えて、その局面で思考させるために、やねうら王2017Earlyが必要。
-#if defined(EVAL_LEARN) && (defined(YANEURAOU_2017_EARLY_ENGINE) || defined(YANEURAOU_2017_GOKU_ENGINE))
+	// 局面を与えて、その局面で思考させるために、やねうら王2018が必要。
+#if defined(EVAL_LEARN) && (defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE))
 
 	struct MultiThinkBook : public MultiThink
 	{
@@ -144,10 +144,10 @@ namespace Book
 		// 定跡の変換
 		bool convert_from_apery = token == "convert_from_apery";
 
-#if !(defined(EVAL_LEARN) && (defined(YANEURAOU_2017_EARLY_ENGINE) || defined(YANEURAOU_2017_GOKU_ENGINE)))
+#if !(defined(EVAL_LEARN) && (defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE)))
 		if (from_thinking)
 		{
-			cout << "Error!:define EVAL_LEARN and YANEURAOU_2017_EARLY_ENGINE/YANEURAOU_2017_GOKU_ENGINE " << endl;
+			cout << "Error!:define EVAL_LEARN and YANEURAOU_2018_OTAFUKU_ENGINE/YANEURAOU_2018_GOKU_ENGINE " << endl;
 			return;
 		}
 #endif
@@ -447,7 +447,7 @@ namespace Book
 			}
 			cout << "done." << endl;
 
-#if defined(EVAL_LEARN) && (defined(YANEURAOU_2017_EARLY_ENGINE) || defined(YANEURAOU_2017_GOKU_ENGINE))
+#if defined(EVAL_LEARN) && (defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE))
 
 			if (from_thinking)
 			{
@@ -685,7 +685,7 @@ namespace Book
 	}
 
 	static std::unique_ptr<AperyBook> apery_book;
-	static const constexpr char* kAperyBookName = "book/book.bin";
+	static const constexpr char* kAperyBookName = "book.bin";
 
 	// 定跡ファイルの読み込み(book.db)など。
 	int MemoryBook::read_book(const std::string& filename, bool on_the_fly_)
@@ -705,18 +705,22 @@ namespace Book
 		book_body.clear();
 		this->on_the_fly = false;
 
+		// フォルダ名を取り去ったものが"no_book"(定跡なし)もしくは"book.bin"(Aperyの定跡ファイル)であるかを判定する。
+		auto pure_filename = Path::GetFileName(filename);
+
 		// 読み込み済み、もしくは定跡を用いない(no_book)であるなら正常終了。
-		if (filename == "book/no_book")
+		if (pure_filename == "no_book")
 		{
 			book_name = filename;
+			pure_book_name = pure_filename;
 			return 0;
 		}
 
-		if (filename == kAperyBookName) {
+		if (pure_filename == kAperyBookName) {
 			// Apery定跡データベースを読み込む
 			//	apery_book = std::make_unique<AperyBook>(kAperyBookName);
 			// これ、C++14の機能。C++11用に以下のように書き直す。
-			apery_book = std::unique_ptr<AperyBook>(new AperyBook(kAperyBookName));
+			apery_book = std::unique_ptr<AperyBook>(new AperyBook(filename));
 		}
 		else {
 			// やねうら王定跡データベースを読み込む
@@ -820,6 +824,7 @@ namespace Book
 
 		// 読み込んだファイル名を保存しておく。二度目のread_book()はskipする。
 		book_name = filename;
+		pure_book_name = pure_filename;
 
 		return 0;
 	}
@@ -924,10 +929,10 @@ namespace Book
 	PosMoveListPtr MemoryBook::find(const Position& pos)
 	{
 		// "no_book"は定跡なしという意味なので定跡の指し手が見つからなかったことにする。
-		if (book_name == "no_book")
+		if (pure_book_name == "no_book")
 			return PosMoveListPtr();
 
-		if (book_name == kAperyBookName) {
+		if (pure_book_name == kAperyBookName) {
 
 			PosMoveListPtr pml_entry(new PosMoveList());
 
@@ -1254,6 +1259,8 @@ namespace Book
 
 		o["BookFile"] << Option(book_list, book_list[1], [&](const Option& o){ this->book_name = string(o); });
 		book_name = book_list[1];
+
+		o["BookDir"] << Option("book");
 
 		//  BookEvalDiff: 定跡の指し手で1番目の候補の指し手と、2番目以降の候補の指し手との評価値の差が、
 		//    この範囲内であれば採用する。(1番目の候補の指し手しか選ばれて欲しくないときは0を指定する)

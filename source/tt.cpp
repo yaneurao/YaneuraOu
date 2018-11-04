@@ -11,7 +11,20 @@ size_t TranspositionTable::max_thread;
 // 置換表のサイズを確保しなおす。
 void TranspositionTable::resize(size_t mbSize) {
 
-	size_t newClusterCount = size_t(1) << MSB64((mbSize * 1024 * 1024) / sizeof(Cluster));
+#if defined(MATE_ENGINE)
+	// MateEngineではこの置換表は用いないので確保しない。
+	return;
+#endif
+
+	// mbSizeの単位は[MB]なので、ここでは1MBの倍数単位のメモリが確保されるが、
+	// 仕様上は、1MBの倍数である必要はない。
+	size_t newClusterCount = mbSize * 1024 * 1024 / sizeof(Cluster);
+
+	// clusterCountは偶数でなければならない。
+	// この理由については、TTEntry::first_entry()のコメントを見よ。
+	// しかし、1024 * 1024 / sizeof(Cluster)の部分、sizeof(Cluster)==64なので、
+	// これを掛け算するから2の倍数である。
+	ASSERT_LV3((newClusterCount & 1) == 0);
 
 	// 同じサイズなら確保しなおす必要はない。
 	if (newClusterCount == clusterCount)
@@ -22,7 +35,10 @@ void TranspositionTable::resize(size_t mbSize) {
 	free(mem);
 
 	// tableはCacheLineSizeでalignされたメモリに配置したいので、CacheLineSize-1だけ余分に確保する。
-	mem = calloc(clusterCount * sizeof(Cluster) + CacheLineSize - 1, 1);
+	// callocではなくmallocにしないと初回の探索でTTにアクセスするとき、特に巨大なTTだと
+	// 極めて遅くなるので、mallocで確保して、ゼロクリアすることでこれを回避する。
+	// cf. Explicitly zero TT upon resize. : https://github.com/official-stockfish/Stockfish/commit/2ba47416cbdd5db2c7c79257072cd8675b61721f
+	mem = malloc(clusterCount * sizeof(Cluster) + CacheLineSize - 1);
 
 	if (!mem)
 	{
@@ -79,7 +95,18 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found
 		//   (各スレッドが使えるのは、( 0～(block-1) ) + (thread_id * block)のTTEntryなので、これはまずい。
 
 		size_t block = (clusterCount / max_thread) & ~1;
-		size_t index = (((size_t)key % block) & ~1 ) | ((size_t)key & 1);
+
+		// Stockfish公式で置換表サイズ128GB超えに対応するまでデフォルトで無効にしておく。
+#if defined (IS_64BIT) && defined(USE_SSE2) && defined(USE_HUGE_HASH)
+		uint64_t highProduct;
+		_umul128(key + (key << 32), block, &highProduct);
+		size_t index = (highProduct & ~1) | (key & 1);
+#else
+		size_t index = (((uint32_t(key >> 1) * uint64_t(block)) >> 32) & ~1) | (key & 1);
+		// uint32_t(key)*block / 2^32 は、0～(block-1)の値。
+		// keyのbit0は、先後フラグなのでindexのbit0に反映されなければならない。
+#endif
+
 		tte = &table[index + thread_id * block].entry[0];
 
 	}	else {

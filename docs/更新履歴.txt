@@ -2,6 +2,349 @@
 やねうら王 更新履歴
 
 
+■　2018/10/04
+
+
+- BookDirを変更したときに、Aperyの定跡ファイル(book.bin)が読み込めなくなるのを修正。(ohtaroさんの報告) (修正内容の指摘、tttakさん)
+	cf. https://github.com/yaneurao/MyShogi/issues/57
+- フォルダ名を変更したときに、定跡を使わない場合にも"no_book"というファイルを読みに行っていたのを修正。
+- misc.hにPathクラス追加。
+	- C#のメソッド名に合わせる。
+	- path_combine → Combineにrename
+	- GetFileName()追加
+
+
+■　2018/09/24
+
+
+- MSYS2上でNNUE型の評価関数の実行ファイルがビルドできない件を解説.txtに追記
+
+
+- LineScanner、少しリファクタリング。(挙動はほぼ変わらず)
+
+
+- engine_options.txtの読み込み時にbuffer overrunすることがあったの修正。
+	- LineScannerのEof()判定、間違っていた。
+
+
+■　2018/09/23
+
+
+- SkillLevel実装。(Stockfishの"Skill Level"を忠実に移植。)
+
+
+■　2018/09/15
+
+
+- tanuki-詰将棋エンジン
+	- ソースコードにコメント大量追加
+	- intになっているところ、桁が足りない恐れがあるところはuint32_tに変更。
+	- uint16_tで済むところはuint16_tに変更。
+	- info hash..の出力、もう少し細かくやるように変更。
+	- TTの世代カウンター復活。16bitにする。
+	- あとは、sub-treeの大きさの評価をきちんとすべき。(現状、num_searchedがsub-treeの大きさを反映していない)
+	- できればGC実装すべきだと思う。
+
+
+■　2018/09/10
+
+
+- tanuki-詰将棋エンジン , 詰探索中の出力を変更した (#91)   (tanuki-さんのプルリク)
+* clang++によるコンパイル警告を抑制した
+* 詰探索中の進捗状況の出力を変更した
+
+
+■　2018/09/08
+
+
+- tanuki-詰将棋エンジン , clang++によるコンパイル警告を抑制した #90  (tanuki-さんのプルリク)
+
+
+■　2018/09/07
+
+
+- tanuki-詰将棋エンジン , 置換表エントリの世代を削除し、置換表エントリのハッシュの最下位ビットに探索開始局面の手番を入れるようにした #89 (tanuki-さんのプルリク)
+  - この修正により、一度解いた局面を解かせるときには一瞬で応答が返ってくるようになった。
+
+
+■　2018/09/06
+
+
+- V4.83にバージョンナンバーを上げる。
+
+
+-  詰将棋ルーチンで受け側の局面から探索させたあとに攻め側の局面から探索させると不詰と出力されるバグを修正した #88 (tanuki-さんのプルリク)
+
+
+-  詰将棋エンジンハッシュエントリをつぶすとき、探索ノード数を考慮するようにした (#87)  (tanuki-さんのプルリク)
+
+
+■　2018/08/22
+
+
+- 詰将棋エンジン、Hashが二重に確保されているのを修正。part2
+
+
+
+■　2018/08/14
+
+
+- 詰将棋エンジン、Hashが二重に確保されているのを修正。
+  - Hashに16MBを指定したときに4096MB確保されるの修正。
+
+
+■　2018/08/12
+
+
+-  詰将棋エンジン コンパイル時のwarningを消した (#86) (tanuki-さんのプルリク)
+
+
+- 詰み手順を復元する探索ルーチンの中で受け手側の手番かつ王手がかかっている状況で1手詰みルーチンを呼び出すバグを修正した #85(tanuki-さんのプルリク)
+	詰手順を復元する探索ルーチンの中で
+	受け手側の手番かつ王手がかかっている状況で
+	1手詰みルーチンを呼び出しているバグを修正しました。
+	これにより金子清志氏の全応手逆王手最長１５手で
+	合法な詰手順が出力されるようになりました。
+	http://www.ne.jp/asahi/tetsu/toybox/challenge/c1090.htm
+	ただし、最短の詰手順ではありません。
+
+
+- 逆王手がかかっている局面でも詰みを探索するようにした #84  (tanuki-さんのプルリク)
+	逆王手がかかっている局面でnotimplementedを返さないようにするオプション、
+	ReturnNotImplementedIfCheckedを追加いたしました。
+	デフォルトはtrueで、falseにすると逆王手がかかっている局面でも探索を行います。
+
+
+- 詰将棋エンジンで制限時間をチェックするようにした #83 (tanuki-さんのプルリク)
+
+	詰将棋エンジンで制限時間をチェックするようにいたしました。
+	GUIからエンジンへ制限時間を設定した上で詰将棋エンジンを解かせる場合は、
+	USIプロトコル通り
+
+	go checkmate 60000
+
+	などと指定してください。
+	制限時間を越えた場合、USIプロトロルにある通り、エンジンからは
+
+	checkmate timeout
+
+	が返ってくるようになっています。
+
+
+
+■　2018/08/05
+
+
+- Buildfiles #82 (Mizarさんのプルリク)
+	* build batches update
+
+	- YANEURAOU_2018_OTAFUKU の評価関数タイプをMakefileから選択できるように
+	- NNUEやMATEエンジンでcleanしきれないゴミが残ってビルド失敗していた部分の対策
+	- USE_BLAS: tanuki-2018エンジンのevallearnビルドにてBLAS有効化
+
+
+- LineScannerでpeek_text()したときに文字列終端まで行くと、まだその文字列をget_text()していないのにIsEof()がtrueを返すの修正。
+
+
+■　2018/08/04
+
+
+-  詰将棋エンジンに、より長い詰み手順を返すMorePreciseMatePvオプションを追加した (#81)　tanuki-さんのプルリク
+
+
+■　2018/08/01
+
+
+- スレッドstack、100MBに設定してコンパイルしてあるのを25MBに変更。
+  - 協力詰めで手数が5万手ぐらいになるので大きめである100MBに設定したが、スレッドあたり100MBも消費するので32bit環境ではメモリ割り当て的に厳しい。
+  (4スレッドであれば待機スレッド含めて5スレッドあり、スタック用だけで500MB消費する。)
+  - Windows10だとメモリを確保しても、実際にそのメモリにアクセスするまで実メモリに割当てするのは遅延されるが、
+    Windows7ではそうでもないので馬鹿正直に500MB消費する。つまりは、この理由からWindows7×32bit環境でわりと苦労することになる。
+- 32bit環境でUSE_SHARED_MEMORY_IN_EVALを有効にする。
+
+
+■　2018/07/29
+
+
+- "engine_options.txt"で、optionとしてそのエンジンが持っていないものを指定すると先頭のoptionが破壊されるの修正。
+
+
+■　2018/07/28
+
+
+- usi.cpp clangでコンパイルしたときに警告が出ていたの修正。
+- 解説.txt にMSYS2環境でのNNUE評価関数のビルド方法追加。
+
+
+■　2018/07/27
+
+
+- 起動時に、"engine_option.txt"を読み込み、Optionsに反映するように。
+	- エンジンオプションのデフォルト値の変更について、解説.txtに追記
+ 
+
+- "BookDir" option追加。
+
+
+■　2018/05/27
+
+
+- Move omp_set_num_threads() call to worker threads (#80) (ynasu87さん)
+	- NNUEで学習のときにスレッドの分散が適切に出来ないことがある問題の修正。
+
+
+■　2018/05/24
+
+
+- * 連続王手の千日手のチェックを追加した
+  * 対局規定第8条第7項に従って修正した
+  * ソースコードのフォーマットを修正した
+	cf. https://github.com/yaneurao/YaneuraOu/pull/79
+	(tanuki-さん)
+
+
+- Mateエンジンで、探索が開始しないバグを修正した(tanuki-さん)
+
+
+■　2018/05/20
+
+- 祝！Android公式サポート (#76) (Mizarさん)
+- Support NEON for NNUE evaluation functions (#77) (ynasu87さん)
+	- NEON向けNNUE最適化。
+
+
+■　2018/05/17
+
+- StateInfo::capturedPcの説明が間違っていたの修正。
+
+
+■　2018/05/15
+
+- Add NNUE evaluation functions (#75) (ynasu87さん)
+	- この新時代の幕開けとも言える新型の評価関数をマージできることに心に喜悦を禁じえない。
+
+
+■　2018/05/07
+
+- MATE_ENGINEでgo mateに対してcheckmateで応答する。(kazu-nanohaさん)
+
+
+
+■　2018/05/03
+
+- 128GB超えの置換表を扱うのはデフォルトでは無効にする。
+	- config.hでUSE_HUGE_HASHをdefineしたときのみ有効に。
+
+
+■　2018/05/02
+
+- 置換表サイズの2^Nという制約を取り除く。(ただし、2MB単位で確保する)
+	- Allow for general transposition table sizes. (#1341) : https://github.com/official-stockfish/Stockfish/commit/2198cd0524574f0d9df8c0ec9aaf14ad8c94402b
+	- わずかに遅くなるがそれは棋力にはほぼ影響はないはず…。
+	- 16GBメモリの環境でHashの値として以前は14000(≒14GB)などと指定しても以前は8192(8GB)までしか使われなかったのが
+		今回の変更により14000ぴったりまで使われるようになったので、以前より置換表をめいいっぱい確保でき、このおかげで
+		探索効率が改善して強くなるという効果は期待できる。(長い持ち時間で置換表を使い尽くしているような状況ならば)
+
+	例) Hashとして3を指定して1秒対局。以前のバージョンでは置換表は2MBの確保になり、本バージョンでは、3MBの確保となる。)
+
+			// TTEntry*を求めるところ
+			return &table[(((uint32_t(key) * uint64_t(clusterCount)) >> 32) & ~1) | (key & 1)].entry[0];
+
+	engine1 = YaneuraOu-2018-OtafukuV482.exe , eval = Apery20171111
+	engine2 = YaneuraOu-2018-OtafukuV482a.exe , eval = Apery20171111
+	T1,b1000,618 - 51 - 941(39.64% R-73.04) win black : white = 51.57% : 48.43%
+
+			// これだとkeyのbit0が(uint32_t(key))に含まれているので、以下のように改良した
+			return &table[(((uint32_t(key >> 1) * uint64_t(clusterCount)) >> 32) & ~1) | (key & 1)].entry[0];
+
+	engine1 = YaneuraOu-2018-OtafukuV482.exe , eval = Apery20171111
+	engine2 = YaneuraOu-2018-OtafukuV482b.exe , eval = Apery20171111
+	T1,b1000,289 - 21 - 510(36.17% R-98.67) win black : white = 50.44% : 49.56%
+
+- 置換表の128GB制限を解除する
+	- 128 GB TT size limitation : https://github.com/official-stockfish/Stockfish/issues/1349
+		- このスレッドに書かれている修正案、いくつかの点においてよろしくない。
+			- cf. 置換表の128GB制限を取っ払う冴えない方法 : http://yaneuraou.yaneu.com/2018/05/03/%E7%BD%AE%E6%8F%9B%E8%A1%A8%E3%81%AE128gb%E5%88%B6%E9%99%90%E3%82%92%E5%8F%96%E3%81%A3%E6%89%95%E3%81%86%E5%86%B4%E3%81%88%E3%81%AA%E3%81%84%E6%96%B9%E6%B3%95/
+	- singular extension時のhash keyを求めるコード、改良。
+
+
+
+■　2018/05/01
+
+- _blsr_u64()をgccでインライン展開するには-mbmiが必要(-mbmi2ではやってくれない)
+	kazu-nanohaさんからのプルリクエスト
+
+■　2018/04/30 V4.82
+
+- ProbCutのパラメーター導入
+	- PARAM_PROBCUT_MARGIN1 , PARAM_PROBCUT_MARGIN2
+- ProbCutのマージン、手で調整する。
+	PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 194 + 16/2;
+	PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 48/2;
+- NUMA環境のマルチスレッド対策。
+	- 8スレッド未満だと異なるNUMAに割り振られることがあり、パフォーマンス激減するのでその回避策。
+	- Upon changing the number of threads, make sure all threads are bound : https://github.com/official-stockfish/Stockfish/commit/1c50d8cbf554733c0db6ab423b413d75cc0c1928
+- gccだとconstexprをつけたところでエラーになっていたのを修正。
+- V4.82リリース
+	engine1 = YaneuraOu-2018-OtafukuV480.exe , eval = Apery20171111
+	engine2 = YaneuraOu-2018-OtafukuV482.exe , eval = Apery20171111
+	T1,b1000,435 - 25 - 540(44.62% R-37.56) win black : white = 49.33% : 50.67%
+	T1,b2000,440 - 31 - 499(46.86% R-21.86) win black : white = 54.42% : 45.58%
+	T1,b4000,209 - 19 - 232(47.39% R-18.14) win black : white = 51.93% : 48.07%
+	T1,b8000,86 - 12 - 112(43.43% R-45.89) win black : white = 46.97% : 53.03%
+	T2,b2000,93 - 11 - 126(42.47% R-52.76) win black : white = 55.71% : 44.29%
+	// 時間なくてこれだけしか計測できていないが、V4.80と比べて弱くはなさそうなのでこれをV4.82とする。
+
+
+■　2018/04/29
+
+- futility_marginの計算にimproving導入。
+- futility_marginのパラメーターの値、変更。143→172
+- ProbCutにimproving導入
+- ProbCutの指し手の試行回数を3回に制限
+- Singular Extensionのコード、少し整理
+- IIDの条件式単純化
+	- Simplifiy IID condition : https://github.com/official-stockfish/Stockfish/commit/d6252ef202f43d42d05b80145f3014da4d22863e
+- "PARAM_IID_MARGIN_ALPHA"削除
+- Singular Extensionのフラグ変数削除
+	- Simplify Singular Extension condition : https://github.com/official-stockfish/Stockfish/commit/0cfb653eeca1bc44b9d331498a9ccb3e9b97a9c1
+- 置換表をcallocではなくmallocで確保するように変更。
+	- Explicitly zero TT upon resize. : https://github.com/official-stockfish/Stockfish/commit/2ba47416cbdd5db2c7c79257072cd8675b61721f
+- shogi.hなどの定数、可能なところはconstexprに変更。0.2%ぐらい速くなったかも。(計測誤差？)
+	- Use constexpr when makes sense : https://github.com/official-stockfish/Stockfish/commit/28b6a457c24d9202ba43a6d6703221250f0f8749
+
+
+■　2018/04/28 V4.81 (V4.80から+R15～25程度)
+
+- stat_bonus 32倍するの忘れてた。これで元の強さぐらいになった。
+- 探索部に、Eloに関するコメント追加。(これはStockfish 9のソースコードのそのまま)
+- IIDでttValue代入していなかったの修正。IIDのparameter 256→128に変更。
+- fail lowのときにstatScoreをゼロにするように変更。
+- RazorMarginのパラメータ、Stockfish 9に合せた。
+
+
+■　2018/04/27
+
+- Stockfish 9にキャッチアップのために準備
+ - 旧エンジン(探索部とmove_picker)をsource/old_enginesにコピー。
+
+- C++14でstd::tr2を使用するとwaring C4996が出るので抑制。
+
+- Visual Studio用の2017GOKUのソリューションを削除
+- 使用するWindows SDKのバージョンを10.0.16299.0に変更。
+
+- move_pickerをStockfish 9に準拠。R100ぐらい弱くなった。原因究明中。
+- search()、変数を整理した。Stockfish 9に変数宣言をする場所を極力合わせた。
+
+
+■　2018/01/25
+
+- ONE_PLYが1以外の場合のinfo depth等を修正(tttakさん)
+
+- やねうら王2018になって、makebookコマンドが有効になっていなかったの修正。
+- Makefile、gccがデフォルトになっていたのclangに修正。
+
+
 ■　2018/01/12 V4.80
 
 - 探索部の改良のために比較実験したときの計測資料公開
@@ -45,7 +388,7 @@
 - gensfen2018コマンド追加準備。(現状、非公開)
 
 
-■　2017/11/17 
+■　2017/11/17
 
 - evaluate_kpptの高速化(yuk-toさん) : https://github.com/yaneurao/YaneuraOu/pull/69
 - EVAL_MATERIALのときのcompute_eval()やコメントがおかしかったの修正。(tanuki-さん)
@@ -94,7 +437,7 @@
 	- cf. https://github.com/yaneurao/YaneuraOu/pull/67
 - gensfenコマンドで生成されるファイルの分割保存のためのsave_everyオプション追加。
 	- AWSのspot instanceのterminate対策。
-	
+
 
 ■　2017/11/02
 

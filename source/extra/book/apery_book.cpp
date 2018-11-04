@@ -45,13 +45,13 @@ void AperyBook::init() {
     ZobTurn = mt64bit_.random();
 }
 
-AperyBook::AperyBook(const char* fName) {
+AperyBook::AperyBook(const std::string& filename) {
     init();
 
-    std::ifstream file(fName, std::ifstream::in | std::ifstream::binary);
+    std::ifstream file(filename, std::ifstream::in | std::ifstream::binary);
 
     if (!file.is_open())
-        sync_cout << "info string could not open an apery book file. " << fName << sync_endl;
+        sync_cout << "info string could not open an apery book file. " << filename << sync_endl;
 
     AperyBookEntry entry;
     while (file.read(reinterpret_cast<char*>(&entry), sizeof(entry))) {

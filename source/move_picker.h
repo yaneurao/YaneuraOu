@@ -7,99 +7,128 @@
 //		history
 // -----------------------
 
-// StatBoardsは汎用的な2次元配列であり、様々な統計情報を格納するために用いる。
-template<int Size1, int Size2, typename T = s16>
-struct StatBoards : public std::array<std::array<T, Size2>, Size1> {
+/// StatsEntryはstat tableの値を格納する。これは、大抵数値であるが、指し手やnestされたhistoryでさえありうる。
+/// 多次元配列であるかのように呼び出し側でstats tablesを用いるために、
+/// 生の値を用いる代わりに、history updateを行なうentry上でoperator<<()を呼び出す。
 
-	// ある値でこの2次元配列を丸ごと埋める。
-	void fill(const T& v) {
-		T* p = &(*this)[0][0];
-		std::fill(p, p + sizeof(*this) / sizeof(*p), v);
-	}
+// T : このEntryの実体
+// D : abs(entry) <= Dとなるように制限される。
+template<typename T, int D>
+class StatsEntry {
 
-	// bonus値に基づくupdate
-	// Dはbonusの絶対値の上限。
-	void update(T& entry, int bonus, const int D) {
+	// Tが整数型(16bitであろうと)ならIsIntはtrueになる。
+	// IsIntがtrueであるとき、operator ()の返し値はint型としたいのでそのためのもの。
+	static const bool IsInt = std::is_integral<T>::value;
+	typedef typename std::conditional<IsInt, int, T>::type TT;
 
-		// bonusの絶対値をD以内に保つことで、このentryの値の範囲を[-32 * D , 32 * D]に保つ。
-		ASSERT_LV3(abs(bonus) <= D);
+	T entry;
 
-		// オーバーフローしていないことを保証する。
-		ASSERT_LV3(abs(32 * D) < INT16_MAX);
+public:
+	T * get() { return &entry; }
+	void operator=(const T& v) { entry = v; }
+	operator TT() const { return entry; }
 
-		entry += bonus * 32 - entry * abs(bonus) / D;
+	// このStatsEntry(Statsの1要素)に対して"<<"演算子でbonus値の加算が出来るようにしておく。
+	// 値が範囲外にならないように制限してある。
+	void operator<<(int bonus) {
+		ASSERT_LV3(abs(bonus) <= D);                   // 値の範囲が[-D, D]であることを保証する。
+		ASSERT_LV3(D < std::numeric_limits<T>::max()); // オーバーフローしないことを保証する。
+		
+		entry += bonus - entry * abs(bonus) / D;
 
-		ASSERT_LV3(abs(entry) <= 32 * D);
+		ASSERT_LV3(abs(entry) <= D);
 	}
 };
 
-// ButterflyBoardsは、2つのテーブル(1つの手番ごとに1つ)があり、「指し手の移動元と移動先」によってindexされる。
-// cf. http://chessprogramming.wikispaces.com/Butterfly+Boards
-// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-// 簡単に言うと、fromの駒をtoに移動させることに対するhistory。
-// やねうら王では、ここで用いられるfromは、駒打ちのときに特殊な値になっていて、盤上のfromとは区別される。
-// そのため、(SQ_NB + 7)まで移動元がある。
-typedef StatBoards<int(SQ_NB + 7) * int(SQ_NB), COLOR_NB> ButterflyBoards;
+/// Statsは、様々な統計情報を格納するために用いられる汎用的なN-次元配列である。
+/// 1つ目のtemplate parameterであるTは、配列の基本的な型を示し、2つ目の
+/// template parameterであるDは、<< operatorで値を更新するときに、値を[-D,D]の範囲に
+/// 制限する。最後のparameter(SizeとSizes)は、配列の次元に用いられる。
+template <typename T, int D, int Size, int... Sizes>
+struct Stats : public std::array<Stats<T, D, Sizes...>, Size>
+{
+	T* get() { return this->at(0).get(); }
 
-/// PieceToBoardsは、指し手の[to][piece]の情報によってaddressされる。
-// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-// 2つ目の添字のほう、USE_DROPBIT_IN_STATSを考慮したほうがいいのだが、
-// 以前計測したときには効果がなかったのでそのコードは削除した。
-typedef StatBoards<SQ_NB, PIECE_NB> PieceToBoards;
+	void fill(const T& v) {
+		T* p = get();
+		std::fill(p, p + sizeof(*this) / sizeof(*p), v);
+	}
+};
+
+template <typename T, int D, int Size>
+struct Stats<T, D, Size> : public std::array<StatsEntry<T, D>, Size> {
+	T* get() { return this->at(0).get(); }
+};
+
+// stats tableにおいて、Dを0にした場合、このtemplate parameterは用いないという意味。
+enum StatsParams { NOT_USED = 0 };
 
 // ButterflyHistoryは、 現在の探索中にquietな指し手がどれくらい成功/失敗したかを記録し、
 // reductionと指し手オーダリングの決定のために用いられる。
-// ButterflyBoardsをこの情報の格納のために用いる。
-struct ButterflyHistory : public ButterflyBoards {
+// cf. http://chessprogramming.wikispaces.com/Butterfly+Boards
+// 簡単に言うと、fromの駒をtoに移動させることに対するhistory。
+// やねうら王では、ここで用いられるfromは、駒打ちのときに特殊な値になっていて、盤上のfromとは区別される。
+// そのため、(SQ_NB + 7)まで移動元がある。
+// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+typedef Stats<int16_t, 10368, int(SQ_NB + 7) * int(SQ_NB) , COLOR_NB> ButterflyHistory;
 
-	void update(Color c, Move m, int bonus) {
-		StatBoards::update((*this)[from_to(m)][c], bonus, 324);
-	}
-};
+/// CounterMoveHistoryは、直前の指し手の[to][piece]によってindexされるcounter moves(応手)を格納する。
+/// cf. http://chessprogramming.wikispaces.com/Countermove+Heuristic
+// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+typedef Stats<Move, NOT_USED, SQ_NB , PIECE_NB> CounterMoveHistory;
 
-/// PieceToHistoryは、ButterflyHistoryに似ているが、PieceToBoardsに基づく。
-struct PieceToHistory : public PieceToBoards {
+/// CapturePieceToHistoryは、指し手の[to][piece][captured piece type]で示される。
+// ※　Stockfishとは、添字の順番を変更してあるので注意。
+//    Stockfishでは、[piece][to][captured piece type]の順。
+typedef Stats<int16_t, 10368, SQ_NB, PIECE_NB , PIECE_TYPE_NB> CapturePieceToHistory;
 
-	void update(Piece pc, Square to, int bonus) {
-		StatBoards::update((*this)[to][pc], bonus, 936);
-	}
-};
+/// PieceToHistoryは、ButterflyHistoryに似たものだが、指し手の[to][piece]で示される。
+// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+typedef Stats<int16_t, 29952, SQ_NB , PIECE_NB> PieceToHistory;
 
-// CounterMoveStatは、直前の指し手の[to][piece]でindexされるcounter moves(応手)である。
-// cf. http://chessprogramming.wikispaces.com/Countermove+Heuristic
-// ※　Stockfishとは、1,2番目の添字を入れ替えてあるので注意。
-typedef StatBoards<SQ_NB, PIECE_NB, Move> CounterMoveStat;
+/// ContinuationHistoryは、与えられた2つの指し手のhistoryを組み合わせたもので、
+// 普通、1手前によって与えられる現在の指し手(によるcombined history)
+// このnested history tableは、ButterflyBoardsの代わりに、PieceToHistoryをベースとしている。
+// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+typedef Stats<PieceToHistory, NOT_USED, SQ_NB , PIECE_NB> ContinuationHistory;
 
-// CounterMoveHistoryStatは、CounterMoveStatに似ているが、指し手の代わりに、
-// full history(ButterflyBoardsの代わりに用いられるPieceTo boards)を格納する。
-// ※　Stockfishとは、1,2番目の添字を入れ替えてあるので注意。
-typedef StatBoards<SQ_NB, PIECE_NB, PieceToHistory> ContinuationHistory;
-
-enum Stages : int;
-namespace Search { struct Stack; }
 
 // -----------------------
 //   MovePicker
 // -----------------------
 
 // 指し手オーダリング器
+//
+// MovePickerクラスは、現在の局面から、(呼び出し)一回につきpseudo legalな指し手を一つ取り出すのに用いる。
+// 最も重要なメソッドはnext_move()であり、これは、新しいpseudo legalな指し手を呼ばれるごとに返し、
+// (返すべき)指し手が無くなった場合には、MOVE_NONEを返す。
+// alpha beta探索の効率を改善するために、MovePickerは最初に(早い段階のnext_move()で)カットオフ(beta cut)が
+// 最も出来そうな指し手を返そうとする。
+//
 struct MovePicker
 {
+	// 生成順に次の1手を取得するのか、オーダリング上、ベストな指し手を取得するのかの定数
+	// (このクラスの内部で用いる。)
+	enum PickType { Next, Best };
+
 	// このクラスは指し手生成バッファが大きいので、コピーして使うような使い方は禁止。
 	MovePicker(const MovePicker&) = delete;
 	MovePicker& operator=(const MovePicker&) = delete;
 
 	// 通常探索(search)のProbCutの処理から呼び出されるの専用。
 	// threshold_ = 直前に取られた駒の価値。これ以下の捕獲の指し手は生成しない。
-	MovePicker(const Position& pos_, Move ttMove_, Value threshold_);
+	MovePicker(const Position& pos_, Move ttMove_, Value threshold_ ,
+		const CapturePieceToHistory* cph);
 
 	// 静止探索(qsearch)から呼び出される時用。
 	// recapSq = 直前に動かした駒の行き先の升(取り返される升)
-	MovePicker(const Position& pos_, Move ttMove_, Depth depth_, const ButterflyHistory*, Square recapSq);
+	MovePicker(const Position& pos_, Move ttMove_, Depth depth_, const ButterflyHistory* mh ,
+		const CapturePieceToHistory* cph , Square recapSq);
 
 	// 通常探索(search)から呼び出されるとき用。
 	// cm = counter move , killers_p = killerの指し手へのポインタ
-	MovePicker(const Position& pos_, Move ttMove_, Depth depth_, const ButterflyHistory*, const PieceToHistory**, Move cm, Move* killers_p);
+	MovePicker(const Position& pos_, Move ttMove_, Depth depth_, const ButterflyHistory* mh,
+		const CapturePieceToHistory* cph , const PieceToHistory** ch, Move cm, Move* killers_p);
 
 
 	// 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。
@@ -108,6 +137,8 @@ struct MovePicker
 	Move next_move(bool skipQuiets = false);
 
 private:
+	template <PickType T, typename Pred> Move select(Pred);
+
 	// 指し手のオーダリング用
 	// GenType == CAPTURES : 捕獲する指し手のオーダリング
 	// GenType == QUIETS   : 捕獲しない指し手のオーダリング
@@ -122,22 +153,25 @@ private:
 
 	// コンストラクタで渡されたhistroyのポインタを保存しておく変数。
 	const ButterflyHistory* mainHistory;
+	const CapturePieceToHistory* captureHistory;
 	const PieceToHistory** contHistory;
 
-	// 置換表の指し手
+	// 置換表の指し手(コンストラクタで渡される)
 	Move ttMove;
 
-	// コンストラクタで渡された、前の局面の指し手に対する応手
-	Move countermove;
-
-	// これはオーダリングしないからExtMoveである必要はない。
-	Move killers[2];
-
-	// 次に返す指し手 , 生成された指し手の末尾 , BadCaptureの終端(これは、movesの先頭から再利用していく)
-	ExtMove *cur, *endMoves, *endBadCaptures;
+	// refutations[0] : killer[0]
+	// refutations[1] : killer[1]
+	// refutations[2] : counter move(コンストラクタで渡された、前の局面の指し手に対する応手)
+	// cur           : 次に返す指し手
+	// endMoves      : 生成された指し手の末尾
+	// endBadCapture : BadCaptureの終端(これは、movesの先頭から再利用していく)
+	ExtMove refutations[3] , *cur, *endMoves, *endBadCaptures;
 
 	// 指し手生成の段階
 	int stage;
+
+	// テンポラリ変数
+	Move move;
 
 	// RECAPUTREの指し手で移動させる先の升
 	Square recaptureSquare;
@@ -150,19 +184,6 @@ private:
 
 	// 指し手生成バッファ
 	ExtMove moves[MAX_MOVES];
-
-#if defined (MUST_CAPTURE_SHOGI_ENGINE)
-	// 合法な駒を捕獲する指し手が1手でもあるのか
-	bool mustCapture;
-
-	// ↑のフラグを更新する
-	void checkMustCapture();
-
-	// 本来のnext_move()を以下の関数に移動させて、
-	// next_move()はmustCaptureのチェックを行なう関数と差し替える。
-	Move next_move2();
-#endif
-
 };
 
 #endif // _MOVE_PICKER_H_

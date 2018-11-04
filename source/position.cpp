@@ -7,7 +7,7 @@
 #include "thread.h"
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || \
-	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA) || defined(EVAL_NNUE)
 #include "eval/evaluate_common.h"
 #endif
 
@@ -290,6 +290,9 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 	// --- StateInfoの更新
 
 	set_state(st);
+
+	// 現局面で王手がかかっているならst->continuous_check[them] = 1にしないと
+	// 連続王手の千日手の判定が不正確な気がするが、どのみち2回目の出現を負け扱いしているのでまあいいか..
 
 	// --- evaluate
 
@@ -1064,6 +1067,10 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_EXPERIMENTAL) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
 	st->sum.p[0][0] = VALUE_NOT_EVALUATED;
 #endif
+#if defined(EVAL_NNUE)
+	st->accumulator.computed_accumulation = false;
+	st->accumulator.computed_score = false;
+#endif
 
 	// 直前の指し手を保存するならばここで行なう。
 
@@ -1258,16 +1265,19 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #endif
 		}
 
+#if defined (USE_FV38)
+		// 移動元にあった駒のpiece_noを得る
+		PieceNumber piece_no2 = piece_no_of(from);
+		dp.pieceNo[0] = piece_no2;
+		dp.changed_piece[0].old_piece = evalList.bona_piece(piece_no2);
+#endif
+
 		// 移動元の升からの駒の除去
 		remove_piece(from);
 		// 移動先の升に駒を配置
 		put_piece(to, moved_after_pc);
 
 #if defined (USE_FV38)
-		// 移動元にあった駒のpiece_noを得る
-		PieceNumber piece_no2 = piece_no_of(from);
-		dp.pieceNo[0] = piece_no2;
-		dp.changed_piece[0].old_piece = evalList.bona_piece(piece_no2);
 		evalList.put_piece(piece_no2, to, moved_after_pc);
 		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no2);
 
@@ -1650,6 +1660,13 @@ void Position::do_null_move(StateInfo& newSt) {
 
 	// これは、さっきアクセスしたところのはずなので意味がない。
 	//  Eval::prefetch_evalhash(key);
+
+#if defined(EVAL_NNUE)
+#if defined(USE_EVAL_HASH)
+	Eval::prefetch_evalhash(key);
+#endif
+	st->accumulator.computed_score = false;
+#endif
 
 	st->pliesFromNull = 0;
 

@@ -13,12 +13,18 @@
 //
 
 // 深さに比例したfutility pruning
-// depth手先で評価値が変動する幅が = depth * PARAM_FUTILITY_MARGIN_DEPTH
-// 元の値 = 150
+// depth手先で評価値が変動する幅が = depth * (PARAM_FUTILITY_MARGIN_ALPHA1 - improving*PARAM_FUTILITY_MARGIN_ALPHA2)
+// 元の値 = 175
 // [PARAM] min:100,max:240,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA = 147;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 172;
+
+// 元の値 = 50
+// [PARAM] min:25,max:100,step:2,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 50;
+
 
 // 
+
 // 元の値 = 200
 // [PARAM] min:100,max:240,step:2,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 195;
@@ -87,7 +93,7 @@ PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 14;
 
 
 //
-// probcut
+// ProbCut
 //
 
 // probcutの前提depth
@@ -96,10 +102,15 @@ PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 14;
 PARAM_DEFINE PARAM_PROBCUT_DEPTH = 5;
 
 // probcutのmargin
-// 元の値 = 200
+//    式 = beta + PARAM_PROBCUT_MARGIN1 - improving * PARAM_PROBCUT_MARGIN2
+//   improvingの効果怪しいので抑え気味にしておく。
+// 元の値 = 216
 // [PARAM] min:100,max:300,step:3,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_MARGIN = 194;
+PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 194 + 16/2;
 
+// 元の値 = 48
+// [PARAM] min:20,max:80,step:2,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 48/2;
 
 //
 // singular extension
@@ -149,36 +160,22 @@ PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 4000;
 
 
 //
-// Internal iterative deeping
-// 
-
-// 置換表に指し手が登録されていないときに浅い探索をするときの深さに関する係数
-// 元の値 = 256
-// [PARAM] min:128,max:384,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_IID_MARGIN_ALPHA = 251;
-
-
-//
 // razoring pruning
 // 
 
 // この値は、未使用。razoringはdepth < ONE_PLYでは行わないため。
 // 元の値 = 0
 // [PARAM] min:0,max:0,step:1,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_RAZORING_MARGIN1 = 483;
+PARAM_DEFINE PARAM_RAZORING_MARGIN1 = 0;
 
 // 以下、変更しても計測できるほどの差ではないようなので元の値にしておく。
-// 元の値 = 570
+// 元の値 = 590
 // [PARAM] min:400,max:700,step:10,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_RAZORING_MARGIN2 = 570;
+PARAM_DEFINE PARAM_RAZORING_MARGIN2 = 590;
 
-// 元の値 = 603
+// 元の値 = 604
 // [PARAM] min:400,max:700,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_RAZORING_MARGIN3 = 603;
-
-// 元の値 = 554
-// [PARAM] min:400,max:700,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_RAZORING_MARGIN4 = 554;
+PARAM_DEFINE PARAM_RAZORING_MARGIN3 = 604;
 
 
 //

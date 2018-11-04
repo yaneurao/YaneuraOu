@@ -48,7 +48,7 @@ namespace Eval
 	{
 		// EvalIOを利用して評価関数ファイルを読み込む。
 		// また、eval_convert()に渡している引数のinputとoutputを入れ替えるとファイルに書き出すことが出来る。EvalIOマジ、っょぃ。
-		auto make_name = [&](std::string filename) { return path_combine((string)Options["EvalDir"], filename); };
+		auto make_name = [&](std::string filename) { return Path::Combine((string)Options["EvalDir"], filename); };
 		auto input = EvalIO::EvalInfo::build_kkppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN), make_name(KKPP_BIN) , size_of_kkpp);
 		auto output = EvalIO::EvalInfo::build_kkppt32((void*)kk, (void*)kkp, (void*)kpp, (void*)kkpp , size_of_kkpp);
 

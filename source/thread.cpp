@@ -32,14 +32,15 @@ void Thread::clear()
 {
 	counterMoves.fill(MOVE_NONE);
 	mainHistory.fill(0);
+	captureHistory.fill(0);
 
 	// ここは、未初期化のときに[SQ_ZERO][NO_PIECE]を指すので、ここを-1で初期化しておくことによって、
 	// history > 0 を条件にすれば自ずと未初期化のときは除外されるようになる。
-	for (auto& to : counterMoveHistory)
+	for (auto& to : contHistory)
 		for (auto& h : to)
-			h.fill(0);
+			h.get()->fill(0);
 
-	counterMoveHistory[SQ_ZERO][NO_PIECE].fill(Search::CounterMovePruneThreshold - 1);
+	contHistory[SQ_ZERO][NO_PIECE].get()->fill(Search::CounterMovePruneThreshold - 1);
 }
 
 void Thread::start_searching()
@@ -59,19 +60,24 @@ void Thread::wait_for_search_finished()
 // 探索するときのmaster,slave用のidle_loop。探索開始するまで待っている。
 void Thread::idle_loop() {
 
-	WinProcGroup::bindThisThread(idx);
+	// NUMA環境では、8スレッド未満だと異なるNUMAに割り振られることがあり、パフォーマンス激減するのでその回避策。
+	// ・8スレッド未満のときはOSに任せる
+	// ・8スレッド以上のときは、自前でbindThisThreadを行なう。
+	// cf. Upon changing the number of threads, make sure all threads are bound : https://github.com/official-stockfish/Stockfish/commit/1c50d8cbf554733c0db6ab423b413d75cc0c1928
 
-	while (!exit)
+	if (Options["Threads"] >= 8)
+		WinProcGroup::bindThisThread(idx);
+		// このifを有効にすると何故かNUMA環境のマルチスレッド時に弱くなることがある気がする。
+		// (長い時間対局させ続けると安定するようなのだが…)
+		// 上の投稿者と条件が何か違うのだろうか…。
+		// 前のバージョンのソフトが、こちらのNUMAの割当を阻害している可能性が微レ存。
+
+	while (true)
 	{
 		std::unique_lock<Mutex> lk(mutex);
-
 		searching = false;
-
-		while (!searching && !exit)
-		{
-			cv.notify_one(); // 他のスレッドがこのスレッドを待機待ちしてるならそれを起こす
-			cv.wait(lk);
-		}
+		cv.notify_one(); // 他のスレッドがこのスレッドを待機待ちしてるならそれを起こす
+		cv.wait(lk, [&] { return searching; });
 
 		if (exit)
 			return;
@@ -83,31 +89,38 @@ void Thread::idle_loop() {
 	}
 }
 
-// MainThreadを一つ生成して、そのあとrequestedで要求された分だけスレッドを生成する。(MainThreadも含めて数える)
-void ThreadPool::init(size_t requested)
-{
-	push_back(new MainThread(0));
-	set(requested);
-}
-
-void ThreadPool::exit()
-{
-	// 探索の終了を待つ
-	main()->wait_for_search_finished();
-	set(0);
-}
-
 // スレッド数を変更する。
 void ThreadPool::set(size_t requested)
 {
-	// スレッドが足りなければ生成
-	while (size() < requested)
-		push_back(new Thread(size()));
+	if (size() > 0) { // いったんすべてのスレッドを解体(NUMA対策)
+		main()->wait_for_search_finished();
 
-	// スレッドが余っていれば解体
-	while (size() > requested)
-		delete back(), pop_back();
+		while (size() > 0)
+			delete back(), pop_back();
+	}
+
+	if (requested > 0) { // 要求された数だけのスレッドを生成
+		push_back(new MainThread(0));
+
+		while (size() < requested)
+			push_back(new Thread(size()));
+		clear();
+	}
 }
+
+// ThreadPool::clear()は、threadPoolのデータを初期値に設定する。
+void ThreadPool::clear() {
+
+	for (Thread* th : *this)
+		th->clear();
+
+	main()->callsCnt = 0;
+	main()->previousScore = VALUE_INFINITE;
+
+	// Stockfish 9から導入されたが、やねうら王では未使用。
+	//main()->previousTimeReduction = 1.0;
+}
+
 
 void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 								const Search::LimitsType& limits , bool ponderMode)
