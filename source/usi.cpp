@@ -603,10 +603,7 @@ void is_ready(bool skipCorruptCheck)
 	// isreadyに対してはreadyokを返すまで次のコマンドが来ないことは約束されているので
 	// このタイミングで各種変数の初期化もしておく。
 
-	auto hash_size = Options["Hash"];
-	sync_cout << "info string Hash = " << hash_size << "[MB]" << sync_endl;
-
-	TT.resize(hash_size);
+	TT.resize(Options["Hash"]);
 	Search::clear();
 	Time.availableNodes = 0;
 

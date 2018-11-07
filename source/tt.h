@@ -180,7 +180,7 @@ struct TranspositionTable {
 	void resize(size_t mbSize);
 
 	// 置換表のエントリーの全クリア
-	void clear() { memset(table, 0, clusterCount * sizeof(Cluster)); }
+	void clear();
 
 	// 新しい探索ごとにこの関数を呼び出す。(generationを加算する。)
 	// USE_GLOBAL_OPTIONSが有効のときは、このタイミングで、Options["Threads"]の値を

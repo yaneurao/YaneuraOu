@@ -50,6 +50,30 @@ void TranspositionTable::resize(size_t mbSize) {
 	table = (Cluster*)((uintptr_t(mem) + CacheLineSize - 1) & ~(CacheLineSize - 1));
 }
 
+void TranspositionTable::clear()
+{
+	// Windows10では、このゼロクリアには非常に時間がかかる。
+	// malloc()時点ではメモリを実メモリに割り当てられておらず、
+	// 初回にアクセスするときにその割当てがなされるため。
+	// ゆえに、分割してゼロクリアして、一定時間ごとに進捗を出力する。
+
+	// memset(table, 0, clusterCount * sizeof(Cluster));
+
+	auto size = clusterCount * sizeof(Cluster);
+	auto step = (size_t)2 * 1024 * 1024 * 1024; // 2GB : 1秒でこれくらいはクリアできるはず。
+	auto output_progress = [size](size_t done_) {
+		sync_cout << "info string Hash Clear = " << done_ / (1024 * 1024) << "/" << size / (1024 * 1024) << "[MB]" << sync_endl;
+	};
+
+	for (size_t done = 0; done < size; done += step)
+	{
+		output_progress(done);
+
+		auto length = (done + step < size) ? step : (size - done);
+		memset((u8*)table + done , 0 , length );
+	}
+	output_progress(size);
+}
 
 TTEntry* TranspositionTable::probe(const Key key, bool& found
 #if defined(USE_GLOBAL_OPTIONS)
