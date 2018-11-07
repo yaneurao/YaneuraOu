@@ -52,6 +52,11 @@ void TranspositionTable::resize(size_t mbSize) {
 
 void TranspositionTable::clear()
 {
+#if defined(MATE_ENGINE)
+	// MateEngineではこの置換表は用いないのでクリアもしない。
+	return;
+#endif
+
 	// Windows10では、このゼロクリアには非常に時間がかかる。
 	// malloc()時点ではメモリを実メモリに割り当てられておらず、
 	// 初回にアクセスするときにその割当てがなされるため。
