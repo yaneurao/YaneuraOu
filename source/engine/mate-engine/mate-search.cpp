@@ -728,7 +728,9 @@ namespace MateEngine
 	void dfpn(Position& r) {
 		Threads.stop = false;
 
-		transposition_table.Resize();
+//		transposition_table.Resize();
+		// "isready"に対して処理しないといけないのでsearch::clear()で行う。
+
 		// キャッシュの世代を進める
 		transposition_table.NewSearch();
 
@@ -831,7 +833,7 @@ void USI::extra_option(USI::OptionsMap & o) {
 // --- Search
 
 void Search::init() {}
-void Search::clear() { }
+void Search::clear() { MateEngine::transposition_table.Resize(); }
 void MainThread::think() {
 	Thread::search();
 }
