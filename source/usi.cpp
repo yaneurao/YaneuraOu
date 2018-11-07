@@ -555,6 +555,27 @@ u64 eval_sum;
 // 局面は初期化されないので注意。
 void is_ready(bool skipCorruptCheck)
 {
+	// "isready"を受け取ったあと、"readyok"を返すまで5秒ごとに改行を送るように修正する。(keep alive的な処理)
+	//	USI2.0の仕様より。
+	//  -"isready"のあとのtime out時間は、30秒程度とする。これを超えて、評価関数の初期化、hashテーブルの確保をしたい場合、
+	//  思考エンジン側から定期的に何らかのメッセージ(改行可)を送るべきである。
+	//  -ShogiGUIではすでにそうなっているので、MyShogiもそれに追随する。
+	//  -また、やねうら王のエンジン側は、"isready"を受け取ったあと、"readyok"を返すまで5秒ごとに改行を送るように修正する。
+	 
+	auto ended = false;
+	auto th = std::thread([&ended] {
+		int count = 0;
+		while (!ended)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			if (++count >= 50 /* 5秒 */)
+			{
+				count = 0;
+				sync_cout << sync_endl; // 改行を送信する。
+			}
+		}
+	});
+
 	// 評価関数の読み込みなど時間のかかるであろう処理はこのタイミングで行なう。
 	// 起動時に時間のかかる処理をしてしまうと将棋所がタイムアウト判定をして、思考エンジンとしての認識をリタイアしてしまう。
 	if (!load_eval_finished)
@@ -582,12 +603,19 @@ void is_ready(bool skipCorruptCheck)
 	// isreadyに対してはreadyokを返すまで次のコマンドが来ないことは約束されているので
 	// このタイミングで各種変数の初期化もしておく。
 
-	TT.resize(Options["Hash"]);
+	auto hash_size = Options["Hash"];
+	sync_cout << "info string Hash = " << hash_size << "[MB]" << sync_endl;
+
+	TT.resize(hash_size);
 	Search::clear();
 	Time.availableNodes = 0;
 
 	Threads.received_go_ponder = false;
 	Threads.stop = false;
+
+	// keep aliveを送信するために生成したスレッドを終了させ、待機する。
+	ended = true;
+	th.join();
 }
 
 // isreadyコマンド処理部
