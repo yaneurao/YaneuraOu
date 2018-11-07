@@ -608,7 +608,7 @@ ExtMove* generate_general(const Position& pos, ExtMove* mlist, Square recapSq = 
 		(GenType == RECAPTURES)        ? Bitboard(recapSq)  : // リキャプチャー用の升(直前で相手の駒が移動したわけだからここには移動できるはず)
 		ALL_BB; // error
 
-				// 歩の移動先(↑のtargetと違う部分のみをオーバーライド)
+	// 歩の移動先(↑のtargetと違う部分のみをオーバーライド)
 	const Bitboard targetPawn =
 		(GenType == NON_CAPTURES_PRO_MINUS) ? (pos.empties() & ~enemy_field(Us)) : // 駒を取らない指し手 かつ、歩の成る指し手を引いたもの
 		(GenType == CAPTURES_PRO_PLUS)      ? (pos.pieces(~Us) | (~pos.pieces(Us) & enemy_field(Us))) : // 歩の場合は敵陣での成りもこれに含める
@@ -933,34 +933,14 @@ ExtMove* generateChecksMoves(const Position& pos, ExtMove* mlist)
 template<MOVE_GEN_TYPE GenType>
 ExtMove* generateMoves(const Position& pos, ExtMove* mlist, Square recapSq)
 {
-#ifdef CHECK_SHOGI_ENGINE
-	// 王手将棋エンジンにおいては王手がかかっている局面は詰みであるから指し手は存在しない。
-	if (pos.in_check())
-		return mlist; // no moves
-#endif
-
-					  // すべての指し手を生成するのか。
-	const bool All = (GenType == EVASIONS_ALL) || (GenType == CHECKS_ALL) || (GenType == LEGAL_ALL)
-		|| (GenType == NON_EVASIONS_ALL) || (GenType == RECAPTURES_ALL) || (GenType == QUIET_CHECKS_ALL);
+	// 歩の不成などを含め、すべての指し手を生成するのか。
+	// GenTypeの末尾に"ALL"とついているものがその対象。
+	const bool All = (GenType == EVASIONS_ALL) || (GenType == CHECKS_ALL)     || (GenType == LEGAL_ALL)
+		|| (GenType == NON_EVASIONS_ALL)       || (GenType == RECAPTURES_ALL) || (GenType == QUIET_CHECKS_ALL)
+		|| (GenType == CAPTURES_PRO_PLUS_ALL)  || (GenType == NON_CAPTURES_PRO_MINUS_ALL);
 
 	if (GenType == LEGAL || GenType == LEGAL_ALL)
 	{
-#ifdef MUST_CAPTURE_SHOGI_ENGINE
-
-		// captureの指し手を生成して、合法なcaptureが1つでもあるなら捕獲する指し手しか
-		// 生成してはならない。
-		bool mustCapture = false;
-		bool inCheck = pos.in_check();
-		auto endMoves = inCheck ? generateMoves<EVASIONS>(pos, mlist) : generateMoves<CAPTURES>(pos, mlist);
-		for (auto it = mlist; it != endMoves; ++it)
-		{
-			if (pos.capture(it->move) && pos.legal(it->move))
-			{
-				mustCapture = true;
-				break;
-			}
-		}
-#endif
 
 		// 合法性な指し手のみを生成する。
 		// 自殺手や打ち歩詰めが含まれているのでそれを取り除く。かなり重い。ゆえにLEGALは特殊な状況でしか使うべきではない。
@@ -969,12 +949,7 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist, Square recapSq)
 		// 合法ではない指し手を末尾の指し手と入れ替え
 		while (mlist != last)
 		{
-			if (!pos.legal(*mlist)
-#ifdef MUST_CAPTURE_SHOGI_ENGINE
-				// 捕獲する指し手しか生成してはいけないモードなのに捕獲する指し手ではない
-				|| (mustCapture && !pos.capture(*mlist))
-#endif
-				)
+			if (!pos.legal(*mlist))
 				mlist->move = (--last)->move;
 			else
 				++mlist;
@@ -1009,8 +984,10 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist, Square recapSq)
 	// EVASIONS_ALLは上で呼び出されているが、実際はここでも実体化されたあと、最適化によって削除されるので、ここでも書く必要がある。
 	const auto GenType2 =
 		GenType == NON_EVASIONS_ALL ? NON_EVASIONS :
-		GenType == RECAPTURES_ALL ? RECAPTURES :
-		GenType == EVASIONS_ALL ? EVASIONS :
+		GenType == RECAPTURES_ALL   ? RECAPTURES :
+		GenType == EVASIONS_ALL     ? EVASIONS :
+		GenType == CAPTURES_PRO_PLUS_ALL ? CAPTURES_PRO_PLUS :
+		GenType == NON_CAPTURES_PRO_MINUS_ALL ? NON_CAPTURES_PRO_MINUS :
 		GenType; // さもなくば元のまま。
 	return generateMoves<GenType2, All>(pos, mlist, recapSq);
 }
@@ -1029,8 +1006,11 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist)
 template ExtMove* generateMoves<NON_CAPTURES          >(const Position& pos, ExtMove* mlist);
 template ExtMove* generateMoves<CAPTURES              >(const Position& pos, ExtMove* mlist);
 
-template ExtMove* generateMoves<NON_CAPTURES_PRO_MINUS>(const Position& pos, ExtMove* mlist);
-template ExtMove* generateMoves<CAPTURES_PRO_PLUS     >(const Position& pos, ExtMove* mlist);
+template ExtMove* generateMoves<NON_CAPTURES_PRO_MINUS    >(const Position& pos, ExtMove* mlist);
+template ExtMove* generateMoves<NON_CAPTURES_PRO_MINUS_ALL>(const Position& pos, ExtMove* mlist);
+
+template ExtMove* generateMoves<CAPTURES_PRO_PLUS         >(const Position& pos, ExtMove* mlist);
+template ExtMove* generateMoves<CAPTURES_PRO_PLUS_ALL     >(const Position& pos, ExtMove* mlist);
 
 template ExtMove* generateMoves<EVASIONS              >(const Position& pos, ExtMove* mlist);
 template ExtMove* generateMoves<EVASIONS_ALL          >(const Position& pos, ExtMove* mlist);

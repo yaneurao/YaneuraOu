@@ -477,6 +477,13 @@ namespace USI
 		o["SkipLoadingEval"] << Option(false);
 #endif
 
+#if !defined(MATE_ENGINE) && !defined(FOR_TOURNAMENT) 
+		// 読みの各局面ですべての合法手を生成する
+		// (普通、歩の2段目での不成などは指し手自体を生成しないのですが、これのせいで不成が必要な詰みが絡む問題が解けないことが
+		// あるので、このオプションを用意しました。トーナメントモードではこのオプションは無効化されます。)
+		o["GenerateAllLegalMoves"] << Option(false);
+#endif
+
 		// 各エンジンがOptionを追加したいだろうから、コールバックする。
 		USI::extra_option(o);
 
@@ -710,6 +717,11 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 
 	// 終局(引き分け)になるまでの手数
 	limits.max_game_ply = max_game_ply;
+
+	// すべての合法手を生成するのか
+#if !defined(MATE_ENGINE) && !defined(FOR_TOURNAMENT) 
+	limits.generate_all_legal_moves = Options["GenerateAllLegalMoves"];
+#endif
 
 	// エンジンオプションによる探索制限(0なら無制限)
 	if (Options["DepthLimit"] >= 0)    limits.depth = (int)Options["DepthLimit"];

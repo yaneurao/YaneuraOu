@@ -60,6 +60,10 @@ namespace Search {
 			silent = bench = consideration_mode = outout_fail_lh_pv = false;
 			max_game_ply = 100000;
 			enteringKingRule = EKR_NONE;
+
+#if !defined(FOR_TOURNAMENT) 
+			generate_all_legal_moves = false;
+#endif
 		}
 
 		// 時間制御を行うのか。
@@ -124,6 +128,11 @@ namespace Search {
 
 		// ベンチマークモード(このときPVの出力時に置換表にアクセスしない)
 		bool bench;
+
+#if !defined(FOR_TOURNAMENT) 
+		// 全合法手を生成するのか
+		bool generate_all_legal_moves;
+#endif
 	};
 
 	extern LimitsType Limits;
