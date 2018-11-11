@@ -749,6 +749,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 #endif
 
 	// エンジンオプションによる探索制限(0なら無制限)
+	// このあと、depthもしくはnodesが指定されていたら、その値で上書きされる。(この値は無視される)
 	if (Options["DepthLimit"] >= 0)    limits.depth = (int)Options["DepthLimit"];
 	if (Options["NodesLimit"] >= 0)    limits.nodes = (u64)Options["NodesLimit"];
 
@@ -797,6 +798,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 			if (token == "infinite")
 				limits.mate = INT32_MAX;
 			else
+				// USIプロトコルでは、UCIと異なり、ここは手数ではなく、探索に使う時間[ms]が指定されている。
 				limits.mate = stoi(token);
 		}
 

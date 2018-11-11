@@ -325,11 +325,22 @@ namespace MateEngine
 		// go mate infiniteの場合、Limits.mateにはINT32MAXが代入されている点に注意する
 		if (Limits.mate != INT32_MAX && nodes_searched % 4096 == 0) {
 			auto elapsed_ms = Time.elapsed_from_ponderhit();
-			if (elapsed_ms > Limits.mate) {
+			if (elapsed_ms > Limits.mate)
+			{
 				timeup = true;
 				Threads.stop = true;
 				return;
 			}
+		}
+
+		// 探索ノード数のチェック。
+		// 探索をマルチスレッドでやっていないので、nodes_searchedを求めるコストがなく、
+		// 毎回チェックしてもどうということはないはず。
+		if (Limits.nodes != 0 && nodes_searched >= Limits.nodes)
+		{
+			timeup = true;
+			Threads.stop = true;
+			return;
 		}
 
 		auto& entry = transposition_table.LookUp(n, root_color);
