@@ -296,6 +296,31 @@ USIプロトコルの独自拡張コマンド
 	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。
 
 
+■　詰将棋エンジン
+
+
+・go mate X
+	X = 探索時間[ms]
+
+	※　UCIではここはdepthを指定するがUSIでは探索時間を指定するようになっている。
+	
+	時間制限なしのときは
+		go mate infinite
+	と書く。
+
+・go nodes X mate infinite
+
+	X = ノード制限
+	※ NodesLimitみたいなの。USI2.0拡張。
+	mate以下は、infiniteではなく探索時間を指定することもできる。
+
+・go depth X mate infinite
+
+	X = 探索深さ制限
+	※ DepthLimitみたいなもの。USI2.0拡張。
+	→　これは現時点[2018/11/12]では未実装
+
+
 ■　定跡生成
 
 
