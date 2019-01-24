@@ -390,6 +390,56 @@ void prefetch2(void* addr)
 }
 
 // --------------------
+//    memclear
+// --------------------
+
+// 進捗を表示しながら並列化してゼロクリア
+void memclear(void* table, size_t size)
+{
+	// Windows10では、このゼロクリアには非常に時間がかかる。
+	// malloc()時点ではメモリを実メモリに割り当てられておらず、
+	// 初回にアクセスするときにその割当てがなされるため。
+	// ゆえに、分割してゼロクリアして、一定時間ごとに進捗を出力する。
+
+	// memset(table, 0, size);
+
+	sync_cout << "info string Hash Clear begin , Hash size =  " << size / (1024 * 1024) << "[MB]" << sync_endl;
+
+	// マルチスレッドで並列化してクリアする。
+	// ※ Stockfishのtt.cppのTranspositionTable::clear()を参考に。
+
+	std::vector<std::thread> threads;
+	
+	auto thread_num = (size_t)Options["Threads"];
+
+	for (size_t idx = 0; idx < thread_num; idx++)
+	{
+		threads.push_back(std::thread([table , size , thread_num , idx]() {
+
+			// NUMA環境では、bindThisThread()を呼び出しておいたほうが速くなるらしい。
+
+			// Thread binding gives faster search on systems with a first-touch policy
+			if (Options["Threads"] > 8)
+				WinProcGroup::bindThisThread(idx);
+
+			// それぞれのスレッドがhash tableの各パートをゼロ初期化する。
+			const size_t stride = size / thread_num,
+				start = stride * idx,
+				len = idx != thread_num - 1 ?
+				stride : size - start;
+
+			std::memset((uint8_t*)table + start , 0 , len);
+		}));
+	}
+
+	for (std::thread& th : threads)
+		th.join();
+
+	sync_cout << "info string Hash Clear done." << sync_endl;
+
+}
+
+// --------------------
 //  全プロセッサを使う
 // --------------------
 
@@ -416,7 +466,7 @@ namespace WinProcGroup {
 
 		// Early exit if the needed API is not available at runtime
 		HMODULE k32 = GetModuleHandle(L"Kernel32.dll");
-		auto fun1 = (fun1_t)GetProcAddress(k32, "GetLogicalProcessorInformationEx");
+		auto fun1 = (fun1_t)(void(*)())GetProcAddress(k32, "GetLogicalProcessorInformationEx");
 		if (!fun1)
 			return -1;
 
@@ -516,8 +566,8 @@ namespace WinProcGroup {
 
 		// Early exit if the needed API are not available at runtime
 		HMODULE k32 = GetModuleHandle(L"Kernel32.dll");
-		auto fun2 = (fun2_t)GetProcAddress(k32, "GetNumaNodeProcessorMaskEx");
-		auto fun3 = (fun3_t)GetProcAddress(k32, "SetThreadGroupAffinity");
+		auto fun2 = (fun2_t)(void(*)())GetProcAddress(k32, "GetNumaNodeProcessorMaskEx");
+		auto fun3 = (fun3_t)(void(*)())GetProcAddress(k32, "SetThreadGroupAffinity");
 
 		if (!fun2 || !fun3)
 			return;

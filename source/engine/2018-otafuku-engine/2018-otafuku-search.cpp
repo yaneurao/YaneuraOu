@@ -2132,10 +2132,10 @@ void init_param()
 			"PARAM_EVAL_TEMPO",
 		};
 
-#ifdef 		ENABLE_OUTPUT_GAME_RESULT
-		std::vector<const int*> param_vars = {
-#else
+#if defined(ENABLE_OUTPUT_GAME_RESULT) || defined(USE_RANDOM_PARAMETERS)
 		std::vector<int*> param_vars = {
+#else
+		std::vector<const int*> param_vars = {
 #endif
 			&PARAM_FUTILITY_MARGIN_ALPHA1 , &PARAM_FUTILITY_MARGIN_ALPHA2,
 			&PARAM_FUTILITY_MARGIN_BETA,

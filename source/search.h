@@ -60,6 +60,10 @@ namespace Search {
 			silent = bench = consideration_mode = outout_fail_lh_pv = false;
 			max_game_ply = 100000;
 			enteringKingRule = EKR_NONE;
+
+#if !defined(FOR_TOURNAMENT) 
+			generate_all_legal_moves = false;
+#endif
 		}
 
 		// 時間制御を行うのか。
@@ -98,6 +102,8 @@ namespace Search {
 		//  詰み探索モードのときは、ここに詰みの手数が指定されている。
 		// その手数以内の詰みが見つかったら探索を終了する。
 		// ※　Stockfishの場合、この変数は先後分として将棋の場合の半分の手数が格納されているので注意。
+		// USIプロトコルでは、この値に詰将棋探索に使う時間[ms]を指定することになっている。
+		// 時間制限なしであれば、INT32_MAXが入っている。
 		int mate;
 
 		// infinite : 思考時間無制限かどうかのフラグ。非0なら無制限。
@@ -124,6 +130,11 @@ namespace Search {
 
 		// ベンチマークモード(このときPVの出力時に置換表にアクセスしない)
 		bool bench;
+
+#if !defined(FOR_TOURNAMENT) 
+		// 全合法手を生成するのか
+		bool generate_all_legal_moves;
+#endif
 	};
 
 	extern LimitsType Limits;

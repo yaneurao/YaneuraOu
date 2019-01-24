@@ -7,6 +7,73 @@ TranspositionTable TT; // 置換表をglobalに確保。
 size_t TranspositionTable::max_thread;
 #endif
 
+// 置換表のエントリーに対して与えられたデータを保存する。上書き動作
+//   v    : 探索のスコア
+//   eval : 評価関数 or 静止探索の値
+//   m    : ベストな指し手
+//   gen  : TT.generation()
+// 引数のgenは、Stockfishにはないが、やねうら王では学習時にスレッドごとに別の局面を探索させたいので
+// スレッドごとに異なるgenerationの値を指定したくてこのような作りになっている。
+void TTEntry::save(Key k, Value v, Bound b, Depth d, Move m,
+#if !defined (NO_EVAL_IN_TT)
+	Value eval,
+#endif
+	uint8_t gen)
+{
+	// ASSERT_LV3((-VALUE_INFINITE < v && v < VALUE_INFINITE) || v == VALUE_NONE);
+
+	// 置換表にVALUE_INFINITE以上の値を書き込んでしまうのは本来はおかしいが、
+	// 実際には置換表が衝突したときにqsearch()から書き込んでしまう。
+	//
+	// 例えば、3手詰めの局面で、置換表衝突により1手詰めのスコアが返ってきた場合、VALUE_INFINITEより
+	// 大きな値を書き込む。
+	//
+	// 逆に置換表をprobe()したときにそのようなスコアが返ってくることがある。
+	// しかしこのようなスコアは、mate distance pruningで補正されるので問題ない。
+	// (ように、探索部を書くべきである。)
+	//
+	// Stockfishで、VALUE_INFINITEを32001(int16_tの最大値よりMAX_PLY以上小さな値)にしてあるのは
+	// そういった理由から。
+
+
+	// このif式だが、
+	// A = m!=MOVE_NONE
+	// B = (k >> 48) != key16)
+	// として、ifが成立するのは、
+	// a)  A && !B
+	// b)  A &&  B
+	// c) !A &&  B
+	// の3パターン。b),c)は、B == trueなので、その下にある次のif式が成立して、この局面のhash keyがkey16に格納される。
+	// a)は、B == false すなわち、(k >> 48) == key16であり、この局面用のentryであるから、その次のif式が成立しないとしても
+	// 整合性は保てる。
+	// a)のケースにおいても、指し手の情報は格納しておいたほうがいい。
+	// これは、このnodeで、TT::probeでhitして、その指し手は試したが、それよりいい手が見つかって、枝刈り等が発生しているような
+	// ケースが考えられる。ゆえに、今回の指し手のほうが、いまの置換表の指し手より価値があると考えられる。
+
+	if (m != MOVE_NONE || (k >> 48) != key16)
+		move16 = (uint16_t)m;
+
+	// このエントリーの現在の内容のほうが価値があるなら上書きしない。
+	// 1. hash keyが違うということはTT::probeでここを使うと決めたわけだから、このEntryは無条件に潰して良い
+	// 2. hash keyが同じだとしても今回の情報のほうが残り探索depthが深い(新しい情報にも価値があるので
+	// 　少しの深さのマイナスなら許容)
+	// 3. BOUND_EXACT(これはPVnodeで探索した結果で、とても価値のある情報なので無条件で書き込む)
+	// 1. or 2. or 3.
+	if ((k >> 48) != key16
+		|| (d / ONE_PLY > depth8 - 4)
+		/*|| g != generation() // probe()において非0のkeyとマッチした場合、その瞬間に世代はrefreshされている。　*/
+		|| b == BOUND_EXACT
+		)
+	{
+		key16 = (uint16_t)(k >> 48);
+		value16 = (int16_t)v;
+#if !defined (NO_EVAL_IN_TT)
+		eval16 = (int16_t)eval;
+#endif
+		genBound8 = (uint8_t)(gen | b);
+		depth8 = (int8_t)(d / ONE_PLY);
+	}
+}
 
 // 置換表のサイズを確保しなおす。
 void TranspositionTable::resize(size_t mbSize) {
@@ -36,7 +103,7 @@ void TranspositionTable::resize(size_t mbSize) {
 
 	// tableはCacheLineSizeでalignされたメモリに配置したいので、CacheLineSize-1だけ余分に確保する。
 	// callocではなくmallocにしないと初回の探索でTTにアクセスするとき、特に巨大なTTだと
-	// 極めて遅くなるので、mallocで確保して、ゼロクリアすることでこれを回避する。
+	// 極めて遅くなるので、mallocで確保して自前でゼロクリアすることでこれを回避する。
 	// cf. Explicitly zero TT upon resize. : https://github.com/official-stockfish/Stockfish/commit/2ba47416cbdd5db2c7c79257072cd8675b61721f
 	mem = malloc(clusterCount * sizeof(Cluster) + CacheLineSize - 1);
 
@@ -48,8 +115,26 @@ void TranspositionTable::resize(size_t mbSize) {
 	}
 
 	table = (Cluster*)((uintptr_t(mem) + CacheLineSize - 1) & ~(CacheLineSize - 1));
+
+	// clear();
+
+	// →　Stockfish、ここでclear()呼び出しているが、Search::clear()からTT.clear()を呼び出すので
+	// 二重に初期化していることになると思う。
 }
 
+void TranspositionTable::clear()
+{
+#if defined(MATE_ENGINE)
+	// MateEngineではこの置換表は用いないのでクリアもしない。
+	return;
+#endif
+
+	auto size = clusterCount * sizeof(Cluster);
+
+	// 進捗を表示しながら並列化してゼロクリア
+	memclear(table, size);
+
+}
 
 TTEntry* TranspositionTable::probe(const Key key, bool& found
 #if defined(USE_GLOBAL_OPTIONS)

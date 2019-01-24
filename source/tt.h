@@ -3,6 +3,8 @@
 
 #include "shogi.h"
 
+// cf.【決定版】コンピュータ将棋のHASHの概念について詳しく : http://yaneuraou.yaneu.com/2018/11/18/%E3%80%90%E6%B1%BA%E5%AE%9A%E7%89%88%E3%80%91%E3%82%B3%E3%83%B3%E3%83%94%E3%83%A5%E3%83%BC%E3%82%BF%E5%B0%86%E6%A3%8B%E3%81%AEhash%E3%81%AE%E6%A6%82%E5%BF%B5%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6/
+
 // --------------------
 //       置換表
 // --------------------
@@ -13,6 +15,7 @@
 struct TTEntry {
 
 	Move move() const { return (Move)move16; }
+
 	Value value() const { return (Value)value16; }
 	void set_value(Value v) { value16 = v; }
 
@@ -24,6 +27,8 @@ struct TTEntry {
 	Depth depth() const { return (Depth)(depth8 * int(ONE_PLY)); }
 	Bound bound() const { return (Bound)(genBound8 & 0x3); }
 
+	// Stockfishにはないが、set_value()とgenerationのgetter,setterを追加で用意しておく。
+
 	uint8_t generation() const { return genBound8 & 0xfc; }
 	void set_generation(uint8_t g) { genBound8 = bound() | g; }
 
@@ -32,66 +37,13 @@ struct TTEntry {
 	//   eval : 評価関数 or 静止探索の値
 	//   m    : ベストな指し手
 	//   gen  : TT.generation()
+	// 引数のgenは、Stockfishにはないが、やねうら王では学習時にスレッドごとに別の局面を探索させたいので
+	// スレッドごとに異なるgenerationの値を指定したくてこのような作りになっている。
 	void save(Key k, Value v, Bound b, Depth d, Move m,
 #if !defined (NO_EVAL_IN_TT)
 		Value eval,
 #endif
-		uint8_t gen)
-	{
-		// ASSERT_LV3((-VALUE_INFINITE < v && v < VALUE_INFINITE) || v == VALUE_NONE);
-
-		// 置換表にVALUE_INFINITE以上の値を書き込んでしまうのは本来はおかしいが、
-		// 実際には置換表が衝突したときにqsearch()から書き込んでしまう。
-		//
-		// 例えば、3手詰めの局面で、置換表衝突により1手詰めのスコアが返ってきた場合、VALUE_INFINITEより
-		// 大きな値を書き込む。
-		//
-		// 逆に置換表をprobe()したときにそのようなスコアが返ってくることがある。
-		// しかしこのようなスコアは、mate distance pruningで補正されるので問題ない。
-		// (ように、探索部を書くべきである。)
-		//
-		// Stockfishで、VALUE_INFINITEを32001(int16_tの最大値よりMAX_PLY以上小さな値)にしてあるのは
-		// そういった理由から。
-
-
-		// このif式だが、
-		// A = m!=MOVE_NONE
-		// B = (k >> 48) != key16)
-		// として、ifが成立するのは、
-		// a)  A && !B
-		// b)  A &&  B
-		// c) !A &&  B
-		// の3パターン。b),c)は、B == trueなので、その下にある次のif式が成立して、この局面のhash keyがkey16に格納される。
-		// a)は、B == false すなわち、(k >> 48) == key16であり、この局面用のentryであるから、その次のif式が成立しないとしても
-		// 整合性は保てる。
-		// a)のケースにおいても、指し手の情報は格納しておいたほうがいい。
-		// これは、このnodeで、TT::probeでhitして、その指し手は試したが、それよりいい手が見つかって、枝刈り等が発生しているような
-		// ケースが考えられる。ゆえに、今回の指し手のほうが、いまの置換表の指し手より価値があると考えられる。
-
-		if (m != MOVE_NONE || (k >> 48) != key16)
-			move16 = (uint16_t)m;
-
-		// このエントリーの現在の内容のほうが価値があるなら上書きしない。
-		// 1. hash keyが違うということはTT::probeでここを使うと決めたわけだから、このEntryは無条件に潰して良い
-		// 2. hash keyが同じだとしても今回の情報のほうが残り探索depthが深い(新しい情報にも価値があるので
-		// 　少しの深さのマイナスなら許容)
-		// 3. BOUND_EXACT(これはPVnodeで探索した結果で、とても価値のある情報なので無条件で書き込む)
-		// 1. or 2. or 3.
-		if (  (k >> 48) != key16
-			|| (d / ONE_PLY > depth8 - 4)
-			/*|| g != generation() // probe()において非0のkeyとマッチした場合、その瞬間に世代はrefreshされている。　*/
-			|| b == BOUND_EXACT
-			)
-		{
-			key16 = (uint16_t)(k >> 48);
-			value16 = (int16_t)v;
-#if !defined (NO_EVAL_IN_TT)
-			eval16 = (int16_t)eval;
-#endif
-			genBound8 = (uint8_t)(gen | b);
-			depth8 = (int8_t)(d / ONE_PLY);
-		}
-	}
+		uint8_t gen);
 
 private:
 	friend struct TranspositionTable;
@@ -180,7 +132,7 @@ struct TranspositionTable {
 	void resize(size_t mbSize);
 
 	// 置換表のエントリーの全クリア
-	void clear() { memset(table, 0, clusterCount * sizeof(Cluster)); }
+	void clear();
 
 	// 新しい探索ごとにこの関数を呼び出す。(generationを加算する。)
 	// USE_GLOBAL_OPTIONSが有効のときは、このタイミングで、Options["Threads"]の値を
