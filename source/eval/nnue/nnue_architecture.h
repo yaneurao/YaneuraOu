@@ -8,8 +8,13 @@
 #if defined(EVAL_NNUE)
 
 // 入力特徴量とネットワーク構造が定義されたヘッダをincludeする
+#if defined(EVAL_NNUE_HALFKP_256x2_32_32)
 #include "architectures/halfkp_256x2-32-32.h"
-//#include "architectures/k-p_256x2-32-32.h"
+#elif defined(EVAL_NNUE_K_P_256x2_32_32)
+#include "architectures/k-p_256x2-32-32.h"
+#else
+#include "architectures/halfkp_256x2-32-32.h"
+#endif
 
 namespace Eval {
 

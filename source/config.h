@@ -314,9 +314,15 @@
 #endif
 
 // NNUE評価関数を積んだtanuki-エンジン
-#if defined(YANEURAOU_2018_TNK_ENGINE)
+#if defined(YANEURAOU_2018_TNK_ENGINE) || defined(YANEURAOU_2018_TNK_ENGINE_HALFKP) || defined(YANEURAOU_2018_TNK_ENGINE_K_P)
 #define ENGINE_NAME "YaneuraOu 2018 T.N.K."
 #define EVAL_NNUE
+#if defined(YANEURAOU_2018_TNK_ENGINE_HALFKP)
+#define EVAL_NNUE_HALFKP_256x2_32_32
+#endif
+#if defined(YANEURAOU_2018_TNK_ENGINE_K_P)
+#define EVAL_NNUE_K_P_256x2_32_32
+#endif
 
 #define USE_EVAL_HASH
 #define USE_SEE
@@ -479,7 +485,7 @@ extern GlobalOptions_ GlobalOptions;
 #elif defined(__GNUC__)
 #define ALIGNED(X) __attribute__ ((aligned(X)))
 #else
-#define ALIGNED(X) 
+#define ALIGNED(X)
 #endif
 
 // --- output for Japanese notation
