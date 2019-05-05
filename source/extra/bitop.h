@@ -15,21 +15,14 @@
 //   include intrinsic header
 // ----------------------------
 
-#if defined(USE_AVX512)
-#include <zmmintrin.h>
-#elif defined(USE_AVX2)
-#include <immintrin.h>
-#elif defined(USE_SSE42)
-#include <nmmintrin.h>
-#elif defined(USE_SSE41)
-#include <smmintrin.h>
-#elif defined(USE_SSE2)
-#include <emmintrin.h>
+#if defined(_MSC_VER)
+#include <intrin.h>
 #elif defined(IS_ARM)
 #include <arm_neon.h>
 #include <mm_malloc.h> // for _mm_alloc()
 #else
-#if defined (__GNUC__) 
+#include <x86intrin.h>
+#if defined(__GNUC__)
 #include <mm_malloc.h> // for _mm_alloc()
 #endif
 #endif
