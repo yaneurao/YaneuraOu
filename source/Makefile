@@ -33,7 +33,12 @@ ifeq ($(findstring clang++,$(COMPILER)),clang++)
 	WCFLAGS += -fno-threadsafe-statics
 
 	# msys2用のclangでは、OpenMP使えない？インスコ仕方がわからん。
-
+else
+	ifeq ($(findstring g++,$(COMPILER)),g++)
+		# https://stackoverflow.com/questions/43152633/invalid-register-for-seh-savexmm-in-cygwin
+		# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=65782
+		WCFLAGS += -fno-asynchronous-unwind-tables
+	endif
 endif
 
 ifeq ($(OS),Windows_NT)
@@ -84,9 +89,23 @@ ifeq ($(findstring g++,$(COMPILER)),g++)
 	endif
 endif
 ifeq ($(findstring clang++,$(COMPILER)),clang++)
-	OPENMP   = -fopenmp
+	ifeq ($(MSYSTEM),MINGW64)
+		# MSYS2 MINGW64 env
+		# libgompを指定した場合、ビルドは通るがOpenMPは無効化される？
+		OPENMP = -fopenmp=libgomp
+		OPENMP_LDFLAGS =
+	else
+		ifeq ($(findstring w64-mingw32,$(COMPILER)),w64-mingw32)
+			# Ubuntu mingw-w64 clang++ env (experimental)
+			OPENMP = -fopenmp=libgomp
+			OPENMP_LDFLAGS =
+		else
+			# Other (normal clang++/libomp env)
+			OPENMP = -fopenmp
 	OPENMP_LDFLAGS = -lomp
-	ifeq ($(YANEURAOU_EDITION),YANEURAOU_2018_TNK_ENGINE)
+		endif
+	endif
+	ifeq ($(findstring YANEURAOU_2018_TNK_ENGINE,$(YANEURAOU_EDITION)),YANEURAOU_2018_TNK_ENGINE)
 		BLAS = -DUSE_BLAS
 		BLAS_LDFLAGS = -lopenblas
 		ifeq ($(MSYSTEM),MINGW64)
@@ -148,7 +167,7 @@ ifeq ($(YANEURAOU_EDITION),MATE_ENGINE)
 	SOURCES += engine/mate-engine/mate-search.cpp
 endif
 
-ifeq ($(YANEURAOU_EDITION),YANEURAOU_2018_TNK_ENGINE)
+ifeq ($(findstring YANEURAOU_2018_TNK_ENGINE,$(YANEURAOU_EDITION)),YANEURAOU_2018_TNK_ENGINE)
 	SOURCES += eval/nnue/evaluate_nnue.cpp                                     \
 	           eval/nnue/evaluate_nnue_learner.cpp                             \
 	           eval/nnue/nnue_test_command.cpp                                 \
@@ -170,30 +189,49 @@ $(OBJDIR)/%.o: %.cpp
 
 all: clean $(TARGET)
 
+# https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
+
 # 学習用バイナリのときは、openmpを有効にする。
-evallearn:
+evallearn-icelake:
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -march=icelake-client' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+evallearn-cascadelake:
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -march=cascadelake' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+evallearn-avx512:
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX512 -DUSE_AVX512VLBWDQ -march=skylake-avx512' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+evallearn-avx2:
 	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
 evallearn-sse42:
 	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+evallearn: evallearn-avx2
 
 # 教師棋譜生成用
 gensfen:
 	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -DGENSFEN2019 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
-tournament:
+tournament-icelake:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -DFOR_TOURNAMENT -march=icelake-client' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+tournament-cascadelake:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -DFOR_TOURNAMENT -march=cascadelake' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+tournament-avx512:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DFOR_TOURNAMENT -march=skylake-avx512' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+tournament-avx2:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -DFOR_TOURNAMENT -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 tournament-sse42:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -DFOR_TOURNAMENT -march=corei7' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+tournament: tournament-avx2
 
+icelake:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -march=icelake-client' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+cascadelake:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -march=cascadelake' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+avx512:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX512 -DUSE_AVX512VLBWDQ -march=skylake-avx512' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 avx2:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-
 sse42:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-
 sse41:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE41 -msse4.1 -march=core2' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-
 sse2:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE2 -msse2 -march=core2' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
