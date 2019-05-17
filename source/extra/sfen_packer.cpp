@@ -484,17 +484,17 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thre
 
 	set_state(st);
 
-	// --- evaluate
-
-	st->materialValue = Eval::material(*this);
-	Eval::compute_eval(*this);
-
 	// --- effect
 
 #ifdef LONG_EFFECT_LIBRARY
 	// 利きの全計算による更新
 	LongEffect::calc_effect(*this);
 #endif
+
+	// --- evaluate
+
+	st->materialValue = Eval::material(*this);
+	Eval::compute_eval(*this);
 
 //	sync_cout << sfen() << *this << pieces(BLACK) << pieces(WHITE) << pieces() << sync_endl;
 

@@ -294,17 +294,17 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 	// 現局面で王手がかかっているならst->continuous_check[them] = 1にしないと
 	// 連続王手の千日手の判定が不正確な気がするが、どのみち2回目の出現を負け扱いしているのでまあいいか..
 
-	// --- evaluate
-
-	st->materialValue = Eval::material(*this);
-	Eval::compute_eval(*this);
-
 	// --- effect
 
 #if defined (LONG_EFFECT_LIBRARY)
   // 利きの全計算による更新
 	LongEffect::calc_effect(*this);
 #endif
+
+	// --- evaluate
+
+	st->materialValue = Eval::material(*this);
+	Eval::compute_eval(*this);
 
 	// --- validation
 
