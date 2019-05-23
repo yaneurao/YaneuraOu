@@ -1,9 +1,7 @@
 # > Select YaneuraOu edition below.
 
 YANEURAOU_EDITION = YANEURAOU_2018_OTAFUKU_ENGINE
-#YANEURAOU_EDITION = HELP_MATE_ENGINE
 #YANEURAOU_EDITION = MATE_ENGINE
-#YANEURAOU_EDITION = YANEURAOU_2018_GOKU_ENGINE
 #YANEURAOU_EDITION = YANEURAOU_2018_TNK_ENGINE
 
 
@@ -134,21 +132,10 @@ SOURCES  = shogi.cpp                                                           \
 	eval/kppt/evaluate_kppt_learner.cpp                                        \
 	eval/kpp_kkpt/evaluate_kpp_kkpt.cpp                                        \
 	eval/kpp_kkpt/evaluate_kpp_kkpt_learner.cpp                                \
-	eval/kpppt/evaluate_kpppt.cpp                                              \
-	eval/kpppt/evaluate_kpppt_learner.cpp                                      \
-	eval/kppp_kkpt/evaluate_kppp_kkpt.cpp                                      \
-	eval/kppp_kkpt/evaluate_kppp_kkpt_learner.cpp                              \
-	eval/kkpp_kkpt/evaluate_kkpp_kkpt.cpp                                      \
-	eval/kkpp_kkpt/evaluate_kkpp_kkpt_learner.cpp                              \
-	eval/kkppt/evaluate_kkppt.cpp                                              \
-	eval/kkppt/evaluate_kkppt_learner.cpp                                      \
-	eval/kpp_kkpt_fv_var/evaluate_kpp_kkpt_fv_var.cpp                          \
-	eval/kpp_kkpt_fv_var/evaluate_kpp_kkpt_fv_var_learner.cpp                  \
 	eval/evaluate.cpp                                                          \
 	eval/evaluate_io.cpp                                                       \
 	eval/evaluate_mir_inv_tools.cpp                                            \
 	engine/user-engine/user-search.cpp                                         \
-	engine/help-mate-engine/help-mate-search.cpp                               \
 	engine/2018-otafuku-engine/2018-otafuku-search.cpp                         \
 	learn/learner.cpp                                                          \
 	learn/learning_tools.cpp                                                   \
@@ -185,6 +172,10 @@ evallearn:
 	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
 evallearn-sse42:
 	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+
+# 教師棋譜生成用
+gensfen:
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -DGENSFEN2019 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 tournament:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -DFOR_TOURNAMENT -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
