@@ -4,7 +4,7 @@
 // 遠方駒による利きのライブラリ
 // Bitboard/Byteboardに対して8近傍,24近傍を高速に求める等
 
-#include "../shogi.h"
+#include "../types.h"
 
 #ifdef LONG_EFFECT_LIBRARY
 

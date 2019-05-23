@@ -1,4 +1,4 @@
-﻿#include "../../shogi.h"
+﻿#include "../../types.h"
 #ifdef MATE_ENGINE
 
 #include <unordered_set>

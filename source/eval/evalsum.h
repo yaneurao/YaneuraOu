@@ -1,7 +1,7 @@
 ﻿#ifndef _EVAL_SUM_H_
 #define _EVAL_SUM_H_
 
-#include "../shogi.h"
+#include "../types.h"
 #include <array>
 
 // KPPT,KPP_PPTで使うためのヘルパクラス

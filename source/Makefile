@@ -104,7 +104,7 @@ ifeq "$(strip $(OBJDIR))" ""
 	OBJDIR = ..
 endif
 #SOURCES  = $(wildcard *.cpp)
-SOURCES  = shogi.cpp                                                           \
+SOURCES  = types.cpp                                                           \
 	bitboard.cpp                                                               \
 	misc.cpp                                                                   \
 	movegen.cpp                                                                \
@@ -112,7 +112,7 @@ SOURCES  = shogi.cpp                                                           \
 	usi.cpp                                                                    \
 	thread.cpp                                                                 \
 	tt.cpp                                                                     \
-	move_picker.cpp                                                            \
+	move_pick.cpp                                                              \
 	extra/book/apery_book.cpp                                                  \
 	extra/book/book.cpp                                                        \
 	extra/bitop.cpp                                                            \

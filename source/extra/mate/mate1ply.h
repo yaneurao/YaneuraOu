@@ -1,7 +1,7 @@
 ﻿#ifndef _MATE1PLY_H_
 #define _MATE1PLY_H_
 
-#include "../../shogi.h"
+#include "../../types.h"
 #ifdef USE_MATE_1PLY
 
 namespace Mate1Ply

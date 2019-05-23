@@ -1,6 +1,6 @@
 ﻿#include <iostream>
 
-#include "shogi.h"
+#include "types.h"
 #include "position.h"
 
 

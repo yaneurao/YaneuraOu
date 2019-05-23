@@ -1,7 +1,7 @@
 ﻿#ifndef _BOOK_H_
 #define _BOOK_H_
 
-#include "../../shogi.h"
+#include "../../types.h"
 #include "../../position.h"
 #include "../../misc.h"
 #include <unordered_map>

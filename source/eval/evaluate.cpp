@@ -1,4 +1,4 @@
-﻿#include "../shogi.h"
+﻿#include "../types.h"
 #include "../position.h"
 #include "../evaluate.h"
 #include "../misc.h"

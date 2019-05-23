@@ -76,9 +76,6 @@
     <ClInclude Include="position.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="shogi.h">
-      <Filter>リソース ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="search.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
@@ -94,9 +91,6 @@
     <ClInclude Include="extra\bitop.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
-    <ClInclude Include="extra\config.h">
-      <Filter>リソース ファイル\extra</Filter>
-    </ClInclude>
     <ClInclude Include="extra\long_effect.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
@@ -105,9 +99,6 @@
     </ClInclude>
     <ClInclude Include="extra\macros.h">
       <Filter>リソース ファイル\extra</Filter>
-    </ClInclude>
-    <ClInclude Include="move_picker.h">
-      <Filter>リソース ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\mate-engine\mate-search.h">
       <Filter>リソース ファイル\engine\mate-engine</Filter>
@@ -256,15 +247,24 @@
     <ClInclude Include="eval\nnue\trainer\features\factorizer_half_kp.h">
       <Filter>リソース ファイル\eval\nnue\trainer\features</Filter>
     </ClInclude>
+    <ClInclude Include="move_pick.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="types.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="config.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="thread_win32.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="bitboard.cpp">
-      <Filter>リソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="shogi.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="position.cpp">
@@ -360,9 +360,6 @@
     <ClCompile Include="eval\kppt\evaluate_kppt_learner.cpp">
       <Filter>リソース ファイル\eval\kppt</Filter>
     </ClCompile>
-    <ClCompile Include="move_picker.cpp">
-      <Filter>リソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="eval\evaluate_mir_inv_tools.cpp">
       <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
@@ -389,6 +386,12 @@
     </ClCompile>
     <ClCompile Include="eval\nnue\features\p.cpp">
       <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClCompile>
+    <ClCompile Include="move_pick.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="types.cpp">
+      <Filter>リソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

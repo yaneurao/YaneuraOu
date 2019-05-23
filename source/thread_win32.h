@@ -1,6 +1,13 @@
 ﻿#ifndef THREAD_WIN32_H_INCLUDED
 #define THREAD_WIN32_H_INCLUDED
 
+// ----------------------------
+//     mutex wrapper
+// ----------------------------
+
+// Windows用のmingw、gcc環境下でstd::mutexをもっと速い実装に差し替えたい時のためにwrapしてある。
+// そのためstd::mutex、std::condition_variableを直接用いるのではなく、Mutex、ConditionVariableを用いる。
+
 // mingwやgccによるSTLのthread libraryは、Windows用にクロスコンパイルされるときに
 // libwinpthreadに依存する。目下のところ、libwinpthreadはmutexをWindows セマフォの
 // トップに直接実装してある。 セマフォはカーネルオブジェクトであり、lockやunlockのために

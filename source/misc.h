@@ -7,7 +7,7 @@
 #include <vector>
 #include <string>
 
-#include "shogi.h"
+#include "types.h"
 
 // --------------------
 //  engine info

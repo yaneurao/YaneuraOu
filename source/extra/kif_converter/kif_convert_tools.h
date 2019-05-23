@@ -1,7 +1,7 @@
 ﻿#ifndef _KIF_CONVERT_TOOLS_H_
 #define _KIF_CONVERT_TOOLS_H_
 
-#include "../../shogi.h"
+#include "../../types.h"
 
 // 棋譜の変換などを行なうツールセット
 // CSA,KIF,KIF2(KI2)形式などの入出力を担う。

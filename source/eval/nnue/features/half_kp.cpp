@@ -1,6 +1,6 @@
 ﻿// NNUE評価関数の入力特徴量HalfKPの定義
 
-#include "../../../shogi.h"
+#include "../../../types.h"
 
 #if defined(EVAL_NNUE)
 

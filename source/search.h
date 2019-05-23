@@ -2,7 +2,7 @@
 #define _SEARCH_H_
 
 #include "position.h"
-#include "move_picker.h"
+#include "move_pick.h"
 #include "misc.h"
 
 // 探索関係

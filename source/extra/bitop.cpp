@@ -1,4 +1,4 @@
-#include "../shogi.h"
+#include "../types.h"
 
 #include "bitop.h"
 

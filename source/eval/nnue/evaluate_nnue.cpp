@@ -1,6 +1,6 @@
 ﻿// NNUE評価関数の計算に関するコード
 
-#include "../../shogi.h"
+#include "../../types.h"
 
 #if defined(EVAL_NNUE)
 

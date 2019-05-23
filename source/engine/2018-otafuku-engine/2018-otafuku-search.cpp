@@ -1,6 +1,6 @@
-﻿#include "../../shogi.h"
+﻿#include "../../types.h"
 
-#if defined (YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE)
+#if defined (YANEURAOU_2018_OTAFUKU_ENGINE)
 
 // -----------------------
 //   やねうら王2018(otafuku)設定部
@@ -36,7 +36,7 @@
 #include "../../misc.h"
 #include "../../tt.h"
 #include "../../extra/book/book.h"
-#include "../../move_picker.h"
+#include "../../move_pick.h"
 #include "../../learn/learn.h"
 
 // ハイパーパラメーターを自動調整するときはstatic変数にしておいて変更できるようにする。
@@ -3304,4 +3304,5 @@ namespace Learner
 }
 #endif
 
-#endif // YANEURAOU_2018_OTAFUKU_ENGINE || YANEURAOU_2018_GOKU_ENGINE
+#endif // YANEURAOU_2018_OTAFUKU_ENGINE
+

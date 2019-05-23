@@ -1,7 +1,7 @@
 ﻿// KPPT評価関数の学習時用のコード
 // tanuki-さんの学習部のコードをかなり参考にさせていただきました。
 
-#include "../../shogi.h"
+#include "../../types.h"
 
 #if defined(EVAL_LEARN) && defined(EVAL_KPPT)
 

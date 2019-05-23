@@ -1,7 +1,7 @@
 ﻿#ifndef _LEARN_H_
 #define _LEARN_H_
 
-#include "../shogi.h"
+#include "../types.h"
 
 #if defined(EVAL_LEARN)
 

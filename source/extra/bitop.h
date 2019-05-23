@@ -1,7 +1,7 @@
 ﻿#ifndef _BITOP_H_
 #define _BITOP_H_
 
-#include "../shogi.h"
+#include "../types.h"
 
 //
 //   bit operation library

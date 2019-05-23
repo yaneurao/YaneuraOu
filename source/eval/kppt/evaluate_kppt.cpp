@@ -1,4 +1,4 @@
-﻿#include "../../shogi.h"
+﻿#include "../../types.h"
 
 //
 // Apery WCSC26の評価関数バイナリを読み込むための仕組み。

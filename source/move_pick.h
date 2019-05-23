@@ -1,7 +1,7 @@
-﻿#ifndef _MOVE_PICKER_H_
-#define _MOVE_PICKER_H_
+﻿#ifndef MOVEPICK_H_INCLUDED
+#define MOVEPICK_H_INCLUDED
 
-#include "shogi.h"
+#include "types.h"
 
 // -----------------------
 //		history
@@ -186,4 +186,4 @@ private:
 	ExtMove moves[MAX_MOVES];
 };
 
-#endif // _MOVE_PICKER_H_
+#endif // #ifndef MOVEPICK_H_INCLUDED

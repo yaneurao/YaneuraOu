@@ -594,7 +594,11 @@ mingw32-make clean YANEURAOU_EDITION=YANEURAOU_2018_TNK_ENGINE
 
 OpenBLASが必要なので、まずこれをpacmanで入れます。
 
-$ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-clang mingw-w64-x86_64-openblas
+32bit版(32bit版のビルド時は、OpenBLASを用いていないので実はこの操作は不要)
+$ pacman -S mingw-w64-i686-clang mingw-w64-i686-toolchain mingw-w64-i686-openblas
+
+64bit版
+$ pacman -S mingw-w64-x86_64-clang mingw-w64-x86_64-toolchain mingw-w64-x86_64-openblas
 
 あとはMakefileでincludeフォルダを以下のところで指定していますが、これが違うフォルダであるなら適宜変更が必要となります。
 

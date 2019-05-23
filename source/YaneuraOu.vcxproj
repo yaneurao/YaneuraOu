@@ -619,6 +619,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="bitboard.h" />
+    <ClInclude Include="config.h" />
     <ClInclude Include="engine\2018-otafuku-engine\2018-otafuku-param.h" />
     <ClInclude Include="engine\mate-engine\mate-search.h" />
     <ClInclude Include="evaluate.h" />
@@ -662,7 +663,6 @@
     <ClInclude Include="extra\book\apery_book.h" />
     <ClInclude Include="extra\book\book.h" />
     <ClInclude Include="extra\book\mt64bit.h" />
-    <ClInclude Include="extra\config.h" />
     <ClInclude Include="extra\key128.h" />
     <ClInclude Include="extra\kif_converter\kif_convert_consts.h" />
     <ClInclude Include="extra\kif_converter\kif_convert_tools.h" />
@@ -675,9 +675,10 @@
     <ClInclude Include="learn\learning_tools.h" />
     <ClInclude Include="learn\multi_think.h" />
     <ClInclude Include="misc.h" />
-    <ClInclude Include="move_picker.h" />
+    <ClInclude Include="move_pick.h" />
     <ClInclude Include="search.h" />
-    <ClInclude Include="shogi.h" />
+    <ClInclude Include="thread_win32.h" />
+    <ClInclude Include="types.h" />
     <ClInclude Include="position.h" />
     <ClInclude Include="thread.h" />
     <ClInclude Include="tt.h" />
@@ -721,8 +722,8 @@
     <ClCompile Include="learn\multi_think.cpp" />
     <ClCompile Include="misc.cpp" />
     <ClCompile Include="movegen.cpp" />
-    <ClCompile Include="move_picker.cpp" />
-    <ClCompile Include="shogi.cpp" />
+    <ClCompile Include="move_pick.cpp" />
+    <ClCompile Include="types.cpp" />
     <ClCompile Include="position.cpp" />
     <ClCompile Include="thread.cpp" />
     <ClCompile Include="tt.cpp" />

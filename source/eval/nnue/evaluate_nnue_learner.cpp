@@ -1,6 +1,6 @@
 ﻿// NNUE評価関数の学習時用のコード
 
-#include "../../shogi.h"
+#include "../../types.h"
 
 #if defined(EVAL_LEARN) && defined(EVAL_NNUE)
 

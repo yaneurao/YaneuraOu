@@ -1,7 +1,7 @@
 ﻿#ifndef _EVALUATE_H_
 #define _EVALUATE_H_
 
-#include "shogi.h"
+#include "types.h"
 
 // -------------------------------------
 //   評価関数に対応するheaderの読み込み

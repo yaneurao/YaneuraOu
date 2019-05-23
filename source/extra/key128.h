@@ -1,7 +1,7 @@
 ﻿#ifndef _KEY128_H_
 #define _KEY128_H_
 
-#include "../shogi.h"
+#include "../types.h"
 
 // --------------------
 //     拡張hash key

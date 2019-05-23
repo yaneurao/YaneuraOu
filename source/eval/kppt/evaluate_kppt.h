@@ -1,7 +1,7 @@
 ﻿#ifndef _EVALUATE_KPPT_H_
 #define _EVALUATE_KPPT_H_
 
-#include "../../shogi.h"
+#include "../../types.h"
 
 // KPPT評価関数で用いるheader
 

@@ -9,7 +9,7 @@
 
 #include "position.h"
 #include "search.h"
-#include "move_picker.h"
+#include "move_pick.h"
 
 // --------------------
 // 探索時に用いるスレッド

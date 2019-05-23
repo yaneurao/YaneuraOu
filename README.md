@@ -1,6 +1,6 @@
 # About this project
 
-YaneuraOu is the most strong Shogi engine(AI player) in the world , WCSC29 1st winner , educational and USI compliant engine.
+YaneuraOu is the most strongest Shogi engine(AI player) in the world , WCSC29 1st winner , educational and USI compliant engine.
 
 やねうら王は、将棋の思考エンジンとして世界最強で、WCSC29(世界コンピュータ将棋選手権/2019年)において優勝しました。教育的でUSIプロトコル準拠の思考エンジンです。
 

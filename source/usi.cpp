@@ -1,7 +1,7 @@
 ﻿#include <sstream>
 #include <queue>
 
-#include "shogi.h"
+#include "types.h"
 #include "position.h"
 #include "search.h"
 #include "thread.h"

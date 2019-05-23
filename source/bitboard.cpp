@@ -2,7 +2,7 @@
 #include <sstream>
 #include <iostream>
 
-#include "shogi.h"
+#include "types.h"
 #include "bitboard.h"
 #include "extra/long_effect.h"
 #include "extra/mate/mate1ply.h"

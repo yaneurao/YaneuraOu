@@ -1,4 +1,4 @@
-﻿#include "../../shogi.h"
+﻿#include "../../types.h"
 
 // KPP+KKPTの実験用コード。
 // ほとんどevaluate_kppt.cppと同じ。

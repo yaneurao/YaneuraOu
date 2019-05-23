@@ -1,7 +1,7 @@
 ﻿#ifndef _POSITION_H_
 #define _POSITION_H_
 
-#include "shogi.h"
+#include "types.h"
 #include "bitboard.h"
 #include "evaluate.h"
 #include "extra/key128.h"
