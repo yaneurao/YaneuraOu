@@ -3118,10 +3118,11 @@ namespace Learner
 
 		// DrawValueの設定
 		{
-			Color us = pos.side_to_move();
-			int contempt = int(Options["Contempt"] * PawnValue / 100);
-			drawValueTable[REPETITION_DRAW][ us] = VALUE_ZERO - Value(contempt);
-			drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
+			// スレッドごとに用意してないので
+			// 他のスレッドで上書きされかねない。仕方がないが。
+			// どうせそうなるなら、0にすべきだと思う。
+			drawValueTable[REPETITION_DRAW][BLACK] = VALUE_ZERO;
+			drawValueTable[REPETITION_DRAW][WHITE] = VALUE_ZERO;
 		}
 
 		// this_threadに関して。
@@ -3179,7 +3180,7 @@ namespace Learner
 		Move pv[MAX_PLY + 1];
 		std::vector<Move> pvs;
 
-		init_for_search(pos,ss);
+		init_for_search(pos, ss);
 		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
 		// 詰まされているのか
@@ -3188,11 +3189,11 @@ namespace Learner
 			pvs.push_back(MOVE_RESIGN);
 			return ValueAndPV(mated_in(/*ss->ply*/ 0 + 1), pvs);
 		}
-			
-		auto bestValue = ::qsearch<PV>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE);
+
+		auto bestValue = ::qsearch<PV>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, DEPTH_ZERO);
 
 		// 得られたPVを返す。
-		for (Move* p = &ss->pv[0]; is_ok(*p) ; ++p)
+		for (Move* p = &ss->pv[0]; is_ok(*p); ++p)
 			pvs.push_back(*p);
 
 		return ValueAndPV(bestValue, pvs);
@@ -3214,7 +3215,7 @@ namespace Learner
 	// 　search()から戻ったあと、Threads.stop == trueなら、その探索結果を用いてはならない。
 	// 　あと、呼び出し前は、Threads.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
 
-	ValueAndPV search(Position& pos, int depth_ , size_t multiPV /* = 1 */, u64 nodesLimit /* = 0 */)
+	ValueAndPV search(Position& pos, int depth_, size_t multiPV /* = 1 */, u64 nodesLimit /* = 0 */)
 	{
 		std::vector<Move> pvs;
 
@@ -3228,7 +3229,7 @@ namespace Learner
 		Stack stack[MAX_PLY + 7], *ss = stack + 4;	
 		Move pv[MAX_PLY + 1];
 
-		init_for_search(pos,ss);
+		init_for_search(pos, ss);
 
 		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
@@ -3239,6 +3240,9 @@ namespace Learner
 		auto& rootMoves = th->rootMoves;
 		auto& completedDepth = th->completedDepth;
 		auto& selDepth = th->selDepth;
+
+		// bestmoveとしてしこの局面の上位N個を探索する機能
+		//size_t multiPV = Options["MultiPV"];
 
 		// この局面での指し手の数を上回ってはいけない
 		multiPV = std::min(multiPV, rootMoves.size());
@@ -3299,6 +3303,9 @@ namespace Learner
 
 					delta += delta / 4 + 5;
 					ASSERT_LV3(-VALUE_INFINITE <= alpha && beta <= VALUE_INFINITE);
+
+					// 暴走チェック
+					//ASSERT_LV3(th->nodes.load(std::memory_order_relaxed) <= 1000000 );
 				}
 
 				stable_sort(rootMoves.begin(), rootMoves.begin() + pvIdx + 1);
@@ -3319,6 +3326,8 @@ namespace Learner
 			pvs.push_back(move);
 		}
 
+		//sync_cout << rootDepth << sync_endl;
+
 		// multiPV時を考慮して、rootMoves[0]のscoreをbestValueとして返す。
 		bestValue = rootMoves[0].score;
 
@@ -3329,4 +3338,3 @@ namespace Learner
 #endif
 
 #endif // YANEURAOU_2018_OTAFUKU_ENGINE
-
