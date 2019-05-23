@@ -1033,7 +1033,7 @@ namespace YaneuraOu2018GOKU
 		// RootNodeであるなら、(MultiPVなどでも)現在注目している1手だけがベストの指し手と仮定できるから、
 		// それが置換表にあったものとして指し手を進める。
 
-		ttMove =  rootNode ? thisThread->rootMoves[thisThread->PVIdx].pv[0]
+		ttMove =  rootNode ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
 				: ttHit    ? pos.move16_to_move(tte->move()) : MOVE_NONE;
 
 		// 置換表の値による枝刈り
@@ -1494,7 +1494,7 @@ namespace YaneuraOu2018GOKU
 				continue;
 
 			// root nodeでは、rootMoves()の集合に含まれていない指し手は探索をスキップする。
-			if (rootNode && !std::count(thisThread->rootMoves.begin() + thisThread->PVIdx,
+			if (rootNode && !std::count(thisThread->rootMoves.begin() + thisThread->pvIdx,
 										thisThread->rootMoves.end(), move))
 				continue;
 
@@ -1509,7 +1509,7 @@ namespace YaneuraOu2018GOKU
 			if (rootNode && !Limits.silent && thisThread == Threads.main() && Time.elapsed() > 3000)
 				sync_cout << "info depth " << depth / ONE_PLY
 				<< " currmove " << move
-				<< " currmovenumber " << moveCount + thisThread->PVIdx << sync_endl;
+				<< " currmovenumber " << moveCount + thisThread->pvIdx << sync_endl;
 #endif
 
 			// 次のnodeのpvをクリアしておく。
@@ -2403,7 +2403,7 @@ void Thread::search()
 
 	// 将棋所のコンソールが詰まるので出力を抑制するために、前回の出力時刻を
 	// 記録しておき、そこから一定時間経過するごとに出力するという方式を採る。
-	int lastInfoTime = 0;
+	TimePoint lastInfoTime = 0;
 
 	// 検討モード用のPVを出力するのか。
 	Limits.consideration_mode = Options["ConsiderationMode"];
@@ -2518,7 +2518,7 @@ void Thread::search()
 			rm.previousScore = rm.score;
 
 		// MultiPVのためにこの局面の候補手をN個選出する。
-		for (PVIdx = 0; PVIdx < multiPV && !Threads.stop; ++PVIdx)
+		for (pvIdx = 0; pvIdx < multiPV && !Threads.stop; ++pvIdx)
 		{
 			// それぞれのdepthとPV lineに対するUSI infoで出力するselDepth
 			selDepth = 0;
@@ -2544,8 +2544,8 @@ void Thread::search()
 				// もっと精度の高い評価関数を用意すべき。
 				delta = Value(PARAM_ASPIRATION_SEARCH_DELTA);
 
-				alpha = std::max(rootMoves[PVIdx].previousScore - delta, -VALUE_INFINITE);
-				beta  = std::min(rootMoves[PVIdx].previousScore + delta,  VALUE_INFINITE);
+				alpha = std::max(rootMoves[pvIdx].previousScore - delta, -VALUE_INFINITE);
+				beta  = std::min(rootMoves[pvIdx].previousScore + delta,  VALUE_INFINITE);
 			}
 
 			while (true)
@@ -2556,8 +2556,8 @@ void Thread::search()
 				// 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
 				// 用いないと前回の反復深化の結果によって得た並び順を変えてしまうことになるのでまずい。
 				
-				 stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
-				//my_stable_sort(rootPos.this_thread()->thread_id(),&rootMoves[0] + PVIdx, rootMoves.size() - PVIdx);
+				 stable_sort(rootMoves.begin() + pvIdx, rootMoves.end());
+				//my_stable_sort(rootPos.this_thread()->thread_id(),&rootMoves[0] + pvIdx, rootMoves.size() - pvIdx);
 				
 				if (Threads.stop)
 					break;
@@ -2621,8 +2621,8 @@ void Thread::search()
 			// MultiPVの候補手をスコア順に再度並び替えておく。
 			// (二番目だと思っていたほうの指し手のほうが評価値が良い可能性があるので…)
 
-			stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
-			//my_stable_sort(rootPos.this_thread()->thread_id(),&rootMoves[0],PVIdx + 1);
+			stable_sort(rootMoves.begin(), rootMoves.begin() + pvIdx + 1);
+			//my_stable_sort(rootPos.this_thread()->thread_id(),&rootMoves[0],pvIdx + 1);
 
 			if (!mainThread)
 				continue;
@@ -2642,7 +2642,7 @@ void Thread::search()
 				if (Threads.stop ||
 					// MultiPVのときは最後の候補手を求めた直後とする。
 					// ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
-					((PVIdx + 1 == multiPV || Time.elapsed() > 3000)
+					((pvIdx + 1 == multiPV || Time.elapsed() > 3000)
 						&& (rootDepth < 3 * ONE_PLY || lastInfoTime + pv_interval <= Time.elapsed())))
 				{
 					// ただし検討モードのときは、stopのときにPVを出力しないことにする。
@@ -3060,7 +3060,7 @@ void MainThread::check_time()
 
 	// "ponderhit"時は、そこからの経過時間で考えないと、elapsed > Time.maximum()になってしまう。
 	// elapsed_from_ponderhit()は、"ponderhit"していないときは"go"コマンドからの経過時間を返すのでちょうど良い。
-	int elapsed = Time.elapsed_from_ponderhit();
+	TimePoint elapsed = Time.elapsed_from_ponderhit();
 
 	// 今回のための思考時間を完璧超えているかの判定。
 
@@ -3069,7 +3069,7 @@ void MainThread::check_time()
 	if ((Limits.use_time_management() &&
 		(elapsed > Time.maximum() || (Time.search_end > 0 && elapsed > Time.search_end )))
 		|| (Limits.movetime && elapsed >= Limits.movetime)
-		|| (Limits.nodes && Threads.nodes_searched() >= Limits.nodes))
+		|| (Limits.nodes && Threads.nodes_searched() >= (uint64_t)Limits.nodes))
 		Threads.stop = true;
 }
 
@@ -3194,7 +3194,7 @@ namespace Learner
 	// 　search()から戻ったあと、Threads.stop == trueなら、その探索結果を用いてはならない。
 	// 　あと、呼び出し前は、Threads.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
 
-	ValueAndPV search(Position& pos, int depth_ , size_t multiPV /* = 1*/)
+	ValueAndPV search(Position& pos, int depth_ , size_t multiPV /* = 1 */, u64 nodesLimit /* = 0 */)
 	{
 		std::vector<Move> pvs;
 
@@ -3215,7 +3215,7 @@ namespace Learner
 		// this_threadに関連する変数の初期化
 		auto th = pos.this_thread();
 		auto& rootDepth = th->rootDepth;
-		auto& PVIdx = th->PVIdx;
+		auto& pvIdx = th->pvIdx;
 		auto& rootMoves = th->rootMoves;
 		auto& completedDepth = th->completedDepth;
 		auto& selDepth = th->selDepth;
@@ -3237,7 +3237,7 @@ namespace Learner
 				rm.previousScore = rm.score;
 
 			// MultiPV
-			for (PVIdx = 0; PVIdx < multiPV && !Threads.stop; ++PVIdx)
+			for (pvIdx = 0; pvIdx < multiPV && !Threads.stop; ++pvIdx)
 			{
 				// それぞれのdepthとPV lineに対するUSI infoで出力するselDepth
 				selDepth = 0;
@@ -3247,7 +3247,7 @@ namespace Learner
 				{
 					delta = Value(PARAM_ASPIRATION_SEARCH_DELTA);
 
-					Value p = rootMoves[PVIdx].previousScore;
+					Value p = rootMoves[pvIdx].previousScore;
 
 					alpha = std::max(p - delta, -VALUE_INFINITE);
 					beta  = std::min(p + delta,  VALUE_INFINITE);
@@ -3258,8 +3258,8 @@ namespace Learner
 				{
 					bestValue = YaneuraOu2018GOKU::search<PV>(pos, ss, alpha, beta, rootDepth, false , false);
 
-					stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
-					//my_stable_sort(pos.this_thread()->thread_id(),&rootMoves[0] + PVIdx, rootMoves.size() - PVIdx);
+					stable_sort(rootMoves.begin() + pvIdx, rootMoves.end());
+					//my_stable_sort(pos.this_thread()->thread_id(),&rootMoves[0] + pvIdx, rootMoves.size() - pvIdx);
 
 					// fail low/highに対してaspiration windowを広げる。
 					// ただし、引数で指定されていた値になっていたら、もうfail low/high扱いとしてbreakする。
@@ -3277,8 +3277,8 @@ namespace Learner
 					ASSERT_LV3(-VALUE_INFINITE <= alpha && beta <= VALUE_INFINITE);
 				}
 
-				stable_sort(rootMoves.begin(), rootMoves.begin() + PVIdx + 1);
-				//my_stable_sort(pos.this_thread()->thread_id() , &rootMoves[0] , PVIdx + 1);
+				stable_sort(rootMoves.begin(), rootMoves.begin() + pvIdx + 1);
+				//my_stable_sort(pos.this_thread()->thread_id() , &rootMoves[0] , pvIdx + 1);
 
 			} // multi PV
 

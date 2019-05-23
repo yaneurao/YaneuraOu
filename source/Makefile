@@ -110,11 +110,13 @@ SOURCES  = types.cpp                                                           \
 	movegen.cpp                                                                \
 	position.cpp                                                               \
 	usi.cpp                                                                    \
+	usi_option.cpp                                                             \
 	thread.cpp                                                                 \
 	tt.cpp                                                                     \
 	move_pick.cpp                                                              \
 	extra/book/apery_book.cpp                                                  \
 	extra/book/book.cpp                                                        \
+	extra/book/makebook2019.cpp                                                \
 	extra/bitop.cpp                                                            \
 	extra/entering_king_win.cpp                                                \
 	extra/long_effect.cpp                                                      \

@@ -6,8 +6,7 @@
 #include "tt.h"
 #include "thread.h"
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || \
-	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA) || defined(EVAL_NNUE)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_NNUE)
 #include "eval/evaluate_common.h"
 #endif
 
@@ -38,16 +37,16 @@ void StateInfo::operator delete(void*p) noexcept { aligned_free(p); }
 template <bool doNullMove>
 void Position::set_check_info(StateInfo* si) const {
 
-	//: si->blockersForKing[WHITE] = slider_blockers(pieces(BLACK), square<KING>(WHITE),si->pinnersForKing[WHITE]);
-	//: si->blockersForKing[BLACK] = slider_blockers(pieces(WHITE), square<KING>(BLACK),si->pinnersForKing[BLACK]);
+	//: si->blockersForKing[WHITE] = slider_blockers(pieces(BLACK), square<KING>(WHITE),si->pinners[WHITE]);
+	//: si->blockersForKing[BLACK] = slider_blockers(pieces(WHITE), square<KING>(BLACK),si->pinners[BLACK]);
 
 	// ↓Stockfishのこの部分の実装、将棋においては良くないので、以下のように変える。
 
 	if (!doNullMove)
 	{
 		// null moveのときは前の局面でこの情報は設定されているので更新する必要がない。
-		si->blockersForKing[WHITE] = slider_blockers(BLACK, square<KING>(WHITE), si->pinnersForKing[WHITE]);
-		si->blockersForKing[BLACK] = slider_blockers(WHITE, square<KING>(BLACK), si->pinnersForKing[BLACK]);
+		si->blockersForKing[WHITE] = slider_blockers(BLACK, square<KING>(WHITE), si->pinners[WHITE]);
+		si->blockersForKing[BLACK] = slider_blockers(WHITE, square<KING>(BLACK), si->pinners[BLACK]);
 	}
 
 	Square ksq = square<KING>(~sideToMove);
@@ -87,6 +86,20 @@ void Position::set_check_info(StateInfo* si) const {
 // ----------------------------------
 //       Zorbrist keyの初期化
 // ----------------------------------
+
+// Marcel van Kervinck's cuckoo algorithm for fast detection of "upcoming repetition"
+// situations. Description of the algorithm in the following paper:
+// https://marcelk.net/2013-04-06/paper/upcoming-rep-v2.pdf
+
+// // Cuckoo tables with Zobrist hashes of valid reversible moves, and the moves themselves
+// Key cuckoo[8192];
+// Move cuckooMove[8192];
+
+// →　cuckooアルゴリズムとやらで、千日手検出が高速化できるらしいのだが、将棋だと手駒があるため
+//  Chessの場合よりも時間がかかる。もともと0.3%程度の高速化しかされないようなので、将棋では
+//  ほとんど効果がないと思う。ほとんど効果がないもののためにコードをいたずらに増やしたり、
+//  テーブルを確保したりしないといけないのは嫌なので、このコードは採用しないことにする。
+//  また将棋の場合、連続王手の千日手・優等局面の判定が必要で、cuckooアルゴリズムだとその部分を書くのが容易ではない。
 
 void Position::init() {
 	PRNG rng(20151225); // 開発開始日 == 電王トーナメント2015,最終日
@@ -905,6 +918,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 
 #if defined(KEEP_PIECE_IN_GENERATE_MOVES)
 			// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
+			// pcが成っていない駒であることは上で確認してあるので、"+ PIECE_PROMOTE"でも十分。
 			if (moved_piece_after(m) != Piece(pc + PIECE_PROMOTE))
 				return false;
 #endif
@@ -996,6 +1010,30 @@ bool Position::pseudo_legal_s(const Move m) const {
 	}
 
 	return true;
+}
+
+// 置換表から取り出したMoveを32bit化する。
+Move Position::move16_to_move(Move m) const
+{
+	//		ASSERT_LV3(is_ok(m));
+	// 置換表から取り出した値なので m==MOVE_NONE(0)である可能性があり、ASSERTは書けない。
+
+	// 上位16bitは0でなければならない
+	//      ASSERT_LV3((m >> 16) == 0);
+
+	return Move(u16(m) +
+			((is_drop(m) ? (Piece)(make_piece(sideToMove, move_dropped_piece(m)) + PIECE_DROP)
+			: is_promote(m) ? (Piece)(piece_on(move_from(m)) | PIECE_PROMOTE) : piece_on(move_from(m))) << 16)
+		// "+ PIECE_PROMOTE" だと、玉や成り駒に対して 8足しておかしくなってしまう。(置換表の指し手をpseudo-legalか
+		// 確認せずに置換表の値で枝刈りして、そのあとupdate_statsを行う時に配列境界を超えかねない)
+		// " | PIECE_PROMOTE"が正しいコード。 WCSC29で平岡さんから教えてもらった。[2019/05/04]
+		// また、move_dropped_piece()はおかしい値になっていないことは保証されている(置換表に自分で書き出した値のため)
+		// これにより、配列境界の外側に書き出してしまうことはない。
+
+		// m==MOVE_NONE(0)の場合、piece_on(SQ_ZERO)の駒が上位16bitに格納されると少し気持ち悪いが、
+		// 移動元と移動先が SQ_11なので実質的に無害。
+	);
+
 }
 
 

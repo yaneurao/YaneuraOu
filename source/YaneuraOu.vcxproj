@@ -682,6 +682,7 @@
     <ClInclude Include="position.h" />
     <ClInclude Include="thread.h" />
     <ClInclude Include="tt.h" />
+    <ClInclude Include="usi.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bitboard.cpp" />
@@ -707,6 +708,7 @@
     <ClCompile Include="extra\bitop.cpp" />
     <ClCompile Include="extra\book\apery_book.cpp" />
     <ClCompile Include="extra\book\book.cpp" />
+    <ClCompile Include="extra\book\makebook2019.cpp" />
     <ClCompile Include="extra\entering_king_win.cpp" />
     <ClCompile Include="extra\kif_converter\kif_convert_tools.cpp" />
     <ClCompile Include="extra\long_effect.cpp" />
@@ -728,6 +730,7 @@
     <ClCompile Include="thread.cpp" />
     <ClCompile Include="tt.cpp" />
     <ClCompile Include="usi.cpp" />
+    <ClCompile Include="usi_option.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt" />

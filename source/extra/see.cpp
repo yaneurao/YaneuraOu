@@ -201,7 +201,7 @@ bool Position::see_ge(Move m, Value threshold) const
 
 		// pinnersが元の升にいる限りにおいては、pinされた駒から王以外への移動は許さない。
 
-		if (!(st->pinnersForKing[stm] & ~occupied))
+		if (!(st->pinners[stm] & ~occupied))
 			stmAttackers &= ~st->blockersForKing[stm];
 
 		if (!stmAttackers)

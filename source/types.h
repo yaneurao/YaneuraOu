@@ -1,50 +1,11 @@
-﻿#ifndef _SHOGI_H_
-#define _SHOGI_H_
-
-//
-//  やねうら王プロジェクト
-//  公式サイト :  http://yaneuraou.yaneu.com/yaneuraou_mini/
-//
-
-// 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
-// ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "4.83"
-
-// --------------------
-// コンパイル時の設定
-// --------------------
-
-// ※　config.hのほうで行なうこと。
-
-// --------------------
-//  思考エンジンの種類
-// --------------------
-
-// Makefile使うけどやっぱり設定変えたいとき用。
-//#undef USE_MAKEFILE
-//#undef YANEURAOU_2018_OTAFUKU_ENGINE
-//#undef USE_AVX2
-
-// やねうら王の思考エンジンとしてリリースする場合、以下から選択。(どれか一つは必ず選択しなければならない)
-// オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE を defineして 他のエンジンのソースコードを参考に
-//  engine/user-engine/ フォルダの中身を書くべし。
-
-#if !defined (USE_MAKEFILE)
-
-#define YANEURAOU_2018_OTAFUKU_ENGINE    // やねうら王2018 with お多福Lab。(開発中2018/01/01～)
-//#define MATE_ENGINE                      // 詰め将棋solverとしてリリースする場合。(開発中2017/05/06～)
-//#define USER_ENGINE                      // ユーザーの思考エンジン
-
-#else
-
-// Makefileを使ってビルドをするときは、Makefile側で選択する。
-
-#endif
+﻿#ifndef _TYPES_H_INCLUDED
+#define _TYPES_H_INCLUDED
 
 // --------------------
 // release configurations
 // --------------------
 
+// コンパイル時の設定などは以下のextra/config.hを変更すること。
 #include "config.h"
 
 // --------------------
@@ -88,7 +49,7 @@ constexpr File toFile(char c) { return (File)(c - '1'); }
 std::string pretty(File f);
 
 // USI形式でFileを出力する
-inline std::ostream& operator<<(std::ostream& os, File f) { os << (char)('1' + f); return os; }
+static std::ostream& operator<<(std::ostream& os, File f) { os << (char)('1' + f); return os; }
 
 // --------------------
 //        段
@@ -122,7 +83,7 @@ constexpr Rank toRank(char c) { return (Rank)(c - 'a'); }
 std::string pretty(Rank r);
 
 // USI形式でRankを出力する
-inline std::ostream& operator<<(std::ostream& os, Rank r) { os << (char)('a' + r); return os; }
+static std::ostream& operator<<(std::ostream& os, Rank r) { os << (char)('a' + r); return os; }
 
 // --------------------
 //        升目
@@ -241,11 +202,11 @@ constexpr Square Mir(Square sq) { return File(8-(int)file_of(sq)) | rank_of(sq);
 // Squareを綺麗に出力する(USI形式ではない)
 // "PRETTY_JP"をdefineしていれば、日本語文字での表示になる。例 → ８八
 // "PRETTY_JP"をdefineしていなければ、数字のみの表示になる。例 → 88
-inline std::string pretty(Square sq) { return pretty(file_of(sq)) + pretty(rank_of(sq)); }
+static std::string pretty(Square sq) { return pretty(file_of(sq)) + pretty(rank_of(sq)); }
 
 
 // USI形式でSquareを出力する
-inline std::ostream& operator<<(std::ostream& os, Square sq) { os << file_of(sq) << rank_of(sq); return os; }
+static std::ostream& operator<<(std::ostream& os, Square sq) { os << file_of(sq) << rank_of(sq); return os; }
 
 // --------------------
 //   壁つきの升表現
@@ -281,13 +242,13 @@ constexpr Square sqww_to_sq(SquareWithWall sqww) { return Square(sqww & 0xff); }
 extern SquareWithWall sqww_table[SQ_NB_PLUS1];
 
 // 型変換。Square型から。
-inline SquareWithWall to_sqww(Square sq) { return sqww_table[sq]; }
+static SquareWithWall to_sqww(Square sq) { return sqww_table[sq]; }
 
 // 盤内か。壁(盤外)だとfalseになる。
 constexpr bool is_ok(SquareWithWall sqww) { return (sqww & SQWW_BORROW_MASK) == 0; }
 
 // 単にSQの升を出力する。
-inline std::ostream& operator<<(std::ostream& os, SquareWithWall sqww) { os << sqww_to_sq(sqww); return os; }
+static std::ostream& operator<<(std::ostream& os, SquareWithWall sqww) { os << sqww_to_sq(sqww); return os; }
 
 // --------------------
 //        方角
@@ -312,7 +273,7 @@ namespace Effect8
 	// "Direction"ではなく"Directions"を返したほうが、縦横十字方向や、斜め方向の位置関係にある場合、
 	// DIRECTIONS_CROSSやDIRECTIONS_DIAGのような定数が使えて便利。
 	extern Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1];
-	inline Directions directions_of(Square sq1, Square sq2) { return direc_table[sq1][sq2]; }
+	static Directions directions_of(Square sq1, Square sq2) { return direc_table[sq1][sq2]; }
 
 	// Directionsをpopしたもの。複数の方角を同時に表すことはない。
 	// おまけで桂馬の移動も追加しておく。
@@ -322,7 +283,7 @@ namespace Effect8
 	};
 
 	// Directionsに相当するものを引数に渡して1つ方角を取り出す。
-	inline Direct pop_directions(Directions& d) { return (Direct)pop_lsb(d); }
+	static Direct pop_directions(Directions& d) { return (Direct)pop_lsb(d); }
 
 	// ある方角の反対の方角(180度回転させた方角)を得る。
 	constexpr Direct operator~(Direct d) {
@@ -348,7 +309,7 @@ namespace Effect8
 // 例) 王がsq1, pinされている駒がsq2にあるときに、pinされている駒をsq3に移動させたときにaligned(sq1,sq2,sq3)であれば、
 //  pinされている方向に沿った移動なので開き王手にはならないと判定できる。
 // ただし玉はsq3として、sq1,sq2は同じ側にいるものとする。(玉を挟んでの一直線は一直線とはみなさない)
-inline bool aligned(Square sq1, Square sq2, Square sq3/* is ksq */)
+static bool aligned(Square sq1, Square sq2, Square sq3/* is ksq */)
 {
 	auto d1 = Effect8::directions_of(sq1, sq3);
 	return d1 ? d1 == Effect8::directions_of(sq2, sq3) : false;
@@ -503,7 +464,7 @@ enum Piece : uint32_t
 
 // USIプロトコルで駒を表す文字列を返す。
 // 駒打ちの駒なら先頭に"D"。
-inline std::string usi_piece(Piece pc) { return std::string((pc & 32) ? "D":"")
+static std::string usi_piece(Piece pc) { return std::string((pc & 32) ? "D":"")
 		  + std::string(USI_PIECE).substr((pc & 31) * 2, 2); }
 
 // 駒に対して、それが先後、どちらの手番の駒であるかを返す。
@@ -536,7 +497,7 @@ constexpr bool is_ok(Piece pc) { return NO_PIECE <= pc && pc < PIECE_NB; }
 std::string pretty(Piece pc);
 
 // ↑のpretty()だと先手の駒を表示したときに先頭にスペースが入るので、それが嫌な場合はこちらを用いる。
-inline std::string pretty2(Piece pc) { ASSERT_LV1(color_of(pc) == BLACK); auto s = pretty(pc); return s.substr(1, s.length() - 1); }
+static std::string pretty2(Piece pc) { ASSERT_LV1(color_of(pc) == BLACK); auto s = pretty(pc); return s.substr(1, s.length() - 1); }
 
 // USIで、盤上の駒を表現する文字列
 // ※　歩Pawn 香Lance 桂kNight 銀Silver 角Bishop 飛Rook 金Gold 王King
@@ -633,10 +594,11 @@ std::string pretty(Move m);
 std::string pretty(Move m, Piece movedPieceType);
 
 // USI形式の文字列にする。
+// USI::move(Move m)と同等。互換性のために残されている。
 std::string to_usi_string(Move m);
 
 // USI形式で指し手を表示する
-inline std::ostream& operator<<(std::ostream& os, Move m) { os << to_usi_string(m); return os; }
+static std::ostream& operator<<(std::ostream& os, Move m) { os << to_usi_string(m); return os; }
 
 // --------------------
 //   拡張された指し手
@@ -665,7 +627,7 @@ constexpr bool operator<(const ExtMove& first, const ExtMove& second) {
 	return first.value < second.value;
 }
 
-inline std::ostream& operator<<(std::ostream& os, ExtMove m) { os << m.move << '(' << m.value << ')'; return os; }
+static std::ostream& operator<<(std::ostream& os, ExtMove m) { os << m.move << '(' << m.value << ')'; return os; }
 
 // --------------------
 //       手駒
@@ -732,7 +694,7 @@ enum HandKind : uint32_t { HAND_KIND_PAWN = 1 << (PAWN-1), HAND_KIND_LANCE=1 << 
 // Hand型からHandKind型への変換子
 // 例えば歩の枚数であれば5bitで表現できるが、011111bを加算すると1枚でもあれば桁あふれしてbit5が1になる。
 // これをPEXT32で回収するという戦略。
-inline HandKind toHandKind(Hand h) {return (HandKind)PEXT32(h + HAND_BIT_MASK, HAND_BORROW_MASK);}
+static HandKind toHandKind(Hand h) {return (HandKind)PEXT32(h + HAND_BIT_MASK, HAND_BORROW_MASK);}
 
 // 特定種類の駒を持っているかを判定する
 constexpr bool hand_exists(HandKind hk, Piece pt) { /* ASSERT_LV2(PIECE_HAND_ZERO <= pt && pt < PIECE_HAND_NB); */ return static_cast<bool>(hk & (1 << (pt - 1))); }
@@ -798,7 +760,7 @@ enum MOVE_GEN_TYPE
 	QUIETS = NON_CAPTURES, // Stockfishとの互換性向上ためのalias
 };
 
-struct Position; // 前方宣言
+class Position; // 前方宣言
 
 // 指し手を生成器本体
 // gen_typeとして生成する指し手の種類をシてする。gen_allをfalseにすると歩の不成、香の8段目の不成は生成しない。通常探索中はそれでいいはず。
@@ -880,7 +842,7 @@ std::ostream& operator<<(std::ostream& os, RepetitionState rs);
 
 // 引き分け時のスコア
 extern Value drawValueTable[REPETITION_NB][COLOR_NB];
-inline Value draw_value(RepetitionState rs, Color c) { /* ASSERT_LV3(is_ok(rs)); */ return drawValueTable[rs][c]; }
+static Value draw_value(RepetitionState rs, Color c) { /* ASSERT_LV3(is_ok(rs)); */ return drawValueTable[rs][c]; }
 
 // --------------------
 //      評価関数
@@ -904,139 +866,10 @@ namespace Eval
 }
 
 // --------------------
-//     USI関連
-// --------------------
-
-namespace USI
-{
-	struct Option;
-
-	// USIのoption名と、それに対応する設定内容を保持しているclass
-	typedef std::map<std::string, Option> OptionsMap;
-
-	// USIプロトコルで指定されるoptionの内容を保持するclass
-	struct Option {
-
-		// USIプロトコルで"setoption"コマンドが送られてきたときに呼び出されるハンドラの型。
-		//		typedef void(*OnChange)(const Option&);
-		// Stockfishでは↑のように関数ポインタになっているが、
-		// これだと[&](o){...}みたいなlambda式を受けられないのでここはstd::functionを使うべきだと思う。
-		typedef std::function<void(const Option&)> OnChange;
-
-		Option(OnChange f = nullptr) : type("button"), min(0), max(0), on_change(f) {}
-
-		// 文字列
-		Option(const char* v, OnChange f = nullptr) : type("string"), min(0), max(0), on_change(f)
-		{
-			defaultValue = currentValue = v;
-		}
-
-		// bool型のoption デフォルト値が v
-		Option(bool v, OnChange f = nullptr) : type("check"), min(0), max(0), on_change(f)
-		{
-			defaultValue = currentValue = v ? "true" : "false";
-		}
-
-		// s64型で(min,max)でデフォルトがv
-		Option(s64 v, s64 minv, s64 maxv, OnChange f = nullptr) : type("spin"), min(minv), max(maxv), on_change(f)
-		{
-			defaultValue = currentValue = std::to_string(v);
-		}
-
-		// combo型。内容的には、string型と同等。
-		// list = コンボボックスに表示する値。v = デフォルト値かつ現在の値
-		Option(const std::vector<std::string>&list, const std::string& v, OnChange f = nullptr) : type("combo"), on_change(f), list(list)
-		{
-			defaultValue = currentValue = v;
-		}
-
-		// USIプロトコル経由で値を設定されたときにそれをcurrentValueに反映させる。
-		Option& operator=(const std::string&);
-		Option& operator=(const char* ptr) { return *this = std::string(ptr); };
-
-		// 起動時に設定を代入する。
-		void operator<<(const Option&);
-
-		// idxの値を変えずに上書きする
-		void overwrite(const Option&);
-
-		// s64,bool型への暗黙の変換子
-		operator s64() const {
-			ASSERT_LV1(type == "check" || type == "spin");
-			return type == "spin" ? stoll(currentValue) : currentValue == "true";
-		}
-
-		// string型への暗黙の変換子
-		// typeが"string"型のとき以外であっても何であれ変換できるようになっているほうが便利なので
-		// 変換できるようにしておく。
-		operator std::string() const {
-			ASSERT_LV1(type == "string" || type == "combo" || type == "spin" || type == "check");
-			return currentValue;
-		}
-
-	private:
-		friend std::ostream& operator<<(std::ostream& os, const OptionsMap& om);
-
-		// 出力するときの順番。この順番に従ってGUIの設定ダイアログに反映されるので順番重要！
-		size_t idx;
-
-		std::string defaultValue, currentValue, type;
-
-		// s64型のときの最小と最大
-		s64 min, max;
-
-		// combo boxのときの表示する文字列リスト
-		std::vector<std::string> list;
-
-		// 値が変わったときに呼び出されるハンドラ
-		OnChange on_change;
-	};
-
-	// USIメッセージ応答部(起動時に、各種初期化のあとに呼び出される)
-	void loop(int argc, char* argv[]);
-
-	// optionのdefault値を設定する。
-	void init(OptionsMap&);
-
-	// pv(読み筋)をUSIプロトコルに基いて出力する。
-	// depth : 反復深化のiteration深さ。
-	std::string pv(const Position& pos, Depth depth, Value alpha, Value beta);
-
-	// USIプロトコルで、idxの順番でoptionを出力する。
-	std::ostream& operator<<(std::ostream& os, const OptionsMap& om);
-
-	// USIプロトコルの形式でValue型を出力する。
-	// 歩が100になるように正規化するので、operator <<()をこういう仕様にすると
-	// 実際の値と異なる表示になりデバッグがしにくくなるから、そうはしていない。
-	std::string score_to_usi(Value v);
-
-	// USIに追加オプションを設定したいときは、この関数を定義すること。
-	// USI::init()のなかからコールバックされる。
-	void extra_option(USI::OptionsMap& o);
-}
-
-// USIのoption設定はここに保持されている。
-extern USI::OptionsMap Options;
-
-// 局面posとUSIプロトコルによる指し手を与えて
-// もし可能なら等価で合法な指し手を返す。(合法でないときはMOVE_NONEを返す。"resign"に対してはMOVE_RESIGNを返す。)
-Move move_from_usi(const Position& pos, const std::string& str);
-
-// 合法かのテストはせずにともかく変換する版。
-// 返ってくるのは16bitのMoveなので、これを32bitのMoveに変換するには
-// Position::move16_to_move()を呼び出す必要がある。
-Move move_from_usi(const std::string& str);
-
-// USIの"isready"コマンドが呼び出されたときの処理。このときに評価関数の読み込みなどを行なう。
-// benchmarkコマンドのハンドラなどで"isready"が来ていないときに評価関数を読み込ませたいときに用いる。
-// skipCorruptCheck == trueのときは評価関数の2度目の読み込みのときのcheck sumによるメモリ破損チェックを省略する。
-extern void is_ready(bool skipCorruptCheck = false);
-
-// --------------------
 //  operators and macros
 // --------------------
 
 #include "extra/macros.h"
 
 
-#endif // of #ifndef _SHOGI_H_
+#endif // #ifndef _TYPES_H_INCLUDED

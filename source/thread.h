@@ -7,9 +7,10 @@
 #include <thread>
 #include <vector>
 
+#include "move_pick.h"
 #include "position.h"
 #include "search.h"
-#include "move_pick.h"
+#include "thread_win32.h"
 
 // --------------------
 // 探索時に用いるスレッド
@@ -89,7 +90,7 @@ public:
 
 	// このスレッドでMultiPVを用いているとして、rootMovesの(0から数えて)何番目のPVの指し手を探索中であるか
 	// MultiPVでないときはこの変数の値は0。
-	size_t PVIdx;
+	size_t pvIdx;
 
 	// rootから最大、何手目まで探索したか(選択深さの最大)
 	int selDepth;

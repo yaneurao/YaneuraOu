@@ -15,6 +15,7 @@
 #include "../../evaluate.h"
 #include "../../position.h"
 #include "../../misc.h"
+#include "../../usi.h"
 
 #include "../evaluate_io.h"
 #include "../evaluate_common.h"

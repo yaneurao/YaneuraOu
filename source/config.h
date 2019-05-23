@@ -1,5 +1,34 @@
-﻿#ifndef _CONFIG_H_
-#define _CONFIG_H_
+﻿#ifndef _CONFIG_H_INCLUDED
+#define _CONFIG_H_INCLUDED
+
+//
+//  やねうら王プロジェクト
+//  公式サイト :  http://yaneuraou.yaneu.com/yaneuraou_mini/
+//
+
+// 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
+// ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
+#define ENGINE_VERSION "4.83"
+
+// --------------------
+//  思考エンジンの種類
+// --------------------
+
+// やねうら王の思考エンジンとしてリリースする場合、以下から選択。(どれか一つは必ず選択しなければならない)
+// オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE を defineして 他のエンジンのソースコードを参考に
+//  engine/user-engine/ フォルダの中身を書くべし。
+
+#if !defined (USE_MAKEFILE)
+
+#define YANEURAOU_2018_OTAFUKU_ENGINE    // やねうら王2018 with お多福Lab。(開発中2018/01/01～)
+//#define MATE_ENGINE                      // 詰め将棋solverとしてリリースする場合。(開発中2017/05/06～)
+//#define USER_ENGINE                      // ユーザーの思考エンジン
+
+#else
+
+// Makefileを使ってビルドをするときは、Makefile側で選択する。
+
+#endif
 
 // --------------------
 // コンパイル時設定
@@ -284,75 +313,7 @@
 #define USE_GLOBAL_OPTIONS
 #endif
 
-
-
-// 極やねうら王2018(非公開)
-#if defined(YANEURAOU_2018_GOKU_ENGINE)
-#define ENGINE_NAME "YaneuraOu 2018 GOKU"
-
-//#define EVAL_KPPT
-#define EVAL_KPP_KKPT
-
-//#define USE_HELICES_MIRROR
-//#define EVAL_HELICES 81
-
-//#define USE_KPPP_KKPT_MIRROR
-//#define EVAL_KPPP_KKPT 18
-//#define EVAL_KPPP_KKPT 36
-
-//#define USE_KPPPT_MIRROR
-//#define EVAL_KPPPT 27
-//#define EVAL_KPPPT 18
-
-//#define EVAL_KKPP_KKPT 36
-//#define EVAL_KKPP_KKPT 45
-//#define EVAL_KKPPT 36
-
-//#define EVAL_KPP_KKPT_FV_VAR
-
-//#define EVAL_NABLA
-
-//#define EVAL_MATERIAL
-
-// 実験中の評価関数
-// 評価関数の番号を選択できる。0001～9999から選ぶ。
-// 番号として、0000は、if EVAL_EXPERIMENTAL == 0000と判定しようとしたときに、C++の言語仕様として
-// シンボルが定義されていないときこの条件式が真だと判定されてしまうので使えない。
-//#define EVAL_EXPERIMENTAL 0005
-
-#define USE_EVAL_HASH
-#define USE_SEE
-#define USE_MATE_1PLY
-#define USE_ENTERING_KING_WIN
-#define USE_TIME_MANAGEMENT
-#define KEEP_PIECE_IN_GENERATE_MOVES
-#define ONE_PLY_EQ_1
-
-// デバッグ絡み
-//#define ASSERT_LV 3
-//#define USE_DEBUG_ASSERT
-
-#define ENABLE_TEST_CMD
-// 学習絡みのオプション
-#define USE_SFEN_PACKER
-// 学習機能を有効にするオプション。
-#define EVAL_LEARN
-// 開発中の教師局面の生成コマンド
-#define USE_GENSFEN2018
-
-// 定跡生成絡み
-#define ENABLE_MAKEBOOK_CMD
-// 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
-#define USE_SHARED_MEMORY_IN_EVAL
-// パラメーターの自動調整絡み
-#define USE_GAMEOVER_HANDLER
-//#define LONG_EFFECT_LIBRARY
-
-// GlobalOptionsは有効にしておく。
-#define USE_GLOBAL_OPTIONS
-#endif
-
-
+// NNUE評価関数を積んだtanuki-エンジン
 #if defined(YANEURAOU_2018_TNK_ENGINE)
 #define ENGINE_NAME "YaneuraOu 2018 T.N.K."
 #define EVAL_NNUE
@@ -375,6 +336,11 @@
 // 学習機能を有効にするオプション。
 #define EVAL_LEARN
 
+// 学習のためにOpenBLASを使う
+// "../openblas/lib/libopenblas.dll.a"をlibとして追加すること。
+//#define USE_BLAS
+
+
 // 定跡生成絡み
 #define ENABLE_MAKEBOOK_CMD
 // 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
@@ -388,28 +354,6 @@
 
 // 探索部はYANEURAOU_2018_OTAFUKU_ENGINEを使う。
 #define YANEURAOU_2018_OTAFUKU_ENGINE
-#endif
-
-
-#ifdef LOCAL_GAME_SERVER
-#define ENGINE_NAME "YaneuraOu Local Game Server"
-#define EVAL_MATERIAL
-#define ASSERT_LV 3 // ローカルゲームサーバー、host側の速度はそれほど要求されないのでASSERT_LVを3にしておく。
-#define KEEP_LAST_MOVE
-#define USE_ENTERING_KING_WIN
-#endif
-
-
-// --- 協力詰めエンジンとして実行ファイルを公開するとき用の設定集
-
-#ifdef HELP_MATE_ENGINE
-#define ENGINE_NAME "YaneuraOu help mate solver"
-#define KEEP_LAST_MOVE
-#undef  MAX_PLY_NUM
-#define MAX_PLY_NUM 65000
-#undef HASH_KEY_BITS
-#define HASH_KEY_BITS 128
-#define EVAL_MATERIAL
 #endif
 
 // --- 詰将棋エンジンとして実行ファイルを公開するとき用の設定集
@@ -445,6 +389,7 @@
 #undef ENABLE_TEST_CMD
 #define USE_LARGE_EVAL_HASH
 #undef USE_GLOBAL_OPTIONS
+#undef KEEP_LAST_MOVE
 #endif
 
 // --------------------
@@ -455,11 +400,6 @@
 // 正しく計算できない。そのため、EVAL_HASHを動的に無効化するためのオプションを用意する。
 #if defined(EVAL_LEARN)
 #define USE_GLOBAL_OPTIONS
-#endif
-
-// 評価関数の実験用のときは、EvalListの組み換えが必要になる。
-#if EVAL_EXPERIMENTAL >= 0001
-#define USE_EVAL_MAKE_LIST_FUNCTION
 #endif
 
 // --------------------
@@ -702,15 +642,6 @@ constexpr bool Is64Bit = false;
 #endif
 
 // ----------------------------
-//     mutex wrapper
-// ----------------------------
-
-// Windows用のmingw、gcc環境下でstd::mutexをもっと速い実装に差し替えたい時のためにwrapしてある。
-// そのためstd::mutex、std::condition_variableを直接用いるのではなく、Mutex、ConditionVariableを用いる。
-
-#include "thread_win32.h"
-
-// ----------------------------
 //     mkdir wrapper
 // ----------------------------
 
@@ -772,18 +703,6 @@ inline int MKDIR(std::string dir_name)
 #define EVAL_TYPE_NAME "KPPT"
 #elif defined(EVAL_KPP_KKPT)
 #define EVAL_TYPE_NAME "KPP_KKPT"
-#elif defined(EVAL_KPPPT)
-#define EVAL_TYPE_NAME "KPPPT"
-#elif defined(EVAL_KPPP_KKPT)
-#define EVAL_TYPE_NAME "KPPP_KKPT"
-#elif defined(EVAL_KKPP_KKPT)
-#define EVAL_TYPE_NAME "KKPP_KKPT"
-#elif defined(EVAL_KKPPT)
-#define EVAL_TYPE_NAME "KKPPT"
-#elif defined(EVAL_KPP_KKPT_FV_VAR)
-#define EVAL_TYPE_NAME "KPP_KKPT_FV_VAR"
-#elif defined(EVAL_NABLA)
-#define EVAL_TYPE_NAME "NABLA V2"
 #elif defined(EVAL_NNUE)
 #define EVAL_TYPE_NAME "NNUE"
 #else
@@ -835,4 +754,5 @@ inline int MKDIR(std::string dir_name)
 #define ADD_BOARD_EFFECT_REWIND(color_,sq_,e1_) { board_effect[color_].e[sq_] += (uint8_t)e1_; }
 #define ADD_BOARD_EFFECT_BOTH_REWIND(color_,sq_,e1_,e2_) { board_effect[color_].e[sq_] += (uint8_t)e1_; board_effect[~color_].e[sq_] += (uint8_t)e2_; }
 
-#endif // _CONFIG_H_
+#endif // ifndef _CONFIG_H_INCLUDED
+

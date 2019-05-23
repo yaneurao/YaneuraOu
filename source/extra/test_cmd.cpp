@@ -791,7 +791,7 @@ void test_timeman()
 
 		Timer time;
 
-		int remain = limits.time[BLACK];
+		TimePoint remain = limits.time[BLACK];
 
 		for (int ply = 1; ply <= limits.max_game_ply; ply += 2)
 		{
@@ -804,7 +804,7 @@ void test_timeman()
 				;
 
 			// 4回に1回はtime.minimum()ぶんだけ使ったとみなす。残り3回はtime.optimum()だけ使ったとみなす。
-			int used_time = ((ply % 8) == 1) ?  time.minimum() : time.optimum();
+			TimePoint used_time = ((ply % 8) == 1) ?  time.minimum() : time.optimum();
 			// 1秒未満繰り上げ。ただし、2秒は計測1秒扱い。
 			used_time = ((used_time + delay + 999) / 1000) * 1000;
 			if (used_time <= 2000)
@@ -1068,7 +1068,7 @@ void exam_book(Position& pos)
 			else if (token == "moves")
 				continue; // 読み飛ばす
 
-			Move move = move_from_usi(pos, token);
+			Move move = USI::to_move(pos, token);
 			// illigal moveであるとMOVE_NONEが返る。
 			if (move == MOVE_NONE)
 			{

@@ -1,6 +1,6 @@
 ﻿// NNUE評価関数の学習時用のコード
 
-#include "../../types.h"
+#include "../../config.h"
 
 #if defined(EVAL_LEARN) && defined(EVAL_NNUE)
 
@@ -10,6 +10,7 @@
 #include "../../learn/learning_tools.h"
 
 #include "../../position.h"
+#include "../../usi.h"
 #include "../../misc.h"
 
 #include "../evaluate_common.h"

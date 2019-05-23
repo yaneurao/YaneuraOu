@@ -342,7 +342,7 @@ struct SfenPacker
 // 高速化のために直接unpackする関数を追加。かなりしんどい。
 // packer::unpack()とPosition::set()とを合体させて書く。
 // 渡された局面に問題があって、エラーのときは非0を返す。
-int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thread* th, bool mirror)
+int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thread* th, bool mirror , int gamePly_ /* = 0 */)
 {
 	SfenPacker packer;
 	auto& stream = packer.stream;
@@ -475,7 +475,7 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thre
 		return 2;
 	}
 
-	gamePly = 0;
+	gamePly = gamePly_;
 
 	// put_piece()したのでこのタイミングでupdate
 	// set_state()で駒種別のbitboardを参照するのでそれまでにこの関数を呼び出す必要がある。

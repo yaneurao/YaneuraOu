@@ -398,7 +398,7 @@ namespace Book
 						break;
 					}
 
-					Move move = move_from_usi(pos, token);
+					Move move = USI::to_move(pos, token);
 					// illigal moveであるとMOVE_NONEが返る。
 					if (move == MOVE_NONE)
 					{
@@ -806,12 +806,12 @@ namespace Book
 				if (bestMove == "none" || bestMove == "resign")
 					best = MOVE_NONE;
 				else
-					best = move_from_usi(bestMove);
+					best = USI::to_move(bestMove);
 
 				if (nextMove == "none" || nextMove == "resign")
 					next = MOVE_NONE;
 				else
-					next = move_from_usi(nextMove);
+					next = USI::to_move(nextMove);
 
 				BookPos bp(best, next, value, depth, num);
 				insert(sfen, bp);
@@ -1103,12 +1103,12 @@ namespace Book
 					if (bestMove == "none" || bestMove == "resign")
 						best = MOVE_NONE;
 					else
-						best = move_from_usi(bestMove);
+						best = USI::to_move(bestMove);
 
 					if (nextMove == "none" || nextMove == "resign")
 						next = MOVE_NONE;
 					else
-						next = move_from_usi(nextMove);
+						next = USI::to_move(nextMove);
 
 					// 定跡のMoveは16bitであり、rootMovesは32bitのMoveであるからこのタイミングで補正する。
 					BookPos bp(pos.move16_to_move(best), next, value, depth, num);

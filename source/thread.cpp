@@ -1,4 +1,5 @@
 ﻿#include "thread.h"
+#include "usi.h"
 
 ThreadPool Threads;		// Global object
 

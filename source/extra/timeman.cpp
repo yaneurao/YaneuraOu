@@ -1,10 +1,11 @@
-﻿#include "../types.h"
+﻿#include "../config.h"
 
-#ifdef  USE_TIME_MANAGEMENT
+#if defined(USE_TIME_MANAGEMENT)
 
 #include "../misc.h"
 #include "../search.h"
 #include "../thread.h"
+#include "../usi.h"
 
 namespace {
 
@@ -55,9 +56,9 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 	search_end = 0;
 
 	// 今回の最大残り時間(これを超えてはならない)
-	remain_time = limits.time[us] + limits.byoyomi[us] - (int)Options["NetworkDelay2"];
+	remain_time = limits.time[us] + limits.byoyomi[us] - (TimePoint)Options["NetworkDelay2"];
 	// ここを0にすると時間切れのあと自爆するのでとりあえず100にしておく。
-	remain_time = std::max(remain_time, 100);
+	remain_time = std::max(remain_time, (TimePoint)100);
 
 	// 最小思考時間
 	minimum_thinking_time = (int)Options["MinimumThinkingTime"];
@@ -110,7 +111,7 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 
 	{
 		// 最小思考時間(これが1000より短く設定されることはないはず..)
-		minimumTime = std::max(minimum_thinking_time - network_delay, 1000);
+		minimumTime = std::max(minimum_thinking_time - network_delay, (TimePoint)1000);
 
 		// 最適思考時間と、最大思考時間には、まずは上限値を設定しておく。
 		optimumTime = maximumTime = remain_time;
@@ -120,22 +121,22 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 		// みたいな感じで考える
 
 		// 残り手数において残り時間はあとどれくらいあるのか。
-		int remain_estimate = limits.time[us]
+		TimePoint remain_estimate = limits.time[us]
 			+ limits.inc[us] * MTG
 			// 秒読み時間も残り手数に付随しているものとみなす。
 			+ limits.byoyomi[us] * MTG;
 
 		// 1秒ずつは絶対消費していくねんで！
 		remain_estimate -= (MTG + 1) * 1000;
-		remain_estimate = std::max(remain_estimate, 0);
+		remain_estimate = std::max(remain_estimate, TimePoint(0));
 
 		// -- optimumTime
-		int t1 = minimumTime + remain_estimate / MTG;
+		TimePoint t1 = minimumTime + remain_estimate / MTG;
 
 		// -- maximumTime
 		float max_ratio = 5.0f;
 
-#if	defined(YANEURAOU_2018_GOKU_ENGINE)
+#if	defined(YANEURAOU_2018_OTAFUKU_ENGINE)
 
 		// 20手目までにそんなに大きな勝負所が来ることはあまりないので
 		// max_ratioとoptimumTimeを抑制しておく。(根拠は特にない)
@@ -146,11 +147,12 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 		//
 		// 今後の課題である…。[2017/11/03]
 
-		if (ply <= 20)
-		{
-			max_ratio = 3.0f;
-			optimumTime = int(optimumTime * 0.7f);
-		}
+		//if (ply <= 20)
+		//{
+		//	max_ratio = 3.0f;
+		//	optimumTime = int(optimumTime * 0.7f);
+		//}
+		// →　良くなかった。[2019/05/05] @WCSC29
 #endif
 
 		// 切れ負けルールにおいては、5分を切っていたら、このratioを抑制する。
@@ -161,18 +163,18 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 			// 1分以下 : ratio = 1.0固定
 			max_ratio = std::min(max_ratio, std::max(float(limits.time[us]) / (60 * 1000), 1.0f));
 		}
-		int t2 = minimumTime + (int)(remain_estimate * max_ratio / MTG);
+		TimePoint t2 = minimumTime + (int)(remain_estimate * max_ratio / MTG);
 
 		// ただしmaximumは残り時間の30%以上は使わないものとする。
 		// optimumが超える分にはいい。それは残り手数が少ないときとかなので構わない。
-		t2 = std::min(t2, (int)(remain_estimate * 0.3));
+		t2 = std::min(t2, (TimePoint)(remain_estimate * 0.3));
 
 		// slowMoverは100分率で与えられていて、optimumTimeの係数として作用するものとする。
 		optimumTime = std::min(t1, optimumTime) * slowMover / 100;
 		maximumTime = std::min(t2, maximumTime);
 
 		// Ponderが有効になっている場合、ponderhitすると時間が本来の予測より余っていくので思考時間を心持ち多めにとっておく。
-		// これ本当はゲーム開始時にUSIコマンドで送られてくるべきだと思う。USI 2.0を策定するか…。
+		// これ本当はゲーム開始時にUSIコマンドで送られてくるべきだと思う。→　将棋所では、送られてきてた。"USI_Ponder"  [2019/04/29]
 		if (Threads.received_go_ponder)
 			optimumTime += optimumTime / 4;
 	}

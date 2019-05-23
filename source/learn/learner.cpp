@@ -2421,7 +2421,7 @@ void convert_bin(const vector<string>& filenames , const string& output_file_nam
 			}
 			else if (token == "move") {
 				ss >> value;
-				p.move = move_from_usi(value);
+				p.move = USI::to_move(value);
 			}
 			else if (token == "score") {
 				ss >> p.score;

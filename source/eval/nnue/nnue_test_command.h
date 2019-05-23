@@ -3,7 +3,7 @@
 #ifndef _NNUE_TEST_COMMAND_H_
 #define _NNUE_TEST_COMMAND_H_
 
-#include "../../shogi.h"
+#include "../../config.h"
 
 #if defined(ENABLE_TEST_CMD) && defined(EVAL_NNUE)
 

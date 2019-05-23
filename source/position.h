@@ -48,7 +48,7 @@ struct StateInfo
 
 	// 自玉に対してpinしている(可能性のある)敵の大駒。
 	// 自玉に対して上下左右方向にある敵の飛車、斜め十字方向にある敵の角、玉の前方向にある敵の香、…
-	Bitboard pinnersForKing[COLOR_NB];
+	Bitboard pinners[COLOR_NB];
 
 	// 自駒の駒種Xによって敵玉が王手となる升のbitboard
 	Bitboard checkSquares[PIECE_WHITE];
@@ -76,7 +76,7 @@ struct StateInfo
 	// ※　次の局面にdo_move()で進むときにこの値が設定される
 	Piece capturedPiece;
 
-	friend struct Position;
+	friend class Position;
 
 	// --- evaluate
 
@@ -158,8 +158,9 @@ typedef std::unique_ptr<StateList> StateListPtr;
 struct PackedSfen { u8 data[32]; };
 
 // 盤面
-struct Position
+class Position
 {
+public:
 	// --- ctor
 
 	// Positionのコンストラクタで平手に初期化すると、compute_eval()が呼び出され、このときに
@@ -252,17 +253,8 @@ struct Position
 	}
 
 	// 置換表から取り出したMoveを32bit化する。
-	Move move16_to_move(Move m) const {
-		// 置換表から取り出した値なので m==0である可能性があり、ASSERTは書けない。
-		// その場合、piece_on(SQ_ZERO)の駒が上位16bitに格納されるが、
-		// 指し手自体はilligal moveなのでこの指し手が選択されることはない。
-		//		ASSERT_LV3(is_ok(m));
-
-		return Move(u16(m) +
-			((is_drop(m) ? (Piece)(make_piece(sideToMove,move_dropped_piece(m)) + PIECE_DROP)
-				: is_promote(m) ? (Piece)(piece_on(move_from(m)) + PIECE_PROMOTE) : piece_on(move_from(m))) << 16)
-		);
-	}
+	// mは16bitの値であること。
+	Move move16_to_move(Move m) const;
 
 	// 連続王手の千日手等で引き分けかどうかを返す
 	// plyには、ss->plyを渡すこと。
@@ -581,7 +573,8 @@ struct Position
 	// ↑sfenを経由すると遅いので直接packされたsfenをセットする関数を作った。
 	// pos.set(sfen_unpack(data),si,th); と等価。
 	// 渡された局面に問題があって、エラーのときは非0を返す。
-	int set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si , Thread* th, bool mirror=false);
+	// PackedSfenにgamePlyは含まないので復元できない。そこを設定したいのであれば引数で指定すること。
+	int set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si , Thread* th, bool mirror=false , int gamePly_ = 0);
 
 	// 盤面と手駒、手番を与えて、そのsfenを返す。
 	static std::string sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly);
@@ -599,7 +592,7 @@ struct Position
 
 	// --- デバッグ用の出力
 
-#ifdef KEEP_LAST_MOVE
+#if defined(KEEP_LAST_MOVE)
   // 開始局面からこの局面にいたるまでの指し手を表示する。
 	std::string moves_from_start() const { return moves_from_start(false); }
 	std::string moves_from_start_pretty() const { return moves_from_start(true); }

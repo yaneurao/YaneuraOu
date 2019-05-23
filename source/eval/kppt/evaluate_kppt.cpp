@@ -22,6 +22,7 @@
 #include "../../evaluate.h"
 #include "../../position.h"
 #include "../../misc.h"
+#include "../../usi.h"
 #include "../../extra/bitop.h"
 
 // 実験中の評価関数を読み込む。(現状非公開)

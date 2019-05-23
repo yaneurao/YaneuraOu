@@ -1,10 +1,10 @@
 ﻿#include "../types.h"
 
-#if defined(EVAL_LEARN) && \
-	(defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE))
+#if defined(EVAL_LEARN) && defined(YANEURAOU_2018_OTAFUKU_ENGINE)
 
 #include "multi_think.h"
 #include "../tt.h"
+#include "../usi.h"
 
 void MultiThink::go_think()
 {
@@ -29,12 +29,15 @@ void MultiThink::go_think()
 
 	// 定跡を用いる場合、on the flyで行なうとすごく時間がかかる＆ファイルアクセスを行なう部分が
 	// thread safeではないので、メモリに丸読みされている状態であることをここで保証する。
-	Options["BookOnTheFly"] = "false";
+	Options["BookOnTheFly"] = std::string("false");
 
 	// 評価関数の読み込み等
 	// learnコマンドの場合、評価関数読み込み後に評価関数の値を補正している可能性があるので、
 	// メモリの破損チェックは省略する。
 	is_ready(true);
+
+	// 派生クラスのinit()を呼び出す。
+	init();
 
 	// ループ上限はset_loop_max()で設定されているものとする。
 	loop_count = 0;
@@ -101,13 +104,18 @@ void MultiThink::go_think()
 		if (++i == callback_seconds)
 		{
 			do_a_callback();
+			// ↑から戻ってきてからカウンターをリセットしているので、
+			// do_a_callback()のなかでsave()などにどれだけ時間がかかろうと
+			// 次に呼び出すのは、そこから一定時間の経過を要する。
 			i = 0;
 		}
 	}
 
 	// 最後の保存。
 	std::cout << std::endl << "finalize..";
-	do_a_callback();
+
+	// do_a_callback();
+	// →　呼び出し元で保存するはずで、ここでは要らない気がする。
 
 	// 終了したフラグは立っているがスレッドの終了コードの実行中であるということはありうるので
 	// join()でその終了を待つ必要がある。

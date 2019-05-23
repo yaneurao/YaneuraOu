@@ -6,6 +6,7 @@
 #include "search.h"
 #include "thread.h"
 #include "tt.h"
+#include "usi.h"
 
 // ----------------------------------------
 //    const
@@ -46,6 +47,8 @@ std::string pretty(Move m, Piece movedPieceType)
 		return pretty(move_to(m)) + pretty2(movedPieceType) + (is_promote(m) ? (pretty_jp ? "成" : "+") : "") + "[" + pretty(move_from(m)) + "]";
 }
 
+std::string to_usi_string(Move m){ return USI::move(m); }
+
 std::ostream& operator<<(std::ostream& os, Color c) { os << ((c == BLACK) ? (pretty_jp ? "先手" : "BLACK") : (pretty_jp ? "後手" : "WHITE")); return os; }
 
 std::ostream& operator<<(std::ostream& os, Piece pc)
@@ -79,32 +82,6 @@ std::ostream& operator<<(std::ostream& os, HandKind hk)
 		if (hand_exists(hk, pc))
 			std::cout << pretty(pc);
 	return os;
-}
-
-std::string to_usi_string(Move m)
-{
-	std::stringstream ss;
-	if (!is_ok(m))
-	{
-		ss << ((m == MOVE_RESIGN) ? "resign" :
-			   (m == MOVE_WIN)    ? "win"    :
-			   (m == MOVE_NULL)   ? "null"   :
-			   (m == MOVE_NONE)   ? "none"   :
-			"");
-	}
-	else if (is_drop(m))
-	{
-		ss << move_dropped_piece(m);
-		ss << '*';
-		ss << move_to(m);
-	}
-	else {
-		ss << move_from(m);
-		ss << move_to(m);
-		if (is_promote(m))
-			ss << '+';
-	}
-	return ss.str();
 }
 
 // 拡張USIプロトコルにおいてPVの出力に用いる。

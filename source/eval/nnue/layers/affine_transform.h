@@ -3,7 +3,7 @@
 #ifndef _NNUE_LAYERS_AFFINE_TRANSFORM_H_
 #define _NNUE_LAYERS_AFFINE_TRANSFORM_H_
 
-#include "../../../shogi.h"
+#include "../../../config.h"
 
 #if defined(EVAL_NNUE)
 

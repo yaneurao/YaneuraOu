@@ -259,6 +259,9 @@
     <ClInclude Include="thread_win32.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="usi.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -391,6 +394,12 @@
       <Filter>リソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="types.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\book\makebook2019.cpp">
+      <Filter>リソース ファイル\extra\book</Filter>
+    </ClCompile>
+    <ClCompile Include="usi_option.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>

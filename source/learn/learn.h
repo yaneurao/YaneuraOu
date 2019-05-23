@@ -225,7 +225,7 @@ namespace Learner
 
 	// いまのところ、やねうら王2017Earlyしか、このスタブを持っていないが
 	// EVAL_LEARNをdefineするなら、このスタブが必須。
-	extern Learner::ValueAndPV  search(Position& pos, int depth , size_t multiPV = 1);
+	extern Learner::ValueAndPV  search(Position& pos, int depth, size_t multiPV = 1, u64 NodesLimit = 0);
 	extern Learner::ValueAndPV qsearch(Position& pos);
 
 	double calc_grad(Value shallow, const PackedSfenValue& psv);

@@ -3,7 +3,7 @@
 #ifndef _NNUE_TRAINER_CLIPPED_RELU_H_
 #define _NNUE_TRAINER_CLIPPED_RELU_H_
 
-#include "../../../shogi.h"
+#include "../../../types.h"
 
 #if defined(EVAL_LEARN) && defined(EVAL_NNUE)
 

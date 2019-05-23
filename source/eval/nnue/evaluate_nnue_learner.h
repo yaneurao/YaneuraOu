@@ -3,7 +3,7 @@
 #ifndef _EVALUATE_NNUE_LEARNER_H_
 #define _EVALUATE_NNUE_LEARNER_H_
 
-#include "../../shogi.h"
+#include "../../config.h"
 
 #if defined(EVAL_LEARN) && defined(EVAL_NNUE)
 

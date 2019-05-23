@@ -1,6 +1,6 @@
 ﻿// NNUE評価関数の計算に関するコード
 
-#include "../../types.h"
+#include "../../config.h"
 
 #if defined(EVAL_NNUE)
 
@@ -9,6 +9,7 @@
 #include "../../evaluate.h"
 #include "../../position.h"
 #include "../../misc.h"
+#include "../../usi.h"
 
 #include "evaluate_nnue.h"
 

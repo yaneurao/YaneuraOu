@@ -4,6 +4,7 @@
 #include "../../types.h"
 #include "../../position.h"
 #include "../../misc.h"
+#include "../../usi.h"
 #include <unordered_map>
 
 namespace Search { struct LimitsType; };

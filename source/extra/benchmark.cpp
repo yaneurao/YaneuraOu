@@ -4,6 +4,7 @@
 #include "../tt.h"
 #include "../search.h"
 #include "../thread.h"
+#include "../usi.h"
 
 using namespace std;
 
@@ -73,9 +74,9 @@ void bench_cmd(Position& current, istringstream& is)
 	Options["Hash"] = ttSize;
 	Options["Threads"] = threads;
 
-#if defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE)
+#if defined(YANEURAOU_2018_OTAFUKU_ENGINE)
 	// 定跡にhitされるとベンチマークにならない。
-	Options["BookFile"] = "no_book";
+	Options["BookFile"] = string("no_book");
 #endif
 
 	// ベンチマークモードにしておかないとPVの出力のときに置換表を漁られて探索に影響がある。
