@@ -1,31 +1,29 @@
 # About this project
 
-YaneuraOu mini is a shogi engine(AI player), stronger than Bonanza6 , educational and tiny code(about 2500 lines) , USI compliant engine , capable of being compiled by VC++2017
+YaneuraOu is the most strong Shogi engine(AI player) in the world , WCSC29 1st winner , educational and USI compliant engine.
 
-やねうら王miniは、将棋の思考エンジンで、Bonanza6より強く、教育的で短いコード(2500行程度)で書かれたUSIプロトコル準拠の思考エンジンで、VC++2017でコンパイル可能です。
+やねうら王は、将棋の思考エンジンとして世界最強で、WCSC29(世界コンピュータ将棋選手権/2019年)において優勝しました。教育的でUSIプロトコル準拠の思考エンジンです。
 
-[やねうら王mini 公式サイト (解説記事、開発者向け情報等)](http://yaneuraou.yaneu.com/YaneuraOu_Mini/)
-
-[やねうら王公式 ](http://yaneuraou.yaneu.com/)
 
 # お知らせ
 
-- 2018/4/28 23:00 WCSC28に向けて探索部のアップデート作業中です。
-- 2018/4/30 06:00 探索部のアップデート完了。やねうら王2018 OTAFUKU V4.82。実行ファイルを公開しました。
-- 2018/5/ 3 12:00 置換表サイズの2^N制限を撤廃する改良をしましたが、まだテストあまりしていないのでWCSC28参加者はマージしないことを強く推奨。
+2019/05/05 WCSC29(世界コンピュータ将棋選手権/2019年)に『やねうら王 with お多福ラボ2019』として出場し、見事優勝を果たしました。(WCSC初参加、優勝)　このあと一年間は世界最強を名乗ります。(｀･ω･´)ｂ
 
 
 # やねうら王エンジンの大会での戦績
 
 - 2017年 世界コンピュータ将棋選手権(WCSC27) 『elmo』優勝
 - 2017年 第5回将棋電王トーナメント(SDT5) 『平成将棋合戦ぽんぽこ』優勝
+- 2018年 世界コンピュータ将棋選手権(WCSC28) 『Hefeweizen』優勝
+- 2019年 世界コンピュータ将棋選手権(WCSC29) 『やねうら王 with お多福ラボ2019』優勝。
+  - 決勝の上位8チームすべてがやねうら王の思考エンジンを採用。
+
 
 # 現在進行中のサブプロジェクト
 
 ## やねうら王2018 OTAFUKU (やねうら王2018 with お多福ラボ)
 
-今年は一年、これでいきます。
-
+2019年も引き続き、このエンジン部を改良していきます。
 
 ## やねうら王詰め将棋solver
 
