@@ -37,11 +37,11 @@ void Thread::clear()
 
 	// ここは、未初期化のときに[SQ_ZERO][NO_PIECE]を指すので、ここを-1で初期化しておくことによって、
 	// history > 0 を条件にすれば自ずと未初期化のときは除外されるようになる。
-	for (auto& to : contHistory)
+	for (auto& to : continuationHistory)
 		for (auto& h : to)
 			h.get()->fill(0);
 
-	contHistory[SQ_ZERO][NO_PIECE].get()->fill(Search::CounterMovePruneThreshold - 1);
+	continuationHistory[SQ_ZERO][NO_PIECE].get()->fill(Search::CounterMovePruneThreshold - 1);
 }
 
 void Thread::start_searching()

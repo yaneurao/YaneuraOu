@@ -110,7 +110,7 @@ public:
 
 	// コア数が多いか、長い持ち時間においては、ContinuationHistoryもスレッドごとに確保したほうが良いらしい。
 	// cf. https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
-	ContinuationHistory contHistory;
+	ContinuationHistory continuationHistory;
 
 	// PositionクラスのEvalListにalignasを指定されていて、Positionクラスを保持するこのThreadクラスをnewするが、
 	// そのときにalignasを無視されるのでcustom allocatorを定義しておいてやる。

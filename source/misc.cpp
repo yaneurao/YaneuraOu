@@ -622,3 +622,67 @@ uint64_t get_thread_id()
 	else
 		return 0; // give up
 }
+
+// --------------------
+//  Dependency Wrapper
+// --------------------
+
+bool getline(std::fstream& fs, std::string& s)
+{
+	bool b = (bool)std::getline(fs, s);
+#if !defined(_MSC_VER)
+	if (s.size() && s[s.size() - 1] == '\r')
+		s.erase(s.size() - 1);
+#endif
+	return b;
+}
+
+// ----------------------------
+//     mkdir wrapper
+// ----------------------------
+
+// カレントフォルダ相対で指定する。成功すれば0、失敗すれば非0が返る。
+// フォルダを作成する。日本語は使っていないものとする。
+// どうもmsys2環境下のgccだと_wmkdir()だとフォルダの作成に失敗する。原因不明。
+// 仕方ないので_mkdir()を用いる。
+
+#if defined(_WIN32)
+// Windows用
+
+#if defined(_MSC_VER)
+#include <codecvt>	// mkdirするのにwstringが欲しいのでこれが必要
+#include <locale>   // wstring_convertにこれが必要。
+int MKDIR(std::string dir_name)
+{
+	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
+	return _wmkdir(cv.from_bytes(dir_name).c_str());
+	//	::CreateDirectory(cv.from_bytes(dir_name).c_str(),NULL);
+}
+#elif defined(__GNUC__) 
+#include <direct.h>
+int MKDIR(std::string dir_name)
+{
+	return _mkdir(dir_name.c_str());
+}
+#endif
+#elif defined(_LINUX)
+// linux環境において、この_LINUXというシンボルはmakefileにて定義されるものとする。
+
+// Linux用のmkdir実装。
+#include "sys/stat.h"
+
+int MKDIR(std::string dir_name)
+{
+	return ::mkdir(dir_name.c_str(), 0777);
+}
+
+#else
+
+// Linux環境かどうかを判定するためにはmakefileを分けないといけなくなってくるな..
+// linuxでフォルダ掘る機能は、とりあえずナシでいいや..。評価関数ファイルの保存にしか使ってないし…。
+int MKDIR(std::string dir_name)
+{
+	return 0;
+}
+
+#endif

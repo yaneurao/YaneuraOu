@@ -504,23 +504,8 @@ extern GlobalOptions_ GlobalOptions;
 // stricmpはlinux系では存在しないらしく、置き換える。
 #define _stricmp strcasecmp
 
-// fstream,stringを前方宣言するの難しいので仕方なくinclude
-#include <string>
-#include <fstream>
-
-// getline()したときにテキストファイルが'\r\n'だと
-// '\r'が末尾に残るのでこの'\r'を除去するためにwrapperを書く。
-// そのため、fstreamに対してgetline()を呼び出すときは、
-// std::getline()ではなく単にgetline()と書いて、この関数を使うべき。
-inline bool getline(std::fstream& fs, std::string& s)
-{
-	bool b = (bool)std::getline(fs, s);
-	if (s.size() && s[s.size() - 1] == '\r')
-		s.erase(s.size() - 1);
-	return b;
-}
-
 #endif
+
 
 // --- output for Japanese notation
 
@@ -621,57 +606,6 @@ constexpr bool Is64Bit = false;
 #undef EVAL_LEARN
 
 #endif
-
-// ----------------------------
-//     mkdir wrapper
-// ----------------------------
-
-// カレントフォルダ相対で指定する。成功すれば0、失敗すれば非0が返る。
-// フォルダを作成する。日本語は使っていないものとする。
-// どうもmsys2環境下のgccだと_wmkdir()だとフォルダの作成に失敗する。原因不明。
-// 仕方ないので_mkdir()を用いる。
-
-#if defined(_WIN32)
-// Windows用
-
-#if defined(_MSC_VER)
-#include <codecvt>	// mkdirするのにwstringが欲しいのでこれが必要
-#include <locale>   // wstring_convertにこれが必要。
-inline int MKDIR(std::string dir_name)
-{
-	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
-	return _wmkdir(cv.from_bytes(dir_name).c_str());
-//	::CreateDirectory(cv.from_bytes(dir_name).c_str(),NULL);
-}
-#elif defined(__GNUC__) 
-#include <direct.h>
-inline int MKDIR(std::string dir_name)
-{
-	return _mkdir(dir_name.c_str());
-}
-#endif
-#elif defined(_LINUX)
-// linux環境において、この_LINUXというシンボルはmakefileにて定義されるものとする。
-
-// Linux用のmkdir実装。
-#include "sys/stat.h"
-
-inline int MKDIR(std::string dir_name)
-{
-	return ::mkdir(dir_name.c_str(), 0777);
-}
-
-#else
-
-// Linux環境かどうかを判定するためにはmakefileを分けないといけなくなってくるな..
-// linuxでフォルダ掘る機能は、とりあえずナシでいいや..。評価関数ファイルの保存にしか使ってないし…。
-inline int MKDIR(std::string dir_name)
-{
-	return 0;
-}
-
-#endif
-
 
 // ----------------------------
 //     evaluate function

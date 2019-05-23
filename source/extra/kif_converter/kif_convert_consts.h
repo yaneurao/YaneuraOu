@@ -2,7 +2,6 @@
 
 #include <sstream>
 #include <tuple>
-#include "../../shogi.h"
 
 // kif_convert_tools.cppで用いる文字列定数。
 // SJIS,UTF-8/16/32それぞれの文字列を用意してある。

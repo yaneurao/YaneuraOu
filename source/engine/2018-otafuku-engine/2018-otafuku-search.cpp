@@ -284,7 +284,7 @@ namespace YaneuraOu2018Otafuku
 	// -----------------------
 
 	// update_continuation_histories()は、1,2,4手前の指し手と現在の指し手との指し手ペアによって
-	// contHistoryを更新する。
+	// continuationHistoryを更新する。
 	// 1手前に対する現在の指し手 ≒ counterMove  (応手)
 	// 2手前に対する現在の指し手 ≒ followupMove (継続手)
 	// 4手前に対する現在の指し手 ≒ followupMove (継続手)
@@ -292,7 +292,7 @@ namespace YaneuraOu2018Otafuku
 	{
 		for (int i : { 1, 2, 4})
 			if (is_ok((ss - i)->currentMove))
-				(*(ss - i)->contHistory)[to][pc] << bonus;
+				(*(ss - i)->continuationHistory)[to][pc] << bonus;
 	}
 
 	// update_capture_stats()は、新しいcapture best move(駒を捕獲するbest move)が見つかったときに
@@ -986,7 +986,7 @@ namespace YaneuraOu2018Otafuku
 		(ss + 1)->ply = ss->ply + 1;
 
 		ss->currentMove = (ss + 1)->excludedMove = bestMove = MOVE_NONE;
-		ss->contHistory = thisThread->contHistory[SQ_ZERO][NO_PIECE].get();
+		ss->continuationHistory = thisThread->continuationHistory[SQ_ZERO][NO_PIECE].get();
 
 		// 2手先のkillerの初期化。
 		(ss + 2)->killers[0] = (ss + 2)->killers[1] = MOVE_NONE;
@@ -1344,7 +1344,7 @@ namespace YaneuraOu2018Otafuku
 				+ std::min((int)((eval - beta) / PawnValue), 3)) * ONE_PLY;
 
 			ss->currentMove = MOVE_NONE;
-			ss->contHistory = thisThread->contHistory[SQ_ZERO][NO_PIECE].get();
+			ss->continuationHistory = thisThread->continuationHistory[SQ_ZERO][NO_PIECE].get();
 
 			pos.do_null_move(st);
 
@@ -1404,7 +1404,7 @@ namespace YaneuraOu2018Otafuku
 					probCutCount++;
 
 					ss->currentMove = move;
-					ss->contHistory = thisThread->contHistory[to_sq(move)][pos.moved_piece_after(move)].get();
+					ss->continuationHistory = thisThread->continuationHistory[to_sq(move)][pos.moved_piece_after(move)].get();
 
 					ASSERT_LV3(depth >= 5 * ONE_PLY);
 
@@ -1454,7 +1454,7 @@ namespace YaneuraOu2018Otafuku
 		// contHist[0]  = Counter Move History    : ある指し手が指されたときの応手
 		// contHist[1]  = Follow up Move History  : 2手前の自分の指し手の継続手
 		// contHist[3]  = Follow up Move History2 : 4手前からの継続手
-		const PieceToHistory* contHist[] = { (ss - 1)->contHistory, (ss - 2)->contHistory, nullptr, (ss - 4)->contHistory };
+		const PieceToHistory* contHist[] = { (ss - 1)->continuationHistory, (ss - 2)->continuationHistory, nullptr, (ss - 4)->continuationHistory };
 
 		Piece prevPc = pos.piece_on(prevSq);
 		Move countermove = thisThread->counterMoves[prevSq][prevPc];
@@ -1747,7 +1747,7 @@ namespace YaneuraOu2018Otafuku
 
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
-			ss->contHistory = thisThread->contHistory[movedSq][movedPiece].get();
+			ss->continuationHistory = thisThread->continuationHistory[movedSq][movedPiece].get();
 
 			// -----------------------
 			// Step 15. Make the move
@@ -2444,7 +2444,7 @@ void Thread::search()
 
 	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
 	for (int i = 4; i > 0; i--)
-		(ss - i)->contHistory = this->contHistory[SQ_ZERO][NO_PIECE].get();
+		(ss - i)->continuationHistory = this->continuationHistory[SQ_ZERO][NO_PIECE].get();
 
 	// 反復深化のiterationが浅いうちはaspiration searchを使わない。
 	// 探索窓を (-VALUE_INFINITE , +VALUE_INFINITE)とする。
@@ -3139,7 +3139,7 @@ namespace Learner
 			// th->clear();
 
 			for (int i = 4; i > 0; i--)
-				(ss - i)->contHistory = th->contHistory[SQ_ZERO][NO_PIECE].get();
+				(ss - i)->continuationHistory = th->continuationHistory[SQ_ZERO][NO_PIECE].get();
 
 			// rootMovesの設定
 			auto& rootMoves = th->rootMoves;

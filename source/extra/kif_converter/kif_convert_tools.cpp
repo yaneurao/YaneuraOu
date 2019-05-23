@@ -1,13 +1,12 @@
-﻿#include "kif_convert_tools.h"
+﻿#if defined(USE_KIF_CONVERT_TOOLS)
 
-#if defined(USE_KIF_CONVERT_TOOLS)
+#include "kif_convert_tools.h"
+#include "kif_convert_consts.h"
+
+#include "../../position.h"
 
 #include <iomanip>
-#include <string>
-#include <sstream>
 
-#include "kif_convert_consts.h"
-#include "../../position.h"
 extern void is_ready();
 
 namespace KifConvertTools

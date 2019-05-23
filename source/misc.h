@@ -2,9 +2,9 @@
 #define MISC_H_INCLUDED
 
 #include <chrono>
-#include <string>
 #include <vector>
 #include <functional>
+#include <fstream>
 
 #include "types.h"
 #include "thread_win32.h" // AsyncPRNGで使う
@@ -418,5 +418,21 @@ struct Path
 		return path.substr(path_index);
 	}
 };
+
+// --------------------
+//  Dependency Wrapper
+// --------------------
+
+// Linux環境ではgetline()したときにテキストファイルが'\r\n'だと
+// '\r'が末尾に残るのでこの'\r'を除去するためにwrapperを書く。
+// そのため、fstreamに対してgetline()を呼び出すときは、
+// std::getline()ではなく単にgetline()と書いて、この関数を使うべき。
+extern bool getline(std::fstream& fs, std::string& s);
+
+// フォルダを作成する。
+// カレントフォルダ相対で指定する。dir_nameに日本語は使っていないものとする。
+// 成功すれば0、失敗すれば非0が返る。
+extern int MKDIR(std::string dir_name);
+
 
 #endif // #ifndef MISC_H_INCLUDED

@@ -17,7 +17,7 @@ namespace Search {
 
 	struct Stack {
 		Move* pv;					// PVへのポインター。RootMovesのvector<Move> pvを指している。
-		PieceToHistory* contHistory;// historyのうち、counter moveに関するhistoryへのポインタ。実体はThreadが持っている。
+		PieceToHistory* continuationHistory;// historyのうち、counter moveに関するhistoryへのポインタ。実体はThreadが持っている。
 		int ply;					// rootからの手数。rootならば0。
 		Move currentMove;			// そのスレッドの探索においてこの局面で現在選択されている指し手
 		Move excludedMove;			// singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手

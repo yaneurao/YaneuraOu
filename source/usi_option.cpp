@@ -3,9 +3,6 @@
 #include "usi.h"
 #include "misc.h"
 
-#include <string>
-#include <fstream>
-
 using std::string;
 
 // Option設定が格納されたglobal object。

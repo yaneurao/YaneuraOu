@@ -1,13 +1,13 @@
 ﻿#ifndef _BOOK_H_
 #define _BOOK_H_
 
-#include <unordered_map>
-#include <fstream>
-
 #include "../../types.h"
 #include "../../position.h"
 #include "../../misc.h"
 #include "../../usi.h"
+
+#include <unordered_map>
+#include <fstream>
 
 namespace Search { struct LimitsType; };
 
