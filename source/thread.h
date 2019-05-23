@@ -67,17 +67,23 @@ public:
 	void wait_for_search_finished();
 
 	// ------------------------------
-	//       プロパティ
-	// ------------------------------
-
-	// スレッドidが返る。Stockfishにはないメソッドだが、
-	// スレッドごとにメモリ領域を割り当てたいときなどに必要となる。
-	// MainThreadなら0、slaveなら1,2,3,...
-	size_t thread_id() const { return idx; }
-
-	// ------------------------------
 	//       探索に必要なもの
 	// ------------------------------
+
+	// pvIdx    : このスレッドでMultiPVを用いているとして、rootMovesの(0から数えて)何番目のPVの指し手を
+	//      探索中であるか。MultiPVでないときはこの変数の値は0。
+	// pvLast   : tbRank絡み。将棋では関係ないので用いない。
+	size_t pvIdx /*,pvLast*/;
+
+	// selDepth  : rootから最大、何手目まで探索したか(選択深さの最大)
+	// nmpMinPly : null moveの前回の適用ply
+	// nmpColor  : null moveの前回の適用Color
+	int selDepth; //,nmpMinPly;
+	// Color nmpColor;
+
+	// このスレッドが探索したノード数(≒Position::do_move()を呼び出した回数)
+	std::atomic<uint64_t> nodes;
+
 
 	// 探索開始局面
 	Position rootPos;
@@ -86,22 +92,12 @@ public:
 	// goコマンドで渡されていなければ、全合法手(ただし歩の不成などは除く)とする。
 	Search::RootMoves rootMoves;
 
-	// このスレッドでMultiPVを用いているとして、rootMovesの(0から数えて)何番目のPVの指し手を探索中であるか
-	// MultiPVでないときはこの変数の値は0。
-	size_t pvIdx;
-
-	// rootから最大、何手目まで探索したか(選択深さの最大)
-	int selDepth;
-
-	// このスレッドが探索したノード数(≒Position::do_move()を呼び出した回数)
-	std::atomic<uint64_t> nodes;
-
-	// 反復深化の深さ
-	// Lazy SMPなのでスレッドごとにこの変数を保有している。
-	Depth rootDepth;
-
-	// このスレッドに関して、終了した反復深化の深さ
-	Depth completedDepth;
+	// rootDepth      : 反復深化の深さ
+	//					Lazy SMPなのでスレッドごとにこの変数を保有している。
+	// 
+	// completedDepth : このスレッドに関して、終了した反復深化の深さ
+	//
+	Depth rootDepth, completedDepth;
 
 	// 近代的なMovePickerではオーダリングのために、スレッドごとにhistoryとcounter movesのtableを持たないといけない。
 	CounterMoveHistory counterMoves;
@@ -112,38 +108,46 @@ public:
 	// cf. https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
 	ContinuationHistory continuationHistory;
 
+	//Score contempt;
+
+	// ------------------------------
+	//   やねうら王、独自追加
+	// ------------------------------
+
 	// PositionクラスのEvalListにalignasを指定されていて、Positionクラスを保持するこのThreadクラスをnewするが、
 	// そのときにalignasを無視されるのでcustom allocatorを定義しておいてやる。
 	void* operator new(std::size_t s);
 	void operator delete(void*p) noexcept;
+
+	// スレッドidが返る。Stockfishにはないメソッドだが、
+	// スレッドごとにメモリ領域を割り当てたいときなどに必要となる。
+	// MainThreadなら0、slaveなら1,2,3,...
+	size_t thread_id() const { return idx; }
+
 };
   
 
 // 探索時のmainスレッド(これがmasterであり、これ以外はslaveとみなす)
 struct MainThread: public Thread
 {
-	// constructorはThreadのものそのまま使う。
-	using Thread::Thread;
-
-	// この関数はvirtualになっていてthink()が呼び出される。
-	// MainThread::think()から呼び出すべきは、Thread::search()
-	virtual void search() { think(); }
-
-	// 思考時間の終わりが来たかをチェックする。
-	void check_time();
-
-	// 思考を開始する。engine/*/*_search.cpp等で定義されているthink()が呼び出される。
-	void think();
-
 	// 反復深化のときにPVがあまり変化がないなら探索が安定しているということだから
 	// 短めの思考時間で指す機能のためのフラグ。
 	bool easyMovePlayed;
 
 	// root nodeでfail lowが起きているのか
 	bool failedLow;
+	// constructorはThreadのものそのまま使う。
+	using Thread::Thread;
 
-	// 反復深化においてbestMoveが変わった回数。nodeの安定性の指標として使う。
-	double bestMoveChanges;
+	// 探索を開始する時に呼び出される。
+	void search() override;
+	
+	// 思考時間の終わりが来たかをチェックする。
+	void check_time();
+
+	// bestMoveChanges       : 反復深化においてbestMoveが変わった回数。nodeの安定性の指標として使う。
+	// previousTimeReduction : 反復深化の前回のiteration時のtimeReductionの値。
+	double bestMoveChanges; // ,previousTimeReduction;
 
 	// 前回の探索時のスコア。
 	// 次回の探索のときに何らか使えるかも。
@@ -152,6 +156,36 @@ struct MainThread: public Thread
 	// check_time()で用いるカウンター。
 	// デクリメントしていきこれが0になるごとに思考をストップするのか判定する。
 	int callsCnt;
+
+	//bool stopOnPonderhit;
+	// →　やねうら王では、このStockfishのponderの仕組みを使わない。(もっと上手にponderの時間を活用したいため)
+
+	// ponder : "go ponder" コマンドでの探索中であるかを示すフラグ
+	std::atomic_bool ponder;
+
+	// TODO : 将棋所では"USI_Ponder"というオプションが渡ってきてた。これに従うように変更する。[2019/04/29]
+
+	// received_go_ponder : Stockfishにはこのコードはないが、試合開始後、"go ponder"が一度でも送られてきたかのフラグ。これにより思考時間を自動調整する。
+	// 本来は、Options["Ponder"]で設定すべきだが(UCIではそうなっている)、USIプロトコルだとGUIが勝手に設定するので、思考エンジン側からPonder有りのモードなのかどうかが取得できない。
+	// ゆえに、このようにして判定している。
+	// 備考) ponderのフラグを変更するのはUSIコマンドで"ponderhit"などが送られてきたときであり、探索スレッドからは、探索中は
+	//       ponderの値はreadonlyであるから複雑な同期処理は必要がない。
+	//       (途中で値が変更されるのは、ponder == trueで探索が始まり、途中でfalseに変更されるケースのみ)
+	//       そこで単にatomic_boolにしておけば十分である。
+	std::atomic_bool received_go_ponder;
+
+	// -------------------
+	// やねうら王独自追加
+	// -------------------
+
+	// 将棋所のコンソールが詰まるので出力を抑制するために、前回の出力時刻を
+	// 記録しておき、そこから一定時間経過するごとに出力するという方式を採る。
+	TimePoint lastPvInfoTime;
+
+	// Ponder用の指し手
+	// Stockfishは置換表からponder moveをひねり出すコードになっているが、
+	// 前回iteration時のPVの2手目の指し手で良いのではなかろうか…。
+	Move ponder_candidate;
 };
 
 
@@ -181,19 +215,8 @@ struct ThreadPool: public std::vector<Thread*>
 	uint64_t nodes_searched() { return accumulate(&Thread::nodes); }
 
 	// stop   : 探索中にこれがtrueになったら探索を即座に終了すること。
-	// ponder : "go ponder" コマンドでの探索中であるかを示すフラグ
-	// stopOnPonderhit : Stockfishのこのフラグは、やねうら王では用いない。(もっと上手にponderの時間を活用したいため)
-	// received_go_ponder : Stockfishにはこのコードはないが、試合開始後、"go ponder"が一度でも送られてきたかのフラグ。これにより思考時間を自動調整する。
-	// 本来は、Options["Ponder"]で設定すべきだが(UCIではそうなっている)、USIプロトコルだとGUIが勝手に設定するので、思考エンジン側からPonder有りのモードなのかどうかが取得できない。
-	// ゆえに、このようにして判定している。
-	// 備考) ponderのフラグを変更するのはUSIコマンドで"ponderhit"などが送られてきたときであり、探索スレッドからは、探索中は
-	//       ponderの値はreadonlyであるから複雑な同期処理は必要がない。
-	//       (途中で値が変更されるのは、ponder == trueで探索が始まり、途中でfalseに変更されるケースのみ)
-	//       そこで単にatomic_boolにしておけば十分である。
-	// 
-	std::atomic_bool stop , ponder /*, stopOnPonderhit*/ , received_go_ponder;
-
-
+	std::atomic_bool stop;
+	
 private:
 
 	// 現局面までのStateInfoのlist

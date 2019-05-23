@@ -28,7 +28,7 @@ void  Search::clear()
 // 探索開始時に呼び出される。
 // この関数内で初期化を終わらせ、slaveスレッドを起動してThread::search()を呼び出す。
 // そのあとslaveスレッドを終了させ、ベストな指し手を返すこと。
-void MainThread::think()
+void MainThread::search()
 {
   // 例)
   //  for (auto th : Threads.slaves) th->start_searching();
@@ -37,8 +37,6 @@ void MainThread::think()
 }
 
 // 探索本体。並列化している場合、ここがslaveのエントリーポイント。
-// MainThread::search()はvirtualになっていてthink()が呼び出されるので、MainThread::think()から
-// この関数を呼び出したいときは、Thread::search()とすること。
 void Thread::search()
 {
 }

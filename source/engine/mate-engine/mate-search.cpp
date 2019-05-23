@@ -824,7 +824,7 @@ namespace MateEngine
 		// "ponderhit"が送られてきたらThreads.ponder == 0になるので、それを待つ。(stopOnPonderhitは用いない)
 		//    また、このときThreads.stop == trueにはならない。(この点、Stockfishとは異なる。)
 		// "go infinite"に対してはstopが送られてくるまで待つ。
-		while (!Threads.stop && (Threads.ponder || Limits.infinite))
+		while (!Threads.stop && (Threads.main()->ponder || Limits.infinite))
 			sleep(1);
 		//	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
 		// (思考のためには計算資源を使っていないので。)
@@ -873,10 +873,10 @@ void Search::clear()
 #endif
 
 }
-void MainThread::think() {
-	Thread::search();
-}
-void Thread::search() {
+void MainThread::search() { Thread::search(); }
+
+void Thread::search()
+{
 	// 通常のgoコマンドで呼ばれたときは、resignを返す。
 	// 詰み用のworkerでそれだと支障がある場合は適宜変更する。
 	if (Search::Limits.mate == 0) {

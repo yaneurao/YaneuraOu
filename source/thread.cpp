@@ -106,6 +106,12 @@ void ThreadPool::set(size_t requested)
 		while (size() < requested)
 			push_back(new Thread(size()));
 		clear();
+
+		// Reallocate the hash with the new threadpool size
+		//TT.resize(Options["Hash"]);
+
+		// →　新しいthreadpoolのサイズで置換表用のメモリを確保しなおしたほうが
+		//  良いらしいのだが、大きなメモリの置換表だと確保に時間がかかるのでやりたくない。
 	}
 }
 
@@ -130,8 +136,8 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 	main()->wait_for_search_finished();
 
 	// ponderに関して、StockfishではstopOnPonderhitというのがあるが、やねうら王にはこのフラグはない。
-	/* stopOnPonderhit = */ stop = false;
-	ponder = ponderMode;
+	/* main()->stopOnPonderhit = */ stop = false;
+	main()->ponder = ponderMode;
 	Search::Limits = limits;
 	Search::RootMoves rootMoves;
 

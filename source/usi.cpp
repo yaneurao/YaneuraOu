@@ -298,7 +298,7 @@ void is_ready(bool skipCorruptCheck)
 	Search::clear();
 	Time.availableNodes = 0;
 
-	Threads.received_go_ponder = false;
+	Threads.main()->received_go_ponder = false;
 	Threads.stop = false;
 
 	// keep aliveを送信するために生成したスレッドを終了させ、待機する。
@@ -511,7 +511,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 			ponderMode = true;
 
 			// 試合開始後、一度でも"go ponder"が送られてきたら、それを記録しておく。
-			Threads.received_go_ponder = true;
+			Threads.main()->received_go_ponder = true;
 		}
 	}
 
@@ -659,7 +659,7 @@ void USI::loop(int argc, char* argv[])
 		} else if (token == "ponderhit")
 		{
 			Time.reset_for_ponderhit(); // ponderhitから計測しなおすべきである。
-			Threads.ponder = false; // 通常探索に切り替える。
+			Threads.main()->ponder = false; // 通常探索に切り替える。
 		}
 
 		// 与えられた局面について思考するコマンド

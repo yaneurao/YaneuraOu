@@ -2750,7 +2750,7 @@ void Thread::search()
 					// 思考を継続したほうが得なので、思考自体は継続して、キリの良い時間になったらcheck_time()にて停止する。
 
 					// ponder中なら、終了時刻はponderhit後から計算して、Time.minimum()。
-					if (Threads.ponder)
+					if (Threads.main()->ponder)
 						Time.search_end = Time.minimum();
 					else
 					{
@@ -2791,7 +2791,7 @@ void Thread::search()
 // この関数内で初期化を終わらせ、slaveスレッドを起動してThread::search()を呼び出す。
 // そのあとslaveスレッドを終了させ、ベストな指し手を返すこと。
 
-void MainThread::think()
+void MainThread::search()
 {
 	// ---------------------
 	// 探索パラメーターの自動調整用
@@ -2939,7 +2939,7 @@ ID_END:;
 	// "go infinite"に対してはstopが送られてくるまで待つ。
 	// ちなみにStockfishのほう、ここのコードに長らく同期上のバグがあった。
 	// やねうら王のほうは、かなり早くからこの構造で書いていた。最近のStockfishではこの書き方に追随した。
-	while (!Threads.stop && (Threads.ponder || Limits.infinite))
+	while (!Threads.stop && (Threads.main()->ponder || Limits.infinite))
 	{
 		//	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
 		// (思考のためには計算資源を使っていないので。)
@@ -3060,7 +3060,7 @@ void MainThread::check_time()
 	}
 
 	// ponder中においては、GUIがstopとかponderhitとか言ってくるまでは止まるべきではない。
-	if (Threads.ponder)
+	if (Threads.main()->ponder)
 		return;
 
 	// "ponderhit"時は、そこからの経過時間で考えないと、elapsed > Time.maximum()になってしまう。

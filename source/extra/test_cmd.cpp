@@ -102,10 +102,10 @@ struct PerftSolver {
 		if (depth == 0) {
 			result.nodes++;
 			if (pos.captured_piece() != NO_PIECE) result.captures++;
-#ifdef KEEP_LAST_MOVE
+#if defined (KEEP_LAST_MOVE)
 			if (is_promote(pos.state()->lastMove)) result.promotions++;
 #endif
-#ifdef EVAL_PERFT
+#if defined (EVAL_PERFT)
 //			cout << pos.sfen() << " , eval = " << Eval::evaluate(pos) << endl;
 			/*
 			if (pos.sfen() == "1nsgkgsnl/lr5b1/pppppp+Bpp/9/9/2P6/PP1PPPPPP/7R1/LNSGKGSNL w P 4")
@@ -156,7 +156,7 @@ struct PerftSolver {
 			else {
 				result.nodes++;
 				if (pos.state()->capturedType != NO_PIECE) result.captures++;
-				#ifdef        KEEP_LAST_MOVE
+				#if defined (KEEP_LAST_MOVE)
 				if (is_promote(pos.state()->lastMove)) result.promotions++;
 				#endif
 				if (pos.checkers()) {
@@ -185,10 +185,10 @@ void perft(Position& pos, istringstream& is)
 	auto result = solver.Perft<true>(pos, depth);
 
 	cout << endl << "nodes = " << result.nodes << " , captures = " << result.captures <<
-#ifdef KEEP_LAST_MOVE
+#if defined (KEEP_LAST_MOVE)
 		" , promotion = " << result.promotions <<
 #endif
-#ifdef EVAL_PERFT
+#if defined (EVAL_PERFT)
 		" , eval(sum) = " << result.eval <<
 #endif
 		" , checks = " << result.checks << " , checkmates = " << result.mates << endl;
