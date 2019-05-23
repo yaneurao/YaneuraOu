@@ -136,25 +136,6 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 		// -- maximumTime
 		float max_ratio = 5.0f;
 
-#if	defined(YANEURAOU_2018_OTAFUKU_ENGINE)
-
-		// 20手目までにそんなに大きな勝負所が来ることはあまりないので
-		// max_ratioとoptimumTimeを抑制しておく。(根拠は特にない)
-		//
-		// 自己対局などからこのへんの係数をうまく調整すべきだが、
-		// 自己対局フレームワーク(Python製)が、残り時間をきちんと管理していないので調整できない。
-		// あと定跡との相性とか、ponderがどれくらい当たるかだとか、そういう問題もあって簡単ではない。
-		//
-		// 今後の課題である…。[2017/11/03]
-
-		//if (ply <= 20)
-		//{
-		//	max_ratio = 3.0f;
-		//	optimumTime = int(optimumTime * 0.7f);
-		//}
-		// →　良くなかった。[2019/05/05] @WCSC29
-#endif
-
 		// 切れ負けルールにおいては、5分を切っていたら、このratioを抑制する。
 		if (limits.inc[us] == 0 && limits.byoyomi[us] == 0)
 		{

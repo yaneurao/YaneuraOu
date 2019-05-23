@@ -1,4 +1,4 @@
-﻿#include "../types.h"
+﻿#include "../config.h"
 
 // 学習関係のルーチン
 //
@@ -53,6 +53,7 @@
 #include <unordered_set>
 #include <iomanip>
 #include <list>
+#include <cmath>	// std::exp(),std::pow(),std::log()
 
 #if defined (_OPENMP)
 #include <omp.h>
@@ -116,7 +117,7 @@ struct SfenWriter
 	// 書き出すファイル名と生成するスレッドの数
 	SfenWriter(string filename, int thread_num)
 	{
-		sfen_buffers_pool.reserve(thread_num * 10);
+		sfen_buffers_pool.reserve((size_t)thread_num * 10);
 		sfen_buffers.resize(thread_num);
 
 		// 追加学習するとき、評価関数の学習後も生成される教師の質はあまり変わらず、教師局面数を稼ぎたいので
@@ -368,7 +369,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 	const int MAX_PLY2 = write_maxply;
 
 	// StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
-	std::vector<StateInfo,AlignedAllocator<StateInfo>> states(MAX_PLY2 + 50 /* == search_depth + α */);
+	std::vector<StateInfo,AlignedAllocator<StateInfo>> states(MAX_PLY2 + MAX_PLY /* == search_depth + α */);
 	StateInfo si;
 
 	// 今回の指し手。この指し手で局面を進める。
@@ -394,7 +395,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		// 1局分の局面を保存しておき、終局のときに勝敗を含めて書き出す。
 		// 書き出す関数は、この下にあるflush_psv()である。
 		PSVector a_psv;
-		a_psv.reserve(MAX_PLY2 + 50);
+		a_psv.reserve(MAX_PLY2 + MAX_PLY);
 
 		// a_psvに積まれている局面をファイルに書き出す。
 		// lastTurnIsWin : a_psvに積まれている最終局面の次の局面での勝敗
@@ -1856,6 +1857,8 @@ void LearnerThink::thread_worker(size_t thread_id)
 				std::cout << "epoch = " << epoch << " , eta = " << Eval::get_eta() << std::endl;
 #else
 				{
+					// パラメータの更新
+
 					// 更新中に評価関数を使わないようにロックする。
 					lock_guard<shared_timed_mutex> write_lock(nn_mutex);
 					Eval::NNUE::UpdateParameters(epoch);
@@ -1906,7 +1909,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 				sr.next_update_weights += mini_batch_size;
 
 				// main thread以外は、このsr.next_update_weightsの更新を待っていたので
-				// この値が更新されると再度動き始める。
+				// この値が更新されると再度動き始める。				
 			}
 		}
 
@@ -1926,6 +1929,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// この局面情報を無視する。
 		if (eval_limit < abs(ps.score) || abs(ps.score) == VALUE_SUPERIOR)
 			goto RetryRead;
+
 #if !defined (LEARN_GENSFEN_USE_DRAW_RESULT)
 		if (ps.game_result == 0)
 			goto RetryRead;
@@ -2286,9 +2290,13 @@ void shuffle_files(const vector<string>& filenames , const string& output_file_n
 		while (fs.read((char*)&buf[buf_write_marker], sizeof(PackedSfenValue)))
 			if (++buf_write_marker == buffer_size)
 				write_buffer(buffer_size);
+
+		// sizeof(PackedSfenValue)単位で読み込んでいき、
+		// 最後に残っている端数は無視する。(fs.readで失敗するのでwhileを抜ける)
+		// (最後に残っている端数は、教師生成時に途中で停止させたために出来た中途半端なデータだと思われる。)
+
 	}
 
-	// バッファにまだ残っている分があるならそれも書き出す。
 	if (buf_write_marker != 0)
 		write_buffer(buf_write_marker);
 
@@ -2930,8 +2938,8 @@ void learn(Position&, istringstream& is)
 
 } // namespace Learner
 
-#if defined(USE_GENSFEN2018)
-#include "gensfen2018.cpp"
+#if defined(GENSFEN2019)
+#include "gensfen2019.cpp"
 #endif
 
 

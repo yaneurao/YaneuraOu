@@ -1,5 +1,6 @@
-﻿#include "tt.h"
-#include "misc.h"
+﻿#include "misc.h"
+#include "thread.h"
+#include "tt.h"
 
 TranspositionTable TT; // 置換表をglobalに確保。
 

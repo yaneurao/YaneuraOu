@@ -27,8 +27,8 @@
 #include <sstream>
 #include <iostream>
 #include <fstream>
-#include <algorithm>
 #include <iomanip>
+#include <cmath>	// std::log(),std::pow(),std::round()
 
 #include "../../position.h"
 #include "../../search.h"
@@ -37,7 +37,12 @@
 #include "../../tt.h"
 #include "../../extra/book/book.h"
 #include "../../move_pick.h"
+#include "../../usi.h"
 #include "../../learn/learn.h"
+
+// -------------------
+// やねうら王独自追加
+// -------------------
 
 // ハイパーパラメーターを自動調整するときはstatic変数にしておいて変更できるようにする。
 #if defined (USE_AUTO_TUNE_PARAMETERS) || defined(USE_RANDOM_PARAMETERS)

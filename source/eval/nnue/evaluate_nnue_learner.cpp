@@ -5,6 +5,7 @@
 #if defined(EVAL_LEARN) && defined(EVAL_NNUE)
 
 #include <random>
+#include <fstream>
 
 #include "../../learn/learn.h"
 #include "../../learn/learning_tools.h"

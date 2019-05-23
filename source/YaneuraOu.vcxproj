@@ -621,7 +621,6 @@
     <ClInclude Include="bitboard.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="engine\2018-otafuku-engine\2018-otafuku-param.h" />
-    <ClInclude Include="engine\mate-engine\mate-search.h" />
     <ClInclude Include="evaluate.h" />
     <ClInclude Include="eval\evaluate_io.h" />
     <ClInclude Include="eval\evaluate_common.h" />

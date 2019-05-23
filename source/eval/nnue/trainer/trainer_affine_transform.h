@@ -3,7 +3,7 @@
 #ifndef _NNUE_TRAINER_AFFINE_TRANSFORM_H_
 #define _NNUE_TRAINER_AFFINE_TRANSFORM_H_
 
-#include "../../../types.h"
+#include "../../../config.h"
 
 #if defined(EVAL_LEARN) && defined(EVAL_NNUE)
 

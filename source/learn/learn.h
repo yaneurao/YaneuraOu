@@ -1,9 +1,11 @@
 ﻿#ifndef _LEARN_H_
 #define _LEARN_H_
 
-#include "../types.h"
+#include "../config.h"
 
 #if defined(EVAL_LEARN)
+
+#include <vector>
 
 // =====================
 //  学習時の設定
@@ -223,9 +225,9 @@ namespace Learner
 	// Learner::search() , Learner::qsearch()で用いる。
 	typedef std::pair<Value, std::vector<Move> > ValueAndPV;
 
-	// いまのところ、やねうら王2017Earlyしか、このスタブを持っていないが
+	// いまのところ、やねうら王2018 Otafukuしか、このスタブを持っていないが
 	// EVAL_LEARNをdefineするなら、このスタブが必須。
-	extern Learner::ValueAndPV  search(Position& pos, int depth, size_t multiPV = 1, u64 NodesLimit = 0);
+	extern Learner::ValueAndPV  search(Position& pos, int depth , size_t multiPV = 1 , u64 NodesLimit = 0);
 	extern Learner::ValueAndPV qsearch(Position& pos);
 
 	double calc_grad(Value shallow, const PackedSfenValue& psv);

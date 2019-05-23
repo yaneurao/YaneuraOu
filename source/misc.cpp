@@ -34,7 +34,9 @@ extern "C" {
 #include <iostream>
 #include <sstream>
 //#include <vector>
-#include <ctime>    // std::ctime()
+#include <ctime>	// std::ctime()
+#include <cstring>	// std::memset()
+#include <cmath>	// std::exp()
 
 #include "misc.h"
 #include "thread.h"
@@ -605,3 +607,18 @@ std::string now_string()
 	return result;
 }
 
+void sleep(int ms)
+{
+	std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+
+uint64_t get_thread_id()
+{
+	auto id = std::this_thread::get_id();
+	if (sizeof(id) >= 8)
+		return *(uint64_t*)(&id);
+	else if (sizeof(id) >= 4)
+		return *(uint32_t*)(&id);
+	else
+		return 0; // give up
+}

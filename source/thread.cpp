@@ -148,6 +148,7 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 #endif
 
 #if !defined(MATE_ENGINE) && !defined(FOR_TOURNAMENT) 
+	// 全合法手を生成するオプションが有効ならば。
 	if (limits.generate_all_legal_moves)
 	{
 		for (auto m : MoveList<LEGAL_ALL>(pos))

@@ -444,30 +444,6 @@ extern GlobalOptions_ GlobalOptions;
 #endif
 
 // --------------------
-//      include
-// --------------------
-
-#include <algorithm>
-#include <cstdint>
-#include <string>
-#include <vector>
-#include <stack>
-#include <memory>
-#include <map>
-#include <iostream>
-#include <fstream>
-#include <mutex>
-#include <thread>		// このあとMutexをtypedefするので
-#include <condition_variable>
-#include <cstring>		// std::memcpy()
-#include <cmath>		// log(),std::round()
-#include <climits>		// INT_MAX
-#include <cstddef>		// offsetof
-#include <array>
-#include <functional>	// function 
-#include <limits>       // numeric_limits
-
-// --------------------
 //      configure
 // --------------------
 
@@ -521,13 +497,18 @@ extern GlobalOptions_ GlobalOptions;
 #define ALIGNED(X) 
 #endif
 
-// --- for linux
+// --- for Linux
 
 #if !defined(_MSC_VER)
+
 // stricmpはlinux系では存在しないらしく、置き換える。
 #define _stricmp strcasecmp
 
-// あと、getline()したときにテキストファイルが'\r\n'だと
+// fstream,stringを前方宣言するの難しいので仕方なくinclude
+#include <string>
+#include <fstream>
+
+// getline()したときにテキストファイルが'\r\n'だと
 // '\r'が末尾に残るのでこの'\r'を除去するためにwrapperを書く。
 // そのため、fstreamに対してgetline()を呼び出すときは、
 // std::getline()ではなく単にgetline()と書いて、この関数を使うべき。
@@ -731,13 +712,13 @@ inline int MKDIR(std::string dir_name)
 // 7. FV_VAR方式のリファレンス実装として、EVAL_KPP_KKPT_FV_VARがあるので、そのソースコードを見ること。
 
 // あらゆる局面でP(駒)の数が増えないFV38と呼ばれる形式の差分計算用。
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_HELICES) || defined(EVAL_NNUE)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_NNUE)
 #define USE_FV38
 #endif
 
 // P(駒)の数が増えたり減ったりするタイプの差分計算用
 // FV38とは異なり、可変長piece_list。
-#if defined(EVAL_MATERIAL) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA)
+#if defined(EVAL_MATERIAL)
 #define USE_FV_VAR
 #endif
 

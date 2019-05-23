@@ -1,10 +1,11 @@
-﻿#include <iostream>
-#include <sstream>
-
-#include "position.h"
+﻿#include "position.h"
 #include "misc.h"
 #include "tt.h"
 #include "thread.h"
+
+#include <iostream>
+#include <sstream>
+#include <cstring> // std::memset()
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_NNUE)
 #include "eval/evaluate_common.h"

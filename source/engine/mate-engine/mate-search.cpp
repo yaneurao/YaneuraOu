@@ -1,10 +1,9 @@
-﻿#include "../../types.h"
-#ifdef MATE_ENGINE
+﻿#include "../../config.h"
+#if defined(MATE_ENGINE)
 
 #include <unordered_set>
 
 #include "../../extra/all.h"
-#include "mate-search.h" 
 
 using namespace std;
 using namespace Search;
@@ -351,7 +350,7 @@ namespace MateEngine
 		// 探索ノード数のチェック。
 		// 探索をマルチスレッドでやっていないので、nodes_searchedを求めるコストがなく、
 		// 毎回チェックしてもどうということはないはず。
-		if (Limits.nodes != 0 && nodes_searched >= Limits.nodes)
+		if (Limits.nodes != 0 && nodes_searched >= (uint64_t)Limits.nodes)
 		{
 			timeup = true;
 			Threads.stop = true;

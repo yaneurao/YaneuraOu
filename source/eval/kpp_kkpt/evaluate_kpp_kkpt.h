@@ -1,7 +1,7 @@
 ﻿#ifndef _EVALUATE_KPP_KKPT_H_
 #define _EVALUATE_KPP_KKPT_H_
 
-#include "../../shogi.h"
+#include "../../config.h"
 
 // KPP_KKPT型評価関数で用いるheader
 

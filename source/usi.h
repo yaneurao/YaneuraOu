@@ -2,9 +2,9 @@
 #define USI_H_INCLUDED
 
 #include <map>
-#include <string>
-
-#include "types.h"
+//#include <string>
+#include <vector>
+#include <functional>	// function
 
 // --------------------
 //     USI関連

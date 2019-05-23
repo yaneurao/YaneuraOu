@@ -11,6 +11,8 @@
 #include "../misc.h"  // PRNG , my_insertion_sort
 #endif
 
+#include <cmath>	// std::sqrt()
+
 namespace EvalLearningTools
 {
 	// -------------------------------------------------

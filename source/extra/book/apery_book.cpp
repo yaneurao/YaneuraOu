@@ -22,6 +22,7 @@
 #include "apery_book.h"
 
 #include "../../misc.h"
+#include <fstream>
 
 namespace Book {
 

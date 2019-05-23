@@ -751,6 +751,7 @@ void USI::loop(int argc, char* argv[])
 #if defined (EVAL_LEARN)
 		else if (token == "gensfen") Learner::gen_sfen(pos, is);
 		else if (token == "learn") Learner::learn(pos, is);
+
 #if defined (GENSFEN2019)
 		// 開発中の教師局面生成コマンド
 		else if (token == "gensfen2019") Learner::gen_sfen2019(pos, is);

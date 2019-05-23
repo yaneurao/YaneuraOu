@@ -5,14 +5,20 @@
 // release configurations
 // --------------------
 
-// コンパイル時の設定などは以下のextra/config.hを変更すること。
+// コンパイル時の設定などは以下のconfig.hを変更すること。
 #include "config.h"
 
 // --------------------
-//    bit operations
+//      include
 // --------------------
 
+// あまりたくさんここに書くとコンパイルが遅くなるので書きたくないのだが…。
+
 #include "extra/bitop.h"
+
+#include <iostream>     // iostreamに対する<<使うので仕方ない
+#include <string>       // std::string使うので仕方ない
+#include <algorithm>    // std::max()を使うので仕方ない
 
 // --------------------
 //      手番
@@ -178,7 +184,7 @@ constexpr Rank rank_of(Square sq) { /* return (Rank)(sq % 9); */ /*ASSERT_LV2(is
 constexpr Square operator | (File f, Rank r) { Square sq = (Square)(f * 9 + r); /* ASSERT_LV2(is_ok(sq));*/ return sq; }
 
 // ２つの升のfileの差、rankの差のうち大きいほうの距離を返す。sq1,sq2のどちらかが盤外ならINT_MAXが返る。
-constexpr int dist(Square sq1, Square sq2) { return (!is_ok(sq1) || !is_ok(sq2)) ? INT_MAX : std::max(abs(file_of(sq1)-file_of(sq2)) , abs(rank_of(sq1) - rank_of(sq2))); }
+constexpr int dist(Square sq1, Square sq2) { return (!is_ok(sq1) || !is_ok(sq2)) ? INT_MAX : std::max(abs(file_of(sq1) - file_of(sq2)), abs(rank_of(sq1) - rank_of(sq2))); }
 
 // 移動元、もしくは移動先の升sqを与えたときに、そこが成れるかどうかを判定する。
 constexpr bool canPromote(const Color c, const Square fromOrTo) {
@@ -694,7 +700,7 @@ enum HandKind : uint32_t { HAND_KIND_PAWN = 1 << (PAWN-1), HAND_KIND_LANCE=1 << 
 // Hand型からHandKind型への変換子
 // 例えば歩の枚数であれば5bitで表現できるが、011111bを加算すると1枚でもあれば桁あふれしてbit5が1になる。
 // これをPEXT32で回収するという戦略。
-static HandKind toHandKind(Hand h) {return (HandKind)PEXT32(h + HAND_BIT_MASK, HAND_BORROW_MASK);}
+static HandKind toHandKind(Hand h) { return (HandKind)PEXT32(h + HAND_BIT_MASK, HAND_BORROW_MASK); }
 
 // 特定種類の駒を持っているかを判定する
 constexpr bool hand_exists(HandKind hk, Piece pt) { /* ASSERT_LV2(PIECE_HAND_ZERO <= pt && pt < PIECE_HAND_NB); */ return static_cast<bool>(hk & (1 << (pt - 1))); }

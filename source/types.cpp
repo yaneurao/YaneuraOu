@@ -1,12 +1,8 @@
-﻿#include <sstream>
-#include <iostream>
-
-#include "types.h"
-#include "position.h"
-#include "search.h"
-#include "thread.h"
-#include "tt.h"
+﻿#include "types.h"
 #include "usi.h"
+#include "search.h"
+#include "tt.h"
+#include "thread.h"
 
 // ----------------------------------------
 //    const
@@ -18,11 +14,12 @@ const char* USI_PIECE = ". P L N S B R G K +P+L+N+S+B+R+G+.p l n s b r g k +p+l+
 //    tables
 // ----------------------------------------
 
-// これはshogi.hで定義しているのでLONG_EFFECT_LIBRARYがdefineされていないときにも必要。
-namespace Effect8 { Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1]; }
+// これはtypes.hで定義しているのでLONG_EFFECT_LIBRARYがdefineされていないときにも必要。
+namespace Effect8 {
+	Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1];
+}
 
 std::string PieceToCharBW(" PLNSBRGK        plnsbrgk");
-
 
 // ----------------------------------------
 // operator<<(std::ostream& os,...)とpretty() 

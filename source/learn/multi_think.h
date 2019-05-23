@@ -1,12 +1,13 @@
 ﻿#ifndef _MULTI_THINK_
 #define _MULTI_THINK_
 
-#include "../types.h"
+#include "../config.h"
 
 #if defined(EVAL_LEARN) && defined(YANEURAOU_2018_OTAFUKU_ENGINE)
 
 #include "../misc.h"
 #include "../learn/learn.h"
+
 #include <atomic>
 
 // 棋譜からの学習や、自ら思考させて定跡を生成するときなど、

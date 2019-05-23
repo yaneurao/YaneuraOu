@@ -1,5 +1,5 @@
-﻿#ifndef _TT_H_
-#define _TT_H_
+﻿#ifndef TT_H_INCLUDED
+#define TT_H_INCLUDED
 
 #include "types.h"
 #include "usi.h"
@@ -10,13 +10,21 @@
 //       置換表
 // --------------------
 
-// 置換表エントリー
-// 本エントリーは10bytesに収まるようになっている。3つのエントリーを並べたときに32bytesに収まるので
-// CPUのcache lineに一発で載るというミラクル。
+/// 置換表エントリー
+/// 本エントリーは10bytesに収まるようになっている。3つのエントリーを並べたときに32bytesに収まるので
+/// CPUのcache lineに一発で載るというミラクル。
+///
+/// key        16 bit : hash keyの上位16bit
+/// move       16 bit : このnodeの最善手
+/// value      16 bit : このnodeでのsearch()の返し値
+/// eval value 16 bit : このnodeでのevaluate()の返し値
+/// generation  5 bit : 世代カウンター
+/// pv node     1 bit : PV nodeで調べた値であるかのフラグ
+/// bound type  2 bit : 格納されているvalue値の性質(fail low/highした時の値であるだとか)
+/// depth       8 bit : 格納されているvalue値の探索深さ
 struct TTEntry {
 
 	Move move() const { return (Move)move16; }
-
 	Value value() const { return (Value)value16; }
 	void set_value(Value v) { value16 = v; }
 
@@ -262,4 +270,4 @@ inline void update_pv(Move* pv, Move move, Move* childPv) {
 
 extern TranspositionTable TT;
 
-#endif // _TT_H_
+#endif // #ifndef TT_H_INCLUDED

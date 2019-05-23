@@ -100,9 +100,6 @@
     <ClInclude Include="extra\macros.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
-    <ClInclude Include="engine\mate-engine\mate-search.h">
-      <Filter>リソース ファイル\engine\mate-engine</Filter>
-    </ClInclude>
     <ClInclude Include="learn\multi_think.h">
       <Filter>リソース ファイル\learn</Filter>
     </ClInclude>

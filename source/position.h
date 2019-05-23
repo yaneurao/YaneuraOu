@@ -7,6 +7,10 @@
 #include "extra/key128.h"
 #include "extra/long_effect.h"
 
+#include <deque>
+#include <memory> // std::unique_ptr
+
+
 #if defined(EVAL_NNUE)
 #include "eval/nnue/nnue_accumulator.h"
 #endif

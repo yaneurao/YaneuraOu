@@ -4,6 +4,7 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#include <functional>
 
 #include "types.h"
 #include "thread_win32.h" // AsyncPRNGで使う
@@ -164,10 +165,7 @@ namespace WinProcGroup {
 // --------------------
 
 // 指定されたミリ秒だけsleepする。
-static void sleep(int ms)
-{
-	std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-}
+extern void sleep(int ms);
 
 // 現在時刻を文字列化したもを返す。(評価関数の学習時などにログ出力のために用いる)
 std::string now_string();
@@ -207,16 +205,7 @@ void my_insertion_sort(T* arr, int left, int right)
 
 // 乱数のseedなどとしてthread idを使いたいが、
 // C++のthread idは文字列しか取り出せないので無理やりcastしてしまう。
-inline uint64_t get_thread_id()
-{
-	auto id = std::this_thread::get_id();
-	if (sizeof(id) >= 8)
-		return *(uint64_t*)(&id);
-	else if (sizeof(id) >= 4)
-		return *(uint32_t*)(&id);
-	else
-		return 0; // give up
-}
+extern uint64_t get_thread_id();
 
 // -----------------------
 //  探索のときに使う時間管理用

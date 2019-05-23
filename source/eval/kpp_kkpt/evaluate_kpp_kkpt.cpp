@@ -1,4 +1,4 @@
-﻿#include "../../types.h"
+﻿#include "../../config.h"
 
 // KPP+KKPTの実験用コード。
 // ほとんどevaluate_kppt.cppと同じ。
@@ -12,6 +12,7 @@
 #include "../../evaluate.h"
 #include "../../position.h"
 #include "../../misc.h"
+#include "../../usi.h"
 #include "../../extra/bitop.h"
 #include "../evaluate_io.h"
 #include "evaluate_kpp_kkpt.h"

@@ -1,10 +1,7 @@
-﻿#include <iostream>
+﻿//   指し手生成ライブラリ
 
 #include "types.h"
 #include "position.h"
-
-
-//   指し手生成ライブラリ
 
 #include <iostream>
 using namespace std;

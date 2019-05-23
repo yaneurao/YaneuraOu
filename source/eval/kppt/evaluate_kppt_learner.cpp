@@ -1,7 +1,7 @@
 ﻿// KPPT評価関数の学習時用のコード
 // tanuki-さんの学習部のコードをかなり参考にさせていただきました。
 
-#include "../../types.h"
+#include "../../config.h"
 
 #if defined(EVAL_LEARN) && defined(EVAL_KPPT)
 

@@ -5,9 +5,7 @@
 
 #if defined(ENABLE_TEST_CMD)
 
-#include "all.h"
 #include "../eval/evaluate_io.h"
-#include <unordered_set>
 
 #if defined(EVAL_LEARN)
 #include "../learn/learn.h"
@@ -19,6 +17,9 @@ using namespace EvalLearningTools;
 #include "../eval/evaluate_common.h"
 #include "../eval/nnue/nnue_test_command.h"
 #endif
+
+#include <unordered_set>
+#include "all.h"
 
 // ----------------------------------
 //  USI拡張コマンド "perft"(パフォーマンステスト)
@@ -539,7 +540,7 @@ void test_genchecks(Position& pos, istringstream& is)
 void cooperation_mate(Position& pos, int depth)
 {
 	// moves_from_start_pretty()がKEEP_LAST_MOVEを要求する。
-#ifdef  KEEP_LAST_MOVE
+#if defined(KEEP_LAST_MOVE)
 
 	StateInfo st;
 	for (auto m : MoveList<LEGAL_ALL>(pos))

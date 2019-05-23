@@ -1,6 +1,12 @@
 ﻿#ifndef MOVEPICK_H_INCLUDED
 #define MOVEPICK_H_INCLUDED
 
+#include <array>
+//#include <limits>
+//#include <type_traits>
+
+//#include "movegen.h"
+//#include "position.h"
 #include "types.h"
 
 // -----------------------
@@ -187,3 +193,4 @@ private:
 };
 
 #endif // #ifndef MOVEPICK_H_INCLUDED
+

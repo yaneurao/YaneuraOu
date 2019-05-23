@@ -4,6 +4,7 @@
 // あらゆる形式の評価関数のファイル←→メモリ間、ファイル←→ファイル間の入力/出力、フォーマットの変換を行なう。
 
 #include "../types.h"
+#include <vector>
 
 namespace EvalIO
 {

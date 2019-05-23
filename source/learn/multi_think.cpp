@@ -6,6 +6,8 @@
 #include "../tt.h"
 #include "../usi.h"
 
+#include <thread>
+
 void MultiThink::go_think()
 {
 #if defined(USE_GLOBAL_OPTIONS)

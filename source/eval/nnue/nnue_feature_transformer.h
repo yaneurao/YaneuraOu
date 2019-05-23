@@ -11,6 +11,8 @@
 #include "nnue_architecture.h"
 #include "features/index_list.h"
 
+#include <cstring> // std::memset()
+
 namespace Eval {
 
 namespace NNUE {

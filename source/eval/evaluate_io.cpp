@@ -2,6 +2,8 @@
 #include "../misc.h"
 #include "../usi.h"
 
+#include <fstream>
+
 namespace EvalIO
 {
 	bool eval_convert(const EvalInfo& input, const EvalInfo& output, const std::vector<u16>* map)

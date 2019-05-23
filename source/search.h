@@ -1,15 +1,31 @@
 ﻿#ifndef _SEARCH_H_
 #define _SEARCH_H_
 
-#include "position.h"
-#include "move_pick.h"
 #include "misc.h"
+#include "move_pick.h"
+#include "position.h"
 
 // 探索関係
 namespace Search {
 
 	// countermoves based pruningで使う閾値
-	const int CounterMovePruneThreshold = 0;
+	constexpr int CounterMovePruneThreshold = 0;
+
+	// -----------------------
+	//  探索のときに使うStack
+	// -----------------------
+
+	struct Stack {
+		Move* pv;					// PVへのポインター。RootMovesのvector<Move> pvを指している。
+		PieceToHistory* contHistory;// historyのうち、counter moveに関するhistoryへのポインタ。実体はThreadが持っている。
+		int ply;					// rootからの手数。rootならば0。
+		Move currentMove;			// そのスレッドの探索においてこの局面で現在選択されている指し手
+		Move excludedMove;			// singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手
+		Move killers[2];			// killer move
+		Value staticEval;			// 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
+		int statScore;				// 一度計算したhistoryの合計値をcacheしておくのに用いる。
+		int moveCount;				// このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
+	};
 
 	// root(探索開始局面)での指し手として使われる。それぞれのroot moveに対して、
 	// その指し手で進めたときのscore(評価値)とPVを持っている。(PVはfail lowしたときには信用できない)
@@ -32,7 +48,7 @@ namespace Search {
 		// 同じ値のときは、previousScoreも調べる。
 		bool operator<(const RootMove& m) const {
 			return m.score != score ? m.score < score
-				: m.previousScore < previousScore;
+								    : m.previousScore < previousScore;
 		}
 
 		// 今回の(反復深化の)iterationでの探索結果のスコア
@@ -89,7 +105,7 @@ namespace Search {
 		// inc[]    : 1手ごとに増加する時間(フィッシャールール)
 		// npmsec   : 探索node数を思考経過時間の代わりに用いるモードであるかのフラグ(from UCI)
 		// movetime : 思考時間固定(0以外が指定してあるなら) : 単位は[ms]
-		TimePoint time[COLOR_NB], inc[COLOR_NB], npmsec, movetime;
+		TimePoint time[COLOR_NB] , inc[COLOR_NB] , npmsec , movetime;
 
 		// depth    : 探索深さ固定(0以外を指定してあるなら)
 		// mate     : 詰み専用探索(USIの'go mate'コマンドを使ったとき)
@@ -100,7 +116,7 @@ namespace Search {
 		//		時間制限なしであれば、INT32_MAXが入っている。
 		// perft    : perft(performance test)中であるかのフラグ。非0なら、perft時の深さが入る。
 		// infinite : 思考時間無制限かどうかのフラグ。非0なら無制限。
-		int depth, mate, perft, infinite;
+		int depth , mate, perft, infinite;
 
 		// 今回のgoコマンドでの探索ノード数
 		int64_t nodes;
@@ -137,7 +153,7 @@ namespace Search {
 		// PVの出力間隔(探索のときにMainThread::search()内で初期化する)
 		TimePoint pv_interval;
 
-#if !defined(FOR_TOURNAMENT) 
+#if !defined(FOR_TOURNAMENT)
 		// 全合法手を生成するのか
 		bool generate_all_legal_moves;
 #endif
@@ -151,22 +167,6 @@ namespace Search {
 	// 探索部のclear。
 	// 置換表のクリアなど時間のかかる探索の初期化処理をここでやる。isreadyに対して呼び出される。
 	void clear();
-
-	// -----------------------
-	//  探索のときに使うStack
-	// -----------------------
-
-	struct Stack {
-		Move* pv;					// PVへのポインター。RootMovesのvector<Move> pvを指している。
-		int ply;					// rootからの手数。rootならば0。
-		Move currentMove;			// そのスレッドの探索においてこの局面で現在選択されている指し手
-		Move excludedMove;			// singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手
-		Move killers[2];			// killer move
-		Value staticEval;			// 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
-		int statScore;				// 一度計算したhistoryの合計値をcacheしておくのに用いる。
-		int moveCount;				// このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
-		PieceToHistory* contHistory;// historyのうち、counter moveに関するhistoryへのポインタ。実体はThreadが持っている。
-	};
 
 } // end of namespace Search
 

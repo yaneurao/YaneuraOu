@@ -1,11 +1,11 @@
 ﻿#ifndef _BITOP_H_
 #define _BITOP_H_
 
-#include "../types.h"
-
 //
 //   bit operation library
 //
+
+#include <cstdint> // uint64_tなどの定義
 
 // ターゲット環境でSSE,AVX,AVX2が搭載されていない場合はこれらの命令をsoftware emulationにより実行する。
 // software emulationなので多少遅いが、SSE2,SSE4.1,SSE4.2,AVX,AVX2,AVX-512の使えない環境でそれに合わせたコードを書く労力が省ける。
@@ -36,6 +36,7 @@
 // ----------------------------
 //      type define(uint)
 // ----------------------------
+
 typedef  uint8_t  u8;
 typedef   int8_t  s8;
 typedef uint16_t u16;
@@ -278,17 +279,8 @@ extern ymm ymm_one;   // all packed bytes are 1.
 //    custom allocator
 // ----------------------------
 
-inline void* aligned_malloc(size_t size, size_t align)
-{
-	void* p = _mm_malloc(size, align);
-	if (p == nullptr)
-	{
-		std::cout << "info string can't allocate memory. sise = " << size << std::endl;
-		exit(1);
-	}
-	return p;
-}
-inline void aligned_free(void* ptr) { _mm_free(ptr); }
+extern void* aligned_malloc(size_t size, size_t align);
+static void aligned_free(void* ptr) { _mm_free(ptr); }
 
 // alignasを指定しているのにnewのときに無視される＆STLのコンテナがメモリ確保するときに無視するので、
 // そのために用いるカスタムアロケーター。

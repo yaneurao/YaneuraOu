@@ -1,11 +1,13 @@
 ﻿#ifndef _BOOK_H_
 #define _BOOK_H_
 
+#include <unordered_map>
+#include <fstream>
+
 #include "../../types.h"
 #include "../../position.h"
 #include "../../misc.h"
 #include "../../usi.h"
-#include <unordered_map>
 
 namespace Search { struct LimitsType; };
 
@@ -40,7 +42,7 @@ namespace Book
 
 	// PosMoveListPtrに対してBookPosを一つ追加するヘルパー関数。
 	// (その局面ですでに同じbestMoveの指し手が登録されている場合は上書き動作となる)
-	extern void insert_book_pos(PosMoveListPtr ptr, const BookPos& bp);
+	static void insert_book_pos(PosMoveListPtr ptr, const BookPos& bp);
 
 	// メモリ上にある定跡ファイル
 	// ・sfen文字列をkeyとして、局面の指し手へ変換するのが主な役割。(このとき重複した指し手は除外するものとする)

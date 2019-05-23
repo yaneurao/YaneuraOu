@@ -1,12 +1,13 @@
-﻿#include "../types.h"
+﻿#include "../config.h"
 
-#ifdef USE_SFEN_PACKER
-
-#include <sstream>
-#include <fstream>
+#if defined (USE_SFEN_PACKER)
 
 #include "../misc.h"
 #include "../position.h"
+
+#include <sstream>
+#include <fstream>
+#include <cstring>	// std::memset()
 
 using namespace std;
 

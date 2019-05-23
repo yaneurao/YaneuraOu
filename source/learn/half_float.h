@@ -7,7 +7,7 @@
 // 16bit型による浮動小数点演算
 // コンパイラの生成するfloat型のコードがIEEE 754の形式であると仮定して、それを利用する。
 
-#include "../shogi.h"
+#include "../types.h"
 
 namespace HalfFloat
 {

@@ -1,11 +1,8 @@
-﻿#include <algorithm>
-#include <sstream>
-#include <iostream>
-
-#include "types.h"
-#include "bitboard.h"
+﻿#include "bitboard.h"
 #include "extra/long_effect.h"
 #include "extra/mate/mate1ply.h"
+
+#include <sstream>
 
 using namespace std;
 
@@ -576,4 +573,3 @@ void Bitboards::init()
 	Mate1Ply::init();
 #endif
 }
-

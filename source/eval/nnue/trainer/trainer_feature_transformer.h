@@ -3,7 +3,7 @@
 #ifndef _NNUE_TRAINER_FEATURE_TRANSFORMER_H_
 #define _NNUE_TRAINER_FEATURE_TRANSFORMER_H_
 
-#include "../../../types.h"
+#include "../../../config.h"
 
 #if defined(EVAL_LEARN) && defined(EVAL_NNUE)
 
@@ -100,7 +100,7 @@ class Trainer<FeatureTransformer> {
         cblas_scopy(kHalfDimensions, biases_, 1, &output_[output_offset], 1);
         for (const auto& feature : batch[b].training_features[c]) {
           const IndexType weights_offset = kHalfDimensions * feature.GetIndex();
-          cblas_saxpy(kHalfDimensions, feature.GetCount(),
+          cblas_saxpy(kHalfDimensions, (float)feature.GetCount(),
                       &weights_[weights_offset], 1, &output_[output_offset], 1);
         }
 #else

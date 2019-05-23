@@ -1,11 +1,13 @@
-﻿#include "../../extra/all.h"
+﻿#include "../../types.h"
+#include "../../extra/all.h"
+
+#if defined(USER_ENGINE)
+
 
 // USI拡張コマンド"user"が送られてくるとこの関数が呼び出される。実験に使ってください。
-void user_test(Position& pos_, istringstream& is)
+void user_test(Position& pos_, std::istringstream& is)
 {
 }
-
-#ifdef USER_ENGINE
 
 // USIに追加オプションを設定したいときは、この関数を定義すること。
 // USI::init()のなかからコールバックされる。

@@ -3,6 +3,9 @@
 #include "usi.h"
 #include "misc.h"
 
+#include <string>
+#include <fstream>
+
 using std::string;
 
 // Option設定が格納されたglobal object。
@@ -327,7 +330,7 @@ namespace USI {
 		std::ifstream ifs("engine_options.txt");
 		if (!ifs.fail())
 		{
-			string str;
+			std::string str;
 			while (getline(ifs, str))
 				build_option(str);
 		}

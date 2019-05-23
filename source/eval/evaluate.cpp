@@ -7,17 +7,7 @@
 #include "evaluate_mir_inv_tools.h" // inv_piece()関数が必要。
 #endif
 
-// 全評価関数に共通の処理などもここに記述する。
-
-// 実験中の(非公開の)評価関数の.cppの読み込みはここで行なう。
-#if defined (EVAL_HELICES)
-#include "helices/evaluate_helices.cpp"
-#include "helices/evaluate_helices_learner.cpp"
-#endif
-#if defined (EVAL_NABLA)
-#include "nabla/evaluate_nabla.cpp"
-#include "nabla/evaluate_nabla_learner.cpp"
-#endif
+#include <map>
 
 namespace Eval
 {
@@ -60,8 +50,7 @@ namespace Eval
 	void evaluate_with_no_return(const Position& pos) {}
 #endif
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) \
-	|| defined(EVAL_KKPPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 
 	// calc_check_sum()を呼び出して返ってきた値を引数に渡すと、ソフト名を表示してくれる。
 	void print_softname(u64 check_sum)

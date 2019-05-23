@@ -7,8 +7,7 @@
 //   評価関数に対応するheaderの読み込み
 // -------------------------------------
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || \
-	defined(EVAL_KKPPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 #include "eval/evalsum.h"
 #endif
 
@@ -281,6 +280,7 @@ namespace Eval {
 		void clear()
 		{
 #if defined(USE_FV38)
+
 			for (auto& p : pieceListFb)
 				p = BONA_PIECE_ZERO;
 

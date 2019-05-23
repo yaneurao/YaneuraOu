@@ -1,5 +1,5 @@
-﻿#ifndef _THREAD_H_
-#define _THREAD_H_
+﻿#ifndef THREAD_H_INCLUDED
+#define THREAD_H_INCLUDED
 
 #include <atomic>
 #include <condition_variable>
@@ -30,11 +30,9 @@ class Thread
 	// thread id。main threadなら0。slaveなら1から順番に値が割当てられる。
 	size_t idx;
 
-	// このフラグが立ったら終了する。
-	bool exit = false;
-
-	// 探索中であるかを表すフラグ。プログラムを簡素化するため、事前にtrueにしてある。
-	bool searching = true;
+	// exit      : このフラグが立ったら終了する。
+	// searching : 探索中であるかを表すフラグ。プログラムを簡素化するため、事前にtrueにしてある。
+	bool exit = false , searching = true;
 
 	// wrapしているstd::thread
 	std::thread stdThread;
@@ -209,10 +207,10 @@ private:
 			sum += (th->*member).load(std::memory_order_relaxed);
 		return sum;
 	}
-
 };
 
 // ThreadPoolのglobalな実体
 extern ThreadPool Threads;
 
-#endif // _THREAD_H_
+#endif // #ifndef THREAD_H_INCLUDED
+

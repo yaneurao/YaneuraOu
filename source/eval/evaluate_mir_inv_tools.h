@@ -5,6 +5,7 @@
 
 #include "../types.h"
 #include "../evaluate.h"
+#include <functional>
 
 namespace Eval
 {
