@@ -1,12 +1,13 @@
-﻿#include <sstream>
-#include <queue>
-
-#include "types.h"
+﻿#include "types.h"
 #include "usi.h"
 #include "position.h"
 #include "search.h"
 #include "thread.h"
 #include "tt.h"
+#include "misc.h" // こちらのgetline()を呼び出す必要がある。
+
+#include <sstream>
+#include <queue>
 
 using namespace std;
 
@@ -404,7 +405,7 @@ void getoption_cmd(istringstream& is)
 	for (auto& o : Options)
 	{
 		// 大文字、小文字を無視して比較。また、nameが指定されていなければすべてのオプション設定の現在の値を表示。
-		if ((!_stricmp(name.c_str(), o.first.c_str())) || all)
+		if ((!stricmp(name, o.first)) || all)
 		{
 			sync_cout << "Options[" << o.first << "] == " << (string)Options[o.first] << sync_endl;
 			if (!all)
@@ -778,7 +779,7 @@ void USI::loop(int argc, char* argv[])
 				for (auto& o : Options)
 				{
 					// 大文字、小文字を無視して比較。
-					if (!_stricmp(token.c_str(), o.first.c_str()))
+					if (!stricmp(token, o.first))
 					{
 						Options[o.first] = value;
 						sync_cout << "Options[" << o.first << "] = " << value << sync_endl;

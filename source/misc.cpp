@@ -31,7 +31,7 @@ extern "C" {
 
 #include <fstream>
 #include <iomanip>
-#include <iostream>
+//#include <iostream>
 #include <sstream>
 //#include <vector>
 #include <ctime>	// std::ctime()
@@ -686,3 +686,27 @@ int MKDIR(std::string dir_name)
 }
 
 #endif
+
+
+namespace {
+	// 文字列を大文字化する
+	string to_upper(const string source)
+	{
+		std::string destination;
+		destination.resize(source.size());
+		std::transform(source.cbegin(), source.cend(), destination.begin(), /*toupper*/[](char c){return (char)toupper(c); });
+		return destination;
+	}
+}
+
+// 大文字・小文字を無視して文字列の比較を行う。
+// string-case insensitive-compareの略？
+// s1==s2のとき0(false)を返す。
+bool stricmp(const string& s1, const string& s2)
+{
+	// Windowsだと_stricmp() , Linuxだとstrcasecmp()を使うのだが、
+	// 後者がどうも動作が怪しい。自前実装しておいたほうが無難。
+
+	return to_upper(s1) != to_upper(s2);
+}
+

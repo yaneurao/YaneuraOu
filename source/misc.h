@@ -434,5 +434,10 @@ extern bool getline(std::fstream& fs, std::string& s);
 // 成功すれば0、失敗すれば非0が返る。
 extern int MKDIR(std::string dir_name);
 
+// 大文字・小文字を無視して文字列の比較を行う。
+// string case insensitive compareの略？
+// s1==s2のとき0(false)を返す。
+extern bool stricmp(const std::string& s1, const std::string& s2);
+
 
 #endif // #ifndef MISC_H_INCLUDED

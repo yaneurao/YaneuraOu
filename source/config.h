@@ -497,16 +497,6 @@ extern GlobalOptions_ GlobalOptions;
 #define ALIGNED(X) 
 #endif
 
-// --- for Linux
-
-#if !defined(_MSC_VER)
-
-// stricmpはlinux系では存在しないらしく、置き換える。
-#define _stricmp strcasecmp
-
-#endif
-
-
 // --- output for Japanese notation
 
 // PRETTY_JPが定義されているかどうかによって三項演算子などを使いたいので。
