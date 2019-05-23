@@ -128,7 +128,7 @@ void USI::extra_option(USI::OptionsMap & o)
 //   やねうら王2018(otafuku)探索部
 // -----------------------
 
-namespace YaneuraOu2018GOKU
+namespace YaneuraOu2018Otafuku
 {
 
 	// 外部から調整される探索パラメーター
@@ -2085,7 +2085,7 @@ namespace YaneuraOu2018GOKU
 	}
 }
 
-using namespace YaneuraOu2018GOKU;
+using namespace YaneuraOu2018Otafuku;
 
 // --- 以下に好きなように探索のプログラムを書くべし。
 
@@ -2550,7 +2550,7 @@ void Thread::search()
 
 			while (true)
 			{
-				bestValue = YaneuraOu2018GOKU::search<PV>(rootPos, ss, alpha, beta, rootDepth, false, false);
+				bestValue = ::search<PV>(rootPos, ss, alpha, beta, rootDepth, false, false);
 
 				// それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
 				// 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
@@ -3097,6 +3097,18 @@ namespace Learner
 
 			// PVを表示されると邪魔なので消しておく。
 			limits.silent = true;
+
+			// これを用いると各スレッドのnodesを積算したものと比較されてしまう。ゆえに使用しない。
+			limits.nodes = 0;
+
+			// depthも、Learner::search()の引数として渡されたもので処理する。
+			limits.depth = 0;
+
+			// 引き分け付近の手数で引き分けの値が返るのを防ぐために大きな値にしておく。
+			limits.max_game_ply = 1 << 16;
+
+			// 入玉ルールも入れておかないと引き分けになって決着つきにくい。
+			limits.enteringKingRule = EnteringKingRule::EKR_27_POINT;
 		}
 
 		// DrawValueの設定
@@ -3114,6 +3126,9 @@ namespace Learner
 			th->completedDepth = DEPTH_ZERO;
 			th->selDepth = 0;
 			th->rootDepth = DEPTH_ZERO;
+
+			// 探索ノード数のゼロ初期化
+			th->nodes = 0;
 
 			// history類を全部クリアする。この初期化は少し時間がかかるし、探索の精度はむしろ下がるので善悪はよくわからない。
 			// th->clear();
@@ -3169,7 +3184,7 @@ namespace Learner
 			return ValueAndPV(mated_in(/*ss->ply*/ 0 + 1), pvs);
 		}
 			
-		auto bestValue = YaneuraOu2018GOKU::qsearch<PV>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE);
+		auto bestValue = ::qsearch<PV>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE);
 
 		// 得られたPVを返す。
 		for (Move* p = &ss->pv[0]; is_ok(*p) ; ++p)
@@ -3220,18 +3235,22 @@ namespace Learner
 		auto& completedDepth = th->completedDepth;
 		auto& selDepth = th->selDepth;
 
-		// bestmoveとしてしこの局面の上位N個を探索する機能
-		//size_t multiPV = Options["MultiPV"];
-
 		// この局面での指し手の数を上回ってはいけない
 		multiPV = std::min(multiPV, rootMoves.size());
+
+		// ノード制限にMultiPVの値を掛けておかないと、depth固定、MultiPVありにしたときに1つの候補手に同じnodeだけ思考したことにならない。
+		nodesLimit *= multiPV;
 
 		Value alpha = -VALUE_INFINITE;
 		Value beta = VALUE_INFINITE;
 		Value delta = -VALUE_INFINITE;
 		Value bestValue = -VALUE_INFINITE;
 
-		while ((rootDepth += ONE_PLY) <= depth)
+		while ((rootDepth += ONE_PLY) <= depth
+			// node制限を超えた場合もこのループを抜ける
+			// 探索ノード数は、この関数の引数で渡されている。
+			&& !(nodesLimit /*node制限あり*/ && th->nodes.load(std::memory_order_relaxed) >= nodesLimit)
+			)
 		{
 			for (RootMove& rm : rootMoves)
 				rm.previousScore = rm.score;
@@ -3256,7 +3275,7 @@ namespace Learner
 				// aspiration search
 				while (true)
 				{
-					bestValue = YaneuraOu2018GOKU::search<PV>(pos, ss, alpha, beta, rootDepth, false , false);
+					bestValue = ::search<PV>(pos, ss, alpha, beta, rootDepth, false , false);
 
 					stable_sort(rootMoves.begin() + pvIdx, rootMoves.end());
 					//my_stable_sort(pos.this_thread()->thread_id(),&rootMoves[0] + pvIdx, rootMoves.size() - pvIdx);
