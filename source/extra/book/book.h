@@ -27,8 +27,15 @@ namespace Book
 
 		BookPos(Move best, Move next, int v, int d, uint64_t n) : bestMove(best), nextMove(next), value(v), depth(d), num(n) {}
 		bool operator == (const BookPos& rhs) const { return bestMove == rhs.bestMove; }
-		bool operator < (const BookPos& rhs) const { return num > rhs.num; } // std::sortで降順ソートされて欲しいのでこう定義する。
+
+		// std::sort()で出現回数に対して降順ソートされて欲しいのでこう定義する。
+		// また出現回数が同じ時は、評価値順に降順ソートされて欲しいので…。
+		bool operator < (const BookPos& rhs) const {
+			return (num != rhs.num) ? (num > rhs.num ) : (value > rhs.value);
+		}
 	};
+
+	static std::ostream& operator<<(std::ostream& os, BookPos c);
 
 	// ある局面での指し手の集合がPosMoveList。
 	// メモリ上ではこれをshared_ptrでくるんで保持する。

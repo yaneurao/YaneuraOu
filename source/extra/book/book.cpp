@@ -16,6 +16,12 @@ using std::cout;
 
 namespace Book
 {
+	std::ostream& operator<<(std::ostream& os, BookPos c)
+	{
+		os << "bestMove " << c.bestMove << " , nextMove " << c.nextMove << " , value " << c.value << " , depth " << c.depth;
+		return os;
+	}
+
 	// Aperyの指し手の変換。
 	Move convert_move_from_apery(uint16_t apery_move) {
 		const uint16_t to = apery_move & 0x7f;
@@ -32,13 +38,13 @@ namespace Book
 		return make_move(static_cast<Square>(from), static_cast<Square>(to));
 	};
 
-#ifdef ENABLE_MAKEBOOK_CMD
+#if defined (ENABLE_MAKEBOOK_CMD)
 	// ----------------------------------
 	// USI拡張コマンド "makebook"(定跡作成)
 	// ----------------------------------
 
 	// 局面を与えて、その局面で思考させるために、やねうら王2018が必要。
-#if defined(EVAL_LEARN) && (defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE))
+#if defined(EVAL_LEARN) && defined(YANEURAOU_2018_OTAFUKU_ENGINE)
 
 	struct MultiThinkBook : public MultiThink
 	{
@@ -59,7 +65,6 @@ namespace Book
 		// 前回から新たな指し手が追加されたかどうかのフラグ。
 		bool appended;
 	};
-
 
 	//  thread_id    = 0..Threads.size()-1
 	//  search_depth = 通常探索の探索深さ
@@ -141,11 +146,14 @@ namespace Book
 		bool book_sort = token == "sort";
 		// 定跡の変換
 		bool convert_from_apery = token == "convert_from_apery";
+		
+		// 評価関数を読み込まないとPositionのset()が出来ないので…。
+		is_ready();
 
-#if !(defined(EVAL_LEARN) && (defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE)))
+#if !(defined(EVAL_LEARN) && defined(YANEURAOU_2018_OTAFUKU_ENGINE))
 		if (from_thinking)
 		{
-			cout << "Error!:define EVAL_LEARN and YANEURAOU_2018_OTAFUKU_ENGINE/YANEURAOU_2018_GOKU_ENGINE " << endl;
+			cout << "Error!:define EVAL_LEARN and YANEURAOU_2018_OTAFUKU_ENGINE" << endl;
 			return;
 		}
 #endif
@@ -282,9 +290,6 @@ namespace Book
 				else
 					cout << "..done" << endl;
 			}
-
-			// この時点で評価関数を読み込まないとKPPTはPositionのset()が出来ないので…。
-			is_ready();
 
 			cout << "parse..";
 
@@ -445,7 +450,7 @@ namespace Book
 			}
 			cout << "done." << endl;
 
-#if defined(EVAL_LEARN) && (defined(YANEURAOU_2018_OTAFUKU_ENGINE) || defined(YANEURAOU_2018_GOKU_ENGINE))
+#if defined(EVAL_LEARN) && defined(YANEURAOU_2018_OTAFUKU_ENGINE)
 
 			if (from_thinking)
 			{
@@ -657,7 +662,10 @@ namespace Book
 			cout << "> makebook convert_from_apery book_src.bin book_converted.db" << endl;
 		}
 	}
+
 #endif
+
+
 
 	// ----------------------------------
 	//			MemoryBook
