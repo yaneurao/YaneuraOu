@@ -523,8 +523,15 @@ namespace Book
 					// 前回書き出し時からレコードが追加された？
 					if (multi_think.appended)
 					{
-						sync_cout << "Save start : " << now_string() << sync_endl;
-						book.write_book(book_name);
+						// 連番つけて保存する。
+						//　(いつ中断してもファイルが残っているように)
+						
+						static int book_number = 1;
+						string write_book_name = book_name + "-" + to_string(book_number++) + ".db";
+
+						sync_cout << "Save start : " << now_string() << " , book_name = " << write_book_name << sync_endl;
+
+						book.write_book(write_book_name);
 						sync_cout << "Save done  : " << now_string() << sync_endl;
 						multi_think.appended = false;
 					}
@@ -548,9 +555,9 @@ namespace Book
 
 #endif
 
-			cout << "write..";
+			cout << "write " << book_name << " .. " << endl;
 			book.write_book(book_name);
-			cout << "finished." << endl;
+			cout << "..done." << endl;
 
 		}
 		else if (book_merge) {
