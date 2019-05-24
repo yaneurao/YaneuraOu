@@ -48,16 +48,17 @@ namespace Book
 
 	struct MultiThinkBook : public MultiThink
 	{
-		MultiThinkBook(int search_depth_, MemoryBook & book_)
-			: search_depth(search_depth_), book(book_), appended(false) {}
+		MultiThinkBook(MemoryBook & book_ , int search_depth_, u64 nodes_ = 0)
+			: search_depth(search_depth_), book(book_), appended(false) , search_nodes(nodes_) {}
 
 		virtual void thread_worker(size_t thread_id);
 
 		// 定跡を作るために思考する局面
 		vector<string> sfens;
 
-		// 定跡を作るときの通常探索の探索深さ
+		// 定跡を作るときの通常探索の探索深さと探索ノード数
 		int search_depth;
+		u64 search_nodes;
 
 		// メモリ上の定跡ファイル(ここに追加していく)
 		MemoryBook& book;
@@ -89,7 +90,7 @@ namespace Book
 			// depth手読みの評価値とPV(最善応手列)を取得。
 			// 内部的にはLearner::search()を呼び出す。
 			// Learner::search()は、現在のOptions["MultiPV"]の値に従い、MultiPVで思考することが保証されている。
-			Learner::search(pos, search_depth , multi_pv);
+			Learner::search(pos, search_depth , multi_pv , search_nodes);
 
 			// MultiPVで局面を足す、的な
 			size_t m = std::min(multi_pv, th->rootMoves.size());
@@ -189,10 +190,11 @@ namespace Book
 			string book_name;
 			is >> book_name;
 
-			// 開始手数、終了手数、探索深さ
+			// 開始手数、終了手数、探索深さ、node数の指定
 			int start_moves = 1;
 			int moves = 16;
 			int depth = 24;
+			u64 nodes = 0;
 
 			// 分散生成用。
 			// 2/7なら、7個に分けて分散生成するときの2台目のPCの意味。
@@ -214,6 +216,8 @@ namespace Book
 					is >> moves;
 				else if (token == "depth")
 					is >> depth;
+				else if (token == "nodes")
+					is >> nodes;
 				else if (from_thinking && token == "startmoves")
 					is >> start_moves;
 				else if (from_thinking && token == "cluster")
@@ -236,6 +240,7 @@ namespace Book
 			if (from_thinking)
 				cout << "read sfen moves from " << start_moves << " to " << moves
 				<< " , depth = " << depth
+				<< " , nodes = " << nodes
 				<< " , cluster = " << cluster_id << "/" << cluster_num << endl;
 
 			// 解析対象とするsfen集合。
@@ -460,7 +465,7 @@ namespace Book
 				size_t multi_pv = (size_t)Options["MultiPV"];
 
 				// 思考する局面をsfensに突っ込んで、この局面数をg_loop_maxに代入しておき、この回数だけ思考する。
-				MultiThinkBook multi_think(depth, book);
+				MultiThinkBook multi_think(book , depth, nodes);
 
 				auto& sfens_ = multi_think.sfens;
 				for (auto& s : thinking_sfens)
