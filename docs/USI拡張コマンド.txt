@@ -142,6 +142,12 @@ USIプロトコルの独自拡張コマンド
 
 	ConsiderBookMoveCount :  定跡の指し手を定跡DBの採択率に比例させる(やねうら王2017Early以降)
 
+	BookPvMoves    : 定跡にヒットしたときにPVを何手目まで表示するか。あまり長いとPVの出力に時間がかかる場合があります。
+					(HDD使ってて巨大定跡でBookOnTheFly有効だと特に…)
+			※　これは、定跡の指し手で1手実際に局面を進めて、再度定跡にヒットするか判定することを繰り返すため。
+				このとき、ConsiderBookMoveCount = true , BookEvalDiff = 0 , BookMoves = 0  BookDepthLimit = 0 ,
+				BookEvalBlackLimit = -99999 , BookEvalWhiteLimit = -99999 として扱われます。
+
 
 	nodestime      : node as timeモード。
 

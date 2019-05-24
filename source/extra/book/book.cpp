@@ -372,7 +372,8 @@ namespace Book
 				typedef pair<string, bool /*is_valid*/> SfenAndBool;
 				vector<SfenAndBool> sf;		// 初手から(moves+0)手までのsfen文字列格納用
 
-				StateInfo si[MAX_PLY];
+				// これより長い棋譜、食わせない＆思考対象としないやろ
+				std::vector<StateInfo, AlignedAllocator<StateInfo>> states(1024);
 
 				// 変数sfに解析対象局面としてpush_backする。
 				// ただし、
@@ -417,7 +418,7 @@ namespace Book
 					append_to_sf();
 					m.push_back(move);
 
-					pos.do_move(move, si[i]);
+					pos.do_move(move, states[i]);
 				}
 
 				for (int i = 0; i < (int)sf.size() - (from_sfen ? 1 : 0); ++i)
@@ -1285,20 +1286,49 @@ namespace Book
 		// 定跡データベースの採択率に比例して指し手を選択するオプション
 		o["ConsiderBookMoveCount"] << Option(false);
 
+		// 定跡にヒットしたときにPVを何手目まで表示するか。あまり長いと時間がかかりうる。
+		o["BookPvMoves"] << Option(8, 1, MAX_PLY);
+
+	}
+
+	// 与えられたmで進めて定跡のpv文字列を生成する。
+	string BookMoveSelector::pv_builder(Position& pos, Move m , int depth)
+	{
+		string result = "";
+		if (pos.pseudo_legal(m) && pos.legal(m))
+		{
+			StateInfo si;
+			pos.do_move(m, si);
+			Move bestMove, ponderMove;
+			if (!probe_impl(pos, true, bestMove, ponderMove , true /* 強制的にhitさせる */))
+			{
+				pos.undo_move(m);
+				return result;
+			}
+
+			if (depth > 0)
+				result = pv_builder(pos, bestMove , depth - 1); // さらにbestMoveで指し手を進める。
+			result = " " + to_usi_string(bestMove) + ((result == "" /* is leaf node? */) ? (" " + to_usi_string(ponderMove)) : result);
+			pos.undo_move(m);
+		}
+		return result;
 	}
 
 	// probe()の下請け
-	bool BookMoveSelector::probe_impl(Position& rootPos, bool silent , Move& bestMove , Move& ponderMove)
+	bool BookMoveSelector::probe_impl(Position& rootPos, bool silent , Move& bestMove , Move& ponderMove , bool forceHit)
 	{
-		// 一定確率で定跡を無視
-	        if ( (int)Options["BookIgnoreRate"] > (int)prng.rand(100)){
-			return false;		 
-	        }
-	  
-		// 定跡を用いる手数
-		int book_ply = (int)Options["BookMoves"];
-		if (rootPos.game_ply() > book_ply)
-			return false;
+		if (!forceHit)
+		{
+			// 一定確率で定跡を無視
+			if ((int)Options["BookIgnoreRate"] > (int)prng.rand(100)) {
+				return false;
+			}
+
+			// 定跡を用いる手数
+			int book_ply = (int)Options["BookMoves"];
+			if (!forceHit && rootPos.game_ply() > book_ply)
+				return false;
+		}
 
 		auto it = memory_book.find(rootPos);
 		if (it == nullptr)
@@ -1325,11 +1355,31 @@ namespace Book
 			// 定跡の指し手に対してmultipvを出力しておかないとうまく表示されないので
 			// これを出力しておく。
 			auto i = move_list.size();
+
+			int pv_moves = (int)Options["BookPvMoves"];
 			for (auto it = move_list.rbegin(); it != move_list.rend(); ++it, --i)
-				sync_cout << "info pv " << it->bestMove << " " << it->nextMove
-				<< " (" << fixed << std::setprecision(2) << (100 * it->prob) << "%)" // 採択確率
-				<< " score cp " << it->value << " depth " << it->depth
-				<< " multipv " << i << sync_endl;
+			{
+				// PVを構築する。pv_movesで指定された手数分だけ表示する。
+				// bestMoveを指した局面でさらに定跡のprobeを行なって…。
+
+				string pv_string;
+				if (pv_moves <= 1)
+					pv_string = to_usi_string(it->bestMove);
+				else if (pv_moves == 2)
+					pv_string = to_usi_string(it->bestMove) + " " + to_usi_string(it->nextMove);
+				else {
+					// 次の局面で定跡にhitしない場合があって、その場合、この局面のnextMoveを出力してやる必要がある。
+					auto rest = pv_builder(rootPos, it->bestMove, pv_moves - 3);
+					pv_string = (rest != "") ?
+						(to_usi_string(it->bestMove) + rest) :
+						(to_usi_string(it->bestMove) + " " + to_usi_string(it->nextMove));
+				}
+
+				sync_cout << "info pv " << pv_string
+					<< " (" << fixed << std::setprecision(2) << (100 * it->prob) << "%)" // 採択確率
+					<< " score cp " << it->value << " depth " << it->depth
+					<< " multipv " << i << sync_endl;
+			}
 		}
 
 		// このなかの一つをランダムに選択
@@ -1338,57 +1388,68 @@ namespace Book
 		// 無難な指し手が選びたければ、採択回数が一番多い、最初の指し手(move_list[0])を選ぶべし。
 		// 評価値ベースで選ぶときは、NarrowBookはオンにすべきではない。
 
-		// 狭い定跡を用いるのか？
-		bool narrowBook = Options["NarrowBook"];
-
-		// この局面における定跡の指し手のうち、条件に合わないものを取り除いたあとの指し手の数
-		if (narrowBook)
+		if (forceHit)
 		{
-			auto n = move_list.size();
-
-			// 出現確率10%未満のものを取り除く。
-			auto it_end = std::remove_if(move_list.begin(), move_list.end(), [](Book::BookPos& m) { return m.prob < 0.1; });
-			move_list.erase(it_end, move_list.end());
-
-			// 1手でも取り除いたなら、定跡から取り除いたことをGUIに出力
-			if (!silent && (n != move_list.size()))
-				sync_cout << "info string NarrowBook : " << n << " moves to " << move_list.size() << " moves." << sync_endl;
-		}
-
-		if (move_list.size() == 0)
-			return false;
-
-		// 評価値の差などを反映。
-
-		// 定跡として採用するdepthの下限。0 = 無視。
-		auto depth_limit = (int)Options["BookDepthLimit"];
-		if (depth_limit != 0 && move_list[0].depth < depth_limit)
-		{
-			if (!silent)
-				sync_cout << "info string BookDepthLimit is lower than the depth of this node." << sync_endl;
-			move_list.clear();
-		}
-		else {
-			// ベストな評価値の候補手から、この差に収まって欲しい。
-			auto eval_diff = (int)Options["BookEvalDiff"];
-			auto value_limit1 = move_list[0].value - eval_diff;
-			// 先手・後手の評価値下限の指し手を採用するわけにはいかない。
-			auto stm_string = (rootPos.side_to_move() == BLACK) ? "BookEvalBlackLimit" : "BookEvalWhiteLimit";
-			auto value_limit2 = (int)Options[stm_string];
-			auto value_limit = max(value_limit1, value_limit2);
-
-			auto n = move_list.size();
+			// ベストな評価値のもののみを残す
+			auto value_limit = move_list[0].value;
 
 			// 評価値がvalue_limitを下回るものを削除
-			auto it_end = std::remove_if(move_list.begin(), move_list.end(), [&](Book::BookPos& m) { return m.value < value_limit; });
+			auto it_end = std::remove_if(move_list.begin(), move_list.end(), [&](Book::BookPos & m) { return m.value < value_limit; });
 			move_list.erase(it_end, move_list.end());
 
-			// 候補手が1手でも減ったなら減った理由を出力
-			if (!silent && n != move_list.size())
-				sync_cout << "info string BookEvalDiff = " << eval_diff << " ,  " << stm_string << " = " << value_limit2
-				<< " , " << n << " moves to " << move_list.size() << " moves." << sync_endl;
-		}
+		} else {
 
+			// 狭い定跡を用いるのか？
+			bool narrowBook = Options["NarrowBook"];
+
+			// この局面における定跡の指し手のうち、条件に合わないものを取り除いたあとの指し手の数
+			if (narrowBook)
+			{
+				auto n = move_list.size();
+
+				// 出現確率10%未満のものを取り除く。
+				auto it_end = std::remove_if(move_list.begin(), move_list.end(), [](Book::BookPos & m) { return m.prob < 0.1; });
+				move_list.erase(it_end, move_list.end());
+
+				// 1手でも取り除いたなら、定跡から取り除いたことをGUIに出力
+				if (!silent && (n != move_list.size()))
+					sync_cout << "info string NarrowBook : " << n << " moves to " << move_list.size() << " moves." << sync_endl;
+			}
+
+			if (move_list.size() == 0)
+				return false;
+
+			// 評価値の差などを反映。
+
+			// 定跡として採用するdepthの下限。0 = 無視。
+			auto depth_limit = (int)Options["BookDepthLimit"];
+			if ((depth_limit != 0 && move_list[0].depth < depth_limit))
+			{
+				if (!silent)
+					sync_cout << "info string BookDepthLimit is lower than the depth of this node." << sync_endl;
+				move_list.clear();
+			}
+			else {
+				// ベストな評価値の候補手から、この差に収まって欲しい。
+				auto eval_diff = (int)Options["BookEvalDiff"];
+				auto value_limit1 = move_list[0].value - eval_diff;
+				// 先手・後手の評価値下限の指し手を採用するわけにはいかない。
+				auto stm_string = (rootPos.side_to_move() == BLACK) ? "BookEvalBlackLimit" : "BookEvalWhiteLimit";
+				auto value_limit2 = (int)Options[stm_string];
+				auto value_limit = max(value_limit1, value_limit2);
+
+				auto n = move_list.size();
+
+				// 評価値がvalue_limitを下回るものを削除
+				auto it_end = std::remove_if(move_list.begin(), move_list.end(), [&](Book::BookPos & m) { return m.value < value_limit; });
+				move_list.erase(it_end, move_list.end());
+
+				// 候補手が1手でも減ったなら減った理由を出力
+				if (!silent && n != move_list.size())
+					sync_cout << "info string BookEvalDiff = " << eval_diff << " ,  " << stm_string << " = " << value_limit2
+					<< " , " << n << " moves to " << move_list.size() << " moves." << sync_endl;
+			}
+		}
 		if (move_list.size() == 0)
 			return false;
 
@@ -1398,7 +1459,7 @@ namespace Book
 			auto bestPos = move_list[prng.rand(move_list.size())];
 
 			// 定跡ファイルの採択率に応じて指し手を選択するか
-			if (Options["ConsiderBookMoveCount"])
+			if (forceHit || Options["ConsiderBookMoveCount"])
 			{
 				// 1-passで採択率に従って指し手を決めるオンラインアルゴリズム
 				// http://yaneuraou.yaneu.com/2015/01/03/stockfish-dd-book-%E5%AE%9A%E8%B7%A1%E9%83%A8/

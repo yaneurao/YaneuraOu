@@ -166,7 +166,13 @@ namespace Book
 		std::string get_book_name() const { return Path::Combine((std::string)Options["BookDir"], book_name); }
 
 		// probe()の下請け
-		bool probe_impl(Position& rootPos, bool silent, Move& bestMove, Move& ponderMove);
+		// forceHit == trueのときは、設定オプションの値を無視して強制的に定跡にhitさせる。(BookPvMovesの実装で用いる)
+		bool probe_impl(Position& rootPos, bool silent, Move& bestMove, Move& ponderMove , bool forceHit = false);
+
+		// 定跡のpv文字列を生成して返す。
+		// m : 局面posで進める指し手
+		// depth : 残りdepth
+		std::string pv_builder(Position& pos, Move m , int depth);
 
 		AsyncPRNG prng;
 	};
