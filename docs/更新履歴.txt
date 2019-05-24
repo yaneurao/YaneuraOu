@@ -2,11 +2,44 @@
 やねうら王 更新履歴
 
 
+■　2019/05/24
+
+
+- V4.84にバージョンナンバーを上げる。
+BookPvMovesを導入したのでこれをリファレンスするためにバージョンナンバーが以前と変わっている必要がある。
+アップデート自体はまだ作業中。近日中に残りのアップデートを行う。
+
+- 置換表使用率が最大で99.9%にしかならないのを修正
+
+- makebook thinkコマンドでノード制限の指定が出来るように
+
+- config.hのフォルダを移動させたのでそれに伴う解説文の修正
+
+- 定跡にヒットしたときにその定跡の変化を深くまで出力するように。
+- BookPvMovesオプション導入。
+
+- 定跡書き出し時、採択率が同じ場合に評価値で並び替えがされないbug修正。
+
+- MovePicker、少し最新のコードに寄せる
+
+- threadまわり、もう少し最新のコードに寄せる
+
+- Learner::search()は千日手スコアはContemptの値を無視して、0を返すべき。
+ (スレッドごとにDrawValueを持っていないので複数スレッドから書き換えられると整合性が取れなくて困るため)
+
+- stricmp()自前実装に置き換え
+
+
 ■　2019/05/23
 
 
-- move_picker.hなど、ファイル名をStockfish10になるべく倣う
+- config.hからもincludeをなるべく減らす
 
+- ビルド速度upのため、ソースコード大整理
+
+- Learner::search()のnode数制限の実装
+
+- move_picker.hなど、ファイル名をStockfish10になるべく倣う
 
 - 古い評価関数、古いエンジン部をold_enginesに移動
 
@@ -25,6 +58,89 @@
 Position::set()とPosition::set_from_packed_sfen()でLongEffect::calc_effect()とEval::compute_eval()の呼び出し順を変更 (#93) tttakさん
 評価関数で利きを使用する場合を考慮し、LongEffect::calc_effect()を呼んでからEval::compute_eval()を呼ぶように変更
 
+
+■　2019/03/04 - 2019/03/18
+
+// これらはWCSC29に向けた作業。やねうら王のGitHubには反映させていない。
+// 反映させるのはWCSC29終了後。
+
+- ソースコードをStockfish10に追随する。
+	- Stockfishになるべく引数の変数名を合わせる。
+		- ソースコードの比較のときに紛らわしいため。
+	- move_picker.h/cpp → move_pick.h/cppにrename。
+	- 今回、Stockfishのソースコードになるべく合わせたファイル
+		search.h
+		tt.h
+		tt.cpp
+		misc.h
+		misc.cpp
+		thread.h
+		thread.cpp
+		thread_win32.h
+		usi.h          // 新規ファイル
+		usioption.cpp  // 新規ファイル
+		usi.cpp        // これは、半分ぐらいだけ作業した。残りはまたの機会でいいや。
+		move_pick.h     // ファイル名をmove_picker.h   から rename
+		move_picker.cpp // ファイル名をmove_picker.cpp から rename
+	- usi.h
+		std::string score_to_usi(Value v); → USI::value()に移動。Stockfishに合わせる。
+		Move move_from_usi(const Position& pos, const std::string& str); → USI::to_move()に移動。
+	- see_ge()のコード、Stockfish10に倣った。
+
+- コンパイルの高速化のためにソースコードの整理。
+	- Thread::think()廃止。Stockfishに合わせてThread::search()を用いるように変更。
+	- thread_win32.h を source/extraからsource/に移動。
+	- shogi.h / shogi.cppを types.h , types.cppにrename。
+	- source/extra/config.h を source/config.hに移動。
+	- all.h削除(使ってない＆保守しつづけるの手間)
+
+- ソースコードの単純化のために以下の機能を廃止する。
+	- NO_EVAL_IN_TT
+		- 置換表のTTEntryにevaluate()の値を格納しないオプションだが、これ実質的に使っていないので廃止する。
+	- スレッドごとの置換表
+		- 教師局面の生成時や教師局面からの学習時などに必要かと思って用意していたが、スレッド数で置換表を分割するために
+			置換表効率が悪くなるので置換表のエントリーが衝突する損より大きな損を抱えることになる。
+		- 教師局面生成時に限って言えば、他のスレッドが見つけた詰み筋など、depthが大きなTTEntryは残るので、詰みを回避することで別の
+			終局図に到達する可能性が高まり、elmo式の勝敗項の偏りを均す働きがあるので、スレッドごとに置換表は持たないほうが良いという見方ができる。
+
+			// スレッドごとに置換表を用意する設定
+			// Learner::search(),Leaner::qsearch()を呼ぶときにスレッドごとに置換表が用意されていないと嫌ならこれを呼び出す。
+			// この機能を有効にした場合、TT.new_search()を呼び出したときのOptions["Threads"]の値に従って、
+			// 置換表を分割するのでLearner::search()を呼ぶまでに事前にTT.new_search()を呼び出すこと。
+			bool use_per_thread_tt;
+
+			// 置換表とTTEntryの世代が異なるなら、値(TTEntry.value)は信用できないと仮定するフラグ。
+			// TT.probe()のときに、TTEntryとTT.generationとが厳密に一致しない場合は、
+			// 置換表にhitしても、そのTTEntryはVALUE_NONEを返す。
+			// こうすることで、hash衝突しておかしな値が書き込まれていてもそれを回避できる。
+			// gensfenコマンドでこの機能が必要だった。
+			// cf. http://yaneuraou.yaneu.com/2017/06/30/%E3%80%90%E8%A7%A3%E6%B1%BA%E3%80%91gensfen%E3%81%A7%E6%95%99%E5%B8%AB%E5%B1%80%E9%9D%A2%E7%94%9F%E6%88%90%E6%99%82%E3%81%AB%E9%81%85%E3%81%8F%E3%81%AA%E3%82%8B%E5%95%8F%E9%A1%8C/
+			bool use_strict_generational_tt;
+		- 教師生成時のeval_limitは設定しない(上限値である32000にする)ほうが良いことが判明したので[tanuki-(WCSC28)]、上の問題は回避できる。
+	- KKPPTなどの使っていない評価関数
+		- コンパイル時間の短縮化のため
+	- help mate engine
+		- 都度保守していくのが大変なため。いずれ書き直す。
+	- local game server
+		- python製の自己対局スクリプトのほうが使いやすいため。
+
+- Stockfishの変更を反映しないクラス
+	- Positionクラス
+		Bitboard discovered_check_candidates() const { return st->blockersForKing[~sideToMove] & pieces(sideToMove); }
+		Bitboard pinned_pieces(Color c) const { ASSERT_LV3(is_ok(c)); return st->blockersForKing[c] & pieces(c); }
+	→　この２つ無くすと変更が大変なので現状維持で…。(´ω｀)
+
+- 探索部の改良
+	- razoringのパラメーターを3つから1つに変更。(Stockfish10)
+	- 探索パラメーターのparam1,param2廃止。この調整の仕方、しない。
+	- やねうら王独自のコードを明確に区別してわけるようにした。
+		- 一部の変数はMainThreadに移動させた。
+
+- その他の改良点
+	- NNUE評価関数の評価関数ファイル読み込み時にエラーになった場合、エンジンを終了するようにした。
+	- perftコマンド追加。(トーナメントビルド以外)
+	- Timerクラス、扱う時刻の値はすべてTimePoint型に
+	
 
 ■　2018/12/29
 
