@@ -160,7 +160,7 @@ private:
 	// コンストラクタで渡されたhistroyのポインタを保存しておく変数。
 	const ButterflyHistory* mainHistory;
 	const CapturePieceToHistory* captureHistory;
-	const PieceToHistory** contHistory;
+	const PieceToHistory** continuationHistory;
 
 	// 置換表の指し手(コンストラクタで渡される)
 	Move ttMove;

@@ -10,10 +10,6 @@ Thread::Thread(size_t n) : idx(n) , stdThread(&Thread::idle_loop, this)
 {
 	// スレッドはsearching == trueで開始するので、このままworkerのほう待機状態にさせておく
 	wait_for_search_finished();
-
-	// historyなどをゼロクリアする。
-	// このタイミングでやらないとgccで変数が未初期化扱いされてしまう。
-	clear();
 }
 
 // std::threadの終了を待つ
@@ -46,7 +42,7 @@ void Thread::clear()
 
 void Thread::start_searching()
 {
-	std::unique_lock<Mutex> lk(mutex);
+	std::lock_guard<Mutex> lk(mutex);
 	searching = true;
 	cv.notify_one(); // idle_loop()で回っているスレッドを起こす。(次の処理をさせる)
 }

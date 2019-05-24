@@ -10,11 +10,11 @@ namespace {
 // 被害が小さいように、LVA(価値の低い駒)を動かして取るほうが優先されたほうが良いので駒に価値の低い順に番号をつける。そのためのテーブル。
 // ※ LVA = Least Valuable Aggressor。cf.MVV-LVA
 
-static const Value LVATable[PIECE_WHITE] = {
+constexpr Value LVATable[PIECE_WHITE] = {
   Value(0), Value(1) /*歩*/, Value(2)/*香*/, Value(3)/*桂*/, Value(4)/*銀*/, Value(7)/*角*/, Value(8)/*飛*/, Value(6)/*金*/,
   Value(10000)/*王*/, Value(5)/*と*/, Value(5)/*杏*/, Value(5)/*圭*/, Value(5)/*全*/, Value(9)/*馬*/, Value(10)/*龍*/,Value(11)/*成金*/
 };
-inline Value LVA(const Piece pt) { return LVATable[pt]; }
+constexpr Value LVA(const Piece pt) { return LVATable[pt]; }
   
 // -----------------------
 //   指し手オーダリング
@@ -66,9 +66,6 @@ enum Stages: int {
 	QCHECK_						// 王手となる指し手(- 歩を成る指し手)を返すフェーズ
 };
 
-// select()関数ですべての指し手を選択するためのhelper filter
-const auto Any = []() { return true; };
-
 // -----------------------
 //   partial insertion sort
 // -----------------------
@@ -91,6 +88,8 @@ void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 }
 
 // 合法手か判定する
+// ※　やねうら王独自追加。
+// 歩の不成を生成するモードが必要なのでこの部分をwrapしておく必要があった。
 bool pseudo_legal(const Position& pos, Move ttm)
 {
 #if defined(FOR_TOURNAMENT) 
@@ -99,8 +98,10 @@ bool pseudo_legal(const Position& pos, Move ttm)
 	return pos.pseudo_legal_s<false>(ttm);
 
 #else
+
 	// トーナメントモードでないなら、歩の不成を生成するかは、Options["GenerateAllLegalMoves"]に依存する。
 	return Search::Limits.generate_all_legal_moves ? pos.pseudo_legal_s<true>(ttm) : pos.pseudo_legal_s<false>(ttm);
+
 #endif
 }
 
@@ -112,7 +113,7 @@ bool pseudo_legal(const Position& pos, Move ttm)
 // 通常探索から呼び出されるとき用。
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh,
 	const CapturePieceToHistory* cph , const PieceToHistory** ch, Move cm, Move* killers)
-	: pos(p), mainHistory(mh), captureHistory(cph) , contHistory(ch),
+	: pos(p), mainHistory(mh), captureHistory(cph) , continuationHistory(ch),
 	refutations{ { killers[0], 0 },{ killers[1], 0 },{ cm, 0 } }, depth(d)
 {
 	// 通常探索から呼び出されているので残り深さはゼロより大きい。
@@ -201,9 +202,9 @@ void MovePicker::score()
 			Square movedSq = to_sq(m);
 
 			m.value = (*mainHistory)[from_to(m)][pos.side_to_move()]
-					+ (*contHistory[0])[movedSq][movedPiece]
-					+ (*contHistory[1])[movedSq][movedPiece]
-					+ (*contHistory[3])[movedSq][movedPiece];
+					+ (*continuationHistory[0])[movedSq][movedPiece]
+					+ (*continuationHistory[1])[movedSq][movedPiece]
+					+ (*continuationHistory[3])[movedSq][movedPiece];
 		}
 		else // Type == EVASIONS
 		{
@@ -379,7 +380,7 @@ top:
 
 	// see()が負の指し手を返す。
 	case BAD_CAPTURE:
-		return select<Next>(Any);
+		return select<Next>([]() { return true; });
 
 	// 王手回避手の生成
 	case EVASION_INIT:
@@ -399,7 +400,7 @@ top:
 	// 王手回避の指し手を返す
 	case EVASION_:
 		// そんなに数は多くないはずだから、オーダリングがベストのスコアのものを選択する
-		return select<Best>(Any);
+		return select<Best>([](){ return true; });
 
 	// PROBCUTの指し手を返す
 	case PROBCUT_:
@@ -423,7 +424,8 @@ top:
 
 	// 王手となる指し手の生成
 	case QCHECK_INIT:
-		// CAPTURES_PRO_PLUSで生成していたので、駒を取らない王手の指し手生成(QUIET_CHECKS) - 歩の成る指し手の除外 が必要。
+		// この前のフェーズでCAPTURES_PRO_PLUSで生成していたので、駒を取らない王手の指し手生成(QUIET_CHECKS) - 歩の成る指し手の除外 が必要。
+		// (歩の成る指し手は王手であろうとすでに生成して試したあとである)
 		// QUIET_CHECKS_PRO_MINUSがあれば良いのだが、実装が難しいので、QUIET_CHECKSで生成して、このあとQCHECK_で歩の成る指し手を除外する。
 		cur = moves;
 
@@ -438,7 +440,7 @@ top:
 
 	// 王手になる指し手を一手ずつ返すフェーズ
 	case QCHECK_:
-		// return select<Next>(Any);
+		// return select<Next>([](){ return true; });
 		return select<Next>([&]() { return !pos.pawn_promotion(move); });
 
 	default:
