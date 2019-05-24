@@ -84,6 +84,9 @@ void TranspositionTable::resize(size_t mbSize) {
 	return;
 #endif
 
+	// 探索が終わる前に次のresizeが来ると落ちるので探索の終了を待つ。
+	Threads.main()->wait_for_search_finished();
+
 	// mbSizeの単位は[MB]なので、ここでは1MBの倍数単位のメモリが確保されるが、
 	// 仕様上は、1MBの倍数である必要はない。
 	size_t newClusterCount = mbSize * 1024 * 1024 / sizeof(Cluster);
@@ -95,6 +98,10 @@ void TranspositionTable::resize(size_t mbSize) {
 	ASSERT_LV3((newClusterCount & 1) == 0);
 
 	// 同じサイズなら確保しなおす必要はない。
+
+	// Stockfishのコード、問答無用で確保しなおしてゼロクリアしているが、
+	// ゼロクリアの時間も馬鹿にならないのであまり良いとは言い難い。
+
 	if (newClusterCount == clusterCount)
 		return;
 
@@ -133,6 +140,7 @@ void TranspositionTable::clear()
 	auto size = clusterCount * sizeof(Cluster);
 
 	// 進捗を表示しながら並列化してゼロクリア
+	// Stockfishのここにあったコードは、独自の置換表を実装した時にも使いたいため、tt.cppに移動させた。
 	memclear(table, size);
 
 }
@@ -203,6 +211,7 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found
 #endif
 
 	// 上位16bitが合致するTT_ENTRYを探す
+	// 下位bitは、tteのアドレスが一致してることから、だいたい合ってる。
 	const uint16_t key16 = key >> 48;
 
 	// クラスターのなかから、keyが合致するTT_ENTRYを探す
@@ -266,11 +275,9 @@ int TranspositionTable::hashfull() const
 	// サンプリングして使用されているエントリー数を返す。
 	int cnt = 0;
 	for (int i = 0; i < 1000 / ClusterSize; ++i)
-	{
-		const auto tte = &table[i].entry[0];
 		for (int j = 0; j < ClusterSize; ++j)
-			if ((tte[j].generation() == generation8))
-				++cnt;
-	}
-	return cnt;
+			cnt += (table[i].entry[j].genBound8 & 0xF8) == generation8;
+
+	// return cnt;でも良いが、そうすると最大で999しか返らず、置換表使用率が100%という表示にならない。
+	return cnt * 1000 / (ClusterSize * (1000 / ClusterSize));
 }
