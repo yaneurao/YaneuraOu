@@ -528,16 +528,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// search_depth～search_depth2 手読みの評価値とPV(最善応手列)
 				// 探索窓を狭めておいても問題ないはず。
 
-				// 置換表の世代カウンターを進めておかないと
-				// 初期局面周辺でhash衝突したTTEntryに当たり、変な評価値を拾ってきて、
-				// eval_limitが低いとそれをもって終了してしまうので、いつまでも教師局面が生成されなくなる。
-				// 置換表自体は、スレッドごとに保持しているので、ここでTT.new_search()を呼び出して問題ない。
-#if defined(USE_GLOBAL_OPTIONS)
-				TT.new_search(pos.this_thread()->thread_id());
-#else
-				TT.new_search();
-#endif
-
 				auto pv_value1 = search(pos, depth);
 
 				auto value1 = pv_value1.first;

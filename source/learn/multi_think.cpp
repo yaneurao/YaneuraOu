@@ -10,22 +10,6 @@
 
 void MultiThink::go_think()
 {
-#if defined(USE_GLOBAL_OPTIONS)
-	// あとで復元するために保存しておく。
-	auto oldGlobalOptions = GlobalOptions;
-	// 置換表はスレッドごとに持っていてくれないと衝突して変な値を取ってきかねない
-	GlobalOptions.use_per_thread_tt = true;
-	GlobalOptions.use_strict_generational_tt = true;
-#else
-	// MultiThink関数を使うときはUSE_GLOBAL_OPTIONがdefineされていて欲しいので
-	// ここで警告を出力しておく。
-	cout << "WARNING!! : define USE_GLOBAL_OPTION!" << endl;
-#endif
-
-	// GlobalOptions.use_per_thread_tt == trueのときは、
-	// これを呼んだタイミングで現在のOptions["Threads"]の値がコピーされることになっている。
-	TT.new_search();
-
 	// あとでOptionsの設定を復元するためにコピーで保持しておく。
 	auto oldOptions = Options;
 
@@ -133,10 +117,6 @@ void MultiThink::go_think()
 	for (auto& s : oldOptions)
 		Options[s.first] = std::string(s.second);
 
-#if defined(USE_GLOBAL_OPTIONS)
-	// GlobalOptionsの復元
-	GlobalOptions = oldGlobalOptions;
-#endif
 }
 
 

@@ -66,14 +66,6 @@ Book::BookMoveSelector book;
 static std::fstream result_log;
 #endif
 
-// 置換表の世代カウンター
-#if !defined(USE_GLOBAL_OPTIONS)
-#define TT_GEN(POS) (TT.generation())
-#else
-// スレッドごとに置換表の世代カウンターを持っているので引数としてthread_idを渡す必要がある。
-#define TT_GEN(POS) (TT.generation((POS).this_thread()->thread_id()))
-#endif
-
 // USIに追加オプションを設定したいときは、この関数を定義すること。
 // USI::init()のなかからコールバックされる。
 void USI::extra_option(USI::OptionsMap & o)
@@ -110,11 +102,11 @@ void USI::extra_option(USI::OptionsMap & o)
 
 #if defined (USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
 
-#ifdef USE_RANDOM_PARAMETERS
+#if defined(USE_RANDOM_PARAMETERS)
 	sync_cout << "info string warning!! USE_RANDOM_PARAMETERS." << sync_endl;
 #endif
 
-#ifdef ENABLE_OUTPUT_GAME_RESULT
+#if defined(ENABLE_OUTPUT_GAME_RESULT)
 	sync_cout << "info string warning!! ENABLE_OUTPUT_GAME_RESULT." << sync_endl;
 #endif
 
@@ -278,6 +270,10 @@ namespace YaneuraOu2018Otafuku
 
 	template <NodeType NT>
 	Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth = DEPTH_ZERO);
+
+	Value value_to_tt(Value v, int ply);
+	Value value_from_tt(Value v, int ply);
+	void update_pv(Move* pv, Move move, Move* childPv);
 
 	// -----------------------
 	//     Statsのupdate
@@ -493,11 +489,7 @@ namespace YaneuraOu2018Otafuku
 													  : DEPTH_QS_NO_CHECKS;
 
 		posKey = pos.key();
-		tte = TT.probe(posKey, ttHit
-#if defined(USE_GLOBAL_OPTIONS)
-			, pos.this_thread()->thread_id()
-#endif
-		);
+		tte = TT.probe(posKey, ttHit);
 		ttMove = ttHit ? pos.move16_to_move(tte->move()) : MOVE_NONE;
 		ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
 
@@ -608,8 +600,8 @@ namespace YaneuraOu2018Otafuku
 			{
 				// Stockfishではここ、pos.key()になっているが、posKeyを使うべき。
 				if (!ttHit)
-					tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_LOWER,
-						DEPTH_NONE, MOVE_NONE, ss->staticEval, TT_GEN(pos) );
+					tte->save(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER,
+						DEPTH_NONE, MOVE_NONE, ss->staticEval);
 
 				return bestValue;
 			}
@@ -763,8 +755,8 @@ namespace YaneuraOu2018Otafuku
 					{
 						// 1. nonPVでのalpha値の更新 →　もうこの時点でreturnしてしまっていい。(ざっくりした枝刈り)
 						// 2. PVでのvalue >= beta、すなわちfail high
-						tte->save(posKey, value_to_tt(value, ss->ply), BOUND_LOWER,
-							ttDepth, move, ss->staticEval, TT_GEN(pos) );
+						tte->save(posKey, value_to_tt(value, ss->ply), false, BOUND_LOWER,
+							ttDepth, move, ss->staticEval);
 						return value;
 					}
 				}
@@ -785,9 +777,9 @@ namespace YaneuraOu2018Otafuku
 
 		} else {
 			// 詰みではなかったのでこれを書き出す。
-			tte->save(posKey, value_to_tt(bestValue, ss->ply),
+			tte->save(posKey, value_to_tt(bestValue, ss->ply), false,
 				(PvNode && bestValue > oldAlpha) ? BOUND_EXACT : BOUND_UPPER,
-				ttDepth, bestMove, ss->staticEval, TT_GEN(pos) );
+				ttDepth, bestMove, ss->staticEval);
 		}
 
 		// 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
@@ -1019,11 +1011,7 @@ namespace YaneuraOu2018Otafuku
 		posKey = pos.key() ^ Key(uint64_t(excludedMove) << 16);
 
 
-		tte = TT.probe(posKey, ttHit
-#if defined(USE_GLOBAL_OPTIONS)
-			, pos.this_thread()->thread_id()
-#endif
-			);
+		tte = TT.probe(posKey, ttHit);
 
 		// 置換表上のスコア
 		// 置換表にhitしなければVALUE_NONE
@@ -1128,8 +1116,8 @@ namespace YaneuraOu2018Otafuku
 				if (m != MOVE_NONE)
 				{
 					bestValue = mate_in(ss->ply + 1); // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
-					tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
-						DEPTH_MAX, m, ss->staticEval, TT_GEN(pos) );
+					tte->save(posKey, value_to_tt(bestValue, ss->ply),false , BOUND_EXACT,
+						DEPTH_MAX, m, ss->staticEval);
 
 					// 読み筋にMOVE_WINも出力するためには、このときpv配列を更新したほうが良いが
 					// ここから更新する手段がない…。
@@ -1166,8 +1154,8 @@ namespace YaneuraOu2018Otafuku
 						bestValue = mate_in(ss->ply + 1);
 
 						// staticEvalの代わりに詰みのスコア書いてもいいのでは..
-						tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
-							DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT_GEN(pos) );
+						tte->save(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_EXACT,
+							DEPTH_MAX, move, /* ss->staticEval */ bestValue);
 
 						return bestValue;
 					}
@@ -1178,8 +1166,8 @@ namespace YaneuraOu2018Otafuku
 						// N手詰めかも知れないのでPARAM_WEAK_MATE_PLY手詰めのスコアを返す。
 						bestValue = mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
 
-						tte->save(posKey, value_to_tt(bestValue, ss->ply), BOUND_EXACT,
-							DEPTH_MAX, move, /* ss->staticEval */ bestValue, TT_GEN(pos) );
+						tte->save(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_EXACT,
+							DEPTH_MAX, move, /* ss->staticEval */ bestValue);
 
 						return bestValue;
 					}
@@ -1252,8 +1240,8 @@ namespace YaneuraOu2018Otafuku
 #endif
 
 			// 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
-			tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE,
-					  ss->staticEval, TT_GEN(pos) );
+			tte->save(posKey, VALUE_NONE, false, BOUND_NONE, DEPTH_NONE, MOVE_NONE,
+					  ss->staticEval);
 			// どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないのだが、mate1ply()を
 			// 実行したという証にはなるので意味がある。
 		}
@@ -1438,11 +1426,7 @@ namespace YaneuraOu2018Otafuku
 			Depth d = 3 * depth / 4 - 2 * ONE_PLY;
 			search<NT>(pos, ss, alpha, beta, d , cutNode,true);
 
-			tte = TT.probe(posKey, ttHit
-#if defined(USE_GLOBAL_OPTIONS)
-				,pos.this_thread()->thread_id()
-#endif
-			);
+			tte = TT.probe(posKey, ttHit);
 			ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
 			ttMove = ttHit ? pos.move16_to_move(tte->move()) : MOVE_NONE;
 		}
@@ -2078,16 +2062,51 @@ namespace YaneuraOu2018Otafuku
 		// すなわち、スコアは変動するかも知れないので、BOUND_UPPERという扱いをする。
 
 		if (!excludedMove)
-			tte->save(posKey, value_to_tt(bestValue, ss->ply),
+			tte->save(posKey, value_to_tt(bestValue, ss->ply), false,
 				bestValue >= beta ? BOUND_LOWER :
 				PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
-				depth, bestMove, ss->staticEval, TT_GEN(pos) );
+				depth, bestMove, ss->staticEval );
 
 		// qsearch()内の末尾にあるassertの文の説明を読むこと。
 		ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
 
 		return bestValue;
 	}
+
+	// 詰みのスコアは置換表上は、このnodeからあと何手で詰むかというスコアを格納する。
+	// しかし、search()の返し値は、rootからあと何手で詰むかというスコアを使っている。
+	// (こうしておかないと、do_move(),undo_move()するごとに詰みのスコアをインクリメントしたりデクリメントしたり
+	// しないといけなくなってとても面倒くさいからである。)
+	// なので置換表に格納する前に、この変換をしなければならない。
+	// 詰みにまつわるスコアでないなら関係がないので何の変換も行わない。
+	// ply : root node からの手数。(ply_from_root)
+	Value value_to_tt(Value v, int ply) {
+
+		ASSERT_LV3(-VALUE_INFINITE < v && v < VALUE_INFINITE);
+
+		return  v >= VALUE_MATE_IN_MAX_PLY ? v + ply
+			: v <= VALUE_MATED_IN_MAX_PLY ? v - ply : v;
+	}
+
+	// value_to_tt()の逆関数
+	// ply : root node からの手数。(ply_from_root)
+	Value value_from_tt(Value v, int ply) {
+
+		return  v == VALUE_NONE ? VALUE_NONE
+			: v >= VALUE_MATE_IN_MAX_PLY ? v - ply
+			: v <= VALUE_MATED_IN_MAX_PLY ? v + ply : v;
+	}
+
+	// PV lineをコピーする。
+	// pv に move(1手) + childPv(複数手,末尾MOVE_NONE)をコピーする。
+	// 番兵として末尾はMOVE_NONEにすることになっている。
+	void update_pv(Move* pv, Move move, Move* childPv) {
+
+		for (*pv++ = move; childPv && *childPv != MOVE_NONE; )
+			* pv++ = *childPv++;
+		*pv = MOVE_NONE;
+	}
+
 }
 
 using namespace YaneuraOu2018Otafuku;
@@ -3078,6 +3097,7 @@ void MainThread::check_time()
 		Threads.stop = true;
 }
 
+
 #if defined (EVAL_LEARN)
 
 namespace Learner
@@ -3088,8 +3108,12 @@ namespace Learner
 
 	// 学習のための初期化。
 	// Learner::search(),Learner::qsearch()から呼び出される。
-	void init_for_search(Position& pos,Stack* ss)
+	void init_for_search(Position& pos, Stack* ss)
 	{
+
+		// RootNodeはss->ply == 0がその条件。
+		// ゼロクリアするので、ss->ply == 0となるので大丈夫…。
+		
 		memset(ss - 4, 0, 7 * sizeof(Stack));
 
 		// Search::Limitsに関して
@@ -3151,11 +3175,16 @@ namespace Learner
 
 			ASSERT_LV3(!rootMoves.empty());
 
-#if defined(USE_GLOBAL_OPTIONS)
+			//#if defined(USE_GLOBAL_OPTIONS)
 			// 探索スレッドごとの置換表の世代を管理しているはずなので、
 			// 新規の探索であるから、このスレッドに対する置換表の世代を増やす。
-			TT.new_search(th->thread_id());
-#endif
+						//TT.new_search(th->thread_id());
+
+						// ↑ここでnew_searchを呼び出すと1手前の探索結果が使えなくて損ということはあるのでは…。
+						// ここでこれはやらずに、呼び出し側で1局ごとにTT.new_search(th->thread_id())をやるべきでは…。
+
+						// →　同一の終局図に至るのを回避したいので、教師生成時には置換表は全スレ共通で使うようにする。
+			//#endif
 		}
 	}
 	
