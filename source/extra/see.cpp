@@ -164,13 +164,15 @@ bool Position::see_ge(Move m, Value threshold) const
 	// 移動させる駒側の手番から始まるものとする。
 	// 次に列挙すべきは、この駒を取れる敵の駒なので、相手番に。
 	// ※「stm」とは"side to move"(手番側)を意味する用語。
-	Color stm = ~color_of(moved_piece_after(m));
+	Color us = color_of(moved_piece_after(m));
+	Color stm = ~us;
 
 	// 取り合いにおける収支。取った駒の価値と取られた駒の価値の合計。
-	Value balance = (Value)Eval::CapturePieceValue[piece_on(to)];
+	// いまthresholdを超えるかどうかが問題なので、この分だけbiasを加えておく。
+	Value balance = (Value)Eval::CapturePieceValue[piece_on(to)] - threshold;
 
 	// この時点でマイナスになっているので早期にリターン。
-	if (balance < threshold)
+	if (balance < VALUE_ZERO)
 		return false;
 
 	// nextVictim == Kingの場合もある。玉が取られる指し手は考えなくて良いので
