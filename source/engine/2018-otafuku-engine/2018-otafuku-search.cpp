@@ -1183,6 +1183,7 @@ namespace {
 
 		Thread* thisThread = pos.this_thread();
 		inCheck = pos.checkers();
+		Color us = pos.side_to_move();
 		moveCount = captureCount = quietCount = ss->moveCount = 0;
 		bestValue = -VALUE_INFINITE;
 		//	maxValue = VALUE_INFINITE;
@@ -1356,7 +1357,7 @@ namespace {
 #endif
 				{
 					int penalty = -stat_bonus(depth);
-					thisThread->mainHistory[from_to(ttMove)][pos.side_to_move()] << penalty;
+					thisThread->mainHistory[from_to(ttMove)][us] << penalty;
 					update_continuation_histories(ss, pos.moved_piece_after(ttMove), to_sq(ttMove), penalty);
 				}
 			}
@@ -1371,6 +1372,7 @@ namespace {
 		// Step 5. Tablebases probe
 		// chessだと終盤データベースというのがある。
 		// これは将棋にはないが、将棋には代わりに宣言勝ちというのがある。
+		// ここは、やねうら王独自のコード。
 
 		{
 			// 宣言勝ちの指し手が置換表上に登録されていることがある
@@ -1414,10 +1416,6 @@ namespace {
 			// ただ、静止探索で入れている以上、depth == ONE_PLYでも1手詰めを判定したほうがよさげではある。
 			if (!rootNode && !ttHit && !inCheck)
 			{
-				// 1手詰めは入れたほうがよさげ。
-				// play_time = b1000, 1471 - 57 - 1472(49.98% R - 0.12) [2016/08/19]
-				// play_time = b3000, 522 - 30 - 448(53.81% R26.56) [2016/08/19]
-
 				if (PARAM_WEAK_MATE_PLY == 1)
 				{
 					move = pos.mate1ply();
@@ -1476,7 +1474,6 @@ namespace {
 		}
 		else if (ttHit)
 		{
-			// Stockfish相当のコード
 
 			//if ((ss->staticEval = eval = tte->eval()) == VALUE_NONE)
 			//	eval = ss->staticEval = evaluate(pos);
@@ -2750,7 +2747,12 @@ namespace {
 		// 王手がかかっている状況ではすべての指し手を調べたということだから、これは詰みである。
 		// どうせ指し手がないということだから、次にこのnodeに訪問しても、指し手生成後に詰みであることは
 		// わかるわけだし、そもそもこのnodeが詰みだとわかるとこのnodeに再訪問する確率は極めて低く、
-		// 置換表に保存しても得しない。
+		// 置換表に保存しても置換表を汚すだけでほとんど得をしない。(レアケースなのでほとんど損もしないが)
+		 
+		// ※　計測したところ、置換表に保存したほうがわずかに強かったが、有意差ではなさげだし、
+		// Stockfish10のコードが保存しないコードになっているので保存しないことにする。
+
+		// 【計測資料 26.】 qsearchで詰みのときに置換表に保存する/しない。
 		if (inCheck && bestValue == -VALUE_INFINITE)
 		{
 			bestValue = mated_in(ss->ply); // rootからの手数による詰みである。

@@ -4,6 +4,134 @@
 　探索部の改良に関して、改良前と改良後とを比較してその勝率などを記録しておく。
 　例えば探索部で「【計測資料 1.】」とコメントがあれば、このファイルの「■　1.」のところにその詳しい内容がある。
 
+
+■　29. Move CountベースのFutiliy Pruning、Stockfish 9と10での比較
+
+
+	// A) Stockfish 9のFutilityMoveCounts方式
+
+	// Futility and reductions lookup tables, initialized at startup
+	int FutilityMoveCounts[2][16]; // [improving][depth]
+
+          // Skip quiet moves if movecount exceeds our FutilityMoveCount threshold
+          moveCountPruning = depth < 16 * ONE_PLY
+                          && moveCount >= FutilityMoveCounts[improving][depth / ONE_PLY];
+
+
+	// Futilityで用いるテーブルの初期化
+
+	// 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
+	// 枝刈りしてしまうためのmoveCountベースのfutilityで用いるテーブル。
+	// FutilityMoveCounts[improving][残りdepth/ONE_PLY]
+	for (int d = 0; d < PARAM_PRUNING_BY_MOVE_COUNT_DEPTH /*16*/; ++d)
+	{
+		FutilityMoveCounts[0][d] = int(PARAM_FUTILITY_MOVE_COUNT_ALPHA0 / 100.0 /*2.4*/ + PARAM_FUTILITY_MOVE_COUNT_BETA0 / 1000.0/*0.74*/ * pow(d, 1.78));
+		FutilityMoveCounts[1][d] = int(PARAM_FUTILITY_MOVE_COUNT_ALPHA1 / 100.0 /*5.0*/ + PARAM_FUTILITY_MOVE_COUNT_BETA1 / 1000.0/*1.00*/ * pow(d, 2.00));
+	}
+
+	//
+	// futility move count table
+	//
+
+	// どうも、元の値ぐらいが最適値のようだ…。
+
+	// 元の値 = 240
+	// [PARAM] min:150,max:400,step:5,interval:1,time_rate:1,fixed
+	PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_ALPHA0 = 240;
+
+	// 元の値 = 500
+	// [PARAM] min:300,max:600,step:4,interval:1,time_rate:1,fixed
+	PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_ALPHA1 = 492;
+
+	// 元の値 = 740
+	// [PARAM] min:500,max:2000,step:10,interval:1,time_rate:1,fixed
+	PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_BETA0 = 740;
+
+	// 元の値 = 1000
+	// [PARAM] min:500,max:2000,step:5,interval:1,time_rate:1,fixed
+	PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_BETA1 = 1000;
+
+	// B) 
+
+	  constexpr int futility_move_count(bool improving, int depth) {
+	    return (5 + depth * depth) * (1 + improving) / 2;
+	  }
+
+          // Skip quiet moves if movecount exceeds our FutilityMoveCount threshold
+          moveCountPruning = moveCount >= futility_move_count(improving, depth / ONE_PLY);
+
+
+■　28. moves_loopに入る前、1手前がnull moveのときにstaticEvalにbonusを足すかどうか
+
+	// A)
+			int bonus = -(ss - 1)->statScore / 512;
+			ss->staticEval = eval = eval /* == evaluate(pos) */ + bonus;
+
+	// B)
+			if ((ss-1)->currentMove != MOVE_NULL)
+			{
+				int bonus = -(ss - 1)->statScore / 512;
+				ss->staticEval = eval = eval /* == evaluate(pos) */ + bonus;
+			}
+
+	engine1 = YaneuraOu2018NNUE_gcc_learn20190526.exe , eval = tanuki2018_nnue-best
+	engine2 = YaneuraOu2018NNUE_gcc_learn20190526b.exe , eval = tanuki2018_nnue-best
+	T2,b1000,4752 - 538 - 4710(50.22% R1.54) win black : white = 51.11% : 48.89%
+
+
+
+■　27. 1手前の早めのquietな指し手が反駁されたなら追加でpenaltyを課す時にkillerを見るかどうか
+
+	→　cf.計測資料 6.により、captured_piece()よりcapture_or_pawn_promotion()のほうが良いことはわかっている。
+	→　以下のA)とB)との比較
+
+
+				// Stockfish 9相当のコード
+//                if (    ((ss-1)->moveCount == 1 || (ss-1)->currentMove == (ss-1)->killers[0])
+//                     && !pos.captured_piece())
+
+				// A)
+				// quiet TT か、1手前のmain killer moveが反駁されたならペナルティを加える。
+				//	if (((ss - 1)->moveCount == 1 || (ss - 1)->currentMove == (ss - 1)->killers[0])
+				//		&& !pos.capture_or_pawn_promotion((ss - 1)->currentMove))
+
+#if 0
+					// Stockfish 10相当のコード
+					// Extra penalty for early quiet moves of the previous ply
+					if ((ss - 1)->moveCount <= 2 && !pos.captured_piece())
+#else
+				// B)
+					// 1手前の早めのquietな指し手が反駁されたなら追加でpenaltyを課す 
+					if ((ss - 1)->moveCount <= 2 && !pos.capture_or_pawn_promotion((ss - 1)->currentMove))
+#endif
+						update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_bonus(depth + ONE_PLY));
+
+	engine1 = YaneuraOu2018NNUE_gcc_learn20190526.exe , eval = tanuki2018_nnue-best
+	engine2 = YaneuraOu2018NNUE_gcc_learn20190526a.exe , eval = tanuki2018_nnue-best
+	T2,b1000,2353 - 255 - 2392(49.59% R-2.86) win black : white = 51.11% : 48.89%
+
+	ほぼ差はなさそう。Stockfish10のコードが後者なので後者にしておく。
+
+
+■　26. qsearchで詰みのときに置換表に保存する/しない。
+
+
+	engine1 = YaneuraOu2018NNUE_gcc_learnHalfKP256_20190315b35-qsearch3.exe , eval = tanuki2018_nnue-best // 保存しない(Stockfish10相当)
+	engine2 = YaneuraOu2018NNUE_gcc_learnHalfKP256_20190315b35-qsearch3s.exe , eval = tanuki2018_nnue-best // 保存する
+	T2,b2000,1386 - 189 - 1425(49.31% R-4.82) win black : white = 51.05% : 48.95%
+
+	有意に強いとは言い難い。スレッドが増えてきたときにどうなるかもわからないのでこれは採用しない。
+
+		// Stockfish 10相当のコード
+		if (inCheck && bestValue == -VALUE_INFINITE)
+			return mated_in(ss->ply); // rootからの手数による詰みである。
+
+		// 置換表に保存する場合のコード
+		if (inCheck && bestValue == -VALUE_INFINITE)
+			bestValue = mated_in(ss->ply); // rootからの手数による詰みである。
+
+
+
 ■　25. 浅い深さでの枝刈りについて Stockfish 9のコードとの比較
 
 	※　計測資料 19.と同じ比較だが、他の部分がStockfish 9相当である部分が違う。

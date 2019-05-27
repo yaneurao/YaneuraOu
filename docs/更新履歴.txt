@@ -2,6 +2,65 @@
 やねうら王 更新履歴
 
 
+■　2019/05/28
+
+
+- futility move countのコード、新しいコードに差し替え
+
+- book2019.cpp、sjisで保存してたので、コメント文の「機能」の「能」の文字の2バイト目に￥があって、gcc/clangでコンパイルエラーになっていた。utf-8で保存しなおした。
+
+- Lazy SMPでhelper threadをmain threadより先行させるコード、削除
+
+- テラショック定跡部　丸ごと
+
+- StatsEntry 一部を新しいコードに差し替え
+
+- TTEntryのdepth、int8_tからuint8に変更
+
+- timeman、USI_Ponderオプションを考慮するように修正
+
+- EasyMove削除
+- LazySMPのvoteの処理、改良
+- 探索のtime managementまわり、Stockfish10のコードと差し替え
+
+	engine1 = YaneuraOu2018NNUE_avx2-v483git.exe , eval = tanuki2018_nnue-best
+	engine2 = YaneuraOu2018NNUE_avx2git201905272200.exe , eval = tanuki2018_nnue-best
+	T2,b1000,459 - 42 - 489(48.42% R-11.0) win black : white = 51.05% : 48.95%
+
+
+■　2019/05/27
+
+
+- seeのコード、きちんと差し替わっていなかった。修正。
+
+- Stockfish10で探索部にperft追加されたのでそちらのperftを使うようにしてtestコマンドのほうのperftのコードを削除
+
+- extra/timeman.cppのフォルダ移動
+- main.cpp追加
+- move_pick.h/cppをmovepick.h/cppとリネーム
+
+
+■　2019/05/26
+
+
+- searchのコード、むちゃくちゃ整理した
+
+engine1 = YaneuraOu2018NNUE_avx2-v483git.exe , eval = tanuki2018_nnue-best
+engine2 = YaneuraOu2018NNUE_avx2-v484git201905251830.exe , eval = tanuki2018_nnue-best
+T2,b1000,889 - 111 - 940(48.61% R-9.69) win black : white = 51.67% : 48.33%
+
+
+
+■　2019/05/25
+
+
+- seeのコード、最新のものに差し替え
+
+- tt.h / tt.cppを最新のコードに
+- NO_EVAL_IN_TT廃止
+- 置換表にスレッドごとに領域を分ける機能廃止(ソースコード見づらい＆複雑になる＆教師生成時の効果に乏しい)
+
+
 ■　2019/05/24
 
 

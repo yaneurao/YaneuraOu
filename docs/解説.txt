@@ -309,6 +309,64 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 	定跡をメモリに丸読みしたくないときには(BookOnTheFly機能)、並び変わっていないといけない。
 	(sfen文字列順でソートされていないとバイナリサーチが出来ないため。)
 
+> makebook build_tree read_book.db write_book.db
+
+	read_book.dbには、thinkコマンドで実戦で出現した局面に評価値がついているものとして、
+	leaf nodeについている評価値を使ってmin-max探索のようなことをして、それぞれの局面での最善手を
+	write_book.dbに書き出す機能。
+
+> makebook build_tree read_book.db write_book.db black_contempt 50 white_contempt 150
+
+	build_treeで千日手に至るときにそのときのスコアを先手・後手個別に設定できる。
+	Optionのcontemptと同じ。black_contempt = 50を指定すると先手の千日手時のスコアを-50とみなす。
+
+> makebook extend_tree read_book.db read_sfen.txt write_sfen.txt
+
+	read_book.dbの定跡に対して、read_sfen.txtのsfenの局面から開始して延長する枝をwrite_sfen.txtに書き出します。
+	read_sfen.txtの局面から、評価値が先手で-50以上、後手で-150以上の値がついている枝だけを延長していきます。
+	※　ここで言う評価値は正規化する前の生の評価値。(歩の価値=89点なので、USIで読み筋を出力するときはこれが100点になるように正規化して出力している)
+	
+	ここで書き出されたsfenファイルを、makebook thinkコマンドで思考させるのを繰り返すと定跡ツリーが成長していきます。
+
+	※　read_sfen.txtには"startpos moves.."の形で局面を指定します。
+
+> makebook extend_tree read_book.db read_sfen.txt write_sfen.txt black_eval_limit -200 white_eval_limit -300
+
+	extend_treeのときに展開する枝の評価値の下限を先手/後手個別に指定できます。
+
+> makebook extend_tree read_book.db read_sfen.txt write_sfen.txt extend_range -1 1
+
+	extend_rangeを指定すると、その範囲のleaf node(末端の局面)の候補手だけを延長対象とする。
+	(MultiPVで思考させ複数の指し手が登録されている場合、このextend_rangeの範囲内の候補手で進めた局面だけが延長される)
+	extend_range -1 1 と指定したならば、leaf nodeでextend_treeの引き分けのスコア(-1,0,+1)の局面だけを延長する。
+	// やねうら王のV4.84以降だとmakebook thinkのときのContempt = 0なので引き分けのスコアは0のはず。
+
+	(千日手局面に到達するまでの手順がbook上にないとbuild_treeコマンドのときに千日手が検出できず、build_treeのコマンドで指定している
+	black_contempt/white_contemptの値が千日手手順の評価値として反映されないため)
+
+	extend_rangeとblack_eval_limit,white_eval_limitの併用は可能です。
+	(leaf以外の局面で、そこを辿るかどうかをblack_eval_limit/white_eval_limitで制限しつつ、leafで延長するところをextend_rangeで制限する)
+
+
+> makebook endless_extend_tree book/user_book1.db book/kadai_sfen.txt book/think_sfen.txt depth 8 startmoves 1 moves 32 loop 100 black_eval_limit -50 white_eval_limit -150 nodes 1000000000
+
+	makebook extend_treeとthinkを合体させたコマンド。think_sfen.txtのところは、思考対象局面を書き出す一時ファイル。
+	このときbook/kadai_sfen.txtに "startpos" とだけ書いておけば、平手の初期局面が課題局面になるので、そこから自動的に定跡が掘られていきます。
+	loopの回数だけ繰り返されます。
+
+	検討用の局面をbook/kadai_sfen.txtに入れて、そこから定跡を掘るのに使えるかと思います。
+
+	例)
+	思考エンジンを起動して、
+		Hash 4096
+		Threads 8
+		makebook endless_extend_tree book/user_book1.db book/kadai_sfen.txt book/think_sfen.txt depth 36 startmoves 1 moves 70 loop 100 black_eval_limit -50 white_eval_limit -150 nodes 1000000000
+	みたいな感じで。
+
+> makebook endless_extend_tree book/user_book1.db book/kadai_sfen.txt book/think_sfen.txt depth 8 startmoves 1 moves 32 loop 100 black_eval_limit -50 white_eval_limit -150 nodes 1000000000 extend_range -1 1
+
+	endless_extendの千日手局面だけを延長する版。
+
 
 
 ■　定跡読み込み時に表示されるメッセージの説明
