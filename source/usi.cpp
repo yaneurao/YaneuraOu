@@ -20,7 +20,6 @@ void user_test(Position& pos, std::istringstream& is);
 // サンプル用のコードを含めてtest.cppのほうに色々書いてあるのでそれを呼び出すために使う。
 #if defined(ENABLE_TEST_CMD)
 	void test_cmd(Position& pos, istringstream& is);
-	void perft(Position& pos, istringstream& is);
 	void generate_moves_cmd(Position& pos);
 #if defined(MATE_ENGINE)
 	void test_mate_engine_cmd(Position& pos, istringstream& is);
@@ -499,7 +498,8 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 				limits.mate = stoi(token);
 		}
 
-		// performance test
+		// パフォーマンステスト(Stockfishにある、合法手N手で到達できる局面を求めるやつ)
+		// このあとposition～goコマンドを使うとパフォーマンステストモードに突入し、ここで設定した手数で到達できる局面数を求める
 		else if (token == "perft")     is >> limits.perft;
 
 		// 時間無制限。
@@ -732,9 +732,6 @@ void USI::loop(int argc, char* argv[])
 #if defined (ENABLE_TEST_CMD)
 		// 指し手生成のテスト
 		else if (token == "s") generate_moves_cmd(pos);
-
-		// パフォーマンステスト(Stockfishにある、合法手N手で到達できる局面を求めるやつ)
-		else if (token == "perft") perft(pos, is);
 
 		// テストコマンド
 		else if (token == "test") test_cmd(pos, is);
