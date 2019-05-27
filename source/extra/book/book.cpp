@@ -131,6 +131,9 @@ namespace Book
 	}
 #endif
 
+	// 定跡生成コマンド2019年度版。makebook2019.cppで定義されている。
+	int makebook2019(Position& pos, istringstream& is, const string& token);
+
 	// フォーマット等についてはdoc/解説.txt を見ること。
 	void makebook_cmd(Position& pos, istringstream& is)
 	{
@@ -158,6 +161,10 @@ namespace Book
 			return;
 		}
 #endif
+
+		// 2019年以降に作ったmakebook拡張コマンド
+		if (makebook2019(pos, is, token))
+			return;
 
 		if (from_sfen || from_thinking)
 		{
@@ -525,7 +532,6 @@ namespace Book
 					{
 						// 連番つけて保存する。
 						//　(いつ中断してもファイルが残っているように)
-						
 						static int book_number = 1;
 						string write_book_name = book_name + "-" + to_string(book_number++) + ".db";
 
@@ -543,9 +549,7 @@ namespace Book
 					}
 
 					// 置換表が同じ世代で埋め尽くされるとまずいのでこのタイミングで世代カウンターを足しておく。
-					//TT.new_search();
-
-					// →　EVAL_LEARNモードなら、Learner::new_search()のほうで行っているのでここではやらなくて良い。
+					TT.new_search();
 
 				};
 
@@ -673,6 +677,7 @@ namespace Book
 			cout << "> makebook merge book_src1.db book_src2.db book_merged.db" << endl;
 			cout << "> makebook sort book_src.db book_sorted.db" << endl;
 			cout << "> makebook convert_from_apery book_src.bin book_converted.db" << endl;
+			cout << "> makebook build_tree book2019.db user_book1.db" << endl;
 		}
 	}
 
