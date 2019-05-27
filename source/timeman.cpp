@@ -156,7 +156,7 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 
 		// Ponderが有効になっている場合、ponderhitすると時間が本来の予測より余っていくので思考時間を心持ち多めにとっておく。
 		// これ本当はゲーム開始時にUSIコマンドで送られてくるべきだと思う。→　将棋所では、送られてきてた。"USI_Ponder"  [2019/04/29]
-		if (Threads.main()->received_go_ponder)
+		if (/* Threads.main()->received_go_ponder*/ Options["USI_Ponder"])
 			optimumTime += optimumTime / 4;
 	}
 

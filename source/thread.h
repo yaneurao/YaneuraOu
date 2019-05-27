@@ -158,17 +158,6 @@ struct MainThread: public Thread
 	// ponder : "go ponder" コマンドでの探索中であるかを示すフラグ
 	std::atomic_bool ponder;
 
-	// TODO : 将棋所では"USI_Ponder"というオプションが渡ってきてた。これに従うように変更する。[2019/04/29]
-
-	// received_go_ponder : Stockfishにはこのコードはないが、試合開始後、"go ponder"が一度でも送られてきたかのフラグ。これにより思考時間を自動調整する。
-	// 本来は、Options["Ponder"]で設定すべきだが(UCIではそうなっている)、USIプロトコルだとGUIが勝手に設定するので、思考エンジン側からPonder有りのモードなのかどうかが取得できない。
-	// ゆえに、このようにして判定している。
-	// 備考) ponderのフラグを変更するのはUSIコマンドで"ponderhit"などが送られてきたときであり、探索スレッドからは、探索中は
-	//       ponderの値はreadonlyであるから複雑な同期処理は必要がない。
-	//       (途中で値が変更されるのは、ponder == trueで探索が始まり、途中でfalseに変更されるケースのみ)
-	//       そこで単にatomic_boolにしておけば十分である。
-	std::atomic_bool received_go_ponder;
-
 	// -------------------
 	// やねうら王独自追加
 	// -------------------

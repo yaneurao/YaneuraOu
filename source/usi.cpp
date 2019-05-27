@@ -297,7 +297,6 @@ void is_ready(bool skipCorruptCheck)
 	Search::clear();
 	Time.availableNodes = 0;
 
-	Threads.main()->received_go_ponder = false;
 	Threads.stop = false;
 
 	// keep aliveを送信するために生成したスレッドを終了させ、待機する。
@@ -506,13 +505,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 		else if (token == "infinite")  limits.infinite = 1;
 
 		// ponderモードでの思考。
-		else if (token == "ponder")
-		{
-			ponderMode = true;
-
-			// 試合開始後、一度でも"go ponder"が送られてきたら、それを記録しておく。
-			Threads.main()->received_go_ponder = true;
-		}
+		else if (token == "ponder")		ponderMode = true;
 	}
 
 	// goコマンド、デバッグ時に使うが、そのときに"go btime XXX wtime XXX byoyomi XXX"と毎回入力するのが面倒なので
