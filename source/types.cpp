@@ -2,7 +2,6 @@
 #include "usi.h"
 #include "search.h"
 #include "tt.h"
-#include "thread.h"
 
 // ----------------------------------------
 //    const
@@ -156,26 +155,3 @@ Value drawValueTable[REPETITION_NB][COLOR_NB] =
 GlobalOptions_ GlobalOptions;
 #endif
 
-// ----------------------------------------
-//  main()
-// ----------------------------------------
-
-int main(int argc, char* argv[])
-{
-	// --- 全体的な初期化
-	USI::init(Options);
-	Bitboards::init();
-	Position::init();
-	Search::init();
-	Threads.set(Options["Threads"]);
-	TT.resize(Options["Hash"]);
-	Eval::init();
-
-	// USIコマンドの応答部
-	USI::loop(argc, argv);
-
-	// 生成して、待機させていたスレッドの停止
-	Threads.set(0);
-
-	return 0;
-}

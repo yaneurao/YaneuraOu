@@ -674,7 +674,7 @@
     <ClInclude Include="learn\learning_tools.h" />
     <ClInclude Include="learn\multi_think.h" />
     <ClInclude Include="misc.h" />
-    <ClInclude Include="move_pick.h" />
+    <ClInclude Include="movepick.h" />
     <ClInclude Include="search.h" />
     <ClInclude Include="thread_win32.h" />
     <ClInclude Include="types.h" />
@@ -717,13 +717,13 @@
     <ClCompile Include="extra\see.cpp" />
     <ClCompile Include="extra\sfen_packer.cpp" />
     <ClCompile Include="extra\test_cmd.cpp" />
-    <ClCompile Include="extra\timeman.cpp" />
     <ClCompile Include="learn\learner.cpp" />
     <ClCompile Include="learn\learning_tools.cpp" />
     <ClCompile Include="learn\multi_think.cpp" />
     <ClCompile Include="misc.cpp" />
     <ClCompile Include="movegen.cpp" />
-    <ClCompile Include="move_pick.cpp" />
+    <ClCompile Include="movepick.cpp" />
+    <ClCompile Include="timeman.cpp" />
     <ClCompile Include="types.cpp" />
     <ClCompile Include="position.cpp" />
     <ClCompile Include="thread.cpp" />

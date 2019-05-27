@@ -7,7 +7,7 @@
 #include <thread>
 #include <vector>
 
-#include "move_pick.h"
+#include "movepick.h"
 #include "position.h"
 #include "search.h"
 #include "thread_win32.h"

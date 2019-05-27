@@ -104,7 +104,8 @@ ifeq "$(strip $(OBJDIR))" ""
 	OBJDIR = ..
 endif
 #SOURCES  = $(wildcard *.cpp)
-SOURCES  = types.cpp                                                           \
+SOURCES  = main.cpp                                                            \
+	types.cpp                                                                  \
 	bitboard.cpp                                                               \
 	misc.cpp                                                                   \
 	movegen.cpp                                                                \
@@ -113,7 +114,8 @@ SOURCES  = types.cpp                                                           \
 	usi_option.cpp                                                             \
 	thread.cpp                                                                 \
 	tt.cpp                                                                     \
-	move_pick.cpp                                                              \
+	movepick.cpp                                                               \
+	timeman.cpp                                                                \
 	extra/book/apery_book.cpp                                                  \
 	extra/book/book.cpp                                                        \
 	extra/book/makebook2019.cpp                                                \
@@ -125,7 +127,6 @@ SOURCES  = types.cpp                                                           \
 	extra/mate/mate_n_ply.cpp                                                  \
 	extra/benchmark.cpp                                                        \
 	extra/test_cmd.cpp                                                         \
-	extra/timeman.cpp                                                          \
 	extra/see.cpp                                                              \
 	extra/sfen_packer.cpp                                                      \
 	extra/kif_converter/kif_convert_tools.cpp                                  \

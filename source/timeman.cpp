@@ -1,11 +1,11 @@
-﻿#include "../config.h"
+﻿#include "config.h"
 
 #if defined(USE_TIME_MANAGEMENT)
 
-#include "../misc.h"
-#include "../search.h"
-#include "../thread.h"
-#include "../usi.h"
+#include "misc.h"
+#include "search.h"
+#include "thread.h"
+#include "usi.h"
 
 namespace {
 

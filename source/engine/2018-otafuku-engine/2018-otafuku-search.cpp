@@ -36,7 +36,7 @@
 #include "../../misc.h"
 #include "../../tt.h"
 #include "../../extra/book/book.h"
-#include "../../move_pick.h"
+#include "../../movepick.h"
 #include "../../usi.h"
 #include "../../learn/learn.h"
 
