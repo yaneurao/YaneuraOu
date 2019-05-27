@@ -159,18 +159,6 @@ namespace {
 		return Value( (PARAM_FUTILITY_MARGIN_ALPHA1 - PARAM_FUTILITY_MARGIN_ALPHA2 * improving) * d / ONE_PLY);
 	}
 
-	// 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
-	// 枝刈りしてしまうためのmoveCountベースのfutilityで用いるテーブル
-	// [improving][残りdepth]
-
-#if defined (USE_AUTO_TUNE_PARAMETERS) || defined(USE_RANDOM_PARAMETERS)
-	// PARAM_PRUNING_BY_MOVE_COUNT_DEPTHの最大値の分だけ余裕を持って確保する。
-	int FutilityMoveCounts[2][32];
-#else
-	// 16のはずだが。
-	int FutilityMoveCounts[2][PARAM_PRUNING_BY_MOVE_COUNT_DEPTH];
-#endif
-
 	// 探索深さを減らすためのReductionテーブル
 #if 0 // Stockfish10のコード。どうもよくないのでStockfish9のコードを用いる。
 //  // [PvNode][improvingであるか][残りdepth][このnodeで何手目の指し手であるか]
@@ -189,6 +177,18 @@ namespace {
 		// PvNodeだと負の値になってしまう。それを防ぐために、std::max(X , 0)を呼び出す必要がある。
 #endif
 		return Reductions[PvNode][i][std::min(d / ONE_PLY, 63)][std::min(mn, 63)] * ONE_PLY;
+	}
+
+	// 【計測資料 29.】　Move CountベースのFutiliy Pruning、Stockfish 9と10での比較
+
+	// 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
+	// 枝刈りしてしまうためのmoveCountベースのfutility pruningで用いる。
+	// improving : 1手前の局面から評価値が上昇しているのか
+	// depth     : 残り探索depth
+	// 返し値    : 返し値よりmove_countが大きければfutility pruningを実施
+	// TODO : この " 5 + "のところ、パラメーター調整をしたほうが良いかも。
+	constexpr int futility_move_count(bool improving, int depth) {
+		return (5 + depth * depth) * (1 + improving) / 2;
 	}
 
 	// depthに基づく、historyとstatsのupdate bonus
@@ -341,17 +341,6 @@ void Search::clear()
 					Reductions[NonPV][imp][d][mc] ++;
 			}
 
-
-	// Futilityで用いるテーブルの初期化
-
-	// 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
-	// 枝刈りしてしまうためのmoveCountベースのfutilityで用いるテーブル。
-	// FutilityMoveCounts[improving][残りdepth/ONE_PLY]
-	for (int d = 0; d < PARAM_PRUNING_BY_MOVE_COUNT_DEPTH /*16*/; ++d)
-	{
-		FutilityMoveCounts[0][d] = int(PARAM_FUTILITY_MOVE_COUNT_ALPHA0 / 100.0 /*2.4*/ + PARAM_FUTILITY_MOVE_COUNT_BETA0 / 1000.0/*0.74*/ * pow(d, 1.78));
-		FutilityMoveCounts[1][d] = int(PARAM_FUTILITY_MOVE_COUNT_ALPHA1 / 100.0 /*5.0*/ + PARAM_FUTILITY_MOVE_COUNT_BETA1 / 1000.0/*1.00*/ * pow(d, 2.00));
-	}
 
 	// razor marginの初期化
 
@@ -1812,7 +1801,7 @@ namespace {
 			// move countベースの枝刈りを実行するかどうかのフラグ
 
 			moveCountPruning = depth < PARAM_PRUNING_BY_MOVE_COUNT_DEPTH * ONE_PLY
-								&&  moveCount >= FutilityMoveCounts[improving][depth / ONE_PLY];
+								&&  moveCount >= futility_move_count(improving,depth / ONE_PLY);
 
 
 			// -----------------------
@@ -3025,9 +3014,6 @@ void init_param()
 
 			"PARAM_REDUCTION_ALPHA",
 
-			"PARAM_FUTILITY_MOVE_COUNT_ALPHA0","PARAM_FUTILITY_MOVE_COUNT_ALPHA1",
-			"PARAM_FUTILITY_MOVE_COUNT_BETA0","PARAM_FUTILITY_MOVE_COUNT_BETA1",
-
 			"PARAM_QUIET_SEARCH_COUNT",
 
 			"PARAM_QSEARCH_MATE1","PARAM_SEARCH_MATE1","PARAM_WEAK_MATE_PLY",
@@ -3063,9 +3049,6 @@ void init_param()
 			&PARAM_RAZORING_MARGIN1,&PARAM_RAZORING_MARGIN2,&PARAM_RAZORING_MARGIN3,
 
 			&PARAM_REDUCTION_ALPHA,
-
-			&PARAM_FUTILITY_MOVE_COUNT_ALPHA0,&PARAM_FUTILITY_MOVE_COUNT_ALPHA1,
-			&PARAM_FUTILITY_MOVE_COUNT_BETA0,&PARAM_FUTILITY_MOVE_COUNT_BETA1,
 
 			&PARAM_QUIET_SEARCH_COUNT,
 

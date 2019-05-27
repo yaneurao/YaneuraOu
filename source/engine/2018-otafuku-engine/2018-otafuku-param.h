@@ -188,29 +188,6 @@ PARAM_DEFINE PARAM_REDUCTION_ALPHA = 135;
 
 
 //
-// futility move count table
-//
-
-// どうも、元の値ぐらいが最適値のようだ…。
-
-// 元の値 = 240
-// [PARAM] min:150,max:400,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_ALPHA0 = 240;
-
-// 元の値 = 500
-// [PARAM] min:300,max:600,step:4,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_ALPHA1 = 492;
-
-// 元の値 = 740
-// [PARAM] min:500,max:2000,step:10,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_BETA0 = 740;
-
-// 元の値 = 1000
-// [PARAM] min:500,max:2000,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MOVE_COUNT_BETA1 = 1000;
-
-
-//
 // etc..
 // 
 
