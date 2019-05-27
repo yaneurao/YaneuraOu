@@ -55,7 +55,7 @@ void TTEntry::save(Key k, Value v, bool pv , Bound b, Depth d, Move m , Value ev
 	// 3. BOUND_EXACT(これはPVnodeで探索した結果で、とても価値のある情報なので無条件で書き込む)
 	// 1. or 2. or 3.
 	if (  (k >> 48) != key16
-		|| d / ONE_PLY > depth8 - 4
+		|| d / ONE_PLY + 10 > depth8
 		/*|| g != generation() // probe()において非0のkeyとマッチした場合、その瞬間に世代はrefreshされている。　*/
 		|| b == BOUND_EXACT
 		)
@@ -64,7 +64,8 @@ void TTEntry::save(Key k, Value v, bool pv , Bound b, Depth d, Move m , Value ev
 		value16 = (int16_t)v;
 		eval16    = (int16_t)ev;
 		genBound8 = (uint8_t)(TT.generation8 | uint8_t(pv) << 2 | b);
-		depth8 = (int8_t)(d / ONE_PLY);
+		ASSERT_LV3((d - DEPTH_NONE) / ONE_PLY >= 0);
+		depth8 = (uint8_t)((d - DEPTH_NONE) / ONE_PLY); // DEPTH_NONEだけ下駄履きさせてある。
 	}
 }
 

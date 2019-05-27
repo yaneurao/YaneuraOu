@@ -26,7 +26,7 @@ struct TTEntry {
 	Move move() const { return (Move)move16; }
 	Value value() const { return (Value)value16; }
 	Value eval() const { return (Value)eval16; }
-	Depth depth() const { return (Depth)(depth8 * int(ONE_PLY)); }
+	Depth depth() const { return (Depth)(depth8 * int(ONE_PLY)) + DEPTH_NONE; }
 	bool is_pv() const { return (bool)(genBound8 & 0x4); }
 	Bound bound() const { return (Bound)(genBound8 & 0x3); }
 
@@ -60,8 +60,9 @@ private:
 
 	// そのときの残り深さ(これが大きいものほど価値がある)
 	// 1バイトに収めるために、DepthをONE_PLYで割ったものを格納する。
-	// qsearch()でも置換表に登録するので少し負になっている数もありうる。
-	int8_t depth8;
+	// 符号付き8bitだと+127までしか表現できないので、符号なしにして、かつ、
+	// DEPTH_NONEが-6なのでこの分だけ下駄履きさせてある。(+6して格納してある)
+	uint8_t depth8;
 };
 
 // --- 置換表本体
