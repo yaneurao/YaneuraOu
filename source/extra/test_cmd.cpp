@@ -19,6 +19,7 @@ using namespace EvalLearningTools;
 #endif
 
 #include <unordered_set>
+#include <cmath>               // sqrt() , fabs()
 #include "all.h"
 
 // ----------------------------------
