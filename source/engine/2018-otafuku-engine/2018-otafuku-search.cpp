@@ -716,7 +716,7 @@ void Thread::search()
 
 	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
 	for (int i = 4; i > 0; i--)
-		(ss - i)->continuationHistory = this->continuationHistory[SQ_ZERO][NO_PIECE].get();
+		(ss - i)->continuationHistory = &this->continuationHistory[SQ_ZERO][NO_PIECE];
 	ss->pv = pv;
 
 	// 反復深化のiterationが浅いうちはaspiration searchを使わない。
@@ -1269,7 +1269,7 @@ namespace {
 		(ss + 1)->ply = ss->ply + 1;
 
 		ss->currentMove = (ss + 1)->excludedMove = bestMove = MOVE_NONE;
-		ss->continuationHistory = thisThread->continuationHistory[SQ_ZERO][NO_PIECE].get();
+		ss->continuationHistory = &thisThread->continuationHistory[SQ_ZERO][NO_PIECE];
 
 		// 2手先のkillerの初期化。
 		(ss + 2)->killers[0] = (ss + 2)->killers[1] = MOVE_NONE;
@@ -1622,7 +1622,7 @@ namespace {
 				+ std::min((int)((eval - beta) / PawnValue), 3)) * ONE_PLY;
 
 			ss->currentMove = MOVE_NONE;
-			ss->continuationHistory = thisThread->continuationHistory[SQ_ZERO][NO_PIECE].get();
+			ss->continuationHistory = &thisThread->continuationHistory[SQ_ZERO][NO_PIECE];
 
 			pos.do_null_move(st);
 
@@ -1682,7 +1682,7 @@ namespace {
 					probCutCount++;
 
 					ss->currentMove = move;
-					ss->continuationHistory = thisThread->continuationHistory[to_sq(move)][pos.moved_piece_after(move)].get();
+					ss->continuationHistory = &thisThread->continuationHistory[to_sq(move)][pos.moved_piece_after(move)];
 
 					ASSERT_LV3(depth >= 5 * ONE_PLY);
 
@@ -2040,7 +2040,7 @@ namespace {
 
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
-			ss->continuationHistory = thisThread->continuationHistory[movedSq][movedPiece].get();
+			ss->continuationHistory = &thisThread->continuationHistory[movedSq][movedPiece];
 
 			// -----------------------
 			// Step 15. Make the move
@@ -3278,7 +3278,7 @@ namespace Learner
 			// th->clear();
 
 			for (int i = 4; i > 0; i--)
-				(ss - i)->continuationHistory = th->continuationHistory[SQ_ZERO][NO_PIECE].get();
+				(ss - i)->continuationHistory = &th->continuationHistory[SQ_ZERO][NO_PIECE];
 
 			// rootMovesの設定
 			auto& rootMoves = th->rootMoves;

@@ -35,9 +35,9 @@ void Thread::clear()
 	// history > 0 を条件にすれば自ずと未初期化のときは除外されるようになる。
 	for (auto& to : continuationHistory)
 		for (auto& h : to)
-			h.get()->fill(0);
+			h->fill(0);
 
-	continuationHistory[SQ_ZERO][NO_PIECE].get()->fill(Search::CounterMovePruneThreshold - 1);
+	continuationHistory[SQ_ZERO][NO_PIECE]->fill(Search::CounterMovePruneThreshold - 1);
 }
 
 // 待機していたスレッドを起こして探索を開始させる
