@@ -150,12 +150,6 @@ namespace {
 	// Rootはここでは用意しない。Rootに特化した関数を用意するのが少し無駄なので。
 	enum NodeType { NonPV, PV };
 
-	//  Lazy SMPで用いるテーブル
-
-	// スレッド間の探索深さを分散させるために使用されるスキップブロックに対するsizeとphase。
-	constexpr int skipSize[]  = { 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4 };
-	constexpr int skipPhase[] = { 0, 1, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7 };
-
 	// Razoringのdepthに応じたマージン値
 	// Razor_margin[0]は、search()のなかでは depth >= ONE_PLY であるから使われない。
 	int RazorMargin[3];
@@ -756,21 +750,21 @@ void Thread::search()
 		&& !Threads.stop
 		&& !(Limits.depth && mainThread && rootDepth / ONE_PLY > Limits.depth))
 	{
+		// Stockfish9にはslave threadをmain threadより先行させるコードがここにあったが、
+		// Stockfish10で廃止された。
+		
+		// これにより短い時間(低いrootDepth)では探索効率が悪化して弱くなった。
+		// これは、rootDepthが小さいときはhelper threadがほとんど探索に寄与しないためである。
+		// しかしrootDepthが高くなってきたときには事情が異なっていて、main threadよりdepth + 3とかで
+		// 調べているhelper threadがあったとしても、探索が打ち切られる直前においては、
+		// それはmain threadの探索に寄与しているとは言い難いため、無駄になる。
+
+		// 折衷案として、rootDepthが低い時にhelper threadをmain threadより先行させる(高いdepthにする)
+		// コード自体は入れたほうがいいかも知れない。
+
 		// ------------------------
 		// Lazy SMPのための初期化
 		// ------------------------
-
-		// スレッド間の探索深さの分散
-
-		// idx : スレッド番号。main threadならば0。
-		// helper threadsには、main threadより少し深い深さを探索させたい。
-		// main threadはこのskipをしない。(一番あとから追いかけていくようにしたい)
-		if (idx > 0)
-		{
-			int i = (idx - 1) % 20;
-			if (((rootDepth / ONE_PLY + skipPhase[i]) / skipSize[i]) % 2)
-				continue; // 1増やしたrootDepthで再実行する
-		}
 
 		// bestMoveが変化した回数を記録しているが、反復深化の世代が一つ進むので、
 		// 古い世代の情報として重みを低くしていく。
