@@ -1,4 +1,4 @@
-#include "../../types.h"
+ï»¿#include "../../types.h"
 
 #if defined (ENABLE_MAKEBOOK_CMD)
 
@@ -17,101 +17,101 @@ namespace Book { extern void makebook_cmd(Position& pos, istringstream& is); }
 namespace {
 
 	// ----------------------------
-	// ƒeƒ‰ƒVƒ‡ƒbƒN’èÕ‚Ì¶¬
+	// ãƒ†ãƒ©ã‚·ãƒ§ãƒƒã‚¯å®šè·¡ã®ç”Ÿæˆ
 	// ----------------------------
 
 	// cf.
-	// ƒeƒ‰ƒVƒ‡ƒbƒN’èÕ‚Ì¶¬è–@
+	// ãƒ†ãƒ©ã‚·ãƒ§ãƒƒã‚¯å®šè·¡ã®ç”Ÿæˆæ‰‹æ³•
 	// http://yaneuraou.yaneu.com/2019/04/19/%E3%83%86%E3%83%A9%E3%82%B7%E3%83%A7%E3%83%83%E3%82%AF%E5%AE%9A%E8%B7%A1%E3%81%AE%E7%94%9F%E6%88%90%E6%89%8B%E6%B3%95/
 
-	// build_tree_nega_max()‚Å—p‚¢‚é•Ô‚µ’l‚É—p‚¢‚éB
-	// Œó•âè‚Ì•]‰¿’lAw‚µèAleaf node‚Ü‚Å‚Ìè”
+	// build_tree_nega_max()ã§ç”¨ã„ã‚‹è¿”ã—å€¤ã«ç”¨ã„ã‚‹ã€‚
+	// å€™è£œæ‰‹ã®è©•ä¾¡å€¤ã€æŒ‡ã—æ‰‹ã€leaf nodeã¾ã§ã®æ‰‹æ•°
 	struct VMD
 	{
 		VMD() : value(-VALUE_INFINITE), move(MOVE_NONE), depth(DEPTH_ZERO) {}
 		VMD(Value value_, Move move_, Depth depth_) : value(value_), move(move_), depth(depth_) {}
 
-		Value value; // •]‰¿’l
-		Move move;   // Œó•âè
-		Depth depth; // ‚±‚ê‚Íleaf node‚Ü‚Å‚Ìè”
+		Value value; // è©•ä¾¡å€¤
+		Move move;   // å€™è£œæ‰‹
+		Depth depth; // ã“ã‚Œã¯leaf nodeã¾ã§ã®æ‰‹æ•°
 	};
 
-	// build_tree_nega_max()‚Å—p‚¢‚é•Ô‚µ’l‚É—p‚¢‚éB
-	// root_color‚ªBLACK—p‚Æwhite—p‚Æ‚ÅŒÂ•Ê‚ÉVMD‚ğŠi”[‚µ‚Ä‚¢‚éB
-	// root_color‚Æ‚¢‚¤‚Ì‚ÍNegaMax‚·‚é‚Æ‚«‚ÌŒ»İ‚Ìnode‚Ìcolor‚¾‚Æl‚¦‚Ä–â‘è‚È‚¢B
+	// build_tree_nega_max()ã§ç”¨ã„ã‚‹è¿”ã—å€¤ã«ç”¨ã„ã‚‹ã€‚
+	// root_colorãŒBLACKç”¨ã¨whiteç”¨ã¨ã§å€‹åˆ¥ã«VMDã‚’æ ¼ç´ã—ã¦ã„ã‚‹ã€‚
+	// root_colorã¨ã„ã†ã®ã¯NegaMaxã™ã‚‹ã¨ãã®ç¾åœ¨ã®nodeã®colorã ã¨è€ƒãˆã¦å•é¡Œãªã„ã€‚
 	struct VMD_Pair
 	{
-		// ‰½‚à‰Šú‰»‚µ‚È‚¢‚ªAVMDƒNƒ‰ƒX‘¤‚Ì‹K’è‚ÌƒRƒ“ƒXƒgƒ‰ƒNƒ^‚Å‰Šú‰»‚Í‚³‚ê‚Ä‚¢‚éB
+		// ä½•ã‚‚åˆæœŸåŒ–ã—ãªã„ãŒã€VMDã‚¯ãƒ©ã‚¹å´ã®è¦å®šã®ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿ã§åˆæœŸåŒ–ã¯ã•ã‚Œã¦ã„ã‚‹ã€‚
 		VMD_Pair() {}
 
-		// black‚Æwhite‚Æ‚ğ“¯‚¶’l‚Å‰Šú‰»‚·‚éB
+		// blackã¨whiteã¨ã‚’åŒã˜å€¤ã§åˆæœŸåŒ–ã™ã‚‹ã€‚
 		VMD_Pair(Value v, Move m, Depth d) : black(v, m, d), white(v, m, d) {}
 
-		// black,white‚ğ‚»‚ê‚¼‚ê‚Ì’l‚Å‰Šú‰»‚·‚éB
+		// black,whiteã‚’ãã‚Œãã‚Œã®å€¤ã§åˆæœŸåŒ–ã™ã‚‹ã€‚
 		VMD_Pair(Value black_v, Move black_m, Depth black_d, Value white_v, Move white_m, Depth white_d) :
 			black(black_v, black_m, black_d), white(white_v, white_m, white_d) {}
 		VMD_Pair(VMD black_, VMD white_) : black(black_), white(white_) {}
 		VMD_Pair(VMD best[COLOR_NB]) : black(best[BLACK]), white(best[WHITE]) {}
 
-		VMD black; // root_color == BLACK—p‚Ì•]‰¿’l
-		VMD white; // root_color == WHITE—p‚Ì•]‰¿’l
+		VMD black; // root_color == BLACKç”¨ã®è©•ä¾¡å€¤
+		VMD white; // root_color == WHITEç”¨ã®è©•ä¾¡å€¤
 	};
 
-	// ’èÕ‚Ìbuilder
+	// å®šè·¡ã®builder
 	struct BookTreeBuilder
 	{
-		// ’èÕgame tree‚ğ¶¬‚·‚é‹@”\
+		// å®šè·¡game treeã‚’ç”Ÿæˆã™ã‚‹æ©Ÿèƒ½
 		void build_tree(Position& pos, istringstream& is);
 
-		// ’èÕƒtƒ@ƒCƒ‹‚ğ“Ç‚İ‚ñ‚ÅAw’è‹Ç–Ê‚©‚ç[Œ@‚è‚·‚é‚½‚ß‚É•K—v‚ÈŠû•ˆ‚ğ¶¬‚·‚éB
+		// å®šè·¡ãƒ•ã‚¡ã‚¤ãƒ«ã‚’èª­ã¿è¾¼ã‚“ã§ã€æŒ‡å®šå±€é¢ã‹ã‚‰æ·±æ˜ã‚Šã™ã‚‹ãŸã‚ã«å¿…è¦ãªæ£‹è­œã‚’ç”Ÿæˆã™ã‚‹ã€‚
 		void extend_tree(Position& pos, istringstream& is);
 
-		// ’èÕ‚Ì–³ŒÀ©“®Œ@‚è
+		// å®šè·¡ã®ç„¡é™è‡ªå‹•æ˜ã‚Š
 		void endless_extend_tree(Position& pos, istringstream& is);
 
 	private:
-		// Ä‹A“I‚ÉÅ‘Pè‚ğ’²‚×‚éB
+		// å†å¸°çš„ã«æœ€å–„æ‰‹ã‚’èª¿ã¹ã‚‹ã€‚
 		VMD_Pair build_tree_nega_max(Position& pos, MemoryBook& read_book, MemoryBook& write_book);
 
-		// "position ..."‚Ì"..."‚Ì•”•ª‚ğ‰ğß‚·‚éB
+		// "position ..."ã®"..."ã®éƒ¨åˆ†ã‚’è§£é‡ˆã™ã‚‹ã€‚
 		int feed_position_string(Position& pos, const string& line, StateInfo* states, Thread* th);
 
-		//  ’èÕƒtƒ@ƒCƒ‹‚Ì“Á’è‹Ç–Ê‚©‚ç’èÕ‚ğŒ@‚é
+		//  å®šè·¡ãƒ•ã‚¡ã‚¤ãƒ«ã®ç‰¹å®šå±€é¢ã‹ã‚‰å®šè·¡ã‚’æ˜ã‚‹
 		void extend_tree_sub(Position& pos, MemoryBook& read_book, fstream& fs, const string& sfen , bool bookhit);
 
-		// i’»‚Ì•\¦
+		// é€²æ—ã®è¡¨ç¤º
 		void output_progress();
 
-		// ‘‚«o‚µ‚½node‚ğcache‚µ‚Ä‚¨‚­B
+		// æ›¸ãå‡ºã—ãŸnodeã‚’cacheã—ã¦ãŠãã€‚
 		std::unordered_map<std::string /*sfen*/, VMD_Pair> vmd_write_cache;
 
-		// ‘‚«o‚µ‚½node‚ğcache‚µ‚Ä‚¨‚­B
+		// æ›¸ãå‡ºã—ãŸnodeã‚’cacheã—ã¦ãŠãã€‚
 		std::unordered_set<std::string /*sfen*/> done_sfen;
 
-		// do_move‚µ‚½w‚µè‚ğ‹L˜^‚µ‚Ä‚¨‚­B
+		// do_moveã—ãŸæŒ‡ã—æ‰‹ã‚’è¨˜éŒ²ã—ã¦ãŠãã€‚
 		std::vector<Move> lastMoves;
 
-		// Position::do_move(),undo_move()‚Ìwrapper
+		// Position::do_move(),undo_move()ã®wrapper
 		void do_move(Position& pos, Move m, StateInfo& si) { lastMoves.push_back(m);  pos.do_move(m, si); }
 		void undo_move(Position& pos,Move m) { lastMoves.pop_back(); pos.undo_move(m); }
 
-		// ˆ—‚µ‚½node”/‘‚«o‚µ‚½node”
+		// å‡¦ç†ã—ãŸnodeæ•°/æ›¸ãå‡ºã—ãŸnodeæ•°
 		u64 total_node = 0;
 		u64 total_write_node = 0;
 
-		// build_tree_nega_max()‚Å—p‚¢‚éæè/Œãè‚ÌcontemptB
+		// build_tree_nega_max()ã§ç”¨ã„ã‚‹å…ˆæ‰‹/å¾Œæ‰‹ã®contemptã€‚
 		int black_contempt, white_contempt;
 
-		// extend_tree_sub()‚Å—p‚¢‚éæè/Œãè‚Ìeval‚Ì‰ºŒÀ
+		// extend_tree_sub()ã§ç”¨ã„ã‚‹å…ˆæ‰‹/å¾Œæ‰‹ã®evalã®ä¸‹é™
 		int black_eval_limit, white_eval_limit;
 
-		// ‰„’·‚·‚éleaf‚Ì’l‚Ì”ÍˆÍ(enable_extend_range == true‚Ì‚Æ‚«‚¾‚¯‚±‚Ì‹@”\‚ª—LŒø‰»‚³‚ê‚é)
+		// å»¶é•·ã™ã‚‹leafã®å€¤ã®ç¯„å›²(enable_extend_range == trueã®ã¨ãã ã‘ã“ã®æ©Ÿèƒ½ãŒæœ‰åŠ¹åŒ–ã•ã‚Œã‚‹)
 		//   extend_range1 <= lastEval <= extend_range2
-		// ‚Ìleaf node(‚ÌŒó•âè)‚¾‚¯‚ª‰„’·‚³‚ê‚éB
+		// ã®leaf node(ã®å€™è£œæ‰‹)ã ã‘ãŒå»¶é•·ã•ã‚Œã‚‹ã€‚
 		bool enable_extend_range;
 		int extend_range1, extend_range2;
 
-		// extend_tree_sub()‚Ìˆê‚Â‘O‚Ì‚Ìeval‚Ì’l
+		// extend_tree_sub()ã®ä¸€ã¤å‰ã®æ™‚ã®evalã®å€¤
 		int lastEval;
 	};
 
@@ -128,10 +128,10 @@ namespace {
 		++total_node;
 	}
 
-	// Ä‹A“I‚ÉÅ‘Pè‚ğ’²‚×‚éB
+	// å†å¸°çš„ã«æœ€å–„æ‰‹ã‚’èª¿ã¹ã‚‹ã€‚
 	VMD_Pair BookTreeBuilder::build_tree_nega_max(Position& pos, MemoryBook& read_book, MemoryBook& write_book)
 	{
-		// -- ‚·‚Å‚É’TõÏ‚İ‚Å‚ ‚é‚È‚çA‚»‚Ì‚Æ‚«‚Ì’l‚ğ•Ô‚·B
+		// -- ã™ã§ã«æ¢ç´¢æ¸ˆã¿ã§ã‚ã‚‹ãªã‚‰ã€ãã®ã¨ãã®å€¤ã‚’è¿”ã™ã€‚
 
 		auto node_sfen = pos.sfen();
 		auto it_write = vmd_write_cache.find(node_sfen);
@@ -140,9 +140,9 @@ namespace {
 
 		VMD_Pair result;
 
-		// -- ’èÕ‚Éhit‚µ‚È‚¢‚É‚¹‚æA‹l‚İ‚ÆéŒ¾Ÿ‚¿Aç“úè‚ÉŠÖ‚µ‚Ä‚Íˆ—‚Å‚«‚é‚Ì‚Å‚»‚ê‘Š‰‚Ì’l‚ğ•Ô‚·•K—v‚ª‚ ‚éB
+		// -- å®šè·¡ã«hitã—ãªã„ã«ã›ã‚ˆã€è©°ã¿ã¨å®£è¨€å‹ã¡ã€åƒæ—¥æ‰‹ã«é–¢ã—ã¦ã¯å‡¦ç†ã§ãã‚‹ã®ã§ãã‚Œç›¸å¿œã®å€¤ã‚’è¿”ã™å¿…è¦ãŒã‚ã‚‹ã€‚
 
-		// Œ»‹Ç–Ê‚Å‹l‚ñ‚Å‚¢‚é
+		// ç¾å±€é¢ã§è©°ã‚“ã§ã„ã‚‹
 		if (pos.is_mated())
 		{
 			result = VMD_Pair(mated_in(0), MOVE_NONE, DEPTH_ZERO);
@@ -150,66 +150,66 @@ namespace {
 		}
 
 		{
-			// Œ»‹Ç–Ê‚ÅéŒ¾Ÿ‚¿‚Å‚«‚éB
-			// ’èÕƒtƒ@ƒCƒ‹‚ÉMOVE_WIN‚ª•´‚ê‚½‚Æ‚«‚Ì‰ğß‚ğ‹K’è‚µ‚Ä‚¢‚È‚¢‚Ì‚Å‚±‚±‚Å‚Í“ü‚ê‚È‚¢‚±‚Æ‚É‚·‚éB
+			// ç¾å±€é¢ã§å®£è¨€å‹ã¡ã§ãã‚‹ã€‚
+			// å®šè·¡ãƒ•ã‚¡ã‚¤ãƒ«ã«MOVE_WINãŒç´›ã‚ŒãŸã¨ãã®è§£é‡ˆã‚’è¦å®šã—ã¦ã„ãªã„ã®ã§ã“ã“ã§ã¯å…¥ã‚Œãªã„ã“ã¨ã«ã™ã‚‹ã€‚
 			if (pos.DeclarationWin() != MOVE_NONE)
 			{
 				result = VMD_Pair(mate_in(1), MOVE_NONE, DEPTH_ZERO);
 				goto RETURN_RESULT;
 			}
 
-			// ç“úè‚ÌŒŸo‚È‚Ç‚ª•K—v‚Å‚²‚¶‚á‚éB
-			// •Ê‚Ì‹Ç–Ê‚©‚ç“Ë‚Á‚ñ‚¾ê‡‚Íç“úè‚É‚È‚ç‚È‚¢‰Â”\«‚ª‚ ‚é‚ªA’èÕ‚Ì”ÍˆÍ‚Å‚È‚©‚È‚©‹N‚«‚é‚à‚Ì‚Å‚à‚È‚¢‚Ì‚Å‚Ü‚ ‚¢‚¢‚âB
+			// åƒæ—¥æ‰‹ã®æ¤œå‡ºãªã©ãŒå¿…è¦ã§ã”ã˜ã‚ƒã‚‹ã€‚
+			// åˆ¥ã®å±€é¢ã‹ã‚‰çªã£è¾¼ã‚“ã å ´åˆã¯åƒæ—¥æ‰‹ã«ãªã‚‰ãªã„å¯èƒ½æ€§ãŒã‚ã‚‹ãŒã€å®šè·¡ã®ç¯„å›²ã§ãªã‹ãªã‹èµ·ãã‚‹ã‚‚ã®ã§ã‚‚ãªã„ã®ã§ã¾ã‚ã„ã„ã‚„ã€‚
 			auto draw_type = pos.is_repetition(MAX_PLY);
 			if (draw_type != REPETITION_NONE)
 			{
-				// ‚±‚ÌŸ‚Ìˆêè‚ª—~‚µ‚¢‹C‚Í‚·‚éBis_repetition()‚ª•Ô‚µ‚Ä—~‚µ‚¢‹C‚Í‚·‚é‚Ì‚¾‚ªA
-				// StateInfo‚ªw‚µè‚ğ•Û‘¶‚µ‚Ä‚¢‚È‚­‚Ä•Ô‚¹‚È‚¢‚Ì‚©cB(LƒÖM)
-				// ‚±‚ê‚Ì‚½‚ß‚¾‚¯‚É"KEEP_LAST_MOVE"‚ğdefine‚·‚é‚Ì‚¿‚å‚Á‚ÆŒ™‚¾‚ÈcB©‘O‚Å‚Â‚©cB
+				// ã“ã®æ¬¡ã®ä¸€æ‰‹ãŒæ¬²ã—ã„æ°—ã¯ã™ã‚‹ã€‚is_repetition()ãŒè¿”ã—ã¦æ¬²ã—ã„æ°—ã¯ã™ã‚‹ã®ã ãŒã€
+				// StateInfoãŒæŒ‡ã—æ‰‹ã‚’ä¿å­˜ã—ã¦ã„ãªãã¦è¿”ã›ãªã„ã®ã‹â€¦ã€‚(Â´Ï‰ï½€)
+				// ã“ã‚Œã®ãŸã‚ã ã‘ã«"KEEP_LAST_MOVE"ã‚’defineã™ã‚‹ã®ã¡ã‚‡ã£ã¨å«Œã ãªâ€¦ã€‚è‡ªå‰ã§æŒã¤ã‹â€¦ã€‚
 
-				// ç“úè
+				// åƒæ—¥æ‰‹
 				switch (draw_type)
 				{
-					// ç“úè‚Í-1‚É‚µ‚Ä‚µ‚Ü‚¢‚½‚¢‚ªAæŒã‚Å“¯‚¶’èÕ‚ğ—p‚¢‚é‚Ì‚Å‚»‚ê‚Í‚Å‚«‚È‚¢(LƒÖM)
-					// ‚±‚±A‚«‚¿‚ñ‚Æ‚â‚ç‚È‚¢‚ÆŒãè‚¾‚Æ•K‚¸ç“úè‘_‚¢‚É‚È‚Á‚Ä‚µ‚Ü‚¤cB
-					// ‰ğŒˆô)
-					// rootColor‚ªBLACK,WHITE‚Ì‚»‚ê‚¼‚ê—p‚ÌVMD‚ğ•Ô‚·‚×‚«B
+					// åƒæ—¥æ‰‹ã¯-1ã«ã—ã¦ã—ã¾ã„ãŸã„ãŒã€å…ˆå¾Œã§åŒã˜å®šè·¡ã‚’ç”¨ã„ã‚‹ã®ã§ãã‚Œã¯ã§ããªã„(Â´Ï‰ï½€)
+					// ã“ã“ã€ãã¡ã‚“ã¨ã‚„ã‚‰ãªã„ã¨å¾Œæ‰‹ã ã¨å¿…ãšåƒæ—¥æ‰‹ç‹™ã„ã«ãªã£ã¦ã—ã¾ã†â€¦ã€‚
+					// è§£æ±ºç­–)
+					// rootColorãŒBLACK,WHITEã®æ™‚ãã‚Œãã‚Œç”¨ã®VMDã‚’è¿”ã™ã¹ãã€‚
 					// value = rootColor == pos.side_to_move() ? -comtempt : +comtempt;
-					// ‚İ‚½‚¢‚ÈŠ´‚¶B
-					// ‚½‚¾AŒãè”Ô‚Åç“úè‚Ìcomtempt‚ª30(ç“úè‚ğeval‚Ì-30ˆµ‚¢‚É‚·‚é)‚¾‚Æ‚µ‚ÄA
-					// Œãè‚¾‚©‚ç‚ÆŒ¾‚Á‚ÄÏ‹É“I‚Éç“úè‚ğ‘_‚í‚ê‚Ä‚àc‚İ‚½‚¢‚È–â‘è‚Í‚ ‚éB
-					// ’èÕã‚ÍAæè‚Ìcontempt = 0 , Œãè‚Ìcontempt = 70‚®‚ç‚¢‚ª‚¢‚¢‚æ‚¤‚Év‚¤B
+					// ã¿ãŸã„ãªæ„Ÿã˜ã€‚
+					// ãŸã ã€å¾Œæ‰‹ç•ªã§åƒæ—¥æ‰‹ã®comtemptãŒ30(åƒæ—¥æ‰‹ã‚’evalã®-30æ‰±ã„ã«ã™ã‚‹)ã ã¨ã—ã¦ã€
+					// å¾Œæ‰‹ã ã‹ã‚‰ã¨è¨€ã£ã¦ç©æ¥µçš„ã«åƒæ—¥æ‰‹ã‚’ç‹™ã‚ã‚Œã¦ã‚‚â€¦ã¿ãŸã„ãªå•é¡Œã¯ã‚ã‚‹ã€‚
+					// å®šè·¡ä¸Šã¯ã€å…ˆæ‰‹ã®contempt = 0 , å¾Œæ‰‹ã®contempt = 70ãã‚‰ã„ãŒã„ã„ã‚ˆã†ã«æ€ã†ã€‚
 
-					// PawnValue/100‚ğŠ|‚¯‚Ä³‹K‰»‚·‚éˆ—‚Í‚±‚±‚Å‚Í‚µ‚È‚¢‚±‚Æ‚É‚·‚éB‚Ç‚ñ‚È’Tõ•”‚Å¶¬‚³‚ê‚½’èÕ‚©‚í‚©‚ç‚È‚¢‚Ì‚Å
-					// bookã‚Ìeval‚Ì’l‚Í³‹K‰»‚³‚ê‚Ä‚¢‚é‚à‚Ì‚Æ‰¼’è‚·‚éB
-					// (makebook thinkƒRƒ}ƒ“ƒh‚¾‚Æ³‹K‰»‚³‚ê‚È‚¢‚ªc‚Ü‚ ‚¢‚¢‚¾‚ë‚¤..)
+					// PawnValue/100ã‚’æ›ã‘ã¦æ­£è¦åŒ–ã™ã‚‹å‡¦ç†ã¯ã“ã“ã§ã¯ã—ãªã„ã“ã¨ã«ã™ã‚‹ã€‚ã©ã‚“ãªæ¢ç´¢éƒ¨ã§ç”Ÿæˆã•ã‚ŒãŸå®šè·¡ã‹ã‚ã‹ã‚‰ãªã„ã®ã§
+					// bookä¸Šã®evalã®å€¤ã¯æ­£è¦åŒ–ã•ã‚Œã¦ã„ã‚‹ã‚‚ã®ã¨ä»®å®šã™ã‚‹ã€‚
+					// (makebook thinkã‚³ãƒãƒ³ãƒ‰ã ã¨æ­£è¦åŒ–ã•ã‚Œãªã„ãŒâ€¦ã¾ã‚ã„ã„ã ã‚ã†..)
 
 				case REPETITION_DRAW:
-					// ç“úè‹Ç–Ê‚ğÀÛ‚ÉŒ©‚Â‚¯‚ÄA‚»‚Ì’¼Œã‚Ìw‚µè‚ğæ“¾‚·‚éB
+					// åƒæ—¥æ‰‹å±€é¢ã‚’å®Ÿéš›ã«è¦‹ã¤ã‘ã¦ã€ãã®ç›´å¾Œã®æŒ‡ã—æ‰‹ã‚’å–å¾—ã™ã‚‹ã€‚
 				{
 					auto key = pos.key();
 					int i = 0;
 					auto* statePtr = pos.state();
 					do {
-						// 2è‚¸‚Â‘k‚é
+						// 2æ‰‹ãšã¤é¡ã‚‹
 						statePtr = statePtr->previous->previous;
 						i += 2;
 					} while (key != statePtr->key());
-					// iè‘O‚ª“¯ˆê‹Ç–Ê‚Å‚ ‚é‚±‚Æ‚ª‚í‚©‚Á‚½‚Ì‚ÅA‚»‚ÌŸ‚Ìw‚µè‚ğ“¾‚éB
+					// iæ‰‹å‰ãŒåŒä¸€å±€é¢ã§ã‚ã‚‹ã“ã¨ãŒã‚ã‹ã£ãŸã®ã§ã€ãã®æ¬¡ã®æŒ‡ã—æ‰‹ã‚’å¾—ã‚‹ã€‚
 
-					// —á) 4è‘O‚Ì‹Ç–Ê‚Ækey()‚ª“¯‚¶‚È‚ç4è‘O‚©‚çzŠÂ‚µ‚Äç“úè‚ª¬—§B‚·‚È‚í‚¿AlastMoves‚ÌŒã‚ë‚©‚ç5‚Â–Ú‚Ìw‚µè‚Åç“úè‹Ç–Ê‚É“Ë“ü‚µ‚Ä‚¢‚é‚Ì‚Å
-					// ‚»‚ÌŸ‚Ìw‚µè(4è‘O‚Ìw‚µè)‚ªA‚±‚±‚ÌŸ‚Ìˆêè‚Ì‚Í‚¸cB
+					// ä¾‹) 4æ‰‹å‰ã®å±€é¢ã¨key()ãŒåŒã˜ãªã‚‰4æ‰‹å‰ã‹ã‚‰å¾ªç’°ã—ã¦åƒæ—¥æ‰‹ãŒæˆç«‹ã€‚ã™ãªã‚ã¡ã€lastMovesã®å¾Œã‚ã‹ã‚‰5ã¤ç›®ã®æŒ‡ã—æ‰‹ã§åƒæ—¥æ‰‹å±€é¢ã«çªå…¥ã—ã¦ã„ã‚‹ã®ã§
+					// ãã®æ¬¡ã®æŒ‡ã—æ‰‹(4æ‰‹å‰ã®æŒ‡ã—æ‰‹)ãŒã€ã“ã“ã®æ¬¡ã®ä¸€æ‰‹ã®ã¯ãšâ€¦ã€‚
 					auto draw_move = lastMoves[lastMoves.size() - i];
-					// ‚±‚Ì•’Ê‚Ìç“úèˆÈŠO‚ÌƒP[ƒX‚Å‚±‚ê‚ğ‚â‚é‚Æ”ñ‡–@è‚É‚È‚é‰Â”\«‚ª‚ ‚Á‚ÄcB
+					// ã“ã®æ™®é€šã®åƒæ—¥æ‰‹ä»¥å¤–ã®ã‚±ãƒ¼ã‚¹ã§ã“ã‚Œã‚’ã‚„ã‚‹ã¨éåˆæ³•æ‰‹ã«ãªã‚‹å¯èƒ½æ€§ãŒã‚ã£ã¦â€¦ã€‚
 
-					//  contempt * Eval::PawnValue / 100 ‚Æ‚¢‚¤ˆ—‚Í‚µ‚È‚¢B
-					// ’èÕDB‚Ímakebook thinkƒRƒ}ƒ“ƒh‚Åì¬‚³‚ê‚Ä‚¢‚ÄA‚±‚Ì³‹K‰»‚Í‚·‚Å‚É‚È‚³‚ê‚Ä‚¢‚éB
+					//  contempt * Eval::PawnValue / 100 ã¨ã„ã†å‡¦ç†ã¯ã—ãªã„ã€‚
+					// å®šè·¡DBã¯makebook thinkã‚³ãƒãƒ³ãƒ‰ã§ä½œæˆã•ã‚Œã¦ã„ã¦ã€ã“ã®æ­£è¦åŒ–ã¯ã™ã§ã«ãªã•ã‚Œã¦ã„ã‚‹ã€‚
 
-					// Œ»‹Ç–Ê‚Ìè”Ô‚ğŒ©‚Ä•„†‚ğŒˆ‚ß‚È‚¢‚Æ‚¢‚¯‚È‚¢B
+					// ç¾å±€é¢ã®æ‰‹ç•ªã‚’è¦‹ã¦ç¬¦å·ã‚’æ±ºã‚ãªã„ã¨ã„ã‘ãªã„ã€‚
 					auto stm = pos.side_to_move();
 					result = VMD_Pair(
-						(Value)(stm == BLACK ? -black_contempt : +black_contempt) /*æè‚Ìcomtempt */, draw_move, DEPTH_ZERO,
-						(Value)(stm == WHITE ? -white_contempt : +white_contempt) /*Œãè‚Ìcomtempt */, draw_move, DEPTH_ZERO
+						(Value)(stm == BLACK ? -black_contempt : +black_contempt) /*å…ˆæ‰‹ã®comtempt */, draw_move, DEPTH_ZERO,
+						(Value)(stm == WHITE ? -white_contempt : +white_contempt) /*å¾Œæ‰‹ã®comtempt */, draw_move, DEPTH_ZERO
 					);
 					goto RETURN_RESULT;
 				}
@@ -219,7 +219,7 @@ namespace {
 				case REPETITION_WIN: result = VMD_Pair(mate_in(MAX_PLY), MOVE_NONE, DEPTH_ZERO); goto RETURN_RESULT;
 				case REPETITION_LOSE: result = VMD_Pair(mated_in(MAX_PLY), MOVE_NONE, DEPTH_ZERO); goto RETURN_RESULT;
 
-					// ‚±‚ê“ü‚ê‚Ä‚¨‚©‚È‚¢‚Æclang‚ÅŒx‚ªo‚éB
+					// ã“ã‚Œå…¥ã‚Œã¦ãŠã‹ãªã„ã¨clangã§è­¦å‘ŠãŒå‡ºã‚‹ã€‚
 				case REPETITION_NONE:
 				case REPETITION_NB:
 					break;
@@ -227,92 +227,92 @@ namespace {
 				}
 			}
 
-			// -- ’èÕ‚Éhit‚·‚é‚Ì‚©H
+			// -- å®šè·¡ã«hitã™ã‚‹ã®ã‹ï¼Ÿ
 
 			auto it_read = read_book.find(pos);
 			if (it_read == nullptr || it_read->size() == 0)
-				// ‚±‚Ìnode‚É‚Â‚¢‚ÄA‚±‚êˆÈãA‰½‚àˆ—‚Å‚«‚È‚¢‚Å‚²‚´‚éB
+				// ã“ã®nodeã«ã¤ã„ã¦ã€ã“ã‚Œä»¥ä¸Šã€ä½•ã‚‚å‡¦ç†ã§ããªã„ã§ã”ã–ã‚‹ã€‚
 			{
-				// •Û‘¶‚·‚é‰¿’l‚ª‚È‚¢‚©‚àH
+				// ä¿å­˜ã™ã‚‹ä¾¡å€¤ãŒãªã„ã‹ã‚‚ï¼Ÿ
 				result = VMD_Pair(VALUE_NONE, MOVE_NONE, DEPTH_ZERO);
 				goto RETURN_RESULT;
 			}
 
-			// -- ‚±‚Ìnode‚ğ“WŠJ‚·‚éB
+			// -- ã“ã®nodeã‚’å±•é–‹ã™ã‚‹ã€‚
 
-			// V‚µ‚¢‚Ù‚¤‚Ì’èÕƒtƒ@ƒCƒ‹‚É“o˜^‚·‚×‚«‚±‚Ìnode‚ÌŒó•âè
+			// æ–°ã—ã„ã»ã†ã®å®šè·¡ãƒ•ã‚¡ã‚¤ãƒ«ã«ç™»éŒ²ã™ã¹ãã“ã®nodeã®å€™è£œæ‰‹
 			auto list = PosMoveListPtr(new PosMoveList());
 
 			StateInfo si;
 
-			// ‚±‚Ìnode‚ÌÅ‘PèBrootColor‚ªBLACK,WHITE—pA‚»‚ê‚¼‚êB
+			// ã“ã®nodeã®æœ€å–„æ‰‹ã€‚rootColorãŒBLACK,WHITEç”¨ã€ãã‚Œãã‚Œã€‚
 			VMD best[COLOR_NB];
 
-			// ª‚Ìbest.value‚ğã‰ñ‚éw‚µè‚Å‚ ‚ê‚Î‚»‚Ìw‚µè‚Åbest.move,best.depth‚ğXV‚·‚éB
-			auto add_list = [&](Book::BookPos& bp, Color c /* ‚±‚Ìnode‚ÌColor */, bool update_list)
+			// â†‘ã®best.valueã‚’ä¸Šå›ã‚‹æŒ‡ã—æ‰‹ã§ã‚ã‚Œã°ãã®æŒ‡ã—æ‰‹ã§best.move,best.depthã‚’æ›´æ–°ã™ã‚‹ã€‚
+			auto add_list = [&](Book::BookPos& bp, Color c /* ã“ã®nodeã®Color */, bool update_list)
 			{
 				ASSERT_LV3(bp.value != VALUE_NONE);
 
-				// ’èÕ‚É“o˜^‚·‚éB
-				bp.num = 1; // oŒ»•p“x‚ğ1‚ÉŒÅ’è‚µ‚Ä‚¨‚©‚È‚¢‚Æsort‚Ì‚Æ‚«‚É•]‰¿’l‚Å~‡‚É•À‚Î‚È‚­‚Ä¢‚éB
+				// å®šè·¡ã«ç™»éŒ²ã™ã‚‹ã€‚
+				bp.num = 1; // å‡ºç¾é »åº¦ã‚’1ã«å›ºå®šã—ã¦ãŠã‹ãªã„ã¨sortã®ã¨ãã«è©•ä¾¡å€¤ã§é™é †ã«ä¸¦ã°ãªãã¦å›°ã‚‹ã€‚
 
 				if (update_list)
 					list->push_back(bp);
 
-				// ‚±‚Ìnode‚ÌbestValue‚ğXV‚µ‚½‚çA‚»‚ê‚ğreturn‚Ì‚Æ‚«‚É•Ô‚·•K—v‚ª‚ ‚é‚Ì‚Å•Û‘¶‚µ‚Ä‚¨‚­B
+				// ã“ã®nodeã®bestValueã‚’æ›´æ–°ã—ãŸã‚‰ã€ãã‚Œã‚’returnã®ã¨ãã«è¿”ã™å¿…è¦ãŒã‚ã‚‹ã®ã§ä¿å­˜ã—ã¦ãŠãã€‚
 				VMD vmd((Value)bp.value, bp.bestMove, (Depth)bp.depth);
 
-				// ’l‚ğã‰ñ‚Á‚½‚Ì‚Å‚±‚Ìnode‚Ìbest‚ğXVB
+				// å€¤ã‚’ä¸Šå›ã£ãŸã®ã§ã“ã®nodeã®bestã‚’æ›´æ–°ã€‚
 				if (best[c].value < vmd.value)
 					best[c] = vmd;
 			};
 
-			// ‚·‚×‚Ä‚Ì‡–@è‚Å1èi‚ß‚éB
-			// 1) qƒm[ƒh‚ª‚È‚¢@¨@vl‚µ‚½ƒXƒRƒA‚ª‚ ‚é‚È‚ç‚»‚ê‚Å‘ã—p@‚È‚¯‚ê‚Î@‚»‚Ìqƒm[ƒh‚É‚Â‚¢‚Ä‚Íl‚¦‚È‚¢
-			// 2) qƒm[ƒh‚ª‚ ‚é@¨@‚»‚ÌƒXƒRƒA‚ğ’èÕ‚Æ‚µ‚Ä“o˜^
+			// ã™ã¹ã¦ã®åˆæ³•æ‰‹ã§1æ‰‹é€²ã‚ã‚‹ã€‚
+			// 1) å­ãƒãƒ¼ãƒ‰ãŒãªã„ã€€â†’ã€€æ€è€ƒã—ãŸã‚¹ã‚³ã‚¢ãŒã‚ã‚‹ãªã‚‰ãã‚Œã§ä»£ç”¨ã€€ãªã‘ã‚Œã°ã€€ãã®å­ãƒãƒ¼ãƒ‰ã«ã¤ã„ã¦ã¯è€ƒãˆãªã„
+			// 2) å­ãƒãƒ¼ãƒ‰ãŒã‚ã‚‹ã€€â†’ã€€ãã®ã‚¹ã‚³ã‚¢ã‚’å®šè·¡ã¨ã—ã¦ç™»éŒ²
 
 			for (const auto& m : MoveList<LEGAL_ALL>(pos))
 			{
-				// ‚±‚Ìw‚µè‚ğ‚½‚Ç‚é
+				// ã“ã®æŒ‡ã—æ‰‹ã‚’ãŸã©ã‚‹
 				this->do_move(pos, m, si);
 				auto vmd_pair = build_tree_nega_max(pos, read_book, write_book);
 				this->undo_move(pos, m);
 
 				for (auto color : COLOR)
 				{
-					// root_color‚ªæè—p‚Ìbest‚ÌXV‚ÆŒãè—p‚Ìbest‚ÌXV‚Æ‚ªAŒÂ•Ê‚É•K—v‚Å‚ ‚éB(DRAW_VALUE‚Ìˆ—‚Ì‚½‚ß)
+					// root_colorãŒå…ˆæ‰‹ç”¨ã®bestã®æ›´æ–°ã¨å¾Œæ‰‹ç”¨ã®bestã®æ›´æ–°ã¨ãŒã€å€‹åˆ¥ã«å¿…è¦ã§ã‚ã‚‹ã€‚(DRAW_VALUEã®å‡¦ç†ã®ãŸã‚)
 					auto& vmd = color == BLACK ? vmd_pair.black : vmd_pair.white;
 
-					// color‚ª‚±‚Ì‹Ç–Ê‚Ìè”Ô(àroot_color)‚Å‚ ‚é‚Æ‚«‚¾‚¯‚±‚Ìnode‚ÌŒó•âèƒŠƒXƒg‚ğXV‚·‚éB
-					// ‚»‚¤‚Å‚È‚¢‚Æ‚«‚àbest‚ÌXV‚Ís‚¤B
+					// colorãŒã“ã®å±€é¢ã®æ‰‹ç•ª(â‰’root_color)ã§ã‚ã‚‹ã¨ãã ã‘ã“ã®nodeã®å€™è£œæ‰‹ãƒªã‚¹ãƒˆã‚’æ›´æ–°ã™ã‚‹ã€‚
+					// ãã†ã§ãªã„ã¨ãã‚‚bestã®æ›´æ–°ã¯è¡Œã†ã€‚
 					auto update_list = color == pos.side_to_move();
 
-					// qnode‚Ì’TõŒ‹‰Ê‚ğæ‚èo‚·B
-					// depth‚ÍA‚±‚Ìæ‚ÉbestMove‚ğ’H‚Á‚Ä‚¢‚­‚Æ‚«leaf node‚Ü‚Å‰½è‚ ‚é‚©‚Æ‚¢‚¤’l‚È‚Ì‚Å‚±‚±‚Å’èÕ‚ª“rØ‚ê‚é‚È‚çDEPTH_ZEROB
+					// å­nodeã®æ¢ç´¢çµæœã‚’å–ã‚Šå‡ºã™ã€‚
+					// depthã¯ã€ã“ã®å…ˆã«bestMoveã‚’è¾¿ã£ã¦ã„ãã¨ãleaf nodeã¾ã§ä½•æ‰‹ã‚ã‚‹ã‹ã¨ã„ã†å€¤ãªã®ã§ã“ã“ã§å®šè·¡ãŒé€”åˆ‡ã‚Œã‚‹ãªã‚‰DEPTH_ZEROã€‚
 					auto value = vmd.value;
 					auto nextMove = vmd.move;
 					auto depth = vmd.depth + 1;
 
 					if (value == VALUE_NONE)
 					{
-						// q‚ª‚È‚©‚Á‚½
+						// å­ãŒãªã‹ã£ãŸ
 
-						// ’èÕ‚É‚±‚Ìw‚µè‚ª‚ ‚Á‚½‚Ì‚Å‚ ‚ê‚ÎA‚»‚ê‚ğƒRƒs[‚µ‚Ä‚­‚éB‚È‚¯‚ê‚Î‚±‚Ìw‚µè‚É‚Â‚¢‚Ä‚Í‰½‚àˆ—‚µ‚È‚¢B
+						// å®šè·¡ã«ã“ã®æŒ‡ã—æ‰‹ãŒã‚ã£ãŸã®ã§ã‚ã‚Œã°ã€ãã‚Œã‚’ã‚³ãƒ”ãƒ¼ã—ã¦ãã‚‹ã€‚ãªã‘ã‚Œã°ã“ã®æŒ‡ã—æ‰‹ã«ã¤ã„ã¦ã¯ä½•ã‚‚å‡¦ç†ã—ãªã„ã€‚
 						auto it = std::find_if(it_read->begin(), it_read->end(), [m](const auto& x) { return x.bestMove == m; });
 						if (it != it_read->end())
 						{
-							it->depth = DEPTH_ZERO; // depth‚Í‚±‚±‚ªleaf‚È‚Ì‚Å0ˆµ‚¢
+							it->depth = DEPTH_ZERO; // depthã¯ã“ã“ãŒleafãªã®ã§0æ‰±ã„
 							add_list(*it, color, update_list);
 						}
 					}
 					else
 					{
-						// q‚ª‚ ‚Á‚½‚Ì‚Å‚»‚Ì’l‚Å’èÕ‚ğ“o˜^‚µ‚½‚¢B‚±‚Ìê‡A‚±‚Ìnode‚Ìvl‚Ìw‚µè‚Éhit‚µ‚Ä‚æ‚¤‚ÆŠÖŒW‚È‚¢B
+						// å­ãŒã‚ã£ãŸã®ã§ãã®å€¤ã§å®šè·¡ã‚’ç™»éŒ²ã—ãŸã„ã€‚ã“ã®å ´åˆã€ã“ã®nodeã®æ€è€ƒã®æŒ‡ã—æ‰‹ã«hitã—ã¦ã‚ˆã†ã¨é–¢ä¿‚ãªã„ã€‚
 
-						// nega max‚È‚Ì‚Å•„†‚ğ”½“]‚³‚¹‚é
+						// nega maxãªã®ã§ç¬¦å·ã‚’åè»¢ã•ã›ã‚‹
 						value = -value;
 
-						// ‹l‚İ‚ÌƒXƒRƒA‚Íroot‚©‚ç‹l‚İ‚Ü‚Å‚Ì‹——£‚É‰‚¶‚ÄƒXƒRƒA‚ğC³‚µ‚È‚¢‚Æ‚¢‚¯‚È‚¢B
+						// è©°ã¿ã®ã‚¹ã‚³ã‚¢ã¯rootã‹ã‚‰è©°ã¿ã¾ã§ã®è·é›¢ã«å¿œã˜ã¦ã‚¹ã‚³ã‚¢ã‚’ä¿®æ­£ã—ãªã„ã¨ã„ã‘ãªã„ã€‚
 						if (value >= VALUE_MATE)
 							--value;
 						else if (value <= -VALUE_MATE)
@@ -326,15 +326,15 @@ namespace {
 				}
 			}
 
-			// ‚±‚Ìnode‚É‚Â‚¢‚Ä’²‚×I‚í‚Á‚½‚Ì‚ÅŠi”[
+			// ã“ã®nodeã«ã¤ã„ã¦èª¿ã¹çµ‚ã‚ã£ãŸã®ã§æ ¼ç´
 			std::stable_sort(list->begin(), list->end());
 			write_book.book_body[pos.sfen()] = list;
 
-			// 10 / 1000 node ˆ—‚µ‚½‚Ì‚Åi’»‚ğo—Í
+			// 10 / 1000 node å‡¦ç†ã—ãŸã®ã§é€²æ—ã‚’å‡ºåŠ›
 			output_progress();
 
 #if 0
-			// ƒfƒoƒbƒO‚Ì‚½‚ß‚É‚±‚Ìnode‚ÉŠÖ‚µ‚ÄA‘‚«o‚·—\’è‚Ì’èÕî•ñ‚ğ•\¦‚³‚¹‚Ä‚İ‚éB
+			// ãƒ‡ãƒãƒƒã‚°ã®ãŸã‚ã«ã“ã®nodeã«é–¢ã—ã¦ã€æ›¸ãå‡ºã™äºˆå®šã®å®šè·¡æƒ…å ±ã‚’è¡¨ç¤ºã•ã›ã¦ã¿ã‚‹ã€‚
 
 			cout << pos.sfen() << endl;
 			for (const auto& it : *list)
@@ -348,21 +348,21 @@ namespace {
 
 	RETURN_RESULT:
 
-		// ‚±‚Ìnode‚Ìî•ñ‚ğwrite_cache‚É•Û‘¶
+		// ã“ã®nodeã®æƒ…å ±ã‚’write_cacheã«ä¿å­˜
 		vmd_write_cache[node_sfen] = result;
 
 		return result;
 	}
 
-	// ’èÕgame tree‚ğ¶¬‚·‚é‹@”\
+	// å®šè·¡game treeã‚’ç”Ÿæˆã™ã‚‹æ©Ÿèƒ½
 	void BookTreeBuilder::build_tree(Position & pos, istringstream & is)
 	{
-		// ’èÕƒtƒ@ƒCƒ‹–¼
-		// Option["book_file"]‚Å‚Í‚È‚­A‚±‚±‚Åw’è‚µ‚½‚à‚Ì‚ªˆ—‘ÎÛ‚Å‚ ‚éB
+		// å®šè·¡ãƒ•ã‚¡ã‚¤ãƒ«å
+		// Option["book_file"]ã§ã¯ãªãã€ã“ã“ã§æŒ‡å®šã—ãŸã‚‚ã®ãŒå‡¦ç†å¯¾è±¡ã§ã‚ã‚‹ã€‚
 		string read_book_name, write_book_name;
 		is >> read_book_name >> write_book_name;
 
-		// ˆ—‘ÎÛƒtƒ@ƒCƒ‹–¼‚Ìo—Í
+		// å‡¦ç†å¯¾è±¡ãƒ•ã‚¡ã‚¤ãƒ«åã®å‡ºåŠ›
 		cout << "makebook build_tree .." << endl;
 		cout << "read_book_name   = " << read_book_name << endl;
 		cout << "write_book_name  = " << write_book_name << endl;
@@ -374,9 +374,9 @@ namespace {
 			return;
 		}
 
-		// ’èÕ‚Å‚Íâ‘Îç“úè‰ñ”ğ‚·‚éƒ}ƒ“‚Ìİ’è
-		int black_contempt =  50;  // æè‘¤‚Ìç“úè‚ğ -50‚Æ‚İ‚È‚·
-		int white_contempt = 150;  // Œãè‘¤‚Ìç“úè‚ğ-150‚Æ‚İ‚È‚·
+		// å®šè·¡ã§ã¯çµ¶å¯¾åƒæ—¥æ‰‹å›é¿ã™ã‚‹ãƒãƒ³ã®è¨­å®š
+		int black_contempt =  50;  // å…ˆæ‰‹å´ã®åƒæ—¥æ‰‹ã‚’ -50ã¨ã¿ãªã™
+		int white_contempt = 150;  // å¾Œæ‰‹å´ã®åƒæ—¥æ‰‹ã‚’-150ã¨ã¿ãªã™
 
 		string token;
 		while ((is >> token))
@@ -390,7 +390,7 @@ namespace {
 		cout << "black_contempt = " << black_contempt << endl;
 		cout << "white_contempt = " << white_contempt << endl;
 
-		// ‰Šú‹Ç–Ê‚©‚ç(depth 10000‚Å‚Í‚È‚¢‚à‚Ì‚ğ)’H‚Á‚Ägame tree‚ğ\’z‚·‚éB
+		// åˆæœŸå±€é¢ã‹ã‚‰(depth 10000ã§ã¯ãªã„ã‚‚ã®ã‚’)è¾¿ã£ã¦game treeã‚’æ§‹ç¯‰ã™ã‚‹ã€‚
 
 		StateInfo si;
 		pos.set_hirate(&si, Threads.main());
@@ -406,7 +406,7 @@ namespace {
 		build_tree_nega_max(pos, read_book, write_book);
 		cout << endl;
 
-		// ‘‚«o‚µ
+		// æ›¸ãå‡ºã—
 		cout << "write " << write_book_name << endl;
 		write_book.write_book(write_book_name, true);
 
@@ -414,51 +414,51 @@ namespace {
 	}
 
 	// ----------------------------
-	//  ’èÕƒtƒ@ƒCƒ‹‚Ì“Á’è‹Ç–Ê‚©‚ç’èÕ‚ğŒ@‚é
+	//  å®šè·¡ãƒ•ã‚¡ã‚¤ãƒ«ã®ç‰¹å®šå±€é¢ã‹ã‚‰å®šè·¡ã‚’æ˜ã‚‹
 	// ----------------------------
 
 	void BookTreeBuilder::extend_tree_sub(Position & pos, MemoryBook & read_book, fstream & fs, const string & sfen , bool book_hit)
 	{
-		// ç“úè‚É“’B‚µ‚½‹Ç–Ê‚Ívl‘ÎÛ‚Æ‚µ‚Ä‚Í‚È‚ç‚È‚¢B
+		// åƒæ—¥æ‰‹ã«åˆ°é”ã—ãŸå±€é¢ã¯æ€è€ƒå¯¾è±¡ã¨ã—ã¦ã¯ãªã‚‰ãªã„ã€‚
 		auto draw_type = pos.is_repetition(MAX_PLY);
 		if (draw_type == REPETITION_DRAW)
 			return;
-		// ¨@‚»‚êˆÈŠO‚Ì”½•œ‚Í‘å‚«‚ÈƒXƒRƒA‚ª‚Â‚­‚Í‚¸‚ÅAœŠO‚³‚ê‚é‚Í‚¸B
+		// â†’ã€€ãã‚Œä»¥å¤–ã®åå¾©ã¯å¤§ããªã‚¹ã‚³ã‚¢ãŒã¤ãã¯ãšã§ã€é™¤å¤–ã•ã‚Œã‚‹ã¯ãšã€‚
 
-		// ‹l‚İAéŒ¾Ÿ‚¿‚Ì‹Ç–Ê‚àvl‘ÎÛ‚Æ‚µ‚Ä‚Í‚È‚ç‚È‚¢B
+		// è©°ã¿ã€å®£è¨€å‹ã¡ã®å±€é¢ã‚‚æ€è€ƒå¯¾è±¡ã¨ã—ã¦ã¯ãªã‚‰ãªã„ã€‚
 		if (pos.is_mated() || pos.DeclarationWin() != MOVE_NONE)
 			return;
-		// ¨@’¼‘O‚Ìnode‚Å‘å‚«‚ÈƒXƒRƒA‚ª‚Â‚­‚Í‚¸‚¾‚©‚çœŠO‚³‚ê‚é‚Í‚¸‚¾‚ªB
+		// â†’ã€€ç›´å‰ã®nodeã§å¤§ããªã‚¹ã‚³ã‚¢ãŒã¤ãã¯ãšã ã‹ã‚‰é™¤å¤–ã•ã‚Œã‚‹ã¯ãšã ãŒã€‚
 
-		// ‚±‚Ìnode‚ğˆ—Ï‚İ‚Å‚ ‚é‚©
-		// ¨@‚±‚Ìˆ—’x‚¢‚©‚È‚Ÿ..pos.key()‚Å\•ª‚È‚æ‚¤‚È‹C‚à‚·‚é‚ªcB
+		// ã“ã®nodeã‚’å‡¦ç†æ¸ˆã¿ã§ã‚ã‚‹ã‹
+		// â†’ã€€ã“ã®å‡¦ç†é…ã„ã‹ãªã..pos.key()ã§ååˆ†ãªã‚ˆã†ãªæ°—ã‚‚ã™ã‚‹ãŒâ€¦ã€‚
 		string this_sfen = pos.sfen();
 		if (done_sfen.find(this_sfen) != done_sfen.end())
 			return;
 		done_sfen.insert(this_sfen);
 
-		// ’èÕ‚Éƒqƒbƒg‚µ‚È‚©‚Á‚½‚Ì‚Å‚ ‚ê‚ÎA‚±‚±‚ªleaf node‚ÌŸ‚Ì‹Ç–Ê‚È‚Ì‚ÅA
-		// ‚±‚Ì‹Ç–Ê‚Ü‚Å‚Ì"startpos moves..."‚ğ‘‚«o‚·B
+		// å®šè·¡ã«ãƒ’ãƒƒãƒˆã—ãªã‹ã£ãŸã®ã§ã‚ã‚Œã°ã€ã“ã“ãŒleaf nodeã®æ¬¡ã®å±€é¢ãªã®ã§ã€
+		// ã“ã®å±€é¢ã¾ã§ã®"startpos moves..."ã‚’æ›¸ãå‡ºã™ã€‚
 		auto it_read = read_book.find(pos);
 		if (it_read == nullptr || it_read->size() == 0)
 		{
-			// ’¼‘O‚Ìnode‚Å’èÕ‚Ìw‚µè‚ğw‚µ‚½‚Ì‚Å‚Í‚È‚¢‚È‚ç‹A‚éB
+			// ç›´å‰ã®nodeã§å®šè·¡ã®æŒ‡ã—æ‰‹ã‚’æŒ‡ã—ãŸã®ã§ã¯ãªã„ãªã‚‰å¸°ã‚‹ã€‚
 			if (!book_hit)
 				return;
 
-			// ’¼‘O‚Ìnode‚Å’èÕ‚Ìw‚µè‚ğw‚µ‚ÄA‚©‚ÂA‚±‚±‚Å’èÕ‚Éhit‚µ‚È‚©‚Á‚½‚Ì‚Å
-			// ‚±‚±‚ª’èÕtree‚Ìleaf node‚Ìˆê‚Âæ‚Ìnode‚Å‚ ‚é‚±‚Æ‚ªŠm’è‚µ‚½B
+			// ç›´å‰ã®nodeã§å®šè·¡ã®æŒ‡ã—æ‰‹ã‚’æŒ‡ã—ã¦ã€ã‹ã¤ã€ã“ã“ã§å®šè·¡ã«hitã—ãªã‹ã£ãŸã®ã§
+			// ã“ã“ãŒå®šè·¡treeã®leaf nodeã®ä¸€ã¤å…ˆã®nodeã§ã‚ã‚‹ã“ã¨ãŒç¢ºå®šã—ãŸã€‚
 
-			// ’¼‘O‚Ìnode‚Ìscore‚ª +1,-1 ‚Å‚ ‚é‚È‚çA‚±‚ê‚Íç“úèƒXƒRƒA‚¾‚Æl‚¦‚ç‚ê‚é‚Ì‚ÅA‚±‚Ì‚Æ‚«‚É‚Ì‚İ
-			// ‚±‚Ì‹Ç–Ê‚ğ‰„’·‚·‚éB(Learner::search()‚Ìd—l‚ªƒ_ƒT‚­‚ÄA"makebook think"ƒRƒ}ƒ“ƒh‚Íç“úè‚Ì‚Æ‚«+1‚à‚ ‚è‚¤‚éc)
-			// ¨@Contempt‚Ì’l‚Í–³‹‚µ‚Äí‚É0‚É‚È‚é‚æ‚¤‚ÉC³‚µ‚½B[2019/05/19]
+			// ç›´å‰ã®nodeã®scoreãŒ +1,-1 ã§ã‚ã‚‹ãªã‚‰ã€ã“ã‚Œã¯åƒæ—¥æ‰‹ã‚¹ã‚³ã‚¢ã ã¨è€ƒãˆã‚‰ã‚Œã‚‹ã®ã§ã€ã“ã®ã¨ãã«ã®ã¿
+			// ã“ã®å±€é¢ã‚’å»¶é•·ã™ã‚‹ã€‚(Learner::search()ã®ä»•æ§˜ãŒãƒ€ã‚µãã¦ã€"makebook think"ã‚³ãƒãƒ³ãƒ‰ã¯åƒæ—¥æ‰‹ã®ã¨ã+1ã‚‚ã‚ã‚Šã†ã‚‹â€¦)
+			// â†’ã€€Contemptã®å€¤ã¯ç„¡è¦–ã—ã¦å¸¸ã«0ã«ãªã‚‹ã‚ˆã†ã«ä¿®æ­£ã—ãŸã€‚[2019/05/19]
 
-			// ‚±‚ÌğŒ®‚Í’Pƒ‰»‚Å‚«‚é‚ªAğŒ‚ğ’Ç‰Á‚·‚é‚©‚à’m‚ê‚È‚¢‚Ì‚Å‰ßè‚È’Pƒ‰»‚Í‚µ‚È‚¢B
+			// ã“ã®æ¡ä»¶å¼ã¯å˜ç´”åŒ–ã§ãã‚‹ãŒã€æ¡ä»¶ã‚’è¿½åŠ ã™ã‚‹ã‹ã‚‚çŸ¥ã‚Œãªã„ã®ã§éå‰°ãªå˜ç´”åŒ–ã¯ã—ãªã„ã€‚
 			bool extend = 
 				(this->enable_extend_range && extend_range1 <= this->lastEval && this->lastEval <= extend_range2) ||
 				(!this->enable_extend_range);
 
-			// ‚±‚Ì‹Ç–Ê‚É“’B‚·‚é‚Ü‚Å‚Ì"startpos moves ..."‚ğ‚Æ‚è‚Üo—ÍB
+			// ã“ã®å±€é¢ã«åˆ°é”ã™ã‚‹ã¾ã§ã®"startpos moves ..."ã‚’ã¨ã‚Šã¾å‡ºåŠ›ã€‚
 			if (extend)
 			{
 				fs << sfen << endl;
@@ -470,30 +470,30 @@ namespace {
 			return;
 		}
 
-		// -- ’èÕ‚É“o˜^‚³‚ê‚Ä‚¢‚é‚±‚Ìnode‚Ìw‚µè‚ğ“WŠJ‚·‚éB
+		// -- å®šè·¡ã«ç™»éŒ²ã•ã‚Œã¦ã„ã‚‹ã“ã®nodeã®æŒ‡ã—æ‰‹ã‚’å±•é–‹ã™ã‚‹ã€‚
 
 		StateInfo si;
 		auto turn = pos.side_to_move();
 
 		for (const auto& m : MoveList<LEGAL_ALL>(pos))
 		{
-			// ’èÕ‚Ìw‚µèˆÈŠO‚Ìw‚µè‚Å‚àAŸ‚Ì‹Ç–Ê‚Å’èÕ‚Éhit‚·‚éw‚µè‚ğ’T‚·•K—v‚ª‚ ‚éB
+			// å®šè·¡ã®æŒ‡ã—æ‰‹ä»¥å¤–ã®æŒ‡ã—æ‰‹ã§ã‚‚ã€æ¬¡ã®å±€é¢ã§å®šè·¡ã«hitã™ã‚‹æŒ‡ã—æ‰‹ã‚’æ¢ã™å¿…è¦ãŒã‚ã‚‹ã€‚
 
 			auto it = std::find_if(it_read->begin(), it_read->end(), [m](const auto & x) { return x.bestMove == m; });
-			// ’èÕ‚Éhit‚µ‚½‚Ì‚©
+			// å®šè·¡ã«hitã—ãŸã®ã‹
 			bool book_hit = it != it_read->end();
 
 			if (book_hit)
 			{
-				// eval_limit‚ğ’´‚¦‚é}‚¾‚¯‚ğ“WŠJ‚·‚éB
+				// eval_limitã‚’è¶…ãˆã‚‹æã ã‘ã‚’å±•é–‹ã™ã‚‹ã€‚
 				if ((turn == BLACK && it->value >= black_eval_limit) ||
 					(turn == WHITE && it->value >= white_eval_limit))
 					this->lastEval = it->value;
 				else
-					continue; // ‚±‚Ì}‚Í‚±‚Ì“_‚Åæ‚ğ’H‚ç‚È‚¢
+					continue; // ã“ã®æã¯ã“ã®æ™‚ç‚¹ã§å…ˆã‚’è¾¿ã‚‰ãªã„
 			}
 			else {
-				// ’èÕ‚Ìw‚µè‚Å‚Í‚È‚¢‚ªAŸ‚Ìnode‚Å’èÕ‚Éhit‚·‚é‚È‚ç’H‚Á‚Ä—~‚µ‚¢B
+				// å®šè·¡ã®æŒ‡ã—æ‰‹ã§ã¯ãªã„ãŒã€æ¬¡ã®nodeã§å®šè·¡ã«hitã™ã‚‹ãªã‚‰è¾¿ã£ã¦æ¬²ã—ã„ã€‚
 				this->lastEval = 0;
 			}
 			this->do_move(pos,m, si);
@@ -504,12 +504,12 @@ namespace {
 		output_progress();
 	}
 
-	// "position ..."‚Ì"..."‚Ì•”•ª‚ğ‰ğß‚·‚éB
+	// "position ..."ã®"..."ã®éƒ¨åˆ†ã‚’è§£é‡ˆã™ã‚‹ã€‚
 	int BookTreeBuilder::feed_position_string(Position & pos, const string & line, StateInfo * states, Thread * th)
 	{
 		pos.set_hirate(&states[0], th);
-		// ‚±‚±‚©‚çAline‚Åw’è‚³‚ê‚½"startpos moves"..‚ğ“Ç‚İ‚ñ‚Å‚»‚Ì‹Ç–Ê‚Ü‚Åi‚ß‚éB
-		// ‚±‚±‚Å‚Í"sfen"‚Å‹Ç–Ê‚Íw’è‚Å‚«‚È‚¢‚à‚Ì‚Æ‚·‚éB
+		// ã“ã“ã‹ã‚‰ã€lineã§æŒ‡å®šã•ã‚ŒãŸ"startpos moves"..ã‚’èª­ã¿è¾¼ã‚“ã§ãã®å±€é¢ã¾ã§é€²ã‚ã‚‹ã€‚
+		// ã“ã“ã§ã¯"sfen"ã§å±€é¢ã¯æŒ‡å®šã§ããªã„ã‚‚ã®ã¨ã™ã‚‹ã€‚
 		this->lastMoves.clear();
 
 		stringstream ss(line);
@@ -527,19 +527,19 @@ namespace {
 			}
 			this->do_move(pos,move, states[pos.game_ply()]);
 		}
-		return 0; // “Ç‚İ‚İI—¹
+		return 0; // èª­ã¿è¾¼ã¿çµ‚äº†
 	}
 
-	// ’èÕƒtƒ@ƒCƒ‹‚ğ“Ç‚İ‚ñ‚ÅAw’è‹Ç–Ê‚©‚ç[Œ@‚è‚·‚é‚½‚ß‚É•K—v‚ÈŠû•ˆ‚ğ¶¬‚·‚éB
+	// å®šè·¡ãƒ•ã‚¡ã‚¤ãƒ«ã‚’èª­ã¿è¾¼ã‚“ã§ã€æŒ‡å®šå±€é¢ã‹ã‚‰æ·±æ˜ã‚Šã™ã‚‹ãŸã‚ã«å¿…è¦ãªæ£‹è­œã‚’ç”Ÿæˆã™ã‚‹ã€‚
 	void BookTreeBuilder::extend_tree(Position & pos, istringstream & is)
 	{
 		string read_book_name, read_sfen_name, write_sfen_name;
 		is >> read_book_name >> read_sfen_name >> write_sfen_name;
 
-		// ‰„’·‚·‚é•]‰¿’l‚Ì‰ºŒÀ
+		// å»¶é•·ã™ã‚‹è©•ä¾¡å€¤ã®ä¸‹é™
 		int black_eval_limit = -50, white_eval_limit = -150;
 
-		// ‰„’·‚·‚éleaf‚Ì•]‰¿’l‚Ì”ÍˆÍ(ç“úèƒXƒRƒA‚Ì‹Ç–Ê‚Ì‚İ‚ğ‰„’·‚·‚éê‡‚É—p‚¢‚é)
+		// å»¶é•·ã™ã‚‹leafã®è©•ä¾¡å€¤ã®ç¯„å›²(åƒæ—¥æ‰‹ã‚¹ã‚³ã‚¢ã®å±€é¢ã®ã¿ã‚’å»¶é•·ã™ã‚‹å ´åˆã«ç”¨ã„ã‚‹)
 		bool enable_extend_range = false;
 		int extend_range1, extend_range2;
 
@@ -557,7 +557,7 @@ namespace {
 			}
 		}
 
-		// ˆ—‘ÎÛƒtƒ@ƒCƒ‹–¼‚Ìo—Í
+		// å‡¦ç†å¯¾è±¡ãƒ•ã‚¡ã‚¤ãƒ«åã®å‡ºåŠ›
 		cout << "makebook extend tree .." << endl;
 		
 		cout << "read_book_name   = " << read_book_name << endl;
@@ -570,9 +570,9 @@ namespace {
 		if (enable_extend_range)
 			cout << "extend_range = [" << extend_range1 << "," << extend_range2 << "]" << endl;
 
-		// read_book_name  : ‚â‚Ë‚¤‚ç‰¤‚Ì’èÕŒ`®(Šg’£q.db)
-		// read_sfen_name  : USI‚ÌpositionŒ`®B—á:"startpos moves ..."
-		// write_sfen_name : “¯ãB
+		// read_book_name  : ã‚„ã­ã†ã‚‰ç‹ã®å®šè·¡å½¢å¼(æ‹¡å¼µå­.db)
+		// read_sfen_name  : USIã®positionå½¢å¼ã€‚ä¾‹:"startpos moves ..."
+		// write_sfen_name : åŒä¸Šã€‚
 
 		MemoryBook read_book;
 		if (read_book.read_book(read_book_name) != 0)
@@ -583,7 +583,7 @@ namespace {
 		vector<string> lines;
 		read_all_lines(read_sfen_name, lines);
 
-		// ‰Šú‹Ç–Ê‚©‚ç(depth 10000‚Å‚Í‚È‚¢‚à‚Ì‚ğ)’H‚Á‚Ägame tree‚ğ\’z‚·‚éB
+		// åˆæœŸå±€é¢ã‹ã‚‰(depth 10000ã§ã¯ãªã„ã‚‚ã®ã‚’)è¾¿ã£ã¦game treeã‚’æ§‹ç¯‰ã™ã‚‹ã€‚
 
 		fstream fs;
 		fs.open(write_sfen_name , ios::out);
@@ -598,7 +598,7 @@ namespace {
 		this->extend_range1 = extend_range1;
 		this->extend_range2 = extend_range2;
 
-		// ‚±‚ê‚æ‚è’·‚¢Šû•ˆAH‚í‚¹‚È‚¢‚â‚ëcB
+		// ã“ã‚Œã‚ˆã‚Šé•·ã„æ£‹è­œã€é£Ÿã‚ã›ãªã„ã‚„ã‚â€¦ã€‚
 		std::vector<StateInfo, AlignedAllocator<StateInfo>> states(1024);
 
 		for (int i = 0; i < (int)lines.size(); ++i)
@@ -619,23 +619,23 @@ namespace {
 		cout << "done." << endl;
 	}
 
-	// ’èÕ‚Ì–³ŒÀ©“®Œ@‚è
+	// å®šè·¡ã®ç„¡é™è‡ªå‹•æ˜ã‚Š
 	/*
-		‰Û‘è‹Ç–Ê‚©‚ç©“®“I‚É’èÕ‚ğŒ@‚Á‚Ä‚¢‚­B
+		èª²é¡Œå±€é¢ã‹ã‚‰è‡ªå‹•çš„ã«å®šè·¡ã‚’æ˜ã£ã¦ã„ãã€‚
 
-		// ˆê“x–Ú‚¾‚¯‰Û‘è‹Ç–Ê‚Ü‚Å‚ğvl‚³‚¹‚éB(‰Û‘è‹Ç–Ê‚Ü‚Å‚Ì’èÕ‚ğŒ@‚ç‚È‚­‚Ä‚¢‚¢‚È‚çA‚±‚Ì“®ì‚Í•s—v)
+		// ä¸€åº¦ç›®ã ã‘èª²é¡Œå±€é¢ã¾ã§ã‚’æ€è€ƒã•ã›ã‚‹ã€‚(èª²é¡Œå±€é¢ã¾ã§ã®å®šè·¡ã‚’æ˜ã‚‰ãªãã¦ã„ã„ãªã‚‰ã€ã“ã®å‹•ä½œã¯ä¸è¦)
 		MultiPV 4
 		makebook think book/kadai_sfen.txt book/book_test.db depth 8 startmoves 1 moves 32
-		// ¨@‚±‚ê‚â‚ß‚æ‚¤B•s—v‚¾‚íB
+		// â†’ã€€ã“ã‚Œã‚„ã‚ã‚ˆã†ã€‚ä¸è¦ã ã‚ã€‚
 
-		// ‚»‚Ì‚ ‚ÆAˆÈ‰º‚ğ–³ŒÀ‚ÉŒJ‚è•Ô‚·B
+		// ãã®ã‚ã¨ã€ä»¥ä¸‹ã‚’ç„¡é™ã«ç¹°ã‚Šè¿”ã™ã€‚
 		MultiPV 4
 		makebook extend_tree book/book_test.db book/kadai_sfen.txt book/think_sfen.txt
 		makebook think book/think_sfen.txt book/book_test.db depth 8 startmoves 1 moves 32
 
-		«‚±‚Ì‚Q‚Â‚ğ“‡‚µ‚½ƒRƒ}ƒ“ƒh‚ğì¬‚·‚é
+		â†“ã“ã®ï¼’ã¤ã‚’çµ±åˆã—ãŸã‚³ãƒãƒ³ãƒ‰ã‚’ä½œæˆã™ã‚‹
 
-		—á)
+		ä¾‹)
 		makebook endless_extend_tree book/book_test.db book/kadai_sfen book/think_sfen.txt depth 8 startmoves 1 moves 32 loop 10 nodes 100000
 	*/
 	void BookTreeBuilder::endless_extend_tree(Position& pos, istringstream& is)
@@ -652,7 +652,7 @@ namespace {
 		string token;
 		int depth = 8, start_moves = 1, end_moves = 32 , iteration = 256;
 		int black_eval_limit = -50, white_eval_limit = -150;
-		uint64_t nodes = 0; // w’è‚ª‚È‚¯‚ê‚Î0‚É‚µ‚Æ‚©‚È‚¢‚Æ..
+		uint64_t nodes = 0; // æŒ‡å®šãŒãªã‘ã‚Œã°0ã«ã—ã¨ã‹ãªã„ã¨..
 		bool enable_extend_range = false;
 		int extend_range1, extend_range2;
 
@@ -686,12 +686,12 @@ namespace {
 		if (enable_extend_range)
 			cout << "extend_range = [" << extend_range1 << "," << extend_range2 << "]" << endl;
 
-		// ƒRƒ}ƒ“ƒh‚ÌÀs
+		// ã‚³ãƒãƒ³ãƒ‰ã®å®Ÿè¡Œ
 		auto do_command = [&](string command)
 		{
 			cout << "> makebook " + command << endl;
 
-			// "makebook"ƒRƒ}ƒ“ƒhˆ—•”‚ÉƒRƒ}ƒ“ƒhƒeƒLƒXƒgŒo—R‚ÅˆÚ÷‚µ‚Ä‚µ‚Ü‚¤B
+			// "makebook"ã‚³ãƒãƒ³ãƒ‰å‡¦ç†éƒ¨ã«ã‚³ãƒãƒ³ãƒ‰ãƒ†ã‚­ã‚¹ãƒˆçµŒç”±ã§ç§»è­²ã—ã¦ã—ã¾ã†ã€‚
 			istringstream iss(command);
 			makebook_cmd(pos, iss);
 		};
@@ -704,7 +704,7 @@ namespace {
 #if 0
 			if (i == 0)
 			{
-				// ‰‰ñ‚¾‚¯
+				// åˆå›ã ã‘
 				// "makebook think book/kadai_sfen.txt book/book_test.db depth 8 startmoves 1 moves 32"
 
 				command = "think " + read_sfen_name + " " + read_book_name + " depth " + to_string(depth)
@@ -714,7 +714,7 @@ namespace {
 			else
 #endif
 			{
-				// 2‰ñ–ÚˆÈ~
+				// 2å›ç›®ä»¥é™
 
 				// "makebook extend_tree book/book_test.db book/kadai_sfen.txt book/think_sfen.txt"
 				// "makebook think book/think_sfen.txt book/book_test.db depth 8 startmoves 1 moves 32"
@@ -725,9 +725,9 @@ namespace {
 				do_command(command);
 
 
-				// ‚±‚±‚Åvl‘ÎÛ‹Ç–Ê‚ª‚È‚­‚È‚Á‚Ä‚¢‚ê‚ÎI—¹‚·‚é•K—v‚ª‚ ‚éB
-				// moves‚ğw’è‚µ‚Ä‚ ‚é‚Ì‚Åthink_sfen_name‚Ìƒtƒ@ƒCƒ‹‚ª‹ó‚É‚È‚é‚Æ‚ÍŒÀ‚ç‚È‚­‚ÄA‚±‚ÌI—¹”»’è“ï‚µ‚¢cB
-				// ‚È‚Ì‚ÅA‚â‚ç‚È‚¢(LƒÖM)
+				// ã“ã“ã§æ€è€ƒå¯¾è±¡å±€é¢ãŒãªããªã£ã¦ã„ã‚Œã°çµ‚äº†ã™ã‚‹å¿…è¦ãŒã‚ã‚‹ã€‚
+				// movesã‚’æŒ‡å®šã—ã¦ã‚ã‚‹ã®ã§think_sfen_nameã®ãƒ•ã‚¡ã‚¤ãƒ«ãŒç©ºã«ãªã‚‹ã¨ã¯é™ã‚‰ãªãã¦ã€ã“ã®çµ‚äº†åˆ¤å®šé›£ã—ã„â€¦ã€‚
+				// ãªã®ã§ã€ã‚„ã‚‰ãªã„(Â´Ï‰ï½€)
 
 				command = "think " + think_sfen_name + " " + read_book_name + " depth " + to_string(depth)
 					+ " startmoves " + to_string(start_moves) + " moves " + to_string(end_moves) + +" nodes " + to_string(nodes);
@@ -742,9 +742,9 @@ namespace {
 
 namespace Book
 {
-	// 2019”NˆÈ~‚Éì‚Á‚½makebookŠg’£ƒRƒ}ƒ“ƒh
-	// "makebook XXX"ƒRƒ}ƒ“ƒhBXXX‚Ì•”•ª‚É"build_tree"‚â"extend_tree"‚ª—ˆ‚éB
-	// ‚±‚ÌŠg’£ƒRƒ}ƒ“ƒh‚ğˆ—‚µ‚½‚çA‚±‚ÌŠÖ”‚Í”ñ0‚ğ•Ô‚·B
+	// 2019å¹´ä»¥é™ã«ä½œã£ãŸmakebookæ‹¡å¼µã‚³ãƒãƒ³ãƒ‰
+	// "makebook XXX"ã‚³ãƒãƒ³ãƒ‰ã€‚XXXã®éƒ¨åˆ†ã«"build_tree"ã‚„"extend_tree"ãŒæ¥ã‚‹ã€‚
+	// ã“ã®æ‹¡å¼µã‚³ãƒãƒ³ãƒ‰ã‚’å‡¦ç†ã—ãŸã‚‰ã€ã“ã®é–¢æ•°ã¯é0ã‚’è¿”ã™ã€‚
 	int makebook2019(Position& pos, istringstream& is, const string& token)
 	{
 		if (token == "build_tree")
