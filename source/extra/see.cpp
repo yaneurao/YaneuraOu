@@ -181,7 +181,7 @@ bool Position::see_ge(Move m, Value threshold) const
 
 	balance -= (Value)Eval::CapturePieceValue[nextVictim];
 
-	if (balance >= threshold)
+	if (balance >= VALUE_ZERO)
 		return true;
 
 	// 相手側の手番ならtrue、自分側の手番であるならfalse
@@ -203,11 +203,12 @@ bool Position::see_ge(Move m, Value threshold) const
 
 		// pinnersが元の升にいる限りにおいては、pinされた駒から王以外への移動は許さない。
 
-		if (!(st->pinners[stm] & ~occupied))
+		if (!(st->pinners[~stm] & occupied))
 			stmAttackers &= ~st->blockersForKing[stm];
 
+		// 手番側のtoに利いている駒がもうないなら、手番側の負けである。
 		if (!stmAttackers)
-			return relativeStm;
+			break;
 
 		// 次に価値の低い攻撃駒を調べて取り除く。
 
@@ -216,18 +217,28 @@ bool Position::see_ge(Move m, Value threshold) const
 			? min_attacker<BLACK>(*this, to, stmAttackers, occupied, attackers)
 			: min_attacker<WHITE>(*this, to, stmAttackers, occupied, attackers);
 
-		if (nextVictim == KING)
-			return relativeStm == bool(attackers & pieces(~stm));
+		stm = ~stm; // 相手番に
 
-		balance = relativeStm ? balance + (Value)Eval::CapturePieceValue[nextVictim]
-							  : balance - (Value)Eval::CapturePieceValue[nextVictim];
-		relativeStm = !relativeStm;
+		// Negamax the balance with alpha = balance, beta = balance+1 and
+		// add nextVictim's value.
+		//
+		//      (balance, balance+1) -> (-balance-1, -balance)
+		//
+		ASSERT_LV3(balance < VALUE_ZERO);
 
-		if (relativeStm == (balance >= threshold))
-			return relativeStm;
+		balance = -balance - 1 - CapturePieceValue[nextVictim];
 
+		// もしbalanceがnextVictimを取り去っても依然として非負(0か正)であるなら、これをもって勝利である。
+		// ただし最後に玉が残って、相手側がまだattackerを持っているときはstmを反転しないといけないので注意。
+		if (balance >= VALUE_ZERO)
+		{
+			if (nextVictim == KING && (attackers & pieces(stm)))
 		stm = ~stm;
+			break;
 	}
+		ASSERT_LV3(nextVictim != KING);
+	}
+	return us != stm; // 上のループは、手番側のtoへの利きがある駒が尽きたときに抜ける
 }
 
 #endif // USE_SEE
