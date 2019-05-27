@@ -6,7 +6,7 @@
 
 #include "../types.h"
 
-#ifdef LONG_EFFECT_LIBRARY
+#if defined (LONG_EFFECT_LIBRARY)
 
 struct Bitboard;
 
@@ -217,7 +217,7 @@ namespace LongEffect
     }
 
     // ゼロクリア
-    void clear() { memset(e, 0, sizeof(e)); }
+	void clear();
 
     // around8で回収するときのpadding
     uint8_t padding[SQ_22];
@@ -267,7 +267,7 @@ namespace LongEffect
   struct WordBoard
   {
     // ゼロクリア
-    void clear() { memset(le16, 0, sizeof(le16)); }
+	void clear();
 
     // ある升にある長い利きの方向
     // この方向に利いている(遠方駒は、この逆方向にいる。sqの駒を取り除いたときにさらにこの方角に利きが伸びる)

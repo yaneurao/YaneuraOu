@@ -3,6 +3,7 @@
 
 #include "../types.h"
 #include <array>
+#include <cstring>	// std::memset()
 
 // KPPT,KPP_PPTで使うためのヘルパクラス
 // 手番つきの評価値の合計を計算するために用いる。
@@ -244,7 +245,7 @@ namespace Eval {
 	static bool operator == (const EvalSum& lhs, const EvalSum rhs) { return lhs.p[0] == rhs.p[0] && lhs.p[1] == rhs.p[1] && lhs.p[2] == rhs.p[2]; }
 	static bool operator != (const EvalSum& lhs, const EvalSum rhs)	{ return !(lhs == rhs);	}
 
-#ifdef USE_EVAL_HASH
+#if defined (USE_EVAL_HASH)
 	// シンプルなHashTableの実装。
 	// Sizeは2のべき乗。
 	template <typename T, size_t Size>
@@ -252,7 +253,7 @@ namespace Eval {
 	{
 		HashTable() { clear(); }
 		T* operator [] (const Key k) { return entries_ + (static_cast<size_t>(k) & (Size - 1)); }
-		void clear() { memset(entries_, 0, sizeof(T)*Size); }
+		void clear() { memset(entries_, 0, sizeof(T) * Size); }
 
 		// Size が 2のべき乗であることのチェック
 		static_assert((Size & (Size - 1)) == 0, "");

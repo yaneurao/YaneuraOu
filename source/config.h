@@ -358,7 +358,7 @@
 
 // --- 詰将棋エンジンとして実行ファイルを公開するとき用の設定集
 
-#ifdef MATE_ENGINE
+#if defined(MATE_ENGINE)
 #define ENGINE_NAME "YaneuraOu mate solver"
 #define KEEP_LAST_MOVE
 #undef  MAX_PLY_NUM
@@ -366,14 +366,14 @@
 #define USE_SEE
 #define USE_MATE_1PLY
 #define EVAL_MATERIAL
-#define LONG_EFFECT_LIBRARY
+//#define LONG_EFFECT_LIBRARY
 #define USE_KEY_AFTER
 #define ENABLE_TEST_CMD
 #endif
 
 // --- ユーザーの自作エンジンとして実行ファイルを公開するとき用の設定集
 
-#ifdef USER_ENGINE
+#if defined(USER_ENGINE)
 #define ENGINE_NAME "YaneuraOu user engine"
 #define EVAL_KPP
 #endif

@@ -7,10 +7,12 @@
 //  長い利きに関するライブラリ
 // ----------------------
 
-#ifdef LONG_EFFECT_LIBRARY
+#if defined(LONG_EFFECT_LIBRARY)
 
 #include "../bitboard.h"
 #include "../position.h"
+
+#include <cstring>	// std::memset()
 
 // Effect8::operator<<()で用いるヘルパー関数
 // 3*3ならN=3 , 5*5ならN=5..
@@ -203,6 +205,9 @@ namespace LongEffect
     return os;
   }
 
+  // ゼロクリア
+  void ByteBoard::clear() { memset(e, 0, sizeof(e)); }
+
   // ----------------------
   //  WordBoard(利きの方向を先後同時に表現)
   // ----------------------
@@ -228,6 +233,9 @@ namespace LongEffect
     }
     return os;
   }
+
+  // ゼロクリア
+  void WordBoard::clear() { memset(le16, 0, sizeof(le16)); }
 
   // ----------------------
   //  Positionクラスの初期化時の利きの全計算

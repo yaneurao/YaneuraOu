@@ -2,6 +2,7 @@
 #if defined(MATE_ENGINE)
 
 #include <unordered_set>
+#include <cstring>	// std::memset()
 
 #include "../../extra/all.h"
 
