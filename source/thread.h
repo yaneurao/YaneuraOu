@@ -78,11 +78,12 @@ public:
 	// selDepth  : rootから最大、何手目まで探索したか(選択深さの最大)
 	// nmpMinPly : null moveの前回の適用ply
 	// nmpColor  : null moveの前回の適用Color
-	int selDepth; //,nmpMinPly;
-	// Color nmpColor;
+	int selDepth ,nmpMinPly;
+	Color nmpColor;
 
-	// このスレッドが探索したノード数(≒Position::do_move()を呼び出した回数)
-	std::atomic<uint64_t> nodes;
+	// nodes     : このスレッドが探索したノード数(≒Position::do_move()を呼び出した回数)
+ 	// bestMoveChanges : 反復深化においてbestMoveが変わった回数。nodeの安定性の指標として用いる。全スレ分集計して使う。
+	std::atomic<uint64_t> nodes,/* tbHits,*/ bestMoveChanges;
 
 
 	// 探索開始局面
@@ -108,6 +109,7 @@ public:
 	// cf. https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
 	ContinuationHistory continuationHistory;
 
+	// Stockfish10ではスレッドごとにcontemptを保持するように変わった。
 	//Score contempt;
 
 	// ------------------------------
@@ -130,12 +132,6 @@ public:
 // 探索時のmainスレッド(これがmasterであり、これ以外はslaveとみなす)
 struct MainThread: public Thread
 {
-	// 反復深化のときにPVがあまり変化がないなら探索が安定しているということだから
-	// 短めの思考時間で指す機能のためのフラグ。
-	bool easyMovePlayed;
-
-	// root nodeでfail lowが起きているのか
-	bool failedLow;
 	// constructorはThreadのものそのまま使う。
 	using Thread::Thread;
 
@@ -145,9 +141,8 @@ struct MainThread: public Thread
 	// 思考時間の終わりが来たかをチェックする。
 	void check_time();
 
-	// bestMoveChanges       : 反復深化においてbestMoveが変わった回数。nodeの安定性の指標として使う。
 	// previousTimeReduction : 反復深化の前回のiteration時のtimeReductionの値。
-	double bestMoveChanges; // ,previousTimeReduction;
+	double previousTimeReduction;
 
 	// 前回の探索時のスコア。
 	// 次回の探索のときに何らか使えるかも。

@@ -40,6 +40,7 @@ void Thread::clear()
 	continuationHistory[SQ_ZERO][NO_PIECE].get()->fill(Search::CounterMovePruneThreshold - 1);
 }
 
+// 待機していたスレッドを起こして探索を開始させる
 void Thread::start_searching()
 {
 	std::lock_guard<Mutex> lk(mutex);
@@ -119,12 +120,11 @@ void ThreadPool::clear() {
 
 	main()->callsCnt = 0;
 	main()->previousScore = VALUE_INFINITE;
-
-	// Stockfish 9から導入されたが、やねうら王では未使用。
-	//main()->previousTimeReduction = 1.0;
+	main()->previousTimeReduction = 1.0;
 }
 
-
+// ilde_loop()で待機しているmain threadを起こして即座にreturnする。
+// main threadは他のスレッドを起こして、探索を開始する。
 void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 								const Search::LimitsType& limits , bool ponderMode)
 {
@@ -181,9 +181,9 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 	StateInfo tmp = setupStates->back();
 
 	auto sfen = pos.sfen();
-	for (auto th : *this)
+	for (Thread* th : *this)
 	{
-		th->nodes = 0;
+		th->nodes = /* th->tbHits = */ th->nmpMinPly = 0;
 		th->rootDepth = th->completedDepth = DEPTH_ZERO;
 		th->rootMoves = rootMoves;
 

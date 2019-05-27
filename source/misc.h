@@ -387,6 +387,13 @@ namespace Math {
 	// シグモイド関数の微分
 	//  = sigmoid(x) * (1.0 - sigmoid(x))
 	double dsigmoid(double x);
+
+	// vを[lo,hi]の間に収まるようにクリップする。
+	// ※　Stockfishではこの関数、bitboard.hに書いてある。
+	template<class T> constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
+		return v < lo ? lo : v > hi ? hi : v;
+	}
+
 }
 
 // --------------------

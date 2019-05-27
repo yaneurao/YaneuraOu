@@ -242,53 +242,6 @@ namespace {
 		Move best = MOVE_NONE;
 	};
 
-	// -----------------------
-	//  EasyMoveの判定用
-	// -----------------------
-
-	// EasyMoveManagerは、"easy move"を検出するのに用いられる。
-	// PVが、複数の探索iterationにおいて安定しているとき、即座にbest moveを返すことが出来る。
-	struct EasyMoveManager {
-
-		void clear() {
-			stableCnt = 0;
-			expectedPosKey = 0;
-			pv[0] = pv[1] = pv[2] = MOVE_NONE;
-		}
-
-		// 前回の探索からPVで2手進んだ局面であるかを判定するのに用いる。
-		Move get(Key key) const {
-			return expectedPosKey == key ? pv[2] : MOVE_NONE;
-		}
-
-		void update(Position& pos, const std::vector<Move>& newPv) {
-
-			ASSERT_LV3(newPv.size() >= 3);
-
-			// pvの3手目までが変化がない回数をカウントしておく。
-			stableCnt = (newPv[2] == pv[2]) ? stableCnt + 1 : 0;
-
-			if (!std::equal(newPv.begin(), newPv.begin() + 3, pv))
-			{
-				// 3手目までの指し手が異なっていたので新しいPVの3手目までをコピー。
-				std::copy(newPv.begin(), newPv.begin() + 3, pv);
-
-				StateInfo st[2];
-				pos.do_move(newPv[0], st[0]);
-				pos.do_move(newPv[1], st[1]);
-				expectedPosKey = pos.key();
-				pos.undo_move(newPv[1]);
-				pos.undo_move(newPv[0]);
-			}
-		}
-
-		int stableCnt;
-		Key expectedPosKey;
-		Move pv[3];
-	};
-
-	EasyMoveManager EasyMove;
-
 	template <NodeType NT>
 	Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode, bool skipEarlyPruning);
 
@@ -301,17 +254,6 @@ namespace {
 	void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus);
 	void update_quiet_stats(const Position& pos, Stack* ss, Move move, Move* quiets, int quietCount, int bonus);
 	void update_capture_stats(const Position& pos, Move move, Move* captures, int captureCount, int bonus);
-
-	// 王手になるかを調べる
-	inline bool gives_check(const Position& pos, Move move) {
-		//Color us = pos.side_to_move();
-		//return  type_of(move) == NORMAL && !(pos.blockers_for_king(~us) & pos.pieces(us))
-		//	? pos.check_squares(type_of(pos.moved_piece(move))) & to_sq(move)
-		//	: pos.gives_check(move);
-
-		// ↑の最適化、Positionの設計が変わるごとに影響受けそうなのでやめておく。
-		return pos.gives_check(move);
-	}
 
 	// perftとはperformance testのこと。
 	// 開始局面から深さdepthまで全合法手で進めるときの総node数を数えあげる。
@@ -586,26 +528,29 @@ void MainThread::search()
 	//    通常の思考処理
 	// ---------------------
 
-		// --- 今回の思考時間の設定。
+	// --- 今回の思考時間の設定。
 
-		Time.init(Limits, us, rootPos.game_ply());
+	Time.init(Limits, us, rootPos.game_ply());
 
-		// --- 置換表のTTEntryの世代を進める。
+	// --- 置換表のTTEntryの世代を進める。
 
-		// main threadが開始されてからだと、slaveがすでに少し探索している。
-		// それらは古い世代で置換表に書き込んでしまう。
-		// よってslaveが動く前であるこのタイミングで置換表の世代を進めるべきである。
-		// cf. Call TT.new_search() earlier.  : https://github.com/official-stockfish/Stockfish/commit/ebc563059c5fc103ca6d79edb04bb6d5f182eaf5
+	// main threadが開始されてからだと、slaveがすでに少し探索している。
+	// それらは古い世代で置換表に書き込んでしまう。
+	// よってslaveが動く前であるこのタイミングで置換表の世代を進めるべきである。
+	// cf. Call TT.new_search() earlier.  : https://github.com/official-stockfish/Stockfish/commit/ebc563059c5fc103ca6d79edb04bb6d5f182eaf5
 
-		TT.new_search();
+	TT.new_search();
 
-		// ---------------------
-		// 各スレッドがsearch()を実行する
-		// ---------------------
+	// ---------------------
+	// 各スレッドがsearch()を実行する
+	// ---------------------
 
-		for (Thread* th : Threads)
+	for (Thread* th : Threads)
+	{
+		th->bestMoveChanges = 0;
 			if (th != this)
 				th->start_searching();
+	}
 
 	// 自分(main thread)も探索に加わる。
 		Thread::search();
@@ -678,22 +623,20 @@ SKIP_SEARCH:;
 		for (Thread* th : Threads)
 			minScore = std::min(minScore, th->rootMoves[0].score);
 
-		// Vote according to score and depth
+		// Vote according to score and depth, and select the best thread
+		int64_t bestVote = 0;
 		for (Thread* th : Threads)
 		{
 			// ワーカースレッドのなかで最小を記録したスコアからの増分
-			int64_t s = th->rootMoves[0].score - minScore + 1;
-			votes[th->rootMoves[0].pv[0]] += 200 + s * s * int(th->completedDepth);
-		}
+			votes[th->rootMoves[0].pv[0]] +=
+				(th->rootMoves[0].score - minScore + 14) * int(th->completedDepth);
 
-		// Select best thread
-		auto bestVote = votes[this->rootMoves[0].pv[0]];
-		for (Thread* th : Threads)
 			if (votes[th->rootMoves[0].pv[0]] > bestVote)
 			{
 				bestVote = votes[th->rootMoves[0].pv[0]];
 				bestThread = th;
 		}
+	}
 	}
 
 	// 次回の探索のときに何らか使えるのでベストな指し手の評価値を保存しておく。
@@ -745,17 +688,28 @@ void Thread::search()
 
 	// (ss-4)から(ss+2)までにアクセスしたいので余分に確保しておく。
 	Stack stack[MAX_PLY + 7], *ss = stack + 4;
+	Move  pv[MAX_PLY + 1];
 
-	// aspiration searchの窓の範囲(alpha,beta)
-	// apritation searchで窓を動かす大きさdelta
+	// bestValue  : このnodeでbestMoveを指したときの(探索の)評価値
+	// alpha,beta : aspiration searchの窓の範囲(alpha,beta)
+	// delta      : apritation searchで窓を動かす大きさdelta
 	Value bestValue, alpha, beta, delta;
 
-	// 安定したnodeのときに返す指し手
-	Move easyMove = MOVE_NONE;
+	// 探索の安定性を評価するために前回のiteration時のbest moveを記録しておく。
+	Move  lastBestMove = MOVE_NONE;
+	Depth lastBestMoveDepth = DEPTH_ZERO;
 
 	// もし自分がメインスレッドであるならmainThreadにそのポインタを入れる。
 	// 自分がスレーブのときはnullptrになる。
 	MainThread* mainThread = (this == Threads.main() ? Threads.main() : nullptr);
+
+	// timeReduction      : 読み筋が安定しているときに時間を短縮するための係数。
+	// Stockfish9までEasyMoveで処理していたものが廃止され、Stockfish10からこれが導入された。
+	// totBestMoveChanges : 直近でbestMoveが変化した回数の統計。読み筋の安定度の目安にする。
+	double timeReduction = 1.0 , totBestMoveChanges = 0;;
+
+	// この局面の手番側
+	Color us = rootPos.side_to_move();
 
 	// 先頭7つを初期化しておけば十分。そのあとはsearch()の先頭でss+1,ss+2を適宜初期化していく。
 	memset(ss - 4, 0, 7 * sizeof(Stack));
@@ -763,21 +717,12 @@ void Thread::search()
 	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
 	for (int i = 4; i > 0; i--)
 		(ss - i)->continuationHistory = this->continuationHistory[SQ_ZERO][NO_PIECE].get();
+	ss->pv = pv;
 
 	// 反復深化のiterationが浅いうちはaspiration searchを使わない。
 	// 探索窓を (-VALUE_INFINITE , +VALUE_INFINITE)とする。
 	bestValue = delta = alpha = -VALUE_INFINITE;
 	beta = VALUE_INFINITE;
-
-	// メインスレッド用の初期化処理
-	if (mainThread)
-	{
-		// 前回の局面からPVの指し手で2手進んだ局面であるかを判定する。
-		easyMove = EasyMove.get(rootPos.key());
-		EasyMove.clear();
-		mainThread->easyMovePlayed = mainThread->failedLow = false;
-		mainThread->bestMoveChanges = 0;
-	}
 
 	// --- MultiPV
 
@@ -830,7 +775,7 @@ void Thread::search()
 		// bestMoveが変化した回数を記録しているが、反復深化の世代が一つ進むので、
 		// 古い世代の情報として重みを低くしていく。
 		if (mainThread)
-			mainThread->bestMoveChanges *= 0.505, mainThread->failedLow = false;
+			totBestMoveChanges /= 2;
 
 		// aspiration window searchのために反復深化の前回のiterationのスコアをコピーしておく
 		for (RootMove& rm : rootMoves)
@@ -872,6 +817,8 @@ void Thread::search()
 			// この値は 5～10ぐらいがベスト？ Stockfish7～10では、5 * ONE_PLY。
 			if (rootDepth >= 5 * ONE_PLY)
 			{
+				Value previousScore = rootMoves[pvIdx].previousScore;
+
 				// aspiration windowの幅
 				// 精度の良い評価関数ならばこの幅を小さくすると探索効率が上がるのだが、
 				// 精度の悪い評価関数だとこの幅を小さくしすぎると再探索が増えて探索効率が低下する。
@@ -881,17 +828,27 @@ void Thread::search()
 				// この値はStockfish10では20に変更された。
 				delta = Value(PARAM_ASPIRATION_SEARCH_DELTA);
 
-				alpha = std::max(rootMoves[pvIdx].previousScore - delta, -VALUE_INFINITE);
-				beta  = std::min(rootMoves[pvIdx].previousScore + delta,  VALUE_INFINITE);
+				alpha = std::max(previousScore - delta, -VALUE_INFINITE);
+				beta = std::min(previousScore + delta, VALUE_INFINITE);
+
 				//				// Adjust contempt based on root move's previousScore (dynamic contempt)
 				//				int dct = ct + 88 * previousScore / (abs(previousScore) + 200);
 				//
 				//				contempt = (us == WHITE ? make_score(dct, dct / 2)
 			}
 
+			// 小さなaspiration windowで開始して、fail high/lowのときに、fail high/lowにならないようになるまで
+			// 大きなwindowで再探索する。
+
+			// fail highした回数
+			// fail highした回数分だけ探索depthを下げてやるほうが強いらしい。
+			int failedHighCnt = 0;
+
 			while (true)
 			{
-				bestValue = ::search<PV>(rootPos, ss, alpha, beta, rootDepth, false, false);
+				// fail highするごとにdepthを下げていく処理
+				Depth adjustedDepth = std::max(ONE_PLY, rootDepth - failedHighCnt * ONE_PLY);
+				bestValue = ::search<PV>(rootPos, ss, alpha, beta, adjustedDepth, false, false);
 
 				// それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
 				// 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
@@ -936,18 +893,25 @@ void Thread::search()
 					beta = (alpha + beta) / 2;
 					alpha = std::max(bestValue - delta, -VALUE_INFINITE);
 
+					failedHighCnt = 0;
 					// fail lowを起こしていて、いま探索を中断するのは危険。
 					if (mainThread)
-						mainThread->failedLow = true;
+					{
+						//	mainThread->stopOnPonderhit = false;
+						// →　探索終了時刻が確定していてもこの場合、延長できるなら延長したい気はするが…。
+					}
 
 				}
 				else if (bestValue >= beta)
+				{
 					// fails high
 
 					// このときalphaは動かさないほうが良いらしい。
 					// cf. Simplify aspiration window : https://github.com/official-stockfish/Stockfish/commit/a6ae2d3a31e93000e65bdfd8f0b6d9a3e6b8ce1b
 					beta = std::min(bestValue + delta, VALUE_INFINITE);
 
+					++failedHighCnt;
+				}
 				else
 					// 正常な探索結果なのでこれにてaspiration window searchは終了
 					break;
@@ -995,6 +959,11 @@ void Thread::search()
 		  // ここでこの反復深化の1回分は終了したのでcompletedDepthに反映させておく。
 		if (!Threads.stop)
 			completedDepth = rootDepth;
+
+		if (rootMoves[0].pv[0] != lastBestMove) {
+			lastBestMove = rootMoves[0].pv[0];
+			lastBestMoveDepth = rootDepth;
+		}
 
 		if (!mainThread)
 			continue;
@@ -1051,35 +1020,29 @@ void Thread::search()
 			// まだ停止が確定していない
 			if (!Threads.stop && Time.search_end == 0)
 			{
-
 				// 1つしか合法手がない(one reply)であるだとか、利用できる時間を使いきっているだとか、
-				// easyMoveに合致しただとか…。
-				const int F[] = { mainThread->failedLow,
-								  bestValue - mainThread->previousScore };
 
-				int improvingFactor = std::max(229, std::min(715, 357 + 119 * F[0] - 6 * F[1]));
-				double unstablePvFactor = 1 + mainThread->bestMoveChanges;
+				double fallingEval = (314 + 9 * (mainThread->previousScore - bestValue)) / 581.0;
+				fallingEval = Math::clamp(fallingEval , 0.5 , 1.5);
 
-				auto elapsed = Time.elapsed();
+				// If the bestMove is stable over several iterations, reduce time accordingly
+				timeReduction = lastBestMoveDepth + 10 * ONE_PLY < completedDepth ? 1.95 : 1.0;
+				double reduction = std::pow(mainThread->previousTimeReduction, 0.528) / timeReduction;
 
-				bool doEasyMove = rootMoves[0].pv[0] == easyMove
-					&& mainThread->bestMoveChanges < 0.03
-					&& elapsed > Time.optimum() * 5 / 44;
+				// Use part of the gained time from a previous stable move for the current move
+				for (Thread* th : Threads)
+				{
+					totBestMoveChanges += th->bestMoveChanges;
+					th->bestMoveChanges = 0;
+				}
 
-#if 0
-				// デバッグのため、各変数の値を出力してみる。
-				std::cout << "elapsed = " << elapsed
-						<< " , Time.optimum() " << Time.optimum()
-						<< " , doEasyMove = " << doEasyMove
-						<< " , untablePvFactor" << unstablePvFactor
-						<< " , improvingFactor = " << improvingFactor << std::endl;
-#endif
+				double bestMoveInstability = 1 + totBestMoveChanges / Threads.size();
 
 				// bestMoveが何度も変更になっているならunstablePvFactorが大きくなる。
 				// failLowが起きてなかったり、1つ前の反復深化から値がよくなってたりするとimprovingFactorが小さくなる。
+				// Stop the search if we have only one legal move, or if available time elapsed
 				if (rootMoves.size() == 1
-					|| elapsed > Time.optimum() * unstablePvFactor * improvingFactor / 628
-					|| (mainThread->easyMovePlayed = doEasyMove, doEasyMove))
+					|| Time.elapsed() > Time.optimum() * fallingEval * reduction * bestMoveInstability)
 				{
 					// 停止条件を満たした
 
@@ -1087,7 +1050,7 @@ void Thread::search()
 					// 思考を継続したほうが得なので、思考自体は継続して、キリの良い時間になったらcheck_time()にて停止する。
 
 					// ponder中なら、終了時刻はponderhit後から計算して、Time.minimum()。
-					if (Threads.main()->ponder)
+					if (mainThread->ponder)
 						Time.search_end = Time.minimum();
 					else
 					{
@@ -1098,13 +1061,6 @@ void Thread::search()
 					}
 				}
 			}
-
-			// pvが3手以上あるならEasyMoveに記録しておく。
-			// 前回の3手目までのPVから変化があったかどうかを計測する。
-			if (rootMoves[0].pv.size() >= 3)
-				EasyMove.update(rootPos, rootMoves[0].pv);
-			else
-				EasyMove.clear();
 		}
 
 	} // iterative deeping
@@ -1112,11 +1068,7 @@ void Thread::search()
 	if (!mainThread)
 		return;
 
-	// 最後の反復深化のiterationにおいて、easy moveの候補が安定していないならクリアしてしまう。
-	// ifの2つ目の条件は連続したeasy moveを行わないようにするためのもの。
-	// (どんどんeasy moveで局面が進むといずれわずかにしか読んでいない指し手を指してしまうため。)
-	if (EasyMove.stableCnt < 6 || mainThread->easyMovePlayed)
-		EasyMove.clear();
+	mainThread->previousTimeReduction = timeReduction;
 
 	// もしSkillLevelが有効なら、最善応手列を準最適なそれと入れ替える。
 	if (skill.enabled())
@@ -1201,7 +1153,7 @@ namespace {
 		// move					: MovePickerから1手ずつもらうときの一時変数
 		// excludedMove			: singular extemsionのときに除外する指し手
 		// bestMove				: このnodeのbest move
-		Move ttMove , move , excludedMove , bestMove;
+		Move ttMove, move, excludedMove, bestMove;
 
 		// extension			: 延長する深さ
 		// newDepth				: 新しいdepth(残り探索深さ)
@@ -1211,6 +1163,7 @@ namespace {
 		// value				: 探索スコアを受け取る一時変数
 		// ttValue				: 置換表上のスコア
 		// eval					: このnodeの静的評価値(の見積り)
+		// maxValue             : table base probeに用いる。将棋だと関係ない。
 		Value bestValue, value, ttValue, eval /*, maxValue */;
 
 		// ttHit				: 置換表がhitしたか
@@ -1249,7 +1202,7 @@ namespace {
 		inCheck = pos.checkers();
 		moveCount = captureCount = quietCount = ss->moveCount = 0;
 		bestValue = -VALUE_INFINITE;
-//		maxValue = VALUE_INFINITE;
+		//	maxValue = VALUE_INFINITE;
 
 		//  Timerの監視
 
@@ -1536,8 +1489,7 @@ namespace {
 
 			ss->staticEval = eval = VALUE_NONE;
 			improving = false;
-			goto moves_loop;
-
+			goto moves_loop; // 王手がかかっているときは、early pruning(早期枝刈り)を実施しない。
 		}
 		else if (ttHit)
 		{
@@ -1940,6 +1892,25 @@ namespace {
 					&&  pos.see_ge(move))
 				extension = ONE_PLY;
 #endif
+
+			// Castling延長など(将棋にはキャスリングルールはないので関係ない)
+
+			//// Castling extension
+			//else if (type_of(move) == CASTLING)
+			//	extension = ONE_PLY;
+
+			//// Shuffle extension
+			//else if (PvNode
+			//	&& pos.rule50_count() > 18
+			//	&& depth < 3 * ONE_PLY
+			//	&& ss->ply < 3 * thisThread->rootDepth / ONE_PLY) // To avoid too deep searches
+			//	extension = ONE_PLY;
+
+			////Passed pawn extension
+			//else if (move == ss->killers[0]
+			//	&& pos.advanced_pawn_push(move)
+			//	&& pos.pawn_passed(us, to_sq(move)))
+			//	extension = ONE_PLY;
 
 			// -----------------------
 			//   1手進める前の枝刈り
@@ -2950,7 +2921,7 @@ namespace {
 
 		// RootMovesはすでにscoreで降順にソートされている。
 		Value topScore = rootMoves[0].score;
-		int delta = std::min(topScore - rootMoves[multiPV - 1].score , (Value)PawnValue);
+		int delta = std::min(topScore - rootMoves[multiPV - 1].score, (Value)PawnValue);
 		int weakness = 120 - 2 * level;
 		int maxScore = -VALUE_INFINITE;
 
@@ -3020,9 +2991,10 @@ void MainThread::check_time()
 	// (それまではTime.search_endはゼロであり、これは終了予定時刻が未確定であることを示している。)
 	// ※　前半部分、やねうら王、独自実装。
 	if ((Limits.use_time_management() &&
-		(elapsed > Time.maximum() || (Time.search_end > 0 && elapsed > Time.search_end )))
+		(elapsed > Time.maximum() || (Time.search_end > 0 && elapsed > Time.search_end)))
 		|| (Limits.movetime && elapsed >= Limits.movetime)
-		|| (Limits.nodes && Threads.nodes_searched() >= (uint64_t)Limits.nodes))
+		|| (Limits.nodes && Threads.nodes_searched() >= (uint64_t)Limits.nodes)
+		)
 		Threads.stop = true;
 }
 
@@ -3453,22 +3425,32 @@ namespace Learner
 				}
 
 				// aspiration search
+				int failedHighCnt = 0;
 				while (true)
 				{
-					bestValue = ::search<PV>(pos, ss, alpha, beta, rootDepth, false , false);
+					Depth adjustedDepth = std::max(ONE_PLY, rootDepth - failedHighCnt * ONE_PLY);
+					bestValue = ::search<PV>(pos, ss, alpha, beta, adjustedDepth, false, false);
 
 					stable_sort(rootMoves.begin() + pvIdx, rootMoves.end());
 					//my_stable_sort(pos.this_thread()->thread_id(),&rootMoves[0] + pvIdx, rootMoves.size() - pvIdx);
 
 					// fail low/highに対してaspiration windowを広げる。
 					// ただし、引数で指定されていた値になっていたら、もうfail low/high扱いとしてbreakする。
-					if (bestValue <= alpha )
+					if (bestValue <= alpha)
 					{
 						beta = (alpha + beta) / 2;
 						alpha = std::max(bestValue - delta, -VALUE_INFINITE);
+
+						failedHighCnt = 0;
+						//if (mainThread)
+						//    mainThread->stopOnPonderhit = false;
+
 					}
 					else if (bestValue >= beta)
+					{
 						beta = std::min(bestValue + delta, VALUE_INFINITE);
+						++failedHighCnt;
+					}
 					else
 						break;
 
