@@ -244,7 +244,14 @@ void load_eval() {
     const std::string file_name = Path::Combine(dir_name, NNUE::kFileName);
     std::ifstream stream(file_name, std::ios::binary);
     const bool result = NNUE::ReadParameters(stream);
-    ASSERT(result);
+
+//    ASSERT(result);
+	if (!result)
+	{
+		// 読み込みエラーのとき終了してくれないと困る。
+		std::cout << "Error! : failed to read " << NNUE::kFileName << std::endl;
+		my_exit();
+	}
   }
 }
 

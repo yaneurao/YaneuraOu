@@ -54,6 +54,7 @@
 #include <iomanip>
 #include <list>
 #include <cmath>	// std::exp(),std::pow(),std::log()
+#include <cstring>	// memcpy()
 
 #if defined (_OPENMP)
 #include <omp.h>

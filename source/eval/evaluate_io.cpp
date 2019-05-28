@@ -3,6 +3,7 @@
 #include "../usi.h"
 
 #include <fstream>
+#include <cstring>	// memset()
 
 namespace EvalIO
 {

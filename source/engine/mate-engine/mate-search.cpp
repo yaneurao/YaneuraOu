@@ -526,7 +526,7 @@ namespace MateEngine
 			//   thpn child = thpn - pn(n) + pn(n1);
 			//   thdn child = min(thdn, dn(n2) + 1);
 			// }
-			Move best_move;
+			Move best_move = MOVE_NONE; // gccで初期化していないという警告がでるのでその回避
 			int thpn_child;
 			int thdn_child;
 			if (or_node) {

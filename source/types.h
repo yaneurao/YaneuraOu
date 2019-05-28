@@ -19,6 +19,7 @@
 #include <iostream>     // iostreamに対する<<使うので仕方ない
 #include <string>       // std::string使うので仕方ない
 #include <algorithm>    // std::max()を使うので仕方ない
+#include <climits>		// INT_MAXがこのheaderで必要なので仕方ない
 
 // --------------------
 //      手番
