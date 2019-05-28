@@ -1079,6 +1079,9 @@ namespace {
 		// root nodeであるか
 		const bool rootNode = PvNode && ss->ply == 0;
 
+		// この局面から数手前の局面に到達させる指し手があるなら、それによって千日手になるので
+		// このnodeで千日手スコアを即座に返すことで早期枝刈りを実施することができるらしい。
+		
 		//	// Check if we have an upcoming move which draws by repetition, or
 		//	// if the opponent had an alternative move earlier to this position.
 		//	if (pos.rule50_count() >= 3
