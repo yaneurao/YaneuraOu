@@ -87,8 +87,7 @@ struct StateInfo
 	// この局面での評価関数の駒割
 	Value materialValue;
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || \
-	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_EXPERIMENTAL) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 
 	// 評価値。(次の局面で評価値を差分計算するときに用いる)
 	// まだ計算されていなければsum.p[2][0]の値はINT_MAX
@@ -103,13 +102,6 @@ struct StateInfo
 #if defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT)
 	// 評価関数で用いる、前回のencoded_eval_kkを保存しておく。
 	int encoded_eval_kk;
-#endif
-
-	// 作業用のwork
-	// do_move()のときに前nodeからコピーされる。
-	// undo_move()のとき自動的に破棄される。
-#if defined(EVAL_NABLA)
-	u16 nabla_work[6];
 #endif
 
 #if defined(USE_FV38) || defined(USE_FV_VAR)
@@ -311,15 +303,19 @@ public:
 	// 現局面で王手している駒
 	Bitboard checkers() const { return st->checkersBB; }
 
-	// 移動させると(相手側＝非手番側)の玉に対して空き王手となる候補の(手番側)駒のbitboard。
-	Bitboard discovered_check_candidates() const { return st->blockersForKing[~sideToMove] & pieces(sideToMove); }
-
-	// ピンされているc側の駒。下手な方向に移動させるとc側の玉が素抜かれる。
-	// 手番側のpinされている駒はpos.pinned_pieces(pos.side_to_move())のようにして取得できる。
-	Bitboard pinned_pieces(Color c) const { ASSERT_LV3(is_ok(c)); return st->blockersForKing[c] & pieces(c); }
+	// c側の玉に対してpinしている駒(その駒をc側の玉との直線上から動かしたときにc側の玉に王手となる)
+	Bitboard blockers_for_king(Color c) const { return st->blockersForKing[c]; }
 
 	// 現局面で駒Ptを動かしたときに王手となる升を表現するBitboard
 	Bitboard check_squares(Piece pt) const { ASSERT_LV3(pt!= NO_PIECE && pt < PIECE_WHITE); return st->checkSquares[pt]; }
+
+	// 以下の2つは後方互換性のために残してある。わりと便利なような？
+
+	// 移動させると(相手側＝非手番側)の玉に対して空き王手となる候補の(手番側)駒のbitboard。
+	Bitboard discovered_check_candidates() const { return blockers_for_king(~sideToMove) & pieces(sideToMove); }
+
+	// ピンされているc側の駒。下手な方向に移動させるとc側の玉が素抜かれる。
+	Bitboard pinned_pieces(Color c) const { return blockers_for_king(c) & pieces(c); }
 
 	// --- 利き
 
@@ -388,24 +384,7 @@ public:
 	// ※　連続王手の千日手などについては探索の問題なのでこの関数のなかでは行わない。
 	// ※　それ以上のテストは行わないので、置換表から取ってきた指し手などについては、
 	// pseudo_legal()を用いて、そのあとこの関数で判定すること。
-	bool legal(Move m) const
-	{
-		if (is_drop(m))
-			// 打ち歩詰めは指し手生成で除外されている。
-			return true;
-		else
-		{
-			Color us = sideToMove;
-			Square from = move_from(m);
-
-			// もし移動させる駒が玉であるなら、行き先の升に相手側の利きがないかをチェックする。
-			if (type_of(piece_on(from)) == KING)
-				return !effected_to(~us, move_to(m), from);
-
-			return   !(pinned_pieces(us) & from)
-				|| aligned(from, to_sq(m), square<KING>(us));
-		}
-	}
+	bool legal(Move m) const;
 
 	// mがpseudo_legalな指し手であるかを判定する。
 	// ※　pseudo_legalとは、擬似合法手(自殺手が含まれていて良い)

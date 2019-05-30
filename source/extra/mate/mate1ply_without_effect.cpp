@@ -699,7 +699,7 @@ Move is_mate_in_1ply_imp(const Position& pos)
 	Color them = ~Us;
 	Square sq_king = pos.king_square(them);
 
-	// 王側のpinされている駒の列挙(王側は、この駒を動かすと素抜きに遭う)
+	// 相手玉側のpinされている駒の列挙(相手玉側は、この駒を動かすと素抜きに遭う)
 	Bitboard pinned = pos.pinned_pieces(them);
 
 	Square from, to;
