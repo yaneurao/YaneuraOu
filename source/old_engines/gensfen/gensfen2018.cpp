@@ -1,8 +1,8 @@
-//
-// �J�����̋��t�ǖʂ̎�������
+﻿//
+// 開発中の教師局面の自動生成
 //
 
-// ���݂̕]���֐��ŁA�Ȃ�ׂ������m���̍��������I�ȋǖʂł��A�`�����݊p�ɋ߂��ǖʂ����t�����̊J�n�ǖʂƂ��ėp����B
+// 現在の評価関数で、なるべく実現確率の高い現実的な局面でかつ、形勢が互角に近い局面を教師生成の開始局面として用いる。
 
 
 #include "../shogi.h"
@@ -15,28 +15,28 @@ using namespace std;
 namespace Learner {
 
 	// -----------------------------------
-	//  �����𐶐�����worker(�X���b�h����)
+	//  棋譜を生成するworker(スレッドごと)
 	// -----------------------------------
 //	const static int GENSFEN_MULTI_PV = 24; // 1)
 	const static int GENSFEN_MULTI_PV = 8;  // 2)
 
-	// �K��ς�node�Ɋւ�������L�^���Ă����\���́B
-	// ����node�ŁAMultiPV�ŒT�������Ƃ��̂悳���Ȏw������8����L�^���Ă����B
+	// 訪問済みnodeに関する情報を記録しておく構造体。
+	// このnodeで、MultiPVで探索したときのよさげな指し手上位8手を記録しておく。
 	struct NodeInfo
 	{
-		u16 moves[GENSFEN_MULTI_PV];	// �w����(�ő�8��)
-		u32 length;						// �w���肪���肠�邩�B
-		s32 game_ply;					// game ply���قȂ�Ȃ�z���Ă�̂����m��Ȃ��̂œK�p���Ȃ��B
-		u64 key;						// �ǖʂ�hash key  
+		u16 moves[GENSFEN_MULTI_PV];	// 指し手(最大8手)
+		u32 length;						// 指し手が何手あるか。
+		s32 game_ply;					// game plyが異なるなら循環してるのかも知れないので適用しない。
+		u64 key;						// 局面のhash key
 		// 1) = 48+4+4+8 = 64bytes
 		// 2) = 16+4+4+8 = 32bytes
 	};
 
-	// �����X���b�h��sfen�𐶐����邽�߂̃N���X
+	// 複数スレッドでsfenを生成するためのクラス
 	struct MultiThinkGenSfen2018 : public MultiThink
 	{
-		// hash_size : NodeInfo���i�[���邽�߂�hash size���w�肷��B�P�ʂ�[MB]�B
-		// �������ɗ]�T������Ȃ�傫�߂̒l���w�肷��̂��D�܂����B
+		// hash_size : NodeInfoを格納するためのhash sizeを指定する。単位は[MB]。
+		// メモリに余裕があるなら大きめの値を指定するのが好ましい。
 		MultiThinkGenSfen2018(int search_depth_, int search_depth2_, SfenWriter& sw_ , u64 hash_size)
 			: search_depth(search_depth_), search_depth2(search_depth2_), sw(sw_)
 		{
@@ -45,37 +45,37 @@ namespace Learner {
 			node_info_size = (hash_size * (u64)1024 * (u64)1024) / (u64)sizeof(NodeInfo);
 			node_info_hash.resize(node_info_size);
 
-			// PC����񉻂���gensfen����Ƃ��ɓ�������seed�������Ă��Ȃ����m�F�p�̏o�́B
+			// PCを並列化してgensfenするときに同じ乱数seedを引いていないか確認用の出力。
 			std::cout << endl << prng << std::endl;
 		}
 
 		virtual void thread_worker(size_t thread_id);
 		void start_file_write_worker() { sw.start_file_write_worker(); }
 
-		//  search_depth = �ʏ�T���̒T���[��
+		//  search_depth = 通常探索の探索深さ
 		int search_depth;
 		int search_depth2;
 
-		// ��������ǖʂ̕]���l�̏��
+		// 生成する局面の評価値の上限
 		int eval_limit;
 
-		// �����o���ǖʂ�ply(�����ǖʂ���̎萔)�̍ŏ��A�ő�B
+		// 書き出す局面のply(初期局面からの手数)の最小、最大。
 		int write_minply;
 		int write_maxply;
 
-		// sfen�̏����o����
+		// sfenの書き出し器
 		SfenWriter& sw;
 
-		// ����ǖʂ̏����o���𐧌����邽�߂�hash
-		// hash_index�����߂邽�߂�mask�Ɏg���̂ŁA2**N�łȂ���΂Ȃ�Ȃ��B
+		// 同一局面の書き出しを制限するためのhash
+		// hash_indexを求めるためのmaskに使うので、2**Nでなければならない。
 		vector<NodeInfo> node_info_hash;
 		u64 node_info_size;
 
-		// node_info_hash��node���������o������(��������)
+		// node_info_hashにnode情報を書き出した回数(ざっくり)
 		atomic<u64> node_info_count;
 
-		// ����ǖʂ̏����o���𐧌����邽�߂�hash
-		// hash_index�����߂邽�߂�mask�Ɏg���̂ŁA2**N�łȂ���΂Ȃ�Ȃ��B
+		// 同一局面の書き出しを制限するためのhash
+		// hash_indexを求めるためのmaskに使うので、2**Nでなければならない。
 		static const u64 GENSFEN_HASH_SIZE = 64 * 1024 * 1024;
 
 		vector<Key> hash; // 64MB*sizeof(HASH_KEY) = 512MB
@@ -84,69 +84,69 @@ namespace Learner {
 	//  thread_id    = 0..Threads.size()-1
 	void MultiThinkGenSfen2018::thread_worker(size_t thread_id)
 	{
-		// �Ƃ肠�����A�����o���萔�̍ő�̂Ƃ���ň������������ɂȂ���̂Ƃ���B
+		// とりあえず、書き出す手数の最大のところで引き分け扱いになるものとする。
 		const int MAX_PLY2 = write_maxply;
 
-		// StateInfo���ő�萔�� + Search��PV��leaf�ɂ܂Ői�߂�buffer
-		std::vector<StateInfo, AlignedAllocator<StateInfo>> states(MAX_PLY2 + 50 /* == search_depth + �� */);
+		// StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
+		std::vector<StateInfo, AlignedAllocator<StateInfo>> states(MAX_PLY2 + 50 /* == search_depth + α */);
 		StateInfo si;
 
-		// ����̎w����B���̎w����ŋǖʂ�i�߂�B
+		// 今回の指し手。この指し手で局面を進める。
 		Move m = MOVE_NONE;
 
-		// �I���t���O
+		// 終了フラグ
 		bool quit = false;
 
-		// �K��񐔉�ɂȂ�܂ŌJ��Ԃ�
+		// 規定回数回になるまで繰り返し
 		while (!quit)
 		{
-			// Position�ɑ΂��ď]���X���b�h�̐ݒ肪�K�v�B
-			// ���񉻂���Ƃ��́AThreads (���ꂪ���̂� vector<Thread*>�Ȃ̂ŁA
-			// Threads[0]...Threads[thread_num-1]�܂łɑ΂��ē����悤�ɂ���Ηǂ��B
+			// Positionに対して従属スレッドの設定が必要。
+			// 並列化するときは、Threads (これが実体が vector<Thread*>なので、
+			// Threads[0]...Threads[thread_num-1]までに対して同じようにすれば良い。
 			auto th = Threads[thread_id];
 
 			auto& pos = th->rootPos;
 			pos.set_hirate(&si, th);
 
-			// 1�Ǖ��̋ǖʂ�ۑ����Ă����A�I�ǂ̂Ƃ��ɏ��s���܂߂ď����o���B
-			// �����o���֐��́A���̉��ɂ���flush_psv()�ł���B
+			// 1局分の局面を保存しておき、終局のときに勝敗を含めて書き出す。
+			// 書き出す関数は、この下にあるflush_psv()である。
 			PSVector a_psv;
 			a_psv.reserve(MAX_PLY2 + 50);
 
-			// a_psv�ɐς܂�Ă���ǖʂ��t�@�C���ɏ����o���B
-			// lastTurnIsWin : a_psv�ɐς܂�Ă���ŏI�ǖʂ̎��̋ǖʂł̏��s
-			// �����̂Ƃ���1�B�����̂Ƃ���-1�B���������̂Ƃ���0��n���B
-			// �Ԃ��l : �����K��ǖʐ��ɒB�����̂ŏI������ꍇ��true�B
+			// a_psvに積まれている局面をファイルに書き出す。
+			// lastTurnIsWin : a_psvに積まれている最終局面の次の局面での勝敗
+			// 勝ちのときは1。負けのときは-1。引き分けのときは0を渡す。
+			// 返し値 : もう規定局面数に達したので終了する場合にtrue。
 			auto flush_psv = [&](s8 lastTurnIsWin)
 			{
 				s8 isWin = lastTurnIsWin;
 
-				// �I�ǂ̋ǖ�(�̈�O)���珉��Ɍ����āA�e�ǖʂɊւ��āA�΋ǂ̏��s�̏���t�^���Ă����B
-				// a_psv�ɕۑ�����Ă���ǖʂ�(��ԓI��)�A�����Ă�����̂Ƃ���B
+				// 終局の局面(の一つ前)から初手に向けて、各局面に関して、対局の勝敗の情報を付与しておく。
+				// a_psvに保存されている局面は(手番的に)連続しているものとする。
 				for (auto it = a_psv.rbegin(); it != a_psv.rend(); ++it)
 				{
-					// isWin == 0(��������)�Ȃ� -1���|���Ă� 0(��������)�̂܂�
+					// isWin == 0(引き分け)なら -1を掛けても 0(引き分け)のまま
 					isWin = -isWin;
 					it->game_result = isWin;
 
-					// �ǖʂ������o�����Ǝv������K��񐔂ɒB���Ă����B
-					// get_next_loop_count()���ŃJ�E���^�[�����Z����̂�
-					// �ǖʂ��o�͂����Ƃ��ɂ�����Ăяo���Ȃ��ƃJ�E���^�[�������B
+					// 局面を書き出そうと思ったら規定回数に達していた。
+					// get_next_loop_count()内でカウンターを加算するので
+					// 局面を出力したときにこれを呼び出さないとカウンターが狂う。
 					auto loop_count = get_next_loop_count();
 					if (loop_count == UINT64_MAX)
 					{
-						// �I���t���O�𗧂ĂĂ����B
+						// 終了フラグを立てておく。
 						quit = true;
 						return;
 					}
 
-					// 2�̗ݏ�ł���Ȃ�node_info_count�̐����o�́B
+					// 2の累乗であるならnode_info_countの数を出力。
 					if (POPCNT64(loop_count) == 1)
 					{
 						sync_cout << endl << "loop_count = " << loop_count << " , node_info_count = " << node_info_count << sync_endl;
 
 #if 0
-						// 1�`32��ڂ܂ł�node���ǂꂭ�炢�i�[����Ă��邩�o�͂���B
+						// 1～32手目までのnodeがどれくらい格納されているか出力する。
 						for (int i = 1; i <= 32; ++i)
 						{
 							u64 c = 0;
@@ -159,7 +159,7 @@ namespace Learner {
 #endif
 					}
 
-					// �ǖʂ�������o���B
+					// 局面を一つ書き出す。
 					sw.write(thread_id, *it);
 
 #if 0
@@ -169,75 +169,75 @@ namespace Learner {
 				}
 			};
 
-			// node_info_hash�𒲂ׂ�̂��̃t���O
-			// �����ǖʂ���Anode_info_hash��hit�����������͒��ׂ�B
+			// node_info_hashを調べるのかのフラグ
+			// 初期局面から、node_info_hashにhitし続ける限りは調べる。
 			bool opening = true;
 
-			// ply : �����ǖʂ���̎萔
+			// ply : 初期局面からの手数
 			for (int ply = 0; ply < MAX_PLY2; ++ply)
 			{
 				//cout << pos << endl;
 
-				// ����̒T��depth
-				// goto�Ŕ�Ԃ̂Ő�ɐ錾���Ă����B
+				// 今回の探索depth
+				// gotoで飛ぶので先に宣言しておく。
 				int depth = search_depth + (int)prng.rand(search_depth2 - search_depth + 1);
 
-				// �S���ċl��ł����肵�Ȃ����H
+				// 全駒されて詰んでいたりしないか？
 				if (pos.is_mated())
 				{
-					// (���̋ǖʂ̈�O�̋ǖʂ܂ł͏����o��)
+					// (この局面の一つ前の局面までは書き出す)
 					flush_psv(-1);
 					break;
 				}
 
-				// �錾����
+				// 宣言勝ち
 				if (pos.DeclarationWin() != MOVE_NONE)
 				{
-					// (���̋ǖʂ̈�O�̋ǖʂ܂ł͏����o��)
+					// (この局面の一つ前の局面までは書き出す)
 					flush_psv(1);
 					break;
 				}
 
-				// �K��ς�node�ł���Ȃ�A���̂Ȃ����烉���_���Ɉ�w�����I�сA�i�߂�B
+				// 訪問済みnodeであるなら、そのなかからランダムに一つ指し手を選び、進める。
 				if (opening)
 				{
 					auto key = pos.key();
 					auto hash_index = (size_t)(key & (node_info_size - 1));
 					auto& entry = node_info_hash[hash_index];
 
-					// ����node�Ƌǖʂ�hash key���҂������v�����Ȃ�..
+					// このnodeと局面のhash keyがぴったり一致したなら..
 					if (key == entry.key)
 					{
-						// �ǖʁA�����炭�z��������Ă�̂ŏI���B
+						// 局面、おそらく循環しちゃってるので終了。
 						if (pos.game_ply() > entry.game_ply)
 							break;
 
 						const int length = entry.length;
 						if (length)
 						{
-							// �O��MultiPV�ŒT�������Ƃ��̎w����̂����A�悳���Ȃ��̂������_���Ɏw�������I��
+							// 前回MultiPVで探索したときの指し手のうち、よさげなものをランダムに指し手を一つ選択
 							u16 move16 = entry.moves[prng.rand(length)];
 							if (move16)
 							{
 								m = pos.move16_to_move((Move)move16);
 								if (pos.pseudo_legal(m) && pos.legal(m))
 								{
-									// �w�����m�ɓ����Ă���̂ŁA�����do_move()���Ă��܂��B
+									// 指し手はmに入っているので、これでdo_move()してしまう。
 									goto DO_MOVE;
 								}
 							}
 						}
 					}
 
-					// �ǂ������̋ǖʗp�̏�񂪏������܂�Ă��Ȃ��悤�Ȃ̂ŁAMultiPV�ŒT�����Ă���Node�̏�����������ł��܂��B
+					// どうもこの局面用の情報が書き込まれていないようなので、MultiPVで探索してこのNodeの情報を書き込んでしまう。
 
-					// 32��ڈȍ~�ł���Ȃ�A����node����͕��ʂɑ΋ǃV�~�����[�V�������s�Ȃ��B
-					// node_info_hash�𒲂ׂ�K�v���Ȃ��B
+					// 32手目以降であるなら、次のnodeからは普通に対局シミュレーションを行なう。
+					// node_info_hashを調べる必要がない。
 					if (ply >= 32)
 						opening = false;
 
 					Learner::search(pos, depth, GENSFEN_MULTI_PV);
-					// rootMoves�̏��N��̂Ȃ������I��
+					// rootMovesの上位N手のなかから一つ選択
 
 					auto& rm = pos.this_thread()->rootMoves;
 
@@ -248,7 +248,7 @@ namespace Learner {
 					{
 						auto value = rm[i].score;
 
-						// �݊p����������Ȃ�w����͏��O�B(bestmove�����ꂾ�Ƃ�����A������������node�̒��O��node�����������̂����c)
+						// 互角から程遠くなる指し手は除外。(bestmoveがこれだとしたら、そもそもこのnodeの直前のnodeがおかしいのだが…)
 						if (value < -400 || 400 < value)
 							continue;
 
@@ -263,29 +263,29 @@ namespace Learner {
 						entry.key = key;
 						node_info_count.fetch_add(1, std::memory_order_relaxed);
 
-						// �����_����1��I��ł���Ői�߂�
+						// ランダムに1手選んでそれで進める
 						m = pos.move16_to_move((Move)moves[prng.rand(count)]);
 						ASSERT_LV3(pos.pseudo_legal(m) && pos.legal(m));
 
-						// �w�����m�ɓ����Ă���̂ŁA�����do_move()���Ă��܂��B
+						// 指し手はmに入っているので、これでdo_move()してしまう。
 						goto DO_MOVE;
 					}
 
-					// �݊p�̋ǖʂł͂Ȃ��̂ŏ��Ղ͔������Ƃ��������B
+					// 互角の局面ではないので序盤は抜けたという扱い。
 					opening = false;
 				}
 
-				// -- ���ʂɒT�����Ă��̎w����ŋǖʂ�i�߂�B
+				// -- 普通に探索してその指し手で局面を進める。
 
 				{
-					// �u���\�̐���J�E���^�[��i�߂Ă����Ȃ���
-					// �����ǖʎ��ӂ�hash�Փ˂���TTEntry�ɓ�����A�ςȕ]���l���E���Ă��āA
-					// eval_limit���Ⴂ�Ƃ���������ďI�����Ă��܂��̂ŁA���܂ł����t�ǖʂ���������Ȃ��Ȃ�B
-					// �u���\���̂́A�X���b�h���Ƃɕێ����Ă���̂ŁA������TT.new_search()���Ăяo���Ė��Ȃ��B
+					// 置換表の世代カウンターを進めておかないと
+					// 初期局面周辺でhash衝突したTTEntryに当たり、変な評価値を拾ってきて、
+					// eval_limitが低いとそれをもって終了してしまうので、いつまでも教師局面が生成されなくなる。
+					// 置換表自体は、スレッドごとに保持しているので、ここでTT.new_search()を呼び出して問題ない。
 
-					// �]���l�̐�Βl�����̒l�ȏ�̋ǖʂɂ��Ă�
-					// ���̋ǖʂ��w�K�Ɏg���̂͂��܂�Ӗ����Ȃ��̂ł��̎������I������B
-					// ����������ď��s�������Ƃ�������������B
+					// 評価値の絶対値がこの値以上の局面については
+					// その局面を学習に使うのはあまり意味がないのでこの試合を終了する。
+					// これをもって勝敗がついたという扱いをする。
 					TT.new_search();
 
 					auto pv_value1 = search(pos, depth);
@@ -293,31 +293,31 @@ namespace Learner {
 					auto value1 = pv_value1.first;
 					auto& pv1 = pv_value1.second;
 
-					// 1��l�߁A�錾�����Ȃ�΁A������mate_in(2)���Ԃ�̂�eval_limit�̏���l�Ɠ����l�ɂȂ�A
-					// ����if���͕K���^�ɂȂ�Bresign�ɂ��Ă����l�B
+					// 1手詰め、宣言勝ちならば、ここでmate_in(2)が返るのでeval_limitの上限値と同じ値になり、
+					// このif式は必ず真になる。resignについても同様。
 
 					if (abs(value1) >= eval_limit)
 					{
 						//					sync_cout << pos << "eval limit = " << eval_limit << " over , move = " << pv1[0] << sync_endl;
 
-						// ���̋ǖʂ�value1 >= eval_limit�Ȃ�΁A(���̋ǖʂ̎�ԑ���)�����ł���B
+						// この局面でvalue1 >= eval_limitならば、(この局面の手番側の)勝ちである。
 						flush_psv((value1 >= eval_limit) ? 1 : -1);
 						break;
 					}
 
-					// �������Ȏw����̌���
+					// おかしな指し手の検証
 					if (pv1.size() > 0
 						&& (pv1[0] == MOVE_RESIGN || pv1[0] == MOVE_WIN || pv1[0] == MOVE_NONE)
 						)
 					{
-						// MOVE_WIN�́A���̎�O�Ő錾�����̋ǖʂł��邩�`�F�b�N���Ă���̂�
-						// �����Ő錾�����̎w���肪�Ԃ��Ă��邱�Ƃ͂Ȃ��͂��B
-						// �܂��AMOVE_RESIGN�̂Ƃ�value1��1��l�߂̃X�R�A�ł���Aeval_limit�̍ŏ��l(-31998)�̂͂��Ȃ̂����c�B
+						// MOVE_WINは、この手前で宣言勝ちの局面であるかチェックしているので
+						// ここで宣言勝ちの指し手が返ってくることはないはず。
+						// また、MOVE_RESIGNのときvalue1は1手詰めのスコアであり、eval_limitの最小値(-31998)のはずなのだが…。
 						cout << "Error! : " << pos.sfen() << m << value1 << endl;
 						break;
 					}
 
-					// �e�����ɉ����������B
+					// 各千日手に応じた処理。
 
 					s8 is_win = 0;
 					bool game_end = false;
@@ -330,7 +330,7 @@ namespace Learner {
 
 						// case REPETITION_SUPERIOR: break;
 						// case REPETITION_INFERIOR: break;
-						// �����͈Ӗ�������̂Ŗ������ėǂ��B
+						// これらは意味があるので無視して良い。
 					default: break;
 					}
 
@@ -339,7 +339,7 @@ namespace Learner {
 						break;
 					}
 
-					// PV�̎w�����leaf node�܂Ői�߂āA����leaf node��evaluate()���Ăяo�����l��p����B
+					// PVの指し手でleaf nodeまで進めて、そのleaf nodeでevaluate()を呼び出した値を用いる。
 					auto evaluate_leaf = [&](Position& pos, vector<Move>& pv)
 					{
 						auto rootColor = pos.side_to_move();
@@ -347,14 +347,14 @@ namespace Learner {
 						int ply2 = ply;
 						for (auto m : pv)
 						{
-							// �f�o�b�O�p�̌��؂Ƃ��āA�r���ɔ񍇖@�肪���݂��Ȃ����Ƃ��m�F����B
-							// NULL_MOVE�͂��Ȃ����̂Ƃ���B
+							// デバッグ用の検証として、途中に非合法手が存在しないことを確認する。
+							// NULL_MOVEはこないものとする。
 
-							// �\���Ƀe�X�g�����̂ŃR�����g�A�E�g�ŗǂ��B
+							// 十分にテストしたのでコメントアウトで良い。
 #if 1
-						// �񍇖@��͂���Ă��Ȃ��͂��Ȃ̂����B
-						// �錾������mated()�łȂ����Ƃ͏�Ńe�X�g���Ă���̂�
-						// �ǂ݋؂Ƃ���MOVE_WIN��MOVE_RESIGN�����Ȃ����Ƃ͕ۏ؂���Ă���B(�͂������c)
+						// 非合法手はやってこないはずなのだが。
+						// 宣言勝ちとmated()でないことは上でテストしているので
+						// 読み筋としてMOVE_WINとMOVE_RESIGNが来ないことは保証されている。(はずだが…)
 							if (!pos.pseudo_legal(m) || !pos.legal(m))
 							{
 								cout << "Error! : " << pos.sfen() << m << endl;
@@ -362,23 +362,23 @@ namespace Learner {
 #endif
 							pos.do_move(m, states[ply2++]);
 
-							// ���m�[�hevaluate()���Ăяo���Ȃ��ƁAevaluate()�̍����v�Z���o���Ȃ��̂Œ��ӁI
-							// depth��8�ȏゾ�Ƃ��̍����v�Z�͂��Ȃ��ق��������Ǝv����B
+							// 毎ノードevaluate()を呼び出さないと、evaluate()の差分計算が出来ないので注意！
+							// depthが8以上だとこの差分計算はしないほうが速いと思われる。
 							if (depth < 8)
 								Eval::evaluate_with_no_return(pos);
 						}
 
-						// leaf�ɓ��B
+						// leafに到達
 						//      cout << pos;
 
 						auto v = Eval::evaluate(pos);
-						// evaluate()�͎�ԑ��̕]���l��Ԃ��̂ŁA
-						// root_color�ƈႤ��ԂȂ�Av�𔽓]�����ĕԂ��Ȃ��Ƃ����Ȃ��B
+						// evaluate()は手番側の評価値を返すので、
+						// root_colorと違う手番なら、vを反転させて返さないといけない。
 						if (rootColor != pos.side_to_move())
 							v = -v;
 
-						// �����߂��B
-						// C++x14�ɂ��Ȃ��āA���܂�reverse�ŉ�foreach����Ȃ��̂��c�B
+						// 巻き戻す。
+						// C++x14にもなって、いまだreverseで回すforeachすらないのか…。
 						//  for (auto it : boost::adaptors::reverse(pv))
 
 						for (auto it = pv.rbegin(); it != pv.rend(); ++it)
@@ -387,56 +387,56 @@ namespace Learner {
 						return v;
 					};
 
-					// depth 0�̏ꍇ�Apv�������Ă��Ȃ��̂�depth 2�ŒT�����Ȃ����B
+					// depth 0の場合、pvが得られていないのでdepth 2で探索しなおす。
 					if (search_depth <= 0)
 					{
 						pv_value1 = search(pos, 2);
 						pv1 = pv_value1.second;
 					}
 
-					// �����ǖʎ��ӂ͂͗ގ��ǖʂ΂���Ȃ̂�
-					// �w�K�ɗp����Ɖߊw�K�ɂȂ肩�˂Ȃ����珑���o���Ȃ��B
-					// ���@��r�������ׂ�
+					// 初期局面周辺はは類似局面ばかりなので
+					// 学習に用いると過学習になりかねないから書き出さない。
+					// →　比較実験すべき
 					if (ply < write_minply - 1)
 					{
 						a_psv.clear();
 						goto SKIP_SAVE;
 					}
 
-					// ����ǖʂ������o�����Ƃ��납�H
-					// ����A������PC�ŕ��񂵂Đ������Ă���Ɠ����ǖʂ��܂܂�邱�Ƃ�����̂�
-					// �ǂݍ��݂̂Ƃ��ɂ����l�̏����������ق����ǂ��B
+					// 同一局面を書き出したところか？
+					// これ、複数のPCで並列して生成していると同じ局面が含まれることがあるので
+					// 読み込みのときにも同様の処理をしたほうが良い。
 					{
 						auto key = pos.key();
 						auto hash_index = (size_t)(key & (GENSFEN_HASH_SIZE - 1));
 						auto key2 = hash[hash_index];
 						if (key == key2)
 						{
-							// �X�L�b�v����Ƃ��͂���ȑO�Ɋւ���
-							// ���s�̏�񂪂��������Ȃ�̂ŕۑ����Ă���ǖʂ��N���A����B
-							// �ǂ݂̂��Ahash�����v�������_�ł����ȑO�̋ǖʂ����v���Ă���\������������
-							// �����o�����l���Ȃ��B
+							// スキップするときはこれ以前に関する
+							// 勝敗の情報がおかしくなるので保存している局面をクリアする。
+							// どのみち、hashが合致した時点でそこ以前の局面も合致している可能性が高いから
+							// 書き出す価値がない。
 							a_psv.clear();
 							goto SKIP_SAVE;
 						}
-						hash[hash_index] = key; // �����key�ɓ���ւ��Ă����B
+						hash[hash_index] = key; // 今回のkeyに入れ替えておく。
 					}
 
-					// �ǖʂ̈ꎞ�ۑ��B
+					// 局面の一時保存。
 					{
 						a_psv.emplace_back(PackedSfenValue());
 						auto &psv = a_psv.back();
 
-						// pack��v������Ă���Ȃ�pack���ꂽsfen�Ƃ��̂Ƃ��̕]���l�������o���B
-						// �ŏI�I�ȏ����o���́A���s�����Ă���B
+						// packを要求されているならpackされたsfenとそのときの評価値を書き出す。
+						// 最終的な書き出しは、勝敗がついてから。
 						pos.sfen_pack(psv.sfen);
 
-						// PV line��leaf node�ł�root color���猩��evaluate()�̒l���擾�B
-						// search()�̕Ԃ��l�����̂܂܎g���̂Ƃ�������̂Ƃ̑P���͗ǂ��킩��Ȃ��B
+						// PV lineのleaf nodeでのroot colorから見たevaluate()の値を取得。
+						// search()の返し値をそのまま使うのとこうするのとの善悪は良くわからない。
 						psv.score = evaluate_leaf(pos, pv1);
 						psv.gamePly = ply;
 
-						// PV�̏�������o���B�����depth 0�łȂ�����͑��݂���͂��B
+						// PVの初手を取り出す。これはdepth 0でない限りは存在するはず。
 						ASSERT_LV3(pv_value1.second.size() >= 1);
 						Move pv_move1 = pv_value1.second[0];
 						psv.move = pv_move1;
@@ -444,19 +444,19 @@ namespace Learner {
 
 				SKIP_SAVE:;
 
-					// ���̂�PV�������Ȃ�����(�u���\�Ȃǂ�hit���ċl��ł����H)�̂Ŏ��̑΋ǂɍs���B
-					// ���Ȃ�̃��A�P�[�X�Ȃ̂Ŗ������ėǂ��Ǝv���B
+					// 何故かPVが得られなかった(置換表などにhitして詰んでいた？)ので次の対局に行く。
+					// かなりのレアケースなので無視して良いと思う。
 					if (pv1.size() == 0)
 						break;
 
-					// search_depth��ǂ݂̎w����ŋǖʂ�i�߂�B
+					// search_depth手読みの指し手で局面を進める。
 					m = pv1[0];
 				}
 
 			DO_MOVE:;
 				pos.do_move(m, states[ply]);
 
-				// �����v�Z���s�Ȃ����߂ɖ�node evaluate()���Ăяo���Ă����B
+				// 差分計算を行なうために毎node evaluate()を呼び出しておく。
 				Eval::evaluate_with_no_return(pos);
 
 			} // for (int ply = 0; ply < MAX_PLY2 ; ++ply)
@@ -467,46 +467,46 @@ namespace Learner {
 	}
 
 
-	// gensfen2018�R�}���h�{��
+	// gensfen2018コマンド本体
 	void gen_sfen2018(Position& pos, istringstream& is)
 	{
-		// �X���b�h��(����́AUSI��setoption�ŗ^������)
+		// スレッド数(これは、USIのsetoptionで与えられる)
 		u32 thread_num = (u32)Options["Threads"];
 
-		// ���������̌� default = 80���ǖ�(Ponanza�d�l)
+		// 生成棋譜の個数 default = 80億局面(Ponanza仕様)
 		u64 loop_max = 8000000000UL;
 
-		// �]���l�����̒l�ɂȂ����琶����ł��؂�B
+		// 評価値がこの値になったら生成を打ち切る。
 		int eval_limit = 3000;
 
-		// �T���[��
+		// 探索深さ
 		int search_depth = 3;
 		int search_depth2 = INT_MIN;
 
-		// �����o���ǖʂ�ply(�����ǖʂ���̎萔)�̍ŏ��A�ő�B
+		// 書き出す局面のply(初期局面からの手数)の最小、最大。
 		int write_minply = 16;
 		int write_maxply = 400;
 
-		// �����o���t�@�C����
+		// 書き出すファイル名
 		string output_file_name = "generated_kifu.bin";
 
-		// NodeInfo�̂��߂�hash size
-		// �P�ʂ�[MB] 2�̗ݏ�ł��邱�ƁB
+		// NodeInfoのためのhash size
+		// 単位は[MB] 2の累乗であること。
 		u64 node_info_hash_size = 2 * 1024; // 2GB
 
 		string token;
 
-		// eval hash��hit����Ə����ǖʕt�߂̕]���l�Ƃ��āAhash�Փ˂��đ傫�Ȓl���������܂�Ă��܂���
-		// eval_limit���������ݒ肳��Ă���Ƃ��ɏ����ǖʂŖ���eval_limit�𒴂��Ă��܂��ǖʂ̐������i�܂Ȃ��Ȃ�B
-		// ���̂��߁Aeval hash�͖���������K�v������B
-		// ����eval hash��hash�Փ˂����Ƃ��ɁA�ςȒl�̕]���l���g���A��������t�Ɏg���̂��C���������Ƃ����̂�����B
+		// eval hashにhitすると初期局面付近の評価値として、hash衝突して大きな値を書き込まれてしまうと
+		// eval_limitが小さく設定されているときに初期局面で毎回eval_limitを超えてしまい局面の生成が進まなくなる。
+		// そのため、eval hashは無効化する必要がある。
+		// あとeval hashのhash衝突したときに、変な値の評価値が使われ、それを教師に使うのが気分が悪いというのもある。
 		bool use_eval_hash = false;
 
-		// ���̒P�ʂŃt�@�C���ɕۑ�����B
-		// �t�@�C������ file_1.bin , file_2.bin�̂悤�ɘA�Ԃ����B
+		// この単位でファイルに保存する。
+		// ファイル名は file_1.bin , file_2.binのように連番がつく。
 		u64 save_every = UINT64_MAX;
 
-		// �t�@�C�����̖����Ƀ����_���Ȑ��l��t�^����B
+		// ファイル名の末尾にランダムな数値を付与する。
 		bool random_file_name = false;
 
 		while (true)
@@ -527,7 +527,7 @@ namespace Learner {
 			else if (token == "eval_limit")
 			{
 				is >> eval_limit;
-				// �ő�l��1��l�݂̃X�R�A�ɐ�������B(�������Ȃ��ƃ��[�v���I�����Ȃ��\��������̂�)
+				// 最大値を1手詰みのスコアに制限する。(そうしないとループを終了しない可能性があるので)
 				eval_limit = std::min(eval_limit, (int)mate_in(2));
 			}
 			else if (token == "write_minply")
@@ -547,20 +547,20 @@ namespace Learner {
 		}
 
 #if defined(USE_GLOBAL_OPTIONS)
-		// ���Ƃŕ������邽�߂ɕۑ����Ă����B
+		// あとで復元するために保存しておく。
 		auto oldGlobalOptions = GlobalOptions;
 		GlobalOptions.use_eval_hash = use_eval_hash;
 #endif
 
-		// search depth2���ݒ肳��Ă��Ȃ��Ȃ�Asearch depth�Ɠ����ɂ��Ă����B
+		// search depth2が設定されていないなら、search depthと同じにしておく。
 		if (search_depth2 == INT_MIN)
 			search_depth2 = search_depth;
 
 		if (random_file_name)
 		{
-			// output_file_name�ɂ��̎��_�Ń����_���Ȑ��l��t�^���Ă��܂��B
+			// output_file_nameにこの時点でランダムな数値を付与してしまう。
 			PRNG r;
-			// �O�̂��ߗ����U�蒼���Ă����B
+			// 念のため乱数振り直しておく。
 			for (int i = 0; i<10; ++i)
 				r.rand(1);
 			auto to_hex = [](u64 u) {
@@ -568,7 +568,7 @@ namespace Learner {
 				ss << std::hex << u;
 				return ss.str();
 			};
-			// 64bit�̐��l�ŋ��R���Ԃ�ƌ��Ȃ̂ŔO�̂���64bit�̐��l�Q�������Ă����B
+			// 64bitの数値で偶然かぶると嫌なので念のため64bitの数値２つくっつけておく。
 			output_file_name = output_file_name + "_" + to_hex(r.rand<u64>()) + to_hex(r.rand<u64>());
 		}
 
@@ -586,7 +586,7 @@ namespace Learner {
 			<< "  random_file_name        = " << random_file_name << endl
 			<< "  node_info_hash_size[MB] = " << node_info_hash_size;
 
-		// Options["Threads"]�̐������X���b�h������Ď��s�B
+		// Options["Threads"]の数だけスレッドを作って実行。
 		{
 			SfenWriter sw(output_file_name, thread_num);
 			sw.save_every = save_every;
@@ -599,14 +599,14 @@ namespace Learner {
 			multi_think.start_file_write_worker();
 			multi_think.go_think();
 
-			// SfenWriter�̃f�X�g���N�^��join����̂ŁAjoin���I����Ă���I�������Ƃ������b�Z�[�W��
-			// �\��������ׂ��Ȃ̂ł������u���b�N�ň͂ށB
+			// SfenWriterのデストラクタでjoinするので、joinが終わってから終了したというメッセージを
+			// 表示させるべきなのでここをブロックで囲む。
 		}
 
 		std::cout << "gensfen2018 finished." << endl;
 
 #if defined(USE_GLOBAL_OPTIONS)
-		// GlobalOptions�̕����B
+		// GlobalOptionsの復元。
 		GlobalOptions = oldGlobalOptions;
 #endif
 
