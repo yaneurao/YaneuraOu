@@ -5,6 +5,7 @@
 //   bit operation library
 //
 
+#include <cstddef> // std::size_t
 #include <cstdint> // uint64_tなどの定義
 
 // ターゲット環境でSSE,AVX,AVX2が搭載されていない場合はこれらの命令をsoftware emulationにより実行する。
