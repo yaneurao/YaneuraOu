@@ -934,11 +934,11 @@ namespace Book
 					auto sfen_left = StringExtension::trim_number(sfen); // 末尾にplyがあるはずじゃろ
 					int ply = StringExtension::to_int(StringExtension::mid(sfen, sfen_left.length()), 0);
 
-					auto it = book_ply.find(sfen_left);
-					if (it == book_ply.end())
+					auto it2 = book_ply.find(sfen_left);
+					if (it2 == book_ply.end())
 						book_ply[sfen_left] = ply; // エントリーが見つからなかったので何も考えずに追加
 					else
-						it->second = std::min(it->second, ply); // 手数の短いほうを代入しておく。
+						it2->second = std::min(it2->second, ply); // 手数の短いほうを代入しておく。
 				}
 			}
 

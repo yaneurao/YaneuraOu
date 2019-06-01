@@ -2,11 +2,65 @@
 やねうら王 更新履歴
 
 
+
+
+■　2019/06/02
+
+
+- V4.86にバージョンナンバーを上げる。
+- 1つ前のcommitでgccでコンパイルが通らなかったの修正
+
+
+- build_treeの千日手まわりの処理、修正
+- build_treeでビルド時に手数違いの局面にもヒットするように変更
+- 定跡の書き出しの時に同一局面の手数違いの局面は、一番手数の若い局面のみを書き出すように変更。
+- Position::is_repetition()、遡る手数を引数に追加。説明が間違っていたの修正。
+
+
+- IgnoreBookPlyオプション導入
+- 定跡の出力、multipv 1から正順で出力するように変更
+- 定跡で重複局面が登録されていたときに出現率の計算がおかしくなるの修正。
+- 定跡の書き出し時に同一局面の手数違いの局面については一番手数の若い局面以外を書き出さないように修正。
+// 手数違いの重複局面はOptions["IgnoreBookPly"]==trueのときに有害であるため、plyが最小のもの以外を削除する必要がある。
+// (Options["BookOnTheFly"]==true かつ Options["IgnoreBookPly"] == true のときに、手数違いのものがヒットするだとか、そういう問題と、
+// Options["IgnoreBookPly"]==trueのときにMemoryBook::read_book()で読み込むときに重複エントリーがあって何か地雷を踏んでしまう的な問題を回避。
+- 定跡の読み筋で千日手(rep_draw)の出力
+- std::string to_usi_string(RepetitionState rs)追加
+
+
+- miscにnamespace StringExtension追加。
+- MKDIRなどをnamespace Dependencyに入れる。関数名をmkdirに変更。
+
+
+
+■　2019/05/30
+
+
+- Position::pinned_pieces() obsoleteに。
+
+- 定跡DBに候補手のない局面が登録されているとそこにヒットしたときに落ちていたの修正。(バグ報告、ロタさん)
+
+- ARM向け、コンパイル通らなかったの修正(#94 , Mizarさん)
+
+
 ■　2019/05/28
 
 
+- Cuckooアルゴリズムまわりの説明が間違っていたので修正
+
+- Ubuntuでコンパイルが通らなかったのを修正。(Ubuntu 18.04のgccでコンパイルが通ることを確認)
+
+- 32bit環境用のMSYS2でビルドできなかった問題を修正
+
+- mate engine、LONG EFFECT LIBRARYを使用していたの修正
+- mate engine , kppt/kkpt評価関数のコンパイルが通らなくなっていたの修正
+
 - V4.85にバージョンナンバーを上げる。
 - テラショック定跡の生成部を実装したので、これをリファレンスするためにバージョンナンバーを上げておく
+
+	engine1 = YaneuraOu2018NNUE_avx2-v483git.exe , eval = tanuki2018_nnue-best
+	engine2 = YaneuraOu2018NNUE_avx2git201905280050.exe , eval = tanuki2018_nnue-best
+	T2,b1000,789 - 105 - 836(48.55% R-10.05) win black : white = 53.42% : 46.58%
 
 - futility move countのコード、新しいコードに差し替え
 
