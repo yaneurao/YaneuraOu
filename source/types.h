@@ -844,6 +844,9 @@ enum RepetitionState
 
 constexpr bool is_ok(RepetitionState rs) { return REPETITION_NONE <= rs && rs < REPETITION_NB; }
 
+// RepetitionStateを文字列化する。PVの出力のときにUSI拡張として出力するのに用いる。
+extern std::string to_usi_string(RepetitionState rs);
+
 // RepetitionStateを文字列化して出力する。PVの出力のときにUSI拡張として出力するのに用いる。
 std::ostream& operator<<(std::ostream& os, RepetitionState rs);
 

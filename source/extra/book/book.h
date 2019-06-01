@@ -90,16 +90,25 @@ namespace Book
 		BookType book_body;
 
 		// book_bodyに対してBookPosを一つ追加するヘルパー関数。
-		// (その局面ですでに同じbestMoveの指し手が登録されている場合は上書き動作)
-		void insert(const std::string sfen, const BookPos& bp);
+		// overwrite : このフラグがtrueならば、その局面ですでに同じbestMoveの指し手が登録されている場合は上書き動作
+		void insert(const std::string sfen, const BookPos& bp , bool overwrite = true);
 
 	protected:
+
+		// 末尾のスペース、"\t","\r","\n"を除去する。
+		// Options["IgnoreBookPly"] == trueのときは、さらに数字も除去する。
+		// sfen文字列の末尾にある手数を除去する目的。
+		std::string trim(std::string input);
 
 		// メモリに丸読みせずにfind()のごとにファイルを調べにいくのか。
 		// これは思考エンジン設定のOptions["BookOnTheFly"]の値を反映したもの。
 		// ただし、read_book()のタイミングで定跡ファイルのopenに失敗したならfalseのままである。
 		// このフラグがtrueのときは、定跡ファイルのopen自体には成功していることが保証される。
 		bool on_the_fly = false;
+
+		// 前回読み込み時のOptions["IgnoreBookPly"]の値を格納しておく。
+		// これが異なるならファイルの読み直しが必要になる。
+		bool ignoreBookPly = false;
 
 		// 上のon_the_fly == trueのときに、開いている定跡ファイルのファイルハンドル
 		std::fstream fs;

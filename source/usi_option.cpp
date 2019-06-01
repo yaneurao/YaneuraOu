@@ -328,7 +328,7 @@ namespace USI {
 		if (!ifs.fail())
 		{
 			std::string str;
-			while (getline(ifs, str))
+			while (Dependency::getline(ifs, str))
 				build_option(str);
 		}
 	}
