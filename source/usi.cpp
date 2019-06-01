@@ -4,7 +4,6 @@
 #include "search.h"
 #include "thread.h"
 #include "tt.h"
-#include "misc.h" // こちらのgetline()を呼び出す必要がある。
 
 #include <sstream>
 #include <queue>
@@ -403,7 +402,7 @@ void getoption_cmd(istringstream& is)
 	for (auto& o : Options)
 	{
 		// 大文字、小文字を無視して比較。また、nameが指定されていなければすべてのオプション設定の現在の値を表示。
-		if ((!stricmp(name, o.first)) || all)
+		if ((!StringExtension::stricmp(name, o.first)) || all)
 		{
 			sync_cout << "Options[" << o.first << "] == " << (string)Options[o.first] << sync_endl;
 			if (!all)
@@ -612,7 +611,7 @@ void USI::loop(int argc, char* argv[])
 	{
 		if (cmds.size() == 0)
 		{
-			if (!getline(cin, cmd)) // 入力が来るかEOFがくるまでここで待機する。
+			if (!std::getline(cin, cmd)) // 入力が来るかEOFがくるまでここで待機する。
 				cmd = "quit";
 		} else {
 			// 積んであるコマンドがあるならそれを実行する。
@@ -769,7 +768,7 @@ void USI::loop(int argc, char* argv[])
 				for (auto& o : Options)
 				{
 					// 大文字、小文字を無視して比較。
-					if (!stricmp(token, o.first))
+					if (!StringExtension::stricmp(token, o.first))
 					{
 						Options[o.first] = value;
 						sync_cout << "Options[" << o.first << "] = " << value << sync_endl;

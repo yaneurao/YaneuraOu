@@ -208,7 +208,7 @@ void save_eval(std::string dir_name) {
   // すでにこのフォルダがあるならmkdir()に失敗するが、
   // 別にそれは構わない。なければ作って欲しいだけ。
   // また、EvalSaveDirまでのフォルダは掘ってあるものとする。
-  MKDIR(eval_dir);
+  Dependency::mkdir(eval_dir);
 
   if (Options["SkipLoadingEval"] && NNUE::trainer) {
     NNUE::SendMessages({{"clear_unobserved_feature_weights"}});

@@ -364,7 +364,7 @@ namespace Eval
 			// 別にそれは構わない。なければ作って欲しいだけ。
 			// また、EvalSaveDirまでのフォルダは掘ってあるものとする。
 
-			MKDIR(eval_dir);
+			Dependency::mkdir(eval_dir);
 
 			// EvalIOを利用して評価関数ファイルに書き込む。
 			// 読み込みのときのinputとoutputとを入れ替えるとファイルに書き込める。EvalIo::eval_convert()マジ優秀。

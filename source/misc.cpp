@@ -126,12 +126,12 @@ const string engine_info() {
 	{
 		// 1行目が読み込めなかったときのためにデフォルト値を設定しておく。
 		string str = "default engine";
-		getline(ifs, str);
+		Dependency::getline(ifs, str);
 		ss << "id name " << str << endl;
 
 		// 2行目が読み込めなかったときのためにデフォルト値を設定しておく。
 		str = "default author";
-		getline(ifs, str);
+		Dependency::getline(ifs, str);
 		ss << "id author " << str << endl;
 	}
 	else
@@ -443,14 +443,14 @@ void memclear(void* table, size_t size)
 // ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。
 int read_all_lines(std::string filename, std::vector<std::string>& lines)
 {
-	fstream fs(filename, ios::in);
+	ifstream fs(filename);
 	if (fs.fail())
 		return 1; // 読み込み失敗
 
 	while (!fs.fail() && !fs.eof())
 	{
 		std::string line;
-		getline(fs, line);
+		Dependency::getline(fs, line);
 		if (line.length())
 			lines.push_back(line);
 	}
@@ -624,17 +624,98 @@ uint64_t get_thread_id()
 }
 
 // --------------------
+//    文字列 拡張
+// --------------------
+
+namespace {
+	// 文字列を大文字化する
+	string to_upper(const string source)
+	{
+		std::string destination;
+		destination.resize(source.size());
+		std::transform(source.cbegin(), source.cend(), destination.begin(), /*toupper*/[](char c) { return (char)toupper(c); });
+		return destination;
+	}
+}
+
+namespace StringExtension
+{
+	// 大文字・小文字を無視して文字列の比較を行う。
+	// string-case insensitive-compareの略？
+	// s1==s2のとき0(false)を返す。
+	bool stricmp(const string& s1, const string& s2)
+	{
+		// Windowsだと_stricmp() , Linuxだとstrcasecmp()を使うのだが、
+		// 後者がどうも動作が怪しい。自前実装しておいたほうが無難。
+
+		return to_upper(s1) != to_upper(s2);
+	}
+	
+	// 行の末尾の"\r","\n",スペース、"\t"を除去した文字列を返す。
+	std::string trim(const std::string& input)
+	{
+		string s = input; // copy
+		s64 cur = (s64)s.length() - 1; // 符号つきの型でないとマイナスになったかの判定ができない
+		while (cur >= 0)
+		{
+			char c = s[cur];
+			// 改行文字、スペース、タブではないならループを抜ける。
+			// これらの文字が出現しなくなるまで末尾を切り詰める。
+			if (!(c == '\r' || c == '\n' || c == ' ' || c == '\t'))
+				break;
+			cur--;
+		}
+		cur++;
+		s.resize((size_t)cur);
+		return s;
+	}
+
+	// 行の末尾の"\r","\n",スペース、"\t"、数字を除去した文字列を返す。
+	std::string trim_number(const std::string& input)
+	{
+		string s = input; // copy
+		s64 cur = (s64)s.length() - 1;
+		while (cur >= 0)
+		{
+			char c = s[cur];
+			// 改行文字、スペース、タブではないならループを抜ける。
+			// これらの文字が出現しなくなるまで末尾を切り詰める。
+			if (!(c == '\r' || c == '\n' || c == ' ' || c == '\t' || ('0' <= c && c <= '9')))
+				break;
+			cur--;
+		}
+		cur++;
+		s.resize((size_t)cur);
+		return s;
+	}
+
+	// 文字列をint化する。int化に失敗した場合はdefault_の値を返す。
+	int to_int(const std::string input, int default_)
+	{
+		// stoi()は例外を出すので例外を使わないようにしてビルドしたいのでNG。
+		// atoi()は、セキュリティ的な脆弱性がある。
+		// 仕方ないのでistringstreamを使う。
+
+		std::istringstream ss(input);
+		int result = default_; // 失敗したときはこの値のままになる
+		ss >> result;
+		return result;
+	}
+
+};
+
+// --------------------
 //  Dependency Wrapper
 // --------------------
 
-bool getline(std::fstream& fs, std::string& s)
+namespace Dependency
 {
+	bool getline(std::ifstream& fs, std::string& s)
+	{
 	bool b = (bool)std::getline(fs, s);
-#if !defined(_MSC_VER)
-	if (s.size() && s[s.size() - 1] == '\r')
-		s.erase(s.size() - 1);
-#endif
+		s = StringExtension::trim(s);
 	return b;
+	}
 }
 
 // ----------------------------
@@ -652,61 +733,52 @@ bool getline(std::fstream& fs, std::string& s)
 #if defined(_MSC_VER)
 #include <codecvt>	// mkdirするのにwstringが欲しいのでこれが必要
 #include <locale>   // wstring_convertにこれが必要。
-int MKDIR(std::string dir_name)
-{
+
+namespace Dependency {
+	int mkdir(std::string dir_name)
+	{
 	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
 	return _wmkdir(cv.from_bytes(dir_name).c_str());
 	//	::CreateDirectory(cv.from_bytes(dir_name).c_str(),NULL);
+	}
 }
+
 #elif defined(__GNUC__) 
+
 #include <direct.h>
-int MKDIR(std::string dir_name)
-{
+namespace Dependency {
+	int mkdir(std::string dir_name)
+	{
 	return _mkdir(dir_name.c_str());
+	}
 }
+
 #endif
 #elif defined(_LINUX)
+
 // linux環境において、この_LINUXというシンボルはmakefileにて定義されるものとする。
 
 // Linux用のmkdir実装。
 #include "sys/stat.h"
 
-int MKDIR(std::string dir_name)
-{
+namespace Dependency {
+	int mkdir(std::string dir_name)
+	{
 	return ::mkdir(dir_name.c_str(), 0777);
+	}
 }
-
 #else
 
 // Linux環境かどうかを判定するためにはmakefileを分けないといけなくなってくるな..
 // linuxでフォルダ掘る機能は、とりあえずナシでいいや..。評価関数ファイルの保存にしか使ってないし…。
-int MKDIR(std::string dir_name)
-{
-	return 0;
+
+namespace Dependency {
+	int mkdir(std::string dir_name)
+	{
+		return 0;
+	}
 }
 
 #endif
 
-
-namespace {
-	// 文字列を大文字化する
-	string to_upper(const string source)
-	{
-		std::string destination;
-		destination.resize(source.size());
-		std::transform(source.cbegin(), source.cend(), destination.begin(), /*toupper*/[](char c){ return (char)toupper(c); });
-		return destination;
-	}
-}
-
-// 大文字・小文字を無視して文字列の比較を行う。
-// string-case insensitive-compareの略？
-// s1==s2のとき0(false)を返す。
-bool stricmp(const string& s1, const string& s2)
-{
-	// Windowsだと_stricmp() , Linuxだとstrcasecmp()を使うのだが、
-	// 後者がどうも動作が怪しい。自前実装しておいたほうが無難。
-
-	return to_upper(s1) != to_upper(s2);
-}
 

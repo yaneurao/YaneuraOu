@@ -427,24 +427,67 @@ struct Path
 };
 
 // --------------------
+//    文字列 拡張
+// --------------------
+
+namespace StringExtension
+{
+	// 大文字・小文字を無視して文字列の比較を行う。
+	// string case insensitive compareの略？
+	// s1==s2のとき0(false)を返す。
+	extern bool stricmp(const std::string& s1, const std::string& s2);
+
+	// 行の末尾の"\r","\n",スペース、"\t"を除去した文字列を返す。
+	// ios::binaryでopenした場合などには'\r'なども入っていることがあるので…。
+	extern std::string trim(const std::string& input);
+
+	// 行の末尾の"\r","\n",スペース、"\t"、数字を除去した文字列を返す。
+	// sfenの末尾の手数を削除する用
+	extern std::string trim_number(const std::string& input);
+
+	// 文字列のstart番目以降を返す
+	static std::string mid(const std::string& input, size_t start) {
+		return input.substr(start, input.length() - start);
+	}
+
+	// 文字列をint化する。int化に失敗した場合はdefault_の値を返す。
+	extern int to_int(const std::string input, int default_);
+};
+
+// --------------------
+//  Tools
+// --------------------
+
+namespace Tools
+{
+	// 他言語にあるtry～finally構文みたいなの。
+	struct Finally {
+		Finally(std::function<void()> fn_) : fn(fn_){}
+		~Finally() { fn(); }
+	private:
+		std::function<void()> fn;
+	};
+
+}
+
+// --------------------
 //  Dependency Wrapper
 // --------------------
 
-// Linux環境ではgetline()したときにテキストファイルが'\r\n'だと
-// '\r'が末尾に残るのでこの'\r'を除去するためにwrapperを書く。
-// そのため、fstreamに対してgetline()を呼び出すときは、
-// std::getline()ではなく単にgetline()と書いて、この関数を使うべき。
-extern bool getline(std::fstream& fs, std::string& s);
+namespace Dependency
+{
+	// Linux環境ではgetline()したときにテキストファイルが'\r\n'だと
+	// '\r'が末尾に残るのでこの'\r'を除去するためにwrapperを書く。
+	// そのため、fstreamに対してgetline()を呼び出すときは、
+	// std::getline()ではなく単にgetline()と書いて、この関数を使うべき。
+	extern bool getline(std::ifstream& fs, std::string& s);
 
-// フォルダを作成する。
-// カレントフォルダ相対で指定する。dir_nameに日本語は使っていないものとする。
-// 成功すれば0、失敗すれば非0が返る。
-extern int MKDIR(std::string dir_name);
+	// フォルダを作成する。
+	// カレントフォルダ相対で指定する。dir_nameに日本語は使っていないものとする。
+	// 成功すれば0、失敗すれば非0が返る。
+	extern int mkdir(std::string dir_name);
+}
 
-// 大文字・小文字を無視して文字列の比較を行う。
-// string case insensitive compareの略？
-// s1==s2のとき0(false)を返す。
-extern bool stricmp(const std::string& s1, const std::string& s2);
 
 
 #endif // #ifndef MISC_H_INCLUDED
