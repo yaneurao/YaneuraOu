@@ -1747,7 +1747,7 @@ void Position::undo_null_move()
 // ----------------------------------
 
 // 連続王手の千日手等で引き分けかどうかを返す
-RepetitionState Position::is_repetition(int ply) const
+RepetitionState Position::is_repetition(int ply , int repPly_ /* = 32 */) const
 {
 	// repPlyまで遡る
 	// rootより遡るのであれば2度同一局面が出現する必要があるので16の倍にしておく。
@@ -1755,7 +1755,7 @@ RepetitionState Position::is_repetition(int ply) const
 	//
 	// これ16から32に変更したことで1%ぐらい速度低下するようだ。
 	// 16手目までに1度も同一局面が出現しなければリタイアしたいが、この処理を綺麗に書くのは難しい…。
-	const int repPly = 16 * 2;
+	const int repPly = repPly_;
 
 	// 現在の局面と同じhash keyを持つ局面があれば、それは千日手局面であると判定する。
 

@@ -113,6 +113,9 @@ namespace {
 
 		// extend_tree_sub()の一つ前の時のevalの値
 		int lastEval;
+
+		// 引き分けになる手数
+		int max_game_ply;
 	};
 
 	void BookTreeBuilder::output_progress()
@@ -131,36 +134,22 @@ namespace {
 	// 再帰的に最善手を調べる。
 	VMD_Pair BookTreeBuilder::build_tree_nega_max(Position& pos, MemoryBook& read_book, MemoryBook& write_book)
 	{
-		// -- すでに探索済みであるなら、そのときの値を返す。
-
-		auto node_sfen = pos.sfen();
-		auto it_write = vmd_write_cache.find(node_sfen);
-		if (it_write != vmd_write_cache.end())
-			return it_write->second;
-
-		VMD_Pair result;
-
 		// -- 定跡にhitしないにせよ、詰みと宣言勝ち、千日手に関しては処理できるのでそれ相応の値を返す必要がある。
 
 		// 現局面で詰んでいる
 		if (pos.is_mated())
-		{
-			result = VMD_Pair(mated_in(0), MOVE_NONE, DEPTH_ZERO);
-			goto RETURN_RESULT;
-		}
+			return VMD_Pair(mated_in(0), MOVE_NONE, DEPTH_ZERO);
 
-		{
 			// 現局面で宣言勝ちできる。
 			// 定跡ファイルにMOVE_WINが紛れたときの解釈を規定していないのでここでは入れないことにする。
 			if (pos.DeclarationWin() != MOVE_NONE)
-			{
-				result = VMD_Pair(mate_in(1), MOVE_NONE, DEPTH_ZERO);
-				goto RETURN_RESULT;
-			}
+			return VMD_Pair(mate_in(1), MOVE_NONE, DEPTH_ZERO);
+
+		// この局面の手番
+		auto stm = pos.side_to_move();
 
 			// 千日手の検出などが必要でごじゃる。
-			// 別の局面から突っ込んだ場合は千日手にならない可能性があるが、定跡の範囲でなかなか起きるものでもないのでまあいいや。
-			auto draw_type = pos.is_repetition(MAX_PLY);
+		auto draw_type = pos.is_repetition(pos.game_ply() , pos.game_ply());
 			if (draw_type != REPETITION_NONE)
 			{
 				// この次の一手が欲しい気はする。is_repetition()が返して欲しい気はするのだが、
@@ -206,18 +195,16 @@ namespace {
 					// 定跡DBはmakebook thinkコマンドで作成されていて、この正規化はすでになされている。
 
 					// 現局面の手番を見て符号を決めないといけない。
-					auto stm = pos.side_to_move();
-					result = VMD_Pair(
+				return VMD_Pair(
 						(Value)(stm == BLACK ? -black_contempt : +black_contempt) /*先手のcomtempt */, draw_move, DEPTH_ZERO,
 						(Value)(stm == WHITE ? -white_contempt : +white_contempt) /*後手のcomtempt */, draw_move, DEPTH_ZERO
 					);
-					goto RETURN_RESULT;
 				}
 
-				case REPETITION_INFERIOR: result = VMD_Pair(-VALUE_SUPERIOR, MOVE_NONE, DEPTH_ZERO); goto RETURN_RESULT;
-				case REPETITION_SUPERIOR: result = VMD_Pair(VALUE_SUPERIOR, MOVE_NONE, DEPTH_ZERO); goto RETURN_RESULT;
-				case REPETITION_WIN: result = VMD_Pair(mate_in(MAX_PLY), MOVE_NONE, DEPTH_ZERO); goto RETURN_RESULT;
-				case REPETITION_LOSE: result = VMD_Pair(mated_in(MAX_PLY), MOVE_NONE, DEPTH_ZERO); goto RETURN_RESULT;
+			case REPETITION_INFERIOR: return VMD_Pair(-VALUE_SUPERIOR, MOVE_NONE, DEPTH_ZERO);
+			case REPETITION_SUPERIOR: return VMD_Pair(VALUE_SUPERIOR, MOVE_NONE, DEPTH_ZERO);
+			case REPETITION_WIN     : return VMD_Pair(mate_in(MAX_PLY), MOVE_NONE, DEPTH_ZERO);
+			case REPETITION_LOSE    : return VMD_Pair(mated_in(MAX_PLY), MOVE_NONE, DEPTH_ZERO);
 
 					// これ入れておかないとclangで警告が出る。
 				case REPETITION_NONE:
@@ -227,15 +214,41 @@ namespace {
 				}
 			}
 
-			// -- 定跡にhitするのか？
+		// -- すでに探索済みであるなら、そのときの値を返す。
+
+		auto sfen = pos.sfen();
+
+		// 手数違いの局面もread_bookの定跡を調べるので、千日手スコアはvmd_write_cacheにcacheしてはならない。
+		// ※　次の局面で千日手になるパターンは仕方がない。
+		// そこで千日手判定(上のコード)は、以下のコードより先に行う必要がある。
+		// 経路違いである経路から来た時だけ千日手になるケースもある。このへん、DAGのあるゲーム木ではとても難しい問題に直面する。
+		// 現実的に滅多に起こらないことならあまり深く考えても仕方ないだが、角換わりでわりと色んな問題が生じるようだ。
+
+		// 手数を無視してvmd_write_cacheに保持させると、角換わりなどで先後協力すれば同一局面で2手ずつ手数違いの局面を容易に作れるようで、
+		// max_game_plyの1手前の局面がすべての指し手が引き分けのスコアとなり、それがvmd_write_cacheに書き出されて、それを同一局面の若い手数
+		// のときに、このvmd_write_cacheにヒットするため、おかしなことになる。(´ω｀)
+		// ゆえに、vmd_write_cacheには、手数も含めて保持するか、max_game_plyを無視するかしないといけない。
+		// 前者にしても角換わりで先後協力して手数をかなり伸ばせるのでいい実装とは言えないようだ。
+
+		// df-pnの知見を利用すれば、もっと賢い方法がありそうだが、お手軽に実装するにはこのへんで妥協するしかなさそう。
+
+		// あと、手数違いの局面は書き出しのときに手数が一番若いもの以外は間引くので、手数違いの局面を検出する処理を書いたほうがいいような気はするが、
+		// vmd_write_cacheにはヒットするので、まあ、大したオーバーヘッドではないので良しとする。
+
+		auto sfen_left = StringExtension::trim_number(sfen);
+		
+		auto it_write = vmd_write_cache.find(sfen_left);
+		if (it_write != vmd_write_cache.end())
+			return it_write->second;
+
+		// -- 定跡にhitするのか？(手数無視で)
 
 			auto it_read = read_book.find(pos);
 			if (it_read == nullptr || it_read->size() == 0)
 				// このnodeについて、これ以上、何も処理できないでござる。
 			{
-				// 保存する価値がないかも？
-				result = VMD_Pair(VALUE_NONE, MOVE_NONE, DEPTH_ZERO);
-				goto RETURN_RESULT;
+			// 保存する価値がないと思うでvmd_write_cacheには保存しない
+			return VMD_Pair(VALUE_NONE, MOVE_NONE, DEPTH_ZERO);
 			}
 
 			// -- このnodeを展開する。
@@ -328,7 +341,7 @@ namespace {
 
 			// このnodeについて調べ終わったので格納
 			std::stable_sort(list->begin(), list->end());
-			write_book.book_body[pos.sfen()] = list;
+		write_book.book_body[sfen] = list;
 
 			// 10 / 1000 node 処理したので進捗を出力
 			output_progress();
@@ -343,15 +356,10 @@ namespace {
 			}
 #endif
 
-			result = VMD_Pair(best);
-		}
-
-	RETURN_RESULT:
-
 		// このnodeの情報をwrite_cacheに保存
-		vmd_write_cache[node_sfen] = result;
+		vmd_write_cache[sfen_left] = best;
 
-		return result;
+		return best;
 	}
 
 	// 定跡game treeを生成する機能
@@ -367,6 +375,10 @@ namespace {
 		cout << "read_book_name   = " << read_book_name << endl;
 		cout << "write_book_name  = " << write_book_name << endl;
 
+		auto oldValue = (std::string)Options["IgnoreBookPly"];
+		Options["IgnoreBookPly"] = true;
+		Tools::Finally f([&](){ Options["IgnoreBookPly"] = oldValue; });
+
 		MemoryBook read_book, write_book;
 		if (read_book.read_book(read_book_name) != 0)
 		{
@@ -377,6 +389,7 @@ namespace {
 		// 定跡では絶対千日手回避するマンの設定
 		int black_contempt =  50;  // 先手側の千日手を -50とみなす
 		int white_contempt = 150;  // 後手側の千日手を-150とみなす
+		int max_game_ply = 320; /* 320手で引き分けルール */
 
 		string token;
 		while ((is >> token))
@@ -385,10 +398,13 @@ namespace {
 				is >> black_contempt;
 			else if (token == "white_contempt")
 				is >> white_contempt;
+			else if (token == "max_game_ply")
+				is >> max_game_ply;
 		}
 
 		cout << "black_contempt = " << black_contempt << endl;
 		cout << "white_contempt = " << white_contempt << endl;
+		cout << "max_game_ply = " << max_game_ply << endl;
 
 		// 初期局面から(depth 10000ではないものを)辿ってgame treeを構築する。
 
@@ -402,8 +418,13 @@ namespace {
 
 		this->black_contempt = black_contempt;
 		this->white_contempt = white_contempt;
+		this->max_game_ply = max_game_ply;
+
+		// 定跡ファイルには手数無視でヒットしてくれないと、先後協力してplyが2手だけ増えた
+		// 局面の定跡がいつまでも掘り進められなくなる。
 
 		build_tree_nega_max(pos, read_book, write_book);
+
 		cout << endl;
 
 		// 書き出し
@@ -421,7 +442,7 @@ namespace {
 	{
 		// 千日手に到達した局面は思考対象としてはならない。
 		auto draw_type = pos.is_repetition(MAX_PLY);
-		if (draw_type == REPETITION_DRAW)
+		if (draw_type == REPETITION_DRAW || pos.game_ply() > this->max_game_ply)
 			return;
 		// →　それ以外の反復は大きなスコアがつくはずで、除外されるはず。
 
@@ -539,6 +560,8 @@ namespace {
 		// 延長する評価値の下限
 		int black_eval_limit = -50, white_eval_limit = -150;
 
+		int max_game_ply = 320; /* 320手で引き分けルール */
+
 		// 延長するleafの評価値の範囲(千日手スコアの局面のみを延長する場合に用いる)
 		bool enable_extend_range = false;
 		int extend_range1, extend_range2;
@@ -555,6 +578,8 @@ namespace {
 				enable_extend_range = true;
 				is >> extend_range1 >> extend_range2;
 			}
+			else if (token == "max_game_ply")
+				is >> max_game_ply;
 		}
 
 		// 処理対象ファイル名の出力
@@ -569,6 +594,8 @@ namespace {
 
 		if (enable_extend_range)
 			cout << "extend_range = [" << extend_range1 << "," << extend_range2 << "]" << endl;
+
+		cout << "max_game_ply = " << max_game_ply << endl;
 
 		// read_book_name  : やねうら王の定跡形式(拡張子.db)
 		// read_sfen_name  : USIのposition形式。例:"startpos moves ..."
@@ -597,6 +624,7 @@ namespace {
 		this->enable_extend_range = enable_extend_range;
 		this->extend_range1 = extend_range1;
 		this->extend_range2 = extend_range2;
+		this->max_game_ply = max_game_ply;
 
 		// これより長い棋譜、食わせないやろ…。
 		std::vector<StateInfo, AlignedAllocator<StateInfo>> states(1024);
@@ -655,6 +683,7 @@ namespace {
 		uint64_t nodes = 0; // 指定がなければ0にしとかないと..
 		bool enable_extend_range = false;
 		int extend_range1, extend_range2;
+		int max_game_ply = 320;
 
 		while ((is >> token))
 		{
@@ -677,6 +706,8 @@ namespace {
 				enable_extend_range = true;
 				is >> extend_range1 >> extend_range2;
 			}
+			else if (token == "max_game_ply")
+				is >> max_game_ply;
 		}
 
 		cout << "startmoves " << start_moves << " moves " << end_moves << " nodes " << nodes << endl;
@@ -685,6 +716,7 @@ namespace {
 		cout << "white_eval_limit = " << white_eval_limit << endl;
 		if (enable_extend_range)
 			cout << "extend_range = [" << extend_range1 << "," << extend_range2 << "]" << endl;
+		cout << "max_game_ply = " << max_game_ply << endl;
 
 		// コマンドの実行
 		auto do_command = [&](string command)
@@ -721,7 +753,8 @@ namespace {
 
 				command = "extend_tree " + read_book_name + " " + read_sfen_name + " " + think_sfen_name +
 					" black_eval_limit " + to_string(black_eval_limit) + " white_eval_limit " + to_string(white_eval_limit) +
-					(enable_extend_range ? " extend_range " + to_string(extend_range1) + " " + to_string(extend_range2):"");
+					(enable_extend_range ? " extend_range " + to_string(extend_range1) + " " + to_string(extend_range2):"") +
+					" max_game_ply " + to_string(max_game_ply);
 				do_command(command);
 
 
@@ -730,7 +763,8 @@ namespace {
 				// なので、やらない(´ω｀)
 
 				command = "think " + think_sfen_name + " " + read_book_name + " depth " + to_string(depth)
-					+ " startmoves " + to_string(start_moves) + " moves " + to_string(end_moves) + +" nodes " + to_string(nodes);
+					+ " startmoves " + to_string(start_moves) + " moves " + to_string(end_moves) + +" nodes " + to_string(nodes)
+					+ " max_game_ply " + to_string(max_game_ply);
 				do_command(command);
 
 			}

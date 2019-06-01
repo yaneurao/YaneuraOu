@@ -252,9 +252,12 @@ public:
 	// mは16bitの値であること。
 	Move move16_to_move(Move m) const;
 
-	// 連続王手の千日手等で引き分けかどうかを返す
-	// plyには、ss->plyを渡すこと。
-	RepetitionState is_repetition(int ply) const;
+	// 普通の千日手、連続王手の千日手等を判定する。
+	// そこまでの局面と同一局面であるかを、局面を遡って調べる。
+	// plies_from_root : rootからの手数。ss->plyを渡すこと。
+	// 　※　rootとは、探索開始局面であり、そこまでの経路(手順)がある場合、そこよりさらに遡って調べる。
+	// rep_ply         : 遡る手数。デフォルトでは32手。あまり大きくすると速度低下を招く。
+	RepetitionState is_repetition(int plies_from_root , int rep_ply = 32) const;
 
 	// --- Bitboard
 
