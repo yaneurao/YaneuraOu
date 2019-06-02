@@ -222,6 +222,14 @@ config.hの
 	意味をなさないので、エンジンのバージョンを100倍したもの(V3.21なら321)を記入してあります。
 	これにより、「古いエンジンで思考させた指し手は採用しない」などの処理を行うことが出来るようになります。
 
+	参考)
+
+	将棋ソフト用の標準定跡ファイルフォーマットの提案
+	http://yaneuraou.yaneu.com/2016/02/05/%E5%B0%86%E6%A3%8B%E3%82%BD%E3%83%95%E3%83%88%E7%94%A8%E3%81%AE%E6%A8%99%E6%BA%96%E5%AE%9A%E8%B7%A1%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB%E3%83%95%E3%82%A9%E3%83%BC%E3%83%9E%E3%83%83%E3%83%88%E3%81%AE/
+	
+	やねうら王アップデート！テラショック定跡の生成に対応しました
+	http://yaneuraou.yaneu.com/2019/05/28/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B%E3%82%A2%E3%83%83%E3%83%97%E3%83%87%E3%83%BC%E3%83%88%EF%BC%81%E3%83%86%E3%83%A9%E3%82%B7%E3%83%A7%E3%83%83%E3%82%AF%E5%AE%9A%E8%B7%A1%E3%81%AE%E7%94%9F/
+
 	
 > makebook from_sfen book.sfen standard_book.db moves 16
 	※　	やねうら王2017Earlyなど、この機能に対応している思考エンジンが必要。
@@ -309,6 +317,7 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 	定跡をメモリに丸読みしたくないときには(BookOnTheFly機能)、並び変わっていないといけない。
 	(sfen文字列順でソートされていないとバイナリサーチが出来ないため。)
 
+
 > makebook build_tree read_book.db write_book.db
 
 	read_book.dbには、thinkコマンドで実戦で出現した局面に評価値がついているものとして、
@@ -320,15 +329,16 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 	build_treeで千日手に至るときにそのときのスコアを先手・後手個別に設定できる。
 	Optionのcontemptと同じ。black_contempt = 50を指定すると先手の千日手時のスコアを-50とみなす。
 
+
 > makebook extend_tree read_book.db read_sfen.txt write_sfen.txt
 
 	read_book.dbの定跡に対して、read_sfen.txtのsfenの局面から開始して延長する枝をwrite_sfen.txtに書き出します。
 	read_sfen.txtの局面から、評価値が先手で-50以上、後手で-150以上の値がついている枝だけを延長していきます。
-	※　ここで言う評価値は正規化する前の生の評価値。(歩の価値=89点なので、USIで読み筋を出力するときはこれが100点になるように正規化して出力している)
 	
 	ここで書き出されたsfenファイルを、makebook thinkコマンドで思考させるのを繰り返すと定跡ツリーが成長していきます。
 
-	※　read_sfen.txtには"startpos moves.."の形で局面を指定します。
+	※　read_sfen.txtにはこの延長を行う開始局面を複数指定できます。(わからなければ、"startpos"とだけ書いたテキストを用意すれば、
+	　平手の開始局面からになるのでそれで問題ないはずです。)　"startpos moves.."の形で複数の局面を指定します。
 
 > makebook extend_tree read_book.db read_sfen.txt write_sfen.txt black_eval_limit -200 white_eval_limit -300
 
@@ -353,6 +363,8 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 	makebook extend_treeとthinkを合体させたコマンド。think_sfen.txtのところは、思考対象局面を書き出す一時ファイル。
 	このときbook/kadai_sfen.txtに "startpos" とだけ書いておけば、平手の初期局面が課題局面になるので、そこから自動的に定跡が掘られていきます。
 	loopの回数だけ繰り返されます。
+
+	max_game_plyの指定も可能。
 
 	検討用の局面をbook/kadai_sfen.txtに入れて、そこから定跡を掘るのに使えるかと思います。
 
@@ -641,7 +653,7 @@ toolchainの問題かと思います。例えば以下のようにすると32bit
 (MSYS2 MinGW 32-bit上で)
 $ pacman -S mingw-w64-i686-clang mingw-w64-i686-toolchain
 $ pacman -Syuu
-$ mingw32-make -j8 nosse YANEURAOU_EDITION=YANEURAOU_2018_TNK_ENGINE 2>&1 | tee 2018tnk_nosse.log｀
+$ mingw32-make -j8 nosse YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE 2>&1 | tee nnue_nosse.log｀
 
 64bit版
 $ pacman -S mingw-w64-x86_64-clang mingw-w64-x86_64-toolchain
@@ -651,7 +663,8 @@ makefileを使ってcleanするときに、.oファイルを削除しないと�
 コンパイル対象のソースファイルとしてNNUE用の評価関数のソースコードファイルが追加されず、.oファイルが全部消えないので
 コンパイルに失敗することがある。cleanするときは、この点に注意すること。
 
-mingw32-make clean YANEURAOU_EDITION=YANEURAOU_2018_TNK_ENGINE
+mingw32-make clean YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE
+
 
 ■　MSYS2上でNNUE型の評価関数の実行ファイルがビルドできない件
 

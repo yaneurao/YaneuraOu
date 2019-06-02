@@ -87,6 +87,7 @@ USIプロトコルの独自拡張コマンド
 	MaxMovesToDraw      : 終局までの手数。256手ルールなら256と設定する。0なら無制限。
 
 	BookMoves		: 定跡を用いる手数(0=未使用)
+					例えば16を指定した場合、開始局面から16手目の局面まで定跡にヒットする。
 
 	PvInterval      : PVの出力を抑制する。前回出力時間から、この時間(単位は[ms])経過するまでは次のPVを出力しない。
 
@@ -148,6 +149,8 @@ USIプロトコルの独自拡張コマンド
 				このとき、ConsiderBookMoveCount = true , BookEvalDiff = 0 , BookMoves = 0  BookDepthLimit = 0 ,
 				BookEvalBlackLimit = -99999 , BookEvalWhiteLimit = -99999 として扱われます。
 
+	IgnoreBookPly   : 定跡DB上の手数を無視する。
+			例) 局面図が同じであれば、定跡上の36手目の局面に40手目の局面でもヒットする。
 
 	nodestime      : node as timeモード。
 
