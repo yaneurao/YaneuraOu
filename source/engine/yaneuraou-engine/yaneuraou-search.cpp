@@ -1,6 +1,6 @@
 ﻿#include "../../types.h"
 
-#if defined (YANEURAOU_2018_OTAFUKU_ENGINE)
+#if defined (YANEURAOU_ENGINE)
 
 // -----------------------
 //   やねうら王2018(otafuku)設定部
@@ -52,8 +52,8 @@
 #endif
 
 // 実行時に読み込むパラメーターファイルの名前
-#define PARAM_FILE "2018-otafuku-param.h"
-#include "2018-otafuku-param.h"
+#define PARAM_FILE "yaneuraou-param.h"
+#include "yaneuraou-param.h"
 
 // 定跡の指し手を選択するモジュール
 Book::BookMoveSelector book;
@@ -3472,4 +3472,4 @@ namespace Learner
 }
 #endif
 
-#endif // YANEURAOU_2018_OTAFUKU_ENGINE
+#endif // YANEURAOU_ENGINE

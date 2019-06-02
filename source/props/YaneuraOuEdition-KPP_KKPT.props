@@ -2,16 +2,17 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros">
-    <YaneuraOuTarget>2017-goku</YaneuraOuTarget>
-    <YaneuraOuDir>2017Goku</YaneuraOuDir>
+    <YaneuraOuTarget>KPP_KKPT</YaneuraOuTarget>
+    <YaneuraOuDir>KPP_KKPT</YaneuraOuDir>
   </PropertyGroup>
   <PropertyGroup>
     <OutDir>$(OutBaseDir)$(YaneuraOuDir)\</OutDir>
     <TargetName>$(ProjectName)-$(YaneuraOuTarget)</TargetName>
+    <_PropertySheetDisplayName>YaneuraOuEdition-KPP_KKPT</_PropertySheetDisplayName>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <PreprocessorDefinitions>USE_MAKEFILE;YANEURAOU_2017_GOKU_ENGINE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_MAKEFILE;YANEURAOU_ENGINE_KPP_KKPT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>

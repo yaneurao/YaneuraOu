@@ -1,6 +1,6 @@
 ﻿#include "../types.h"
 
-#if defined(EVAL_LEARN) && defined(YANEURAOU_2018_OTAFUKU_ENGINE)
+#if defined(EVAL_LEARN) && defined(YANEURAOU_ENGINE)
 
 #include "multi_think.h"
 #include "../tt.h"

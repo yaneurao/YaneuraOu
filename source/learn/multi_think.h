@@ -3,7 +3,7 @@
 
 #include "../config.h"
 
-#if defined(EVAL_LEARN) && defined(YANEURAOU_2018_OTAFUKU_ENGINE)
+#if defined(EVAL_LEARN) && defined(YANEURAOU_ENGINE)
 
 #include "../misc.h"
 #include "../learn/learn.h"

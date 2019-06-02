@@ -2,16 +2,17 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros">
-    <YaneuraOuTarget>nano</YaneuraOuTarget>
-    <YaneuraOuDir>nano</YaneuraOuDir>
+    <YaneuraOuTarget>KPPT</YaneuraOuTarget>
+    <YaneuraOuDir>KPPT</YaneuraOuDir>
   </PropertyGroup>
   <PropertyGroup>
     <OutDir>$(OutBaseDir)$(YaneuraOuDir)\</OutDir>
     <TargetName>$(ProjectName)-$(YaneuraOuTarget)</TargetName>
+    <_PropertySheetDisplayName>YaneuraOuEdition-KPPT</_PropertySheetDisplayName>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <PreprocessorDefinitions>USE_MAKEFILE;YANEURAOU_NANO_ENGINE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_MAKEFILE;YANEURAOU_ENGINE_KPPT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>

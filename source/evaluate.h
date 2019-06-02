@@ -16,8 +16,6 @@
 #define EVAL_EXPERIMENTAL_HEADER
 #include "eval/experimental/evaluate_experimental.h"
 #undef EVAL_EXPERIMENTAL_HEADER
-#elif defined(EVAL_NABLA)
-#define BonaPieceExpansion (6*6*6 * 6)
 #else
 #define BonaPieceExpansion 0
 #endif
@@ -80,8 +78,7 @@ namespace Eval {
 	void is_valid_nabra_eval_list(const Position& pos);
 #endif
 
-#if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || \
-	defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA) || defined(EVAL_NNUE)
+#if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_NNUE)
 
 	// Apery(WCSC26)の駒割り
 	enum {
@@ -134,8 +131,7 @@ namespace Eval {
 
 		// --- 手駒
 
-#if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || \
-	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA) || defined(EVAL_NNUE)
+#if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_NNUE)
 		// Apery(WCSC26)方式。0枚目の駒があるので少し隙間がある。
 		// 定数自体は1枚目の駒のindexなので、EVAL_KPPの時と同様の処理で問題ない。
 		// 例)

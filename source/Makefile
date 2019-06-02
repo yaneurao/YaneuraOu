@@ -1,9 +1,14 @@
 # > Select YaneuraOu edition below.
 
-YANEURAOU_EDITION = YANEURAOU_2018_OTAFUKU_ENGINE
+YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
+#YANEURAOU_EDITION = YANEURAOU_ENGINE_KPPT
+#YANEURAOU_EDITION = YANEURAOU_ENGINE_KPP_KKPT
 #YANEURAOU_EDITION = MATE_ENGINE
-#YANEURAOU_EDITION = YANEURAOU_2018_TNK_ENGINE
+#YANEURAOU_EDITION = USER_ENGINE
 
+# NNUE評価関数の形を選択できる。HALF_KP256は標準NNUE型。
+#NNUE_EVAL_ARCH = HALFKP256
+#NNUE_EVAL_ARCH = KP256
 
 # clangでコンパイルしたほうがgccより数%速いっぽい。
 #COMPILER = g++
@@ -31,9 +36,6 @@ ifeq ($(findstring clang++,$(COMPILER)),clang++)
 	# 最初の実行なら初期化するスレッドセーフなコードを生成するためのもの。
 	# → 本当に消してしまっても大丈夫か？
 	WCFLAGS += -fno-threadsafe-statics
-
-	# msys2用のclangでは、OpenMP使えない？インスコ仕方がわからん。
-
 endif
 
 ifeq ($(OS),Windows_NT)
@@ -75,7 +77,7 @@ LDFLAGS += -Wl,-s
 ifeq ($(findstring g++,$(COMPILER)),g++)
 	OPENMP   = -fopenmp
 	OPENMP_LDFLAGS =
-	ifeq ($(YANEURAOU_EDITION),YANEURAOU_2018_TNK_ENGINE)
+	ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE)
 		BLAS = -DUSE_BLAS
 		BLAS_LDFLAGS = -lopenblas
 		ifeq ($(MSYSTEM),MINGW64)
@@ -86,7 +88,7 @@ endif
 ifeq ($(findstring clang++,$(COMPILER)),clang++)
 	OPENMP   = -fopenmp
 	OPENMP_LDFLAGS = -lomp
-	ifeq ($(YANEURAOU_EDITION),YANEURAOU_2018_TNK_ENGINE)
+	ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE)
 		BLAS = -DUSE_BLAS
 		BLAS_LDFLAGS = -lopenblas
 		ifeq ($(MSYSTEM),MINGW64)
@@ -103,6 +105,7 @@ OBJDIR   = ../obj
 ifeq "$(strip $(OBJDIR))" ""
 	OBJDIR = ..
 endif
+
 #SOURCES  = $(wildcard *.cpp)
 SOURCES  = main.cpp                                                            \
 	types.cpp                                                                  \
@@ -131,32 +134,49 @@ SOURCES  = main.cpp                                                            \
 	extra/sfen_packer.cpp                                                      \
 	extra/kif_converter/kif_convert_tools.cpp                                  \
 	eval/evaluate_bona_piece.cpp                                               \
-	eval/kppt/evaluate_kppt.cpp                                                \
-	eval/kppt/evaluate_kppt_learner.cpp                                        \
-	eval/kpp_kkpt/evaluate_kpp_kkpt.cpp                                        \
-	eval/kpp_kkpt/evaluate_kpp_kkpt_learner.cpp                                \
 	eval/evaluate.cpp                                                          \
 	eval/evaluate_io.cpp                                                       \
 	eval/evaluate_mir_inv_tools.cpp                                            \
-	engine/user-engine/user-search.cpp                                         \
-	engine/2018-otafuku-engine/2018-otafuku-search.cpp                         \
 	learn/learner.cpp                                                          \
 	learn/learning_tools.cpp                                                   \
 	learn/multi_think.cpp
 
-ifeq ($(YANEURAOU_EDITION),MATE_ENGINE)
-	SOURCES += engine/mate-engine/mate-search.cpp
+ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPPT)
+	SOURCES +=  eval/kppt/evaluate_kppt.cpp                                    \
+				eval/kppt/evaluate_kppt_learner.cpp                            \
+				engine/yaneuraou-engine/yaneuraou-search.cpp
 endif
 
-ifeq ($(YANEURAOU_EDITION),YANEURAOU_2018_TNK_ENGINE)
+ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPP_KKPT)
+	SOURCES +=  eval/kppt/evaluate_kppt.cpp                                    \
+				eval/kpp_kkpt/evaluate_kpp_kkpt.cpp                            \
+				eval/kpp_kkpt/evaluate_kpp_kkpt_learner.cpp                    \
+				engine/yaneuraou-engine/yaneuraou-search.cpp
+endif
+
+ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE)
 	SOURCES += eval/nnue/evaluate_nnue.cpp                                     \
 	           eval/nnue/evaluate_nnue_learner.cpp                             \
 	           eval/nnue/nnue_test_command.cpp                                 \
 	           eval/nnue/features/k.cpp                                        \
 	           eval/nnue/features/p.cpp                                        \
 	           eval/nnue/features/half_kp.cpp                                  \
-	           eval/nnue/features/half_relative_kp.cpp
+				eval/nnue/features/half_relative_kp.cpp                         \
+				engine/yaneuraou-engine/yaneuraou-search.cpp
+
+ifeq ($(NNUE_EVAL_ARCH),KP256)
+	CFLAGS += -DEVAL_NNUE_KP256
 endif
+endif
+
+ifeq ($(YANEURAOU_EDITION),MATE_ENGINE)
+	SOURCES += engine/mate-engine/mate-search.cpp
+endif
+
+ifeq ($(YANEURAOU_EDITION),USER_ENGINE)
+	SOURCES += engine/user-engine/user-search.cpp
+endif
+
 
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
 DEPENDS  = $(OBJECTS:.o=.d)

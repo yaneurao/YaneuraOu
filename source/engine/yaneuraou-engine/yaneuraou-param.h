@@ -1,5 +1,5 @@
-﻿#ifndef _2018_OTAFUKU_PARAMETERS_
-#define _2018_OTAFUKU_PARAMETERS_
+﻿#ifndef YANEURAOU_PARAM_H_INCLUDED
+#define YANEURAOU_PARAM_H_INCLUDED
 
 // パラメーターの説明に "fixed"と書いてあるパラメーターはランダムパラメーター化するときでも変化しない。
 // 「前提depth」は、これ以上ならその枝刈りを適用する(かも)の意味。
