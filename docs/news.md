@@ -117,13 +117,13 @@
 
 - 複数CPU搭載環境の問題
   - [Windowsのプロセッサーグループの件](http://yaneuraou.yaneu.com/2016/11/26/windows%E3%81%AE%E3%83%97%E3%83%AD%E3%82%BB%E3%83%83%E3%82%B5%E3%83%BC%E3%82%B0%E3%83%AB%E3%83%BC%E3%83%97%E3%81%AE%E4%BB%B6/)
-  - [Windows上で複数CPUの全スレッドを使い切る件] : (http://yaneuraou.yaneu.com/2016/12/05/windows%E4%B8%8A%E3%81%A7%E8%A4%87%E6%95%B0cpu%E3%81%AE%E5%85%A8%E3%82%B9%E3%83%AC%E3%83%83%E3%83%89%E3%82%92%E4%BD%BF%E3%81%84%E5%88%87%E3%82%8B%E4%BB%B6/)
+  - [Windows上で複数CPUの全スレッドを使い切る件](http://yaneuraou.yaneu.com/2016/12/05/windows%E4%B8%8A%E3%81%A7%E8%A4%87%E6%95%B0cpu%E3%81%AE%E5%85%A8%E3%82%B9%E3%83%AC%E3%83%83%E3%83%89%E3%82%92%E4%BD%BF%E3%81%84%E5%88%87%E3%82%8B%E4%BB%B6/)
 
 
-## 評価関数
+## 評価関数の設計関連
 
 
-- NNUE型評価関数
+- NNUE型評価関数 halfKP256
   - NNUE評価関数とは何か？ : [やねうら王にNNUE評価関数をマージしました](http://yaneuraou.yaneu.com/2018/05/20/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B%E3%81%ABnnue%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%82%92%E3%83%9E%E3%83%BC%E3%82%B8%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F/)
   - NNUE評価関数に対する考察
     - [NNUE評価関数のような非線形な評価関数は何故有効なのですか？その１](http://yaneuraou.yaneu.com/2019/01/29/nnue%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%81%AE%E3%82%88%E3%81%86%E3%81%AA%E9%9D%9E%E7%B7%9A%E5%BD%A2%E3%81%AA%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%81%AF%E4%BD%95%E6%95%85%E6%9C%89%E5%8A%B9/)
@@ -133,9 +133,23 @@
   - NNUE改良
     - AVX-512による高速化 : [NNUE型評価関数はAVX-512化で速くなるのですか？](http://yaneuraou.yaneu.com/2018/12/16/nnue%E5%9E%8B%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%81%AFavx-512%E5%8C%96%E3%81%A7%E9%80%9F%E3%81%8F%E3%81%AA%E3%82%8B%E3%81%AE%E3%81%A7%E3%81%99%E3%81%8B%EF%BC%9F/)
 
-- NNUE型 K + P
+- NNUE型評価関数 KP256
   - [フロッピーディスクに収まる評価関数バイナリ公開しました](http://yaneuraou.yaneu.com/2019/01/15/%E3%83%95%E3%83%AD%E3%83%83%E3%83%94%E3%83%BC%E3%83%87%E3%82%A3%E3%82%B9%E3%82%AF%E3%81%AB%E5%8F%8E%E3%81%BE%E3%82%8B%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%83%90%E3%82%A4%E3%83%8A%E3%83%AA%E5%85%AC/)
   - [魚沼産やねうら王できました](http://yaneuraou.yaneu.com/2019/02/12/%E9%AD%9A%E6%B2%BC%E7%94%A3%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B%E3%81%A7%E3%81%8D%E3%81%BE%E3%81%97%E3%81%9F/)
+
+- KPP差分計算による高速化 : [KPP差分計算の高速化(bonasseの功罪について)](http://yaneuraou.yaneu.com/2015/09/24/kpp%E5%B7%AE%E5%88%86%E8%A8%88%E7%AE%97%E3%81%AE%E9%AB%98%E9%80%9F%E5%8C%96bonasse%E3%81%AE%E5%8A%9F%E7%BD%AA%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6/)
+
+- KPP_KKPT型について : [KPPTからKKPT型評価関数へ](http://yaneuraou.yaneu.com/2016/11/04/kppt%E3%81%8B%E3%82%89kkpt%E5%9E%8B%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%81%B8/)
+
+- KKP16bit化 : [KKP16bit化とは何か？](http://yaneuraou.yaneu.com/2016/11/05/kkp16bit%E5%8C%96%E3%81%A8%E3%81%AF%E4%BD%95%E3%81%8B%EF%BC%9F/)
+
+- KKPP型 : [KKPPに関する知られざること](http://yaneuraou.yaneu.com/2017/11/12/kkpp%E3%81%AB%E9%96%A2%E3%81%99%E3%82%8B%E7%9F%A5%E3%82%89%E3%82%8C%E3%81%96%E3%82%8B%E3%81%93%E3%81%A8/)
+
+- KPP interleave : [KPP interleaveとは何ですか？](http://yaneuraou.yaneu.com/2017/09/22/kpp-interleave%E3%81%A8%E3%81%AF%E4%BD%95%E3%81%A7%E3%81%99%E3%81%8B%EF%BC%9F/)
+
+- 取る一手将棋用 : [取る一手将棋が強化学習でほとんど強くならない件](http://yaneuraou.yaneu.com/2016/12/03/%E5%8F%96%E3%82%8B%E4%B8%80%E6%89%8B%E5%B0%86%E6%A3%8B%E3%81%8C%E5%BC%B7%E5%8C%96%E5%AD%A6%E7%BF%92%E3%81%A7%E3%81%BB%E3%81%A8%E3%82%93%E3%81%A9%E5%BC%B7%E3%81%8F%E3%81%AA%E3%82%89%E3%81%AA%E3%81%84/)
+
+- 55将棋、56将棋用 : [55将棋、56将棋で最適な評価関数は？](http://yaneuraou.yaneu.com/2016/11/24/55%E5%B0%86%E6%A3%8B%E3%80%8156%E5%B0%86%E6%A3%8B%E3%81%A7%E6%9C%80%E9%81%A9%E3%81%AA%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%81%AF%EF%BC%9F/)
 
 
 ## 評価関数の学習関連
@@ -176,24 +190,6 @@
 - 学習に要するコスト
   - 学習のためにXeon Dual構成にする(2016年) : [コンピューター将棋でXeon Dual構成はアリなのか？](http://yaneuraou.yaneu.com/2016/07/06/%E3%82%B3%E3%83%B3%E3%83%94%E3%83%A5%E3%83%BC%E3%82%BF%E3%83%BC%E5%B0%86%E6%A3%8B%E3%81%A7xeon-dual%E6%A7%8B%E6%88%90%E3%81%AF%E3%82%A2%E3%83%AA%E3%81%AA%E3%81%AE%E3%81%8B%EF%BC%9F/)
   - 学習にかかる電気代(2016年) : [SkalakeとXeon E5 v4とではどちらが電気代が安いですか？](http://yaneuraou.yaneu.com/2016/07/07/skalake%E3%81%A8xeon-e5-v4%E3%81%A8%E3%81%A7%E3%81%AF%E3%81%A9%E3%81%A1%E3%82%89%E3%81%8C%E9%9B%BB%E6%B0%97%E4%BB%A3%E3%81%8C%E5%AE%89%E3%81%84%E3%81%A7%E3%81%99%E3%81%8B%EF%BC%9F/)
-
-
-## 評価関数の設計関連
-
-
-- KPP差分計算による高速化 : [KPP差分計算の高速化(bonasseの功罪について)](http://yaneuraou.yaneu.com/2015/09/24/kpp%E5%B7%AE%E5%88%86%E8%A8%88%E7%AE%97%E3%81%AE%E9%AB%98%E9%80%9F%E5%8C%96bonasse%E3%81%AE%E5%8A%9F%E7%BD%AA%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6/)
-
-- KPP_KKPT型について : [KPPTからKKPT型評価関数へ](http://yaneuraou.yaneu.com/2016/11/04/kppt%E3%81%8B%E3%82%89kkpt%E5%9E%8B%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%81%B8/)
-
-- KKP16bit化 : [KKP16bit化とは何か？](http://yaneuraou.yaneu.com/2016/11/05/kkp16bit%E5%8C%96%E3%81%A8%E3%81%AF%E4%BD%95%E3%81%8B%EF%BC%9F/)
-
-- KKPP型 : [KKPPに関する知られざること](http://yaneuraou.yaneu.com/2017/11/12/kkpp%E3%81%AB%E9%96%A2%E3%81%99%E3%82%8B%E7%9F%A5%E3%82%89%E3%82%8C%E3%81%96%E3%82%8B%E3%81%93%E3%81%A8/)
-
-- KPP interleave : [KPP interleaveとは何ですか？](http://yaneuraou.yaneu.com/2017/09/22/kpp-interleave%E3%81%A8%E3%81%AF%E4%BD%95%E3%81%A7%E3%81%99%E3%81%8B%EF%BC%9F/)
-
-- 取る一手将棋用 : [取る一手将棋が強化学習でほとんど強くならない件](http://yaneuraou.yaneu.com/2016/12/03/%E5%8F%96%E3%82%8B%E4%B8%80%E6%89%8B%E5%B0%86%E6%A3%8B%E3%81%8C%E5%BC%B7%E5%8C%96%E5%AD%A6%E7%BF%92%E3%81%A7%E3%81%BB%E3%81%A8%E3%82%93%E3%81%A9%E5%BC%B7%E3%81%8F%E3%81%AA%E3%82%89%E3%81%AA%E3%81%84/)
-
-- 55将棋、56将棋用 : [55将棋、56将棋で最適な評価関数は？](http://yaneuraou.yaneu.com/2016/11/24/55%E5%B0%86%E6%A3%8B%E3%80%8156%E5%B0%86%E6%A3%8B%E3%81%A7%E6%9C%80%E9%81%A9%E3%81%AA%E8%A9%95%E4%BE%A1%E9%96%A2%E6%95%B0%E3%81%AF%EF%BC%9F/)
 
 
 ## データ構造
