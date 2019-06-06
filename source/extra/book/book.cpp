@@ -561,10 +561,7 @@ namespace Book
 
 #endif
 
-			cout << "write " << book_name << " .. " << endl;
 			book.write_book(book_name);
-			cout << "..done." << endl;
-
 		}
 		else if (book_merge) {
 
@@ -642,9 +639,7 @@ namespace Book
 			cout << "same nodes = " << same_nodes
 				<< " , different nodes =  " << diffrent_nodes1 << " + " << diffrent_nodes2 << endl;
 
-			cout << "write..";
 			book[2].write_book(book_name[2]);
-			cout << "..done!" << endl;
 
 		}
 		else if (book_sort) {
@@ -655,9 +650,7 @@ namespace Book
 			cout << "book sort from " << book_src << " , write to " << book_dst << endl;
 			book.read_book(book_src);
 
-			cout << "write..";
-			book.write_book(book_dst, true);
-			cout << "..done!" << endl;
+			book.write_book(book_dst);
 
 		}
 		else if (convert_from_apery) {
@@ -667,10 +660,7 @@ namespace Book
 			cout << "convert apery book from " << book_src << " , write to " << book_dst << endl;
 			book.read_apery_book(book_src);
 
-			cout << "write..";
-			book.write_book(book_dst, true);
-			cout << "..done!" << endl;
-
+			book.write_book(book_dst);
 		}
 		else {
 			cout << "usage" << endl;
@@ -885,10 +875,18 @@ namespace Book
 	}
 
 	// 定跡ファイルの書き出し
-	int MemoryBook::write_book(const std::string& filename, bool sort) const
+	int MemoryBook::write_book(const std::string& filename /*, bool sort*/) const
 	{
+		// Position::set()で評価関数の読み込みが必要。
+		//is_ready();
+
+		// →　この関数はbookコマンドからしか呼び出さず、bookコマンドの処理の先頭付近でis_ready()を
+		// 呼び出しているため、この関数のなかでのis_ready()は呼び出さないことにする。
+
 		fstream fs;
 		fs.open(filename, ios::out);
+
+		cout << endl << "write " + filename;
 
 		// バージョン識別用文字列
 		fs << "#YANEURAOU-DB2016 1.00" << endl;
@@ -911,21 +909,32 @@ namespace Book
 			vectored_book.push_back(it);
 		}
 
-		if (sort)
-		{
 			// sfen文字列は手駒の表記に揺れがある。
 			// (USI原案のほうでは規定されているのだが、将棋所が採用しているUSIプロトコルではこの規定がない。)
 			// sortするタイミングで、一度すべての局面を読み込み、sfen()化しなおすことで
 			// やねうら王が用いているsfenの手駒表記(USI原案)に統一されるようにする。
 
+		// 進捗の出力
+		u64 counter = 0;
+		auto output_progress = [&]()
+		{
+			if ((counter % 1000) == 0)
 			{
-				// Position::set()で評価関数の読み込みが必要。
-				is_ready();
+				if ((counter % 80000) == 0) // 80文字ごとに改行
+					cout << endl;
+				cout << ".";
+			}
+			counter++;
+		};
+
+			{
 				Position pos;
 
 				// std::vectorにしてあるのでit.firstを書き換えてもitは無効にならないはず。
 				for (auto& it : vectored_book)
 				{
+				output_progress();
+
 					StateInfo si;
 					pos.set(it.first,&si,Threads.main());
 					auto sfen = pos.sfen();
@@ -948,10 +957,11 @@ namespace Book
 				[](const pair<string, PosMoveListPtr>&lhs, const pair<string, PosMoveListPtr>&rhs) {
 				return lhs.first < rhs.first;
 			});
-		}
 
 		for (auto& it : vectored_book)
 		{
+			output_progress();
+
 			// -- 重複局面の手数違いの局面はスキップする(ファイルに書き出さない)
 
 			auto sfen = it.first;
@@ -975,6 +985,8 @@ namespace Book
 		}
 
 		fs.close();
+
+		cout << endl << "done!";
 
 		return 0;
 	}

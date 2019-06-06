@@ -428,8 +428,7 @@ namespace {
 		cout << endl;
 
 		// 書き出し
-		cout << "write " << write_book_name << endl;
-		write_book.write_book(write_book_name, true);
+		write_book.write_book(write_book_name);
 
 		cout << "done." << endl;
 	}
