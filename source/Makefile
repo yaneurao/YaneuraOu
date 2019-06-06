@@ -1,8 +1,11 @@
 # > Select YaneuraOu edition below.
 
 YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
+#YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE_HALFKP256
+#YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE_KP256
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_KPPT
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_KPP_KKPT
+#YANEURAOU_EDITION = YANEURAOU_ENGINE_MATERIAL
 #YANEURAOU_EDITION = MATE_ENGINE
 #YANEURAOU_EDITION = USER_ENGINE
 
@@ -36,6 +39,14 @@ ifeq ($(findstring clang++,$(COMPILER)),clang++)
 	# 最初の実行なら初期化するスレッドセーフなコードを生成するためのもの。
 	# → 本当に消してしまっても大丈夫か？
 	WCFLAGS += -fno-threadsafe-statics
+
+else
+	ifeq ($(findstring g++,$(COMPILER)),g++)
+		# mingw g++ で AVX512 向けビルドを行おうとするとエラーになる問題の回避
+		# https://stackoverflow.com/questions/43152633/invalid-register-for-seh-savexmm-in-cygwin
+		# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=65782
+		WCFLAGS += -fno-asynchronous-unwind-tables
+	endif
 endif
 
 ifeq ($(OS),Windows_NT)
@@ -81,28 +92,37 @@ LDFLAGS += -Wl,-s
 #ENGINE_BRANCH = dev
 
 # トーナメント用のビルドオプション
-TOURNAMENT_OPTION = 
+TOURNAMENT_OPTION =
 
 ifeq ($(findstring g++,$(COMPILER)),g++)
 	OPENMP   = -fopenmp
 	OPENMP_LDFLAGS =
-	ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE)
-		BLAS = -DUSE_BLAS
-		BLAS_LDFLAGS = -lopenblas
-		ifeq ($(MSYSTEM),MINGW64)
-			BLAS += -I$(shell cygpath -aw /mingw64/include/OpenBLAS)
+		endif
+ifeq ($(findstring clang++,$(COMPILER)),clang++)
+	ifeq ($(MSYSTEM),MINGW64)
+		# MSYS2 MINGW64 env
+		# libgompを指定した場合、ビルドは通るがOpenMPは無効化される？
+		OPENMP = -fopenmp=libgomp
+		OPENMP_LDFLAGS =
+	else
+		ifeq ($(findstring w64-mingw32,$(COMPILER)),w64-mingw32)
+			# Ubuntu mingw-w64 clang++ env (experimental)
+			OPENMP = -fopenmp=libgomp
+			OPENMP_LDFLAGS =
+		else
+			# Other (normal clang++/libomp env)
+			OPENMP = -fopenmp
+			OPENMP_LDFLAGS = -lomp
 		endif
 	endif
 endif
-ifeq ($(findstring clang++,$(COMPILER)),clang++)
-	OPENMP   = -fopenmp
-	OPENMP_LDFLAGS = -lomp
-	ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE)
-		BLAS = -DUSE_BLAS
-		BLAS_LDFLAGS = -lopenblas
-		ifeq ($(MSYSTEM),MINGW64)
-			BLAS += -I$(shell cygpath -aw /mingw64/include/OpenBLAS)
-		endif
+
+# NNUE評価関数 学習バイナリ用 OpenBLAS
+ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_NNUE)
+	BLAS = -DUSE_BLAS
+	BLAS_LDFLAGS = -lopenblas
+	ifeq ($(MSYSTEM),MINGW64)
+		BLAS += -I$(shell cygpath -aw /mingw64/include/OpenBLAS)
 	endif
 endif
 
@@ -116,7 +136,8 @@ ifeq "$(strip $(OBJDIR))" ""
 endif
 
 #SOURCES  = $(wildcard *.cpp)
-SOURCES  = main.cpp                                                            \
+SOURCES  = \
+	main.cpp                                                                   \
 	types.cpp                                                                  \
 	bitboard.cpp                                                               \
 	misc.cpp                                                                   \
@@ -151,31 +172,46 @@ SOURCES  = main.cpp                                                            \
 	learn/multi_think.cpp
 
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPPT)
-	SOURCES +=  eval/kppt/evaluate_kppt.cpp                                    \
-				eval/kppt/evaluate_kppt_learner.cpp                            \
-				engine/yaneuraou-engine/yaneuraou-search.cpp
+	SOURCES += \
+		eval/kppt/evaluate_kppt.cpp                                            \
+		eval/kppt/evaluate_kppt_learner.cpp                                    \
+		engine/yaneuraou-engine/yaneuraou-search.cpp
 endif
 
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPP_KKPT)
-	SOURCES +=  eval/kppt/evaluate_kppt.cpp                                    \
-				eval/kpp_kkpt/evaluate_kpp_kkpt.cpp                            \
-				eval/kpp_kkpt/evaluate_kpp_kkpt_learner.cpp                    \
-				engine/yaneuraou-engine/yaneuraou-search.cpp
+	SOURCES += \
+		eval/kppt/evaluate_kppt.cpp                                            \
+		eval/kpp_kkpt/evaluate_kpp_kkpt.cpp                                    \
+		eval/kpp_kkpt/evaluate_kpp_kkpt_learner.cpp                            \
+		engine/yaneuraou-engine/yaneuraou-search.cpp
 endif
 
-ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE)
-	SOURCES += eval/nnue/evaluate_nnue.cpp                                     \
-	           eval/nnue/evaluate_nnue_learner.cpp                             \
-	           eval/nnue/nnue_test_command.cpp                                 \
-	           eval/nnue/features/k.cpp                                        \
-	           eval/nnue/features/p.cpp                                        \
-	           eval/nnue/features/half_kp.cpp                                  \
-				eval/nnue/features/half_relative_kp.cpp                         \
-				engine/yaneuraou-engine/yaneuraou-search.cpp
-
-ifeq ($(NNUE_EVAL_ARCH),KP256)
-	CFLAGS += -DEVAL_NNUE_KP256
+ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_MATERIAL)
+	SOURCES += \
+		engine/yaneuraou-engine/yaneuraou-search.cpp
 endif
+
+ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_NNUE)
+	ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE)
+	else
+		CFLAGS += -DYANEURAOU_ENGINE_NNUE
+	endif
+	ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE_KP256)
+		CFLAGS += -DEVAL_NNUE_KP256
+	else
+		ifeq ($(NNUE_EVAL_ARCH),KP256)
+			CFLAGS += -DEVAL_NNUE_KP256
+		endif
+	endif
+	SOURCES += \
+		eval/nnue/evaluate_nnue.cpp                                            \
+		eval/nnue/evaluate_nnue_learner.cpp                                    \
+		eval/nnue/nnue_test_command.cpp                                        \
+		eval/nnue/features/k.cpp                                               \
+		eval/nnue/features/p.cpp                                               \
+		eval/nnue/features/half_kp.cpp                                         \
+		eval/nnue/features/half_relative_kp.cpp                                \
+		engine/yaneuraou-engine/yaneuraou-search.cpp
 endif
 
 ifeq ($(YANEURAOU_EDITION),MATE_ENGINE)
@@ -196,6 +232,7 @@ ifeq ($(findstring dev,$(ENGINE_BRANCH)),dev)
 	SOURCES += extra/super_sort.cpp
 endif
 
+CFLAGS += -DUSE_MAKEFILE -D$(YANEURAOU_EDITION)
 
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
 DEPENDS  = $(OBJECTS:.o=.d)
@@ -209,41 +246,60 @@ $(OBJDIR)/%.o: %.cpp
 
 all: clean $(TARGET)
 
+# https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
+
 # 学習用バイナリのときは、openmpを有効にする。
-evallearn:
-	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+evallearn-icelake:
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -DUSE_AVX512VBMI -DUSE_AVX512IFMA -USE_GFNI -march=icelake-client' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+evallearn-cascadelake:
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -march=cascadelake' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+evallearn-avx512:
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_AVX512 -DUSE_AVX512VLBWDQ -march=skylake-avx512' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+evallearn-avx2:
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
 evallearn-sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+evallearn: evallearn-avx2
 
 # 教師棋譜生成用
 gensfen:
-	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -DGENSFEN2019 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -DGENSFEN2019 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
-tournament:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE $(TOURNAMENT_OPTION) -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -DFOR_TOURNAMENT -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+tournament-icelake:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG $(TOURNAMENT_OPTION) -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -DUSE_AVX512VBMI -DUSE_AVX512IFMA -USE_GFNI -DFOR_TOURNAMENT -march=icelake-client' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+tournament-cascadelake:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG $(TOURNAMENT_OPTION) -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -DFOR_TOURNAMENT -march=cascadelake' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+tournament-avx512:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG $(TOURNAMENT_OPTION) -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DFOR_TOURNAMENT -march=skylake-avx512' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+tournament-avx2:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG $(TOURNAMENT_OPTION) -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -DFOR_TOURNAMENT -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 tournament-sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE $(TOURNAMENT_OPTION) -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -DFOR_TOURNAMENT -march=corei7' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG $(TOURNAMENT_OPTION) -DUSE_SSE42 -msse4.2 -DFOR_TOURNAMENT -march=corei7' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+tournament: tournament-avx2
 
+icelake:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -DUSE_AVX512VBMI -DUSE_AVX512IFMA -USE_GFNI -march=icelake-client' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+cascadelake:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -march=cascadelake' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+avx512:
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_AVX512 -DUSE_AVX512VLBWDQ -march=skylake-avx512' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 avx2:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 sse41:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE41 -msse4.1 -march=core2' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_SSE41 -msse4.1 -march=core2' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 sse2:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DUSE_SSE2 -msse2 -march=core2' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_SSE2 -msse2 -march=core2' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 # 32bit用。-m32は、MSYS2 MinGW-64だと無視されるので、
 # MinGW-64の32bit環境用でコンパイルする必要がある。
 nosse:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DNO_SSE -m32 -march=pentium3' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DNO_SSE -m32 -march=pentium3' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 # ARMなどのCPU
 other:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DNO_SSE' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DNO_SSE' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 #　とりあえずPGOはAVX2とSSE4.2専用
 prof:
