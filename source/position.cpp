@@ -740,8 +740,9 @@ bool Position::gives_check(Move m) const
 	const Square from = move_from(m);
 
 	// 開き王手になる駒の候補があるとして、fromにあるのがその駒で、fromからtoは玉と直線上にないなら
+	// 前提条件より、fromにあるのが自駒であることは確定しているので、pieces(sideToMove)は不要。
 	return !is_drop(m)
-		&& ((discovered_check_candidates() & from)
+		&& (((blockers_for_king(~sideToMove) /*& pieces(sideToMove)*/) & from)
 		&& !aligned(from, to, square<KING>(~sideToMove)));
 }
 

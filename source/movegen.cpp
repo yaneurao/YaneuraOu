@@ -841,7 +841,9 @@ ExtMove* generate_checks(const Position& pos, ExtMove* mlist)
 	// ここには王を敵玉の8近傍に移動させる指し手も含まれるが、王が近接する形はレアケースなので
 	// 指し手生成の段階では除外しなくても良いと思う。
 
-	const Bitboard y = pos.discovered_check_candidates();
+	// 移動させると(相手側＝非手番側)の玉に対して空き王手となる候補の(手番側)駒のbitboard。
+	const Bitboard y = pos.blockers_for_king(~Us) & pos.pieces(Us);
+
 	const Bitboard target =
 		(GenType == CHECKS || GenType == CHECKS_ALL) ? ~pos.pieces(Us) :                     // 自駒がない場所が移動対象升
 		(GenType == QUIET_CHECKS || GenType == QUIET_CHECKS_ALL) ? pos.empties() :           // 捕獲の指し手を除外するため駒がない場所が移動対象升

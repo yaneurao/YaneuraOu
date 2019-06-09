@@ -321,14 +321,6 @@ public:
 	// 現局面で駒Ptを動かしたときに王手となる升を表現するBitboard
 	Bitboard check_squares(Piece pt) const { ASSERT_LV3(pt!= NO_PIECE && pt < PIECE_WHITE); return st->checkSquares[pt]; }
 
-	// 以下の2つは後方互換性のために残してある。わりと便利なような？
-
-	// 移動させると(相手側＝非手番側)の玉に対して空き王手となる候補の(手番側)駒のbitboard。
-	Bitboard discovered_check_candidates() const { return blockers_for_king(~sideToMove) & pieces(sideToMove); }
-
-	// ピンされているc側の駒。下手な方向に移動させるとc側の玉が素抜かれる。
-	Bitboard pinned_pieces(Color c) const { return blockers_for_king(c) & pieces(c); }
-
 	// --- 利き
 
 	// sに利きのあるc側の駒を列挙する。cの指定がないものは先後両方の駒が返る。

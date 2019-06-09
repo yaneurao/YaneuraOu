@@ -694,13 +694,14 @@ Move is_mate_in_1ply_imp(const Position& pos)
 {
 	ASSERT_LV3(!pos.checkers());
 
-	Bitboard dcCandidates = pos.discovered_check_candidates();
-
 	Color them = ~Us;
 	Square sq_king = pos.king_square(them);
 
+	// 移動させると(相手側＝非手番側)の玉に対して空き王手となる候補の(手番側)駒のbitboard。
+	Bitboard dcCandidates = pos.blockers_for_king(them) & pos.pieces(Us);
+
 	// 相手玉側のpinされている駒の列挙(相手玉側は、この駒を動かすと素抜きに遭う)
-	Bitboard pinned = pos.pinned_pieces(them);
+	Bitboard pinned = pos.blockers_for_king(them) & pos.pieces(them);
 
 	Square from, to;
 
@@ -863,7 +864,7 @@ SILVER_DROP_END:;
 	Bitboard bb_check;
 
 	// 自分のpin駒
-	Bitboard our_pinned = pos.pinned_pieces(Us);
+	Bitboard our_pinned = pos.blockers_for_king(Us) & pos.pieces(Us);
 
 	// 自玉
 	Square our_king = pos.king_square(Us);

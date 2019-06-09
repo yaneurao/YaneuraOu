@@ -228,8 +228,7 @@ void Bitboards::init()
 	// pieceをsqにおいたときに利きを得るのに関係する升を返す
 	auto calcBishopEffectMask = [](Square sq, int n)
 	{
-		Bitboard result;
-		result = ZERO_BB;
+		Bitboard result = ZERO_BB;
 
 		// 外周は角の利きには関係ないのでそこは除外する。
 		for (Rank r = RANK_2; r <= RANK_8; ++r)
@@ -504,10 +503,9 @@ void Bitboards::init()
 		{
 			Color them = ~Us;
 			auto enemyGold = goldEffect(them, ksq) & enemy_field(Us);
-			Bitboard target;
+			Bitboard target = ZERO_BB;
 
 			// 歩で王手になる可能性のあるものは、敵玉から２つ離れた歩(不成での移動) + ksqに敵の金をおいた範囲(enemyGold)に成りで移動できる
-			target = ZERO_BB;
 			FOREACH(pawnEffect(them, ksq), pawnEffect);
 			FOREACH(enemyGold, pawnEffect);
 			CheckCandidateBB[ksq][PAWN - 1][Us] = target & ~Bitboard(ksq);
