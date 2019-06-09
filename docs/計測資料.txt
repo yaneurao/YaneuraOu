@@ -5,6 +5,59 @@
 　例えば探索部で「【計測資料 1.】」とコメントがあれば、このファイルの「■　1.」のところにその詳しい内容がある。
 
 
+■ 34.cuckooコード Stockfishの2倍のサイズのcuckoo配列で実験
+
+Stockfishの2倍のサイズのcuckoo配列で実験
+
+	// First and second hash functions for indexing the cuckoo tables
+	inline int H1(Key h) { return h & 0x3fff; }
+	inline int H2(Key h) { return (h >> 16) & 0x3fff; }
+
+	// Cuckoo tables with Zobrist hashes of valid reversible moves, and the moves themselves
+	Key cuckoo[8192*2];
+	Move cuckooMove[8192*2];
+
+
+	YaneuraOu2018NNUE_gcc_learn20190526g.exe
+	YaneuraOu2018NNUE_gcc_learn20190526h.exe
+	T2,b1000,2282 - 224 - 2214(50.76% R5.26[-3.27,13.78]) winrate black , white = 50.04% , 49.96%
+	T2,b2000,1422 - 188 - 1360(51.11% R7.74[-3.09,18.58]) winrate black , white = 52.3% , 47.7%
+	T2,b4000,695 - 104 - 741(48.4% R-11.13[-26.22,3.95]) winrate black , white = 50.56% , 49.44%
+	T2,b8000,978 - 186 - 1006(49.29% R-4.9[-17.73,7.92]) winrate black , white = 51.56% , 48.44%
+
+	// cout << "count = " << count << " , count2 = " << count2 << endl;
+	// chessの2倍の配列時 : count = 16456 , count2 = 4499 
+	// chessの4倍の配列時 : count = 16456 , count2 = 1623
+	2倍のサイズだと1/4ぐらいが衝突してる。それにしても計測できるレベルで強くなっていない感じ。
+	将棋ではチェスほど千日手手順が出現することが少ないからだと思われる。
+	(評価関数的に千日手の1手前の局面になりにくい)
+
+	このコード、大きなテーブルを使うわりに微差なので採用しない。
+
+
+■　33.王手延長のコード、pos.blockers_for_king(~us) & from_sq(move)も延長する/しない
+
+
+	変更前)
+			else if (givesCheck
+				&& (/*pos.blockers_for_king(~us) & from_sq(move) ||*/  pos.see_ge(move)))
+				extension = ONE_PLY;
+
+	変更後)
+			else if (givesCheck
+				&& ( pos.blockers_for_king(~us) & from_sq(move) ||  pos.see_ge(move)))
+				extension = ONE_PLY;
+
+
+	engine1 = YaneuraOu2018NNUE_gcc_learn20190526f.exe , eval = tanuki2018_nnue-best
+	engine2 = YaneuraOu2018NNUE_gcc_learn20190526g.exe , eval = tanuki2018_nnue-best
+	T2,b1000,689 - 58 - 623(52.52% R17.49[1.7,33.28]) winrate black , white = 52.59% , 47.41%
+	T2,b2000,480 - 48 - 532(47.43% R-17.87[-35.85,0.11]) winrate black , white = 54.74% , 45.26%
+	T2,b4000,1669 - 256 - 1655(50.21% R1.46[-8.45,11.37]) winrate black , white = 50.45% , 49.55%
+
+	計測できないレベルの差なので、本家に倣う。
+	
+	
 ■　29. Move CountベースのFutiliy Pruning、Stockfish 9と10での比較
 
 
@@ -59,6 +112,12 @@
 
           // Skip quiet moves if movecount exceeds our FutilityMoveCount threshold
           moveCountPruning = moveCount >= futility_move_count(improving, depth / ONE_PLY);
+
+	engine1 = YaneuraOu2018NNUE_gcc_learn20190526.exe , eval = tanuki2018_nnue-best
+	engine2 = YaneuraOu2018NNUE_gcc_learn20190526c.exe , eval = tanuki2018_nnue-best
+	T2,b1000,1463 - 141 - 1486(49.61% R-2.71) win black : white = 51.34% : 48.66%
+
+	新しいコードでコードが単純化されたし、計測できないレベルの差なので新しいコードを採用しておく。
 
 
 ■　28. moves_loopに入る前、1手前がnull moveのときにstaticEvalにbonusを足すかどうか
