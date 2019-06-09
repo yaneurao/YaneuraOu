@@ -3,11 +3,14 @@
 #if defined (YANEURAOU_ENGINE)
 
 // -----------------------
-//   やねうら王2018(otafuku)設定部
+//   やねうら王 標準探索部
 // -----------------------
 
-// パラメーターを自動調整するのか
-// 自動調整が終われば、ファイルを固定してincludeしたほうが良い。
+// 計測資料置き場 : https://github.com/yaneurao/YaneuraOu/blob/master/docs/%E8%A8%88%E6%B8%AC%E8%B3%87%E6%96%99.txt
+
+
+// パラメーターを自動調整するのか(パラメーターを調整するフレームワーク等を利用する場合)
+// 自動調整が終われば、値を固定して、パラメーターファイルをincludeしたほうが良い。
 //#define USE_AUTO_TUNE_PARAMETERS
 
 // 探索パラメーターにstep分のランダム値を加えて対戦させるとき用。
@@ -1079,20 +1082,24 @@ namespace {
 		// root nodeであるか
 		const bool rootNode = PvNode && ss->ply == 0;
 
+		// 【計測資料 34.】cuckooコード Stockfishの2倍のサイズのcuckoo配列で実験
+
+#if defined(CUCKOO)
 		// この局面から数手前の局面に到達させる指し手があるなら、それによって千日手になるので
 		// このnodeで千日手スコアを即座に返すことで早期枝刈りを実施することができるらしい。
 		
-		//	// Check if we have an upcoming move which draws by repetition, or
-		//	// if the opponent had an alternative move earlier to this position.
-		//	if (pos.rule50_count() >= 3
-		//		&& alpha < VALUE_DRAW
-		//		&& !rootNode
-		//		&& pos.has_game_cycle(ss->ply))
-		//	{
-		//		alpha = value_draw(depth, pos.this_thread());
-		//		if (alpha >= beta)
-		//			return alpha;
-		//	}
+		Value ValueDraw = draw_value(REPETITION_DRAW, pos.side_to_move());
+		if (/* pos.rule50_count() >= 3
+			&&*/ alpha < ValueDraw
+			&& !rootNode
+			&& pos.has_game_cycle(ss->ply))
+		{
+			//alpha = value_draw(depth, pos.this_thread());
+			alpha = ValueDraw;
+			if (alpha >= beta)
+				return alpha;
+		}
+#endif
 
 			// 残り探索深さが1手未満であるなら静止探索を呼び出す
 		if (depth < ONE_PLY)

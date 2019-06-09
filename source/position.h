@@ -197,13 +197,16 @@ public:
 	// この局面クラスを用いて探索しているスレッドを返す。 
 	Thread* this_thread() const { return thisThread; }
 
-	// 盤面上の駒を返す
+	// 盤面上の駒を返す。
 	Piece piece_on(Square sq) const { ASSERT_LV3(sq <= SQ_NB); return board[sq]; }
 
-	// c側の手駒を返す
+	// ある升に駒がないならtrueを返す。
+	bool empty(Square sq) const { return piece_on(sq) == NO_PIECE; }
+
+	// c側の手駒を返す。
 	Hand hand_of(Color c) const { ASSERT_LV3(is_ok(c));  return hand[c]; }
 
-	// c側の玉の位置を返す
+	// c側の玉の位置を返す。
 	FORCE_INLINE Square king_square(Color c) const { ASSERT_LV3(is_ok(c)); return kingSquare[c]; }
 
 	// 保持しているデータに矛盾がないかテストする。
@@ -258,6 +261,12 @@ public:
 	// 　※　rootとは、探索開始局面であり、そこまでの経路(手順)がある場合、そこよりさらに遡って調べる。
 	// rep_ply         : 遡る手数。デフォルトでは32手。あまり大きくすると速度低下を招く。
 	RepetitionState is_repetition(int plies_from_root , int rep_ply = 32) const;
+#if defined(CUCKOO)
+	// この局面から以前と同一局面に到達する指し手があるか。
+	// plies_from_root : rootからの手数。ss->plyを渡すこと。
+	// rep_ply         : 遡る手数。デフォルトでは16手。あまり大きくすると速度低下を招く。
+	bool has_game_cycle(int plies_from_root , int rep_ply = 16) const;
+#endif
 
 	// --- Bitboard
 
@@ -460,7 +469,8 @@ public:
 
 
 	// 指し手mで王手になるかを判定する。
-	// 指し手mはpseudo-legal(擬似合法)の指し手であるものとする。
+	// 前提条件 : 指し手mはpseudo-legal(擬似合法)の指し手であるものとする。
+	// (つまり、mのfromにある駒は自駒であることは確定しているものとする。)
 	bool gives_check(Move m) const;
 
 	// 手番側の駒をfromからtoに移動させると素抜きに遭うのか？
