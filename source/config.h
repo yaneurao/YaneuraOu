@@ -279,6 +279,7 @@
 //#define ASSERT_LV 3
 //#define USE_DEBUG_ASSERT
 
+
 #define ENABLE_TEST_CMD
 // 学習絡みのオプション
 #define USE_SFEN_PACKER
@@ -413,6 +414,9 @@ extern GlobalOptions_ GlobalOptions;
 #if !defined (USE_DEBUG_ASSERT)
 #define ASSERT(X) { if (!(X)) *(int*)1 = 0; }
 #else
+#include <iostream>
+#include <chrono>
+#include <thread>
 #define ASSERT(X) { if (!(X)) { std::cout << "\nError : ASSERT(" << #X << "), " << __FILE__ << "(" << __LINE__ << "): " << __func__ << std::endl; \
  std::this_thread::sleep_for(std::chrono::microseconds(3000)); *(int*)1 =0;} }
 #endif
