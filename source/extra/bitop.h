@@ -16,7 +16,11 @@
 // ----------------------------
 
 #if defined(USE_AVX512)
-#include <zmmintrin.h>
+// immintrin.h から AVX512 関連の intrinsic は読み込まれる
+// intel: https://software.intel.com/sites/landingpage/IntrinsicsGuide/#techs=AVX_512
+// gcc: https://github.com/gcc-mirror/gcc/blob/master/gcc/config/i386/immintrin.h
+// clang: https://github.com/llvm-mirror/clang/blob/master/lib/Headers/immintrin.h
+#include <immintrin.h>
 #elif defined(USE_AVX2)
 #include <immintrin.h>
 #elif defined(USE_SSE42)
@@ -29,7 +33,7 @@
 #include <arm_neon.h>
 #include <mm_malloc.h> // for _mm_alloc()
 #else
-#if defined (__GNUC__) 
+#if defined (__GNUC__)
 #include <mm_malloc.h> // for _mm_alloc()
 #endif
 #endif
