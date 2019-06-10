@@ -43,6 +43,7 @@ namespace USI {
 
 #if !defined(MATE_ENGINE)
 		o["Hash"] << Option(16, 1, MaxHashMB, [](const Option&o) { TT.resize(o); });
+		o["USI_Ponder"] << Option(false);
 
 		// その局面での上位N個の候補手を調べる機能
 		o["MultiPV"] << Option(1, 1, 800);
@@ -209,7 +210,9 @@ namespace USI {
 	}
 
 	Option::operator std::string() const {
-		ASSERT_LV1(type == "string" || type == "combo" /* 将棋用拡張*/);
+		//ASSERT_LV1(type == "string" || type == "combo" /* 将棋用拡張*/ );
+		// →　string化して保存しておいた内容をあとで復元したいことがあるのでこのassertないほうがいい。
+		// 代入しないとハンドラが起動しないので、そういう復元の仕方をしたいことがある。(ベンチマークなどで)
 		return currentValue;
 	}
 
