@@ -74,6 +74,12 @@ LDFLAGS += -Wl,-s
 # ※ 学習部ではOpenMpを用いるので、学習用のビルドではこのオプションを指定する。
 # clangでOPENMPを有効にしてビルドする方法については、解説.txtを参照のこと。
 
+# エンジンの表示名("usi"コマンドに対して出力される)
+#ENGINE_NAME =
+
+# 開発中のbranchならdevと指定する
+#ENGINE_BRANCH = dev
+
 ifeq ($(findstring g++,$(COMPILER)),g++)
 	OPENMP   = -fopenmp
 	OPENMP_LDFLAGS =
@@ -175,6 +181,15 @@ endif
 
 ifeq ($(YANEURAOU_EDITION),USER_ENGINE)
 	SOURCES += engine/user-engine/user-search.cpp
+endif
+
+ifneq ($(ENGINE_NAME),)
+	CFLAGS += -DENGINE_NAME_FROM_MAKEFILE=$(ENGINE_NAME)
+endif
+
+# 開発用branch
+ifeq ($(findstring dev,$(ENGINE_BRANCH)),dev)
+	SOURCES += extra/SuperSort.cpp
 endif
 
 

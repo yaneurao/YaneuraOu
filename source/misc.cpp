@@ -136,7 +136,20 @@ const string engine_info() {
 	}
 	else
 	{
-		ss << "id name " << ENGINE_NAME << ' '
+		ss << "id name " <<
+			// Makefileのほうでエンジン表示名が指定されているならそれに従う。
+#if defined(ENGINE_NAME_FROM_MAKEFILE)
+			// マクロの内容の文字列化
+			// cf. https://www.hiroom2.com/2015/09/07/c%E8%A8%80%E8%AA%9E%E3%81%AE-line-%E3%83%9E%E3%82%AF%E3%83%AD%E3%82%92%E3%83%97%E3%83%AA%E3%83%97%E3%83%AD%E3%82%BB%E3%83%83%E3%82%B5%E3%81%AE%E6%AE%B5%E9%9A%8E%E3%81%A7%E6%96%87%E5%AD%97%E5%88%97%E3%81%AB%E5%A4%89%E6%8F%9B%E3%81%99%E3%82%8B/
+#define STRINGIFY(n) #n
+#define TOSTRING(n) STRINGIFY(n)
+			TOSTRING(ENGINE_NAME_FROM_MAKEFILE)
+#undef STRINGIFY
+#undef TOSTRING
+#else
+			ENGINE_NAME
+#endif			
+			<< ' '
 			<< EVAL_TYPE_NAME << ' '
 			<< ENGINE_VERSION << setfill('0')
 			<< (Is64Bit ? " 64" : " 32")

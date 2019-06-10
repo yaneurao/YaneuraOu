@@ -63,7 +63,7 @@
 
 // Makefileを使ってbuildするときは、
 // $ make avx2
-// のようにしてビルドすれば自動的にAVX2用がビルドされます。
+// のようにしてビルドすれば自動的にAVX2用実行ファイルがビルドされます。
 
 #endif
 
@@ -257,9 +257,9 @@
 #if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT) || defined(YANEURAOU_ENGINE_NNUE) || defined(YANEURAOU_ENGINE_MATERIAL)
 
 #define ENGINE_NAME "YaneuraOu"
+
 // 探索部は通常のやねうら王エンジンを用いる。
 #define YANEURAOU_ENGINE
-
 
 #define USE_EVAL_HASH
 #define USE_SEE

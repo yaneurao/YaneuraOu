@@ -61,16 +61,17 @@ http://yaneuraou.yaneu.com/
 
 ■　コンパイル方法
 
-Visual Studio 2017 Community Edition(無料で使えます)でビルド一発で実行ファイルが出来るはずです。
+
+Visual Studio 2019 Community Edition(無料で使えます)でビルド一発で実行ファイルが出来るはずです。
 
 
 ★　思考エンジンの種類の選択
 
 ビルドする思考エンジンの種類として、
 
-・やねうら王2017Early
+・やねうら王2019(評価関数としてKPPT , KPP_KKPT , NNUEの3つのなかから1つ選択)
 ・詰め将棋エンジン
-・連続自動対局フレームワーク
+・ユーザーエンジン
 
 のなかから選択することが出来ます。詳しくはconfig.hをご覧ください。
 
@@ -130,12 +131,25 @@ SSE4.2非対応ということはAVX2も非対応のはずなので、上のAVX2
 100MBなら大丈夫のようです。
 
 
+★ Makefileを使ったmake方法
+
+例) MSYS2でのmakeコマンドでのビルド
+make clean YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE
+make -j8 avx2 COMPILER=g++ YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE ENGINE_NAME="YaneuraOu\(dev-learn\)"
+cp YaneuraOu-by-gcc.exe "C:\msys64\home\yaneen\shogi-msys64\bin/YaneuraOu2018NNUE_gcc_gen.exe"
+
+	・avx2 , sse42などターゲットCPUを指定します。
+	・YANEURAOU_EDITIONでビルドするエンジン名を指定します。(Makefileのなかを見てください)
+	・ENGINE_NAMEでビルドされたときのエンジン名(表示名)を指定できます。
+		※　複雑な文字列の場合、ダブルコーテーションで囲んだほうが良いというのと、( )の手前では \ でのエスケープが必要です。
+	
+
 ■  ShogiGUIの検討モードで使う方法
 
 ShogiGUIの検討モードで「定跡を使用する」のオプションはオフにします。
 (ここをオンにするとShogiGUI側の定跡が使用されます。)
 
-やねうら王2016Midでは、定跡にhitしたときにその指し手を" multipv "という文字列を付けて
+やねうら王2019では、定跡にhitしたときにその指し手を" multipv "という文字列を付けて
 返すようにしています。ゆえに、ShogiGUIではこれがうまく処理されます。
 候補手を増やしたときにきちんと検討ウィンドウのところに表示されるはずです。
 
