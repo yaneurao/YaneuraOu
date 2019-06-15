@@ -985,9 +985,14 @@ bool Position::pseudo_legal_s(const Move m) const {
 				return false;
 #endif
 
-			// 移動先が敵陣でないと成れない。先手が置換表衝突で後手の指し手を引いてきたら、こういうことになりかねない。
+#if !defined(KEEP_PIECE_IN_GENERATE_MOVES)
+			// Zobrist::side == 1なので先手と後手は常にハッシュ値が異なる。
+			// よって先手と後手の手が置換表衝突する事はない。
+			// killer move等に関しては32bit形式であればPieceと成と移動元(先)が矛盾する事はない。
+			// そのため、32bit形式ではこのチェックは不要。
 			if (!(enemy_field(us) & (Bitboard(from) | Bitboard(to))))
 				return false;
+#endif
 
 		}
 		else {
