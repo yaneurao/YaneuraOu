@@ -265,6 +265,22 @@ void is_ready(bool skipCorruptCheck)
 		}
 	});
 
+#if defined (USE_EVAL_HASH)
+	Eval::EvalHash_Resize(Options["EvalHash"]);
+#endif
+
+	// 初回初期化
+	static bool init = false;
+	if (!init)
+	{
+		// eHashのクリアもこのタイミングで行うことにする。
+		// (大きめのものを確保していると時間がかかるため)
+#if defined (USE_EVAL_HASH)
+		Eval::EvalHash_Clear();
+#endif
+		init = true;
+	}
+
 	// 評価関数の読み込みなど時間のかかるであろう処理はこのタイミングで行なう。
 	// 起動時に時間のかかる処理をしてしまうと将棋所がタイムアウト判定をして、思考エンジンとしての認識をリタイアしてしまう。
 	if (!USI::load_eval_finished)
@@ -279,7 +295,6 @@ void is_ready(bool skipCorruptCheck)
 		Eval::print_softname(eval_sum);
 
 		USI::load_eval_finished = true;
-
 	}
 	else
 	{
@@ -293,6 +308,7 @@ void is_ready(bool skipCorruptCheck)
 	// このタイミングで各種変数の初期化もしておく。
 
 	TT.resize(Options["Hash"]);
+
 	Search::clear();
 	Time.availableNodes = 0;
 

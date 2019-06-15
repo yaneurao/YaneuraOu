@@ -24,6 +24,9 @@ namespace USI {
 			[](char c1, char c2) { return tolower(c1) < tolower(c2); });
 	}
 
+	// 前回のOptions["EvalDir"]
+	std::string last_eval_dir;
+
 	// optionのdefault値を設定する。
 	void init(OptionsMap& o)
 	{
@@ -42,7 +45,12 @@ namespace USI {
 		// 個別設定が出来るようにする。
 
 #if !defined(MATE_ENGINE)
+		// 置換表のサイズ。[MB]で指定。
 		o["Hash"] << Option(16, 1, MaxHashMB, [](const Option&o) { TT.resize(o); });
+
+		// 評価値用のcacheサイズ。[MB]で指定。
+		o["EvalHash"] << Option(128, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
+
 		o["USI_Ponder"] << Option(false);
 
 		// その局面での上位N個の候補手を調べる機能
@@ -107,11 +115,18 @@ namespace USI {
 		o["EnteringKingRule"] << Option(USI::ekr_rules, USI::ekr_rules[EKR_27_POINT], [](const Option& o) { set_entering_king_rule(o); });
 #endif
 		// 評価関数フォルダ。これを変更したとき、評価関数を次のisreadyタイミングで読み直す必要がある。
-		o["EvalDir"] << Option("eval", [](const USI::Option&o) { load_eval_finished = false; });
+		last_eval_dir = "eval";
+		o["EvalDir"] << Option("eval", [](const USI::Option&o) {
+			if (last_eval_dir != string(o))
+			{
+				// 評価関数フォルダ名の変更に際して、評価関数ファイルの読み込みフラグをクリアする。
+				last_eval_dir = string(o);
+				load_eval_finished = false;
+			}
+		});
 
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32) && \
-	 (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || \
-	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_KKPPT) ||defined(EVAL_EXPERIMENTAL) || defined(EVAL_HELICES) || defined(EVAL_NABLA) )
+	 (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) )
 		// 評価関数パラメーターを共有するか
 		// 異種評価関数との自己対局のときにこの設定で引っかかる人が後を絶たないのでデフォルトでオフにする。
 		o["EvalShare"] << Option(false);

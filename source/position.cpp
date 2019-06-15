@@ -182,7 +182,7 @@ void Position::init() {
 	//assert(count == 3668); // chessの場合
 
 	// cout << "count = " << count << " , count2 = " << count2 << endl;
-	// chessの2倍の配列時 : count = 16456 , count2 = 4499 
+	// chessの2倍の配列時 : count = 16456 , count2 = 4499
 	// chessの4倍の配列時 : count = 16456 , count2 = 1623
 	ASSERT_LV3(count == 16456);
 #endif
@@ -259,7 +259,7 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 		// 数字は、空の升の数なのでその分だけ筋(File)を進める
 		if (isdigit(token))
 			f -= File(token - '0');
-		// '/'は次の段を意味する                              
+		// '/'は次の段を意味する
 		else if (token == '/')
 		{
 			f = FILE_9;
@@ -986,9 +986,10 @@ bool Position::pseudo_legal_s(const Move m) const {
 #endif
 
 #if !defined(KEEP_PIECE_IN_GENERATE_MOVES)
-			// Zobrist::side == 1なので先手と後手は常にハッシュ値が異なる。
+			// 移動先が敵陣でないと成れない。
+			// ただし、Zobrist::side == 1なので先手と後手は常にハッシュ値が異なる。
 			// よって先手と後手の手が置換表衝突する事はない。
-			// killer move等に関しては32bit形式であればPieceと成と移動元(先)が矛盾する事はない。
+			// また、killer move等に関しては32bit形式であればPieceと成と移動元(先)が矛盾する事はない。
 			// そのため、32bit形式ではこのチェックは不要。
 			if (!(enemy_field(us) & (Bitboard(from) | Bitboard(to))))
 				return false;
@@ -1182,7 +1183,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 	// 厳密には、これはrootからの手数ではなく、初期盤面からの手数ではあるが。
 	++gamePly;
-	
+
 	// st->previousで遡り可能な手数カウンタ
 	st->pliesFromNull = prev->pliesFromNull + 1;
 
@@ -1274,7 +1275,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// 玉の移動ではないことを示しておく。
 		dp.moved_king = COLOR_NB;
 #endif
-		
+
 		// 王手している駒のbitboardを更新する。
 		// 駒打ちなのでこの駒で王手になったに違いない。駒打ちで両王手はありえないので王手している駒はいまtoに置いた駒のみ。
 		if (givesCheck)

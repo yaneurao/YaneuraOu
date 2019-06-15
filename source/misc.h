@@ -181,7 +181,8 @@ static void my_exit()
 // 進捗を表示しながら並列化してゼロクリア
 // Stockfishではtt.cppにこのコードがあるのだが、独自の置換表を確保したいときに
 // これが独立していないと困るので、ここに用意する。
-void memclear(void* table, size_t size);
+// nameは"Hash" , "eHash"などクリアしたいものの名前を書く。メモリクリアの途中経過が出力されるときにその名前が出力される。
+extern void memclear(const char* name , void * table, size_t size);
 
 // insertion sort
 // 昇順に並び替える。学習時のコードを使いたい時があるので用意。

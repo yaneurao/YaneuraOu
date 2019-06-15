@@ -375,6 +375,7 @@
     <ClInclude Include="engine\yaneuraou-engine\yaneuraou-param.h" />
     <ClInclude Include="engine\yaneuraou-engine\yaneuraou-param_gen.h" />
     <ClInclude Include="evaluate.h" />
+    <ClInclude Include="eval\evalhash.h" />
     <ClInclude Include="eval\evaluate_io.h" />
     <ClInclude Include="eval\evaluate_common.h" />
     <ClInclude Include="eval\evalsum.h" />

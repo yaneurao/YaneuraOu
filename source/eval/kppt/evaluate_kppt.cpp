@@ -30,6 +30,10 @@
 #include "../experimental/evaluate_experimental.h"
 #endif
 
+#if defined (USE_EVAL_HASH)
+#include "../evalhash.h"
+#endif
+
 // EvalShareの機能を使うために必要
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
 #include <codecvt>	 // mkdirするのにwstringが欲しいのでこれが必要
@@ -529,7 +533,13 @@ namespace Eval
 
 
 #if defined (USE_EVAL_HASH)
+	// evaluateしたものを保存しておくHashTable(俗にいうehash)
+
+	struct EvaluateHashTable : HashTable<EvalSum> {};
 	EvaluateHashTable g_evalTable;
+
+	void EvalHash_Resize(size_t mbSize) { g_evalTable.resize(mbSize); }
+	void EvalHash_Clear() { g_evalTable.clear(); };
 
 	// prefetchする関数も用意しておく。
 	void prefetch_evalhash(const Key key)

@@ -267,4 +267,5 @@ namespace Eval
 	// EvalIO::eval_convert()の引数として渡される。
 	std::vector<u16 /*BonaPiece*/> eval_mapper;
 #endif
-}
+
+} // namespace Eval

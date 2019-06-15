@@ -548,6 +548,15 @@ namespace Eval {
 	// EvalIO::eval_convert()の引数として渡される。
 	extern std::vector<u16 /*BonaPiece*/> eval_mapper;
 #endif
+
+#if defined(USE_EVAL_HASH)
+	// EvalHashのリサイズ
+	extern void EvalHash_Resize(size_t mbSize);
+
+	// EvalHashのクリア
+	extern void EvalHash_Clear();
+#endif
+
 }
 
 #endif // #ifndef _EVALUATE_H_

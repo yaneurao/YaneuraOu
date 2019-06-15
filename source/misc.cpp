@@ -403,7 +403,7 @@ namespace WinProcGroup {
 
 // 進捗を表示しながら並列化してゼロクリア
 // ※ Stockfishのtt.cppのTranspositionTable::clear()にあるコードと同等のコード。
-void memclear(void* table, size_t size)
+void memclear(const char* name_ , void* table, size_t size)
 {
 	// Windows10では、このゼロクリアには非常に時間がかかる。
 	// malloc()時点ではメモリを実メモリに割り当てられておらず、
@@ -412,7 +412,8 @@ void memclear(void* table, size_t size)
 
 	// memset(table, 0, size);
 
-	sync_cout << "info string Hash Clear begin , Hash size =  " << size / (1024 * 1024) << "[MB]" << sync_endl;
+	std::string name(name_);
+	sync_cout << "info string " + name + " Clear begin , Hash size =  " << size / (1024 * 1024) << "[MB]" << sync_endl;
 
 	// マルチスレッドで並列化してクリアする。
 
@@ -443,7 +444,7 @@ void memclear(void* table, size_t size)
 	for (std::thread& th : threads)
 		th.join();
 
-	sync_cout << "info string Hash Clear done." << sync_endl;
+	sync_cout << "info string " + name + " Clear done." << sync_endl;
 
 }
 

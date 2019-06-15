@@ -11,6 +11,10 @@
 #include "../../misc.h"
 #include "../../usi.h"
 
+#if defined(USE_EVAL_HASH)
+#include "../evalhash.h"
+#endif
+
 #include "evaluate_nnue.h"
 
 namespace Eval {
@@ -157,6 +161,7 @@ static Value ComputeScore(const Position& pos, bool refresh = false) {
 }  // namespace NNUE
 
 #if defined(USE_EVAL_HASH)
+
 // HashTableに評価値を保存するために利用するクラス
 struct alignas(16) ScoreKeyValue {
 #if defined(USE_SSE2)
@@ -194,34 +199,13 @@ struct alignas(16) ScoreKeyValue {
   };
 };
 
-// シンプルなHashTableの実装。
-// Sizeは2のべき乗。
-template <typename T, size_t Size>
-struct HashTable {
-  HashTable() { clear(); }
-  T* operator [] (const Key k) { return entries_ + (static_cast<size_t>(k) & (Size - 1)); }
-  void clear() { memset(entries_, 0, sizeof(T)*Size); }
-
-  // Size が 2のべき乗であることのチェック
-  static_assert((Size & (Size - 1)) == 0, "");
-
- private:
-  T entries_[Size];
-};
-
 // evaluateしたものを保存しておくHashTable(俗にいうehash)
 
-#if !defined(USE_LARGE_EVAL_HASH)
-// 134MB(魔女のAVX2以外の時の設定)
-struct EvaluateHashTable : HashTable<ScoreKeyValue, 0x800000> {};
-#else
-// prefetch有りなら大きいほうが良いのでは…。
-// →　あまり変わらないし、メモリもったいないのでデフォルトでは↑の設定で良いか…。
-// 1GB(魔女のAVX2の時の設定)
-struct EvaluateHashTable : HashTable<ScoreKeyValue, 0x4000000> {};
-#endif
+struct EvaluateHashTable : HashTable<ScoreKeyValue> {};
 
 EvaluateHashTable g_evalTable;
+void EvalHash_Resize(size_t mbSize) { g_evalTable.resize(mbSize); }
+void EvalHash_Clear() { g_evalTable.clear(); };
 
 // prefetchする関数も用意しておく。
 void prefetch_evalhash(const Key key) {
@@ -245,11 +229,13 @@ void load_eval() {
     std::ifstream stream(file_name, std::ios::binary);
     const bool result = NNUE::ReadParameters(stream);
 
+	sync_cout << "info string loading eval file : " << file_name << sync_endl;
+
 //    ASSERT(result);
 	if (!result)
 	{
 		// 読み込みエラーのとき終了してくれないと困る。
-		std::cout << "Error! : failed to read " << NNUE::kFileName << std::endl;
+		sync_cout << "Error! : failed to read " << NNUE::kFileName << sync_endl;
 		my_exit();
 	}
   }
