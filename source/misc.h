@@ -395,6 +395,14 @@ namespace Math {
 		return v < lo ? lo : v > hi ? hi : v;
 	}
 
+	// cの倍数になるようにvを繰り上げる
+	template<class T> constexpr const T align(const T v, const int c)
+	{
+		// cは2の倍数である。(1である一番上のbit以外は0
+		ASSERT_LV3((c & (c - 1)) == 0);
+		return (v + (T)(c - 1)) & ~(T)(c - 1);
+	}
+
 }
 
 // --------------------

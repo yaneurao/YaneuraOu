@@ -986,7 +986,7 @@ namespace Book
 
 		fs.close();
 
-		cout << endl << "done!";
+		cout << endl << "done!" << endl;
 
 		return 0;
 	}

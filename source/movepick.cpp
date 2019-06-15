@@ -73,7 +73,8 @@ enum Stages: int {
 // partial_insertion_sort()は指し手を与えられたlimitまで降順でソートする。
 // limitよりも小さい値の指し手の順序については、不定。
 // 将棋だと指し手の数が多い(ことがある)ので、数が多いときは途中で打ち切ったほうがいいかも。
-// 現状、全体時間の7%程度をこの関数で消費している。
+// 現状、全体時間の6.5～7.5%程度をこの関数で消費している。
+// (長い時間思考させるとこの割合が増えてくる)
 void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 
 	for (ExtMove *sortedEnd = begin, *p = begin + 1; p < end; ++p)
@@ -86,6 +87,7 @@ void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 			*q = tmp;
 		}
 }
+
 
 // 合法手か判定する
 // ※　やねうら王独自追加。
@@ -163,8 +165,8 @@ MovePicker::MovePicker(const Position& p, Move ttm, Value th , const CapturePiec
 	// ProbCutにおいて、SEEが与えられたthresholdの値以上の指し手のみ生成する。
 	// (置換表の指しても、この条件を満たさなければならない)
 	ttMove = ttm
-		&& pseudo_legal(pos, ttm)
 		&& pos.capture(ttm)
+		&& pseudo_legal(pos, ttm)
 		&& pos.see_ge(ttm, threshold) ? ttm : MOVE_NONE;
 
 	// 置換表の指し手がないなら、次のstageから開始する。
@@ -272,8 +274,8 @@ Move MovePicker::select(Pred filter) {
 Move MovePicker::next_move(bool skipQuiets) {
 
 top:
-	switch (stage)
-	{
+	switch (stage) {
+
 	// 置換表の指し手を返すフェーズ
 	case MAIN_TT:
 	case EVASION_TT:

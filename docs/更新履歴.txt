@@ -2,6 +2,57 @@
 やねうら王 更新履歴
 
 
+■　2019/06/15
+
+
+- V4.87にバージョンナンバーを上げる。
+
+
+- EvalHashオプション追加
+
+
+- Position::pseudo_legal_s()の不要なチェックを削除 (#97)  Aperyの平岡さんのプルリク
+
+
+■　2019/06/10
+
+
+- make時のエンジン表示名の指定に対応
+
+
+- USI_Ponder受けつけてなかったの修正
+- benchコマンドがASSERTに引っかかっていたの修正
+
+
+- ASSERT有効にしたときにコンパイルが通らなくなっていたの修正。
+
+
+■　2019/06/09
+
+
+- ENABLE_OUTPUT_GAME_RESULTまわり、コード整理
+
+
+- Position::discovered_check_candidates(),pinned_pieces()廃止。
+
+
+- 計測資料、記述追加、readme.mdに定跡生成手順などの補足
+
+
+- cuckoo配列の初期化コード追加、Position::has_game_cycle()実装など。
+
+
+■　2019/06/07
+
+
+- 定跡DBの書き出し、必ずsortするように仕様変更。
+
+
+■　2019/06/03
+
+
+- Makefile整理
+- プロジェクトファイル整理
 
 
 ■　2019/06/02
