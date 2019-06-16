@@ -4,6 +4,7 @@
 #include "search.h"
 #include "thread.h"
 #include "tt.h"
+#include "evaluate.h" // Eval::EvalHash_Clear();
 
 #include <sstream>
 #include <queue>

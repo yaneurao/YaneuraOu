@@ -2,6 +2,7 @@
 #include "tt.h"
 #include "usi.h"
 #include "misc.h"
+#include "evaluate.h" // Eval::EvalHash_Resize();
 
 using std::string;
 
