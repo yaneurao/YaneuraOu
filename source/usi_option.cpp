@@ -16,7 +16,7 @@ namespace USI {
 	extern std::vector<std::string> ekr_rules;
 	void set_entering_king_rule(const std::string& rule);
 	void read_engine_options();
-	
+
 
 	// USIプロトコルで必要とされるcase insensitiveな less()関数
 	bool CaseInsensitiveLess::operator() (const string& s1, const string& s2) const {
@@ -49,8 +49,10 @@ namespace USI {
 		// 置換表のサイズ。[MB]で指定。
 		o["Hash"] << Option(16, 1, MaxHashMB, [](const Option&o) { TT.resize(o); });
 
+#if defined(USE_EVAL_HASH)
 		// 評価値用のcacheサイズ。[MB]で指定。
 		o["EvalHash"] << Option(128, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
+#endif
 
 		o["USI_Ponder"] << Option(false);
 
@@ -142,7 +144,7 @@ namespace USI {
 		o["SkipLoadingEval"] << Option(false);
 #endif
 
-#if !defined(MATE_ENGINE) && !defined(FOR_TOURNAMENT) 
+#if !defined(MATE_ENGINE) && !defined(FOR_TOURNAMENT)
 		// 読みの各局面ですべての合法手を生成する
 		// (普通、歩の2段目での不成などは指し手自体を生成しないのですが、これのせいで不成が必要な詰みが絡む問題が解けないことが
 		// あるので、このオプションを用意しました。トーナメントモードではこのオプションは無効化されます。)
