@@ -5,6 +5,34 @@
 　例えば探索部で「【計測資料 1.】」とコメントがあれば、このファイルの「■　1.」のところにその詳しい内容がある。
 
 
+■　35.Position::is_repetition() 同一局面をrootより遡って見つけたときに即座に千日手として扱うか。
+
+
+	以前のコード
+
+	// root(==ply)より遡る(ply <= i)なら2度出現(cnt == 2)する必要がある。
+	// rootより遡らない(ply > i)なら1度目の出現(cnt == 1)で千日手と判定する。
+	if (++cnt + (ply > i) == 2)
+	{
+		// 自分が王手をしている連続王手の千日手なのか？
+		if (i <= st->continuousCheck[sideToMove])
+			return REPETITION_LOSE;
+
+		// 相手が王手をしている連続王手の千日手なのか？
+		if (i <= st->continuousCheck[~sideToMove])
+			return REPETITION_WIN;
+
+		return REPETITION_DRAW;
+	}
+
+	engine1 = YaneuraOu2018NNUE_gcc_learn20190526g.exe , eval = tanuki2018_nnue-best
+	engine2 = YaneuraOu2018NNUE_gcc_learn20190526i.exe , eval = tanuki2018_nnue-best
+	T2,b1000,1355 - 147 - 1458(48.17% R-12.73[-23.51,-1.95]) winrate black , white = 51.8% , 48.2%
+	T2,b2000,1935 - 256 - 2019(48.94% R-7.38[-16.47,1.71]) winrate black , white = 51.8% , 48.2%
+
+	単純化して悪くはなさそうなので単純化する。
+
+
 ■ 34.cuckooコード Stockfishの2倍のサイズのcuckoo配列で実験
 
 Stockfishの2倍のサイズのcuckoo配列で実験

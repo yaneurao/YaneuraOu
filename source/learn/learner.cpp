@@ -566,7 +566,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				s8 is_win = 0;
 				bool game_end = false;
-				auto draw_type = pos.is_repetition(0);
+				auto draw_type = pos.is_repetition();
 				switch (draw_type)
 				{
 				case REPETITION_WIN      : is_win =  1; game_end = true; break;

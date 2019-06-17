@@ -259,8 +259,10 @@ public:
 	// そこまでの局面と同一局面であるかを、局面を遡って調べる。
 	// plies_from_root : rootからの手数。ss->plyを渡すこと。
 	// 　※　rootとは、探索開始局面であり、そこまでの経路(手順)がある場合、そこよりさらに遡って調べる。
-	// rep_ply         : 遡る手数。デフォルトでは32手。あまり大きくすると速度低下を招く。
-	RepetitionState is_repetition(int plies_from_root , int rep_ply = 32) const;
+	// →　これ無駄なのでやめた。(V4.87)[2019/06/09]
+	// rep_ply         : 遡る手数。デフォルトでは16手。あまり大きくすると速度低下を招く。
+	RepetitionState is_repetition(int rep_ply = 16) const;
+
 #if defined(CUCKOO)
 	// この局面から以前と同一局面に到達する指し手があるか。
 	// plies_from_root : rootからの手数。ss->plyを渡すこと。

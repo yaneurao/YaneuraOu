@@ -225,7 +225,7 @@ namespace HelpMate
 
 void Search::init() {}
 void Search::clear() { HelpMate::TT.clear(); }
-void MainThread::think() {
+void MainThread::search() {
   HelpMate::init();
   for (auto th : Threads.slaves) th->start_searching();
   Thread::search();

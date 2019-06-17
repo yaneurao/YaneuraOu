@@ -1813,16 +1813,9 @@ void Position::undo_null_move()
 // ----------------------------------
 
 // 連続王手の千日手等で引き分けかどうかを返す
-RepetitionState Position::is_repetition(int ply , int repPly_ /* = 32 */) const
+RepetitionState Position::is_repetition(int repPly /* = 16 */) const
 {
 	// repPlyまで遡る
-	// rootより遡るのであれば2度同一局面が出現する必要があるので16の倍にしておく。
-	// この値が増えるの、多少、気分が悪いところではあるが…。
-	//
-	// これ16から32に変更したことで1%ぐらい速度低下するようだ。
-	// 16手目までに1度も同一局面が出現しなければリタイアしたいが、この処理を綺麗に書くのは難しい…。
-	const int repPly = repPly_;
-
 	// 現在の局面と同じhash keyを持つ局面があれば、それは千日手局面であると判定する。
 
 	// 　rootより遡るなら、2度出現する(3度目の同一局面である)必要がある。
@@ -1831,6 +1824,15 @@ RepetitionState Position::is_repetition(int ply , int repPly_ /* = 32 */) const
 	//   Don't score as an immediate draw 2-fold repetitions of the root position
 	//   https://github.com/official-stockfish/Stockfish/commit/6d89d0b64a99003576d3e0ed616b43333c9eca01
 
+	// チェスだと千日手は同一局面3回(将棋だと4回)である。
+	// root以降で同一局面が2度出現した場合は、それを千日手として扱うのは妥当である。
+	// root以前の局面と現在の局面が一致している場合は、即座に千日手成立として扱うのは無理があるという判断のもと、
+	// 千日手確定のときのみ千日手とする処理がStockfishにはある。
+	// しかし、将棋では千日手成立には同一局面が4回出現する必要があるので、この場合、root以前に3回同じ局面が出現して
+	// いるかチェックする必要があるが、そこまでする必要があるとは思えない。ゆえに、このチェックを省略する。
+
+	// 【計測資料 35.】is_repetition() 同一局面をrootより遡って見つけたときに即座に千日手として扱うか。
+	
 	// pliesFromNullが未初期化になっていないかのチェックのためのassert
 	ASSERT_LV3(st->pliesFromNull >= 0);
 
@@ -1844,9 +1846,6 @@ RepetitionState Position::is_repetition(int ply , int repPly_ /* = 32 */) const
 
 	StateInfo* stp = st->previous->previous;
 
-	// 盤上の駒が同一である局面が出現した回数
-	int cnt = 0;
-
 	for (int i = 4; i <= end ; i += 2)
 	{
 		stp = stp->previous->previous;
@@ -1858,10 +1857,6 @@ RepetitionState Position::is_repetition(int ply , int repPly_ /* = 32 */) const
 			// 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
 			if (stp->hand == st->hand)
 			{
-				// root(==ply)より遡る(ply <= i)なら2度出現(cnt == 2)する必要がある。
-				// rootより遡らない(ply > i)なら1度目の出現(cnt == 1)で千日手と判定する。
-				if (++cnt + (ply > i) == 2)
-				{
 					// 自分が王手をしている連続王手の千日手なのか？
 					if (i <= st->continuousCheck[sideToMove])
 						return REPETITION_LOSE;
@@ -1871,7 +1866,6 @@ RepetitionState Position::is_repetition(int ply , int repPly_ /* = 32 */) const
 						return REPETITION_WIN;
 
 					return REPETITION_DRAW;
-				}
 			}
 			else {
 				// 優等局面か劣等局面であるか。(手番が相手番になっている場合はいま考えない)

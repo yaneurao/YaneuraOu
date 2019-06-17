@@ -149,7 +149,7 @@ namespace {
 		auto stm = pos.side_to_move();
 
 			// 千日手の検出などが必要でごじゃる。
-		auto draw_type = pos.is_repetition(pos.game_ply() , pos.game_ply());
+		auto draw_type = pos.is_repetition(pos.game_ply());
 			if (draw_type != REPETITION_NONE)
 			{
 				// この次の一手が欲しい気はする。is_repetition()が返して欲しい気はするのだが、
