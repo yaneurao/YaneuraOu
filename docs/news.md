@@ -48,6 +48,7 @@
 
 - ConsiderationModeオプションについて : [検討モード用の読み筋出力について](http://yaneuraou.yaneu.com/2017/05/15/%E6%A4%9C%E8%A8%8E%E3%83%A2%E3%83%BC%E3%83%89%E7%94%A8%E3%81%AE%E8%AA%AD%E3%81%BF%E7%AD%8B%E5%87%BA%E5%8A%9B%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6/)
 
+- EvalHashオプションについて : [EvalHashの最適なサイズは？](http://yaneuraou.yaneu.com/2019/06/16/evalhash%E3%81%AE%E6%9C%80%E9%81%A9%E3%81%AA%E3%82%B5%E3%82%A4%E3%82%BA%E3%81%AF%EF%BC%9F/)
 
 ## 定跡関連
 
@@ -76,6 +77,9 @@
 ## AWS
 
 - AWSで思考エンジンを動かし、ノーパソから使ってみる : [将棋ソフトのためにノートPCを買い変える前に](http://yaneuraou.yaneu.com/2018/11/28/%E5%B0%86%E6%A3%8B%E3%82%BD%E3%83%95%E3%83%88%E3%81%AE%E3%81%9F%E3%82%81%E3%81%AB%E3%83%8E%E3%83%BC%E3%83%88pc%E3%82%92%E8%B2%B7%E3%81%84%E5%A4%89%E3%81%88%E3%82%8B%E5%89%8D%E3%81%AB/)
+- AWS側のUbuntuでコンパイルする方法など : [コンピュータ将棋開発者がAWSで機械学習を回すには？](http://yaneuraou.yaneu.com/2017/11/05/%E3%82%B3%E3%83%B3%E3%83%94%E3%83%A5%E3%83%BC%E3%82%BF%E5%B0%86%E6%A3%8B%E9%96%8B%E7%99%BA%E8%80%85%E3%81%8Caws%E3%81%A7%E6%A9%9F%E6%A2%B0%E5%AD%A6%E7%BF%92%E3%82%92%E5%9B%9E%E3%81%99%E3%81%AB/)
+  - Ubuntuでコンパイルする方法については、[解説.txt](%E8%A7%A3%E8%AA%AC.txt)に説明があります。
+- ssh経由で思考エンジンを使う方法 : [AWSに思考エンジンを配置してssh経由で使う方法](http://yaneuraou.yaneu.com/2019/06/17/aws%E3%81%AB%E6%80%9D%E8%80%83%E3%82%A8%E3%83%B3%E3%82%B8%E3%83%B3%E3%82%92%E9%85%8D%E7%BD%AE%E3%81%97%E3%81%A6ssh%E7%B5%8C%E7%94%B1%E3%81%A7%E4%BD%BF%E3%81%86%E6%96%B9%E6%B3%95/)
 
 
 ## 探索
