@@ -97,7 +97,7 @@ TOURNAMENT_OPTION =
 ifeq ($(findstring g++,$(COMPILER)),g++)
 	OPENMP   = -fopenmp
 	OPENMP_LDFLAGS =
-		endif
+endif
 ifeq ($(findstring clang++,$(COMPILER)),clang++)
 	ifeq ($(MSYSTEM),MINGW64)
 		# MSYS2 MINGW64 env
@@ -285,10 +285,13 @@ avx512:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_AVX512 -DUSE_AVX512VLBWDQ -march=skylake-avx512' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 avx2:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+
 sse42:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+
 sse41:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_SSE41 -msse4.1 -march=core2' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+
 sse2:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_SSE2 -msse2 -march=core2' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 

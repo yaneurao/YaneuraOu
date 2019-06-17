@@ -227,10 +227,6 @@
 // USIプロトコルでgameoverコマンドが送られてきたときに gameover_handler()を呼び出す。
 // #define USE_GAMEOVER_HANDLER
 
-// EVAL_HASHで使用するメモリとして大きなメモリを確保するか。
-// これをONすると数%高速化する代わりに、メモリ使用量が1GBほど増える。
-// #define USE_LARGE_EVAL_HASH
-
 // GlobalOptionという、EVAL_HASHを有効/無効を切り替えたり、置換表の有効/無効を切り替えたりする
 // オプションのための変数が使えるようになる。スピードが1%ぐらい遅くなるので大会用のビルドではオフを推奨。
 // #define USE_GLOBAL_OPTIONS
@@ -360,7 +356,6 @@
 #undef ASSERT_LV
 #undef EVAL_LEARN
 #undef ENABLE_TEST_CMD
-#define USE_LARGE_EVAL_HASH
 #undef USE_GLOBAL_OPTIONS
 #undef KEEP_LAST_MOVE
 #endif
