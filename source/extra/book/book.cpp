@@ -193,7 +193,7 @@ namespace Book
 			}
 
 			// 定跡ファイル名
-			// Option["book_file"]ではなく、ここで指定したものが処理対象である。
+			// Option["BookFile"]ではなく、ここで指定したものが処理対象である。
 			string book_name;
 			is >> book_name;
 
@@ -1494,7 +1494,15 @@ namespace Book
 				sync_cout << "info pv " << pv_string
 					<< " (" << fixed << std::setprecision(2) << (100 * it.prob) << "%)" // 採択確率
 					<< " score cp " << it.value << " depth " << it.depth
-					<< " multipv " << (i+1) << sync_endl;
+#if !defined(NICONICO)
+					<< " multipv " << (i+1)
+#endif					
+					<< sync_endl;
+
+				// 電王盤はMultiPV非対応なので1番目の読み筋だけを"multipv"をつけずに送信する。
+#if defined(NICONICO)
+				break;
+#endif
 			}
 		}
 
