@@ -736,7 +736,7 @@ namespace Book
 				fs.open(filename, ios::in);
 				if (fs.fail())
 				{
-					cout << "info string Error! : can't read " + filename << endl;
+					sync_cout << "info string Error! : can't read file : " + filename << sync_endl;
 					return 1;
 				}
 
@@ -747,10 +747,11 @@ namespace Book
 				return 0;
 			}
 
+			sync_cout << "info string read book file : " << filename << sync_endl;
 			vector<string> lines;
 			if (read_all_lines(filename, lines))
 			{
-				cout << "info string Error! : can't read " + filename << endl;
+				sync_cout << "info string Error! : can't read file : " + filename << sync_endl;
 				//      exit(EXIT_FAILURE);
 				return 1; // 読み込み失敗
 			}
@@ -870,6 +871,8 @@ namespace Book
 		// 読み込んだファイル名を保存しておく。二度目のread_book()はskipする。
 		book_name = filename;
 		pure_book_name = pure_filename;
+
+		sync_cout << "info string read book done." << sync_endl;
 
 		return 0;
 	}
@@ -1556,6 +1559,11 @@ namespace Book
 				// 評価値がvalue_limitを下回るものを削除
 				auto it_end = std::remove_if(move_list.begin(), move_list.end(), [&](Book::BookPos & m) { return m.value < value_limit; });
 				move_list.erase(it_end, move_list.end());
+
+				// これを出力するとShogiGUIの棋譜解析で読み筋として表示されてしまう…。
+				// 棋譜解析でinfo stringの文字列を拾う実装になっているのがおかしいのだが。
+				// ShogiGUIの作者に要望を出す。[2019/06/20]
+				// →　対応してもらえるらしい。[2019/06/22]
 
 				// 候補手が1手でも減ったなら減った理由を出力
 				if (!silent && n != move_list.size())
