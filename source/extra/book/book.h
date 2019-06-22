@@ -169,12 +169,12 @@ namespace Book
 		// メモリに読み込んだ定跡ファイル
 		MemoryBook memory_book;
 
-		// 読み込む予定の定跡ファイル名
+		// 読み込んだ定跡ファイル名
 		std::string book_name;
 
 		// 定跡ファイル名を返す。
 		// Option["BookDir"]が定跡ファイルの入っているフォルダなのでこれを連結した定跡ファイルのファイル名を返す。
-		std::string get_book_name() const { return Path::Combine((std::string)Options["BookDir"], book_name); }
+		std::string get_book_name() const { return Path::Combine((std::string)Options["BookDir"], (std::string)Options["BookFile"]); }
 
 		// probe()の下請け
 		// forceHit == trueのときは、設定オプションの値を無視して強制的に定跡にhitさせる。(BookPvMovesの実装で用いる)

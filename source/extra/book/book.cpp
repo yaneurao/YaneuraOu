@@ -699,8 +699,12 @@ namespace Book
 		// 　今回はtrueになった場合、本来ならメモリにすでに読み込まれているのだから読み直しは必要ないが、
 		//　 何らかの目的で変更したのであろうから、この場合もきちんと反映しないとまずい。)
 		bool ignore_book_ply_ = Options["IgnoreBookPly"];
-		if (book_name == filename && this->on_the_fly == on_the_fly_ && this->ignoreBookPly == ignore_book_ply_)
+		if (this->book_name == filename && this->on_the_fly == on_the_fly_ && this->ignoreBookPly == ignore_book_ply_)
 			return 0;
+
+		// 一度このクラスのメンバーが保持しているファイル名はクリアする。(何も読み込んでいない状態になるので)
+		this->book_name = "";
+		this->pure_book_name = "";
 
 		// 別のファイルを開こうとしているので前回メモリに丸読みした定跡をクリアしておかないといけない。
 		book_body.clear();
@@ -713,8 +717,8 @@ namespace Book
 		// 読み込み済み、もしくは定跡を用いない(no_book)であるなら正常終了。
 		if (pure_filename == "no_book")
 		{
-			book_name = filename;
-			pure_book_name = pure_filename;
+			this->book_name = filename;
+			this->pure_book_name = pure_filename;
 			return 0;
 		}
 
@@ -743,7 +747,7 @@ namespace Book
 				// 定跡ファイルのopenにも成功したし、on the flyできそう。
 				// このときに限りこのフラグをtrueにする。
 				this->on_the_fly = true;
-				book_name = filename;
+				this->book_name = filename;
 				return 0;
 			}
 
@@ -869,8 +873,8 @@ namespace Book
 		}
 
 		// 読み込んだファイル名を保存しておく。二度目のread_book()はskipする。
-		book_name = filename;
-		pure_book_name = pure_filename;
+		this->book_name = filename;
+		this->pure_book_name = pure_filename;
 
 		sync_cout << "info string read book done." << sync_endl;
 
@@ -1368,8 +1372,7 @@ namespace Book
 			, "yaneura_book1.db" , "yaneura_book2.db" , "yaneura_book3.db", "yaneura_book4.db"
 			, "user_book1.db", "user_book2.db", "user_book3.db", "book.bin" };
 
-		o["BookFile"] << Option(book_list, book_list[1], [&](const Option& o){ this->book_name = string(o); });
-		book_name = book_list[1];
+		o["BookFile"] << Option(book_list, book_list[1]);
 
 		o["BookDir"] << Option("book");
 
