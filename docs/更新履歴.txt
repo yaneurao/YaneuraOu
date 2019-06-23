@@ -2,7 +2,46 @@
 やねうら王 更新履歴
 
 
+■　2019/06/23
+
+
+- engine_options.txtを読み込んでいるのにソースコードのコメントでengine_option.txtと書いていた箇所修正。
+
+
+- EnteringKingRuleがengine_options.txtで反映しなかったの修正
+- 入玉ルールまわりの処理、リファクタリング
+- extra/entering_king_rule.cpp →　position.cppに吸収
+- engine_options.txtでoverrideしたときに、Optionのhandlerを呼び出すように修正
+
+
+■　2019/06/22
+
+
+- "engine_options.txt"側でBookFileを指定できなかったbug修正。
+
+
+- ニコニコ生放送用にmultipvで出力しないオプション追加。
+
+
+- 定跡ファイルの読み込み中にinfo stringでその旨を出力する。
+
+
+■　2019/06/17
+
+
+- Positionクラス、千日手の処理変更。
+  - 以前の方法の処理に戻す。
+
+
+- Android用Makefile , AVX512対応の用意など。  Mizerさんのプルリク(#98)
+
+
+
 ■　2019/06/15
+
+
+- include忘れ修正
+手元の環境だとコンパイル通るのなんで…。
 
 
 - V4.87にバージョンナンバーを上げる。
@@ -11,7 +50,7 @@
 - EvalHashオプション追加
 
 
-- Position::pseudo_legal_s()の不要なチェックを削除 (#97)  Aperyの平岡さんのプルリク
+- Position::pseudo_legal_s()の不要なチェックを削除 (#97)  Aperyの平岡さんのプルリク(#97)
 
 
 ■　2019/06/10
@@ -552,7 +591,7 @@ USI2.0の仕様より。
 ■　2018/07/27
 
 
-- 起動時に、"engine_option.txt"を読み込み、Optionsに反映するように。
+- 起動時に、"engine_options.txt"を読み込み、Optionsに反映するように。
 	- エンジンオプションのデフォルト値の変更について、解説.txtに追記
 
 

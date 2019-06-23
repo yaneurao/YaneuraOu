@@ -153,7 +153,7 @@ namespace USI {
 		// 各エンジンがOptionを追加したいだろうから、コールバックする。
 		USI::extra_option(o);
 
-		// カレントフォルダに"engine_option.txt"があればそれをオプションとしてOptions[]の値をオーバーライドする機能。
+		// カレントフォルダに"engine_options.txt"があればそれをオプションとしてOptions[]の値をオーバーライドする機能。
 		read_engine_options();
 	}
 
@@ -336,7 +336,7 @@ namespace USI {
 
 	}
 
-	// カレントフォルダに"engine_option.txt"があればそれをオプションとしてOptions[]の値をオーバーライドする機能。
+	// カレントフォルダに"engine_options.txt"があればそれをオプションとしてOptions[]の値をオーバーライドする機能。
 	void read_engine_options()
 	{
 		std::ifstream ifs("engine_options.txt");
