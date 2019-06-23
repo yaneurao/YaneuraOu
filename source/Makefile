@@ -153,7 +153,6 @@ SOURCES  = \
 	extra/book/book.cpp                                                        \
 	extra/book/makebook2019.cpp                                                \
 	extra/bitop.cpp                                                            \
-	extra/entering_king_win.cpp                                                \
 	extra/long_effect.cpp                                                      \
 	extra/mate/mate1ply_with_effect.cpp                                        \
 	extra/mate/mate1ply_without_effect.cpp                                     \

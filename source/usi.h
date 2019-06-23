@@ -137,11 +137,13 @@ namespace USI
 	// USI::init()のなかからコールバックされる。
 	void extra_option(USI::OptionsMap& o);
 
-	// 入玉ルール
-	extern EnteringKingRule ekr;
-
 	// 評価関数を読み込んだかのフラグ。これはevaldirの変更にともなってfalseにする。
 	extern bool load_eval_finished; // = false;
+
+#if defined (USE_ENTERING_KING_WIN)
+	// 入玉ルール文字列をEnteringKingRule型に変換する。
+	extern EnteringKingRule to_entering_king_rule(const std::string& rule);
+#endif
 
 }
 

@@ -246,7 +246,7 @@
 
 // ニコニコ生放送の電王盤用
 // 電王盤はMultiPV非対応なので定跡を送るとき、"multipv"をつけずに1番目の候補手を送信する必要がある。
-//#define NICONICO
+// #define NICONICO
 
 // --------------------
 // release configurations

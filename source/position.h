@@ -523,7 +523,7 @@ public:
 	bool capture(Move m) const { return !is_drop(m) && piece_on(move_to(m)) != NO_PIECE; }
 
 	// --- 1手詰め判定
-#ifdef USE_MATE_1PLY
+#if defined(USE_MATE_1PLY)
   // 現局面で1手詰めであるかを判定する。1手詰めであればその指し手を返す。
   // ただし1手詰めであれば確実に詰ませられるわけではなく、簡単に判定できそうな近接王手による
   // 1手詰めのみを判定する。(要するに判定に漏れがある。)
@@ -543,15 +543,13 @@ public:
 #endif
 
 	// 入玉時の宣言勝ち
-#if defined (USE_ENTERING_KING_WIN)
   // Search::Limits.enteringKingRuleに基いて、宣言勝ちを行なう。
   // 条件を満たしているとき、MOVE_WINや、玉を移動する指し手(トライルール時)が返る。さもなくば、MOVE_NONEが返る。
   // mate1ply()から内部的に呼び出す。(そうするとついでに処理出来て良い)
 	Move DeclarationWin() const;
-#endif
 
 	// -- sfen化ヘルパ
-#ifdef USE_SFEN_PACKER
+#if defined(USE_SFEN_PACKER)
   // packされたsfenを得る。引数に指定したバッファに返す。
   // gamePlyはpackに含めない。
 	void sfen_pack(PackedSfen& sfen);
@@ -571,7 +569,7 @@ public:
 #endif
 
 	// -- 利き
-#ifdef LONG_EFFECT_LIBRARY
+#if defined(LONG_EFFECT_LIBRARY)
 
   // 各升の利きの数
 	LongEffect::ByteBoard board_effect[COLOR_NB];

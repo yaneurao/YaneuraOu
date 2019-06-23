@@ -12,10 +12,10 @@ namespace USI {
 
 	// --- やねうら王独自拡張分の前方宣言
 
-	extern std::vector<std::string> ekr_rules;
-	void set_entering_king_rule(const std::string& rule);
-	void read_engine_options();
+	// 入玉ルールのUSI文字列
+	std::vector<std::string> ekr_rules = { "NoEnteringKing", "CSARule24" , "CSARule27" , "TryRule" };
 
+	void read_engine_options();
 
 	// USIプロトコルで必要とされるcase insensitiveな less()関数
 	bool CaseInsensitiveLess::operator() (const string& s1, const string& s2) const {
@@ -111,11 +111,11 @@ namespace USI {
 
 		o["ContemptFromBlack"] << Option(false);
 
-
 #if defined (USE_ENTERING_KING_WIN)
 		// 入玉ルール
-		o["EnteringKingRule"] << Option(USI::ekr_rules, USI::ekr_rules[EKR_27_POINT], [](const Option& o) { set_entering_king_rule(o); });
+		o["EnteringKingRule"] << Option(USI::ekr_rules, USI::ekr_rules[EKR_27_POINT]);
 #endif
+
 		// 評価関数フォルダ。これを変更したとき、評価関数を次のisreadyタイミングで読み直す必要がある。
 		last_eval_dir = "eval";
 		o["EvalDir"] << Option("eval", [](const USI::Option&o) {
@@ -278,23 +278,17 @@ namespace USI {
 
 	// 入玉ルール
 #if defined(USE_ENTERING_KING_WIN)
-// デフォルトでは27点法
-	EnteringKingRule ekr = EKR_27_POINT;
-	// 入玉ルールのUSI文字列
-	std::vector<std::string> ekr_rules = { "NoEnteringKing", "CSARule24" , "CSARule27" , "TryRule" };
 
-	// 入玉ルールがGUIから変更されたときのハンドラ
-	void set_entering_king_rule(const std::string& rule)
+	// 文字列に対応するEnteringKingRuleを取得する。
+	EnteringKingRule to_entering_king_rule(const std::string& rule)
 	{
 		for (size_t i = 0; i < ekr_rules.size(); ++i)
 			if (ekr_rules[i] == rule)
-			{
-				ekr = (EnteringKingRule)i;
-				break;
-			}
+				return (EnteringKingRule)i;
+
+		ASSERT(false);
+		return EnteringKingRule::EKR_NONE;
 	}
-#else
-	EnteringKingRule ekr = EKR_NONE;
 #endif
 
 	// 思考エンジンがGUIからの"usi"に対して返す"option ..."文字列から
@@ -303,6 +297,7 @@ namespace USI {
 	// Options[]の値を上書きするためにこの関数が必要。
 	// "option name USI_Hash type spin default 256"
 	// のような文字列が引数として渡される。
+	// このとき、Optionのhandlerとidxは書き換えない。
 	void build_option(string line)
 	{
 		LineScanner scanner(line);
@@ -356,9 +351,16 @@ namespace USI {
 	// idxの値を書き換えないoperator "<<"
 	void Option::overwrite(const Option& o)
 	{
+		// 値が書き換わるのか？
+		bool modified = this->currentValue != o.currentValue;
+
 		auto idx_ = idx; // backup
 		*this = o;
 		idx = idx_; // restore
+
+		// 値が書き換わったならハンドラを呼び出してやる。
+		if (modified && this->on_change)
+			this->on_change(*this);
 	}
 
 } // namespace USI

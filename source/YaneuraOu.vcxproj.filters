@@ -261,6 +261,9 @@
     <ClInclude Include="engine\yaneuraou-engine\yaneuraou-param_gen.h">
       <Filter>リソース ファイル\engine\yaneuraou-engine</Filter>
     </ClInclude>
+    <ClInclude Include="eval\evalhash.h">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -298,9 +301,6 @@
     </ClCompile>
     <ClCompile Include="eval\evaluate_bona_piece.cpp">
       <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\entering_king_win.cpp">
-      <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
     <ClCompile Include="engine\user-engine\user-search.cpp">
       <Filter>リソース ファイル\engine\user-engine</Filter>
@@ -423,9 +423,6 @@
     </Text>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\README.md">
-      <Filter>docs</Filter>
-    </None>
     <None Include="Makefile">
       <Filter>docs</Filter>
     </None>
