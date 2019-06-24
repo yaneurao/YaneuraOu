@@ -57,6 +57,14 @@ namespace {
 		VMD white; // root_color == WHITE用の評価値
 	};
 
+	// 一度調べたnodeをcacheしておくためのもの。
+	struct VmdPairGamePly {
+		VmdPairGamePly(){}
+		VmdPairGamePly(const VMD_Pair& vmd_pair_, int gamePly_) : vmd_pair(vmd_pair_), gamePly(gamePly_) {}
+		VMD_Pair vmd_pair;
+		int gamePly;
+	};
+
 	// 定跡のbuilder
 	struct BookTreeBuilder
 	{
@@ -82,8 +90,7 @@ namespace {
 		// 進捗の表示
 		void output_progress();
 
-		// 書き出したnodeをcacheしておく。
-		std::unordered_map<std::string /*sfen*/, VMD_Pair> vmd_write_cache;
+		std::unordered_map<std::string /*sfen*/, VmdPairGamePly> vmd_write_cache;
 
 		// 書き出したnodeをcacheしておく。
 		std::unordered_set<std::string /*sfen*/> done_sfen;
@@ -235,11 +242,15 @@ namespace {
 		// あと、手数違いの局面は書き出しのときに手数が一番若いもの以外は間引くので、手数違いの局面を検出する処理を書いたほうがいいような気はするが、
 		// vmd_write_cacheにはヒットするので、まあ、大したオーバーヘッドではないので良しとする。
 
+		// 同一局面の場合、gamePlyが最小のものを採用する。(それ以外は千日手絡みのスコアが混じっている可能性があるので)
+		// ※　it_write->second.gamePly > gamePly のとき、cacheにhitしなかったものとして再度調べる。
+
 		auto sfen_left = StringExtension::trim_number(sfen);
+		int gamePly = StringExtension::to_int(StringExtension::mid(sfen, sfen_left.length()), 0);
 		
 		auto it_write = vmd_write_cache.find(sfen_left);
-		if (it_write != vmd_write_cache.end())
-			return it_write->second;
+		if (it_write != vmd_write_cache.end() && it_write->second.gamePly <= gamePly)
+			return it_write->second.vmd_pair;
 
 		// -- 定跡にhitするのか？(手数無視で)
 
@@ -357,7 +368,7 @@ namespace {
 #endif
 
 		// このnodeの情報をwrite_cacheに保存
-		vmd_write_cache[sfen_left] = best;
+		vmd_write_cache[sfen_left] = VmdPairGamePly(best,gamePly);
 
 		return best;
 	}

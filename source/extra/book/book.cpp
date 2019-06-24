@@ -151,7 +151,12 @@ namespace Book
 		// 定跡の変換
 		bool convert_from_apery = token == "convert_from_apery";
 		
-		// 評価関数を読み込まないとPositionのset()が出来ないので…。
+		// 評価関数を読み込まないとPositionのset()が出来ないのでis_ready()の呼び出しが必要。
+		// ただし、このときに定跡ファイルを読み込まれると読み込みに時間がかかって嫌なので一時的にno_bookに変更しておく。
+		auto original_book_file = Options["BookFile"];
+		Tools::Finally clean_up([&]() { Options["BookFile"] = original_book_file; });
+		Options["BookFile"] = "no_book";
+
 		is_ready();
 
 #if !(defined(EVAL_LEARN) && defined(YANEURAOU_2018_OTAFUKU_ENGINE))
