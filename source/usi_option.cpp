@@ -50,7 +50,14 @@ namespace USI {
 
 #if defined(USE_EVAL_HASH)
 		// 評価値用のcacheサイズ。[MB]で指定。
+
+#if defined(FOR_TOURNAMENT)
+		// トーナメント用は少し大きなサイズ
+		o["EvalHash"] << Option(1024, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
+#else
 		o["EvalHash"] << Option(128, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
+#endif
+
 #endif
 
 		o["USI_Ponder"] << Option(false);

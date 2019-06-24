@@ -509,7 +509,7 @@ constexpr bool Is64Bit = false;
 #endif
 
 #if defined(USE_AVX512)
-#define TARGET_CPU "AVX-512"
+#define TARGET_CPU "AVX512"
 #elif defined(USE_AVX2)
 #define TARGET_CPU "AVX2"
 #elif defined(USE_SSE42)
