@@ -1,7 +1,21 @@
-# > Select YaneuraOu edition below.
+
+# ビルドターゲット
+# normal     : 通常使用用
+# evallearn  : 教師局面からの学習用
+# tournament : 大会で使う用
+# gensfen    : 教師生成用(現状、非公開)
+
+
+# やねうら王の使いたいエディションを指定する
+# YANEURAOU_ENGINE_NNUE       : 標準NNUE型評価関数(halfKP256)
+# YANEURAOU_ENGINE_NNUE_KP256 : NNUE型評価関数KP256
+# YANEURAOU_ENGINE_KPPT       : KPPT型評価関数
+# YANEURAOU_ENGINE_KPP_KKPT   : KPP_KKPT型評価関数
+# YANEURAOU_ENGINE_MATERIAL   : 駒得のみの評価関数
+# MATE_ENGINE                 : 詰将棋エンジン
+# USER_ENGINE                 : USER定義エンジン
 
 YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
-#YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE_HALFKP256
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE_KP256
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_KPPT
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_KPP_KKPT
@@ -9,13 +23,29 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 #YANEURAOU_EDITION = MATE_ENGINE
 #YANEURAOU_EDITION = USER_ENGINE
 
-# NNUE評価関数の形を選択できる。HALF_KP256は標準NNUE型。
-#NNUE_EVAL_ARCH = HALFKP256
-#NNUE_EVAL_ARCH = KP256
+# ターゲットCPU
+# 使えるCPU拡張命令を指定する。
+# ARM系ならOTHERを指定する。
+# 32bit環境用はNO_SSE
+
+#TARGET_CPU = AVX512
+TARGET_CPU = AVX2
+#TARGET_CPU = SSE42
+#TARGET_CPU = SSE41
+#TARGET_CPU = SSE2
+#TARGET_CPU = NO_SSE
+#TARGET_CPU = OTHER
+
+
+# デバッガーを使用するか
+DEBUG = OFF
+#DEBUG = ON
+
 
 # clangでコンパイルしたほうがgccより数%速いっぽい。
 #COMPILER = g++
 COMPILER = clang++
+
 
 # 標準的なコンパイルオプション
 CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
@@ -23,6 +53,11 @@ WCFLAGS  =
 LDFLAGS  =
 LIBS     =
 INCLUDE  = # -I../include
+
+# デバッガーを使わないなら、NDEBUGをdefineする。
+ifeq ($(DEBUG),OFF)
+	CFLAGS += -DNDEBUG
+endif
 
 # clang用にCFLAGSなどを変更
 ifeq ($(findstring clang++,$(COMPILER)),clang++)
@@ -58,10 +93,7 @@ else
 	TARGET = YaneuraOu-by-gcc
 endif
 
-# リンク時最適化。これをつけるとmsys2環境だとセグフォで落ちる。
-# 落ちない環境なら有効にしたほうが速い実行ファイルが生成されるはず。
-# CFLAGS += -flto
-
+# リンク時最適化。
 # CFLAGSとLDFLAGSの両方で-fltoを指定する必要がある。
 # cf. https://gcc.gnu.org/onlinedocs/gcc-6.3.0/gcc/Optimize-Options.html#Optimize-Options
 LTOFLAGS = -flto
@@ -90,9 +122,6 @@ LDFLAGS += -Wl,-s
 
 # 開発中のbranchならdevと指定する
 #ENGINE_BRANCH = dev
-
-# トーナメント用のビルドオプション
-TOURNAMENT_OPTION =
 
 ifeq ($(findstring g++,$(COMPILER)),g++)
 	OPENMP   = -fopenmp
@@ -231,6 +260,30 @@ ifeq ($(findstring dev,$(ENGINE_BRANCH)),dev)
 	SOURCES += extra/super_sort.cpp
 endif
 
+
+# CPU判別
+ifeq ($(TARGET_CPU),AVX512)
+	# skylake     : -DUSE_AVX512 -DUSE_AVX512VLBWDQ -march=skylake-avx512
+	# cascadelake : -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -march=cascadelake
+	# icelake     : -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -DUSE_AVX512VBMI -DUSE_AVX512IFMA -USE_GFNI -march=icelake-client
+	CFLAGS += -DUSE_AVX512 -DUSE_AVX512VLBWDQ -march=skylake-avx512
+else ifeq ($(TARGET_CPU),AVX2)
+	CFLAGS += -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=corei7-avx
+else ifeq ($(TARGET_CPU),SSE42)
+	CFLAGS += -DUSE_SSE42 -msse4.2 -march=corei7
+else ifeq ($(TARGET_CPU),SSE41)
+	CFLAGS += -DUSE_SSE41 -msse4.1 -march=core2
+else ifeq ($(TARGET_CPU),SSE2)
+	CFLAGS += -DUSE_SSE2 -msse2 -march=core2
+else ifeq ($(TARGET_CPU),NO_SSE)
+	# 32bit用。-m32は、MSYS2 MinGW-64だと無視されるので、
+	# MinGW-64の32bit環境用でコンパイルする必要がある。
+	CFLAGS += -DNO_SSE -m32 -march=pentium3
+else ifeq ($(TARGET_CPU),OTHER)
+	CFLAGS += -DNO_SSE
+endif
+
+
 CFLAGS += -DUSE_MAKEFILE -D$(YANEURAOU_EDITION)
 
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
@@ -247,88 +300,41 @@ all: clean $(TARGET)
 
 # https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
 
-# 学習用バイナリのときは、openmpを有効にする。
-evallearn-icelake:
-	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -DUSE_AVX512VBMI -DUSE_AVX512IFMA -USE_GFNI -march=icelake-client' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
-evallearn-cascadelake:
-	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -march=cascadelake' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
-evallearn-avx512:
-	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_AVX512 -DUSE_AVX512VLBWDQ -march=skylake-avx512' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
-evallearn-avx2:
-	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
-evallearn-sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
-evallearn: evallearn-avx2
+
+# ビルドターゲット
+
+# 通常使用。
+normal:
+	$(MAKE) CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+
+# 学習用。openmp , openblasなどを有効にする。
+evallearn:
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS)' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+
+# トーナメント用
+tournament:
+	$(MAKE) CFLAGS='$(CFLAGS) -DFOR_TOURNAMENT' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 # 教師棋譜生成用
 gensfen:
-	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DNDEBUG -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -DGENSFEN2019 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) $(OPENMP) $(BLAS) -DGENSFEN2019' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
-tournament-icelake:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG $(TOURNAMENT_OPTION) -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -DUSE_AVX512VBMI -DUSE_AVX512IFMA -USE_GFNI -DFOR_TOURNAMENT -march=icelake-client' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-tournament-cascadelake:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG $(TOURNAMENT_OPTION) -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -DFOR_TOURNAMENT -march=cascadelake' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-tournament-avx512:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG $(TOURNAMENT_OPTION) -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DFOR_TOURNAMENT -march=skylake-avx512' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-tournament-avx2:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG $(TOURNAMENT_OPTION) -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -DFOR_TOURNAMENT -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-tournament-sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG $(TOURNAMENT_OPTION) -DUSE_SSE42 -msse4.2 -DFOR_TOURNAMENT -march=corei7' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-tournament: tournament-avx2
-
-icelake:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -DUSE_AVX512VBMI -DUSE_AVX512IFMA -USE_GFNI -march=icelake-client' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-cascadelake:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -march=cascadelake' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-avx512:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_AVX512 -DUSE_AVX512VLBWDQ -march=skylake-avx512' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-avx2:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=corei7-avx' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-
-sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_SSE42 -msse4.2 -march=corei7' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-
-sse41:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_SSE41 -msse4.1 -march=core2' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-
-sse2:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DUSE_SSE2 -msse2 -march=core2' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-
-# 32bit用。-m32は、MSYS2 MinGW-64だと無視されるので、
-# MinGW-64の32bit環境用でコンパイルする必要がある。
-nosse:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DNO_SSE -m32 -march=pentium3' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-
-# ARMなどのCPU
-other:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DNO_SSE' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 #　とりあえずPGOはAVX2とSSE4.2専用
 prof:
-	$(MAKE) CFLAGS='$(CFLAGS) -pg' avx2
-prof-sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) -pg' sse42
+	$(MAKE) CFLAGS='$(CFLAGS) -pg' tournament
 
 profgen:
-	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-generate -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-generate -lgcov' avx2
-profgen-sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-generate -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-generate -lgcov' sse42
+	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-generate -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-generate -lgcov'
 
 profuse:
-	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-use -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-use -lgcov $(LTOFLAGS)' avx2
-profuse-sse42:
-	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-use -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-use -lgcov $(LTOFLAGS)' sse42
+	$(MAKE) CFLAGS='$(CFLAGS) -fprofile-use -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-use -lgcov $(LTOFLAGS)'
 
 pgo:
 	$(MAKE) profgen
 	@./$(TARGET) EvalDir ../build/eval , bench , quit
 	@touch $(SOURCES)
 	$(MAKE) profuse
-pgo-sse42:
-	$(MAKE) profgen-sse42
-	@./$(TARGET) EvalDir ../build/eval , bench , quit
-	@touch $(SOURCES)
-	$(MAKE) profuse-sse42
 
 clean:
 	rm -f $(OBJECTS) $(DEPENDS) $(TARGET) ${OBJECTS:.o=.gcda}

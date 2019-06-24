@@ -155,7 +155,7 @@ namespace Book
 		// ただし、このときに定跡ファイルを読み込まれると読み込みに時間がかかって嫌なので一時的にno_bookに変更しておく。
 		auto original_book_file = Options["BookFile"];
 		Tools::Finally clean_up([&]() { Options["BookFile"] = original_book_file; });
-		Options["BookFile"] = "no_book";
+		Options["BookFile"] = string("no_book");
 
 		is_ready();
 
