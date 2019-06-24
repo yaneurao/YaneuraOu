@@ -24,6 +24,28 @@ namespace {
 	// テラショック定跡の生成手法
 	// http://yaneuraou.yaneu.com/2019/04/19/%E3%83%86%E3%83%A9%E3%82%B7%E3%83%A7%E3%83%83%E3%82%AF%E5%AE%9A%E8%B7%A1%E3%81%AE%E7%94%9F%E6%88%90%E6%89%8B%E6%B3%95/
 
+	// root局面の集合。駒落ちの各局面も含めてroot局面の集合を保持しておく。
+	// これはMyShogiのほうから持ってきた。
+	// 生成のときに枝刈りする評価値が駒落ちの度合いで異なるのでうまく扱うのは結構面倒な気も。
+
+	std::vector<std::string> start_sfens = {
+	/*public static readonly string HIRATE = */       "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1" ,
+	/*public static readonly string HANDICAP_KYO = */ "lnsgkgsn1/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1" ,
+	/*public static readonly string HANDICAP_RIGHT_KYO = */ "1nsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+	/*public static readonly string HANDICAP_KAKU = */ "lnsgkgsnl/1r7/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+	/*public static readonly string HANDICAP_HISYA = */ "lnsgkgsnl/7b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+	/*public static readonly string HANDICAP_HISYA_KYO = */ "lnsgkgsn1/7b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+	/*public static readonly string HANDICAP_2 =      */ "lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+	/*public static readonly string HANDICAP_3 =      */ "lnsgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+	/*public static readonly string HANDICAP_4 =      */ "1nsgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+	/*public static readonly string HANDICAP_5 =      */ "2sgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+	/*public static readonly string HANDICAP_LEFT_5 = */ "1nsgkgs2/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+	/*public static readonly string HANDICAP_6 =      */ "2sgkgs2/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+	/*public static readonly string HANDICAP_8 =      */ "3gkg3/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+	/*public static readonly string HANDICAP_10 =     */ "4k4/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+	/*public static readonly string HANDICAP_PAWN3 =  */ "4k4/9/9/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w 3p 1",
+	};
+
 	// build_tree_nega_max()で用いる返し値に用いる。
 	// 候補手の評価値、指し手、leaf nodeまでの手数
 	struct VMD
@@ -419,22 +441,27 @@ namespace {
 
 		// 初期局面から(depth 10000ではないものを)辿ってgame treeを構築する。
 
-		StateInfo si;
-		pos.set_hirate(&si, Threads.main());
-		this->lastMoves.clear();
-
 		total_node = 0;
 		total_write_node = 0;
-		vmd_write_cache.clear();
 
 		this->black_contempt = black_contempt;
 		this->white_contempt = white_contempt;
 		this->max_game_ply = max_game_ply;
 
+		// 平手、駒落ちなどの各初期局面をroot局面として、そこから辿っていく。
+		for (auto sfen : start_sfens)
+		{
+			sync_cout << endl << "root sfen = " << sfen << sync_endl;
+
+			StateInfo si;
+			pos.set(sfen , &si, Threads.main());
+			this->lastMoves.clear();
+			vmd_write_cache.clear();
+
 		// 定跡ファイルには手数無視でヒットしてくれないと、先後協力してplyが2手だけ増えた
 		// 局面の定跡がいつまでも掘り進められなくなる。
-
 		build_tree_nega_max(pos, read_book, write_book);
+		}
 
 		cout << endl;
 
@@ -538,25 +565,42 @@ namespace {
 	// "position ..."の"..."の部分を解釈する。
 	int BookTreeBuilder::feed_position_string(Position & pos, const string & line, StateInfo * states, Thread * th)
 	{
-		pos.set_hirate(&states[0], th);
-		// ここから、lineで指定された"startpos moves"..を読み込んでその局面まで進める。
-		// ここでは"sfen"で局面は指定できないものとする。
 		this->lastMoves.clear();
+		stringstream is(line);
 
-		stringstream ss(line);
-		string token;
-		while ((ss >> token))
+		// 以下、usi.cppのposition_cmd()に似たコード
+
+		string token, sfen;
+		is >> token;
+
+		if (token == "startpos")
 		{
-			if (token == "startpos" || token == "moves")
-				continue;
+			// 初期局面として初期局面のFEN形式の入力が与えられたとみなして処理する。
+			sfen = SFEN_HIRATE;
+			is >> token; // もしあるなら"moves"トークンを消費する。
+		}
+		// 局面がfen形式で指定されているなら、その局面を読み込む。
+		// UCI(チェスプロトコル)ではなくUSI(将棋用プロトコル)だとここの文字列は"fen"ではなく"sfen"
+		// この"sfen"という文字列は省略可能にしたいので..
+		else {
+			if (token != "sfen")
+				sfen += token + " ";
+			while (is >> token && token != "moves")
+				sfen += token + " ";
+		}
 
-			Move move = USI::to_move(pos, token);
-			if (token == "sfen" || move == MOVE_NONE || !pos.pseudo_legal(move) || !pos.legal(move))
+		pos.set(sfen, &states[0], th);
+
+		// 指し手のリストをパースする(あるなら)
+		Move move;
+		while (is >> token && (move = USI::to_move(pos, token)) != MOVE_NONE)
+		{
+			if (!pos.pseudo_legal(move) || !pos.legal(move))
 			{
 				cout << "Error ! : " << line << " unknown token = " << token << endl;
 				return 1;
 			}
-			this->do_move(pos,move, states[pos.game_ply()]);
+			pos.do_move(move , states[pos.game_ply()]);
 		}
 		return 0; // 読み込み終了
 	}
