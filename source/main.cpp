@@ -18,7 +18,7 @@ int main(int argc, char* argv[])
 	Position::init();
 	Search::init();
 	Threads.set(Options["Threads"]);
-	TT.resize(Options["Hash"]);
+	//Search::clear();
 	Eval::init();
 
 	// USIƒRƒ}ƒ“ƒh‚Ì‰ž“š•”

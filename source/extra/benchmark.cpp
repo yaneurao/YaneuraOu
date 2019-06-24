@@ -60,7 +60,7 @@ void bench_cmd(Position& current, istringstream& is)
 	}
 
 	if (limitType == "time")
-		limits.movetime = 1000 * stoi(limit); // movetime is in ms
+		limits.movetime = (TimePoint)1000 * stoi(limit); // movetime is in ms
 
 	else if (limitType == "nodes")
 		limits.nodes = stoll(limit);
@@ -74,7 +74,7 @@ void bench_cmd(Position& current, istringstream& is)
 	Options["Hash"] = ttSize;
 	Options["Threads"] = threads;
 
-#if defined(YANEURAOU_2018_OTAFUKU_ENGINE)
+#if defined(YANEURAOU_ENGINE)
 	// 定跡にhitされるとベンチマークにならない。
 	Options["BookFile"] = string("no_book");
 #endif

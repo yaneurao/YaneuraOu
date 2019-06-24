@@ -24,9 +24,8 @@ namespace {
 	// テラショック定跡の生成手法
 	// http://yaneuraou.yaneu.com/2019/04/19/%E3%83%86%E3%83%A9%E3%82%B7%E3%83%A7%E3%83%83%E3%82%AF%E5%AE%9A%E8%B7%A1%E3%81%AE%E7%94%9F%E6%88%90%E6%89%8B%E6%B3%95/
 
-	// root局面の集合。駒落ちの各局面も含めてroot局面の集合を保持しておく。
-	// これはMyShogiのほうから持ってきた。
-	// 生成のときに枝刈りする評価値が駒落ちの度合いで異なるのでうまく扱うのは結構面倒な気も。
+	// root局面の集合。駒落ちの各局面も含めてroot局面の集合。この定義はMyShogiプロジェクトのほうから持ってきた。
+	// 定跡を掘り進むときに枝刈りする評価値が駒落ちの度合いで異なるので同じ枠組みでうまく扱うのは結構難しい気も。
 
 	std::vector<std::string> start_sfens = {
 	/*public static readonly string HIRATE = */       "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1" ,

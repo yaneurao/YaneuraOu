@@ -61,6 +61,10 @@ namespace Search {
 		// このスレッドがrootから最大、何手目まで探索したか(選択深さの最大)
 		int selDepth = 0;
 
+		// チェスの定跡絡みの変数。将棋では未使用。
+		// int tbRank = 0;
+		// Value tbScore;
+
 		// この指し手で進めたときのpv
 		std::vector<Move> pv;
 	};

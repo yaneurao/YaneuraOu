@@ -42,6 +42,7 @@ void Position::set_check_info(StateInfo* si) const {
 	//: si->blockersForKing[BLACK] = slider_blockers(pieces(WHITE), square<KING>(BLACK),si->pinners[BLACK]);
 
 	// ↓Stockfishのこの部分の実装、将棋においては良くないので、以下のように変える。
+	// ※　将棋においては駒の動きが上下対称ではないので手番を引数で渡す必要がある。
 
 	if (!doNullMove)
 	{
@@ -592,14 +593,14 @@ std::string Position::moves_from_start(bool is_pretty) const
 // ----------------------------------
 
 // Position::slider_blockers() は、c側の長い利きを持つ駒(sliders)から、升sへの利きを
-// 遮っている両方の手番を返す。ただし、２重に遮っている場合はそれらの駒は返さない。
+// 遮っている先後の駒の位置をBitboardで返す。ただし、２重に遮っている場合はそれらの駒は返さない。
 // もし、この関数のこの返す駒を取り除いた場合、升sに対してsliderによって利きがある状態になる。
 // 升sにある玉に対してこの関数を呼び出した場合、それはpinされている駒と両王手の候補となる駒である。
 // また、升sにある玉は~c側のKINGであるとする。
 
 Bitboard Position::slider_blockers(Color c, Square s , Bitboard& pinners) const {
 
-	Bitboard result = ZERO_BB;
+	Bitboard blockers = ZERO_BB;
 
 	// pinnersは返し値。
 	pinners = ZERO_BB;
@@ -615,22 +616,28 @@ Bitboard Position::slider_blockers(Color c, Square s , Bitboard& pinners) const 
 		| (pieces(LANCE) & lanceStepEffect(~c, s))
 		) & pieces(c);
 
+	//Bitboard occupancy = pieces() ^ snipers;
+
+	// ↑このStockfishの元のコード、snipersを除いた盤上の駒で考えているが、
+	// ^王 歩 角 飛
+	// このような状況で飛車に対して角を取り除いてから敵玉への射線を考えるので、
+	// 歩がslider_blocker扱いになってしまう。つまり、このコードは間違っているのでは？
+	
 	while (snipers)
 	{
 		Square sniperSq = snipers.pop();
-		Bitboard b = between_bb(s, sniperSq) & pieces();
+		Bitboard b = between_bb(s, sniperSq) & pieces() /* occupancy */;
 
 		// snipperと玉との間にある駒が1個であるなら。
-		// (間にある駒が0個の場合、b == ZERO_BBとなり、何も変化しない。)
-		if (!more_than_one(b))
+		if (b && !more_than_one(b))
 		{
-			result |= b;
+			blockers |= b;
 			if (b & pieces(~c))
 				// sniperと玉に挟まれた駒が玉と同じ色の駒であるなら、pinnerに追加。
 				pinners |= sniperSq;
 		}
 	}
-	return result;
+	return blockers;
 }
 
 
