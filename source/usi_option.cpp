@@ -361,13 +361,19 @@ namespace USI {
 		// 値が書き換わるのか？
 		bool modified = this->currentValue != o.currentValue;
 
-		auto idx_ = idx; // backup
+		// backup
+		auto fn = this->on_change;
+		auto idx_ = idx;
+
 		*this = o;
-		idx = idx_; // restore
+
+		// restore
+		idx = idx_;
+		this->on_change = fn;
 
 		// 値が書き換わったならハンドラを呼び出してやる。
-		if (modified && this->on_change)
-			this->on_change(*this);
+		if (modified && fn)
+			fn(*this);
 	}
 
 } // namespace USI
