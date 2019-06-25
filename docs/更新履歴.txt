@@ -2,6 +2,47 @@
 やねうら王 更新履歴
 
 
+■　2019/06/26 V4.88
+
+
+- V4.88にバージョンナンバーを上げる。
+
+
+- makebook extend_treeで"sfen"局面を読み込んだ時に"moves"がついていないなら"moves"を付与する。
+
+
+■　2019/06/25
+
+
+- engine_options.txtでオプションを読み込んだときにハンドラを壊していたの修正
+
+
+- Stockfish 20190625分まで反映
+
+
+- makebook build_treeコマンド(テラショック定跡生成コマンド)、駒落ちの各初期局面もroot局面にするように変更。
+  - これで駒落ちの定跡もビルドできるようになった。
+- makebook extend_treeコマンド、"startpos moves .."形式だけではなく"sfen ..."形式もサポートする。
+
+
+- TOURNAMENT用のビルド、EvalHashの初期値が1024になっていなかったの修正。
+
+
+■　2019/06/24
+
+
+- Makefile、すべてのCPU用のすべてのビルドターゲットをビルドできるように修正する。
+- 一つ前のcommitによってclangでコンパイルエラーになっていたの修正。
+
+
+- movepick.cppのQUIET_INITでskipQuietのときには指し手を生成しない。
+  cf. http://yaneuraou.yaneu.com/2019/06/24/%e5%b0%86%e6%a3%8b%e3%82%bd%e3%83%95%e3%83%88%e9%96%8b%e7%99%ba%e8%80%85%e3%81%8cstockfish%e3%81%ab%e8%b2%a2%e7%8c%ae%e3%81%99%e3%82%8b%e6%97%a5/
+
+
+- makebookコマンドでオプションのBookFileで指定されている定跡は読み込まないように改善。
+- makebook build_treeコマンドで同一局面の場合、gamePlyが最小となる局面についての情報を書き出すように修正。
+
+
 ■　2019/06/23
 
 
@@ -37,7 +78,7 @@
 
 
 
-■　2019/06/15
+■　2019/06/15 V4.87
 
 
 - include忘れ修正
