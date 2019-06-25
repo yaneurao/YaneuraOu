@@ -716,6 +716,16 @@ namespace StringExtension
 		return result;
 	}
 
+	// スペース、タブなど空白に相当する文字で分割して返す。
+	std::vector<std::string> split(const std::string& input)
+	{
+		auto result = std::vector<string>();
+		LineScanner scanner(input);
+		while (!scanner.eof())
+			result.push_back(scanner.get_text());
+
+		return result;
+	}
 };
 
 // --------------------

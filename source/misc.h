@@ -461,6 +461,9 @@ namespace StringExtension
 
 	// 文字列をint化する。int化に失敗した場合はdefault_の値を返す。
 	extern int to_int(const std::string input, int default_);
+
+	// スペース、タブなど空白に相当する文字で分割して返す。
+	extern std::vector<std::string> split(const std::string& input);
 };
 
 // --------------------

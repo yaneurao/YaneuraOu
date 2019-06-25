@@ -685,12 +685,16 @@ namespace {
 		for (int i = 0; i < (int)lines.size(); ++i)
 		{
 			auto& line = lines[i];
-			if (line == "startpos")
-				line = "startpos moves";
 
 			cout << "extend[" << i << "] : " << line << endl;
 			feed_position_string(pos, line, &states[0], Threads.main());
-			//pos.set(line, &si, Threads.main());
+
+			// "startpos"や、"sfen ..."の形でmovesの文字が含まれていなければ
+			// "moves"をこの時点で追加しておく。
+
+			auto sp = StringExtension::split(line);
+			if (std::find(sp.begin(), sp.end(), "moves") == sp.end())
+				line = line + " moves";
 
 			this->lastEval = 0;
 			extend_tree_sub(pos, read_book, fs, line , true);
