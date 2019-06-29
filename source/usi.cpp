@@ -657,7 +657,7 @@ void USI::loop(int argc, char* argv[])
 			// gameoverに対してbestmoveは返すべきではないのかも知れないが、
 			// それを言えばstopにだって…。
 
-#ifdef USE_GAMEOVER_HANDLER
+#if defined(USE_GAMEOVER_HANDLER)
 			// "gameover"コマンドに対するハンドラを呼び出したいのか？
 			if (token == "gameover")
 				gameover_handler(cmd);
@@ -725,6 +725,9 @@ void USI::loop(int argc, char* argv[])
 				cout << m.move << ' ';
 			cout << endl;
 		}
+
+		// この局面の手番側がどちらであるかを返す。BLACK or WHITE
+		else if (token == "side") cout << (pos.side_to_move() == BLACK ? "black":"white") << endl;
 
 		// この局面が詰んでいるかの判定
 		else if (token == "mated") cout << pos.is_mated() << endl;
