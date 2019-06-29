@@ -546,6 +546,7 @@ public:
   // Search::Limits.enteringKingRuleに基いて、宣言勝ちを行なう。
   // 条件を満たしているとき、MOVE_WINや、玉を移動する指し手(トライルール時)が返る。さもなくば、MOVE_NONEが返る。
   // mate1ply()から内部的に呼び出す。(そうするとついでに処理出来て良い)
+	// ※　トライルールのときに返ってくるのは16bitのmoveなので注意。
 	Move DeclarationWin() const;
 
 	// -- sfen化ヘルパ

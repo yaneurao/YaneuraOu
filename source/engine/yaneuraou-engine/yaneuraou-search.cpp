@@ -487,6 +487,10 @@ void MainThread::search()
 			// 入玉宣言の条件を満たしているときは、
 			// goコマンドを処理したあとのthreads.cppでMOVE_WINは追加されているはず。
 
+			// トライルールのときなどはmoveを32bit化しないと、rootMovesの集合と合致しない。
+			if (bestMove != MOVE_WIN)
+				bestMove = rootPos.move16_to_move(bestMove);
+
 			auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
 			if (it_move != rootMoves.end())
 			{
@@ -1432,6 +1436,8 @@ namespace {
 				if (PARAM_WEAK_MATE_PLY == 1)
 				{
 					move = pos.mate1ply();
+					// ここで返ってくるmoveは16bitのmoveだが、置換表に格納するのは16bitのmoveなので問題ない。
+
 					if (move != MOVE_NONE)
 					{
 						// 1手詰めスコアなので確実にvalue > alphaなはず。
