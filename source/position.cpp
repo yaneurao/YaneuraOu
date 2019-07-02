@@ -203,8 +203,26 @@ std::string pretty(Piece pc) { return std::string(USI_PIECE).substr(pc * 2, 2); 
 // "□"(四角)は文字フォントによっては半分の幅しかない。"口"(くち)にする。
 std::string USI_PIECE_KANJI[] = {
 	" 口"," 歩"," 香"," 桂"," 銀"," 角"," 飛"," 金"," 玉"," と"," 杏"," 圭"," 全"," 馬"," 龍"," 菌"," 王",
-		  "^歩","^香","^桂","^銀","^角","^飛","^金","^玉","^と","^杏","^圭","^全","^馬","^龍","^菌","^王" };
-std::string pretty(Piece pc) { return USI_PIECE_KANJI[pc]; }
+		  "^歩","^香","^桂","^銀","^角","^飛","^金","^玉","^と","^杏","^圭","^全","^馬","^龍","^菌","^王"
+};
+std::string pretty(Piece pc) {
+#if 1
+	return USI_PIECE_KANJI[pc];
+#else
+	// 色を変えたほうがわかりやすい。Linuxは簡単だが、MS-DOSは設定が面倒。
+	// Linux : https://qiita.com/dojineko/items/49aa30018bb721b0b4a9
+	// MS-DOS : https://one-person.hatenablog.jp/entry/2017/02/23/125809
+
+	std::string result;
+	if (pc != NO_PIECE)
+		result = (color_of(pc) == BLACK) ? "\\e[32;40;1m" : "\\e[33;40;1m";
+	result += USI_PIECE_KANJI[pc];
+	if (pc != NO_PIECE)
+		result += "\\e[m";
+
+	return result;
+#endif
+}
 #endif
 
 // sfen文字列で盤面を設定する

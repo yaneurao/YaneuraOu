@@ -44,7 +44,7 @@ namespace Book
 	// ----------------------------------
 
 	// 局面を与えて、その局面で思考させるために、やねうら王2018が必要。
-#if defined(EVAL_LEARN) && defined(YANEURAOU_2018_OTAFUKU_ENGINE)
+#if defined(EVAL_LEARN) && defined(YANEURAOU_ENGINE)
 
 	struct MultiThinkBook : public MultiThink
 	{
@@ -159,10 +159,10 @@ namespace Book
 
 		is_ready();
 
-#if !(defined(EVAL_LEARN) && defined(YANEURAOU_2018_OTAFUKU_ENGINE))
+#if !(defined(EVAL_LEARN) && defined(YANEURAOU_ENGINE))
 		if (from_thinking)
 		{
-			cout << "Error!:define EVAL_LEARN and YANEURAOU_2018_OTAFUKU_ENGINE" << endl;
+			cout << "Error!:define EVAL_LEARN and YANEURAOU_ENGINE" << endl;
 			return;
 		}
 #endif
@@ -468,7 +468,7 @@ namespace Book
 			}
 			cout << "done." << endl;
 
-#if defined(EVAL_LEARN) && defined(YANEURAOU_2018_OTAFUKU_ENGINE)
+#if defined(EVAL_LEARN) && defined(YANEURAOU_ENGINE)
 
 			if (from_thinking)
 			{
