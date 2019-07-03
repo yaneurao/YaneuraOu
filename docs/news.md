@@ -50,6 +50,7 @@
 
 - EvalHashオプションについて : [EvalHashの最適なサイズは？](http://yaneuraou.yaneu.com/2019/06/16/evalhash%E3%81%AE%E6%9C%80%E9%81%A9%E3%81%AA%E3%82%B5%E3%82%A4%E3%82%BA%E3%81%AF%EF%BC%9F/)
 
+
 ## 定跡関連
 
 
@@ -284,6 +285,20 @@
 
 
 - df-pnを採用した詰将棋エンジン : [tanuki-詰将棋エンジンについて](http://yaneuraou.yaneu.com/2018/08/07/tanuki-%E8%A9%B0%E5%B0%86%E6%A3%8B%E3%82%A8%E3%83%B3%E3%82%B8%E3%83%B3%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6/)
+
+
+## pythonから将棋ソフトを駆動させるライブラリ
+
+
+- pythonからやねうら王を操作 : [pythonからやねうら王を駆動できるアダプターAyane、公開しました](http://yaneuraou.yaneu.com/2019/06/28/python%e3%81%8b%e3%82%89%e3%82%84%e3%81%ad%e3%81%86%e3%82%89%e7%8e%8b%e3%82%92%e9%a7%86%e5%8b%95%e3%81%a7%e3%81%8d%e3%82%8b%e3%82%a2%e3%83%80%e3%83%97%e3%82%bf%e3%83%bcayane%e3%80%81%e5%85%ac%e9%96%8b/)
+
+- python製の自己対局サーバー : あやねるサーバー(製作中)
+
+- python製の蠱毒サーバー : あやねるゲート(製作中)
+
+- 関連ライブラリ
+  - Pythonで局面自体を操作してsfen文字列にしたりする : [python-shogi](https://github.com/gunyarakun/python-shogi)
+  - Pythonでsfen文字列をやねうら王のpacked sfen形式に変換する : [sfen_converter](https://github.com/ingktkhk/sfen_converter)
 
 
 ## 『将棋神やねうら王』

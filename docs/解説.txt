@@ -119,7 +119,7 @@ SSE4.2非対応ということはAVX2も非対応のはずなので、上のAVX2
 100MBなら大丈夫のようです。
 
 
-★　長手数の協力詰めで探索深さが深くなると実行中に落ちる。
+★　長手数の協力詰めで探索深さが深くなると実行中に落ちる問題。
 
 実行時のスタックが足りないためだと思います。
 
@@ -131,12 +131,11 @@ SSE4.2非対応ということはAVX2も非対応のはずなので、上のAVX2
 100MBなら大丈夫のようです。
 
 
-★ Makefileを使ったmake方法
+★ Makefileを使ったmake方法(この方法でUbuntuなどでもビルドできます)
 
 例) MSYS2でのmakeコマンドでのビルド
-make clean YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE
-make -j8 tournament TARGET_CPU=AVX2 COMPILER=g++ YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE ENGINE_NAME="YaneuraOu\(dev-learn\)"
-cp YaneuraOu-by-gcc.exe "C:\msys64\home\yaneen\shogi-msys64\bin/YaneuraOu2018NNUE_gcc_gen.exe"
+make clean tournament TARGET_CPU=AVX2 YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE
+make -j8 tournament TARGET_CPU=AVX2 COMPILER=g++ YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE ENGINE_NAME="YaneuraOu\(tournament\)"
 
 	・TARGET_CPUでAVX2 ,SSE42 などターゲットCPUを指定します。
 	・YANEURAOU_EDITIONでビルドするエンジン名を指定します。
@@ -151,62 +150,9 @@ cp YaneuraOu-by-gcc.exe "C:\msys64\home\yaneen\shogi-msys64\bin/YaneuraOu2018NNU
 ShogiGUIの検討モードで「定跡を使用する」のオプションはオフにします。
 (ここをオンにするとShogiGUI側の定跡が使用されます。)
 
-やねうら王2019では、定跡にhitしたときにその指し手を" multipv "という文字列を付けて
-返すようにしています。ゆえに、ShogiGUIではこれがうまく処理されます。
-候補手を増やしたときにきちんと検討ウィンドウのところに表示されるはずです。
+やねうら王では、定跡にhitしたときにその指し手を" multipv "という文字列を付けて返すようにしています。
+ゆえに、ShogiGUIではこれがうまく処理されます。候補手を増やしたときにきちんと検討ウィンドウのところに表示されるはずです。
 
-
-■　連続自動対局フレームワークの使い方
-→　この機能はなくなりました。python製の自己対局スクリプトをご利用ください。
-
-config.hの
-#define LOCAL_GAME_SERVER
-を有効にしてビルド。
-
-この実行ファイルと同じフォルダに次の2つのファイルを配置。
-
-  engine-config1.txt : 1つ目の思考エンジン
-  engine-config2.txt : 2つ目の思考エンジン
-  
-    1行目にengineの実行ファイル名(同じフォルダに配置)
-    2行目に思考時のコマンド
-    3行目以降にsetoption等、初期化時に思考エンジンに送りたいコマンドを書く。
-
-  例)
-    test.exe
-    go btime 100 wtime 100 byoyomi 0
-    setoption name Threads value 1
-    setoption name Hash value 1024
-
-  次に
-  goコマンドを打つ。(実行中、stopは利かない)
-
-	  O : engine1勝ち
-	  X : engine1負け
-	  . : 引き分け
-
-  ※　engine/local-game-server/local-game-server.cppで ONE_LINE_OUTPUT_MODE がdefineされているときは、
-		win,sfenで終局の局面図
-		lose,sfenで終局の局面図
-		draw,sfenで終局の局面図
-	という表記に変わる。
-    
-  対局回数の指定など)
-    go btime [対局回数] wtime [定跡の手数] byoyomi [予約]
-
-    定跡はbook.sfenとしてsfen形式のファイルを与える。1行に1局が書かれているものとする。
-    このなかからランダムに1行が選ばれてその手数は上のwtimeのところで指定した手数まで進められる。
-    デフォルトでは対局回数は100回。定跡の手数は32手目から。
-
-　コマンドラインから入力した文字列を連結して、USIコマンドとして実行する機能があるので、
-　これを用いて、次のような.batファイルを作ってそれを実行すれば連続自己対局が簡単に開始できる。
-
-	> local-game-server.exe go btime 500
-
-	例えば、
-	setoption name Threads value 6
-	のようにして実行すると6スレッド(×2プロセス)が起動して、6局並列で対局が進行する。
-	btimeで指定した数に達すると、対局中のものは打ち切られる。
 
 
 ■　定跡の作り方
@@ -480,10 +426,10 @@ NarrowBookは必ずオフにする必要があります。
 
 ■　対局・検討時の推奨設定
 
-例) やねうら王2017Earlyの場合
+例) やねうら王2019の場合
 
 スレッド数(Threads)                           : 論理コア数に(BIOSの設定でHyperThreadingを有効にしておくこと)
-置換表サイズ(Hash)                            : 物理メモリの半分ぐらいに。2のべき乗のほうが良い。例) 16GBのRAMなら8192[MB]を指定
+置換表サイズ(Hash)                            : 空き物理メモリを見ながら大きめに。例) 16GBのRAMなら14000[MB]ぐらいを指定
 最小思考時間[ms](MinimumThinkingTime)         : 1000。ただし、2秒以内に指すと計測1秒になるルールで指すなら2000。
 　　　　　　　　　　　　　　　　　　　　　　　　他のソフトと対局させるときは、そのソフトの最小思考時間も合わせておかないと公平ではない。
 出現確率の低い定跡を採用しない(NarrowBook)    : オフ(False)
@@ -493,22 +439,6 @@ NarrowBookは必ずオフにする必要があります。
 定跡の第一候補手との評価値の差（BookEvalDiff）:  0
 
 
-■　gcc/clangでのbuild
-
-Msys2環境下のgcc/clangで
-
-	gccの場合
-	> make avx2	(AVX2命令を使うときのbuild)
-	
-	clangの場合は、makefileのほうでコンパイラとしてclangを指定してください。
-
-とすればbuild出来て、これをWindows用の実行ファイルとして使えるところまでは確認しました。
-Ubuntu16.04、Mac OSでbuild出来ることも確認しました。
-
-やねうら王プロジェクトでは、local-game-server以外はWindows環境に依存するコードは混じっておらず、
-標準的なC++11/c++14コンパイラでコンパイル出来るはずです。
-
-	
 
 ■　教師局面からの学習のOpenMP対応について
 
@@ -548,13 +478,6 @@ isreadyコマンドに対して評価関数ファイルを読み込むときに�
 	　　　　　　　　　　　　　　　　その共有メモリ上にある評価関数パラメーターを利用させてもらうことにした。
 
 
-■　ShogiGUIの検討/棋譜解析モードで読み筋が途中までしか出力されない問題
-
-やねうら王、2017Early以降では、思考エンジン設定でPvIntervalを0にすればこの問題は解決されます。
-また、(思考時間無制限の)検討モードは
-	go infinite
-で思考が開始されるはずで、このとき、PvIntervalを強制的に0にみなすようになっています。
-
 
 ■　エンジン名の偽装方法について
 
@@ -588,9 +511,19 @@ book/book.bin
 に定跡ファイルを配置すれば、思考エンジン設定の定跡として「book.bin(Apery用定跡DB)」を選択することで読み込めます。
 
 
+■　ShogiGUIの検討/棋譜解析モードで読み筋が途中のdepthからしか出力されない問題
+
+
+思考エンジン設定でPvIntervalを0にすればこの問題は解決されます。
+また、(思考時間無制限の)検討モードは
+	go infinite
+で思考が開始されるはずで、このとき、PvIntervalを強制的に0にみなすようになっています。
+
+
 ■　検討モード用オプションについて
 
-やねうら王2017Early以降では、思考エンジンのオプションとしてConsiderationModeを追加しました。
+思考エンジンのオプションとしてConsiderationModeを追加しました。
+
 これはShogiGUIなどの検討モードで用いるためのもので、このオプションをオンにすると中途半端な読み筋が
 出力されることが減ります。
 
