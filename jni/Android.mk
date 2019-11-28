@@ -134,7 +134,6 @@ LOCAL_SRC_FILES := \
   ../source/extra/book/book.cpp                                        \
   ../source/extra/book/makebook2019.cpp                                \
   ../source/extra/bitop.cpp                                            \
-  ../source/extra/entering_king_win.cpp                                \
   ../source/extra/long_effect.cpp                                      \
   ../source/extra/mate/mate1ply_with_effect.cpp                        \
   ../source/extra/mate/mate1ply_without_effect.cpp                     \
