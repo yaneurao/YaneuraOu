@@ -819,21 +819,6 @@ namespace Directory
 
 }
 
-// --------------------
-//  Dependency Wrapper
-// --------------------
-
-namespace Dependency
-{
-	bool getline(std::ifstream& fs, std::string& s)
-	{
-	bool b = (bool)std::getline(fs, s);
-		s = StringExtension::trim(s);
-	return b;
-	}
-}
-
-
 // ----------------------------
 //     mkdir wrapper
 // ----------------------------
@@ -842,6 +827,8 @@ namespace Dependency
 // フォルダを作成する。日本語は使っていないものとする。
 // どうもmsys2環境下のgccだと_wmkdir()だとフォルダの作成に失敗する。原因不明。
 // 仕方ないので_mkdir()を用いる。
+// ※　C++17のfilesystemがどの環境でも問題なく動くようになれば、
+//     std::filesystem::create_directories()を用いて書き直すべき。
 
 #if defined(_WIN32)
 // Windows用
@@ -850,20 +837,20 @@ namespace Dependency
 #include <codecvt>	// mkdirするのにwstringが欲しいのでこれが必要
 #include <locale>   // wstring_convertにこれが必要。
 
-namespace Dependency {
-	int mkdir(std::string dir_name)
+namespace Directory {
+	int CreateFolder(const std::string& dir_name)
 	{
-	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
-	return _wmkdir(cv.from_bytes(dir_name).c_str());
-	//	::CreateDirectory(cv.from_bytes(dir_name).c_str(),NULL);
+		std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
+		return _wmkdir(cv.from_bytes(dir_name).c_str());
+		//	::CreateDirectory(cv.from_bytes(dir_name).c_str(),NULL);
 	}
 }
 
 #elif defined(__GNUC__) 
 
 #include <direct.h>
-namespace Dependency {
-	int mkdir(std::string dir_name)
+namespace Directory {
+	int CreateFolder(const std::string& dir_name)
 	{
 	return _mkdir(dir_name.c_str());
 	}
@@ -877,8 +864,8 @@ namespace Dependency {
 // Linux用のmkdir実装。
 #include "sys/stat.h"
 
-namespace Dependency {
-	int mkdir(std::string dir_name)
+namespace Directory {
+	int CreateFolder(const std::string& dir_name)
 	{
 	return ::mkdir(dir_name.c_str(), 0777);
 	}
@@ -888,13 +875,28 @@ namespace Dependency {
 // Linux環境かどうかを判定するためにはmakefileを分けないといけなくなってくるな..
 // linuxでフォルダ掘る機能は、とりあえずナシでいいや..。評価関数ファイルの保存にしか使ってないし…。
 
-namespace Dependency {
-	int mkdir(std::string dir_name)
+namespace Directory {
+	int CreateFolder(const std::string& dir_name)
 	{
 		return 0;
 	}
 }
 
 #endif
+
+// --------------------
+//  Dependency Wrapper
+// --------------------
+
+namespace Dependency
+{
+	bool getline(std::ifstream& fs, std::string& s)
+	{
+		bool b = (bool)std::getline(fs, s);
+		s = StringExtension::trim(s);
+		return b;
+	}
+}
+
 
 

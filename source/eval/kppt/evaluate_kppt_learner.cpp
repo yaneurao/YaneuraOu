@@ -360,11 +360,11 @@ namespace Eval
 
 			std::cout << "save_eval() start. folder = " << eval_dir << std::endl;
 
-			// すでにこのフォルダがあるならmkdir()に失敗するが、
+			// すでにこのフォルダがあるならCreateFolder()に失敗するが、
 			// 別にそれは構わない。なければ作って欲しいだけ。
 			// また、EvalSaveDirまでのフォルダは掘ってあるものとする。
 
-			Dependency::mkdir(eval_dir);
+			Directory::CreateFolder(eval_dir);
 
 			// EvalIOを利用して評価関数ファイルに書き込む。
 			// 読み込みのときのinputとoutputとを入れ替えるとファイルに書き込める。EvalIo::eval_convert()マジ優秀。

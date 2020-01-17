@@ -2262,7 +2262,7 @@ void shuffle_files(const vector<string>& filenames , const string& output_file_n
 		cout << ".";
 	};
 
-	Dependency::mkdir("tmp");
+	Directory::CreateFolder("tmp");
 
 	// 10M局面の細切れファイルとしてシャッフルして書き出す。
 	for (auto filename : filenames)

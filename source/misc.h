@@ -487,6 +487,14 @@ namespace Directory
 	// 列挙するときに引数extensionで列挙したいファイル名の拡張子を指定できる。(例 : ".bin")
 	// 拡張子として""を指定すればすべて列挙される。
 	extern std::vector<std::string> EnumerateFiles(const std::string& sourceDirectory, const std::string& extension);
+
+	// フォルダを作成する。
+	// カレントフォルダ相対で指定する。dir_nameに日本語は使っていないものとする。
+	// 成功すれば0、失敗すれば非0が返る。
+	// ※　Windows環境だと、この関数名、WinAPIのCreateDirectoryというマクロがあって…。
+	// 　ゆえに、CreateDirectory()をやめて、CreateFolder()に変更する。
+	extern int CreateFolder(const std::string& dir_name);
+
 }
 
 
@@ -518,10 +526,6 @@ namespace Dependency
 	// std::getline()ではなく単にgetline()と書いて、この関数を使うべき。
 	extern bool getline(std::ifstream& fs, std::string& s);
 
-	// フォルダを作成する。
-	// カレントフォルダ相対で指定する。dir_nameに日本語は使っていないものとする。
-	// 成功すれば0、失敗すれば非0が返る。
-	extern int mkdir(std::string dir_name);
 }
 
 

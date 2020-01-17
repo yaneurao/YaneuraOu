@@ -205,10 +205,10 @@ void save_eval(std::string dir_name) {
   auto eval_dir = Path::Combine(Options["EvalSaveDir"], dir_name);
   std::cout << "save_eval() start. folder = " << eval_dir << std::endl;
 
-  // すでにこのフォルダがあるならmkdir()に失敗するが、
+  // すでにこのフォルダがあるならCreateFolder()に失敗するが、
   // 別にそれは構わない。なければ作って欲しいだけ。
   // また、EvalSaveDirまでのフォルダは掘ってあるものとする。
-  Dependency::mkdir(eval_dir);
+  Directory::CreateFolder(eval_dir);
 
   if (Options["SkipLoadingEval"] && NNUE::trainer) {
     NNUE::SendMessages({{"clear_unobserved_feature_weights"}});
