@@ -60,15 +60,6 @@
 #include <omp.h>
 #endif
 
-#if defined(_MSC_VER)
-// C++のfilesystemは、C++17以降か、MSVCでないと使えないようだ。
-// windows.hを使うようにしたが、msys2のg++だとうまくフォルダ内のファイルが取得できない。
-// 仕方ないのでdirent.hを用いる。
-#include <filesystem>
-#elif defined(__GNUC__)
-#include <dirent.h>
-#endif
-
 #include "../misc.h"
 #include "../thread.h"
 #include "../position.h"
@@ -2683,50 +2674,8 @@ void learn(Position&, istringstream& is)
 	{
 		string kif_base_dir = Path::Combine(base_dir, target_dir);
 
-		// このフォルダを根こそぎ取る。base_dir相対にしておく。
-#if defined(_MSC_VER)
-		// std::tr2を使用するとwaring C4996が出るので抑制。
-		// ※　std::tr2は、std:c++14 の下では既定で非推奨の警告を出し、/std:c++17 では既定で削除された。
-		#pragma warning(push)
-		#pragma warning(disable:4996)
-
-		namespace sys = std::tr2::sys;
-		sys::path p(kif_base_dir); // 列挙の起点
-		std::for_each(sys::directory_iterator(p), sys::directory_iterator(),
-			[&](const sys::path& p) {
-			if (sys::is_regular_file(p))
-				filenames.push_back(Path::Combine(target_dir, p.filename().generic_string()));
-		});
-		#pragma warning(pop)
-
-#elif defined(__GNUC__)
-
-		auto ends_with = [](std::string const & value, std::string const & ending)
-		{
-			if (ending.size() > value.size()) return false;
-			return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
-		};
-
-		// 仕方ないのでdirent.hを用いて読み込む。
-		DIR *dp;       // ディレクトリへのポインタ
-		dirent* entry; // readdir() で返されるエントリーポイント
-
-		dp = opendir(kif_base_dir.c_str());
-		if (dp != NULL)
-		{
-			do {
-				entry = readdir(dp);
-				// ".bin"で終わるファイルのみを列挙
-				// →　連番でファイル生成するときにこの制約ちょっと嫌だな…。
-				if (entry != NULL  && ends_with(entry->d_name, ".bin")  )
-				{
-					//cout << entry->d_name << endl;
-					filenames.push_back(Path::Combine(target_dir, entry->d_name));
-				}
-			} while (entry != NULL);
-			closedir(dp);
-		}
-#endif
+		// このフォルダのファイルを根こそぎ取る。base_dir相対にしておく。
+		filenames = Directory::EnumerateFiles(kif_base_dir, ".bin");
 	}
 
 	cout << "learn from ";

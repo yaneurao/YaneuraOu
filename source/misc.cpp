@@ -726,7 +726,98 @@ namespace StringExtension
 
 		return result;
 	}
+
+	// 文字列valueが、文字列endingで終了していればtrueを返す。
+	bool StartsWith(std::string const& value, std::string const& starting)
+	{
+		if (starting.size() > value.size()) return false;
+		return std::equal(starting.begin(), starting.end(), value.begin());
+	};
+
+	// 文字列valueが、文字列endingで終了していればtrueを返す。
+	bool EndsWith(std::string const& value, std::string const& ending)
+	{
+		if (ending.size() > value.size()) return false;
+		return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+	};
+
 };
+
+// --------------------
+//  FileSystem
+// --------------------
+
+#if defined(_MSC_VER)
+
+// C++17から使えるようになり、VC++2019でも2018年末のupdateから使えるようになったらしいのでこれを使う。
+#include <filesystem>
+
+#elif defined(__GNUC__)
+
+// GCC/clangのほうはfilesystem使う方法がよくわからないので保留しとく。
+// 備考)
+//   GCC 8.1では、リンクオプションとして -lstdc++fsが必要
+//   Clang 7.0では、リンクオプションとして -lc++fsが必要
+// 2020/1/17現時点で最新版はClang 9.0.0のようだが、OpenBlas等が使えるかわからないので、使えるとわかってから
+// filesystemを使うように修正する。
+
+#include <dirent.h>
+#endif
+
+// ディレクトリに存在するファイルの列挙用
+// C#のDirectoryクラスっぽい何か
+namespace Directory
+{
+	// 指定されたフォルダに存在するファイルをすべて列挙する。
+	// 列挙するときに拡張子を指定できる。(例 : ".bin")
+	// 拡張子として""を指定すればすべて列挙される。
+	std::vector<std::string> EnumerateFiles(const std::string& sourceDirectory, const string& extension)
+	{
+		std::vector<std::string> filenames;
+
+#if defined(_MSC_VER)
+		// ※　std::tr2は、std:c++14 の下では既定で非推奨の警告を出し、/std:c++17 では既定で削除された。
+		// Visual C++2019がupdateでC++17に対応したので、std::filesystemを素直に使ったほうが良い。
+
+		namespace fs = std::filesystem;
+
+		// filesystemのファイル列挙、ディレクトリとして空の文字列を渡すと例外で落ちる。
+		// current directoryにしたい時は明示的に指定してやらなければならない。
+		auto src = sourceDirectory.empty() ? fs::current_path() : sourceDirectory;
+
+		for (auto ent : fs::directory_iterator(src))
+			if (fs::is_regular_file(ent)
+				&& StringExtension::EndsWith(ent.path().filename().string() , extension))
+
+				filenames.push_back(Path::Combine(ent.path().parent_path().string(),ent.path().filename().string()));
+
+#elif defined(__GNUC__)
+
+		// 仕方ないのでdirent.hを用いて読み込む。
+		DIR* dp;       // ディレクトリへのポインタ
+		dirent* entry; // readdir() で返されるエントリーポイント
+
+		dp = opendir(sourceDirectory.c_str());
+		if (dp != NULL)
+		{
+			do {
+				entry = readdir(dp);
+				// ".bin"で終わるファイルのみを列挙
+				// →　連番でファイル生成するときにこの制約ちょっと嫌だな…。
+				if (entry != NULL && StringExtensions::EndsWith(entry->d_name, extension))
+				{
+					//cout << entry->d_name << endl;
+					filenames.push_back(Path::Combine(target_dir, entry->d_name));
+				}
+			} while (entry != NULL);
+			closedir(dp);
+		}
+#endif
+
+		return filenames;
+	}
+
+}
 
 // --------------------
 //  Dependency Wrapper
@@ -741,6 +832,7 @@ namespace Dependency
 	return b;
 	}
 }
+
 
 // ----------------------------
 //     mkdir wrapper

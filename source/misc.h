@@ -63,7 +63,7 @@ typedef std::chrono::milliseconds::rep TimePoint;
 static_assert(sizeof(TimePoint) == sizeof(int64_t), "TimePoint should be 64 bits");
 
 // ms単位で現在時刻を返す
-inline TimePoint now() {
+static TimePoint now() {
 	return std::chrono::duration_cast<std::chrono::milliseconds>
 		(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
@@ -137,7 +137,7 @@ private:
 };
 
 // 乱数のseedを表示する。(デバッグ用)
-inline std::ostream& operator<<(std::ostream& os, PRNG& prng)
+static std::ostream& operator<<(std::ostream& os, PRNG& prng)
 {
 	os << "PRNG::seed = " << std::hex << prng.get_seed() << std::dec;
 	return os;
@@ -238,7 +238,7 @@ struct Timer
 	int64_t availableNodes;
 
 	// このシンボルが定義されていると、今回の思考時間を計算する機能が有効になる。
-#ifdef  USE_TIME_MANAGEMENT
+#if defined(USE_TIME_MANAGEMENT)
 
   // 今回の思考時間を計算して、optimum(),maximum()が値をきちんと返せるようにする。
 	void init(Search::LimitsType& limits, Color us, int ply);
@@ -333,7 +333,7 @@ protected:
 };
 
 // 乱数のseedを表示する。(デバッグ用)
-inline std::ostream& operator<<(std::ostream& os, AsyncPRNG& prng)
+static std::ostream& operator<<(std::ostream& os, AsyncPRNG& prng)
 {
 	os << "AsyncPRNG::seed = " << std::hex << prng.get_seed() << std::dec;
 	return os;
@@ -464,7 +464,31 @@ namespace StringExtension
 
 	// スペース、タブなど空白に相当する文字で分割して返す。
 	extern std::vector<std::string> split(const std::string& input);
+
+	// --- 以下、C#のstringクラスにあるやつ。
+
+	// 文字列valueが、文字列endingで終了していればtrueを返す。
+	extern bool StartsWith(std::string const& value, std::string const& starting);
+
+	// 文字列valueが、文字列endingで終了していればtrueを返す。
+	extern bool EndsWith(std::string const& value, std::string const& ending);
+
 };
+
+// --------------------
+//  FileSystem
+// --------------------
+
+// ディレクトリに存在するファイルの列挙用
+// C#のDirectoryクラスっぽい何か
+namespace Directory
+{
+	// 指定されたフォルダに存在するファイルをすべて列挙する。
+	// 列挙するときに引数extensionで列挙したいファイル名の拡張子を指定できる。(例 : ".bin")
+	// 拡張子として""を指定すればすべて列挙される。
+	extern std::vector<std::string> EnumerateFiles(const std::string& sourceDirectory, const std::string& extension);
+}
+
 
 // --------------------
 //  Tools

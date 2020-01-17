@@ -225,7 +225,7 @@ namespace Learner
 	// Learner::search() , Learner::qsearch()で用いる。
 	typedef std::pair<Value, std::vector<Move> > ValueAndPV;
 
-	// いまのところ、やねうら王2018 Otafukuしか、このスタブを持っていないが
+	// いまのところ、YANEURAOU_ENGINEしか、このスタブを持っていないが
 	// EVAL_LEARNをdefineするなら、このスタブが必須。
 	extern Learner::ValueAndPV  search(Position& pos, int depth , size_t multiPV = 1 , u64 NodesLimit = 0);
 	extern Learner::ValueAndPV qsearch(Position& pos);

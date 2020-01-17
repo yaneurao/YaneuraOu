@@ -4,7 +4,7 @@
 docs/
 source/
   engine/
-	2018-otafuku-engine/        やねうら王2017 Ealryの探索部
+	yaneuraou-engine/           やねうら王2019 探索部
 	mate-engine/                詰将棋エンジン
 	user-engine/                ユーザーが独自のエンジンを作るときの作業用フォルダ
 						     
