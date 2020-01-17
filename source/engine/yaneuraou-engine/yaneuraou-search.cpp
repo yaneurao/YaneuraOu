@@ -1,4 +1,4 @@
-﻿#include "../../types.h"
+#include "../../types.h"
 
 #if defined (YANEURAOU_ENGINE)
 
@@ -267,7 +267,7 @@ namespace {
 		uint64_t cnt, nodes = 0;
 		const bool leaf = (depth == 2 * ONE_PLY);
 
-		for (const auto& m : MoveList<LEGAL>(pos))
+		for (const auto& m : MoveList<LEGAL_ALL>(pos))
 		{
 			if (Root && depth <= ONE_PLY)
 				cnt = 1, nodes++;
