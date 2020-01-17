@@ -787,7 +787,7 @@ namespace {
 
 		for (int i = 0; i < iteration; ++i)
 		{
-			cout << "makebook engless_extend_tree : iteration " << i << endl;
+			cout << "makebook endless_extend_tree : iteration " << i << endl;
 
 			string command;
 #if 0
@@ -820,8 +820,7 @@ namespace {
 				// なので、やらない(´ω｀)
 
 				command = "think " + think_sfen_name + " " + read_book_name + " depth " + to_string(depth)
-					+ " startmoves " + to_string(start_moves) + " moves " + to_string(end_moves) + +" nodes " + to_string(nodes)
-					+ " max_game_ply " + to_string(max_game_ply);
+					+ " startmoves " + to_string(start_moves) + " moves " + to_string(end_moves) + " nodes " + to_string(nodes);
 				do_command(command);
 
 			}
