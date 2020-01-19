@@ -1097,24 +1097,28 @@ namespace Book
 				// C++的には未定義動作だが、これのためにsys/stat.hをincludeしたくない。
 				// ここでfs.clear()を呼ばないとeof()のあと、tellg()が失敗する。
 				fs.clear();
-				fs.seekg(0, std::ios::end);
-				auto file_end = fs.tellg();
-
-				fs.clear();
 				fs.seekg(0, std::ios::beg);
 				auto file_start = fs.tellg();
 
-				auto file_size = u64(file_end - file_start);
+				// 現在のファイルのシーク位置を返す関数(ファイルの先頭位置を0とする)
+				auto current_pos = [&]() { return s64(fs.tellg() - file_start); };
+
+				fs.clear();
+				fs.seekg(0, std::ios::end);
+
+				// ファイルサイズ(現在、ファイルの末尾を指しているはずなので..)
+				auto file_size = current_pos();
 
 				// 与えられたseek位置から"sfen"文字列を探し、それを返す。どこまでもなければ""が返る。
 				// hackとして、seek位置は-2しておく。(1行読み捨てるので、seek_fromぴったりのところに
 				// "sfen"から始まる文字列があるとそこを読み捨ててしまうため。-2してあれば、そこに
 				// CR+LFがあるはずだから、ここを読み捨てても大丈夫。)
-				auto next_sfen = [&](u64 seek_from)
+				auto next_sfen = [&](s64 seek_from)
 				{
 					string line;
 
-					fs.seekg(max(s64(0), (s64)seek_from - 2), fstream::beg);
+					seek_from = std::max( s64(0), seek_from - 2);
+					fs.seekg(seek_from , fstream::beg);
 
 					// --- 1行読み捨てる
 
@@ -1138,7 +1142,9 @@ namespace Book
 				// バイナリサーチ
 				// [s,e) の範囲で求める。
 
-				u64 s = 0, e = file_size, m;
+				s64 s = 0, e = file_size, m;
+				// s,eは無符号型だと、s - 2のような式が負にならないことを保証するのが面倒くさい。
+				// こういうのを無符号型で扱うのは筋が悪い。
 
 				while (true)
 				{
@@ -1151,20 +1157,20 @@ namespace Book
 					}
 					else if (sfen > sfen2)
 					{ // 右(それより大きいところ)を探す
-						s = u64(fs.tellg() - file_start);
+						s = current_pos();
 					}
 					else {
 						// 見つかった！
 						break;
 					}
 
-					// 40バイトより小さなsfenはありえないので探索範囲がこれより小さいなら終了。
-					// s,eは無符号型であることに注意。if (s-40 < e) と書くとs-40がマイナスになりかねない。
+					// 40バイトより小さなsfenはありえないので、この範囲に２つの"sfen"で始まる文字列が
+					// 入っていないことは保証されている。
+					// ゆえに、探索範囲がこれより小さいなら先頭から調べて("sfen"と書かれている文字列を探して)終了。
 					if (s + 40 > e)
 					{
-						// ただしs = 0のままだと先頭要素が探索されていないということなので
-						// このケースに限り先頭要素を再探索
-						if (s == 0 && next_sfen(s) == sfen)
+						if ( next_sfen(s) == sfen)
+							// 見つかった！
 							break;
 
 						// 見つからなかった
