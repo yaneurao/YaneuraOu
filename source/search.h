@@ -108,6 +108,7 @@ namespace Search {
 		// time[]   : 残り時間(ms換算で)
 		// inc[]    : 1手ごとに増加する時間(フィッシャールール)
 		// npmsec   : 探索node数を思考経過時間の代わりに用いるモードであるかのフラグ(from UCI)
+		// 　　→　将棋と相性がよくないのでこの機能をサポートしないことにする。
 		// movetime : 思考時間固定(0以外が指定してあるなら) : 単位は[ms]
 		TimePoint time[COLOR_NB] , inc[COLOR_NB] , npmsec , movetime;
 

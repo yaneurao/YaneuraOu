@@ -24,11 +24,12 @@ namespace {
 // ply : ここまでの手数。平手の初期局面なら1。(0ではない)
 void Timer::init(Search::LimitsType& limits, Color us, int ply)
 {
+#if 0
 	// nodes as timeモード
-	int npmsec = (int)Options["nodestime"];
+	TimePoint npmsec = Options["nodestime"];
 
 	// npmsecがUSI optionで指定されていれば、時間の代わりに、ここで指定されたnode数をベースに思考を行なう。
-	// nodes per milli secondの意味。
+	// nodes per millisecondの意味。
 	// nodes as timeモードで対局しなければならないなら、時間をノード数に変換して、
 	// 持ち時間制御の計算式では、この結果の値を用いる。
 	if (npmsec)
@@ -38,7 +39,7 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 			availableNodes = npmsec * limits.time[us];
 		
 		// ミリ秒をnode数に変換する
-		limits.time[us] = (int)availableNodes;
+		limits.time[us] = TimePoint(availableNodes);
 		for (auto c : COLOR)
 		{
 			limits.inc[c] *= npmsec;
@@ -46,7 +47,11 @@ void Timer::init(Search::LimitsType& limits, Color us, int ply)
 		}
 		limits.rtime *= npmsec;
 		limits.npmsec = npmsec;
+
+		// NetworkDelay , MinimumThinkingTimeなどもすべてnpmsecを掛け算しないといけないな…。
+		// 1000で繰り上げる必要もあるしなー。これtime managementと極めて相性が悪いのでは。
 	}
+#endif
 
 	// ネットワークのDelayを考慮して少し減らすべき。
 	// かつ、minimumとmaximumは端数をなくすべき

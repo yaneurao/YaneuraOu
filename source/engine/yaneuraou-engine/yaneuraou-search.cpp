@@ -83,11 +83,13 @@ void USI::extra_option(USI::OptionsMap & o)
 	// 投了スコア
 	o["ResignValue"] << Option(99999, 0, 99999);
 
+#if 0
 	// nodes as timeモード。
 	// ミリ秒あたりのノード数を設定する。goコマンドでbtimeが、ここで設定した値に掛け算されたノード数を探索の上限とする。
 	// 0を指定すればnodes as timeモードではない。
-	// 600knpsなら600を指定する。
-	o["nodestime"] << Option(0, 0, 99999);
+	// 例) 600knpsのPC動作をシミュレートするならば600を指定する。
+	o["nodestime"] << Option(0, 0, 999999999);
+#endif
 
 	//
 	//   パラメーターの外部からの自動調整
@@ -364,7 +366,7 @@ void Search::clear()
 	//   置換表のクリアなど
 	// -----------------------
 
-	Time.availableNodes = 0;
+	//	Time.availableNodes = 0;
 	TT.clear();
 	Threads.clear();
 	//	Tablebases::init(Options["SyzygyPath"]); // Free up mapped files
@@ -579,10 +581,14 @@ SKIP_SEARCH:;
 		if (th != this)
 			th->wait_for_search_finished();
 
+#if 0
 	// nodes as time(時間としてnodesを用いるモード)のときは、利用可能なノード数から探索したノード数を引き算する。
 	// 時間切れの場合、負の数になりうる。
+	// 将棋の場合、秒読みがあるので秒読みも考慮しないといけない。
 	if (Limits.npmsec)
-		Time.availableNodes += Limits.inc[us] - Threads.nodes_searched();
+		Time.availableNodes += Limits.inc[us] + Limits.byoyomi[us] - Threads.nodes_searched();
+	// →　将棋と相性がよくないのでこの機能をサポートしないことにする。
+#endif
 
 	// ---------------------
 	// Lazy SMPの結果を取り出す

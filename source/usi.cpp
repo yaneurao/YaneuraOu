@@ -310,7 +310,7 @@ void is_ready(bool skipCorruptCheck)
 	TT.resize(Options["Hash"]);
 
 	Search::clear();
-	Time.availableNodes = 0;
+//	Time.availableNodes = 0;
 
 	Threads.stop = false;
 

@@ -233,9 +233,14 @@ struct Timer
 	// reset()されてからreset_for_ponderhit()までの時間
 	TimePoint elapsed_from_start_to_ponderhit() const { return (TimePoint)(startTimeFromPonderhit - startTime); }
 
+#if 0
 	// 探索node数を経過時間の代わりに使う。(こうするとタイマーに左右されない思考が出来るので、思考に再現性を持たせることが出来る)
 	// node数を指定して探索するとき、探索できる残りnode数。
-	int64_t availableNodes;
+	// ※　StockfishでここintになっているのはTimePointにするのが正しいと思う。[2020/01/20]
+	TimePoint availableNodes;
+	// →　NetworkDelayやMinimumThinkingTimeなどの影響を考慮するのが難しく、将棋の場合、
+	// 　相性があまりよろしくないのでこの機能はやねうら王ではサポートしないことにする。
+#endif
 
 	// このシンボルが定義されていると、今回の思考時間を計算する機能が有効になる。
 #if defined(USE_TIME_MANAGEMENT)
