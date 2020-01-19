@@ -755,11 +755,19 @@ namespace StringExtension
 #elif defined(__GNUC__)
 
 // GCC/clangのほうはfilesystem使う方法がよくわからないので保留しとく。
-// 備考)
-//   GCC 8.1では、リンクオプションとして -lstdc++fsが必要
-//   Clang 7.0では、リンクオプションとして -lc++fsが必要
-// 2020/1/17現時点で最新版はClang 9.0.0のようだが、OpenBlas等が使えるかわからないので、使えるとわかってから
-// filesystemを使うように修正する。
+/*
+ 備考)
+   GCC 8.1では、リンクオプションとして -lstdc++fsが必要
+   Clang 7.0では、リンクオプションとして -lc++fsが必要
+
+ 2020/1/17現時点で最新版はClang 9.0.0のようだが、OpenBlas等が使えるかわからないので、使えるとわかってから
+ filesystemを使うように修正する。
+
+Mizarさんより。
+https://gcc.gnu.org/bugzilla/show_bug.cgi?id=91786#c2
+Fixed for GCC 9.3
+とあるのでまだMSYS2でfilesystemは無理じゃないでしょうか
+*/
 
 #include <dirent.h>
 #endif
@@ -783,7 +791,7 @@ namespace Directory
 
 		// filesystemのファイル列挙、ディレクトリとして空の文字列を渡すと例外で落ちる。
 		// current directoryにしたい時は明示的に指定してやらなければならない。
-		auto src = sourceDirectory.empty() ? fs::current_path() : sourceDirectory;
+		auto src = sourceDirectory.empty() ? fs::current_path() : fs::path(sourceDirectory);
 
 		for (auto ent : fs::directory_iterator(src))
 			if (fs::is_regular_file(ent)
@@ -804,10 +812,10 @@ namespace Directory
 				entry = readdir(dp);
 				// ".bin"で終わるファイルのみを列挙
 				// →　連番でファイル生成するときにこの制約ちょっと嫌だな…。
-				if (entry != NULL && StringExtensions::EndsWith(entry->d_name, extension))
+				if (entry != NULL && StringExtension::EndsWith(entry->d_name, extension))
 				{
 					//cout << entry->d_name << endl;
-					filenames.push_back(Path::Combine(target_dir, entry->d_name));
+					filenames.push_back(Path::Combine(sourceDirectory, entry->d_name));
 				}
 			} while (entry != NULL);
 			closedir(dp);
