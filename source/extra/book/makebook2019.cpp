@@ -680,7 +680,7 @@ namespace {
 		this->max_game_ply = max_game_ply;
 
 		// これより長い棋譜、食わせないやろ…。
-		std::vector<StateInfo, AlignedAllocator<StateInfo>> states(1024);
+		std::vector<StateInfo> states(1024);
 
 		for (int i = 0; i < (int)lines.size(); ++i)
 		{

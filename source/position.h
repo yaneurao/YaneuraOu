@@ -143,7 +143,7 @@ struct StateInfo
 // setup moves("position"コマンドで設定される、現局面までの指し手)に沿った局面の状態を追跡するためのStateInfoのlist。
 // 千日手の判定のためにこれが必要。std::dequeを使っているのは、StateInfoがポインターを内包しているので、resizeに対して
 // 無効化されないように。
-typedef std::deque<StateInfo, AlignedAllocator<StateInfo>> StateList;
+typedef std::deque<StateInfo> StateList;
 typedef std::unique_ptr<StateList> StateListPtr;
 
 // --------------------

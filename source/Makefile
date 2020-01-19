@@ -23,10 +23,12 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 #YANEURAOU_EDITION = MATE_ENGINE
 #YANEURAOU_EDITION = USER_ENGINE
 
+
 # ターゲットCPU
-# 使えるCPU拡張命令を指定する。
+# 利用できるCPU拡張命令を指定する。
 # ARM系ならOTHERを指定する。
 # 32bit環境用はNO_SSE
+# AMDのZen2はZEN2を選択すると良いかも？(clang9以降で対応)
 
 #TARGET_CPU = AVX512
 TARGET_CPU = AVX2
@@ -35,6 +37,7 @@ TARGET_CPU = AVX2
 #TARGET_CPU = SSE2
 #TARGET_CPU = NO_SSE
 #TARGET_CPU = OTHER
+#TARGET_CPU = ZEN2
 
 
 # デバッガーを使用するか
@@ -48,7 +51,7 @@ COMPILER = clang++
 
 
 # 標準的なコンパイルオプション
-CFLAGS   = -std=c++14 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
+CFLAGS   = -std=c++1z -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
 WCFLAGS  =
 LDFLAGS  =
 LIBS     =
@@ -63,6 +66,9 @@ endif
 ifeq ($(findstring clang++,$(COMPILER)),clang++)
 	# stdlib
 	CFLAGS += -stdlib=libstdc++
+
+	# C++17のfilesystem
+	# LDFLAGS += -lstdc++fs
 
 	# 関数の引数が関数本体で使われていないときに警告出るのうざすぎるので抑制。
 	CFLAGS += -Wno-unused-parameter
@@ -81,6 +87,10 @@ else
 		# https://stackoverflow.com/questions/43152633/invalid-register-for-seh-savexmm-in-cygwin
 		# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=65782
 		WCFLAGS += -fno-asynchronous-unwind-tables
+
+		# C++17のfilesystem
+		# LDFLAGS += -lstdc++fs
+
 	endif
 endif
 
@@ -262,25 +272,38 @@ endif
 
 
 # CPU判別
-ifeq ($(TARGET_CPU),AVX512)
+
+# AMDなど特定のCPU
+ifeq ($(TARGET_CPU),ZEN2)
+	CFLAGS += -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=znver2
+
+# それ以外は、AVX512,AVX2,SSE4.2,SSE4.1,SSE2のように利用できるCPU拡張命令で振り分ける。
+else ifeq ($(TARGET_CPU),AVX512)
 	# skylake     : -DUSE_AVX512 -DUSE_AVX512VLBWDQ -march=skylake-avx512
 	# cascadelake : -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -march=cascadelake
 	# icelake     : -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -DUSE_AVX512VBMI -DUSE_AVX512IFMA -USE_GFNI -march=icelake-client
 	CFLAGS += -DUSE_AVX512 -DUSE_AVX512VLBWDQ -march=skylake-avx512
+
 else ifeq ($(TARGET_CPU),AVX2)
 	CFLAGS += -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=corei7-avx
+
 else ifeq ($(TARGET_CPU),SSE42)
 	CFLAGS += -DUSE_SSE42 -msse4.2 -march=corei7
+
 else ifeq ($(TARGET_CPU),SSE41)
 	CFLAGS += -DUSE_SSE41 -msse4.1 -march=core2
+
 else ifeq ($(TARGET_CPU),SSE2)
 	CFLAGS += -DUSE_SSE2 -msse2 -march=core2
+
 else ifeq ($(TARGET_CPU),NO_SSE)
 	# 32bit用。-m32は、MSYS2 MinGW-64だと無視されるので、
 	# MinGW-64の32bit環境用でコンパイルする必要がある。
 	CFLAGS += -DNO_SSE -m32 -march=pentium3
+
 else ifeq ($(TARGET_CPU),OTHER)
 	CFLAGS += -DNO_SSE
+
 endif
 
 

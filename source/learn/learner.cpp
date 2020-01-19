@@ -361,7 +361,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 	const int MAX_PLY2 = write_maxply;
 
 	// StateInfoを最大手数分 + SearchのPVでleafにまで進めるbuffer
-	std::vector<StateInfo,AlignedAllocator<StateInfo>> states(MAX_PLY2 + MAX_PLY /* == search_depth + α */);
+	std::vector<StateInfo> states((size_t)MAX_PLY2 + MAX_PLY /* == search_depth + α */);
 	StateInfo si;
 
 	// 今回の指し手。この指し手で局面を進める。
@@ -1654,7 +1654,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			{
 				const auto rootColor = pos.side_to_move();
 				const auto pv = r.second;
-				std::vector<StateInfo,AlignedAllocator<StateInfo>> states(pv.size());
+				std::vector<StateInfo> states(pv.size());
 				for (size_t i = 0; i < pv.size(); ++i)
 				{
 					pos.do_move(pv[i], states[i]);

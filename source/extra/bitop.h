@@ -287,23 +287,6 @@ extern ymm ymm_one;   // all packed bytes are 1.
 extern void* aligned_malloc(size_t size, size_t align);
 static void aligned_free(void* ptr) { _mm_free(ptr); }
 
-// alignasを指定しているのにnewのときに無視される＆STLのコンテナがメモリ確保するときに無視するので、
-// そのために用いるカスタムアロケーター。
-template <typename T>
-class AlignedAllocator {
-public:
-	using value_type = T;
-
-	AlignedAllocator() {}
-	AlignedAllocator(const AlignedAllocator&) {}
-	AlignedAllocator(AlignedAllocator&&) {}
-
-	template <typename U> AlignedAllocator(const AlignedAllocator<U>&) {}
-
-	T* allocate(std::size_t n) { return (T*)aligned_malloc(n * sizeof(T), alignof(T)); }
-	void deallocate(T* p, std::size_t n) { aligned_free(p); }
-};
-
 // ----------------------------
 //    BSLR
 // ----------------------------

@@ -390,7 +390,7 @@ namespace Book
 				vector<SfenAndBool> sf;		// 初手から(moves+0)手までのsfen文字列格納用
 
 				// これより長い棋譜、食わせない＆思考対象としないやろ
-				std::vector<StateInfo, AlignedAllocator<StateInfo>> states(1024);
+				std::vector<StateInfo> states(1024);
 
 				// 変数sfに解析対象局面としてpush_backする。
 				// ただし、
