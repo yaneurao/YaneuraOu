@@ -245,25 +245,9 @@ u64 eval_sum;
 void is_ready(bool skipCorruptCheck)
 {
 	// "isready"を受け取ったあと、"readyok"を返すまで5秒ごとに改行を送るように修正する。(keep alive的な処理)
-	//	USI2.0の仕様より。
-	//  -"isready"のあとのtime out時間は、30秒程度とする。これを超えて、評価関数の初期化、hashテーブルの確保をしたい場合、
-	//  思考エンジン側から定期的に何らかのメッセージ(改行可)を送るべきである。
-	//  -ShogiGUIではすでにそうなっているので、MyShogiもそれに追随する。
-	//  -また、やねうら王のエンジン側は、"isready"を受け取ったあと、"readyok"を返すまで5秒ごとに改行を送るように修正する。
-	 
-	auto ended = false;
-	auto th = std::thread([&ended] {
-		int count = 0;
-		while (!ended)
-		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			if (++count >= 50 /* 5秒 */)
-			{
-				count = 0;
-				sync_cout << sync_endl; // 改行を送信する。
-			}
-		}
-	});
+	// →　これ、よくない仕様であった。
+	// cf. USIプロトコルでisready後の初期化に時間がかかる時にどうすれば良いのか？
+	//     http://yaneuraou.yaneu.com/2020/01/05/usi%e3%83%97%e3%83%ad%e3%83%88%e3%82%b3%e3%83%ab%e3%81%a7isready%e5%be%8c%e3%81%ae%e5%88%9d%e6%9c%9f%e5%8c%96%e3%81%ab%e6%99%82%e9%96%93%e3%81%8c%e3%81%8b%e3%81%8b%e3%82%8b%e6%99%82%e3%81%ab%e3%81%a9/
 
 #if defined (USE_EVAL_HASH)
 	Eval::EvalHash_Resize(Options["EvalHash"]);
@@ -313,10 +297,6 @@ void is_ready(bool skipCorruptCheck)
 //	Time.availableNodes = 0;
 
 	Threads.stop = false;
-
-	// keep aliveを送信するために生成したスレッドを終了させ、待機する。
-	ended = true;
-	th.join();
 }
 
 // isreadyコマンド処理部
