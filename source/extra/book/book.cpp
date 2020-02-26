@@ -1505,15 +1505,19 @@ namespace Book
 						(to_usi_string(it.bestMove) + " " + to_usi_string(it.nextMove));
 				}
 
-				sync_cout << "info pv " << pv_string
-					<< " (" << fixed << std::setprecision(2) << (100 * it.prob) << "%)" // 採択確率
-					<< " score cp " << it.value << " depth " << it.depth
+				// USIの"info"で読み筋を出力するときは"pv"サブコマンドはサブコマンドの一番最後にしなければならない。
+				// 複数出力するときに"multipv"は連番なのでこれが先頭に来ているほうが見やすいと思うので先頭に"multipv"を出力する。
+				sync_cout << "info"
 #if !defined(NICONICO)
-					<< " multipv " << (i+1)
+					<< " multipv " << (i + 1)
 #endif					
+					<< " score cp " << it.value << " depth " << it.depth
+					<< " pv " << pv_string
+					<< " (" << fixed << std::setprecision(2) << (100 * it.prob) << "%)" // 採択確率
 					<< sync_endl;
 
 				// 電王盤はMultiPV非対応なので1番目の読み筋だけを"multipv"をつけずに送信する。
+				// ("multipv"を出力してはならない)
 #if defined(NICONICO)
 				break;
 #endif

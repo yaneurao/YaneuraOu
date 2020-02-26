@@ -130,6 +130,8 @@ namespace USI
 
 
 			// PV配列からPVを出力する。
+			// ※　USIの"info"で読み筋を出力するときは"pv"サブコマンドはサブコマンドの一番最後にしなければならない。
+
 			auto out_array_pv = [&]()
 			{
 				for (Move m : rootMoves[i].pv)
