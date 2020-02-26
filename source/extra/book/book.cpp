@@ -267,7 +267,7 @@ namespace Book
 			if (! bw_files)
 			{
 				vector<string> tmp_sfens;
-				read_all_lines(sfen_file_name[0], tmp_sfens);
+				FileOperator::ReadAllLines(sfen_file_name[0], tmp_sfens);
 
 				// こちらは先後、どちらの手番でも解析対象とするのでCOLOR_NBを指定しておく。
 				for (auto& sfen : tmp_sfens)
@@ -286,7 +286,7 @@ namespace Book
 						continue;
 
 					vector<string> tmp_sfens;
-					read_all_lines(filename, tmp_sfens);
+					FileOperator::ReadAllLines(filename, tmp_sfens);
 					for (auto& sfen : tmp_sfens)
 						sfens.push_back(SfenAndColor(sfen, c));
 				}
@@ -757,8 +757,9 @@ namespace Book
 			}
 
 			sync_cout << "info string read book file : " << filename << sync_endl;
-			vector<string> lines;
-			if (read_all_lines(filename, lines))
+
+			TextFileReader reader;
+			if (reader.Open(filename))
 			{
 				sync_cout << "info string Error! : can't read file : " + filename << sync_endl;
 				//      exit(EXIT_FAILURE);
@@ -795,8 +796,14 @@ namespace Book
 				num_sum = 0;
 			};
 
-			for (auto line : lines)
+			// 定跡に登録されている手数を無視するのか？
+			// (これがtrueならばsfenから手数を除去しておく)
+			bool ignoreBookPly = Options["IgnoreBookPly"];
+
+			while(!reader.Eof())
 			{
+				auto line = reader.ReadLine(/* trim = */true);
+
 				// バージョン識別文字列(とりあえず読み飛ばす)
 				if (line.length() >= 1 && line[0] == '#')
 					continue;
@@ -812,8 +819,12 @@ namespace Book
 					// (sortはされてるはずだが他のソフトで生成した定跡DBではそうとも限らないので)。
 					calc_prob();
 
-					sfen = line.substr(5, line.length() - 5); // 新しいsfen文字列を"sfen "を除去して格納
-					sfen = trim(sfen); // 末尾のゴミの除去(Options["IgnoreBookPly"] == trueのときは、手数も除去)
+					// 5文字目から末尾までをくり抜く。
+					// 末尾のゴミは除去されているはずなので、Options["IgnoreBookPly"] == trueのときは、手数(数字)を除去。
+
+					sfen = line.substr(5); // 新しいsfen文字列を"sfen "を除去して格納
+					if (ignoreBookPly)
+						sfen = StringExtension::trim_number(sfen); // 末尾の数字除去
 
 #if 0
 					if (ignore_book_ply)
@@ -844,14 +855,23 @@ namespace Book
 
 				Move best, next;
 
-				istringstream is(line);
 				string bestMove, nextMove;
 				int value = 0;
 				int depth = 0;
 				uint64_t num = 1;
 
-				// 末尾、欠けてるかもです
-				is >> bestMove >> nextMove >> value >> depth >> num;
+				//istringstream is(line);
+				// value以降は、元データに欠落してるかもですよ。
+				//is >> bestMove >> nextMove >> value >> depth >> num;
+
+				// → istringstream、げろげろ遅いので、自前でparseする。
+
+				LineScanner scanner(line);
+				bestMove = scanner.get_text();
+				nextMove = scanner.get_text();
+				value = (int)scanner.get_number(value);
+				depth = (int)scanner.get_number(depth);
+				num = (uint64_t)scanner.get_number(num);
 
 #if 0
 				// 思考した指し手に対しては指し手の出現頻度のところを強制的にエンジンバージョンを100倍したものに変更する。
@@ -872,6 +892,18 @@ namespace Book
 
 				BookPos bp(best, next, value, depth, num);
 				insert(sfen, bp);
+
+				// このinsert()、この関数の40%ぐらいの時間を消費している。
+				// 他の部分をせっかく高速化したのに…。
+
+				// これ、ファイルから読み込んだ文字列のまま保存しておき、
+				// アクセスするときに解凍するほうが良かったか…。
+
+				// unorderedmapなのでこれ以上どうしようもないな…。
+
+				// テキストそのまま持っておいて、メモリ上で二分探索する実装のほうが良かったか。
+				// (定跡がsfen文字列でソート済みであることが保証されているなら。保証されてないんだけども。)
+
 			}
 			// ファイルが終わるときにも最後の局面に対するcalc_probが必要。
 			calc_prob();
@@ -1087,7 +1119,7 @@ namespace Book
 				// ディスクから読み込むなら、いずれにせよ、新規エントリーを作成してそれを返す必要がある。
 				PosMoveListPtr pml_entry(new PosMoveList());
 
-				// 末尾の手数は取り除いておく。
+				// IgnoreBookPlyのときは末尾の手数は取り除いておく。
 				// read_book()で取り除くと、そのあと書き出すときに手数が消失するのでまずい。(気がする)
 				sfen = trim(sfen);
 
@@ -1130,11 +1162,13 @@ namespace Book
 					while (getline(fs, line))
 					{
 						if (!line.compare(0, 4, "sfen"))
+						{
+							// ios::binaryつけているので末尾に'\r'が付与されている。禿げそう。
+							// →　trim()で吸収する。(trimがStringExtension::trim_number()を呼び出すがそちらで吸収される)
 							return trim(line.substr(5));
 						// "sfen"という文字列は取り除いたものを返す。
-						// 手数の表記も取り除いて比較したほうがいい。
-						// ios::binaryつけているので末尾に'\r'が付与されている。禿げそう。
-						// → StringExtension::trim()で吸収する。
+							// IgnoreBookPly == trueのときは手数の表記も取り除いて比較したほうがいい。
+						}
 					}
 					return string();
 				};
@@ -1217,14 +1251,23 @@ namespace Book
 
 					Move best, next;
 
-					istringstream is(line);
 					string bestMove, nextMove;
 					int value = 0;
 					int depth = 0;
 					uint64_t num = 1;
 
-					// 末尾、欠けてるかもですよ
-					is >> bestMove >> nextMove >> value >> depth >> num;
+					//istringstream is(line);
+					// value以降は、元データに欠落してるかもですよ。
+					//is >> bestMove >> nextMove >> value >> depth >> num;
+
+					// → istringstream、げろげろ遅いので、自前でparseする。
+
+					LineScanner scanner(line);
+					bestMove = scanner.get_text();
+					nextMove = scanner.get_text();
+					value = (int)scanner.get_number(value);
+					depth = (int)scanner.get_number(depth);
+					num = (uint64_t)scanner.get_number(num);
 
 					// 起動時なので変換に要するオーバーヘッドは最小化したいので合法かのチェックはしない。
 					if (bestMove == "none" || bestMove == "resign")

@@ -293,22 +293,85 @@ extern Timer Time;
 //  ファイルの丸読み
 // --------------------
 
-// ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。
-int read_all_lines(std::string filename, std::vector<std::string>& lines);
+struct FileOperator
+{
+	// ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。末尾の改行は除去される。
+	// 引数で渡されるlinesは空であるを期待しているが、空でない場合は、そこに追加されていく。
+	// 引数で渡されるtrimはtrueを渡すと末尾のスペース、タブがトリムされる。
+	static int ReadAllLines(const std::string& filename, std::vector<std::string>& lines, bool trim = false);
 
-// msys2、Windows Subsystem for Linuxなどのgcc/clangでコンパイルした場合、
-// C++のstd::ifstreamで::read()は、一発で2GB以上のファイルの読み書きが出来ないのでそのためのwrapperである。
-//
-// read_file_to_memory()の引数のcallback_funcは、ファイルがオープン出来た時点でそのファイルサイズを引数として
-// callbackされるので、バッファを確保して、その先頭ポインタを返す関数を渡すと、そこに読み込んでくれる。
-// これらの関数は、ファイルが見つからないときなどエラーの際には非0を返す。
-//
-// また、callbackされた関数のなかでバッファが確保できなかった場合や、想定していたファイルサイズと異なった場合は、
-// nullptrを返せば良い。このとき、read_file_to_memory()は、読み込みを中断し、エラーリターンする。
 
-int read_file_to_memory(std::string filename, std::function<void*(u64)> callback_func);
-int write_memory_to_file(std::string filename, void *ptr, u64 size);
+	// msys2、Windows Subsystem for Linuxなどのgcc/clangでコンパイルした場合、
+	// C++のstd::ifstreamで::read()は、一発で2GB以上のファイルの読み書きが出来ないのでそのためのwrapperである。
+	//
+	// read_file_to_memory()の引数のcallback_funcは、ファイルがオープン出来た時点でそのファイルサイズを引数として
+	// callbackされるので、バッファを確保して、その先頭ポインタを返す関数を渡すと、そこに読み込んでくれる。
+	// これらの関数は、ファイルが見つからないときなどエラーの際には非0を返す。
+	//
+	// また、callbackされた関数のなかでバッファが確保できなかった場合や、想定していたファイルサイズと異なった場合は、
+	// nullptrを返せば良い。このとき、read_file_to_memory()は、読み込みを中断し、エラーリターンする。
 
+	static int ReadFileToMemory(const std::string& filename, std::function<void* (u64)> callback_func);
+	static int WriteMemoryToFile(const std::string& filename, void* ptr, u64 size);
+};
+
+// C#のTextReaderみたいなもの。
+// C++のifstreamが遅すぎるので、高速化されたテキストファイル読み込み器
+// fopen()～fread()で実装されている。
+struct TextFileReader
+{
+	TextFileReader();
+	~TextFileReader();
+
+	// ファイルをopenする。
+	// ファイルが存在しなければ非0が返る。
+	int Open(const std::string& filename);
+
+	// Open()を呼び出してオープンしたファイルをクローズする。
+	void Close();
+
+	// ファイルの終了判定。
+	// ファイルを最後まで読み込んだのなら、trueを返す。
+	bool Eof() const;
+
+	// 1行読み込む(改行まで)
+	// 改行コードは返さない。
+	// 引数のtrimがtrueの時は、末尾のスペース、タブはトリムする
+	std::string ReadLine(bool trim = false);
+
+
+private:
+	// 各種状態変数の初期化
+	void clear();
+
+	// 次のblockのbufferへの読み込み。
+	void read_next();
+
+	// オープンしているファイル。
+	// オープンしていなければnullptrが入っている。
+	FILE* fp;
+
+	// ファイルの読み込みバッファ 1MB
+	std::vector<u8> buffer;
+
+	// 行バッファ
+	std::vector<u8> line_buffer;
+
+	// バッファに今回読み込まれたサイズ
+	size_t read_size;
+
+	// bufferの解析位置
+	// 次のReadLine()でここから解析して1行返す
+	// 次の文字 c = buffer[cursor]
+	size_t cursor;
+
+	// eofフラグ。
+	// fp.eof()は、bufferにまだ未処理のデータが残っているかも知れないのでそちらを信じるわけにはいかない。
+	bool is_eof;
+
+	// 直前が\r(CR)だったのか？のフラグ
+	bool is_prev_cr;
+};
 
 // --------------------
 //    PRNGのasync版
@@ -360,15 +423,21 @@ struct LineScanner
 	// 次のtokenを返す。
 	std::string get_text();
 
+	// 次の文字列を数値化して返す。
+	// 空の文字列である場合は引数の値がそのまま返る。
+	// "ABC"のような文字列で数値化できない場合は0が返る。(あまり良くない仕様だがatoll()を使うので仕方ない)
+	s64 get_number(s64 defaultValue);
+
 	// 解析位置(カーソル)が行の末尾まで進んだのか？
+	// eolとはEnd Of Lineの意味。
 	// get_text()をしてpeek_text()したときに保持していたものがなくなるまではこの関数はfalseを返し続ける。
-	// このクラスの内部からeof()を呼ばないほうが無難。(token.empty() == trueが保証されていないといけないので)
-	// 内部から呼び出すならraw_eof()のほうではないかと。
-	bool eof() const { return token.empty() && raw_eof(); }
+	// このクラスの内部からeol()を呼ばないほうが無難。(token.empty() == trueが保証されていないといけないので)
+	// 内部から呼び出すならraw_eol()のほうではないかと。
+	bool eol() const { return token.empty() && raw_eol(); }
 
 private:
 	// 解析位置(カーソル)が行の末尾まで進んだのか？(内部実装用)
-	bool raw_eof() const { return !(pos < line.length()); }
+	bool raw_eol() const { return !(pos < line.length()); }
 
 	// 解析対象の行
 	std::string line;
@@ -455,8 +524,10 @@ namespace StringExtension
 	// ios::binaryでopenした場合などには'\r'なども入っていることがあるので…。
 	extern std::string trim(const std::string& input);
 
-	// 行の末尾の"\r","\n",スペース、"\t"、数字を除去した文字列を返す。
+	// 行の末尾の数字を除去した文字列を返す。
 	// sfenの末尾の手数を削除する用
+	// 末尾のスペースを詰めたあと数字を詰めてそのあと再度スペースを詰める処理になっている。
+	// 例 : "abc 123 "→"abc"となって欲しいので。
 	extern std::string trim_number(const std::string& input);
 
 	// 文字列のstart番目以降を返す

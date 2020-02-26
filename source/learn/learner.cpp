@@ -2360,7 +2360,7 @@ void shuffle_files_on_memory(const vector<string>& filenames,const string output
 	for (auto filename : filenames)
 	{
 		std::cout << "read : " << filename << std::endl;
-		read_file_to_memory(filename, [&buf](u64 size) {
+		FileOperator::ReadFileToMemory(filename, [&buf](u64 size) {
 			ASSERT_LV1((size % sizeof(PackedSfenValue)) == 0);
 			// バッファを拡充して、前回の末尾以降に読み込む。
 			u64 last = buf.size();
@@ -2379,7 +2379,7 @@ void shuffle_files_on_memory(const vector<string>& filenames,const string output
 	std::cout << "write : " << output_file_name << endl;
 
 	// 書き出すファイルが2GBを超えるとfstream::write一発では書き出せないのでwrapperを用いる。
-	write_memory_to_file(output_file_name, (void*)&buf[0], (u64)sizeof(PackedSfenValue)*(u64)buf.size());
+	FileOperator::WriteMemoryToFile(output_file_name, (void*)&buf[0], (u64)sizeof(PackedSfenValue)*(u64)buf.size());
 
 	std::cout << "..shuffle_on_memory done." << std::endl;
 }

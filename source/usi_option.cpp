@@ -313,7 +313,7 @@ namespace USI {
 		string name, value, option_type;
 		int64_t min_value = 0, max_value = 1;
 		std::vector<string> combo_list;
-		while (!scanner.eof())
+		while (!scanner.eol())
 		{
 			auto token = scanner.get_text();
 			if (token == "name") name = scanner.get_text();

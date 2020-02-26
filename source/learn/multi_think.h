@@ -145,6 +145,6 @@ protected:
 	Mutex task_mutex;
 };
 
-#endif // defined(EVAL_LEARN) && defined(YANEURAOU_2018_OTAFUKU_ENGINE)
+#endif // defined(EVAL_LEARN) && defined(YANEURAOU_ENGINE)
 
 #endif
