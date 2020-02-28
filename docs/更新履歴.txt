@@ -1,6 +1,148 @@
 ﻿
 やねうら王 更新履歴
 
+	TODO:
+		https://github.com/yaneurao/YaneuraOu/pull/100
+		llvmのリンクオプション最適化
+		ちゃんと検証してからMakefile書き直す。
+
+
+■　2020/02/28 V4.89
+
+
+- V4.89にバージョンナンバーを上げる。
+	- 公開している実行ファイルから、YaneuraOu2018の2018の文字を取り除く。
+	- tanuki-詰将棋エンジンは、tanuki_MATE_XXXというファイル名で公開するように変更する。
+
+
+- misc.h/cppのリファクタリング
+	- Pathをstructではなくnamespaceに。
+	- misc.hにあったnamespaceの外に出てた独自拡張の関数をnamespace Toolsに。
+	- my_exit() →　Tools::exit()に移動。
+	- uint64_t get_thread_id(); →　削除
+	- sleep() →　Tools::sleep()に移動。
+	- struct Finally → BOOST:: BOOST_SCOPE_EXITに倣い、マクロで実装しなおす。
+		- SCOPE_EXITマクロ追加。
+	- StringExtension::trim_inplace()追加
+	- StringExtension::trim()のコード、簡略化。
+	- Dependency::getline() → Tools::getline()に移動。
+
+このcommitによる機能的な変更は無し。
+
+
+■　2020/02/26
+
+
+- 定跡読み込み高速化
+  - ifstreamを使うのをやめた
+  - istringstreamを使うのをやめた
+  - 大改造になったので何かバグってたら教えてください(´ω｀)
+
+
+- 定跡にhitしたときに、読み筋(pv)のあとにscore等を出力していたの修正。
+(USIプロトコルではpvのあとにサブコマンド(score,depth等)を書くことはできない
+とされているのでこれはUSIの規約違反)
+
+誤)　info pv 3i4h 3c3d 6i7h 4a3b 2g2f (4.17%) score cp 31 depth 3 multipv 4
+正)　info score cp 31 depth 3 multipv 4 pv 3i4h 3c3d 6i7h 4a3b 2g2f (4.17%)
+
+
+■　2020/02/06
+
+
+- NNUEの学習用のビルドで、gccで未初期化の配列がある警告が出ていたのを抑制。
+
+
+■　2020/01/20
+
+
+- mkdir()→CreateFolder()に変更した件、test_cmd.cpp修正忘れ。(#106) Mizarさん。
+
+
+- isreadyのあと、keepalive代わりに改行を5秒ごとに送信していた件、やめる。
+
+cf. USIプロトコルでisready後の初期化に時間がかかる時にどうすれば良いのか？ : http://yaneuraou.yaneu.com/2020/01/05/usi%e3%83%97%e3%83%ad%e3%83%88%e3%82%b3%e3%83%ab%e3%81%a7isready%e5%be%8c%e3%81%ae%e5%88%9d%e6%9c%9f%e5%8c%96%e3%81%ab%e6%99%82%e9%96%93%e3%81%8c%e3%81%8b%e3%81%8b%e3%82%8b%e6%99%82%e3%81%ab%e3%81%a9/
+
+
+- BookOnTheFlyで定跡にhitしないことがあるのを修正。
+	cf. https://github.com/yaneurao/YaneuraOu/issues/102
+
+
+- nodestimeオプション廃止。
+  - 秒読みを考慮していなかったが、それとは別に、将棋(やねうら王)の場合、NetworkDelay,NetworkDelay2やMinimumThinkingTimeなどの影響も計算しないといけなくて、そのへんまできちんと計算しようと思うと時間制御のコードがすごく複雑化するというのと、そもそもこの機能要らないんじゃ…みたいに思えてきたのでこの機能は削除する。
+- EngineNumaオプションの説明削除。
+
+
+- gcc/clangのためにMakefile修正。
+	- gcc/clangの新しいバージョンでは、-std=c++1zではなく、-std=c++17と書く必要がある。
+		- cf. https://cpprefjp.github.io/implementation.html
+
+
+- C++17でコンパイルするように変更。
+	- Makefile、gcc/clangでC++17でコンパイルするように変更。
+	- alignasを指定しているとnewしたときもそれを守るようになったらしいので、
+		custom allocatorのコードを削除する。
+		cf. https://cpprefjp.github.io/lang/cpp17/dynamic_memory_allocation_for_over-aligned_data.html
+	- alligned_malloc()自体は、HashTableで使っているので削除できない。
+
+
+- 一つ前の修正でmisc.cpp、gcc/clangでコンパイル通らなくなっていたのを修正。
+	cf. https://github.com/mizar/YaneuraOu/commit/3bcc7cda8176644261008f5ead0a964fb348ebf8
+
+
+■　2020/01/18
+
+
+- misc.hにあった、mkdir、Directory::CreateDirectoryに移動。
+
+
+- Visual C++ 2019では、C++14からC++17でコンパイルするように変更。
+	- C++17のfilesystemを使うように変更。(misc.h/cppにDirectoryクラス追加)
+	- gcc/clangではビルドの仕方よくわからん…。
+- yaneuraou-search.cpp、utf8のBOMついてなかったのでつけた。
+
+
+■　2020/01/17
+
+- fix "makebook endless_extend_tree" (#103)
+	- "makebook endless_extend_tree"コマンドがバグっていたの修正。Mizarさん。
+
+- perft LEGAL_ALL (#105)
+	- perftコマンドで香の不成などを生成していなかったの修正。Mizarさん。
+
+
+■　2019/11/28
+
+- Android用のAndroid.mkでのビルドが通らなくなっていたのを修正。
+
+
+■　2019/07/04
+
+
+- 解説.txtの説明が古かったの修正。
+
+
+■　2019/07/03
+
+
+- エンジン名のdefineからOTAFUKUの文字を取り忘れていたところがあったのを修正。
+  - bookコマンド一部動かなくなってた。ごめん。
+- lintで引っかかっていた箇所修正。
+
+
+
+■　2019/06/30
+
+
+- USIコマンド拡張。"side"追加。(AyaneruServerの実装で必要となった。)
+
+
+
+■　2019/06/29
+
+
+- トライルールのときにトライの指し手を選ばなかったの修正。
+
 
 ■　2019/06/26 V4.88
 
@@ -387,7 +529,7 @@ Position::set()とPosition::set_from_packed_sfen()でLongEffect::calc_effect()�
 	- NNUE評価関数の評価関数ファイル読み込み時にエラーになった場合、エンジンを終了するようにした。
 	- perftコマンド追加。(トーナメントビルド以外)
 	- Timerクラス、扱う時刻の値はすべてTimePoint型に
-	
+
 
 ■　2018/12/29
 
