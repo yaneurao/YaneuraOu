@@ -405,6 +405,8 @@ namespace WinProcGroup {
 TimePoint Timer::elapsed() const { return TimePoint(Search::Limits.npmsec ? Threads.nodes_searched() : now() - startTime); }
 TimePoint Timer::elapsed_from_ponderhit() const { return TimePoint(Search::Limits.npmsec ? Threads.nodes_searched()/*これ正しくないがこのモードでponder使わないからいいや*/ : now() - startTimeFromPonderhit); }
 
+#if defined(USE_TIME_MANAGEMENT)
+
 // 1秒単位で繰り上げてdelayを引く。
 // ただし、remain_timeよりは小さくなるように制限する。
 TimePoint Timer::round_up(TimePoint t) const
@@ -415,6 +417,8 @@ TimePoint Timer::round_up(TimePoint t) const
 	t = std::min(t - network_delay, remain_time);
 	return t;
 }
+
+#endif
 
 Timer Time;
 

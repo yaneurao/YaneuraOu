@@ -826,7 +826,7 @@ namespace MateEngine
 		//    また、このときThreads.stop == trueにはならない。(この点、Stockfishとは異なる。)
 		// "go infinite"に対してはstopが送られてくるまで待つ。
 		while (!Threads.stop && (Threads.main()->ponder || Limits.infinite))
-			sleep(1);
+			Tools::sleep(1);
 		//	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
 		// (思考のためには計算資源を使っていないので。)
 
@@ -883,7 +883,7 @@ void Thread::search()
 	if (Search::Limits.mate == 0) {
 		// "go infinite"に対してはstopが送られてくるまで待つ。
 		while (!Threads.stop && Limits.infinite)
-			sleep(1);
+			Tools::sleep(1);
 		sync_cout << "bestmove resign" << sync_endl;
 		return;
 	}

@@ -74,7 +74,7 @@ namespace Eval
 	Error:;
 		// 評価関数ファイルの読み込みに失敗した場合、思考を開始しないように抑制したほうがいいと思う。
 		sync_cout << "\ninfo string Error! open evaluation file failed.\n" << sync_endl;
-		my_exit();
+		Tools::exit();
 	}
 
 
@@ -161,7 +161,7 @@ namespace Eval
 		replace(dir_name.begin(), dir_name.end(), '/', '_');
 		// wchar_t*が必要なので変換する。
 		std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
-		cv.from_bytes(dir_name).c_str();
+		//cv.from_bytes(dir_name).c_str();
 
 		auto mapped_file_name = TEXT("YANEURAOU_KPP_KKPT_MMF" ENGINE_VERSION) + cv.from_bytes(dir_name);
 		auto mutex_name = TEXT("YANEURAOU_KPP_KKPT_MUTEX" ENGINE_VERSION) + cv.from_bytes(dir_name);
@@ -189,7 +189,7 @@ namespace Eval
 			if (shared_eval_ptr == nullptr)
 			{
 				sync_cout << "info string can't allocate shared eval memory." << sync_endl;
-				my_exit();
+				Tools::exit();
 			}
 			else
 			{

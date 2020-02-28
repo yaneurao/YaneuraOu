@@ -1830,7 +1830,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 #if !defined(EVAL_NNUE)
 				// 現在時刻を出力。毎回出力する。
-				std::cout << sr.total_done << " sfens , at " << now_string() << std::endl;
+				std::cout << sr.total_done << " sfens , at " << Tools::now_string() << std::endl;
 
 				// このタイミングで勾配をweight配列に反映。勾配の計算も1M局面ごとでmini-batch的にはちょうどいいのでは。
 				Eval::update_weights(epoch , freeze);
