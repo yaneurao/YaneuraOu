@@ -492,7 +492,7 @@ void test_read_record(Position& pos, istringstream& is)
 	uint64_t line_no = 0;
 
 	string line;
-	while (Dependency::getline(fs, line))
+	while (Tools::getline(fs, line))
 	{
 		++line_no;
 		if ((line_no % 100) == 0) cout << '.'; // 100行おきに'.'を一つ出力。

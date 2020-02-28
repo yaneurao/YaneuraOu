@@ -84,7 +84,7 @@ void MultiThink::go_think()
 		if (threads_done())
 			break;
 
-		sleep(1000);
+		Tools::sleep(1000);
 
 		// callback_secondsごとにcallback_func()が呼び出される。
 		if (++i == callback_seconds)

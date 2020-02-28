@@ -193,7 +193,7 @@ struct SfenWriter
 		auto output_status = [&]()
 		{
 			// 現在時刻も出力
-			sync_cout << endl << sfen_write_count << " sfens , at " << now_string() << sync_endl;
+			sync_cout << endl << sfen_write_count << " sfens , at " << Tools::now_string() << sync_endl;
 
 			// flush()はこのタイミングで十分。
 			fs.flush();
@@ -212,7 +212,7 @@ struct SfenWriter
 
 			// 何も取得しなかったならsleep()
 			if (!buffers.size())
-				sleep(100);
+				Tools::sleep(100);
 			else
 			{
 				for (auto ptr : buffers)
@@ -1301,7 +1301,7 @@ struct SfenReader
 
 			// file workerがpacked_sfens_poolに充填してくれるのを待っている。
 			// mutexはlockしていないのでいずれ充填してくれるはずだ。
-			sleep(1);
+			Tools::sleep(1);
 		}
 
 	}
@@ -1340,7 +1340,7 @@ struct SfenReader
 			// バッファが減ってくるのを待つ。
 			// このsize()の読み取りはread onlyなのでlockしなくていいだろう。
 			while (!stop_flag && packed_sfens_pool.size() >= SFEN_READ_SIZE / THREAD_BUFFER_SIZE)
-				sleep(100);
+				Tools::sleep(100);
 			if (stop_flag)
 				return;
 
@@ -1577,7 +1577,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 	TT.new_search();
 
 #if defined(EVAL_NNUE)
-	std::cout << "PROGRESS: " << now_string() << ", ";
+	std::cout << "PROGRESS: " << Tools::now_string() << ", ";
 	std::cout << sr.total_done << " sfens";
 	std::cout << ", iteration " << epoch;
 	std::cout << ", eta = " << Eval::get_eta() << ", ";
@@ -1722,7 +1722,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 
 	// すべてのtaskの完了を待つ
 	while (task_count)
-		sleep(1);
+		Tools::sleep(1);
 
 #if !defined(LOSS_FUNCTION_IS_ELMO_METHOD)
 	// rmse = root mean square error : 平均二乗誤差

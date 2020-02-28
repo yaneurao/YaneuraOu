@@ -110,7 +110,7 @@ struct TaskDispatcher
 		while ((task = get_task_async()) != nullptr)
 			task(thread_id);
 
-		sleep(1);
+		Tools::sleep(1);
 	}
 
 	// [ASYNC] taskを一つ積む。

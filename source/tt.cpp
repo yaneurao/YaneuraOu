@@ -115,7 +115,7 @@ void TranspositionTable::resize(size_t mbSize) {
 	{
 		std::cout << "info string Error : Failed to allocate " << mbSize
 			<< "MB for transposition table. ClusterCount = " << newClusterCount << std::endl;
-		my_exit();
+		Tools::exit();
 	}
 
 	table = (Cluster*)((uintptr_t(mem) + CacheLineSize - 1) & ~(CacheLineSize - 1));
@@ -137,7 +137,7 @@ void TranspositionTable::clear()
 
 	// 進捗を表示しながら並列化してゼロクリア
 	// Stockfishのここにあったコードは、独自の置換表を実装した時にも使いたいため、tt.cppに移動させた。
-	memclear("Hash" , table, size);
+	Tools::memclear("Hash" , table, size);
 
 }
 

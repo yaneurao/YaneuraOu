@@ -409,7 +409,7 @@ namespace {
 
 		auto oldValue = (std::string)Options["IgnoreBookPly"];
 		Options["IgnoreBookPly"] = true;
-		Tools::Finally f([&](){ Options["IgnoreBookPly"] = oldValue; });
+		SCOPE_EXIT( Options["IgnoreBookPly"] = oldValue; );
 
 		MemoryBook read_book, write_book;
 		if (read_book.read_book(read_book_name) != 0)

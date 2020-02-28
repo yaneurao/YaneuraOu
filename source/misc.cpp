@@ -127,12 +127,12 @@ const string engine_info() {
 	{
 		// 1行目が読み込めなかったときのためにデフォルト値を設定しておく。
 		string str = "default engine";
-		Dependency::getline(ifs, str);
+		Tools::getline(ifs, str);
 		ss << "id name " << str << endl;
 
 		// 2行目が読み込めなかったときのためにデフォルト値を設定しておく。
 		str = "default author";
-		Dependency::getline(ifs, str);
+		Tools::getline(ifs, str);
 		ss << "id author " << str << endl;
 	}
 	else
@@ -399,13 +399,40 @@ namespace WinProcGroup {
 
 
 // --------------------
-//    memclear
+//  Timer
 // --------------------
 
-// 進捗を表示しながら並列化してゼロクリア
-// ※ Stockfishのtt.cppのTranspositionTable::clear()にあるコードと同等のコード。
-void memclear(const char* name_ , void* table, size_t size)
+TimePoint Timer::elapsed() const { return TimePoint(Search::Limits.npmsec ? Threads.nodes_searched() : now() - startTime); }
+TimePoint Timer::elapsed_from_ponderhit() const { return TimePoint(Search::Limits.npmsec ? Threads.nodes_searched()/*これ正しくないがこのモードでponder使わないからいいや*/ : now() - startTimeFromPonderhit); }
+
+// 1秒単位で繰り上げてdelayを引く。
+// ただし、remain_timeよりは小さくなるように制限する。
+TimePoint Timer::round_up(TimePoint t) const
 {
+	// 1000で繰り上げる。Options["MinimalThinkingTime"]が最低値。
+	t = std::max(((t + 999) / 1000) * 1000, minimum_thinking_time);
+	// そこから、Options["NetworkDelay"]の値を引くが、remain_timeを上回ってはならない。
+	t = std::min(t - network_delay, remain_time);
+	return t;
+}
+
+Timer Time;
+
+
+// =====   以下は、やねうら王の独自追加   =====
+
+
+// --------------------
+//  ツール類
+// --------------------
+namespace Tools
+{
+	// memclear
+
+	// 進捗を表示しながら並列化してゼロクリア
+	// ※ Stockfishのtt.cppのTranspositionTable::clear()にあるコードと同等のコード。
+	void memclear(const char* name_, void* table, size_t size)
+	{
 	// Windows10では、このゼロクリアには非常に時間がかかる。
 	// malloc()時点ではメモリを実メモリに割り当てられておらず、
 	// 初回にアクセスするときにその割当てがなされるため。
@@ -447,20 +474,25 @@ void memclear(const char* name_ , void* table, size_t size)
 
 	sync_cout << "info string " + name + " Clear done." << sync_endl;
 
-}
+	}
 
-// --------------------
-//  Timer
-// --------------------
+	// 途中での終了処理のためのwrapper
+	// コンソールの出力が完了するのを待ちたいので3秒待ってから::exit(EXIT_FAILURE)する。
+	void exit()
+	{
+		sleep(3000); // エラーメッセージが出力される前に終了するのはまずいのでwaitを入れておく。
+		::exit(EXIT_FAILURE);
+	}
 
-Timer Time;
+	// 指定されたミリ秒だけsleepする。
+	void sleep(int ms)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+	}
 
-TimePoint Timer::elapsed() const { return TimePoint(Search::Limits.npmsec ? Threads.nodes_searched() : now() - startTime); }
-TimePoint Timer::elapsed_from_ponderhit() const { return TimePoint(Search::Limits.npmsec ? Threads.nodes_searched()/*これ正しくないがこのモードでponder使わないからいいや*/ : now() - startTimeFromPonderhit); }
-
-// 現在時刻を文字列化したもを返す。(評価関数の学習時などに用いる)
-std::string now_string()
-{
+	// 現在時刻を文字列化したもを返す。(評価関数の学習時などに用いる)
+	std::string now_string()
+	{
 	// std::ctime(), localtime()を使うと、MSVCでセキュアでないという警告が出る。
 	// C++標準的にはそんなことないはずなのだが…。
 
@@ -477,26 +509,19 @@ std::string now_string()
 	while (*result.rbegin() == '\n' || (*result.rbegin() == '\r'))
 		result.pop_back();
 	return result;
+	}
+
+	// Linux環境ではgetline()したときにテキストファイルが'\r\n'だと
+	// '\r'が末尾に残るのでこの'\r'を除去するためにwrapperを書く。
+	// そのため、ifstreamに対してgetline()を呼び出すときは、
+	// std::getline()ではなくこのこの関数を使うべき。
+	bool getline(std::ifstream& fs, std::string& s)
+	{
+		bool b = (bool)std::getline(fs, s);
+		StringExtension::trim_inplace(s);
+		return b;
+	}
 }
-
-void sleep(int ms)
-{
-	std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-}
-
-uint64_t get_thread_id()
-{
-	auto id = std::this_thread::get_id();
-	if (sizeof(id) >= 8)
-		return *(uint64_t*)(&id);
-	else if (sizeof(id) >= 4)
-		return *(uint32_t*)(&id);
-	else
-		return 0; // give up
-}
-
-
-// --- 以下、やねうら王で独自追加したコード
 
 // --------------------
 //  ファイルの丸読み
@@ -814,6 +839,36 @@ double Math::dsigmoid(double x) {
 
 
 // --------------------
+//       Path
+// --------------------
+
+// C#にあるPathクラス的なもの。ファイル名の操作。
+// C#のメソッド名に合わせておく。
+namespace Path
+{
+	// path名とファイル名を結合して、それを返す。
+	// folder名のほうは空文字列でないときに、末尾に'/'か'\\'がなければそれを付与する。
+	std::string Combine(const std::string& folder, const std::string& filename)
+	{
+		if (folder.length() >= 1 && *folder.rbegin() != '/' && *folder.rbegin() != '\\')
+			return folder + "/" + filename;
+
+		return folder + filename;
+	}
+
+	// full path表現から、(フォルダ名を除いた)ファイル名の部分を取得する。
+	std::string GetFileName(const std::string& path)
+	{
+		// "\"か"/"か、どちらを使ってあるかはわからない。
+		auto path_index1 = path.find_last_of("\\") + 1;
+		auto path_index2 = path.find_last_of("/") + 1;
+		auto path_index = std::max(path_index1, path_index2);
+
+		return path.substr(path_index);
+	}
+};
+
+// --------------------
 //    文字列 拡張
 // --------------------
 
@@ -853,17 +908,31 @@ namespace StringExtension
 		// copyしておく。
 		string s = input;
 
-		// 符号つきの型でないとマイナスになったかの判定ができないのでs64
-		s64 cur = (s64)s.length() - 1;
+		// curを現在位置( s[cur]のような )カーソルだとして扱うと、最後、-1になるまで
+		// ループするコードになり、符号型が必要になる。
+		// size_tのまま扱いたいので、curを現在の(注目位置+1)を示すカーソルだという扱いに
+		// すればこの問題は起きない。
+
+		auto cur = s.length();
 
 			// 改行文字、スペース、タブではないならループを抜ける。
 			// これらの文字が出現しなくなるまで末尾を切り詰める。
-		while (cur >= 0 && is_space(s[cur]))
+		while (cur > 0 && is_space(s[cur-1]))
 			cur--;
 
-		cur++;
-		s.resize((size_t)cur);
+		s.resize(cur);
 		return s;
+	}
+
+	// trim()の高速版。引数で受け取った文字列を直接trimする。(この関数は何も返さない)
+	void trim_inplace(std::string& s)
+	{
+		auto cur = s.length();
+
+		while (cur > 0 && is_space(s[cur-1]))
+			cur--;
+
+		s.resize(cur);
 	}
 
 	// 行の末尾の数字を除去した文字列を返す。
@@ -871,22 +940,21 @@ namespace StringExtension
 	std::string trim_number(const std::string& input)
 	{
 		string s = input;
-		s64 cur = (s64)s.length() - 1;
+		auto cur = s.length();
 
 		// 末尾のスペースを詰めたあと数字を詰めてそのあと再度スペースを詰める。
 		// 例 : "abc 123 "→"abc"となって欲しいので。
 
-		while (cur >= 0 && is_space(s[cur]))
+		while (cur > 0 && is_space(s[cur-1]))
 			cur--;
 
-		while (cur >= 0 && is_number(s[cur]))
+		while (cur > 0 && is_number(s[cur-1]))
 			cur--;
 
-		while (cur >= 0 && is_space(s[cur]))
+		while (cur > 0 && is_space(s[cur-1]))
 			cur--;
 
-		cur++;
-		s.resize((size_t)cur);
+		s.resize(cur);
 		return s;
 	}
 
@@ -1078,20 +1146,6 @@ namespace Directory {
 }
 
 #endif
-
-// --------------------
-//  Dependency Wrapper
-// --------------------
-
-namespace Dependency
-{
-	bool getline(std::ifstream& fs, std::string& s)
-	{
-		bool b = (bool)std::getline(fs, s);
-		s = StringExtension::trim(s);
-		return b;
-	}
-}
 
 
 

@@ -236,7 +236,7 @@ void load_eval() {
 	{
 		// 読み込みエラーのとき終了してくれないと困る。
 		sync_cout << "Error! : failed to read " << NNUE::kFileName << sync_endl;
-		my_exit();
+		Tools::exit();
 	}
   }
 }

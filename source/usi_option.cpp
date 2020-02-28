@@ -350,7 +350,7 @@ namespace USI {
 		if (!ifs.fail())
 		{
 			std::string str;
-			while (Dependency::getline(ifs, str))
+			while (Tools::getline(ifs, str))
 				build_option(str);
 		}
 	}

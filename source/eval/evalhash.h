@@ -25,7 +25,7 @@ struct HashTable
 	~HashTable() { release(); }
 
 	T* operator[] (const Key k) { return entries_ + (static_cast<size_t>(k) & (size - 1)); }
-	void clear() { memclear("eHash", entries_,  size * sizeof(T)); }
+	void clear() { Tools::memclear("eHash", entries_,  size * sizeof(T)); }
 
 private:
 

@@ -125,7 +125,7 @@ namespace Book
 			// 思考、極めて遅いのでログにタイムスタンプを出力して残しておいたほうが良いのでは…。
 			// id番号(連番)とthread idと現在の時刻を出力する。
 			sync_cout << "[" << get_done_count() << "/" << get_loop_max() << ":" << thread_id << "] "
-				      << now_string() << " : " << sfen << sync_endl;
+				      << Tools::now_string() << " : " << sfen << sync_endl;
 #endif
 		}
 	}
@@ -154,8 +154,8 @@ namespace Book
 		// 評価関数を読み込まないとPositionのset()が出来ないのでis_ready()の呼び出しが必要。
 		// ただし、このときに定跡ファイルを読み込まれると読み込みに時間がかかって嫌なので一時的にno_bookに変更しておく。
 		auto original_book_file = Options["BookFile"];
-		Tools::Finally clean_up([&]() { Options["BookFile"] = original_book_file; });
 		Options["BookFile"] = string("no_book");
+		SCOPE_EXIT( Options["BookFile"] = original_book_file; );
 
 		is_ready();
 
@@ -542,10 +542,10 @@ namespace Book
 						static int book_number = 1;
 						string write_book_name = book_name + "-" + to_string(book_number++) + ".db";
 
-						sync_cout << "Save start : " << now_string() << " , book_name = " << write_book_name << sync_endl;
+						sync_cout << "Save start : " << Tools::now_string() << " , book_name = " << write_book_name << sync_endl;
 
 						book.write_book(write_book_name);
-						sync_cout << "Save done  : " << now_string() << sync_endl;
+						sync_cout << "Save done  : " << Tools::now_string() << sync_endl;
 						multi_think.appended = false;
 					}
 					else {

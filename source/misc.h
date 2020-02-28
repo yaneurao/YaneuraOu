@@ -160,54 +160,6 @@ namespace WinProcGroup {
 	void bindThisThread(size_t idx);
 }
 
-// --------------------
-//   以下は、やねうら王の独自追加
-// --------------------
-
-// 指定されたミリ秒だけsleepする。
-extern void sleep(int ms);
-
-// 現在時刻を文字列化したもを返す。(評価関数の学習時などにログ出力のために用いる)
-std::string now_string();
-
-
-// 途中での終了処理のためのwrapper
-static void my_exit()
-{
-	sleep(3000); // エラーメッセージが出力される前に終了するのはまずいのでwaitを入れておく。
-	exit(EXIT_FAILURE);
-}
-
-// 進捗を表示しながら並列化してゼロクリア
-// Stockfishではtt.cppにこのコードがあるのだが、独自の置換表を確保したいときに
-// これが独立していないと困るので、ここに用意する。
-// nameは"Hash" , "eHash"などクリアしたいものの名前を書く。メモリクリアの途中経過が出力されるときにその名前が出力される。
-extern void memclear(const char* name , void * table, size_t size);
-
-// insertion sort
-// 昇順に並び替える。学習時のコードを使いたい時があるので用意。
-template <typename T >
-void my_insertion_sort(T* arr, int left, int right)
-{
-	for (int i = left + 1; i < right; i++)
-	{
-		auto key = arr[i];
-		int j = i - 1;
-
-		// keyより大きな arr[0..i-1]の要素を現在処理中の先頭へ。
-		while (j >= left && (arr[j] > key))
-		{
-			arr[j + 1] = arr[j];
-			j = j - 1;
-		}
-		arr[j + 1] = key;
-	}
-}
-
-// 乱数のseedなどとしてthread idを使いたいが、
-// C++のthread idは文字列しか取り出せないので無理やりcastしてしまう。
-extern uint64_t get_thread_id();
-
 // -----------------------
 //  探索のときに使う時間管理用
 // -----------------------
@@ -254,13 +206,7 @@ struct Timer
 
 	// 1秒単位で繰り上げてdelayを引く。
 	// ただし、remain_timeよりは小さくなるように制限する。
-	TimePoint round_up(TimePoint t) const {
-		// 1000で繰り上げる。Options["MinimalThinkingTime"]が最低値。
-		t = std::max(((t + 999) / 1000) * 1000, minimum_thinking_time);
-		// そこから、Options["NetworkDelay"]の値を引くが、remain_timeを上回ってはならない。
-		t = std::min(t - network_delay, remain_time);
-		return t;
-	}
+	TimePoint round_up(TimePoint t) const;
 
 	// 探索終了の時間(startTime + search_end >= now()になったら停止)
 	TimePoint search_end;
@@ -288,6 +234,74 @@ private:
 };
 
 extern Timer Time;
+
+
+// =====   以下は、やねうら王の独自追加   =====
+
+
+// --------------------
+//  ツール類
+// --------------------
+
+namespace Tools
+{
+	// 進捗を表示しながら並列化してゼロクリア
+	// Stockfishではtt.cppにこのコードがあるのだが、独自の置換表を確保したいときに
+	// これが独立していないと困るので、ここに用意する。
+	// nameは"Hash" , "eHash"などクリアしたいものの名前を書く。
+	// メモリクリアの途中経過が出力されるときにその名前(引数nameで渡している)が出力される。
+	extern void memclear(const char* name, void* table, size_t size);
+
+	// insertion sort
+	// 昇順に並び替える。学習時のコードを使いたい時があるので用意。
+	template <typename T >
+	void my_insertion_sort(T* arr, int left, int right)
+	{
+		for (int i = left + 1; i < right; i++)
+		{
+			auto key = arr[i];
+			int j = i - 1;
+
+			// keyより大きな arr[0..i-1]の要素を現在処理中の先頭へ。
+			while (j >= left && (arr[j] > key))
+			{
+				arr[j + 1] = arr[j];
+				j = j - 1;
+			}
+			arr[j + 1] = key;
+		}
+	}
+
+	// 途中での終了処理のためのwrapper
+	// コンソールの出力が完了するのを待ちたいので3秒待ってから::exit(EXIT_FAILURE)する。
+	extern void exit();
+
+	// 指定されたミリ秒だけsleepする。
+	extern void sleep(int ms);
+
+	// 現在時刻を文字列化したもを返す。(評価関数の学習時などにログ出力のために用いる)
+	extern std::string now_string();
+
+	// Linux環境ではgetline()したときにテキストファイルが'\r\n'だと
+	// '\r'が末尾に残るのでこの'\r'を除去するためにwrapperを書く。
+	// そのため、ifstreamに対してgetline()を呼び出すときは、
+	// std::getline()ではなくこのこの関数を使うべき。
+	extern bool getline(std::ifstream& fs, std::string& s);
+
+	// 他言語にあるtry～finally構文みたいなの。
+	// SCOPE_EXIT()マクロの実装で使う。このクラスを直接使わないで。
+	struct __FINALLY__ {
+		__FINALLY__(std::function<void()> fn_) : fn(fn_) {}
+		~__FINALLY__() { fn(); }
+	private:
+		std::function<void()> fn;
+	};
+}
+
+// スコープを抜ける時に実行してくれる。BOOST::BOOST_SCOPE_EXITマクロみたいな何か。
+// 使用例) SCOPE_EXIT( x = 10 );
+#define SCOPE_EXIT(STATEMENT) Tools::__FINALLY__ __clean_up_object__([&]{ STATEMENT });
+
 
 // --------------------
 //  ファイルの丸読み
@@ -485,28 +499,14 @@ namespace Math {
 
 // C#にあるPathクラス的なもの。ファイル名の操作。
 // C#のメソッド名に合わせておく。
-struct Path
+namespace Path
 {
 	// path名とファイル名を結合して、それを返す。
 	// folder名のほうは空文字列でないときに、末尾に'/'か'\\'がなければそれを付与する。
-	static std::string Combine(const std::string& folder, const std::string& filename)
-	{
-		if (folder.length() >= 1 && *folder.rbegin() != '/' && *folder.rbegin() != '\\')
-			return folder + "/" + filename;
-
-		return folder + filename;
-	}
+	extern std::string Combine(const std::string& folder, const std::string& filename);
 
 	// full path表現から、(フォルダ名を除いた)ファイル名の部分を取得する。
-	static std::string GetFileName(const std::string& path)
-	{
-		// "\"か"/"か、どちらを使ってあるかはわからない。
-		auto path_index1 = path.find_last_of("\\") + 1;
-		auto path_index2 = path.find_last_of("/") + 1;
-		auto path_index = std::max(path_index1, path_index2);
-
-		return path.substr(path_index);
-	}
+	extern std::string GetFileName(const std::string& path);
 };
 
 // --------------------
@@ -523,6 +523,9 @@ namespace StringExtension
 	// 行の末尾の"\r","\n",スペース、"\t"を除去した文字列を返す。
 	// ios::binaryでopenした場合などには'\r'なども入っていることがあるので…。
 	extern std::string trim(const std::string& input);
+
+	// trim()の高速版。引数で受け取った文字列を直接trimする。(この関数は何も返さない)
+	extern void trim_inplace(std::string& input);
 
 	// 行の末尾の数字を除去した文字列を返す。
 	// sfenの末尾の手数を削除する用
@@ -572,38 +575,6 @@ namespace Directory
 	extern int CreateFolder(const std::string& dir_name);
 
 }
-
-
-// --------------------
-//  Tools
-// --------------------
-
-namespace Tools
-{
-	// 他言語にあるtry～finally構文みたいなの。
-	struct Finally {
-		Finally(std::function<void()> fn_) : fn(fn_){}
-		~Finally() { fn(); }
-	private:
-		std::function<void()> fn;
-	};
-
-}
-
-// --------------------
-//  Dependency Wrapper
-// --------------------
-
-namespace Dependency
-{
-	// Linux環境ではgetline()したときにテキストファイルが'\r\n'だと
-	// '\r'が末尾に残るのでこの'\r'を除去するためにwrapperを書く。
-	// そのため、fstreamに対してgetline()を呼び出すときは、
-	// std::getline()ではなく単にgetline()と書いて、この関数を使うべき。
-	extern bool getline(std::ifstream& fs, std::string& s);
-
-}
-
 
 
 #endif // #ifndef MISC_H_INCLUDED
