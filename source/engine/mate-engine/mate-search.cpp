@@ -869,7 +869,7 @@ void Search::clear()
 #if defined(FOR_TOURNAMENT)
 
 	// 進捗を表示しながら並列化してゼロクリア
-	memclear("Hash" , MateEngine::transposition_table.tt , MateEngine::transposition_table.Size());
+	Tools::memclear("Hash" , MateEngine::transposition_table.tt , MateEngine::transposition_table.Size());
 
 #endif
 
