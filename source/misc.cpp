@@ -525,6 +525,59 @@ namespace Tools
 		StringExtension::trim_inplace(s);
 		return b;
 	}
+
+	// マルチバイト文字列をワイド文字列に変換する。
+	// WindowsAPIを呼び出しているのでWindows環境専用。
+	std::wstring MultiByteToWideChar(const std::string& s)
+	{
+#if !defined(_WIN32)
+		return std::wstring(s.begin(), s.end()); // NotImplemented
+		// 漢字とか使われているとうまく変換できないけど、とりあえずASCII文字列なら
+		// 変換できるのでこれで凌いでおく。
+#else
+
+		// WindowsAPIのMultiByteToWideChar()を用いて変換するので
+		// Windows環境限定。
+
+		// 変換後の文字列を格納するのに必要なバッファサイズが不明なのでいったんその長さを問い合わせる。
+
+		int length = ::MultiByteToWideChar(
+			CP_THREAD_ACP,			// コードページ = 現在のスレッドのコードページ
+			MB_PRECOMPOSED,			// 文字の種類を指定するフラグ
+			s.c_str(),				// マップ元文字列のアドレス
+			(int)s.length() + 1,	// マップ元文字列のバイト数
+			nullptr,				// マップ先ワイド文字列を入れるバッファのアドレス
+			0						// バッファのサイズ
+		);
+
+		// マップ元文字列のバイト数だから、そこに0ではなくサイズを指定するなら
+		// s.length() + 1を指定しないといけない。
+
+		// ここをs.length()としてしまうと'\0'が変換されずに末尾にゴミが出る(´ω｀)
+		// ググって出てくるMultiByteToWideCharのサンプルプログラム、ここが間違ってるものが多すぎ。
+
+		// また::MultiByteToWideCharの返し値が0であることはない。
+		// ('\0'を格納するためにwchar_t 1文字分のバッファは少なくとも必要なので)
+
+		wchar_t* buffer = new wchar_t[length];
+		SCOPE_EXIT( delete[] buffer; );
+
+		int result = ::MultiByteToWideChar(
+			CP_THREAD_ACP,			// コードページ = 現在のスレッドのコードページ
+			MB_PRECOMPOSED,			// 文字の種類を指定するフラグ
+			s.c_str(),				// マップ元文字列のアドレス
+			(int)s.length() + 1,	// マップ元文字列のバイト数
+			buffer,					// マップ先ワイド文字列を入れるバッファのアドレス
+			length					// バッファのサイズ
+		);
+ 
+		if (result == 0)
+			return std::wstring(); // 何故かエラーなのだ…。
+
+		return std::wstring(buffer);
+#endif
+	}
+
 }
 
 // --------------------
@@ -868,8 +921,23 @@ namespace Path
 		auto path_index2 = path.find_last_of("/") + 1;
 		auto path_index = std::max(path_index1, path_index2);
 
+		// どちらの文字も見つからなかったのであれば、ディレクトリ名が含まれておらず、
+		// path丸ごとがファイル名だと考えられる。
+		if (path_index == std::string::npos)
+			return path;
+
 		return path.substr(path_index);
 	}
+
+	// full path表現から、ディレクトリ名の部分を取得する。
+	std::string GetDirectoryName(const std::string& path)
+	{
+		// ファイル名部分を引き算してやる。
+
+		auto length = path.length() - GetFileName(path).length() - 1;
+		return (length == 0) ? "" : path.substr(0,length);
+	}
+
 };
 
 // --------------------
@@ -928,7 +996,7 @@ namespace StringExtension
 		return s;
 	}
 
-	// trim()の高速版。引数で受け取った文字列を直接trimする。(この関数は何も返さない)
+	// trim()の高速版。引数で受け取った文字列を直接trimする。(この関数は返し値を返さない)
 	void trim_inplace(std::string& s)
 	{
 		auto cur = s.length();
@@ -960,6 +1028,23 @@ namespace StringExtension
 
 		s.resize(cur);
 		return s;
+	}
+
+	// trim_number()の高速版。引数で受け取った文字列を直接trimする。(この関数は返し値を返さない)
+	void trim_number_inplace(std::string& s)
+	{
+		auto cur = s.length();
+
+		while (cur > 0 && is_space(s[cur - 1]))
+			cur--;
+
+		while (cur > 0 && is_number(s[cur - 1]))
+			cur--;
+
+		while (cur > 0 && is_space(s[cur - 1]))
+			cur--;
+
+		s.resize(cur);
 	}
 
 	// 文字列をint化する。int化に失敗した場合はdefault_の値を返す。
@@ -1054,9 +1139,9 @@ namespace Directory
 
 		for (auto ent : fs::directory_iterator(src))
 			if (fs::is_regular_file(ent)
-				&& StringExtension::EndsWith(ent.path().filename().string() , extension))
+				&& StringExtension::EndsWith(ent.path().filename().string(), extension))
 
-				filenames.push_back(Path::Combine(ent.path().parent_path().string(),ent.path().filename().string()));
+				filenames.push_back(Path::Combine(ent.path().parent_path().string(), ent.path().filename().string()));
 
 #elif defined(__GNUC__)
 
@@ -1084,6 +1169,23 @@ namespace Directory
 		return filenames;
 	}
 
+	// カレントフォルダ。起動時にDirectory::init()によって設定される。
+	namespace { std::string currentFolder; }
+
+	// カレントフォルダを返す(起動時のフォルダ)
+	// main関数に渡された引数から設定してある。
+	// "GetCurrentDirectory"という名前はWindowsAPI(で定義されているマクロ)と競合する。
+	std::string GetCurrentFolder() { return currentFolder; }
+
+	// GetCurrentDirectory()で現在のフォルダを返すためにmain関数のなかでこの関数を呼び出してあるものとする。
+	void init(char* argv[])
+	{
+		currentFolder = Path::GetDirectoryName(argv[0]);
+
+		// Linux系だと、"./a.out"みたいになってて、__CurrentFolder__ == "."になってしまうが仕方がない。(´ω｀)
+		// Directory::GetCurrentFolder()はWindows系でしか呼び出さないので、とりあえずこの問題は放置。
+	}
+
 }
 
 // ----------------------------
@@ -1101,15 +1203,12 @@ namespace Directory
 // Windows用
 
 #if defined(_MSC_VER)
-#include <codecvt>	// mkdirするのにwstringが欲しいのでこれが必要
-#include <locale>   // wstring_convertにこれが必要。
 
 namespace Directory {
 	int CreateFolder(const std::string& dir_name)
 	{
-		std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
-		return _wmkdir(cv.from_bytes(dir_name).c_str());
-		//	::CreateDirectory(cv.from_bytes(dir_name).c_str(),NULL);
+		return _wmkdir(Tools::MultiByteToWideChar(dir_name).c_str());
+		//	::CreateDirectory(Tools::MultiByteToWideChar(dir_name).c_str(),NULL);
 	}
 }
 

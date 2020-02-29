@@ -253,9 +253,9 @@ namespace Tools
 	extern void memclear(const char* name, void* table, size_t size);
 
 	// insertion sort
-	// 昇順に並び替える。学習時のコードを使いたい時があるので用意。
+	// 昇順に並び替える。学習時のコードで使いたい時があるので用意してある。
 	template <typename T >
-	void my_insertion_sort(T* arr, int left, int right)
+	void insertion_sort(T* arr, int left, int right)
 	{
 		for (int i = left + 1; i < right; i++)
 		{
@@ -287,6 +287,10 @@ namespace Tools
 	// そのため、ifstreamに対してgetline()を呼び出すときは、
 	// std::getline()ではなくこのこの関数を使うべき。
 	extern bool getline(std::ifstream& fs, std::string& s);
+
+	// マルチバイト文字列をワイド文字列に変換する。
+	// WindowsAPIを呼び出しているのでWindows環境専用。
+	extern std::wstring MultiByteToWideChar(const std::string& s);
 
 	// 他言語にあるtry～finally構文みたいなの。
 	// SCOPE_EXIT()マクロの実装で使う。このクラスを直接使わないで。
@@ -505,8 +509,11 @@ namespace Path
 	// folder名のほうは空文字列でないときに、末尾に'/'か'\\'がなければそれを付与する。
 	extern std::string Combine(const std::string& folder, const std::string& filename);
 
-	// full path表現から、(フォルダ名を除いた)ファイル名の部分を取得する。
+	// full path表現から、(フォルダ名をすべて除いた)ファイル名の部分を取得する。
 	extern std::string GetFileName(const std::string& path);
+
+	// full path表現から、(ファイル名だけを除いた)ディレクトリ名の部分を取得する。
+	extern std::string GetDirectoryName(const std::string& path);
 };
 
 // --------------------
@@ -524,7 +531,7 @@ namespace StringExtension
 	// ios::binaryでopenした場合などには'\r'なども入っていることがあるので…。
 	extern std::string trim(const std::string& input);
 
-	// trim()の高速版。引数で受け取った文字列を直接trimする。(この関数は何も返さない)
+	// trim()の高速版。引数で受け取った文字列を直接trimする。(この関数は返し値を返さない)
 	extern void trim_inplace(std::string& input);
 
 	// 行の末尾の数字を除去した文字列を返す。
@@ -533,10 +540,8 @@ namespace StringExtension
 	// 例 : "abc 123 "→"abc"となって欲しいので。
 	extern std::string trim_number(const std::string& input);
 
-	// 文字列のstart番目以降を返す
-	static std::string mid(const std::string& input, size_t start) {
-		return input.substr(start, input.length() - start);
-	}
+	// trim_number()の高速版。引数で受け取った文字列を直接trimする。(この関数は返し値を返さない)
+	extern void trim_number_inplace(std::string& s);
 
 	// 文字列をint化する。int化に失敗した場合はdefault_の値を返す。
 	extern int to_int(const std::string input, int default_);
@@ -574,6 +579,13 @@ namespace Directory
 	// 　ゆえに、CreateDirectory()をやめて、CreateFolder()に変更する。
 	extern int CreateFolder(const std::string& dir_name);
 
+	// カレントフォルダを返す(起動時のフォルダ)
+	// main関数に渡された引数から設定してある。
+	// "GetCurrentDirectory"という名前はWindowsAPI(で定義されているマクロ)と競合する。
+	extern std::string GetCurrentFolder();
+
+	// GetCurrentDirectory()で現在のフォルダを返すためにmain関数のなかでこの関数を呼び出してあるものとする。
+	extern void init(char* argv[]);
 }
 
 

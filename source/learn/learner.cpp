@@ -2844,6 +2844,8 @@ void learn(Position&, istringstream& is)
 		// mse計算用にデータ1万件ほど取得しておく。
 		sr.read_for_mse();
 	} else {
+		// base_dirの指定を"validation_set_file_name"オプションにも反映させるべきか..
+		//validation_set_file_name = Path::Combine(base_dir, validation_set_file_name);
 		sr.read_validation_set(validation_set_file_name, eval_limit);
 	}
 

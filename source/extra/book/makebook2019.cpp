@@ -267,7 +267,7 @@ namespace {
 		// ※　it_write->second.gamePly > gamePly のとき、cacheにhitしなかったものとして再度調べる。
 
 		auto sfen_left = StringExtension::trim_number(sfen);
-		int gamePly = StringExtension::to_int(StringExtension::mid(sfen, sfen_left.length()), 0);
+		int gamePly = StringExtension::to_int(sfen.substr(sfen_left.length()), 0);
 		
 		auto it_write = vmd_write_cache.find(sfen_left);
 		if (it_write != vmd_write_cache.end() && it_write->second.gamePly <= gamePly)

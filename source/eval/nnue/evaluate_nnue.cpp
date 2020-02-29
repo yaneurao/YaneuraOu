@@ -19,63 +19,63 @@
 
 namespace Eval {
 
-namespace NNUE {
+    namespace NNUE {
 
-// 入力特徴量変換器
-AlignedPtr<FeatureTransformer> feature_transformer;
+        // 入力特徴量変換器
+        AlignedPtr<FeatureTransformer> feature_transformer;
 
-// 評価関数
-AlignedPtr<Network> network;
+        // 評価関数
+        AlignedPtr<Network> network;
 
-// 評価関数ファイル名
-const char* const kFileName = "nn.bin";
+        // 評価関数ファイル名
+        const char* const kFileName = "nn.bin";
 
-// 評価関数の構造を表す文字列を取得する
-std::string GetArchitectureString() {
+        // 評価関数の構造を表す文字列を取得する
+        std::string GetArchitectureString() {
   return "Features=" + FeatureTransformer::GetStructureString() +
       ",Network=" + Network::GetStructureString();
-}
+        }
 
-namespace {
+        namespace {
 
-namespace Detail {
+            namespace Detail {
 
-// 評価関数パラメータを初期化する
-template <typename T>
-void Initialize(AlignedPtr<T>& pointer) {
+                // 評価関数パラメータを初期化する
+                template <typename T>
+                void Initialize(AlignedPtr<T>& pointer) {
   pointer.reset(reinterpret_cast<T*>(aligned_malloc(sizeof(T), alignof(T))));
   std::memset(pointer.get(), 0, sizeof(T));
-}
+                }
 
-// 評価関数パラメータを読み込む
-template <typename T>
-bool ReadParameters(std::istream& stream, const AlignedPtr<T>& pointer) {
+                // 評価関数パラメータを読み込む
+                template <typename T>
+                bool ReadParameters(std::istream& stream, const AlignedPtr<T>& pointer) {
   std::uint32_t header;
   stream.read(reinterpret_cast<char*>(&header), sizeof(header));
   if (!stream || header != T::GetHashValue()) return false;
   return pointer->ReadParameters(stream);
-}
+                }
 
-// 評価関数パラメータを書き込む
-template <typename T>
-bool WriteParameters(std::ostream& stream, const AlignedPtr<T>& pointer) {
+                // 評価関数パラメータを書き込む
+                template <typename T>
+                bool WriteParameters(std::ostream& stream, const AlignedPtr<T>& pointer) {
   constexpr std::uint32_t header = T::GetHashValue();
   stream.write(reinterpret_cast<const char*>(&header), sizeof(header));
   return pointer->WriteParameters(stream);
-}
+                }
 
-}  // namespace Detail
+            }  // namespace Detail
 
-// 評価関数パラメータを初期化する
-void Initialize() {
+            // 評価関数パラメータを初期化する
+            void Initialize() {
   Detail::Initialize(feature_transformer);
   Detail::Initialize(network);
-}
+            }
 
-}  // namespace
+        }  // namespace
 
-// ヘッダを読み込む
-bool ReadHeader(std::istream& stream,
+        // ヘッダを読み込む
+        bool ReadHeader(std::istream& stream,
   std::uint32_t* hash_value, std::string* architecture) {
   std::uint32_t version, size;
   stream.read(reinterpret_cast<char*>(&version), sizeof(version));
@@ -85,10 +85,10 @@ bool ReadHeader(std::istream& stream,
   architecture->resize(size);
   stream.read(&(*architecture)[0], size);
   return !stream.fail();
-}
+        }
 
-// ヘッダを書き込む
-bool WriteHeader(std::ostream& stream,
+        // ヘッダを書き込む
+        bool WriteHeader(std::ostream& stream,
   std::uint32_t hash_value, const std::string& architecture) {
   stream.write(reinterpret_cast<const char*>(&kVersion), sizeof(kVersion));
   stream.write(reinterpret_cast<const char*>(&hash_value), sizeof(hash_value));
@@ -96,10 +96,10 @@ bool WriteHeader(std::ostream& stream,
   stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
   stream.write(architecture.data(), size);
   return !stream.fail();
-}
+        }
 
-// 評価関数パラメータを読み込む
-bool ReadParameters(std::istream& stream) {
+        // 評価関数パラメータを読み込む
+        bool ReadParameters(std::istream& stream) {
   std::uint32_t hash_value;
   std::string architecture;
   if (!ReadHeader(stream, &hash_value, &architecture)) return false;
@@ -107,23 +107,23 @@ bool ReadParameters(std::istream& stream) {
   if (!Detail::ReadParameters(stream, feature_transformer)) return false;
   if (!Detail::ReadParameters(stream, network)) return false;
   return stream && stream.peek() == std::ios::traits_type::eof();
-}
+        }
 
-// 評価関数パラメータを書き込む
-bool WriteParameters(std::ostream& stream) {
+        // 評価関数パラメータを書き込む
+        bool WriteParameters(std::ostream& stream) {
   if (!WriteHeader(stream, kHashValue, GetArchitectureString())) return false;
   if (!Detail::WriteParameters(stream, feature_transformer)) return false;
   if (!Detail::WriteParameters(stream, network)) return false;
   return !stream.fail();
-}
+        }
 
-// 差分計算ができるなら進める
-static void UpdateAccumulatorIfPossible(const Position& pos) {
+        // 差分計算ができるなら進める
+        static void UpdateAccumulatorIfPossible(const Position& pos) {
   feature_transformer->UpdateAccumulatorIfPossible(pos);
-}
+        }
 
-// 評価値を計算する
-static Value ComputeScore(const Position& pos, bool refresh = false) {
+        // 評価値を計算する
+        static Value ComputeScore(const Position& pos, bool refresh = false) {
   auto& accumulator = pos.state()->accumulator;
   if (!refresh && accumulator.computed_score) {
     return accumulator.score;
@@ -151,27 +151,27 @@ static Value ComputeScore(const Position& pos, bool refresh = false) {
 
   // 1) ここ、下手にclipすると学習時には影響があるような気もするが…。
   // 2) accumulator.scoreは、差分計算の時に用いないので書き換えて問題ない。
-  score = Math::clamp(score , -VALUE_MAX_EVAL , VALUE_MAX_EVAL);
+            score = Math::clamp(score, -VALUE_MAX_EVAL, VALUE_MAX_EVAL);
 
   accumulator.score = score;
   accumulator.computed_score = true;
   return accumulator.score;
-}
+        }
 
-}  // namespace NNUE
+    }  // namespace NNUE
 
 #if defined(USE_EVAL_HASH)
 
 // HashTableに評価値を保存するために利用するクラス
-struct alignas(16) ScoreKeyValue {
+    struct alignas(16) ScoreKeyValue {
 #if defined(USE_SSE2)
   ScoreKeyValue() = default;
-  ScoreKeyValue(const ScoreKeyValue& other) {
+        ScoreKeyValue(const ScoreKeyValue & other) {
     static_assert(sizeof(ScoreKeyValue) == sizeof(__m128i),
                   "sizeof(ScoreKeyValue) should be equal to sizeof(__m128i)");
     _mm_store_si128(&as_m128i, other.as_m128i);
   }
-  ScoreKeyValue& operator=(const ScoreKeyValue& other) {
+        ScoreKeyValue& operator=(const ScoreKeyValue & other) {
     _mm_store_si128(&as_m128i, other.as_m128i);
     return *this;
   }
@@ -197,41 +197,46 @@ struct alignas(16) ScoreKeyValue {
     __m128i as_m128i;
 #endif
   };
-};
+    };
 
-// evaluateしたものを保存しておくHashTable(俗にいうehash)
+    // evaluateしたものを保存しておくHashTable(俗にいうehash)
 
-struct EvaluateHashTable : HashTable<ScoreKeyValue> {};
+    struct EvaluateHashTable : HashTable<ScoreKeyValue> {};
 
-EvaluateHashTable g_evalTable;
-void EvalHash_Resize(size_t mbSize) { g_evalTable.resize(mbSize); }
-void EvalHash_Clear() { g_evalTable.clear(); };
+    EvaluateHashTable g_evalTable;
+    void EvalHash_Resize(size_t mbSize) { g_evalTable.resize(mbSize); }
+    void EvalHash_Clear() { g_evalTable.clear(); };
 
-// prefetchする関数も用意しておく。
-void prefetch_evalhash(const Key key) {
+    // prefetchする関数も用意しておく。
+    void prefetch_evalhash(const Key key) {
   constexpr auto mask = ~((u64)0x1f);
   prefetch((void*)((u64)g_evalTable[key] & mask));
-}
+    }
 #endif
 
-// 評価関数ファイルを読み込む
-// benchコマンドなどでOptionsを保存して復元するのでこのときEvalDirが変更されたことになって、
-// 評価関数の再読込の必要があるというフラグを立てるため、この関数は2度呼び出されることがある。
-void load_eval() {
+    // 評価関数ファイルを読み込む
+    // benchコマンドなどでOptionsを保存して復元するのでこのときEvalDirが変更されたことになって、
+    // 評価関数の再読込の必要があるというフラグを立てるため、この関数は2度呼び出されることがある。
+    void load_eval() {
   NNUE::Initialize();
 
 #if defined(EVAL_LEARN)
   if (!Options["SkipLoadingEval"])
 #endif
   {
+            auto full_dir_name = Path::Combine(Directory::GetCurrentFolder(), (std::string)Options["EvalDir"]);
+            sync_cout << "info string EvalDirectory = " << full_dir_name << sync_endl;
+
     const std::string dir_name = Options["EvalDir"];
+
     const std::string file_name = Path::Combine(dir_name, NNUE::kFileName);
     std::ifstream stream(file_name, std::ios::binary);
     const bool result = NNUE::ReadParameters(stream);
 
 	sync_cout << "info string loading eval file : " << file_name << sync_endl;
 
-//    ASSERT(result);
+            //      ASSERT(result);
+
 	if (!result)
 	{
 		// 読み込みエラーのとき終了してくれないと困る。
@@ -239,22 +244,22 @@ void load_eval() {
 		Tools::exit();
 	}
   }
-}
+    }
 
-// 初期化
-void init() {
-}
+    // 初期化
+    void init() {
+    }
 
-// 評価関数。差分計算ではなく全計算する。
-// Position::set()で一度だけ呼び出される。(以降は差分計算)
-// 手番側から見た評価値を返すので注意。(他の評価関数とは設計がこの点において異なる)
-// なので、この関数の最適化は頑張らない。
-Value compute_eval(const Position& pos) {
+    // 評価関数。差分計算ではなく全計算する。
+    // Position::set()で一度だけ呼び出される。(以降は差分計算)
+    // 手番側から見た評価値を返すので注意。(他の評価関数とは設計がこの点において異なる)
+    // なので、この関数の最適化は頑張らない。
+    Value compute_eval(const Position& pos) {
   return NNUE::ComputeScore(pos, true);
-}
+    }
 
-// 評価関数
-Value evaluate(const Position& pos) {
+    // 評価関数
+    Value evaluate(const Position& pos) {
   const auto& accumulator = pos.state()->accumulator;
   if (accumulator.computed_score) {
     return accumulator.score;
@@ -290,17 +295,17 @@ Value evaluate(const Position& pos) {
 #endif
 
   return score;
-}
+    }
 
-// 差分計算ができるなら進める
-void evaluate_with_no_return(const Position& pos) {
+    // 差分計算ができるなら進める
+    void evaluate_with_no_return(const Position& pos) {
   NNUE::UpdateAccumulatorIfPossible(pos);
-}
+    }
 
-// 現在の局面の評価値の内訳を表示する
-void print_eval_stat(Position& /*pos*/) {
+    // 現在の局面の評価値の内訳を表示する
+    void print_eval_stat(Position& /*pos*/) {
   std::cout << "--- EVAL STAT: not implemented" << std::endl;
-}
+    }
 
 }  // namespace Eval
 

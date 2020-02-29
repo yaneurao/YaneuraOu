@@ -8,7 +8,7 @@
 #include "../eval/evaluate_mir_inv_tools.h"
 
 #if defined(SGD_UPDATE) || defined(USE_KPPP_MIRROR_WRITE)
-#include "../misc.h"  // PRNG , my_insertion_sort
+#include "../misc.h"  // PRNG , Tools::insertion_sort
 #endif
 
 #include <cmath>	// std::sqrt()
@@ -715,7 +715,7 @@ namespace EvalLearningTools
 #if KPPP_LOWER_COUNT > 1
 			// mir_pieceするとsortされてない状態になる。sortするコードが必要。
 			Eval::BonaPiece p_list[3] = { mir_piece(piece2_), mir_piece(piece1_), mir_piece(piece0_) };
-			my_insertion_sort(p_list, 0, 3);
+			Tools::insertion_sort(p_list, 0, 3);
 			kppp_[1] = fromKPPP((int)Mir((Square)king_), p_list[2] , p_list[1], p_list[0]);
 #endif
 		}

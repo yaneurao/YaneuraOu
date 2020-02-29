@@ -136,9 +136,9 @@ namespace USI {
 
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32) && \
 	 (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) )
-		// 評価関数パラメーターを共有するか
-		// 異種評価関数との自己対局のときにこの設定で引っかかる人が後を絶たないのでデフォルトでオフにする。
-		o["EvalShare"] << Option(false);
+		// 評価関数パラメーターを共有するか。
+		// デフォルトで有効に変更。(V4.90～)
+		o["EvalShare"] << Option(true);
 #endif
 
 #if defined(EVAL_LEARN)

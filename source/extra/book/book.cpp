@@ -824,7 +824,7 @@ namespace Book
 
 					sfen = line.substr(5); // 新しいsfen文字列を"sfen "を除去して格納
 					if (ignoreBookPly)
-						sfen = StringExtension::trim_number(sfen); // 末尾の数字除去
+						StringExtension::trim_number_inplace(sfen); // 末尾の数字除去
 
 #if 0
 					if (ignore_book_ply)
@@ -985,7 +985,7 @@ namespace Book
 					it.first = sfen;
 
 					auto sfen_left = StringExtension::trim_number(sfen); // 末尾にplyがあるはずじゃろ
-					int ply = StringExtension::to_int(StringExtension::mid(sfen, sfen_left.length()), 0);
+				int ply = StringExtension::to_int(sfen.substr(sfen_left.length()), 0);
 
 					auto it2 = book_ply.find(sfen_left);
 					if (it2 == book_ply.end())
@@ -1010,7 +1010,7 @@ namespace Book
 
 			auto sfen = it.first;
 			auto sfen_left = StringExtension::trim_number(sfen); // 末尾にplyがあるはずじゃろ
-			int ply = StringExtension::to_int(StringExtension::mid(sfen, sfen_left.length()), 0);
+			int ply = StringExtension::to_int(sfen.substr(sfen_left.length()), 0);
 			if (book_ply[sfen_left] != ply)
 				continue;
 
