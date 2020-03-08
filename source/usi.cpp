@@ -246,10 +246,54 @@ u64 eval_sum;
 // 局面は初期化されないので注意。
 void is_ready(bool skipCorruptCheck)
 {
+
+	// --- Keep Alive的な処理 ---
+
 	// "isready"を受け取ったあと、"readyok"を返すまで5秒ごとに改行を送るように修正する。(keep alive的な処理)
-	// →　これ、よくない仕様であった。
 	// cf. USIプロトコルでisready後の初期化に時間がかかる時にどうすれば良いのか？
 	//     http://yaneuraou.yaneu.com/2020/01/05/usi%e3%83%97%e3%83%ad%e3%83%88%e3%82%b3%e3%83%ab%e3%81%a7isready%e5%be%8c%e3%81%ae%e5%88%9d%e6%9c%9f%e5%8c%96%e3%81%ab%e6%99%82%e9%96%93%e3%81%8c%e3%81%8b%e3%81%8b%e3%82%8b%e6%99%82%e3%81%ab%e3%81%a9/
+	// cf. isready後のkeep alive用改行コードの送信について
+	//		http://yaneuraou.yaneu.com/2020/03/08/isready%e5%be%8c%e3%81%aekeep-alive%e7%94%a8%e6%94%b9%e8%a1%8c%e3%82%b3%e3%83%bc%e3%83%89%e3%81%ae%e9%80%81%e4%bf%a1%e3%81%ab%e3%81%a4%e3%81%84%e3%81%a6/
+
+	// これを送らないと、将棋所、ShogiGUIでタイムアウトになりかねない。
+	// ワーカースレッドを一つ生成して、そいつが5秒おきに改行を送信するようにする。
+	// このあと重い処理を行うのでスレッドの起動が遅延する可能性があるから、先にスレッドを生成して、そのスレッドが起動したことを
+	// 確認してから処理を行う。
+
+	// スレッドが起動したことを通知するためのフラグ
+	auto thread_started = false;
+
+	// この関数を抜ける時に立つフラグ(スレッドを停止させる用)
+	auto thread_end = false;
+
+	// 定期的な改行送信用のスレッド
+	auto th = std::thread([&] {
+		// スレッドが起動した
+		thread_started = true;
+
+		int count = 0;
+		while (!thread_end)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			if (++count >= 50 /* 5秒 */)
+			{
+				count = 0;
+				sync_cout << sync_endl; // 改行を送信する。	
+
+				// 定跡の読み込み部などで"info string.."で途中経過を出力する場合、
+				// sync_cout ～ sync_endlを用いて送信しないと、この改行を送るタイミングとかち合うと
+				// 変なところで改行されてしまうので注意。
+			}
+		}
+		});
+	SCOPE_EXIT({ thread_end = true; th.join(); });
+
+	// スレッド起動待ち
+	while (!thread_started)
+		Tools::sleep(100);
+
+	// --- Keep Alive的な処理ここまで ---
+
 
 #if defined (USE_EVAL_HASH)
 	Eval::EvalHash_Resize(Options["EvalHash"]);
