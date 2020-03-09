@@ -337,7 +337,7 @@ void is_ready(bool skipCorruptCheck)
 	// isreadyに対してはreadyokを返すまで次のコマンドが来ないことは約束されているので
 	// このタイミングで各種変数の初期化もしておく。
 
-	TT.resize(Options["Hash"]);
+	TT.resize(Options["USI_Hash"]);
 
 	Search::clear();
 //	Time.availableNodes = 0;

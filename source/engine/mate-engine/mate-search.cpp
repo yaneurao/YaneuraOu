@@ -210,10 +210,10 @@ namespace MateEngine
 		}
 
 		// 置換表を確保する。
-		// 現在のOptions["Hash"]の値だけ確保する。
+		// 現在のOptions["USI_Hash"]の値だけ確保する。
 		void Resize()
 		{
-			int64_t hash_size_mb = (int)Options["Hash"];
+			int64_t hash_size_mb = (int)Options["USI_Hash"];
 
 			// 作成するクラスターの数。2のべき乗にする。
 			int64_t new_num_clusters = 1LL << MSB64((hash_size_mb * 1024 * 1024) / sizeof(Cluster));
@@ -869,7 +869,7 @@ void Search::clear()
 #if defined(FOR_TOURNAMENT)
 
 	// 進捗を表示しながら並列化してゼロクリア
-	Tools::memclear("Hash" , MateEngine::transposition_table.tt , MateEngine::transposition_table.Size());
+	Tools::memclear("USI_Hash" , MateEngine::transposition_table.tt , MateEngine::transposition_table.Size());
 
 #endif
 

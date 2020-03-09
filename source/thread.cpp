@@ -105,7 +105,7 @@ void ThreadPool::set(size_t requested)
 		clear();
 
 		// Reallocate the hash with the new threadpool size
-		//TT.resize(Options["Hash"]);
+		//TT.resize(Options["USI_Hash"]);
 
 		// →　新しいthreadpoolのサイズで置換表用のメモリを確保しなおしたほうが
 		//  良いらしいのだが、大きなメモリの置換表だと確保に時間がかかるのでやりたくない。

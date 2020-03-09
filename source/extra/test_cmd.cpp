@@ -1984,7 +1984,7 @@ void test_mate_engine_cmd(Position& pos, istringstream& is) {
 	// →　デフォルト1024にしておかないと置換表あふれるな。
 	string ttSize = (is >> token) ? token : "1024";
 
-	Options["Hash"] = ttSize;
+	Options["USI_Hash"] = ttSize;
 
 	Search::LimitsType limits;
 

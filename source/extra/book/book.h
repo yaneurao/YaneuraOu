@@ -153,6 +153,8 @@ namespace Book
 		// ・この関数自体はthread safeなのでread_book()したあとは非同期に呼び出して問題ない。
 		// 　ただし、on_the_flyのときは、ディスクアクセスが必要で、その部分がthread safeではないので
 		//   on_the_fly == falseでなければ、非同期にこの関数を呼び出してはならない。
+		// ・Options["USI_OwnBook"]==trueにすることでエンジン側の定跡を有効化されていないなら、
+		// 　probe()には常に失敗する。(falseが返る)
 		bool probe(Thread& th , Search::LimitsType& limit);
 
 		// 現在の局面が定跡に登録されているかを調べる。

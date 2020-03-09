@@ -1400,6 +1400,11 @@ namespace Book
 
 	void BookMoveSelector::init(USI::OptionsMap & o)
 	{
+		// エンジン側の定跡を有効化するか
+		// USI原案にこのオプションがあり、ShogiGUI、ShogiDroidで対応しているらしいので
+		// このオプションを追加。[2020/3/9]
+		o["USI_OwnBook"] << Option(true);
+
 		// 実現確率の低い狭い定跡を選択しない
 		o["NarrowBook"] << Option(false);
 
@@ -1709,6 +1714,10 @@ namespace Book
 	// 定跡の指し手の選択
 	bool BookMoveSelector::probe(Thread& th, Search::LimitsType& Limits)
 	{
+		// エンジン側の定跡を有効化されていないなら、probe()に失敗する。
+		if (!Options["USI_OwnBook"])
+			return false;
+
 		Move bestMove, ponderMove;
 		if (probe_impl(th.rootPos, Limits.silent, bestMove, ponderMove))
 		{

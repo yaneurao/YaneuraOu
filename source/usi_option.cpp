@@ -46,7 +46,7 @@ namespace USI {
 
 #if !defined(MATE_ENGINE)
 		// 置換表のサイズ。[MB]で指定。
-		o["Hash"] << Option(16, 1, MaxHashMB, [](const Option&o) { TT.resize(o); });
+		o["USI_Hash"] << Option(16, 1, MaxHashMB, [](const Option&o) { TT.resize(o); });
 
 #if defined(USE_EVAL_HASH)
 		// 評価値用のcacheサイズ。[MB]で指定。
@@ -67,8 +67,9 @@ namespace USI {
 
 		// 弱くするために調整する。20なら手加減なし。0が最弱。
 		o["SkillLevel"] << Option(20, 0, 20);
+
 #else
-		o["Hash"] << Option(4096, 1, MaxHashMB);
+		o["USI_Hash"] << Option(4096, 1, MaxHashMB);
 #endif
 
 		// cin/coutの入出力をファイルにリダイレクトする

@@ -71,7 +71,7 @@ void bench_cmd(Position& current, istringstream& is)
 	else
 		limits.depth = stoi(limit);
 
-	Options["Hash"] = ttSize;
+	Options["USI_Hash"] = ttSize;
 	Options["Threads"] = threads;
 
 #if defined(YANEURAOU_ENGINE)
