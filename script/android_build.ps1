@@ -2,28 +2,28 @@ Set-Location (Join-Path $PSScriptRoot ..);
 @(
   @{
     Target = "YANEURAOU_ENGINE_KPPT";
-    Dir = ".\build\android\kppt";
+    Dir = ".\build\android\KPPT";
   };
   @{
     Target = "YANEURAOU_ENGINE_KPP_KKPT";
-    Dir = ".\build\android\kpp-kkpt";
+    Dir = ".\build\android\KPP_KKPT";
   };
   @{
-    Target = "YANEURAOU_ENGINE_NNUE_HALFKP256";
-    Dir = ".\build\android\nnue_halfkp_256";
+    Target = "YANEURAOU_ENGINE_NNUE";
+    Dir = ".\build\android\NNUE";
   };
   @{
     Target = "YANEURAOU_ENGINE_NNUE_KP256";
     Nnue = "KP256";
-    Dir = ".\build\android\nnue_k_p_256";
+    Dir = ".\build\android\NNUE_KP256";
   };
   @{
     Target = "YANEURAOU_ENGINE_MATERIAL";
-    Dir = ".\build\android\material";
+    Dir = ".\build\android\KOMA";
   };
   @{
     Target = "MATE_ENGINE";
-    Dir = ".\build\android\mate";
+    Dir = ".\build\android\MATE";
   };
 )|
 ForEach-Object{
