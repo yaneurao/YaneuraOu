@@ -12,7 +12,7 @@
 # YANEURAOU_ENGINE_KPPT       : KPPT型評価関数
 # YANEURAOU_ENGINE_KPP_KKPT   : KPP_KKPT型評価関数
 # YANEURAOU_ENGINE_MATERIAL   : 駒得のみの評価関数
-# MATE_ENGINE                 : 詰将棋エンジン
+# MATE_ENGINE                 : tanuki- 詰将棋エンジン
 # USER_ENGINE                 : USER定義エンジン
 
 YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE

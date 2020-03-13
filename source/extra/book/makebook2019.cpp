@@ -412,7 +412,7 @@ namespace {
 		SCOPE_EXIT( Options["IgnoreBookPly"] = oldValue; );
 
 		MemoryBook read_book, write_book;
-		if (read_book.read_book(read_book_name) != 0)
+		if (read_book.read_book(read_book_name).is_not_ok())
 		{
 			cout << "Error! : failed to read " << read_book_name << endl;
 			return;
@@ -655,7 +655,7 @@ namespace {
 		// write_sfen_name : 同上。
 
 		MemoryBook read_book;
-		if (read_book.read_book(read_book_name) != 0)
+		if (read_book.read_book(read_book_name).is_not_ok())
 		{
 			cout << "Error! : failed to read " << read_book_name << endl;
 			return;

@@ -81,7 +81,7 @@ namespace EvalIO
 							return (void*)nullptr;
 						}
 						return out_.file_or_memory.ptr;
-					}) != 0)
+					}).is_not_ok() )
 					{
 #if defined(EVAL_LEARN)
 						if (Options["SkipLoadingEval"])
@@ -100,7 +100,7 @@ namespace EvalIO
 				// memory to file
 				else if (in_.file_or_memory.memory() && out_.file_or_memory.file())
 				{
-					if (FileOperator::WriteMemoryToFile(out_.file_or_memory.filename, in_.file_or_memory.ptr, output_block_size) != 0)
+					if (FileOperator::WriteMemoryToFile(out_.file_or_memory.filename, in_.file_or_memory.ptr, output_block_size).is_not_ok())
 					{
 						std::cout << "info string write file error , file = " << out_.file_or_memory.filename << std::endl;
 						return false;
@@ -156,7 +156,7 @@ namespace EvalIO
 							return (void*)nullptr;
 						}
 						return in_ptr;
-					}) != 0)
+					}).is_not_ok())
 						return false;
 				}
 
@@ -328,7 +328,7 @@ namespace EvalIO
 
 				if (out_.file_or_memory.ptr == nullptr)
 				{
-					if (FileOperator::WriteMemoryToFile(out_.file_or_memory.filename , out_ptr , output_block_size) != 0)
+					if (FileOperator::WriteMemoryToFile(out_.file_or_memory.filename , out_ptr , output_block_size).is_not_ok())
 					{
 						std::cout << "info string write file error , file = " << out_.file_or_memory.filename << std::endl;
 						return false;

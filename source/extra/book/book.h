@@ -69,21 +69,18 @@ namespace Book
 		// 　　定跡作成時などはこれをtrueにしてはいけない。(メモリに読み込まれないため)
 		// ・同じファイルを二度目は読み込み動作をskipする。
 		// ・filenameはpathとして"book/"を補完しないので生のpathを指定する。
-		// ・返し値は正常終了なら0。さもなくば非0。
-		int read_book(const std::string& filename, bool on_the_fly = false);
+		Tools::Result read_book(const std::string& filename, bool on_the_fly = false);
 
 		// 定跡ファイルの書き出し
 		// ・sort = 書き出すときにsfen文字列で並び替えるのか。(書き出しにかかる時間増)
 		// →　必ずソートするように変更した。
 		// ・ファイルへの書き出しは、*thisを書き換えないという意味においてconst性があるので関数にconstを付与しておく。
-		// ・返し値は正常終了なら0。さもなくば非0。
 		// また、事前にis_ready()は呼び出されているものとする。
-		int write_book(const std::string& filename /*, bool sort = false*/) const;
+		Tools::Result write_book(const std::string& filename /*, bool sort = false*/) const;
 
 		// Aperyの定跡ファイルを読み込む
 		// ・この関数はread_bookの下請けとして存在する。外部から直接呼び出すのは定跡のコンバートの時ぐらい。
-		// ・返し値は正常終了なら0。さもなくば非0。
-		int read_apery_book(const std::string& filename);
+		Tools::Result read_apery_book(const std::string& filename);
 
 		// --- 以下のメンバ、普段は外部から普段は直接アクセスすべきではない。
 		// 定跡を書き換えてwrite_book()で書き出すような作業を行なうときだけアクセスする。

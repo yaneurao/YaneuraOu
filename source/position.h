@@ -6,6 +6,7 @@
 #include "evaluate.h"
 #include "extra/key128.h"
 #include "extra/long_effect.h"
+#include "misc.h"
 
 #include <deque>
 #include <memory> // std::unique_ptr
@@ -561,9 +562,9 @@ public:
 
 	// ↑sfenを経由すると遅いので直接packされたsfenをセットする関数を作った。
 	// pos.set(sfen_unpack(data),si,th); と等価。
-	// 渡された局面に問題があって、エラーのときは非0を返す。
+	// 渡された局面に問題があって、エラーのときはTools::Result::SomeErrorを返す。
 	// PackedSfenにgamePlyは含まないので復元できない。そこを設定したいのであれば引数で指定すること。
-	int set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si , Thread* th, bool mirror=false , int gamePly_ = 0);
+	Tools::Result set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si , Thread* th, bool mirror=false , int gamePly_ = 0);
 
 	// 盤面と手駒、手番を与えて、そのsfenを返す。
 	static std::string sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly);

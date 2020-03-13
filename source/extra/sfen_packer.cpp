@@ -342,8 +342,7 @@ struct SfenPacker
 
 // 高速化のために直接unpackする関数を追加。かなりしんどい。
 // packer::unpack()とPosition::set()とを合体させて書く。
-// 渡された局面に問題があって、エラーのときは非0を返す。
-int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thread* th, bool mirror , int gamePly_ /* = 0 */)
+Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thread* th, bool mirror , int gamePly_ /* = 0 */)
 {
 	SfenPacker packer;
 	auto& stream = packer.stream;
@@ -431,7 +430,7 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thre
 		//cout << sq << ' ' << board[sq] << ' ' << stream.get_cursor() << endl;
 
 		if (stream.get_cursor() > 256)
-			return 1;
+			return Tools::Result(Tools::ResultCode::SomeError);
 		//ASSERT_LV3(stream.get_cursor() <= 256);
 	}
 
@@ -473,7 +472,7 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thre
 		// こんな局面はおかしい。デバッグ用。
 		//cout << "Error : set_from_packed_sfen() , position = " << endl << *this << endl;
 		//ASSERT_LV1(false);
-		return 2;
+		return Tools::Result(Tools::ResultCode::SomeError);
 	}
 
 	gamePly = gamePly_;
@@ -504,7 +503,7 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thre
 
 	thisThread = th;
 
-	return 0;
+	return Tools::Result::Ok();
 }
 
 // 盤面と手駒、手番を与えて、そのsfenを返す。

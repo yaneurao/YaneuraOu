@@ -578,6 +578,24 @@ namespace Tools
 #endif
 	}
 
+	// ResultCodeを文字列化する。
+	std::string to_string(ResultCode code)
+	{
+		// enumに対してto_string()したいだけなのだが…。
+
+		switch (code)
+		{
+		case ResultCode::Ok                   : return "Ok";
+		case ResultCode::MemoryAllocationError: return "MemoryAllocationError";
+		case ResultCode::SomeError            : return "SomeError";
+		case ResultCode::FileOpenError        : return "FileOpenError";
+		case ResultCode::FileReadError        : return "FileReadError";
+		case ResultCode::FileWriteError       : return "FileWriteError";
+		case ResultCode::CreateFolderError    : return "CreateFolderError";
+		case ResultCode::NotImplementedError  : return "NotImplementedError";
+		default                               : return "OtherError";
+		}
+	}
 }
 
 // --------------------
@@ -588,7 +606,7 @@ namespace Tools
 
 // ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。末尾の改行は除去される。
 // 引数で渡されるlinesは空であるを期待しているが、空でない場合は、そこに追加されていく。
-int FileOperator::ReadAllLines(const std::string& filename, std::vector<std::string>& lines,bool trim)
+Tools::Result FileOperator::ReadAllLines(const std::string& filename, std::vector<std::string>& lines,bool trim)
 {
 #if 0
 	ifstream fs(filename);
@@ -613,8 +631,8 @@ int FileOperator::ReadAllLines(const std::string& filename, std::vector<std::str
 	// ifstreamを使わない形で書き直す。これで4倍ぐらい速くなる。
 
 	TextFileReader reader;
-	int result = reader.Open(filename);
-	if (result)
+	auto result = reader.Open(filename);
+	if (!result.is_ok())
 		return result;
 
 	while (!reader.Eof())
@@ -627,14 +645,14 @@ int FileOperator::ReadAllLines(const std::string& filename, std::vector<std::str
 			lines.push_back(line);
 	}
 
-	return 0;
+	return Tools::Result::Ok();
 }
 
-int FileOperator::ReadFileToMemory(const std::string& filename, std::function<void*(u64)> callback_func)
+Tools::Result FileOperator::ReadFileToMemory(const std::string& filename, std::function<void*(u64)> callback_func)
 {
 	fstream fs(filename, ios::in | ios::binary);
 	if (fs.fail())
-		return 1;
+		return Tools::Result(Tools::ResultCode::FileOpenError);
 
 	fs.seekg(0, fstream::end);
 	u64 eofPos = (u64)fs.tellg();
@@ -650,8 +668,9 @@ int FileOperator::ReadFileToMemory(const std::string& filename, std::function<vo
 
 	// バッファが確保できなかった場合や、想定していたファイルサイズと異なった場合は、
 	// nullptrを返すことになっている。このとき、読み込みを中断し、エラーリターンする。
+	// 原因は不明だが、メモリ割り当ての失敗なのでMemoryAllocationErrorを返しておく。
 	if (ptr == nullptr)
-		return 2;
+		return Tools::Result(Tools::ResultCode::MemoryAllocationError);
 
 	// 細切れに読み込む
 
@@ -664,21 +683,21 @@ int FileOperator::ReadFileToMemory(const std::string& filename, std::function<vo
 
 		// ファイルの途中で読み込みエラーに至った。
 		if (fs.fail())
-			return 2;
+			return Tools::Result(Tools::ResultCode::FileReadError); // ファイル読み込み時のエラー
 
 		//cout << ".";
 	}
 	fs.close();
 
-	return 0;
+	return Tools::Result::Ok();
 }
 
 
-int FileOperator::WriteMemoryToFile(const std::string& filename, void *ptr, u64 size)
+Tools::Result FileOperator::WriteMemoryToFile(const std::string& filename, void* ptr, u64 size)
 {
 	fstream fs(filename, ios::out | ios::binary);
 	if (fs.fail())
-		return 1;
+		return Tools::Result(Tools::ResultCode::FileOpenError);
 
 	const u64 block_size = 1024 * 1024 * 1024; // 1回のwriteで書き出す要素の数(1GB)
 	for (u64 pos = 0; pos < size; pos += block_size)
@@ -687,9 +706,15 @@ int FileOperator::WriteMemoryToFile(const std::string& filename, void *ptr, u64 
 		u64 write_size = (pos + block_size < size) ? block_size : (size - pos);
 		fs.write((char*)ptr + pos, write_size);
 		//cout << ".";
+
+		if (fs.fail())
+			return Tools::Result(Tools::ResultCode::FileWriteError); // ファイル書き込み時のエラー
 	}
+
+	// fstreamなので、これ不要だが..念の為にcloseする。
 	fs.close();
-	return 0;
+
+	return Tools::Result::Ok();
 }
 
 // --- TextFileReader
@@ -718,14 +743,14 @@ void TextFileReader::clear()
 	is_prev_cr = false;
 }
 
-// ファイルをopenする。存在しなければ非0が返る。
-int TextFileReader::Open(const std::string& filename)
+// ファイルをopenする。
+Tools::Result TextFileReader::Open(const std::string& filename)
 {
 	Close();
 
 	// 高速化のためにbinary open
 	fp = fopen(filename.c_str(), "rb");
-	return (fp == nullptr) ? 1 : 0;
+	return (fp == nullptr) ? Tools::Result(Tools::ResultCode::FileOpenError) : Tools::Result::Ok();
 }
 
 // Open()を呼び出してオープンしたファイルをクローズする。
@@ -1176,23 +1201,13 @@ namespace Directory
 	// main関数に渡された引数から設定してある。
 	// "GetCurrentDirectory"という名前はWindowsAPI(で定義されているマクロ)と競合する。
 	std::string GetCurrentFolder() { return currentFolder; }
-
-	// GetCurrentDirectory()で現在のフォルダを返すためにmain関数のなかでこの関数を呼び出してあるものとする。
-	void init(char* argv[])
-	{
-		currentFolder = Path::GetDirectoryName(argv[0]);
-
-		// Linux系だと、"./a.out"みたいになってて、__CurrentFolder__ == "."になってしまうが仕方がない。(´ω｀)
-		// Directory::GetCurrentFolder()はWindows系でしか呼び出さないので、とりあえずこの問題は放置。
-	}
-
 }
 
 // ----------------------------
 //     mkdir wrapper
 // ----------------------------
 
-// カレントフォルダ相対で指定する。成功すれば0、失敗すれば非0が返る。
+// カレントフォルダ相対で指定する。
 // フォルダを作成する。日本語は使っていないものとする。
 // どうもmsys2環境下のgccだと_wmkdir()だとフォルダの作成に失敗する。原因不明。
 // 仕方ないので_mkdir()を用いる。
@@ -1205,10 +1220,12 @@ namespace Directory
 #if defined(_MSC_VER)
 
 namespace Directory {
-	int CreateFolder(const std::string& dir_name)
+	Tools::Result CreateFolder(const std::string& dir_name)
 	{
-		return _wmkdir(Tools::MultiByteToWideChar(dir_name).c_str());
+		int result =  _wmkdir(Tools::MultiByteToWideChar(dir_name).c_str());
 		//	::CreateDirectory(Tools::MultiByteToWideChar(dir_name).c_str(),NULL);
+
+		return result == 0 ? Tools::Result::Ok() : Tools::Result(Tools::ResultCode::CreateFolderError);
 	}
 }
 
@@ -1216,9 +1233,10 @@ namespace Directory {
 
 #include <direct.h>
 namespace Directory {
-	int CreateFolder(const std::string& dir_name)
+	Tools::Result CreateFolder(const std::string& dir_name)
 	{
-	return _mkdir(dir_name.c_str());
+		int result = _mkdir(dir_name.c_str());
+		return result == 0 ? Tools::Result::Ok() : Tools::Result(Tools::ResultCode::CreateFolderError);
 	}
 }
 
@@ -1231,9 +1249,10 @@ namespace Directory {
 #include "sys/stat.h"
 
 namespace Directory {
-	int CreateFolder(const std::string& dir_name)
+	Tools::Result CreateFolder(const std::string& dir_name)
 	{
-	return ::mkdir(dir_name.c_str(), 0777);
+		int result = ::mkdir(dir_name.c_str(), 0777);
+		return result == 0 ? Tools::Result::Ok() : Tools::Result(Tools::ResultCode::CreateFolderError);
 	}
 }
 #else
@@ -1242,9 +1261,9 @@ namespace Directory {
 // linuxでフォルダ掘る機能は、とりあえずナシでいいや..。評価関数ファイルの保存にしか使ってないし…。
 
 namespace Directory {
-	int CreateFolder(const std::string& dir_name)
+	Tools::Result CreateFolder(const std::string& dir_name)
 	{
-		return 0;
+		return Tools::Result(Tools::ResultCode::NotImplementedError);
 	}
 }
 
@@ -1252,3 +1271,15 @@ namespace Directory {
 
 
 
+namespace Misc
+{
+	// このmisc.hの各種クラスの初期化。起動時にmain()から一度呼び出すようにする。
+	void init(char* argv[])
+	{
+		// GetCurrentDirectory()で現在のフォルダを返すためにmain関数のなかでこの関数を呼び出してあるものとする。
+		Directory::currentFolder = Path::GetDirectoryName(argv[0]);
+
+		// Linux系だと、"./a.out"みたいになってて、__CurrentFolder__ == "."になってしまうが仕方がない。(´ω｀)
+		// Directory::GetCurrentFolder()はWindows系でしか呼び出さないので、とりあえずこの問題は放置。
+	}
+}

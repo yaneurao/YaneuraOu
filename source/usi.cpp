@@ -422,13 +422,9 @@ void setoption_cmd(istringstream& is)
 
 	if (Options.count(name))
 		Options[name] = value;
-	else {
-		// USI_Hashは無視してやる。
-		if (name != "USI_Hash" /* && name != "USI_Ponder" */)
-			// USI_Ponderは使うように変更した。
-			// この名前のoptionは存在しなかった
-			sync_cout << "Error! : No such option: " << name << sync_endl;
-	}
+	else
+		// この名前のoptionは存在しなかった
+		sync_cout << "Error! : No such option: " << name << sync_endl;
 }
 
 // getoptionコマンド応答(USI独自拡張)

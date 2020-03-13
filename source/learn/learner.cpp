@@ -1638,7 +1638,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			auto th = Threads[thread_id];
 			auto& pos = th->rootPos;
 			StateInfo si;
-			if (pos.set_from_packed_sfen(ps.sfen ,&si, th) != 0)
+			if (pos.set_from_packed_sfen(ps.sfen ,&si, th).is_not_ok())
 			{
 				// 運悪くrmse計算用のsfenとして、不正なsfenを引いてしまっていた。
 				cout << "Error! : illegal packed sfen " << pos.sfen() << endl;
@@ -1928,7 +1928,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// ↑sfenを経由すると遅いので専用の関数を作った。
 		StateInfo si;
 		const bool mirror = prng.rand(100) < mirror_percentage;
-		if (pos.set_from_packed_sfen(ps.sfen,&si,th,mirror) != 0)
+		if (pos.set_from_packed_sfen(ps.sfen,&si,th,mirror).is_not_ok())
 		{
 			// 変なsfenを掴かまされた。デバッグすべき！
 			// 不正なsfenなのでpos.sfen()で表示できるとは限らないが、しないよりマシ。

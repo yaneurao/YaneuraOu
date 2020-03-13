@@ -238,7 +238,6 @@ extern Timer Time;
 
 // =====   以下は、やねうら王の独自追加   =====
 
-
 // --------------------
 //  ツール類
 // --------------------
@@ -300,6 +299,63 @@ namespace Tools
 	private:
 		std::function<void()> fn;
 	};
+
+	// --------------------
+	//  Result
+	// --------------------
+
+	// 一般的な関数の返し値のコード。(エラー理由などのenum)
+	enum struct ResultCode
+	{
+		// 正常終了
+		Ok,
+
+		// 原因の詳細不明。何らかのエラー。
+		SomeError,
+
+		// メモリ割り当てのエラー
+		MemoryAllocationError,
+
+		// ファイルのオープンに失敗。ファイルが存在しないなど。
+		FileOpenError,
+
+		// ファイル読み込み時のエラー。
+		FileReadError,
+
+		// ファイル書き込み時のエラー。
+		FileWriteError,
+
+		// フォルダ作成時のエラー。
+		CreateFolderError,
+
+		// 実装されていないエラー。
+		NotImplementedError,
+	};
+
+	// ResultCodeを文字列化する。
+	extern std::string to_string(ResultCode);
+
+	// エラーを含む関数の返し値を表現する型
+	// RustにあるOption型のような何か
+	struct Result
+	{
+		Result(ResultCode code_) : code(code_) {}
+
+		// エラーの種類
+		ResultCode code;
+
+		// 返し値が正常終了かを判定する
+		bool is_ok() const { return code == ResultCode::Ok; }
+
+		// 返し値が正常終了でなければtrueになる。
+		bool is_not_ok() const { return code != ResultCode::Ok; }
+
+		// ResultCodeを文字列化して返す。
+		std::string to_string() const { return Tools::to_string(code); }
+
+		//  正常終了の時の型を返すbuilder
+		static Result Ok() { return Result(ResultCode::Ok); }
+	};
 }
 
 // スコープを抜ける時に実行してくれる。BOOST::BOOST_SCOPE_EXITマクロみたいな何か。
@@ -316,7 +372,7 @@ struct FileOperator
 	// ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。末尾の改行は除去される。
 	// 引数で渡されるlinesは空であるを期待しているが、空でない場合は、そこに追加されていく。
 	// 引数で渡されるtrimはtrueを渡すと末尾のスペース、タブがトリムされる。
-	static int ReadAllLines(const std::string& filename, std::vector<std::string>& lines, bool trim = false);
+	static Tools::Result ReadAllLines(const std::string& filename, std::vector<std::string>& lines, bool trim = false);
 
 
 	// msys2、Windows Subsystem for Linuxなどのgcc/clangでコンパイルした場合、
@@ -324,13 +380,12 @@ struct FileOperator
 	//
 	// read_file_to_memory()の引数のcallback_funcは、ファイルがオープン出来た時点でそのファイルサイズを引数として
 	// callbackされるので、バッファを確保して、その先頭ポインタを返す関数を渡すと、そこに読み込んでくれる。
-	// これらの関数は、ファイルが見つからないときなどエラーの際には非0を返す。
 	//
 	// また、callbackされた関数のなかでバッファが確保できなかった場合や、想定していたファイルサイズと異なった場合は、
 	// nullptrを返せば良い。このとき、read_file_to_memory()は、読み込みを中断し、エラーリターンする。
 
-	static int ReadFileToMemory(const std::string& filename, std::function<void* (u64)> callback_func);
-	static int WriteMemoryToFile(const std::string& filename, void* ptr, u64 size);
+	static Tools::Result ReadFileToMemory(const std::string& filename, std::function<void* (u64)> callback_func);
+	static Tools::Result WriteMemoryToFile(const std::string& filename, void* ptr, u64 size);
 };
 
 // C#のTextReaderみたいなもの。
@@ -342,8 +397,7 @@ struct TextFileReader
 	~TextFileReader();
 
 	// ファイルをopenする。
-	// ファイルが存在しなければ非0が返る。
-	int Open(const std::string& filename);
+	Tools::Result Open(const std::string& filename);
 
 	// Open()を呼び出してオープンしたファイルをクローズする。
 	void Close();
@@ -523,7 +577,9 @@ namespace Path
 namespace StringExtension
 {
 	// 大文字・小文字を無視して文字列の比較を行う。
-	// string case insensitive compareの略？
+	// Windowsだと_stricmp() , Linuxだとstrcasecmp()を使うのだが、
+	// 後者がどうも動作が怪しい。自前実装しておいたほうが無難。
+	// stricmpは、string case insensitive compareの略？
 	// s1==s2のとき0(false)を返す。
 	extern bool stricmp(const std::string& s1, const std::string& s2);
 
@@ -574,17 +630,20 @@ namespace Directory
 
 	// フォルダを作成する。
 	// カレントフォルダ相対で指定する。dir_nameに日本語は使っていないものとする。
-	// 成功すれば0、失敗すれば非0が返る。
 	// ※　Windows環境だと、この関数名、WinAPIのCreateDirectoryというマクロがあって…。
 	// 　ゆえに、CreateDirectory()をやめて、CreateFolder()に変更する。
-	extern int CreateFolder(const std::string& dir_name);
+	extern Tools::Result CreateFolder(const std::string& dir_name);
 
 	// カレントフォルダを返す(起動時のフォルダ)
 	// main関数に渡された引数から設定してある。
 	// "GetCurrentDirectory"という名前はWindowsAPI(で定義されているマクロ)と競合する。
 	extern std::string GetCurrentFolder();
 
-	// GetCurrentDirectory()で現在のフォルダを返すためにmain関数のなかでこの関数を呼び出してあるものとする。
+}
+
+namespace Misc
+{
+	// このmisc.hの各種クラスの初期化。起動時にmain()から一度呼び出すようにする。
 	extern void init(char* argv[]);
 }
 

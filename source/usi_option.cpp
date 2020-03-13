@@ -56,9 +56,8 @@ namespace USI {
 		o["EvalHash"] << Option(1024, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
 #else
 		o["EvalHash"] << Option(128, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
-#endif
-
-#endif
+#endif // defined(FOR_TOURNAMENT)
+#endif // defined(USE_EVAL_HASH)
 
 		o["USI_Ponder"] << Option(false);
 
@@ -68,9 +67,12 @@ namespace USI {
 		// 弱くするために調整する。20なら手加減なし。0が最弱。
 		o["SkillLevel"] << Option(20, 0, 20);
 
-#else
+#else // !defined(MATE_ENGINE)
+
+		// MATE_ENGINEのとき
 		o["USI_Hash"] << Option(4096, 1, MaxHashMB);
-#endif
+
+#endif // !defined(MATE_ENGINE)
 
 		// cin/coutの入出力をファイルにリダイレクトする
 		o["WriteDebugLog"] << Option(false, [](const Option& o) { start_logger(o); });

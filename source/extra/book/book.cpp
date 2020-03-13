@@ -300,7 +300,7 @@ namespace Book
 			{
 				cout << "read book..";
 				// 初回はファイルがないので読み込みに失敗するが無視して続行。
-				if (book.read_book(book_name) != 0)
+				if (book.read_book(book_name).is_not_ok())
 				{
 					cout << "..failed but , create new file." << endl;
 				}
@@ -582,7 +582,7 @@ namespace Book
 			cout << "book merge from " << book_name[0] << " and " << book_name[1] << " to " << book_name[2] << endl;
 			for (int i = 0; i < 2; ++i)
 			{
-				if (book[i].read_book(book_name[i]) != 0)
+				if (book[i].read_book(book_name[i]).is_not_ok())
 					return;
 			}
 
@@ -693,7 +693,7 @@ namespace Book
 	}
 
 	// 定跡ファイルの読み込み(book.db)など。
-	int MemoryBook::read_book(const std::string& filename, bool on_the_fly_)
+	Tools::Result MemoryBook::read_book(const std::string& filename, bool on_the_fly_)
 	{
 		// 読み込み済であるかの判定
 		// 一度read_book()が呼び出されたなら、そのときに読み込んだ定跡ファイル名が
@@ -705,7 +705,7 @@ namespace Book
 		//　 何らかの目的で変更したのであろうから、この場合もきちんと反映しないとまずい。)
 		bool ignore_book_ply_ = Options["IgnoreBookPly"];
 		if (this->book_name == filename && this->on_the_fly == on_the_fly_ && this->ignoreBookPly == ignore_book_ply_)
-			return 0;
+			return Tools::Result::Ok();
 
 		// 一度このクラスのメンバーが保持しているファイル名はクリアする。(何も読み込んでいない状態になるので)
 		this->book_name = "";
@@ -724,7 +724,7 @@ namespace Book
 		{
 			this->book_name = filename;
 			this->pure_book_name = pure_filename;
-			return 0;
+			return Tools::Result::Ok();
 		}
 
 		if (pure_filename == kAperyBookName) {
@@ -746,24 +746,25 @@ namespace Book
 				if (fs.fail())
 				{
 					sync_cout << "info string Error! : can't read file : " + filename << sync_endl;
-					return 1;
+					return Tools::Result(Tools::ResultCode::FileOpenError);
 				}
 
 				// 定跡ファイルのopenにも成功したし、on the flyできそう。
 				// このときに限りこのフラグをtrueにする。
 				this->on_the_fly = true;
 				this->book_name = filename;
-				return 0;
+				return Tools::Result::Ok();
 			}
 
 			sync_cout << "info string read book file : " << filename << sync_endl;
 
 			TextFileReader reader;
-			if (reader.Open(filename))
+			auto result = reader.Open(filename);
+			if (result.is_not_ok())
 			{
 				sync_cout << "info string Error! : can't read file : " + filename << sync_endl;
 				//      exit(EXIT_FAILURE);
-				return 1; // 読み込み失敗
+				return result; // 読み込み失敗
 			}
 
 			string sfen;
@@ -915,11 +916,11 @@ namespace Book
 
 		sync_cout << "info string read book done." << sync_endl;
 
-		return 0;
+		return Tools::Result::Ok();
 	}
 
 	// 定跡ファイルの書き出し
-	int MemoryBook::write_book(const std::string& filename /*, bool sort*/) const
+	Tools::Result MemoryBook::write_book(const std::string& filename /*, bool sort*/) const
 	{
 		// Position::set()で評価関数の読み込みが必要。
 		//is_ready();
@@ -929,6 +930,9 @@ namespace Book
 
 		fstream fs;
 		fs.open(filename, ios::out);
+
+		if (fs.fail())
+			return Tools::Result(Tools::ResultCode::FileOpenError);
 
 		cout << endl << "write " + filename;
 
@@ -1026,13 +1030,16 @@ namespace Book
 			for (auto& bp : move_list)
 				fs << bp.bestMove << ' ' << bp.nextMove << ' ' << bp.value << " " << bp.depth << " " << bp.num << endl;
 			// 指し手、相手の応手、そのときの評価値、探索深さ、採択回数
+
+			if (fs.fail())
+				return Tools::Result(Tools::ResultCode::FileWriteError);
 		}
 
 		fs.close();
 
 		cout << endl << "done!" << endl;
 
-		return 0;
+		return Tools::Result::Ok();
 	}
 
 	void MemoryBook::insert(const std::string sfen, const BookPos& bp , bool overwrite)
@@ -1311,11 +1318,11 @@ namespace Book
 	}
 
 	// Apery用定跡ファイルの読み込み
-	int MemoryBook::read_apery_book(const std::string& filename)
+	Tools::Result MemoryBook::read_apery_book(const std::string& filename)
 	{
 		// 読み込み済であるかの判定
 		if (book_name == filename)
-			return 0;
+			return Tools::Result::Ok();
 
 		AperyBook apery_book(filename.c_str());
 		cout << "size of apery book = " << apery_book.size() << endl;
@@ -1389,7 +1396,7 @@ namespace Book
 		// 読み込んだファイル名を保存しておく。二度目のread_book()はskipする。
 		book_name = filename;
 
-		return 0;
+		return Tools::Result::Ok();
 	}
 
 	// ----------------------------------
