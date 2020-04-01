@@ -82,27 +82,43 @@ namespace Book
 		// ・この関数はread_bookの下請けとして存在する。外部から直接呼び出すのは定跡のコンバートの時ぐらい。
 		Tools::Result read_apery_book(const std::string& filename);
 
-		// --- 以下のメンバ、普段は外部から普段は直接アクセスすべきではない。
+		// --------------------------------------------------------------------------
+		//     以下のメンバは、普段は外部から普段は直接アクセスすべきではない 
+		//
 		// 定跡を書き換えてwrite_book()で書き出すような作業を行なうときだけアクセスする。
+		// --------------------------------------------------------------------------
+
+		// メモリに読み込んでいる定跡本体。定跡編集の時以外、このメソッドを呼び出すべきではない。
+		BookType* get_body() { return &book_body;}
+
+		// book_body.find()のwrapper。book_body.find()ではなく、こちらのfindを呼び出して用いること。
+		// 例)
+		// auto it = book.find(sfen);
+		//   if (book.is_not_found(it))
+		// のように書ける
+		BookType::iterator find(const std::string& sfen);
+		bool is_found(const BookType::iterator& it) const { return it != book_body.end(); }
+		bool is_not_found(const BookType::iterator& it) const { return it == book_body.end(); }
+
+		// メモリに保持している定跡に局面を一つ追加する。
+		// book_body[sfen] = ptr;
+		// と等価。
+		void append(const std::string& sfen, const Book::PosMoveListPtr& ptr) { book_body[sfen] = ptr; }
+
+		// book_bodyに対してBookPosを一つ追加するヘルパー関数。
+		// overwrite : このフラグがtrueならば、その局面ですでに同じbestMoveの指し手が登録されている場合は上書き動作
+		void insert(const std::string& sfen, const BookPos& bp , bool overwrite = true);
+
+		// book_bodyに対してBookType::insert()を呼び出すwrapper。
+		std::pair<BookType::iterator,bool> insert(const std::pair<std::string/*sfen*/, Book::PosMoveListPtr>& p) { return book_body.insert(p);  };
+
+	protected:
 
 		// メモリ上に読み込まれた定跡本体
 		// book_body.find()の直接呼び出しは禁止
 		// (Options["IgnoreBookPly"]==trueのときにplyの部分を削ってメモリに読み込んでいるため、一致しないから)
 		// このクラス(MemoryBookクラス)のfind()メソッドを用いること。
 		BookType book_body;
-
-		// ↑のbook_body.find()のwrapper。book_body.find()ではなく、こちらのfindを呼び出して用いること。
-		// auto it = book.find(sfen);
-		// if (book.is_not_found(it))..のように書ける
-		BookType::iterator find(const std::string& sfen);
-		bool is_found(const BookType::iterator& it) const { return it != book_body.end(); }
-		bool is_not_found(const BookType::iterator& it) const { return it == book_body.end(); }
-
-		// book_bodyに対してBookPosを一つ追加するヘルパー関数。
-		// overwrite : このフラグがtrueならば、その局面ですでに同じbestMoveの指し手が登録されている場合は上書き動作
-		void insert(const std::string& sfen, const BookPos& bp , bool overwrite = true);
-
-	protected:
 
 		// 末尾のスペース、"\t","\r","\n"を除去する。
 		// Options["IgnoreBookPly"] == trueのときは、さらに数字も除去する。

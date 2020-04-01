@@ -373,7 +373,7 @@ namespace {
 
 			// このnodeについて調べ終わったので格納
 			std::stable_sort(list->begin(), list->end());
-		write_book.book_body[sfen] = list;
+		write_book.append(sfen,list);
 
 			// 10 / 1000 node 処理したので進捗を出力
 			output_progress();
