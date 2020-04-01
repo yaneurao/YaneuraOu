@@ -243,8 +243,18 @@ namespace Book
 
 			// 処理対象ファイル名の出力
 			cout << "makebook think.." << endl;
+
+			if (bw_files)
+			{
+				// 先後、個別の定跡ファイルを用いる場合
 			cout << "sfen_file_name[BLACK] = " << sfen_file_name[BLACK] << endl;
 			cout << "sfen_file_name[WHITE] = " << sfen_file_name[WHITE] << endl;
+			}
+			else {
+				// 先後、同一の定跡ファイルを用いる場合
+				cout << "sfen_file_name        = " << sfen_file_name[BLACK] << endl;
+			}
+
 			cout << "book_name             = " << book_name << endl;
 
 			if (from_sfen)
@@ -298,7 +308,7 @@ namespace Book
 
 			if (from_thinking)
 			{
-				cout << "read book..";
+				cout << "read book.." << endl;
 				// 初回はファイルがないので読み込みに失敗するが無視して続行。
 				if (book.read_book(book_name).is_not_ok())
 				{
@@ -483,13 +493,13 @@ namespace Book
 				for (auto& s : thinking_sfens)
 				{
 					// この局面のいま格納されているデータを比較して、この局面を再考すべきか判断する。
-					auto it = book.book_body.find(s);
+					auto it = book.find(s);
 
 					// →　手数違いの同一局面がある場合、こちらのほうが手数が大きいなら思考しても無駄なのだが…。
 					// その局面の情報は、write_book()で書き出されないのでまあいいか…。
 
 					// MemoryBookにエントリーが存在しないなら無条件で、この局面について思考して良い。
-					if (it == book.book_body.end())
+					if (book.is_not_found(it))
 						sfens_.push_back(s);
 					else
 					{
@@ -601,9 +611,9 @@ namespace Book
 			{
 				auto sfen = it0.first;
 				// このエントリーがbook1のほうにないかを調べる。
-				auto it1_ = book[1].book_body.find(sfen);
+				auto it1_ = book[1].find(sfen);
 				auto& it1 = *it1_;
-				if (it1_ != book[1].book_body.end())
+				if ( book[1].is_found(it1_))
 				{
 					same_nodes++;
 
@@ -633,7 +643,7 @@ namespace Book
 			// book0の精査が終わったので、book1側で、まだ突っ込んでいないnodeを探して、それをbook2に突っ込む
 			for (auto& it1 : book[1].book_body)
 			{
-				if (book[2].book_body.find(it1.first) == book[2].book_body.end())
+				if (book[2].is_not_found(book[2].find(it1.first)))
 				{
 					book[2].book_body.insert(it1);
 					diffrent_nodes2++;
@@ -1042,7 +1052,15 @@ namespace Book
 		return Tools::Result::Ok();
 	}
 
-	void MemoryBook::insert(const std::string sfen, const BookPos& bp , bool overwrite)
+	// book_body.find()のwrapper。book_body.find()ではなく、こちらのfindを呼び出して用いること。
+	// sfen : sfen文字列(末尾にplyまで書かれているものとする)
+	BookType::iterator MemoryBook::find(const std::string& sfen)
+	{
+		auto sfen_ = (Options["IgnoreBookPly"]) ? StringExtension::trim_number(sfen) : sfen;
+		return book_body.find(sfen_);
+	}
+
+	void MemoryBook::insert(const std::string& sfen, const BookPos& bp , bool overwrite)
 	{
 		auto it = book_body.find(sfen);
 		if (it == book_body.end())

@@ -195,6 +195,13 @@ ShogiGUIの検討モードで「定跡を使用する」のオプションはオ
 	やねうら王アップデート！テラショック定跡の生成に対応しました
 	http://yaneuraou.yaneu.com/2019/05/28/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B%E3%82%A2%E3%83%83%E3%83%97%E3%83%87%E3%83%BC%E3%83%88%EF%BC%81%E3%83%86%E3%83%A9%E3%82%B7%E3%83%A7%E3%83%83%E3%82%AF%E5%AE%9A%E8%B7%A1%E3%81%AE%E7%94%9F/
 
+
+●●　重要　●●
+
+　IgnoreBookPlyオプションがtrue(デフォルトでtrue)のときは、定跡書き出し時にply(手数)のところを無視(0)にしてしまうので、
+　この動作が嫌なら、IgnoreBookPlyをfalseに設定してから以下のコマンドを実行すること。
+
+
 	
 > makebook from_sfen book.sfen standard_book.db moves 16
 	※　	やねうら王2017Earlyなど、この機能に対応している思考エンジンが必要。

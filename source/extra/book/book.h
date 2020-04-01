@@ -86,11 +86,21 @@ namespace Book
 		// 定跡を書き換えてwrite_book()で書き出すような作業を行なうときだけアクセスする。
 
 		// メモリ上に読み込まれた定跡本体
+		// book_body.find()の直接呼び出しは禁止
+		// (Options["IgnoreBookPly"]==trueのときにplyの部分を削ってメモリに読み込んでいるため、一致しないから)
+		// このクラス(MemoryBookクラス)のfind()メソッドを用いること。
 		BookType book_body;
+
+		// ↑のbook_body.find()のwrapper。book_body.find()ではなく、こちらのfindを呼び出して用いること。
+		// auto it = book.find(sfen);
+		// if (book.is_not_found(it))..のように書ける
+		BookType::iterator find(const std::string& sfen);
+		bool is_found(const BookType::iterator& it) const { return it != book_body.end(); }
+		bool is_not_found(const BookType::iterator& it) const { return it == book_body.end(); }
 
 		// book_bodyに対してBookPosを一つ追加するヘルパー関数。
 		// overwrite : このフラグがtrueならば、その局面ですでに同じbestMoveの指し手が登録されている場合は上書き動作
-		void insert(const std::string sfen, const BookPos& bp , bool overwrite = true);
+		void insert(const std::string& sfen, const BookPos& bp , bool overwrite = true);
 
 	protected:
 
