@@ -780,6 +780,10 @@ namespace Book
 			sync_cout << "info string read book file : " << filename << sync_endl;
 
 			TextFileReader reader;
+			// ReadLine()の時に行の末尾のスペース、タブを自動トリム。空行は自動スキップ。
+			reader.SetTrim(true);
+			reader.SkipEmptyLine(true);
+
 			auto result = reader.Open(filename);
 			if (result.is_not_ok())
 			{
@@ -822,9 +826,9 @@ namespace Book
 			// (これがtrueならばsfenから手数を除去しておく)
 			bool ignoreBookPly = Options["IgnoreBookPly"];
 
-			while(!reader.Eof())
+			std::string line;
+			while(reader.ReadLine(line).is_ok())
 			{
-				auto line = reader.ReadLine(/* trim = */true);
 
 				// バージョン識別文字列(とりあえず読み飛ばす)
 				if (line.length() >= 1 && line[0] == '#')

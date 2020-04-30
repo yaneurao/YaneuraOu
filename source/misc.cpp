@@ -631,19 +631,19 @@ Tools::Result FileOperator::ReadAllLines(const std::string& filename, std::vecto
 	// ifstreamを使わない形で書き直す。これで4倍ぐらい速くなる。
 
 	TextFileReader reader;
+
+	// ReadLine()時のトリムの設定を反映させる。
+	reader.SetTrim(trim);
+	// 空行をスキップするモードにする。
+	reader.SkipEmptyLine(true);
+
 	auto result = reader.Open(filename);
 	if (!result.is_ok())
 		return result;
 
-	while (!reader.Eof())
-	{
-		std::string line;
-		line = reader.ReadLine(trim);
-
-		// 空行ではないなら書き出す
-		if (line.length())
-			lines.push_back(line);
-	}
+	string line;
+	while (reader.ReadLine(line).is_ok())
+		lines.emplace_back(line);
 
 	return Tools::Result::Ok();
 }
@@ -726,6 +726,11 @@ TextFileReader::TextFileReader()
 	buffer.resize(1024 * 1024);
 	line_buffer.reserve(2048);
 	clear();
+
+	// この２つのフラグはOpen()したときに設定がクリアされるべきではないので、
+	// コンストラクタで一度だけ初期化する。
+	trim = false;
+	skipEmptyLine = false;
 }
 
 TextFileReader::~TextFileReader()
@@ -762,16 +767,12 @@ void TextFileReader::Close()
 	clear();
 }
 
-// ファイルの終了判定。
-// ファイルを最後まで読み込んだのなら、trueを返す。
-bool TextFileReader::Eof() const
-{
-	return is_eof;
-}
-
 // 1行読み込む(改行まで)
-std::string TextFileReader::ReadLine(bool trim)
+Tools::Result TextFileReader::ReadLine(std::string& line)
 {
+	while (true)
+	{
+
 	// buffer[cursor]から読み込んでいく。
 	// 改行コードに遭遇するとそこまでの文字列を返す。
 	line_buffer.clear();
@@ -787,12 +788,17 @@ std::string TextFileReader::ReadLine(bool trim)
 		よって"\r"(CR)がきたときに次の"\n"(LF)は無視するという処理になる。
 	*/
 
-	while (!Eof())
+		while (!is_eof)
 	{
 		// カーソル(解析位置)が読み込みバッファを超えていたら
 		if (cursor >= read_size)
 		{
-			read_next();
+				read_next_block();
+
+				// バッファ読み込み中に(改行コードに遭遇せずに)eofに達した
+				if (is_eof && line_buffer.size() == 0)
+					return Tools::ResultCode::Eof;
+
 			continue;
 		}
 
@@ -836,11 +842,17 @@ std::string TextFileReader::ReadLine(bool trim)
 			line_buffer.resize(line_buffer.size() - 1);
 		}
 
-	return std::string((const char*)line_buffer.data(),line_buffer.size());
+		// 空行をスキップするモートであるなら、line_bufferが結果的に空になった場合は繰り返すようにする。
+		if (skipEmptyLine && line_buffer.size() == 0)
+			continue;
+
+		line = std::string((const char*)line_buffer.data(), line_buffer.size());
+		return Tools::ResultCode::Ok;
+	}
 }
 
 // 次のblockのbufferへの読み込み。
-void TextFileReader::read_next()
+void TextFileReader::read_next_block()
 {
 	if (::feof(fp))
 		read_size = 0;
@@ -1209,7 +1221,7 @@ namespace Directory
 
 // カレントフォルダ相対で指定する。
 // フォルダを作成する。日本語は使っていないものとする。
-// どうもmsys2環境下のgccだと_wmkdir()だとフォルダの作成に失敗する。原因不明。
+// どうもMSYS2環境下のgccだと_wmkdir()だとフォルダの作成に失敗する。原因不明。
 // 仕方ないので_mkdir()を用いる。
 // ※　C++17のfilesystemがどの環境でも問題なく動くようになれば、
 //     std::filesystem::create_directories()を用いて書き直すべき。
@@ -1258,7 +1270,7 @@ namespace Directory {
 #else
 
 // Linux環境かどうかを判定するためにはmakefileを分けないといけなくなってくるな..
-// linuxでフォルダ掘る機能は、とりあえずナシでいいや..。評価関数ファイルの保存にしか使ってないし…。
+// Linuxでフォルダ掘る機能は、とりあえずナシでいいや..。評価関数ファイルの保存にしか使ってないし…。
 
 namespace Directory {
 	Tools::Result CreateFolder(const std::string& dir_name)

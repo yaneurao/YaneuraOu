@@ -310,6 +310,9 @@ namespace Tools
 		// 正常終了
 		Ok,
 
+		// ファイルの終端に達した
+		Eof,
+
 		// 原因の詳細不明。何らかのエラー。
 		SomeError,
 
@@ -404,20 +407,28 @@ struct TextFileReader
 
 	// ファイルの終了判定。
 	// ファイルを最後まで読み込んだのなら、trueを返す。
-	bool Eof() const;
 
-	// 1行読み込む(改行まで)
+	// 1行読み込む(改行まで) 引数のlineに代入される。
 	// 改行コードは返さない。
-	// 引数のtrimがtrueの時は、末尾のスペース、タブはトリムする
-	std::string ReadLine(bool trim = false);
+	// SkipEmptyLine(),SetTrim()の設定を反映する。
+	// Eofに達した場合は、返し値としてTools::ResultCode::Eofを返す。
+	Tools::Result ReadLine(std::string& line);
 
+	// ReadLine()で空行を読み飛ばすかどうかの設定。
+	// (ここで行った設定はOpen()/Close()ではクリアされない。)
+	void SkipEmptyLine(bool skip = true) { skipEmptyLine = skip;  }
+
+	// ReadLine()でtrimするかの設定。
+	// 引数のtrimがtrueの時は、ReadLine()のときに末尾のスペース、タブはトリムする
+	// (ここで行った設定はOpen()/Close()ではクリアされない。)
+	void SetTrim(bool trim = true) { this->trim = trim; }
 
 private:
 	// 各種状態変数の初期化
 	void clear();
 
 	// 次のblockのbufferへの読み込み。
-	void read_next();
+	void read_next_block();
 
 	// オープンしているファイル。
 	// オープンしていなければnullptrが入っている。
@@ -443,6 +454,12 @@ private:
 
 	// 直前が\r(CR)だったのか？のフラグ
 	bool is_prev_cr;
+
+	// ReadLine()で行の末尾をtrimするかのフラグ。
+	bool trim;
+
+	// ReadLine()で空行をskipするかのフラグ
+	bool skipEmptyLine;
 };
 
 // --------------------
