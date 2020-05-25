@@ -767,12 +767,25 @@ void TextFileReader::Close()
 	clear();
 }
 
-// 1行読み込む(改行まで)
-Tools::Result TextFileReader::ReadLine(std::string& line)
+// バッファから1文字読み込む。eofに達したら、-1を返す。
+int TextFileReader::read_char()
 {
-	while (true)
+	// ファイルからバッファの充填はこれ以上できなくて、バッファの末尾までcursorが進んでいるならeofという扱い。
+	while (!(is_eof && cursor >= read_size))
 	{
+		if (cursor < read_size)
+			return (int)buffer[cursor++];
 
+		// カーソル(解析位置)が読み込みバッファを超えていたら次のブロックを読み込む。
+		read_next_block();
+	}
+	return -1;
+}
+
+// ReadLineの下請け。何も考えずに1行読み込む。行のtrim、空行のskipなどなし。
+// line_bufferに読み込まれた行が代入される。
+Tools::Result TextFileReader::read_line_simple()
+{
 	// buffer[cursor]から読み込んでいく。
 	// 改行コードに遭遇するとそこまでの文字列を返す。
 	line_buffer.clear();
@@ -788,21 +801,19 @@ Tools::Result TextFileReader::ReadLine(std::string& line)
 		よって"\r"(CR)がきたときに次の"\n"(LF)は無視するという処理になる。
 	*/
 
-		while (!is_eof)
+	while (true)
 	{
-		// カーソル(解析位置)が読み込みバッファを超えていたら
-		if (cursor >= read_size)
+		int c = read_char();
+		if (c == -1 /* EOF */)
 		{
-				read_next_block();
-
-				// バッファ読み込み中に(改行コードに遭遇せずに)eofに達した
-				if (is_eof && line_buffer.size() == 0)
+			// line_bufferが空のままeofに遭遇したなら、eofとして扱う。
+			// さもなくば、line_bufferを一度返す。(次回呼び出し時にeofとして扱う)
+			if (line_buffer.size() == 0)
 					return Tools::ResultCode::Eof;
 
-			continue;
+			break;
 		}
 
-		char c = buffer[cursor++];
 		if (c == '\r')
 		{
 			// 直前は"\r"だった。
@@ -810,7 +821,7 @@ Tools::Result TextFileReader::ReadLine(std::string& line)
 			break;
 		}
 
-		// 直前は"\r"ではないことは確定したのでこの段階でフラグをクリアしておく。
+		// 直前は"\r"ではないことは確定したのでこの段階でis_prev_crフラグをクリアしておく。
 		// ただし、このあと"\n"の判定の時に使うので古いほうの値をコピーして保持しておく。
 		auto prev_cr = is_prev_cr;
 		is_prev_cr = false;
@@ -830,6 +841,19 @@ Tools::Result TextFileReader::ReadLine(std::string& line)
 	}
 
 	// 行バッファは完成した。
+	// line_bufferに入っているのでこのまま使って問題なし。
+
+	return Tools::ResultCode::Ok;
+}
+
+
+// 1行読み込む(改行まで)
+Tools::Result TextFileReader::ReadLine(std::string& line)
+{
+	while (true)
+	{
+		if (read_line_simple().is_eof())
+			return Tools::ResultCode::Eof;
 
 	// trimフラグが立っているなら末尾スペース、タブを除去する。
 	if (trim)

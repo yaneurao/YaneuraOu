@@ -353,6 +353,9 @@ namespace Tools
 		// 返し値が正常終了でなければtrueになる。
 		bool is_not_ok() const { return code != ResultCode::Ok; }
 
+		// 返し値がEOFかどうかを判定する。
+		bool is_eof() const { return code == ResultCode::Eof; }
+
 		// ResultCodeを文字列化して返す。
 		std::string to_string() const { return Tools::to_string(code); }
 
@@ -416,11 +419,13 @@ struct TextFileReader
 
 	// ReadLine()で空行を読み飛ばすかどうかの設定。
 	// (ここで行った設定はOpen()/Close()ではクリアされない。)
+	// デフォルトでfalse
 	void SkipEmptyLine(bool skip = true) { skipEmptyLine = skip;  }
 
 	// ReadLine()でtrimするかの設定。
 	// 引数のtrimがtrueの時は、ReadLine()のときに末尾のスペース、タブはトリムする
 	// (ここで行った設定はOpen()/Close()ではクリアされない。)
+	// デフォルトでfalse
 	void SetTrim(bool trim = true) { this->trim = trim; }
 
 private:
@@ -433,6 +438,13 @@ private:
 	// オープンしているファイル。
 	// オープンしていなければnullptrが入っている。
 	FILE* fp;
+
+	// バッファから1文字読み込む。eofに達したら、-1を返す。
+	int read_char();
+
+	// ReadLineの下請け。何も考えずに1行読み込む。行のtrim、空行のskipなどなし。
+	// line_bufferに読み込まれた行が代入される。
+	Tools::Result read_line_simple();
 
 	// ファイルの読み込みバッファ 1MB
 	std::vector<u8> buffer;
