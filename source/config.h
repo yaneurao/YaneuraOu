@@ -248,6 +248,10 @@
 // 電王盤はMultiPV非対応なので定跡を送るとき、"multipv"をつけずに1番目の候補手を送信する必要がある。
 // #define NICONICO
 
+// PVの出力時の千日手に関する出力をすべて"rep_draw"に変更するオプション。
+// GUI側が、何らかの都合で"rep_draw"のみしか処理できないときに用いる。
+// #define PV_OUTPUT_DRAW_ONLY
+
 // --------------------
 // release configurations
 // --------------------

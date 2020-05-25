@@ -83,14 +83,18 @@ std::ostream& operator<<(std::ostream& os, HandKind hk)
 // RepetitionStateを文字列化する。PVの出力のときにUSI拡張として出力するのに用いる。
 std::string to_usi_string(RepetitionState rs)
 {
+#if !defined(PV_OUTPUT_DRAW_ONLY)
 	return ((rs == REPETITION_NONE) ? "rep_none" : // これはデバッグ用であり、実際には出力はしない。
-		(rs == REPETITION_WIN) ? "rep_win" :
-		   (rs == REPETITION_LOSE) ? "rep_lose" :
-		   (rs == REPETITION_DRAW) ? "rep_draw" :
-		   (rs == REPETITION_SUPERIOR) ? "rep_sup" :
-		   (rs == REPETITION_INFERIOR) ? "rep_inf" :
+		(rs == REPETITION_WIN)      ? "rep_win" :
+		(rs == REPETITION_LOSE)     ? "rep_lose" :
+		(rs == REPETITION_DRAW)     ? "rep_draw" :
+		(rs == REPETITION_SUPERIOR) ? "rep_sup" :
+		(rs == REPETITION_INFERIOR) ? "rep_inf" :
 		"")
 		;
+#else
+	return "rep_draw";
+#endif
 }
 
 // 拡張USIプロトコルにおいてPVの出力に用いる。
