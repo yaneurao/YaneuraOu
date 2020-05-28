@@ -7,6 +7,177 @@
 		ちゃんと検証してからMakefile書き直す。
 
 
+■　2020/05/28 V4.90
+
+
+- V4.90
+	- 定跡まわり、問題なさげなのでバージョン上げておく。
+	- 次回は、メジャーバージョンアップの予定。V5.00
+
+
+■　2020/05/26
+
+
+- PV_OUTPUT_DRAW_ONLY オプション追加。(大人の都合により)
+
+- TextFileReader、eof()の判定おかしかった。最後が改行コードがないと永久ループになることがあったのを修正。
+　全面的に書き直した。(定跡の読み込み等で、ファイルの最後のほうが読み込まれていなかった可能性あり)
+
+　テストコード:
+
+	TextFileReader reader;
+	if (reader.Open("test.txt").is_ok())
+	{ 
+		reader.SkipEmptyLine(true);
+		reader.SetTrim(true);
+
+		std::string line;
+		while (reader.ReadLine(line).is_ok())
+			std::cout << line << "//" << std::endl;
+	}
+
+
+■　2020/05/19
+
+
+- USI拡張コマンド.txtのUSI_Hashの説明を修正した。
+
+
+■　2020/05/01
+
+- Book::read_book()で最終行の空行をnoneと解釈してしまう不具合を修正。
+	- cf. https://github.com/yaneurao/YaneuraOu/issues/113
+- TextFileReaderのReadLine()でtrimを引数の取るのやめる。
+	- SetTrim()で設定するようにする。
+
+
+■　2020/04/01
+
+
+- MemoryBookクラス、整理した。
+- makebookコマンドでBookIgnorePlyをデフォルトfalseに設定するようにした。
+
+// 定跡の生成テスト
+
+usi_hash 2048
+Threads 4
+MultiPv 4
+makebook think book/flood2018.sfen mybook.db startmoves 1 moves 4 depth 4
+
+
+// 定跡テスト用のUSIコマンド
+
+position startpos moves 5i5h 5a5b 5h5i 5b5a
+// ↑ply違いの初期局面
+
+---
+
+IgnoreBookPly true
+isready
+go
+
+IgnoreBookPly false
+isready
+go
+
+IgnoreBookPly true
+isready
+position startpos moves 5i5h 5a5b 5h5i 5b5a
+go
+
+IgnoreBookPly false
+isready
+position startpos moves 5i5h 5a5b 5h5i 5b5a
+go
+---
+BookOnTheFly true
+
+
+
+- IgnoreBookPly==true(default動作)のときにmakebookthinkコマンドで思考済みの局面がhitしない問題を修正。
+- IgnoreBookPly==trueのときに定跡を書き出す時は、sfenのplyのところを0にして書き出すようにした。(あまり嬉しくないけど、そうなってしまった)
+
+
+■　2020/03/13
+
+
+- Tools::Result型を追加。一般的なエラーはこれを用いて返すように変更。RustのOption型みたいな何か。
+- 置換表の初期化時に"USI_Hash clear"となっていたの"Hash clear"に修正。
+- main()でDirectory::init()は格好悪いので、Misc::init()に変更。
+
+
+■　2020/03/09
+
+
+- USI原案に従い、 "USI_OwnBook"というオプションの追加
+	- cf. SkillLevelのオプション名について
+    - https://github.com/yaneurao/YaneuraOu/issues/111
+- "USI_SkillLevel"に変更するのは、しない。
+- "Hash"オプションも、将棋所で個別にHash値が設定できるようになったので、USIプロトコルに従い
+	"USI_Hash"にリネームする。(あちこちに影響でかねないが…)
+
+	cf. 
+	やねうら王のエンジンオプションをUSIプロトコル原案に準拠させる件
+	http://yaneuraou.yaneu.com/2020/03/09/%e3%82%84%e3%81%ad%e3%81%86%e3%82%89%e7%8e%8b%e3%81%ae%e3%82%a8%e3%83%b3%e3%82%b8%e3%83%b3%e3%82%aa%e3%83%97%e3%82%b7%e3%83%a7%e3%83%b3%e3%82%92usi%e3%83%97%e3%83%ad%e3%83%88%e3%82%b3%e3%83%ab/
+
+
+
+// やっぱやめる
+- floodgate用に、"isready"に対して即座に"readyok"を返すコンパイルオプションを追加。("FLOODGATE")
+
+	// floodgateは、"isready"のあとタイムアウトチェックがあるので初期化があまりに遅いとrejectされる。
+	// cf. https://twitter.com/JKishi18gou/status/1236667302134743042
+	// 大きなメモリを確保しようとするとこれでrejectされる可能性はあるので、
+	// この場合、先行して"readyok"を返す。(そのあと初期化を行うので思考時間は損をするが1分ぐらいなら…)
+
+	floodgateの仕様、そうでもないらしい → https://twitter.com/JKishi18gou/status/1236934238198362112
+
+
+
+- Android用Makefile、Windows版に合わせて更新。
+
+
+■　2020/03/08
+
+
+- isreadyの応答まで、keep alive代わりに改行を送る処理、やっぱり元のように送るようにする。
+	- https://github.com/yaneurao/YaneuraOu/commit/081511097b6f71ea14123c3227fd98dd1f99f830 のロールバック
+	- cf. http://yaneuraou.yaneu.com/2020/03/08/isready%e5%be%8c%e3%81%aekeep-alive%e7%94%a8%e6%94%b9%e8%a1%8c%e3%82%b3%e3%83%bc%e3%83%89%e3%81%ae%e9%80%81%e4%bf%a1%e3%81%ab%e3%81%a4%e3%81%84%e3%81%a6/
+	- さらにworkerスレッドの生成完了を待機するコード追加する。
+
+
+
+■　2020/02/29
+
+
+- EvalShareは、評価関数の格納フォルダ("EvalDir"オプションで指定)のフルパス名が一致した時に共有するように仕様変更。
+	- これならハマる人もいないだろうから、KPPT/KPP_KKPTではEvalShareはデフォルトでOnに変更。
+
+- Directory::GetCurrentFolder()追加。
+
+- KPPT/KPP_KKPTのEvalShareの実装に使っている
+		std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
+	がdeprecated in C++17。
+	なので、WindowsAPIを用いてマルチバイトからワイド文字列に変換するように変更。
+
+- CreateDirectory()でcodecvt_utf8を使わないように変更。
+
+- 評価関数ファイルの読み込み時にそのフォルダ名をフルパスで出力するようにした。
+	- Linuxで動作確認した
+
+- StringExtension::mid(str,start)削除
+	- str.substr(start)と書いたほうがわかりやすい気がするので。
+
+- main.cpp、文字コードがsjisになっていたのでutf-8に変更。
+
+- my_insertion_sort → Tools::insertion_sortに変更
+	- 前回の変更忘れも修正。(Tools::をつけずにmy_insertion_sortを呼び出している箇所が残っていた)
+
+
+- mateエンジンでトーナメントビルドに失敗するのを修正。(Mizarさん)
+	cf. https://github.com/yaneurao/YaneuraOu/pull/109
+
+
 ■　2020/02/28 V4.89
 
 
