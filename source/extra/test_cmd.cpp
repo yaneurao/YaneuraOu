@@ -1219,9 +1219,24 @@ struct KPPT_reader
 
 	KPPT_reader()
 	{
+		/*
 		kk_ = (ValueKk(*)[SQ_NB][SQ_NB])new ValueKk[int(SQ_NB)*int(SQ_NB)];
 		kpp_ = (ValueKpp(*)[SQ_NB][fe_end][fe_end])new ValueKpp[int(SQ_NB)*int(fe_end)*int(fe_end)];
 		kkp_ = (ValueKkp(*)[SQ_NB][SQ_NB][fe_end])new ValueKkp[int(SQ_NB)*int(SQ_NB)*int(fe_end)];
+		*/
+		// newでstd::arrayに関して巨大メモリを確保しようとすると、Clang10.0.0でのコンパイル時に
+		// メモリを20GB以上持っていかれる(´ω｀) Clangのbugの何らかの最適化が悪さをしている可能性が…。
+
+		kk_ = (ValueKk(*)[SQ_NB][SQ_NB])(malloc(sizeof(ValueKk) * int(SQ_NB) * int(SQ_NB)));
+		kpp_ = (ValueKpp(*)[SQ_NB][fe_end][fe_end])(malloc(sizeof(ValueKpp) * int(SQ_NB) * int(fe_end) * int(fe_end)));
+		kkp_ = (ValueKkp(*)[SQ_NB][SQ_NB][fe_end])(malloc(sizeof(ValueKkp) * int(SQ_NB) * int(SQ_NB) * int(fe_end)));
+	}
+
+	~KPPT_reader()
+	{
+		free(kk_);
+		free(kpp_);
+		free(kkp_);
 	}
 
 	void read(string dir)
