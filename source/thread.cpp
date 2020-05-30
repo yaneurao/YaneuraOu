@@ -3,9 +3,6 @@
 
 ThreadPool Threads;		// Global object
 
-void* Thread::operator new(size_t s) { return aligned_malloc(s, alignof(Thread)); }
-void Thread::operator delete(void*p) noexcept { aligned_free(p); }
-
 Thread::Thread(size_t n) : idx(n) , stdThread(&Thread::idle_loop, this)
 {
 	// スレッドはsearching == trueで開始するので、このままworkerのほう待機状態にさせておく

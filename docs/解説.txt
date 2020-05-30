@@ -640,3 +640,30 @@ $ pacman -S mingw-w64-x86_64-clang mingw-w64-x86_64-toolchain mingw-w64-x86_64-o
 ※ pacmanでOpenBlasをインストールしたときに
 	Set the environment variable OPENBLAS_NUM_THREADS to the number of threads to use.
 と出ています。実行時に環境変数OPENBLAS_NUM_THREADSに使いたいスレッド数を設定すべき？
+
+
+■　Large Pageが使える環境での高速化(V4.91以降)
+
+WindowsのLarge Pageという方法で置換表用のメモリを確保すると10数%高速化するようです。
+このためには、以下の方法で、Large Pageを使う許可をしてやる必要があります。
+
+	Large Pageを使うには、SeLockMemoryPrivilegeが必要。
+
+	Group Policy Editorで変更する手順。
+
+	1. グループポリシーエディター(gpedit.msc)を起動する
+	2. ローカルコンピューターポリシー　→　コンピュータの構成　→　Windowsの設定　→　セキュリティの設定　→　ローカルポリシー
+		　→　ユーザー権利の割り当て　→　メモリ内のページのロック
+	3. ここで適切なユーザーに権限を付与する。
+	4. OSを再起動する
+
+	cf. 
+	Enable the Lock Pages in Memory Option (Windows)
+	https://msdn.microsoft.com/en-us/library/ms190730.aspx
+
+
+やねうら王で、Large Pageが確保できた時に表示されるメッセージ
+> info string Hash table allocation: Windows large pages used.
+
+やねうら王で、Large Pageが確保できない時に表示されるメッセージ
+> info string Hash table allocation: Windows large pages not used.

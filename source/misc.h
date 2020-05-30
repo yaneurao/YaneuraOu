@@ -25,15 +25,29 @@ const std::string engine_info();
 
 void prefetch(void* addr);
 
-// 連続する128バイトをprefetchするときに用いる。
-void prefetch2(void* addr);
-
 // --------------------
 //  logger
 // --------------------
 
 // cin/coutへの入出力をファイルにリダイレクトを開始/終了する。
 void start_logger(bool b);
+
+// --------------------
+//  Large Page確保
+// --------------------
+
+// WindowsのLarge Pageを確保する。
+// メモリアクセスが速くなるらしい。
+// 置換表用のメモリなどはこれで確保する。
+// 
+// 返し値 : 確保されたメモリの、alignされたポインタ
+//		    少なくとも2MBでalignmentされていることは保証される。
+// mem    : 確保されたメモリの先頭アドレス(alignされていないかもしれない)
+//  aligned_ttmem_free()に渡すのは、このmemを渡すことに注意。
+void* aligned_ttmem_alloc(size_t size , void*& mem);
+
+// aligned_ttmem_alloc()で確保したメモリを開放する。
+void aligned_ttmem_free(void* mem); // nop if mem == nullptr
 
 // --------------------
 //  統計情報

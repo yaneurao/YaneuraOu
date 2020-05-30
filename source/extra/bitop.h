@@ -281,13 +281,6 @@ extern ymm ymm_zero;  // all packed bytes are 0.
 extern ymm ymm_one;   // all packed bytes are 1.
 
 // ----------------------------
-//    custom allocator
-// ----------------------------
-
-extern void* aligned_malloc(size_t size, size_t align);
-static void aligned_free(void* ptr) { _mm_free(ptr); }
-
-// ----------------------------
 //    BSLR
 // ----------------------------
 
