@@ -25,20 +25,18 @@ constexpr std::uint32_t kHashValue =
 template <typename T>
 struct AlignedDeleter {
 
-    // このクラスのoperator()でaligned_ttmem_free()したいアドレスを渡す。
-    void set_mem(void* mem)
-    {
-        this->mem = mem;
-    }
-  void operator()(T* ptr) const {
+    void operator()(T* ptr) const {
         // Tクラスのデストラクタ
-    ptr->~T();
+        ptr->~T();
 
-        // aligned_ttmem_alloc()で確保してたポインタ
-        if (mem)
-            aligned_ttmem_free(mem);
-  }
-    void* mem = nullptr;
+        // LargeMemoryの開放
+        const_cast<AlignedDeleter*>(this)->memory.free();
+    }
+
+    LargeMemory* large_memory() { return &memory; }
+
+private:
+    LargeMemory memory;
 };
 
 template <typename T>

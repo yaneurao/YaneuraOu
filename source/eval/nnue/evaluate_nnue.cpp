@@ -43,12 +43,9 @@ namespace Eval {
                 // 評価関数パラメータを初期化する
                 template <typename T>
                 void Initialize(AlignedPtr<T>& pointer) {
-                    //pointer.reset(reinterpret_cast<T*>(aligned_malloc(sizeof(T), alignof(T))));
-
                     // →　メモリはLarge Pageから確保することで高速化する。
-                    void* mem;
-                    pointer.reset(reinterpret_cast<T*>(aligned_ttmem_alloc(sizeof(T),mem)));
-                    pointer.get_deleter().set_mem(mem); // 開放する時にこのメモリアドレスが必要なので設定しておく。
+                    auto* large_memory = pointer.get_deleter().large_memory();
+                    pointer.reset(reinterpret_cast<T*>(large_memory->alloc(sizeof(T), alignof(T))));
 
   std::memset(pointer.get(), 0, sizeof(T));
                 }

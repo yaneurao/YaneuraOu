@@ -176,22 +176,17 @@ namespace Eval
 		kpp_ = (ValueKpp(*)[SQ_NB][fe_end][fe_end]) (p + size_of_kk + size_of_kkp);
 	}
 
-	// Large Pageなどに確保されたメモリの、開放する時に用いるポインタ。
-	void* eval_mem = nullptr;
+	// 評価関数テーブルの読み込み用のメモリ
+	LargeMemory eval_memory;
 
 	void eval_malloc()
 	{
 		// benchコマンドなどでOptionsを保存して復元するのでこのときEvalDirが変更されたことになって、
 		// 評価関数の再読込の必要があるというフラグを立てるため、この関数は2度呼び出されることがある。
-		if (eval_mem != nullptr)
-		{
-			aligned_ttmem_free(eval_mem);
-			eval_mem = nullptr;
-		}
+		// その場合でもLargeMemoryクラスが前のを開放してくれるので安全。
 
 		// メモリ確保は一回にして、連続性のある確保にする。
-		// このメモリは、プロセス終了のときに自動開放されることを期待している。
-		eval_assign(aligned_ttmem_alloc(size_of_eval, eval_mem));
+		eval_assign(eval_memory.alloc(size_of_eval));
 	}
 
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)

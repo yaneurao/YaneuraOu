@@ -36,18 +36,34 @@ void start_logger(bool b);
 //  Large Page確保
 // --------------------
 
-// WindowsのLarge Pageを確保する。
-// メモリアクセスが速くなるらしい。
-// 置換表用のメモリなどはこれで確保する。
-// 
-// 返し値 : 確保されたメモリの、alignされたポインタ
-//		    少なくとも2MBでalignmentされていることは保証される。
-// mem    : 確保されたメモリの先頭アドレス(alignされていないかもしれない)
-//  aligned_ttmem_free()に渡すのは、このmemを渡すことに注意。
-void* aligned_ttmem_alloc(size_t size , void*& mem);
+/// <summary>
+/// Large Pageを確保するwrapper class
+/// WindowsのLarge Pageを確保する。
+/// メモリアクセスが速くなるらしい。
+/// 置換表用のメモリなどはこれで確保する。
+/// </summary>
+struct LargeMemory
+{
+	// メモリを確保する。Large Pageに確保できるなら、そこにする。
+	// aligned_ttmem_alloc()を内部的に呼び出すので、アドレスは少なくとも2MBでalignされていることは保証されるが、
+	// 気になる人のためにalignmentを明示的に指定できるようになっている。
+	// メモリ確保に失敗するか、引数のalignで指定したalignmentになっていなければ、
+	// エラーメッセージを出力してプログラムを終了させる。
+	void* alloc(size_t size, size_t align = 256);
 
-// aligned_ttmem_alloc()で確保したメモリを開放する。
-void aligned_ttmem_free(void* mem); // nop if mem == nullptr
+	// alloc()で確保したメモリを開放する。
+	// このクラスのデストラクタからも自動でこの関数が呼び出されるので明示的に呼び出す必要はない(かも)
+	void free();
+
+	// alloc()が呼び出されてメモリが確保されている状態か？
+	bool alloced() const { return mem != nullptr; }
+
+	~LargeMemory() { free(); }
+
+private:
+	// 確保されたメモリの先頭アドレス(free()で開放するときにこのアドレスを用いる)
+	void* mem = nullptr;
+};
 
 // --------------------
 //  統計情報

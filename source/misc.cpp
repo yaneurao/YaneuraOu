@@ -253,7 +253,7 @@ void prefetch(void* addr) {
 /// With c++17 some of this functionality can be simplified.
 #if defined(__linux__) && !defined(__ANDROID__)
 
-void* aligned_ttmem_alloc(size_t allocSize, void*& mem) {
+void* aligned_ttmem_alloc(size_t allocSize, void*& mem , size_t align /* ignore */ ) {
 
 	constexpr size_t alignment = 2 * 1024 * 1024; // assumed 2MB page sizes
 	size_t size = ((allocSize + alignment - 1) / alignment) * alignment; // multiple of alignment
@@ -317,7 +317,7 @@ static void* aligned_ttmem_alloc_large_pages(size_t allocSize) {
 	return mem;
 }
 
-void* aligned_ttmem_alloc(size_t allocSize , void*& mem) {
+void* aligned_ttmem_alloc(size_t allocSize , void*& mem , size_t align /* ignore */) {
 
 	static bool firstCall = true;
 
@@ -355,9 +355,13 @@ void* aligned_ttmem_alloc(size_t allocSize , void*& mem) {
 
 #else
 
-void* aligned_ttmem_alloc(size_t allocSize, void*& mem) {
+void* aligned_ttmem_alloc(size_t allocSize, void*& mem , size_t align) {
 
-	constexpr size_t alignment = 64; // assumed cache line size
+	//constexpr size_t alignment = 64; // assumed cache line size
+	
+	// 引数で指定された値でalignmentされていて欲しい。
+	const size_t alignment = align;
+
 	size_t size = allocSize + alignment - 1; // allocate some extra space
 	mem = malloc(size);
 	void* ret = reinterpret_cast<void*>((uintptr_t(mem) + alignment - 1) & ~uintptr_t(alignment - 1));
@@ -376,7 +380,7 @@ void aligned_ttmem_free(void* mem) {
 		DWORD err = GetLastError();
 		std::cerr << "Failed to free transposition table. Error code: 0x" <<
 			std::hex << err << std::dec << std::endl;
-		exit(EXIT_FAILURE);
+		Tools::exit();
 	}
 }
 
@@ -387,6 +391,41 @@ void aligned_ttmem_free(void* mem) {
 }
 
 #endif
+
+// メモリを確保する。Large Pageに確保できるなら、そこにする。
+// aligned_ttmem_alloc()を内部的に呼び出すので、アドレスは少なくとも2MBでalignされていることは保証されるが、
+// 気になる人のためにalignmentを明示的に指定できるようになっている。
+// メモリ確保に失敗するか、引数のalignで指定したalignmentになっていなければ、
+// エラーメッセージを出力してプログラムを終了させる。
+void* LargeMemory::alloc(size_t size, size_t align)
+{
+	free();
+	void* ptr = aligned_ttmem_alloc(size, mem , align);
+
+	auto error_exit = [&](std::string mes){
+		sync_cout << "info string Error! : " << mes << " in LargeMemory::alloc(" << size << "," << align << ")" << sync_endl;
+		Tools::exit();
+	};
+
+	// メモリが正常に確保されていることを保証する
+	if (ptr == nullptr)
+		error_exit("can't alloc enough memory.");
+		
+	// ptrがalignmentされていることを保証する
+	if ((reinterpret_cast<size_t>(ptr) % align) != 0)
+		error_exit("can't alloc algined memory.");
+
+	return ptr;
+}
+
+// alloc()で確保したメモリを開放する。
+// このクラスのデストラクタからも自動でこの関数が呼び出されるので明示的に呼び出す必要はない(かも)
+void LargeMemory::free()
+{
+	aligned_ttmem_free(mem);
+	mem = nullptr;
+}
+
 
 // --------------------
 //  全プロセッサを使う
@@ -631,22 +670,22 @@ namespace Tools
 	// 現在時刻を文字列化したもを返す。(評価関数の学習時などに用いる)
 	std::string now_string()
 	{
-	// std::ctime(), localtime()を使うと、MSVCでセキュアでないという警告が出る。
-	// C++標準的にはそんなことないはずなのだが…。
+		// std::ctime(), localtime()を使うと、MSVCでセキュアでないという警告が出る。
+		// C++標準的にはそんなことないはずなのだが…。
 
 #if defined(_MSC_VER)
-	// C4996 : 'ctime' : This function or variable may be unsafe.Consider using ctime_s instead.
+		// C4996 : 'ctime' : This function or variable may be unsafe.Consider using ctime_s instead.
 #pragma warning(disable : 4996)
 #endif
 
-	auto now = std::chrono::system_clock::now();
-	auto tp = std::chrono::system_clock::to_time_t(now);
-	auto result = string(std::ctime(&tp));
-
-	// 末尾に改行コードが含まれているならこれを除去する
-	while (*result.rbegin() == '\n' || (*result.rbegin() == '\r'))
-		result.pop_back();
-	return result;
+		auto now = std::chrono::system_clock::now();
+		auto tp = std::chrono::system_clock::to_time_t(now);
+		auto result = string(std::ctime(&tp));
+	
+		// 末尾に改行コードが含まれているならこれを除去する
+		while (*result.rbegin() == '\n' || (*result.rbegin() == '\r'))
+			result.pop_back();
+		return result;
 	}
 
 	// Linux環境ではgetline()したときにテキストファイルが'\r\n'だと

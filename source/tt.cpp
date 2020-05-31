@@ -103,8 +103,6 @@ void TranspositionTable::resize(size_t mbSize) {
 
 	clusterCount = newClusterCount;
 
-	aligned_ttmem_free(mem);
-
 	// tableはCacheLineSizeでalignされたメモリに配置したいので、CacheLineSize-1だけ余分に確保する。
 	// callocではなくmallocにしないと初回の探索でTTにアクセスするとき、特に巨大なTTだと
 	// 極めて遅くなるので、mallocで確保して自前でゼロクリアすることでこれを回避する。
@@ -112,16 +110,7 @@ void TranspositionTable::resize(size_t mbSize) {
 
 	// aligned_ttmem_alloc()～aligned_ttmem_free()は、WindowsのLarge Pageを確保する。
 	// ランダムメモリアクセスが5%程度速くなる。
-	table = static_cast<Cluster*>(aligned_ttmem_alloc(clusterCount * sizeof(Cluster) , mem));
-
-	if (!mem)
-	{
-		std::cout << "info string Error : Failed to allocate " << mbSize
-			<< "MB for transposition table. ClusterCount = " << newClusterCount << std::endl;
-		Tools::exit();
-	}
-
-	table = (Cluster*)((uintptr_t(mem) + CacheLineSize - 1) & ~(CacheLineSize - 1));
+	table = static_cast<Cluster*>(tt_memory.alloc(clusterCount * sizeof(Cluster),CacheLineSize));
 
 	// clear();
 
