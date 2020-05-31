@@ -39,6 +39,11 @@ extern "C" {
 #include <cmath>	// std::exp()
 #include <cstdio>	// fopen(),fread()
 
+#if defined(__linux__) && !defined(__ANDROID__)
+#include <stdlib.h>
+#include <sys/mman.h> // madvise()
+#endif
+
 #include "misc.h"
 #include "thread.h"
 #include "usi.h"
