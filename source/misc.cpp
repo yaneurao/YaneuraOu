@@ -34,6 +34,7 @@ extern "C" {
 //#include <iostream>
 #include <sstream>
 //#include <vector>
+
 #include <ctime>	// std::ctime()
 #include <cstring>	// std::memset()
 #include <cmath>	// std::exp()
@@ -253,6 +254,11 @@ void prefetch(void* addr) {
 //  Large Page確保
 // --------------------
 
+namespace {
+	// LargeMemoryを使っているかどうかがわかるように初回だけその旨を出力する。
+	bool largeMemoryAllocFirstCall = true;
+}
+
 /// aligned_ttmem_alloc will return suitably aligned memory, and if possible use large pages.
 /// The returned pointer is the aligned one, while the mem argument is the one that needs to be passed to free.
 /// With c++17 some of this functionality can be simplified.
@@ -265,6 +271,14 @@ void* aligned_ttmem_alloc(size_t allocSize, void*& mem , size_t align /* ignore 
 	if (posix_memalign(&mem, alignment, size))
 		mem = nullptr;
 	madvise(mem, allocSize, MADV_HUGEPAGE);
+
+	// Linux環境で、Hash TableのためにLarge Pageを確保したことを出力する。
+	if (largeMemoryAllocFirstCall)
+	{
+		sync_cout << "info string Hash table allocation: Linux Large Pages used." << sync_endl;
+		largeMemoryAllocFirstCall = false;
+	}
+
 	return mem;
 }
 
@@ -324,7 +338,7 @@ static void* aligned_ttmem_alloc_large_pages(size_t allocSize) {
 
 void* aligned_ttmem_alloc(size_t allocSize , void*& mem , size_t align /* ignore */) {
 
-	static bool firstCall = true;
+	//static bool firstCall = true;
 
 	// try to allocate large pages
 	mem = aligned_ttmem_alloc_large_pages(allocSize);
@@ -335,18 +349,20 @@ void* aligned_ttmem_alloc(size_t allocSize , void*& mem , size_t align /* ignore
 	// uciが送られてくる前に"info string"で余計な文字を出力するとGUI側が誤動作する可能性があるので
 	// 初回は出力を抑制するコードが入っているが、やねうら王ではisreadyでメモリ初期化を行うので
 	// これは気にしなくて良い。
+
 	// 逆に、評価関数用のメモリもこれで確保するので、何度もこのメッセージが表示されると
 	// 煩わしいので、このメッセージは初回のみの出力と変更する。
 
 //	if (!firstCall)
-	if (firstCall)
+	if (largeMemoryAllocFirstCall)
 	{
 		if (mem)
-			sync_cout << "info string Hash table allocation: Windows large pages used." << sync_endl;
+			sync_cout << "info string Hash table allocation: Windows Large Pages used." << sync_endl;
 		else
-			sync_cout << "info string Hash table allocation: Windows large pages not used." << sync_endl;
+			sync_cout << "info string Hash table allocation: Windows Large Pages not used." << sync_endl;
+
+		largeMemoryAllocFirstCall = false;
 	}
-	firstCall = false;
 
 	// fall back to regular, page aligned, allocation if necessary
 	// 4KB単位であることは保証されているはず..
@@ -369,6 +385,13 @@ void* aligned_ttmem_alloc(size_t allocSize, void*& mem , size_t align) {
 
 	size_t size = allocSize + alignment - 1; // allocate some extra space
 	mem = malloc(size);
+
+	if (largeMemoryAllocFirstCall)
+	{
+		sync_cout << "info string Hash table allocation: Large Pages not used." << sync_endl;
+		largeMemoryAllocFirstCall = false;
+	}
+
 	void* ret = reinterpret_cast<void*>((uintptr_t(mem) + alignment - 1) & ~uintptr_t(alignment - 1));
 	return ret;
 }
