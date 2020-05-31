@@ -188,6 +188,7 @@ SOURCES  = \
 	tt.cpp                                                                     \
 	movepick.cpp                                                               \
 	timeman.cpp                                                                \
+	benchmark.cpp                                                              \
 	extra/book/apery_book.cpp                                                  \
 	extra/book/book.cpp                                                        \
 	extra/book/makebook2019.cpp                                                \
@@ -196,9 +197,7 @@ SOURCES  = \
 	extra/mate/mate1ply_with_effect.cpp                                        \
 	extra/mate/mate1ply_without_effect.cpp                                     \
 	extra/mate/mate_n_ply.cpp                                                  \
-	extra/benchmark.cpp                                                        \
 	extra/test_cmd.cpp                                                         \
-	extra/see.cpp                                                              \
 	extra/sfen_packer.cpp                                                      \
 	extra/kif_converter/kif_convert_tools.cpp                                  \
 	eval/evaluate_bona_piece.cpp                                               \

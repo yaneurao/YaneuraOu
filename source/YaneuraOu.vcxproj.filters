@@ -293,9 +293,6 @@
     <ClCompile Include="tt.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="extra\see.cpp">
-      <Filter>リソース ファイル\extra</Filter>
-    </ClCompile>
     <ClCompile Include="extra\bitop.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
@@ -331,9 +328,6 @@
     </ClCompile>
     <ClCompile Include="extra\mate\mate1ply_without_effect.cpp">
       <Filter>リソース ファイル\extra\mate</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\benchmark.cpp">
-      <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
     <ClCompile Include="learn\learning_tools.cpp">
       <Filter>リソース ファイル\learn</Filter>
@@ -404,6 +398,7 @@
     <ClCompile Include="engine\yaneuraou-engine\yaneuraou-search.cpp">
       <Filter>リソース ファイル\engine\yaneuraou-engine</Filter>
     </ClCompile>
+    <ClCompile Include="benchmark.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">

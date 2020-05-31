@@ -114,7 +114,7 @@ namespace Eval
           {
             bool is_black = bp < start + kind_num;
             if (!is_black) bp = (BonaPiece)(bp - kind_num);
-#ifdef PRETTY_JP
+#if defined (PRETTY_JP)
             os << "手" << (is_black ? "先" : "後") << pretty(pc) << int(bp - start + 1); // ex.手先歩3
 #else
             os << "H" << (is_black ? "B" : "W") << pc << int(bp - kpp_hand_index[c][pc].fb + 1); // ex.HBP3
@@ -126,7 +126,7 @@ namespace Eval
       for (auto pc : Piece())
         if (kpp_board_index[pc].fb <= bp && bp < kpp_board_index[pc].fb + SQ_NB)
         {
-#ifdef PRETTY_JP
+#if defined (PRETTY_JP)
           os << Square(bp - kpp_board_index[pc].fb) << pretty(pc); // ex.32P
 #else
           os << Square(bp - kpp_board_index[pc].fb) << pc; // ex.32P

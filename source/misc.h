@@ -36,12 +36,14 @@ void start_logger(bool b);
 //  Large Page確保
 // --------------------
 
-/// <summary>
-/// Large Pageを確保するwrapper class
-/// WindowsのLarge Pageを確保する。
-/// メモリアクセスが速くなるらしい。
-/// 置換表用のメモリなどはこれで確保する。
-/// </summary>
+// Large Pageを確保するwrapper class。
+// WindowsのLarge Pageを確保する。
+// Large Pageを用いるとメモリアクセスが速くなるらしい。
+// 置換表用のメモリなどはこれで確保する。
+// cf. やねうら王、Large Page対応で10数%速くなった件 : http://yaneuraou.yaneu.com/2020/05/31/%e3%82%84%e3%81%ad%e3%81%86%e3%82%89%e7%8e%8b%e3%80%81large-page%e5%af%be%e5%bf%9c%e3%81%a710%e6%95%b0%e9%80%9f%e3%81%8f%e3%81%aa%e3%81%a3%e3%81%9f%e4%bb%b6/
+//
+// Stockfishでは、Large Pageの確保～開放のためにaligned_ttmem_alloc(),aligned_ttmem_free()という関数が実装されている。
+// コードの簡単化のために、やねうら王では独自に本classからそれらを用いる。
 struct LargeMemory
 {
 	// メモリを確保する。Large Pageに確保できるなら、そこにする。
@@ -102,7 +104,8 @@ static TimePoint now() {
 //    HashTable
 // --------------------
 
-// 将棋では使わないので要らないや..
+// このclass、Stockfishにあるんだけど、
+// EvalHashとしてLargePageを用いる同等のclassをすでに用意しているので、使わない。
 
 //template<class Entry, int Size>
 //struct HashTable {

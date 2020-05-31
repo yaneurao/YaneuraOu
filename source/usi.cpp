@@ -425,6 +425,7 @@ void setoption_cmd(istringstream& is)
 	else
 		// この名前のoptionは存在しなかった
 		sync_cout << "Error! : No such option: " << name << sync_endl;
+
 }
 
 // getoptionコマンド応答(USI独自拡張)

@@ -146,7 +146,7 @@ namespace Book
 		std::string pure_book_name; // book_nameからフォルダ名を取り除いたもの。
 	};
 
-#ifdef ENABLE_MAKEBOOK_CMD
+#if defined (ENABLE_MAKEBOOK_CMD)
 	// USI拡張コマンド。"makebook"。定跡ファイルを作成する。
 	// フォーマット等についてはdoc/解説.txt を見ること。
 	extern void makebook_cmd(Position& pos, std::istringstream& is);

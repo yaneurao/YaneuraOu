@@ -208,7 +208,7 @@ std::ostream& operator<<(std::ostream& os, SyncCout sc) {
 // --------------------
 
 // prefetch命令を使わない。
-#ifdef NO_PREFETCH
+#if defined (NO_PREFETCH)
 
 void prefetch(void*) {}
 
@@ -217,7 +217,7 @@ void prefetch(void*) {}
 void prefetch(void* addr) {
 
 	// SSEの命令なのでSSE2が使える状況でのみ使用する。
-#ifdef USE_SSE2
+#if defined (USE_SSE2)
 
 	// 下位5bitが0でないような中途半端なアドレスのprefetchは、
 	// そもそも構造体がalignされていない可能性があり、バグに違いない。

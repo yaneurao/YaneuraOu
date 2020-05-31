@@ -562,12 +562,12 @@ void Bitboards::init()
 
 	// 10. LONG_EFFECT_LIBRARYの初期化
 
-#ifdef LONG_EFFECT_LIBRARY
+#if defined (LONG_EFFECT_LIBRARY)
 	LongEffect::init();
 #endif
 
 	// 11. 1手詰めテーブルの初期化
-#ifdef USE_MATE_1PLY
+#if defined (USE_MATE_1PLY)
 	Mate1Ply::init();
 #endif
 }

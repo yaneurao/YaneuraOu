@@ -2,7 +2,7 @@
 #define _MATE1PLY_H_
 
 #include "../../types.h"
-#ifdef USE_MATE_1PLY
+#if defined (USE_MATE_1PLY)
 
 namespace Mate1Ply
 {

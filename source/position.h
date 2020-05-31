@@ -491,7 +491,7 @@ public:
 	// 歩の成る指し手であるか？
 	bool pawn_promotion(Move m) const
 	{
-#ifdef KEEP_PIECE_IN_GENERATE_MOVES
+#if defined (KEEP_PIECE_IN_GENERATE_MOVES)
 		// 移動させる駒が歩かどうかは、Moveの上位16bitを見れば良い
 		return (is_promote(m) && raw_type_of(moved_piece_after(m)) == PAWN);
 #else
@@ -509,7 +509,7 @@ public:
 	// 捕獲か価値のある駒の成り。(歩、角、飛車)
 	bool capture_or_valuable_promotion(Move m) const
 	{
-#ifdef KEEP_PIECE_IN_GENERATE_MOVES
+#if defined (KEEP_PIECE_IN_GENERATE_MOVES)
 		// 歩の成りを角・飛車の成りにまで拡大する。
 		auto pr = raw_type_of(moved_piece_after(m));
 		return (is_promote(m) && (pr == PAWN || pr == BISHOP || pr == ROOK)) || capture(m);

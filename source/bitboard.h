@@ -111,7 +111,7 @@ struct alignas(16) Bitboard
 
 	// 代入型演算子
 
-#ifdef USE_SSE2
+#if defined (USE_SSE2)
 	Bitboard& operator |= (const Bitboard& b1) { this->m = _mm_or_si128( m, b1.m); return *this; }
 	Bitboard& operator &= (const Bitboard& b1) { this->m = _mm_and_si128(m, b1.m); return *this; }
 	Bitboard& operator ^= (const Bitboard& b1) { this->m = _mm_xor_si128(m, b1.m); return *this; }
@@ -235,7 +235,7 @@ inline Bitboard& Bitboard::insert64(u64 u)
 
 inline bool Bitboard::operator == (const Bitboard& rhs) const
 {
-#ifdef USE_SSE41
+#if defined (USE_SSE41)
 	// 以下のようにすると2命令で済むらしい。
 	// testing equality between two __m128i variables
 	// cf.http://stackoverflow.com/questions/26880863/sse-testing-equality-between-two-m128i-variables

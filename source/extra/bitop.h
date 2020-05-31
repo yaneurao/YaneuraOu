@@ -69,7 +69,7 @@ typedef  int64_t s64;
 //      PEXT(AVX2の命令)
 // ----------------------------
 
-#ifdef USE_AVX2
+#if defined (USE_AVX2)
 
 // for AVX2 : hardwareによるpext実装
 #define PEXT32(a,b) _pext_u32((u32)(a),(u32)(b))
@@ -148,7 +148,7 @@ inline int32_t POPCNT64(uint64_t a) {
 #if defined(_MSC_VER) && !defined(__INTEL_COMPILER) // && defined(_WIN64)
 #include <intrin.h>
 
-#ifdef IS_64BIT
+#if defined (IS_64BIT)
 // 1である最下位のbitのbit位置を得る。0を渡してはならない。
 FORCE_INLINE int LSB32(uint32_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanForward(&index, v); return index; }
 FORCE_INLINE int LSB64(uint64_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanForward64(&index, v); return index; }
@@ -180,7 +180,7 @@ FORCE_INLINE int MSB64(const u64 v) { ASSERT_LV3(v != 0); return 63 ^ __builtin_
 //  ymm(256bit register class)
 // ----------------------------
 
-#ifdef USE_AVX2
+#if defined (USE_AVX2)
 
 // Byteboardの直列化で使うAVX2命令
 struct alignas(32) ymm

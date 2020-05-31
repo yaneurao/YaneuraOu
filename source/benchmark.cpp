@@ -1,10 +1,10 @@
-﻿#include "../types.h"
+﻿#include "types.h"
 
 #include <sstream>
-#include "../tt.h"
-#include "../search.h"
-#include "../thread.h"
-#include "../usi.h"
+#include "tt.h"
+#include "search.h"
+#include "thread.h"
+#include "usi.h"
 
 using namespace std;
 
@@ -43,11 +43,11 @@ void bench_cmd(Position& current, istringstream& is)
 	// →　デフォルト1024にしておかないと置換表あふれるな。
 	std::string ttSize = (is >> token) ? token : "1024";
 
-	string threads = (is >> token) ? token : "1";
-	string limit = (is >> token) ? token : "17";
+	string threads     = (is >> token) ? token : "1";
+	string limit       = (is >> token) ? token : "17";
 
-	string fenFile = (is >> token) ? token : "default";
-	string limitType = (is >> token) ? token : "depth";
+	string fenFile     = (is >> token) ? token : "default";
+	string limitType   = (is >> token) ? token : "depth";
 
 	if (ttSize == "d")
 	{
