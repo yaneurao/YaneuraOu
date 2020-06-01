@@ -289,6 +289,7 @@ namespace Tools
 	// これが独立していないと困るので、ここに用意する。
 	// nameは"Hash" , "eHash"などクリアしたいものの名前を書く。
 	// メモリクリアの途中経過が出力されるときにその名前(引数nameで渡している)が出力される。
+	// name == nullptrのとき、途中経過は表示しない。
 	extern void memclear(const char* name, void* table, size_t size);
 
 	// insertion sort

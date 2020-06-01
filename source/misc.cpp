@@ -514,10 +514,17 @@ void* LargeMemory::alloc(size_t size, size_t align , bool zero_clear)
 	if ((reinterpret_cast<size_t>(ptr) % align) != 0)
 		error_exit("can't alloc algined memory.");
 
-	// ゼロクリア
+	// ゼロクリアが必要なのか？
 	if (zero_clear)
-		// そんなに大きな領域ではないだろうから、普通にmemset()でやっとく。
+	{
+		// 確保したのが256MB以上なら並列化してゼロクリアする。
+		if (size < 256 * 1024 * 1024)
+			// そんなに大きな領域ではないから、普通にmemset()でやっとく。
 		memset(ptr, 0, size);
+		else
+			// 並列版ゼロクリア
+			Tools::memclear(nullptr, ptr, size);
+	}
 
 	return ptr;
 }
@@ -721,8 +728,8 @@ namespace Tools
 
 	// memset(table, 0, size);
 
-	std::string name(name_);
-	sync_cout << "info string " + name + " Clear begin , Hash size =  " << size / (1024 * 1024) << "[MB]" << sync_endl;
+		if (name_ != nullptr)
+			sync_cout << "info string " + std::string(name_) + " Clear begin , Hash size =  " << size / (1024 * 1024) << "[MB]" << sync_endl;
 
 	// マルチスレッドで並列化してクリアする。
 
@@ -753,8 +760,8 @@ namespace Tools
 	for (std::thread& th : threads)
 		th.join();
 
-	sync_cout << "info string " + name + " Clear done." << sync_endl;
-
+		if (name_ != nullptr)
+			sync_cout << "info string " + std::string(name_) + " Clear done." << sync_endl;
 	}
 
 	// 途中での終了処理のためのwrapper

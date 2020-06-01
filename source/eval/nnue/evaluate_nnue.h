@@ -26,13 +26,22 @@ template <typename T>
 struct AlignedDeleter {
 
     void operator()(T* ptr) const {
+
         // Tクラスのデストラクタ
         ptr->~T();
 
         // LargeMemoryの開放
-        const_cast<AlignedDeleter*>(this)->memory.free();
+        //const_cast<AlignedDeleter*>(this)->memory.free();
+
+        // →　これ、このタイミングで開放せずとも、large_memory()->alloc()で次に確保するときに前のは開放されるし、
+        // このクラスのデストラクタでも開放されるから、余計なことしないことにする。
+        //
+        // ここで上のように開放すると、shared_ptr.reset()のときに前のやつが所有権を失うのでそのタイミングでLargeMemoryが開放されてしまうので
+        //   pointer.reset(reinterpret_cast<T*>(pointer.get_deleter().large_memory()->alloc(sizeof(T), alignof(T), true)));
+        // のように書けなくなる。
     }
 
+    // SharedPtrのポインタの開放とともに開放されて欲しいLargeMemoryは、ここから割り当てると良い。
     LargeMemory* large_memory() { return &memory; }
 
 private:

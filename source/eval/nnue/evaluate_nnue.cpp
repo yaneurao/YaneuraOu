@@ -43,11 +43,12 @@ namespace Eval {
                 // 評価関数パラメータを初期化する
                 template <typename T>
                 void Initialize(AlignedPtr<T>& pointer) {
-                    // →　メモリはLarge Pageから確保することで高速化する。
-                    auto* large_memory = pointer.get_deleter().large_memory();
-                    pointer.reset(reinterpret_cast<T*>(large_memory->alloc(sizeof(T), alignof(T) , true)));
 
-                    //sync_cout << "nnue.lp_alloc(" << sizeof(T) << "," << alignof(T) << ")" << sync_endl;
+                    // →　メモリはLarge Pageから確保することで高速化する。
+                    // これは、AlignedPtrのdeleterがLargeMemoryをメンバ変数に持っているのでそこから確保する。
+                    pointer.reset(reinterpret_cast<T*>(pointer.get_deleter().large_memory()->alloc(sizeof(T), alignof(T) , true)));
+
+                    //sync_cout << "nnue.alloc(" << sizeof(T) << "," << alignof(T) << ")" << sync_endl;
                 }
 
                 // 評価関数パラメータを読み込む

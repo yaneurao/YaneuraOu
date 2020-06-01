@@ -117,7 +117,7 @@ void random_player(Position& pos,uint64_t loop_max)
 				ASSERT_LV2(pos.legal(m));
 			}
 
-#ifdef MATE1PLY_CHECK
+#if defined (MATE1PLY_CHECK)
 			{
 				// 王手のかかっていない局面においてテスト
 				if (!pos.in_check())
@@ -186,13 +186,13 @@ void random_player(Position& pos,uint64_t loop_max)
 			pos.do_move(m, state[ply]);
 			moves[ply] = m;
 
-#ifdef EFFECT_CHECK
+#if defined (EFFECT_CHECK)
 			// 利きの整合性のテスト(重いのでテストが終わったらコメントアウトする)
 			effect_check(pos);
 #endif
 		}
 
-#ifdef EVAL_VALUE_CHECK
+#if defined (EVAL_VALUE_CHECK)
 		pos.set_hirate(); // Position.set()してしまったので巻き戻せない
 #else
 		// 局面を巻き戻してみる(undo_moveの動作テストを兼ねて)

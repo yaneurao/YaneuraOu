@@ -115,7 +115,7 @@ template <typename T, typename... ArgumentTypes>
 std::shared_ptr<T> MakeAlignedSharedPtr(ArgumentTypes&&... arguments) {
     AlignedDeleter<T> deleter;
     // Trainerクラスのほうでゼロ初期化するのでここではゼロ初期化はされていないメモリで良い。
-    const auto ptr = new(deleter.large_memory()->alloc(sizeof(T), alignof(T) ,false))
+    const auto ptr = new(deleter.large_memory()->alloc(sizeof(T), alignof(T)))
       T(std::forward<ArgumentTypes>(arguments)...);
     
     //sync_cout << "trainer.alloc(" << sizeof(T) << "," << alignof(T) << ")" << sync_endl;
