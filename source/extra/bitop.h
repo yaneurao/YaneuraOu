@@ -73,7 +73,7 @@ typedef  int64_t s64;
 
 // for AVX2 : hardwareによるpext実装
 #define PEXT32(a,b) _pext_u32((u32)(a),(u32)(b))
-#ifdef IS_64BIT
+#if defined (IS_64BIT)
 #define PEXT64(a,b) _pext_u64(a,b)
 #else
 // PEXT32を2回使った64bitのPEXTのemulation
@@ -105,12 +105,12 @@ inline uint64_t PEXT64(uint64_t a, uint64_t b) { return pext(a, b); }
 //     POPCNT(SSE4.2の命令)
 // ----------------------------
 
-#ifdef USE_SSE42
+#if defined (USE_SSE42)
 
 // for SSE4.2
 #include <nmmintrin.h>
 
-#ifdef IS_64BIT
+#if defined (IS_64BIT)
 #define POPCNT32(a) _mm_popcnt_u32(a)
 #define POPCNT64(a) _mm_popcnt_u64(a)
 #else

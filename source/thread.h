@@ -10,7 +10,7 @@
 #include "movepick.h"
 #include "position.h"
 #include "search.h"
-#include "thread_win32.h"
+#include "thread_win32_osx.h"
 
 // --------------------
 // 探索時に用いるスレッド
@@ -22,10 +22,10 @@
 class Thread
 {
 	// exitフラグやsearchingフラグの状態を変更するときのmutex
-	Mutex mutex;
+	std::mutex mutex;
 
 	// idle_loop()で待機しているときに待つ対象
-	ConditionVariable cv;
+	std::condition_variable cv;
 
 	// thread id。main threadなら0。slaveなら1から順番に値が割当てられる。
 	size_t idx;
@@ -34,8 +34,8 @@ class Thread
 	// searching : 探索中であるかを表すフラグ。プログラムを簡素化するため、事前にtrueにしてある。
 	bool exit = false , searching = true;
 
-	// wrapしているstd::thread
-	std::thread stdThread;
+	// stack領域を増やしたstd::thread
+	NativeThread stdThread;
 
 public:
 

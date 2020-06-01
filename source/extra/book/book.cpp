@@ -110,7 +110,7 @@ namespace Book
 			}
 
 			{
-				std::unique_lock<Mutex> lk(io_mutex);
+				std::unique_lock<std::mutex> lk(io_mutex);
 				// 前のエントリーは上書きされる。
 				book.append(sfen,move_list);
 
@@ -554,7 +554,7 @@ namespace Book
 				multi_think.callback_seconds = 15 * 60;
 				multi_think.callback_func = [&]()
 				{
-					std::unique_lock<Mutex> lk(multi_think.io_mutex);
+					std::unique_lock<std::mutex> lk(multi_think.io_mutex);
 					// 前回書き出し時からレコードが追加された？
 					if (multi_think.appended)
 					{

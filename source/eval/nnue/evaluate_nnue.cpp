@@ -45,9 +45,9 @@ namespace Eval {
                 void Initialize(AlignedPtr<T>& pointer) {
                     // →　メモリはLarge Pageから確保することで高速化する。
                     auto* large_memory = pointer.get_deleter().large_memory();
-                    pointer.reset(reinterpret_cast<T*>(large_memory->alloc(sizeof(T), alignof(T))));
+                    pointer.reset(reinterpret_cast<T*>(large_memory->alloc(sizeof(T), alignof(T) , true)));
 
-  std::memset(pointer.get(), 0, sizeof(T));
+                    //sync_cout << "nnue.lp_alloc(" << sizeof(T) << "," << alignof(T) << ")" << sync_endl;
                 }
 
                 // 評価関数パラメータを読み込む

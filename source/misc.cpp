@@ -171,6 +171,77 @@ const string engine_info() {
 	return ss.str();
 }
 
+// 使用したコンパイラについての文字列を返す。
+const std::string compiler_info() {
+
+#define stringify2(x) #x
+#define stringify(x) stringify2(x)
+#define make_version_string(major, minor, patch) stringify(major) "." stringify(minor) "." stringify(patch)
+
+	/// Predefined macros hell:
+	///
+	/// __GNUC__           Compiler is gcc, Clang or Intel on Linux
+	/// __INTEL_COMPILER   Compiler is Intel
+	/// _MSC_VER           Compiler is MSVC or Intel on Windows
+	/// _WIN32             Building on Windows (any)
+	/// _WIN64             Building on Windows 64 bit
+
+	std::string compiler = "\nCompiled by ";
+
+#ifdef __clang__
+	compiler += "clang++ ";
+	compiler += make_version_string(__clang_major__, __clang_minor__, __clang_patchlevel__);
+#elif __INTEL_COMPILER
+	compiler += "Intel compiler ";
+	compiler += "(version ";
+	compiler += stringify(__INTEL_COMPILER) " update " stringify(__INTEL_COMPILER_UPDATE);
+	compiler += ")";
+#elif _MSC_VER
+	compiler += "MSVC ";
+	compiler += "(version ";
+	compiler += stringify(_MSC_FULL_VER) "." stringify(_MSC_BUILD);
+	compiler += ")";
+#elif __GNUC__
+	compiler += "g++ (GNUC) ";
+	compiler += make_version_string(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
+#else
+	compiler += "Unknown compiler ";
+	compiler += "(unknown version)";
+#endif
+
+#if defined(__APPLE__)
+	compiler += " on Apple";
+#elif defined(__CYGWIN__)
+	compiler += " on Cygwin";
+#elif defined(__MINGW64__)
+	compiler += " on MinGW64";
+#elif defined(__MINGW32__)
+	compiler += " on MinGW32";
+#elif defined(__ANDROID__)
+	compiler += " on Android";
+#elif defined(__linux__)
+	compiler += " on Linux";
+#elif defined(_WIN64)
+	compiler += " on Microsoft Windows 64-bit";
+#elif defined(_WIN32)
+	compiler += " on Microsoft Windows 32-bit";
+#else
+	compiler += " on unknown system";
+#endif
+
+#ifdef __VERSION__
+	// __VERSION__が定義されているときだけ、その文字列を出力する。(MSVCだと定義されていないようだ..)
+	compiler += "\n __VERSION__ macro expands to: ";
+	compiler += __VERSION__;
+#else
+	compiler += "(undefined macro)";
+#endif
+
+	compiler += "\n";
+
+	return compiler;
+}
+
 // --------------------
 //  統計情報
 // --------------------
@@ -198,7 +269,7 @@ void dbg_print() {
 
 std::ostream& operator<<(std::ostream& os, SyncCout sc) {
 
-	static Mutex m;
+	static std::mutex m;
 
 	if (sc == IO_LOCK)
 		m.lock();
@@ -425,7 +496,7 @@ void aligned_ttmem_free(void* mem) {
 // 気になる人のためにalignmentを明示的に指定できるようになっている。
 // メモリ確保に失敗するか、引数のalignで指定したalignmentになっていなければ、
 // エラーメッセージを出力してプログラムを終了させる。
-void* LargeMemory::alloc(size_t size, size_t align)
+void* LargeMemory::alloc(size_t size, size_t align , bool zero_clear)
 {
 	free();
 	void* ptr = aligned_ttmem_alloc(size, mem , align);
@@ -442,6 +513,11 @@ void* LargeMemory::alloc(size_t size, size_t align)
 	// ptrがalignmentされていることを保証する
 	if ((reinterpret_cast<size_t>(ptr) % align) != 0)
 		error_exit("can't alloc algined memory.");
+
+	// ゼロクリア
+	if (zero_clear)
+		// そんなに大きな領域ではないだろうから、普通にmemset()でやっとく。
+		memset(ptr, 0, size);
 
 	return ptr;
 }
@@ -1090,6 +1166,7 @@ void TextFileReader::read_next_block()
 	// 読み込まれたサイズが0なら、終端に達したと判定する。
 	is_eof = read_size == 0;
 }
+
 
 // --------------------
 //       Parser

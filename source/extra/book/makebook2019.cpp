@@ -49,7 +49,7 @@ namespace {
 	// 候補手の評価値、指し手、leaf nodeまでの手数
 	struct VMD
 	{
-		VMD() : value(-VALUE_INFINITE), move(MOVE_NONE), depth(DEPTH_ZERO) {}
+		VMD() : value(-VALUE_INFINITE), move(MOVE_NONE), depth(0) {}
 		VMD(Value value_, Move move_, Depth depth_) : value(value_), move(move_), depth(depth_) {}
 
 		Value value; // 評価値
@@ -166,12 +166,12 @@ namespace {
 
 		// 現局面で詰んでいる
 		if (pos.is_mated())
-			return VMD_Pair(mated_in(0), MOVE_NONE, DEPTH_ZERO);
+			return VMD_Pair(mated_in(0), MOVE_NONE, 0);
 
 			// 現局面で宣言勝ちできる。
 			// 定跡ファイルにMOVE_WINが紛れたときの解釈を規定していないのでここでは入れないことにする。
 			if (pos.DeclarationWin() != MOVE_NONE)
-			return VMD_Pair(mate_in(1), MOVE_NONE, DEPTH_ZERO);
+			return VMD_Pair(mate_in(1), MOVE_NONE, 0);
 
 		// この局面の手番
 		auto stm = pos.side_to_move();
@@ -224,15 +224,15 @@ namespace {
 
 					// 現局面の手番を見て符号を決めないといけない。
 				return VMD_Pair(
-						(Value)(stm == BLACK ? -black_contempt : +black_contempt) /*先手のcomtempt */, draw_move, DEPTH_ZERO,
-						(Value)(stm == WHITE ? -white_contempt : +white_contempt) /*後手のcomtempt */, draw_move, DEPTH_ZERO
+					(Value)(stm == BLACK ? -black_contempt : +black_contempt) /*先手のcomtempt */, draw_move, 0,
+					(Value)(stm == WHITE ? -white_contempt : +white_contempt) /*後手のcomtempt */, draw_move, 0
 					);
 				}
 
-			case REPETITION_INFERIOR: return VMD_Pair(-VALUE_SUPERIOR, MOVE_NONE, DEPTH_ZERO);
-			case REPETITION_SUPERIOR: return VMD_Pair(VALUE_SUPERIOR, MOVE_NONE, DEPTH_ZERO);
-			case REPETITION_WIN     : return VMD_Pair(mate_in(MAX_PLY), MOVE_NONE, DEPTH_ZERO);
-			case REPETITION_LOSE    : return VMD_Pair(mated_in(MAX_PLY), MOVE_NONE, DEPTH_ZERO);
+			case REPETITION_INFERIOR: return VMD_Pair(-VALUE_SUPERIOR  , MOVE_NONE, 0);
+			case REPETITION_SUPERIOR: return VMD_Pair(VALUE_SUPERIOR   , MOVE_NONE, 0);
+			case REPETITION_WIN     : return VMD_Pair(mate_in(MAX_PLY) , MOVE_NONE, 0);
+			case REPETITION_LOSE    : return VMD_Pair(mated_in(MAX_PLY), MOVE_NONE, 0);
 
 					// これ入れておかないとclangで警告が出る。
 				case REPETITION_NONE:
@@ -280,7 +280,7 @@ namespace {
 				// このnodeについて、これ以上、何も処理できないでござる。
 			{
 			// 保存する価値がないと思うでvmd_write_cacheには保存しない
-			return VMD_Pair(VALUE_NONE, MOVE_NONE, DEPTH_ZERO);
+			return VMD_Pair(VALUE_NONE, MOVE_NONE, 0);
 			}
 
 			// -- このnodeを展開する。
@@ -346,7 +346,7 @@ namespace {
 						auto it = std::find_if(it_read->begin(), it_read->end(), [m](const auto& x) { return x.bestMove == m; });
 						if (it != it_read->end())
 						{
-							it->depth = DEPTH_ZERO; // depthはここがleafなので0扱い
+						it->depth = 0; // depthはここがleafなので0扱い
 							add_list(*it, color, update_list);
 						}
 					}

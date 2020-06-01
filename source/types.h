@@ -329,40 +329,26 @@ static bool aligned(Square sq1, Square sq2, Square sq3/* is ksq */)
 // 通常探索時の最大探索深さ
 constexpr int MAX_PLY = MAX_PLY_NUM;
 
-// 探索深さを表現するためのenum
-enum Depth: int32_t
-{
-	// Depthは1手をONE_PLY倍にスケーリングする。
-#if defined(ONE_PLY_EQ_1)
-	ONE_PLY = 1,
-#else
-	ONE_PLY = 2,
-#endif
+// 探索深さを表現する型
+typedef int Depth;
 
-	// 探索深さ0
-	DEPTH_ZERO = 0 * ONE_PLY,
+enum : int {
 
 	// 静止探索で王手がかかっているときにこれより少ない残り探索深さでの探索した結果が置換表にあってもそれは信用しない
-	DEPTH_QS_CHECKS = 0 * (int)ONE_PLY,
+	DEPTH_QS_CHECKS = 0,
 
 	// 静止探索で王手がかかっていないとき。
-	DEPTH_QS_NO_CHECKS = -1 * (int)ONE_PLY,
+	DEPTH_QS_NO_CHECKS = -1,
 
 	// 静止探索でこれより深い(残り探索深さが少ない)ところではRECAPTURESしか生成しない。
-	DEPTH_QS_RECAPTURES = -5 * (int)ONE_PLY,
+	DEPTH_QS_RECAPTURES = -5,
 
 	// DEPTH_NONEは探索せずに値を求めたという意味に使う。
-	DEPTH_NONE = -6 * (int)ONE_PLY,
+	DEPTH_NONE = -6,
 
 	// TTの下駄履き用
 	DEPTH_OFFSET = DEPTH_NONE,
-
-	// 最大深さ
-	DEPTH_MAX = MAX_PLY * (int)ONE_PLY,
 };
-
-// ONE_PLYは2のべき乗でないといけない。
-static_assert(!(ONE_PLY & (ONE_PLY - 1)), "ONE_PLY is not a power of 2");
 
 // --------------------
 //     評価値の性質
@@ -401,6 +387,9 @@ enum Value: int32_t
 	VALUE_MATED_IN_MAX_PLY = -int(VALUE_MATE_IN_MAX_PLY), // MAX_PLYで詰まされるときのスコア。
 
 	// 勝ち手順が何らか証明されているときのスコア下限値
+	// Stockfishでは10000に設定されているが、あまり低い数字にすると、
+	// 評価値(evaluate()の返し値)がこれを超えてしまい、誤動作する。
+	// やねうら王では、ぎりぎりの値にしておきたい。
 	VALUE_KNOWN_WIN = int(VALUE_MATE_IN_MAX_PLY) - 1000,
 
 	// 千日手による優等局面への突入したときのスコア
@@ -585,6 +574,11 @@ constexpr Move make_move_promote(Square from, Square to) { return (Move)(to + (f
 
 // Pieceをtoに打つ指し手を生成して返す(16bitの指し手)
 constexpr Move make_move_drop(Piece pt, Square to) { return (Move)(to + (pt << 7) + MOVE_DROP); }
+
+// 移動元の升と移動先の升を逆転させた指し手を生成する。探索部で用いる。
+constexpr Move reverse_move(Move m) {
+	return make_move(to_sq(m), from_sq(m));
+}
 
 // 指し手がおかしくないかをテストする
 // ただし、盤面のことは考慮していない。MOVE_NULLとMOVE_NONEであるとfalseが返る。

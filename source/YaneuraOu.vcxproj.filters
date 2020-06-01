@@ -235,11 +235,6 @@
     <ClInclude Include="eval\nnue\trainer\features\factorizer_half_kp.h">
       <Filter>リソース ファイル\eval\nnue\trainer\features</Filter>
     </ClInclude>
-    <ClInclude Include="types.h">
-    </ClInclude>
-    <ClInclude Include="thread_win32.h">
-      <Filter>リソース ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="usi.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
@@ -263,6 +258,12 @@
     </ClInclude>
     <ClInclude Include="eval\evalhash.h">
       <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
+    <ClInclude Include="thread_win32_osx.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="types.h">
+      <Filter>リソース ファイル</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -398,7 +399,9 @@
     <ClCompile Include="engine\yaneuraou-engine\yaneuraou-search.cpp">
       <Filter>リソース ファイル\engine\yaneuraou-engine</Filter>
     </ClCompile>
-    <ClCompile Include="benchmark.cpp" />
+    <ClCompile Include="benchmark.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">

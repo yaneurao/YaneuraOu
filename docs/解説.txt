@@ -245,6 +245,8 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 		MultiPV 5
 		makebook think 2016.sfen user_book1.db moves 16 depth 32
 
+	// IgnoreBookPlyオプションは無視されます(falseとみなされます)(V4.90以降)
+
 > makebook think 2016.sfen yaneura_book.db startmoves 5 moves 16 depth 32
 
 	startmovesを指定すると、思考対象局面をそこからにします。(省略時は1が指定されているものとみなされます。)
@@ -258,12 +260,13 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 	3台あって、1台目、2台目、3台目のPCで上のように入力すると思考対象局面を分散させる。
 	もちろん3台以外の場合であってても同様にすれば並列生成できる。
 
+	// IgnoreBookPlyオプションは無視されます(falseとみなされます)(V4.90以降)
+
 > makebook think bw black_2016.sfen white_2016.sfen yaneura_book.db startmoves 5 moves 16 depth 32 cluster 3 3
 
 "from_sfen"のときと同様に、直後に"bw"を指定した場合、sfenファイルとして2つのファイルが指定できる。
 1つ目のsfenファイルは、そのsfenファイルから先手の局面だけを抽出して使う。
 1つ目のsfenファイルは、そのsfenファイルから後手の局面だけを抽出して使う。
-
 
 > makebook merge yaneura_book1.db yaneura_book2.db yaneura_book3.db
 	※　	やねうら王2016Midなど、この機能に対応している思考エンジンが必要。
@@ -276,6 +279,8 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 
 	makebook thinkコマンドで自動生成した定跡に対してマージするのに用いる。
 
+	// IgnoreBookPlyオプションは無視されます(falseとみなされます)(V4.90以降)
+
 > makebook sort book_src.db book_sorted.db
 
 	sfen文字列でソートする。
@@ -287,16 +292,23 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 	※　このコマンドでsortしなくとも、mergeコマンドなど、定跡DBファイルの書き出し時には
 		sortを強制するように変更しました。(V4.87以降)
 
+
 > makebook build_tree read_book.db write_book.db
 
 	read_book.dbには、thinkコマンドで実戦で出現した局面に評価値がついているものとして、
 	leaf nodeについている評価値を使ってmin-max探索のようなことをして、それぞれの局面での最善手を
 	write_book.dbに書き出す機能。
 
+	// IgnoreBookPlyオプションの値は反映されます。
+	// これをtrueにしている場合、手数無視で定跡にhitするものとしてtreeを生成します。(write_book.dbに書き出されます)
+	// IgnoreBookPlyはtrueにしたほうが良いと思います。
+
 > makebook build_tree read_book.db write_book.db black_contempt 50 white_contempt 150
 
 	build_treeで千日手に至るときにそのときのスコアを先手・後手個別に設定できる。
 	Optionのcontemptと同じ。black_contempt = 50を指定すると先手の千日手時のスコアを-50とみなす。
+
+	// IgnoreBookPlyオプションの値は反映されます。
 
 
 > makebook extend_tree read_book.db read_sfen.txt write_sfen.txt
@@ -309,6 +321,8 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 	※　read_sfen.txtにはこの延長を行う開始局面を複数指定できます。(わからなければ、"startpos"とだけ書いたテキストを用意すれば、
 	　平手の開始局面からになるのでそれで問題ないはずです。)　"startpos moves.."の形で複数の局面を指定します。
 	※　"sfen ..."や、"sfen ... moves ..."のような形式で指定することもできます。
+
+	// IgnoreBookPlyオプションの値は反映されます。
 
 > makebook extend_tree read_book.db read_sfen.txt write_sfen.txt black_eval_limit -200 white_eval_limit -300
 
@@ -344,6 +358,8 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 		Threads 8
 		makebook endless_extend_tree book/user_book1.db book/kadai_sfen.txt book/think_sfen.txt depth 36 startmoves 1 moves 70 loop 100 black_eval_limit -50 white_eval_limit -150 nodes 1000000000
 	みたいな感じで。
+
+	// IgnoreBookPlyオプションの値は反映されます。
 
 > makebook endless_extend_tree book/user_book1.db book/kadai_sfen.txt book/think_sfen.txt depth 8 startmoves 1 moves 32 loop 100 black_eval_limit -50 white_eval_limit -150 nodes 1000000000 extend_range -1 1
 
@@ -664,7 +680,10 @@ WindowsのLarge Pageという方法で置換表用のメモリを確保すると
 
 
 やねうら王で、Large Pageが確保できた時に表示されるメッセージ
-> info string Hash table allocation: Windows large pages used.
+> info string Hash table allocation: Windows Large Pages used.
 
 やねうら王で、Large Pageが確保できない時に表示されるメッセージ
-> info string Hash table allocation: Windows large pages not used.
+> info string Hash table allocation: Windows Large Pages not used.
+
+なお、KPPT/KPP_KKPT型の評価関数の場合は、EvalShareがオン(default)の場合、Large Pageは(使える環境であっても)使いません。
+EvalShareをオフにする必要があります。NNUE型は、EvalShareの機能がないため、Large Pageを使います。(使えるなら)

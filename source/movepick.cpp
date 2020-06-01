@@ -119,7 +119,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 	refutations{ { killers[0], 0 },{ killers[1], 0 },{ cm, 0 } }, depth(d)
 {
 	// 通常探索から呼び出されているので残り深さはゼロより大きい。
-	ASSERT_LV3(d > DEPTH_ZERO);
+	ASSERT_LV3(d > 0);
 
 	// 次の指し手生成の段階
 	// 王手がかかっているなら回避手、かかっていないなら通常探索用の指し手生成
@@ -139,7 +139,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 	: pos(p), mainHistory(mh), captureHistory(cph) , recaptureSquare(rs), depth(d) {
 
 	// 静止探索から呼び出されているので残り深さはゼロ以下。
-	ASSERT_LV3(d <= DEPTH_ZERO);
+	ASSERT_LV3(d <= 0);
 
 	// 王手がかかっているなら王手回避のフェーズへ。さもなくばQSEARCHのフェーズへ。
 	stage = pos.in_check() ? EVASION_TT : QSEARCH_TT;
@@ -358,7 +358,7 @@ top:
 
 			// 指し手を部分的にソートする。depthに線形に依存する閾値で。
 			// TODO : このへん係数調整したほうが良いのでは…。
-			partial_insertion_sort(cur, endMoves, -4000 * depth / ONE_PLY);
+			partial_insertion_sort(cur, endMoves, -4000 * depth);
 		}
 
 		++stage;

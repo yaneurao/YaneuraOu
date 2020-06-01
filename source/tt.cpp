@@ -13,9 +13,6 @@ TranspositionTable TT; // 置換表をglobalに確保。
 // スレッドごとに異なるgenerationの値を指定したくてこのような作りになっている。
 void TTEntry::save(Key k, Value v, bool pv , Bound b, Depth d, Move m , Value ev)
 {
-	// assert(d / ONE_PLY * ONE_PLY == d);
-	// →　ONE_PLY == 1である現状、このassert要らんやろ。
-
 	// ASSERT_LV3((-VALUE_INFINITE < v && v < VALUE_INFINITE) || v == VALUE_NONE);
 
 	// 置換表にVALUE_INFINITE以上の値を書き込んでしまうのは本来はおかしいが、
@@ -55,17 +52,18 @@ void TTEntry::save(Key k, Value v, bool pv , Bound b, Depth d, Move m , Value ev
 	// 3. BOUND_EXACT(これはPVnodeで探索した結果で、とても価値のある情報なので無条件で書き込む)
 	// 1. or 2. or 3.
 	if (  (k >> 48) != key16
-		|| (d - DEPTH_OFFSET) / ONE_PLY > depth8 - 4
+		|| d - DEPTH_OFFSET > depth8 - 4
 		/*|| g != generation() // probe()において非0のkeyとマッチした場合、その瞬間に世代はrefreshされている。　*/
 		|| b == BOUND_EXACT
 		)
 	{
+		ASSERT_LV3(d >= DEPTH_NONE);
+
 		key16 = (uint16_t)(k >> 48);
 		value16 = (int16_t)v;
 		eval16    = (int16_t)ev;
 		genBound8 = (uint8_t)(TT.generation8 | uint8_t(pv) << 2 | b);
-		ASSERT_LV3((d - DEPTH_NONE) / ONE_PLY >= 0);
-		depth8 = (uint8_t)((d - DEPTH_OFFSET) / ONE_PLY); // DEPTH_OFFSETだけ下駄履きさせてある。
+		depth8 = (uint8_t)(d - DEPTH_OFFSET); // DEPTH_OFFSETだけ下駄履きさせてある。
 	}
 }
 
@@ -108,9 +106,8 @@ void TranspositionTable::resize(size_t mbSize) {
 	// 極めて遅くなるので、mallocで確保して自前でゼロクリアすることでこれを回避する。
 	// cf. Explicitly zero TT upon resize. : https://github.com/official-stockfish/Stockfish/commit/2ba47416cbdd5db2c7c79257072cd8675b61721f
 
-	// aligned_ttmem_alloc()～aligned_ttmem_free()は、WindowsのLarge Pageを確保する。
-	// ランダムメモリアクセスが5%程度速くなる。
-	table = static_cast<Cluster*>(tt_memory.alloc(clusterCount * sizeof(Cluster),CacheLineSize));
+	// Large Pageを確保する。ランダムメモリアクセスが5%程度速くなる。
+	table = static_cast<Cluster*>(tt_memory.alloc(clusterCount * sizeof(Cluster),32));
 
 	// clear();
 
@@ -199,10 +196,35 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found) const
 	return found = false, replace;
 }
 
+// read onlyであることが保証されているprobe()
+TTEntry* TranspositionTable::read_probe(const Key key, bool& found) const
+{
+	ASSERT_LV3(clusterCount != 0);
+
+#if defined(USE_GLOBAL_OPTIONS)
+	if (!GlobalOptions.use_hash_probe)
+		return found = false, first_entry(0);
+#endif
+
+	TTEntry* const tte = first_entry(key);
+	const uint16_t key16 = key >> 48;
+
+	for (int i = 0; i < ClusterSize; ++i)
+	{
+		if (!tte[i].key16 || tte[i].key16 == key16)
+			return found = (bool)tte[i].key16, &tte[i];
+	}
+	return found = false, nullptr;
+}
+
 int TranspositionTable::hashfull() const
 {
 	// すべてのエントリーにアクセスすると時間が非常にかかるため、先頭から1000エントリーだけ
 	// サンプリングして使用されているエントリー数を返す。
+
+	// Stockfish11では、1000 Cluster(3000 TTEntry)についてサンプリングするように変更されたが、
+	// 計測時間がもったいないので、古いコードのままにしておく。
+	
 	int cnt = 0;
 	for (int i = 0; i < 1000 / ClusterSize; ++i)
 		for (int j = 0; j < ClusterSize; ++j)

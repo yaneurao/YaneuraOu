@@ -18,11 +18,11 @@ namespace NNUE {
 // 学習：アフィン変換層
 template <typename PreviousLayer>
 class Trainer<Layers::ClippedReLU<PreviousLayer>> {
- private:
+private:
   // 学習対象の層の型
   using LayerType = Layers::ClippedReLU<PreviousLayer>;
 
- public:
+public:
   // ファクトリ関数
   static std::shared_ptr<Trainer> Create(
       LayerType* target_layer, FeatureTransformer* feature_transformer) {
@@ -78,7 +78,7 @@ class Trainer<Layers::ClippedReLU<PreviousLayer>> {
     previous_layer_trainer_->Backpropagate(gradients_.data(), learning_rate);
   }
 
- private:
+private:
   // コンストラクタ
   Trainer(LayerType* target_layer, FeatureTransformer* feature_transformer) :
       batch_size_(0),

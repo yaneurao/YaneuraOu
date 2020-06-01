@@ -5,9 +5,9 @@
 #include <vector>
 #include <functional>
 #include <fstream>
+#include <mutex>
 
 #include "types.h"
-#include "thread_win32.h" // AsyncPRNGで使う
 
 // --------------------
 //  engine info
@@ -15,6 +15,9 @@
 
 // "USI"コマンドに応答するために表示する。
 const std::string engine_info();
+
+// 使用したコンパイラについての文字列を返す。
+const std::string compiler_info();
 
 // --------------------
 //    prefetch命令
@@ -46,12 +49,15 @@ void start_logger(bool b);
 // コードの簡単化のために、やねうら王では独自に本classからそれらを用いる。
 struct LargeMemory
 {
-	// メモリを確保する。Large Pageに確保できるなら、そこにする。
+	// LargePage上のメモリを確保する。Large Pageに確保できるなら、そこにする。
 	// aligned_ttmem_alloc()を内部的に呼び出すので、アドレスは少なくとも2MBでalignされていることは保証されるが、
 	// 気になる人のためにalignmentを明示的に指定できるようになっている。
 	// メモリ確保に失敗するか、引数のalignで指定したalignmentになっていなければ、
 	// エラーメッセージを出力してプログラムを終了させる。
-	void* alloc(size_t size, size_t align = 256);
+	// size       : 確保するサイズ [byte]
+	// align      : 返されるメモリが守るべきalignment
+	// zero_clear : trueならゼロクリアされたメモリ領域を返す。
+	void* alloc(size_t size, size_t align = 256 , bool zero_clear = false);
 
 	// alloc()で確保したメモリを開放する。
 	// このクラスのデストラクタからも自動でこの関数が呼び出されるので明示的に呼び出す必要はない(かも)
@@ -63,7 +69,8 @@ struct LargeMemory
 	~LargeMemory() { free(); }
 
 private:
-	// 確保されたメモリの先頭アドレス(free()で開放するときにこのアドレスを用いる)
+	// allocで確保されたメモリの先頭アドレス
+	// (free()で開放するときにこのアドレスを用いる)
 	void* mem = nullptr;
 };
 
@@ -507,6 +514,7 @@ private:
 	bool skipEmptyLine;
 };
 
+
 // --------------------
 //    PRNGのasync版
 // --------------------
@@ -516,13 +524,13 @@ struct AsyncPRNG
 {
 	// [ASYNC] 乱数を一つ取り出す。
 	template<typename T> T rand() {
-		std::unique_lock<Mutex> lk(mutex);
+		std::unique_lock<std::mutex> lk(mutex);
 		return prng.rand<T>();
 	}
 
 	// [ASYNC] 0からn-1までの乱数を返す。(一様分布ではないが現実的にはこれで十分)
 	u64 rand(u64 n) {
-		std::unique_lock<Mutex> lk(mutex);
+		std::unique_lock<std::mutex> lk(mutex);
 		return prng.rand(n);
 	}
 
@@ -530,7 +538,7 @@ struct AsyncPRNG
 	u64 get_seed() const { return prng.get_seed(); }
 
 protected:
-	Mutex mutex;
+	std::mutex mutex;
 	PRNG prng;
 };
 

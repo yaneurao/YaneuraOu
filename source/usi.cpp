@@ -86,10 +86,10 @@ namespace USI
 			// この指し手のpvの更新が終わっているのか
 			bool updated = (i <= pvIdx && rootMoves[i].score != -VALUE_INFINITE);
 
-			if (depth == ONE_PLY && !updated)
+			if (depth == 1 && !updated)
 				continue;
 
-			Depth d = updated ? depth : depth - ONE_PLY;
+			Depth d = updated ? depth : depth - 1;
 			Value v = updated ? rootMoves[i].score : rootMoves[i].previousScore;
 
 			// multi pv時、例えば3個目の候補手までしか評価が終わっていなくて(PVIdx==2)、このとき、
@@ -106,7 +106,7 @@ namespace USI
 				ss << endl;
 
 			ss  << "info"
-				<< " depth "    << d / ONE_PLY
+				<< " depth "    << d
 				<< " seldepth " << rootMoves[i].selDepth
 				<< " score "    << USI::value(v);
 
@@ -168,8 +168,10 @@ namespace USI
 					else
 					{
 						// 次の手を置換表から拾う。
+						// ただし置換表を破壊されるとbenchコマンドの時にシングルスレッドなのに探索内容の同一性が保証されなくて
+						// 困るのでread_probe()を用いる。
 						bool found;
-						auto* tte = TT.probe(pos.state()->key(), found);
+						auto* tte = TT.read_probe(pos.state()->key(), found);
 
 						// 置換表になかった
 						if (!found)
@@ -209,7 +211,6 @@ namespace USI
 					pos_->undo_move(moves[--ply]);
 			};
 
-#if !defined (USE_TT_PV)
 			// 検討用のPVを出力するモードなら、置換表からPVをかき集める。
 			// (そうしないとMultiPV時にPVが欠損することがあるようだ)
 			// fail-highのときにもPVを更新しているのが問題ではなさそう。
@@ -218,17 +219,6 @@ namespace USI
 				out_tt_pv();
 			else
 				out_array_pv();
-
-#else
-			// 置換表からPVを出力するモード。
-			// ただし、probe()するとTTEntryのgenerationが変わるので探索に影響する。
-			// benchコマンド時、これはまずいのでbenchコマンド時にはこのモードをオフにする。
-			if (Search::Limits.bench)
-				out_array_pv();
-			else
-				out_tt_pv();
-
-#endif
 		}
 
 		return ss.str();
@@ -250,6 +240,7 @@ void is_ready(bool skipCorruptCheck)
 	// --- Keep Alive的な処理 ---
 
 	// "isready"を受け取ったあと、"readyok"を返すまで5秒ごとに改行を送るように修正する。(keep alive的な処理)
+	// →　これ、よくない仕様であった。
 	// cf. USIプロトコルでisready後の初期化に時間がかかる時にどうすれば良いのか？
 	//     http://yaneuraou.yaneu.com/2020/01/05/usi%e3%83%97%e3%83%ad%e3%83%88%e3%82%b3%e3%83%ab%e3%81%a7isready%e5%be%8c%e3%81%ae%e5%88%9d%e6%9c%9f%e5%8c%96%e3%81%ab%e6%99%82%e9%96%93%e3%81%8c%e3%81%8b%e3%81%8b%e3%82%8b%e6%99%82%e3%81%ab%e3%81%a9/
 	// cf. isready後のkeep alive用改行コードの送信について
@@ -668,7 +659,7 @@ void USI::loop(int argc, char* argv[])
 
 		istringstream is(cmd);
 
-		token = "";
+		token.clear(); // getlineが空を返したときのためのクリア
 		is >> skipws >> token;
 
 		if (token == "quit" || token == "stop" || token == "gameover")
@@ -696,12 +687,6 @@ void USI::loop(int argc, char* argv[])
 			Threads.main()->ponder = false; // 通常探索に切り替える。
 		}
 
-		// 与えられた局面について思考するコマンド
-		else if (token == "go") go_cmd(pos, is , states);
-
-		// (思考などに使うための)開始局面(root)を設定する
-		else if (token == "position") position_cmd(pos, is , states);
-
 		// 起動時いきなりこれが飛んでくるので速攻応答しないとタイムアウトになる。
 		else if (token == "usi")
 			sync_cout << engine_info() << Options << "usiok" << sync_endl;
@@ -709,32 +694,54 @@ void USI::loop(int argc, char* argv[])
 		// オプションを設定する
 		else if (token == "setoption") setoption_cmd(is);
 
-		// オプションを取得する(USI独自拡張)
-		else if (token == "getoption") getoption_cmd(is);
+		// 与えられた局面について思考するコマンド
+		else if (token == "go") go_cmd(pos, is , states);
+
+		// (思考などに使うための)開始局面(root)を設定する
+		else if (token == "position") position_cmd(pos, is , states);
+
+		// "usinewgame"はゲーム中にsetoptionなどを送らないことを宣言するためのものだが、
+		// 我々はこれに関知しないので単に無視すれば良い。
+		// やねうら王では、時間のかかる初期化はisreadyの応答でやっている。
+		// Stockfishでは、Search::clear()をここで呼び出しているようだが。
+		else if (token == "usinewgame") continue;
 
 		// 思考エンジンの準備が出来たかの確認
 		else if (token == "isready") is_ready_cmd(pos,states);
+
+		// 以下、デバッグのためのカスタムコマンド(非USIコマンド)
+		// 探索中には使わないようにすべし。
 
 #if defined(USER_ENGINE)
 		// ユーザーによる実験用コマンド。user.cppのuser()が呼び出される。
 		else if (token == "user") user_test(pos, is);
 #endif
 
+		// ベンチコマンド(これは常に使える)
+		else if (token == "bench") bench_cmd(pos, is);
+
 		// 現在の局面を表示する。(デバッグ用)
 		else if (token == "d") cout << pos << endl;
-
-		// 指し手生成祭りの局面をセットする。
-		else if (token == "matsuri") pos.set("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1",&states->back(),Threads.main());
-
-		// "position sfen"の略。
-		else if (token == "sfen") position_cmd(pos, is , states);
-
-		// ログファイルの書き出しのon
-		else if (token == "log") start_logger(true);
 
 		// 現在の局面について評価関数を呼び出して、その値を返す。
 		else if (token == "eval") cout << "eval = " << Eval::compute_eval(pos) << endl;
 		else if (token == "evalstat") Eval::print_eval_stat(pos);
+
+		else if (token == "compiler") sync_cout << compiler_info() << sync_endl;
+
+		// -- 以下、やねうら王独自拡張のカスタムコマンド
+
+		// オプションを取得する(USI独自拡張)
+		else if (token == "getoption") getoption_cmd(is);
+
+		// 指し手生成祭りの局面をセットする。
+		else if (token == "matsuri") pos.set("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1", &states->back(), Threads.main());
+
+		// "position sfen"の略。
+		else if (token == "sfen") position_cmd(pos, is, states);
+
+		// ログファイルの書き出しのon
+		else if (token == "log") start_logger(true);
 
 #if defined(EVAL_LEARN)
 		// テスト用にqsearch(),search()を直接呼ぶコマンド
@@ -762,9 +769,6 @@ void USI::loop(int argc, char* argv[])
 		// この局面での1手詰め判定
 		else if (token == "mate1") cout << pos.mate1ply() << endl;
 #endif
-
-		// ベンチコマンド(これは常に使える)
-		else if (token == "bench") bench_cmd(pos, is);
 		
 #if defined (ENABLE_TEST_CMD)
 		// 指し手生成のテスト
@@ -793,9 +797,6 @@ void USI::loop(int argc, char* argv[])
 #endif
 
 #endif
-		// "usinewgame"はゲーム中にsetoptionなどを送らないことを宣言するためのものだが、
-		// 我々はこれに関知しないので単に無視すれば良い。
-		else if (token == "usinewgame") continue;
 
 		else
 		{

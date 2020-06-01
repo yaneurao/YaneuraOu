@@ -185,6 +185,7 @@
 // かと言って、そのときにPVの出力をしないと、最後に出力されたPVとbest moveとは異なる可能性があるので、
 // それはよろしくない。検討モード用の思考オプションを用意すべき。
 // #define USE_TT_PV
+// →　ConsiderationMode というエンジンオプションを用意したので、この機能は無効化する。
 
 // 定跡を作るコマンド("makebook")を有効にする。
 // #define ENABLE_MAKEBOOK_CMD
@@ -197,9 +198,6 @@
 
 // 置換表のなかでevalを持たない
 // #define NO_EVAL_IN_TT
-
-// ONE_PLY == 1にするためのモード。これを指定していなければONE_PLY == 2
-// #define ONE_PLY_EQ_1
 
 // オーダリングに使っているStatsの配列のなかで駒打ちのためのbitを持つ。
 // #define USE_DROPBIT_IN_STATS
@@ -271,7 +269,6 @@
 #define USE_ENTERING_KING_WIN
 #define USE_TIME_MANAGEMENT
 #define KEEP_PIECE_IN_GENERATE_MOVES
-#define ONE_PLY_EQ_1
 
 // 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
 #define USE_SHARED_MEMORY_IN_EVAL

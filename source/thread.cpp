@@ -40,7 +40,7 @@ void Thread::clear()
 // 待機していたスレッドを起こして探索を開始させる
 void Thread::start_searching()
 {
-	std::lock_guard<Mutex> lk(mutex);
+	std::lock_guard<std::mutex> lk(mutex);
 	searching = true;
 	cv.notify_one(); // idle_loop()で回っているスレッドを起こす。(次の処理をさせる)
 }
@@ -48,7 +48,7 @@ void Thread::start_searching()
 // 探索が終わるのを待機する。(searchingフラグがfalseになるのを待つ)
 void Thread::wait_for_search_finished()
 {
-	std::unique_lock<Mutex> lk(mutex);
+	std::unique_lock<std::mutex> lk(mutex);
 	cv.wait(lk, [&] { return !searching; });
 }
 
@@ -69,7 +69,7 @@ void Thread::idle_loop() {
 
 	while (true)
 	{
-		std::unique_lock<Mutex> lk(mutex);
+		std::unique_lock<std::mutex> lk(mutex);
 		searching = false;
 		cv.notify_one(); // 他のスレッドがこのスレッドを待機待ちしてるならそれを起こす
 		cv.wait(lk, [&] { return searching; });
@@ -106,6 +106,12 @@ void ThreadPool::set(size_t requested)
 
 		// →　新しいthreadpoolのサイズで置換表用のメモリを確保しなおしたほうが
 		//  良いらしいのだが、大きなメモリの置換表だと確保に時間がかかるのでやりたくない。
+
+		// スレッド数に依存する探索パラメーターの初期化
+		// →　やねうら王ではそんなのないのでコメントアウト
+
+		// Init thread number dependent search params.
+		//Search::init();
 	}
 }
 
@@ -180,8 +186,8 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 	auto sfen = pos.sfen();
 	for (Thread* th : *this)
 	{
-		/* th->shuffleExts = */ th->nodes = /* th->tbHits = */ th->nmpMinPly = 0;
-		th->rootDepth = th->completedDepth = DEPTH_ZERO;
+		th->nodes = /* th->tbHits = */ th->nmpMinPly = 0;
+		th->rootDepth = th->completedDepth = 0;
 		th->rootMoves = rootMoves;
 
 		// setupStatesを渡して、これをコピーしておかないと局面を遡れない。

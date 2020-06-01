@@ -19,7 +19,10 @@ struct HashTable
 		{
 			release();
 			size = newClusterCount;
-			entries_ = (T*)largeMemory.alloc(size * sizeof(T),alignof(T));
+
+			// ゼロクリアしておかないと、benchの結果が不安定になる。
+			// 気持ち悪いのでゼロクリアしておく。
+			entries_ = (T*)largeMemory.alloc(size * sizeof(T),alignof(T),true);
 		}
 	}
 

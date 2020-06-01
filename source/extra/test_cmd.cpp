@@ -200,7 +200,7 @@ void random_player(Position& pos,uint64_t loop_max)
 		{
 			pos.undo_move(moves[--ply]);
 
-#ifdef EFFECT_CHECK
+#if defined (EFFECT_CHECK)
 			// 利きの整合性のテスト(重いのでテストが終わったらコメントアウトする)
 			effect_check(pos);
 #endif
@@ -593,7 +593,7 @@ void auto_play(Position& pos, istringstream& is)
 
 void test_timeman()
 {
-#ifdef USE_TIME_MANAGEMENT
+#if defined (USE_TIME_MANAGEMENT)
 
 	// Time Managerの動作テストをする。(思考時間の消費量を調整するときに使う)
 
@@ -1689,7 +1689,7 @@ void eval_convert(istringstream& is)
 
 #endif
 
-#ifdef EVAL_LEARN
+#if defined (EVAL_LEARN)
 
 void dump_sfen(Position& pos, istringstream& is)
 {
