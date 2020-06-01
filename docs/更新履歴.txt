@@ -7,6 +7,131 @@
 		ちゃんと検証してからMakefile書き直す。
 
 
+■　2020/06/01 V4.91
+
+
+- V4.91
+	- LargePage周り、一通り動作確認できたのでバージョンを上げておく。
+	- 将棋神やねうら王のupdate3に収録するのは、このバージョンにする。
+	- 将棋神やねうら王の実行ファイルのupdateはこれが最終になる予定。
+
+
+- NNUE評価関数、Eval::load_eval()を連続して行うとクラッシュするのを修正。
+	- 通常、Eval::load_eval()を2回呼び出さないが、学習部の実装によってはこれをやりうる。
+
+- LargeMemory.alloc()によって256MB以上のメモリ空間を確保する場合、スレッド並列でクリアするように変更。
+	- EvalHashが大きいときに少しだけ有利かも。
+
+
+- Stockfishの現時点での最新コードのうち、探索に影響しない部分だけ取り入れる。
+	- ONE_PLY マクロの削除
+	- DEPTH_MAX削除。今後は、MAX_PLYを使うようにする。
+	- DEPTH_ZERO削除。0を使う。
+	- depthをtypedef intに変更。
+	- reverse_move()追加。
+	- TTのデストラクタでfree()を呼ぶコードになっていたの修正。
+	- compiler_info()追加。
+	- USIコマンドに"compiler"追加。
+	- thread_win32.h → thread_win32_osx.hにrename
+		- WIN32用のMutexクラス削除
+		- OSX用のThreadクラス追加。
+
+- benchコマンドに影響するのでConsiderationModeのとき、PV出力のときに置換表のconst性を保つように修正。
+	- (置換表はPV出力によって一切書き換えない)
+	- TT.read_probe()追加。
+	- USE_TT_PVコンパイルオプション削除
+
+
+// refactoring後に探索ノード数が一致するかのテスト
+Total time (ms) : 7527
+Nodes searched  : 3389007
+Nodes/second    : 450246
+
+
+■　2020/05/31
+
+
+- LargePageを使っているかどうかをLinux/Android環境でも初回だけ出力するようにする。
+
+
+- misc.cpp、Large Pageのコード、Linuxでビルドが通らなくなっていたのを修正。
+- KPPT/KKP_KKPTでEvalShare有効(default)のときは、評価関数テーブルはLargePage使えないが…。まあいいか…。
+
+
+- ファイル構成、少しStockfishに近づける。
+	- extra/benchmark.cpp → bench_mark.cpp に移動
+	- sse.cpp → position.cppのなかに移動させて削除
+- ifdefと書いてあるところ、if defined()で統一する。
+	- Stockfishのコードでそう書かれているところはそのままにしておく
+- コメント、色々整理した。
+
+
+- Large Pageを使うメモリアロケーター用にLargeMemory class作った。
+	- このclassを使って、ソースコード整理した。ずいぶん綺麗になった。
+
+
+■　2020/05/30
+
+
+- 置換表にLarge Pageを使うように変更。
+
+	Large Pageを使うには、SeLockMemoryPrivilegeが必要。
+
+	Group Policy Editorで変更する手順。
+
+	1. グループポリシーエディター(gpedit.msc)を起動する
+	2. ローカルコンピューターポリシー　→　コンピュータの構成　→　Windowsの設定　→　セキュリティの設定　→　ローカルポリシー
+		　→　ユーザー権利の割り当て　→　メモリ内のページのロック
+	3. ここで適切なユーザーに権限を付与する。
+	4. OSを再起動する
+
+	cf.
+	Enable the Lock Pages in Memory Option (Windows)
+	https://msdn.microsoft.com/en-us/library/ms190730.aspx
+
+===========================
+Total time (ms) : 9944
+Nodes searched  : 7129455
+Nodes/second    : 716960
+info string Hash table allocation: Windows large pages used.
+
+===========================
+Total time (ms) : 10523
+Nodes searched  : 7129455
+Nodes/second    : 677511
+info string Hash table allocation: Windows large pages not used.
+
+Surface Pro6で計測したところ、これにより5.8%程度、高速化しているようだ。
+NNUE/KPPT/KKP_KKPT用のメモリもここから確保するように変更。1,2%程度高速化するようだ。
+
+ついでにEvalHashもここから確保するように変更。
+EvalHashが大きいときに(1024MBとか)、5%前後高速化するようだ。
+
+この3つ合わせると、トータルで10数%高速化するようだ。
+
+確保～開放を繰り返すと、断片化するのか、Large Pageのメモリ確保に失敗するようになることがある。(´ω｀)
+うーん、、なんぞこれ…。プロセス終了の時にここで確保したメモリ、開放していないのがいけないのかも…。
+USIのquitコマンドで抜けても、そのときに開放してないという問題はあるのか..
+
+- misc.h / prefetch2()、使ってないので削除。
+
+- aligned_alloc()/aligned_free()　削除。
+	C++17では、newでもalignasの指定が生きることになったので
+
+	cf.
+		C++17： アライメント付き動的メモリ確保
+		https://qiita.com/niina/items/7a6c18c018c4100adb28
+
+
+■　2020/05/29
+
+
+- KPPT/KKP_KPPT用の実行ファイルをビルドする時、Clangだと20GB以上消費する問題を修正。
+
+	newでstd::arrayに関して巨大メモリを確保しようとすると、Clang10.0.0でのコンパイル時に
+	メモリを20GB以上持っていかれる(´ω｀) Clangのbugの何らかの最適化が悪さをしている可能性が…。
+
+
 ■　2020/05/28 V4.90
 
 
@@ -27,7 +152,7 @@
 
 	TextFileReader reader;
 	if (reader.Open("test.txt").is_ok())
-	{ 
+	{
 		reader.SkipEmptyLine(true);
 		reader.SetTrim(true);
 
@@ -116,7 +241,7 @@ BookOnTheFly true
 - "Hash"オプションも、将棋所で個別にHash値が設定できるようになったので、USIプロトコルに従い
 	"USI_Hash"にリネームする。(あちこちに影響でかねないが…)
 
-	cf. 
+	cf.
 	やねうら王のエンジンオプションをUSIプロトコル原案に準拠させる件
 	http://yaneuraou.yaneu.com/2020/03/09/%e3%82%84%e3%81%ad%e3%81%86%e3%82%89%e7%8e%8b%e3%81%ae%e3%82%a8%e3%83%b3%e3%82%b8%e3%83%b3%e3%82%aa%e3%83%97%e3%82%b7%e3%83%a7%e3%83%b3%e3%82%92usi%e3%83%97%e3%83%ad%e3%83%88%e3%82%b3%e3%83%ab/
 
