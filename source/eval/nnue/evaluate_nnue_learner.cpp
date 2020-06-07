@@ -217,9 +217,14 @@ void save_eval(std::string dir_name) {
   const std::string file_name = Path::Combine(eval_dir, NNUE::kFileName);
   std::ofstream stream(file_name, std::ios::binary);
   const bool result = NNUE::WriteParameters(stream);
-  ASSERT(result);
 
-  std::cout << "save_eval() finished. folder = " << eval_dir << std::endl;
+  if (!result)
+  {
+      std::cout << "Error!! : save_eval() failed." << std::endl;
+      Tools::exit();
+  }
+
+  std::cout << "save_eval() finished." << std::endl;
 }
 
 // 現在のetaを取得する

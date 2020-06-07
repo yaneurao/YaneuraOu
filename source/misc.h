@@ -66,6 +66,13 @@ struct LargeMemory
 	// alloc()が呼び出されてメモリが確保されている状態か？
 	bool alloced() const { return mem != nullptr; }
 
+	// alloc()のstatic関数版。この関数で確保したメモリはstatic_free()で開放する。
+	// 引数のmemには、static_free()に渡すべきポインタが得られる。
+	static void* static_alloc(size_t size, void*& mem, size_t align = 256, bool zero_clear = false);
+
+	// static_alloc()で確保したメモリを開放する。
+	static void static_free(void* mem);
+
 	~LargeMemory() { free(); }
 
 private:
