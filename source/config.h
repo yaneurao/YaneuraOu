@@ -56,6 +56,7 @@
 #define USE_AVX2
 //#define USE_SSE42
 //#define USE_SSE41
+//#define USE_SSE3
 //#define USE_SSE2
 //#define NO_SSE
 
@@ -517,6 +518,8 @@ constexpr bool Is64Bit = false;
 #define TARGET_CPU "SSE4.2"
 #elif defined(USE_SSE41)
 #define TARGET_CPU "SSE4.1"
+#elif defined(USE_SSE3)
+#define TARGET_CPU "SSE3"
 #elif defined(USE_SSE2)
 #define TARGET_CPU "SSE2"
 #else
@@ -538,8 +541,13 @@ constexpr bool Is64Bit = false;
 #endif
 
 #if defined (USE_SSE41)
+#define USE_SSE3
+#endif
+
+#if defined (USE_SSE3)
 #define USE_SSE2
 #endif
+
 
 // --------------------
 //    for 32bit OS
