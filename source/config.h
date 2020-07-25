@@ -541,10 +541,10 @@ constexpr bool Is64Bit = false;
 #endif
 
 #if defined (USE_SSE41)
-#define USE_SSE3
+#define USE_SSSE3
 #endif
 
-#if defined (USE_SSE3)
+#if defined (USE_SSSE3)
 #define USE_SSE2
 #endif
 

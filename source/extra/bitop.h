@@ -27,7 +27,7 @@
 #include <nmmintrin.h>
 #elif defined(USE_SSE41)
 #include <smmintrin.h>
-#elif defined(USE_SSE3)
+#elif defined(USE_SSSE3)
 #include <tmmintrin.h>
 #elif defined(USE_SSE2)
 #include <emmintrin.h>

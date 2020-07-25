@@ -34,7 +34,7 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 TARGET_CPU = AVX2
 #TARGET_CPU = SSE42
 #TARGET_CPU = SSE41
-#TARGET_CPU = SSE3
+#TARGET_CPU = SSSE3
 #TARGET_CPU = SSE2
 #TARGET_CPU = NO_SSE
 #TARGET_CPU = OTHER
@@ -293,8 +293,8 @@ else ifeq ($(TARGET_CPU),SSE42)
 else ifeq ($(TARGET_CPU),SSE41)
 	CFLAGS += -DUSE_SSE41 -msse4.1 -march=core2
 
-else ifeq ($(TARGET_CPU),SSE3)
-	CFLAGS += -DUSE_SSE3 -msse3 -march=core2
+else ifeq ($(TARGET_CPU),SSSE3)
+	CFLAGS += -DUSE_SSSE3 -msse3 -march=core2
 
 else ifeq ($(TARGET_CPU),SSE2)
 	CFLAGS += -DUSE_SSE2 -msse2 -march=core2

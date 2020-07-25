@@ -87,7 +87,7 @@ class ClippedReLU {
     constexpr IndexType kStart = kNumChunks * kSimdWidth;
 	// 端数分の処理が必要なので、↓以下でそれを行う。
 
-#elif defined(USE_SSE3)
+#elif defined(USE_SSSE3)
     constexpr IndexType kNumChunks = kInputDimensions / kSimdWidth;
     const __m128i kZero = _mm_setzero_si128();
 #if !defined(USE_SSE41) // SSE4非対応だがSSE3は使える環境
