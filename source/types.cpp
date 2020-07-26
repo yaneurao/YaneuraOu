@@ -72,14 +72,6 @@ std::ostream& operator<<(std::ostream& os, Hand hand)
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os, HandKind hk)
-{
-	for (Piece pc = PAWN; pc < PIECE_HAND_NB; ++pc)
-		if (hand_exists(hk, pc))
-			std::cout << pretty(pc);
-	return os;
-}
-
 // RepetitionStateを文字列化する。PVの出力のときにUSI拡張として出力するのに用いる。
 std::string to_usi_string(RepetitionState rs)
 {

@@ -353,12 +353,10 @@ template <Color Us> struct GenerateDropMoves {
 		if (hand == 0)
 			return mlist;
 
-		// 扱いにくいのでbit情報にしてしまう。
-		const HandKind hk = toHandKind(hand);
 		Square sq;
 
 		// --- 歩を打つ指し手生成
-		if (hand_exists(hk, PAWN))
+		if (hand_exists(hand, PAWN))
 		{
 			// 歩の駒打ちの基本戦略
 			// 1) 一段目以外に打てる
@@ -401,7 +399,7 @@ template <Color Us> struct GenerateDropMoves {
 		// --- 歩以外を打つ指し手生成
 
 		// 歩以外の手駒を持っているか
-		if (hand_exceptPawnExists(hk))
+		if (hand_except_pawn_exists(hand))
 		{
 			Move drops[6];
 
@@ -414,17 +412,17 @@ template <Color Us> struct GenerateDropMoves {
 			// そのため、手駒から香・桂を除いた駒と、桂を除いた駒が必要となる。
 
 			int num = 0;
-			if (hand_exists(hk, KNIGHT)) drops[num++] = make_move_drop(KNIGHT, SQ_ZERO) + OurDropPt(Us, KNIGHT);
+			if (hand_exists(hand, KNIGHT)) drops[num++] = make_move_drop(KNIGHT, SQ_ZERO) + OurDropPt(Us, KNIGHT);
 
 			int nextToKnight = num; // 桂を除いたdropsのindex
-			if (hand_exists(hk, LANCE) ) drops[num++] = make_move_drop(LANCE, SQ_ZERO)  + OurDropPt(Us, LANCE);
+			if (hand_exists(hand, LANCE) ) drops[num++] = make_move_drop(LANCE, SQ_ZERO)  + OurDropPt(Us, LANCE);
 
 			int nextToLance = num; // 香・桂を除いたdropsのindex
 
-			if (hand_exists(hk, SILVER)) drops[num++] = make_move_drop(SILVER, SQ_ZERO) + OurDropPt(Us, SILVER);
-			if (hand_exists(hk, GOLD)  ) drops[num++] = make_move_drop(GOLD  , SQ_ZERO) + OurDropPt(Us, GOLD);
-			if (hand_exists(hk, BISHOP)) drops[num++] = make_move_drop(BISHOP, SQ_ZERO) + OurDropPt(Us, BISHOP);
-			if (hand_exists(hk, ROOK)  ) drops[num++] = make_move_drop(ROOK  , SQ_ZERO) + OurDropPt(Us, ROOK);
+			if (hand_exists(hand, SILVER)) drops[num++] = make_move_drop(SILVER, SQ_ZERO) + OurDropPt(Us, SILVER);
+			if (hand_exists(hand, GOLD)  ) drops[num++] = make_move_drop(GOLD  , SQ_ZERO) + OurDropPt(Us, GOLD);
+			if (hand_exists(hand, BISHOP)) drops[num++] = make_move_drop(BISHOP, SQ_ZERO) + OurDropPt(Us, BISHOP);
+			if (hand_exists(hand, ROOK)  ) drops[num++] = make_move_drop(ROOK  , SQ_ZERO) + OurDropPt(Us, ROOK);
 
 
 			// 以下、コードが膨れ上がるが、dropは比較的、数が多く時間がわりとかかるので展開しておく価値があるかと思う。
