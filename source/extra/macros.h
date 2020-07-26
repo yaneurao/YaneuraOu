@@ -115,5 +115,6 @@ ENABLE_RANGE_OPERATORS_ON(Piece, NO_PIECE, PIECE_NB)
 		}										\
 	} while (false)
 
+// →　foreachBBマクロは、bitboard.hにもある。
 
 #endif

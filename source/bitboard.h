@@ -323,9 +323,9 @@ inline const Bitboard rank1_n_bb(Color US, const Rank r) { ASSERT_LV2(is_ok(r));
 extern Bitboard EnemyField[COLOR_NB];
 inline const Bitboard enemy_field(Color Us) { return EnemyField[Us]; }
 
-// 歩が打てる筋を得るためのBitboard mask
-// これ、bitboard、均等に81升をp[0],p[1]に割り振られているほうがテーブル小さくて済むのだが…。
-extern Bitboard PAWN_DROP_MASK_BB[0x80]; // p[0]には1～7筋 、p[1]には8,9筋のときのデータが入っている。
+// 歩が打てる筋を得るためのmask。指し手生成で用いる。
+// ~FILE_BB[SquareToFile[pawnSq]].p[Bitboard::part(pawnSq)]の意味。
+extern u64 PAWN_DROP_MASKS[SQ_NB];
 
 // 2升に挟まれている升を返すためのテーブル(その2升は含まない)
 // この配列には直接アクセスせずにbetween_bb()を使うこと。
@@ -569,6 +569,27 @@ extern Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ);
 // 2bit以上あるかどうかを判定する。縦横斜め方向に並んだ駒が2枚以上であるかを判定する。この関係にないと駄目。
 // この関係にある場合、Bitboard::merge()によって被覆しないことがBitboardのレイアウトから保証されている。
 inline bool more_than_one(const Bitboard& bb) { ASSERT_LV2(!bb.cross_over()); return POPCNT64(bb.merge()) > 1; }
+
+
+// Aperyで使われているforeachBBマクロに似たマクロ。
+// Bitboard bbに対して、1であるbitのSquareがsqに入ってきて、このときにTを呼び出す。
+// bb.p[0]のbitに対してはT(0)と呼び出す。bb.p[1]のbitに対してはT(1)と呼び出す。
+// 使用例) foreachBB(bb,sq,[&](int part){ ... } );
+// bbは破壊しないものとする。
+template <typename T> FORCE_INLINE void foreachBB(Bitboard& bb, Square& sq, T t) {
+
+	u64 p0_ = bb.extract64<0>();
+	while (p0_) {
+		sq = (Square)pop_lsb(p0_);
+		t(0);
+	}
+
+	u64 p1_ = bb.extract64<1>();
+	while (p1_) {
+		sq = (Square)(pop_lsb(p1_) + 63);
+		t(1);
+	}
+}
 
 
 #endif // #ifndef _BITBOARD_H_

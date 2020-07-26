@@ -10,7 +10,7 @@ using namespace std;
 //      移動による指し手
 // ----------------------------------
 
-#ifndef KEEP_PIECE_IN_GENERATE_MOVES
+#if !defined(KEEP_PIECE_IN_GENERATE_MOVES)
 
 // そのままの駒
 #define OurPt(Us,Pt)     Move(0)
@@ -366,21 +366,17 @@ template <Color Us> struct GenerateDropMoves {
 			// ここでは2)のためにソフトウェア飽和加算に似たテクニックを用いる
 			// cf. http://yaneuraou.yaneu.com/2015/10/15/%E7%B8%A6%E5%9E%8Bbitboard%E3%81%AE%E5%94%AF%E4%B8%80%E3%81%AE%E5%BC%B1%E7%82%B9%E3%82%92%E5%85%8B%E6%9C%8D%E3%81%99%E3%82%8B/
 			// このときにテーブルを引くので、用意するテーブルのほうで先に1)の処理をしておく。
+			// →　この方法はPEXTが必要なので愚直な方法に変更する。
 
-			// 縦型Squareにおける二歩のmaskの取得。
-			// 各筋に1つしか歩はないので1～8段目が1になっているbitboardを歩の升のbitboardに加算すると9段目に情報が集まる。これをpextで回収する。
+			// 歩の打てる場所
+			Bitboard target2 = rank1_n_bb(~Us, RANK_8) & target;
 
-			// これにより、RANK9のところに歩の情報がかき集められた。
-			Bitboard a = pos.pieces(Us, PAWN) + rank1_n_bb(BLACK, RANK_8); // 1～8段目を意味するbitboard
-
-			// このRANK9に集まった情報をpextで回収。
-			u32 index1 = u32(PEXT64(     a.extract64<0>(),      RANK9_BB.p[0]));
-			u32 index2 = u32(PEXT32((u32)a.extract64<1>(), (u32)RANK9_BB.p[1]));
-
-			// 駒の打てる場所
-			Bitboard target2 = Bitboard(PAWN_DROP_MASK_BB[index1].p[0],PAWN_DROP_MASK_BB[index2].p[1])
-				& rank1_n_bb(~Us, RANK_8)
-				& target;
+			// 歩が二歩のために打てない筋を消していく(Aperyの手法)
+			Bitboard pawnBB = pos.pieces(Us, PAWN);
+			Square pawnSq;
+			foreachBB(pawnBB, pawnSq, [&](const int part) {
+				target2.p[part] &= PAWN_DROP_MASKS[pawnSq];
+			});
 
 			// 打ち歩詰めチェック
 			// 敵玉に敵の歩を置いた位置に打つ予定だったのなら、打ち歩詰めチェックして、打ち歩詰めならそこは除外する。
