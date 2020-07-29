@@ -377,6 +377,23 @@ namespace MateEngine
 			return;
 		}
 
+		MovePicker move_picker(n, or_node);
+		bool has_loop=false;
+		bool avoid_loop = false;
+		// if (n has an unproven old child) inc flag = true;
+		for (const auto& move : move_picker) {
+		  // unproven old childの定義はminimum distanceがこのノードよりも小さいノードだと理解しているのだけど、
+		  // 合っているか自信ない
+		  const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
+		  if (entry.minimum_distance > child_entry.minimum_distance &&
+		      child_entry.pn != kInfinitePnDn &&
+		      child_entry.dn != kInfinitePnDn) {
+		    has_loop = true;
+		    break;
+		  }
+		}
+
+		if(has_loop){
 		// 千日手のチェック
 		// 対局規定（抄録）｜よくある質問｜日本将棋連盟 https://www.shogi.or.jp/faq/taikyoku-kitei.html
 		// 第8条 反則
@@ -403,6 +420,9 @@ namespace MateEngine
 			return;
 
 		case REPETITION_LOSE:
+		  avoid_loop=true;
+		  // todo この処理本当に正しいの?
+		  // break; 
 			// 連続王手の千日手による負け
 			if (or_node) {
 				entry.pn = kInfinitePnDn;
@@ -428,8 +448,8 @@ namespace MateEngine
 		default:
 			break;
 		}
+		}
 
-		MovePicker move_picker(n, or_node);
 		if (move_picker.empty()) {
 			// nが先端ノード
 
@@ -481,6 +501,9 @@ namespace MateEngine
 				entry.dn = 0;
 				for (const auto& move : move_picker) {
 					const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
+					if(avoid_loop && entry.minimum_distance > child_entry.minimum_distance && child_entry.pn != 0){
+					  continue;
+					}
 					entry.pn = std::min(entry.pn, child_entry.pn);
 					entry.dn += child_entry.dn;
 				}
@@ -537,6 +560,9 @@ namespace MateEngine
 				uint32_t best_num_search = UINT32_MAX;
 				for (const auto& move : move_picker) {
 					const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
+					if(avoid_loop && entry.minimum_distance > child_entry.minimum_distance && child_entry.pn != 0){
+					  continue;
+					}
 					if (child_entry.pn < best_pn ||
 						(child_entry.pn == best_pn && best_num_search > child_entry.num_searched)) {
 						second_best_pn = best_pn;
@@ -549,7 +575,6 @@ namespace MateEngine
 						second_best_pn = child_entry.pn;
 					}
 				}
-
 				thpn_child = std::min(thpn, second_best_pn + 1);
 				thdn_child = std::min(thdn - entry.dn + best_dn, kInfinitePnDn);
 			}
@@ -577,6 +602,11 @@ namespace MateEngine
 				thdn_child = std::min(thdn, second_best_dn + 1);
 			}
 
+			if (best_move == MOVE_NONE && or_node){
+			  entry.pn = kInfinitePnDn;
+			  entry.dn = 0;
+			  return;
+			}
 			StateInfo state_info;
 			n.do_move(best_move, state_info);
 			DFPNwithTCA(n, thpn_child, thdn_child, inc_flag, !or_node, depth + 1, root_color,
@@ -585,6 +615,49 @@ namespace MateEngine
 		}
 	}
 
+	void pv_check_from_table(Position &pos, vector<Move> pv_check){
+		Color root_color = pos.side_to_move();
+		const auto& entry0 = transposition_table.LookUp(pos, root_color);
+		cout<<pos<<endl;
+		cout<<"pn-dn"<<entry0.pn<<","<<entry0.dn<<endl;
+		cout<<"key-gen"<<entry0.hash_high<<","<<entry0.generation<<endl;
+
+		for(auto move : pv_check){
+			StateInfo state_info;
+			pos.do_move(move, state_info);
+			const auto& entry = transposition_table.LookUp(pos, root_color);
+			cout<<pos<<endl;
+			cout<<"pn,dn = "<<entry.pn<<","<<entry.dn<<endl;
+			cout<<"key-gen = "<<entry.hash_high<<endl;
+			if(entry.pn != 0 && entry.dn != 0){
+			  continue;
+			}
+			bool or_node = (entry.minimum_distance % 2 == 0);
+			if (or_node && entry.pn == 0){
+			  cout<<"example of mate moves : ";
+			  MovePicker move_picker(pos, or_node);
+			  for (const auto& move : move_picker) {
+			    auto entry_child = transposition_table.LookUpChildEntry(pos, move, root_color);
+			    if(entry_child.pn == 0){
+			      cout<<move<<" ";
+			    }
+			  }
+			  cout<<endl;
+			}else if(!or_node && entry.dn == 0){
+			  MovePicker move_picker(pos, or_node);
+			  cout<<"example of escape moves : ";
+			  for (const auto& move : move_picker) {
+			    auto entry_child = transposition_table.LookUpChildEntry(pos, move, root_color);
+			    if(entry_child.pn == 0){
+			      cout<<move<<" ";
+			    }
+			  }
+			  cout<<endl;
+			}
+		}
+	}
+
+  
 	// 詰み手順を1つ返す
 	// 最短の詰み手順である保証はない
 	bool SearchMatePvFast(bool or_node, Color root_color, Position& pos, std::vector<Move>& moves, std::unordered_set<Key>& visited) {
@@ -878,6 +951,11 @@ void MainThread::search() { Thread::search(); }
 
 void Thread::search()
 {
+
+    	if (Search::Limits.pv_check.size() != 0){
+	  MateEngine::pv_check_from_table(rootPos, Limits.pv_check);
+	  return;
+	}
 	// 通常のgoコマンドで呼ばれたときは、resignを返す。
 	// 詰み用のworkerでそれだと支障がある場合は適宜変更する。
 	if (Search::Limits.mate == 0) {

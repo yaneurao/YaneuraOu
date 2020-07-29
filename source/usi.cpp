@@ -527,6 +527,15 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 			else
 				// USIプロトコルでは、UCIと異なり、ここは手数ではなく、探索に使う時間[ms]が指定されている。
 				limits.mate = stoi(token);
+			
+		}else if (token == "matedebug") {
+		  string token="";
+		  Move m;
+		  limits.pv_check.clear();
+		  while (is >> token && (m = USI::to_move(token)) != MOVE_NONE){
+		    limits.pv_check.push_back(m);
+		  }
+		 
 		}
 
 		// パフォーマンステスト(Stockfishにある、合法手N手で到達できる局面を求めるやつ)
