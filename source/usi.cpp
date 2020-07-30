@@ -527,16 +527,21 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 			else
 				// USIプロトコルでは、UCIと異なり、ここは手数ではなく、探索に使う時間[ms]が指定されている。
 				limits.mate = stoi(token);
+		}
+
+#if defined(MATE_ENGINE)
+		// MateEngineのデバッグ用コマンド: 詰将棋の特定の変化に対する解析を効率的に行うことが出来る。
+		//	cf.https ://github.com/yaneurao/YaneuraOu/pull/115
 			
-		}else if (token == "matedebug") {
+		else if (token == "matedebug") {
 		  string token="";
 		  Move m;
 		  limits.pv_check.clear();
 		  while (is >> token && (m = USI::to_move(token)) != MOVE_NONE){
 		    limits.pv_check.push_back(m);
 		  }
-		 
 		}
+#endif
 
 		// パフォーマンステスト(Stockfishにある、合法手N手で到達できる局面を求めるやつ)
 		// このあとposition～goコマンドを使うとパフォーマンステストモードに突入し、ここで設定した手数で到達できる局面数を求める
