@@ -572,9 +572,19 @@ namespace WinProcGroup {
 
 	int best_group(size_t idx) {
 
+		// スレッド番号idx(0 ～ 論理コア数-1)に対して
+		// 適切なNUMA NODEとCPU番号を設定する。
+		// 非対称プロセッサのことは考慮していない
+
+		// 論理コアの数
 		int threads = 0;
+
+		// NUMA NODEの数
 		int nodes = 0;
+
+		// 物理コア数
 		int cores = 0;
+
 		DWORD returnLength = 0;
 		DWORD byteOffset = 0;
 
@@ -601,12 +611,16 @@ namespace WinProcGroup {
 
 		while (byteOffset < returnLength)
 		{
+			// NUMA NODEの数
 			if (ptr->Relationship == RelationNumaNode)
 				nodes++;
 
 			else if (ptr->Relationship == RelationProcessorCore)
 			{
+				// 物理コアの数
 				cores++;
+
+				// 論理コア数の加算。HT対応なら2を足す。HT非対応なら1を足す。
 				threads += (ptr->Processor.Flags == LTP_PC_SMT) ? 2 : 1;
 			}
 
@@ -628,52 +642,33 @@ namespace WinProcGroup {
 		// In case a core has more than one logical processor (we assume 2) and we
 		// have still threads to allocate, then spread them evenly across available
 		// nodes.
+
+		// 論理プロセッサー数を上回ってスレッドを割り当てたいならば、あとは均等に
+		// 各NUMA NODEに割り当てていくしかない。
+
 		for (int t = 0; t < threads - cores; t++)
 			groups.push_back(t % nodes);
 
 		// If we still have more threads than the total number of logical processors
 		// then return -1 and let the OS to decide what to do.
 		return idx < groups.size() ? groups[idx] : -1;
-	}
 
-	// たぬきさんのXeon Phi用のコード。
-	// Dual Xeonでもう一つのコアが100%使えないようなのであとで修正する。
-#if 0
-	// スレッドID idxに対し、当該スレッドを実行すべきプロセッサーグループの番号を返す。
-	// Windowsではプロセッサーは以下のように扱われる。
-	// - システムは1つ以上のプロセッサーグループからなる
-	// - 1つのプロセッサーグループは1つ以上のNUMAノードからなる
-	// - 1つのNUMAノードは1つ以上の論理プロセッサーからなる
-	// - 1つのプロセッサーグループには最大で64個までの論理プロセッサーを含めることができる。
-	// https://technet.microsoft.com/ja-jp/windowsserver/ee661585.aspx
-	// 
-	// Intel Xeon Phi Knights Landings上でWindows Server 2016を動かした場合、
-	// 64論理プロセッサー毎にプロセッサーグループに分割される。
-	// 例えばIntel Xeon Phi Processor 7250の場合、
-	// 論理272コアは64+64+64+64+16の5つのプロセッサーグループに分割される。
-	// Stockfishのget_group()は全てのプロセッサーグループに同じ数の論理プロセッサが含まれることを仮定している。
-	// このため上記の構成ではCPUを使い切ることが出来ない。
-	// 以下の実装では先頭のプロセッサーグループから貪欲にスレッドを割り当てている。
-	// これによりIntel Xeon Phi Processor 7250においても100%CPUを使い切ることができる。
-	int get_group(size_t idx) {
-		WORD activeProcessorGroupCount = ::GetActiveProcessorGroupCount();
-		for (WORD processorGroupNumber = 0; processorGroupNumber < activeProcessorGroupCount; ++processorGroupNumber) {
-			DWORD activeProcessorCount = ::GetActiveProcessorCount(processorGroupNumber);
-			if (idx < activeProcessorCount) {
-				return processorGroupNumber;
-			}
-			idx -= activeProcessorCount;
-		}
-
-		return -1;
+		// NUMA NODEごとにプロセッサグループは分かれているだろうという想定なので
+		// NUMAが2(Dual CPU)であり、片側のCPUが40論理プロセッサであるなら、この関数は、
+		// idx = 0..39なら 0 , idx = 40..79なら1を返す。
 	}
-#endif
 
 	/// bindThisThread() set the group affinity of the current thread
 
 	void bindThisThread(size_t idx) {
 
+#if defined(_WIN32)
+		idx += Options["ThreadIdOffset"];
+#endif
+
 		// Use only local variables to be thread-safe
+
+		// 使うべきプロセッサグループ番号が返ってくる。
 		int group = best_group(idx);
 
 		if (group == -1)

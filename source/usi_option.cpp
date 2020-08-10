@@ -160,6 +160,17 @@ namespace USI {
 		o["GenerateAllLegalMoves"] << Option(false);
 #endif
 
+#if defined(_WIN32)
+		// 3990XのようなWindows上で複数のプロセッサグループを持つCPUで、思考エンジンを同時起動したときに
+		// 同じプロセッサグループに割り当てられてしまうのを避けるために、スレッドオフセットを
+		// 指定できるようにしておく。
+		// 例) 128スレッドあって、4つ思考エンジンを起動してそれぞれにThreads = 32を指定する場合、
+		// それぞれの思考エンジンにはThreadIdOffset = 0,32,64,96をそれぞれ指定する。
+		//	※　1つのPCで複数の思考エンジンを同時に起動して対局させる場合はこれを適切に設定すべき。
+
+		o["ThreadIdOffset"] << Option(0, 0, std::thread::hardware_concurrency() - 1);
+#endif
+
 		// 各エンジンがOptionを追加したいだろうから、コールバックする。
 		USI::extra_option(o);
 
