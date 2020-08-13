@@ -529,6 +529,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 				limits.mate = stoi(token);
 			
 		}else if (token == "matedebug") {
+#if defined(MATE_ENGINE)
 		  string token="";
 		  Move m;
 		  limits.matedebug = true;
@@ -536,7 +537,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 		  while (is >> token && (m = USI::to_move(token)) != MOVE_NONE){
 		    limits.pv_check.push_back(m);
 		  }
-		 
+#endif		 
 		}
 
 #if defined(MATE_ENGINE)

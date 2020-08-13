@@ -1,6 +1,5 @@
 ﻿#include "../../config.h"
 
-#define MATE_ENGINE
 #if defined(MATE_ENGINE)
 
 #include <unordered_set>
