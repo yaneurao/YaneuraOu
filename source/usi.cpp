@@ -531,6 +531,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 		}else if (token == "matedebug") {
 		  string token="";
 		  Move m;
+		  limits.matedebug = true;
 		  limits.pv_check.clear();
 		  while (is >> token && (m = USI::to_move(token)) != MOVE_NONE){
 		    limits.pv_check.push_back(m);

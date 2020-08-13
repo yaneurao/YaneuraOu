@@ -1,4 +1,6 @@
 ﻿#include "../../config.h"
+
+#define MATE_ENGINE
 #if defined(MATE_ENGINE)
 
 #include <unordered_set>
@@ -10,10 +12,14 @@ using namespace std;
 using namespace Search;
 
 // --- 詰み将棋探索
+// TODO (qhapaq) 再現実装が出来ない論文を参考文献から外す
 
+// --- 現在の実装
 // df-pn with Threshold Controlling Algorithm (TCA)の実装。
 // 岸本章宏氏の "Dealing with infinite loops, underestimation, and overestimation of depth-first
 // proof-number search." に含まれる擬似コードを元に実装しています。
+// 疑似コード単体では千日手に対する処理が正しく扱えていないため、
+// 独自のルーチンを追加しています。
 //
 // TODO(someone): 優越関係の実装
 // TODO(someone): 証明駒の実装
@@ -28,6 +34,8 @@ using namespace Search;
 // Nagai, A.: Df-pn algorithm for searching AND/OR trees and its applications, PhD thesis,
 // Department of Information Science, The University of Tokyo (2002)
 //
+// TODO(qhapaq) Weak Proof-Number Searchはそもそも図巧の問題を完封できていないため、
+// 本エンジンでは参考にしない可能性が高い
 // Ueda T., Hashimoto T., Hashimoto J., Iida H. (2008) Weak Proof-Number Search. In: van den Herik
 // H.J., Xu X., Ma Z., Winands M.H.M. (eds) Computers and Games. CG 2008. Lecture Notes in Computer
 // Science, vol 5131. Springer, Berlin, Heidelberg
@@ -201,12 +209,27 @@ namespace MateEngine
 		}
 
 		TTEntry& LookUp(Position& n, Color root_color) {
-			return LookUp(n.key(), root_color);
+			auto& out = LookUp(n.key(), root_color);
+			/*
+			if ((out.pn == 100000000 && out.dn !=0 ) || (out.dn == 100000000 && out.pn !=0 )){
+				cout<<"illeagal matejudge"<<out.pn<<","<<out.dn<<endl;
+				cout<<n<<endl;
+			}
+			*/
+			return out;
 		}
 
 		// moveを指した後の子ノードの置換表エントリを返す
 		TTEntry& LookUpChildEntry(Position& n, Move move, Color root_color) {
-			return LookUp(n.key_after(move), root_color);
+			auto& out = LookUp(n.key_after(move), root_color);
+			/*
+			if ((out.pn == 100000000 && out.dn !=0 ) || (out.dn == 100000000 && out.pn !=0 )){
+				cout<<"illeagal matejudge"<<out.pn<<","<<out.dn<<endl;
+				cout<<n<<endl;
+				cout<<"plus move"<<move<<endl;
+			}
+			*/
+			return out;
 		}
 
 		// 置換表を確保する。
@@ -299,8 +322,10 @@ namespace MateEngine
 		uint16_t generation;
 	};
 
+	Color root_color_global;
+
 	// 不詰を意味する無限大を意味するPn,Dnの値。
-	static const constexpr uint32_t kInfinitePnDn = 100000000;
+	static const constexpr uint32_t kInfinitePnDn = 1000000000;
 
 	// 最大深さ(これだけしかスタックとか確保していない)
 	static const constexpr uint16_t kMaxDepth = MAX_PLY;
@@ -311,7 +336,343 @@ namespace MateEngine
 	// 置換表クラスの実体
 	TranspositionTable transposition_table;
 
-	// TODO(tanuki-): ネガマックス法的な書き方に変更する
+	bool fuckin_switch = false;
+
+
+void vis_hash(const TranspositionTable::TTEntry& entry, Position& pos, const Color root_color){
+		cout<<pos<<endl;
+		cout<<"pn,dn = "<<entry.pn<<","<<entry.dn<<endl;
+		cout<<"key-gen = "<<entry.hash_high<<endl;
+		bool or_node = (entry.minimum_distance % 2 == 0);
+		if (or_node && entry.pn == 0){
+			cout<<"list of mate moves : ";
+			MovePicker move_picker(pos, or_node);
+			for (const auto& move : move_picker) {
+				auto entry_child = transposition_table.LookUpChildEntry(pos, move, root_color);
+			    if(entry_child.pn == 0){
+			    	cout<<move<<" ";
+			    }
+			}
+			cout<<endl;
+		}else if(!or_node && entry.dn == 0){
+			MovePicker move_picker(pos, or_node);
+			cout<<"list of escape moves : ";
+			for (const auto& move : move_picker) {
+				auto entry_child = transposition_table.LookUpChildEntry(pos, move, root_color);
+				if(entry_child.pn == 0){
+			    	cout<<move<<" ";
+			    }
+			}
+			cout<<endl;
+		}
+		MovePicker move_picker(pos, or_node);
+		cout<<"child_node pn/dn";
+		for (const auto& move : move_picker) {
+			auto entry_child = transposition_table.LookUpChildEntry(pos, move, root_color);
+			cout<<move<<","<<entry_child.pn<<","<<entry_child.dn<<endl;
+		}
+	}
+
+	void pv_check_from_table(Position &pos, vector<Move> pv_check){
+		// Color root_color = pos.side_to_move(); // todo it is wrong
+		const auto& entry0 = transposition_table.LookUp(pos, root_color_global);
+		vis_hash(entry0, pos, root_color_global);
+
+		for(auto move : pv_check){
+			StateInfo state_info;
+			pos.do_move(move, state_info);
+			const auto& entry = transposition_table.LookUp(pos, root_color_global);
+			vis_hash(entry, pos, root_color_global);
+		}
+	}
+
+	
+	// todo コイツはバグってる
+	void dfpn_body(Position& n, uint32_t thpn, uint32_t thdn, bool or_node, uint16_t depth,
+		Color root_color, const std::chrono::system_clock::time_point& start_time, bool& timeup) {
+		if (Threads.stop.load(std::memory_order_relaxed)) {
+			return;
+		}
+
+
+		auto nodes_searched = n.this_thread()->nodes.load(memory_order_relaxed);
+
+		if (nodes_searched && (nodes_searched % 1000000) == 0)
+		{
+			// このタイミングで置換表の世代を進める
+			//++transposition_table.now_time;
+
+			auto current_time = std::chrono::system_clock::now();
+			auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+				current_time - start_time).count();
+			time_ms = std::max(time_ms, decltype(time_ms)(1));
+			int64_t nps = nodes_searched * 1000LL / time_ms;
+
+			sync_cout << "info  time " << time_ms << " nodes " << nodes_searched << " nps "
+				<< nps << " hashfull " << transposition_table.hashfull() << sync_endl;
+		}
+
+		// 制限時間をチェックする
+		// 頻繁にチェックすると遅くなるため、4096回に1回の割合でチェックする
+		// go mate infiniteの場合、Limits.mateにはINT32MAXが代入されている点に注意する
+		if (Limits.mate != INT32_MAX && nodes_searched % 4096 == 0) {
+			auto elapsed_ms = Time.elapsed_from_ponderhit();
+			if (elapsed_ms > Limits.mate)
+			{
+				timeup = true;
+				Threads.stop = true;
+				return;
+			}
+		}
+
+		// 探索ノード数のチェック。
+		// 探索をマルチスレッドでやっていないので、nodes_searchedを求めるコストがなく、
+		// 毎回チェックしてもどうということはないはず。
+		if (Limits.nodes != 0 && nodes_searched >= (uint64_t)Limits.nodes)
+		{
+			timeup = true;
+			Threads.stop = true;
+			return;
+		}
+
+		// pseudo code entryの取得
+		// LookUpHash(n, φ, δ);
+		auto& entry = transposition_table.LookUp(n, root_color);
+		entry.minimum_distance = min(entry.minimum_distance, depth);
+
+		// pseudo code しきい値を用いた探索の打ち切り
+		// if (φ(n) ≤ φ || δ(n) ≤ δ) {
+		// 	φ(n) = φ; δ(n) = δ; //恐らくこの行には意味がない from qhapaq
+		// 	return;
+		// }
+
+	
+					if (entry.dn == 99989826){
+						cout<<"ohfuck prune"<<endl;
+						cout<<n<<endl;
+						cout<<thdn<<","<<thpn<<","<<entry.dn<<","<<entry.pn<<endl;			
+					}
+
+
+		if (thdn <= entry.dn || thpn <= entry.pn){
+			return;
+		}
+	
+		// pseudo code 詰み、不詰のチェックと結果の反映
+		//if (n が末端ノード ) {
+		//	if ((n が AND ノード && Eval(n)=true) ||
+		//		(n が OR ノード && Eval(n)=false)) {
+		//			φ(n) = ∞; δ(n) = 0;
+		//		}else {φ(n) = 0; δ(n) = ∞; }
+		//	PutInHash(n, φ(n), δ(n));
+		//  return;
+		//}
+
+		// 詰みチェック
+		if (or_node && !n.in_check() && n.mate1ply()) {
+			entry.pn = 0;
+			entry.dn = kInfinitePnDn;
+			return;
+		}
+
+		MovePicker move_picker(n, or_node);
+		
+		// 不詰チェック
+		if (move_picker.empty()) {
+			// nが先端ノード
+
+			if (or_node) {
+				// 自分の手番でここに到達した場合は王手の手が無かった、
+				entry.pn = kInfinitePnDn;
+				entry.dn = 0;
+			}
+			else {
+				// todo ここ呼ばれるの？
+				// 相手の手番でここに到達した場合は王手回避の手が無かった、
+				entry.pn = 0;
+				entry.dn = kInfinitePnDn;
+			}
+			return;
+		}
+
+		// pseudo code しきい値の情報をentryに移す！
+		// PutInHash(n, φ(n), δ(n));
+
+		// ↑のコード、φの定義がill-definedになってて、何を入れたら良いのか分からん。
+		// pseudo codeから忖度すると
+		// entry.pn = thpn;
+		// entry.dn = thdn;
+		// だがlibshogiの初期値では不詰を入れとる
+		entry.dn = 0;
+		entry.pn = kInfinitePnDn;
+
+		
+	
+		while (!Threads.stop.load(std::memory_order_relaxed)) {
+			++entry.num_searched;
+
+			uint32_t best_pn = kInfinitePnDn;
+			uint32_t second_best_pn = kInfinitePnDn;
+			uint32_t best_dn = kInfinitePnDn;
+			uint32_t second_best_dn = kInfinitePnDn;
+			uint32_t best_num_search = UINT32_MAX;
+			uint32_t sum_pn = 0;
+			uint32_t sum_dn = 0;
+
+			// pseudo code ∆Min(n), ΦSum(n) と select_node に対応
+			Move best_move = MOVE_NONE; // gccで初期化していないという警告がでるのでその回避
+			if (or_node) {
+				// ORノードでは最も証明数が小さい = 玉の逃げ方の個数が少ない = 詰ましやすいノードを選ぶ	
+				for (const auto& move : move_picker) {
+					const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
+					sum_dn += child_entry.dn;
+					// sum_dn = min(kInfinitePnDn, sum_dn);
+					if (child_entry.pn < best_pn ||
+						(child_entry.pn == best_pn && best_num_search > child_entry.num_searched)) {
+						second_best_pn = best_pn;
+						best_pn = child_entry.pn;
+						best_dn = child_entry.dn;
+						best_move = move;
+						best_num_search = child_entry.num_searched;
+					}
+					else if (child_entry.pn < second_best_pn) {
+						second_best_pn = child_entry.pn;
+					}
+				}
+			}
+			else {
+				// ANDノードでは最も反証数の小さい = 王手の掛け方の少ない = 不詰みを示しやすいノードを選ぶ
+				for (const auto& move : move_picker) {
+					const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
+					sum_pn += child_entry.pn;
+					// sum_pn = min(kInfinitePnDn, sum_pn);
+					if (child_entry.dn < best_dn ||
+						(child_entry.dn == best_dn && best_num_search > child_entry.num_searched)) {
+						second_best_dn = best_dn;
+						best_dn = child_entry.dn;
+						best_pn = child_entry.pn;
+						best_move = move;
+					}
+					else if (child_entry.dn < second_best_dn) {
+						second_best_dn = child_entry.dn;
+					}
+				}
+
+			}
+
+			// pseudo code ノードのthpn, thdnがchild_nodeから得られるノードのpn, dnより以下の場合、ループを出る
+			// if (φ(n) ≤ ∆Min(n) || δ(n) ≤ ΦSum(n)) {
+			// 	φ(n) = ∆Min(n); δ(n) = ΦSum(n);
+			//	PutInHash(n, φ(n), δ(n));
+			//	return;
+			// }
+			if((sum_dn < kInfinitePnDn && sum_dn > kInfinitePnDn - 10000) || (best_dn < kInfinitePnDn && best_dn > kInfinitePnDn - 10000)){
+				cout<<"illeagal movestate"<<endl;
+				cout<<n<<endl;
+				cout<<sum_dn<<","<<best_pn<<","<<best_dn<<endl;
+				cout<<"status children"<<endl;
+				for (const auto& move : move_picker) {
+					const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
+					cout<<child_entry.dn<<","<<child_entry.pn<<endl;
+				}
+			}
+			if(or_node){
+				if (thpn <= best_pn || thdn <= sum_dn){
+					entry.pn = best_pn;
+					entry.dn = std::min(kInfinitePnDn, sum_dn);
+					if (entry.dn == 99989826){
+						cout<<"ohfuck pn"<<endl;
+						cout<<n<<endl;
+						for (const auto& move : move_picker) {
+							const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
+							cout<<move<<child_entry.dn<<","<<child_entry.pn<<endl;
+						}			
+					}
+					return;
+				}
+			}else{
+				if (thdn <= best_dn || thpn <= sum_pn){
+					entry.pn = std::min(kInfinitePnDn, sum_pn);
+					entry.dn = best_dn;
+					if (entry.dn == 99989826){
+						cout<<"ohfuck dn"<<endl;
+						cout<<n<<endl;
+						for (const auto& move : move_picker) {
+							const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
+							cout<<move<<child_entry.dn<<","<<child_entry.pn<<endl;
+						}			
+					}
+					return;
+				}
+			}
+
+			// pseudo code 子局面のthpn, thdnを決める
+			uint32_t next_thpn;
+			uint32_t next_thdn;
+			// if (φ c = ∞ − 1) φ(n c ) = ∞;
+			// else if (δ(n) ≥ ∞ − 1) φ(n c ) = ∞ − 1;
+			// else φ(n c ) = δ(n) + φ c − ΦSum(n);
+
+			/*
+			if(or_node){
+				if (best_dn == kInfinitePnDn - 1){
+					next_thdn = kInfinitePnDn;
+				}else if(entry.dn >= kInfinitePnDn-1){
+					next_thdn = kInfinitePnDn - 1;
+				}else{
+					next_thdn = entry.dn + best_dn - sum_dn;
+				}
+			}else{
+				if (best_pn == kInfinitePnDn - 1){
+					next_thpn = kInfinitePnDn;
+				}else if(entry.pn >= kInfinitePnDn-1){
+					next_thpn = kInfinitePnDn - 1;
+				}else{
+					next_thpn = entry.pn + best_pn - sum_pn;
+				}
+			}
+			*/
+
+			if(or_node){
+				next_thdn = thdn + best_dn - sum_dn;
+			}else{
+				next_thpn = thpn + best_pn - sum_pn;
+			}
+			// pseudo code 子局面のthpn, thdnを決める
+			// if (δ c = ∞ − 1) δ(n c ) = ∞;
+			// else δ(n c ) = min(φ(n), δ 2 +1);
+
+			/*
+			if(or_node){
+				if (best_pn == kInfinitePnDn - 1){
+					next_thpn = kInfinitePnDn;
+				}else{
+					next_thpn = std::min(thpn, second_best_pn + 1);
+				}
+			}else{
+				if (best_dn == kInfinitePnDn - 1){
+					next_thdn = kInfinitePnDn;
+				}else{
+					next_thdn = std::min(thdn, second_best_dn + 1);
+				}
+			}
+			*/
+
+			if(or_node){
+				next_thpn = std::min(thpn, second_best_pn + 1);
+			}else{
+				next_thdn = std::min(thdn, second_best_dn + 1);
+			}
+			// 子局面の探索
+			// MID(n c );
+
+			StateInfo state_info;
+			n.do_move(best_move, state_info);
+			dfpn_body(n, next_thpn, next_thdn, !or_node, depth + 1, root_color, start_time, timeup);
+			n.undo_move(best_move);
+		}
+	}
+
 	void DFPNwithTCA(Position& n, uint32_t thpn, uint32_t thdn, bool inc_flag, bool or_node, uint16_t depth,
 		Color root_color, const std::chrono::system_clock::time_point& start_time, bool& timeup) {
 		if (Threads.stop.load(std::memory_order_relaxed)) {
@@ -389,6 +750,9 @@ namespace MateEngine
 		      child_entry.pn != kInfinitePnDn &&
 		      child_entry.dn != kInfinitePnDn) {
 		    has_loop = true;
+			if(or_node){
+				// avoid_loop = true;
+			}
 		    break;
 		  }
 		}
@@ -420,9 +784,9 @@ namespace MateEngine
 			return;
 
 		case REPETITION_LOSE:
-		  avoid_loop=true;
-		  // todo この処理本当に正しいの?
-		  // break; 
+			// todo avoid_loopをここに入れると上手く行く。他ではしくじる。原因調査せよ
+		  	avoid_loop=true;
+		  	break; 
 			// 連続王手の千日手による負け
 			if (or_node) {
 				entry.pn = kInfinitePnDn;
@@ -501,13 +865,24 @@ namespace MateEngine
 				entry.dn = 0;
 				for (const auto& move : move_picker) {
 					const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
-					if(avoid_loop && entry.minimum_distance > child_entry.minimum_distance && child_entry.pn != 0){
+					
+					if(avoid_loop && entry.minimum_distance >= child_entry.minimum_distance && child_entry.pn != 0){
 					  continue;
 					}
+					
 					entry.pn = std::min(entry.pn, child_entry.pn);
 					entry.dn += child_entry.dn;
 				}
-				entry.dn = std::min(entry.dn, kInfinitePnDn);
+				if (entry.pn != 0){
+					entry.dn = std::min(entry.dn, kInfinitePnDn - 1);
+				}else{
+					entry.dn = kInfinitePnDn;
+				}
+
+				if(entry.dn == kInfinitePnDn && entry.pn != 0){
+					cout<<"illeagal pndn"<<endl;
+					vis_hash(entry, n, root_color);
+				}
 			}
 			else {
 				entry.pn = 0;
@@ -517,7 +892,15 @@ namespace MateEngine
 					entry.pn += child_entry.pn;
 					entry.dn = std::min(entry.dn, child_entry.dn);
 				}
-				entry.pn = std::min(entry.pn, kInfinitePnDn);
+				if (entry.dn != 0){
+					entry.pn = std::min(entry.pn, kInfinitePnDn - 1);
+				}else{
+					entry.pn = kInfinitePnDn;
+				}
+				if(entry.dn == kInfinitePnDn && entry.pn != 0){
+					cout<<"illeagal pndn"<<endl;
+					vis_hash(entry, n, root_color);
+				}
 			}
 
 			// if (first time && inc flag) {
@@ -560,7 +943,7 @@ namespace MateEngine
 				uint32_t best_num_search = UINT32_MAX;
 				for (const auto& move : move_picker) {
 					const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
-					if(avoid_loop && entry.minimum_distance > child_entry.minimum_distance && child_entry.pn != 0){
+					if(avoid_loop && entry.minimum_distance >= child_entry.minimum_distance && child_entry.pn != 0){
 					  continue;
 					}
 					if (child_entry.pn < best_pn ||
@@ -612,48 +995,6 @@ namespace MateEngine
 			DFPNwithTCA(n, thpn_child, thdn_child, inc_flag, !or_node, depth + 1, root_color,
 				start_time, timeup);
 			n.undo_move(best_move);
-		}
-	}
-
-	void pv_check_from_table(Position &pos, vector<Move> pv_check){
-		Color root_color = pos.side_to_move();
-		const auto& entry0 = transposition_table.LookUp(pos, root_color);
-		cout<<pos<<endl;
-		cout<<"pn-dn"<<entry0.pn<<","<<entry0.dn<<endl;
-		cout<<"key-gen"<<entry0.hash_high<<","<<entry0.generation<<endl;
-
-		for(auto move : pv_check){
-			StateInfo state_info;
-			pos.do_move(move, state_info);
-			const auto& entry = transposition_table.LookUp(pos, root_color);
-			cout<<pos<<endl;
-			cout<<"pn,dn = "<<entry.pn<<","<<entry.dn<<endl;
-			cout<<"key-gen = "<<entry.hash_high<<endl;
-			if(entry.pn != 0 && entry.dn != 0){
-			  continue;
-			}
-			bool or_node = (entry.minimum_distance % 2 == 0);
-			if (or_node && entry.pn == 0){
-			  cout<<"example of mate moves : ";
-			  MovePicker move_picker(pos, or_node);
-			  for (const auto& move : move_picker) {
-			    auto entry_child = transposition_table.LookUpChildEntry(pos, move, root_color);
-			    if(entry_child.pn == 0){
-			      cout<<move<<" ";
-			    }
-			  }
-			  cout<<endl;
-			}else if(!or_node && entry.dn == 0){
-			  MovePicker move_picker(pos, or_node);
-			  cout<<"example of escape moves : ";
-			  for (const auto& move : move_picker) {
-			    auto entry_child = transposition_table.LookUpChildEntry(pos, move, root_color);
-			    if(entry_child.pn == 0){
-			      cout<<move<<" ";
-			    }
-			  }
-			  cout<<endl;
-			}
 		}
 	}
 
@@ -837,6 +1178,8 @@ namespace MateEngine
 
 		bool timeup = false;
 		Color root_color = r.side_to_move();
+		root_color_global = root_color;
+		// dfpn_body(r, kInfinitePnDn, kInfinitePnDn, true, 0, root_color, start, timeup);
 		DFPNwithTCA(r, kInfinitePnDn, kInfinitePnDn, false, true, 0, root_color, start, timeup);
 		const auto& entry = transposition_table.LookUp(r, root_color);
 
@@ -952,7 +1295,7 @@ void MainThread::search() { Thread::search(); }
 void Thread::search()
 {
 
-    	if (Search::Limits.pv_check.size() != 0){
+    if (Search::Limits.matedebug){
 	  MateEngine::pv_check_from_table(rootPos, Limits.pv_check);
 	  return;
 	}
