@@ -323,9 +323,9 @@ inline const Bitboard rank1_n_bb(Color US, const Rank r) { ASSERT_LV2(is_ok(r));
 extern Bitboard EnemyField[COLOR_NB];
 inline const Bitboard enemy_field(Color Us) { return EnemyField[Us]; }
 
-// 歩が打てる筋を得るためのBitboard mask
-// これ、bitboard、均等に81升をp[0],p[1]に割り振られているほうがテーブル小さくて済むのだが…。
-extern Bitboard PAWN_DROP_MASK_BB[0x80]; // p[0]には1～7筋 、p[1]には8,9筋のときのデータが入っている。
+// 歩が打てる筋を得るためのmask。指し手生成で用いる。
+// ~FILE_BB[SquareToFile[pawnSq]].p[Bitboard::part(pawnSq)]の意味。
+extern u64 PAWN_DROP_MASKS[SQ_NB];
 
 // 2升に挟まれている升を返すためのテーブル(その2升は含まない)
 // この配列には直接アクセスせずにbetween_bb()を使うこと。
@@ -401,23 +401,72 @@ extern Bitboard LanceStepEffectBB[SQ_NB_PLUS1][COLOR_NB];
 extern Bitboard BishopStepEffectBB[SQ_NB_PLUS1];
 extern Bitboard RookStepEffectBB[SQ_NB_PLUS1];
 
-// --- 角の利き
-extern Bitboard BishopEffect[2][1856+1];
-extern Bitboard BishopEffectMask[2][SQ_NB_PLUS1];
-extern int		BishopEffectIndex[2][SQ_NB_PLUS1];
-
-// --- 飛車の縦、横の利き
+// -- 飛車の縦の利き
 
 // 飛車の縦方向の利きを求めるときに、指定した升sqの属するfileのbitをshiftし、
 // index を求める為に使用する。(from Apery)
 extern u8		Slide[SQ_NB_PLUS1];
-
 extern u64      RookFileEffect[RANK_NB + 1][128];
+
+#if defined(USE_OLD_YANEURAOU_EFFECT)
+
+// 従来のやねうら王の実装
+
+// --- 角の利き
+
+extern Bitboard BishopEffect[2][1856+1];
+extern Bitboard BishopEffectMask[2][SQ_NB_PLUS1];
+extern int		BishopEffectIndex[2][SQ_NB_PLUS1];
+
+// --- 飛車の横の利き
+
 extern Bitboard RookRankEffect[FILE_NB + 1][128];
 
-// Haswellのpext()を呼び出す。occupied = occupied bitboard , mask = 利きの算出に絡む升が1のbitboard
-// この関数で戻ってきた値をもとに利きテーブルを参照して、遠方駒の利きを得る。
-inline uint64_t occupiedToIndex(const Bitboard& occupied, const Bitboard& mask) { return PEXT64(occupied.merge(), mask.merge()); }
+#else // defined(USE_OLD_YANEURAOU_EFFECT)
+
+// Apery型の遠方駒の利きの実装
+
+// やねうら王では、Aperyと異なり、駒がSQ_NBにいる場合を考慮して、SQ_NB_PLUS1の分だけ配列を確保している。
+
+// magic tableのサイズは、飛車の横の利きと縦の利きに分解するなら、それぞれ256*sizeof(Bitboard)=4096bytes)
+// 横と縦に分解しないほうが処理は減るが、テーブルが大きくなる。81升*4KB(2**縦横12升)*sizeof(Bitboatd) = 5MB+α ≒ 8MB
+// →　いまどきのCPUなら問題ないかも。
+
+// --- 角の利き
+
+// メモリ節約の為、1次元配列にして無駄が無いようにしている。
+extern Bitboard BishopAttack[20224];
+extern int BishopAttackIndex[SQ_NB_PLUS1];
+extern Bitboard BishopBlockMask[SQ_NB_PLUS1];
+// メモリ節約をせず、無駄なメモリを持っている。
+
+extern const int BishopBlockBits[SQ_NB_PLUS1];
+extern const int BishopShiftBits[SQ_NB_PLUS1];
+
+// --- 飛車の利き
+
+extern const int RookBlockBits[SQ_NB_PLUS1];
+extern const int RookShiftBits[SQ_NB_PLUS1];
+
+#if defined (USE_BMI2)
+// PEXT2命令を用いるなら、配列サイズ、少し小さくて済む
+extern Bitboard RookAttack[495616];
+#else
+extern Bitboard RookAttack[512000];
+#endif
+
+extern int RookAttackIndex[SQ_NB_PLUS1];
+extern Bitboard RookBlockMask[SQ_NB_PLUS1];
+
+// BMI2命令がないなら、Magicテーブルが必要
+
+#if defined (USE_BMI2)
+#else
+extern const u64 RookMagic[SQ_NB_PLUS1];
+extern const u64 BishopMagic[SQ_NB_PLUS1];
+#endif
+
+#endif // defined(USE_OLD_YANEURAOU_EFFECT)
 
 // --------------------
 //   大駒・小駒の利き
@@ -442,8 +491,10 @@ inline Bitboard pawnEffect(const Color c, const Bitboard bb)
 {
 	// Apery型の縦型Bitboardにおいては歩の利きはbit shiftで済む。
 	ASSERT_LV3(is_ok(c));
-	return  c == BLACK ? bb >> 1 : c == WHITE ? bb << 1
-		: ZERO_BB;
+	return
+		c == BLACK ? (bb >> 1) :
+		c == WHITE ? (bb << 1) :
+		ZERO_BB;
 }
 
 // 桂の利き
@@ -481,6 +532,34 @@ inline Bitboard cross45StepEffect(Square sq) { ASSERT_LV3(sq <= SQ_NB); return b
 
 // --- 遠方駒(盤上の駒の状態を考慮しながら利きを求める)
 
+// 飛車の縦の利き(これはPEXTを用いていないのでどんな環境でも遅くはない)
+inline Bitboard rookFileEffect(Square sq, const Bitboard& occupied)
+{
+	ASSERT_LV3(sq <= SQ_NB);
+	const int index = (occupied.p[Bitboard::part(sq)] >> Slide[sq]) & 0x7f;
+	File f = file_of(sq);
+	return (f <= FILE_7) ?
+		Bitboard(RookFileEffect[rank_of(sq)][index] << int(f | RANK_1), 0) :
+		Bitboard(0, RookFileEffect[rank_of(sq)][index] << int((File)(f - FILE_8) | RANK_1));
+}
+
+// 香 : occupied bitboardを考慮しながら香の利きを求める
+inline Bitboard lanceEffect(Color c, Square sq, const Bitboard& occupied)
+{
+	// rootFileEffect()は遅くないのでこれを利用する。
+	return rookFileEffect(sq, occupied) & lanceStepEffect(c, sq);
+}
+
+
+#if defined(USE_OLD_YANEURAOU_EFFECT)
+
+// 旧来のやねうら王の遠方駒の実装
+
+// Haswellのpext()を呼び出す。occupied = occupied bitboard , mask = 利きの算出に絡む升が1のbitboard
+// この関数で戻ってきた値をもとに利きテーブルを参照して、遠方駒の利きを得る。
+// PEXT命令を使うのでZEN1/ZEN2では遅い。
+inline uint64_t occupiedToIndex(const Bitboard& occupied, const Bitboard& mask) { return PEXT64(occupied.merge(), mask.merge()); }
+
 // 角の右上と左下方向への利き
 inline Bitboard bishopEffect0(Square sq, const Bitboard& occupied)
 {
@@ -497,32 +576,13 @@ inline Bitboard bishopEffect1(Square sq, const Bitboard& occupied)
 	return BishopEffect[1][BishopEffectIndex[1][sq] + occupiedToIndex(block1, BishopEffectMask[1][sq])];
 }
 
-
 // 角 : occupied bitboardを考慮しながら角の利きを求める
 inline Bitboard bishopEffect(Square sq, const Bitboard& occupied)
 {
 	return bishopEffect0(sq, occupied) | bishopEffect1(sq, occupied);
 }
 
-// 馬 : occupied bitboardを考慮しながら香の利きを求める
-inline Bitboard horseEffect(Square sq, const Bitboard& occupied)
-{
-	return bishopEffect(sq, occupied) | kingEffect(sq);
-}
-
-
-// 飛車の縦の利き
-inline Bitboard rookFileEffect(Square sq, const Bitboard& occupied)
-{
-	ASSERT_LV3(sq <= SQ_NB);
-	const int index = (occupied.p[Bitboard::part(sq)] >> Slide[sq]) & 0x7f;
-	File f = file_of(sq);
-	return (f <= FILE_7) ?
-		Bitboard(RookFileEffect[rank_of(sq)][index] << int(f | RANK_1), 0) :
-		Bitboard(0, RookFileEffect[rank_of(sq)][index] << int((File)(f - FILE_8) | RANK_1));
-}
-
-// 飛車の横の利き
+// 飛車の横の利き(これはPEXTを使っているのでPEXTが遅い環境だと遅い)
 inline Bitboard rookRankEffect(Square sq, const Bitboard& occupied)
 {
 	ASSERT_LV3(sq <= SQ_NB);
@@ -531,7 +591,7 @@ inline Bitboard rookRankEffect(Square sq, const Bitboard& occupied)
 	// しかし、r回の右シフトを以下の変数uに対して行なうと計算完了まで待たされるので、
 	// PEXT64()の第二引数のほうを左シフトしておく。
 	int r = rank_of(sq);
-	u64 u = (occupied.extract64<1>() << 6*9 ) + (occupied.extract64<0>() >> 9);
+	u64 u = (occupied.extract64<1>() << 6 * 9) + (occupied.extract64<0>() >> 9);
 	u64 index = PEXT64(u, 0b1000000001000000001000000001000000001000000001000000001 << r);
 	return RookRankEffect[file_of(sq)][index] << r;
 }
@@ -542,10 +602,62 @@ inline Bitboard rookEffect(Square sq, const Bitboard& occupied)
 	return rookFileEffect(sq, occupied) | rookRankEffect(sq, occupied);
 }
 
-// 香 : occupied bitboardを考慮しながら香の利きを求める
-inline Bitboard lanceEffect(Color c, Square sq, const Bitboard& occupied)
+#else // defined(USE_OLD_YANEURAOU_EFFECT)
+
+// Aperyの遠方駒の実装
+// USE_BMI2が定義されていないときはMagic Bitboardで処理する。
+
+#if defined (USE_BMI2)
+
+// PEXTで求まるのでmagic table不要。
+inline u64 occupiedToIndex(const Bitboard& block, const Bitboard& mask) {
+	return PEXT64(block.merge(), mask.merge());
+}
+
+inline Bitboard rookEffect(const Square sq, const Bitboard& occupied) {
+	const Bitboard block(occupied & RookBlockMask[sq]);
+	return RookAttack[RookAttackIndex[sq] + occupiedToIndex(block, RookBlockMask[sq])];
+}
+inline Bitboard bishopEffect(const Square sq, const Bitboard& occupied) {
+	const Bitboard block(occupied & BishopBlockMask[sq]);
+	return BishopAttack[BishopAttackIndex[sq] + occupiedToIndex(block, BishopBlockMask[sq])];
+}
+#else
+
+// magic bitboard.
+
+// magic number を使って block の模様から利きのテーブルへのインデックスを算出
+inline u64 occupiedToIndex(const Bitboard& block, const u64 magic, const int shiftBits) {
+	return (block.merge() * magic) >> shiftBits;
+}
+
+inline Bitboard rookEffect(const Square sq, const Bitboard& occupied) {
+	const Bitboard block(occupied & RookBlockMask[sq]);
+	return RookAttack[RookAttackIndex[sq] + occupiedToIndex(block, RookMagic[sq], RookShiftBits[sq])];
+}
+
+inline Bitboard bishopEffect(const Square sq, const Bitboard& occupied) {
+	const Bitboard block(occupied & BishopBlockMask[sq]);
+	return BishopAttack[BishopAttackIndex[sq] + occupiedToIndex(block, BishopMagic[sq], BishopShiftBits[sq])];
+}
+
+#endif // defined (USE_BMI2)
+
+// 飛車の横の利き(一度、飛車の利きを求めてからマスクしているのでやや遅い。どうしても必要な時だけ使う)
+inline Bitboard rookRankEffect(Square sq, const Bitboard& occupied)
 {
-	return rookFileEffect(sq, occupied) & lanceStepEffect(c, sq);
+	return rookEffect(sq, occupied) & RANK_BB[rank_of(sq)];
+}
+
+
+#endif // defined(USE_OLD_YANEURAOU_EFFECT)
+
+// --- 馬と龍
+
+// 馬 : occupied bitboardを考慮しながら香の利きを求める
+inline Bitboard horseEffect(Square sq, const Bitboard& occupied)
+{
+	return bishopEffect(sq, occupied) | kingEffect(sq);
 }
 
 // 龍 : occupied bitboardを考慮しながら香の利きを求める
@@ -569,6 +681,27 @@ extern Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ);
 // 2bit以上あるかどうかを判定する。縦横斜め方向に並んだ駒が2枚以上であるかを判定する。この関係にないと駄目。
 // この関係にある場合、Bitboard::merge()によって被覆しないことがBitboardのレイアウトから保証されている。
 inline bool more_than_one(const Bitboard& bb) { ASSERT_LV2(!bb.cross_over()); return POPCNT64(bb.merge()) > 1; }
+
+
+// Aperyで使われているforeachBBマクロに似たマクロ。
+// Bitboard bbに対して、1であるbitのSquareがsqに入ってきて、このときにTを呼び出す。
+// bb.p[0]のbitに対してはT(0)と呼び出す。bb.p[1]のbitに対してはT(1)と呼び出す。
+// 使用例) foreachBB(bb,sq,[&](int part){ ... } );
+// bbは破壊しないものとする。
+template <typename T> FORCE_INLINE void foreachBB(Bitboard& bb, Square& sq, T t) {
+
+	u64 p0_ = bb.extract64<0>();
+	while (p0_) {
+		sq = (Square)pop_lsb(p0_);
+		t(0);
+	}
+
+	u64 p1_ = bb.extract64<1>();
+	while (p1_) {
+		sq = (Square)(pop_lsb(p1_) + 63);
+		t(1);
+	}
+}
 
 
 #endif // #ifndef _BITBOARD_H_

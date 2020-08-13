@@ -865,6 +865,7 @@ void vis_hash(const TranspositionTable::TTEntry& entry, Position& pos, const Col
 				entry.dn = 0;
 				for (const auto& move : move_picker) {
 					const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
+
 					
 					if(avoid_loop && entry.minimum_distance >= child_entry.minimum_distance && child_entry.pn != 0){
 					  continue;
@@ -1295,7 +1296,7 @@ void MainThread::search() { Thread::search(); }
 void Thread::search()
 {
 
-    if (Search::Limits.matedebug){
+	if (Search::Limits.matedebug){
 	  MateEngine::pv_check_from_table(rootPos, Limits.pv_check);
 	  return;
 	}

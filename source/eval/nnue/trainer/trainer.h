@@ -120,7 +120,7 @@ std::shared_ptr<T> MakeAlignedSharedPtr(ArgumentTypes&&... arguments) {
     void* ptr_ = LargeMemory::static_alloc(sizeof(T), mem, alignof(T));
     const auto ptr = new(ptr_)
       T(std::forward<ArgumentTypes>(arguments)...);
-    auto deleter = AlignedDeleter<T>();
+    AlignedDeleter<T> deleter;
     deleter.mem = mem;
     
     //sync_cout << "trainer.alloc(" << sizeof(T) << "," << alignof(T) << ")" << sync_endl;

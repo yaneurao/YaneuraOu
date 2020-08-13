@@ -1489,6 +1489,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 					// つまりfromから上下を見ると、敵玉と、自分の開き王手をしている遠方駒(飛車 or 香)があるはずなのでこれを追加する。
 					// 敵玉はpieces(Us)なので含まれないはずであり、結果として自分の開き王手している駒だけが足される。
 
+					// rookEffect()を用いると、香での王手に対応するのが難しくなるので、
+					// 縦と横を場合分けするほうが簡単
+
 				case DIRECT_U: case DIRECT_D:
 					st->checkersBB |= rookFileEffect(from, pieces()) & pieces(Us); break;
 
@@ -1498,16 +1501,30 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 				case DIRECT_R: case DIRECT_L:
 					st->checkersBB |= rookRankEffect(from, pieces()) & pieces(Us); break;
 
+
+#if defined(USE_OLD_YANEURAOU_EFFECT)
 					// 斜めに利く遠方駒は角(+馬)しかないので、玉の位置から角の利きを求めてその利きのなかにいる角を足す。
-					// →　上と同様の方法が使える。以下同様。
+					// →　上と同様の方法が使える。discovered()により開き王手になることは確定している。
 
 				case DIRECT_RU: case DIRECT_LD:
 					st->checkersBB |= bishopEffect0(from, pieces()) & pieces(Us); break;
 
 				case DIRECT_RD: case DIRECT_LU:
 					st->checkersBB |= bishopEffect1(from, pieces()) & pieces(Us); break;
+#else
 
+				// magic bitboardを用いる場合の処理
 
+				// 斜め方向にあった駒を移動させての開き王手になっているので移動させた駒は角・馬ではない。
+				// (移動させた駒が角か馬であったなら、その駒で王を取れるので、非合法局面である)
+				// この移動させた駒はすでに取り除かれている。
+				// よって、王の升目から角が利いているUsの駒(角・馬)があれば、それは王手している遠方駒。
+
+				case DIRECT_RU: case DIRECT_LD:
+				case DIRECT_RD: case DIRECT_LU:
+					st->checkersBB |= bishopEffect(ksq, pieces()) & pieces(Us, BISHOP_HORSE); break;
+
+#endif
 				default: UNREACHABLE;
 				}
 			}
@@ -1847,13 +1864,11 @@ namespace {
 	// stmAttackers = 手番側の攻撃駒
 	// attackers = toに利く駒(先後両方)。min_attacker(toに利く最小の攻撃駒)を見つけたら、その駒を除去して
 	//  その影にいたtoに利く攻撃駒をattackersに追加する。
-	// stm = 攻撃駒を探すほうの手番
 	// uncapValue = 最後にこの駒が取れなかったときにこの駒が「成り」の指し手だった場合、その価値分の損失が
 	// 出るのでそれが返る。
 
 	// 返し値は今回発見されたtoに利く最小の攻撃駒。これがtoの地点において成れるなら成ったあとの駒を返すべき。
 
-	template <Color stm>
 	Piece min_attacker(const Position& pos, const Square& to
 		, const Bitboard& stmAttackers, Bitboard& occupied, Bitboard& attackers
 	) {
@@ -1896,6 +1911,8 @@ namespace {
 		auto dirs = directions_of(to, sq);
 		if (dirs) switch (pop_directions(dirs))
 		{
+
+#if defined(USE_OLD_YANEURAOU_EFFECT)
 		case DIRECT_RU: case DIRECT_LD:
 			// 斜め方向なら斜め方向の升をスキャンしてその上にある角・馬を足す
 			attackers |= bishopEffect0(to, occupied) & pos.pieces(BISHOP_HORSE);
@@ -1907,7 +1924,18 @@ namespace {
 			attackers |= bishopEffect1(to, occupied) & pos.pieces(BISHOP_HORSE);
 			ASSERT_LV3((bishopStepEffect(to) & sq));
 			break;
+#else
+		// Aperyの利き実装を用いる場合
+		// bishopEffect()で斜め四方向の利きが一気に求まるのでこれを分かつことはできない。
 
+		// 斜め方向なら斜め方向の升をスキャンしてその上にある角・馬を足す
+		case DIRECT_RU: case DIRECT_LD:
+		case DIRECT_RD: case DIRECT_LU:
+			attackers |= bishopEffect(to, occupied) & pos.pieces(BISHOP_HORSE);
+			ASSERT_LV3((bishopStepEffect(to) & sq));
+			break;
+
+#endif
 		case DIRECT_U:
 			// 後手の香 + 先後の飛車
 			attackers |= lanceEffect(BLACK, to, occupied) & (pos.pieces(ROOK_DRAGON) | pos.pieces(WHITE, LANCE));
@@ -1924,7 +1952,12 @@ namespace {
 
 		case DIRECT_L: case DIRECT_R:
 			// 左右なので先後の飛車
+
+#if defined(USE_OLD_YANEURAOU_EFFECT)
 			attackers |= rookRankEffect(to, occupied) & pos.pieces(ROOK_DRAGON);
+#else
+			attackers |= rookEffect(to, occupied) & pos.pieces(ROOK_DRAGON);
+#endif
 
 			ASSERT_LV3(((rookStepEffect(to) & sq)));
 			break;
@@ -1938,6 +1971,8 @@ namespace {
 			ASSERT_LV3(!((rookStepEffect(to) & sq)));
 		}
 
+		// toに利く攻撃駒は、occupiedのその升が1になっている駒に限定する。
+		// 処理した駒はoccupiedのその升が0になるので自動的に除外される。
 		attackers &= occupied;
 
 		// この駒が成れるなら、成りの値を返すほうが良いかも。
@@ -2039,10 +2074,7 @@ bool Position::see_ge(Move m, Value threshold) const
 
 		// 次に価値の低い攻撃駒を調べて取り除く。
 
-		nextVictim = (stm == BLACK)
-			// 将棋だと香の利きが先後で違うのでmin_attacker()に手番も渡してやる必要がある。
-			? min_attacker<BLACK>(*this, to, stmAttackers, occupied, attackers)
-			: min_attacker<WHITE>(*this, to, stmAttackers, occupied, attackers);
+		nextVictim = min_attacker(*this, to, stmAttackers, occupied, attackers);
 
 		stm = ~stm; // 相手番に
 

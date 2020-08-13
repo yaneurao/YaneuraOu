@@ -84,20 +84,26 @@ class AffineTransform {
     const auto input = previous_layer_.Propagate(
         transformed_features, buffer + kSelfBufferSize);
     const auto output = reinterpret_cast<OutputType*>(buffer);
+
 #if defined(USE_AVX2)
     constexpr IndexType kNumChunks = kPaddedInputDimensions / kSimdWidth;
     const __m256i kOnes = _mm256_set1_epi16(1);
     const auto input_vector = reinterpret_cast<const __m256i*>(input);
-#elif defined(USE_SSE41)
+
+#elif defined(USE_SSSE3)
     constexpr IndexType kNumChunks = kPaddedInputDimensions / kSimdWidth;
     const __m128i kOnes = _mm_set1_epi16(1);
     const auto input_vector = reinterpret_cast<const __m128i*>(input);
+
 #elif defined(IS_ARM)
     constexpr IndexType kNumChunks = kPaddedInputDimensions / kSimdWidth;
     const auto input_vector = reinterpret_cast<const int8x8_t*>(input);
+
 #endif
+
     for (IndexType i = 0; i < kOutputDimensions; ++i) {
       const IndexType offset = i * kPaddedInputDimensions;
+
 #if defined(USE_AVX2)
       __m256i sum = _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, biases_[i]);
       const auto row = reinterpret_cast<const __m256i*>(&weights_[offset]);
@@ -112,7 +118,7 @@ class AffineTransform {
       const __m128i lo = _mm256_extracti128_si256(sum, 0);
       const __m128i hi = _mm256_extracti128_si256(sum, 1);
       output[i] = _mm_cvtsi128_si32(lo) + _mm_cvtsi128_si32(hi);
-#elif defined(USE_SSE41)
+#elif defined(USE_SSSE3)
       __m128i sum = _mm_cvtsi32_si128(biases_[i]);
       const auto row = reinterpret_cast<const __m128i*>(&weights_[offset]);
       for (IndexType j = 0; j < kNumChunks; ++j) {
@@ -134,6 +140,7 @@ class AffineTransform {
       }
       output[i] = sum[0] + sum[1] + sum[2] + sum[3];
 #else
+	  // CPUに依存しないコード
       OutputType sum = biases_[i];
       for (IndexType j = 0; j < kInputDimensions; ++j) {
         sum += weights_[offset + j] * input[j];

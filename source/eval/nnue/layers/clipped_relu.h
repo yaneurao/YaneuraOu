@@ -67,6 +67,7 @@ class ClippedReLU {
     const auto input = previous_layer_.Propagate(
         transformed_features, buffer + kSelfBufferSize);
     const auto output = reinterpret_cast<OutputType*>(buffer);
+
 #if defined(USE_AVX2)
     constexpr IndexType kNumChunks = kInputDimensions / kSimdWidth;
     const __m256i kZero = _mm256_setzero_si256();
@@ -84,9 +85,14 @@ class ClippedReLU {
           _mm256_packs_epi16(words0, words1), kZero), kOffsets));
     }
     constexpr IndexType kStart = kNumChunks * kSimdWidth;
-#elif defined(USE_SSE41)
+	// 端数分の処理が必要なので、↓以下でそれを行う。
+
+#elif defined(USE_SSSE3)
     constexpr IndexType kNumChunks = kInputDimensions / kSimdWidth;
     const __m128i kZero = _mm_setzero_si128();
+#if !defined(USE_SSE41) // SSE4非対応だがSSE3は使える環境
+    const __m128i k0x80s = _mm_set1_epi8(-128);
+#endif
     const auto in = reinterpret_cast<const __m128i*>(input);
     const auto out = reinterpret_cast<__m128i*>(output);
     for (IndexType i = 0; i < kNumChunks; ++i) {
@@ -96,10 +102,17 @@ class ClippedReLU {
       const __m128i words1 = _mm_srai_epi16(_mm_packs_epi32(
           _mm_load_si128(&in[i * 4 + 2]),
           _mm_load_si128(&in[i * 4 + 3])), kWeightScaleBits);
-      _mm_store_si128(&out[i], _mm_max_epi8(
-          _mm_packs_epi16(words0, words1), kZero));
+        const __m128i packedbytes = _mm_packs_epi16(words0, words1);
+        _mm_store_si128(&out[i],
+#if defined(USE_SSE41)
+            _mm_max_epi8(packedbytes, kZero)
+#else // SSE4非対応だがSSE3は使える環境
+            _mm_subs_epi8(_mm_adds_epi8(packedbytes, k0x80s), k0x80s)
+#endif
+        );
     }
     constexpr IndexType kStart = kNumChunks * kSimdWidth;
+
 #elif defined(IS_ARM)
     constexpr IndexType kNumChunks = kInputDimensions / (kSimdWidth / 2);
     const int8x8_t kZero = {0};
@@ -113,6 +126,7 @@ class ClippedReLU {
       out[i] = vmax_s8(vqmovn_s16(shifted), kZero);
     }
     constexpr IndexType kStart = kNumChunks * (kSimdWidth / 2);
+
 #else
     constexpr IndexType kStart = 0;
 #endif
