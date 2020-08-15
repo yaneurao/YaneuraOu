@@ -26,9 +26,11 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 
 # ターゲットCPU
 # 利用できるCPU拡張命令を指定する。
+# AMDのRyzen(Zen/Zen2)はZEN1/ZEN2を選択するとBMI2命令が使わずに速くなる。(10%程度高速化)
 # ARM系ならOTHERを指定する。
-# 32bit環境用はNO_SSE
-# AMDのZen2はZEN2を選択すると良いかも？(clang9以降で対応)
+# 32bit環境用はNO_SSEを指定する。
+
+# TODO : AVX512、世代ごとにわける
 
 #TARGET_CPU = AVX512
 TARGET_CPU = AVX2
@@ -38,6 +40,7 @@ TARGET_CPU = AVX2
 #TARGET_CPU = SSE2
 #TARGET_CPU = NO_SSE
 #TARGET_CPU = OTHER
+#TARGET_CPU = ZEN1
 #TARGET_CPU = ZEN2
 
 
@@ -132,6 +135,7 @@ LDFLAGS += -Wl,-s
 #ENGINE_NAME =
 
 # 開発中のbranchならdevと指定する
+# そうでなければこのシンボルを定義しない
 #ENGINE_BRANCH = dev
 
 ifeq ($(findstring g++,$(COMPILER)),g++)
@@ -273,19 +277,29 @@ endif
 
 # CPU判別
 
-# AMDなど特定のCPU
-ifeq ($(TARGET_CPU),ZEN2)
-	CFLAGS += -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=znver2
+# AMD Ryzenシリーズ
+
+# ZEN1/ZEN2はBMI2命令を使わずPEXTはSoftware Emulationしたほうが速い。
+# さらに、そのコードを使う代わりにMagic Bitboardを使うことで高速化を図る。
+# (USE_BMI2が定義されていない時、自動的にmagic bitboardが用いられる)
+
+ifeq ($(TARGET_CPU),ZEN1)
+	CFLAGS += -DUSE_AVX2 -mbmi -mno-bmi2 -mavx2 -march=znver1
+
+else ifeq ($(TARGET_CPU),ZEN2)
+	CFLAGS += -DUSE_AVX2 -mbmi -mno-bmi2 -mavx2 -march=znver2
 
 # それ以外は、AVX512,AVX2,SSE4.2,SSE4.1,SSE2のように利用できるCPU拡張命令で振り分ける。
+# AVX2より上位のCPUなら普通は(Intel系なら)BMI2命令を使ったほうが速いので"USE_BMI2"を指定しておく。
+
 else ifeq ($(TARGET_CPU),AVX512)
 	# skylake     : -DUSE_AVX512 -DUSE_AVX512VLBWDQ -march=skylake-avx512
 	# cascadelake : -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -march=cascadelake
 	# icelake     : -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -DUSE_AVX512VBMI -DUSE_AVX512IFMA -USE_GFNI -march=icelake-client
-	CFLAGS += -DUSE_AVX512 -DUSE_AVX512VLBWDQ -march=skylake-avx512
+	CFLAGS += -DUSE_AVX512 -DUSE_BMI2 -DUSE_AVX512VLBWDQ -march=skylake-avx512
 
 else ifeq ($(TARGET_CPU),AVX2)
-	CFLAGS += -DUSE_AVX2 -mbmi -mbmi2 -mavx2 -march=corei7-avx
+	CFLAGS += -DUSE_AVX2 -DUSE_BMI2 -mbmi -mbmi2 -mavx2 -march=corei7-avx
 
 else ifeq ($(TARGET_CPU),SSE42)
 	CFLAGS += -DUSE_SSE42 -msse4.2 -march=corei7

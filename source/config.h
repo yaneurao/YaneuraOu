@@ -56,15 +56,26 @@
 #define USE_AVX2
 //#define USE_SSE42
 //#define USE_SSE41
-//#define USE_SSE3
+//#define USE_SSSE3
 //#define USE_SSE2
 //#define NO_SSE
 
+// -- BMI2命令を使う/使わない
+
+// AVX2環境でBMI2が使えるときに、BMI2対応命令を使うのか(ZEN/ZEN2ではBMI2命令は使わないほうが速い)
+// AMDのRyzenシリーズ(ZEN1/ZEN2)では、BMI2命令遅いので、これを定義しないほうが速い。
+#define USE_BMI2
+
+// やねうら王の従来の遠方駒の利きを求めるコードを用いる。
+// これをundefするとApery型の利きのコードを用いる。(そっちのほうがPEXTが使えない環境だと速い)
+// 互換性維持および、55将棋のように盤面を変形させるときに、magic tableで用いるmagic numberを求めたくないときに用いる。
+
+// #define USE_OLD_YANEURAOU_EFFECT
+
+
 #else
 
-// Makefileを使ってbuildするときは、
-// $ make avx2
-// のようにしてビルドすれば自動的にAVX2用実行ファイルがビルドされます。
+// Makefileを使ってbuildする手順は docs/解説.txt を見ること。
 
 #endif
 
@@ -251,6 +262,8 @@
 // GUI側が、何らかの都合で"rep_draw"のみしか処理できないときに用いる。
 // #define PV_OUTPUT_DRAW_ONLY
 
+
+
 // --------------------
 // release configurations
 // --------------------
@@ -350,7 +363,8 @@
 
 #if defined(USER_ENGINE)
 #define ENGINE_NAME "YaneuraOu user engine"
-#define EVAL_KPP
+#define USE_SEE
+#define EVAL_MATERIAL
 #endif
 
 // --------------------
@@ -510,16 +524,22 @@ constexpr bool Is64Bit = true;
 constexpr bool Is64Bit = false;
 #endif
 
+#if defined(USE_BMI2)
+#define BMI2_STR "BMI2"
+#else
+#define BMI2_STR ""
+#endif
+
 #if defined(USE_AVX512)
-#define TARGET_CPU "AVX512"
+#define TARGET_CPU "AVX512" BMI2_STR
 #elif defined(USE_AVX2)
-#define TARGET_CPU "AVX2"
+#define TARGET_CPU "AVX2" BMI2_STR
 #elif defined(USE_SSE42)
 #define TARGET_CPU "SSE4.2"
 #elif defined(USE_SSE41)
 #define TARGET_CPU "SSE4.1"
-#elif defined(USE_SSE3)
-#define TARGET_CPU "SSE3"
+#elif defined(USE_SSSE3)
+#define TARGET_CPU "SSSE3"
 #elif defined(USE_SSE2)
 #define TARGET_CPU "SSE2"
 #else
