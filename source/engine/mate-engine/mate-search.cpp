@@ -422,7 +422,7 @@ namespace MateEngine
 		case REPETITION_LOSE:
 		  avoid_loop=true;
 		  // todo この処理本当に正しいの?
-		  // break; 
+		  break; 
 			// 連続王手の千日手による負け
 			if (or_node) {
 				entry.pn = kInfinitePnDn;
@@ -499,25 +499,41 @@ namespace MateEngine
 			if (or_node) {
 				entry.pn = kInfinitePnDn;
 				entry.dn = 0;
+				bool is_mate = false;
 				for (const auto& move : move_picker) {
 					const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
+					if (child_entry.pn == 0){
+						is_mate = true;
+					}
 					if(avoid_loop && entry.minimum_distance > child_entry.minimum_distance && child_entry.pn != 0){
 					  continue;
 					}
 					entry.pn = std::min(entry.pn, child_entry.pn);
 					entry.dn += child_entry.dn;
 				}
-				entry.dn = std::min(entry.dn, kInfinitePnDn);
+				if (is_mate){
+					entry.dn = kInfinitePnDn;
+				}else{
+					entry.dn = std::min(entry.dn, kInfinitePnDn-1);
+				}
 			}
 			else {
 				entry.pn = 0;
 				entry.dn = kInfinitePnDn;
+				bool is_nomate = false;
 				for (const auto& move : move_picker) {
 					const auto& child_entry = transposition_table.LookUpChildEntry(n, move, root_color);
+					if(child_entry.dn == 0){
+						is_nomate = true;
+					}
 					entry.pn += child_entry.pn;
 					entry.dn = std::min(entry.dn, child_entry.dn);
 				}
-				entry.pn = std::min(entry.pn, kInfinitePnDn);
+				if(is_nomate){
+					entry.pn = kInfinitePnDn;
+				}else{
+					entry.pn = std::min(entry.pn, kInfinitePnDn-1);
+				}
 			}
 
 			// if (first time && inc flag) {
