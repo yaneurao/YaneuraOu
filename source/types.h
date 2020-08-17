@@ -711,6 +711,38 @@ constexpr bool hand_is_equal_or_superior(Hand h1, Hand h2) { return ((h1-h2) & H
 std::ostream& operator<<(std::ostream& os, Hand hand);
 
 
+// --------------------	
+// 手駒情報を直列化したもの	
+// --------------------	
+#if defined(LONG_EFFECT_LIBRARY)
+
+// LONG_EFFECT_LIBRARYのmateルーチンで使用している。
+// 修正してこのenumは削除すべきだが、わりと面倒なので出来ていない。
+
+// 特定種の手駒を持っているかどうかをbitで表現するクラス	
+// bit0..歩を持っているか , bit1..香 , bit2..桂 , bit3..銀 , bit4..角 , bit5..飛 , bit6..金 , bit7..玉(フラグとして用いるため)	
+enum HandKind : uint32_t {
+	HAND_KIND_PAWN = 1 << (PAWN - 1), HAND_KIND_LANCE = 1 << (LANCE - 1), HAND_KIND_KNIGHT = 1 << (KNIGHT - 1),
+	HAND_KIND_SILVER = 1 << (SILVER - 1), HAND_KIND_BISHOP = 1 << (BISHOP - 1), HAND_KIND_ROOK = 1 << (ROOK - 1), HAND_KIND_GOLD = 1 << (GOLD - 1),
+	HAND_KIND_KING = 1 << (KING - 1), HAND_KIND_ZERO = 0,
+};
+
+// Hand型からHandKind型への変換子	
+// 例えば歩の枚数であれば5bitで表現できるが、011111bを加算すると1枚でもあれば桁あふれしてbit5が1になる。	
+// これをPEXT32で回収するという戦略。	
+static HandKind toHandKind(Hand h) { return (HandKind)PEXT32(h + HAND_BIT_MASK, HAND_BORROW_MASK); }
+
+// 特定種類の駒を持っているかを判定する	
+constexpr bool hand_exists(HandKind hk, Piece pt) { /* ASSERT_LV2(PIECE_HAND_ZERO <= pt && pt < PIECE_HAND_NB); */ return static_cast<bool>(hk & (1 << (pt - 1))); }
+
+// 歩以外の手駒を持っているかを判定する	
+constexpr bool hand_exceptPawnExists(HandKind hk) { return hk & ~HAND_KIND_PAWN; }
+
+// 手駒の有無を表示する(USI形式ではない) デバッグ用	
+//std::ostream& operator<<(std::ostream& os, HandKind hk);
+
+#endif
+
 // --------------------
 //    指し手生成器
 // --------------------

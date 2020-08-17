@@ -2209,6 +2209,10 @@ bool Position::has_game_cycle(int plies_from_root, int rep_ply /*= 16*/) const
 
 			// 間に駒がないのでたぶんいける。開き王手とか知らん。
 			// ざっくりした枝刈りにしか使わないのでこのへんの判定甘くても問題ない。
+
+			// あと、連続王手による千日手到達に関してはdraw_value返すのはやめたほうが…。
+			// これは、rating下がりうる。王手の指し手ではないことを条件に含めないと。
+
 			if (!(between_bb(s1, s2) & pieces()))
 			{
 				if (plies_from_root > i)

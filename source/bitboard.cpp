@@ -840,4 +840,5 @@ void Bitboards::init()
 #if defined (USE_MATE_1PLY)
 	Mate1Ply::init();
 #endif
+
 }

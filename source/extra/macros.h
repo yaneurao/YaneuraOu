@@ -43,7 +43,6 @@ ENABLE_FULL_OPERATORS_ON(Move)
 ENABLE_FULL_OPERATORS_ON(Eval::BonaPiece)
 ENABLE_FULL_OPERATORS_ON(Effect8::Direct)
 
-
 // enumに対してint型との加算と減算を提供するマクロ。Value型など一部の型はこれがないと不便。
 
 #define ENABLE_ADD_SUB_OPERATORS_ON(T)						\
@@ -64,6 +63,12 @@ ENABLE_ADD_SUB_OPERATORS_ON(Value)
   constexpr T operator^(const T d1, const T d2) { return T(int(d1) ^ int(d2)); }	\
   inline T& operator^=(T& d1, const T d2) { return d1 = T(int(d1) ^ int(d2)); }		\
   constexpr T operator~(const T d1) { return T(~int(d1)); }
+
+#if defined(LONG_EFFECT_LIBRARY)
+// LONG_EFFECT_LIBRARYでHandKind使ってる箇所がある。そのうち修正する。
+ENABLE_FULL_OPERATORS_ON(HandKind)
+ENABLE_BIT_OPERATORS_ON(HandKind)
+#endif
 
 
 // enumに対してrange forで回せるようにするためのhack(速度低下があるかも知れないので速度の要求されるところでは使わないこと)
