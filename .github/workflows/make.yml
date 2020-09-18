@@ -19,7 +19,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: configure
-      run: sudo apt install build-essential clang g++-9 libomp-8-dev libopenblas-dev
+      run: sudo apt install build-essential clang g++-9 libopenblas-dev
     - name: make
       run: cd script && ./linux_build.sh -c ${{ matrix.compiler }} -t normal
     - name: make (tournament)
