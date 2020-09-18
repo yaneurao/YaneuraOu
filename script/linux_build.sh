@@ -7,10 +7,10 @@
 # linux_build.sh
 
 # Example 2: 指定パターンのビルド(-c: コンパイラ名, -e: エディション名, -t: ターゲット名)
-# linux_build.sh -c clang++ -e YANEURAOU_ENGINE_NNUE_HALFKP256 -t avx2
+# linux_build.sh -c clang++ -e YANEURAOU_ENGINE_NNUE_HALFKP256
 
 # Example 3: 特定パターンのビルド(複数指定時はカンマ区切り、 -e, -t オプションのみワイルドカード使用可、ワイルドカード使用時はシングルクォートで囲む)
-# linux_build.sh -c clang++,g++-9 -e '*KPPT*,*HALFKP*' -t '*avx2*'
+# linux_build.sh -c clang++,g++-9 -e '*KPPT*,*HALFKP*'
 
 MAKE=make
 MAKEFILE=Makefile
@@ -50,22 +50,10 @@ EDITIONS=(
 )
 
 TARGETS=(
-  icelake
-  cascadelake
-  avx512
-  avx2
-  sse42
-  sse2
-  tournament-icelake
-  tournament-cascadelake
-  tournament-avx512
-  tournament-avx2
-  tournament-sse42
-  evallearn-icelake
-  evallearn-cascadelake
-  evallearn-avx512
-  evallearn-avx2
-  evallearn-sse42
+  normal
+  tournament
+  evallearn
+  gensfen
 )
 
 declare -A FILESTR;

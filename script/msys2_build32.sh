@@ -54,7 +54,10 @@ EDITIONS=(
 )
 
 TARGETS=(
-  nosse
+  normal
+  tournament
+  evallearn
+  gensfen
 )
 
 declare -A FILESTR;

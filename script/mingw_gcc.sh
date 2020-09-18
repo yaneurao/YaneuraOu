@@ -7,10 +7,10 @@
 # mingw_gcc.sh
 
 # Example 2: 指定パターンのビルド(-e: エディション名, -t: ターゲット名)
-# mingw_gcc.sh -e YANEURAOU_ENGINE_NNUE_HALFKP256 -t avx2
+# mingw_gcc.sh -e YANEURAOU_ENGINE_NNUE_HALFKP256
 
 # Example 3: 特定パターンのビルド(ワイルドカード使用時はシングルクォートで囲む)
-# mingw_gcc.sh -e '*KPPT*,*HALFKP*' -t '*avx2*'
+# mingw_gcc.sh -e '*KPPT*,*HALFKP*'
 
 OS=Windows_NT
 MAKE=make
@@ -51,23 +51,10 @@ EDITIONS=(
 )
 
 TARGETS=(
-  icelake
-  cascadelake
-  avx512
-  avx2
-  sse42
-  sse2
-  nosse
-  tournament-icelake
-  tournament-cascadelake
-  tournament-avx512
-  tournament-avx2
-  tournament-sse42
-  evallearn-icelake
-  evallearn-cascadelake
-  evallearn-avx512
-  evallearn-avx2
-  evallearn-sse42
+  normal
+  tournament
+  evallearn
+  gensfen
 )
 
 declare -A FILESTR;
