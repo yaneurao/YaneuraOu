@@ -16,4 +16,10 @@ jobs:
     - name: configure
       run: sudo apt install build-essential clang g++-9 libomp-8-dev libopenblas-dev
     - name: make
-      run: cd script && ./linux_build.sh
+      run: cd script && ./linux_build.sh -t normal
+    - name: make (tournament)
+      run: cd script && ./linux_build.sh -t tournament
+    - name: make (evallearn)
+      run: cd script && ./linux_build.sh -t evallearn
+    - name: make (gensfen)
+      run: cd script && ./linux_build.sh -t gensfen
