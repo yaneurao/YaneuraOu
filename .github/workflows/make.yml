@@ -6,20 +6,25 @@ on:
   pull_request:
     branches: [ master ]
 
+
 jobs:
   build:
 
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        compiler: [ clang++, g++ ]
 
     steps:
     - uses: actions/checkout@v2
     - name: configure
       run: sudo apt install build-essential clang g++-9 libomp-8-dev libopenblas-dev
     - name: make
-      run: cd script && ./linux_build.sh -t normal
+      run: cd script && ./linux_build.sh -c ${{ matrix.compiler }} -t normal
     - name: make (tournament)
-      run: cd script && ./linux_build.sh -t tournament
+      run: cd script && ./linux_build.sh -c ${{ matrix.compiler }} -t tournament
     - name: make (evallearn)
-      run: cd script && ./linux_build.sh -t evallearn
+      run: cd script && ./linux_build.sh -c ${{ matrix.compiler }} -t evallearn
     - name: make (gensfen)
-      run: cd script && ./linux_build.sh -t gensfen
+      run: cd script && ./linux_build.sh -c ${{ matrix.compiler }} -t gensfen
