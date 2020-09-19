@@ -7,10 +7,10 @@
 # linux_build.sh
 
 # Example 2: 指定パターンのビルド(-c: コンパイラ名, -e: エディション名, -t: ターゲット名)
-# linux_build.sh -c clang++ -e YANEURAOU_ENGINE_NNUE_HALFKP256
+# linux_build.sh -c clang++ -e YANEURAOU_ENGINE_NNUE
 
 # Example 3: 特定パターンのビルド(複数指定時はカンマ区切り、 -e, -t オプションのみワイルドカード使用可、ワイルドカード使用時はシングルクォートで囲む)
-# linux_build.sh -c clang++,g++-9 -e '*KPPT*,*HALFKP*'
+# linux_build.sh -c clang++,g++-9 -e '*KPPT*,*NNUE*'
 
 MAKE=make
 MAKEFILE=Makefile
@@ -44,9 +44,10 @@ EDITIONS=(
   YANEURAOU_ENGINE_KPPT
   YANEURAOU_ENGINE_KPP_KKPT
   YANEURAOU_ENGINE_MATERIAL
-  YANEURAOU_ENGINE_NNUE_HALFKP256
+  YANEURAOU_ENGINE_NNUE
   YANEURAOU_ENGINE_NNUE_KP256
   MATE_ENGINE
+  USER_ENGINE
 )
 
 TARGETS=(
@@ -61,9 +62,10 @@ FILESTR=(
   ["YANEURAOU_ENGINE_KPPT"]="kppt"
   ["YANEURAOU_ENGINE_KPP_KKPT"]="kpp_kkpt"
   ["YANEURAOU_ENGINE_MATERIAL"]="material"
-  ["YANEURAOU_ENGINE_NNUE_HALFKP256"]="nnue-halfkp_256"
+  ["YANEURAOU_ENGINE_NNUE"]="nnue"
   ["YANEURAOU_ENGINE_NNUE_KP256"]="nnue-k_p_256"
   ["MATE_ENGINE"]="mate"
+  ["USER_ENGINE"]="user"
 );
 
 set -f

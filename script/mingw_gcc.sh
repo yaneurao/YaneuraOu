@@ -7,10 +7,10 @@
 # mingw_gcc.sh
 
 # Example 2: 指定パターンのビルド(-e: エディション名, -t: ターゲット名)
-# mingw_gcc.sh -e YANEURAOU_ENGINE_NNUE_HALFKP256
+# mingw_gcc.sh -e YANEURAOU_ENGINE_NNUE
 
 # Example 3: 特定パターンのビルド(ワイルドカード使用時はシングルクォートで囲む)
-# mingw_gcc.sh -e '*KPPT*,*HALFKP*'
+# mingw_gcc.sh -e '*KPPT*,*NNUE*'
 
 OS=Windows_NT
 MAKE=make
@@ -45,9 +45,10 @@ EDITIONS=(
   YANEURAOU_ENGINE_KPPT
   YANEURAOU_ENGINE_KPP_KKPT
   YANEURAOU_ENGINE_MATERIAL
-  YANEURAOU_ENGINE_NNUE_HALFKP256
+  YANEURAOU_ENGINE_NNUE
   YANEURAOU_ENGINE_NNUE_KP256
   MATE_ENGINE
+  USER_ENGINE
 )
 
 TARGETS=(
@@ -62,9 +63,10 @@ FILESTR=(
   ["YANEURAOU_ENGINE_KPPT"]="kppt"
   ["YANEURAOU_ENGINE_KPP_KKPT"]="kpp_kkpt"
   ["YANEURAOU_ENGINE_MATERIAL"]="material"
-  ["YANEURAOU_ENGINE_NNUE_HALFKP256"]="nnue-halfkp_256"
+  ["YANEURAOU_ENGINE_NNUE"]="nnue"
   ["YANEURAOU_ENGINE_NNUE_KP256"]="nnue-k_p_256"
   ["MATE_ENGINE"]="mate"
+  ["USER_ENGINE"]="user"
 );
 
 set -f

@@ -38,3 +38,9 @@ ndk-build clean ENGINE_TARGET=MATE_ENGINE
 ndk-build ENGINE_TARGET=MATE_ENGINE 2>&1 | tee build/android/MATE/MATE.log
 cp -r libs/* build/android/MATE
 ndk-build clean ENGINE_TARGET=MATE_ENGINE
+
+mkdir -p build/android/USER
+ndk-build clean ENGINE_TARGET=USER_ENGINE
+ndk-build ENGINE_TARGET=USER_ENGINE 2>&1 | tee build/android/USER/USER.log
+cp -r libs/* build/android/USER
+ndk-build clean ENGINE_TARGET=USER_ENGINE
