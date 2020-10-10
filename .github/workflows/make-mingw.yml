@@ -1,0 +1,26 @@
+name: Make CI (MinGW)
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: configure
+      run: sudo apt install build-essential mingw-w64 libopenblas-dev
+    - name: make
+      run: cd script && ./mingw_gcc.sh -t normal
+    - name: make (tournament)
+      run: cd script && ./mingw_gcc.sh -t tournament
+    - name: make (evallearn)
+      run: cd script && ./mingw_gcc.sh -t evallearn
+    - name: make (gensfen)
+      run: cd script && ./mingw_gcc.sh -t gensfen
