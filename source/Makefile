@@ -101,10 +101,8 @@ endif
 ifeq ($(OS),Windows_NT)
 	CFLAGS += $(WCFLAGS)
 	LDFLAGS += -static -Wl,--stack,25000000
-	TARGET = YaneuraOu-by-gcc.exe
 else
 	CFLAGS += -D_LINUX
-	TARGET = YaneuraOu-by-gcc
 endif
 
 # リンク時最適化。
@@ -329,10 +327,10 @@ CFLAGS += -DUSE_MAKEFILE -D$(YANEURAOU_EDITION)
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
 DEPENDS  = $(OBJECTS:.o=.d)
 
-all: clean $(TARGET)
+all: clean YaneuraOu-by-gcc
 .PHONY : all normal evallearn tournament gensfen prof profgen profuse pgo clean
 
-$(TARGET): $(OBJECTS) $(LIBS)
+YaneuraOu-by-gcc: $(OBJECTS) $(LIBS)
 	$(COMPILER) -o $@ $^ $(LDFLAGS) $(CFLAGS)
 
 $(OBJDIR)/%.o: %.cpp
@@ -378,6 +376,6 @@ pgo:
 	$(MAKE) profuse
 
 clean:
-	rm -f $(OBJECTS) $(DEPENDS) $(TARGET) ${OBJECTS:.o=.gcda}
+	rm -f $(OBJECTS) $(DEPENDS) $(TARGET) YaneuraOu-by-gcc ${OBJECTS:.o=.gcda}
 
 -include $(DEPENDS)
