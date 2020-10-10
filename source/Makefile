@@ -329,14 +329,15 @@ CFLAGS += -DUSE_MAKEFILE -D$(YANEURAOU_EDITION)
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
 DEPENDS  = $(OBJECTS:.o=.d)
 
+all: clean $(TARGET)
+.PHONY : all normal evallearn tournament gensfen prof profgen profuse pgo clean
+
 $(TARGET): $(OBJECTS) $(LIBS)
 	$(COMPILER) -o $@ $^ $(LDFLAGS) $(CFLAGS)
 
 $(OBJDIR)/%.o: %.cpp
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
 	$(COMPILER) $(CFLAGS) $(INCLUDE) -o $@ -c $<
-
-all: clean $(TARGET)
 
 # https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
 
