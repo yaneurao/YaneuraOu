@@ -130,6 +130,7 @@ LOCAL_SRC_FILES := \
   ../source/tt.cpp                                                     \
   ../source/movepick.cpp                                               \
   ../source/timeman.cpp                                                \
+  ../source/benchmark.cpp                                              \
   ../source/extra/book/apery_book.cpp                                  \
   ../source/extra/book/book.cpp                                        \
   ../source/extra/book/makebook2019.cpp                                \
@@ -138,9 +139,7 @@ LOCAL_SRC_FILES := \
   ../source/extra/mate/mate1ply_with_effect.cpp                        \
   ../source/extra/mate/mate1ply_without_effect.cpp                     \
   ../source/extra/mate/mate_n_ply.cpp                                  \
-  ../source/extra/benchmark.cpp                                        \
   ../source/extra/test_cmd.cpp                                         \
-  ../source/extra/see.cpp                                              \
   ../source/extra/sfen_packer.cpp                                      \
   ../source/extra/kif_converter/kif_convert_tools.cpp                  \
   ../source/eval/evaluate_bona_piece.cpp                               \
