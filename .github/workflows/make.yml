@@ -13,6 +13,7 @@ jobs:
 
     strategy:
       matrix:
+        edition: [ YANEURAOU_ENGINE_KPPT, YANEURAOU_ENGINE_KPP_KKPT, YANEURAOU_ENGINE_MATERIAL, YANEURAOU_ENGINE_NNUE, YANEURAOU_ENGINE_NNUE_KP256, MATE_ENGINE, USER_ENGINE ]
         archcpu: [ AVX512, AVX2, SSE42, SSE41, SSSE3, SSE3, NO_SSE, OTHER, ZEN1, ZEN2 ]
         compiler: [ clang++, g++ ]
 
@@ -23,10 +24,10 @@ jobs:
       run: sudo apt install build-essential clang g++-9 libopenblas-dev
 
     - name: make
-      run: cd script && ./build.sh -a ${{ matrix.archcpu }} -c ${{ matrix.compiler }} -t normal
+      run: cd script && ./build.sh -a ${{ matrix.archcpu }} -c ${{ matrix.compiler }} -e ${{ matrix.edition }} -t normal
     - name: make (tournament)
-      run: cd script && ./build.sh -a ${{ matrix.archcpu }} -c ${{ matrix.compiler }} -t tournament
+      run: cd script && ./build.sh -a ${{ matrix.archcpu }} -c ${{ matrix.compiler }} -e ${{ matrix.edition }} -t tournament
     - name: make (evallearn)
-      run: cd script && ./build.sh -a ${{ matrix.archcpu }} -c ${{ matrix.compiler }} -t evallearn
+      run: cd script && ./build.sh -a ${{ matrix.archcpu }} -c ${{ matrix.compiler }} -e ${{ matrix.edition }} -t evallearn
     - name: make (gensfen)
-      run: cd script && ./build.sh -a ${{ matrix.archcpu }} -c ${{ matrix.compiler }} -t gensfen
+      run: cd script && ./build.sh -a ${{ matrix.archcpu }} -c ${{ matrix.compiler }} -e ${{ matrix.edition }} -t gensfen
