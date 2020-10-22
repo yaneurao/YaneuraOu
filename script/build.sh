@@ -108,8 +108,7 @@ for ARCHCPU in ${ARCHCPUSARR[@]}; do
               if [[ $TARGET == $TARGETPTN ]]; then
                 echo "* target: ${TARGET}"
                 TGSTR=YaneuraOu-${FILESTR[$EDITION]}-${OS}-${CSTR}-${TARGET}-${ARCHCPU}
-                ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-                nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} TARGET_CPU=${ARCHCPU} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} 2>&1 | tee ${BUILDDIR}/${TGSTR}.log
+                nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} TARGET_CPU=${ARCHCPU} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
                 cp YaneuraOu-by-gcc ${BUILDDIR}/${TGSTR}
                 ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
                 set -f

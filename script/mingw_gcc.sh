@@ -86,7 +86,7 @@ for EDITION in ${EDITIONS[@]}; do
             if [ $TARGET == 'nosse' ]; then COMPILER=${COMPILER32}; else COMPILER=${COMPILER64}; fi
             TGSTR=YaneuraOu-${FILESTR[$EDITION]}-msys2-${CSTR}-${TARGET}
             ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-            nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} 2>&1 | tee ${BUILDDIR}/${TGSTR}.log
+            nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
             cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
             ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
             set -f
@@ -109,7 +109,7 @@ TGTAIL=(icelake cascadelake avx512 avx2 sse42 sse2 nosse tournament-icelake tour
 for BTG in ${TGTAIL[@]}; do
   if [ ${BTG} = 'nosse' ]; then COMPILER=${COMPILER32}; else COMPILER=${COMPILER64}; fi
   ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} 2>&1 | tee $BUILDDIR/${TARGET}-${BTG}.log
+  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} > >(tee $BUILDDIR/${TARGET}-${BTG}.log) || exit $?
   cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-${BTG}.exe
   ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
 done
@@ -122,7 +122,7 @@ TGTAIL=(icelake cascadelake avx512 avx2 sse42 sse2 nosse tournament-icelake tour
 for BTG in ${TGTAIL[@]}; do
   if [ ${BTG} = 'nosse' ]; then COMPILER=${COMPILER32}; else COMPILER=${COMPILER64}; fi
   ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} 2>&1 | tee $BUILDDIR/${TARGET}-${BTG}.log
+  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} > >(tee $BUILDDIR/${TARGET}-${BTG}.log) || exit $?
   cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-${BTG}.exe
   ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
 done
@@ -135,7 +135,7 @@ TGTAIL=(icelake cascadelake avx512 avx2 sse42 sse2 nosse tournament-icelake tour
 for BTG in ${TGTAIL[@]}; do
   if [ ${BTG} = 'nosse' ]; then COMPILER=${COMPILER32}; else COMPILER=${COMPILER64}; fi
   ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} 2>&1 | tee $BUILDDIR/${TARGET}-${BTG}.log
+  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} > >(tee $BUILDDIR/${TARGET}-${BTG}.log) || exit $?
   cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-${BTG}.exe
   ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
 done
@@ -148,7 +148,7 @@ TGTAIL=(icelake cascadelake avx512 avx2 sse42 sse2 nosse tournament-icelake tour
 for BTG in ${TGTAIL[@]}; do
   if [ ${BTG} = 'nosse' ]; then COMPILER=${COMPILER32}; else COMPILER=${COMPILER64}; fi
   ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} 2>&1 | tee $BUILDDIR/${TARGET}-${BTG}.log
+  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} > >(tee $BUILDDIR/${TARGET}-${BTG}.log) || exit $?
   cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-${BTG}.exe
   ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
 done
@@ -161,7 +161,7 @@ TGTAIL=(icelake cascadelake avx512 avx2 sse42 sse2 nosse tournament-icelake tour
 for BTG in ${TGTAIL[@]}; do
   if [ ${BTG} = 'nosse' ]; then COMPILER=${COMPILER32}; else COMPILER=${COMPILER64}; fi
   ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} 2>&1 | tee $BUILDDIR/${TARGET}-${BTG}.log
+  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} > >(tee $BUILDDIR/${TARGET}-${BTG}.log) || exit $?
   cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-${BTG}.exe
   ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
 done
@@ -174,7 +174,7 @@ TGTAIL=(icelake cascadelake avx512 avx2 sse42 sse2 nosse tournament-icelake tour
 for BTG in ${TGTAIL[@]}; do
   if [ ${BTG} = 'nosse' ]; then COMPILER=${COMPILER32}; else COMPILER=${COMPILER64}; fi
   ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} 2>&1 | tee $BUILDDIR/${TARGET}-${BTG}.log
+  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} > >(tee $BUILDDIR/${TARGET}-${BTG}.log) || exit $?
   cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-${BTG}.exe
   ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
 done
