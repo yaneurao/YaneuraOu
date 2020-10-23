@@ -12,22 +12,26 @@
 # Example 3: 特定パターンのビルド(ワイルドカード使用時はシングルクォートで囲む)
 # mingw_gcc.sh -e '*KPPT*,*NNUE*'
 
-OS=Windows_NT
 MAKE=make
 MAKEFILE=Makefile
 JOBS=`grep -c ^processor /proc/cpuinfo 2>/dev/null`
 
-COMPILER64=x86_64-w64-mingw32-g++-posix
-COMPILER32=i686-w64-mingw32-g++-posix
-COMPILER=
-
+ARCHCPUS='*'
+COMPILERS="x86_64-w64-mingw32-g++-posix,i686-w64-mingw32-g++-posix"
 EDITIONS='*'
+OS='Windows_NT'
 TARGETS='*'
 
-while getopts c:e:t: OPT
+while getopts a:c:e:t: OPT
 do
   case $OPT in
+    a) ARCHCPUS="$OPTARG"
+      ;;
+    c) COMPILERS="$OPTARG"
+      ;;
     e) EDITIONS="$OPTARG"
+      ;;
+    o) OS="$OPTARG"
       ;;
     t) TARGETS="$OPTARG"
       ;;
@@ -35,11 +39,24 @@ do
 done
 
 set -f
+IFS=, eval 'ARCHCPUSARR=($ARCHCPUS)'
+IFS=, eval 'COMPILERSARR=($COMPILERS)'
 IFS=, eval 'EDITIONSARR=($EDITIONS)'
 IFS=, eval 'TARGETSARR=($TARGETS)'
 
 cd `dirname $0`
 cd ../source
+
+ARCHCPUS=(
+  AVX512
+  AVX2
+  SSE42
+  SSE41
+  SSSE3
+  SSE2
+  OTHER
+  ZEN1
+)
 
 EDITIONS=(
   YANEURAOU_ENGINE_KPPT
@@ -69,112 +86,32 @@ FILESTR=(
   ["USER_ENGINE"]="user"
 );
 
-set -f
-for EDITION in ${EDITIONS[@]}; do
-  for EDITIONPTN in ${EDITIONSARR[@]}; do
-    set +f
-    if [[ $EDITION == $EDITIONPTN ]]; then
-      set -f
-      echo "* edition: ${EDITION}"
-      BUILDDIR=../build/mingw/${FILESTR[$EDITION]}
-      mkdir -p ${BUILDDIR}
-      for TARGET in ${TARGETS[@]}; do
-        for TARGETPTN in ${TARGETSARR[@]}; do
-          set +f
-          if [[ $TARGET == $TARGETPTN ]]; then
-            echo "* target: ${TARGET}"
-            if [ $TARGET == 'nosse' ]; then COMPILER=${COMPILER32}; else COMPILER=${COMPILER64}; fi
-            TGSTR=YaneuraOu-${FILESTR[$EDITION]}-msys2-${CSTR}-${TARGET}
-            ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-            nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
-            cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
-            ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-            set -f
-            break
-          fi
-          set -f
-        done
+for ARCHCPU in ${ARCHCPUSARR[@]}; do
+  for COMPILER in ${COMPILERSARR[@]}; do
+    echo "* compiler: ${COMPILER}"
+    CSTR=${COMPILER##*/}
+    CSTR=${CSTR##*\\}
+    for EDITION in ${EDITIONS[@]}; do
+      for EDITIONPTN in ${EDITIONSARR[@]}; do
+        if [[ $EDITION == $EDITIONPTN ]]; then
+          echo "* edition: ${EDITION}"
+          BUILDDIR=../build/windows/${FILESTR[$EDITION]}
+          mkdir -p ${BUILDDIR}
+          for TARGET in ${TARGETS[@]}; do
+            for TARGETPTN in ${TARGETSARR[@]}; do
+              if [[ $TARGET == $TARGETPTN ]]; then
+                echo "* target: ${TARGET}"
+                TGSTR=YaneuraOu-${FILESTR[$EDITION]}-windows-${CSTR}-${TARGET}-${ARCHCPU}
+                nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} OS=${OS} TARGET_CPU=${ARCHCPU} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
+                cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
+                ${MAKE} -f ${MAKEFILE} clean OS=${OS} YANEURAOU_EDITION=${EDITION}
+                break
+              fi
+            done
+          done
+          break
+        fi
       done
-      break
-    fi
-    set -f
+    done
   done
-done
-
-BUILDDIR=../build/windows/2018otafuku-kppt
-mkdir -p ${BUILDDIR}
-EDITION=YANEURAOU_2018_OTAFUKU_ENGINE_KPPT
-TARGET=YaneuraOu-2018-otafuku-kppt-mingw-gcc
-TGTAIL=(icelake cascadelake avx512 avx2 sse42 sse2 nosse tournament-icelake tournament-cascadelake tournament-avx512 tournament-avx2 tournament-sse42 evallearn-icelake evallearn-cascadelake evallearn-avx512 evallearn-avx2 evallearn-sse42)
-for BTG in ${TGTAIL[@]}; do
-  if [ ${BTG} = 'nosse' ]; then COMPILER=${COMPILER32}; else COMPILER=${COMPILER64}; fi
-  ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} > >(tee $BUILDDIR/${TARGET}-${BTG}.log) || exit $?
-  cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-${BTG}.exe
-  ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-done
-
-BUILDDIR=../build/windows/2018otafuku-kpp_kkpt
-mkdir -p ${BUILDDIR}
-EDITION=YANEURAOU_2018_OTAFUKU_ENGINE_KPP_KKPT
-TARGET=YaneuraOu-2018-otafuku-kpp_kkpt-mingw-gcc
-TGTAIL=(icelake cascadelake avx512 avx2 sse42 sse2 nosse tournament-icelake tournament-cascadelake tournament-avx512 tournament-avx2 tournament-sse42 evallearn-icelake evallearn-cascadelake evallearn-avx512 evallearn-avx2 evallearn-sse42)
-for BTG in ${TGTAIL[@]}; do
-  if [ ${BTG} = 'nosse' ]; then COMPILER=${COMPILER32}; else COMPILER=${COMPILER64}; fi
-  ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} > >(tee $BUILDDIR/${TARGET}-${BTG}.log) || exit $?
-  cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-${BTG}.exe
-  ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-done
-
-BUILDDIR=../build/windows/2018otafuku-material
-mkdir -p ${BUILDDIR}
-EDITION=YANEURAOU_2018_OTAFUKU_ENGINE_MATERIAL
-TARGET=YaneuraOu-2018-otafuku-material-mingw-gcc
-TGTAIL=(icelake cascadelake avx512 avx2 sse42 sse2 nosse tournament-icelake tournament-cascadelake tournament-avx512 tournament-avx2 tournament-sse42 evallearn-icelake evallearn-cascadelake evallearn-avx512 evallearn-avx2 evallearn-sse42)
-for BTG in ${TGTAIL[@]}; do
-  if [ ${BTG} = 'nosse' ]; then COMPILER=${COMPILER32}; else COMPILER=${COMPILER64}; fi
-  ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} > >(tee $BUILDDIR/${TARGET}-${BTG}.log) || exit $?
-  cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-${BTG}.exe
-  ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-done
-
-BUILDDIR=../build/windows/2018tnk
-mkdir -p ${BUILDDIR}
-EDITION=YANEURAOU_2018_TNK_ENGINE
-TARGET=YaneuraOu-2018-tnk-mingw-gcc
-TGTAIL=(icelake cascadelake avx512 avx2 sse42 sse2 nosse tournament-icelake tournament-cascadelake tournament-avx512 tournament-avx2 tournament-sse42 evallearn-icelake evallearn-cascadelake evallearn-avx512 evallearn-avx2 evallearn-sse42)
-for BTG in ${TGTAIL[@]}; do
-  if [ ${BTG} = 'nosse' ]; then COMPILER=${COMPILER32}; else COMPILER=${COMPILER64}; fi
-  ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} > >(tee $BUILDDIR/${TARGET}-${BTG}.log) || exit $?
-  cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-${BTG}.exe
-  ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-done
-
-BUILDDIR=../build/windows/2018tnk-k-p
-mkdir -p ${BUILDDIR}
-EDITION=YANEURAOU_2018_TNK_ENGINE_K_P
-TARGET=YaneuraOu-2018-tnk-k-p-mingw-gcc
-TGTAIL=(icelake cascadelake avx512 avx2 sse42 sse2 nosse tournament-icelake tournament-cascadelake tournament-avx512 tournament-avx2 tournament-sse42 evallearn-icelake evallearn-cascadelake evallearn-avx512 evallearn-avx2 evallearn-sse42)
-for BTG in ${TGTAIL[@]}; do
-  if [ ${BTG} = 'nosse' ]; then COMPILER=${COMPILER32}; else COMPILER=${COMPILER64}; fi
-  ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} > >(tee $BUILDDIR/${TARGET}-${BTG}.log) || exit $?
-  cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-${BTG}.exe
-  ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-done
-
-BUILDDIR=../build/windows/tnk-mate
-mkdir -p ${BUILDDIR}
-EDITION=MATE_ENGINE
-TARGET=YaneuraOu-mate-mingw-gcc
-TGTAIL=(icelake cascadelake avx512 avx2 sse42 sse2 nosse tournament-icelake tournament-cascadelake tournament-avx512 tournament-avx2 tournament-sse42 evallearn-icelake evallearn-cascadelake evallearn-avx512 evallearn-avx2 evallearn-sse42)
-for BTG in ${TGTAIL[@]}; do
-  if [ ${BTG} = 'nosse' ]; then COMPILER=${COMPILER32}; else COMPILER=${COMPILER64}; fi
-  ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-  ${MAKE} -f ${MAKEFILE} -j${JOBS} ${BTG} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} OS=${OS} > >(tee $BUILDDIR/${TARGET}-${BTG}.log) || exit $?
-  cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TARGET}-${BTG}.exe
-  ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
 done
