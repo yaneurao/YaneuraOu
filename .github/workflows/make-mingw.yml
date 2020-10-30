@@ -29,5 +29,5 @@ jobs:
       run: cd script && ./mingw_gcc.sh -a ${{ matrix.archcpu }} -c ${{ matrix.compiler }} -e ${{ matrix.edition }} -t tournament
     - name: make (evallearn)
       run: cd script && ./mingw_gcc.sh -a ${{ matrix.archcpu }} -c ${{ matrix.compiler }} -e ${{ matrix.edition }} -t evallearn
-#    - name: make (gensfen)
-#      run: cd script && ./mingw_gcc.sh -a ${{ matrix.archcpu }} -c ${{ matrix.compiler }} -e ${{ matrix.edition }} -t gensfen
+    - name: make (gensfen)
+      run: cd script && ./mingw_gcc.sh -a ${{ matrix.archcpu }} -c ${{ matrix.compiler }} -e ${{ matrix.edition }} -t gensfen
