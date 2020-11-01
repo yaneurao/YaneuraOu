@@ -7,6 +7,285 @@
 		ちゃんと検証してからMakefile書き直す。
 
 
+■　2020/11/02
+
+
+- やねうら王 V5.00
+	- 探索部を刷新。(WCSC29版やねうら王相当)
+		- V4.xx系からR100以上、上がってるはず。
+		- MovePicker改良
+		- 探索パラメーター最適化
+
+
+■　2020/08/18
+
+
+- HandKind構造体を削除したのでLONG_EFFECT_LIBRARYがコンパイルできなくなっていたのを修正。
+
+
+- Qhapaqさんの詰将棋エンジン修正のプルリク。(#120)
+
+
+
+■　2020/08/11
+
+
+- ThreadIdOffset思考エンジンオプション追加
+		3990XのようなWindows上で複数のプロセッサグループを持つCPUで、思考エンジンを同時起動したときに
+		同じプロセッサグループに割り当てられてしまうのを避けるために、スレッドオフセットを
+		指定できるようにしてある。
+
+		例) 128スレッドあって、4つ思考エンジンを起動してそれぞれにThreads = 32を指定する場合、
+		それぞれの思考エンジンにはThreadIdOffset = 0,32,64,96をそれぞれ指定する。
+
+		※　1つのPCで複数の思考エンジンを同時に起動して対局させる場合はこれを適切に設定すべき。
+
+
+- Visual StudioのプロジェクトファイルのAVX2用にUSE_BMI2コンパイルオプション追加。
+	- ZEN向けのcommitの修正忘れ。
+
+
+- ユーザーの思考エンジンのコンパイルが通るように修正 #117
+	- tasanumaさんのプルリク
+		ユーザーの思考エンジンがデフォルトの状態だとコンパイルできませんでした。
+		とりあえずEVAL_MATERIALにしておきました。
+
+
+■　2020/08/01
+
+
+- Ryzen向け最適化
+
+	- Apery型の遠方駒の利きを求めるコードをporting。
+
+	- ZEN/ZEN2(Ryzen 第一世代、第二世代)のPEXTがμOPレベルでのemulationだから遅い。
+	- ZEN/ZEN2向けに、PEXT使ってるところ、magic bitboard導入する。
+		- Aperyのmagic bitboard実装をそのまま持ってくる。
+		//  https://github.com/HiraokaTakuya/apery/blob/master/src/bitboard.cpp
+
+	- やねうら王では、PEXT命令、飛車の利きなどで使っている。
+		このsoftware emulationのコード、1になっているbitの数は64bitのうちの8個程度(平均的には5個程度？)であり、
+		1のbitの回数だけループを回すようなアルゴリズムで、テーブルも参照しないコードなので、わりと速い気はする。
+		やねうら王の状況では、やねうら王のsoftware emulationのコードのほうが断然速い。(実測で6%程度速いらしい)
+
+	- magic bitboardにするとここがさらに速くなる。
+		- ZEN/ZEN2向けはPEXTを完全に排除したので、V4.91から10%以上高速化しているはず。
+
+	- AVX2(非ZEN/ZEN2)に対しても、今回実装した、新しい利きのコードを用いる。
+		テーブルサイズは少し大きくなるが、速度はほぼ変わらないので。
+
+	- 55将棋のようなものを作るときに、magic bitboardのmagic numberを求めるの、ちょっと嫌なので
+		従来の実装は残しておく。
+			USE_MAGIC_BITBOARDをdefineしたときだけ、今回追加されたApery型の遠方駒の利きを求めるコードを
+			用いるようにする。
+
+
+■　2020/07/31
+
+
+- 一つ前のcommitでNNUEがコンパイルできなくなっていたのを修正。
+
+
+■　2020/07/30
+
+
+- update mate-engine (#115)
+	tanuki-詰将棋エンジン、千日手絡みで不詰と判定される問題の一部を修正。(Qhapaqさんのプルリク)
+
+15手詰め : https://tadaoyamaoka.hatenablog.com/entry/2017/09/26/082125
+// ↓テスト用のコマンド
+
+isready
+position 1n1g3+Pl/k1p1s4/1ng5p/pSP1p1pp1/1n3p3/P1K3P1P/1P7/9/L1G5L b 2R2BG2SL5Pn 161
+go mate infinite
+
+info string pn 0 dn 100000000 nodes_searched 201736
+info  time 1858 nodes 201736 nps 108576 hashfull 6
+checkmate S*9c 8a9c G*9a 9b9a B*8b 9a8b 7d7c+ 7b7c 8d8c+ 8b7a B*8b 7a6b 8b7c+ 6b5c S*4b 5c4b R*3b 4b3b R*3a 3b2c N*3e 3d3e G*2b 2c1d 1f1e 1d2e 3a3e+
+// 解ける
+
+
+■　2020/07/27
+
+
+- MakefileにTARGET_CPU = ZEN1/ZEN2 (Ryzen 第一世代、第二世代)を追加
+	- 対応作業中
+- USE_BMI2導入
+- CPU名末尾にBMI2追加。(usiコマンドの応答時にエンジン名として出力)
+- 無駄なinclude削除
+
+
+- 駒打ちの指し手の生成処理で、二歩にならない場所を生成するためにPEXTを用いていたのを愚直にやるように変更する。
+	- AVX2環境で計測できないレベルのslow downしかしない。
+	- 駒打ち用のテーブルサイズが半分になる
+	- PEXTを使わないのでRyzen環境で高速化が望める。
+- foreachBB()追加 (from Apery)
+
+=============================================== ここから =========================================================
+
+			// ここでは2)のためにソフトウェア飽和加算に似たテクニックを用いる
+			// cf. http://yaneuraou.yaneu.com/2015/10/15/%E7%B8%A6%E5%9E%8Bbitboard%E3%81%AE%E5%94%AF%E4%B8%80%E3%81%AE%E5%BC%B1%E7%82%B9%E3%82%92%E5%85%8B%E6%9C%8D%E3%81%99%E3%82%8B/
+			// このときにテーブルを引くので、用意するテーブルのほうで先に1)の処理をしておく。
+
+			// 縦型Squareにおける二歩のmaskの取得。
+			// 各筋に1つしか歩はないので1～8段目が1になっているbitboardを歩の升のbitboardに加算すると9段目に情報が集まる。これをpextで回収する。
+
+			// これにより、RANK9のところに歩の情報がかき集められた。
+			Bitboard a = pos.pieces(Us, PAWN) + rank1_n_bb(BLACK, RANK_8); // 1～8段目を意味するbitboard
+
+			// このRANK9に集まった情報をpextで回収。
+			u32 index1 = u32(PEXT64(     a.extract64<0>(),      RANK9_BB.p[0]));
+			u32 index2 = u32(PEXT32((u32)a.extract64<1>(), (u32)RANK9_BB.p[1]));
+
+			// 歩の打てる場所
+			Bitboard target2 = Bitboard(PAWN_DROP_MASK_BB[index1].p[0],PAWN_DROP_MASK_BB[index2].p[1])
+				& rank1_n_bb(~Us, RANK_8)
+				& target;
+
+
+// 歩が打てる筋を得るためのBitboard
+// bit0 = 9筋に歩が打てないなら1 , bit1 = 8筋に… , bit8 = 1筋に歩が打てないなら1
+// というbit列をindexとして、歩の打てるBitboardを返すためのテーブル。
+// テーブルサイズが大きくなるのが嫌だったので2つに分割。
+//Bitboard PAWN_DROP_MASK_BB[0x80]; // p[0]には1～7筋 、p[1]には8,9筋のときのデータが入っている。
+
+
+
+	for (int i = 0; i < 0x80; ++i)
+	{
+		Bitboard b = ZERO_BB;
+		for (int k = 0; k < 7; ++k)
+			if ((i & (1 << k)) == 0)
+				b |= FILE_BB[k];
+
+		PAWN_DROP_MASK_BB[i].p[0] = b.p[0]; // 1～7筋
+	}
+	for (int i = 0; i < 0x4; ++i)
+	{
+		Bitboard b = ZERO_BB;
+		for (int k = 0; k < 2; ++k)
+			if ((i & (1 << k)) == 0)
+				b |= FILE_BB[k+7];
+
+		PAWN_DROP_MASK_BB[i].p[1] = b.p[1]; // 8,9筋
+	}
+
+=============================================== ここまで =========================================================
+
+
+- ビルド手順など古い情報だったところを修正
+
+- HandKind型削除
+	- 0.28%ぐらい高速化したかも。(計測誤差レベル..)
+	- RyzenだとPEXTが1箇所減ったのでもう少し得してるはず。
+
+
+// 以下のコード
+// これ、PEXT命令使ってるし、ここを乗算で書き換えたが、そもそもmovegenで使ってるだけなのでばっさり削除する。
+
+=============================================== ここから =========================================================
+
+// --------------------
+// 手駒情報を直列化したもの
+// --------------------
+
+// 特定種の手駒を持っているかどうかをbitで表現するクラス
+// bit0..歩を持っているか , bit1..香 , bit2..桂 , bit3..銀 , bit4..角 , bit5..飛 , bit6..金 , bit7..玉(フラグとして用いるため)
+enum HandKind : u32 {
+	HAND_KIND_PAWN   = 1 << (PAWN   - 1),
+	HAND_KIND_LANCE  = 1 << (LANCE  - 1),
+	HAND_KIND_KNIGHT = 1 << (KNIGHT - 1),
+	HAND_KIND_SILVER = 1 << (SILVER - 1),
+	HAND_KIND_BISHOP = 1 << (BISHOP - 1),
+	HAND_KIND_ROOK   = 1 << (ROOK   - 1),
+	HAND_KIND_GOLD   = 1 << (GOLD   - 1),
+	HAND_KIND_KING   = 1 << (KING   - 1),
+	HAND_KIND_ZERO   = 0,
+};
+
+// Hand型からHandKind型への変換子
+// 例えば歩の枚数であれば5bitで表現できるが、011111bを加算すると1枚でもあれば桁あふれしてbit5が1になる。
+// これをPEXT32で回収するという戦略。
+static HandKind toHandKind(Hand h) {
+#if defined(USE_BMI2)
+	return (HandKind)PEXT32(h + HAND_BIT_MASK, HAND_BORROW_MASK);
+
+#else
+
+	// PEXT命令が遅い環境用では、PEXTのemulationではなくmagic bitboardの要領で乗算を使って求めるほうが速いと思われる。
+	// 手駒は平均的には1,2種類しか持ってないのでPEXTのemulation codeのようにループを回したほうが速い可能性はある。
+	
+	static_assert(HAND_BORROW_MASK == 0x84488820);
+
+	// この7bitに関しては、うまいmagic numberがないので、分割する。
+	u32 u = h + HAND_BIT_MASK;
+	u32 u0 = u & 0x00088820; // 1が立っているbit、下から4つ分
+	u32 u1 = u & 0x84400000; // 1が立っているbit、上から3つ分
+
+	return (HandKind)(
+		(u32(u0 * 0x28849004) >> 28) | ((u32(u1 * 0xbd67e895) & /*上位3bitを*/ 0xe0000000) >> (29-4))
+		);
+#endif
+}
+
+// 特定種類の駒を持っているかを判定する
+constexpr bool hand_exists(HandKind hk, Piece pt) { /* ASSERT_LV2(PIECE_HAND_ZERO <= pt && pt < PIECE_HAND_NB); */ return static_cast<bool>(hk & (1 << (pt - 1))); }
+
+// 歩以外の手駒を持っているかを判定する
+constexpr bool hand_exceptPawnExists(HandKind hk) { return hk & ~HAND_KIND_PAWN; }
+
+// 手駒の有無を表示する(USI形式ではない) デバッグ用
+std::ostream& operator<<(std::ostream& os, HandKind hk);
+
+	
+std::ostream& operator<<(std::ostream& os, HandKind hk)
+{
+	for (Piece pc = PAWN; pc < PIECE_HAND_NB; ++pc)
+		if (hand_exists(hk, pc))
+			std::cout << pretty(pc);
+	return os;
+}
+
+=============================================== ここまで =========================================================
+
+
+■　2020/07/26
+
+
+- 解説.txtの内容が古かったので修正。
+
+
+- SSE3ではなくSSSE3らしいので修正。
+	- SSE3とSSSE3は違うらしい。SSSE3はSSE3の後継らしい。うわー😥
+	cf. https://ja.wikipedia.org/wiki/%E3%82%B9%E3%83%88%E3%83%AA%E3%83%BC%E3%83%9F%E3%83%B3%E3%82%B0SIMD%E6%8B%A1%E5%BC%B5%E5%91%BD%E4%BB%A4#SSSE3
+	- SSSE3にrenameする。
+
+
+- SSE3対応 from Stockfish NNUE
+	cf. https://github.com/nodchip/Stockfish/commit/081761d084452c2cb204614d14f919fc1c0cb567
+	NNUEのSSE3向けの高速化。(いまや、そんなCPUのユーザー、ほとんどいないと思われるが…)
+
+// AVX2
+Total time (ms) : 7282
+Nodes searched  : 3389007
+Nodes/second    : 465395
+
+// SSE4.2
+Total time (ms) : 9385
+Nodes searched  : 3389007
+Nodes/second    : 361108
+
+1) AVX2とSSE4.2 , SSE3用でbenchコマンドの探索node数が一致することを確認した。
+2) 改造前と改造後で、benchコマンドの探索node数が一致することを確認した。
+
+
+■　2020/06/07
+
+
+- NNUEの学習部でLargeMemoryのメモリ開放に失敗していたのを修正。
+- NNUEの学習部で評価関数の書き出しに失敗したらエラーメッセージを出力して即終了するように。
+
+
 ■　2020/06/01 V4.91
 
 

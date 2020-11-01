@@ -1,6 +1,15 @@
 ﻿#ifndef YANEURAOU_PARAM_H_INCLUDED
 #define YANEURAOU_PARAM_H_INCLUDED
 
+#if  defined(GENSFEN2019)
+// 教師局面生成用のパラメーター
+// 低depthで強くする ≒ 低depth時の枝刈りを甘くする。
+#include "yaneuraou-param_gen.h"
+//  →　教師生成時と学習時の探索部の性質が違うのはNNUE型にとってよくないようなのだが、
+//     これはたぶん許容範囲。
+
+#else
+
 // パラメーターの説明に "fixed"と書いてあるパラメーターはランダムパラメーター化するときでも変化しない。
 // 「前提depth」は、これ以上ならその枝刈りを適用する(かも)の意味。
 // 「適用depth」は、これ以下ならその枝刈りを適用する(かも)の意味。
@@ -63,7 +72,7 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2 = 248;
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 40;
 
 // depthが2乗されるので影響大きい
-// 元の値 = 35
+// 元の値 = 29
 // [PARAM] min:20,max:60,step:3,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 = 51;
 
@@ -82,9 +91,23 @@ PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_ALPHA = 818;
 // [PARAM] min:50,max:100,step:8,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 67;
 
-// 元の値 = 35
+// 元の値 = 200
+// [PARAM] min:50,max:400,step:50,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 200;
+
+
+// 元の値 = 36
 // [PARAM] min:10,max:60,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN = 31;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN_ALPHA = 36;
+
+// 元の値 = 225
+// [PARAM] min:0,max:400,step:30,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN_BETA = 225;
+
+// 元の値 = 23200
+// [PARAM] min:0,max:50000,step:5000,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN_GAMMA = 23200;
+
 
 // null moveでbeta値を上回ったときに、これ以下ならreturnするdepth。適用depth。
 // 元の値 = 12
@@ -106,11 +129,11 @@ PARAM_DEFINE PARAM_PROBCUT_DEPTH = 5;
 //   improvingの効果怪しいので抑え気味にしておく。
 // 元の値 = 216
 // [PARAM] min:100,max:300,step:3,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 194 + 16/2;
+PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 216;
 
 // 元の値 = 48
 // [PARAM] min:20,max:80,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 48/2;
+PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 24;
 
 //
 // singular extension
@@ -124,9 +147,9 @@ PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 48/2;
 PARAM_DEFINE PARAM_SINGULAR_EXTENSION_DEPTH = 7;
 
 // singular extensionのmarginを計算するときの係数
-// rBeta = std::max(ttValue - PARAM_SINGULAR_MARGIN * depth / (8 * ONE_PLY), -VALUE_MATE);
-// 元の値 = 256
-// [PARAM] min:128,max:400,step:4,interval:1,time_rate:1,fixed
+// rBeta = std::max(ttValue - PARAM_SINGULAR_MARGIN * depth / (64 * ONE_PLY), -VALUE_MATE);
+// 元の値 = 128
+// [PARAM] min:64,max:400,step:4,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_SINGULAR_MARGIN = 194;
 
 // singular extensionで浅い探索をするときの深さに関する係数
@@ -137,19 +160,14 @@ PARAM_DEFINE PARAM_SINGULAR_SEARCH_DEPTH_ALPHA = 20;
 
 
 //
-// pruning by move count,history,etc..
+// pruning by history
 //
 
-// move countによる枝刈りをする深さ。適用depth。
-// 元の値 = 16
-// [PARAM] min:8,max:32,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PRUNING_BY_MOVE_COUNT_DEPTH = 16;
-
 // historyによる枝刈りをする深さ。適用depth。
-// これ、将棋ではそこそこ上げたほうが長い時間では良さげ。
+// Stockfish10からこの値を大きくしすぎると良くないようだ。
 // 元の値 = 3
-// [PARAM] min:2,max:32,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 9;
+// [PARAM] min:2,max:16,step:1,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 3;
 
 
 // historyの値によってreductionするときの係数
@@ -163,42 +181,15 @@ PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 4000;
 // razoring pruning
 // 
 
-// この値は、未使用。razoringはdepth < ONE_PLYでは行わないため。
-// 元の値 = 0
-// [PARAM] min:0,max:0,step:1,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_RAZORING_MARGIN1 = 0;
-
 // 以下、変更しても計測できるほどの差ではないようなので元の値にしておく。
-// 元の値 = 590
+// 元の値 = 600
 // [PARAM] min:400,max:700,step:10,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_RAZORING_MARGIN2 = 590;
-
-// 元の値 = 604
-// [PARAM] min:400,max:700,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_RAZORING_MARGIN3 = 604;
-
-
-//
-// LMR reduction table
-//
-
-// 元の値 = 131
-// [PARAM] min:64,max:256,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_ALPHA = 135;
+PARAM_DEFINE PARAM_RAZORING_MARGIN = 600;
 
 
 //
 // etc..
 // 
-
-// この個数までquietの指し手を登録してhistoryなどを増減させる。
-// 元の値 = 64
-// 将棋では駒打ちがあるから少し増やしたほうがいいかも。
-// →　そうでもなかった。固定しておく。
-// historyの計算でこの64に基づいた値を使っている箇所があるからのような気がする。よく考える。
-// [PARAM] min:32,max:128,step:2,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_QUIET_SEARCH_COUNT = 64;
-
 
 // 静止探索での1手詰め
 // 元の値 = 1
@@ -220,7 +211,7 @@ PARAM_DEFINE PARAM_WEAK_MATE_PLY = 1;
 
 
 // aspiration searchの増加量
-// 元の値 = 15
+// 元の値 = 20
 // [PARAM] min:12,max:40,step:1,interval:2,time_rate:1,fixed
 PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 16;
 
@@ -230,5 +221,6 @@ PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 16;
 // [PARAM] min:10,max:50,step:5,interval:2,time_rate:1,fixed
 PARAM_DEFINE PARAM_EVAL_TEMPO = 20;
 
-
+#endif // defined(GENSFEN2019)
 #endif
+
