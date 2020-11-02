@@ -12,6 +12,11 @@
 #include "search.h"
 #include "thread_win32_osx.h"
 
+#if defined(EVAL_LEARN)
+// 学習用の実行ファイルでは、スレッドごとに置換表を持ちたい。
+#include "tt.h"
+#endif
+
 // --------------------
 // 探索時に用いるスレッド
 // --------------------
@@ -120,6 +125,11 @@ public:
 	// スレッドごとにメモリ領域を割り当てたいときなどに必要となる。
 	// MainThreadなら0、slaveなら1,2,3,...
 	size_t thread_id() const { return idx; }
+
+#if defined(EVAL_LEARN)
+	// 学習用の実行ファイルでは、スレッドごとに置換表を持ちたい。
+	TranspositionTable tt;
+#endif
 
 };
   

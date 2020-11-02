@@ -113,6 +113,12 @@ void TranspositionTable::resize(size_t mbSize) {
 
 	// →　Stockfish、ここでclear()呼び出しているが、Search::clear()からTT.clear()を呼び出すので
 	// 二重に初期化していることになると思う。
+
+#if defined(EVAL_LEARN)
+	// スレッドごとにTTを持つ実装なら、確保しているメモリサイズが変更になったので、
+	// スレッドごとのTTを初期化してやる必要がある。
+	init_tt_per_thread();
+#endif
 }
 
 void TranspositionTable::clear()
@@ -233,3 +239,27 @@ int TranspositionTable::hashfull() const
 	// return cnt;でも良いが、そうすると最大で999しか返らず、置換表使用率が100%という表示にならない。
 	return cnt * 1000 / (ClusterSize * (1000 / ClusterSize));
 }
+
+#if defined(EVAL_LEARN)
+// スレッド数が変更になった時にThread.set()から呼び出される。
+// これに応じて、スレッドごとに保持しているTTを初期化する。
+void TranspositionTable::init_tt_per_thread()
+{
+	// スレッド数
+	size_t thread_size = Threads.size();
+
+	// 1スレッドあたりのクラスター数(端数切捨て)
+	// clusterCountは2の倍数でないと駄目なので、端数を切り捨てるためにLSBを0にする。
+	size_t clusterCountPerThread = (clusterCount / thread_size) & ~(size_t)1;
+	 
+	ASSERT_LV3((clusterCountPerThread & 1) == 0);
+
+	// これを、自分が確保したglobalな置換表用メモリから切り分けて割当てる。
+	for (int i = 0; i < thread_size; ++i)
+	{
+		auto& tt = Threads[i]->tt;
+		tt.clusterCount = clusterCountPerThread;
+		tt.table = this->table + clusterCountPerThread * i;
+	}
+}
+#endif

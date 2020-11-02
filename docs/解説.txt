@@ -139,7 +139,8 @@ make clean tournament TARGET_CPU=AVX2 YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE
 make -j8 tournament TARGET_CPU=AVX2 COMPILER=g++ YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE ENGINE_NAME="YaneuraOu\(tournament\)"
 
 	・TARGET_CPUでAVX2 ,SSE42 などターゲットCPUを指定します。
-		Ryzen(ZEN/ZEN2)は、ZEN1,ZEN2を指定するとBMI1/BMI2命令を使わないので6%ぐらい速くなります。
+		Ryzen(Ryzen 第一世代、第二世代)は、ZEN1,ZEN2を指定するとBMI2命令を使わない + magic bitboardを使う + ZEN向けのコードを生成するので
+		10%以上速くなります。(やねうら王 V4.92以降)
 	・YANEURAOU_EDITIONでビルドするエンジン名を指定します。
 	・ENGINE_NAMEでビルドされたときのエンジン名(表示名)を指定できます。
 		※　複雑な文字列の場合、ダブルコーテーションで囲んだほうが良いというのと、( )の手前では \ でのエスケープが必要です。
@@ -560,6 +561,14 @@ book/book.bin
 大会で使うためのものです。bench以外のテスト用のコマンドは使えません。無駄を削ぎ落とし、実行ファイルを小さくしています。
 またEVAL_HASH大きめにしてあるのでメモリはたくさん消費しますが、一度探索した局面は評価関数の計算を端折れます。
 2手前に思考した内容が生きるので通常対局においてはやや有利で、3～5%速いはずです。
+
+
+■　学習用　実行ファイルとは何ですか？
+
+
+EVAL_LEARNのシンボルを定義してあると学習用の実行ファイルができます。
+配布されている実行ファイルでファイル名に"learn"とついているものは学習用の実行ファイルです。
+教師生成や学習時にはスレッドごとに異なる局面を探索する必要があるため、このような特別な実行ファイルが必要になります。
 
 
 ■　Apery(WCSC27)で使われている評価関数ファイルと、やねうら王2017Earlyで使われている評価関数ファイルとの相互変換について
