@@ -106,9 +106,11 @@ namespace Book
 
 			for (size_t i = 0; i < m ; ++i)
 			{
+				const auto& rootMoves = th->rootMoves[i];
+				Move nextMove = (rootMoves.pv.size() >= 1) ? rootMoves.pv[1] : MOVE_NONE;
+
 				// 出現頻度は、バージョンナンバーを100倍したものにしておく)
-				Move nextMove = (th->rootMoves[i].pv.size() >= 1) ? th->rootMoves[i].pv[1] : MOVE_NONE;
-				BookPos bp(th->rootMoves[i].pv[0], nextMove, th->rootMoves[i].score
+				BookPos bp(Move16::from_move(rootMoves.pv[0]), Move16::from_move(nextMove), rootMoves.score
 					, search_depth, int(atof(ENGINE_VERSION) * 100));
 
 				// MultiPVで思考しているので、手番側から見て評価値の良い順に並んでいることは保証される。
