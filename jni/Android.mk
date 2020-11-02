@@ -71,11 +71,11 @@ ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(ENGINE_TARGET)),YANEURAOU_ENGINE_NNUE
   ENGINE_NAME := YaneuraOu_NNUE
   ifeq ($(ENGINE_TARGET),YANEURAOU_ENGINE_NNUE_KP256)
     ENGINE_NAME := YaneuraOu_NNUE_KP256
-    CFLAGS += -DEVAL_NNUE_KP256
+    CPPFLAGS += -DEVAL_NNUE_KP256
   else
     ifeq ($(NNUE_EVAL_ARCH),KP256)
       ENGINE_NAME := YaneuraOu_NNUE_KP256
-      CFLAGS += -DEVAL_NNUE_KP256
+      CPPFLAGS += -DEVAL_NNUE_KP256
     endif
   endif
 endif
@@ -130,6 +130,7 @@ LOCAL_SRC_FILES := \
   ../source/tt.cpp                                                     \
   ../source/movepick.cpp                                               \
   ../source/timeman.cpp                                                \
+  ../source/benchmark.cpp                                              \
   ../source/extra/book/apery_book.cpp                                  \
   ../source/extra/book/book.cpp                                        \
   ../source/extra/book/makebook2019.cpp                                \
@@ -138,9 +139,7 @@ LOCAL_SRC_FILES := \
   ../source/extra/mate/mate1ply_with_effect.cpp                        \
   ../source/extra/mate/mate1ply_without_effect.cpp                     \
   ../source/extra/mate/mate_n_ply.cpp                                  \
-  ../source/extra/benchmark.cpp                                        \
   ../source/extra/test_cmd.cpp                                         \
-  ../source/extra/see.cpp                                              \
   ../source/extra/sfen_packer.cpp                                      \
   ../source/extra/kif_converter/kif_convert_tools.cpp                  \
   ../source/eval/evaluate_bona_piece.cpp                               \
@@ -194,7 +193,7 @@ LOCAL_SRC_FILES += \
 endif
 
 ifneq ($(ENGINE_NAME),)
-	CFLAGS += -DENGINE_NAME_FROM_MAKEFILE=$(ENGINE_NAME)
+	CPPFLAGS += -DENGINE_NAME_FROM_MAKEFILE=$(ENGINE_NAME)
 endif
 
 # 開発用branch

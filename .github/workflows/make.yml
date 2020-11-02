@@ -1,0 +1,33 @@
+name: Make CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        edition: [ YANEURAOU_ENGINE_KPPT, YANEURAOU_ENGINE_KPP_KKPT, YANEURAOU_ENGINE_MATERIAL, YANEURAOU_ENGINE_NNUE, YANEURAOU_ENGINE_NNUE_KP256, MATE_ENGINE, USER_ENGINE ]
+        archcpu: [ AVX512, AVX2, SSE42, SSE41, SSSE3, SSE3, OTHER, ZEN1 ]
+        compiler: [ clang++, g++ ]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: install openblas
+      run: sudo apt install build-essential clang g++-9 libopenblas-dev libomp-dev libomp5
+
+    - name: make
+      run: cd script && ./build.sh -a ${{ matrix.archcpu }} -c ${{ matrix.compiler }} -e ${{ matrix.edition }} -t normal
+    - name: make (tournament)
+      run: cd script && ./build.sh -a ${{ matrix.archcpu }} -c ${{ matrix.compiler }} -e ${{ matrix.edition }} -t tournament
+    - name: make (evallearn)
+      run: cd script && ./build.sh -a ${{ matrix.archcpu }} -c ${{ matrix.compiler }} -e ${{ matrix.edition }} -t evallearn
+    - name: make (gensfen)
+      run: cd script && ./build.sh -a ${{ matrix.archcpu }} -c ${{ matrix.compiler }} -e ${{ matrix.edition }} -t gensfen
