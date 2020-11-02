@@ -122,7 +122,7 @@ namespace Search {
 		Move m;
 		if (ttHit)
 		{
-			m = tte->move(); // SMP safeにするためlocal copy
+			m = pos.to_move(tte->move()); // SMP safeにするためlocal copy
 			if (MoveList<LEGAL_ALL>(pos).contains(m))
 				goto FOUND;
 		}

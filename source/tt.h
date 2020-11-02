@@ -15,7 +15,7 @@
 /// CPUのcache lineに一発で載るというミラクル。
 ///
 /// key        16 bit : hash keyの上位16bit
-/// move       16 bit : このnodeの最善手
+/// move       16 bit : このnodeの最善手(指し手16bit ≒ Move16 , Moveの上位16bitは無視される)
 /// value      16 bit : このnodeでのsearch()の返し値
 /// eval value 16 bit : このnodeでのevaluate()の返し値
 /// generation  5 bit : 世代カウンター
@@ -24,7 +24,7 @@
 /// depth       8 bit : 格納されているvalue値の探索深さ
 struct TTEntry {
 
-	Move move() const { return (Move)move16; }
+	Move16 move() const { return Move16::from_move((Move)move16); }
 	Value value() const { return (Value)value16; }
 	Value eval() const { return (Value)eval16; }
 	Depth depth() const { return (Depth)depth8 + DEPTH_OFFSET; }

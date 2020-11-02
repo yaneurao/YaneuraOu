@@ -177,13 +177,12 @@ namespace USI
 						if (!found)
 							break;
 
-						m = tte->move();
+						m = pos.to_move(tte->move());
 
 						// 置換表にはpsudo_legalではない指し手が含まれるのでそれを弾く。
 						// 宣言勝ちでないならこれが合法手であるかのチェックが必要。
 						if (m != MOVE_WIN)
 						{
-							m = pos.move16_to_move(m);
 							if (!(pos.pseudo_legal(m) && pos.legal(m)))
 								break;
 						}
@@ -946,10 +945,7 @@ Move USI::to_move(const Position& pos, const std::string& str)
 		return MOVE_NULL;
 
 	// usi文字列を高速にmoveに変換するやつがいるがな..
-	Move move = USI::to_move(str);
-
-	// 上位bitに駒種を入れておかないとpseudo_legal()で引っかかる。
-	move = pos.move16_to_move(move);
+	Move move = pos.to_move(USI::to_move(str));
 
 #if defined(MUST_CAPTURE_SHOGI_ENGINE)
 	// 取る一手将棋は合法手かどうかをGUI側でチェックしてくれないから、
@@ -971,35 +967,39 @@ Move USI::to_move(const Position& pos, const std::string& str)
 // USI形式から指し手への変換。本来この関数は要らないのだが、
 // 棋譜を大量に読み込む都合、この部分をそこそこ高速化しておきたい。
 // やねうら王、独自追加。
-Move USI::to_move(const string& str)
+Move16 USI::to_move(const string& str)
 {
-	// さすがに3文字以下の指し手はおかしいだろ。
-	if (str.length() <= 3)
-		return MOVE_NONE;
-
-	Square to = usi_to_sq(str[2], str[3]);
-	if (!is_ok(to))
-		return MOVE_NONE;
-
-	bool promote = str.length() == 5 && str[4] == '+';
-	bool drop = str[1] == '*';
-
 	Move move = MOVE_NONE;
-	if (!drop)
+
 	{
-		Square from = usi_to_sq(str[0], str[1]);
-		if (is_ok(from))
-			move = promote ? make_move_promote(from, to) : make_move(from, to);
-	}
-	else
-	{
-		for (int i = 1; i <= 7; ++i)
-			if (PieceToCharBW[i] == str[0])
-			{
-				move = make_move_drop((Piece)i, to);
-				break;
-			}
+		// さすがに3文字以下の指し手はおかしいだろ。
+		if (str.length() <= 3)
+				goto END;
+	
+		Square to = usi_to_sq(str[2], str[3]);
+		if (!is_ok(to))
+				goto END;
+	
+		bool promote = str.length() == 5 && str[4] == '+';
+		bool drop = str[1] == '*';
+	
+		if (!drop)
+		{
+			Square from = usi_to_sq(str[0], str[1]);
+			if (is_ok(from))
+				move = promote ? make_move_promote(from, to) : make_move(from, to);
+		}
+		else
+		{
+			for (int i = 1; i <= 7; ++i)
+				if (PieceToCharBW[i] == str[0])
+				{
+					move = make_move_drop((Piece)i, to);
+					break;
+				}
+		}
 	}
 
-	return move;
+END:
+	return Move16::from_move(move);
 }

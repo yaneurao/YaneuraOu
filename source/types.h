@@ -604,6 +604,35 @@ std::string to_usi_string(Move m);
 // USI形式で指し手を表示する
 static std::ostream& operator<<(std::ostream& os, Move m) { os << to_usi_string(m); return os; }
 
+
+// 16bit型の指し手。Move型の下位16bit。
+// 32bit型のMoveか16bit型のMoveかが不明瞭で、それがバグの原因となりやすいので
+// それらを明確に区別したい時に用いる。
+struct Move16
+{
+	// MoveからMove16のinstanceを作るbuilder
+	static Move16 from_move(Move m) { Move16 m16; m16.move = (uint16_t)m; return m16; }
+
+	// そのままMoveに変換する。(上位16bitは0のまま)
+	// 内部的に用いる。基本的にはこの関数を呼び出さないこと。
+	// このMove16のinstanceをMoveに戻したい時は、Position::to_move(Move16)を使うこと。
+	Move to_move() const { return (Move)move; }
+
+	// 比較
+	bool operator == (const Move16 rhs) const {
+		return move == rhs.move;
+	}
+
+	// USI形式の文字列にする。
+	std::string to_usi_string() const { return ::to_usi_string(to_move()); }
+
+private:
+	uint16_t move;
+};
+
+// USI形式で指し手を表示する
+static std::ostream& operator<<(std::ostream& os, Move16 m) { os << to_usi_string(m.to_move()); return os; }
+
 // --------------------
 //   拡張された指し手
 // --------------------

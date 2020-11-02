@@ -1127,7 +1127,7 @@ bool Position::legal(Move m) const
 
 
 // 置換表から取り出したMoveを32bit化する。
-Move Position::move16_to_move(Move m) const
+Move Position::to_move(Move16 m16) const
 {
 	//		ASSERT_LV3(is_ok(m));
 	// 置換表から取り出した値なので m==MOVE_NONE(0)である可能性があり、ASSERTは書けない。
@@ -1135,7 +1135,17 @@ Move Position::move16_to_move(Move m) const
 	// 上位16bitは0でなければならない
 	//      ASSERT_LV3((m >> 16) == 0);
 
-	return Move(u16(m) +
+	Move m = m16.to_move();
+
+	// MOVE_NULLの可能性はないはずだが、MOVE_WINである可能性はある。
+	// それはそのまま返す。(MOVE_WINの機会はごくわずかなのでこれのために
+	// このチェックが探索時に起きるのは少し馬鹿らしい気もする。
+	// どうせ探索時はlegalityのチェックに引っかかり無視されるわけで…)
+	if (!is_ok(m))
+		return m;
+
+	return
+		Move(u16(m) +
 			((is_drop(m) ? (Piece)(make_piece(sideToMove, move_dropped_piece(m)) + PIECE_DROP)
 			: is_promote(m) ? (Piece)(piece_on(move_from(m)) | PIECE_PROMOTE) : piece_on(move_from(m))) << 16)
 		// "+ PIECE_PROMOTE" だと、玉や成り駒に対して 8足しておかしくなってしまう。(置換表の指し手をpseudo-legalか
@@ -2346,7 +2356,7 @@ Move Position::DeclarationWin() const
 			return MOVE_NONE;
 
 		// 王の移動の指し手により勝ちが確定する
-		return make_move(king_sq, king_try_sq);
+		return to_move(Move16::from_move(make_move(king_sq, king_try_sq)));
 	}
 
 	default:

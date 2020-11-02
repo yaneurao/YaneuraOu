@@ -454,10 +454,6 @@ void MainThread::search()
 			// 入玉宣言の条件を満たしているときは、
 			// goコマンドを処理したあとのthreads.cppでMOVE_WINは追加されているはず。
 
-			// トライルールのときなどはmoveを32bit化しないと、rootMovesの集合と合致しない。
-			if (bestMove != MOVE_WIN)
-				bestMove = rootPos.move16_to_move(bestMove);
-
 			auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
 			if (it_move != rootMoves.end())
 			{
@@ -1306,7 +1302,7 @@ namespace {
 		// それが置換表にあったものとして指し手を進める。
 
 		ttMove = rootNode ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
-			: ttHit ? pos.move16_to_move(tte->move()) : MOVE_NONE;
+				: ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
 
 		// 置換表にhitしなかった時は、PV nodeでかつdepthが4超えのときだけttPvとして扱う。
 		ttPv = (ttHit && tte->is_pv()) || (PvNode && depth > 4);
@@ -1721,7 +1717,7 @@ namespace {
 
 			tte = TT.probe(posKey, ttHit);
 			ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
-			ttMove = ttHit ? pos.move16_to_move(tte->move()) : MOVE_NONE;
+			ttMove  = ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
 		}
 
 		// 王手がかかっている局面では、探索はここから始まる。
@@ -2526,7 +2522,7 @@ namespace {
 		posKey = pos.key();
 		tte = TT.probe(posKey, ttHit);
 		ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
-		ttMove = ttHit ? pos.move16_to_move(tte->move()) : MOVE_NONE;
+		ttMove = ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
 		pvHit = ttHit && tte->is_pv();
 
 		// nonPVでは置換表の指し手で枝刈りする

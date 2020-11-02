@@ -18,15 +18,25 @@ namespace Book
 	// ある局面における指し手(定跡の局面での指し手を格納するのに用いる)
 	struct BookPos
 	{
-		Move bestMove; // この局面での指し手
-		Move nextMove; // その指し手を指したときの予想される相手の指し手
+		// ここでの指し手表現は32bit型Moveではなく、16bit型Move(Move16)なので、
+		// Position::do_move()などにはPosition::to_move()を用いて32bit化してから用いること。
+
+		Move16 bestMove; // この局面での指し手
+		Move16 nextMove; // その指し手を指したときの予想される相手の指し手
+
 		int value;     // bestMoveを指したときの局面の評価値
 		int depth;     // bestMoveの探索深さ
 		uint64_t num;  // 何らかの棋譜集において、この指し手が採択された回数。
 		float prob;    // ↑のnumをパーセンテージで表現したもの。(read_bookしたときには反映される。ファイルには書き出していない。)
 
-		BookPos(Move best, Move next, int v, int d, uint64_t n) : bestMove(best), nextMove(next), value(v), depth(d), num(n) {}
-		bool operator == (const BookPos& rhs) const { return bestMove == rhs.bestMove; }
+		BookPos(Move16 best, Move16 next, int v, int d, uint64_t n)
+			: bestMove(best), nextMove(next), value(v), depth(d), num(n) , prob(0) {}
+
+		// bestMoveが等しいかを返す
+		bool operator == (const BookPos& rhs) const
+		{
+			return bestMove == rhs.bestMove;
+		}
 
 		// std::sort()で出現回数に対して降順ソートされて欲しいのでこう定義する。
 		// また出現回数が同じ時は、評価値順に降順ソートされて欲しいので…。
@@ -203,12 +213,12 @@ namespace Book
 
 		// probe()の下請け
 		// forceHit == trueのときは、設定オプションの値を無視して強制的に定跡にhitさせる。(BookPvMovesの実装で用いる)
-		bool probe_impl(Position& rootPos, bool silent, Move& bestMove, Move& ponderMove , bool forceHit = false);
+		bool probe_impl(Position& rootPos, bool silent, Move16& bestMove, Move16& ponderMove , bool forceHit = false);
 
 		// 定跡のpv文字列を生成して返す。
 		// m : 局面posで進める指し手
 		// depth : 残りdepth
-		std::string pv_builder(Position& pos, Move m , int depth);
+		std::string pv_builder(Position& pos, Move16 m , int depth);
 
 		AsyncPRNG prng;
 	};

@@ -252,9 +252,8 @@ public:
 #endif
 	}
 
-	// 置換表から取り出したMoveを32bit化する。
-	// mは16bitの値であること。
-	Move move16_to_move(Move m) const;
+	// 定跡DBや置換表から取り出したMove16(16bit型の指し手)を32bit化する。
+	Move to_move(Move16 m) const;
 
 	// 普通の千日手、連続王手の千日手等を判定する。
 	// そこまでの局面と同一局面であるかを、局面を遡って調べる。
@@ -535,7 +534,7 @@ public:
   // 1手詰めのみを判定する。(要するに判定に漏れがある。)
   // 
   // 返し値は、16bitのMove。このあとpseudo_legal()等を使いたいなら、
-  // pos.move16_to_move()を使って32bitのMoveに変換すること。
+  // pos.to_move()を使って32bitのMoveに変換すること。
 
 	Move mate1ply() const;
 
@@ -552,7 +551,7 @@ public:
   // Search::Limits.enteringKingRuleに基いて、宣言勝ちを行なう。
   // 条件を満たしているとき、MOVE_WINや、玉を移動する指し手(トライルール時)が返る。さもなくば、MOVE_NONEが返る。
   // mate1ply()から内部的に呼び出す。(そうするとついでに処理出来て良い)
-	// ※　トライルールのときに返ってくるのは16bitのmoveなので注意。
+	// 32bit Moveが返る。
 	Move DeclarationWin() const;
 
 	// -- sfen化ヘルパ

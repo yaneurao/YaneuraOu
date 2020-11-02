@@ -1047,7 +1047,7 @@ void book_check(Position& pos, Color rootTurn, Book::MemoryBook& book, string sf
 				continue;
 #endif
 
-			Move m = move_list[i].bestMove;
+			Move m = pos.to_move(move_list[i].bestMove);
 
 			pos.do_move(m, si);
 			book_check(pos, rootTurn, book, sfen + ' ' + to_usi_string(m), of);

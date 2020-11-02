@@ -23,19 +23,26 @@ namespace Book
 	}
 
 	// Aperyの指し手の変換。
-	Move convert_move_from_apery(uint16_t apery_move) {
+	Move16 convert_move_from_apery(uint16_t apery_move) {
+		Move m;
+
 		const uint16_t to = apery_move & 0x7f;
 		const uint16_t from = (apery_move >> 7) & 0x7f;
 		const bool is_promotion = (apery_move & (1 << 14)) != 0;
-		if (is_promotion) {
-			return make_move_promote(static_cast<Square>(from), static_cast<Square>(to));
-		}
+		if (is_promotion)
+			m =  make_move_promote(static_cast<Square>(from), static_cast<Square>(to));
+		else
+		{
 		const bool is_drop = ((apery_move >> 7) & 0x7f) >= SQ_NB;
 		if (is_drop) {
 			const uint16_t piece = from - SQ_NB + 1;
-			return make_move_drop(static_cast<Piece>(piece), static_cast<Square>(to));
+				m = make_move_drop(static_cast<Piece>(piece), static_cast<Square>(to));
 		}
-		return make_move(static_cast<Square>(from), static_cast<Square>(to));
+			else
+				m = make_move(static_cast<Square>(from), static_cast<Square>(to));
+		}
+
+		return Move16::from_move(m);
 	};
 
 #if defined (ENABLE_MAKEBOOK_CMD)
@@ -469,7 +476,7 @@ namespace Book
 					if (from_sfen)
 					{
 						// この場合、m[i + 1]が必要になるので、m.size()-1までしかループできない。
-						BookPos bp(m[i], m[i + 1], VALUE_ZERO, 32, 1);
+						BookPos bp(Move16::from_move(m[i]), Move16::from_move(m[i + 1]), VALUE_ZERO, 32, 1);
 						book.insert(sfen, bp);
 					}
 					else if (from_thinking)
@@ -575,9 +582,6 @@ namespace Book
 						//cout << 's' << endl;
 						// →　この出力要らんような気がしてきた。
 					}
-
-					// 置換表が同じ世代で埋め尽くされるとまずいのでこのタイミングで世代カウンターを足しておく。
-					TT.new_search();
 
 				};
 
@@ -879,7 +883,7 @@ namespace Book
 				if (sfen.size() == 0)
 					continue;
 
-				Move best, next;
+				Move16 best, next;
 
 				string bestMove, nextMove;
 				int value = 0;
@@ -907,16 +911,16 @@ namespace Book
 
 				// 起動時なので変換に要するオーバーヘッドは最小化したいので合法かのチェックはしない。
 				if (bestMove == "none" || bestMove == "resign")
-					best = MOVE_NONE;
+					best = Move16::from_move(MOVE_NONE);
 				else
 					best = USI::to_move(bestMove);
 
 				if (nextMove == "none" || nextMove == "resign")
-					next = MOVE_NONE;
+					next = Move16::from_move(MOVE_NONE);
 				else
 					next = USI::to_move(nextMove);
 
-				BookPos bp(best, next, value, depth, num);
+				BookPos bp(best , next, value, depth, num);
 				insert(sfen, bp);
 
 				// このinsert()、この関数の40%ぐらいの時間を消費している。
@@ -1130,7 +1134,7 @@ namespace Book
 			// この場合、sum_count == 0になるので、採用率を当確率だとみなして、1.0 / entries.size() にしておく。
 
 			for (const auto& entry : entries) {
-				BookPos book_pos(pos.move16_to_move(convert_move_from_apery(entry.fromToPro)), MOVE_NONE, entry.score, 256, entry.count);
+				BookPos book_pos(convert_move_from_apery(entry.fromToPro), Move16::from_move(MOVE_NONE), entry.score, 256, entry.count);
 				book_pos.prob = (sum_count != 0) ? (entry.count / static_cast<float>(sum_count) ) : (1.0f / entries.size());
 				insert_book_pos(pml_entry , book_pos);
 			}
@@ -1288,7 +1292,7 @@ namespace Book
 						break;
 					}
 
-					Move best, next;
+					Move16 best, next;
 
 					string bestMove, nextMove;
 					int value = 0;
@@ -1310,17 +1314,16 @@ namespace Book
 
 					// 起動時なので変換に要するオーバーヘッドは最小化したいので合法かのチェックはしない。
 					if (bestMove == "none" || bestMove == "resign")
-						best = MOVE_NONE;
+						best = Move16::from_move(MOVE_NONE);
 					else
 						best = USI::to_move(bestMove);
 
 					if (nextMove == "none" || nextMove == "resign")
-						next = MOVE_NONE;
+						next = Move16::from_move(MOVE_NONE);
 					else
 						next = USI::to_move(nextMove);
 
-					// 定跡のMoveは16bitであり、rootMovesは32bitのMoveであるからこのタイミングで補正する。
-					BookPos bp(pos.move16_to_move(best), next, value, depth, num);
+					BookPos bp(best, next, value, depth, num);
 					insert_book_pos(pml_entry , bp);
 					num_sum += num;
 				}
@@ -1334,14 +1337,8 @@ namespace Book
 				// on the flyではない場合
 				it = book_body.find(trim(sfen));
 				if (it != book_body.end())
-				{
-					// 定跡のMoveは16bitであり、rootMovesは32bitのMoveであるからこのタイミングで補正する。
-					for (auto& m : *it->second)
-						m.bestMove = pos.move16_to_move(m.bestMove);
-
 					// メモリ上に丸読みしてあるので参照透明だと思って良い。
 					return PosMoveListPtr(it->second);
-				}
 
 				// 空のentryを返す。
 				return PosMoveListPtr();
@@ -1380,7 +1377,7 @@ namespace Book
 			if (entries.empty()) return;
 			bool has_illegal_move = false;
 			for (const auto& entry : entries) {
-				const Move move = convert_move_from_apery(entry.fromToPro);
+				const Move move = pos.to_move(convert_move_from_apery(entry.fromToPro));
 				has_illegal_move |= !pos.legal(move);
 			}
 			if (has_illegal_move) {
@@ -1396,8 +1393,8 @@ namespace Book
 			}
 
 			for (const auto& entry : entries) {
-				const Move move = convert_move_from_apery(entry.fromToPro);
-				BookPos bp(move, MOVE_NONE, entry.score, 1, entry.count);
+				const Move16 move = convert_move_from_apery(entry.fromToPro);
+				BookPos bp(move, Move16::from_move(MOVE_NONE) , entry.score, 1, entry.count);
 				insert(sfen, bp);
 			}
 
@@ -1410,12 +1407,13 @@ namespace Book
 			num_sum = std::max(num_sum, UINT64_C(1)); // ゼロ除算対策
 			for (auto& bp : move_list) {
 				bp.prob = float(bp.num) / num_sum;
-				pos.do_move(bp.bestMove, st);
+				Move move = pos.to_move(bp.bestMove);
+				pos.do_move(move, st);
 				auto it = find(pos);
 				if (it != nullptr) {
 					bp.nextMove = it->front().bestMove;
 				}
-				pos.undo_move(bp.bestMove);
+				pos.undo_move(move);
 			}
 		};
 
@@ -1501,7 +1499,7 @@ namespace Book
 	}
 
 	// 与えられたmで進めて定跡のpv文字列を生成する。
-	string BookMoveSelector::pv_builder(Position& pos, Move m , int depth)
+	string BookMoveSelector::pv_builder(Position& pos, Move16 m16 , int depth)
 	{
 		// 千日手検出
 		auto rep = pos.is_repetition(MAX_PLY);
@@ -1513,18 +1511,22 @@ namespace Book
 
 		string result = "";
 
+		Move m = pos.to_move(m16);
+
 		if (pos.pseudo_legal(m) && pos.legal(m))
 		{
 			StateInfo si;
 			pos.do_move(m, si);
 
-			Move bestMove, ponderMove;
-			if (!probe_impl(pos, true, bestMove, ponderMove , true /* 強制的にhitさせる */))
+			Move16 bestMove16, ponderMove16;
+			if (!probe_impl(pos, true, bestMove16, ponderMove16 , true /* 強制的にhitさせる */))
 				goto UNDO;
 
 			if (depth > 0)
-				result = pv_builder(pos, bestMove , depth - 1); // さらにbestMoveで指し手を進める。
-			result = " " + to_usi_string(bestMove) + ((result == "" /* is leaf node? */) ? (" " + to_usi_string(ponderMove)) : result);
+				result = pv_builder(pos, bestMove16 , depth - 1); // さらにbestMoveで指し手を進める。
+
+			result = " " + to_usi_string(bestMove16.to_move()) + ((result == "" /* is leaf node? */) ? (" " 
+				+ to_usi_string(ponderMove16.to_move())) : result);
 
 		UNDO:;
 			pos.undo_move(m);
@@ -1533,7 +1535,7 @@ namespace Book
 	}
 
 	// probe()の下請け
-	bool BookMoveSelector::probe_impl(Position& rootPos, bool silent , Move& bestMove , Move& ponderMove , bool forceHit)
+	bool BookMoveSelector::probe_impl(Position& rootPos, bool silent , Move16& bestMove , Move16& ponderMove , bool forceHit)
 	{
 		if (!forceHit)
 		{
@@ -1581,15 +1583,15 @@ namespace Book
 
 				string pv_string;
 				if (pv_moves <= 1)
-					pv_string = to_usi_string(it.bestMove);
+					pv_string = it.bestMove.to_usi_string();
 				else if (pv_moves == 2)
-					pv_string = to_usi_string(it.bestMove) + " " + to_usi_string(it.nextMove);
+					pv_string =it.bestMove.to_usi_string() + " " + it.nextMove.to_usi_string();
 				else {
 					// 次の局面で定跡にhitしない場合があって、その場合、この局面のnextMoveを出力してやる必要がある。
 					auto rest = pv_builder(rootPos, it.bestMove, pv_moves - 3);
 					pv_string = (rest != "") ?
-						(to_usi_string(it.bestMove) + rest) :
-						(to_usi_string(it.bestMove) + " " + to_usi_string(it.nextMove));
+						(it.bestMove.to_usi_string() + rest) :
+						(it.bestMove.to_usi_string() + " " + it.nextMove.to_usi_string());
 				}
 
 				// USIの"info"で読み筋を出力するときは"pv"サブコマンドはサブコマンドの一番最後にしなければならない。
@@ -1733,9 +1735,11 @@ namespace Book
 	Move BookMoveSelector::probe(Position& pos)
 	{
 		const bool silent = true;
-		Move bestMove, ponderMove;
-		if (!probe_impl(pos, silent, bestMove, ponderMove))
+		Move16 bestMove16, ponderMove16;
+		if (!probe_impl(pos, silent, bestMove16, ponderMove16))
 			return MOVE_NONE;
+
+		Move bestMove = pos.to_move(bestMove16);
 
 		// bestMoveが合法かチェックしておく。
 		if (!pos.pseudo_legal(bestMove) || !pos.legal(bestMove))
@@ -1757,10 +1761,14 @@ namespace Book
 		if (!Options["USI_OwnBook"])
 			return false;
 
-		Move bestMove, ponderMove;
-		if (probe_impl(th.rootPos, Limits.silent, bestMove, ponderMove))
+		Move16 bestMove16, ponderMove16;
+		auto& pos = th.rootPos;
+		if (probe_impl(pos , Limits.silent, bestMove16, ponderMove16))
 		{
 			auto & rootMoves = th.rootMoves;
+
+			// bestMoveは16bit Moveなので32bit化する必要がある。
+			Move bestMove = pos.to_move(bestMove16);
 
 			// RootMovesに含まれているかどうかをチェックしておく。
 			// RootMovesをUSIプロトコル経由で指定されることがあるので、必ずこれはチェックしないといけない。
@@ -1771,11 +1779,19 @@ namespace Book
 
 				// 2手目の指し手も与えないとponder出来ない。
 				// 定跡ファイルに2手目が書いてあったなら、それをponder用に出力する。
-				if (ponderMove != MOVE_NONE)
+				// これが合法手でなかったら将棋所が弾くと思う。
+				// (ただし、"ponder resign"などと出力してしまうと投了と判定されてしまうらしいので
+				//  普通の指し手でなければならない。これは、is_ok(Move)で判定できる。)
+				if (is_ok(ponderMove16.to_move()))
 				{
 					if (rootMoves[0].pv.size() <= 1)
 						rootMoves[0].pv.push_back(MOVE_NONE);
-					rootMoves[0].pv[1] = ponderMove; // これが合法手でなかったら将棋所が弾くと思う。
+
+					// これ32bit Moveに変換してあげるほうが親切なのか…。
+					StateInfo si;
+					pos.do_move(bestMove,si);
+					rootMoves[0].pv[1] = pos.to_move(ponderMove16);
+					pos.undo_move(bestMove);
 				}
 				// この指し手を指す
 				return true;
