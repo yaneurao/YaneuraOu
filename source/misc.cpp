@@ -158,13 +158,18 @@ const string engine_info() {
 #endif			
 			<< ' '
 			<< EVAL_TYPE_NAME << ' '
-			<< ENGINE_VERSION << setfill('0')
+			<< ENGINE_VERSION << std::setfill('0')
 			<< (Is64Bit ? " 64" : " 32")
 			<< TARGET_CPU
 #if defined(FOR_TOURNAMENT)
 			<< " TOURNAMENT"
 #endif
-			<< endl
+
+#if defined(EVAL_LEARN)
+			<< " EVAL_LEARN"
+#endif
+
+			<< std::endl
 			<< "id author by yaneurao" << endl;
 	}
 
