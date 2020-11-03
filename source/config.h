@@ -248,12 +248,6 @@
 // これをdefineすると、extra/kif_converter/ フォルダにある棋譜や指し手表現の変換を行なう関数群が使用できるようになる。
 // #define USE_KIF_CONVERT_TOOLS
 
-// 128GB超えの置換表を使いたいとき用。
-// このシンボルを定義するとOptions["Hash"]として131072(=128*1024[MB]。すなわち128GB)超えの置換表が扱えるようになる。
-// Stockfishのコミュニティではまだ議論中なのでデフォルトでオフにしておく。
-// cf. 128 GB TT size limitation : https://github.com/official-stockfish/Stockfish/issues/1349
-// #define USE_HUGE_HASH
-
 // ニコニコ生放送の電王盤用
 // 電王盤はMultiPV非対応なので定跡を送るとき、"multipv"をつけずに1番目の候補手を送信する必要がある。
 // #define NICONICO

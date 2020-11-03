@@ -1,10 +1,10 @@
 ﻿#include "movepick.h"
 #include "thread.h"
 
-//#if defined(USE_AVX2)
+#if defined(DEV_BRANCH) && defined(USE_AVX2)
 // partial_insertion_sort()のSuperSortを用いた実装
-//extern void partial_super_sort(ExtMove* start, ExtMove* end, int limit);
-//#endif
+extern void partial_super_sort(ExtMove* start, ExtMove* end, int limit);
+#endif
 
 namespace {
 
@@ -374,26 +374,26 @@ top:
 			// 指し手を部分的にソートする。depthに線形に依存する閾値で。
 			// (depthが低いときに真面目に全要素ソートするのは無駄だから)
 
-//#if defined(USE_AVX2)
+#if defined(DEV_BRANCH) && defined(USE_AVX2)
 
 			// AVX2なので自動的にlittle endianと仮定できるのでint64_tとみなしてソートして良い。
 			// このとき、sortの高速化として、SuperSortが使える。
 			// cur == movesの先頭だし、MAX_MOVESの分だけbufferは確保されているので32の倍数になるように
 			// 後方のpaddingをしてAVX2を使ったsortをして良い。このとき、他にbuffer不要。
 			
-//			partial_super_sort(cur, endMoves , -4000 * depth);
+			partial_super_sort(cur, endMoves , -4000 * depth);
 
 			// ↑を有効にするとinsertion_sortと結果が異なるのでbenchコマンドの探索node数が変わって困ることがある。
 			// そのときは↓これを使う。
 			//			partial_insertion_sort(cur, endMoves, -4000 * depth);
 
-//#else
+#else
 
 			// TODO : このへん係数調整したほうが良いのでは…。
 			// →　sort時間がもったいないのでdepthが浅いときはscoreの悪い指し手を無視するようにしているだけで
 			//   sortできるなら全部したほうが良い。上のSuperSortを使う実装の場合、全部sortしている。
 			partial_insertion_sort(cur, endMoves, -4000 * depth);
-//#endif
+#endif
 		}
 
 		++stage;

@@ -30,8 +30,8 @@ namespace USI {
 	// optionのdefault値を設定する。
 	void init(OptionsMap& o)
 	{
-		// Hash上限。32bitモードなら2GB、64bitモードなら1024GB
-		const int MaxHashMB = Is64Bit ? 1024 * 1024 : 2048;
+		// Hash上限。32bitモードなら2GB、64bitモードなら33TB
+		constexpr int MaxHashMB = Is64Bit ? 33554432 : 2048;
 
 		// 並列探索するときのスレッド数
 		// CPUの搭載コア数をデフォルトとすべきかも知れないが余計なお世話のような気もするのでしていない。

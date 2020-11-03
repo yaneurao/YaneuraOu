@@ -1,12 +1,15 @@
 
-# ビルドターゲット
+# === ビルドターゲット (build target) ===
+
 # normal     : 通常使用用
 # evallearn  : 教師局面からの学習用
 # tournament : 大会で使う用
-# gensfen    : 教師生成用(現状、非公開)
+# gensfen    : 教師生成用     // 現状、非公開 (currently private)
 
 
-# やねうら王の使いたいエディションを指定する
+# === ビルドオプション (build options) ===
+
+# やねうら王の使いたいエディションを指定する (select YaneuraOu Edition)
 # YANEURAOU_ENGINE_NNUE       : NNUE型評価関数(halfKP256),標準NNUE型
 # YANEURAOU_ENGINE_NNUE_KP256 : NNUE型評価関数(KP256)
 # YANEURAOU_ENGINE_KPPT       : KPPT型評価関数
@@ -23,8 +26,8 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 #YANEURAOU_EDITION = MATE_ENGINE
 #YANEURAOU_EDITION = USER_ENGINE
 
+# ターゲットCPU (target cpu)
 
-# ターゲットCPU
 # 利用できるCPU拡張命令を指定する。
 # AMDのRyzen(Zen/Zen2)はZEN1/ZEN2を選択するとBMI2命令が使わずに速くなる。(10%程度高速化)
 # ARM系ならOTHERを指定する。
@@ -44,21 +47,37 @@ TARGET_CPU = AVX2
 #TARGET_CPU = ZEN2
 
 
-# デバッガーを使用するか
+# デバッガーを使用するか (debugger)
 DEBUG = OFF
 #DEBUG = ON
 
 
-# clangでコンパイルしたほうがgccより数%速いっぽい。
+# 使用するコンパイラ (compiler)
+# ※ clangでコンパイルしたほうがgccより数%速いっぽい。
 #COMPILER = g++
 COMPILER = clang++
 
 
-# 標準的なコンパイルオプション
+# エンジンの表示名 (engine displayname)
+# ("usi"コマンドに対して出力される)
+#ENGINE_NAME =
+
+
+# developing branch // 現状、非公開 (currently private)
+# dev : 開発中のbranchならdevと指定する (developing branch) : 
+# abe : abe
+#ENGINE_BRANCH = dev
+
+
+# 標準的なコンパイルオプション (standard compile options)
 CPPFLAGS   = -std=c++17 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
 WCPPFLAGS  =
+LDFLAGS  =
 LIBS     =
 INCLUDE  = # -I../include
+
+
+# === implementations ===
 
 # デバッガーを使わないなら、NDEBUGをdefineする。
 ifeq ($(DEBUG),OFF)
@@ -102,6 +121,7 @@ ifeq ($(OS),Windows_NT)
 	LDFLAGS += -static -Wl,--stack,25000000
 	TARGET = YaneuraOu-by-gcc.exe
 else
+	CPPFLAGS += -D_LINUX
 	TARGET = YaneuraOu-by-gcc
 endif
 
@@ -129,12 +149,6 @@ LDFLAGS += -Wl,-s
 # ※ 学習部ではOpenMpを用いるので、学習用のビルドではこのオプションを指定する。
 # clangでOPENMPを有効にしてビルドする方法については、解説.txtを参照のこと。
 
-# エンジンの表示名("usi"コマンドに対して出力される)
-#ENGINE_NAME =
-
-# 開発中のbranchならdevと指定する
-# そうでなければこのシンボルを定義しない
-#ENGINE_BRANCH = dev
 
 ifeq ($(findstring g++,$(COMPILER)),g++)
 	OPENMP   = -fopenmp
@@ -269,7 +283,14 @@ endif
 # 開発用branch
 ifeq ($(findstring dev,$(ENGINE_BRANCH)),dev)
 	# SuperSort使ってみよう。
+	CPPFLAGS += -DDEV_BRANCH
 	SOURCES += extra/super_sort.cpp
+endif
+
+# abe
+ifeq ($(findstring abe,$(ENGINE_BRANCH)),abe)
+	SOURCES += extra/super_sort.cpp
+	CPPFLAGS += -DPV_OUTPUT_DRAW_ONLY
 endif
 
 
@@ -328,7 +349,7 @@ OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
 DEPENDS  = $(OBJECTS:.o=.d)
 
 all: clean $(TARGET)
-.PHONY : all normal evallearn tournament gensfen prof profgen profuse pgo clean
+.PHONY : all normal evallearn tournament prof profgen profuse pgo clean
 
 $(TARGET): $(OBJECTS) $(LIBS)
 	$(COMPILER) -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
@@ -348,15 +369,15 @@ normal:
 
 # 学習用。openmp , openblasなどを有効にする。
 evallearn:
-	$(MAKE) CPPFLAGS='$(CPPFLAGS) $(OPENMP) $(BLAS)' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CPPFLAGS='$(CPPFLAGS) $(OPENMP) $(BLAS) -DEVAL_LEARN' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 # トーナメント用
 tournament:
 	$(MAKE) CPPFLAGS='$(CPPFLAGS) -DFOR_TOURNAMENT' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
-# 教師棋譜生成用
+# 教師棋譜生成用(開発用なので非公開) // currently private
 gensfen:
-	$(MAKE) CPPFLAGS='$(CPPFLAGS) $(OPENMP) $(BLAS) -DGENSFEN2019' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CPPFLAGS='$(CPPFLAGS) $(OPENMP) $(BLAS) -DEVAL_LEARN -DGENSFEN2019' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 
 #　とりあえずPGOはAVX2とSSE4.2専用

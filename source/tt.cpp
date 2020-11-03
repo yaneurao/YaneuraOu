@@ -261,7 +261,7 @@ void TranspositionTable::init_tt_per_thread()
 	ASSERT_LV3((clusterCountPerThread & 1) == 0);
 
 	// これを、自分が確保したglobalな置換表用メモリから切り分けて割当てる。
-	for (int i = 0; i < thread_size; ++i)
+	for (size_t i = 0; i < thread_size; ++i)
 	{
 		auto& tt = Threads[i]->tt;
 		tt.clusterCount = clusterCountPerThread;

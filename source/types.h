@@ -611,7 +611,7 @@ static std::ostream& operator<<(std::ostream& os, Move m) { os << to_usi_string(
 struct Move16
 {
 	Move16():move(0){}
-	Move16(u16 m) : move(m) {}
+	Move16(u16 m): move(m) {}
 
 	// Moveからの暗黙変換はできないとMOVE_NONEの代入などで困る。
 	Move16(Move m) :move((u16)m){}
@@ -868,7 +868,7 @@ struct MoveList {
 	size_t size() const { return last - mlist; }
 
 	// i番目の要素を返す
-	const ExtMove at(size_t i) const { ASSERT_LV3(0 <= i && i < size()); return begin()[i]; }
+	const ExtMove at(size_t i) const { ASSERT_LV3(i < size()); return begin()[i]; }
 
 private:
 	// 指し手生成バッファも自前で持っている。
