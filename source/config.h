@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "5.00"
+#define ENGINE_VERSION "5.01"
 
 // --------------------
 //  思考エンジンの種類
@@ -164,7 +164,7 @@
 
 
 // 評価関数を教師局面から学習させるときに使うときのモード
-// #define EVAL_LEARN
+//#define EVAL_LEARN
 
 // Eval::compute_eval()やLearner::add_grad()を呼び出す前にEvalListの組み換えを行なう機能を提供する。
 // 評価関数の実験に用いる。詳しくは、Eval::make_list_functionに書いてある説明などを読むこと。
