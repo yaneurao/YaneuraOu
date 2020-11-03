@@ -611,14 +611,16 @@ static std::ostream& operator<<(std::ostream& os, Move m) { os << to_usi_string(
 struct Move16
 {
 	Move16():move(0){}
+	Move16(u16 m) : move(m) {}
 
 	// Moveからの暗黙変換はできないとMOVE_NONEの代入などで困る。
 	Move16(Move m) :move((u16)m){}
 
-	// そのままMoveに変換する。(上位16bitは0のまま)
+	// uint16_tのまま取り出す。
+	// Moveに変換が必要なときは、そのあとMove()にcastすることはできる。(上位16bitは0のまま)
 	// 内部的に用いる。基本的にはこの関数を呼び出さないこと。
 	// このMove16のinstanceをMoveに戻したい時は、Position::to_move(Move16)を使うこと。
-	Move to_move() const { return (Move)move; }
+	uint16_t to_u16() const { return (u16)move; }
 
 	// 比較
 	// Move16同士とMoveの定数とも比較はできる。
@@ -628,14 +630,14 @@ struct Move16
 	bool operator != (const Move rhs) const { return !(*this == rhs); }
 
 	// USI形式の文字列にする。
-	std::string to_usi_string() const { return ::to_usi_string(to_move()); }
+	std::string to_usi_string() const { return ::to_usi_string((Move)move); }
 
 private:
 	uint16_t move;
 };
 
 // USI形式で指し手を表示する
-static std::ostream& operator<<(std::ostream& os, Move16 m) { os << to_usi_string(m.to_move()); return os; }
+static std::ostream& operator<<(std::ostream& os, Move16 m) { os << m.to_usi_string(); return os; }
 
 // --------------------
 //   拡張された指し手

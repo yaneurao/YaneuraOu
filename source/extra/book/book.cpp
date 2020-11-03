@@ -110,7 +110,7 @@ namespace Book
 				Move nextMove = (rootMoves.pv.size() >= 1) ? rootMoves.pv[1] : MOVE_NONE;
 
 				// 出現頻度は、バージョンナンバーを100倍したものにしておく)
-				BookPos bp(Move16::from_move(rootMoves.pv[0]), Move16::from_move(nextMove), rootMoves.score
+				BookPos bp(rootMoves.pv[0], nextMove , rootMoves.score
 					, search_depth, int(atof(ENGINE_VERSION) * 100));
 
 				// MultiPVで思考しているので、手番側から見て評価値の良い順に並んでいることは保証される。
@@ -1527,8 +1527,8 @@ namespace Book
 			if (depth > 0)
 				result = pv_builder(pos, bestMove16 , depth - 1); // さらにbestMoveで指し手を進める。
 
-			result = " " + to_usi_string(bestMove16.to_move()) + ((result == "" /* is leaf node? */) ? (" " 
-				+ to_usi_string(ponderMove16.to_move())) : result);
+			result = " " + bestMove16.to_usi_string()
+				+ ((result == "" /* is leaf node? */) ? (" " + ponderMove16.to_usi_string()) : result);
 
 		UNDO:;
 			pos.undo_move(m);
@@ -1784,7 +1784,7 @@ namespace Book
 				// これが合法手でなかったら将棋所が弾くと思う。
 				// (ただし、"ponder resign"などと出力してしまうと投了と判定されてしまうらしいので
 				//  普通の指し手でなければならない。これは、is_ok(Move)で判定できる。)
-				if (is_ok(ponderMove16.to_move()))
+				if (is_ok((Move)ponderMove16.to_u16()))
 				{
 					if (rootMoves[0].pv.size() <= 1)
 						rootMoves[0].pv.push_back(MOVE_NONE);

@@ -1135,7 +1135,7 @@ Move Position::to_move(Move16 m16) const
 	// 上位16bitは0でなければならない
 	//      ASSERT_LV3((m >> 16) == 0);
 
-	Move m = m16.to_move();
+	Move m = (Move)m16.to_u16();
 
 	// MOVE_NULLの可能性はないはずだが、MOVE_WINである可能性はある。
 	// それはそのまま返す。(MOVE_WINの機会はごくわずかなのでこれのために
@@ -1195,8 +1195,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	// hash key
 
 	// 現在の局面のhash keyはこれで、これを更新していき、次の局面のhash keyを求めてStateInfo::key_に格納。
-	auto k = st->board_key_ ^ Zobrist::side;
-	auto h = st->hand_key_;
+	Key64 k = st->board_key_ ^ Zobrist::side;
+	Key64 h = st->hand_key_;
 
 	// StateInfoの構造体のメンバーの上からkeyのところまでは前のを丸ごとコピーしておく。
 	// undo_moveで戻すときにこの部分はundo処理が要らないので細かい更新処理が必要なものはここに載せておけばundoが速くなる。

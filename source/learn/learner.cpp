@@ -2408,7 +2408,7 @@ void convert_bin(const vector<string>& filenames , const string& output_file_nam
 			}
 			else if (token == "move") {
 				ss >> value;
-				p.move = (u16)(USI::to_move(value).to_move());
+				p.move = USI::to_move16(value).to_u16();
 			}
 			else if (token == "score") {
 				ss >> p.score;
