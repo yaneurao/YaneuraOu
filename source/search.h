@@ -163,7 +163,7 @@ namespace Search {
 		bool generate_all_legal_moves;
 #endif
 #if defined(MATE_ENGINE)
-		std::vector<Move> pv_check;
+		std::vector<Move16> pv_check;
 #endif
 	};
 

@@ -170,6 +170,10 @@ namespace MateEngine
 			for (auto& entry : entries.entries)
 				if (hash_high == entry.hash_high && entry.generation == generation)
 					return entry;
+				// TODO(yane) : ここ、優劣関係も見たほうが良いのでは..
+				// cf.
+				//	https://tadaoyamaoka.hatenablog.com/entry/2018/05/20/150355
+				//  https://github.com/TadaoYamaoka/ElmoTeacherDecoder/blob/6c8d476d251e72627e98708bf82b6f307933dc21/extract_mated_hcp/dfpn.cpp
 
 			// 合致するTTEntryが見つからなかったので空きエントリーを探して返す
 
@@ -631,15 +635,16 @@ namespace MateEngine
 		}
 	}
 
-	void pv_check_from_table(Position &pos, vector<Move> pv_check){
+	void pv_check_from_table(Position &pos, vector<Move16> pv_check){
 		Color root_color = pos.side_to_move();
 		const auto& entry0 = transposition_table.LookUp(pos, root_color);
 		cout<<pos<<endl;
 		cout<<"pn-dn"<<entry0.pn<<","<<entry0.dn<<endl;
 		cout<<"key-gen"<<entry0.hash_high<<","<<entry0.generation<<endl;
 
-		for(auto move : pv_check){
+		for(auto m : pv_check){
 			StateInfo state_info;
+			Move move = pos.to_move(m);
 			pos.do_move(move, state_info);
 			const auto& entry = transposition_table.LookUp(pos, root_color);
 			cout<<pos<<endl;

@@ -610,8 +610,10 @@ static std::ostream& operator<<(std::ostream& os, Move m) { os << to_usi_string(
 // それらを明確に区別したい時に用いる。
 struct Move16
 {
-	// MoveからMove16のinstanceを作るbuilder
-	static Move16 from_move(Move m) { Move16 m16; m16.move = (uint16_t)m; return m16; }
+	Move16():move(0){}
+
+	// Moveからの暗黙変換はできないとMOVE_NONEの代入などで困る。
+	Move16(Move m) :move((u16)m){}
 
 	// そのままMoveに変換する。(上位16bitは0のまま)
 	// 内部的に用いる。基本的にはこの関数を呼び出さないこと。
@@ -619,9 +621,11 @@ struct Move16
 	Move to_move() const { return (Move)move; }
 
 	// 比較
-	bool operator == (const Move16 rhs) const {
-		return move == rhs.move;
-	}
+	// Move16同士とMoveの定数とも比較はできる。
+	bool operator == (const Move16 rhs) const { return move == rhs.move; }
+	bool operator != (const Move16 rhs) const { return !(*this == rhs); }
+	bool operator == (const Move rhs) const { return move == (u16)rhs; }
+	bool operator != (const Move rhs) const { return !(*this == rhs); }
 
 	// USI形式の文字列にする。
 	std::string to_usi_string() const { return ::to_usi_string(to_move()); }

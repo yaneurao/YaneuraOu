@@ -24,7 +24,7 @@
 /// depth       8 bit : 格納されているvalue値の探索深さ
 struct TTEntry {
 
-	Move16 move() const { return Move16::from_move((Move)move16); }
+	Move16 move() const { return Move16((Move)move16); }
 	Value value() const { return (Value)value16; }
 	Value eval() const { return (Value)eval16; }
 	Depth depth() const { return (Depth)depth8 + DEPTH_OFFSET; }

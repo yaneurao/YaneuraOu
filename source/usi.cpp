@@ -534,9 +534,9 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 			
 		else if (token == "matedebug") {
 		  string token="";
-		  Move m;
+			Move16 m;
 		  limits.pv_check.clear();
-		  while (is >> token && (m = USI::to_move(token)) != MOVE_NONE){
+			while (is >> token && (m = USI::to_move16(token)) != MOVE_NONE){
 		    limits.pv_check.push_back(m);
 		  }
 		}
@@ -945,7 +945,7 @@ Move USI::to_move(const Position& pos, const std::string& str)
 		return MOVE_NULL;
 
 	// usi文字列を高速にmoveに変換するやつがいるがな..
-	Move move = pos.to_move(USI::to_move(str));
+	Move move = pos.to_move(USI::to_move16(str));
 
 #if defined(MUST_CAPTURE_SHOGI_ENGINE)
 	// 取る一手将棋は合法手かどうかをGUI側でチェックしてくれないから、
@@ -967,7 +967,7 @@ Move USI::to_move(const Position& pos, const std::string& str)
 // USI形式から指し手への変換。本来この関数は要らないのだが、
 // 棋譜を大量に読み込む都合、この部分をそこそこ高速化しておきたい。
 // やねうら王、独自追加。
-Move16 USI::to_move(const string& str)
+Move16 USI::to_move16(const string& str)
 {
 	Move move = MOVE_NONE;
 
@@ -1001,5 +1001,5 @@ Move16 USI::to_move(const string& str)
 	}
 
 END:
-	return Move16::from_move(move);
+	return Move16(move);
 }

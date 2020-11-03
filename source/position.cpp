@@ -2356,7 +2356,7 @@ Move Position::DeclarationWin() const
 			return MOVE_NONE;
 
 		// 王の移動の指し手により勝ちが確定する
-		return to_move(Move16::from_move(make_move(king_sq, king_try_sq)));
+		return to_move(Move16(make_move(king_sq, king_try_sq)));
 	}
 
 	default:

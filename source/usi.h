@@ -129,7 +129,7 @@ namespace USI
 	// 返ってくるのは16bitのMoveなので、これを32bitのMoveに変換するには
 	// Position::move16_to_move()を呼び出す必要がある。
 	// Stockfishにはない関数だが、高速化を要求されるところで欲しいので追加する。
-	Move16 to_move(const std::string& str);
+	Move16 to_move16(const std::string& str);
 
 	// USIプロトコルで、idxの順番でoptionを出力する。(デバッグ用)
 	std::ostream& operator<<(std::ostream& os, const OptionsMap& om);
