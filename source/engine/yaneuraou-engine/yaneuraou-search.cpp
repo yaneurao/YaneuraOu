@@ -1280,11 +1280,9 @@ namespace {
 		excludedMove = ss->excludedMove;
 
 		// excludedMoveがある(singular extension時)は、異なるentryにアクセスするように。
-		// posKey = pos.key() ^ Key(excludedMove << 16);
-
-		// →　やねうら王の指し手生成の場合、動かす駒がexcludedMoveのbit16..に
-		// 格納されているのでこれも込みでposKeyを生成したほうが良い性質のhash keyになる気はする。
-		posKey = pos.key() ^ Key(uint64_t(excludedMove) << 16);
+		// ただし、このときpos.key()のbit0を破壊することは許されないので、make_key()でbit0はクリアしておく。
+		// excludedMoveがMOVE_NONEの時はkeyを変更してはならない。
+		posKey = excludedMove == MOVE_NONE ? pos.key() : pos.key() ^ make_key(excludedMove);
 
 		tte = TT.probe(posKey, ttHit);
 

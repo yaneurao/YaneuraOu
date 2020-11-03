@@ -1604,7 +1604,18 @@ namespace Directory {
 
 namespace Misc
 {
-	// このmisc.hの各種クラスの初期化。起動時にmain()から一度呼び出すようにする。
+	// Misc内の簡単なUnit testを行う
+	void UnitTest()
+	{
+		// mul_hi64で使っているgcc拡張、簡単な計算で検算して、合致しなければその旨を表示しておいてあげるのが親切。
+		// 2^63 * 2^63 / 2^64 = 2^(63+63-64) = 2^62
+		if (mul_hi64((u64)1 << 63, (u64)1 << 63) != (u64)1 << 62)
+		{
+			std::cout << "Error! : failed mul_hi() , please update compiler." << std::endl;
+		}
+	}
+
+	// このmisc.hの各種クラスの初期化。起動時にmain()から一度呼び出すようにする。(やねうら王独自拡張)
 	void init(char* argv[])
 	{
 		// GetCurrentDirectory()で現在のフォルダを返すためにmain関数のなかでこの関数を呼び出してあるものとする。
@@ -1612,5 +1623,9 @@ namespace Misc
 
 		// Linux系だと、"./a.out"みたいになってて、__CurrentFolder__ == "."になってしまうが仕方がない。(´ω｀)
 		// Directory::GetCurrentFolder()はWindows系でしか呼び出さないので、とりあえずこの問題は放置。
+
+		// 簡単なUnit test
+		UnitTest();
 	}
+
 }

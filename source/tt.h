@@ -14,17 +14,17 @@
 /// 本エントリーは10bytesに収まるようになっている。3つのエントリーを並べたときに32bytesに収まるので
 /// CPUのcache lineに一発で載るというミラクル。
 ///
-/// key        16 bit : hash keyの上位16bit
+/// key        16 bit : hash keyの下位16bit(bit0は除くのでbit16..1)
+/// depth       8 bit : 格納されているvalue値の探索深さ
 /// move       16 bit : このnodeの最善手(指し手16bit ≒ Move16 , Moveの上位16bitは無視される)
-/// value      16 bit : このnodeでのsearch()の返し値
-/// eval value 16 bit : このnodeでのevaluate()の返し値
 /// generation  5 bit : 世代カウンター
 /// pv node     1 bit : PV nodeで調べた値であるかのフラグ
 /// bound type  2 bit : 格納されているvalue値の性質(fail low/highした時の値であるだとか)
-/// depth       8 bit : 格納されているvalue値の探索深さ
+/// value      16 bit : このnodeでのsearch()の返し値
+/// eval value 16 bit : このnodeでのevaluate()の返し値
 struct TTEntry {
 
-	Move16 move() const { return Move16(move16); }
+	Move16 move() const { return Move16((Move)move16); }
 	Value value() const { return (Value)value16; }
 	Value eval() const { return (Value)eval16; }
 	Depth depth() const { return (Depth)depth8 + DEPTH_OFFSET; }
@@ -42,8 +42,10 @@ struct TTEntry {
 private:
 	friend struct TranspositionTable;
 
-	// hash keyの上位16bit。下位48bitはこのエントリー(のアドレス)に一致しているということは
-	// そこそこ合致しているという前提のコード
+	// hash keyの下位bit16(bit0は除く)
+	// Stockfishの最新版[2020/11/03]では、key16はhash_keyの下位16bitに変更になったが(取り出しやすいため)
+	// やねうら王ではhash_keyのbit0を先後フラグとして用いるので、bit16..1を使う。
+	// hash keyの上位bitは、TTClusterのindexの算出に用いるので、下位を格納するほうが理にかなっている。
 	uint16_t key16;
 
 	// 指し手(の下位16bit。Moveの上位16bitには移動させる駒種などが格納される)
@@ -100,7 +102,7 @@ public:
 
 	// probe()の、置換表を一切書き換えないことが保証されている版。
 	// ConsiderationMode時のPVの出力時は置換表をprobe()したいが、hitしないときに空きTTEntryを作る挙動が嫌なので、
-	// こちらを用いる。
+	// こちらを用いる。(やねうら王独自拡張)
 	TTEntry* read_probe(const Key key, bool& found) const;
 
 	// 置換表の使用率を1000分率で返す。(USIプロトコルで統計情報として出力するのに使う)
@@ -112,44 +114,35 @@ public:
 	// 置換表のエントリーの全クリア
 	void clear();
 
-	// keyの下位bitをClusterのindexにしてその最初のTTEntry*を返す。
+	// keyを元にClusterのindexを求めて、その最初のTTEntry*を返す。
 	TTEntry* first_entry(const Key key) const {
-		// 下位32bit × clusterCount / 2^32 なので、この値は 0 ～ clusterCount - 1 である。
+		// Stockfishのコード
+		// mul_hi64は、64bit * 64bitの掛け算をして下位64bitを取得する関数。
+		//return &table[mul_hi64(key, clusterCount)].entry[0];
+
+		// key(64bit) × clusterCount / 2^64 の値は 0 ～ clusterCount - 1 である。
 		// 掛け算が必要にはなるが、こうすることで custerCountを2^Nで確保しないといけないという制約が外れる。
 		// cf. Allow for general transposition table sizes. : https://github.com/official-stockfish/Stockfish/commit/2198cd0524574f0d9df8c0ec9aaf14ad8c94402b
 
-		// return &table[(uint32_t(key) * uint64_t(clusterCount)) >> 32].entry[0];
-		// →　(key & 1)が保存される必要性があるので(ここが先後フラグなので)、もうちょい工夫する。
-		// このときclusterCountが奇数だと、最後の(clusterCount & ~1) | (key & 1) の値が、
+		// ※　以下、やねうら王独自拡張
+
+		// やねうら王では、keyのbit0(先後フラグ)がindexのbit0に反映される必要がある。
+		// このときclusterCountが奇数だと、(index & ~(u64)1) | (key & 1) のようにしたときに、
 		// (clusterCount - 1)が上限であるべきなのにclusterCountになりかねない。
 		// そこでclusterCountは偶数であるという制約を課す。
 		ASSERT_LV3((clusterCount & 1) == 0);
 
-		// cf. 置換表の128GB制限を取っ払う冴えない方法 : http://yaneuraou.yaneu.com/2018/05/03/%E7%BD%AE%E6%8F%9B%E8%A1%A8%E3%81%AE128gb%E5%88%B6%E9%99%90%E3%82%92%E5%8F%96%E3%81%A3%E6%89%95%E3%81%86%E5%86%B4%E3%81%88%E3%81%AA%E3%81%84%E6%96%B9%E6%B3%95/
-		// Stockfish公式で対応されるまでデフォルトでは無効にしておく。
+		// indexのbit0は、keyのbit0(先後フラグ)が反映されなければならない。
+		// →　次のindexの計算ではbit0を潰して計算するためにkeyを2で割ってからmul_hi64()している。
 
-#if defined (IS_64BIT) && defined(USE_SSE2) && defined(USE_HUGE_HASH)
+		// (key/2) * clusterCount / 2^64 をするので、indexは 0 ～ (clusterCount/2)-1 の範囲となる。
+		//uint64_t index = mul_hi64((u64)key >> 1, clusterCount);
+		//uint64_t index = mul_hi64((u64)key << 32, clusterCount / 2);
+		uint64_t index = mul_hi64(((u64)key >> 1) << 32, clusterCount /2);
 
-		// cf. 128 GB TT size limitation : https://github.com/official-stockfish/Stockfish/issues/1349
-		uint64_t highProduct;
-		//		_umul128(key + (key << 32) , clusterCount, &highProduct);
-		_umul128(key << 16, clusterCount, &highProduct);
-
-		// この計算ではhighProductに第1パラメーターの上位bit周辺が色濃く反映されることに注意。
-		// 上のStockfishのissuesに書かれている修正案は、あまりよろしくない。
-		// TTEntry::key16はKeyの上位16bitの一致を見ているので、この16bitを計算に用いないか何らかの工夫が必要。
-		// また、第1パラメーターをkeyにすると著しく勝率が落ちる。singular用のhash keyの性質が悪いのだと思う。
-		// singluar用のhash keyは、bit16...31にexcludedMoveをxorしてあるのでこのbitを第1パラメーターの上位bit付近に
-		// 反映させないとhash key衝突してしまう。そこで、お行儀はあまりよくないが、(key + (key << 32))を用いることにする。
-		return &table[(highProduct & ~1) | (key & 1)].entry[0];
-#else
-		// また、(uint32_t(key) * uint64_t(clusterCount)だとkeyのbit0を使ってしまうので(31bitしか
-		// indexを求めるのに使っていなくて精度がやや落ちるので)、(key >> 1)を使う。
-		// ただ、Hashが小さいときにkeyの下位から取ると、singularのときのkeyとして
-		// excludedMoveはbit16..31にしか反映させないので、あまりいい性質でもないような…。
-		return &table[(((uint32_t(key >> 1) * uint64_t(clusterCount)) >> 32) & ~1) | (key & 1)].entry[0];
-#endif
-
+		// indexは0～(clusterCount/2)-1の範囲にあるのでこれを2倍すると、0～clusterCount-2の範囲。
+		// clusterCountは偶数で、ここにkeyのbit0がbit-orされるので0～clusterCount-1が得られる。
+		return &table[(index << 1) | ((u64)key & 1)].entry[0];
 	}
 
 #if defined(EVAL_LEARN)

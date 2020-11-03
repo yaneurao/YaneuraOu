@@ -346,8 +346,8 @@ enum : int {
 	// DEPTH_NONEは探索せずに値を求めたという意味に使う。
 	DEPTH_NONE = -6,
 
-	// TTの下駄履き用
-	DEPTH_OFFSET = DEPTH_NONE,
+	// TTの下駄履き用(TTEntryが使われているかどうかのチェックにのみ用いる)
+	DEPTH_OFFSET = -7
 };
 
 // --------------------
@@ -383,8 +383,8 @@ enum Value: int32_t
 	// 無効な値
 	VALUE_NONE = 32002,
 
-	VALUE_MATE_IN_MAX_PLY  =  int(VALUE_MATE) - MAX_PLY , // MAX_PLYでの詰みのときのスコア。
-	VALUE_MATED_IN_MAX_PLY = -int(VALUE_MATE_IN_MAX_PLY), // MAX_PLYで詰まされるときのスコア。
+	VALUE_MATE_IN_MAX_PLY  =   VALUE_MATE - MAX_PLY , // MAX_PLYでの詰みのときのスコア。
+	VALUE_MATED_IN_MAX_PLY = -VALUE_MATE_IN_MAX_PLY , // MAX_PLYで詰まされるときのスコア。
 
 	// 勝ち手順が何らか証明されているときのスコア下限値
 	// Stockfishでは10000に設定されているが、あまり低い数字にすると、
@@ -882,6 +882,19 @@ private:
 // 局面のハッシュキー
 // 盤面(盤上の駒 + 手駒)に対して、Zobrist Hashでそれに対応する値を計算する。
 typedef uint64_t Key;
+
+// 合同法による擬似乱数生成器
+// 探索で、excludedMoveを考慮した局面のhash keyが欲しいので、それを生成するために
+// excludedMoveをseedとする擬似乱数を発生させる必要があり、そこで用いられる。
+// cf. https://github.com/official-stockfish/Stockfish/commit/de24fcebc873ce2d65b30e039745dbc2e851f443
+//
+// やねうら王独自拡張
+// pos.key()にxorをとるときにbit0(先後フラグ)を潰してはいけないので、
+// ここではbit0が0になっている数(偶数)を返すことにした。
+// あと、HashKeyとして128bitのkeyを使うとき(特殊用途)は、この関数は128bitの値を返さないといけない。(未対応)
+constexpr Key make_key(uint64_t seed) {
+	return (seed * 6364136223846793005ULL + 1442695040888963407ULL) & ~1ULL;
+}
 
 // --------------------
 //        探索
