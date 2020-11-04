@@ -169,8 +169,8 @@ const string engine_info() {
 			<< " EVAL_LEARN"
 #endif
 
-			<< std::endl
-			<< "id author by yaneurao" << endl;
+			<< endl
+			<< "id author by yaneurao" << std::endl;
 	}
 
 	return ss.str();

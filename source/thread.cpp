@@ -1,4 +1,6 @@
-﻿#include "thread.h"
+﻿#include <algorithm> // For std::count
+
+#include "thread.h"
 #include "usi.h"
 
 ThreadPool Threads;		// Global object

@@ -16,7 +16,7 @@
 // スレッドのデフォルトスタックサイズが小さい環境で、
 // 少なくとも8MB確保するためのthread生成のためのwrapper
 
-#if defined(__APPLE__) || defined(__MINGW32__) || defined(__MINGW64__)
+#if defined(__APPLE__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(USE_PTHREADS)
 
 #include <pthread.h>
 

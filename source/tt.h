@@ -24,7 +24,7 @@
 /// eval value 16 bit : このnodeでのevaluate()の返し値
 struct TTEntry {
 
-	Move16 move() const { return Move16((Move)move16); }
+	Move16 move() const { return Move16(move16); }
 	Value value() const { return (Value)value16; }
 	Value eval() const { return (Value)eval16; }
 	Depth depth() const { return (Depth)depth8 + DEPTH_OFFSET; }
