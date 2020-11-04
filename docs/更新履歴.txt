@@ -7,8 +7,49 @@
 		ちゃんと検証してからMakefile書き直す。
 
 
+■　2020/11/04
+
+
+- やねうら王 V5.10
+	- LowPlyHistoryの導入まわりでR70ほど上がったのでバージョンナンバーを0.1あげる。
+	- Move16導入したことで、Aperyの定跡読み込みまわりにあったバグやMateルーチンにあった開始時に
+		PV指定した時のバグが自然消滅した。
+
+
+- LowPlyHistory導入
+	- LowPlyHistory導入
+	- move ordering改善
+	- update_all_stats追加
+	- Search::Stack::ttHit追加
+	- R70ぐらい上がってる模様。
+
+
+- FV_VAR機能の削除
+	- KPPTの差分計算を高速化するために導入したが、KPPT自体、もう使っていないし、
+	　この機能のためにソースコードが複雑化する＆保守するの大変なので残しておけない。
+	- BonaPieceExpansionなど削除。これもはや使うこともなかろう…。
+
+
+- PieceType導入
+	- ソースコード大幅に修正になった。
+	- 探索ノード数は変わっていないので機能的には等価。
+	- コンパイル通らないところがあったら報告ください。
+
+
+===========================
+Total time (ms) : 10725
+Nodes searched  : 5785406
+Nodes/second    : 539431
+
 
 ■　2020/11/03
+
+
+- VisualStudioのプロジェクト設定の
+	Release-NNUE-LEARN | x64
+	のビルド時にEVAL_LEARNが指定されていなかったので追加。
+- EVAL_LEARNをつけてコンパイルしたときにエンジン名に EVAL_LEARNの文字が入るようにした。
+
 
 
 - やねうら王 V5.01
