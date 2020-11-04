@@ -17,6 +17,11 @@
 	inline T& operator+=(T& d1, const T d2) { return d1 = d1 + d2; }				\
 	inline T& operator-=(T& d1, const T d2) { return d1 = d1 - d2; }				\
 
+// インクリメント用
+#define ENABLE_INCR_OPERATORS_ON(T)													\
+inline T& operator++(T& d) { return d = T(int(d) + 1); }							\
+inline T& operator--(T& d) { return d = T(int(d) - 1); }
+
 #define ENABLE_FULL_OPERATORS_ON(T)													\
 	ENABLE_BASE_OPERATORS_ON(T)														\
 	constexpr T operator*(const int i, const T d) { return T(i * int(d)); }         \
@@ -31,11 +36,16 @@
 	inline T& operator/=(T& d, int i) { return d = T(int(d) / i); }
 
 ENABLE_FULL_OPERATORS_ON(Color)
+
+// StockfishではFileとRankはINCR_OPERATORだが、やねうら王では File同士の加算などができてほしいのでFULL_OPERATORに変うする。
 ENABLE_FULL_OPERATORS_ON(File)
 ENABLE_FULL_OPERATORS_ON(Rank)
+
 ENABLE_FULL_OPERATORS_ON(Square)
 ENABLE_FULL_OPERATORS_ON(SquareWithWall)
 ENABLE_FULL_OPERATORS_ON(Piece)
+ENABLE_INCR_OPERATORS_ON(PieceType)
+ENABLE_BASE_OPERATORS_ON(PieceType)
 ENABLE_FULL_OPERATORS_ON(PieceNumber)
 ENABLE_FULL_OPERATORS_ON(Value)
 ENABLE_FULL_OPERATORS_ON(Hand)
@@ -43,7 +53,7 @@ ENABLE_FULL_OPERATORS_ON(Move)
 ENABLE_FULL_OPERATORS_ON(Eval::BonaPiece)
 ENABLE_FULL_OPERATORS_ON(Effect8::Direct)
 
-// enumに対してint型との加算と減算を提供するマクロ。Value型など一部の型はこれがないと不便。
+// enumに対してint型との加算と減算を提供するマクロ。Value型など一部の型はこれがないと不便。(やねうら王独自拡張)
 
 #define ENABLE_ADD_SUB_OPERATORS_ON(T)						\
 constexpr T operator+(T v, int i) { return T(int(v) + i); } \
@@ -54,7 +64,7 @@ inline T& operator-=(T& v, int i) { return v = v - i; }
 ENABLE_ADD_SUB_OPERATORS_ON(Value)
 
 
-// enumに対して標準的なビット演算を定義するマクロ
+// enumに対して標準的なビット演算を定義するマクロ(やねうら王独自拡張)
 #define ENABLE_BIT_OPERATORS_ON(T)													\
   inline T operator&(const T d1, const T d2) { return T(int(d1) & int(d2)); }		\
   inline T& operator&=(T& d1, const T d2) { return d1 = T(int(d1) & int(d2)); }		\
@@ -71,7 +81,8 @@ ENABLE_BIT_OPERATORS_ON(HandKind)
 #endif
 
 
-// enumに対してrange forで回せるようにするためのhack(速度低下があるかも知れないので速度の要求されるところでは使わないこと)
+// enumに対してrange forで回せるようにするためのhack(やねうら王独自拡張)
+// (速度低下があるかも知れないので速度の要求されるところでは使わないこと)
 #define ENABLE_RANGE_OPERATORS_ON(X,ZERO,NB)     \
   inline X operator*(X x) { return x; }          \
   inline X begin(X) { return ZERO; }             \
@@ -88,6 +99,13 @@ ENABLE_RANGE_OPERATORS_ON(Piece, NO_PIECE, PIECE_NB)
 #define COLOR Color()
 // FILE,RANKはfstreamでのdefineと被るので定義できない。
 // PIECEはマクロ引数として使いたいので定義しない。
+
+// 他のファイルでこの定義使いたいので、生かしておく。(やねうら王独自拡張)
+//#undef ENABLE_FULL_OPERATORS_ON
+//#undef ENABLE_INCR_OPERATORS_ON
+//#undef ENABLE_BASE_OPERATORS_ON
+//#undef ENABLE_ADD_SUB_OPERATORS_ON
+//#undef ENABLE_BIT_OPERATORS_ON
 
 
 // --- N回ループを展開するためのマクロ

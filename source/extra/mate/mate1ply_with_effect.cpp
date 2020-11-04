@@ -330,7 +330,7 @@ MOVE_MATE:
   NonProCheck:;
 
     {
-      Piece pt = type_of(pc);
+      PieceType pt = type_of(pc);
 
       // 歩・角・飛で成って詰まないなら不成で詰むことはない。(1手詰めにおいては)
       if (pt == PAWN || pt == BISHOP || pt == ROOK)
@@ -504,7 +504,7 @@ namespace Mate1Ply
           bool droppable = (info1 & (1 << i));
 
           // 打つ駒 .. 香、銀、金、角、飛、or Queen
-          const Piece drop_pieces[6] = { LANCE,SILVER,GOLD,BISHOP,ROOK,QUEEN };
+          const PieceType drop_pieces[6] = { LANCE,SILVER,GOLD,BISHOP,ROOK,QUEEN };
           for (auto pt : drop_pieces)
           {
             // 駒が打てない場所ならそこにQUEENを持ってきて詰むかだけチェックする

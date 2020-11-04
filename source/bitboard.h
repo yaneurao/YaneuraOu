@@ -366,7 +366,7 @@ extern Bitboard CheckCandidateKingBB[SQ_NB_PLUS1];
 // sqの升にいる敵玉に王手となるus側の駒ptの候補を得る
 // pr == ROOKは無条件全域なので代わりにHORSEで王手になる領域を返す。
 // pr == KINGで呼び出してはならない。それは、around24_bb()のほうを用いる。
-inline const Bitboard check_candidate_bb(Color us, Piece pr, Square sq)
+inline const Bitboard check_candidate_bb(Color us, PieceType pr, Square sq)
 {
 	ASSERT_LV3(PAWN<= pr && pr < KING && sq <= SQ_NB && is_ok(us));
 	return CheckCandidateBB[sq][pr - 1][us];

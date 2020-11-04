@@ -105,7 +105,7 @@ namespace Eval
     if (bp < fe_hand_end)
     {
       for (auto c : COLOR)
-        for (Piece pc = PAWN; pc < KING; ++pc)
+        for (PieceType pc = PAWN; pc < KING; ++pc)
         {
           // この駒種の上限(e.g. 歩 = 18)
           int kind_num = kpp_hand_index[c][pc].fw - kpp_hand_index[c][pc].fb;

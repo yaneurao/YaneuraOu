@@ -2897,7 +2897,7 @@ namespace {
 
 		CapturePieceToHistory& captureHistory = pos.this_thread()->captureHistory;
 		Piece moved_piece = pos.moved_piece_after(move);
-		Piece captured = type_of(pos.piece_on(to_sq(move)));
+		PieceType captured = type_of(pos.piece_on(to_sq(move)));
 
 		// このif入れるとR10ぐらい下がる。なんでなの…。[2019/03/16]
 		//if (pos.capture_or_pawn_promotion(move))

@@ -122,7 +122,7 @@ void Position::init() {
 
 	// またpr==NO_PIECEのときは0であることを保証したいのでSET_HASHしない。
 	for (auto c : COLOR)
-		for (Piece pr = PIECE_ZERO; pr < PIECE_HAND_NB; ++pr)
+		for (PieceType pr = NO_PIECE_TYPE; pr < PIECE_HAND_NB; ++pr)
 			if (pr)
 				SET_HASH(Zobrist::hand[c][pr], rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>());
 
@@ -352,7 +352,7 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 			// FV38などではこの個数分だけpieceListに突っ込まないといけない。
 			for (int i = 0; i < ct; ++i)
 			{
-				Piece rpc = raw_type_of(Piece(idx));
+				PieceType rpc = raw_type_of(Piece(idx));
 #if defined (USE_FV38)
 				PieceNumber piece_no = piece_no_count[rpc]++;
 				ASSERT_LV1(is_ok(piece_no));
@@ -450,7 +450,7 @@ const std::string Position::sfen() const
 			// sfen文字列を一意にしておかないと定跡データーをsfen文字列で書き出したときに
 			// 他のソフトで文字列が一致しなくて困るので、この順に倣うことにする。
 
-			const Piece USI_Hand[7] = { ROOK,BISHOP,GOLD,SILVER,KNIGHT,LANCE,PAWN };
+			const PieceType USI_Hand[7] = { ROOK,BISHOP,GOLD,SILVER,KNIGHT,LANCE,PAWN };
 			auto p = USI_Hand[pn];
 
 			// その種類の手駒の枚数
@@ -497,7 +497,7 @@ void Position::set_state(StateInfo* si) const {
 		si->board_key_ += Zobrist::psq[sq][pc];
 	}
 	for (auto c : COLOR)
-		for (Piece pr = PAWN; pr < PIECE_HAND_NB; ++pr)
+		for (PieceType pr = PAWN; pr < PIECE_HAND_NB; ++pr)
 			si->hand_key_ += Zobrist::hand[c][pr] * (int64_t)hand_count(hand[c], pr); // 手駒はaddにする(差分計算が楽になるため)
 
 	// --- hand
@@ -923,7 +923,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 
 	if (is_drop(m))
 	{
-		const Piece pr = move_dropped_piece(m);
+		const PieceType pr = move_dropped_piece(m);
 		// 置換表から取り出してきている以上、一度は指し手生成ルーチンで生成した指し手のはずであり、
 		// KING打ちのような値であることはないものとする。
 
@@ -988,7 +988,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 		if (pieces(us) & to)
 			return false;
 
-		Piece pt = type_of(pc);
+		PieceType pt = type_of(pc);
 		if (is_promote(m))
 		{
 			// --- 成る指し手
@@ -1231,7 +1231,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 #if defined (KEEP_LAST_MOVE)
 	st->lastMove = m;
-	st->lastMovedPieceType = is_drop(m) ? (Piece)move_from(m) : type_of(piece_on(move_from(m)));
+	st->lastMovedPieceType = is_drop(m) ? (PieceType)move_from(m) : type_of(piece_on(move_from(m)));
 #endif
 
 	// ----------------------
@@ -1261,7 +1261,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		ASSERT_LV2(piece_on(to) == NO_PIECE);
 
 		Piece pc = moved_piece_after(m);
-		Piece pr = raw_type_of(pc);
+		PieceType pr = raw_type_of(pc);
 		ASSERT_LV2(PAWN <= pr && pr < PIECE_HAND_NB);
 
 		// Zobrist keyの更新
@@ -1368,7 +1368,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 			ASSERT_LV1(type_of(to_pc) != KING);
 
-			Piece pr = raw_type_of(to_pc);
+			PieceType pr = raw_type_of(to_pc);
 
 			// 捕獲した駒に関するevalListの更新
 #if defined (USE_FV38)
@@ -1593,7 +1593,7 @@ Key Position::key_after(Move m) const {
 	if (is_drop(m))
 	{
 		// --- 駒打ち
-		Piece pr = move_dropped_piece(m);
+		PieceType pr = move_dropped_piece(m);
 		ASSERT_LV2(PAWN <= pr && pr < PIECE_HAND_NB);
 
 		Piece pc = make_piece(Us, pr);
@@ -1628,7 +1628,7 @@ Key Position::key_after(Move m) const {
 		Piece to_pc = piece_on(to);
 		if (to_pc != NO_PIECE)
 		{
-			Piece pr = raw_type_of(to_pc);
+			PieceType pr = raw_type_of(to_pc);
 
 			// 捕獲された駒が盤上から消えるので局面のhash keyを更新する
 			k -= Zobrist::psq[to][to_pc];
@@ -1687,7 +1687,7 @@ void Position::undo_move_impl(Move m)
 		// --- 駒打ち
 
 		// toの場所にある駒を手駒に戻す
-		Piece pt = raw_type_of(moved_after_pc);
+		PieceType pt = raw_type_of(moved_after_pc);
 
 #if defined(USE_FV38)
 		evalList.put_piece(piece_no, Us, pt, hand_count(hand[Us], pt));
@@ -1879,7 +1879,7 @@ namespace {
 
 	// 返し値は今回発見されたtoに利く最小の攻撃駒。これがtoの地点において成れるなら成ったあとの駒を返すべき。
 
-	Piece min_attacker(const Position& pos, const Square& to
+	PieceType min_attacker(const Position& pos, const Square& to
 		, const Bitboard& stmAttackers, Bitboard& occupied, Bitboard& attackers
 	) {
 
@@ -2030,7 +2030,7 @@ bool Position::see_ge(Move m, Value threshold) const
 
 	// 次にtoの升で捕獲される駒
 	// 成りなら成りを評価したほうが良い可能性があるが、このあとの取り合いで指し手の成りを評価していないので…。
-	Piece nextVictim = drop ? move_dropped_piece(m) : type_of(piece_on(from));
+	PieceType nextVictim = drop ? move_dropped_piece(m) : type_of(piece_on(from));
 
 	// 以下のwhileで想定している手番。
 	// 移動させる駒側の手番から始まるものとする。

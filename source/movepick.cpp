@@ -19,7 +19,7 @@ constexpr Value LVATable[PIECE_WHITE] = {
   Value(0), Value(1) /*歩*/, Value(2)/*香*/, Value(3)/*桂*/, Value(4)/*銀*/, Value(7)/*角*/, Value(8)/*飛*/, Value(6)/*金*/,
   Value(10000)/*王*/, Value(5)/*と*/, Value(5)/*杏*/, Value(5)/*圭*/, Value(5)/*全*/, Value(9)/*馬*/, Value(10)/*龍*/,Value(11)/*成金*/
 };
-constexpr Value LVA(const Piece pt) { return LVATable[pt]; }
+constexpr Value LVA(const PieceType pt) { return LVATable[pt]; }
   
 // -----------------------
 //   指し手オーダリング

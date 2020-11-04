@@ -165,7 +165,7 @@ struct SfenPacker
 
     // 手駒をハフマン符号化して書き出し
     for (auto c : COLOR)
-      for (Piece pr = PAWN; pr < KING; ++pr)
+      for (PieceType pr = PAWN; pr < KING; ++pr)
       {
         int n = hand_count(pos.hand_of(c), pr);
 
@@ -239,7 +239,7 @@ struct SfenPacker
   void write_board_piece_to_stream(Piece pc)
   {
     // 駒種
-    Piece pr = raw_type_of(pc);
+    PieceType pr = raw_type_of(pc);
     auto c = huffman_table[pr];
     stream.write_n_bit(c.code, c.bits);
  
@@ -261,7 +261,7 @@ struct SfenPacker
     ASSERT_LV3(pc != NO_PIECE);
 
     // 駒種
-    Piece pr = raw_type_of(pc);
+    PieceType pr = raw_type_of(pc);
     auto c = huffman_table[pr];
     stream.write_n_bit(c.code >> 1, c.bits - 1);
 
@@ -276,7 +276,7 @@ struct SfenPacker
   // 盤面の駒を1枚streamから読み込む
   Piece read_board_piece_from_stream()
   {
-    Piece pr = NO_PIECE;
+    PieceType pr = NO_PIECE_TYPE;
     int code = 0, bits = 0;
     while (true)
     {
@@ -285,14 +285,14 @@ struct SfenPacker
 
       ASSERT_LV3(bits <= 6);
 
-      for (pr = NO_PIECE; pr < KING; ++pr)
+      for (pr = NO_PIECE_TYPE; pr < KING; ++pr)
         if (huffman_table[pr].code == code
           && huffman_table[pr].bits == bits)
           goto Found;
     }
   Found:;
-    if (pr == NO_PIECE)
-      return pr;
+    if (pr == NO_PIECE_TYPE)
+      return NO_PIECE;
 
     // 成りフラグ
     // (金はこのフラグはない)
@@ -301,13 +301,13 @@ struct SfenPacker
     // 先後フラグ
     Color c = (Color)stream.read_one_bit();
     
-    return make_piece(c, pr + (promote ? PIECE_PROMOTE : NO_PIECE));
+    return make_piece(c, pr + (promote ? PIECE_TYPE_PROMOTE : NO_PIECE_TYPE));
   }
 
   // 手駒を1枚streamから読み込む
   Piece read_hand_piece_from_stream()
   {
-    Piece pr = NO_PIECE;
+    PieceType pr = NO_PIECE_TYPE;
     int code = 0, bits = 0;
     while (true)
     {
@@ -322,7 +322,7 @@ struct SfenPacker
           goto Found;
     }
   Found:;
-    ASSERT_LV3(pr != NO_PIECE);
+    ASSERT_LV3(pr != NO_PIECE_TYPE);
 
     // 金以外であれば成りフラグを1bit捨てる
     if (pr != GOLD)
@@ -453,7 +453,7 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 		lastPc = pc;
 
 		// FV38などではこの個数分だけpieceListに突っ込まないといけない。
-		Piece rpc = raw_type_of(pc);
+		PieceType rpc = raw_type_of(pc);
 #endif
 
 #if defined (USE_FV38)

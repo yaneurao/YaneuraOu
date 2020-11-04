@@ -70,7 +70,7 @@ Key AperyBook::bookKey(const Position& pos) {
         key ^= ZobPiece[pos.piece_on(sq)][sq];
     }
     const Hand hand = pos.hand_of(pos.side_to_move());
-    for (Piece hp = PAWN; hp < PIECE_HAND_NB; ++hp)
+    for (PieceType hp = PAWN; hp < PIECE_HAND_NB; ++hp)
         key ^= ZobHand[hand_piece_map[hp]][hand_count(hand, hp)];
     if (pos.side_to_move() == WHITE)
         key ^= ZobTurn;

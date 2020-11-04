@@ -450,8 +450,8 @@ void test_hand()
 			for (int k = 0; k < 7; ++k)
 			{
 				int bit = (1 << k);
-				if (i & bit) add_hand(h1, (Piece)(k + 1), 1);
-				if (j & bit) add_hand(h2, (Piece)(k + 1), 1);
+				if (i & bit) add_hand(h1, (PieceType)(k + 1), 1);
+				if (j & bit) add_hand(h2, (PieceType)(k + 1), 1);
 			}
 
 			// h1のほうがh2より優れているか。

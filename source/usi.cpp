@@ -994,7 +994,7 @@ Move16 USI::to_move16(const string& str)
 			for (int i = 1; i <= 7; ++i)
 				if (PieceToCharBW[i] == str[0])
 				{
-					move = make_move_drop((Piece)i, to);
+					move = make_move_drop((PieceType)i, to);
 					break;
 				}
 		}

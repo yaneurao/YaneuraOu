@@ -54,7 +54,7 @@ namespace {
 
 	// 敵玉8近傍の利きに関係する自駒の候補のbitboardを返す。ここになければ玉周辺に利きをつけない。
 	// pt = PAWN～HDK
-	inline Bitboard check_around_bb(Color us, Piece pt, Square sq_king)
+	inline Bitboard check_around_bb(Color us, PieceType pt, Square sq_king)
 	{
 		return CHECK_AROUND_BB[sq_king][pt - 1][us];
 	}
@@ -204,7 +204,7 @@ namespace {
 				}
 
 
-		for (Piece p = PAWN; p <= KING; ++p)
+		for (PieceType p = PAWN; p <= KING; ++p)
 			for (auto sq : SQ)
 				for (auto c : COLOR)
 				{
@@ -1189,7 +1189,7 @@ SILVER_DROP_END:;
 			if (type_of(pos.piece_on(to)) == PAWN && file_of(to) == file_of(one) && hand_count(themHand, PAWN) >= 1) continue;
 
 			auto dr = directions_of(sq_king, one);
-			Piece pt;
+			PieceType pt;
 			bool canLanceAttack = false;
 			if (dr & DIRECTIONS_DIAG)
 			{
@@ -1587,7 +1587,7 @@ DC_CHECK:;
 		while (bb)
 		{
 			from = bb.pop();
-			Piece pt = type_of(pos.piece_on(from));
+			PieceType pt = type_of(pos.piece_on(from));
 			switch (pt)
 			{
 				// 背後にいる駒は角が普通で、pinされているのは歩で成りとか、飛車で両王手とか、そんなのが
@@ -1859,8 +1859,8 @@ DC_CHECK:;
 				atk = around24_bb(sq_king) & bb_move; // 別にどこでも良いものとする
 			}
 
-			Piece pt = type_of(pos.piece_on(from));
-			switch ((int)pt)
+			PieceType pt = type_of(pos.piece_on(from));
+			switch ((int)pt) // intにcastしとかないとhandleしてない値に対して警告がでる。
 			{
 			case PAWN:
 			case LANCE:

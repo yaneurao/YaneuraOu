@@ -100,7 +100,7 @@ using namespace std;
 
 // fromにあるpcをtargetの升に移動させる指し手の生成。
 // 遅いので駒王手の指し手生成のときにしか使わない。
-template <Piece Pt, Color Us, bool All> struct make_move_target {
+template <PieceType Pt, Color Us, bool All> struct make_move_target {
 	FORCE_INLINE ExtMove* operator()(const Position& pos, Square from, const Bitboard& target_, ExtMove* mlist)
 	{
 		Square to;
@@ -217,7 +217,7 @@ template <Piece Pt, Color Us, bool All> struct make_move_target {
 };
 
 // 指し手生成のうち、一般化されたもの。香・桂・銀はこの指し手生成を用いる。
-template <MOVE_GEN_TYPE GenType, Piece Pt, Color Us, bool All> struct GeneratePieceMoves {
+template <MOVE_GEN_TYPE GenType, PieceType Pt, Color Us, bool All> struct GeneratePieceMoves {
 	FORCE_INLINE ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target) {
 		// 盤上の駒pc(香・桂・銀)に対して
 		auto pieces = pos.pieces(Us, Pt);
@@ -662,7 +662,7 @@ template <Color Us, bool All> struct make_move_target_general {
 };
 
 // promoteかどうかを呼び出し元で選択できるmake_move_target
-template <Piece Pt, Color Us, bool All, bool Promote>
+template <PieceType Pt, Color Us, bool All, bool Promote>
 ExtMove* make_move_target_pro(Square from, const Bitboard& target, ExtMove* mlist)
 {
 	auto bb = target;
@@ -766,7 +766,7 @@ ExtMove* make_move_check(const Position& pos, Piece pc, Square from, Square ksq,
 
 // 王手になる駒打ち
 
-template <Color Us, Piece Pt> struct GenerateCheckDropMoves {
+template <Color Us, PieceType Pt> struct GenerateCheckDropMoves {
 	ExtMove* operator()(const Position& , const Bitboard& target, ExtMove* mlist)
 	{
 		auto bb = target;

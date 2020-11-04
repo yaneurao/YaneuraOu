@@ -124,7 +124,7 @@ namespace Eval
 			{
 				// 手駒なので手駒のほう調べに行く。
 				for(auto c : COLOR)
-					for (Piece pr = PAWN; pr < KING; ++pr)
+					for (PieceType pr = PAWN; pr < KING; ++pr)
 					{
 						// 駒ptの手駒のBonaPieceの開始番号
 						auto s = kpp_hand_index[c][pr].fb;
@@ -146,8 +146,8 @@ namespace Eval
 				// 盤上の駒なのでこの駒が本当に存在するか調べにいく。
 				for (Piece pc = NO_PIECE; pc < PIECE_NB; ++pc)
 				{
-					auto pt = type_of(pc);
-					if (pt == NO_PIECE || pt == QUEEN) // 存在しない駒
+					PieceType pt = type_of(pc);
+					if (pt == NO_PIECE_TYPE || pt == QUEEN) // 存在しない駒
 						continue;
 
 					// 駒pcのBonaPieceの開始番号
@@ -160,7 +160,7 @@ namespace Eval
 
 						// BonaPieceでは、歩成,成香,成桂,成銀も金扱いなので、
 						// 盤上の駒がこれらであるなら金に変更しておく。
-						Piece pt2 = type_of(pc2);
+						PieceType pt2 = type_of(pc2);
 						if (pt2 == PRO_PAWN || pt2 == PRO_LANCE || pt2 == PRO_KNIGHT || pt2 == PRO_SILVER)
 							pc2 = make_piece(color_of(pc2), GOLD);
 
@@ -237,7 +237,7 @@ namespace Eval
 		}
 
 	// c側の手駒ptのi+1枚目の駒のPieceNumberを設定する。(1枚目の駒のPieceNumberを設定したいならi==0にして呼び出すの意味)
-	void DirtyPiece::add_piece(Color c, Piece pt, int i)
+	void DirtyPiece::add_piece(Color c, PieceType pt, int i)
 	{
 		add_list.push_back(BonaPiece(kpp_hand_index[c][pt].fb + i));
 	}
@@ -250,7 +250,7 @@ namespace Eval
 	}
 
 	// add_piece(Color,Piece,int)の逆変換
-	void DirtyPiece::remove_piece(Color c, Piece pt, int i)
+	void DirtyPiece::remove_piece(Color c, PieceType pt, int i)
 	{
 		remove_list.push_back(BonaPiece(kpp_hand_index[c][pt].fb + i));
 	}

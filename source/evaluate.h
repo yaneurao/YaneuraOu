@@ -259,7 +259,7 @@ namespace Eval {
 		}
 
 		// c側の手駒ptのi+1枚目の駒のPieceNumberを設定する。(1枚目の駒のPieceNumberを設定したいならi==0にして呼び出すの意味)
-		void put_piece(PieceNumber piece_no, Color c, Piece pt, int i) {
+		void put_piece(PieceNumber piece_no, Color c, PieceType pt, int i) {
 			set_piece_on_hand(piece_no, BonaPiece(kpp_hand_index[c][pt].fb + i), BonaPiece(kpp_hand_index[c][pt].fw + i));
 		}
 
@@ -488,13 +488,13 @@ namespace Eval {
 		void remove_and_add_piece(Square from, Piece moved_pc, Square to, Piece moved_after_pc);
 
 		// c側の手駒ptのi+1枚目の駒のPieceNumberを設定する。(1枚目の駒のPieceNumberを設定したいならi==0にして呼び出すの意味)
-		void add_piece(Color c, Piece pt, int i);
+		void add_piece(Color c, PieceType pt, int i);
 
 		// add_piece(Square,Piece)の逆変換
 		void remove_piece(Square sq, Piece pc);
 
 		// add_piece(Color,Piece,int)の逆変換
-		void remove_piece(Color c, Piece pt, int i);
+		void remove_piece(Color c, PieceType pt, int i);
 
 
 		// 現在のこのクラスの内容に基づきEvalListを更新するのと、巻き戻すの。
