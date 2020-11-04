@@ -11,15 +11,6 @@
 #include "eval/evalsum.h"
 #endif
 
-// 実験中の評価関数。現状、非公開。
-#if defined(EVAL_EXPERIMENTAL)
-#define EVAL_EXPERIMENTAL_HEADER
-#include "eval/experimental/evaluate_experimental.h"
-#undef EVAL_EXPERIMENTAL_HEADER
-#else
-#define BonaPieceExpansion 0
-#endif
-
 // -------------------------------------
 //             評価関数
 // -------------------------------------
@@ -53,8 +44,7 @@ namespace Eval {
 	// あるいは差分計算が不可能なときに呼び出される。
 	Value compute_eval(const Position& pos);
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT) || \
-	defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 	// 評価関数パラメーターのチェックサムを返す。
 	u64 calc_check_sum();
 
@@ -67,16 +57,6 @@ namespace Eval {
 
 	// 評価値の内訳表示(デバッグ用)
 	void print_eval_stat(Position& pos);
-
-#if defined(EVAL_NABLA)
-	// これ、あとで整備する。
-
-	// 現在のeval listを出力する。
-	void print_eval_list(Position& pos);
-
-	// 現在のeval listのvalidation
-	void is_valid_nabra_eval_list(const Position& pos);
-#endif
 
 #if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_NNUE)
 
@@ -186,7 +166,7 @@ namespace Eval {
 
 		// fe_endの値をBonaPieceExpansionを定義することで変更できる。
 		// このときfe_old_end～fe_endの間の番号をBonaPiece拡張領域として自由に用いることが出来る。
-		fe_end = fe_old_end + BonaPieceExpansion,
+		fe_end = fe_old_end,
 
 		// fe_end がKPP配列などのPの値の終端と考えられる。
 		// 例) kpp[SQ_NB][fe_end][fe_end];
@@ -289,23 +269,7 @@ namespace Eval {
 			for (auto& v : piece_no_list_board)
 				v = PIECE_NUMBER_NB;
 #endif
-
-#if defined(USE_FV_VAR)
-			// listが可変のときはadd/removeで増やしていくのでこれで十分。
-			length_ = 0;
-#endif
 		}
-
-#if defined(USE_FV_VAR)
-		// list長が可変のときは、add()/remove()をサポートする。
-		// DirtyPieceのほうから呼び出される。
-
-		// listにadd()する。
-		void add(BonaPiece fb);
-
-		// listからremoveする。
-		void remove(BonaPiece fb);
-#endif
 
 		// 内部で保持しているpieceListFb[]が正しいBonaPieceであるかを検査する。
 		// 注 : デバッグ用。遅い。
@@ -347,13 +311,6 @@ namespace Eval {
 		// アクセスをしている箇所があるので注意すること。
 		static const int MAX_LENGTH = 40;
 	private:
-#elif defined(USE_FV_VAR)
-		// 可変長piece_list
-	public:
-		int length() const { return length_; }
-		static const int MAX_LENGTH = 38 + 6; // VPGATHERDDを使う都合、4の倍数でなければならない。とりま6だけ拡張しとく。
-	private:
-		int length_ = 0;
 #endif
 
 #if defined(USE_AVX2)
@@ -378,13 +335,6 @@ namespace Eval {
 		// 玉がSQ_NBに移動しているとき用に+1まで保持しておくが、
 		// SQ_NBの玉を移動させないので、この値を使うことはないはず。
 		PieceNumber piece_no_list_board[SQ_NB_PLUS1];
-#endif
-
-#if defined(USE_FV_VAR)
-
-		// あるBonaPiece(fb)のPieceNumberを求めるテーブル
-		// fe_endが大きいとこのテーブルが肥大化するので、working setを小さく保つためにu8で確保する。
-		u8 bonapiece_to_piece_number[fe_end];
 #endif
 
 	};
@@ -414,139 +364,6 @@ namespace Eval {
 		int dirty_num;
 
 };
-#endif
-
-#if defined (USE_FV_VAR)
-
-	// vector<BonaPiece>みたいなコンテナ。
-	// 駒の移動の際に追加になる駒/削除される駒を管理するコンテナ。
-	struct BonaPieceList
-	{
-		static const int MAX_LENGTH = 8;
-
-		Eval::BonaPiece at(int index) const { return pieces[index]; }
-		int length() const { return length_; }
-		void clear() { length_ = 0; }
-		void push_back(Eval::BonaPiece fb) {
-			ASSERT_LV3(length_ < MAX_LENGTH);
-			ASSERT_LV3(fb < Eval::fe_end);
-			pieces[length_++] = fb;
-		}
-
-		// range-based forで使いたいのでbegin(),end()を定義しておく。
-		Eval::BonaPiece* begin() { return &(pieces[0]); }
-		Eval::BonaPiece* end() { return &(pieces[length_]); }
-	private:
-		Eval::BonaPiece pieces[MAX_LENGTH];
-		int length_;
-	};
-
-	// 評価値の差分計算の管理用
-	// 前の局面から移動した駒番号を管理するための構造体
-	// 動く駒の数は可変。まあ、最大で4個でいいと思う。
-	struct DirtyPiece
-	{
-		// 追加になる駒(玉は除く)
-		BonaPieceList add_list;
-
-		// 削除される駒(玉は除く)
-		BonaPieceList remove_list;
-
-		// 玉が移動した場合は、この変数の値がBLACK/WHITEになる。
-		// 玉の移動がない場合は、COLOR_NB。
-		Color moved_king;
-
-		// add_list,remove_listの初期化
-		void clear()
-		{
-			add_list.clear();
-			remove_list.clear();
-			updated_ = false;
-		}
-
-		// Position::set()やdo_move()で設定されることになっている。
-		// StateInfoのworkをこのクラス内部から参照したい場合、state()を用いる。
-		void set_state_info(StateInfo* si)
-		{
-			st_ = si;
-		}
-		StateInfo* state() { return st_; }
-
-		//
-		// 以下、EvalListのほうと同じ名前、同じ機能の関数。
-		// Position::do_move()ではEvalListを直接更新せずevaluate()のほうで遅延更新したいので
-		// これらの関数が必要となる。
-		//
-		// BonaPieceの組み換えを行なうならば、これらの関数を書き換えるべし。
-		//
-
-		// 盤上のsqの升にpiece_noのpcの駒を配置する
-		// 注意 : 玉はpiece_listで保持しないことになっているのでtype_of(pc)==KINGでこの関数を呼び出してはならない。
-		void add_piece(Square sq, Piece pc);
-
-		// ある駒の盤上の移動。内部的にショートカット可能な場合がある。
-		void remove_and_add_piece(Square from, Piece moved_pc, Square to, Piece moved_after_pc);
-
-		// c側の手駒ptのi+1枚目の駒のPieceNumberを設定する。(1枚目の駒のPieceNumberを設定したいならi==0にして呼び出すの意味)
-		void add_piece(Color c, PieceType pt, int i);
-
-		// add_piece(Square,Piece)の逆変換
-		void remove_piece(Square sq, Piece pc);
-
-		// add_piece(Color,Piece,int)の逆変換
-		void remove_piece(Color c, PieceType pt, int i);
-
-
-		// 現在のこのクラスの内容に基づきEvalListを更新するのと、巻き戻すの。
-
-		void do_update(EvalList& eval_list)
-		{
-			for (auto p : remove_list)
-				eval_list.remove(p);
-
-			for (auto p : add_list)
-				eval_list.add(p);
-
-			updated_ = true;
-		}
-
-		void undo_update(EvalList& eval_list)
-		{
-			// すでに更新が適用されているので逆手順で巻き戻す
-
-			for (auto p : add_list)
-				eval_list.remove(p);
-
-			for (auto p : remove_list)
-				eval_list.add(p);
-		}
-
-		// do_update()されたあとであるかを判定。
-		// Position::undo_move()のときにこのクラスのundo_update()を呼び出す必要があるかどうかを判定するため。
-		// 自前でevaluate()などでdo_update()相当の処理を行なった場合は、update_のフラグを自分でtrueにする必要がある。
-		bool updated() const { return updated_; }
-
-	// private:
-		bool updated_;
-
-	private:
-		StateInfo* st_;
-	};
-#endif
-
-#if defined (USE_EVAL_MAKE_LIST_FUNCTION)
-
-	// 評価関数の実験のためには、EvalListの組み換えが必要になるのでその機能を提供する。
-	// Eval::compute_eval()とLearner::add_grad()に作用する。またこのとき差分計算は無効化される。
-	// 現状、KPPT型評価関数に対してしか提供していない。
-
-	// compute_eval()やLearner::add_grad()からBonaPiece番号の組み換えのために呼び出される関数
-	// make_listと言う名前は、Bonanza6のソースコードに由来する。
-	extern std::function<void(const Position&, BonaPiece[40], BonaPiece[40])> make_list_function;
-
-	// 旧評価関数から新評価関数に変換するときにKPPのP(BonaPiece)がどう写像されるのかを定義したmapper。
-	// EvalIO::eval_convert()の引数として渡される。
-	extern std::vector<u16 /*BonaPiece*/> eval_mapper;
 #endif
 
 #if defined(USE_EVAL_HASH)

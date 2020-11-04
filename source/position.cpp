@@ -259,11 +259,6 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 
 	// 先手玉のいない詰将棋とか、駒落ちに対応させるために、存在しない駒はすべてBONA_PIECE_ZEROにいることにする。
 	// 上のevalList.clear()で、ゼロクリアしているので、それは達成しているはず。
-#elif defined(USE_FV_VAR)
-	auto& dp = st->dirtyPiece;
-	// FV_VARのときは直接evalListに追加せず、DirtyPieceにいったん追加して、
-	// そのあと、DirtyPiece::update()でevalListに追加する。このupdate()の時に組み換えなどの操作をしたいため。
-	dp.set_state_info(st);
 #endif
 
 	kingSquare[BLACK] = kingSquare[WHITE] = SQ_NB;
@@ -296,16 +291,6 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 				(idx == W_KING) ? PIECE_NUMBER_WKING : // 後手玉
 				piece_no_count[raw_type_of(Piece(idx))]++; // それ以外
 			evalList.put_piece(piece_no, sq, pc); // sqの升にpcの駒を配置する
-#elif defined(USE_FV_VAR)
-			if (type_of(pc) != KING)
-			{
-				dp.add_piece(sq, pc);
-				dp.do_update(evalList);
-				dp.clear();
-				// DirtyPieceのBonaPieceを格納するバッファ、極めて小さいのでevalListに反映させるごとにクリアしておく。
-
-				//Eval::print_eval_list(*this);
-			}
 #endif
 
 			// 1升進める
@@ -357,10 +342,6 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 				PieceNumber piece_no = piece_no_count[rpc]++;
 				ASSERT_LV1(is_ok(piece_no));
 				evalList.put_piece(piece_no, color_of(Piece(idx)), rpc, i);
-#elif defined(USE_FV_VAR)
-				dp.add_piece(color_of(Piece(idx)), rpc, i);
-				dp.do_update(evalList);
-				dp.clear();
 #endif
 			}
 			ct = 0;
@@ -1179,15 +1160,6 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 	//std::cout << *this << m << std::endl;
 
-#if defined(USE_FV_VAR)
-	// 前nodeでのdirtyPieceをevalListに反映させていない可能性がある。
-	// 毎node、evaluate()を呼び出すならevaluate()側の責任においてそれは行われるのだが、
-	// positionコマンドなどで特定局面までevaluate()を呼び出さずにdo_move()することがあるので、
-	// ここでそのチェックをしておかなければならない。
-	if (!st->dirtyPiece.updated())
-		st->dirtyPiece.do_update(evalList);
-#endif
-
 	// ----------------------
 	//  StateInfoの更新
 	// ----------------------
@@ -1247,12 +1219,6 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 	auto& dp = st->dirtyPiece;
 
-#if defined(USE_FV_VAR)
-	// add()していくので、length = 0にしないといけない。
-	dp.clear();
-	dp.set_state_info(st);
-#endif
-
 	if (is_drop(m))
 	{
 		// --- 駒打ち
@@ -1292,18 +1258,6 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 		// piece_no_of()のときにこの手駒の枚数を参照するのであとで更新。
 		sub_hand(hand[Us], pr);
-
-#elif defined(USE_FV_VAR)
-
-		// 駒打ちなので手駒が減る。この場合は次のhand_countで必要なので先に更新。
-		sub_hand(hand[Us], pr);
-
-		// 駒打ちなのでpcが玉である可能性はない。
-		dp.remove_piece(Us, pr, hand_count(hand[Us], pr));
-		dp.add_piece(to, pc);
-
-		// 玉の移動ではないことを示しておく。
-		dp.moved_king = COLOR_NB;
 #endif
 
 		// 王手している駒のbitboardを更新する。
@@ -1380,14 +1334,6 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			dp.changed_piece[1].old_piece = evalList.bona_piece(piece_no);
 			evalList.put_piece(piece_no, Us, pr, hand_count(hand[Us], pr));
 			dp.changed_piece[1].new_piece = evalList.bona_piece(piece_no);
-#elif defined(USE_FV_VAR)
-
-			// 捕獲された駒の処理なので、これが玉である可能性はない。
-			dp.remove_piece(to,to_pc);
-			dp.add_piece(Us, pr, hand_count(hand[Us], pr));
-
-			//std::cout << hand_count(hand[Us], pr) << Us << pr << std::endl;
-
 #endif
 
 			// 駒取りなら現在の手番側の駒が増える。
@@ -1441,22 +1387,6 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// dropのときにはkingSquareを更新する必要はない。
 		if (type_of(moved_pc) == KING)
 			kingSquare[Us] = to;
-
-#elif defined(USE_FV_VAR)
-		// 移動させる駒が玉であるときはevalListを更新する必要がない。
-		// ただし、玉が移動したことを示す必要はある。
-		if (type_of(moved_pc) == KING)
-		{
-			kingSquare[Us] = to;
-			dp.moved_king = Us;
-		}
-		else
-		{
-			//dp.remove_piece(from, moved_pc);
-			//dp.add_piece(to, moved_after_pc);
-			dp.remove_and_add_piece(from, moved_pc, to, moved_after_pc);
-			dp.moved_king = COLOR_NB; // 玉の移動ではないことを示しておく。
-		}
 #endif
 
 		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
@@ -1667,11 +1597,6 @@ void Position::undo_move_impl(Move m)
 #if defined(USE_FV38)
 	PieceNumber piece_no = piece_no_of(to); // 移動元のpiece_no == いまtoの場所にある駒のpiece_no
 	ASSERT_LV3(is_ok(piece_no));
-#elif defined(USE_FV_VAR)
-	// do_move()のあとevaluate()を呼び出していないなら、eval_listの更新がなされていないのでundo不要。
-	auto&dp = st->dirtyPiece;
-	if (dp.updated())
-		st->dirtyPiece.undo_update(evalList);
 #endif
 
 	// 移動前の駒
@@ -1807,12 +1732,6 @@ void Position::do_null_move(StateInfo& newSt) {
 
 	ASSERT_LV3(!checkers());
 	ASSERT_LV3(&newSt != st);
-
-#if defined(USE_FV_VAR)
-	// evalListがupdateされずにdo_null_move()を呼び出している可能性がある。do_move()のほうの説明を読むこと。
-	if (!st->dirtyPiece.updated())
-		st->dirtyPiece.do_update(evalList);
-#endif
 
 	// この場合、StateInfo自体は丸ごとコピーしておかないといけない。(他の初期化をしないので)
 	// よく考えると、StateInfo、新しく作る必要もないのだが…。まあ、CheckInfoがあるので仕方ないか…。

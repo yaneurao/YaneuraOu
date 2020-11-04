@@ -105,7 +105,7 @@ struct StateInfo
 	int encoded_eval_kk;
 #endif
 
-#if defined(USE_FV38) || defined(USE_FV_VAR)
+#if defined(USE_FV38)
 	// 評価値の差分計算の管理用
 	Eval::DirtyPiece dirtyPiece;
 #endif
@@ -676,8 +676,6 @@ private:
 		ASSERT_LV3(is_ok(n));
 		return n;
 	}
-#elif defined(USE_FV_VAR)
-
 #else
 	// 駒番号を使わないとき用のダミー
 	PieceNumber piece_no_of(Color c, Piece pt) const { return PIECE_NUMBER_ZERO; }

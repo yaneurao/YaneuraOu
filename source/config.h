@@ -623,15 +623,10 @@ constexpr bool Is64Bit = false;
 // 7. FV_VAR方式のリファレンス実装として、EVAL_KPP_KKPT_FV_VARがあるので、そのソースコードを見ること。
 
 // あらゆる局面でP(駒)の数が増えないFV38と呼ばれる形式の差分計算用。
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_NNUE)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_NNUE) || defined(EVAL_MATERIAL)
 #define USE_FV38
 #endif
 
-// P(駒)の数が増えたり減ったりするタイプの差分計算用
-// FV38とは異なり、可変長piece_list。
-#if defined(EVAL_MATERIAL)
-#define USE_FV_VAR
-#endif
 
 // -- 評価関数の種類により、盤面の利きの更新ときの処理が異なる。(このタイミングで評価関数の差分計算をしたいので)
 
