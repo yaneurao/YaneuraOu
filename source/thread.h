@@ -94,6 +94,10 @@ public:
 	// 探索開始局面
 	Position rootPos;
 
+	// rootでのStateInfo
+	// Position::set()で書き換えるのでスレッドごとに保持していないといけない。
+	StateInfo rootState;
+
 	// 探索開始局面で思考対象とする指し手の集合。
 	// goコマンドで渡されていなければ、全合法手(ただし歩の不成などは除く)とする。
 	Search::RootMoves rootMoves;
@@ -105,8 +109,9 @@ public:
 	//
 	Depth rootDepth, completedDepth;
 
-	// 近代的なMovePickerではオーダリングのために、スレッドごとにhistoryとcounter movesのtableを持たないといけない。
+	// 近代的なMovePickerではオーダリングのために、スレッドごとにhistoryとcounter movesなどのtableを持たないといけない。
 	CounterMoveHistory counterMoves;
+	LowPlyHistory lowPlyHistory;
 	ButterflyHistory mainHistory;
 	CapturePieceToHistory captureHistory;
 

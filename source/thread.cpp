@@ -28,6 +28,7 @@ void Thread::clear()
 {
 	counterMoves.fill(MOVE_NONE);
 	mainHistory.fill(0);
+	lowPlyHistory.fill(0);
 	captureHistory.fill(0);
 
 	// ここは、未初期化のときに[SQ_ZERO][NO_PIECE]を指すので、ここを-1で初期化しておくことによって、
@@ -189,28 +190,22 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 		setupStates = std::move(states);
 
 	// Position::set()によってst->previosがクリアされるので事前にコピーして保存する。
+	// これは、rootStateの役割。これはスレッドごとに持っている。
 	// cf. Fix incorrect StateInfo : https://github.com/official-stockfish/Stockfish/commit/232c50fed0b80a0f39322a925575f760648ae0a5
-	StateInfo tmp = setupStates->back();
 
 	auto sfen = pos.sfen();
 	for (Thread* th : *this)
 	{
-		th->nodes = /* th->tbHits = */ th->nmpMinPly = 0;
+		// th->nodes = th->tbHits = th->nmpMinPly = th->bestMoveChanges = 0;
+		// Stockfish12のこのコード、bestMoveChangesがatomic型なのでそこからint型に代入してることになってコンパイラが警告を出す。
+		// ↓のように書いたほうが良い。
+		th->nodes = th->bestMoveChanges = /* th->tbHits = */ th->nmpMinPly = 0;
+
 		th->rootDepth = th->completedDepth = 0;
 		th->rootMoves = rootMoves;
-
-		// setupStatesを渡して、これをコピーしておかないと局面を遡れない。
-		th->rootPos.set(sfen, &setupStates->back(),th);
+		th->rootPos.set(sfen, &th->rootState,th);
+		th->rootState = setupStates->back();
 	}
-
-#if defined(USE_FV_VAR)
-	// Position::set()によって、dirtyPieceはevalListに反映されていることになるのだが、
-	// 次にst->previousを復元してしまうと、その更新したことを示すフラグを潰してしまう。ここでフラグを立て直す。
-	tmp.dirtyPiece.updated_ = true;
-#endif
-
-	// Position::set()によってクリアされていた、st->previousを復元する。
-	setupStates->back() = tmp;
 
 	main()->start_searching();
 }

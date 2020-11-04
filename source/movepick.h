@@ -68,6 +68,7 @@ struct Stats<T, D, Size> : public std::array<StatsEntry<T, D>, Size> {};
 
 // stats tableにおいて、Dを0にした場合、このtemplate parameterは用いないという意味。
 enum StatsParams { NOT_USED = 0 };
+enum StatsType { NoCaptures, Captures };
 
 // ButterflyHistoryは、 現在の探索中にquietな指し手がどれくらい成功/失敗したかを記録し、
 // reductionと指し手オーダリングの決定のために用いられる。
@@ -78,6 +79,14 @@ enum StatsParams { NOT_USED = 0 };
 // そのため、(SQ_NB + 7)まで移動元がある。
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
 typedef Stats<int16_t, 10692, int(SQ_NB + 7) * int(SQ_NB) , COLOR_NB> ButterflyHistory;
+
+
+// より高い探索深さにおいて、LowPlyHistoryは、root付近の成功したquietな指し手と
+// PV(ttPV)にある/あったquietな指し手を記録します。LowPlyHistoryは、新しい探索の
+// たびにクリアされて、反復深化の間に埋められます。
+// Stockfishと異なり、from_to()は、int(SQ_NB + 7) * int(SQ_NB)の間の値が返るのでこの部分のサイズ変更してある。
+constexpr int MAX_LPH = 4;
+typedef Stats<int16_t, 10692, MAX_LPH, int(SQ_NB + 7)* int(SQ_NB)> LowPlyHistory;
 
 /// CounterMoveHistoryは、直前の指し手の[to][piece]によってindexされるcounter moves(応手)を格納する。
 /// cf. http://chessprogramming.wikispaces.com/Countermove+Heuristic
@@ -138,10 +147,12 @@ public:
 	// 通常探索(search)から呼び出されるとき用。
 	// cm = counter move , killers_p = killerの指し手へのポインタ
 	MovePicker(const Position& pos_, Move ttMove_, Depth depth_, const ButterflyHistory* mh,
+		const LowPlyHistory* lph,
 		const CapturePieceToHistory* cph ,
 		const PieceToHistory** ch,
 		Move cm,
-		Move* killers_p);
+		const Move* killers_p,
+		int ply);
 
 
 	// 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。
@@ -167,6 +178,7 @@ private:
 
 	// コンストラクタで渡されたhistroyのポインタを保存しておく変数。
 	const ButterflyHistory* mainHistory;
+	const LowPlyHistory* lowPlyHistory;
 	const CapturePieceToHistory* captureHistory;
 	const PieceToHistory** continuationHistory;
 
@@ -184,6 +196,7 @@ private:
 	// 指し手生成の段階
 	int stage;
 
+
 	// RECAPUTREの指し手で移動させる先の升
 	Square recaptureSquare;
 
@@ -192,6 +205,9 @@ private:
 
 	// コンストラクタで渡された探索深さ
 	Depth depth;
+
+	// コンストラクタで渡されたply
+	int ply;
 
 	// 指し手生成バッファ
 	// 最大合法手の数 = 593 , これを要素数が16の倍数になるようにpaddingすると608。

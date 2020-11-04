@@ -118,64 +118,56 @@ bool pseudo_legal(const Position& pos, Move ttm)
 // 指し手オーダリング器
 
 // 通常探索から呼び出されるとき用。
-MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh,
-	const CapturePieceToHistory* cph , const PieceToHistory** ch, Move cm, Move* killers)
-	: pos(p), mainHistory(mh), captureHistory(cph) , continuationHistory(ch),
-	refutations{ { killers[0], 0 },{ killers[1], 0 },{ cm, 0 } }, depth(d)
+MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh, const LowPlyHistory* lp,
+	const CapturePieceToHistory* cph , const PieceToHistory** ch, Move cm, const Move* killers,int pl)
+	: pos(p), mainHistory(mh), lowPlyHistory(lp),captureHistory(cph) , continuationHistory(ch),
+	ttMove(ttm), refutations{ { killers[0], 0 },{ killers[1], 0 },{ cm, 0 } }, depth(d), ply(pl)
 {
 	// 通常探索から呼び出されているので残り深さはゼロより大きい。
 	ASSERT_LV3(d > 0);
 
 	// 次の指し手生成の段階
 	// 王手がかかっているなら回避手、かかっていないなら通常探索用の指し手生成
-	stage = pos.in_check() ? EVASION_TT : MAIN_TT;
+	stage = (pos.in_check() ? EVASION_TT : MAIN_TT) +
+		!(ttm && pseudo_legal(pos,ttm));
 
-	// 置換表の指し手があるならそれを最初に返す。ただしpseudo_legalでなければならない。
-	ttMove = ttm && pseudo_legal(pos,ttm) ? ttm : MOVE_NONE;
-
+	// 置換表の指し手があるならそれを最初に試す。ただしpseudo_legalでなければならない。
 	// 置換表の指し手がないなら、次のstageから開始する。
-	stage += (ttMove == MOVE_NONE);
 }
 
 // 静止探索から呼び出される時用。
 // rs : recapture square
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh,
 						const CapturePieceToHistory* cph, const PieceToHistory** ch, Square rs)
-	: pos(p), mainHistory(mh), captureHistory(cph) , continuationHistory(ch) , recaptureSquare(rs), depth(d) {
+	: pos(p), mainHistory(mh), captureHistory(cph) , continuationHistory(ch) , ttMove(ttm), recaptureSquare(rs), depth(d) {
 
 	// 静止探索から呼び出されているので残り深さはゼロ以下。
 	ASSERT_LV3(d <= 0);
 
 	// 王手がかかっているなら王手回避のフェーズへ。さもなくばQSEARCHのフェーズへ。
-	stage = pos.in_check() ? EVASION_TT : QSEARCH_TT;
-
 	// 歩の不成、香の2段目への不成、大駒の不成を除外
-	ttMove =   ttm
-		&& (depth > DEPTH_QS_RECAPTURES || to_sq(ttm) == recaptureSquare)
-		&& pseudo_legal(pos, ttm) ? ttm : MOVE_NONE;
 
-	// 置換表の指し手がないなら、次のstageから開始する。
-	stage += (ttMove == MOVE_NONE);
+	stage = (pos.in_check() ? EVASION_TT : QSEARCH_TT) +
+		!(ttm
+			&& (pos.in_check() || depth > DEPTH_QS_RECAPTURES || to_sq(ttm) == recaptureSquare)
+			&& pseudo_legal(pos,ttm));
+
 }
 
 // 通常探索時にProbCutの処理から呼び出されるの専用
 // th = 枝刈りのしきい値
 MovePicker::MovePicker(const Position& p, Move ttm, Value th , const CapturePieceToHistory* cph)
-			: pos(p), captureHistory(cph) , threshold(th) {
+			: pos(p), captureHistory(cph) , ttMove(ttm),threshold(th) {
 
 	ASSERT_LV3(!pos.in_check());
 
-	stage = PROBCUT_TT;
-
 	// ProbCutにおいて、SEEが与えられたthresholdの値以上の指し手のみ生成する。
 	// (置換表の指しても、この条件を満たさなければならない)
-	ttMove = ttm
-		&& pos.capture(ttm)
-		&& pseudo_legal(pos, ttm)
-		&& pos.see_ge(ttm, threshold) ? ttm : MOVE_NONE;
-
 	// 置換表の指し手がないなら、次のstageから開始する。
-	stage += (ttMove == MOVE_NONE);
+	stage = PROBCUT_TT + !(ttm && pos.capture(ttm)
+		&& pseudo_legal(pos,ttm)
+		&& pos.see_ge(ttm, threshold));
+
 }
 
 // QUIETS、EVASIONS、CAPTURESの指し手のオーダリングのためのスコアリング。似た処理なので一本化。
@@ -198,8 +190,8 @@ void MovePicker::score()
 
 			// TODO:歩の成りは別途考慮してもいいような気はするのだが…。
 
-			m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
-					+ (*captureHistory)[to_sq(m)][pos.moved_piece_after(m)][type_of(pos.piece_on(to_sq(m)))] / 8;
+			m.value = int(Eval::CapturePieceValue[pos.piece_on(to_sq(m))])*6
+					+ (*captureHistory)[to_sq(m)][pos.moved_piece_after(m)][type_of(pos.piece_on(to_sq(m)))];
 		}
 		else if (Type == QUIETS)
 		{
@@ -209,10 +201,12 @@ void MovePicker::score()
 			Square movedSq = to_sq(m);
 
 			m.value = (*mainHistory)[from_to(m)][pos.side_to_move()]
-					+ (*continuationHistory[0])[movedSq][movedPiece]
-					+ (*continuationHistory[1])[movedSq][movedPiece]
-					+ (*continuationHistory[3])[movedSq][movedPiece]
-					+ (*continuationHistory[5])[movedSq][movedPiece] / 2;
+					+ 2 * (*continuationHistory[0])[movedSq][movedPiece]
+					+ 2 * (*continuationHistory[1])[movedSq][movedPiece]
+					+ 2 * (*continuationHistory[3])[movedSq][movedPiece]
+					+     (*continuationHistory[5])[movedSq][movedPiece]
+					+ (ply < MAX_LPH ? std::min(4, depth / 3) * (*lowPlyHistory)[ply][from_to(m)] : 0);;
+				;
 		}
 		else // Type == EVASIONS
 		{
@@ -315,7 +309,7 @@ top:
 	case GOOD_CAPTURE:
 		if (select<Best>([&]() {
 				// moveは駒打ちではないからsee()の内部での駒打ちは判定不要だが…。
-				return pos.see_ge(*cur, Value(-55 * cur->value / 1024)) ?
+				return pos.see_ge(*cur, Value(-69 * cur->value / 1024)) ?
 						// 損をする捕獲する指し手はあとのほうで試行されるようにendBadCapturesに移動させる
 						true : (*endBadCaptures++ = *cur, false); }))
 			return *(cur -1);
@@ -331,7 +325,7 @@ top:
 				--endMoves;
 
 			++stage;
-			/* fallthrough */
+			[[fallthrough]];
 
 	// killer move , counter moveを返すフェーズ
 	case REFUTATION:
@@ -346,7 +340,7 @@ top:
 			return *(cur - 1);
 
 		++stage;
-		/* fallthrough */
+		[[fallthrough]];
 
 	// 駒を捕獲しない指し手を生成してオーダリング
 	case QUIET_INIT:
@@ -381,23 +375,21 @@ top:
 			// cur == movesの先頭だし、MAX_MOVESの分だけbufferは確保されているので32の倍数になるように
 			// 後方のpaddingをしてAVX2を使ったsortをして良い。このとき、他にbuffer不要。
 			
-			partial_super_sort(cur, endMoves , -4000 * depth);
+			partial_super_sort(cur, endMoves , -3000 * depth);
 
-			// ↑を有効にするとinsertion_sortと結果が異なるのでbenchコマンドの探索node数が変わって困ることがある。
-			// そのときは↓これを使う。
-			//			partial_insertion_sort(cur, endMoves, -4000 * depth);
+			// ↑を有効にするとinsertion_sortと結果が異なるのでbenchコマンドの探索node数が変わって困ることがあるので注意。
 
 #else
 
 			// TODO : このへん係数調整したほうが良いのでは…。
 			// →　sort時間がもったいないのでdepthが浅いときはscoreの悪い指し手を無視するようにしているだけで
 			//   sortできるなら全部したほうが良い。上のSuperSortを使う実装の場合、全部sortしている。
-			partial_insertion_sort(cur, endMoves, -4000 * depth);
+			partial_insertion_sort(cur, endMoves, -3000 * depth);
 #endif
 		}
 
 		++stage;
-		/* fallthrough */
+		[[fallthrough]];
 
 	// 駒を捕獲しない指し手を返す。
 	// (置換表の指し手とkillerの指し手は返したあとなのでこれらの指し手は除外する必要がある)
@@ -435,7 +427,7 @@ top:
 		score<EVASIONS>();
 
 		++stage;
-		/* fallthrough */
+		[[fallthrough]];
 
 	// 王手回避の指し手を返す
 	case EVASION_:
@@ -460,7 +452,7 @@ top:
 			return MOVE_NONE;
 
 		++stage;
-		/* fallthrough */
+		[[fallthrough]];
 
 	// 王手となる指し手の生成
 	case QCHECK_INIT:
@@ -476,7 +468,7 @@ top:
 #endif
 
 		++stage;
-		/* fallthrough */
+		[[fallthrough]];
 
 	// 王手になる指し手を一手ずつ返すフェーズ
 	case QCHECK_:
