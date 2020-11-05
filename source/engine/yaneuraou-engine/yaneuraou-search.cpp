@@ -644,7 +644,7 @@ SKIP_SEARCH:;
 	}
 
 	// 次回の探索のときに何らか使えるのでベストな指し手の評価値を保存しておく。
-	previousScore = bestThread->rootMoves[0].score;
+	bestPreviousScore = bestThread->rootMoves[0].score;
 
 	// ベストな指し手として返すスレッドがmain threadではないのなら、
 	// その読み筋は出力していなかったはずなのでここで読み筋を出力しておく。
@@ -729,6 +729,10 @@ void Thread::search()
 	// この局面の手番側
 	Color us = rootPos.side_to_move();
 
+	// 反復深化の時に1回ごとのbest valueを保存するための配列へのindex
+	// 0から3までの値をとる。
+	int iterIdx = 0;
+
 	// 先頭10個を初期化しておけば十分。そのあとはsearch()の先頭でss+1,ss+2を適宜初期化していく。
 	memset(ss - 7, 0, 10 * sizeof(Stack));
 
@@ -744,7 +748,12 @@ void Thread::search()
 
 	if (mainThread)
 	{
-
+		if (mainThread->bestPreviousScore == VALUE_INFINITE)
+			for (int i = 0; i < 4; ++i)
+				mainThread->iterValue[i] = VALUE_ZERO;
+		else
+			for (int i = 0; i < 4; ++i)
+				mainThread->iterValue[i] = mainThread->bestPreviousScore;
 	}
 
 	// lowPlyHistoryのコピー(世代を一つ新しくする)
@@ -1050,7 +1059,7 @@ void Thread::search()
 			{
 				// 1つしか合法手がない(one reply)であるだとか、利用できる時間を使いきっているだとか、
 
-				double fallingEval = (314 + 9 * (mainThread->previousScore - bestValue)) / 581.0;
+				double fallingEval = (314 + 9 * (mainThread->bestPreviousScore - bestValue)) / 581.0;
 				fallingEval = Math::clamp(fallingEval , 0.5 , 1.5);
 
 				// If the bestMove is stable over several iterations, reduce time accordingly
@@ -1091,7 +1100,12 @@ void Thread::search()
 			}
 		}
 
-	} // iterative deeping
+		// ここで、反復深化の1回前のスコアをiterValueに保存しておく。
+		// iterIdxは0..3の値をとるようにローテーションする。
+		mainThread->iterValue[iterIdx] = bestValue;
+		iterIdx = (iterIdx + 1) & 3;
+
+	} // iterative deeping , 反復深化の1回分の終了
 
 	if (!mainThread)
 		return;
@@ -2304,6 +2318,8 @@ namespace {
 					for (Move* m = (ss + 1)->pv; *m != MOVE_NONE; ++m)
 						rm.pv.push_back(*m);
 
+					// bestMoveが何度変更されたかを記録しておく。
+					// これが頻繁に行われるのであれば、思考時間を少し多く割り当てる。
 					if (moveCount > 1)
 						++thisThread->bestMoveChanges;
 
@@ -2401,12 +2417,10 @@ namespace {
 
 		// bestMoveがない == fail lowしているケース。
 		// fail lowを引き起こした前nodeでのcounter moveに対してボーナスを加点する。
-
 		// 【計測資料 15.】search()でfail lowしているときにhistoryのupdateを行なう条件
 
 		else if ((depth >= 3 || PvNode)
-			//			&& is_ok((ss - 1)->currentMove)) // Stockfish9以前はここでnull moveを除外していたが…
-			&& !pos.captured_piece())
+				&& !priorCapture)
 			update_continuation_histories(ss - 1, /*pos.piece_on(prevSq)*/prevPc, prevSq, stat_bonus(depth));
 
 		// 将棋ではtable probe使っていないのでmaxValue関係ない。
@@ -2440,8 +2454,8 @@ namespace {
 	//      静止探索
 	// -----------------------
 
-	// search()で残り探索深さが0以下になったときに呼び出される。
-	// (より正確に言うなら、残り探索深さが1未満になったときに呼び出される)
+	// qsearch()は静止探索を行う関数で、search()でdepth(残り探索深さ)が0になったときに呼び出されるか、
+	// このqseach()自身から再帰的にもっと低いdepthで呼び出される。
 
 	template <NodeType NT>
 	Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
@@ -2771,6 +2785,9 @@ namespace {
 #endif
 				&& !pos.see_ge(move))
 				continue;
+			// TODO : prefetchは、入れると遅くなりそうだが、many coreだと違うかも。
+			// Speculative prefetch as early as possible
+			//prefetch(TT.first_entry(pos.key_after(move)));
 
 			// -----------------------
 			//     局面を1手進める

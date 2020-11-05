@@ -84,23 +84,24 @@ namespace USI
 		for (size_t i = 0; i < multiPV; ++i)
 		{
 			// この指し手のpvの更新が終わっているのか
-			bool updated = (i <= pvIdx && rootMoves[i].score != -VALUE_INFINITE);
+			bool updated = rootMoves[i].score != -VALUE_INFINITE;
 
-			if (depth == 1 && !updated)
+			if (depth == 1 && !updated && i > 0)
 				continue;
 
-			Depth d = updated ? depth : depth - 1;
+			// 1より小さな探索depthで出力しない。
+			Depth d = updated ? depth : std::max(1, depth - 1);
 			Value v = updated ? rootMoves[i].score : rootMoves[i].previousScore;
 
 			// multi pv時、例えば3個目の候補手までしか評価が終わっていなくて(PVIdx==2)、このとき、
 			// 3,4,5個目にあるのは前回のiterationまでずっと評価されていなかった指し手であるような場合に、
 			// これらのpreviousScoreが-VALUE_INFINITE(未初期化状態)でありうる。
 			// (multi pv状態で"go infinite"～"stop"を繰り返すとこの現象が発生する。おそらく置換表にhitしまくる結果ではないかと思う。)
-			// なので、このとき、その評価値を出力するわけにはいかないので、この場合、その出力処理を省略するのが正しいと思う。
-			// おそらく2017/09/09時点で最新のStockfishにも同様の問題があり、何らかの対策コードが必要ではないかと思う。
-			// (Stockfishのテスト環境がないため、試してはいない。)
 			if (v == -VALUE_INFINITE)
-				continue;
+				v = VALUE_ZERO; // この場合でもとりあえず出力は行う。
+
+			//bool tb = TB::RootInTB && abs(v) < VALUE_MATE_IN_MAX_PLY;
+			//v = tb ? rootMoves[i].tbScore : v;
 
 			if (ss.rdbuf()->in_avail()) // 1行目でないなら連結のための改行を出力
 				ss << endl;

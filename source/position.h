@@ -323,6 +323,12 @@ public:
 	// 現局面で駒Ptを動かしたときに王手となる升を表現するBitboard
 	Bitboard check_squares(PieceType pt) const { ASSERT_LV3(pt!= NO_PIECE_TYPE && pt < PIECE_TYPE_NB); return st->checkSquares[pt]; }
 
+	// c側の玉に対してpinしている駒
+	//Bitboard pinners(Color c) const;
+
+	// c側の玉に対して、指し手mが空き王手となるのか。
+	bool is_discovery_check_on_king(Color c, Move m) const { return st->blockersForKing[c] & from_sq(m); }
+
 	// --- 利き
 
 	// sに利きのあるc側の駒を列挙する。cの指定がないものは先後両方の駒が返る。
