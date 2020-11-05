@@ -44,8 +44,8 @@ IFS=, eval 'COMPILERSARR=($COMPILERS)'
 IFS=, eval 'EDITIONSARR=($EDITIONS)'
 IFS=, eval 'TARGETSARR=($TARGETS)'
 
-cd `dirname $0`
-cd ../source
+pushd `dirname $0`
+pushd ../source
 
 ARCHCPUS=(
   AVX512
@@ -54,16 +54,19 @@ ARCHCPUS=(
   SSE41
   SSSE3
   SSE2
+  NO_SSE
   OTHER
   ZEN1
+  ZEN2
 )
 
 EDITIONS=(
+  YANEURAOU_ENGINE_NNUE
+  YANEURAOU_ENGINE_NNUE_HALFKPE9
+  YANEURAOU_ENGINE_NNUE_KP256
   YANEURAOU_ENGINE_KPPT
   YANEURAOU_ENGINE_KPP_KKPT
   YANEURAOU_ENGINE_MATERIAL
-  YANEURAOU_ENGINE_NNUE
-  YANEURAOU_ENGINE_NNUE_KP256
   MATE_ENGINE
   USER_ENGINE
 )
@@ -72,46 +75,67 @@ TARGETS=(
   normal
   tournament
   evallearn
-  gensfen
 )
+
+declare -A DIRSTR;
+DIRSTR=(
+  ["YANEURAOU_ENGINE_NNUE"]="NNUE"
+  ["YANEURAOU_ENGINE_NNUE_HALFKPE9"]="NNUE_HALFKPE9"
+  ["YANEURAOU_ENGINE_NNUE_KP256"]="NNUE_KP256"
+  ["YANEURAOU_ENGINE_KPPT"]="KPPT"
+  ["YANEURAOU_ENGINE_KPP_KKPT"]="KPP_KKPT"
+  ["YANEURAOU_ENGINE_MATERIAL"]="KOMA"
+  ["MATE_ENGINE"]="MATE"
+  ["USER_ENGINE"]="USER"
+);
 
 declare -A FILESTR;
 FILESTR=(
-  ["YANEURAOU_ENGINE_KPPT"]="kppt"
-  ["YANEURAOU_ENGINE_KPP_KKPT"]="kpp_kkpt"
-  ["YANEURAOU_ENGINE_MATERIAL"]="material"
-  ["YANEURAOU_ENGINE_NNUE"]="nnue"
-  ["YANEURAOU_ENGINE_NNUE_KP256"]="nnue-k_p_256"
-  ["MATE_ENGINE"]="mate"
+  ["YANEURAOU_ENGINE_NNUE"]="YaneuraOu_NNUE"
+  ["YANEURAOU_ENGINE_NNUE_HALFKPE9"]="YaneuraOu_NNUE_KPE9"
+  ["YANEURAOU_ENGINE_NNUE_KP256"]="YaneuraOu_NNUE_KP256"
+  ["YANEURAOU_ENGINE_KPPT"]="YaneuraOu_KPPT"
+  ["YANEURAOU_ENGINE_KPP_KKPT"]="YaneuraOu_KPP_KKPT"
+  ["YANEURAOU_ENGINE_MATERIAL"]="YaneuraOu_KOMA"
+  ["MATE_ENGINE"]="tanuki_MATE"
   ["USER_ENGINE"]="user"
 );
 
-for ARCHCPU in ${ARCHCPUSARR[@]}; do
-  for COMPILER in ${COMPILERSARR[@]}; do
-    echo "* compiler: ${COMPILER}"
-    CSTR=${COMPILER##*/}
-    CSTR=${CSTR##*\\}
-    for EDITION in ${EDITIONS[@]}; do
-      for EDITIONPTN in ${EDITIONSARR[@]}; do
-        if [[ $EDITION == $EDITIONPTN ]]; then
-          echo "* edition: ${EDITION}"
-          BUILDDIR=../build/windows/${FILESTR[$EDITION]}
-          mkdir -p ${BUILDDIR}
-          for TARGET in ${TARGETS[@]}; do
-            for TARGETPTN in ${TARGETSARR[@]}; do
-              if [[ $TARGET == $TARGETPTN ]]; then
-                echo "* target: ${TARGET}"
-                TGSTR=YaneuraOu-${FILESTR[$EDITION]}-windows-${CSTR}-${TARGET}-${ARCHCPU}
-                nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} OS=${OS} TARGET_CPU=${ARCHCPU} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
-                cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
-                ${MAKE} -f ${MAKEFILE} clean OS=${OS} YANEURAOU_EDITION=${EDITION}
-                break
-              fi
-            done
+for COMPILER in ${COMPILERSARR[@]}; do
+  echo "* compiler: ${COMPILER}"
+  CSTR=${COMPILER##*/}
+  CSTR=${CSTR##*\\}
+  for EDITION in ${EDITIONS[@]}; do
+    for EDITIONPTN in ${EDITIONSARR[@]}; do
+      if [[ $EDITION == $EDITIONPTN ]]; then
+        echo "* edition: ${EDITION}"
+        BUILDDIR=../build/mingw/${DIRSTR[$EDITION]}
+        mkdir -p ${BUILDDIR}
+        for TARGET in ${TARGETS[@]}; do
+          for TARGETPTN in ${TARGETSARR[@]}; do
+            if [[ $TARGET == $TARGETPTN ]]; then
+              echo "* target: ${TARGET}"
+              for ARCHCPU in ${ARCHCPUS[@]}; do
+                for ARCHCPUPTN in ${ARCHCPUSARR[@]}; do
+                  if [[ $ARCHCPU == $ARCHCPUPTN ]]; then
+                    echo "* archcpu: ${ARCHCPU}"
+                    TGSTR=${FILESTR[$EDITION]}-windows-${CSTR}-${TARGET}-${ARCHCPU}
+                    ${MAKE} -f ${MAKEFILE} clean OS=${OS} YANEURAOU_EDITION=${EDITION}
+                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} OS=${OS} TARGET_CPU=${ARCHCPU} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
+                    cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
+                    ${MAKE} -f ${MAKEFILE} clean OS=${OS} YANEURAOU_EDITION=${EDITION}
+                    break
+                  fi
+                done
+              done
+            fi
           done
-          break
-        fi
-      done
+        done
+        break
+      fi
     done
   done
 done
+
+popd
+popd

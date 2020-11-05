@@ -1,38 +1,56 @@
-Set-Location (Join-Path $PSScriptRoot ..);
+Param(
+  [String[]]$Edition
+)
+Push-Location (Join-Path $PSScriptRoot ..);
 @(
   @{
-    Target = "YANEURAOU_ENGINE_KPPT";
-    Dir = ".\build\android\KPPT";
-  };
-  @{
-    Target = "YANEURAOU_ENGINE_KPP_KKPT";
-    Dir = ".\build\android\KPP_KKPT";
-  };
-  @{
-    Target = "YANEURAOU_ENGINE_NNUE";
+    EDITION = "YANEURAOU_ENGINE_NNUE";
     Dir = ".\build\android\NNUE";
   };
   @{
-    Target = "YANEURAOU_ENGINE_NNUE_KP256";
+    EDITION = "YANEURAOU_ENGINE_NNUE_HALFKPE9";
+    Nnue = "HALFKPE9";
+    Dir = ".\build\android\NNUE_HALFKPE9";
+  };
+  @{
+    EDITION = "YANEURAOU_ENGINE_NNUE_KP256";
     Nnue = "KP256";
     Dir = ".\build\android\NNUE_KP256";
   };
   @{
-    Target = "YANEURAOU_ENGINE_MATERIAL";
+    EDITION = "YANEURAOU_ENGINE_KPPT";
+    Dir = ".\build\android\KPPT";
+  };
+  @{
+    EDITION = "YANEURAOU_ENGINE_KPP_KKPT";
+    Dir = ".\build\android\KPP_KKPT";
+  };
+  @{
+    EDITION = "YANEURAOU_ENGINE_MATERIAL";
     Dir = ".\build\android\KOMA";
   };
   @{
-    Target = "MATE_ENGINE";
+    EDITION = "MATE_ENGINE";
     Dir = ".\build\android\MATE";
   };
+  @{
+    EDITION = "USER_ENGINE";
+    Dir = ".\build\android\USER";
+  };
 )|
+Where-Object{
+  $_Edition = $_.EDITION;
+  (-not $Edition) -or ($Edition|Where-Object{$_Edition -like $_});
+}|
 ForEach-Object{
 
-$Target = $_.Target;
+$_Edition = $_.EDITION;
 $Dir = $_.Dir;
-$Jobs = $env:NUMBER_OF_PROCESSORS;
+# 並列ジョブ数が多すぎると実行バイナリが生成されない模様
+# とりあえずソースファイル数より少ない数と論理プロセッサ数の小さい方にする。F*ck.
+$Jobs = [Math]::Min($env:NUMBER_OF_PROCESSORS, 30);
 
-"`n# Build $Target to $Dir"|Out-Host;
+"`n# Build $_Edition to $Dir"|Out-Host;
 
 if(-not (Test-Path $Dir)){
   "`n* Make Directory"|Out-Host;
@@ -40,11 +58,11 @@ if(-not (Test-Path $Dir)){
 }
 
 "`n* Clean Build"|Out-Host;
-ndk-build.cmd clean ENGINE_TARGET=$Target;
+ndk-build.cmd clean ENGINE_TARGET=$_Edition;
 
 "`n* Build Binary"|Out-Host;
 $log = $null;
-ndk-build.cmd ENGINE_TARGET=$Target NNUE_EVAL_ARCH=$($_.Nnue) -j $Jobs|Tee-Object -Variable log;
+ndk-build.cmd ENGINE_TARGET=$_Edition NNUE_EVAL_ARCH=$($_.Nnue) V=1 -j $Jobs|Tee-Object -Variable log;
 $log|Out-File -Encoding utf8 -Force (Join-Path $Dir "build.log");
 
 "`n* Copy Binary"|Out-Host;
@@ -54,6 +72,8 @@ ForEach-Object{
 };
 
 "`n* Clean Build"|Out-Host;
-ndk-build.cmd clean ENGINE_TARGET=$Target;
+ndk-build.cmd clean ENGINE_TARGET=$_Edition;
 
 }
+
+Pop-Location;
