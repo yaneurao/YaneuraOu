@@ -7,6 +7,66 @@
 		ちゃんと検証してからMakefile書き直す。
 
 
+■　2020/11/05
+
+
+
+- やねうら王V5.20
+
+
+・やねうら王V5.10とV5.20との比較
+engine1 = YaneuraOu2018NNUE_clang_20201104_V510.exe , eval = tanuki2018_nnue
+engine2 = YaneuraOu2018NNUE_clang_20201105_V520.exe , eval = tanuki2018_nnue
+T2,b1000,523 - 61 - 656(44.36% R-39.36[-56.1,-22.62]) winrate black , white = 51.15% , 48.85%
+
+
+・Mizarさんの2020年5月のmブランチとの比較
+engine1 = YaneuraOu_NNUE-m-202005-mizar.exe , eval = tanuki2018_nnue
+engine2 = YaneuraOu2018NNUE_clang_20201105_V520.exe , eval = tanuki2018_nnue
+T2,b1000,369 - 39 - 492(42.86% R-49.98[-69.64,-30.31]) winrate black , white = 48.2% , 51.8%
+T2,b2000,345 - 40 - 395(46.62% R-23.51[-44.55,-2.47]) winrate black , white = 52.84% , 47.16%
+
+
+・たまさんの最新のmブランチとの比較
+engine1 = YaneuraOu_NNUE-m-202008-tama.exe , eval = tanuki2018_nnue
+engine2 = YaneuraOu2018NNUE_clang_20201105_V520.exe , eval = tanuki2018_nnue
+T2,b1000,551 - 53 - 606(47.62% R-16.53[-33.34,0.29]) winrate black , white = 51.86% , 48.14%
+
+
+// どのmブランチに対しても有意に強い。
+// 計測には公開されている 2018年のtanuki-評価関数を使用。
+
+
+・mブランチ＋2020年5月時点のStockfishをマージしたもの(Mizarさん)
+	https://github.com/mizar/YaneuraOu/releases/tag/v4.89-test20200505
+
+・mブランチ + 2020年8月ぐらい時点のStockfishをマージしたもの(たまさん)
+	https://github.com/Tama4649/etc/tree/master/JKishi18gou_m
+
+
+
+
+- Reductions配列の初期値変更。(+R25)
+- Learner::search()がコンパイル通らなくなってたの修正。
+- null moveの条件更新。
+- VALUE_TB_LOSS_IN_MAX_PLY, VALUE_TB_WIN_IN_MAX_PLY導入。
+- Step 13. Pruning at shallow depth (~200 Elo)のコード刷新。(+R15)
+- LowPlyHistory、添字逆順にしたほうが掛け算がシフトで済むので高速化するが、コピーするコードがあってちょっと書き換え嫌だな…。
+
+
+- continuationHistoryに[inCheck][captureOrPawnPromotion]の[2][2]を追加。
+- Search::Stackに inCheck,ttPv追加。これを利用した枝刈り追加。
+- ThreadPool::start_searching(),wait_for_search_finished()追加。
+- update_continuation_histories(),条件変更。
+
+
+engine1 = YaneuraOu2018NNUE_clang_20201104_V510.exe , eval = tanuki2018_nnue
+engine2 = YaneuraOu2018NNUE_clang_20201104_V510c.exe , eval = tanuki2018_nnue
+T2,r100,1435 - 57 - 1508(48.76% R-8.62[-19.16,1.92]) winrate black , white = 51.51% , 48.49%
+T2,b1000,1408 - 150 - 1442(49.4% R-4.15[-14.85,6.56]) winrate black , white = 51.54% , 48.46%
+// デグレはしてないが強くもなってないような…。
+
+
 ■　2020/11/04
 
 
@@ -14,6 +74,11 @@
 	- LowPlyHistoryの導入まわりでR70ほど上がったのでバージョンナンバーを0.1あげる。
 	- Move16導入したことで、Aperyの定跡読み込みまわりにあったバグやMateルーチンにあった開始時に
 		PV指定した時のバグが自然消滅した。
+
+engine1 = YaneuraOu2018NNUE_clang_20201102_V500.exe , eval = tanuki2018_nnue
+engine2 = YaneuraOu2018NNUE_clang_20201104_V510.exe , eval = tanuki2018_nnue
+T2,b1000,920 - 105 - 1345(40.62% R-65.97[-78.2,-53.75]) winrate black , white = 52.58% , 47.42%
+T2,b2000,371 - 50 - 569(39.47% R-74.3[-93.35,-55.24]) winrate black , white = 53.62% , 46.38%
 
 
 - LowPlyHistory導入
