@@ -1,46 +1,64 @@
 #!/bin/bash
 
-cd `dirname $0`
-cd ..
+JOBS=`grep -c ^processor /proc/cpuinfo 2>/dev/null`
 
-mkdir -p build/android/KPPT
-ndk-build clean ENGINE_TARGET=YANEURAOU_ENGINE_KPPT
-ndk-build ENGINE_TARGET=YANEURAOU_ENGINE_KPPT > >(tee build/android/KPPT/KPPT.log) || exit $?
-cp -r libs/* build/android/KPPT
-ndk-build clean ENGINE_TARGET=YANEURAOU_ENGINE_KPPT
+EDITIONS='*'
 
-mkdir -p build/android/KPP_KKPT
-ndk-build clean ENGINE_TARGET=YANEURAOU_ENGINE_KPP_KKPT
-ndk-build ENGINE_TARGET=YANEURAOU_ENGINE_KPP_KKPT > >(tee build/android/KPP_KKPT/KPP_KKPT.log) || exit $?
-cp -r libs/* build/android/KPP_KKPT
-ndk-build clean ENGINE_TARGET=YANEURAOU_ENGINE_KPP_KKPT
+while getopts c:e:t: OPT
+do
+  case $OPT in
+    e) EDITIONS="$OPTARG"
+      ;;
+  esac
+done
 
-mkdir -p build/android/KOMA
-ndk-build clean ENGINE_TARGET=YANEURAOU_ENGINE_MATERIAL
-ndk-build ENGINE_TARGET=YANEURAOU_ENGINE_MATERIAL > >(tee build/android/KOMA/KOMA.log) || exit $?
-cp -r libs/* build/android/KOMA
-ndk-build clean ENGINE_TARGET=YANEURAOU_ENGINE_MATERIAL
+set -f
+IFS=, eval 'EDITIONSARR=($EDITIONS)'
 
-mkdir -p build/android/NNUE
-ndk-build clean ENGINE_TARGET=YANEURAOU_ENGINE_NNUE
-ndk-build ENGINE_TARGET=YANEURAOU_ENGINE_NNUE > >(tee build/android/NNUE/NNUE.log) || exit $?
-cp -r libs/* build/android/NNUE
-ndk-build clean ENGINE_TARGET=YANEURAOU_ENGINE_NNUE
+pushd `dirname $0`
+pushd ..
 
-mkdir -p build/android/NNUE_KP256
-ndk-build clean ENGINE_TARGET=YANEURAOU_ENGINE_NNUE_KP256
-ndk-build ENGINE_TARGET=YANEURAOU_ENGINE_NNUE_KP256 > >(tee build/android/NNUE_KP256/NNUE_KP256.log) || exit $?
-cp -r libs/* build/android/NNUE_KP256
-ndk-build clean ENGINE_TARGET=YANEURAOU_ENGINE_NNUE_KP256
+EDITIONS=(
+  YANEURAOU_ENGINE_NNUE
+  YANEURAOU_ENGINE_NNUE_HALFKPE9
+  YANEURAOU_ENGINE_NNUE_KP256
+  YANEURAOU_ENGINE_KPPT
+  YANEURAOU_ENGINE_KPP_KKPT
+  YANEURAOU_ENGINE_MATERIAL
+  MATE_ENGINE
+  USER_ENGINE
+)
 
-mkdir -p build/android/MATE
-ndk-build clean ENGINE_TARGET=MATE_ENGINE
-ndk-build ENGINE_TARGET=MATE_ENGINE > >(tee build/android/MATE/MATE.log) || exit $?
-cp -r libs/* build/android/MATE
-ndk-build clean ENGINE_TARGET=MATE_ENGINE
+declare -A DIRSTR;
+DIRSTR=(
+  ["YANEURAOU_ENGINE_NNUE"]="NNUE"
+  ["YANEURAOU_ENGINE_NNUE_HALFKPE9"]="NNUE_HALFKPE9"
+  ["YANEURAOU_ENGINE_NNUE_KP256"]="NNUE_KP256"
+  ["YANEURAOU_ENGINE_KPPT"]="KPPT"
+  ["YANEURAOU_ENGINE_KPP_KKPT"]="KPP_KKPT"
+  ["YANEURAOU_ENGINE_MATERIAL"]="KOMA"
+  ["MATE_ENGINE"]="MATE"
+);
 
-mkdir -p build/android/USER
-ndk-build clean ENGINE_TARGET=USER_ENGINE
-ndk-build ENGINE_TARGET=USER_ENGINE > >(tee build/android/USER/USER.log) || exit $?
-cp -r libs/* build/android/USER
-ndk-build clean ENGINE_TARGET=USER_ENGINE
+set -f
+
+for EDITION in ${EDITIONS[@]}; do
+  for EDITIONPTN in ${EDITIONSARR[@]}; do
+    set +f
+    if [[ $EDITION == $EDITIONPTN ]]; then
+      set -f
+      echo "* edition: ${EDITION}"
+      BUILDDIR=../build/android/${DIRSTR[$EDITION]}
+      mkdir -p ${BUILDDIR}
+      ndk-build clean ENGINE_TARGET=${EDITION}
+      ndk-build ENGINE_TARGET=${EDITION} -j${JOBS} > >(tee build/android/${DIRSTR[$EDITION]}/${DIRSTR[$EDITION]}.log) || exit $?
+      cp libs/**/* build/android/${DIRSTR[$EDITION]}
+      ndk-build clean ENGINE_TARGET=${EDITION}
+      break
+    fi
+    set -f
+  done
+done
+
+popd
+popd

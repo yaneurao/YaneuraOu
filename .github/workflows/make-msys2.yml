@@ -1,18 +1,58 @@
-name: Make CI (MSYS2)
+# mainline windows build
+name: Make CI (MSYS2 for Windows)
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - '**'
   pull_request:
-    branches: [ master ]
-
+    branches:
+      - '**'
 
 jobs:
   build:
-
+    # ubuntu-latest = windows-2019
+    # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
     runs-on: windows-latest
+
+    strategy:
+      matrix:
+        edition:
+          - YANEURAOU_ENGINE_NNUE
+          - YANEURAOU_ENGINE_NNUE_HALFKPE9
+          - YANEURAOU_ENGINE_NNUE_KP256
+          - YANEURAOU_ENGINE_KPPT
+          - YANEURAOU_ENGINE_KPP_KKPT
+          - YANEURAOU_ENGINE_MATERIAL
+          - MATE_ENGINE
+          - USER_ENGINE
+        compiler: [ clang++, g++ ]
+        target: [ "normal,tournament", "evallearn" ]
+        exclude:
+          # 以下のエディションには機械学習の実装が存在しない
+          # There is no machine learning implementation for the following editions
+          - edition: YANEURAOU_ENGINE_MATERIAL
+            target: evallearn
+          - edition: MATE_ENGINE
+            target: evallearn
+          - edition: USER_ENGINE
+            target: evallearn
 
     steps:
     - uses: actions/checkout@v2
+
+    - name: Install pkg
+      run: |
+        C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Sy pactoys-git'
+        C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Sy pactoys-git'
+        C:\msys64\usr\bin\bash.exe -lc 'pacboy --needed --noconfirm -S clang:m openblas:m openmp:m toolchain:m base-devel: msys2-devel:'
+
     - name: make
-      run: .\script\msys2_build.ps1
+      run: |
+        $env:PATH+=';C:\msys64';
+        .\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }}
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: build-windows
+        path: build/**/*

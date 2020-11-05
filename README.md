@@ -1,3 +1,8 @@
+![Make CI (MSYS2 for Windows)](https://github.com/yaneurao/YaneuraOu/workflows/Make%20CI%20(MSYS2%20for%20Windows)/badge.svg?event=push)
+![Make CI (MinGW for Windows)](https://github.com/yaneurao/YaneuraOu/workflows/Make%20CI%20(MinGW%20for%20Windows)/badge.svg?event=push)
+![Make CI (for Ubuntu Linux)](https://github.com/yaneurao/YaneuraOu/workflows/Make%20CI%20(for%20Ubuntu%20Linux)/badge.svg?event=push)
+![NDK CI (for Android)](https://github.com/yaneurao/YaneuraOu/workflows/NDK%20CI%20(for%20Android)/badge.svg?event=push)
+
 # About this project
 
 YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner , educational and USI compliant engine.

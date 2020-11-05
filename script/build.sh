@@ -1,7 +1,7 @@
 #!/bin/bash
 # -*- coding: utf-8 -*-
 # Ubuntu 上で Linux バイナリのビルド
-# sudo apt install build-essential clang g++-9 libomp-8-dev libopenblas-dev
+# sudo apt install build-essential clang libomp-dev libopenblas-dev
 
 # Example 1: 全パターンのビルド
 # build.sh
@@ -44,8 +44,8 @@ IFS=, eval 'COMPILERSARR=($COMPILERS)'
 IFS=, eval 'EDITIONSARR=($EDITIONS)'
 IFS=, eval 'TARGETSARR=($TARGETS)'
 
-cd `dirname $0`
-cd ../source
+pushd `dirname $0`
+pushd ../source
 
 ARCHCPUS=(
   AVX512
@@ -61,11 +61,12 @@ ARCHCPUS=(
 )
 
 EDITIONS=(
+  YANEURAOU_ENGINE_NNUE
+  YANEURAOU_ENGINE_NNUE_HALFKPE9
+  YANEURAOU_ENGINE_NNUE_KP256
   YANEURAOU_ENGINE_KPPT
   YANEURAOU_ENGINE_KPP_KKPT
   YANEURAOU_ENGINE_MATERIAL
-  YANEURAOU_ENGINE_NNUE
-  YANEURAOU_ENGINE_NNUE_KP256
   MATE_ENGINE
   USER_ENGINE
 )
@@ -74,53 +75,78 @@ TARGETS=(
   normal
   tournament
   evallearn
-  gensfen
 )
+
+declare -A DIRSTR;
+DIRSTR=(
+  ["YANEURAOU_ENGINE_NNUE"]="NNUE"
+  ["YANEURAOU_ENGINE_NNUE_HALFKPE9"]="NNUE_HALFKPE9"
+  ["YANEURAOU_ENGINE_NNUE_KP256"]="NNUE_KP256"
+  ["YANEURAOU_ENGINE_KPPT"]="KPPT"
+  ["YANEURAOU_ENGINE_KPP_KKPT"]="KPP_KKPT"
+  ["YANEURAOU_ENGINE_MATERIAL"]="KOMA"
+  ["MATE_ENGINE"]="MATE"
+  ["USER_ENGINE"]="USER"
+);
 
 declare -A FILESTR;
 FILESTR=(
-  ["YANEURAOU_ENGINE_KPPT"]="kppt"
-  ["YANEURAOU_ENGINE_KPP_KKPT"]="kpp_kkpt"
-  ["YANEURAOU_ENGINE_MATERIAL"]="material"
-  ["YANEURAOU_ENGINE_NNUE"]="nnue"
-  ["YANEURAOU_ENGINE_NNUE_KP256"]="nnue-k_p_256"
-  ["MATE_ENGINE"]="mate"
+  ["YANEURAOU_ENGINE_NNUE"]="YaneuraOu_NNUE"
+  ["YANEURAOU_ENGINE_NNUE_HALFKPE9"]="YaneuraOu_NNUE_KPE9"
+  ["YANEURAOU_ENGINE_NNUE_KP256"]="YaneuraOu_NNUE_KP256"
+  ["YANEURAOU_ENGINE_KPPT"]="YaneuraOu_KPPT"
+  ["YANEURAOU_ENGINE_KPP_KKPT"]="YaneuraOu_KPP_KKPT"
+  ["YANEURAOU_ENGINE_MATERIAL"]="YaneuraOu_KOMA"
+  ["MATE_ENGINE"]="tanuki_MATE"
   ["USER_ENGINE"]="user"
 );
 
 set -f
-for ARCHCPU in ${ARCHCPUSARR[@]}; do
-  for COMPILER in ${COMPILERSARR[@]}; do
-    echo "* compiler: ${COMPILER}"
-    CSTR=${COMPILER##*/}
-    CSTR=${CSTR##*\\}
-    for EDITION in ${EDITIONS[@]}; do
-      for EDITIONPTN in ${EDITIONSARR[@]}; do
-        set +f
-        if [[ $EDITION == $EDITIONPTN ]]; then
-          set -f
-          echo "* edition: ${EDITION}"
-          BUILDDIR=../build/${OS}/${FILESTR[$EDITION]}
-          mkdir -p ${BUILDDIR}
-          for TARGET in ${TARGETS[@]}; do
-            for TARGETPTN in ${TARGETSARR[@]}; do
-              set +f
-              if [[ $TARGET == $TARGETPTN ]]; then
-                echo "* target: ${TARGET}"
-                TGSTR=YaneuraOu-${FILESTR[$EDITION]}-${OS}-${CSTR}-${TARGET}-${ARCHCPU}
-                nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} TARGET_CPU=${ARCHCPU} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
-                cp YaneuraOu-by-gcc ${BUILDDIR}/${TGSTR}
-                ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-                set -f
-                break
-              fi
-              set -f
-            done
-          done
-          break
-        fi
+for COMPILER in ${COMPILERSARR[@]}; do
+  echo "* compiler: ${COMPILER}"
+  CSTR=${COMPILER##*/}
+  CSTR=${CSTR##*\\}
+  for EDITION in ${EDITIONS[@]}; do
+    for EDITIONPTN in ${EDITIONSARR[@]}; do
+      set +f
+      if [[ $EDITION == $EDITIONPTN ]]; then
         set -f
-      done
+        echo "* edition: ${EDITION}"
+        BUILDDIR=../build/${OS}/${DIRSTR[$EDITION]}
+        mkdir -p ${BUILDDIR}
+        for TARGET in ${TARGETS[@]}; do
+          for TARGETPTN in ${TARGETSARR[@]}; do
+            set +f
+            if [[ $TARGET == $TARGETPTN ]]; then
+              set -f
+              echo "* target: ${TARGET}"
+              for ARCHCPU in ${ARCHCPUS[@]}; do
+                for ARCHCPUPTN in ${ARCHCPUSARR[@]}; do
+                  set +f
+                  if [[ $ARCHCPU == $ARCHCPUPTN ]]; then
+                    set -f
+                    echo "* archcpu: ${ARCHCPU}"
+                    TGSTR=${FILESTR[$EDITION]}-${OS}-${CSTR}-${TARGET}-${ARCHCPU}
+                    ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
+                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} TARGET_CPU=${ARCHCPU} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
+                    cp YaneuraOu-by-gcc ${BUILDDIR}/${TGSTR}
+                    ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
+                    break
+                  fi
+                  set -f
+                done
+              done
+              break
+            fi
+            set -f
+          done
+        done
+        break
+      fi
+      set -f
     done
   done
 done
+
+popd
+popd

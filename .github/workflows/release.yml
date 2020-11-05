@@ -1,0 +1,237 @@
+name: CI Build&Release
+
+on:
+  push:
+    tags:
+      # 動作条件を変えたい場合、 workflow-syntax-for-github-actions#フィルタパターンのチートシート 参照。
+      # https://docs.github.com/ja/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions
+      - 'v*'
+
+jobs:
+
+  build-windows:
+    # ubuntu-latest = windows-2019
+    # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        target: [ normal, tournament, evallearn ]
+        archcpu: [ 'ZEN2,ZEN1,AVX512,AVX2,SSE42', 'SSE41,SSSE3,SSE2,NO_SSE', 'OTHER' ]
+        edition:
+          - 'YANEURAOU_ENGINE_NNUE,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256'
+          - 'YANEURAOU_ENGINE_KPPT,YANEURAOU_ENGINE_KPP_KKPT'
+          - YANEURAOU_ENGINE_MATERIAL
+          - MATE_ENGINE
+          - USER_ENGINE
+        compiler: [ clang++, g++ ]
+        exclude:
+          # Release target exclude: edition USER_ENGINE
+          - edition: USER_ENGINE
+          # Release target exclude: compiler g++
+          - compiler: g++
+          # Release target exclude: archcpu OTHER
+          - archcpu: OTHER
+          # Release target exclude: archcpu 'SSE41,SSSE3,SSE2,NO_SSE' and target 'tournament,evallearn'
+          - target: tournament
+            archcpu: 'SSE41,SSSE3,SSE2,NO_SSE'
+          - target: evallearn
+            archcpu: 'SSE41,SSSE3,SSE2,NO_SSE'
+          # 以下のエディションには機械学習の実装が存在しない
+          # There is no machine learning implementation for the following editions
+          - edition: YANEURAOU_ENGINE_MATERIAL
+            target: evallearn
+          - edition: MATE_ENGINE
+            target: evallearn
+          - edition: USER_ENGINE
+            target: evallearn
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install pkg
+      run: |
+        C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Sy pactoys-git'
+        C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Sy pactoys-git'
+        C:\msys64\usr\bin\bash.exe -lc 'pacboy --needed --noconfirm -S clang:m openblas:m openmp:m toolchain:m base-devel: msys2-devel:'
+
+    - name: make
+      run: |
+        $env:PATH+=';C:\msys64';
+        .\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: build-windows
+        path: build/**/*
+
+  build-android:
+    # ubuntu-latest = ubuntu-18.04
+    # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        edition:
+          - YANEURAOU_ENGINE_NNUE
+          - YANEURAOU_ENGINE_NNUE_HALFKPE9
+          - YANEURAOU_ENGINE_NNUE_KP256
+          - YANEURAOU_ENGINE_KPPT
+          - YANEURAOU_ENGINE_KPP_KKPT
+          - YANEURAOU_ENGINE_MATERIAL
+          - MATE_ENGINE
+          - USER_ENGINE
+        exclude:
+          # Release target exclude: edition USER_ENGINE
+          - edition: USER_ENGINE
+          # HALFKPE9 未導入ブランチ
+          - edition: YANEURAOU_ENGINE_NNUE_HALFKPE9
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: nttld/setup-ndk@v1
+      with:
+        ndk-version: r21d
+
+    - name: ndk-build
+      run: ./script/android_build.sh -e ${{ matrix.edition }}
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: build-android
+        path: build/**/*
+
+  release-pkg:
+    name: Release package
+    needs:
+      - build-windows
+      - build-android
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set version
+        id: version
+        run: |
+          REPOSITORY=$(echo ${{ github.repository }} | sed -e "s#.*/##")
+          VERSION=$(echo ${{ github.ref }} | sed -e "s#refs/tags/##g")
+          echo ::set-output name=version::$VERSION
+          echo ::set-output name=filename::$REPOSITORY-$VERSION
+      - uses: actions/checkout@v2
+        with:
+          path: main
+      - name: Download artifact to get build-windows
+        uses: actions/download-artifact@v2
+        with:
+          name: build-windows
+          path: release
+      - name: Download artifact to get build-android
+        uses: actions/download-artifact@v2
+        with:
+          name: build-android
+          path: release
+      - name: Display structure of downloaded files
+        run: ls -R
+        working-directory: release
+      - name: copy docs
+        run: |
+          cp main/Copying.txt release/windows
+          cp -r main/docs/ release/windows
+          cp main/Copying.txt release/android
+          cp -r main/docs/ release/android
+      - name: Display structure of release files
+        run: ls -R
+        working-directory: release
+      - name: make build-windows zip/7z
+        run: |
+          7z a -tzip build-windows.zip windows
+          7z a -t7z build-windows.7z windows
+        working-directory: release
+      - name: make build-android zip/7z
+        # exclude archive USER_ENGINE
+        run: |
+          7z a -tzip build-android.zip android
+          7z a -t7z build-android.7z android
+        working-directory: release
+      - name: Archive Size
+        id: archive_size
+        run: |
+          echo ::set-output name=windows_zip::$(stat -c%s "release/build-windows.zip" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=windows_7z::$(stat -c%s "release/build-windows.7z" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=android_zip::$(stat -c%s "release/build-android.zip" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=android_7z::$(stat -c%s "release/build-android.7z" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: やねうら王 実行ファイル詰め合わせ ${{ steps.version.outputs.version }}
+          body: |
+            やねうら王の最新の思考エンジン
+            『やねうら王』 ${{ steps.version.outputs.version }} の各評価関数用、各CPU用実行ファイルの詰め合わせです。
+
+            1. KPPT型
+            2. KPP_KKPT型
+            3. NNUE型
+              a. 標準NNUE(HalfKP)型
+              b. HalfKPE9型
+              c. K-P型
+            4. KOMA型
+            5. tanuki-詰将棋エンジン
+
+            に対する
+
+            - [${{ steps.version.outputs.filename }}-windows.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-windows.zip) (${{ steps.archive_size.outputs.windows_zip }})
+            - [${{ steps.version.outputs.filename }}-windows.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-windows.7z) (${{ steps.archive_size.outputs.windows_7z }})
+              - 実行ファイルWindows版 各CPU向け(ZEN2/ZEN1/AVX512/AVX2/SSE4.2/SSE4.1/SSE3/SSE2/32bit環境用)
+              - トーナメントWindows版 (ZEN2/ZEN1/AVX512/AVX2/SSE4.2)
+              - 1.2.3.の学習用実行ファイルWindows版 (ZEN2/ZEN1/AVX512/AVX2/SSE4.2)
+            - [${{ steps.version.outputs.filename }}-android.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-android.zip) (${{ steps.archive_size.outputs.android_zip }})
+            - [${{ steps.version.outputs.filename }}-android.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-android.7z) (${{ steps.archive_size.outputs.android_7z }})
+              - 実行ファイルAndroid版 各CPU向け(arm64-v8a/armeabi-v7a/x86_64/x86)
+
+            使い方などは添付ファイルの中にある
+            docs
+            をご覧ください。
+          # ドラフト（下書き）状態にしない(false)
+          draft: false
+          # 先行リリースのフラグを付ける(true)
+          prerelease: true
+      - name: Upload release asset build-windows.zip
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release/build-windows.zip
+          asset_name: ${{ steps.version.outputs.filename }}-windows.zip
+          asset_content_type: application/zip
+      - name: Upload release asset build-android.zip
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release/build-android.zip
+          asset_name: ${{ steps.version.outputs.filename }}-android.zip
+          asset_content_type: application/zip
+      - name: Upload release asset build-windows.7z
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release/build-windows.7z
+          asset_name: ${{ steps.version.outputs.filename }}-windows.7z
+          asset_content_type: application/octet-stream
+      - name: Upload release asset build-android.7z
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release/build-android.7z
+          asset_name: ${{ steps.version.outputs.filename }}-android.7z
+          asset_content_type: application/octet-stream
+

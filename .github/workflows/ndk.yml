@@ -1,18 +1,43 @@
-name: NDK CI
+# for Android environment
+name: NDK CI (for Android)
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - '**'
   pull_request:
-    branches: [ master ]
+    branches:
+      - '**'
 
 jobs:
   build:
+    # ubuntu-latest = ubuntu-18.04
+    # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        edition:
+          - YANEURAOU_ENGINE_NNUE
+          - YANEURAOU_ENGINE_NNUE_HALFKPE9
+          - YANEURAOU_ENGINE_NNUE_KP256
+          - YANEURAOU_ENGINE_KPPT
+          - YANEURAOU_ENGINE_KPP_KKPT
+          - YANEURAOU_ENGINE_MATERIAL
+          - MATE_ENGINE
+          - USER_ENGINE
+
     steps:
     - uses: actions/checkout@v2
+
     - uses: nttld/setup-ndk@v1
       with:
         ndk-version: r21d
+
     - name: ndk-build
-      run: cd script && ./android_build.sh
+      run: ./script/android_build.sh -e ${{ matrix.edition }}
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: build-android
+        path: build/**/*

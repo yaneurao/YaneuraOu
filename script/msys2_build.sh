@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 # MSYS2 (MinGW 64-bit) 上で Windows バイナリのビルド
 # ビルド用パッケージの導入
-# $ pacboy --needed --noconfirm -Sy toolchain:m clang:m openblas:m base-devel: msys2-devel:
+# $ pacboy --needed --noconfirm -Syuu toolchain:m clang:m openblas:m base-devel: msys2-devel:
 # MSYS2パッケージの更新、更新出来る項目が無くなるまで繰り返し実行、場合によってはMinGWの再起動が必要
-# $ pacman -Syuu
+# $ pacman -Syuu --noconfirm
 
 # Example 1: 全パターンのビルド
 # msys2_build.sh
@@ -33,23 +33,27 @@ do
       ;;
     t) TARGETS="$OPTARG"
       ;;
+    p) CPUS="$OPTARG"
+      ;;
   esac
 done
 
 set -f
 IFS=, eval 'COMPILERSARR=($COMPILERS)'
 IFS=, eval 'EDITIONSARR=($EDITIONS)'
+IFS=, eval 'CPUSARR=($CPUS)'
 IFS=, eval 'TARGETSARR=($TARGETS)'
 
-cd `dirname $0`
-cd ../source
+pushd `dirname $0`
+pushd ../source
 
 EDITIONS=(
+  YANEURAOU_ENGINE_NNUE
+  YANEURAOU_ENGINE_NNUE_HALFKPE9
+  YANEURAOU_ENGINE_NNUE_KP256
   YANEURAOU_ENGINE_KPPT
   YANEURAOU_ENGINE_KPP_KKPT
   YANEURAOU_ENGINE_MATERIAL
-  YANEURAOU_ENGINE_NNUE
-  YANEURAOU_ENGINE_NNUE_KP256
   MATE_ENGINE
   USER_ENGINE
 )
@@ -61,14 +65,38 @@ TARGETS=(
   gensfen
 )
 
+CPUS=(
+  ZEN2
+  ZEN1
+  AVX512
+  AVX2
+  SSE42
+  SSE41
+  SSSE3
+  SSE2
+  OTHER
+)
+
+declare -A DIRSTR;
+DIRSTR=(
+  ["YANEURAOU_ENGINE_NNUE"]="NNUE"
+  ["YANEURAOU_ENGINE_NNUE_HALFKPE9"]="NNUE_HALFKPE9"
+  ["YANEURAOU_ENGINE_NNUE_KP256"]="NNUE_KP256"
+  ["YANEURAOU_ENGINE_KPPT"]="KPPT"
+  ["YANEURAOU_ENGINE_KPP_KKPT"]="KPP_KKPT"
+  ["YANEURAOU_ENGINE_MATERIAL"]="KOMA"
+  ["MATE_ENGINE"]="MATE"
+);
+
 declare -A FILESTR;
 FILESTR=(
-  ["YANEURAOU_ENGINE_KPPT"]="kppt"
-  ["YANEURAOU_ENGINE_KPP_KKPT"]="kpp_kkpt"
-  ["YANEURAOU_ENGINE_MATERIAL"]="material"
-  ["YANEURAOU_ENGINE_NNUE"]="nnue"
-  ["YANEURAOU_ENGINE_NNUE_KP256"]="nnue-k_p_256"
-  ["MATE_ENGINE"]="mate"
+  ["YANEURAOU_ENGINE_NNUE"]="YaneuraOu_NNUE"
+  ["YANEURAOU_ENGINE_NNUE_HALFKPE9"]="YaneuraOu_NNUE_KPE9"
+  ["YANEURAOU_ENGINE_NNUE_KP256"]="YaneuraOu_NNUE_KP256"
+  ["YANEURAOU_ENGINE_KPPT"]="YaneuraOu_KPPT"
+  ["YANEURAOU_ENGINE_KPP_KKPT"]="YaneuraOu_KPP_KKPT"
+  ["YANEURAOU_ENGINE_MATERIAL"]="YaneuraOu_KOMA"
+  ["MATE_ENGINE"]="tanuki_MATE"
   ["USER_ENGINE"]="user"
 );
 
@@ -83,27 +111,40 @@ for COMPILER in ${COMPILERSARR[@]}; do
       if [[ $EDITION == $EDITIONPTN ]]; then
         set -f
         echo "* edition: ${EDITION}"
-        BUILDDIR=../build/windows/${FILESTR[$EDITION]}
+        BUILDDIR=../build/windows/${DIRSTR[$EDITION]}
         mkdir -p ${BUILDDIR}
         for TARGET in ${TARGETS[@]}; do
           for TARGETPTN in ${TARGETSARR[@]}; do
             set +f
             if [[ $TARGET == $TARGETPTN ]]; then
-              echo "* target: ${TARGET}"
-              TGSTR=YaneuraOu-${FILESTR[$EDITION]}-msys2-${CSTR}-${TARGET}
-              ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-              nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
-              cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
-              ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
               set -f
+              for CPU in ${CPUS[@]}; do
+                for CPUPTN in ${CPUSARR[@]}; do
+                  set +f
+                  if [[ $CPU == $CPUPTN ]]; then
+                    echo "* target: ${TARGET}"
+                    TGSTR=${FILESTR[$EDITION]}-msys2-${CSTR}-${TARGET}
+                    ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
+                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} TARGET_CPU=${CPU} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
+                    cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
+                    set -f
+                    break
+                  fi
+                  set -f
+                done
+              done
               break
             fi
             set -f
           done
         done
+        ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
         break
       fi
       set -f
     done
   done
 done
+
+popd
+popd
