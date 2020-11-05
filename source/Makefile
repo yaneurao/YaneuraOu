@@ -12,6 +12,7 @@
 # やねうら王の使いたいエディションを指定する (select YaneuraOu Edition)
 # YANEURAOU_ENGINE_NNUE       : NNUE型評価関数(halfKP256),標準NNUE型
 # YANEURAOU_ENGINE_NNUE_KP256 : NNUE型評価関数(KP256)
+# YANEURAOU_ENGINE_NNUE_HALFKPE9 : NNUE型評価関数(halfKPE9)
 # YANEURAOU_ENGINE_KPPT       : KPPT型評価関数
 # YANEURAOU_ENGINE_KPP_KKPT   : KPP_KKPT型評価関数
 # YANEURAOU_ENGINE_MATERIAL   : 駒得のみの評価関数
@@ -20,6 +21,7 @@
 
 YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE_KP256
+#YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE_HALFKPE9
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_KPPT
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_KPP_KKPT
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_MATERIAL
@@ -248,15 +250,20 @@ endif
 ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_NNUE)
 	ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE)
 	else
+		# YANEURAOU_EDITIONがYANEURAOU_ENGINE_NNUEの後ろに文字が入っている名前なら、これは
+		# 標準NNUE型の亜種なので、とりあえず"YANEURAOU_ENGINE_NNUE"というシンボルを定義してやる。
 		CPPFLAGS += -DYANEURAOU_ENGINE_NNUE
-	endif
+
 	ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE_KP256)
 		CPPFLAGS += -DEVAL_NNUE_KP256
-	else
-		ifeq ($(NNUE_EVAL_ARCH),KP256)
-			CPPFLAGS += -DEVAL_NNUE_KP256
+
+		else if ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE_HALFKPE9)
+			CPPFLAGS += -DEVAL_NNUE_HALFKPE9
+
 		endif
 	endif
+
+	# 大して大きなファイルではないので全部してしまう。
 	SOURCES += \
 		eval/nnue/evaluate_nnue.cpp                                            \
 		eval/nnue/evaluate_nnue_learner.cpp                                    \
@@ -265,6 +272,8 @@ ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_
 		eval/nnue/features/p.cpp                                               \
 		eval/nnue/features/half_kp.cpp                                         \
 		eval/nnue/features/half_relative_kp.cpp                                \
+		eval/nnue/features/half_kpe9.cpp								\
+		eval/nnue/features/pe9.cpp										\
 		engine/yaneuraou-engine/yaneuraou-search.cpp
 endif
 

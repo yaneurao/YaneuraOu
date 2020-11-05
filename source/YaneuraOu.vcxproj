@@ -396,6 +396,7 @@
     <ClInclude Include="eval\evaluate_mir_inv_tools.h" />
     <ClInclude Include="eval\kppt\evaluate_kppt.h" />
     <ClInclude Include="eval\kpp_kkpt\evaluate_kpp_kkpt.h" />
+    <ClInclude Include="eval\nnue\architectures\halfkpe9_256x2-32-32.h" />
     <ClInclude Include="eval\nnue\architectures\halfkp_256x2-32-32.h" />
     <ClInclude Include="eval\nnue\architectures\k-p_256x2-32-32.h" />
     <ClInclude Include="eval\nnue\evaluate_nnue.h" />
@@ -403,10 +404,12 @@
     <ClInclude Include="eval\nnue\features\features_common.h" />
     <ClInclude Include="eval\nnue\features\feature_set.h" />
     <ClInclude Include="eval\nnue\features\half_kp.h" />
+    <ClInclude Include="eval\nnue\features\half_kpe9.h" />
     <ClInclude Include="eval\nnue\features\half_relative_kp.h" />
     <ClInclude Include="eval\nnue\features\index_list.h" />
     <ClInclude Include="eval\nnue\features\k.h" />
     <ClInclude Include="eval\nnue\features\p.h" />
+    <ClInclude Include="eval\nnue\features\pe9.h" />
     <ClInclude Include="eval\nnue\layers\affine_transform.h" />
     <ClInclude Include="eval\nnue\layers\clipped_relu.h" />
     <ClInclude Include="eval\nnue\layers\input_slice.h" />
@@ -419,6 +422,7 @@
     <ClInclude Include="eval\nnue\trainer\features\factorizer.h" />
     <ClInclude Include="eval\nnue\trainer\features\factorizer_feature_set.h" />
     <ClInclude Include="eval\nnue\trainer\features\factorizer_half_kp.h" />
+    <ClInclude Include="eval\nnue\trainer\features\factorizer_half_kpe9.h" />
     <ClInclude Include="eval\nnue\trainer\trainer.h" />
     <ClInclude Include="eval\nnue\trainer\trainer_affine_transform.h" />
     <ClInclude Include="eval\nnue\trainer\trainer_clipped_relu.h" />
@@ -467,9 +471,11 @@
     <ClCompile Include="eval\nnue\evaluate_nnue.cpp" />
     <ClCompile Include="eval\nnue\evaluate_nnue_learner.cpp" />
     <ClCompile Include="eval\nnue\features\half_kp.cpp" />
+    <ClCompile Include="eval\nnue\features\half_kpe9.cpp" />
     <ClCompile Include="eval\nnue\features\half_relative_kp.cpp" />
     <ClCompile Include="eval\nnue\features\k.cpp" />
     <ClCompile Include="eval\nnue\features\p.cpp" />
+    <ClCompile Include="eval\nnue\features\pe9.cpp" />
     <ClCompile Include="eval\nnue\nnue_test_command.cpp" />
     <ClCompile Include="extra\bitop.cpp" />
     <ClCompile Include="extra\book\apery_book.cpp" />

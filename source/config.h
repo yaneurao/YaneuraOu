@@ -332,9 +332,15 @@ constexpr int MAX_PLY_NUM = 246;
 // "../openblas/lib/libopenblas.dll.a"をlibとして追加すること。
 //#define USE_BLAS
 
-// KP256を用いる場合これをdefineする。
-// ※　これをdefineしていなければNNUE標準のhalfKP256になる。
+// NNUEの使いたい評価関数アーキテクチャの選択
+//
+// EVAL_NNUE_HALFKP256  : 標準NNUE型(評価関数ファイル60MB程度)
+// EVAL_NNUE_KP256      : KP256(評価関数1MB未満)
+// EVAL_NNUE_HALFKPE9   : 標準NNUE型のおよそ9倍(540MB程度)
+
+// #define EVAL_NNUE_HALFKP256
 // #define EVAL_NNUE_KP256
+// #define EVAL_NNUE_HALFKPE9
 #endif
 
 #endif // defined(YANEURAOU_ENGINE_KPPT) || ...
@@ -589,13 +595,23 @@ constexpr bool Is64Bit = false;
 // -- 評価関数の種類によりエンジン名に使用する文字列を変更する。
 #if defined(EVAL_MATERIAL)
 #define EVAL_TYPE_NAME "Material"
+
 #elif defined(EVAL_KPPT)
 #define EVAL_TYPE_NAME "KPPT"
+
 #elif defined(EVAL_KPP_KKPT)
 #define EVAL_TYPE_NAME "KPP_KKPT"
+
 #elif defined(EVAL_NNUE_KP256)
 #define EVAL_TYPE_NAME "NNUE KP256"
-#elif defined(EVAL_NNUE) // 標準NNUE halfKP256
+
+#elif defined(EVAL_NNUE_HALFKPE9)
+#define EVAL_TYPE_NAME "NNUE halfKPE9"
+// hafeKPE9には利きが必要
+#define LONG_EFFECT_LIBRARY
+#define USE_BOARD_EFFECT_PREV
+
+#elif defined(EVAL_NNUE) // それ以外のNNUEなので標準NNUE halfKP256だと思われる。
 #define EVAL_TYPE_NAME "NNUE"
 #else
 #define EVAL_TYPE_NAME ""
