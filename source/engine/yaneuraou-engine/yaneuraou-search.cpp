@@ -210,13 +210,13 @@ namespace {
 	// チェスでは、引き分けが0.5勝扱いなので引き分け回避のための工夫がしてあって、
 	// 以下のようにvalue_drawに揺らぎを加算することによって探索を固定化しない(同じnodeを
 	// 探索しつづけて千日手にしてしまうのを回避)工夫がある。
+	// 将棋の場合、普通の千日手と連続王手の千日手と劣等局面による千日手(循環？)とかあるので
+	// これ導入するのちょっと嫌。
 
-	//// Add a small random component to draw evaluations to keep search dynamic
-	//// and to avoid 3fold-blindness.
-	//Value value_draw(Depth depth, Thread* thisThread) {
-	//	return depth < 4 ? VALUE_DRAW
-	//		: VALUE_DRAW + Value(2 * (thisThread->nodes.load(std::memory_order_relaxed) % 2) - 1);
-	//}
+	// // Add a small random component to draw evaluations to avoid 3fold-blindness
+	//	Value value_draw(Thread* thisThread) {
+	//	  return VALUE_DRAW + Value(2 * (thisThread->nodes & 1) - 1);
+	//  }
 
 	// Skill構造体は強さの制限の実装に用いられる。
 	// (わざと手加減して指すために用いる)
@@ -240,6 +240,54 @@ namespace {
 
 		Move best = MOVE_NONE;
 	};
+
+
+	// Breadcrumbs(パンくず)は、指定されたスレッドで探索されたノードをマークするために使用される。
+	// スレッドが極めて多い時に同一ノードを探索するのを回避するためのhack。
+	// スレッド競合でTTが破壊されるのを防ぐため？
+
+	struct Breadcrumb {
+		std::atomic<Thread*> thread;
+		std::atomic<Key> key;
+	};
+	std::array<Breadcrumb, 1024> breadcrumbs;
+
+	// ThreadHolding構造体は、指定されたノードでどのスレッドがパンくずを残したかを追跡する。
+	// フリーノードはコンストラクタによって moves ループに入るとマークされ、デストラクタに
+	// よってそのループから出るとマークされなくなる。
+	struct ThreadHolding {
+		explicit ThreadHolding(Thread* thisThread, Key posKey, int ply) {
+			location = ply < 8 ? &breadcrumbs[posKey & (breadcrumbs.size() - 1)] : nullptr;
+			otherThread = false;
+			owning = false;
+			if (location)
+			{
+				// See if another already marked this location, if not, mark it ourselves
+				Thread* tmp = (*location).thread.load(std::memory_order_relaxed);
+				if (tmp == nullptr)
+				{
+					(*location).thread.store(thisThread, std::memory_order_relaxed);
+					(*location).key.store(posKey, std::memory_order_relaxed);
+					owning = true;
+				}
+				else if (tmp != thisThread
+					&& (*location).key.load(std::memory_order_relaxed) == posKey)
+					otherThread = true;
+			}
+		}
+
+		~ThreadHolding() {
+			if (owning) // Free the marked location
+				(*location).thread.store(nullptr, std::memory_order_relaxed);
+		}
+
+		bool marked() { return otherThread; }
+
+	private:
+		Breadcrumb* location;
+		bool otherThread, owning;
+	};
+
 
 	template <NodeType NT>
 	Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode);
@@ -686,13 +734,18 @@ void Thread::search()
 
 	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
 	for (int i = 7; i > 0; i--)
-		(ss - i)->continuationHistory = &this->continuationHistory[0][0][SQ_ZERO][NO_PIECE];
+		(ss - i)->continuationHistory = &this->continuationHistory[0][0][SQ_ZERO][NO_PIECE]; // Use as a sentinel
 	ss->pv = pv;
 
 	// 反復深化のiterationが浅いうちはaspiration searchを使わない。
 	// 探索窓を (-VALUE_INFINITE , +VALUE_INFINITE)とする。
 	bestValue = delta = alpha = -VALUE_INFINITE;
 	beta = VALUE_INFINITE;
+
+	if (mainThread)
+	{
+
+	}
 
 	// lowPlyHistoryのコピー(世代を一つ新しくする)
 	std::copy(&lowPlyHistory[2][0], &lowPlyHistory.back().back() + 1, &lowPlyHistory[0][0]);
@@ -1558,7 +1611,7 @@ namespace {
 
 		if (!rootNode // The required rootNode PV handling is not available in qsearch
 			&&  depth == 1
-			&&  eval <= alpha - PARAM_RAZORING_MARGIN /* == RazorMargin == 600 */)
+			&&  eval <= alpha - PARAM_RAZORING_MARGIN /* == RazorMargin == 510 */)
 			return qsearch<NT>(pos, ss, alpha, beta);
 
 		// 残り探索深さが1,2手のときに、alpha - razor_marginを上回るかだけ簡単に
@@ -1750,7 +1803,9 @@ namespace {
 												nullptr						, (ss - 4)->continuationHistory ,
 												nullptr						, (ss - 6)->continuationHistory };
 
+		// 直前の指し手で動かした(移動後の)駒
 		Piece prevPc = pos.piece_on(prevSq);
+
 		Move countermove = thisThread->counterMoves[prevSq][prevPc];
 
 		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory,
@@ -1761,10 +1816,8 @@ namespace {
 			ss->killers,
 			ss->ply);
 
-#if defined(__GNUC__)
 		// gccでコンパイルするときにvalueが未初期化かも知れないという警告が出るのでその回避策。
 		value = bestValue;
-#endif
 
 		moveCountPruning = false;
 
@@ -1780,6 +1833,10 @@ namespace {
 		// このnodeでSingular判定のときにvalueがSingulerBetaを下回った回数
 		int singularExtensionLMRmultiplier = 0;
 #endif
+
+		// このnodeを探索中であると印をつけておく。
+		// (極めて多いスレッドで探索するときに同一ノードを探索するのを回避するため)
+		ThreadHolding th(thisThread, posKey, ss->ply);
 
 		// このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
 		// evaluate()を呼び出していないなら呼び出しておく。
@@ -1806,9 +1863,14 @@ namespace {
 				thisThread->rootMoves.end(), move))
 				continue;
 
+			// moveの合法性をチェック。
+			// root nodeはlegal()だとわかっているのでこのチェックは不要。
+			// 非合法手はほとんど含まれていないから、以前はこの判定はdo_move()の直前まで遅延させたほうが得だったが、
+			// do_move()するまでの枝刈りが増えてきたので、ここでやったほうが良いようだ。
+			if (!rootNode && !pos.legal(move))
+				continue;
+
 			// do_move()した指し手の数のインクリメント
-			// このあとdo_move()の前で枝刈りのためにsearchを呼び出す可能性があるので
-			// このタイミングでやっておき、legalでなければ、この値を減らす
 			ss->moveCount = ++moveCount;
 
 			// Stockfish本家のこの読み筋の出力、細かすぎるので時間をロスする。しないほうがいいと思う。
@@ -1946,8 +2008,7 @@ namespace {
 		   /* &&  ttValue != VALUE_NONE Already implicit in the next condition */
 				&& abs(ttValue) < VALUE_KNOWN_WIN // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
 				&& (tte->bound() & BOUND_LOWER)
-				&& tte->depth() >= depth - 3
-				&&  pos.legal(move))
+				&& tte->depth() >= depth - 3)
 				// このnodeについてある程度調べたことが置換表によって証明されている。(ttMove == moveなのでttMove != MOVE_NONE)
 				// (そうでないとsingularの指し手以外に他の有望な指し手がないかどうかを調べるために
 				// null window searchするときに大きなコストを伴いかねないから。)
@@ -2043,15 +2104,6 @@ namespace {
 			//const Key nextKey = pos.key_after(move);
 			//prefetch(TT.first_entry(nextKey));
 			//Eval::prefetch_evalhash(nextKey);
-
-			// legal()のチェック。root nodeだとlegal()だとわかっているのでこのチェックは不要。
-			// 非合法手はほとんど含まれていないからこの判定はdo_move()の直前まで遅延させたほうが得。
-			if (!rootNode && !pos.legal(move))
-			{
-				// 足してしまったmoveCountを元に戻す。
-				ss->moveCount = --moveCount;
-				continue;
-			}
 
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
@@ -2735,7 +2787,10 @@ namespace {
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
 
-			ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck][captureOrPawnPromotion][to_sq(move)][pos.moved_piece_after(move)];
+			ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck]
+																	  [captureOrPawnPromotion]
+																	  [to_sq(move)]
+																	  [pos.moved_piece_after(move)];
 
 			// 1手動かして、再帰的にqsearch()を呼ぶ
 			pos.do_move(move, st, givesCheck);
@@ -2829,9 +2884,26 @@ namespace {
 	// ply : root node からの手数。(ply_from_root)
 	Value value_from_tt(Value v, int ply) {
 
-		return  v == VALUE_NONE ? VALUE_NONE
-			: v >= VALUE_MATE_IN_MAX_PLY ? v - ply
-			: v <= VALUE_MATED_IN_MAX_PLY ? v + ply : v;
+		if (v == VALUE_NONE)
+			return VALUE_NONE;
+
+		if (v >= VALUE_TB_WIN_IN_MAX_PLY)
+		{
+			//if (v >= VALUE_MATE_IN_MAX_PLY && VALUE_MATE - v > 99 - r50c)
+			//	return VALUE_MATE_IN_MAX_PLY - 1; // do not return a potentially false mate score
+
+			return v - ply;
+		}
+
+		if (v <= VALUE_TB_LOSS_IN_MAX_PLY)
+		{
+			//if (v <= VALUE_MATED_IN_MAX_PLY && VALUE_MATE + v > 99 - r50c)
+			//	return VALUE_MATED_IN_MAX_PLY + 1; // do not return a potentially false mate score
+
+			return v + ply;
+		}
+
+		return v;
 	}
 
 	// PV lineをコピーする。
@@ -2847,23 +2919,6 @@ namespace {
 	// -----------------------
 	//     Statsのupdate
 	// -----------------------
-
-	// update_continuation_histories()は、1,2,4,6手前の指し手と現在の指し手との指し手ペアによって
-	// continuationHistoryを更新する。
-	// 1手前に対する現在の指し手 ≒ counterMove  (応手)
-	// 2手前に対する現在の指し手 ≒ followupMove (継続手)
-	// 4手前に対する現在の指し手 ≒ followupMove (継続手)
-	// ※　Stockfish 10で6手前も見るようになった。
-	void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus)
-	{
-		for (int i : {1, 2, 4, 6})
-		{
-			if (ss->inCheck && i > 2)
-				break;
-			if (is_ok((ss - i)->currentMove))
-				(*(ss - i)->continuationHistory)[to][pc] << bonus;
-	}
-	}
 
 	// update_all_stats()は、bestmoveが見つかったときにそのnodeの探索の終端で呼び出される。
 	// 統計情報一式を更新する。
@@ -2905,7 +2960,7 @@ namespace {
 			&& !pos.captured_piece())
 			update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -bonus1);
 
-		// Decrease all the non-best capture moves
+		// 捕獲する指し手でベストではなかったものをすべて減点する。
 		for (int i = 0; i < captureCount; ++i)
 		{
 			moved_piece = pos.moved_piece_after(capturesSearched[i]);
@@ -2915,7 +2970,24 @@ namespace {
 		}
 	}
 
-	// update_quiet_stats()は、新しいbest moveが見つかったときにmove soring heuristicsを更新する。
+	// update_continuation_histories() は、形成された手のペアの履歴を更新します。
+	// 1,2,4,6手前の指し手と現在の指し手との指し手ペアによってcontinuationHistoryを更新する。
+	// 1手前に対する現在の指し手 ≒ counterMove  (応手)
+	// 2手前に対する現在の指し手 ≒ followupMove (継続手)
+	// 4手前に対する現在の指し手 ≒ followupMove (継続手)
+	// ※　Stockfish 10で6手前も見るようになった。
+	void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus)
+	{
+		for (int i : {1, 2, 4, 6})
+		{
+			if (ss->inCheck && i > 2)
+				break;
+			if (is_ok((ss - i)->currentMove))
+				(*(ss - i)->continuationHistory)[to][pc] << bonus;
+		}
+	}
+
+	// update_quiet_stats()は、新しいbest moveが見つかったときに指し手の並べ替えheuristicsを更新する。
 	// 具体的には駒を取らない指し手のstat tables、killer等を更新する。
 
 	// move      = これが良かった指し手

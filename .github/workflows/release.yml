@@ -84,8 +84,6 @@ jobs:
         exclude:
           # Release target exclude: edition USER_ENGINE
           - edition: USER_ENGINE
-          # HALFKPE9 未導入ブランチ
-          - edition: YANEURAOU_ENGINE_NNUE_HALFKPE9
 
     steps:
     - uses: actions/checkout@v2
@@ -147,7 +145,6 @@ jobs:
           7z a -t7z build-windows.7z windows
         working-directory: release
       - name: make build-android zip/7z
-        # exclude archive USER_ENGINE
         run: |
           7z a -tzip build-android.zip android
           7z a -t7z build-android.7z android
