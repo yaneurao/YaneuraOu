@@ -383,8 +383,14 @@ enum Value: int32_t
 	// 無効な値
 	VALUE_NONE = 32002,
 
+	// チェスの終盤DBによって得られた詰みのスコアらしいが、互換性のためにこのシンボルは同様に定義しておく。
+	// Stockfishの元のコードは *2 となっているが、ここは *1 にしておかないと評価値で使える値の範囲が狭まって損。
+	VALUE_TB_WIN_IN_MAX_PLY  =  VALUE_MATE - /*2*/ 1 * MAX_PLY,
+	VALUE_TB_LOSS_IN_MAX_PLY = -VALUE_TB_WIN_IN_MAX_PLY, 
+
 	VALUE_MATE_IN_MAX_PLY  =   VALUE_MATE - MAX_PLY , // MAX_PLYでの詰みのときのスコア。
 	VALUE_MATED_IN_MAX_PLY = -VALUE_MATE_IN_MAX_PLY , // MAX_PLYで詰まされるときのスコア。
+
 
 	// 勝ち手順が何らか証明されているときのスコア下限値
 	// Stockfishでは10000に設定されているが、あまり低い数字にすると、

@@ -84,9 +84,12 @@ typedef Stats<int16_t, 10692, int(SQ_NB + 7) * int(SQ_NB) , COLOR_NB> ButterflyH
 // より高い探索深さにおいて、LowPlyHistoryは、root付近の成功したquietな指し手と
 // PV(ttPV)にある/あったquietな指し手を記録します。LowPlyHistoryは、新しい探索の
 // たびにクリアされて、反復深化の間に埋められます。
+//
 // Stockfishと異なり、from_to()は、int(SQ_NB + 7) * int(SQ_NB)の間の値が返るのでこの部分のサイズ変更してある。
-constexpr int MAX_LPH = 4;
-typedef Stats<int16_t, 10692, MAX_LPH, int(SQ_NB + 7)* int(SQ_NB)> LowPlyHistory;
+// [ply][from_to] これは逆順にしたほうが少し高速化が図れるのだが、Stockfishでこの順に依存するコードがあったので、
+// とりあえずStockfishと同じ順にしてある。
+constexpr int MAX_LPH = 4; // これ以下のdepthのときにこのテーブルを用いる。
+typedef Stats<int16_t, 10692, MAX_LPH,int(SQ_NB + 7)* int(SQ_NB)> LowPlyHistory;
 
 /// CounterMoveHistoryは、直前の指し手の[to][piece]によってindexされるcounter moves(応手)を格納する。
 /// cf. http://chessprogramming.wikispaces.com/Countermove+Heuristic
@@ -100,6 +103,7 @@ typedef Stats<int16_t, 10692, SQ_NB, PIECE_NB , PIECE_TYPE_NB> CapturePieceToHis
 
 /// PieceToHistoryは、ButterflyHistoryに似たものだが、指し手の[to][piece]で示される。
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+//     Stockfishでは[piece][to]の順。
 typedef Stats<int16_t, 29952, SQ_NB , PIECE_NB> PieceToHistory;
 
 /// ContinuationHistoryは、与えられた2つの指し手のhistoryを組み合わせたもので、

@@ -320,8 +320,11 @@ void Search::clear()
 	// pvとnon pvのときのreduction定数
 	// 0.05とか変更するだけで勝率えらく変わる
 
+	// Threads.size()が式に含まれているのは、スレッド数が少ない時は枝刈りを甘くしたほうが得であるため。
+	// スレッド数が多い時に枝刈りが甘いと同じnodeを探索するスレッドばかりになって非効率。
+
 	for (int i = 1; i < MAX_MOVES; ++i)
-		Reductions[i] = int(22.9 * std::log(i));
+		Reductions[i] = int((22.0 + 2 * std::log(Threads.size())) * std::log(i + 0.25 * std::log(i)));
 
 	// -----------------------
 	//   定跡の読み込み
@@ -1099,7 +1102,7 @@ namespace {
 #endif
 
 		// 残り探索深さが1手未満であるなら静止探索を呼び出す
-		if (depth < 1)
+		if (depth <= 0)
 			return qsearch<NT>(pos, ss, alpha, beta);
 
 		ASSERT_LV3(-VALUE_INFINITE <= alpha && alpha < beta && beta <= VALUE_INFINITE);
@@ -1341,8 +1344,10 @@ namespace {
 					// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
 
 					// 【計測資料 6.】 captured_piece()にするかcapture_or_pawn_promotion()にするかの比較。
+
+					// TODO: あとで比較しなおす[2020/11/05]
 #if 0
-					// Stockfish 10相当のコード
+					// Stockfish 10～12相当のコード
 					// Extra penalty for early quiet moves of the previous ply
 					if ((ss - 1)->moveCount <= 2 && !priorCapture)
 #else
@@ -1356,7 +1361,7 @@ namespace {
 				// fails lowのときのquiet ttMoveに対するペナルティ
 				// 【計測資料 9.】capture_or_promotion(),capture_or_pawn_promotion(),capture()での比較
 #if 1
-			// Stockfish相当のコード
+			// Stockfish 10～12相当のコード
 				else if (!pos.capture_or_promotion(ttMove))
 #else
 				else if (!pos.capture_or_pawn_promotion(ttMove))
@@ -1542,7 +1547,7 @@ namespace {
 		// 王手のときはここにはこない。(上のinCheckのなかでMOVES_LOOPに突入。)
 
 		// -----------------------
-		// Step 7. Razoring (skipped when in check) : ~2 Elo
+		// Step 7. Razoring (skipped when in check) : ~1 Elo
 		// -----------------------
 
 		//  Razoring (王手がかかっているときはスキップする)
@@ -1552,7 +1557,7 @@ namespace {
 		// 残り探索深さが少ないときに、その手数でalphaを上回りそうにないとき用の枝刈り。
 
 		if (!rootNode // The required rootNode PV handling is not available in qsearch
-			&&  depth < 2
+			&&  depth == 1
 			&&  eval <= alpha - PARAM_RAZORING_MARGIN /* == RazorMargin == 600 */)
 			return qsearch<NT>(pos, ss, alpha, beta);
 
@@ -1565,14 +1570,17 @@ namespace {
 		// 上がって行っているなら枝刈りを甘くする。
 		// ※ VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
 		//   枝刈りを甘くして調べないといけないのでimproving扱いとする。
-		improving = ss->staticEval >= (ss - 2)->staticEval
+		improving = (ss - 2)->staticEval == VALUE_NONE
+			? ss->staticEval > (ss - 4)->staticEval || (ss - 4)->staticEval == VALUE_NONE
+			: ss->staticEval > (ss - 2)->staticEval;
+
 			//	  || ss->staticEval == VALUE_NONE
 			// この条件は一つ上の式に暗黙的に含んでいる。
 			// ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはないので。
-			|| (ss - 2)->staticEval == VALUE_NONE;
+
 
 		// -----------------------
-		// Step 8. Futility pruning: child node (skipped when in check) : ~30 Elo
+		// Step 8. Futility pruning: child node (skipped when in check) : ~50 Elo
 		// -----------------------
 
 		//   Futility pruning : 子ノード (王手がかかっているときはスキップする)
@@ -1603,11 +1611,13 @@ namespace {
 		//  evalの見積りがbetaを超えているので1手パスしてもbetaは超えそう。
 		if (!PvNode
 			&& (ss - 1)->currentMove != MOVE_NULL
-			&& (ss - 1)->statScore < PARAM_NULL_MOVE_MARGIN_GAMMA/*23200*/
+			&& (ss - 1)->statScore < PARAM_NULL_MOVE_MARGIN0/*22977*/
 			&&  eval >= beta
-			&& ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN_ALPHA/*36*/ * depth + PARAM_NULL_MOVE_MARGIN_BETA/*225*/
+			&&  eval >= ss->staticEval
+			&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 /*30*/ * depth - PARAM_NULL_MOVE_MARGIN2 /*28*/ * improving
+									+ PARAM_NULL_MOVE_MARGIN3 /*84*/ * ss->ttPv + PARAM_NULL_MOVE_MARGIN4/*182*/
 			&& !excludedMove
-			//		&&  pos.non_pawn_material(us)
+			//		&&  pos.non_pawn_material(us)  // これ終盤かどうかを意味する。将棋でもこれに相当する条件が必要かも。
 			&& (ss->ply >= thisThread->nmpMinPly || us != thisThread->nmpColor)
 			// 同じ手番側に連続してnull moveを適用しない
 			)
@@ -1615,8 +1625,8 @@ namespace {
 			ASSERT_LV3(eval - beta >= 0);
 
 			// 残り探索深さと評価値によるnull moveの深さを動的に減らす
-			Depth R = ((PARAM_NULL_MOVE_DYNAMIC_ALPHA/*823*/ + PARAM_NULL_MOVE_DYNAMIC_BETA/*67*/ * depth) / 256
-				+ std::min((int)(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA/*200*/, 3));
+			Depth R = ((PARAM_NULL_MOVE_DYNAMIC_ALPHA/*982*/ + PARAM_NULL_MOVE_DYNAMIC_BETA/*85*/ * depth) / 256
+				+ std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA/*192*/, 3));
 
 			ss->currentMove = MOVE_NONE;
 			// null moveなので、王手はかかっていなくて駒取りでもない。
@@ -1635,10 +1645,10 @@ namespace {
 				// これをもう少しちゃんと検証しなおす。
 
 				// 証明されていないmate scoreはreturnで返さない。
-				if (nullValue >= VALUE_MATE_IN_MAX_PLY)
+				if (nullValue >= VALUE_TB_WIN_IN_MAX_PLY)
 					nullValue = beta;
 
-				if (thisThread->nmpMinPly || (abs(beta) < VALUE_KNOWN_WIN && depth < PARAM_NULL_MOVE_RETURN_DEPTH/*12*/ ))
+				if (thisThread->nmpMinPly || (abs(beta) < VALUE_KNOWN_WIN && depth < PARAM_NULL_MOVE_RETURN_DEPTH/*13*/ ))
 					return nullValue;
 
 				ASSERT_LV3(!thisThread->nmpMinPly); // 再帰的な検証は認めていない。
@@ -1835,7 +1845,75 @@ namespace {
 			givesCheck = pos.gives_check(move);
 
 			// -----------------------
-			// Step 13. Singular and Gives Check Extensions. : ~70 Elo
+			// Step 13. Pruning at shallow depth (~200 Elo)
+			// -----------------------
+
+			// 浅い深さでの枝刈り
+
+			// 今回の指し手に関して新しいdepth(残り探索深さ)を計算する。
+			newDepth = depth - 1;
+
+			if (!rootNode
+				// 【計測資料 7.】 浅い深さでの枝刈りを行なうときに王手がかかっていないことを条件に入れる/入れない
+			//	&& pos.non_pawn_material(us)  // これに相当する処理、将棋でも必要だと思う。
+				&& bestValue > VALUE_TB_LOSS_IN_MAX_PLY)
+			{
+				// Skip quiet moves if movecount exceeds our FutilityMoveCount threshold
+				// move countベースの枝刈りを実行するかどうかのフラグ
+				moveCountPruning = moveCount >= futility_move_count(improving, depth);
+
+				// Reduced depth of the next LMR search
+				// 次のLMR探索における軽減された深さ
+				int lmrDepth = std::max(newDepth - reduction(improving, depth, moveCount), 0);
+
+				if (!captureOrPawnPromotion
+					&& !givesCheck)
+				{
+					// Countermovesに基づいた枝刈り(historyの値が悪いものに関してはskip) : ~20 Elo
+					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH/*4*/ + ((ss - 1)->statScore > 0 || (ss - 1)->moveCount == 1)
+						&& (*contHist[0])[to_sq(move)][movedPiece] < CounterMovePruneThreshold
+						&& (*contHist[1])[to_sq(move)][movedPiece] < CounterMovePruneThreshold)
+						// contHist[][]はStockfishと逆順なので注意。
+						continue;
+
+					// Futility pruning: parent node (~5 Elo)
+					// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
+					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*7*/
+						&& !ss->inCheck
+						&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1/*283*/ + PARAM_FUTILITY_MARGIN_BETA/*170*/ * lmrDepth <= alpha
+						&& (*contHist[0])[to_sq(move)][movedPiece]
+						 + (*contHist[1])[to_sq(move)][movedPiece]
+						 + (*contHist[3])[to_sq(move)][movedPiece]
+						 + (*contHist[5])[to_sq(move)][movedPiece] / 2 < 27376)
+						continue;
+
+					// ※　このLMRまわり、棋力に極めて重大な影響があるので枝刈りを入れるかどうかを含めて慎重に調整すべき。
+
+					// Prune moves with negative SEE (~20 Elo)
+					// 将棋ではseeが負の指し手もそのあと詰むような場合があるから、あまり無碍にも出来ないようだが…。
+
+					// 【計測資料 20.】SEEが負の指し手を枝刈りする/しない
+
+					if (!pos.see_ge(move, Value(-(PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1/*29*/
+							- std::min(lmrDepth, PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2/*18*/)) * lmrDepth * lmrDepth)))
+						continue;
+				}
+				else
+				{
+					// Capture history based pruning when the move doesn't give check
+					if (!givesCheck
+						&& lmrDepth < 1
+						&& captureHistory[to_sq(move)][movedPiece][type_of(pos.piece_on(to_sq(move)))] < 0)
+						continue;
+
+					// See based pruning
+					if (!pos.see_ge(move, - Value(PARAM_LMR_SEE_MARGIN1 /*221*/) * depth)) // (~25 Elo)
+						continue;
+				}
+			}
+
+			// -----------------------
+			// Step 14. Singular and Gives Check Extensions. : ~70 Elo
 			// -----------------------
 
 			// singular延長と王手延長。
@@ -1955,111 +2033,6 @@ namespace {
 				newDepth = depth - 1 + extension;
 
 			// -----------------------
-			// Step 14. Pruning at shallow depth : ~170 Elo
-			// -----------------------
-
-			// 浅い深さでの枝刈り
-
-			// この指し手による駒の移動先の升。historyの値などを調べたいのでいま求めてしまう。
-			const Square movedSq = to_sq(move);
-
-			if (!rootNode
-				// 【計測資料 7.】 浅い深さでの枝刈りを行なうときに王手がかかっていないことを条件に入れる/入れない
-				//&& !inCheck
-	//			&& pos.non_pawn_material(pos.side_to_move())
-				&& bestValue > VALUE_MATED_IN_MAX_PLY)
-			{
-
-				// move countベースの枝刈りを実行するかどうかのフラグ
-				moveCountPruning = moveCount >= futility_move_count(improving,depth);
-
-				if (!captureOrPawnPromotion
-					&& !givesCheck
-					// && !pos.advanced_pawn_push(move)
-					)
-				{
-
-					// Move countに基づいた枝刈り(futilityの亜種) : ~30 Elo
-
-					if (moveCountPruning)
-						continue;
-
-					// 次のLMR探索における軽減された深さ
-					int lmrDepth = std::max(newDepth - reduction(improving, depth, moveCount), 0);
-
-					// Countermovesに基づいた枝刈り(historyの値が悪いものに関してはskip) : ~20 Elo
-
-					// 【計測資料 10.】historyに基づく枝刈りに、contHist[1],contHist[3]を利用するかどうか。
-					// Stockfish10になってから"+ ((ss - 1)->statScore > 0 || (ss - 1)->moveCount == 1)"が追加された。
-					// これは、成立するとLMR適用depthに1加算される。
-					// [2019/3/17] やねうら王はStockfish9の時はPARAM_PRUNING_BY_HISTORY_DEPTH == 9に調整していたのだが、
-					// Stockfish10になってから、元の値(3)のほうが性能が良かった。
-					// "+ (...)"のところ、定数倍はありかと思って。"*2" してみたらR15ほど弱かった。
-					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH/*3*/ + ((ss - 1)->statScore > 0 || (ss - 1)->moveCount == 1)
-						&& ((*contHist[0])[movedSq][movedPiece] < CounterMovePruneThreshold)
-						&& ((*contHist[1])[movedSq][movedPiece] < CounterMovePruneThreshold))
-						continue;
-
-					// Futility pruning: parent node : ~2 Elo
-					// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
-
-					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*7*/
-						&& !ss->inCheck
-						&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1/*256*/
-						+ PARAM_FUTILITY_MARGIN_BETA/*200*/ * lmrDepth <= alpha)
-						continue;
-
-					// ※　このLMRまわり、棋力に極めて重大な影響があるので枝刈りを入れるかどうかを含めて慎重に調整すべき。
-
-					// Prune moves with negative SEE : ~10 Elo
-					// SEEが負の指し手を枝刈り
-
-					// 将棋ではseeが負の指し手もそのあと詰むような場合があるから、あまり無碍にも出来ないようだが…。
-
-					// 【計測資料 20.】SEEが負の指し手を枝刈りする/しない
-
-					if (!pos.see_ge(move, Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1/*29*/ * lmrDepth * lmrDepth)))
-						continue;
-
-				}
-
-				// 浅い深さでの、危険な指し手を枝刈りする。
-
-				// 【計測資料 19.】 浅い深さでの枝刈りについて Stockfish 8のコードとの比較
-				// 【計測資料 25.】 浅い深さでの枝刈りについて Stockfish 9のコードとの比較
-
-#if 0
-				// Stockfish9[2017/04/17]の相当のコード。これだとR10ぐらい弱くなる。
-				// その後、PawnValueのところ、CaptureMarginという配列に変わったが、内容的にはほぼ同じ。
-				else if (depth < 7 // ~20 Elo
-					&& !extension
-					&& !pos.see_ge(move, Value(-PawnValue * depth)))
-					continue;
-#endif
-#if 0
-				// Stockfish10[2019/03/15]のコード。やねうら王のコードに似ている。
-				// しかし、これもR70ぐらい弱くなる。なんでこんなに影響あるのかわからん。
-				else if (!extension // (~20 Elo)
-					&& !pos.see_ge(move, Value(-PawnValue * depth )))
-					continue;
-
-				// Stockfish[2019/05/30]時点では、!extensionという条件がなくなった。
-#endif
-#if 1
-				// やねうら王の独自のコード。depthの2乗に比例したseeマージン。適用depthに制限なし。
-				// これないとR70ぐらい弱くなる…。
-				// しかしdepthの2乗に比例しているのでdepth 10ぐらいから無意味かと..
-				// こうするぐらいなら、CaptureMargin[depth]のような配列にしてそれぞれの要素を調整するほうが良いか…。
-				// このコード、深いdepthになってきたときにsee_ge()を呼び出すコストが馬鹿にならないのでは…。
-				else if (!extension
-					&& !pos.see_ge(move, Value(-PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2/*29*/ * depth * depth)
-						// PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2を少し大きめにして調整したほうがよさげ。
-					))
-					continue;
-#endif
-			}
-
-			// -----------------------
 			//      1手進める
 			// -----------------------
 
@@ -2082,7 +2055,7 @@ namespace {
 
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
-			ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck][captureOrPawnPromotion][movedSq][movedPiece];
+			ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck][captureOrPawnPromotion][to_sq(move)][movedPiece];
 
 			// -----------------------
 			// Step 15. Make the move
@@ -2169,9 +2142,9 @@ namespace {
 
 					// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
 					ss->statScore = thisThread->mainHistory[from_to(move)][us]
-						+ (*contHist[0])[movedSq][movedPiece]
-						+ (*contHist[1])[movedSq][movedPiece]
-						+ (*contHist[3])[movedSq][movedPiece]
+						+ (*contHist[0])[to_sq(move)][movedPiece]
+						+ (*contHist[1])[to_sq(move)][movedPiece]
+						+ (*contHist[3])[to_sq(move)][movedPiece]
 						- PARAM_REDUCTION_BY_HISTORY/*4000*/; // 修正項
 
 					// historyの値に応じて指し手のreduction量を増減する。
@@ -2845,10 +2818,11 @@ namespace {
 	// ply : root node からの手数。(ply_from_root)
 	Value value_to_tt(Value v, int ply) {
 
+		//		assert(v != VALUE_NONE);
 		ASSERT_LV3(-VALUE_INFINITE < v && v < VALUE_INFINITE);
 
-		return  v >= VALUE_MATE_IN_MAX_PLY ? v + ply
-			: v <= VALUE_MATED_IN_MAX_PLY ? v - ply : v;
+		return  v >= VALUE_TB_WIN_IN_MAX_PLY ? v + ply
+			  : v <= VALUE_TB_LOSS_IN_MAX_PLY ? v - ply : v;
 	}
 
 	// value_to_tt()の逆関数
@@ -3081,12 +3055,14 @@ void init_param()
 
 			"PARAM_FUTILITY_AT_PARENT_NODE_DEPTH",
 			"PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1",
-			"PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2",
 			"PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1" ,
 			"PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2" ,
+			"PARAM_LMR_SEE_MARGIN1",
 
 			"PARAM_NULL_MOVE_DYNAMIC_ALPHA","PARAM_NULL_MOVE_DYNAMIC_BETA","PARAM_NULL_MOVE_DYNAMIC_GAMMA",
-			"PARAM_NULL_MOVE_MARGIN_ALPHA","PARAM_NULL_MOVE_MARGIN_BETA","PARAM_NULL_MOVE_MARGIN_GAMMA",
+			"PARAM_NULL_MOVE_MARGIN0","PARAM_NULL_MOVE_MARGIN1","PARAM_NULL_MOVE_MARGIN2",
+			"PARAM_NULL_MOVE_MARGIN3","PARAM_NULL_MOVE_MARGIN4",
+			
 			"PARAM_NULL_MOVE_RETURN_DEPTH",
 
 			"PARAM_PROBCUT_DEPTH","PARAM_PROBCUT_MARGIN1","PARAM_PROBCUT_MARGIN2",
@@ -3114,12 +3090,14 @@ void init_param()
 
 			&PARAM_FUTILITY_AT_PARENT_NODE_DEPTH,
 			&PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1,
-			&PARAM_FUTILITY_AT_PARENT_NODE_MARGIN2,
 			&PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1,
 			&PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2,
+			&PARAM_LMR_SEE_MARGIN1,
 
 			&PARAM_NULL_MOVE_DYNAMIC_ALPHA, &PARAM_NULL_MOVE_DYNAMIC_BETA,&PARAM_NULL_MOVE_DYNAMIC_GAMMA,
-			&PARAM_NULL_MOVE_MARGIN_ALPHA,&PARAM_NULL_MOVE_MARGIN_BETA,&PARAM_NULL_MOVE_MARGIN_GAMMA,
+			&PARAM_NULL_MOVE_MARGIN0,&PARAM_NULL_MOVE_MARGIN1,&PARAM_NULL_MOVE_MARGIN2,
+			&PARAM_NULL_MOVE_MARGIN3,&PARAM_NULL_MOVE_MARGIN4,
+
 			&PARAM_NULL_MOVE_RETURN_DEPTH,
 
 			&PARAM_PROBCUT_DEPTH, &PARAM_PROBCUT_MARGIN1,&PARAM_PROBCUT_MARGIN2,
@@ -3330,7 +3308,7 @@ namespace Learner
 			// th->clear();
 
 			for (int i = 7; i > 0; i--)
-				(ss - i)->continuationHistory = &th->continuationHistory[SQ_ZERO][NO_PIECE];
+				(ss - i)->continuationHistory = &th->continuationHistory[0][0][SQ_ZERO][NO_PIECE];
 
 			// rootMovesの設定
 			auto& rootMoves = th->rootMoves;
