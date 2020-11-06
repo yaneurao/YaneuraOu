@@ -39,7 +39,10 @@ jobs:
             target: evallearn
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout own repository
+      uses: actions/checkout@v2
+      with:
+        path: main
 
     - name: Install pkg
       run: |
@@ -50,9 +53,9 @@ jobs:
     - name: make
       run: |
         $env:PATH+=';C:\msys64';
-        .\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }}
+        .\main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }}
 
     - uses: actions/upload-artifact@v2
       with:
         name: build-windows
-        path: build/**/*
+        path: ./main/build/**/*

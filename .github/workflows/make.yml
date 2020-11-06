@@ -47,7 +47,10 @@ jobs:
           - archcpu: NO_SSE
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout own repository
+      uses: actions/checkout@v2
+      with:
+        path: main
 
     - name: install openblas
       run: |
@@ -55,9 +58,9 @@ jobs:
         sudo apt install build-essential clang-10 g++-8 libopenblas-dev libomp-dev libomp5
 
     - name: make
-      run: cd script && ./build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }}
+      run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }}
 
     - uses: actions/upload-artifact@v2
       with:
         name: build-linux
-        path: build/**/**/*
+        path: ./main/build/**/**/*

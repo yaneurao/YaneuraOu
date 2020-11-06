@@ -47,7 +47,10 @@ jobs:
             target: evallearn
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout own repository
+      uses: actions/checkout@v2
+      with:
+        path: main
 
     - name: Install pkg
       run: |
@@ -58,12 +61,12 @@ jobs:
     - name: make
       run: |
         $env:PATH+=';C:\msys64';
-        .\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
+        .\main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
 
     - uses: actions/upload-artifact@v2
       with:
         name: build-windows
-        path: build/**/*
+        path: ./main/build/**/*
 
   build-android:
     # ubuntu-latest = ubuntu-18.04
@@ -86,19 +89,23 @@ jobs:
           - edition: USER_ENGINE
 
     steps:
-    - uses: actions/checkout@v2
-
-    - uses: nttld/setup-ndk@v1
+    - name: Setup Android NDK r21d
+      uses: nttld/setup-ndk@v1
       with:
         ndk-version: r21d
 
+    - name: Checkout own repository
+      uses: actions/checkout@v2
+      with:
+        path: main
+
     - name: ndk-build
-      run: ./script/android_build.sh -e ${{ matrix.edition }}
+      run: ./main/script/android_build.sh -e ${{ matrix.edition }}
 
     - uses: actions/upload-artifact@v2
       with:
         name: build-android
-        path: build/**/*
+        path: ./main/build/**/*
 
   release-pkg:
     name: Release package
