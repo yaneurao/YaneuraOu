@@ -7,7 +7,131 @@
 		ちゃんと検証してからMakefile書き直す。
 
 
+■　2020/11/06
+
+
+
+- V5.21リリース
+	- halfKPE9対応作業中
+	- CI Build導入
+	- EVAL_LEARNまわり色々修正
+	- Stockfish 2020/11/06時点まで主要な修正はほぼ取り込んだ
+
+
+engine1 = YaneuraOu2018NNUE_clang_20201105_V520.exe , eval = tanuki2018_nnue
+engine2 = YaneuraOu_NNUE_V521official.exe , eval = tanuki2018_nnue
+T2,b1000,1229 - 124 - 1187(50.87% R6.04[-5.59,17.67]) winrate black , white = 52.98% , 47.02%
+
+// V5.20とはほぼ互角
+
+
+
+- qsearch()駒を捕獲しない指し手の枝刈り変更。
+engine1 = YaneuraOu2018NNUE_V520f.exe , eval = tanuki2018_nnue
+engine2 = YaneuraOu2018NNUE_V520g.exe , eval = tanuki2018_nnue
+T2,b1000,518 - 46 - 516(50.1% R0.67[-17.09,18.44]) winrate black , white = 51.16% , 48.84%
+// ほぼ変わらないし、新しいコードのほうが断然シンプルなので新しいコードに差し替える。
+
+- RazorMargin変更
+	600 -> 510
+	// これは経験上、計測できるほどの差を産まない。
+
+- FutilityMargin変更
+前)		return Value((PARAM_FUTILITY_MARGIN_ALPHA1/*175*/ - PARAM_FUTILITY_MARGIN_ALPHA2/*50*/ * improving) * d);
+後)		return Value(223 * (d - improving));
+
+YaneuraOu2018NNUE_V520d.exe
+engine1 = YaneuraOu2018NNUE_V520c.exe , eval = tanuki2018_nnue
+engine2 = YaneuraOu2018NNUE_V520d.exe , eval = tanuki2018_nnue
+T2,b1000,606 - 64 - 600(50.25% R1.73[-14.72,18.18]) winrate black , white = 55.06% , 44.94%
+// 誤差でしかない
+
+- 一つ前のcommitでEVAL_LEARNでコンパイル通っていなかったの修正。
+
+
+
+- EVAL_LEARNのときにreductionをスレッド数 = 1の時のものに設定する。(tanuki-さんからの指摘)
+- Threads::get_best_thread()追加。探索のベストスレッドの選出のコード刷新。
+- search()にmaxNextDepth導入
+
+- stat bonus変更
+	return d > 13 ? 29 : 17 * d * d + 134 * d - 134;
+
+YaneuraOu2018NNUE_V520c.exe
+engine1 = YaneuraOu2018NNUE_clang_20201105_V520b.exe , eval = tanuki2018_nnue
+engine2 = YaneuraOu2018NNUE_V520c.exe , eval = tanuki2018_nnue
+T2,b1000,328 - 31 - 321(50.54% R3.75[-18.67,26.17]) winrate black , white = 51.62% , 48.38%
+// 計測できる差ではなさそう
+
+
+
+- ThreadHolding導入。
+	- 同一nodeを複数のスレッドで探索されるのを防ぐ。
+	- 極めて多いスレッドで探索させるときに効果があるかも。
+	// 少ないスレッドだとオーバーヘッドの分だけ損かも。
+	engine1 = YaneuraOu2018NNUE_V520d.exe , eval = tanuki2018_nnue
+	engine2 = YaneuraOu2018NNUE_V520e.exe , eval = tanuki2018_nnue
+	T8,r100,607 - 36 - 547(52.6% R18.08[1.24,34.92]) winrate black , white = 48.35% , 51.65%
+	T2,b1000,351 - 24 - 355(49.72% R-1.97[-23.46,19.53]) winrate black , white = 49.15% , 50.85%
+	// 計測できない差
+- CI Build (#126)でAndroid向けHALFKPE9無効化を入れたままだったの修正。
+- 探索部のコメントいくつか修正。
+- 探索部、Stockfishに近づくように関数の並び替えなど。
+- 指し手のlegalityのチェックを行う場所、変更。
+- Makefile、elseとif同じ行に書いてたの修正。
+
+
+- CI Build (#126) , Mizarさんのプルリク
+	#123 の修正
+	ビルドスクリプトの改修
+	コミットがレポジトリにpushされた際、自動全体ビルドによってバイナリが生成されるように
+	この生成されたバイナリは自動でReleaseはされないものです
+	ビルドに成功した場合、 https://github.com/yaneurao/YaneuraOu/actions の Artifacts（成果物） からビルド結果を参照する事ができます
+	ただし、Artifactsの内容は永続的に保存はされない（おそらく生存期間は最大で90日）ので、必要なら個別に保存してください。
+	タグがレポジトリにpushされた際、自動ビルドによって生成されたバイナリが自動でReleaseされるように
+	draft: false # 下書きにしない(false)
+	prerelease: true # 先行リリースのフラグを付ける(true)
+	タグが追加される事が条件なので、通常のコミットではReleaseには乗りません
+	README.md に CI Build ステータスの追加
+
+
 ■　2020/11/05
+
+
+- halfKPE9対応作業その1
+
+	- 以下のファイル追加
+		- nnue/features/
+			- pe9.h
+			- pe9.cpp
+			- half_kpe9.h
+			- half_kpe9.cpp
+		- nnue/architectures/
+			- halfkpe9_256x2-32-32.h
+		- nnue/trainer/features/
+			- factorizer_half_kpe9.h
+
+
+	- tttakさんのリポジトリより。
+		https://github.com/tttak/YaneuraOu
+	- Mizarさんがやねうら王V5.00に対応させたもの。
+		https://github.com/mizar/YaneuraOu/tree/v5.00-test20201103a/source/eval/nnue/features
+
+	- Makefile修正
+		- targetにYANEURAOU_ENGINE_NNUE_HALFKPE9を指定すればいける感じ。
+		
+	- halfKP -> halfKPE9 の変換器(Mizarさん)
+		https://github.com/mizar/random-nnue-eval-rust/blob/master/src/eval_value.rs
+
+	- サンプルのhalfKPE9の評価関数ファイル(Mizarさん , Sylwi WCSOC2020)
+		https://github.com/mizar/YaneuraOu/releases/tag/sylwi_wcsoc2020
+		初期局面でeval=25になるらしい
+		evaldir kpe9
+		isready
+		eval
+		で、eval = 25が得られたので全計算は合ってる。
+		対局もさせてみる。
+		→　R400ぐらい弱い。差分計算が間違っているのか？
 
 
 
