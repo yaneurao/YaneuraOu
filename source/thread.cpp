@@ -109,7 +109,7 @@ void ThreadPool::set(size_t requested)
 		clear();
 
 		// Reallocate the hash with the new threadpool size
-		//TT.resize(Options["USI_Hash"]);
+		//TT.resize(size_t(Options["USI_Hash"]));
 
 		// →　新しいthreadpoolのサイズで置換表用のメモリを確保しなおしたほうが
 		//  良いらしいのだが、大きなメモリの置換表だと確保に時間がかかるのでやりたくない。
@@ -213,6 +213,40 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 
 	main()->start_searching();
 }
+
+
+// 探索終了時に、一番良い探索ができていたスレッドを選ぶ。
+Thread* ThreadPool::get_best_thread() const {
+
+	Thread* bestThread = front();
+	std::map<Move, int64_t> votes;
+	Value minScore = VALUE_NONE;
+
+	// Find minimum score of all threads
+	for (Thread* th : *this)
+		minScore = std::min(minScore, th->rootMoves[0].score);
+
+	// Vote according to score and depth, and select the best thread
+	for (Thread* th : *this)
+	{
+		votes[th->rootMoves[0].pv[0]] +=
+			(th->rootMoves[0].score - minScore + 14) * int(th->completedDepth);
+
+		if (abs(bestThread->rootMoves[0].score) >= VALUE_TB_WIN_IN_MAX_PLY)
+		{
+			// Make sure we pick the shortest mate / TB conversion or stave off mate the longest
+			if (th->rootMoves[0].score > bestThread->rootMoves[0].score)
+				bestThread = th;
+		}
+		else if (th->rootMoves[0].score >= VALUE_TB_WIN_IN_MAX_PLY
+			|| (th->rootMoves[0].score > VALUE_TB_LOSS_IN_MAX_PLY
+				&& votes[th->rootMoves[0].pv[0]] > votes[bestThread->rootMoves[0].pv[0]]))
+			bestThread = th;
+	}
+
+	return bestThread;
+}
+
 
 
 // 探索を開始する(main thread以外)

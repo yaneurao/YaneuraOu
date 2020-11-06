@@ -214,6 +214,9 @@ struct ThreadPool: public std::vector<Thread*>
 	// 今回、goコマンド以降に探索したノード数
 	uint64_t nodes_searched() { return accumulate(&Thread::nodes); }
 
+	// 探索終了時に、一番良い探索ができていたスレッドを選ぶ。
+	Thread* get_best_thread() const;
+
 	// 探索を開始する(main thread以外)
 	void start_searching();
 

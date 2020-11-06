@@ -197,14 +197,14 @@ namespace {
 	// depthに基づく、historyとstatsのupdate bonus
 	int stat_bonus(Depth depth) {
 		int d = depth;
-		// Stockfish 9になって、move_picker.hのupdateで32倍していたのをやめたので、
-		// ここでbonusの計算のときに32倍しておくことになった。
 
-		// 32倍より少し小さいほうが良いらしい。調整するに値しないと思うので
-		// ここはStockfish10のコードそのままにしておく。
-		return d > 17 ? 0 : 29 * d * d + 138 * d - 134;
+		// historyとstatsの更新時のボーナス値。depthに基づく。
 
-		// TODO : depth 17超えだとstat_bonusが0になるのたが、これが本当に良いのかどうかはよくわからない。
+		// [Stockfish10]
+		//return d > 17 ? 0 : 29 * d * d + 138 * d - 134;
+
+		// [Stockfish12]
+		return d > 13 ? 29 : 17 * d * d + 134 * d - 134;
 	}
 
 	// チェスでは、引き分けが0.5勝扱いなので引き分け回避のための工夫がしてあって、
@@ -371,8 +371,17 @@ void Search::clear()
 	// Threads.size()が式に含まれているのは、スレッド数が少ない時は枝刈りを甘くしたほうが得であるため。
 	// スレッド数が多い時に枝刈りが甘いと同じnodeを探索するスレッドばかりになって非効率。
 
+	// スレッド数の取得
+	const size_t thread_size =
+#if !defined(EVAL_LEARN)
+		Threads.size();
+#else
+		// EVAL_LEARN版では1スレッドで探索を行うので、スレッド数は1の時の基準の枝刈りであって欲しい。
+		// ゆえに、スレッド数を1とみなす。
+		1
+#endif
 	for (int i = 1; i < MAX_MOVES; ++i)
-		Reductions[i] = int((22.0 + 2 * std::log(Threads.size())) * std::log(i + 0.25 * std::log(i)));
+		Reductions[i] = int((22.0 + 2 * std::log(thread_size)) * std::log(i + 0.25 * std::log(i)));
 
 	// -----------------------
 	//   定跡の読み込み
@@ -614,34 +623,9 @@ SKIP_SEARCH:;
 		// アクセスしてはならない。
 		// search_skipped のときは、bestThread == mainThreadとしておき、
 		// bestThread->rootMoves[0].pv[0]とpv[1]の指し手を出力すれば良い。
-	{
 
-		// 深くまで探索できていて、かつそっちの評価値のほうが優れているならそのスレッドの指し手を採用する
-		// 単にcompleteDepthが深いほうのスレッドを採用しても良さそうだが、スコアが良いほうの探索深さのほうが
-		// いい指し手を発見している可能性があって楽観合議のような効果があるようだ。
+		bestThread = Threads.get_best_thread();
 
-		std::map<Move, int64_t> votes;
-		Value minScore = this->rootMoves[0].score;
-
-		// Find out minimum score and reset votes for moves which can be voted
-		for (Thread* th : Threads)
-			minScore = std::min(minScore, th->rootMoves[0].score);
-
-		// Vote according to score and depth, and select the best thread
-		int64_t bestVote = 0;
-		for (Thread* th : Threads)
-		{
-			// ワーカースレッドのなかで最小を記録したスコアからの増分
-			votes[th->rootMoves[0].pv[0]] +=
-				(th->rootMoves[0].score - minScore + 14) * int(th->completedDepth);
-
-			if (votes[th->rootMoves[0].pv[0]] > bestVote)
-			{
-				bestVote = votes[th->rootMoves[0].pv[0]];
-				bestThread = th;
-			}
-		}
-	}
 
 	// 次回の探索のときに何らか使えるのでベストな指し手の評価値を保存しておく。
 	bestPreviousScore = bestThread->rootMoves[0].score;
@@ -1138,6 +1122,12 @@ namespace {
 		// root nodeであるか
 		const bool rootNode = PvNode && ss->ply == 0;
 
+		// 次の最大探索深さ。
+		// これを超える深さでsearch()を再帰的に呼び出さない。
+		// 延長されすぎるのを回避する。
+		const Depth maxNextDepth = rootNode ? depth : depth + 1;
+
+
 		// 【計測資料 34.】cuckooコード Stockfishの2倍のサイズのcuckoo配列で実験
 
 #if defined(CUCKOO)
@@ -1369,15 +1359,16 @@ namespace {
 		ttMove = rootNode ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
 				: ss->ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
 
+		// 置換表にhitしなかった時は、PV nodeのときだけttPvとして扱う。
+		// これss->ttPVに保存してるけど、singularの判定等でsearchをss+1ではなくssで呼び出すことがあり、
+		// そのときにss->ttPvが破壊される。なので、破壊しそうなときは直前にローカル変数に保存するコードが書いてある。
+
 		if (!excludedMove)
 			ss->ttPv = PvNode || (ss->ttHit && tte->is_pv());
 
 		formerPv = ss->ttPv && !PvNode;
 
-		// 置換表にhitしなかった時は、PV nodeでかつdepthが4超えのときだけttPvとして扱う。
-		ss->ttPv = (ss->ttHit && tte->is_pv()) || (PvNode && depth > 4);
-		// これss->ttPVに保存してるけど、singularの判定等でsearchをss+1ではなくssで呼び出すことがあり、
-		// そのときにss->ttPvが破壊される。なので、破壊しそうなときは直前にローカル変数に保存するコードが書いてある。
+
 
 		// 置換表の値による枝刈り
 
@@ -2265,8 +2256,8 @@ namespace {
 				(ss + 1)->pv[0] = MOVE_NONE;
 
 				// full depthで探索するときはcutNodeにしてはいけない。
-				value = -search<PV>(pos, ss + 1, -beta, -alpha, newDepth, false);
-
+				value = -search<PV>(pos, ss + 1, -beta, -alpha,
+									std::min(maxNextDepth, newDepth), false);
 			}
 
 			// -----------------------
