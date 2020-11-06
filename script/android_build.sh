@@ -38,6 +38,7 @@ DIRSTR=(
   ["YANEURAOU_ENGINE_KPP_KKPT"]="KPP_KKPT"
   ["YANEURAOU_ENGINE_MATERIAL"]="KOMA"
   ["MATE_ENGINE"]="MATE"
+  ["USER_ENGINE"]="USER"
 );
 
 set -f
@@ -48,11 +49,11 @@ for EDITION in ${EDITIONS[@]}; do
     if [[ $EDITION == $EDITIONPTN ]]; then
       set -f
       echo "* edition: ${EDITION}"
-      BUILDDIR=../build/android/${DIRSTR[$EDITION]}
+      BUILDDIR=build/android/${DIRSTR[$EDITION]}
       mkdir -p ${BUILDDIR}
       ndk-build clean ENGINE_TARGET=${EDITION}
-      ndk-build ENGINE_TARGET=${EDITION} -j${JOBS} > >(tee build/android/${DIRSTR[$EDITION]}/${DIRSTR[$EDITION]}.log) || exit $?
-      cp libs/**/* build/android/${DIRSTR[$EDITION]}
+      ndk-build ENGINE_TARGET=${EDITION} V=1 -j${JOBS} > >(tee ${BUILDDIR}/build.log) || exit $?
+      bash -c "cp libs/**/* ${BUILDDIR}"
       ndk-build clean ENGINE_TARGET=${EDITION}
       break
     fi
