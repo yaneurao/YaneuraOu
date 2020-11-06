@@ -71,11 +71,20 @@ ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(ENGINE_TARGET)),YANEURAOU_ENGINE_NNUE
   ENGINE_NAME := YaneuraOu_NNUE
   ifeq ($(ENGINE_TARGET),YANEURAOU_ENGINE_NNUE_KP256)
     ENGINE_NAME := YaneuraOu_NNUE_KP256
-    CPPFLAGS += -DEVAL_NNUE_KP256
+    ARCH_DEF += -DEVAL_NNUE_KP256
   else
     ifeq ($(NNUE_EVAL_ARCH),KP256)
       ENGINE_NAME := YaneuraOu_NNUE_KP256
-      CPPFLAGS += -DEVAL_NNUE_KP256
+      ARCH_DEF += -DEVAL_NNUE_KP256
+    endif
+  endif
+  ifeq ($(ENGINE_TARGET),YANEURAOU_ENGINE_NNUE_HALFKPE9)
+    ENGINE_NAME := YaneuraOu_NNUE_HALFKPE9
+    ARCH_DEF += -DEVAL_NNUE_HALFKPE9
+  else
+    ifeq ($(NNUE_EVAL_ARCH),HALFKPE9)
+      ENGINE_NAME := YaneuraOu_NNUE_HALFKPE9
+      ARCH_DEF += -DEVAL_NNUE_HALFKPE9
     endif
   endif
 endif
@@ -179,6 +188,8 @@ LOCAL_SRC_FILES += \
   ../source/eval/nnue/features/p.cpp                                   \
   ../source/eval/nnue/features/half_kp.cpp                             \
   ../source/eval/nnue/features/half_relative_kp.cpp                    \
+  ../source/eval/nnue/features/half_kpe9.cpp                           \
+  ../source/eval/nnue/features/pe9.cpp                                 \
   ../source/engine/yaneuraou-engine/yaneuraou-search.cpp
 endif
 
