@@ -1404,35 +1404,26 @@ namespace {
 				if (ttValue >= beta)
 				{
 					// 【計測資料 8.】 capture()とcaputure_or_pawn_promotion()の比較
-#if 1
+
 					if (!pos.capture(ttMove))
-#else
-					if (!pos.capture_or_pawn_promotion(ttMove))
-#endif
 						update_quiet_stats(pos, ss, ttMove, stat_bonus(depth), depth);
 
-					// 反駁された1手前の置換表のquietな指し手に対する追加ペナルティを課す。
+					// Extra penalty for early quiet moves of the previous ply
+					// 1手前の早い時点のquietの指し手に対する追加のペナルティ
 					// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
 
-					// 【計測資料 6.】 captured_piece()にするかcapture_or_pawn_promotion()にするかの比較。
-
-					// TODO: あとで比較しなおす[2020/11/05]
-#if 0
 					// Stockfish 10～12相当のコード
-					// Extra penalty for early quiet moves of the previous ply
+					// prioirCaptureのとこは、"pos.capture_or_pawn_promotion((ss - 1)->currentMove"
+					// とするほうが正しい気がするが、強さは変わらず。
+
 					if ((ss - 1)->moveCount <= 2 && !priorCapture)
-#else
-					// こうなっていてもおかしくはないはずのコード
-					// 1手前の早めのquietな指し手が反駁されたなら追加でpenaltyを課す 
-					if ((ss - 1)->moveCount <= 2 && !pos.capture_or_pawn_promotion((ss - 1)->currentMove))
-#endif
 						update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_bonus(depth + 1));
 
 				}
 				// fails lowのときのquiet ttMoveに対するペナルティ
 				// 【計測資料 9.】capture_or_promotion(),capture_or_pawn_promotion(),capture()での比較
 #if 1
-			// Stockfish 10～12相当のコード
+				// Stockfish 10～12相当のコード
 				else if (!pos.capture_or_promotion(ttMove))
 #else
 				else if (!pos.capture_or_pawn_promotion(ttMove))
@@ -1793,23 +1784,18 @@ namespace {
 		}
 
 		// -----------------------
-		// Step 11. Internal iterative deepening (skipped when in check) : ~2 Elo
+		// Step 11. If the position is not in TT, decrease depth by 2
 		// -----------------------
 
-		// 多重反復深化 (王手のときはこの処理はスキップする)
+		// 局面がTTになかったのなら、探索深さを2下げる。
+		// ※　このあとも置換表にヒットしないであろうから、ここを浅めで探索しておく。
+		// (次に他のスレッドがこの局面に来たときには置換表にヒットするのでそのときにここの局面の
+		//   探索が完了しているほうが助かるため)
 
-		// 残り探索深さがある程度あるのに置換表に指し手が登録されていないとき
-		// (たぶん置換表のエントリーを上書きされた)、浅い探索をして、その指し手を置換表の指し手として用いる。
-		// 置換表用のメモリが潤沢にあるときはこれによる効果はほとんどないはずではあるのだが…。
-
-		if (depth >= 8 && !ttMove)
-		{
-			search<NT>(pos, ss, alpha, beta, depth - 7 , cutNode);
-
-			tte = TT.probe(posKey, ss->ttHit);
-			ttValue = ss->ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
-			ttMove  = ss->ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
-		}
+		if (PvNode
+			&& depth >= 6
+			&& !ttMove)
+			depth -= 2;
 
 		// 王手がかかっている局面では、探索はここから始まる。
 	moves_loop:
@@ -2430,6 +2416,21 @@ namespace {
 		// 将棋ではtable probe使っていないのでmaxValue関係ない。
 		//if (PvNode)
 		//	bestValue = std::min(bestValue, maxValue);
+
+		// もし良い指し手が見つからず(bestValueがalphaを更新せず)、前の局面はttPvを選んでいた場合は、
+		// 前の相手の手がおそらく良い手であり、新しい局面が探索木に追加される。
+		// (ttPvをtrueに変更してTTEntryに保存する)
+
+		if (bestValue <= alpha)
+			ss->ttPv = ss->ttPv || ((ss - 1)->ttPv && depth > 3);
+
+		// それ以外の場合は、カウンターの手が見つかり、その局面が探索木のleafであれば、
+		// その局面を探索木から削除する。
+		// (ttPvをfalseに変更してTTEntryに保存する)
+
+		else if (depth > 3)
+			ss->ttPv = ss->ttPv && (ss + 1)->ttPv;
+
 
 		// -----------------------
 		//  置換表に保存する
