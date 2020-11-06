@@ -78,7 +78,11 @@ public:
 	// pvIdx    : このスレッドでMultiPVを用いているとして、rootMovesの(0から数えて)何番目のPVの指し手を
 	//      探索中であるか。MultiPVでないときはこの変数の値は0。
 	// pvLast   : tbRank絡み。将棋では関係ないので用いない。
-	size_t pvIdx /*,pvLast*/ /* ,shuffleExts */;
+	size_t pvIdx /*,pvLast*/;
+
+	// 置換表に平均的にどれくらいhitしているかという統計情報
+	// これに基づき、枝刈りを調整する。
+	uint64_t ttHitAverage;
 
 	// selDepth  : rootから最大、何手目まで探索したか(選択深さの最大)
 	// nmpMinPly : null moveの前回の適用ply

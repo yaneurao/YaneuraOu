@@ -158,6 +158,10 @@ namespace {
 	// Rootはここでは用意しない。Rootに特化した関数を用意するのが少し無駄なので。
 	enum NodeType { NonPV, PV };
 
+	// 置換表にどれくらいhitしているかという統計情報
+	constexpr uint64_t TtHitAverageWindow = 4096;
+	constexpr uint64_t TtHitAverageResolution = 1024;
+
 	// Razor and futility margins
 
 	// Razor marginはdepthに依存しない形で良いことが証明された。(Stockfish10)
@@ -166,7 +170,7 @@ namespace {
 
 	// depth(残り探索深さ)に応じたfutility margin。
 	Value futility_margin(Depth d, bool improving) {
-		return Value((PARAM_FUTILITY_MARGIN_ALPHA1/*175*/ - PARAM_FUTILITY_MARGIN_ALPHA2/*50*/ * improving) * d);
+		return Value(PARAM_FUTILITY_MARGIN_ALPHA1/*223*/ * (d - improving));
 	}
 
 	// 【計測資料 30.】　Reductionのコード、Stockfish 9と10での比較
@@ -177,9 +181,10 @@ namespace {
 	// 残り探索深さをこの深さだけ減らす。d(depth)とmn(move_count)
 	// i(improving)とは、評価値が2手前から上がっているかのフラグ。上がっていないなら
 	// 悪化していく局面なので深く読んでも仕方ないからreduction量を心もち増やす。
+	// TODO : パラメータ調整したほうが良いのでは。
 	Depth reduction(bool i, Depth d, int mn) {
 		int r = Reductions[d] * Reductions[mn];
-		return (r + 512) / 1024 + (!i && r > 1024);
+		return (r + 509) / 1024 + (!i && r > 894);
 	}
 
 	// 【計測資料 29.】　Move CountベースのFutiliy Pruning、Stockfish 9と10での比較
@@ -189,9 +194,9 @@ namespace {
 	// improving : 1手前の局面から評価値が上昇しているのか
 	// depth     : 残り探索depth
 	// 返し値    : 返し値よりmove_countが大きければfutility pruningを実施
-	// TODO : この " 5 + "のところ、パラメーター調整をしたほうが良いかも。
+	// TODO : この " 3 + "のところ、パラメーター調整をしたほうが良いかも。
 	constexpr int futility_move_count(bool improving, int depth) {
-		return (5 + depth * depth) * (1 + improving) / 2;
+		return (3 + depth * depth) / (2 - improving);
 	}
 
 	// depthに基づく、historyとstatsのupdate bonus
@@ -377,9 +382,10 @@ void Search::clear()
 		Threads.size();
 #else
 		// EVAL_LEARN版では1スレッドで探索を行うので、スレッド数は1の時の基準の枝刈りであって欲しい。
-		// ゆえに、スレッド数を1とみなす。
-		1
+		// ゆえに、EVAL_LEARN版ではスレッド数を1とみなす。
+		1;
 #endif
+
 	for (int i = 1; i < MAX_MOVES; ++i)
 		Reductions[i] = int((22.0 + 2 * std::log(thread_size)) * std::log(i + 0.25 * std::log(i)));
 
@@ -760,6 +766,9 @@ void Thread::search()
 
 	// この局面での指し手の数を上回ってはいけない
 	multiPV = std::min(multiPV, rootMoves.size());
+
+	// 最近の置換表の平均ヒット率の初期化。
+	ttHitAverage = TtHitAverageWindow * TtHitAverageResolution / 2;
 
 	// Contemptの処理は、やねうら王ではMainThread::search()で行っているのでここではやらない。
 	// Stockfishもそうすべきだと思う。
@@ -1369,6 +1378,10 @@ namespace {
 		formerPv = ss->ttPv && !PvNode;
 
 
+		// thisThread->ttHitAverageは、ttHit(置換表にhitしたかのフラグ)の実行時の平均を近似するために用いられる。
+		// 移動平均のようなものを算出している。
+		thisThread->ttHitAverage = (TtHitAverageWindow - 1) * thisThread->ttHitAverage / TtHitAverageWindow
+			+ TtHitAverageResolution * ss->ttHit;
 
 		// 置換表の値による枝刈り
 
@@ -2493,9 +2506,8 @@ namespace {
 
 		// pvHit			: PV nodeでかつ置換表にhitした
 		// givesCheck		: MovePickerから取り出した指し手で王手になるか
-		// evasionPrunable	: 枝刈り候補となる回避手であるか
 		// captureOrPawnPromotion : 駒を捕獲する指し手か、歩を成る指し手であるか
-		bool pvHit, givesCheck, evasionPrunable , captureOrPawnPromotion;
+		bool pvHit, givesCheck , captureOrPawnPromotion;
 
 		// このnodeで何手目の指し手であるか
 		int moveCount;
@@ -2656,7 +2668,7 @@ namespace {
 			{
 				// Stockfishではここ、pos.key()になっているが、posKeyを使うべき。
 				if (!ss->ttHit)
-					tte->save(posKey, value_to_tt(bestValue, ss->ply), pvHit, BOUND_LOWER,
+					tte->save(posKey, value_to_tt(bestValue, ss->ply), false /* ss->ttHit == false */, BOUND_LOWER,
 						DEPTH_NONE, MOVE_NONE, ss->staticEval);
 
 				return bestValue;
@@ -2720,6 +2732,7 @@ namespace {
 			//	&& !pos.advanced_pawn_push(move))
 				)
 			{
+				//assert(type_of(move) != ENPASSANT); // Due to !pos.advanced_pawn_push
 				// moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになるはず。
 				// 【計測資料 14.】 futility pruningのときにpromoteを考慮するかどうか。
 				futilityValue = futilityBase + (Value)CapturePieceValue[pos.piece_on(to_sq(move))]
@@ -2750,32 +2763,16 @@ namespace {
 			// 駒を取らない王手回避の指し手はよろしくない可能性が高いのでこれは枝刈りしてしまう。
 			// 成りでない && seeが負の指し手はNG。王手回避でなくとも、同様。
 
-			// ただし、王手されている局面の場合、王手の回避手を1つ以上見つけていないのに
-			// これの指し手を枝刈りしてしまうと回避手がないかのように錯覚してしまうので、
-			// bestValue > VALUE_MATED_IN_MAX_PLY
-			// (実際は-VALUE_INFINITEより大きければ良い)
-			// という条件を追加してある。
+			// ここ、わりと棋力に影響する。下手なことするとR30ぐらい変わる。
 
-			// 枝刈りの候補となりうる捕獲しない回避手を検出する。
-			// 【計測資料 2.】moveCountを利用するかしないか
-			evasionPrunable =	   ss->inCheck
-								&& (depth != 0 || moveCount > 2)
-								&& bestValue > VALUE_MATED_IN_MAX_PLY
-								&& !pos.capture(move);
-
-			if ((!ss->inCheck || evasionPrunable)
-				// 【計測資料 5.】!is_promote()と!pawn_promotion()との比較。
-#if 0
-			// Stockfish 8相当のコード
-			// Stockfish 9では、see_ge()でpromoteならすぐにreturnするからこの判定は不要だということで、このコードは消された。
-			// Simplify away redundant SEE pruning condition : cf. https://github.com/official-stockfish/Stockfish/commit/b61759e907e508d436b7c0b7ff8ab866454f7ca6
-				&& !is_promote(move)
-#else
-			// 成る手ではなく、歩が成る手のみを除外
-				&& !pos.pawn_promotion(move)
-#endif
+			// Stockfish 12のコード
+			// Do not search moves with negative SEE values
+			if (!ss->inCheck
+				&& !(givesCheck && pos.is_discovery_check_on_king(~pos.side_to_move(), move))
 				&& !pos.see_ge(move))
 				continue;
+
+
 			// TODO : prefetchは、入れると遅くなりそうだが、many coreだと違うかも。
 			// Speculative prefetch as early as possible
 			//prefetch(TT.first_entry(pos.key_after(move)));
@@ -3129,7 +3126,7 @@ void init_param()
 #if defined (INCLUDE_PARAMETERS)
 	{
 		std::vector<std::string> param_names = {
-			"PARAM_FUTILITY_MARGIN_ALPHA1" ,"PARAM_FUTILITY_MARGIN_ALPHA2" ,
+			"PARAM_FUTILITY_MARGIN_ALPHA1",
 			"PARAM_FUTILITY_MARGIN_BETA" ,
 			"PARAM_FUTILITY_MARGIN_QUIET" , "PARAM_FUTILITY_RETURN_DEPTH",
 
@@ -3164,7 +3161,7 @@ void init_param()
 #else
 		std::vector<const int*> param_vars = {
 #endif
-			&PARAM_FUTILITY_MARGIN_ALPHA1 , &PARAM_FUTILITY_MARGIN_ALPHA2,
+			&PARAM_FUTILITY_MARGIN_ALPHA1
 			&PARAM_FUTILITY_MARGIN_BETA,
 			&PARAM_FUTILITY_MARGIN_QUIET , &PARAM_FUTILITY_RETURN_DEPTH,
 
@@ -3402,6 +3399,9 @@ namespace Learner
 			// 学習用の実行ファイルではスレッドごとに置換表を持っているので
 			// 探索前に自分(のスレッド用)の置換表の世代カウンターを回してやる。
 			th->tt.new_search();
+
+			// 最近の置換表の平均ヒット率の初期化。
+			th->ttHitAverage = TtHitAverageWindow * TtHitAverageResolution / 2;
 		}
 	}
 

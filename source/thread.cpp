@@ -218,6 +218,10 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 // 探索終了時に、一番良い探索ができていたスレッドを選ぶ。
 Thread* ThreadPool::get_best_thread() const {
 
+	// 深くまで探索できていて、かつそっちの評価値のほうが優れているならそのスレッドの指し手を採用する
+	// 単にcompleteDepthが深いほうのスレッドを採用しても良さそうだが、スコアが良いほうの探索深さのほうが
+	// いい指し手を発見している可能性があって楽観合議のような効果があるようだ。
+
 	Thread* bestThread = front();
 	std::map<Move, int64_t> votes;
 	Value minScore = VALUE_NONE;
