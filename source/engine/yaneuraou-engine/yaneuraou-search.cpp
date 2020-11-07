@@ -1736,7 +1736,7 @@ namespace {
 		// -----------------------
 
 		// probCutに使うbeta値。TODO : 調整すべき。
-		probCutBeta = beta + PARAM_PROBCUT_MARGIN1/*176*/ - PARAM_PROBCUT_MARGIN1/*49*/ * improving;
+		probCutBeta = beta + PARAM_PROBCUT_MARGIN1/*176*/ - PARAM_PROBCUT_MARGIN2/*49*/ * improving;
 
 		// ProbCut(王手のときはスキップする)
 
