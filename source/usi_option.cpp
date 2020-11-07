@@ -166,9 +166,17 @@ namespace USI {
 		// 指定できるようにしておく。
 		// 例) 128スレッドあって、4つ思考エンジンを起動してそれぞれにThreads = 32を指定する場合、
 		// それぞれの思考エンジンにはThreadIdOffset = 0,32,64,96をそれぞれ指定する。
+		// (プロセッサグループは64論理コアごとに1つ作られる。上のケースでは、ThreadIdOffset = 0,0,64,64でも同じ意味。)
 		//	※　1つのPCで複数の思考エンジンを同時に起動して対局させる場合はこれを適切に設定すべき。
 
 		o["ThreadIdOffset"] << Option(0, 0, std::thread::hardware_concurrency() - 1);
+#endif
+
+#if defined(_WIN64)
+		// LargePageを有効化するか。
+		// これを無効化できないと自己対局の時に片側のエンジンだけがLargePageを使うことがあり、
+		// 不公平になるため、無効化する方法が必要であった。
+		o["LargePageEnable"] << Option(true);
 #endif
 
 		// 各エンジンがOptionを追加したいだろうから、コールバックする。

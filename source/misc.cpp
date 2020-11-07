@@ -362,6 +362,10 @@ void* aligned_ttmem_alloc(size_t allocSize, void*& mem , size_t align /* ignore 
 
 static void* aligned_ttmem_alloc_large_pages(size_t allocSize) {
 
+	// LargePageはエンジンオプションにより無効化されているなら何もせずに返る。
+	if (!Options["LargePageEnable"])
+		return nullptr;
+
 	HANDLE hProcessToken{ };
 	LUID luid{ };
 	void* mem = nullptr;
