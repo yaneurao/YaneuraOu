@@ -7,7 +7,70 @@
 		ちゃんと検証してからMakefile書き直す。
 
 
+■　2020/11/07
+
+
+- V5.30リリース
+	- 置換表絡みの処理、デバッグコードが残っていたのを修正したので
+	　スレッド数、置換表サイズによっては+R20以上あがっているはず。
+	- 学習まわりでスレッド個別の置換表を用意するなど学習時のノイズを低減。
+	- 探索部、ほぼStockfish 2020/11/07時点の最新に。
+		(強くなることの実証が終わっていない枝刈りはまだ適用していない)
+
+
+- TT.probe()デバッグ用のコードを有効にしていた。本番用のコードがコメントになっていた。すまぬ。
+	- 置換表絡みでどやこや言われてるのはその半分はこれが原因だと思います。
+	置換表サイズによっては+R20以上、上がります。
+- EVAL_LEARN版の置換表、自分のスレッド用の置換表だけを非並列でクリアする処理を追加。
+- gensfenのコードも対局シミュレーションにおいて、自分のスレッド用の置換表をクリアするコードを追加。
+
+
 ■　2020/11/06
+
+
+- IID(Step 11. Internal iterative deepening)削除
+	- // Step 11. If the position is not in TT, decrease depth by 2
+	- を追加
+YaneuraOu2018NNUE_V520k.exe
+engine1 = YaneuraOu2018NNUE_V520j.exe , eval = tanuki2018_nnue
+engine2 = YaneuraOu2018NNUE_V520k.exe , eval = tanuki2018_nnue
+T2,b1000,1033 - 86 - 1021(50.29% R2.03[-10.58,14.64]) winrate black , white = 52.43% , 47.57%
+
+- Step 4.のコード
+	if ((ss - 1)->moveCount <= 2 && !priorCapture)
+		update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_bonus(depth + 1));
+	に変更
+	// こうなっていてもおかしくはないはずのコード
+	// if ((ss - 1)->moveCount <= 2 && !pos.capture_or_pawn_promotion((ss - 1)->currentMove))
+	//     update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_bonus(depth + 1));
+
+YaneuraOu2018NNUE_V520l.exe
+engine1 = YaneuraOu2018NNUE_V520k.exe , eval = tanuki2018_nnue
+engine2 = YaneuraOu2018NNUE_V520l.exe , eval = tanuki2018_nnue
+T2,b1000,620 - 51 - 619(50.04% R0.28[-15.95,16.51]) winrate black , white = 52.62% , 47.38%
+
+- search()の末尾のttPvの更新コード
+
+		// もし良い指し手が見つからず(bestValueがalphaを更新せず)、前の局面はttPvを選んでいた場合は、
+		// 前の相手の手がおそらく良い手であり、新しい局面が探索木に追加される。
+		// (ttPvをtrueに変更してTTEntryに保存する)
+
+		if (bestValue <= alpha)
+			ss->ttPv = ss->ttPv || ((ss - 1)->ttPv && depth > 3);
+
+		// それ以外の場合は、カウンターの手が見つかり、その局面が探索木のleafであれば、
+		// その局面を探索木から削除する。
+		// (ttPvをfalseに変更してTTEntryに保存する)
+
+		else if (depth > 3)
+			ss->ttPv = ss->ttPv && (ss + 1)->ttPv;
+
+YaneuraOu2018NNUE_V520m.exe
+engine1 = YaneuraOu2018NNUE_V520l.exe , eval = tanuki2018_nnue
+engine2 = YaneuraOu2018NNUE_V520m.exe , eval = tanuki2018_nnue
+T2,b1000,495 - 44 - 491(50.2% R1.41[-16.78,19.6]) winrate black , white = 53.65% , 46.35%
+
+
 
 
 
@@ -15,7 +78,7 @@
 	- halfKPE9対応作業中
 	- CI Build導入
 	- EVAL_LEARNまわり色々修正
-	- Stockfish 2020/11/06時点まで主要な修正はほぼ取り込んだ
+	- Stockfish 2020/11/06時点まで主要な更新はほぼ取り込んだ
 
 
 engine1 = YaneuraOu2018NNUE_clang_20201105_V520.exe , eval = tanuki2018_nnue
