@@ -122,20 +122,21 @@ PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 14;
 //
 
 // probcutの前提depth
-// 元の値 = 5
+// 元の値 = 4
 // [PARAM] min:3,max:10,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_DEPTH = 5;
+PARAM_DEFINE PARAM_PROBCUT_DEPTH = 4;
 
 // probcutのmargin
 //    式 = beta + PARAM_PROBCUT_MARGIN1 - improving * PARAM_PROBCUT_MARGIN2
 //   improvingの効果怪しいので抑え気味にしておく。
-// 元の値 = 216
-// [PARAM] min:100,max:300,step:3,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 216;
+// 元の値 = 176
+// [PARAM] min:100,max:300,step:3,interval:3,time_rate:1
+PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 176;
 
-// 元の値 = 48
-// [PARAM] min:20,max:80,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 24;
+// 元の値 = 46
+// [PARAM] min:20,max:80,step:2,interval:3,time_rate:1
+PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 46;
+
 
 //
 // singular extension

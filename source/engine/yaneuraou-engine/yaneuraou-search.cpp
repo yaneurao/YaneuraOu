@@ -1211,7 +1211,8 @@ namespace {
 		// ttValue				: 置換表上のスコア
 		// eval					: このnodeの静的評価値(の見積り)
 		// maxValue             : table base probeに用いる。将棋だと関係ない。
-		Value bestValue, value, ttValue, eval /*, maxValue */;
+		// probCutBeta          : prob cutする時のbetaの値。
+		Value bestValue, value, ttValue, eval /*, maxValue */, probCutBeta;
 
 		// formerPv				: このnode、以前は(置換表を見る限りは)PV nodeだったのに、今回はPV nodeではない。
 		// givesCheck			: moveによって王手になるのか
@@ -1734,19 +1735,49 @@ namespace {
 		// Step 10. ProbCut (skipped when in check) : ~10 Elo
 		// -----------------------
 
+		// probCutに使うbeta値。TODO : 調整すべき。
+		probCutBeta = beta + PARAM_PROBCUT_MARGIN1/*176*/ - PARAM_PROBCUT_MARGIN1/*49*/ * improving;
+
 		// ProbCut(王手のときはスキップする)
 
 		// もし、このnodeで非常に良いcaptureの指し手があり(例えば、SEEの値が動かす駒の価値を上回るようなもの)
 		// 探索深さを減らしてざっくり見てもbetaを非常に上回る値を返すようなら、このnodeをほぼ安全に枝刈りすることが出来る。
 
 		if (!PvNode
-			&&  depth >= PARAM_PROBCUT_DEPTH/*5*/
-			&&  abs(beta) < VALUE_MATE_IN_MAX_PLY)
-		{
-			Value raisedBeta = std::min(beta + PARAM_PROBCUT_MARGIN1/*216*/ - PARAM_PROBCUT_MARGIN2/*48*/ * improving, VALUE_INFINITE);
+			&&  depth >= PARAM_PROBCUT_DEPTH/*4*/
+			&&  abs(beta) < VALUE_TB_WIN_IN_MAX_PLY
+			
+			// if value from transposition table is lower than probCutBeta, don't attempt probCut
+			// there and in further interactions with transposition table cutoff depth is set to depth - 3
+			// because probCut search has depth set to depth - 4 but we also do a move before it
+			// so effective depth is equal to depth - 3
 
-			// rbeta - ss->staticEvalを上回るcaptureの指し手のみを生成。
-			MovePicker mp(pos, ttMove, raisedBeta - ss->staticEval, &thisThread->captureHistory);
+			// もし置換表から取り出したvalueがprobCutBetaより小さいなら、そこではprobCutを試みず、
+			// 置換表との相互作用では、cutoff depthをdepth - 3に設定されます。
+			// なぜなら、probCut searchはdepth - 4に設定されていますが、我々はその前に指すので、
+			// 実効的な深さはdepth - 3と同じになるからです。
+
+			&& !(ss->ttHit
+				&& tte->depth() >= depth - (PARAM_PROBCUT_DEPTH-1)
+				&& ttValue != VALUE_NONE
+				&& ttValue < probCutBeta))
+		{
+			// if ttMove is a capture and value from transposition table is good enough produce probCut
+			// cutoff without digging into actual probCut search
+			// もしttMoveが捕獲する指し手であり、置換表から取り出した値が十分に良い場合、実際のprobCut searchをせずに
+			// probCutしてしまう。
+
+			if (ss->ttHit
+				&& tte->depth() >= depth - (PARAM_PROBCUT_DEPTH - 1)
+				&& ttValue != VALUE_NONE
+				&& ttValue >= probCutBeta
+				&& ttMove
+				&& pos.capture_or_promotion(ttMove))
+				return probCutBeta;
+
+			ASSERT_LV3(probCutBeta < VALUE_INFINITE);
+
+			MovePicker mp(pos, ttMove, probCutBeta - ss->staticEval, &captureHistory);
 			int probCutCount = 0;
 			bool ttPv = ss->ttPv; // このあとの探索でss->ttPvを潰してしまうのでtte->save()のときはこっちを用いる。
 			ss->ttPv = false;
@@ -1758,28 +1789,50 @@ namespace {
 			{
 				if (move != excludedMove && pos.legal(move))
 				{
+					ASSERT_LV3(pos.capture_or_pawn_promotion(move));
+					ASSERT_LV3(depth > PARAM_PROBCUT_DEPTH);
+
 					captureOrPawnPromotion = true;
 					probCutCount++;
 
 					ss->currentMove = move;
-					ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck][captureOrPawnPromotion][to_sq(move)][pos.moved_piece_after(move)];
-
-					ASSERT_LV3(depth >= PARAM_PROBCUT_DEPTH/*5*/ );
+					ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck]
+																			  [captureOrPawnPromotion]
+																			  [to_sq(move)]
+																			  [pos.moved_piece_after(move)];
 
 					pos.do_move(move, st);
 
+					// Perform a preliminary qsearch to verify that the move holds
 					// この指し手がよさげであることを確認するための予備的なqsearch
-					value = -qsearch<NonPV>(pos, ss + 1, -raisedBeta, -raisedBeta + 1);
 
-					if (value >= raisedBeta)
-						value = -search<NonPV>(pos, ss + 1, -raisedBeta, -raisedBeta + 1, depth - (PARAM_PROBCUT_DEPTH - 1)/*4*/ , !cutNode);
+					value = -qsearch<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1);
+
+					// If the qsearch held, perform the regular search
+					// よさげであったので、普通に探索する
+
+					if (value >= probCutBeta)
+						value = -search<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1, depth - PARAM_PROBCUT_DEPTH, !cutNode);
 
 					pos.undo_move(move);
 
-					if (value >= raisedBeta)
+					if (value >= probCutBeta)
+					{
+						// if transposition table doesn't have equal or more deep info write probCut data into it
+						// もし置換表が、等しいかより深く探索した情報ではないなら、probCutの情報をそこに書く
+
+						if (!(ss->ttHit
+							&& tte->depth() >= depth - (PARAM_PROBCUT_DEPTH - 1)
+							&& ttValue != VALUE_NONE))
+							tte->save(posKey, value_to_tt(value, ss->ply), ttPv,
+								BOUND_LOWER,
+								depth - (PARAM_PROBCUT_DEPTH - 1), move, ss->staticEval);
 						return value;
 				}
 			}
+			}
+
+			// ss->ttPvはprobCutの探索で書き換えてしまったかも知れないので復元する。
 			ss->ttPv = ttPv;
 		}
 

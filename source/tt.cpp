@@ -1,4 +1,5 @@
-﻿#include "misc.h"
+﻿#include <cstring>	// std::memset()
+#include "misc.h"
 #include "thread.h"
 #include "tt.h"
 
