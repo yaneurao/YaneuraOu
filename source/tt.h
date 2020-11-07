@@ -112,6 +112,13 @@ public:
 	void resize(size_t mbSize);
 
 	// 置換表のエントリーの全クリア
+	// 並列化してクリアするので高速。
+	// 備考)
+	// LEARN版のときは、
+	// 単一スレッドでメモリをクリアする。(他のスレッドは仕事をしているので..)
+	// 教師生成を行う時は、対局の最初にスレッドごとのTTに対して、
+	// このclear()が呼び出されるものとする。
+	// 例) th->tt.clear();
 	void clear();
 
 	// keyを元にClusterのindexを求めて、その最初のTTEntry*を返す。
@@ -136,9 +143,7 @@ public:
 		// →　次のindexの計算ではbit0を潰して計算するためにkeyを2で割ってからmul_hi64()している。
 
 		// (key/2) * clusterCount / 2^64 をするので、indexは 0 ～ (clusterCount/2)-1 の範囲となる。
-		//uint64_t index = mul_hi64((u64)key >> 1, clusterCount);
-		//uint64_t index = mul_hi64((u64)key << 32, clusterCount / 2);
-		uint64_t index = mul_hi64(((u64)key >> 1) << 32, clusterCount /2);
+		uint64_t index = mul_hi64((u64)key >> 1, clusterCount);
 
 		// indexは0～(clusterCount/2)-1の範囲にあるのでこれを2倍すると、0～clusterCount-2の範囲。
 		// clusterCountは偶数で、ここにkeyのbit0がbit-orされるので0～clusterCount-1が得られる。

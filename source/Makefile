@@ -326,6 +326,8 @@ else ifeq ($(TARGET_CPU),AVX512)
 	# icelake     : -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -DUSE_AVX512VBMI -DUSE_AVX512IFMA -USE_GFNI -march=icelake-client
 	CPPFLAGS += -DUSE_AVX512 -DUSE_BMI2 -DUSE_AVX512VLBWDQ -march=skylake-avx512
 
+	# NNUEのコード、USE_VNNIが指定されているとVNNI対応のコードになるようだが…。
+
 else ifeq ($(TARGET_CPU),AVX2)
 	CPPFLAGS += -DUSE_AVX2 -DUSE_BMI2 -mbmi -mbmi2 -mavx2 -march=corei7-avx
 

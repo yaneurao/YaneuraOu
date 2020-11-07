@@ -381,6 +381,9 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		auto& pos = th->rootPos;
 		pos.set_hirate(&si,th);
 
+		// 自分スレッド用の置換表があるはずなので自分の置換表だけをクリアする。
+		th->tt.clear();
+
 		// 探索部で定義されているBookMoveSelectorのメンバを参照する。
 		auto& book = ::book;
 
