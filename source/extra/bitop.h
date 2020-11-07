@@ -31,7 +31,7 @@
 #include <tmmintrin.h>
 #elif defined(USE_SSE2)
 #include <emmintrin.h>
-#elif defined(IS_ARM)
+#elif defined(USE_NEON)
 #include <arm_neon.h>
 #include <mm_malloc.h> // for _mm_alloc()
 #else

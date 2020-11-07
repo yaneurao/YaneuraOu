@@ -58,11 +58,11 @@ if(-not (Test-Path $Dir)){
 }
 
 "`n* Clean Build"|Out-Host;
-ndk-build.cmd clean ENGINE_TARGET=$_Edition;
+ndk-build.cmd clean YANEURAOU_EDITION=$_Edition;
 
 "`n* Build Binary"|Out-Host;
 $log = $null;
-ndk-build.cmd ENGINE_TARGET=$_Edition NNUE_EVAL_ARCH=$($_.Nnue) V=1 -j $Jobs|Tee-Object -Variable log;
+ndk-build.cmd YANEURAOU_EDITION=$_Edition NNUE_EVAL_ARCH=$($_.Nnue) V=1 -j $Jobs|Tee-Object -Variable log;
 $log|Out-File -Encoding utf8 -Force (Join-Path $Dir "build.log");
 
 "`n* Copy Binary"|Out-Host;
@@ -72,7 +72,7 @@ ForEach-Object{
 };
 
 "`n* Clean Build"|Out-Host;
-ndk-build.cmd clean ENGINE_TARGET=$_Edition;
+ndk-build.cmd clean YANEURAOU_EDITION=$_Edition;
 
 }
 

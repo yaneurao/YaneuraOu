@@ -28,16 +28,20 @@ jobs:
           - USER_ENGINE
 
     steps:
-    - uses: actions/checkout@v2
-
-    - uses: nttld/setup-ndk@v1
+    - name: Setup Android NDK r21d
+      uses: nttld/setup-ndk@v1
       with:
         ndk-version: r21d
 
+    - name: Checkout own repository
+      uses: actions/checkout@v2
+      with:
+        path: main
+
     - name: ndk-build
-      run: ./script/android_build.sh -e ${{ matrix.edition }}
+      run: ./main/script/android_build.sh -e ${{ matrix.edition }}
 
     - uses: actions/upload-artifact@v2
       with:
         name: build-android
-        path: build/**/*
+        path: ./main/build/**/*

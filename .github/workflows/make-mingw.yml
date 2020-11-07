@@ -57,7 +57,10 @@ jobs:
             archcpu: NO_SSE
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout own repository
+      uses: actions/checkout@v2
+      with:
+        path: main
 
     - name: install openblas
       run: |
@@ -65,9 +68,9 @@ jobs:
         sudo apt install build-essential mingw-w64 libopenblas-dev libomp-dev libomp5
 
     - name: make
-      run: ./script/mingw_gcc.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }}
+      run: ./main/script/mingw_gcc.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }}
 
     - uses: actions/upload-artifact@v2
       with:
         name: build-mingw
-        path: build/**/**/*
+        path: ./main/build/**/*
