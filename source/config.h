@@ -211,6 +211,11 @@ constexpr int MAX_PLY_NUM = 246;
 // 置換表のなかでevalを持たない
 // #define NO_EVAL_IN_TT
 
+// 評価関数で金と小駒の成りを区別する
+// 駒の特徴量はBonaPiece。これはBonanzaに倣っている。
+// このオプションを有効化すると、金と小駒の成りを区別する。(Bonanzaとは異なる特徴量になる)
+// #define DISTINGUISH_GOLDS
+
 // オーダリングに使っているStatsの配列のなかで駒打ちのためのbitを持つ。
 // #define USE_DROPBIT_IN_STATS
 
@@ -284,7 +289,7 @@ constexpr int MAX_PLY_NUM = 246;
 // 学習機能を有効にするオプション。
 // 教師局面の生成、定跡コマンド(makebook thinkなど)を用いる時には、これを
 // 有効化してコンパイルしなければならない。
-// #define EVAL_LEARN
+//#define EVAL_LEARN
 
 // デバッグ絡み
 //#define ASSERT_LV 3

@@ -341,6 +341,7 @@ namespace {
 
 
 // 起動時に呼び出される。時間のかからない探索関係の初期化処理はここに書くこと。
+// スレッド数が変更された時にも呼び出される。
 void Search::init() {}
 
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
@@ -1782,7 +1783,7 @@ namespace {
 		// 探索深さを減らしてざっくり見てもbetaを非常に上回る値を返すようなら、このnodeをほぼ安全に枝刈りすることが出来る。
 
 		if (!PvNode
-			&&  depth >= PARAM_PROBCUT_DEPTH/*4*/
+			&&  depth > PARAM_PROBCUT_DEPTH/*4*/
 			&&  abs(beta) < VALUE_TB_WIN_IN_MAX_PLY
 			
 			// if value from transposition table is lower than probCutBeta, don't attempt probCut
@@ -1829,6 +1830,8 @@ namespace {
 				{
 					ASSERT_LV3(pos.capture_or_pawn_promotion(move));
 					ASSERT_LV3(depth > PARAM_PROBCUT_DEPTH);
+					// Stockfish 12のコード、ここ"depth >= 5"と書いてある。
+					// なぜにifの条件式に倣って"depth > 4"と書かないのか…。
 
 					captureOrPawnPromotion = true;
 					probCutCount++;
@@ -2092,7 +2095,7 @@ namespace {
 			// 2番目にベストな指し手のスコアを小さなコストで求めることは出来ないので…。
 
 			// singular延長をするnodeであるか。
-			if (depth >= PARAM_SINGULAR_EXTENSION_DEPTH/*8*/
+			if (depth >= PARAM_SINGULAR_EXTENSION_DEPTH/*7*/
 				&& move == ttMove
 				&& !rootNode
 				&& !excludedMove // 再帰的なsingular延長を除外する。
@@ -3265,7 +3268,7 @@ void init_param()
 
 			&PARAM_NULL_MOVE_RETURN_DEPTH,
 
-			&PARAM_PROBCUT_DEPTH, &PARAM_PROBCUT_MARGIN1,&PARAM_PROBCUT_MARGIN2,
+			&PARAM_PROBCUT_DEPTH, &PARAM_PROBCUT_MARGIN1, &PARAM_PROBCUT_MARGIN2,
 
 			&PARAM_SINGULAR_EXTENSION_DEPTH, &PARAM_SINGULAR_MARGIN,&PARAM_SINGULAR_SEARCH_DEPTH_ALPHA,
 
