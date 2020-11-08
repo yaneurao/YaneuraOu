@@ -67,7 +67,7 @@ void Thread::idle_loop() {
 	// ・8スレッド以上のときは、自前でbindThisThreadを行なう。
 	// cf. Upon changing the number of threads, make sure all threads are bound : https://github.com/official-stockfish/Stockfish/commit/1c50d8cbf554733c0db6ab423b413d75cc0c1928
 
-	if (Options["Threads"] >= 8)
+	if (Options["Threads"] > 8)
 		WinProcGroup::bindThisThread(idx);
 		// このifを有効にすると何故かNUMA環境のマルチスレッド時に弱くなることがある気がする。
 		// (長い時間対局させ続けると安定するようなのだが…)

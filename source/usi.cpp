@@ -285,6 +285,8 @@ void is_ready(bool skipCorruptCheck)
 
 	// --- Keep Alive的な処理ここまで ---
 
+	// スレッドを先に生成しないとUSI_Hashで確保したメモリクリアの並列化が行われなくて困る。
+	Threads.set(size_t(Options["Threads"]));
 
 #if defined (USE_EVAL_HASH)
 	Eval::EvalHash_Resize(Options["EvalHash"]);
@@ -741,6 +743,7 @@ void USI::loop(int argc, char* argv[])
 		else if (token == "eval") cout << "eval = " << Eval::compute_eval(pos) << endl;
 		else if (token == "evalstat") Eval::print_eval_stat(pos);
 
+		// この実行ファイルをコンパイルしたコンパイラの情報を出力する。
 		else if (token == "compiler") sync_cout << compiler_info() << sync_endl;
 
 		// -- 以下、やねうら王独自拡張のカスタムコマンド

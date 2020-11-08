@@ -1625,6 +1625,7 @@ namespace Misc
 	}
 
 	// このmisc.hの各種クラスの初期化。起動時にmain()から一度呼び出すようにする。(やねうら王独自拡張)
+	// その後、Stockfish12で似た仕組みが導入された。
 	void init(char* argv[])
 	{
 		// GetCurrentDirectory()で現在のフォルダを返すためにmain関数のなかでこの関数を呼び出してあるものとする。

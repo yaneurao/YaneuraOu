@@ -214,9 +214,9 @@ PARAM_DEFINE PARAM_WEAK_MATE_PLY = 1;
 
 
 // aspiration searchの増加量
-// 元の値 = 20
+// 元の値 = 17
 // [PARAM] min:12,max:40,step:1,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 16;
+PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 17;
 
 
 // 評価関数での手番の価値
