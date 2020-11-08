@@ -7,7 +7,83 @@
 		ちゃんと検証してからMakefile書き直す。
 
 
+
+■　2020/11/08
+
+
+- V5.31リリース。
+	- "LargePageEnable"エンジンオプション追加。
+	- USI_Hashなどのメモリ確保のタイミングをすべてisreadyのところに移動。
+	- 探索停止条件のコード刷新。
+	- aspiration searchのコード刷新。
+	- 教師局面からの学習のコード、定期的に自分のスレッド用の置換表をクリアするコード追加。
+
+
+
+- 8スレはbindThisThread()呼び出さない。9スレから。
+
+- aspiration searchの増加量変更。16->17
+
+- LargePageEnable反映されないことがあったの修正。
+
+- GUI側からsetoptionでUSI_Hash、Threadsが送られてきたとき、そのハンドラで処理するのはやめて、isreadyに対して処理するように変更。
+	- こうなっていないとUSI_Hashでメモリ確保してから、やっぱりLargePageに確保して！(LargePageEnable = true)とか送られてきても
+	　もう確保したあとやっちゅーねん！みたいになる。
+
+// USIプロトコルって、usiに対してエンジン側がoption返して、GUI側からsetoptionは、このoptionの順番は守られると仮定できるのかな？
+// たぶん仮定できないよね。
+// これ守ってくれないと、USI_Hash確保してからHashはやっぱりLarge Pageに確保！みたいなことをGUI側から言われることになって、大変困るんだけどな…。
+// てか、setoptionのハンドラでhashとかスレッド確保するStockfishのコードがおかしいんだと思う。そんなところで確保したら…ごにょごにょ…。
+
+
+- failHighCntまわりコード移植した
+engine1 = YaneuraOu2018NNUE_V521b.exe , eval = tanuki2018_nnue
+engine2 = YaneuraOu2018NNUE_V521c.exe , eval = tanuki2018_nnue
+T2,b1000,1478 - 91 - 1431(50.81% R5.61[-4.98,16.21]) winrate black , white = 49.36% , 50.64%
+
+- 教師局面からの学習の時に、一定回数のqsearch()ごとに自分のスレッド用の置換表をクリアするようにした。
+
+- aspiration searchのコード、刷新。
+
+- 探索停止条件のコード、刷新。
+
+
+
 ■　2020/11/07
+
+
+- ProbCutのPARAM_PROBCUT_MARGIN2と書くべきところ、コピペミスでPARAM_PROBCUT_MARGIN1に
+	してて盛大に弱くなってた。ごめん。
+- 教師局面からの学習の時に定期的に各スレッドが置換表をクリアするようにした。
+
+
+- android build fix, and checkout path change to ./main #128
+	Android HalfKPE9ビルドの修正、他諸々
+	自動ビルドにおいて、gitレポジトリの展開先をカレントディレクトリから./mainに変更
+	ShogiDroid向けHalfKPE9実行サンプル:
+	https://github.com/mizar/YaneuraOu/releases/download/v5.30-20201107c_androidfix/YOv5.30-Sylwi.zip
+
+
+
+- "LargePageEnable"エンジンオプション追加。
+
+// デフォルトtrue
+//LargePage対応について、これをエンジンオプションでオフにできないと、自己対局のときに片側のエンジンだけLargePageを使うことがあって、不公平なのでエンジンオプションでオフにできるようにとの要望を、
+//やねうら王のブログのコメントで頂戴致しました。確かにそうだと思ったので、これをオフにするエンジンオプションを追加する次第です。
+
+- TanukiColiseumのほうでLargePageオフにするようにissueを投稿。
+	https://github.com/nodchip/TanukiColiseum/issues/8
+
+
+
+- TT.clear() , std::memset()のコンパイルでエラーになるの修正。
+
+- probCutのコード刷新
+YaneuraOu2018NNUE_V521a.exe
+engine1 = YaneuraOu2018NNUE_V521.exe , eval = tanuki2018_nnue
+engine2 = YaneuraOu2018NNUE_V521a.exe , eval = tanuki2018_nnue
+T2,b1000,550 - 36 - 544(50.27% R1.91[-15.37,19.18]) winrate black , white = 50.18% , 49.82%
+// 誤差か。
 
 
 - V5.30リリース
