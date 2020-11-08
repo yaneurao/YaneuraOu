@@ -1792,6 +1792,11 @@ void LearnerThink::thread_worker(size_t thread_id)
 	auto th = Threads[thread_id];
 	auto& pos = th->rootPos;
 
+	// qsearch()を呼び出した回数。
+	// ある程度呼び出すと置換表が汚れてくると思うので、クリアする。
+	// 置換表は、自分のスレッド用の置換表が用意されている。(Thread.tt)
+	u64 qsearch_count = 0;
+
 	while (true)
 	{
 		// mseの表示(これはthread 0のみときどき行う)
@@ -1962,6 +1967,15 @@ void LearnerThink::thread_worker(size_t thread_id)
 
 		// 浅い探索(qsearch)の評価値
 		auto r = qsearch(pos);
+
+		if ((++qsearch_count % 1000) == 0)
+		{
+			// qsearch()を1000回呼び出すごとに置換表をクリアする。
+			// qsearch()で汚れる置換表はたかだか知れてるとは思うが、
+			// 定期的にクリアはしたほうが良いと思われる。
+			th->tt.clear();
+		}
+
 		auto pv = r.second;
 
 		// 深い探索の評価値

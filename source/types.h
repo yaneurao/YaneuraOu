@@ -662,6 +662,19 @@ private:
 // USI形式で指し手を表示する
 static std::ostream& operator<<(std::ostream& os, Move16 m) { os << m.to_usi_string(); return os; }
 
+// Stockfishとの互換性を保つために導入。
+// 普通の指し手か成りの指し手かを判定するのに用いる。
+enum MoveType {
+	NORMAL,
+	PROMOTION = MOVE_PROMOTE,
+	DROP = MOVE_DROP,
+	//ENPASSANT = 2 << 14,
+	//CASTLING = 3 << 14
+};
+
+// 指し手(Move)のMoveTypeを返す。
+constexpr MoveType type_of(Move m) { return MoveType(m & (MOVE_PROMOTE | MOVE_DROP)); }
+
 // --------------------
 //   拡張された指し手
 // --------------------

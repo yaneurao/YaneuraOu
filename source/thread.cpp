@@ -150,6 +150,7 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 
 	// ponderに関して、StockfishではstopOnPonderhitというのがあるが、やねうら王にはこのフラグはない。
 	/* main()->stopOnPonderhit = */ stop = false;
+	increaseDepth = true;
 	main()->ponder = ponderMode;
 	Search::Limits = limits;
 	Search::RootMoves rootMoves;

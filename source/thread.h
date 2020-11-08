@@ -128,6 +128,9 @@ public:
 	// Stockfish10ではスレッドごとにcontemptを保持するように変わった。
 	//Score contempt;
 
+	// 反復深化のループで何度fail highしたかのカウンター
+	int failedHighCnt;
+
 	// ------------------------------
 	//   やねうら王、独自追加
 	// ------------------------------
@@ -228,7 +231,9 @@ struct ThreadPool: public std::vector<Thread*>
 	void wait_for_search_finished() const;
 
 	// stop   : 探索中にこれがtrueになったら探索を即座に終了すること。
-	std::atomic_bool stop;
+	// increaseDepth : 一定間隔ごとに反復深化の探索depthが増えて行っているかをチェックするためのフラグ
+	//                 増えて行ってないなら、同じ深さを再度探索するのに用いる。
+	std::atomic_bool stop , increaseDepth;
 	
 private:
 
