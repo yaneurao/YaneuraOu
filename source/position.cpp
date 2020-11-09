@@ -1762,6 +1762,7 @@ void Position::do_null_move(StateInfo& newSt) {
 #if defined(USE_EVAL_HASH)
 	Eval::prefetch_evalhash(key);
 #endif
+	// NNUEの場合、KPPT型と違って、手番が違う場合、計算なしに済ますわけにはいかない。
 	st->accumulator.computed_score = false;
 #endif
 

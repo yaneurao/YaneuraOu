@@ -38,6 +38,7 @@
 
 #if !defined(USE_MAKEFILE)
 
+// USE_AVX512VNNI : AVX-512かつ、VNNI命令対応(Cascade Lake以降)でサポートされた命令を使うか。
 // USE_AVX512 : AVX-512(サーバー向けSkylake以降)でサポートされた命令を使うか。
 // USE_AVX2   : AVX2(Haswell以降)でサポートされた命令を使うか。pextなど。
 // USE_SSE42  : SSE4.2でサポートされた命令を使うか。popcnt命令など。
@@ -52,6 +53,7 @@
 
 // ターゲットCPUのところだけdefineしてください。(残りは自動的にdefineされます。)
 
+//#define USE_AVX512VNNI
 //#define USE_AVX512
 #define USE_AVX2
 //#define USE_SSE42
@@ -261,6 +263,9 @@ constexpr int MAX_PLY_NUM = 246;
 // GUI側が、何らかの都合で"rep_draw"のみしか処理できないときに用いる。
 // #define PV_OUTPUT_DRAW_ONLY
 
+// "Threads"オプション が 8以下の設定の時でも強制的に bindThisThread()を呼び出して、指定されたNUMAで動作するようにする。
+// "ThreadIdOffset"オプションと併用して、狙ったNUMAで動作することを強制することができる。
+//#define FORCE_BIND_THIS_THREAD
 
 
 // --------------------
@@ -537,7 +542,9 @@ constexpr bool Is64Bit = false;
 #define BMI2_STR ""
 #endif
 
-#if defined(USE_AVX512)
+#if defined(USE_AVX512VNNI)
+#define TARGET_CPU "AVX512VNNI" BMI2_STR
+#elif defined(USE_AVX512)
 #define TARGET_CPU "AVX512" BMI2_STR
 #elif defined(USE_AVX2)
 #define TARGET_CPU "AVX2" BMI2_STR
@@ -554,6 +561,10 @@ constexpr bool Is64Bit = false;
 #endif
 
 // 上位のCPUをターゲットとするなら、その下位CPUの命令はすべて使えるはずなので…。
+
+#if defined (USE_AVX512VNNI)
+#define USE_AVX512
+#endif
 
 #if defined (USE_AVX512)
 #define USE_AVX2

@@ -31,12 +31,18 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 # ターゲットCPU (target cpu)
 
 # 利用できるCPU拡張命令を指定する。
+# 
 # AMDのRyzen(Zen/Zen2)はZEN1/ZEN2を選択するとBMI2命令が使わずに速くなる。(10%程度高速化)
+# Ryzen Zen3シリーズはZEN3を選択。こちらはAVX2用とたぶん変わらない。
+#
 # ARM系ならOTHERを指定する。
 # 32bit環境用はNO_SSEを指定する。
+#
+# AVX-512対応(サーバー向けSkylake以降)ならAVX512を指定する。
+# AVX-512対応でさらにVNNI命令対応(Cascade Lake以降)なら、AVX512VNNIを指定する。
 
-# TODO : AVX512、世代ごとにわける
 
+#TARGET_CPU = AVX512VNNI
 #TARGET_CPU = AVX512
 TARGET_CPU = AVX2
 #TARGET_CPU = SSE42
@@ -299,7 +305,7 @@ endif
 # abe
 ifeq ($(findstring abe,$(ENGINE_BRANCH)),abe)
 	SOURCES += extra/super_sort.cpp
-	CPPFLAGS += -DPV_OUTPUT_DRAW_ONLY
+	CPPFLAGS += -DPV_OUTPUT_DRAW_ONLY -DFORCE_BIND_THIS_THREAD
 endif
 
 
@@ -310,6 +316,7 @@ endif
 # ZEN1/ZEN2はBMI2命令を使わずPEXTはSoftware Emulationしたほうが速い。
 # さらに、そのコードを使う代わりにMagic Bitboardを使うことで高速化を図る。
 # (USE_BMI2が定義されていない時、自動的にmagic bitboardが用いられる)
+# ZEN3でPEXTの速度がまともになったらしいのでZEN3以降ではBMI2命令を使うようにする。
 
 ifeq ($(TARGET_CPU),ZEN1)
 	CPPFLAGS += -DUSE_AVX2 -mbmi -mno-bmi2 -mavx2 -march=znver1
@@ -317,16 +324,26 @@ ifeq ($(TARGET_CPU),ZEN1)
 else ifeq ($(TARGET_CPU),ZEN2)
 	CPPFLAGS += -DUSE_AVX2 -mbmi -mno-bmi2 -mavx2 -march=znver2
 
+else ifeq ($(TARGET_CPU),ZEN3)
+	CPPFLAGS += -DUSE_AVX2 -DUSE_BMI2 -mbmi -mbmi2 -mavx2 -march=znver3
+
 # それ以外は、AVX512,AVX2,SSE4.2,SSE4.1,SSE2のように利用できるCPU拡張命令で振り分ける。
 # AVX2より上位のCPUなら普通は(Intel系なら)BMI2命令を使ったほうが速いので"USE_BMI2"を指定しておく。
 
-else ifeq ($(TARGET_CPU),AVX512)
-	# skylake     : -DUSE_AVX512 -DUSE_AVX512VLBWDQ -march=skylake-avx512
-	# cascadelake : -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -march=cascadelake
-	# icelake     : -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_AVX512VNNI -DUSE_AVX512VBMI -DUSE_AVX512IFMA -USE_GFNI -march=icelake-client
-	CPPFLAGS += -DUSE_AVX512 -DUSE_BMI2 -DUSE_AVX512VLBWDQ -march=skylake-avx512
+# メモ) AVX512について
+#   skylake     : -DUSE_AVX512 -DUSE_AVX512VLBWDQ -march=skylake-avx512
+#   cascadelake : -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_VNNI -march=cascadelake
+#   icelake     : -DUSE_AVX512 -DUSE_AVX512VLBWDQ -DUSE_VNNI -DUSE_AVX512VBMI -DUSE_AVX512IFMA -USE_GFNI -march=icelake-client
 
-	# NNUEのコード、USE_VNNIが指定されているとVNNI対応のコードになるようだが…。
+else ifeq ($(TARGET_CPU),AVX512VNNI)
+
+	CPPFLAGS += -DUSE_AVX512 -DUSE_VNNI -march=cascadelake
+	# NNUEのコード、USE_VNNIが指定されているとVNNI対応のコードになる。
+	# cascadelakeとicelakeとの違いがあるのかは知らないので、cascadelakeのみでいいや。
+
+else ifeq ($(TARGET_CPU),AVX512)
+
+	CPPFLAGS += -DUSE_AVX512 -DUSE_BMI2 -march=skylake-avx512
 
 else ifeq ($(TARGET_CPU),AVX2)
 	CPPFLAGS += -DUSE_AVX2 -DUSE_BMI2 -mbmi -mbmi2 -mavx2 -march=corei7-avx

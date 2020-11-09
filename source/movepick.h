@@ -39,6 +39,16 @@ public:
 
 		entry += bonus - entry * abs(bonus) / D;
 
+		// この式は、
+		// 1) bouns == D (最大値)のとき、右辺が bonus - entry になって、entry == bonud == Dとなる。
+		//     すなわち、絶対にDは超えない。
+		// 2) bonus = entry * k (kは1に近い定数とする) のとき、
+		//     右辺は　k・entry - entry*(k・entry)/D = k・entry ( 1 - entry/D ) となり、entry/D ≒ 0とみなせるとき
+		//      = k・entry = bonus となり、単なるbonusをentryに加算している意味になる。
+		//
+		// つまり、entryにbonusを加算するのだけど、その結果がDを超えないようにちょっと減算してくれるような式になっている。
+		//
+
 		ASSERT_LV3(abs(entry) <= D);
 	}
 };
