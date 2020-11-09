@@ -325,7 +325,11 @@ else ifeq ($(TARGET_CPU),ZEN2)
 	CPPFLAGS += -DUSE_AVX2 -mbmi -mno-bmi2 -mavx2 -march=znver2
 
 else ifeq ($(TARGET_CPU),ZEN3)
-	CPPFLAGS += -DUSE_AVX2 -DUSE_BMI2 -mbmi -mbmi2 -mavx2 -march=znver3
+# -march=znver3 の対応は LLVM12以降 (LLVM11のリリースは2020-10)、GCCは不明。当面は -march=znver2 を指定する。
+# https://llvm.org/docs/ReleaseNotes.html#changes-to-the-x86-target
+# https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
+#	CPPFLAGS += -DUSE_AVX2 -DUSE_BMI2 -mbmi -mbmi2 -mavx2 -march=znver3
+	CPPFLAGS += -DUSE_AVX2 -DUSE_BMI2 -mbmi -mbmi2 -mavx2 -march=znver2
 
 # それ以外は、AVX512,AVX2,SSE4.2,SSE4.1,SSE2のように利用できるCPU拡張命令で振り分ける。
 # AVX2より上位のCPUなら普通は(Intel系なら)BMI2命令を使ったほうが速いので"USE_BMI2"を指定しておく。
@@ -344,6 +348,14 @@ else ifeq ($(TARGET_CPU),AVX512VNNI)
 else ifeq ($(TARGET_CPU),AVX512)
 
 	CPPFLAGS += -DUSE_AVX512 -DUSE_BMI2 -march=skylake-avx512
+
+#else ifeq ($(TARGET_CPU),AVX2VNNI)
+# -march=alderlake 及び AVX-VNNI の対応は LLVM12以降 (LLVM11のリリースは2020-10)、GCCは不明。当面はコメントアウト。
+# https://llvm.org/docs/ReleaseNotes.html#changes-to-the-x86-target
+# https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
+# https://gcc.gnu.org/pipermail/gcc-patches/2020-October/556110.html
+# https://twitter.com/herumi/status/1318418425295720448
+#	CPPFLAGS += -DUSE_AVX2 -DUSE_VNNI -DUSE_BMI2 -march=alderlake
 
 else ifeq ($(TARGET_CPU),AVX2)
 	CPPFLAGS += -DUSE_AVX2 -DUSE_BMI2 -mbmi -mbmi2 -mavx2 -march=corei7-avx

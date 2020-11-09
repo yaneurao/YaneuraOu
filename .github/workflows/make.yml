@@ -28,7 +28,7 @@ jobs:
           - USER_ENGINE
         compiler: [ clang++-10, g++-8 ]
         target: [ "normal,tournament", "evallearn" ]
-        archcpu: [ "AVX512,AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN1", "ZEN2", "NO_SSE" ]
+        archcpu: [ "AVX512,AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN1", "AVX512VNNI,ZEN3,ZEN2", "NO_SSE" ]
         exclude:
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
@@ -38,10 +38,10 @@ jobs:
             target: evallearn
           - edition: USER_ENGINE
             target: evallearn
-          # Ubuntu-18.04 g++-8 は archcpu ZEN2 のサポートを行わない
-          # ubuntu-18.04 g++-8 will not support the archcpu ZEN2
+          # Ubuntu-18.04 g++-8 は archcpu AVX512VNNI,ZEN3,ZEN2 のサポートを行わない
+          # ubuntu-18.04 g++-8 will not support the archcpu AVX512VNNI,ZEN3,ZEN2
           - compiler: g++-8
-            archcpu: ZEN2
+            archcpu: "AVX512VNNI,ZEN3,ZEN2"
           # Linux 32bit archcpu 向けのビルドは通常はしない
           # don't usually build for Linux 32bit archcpu
           - archcpu: NO_SSE

@@ -6,7 +6,7 @@ Param(
 )
 Push-Location (Join-Path $PSScriptRoot ..\source);
 # msys2_shell.cmd -msys2 -defterm -no-start -l -c 'pacboy -Syuu --needed --noconfirm --noprogressbar toolchain:m clang:m openblas:m base-devel: msys2-devel:';
-$TGCPUS = @('ZEN2';'ZEN1';'AVX512';'AVX2';'SSE42';'SSE41';'SSSE3';'SSE2';'NO_SSE';'OTHER';);
+$TGCPUS = @('ZEN3';'ZEN2';'ZEN1';'AVX512VNNI';'AVX512';'AVX2';'SSE42';'SSE41';'SSSE3';'SSE2';'NO_SSE';'OTHER';);
 $TGCOMPILERS = @('clang++';'g++';);
 @(
   @{
