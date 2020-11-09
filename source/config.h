@@ -267,6 +267,14 @@ constexpr int MAX_PLY_NUM = 246;
 // "ThreadIdOffset"オプションと併用して、狙ったNUMAで動作することを強制することができる。
 //#define FORCE_BIND_THIS_THREAD
 
+// ---------------------
+// 探索パラメーターの自動調整用
+// ---------------------
+
+// 探索パラメーターのチューニングを行うモード
+// 実行時に"engine/yaneuraou-engine/yaneuraou-param.h" からパラメーターを読み込む。
+//#define TUNING_SEARCH_PARAMETERS
+
 
 // --------------------
 // release configurations

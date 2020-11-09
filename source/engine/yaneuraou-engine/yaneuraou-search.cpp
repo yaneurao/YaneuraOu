@@ -8,15 +8,6 @@
 
 // 計測資料置き場 : https://github.com/yaneurao/YaneuraOu/blob/master/docs/%E8%A8%88%E6%B8%AC%E8%B3%87%E6%96%99.txt
 
-
-// パラメーターを自動調整するのか(パラメーターを調整するフレームワーク等を利用する場合)
-// 自動調整が終われば、値を固定して、パラメーターファイルをincludeしたほうが良い。
-//#define USE_AUTO_TUNE_PARAMETERS
-
-// 探索パラメーターにstep分のランダム値を加えて対戦させるとき用。
-// 試合が終わったときに勝敗と、そのときに用いたパラメーター一覧をファイルに出力する。
-//#define USE_RANDOM_PARAMETERS
-
 // -----------------------
 //   includes
 // -----------------------
@@ -41,33 +32,35 @@
 // やねうら王独自追加
 // -------------------
 
-#if defined (USE_AUTO_TUNE_PARAMETERS) || defined(USE_RANDOM_PARAMETERS) || defined(ENABLE_OUTPUT_GAME_RESULT)
-#define INCLUDE_PARAMETERS
-// 試合が終わったときに勝敗と、そのときに用いたパラメーター一覧をファイルに出力する。
-// パラメーターのランダム化は行わない。
-#undef ENABLE_OUTPUT_GAME_RESULT
-#define ENABLE_OUTPUT_GAME_RESULT
-#endif
+// パラメーターの調整を行うのか
+#if defined(TUNING_SEARCH_PARAMETERS)
+	// ハイパーパラメーターを調整するときは終了時にその時のパラメーターを書き出す。
+	#define ENABLE_OUTPUT_GAME_RESULT
 
+	// パラメーターをランダムに少し変化させる。
+	// 探索パラメーターにstep分のランダム値を加えて対戦させるとき用。
+	// 試合が終わったときに勝敗と、そのときに用いたパラメーター一覧をファイルに出力する。
+	#define USE_RANDOM_PARAMETERS
 
-// ハイパーパラメーターを自動調整するときはstatic変数にしておいて変更できるようにする。
-#if defined(INCLUDE_PARAMETERS)
-#define PARAM_DEFINE static int
+	#define PARAM_DEFINE int
+	#include "yaneuraou-param.h"
 #else
-#define PARAM_DEFINE constexpr int
+	// 変更しないとき
+	#define PARAM_DEFINE constexpr int
+	#include "yaneuraou-param.h"
+
 #endif
 
 // 実行時に読み込むパラメーターファイルの名前
 #define PARAM_FILE "yaneuraou-param.h"
-#include "yaneuraou-param.h"
-
-// 定跡の指し手を選択するモジュール
-Book::BookMoveSelector book;
 
 #if defined(ENABLE_OUTPUT_GAME_RESULT)
 // 変更したパラメーター一覧と、リザルト(勝敗)を書き出すためのファイルハンドル
 static std::fstream result_log;
 #endif
+
+// 定跡の指し手を選択するモジュール
+Book::BookMoveSelector book;
 
 // USIに追加オプションを設定したいときは、この関数を定義すること。
 // USI::init()のなかからコールバックされる。
@@ -3214,72 +3207,16 @@ void init_param()
 	//   parameters.hの動的な読み込み
 	// -----------------------
 
-#if defined (INCLUDE_PARAMETERS)
+#if defined (TUNING_SEARCH_PARAMETERS)
 	{
 		std::vector<std::string> param_names = {
-			"PARAM_FUTILITY_MARGIN_ALPHA1",
-			"PARAM_FUTILITY_MARGIN_BETA" ,
-			"PARAM_FUTILITY_MARGIN_QUIET" , "PARAM_FUTILITY_RETURN_DEPTH",
-
-			"PARAM_FUTILITY_AT_PARENT_NODE_DEPTH",
-			"PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1",
-			"PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1" ,
-			"PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2" ,
-			"PARAM_LMR_SEE_MARGIN1",
-
-			"PARAM_NULL_MOVE_DYNAMIC_ALPHA","PARAM_NULL_MOVE_DYNAMIC_BETA","PARAM_NULL_MOVE_DYNAMIC_GAMMA",
-			"PARAM_NULL_MOVE_MARGIN0","PARAM_NULL_MOVE_MARGIN1","PARAM_NULL_MOVE_MARGIN2",
-			"PARAM_NULL_MOVE_MARGIN3","PARAM_NULL_MOVE_MARGIN4",
-			
-			"PARAM_NULL_MOVE_RETURN_DEPTH",
-
-			"PARAM_PROBCUT_DEPTH","PARAM_PROBCUT_MARGIN1","PARAM_PROBCUT_MARGIN2",
-
-			"PARAM_SINGULAR_EXTENSION_DEPTH","PARAM_SINGULAR_MARGIN","PARAM_SINGULAR_SEARCH_DEPTH_ALPHA",
-
-			"PARAM_PRUNING_BY_HISTORY_DEPTH","PARAM_REDUCTION_BY_HISTORY",
-			"PARAM_RAZORING_MARGIN",
-
-			"PARAM_QSEARCH_MATE1","PARAM_SEARCH_MATE1","PARAM_WEAK_MATE_PLY",
-
-			"PARAM_ASPIRATION_SEARCH_DELTA",
-
-			"PARAM_EVAL_TEMPO",
+			// このheader fileは、yaneuraou-param.hからparam_conv.pyによって自動生成される。
+			#include "param/yaneuraou-param-string.h"
 		};
 
-#if defined(INCLUDE_PARAMETERS)
 		std::vector<int*> param_vars = {
-#else
-		std::vector<const int*> param_vars = {
-#endif
-			&PARAM_FUTILITY_MARGIN_ALPHA1
-			&PARAM_FUTILITY_MARGIN_BETA,
-			&PARAM_FUTILITY_MARGIN_QUIET , &PARAM_FUTILITY_RETURN_DEPTH,
-
-			&PARAM_FUTILITY_AT_PARENT_NODE_DEPTH,
-			&PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1,
-			&PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1,
-			&PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2,
-			&PARAM_LMR_SEE_MARGIN1,
-
-			&PARAM_NULL_MOVE_DYNAMIC_ALPHA, &PARAM_NULL_MOVE_DYNAMIC_BETA,&PARAM_NULL_MOVE_DYNAMIC_GAMMA,
-			&PARAM_NULL_MOVE_MARGIN0,&PARAM_NULL_MOVE_MARGIN1,&PARAM_NULL_MOVE_MARGIN2,
-			&PARAM_NULL_MOVE_MARGIN3,&PARAM_NULL_MOVE_MARGIN4,
-
-			&PARAM_NULL_MOVE_RETURN_DEPTH,
-
-			&PARAM_PROBCUT_DEPTH, &PARAM_PROBCUT_MARGIN1, &PARAM_PROBCUT_MARGIN2,
-
-			&PARAM_SINGULAR_EXTENSION_DEPTH, &PARAM_SINGULAR_MARGIN,&PARAM_SINGULAR_SEARCH_DEPTH_ALPHA,
-
-			&PARAM_PRUNING_BY_HISTORY_DEPTH,&PARAM_REDUCTION_BY_HISTORY,
-			&PARAM_RAZORING_MARGIN,
-
-			&PARAM_QSEARCH_MATE1,&PARAM_SEARCH_MATE1,&PARAM_WEAK_MATE_PLY,
-
-			&PARAM_ASPIRATION_SEARCH_DELTA,
-
-			&PARAM_EVAL_TEMPO,
+			// このheader fileは、yaneuraou-param.hからparam_conv.pyによって自動生成される。
+			#include "param/yaneuraou-param-array.h"
 		};
 
 		std::fstream fs;
