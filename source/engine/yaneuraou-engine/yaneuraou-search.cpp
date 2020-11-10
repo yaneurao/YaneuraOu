@@ -51,8 +51,8 @@
 
 #endif
 
-// 実行時に読み込むパラメーターファイルの名前
-#define PARAM_FILE "yaneuraou-param.h"
+// 実行時に読み込むパラメーターファイルを配置するフォルダとその名前
+#define PARAM_FILE "param/yaneuraou-param.h"
 
 #if defined(ENABLE_OUTPUT_GAME_RESULT)
 // 変更したパラメーター一覧と、リザルト(勝敗)を書き出すためのファイルハンドル
@@ -97,8 +97,8 @@ void USI::extra_option(USI::OptionsMap & o)
 
 #if defined(ENABLE_OUTPUT_GAME_RESULT)
 
-#if defined(USE_AUTO_TUNE_PARAMETERS)
-	sync_cout << "info string warning!! USE_AUTO_TUNE_PARAMETERS." << sync_endl;
+#if defined(TUNING_SEARCH_PARAMETERS)
+	sync_cout << "info string warning!! TUNING_SEARCH_PARAMETERS." << sync_endl;
 #elif defined(USE_RANDOM_PARAMETERS)
 	sync_cout << "info string warning!! USE_RANDOM_PARAMETERS." << sync_endl;
 #else
@@ -174,7 +174,6 @@ namespace {
 	// 残り探索深さをこの深さだけ減らす。d(depth)とmn(move_count)
 	// i(improving)とは、評価値が2手前から上がっているかのフラグ。上がっていないなら
 	// 悪化していく局面なので深く読んでも仕方ないからreduction量を心もち増やす。
-	// TODO : パラメータ調整したほうが良いのでは。
 	Depth reduction(bool i, Depth d, int mn) {
 		int r = Reductions[d] * Reductions[mn];
 		return (r + 509) / 1024 + (!i && r > 894);
@@ -187,7 +186,9 @@ namespace {
 	// improving : 1手前の局面から評価値が上昇しているのか
 	// depth     : 残り探索depth
 	// 返し値    : 返し値よりmove_countが大きければfutility pruningを実施
-	// TODO : この " 3 + "のところ、パラメーター調整をしたほうが良いかも。
+	//
+	// この " 3 + "のところ、パラメーター調整をしたほうが良いかも知れないが、
+	// こんな細かいところいじらないほうがよさげ。(他のところでバランスを取ることにする)
 	constexpr int futility_move_count(bool improving, int depth) {
 		return (3 + depth * depth) / (2 - improving);
 	}
@@ -330,12 +331,17 @@ namespace {
 		}
 		return nodes;
 	}
+
 } // namespace 
 
 
 // 起動時に呼び出される。時間のかからない探索関係の初期化処理はここに書くこと。
 // スレッド数が変更された時にも呼び出される。
-void Search::init() {}
+void Search::init()
+{
+	// Stockfishでは、ここにReduction配列の初期化コードがあるが、
+	// そういうのは、"isready"応答(Search::clear())でやるべき。
+}
 
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
 void Search::clear()
@@ -558,6 +564,10 @@ void MainThread::search()
 	// cf. Call TT.new_search() earlier.  : https://github.com/official-stockfish/Stockfish/commit/ebc563059c5fc103ca6d79edb04bb6d5f182eaf5
 
 	TT.new_search();
+
+	// Stockfishでは評価関数の正常性のチェック、ここにあるが…。
+	// isreadyに対する応答でやっているのでここはコメントアウトしておく。
+	//Eval::NNUE::verify();
 
 	// ---------------------
 	// 各スレッドがsearch()を実行する
@@ -1921,11 +1931,6 @@ namespace {
 		// (極めて多いスレッドで探索するときに同一ノードを探索するのを回避するため)
 		ThreadHolding th(thisThread, posKey, ss->ply);
 
-		// このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
-		// evaluate()を呼び出していないなら呼び出しておく。
-		// evaluate_with_no_return(pos);
-		// →　ここに来るまでに呼び出しているはず…。
-
 		// -----------------------
 		// Step 12. Loop through moves
 		// -----------------------
@@ -1946,7 +1951,9 @@ namespace {
 				thisThread->rootMoves.end(), move))
 				continue;
 
+			// Check for legality
 			// moveの合法性をチェック。
+
 			// root nodeはlegal()だとわかっているのでこのチェックは不要。
 			// 非合法手はほとんど含まれていないから、以前はこの判定はdo_move()の直前まで遅延させたほうが得だったが、
 			// do_move()するまでの枝刈りが増えてきたので、ここでやったほうが良いようだ。
@@ -1981,7 +1988,14 @@ namespace {
 
 			// 指し手で捕獲する指し手、もしくは歩の成りである。
 			// 【検証資料 12.】extend checksのときのcaptureOrPawnPromotionをどう扱うか。
+
+			// Stockfish12のコード
+			//captureOrPawnPromotion = pos.capture(move);
+
+			// こう変えるほうが強いようだ。
 			captureOrPawnPromotion = pos.capture_or_pawn_promotion(move);
+			//captureOrPawnPromotion = pos.capture_or_promotion(move);
+
 
 			// 今回移動させる駒(移動後の駒)
 			movedPiece = pos.moved_piece_after(move);
@@ -3220,10 +3234,13 @@ void init_param()
 		};
 
 		std::fstream fs;
-		fs.open("param\\" PARAM_FILE, std::ios::in);
+
+		std::string path = Path::Combine(Directory::GetCurrentFolder(), PARAM_FILE);
+		
+		fs.open( path.c_str(), std::ios::in);
 		if (fs.fail())
 		{
-			std::cout << "info string Error! : can't read " PARAM_FILE << std::endl;
+			std::cout << "info string Error! : can't read " << path << std::endl;
 			return;
 		}
 

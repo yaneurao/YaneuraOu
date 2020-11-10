@@ -272,8 +272,10 @@ constexpr int MAX_PLY_NUM = 246;
 // ---------------------
 
 // 探索パラメーターのチューニングを行うモード
-// 実行時に"engine/yaneuraou-engine/yaneuraou-param.h" からパラメーターを読み込む。
-//#define TUNING_SEARCH_PARAMETERS
+//
+// 実行時に"param/yaneuraou-param.h" からパラメーターファイルを読み込むので
+// "source/engine/yaneuraou-engine/yaneuraou-param.h"をそこに配置すること。
+#define TUNING_SEARCH_PARAMETERS
 
 
 // --------------------
