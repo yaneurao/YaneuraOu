@@ -48,7 +48,9 @@ pushd `dirname $0`
 pushd ../source
 
 ARCHCPUS=(
+  AVX512VNNI
   AVX512
+  AVXVNNI
   AVX2
   SSE42
   SSE41
@@ -58,6 +60,7 @@ ARCHCPUS=(
   OTHER
   ZEN1
   ZEN2
+  ZEN3
 )
 
 EDITIONS=(

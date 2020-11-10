@@ -27,8 +27,8 @@ jobs:
           - MATE_ENGINE
           - USER_ENGINE
         compiler: [ x86_64-w64-mingw32-g++-posix, i686-w64-mingw32-g++-posix ]
-        target: [ "normal,tournament", "evallearn" ]
-        archcpu: [ "AVX512,AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN1", "ZEN2", "NO_SSE" ]
+        target: [ 'normal,tournament', 'evallearn' ]
+        archcpu: [ 'AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN1', 'ZEN3,ZEN2,AVX512VNNI,AVX512,AVXVNNI', 'NO_SSE' ]
         exclude:
           # NNUEの機械学習ビルドにはBLASが必要だが、現状はUbuntuのMinGWでOpenBLASを扱えない
           # NNUE's machine learning build requires BLAS, but currently Ubuntu's MinGW cannot handle OpenBLAS
@@ -48,10 +48,14 @@ jobs:
             target: evallearn
           # 32bit compiler x 64bit archcpu
           - compiler: i686-w64-mingw32-g++-posix
-            archcpu: "AVX512,AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN1"
-          # Ubuntu-18.04 MinGW は archcpu ZEN2 のサポートを行わない
-          # ubuntu-18.04 MinGW will not support the archcpu ZEN2
-          - archcpu: ZEN2
+            archcpu: 'AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN1'
+          # Ubuntu-18.04 MinGW は archcpu ZEN3,ZEN2,AVX512VNNI,AVXVNNI のサポートを行わない
+          # ubuntu-18.04 MinGW will not support the archcpu ZEN3,ZEN2,AVX512VNNI,AVXVNNI
+          # AVX512VNNI, AVX512, AVXVNNI: NNUE is not yet a code that uses VNNI
+          # `-march=cascadelake`: LLVM8, GCC9 support (AVX512VNNI)
+          # `-march=alderlake` : LLVM12, GCC11 support (AVX-VNNI)
+          # `-march=znver3`: LLVM12 support
+          - archcpu: 'ZEN3,ZEN2,AVX512VNNI,AVX512,AVXVNNI'
           # 64bit compiler x 32bit archcpu
           - compiler: x86_64-w64-mingw32-g++-posix
             archcpu: NO_SSE
