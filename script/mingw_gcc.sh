@@ -50,6 +50,7 @@ pushd ../source
 ARCHCPUS=(
   AVX512VNNI
   AVX512
+  AVXVNNI
   AVX2
   SSE42
   SSE41
