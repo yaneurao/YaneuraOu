@@ -144,8 +144,10 @@ jobs:
       - name: copy docs
         run: |
           cp main/Copying.txt release/windows
+          cp -r main/source/ release/windows
           cp -r main/docs/ release/windows
           cp main/Copying.txt release/android
+          cp -r main/source/ release/andorid
           cp -r main/docs/ release/android
       - name: Display structure of release files
         run: ls -R
