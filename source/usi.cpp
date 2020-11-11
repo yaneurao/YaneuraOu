@@ -292,18 +292,6 @@ void is_ready(bool skipCorruptCheck)
 	Eval::EvalHash_Resize(Options["EvalHash"]);
 #endif
 
-	// 初回初期化
-	static bool init = false;
-	if (!init)
-	{
-		// eHashのクリアもこのタイミングで行うことにする。
-		// (大きめのものを確保していると時間がかかるため)
-#if defined (USE_EVAL_HASH)
-		Eval::EvalHash_Clear();
-#endif
-		init = true;
-	}
-
 	// 評価関数の読み込みなど時間のかかるであろう処理はこのタイミングで行なう。
 	// 起動時に時間のかかる処理をしてしまうと将棋所がタイムアウト判定をして、思考エンジンとしての認識をリタイアしてしまう。
 	if (!USI::load_eval_finished)
@@ -333,7 +321,10 @@ void is_ready(bool skipCorruptCheck)
 	TT.resize(size_t(Options["USI_Hash"]));
 
 	Search::clear();
-//	Time.availableNodes = 0;
+
+#if defined (USE_EVAL_HASH)
+	Eval::EvalHash_Clear();
+#endif
 
 	Threads.stop = false;
 }
@@ -341,9 +332,12 @@ void is_ready(bool skipCorruptCheck)
 // isreadyコマンド処理部
 void is_ready_cmd(Position& pos, StateListPtr& states)
 {
-	// 対局ごとに"isready","usinewgame"の両方が来るはずだが、
-	// "isready"は起動後に1度だけしか来ないGUI実装がありうるかも知れない。
-	// 将棋では、"isready"が毎回来るようなので、"usinewgame"のほうは無視して、
+	// 対局ごとに"isready","usinewgame"の両方が来る。
+	// "isready"が起動後に1度だけしか来ないようなGUI実装は、
+	// 実装上の誤りであるから修正すべきである。)
+
+	// 少なくとも将棋のGUI(将棋所、ShogiGUI、将棋神やねうら王)では、
+	// "isready"が毎回来るようなので、"usinewgame"のほうは無視して、
 	// "isready"に応じて評価関数、定跡、探索部を初期化する。
 
 	is_ready();
@@ -719,7 +713,10 @@ void USI::loop(int argc, char* argv[])
 		// "usinewgame"はゲーム中にsetoptionなどを送らないことを宣言するためのものだが、
 		// 我々はこれに関知しないので単に無視すれば良い。
 		// やねうら王では、時間のかかる初期化はisreadyの応答でやっている。
-		// Stockfishでは、Search::clear()をここで呼び出しているようだが。
+		// Stockfishでは、Search::clear() (時間のかかる処理)をここで呼び出しているようだが。
+		// そもそもで言うと、"usinewgame"に対してはエンジン側は何ら応答を返さないので、
+		// GUI側は、エンジン側が処理中なのかどうかが判断できない。
+		// なのでここで長い時間のかかる処理はすべきではないと思うのだが。
 		else if (token == "usinewgame") continue;
 
 		// 思考エンジンの準備が出来たかの確認
