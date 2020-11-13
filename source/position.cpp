@@ -1742,8 +1742,17 @@ void Position::do_null_move(StateInfo& newSt) {
 	// この場合、StateInfo自体は丸ごとコピーしておかないといけない。(他の初期化をしないので)
 	// よく考えると、StateInfo、新しく作る必要もないのだが…。まあ、CheckInfoがあるので仕方ないか…。
 	std::memcpy(&newSt, st, sizeof(StateInfo));
+
+	// TODO : NNUEの場合、accumulatorのコピー不要なのでは…？
+	//std::memcpy(&newSt, st, offsetof(StateInfo, accumulator));
+
 	newSt.previous = st;
 	st = &newSt;
+
+#if defined(EVAL_NNUE)
+	// NNUEの場合、KPPT型と違って、手番が違う場合、計算なしに済ますわけにはいかない。
+	st->accumulator.computed_score = false;
+#endif
 
 	st->board_key_ ^= Zobrist::side;
 
@@ -1758,19 +1767,23 @@ void Position::do_null_move(StateInfo& newSt) {
 	// これは、さっきアクセスしたところのはずなので意味がない。
 	//  Eval::prefetch_evalhash(key);
 
-#if defined(EVAL_NNUE)
-#if defined(USE_EVAL_HASH)
+#if defined(EVAL_NNUE) && defined(USE_EVAL_HASH)
+	// NNUEのEvalHashの場合、手番が違うと異なるentry(のはず)
 	Eval::prefetch_evalhash(key);
 #endif
-	// NNUEの場合、KPPT型と違って、手番が違う場合、計算なしに済ますわけにはいかない。
-	st->accumulator.computed_score = false;
-#endif
+
+	//++st->rule50;
 
 	st->pliesFromNull = 0;
 
 	sideToMove = ~sideToMove;
 
 	set_check_info<true>(st);
+
+	//st->repetition = 0;
+
+	//assert(pos_is_ok());
+
 }
 
 void Position::undo_null_move()

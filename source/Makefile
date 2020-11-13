@@ -84,6 +84,8 @@ LDFLAGS  =
 LIBS     =
 INCLUDE  = # -I../include
 
+# makeするときにCPPFLAGSを追加で指定したいときはこれを用いる。
+EXTRA_CPPFLAGS = 
 
 # === implementations ===
 
@@ -371,7 +373,7 @@ else ifeq ($(TARGET_CPU),OTHER)
 endif
 
 
-CPPFLAGS += -DUSE_MAKEFILE -D$(YANEURAOU_EDITION)
+CPPFLAGS += -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) $(EXTRA_CPPFLAGS)
 
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
 DEPENDS  = $(OBJECTS:.o=.d)

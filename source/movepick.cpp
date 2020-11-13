@@ -188,7 +188,7 @@ void MovePicker::score()
 			// MVV-LVAだが、将棋ではLVAあんまり関係なさげだが(複数の駒である1つの駒が取れるケースがチェスより少ない)、
 			// Stockfish 9に倣いMVV + captureHistoryで処理する。
 
-			// TODO:歩の成りは別途考慮してもいいような気はするのだが…。
+			// 歩の成りは別途考慮してもいいような気はするのだが…。
 
 			m.value = int(Eval::CapturePieceValue[pos.piece_on(to_sq(m))])*6
 					+ (*captureHistory)[to_sq(m)][pos.moved_piece_after(m)][type_of(pos.piece_on(to_sq(m)))];
@@ -196,6 +196,9 @@ void MovePicker::score()
 		else if (Type == QUIETS)
 		{
 			// 駒を取らない指し手をオーダリングする。
+			// ここ、歩以外の成りも含まれているのだが…。
+			// →　指し手オーダリングは、quietな指し手の間での優劣を付けたいわけで、
+			//    駒を成るような指し手はどうせevaluate()で大きな値がつくからそっちを先に探索することになる。
 
 			Piece movedPiece = pos.moved_piece_after(m);
 			Square movedSq = to_sq(m);

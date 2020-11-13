@@ -1,63 +1,49 @@
 ﻿#ifndef _POSITION_H_
 #define _POSITION_H_
+#include <deque>
+#include <memory> // For std::unique_ptr
 
-#include "types.h"
 #include "bitboard.h"
 #include "evaluate.h"
-#include "extra/key128.h"
-#include "extra/long_effect.h"
-#include "misc.h"
-
-#include <deque>
-#include <memory> // std::unique_ptr
-
+#include "types.h"
 
 #if defined(EVAL_NNUE)
 #include "eval/nnue/nnue_accumulator.h"
 #endif
 
-class Thread;
-
-// --------------------
-//     局面の定数
-// --------------------
-
-// 平手の開始局面
-extern std::string SFEN_HIRATE;
+#include "extra/key128.h"
+#include "extra/long_effect.h"
+#include "misc.h"
 
 // --------------------
 //     局面の情報
 // --------------------
 
+/// StateInfo struct stores information needed to restore a Position object to
+/// its previous state when we retract a move. Whenever a move is made on the
+/// board (by calling Position::do_move), a StateInfo object must be passed.
+
 // StateInfoは、undo_move()で局面を戻すときに情報を元の状態に戻すのが面倒なものを詰め込んでおくための構造体。
 // do_move()のときは、ブロックコピーで済むのでそこそこ高速。
-struct StateInfo
-{
+
+struct StateInfo {
+
+	// Copied when making a move
+	// 指し手で局面を進めるときにコピーされる。
+
 	// 遡り可能な手数(previousポインタを用いて局面を遡るときに用いる)
 	int pliesFromNull;
 
-	// この手番側の連続王手は何手前からやっているのか(連続王手の千日手の検出のときに必要)
-	int continuousCheck[COLOR_NB];
+	// Not copied when making a move (will be recomputed anyhow)
+	// 指し手で局面を進めるときにコピーされない(なんにせよ再計算される)
 
-	// 現局面で手番側に対して王手をしている駒のbitboard
-	Bitboard checkersBB;
+	//  Key        key;
 
-	// 動かすと手番側の王に対して空き王手になるかも知れない駒の候補
-	// チェスの場合、駒がほとんどが大駒なのでこれらを動かすと必ず開き王手となる。
-	// 将棋の場合、そうとも限らないので移動方向について考えなければならない。
-	// color = 手番側 なら pinされている駒(動かすと開き王手になる)
-	// color = 相手側 なら 両王手の候補となる駒。
+	// 盤面(盤上の駒)と手駒に関するhash key
+	// 直接アクセスせずに、hand_key()、board_key(),key()を用いること。
 
-	// 自玉に対して(敵駒によって)pinされている駒
-	Bitboard blockersForKing[COLOR_NB];
-
-	// 自玉に対してpinしている(可能性のある)敵の大駒。
-	// 自玉に対して上下左右方向にある敵の飛車、斜め十字方向にある敵の角、玉の前方向にある敵の香、…
-	Bitboard pinners[COLOR_NB];
-
-	// 自駒の駒種Xによって敵玉が王手となる升のbitboard
-	Bitboard checkSquares[PIECE_WHITE];
-
+	HASH_KEY board_key_;
+	HASH_KEY hand_key_;
 
 	// この局面のハッシュキー
 	// ※　次の局面にdo_move()で進むときに最終的な値が設定される
@@ -74,14 +60,48 @@ struct StateInfo
 	HASH_KEY board_long_key()     const { return board_key_; }
 	HASH_KEY hand_long_key()      const { return hand_key_; }
   
-	// この局面における手番側の持ち駒。優等局面の判定のために必要。
-	Hand hand;
+	// 現局面で手番側に対して王手をしている駒のbitboard
+	Bitboard checkersBB;
 
 	// この局面で捕獲された駒。先後の区別あり。
 	// ※　次の局面にdo_move()で進むときにこの値が設定される
 	Piece capturedPiece;
 
-	friend class Position;
+	// 一つ前の局面に遡るためのポインタ。
+	// この値としてnullptrが設定されているケースは、
+	// 1) root node
+	// 2) 直前がnull move
+	// のみである。
+	// 評価関数を差分計算するときに、
+	// 1)は、compute_eval()を呼び出して差分計算しないからprevious==nullで問題ない。
+	// 2)は、このnodeのEvalSum sum(これはdo_move_null()でコピーされている)から
+	//   計算出来るから問題ない。
+	StateInfo* previous;
+
+	// 動かすと手番側の王に対して空き王手になるかも知れない駒の候補
+	// チェスの場合、駒がほとんどが大駒なのでこれらを動かすと必ず開き王手となる。
+	// 将棋の場合、そうとも限らないので移動方向について考えなければならない。
+	// color = 手番側 なら pinされている駒(動かすと開き王手になる)
+	// color = 相手側 なら 両王手の候補となる駒。
+
+	// 自玉に対して(敵駒によって)pinされている駒
+	Bitboard blockersForKing[COLOR_NB];
+
+	// 自玉に対してpinしている(可能性のある)敵の大駒。
+	// 自玉に対して上下左右方向にある敵の飛車、斜め十字方向にある敵の角、玉の前方向にある敵の香、…
+	Bitboard pinners[COLOR_NB];
+
+	// 自駒の駒種Xによって敵玉が王手となる升のbitboard
+	Bitboard checkSquares[PIECE_TYPE_NB];
+
+//  循環局面の何回目であるか  
+//	int        repetition;
+
+	// この手番側の連続王手は何手前からやっているのか(連続王手の千日手の検出のときに必要)
+	int continuousCheck[COLOR_NB];
+  
+	// この局面における手番側の持ち駒。優等局面の判定のために必要。
+	Hand hand;
 
 	// --- evaluate
 
@@ -105,10 +125,6 @@ struct StateInfo
 	Eval::DirtyPiece dirtyPiece;
 #endif
 
-#if defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT)
-	// 評価関数で用いる、前回のencoded_eval_kkを保存しておく。
-	int encoded_eval_kk;
-#endif
 
 #if defined(KEEP_LAST_MOVE)
 	// 直前の指し手。デバッグ時などにおいてその局面までの手順を表示出来ると便利なことがあるのでそのための機能
@@ -118,28 +134,17 @@ struct StateInfo
 	PieceType lastMovedPieceType;
 #endif
 
-	// 盤面(盤上の駒)と手駒に関するhash key
-	// 直接アクセスせずに、hand_key()、board_key(),key()を用いること。
-
-	HASH_KEY board_key_;
-	HASH_KEY hand_key_;
-
-	// 一つ前の局面に遡るためのポインタ。
-	// この値としてnullptrが設定されているケースは、
-	// 1) root node
-	// 2) 直前がnull move
-	// のみである。
-	// 評価関数を差分計算するときに、
-	// 1)は、compute_eval()を呼び出して差分計算しないからprevious==nullで問題ない。
-	// 2)は、このnodeのEvalSum sum(これはdo_move_null()でコピーされている)から
-	//   計算出来るから問題ない。
-	StateInfo* previous;
-
-	// Bitboardクラスにはalignasが指定されているが、StateListPtrは、このStateInfoクラスを内部的にnewするときに
-	// alignasを無視するのでcustom allocatorを定義しておいてやる。
-	void* operator new(std::size_t s);
-	void operator delete(void*p) noexcept;
 };
+
+class Thread;
+
+// --------------------
+//     局面の定数
+// --------------------
+
+// 平手の開始局面
+extern std::string SFEN_HIRATE;
+
 
 // setup moves("position"コマンドで設定される、現局面までの指し手)に沿った局面の状態を追跡するためのStateInfoのlist。
 // 千日手の判定のためにこれが必要。std::dequeを使っているのは、StateInfoがポインターを内包しているので、resizeに対して
@@ -589,6 +594,11 @@ public:
 	// NNUE halfKPE9で局面の差分計算をするときに用いる
 #if defined(USE_BOARD_EFFECT_PREV)
 	// 前局面のboard_effect（評価値の差分計算用）
+
+	// 構造的には、StateInfoが持つべきなのだが、探索のほうで
+	// do_move()して次のnodeのsearch()が呼び出された直後にしかevaluate()は
+	// 呼び出さないので、do_move()でこの利きをboard_effectからコピーすれば
+	// KPE9の差分計算で困ることはない。
 	LongEffect::ByteBoard board_effect_prev[COLOR_NB];
 #endif
 

@@ -275,7 +275,7 @@ constexpr int MAX_PLY_NUM = 246;
 //
 // 実行時に"param/yaneuraou-param.h" からパラメーターファイルを読み込むので
 // "source/engine/yaneuraou-engine/yaneuraou-param.h"をそこに配置すること。
-#define TUNING_SEARCH_PARAMETERS
+//#define TUNING_SEARCH_PARAMETERS
 
 
 // --------------------
@@ -291,7 +291,11 @@ constexpr int MAX_PLY_NUM = 246;
 // 探索部は通常のやねうら王エンジンを用いる。
 #define YANEURAOU_ENGINE
 
+// EvalHashを用いるのは3駒型のみ。それ以外は差分計算用の状態が大きすぎてhitしたところでどうしようもない。
+#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT)
 #define USE_EVAL_HASH
+#endif
+
 #define USE_SEE
 #define USE_MATE_1PLY
 #define USE_ENTERING_KING_WIN
