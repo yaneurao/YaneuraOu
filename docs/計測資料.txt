@@ -5,6 +5,35 @@
 　例えば探索部で「【計測資料 1.】」とコメントがあれば、このファイルの「■　1.」のところにその詳しい内容がある。
 
 
+■　38. reverse_moveのSEEで、reduction
+
+					else if (   type_of(move) == NORMAL
+							&& !pos.see_ge(reverse_move(move)))
+						r -= 2 + ss->ttPv - (type_of(movedPiece) == PAWN);
+
+engine1 = YaneuraOu2018NNUE_V530.exe , eval = tanuki2018_nnue
+engine2 = YaneuraOu2018NNUE_V530b.exe , eval = tanuki2018_nnue
+T2,b1000,1455 - 113 - 1432(50.4% R2.77[-7.87,13.4]) winrate black , white = 52.65% , 47.35%
+T2,b2000,1486 - 152 - 1362(52.18% R15.14[4.42,25.85]) winrate black , white = 52.25% , 47.75%
+
+// これは駄目そう。
+
+
+■　37. update_quiet_stats()で、歩以外に対してreverse_moveにペナルティ。
+
+
+		if (type_of(pos.moved_piece_after(move)) != PAWN && !is_drop(move))
+			thisThread->mainHistory[from_to(reverse_move(move))][us] << -bonus;
+
+
+engine1 = YaneuraOu2018NNUE_V530.exe , eval = tanuki2018_nnue
+engine2 = YaneuraOu2018NNUE_V530a.exe , eval = tanuki2018_nnue
+T2,b1000,1443 - 103 - 1454(49.81% R-1.32[-11.94,9.3]) winrate black , white = 50.6% , 49.4%
+T2,b2000,1386 - 134 - 1480(48.36% R-11.4[-22.08,-0.72]) winrate black , white = 51.85% , 48.15%
+
+	// 入れたほうがよさげ
+
+
 ■　36.insertion_sortにSuperSort導入
 
 	engine1 = YaneuraOu2018NNUE_gcc_learn20190610a.exe , eval = tanuki2018_nnue-best

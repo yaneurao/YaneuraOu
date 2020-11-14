@@ -699,3 +699,81 @@ WindowsのLarge Pageという方法で置換表用のメモリを確保すると
 
 なお、KPPT/KPP_KKPT型の評価関数の場合は、EvalShareがオン(default)の場合、Large Pageは(使える環境であっても)使いません。
 EvalShareをオフにする必要があります。NNUE型は、EvalShareの機能がないため、Large Pageを使います。(使えるなら)
+
+
+■　探索パラメーターのチューニングについて
+
+TUNING_SEARCH_PARAMETERSをdefineしてコンパイルすると探索パラメーターのチューニング用のエンジンが得られます。
+
+makeコマンドの例)
+make clean YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE
+make -j8 tournament COMPILER=clang++ EXTRA_CPPFLAGS=-DTUNING_SEARCH_PARAMETERS YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE TARGET_CPU=AVX2
+
+このエンジンは起動時に、
+	info string warning!! TUNING_SEARCH_PARAMETERS.
+と表示されます。
+
+探索パラメーターは、
+source/engine/yaneuraou-engine/yaneuraou-param.h
+で定義されています。
+
+例)
+// [PARAM] min:12,max:40,step:1,interval:2,time_rate:1, fixed
+PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 17;
+
+min,maxはこのパラメーターの最小・最大値
+stepは可変させる量。
+intervalは、stepを何個分まで広げるかという量。
+末尾にfixedと書いてあるパラメーターは、可変させないの意味。
+例)
+PARAM_ASPIRATION_SEARCH_DELTA = 17で
+step:3,interval:2なら
+17-6,17-3,17+0,17+3,17+6
+の5通りの値がランダムに試されます。
+
+source/engine/yaneuraou-engine/yaneuraou-param.h
+を少し書き換えて
+source/engine/yaneuraou-engine/param/
+のほうにコピーしてやる必要があるのですが、これを行うPythonのスクリプトが
+source/engine/yaneuraou-engine/param_conv.py
+です。
+
+これでそのあと基準ソフトと連続対局させます。
+そうすると、勝敗とそのときのパラメーターが以下のように勝敗ログに書き出されます。
+
+gameover lose
+PARAM_FUTILITY_MARGIN_ALPHA1:178,PARAM_FUTILITY_MARGIN_BETA:163,PARAM_FUTILITY_MARGIN_QUIET:130,PARAM_FUTILITY_RETURN_DEPTH:5,PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1:278,PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2:18,PARAM_LMR_SEE_MARGIN1:246,PARAM_REDUCTION_ALPHA:485,PARAM_NULL_MOVE_DYNAMIC_ALPHA:972,PARAM_NULL_MOVE_DYNAMIC_BETA:110,PARAM_NULL_MOVE_DYNAMIC_GAMMA:192,PARAM_NULL_MOVE_MARGIN0:24477,PARAM_NULL_MOVE_MARGIN1:24,PARAM_NULL_MOVE_MARGIN3:87,PARAM_NULL_MOVE_MARGIN4:177,PARAM_NULL_MOVE_RETURN_DEPTH:12,PARAM_PROBCUT_MARGIN1:201,PARAM_REDUCTION_BY_HISTORY:4578,PARAM_RAZORING_MARGIN:510,
+
+この出力先のフォルダはエンジンオプションのPARAMETERS_LOG_FILE_PATHで変更できます。
+例) エンジンを起動してからUSIコマンドで
+setoption name PARAMETERS_LOG_FILE_PATH value \\WS2012_860C_YAN\yanehome2\result_log\param_920_%%THREAD_NUMBER%%.log
+
+これを集計するスクリプトが
+	script/analyze_result_log.py
+です。
+
+このスクリプトで集計すると、
+total : 1276 - 142 - 1065(54.51% R31.4)
+  total : 1276 - 142 - 1065(54.51% R31.4)
+PARAM_FUTILITY_MARGIN_ALPHA1:
+  163 : 223 - 21 - 161(58.07% R56.59)
+  168 : 226 - 38 - 228(49.78% R-1.53)
+  173 : 259 - 26 - 220(54.07% R28.35)
+  178 : 283 - 29 - 212(57.17% R50.18)
+  183 : 285 - 28 - 244(53.88% R26.98)
+PARAM_FUTILITY_MARGIN_BETA:
+  162 : 434 - 40 - 397(52.23% R15.48)
+  165 : 398 - 52 - 301(56.94% R48.53)
+  168 : 444 - 50 - 367(54.75% R33.09)
+PARAM_FUTILITY_MARGIN_QUIET:
+  127 : 439 - 47 - 375(53.93% R27.37)
+  130 : 503 - 58 - 390(56.33% R44.2)
+  133 : 334 - 37 - 300(52.68% R18.65)
+…
+
+のようなそれぞれのパラメーターをいくらにしたときに基準ソフトに対して勝率がどうであるかという表が出力されます。
+
+パラメーターの自動調整を行うなら、これをもとに、
+source/engine/yaneuraou-engine/yaneuraou-param.h
+で定義されている値をよさげな方向に動かすとか、何かパラメーターの自動調整フレームワークと
+組み合わせるだとかすると良いでしょう。
