@@ -263,6 +263,12 @@ void TranspositionTable::init_tt_per_thread()
 	// スレッド数
 	size_t thread_size = Threads.size();
 
+	// エンジン終了時にThreads.set(0)で全スレッド終了させるコードが書いてあるので、
+	// そのときに、Threads.size() == 0の状態で呼び出される。
+	// ここで抜けないと、このあとゼロ除算することになる。
+	if (thread_size == 0)
+		return;
+
 	// 1スレッドあたりのクラスター数(端数切捨て)
 	// clusterCountは2の倍数でないと駄目なので、端数を切り捨てるためにLSBを0にする。
 	size_t clusterCountPerThread = (clusterCount / thread_size) & ~(size_t)1;
