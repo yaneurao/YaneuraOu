@@ -2,11 +2,14 @@
 
 JOBS=`grep -c ^processor /proc/cpuinfo 2>/dev/null`
 
+DEBUG='off'
 EDITIONS='*'
 
 while getopts c:e:t: OPT
 do
   case $OPT in
+    d) DEBUG="$OPTARG"
+      ;;
     e) EDITIONS="$OPTARG"
       ;;
   esac
@@ -52,7 +55,7 @@ for EDITION in ${EDITIONS[@]}; do
       BUILDDIR=build/android/${DIRSTR[$EDITION]}
       mkdir -p ${BUILDDIR}
       ndk-build clean YANEURAOU_EDITION=${EDITION}
-      ndk-build YANEURAOU_EDITION=${EDITION} V=1 -j${JOBS} > >(tee ${BUILDDIR}/build.log) || exit $?
+      ndk-build YANEURAOU_EDITION=${EDITION} DEBUG=${DEBUG} V=1 -j${JOBS} > >(tee ${BUILDDIR}/build.log) || exit $?
       bash -c "cp libs/**/* ${BUILDDIR}"
       ndk-build clean YANEURAOU_EDITION=${EDITION}
       break

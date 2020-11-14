@@ -21,6 +21,7 @@ MAKEFILE=Makefile
 JOBS=`grep -c ^processor /proc/cpuinfo 2>/dev/null`
 
 COMPILERS="clang++,g++"
+DEBUG='off'
 EDITIONS='*'
 TARGETS='*'
 
@@ -28,6 +29,8 @@ while getopts c:e:t: OPT
 do
   case $OPT in
     c) COMPILERS="$OPTARG"
+      ;;
+    d) DEBUG="$OPTARG"
       ;;
     e) EDITIONS="$OPTARG"
       ;;
@@ -128,7 +131,7 @@ for COMPILER in ${COMPILERSARR[@]}; do
                     echo "* target: ${TARGET}"
                     TGSTR=${FILESTR[$EDITION]}-msys2-${CSTR}-${TARGET}
                     ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} TARGET_CPU=${CPU} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
+                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} DEBUG=${DEBUG} TARGET_CPU=${CPU} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
                     cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
                     set -f
                     break

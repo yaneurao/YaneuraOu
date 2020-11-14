@@ -18,16 +18,19 @@ JOBS=`grep -c ^processor /proc/cpuinfo 2>/dev/null`
 
 ARCHCPUS='*'
 COMPILERS="clang++,g++"
+DEBUG='off'
 EDITIONS='*'
 OS='linux'
 TARGETS='*'
 
-while getopts a:c:e:o:t: OPT
+while getopts a:c:d:e:o:t: OPT
 do
   case $OPT in
     a) ARCHCPUS="$OPTARG"
       ;;
     c) COMPILERS="$OPTARG"
+      ;;
+    d) DEBUG="$OPTARG"
       ;;
     e) EDITIONS="$OPTARG"
       ;;
@@ -131,7 +134,7 @@ for COMPILER in ${COMPILERSARR[@]}; do
                     echo "* archcpu: ${ARCHCPU}"
                     TGSTR=${FILESTR[$EDITION]}-${OS}-${CSTR}-${TARGET}-${ARCHCPU}
                     ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
-                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} TARGET_CPU=${ARCHCPU} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
+                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} TARGET_CPU=${ARCHCPU} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} DEBUG=${DEBUG} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
                     cp YaneuraOu-by-gcc ${BUILDDIR}/${TGSTR}
                     ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITION}
                     break

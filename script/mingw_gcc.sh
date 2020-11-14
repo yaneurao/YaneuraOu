@@ -18,6 +18,7 @@ JOBS=`grep -c ^processor /proc/cpuinfo 2>/dev/null`
 
 ARCHCPUS='*'
 COMPILERS="x86_64-w64-mingw32-g++-posix,i686-w64-mingw32-g++-posix"
+DEBUG='off'
 EDITIONS='*'
 OS='Windows_NT'
 TARGETS='*'
@@ -28,6 +29,8 @@ do
     a) ARCHCPUS="$OPTARG"
       ;;
     c) COMPILERS="$OPTARG"
+      ;;
+    d) DEBUG="$OPTARG"
       ;;
     e) EDITIONS="$OPTARG"
       ;;
@@ -124,7 +127,7 @@ for COMPILER in ${COMPILERSARR[@]}; do
                     echo "* archcpu: ${ARCHCPU}"
                     TGSTR=${FILESTR[$EDITION]}-windows-${CSTR}-${TARGET}-${ARCHCPU}
                     ${MAKE} -f ${MAKEFILE} clean OS=${OS} YANEURAOU_EDITION=${EDITION}
-                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} OS=${OS} TARGET_CPU=${ARCHCPU} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
+                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} OS=${OS} TARGET_CPU=${ARCHCPU} YANEURAOU_EDITION=${EDITION} COMPILER=${COMPILER} DEBUG=${DEBUG} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
                     cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
                     ${MAKE} -f ${MAKEFILE} clean OS=${OS} YANEURAOU_EDITION=${EDITION}
                     break
