@@ -464,7 +464,8 @@ void Position::set_state(StateInfo* si) const {
 	// --- bitboard
 
 	// この局面で自玉に王手している敵駒
-	st->checkersBB = attackers_to(~sideToMove, king_square(sideToMove));
+	Square ksq = king_square(sideToMove);
+	st->checkersBB = ksq == SQ_NB ? ZERO_BB : attackers_to(~sideToMove, ksq);
 
 	// 王手情報の初期化
 	set_check_info<false>(si);
@@ -639,7 +640,7 @@ Bitboard Position::slider_blockers(Color c, Square s , Bitboard& pinners) const 
 // (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
 Bitboard Position::attackers_to(Color c, Square sq, const Bitboard& occ) const
 {
-	ASSERT_LV3(is_ok(c) && sq <= SQ_NB);
+	ASSERT_LV3(is_ok(c) && sq < SQ_NB);
 
 	Color them = ~c;
 
@@ -666,7 +667,7 @@ Bitboard Position::attackers_to(Color c, Square sq, const Bitboard& occ) const
 // (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
 Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 {
-	ASSERT_LV3(sq <= SQ_NB);
+	ASSERT_LV3(sq < SQ_NB);
 
 	// sqの地点に敵駒ptをおいて、その利きに自駒のptがあればsqに利いているということだ。
 	return
@@ -698,7 +699,7 @@ Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 // 打ち歩詰め判定に使う。王に打ち歩された歩の升をpawn_sqとして、c側(王側)のpawn_sqへ利いている駒を列挙する。香が利いていないことは自明。
 inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 {
-	ASSERT_LV3(is_ok(c) && pawn_sq <= SQ_NB);
+	ASSERT_LV3(is_ok(c) && pawn_sq < SQ_NB);
 
 	Color them = ~c;
 	const Bitboard& occ = pieces();
@@ -2349,7 +2350,8 @@ bool Position::pos_is_ok() const
 #endif
 
 	// 3) 王手している駒
-	if (st->checkersBB != attackers_to(~sideToMove, king_square(sideToMove)))
+	Square ksq = king_square(sideToMove);
+	if (ksq != SQ_NB && st->checkersBB != attackers_to(~sideToMove, ksq))
 		return false;
 
 	// 4) 相手玉が取れるということはないか
