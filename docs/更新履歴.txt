@@ -8,6 +8,115 @@
 
 
 
+■　2020/11/16
+
+
+
+- V5.32リリース
+
+
+- 片玉局面に対するコメント追加。
+	- 王様がSQ_NBにいることを想定したコードに(元からPositionクラスはなってるはずだが)
+	- 関連 : https://github.com/yaneurao/YaneuraOu/pull/130
+
+
+■　2020/11/15
+
+
+- EVAL_LEARNをつけていると終了時にゼロ除算していたのを修正。
+	- Tamaさん、Qhapaqさん、Mizarさん。サンクス。
+		- cf. https://twitter.com/JKishi18gou/status/1327621478850826241
+
+
+■　2020/11/14
+
+
+- 探索パラメーターの(自動？)チューニングについて、解説.txtに説明を追加。
+
+
+■　2020/11/13
+
+
+- MakefileにEXTRA_CPPFLAGS追加
+- position.h/.cpp整理
+- コメントいくつか追加
+
+
+■　2020/11/11
+
+
+- EvalHash、"isready"応答で毎回クリアするように変更。
+
+// やねうら王系でEvalHash有効にしてて(してない人はしてないかも知れないけども)、tournamentモードだと、デフォルトで1024MB。短い時間の連続自己対局だと、ここにそこそこ開始局面付近のhash値が残るので、自己対局でわずかに有利みたいな理屈はあることに気づきました:disappointed_relieved: 
+// これ無効化するエンジンオプションが存在しないですし、(仮にEvalHashを使用するほうが強いとしたら)自己対局のときに無効化するのが正しいのかどうかよくわかりません。
+// しかし、EvalHash、エンジン起動後の1回目しかクリアしてないのはいずれにしてもおかしい気はします。😅 ここで、計測にノイズが入るのちょっと嫌なので…。
+
+
+■　2020/11/10
+
+
+- 自動パラメーター調整のコード、Path.Combine()忘れていたので追加。
+
+- 探索部、コメントの追加。
+
+
+
+- build: add archcpu ZEN3,AVX512VNNI #129 (Mizarさんのプルリク)
+
+	ビルド関係の archcpu ZEN3, AVX512VNNI 対応作業
+
+	Makefile で TARGET_CPU=ZEN3 の場合、-march=znver3 の代わりに -march=znver2 を指定。
+
+	-march=znver3 が使えるのはLLVM12からで、LLVM12は現時点ではリリースされていません
+
+	AVX-VNNI (AVX512-VNNIの非512bit版), -march=alderlake もLLVM12から対応。
+
+	Ubuntu 18.04 g++, MinGW でのビルドチェックにおいて ZEN3, AVX512VNNI を除外
+
+	g++-8 系では -march=cascadelake, -march=znver2, -march=znver2 のいずれも未対応
+
+	リリース用ビルドについては AVX512 を除外、 AVX512VNNI を追加
+
+
+■　2020/11/09
+
+
+- 自動パラメーター調整フレームワーク導入
+	- source/engine/yaneuraou-engine/yaneuraou-param-common.h追加
+	- TUNING_SEARCH_PARAMETERS コンパイルオプション追加。
+
+- パラメーターの自動変換スクリプト(Python用)追加
+	- source/engine/yaneuraou-engine/param_conv.py追加
+		#    yaneuraou-param.h から
+		# 1) yaneuraou-param-extern.h
+		# 2) yaneuraou-param-array.h
+		# 3) yaneuraou-param-string.h
+		# を自動生成するPythonのスクリプトです。
+
+
+
+- AVX512対応 Makefile
+
+- FORCE_BIND_THIS_THREADコンパイルオプション追加
+
+- 金と小駒の成りを区別するDISTINGUISH_GOLDS、変更忘れてた箇所を修正。
+
+- MovePickerなど、説明用のコメントいくつか追加。
+
+
+
+- 金と小駒の成りを区別するDISTINGUISH_GOLDS導入。(tttakさんのコードより)
+	- cf. https://github.com/tttak/YaneuraOu/blob/NNUE-features/source/eval/evaluate_bona_piece.cpp
+
+- mulhi、バグる環境なんてなかったのでmiscからUnitTestのコード削除
+
+- thread.cpp、コメント追加。
+	- スレッド数変更時にsearch::init()を呼び出すようにした。
+
+- probcutの適用depthのコード、間違ってたの修正。
+
+
+
 ■　2020/11/08
 
 
@@ -17,7 +126,6 @@
 	- 探索停止条件のコード刷新。
 	- aspiration searchのコード刷新。
 	- 教師局面からの学習のコード、定期的に自分のスレッド用の置換表をクリアするコード追加。
-
 
 
 - 8スレはbindThisThread()呼び出さない。9スレから。
