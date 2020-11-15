@@ -338,6 +338,7 @@ public:
 
 	// sに利きのあるc側の駒を列挙する。cの指定がないものは先後両方の駒が返る。
 	// occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして。
+	// sq == SQ_NBでの呼び出しは合法。ZERO_BBが返る。
 
 	Bitboard attackers_to(Color c, Square sq) const { return attackers_to(c, sq, pieces()); }
 	Bitboard attackers_to(Color c, Square sq, const Bitboard& occ) const;

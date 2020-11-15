@@ -664,6 +664,7 @@ Bitboard Position::attackers_to(Color c, Square sq, const Bitboard& occ) const
 
 // sに利きのあるc側の駒を列挙する。先後両方。
 // (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
+// sq == SQ_NBでの呼び出しは合法。ZERO_BBが返る。
 Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 {
 	ASSERT_LV3(sq <= SQ_NB);
