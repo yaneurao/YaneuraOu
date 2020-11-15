@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         target: [ normal, tournament, evallearn ]
-        archcpu: [ 'ZEN2,ZEN1,AVX2,SSE42', 'SSE41,SSSE3,SSE2,NO_SSE', 'ZEN3,AVX512VNNI,AVX512,AVXVNNI,OTHER' ]
+        archcpu: [ 'ZEN2,ZEN1,AVX512VNNI,AVX512,AVX2,SSE42', 'SSE41,SSSE3,SSE2,NO_SSE', 'ZEN3,AVXVNNI,OTHER' ]
         edition:
           - 'YANEURAOU_ENGINE_NNUE,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256'
           - 'YANEURAOU_ENGINE_KPPT,YANEURAOU_ENGINE_KPP_KKPT'
@@ -30,12 +30,11 @@ jobs:
           - edition: USER_ENGINE
           # Release target exclude: compiler g++
           - compiler: g++
-          # Release target exclude: archcpu ZEN3,AVX512VNNI,AVX512,AVXVNNI,OTHER
-          # AVX512VNNI, AVX512, AVXVNNI: NNUE is not yet a code that uses VNNI
+          # Release target exclude: archcpu ZEN3,AVXVNNI,OTHER
           # `-march=cascadelake`: LLVM8, GCC9 support (AVX512VNNI)
           # `-march=alderlake` : LLVM12, GCC11 support (AVX-VNNI)
           # `-march=znver3`: LLVM12 support
-          - archcpu: 'ZEN3,AVX512VNNI,AVX512,AVXVNNI,OTHER'
+          - archcpu: 'ZEN3,AVXVNNI,OTHER'
           # Release target exclude: archcpu 'SSE41,SSSE3,SSE2,NO_SSE' and target 'tournament,evallearn'
           - target: tournament
             archcpu: 'SSE41,SSSE3,SSE2,NO_SSE'
@@ -194,9 +193,9 @@ jobs:
 
             - [${{ steps.version.outputs.filename }}-windows.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-windows.zip) (${{ steps.archive_size.outputs.windows_zip }})
             - [${{ steps.version.outputs.filename }}-windows.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-windows.7z) (${{ steps.archive_size.outputs.windows_7z }})
-              - 実行ファイルWindows版 各CPU向け(ZEN2/ZEN1/AVX2/SSE4.2/SSE4.1/SSSE3/SSE2/32bit環境用)
-              - トーナメントWindows版 (ZEN2/ZEN1/AVX2/SSE4.2)
-              - 1.2.3.の学習用実行ファイルWindows版 (ZEN2/ZEN1/AVX2/SSE4.2)
+              - 実行ファイルWindows版 各CPU向け(ZEN2/ZEN1/AVX512VNNI/AVX512/AVX2/SSE4.2/SSE4.1/SSSE3/SSE2/32bit環境用)
+              - トーナメントWindows版 (ZEN2/ZEN1/AVX512VNNI/AVX512/AVX2/SSE4.2)
+              - 1.2.3.の学習用実行ファイルWindows版 (ZEN2/ZEN1/AVX512VNNI/AVX512/AVX2/SSE4.2)
             - [${{ steps.version.outputs.filename }}-android.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-android.zip) (${{ steps.archive_size.outputs.android_zip }})
             - [${{ steps.version.outputs.filename }}-android.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-android.7z) (${{ steps.archive_size.outputs.android_7z }})
               - 実行ファイルAndroid版 各CPU向け(arm64-v8a/armeabi-v7a/x86_64/x86)

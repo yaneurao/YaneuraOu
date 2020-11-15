@@ -28,7 +28,7 @@ jobs:
           - USER_ENGINE
         compiler: [ clang++, g++ ]
         target: [ 'normal,tournament', 'evallearn' ]
-        archcpu: [ 'AVX2,SSE42,SSE41,SSSE3,SSE2,ZEN1,ZEN2,NO_SSE', 'ZEN3,AVX512VNNI,AVX512,AVXVNNI,OTHER' ]
+        archcpu: [ 'AVX512VNNI,AVX512,AVX2,SSE42,SSE41,SSSE3,SSE2,ZEN1,ZEN2,NO_SSE', 'ZEN3,AVXVNNI,OTHER' ]
         exclude:
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
@@ -39,8 +39,7 @@ jobs:
           - edition: USER_ENGINE
             target: evallearn
           # 自動ビルドチェックから除外
-          # Build check exclude: archcpu ZEN3,AVX512VNNI,AVX512,OTHER
-          # AVX512VNNI, AVX512, AVXVNNI: NNUE is not yet a code that uses VNNI
+          # Build check exclude: archcpu ZEN3,AVXVNNI,OTHER
           # `-march=cascadelake`: LLVM8, GCC9 support (AVX512VNNI)
           # `-march=alderlake` : LLVM12, GCC11 support (AVX-VNNI)
           # `-march=znver3`: LLVM12 support
@@ -49,7 +48,7 @@ jobs:
           # https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
           # https://gcc.gnu.org/pipermail/gcc-patches/2020-October/556110.html
           # https://twitter.com/herumi/status/1318418425295720448
-          - archcpu: 'ZEN3,AVX512VNNI,AVX512,AVXVNNI,OTHER'
+          - archcpu: 'ZEN3,AVXVNNI,OTHER'
 
     steps:
     - name: Checkout own repository

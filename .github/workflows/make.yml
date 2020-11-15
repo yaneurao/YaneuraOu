@@ -26,9 +26,9 @@ jobs:
           - YANEURAOU_ENGINE_MATERIAL
           - MATE_ENGINE
           - USER_ENGINE
-        compiler: [ clang++-10, g++-8 ]
+        compiler: [ clang++-12, clang++-10, g++-10, g++-8 ]
         target: [ 'normal,tournament', 'evallearn' ]
-        archcpu: [ 'AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN1', 'ZEN2', 'ZEN3,AVX512VNNI,AVX512,AVXVNNI', 'NO_SSE' ]
+        archcpu: [ 'AVX512,AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN1', 'ZEN2,AVX512VNNI', 'ZEN3,AVXVNNI', 'NO_SSE' ]
         exclude:
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
@@ -40,13 +40,20 @@ jobs:
             target: evallearn
           # Ubuntu-18.04 g++-8 は archcpu ZEN3,ZEN2,AVX512VNNI,AVXVNNI のサポートを行わない
           # ubuntu-18.04 g++-8 will not support the archcpu ZEN3,ZEN2,AVX512VNNI,AVXVNNI
-          # AVX512VNNI, AVX512, AVXVNNI: NNUE is not yet a code that uses VNNI
           # `-march=cascadelake`: LLVM8, GCC9 support (AVX512VNNI)
+          # `-march=znver2`: LLVM9, GCC9 support
           # `-march=alderlake` : LLVM12, GCC11 support (AVX-VNNI)
-          # `-march=znver3`: LLVM12 support
+          # `-march=znver3`: LLVM12, GCC11? support
           - compiler: g++-8
-            archcpu: ZEN2
-          - archcpu: 'ZEN3,AVX512VNNI,AVX512,AVXVNNI'
+            archcpu: 'ZEN2,AVX512VNNI'
+          - compiler: g++-8
+            archcpu: 'ZEN3,AVXVNNI'
+          - compiler: g++-10
+            archcpu: 'ZEN3,AVXVNNI'
+          - compiler: clang++-10
+            archcpu: 'ZEN3,AVXVNNI'
+          # g++-10 は Ubuntu20.04LTSイメージ移行後に
+          - compiler: g++-10
           # Linux 32bit archcpu 向けのビルドは通常はしない
           # don't usually build for Linux 32bit archcpu
           - archcpu: NO_SSE
@@ -57,10 +64,42 @@ jobs:
       with:
         path: main
 
-    - name: install openblas
+    - name: install g++-8
+      # Ubuntu 18.04
       run: |
         sudo apt update
-        sudo apt install build-essential clang-10 g++-8 libopenblas-dev libomp-dev libomp5
+        sudo apt install build-essential libopenblas-dev g++-8
+      if: ${{ matrix.compiler == 'g++-8' }}
+    - name: install g++-10
+      # Ubuntu 20.04
+      run: |
+        sudo apt update
+        sudo apt install build-essential libopenblas-dev g++-10
+      if: ${{ matrix.compiler == 'g++-10' }}
+    - name: install clang-10
+      # Ubuntu 18.04, Ubuntu 20.04
+      run: |
+        sudo apt update
+        sudo apt install build-essential libopenblas-dev clang-10
+      if: ${{ matrix.compiler == 'clang++-10' }}
+    - name: install clang-11
+      # Ubuntu 20.10 or LLVM APT
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 11
+        sudo apt update
+        sudo apt install build-essential libopenblas-dev
+      if: ${{ matrix.compiler == 'clang++-11' }}
+    - name: install clang-12
+      # Ubuntu 21.04 or LLVM APT
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 12
+        sudo apt update
+        sudo apt install build-essential libopenblas-dev
+      if: ${{ matrix.compiler == 'clang++-12' }}
 
     - name: make
       run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }}

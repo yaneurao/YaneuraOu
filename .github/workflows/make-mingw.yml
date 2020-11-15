@@ -51,8 +51,8 @@ jobs:
             archcpu: 'AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN1'
           # Ubuntu-18.04 MinGW は archcpu ZEN3,ZEN2,AVX512VNNI,AVXVNNI のサポートを行わない
           # ubuntu-18.04 MinGW will not support the archcpu ZEN3,ZEN2,AVX512VNNI,AVXVNNI
-          # AVX512VNNI, AVX512, AVXVNNI: NNUE is not yet a code that uses VNNI
           # `-march=cascadelake`: LLVM8, GCC9 support (AVX512VNNI)
+          # `-march=znver2`: LLVM9, GCC9 support
           # `-march=alderlake` : LLVM12, GCC11 support (AVX-VNNI)
           # `-march=znver3`: LLVM12 support
           - archcpu: 'ZEN3,ZEN2,AVX512VNNI,AVX512,AVXVNNI'
@@ -69,7 +69,7 @@ jobs:
     - name: install openblas
       run: |
         sudo apt update
-        sudo apt install build-essential mingw-w64 libopenblas-dev libomp-dev libomp5
+        sudo apt install build-essential libopenblas-dev mingw-w64
 
     - name: make
       run: ./main/script/mingw_gcc.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }}
