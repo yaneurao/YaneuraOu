@@ -307,11 +307,15 @@ endif
 # abe
 ifeq ($(findstring abe,$(ENGINE_BRANCH)),abe)
 	SOURCES += extra/super_sort.cpp
+	CPPFLAGS += -DDEV_BRANCH
 	CPPFLAGS += -DPV_OUTPUT_DRAW_ONLY -DFORCE_BIND_THIS_THREAD
 endif
 
 
 # CPU判別
+
+# TARGET_CPUシンボルを定義してやる。
+CPPFLAGS += -DTARGET_CPU=\"$(TARGET_CPU)\"
 
 # AMD Ryzenシリーズ
 
