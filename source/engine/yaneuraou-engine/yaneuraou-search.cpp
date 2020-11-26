@@ -3252,7 +3252,16 @@ void init_param()
 		{
 			auto pos = buf.find(str);
 			ASSERT_LV3(pos != std::string::npos);
-			return stoi(buf.substr(pos + str.size()));
+
+			auto s = buf.substr(pos + str.size());
+			if (s.empty() || !(('0' <= s[0] && s[0] <= '9') || s[0] == '-' || s[0] == ' '))
+			{
+				std::cout << "Error : Parse Error " << buf << "   ==>   " << s << std::endl;
+				return 0;
+			}
+
+			return stoi(s);
+			// ここで落ちてたら、paramファイルとして、変な文をparseしている。
 		};
 
 		std::vector<bool> founds(param_vars.size());
@@ -3325,7 +3334,7 @@ void init_param()
 						//            cout << param_names[i] << " = " << *param_vars[i] << endl;
 						goto NEXT;
 					}
-				std::cout << "Error : param not found! in parameters.h -> " << line << std::endl;
+				std::cout << "Error : param not found! in yaneuraou-param.h -> " << line << std::endl;
 
 			NEXT:;
 			}
@@ -3339,7 +3348,7 @@ void init_param()
 		{
 			for (size_t i = 0; i < founds.size(); ++i)
 				if (!founds[i])
-					std::cout << "Error : param not found in " << PARAM_FILE << " -> " << param_names[i] << std::endl;
+					std::cout << "Error : param not found in " << path << " -> " << param_names[i] << std::endl;
 		}
 
 #if defined(ENABLE_OUTPUT_GAME_RESULT)
@@ -3358,7 +3367,12 @@ void init_param()
 		}
 #endif
 
+		// Evalのパラメーター初期化
+		// 上のコードでパラメーターが変更された可能性があるのでこのタイミングで再度呼び出す。
+		Eval::init();
+
 		}
+
 #endif
 	}
 
