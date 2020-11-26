@@ -194,7 +194,7 @@ jobs:
 
             - [${{ steps.version.outputs.filename }}-windows.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-windows.zip) (${{ steps.archive_size.outputs.windows_zip }})
             - [${{ steps.version.outputs.filename }}-windows.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-windows.7z) (${{ steps.archive_size.outputs.windows_7z }})
-              - 実行ファイルWindows版 各CPU向け(ZEN2/ZEN1/AVX2/SSE4.2/SSE4.1/SSE3/SSE2/32bit環境用)
+              - 実行ファイルWindows版 各CPU向け(ZEN2/ZEN1/AVX2/SSE4.2/SSE4.1/SSSE3/SSE2/32bit環境用)
               - トーナメントWindows版 (ZEN2/ZEN1/AVX2/SSE4.2)
               - 1.2.3.の学習用実行ファイルWindows版 (ZEN2/ZEN1/AVX2/SSE4.2)
             - [${{ steps.version.outputs.filename }}-android.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-android.zip) (${{ steps.archive_size.outputs.android_zip }})
