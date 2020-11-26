@@ -9,14 +9,14 @@
 // 1),2),3)のファイルは手で編集しないでください。
 
 
-#if  defined(GENSFEN2019)
+//#if  defined(GENSFEN2019)
 // 教師局面生成用のパラメーター
 // 低depthで強くする ≒ 低depth時の枝刈りを甘くする。
-#include "yaneuraou-param_gen.h"
+//#include "yaneuraou-param_gen.h"
 //  →　教師生成時と学習時の探索部の性質が違うのはNNUE型にとってよくないようなのだが、
 //     これはたぶん許容範囲。
 
-#else
+//#else
 
 // パラメーターの説明に "fixed"と書いてあるパラメーターはランダムパラメーター化するときでも変化しない。
 // 「前提depth」は、これ以上ならその枝刈りを適用する(かも)の意味。
@@ -232,6 +232,6 @@ PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 17;
 // [PARAM] min:10,max:50,step:5,interval:2,time_rate:1,fixed
 PARAM_DEFINE PARAM_EVAL_TEMPO = 20;
 
-#endif // defined(GENSFEN2019)
+//#endif // defined(GENSFEN2019)
 #endif
 

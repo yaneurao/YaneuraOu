@@ -10,6 +10,7 @@
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
 #define ENGINE_VERSION "5.32"
 
+
 // --------------------
 //  思考エンジンの種類
 // --------------------
@@ -20,7 +21,7 @@
 
 #if !defined (USE_MAKEFILE)
 
-#define YANEURAOU_ENGINE_NNUE    // やねうら王2018 with お多福Lab。(開発中2018/01/01～)
+#define YANEURAOU_ENGINE_NNUE            // やねうら王 通常探索部 NNUE評価関数
 //#define MATE_ENGINE                      // 詰め将棋solverとしてリリースする場合。(開発中2017/05/06～)
 //#define USER_ENGINE                      // ユーザーの思考エンジン
 
@@ -168,14 +169,9 @@ constexpr int MAX_PLY_NUM = 246;
 // 評価関数を教師局面から学習させるときに使うときのモード
 //#define EVAL_LEARN
 
-// Eval::compute_eval()やLearner::add_grad()を呼び出す前にEvalListの組み換えを行なう機能を提供する。
-// 評価関数の実験に用いる。詳しくは、Eval::make_list_functionに書いてある説明などを読むこと。
-// #define USE_EVAL_MAKE_LIST_FUNCTION
-
-// この機能は、やねうら王の評価関数の開発/実験用の機能で、いまのところ一般ユーザーには提供していない。
-// 評価関数番号を指定するとその評価関数を持ち、その評価関数ファイルの読み込み/書き出しに自動的に対応して、
-// かつ評価関数の旧形式からの変換が"test convert"コマンドで自動的に出来るようになるという、わりかし凄い機能
-// #define EVAL_EXPERIMENTAL 0001
+// 教師生成用の特殊コマンド"gensfen2019"を使えるようにするモード。
+// 教師生成用の探索パラメーターも別途用意するといいかも。
+//#define GENSFEN2019
 
 // 長い利き(遠方駒の利き)のライブラリを用いるか。
 // 超高速1手詰め判定などではこのライブラリが必要。
@@ -277,7 +273,6 @@ constexpr int MAX_PLY_NUM = 246;
 // "source/engine/yaneuraou-engine/yaneuraou-param.h"をそこに配置すること。
 //#define TUNING_SEARCH_PARAMETERS
 
-
 // --------------------
 // release configurations
 // --------------------
@@ -373,24 +368,24 @@ constexpr int MAX_PLY_NUM = 246;
 // --- 詰将棋エンジンとして実行ファイルを公開するとき用の設定集
 
 #if defined(MATE_ENGINE)
-#define ENGINE_NAME "YaneuraOu mate solver"
-#define KEEP_LAST_MOVE
-#undef  MAX_PLY_NUM
-#define MAX_PLY_NUM 2000
-#define USE_SEE
-#define USE_MATE_1PLY
-#define EVAL_MATERIAL
-//#define LONG_EFFECT_LIBRARY
-#define USE_KEY_AFTER
-#define ENABLE_TEST_CMD
+	#define ENGINE_NAME "YaneuraOu mate solver"
+	#define KEEP_LAST_MOVE
+	#undef  MAX_PLY_NUM
+	#define MAX_PLY_NUM 2000
+	#define USE_SEE
+	#define USE_MATE_1PLY
+	#define EVAL_MATERIAL
+	//#define LONG_EFFECT_LIBRARY
+	#define USE_KEY_AFTER
+	#define ENABLE_TEST_CMD
 #endif
 
 // --- ユーザーの自作エンジンとして実行ファイルを公開するとき用の設定集
 
 #if defined(USER_ENGINE)
-#define ENGINE_NAME "YaneuraOu user engine"
-#define USE_SEE
-#define EVAL_MATERIAL
+	#define ENGINE_NAME "YaneuraOu user engine"
+	#define USE_SEE
+	#define EVAL_MATERIAL
 #endif
 
 // --------------------
@@ -399,11 +394,11 @@ constexpr int MAX_PLY_NUM = 246;
 
 // トーナメント(大会)用に、対局に不要なものをすべて削ぎ落とす。
 #if defined(FOR_TOURNAMENT)
-#undef ASSERT_LV
-#undef EVAL_LEARN
-#undef ENABLE_TEST_CMD
-#undef USE_GLOBAL_OPTIONS
-#undef KEEP_LAST_MOVE
+	#undef ASSERT_LV
+	#undef EVAL_LEARN
+	#undef ENABLE_TEST_CMD
+	#undef USE_GLOBAL_OPTIONS
+	#undef KEEP_LAST_MOVE
 #endif
 
 // --------------------
@@ -413,7 +408,7 @@ constexpr int MAX_PLY_NUM = 246;
 // 学習時にはEVAL_HASHを無効化しておかないと、rmseの計算のときなどにeval hashにhitしてしまい、
 // 正しく計算できない。そのため、EVAL_HASHを動的に無効化するためのオプションを用意する。
 #if defined(EVAL_LEARN)
-#define USE_GLOBAL_OPTIONS
+	#define USE_GLOBAL_OPTIONS
 #endif
 
 // --------------------
