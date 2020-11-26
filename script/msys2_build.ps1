@@ -79,7 +79,7 @@ ForEach-Object{
       Set-Item Env:MSYSTEM $(if ($_Cpu -ne 'NO_SSE') { 'MINGW64' } else { 'MINGW32' });
       msys2_shell.cmd -here -defterm -no-start $(if ($_Cpu -ne 'NO_SSE') { '-mingw64' } else { '-mingw32' }) -lc "$_Make -f $_Makefile clean YANEURAOU_EDITION=$_Edition";
       $log = $null;
-      msys2_shell.cmd -here -defterm -no-start $(if ($_Cpu -ne 'NO_SSE') { '-mingw64' } else { '-mingw32' }) -lc "nice -n 0 $_Make -f $_Makefile -j$_Jobs $_Target YANEURAOU_EDITION=$_Edition COMPILER=$_Compiler OS=$_Os TARGET_CPU=$_Cpu 2>&1"|Tee-Object -Variable log;
+      msys2_shell.cmd -here -defterm -no-start $(if ($_Cpu -ne 'NO_SSE') { '-mingw64' } else { '-mingw32' }) -lc "nice $_Make -f $_Makefile -j$_Jobs $_Target YANEURAOU_EDITION=$_Edition COMPILER=$_Compiler OS=$_Os TARGET_CPU=$_Cpu 2>&1"|Tee-Object -Variable log;
       $log|Out-File -Encoding utf8 -Force (Join-Path $_BuildDir "$_BuildName-$_Target-$_Compiler-$($_Cpu.ToLower()).log");
       Copy-Item YaneuraOu-by-gcc.exe (Join-Path $_BuildDir "$_BuildName-$_Target-$_Compiler-$($_Cpu.ToLower()).exe") -Force;
   }}};
