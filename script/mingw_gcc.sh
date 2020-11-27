@@ -78,6 +78,7 @@ TARGETS=(
   normal
   tournament
   evallearn
+  gensfen
 )
 
 declare -A DIRSTR;

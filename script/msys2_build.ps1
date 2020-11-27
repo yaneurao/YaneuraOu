@@ -13,49 +13,49 @@ $TGCOMPILERS = @('clang++';'g++';);
     BUILDDIR = 'NNUE';
     EDITION = 'YANEURAOU_ENGINE_NNUE';
     BUILDNAME = 'YaneuraOu_NNUE';
-    TARGET = @('evallearn';'normal';'tournament';);
+    TARGET = @('evallearn';'normal';'tournament';'gensfen';);
   };
   @{
     BUILDDIR = 'NNUE_KPE9';
     EDITION = 'YANEURAOU_ENGINE_NNUE_HALFKPE9';
     BUILDNAME = 'YaneuraOu_NNUE_KPE9';
-    TARGET = @('evallearn';'normal';'tournament';);
+    TARGET = @('evallearn';'normal';'tournament';'gensfen';);
   };
   @{
     BUILDDIR = 'NNUE_KP256';
     EDITION = 'YANEURAOU_ENGINE_NNUE_KP256';
     BUILDNAME = 'YaneuraOu_NNUE_KP256';
-    TARGET = @('evallearn';'normal';'tournament';);
+    TARGET = @('evallearn';'normal';'tournament';'gensfen';);
   };
   @{
     BUILDDIR = 'KPPT';
     EDITION = 'YANEURAOU_ENGINE_KPPT';
     BUILDNAME = 'YaneuraOu_KPPT';
-    TARGET = @('evallearn';'normal';'tournament';);
+    TARGET = @('evallearn';'normal';'tournament';'gensfen';);
   };
   @{
     BUILDDIR = 'KPP_KKPT';
     EDITION = 'YANEURAOU_ENGINE_KPP_KKPT';
     BUILDNAME = 'YaneuraOu_KPP_KKPT';
-    TARGET = @('evallearn';'normal';'tournament';);
+    TARGET = @('evallearn';'normal';'tournament';'gensfen';);
   };
   @{
     BUILDDIR = 'KOMA';
     EDITION = 'YANEURAOU_ENGINE_MATERIAL';
     BUILDNAME = 'YaneuraOu_KOMA';
-    TARGET = @('normal';'tournament';);
+    TARGET = @('normal';'tournament';'gensfen';);
   };
   @{
     BUILDDIR = 'MATE';
     EDITION = 'MATE_ENGINE';
     BUILDNAME = 'tanuki_MATE';
-    TARGET = @('normal';'tournament';);
+    TARGET = @('normal';'tournament';'gensfen';);
   };
   @{
     BUILDDIR = 'USER';
     EDITION = 'USER_ENGINE';
     BUILDNAME = 'user';
-    TARGET = @('normal';'tournament';);
+    TARGET = @('normal';'tournament';'gensfen';);
   };
 )|
 Where-Object{

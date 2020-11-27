@@ -27,7 +27,7 @@ jobs:
           - MATE_ENGINE
           - USER_ENGINE
         compiler: [ clang++-12, clang++-10, g++-10, g++-8 ]
-        target: [ 'normal,tournament', 'evallearn' ]
+        target: [ 'normal,tournament,gensfen', evallearn ]
         archcpu: [ 'AVX512,AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN1', 'ZEN2,AVX512VNNI', 'ZEN3,AVXVNNI', 'NO_SSE' ]
         exclude:
           # 以下のエディションには機械学習の実装が存在しない

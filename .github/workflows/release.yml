@@ -16,7 +16,7 @@ jobs:
 
     strategy:
       matrix:
-        target: [ normal, tournament, evallearn ]
+        target: [ normal, tournament, evallearn, gensfen ]
         archcpu: [ 'ZEN2,ZEN1,AVX512VNNI,AVX512,AVX2,SSE42', 'SSE41,SSSE3,SSE2,NO_SSE', 'ZEN3,AVXVNNI,OTHER' ]
         edition:
           - 'YANEURAOU_ENGINE_NNUE,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256'
@@ -39,6 +39,8 @@ jobs:
           - target: tournament
             archcpu: 'SSE41,SSSE3,SSE2,NO_SSE'
           - target: evallearn
+            archcpu: 'SSE41,SSSE3,SSE2,NO_SSE'
+          - target: gensfen
             archcpu: 'SSE41,SSSE3,SSE2,NO_SSE'
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions

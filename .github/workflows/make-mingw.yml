@@ -27,7 +27,7 @@ jobs:
           - MATE_ENGINE
           - USER_ENGINE
         compiler: [ x86_64-w64-mingw32-g++-posix, i686-w64-mingw32-g++-posix ]
-        target: [ 'normal,tournament', 'evallearn' ]
+        target: [ 'normal,tournament,gensfen', evallearn ]
         archcpu: [ 'AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN1', 'ZEN3,ZEN2,AVX512VNNI,AVX512,AVXVNNI', 'NO_SSE' ]
         exclude:
           # NNUEの機械学習ビルドにはBLASが必要だが、現状はUbuntuのMinGWでOpenBLASを扱えない
