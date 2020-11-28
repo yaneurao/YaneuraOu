@@ -30,7 +30,7 @@ jobs:
         target: [ 'normal,tournament', gensfen, evallearn ]
         archcpu: [ 'AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN1', 'ZEN3,ZEN2,AVX512VNNI,AVX512,AVXVNNI', 'NO_SSE' ]
         exclude:
-          # NNUEの機械学習ビルドにはBLASが必要だが、現状はUbuntuのMinGWでOpenBLASを扱えない
+          # NNUEの教師生成/機械学習ビルドにはBLASが必要だが、現状はUbuntuのMinGWでOpenBLASを扱えない
           # NNUE's machine learning build requires BLAS, but currently Ubuntu's MinGW cannot handle OpenBLAS
           - edition: YANEURAOU_ENGINE_NNUE
             target: evallearn
@@ -38,6 +38,12 @@ jobs:
             target: evallearn
           - edition: YANEURAOU_ENGINE_NNUE_KP256
             target: evallearn
+          - edition: YANEURAOU_ENGINE_NNUE
+            target: gensfen
+          - edition: YANEURAOU_ENGINE_NNUE_HALFKPE9
+            target: gensfen
+          - edition: YANEURAOU_ENGINE_NNUE_KP256
+            target: gensfen
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
           - edition: YANEURAOU_ENGINE_MATERIAL*
