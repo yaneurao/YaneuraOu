@@ -27,7 +27,7 @@ CPPFLAGS := -DTARGET_ARCH="$(TARGET_ARCH_ABI)"
 # example: EVAL_KPP_KKPT
 # $ ndk-build YANEURAOU_EDITION=YANEURAOU_ENGINE_KPP_KKPT
 
-# example: EVAL_MATERIAL (KOMA)
+# example: EVAL_MATERIAL (MaterialLv1)
 # $ ndk-build YANEURAOU_EDITION=YANEURAOU_ENGINE_MATERIAL
 
 # example: EVAL_NNUE_HALFKP_256x2_32_32 (2018 T.N.K.)
@@ -56,9 +56,18 @@ YANEURAOU_EDITION := YANEURAOU_ENGINE_NNUE
 #ENGINE_NAME :=
 
 # developing branch // 現状、非公開 (currently private)
-# dev : 開発中のbranchならdevと指定する (developing branch) : 
+# dev : 開発中のbranchならdevと指定する (developing branch) :
 # abe : abe
 #ENGINE_BRANCH := dev
+
+# makeするときにCPPFLAGSを追加で指定したいときはこれを用いる。
+EXTRA_CPPFLAGS =
+
+# YANEURAOU_EDITION = YANEURAOU_ENGINE_MATERIALのときに指定できる、評価関数の通し番号
+# 001 : 普通の駒得のみの評価関数
+# 002 : …
+# cf.【連載】評価関数を作ってみよう！その1 : http://yaneuraou.yaneu.com/2020/11/17/make-evaluate-function/
+MATERIAL_LEVEL = 001
 
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPPT)
   CPPFLAGS += -DUSE_MAKEFILE -DYANEURAOU_ENGINE_KPPT
@@ -72,7 +81,7 @@ endif
 
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_MATERIAL)
   CPPFLAGS += -DUSE_MAKEFILE -DYANEURAOU_ENGINE_MATERIAL
-  ENGINE_NAME := YaneuraOu_KOMA
+  ENGINE_NAME := YaneuraOu_MaterialLv1
 endif
 
 ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_NNUE)
@@ -176,7 +185,10 @@ endif
 
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_MATERIAL)
 LOCAL_SRC_FILES += \
-  ../source/engine/yaneuraou-engine/yaneuraou-search.cpp
+  ../source/engine/yaneuraou-engine/yaneuraou-search.cpp               \
+  ../source/eval/material/evaluate_material.cpp
+
+CPPFLAGS += -DMATERIAL_LEVEL=$(MATERIAL_LEVEL)
 endif
 
 ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_NNUE)
@@ -195,12 +207,14 @@ endif
 
 ifeq ($(YANEURAOU_EDITION),MATE_ENGINE)
 LOCAL_SRC_FILES += \
-	../source/engine/mate-engine/mate-search.cpp
+  ../source/engine/mate-engine/mate-search.cpp                         \
+  ../source/eval/material/evaluate_material.cpp
 endif
 
 ifeq ($(YANEURAOU_EDITION),USER_ENGINE)
 LOCAL_SRC_FILES += \
-	../source/engine/user-engine/user-search.cpp
+  ../source/engine/user-engine/user-search.cpp                         \
+  ../source/eval/material/evaluate_material.cpp
 endif
 
 ifneq ($(ENGINE_NAME),)
