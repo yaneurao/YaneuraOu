@@ -253,8 +253,7 @@ namespace Eval {
     }
 
     // 初期化
-    void init() {
-    }
+    void init() {}
 
     // 評価関数。差分計算ではなく全計算する。
     // Position::set()で一度だけ呼び出される。(以降は差分計算)

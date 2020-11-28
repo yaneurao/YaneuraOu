@@ -1,7 +1,8 @@
-﻿// NNUE評価関数の入力特徴量セットを表すクラステンプレート
+﻿// A class template that represents the input feature set of the NNUE evaluation function
+// NNUE評価関数の入力特徴量セットを表すクラステンプレート
 
-#ifndef _NNUE_FEATURE_SET_H_
-#define _NNUE_FEATURE_SET_H_
+#ifndef NNUE_FEATURE_SET_H_INCLUDED
+#define NNUE_FEATURE_SET_H_INCLUDED
 
 #include "../../../config.h"
 
@@ -10,12 +11,9 @@
 #include "features_common.h"
 #include <array>
 
-namespace Eval {
+namespace Eval::NNUE::Features {
 
-namespace NNUE {
-
-namespace Features {
-
+// Class template that represents a list of values
 // 値のリストを表すクラステンプレート
 template <typename T, T... Values>
 struct CompileTimeList;
@@ -65,6 +63,7 @@ struct InsertToSet<T, CompileTimeList<T>, Value> {
   using Result = CompileTimeList<T, Value>;
 };
 
+// Base class of feature set
 // 特徴量セットの基底クラス
 template <typename Derived>
 class FeatureSetBase {
@@ -122,6 +121,7 @@ class FeatureSetBase {
   }
 };
 
+// Class template that represents the feature set
 // 特徴量セットを表すクラステンプレート
 // 実行時の計算量を線形にするために、内部の処理はテンプレート引数の逆順に行う
 template <typename FirstFeatureType, typename... RemainingFeatureTypes>
@@ -198,13 +198,19 @@ class FeatureSet<FirstFeatureType, RemainingFeatureTypes...> :
 template <typename FeatureType>
 class FeatureSet<FeatureType> : public FeatureSetBase<FeatureSet<FeatureType>> {
  public:
+  // Hash value embedded in the evaluation file
   // 評価関数ファイルに埋め込むハッシュ値
   static constexpr std::uint32_t kHashValue = FeatureType::kHashValue;
+  // Number of feature dimensions
   // 特徴量の次元数
   static constexpr IndexType kDimensions = FeatureType::kDimensions;
+
+  // Maximum number of simultaneously active features
   // 特徴量のうち、同時に値が1となるインデックスの数の最大値
   static constexpr IndexType kMaxActiveDimensions =
       FeatureType::kMaxActiveDimensions;
+
+  // Trigger for full calculation instead of difference calculation
   // 差分計算の代わりに全計算を行うタイミングのリスト
   using SortedTriggerSet =
       CompileTimeList<TriggerEvent, FeatureType::kRefreshTrigger>;
@@ -240,12 +246,8 @@ class FeatureSet<FeatureType> : public FeatureSetBase<FeatureSet<FeatureType>> {
   friend class FeatureSet;
 };
 
-}  // namespace Features
-
-}  // namespace NNUE
-
-}  // namespace Eval
+}  // namespace Eval::NNUE::Features
 
 #endif  // defined(EVAL_NNUE)
 
-#endif
+#endif // #ifndef NNUE_FEATURE_SET_H_INCLUDED

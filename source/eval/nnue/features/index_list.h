@@ -1,7 +1,8 @@
-﻿// 入力特徴量のインデックスリストの定義
+﻿// Definition of index list of input features
+// 入力特徴量のインデックスリストの定義
 
-#ifndef _NNUE_FEATURES_INDEX_LIST_H_
-#define _NNUE_FEATURES_INDEX_LIST_H_
+#ifndef NNUE_FEATURES_INDEX_LIST_H_INCLUDED
+#define NNUE_FEATURES_INDEX_LIST_H_INCLUDED
 
 #include "../../../config.h"
 
@@ -10,16 +11,14 @@
 #include "../../../position.h"
 #include "../nnue_architecture.h"
 
-namespace Eval {
+namespace Eval::NNUE::Features {
 
-namespace NNUE {
+	// Class template used for feature index list
+	// 特徴量のインデックスリストに使うクラステンプレート
+	template <typename T, std::size_t MaxSize>
+	class ValueList {
 
-namespace Features {
-
-// 特徴量のインデックスリストに使うクラステンプレート
-template <typename T, std::size_t MaxSize>
-class ValueList {
-public:
+	public:
     std::size_t size() const { return size_; }
     void resize(std::size_t size) { size_ = size; }
     void push_back(const T& value) { values_[size_++] = value; }
@@ -29,6 +28,7 @@ public:
     const T& operator[](std::size_t index) const { return values_[index]; }
     const T* begin() const { return values_; }
     const T* end() const { return values_ + size_; }
+	
     void swap(ValueList& other) {
         const std::size_t max_size = std::max(size_, other.size_);
         for (std::size_t i = 0; i < max_size; ++i) {
@@ -36,22 +36,20 @@ public:
         }
         std::swap(size_, other.size_);
     }
-private:
-    T values_[MaxSize] = {};
+	
+	private:
+	    T values_[MaxSize];
     std::size_t size_ = 0;
-};
+	};
 
-// 特徴量のインデックスリストの型
-class IndexList
+	//Type of feature index list
+	// 特徴量のインデックスリストの型
+	class IndexList
     : public ValueList<IndexType, RawFeatures::kMaxActiveDimensions> {
-};
+	};
 
-}  // namespace Features
-
-}  // namespace NNUE
-
-}  // namespace Eval
+}  // namespace Eval::NNUE::Features
 
 #endif  // defined(EVAL_NNUE)
 
-#endif
+#endif // NNUE_FEATURES_INDEX_LIST_H_INCLUDED

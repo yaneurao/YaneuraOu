@@ -1,12 +1,14 @@
-﻿// NNUE評価関数で用いる入力特徴量とネットワーク構造
+﻿// Input features and network structure used in NNUE evaluation function
+// NNUE評価関数で用いる入力特徴量とネットワーク構造
 
-#ifndef _NNUE_ARCHITECTURE_H_
-#define _NNUE_ARCHITECTURE_H_
+#ifndef NNUE_ARCHITECTURE_H_INCLUDED
+#define NNUE_ARCHITECTURE_H_INCLUDED
 
 #include "../../config.h"
 
 #if defined(EVAL_NNUE)
 
+// Defines the network structure
 // 入力特徴量とネットワーク構造が定義されたヘッダをincludeする
 
 #if defined(EVAL_NNUE_HALFKP256)
@@ -32,21 +34,18 @@
 
 #endif
 
-namespace Eval {
+namespace Eval::NNUE {
 
-namespace NNUE {
+	static_assert(kTransformedFeatureDimensions % kMaxSimdWidth == 0, "");
+	static_assert(Network::kOutputDimensions == 1, "");
+	static_assert(std::is_same<Network::OutputType, std::int32_t>::value, "");
 
-static_assert(kTransformedFeatureDimensions % kMaxSimdWidth == 0, "");
-static_assert(Network::kOutputDimensions == 1, "");
-static_assert(std::is_same<Network::OutputType, std::int32_t>::value, "");
+	// Trigger for full calculation instead of difference calculation
+	// 差分計算の代わりに全計算を行うタイミングのリスト
+	constexpr auto kRefreshTriggers = RawFeatures::kRefreshTriggers;
 
-// 差分計算の代わりに全計算を行うタイミングのリスト
-constexpr auto kRefreshTriggers = RawFeatures::kRefreshTriggers;
-
-}  // namespace NNUE
-
-}  // namespace Eval
+}  // namespace Eval::NNUE
 
 #endif  // defined(EVAL_NNUE)
 
-#endif
+#endif // #ifndef NNUE_ARCHITECTURE_H_INCLUDED

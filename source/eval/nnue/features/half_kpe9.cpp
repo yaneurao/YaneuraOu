@@ -2,7 +2,7 @@
 
 #include "../../../config.h"
 
-#if defined(EVAL_NNUE) && defined(LONG_EFFECT_LIBRARY)
+#if defined(EVAL_NNUE) && defined(LONG_EFFECT_LIBRARY) && defined(USE_BOARD_EFFECT_PREV)
 
 #include "half_kpe9.h"
 #include "index_list.h"

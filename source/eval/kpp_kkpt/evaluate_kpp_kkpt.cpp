@@ -17,11 +17,6 @@
 #include "../evaluate_io.h"
 #include "evaluate_kpp_kkpt.h"
 
-// 実験中の評価関数を読み込む。(現状非公開)
-#if defined (EVAL_EXPERIMENTAL)
-#include "../experimental/evaluate_experimental.h"
-#endif
-
 #if defined (USE_EVAL_HASH)
 #include "../evalhash.h"
 #endif
@@ -101,12 +96,7 @@ namespace Eval
 		return sum;
 	}
 
-	void init()
-	{
-#if defined(EVAL_EXPERIMENTAL)
-		init_eval_experimental();
-#endif
-	}
+	void init(){}
 
 	// 与えられたsize_of_evalサイズの連続したalign 32されているメモリに、kk_,kkp_,kpp_を割り当てる。
 	void eval_assign(void* ptr)

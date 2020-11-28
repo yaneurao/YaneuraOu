@@ -45,18 +45,26 @@ public:
   }
 
   // 順伝播
+	// 返し値は出力配列の先頭アドレス。
+	// ※　配列の要素の個数は出力次元数×バッチサイズ
+	// 　　すなわち、kOutputDimensions×batch.size()
   const LearnFloatType* Propagate(const std::vector<Example>& batch) {
     if (output_.size() < kOutputDimensions * batch.size()) {
       output_.resize(kOutputDimensions * batch.size());
       gradients_.resize(kInputDimensions * batch.size());
     }
     const auto input = previous_layer_trainer_->Propagate(batch);
+
+		// Backpropagate()のために、Propagate()のときのbatch_sizeを記録しておく。
     batch_size_ = static_cast<IndexType>(batch.size());
     for (IndexType b = 0; b < batch_size_; ++b) {
       const IndexType batch_offset = kOutputDimensions * b;
       for (IndexType i = 0; i < kOutputDimensions; ++i) {
         const IndexType index = batch_offset + i;
+				// 入力を0.0～1.0でclipする。
         output_[index] = std::max(+kZero, std::min(+kOne, input[index]));
+
+				// 前回CheckHealth()を呼び出してからoutput_[i]で最小の値を出力したときの値、最大の値を出力したときの値を記録しておきたい。
         min_activations_[i] = std::min(min_activations_[i], output_[index]);
         max_activations_[i] = std::max(max_activations_[i], output_[index]);
       }
@@ -73,6 +81,9 @@ public:
         const IndexType index = batch_offset + i;
         gradients_[index] = gradients[index] *
             (output_[index] > kZero) * (output_[index] < kOne);
+				
+				// gradientsとしては、output_[index]が 0.0から1.0の間であったところのみそのまま出力して、さもなくば0
+				// cf. 【学習メモ】ゼロから作るDeep Learning【5章】 : https://qiita.com/yakof11/items/5d37042f689760515072
       }
     }
     previous_layer_trainer_->Backpropagate(gradients_.data(), learning_rate);
@@ -85,10 +96,9 @@ private:
       previous_layer_trainer_(Trainer<PreviousLayer>::Create(
           &target_layer->previous_layer_, feature_transformer)),
       target_layer_(target_layer) {
-    std::fill(std::begin(min_activations_), std::end(min_activations_),
-              std::numeric_limits<LearnFloatType>::max());
-    std::fill(std::begin(max_activations_), std::end(max_activations_),
-              std::numeric_limits<LearnFloatType>::lowest());
+
+
+		reset_minmax_activations();
   }
 
   // 学習に問題が生じていないかチェックする
@@ -97,14 +107,17 @@ private:
         std::begin(min_activations_), std::end(min_activations_));
     const auto smallest_max_activation = *std::min_element(
         std::begin(max_activations_), std::end(max_activations_));
+
+		// largest_min_activationが1.0だと常に1.0しか出力していないわけで、いても仕方ないニューロン
+		// largest_max_activationが0.0だと常に0しか出力していないわけで、これもいても仕方ないニューロン
+		// こいつらは、何らかの方法でresetすべきだと思う。
+
     std::cout << "INFO: largest min activation = " << largest_min_activation
               << ", smallest max activation = " << smallest_max_activation
               << std::endl;
 
-    std::fill(std::begin(min_activations_), std::end(min_activations_),
-              std::numeric_limits<LearnFloatType>::max());
-    std::fill(std::begin(max_activations_), std::end(max_activations_),
-              std::numeric_limits<LearnFloatType>::lowest());
+		// このタイミングでresetする。Propagate()で記録していく。
+		reset_minmax_activations();
   }
 
   // 入出力の次元数
@@ -116,6 +129,7 @@ private:
   static constexpr LearnFloatType kOne = static_cast<LearnFloatType>(1.0);
 
   // ミニバッチのサンプル数
+	// Backpropagate()のために、Propagate()のときのbatch_sizeを記録しておくための変数。
   IndexType batch_size_;
 
   // 直前の層のTrainer
@@ -129,6 +143,15 @@ private:
 
   // 逆伝播用バッファ
   std::vector<LearnFloatType> gradients_;
+
+	// activationsの統計用の配列のクリア
+	void reset_minmax_activations()
+	{
+		std::fill(std::begin(min_activations_), std::end(min_activations_),
+			std::numeric_limits<LearnFloatType>::max());
+		std::fill(std::begin(max_activations_), std::end(max_activations_),
+			std::numeric_limits<LearnFloatType>::lowest());
+	}
 
   // ヘルスチェック用統計値
   LearnFloatType min_activations_[kOutputDimensions];
