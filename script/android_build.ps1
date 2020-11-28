@@ -27,7 +27,7 @@ Push-Location (Join-Path $PSScriptRoot ..);
   };
   @{
     EDITION = "YANEURAOU_ENGINE_MATERIAL";
-    Dir = ".\build\android\KOMA";
+    Dir = ".\build\android\MaterialLv1";
   };
   @{
     EDITION = "MATE_ENGINE";

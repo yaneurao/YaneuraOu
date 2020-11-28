@@ -188,7 +188,7 @@ jobs:
               a. 標準NNUE(HalfKP)型
               b. HalfKPE9型
               c. K-P型
-            4. KOMA型
+            4. MaterialLv1型
             5. tanuki-詰将棋エンジン
 
             に対する

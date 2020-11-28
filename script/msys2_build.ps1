@@ -40,9 +40,39 @@ $TGCOMPILERS = @('clang++';'g++';);
     TARGET = @('evallearn';'normal';'tournament';'gensfen';);
   };
   @{
-    BUILDDIR = 'KOMA';
+    BUILDDIR = 'MaterialLv1';
     EDITION = 'YANEURAOU_ENGINE_MATERIAL';
-    BUILDNAME = 'YaneuraOu_KOMA';
+    BUILDNAME = 'YaneuraOu_MaterialLv1';
+    TARGET = @('normal';'tournament';'gensfen';);
+  };
+  @{
+    BUILDDIR = 'MaterialLv2';
+    EDITION = 'YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=002';
+    BUILDNAME = 'YaneuraOu_MaterialLv2';
+    TARGET = @('normal';'tournament';'gensfen';);
+  };
+  @{
+    BUILDDIR = 'MaterialLv3';
+    EDITION = 'YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=003';
+    BUILDNAME = 'YaneuraOu_MaterialLv3';
+    TARGET = @('normal';'tournament';'gensfen';);
+  };
+  @{
+    BUILDDIR = 'MaterialLv4';
+    EDITION = 'YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=004';
+    BUILDNAME = 'YaneuraOu_MaterialLv4';
+    TARGET = @('normal';'tournament';'gensfen';);
+  };
+  @{
+    BUILDDIR = 'MaterialLv5';
+    EDITION = 'YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=005';
+    BUILDNAME = 'YaneuraOu_MaterialLv5';
+    TARGET = @('normal';'tournament';'gensfen';);
+  };
+  @{
+    BUILDDIR = 'MaterialLv6';
+    EDITION = 'YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=006';
+    BUILDNAME = 'YaneuraOu_MaterialLv6';
     TARGET = @('normal';'tournament';'gensfen';);
   };
   @{
@@ -79,7 +109,7 @@ ForEach-Object{
       Set-Item Env:MSYSTEM $(if ($_Cpu -ne 'NO_SSE') { 'MINGW64' } else { 'MINGW32' });
       msys2_shell.cmd -here -defterm -no-start $(if ($_Cpu -ne 'NO_SSE') { '-mingw64' } else { '-mingw32' }) -lc "$_Make -f $_Makefile clean YANEURAOU_EDITION=$_Edition";
       $log = $null;
-      msys2_shell.cmd -here -defterm -no-start $(if ($_Cpu -ne 'NO_SSE') { '-mingw64' } else { '-mingw32' }) -lc "nice $_Make -f $_Makefile -j$_Jobs $_Target YANEURAOU_EDITION=$_Edition COMPILER=$_Compiler OS=$_Os TARGET_CPU=$_Cpu 2>&1"|Tee-Object -Variable log;
+      msys2_shell.cmd -here -defterm -no-start $(if ($_Cpu -ne 'NO_SSE') { '-mingw64' } else { '-mingw32' }) -lc "nice $_Make -f $_Makefile -j$_Jobs $_Target YANEURAOU_EDITION=$_Edition COMPILER=$_Compiler OS=$_Os TARGET_CPU=$_Cpu $Extra 2>&1"|Tee-Object -Variable log;
       $log|Out-File -Encoding utf8 -Force (Join-Path $_BuildDir "$_BuildName-$_Target-$_Compiler-$($_Cpu.ToLower()).log");
       Copy-Item YaneuraOu-by-gcc.exe (Join-Path $_BuildDir "$_BuildName-$_Target-$_Compiler-$($_Cpu.ToLower()).exe") -Force;
   }}};
