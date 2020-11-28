@@ -23,7 +23,7 @@ jobs:
           - YANEURAOU_ENGINE_NNUE_KP256
           - YANEURAOU_ENGINE_KPPT
           - YANEURAOU_ENGINE_KPP_KKPT
-          - YANEURAOU_ENGINE_MATERIAL
+          - YANEURAOU_ENGINE_MATERIAL*
           - MATE_ENGINE
           - USER_ENGINE
         compiler: [ clang++-12, clang++-10, g++-10, g++-8 ]
@@ -32,7 +32,7 @@ jobs:
         exclude:
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
-          - edition: YANEURAOU_ENGINE_MATERIAL
+          - edition: YANEURAOU_ENGINE_MATERIAL*
             target: evallearn
           - edition: MATE_ENGINE
             target: evallearn

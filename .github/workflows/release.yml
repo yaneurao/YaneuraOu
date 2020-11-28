@@ -21,7 +21,7 @@ jobs:
         edition:
           - 'YANEURAOU_ENGINE_NNUE,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256'
           - 'YANEURAOU_ENGINE_KPPT,YANEURAOU_ENGINE_KPP_KKPT'
-          - YANEURAOU_ENGINE_MATERIAL
+          - YANEURAOU_ENGINE_MATERIAL*
           - MATE_ENGINE
           - USER_ENGINE
         compiler: [ clang++, g++ ]
@@ -44,7 +44,7 @@ jobs:
             archcpu: 'SSE41,SSSE3,SSE2,NO_SSE'
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
-          - edition: YANEURAOU_ENGINE_MATERIAL
+          - edition: YANEURAOU_ENGINE_MATERIAL*
             target: evallearn
           - edition: MATE_ENGINE
             target: evallearn
@@ -86,7 +86,7 @@ jobs:
           - YANEURAOU_ENGINE_NNUE_KP256
           - YANEURAOU_ENGINE_KPPT
           - YANEURAOU_ENGINE_KPP_KKPT
-          - YANEURAOU_ENGINE_MATERIAL
+          - YANEURAOU_ENGINE_MATERIAL*
           - MATE_ENGINE
           - USER_ENGINE
         exclude:
@@ -186,9 +186,22 @@ jobs:
             2. KPP_KKPT型
             3. NNUE型
               a. 標準NNUE(HalfKP)型
-              b. HalfKPE9型
-              c. K-P型
-            4. MaterialLv1型
+              b. HalfKPE9型 cf. [NNUE-HalfKPE9](https://github.com/tttak/YaneuraOu/releases/tag/V4.89_NNUE-HalfKPE9)
+              c. K-P型 cf. [魚沼産やねうら王できました](http://yaneuraou.yaneu.com/2019/02/12/%e9%ad%9a%e6%b2%bc%e7%94%a3%e3%82%84%e3%81%ad%e3%81%86%e3%82%89%e7%8e%8b%e3%81%a7%e3%81%8d%e3%81%be%e3%81%97%e3%81%9f/)
+            4. MaterialLv1～6
+              a. MaterialLv1 駒得のみ
+              b. MaterialLv2 駒得＋手駒評価
+                [【連載】評価関数を作ってみよう！その1](http://yaneuraou.yaneu.com/2020/11/17/make-evaluate-function/)
+              c. MaterialLv3 ＋盤上の利きを評価
+                [【連載】評価関数を作ってみよう！その2](http://yaneuraou.yaneu.com/2020/11/19/make-evaluate-function-2/)
+                [【連載】評価関数を作ってみよう！その3](http://yaneuraou.yaneu.com/2020/11/20/make-evaluate-function-3/)
+                [【連載】評価関数を作ってみよう！その4](http://yaneuraou.yaneu.com/2020/11/23/make-evaluate-function-4/)
+              d. MaterialLv4 ＋複数の利きに減衰評価
+                [【連載】評価関数を作ってみよう！その5](http://yaneuraou.yaneu.com/2020/11/25/make-evaluate-function-5/)
+              e. MaterialLv5 ＋利きの価値合算テーブル
+                [【連載】評価関数を作ってみよう！その6](http://yaneuraou.yaneu.com/2020/11/26/make-evaluate-function-6/)
+              f. MaterialLv6 ＋KKPEE9テーブルに一本化
+                [【連載】評価関数を作ってみよう！その7](http://yaneuraou.yaneu.com/2020/11/27/make-evaluate-function-7/)
             5. tanuki-詰将棋エンジン
 
             に対する
@@ -197,6 +210,7 @@ jobs:
             - [${{ steps.version.outputs.filename }}-windows.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-windows.7z) (${{ steps.archive_size.outputs.windows_7z }})
               - 実行ファイルWindows版 各CPU向け(ZEN2/ZEN1/AVX512VNNI/AVX512/AVX2/SSE4.2/SSE4.1/SSSE3/SSE2/32bit環境用)
               - トーナメントWindows版 (ZEN2/ZEN1/AVX512VNNI/AVX512/AVX2/SSE4.2)
+              - 教師生成用実行ファイルWindows版 (ZEN2/ZEN1/AVX512VNNI/AVX512/AVX2/SSE4.2)
               - 1.2.3.の学習用実行ファイルWindows版 (ZEN2/ZEN1/AVX512VNNI/AVX512/AVX2/SSE4.2)
             - [${{ steps.version.outputs.filename }}-android.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-android.zip) (${{ steps.archive_size.outputs.android_zip }})
             - [${{ steps.version.outputs.filename }}-android.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-android.7z) (${{ steps.archive_size.outputs.android_7z }})
