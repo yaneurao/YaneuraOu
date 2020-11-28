@@ -23,14 +23,14 @@ jobs:
           - YANEURAOU_ENGINE_NNUE_KP256
           - YANEURAOU_ENGINE_KPPT
           - YANEURAOU_ENGINE_KPP_KKPT
-          - YANEURAOU_ENGINE_MATERIAL
+          - YANEURAOU_ENGINE_MATERIAL*
           - MATE_ENGINE
           - USER_ENGINE
         compiler: [ x86_64-w64-mingw32-g++-posix, i686-w64-mingw32-g++-posix ]
-        target: [ 'normal,tournament', 'evallearn' ]
+        target: [ 'normal,tournament', gensfen, evallearn ]
         archcpu: [ 'AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN1', 'ZEN3,ZEN2,AVX512VNNI,AVX512,AVXVNNI', 'NO_SSE' ]
         exclude:
-          # NNUEの機械学習ビルドにはBLASが必要だが、現状はUbuntuのMinGWでOpenBLASを扱えない
+          # NNUEの教師生成/機械学習ビルドにはBLASが必要だが、現状はUbuntuのMinGWでOpenBLASを扱えない
           # NNUE's machine learning build requires BLAS, but currently Ubuntu's MinGW cannot handle OpenBLAS
           - edition: YANEURAOU_ENGINE_NNUE
             target: evallearn
@@ -38,21 +38,32 @@ jobs:
             target: evallearn
           - edition: YANEURAOU_ENGINE_NNUE_KP256
             target: evallearn
+          - edition: YANEURAOU_ENGINE_NNUE
+            target: gensfen
+          - edition: YANEURAOU_ENGINE_NNUE_HALFKPE9
+            target: gensfen
+          - edition: YANEURAOU_ENGINE_NNUE_KP256
+            target: gensfen
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
-          - edition: YANEURAOU_ENGINE_MATERIAL
+          - edition: YANEURAOU_ENGINE_MATERIAL*
             target: evallearn
           - edition: MATE_ENGINE
             target: evallearn
           - edition: USER_ENGINE
             target: evallearn
+          # 以下のエディションはgensfenに対応しない
+          - edition: MATE_ENGINE
+            target: gensfen
+          - edition: USER_ENGINE
+            target: gensfen
           # 32bit compiler x 64bit archcpu
           - compiler: i686-w64-mingw32-g++-posix
             archcpu: 'AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN1'
           # Ubuntu-18.04 MinGW は archcpu ZEN3,ZEN2,AVX512VNNI,AVXVNNI のサポートを行わない
           # ubuntu-18.04 MinGW will not support the archcpu ZEN3,ZEN2,AVX512VNNI,AVXVNNI
-          # AVX512VNNI, AVX512, AVXVNNI: NNUE is not yet a code that uses VNNI
           # `-march=cascadelake`: LLVM8, GCC9 support (AVX512VNNI)
+          # `-march=znver2`: LLVM9, GCC9 support
           # `-march=alderlake` : LLVM12, GCC11 support (AVX-VNNI)
           # `-march=znver3`: LLVM12 support
           - archcpu: 'ZEN3,ZEN2,AVX512VNNI,AVX512,AVXVNNI'
@@ -69,7 +80,7 @@ jobs:
     - name: install openblas
       run: |
         sudo apt update
-        sudo apt install build-essential mingw-w64 libopenblas-dev libomp-dev libomp5
+        sudo apt install build-essential libopenblas-dev mingw-w64
 
     - name: make
       run: ./main/script/mingw_gcc.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }}
