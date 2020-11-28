@@ -420,9 +420,6 @@
     <ClCompile Include="eval\nnue\features\pe9.cpp">
       <Filter>リソース ファイル\eval\nnue\features</Filter>
     </ClCompile>
-    <ClCompile Include="learn\gensfen2019.cpp">
-      <Filter>リソース ファイル\learn</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">

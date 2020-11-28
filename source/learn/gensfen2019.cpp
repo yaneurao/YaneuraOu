@@ -4,9 +4,13 @@
 
 #include "../config.h"
 
+// このcppファイルはlearn.cppの末尾でincludeされることを想定しているので、プロジェクトに含めてはならない。
+
 #if defined(EVAL_LEARN) && defined(GENSFEN2019)
 
+#include <sstream>
 #include <unordered_set>
+#include "multi_think.h"
 
 using namespace std;
 
@@ -327,7 +331,7 @@ namespace Learner {
 			// -- 1局分スタート
 
 			// 自分スレッド用の置換表があるはずなので自分の置換表だけをクリアする。
-			th->tt.clear();
+			th.tt.clear();
 
 			// 局面の初期化
 			set_start_pos(pos, th , states);

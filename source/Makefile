@@ -4,7 +4,7 @@
 # normal     : 通常使用用
 # evallearn  : 教師局面からの学習用
 # tournament : 大会で使う用
-# gensfen    : 教師生成用     // 現状、非公開 (currently private)
+# gensfen    : 教師生成用(2019年版)
 
 
 # === ビルドオプション (build options) ===
@@ -376,8 +376,8 @@ else ifeq ($(TARGET_CPU),OTHER)
 
 endif
 
-
-CPPFLAGS += -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) $(EXTRA_CPPFLAGS)
+# YANEURAOU_EDITION , CPUターゲット名 などのシンボルをコンパイル時に定義してやる。
+CPPFLAGS += -DUSE_MAKEFILE -D$(YANEURAOU_EDITION) -DTARGET_CPU=\"$(TARGET_CPU)\" $(EXTRA_CPPFLAGS)
 
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
 DEPENDS  = $(OBJECTS:.o=.d)

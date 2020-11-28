@@ -488,7 +488,6 @@
     <ClCompile Include="extra\mate\mate_n_ply.cpp" />
     <ClCompile Include="extra\sfen_packer.cpp" />
     <ClCompile Include="extra\test_cmd.cpp" />
-    <ClCompile Include="learn\gensfen2019.cpp" />
     <ClCompile Include="learn\learner.cpp" />
     <ClCompile Include="learn\learning_tools.cpp" />
     <ClCompile Include="learn\multi_think.cpp" />

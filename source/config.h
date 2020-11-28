@@ -10,7 +10,6 @@
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
 #define ENGINE_VERSION "5.32"
 
-
 // --------------------
 //  思考エンジンの種類
 // --------------------
@@ -281,86 +280,94 @@ constexpr int MAX_PLY_NUM = 246;
 
 #if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT) || defined(YANEURAOU_ENGINE_NNUE) || defined(YANEURAOU_ENGINE_MATERIAL)
 
-#define ENGINE_NAME "YaneuraOu"
+	#define ENGINE_NAME "YaneuraOu"
 
-// 探索部は通常のやねうら王エンジンを用いる。
-#define YANEURAOU_ENGINE
+	// 探索部は通常のやねうら王エンジンを用いる。
+	#define YANEURAOU_ENGINE
 
-// EvalHashを用いるのは3駒型のみ。それ以外は差分計算用の状態が大きすぎてhitしたところでどうしようもない。
-#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT)
-#define USE_EVAL_HASH
-#endif
+	// EvalHashを用いるのは3駒型のみ。それ以外は差分計算用の状態が大きすぎてhitしたところでどうしようもない。
+	#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT)
+	#define USE_EVAL_HASH
+	#endif
 
-#define USE_SEE
-#define USE_MATE_1PLY
-#define USE_ENTERING_KING_WIN
-#define USE_TIME_MANAGEMENT
-#define KEEP_PIECE_IN_GENERATE_MOVES
+	#define USE_SEE
+	#define USE_MATE_1PLY
+	#define USE_ENTERING_KING_WIN
+	#define USE_TIME_MANAGEMENT
+	#define KEEP_PIECE_IN_GENERATE_MOVES
 
-// 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
-#define USE_SHARED_MEMORY_IN_EVAL
+	// 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
+	#define USE_SHARED_MEMORY_IN_EVAL
 
-// 学習機能を有効にするオプション。
-// 教師局面の生成、定跡コマンド(makebook thinkなど)を用いる時には、これを
-// 有効化してコンパイルしなければならない。
-//#define EVAL_LEARN
+	// 学習機能を有効にするオプション。
+	// 教師局面の生成、定跡コマンド(makebook thinkなど)を用いる時には、これを
+	// 有効化してコンパイルしなければならない。
+	//#define EVAL_LEARN
 
-// デバッグ絡み
-//#define ASSERT_LV 3
-//#define USE_DEBUG_ASSERT
+	// デバッグ絡み
+	//#define ASSERT_LV 3
+	//#define USE_DEBUG_ASSERT
 
 
-#define ENABLE_TEST_CMD
-// 学習絡みのオプション
-#define USE_SFEN_PACKER
+	#define ENABLE_TEST_CMD
+	// 学習絡みのオプション
+	#define USE_SFEN_PACKER
 
-// 定跡生成絡み
-#define ENABLE_MAKEBOOK_CMD
+	// 定跡生成絡み
+	#define ENABLE_MAKEBOOK_CMD
 
-// パラメーターの自動調整絡み
-#define USE_GAMEOVER_HANDLER
-//#define LONG_EFFECT_LIBRARY
+	// パラメーターの自動調整絡み
+	#define USE_GAMEOVER_HANDLER
+	//#define LONG_EFFECT_LIBRARY
 
-// GlobalOptionsは有効にしておく。
-#define USE_GLOBAL_OPTIONS
+	// GlobalOptionsは有効にしておく。
+	#define USE_GLOBAL_OPTIONS
 
-// -- 各評価関数ごとのconfiguration
+	// -- 各評価関数ごとのconfiguration
 
-#if defined(YANEURAOU_ENGINE_MATERIAL)
-#define EVAL_MATERIAL
-// 駒割のみの評価関数ではサポートされていない機能をundefする。
-#undef USE_EVAL_HASH
-#undef EVAL_LEARN
-#undef USE_SHARED_MEMORY_IN_EVAL
-#endif
+	#if defined(YANEURAOU_ENGINE_MATERIAL)
 
-#if defined(YANEURAOU_ENGINE_KPPT)
-#define EVAL_KPPT
-#endif
+		#define EVAL_MATERIAL
+		// 駒割のみの評価関数ではサポートされていない機能をundefする。
+		#undef USE_EVAL_HASH
+		#undef EVAL_LEARN
+		#undef USE_SHARED_MEMORY_IN_EVAL
 
-#if defined(YANEURAOU_ENGINE_KPP_KKPT)
-#define EVAL_KPP_KKPT
-#endif
+		// 実験用評価関数
+		// 駒得評価関数の拡張扱いをする。
+		#if MATERIAL_LEVEL >= 002
+			// evaluate()のために利きが必要。
+			#define LONG_EFFECT_LIBRARY
+		#endif
+	#endif
 
-#if defined(YANEURAOU_ENGINE_NNUE)
-#define EVAL_NNUE
-// 現状、評価関数のメモリ共有はNNUEではサポートされていない。
-#undef USE_SHARED_MEMORY_IN_EVAL
+	#if defined(YANEURAOU_ENGINE_KPPT)
+		#define EVAL_KPPT
+	#endif
 
-// 学習のためにOpenBLASを使う
-// "../openblas/lib/libopenblas.dll.a"をlibとして追加すること。
-//#define USE_BLAS
+	#if defined(YANEURAOU_ENGINE_KPP_KKPT)
+		#define EVAL_KPP_KKPT
+	#endif
 
-// NNUEの使いたい評価関数アーキテクチャの選択
-//
-// EVAL_NNUE_HALFKP256  : 標準NNUE型(評価関数ファイル60MB程度)
-// EVAL_NNUE_KP256      : KP256(評価関数1MB未満)
-// EVAL_NNUE_HALFKPE9   : 標準NNUE型のおよそ9倍(540MB程度)
+	#if defined(YANEURAOU_ENGINE_NNUE)
+		#define EVAL_NNUE
+		// 現状、評価関数のメモリ共有はNNUEではサポートされていない。
+		#undef USE_SHARED_MEMORY_IN_EVAL
 
-// #define EVAL_NNUE_HALFKP256
-// #define EVAL_NNUE_KP256
-// #define EVAL_NNUE_HALFKPE9
-#endif
+		// 学習のためにOpenBLASを使う
+		// "../openblas/lib/libopenblas.dll.a"をlibとして追加すること。
+		//#define USE_BLAS
+
+		// NNUEの使いたい評価関数アーキテクチャの選択
+		//
+		// EVAL_NNUE_HALFKP256  : 標準NNUE型(評価関数ファイル60MB程度)
+		// EVAL_NNUE_KP256      : KP256(評価関数1MB未満)
+		// EVAL_NNUE_HALFKPE9   : 標準NNUE型のおよそ9倍(540MB程度)
+
+		// #define EVAL_NNUE_HALFKP256
+		// #define EVAL_NNUE_KP256
+		// #define EVAL_NNUE_HALFKPE9
+	#endif
 
 #endif // defined(YANEURAOU_ENGINE_KPPT) || ...
 
