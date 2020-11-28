@@ -6,6 +6,7 @@ on:
       # 動作条件を変えたい場合、 workflow-syntax-for-github-actions#フィルタパターンのチートシート 参照。
       # https://docs.github.com/ja/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions
       - 'v*'
+      - 'V*'
 
 jobs:
 
