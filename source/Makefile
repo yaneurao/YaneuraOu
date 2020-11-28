@@ -297,11 +297,17 @@ ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_
 endif
 
 ifeq ($(YANEURAOU_EDITION),MATE_ENGINE)
-	SOURCES += engine/mate-engine/mate-search.cpp
+	SOURCES += \
+		engine/mate-engine/mate-search.cpp                              \
+	    eval/material/evaluate_material.cpp
+
 endif
 
 ifeq ($(YANEURAOU_EDITION),USER_ENGINE)
-	SOURCES += engine/user-engine/user-search.cpp
+	SOURCES += \
+		engine/user-engine/user-search.cpp                              \
+		eval/material/evaluate_material.cpp
+
 endif
 
 ifneq ($(ENGINE_NAME),)
