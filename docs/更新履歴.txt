@@ -7,9 +7,118 @@
 		ちゃんと検証してからMakefile書き直す。
 
 
+■　2020/11/28 V5.33
+
+
+- やねうら王 V5.33
+
+	- NNUE AVX512,AVX512VNNI対応
+
+	- 駒得評価関数の拡張として、MATERIAL_LEVEL 1～6を追加。(詳しい内容は、以下の連載記事をご覧ください)
+		【連載】評価関数を作ってみよう！その1 : http://yaneuraou.yaneu.com/2020/11/17/make-evaluate-function/
+		【連載】評価関数を作ってみよう！その2 : http://yaneuraou.yaneu.com/2020/11/19/make-evaluate-function-2/
+		【連載】評価関数を作ってみよう！その3 : http://yaneuraou.yaneu.com/2020/11/20/make-evaluate-function-3/
+		【連載】評価関数を作ってみよう！その4 : http://yaneuraou.yaneu.com/2020/11/23/make-evaluate-function-4/
+		【連載】評価関数を作ってみよう！その5 : http://yaneuraou.yaneu.com/2020/11/25/make-evaluate-function-5/
+		【連載】評価関数を作ってみよう！その6 : http://yaneuraou.yaneu.com/2020/11/26/make-evaluate-function-6/
+		【連載】評価関数を作ってみよう！その7 : http://yaneuraou.yaneu.com/2020/11/27/make-evaluate-function-7/
+
+	- gensfen2019 追加
+		- WCSC29のときに用意した教師生成コマンド。
+		- GENSFEN2019をdefineしていると、"gensfen2019"というコマンドが使えるようになる。
+		- 与えた棋譜の各局面を対局開始局面として、そこから自己対局を行い、教師を生成する。
+		- オプション等についてはソースコード(gensfen2019.cpp)を読んでください。
+			- 気が向いたらきちんと書く。
+
+
+
+- Android用のMakefile修正。
+	- Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/136
+
+
+- mate engineとuser engineのビルドが通らない件、makefile修正。
+
+
+- NNUE AVX512,AVX512VNNI対応
+	- NNUEのコード大改修。
+		- 一部、複雑でportingまだ。残りはMizarさんに任せる。
+	- IS_ARM → USE_NEONに変更 (StockfishNNUEがそうなった)
+
+
+- 評価関数のEVAL_EXPERIMENTALのコード clean up
+
+
+- eval/material/ 追加
+- eval/experimental/ をold_engines/eval/ に移動移動
+
+- 駒得評価関数の拡張として、MATERIAL_LEVEL 1～6を追加。(詳しい内容は、以下の連載記事をご覧ください)
+	【連載】評価関数を作ってみよう！その1 : http://yaneuraou.yaneu.com/2020/11/17/make-evaluate-function/
+	【連載】評価関数を作ってみよう！その2 : http://yaneuraou.yaneu.com/2020/11/19/make-evaluate-function-2/
+	【連載】評価関数を作ってみよう！その3 : http://yaneuraou.yaneu.com/2020/11/20/make-evaluate-function-3/
+	【連載】評価関数を作ってみよう！その4 : http://yaneuraou.yaneu.com/2020/11/23/make-evaluate-function-4/
+	【連載】評価関数を作ってみよう！その5 : http://yaneuraou.yaneu.com/2020/11/25/make-evaluate-function-5/
+	【連載】評価関数を作ってみよう！その6 : http://yaneuraou.yaneu.com/2020/11/26/make-evaluate-function-6/
+	【連載】評価関数を作ってみよう！その7 : http://yaneuraou.yaneu.com/2020/11/27/make-evaluate-function-7/
+
+
+- Makefileのターゲット"gensfen"でコンパイルエラーになっていたの修正
+	- Visual Studioのプロジェクトファイルにgensfen2019.cpp入れてはいけなかったのでそれも修正。
+	- これ、Visual Studioで編集しにくいから、気が向いたらなおす…かも…。
+
+
+■　2020/11/27
+
+
+- USE_FV_VAR clean up
+	- 残っていた古いコードを削除
+- evaluate.hの説明修正。
+- TUNING_SEARCH_PARAMETERSが定義されているときにEval::init()をisreadyに対して呼ぶように変更。
+	- これしとかないと評価関数のほうのパラメーター調整ができない。
+
+
+- gensfen2019 追加
+	- WCSC29のときに用意した教師生成コマンド。
+	- GENSFEN2019をdefineしていると、"gensfen2019"というコマンドが使えるようになる。
+	- 与えた棋譜の各局面を対局開始局面として、そこから自己対局を行い、教師を生成する。
+	- オプション等についてはソースコード(gensfen2019.cpp)を読んでください。
+		- 気が向いたらきちんと書く。
+
+
+- LearnerThink::calc_loss()内のワーカースレッドでWinProcGroup::bindThisThread()を呼び出すようにした #135
+	- nodchipさん(たぬきさん)のプルリク : https://github.com/yaneurao/YaneuraOu/pull/135
+
+
+- release.yml: SSE3 -> SSSE3 #134
+	- 頭文字が "v*" にマッチする tag をpushした時に自動で作成する release において、本文テキストのtypoを修正
+	- Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/134
+
+
+- msys2_build.ps1 : nice value to default #133
+	- msys2_build.ps1 において、makeコマンドの実行優先度を実験用に -n 0 (通常) に設定していたままだったので、これをniceのデフォルト（+10、実行優先度を下げる）に戻す
+	- Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/133
+
+
+- release archive: add source #132
+	- 頭文字が "v*" にマッチする tag をpushした時に自動で作成する release において、zip/7z書庫に source/ 以下のファイルを追加する
+	- Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/132
+
+
+- bench.py
+	- StockfishのベンチマークのようなことができるPythonスクリプト
+	- Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/131 
+
+
 
 ■　2020/11/16
 
+
+- Makefileからビルド時にTARGET_CPUをコンパイルオプションとして設定するようにした。
+- エンジン起動時(usiコマンド送信時)に表示されるエンジン名は、ZEN2用は(従来のようにAVX2ではなく)ZEN2と表示されるようにした。
+
+
+- 最初に：やねうら王遊び方説明.txt 追加
+	- CI(自動ビルド)でこれが含まれていないと初めて使う人は、
+		どの実行ファイルを選べば良いのかわからなくなる。
 
 
 - V5.32リリース
