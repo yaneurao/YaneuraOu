@@ -22,7 +22,7 @@ namespace Eval
 	void evaluate_with_no_return(const Position& pos) {}
 	Value evaluate(const Position& pos) { return compute_eval(pos); }
 
-#if MATERIAL_LEVEL == 1
+#if MATERIAL_LEVEL == 1 || !defined(MATERIAL_LEVEL)
 	// 純粋な駒得の評価関数
 	// これでも3990XだとR2300ぐらいある。
 	// (序盤を定跡などでうまく乗り切れれば)

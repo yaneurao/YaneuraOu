@@ -17,8 +17,10 @@
 	3) NNUE型        (YaneuraOu_NNUE_XXX.exe)
 	  の3種類があり、それぞれに対応した実行ファイルと評価関数のファイルが必要です。
 
-    4) 駒得型        (YaneuraOu_KOMA_XXX.exe)
+    4) 駒得型        (YaneuraOu_MaterialLv1_XXX.exe)
 　　　→　これは駒得だけを評価する思考エンジンなので、評価関数のファイルは不要です。
+	 // MaterialLv2～は、以下の連載記事で作ったもので、単なる駒得の評価関数よりは強くなりますが、実行ファイルはたくさんあるので配布はしていません。
+		【連載】評価関数を作ってみよう！その1 : http://yaneuraou.yaneu.com/2020/11/17/make-evaluate-function/	 
 
 	5) tanuki-詰将棋エンジン(tanuki_MATE_XXX.exe)
 	  →　これは、詰将棋を解くの専用の思考エンジンなので評価関数のファイルは不要です。
