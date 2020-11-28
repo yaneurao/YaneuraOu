@@ -46,6 +46,9 @@ jobs:
             target: evallearn
           - edition: USER_ENGINE
             target: evallearn
+          # 以下のエディションはgensfenに対応しない
+          - edition: MATE_ENGINE
+            target: gensfen
           # 32bit compiler x 64bit archcpu
           - compiler: i686-w64-mingw32-g++-posix
             archcpu: 'AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN1'
