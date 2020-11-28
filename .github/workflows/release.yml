@@ -53,6 +53,8 @@ jobs:
           # 以下のエディションはgensfenに対応しない
           - edition: MATE_ENGINE
             target: gensfen
+          - edition: USER_ENGINE
+            target: gensfen
 
     steps:
     - name: Checkout own repository

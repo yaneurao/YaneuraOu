@@ -41,6 +41,8 @@ jobs:
           # 以下のエディションはgensfenに対応しない
           - edition: MATE_ENGINE
             target: gensfen
+          - edition: USER_ENGINE
+            target: gensfen
           # Ubuntu-18.04 g++-8 は archcpu ZEN3,ZEN2,AVX512VNNI,AVXVNNI のサポートを行わない
           # ubuntu-18.04 g++-8 will not support the archcpu ZEN3,ZEN2,AVX512VNNI,AVXVNNI
           # `-march=cascadelake`: LLVM8, GCC9 support (AVX512VNNI)

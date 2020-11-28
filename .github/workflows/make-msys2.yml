@@ -41,6 +41,8 @@ jobs:
           # 以下のエディションはgensfenに対応しない
           - edition: MATE_ENGINE
             target: gensfen
+          - edition: USER_ENGINE
+            target: gensfen
           # 自動ビルドチェックから除外
           # Build check exclude: archcpu ZEN3,AVXVNNI,OTHER
           # `-march=cascadelake`: LLVM8, GCC9 support (AVX512VNNI)
