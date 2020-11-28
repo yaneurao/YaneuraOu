@@ -65,6 +65,9 @@
     <Filter Include="リソース ファイル\engine\yaneuraou-engine">
       <UniqueIdentifier>{1822c23d-4270-4155-8c9b-ed15821d29ba}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\eval\material">
+      <UniqueIdentifier>{fb977067-9a3c-4399-8b82-8fa9e35cbce1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -419,6 +422,9 @@
     </ClCompile>
     <ClCompile Include="eval\nnue\features\pe9.cpp">
       <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\material\evaluate_material.cpp">
+      <Filter>リソース ファイル\eval\material</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

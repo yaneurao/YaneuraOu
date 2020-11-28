@@ -468,6 +468,7 @@
     <ClCompile Include="eval\kppt\evaluate_kppt_learner.cpp" />
     <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt.cpp" />
     <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt_learner.cpp" />
+    <ClCompile Include="eval\material\evaluate_material.cpp" />
     <ClCompile Include="eval\nnue\evaluate_nnue.cpp" />
     <ClCompile Include="eval\nnue\evaluate_nnue_learner.cpp" />
     <ClCompile Include="eval\nnue\features\half_kp.cpp" />

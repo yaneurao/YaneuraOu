@@ -1,4 +1,5 @@
-﻿#include "book.h"
+﻿#include "../../config.h"
+#include "book.h"
 #include "../../position.h"
 #include "../../misc.h"
 #include "../../search.h"

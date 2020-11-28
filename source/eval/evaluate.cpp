@@ -27,24 +27,6 @@ namespace Eval
 		return (Value)v;
 	}
 
-#if defined (EVAL_MATERIAL)
-	// 駒得のみの評価関数のとき。
-	void init() {
-#if defined(USE_FV_VAR)
-		init_mir_inv_tables();
-#endif
-	}
-	void load_eval() {}
-	void print_eval_stat(Position& pos) {}
-	Value evaluate(const Position& pos) { return compute_eval(pos); }
-	Value compute_eval(const Position& pos) {
-		auto score = pos.state()->materialValue;
-		ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));
-		return pos.side_to_move() == BLACK ? score : -score;
-	}
-	void evaluate_with_no_return(const Position& pos) {}
-#endif
-
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 
 	// calc_check_sum()を呼び出して返ってきた値を引数に渡すと、ソフト名を表示してくれる。

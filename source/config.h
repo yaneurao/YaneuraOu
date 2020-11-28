@@ -141,12 +141,11 @@ constexpr int MAX_PLY_NUM = 246;
 // 「！」がついているもの..かつて実装していたがサポートを終了したもの。
 
 // #define EVAL_NO_USE    // ！　評価関数なし。※4
-// #define EVAL_MATERIAL  // ○  駒得のみの評価関数
+// #define EVAL_MATERIAL  // ○  駒得のみの評価関数 ※5
 // #define EVAL_PP        // ×  ツツカナ型 2駒関係(開発予定なし)
 // #define EVAL_KPP       // ！  Bonanza型 3駒関係、手番なし
 // #define EVAL_KPPT      // ○  Bonanza型 3駒関係、手番つき(Apery WCSC26相当)
 // #define EVAL_KPP_KKPT  // ○  KK手番あり + KKP手番あり + KPP手番なし(Ponanza WCSC26相当？)
-// #define EVAL_KPP_KKPT_FV_VAR // ○ KPP_KKPTと同一。※5
 // #define EVAL_KPP_PPT   // ×  PP手番あり + KKP手番あり + KPP手番なし(実装、途中まで)※1
 // #define EVAL_KPPP_KKPT // △  KKP手番あり + KPP手番なし + KPPP(4駒関係)手番なし。→　※2,※3
 // #define EVAL_KPPPT     // △  KPPP(4駒関係)手番あり。→　実装したけどいまひとつだったので差分計算実装せず。※2,※3
@@ -161,9 +160,10 @@ constexpr int MAX_PLY_NUM = 246;
 // ※4 : 以前、EVAL_NO_USEという評価関数なしのものが選択できるようになっていたが、
 //       需要がほとんどない上に、ソースコードがifdefの嵐になるので読みづらいのでバッサリ削除した。
 //		代わりにEVAL_MATERIALを使うと良い。追加コストはほぼ無視できる。
-// ※5 : 可変長EvalListを用いるリファレンス実装。KPP_KKPT型に比べてわずかに遅いが、拡張性が非常に高く、
-//      極めて美しい実装なので、今後、評価関数の拡張は、これをベースにやっていくことになると思う。
-
+// ※5 : MATERIAL_LEVELというシンボルで評価関数のタイプを選択できる。
+//       #define MATERIAL_LEVEL 001 なら、駒得のみの評価関数
+//       #define MATERIAL_LEVEL 002 なら…
+//       → eval/material/evaluate_material.cppに定義があるのでそちらを見ること。
 
 // 評価関数を教師局面から学習させるときに使うときのモード
 //#define EVAL_LEARN
@@ -630,27 +630,23 @@ constexpr bool Is64Bit = false;
 
 // -- 評価関数の種類によりエンジン名に使用する文字列を変更する。
 #if defined(EVAL_MATERIAL)
-#define EVAL_TYPE_NAME "Material"
-
+	// MATERIAL_LEVELの番号を"Level"として出力してやる。
+	#define EVAL_TYPE_NAME "MaterialLv" << MATERIAL_LEVEL
 #elif defined(EVAL_KPPT)
-#define EVAL_TYPE_NAME "KPPT"
-
+	#define EVAL_TYPE_NAME "KPPT"
 #elif defined(EVAL_KPP_KKPT)
-#define EVAL_TYPE_NAME "KPP_KKPT"
-
+	#define EVAL_TYPE_NAME "KPP_KKPT"
 #elif defined(EVAL_NNUE_KP256)
-#define EVAL_TYPE_NAME "NNUE KP256"
-
+	#define EVAL_TYPE_NAME "NNUE KP256"
 #elif defined(EVAL_NNUE_HALFKPE9)
-#define EVAL_TYPE_NAME "NNUE halfKPE9"
-// hafeKPE9には利きが必要
-#define LONG_EFFECT_LIBRARY
-#define USE_BOARD_EFFECT_PREV
-
+	#define EVAL_TYPE_NAME "NNUE halfKPE9"
+	// hafeKPE9には利きが必要
+	#define LONG_EFFECT_LIBRARY
+	#define USE_BOARD_EFFECT_PREV
 #elif defined(EVAL_NNUE) // それ以外のNNUEなので標準NNUE halfKP256だと思われる。
-#define EVAL_TYPE_NAME "NNUE"
+	#define EVAL_TYPE_NAME "NNUE"
 #else
-#define EVAL_TYPE_NAME ""
+	#define EVAL_TYPE_NAME ""
 #endif
 
 // -- do_move()のときに移動した駒の管理をして差分計算
