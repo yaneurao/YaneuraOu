@@ -3272,8 +3272,16 @@ void init_param()
 			if (line.find("PARAM_DEFINE") != std::string::npos)
 			{
 				for (size_t i = 0; i < param_names.size(); ++i)
-					if (line.find(param_names[i]) != std::string::npos)
 					{
+					auto pos = line.find(param_names[i]);
+					if (pos != std::string::npos)
+					{
+						char c = line[pos + param_names[i].size()];
+						// ここ、パラメーター名のあと、スペースか"="か来るのを確認しておかないと
+						// "PARAM_T1" が "PARAM_T10" に誤爆する。
+						if (!(c == '\t' || c == ' ' || c == '='))
+							continue;
+
 						count++;
 
 						// "="の右側にある数値を読む。
@@ -3312,8 +3320,8 @@ void init_param()
 						for (int j = 0; j <= param_interval; ++j)
 						{
 							// j==0のときは同じ値であり、これはのちに除外される。
-							a.push_back(std::max(v - param_step * j,param_min));
-							a.push_back(std::min(v + param_step * j,param_max));
+							a.push_back(std::max(v - param_step * j, param_min));
+							a.push_back(std::min(v + param_step * j, param_max));
 						}
 
 						// 重複除去。
@@ -3334,6 +3342,7 @@ void init_param()
 						//            cout << param_names[i] << " = " << *param_vars[i] << endl;
 						goto NEXT;
 					}
+				}
 				std::cout << "Error : param not found! in yaneuraou-param.h -> " << line << std::endl;
 
 			NEXT:;
