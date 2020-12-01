@@ -1269,7 +1269,8 @@ double Math::dsigmoid(double x) {
 namespace Path
 {
 	// path名とファイル名を結合して、それを返す。
-	// folder名のほうは空文字列でないときに、末尾に'/'か'\\'がなければそれを付与する。
+	// folder名のほうは空文字列でないときに、末尾に'/'か'\\'がなければ'/'を付与する。
+	// ('/'自体は、Pathの区切り文字列として、WindowsでもLinuxでも使えるはずなので。
 	std::string Combine(const std::string& folder, const std::string& filename)
 	{
 		if (folder.length() >= 1 && *folder.rbegin() != '/' && *folder.rbegin() != '\\')
@@ -1278,20 +1279,26 @@ namespace Path
 		return folder + filename;
 	}
 
-	// full path表現から、(フォルダ名を除いた)ファイル名の部分を取得する。
+	// full path表現(ファイル名を含む)から、(フォルダ名を除いた)ファイル名の部分を取得する。
 	std::string GetFileName(const std::string& path)
 	{
-		// "\"か"/"か、どちらを使ってあるかはわからない。
-		auto path_index1 = path.find_last_of("\\") + 1;
-		auto path_index2 = path.find_last_of("/") + 1;
-		auto path_index = std::max(path_index1, path_index2);
+		// "\"か"/"か、どちらを使ってあるかはわからないがなるべく後ろにある、いずれかの文字を探す。
+		auto path_index1 = path.find_last_of("\\");
+		auto path_index2 = path.find_last_of("/");
 
 		// どちらの文字も見つからなかったのであれば、ディレクトリ名が含まれておらず、
-		// path丸ごとがファイル名だと考えられる。
-		if (path_index == std::string::npos)
+		// 与えられたpath丸ごとがファイル名だと考えられる。
+		if (path_index1 == std::string::npos && path_index2 == std::string::npos)
 			return path;
 
-		return path.substr(path_index);
+		// なるべく後ろのを見つけたいが、string::nposは大きな定数なので単純にstd::max()するとこれを持ってきてしまう。
+		// string::nposを0とみなしてmaxをとる。
+		path_index1 = path_index1 == string::npos ? 0 : path_index1;
+		path_index2 = path_index2 == string::npos ? 0 : path_index2;
+		auto path_index = std::max(path_index1, path_index2);
+
+		// そこ以降を返す。
+		return path.substr(path_index + 1);
 	}
 
 	// full path表現から、ディレクトリ名の部分を取得する。
@@ -1534,20 +1541,17 @@ namespace Directory
 		return filenames;
 	}
 
-	// カレントフォルダ。起動時にDirectory::init()によって設定される。
-	namespace { std::string currentFolder; }
-
 	// カレントフォルダを返す(起動時のフォルダ)
 	// main関数に渡された引数から設定してある。
 	// "GetCurrentDirectory"という名前はWindowsAPI(で定義されているマクロ)と競合する。
-	std::string GetCurrentFolder() { return currentFolder; }
+	std::string GetCurrentFolder() { return CommandLine::workingDirectory; }
 }
 
 // ----------------------------
 //     mkdir wrapper
 // ----------------------------
 
-// カレントフォルダ相対で指定する。
+// working directory相対で指定する。
 // フォルダを作成する。日本語は使っていないものとする。
 // どうもMSYS2環境下のgccだと_wmkdir()だとフォルダの作成に失敗する。原因不明。
 // 仕方ないので_mkdir()を用いる。
@@ -1562,6 +1566,10 @@ namespace Directory
 namespace Directory {
 	Tools::Result CreateFolder(const std::string& dir_name)
 	{
+		// working folder相対で指定する。
+		// working folderは本ソフトで変更していないので、普通に
+		// mkdirすれば、working folderに作られるはずである。
+
 		int result =  _wmkdir(Tools::MultiByteToWideChar(dir_name).c_str());
 		//	::CreateDirectory(Tools::MultiByteToWideChar(dir_name).c_str(),NULL);
 
@@ -1609,19 +1617,62 @@ namespace Directory {
 
 #endif
 
+// ----------------------------
+//     working directory
+// ----------------------------
 
+#ifdef _WIN32
+#include <direct.h>
+#define GETCWD _getcwd
+#else
+#include <unistd.h>
+#define GETCWD getcwd
+#endif
 
-namespace Misc
-{
-	// このmisc.hの各種クラスの初期化。起動時にmain()から一度呼び出すようにする。(やねうら王独自拡張)
-	// その後、Stockfish12で似た仕組みが導入された。
-	void init(char* argv[])
-	{
-		// GetCurrentDirectory()で現在のフォルダを返すためにmain関数のなかでこの関数を呼び出してあるものとする。
-		Directory::currentFolder = Path::GetDirectoryName(argv[0]);
+namespace CommandLine {
 
-		// Linux系だと、"./a.out"みたいになってて、__CurrentFolder__ == "."になってしまうが仕方がない。(´ω｀)
-		// Directory::GetCurrentFolder()はWindows系でしか呼び出さないので、とりあえずこの問題は放置。
+	string argv0;            // path+name of the executable binary, as given by argv[0]
+	string binaryDirectory;  // path of the executable directory
+	string workingDirectory; // path of the working directory
+
+	void init(int argc, char* argv[]) {
+		(void)argc;
+		string pathSeparator;
+
+		// extract the path+name of the executable binary
+		argv0 = argv[0];
+
+#ifdef _WIN32
+		pathSeparator = "\\";
+#ifdef _MSC_VER
+		// Under windows argv[0] may not have the extension. Also _get_pgmptr() had
+		// issues in some windows 10 versions, so check returned values carefully.
+		char* pgmptr = nullptr;
+		if (!_get_pgmptr(&pgmptr) && pgmptr != nullptr && *pgmptr)
+			argv0 = pgmptr;
+#endif
+#else
+		pathSeparator = "/";
+#endif
+
+		// extract the working directory
+		workingDirectory = "";
+		char buff[40000];
+		char* cwd = GETCWD(buff, 40000);
+		if (cwd)
+			workingDirectory = cwd;
+
+		// extract the binary directory path from argv0
+		binaryDirectory = argv0;
+		size_t pos = binaryDirectory.find_last_of("\\/");
+		if (pos == std::string::npos)
+			binaryDirectory = "." + pathSeparator;
+		else
+			binaryDirectory.resize(pos + 1);
+
+		// pattern replacement: "./" at the start of path is replaced by the working directory
+		if (binaryDirectory.find("." + pathSeparator) == 0)
+			binaryDirectory.replace(0, 1, workingDirectory);
 	}
 
 }

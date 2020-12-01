@@ -726,22 +726,23 @@ namespace Directory
 	extern std::vector<std::string> EnumerateFiles(const std::string& sourceDirectory, const std::string& extension);
 
 	// フォルダを作成する。
-	// カレントフォルダ相対で指定する。dir_nameに日本語は使っていないものとする。
+	// working directory相対で指定する。dir_nameに日本語は使っていないものとする。
 	// ※　Windows環境だと、この関数名、WinAPIのCreateDirectoryというマクロがあって…。
 	// 　ゆえに、CreateDirectory()をやめて、CreateFolder()に変更する。
 	extern Tools::Result CreateFolder(const std::string& dir_name);
 
-	// カレントフォルダを返す(起動時のフォルダ)
-	// main関数に渡された引数から設定してある。
+	// working directoryを返す。
 	// "GetCurrentDirectory"という名前はWindowsAPI(で定義されているマクロ)と競合する。
 	extern std::string GetCurrentFolder();
-
 }
 
-namespace Misc
-{
-	// このmisc.hの各種クラスの初期化。起動時にmain()から一度呼び出すようにする。
-	extern void init(char* argv[]);
+namespace CommandLine {
+	// 起動時にmain.cppから呼び出される。
+	// CommandLine::binaryDirectory , CommandLine::workingDirectoryを設定する。
+	extern void init(int argc, char* argv[]);
+
+	extern std::string binaryDirectory;  // path of the executable directory
+	extern std::string workingDirectory; // path of the working directory
 }
 
 

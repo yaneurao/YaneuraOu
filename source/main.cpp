@@ -15,7 +15,7 @@ int main(int argc, char* argv[])
 {
 	// --- 全体的な初期化
 
-	Misc::init(argv);
+	CommandLine::init(argc,argv);
 	USI::init(Options);
 	Bitboards::init();
 	Position::init();
