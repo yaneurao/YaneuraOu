@@ -176,7 +176,7 @@ namespace {
 	// 悪化していく局面なので深く読んでも仕方ないからreduction量を心もち増やす。
 	Depth reduction(bool i, Depth d, int mn) {
 		int r = Reductions[d] * Reductions[mn];
-		return (r + 509) / 1024 + (!i && r > 894);
+		return (r + PARAM_REDUCTION_ALPHA /* 509*/ ) / 1024 + (!i && r > PARAM_REDUCTION_BETA /*894*/);
 	}
 
 	// 【計測資料 29.】　Move CountベースのFutiliy Pruning、Stockfish 9と10での比較
@@ -1259,15 +1259,18 @@ namespace {
 		//   このフラグを各種枝刈りのmarginの決定に用いる
 		//   cf. Tweak probcut margin with 'improving' flag : https://github.com/official-stockfish/Stockfish/commit/c5f6bd517c68e16c3ead7892e1d83a6b1bb89b69
 		//   cf. Use evaluation trend to adjust futility margin : https://github.com/official-stockfish/Stockfish/commit/65c3bb8586eba11277f8297ef0f55c121772d82c
+		// didLMR				: LMRを行ったのフラグ
 		// priorCapture         : 1つ前の局面は駒を取る指し手か？
-		bool formerPv ,givesCheck, improving, /*didLMR,*/ priorCapture;
+		bool formerPv ,givesCheck, improving, didLMR, priorCapture;
 
 		// captureOrPawnPromotion : moveが駒を捕獲する指し手もしくは歩を成る手であるか
 		// doFullDepthSearch	: LMRのときにfail highが起きるなどしたので元の残り探索深さで探索することを示すフラグ
 		// moveCountPruning		: moveCountによって枝刈りをするかのフラグ(quietの指し手を生成しない)
 		// ttCapture			: 置換表の指し手がcaptureする指し手であるか
 		// pvExact				: PvNodeで置換表にhitして、しかもBOUND_EXACT
-		bool captureOrPawnPromotion, doFullDepthSearch, moveCountPruning, ttCapture;
+		// singularQuietLMR     :
+		bool captureOrPawnPromotion, doFullDepthSearch, moveCountPruning,
+			ttCapture, singularQuietLMR;
 
 		// moveによって移動させる駒
 		Piece movedPiece;
@@ -1417,6 +1420,14 @@ namespace {
 
 		formerPv = ss->ttPv && !PvNode;
 
+		// depthが高くてplyが低いときは、lowPlyHistoryを更新する。
+		// 直前の指し手がcaptureでなければ(それは良い手のはずだから)、bonusをちょこっと加算。
+		if (ss->ttPv
+			&& depth > 12
+			&& ss->ply - 1 < MAX_LPH
+			&& !priorCapture
+			&& is_ok((ss - 1)->currentMove))
+			thisThread->lowPlyHistory[ss->ply - 1][from_to((ss - 1)->currentMove)] << stat_bonus(depth - 5);
 
 		// thisThread->ttHitAverageは、ttHit(置換表にhitしたかのフラグ)の実行時の平均を近似するために用いられる。
 		// 移動平均のようなものを算出している。
@@ -1920,7 +1931,7 @@ namespace {
 
 		value = bestValue;
 
-		moveCountPruning = false;
+		singularQuietLMR = moveCountPruning = false;
 
 		// 置換表の指し手がcaptureOrPromotionであるか。
 		// 置換表の指し手がcaptureOrPromotionなら高い確率でこの指し手がベストなので、他の指し手を
@@ -2123,40 +2134,51 @@ namespace {
 				// null window searchするときに大きなコストを伴いかねないから。)
 			{
 				// このmargin値は評価関数の性質に合わせて調整されるべき。
-				Value singularBeta = ttValue - PARAM_SINGULAR_MARGIN * depth / 64; // 2*depth
+				Value singularBeta = ttValue - ((formerPv + PARAM_SINGULAR_MARGIN/*4*/ ) * depth) / 2;
+				Depth singularDepth = (depth - 1 + 3 * formerPv) / 2;
 
+				// move(ttMove)の指し手を以下のsearch()での探索から除外
+
+				ss->excludedMove = move;
 				// 局面はdo_move()で進めずにこのnodeから浅い探索深さで探索しなおす。
 				// 浅いdepthでnull windowなので、すぐに探索は終わるはず。
-				// Depth halfDepth = depth / 2;
-				Depth halfDepth = depth * PARAM_SINGULAR_SEARCH_DEPTH_ALPHA / 32;
-
-				// ttMoveの指し手を以下のsearch()での探索から除外
-				ss->excludedMove = move;
-
-				value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, halfDepth , cutNode);
+				value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
 				ss->excludedMove = MOVE_NONE;
 
 				// 置換表の指し手以外がすべてfail lowしているならsingular延長確定。
 				if (value < singularBeta)
 				{
 					extension = 1;
-
-#if 0
-					singularExtensionLMRmultiplier++;
-					if (value < singularBeta - std::min(3 * depth, 39))
-						singularExtensionLMRmultiplier++;
-#endif
+					singularQuietLMR = !ttCapture;
 
 					// singular extentionが生じた回数の統計を取ってみる。
 					// dbg_hit_on(extension == 1);
 				}
 
 				// Multi-cut pruning
+				// Our ttMove is assumed to fail high, and now we failed high also on a reduced
+				// search without the ttMove. So we assume this expected Cut-node is not singular,
 				// 今回のttMoveはfail highであろうし、そのttMoveなしでdepthを減らした探索においてもfail highした。
+				// that multiple moves fail high, and we can prune the whole subtree by returning
+				// a soft bound.
 				// だから、この期待されるCut-nodeはsingularではなく、複数の指し手でfail highすると考えられる。
 				// よって、hard beta boundを返すことでこの部分木全体を枝刈りする。
-				else if (cutNode && singularBeta > beta)
+				else if (singularBeta >= beta)
+					return singularBeta;
+
+				// If the eval of ttMove is greater than beta we try also if there is another
+				// move that pushes it over beta, if so also produce a cutoff.
+
+				else if (ttValue >= beta)
+				{
+					ss->excludedMove = move;
+					value = search<NonPV>(pos, ss, beta - 1, beta, (depth + 3) / 2, cutNode);
+					ss->excludedMove = MOVE_NONE;
+
+					if (value >= beta)
 					return beta;
+			}
+
 			}
 
 			// 王手延長 : ~2 Elo
@@ -2171,28 +2193,30 @@ namespace {
 			// Stockfish9では、	&& !moveCountPruning が条件式に入っていた。
 			// Stockfish10のコードは、敵側のpin駒を取る指し手か、駒得になる王手に限定して延長している。
 			// pin駒を剥がす指し手は、こちらの利きはあるということなので2枚利いていることが多く、駒得でなくとも有効。
+
+			// Check extension (~2 Elo)
 			else if (givesCheck
-				&& ( pos.blockers_for_king(~us) & from_sq(move) ||  pos.see_ge(move)))
+				&& (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move)))
 				extension = 1;
 
-			// Castling延長など(将棋にはキャスリングルールはないので関係ない)
+			// Last captures extension
 
-			//// Castling extension
-			//else if (type_of(move) == CASTLING)
+			// 最後に捕獲した駒による延長
+			// 捕獲した駒の終盤での価値がPawnより大きく、詰みに直結しそうなら延長する。
+			// 将棋では駒は終盤で増えていくので関係なさげ。
+
+			//else if (PieceValue[EG][pos.captured_piece()] > PawnValueEg
+			//	&& pos.non_pawn_material() <= 2 * RookValueMg)
 			//	extension = 1;
 
-			//// Shuffle extension
-			//else if (PvNode
-			//	&& pos.rule50_count() > 18
-			//	&& depth < 3
-			//	&& ss->ply < 3 * thisThread->rootDepth) // To avoid too deep searches
-			//	extension = 1;
-
-			////Passed pawn extension
-			//else if (move == ss->killers[0]
-			//	&& pos.advanced_pawn_push(move)
-			//	&& pos.pawn_passed(us, to_sq(move)))
-			//	extension = 1;
+			// Late irreversible move extension
+			// 終盤の不可逆な指し手による延長
+			// 将棋では関係なさげなので知らね。将棋ではほとんどの駒が不可逆な動きをするから。
+			
+			//if (move == ttMove
+			//	&& pos.rule50_count() > 80
+			//	&& (captureOrPromotion || type_of(movedPiece) == PAWN))
+			//	extension = 2;
 
 			// -----------------------
 			//   1手進める前の枝刈り
@@ -2200,7 +2224,7 @@ namespace {
 
 			// 再帰的にsearchを呼び出すとき、search関数に渡す残り探索深さ。
 			// これはsingluar extensionの探索が終わってから決めなければならない。(singularなら延長したいので)
-				newDepth = depth - 1 + extension;
+			newDepth += extension;
 
 			// -----------------------
 			//      1手進める
@@ -2226,61 +2250,91 @@ namespace {
 			pos.do_move(move, st, givesCheck);
 
 			// -----------------------
-			// Step 16. Reduced depth search (LMR).
+			// Step 16. Reduced depth search (LMR, ~200 Elo). 
 			// -----------------------
-
 			// depthを減らした探索。LMR(Late Move Reduction)
+
+			// If the move fails high it will be re - searched at full depth.
+			// depthを減らして探索させて、その指し手がfail highしたら元のdepthで再度探索するという手法 
 
 			// 【計測資料 32.】LMRのコード、Stockfish9と10の比較
 
 			// moveCountが大きいものなどは探索深さを減らしてざっくり調べる。
 			// alpha値を更新しそうなら(fail highが起きたら)、full depthで探索しなおす。
 
-			if (depth >= 3
+			if (    depth >= 3
 				&&  moveCount > 1 + 3 * rootNode
 				&& (!captureOrPawnPromotion
 					|| moveCountPruning
-					|| ss->staticEval + CapturePieceValue[pos.captured_piece()] <= alpha ))
+					|| ss->staticEval + CapturePieceValue[pos.captured_piece()] <= alpha
+					|| cutNode
+					|| thisThread->ttHitAverage < 427 * TtHitAverageResolution * TtHitAverageWindow / 1024))
 			{
 				// Reduction量
 				Depth r = reduction(improving, depth, moveCount);
 
+				// Decrease reduction if the ttHit running average is large
+				if (thisThread->ttHitAverage > 509 * TtHitAverageResolution * TtHitAverageWindow / 1024)
+					r--;
+
+				// Increase reduction if other threads are searching this position
+				// 他のスレッドがこの局面を探索中であるならreductionを増やす。
+				// (どうせそのスレッドが探索するであろうから)
+				if (th.marked())
+					r++;
+
+				// Decrease reduction if position is or has been on the PV (~10 Elo)
 				// この局面がPV上であるならreductionを減らす
 				if (ss->ttPv)
 					r -= 2 ;
 
-				// Decrease reduction if opponent's move count is high (~10 Elo)
+				// Increase reduction at root and non-PV nodes when the best move does not change frequently
+				// best moveが頻繁に変更されていないならば局面が安定しているのだろうから、rootとnon-PVではreductionを増やす。
+				if ((rootNode || !PvNode) && depth > 10 && thisThread->bestMoveChanges <= 2)
+						r++;
+
+				if (moveCountPruning && !formerPv)
+					r++;
+
+				// Decrease reduction if opponent's move count is high (~5 Elo)
 				// 相手の指し手(1手前の指し手)のmove countが高い場合、reduction量を減らす。
 				// 相手の指し手をたくさん読んでいるのにこちらだけreductionするとバランスが悪いから。
 
 				// 【計測資料 4.】相手のmoveCountが高いときにreductionを減らす
 				// →　古い計測なので当時はこのコードないほうが良かったが、Stockfish10では入れたほうが良さげ。
-				if ((ss - 1)->moveCount > 15)
-					r -= 1;
 
-#if 0
-				// singular延長をしたなら、reduction量を減らしてやる
-				r -= singularExtensionLMRmultiplier;
-#endif
+				if ((ss - 1)->moveCount > 13)
+					r--;
+
+				// Decrease reduction if ttMove has been singularly extended (~3 Elo)
+				if (singularQuietLMR)
+					r--;
 
 				if (!captureOrPawnPromotion)
 				{
+					// Increase reduction if ttMove is a capture (~5 Elo)
 					// 【計測資料 3.】置換表の指し手がcaptureのときにreduction量を増やす。
 
-					// ~0 Elo
 					if (ttCapture)
 						r += 1;
+
+					// Increase reduction at root if failing high
+					r += rootNode ? thisThread->failedHighCnt * thisThread->failedHighCnt * moveCount / 512 : 0;
 
 					// cut nodeにおいてhistoryの値が悪い指し手に対してはreduction量を増やす。
 					// ※　PVnodeではIID時でもcutNode == trueでは呼ばないことにしたので、
 					// if (cutNode)という条件式は暗黙に && !PvNode を含む。
 
+					// Increase reduction for cut nodes (~10 Elo)
 					// 【計測資料 18.】cut nodeのときにreductionを増やすかどうか。
 
-					// ~5 Elo
 					if (cutNode)
 						r += 2;
 
+					// Decrease reduction for moves that escape a capture. Filter out
+					// castling moves, because they are coded as "king captures rook" and
+					// hence break make_move(). (~2 Elo)
+						  
 					// 当たりを避ける手(捕獲から逃れる指し手)はreduction量を減らす。
 
 					// do_move()したあとなのでtoの位置には今回移動させた駒が来ている。
@@ -2292,40 +2346,60 @@ namespace {
 					// ただ、手番つきの評価関数では駒の当たりは評価されているし、
 					// 当たり自体は将棋ではチェスほど問題とならないので…。
 
-					// 【計測資料 17.】捕獲から逃れる指し手はreduction量を減らす。
-
 #if 0
-				// ~5 Elo
-					else if (!is_drop(move) // type_of(move) == NORMAL
-						&& !pos.see_ge(make_move(to_sq(move), from_sq(move))))
-						r -= 2;
+					// よく考えたら駒打ちに対してはreverse_move()が作れないし、
+					// 普通の移動であったとしても、将棋だとそれが合法手とは限らないし..
+					// これ、toにある駒がfromに利いてるかのチェックとか何かが必要なのではないかな..
+					//
+					// あと、この枝刈りをやるとして、将棋では、type_of(move) == NORMALに対して駒打ちは除外するように設計しないと
+					// 駒打ちに対するreverse_move()を考えるとおかしいことになるので…。
+
+					// 【計測資料 38.】 reverse_moveのSEEで、reduction
+
+					else if (   type_of(move) == NORMAL
+							&& !pos.see_ge(reverse_move(move)))
+						r -= 2 + ss->ttPv - (type_of(movedPiece) == PAWN);
 #endif
 
 					// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
+					// contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？
 					ss->statScore = thisThread->mainHistory[from_to(move)][us]
 						+ (*contHist[0])[to_sq(move)][movedPiece]
 						+ (*contHist[1])[to_sq(move)][movedPiece]
 						+ (*contHist[3])[to_sq(move)][movedPiece]
-						- PARAM_REDUCTION_BY_HISTORY/*4000*/; // 修正項
+						- PARAM_REDUCTION_BY_HISTORY/*5278*/; // 修正項
 
 					// historyの値に応じて指し手のreduction量を増減する。
 
 					// 【計測資料 1.】
 
-					// ~ 10 Elo
-					if (ss->statScore >= 0 && (ss - 1)->statScore < 0)
-						r -= 1;
+					// Decrease/increase reduction by comparing opponent's stat score (~10 Elo)
+					if (ss->statScore >= -106 && (ss - 1)->statScore < -104)
+						r--;
 
-					else if ((ss - 1)->statScore >= 0 && ss->statScore < 0)
-						r += 1;
+					else if ((ss - 1)->statScore >= -119 && ss->statScore < -140)
+						r++;
 
+					// Decrease/increase reduction for moves with a good/bad history (~30 Elo)
 					// ~30 Elo
-					r -= ss->statScore / 20000;
+					r -= ss->statScore / 14884;
+				}
+				else
+				{
+					// Increase reduction for captures/promotions if late move and at low depth
+					if (depth < 8 && moveCount > 2)
+						r++;
+
+					// Unless giving check, this capture is likely bad
+					if (!givesCheck
+						&& ss->staticEval + CapturePieceValue[pos.captured_piece()] + 213 * depth <= alpha)
+						r++;
 				}
 
 				// depth >= 3なのでqsearchは呼ばれないし、かつ、
 				// moveCount > 1 すなわち、このnodeの2手目以降なのでsearch<NonPv>が呼び出されるべき。
-				Depth d = std::max(newDepth - std::max(r, 0), 1);
+
+				Depth d = std::clamp(newDepth - r, 1, newDepth);
 
 				value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, true);
 
@@ -2334,11 +2408,18 @@ namespace {
 				//
 
 				// 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす。
-				doFullDepthSearch = (value > alpha) && (d != newDepth);
+
+				doFullDepthSearch = value > alpha && d != newDepth;
+
+				didLMR = true;
 			}
 			else
+			{
 				// non PVか、PVでも2手目以降であればfull depth searchを行なう。
 				doFullDepthSearch = !PvNode || moveCount > 1;
+
+				didLMR = false;
+			}
 
 
 			// -----------------------
@@ -2349,7 +2430,20 @@ namespace {
 
 			// ※　静止探索は残り探索深さはdepth = 0として開始されるべきである。(端数があるとややこしいため)
 			if (doFullDepthSearch)
+			{
 				value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
+
+				if (didLMR && !captureOrPawnPromotion)
+				{
+					int bonus = value > alpha ? stat_bonus(newDepth)
+						: -stat_bonus(newDepth);
+
+					if (move == ss->killers[0])
+						bonus += bonus / 4;
+
+					update_continuation_histories(ss, movedPiece, to_sq(move), bonus);
+				}
+			}
 
 			// PV nodeにおいては、full depth searchがfail highしたならPV nodeとしてsearchしなおす。
 			// ただし、value >= betaなら、正確な値を求めることにはあまり意味がないので、これはせずにbeta cutしてしまう。
@@ -2749,8 +2843,7 @@ namespace {
 					&& (tte->bound() & (ttValue > bestValue ? BOUND_LOWER : BOUND_UPPER)))
 					bestValue = ttValue;
 
-			}
-			else {
+			} else {
 
 				// 置換表がhitしなかった場合、bestValueの初期値としてevaluate()を呼び出すしかないが、
 				// NULL_MOVEの場合は前の局面での値を反転させると良い。(手番を考慮しない評価関数であるなら)
@@ -2758,16 +2851,21 @@ namespace {
 				// StateInfo.sumは更新されていて、そのあとdo_null_move()ではStateInfoが丸ごとコピーされるから、現在のpos.state().sumは
 				// 正しい値のはず。
 
-#if 0
+
+				if (!PARAM_QSEARCH_FORCE_EVAL)
+				{
 			// Stockfish相当のコード
 				ss->staticEval = bestValue =
 					(ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
 					: -(ss - 1)->staticEval + 2 * PARAM_EVAL_TEMPO;
-#else
-			// search()のほうの結果から考えると長い持ち時間では、ここ、きちんと評価したほうが良いかも。
-			// TODO : きちんと計測する。
+
+				} else {
+
+					// 評価関数の実行時間・精度によっては、こう書いたほうがいいかもという書き方。
+					// 残り探索深さが大きい時は、こっちに切り替えるのはありかも…。
+					// どちらが優れているかわからないので、optimizerに任せる。
 				ss->staticEval = bestValue = evaluate(pos);
-#endif
+				}
 			}
 
 			// Stand pat.
@@ -2844,6 +2942,11 @@ namespace {
 				)
 			{
 				//assert(type_of(move) != ENPASSANT); // Due to !pos.advanced_pawn_push
+
+				// MoveCountに基づく枝刈り
+				if (moveCount > 2)
+					continue;
+
 				// moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになるはず。
 				// 【計測資料 14.】 futility pruningのときにpromoteを考慮するかどうか。
 				futilityValue = futilityBase + (Value)CapturePieceValue[pos.piece_on(to_sq(move))]
@@ -2909,6 +3012,19 @@ namespace {
 																	  [captureOrPawnPromotion]
 																	  [to_sq(move)]
 																	  [pos.moved_piece_after(move)];
+
+
+			// MoveCountベースの枝刈り
+			// ※ Stockfish12でqsearch()にも導入された。
+			// 成りは歩だけに限定してあるが、これが適切かどうかはよくわからない。(大抵計測しても誤差ぐらいでしかない…)
+			if (!captureOrPawnPromotion
+				//&& moveCount
+				// →　これは誤りらしい
+				// cf. https://github.com/official-stockfish/Stockfish/commit/a260c9a8a24a2630a900efc3821000c3481b0c5d
+				&& bestValue > VALUE_TB_LOSS_IN_MAX_PLY
+				&& (*contHist[0])[to_sq(move)][pos.moved_piece_after(move)] < CounterMovePruneThreshold
+				&& (*contHist[1])[to_sq(move)][pos.moved_piece_after(move)] < CounterMovePruneThreshold)
+				continue;
 
 			// 1手動かして、再帰的にqsearch()を呼ぶ
 			pos.do_move(move, st, givesCheck);
@@ -3127,8 +3243,20 @@ namespace {
 		thisThread->mainHistory[from_to(move)][us] << bonus;
 		update_continuation_histories(ss, pos.moved_piece_after(move), to_sq(move), bonus);
 
-		if (type_of(pos.moved_piece_after(move)) != PAWN)
+		// 将棋はチェスと違って元の場所に戻れない駒が多いのでreverse_move()を用いるhistory updateは
+		// 大抵、悪影響しかない。
+		// また、reverse_move()を用いるならば、ifの条件式に " && !is_drop(move)"が要ると思う。
+
+		// Stockfish12のコード
+		//if (type_of(pos.moved_piece_after(move)) != PAWN)
+		//	thisThread->mainHistory[from_to(reverse_move(move))][us] << -bonus;
+
+#if 1
+		// 【計測資料 37.】 update_quiet_stats()で、歩以外に対してreverse_moveにペナルティ。
+
+		if (type_of(pos.moved_piece_after(move)) != PAWN && !is_drop(move))
 			thisThread->mainHistory[from_to(reverse_move(move))][us] << -bonus;
+#endif
 
 		if (is_ok((ss - 1)->currentMove))
 		{

@@ -1,6 +1,9 @@
 ﻿#include "movepick.h"
 #include "thread.h"
 
+// パラメーターの自動調整フレームワークからパラメーターの値を読み込む
+#include "engine/yaneuraou-engine/yaneuraou-param-common.h"
+
 #if defined(DEV_BRANCH) && defined(USE_AVX2)
 // partial_insertion_sort()のSuperSortを用いた実装
 extern void partial_super_sort(ExtMove* start, ExtMove* end, int limit);
@@ -203,13 +206,23 @@ void MovePicker::score()
 			Piece movedPiece = pos.moved_piece_after(m);
 			Square movedSq = to_sq(m);
 
+#if 0
 			m.value = (*mainHistory)[from_to(m)][pos.side_to_move()]
 					+ 2 * (*continuationHistory[0])[movedSq][movedPiece]
 					+ 2 * (*continuationHistory[1])[movedSq][movedPiece]
 					+ 2 * (*continuationHistory[3])[movedSq][movedPiece]
 					+     (*continuationHistory[5])[movedSq][movedPiece]
-					+ (ply < MAX_LPH ? std::min(4, depth / 3) * (*lowPlyHistory)[ply][from_to(m)] : 0);;
-				;
+					+ (ply < MAX_LPH ? std::min(4, depth / 3) * (*lowPlyHistory)[ply][from_to(m)] : 0);
+#endif
+
+			// パラメーターの調整フレームワークを利用するために、値を16倍して最適値を探す。
+			m.value = 16 * (*mainHistory)[from_to(m)][pos.side_to_move()]
+				+ MOVE_PICKER_Q_PARAM1 * (*continuationHistory[0])[movedSq][movedPiece]
+				+ MOVE_PICKER_Q_PARAM2 * (*continuationHistory[1])[movedSq][movedPiece]
+				+ MOVE_PICKER_Q_PARAM3 * (*continuationHistory[3])[movedSq][movedPiece]
+				+ MOVE_PICKER_Q_PARAM4 * (*continuationHistory[5])[movedSq][movedPiece]
+				+ MOVE_PICKER_Q_PARAM5 * (ply < MAX_LPH ? std::min(4, depth / 3) * (*lowPlyHistory)[ply][from_to(m)] : 0);
+
 		}
 		else // Type == EVASIONS
 		{

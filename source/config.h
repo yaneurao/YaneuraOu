@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "5.33"
+#define ENGINE_VERSION "5.40"
 
 // --------------------
 //  思考エンジンの種類
@@ -630,28 +630,28 @@ constexpr bool Is64Bit = false;
 
 // -- 評価関数の種類によりエンジン名に使用する文字列を変更する。
 #if defined(EVAL_MATERIAL)
-#if defined(MATERIAL_LEVEL)
+	#if defined(MATERIAL_LEVEL)
 	// MATERIAL_LEVELの番号を"Level"として出力してやる。
-#define EVAL_TYPE_NAME "MaterialLv" << MATERIAL_LEVEL
-#else
+		#define EVAL_TYPE_NAME "MaterialLv" << MATERIAL_LEVEL
+	#else
 	// 適切な評価関数がないので単にEVAL_MATERIALを指定しているだけだから、EVAL_TYPE_NAMEとしては空欄でいいかと。
-#define EVAL_TYPE_NAME ""
-#endif
+		#define EVAL_TYPE_NAME ""
+	#endif
 #elif defined(EVAL_KPPT)
-#define EVAL_TYPE_NAME "KPPT"
+	#define EVAL_TYPE_NAME "KPPT"
 #elif defined(EVAL_KPP_KKPT)
-#define EVAL_TYPE_NAME "KPP_KKPT"
+	#define EVAL_TYPE_NAME "KPP_KKPT"
 #elif defined(EVAL_NNUE_KP256)
-#define EVAL_TYPE_NAME "NNUE KP256"
+	#define EVAL_TYPE_NAME "NNUE KP256"
 #elif defined(EVAL_NNUE_HALFKPE9)
-#define EVAL_TYPE_NAME "NNUE halfKPE9"
-// hafeKPE9には利きが必要
-#define LONG_EFFECT_LIBRARY
-#define USE_BOARD_EFFECT_PREV
+	#define EVAL_TYPE_NAME "NNUE halfKPE9"
+	// hafeKPE9には利きが必要
+	#define LONG_EFFECT_LIBRARY
+	#define USE_BOARD_EFFECT_PREV
 #elif defined(EVAL_NNUE) // それ以外のNNUEなので標準NNUE halfKP256だと思われる。
-#define EVAL_TYPE_NAME "NNUE"
+	#define EVAL_TYPE_NAME "NNUE"
 #else
-#define EVAL_TYPE_NAME ""
+	#define EVAL_TYPE_NAME ""
 #endif
 
 // -- do_move()のときに移動した駒の管理をして差分計算
