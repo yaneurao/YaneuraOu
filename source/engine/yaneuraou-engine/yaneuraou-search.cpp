@@ -1577,40 +1577,44 @@ namespace {
 
 		//  局面を評価値によって静的に評価
 
-		// 差分計算の都合、毎回evaluate()を呼ぶ必要があるのだが、このタイミングで呼ぶのは少し早いかも。
-		// Stockfishでは、このタイミングより少し遅いタイミングで呼び出している。
-
-		// 【計測資料 23.】moves_loopに入る前に毎回evaluate()を呼ぶかどうか。
-
 		CapturePieceToHistory& captureHistory = thisThread->captureHistory;
-
-		// どうせ差分計算のためにevaluate()は呼び出す必要がある。
-		ss->staticEval = eval = evaluate(pos);
 
 		if (ss->inCheck)
 		{
-			// 評価値を置換表から取り出したほうが得だと思うが、反復深化でこのnodeに再訪問したときも
-			// このnodeでは評価値を用いないであろうから、置換表にこのnodeの評価値があることに意味がない。
+			// Skip early pruning when in check
+			// 王手がかかっているときは、early pruning(早期枝刈り)をスキップする
 
 			ss->staticEval = eval = VALUE_NONE;
 			improving = false;
-			goto moves_loop; // 王手がかかっているときは、early pruning(早期枝刈り)を実施しない。
+			goto moves_loop;
 		}
 		else if (ss->ttHit)
 		{
+			// Never assume anything about values stored in TT
+			// TTに格納されている値に関して何も仮定はしない
 
-			//		ss->staticEval = eval = tte->eval();
-			//		if (eval == VALUE_NONE)
-			//			  ss->staticEval = eval = evaluate(pos);
+			ss->staticEval = eval = tte->eval();
 
 			// 置換表にhitしたなら、評価値が記録されているはずだから、それを取り出しておく。
 			// あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
 
+			if (eval == VALUE_NONE)
+				ss->staticEval = eval = evaluate(pos);
+
+			// 引き分けっぽい評価値であるなら、いくぶん揺らす。
+			// (千日手回避のため)
+			// 将棋ではこの処理どうなのかな…。
+
+			//if (eval == VALUE_DRAW)
+			//	eval = value_draw(thisThread);
+
+			// Can ttValue be used as a better position evaluation?
 			// ttValueのほうがこの局面の評価値の見積もりとして適切であるならそれを採用する。
 			// 1. ttValue > evaluate()でかつ、ttValueがBOUND_LOWERなら、真の値はこれより大きいはずだから、
 			//   evalとしてttValueを採用して良い。
 			// 2. ttValue < evaluate()でかつ、ttValueがBOUND_UPPERなら、真の値はこれより小さいはずだから、
 			//   evalとしてttValueを採用したほうがこの局面に対する評価値の見積りとして適切である。
+
 			if (ttValue != VALUE_NONE
 				&& (tte->bound() & (ttValue > eval ? BOUND_LOWER : BOUND_UPPER)))
 				eval = ttValue;
@@ -1618,23 +1622,13 @@ namespace {
 		}
 		else
 		{
-
-			//		if ((ss - 1)->currentMove != MOVE_NULL)
-			//		{
-			//			int bonus = -(ss - 1)->statScore / 512;
-			//
-			//			ss->staticEval = eval = evaluate(pos) + bonus;
-			//		}
-			//		else
-			//			ss->staticEval = eval = -(ss - 1)->staticEval + 2 * Eval::Tempo;
-
-			// Null Moveであってもevaluate()はすでに実行しているのでStockfishのような
-			// 簡易計算ではないほうが良いような…。
-
-			// 【計測資料 28.】moves_loopに入る前、1手前がnull moveのときにstaticEvalにbonusを足すかどうか
-
-			int bonus = -(ss - 1)->statScore / 512;
-			ss->staticEval = eval = eval /* == evaluate(pos) */ + bonus;
+			if ((ss - 1)->currentMove != MOVE_NULL)
+				ss->staticEval = eval = evaluate(pos);
+			else
+				ss->staticEval = eval = -(ss - 1)->staticEval + 2 * PARAM_EVAL_TEMPO;
+				// 手番の価値、PARAM_EVAL_TEMPOと仮定している。
+				// 将棋では終盤の手番の価値があがるので、ここは進行度に比例する値にするだとか、
+				// 評価関数からもらうだとか何とかしたほうがいい気はする。
 
 			// 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
 			// ※　bonus分だけ加算されているが静止探索の値ということで…。
@@ -1733,7 +1727,7 @@ namespace {
 			Depth R = ((PARAM_NULL_MOVE_DYNAMIC_ALPHA/*982*/ + PARAM_NULL_MOVE_DYNAMIC_BETA/*85*/ * depth) / 256
 				+ std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA/*192*/, 3));
 
-			ss->currentMove = MOVE_NONE;
+			ss->currentMove = MOVE_NULL;
 			// null moveなので、王手はかかっていなくて駒取りでもない。
 			// よって、continuationHistory[0(王手かかってない)][0(駒取りではない)][SQ_ZERO][NO_PIECE]
 			ss->continuationHistory = &thisThread->continuationHistory[0][0][SQ_ZERO][NO_PIECE];
@@ -1777,7 +1771,7 @@ namespace {
 		// Step 10. ProbCut (skipped when in check) : ~10 Elo
 		// -----------------------
 
-		// probCutに使うbeta値。TODO : 調整すべき。
+		// probCutに使うbeta値。
 		probCutBeta = beta + PARAM_PROBCUT_MARGIN1/*176*/ - PARAM_PROBCUT_MARGIN2/*49*/ * improving;
 
 		// ProbCut(王手のときはスキップする)
@@ -1897,6 +1891,12 @@ namespace {
 		// 王手がかかっている局面では、探索はここから始まる。
 	moves_loop:
 
+		// このノードでまだ評価関数を呼び出していないなら、呼び出して差分計算しないといけない。
+		// (やねうら王独自仕様)
+		// do_move()で行っている評価関数はこの限りではないが、NNUEでも
+		// このタイミングで呼び出したほうが高速化するようなので呼び出す。
+		Eval::evaluate_with_no_return(pos);
+
 		// continuationHistory[0]  = Counter Move History    : ある指し手が指されたときの応手
 		// continuationHistory[1]  = Follow up Move History  : 2手前の自分の指し手の継続手
 		// continuationHistory[3]  = Follow up Move History2 : 4手前からの継続手
@@ -1907,6 +1907,7 @@ namespace {
 		// 直前の指し手で動かした(移動後の)駒 : やねうら王独自
 		Piece prevPc = pos.piece_on(prevSq);
 
+		// 1手前の指し手(1手前のtoとPiece)に対応するよさげな応手を統計情報から取得。
 		Move countermove = thisThread->counterMoves[prevSq][prevPc];
 
 		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory,
@@ -2041,6 +2042,9 @@ namespace {
 					// Futility pruning: parent node (~5 Elo)
 					// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
 
+					// パラメーター調整の係数を調整したほうが良いのかも知れないが、
+					// ここ、そんなに大きなEloを持っていないので、調整しても無意味。
+
 					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*7*/
 						&& !ss->inCheck
 						&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1/*283*/ + PARAM_FUTILITY_MARGIN_BETA/*170*/ * lmrDepth <= alpha
@@ -2076,12 +2080,16 @@ namespace {
 			}
 
 			// -----------------------
-			// Step 14. Singular and Gives Check Extensions. : ~70 Elo
+			// Step 14. Singular and Gives Check Extensions. : ~75 Elo
 			// -----------------------
 
 			// singular延長と王手延長。
 
-			// Singular extension search : ~60 Elo
+			// Singular extension search (~70 Elo). If all moves but one fail low on a
+			// search of (alpha-s, beta-s), and just one fails high on (alpha, beta),
+			// then that move is singular and should be extended. To verify this we do
+			// a reduced search on all the other moves but the ttMove and if the
+			// result is lower than ttValue minus a margin, then we will extend the ttMove.
 
 			// (alpha-s,beta-s)の探索(sはマージン値)において1手以外がすべてfail lowして、
 			// 1手のみが(alpha,beta)においてfail highしたなら、指し手はsingularであり、延長されるべきである。
@@ -2410,8 +2418,7 @@ namespace {
 					if (moveCount > 1)
 						++thisThread->bestMoveChanges;
 
-				}
-				else {
+				} else {
 
 					// root nodeにおいてα値を更新しなかったのであれば、この指し手のスコアを-VALUE_INFINITEにしておく。
 					// こうしておかなければ、stable_sort()しているにもかかわらず、前回の反復深化のときの値との
@@ -2602,7 +2609,7 @@ namespace {
 		// oldAlpha			: この関数が呼び出された時点でのalpha値
 		Value bestValue, value, ttValue, futilityValue, futilityBase, oldAlpha;
 
-		// pvHit			: PV nodeでかつ置換表にhitした
+		// pvHit			: 置換表から取り出した指し手が、PV nodeでsaveされたものであった。
 		// givesCheck		: MovePickerから取り出した指し手で王手になるか
 		// captureOrPawnPromotion : 駒を捕獲する指し手か、歩を成る指し手であるか
 		bool pvHit, givesCheck , captureOrPawnPromotion;
@@ -2675,9 +2682,12 @@ namespace {
 		{
 			return ttValue;
 		}
+
 		// -----------------------
 		//     eval呼び出し
 		// -----------------------
+
+		// Evaluate the position statically
 
 		if (ss->inCheck)
 		{
@@ -2687,8 +2697,8 @@ namespace {
 			// 王手がかかっているときは-VALUE_INFINITEを初期値として、すべての指し手を生成してこれを上回るものを探すので
 			// alphaとは区別しなければならない。
 			bestValue = futilityBase = -VALUE_INFINITE;
-		}
-		else {
+
+		} else {
 
 			// -----------------------
 			//      一手詰め判定
@@ -2696,6 +2706,7 @@ namespace {
 
 			// 置換表にhitした場合は、すでに詰みを調べたはずなので
 			// 置換表にhitしなかったときにのみ調べる。
+
 			if (PARAM_QSEARCH_MATE1 && !ss->ttHit)
 			{
 				// いまのところ、入れたほうが良いようだ。
@@ -2779,7 +2790,7 @@ namespace {
 
 			// futilityの基準となる値をbestValueにmargin値を加算したものとして、
 			// これを下回るようであれば枝刈りする。
-			futilityBase = bestValue + PARAM_FUTILITY_MARGIN_QUIET /*128*/;
+			futilityBase = bestValue + PARAM_FUTILITY_MARGIN_QUIET /*145*/;
 		}
 
 		// -----------------------
@@ -2824,7 +2835,9 @@ namespace {
 			// 今回捕獲されるであろう駒による評価値の上昇分を
 			// 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
 
-			if (   !ss->inCheck
+			if (   bestValue > VALUE_TB_LOSS_IN_MAX_PLY
+				// cf. https://github.com/official-stockfish/Stockfish/commit/392b529c3f52103ad47ad096b86103c17758cb4f
+				// !ss->inCheck
 				&& !givesCheck
 				&&  futilityBase > -VALUE_KNOWN_WIN
 			//	&& !pos.advanced_pawn_push(move))
@@ -2865,7 +2878,9 @@ namespace {
 
 			// Stockfish 12のコード
 			// Do not search moves with negative SEE values
-			if (!ss->inCheck
+			if (    bestValue > VALUE_TB_LOSS_IN_MAX_PLY
+				// !ss->inCheck
+				// cf. https://github.com/official-stockfish/Stockfish/commit/392b529c3f52103ad47ad096b86103c17758cb4f
 				&& !(givesCheck && pos.is_discovery_check_on_king(~pos.side_to_move(), move))
 				&& !pos.see_ge(move))
 				continue;
@@ -2911,17 +2926,17 @@ namespace {
 				{
 					bestMove = move;
 
+					if (PvNode)  // Update pv even in fail-high case
 					// fail-highの場合もPVは更新する。
-					if (PvNode)
 						update_pv(ss->pv, move, (ss + 1)->pv);
 
-					if (PvNode && value < beta)
+					if (PvNode && value < beta) // Update alpha here!
 						// alpha値の更新はこのタイミングで良い。
 						// なぜなら、このタイミング以外だと枝刈りされるから。(else以下を読むこと)
 						alpha = value;
 
 					else
-						break; // fail high
+						break; // Fail high
 				}
 			}
 		}
