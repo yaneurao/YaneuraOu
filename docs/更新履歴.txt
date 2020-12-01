@@ -7,7 +7,70 @@
 		ちゃんと検証してからMakefile書き直す。
 
 
+■　2020/12/02
+
+
+- やねうら王 V5.40
+	- MOVE_NULLのバグ修正(+R25)
+	- NNUE高速化
+	- MaterialLv.7追加
+
+
+
+■　2020/12/01
+
+
+- NNUE高速化
+	- Mizarさんのプルリク
+	* Backport from Stockfish NNUE
+	* - 4 tab indent style
+
+
+- MOVE_NULLを代入すべきところMOVE_NONEになってたの修正。
+	- これ修正したけど強さほぼ変わらないか、むしろ弱くなるようなのだが…。
+		- https://twitter.com/mktakizawa/status/1330863774941646848
+	- evaluate()まわりも同時に修正すれば、弱くはなっていないようなので採用。
+
+		engine1 = YaneuraOu-NNUE_V533.exe , eval = suishou_wcso1
+		engine2 = YaneuraOu-NNUE_V533a.exe , eval = suishou_wcso1
+		T2,r100,1304 - 44 - 1652(44.11% R-41.09[-51.68,-30.51]) winrate black , white = 50.41% , 49.59%
+		T2,b1000,1354 - 98 - 1548(46.66% R-23.26[-33.89,-12.63]) winrate black , white = 50.72% , 49.28%
+		T2,b2000,1248 - 114 - 1488(45.61% R-30.56[-41.52,-19.59]) winrate black , white = 50.0% , 50.0%
+		T2,b2000,1263 - 117 - 1440(46.73% R-22.78[-33.8,-11.77]) winrate black , white = 51.05% , 48.95%
+		+R25ぐらいあがっとる。
+
+
+
+- Directry::GetCurrentFolder()、起動フォルダによっては正常に返せていなかったの修正。
+	- Stockfishに導入された、namespace CommandLineをそのままportingして、それを間接的に呼び出すようにした。
+		cf. https://github.com/official-stockfish/Stockfish/commit/406979ea12ee7828e079871b0f9f3dc8f127a741
+- Directry::GetCurrentFolder()は、working folderを返すように変更。
+- Directry::CreateFolder()もworking folder相対で指定するようにコメントを追記。(以前からそうなっているはずだが)
+- Path::GetFileName()、ファイル名しかないときに正常にファイル名が返せていなかったの修正。
+- Path::GetDirectoryName()、GetFileName()を間接的に呼び出していたので同様のバグがあったのを修正。
+
+
+■　2020/11/30
+
+
+- TUNING_SEARCH_PARAMETERSで、PARAM10がPARAM1に誤爆する問題を修正。
+
+
+- 評価関数MaterialLv7追加。
+	-【連載】評価関数を作ってみよう！その8 : http://yaneuraou.yaneu.com/2020/11/30/make-evaluate-function-8/
+
+
 ■　2020/11/28 V5.33
+
+
+- build scripts #138
+	- Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/138
+		gensfen target対応 (MATE_ENGINE, USER_ENGINE, Ubuntu-MinGW NNUE* はビルド不能のため除外)
+		MaterialLvX 対応
+		AVXVNNI対応(Ubuntu + LLVM12のみ)
+		ビルドターゲットにAVXVNNI,AVX512VNNI,AVX512追加
+		自動リリースビルドのトリガとなるタグ名に 'V*' を追加
+		自動リリース時の説明文を加筆 例: https://github.com/mizar/YaneuraOu/releases/tag/v5.32.0%2B20201128f.nnue
 
 
 - やねうら王 V5.33
