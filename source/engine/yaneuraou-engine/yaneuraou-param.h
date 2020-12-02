@@ -30,7 +30,7 @@
 //
 
 // 深さに比例したfutility pruning
-// 元の値 = 223 , step = 20
+// 元の値 = 224 , step = 20
 // [PARAM] min:100,max:300,step:3,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 186;
 
@@ -42,7 +42,7 @@ PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 165;
 
 
 // 静止探索でのfutility pruning
-// 元の値 = 145 , step = 10
+// 元の値 = 155 , step = 10
 // [PARAM] min:50,max:200,step:2,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 132;
 
@@ -59,13 +59,13 @@ PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 8;
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 7;
 
 // 親nodeでのfutility margin
-// 元の値 = 283 , step = 20
+// 元の値 = 266 , step = 20
 // [PARAM] min:100,max:400,step:3,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 = 283;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 = 266;
 
-// 元の値 = 29
+// 元の値 = 30
 // [PARAM] min:20,max:50,step:2,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 29;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 30;
 
 // lmrのときのdepthの上限値。(これを超えるdepthは、↓この値とみなす)
 // 元の値 = 18 , step = 1
@@ -79,15 +79,15 @@ PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 236;
 
 
 // Reductionの計算式に出てくる定数
-// 元の値 = 509 ,step = 16
+// 元の値 = 503 ,step = 16
 // [PARAM] min:0,max:1024,step:3,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_REDUCTION_ALPHA = 477;
 
 // Reductionの計算式に出てくる定数
 // このパラメーター怖くて調整できない。
-// 元の値 = 894 , step = 128
+// 元の値 = 915 , step = 128
 // [PARAM] min:600,max:1500,step:128,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_BETA = 894;
+PARAM_DEFINE PARAM_REDUCTION_BETA = 915;
 
 //
 // null move dynamic pruning
@@ -96,17 +96,17 @@ PARAM_DEFINE PARAM_REDUCTION_BETA = 894;
 // null move dynamic pruningのときの
 //  Reduction = (α + β * depth ) / 256 + ...みたいなαとβ
 
-// 元の値 = 982 , step = 50
+// 元の値 = 1015 , step = 50
 // [PARAM] min:500,max:1500,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_ALPHA = 977;
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_ALPHA = 1015;
 
 // 元の値 = 85 , step = 15
 // [PARAM] min:50,max:120,step:3,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 97;
 
-// 元の値 = 192 , step = 40
+// 元の値 = 191 , step = 40
 // [PARAM] min:50,max:400,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 187;
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 191;
 
 
 // 元の値 = 22977 , step = 8000
@@ -125,9 +125,9 @@ PARAM_DEFINE PARAM_NULL_MOVE_MARGIN2 = 29;
 // [PARAM] min:10,max:100,step:1,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_NULL_MOVE_MARGIN3 = 84;
 
-// 元の値 = 182 , step = 50
+// 元の値 = 168 , step = 50
 // [PARAM] min:0,max:400,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 182;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 168;
 
 
 
@@ -151,7 +151,7 @@ PARAM_DEFINE PARAM_PROBCUT_DEPTH = 4;
 // probcutのmargin
 //    式 = beta + PARAM_PROBCUT_MARGIN1 - improving * PARAM_PROBCUT_MARGIN2
 //   improvingの効果怪しいので抑え気味にしておく。
-// 元の値 = 176
+// 元の値 = 183
 // [PARAM] min:100,max:300,step:3,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 199;
 

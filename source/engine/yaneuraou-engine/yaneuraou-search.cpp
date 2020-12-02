@@ -163,7 +163,7 @@ namespace {
 
 	// depth(残り探索深さ)に応じたfutility margin。
 	Value futility_margin(Depth d, bool improving) {
-		return Value(PARAM_FUTILITY_MARGIN_ALPHA1/*223*/ * (d - improving));
+		return Value(PARAM_FUTILITY_MARGIN_ALPHA1/*224*/ * (d - improving));
 	}
 
 	// 【計測資料 30.】　Reductionのコード、Stockfish 9と10での比較
@@ -176,7 +176,7 @@ namespace {
 	// 悪化していく局面なので深く読んでも仕方ないからreduction量を心もち増やす。
 	Depth reduction(bool i, Depth d, int mn) {
 		int r = Reductions[d] * Reductions[mn];
-		return (r + PARAM_REDUCTION_ALPHA /* 509*/ ) / 1024 + (!i && r > PARAM_REDUCTION_BETA /*894*/);
+		return (r + PARAM_REDUCTION_ALPHA /* 503*/ ) / 1024 + (!i && r > PARAM_REDUCTION_BETA /*915*/);
 	}
 
 	// 【計測資料 29.】　Move CountベースのFutiliy Pruning、Stockfish 9と10での比較
@@ -387,7 +387,7 @@ void Search::clear()
 #endif
 
 	for (int i = 1; i < MAX_MOVES; ++i)
-		Reductions[i] = int((22.0 + 2 * std::log(thread_size)) * std::log(i + 0.25 * std::log(i)));
+		Reductions[i] = int((21.3 + 2 * std::log(thread_size)) * std::log(i + 0.25 * std::log(i)));
 
 	// -----------------------
 	//   定跡の読み込み
@@ -883,7 +883,7 @@ void Thread::search()
 				// ※　contemptは千日手を受け入れるスコア。
 				//     勝ってるほうは千日手にはしたくないし、負けてるほうは千日手やむなしという…。
 
-				//int dct = ct + (105 - ct / 2) * prev / (abs(prev) + 149);
+				//int dct = ct + (113 - ct / 2) * prev / (abs(prev) + 147);
 				//contempt = (us == WHITE ? make_score(dct, dct / 2)
 				//	                      : -make_score(dct, dct / 2));
 
@@ -1725,7 +1725,7 @@ namespace {
 			&&  eval >= beta
 			&&  eval >= ss->staticEval
 			&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 /*30*/ * depth - PARAM_NULL_MOVE_MARGIN2 /*28*/ * improving
-									+ PARAM_NULL_MOVE_MARGIN3 /*84*/ * ss->ttPv + PARAM_NULL_MOVE_MARGIN4/*182*/
+									+ PARAM_NULL_MOVE_MARGIN3 /*84*/ * ss->ttPv + PARAM_NULL_MOVE_MARGIN4/*168*/
 			&& !excludedMove
 			//		&&  pos.non_pawn_material(us)  // これ終盤かどうかを意味する。将棋でもこれに相当する条件が必要かも。
 			&& (ss->ply >= thisThread->nmpMinPly || us != thisThread->nmpColor)
@@ -1735,8 +1735,8 @@ namespace {
 			ASSERT_LV3(eval - beta >= 0);
 
 			// 残り探索深さと評価値によるnull moveの深さを動的に減らす
-			Depth R = ((PARAM_NULL_MOVE_DYNAMIC_ALPHA/*982*/ + PARAM_NULL_MOVE_DYNAMIC_BETA/*85*/ * depth) / 256
-				+ std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA/*192*/, 3));
+			Depth R = ((PARAM_NULL_MOVE_DYNAMIC_ALPHA/*1015*/ + PARAM_NULL_MOVE_DYNAMIC_BETA/*85*/ * depth) / 256
+				+ std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA/*191*/, 3));
 
 			ss->currentMove = MOVE_NULL;
 			// null moveなので、王手はかかっていなくて駒取りでもない。
@@ -1783,7 +1783,7 @@ namespace {
 		// -----------------------
 
 		// probCutに使うbeta値。
-		probCutBeta = beta + PARAM_PROBCUT_MARGIN1/*176*/ - PARAM_PROBCUT_MARGIN2/*49*/ * improving;
+		probCutBeta = beta + PARAM_PROBCUT_MARGIN1/*183*/ - PARAM_PROBCUT_MARGIN2/*49*/ * improving;
 
 		// ProbCut(王手のときはスキップする)
 
@@ -2058,7 +2058,7 @@ namespace {
 
 					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*7*/
 						&& !ss->inCheck
-						&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1/*283*/ + PARAM_FUTILITY_MARGIN_BETA/*170*/ * lmrDepth <= alpha
+						&&  ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1/*266*/ + PARAM_FUTILITY_MARGIN_BETA/*170*/ * lmrDepth <= alpha
 						&& (*contHist[0])[to_sq(move)][movedPiece]
 						 + (*contHist[1])[to_sq(move)][movedPiece]
 						 + (*contHist[3])[to_sq(move)][movedPiece]
@@ -2072,7 +2072,7 @@ namespace {
 
 					// 【計測資料 20.】SEEが負の指し手を枝刈りする/しない
 
-					if (!pos.see_ge(move, Value(-(PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1/*29*/
+					if (!pos.see_ge(move, Value(-(PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1/*30*/
 							- std::min(lmrDepth, PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2/*18*/)) * lmrDepth * lmrDepth)))
 						continue;
 				}
@@ -2268,13 +2268,13 @@ namespace {
 					|| moveCountPruning
 					|| ss->staticEval + CapturePieceValue[pos.captured_piece()] <= alpha
 					|| cutNode
-					|| thisThread->ttHitAverage < 427 * TtHitAverageResolution * TtHitAverageWindow / 1024))
+					|| thisThread->ttHitAverage < 432 * TtHitAverageResolution * TtHitAverageWindow / 1024))
 			{
 				// Reduction量
 				Depth r = reduction(improving, depth, moveCount);
 
 				// Decrease reduction if the ttHit running average is large
-				if (thisThread->ttHitAverage > 509 * TtHitAverageResolution * TtHitAverageWindow / 1024)
+				if (thisThread->ttHitAverage > 537 * TtHitAverageResolution * TtHitAverageWindow / 1024)
 					r--;
 
 				// Increase reduction if other threads are searching this position
@@ -2374,10 +2374,10 @@ namespace {
 					// 【計測資料 1.】
 
 					// Decrease/increase reduction by comparing opponent's stat score (~10 Elo)
-					if (ss->statScore >= -106 && (ss - 1)->statScore < -104)
+					if (ss->statScore >= -105 && (ss - 1)->statScore < -103)
 						r--;
 
-					else if ((ss - 1)->statScore >= -119 && ss->statScore < -140)
+					else if ((ss - 1)->statScore >= -122 && ss->statScore < -129)
 						r++;
 
 					// Decrease/increase reduction for moves with a good/bad history (~30 Elo)
@@ -2386,13 +2386,9 @@ namespace {
 				}
 				else
 				{
-					// Increase reduction for captures/promotions if late move and at low depth
-					if (depth < 8 && moveCount > 2)
-						r++;
-
 					// Unless giving check, this capture is likely bad
 					if (!givesCheck
-						&& ss->staticEval + CapturePieceValue[pos.captured_piece()] + 213 * depth <= alpha)
+						&& ss->staticEval + CapturePieceValue[pos.captured_piece()] + 210 * depth <= alpha)
 						r++;
 				}
 
@@ -2437,9 +2433,6 @@ namespace {
 				{
 					int bonus = value > alpha ? stat_bonus(newDepth)
 						: -stat_bonus(newDepth);
-
-					if (move == ss->killers[0])
-						bonus += bonus / 4;
 
 					update_continuation_histories(ss, movedPiece, to_sq(move), bonus);
 				}
@@ -2888,7 +2881,7 @@ namespace {
 
 			// futilityの基準となる値をbestValueにmargin値を加算したものとして、
 			// これを下回るようであれば枝刈りする。
-			futilityBase = bestValue + PARAM_FUTILITY_MARGIN_QUIET /*145*/;
+			futilityBase = bestValue + PARAM_FUTILITY_MARGIN_QUIET /*155*/;
 		}
 
 		// -----------------------
@@ -2983,8 +2976,7 @@ namespace {
 			// Do not search moves with negative SEE values
 			if (    bestValue > VALUE_TB_LOSS_IN_MAX_PLY
 				// !ss->inCheck
-				// cf. https://github.com/official-stockfish/Stockfish/commit/392b529c3f52103ad47ad096b86103c17758cb4f
-				&& !(givesCheck && pos.is_discovery_check_on_king(~pos.side_to_move(), move))
+				// これ不要らしい。cf. https://github.com/official-stockfish/Stockfish/commit/392b529c3f52103ad47ad096b86103c17758cb4f
 				&& !pos.see_ge(move))
 				continue;
 
