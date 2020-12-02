@@ -109,35 +109,23 @@ ENABLE_RANGE_OPERATORS_ON(Piece, NO_PIECE, PIECE_NB)
 
 
 // --- N回ループを展開するためのマクロ
-// AperyのUnrollerのtemplateによる実装は模範的なコードなのだが、lambdaで書くと最適化されないケースがあったのでマクロで書く。
 
-#define UNROLLER1(Statement_) { const int i = 0; Statement_; }
-#define UNROLLER2(Statement_) { UNROLLER1(Statement_); const int i = 1; Statement_;}
-#define UNROLLER3(Statement_) { UNROLLER2(Statement_); const int i = 2; Statement_;}
-#define UNROLLER4(Statement_) { UNROLLER3(Statement_); const int i = 3; Statement_;}
-#define UNROLLER5(Statement_) { UNROLLER4(Statement_); const int i = 4; Statement_;}
-#define UNROLLER6(Statement_) { UNROLLER5(Statement_); const int i = 5; Statement_;}
+// N 回ループを展開させる。t は lambda で書く。(Aperyのコードを参考にしています)
+// 
+// 使い方)
+//   Unroller<5>()([&](const int i){std::cout << i << " ";});
+// と書くと5回展開されて、
+//   0 1 2 3 4
+// と出力される。
 
-// --- bitboardに対するforeach
-
-// Bitboardのそれぞれの升に対して処理を行なうためのマクロ。
-// p[0]側とp[1]側との両方で同じコードが生成されるので生成されるコードサイズに注意。
-// BB_自体は破壊されない。(このあとemptyであることを仮定しているなら間違い)
-
-#define FOREACH_BB(BB_, SQ_, Statement_)		\
-	do {										\
-		u64 p0_ = BB_.extract64<0>();			\
-		while (p0_) {							\
-			SQ_ = (Square)pop_lsb(p0_);			\
-			Statement_;							\
-		}										\
-		u64 p1_ = BB_.extract64<1>();			\
-		while (p1_) {							\
-			SQ_ = (Square)(pop_lsb(p1_) + 63);	\
-			Statement_;							\
-		}										\
-	} while (false)
-
-// →　foreachBBマクロは、bitboard.hにもある。
+template <int N> struct Unroller {
+    template <typename T> FORCE_INLINE void operator () (T t) {
+        Unroller<N-1>()(t);
+        t(N-1);
+    }
+};
+template <> struct Unroller<0> {
+    template <typename T> FORCE_INLINE void operator () (T) {}
+};
 
 #endif

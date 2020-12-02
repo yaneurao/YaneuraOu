@@ -166,6 +166,20 @@ struct alignas(16) Bitboard
 		while (p1) t( (Square)(pop_lsb(p1) + 63));
 	}
 
+	// Bitboard bbに対して、1であるbitのSquareがsqに入ってきて、このときにTを呼び出す。
+	// bb.p[0]のbitに対してはT(sq,0)と呼び出す。bb.p[1]のbitに対してはT(sq,1)と呼び出す。
+	// 使用例) bb.foreach_part([&](Square sq, int part){ ... } );
+	// bbの内容は破壊しない。
+	// コードは展開されるのでわりと大きくなるから注意。
+	template <typename T> FORCE_INLINE void foreach_part(T t) const
+	{
+		u64 p0 = this->extract64<0>();
+		while (p0) { t( (Square)(pop_lsb(p0)     ),0); }
+
+		u64 p1 = this->extract64<1>();
+		while (p1) { t( (Square)(pop_lsb(p1) + 63),1); }
+	}
+
 };
 
 // 抑制していた警告を元に戻す。
@@ -695,26 +709,6 @@ extern Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ);
 // この関係にある場合、Bitboard::merge()によって被覆しないことがBitboardのレイアウトから保証されている。
 inline bool more_than_one(const Bitboard& bb) { ASSERT_LV2(!bb.cross_over()); return POPCNT64(bb.merge()) > 1; }
 
-
-// Aperyで使われているforeachBBマクロに似たマクロ。
-// Bitboard bbに対して、1であるbitのSquareがsqに入ってきて、このときにTを呼び出す。
-// bb.p[0]のbitに対してはT(0)と呼び出す。bb.p[1]のbitに対してはT(1)と呼び出す。
-// 使用例) foreachBB(bb,sq,[&](int part){ ... } );
-// bbは破壊しないものとする。
-template <typename T> FORCE_INLINE void foreachBB(Bitboard& bb, Square& sq, T t) {
-
-	u64 p0_ = bb.extract64<0>();
-	while (p0_) {
-		sq = (Square)pop_lsb(p0_);
-		t(0);
-	}
-
-	u64 p1_ = bb.extract64<1>();
-	while (p1_) {
-		sq = (Square)(pop_lsb(p1_) + 63);
-		t(1);
-	}
-}
 
 
 #endif // #ifndef _BITBOARD_H_
