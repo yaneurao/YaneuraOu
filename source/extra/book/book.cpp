@@ -25,22 +25,22 @@ namespace Book
 
 	// Aperyの指し手の変換。
 	Move16 convert_move_from_apery(uint16_t apery_move) {
-		Move m;
+		Move16 m;
 
 		const uint16_t to = apery_move & 0x7f;
 		const uint16_t from = (apery_move >> 7) & 0x7f;
 		const bool is_promotion = (apery_move & (1 << 14)) != 0;
 		if (is_promotion)
-			m =  make_move_promote(static_cast<Square>(from), static_cast<Square>(to));
+			m =  make_move_promote16(static_cast<Square>(from), static_cast<Square>(to));
 		else
 		{
 		const bool is_drop = ((apery_move >> 7) & 0x7f) >= SQ_NB;
 		if (is_drop) {
 			const uint16_t piece = from - SQ_NB + 1;
-				m = make_move_drop(static_cast<PieceType>(piece), static_cast<Square>(to));
+				m = make_move_drop16(static_cast<PieceType>(piece), static_cast<Square>(to));
 		}
 			else
-				m = make_move(static_cast<Square>(from), static_cast<Square>(to));
+				m = make_move16(static_cast<Square>(from), static_cast<Square>(to));
 		}
 
 		return Move16(m);

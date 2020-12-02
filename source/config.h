@@ -213,12 +213,6 @@ constexpr int MAX_PLY_NUM = 246;
 // このオプションを有効化すると、金と小駒の成りを区別する。(Bonanzaとは異なる特徴量になる)
 // #define DISTINGUISH_GOLDS
 
-// オーダリングに使っているStatsの配列のなかで駒打ちのためのbitを持つ。
-// #define USE_DROPBIT_IN_STATS
-
-// 指し手生成のときに上位16bitにto(移動後の升)に来る駒を格納する。
-// #define KEEP_PIECE_IN_GENERATE_MOVES
-
 // 評価関数を計算したときに、それをHashTableに記憶しておく機能。KPPT評価関数においてのみサポート。
 // #define USE_EVAL_HASH
 
@@ -294,7 +288,6 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_MATE_1PLY
 	#define USE_ENTERING_KING_WIN
 	#define USE_TIME_MANAGEMENT
-	#define KEEP_PIECE_IN_GENERATE_MOVES
 
 	// 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
 	#define USE_SHARED_MEMORY_IN_EVAL
@@ -519,15 +512,6 @@ constexpr bool pretty_jp = false;
 #define HASH_KEY Key128
 #else
 #define HASH_KEY Key256
-#endif
-
-// --- Dropbit
-
-// USE_DROPBIT_IN_STATSがdefineされているときは、Moveの上位16bitに格納するPieceとして駒打ちは +32(PIECE_DROP)　にする。
-#if defined (USE_DROPBIT_IN_STATS)
-#define PIECE_DROP 32
-#else
-#define PIECE_DROP 0
 #endif
 
 // --- lastMove

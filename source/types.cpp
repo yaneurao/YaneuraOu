@@ -30,17 +30,17 @@ std::string pretty(Rank r) { return pretty_jp ? std::string("一二三四五六�
 std::string pretty(Move m)
 {
 	if (is_drop(m))
-		return (pretty(move_to(m)) + pretty2(Piece(move_from(m))) + (pretty_jp ? "打" : "*"));
+		return pretty(to_sq(m)  ) + pretty2(Piece(from_sq(m))) + (pretty_jp ? "打" : "*");
 	else
-		return pretty(move_from(m)) + pretty(move_to(m)) + (is_promote(m) ? (pretty_jp ? "成" : "+") : "");
+		return pretty(from_sq(m)) + pretty(to_sq(m))           + (is_promote(m) ? (pretty_jp ? "成" : "+") : "");
 }
 
 std::string pretty(Move m, Piece movedPieceType)
 {
 	if (is_drop(m))
-		return (pretty(move_to(m)) + pretty2(movedPieceType) + (pretty_jp ? "打" : "*"));
+		return pretty(to_sq(m)) + pretty2(movedPieceType) + (pretty_jp ? "打" : "*");
 	else
-		return pretty(move_to(m)) + pretty2(movedPieceType) + (is_promote(m) ? (pretty_jp ? "成" : "+") : "") + "[" + pretty(move_from(m)) + "]";
+		return pretty(to_sq(m)) + pretty2(movedPieceType) + (is_promote(m) ? (pretty_jp ? "成" : "+") : "") + "[" + pretty(from_sq(m)) + "]";
 }
 
 std::string to_usi_string(Move m){ return USI::move(m); }
@@ -155,4 +155,3 @@ Value drawValueTable[REPETITION_NB][COLOR_NB] =
 #if defined(USE_GLOBAL_OPTIONS)
 GlobalOptions_ GlobalOptions;
 #endif
-

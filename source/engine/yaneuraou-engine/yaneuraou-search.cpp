@@ -2943,7 +2943,7 @@ namespace {
 				// moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになるはず。
 				// 【計測資料 14.】 futility pruningのときにpromoteを考慮するかどうか。
 				futilityValue = futilityBase + (Value)CapturePieceValue[pos.piece_on(to_sq(move))]
-								+ (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(move_from(move))] : VALUE_ZERO);
+								+ (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(from_sq(move))] : VALUE_ZERO);
 
 				// futilityValueは今回捕獲するであろう駒の価値の分を上乗せしているのに
 				// それでもalpha値を超えないというとってもひどい指し手なので枝刈りする。

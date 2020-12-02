@@ -89,10 +89,10 @@ INCLUDE  = # -I../include
 EXTRA_CPPFLAGS =
 
 # YANEURAOU_EDITION = YANEURAOU_ENGINE_MATERIALのときに指定できる、評価関数の通し番号
-# 001 : 普通の駒得のみの評価関数
-# 002 : …
+#  1 : 普通の駒得のみの評価関数
+#  2 : …
 # cf.【連載】評価関数を作ってみよう！その1 : http://yaneuraou.yaneu.com/2020/11/17/make-evaluate-function/
-MATERIAL_LEVEL = 001
+MATERIAL_LEVEL = 1
 
 
 # === implementations ===

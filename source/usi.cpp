@@ -913,11 +913,11 @@ std::string USI::move(Move m)
 	{
 		ss << move_dropped_piece(m);
 		ss << '*';
-		ss << move_to(m);
+		ss << to_sq(m);
 	}
 	else {
-		ss << move_from(m);
-		ss << move_to(m);
+		ss << from_sq(m);
+		ss << to_sq(m);
 		if (is_promote(m))
 			ss << '+';
 	}
@@ -970,7 +970,7 @@ Move USI::to_move(const Position& pos, const std::string& str)
 // やねうら王、独自追加。
 Move16 USI::to_move16(const string& str)
 {
-	Move move = MOVE_NONE;
+	Move16 move = MOVE_NONE;
 
 	{
 		// さすがに3文字以下の指し手はおかしいだろ。
@@ -988,19 +988,19 @@ Move16 USI::to_move16(const string& str)
 		{
 			Square from = usi_to_sq(str[0], str[1]);
 			if (is_ok(from))
-				move = promote ? make_move_promote(from, to) : make_move(from, to);
+				move = promote ? make_move_promote16(from, to) : make_move16(from, to);
 		}
 		else
 		{
 			for (int i = 1; i <= 7; ++i)
 				if (PieceToCharBW[i] == str[0])
 				{
-					move = make_move_drop((PieceType)i, to);
+					move = make_move_drop16((PieceType)i, to);
 					break;
 				}
 		}
 	}
 
 END:
-	return Move16(move);
+	return move;
 }

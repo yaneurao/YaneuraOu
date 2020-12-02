@@ -729,7 +729,7 @@ bool Position::gives_check(Move m) const
 	ASSERT_LV3(is_ok(m));
 
 	// 移動先
-	const Square to = move_to(m);
+	const Square to = to_sq(m);
 
 	// 駒打ち・移動する指し手どちらであってもmove_piece_after(m)で移動後の駒が取得できるので
 	// 直接王手の処理は共通化できる。
@@ -739,7 +739,7 @@ bool Position::gives_check(Move m) const
 	// -- 移動する指し手ならば、これで開き王手になるかどうかの判定が必要。
 
 	// 移動元
-	const Square from = move_from(m);
+	const Square from = from_sq(m);
 
 	// 開き王手になる駒の候補があるとして、fromにあるのがその駒で、fromからtoは玉と直線上にないなら
 	// 前提条件より、fromにあるのが自駒であることは確定しているので、pieces(sideToMove)は不要。
@@ -901,7 +901,7 @@ template <bool All>
 bool Position::pseudo_legal_s(const Move m) const {
 
 	const Color us = sideToMove;
-	const Square to = move_to(m); // 移動先
+	const Square to = to_sq(m); // 移動先
 
 	if (is_drop(m))
 	{
@@ -909,11 +909,9 @@ bool Position::pseudo_legal_s(const Move m) const {
 		// 置換表から取り出してきている以上、一度は指し手生成ルーチンで生成した指し手のはずであり、
 		// KING打ちのような値であることはないものとする。
 
-#if defined(KEEP_PIECE_IN_GENERATE_MOVES)
 		// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
-		if (moved_piece_after(m) != Piece(pr + ((us == WHITE) ? u32(PIECE_WHITE) : 0) + PIECE_DROP))
+		if (moved_piece_after(m) != Piece(pr + (us == WHITE ? u32(PIECE_WHITE) : 0) ))
 			return false;
-#endif
 
 		ASSERT_LV3(PAWN <= pr && pr < KING);
 
@@ -955,7 +953,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 	}
 	else {
 
-		const Square from = move_from(m);
+		const Square from = from_sq(m);
 		const Piece pc = piece_on(from);
 
 		// 動かす駒が自駒でなければならない
@@ -980,34 +978,18 @@ bool Position::pseudo_legal_s(const Move m) const {
 			if (pt >= GOLD)
 				return false;
 
-#if defined(KEEP_PIECE_IN_GENERATE_MOVES)
 			// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
 			// pcが成っていない駒であることは上で確認してあるので、"+ PIECE_PROMOTE"でも十分。
 			if (moved_piece_after(m) != Piece(pc + PIECE_PROMOTE))
 				return false;
-#endif
-
-#if !defined(KEEP_PIECE_IN_GENERATE_MOVES)
-			// 移動先が敵陣でないと成れない。
-			// ただし、Zobrist::side == 1なので先手と後手は常にハッシュ値が異なる。
-			// よって先手と後手の手が置換表衝突する事はない。
-			// また、killer move等に関しては32bit形式であればPieceと成と移動元(先)が矛盾する事はない。
-			// そのため、32bit形式ではこのチェックは不要。
-			if (!(enemy_field(us) & (Bitboard(from) | Bitboard(to))))
-				return false;
-#endif
-
 		}
 		else {
 
 			// --- 成らない指し手
 
-#if defined(KEEP_PIECE_IN_GENERATE_MOVES)
 			// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
 			if (moved_piece_after(m) != pc)
 				return false;
-#endif
-
 
 			// 駒打ちのところに書いた理由により、不成で進めない升への指し手のチェックも不要。
 			// 間違い　→　駒種をmoveに含めていないならこのチェック必要だわ。
@@ -1091,14 +1073,14 @@ bool Position::legal(Move m) const
 	else
 	{
 		Color us = sideToMove;
-		Square from = move_from(m);
+		Square from = from_sq(m);
 
 		ASSERT_LV5(color_of(piece_on(from_sq(m))) == us);
 		ASSERT_LV5(piece_on(square<KING>(us)) == make_piece(us, KING));
 
 		// もし移動させる駒が玉であるなら、行き先の升に相手側の利きがないかをチェックする。
 		if (type_of(piece_on(from)) == KING)
-			return !effected_to(~us, move_to(m), from);
+			return !effected_to(~us, to_sq(m), from);
 
 		// blockers_for_king()は、pinされている駒(自駒・敵駒)を表現するが、fromにある駒は自駒であることは
 		// わかっているのでこれで良い。
@@ -1128,8 +1110,8 @@ Move Position::to_move(Move16 m16) const
 
 	return
 		Move(u16(m) +
-			((is_drop(m) ? (Piece)(make_piece(sideToMove, move_dropped_piece(m)) + PIECE_DROP)
-			: is_promote(m) ? (Piece)(piece_on(move_from(m)) | PIECE_PROMOTE) : piece_on(move_from(m))) << 16)
+			((is_drop(m) ? (Piece)(make_piece(sideToMove, move_dropped_piece(m)))
+			: is_promote(m) ? (Piece)(piece_on(from_sq(m)) | PIECE_PROMOTE) : piece_on(from_sq(m))) << 16)
 		// "+ PIECE_PROMOTE" だと、玉や成り駒に対して 8足しておかしくなってしまう。(置換表の指し手をpseudo-legalか
 		// 確認せずに置換表の値で枝刈りして、そのあとupdate_statsを行う時に配列境界を超えかねない)
 		// " | PIECE_PROMOTE"が正しいコード。 WCSC29で平岡さんから教えてもらった。[2019/05/04]
@@ -1218,7 +1200,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	// ----------------------
 
 	// 移動先の升
-	Square to = move_to(m);
+	Square to = to_sq(m);
 	ASSERT_LV2(is_ok(to));
 
 	// 駒割りの差分計算用
@@ -1300,7 +1282,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	} else {
 
 		// -- 駒の移動
-		Square from = move_from(m);
+		Square from = from_sq(m);
 		ASSERT_LV2(is_ok(from));
 
 		// 移動させる駒
@@ -1587,19 +1569,12 @@ void Position::undo_move_impl(Move m)
 {
 	// Usは1手前の局面での手番(に呼び出し元でしてある)
 
-	auto to = move_to(m);
+	auto to = to_sq(m);
 	ASSERT_LV2(is_ok(to));
 
 	// --- 移動後の駒
 
-	// 手番が変わるのでKEEP_PIECE_IN_GENERATE_MOVESを定義していないときに
-	// moved_piece_after()を呼び出すのは正しく動作しない。
-	Piece moved_after_pc =
-#if defined(KEEP_PIECE_IN_GENERATE_MOVES)
-		moved_piece_after(m);
-#else
-		piece_on(to);
-#endif
+	Piece moved_after_pc = moved_piece_after(m);
 
 #if defined(USE_FV38)
 	PieceNumber piece_no = piece_no_of(to); // 移動元のpiece_no == いまtoの場所にある駒のpiece_no
@@ -1639,7 +1614,7 @@ void Position::undo_move_impl(Move m)
 
 		// --- 通常の指し手
 
-		auto from = move_from(m);
+		auto from = from_sq(m);
 		ASSERT_LV2(is_ok(from));
 
 		// toの場所から駒を消す
@@ -1966,7 +1941,7 @@ bool Position::see_ge(Move m, Value threshold) const
 	// 駒の移動元(駒打ちの場合は)、移動先
 	// dropのときにはSQ_NBにしておくことで、pieces() ^ fromを無効化するhack
 	Square from = drop ? SQ_NB : from_sq(m);
-	Square to = move_to(m);
+	Square to = to_sq(m);
 
 	// 次にtoの升で捕獲される駒
 	// 成りなら成りを評価したほうが良い可能性があるが、このあとの取り合いで指し手の成りを評価していないので…。
@@ -2296,7 +2271,7 @@ Move Position::DeclarationWin() const
 			return MOVE_NONE;
 
 		// 王の移動の指し手により勝ちが確定する
-		return to_move(Move16(make_move(king_sq, king_try_sq)));
+		return make_move(king_sq, king_try_sq, us,KING);
 	}
 
 	default:

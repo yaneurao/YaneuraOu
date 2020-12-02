@@ -737,7 +737,7 @@ Move is_mate_in_1ply_imp(const Position& pos)
 
 			if (can_king_escape(pos, them, to, bb_attacks, pos.pieces())) { continue; }
 			if (can_piece_capture(pos, them, to, pinned, pos.pieces())) { continue; }
-			return make_move_drop(ROOK, to);
+			return make_move_drop(ROOK, to , Us);
 		}
 	}
 
@@ -753,7 +753,7 @@ Move is_mate_in_1ply_imp(const Position& pos)
 				bb_attacks = lanceStepEffect(Us, to);
 				if (can_king_escape(pos, them, to, bb_attacks, pos.pieces())) { goto SKIP_LANCE; }
 				if (can_piece_capture(pos, them, to, pinned, pos.pieces())) { goto SKIP_LANCE; }
-				return make_move_drop(LANCE, to);
+				return make_move_drop(LANCE, to, Us);
 
 			SKIP_LANCE:;
 			}
@@ -778,7 +778,7 @@ Move is_mate_in_1ply_imp(const Position& pos)
 
 			if (can_king_escape(pos, them, to, bb_attacks, pos.pieces())) { continue; }
 			if (can_piece_capture(pos, them, to, pinned, pos.pieces())) { continue; }
-			return make_move_drop(BISHOP, to);
+			return make_move_drop(BISHOP, to , Us);
 		}
 	}
 
@@ -803,7 +803,7 @@ Move is_mate_in_1ply_imp(const Position& pos)
 
 			if (can_king_escape(pos, them, to, bb_attacks, pos.pieces())) { continue; }
 			if (can_piece_capture(pos, them, to, pinned, pos.pieces())) { continue; }
-			return make_move_drop(GOLD, to);
+			return make_move_drop(GOLD, to , Us);
 		}
 	}
 	// 銀打ち
@@ -833,7 +833,7 @@ Move is_mate_in_1ply_imp(const Position& pos)
 
 			if (can_king_escape(pos, them, to, bb_attacks, pos.pieces())) { continue; }
 			if (can_piece_capture(pos, them, to, pinned, pos.pieces())) { continue; }
-			return make_move_drop(SILVER, to);
+			return make_move_drop(SILVER, to , Us);
 		}
 	}
 SILVER_DROP_END:;
@@ -851,7 +851,7 @@ SILVER_DROP_END:;
 
 			if (can_king_escape(pos, them, to, ZERO_BB, pos.pieces())) { continue; }
 			if (can_piece_capture(pos, them, to, pinned, pos.pieces())) { continue; }
-			return make_move_drop(KNIGHT, to);
+			return make_move_drop(KNIGHT, to , Us);
 		}
 	}
 
@@ -912,7 +912,7 @@ SILVER_DROP_END:;
 
 			// 龍によるtoが玉8近傍の場合の両王手はない。
 			if (can_piece_capture(pos, them, to, new_pin, slide)) { continue; }
-			return make_move(from, to);
+			return make_move(from, to , Us , DRAGON);
 		}
 	}
 
@@ -963,9 +963,9 @@ SILVER_DROP_END:;
 			else if (can_piece_capture(pos, them, to, new_pin, slide)) { continue; }
 
 			if (!canPromote(Us, from, to))
-				return make_move(from, to);
+				return make_move(from, to ,Us, ROOK);
 			else
-				return make_move_promote(from, to);
+				return make_move_promote(from, to, Us, ROOK);
 		}
 	}
 
@@ -1011,7 +1011,7 @@ SILVER_DROP_END:;
 				;
 			else if (can_piece_capture(pos, them, to, new_pin, slide)) { continue; }
 
-			return make_move(from, to);
+			return make_move(from, to , Us, HORSE);
 		}
 	}
 
@@ -1045,9 +1045,9 @@ SILVER_DROP_END:;
 			else if (can_piece_capture(pos, them, to, new_pin, slide)) { continue; }
 
 			if (!canPromote(Us, from, to))
-				return make_move(from, to);
+				return make_move(from, to , Us , BISHOP);
 			else
-				return make_move_promote(from, to);
+				return make_move_promote(from, to , Us , BISHOP);
 		}
 	}
 
@@ -1083,9 +1083,9 @@ SILVER_DROP_END:;
 			else if (can_piece_capture(pos, them, to, pinned, slide)) { goto LANCE_NO_PRO; }
 
 			if (!canPromote(Us, to))
-				return make_move(from, to);
+				return make_move(from, to , Us , LANCE);
 			else
-				return make_move_promote(from, to);
+				return make_move_promote(from, to , Us , LANCE);
 
 			// 敵陣で不成りで串刺しにする王手も入れなきゃ..
 		LANCE_NO_PRO:;
@@ -1098,7 +1098,7 @@ SILVER_DROP_END:;
 				if (can_king_escape(pos, them, from, to, bb_attacks, slide)) { continue; }
 				// 串刺しでの両王手はありえない
 				if (can_piece_capture(pos, them, to, pinned, slide)) { continue; }
-				return make_move(from, to);
+				return make_move(from, to , Us , LANCE);
 			}
 		}
 	}
@@ -1233,13 +1233,13 @@ SILVER_DROP_END:;
 			if (dr & DIRECTIONS_DIAG) // pt == BISHOP
 			{
 				if (!(~bishopStepEffect(to) & escape_bb))
-					return make_move_drop(pt, to);
+					return make_move_drop(pt, to , Us);
 			}
 			else // if (pt == ROOK || pt==LANCE)
 			{
 				// LANCEの場合もtoの地点からの横の利きでは玉の8近傍に到達しないので同列に扱って良い。
 				if (!(~rookStepEffect(to) & escape_bb))
-					return make_move_drop(pt, to);
+					return make_move_drop(pt, to , Us);
 			}
 
 			//    STEP2_DROP:;
@@ -1257,12 +1257,12 @@ SILVER_DROP_END:;
 				if (dr & DIRECTIONS_DIAG) // pt == BISHOP
 				{
 					if (!(~bishopStepEffect(nextTo) & escape_bb))
-						return make_move_drop(pt, nextTo);
+						return make_move_drop(pt, nextTo, Us);
 				}
 				else // if (pt == ROOK || pt==LANCE)
 				{
 					if (!(~rookStepEffect(nextTo) & escape_bb))
-						return make_move_drop(pt, nextTo);
+						return make_move_drop(pt, nextTo, Us);
 				}
 			}
 
@@ -1329,11 +1329,12 @@ SILVER_DROP_END:;
 							& ~(pos.pieces(them) | AttacksAroundKingInAvoiding<~Us>(pos, from, new_slide) | bb_attacks)))
 						{
 							// これで詰みが確定した
+							PieceType pt = type_of(pos.piece_on(from));
 							// 香は不成りでの王手
-							if (type_of(pos.piece_on(from)) != LANCE && canPromote(Us, from, to) && !(pos.piece_on(from) & PIECE_PROMOTE))
-								return make_move_promote(from, to);
+							if (pt != LANCE && canPromote(Us, from, to) && !(pt & PIECE_PROMOTE))
+								return make_move_promote(from, to, Us , pt);
 							else
-								return make_move(from, to);
+								return make_move(from, to, Us, pt);
 						}
 					}
 				}
@@ -1385,10 +1386,11 @@ SILVER_DROP_END:;
 							// 貫通で考えておく
 						{
 							// これで詰みが確定した
-							if (canPromote(Us, from, to) && !(pos.piece_on(from) & PIECE_PROMOTE))
-								return make_move_promote(from, to);
+							Piece pc = pos.piece_on(from);
+							if (canPromote(Us, from, to) && !(pc & PIECE_PROMOTE))
+								return make_move_promote(from, to , pc);
 							else
-								return make_move(from, to);
+								return make_move(from, to , pc);
 						}
 					}
 				}
@@ -1431,7 +1433,7 @@ NEXT1:;
 			if ((dcCandidates & from) && !aligned(from, to, sq_king))
 				;
 			else if (can_piece_capture(pos, them, to, new_pin, slide)) { continue; }
-			return make_move(from, to);
+			return make_move(from, to , pos.piece_on(from) /* 金相当の駒が何かは不明。 */);
 		}
 	}
 
@@ -1465,7 +1467,7 @@ NEXT1:;
 			// fromとtoと玉が直線上にない場合はpinの更新が必要。
 			// これは面倒なのですべての場合で事前に新しいpinを求めることにする。
 
-			return make_move(from, to);
+			return make_move(from, to, Us , SILVER );
 
 		PRO_SILVER:;
 			// 銀成りでの王手
@@ -1482,7 +1484,7 @@ NEXT1:;
 			if ((dcCandidates & from) && !aligned(from, to, sq_king))
 				;
 			else if (can_piece_capture(pos, them, to, new_pin, slide)) { continue; }
-			return make_move_promote(from, to);
+			return make_move_promote(from, to , Us , SILVER);
 		}
 	}
 
@@ -1513,7 +1515,7 @@ NEXT1:;
 			if (dcCandidates & from)
 				;
 			else if (can_piece_capture(pos, them, to, new_pin, slide)) { continue; }
-			return make_move(from, to);
+			return make_move(from, to , Us , KNIGHT);
 
 		PRO_KNIGHT:;
 			// 桂成りでの王手
@@ -1528,7 +1530,7 @@ NEXT1:;
 			if (dcCandidates & from)
 				;
 			else if (can_piece_capture(pos, them, to, new_pin, slide)) { continue; }
-			return make_move_promote(from, to);
+			return make_move_promote(from, to , Us , KNIGHT);
 		}
 	}
 
@@ -1549,7 +1551,7 @@ NEXT1:;
 		if (can_king_escape(pos, them, from, to, ZERO_BB, slide)) { goto SKIP_PAWN; }
 		// 移動王手となるpinされている歩などはないので両王手は考慮しなくて良い。
 		if (can_piece_capture(pos, them, to, pinned, slide)) { goto SKIP_PAWN; }
-		return make_move(from, to);
+		return make_move(from, to , Us , PAWN);
 	}
 SKIP_PAWN:;
 
@@ -1569,7 +1571,7 @@ SKIP_PAWN:;
 		if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
 		if (can_king_escape(pos, them, from, to, bb_attacks, slide)) { continue; }
 		if (can_piece_capture(pos, them, to, pinned, slide)) { continue; }
-		return make_move_promote(from, to);
+		return make_move_promote(from, to , Us , PAWN);
 	}
 
 DC_CHECK:;
@@ -1621,7 +1623,7 @@ DC_CHECK:;
 				if (can_king_escape_cangoto(pos, them, from, to, bb_attacks, slide)) { continue; }
 
 				// すべての条件が成立したのでこれにて詰み
-				return make_move_promote(from, to);
+				return make_move_promote(from, to , Us , PAWN);
 			}
 			ASSERT_LV3(false); // こっちくんな
 			// FALLTHROUGH
@@ -1641,7 +1643,7 @@ DC_CHECK:;
 					if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
 					Bitboard slide = pos.pieces() ^ from;
 					if (can_king_escape_cangoto(pos, them, from, to, bb_attacks, slide)) { continue; }
-					return make_move(from, to);
+					return make_move(from, to , Us , KNIGHT);
 				}
 
 				bb = knightEffect(Us, from) &goldEffect(them, sq_king);
@@ -1655,7 +1657,7 @@ DC_CHECK:;
 					if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
 					Bitboard slide = pos.pieces() ^ from;
 					if (can_king_escape_cangoto(pos, them, from, to, bb_attacks, slide)) { continue; }
-					return make_move_promote(from, to);
+					return make_move_promote(from, to , Us, KNIGHT);
 				}
 
 				continue; // 気をつけろ！下に落ちたら死ぬぞ！
@@ -1675,7 +1677,7 @@ DC_CHECK:;
 					if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
 					Bitboard slide = pos.pieces() ^ from;
 					if (can_king_escape_cangoto(pos, them, from, to, bb_attacks, slide)) { continue; }
-					return make_move(from, to);
+					return make_move(from, to , Us, SILVER);
 				}
 
 				bb = silverEffect(Us, from) & goldEffect(them, sq_king) & bb_move;;
@@ -1689,7 +1691,7 @@ DC_CHECK:;
 					if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
 					Bitboard slide = pos.pieces() ^ from;
 					if (can_king_escape_cangoto(pos, them, from, to, bb_attacks, slide)) { continue; }
-					return make_move_promote(from, to);
+					return make_move_promote(from, to , Us , SILVER);
 				}
 				continue;
 
@@ -1801,8 +1803,8 @@ DC_CHECK:;
 				if (!can_king_escape_cangoto(pos, them, from, to, bb_attacks, slide))
 				{
 					if (promo && !(pt & PIECE_PROMOTE) && pt != GOLD)
-						return make_move_promote(from, to);
-					return make_move(from, to);
+						return make_move_promote(from, to , Us , pt);
+					return make_move(from, to , Us , pt);
 				}
 
 			DC_SILVER_NO_PRO:
@@ -1814,7 +1816,7 @@ DC_CHECK:;
 					bb_attacks = silverEffect(Us, to);
 					if (!can_king_escape_cangoto(pos, them, from, to, bb_attacks, slide))
 					{
-						return make_move(from, to);
+						return make_move(from, to , Us , SILVER);
 					}
 				}
 			}
@@ -2058,9 +2060,9 @@ DC_CHECK:;
 					// 桂→成りしか調べてないので成れるなら成りで。
 					// 銀→不成と成りと選択できる。
 					if (canPromote(Us, from, to) && !(pos.piece_on(from) & PIECE_PROMOTE) && pt != GOLD)
-						return make_move_promote(from, to);
+						return make_move_promote(from, to , Us , pt);
 					else
-						return make_move(from, to);
+						return make_move(from, to , Us , pt);
 				}
 
 			DISCOVER_ATTACK_CONTINUE_SILVER:;
@@ -2091,7 +2093,7 @@ DC_CHECK:;
 						s1 = s2;
 						s2 = s3;
 					} while (s2 != SQ_NB);
-					return make_move(from, to);
+					return make_move(from, to , Us , SILVER);
 				}
 
 			DISCOVER_ATTACK_CONTINUE:;

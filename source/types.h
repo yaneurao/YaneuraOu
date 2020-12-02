@@ -204,6 +204,7 @@ constexpr bool canPromote(const Color c, const Square from, const Square to)
 constexpr Square Inv(Square sq) { return (Square)((SQ_NB - 1) - sq); }
 
 // 盤面をミラーしたときの升目を返す
+// (5筋を軸としたミラーであって、玉の筋を軸としたミラーとかではない。)
 constexpr Square Mir(Square sq) { return File(8-(int)file_of(sq)) | rank_of(sq); }
 
 // Squareを綺麗に出力する(USI形式ではない)
@@ -547,8 +548,7 @@ constexpr bool is_ok(PieceNumber pn) { return pn < PIECE_NUMBER_NB; }
 // --------------------
 
 // 指し手 bit0..6 = 移動先のSquare、bit7..13 = 移動元のSquare(駒打ちのときは駒種)、bit14..駒打ちか、bit15..成りか
-// 32bit形式の指し手の場合、上位16bitには、この指し手によってto(移動後の升)に来る駒。駒打ちのときは、さらに+PIECE_DROP。
-// PIECE_DROPはUSE_DROPBIT_IN_STATSがdefineされているとき+32だが、そうでないときは+0なので注意。
+// 32bit形式の指し手の場合、上位16bitには、この指し手によってto(移動後の升)に来る駒(先後の区別あり)が格納されている。
 enum Move: uint32_t {
 
 	MOVE_NONE    = 0,             // 無効な移動
@@ -561,72 +561,12 @@ enum Move: uint32_t {
 	MOVE_PROMOTE = 1 << 15,       // 駒成りフラグ
 };
 
-// 指し手の移動元の升を返す。from_sq()は、Stockfishとの互換性を高めるためのalias。
-constexpr Square move_from(Move m) {
-  // 駒打ちに対するmove_from()の呼び出しは不正。
-  // ASSERT_LV3(!(MOVE_DROP & m));
-  // ↑これを入れたいが、constexprにできなくなるのでやめておく。
-  return Square((m >> 7) & 0x7f); }
-constexpr Square from_sq(Move m) { return Square((m >> 7) & 0x7f); }
-
-// 指し手の移動先の升を返す。to_sq()はStockfishとの互換性を高めるためのalias。
-constexpr Square move_to(Move m) { return Square(m & 0x7f); }
-constexpr Square to_sq(Move m) { return Square(m & 0x7f); }
-
-// 指し手が駒打ちか？
-constexpr bool is_drop(Move m){ return (m & MOVE_DROP)!=0; }
-
-// fromとtoをシリアライズする。駒打ちのときのfromは普通の移動の指し手とは異なる。
-// この関数は、0 ～ ((SQ_NB+7) * SQ_NB - 1)までの値が返る。
-constexpr int from_to(Move m) { return (int)(from_sq(m) + (is_drop(m) ? (SQ_NB - 1) : 0))*(int)SQ_NB + (int)to_sq(m); }
-
-// 指し手が成りか？
-constexpr bool is_promote(Move m) { return (m & MOVE_PROMOTE)!=0; }
-
-// 駒打ち(is_drop()==true)のときの打った駒
-// 先後の区別なし。PAWN～ROOKまでの値が返る。
-constexpr PieceType move_dropped_piece(Move m) { return (PieceType)((m >> 7) & 0x7f); }
-
-// fromからtoに移動する指し手を生成して返す(16bitの指し手)
-constexpr Move make_move(Square from, Square to) { return (Move)(to + (from << 7)); }
-
-// fromからtoに移動する、成りの指し手を生成して返す(16bit)
-constexpr Move make_move_promote(Square from, Square to) { return (Move)(to + (from << 7) + MOVE_PROMOTE); }
-
-// Pieceをtoに打つ指し手を生成して返す(16bitの指し手)
-// 打つ指し手は、移動先の升と駒種
-constexpr Move make_move_drop(PieceType pt, Square to) { return (Move)(to + (pt << 7) + MOVE_DROP); }
-
-// 移動元の升と移動先の升を逆転させた指し手を生成する。探索部で用いる。
-constexpr Move reverse_move(Move m) {
-	return make_move(to_sq(m), from_sq(m));
-}
-
-// 指し手がおかしくないかをテストする
-// ただし、盤面のことは考慮していない。MOVE_NULLとMOVE_NONEであるとfalseが返る。
-// これら２つの定数は、移動元と移動先が等しい値になっている。このテストだけをする。
-// MOVE_WIN(宣言勝ちの指し手は)は、falseが返る。
-constexpr bool is_ok(Move m) {
-  // return move_from(m)!=move_to(m);
-  // とやりたいところだが、駒打ちでfromのbitを使ってしまっているのでそれだとまずい。
-  // 駒打ちのbitも考慮に入れるために次のように書く。
-  return (m >> 7) != (m & 0x7f);
-}
-
-// 見た目に、わかりやすい形式で表示する
-std::string pretty(Move m);
-
-// 移動させた駒がわかっているときに指し手をわかりやすい表示形式で表示する。
-std::string pretty(Move m, Piece movedPieceType);
-static std::string pretty(Move m, PieceType movedPieceType) { return pretty(m, (Piece)movedPieceType); }
-
 // USI形式の文字列にする。
 // USI::move(Move m)と同等。互換性のために残されている。
 std::string to_usi_string(Move m);
 
 // USI形式で指し手を表示する
 static std::ostream& operator<<(std::ostream& os, Move m) { os << to_usi_string(m); return os; }
-
 
 // 16bit型の指し手。Move型の下位16bit。
 // 32bit型のMoveか16bit型のMoveかが不明瞭で、それがバグの原因となりやすいので
@@ -658,6 +598,68 @@ struct Move16
 private:
 	uint16_t move;
 };
+
+// 指し手の移動元の升を返す。
+constexpr Square from_sq(Move m) { return Square((m >> 7) & 0x7f); }
+static    Square from_sq(Move16 m) { return Square((m.to_u16() >> 7) & 0x7f); }
+
+// 指し手の移動先の升を返す。
+constexpr Square to_sq(Move m) { return Square(m & 0x7f); }
+static    Square to_sq(Move16 m) { return Square(m.to_u16() & 0x7f); }
+
+// 指し手が駒打ちか？
+constexpr bool is_drop(Move m){ return (m & MOVE_DROP)!=0; }
+static    bool is_drop(Move16 m){ return (m.to_u16() & MOVE_DROP)!=0; }
+
+// fromとtoをシリアライズする。駒打ちのときのfromは普通の移動の指し手とは異なる。
+// この関数は、0 ～ ((SQ_NB+7) * SQ_NB - 1)までの値が返る。
+constexpr int from_to(Move m  ) { return (int)(from_sq(m) + (is_drop(m) ? (SQ_NB - 1) : 0)) * (int)SQ_NB + (int)to_sq(m); }
+static    int from_to(Move16 m) { return (int)(from_sq(m) + (is_drop(m) ? (SQ_NB - 1) : 0)) * (int)SQ_NB + (int)to_sq(m); }
+
+// 指し手が成りか？
+constexpr bool is_promote(Move m) { return (m & MOVE_PROMOTE)!=0; }
+
+// 駒打ち(is_drop()==true)のときの打った駒
+// 先後の区別なし。PAWN～ROOKまでの値が返る。
+constexpr PieceType move_dropped_piece(Move m) { return (PieceType)((m >> 7) & 0x7f); }
+
+// us側のptをfromからtoに移動させる指し手を生成して返す。
+// Move16を返すほうは、移動させる駒が何かの情報は持っていない。
+static Move16 make_move16(Square from, Square to) { return Move16(to + (from << 7)); }
+constexpr Move make_move(Square from, Square to, Piece pc ) { return Move(to + (from << 7) + (pc << 16)) ; }
+constexpr Move make_move(Square from, Square to, Color us , PieceType pt ) { return Move(to + (from << 7) + (((us ? u32(PIECE_WHITE) : 0) + (pt)) << 16)) ; }
+
+// us側の駒ptをfromからtoに移動して、成る指し手を生成して返す。
+// Move16を返すほうは、移動させる駒が何かの情報は持っていない。
+static Move16 make_move_promote16(Square from, Square to) { return (Move16)(to + (from << 7) + MOVE_PROMOTE); }
+constexpr Move make_move_promote(Square from, Square to , Piece pc) { return (Move)(to + (from << 7) + MOVE_PROMOTE + ((pc | PIECE_PROMOTE) << 16)); }
+constexpr Move make_move_promote(Square from, Square to , Color us , PieceType pt) { return (Move)(to + (from << 7) + MOVE_PROMOTE + (((us ? u32(PIECE_WHITE) : 0) + (pt | PIECE_PROMOTE)) << 16)); }
+
+// us側の駒ptをtoに打つ指し手を生成して返す
+// Move16を返すほうは、どちらの駒であるかの情報は持っていない。
+static Move16 make_move_drop16(PieceType pt, Square to) { return (Move16)(to + (pt << 7) + MOVE_DROP); }
+constexpr Move make_move_drop(PieceType pt, Square to , Color us ) { return (Move)(to + (pt << 7) + MOVE_DROP + (((us ? u32(PIECE_WHITE) : 0) + (pt)) << 16)); }
+
+// 移動元の升と移動先の升を逆転させた指し手を生成する。探索部で用いる。
+static Move16 reverse_move(Move m) { return make_move16(to_sq(m), from_sq(m)); }
+
+// 指し手がおかしくないかをテストする
+// ただし、盤面のことは考慮していない。MOVE_NULLとMOVE_NONEであるとfalseが返る。
+// これら２つの定数は、移動元と移動先が等しい値になっている。このテストだけをする。
+// MOVE_WIN(宣言勝ちの指し手は)は、falseが返る。
+constexpr bool is_ok(Move m) {
+  // return move_from(m)!=move_to(m);
+  // とやりたいところだが、駒打ちでfromのbitを使ってしまっているのでそれだとまずい。
+  // 駒打ちのbitも考慮に入れるために次のように書く。
+  return (m >> 7) != (m & 0x7f);
+}
+
+// 見た目に、わかりやすい形式で表示する
+std::string pretty(Move m);
+
+// 移動させた駒がわかっているときに指し手をわかりやすい表示形式で表示する。
+std::string pretty(Move m, Piece movedPieceType);
+static std::string pretty(Move m, PieceType movedPieceType) { return pretty(m, (Piece)movedPieceType); }
 
 // USI形式で指し手を表示する
 static std::ostream& operator<<(std::ostream& os, Move16 m) { os << m.to_usi_string(); return os; }

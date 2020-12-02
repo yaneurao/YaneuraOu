@@ -86,7 +86,7 @@ namespace {
         if (board_effect[Us].e[to2] <= 1)                                                                     \
         goto Next ## DROP_PIECE;                                                                              \
       }                                                                                                       \
-      return make_move_drop(DROP_PIECE, to);                                                                  \
+      return make_move_drop(DROP_PIECE, to , Us);                                                             \
     Next ## DROP_PIECE:;                                                                                      \
     }                                                                                                         \
   }
@@ -183,18 +183,18 @@ MOVE_MATE:
           auto cut_directions = long_effect.le16[to].dirs[Us];
           // 遮断していないならこれにて詰み
           if (!cut_directions)
-            return make_move_drop(KNIGHT, to);
+            return make_move_drop(KNIGHT, to, Us);
 
           // 敵玉から見てここの利きを損失するのでここの利きが2以上でないといけない
           auto direct = direct_knight_of<Us>(themKing, to);
           auto dec_effect = cutoff_directions(direct, cut_directions);
           // 敵玉の8近傍に影響を及ぼす遮断された利きがないのでこれにて詰み
           if (!dec_effect)
-            return make_move_drop(KNIGHT, to);
+            return make_move_drop(KNIGHT, to, Us);
 
           // dec_effectの各bitに対して2個以上の利きがあるか、敵玉が移動できないか、盤外であればこれにて詰み。
           if (!(dec_effect & ~(a8_effect_us_gt1 | ~a8_board_mask | ~a8_them_movable)))
-            return make_move_drop(KNIGHT, to);
+            return make_move_drop(KNIGHT, to, Us);
 
           // 長い利きを遮断してしまうのでこのtoの地点はよくない。移動によっては詰まない。
           continue;
@@ -210,18 +210,18 @@ MOVE_MATE:
             auto cut_directions = long_effect.le16[to].dirs[Us];
             // 遮断していないならこれにて詰み
             if (!cut_directions)
-              return make_move(from, to);
+              return make_move(from, to, Us, KNIGHT);
 
             // 敵玉から見てここの利きを損失するのでここの利きが2以上でないといけない
             auto direct = direct_knight_of<Us>(themKing, to);
             auto dec_effect = cutoff_directions(direct, cut_directions);
             // 敵玉の8近傍に影響を及ぼす遮断された利きがないのでこれにて詰み
             if (!dec_effect)
-              return make_move(from, to);
+              return make_move(from, to , Us , KNIGHT);
 
             // dec_effectの各bitに対して2個以上の利きがあるか、敵玉が移動できないか、盤外であればこれにて詰み。
             if (!(dec_effect & ~(a8_effect_us_gt1 | ~a8_board_mask | ~a8_them_movable)))
-              return make_move(from, to);
+              return make_move(from, to , Us , KNIGHT);
 
             // 長い利きを遮断していて詰まない。
           }
@@ -324,7 +324,7 @@ MOVE_MATE:
       }
 
       // 利きが足りていたのでこれにて詰む
-      return make_move_promote(from, to);
+      return make_move_promote(from, to , pc);
     }
 
   NonProCheck:;
@@ -380,7 +380,7 @@ MOVE_MATE:
         if (board_effect[Us].effect(to2) <= dec_num)
           goto NextCandidate;
       }
-      return make_move(from, to);
+      return make_move(from, to , Us , KNIGHT);
     }
     NextCandidate:;
 

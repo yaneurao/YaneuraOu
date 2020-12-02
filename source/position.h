@@ -233,28 +233,21 @@ public:
 		return (Piece)((m ^ ((m & MOVE_PROMOTE) << 4)) >> 16);
 
 #else
-		return is_drop(m) ? make_piece(sideToMove , move_dropped_piece(m)) : piece_on(move_from(m));
+		return is_drop(m) ? make_piece(sideToMove , move_dropped_piece(m)) : piece_on(from_sq(m));
 #endif
 	}
 
 	// moved_pieceの拡張版。
-	// USE_DROPBIT_IN_STATSがdefineされていると駒打ちのときは、打ち駒(+32 == PIECE_DROP)を加算した駒種を返す。
 	// 成りの指し手のときは成りの指し手を返す。(移動後の駒)
-	// KEEP_PIECE_IN_GENERATE_MOVESのときは単にmoveの上位16bitを返す。
+	// Moveの上位16bitにそれが格納されているので、単にそれを返しているだけ。
 	Piece moved_piece_after(Move m) const
 	{
 		// move pickerから MOVE_NONEに対してこの関数が呼び出されることがあるのでこのASSERTは書けない。
 		// MOVE_NONEに対しては、NO_PIECEからPIECE_NB未満のいずれかの値が返れば良い。
 		// ASSERT_LV3(is_ok(m));
 
-#if defined(KEEP_PIECE_IN_GENERATE_MOVES)
 		// 上位16bitにそのまま格納されているはず。
 		return Piece(m >> 16);
-#else
-		return is_drop(m)
-			? Piece(move_dropped_piece(m) + (sideToMove == WHITE ? PIECE_WHITE : NO_PIECE) + PIECE_DROP)
-			: is_promote(m) ? Piece(piece_on(move_from(m)) + PIECE_PROMOTE) : piece_on(move_from(m));
-#endif
 	}
 
 	// 定跡DBや置換表から取り出したMove16(16bit型の指し手)を32bit化する。
@@ -507,12 +500,8 @@ public:
 	// 歩の成る指し手であるか？
 	bool pawn_promotion(Move m) const
 	{
-#if defined (KEEP_PIECE_IN_GENERATE_MOVES)
 		// 移動させる駒が歩かどうかは、Moveの上位16bitを見れば良い
 		return (is_promote(m) && raw_type_of(moved_piece_after(m)) == PAWN);
-#else
-		return (is_promote(m) && type_of(piece_on(move_from(m))) == PAWN);
-#endif
 	}
 
 	// 捕獲する指し手か、歩の成りの指し手であるかを返す。
@@ -521,23 +510,16 @@ public:
 		return pawn_promotion(m) || capture(m);
 	}
 
-#if 1
 	// 捕獲か価値のある駒の成り。(歩、角、飛車)
 	bool capture_or_valuable_promotion(Move m) const
 	{
-#if defined (KEEP_PIECE_IN_GENERATE_MOVES)
 		// 歩の成りを角・飛車の成りにまで拡大する。
 		auto pr = raw_type_of(moved_piece_after(m));
 		return (is_promote(m) && (pr == PAWN || pr == BISHOP || pr == ROOK)) || capture(m);
-#else
-		auto pr = type_of(piece_on(move_from(m)));
-		return (is_promote(m) && (pr == PAWN || pr == BISHOP || pr == ROOK)) || capture(m);
-#endif
 	}
-#endif
 
 	// 捕獲する指し手であるか。
-	bool capture(Move m) const { return !is_drop(m) && piece_on(move_to(m)) != NO_PIECE; }
+	bool capture(Move m) const { return !is_drop(m) && piece_on(to_sq(m)) != NO_PIECE; }
 
 	// --- 1手詰め判定
 #if defined(USE_MATE_1PLY)

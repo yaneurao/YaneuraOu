@@ -2097,8 +2097,8 @@ void LearnerThink::thread_worker(size_t thread_id)
 #endif
 
 	}
-
 }
+
 
 // 評価関数ファイルの書き出し。
 bool LearnerThink::save(bool is_final)

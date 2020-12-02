@@ -153,6 +153,19 @@ struct alignas(16) Bitboard
 	// range-forで回せるようにするためのhack(少し遅いので速度が要求されるところでは使わないこと)
 	Square operator*() { return pop(); }
 	void operator++() {}
+
+	// T(Square sq)と呼び出されるので各升に対して処理ができる。
+	// コードは展開されるのでわりと大きくなるから注意。
+	// 使用例) target.foreach([&](Square to) { mlist++->move = make_move(from,to) + OurPt(Us,Pt); })
+	template <typename T> FORCE_INLINE void foreach(T t) const
+	{
+		u64 p0 = this->extract64<0>();
+		while (p0) t( (Square)pop_lsb(p0));
+
+		u64 p1 = this->extract64<1>();
+		while (p1) t( (Square)(pop_lsb(p1) + 63));
+	}
+
 };
 
 // 抑制していた警告を元に戻す。
