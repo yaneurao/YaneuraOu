@@ -983,7 +983,7 @@ void book_check(Position& pos, Color rootTurn, Book::MemoryBook& book, string sf
 			n = 10;
 		}
 
-		for (size_t i = 0; i < n; ++i)
+		for (int i = 0; i < n; ++i)
 		{
 			if (move_list.size() <= i)
 				break;
