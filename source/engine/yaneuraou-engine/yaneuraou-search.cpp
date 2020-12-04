@@ -1548,7 +1548,6 @@ namespace {
 				if (PARAM_WEAK_MATE_PLY == 1)
 				{
 					move = pos.mate1ply();
-					// ここで返ってくるmoveは16bitのmoveだが、置換表に格納するのは16bitのmoveなので問題ない。
 
 					if (move != MOVE_NONE)
 					{
@@ -1559,6 +1558,12 @@ namespace {
 						// staticEvalの代わりに詰みのスコア書いてもいいのでは..
 						tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
 							MAX_PLY, move, /* ss->staticEval */ bestValue);
+
+						// ■　【計測資料 39.】 mate1plyの指し手を見つけた時に置換表の指し手でbeta cutする時と同じ処理をする。
+
+						// 兄弟局面でこのmateの指し手がよい指し手ある可能性があるので
+						// ここでttMoveでbeta cutする時と同様の処理を行うと短い時間ではわずかに強くなるっぽいのだが
+						// 長い時間で計測できる差ではなかったので削除。
 
 						return bestValue;
 					}

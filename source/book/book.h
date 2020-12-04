@@ -105,8 +105,9 @@ namespace Book
 		std::shared_ptr<BookMove> find_move(const Move16 move) const;
 
 		// [ASYNC] この局面に登録されている指し手の数を返す。
-		// 指し手の数は、MAX_MOVESであるので、intの範囲で十分である。
-		int size() const { return (int)moves.size(); }
+		// 指し手の数は、MAX_MOVESであるので、intの範囲で十分であるのだが、
+		// std::vector.size()とコンパチでないと色んなところで警告が出てうざいのでsize_tにしておく。
+		size_t size() const { return moves.size(); }
 
 		// [ASYNC] 指し手を出現回数、評価値順に並び替える。
 		// ※　より正確に言うなら、BookMoveのoperator <()で定義されている順。

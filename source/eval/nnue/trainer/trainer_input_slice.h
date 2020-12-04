@@ -208,7 +208,10 @@ class Trainer<Layers::InputSlice<OutputDimensions, Offset>> {
       const IndexType input_offset = kInputDimensions * b;
       const IndexType output_offset = kOutputDimensions * b;
       for (IndexType i = 0; i < kInputDimensions; ++i) {
-        if (i < Offset || i >= Offset + kOutputDimensions) {
+        // Offset == 0のとき、unsignedなiに対して i < 0 を比較していることになって
+        // ここでコンパイラの警告がでる。kInputDimensionsがint幅に収まらないことは
+        // ありえないと思うので、intにcastしてしまう。
+        if ((int)i < (int)Offset || i >= Offset + kOutputDimensions) {
           gradients_[input_offset + i] = static_cast<LearnFloatType>(0.0);
         } else {
           gradients_[input_offset + i] = gradients[output_offset + i - Offset];

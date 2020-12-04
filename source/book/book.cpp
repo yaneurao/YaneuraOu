@@ -942,7 +942,7 @@ namespace Book
 		{
 			int pv_moves = (int)Options["BookPvMoves"];
 
-			for (int i = 0; i < move_list.size() ; ++ i)
+			for (size_t i = 0; i < move_list.size() ; ++ i)
 			{
 				// PVを構築する。pv_movesで指定された手数分だけ表示する。
 				// bestMoveを指した局面でさらに定跡のprobeを行なって…。

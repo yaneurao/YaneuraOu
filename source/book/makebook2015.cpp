@@ -1,4 +1,7 @@
 ﻿#include "../config.h"
+
+#if defined (ENABLE_MAKEBOOK_CMD)
+
 #include "book.h"
 #include "../position.h"
 #include "../misc.h"
@@ -14,23 +17,9 @@
 #include <numeric>      // std::accumulate()
 
 using namespace std;
-using std::cout;
 
 namespace Book
 {
-
-#if defined (ENABLE_MAKEBOOK_CMD)
-	// ----------------------------------
-	// USI拡張コマンド "makebook"(定跡作成)
-	// ----------------------------------
-
-	// 定跡生成コマンド2019年度版。makebook2019.cppで定義されている。テラショック定跡手法。
-	int makebook2019(Position& pos, istringstream& is, const string& token);
-
-	// 定跡生成コマンド2021年度版。makebook2021.cppで定義されている。MCTSによる生成。
-	int makebook2021(Position& pos, istringstream& is, const string& token);
-
-
 	// 局面を与えて、その局面で思考させるために、やねうら王探索部が必要。
 #if defined(EVAL_LEARN) && defined(YANEURAOU_ENGINE)
 
@@ -121,12 +110,11 @@ namespace Book
 	}
 #endif
 
-
-	// フォーマット等についてはdoc/解説.txt を見ること。
-	void makebook_cmd(Position& pos, istringstream& is)
+	// 2015年ごろに作ったmakebookコマンド
+	int makebook2015(Position& pos,istringstream& is,const std::string& token_)
 	{
-		string token;
-		is >> token;
+		// const外す
+		string token = token_;
 
 		// sfenから生成する
 		bool from_sfen = token == "from_sfen";
@@ -139,33 +127,9 @@ namespace Book
 		// 定跡の変換
 		bool convert_from_apery = token == "convert_from_apery";
 		
-		// 評価関数を読み込まないとPositionのset()が出来ないのでis_ready()の呼び出しが必要。
-		// ただし、このときに定跡ファイルを読み込まれると読み込みに時間がかかって嫌なので一時的にno_bookに変更しておく。
-		auto original_book_file = Options["BookFile"];
-		Options["BookFile"] = string("no_book");
-
-		// IgnoreBookPlyオプションがtrue(デフォルトでtrue)のときは、定跡書き出し時にply(手数)のところを無視(0)にしてしまうので、
-		// これで書き出されるとちょっと嫌なので一時的にfalseにしておく。
-		auto original_ignore_book_ply = (bool)Options["IgnoreBookPly"];
-		Options["IgnoreBookPly"] = false;
-
-		SCOPE_EXIT(Options["BookFile"] = original_book_file; Options["IgnoreBookPly"] = original_ignore_book_ply; );
-
-		// ↑ SCOPE_EXIT()により、この関数を抜けるときには復旧する。
-
-		is_ready();
-
-#if !(defined(EVAL_LEARN) && defined(YANEURAOU_ENGINE))
-		if (from_thinking)
-		{
-			cout << "Error!:define EVAL_LEARN and YANEURAOU_ENGINE" << endl;
-			return;
-		}
-#endif
-
-		// 2019年以降に作ったmakebook拡張コマンド
-		if (makebook2019(pos, is, token))
-			return;
+		// いずれのコマンドでもないなら、このtokenのコマンドを自分は処理できない。
+		if (!(from_sfen || from_thinking || book_merge || book_sort || convert_from_apery))
+			return 0;
 
 		if (from_sfen || from_thinking)
 		{
@@ -233,7 +197,7 @@ namespace Book
 				else
 				{
 					cout << "Error! : Illigal token = " << token << endl;
-					return;
+					return 1;
 				}
 			}
 
@@ -586,13 +550,13 @@ namespace Book
 			if (book_name[2] == "")
 			{
 				cout << "Error! book name is empty." << endl;
-				return;
+				return 1;
 			}
 			cout << "book merge from " << book_name[0] << " and " << book_name[1] << " to " << book_name[2] << endl;
 			for (int i = 0; i < 2; ++i)
 			{
 				if (book[i].read_book(book_name[i]).is_not_ok())
-					return;
+					return 1;
 			}
 
 			// 読み込めたので合体させる。
@@ -676,17 +640,10 @@ namespace Book
 
 			book.write_book(book_dst);
 		}
-		else {
-			cout << "usage" << endl;
-			cout << "> makebook from_sfen book.sfen book.db moves 24" << endl;
-			cout << "> makebook think book.sfen book.db moves 16 depth 18" << endl;
-			cout << "> makebook merge book_src1.db book_src2.db book_merged.db" << endl;
-			cout << "> makebook sort book_src.db book_sorted.db" << endl;
-			cout << "> makebook convert_from_apery book_src.bin book_converted.db" << endl;
-			cout << "> makebook build_tree book2019.db user_book1.db" << endl;
-		}
+
+		return 1;
 	}
 
-#endif
+#endif // defined (ENABLE_MAKEBOOK_CMD)
 
 } // namespace Book

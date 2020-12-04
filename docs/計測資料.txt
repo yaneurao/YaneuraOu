@@ -5,6 +5,32 @@
 　例えば探索部で「【計測資料 1.】」とコメントがあれば、このファイルの「■　1.」のところにその詳しい内容がある。
 
 
+■　39. mate1plyの指し手を見つけた時に置換表の指し手でbeta cutする時と同じ処理をする。
+
+						// やねうら王独自仕様
+						// ttMoveでbeta cutする時と同様の処理を行う。
+
+	  // 兄弟局面でこのmateの指し手がよい指し手ある可能性が高いので有効かも。(+R10)
+						if (AB_TEST1)
+						{
+							if (!pos.capture(move))
+								update_quiet_stats(pos, ss, move, stat_bonus(depth), depth);
+							if ((ss - 1)->moveCount <= 2 && !priorCapture)
+								update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_bonus(depth + 1));
+						}
+
+// 2スレ0.1秒 , V540 , EVAL=水匠
+AB_TEST1:
+  0 : 5382 - 97 - 4524(54.33% R30.17)
+  1 : 5492 - 102 - 4403(55.5% R38.39)
+
+// 2スレ1秒 , V540 , EVAL=水匠
+AB_TEST1:
+  0 : 4524 - 208 - 3227(58.37% R58.69)
+  1 : 4498 - 235 - 3174(58.63% R60.57)
+
+
+
 ■　38. reverse_moveのSEEで、reduction
 
 					else if (   type_of(move) == NORMAL

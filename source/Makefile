@@ -10,14 +10,14 @@
 # === ビルドオプション (build options) ===
 
 # やねうら王の使いたいエディションを指定する (select YaneuraOu Edition)
-# YANEURAOU_ENGINE_NNUE       : NNUE型評価関数(halfKP256),標準NNUE型
-# YANEURAOU_ENGINE_NNUE_KP256 : NNUE型評価関数(KP256)
+# YANEURAOU_ENGINE_NNUE          : NNUE型評価関数(halfKP256),標準NNUE型
+# YANEURAOU_ENGINE_NNUE_KP256    : NNUE型評価関数(KP256)
 # YANEURAOU_ENGINE_NNUE_HALFKPE9 : NNUE型評価関数(halfKPE9)
-# YANEURAOU_ENGINE_KPPT       : KPPT型評価関数
-# YANEURAOU_ENGINE_KPP_KKPT   : KPP_KKPT型評価関数
+# YANEURAOU_ENGINE_KPPT          : KPPT型評価関数
+# YANEURAOU_ENGINE_KPP_KKPT      : KPP_KKPT型評価関数
 # YANEURAOU_ENGINE_MATERIAL      : 駒得のみの評価関数(複数変種あり。MATERIAL_LEVELで選択できる)
-# MATE_ENGINE                 : tanuki- 詰将棋エンジン
-# USER_ENGINE                 : USER定義エンジン
+# MATE_ENGINE                    : tanuki- 詰将棋エンジン
+# USER_ENGINE                    : USER定義エンジン
 
 YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE_KP256
@@ -32,7 +32,7 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 # ターゲットCPU (target cpu)
 
 # 利用できるCPU拡張命令を指定する。
-#
+# 
 # AMDのRyzen(Zen/Zen2)はZEN1/ZEN2を選択するとBMI2命令が使わずに速くなる。(10%程度高速化)
 # Ryzen Zen3シリーズはZEN3を選択。こちらはAVX2用とたぶん変わらない。
 #
@@ -73,7 +73,7 @@ COMPILER = clang++
 
 
 # developing branch // 現状、非公開 (currently private)
-# dev : 開発中のbranchならdevと指定する (developing branch) :
+# dev : 開発中のbranchならdevと指定する (developing branch) : 
 # abe : abe
 #ENGINE_BRANCH = dev
 
@@ -86,7 +86,7 @@ LIBS     =
 INCLUDE  = # -I../include
 
 # makeするときにCPPFLAGSを追加で指定したいときはこれを用いる。
-EXTRA_CPPFLAGS =
+EXTRA_CPPFLAGS = 
 
 # YANEURAOU_EDITION = YANEURAOU_ENGINE_MATERIALのときに指定できる、評価関数の通し番号
 #  1 : 普通の駒得のみの評価関数
@@ -173,7 +173,7 @@ ifeq ($(findstring g++,$(COMPILER)),g++)
 	OPENMP_LDFLAGS =
 endif
 ifeq ($(findstring clang++,$(COMPILER)),clang++)
-	ifeq ($(MSYSTEM),MINGW64)
+		ifeq ($(MSYSTEM),MINGW64)
 		# MSYS2 MINGW64 env
 		# libgompを指定した場合、ビルドは通るがOpenMPは無効化される？
 		OPENMP = -fopenmp=libgomp
@@ -226,6 +226,7 @@ SOURCES  = \
 	benchmark.cpp                                                              \
 	book/book.cpp                                                              \
 	book/apery_book.cpp                                                        \
+	book/makebook.cpp                                                          \
 	book/makebook2015.cpp                                                      \
 	book/makebook2019.cpp                                                      \
 	book/makebook2021.cpp                                                      \
@@ -275,24 +276,24 @@ ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_
 		# 標準NNUE型の亜種なので、とりあえず"YANEURAOU_ENGINE_NNUE"というシンボルを定義してやる。
 		CPPFLAGS += -DYANEURAOU_ENGINE_NNUE
 
-	ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE_KP256)
-		CPPFLAGS += -DEVAL_NNUE_KP256
+		ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE_KP256)
+			CPPFLAGS += -DEVAL_NNUE_KP256
 
 		else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE_HALFKPE9)
-		CPPFLAGS += -DEVAL_NNUE_HALFKPE9
+			CPPFLAGS += -DEVAL_NNUE_HALFKPE9
 
-	endif
+		endif
 	endif
 
 	# 大して大きなファイルではないので全部してしまう。
 	SOURCES += \
-		eval/nnue/evaluate_nnue.cpp                                            \
-		eval/nnue/evaluate_nnue_learner.cpp                                    \
-		eval/nnue/nnue_test_command.cpp                                        \
-		eval/nnue/features/k.cpp                                               \
-		eval/nnue/features/p.cpp                                               \
-		eval/nnue/features/half_kp.cpp                                         \
-		eval/nnue/features/half_relative_kp.cpp                                \
+		eval/nnue/evaluate_nnue.cpp                                     \
+		eval/nnue/evaluate_nnue_learner.cpp                             \
+		eval/nnue/nnue_test_command.cpp                                 \
+		eval/nnue/features/k.cpp                                        \
+		eval/nnue/features/p.cpp                                        \
+		eval/nnue/features/half_kp.cpp                                  \
+		eval/nnue/features/half_relative_kp.cpp                         \
 		eval/nnue/features/half_kpe9.cpp								\
 		eval/nnue/features/pe9.cpp										\
 		engine/yaneuraou-engine/yaneuraou-search.cpp

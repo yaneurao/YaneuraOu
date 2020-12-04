@@ -284,63 +284,8 @@ PARAM_DEFINE AB_TEST1 = 1;
 
 // ABテスト用
 // [PARAM] min:0,max:1,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE AB_TEST2 = 0;
+PARAM_DEFINE AB_TEST2 = 1;
 
-
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE OUR_EFFECT_RATE_0 = 1088;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE OUR_EFFECT_RATE_1 = 1872;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE OUR_EFFECT_RATE_2 = 80;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE OUR_EFFECT_RATE_3 = 792;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE OUR_EFFECT_RATE_4 = 744;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE OUR_EFFECT_RATE_5 = 880;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE OUR_EFFECT_RATE_6 = 1320;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE OUR_EFFECT_RATE_7 = 632;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE OUR_EFFECT_RATE_8 = 936;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE THEIR_EFFECT_RATE_0 = 1088;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE THEIR_EFFECT_RATE_1 = 1714;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE THEIR_EFFECT_RATE_2 = 1688;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE THEIR_EFFECT_RATE_3 = 1208;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE THEIR_EFFECT_RATE_4 = 216;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE THEIR_EFFECT_RATE_5 = 240;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE THEIR_EFFECT_RATE_6 = 496;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE THEIR_EFFECT_RATE_7 = 816;
-
-// [PARAM] min:-10000,max:10000,step:32,interval:1,time_rate:1
-PARAM_DEFINE THEIR_EFFECT_RATE_8 = 928;
 
 
 //#endif // defined(GENSFEN2019)
