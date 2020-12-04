@@ -224,9 +224,9 @@ SOURCES  = \
 	movepick.cpp                                                               \
 	timeman.cpp                                                                \
 	benchmark.cpp                                                              \
-	extra/book/apery_book.cpp                                                  \
-	extra/book/book.cpp                                                        \
-	extra/book/makebook2019.cpp                                                \
+	book/apery_book.cpp													       \
+	book/book.cpp                                                              \
+	book/makebook2019.cpp                                                      \
 	extra/bitop.cpp                                                            \
 	extra/long_effect.cpp                                                      \
 	extra/mate/mate1ply_with_effect.cpp                                        \

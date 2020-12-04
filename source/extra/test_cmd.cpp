@@ -895,9 +895,9 @@ void exam_book(Position& pos)
 
 			// この局面で定跡を調べる。
 			auto it = book.find(pos);
-			if (it != nullptr )
+			if (it != nullptr && it->size() > 0)
 			{
-				int v = it->at(0).value;
+				int v = (*it)[0].value;
 				// 得られた評価値が基準範囲内なので定跡として書き出す。
 				if (-100 <= v && v <= 100)
 				{
@@ -1047,7 +1047,7 @@ void book_check(Position& pos, Color rootTurn, Book::MemoryBook& book, string sf
 				continue;
 #endif
 
-			Move m = pos.to_move(move_list[i].bestMove);
+			Move m = pos.to_move(move_list[i].move);
 
 			pos.do_move(m, si);
 			book_check(pos, rootTurn, book, sfen + ' ' + to_usi_string(m), of);

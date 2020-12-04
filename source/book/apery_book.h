@@ -23,9 +23,8 @@
 #define APERY_BOOK_HPP
 
 #include <unordered_map>
-#include "mt64bit.h"
-#include "../../types.h"
-#include "../../position.h"
+#include "../types.h"
+#include "../position.h"
 
 namespace Book {
 

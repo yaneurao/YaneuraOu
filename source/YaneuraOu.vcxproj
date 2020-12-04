@@ -385,6 +385,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="bitboard.h" />
+    <ClInclude Include="book\apery_book.h" />
+    <ClInclude Include="book\book.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="engine\yaneuraou-engine\yaneuraou-param.h" />
     <ClInclude Include="engine\yaneuraou-engine\yaneuraou-param_gen.h" />
@@ -431,9 +433,6 @@
     <ClInclude Include="eval\nnue\trainer\trainer_sum.h" />
     <ClInclude Include="extra\all.h" />
     <ClInclude Include="extra\bitop.h" />
-    <ClInclude Include="extra\book\apery_book.h" />
-    <ClInclude Include="extra\book\book.h" />
-    <ClInclude Include="extra\book\mt64bit.h" />
     <ClInclude Include="extra\key128.h" />
     <ClInclude Include="extra\kif_converter\kif_convert_consts.h" />
     <ClInclude Include="extra\kif_converter\kif_convert_tools.h" />
@@ -457,6 +456,9 @@
   <ItemGroup>
     <ClCompile Include="benchmark.cpp" />
     <ClCompile Include="bitboard.cpp" />
+    <ClCompile Include="book\apery_book.cpp" />
+    <ClCompile Include="book\book.cpp" />
+    <ClCompile Include="book\makebook2019.cpp" />
     <ClCompile Include="engine\mate-engine\mate-search.cpp" />
     <ClCompile Include="engine\user-engine\user-search.cpp" />
     <ClCompile Include="engine\yaneuraou-engine\yaneuraou-search.cpp" />
@@ -479,9 +481,6 @@
     <ClCompile Include="eval\nnue\features\pe9.cpp" />
     <ClCompile Include="eval\nnue\nnue_test_command.cpp" />
     <ClCompile Include="extra\bitop.cpp" />
-    <ClCompile Include="extra\book\apery_book.cpp" />
-    <ClCompile Include="extra\book\book.cpp" />
-    <ClCompile Include="extra\book\makebook2019.cpp" />
     <ClCompile Include="extra\kif_converter\kif_convert_tools.cpp" />
     <ClCompile Include="extra\long_effect.cpp" />
     <ClCompile Include="extra\mate\mate1ply_without_effect.cpp" />

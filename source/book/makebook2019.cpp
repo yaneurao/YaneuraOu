@@ -1,10 +1,10 @@
-﻿#include "../../types.h"
+﻿#include "../types.h"
 
 #if defined (ENABLE_MAKEBOOK_CMD)
 
 #include "book.h"
-#include "../../position.h"
-#include "../../thread.h"
+#include "../position.h"
+#include "../thread.h"
 #include <fstream>
 #include <sstream>
 #include <unordered_set>
@@ -286,7 +286,7 @@ namespace {
 			// -- このnodeを展開する。
 
 			// 新しいほうの定跡ファイルに登録すべきこのnodeの候補手
-			auto list = PosMoveListPtr(new PosMoveList());
+		auto list = BookMovesPtr(new BookMoves());
 
 			StateInfo si;
 
@@ -294,7 +294,7 @@ namespace {
 			VMD best[COLOR_NB];
 
 			// ↑のbest.valueを上回る指し手であればその指し手でbest.move,best.depthを更新する。
-			auto add_list = [&](Book::BookPos& bp, Color c /* このnodeのColor */, bool update_list)
+		auto add_list = [&](Book::BookMove& bp, Color c /* このnodeのColor */, bool update_list)
 			{
 				ASSERT_LV3(bp.value != VALUE_NONE);
 
@@ -305,7 +305,7 @@ namespace {
 					list->push_back(bp);
 
 				// このnodeのbestValueを更新したら、それをreturnのときに返す必要があるので保存しておく。
-				VMD vmd((Value)bp.value, bp.bestMove, (Depth)bp.depth);
+			VMD vmd((Value)bp.value, bp.move, (Depth)bp.depth);
 
 				// 値を上回ったのでこのnodeのbestを更新。
 				if (best[c].value < vmd.value)
@@ -343,8 +343,8 @@ namespace {
 						// 子がなかった
 
 						// 定跡にこの指し手があったのであれば、それをコピーしてくる。なければこの指し手については何も処理しない。
-					auto it = std::find_if(it_read->begin(), it_read->end(), [m](const auto& x) { return x.bestMove == m.move; });
-						if (it != it_read->end())
+					auto it = it_read->find_move(Move16(m.move));
+					if (it != nullptr)
 						{
 						it->depth = 0; // depthはここがleafなので0扱い
 							add_list(*it, color, update_list);
@@ -365,14 +365,13 @@ namespace {
 
 						//ASSERT_LV3(nextMove != MOVE_NONE);
 
-					Book::BookPos bp(m.move , nextMove, value, depth, 1);
+					Book::BookMove bp(m.move , nextMove, value, depth, 1);
 						add_list(bp, color, update_list);
 					}
 				}
 			}
 
 			// このnodeについて調べ終わったので格納
-			std::stable_sort(list->begin(), list->end());
 		write_book.append(sfen,list);
 
 			// 10 / 1000 node 処理したので進捗を出力
@@ -536,11 +535,10 @@ namespace {
 		{
 			// 定跡の指し手以外の指し手でも、次の局面で定跡にhitする指し手を探す必要がある。
 
-			auto it = std::find_if(it_read->begin(), it_read->end(), [m](const auto & x)
-				{ return x.bestMove == m.move; });
+			auto it = it_read->find_move(m.move);
 
 			// 定跡にhitしたのか
-			bool book_hit = it != it_read->end();
+			bool book_hit = it != nullptr;
 
 			if (book_hit)
 			{

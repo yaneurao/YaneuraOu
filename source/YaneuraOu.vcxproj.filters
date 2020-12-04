@@ -26,9 +26,6 @@
     <Filter Include="script">
       <UniqueIdentifier>{efb5b189-918a-4b2a-ba65-731c674603a7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\extra\book">
-      <UniqueIdentifier>{991f4422-aa69-47f9-96dc-ab57ff54f469}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\extra\mate">
       <UniqueIdentifier>{d2aac0fd-42da-4a14-b6c2-22d534701934}</UniqueIdentifier>
     </Filter>
@@ -68,6 +65,9 @@
     <Filter Include="リソース ファイル\eval\material">
       <UniqueIdentifier>{fb977067-9a3c-4399-8b82-8fa9e35cbce1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\book">
+      <UniqueIdentifier>{1693e27c-c098-48d1-949c-ef016eca8f0c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -105,15 +105,6 @@
     </ClInclude>
     <ClInclude Include="learn\learn.h">
       <Filter>リソース ファイル\learn</Filter>
-    </ClInclude>
-    <ClInclude Include="extra\book\apery_book.h">
-      <Filter>リソース ファイル\extra\book</Filter>
-    </ClInclude>
-    <ClInclude Include="extra\book\book.h">
-      <Filter>リソース ファイル\extra\book</Filter>
-    </ClInclude>
-    <ClInclude Include="extra\book\mt64bit.h">
-      <Filter>リソース ファイル\extra\book</Filter>
     </ClInclude>
     <ClInclude Include="extra\mate\mate1ply.h">
       <Filter>リソース ファイル\extra\mate</Filter>
@@ -280,6 +271,12 @@
     <ClInclude Include="eval\nnue\trainer\features\factorizer_half_kpe9.h">
       <Filter>リソース ファイル\eval\nnue\trainer\features</Filter>
     </ClInclude>
+    <ClInclude Include="book\apery_book.h">
+      <Filter>リソース ファイル\book</Filter>
+    </ClInclude>
+    <ClInclude Include="book\book.h">
+      <Filter>リソース ファイル\book</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -329,12 +326,6 @@
     </ClCompile>
     <ClCompile Include="learn\multi_think.cpp">
       <Filter>リソース ファイル\learn</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\book\apery_book.cpp">
-      <Filter>リソース ファイル\extra\book</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\book\book.cpp">
-      <Filter>リソース ファイル\extra\book</Filter>
     </ClCompile>
     <ClCompile Include="extra\mate\mate_n_ply.cpp">
       <Filter>リソース ファイル\extra\mate</Filter>
@@ -399,9 +390,6 @@
     <ClCompile Include="usi_option.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="extra\book\makebook2019.cpp">
-      <Filter>リソース ファイル\extra\book</Filter>
-    </ClCompile>
     <ClCompile Include="movepick.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
@@ -425,6 +413,15 @@
     </ClCompile>
     <ClCompile Include="eval\material\evaluate_material.cpp">
       <Filter>リソース ファイル\eval\material</Filter>
+    </ClCompile>
+    <ClCompile Include="book\apery_book.cpp">
+      <Filter>リソース ファイル\book</Filter>
+    </ClCompile>
+    <ClCompile Include="book\book.cpp">
+      <Filter>リソース ファイル\book</Filter>
+    </ClCompile>
+    <ClCompile Include="book\makebook2019.cpp">
+      <Filter>リソース ファイル\book</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

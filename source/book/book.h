@@ -1,10 +1,10 @@
-﻿#ifndef _BOOK_H_
-#define _BOOK_H_
+﻿#ifndef _BOOK_H_INCLUDED_
+#define _BOOK_H_INCLUDED_
 
-#include "../../types.h"
-#include "../../position.h"
-#include "../../misc.h"
-#include "../../usi.h"
+#include "../types.h"
+#include "../position.h"
+#include "../misc.h"
+#include "../usi.h"
 
 #include <unordered_map>
 #include <fstream>
@@ -15,64 +15,152 @@ namespace Search { struct LimitsType; };
 // 定跡処理関連のnamespace
 namespace Book
 {
-	// ある局面における指し手(定跡の局面での指し手を格納するのに用いる)
-	struct BookPos
+	// 将棋ソフト用の標準定跡ファイルフォーマットの提案 : http://yaneuraou.yaneu.com/2016/02/05/standard-shogi-book-format/
+
+	// ある局面における指し手1つ(定跡の局面での指し手を格納するのに用いる)
+	// これの集合体が、ある局面の指し手集合。その集合体が、定跡ツリー。
+	struct BookMove
 	{
-		// ここでの指し手表現は32bit型Moveではなく、16bit型Move(Move16)なので、
+		// ここでの指し手表現は32bit型の指し手(Move)ではなく、16bit型の指し手(Move16)なので、
 		// Position::do_move()などにはPosition::to_move()を用いて32bit化してから用いること。
 
-		Move16 bestMove; // この局面での指し手
-		Move16 nextMove; // その指し手を指したときの予想される相手の指し手
+		Move16 move;   // この局面での指し手
+		Move16 ponder; // その指し手を指したときの予想される相手の指し手(指し手が無いときはnoneと書くことになっているので、このとMOVE_NONEになっている)
 
-		int value;     // bestMoveを指したときの局面の評価値
-		int depth;     // bestMoveの探索深さ
+		// ↓定跡DBに以下は書かれているとは限らない。optionalな項目
+
+		int value;     // moveを指したときの局面の評価値
+		int depth;     // moveの探索深さ
+
 		uint64_t num;  // 何らかの棋譜集において、この指し手が採択された回数。
-		float prob;    // ↑のnumをパーセンテージで表現したもの。(read_bookしたときには反映される。ファイルには書き出していない。)
 
-		BookPos(Move16 best, Move16 next, int v, int d, uint64_t n)
-			: bestMove(best), nextMove(next), value(v), depth(d), num(n) , prob(0) {}
+		// --- MCTSで作った定跡の場合これを記録しておき、これを見て指し手を選択する ---
 
-		// bestMoveが等しいかを返す
-		bool operator == (const BookPos& rhs) const
+		uint64_t win;  // moveを採択してこの局面の手番側が勝利した回数
+		uint64_t lose; // moveを採択してこの局面の手番側が敗北した回数
+
+		// bestMoveを採択してこの局面の手番側が引き分けになった回数
+		// これは計算して出すので、関数。
+		uint64_t draw() const {
+			return num - (win + lose);
+		}
+
+		// ----------------------------------------------------------------------------
+
+		BookMove(Move16 move_, Move16 ponder_, int value_, int depth_, uint64_t num_)
+			: move(move_), ponder(ponder_), value(value_), depth(depth_), num(num_) , win(0),lose(0){}
+
+		BookMove(Move16 move_, Move16 ponder_, int value_, int depth_, uint64_t num_ , uint64_t win_ , uint64_t lose_)
+			: move(move_), ponder(ponder_), value(value_), depth(depth_), num(num_) , win(win_),lose(lose_){}
+
+		// 定跡フォーマットの、ある局面の指し手を書いてある一行を引数lineに渡して、
+		// BookMoveのオブジェクトを構築するbuilder。
+		static BookMove from_string(std::string line);
+
+		// このoperatorは、bestMoveが等しいかを判定して返す。
+		bool operator == (const BookMove& rhs) const
 		{
-			return bestMove == rhs.bestMove;
+			return move == rhs.move;
 		}
 
 		// std::sort()で出現回数に対して降順ソートされて欲しいのでこう定義する。
 		// また出現回数が同じ時は、評価値順に降順ソートされて欲しいので…。
-		bool operator < (const BookPos& rhs) const {
+		bool operator < (const BookMove& rhs) const {
 			return (num != rhs.num) ? (num > rhs.num ) : (value > rhs.value);
 		}
 	};
 
-	static std::ostream& operator<<(std::ostream& os, BookPos c);
+	static std::ostream& operator<<(std::ostream& os, BookMove c);
 
-	// ある局面での指し手の集合がPosMoveList。
-	// メモリ上ではこれをshared_ptrでくるんで保持する。
+	// BookMovesで返し値などに使いたいのでこれを定義しておく。
+	typedef std::vector<BookMove>::iterator BookMoveIterator;
+
+	// 定跡のある局面での指し手の候補集合
+	// メモリ上ではこれをshared_ptrでくるんで保持している。
+	//  → BookMovesPtr
 	// ある局面が定跡に登録されている局面であるかを調べる関数が
 	// 指し手を返すときもこのshared_ptrでくるんだものを返す。
-	typedef std::vector<BookPos> PosMoveList;
-	typedef std::shared_ptr<PosMoveList> PosMoveListPtr;
+	//
+	// ※　このクラスのメンバ関数で、[ASYNC]とコメントに書かれているものは、
+	// thread safeであることが保証されている。
+	struct BookMoves
+	{
+		BookMoves() {}
 
-	// sfen文字列からPosMoveListへの写像。(これが定跡データがメモリ上に存在するときの構造)
-	typedef std::unordered_map<std::string /* sfen */, PosMoveListPtr > BookType;
+		// copy constructor
+		// std::recursive_mutexを持っているので暗黙のコピーは不可。自前でコピーしてやる。
+		BookMoves(const BookMoves& bm) { sorted = bm.sorted; moves = bm.moves; }
 
-	// PosMoveListPtrに対してBookPosを一つ追加するヘルパー関数。
-	// (その局面ですでに同じbestMoveの指し手が登録されている場合は上書き動作となる)
-	static void insert_book_pos(PosMoveListPtr ptr, const BookPos& bp);
+		// [ASYNC] BookMoveを一つ追加する
+		// ただし、その局面ですでに同じmoveの指し手が登録されている場合、
+		//   overwrite == true の時は、上書き動作となる。このとき、BookMove::num,win,loseは、合算した値となる。
+		//   overwrite == falseの時は、上書きされない。
+		void insert(const BookMove& book_move,bool overwrite);
+
+		// [ASYNC] BookMoveを一つ追加する。
+		// 動作はinsert()とほぼ同じだが、この局面に同じ指し手は存在しないことがわかっている時に用いる。
+		// こちらのほうが、同一の指し手が含まれるかのチェックをしない分だけ高速。
+		void push_back(const BookMove& book_move);
+
+		// [ASYNC] ある指し手と同じBookMoveのエントリーを探して、あればそのポインターを返す。
+		std::shared_ptr<BookMove> find_move(const Move16 move) const;
+
+		// [ASYNC] この局面に登録されている指し手の数を返す。
+		// 指し手の数は、MAX_MOVESであるので、intの範囲で十分である。
+		int size() const { return (int)moves.size(); }
+
+		// [ASYNC] 指し手を出現回数、評価値順に並び替える。
+		// ※　より正確に言うなら、BookMoveのoperator <()で定義されている順。
+		// すでに並び替わっているなら、何もしない。
+		// 書き出す寸前とか、読み込んで、定跡にhitした直後とかにsort_moves()を呼び出せば良いという考え。
+		void sort_moves();
+
+		// [ASYNC] このクラスの持つ指し手集合に対して、それぞれの局面を列挙する時に用いる
+		void foreach(std::function<void(BookMove&)> f);
+
+		// -------------------------------------------------------------------
+
+		// 以下、std::vector と同じメンバ。これらは、thread safeではない。
+		// シングルスレッドで実行する文脈でだけ使うべし。
+
+		const BookMove& operator[](size_t s) const { return moves[s]; }
+		const BookMoveIterator begin() { return moves.begin(); }
+		const BookMoveIterator end() { return moves.end(); }
+		BookMoveIterator erase(BookMoveIterator start, BookMoveIterator last) { return moves.erase(start, last); }
+		void clear() { moves.clear(); }
+
+		// -------------------------------------------------------------------
+
+	private:
+		// 候補となる指し手の集合
+		std::vector<BookMove> moves;
+
+		// ↑のmovesがsort済みであるかのフラグ。insertなどに対してfalseに変更しておき、
+		// sort()を呼び出されたら、sort()して、このフラグをtrueに変更する。
+		// なるべく遅延してsortしたいため。
+		bool sorted = false;
+
+		// このrecordを操作するときのrecursive_mutex
+		std::recursive_mutex mutex_;
+	};
+
+	typedef std::shared_ptr<BookMoves> BookMovesPtr;
+
+	// sfen文字列からBookMovesPtrへの写像。(これが定跡データがメモリ上に存在するときの構造)
+	typedef std::unordered_map<std::string /* sfen */, BookMovesPtr > BookType;
 
 	// メモリ上にある定跡ファイル
 	// ・sfen文字列をkeyとして、局面の指し手へ変換するのが主な役割。(このとき重複した指し手は除外するものとする)
 	// ・on the flyが指定されているときは実際はメモリ上にはないがこれを透過的に扱う。
 	struct MemoryBook
 	{
-		// 定跡として登録されているかを調べて返す。
+		// [ASYNC] 定跡として登録されているかを調べて返す。
 		// ・見つからなかった場合、nullptrが返る。
 		// ・read_book()のときにon_the_flyが指定されていれば実際にはメモリ上には定跡データが存在しないので
-		// ファイルを調べに行き、PosMoveListをメモリ上に作って、それをくるんだPosMoveListPtrを返す。
-		PosMoveListPtr find(const Position& pos);
+		// ファイルを調べに行き、BookMovesPtrをメモリ上に作って、それをくるんだBookMovesPtrを返す。
+		BookMovesPtr find(const Position& pos);
 
-		// 定跡を内部に読み込む。
+		// [ASYNC] 定跡を内部に読み込む。
 		// ・Aperyの定跡ファイルは"book/book.bin"だと仮定。(これはon the fly読み込みに非対応なので丸読みする)
 		// ・やねうら王の定跡ファイルは、on_the_flyが指定されているとメモリに丸読みしない。
 		//      Options["BookOnTheFly"]がtrueのときはon the flyで読み込むのでそれ用。
@@ -81,14 +169,14 @@ namespace Book
 		// ・filenameはpathとして"book/"を補完しないので生のpathを指定する。
 		Tools::Result read_book(const std::string& filename, bool on_the_fly = false);
 
-		// 定跡ファイルの書き出し
+		// [ASYNC] 定跡ファイルの書き出し
 		// ・sort = 書き出すときにsfen文字列で並び替えるのか。(書き出しにかかる時間増)
 		// →　必ずソートするように変更した。
 		// ・ファイルへの書き出しは、*thisを書き換えないという意味においてconst性があるので関数にconstを付与しておく。
 		// また、事前にis_ready()は呼び出されているものとする。
 		Tools::Result write_book(const std::string& filename /*, bool sort = false*/) const;
 
-		// Aperyの定跡ファイルを読み込む
+		// [ASYNC] Aperyの定跡ファイルを読み込む
 		// ・この関数はread_bookの下請けとして存在する。外部から直接呼び出すのは定跡のコンバートの時ぐらい。
 		Tools::Result read_apery_book(const std::string& filename);
 
@@ -98,29 +186,22 @@ namespace Book
 		// 定跡を書き換えてwrite_book()で書き出すような作業を行なうときだけアクセスする。
 		// --------------------------------------------------------------------------
 
-		// メモリに読み込んでいる定跡本体。定跡編集の時以外、このメソッドを呼び出すべきではない。
-		BookType* get_body() { return &book_body;}
+		// [ASYNC] book_body.find()のwrapper。book_body.find()ではなく、こちらのfindを呼び出して用いること。
+		BookMovesPtr find(const std::string& sfen) const;
 
-		// book_body.find()のwrapper。book_body.find()ではなく、こちらのfindを呼び出して用いること。
-		// 例)
-		// auto it = book.find(sfen);
-		//   if (book.is_not_found(it))
-		// のように書ける
-		BookType::iterator find(const std::string& sfen);
-		bool is_found(const BookType::iterator& it) const { return it != book_body.end(); }
-		bool is_not_found(const BookType::iterator& it) const { return it == book_body.end(); }
-
-		// メモリに保持している定跡に局面を一つ追加する。
+		// [ASYNC] メモリに保持している定跡に局面を一つ追加する。
 		// book_body[sfen] = ptr;
-		// と等価。
-		void append(const std::string& sfen, const Book::PosMoveListPtr& ptr) { book_body[sfen] = ptr; }
+		// と等価。すでに登録されているとしたら、それは置き換わる。
+		void append(const std::string& sfen, const Book::BookMovesPtr& ptr);
 
-		// book_bodyに対してBookPosを一つ追加するヘルパー関数。
-		// overwrite : このフラグがtrueならば、その局面ですでに同じbestMoveの指し手が登録されている場合は上書き動作
-		void insert(const std::string& sfen, const BookPos& bp , bool overwrite = true);
+		// [ASYNC] book_bodyの局面sfenに対してBookMoveを一つ追加するヘルパー関数。
+		// 同じ局面に対して繰り返し、この関数を呼ぶぐらいなら、BookMovesに直接push_back()してから、このクラスのappend()を呼ぶべき。
+		// overwrite : このフラグがtrueならば、その局面ですでに同じmoveの指し手が登録されている場合は上書き動作。(このとき採択回数num,win,loseは合算する)
+		//             このフラグがfalseならば、その局面ですでに同じmoveの指し手が登録されている場合は何もしない。
+		void insert(const std::string& sfen, const BookMove& bp , bool overwrite = true);
 
-		// book_bodyに対してBookType::insert()を呼び出すwrapper。
-		std::pair<BookType::iterator,bool> insert(const std::pair<std::string/*sfen*/, Book::PosMoveListPtr>& p) { return book_body.insert(p);  };
+		// [ASYNC] このクラスの持つ定跡DBに対して、それぞれの局面を列挙する時に用いる
+		void foreach(std::function<void(std::string /*sfen*/, BookMovesPtr)> f);
 
 	protected:
 
@@ -130,10 +211,13 @@ namespace Book
 		// このクラス(MemoryBookクラス)のfind()メソッドを用いること。
 		BookType book_body;
 
+		// ↑を操作するときのmutex
+		std::recursive_mutex mutex_;
+
 		// 末尾のスペース、"\t","\r","\n"を除去する。
 		// Options["IgnoreBookPly"] == trueのときは、さらに数字も除去する。
 		// sfen文字列の末尾にある手数を除去する目的。
-		std::string trim(std::string input);
+		std::string trim(std::string input) const;
 
 		// メモリに丸読みせずにfind()のごとにファイルを調べにいくのか。
 		// これは思考エンジン設定のOptions["BookOnTheFly"]の値を反映したもの。
@@ -225,4 +309,4 @@ namespace Book
 
 }
 
-#endif // #ifndef _BOOK_H_
+#endif // #ifndef INCLUDED_

@@ -17,7 +17,7 @@
 #include "../tt.h"
 #include "../usi.h"
 #include "long_effect.h"
-#include "book/book.h"
+#include "../book/book.h"
 #include "../learn/learn.h"
 #include "kif_converter/kif_convert_tools.h"
 

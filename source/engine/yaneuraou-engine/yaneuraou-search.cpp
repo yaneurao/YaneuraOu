@@ -23,7 +23,7 @@
 #include "../../thread.h"
 #include "../../misc.h"
 #include "../../tt.h"
-#include "../../extra/book/book.h"
+#include "../../book/book.h"
 #include "../../movepick.h"
 #include "../../usi.h"
 #include "../../learn/learn.h"
