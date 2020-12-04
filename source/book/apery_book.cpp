@@ -26,11 +26,10 @@
 #include <cstdint>
 #include <random>
 
-namespace Book {
-
-// 64bit のランダムな値を返す為のクラス
-class MT64bit : public std::mt19937_64 {
-public:
+namespace {
+    // 64bit のランダムな値を返す為のクラス
+    class MT64bit : public std::mt19937_64 {
+    public:
     MT64bit() : std::mt19937_64() {}
     explicit MT64bit(const unsigned int seed) : std::mt19937_64(seed) {}
     uint64_t random() {
@@ -39,7 +38,10 @@ public:
     uint64_t randomFewBits() {
         return random() & random() & random();
     }
-};
+    };
+}
+
+namespace Book {
 
 Key AperyBook::ZobPiece[PIECE_NB - 1][SQ_NB];
 Key AperyBook::ZobHand[PIECE_HAND_NB - 1][19]; // 持ち駒の同一種類の駒の数ごと

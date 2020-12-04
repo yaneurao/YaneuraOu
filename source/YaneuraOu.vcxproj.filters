@@ -423,6 +423,12 @@
     <ClCompile Include="book\makebook2019.cpp">
       <Filter>リソース ファイル\book</Filter>
     </ClCompile>
+    <ClCompile Include="book\makebook2015.cpp">
+      <Filter>リソース ファイル\book</Filter>
+    </ClCompile>
+    <ClCompile Include="book\makebook2021.cpp">
+      <Filter>リソース ファイル\book</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">

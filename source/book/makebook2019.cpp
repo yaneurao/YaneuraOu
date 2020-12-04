@@ -28,21 +28,21 @@ namespace {
 	// 定跡を掘り進むときに枝刈りする評価値が駒落ちの度合いで異なるので同じ枠組みでうまく扱うのは結構難しい気も。
 
 	std::vector<std::string> start_sfens = {
-	/*public static readonly string HIRATE = */       "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1" ,
-	/*public static readonly string HANDICAP_KYO = */ "lnsgkgsn1/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1" ,
-	/*public static readonly string HANDICAP_RIGHT_KYO = */ "1nsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
-	/*public static readonly string HANDICAP_KAKU = */ "lnsgkgsnl/1r7/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
-	/*public static readonly string HANDICAP_HISYA = */ "lnsgkgsnl/7b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
-	/*public static readonly string HANDICAP_HISYA_KYO = */ "lnsgkgsn1/7b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
-	/*public static readonly string HANDICAP_2 =      */ "lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
-	/*public static readonly string HANDICAP_3 =      */ "lnsgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
-	/*public static readonly string HANDICAP_4 =      */ "1nsgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
-	/*public static readonly string HANDICAP_5 =      */ "2sgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
-	/*public static readonly string HANDICAP_LEFT_5 = */ "1nsgkgs2/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
-	/*public static readonly string HANDICAP_6 =      */ "2sgkgs2/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
-	/*public static readonly string HANDICAP_8 =      */ "3gkg3/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
-	/*public static readonly string HANDICAP_10 =     */ "4k4/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
-	/*public static readonly string HANDICAP_PAWN3 =  */ "4k4/9/9/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w 3p 1",
+		/*public static readonly string HIRATE = */       "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1" ,
+		/*public static readonly string HANDICAP_KYO = */ "lnsgkgsn1/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1" ,
+		/*public static readonly string HANDICAP_RIGHT_KYO = */ "1nsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+		/*public static readonly string HANDICAP_KAKU = */ "lnsgkgsnl/1r7/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+		/*public static readonly string HANDICAP_HISYA = */ "lnsgkgsnl/7b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+		/*public static readonly string HANDICAP_HISYA_KYO = */ "lnsgkgsn1/7b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+		/*public static readonly string HANDICAP_2 =      */ "lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+		/*public static readonly string HANDICAP_3 =      */ "lnsgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+		/*public static readonly string HANDICAP_4 =      */ "1nsgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+		/*public static readonly string HANDICAP_5 =      */ "2sgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+		/*public static readonly string HANDICAP_LEFT_5 = */ "1nsgkgs2/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+		/*public static readonly string HANDICAP_6 =      */ "2sgkgs2/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+		/*public static readonly string HANDICAP_8 =      */ "3gkg3/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+		/*public static readonly string HANDICAP_10 =     */ "4k4/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+		/*public static readonly string HANDICAP_PAWN3 =  */ "4k4/9/9/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w 3p 1",
 	};
 
 	// build_tree_nega_max()で用いる返し値に用いる。
@@ -52,9 +52,9 @@ namespace {
 		VMD() : value(-VALUE_INFINITE), move(MOVE_NONE), depth(0) {}
 		VMD(Value value_, Move16 move_, Depth depth_) : value(value_), move(move_), depth(depth_) {}
 
-		Value value; // 評価値
+		Value  value; // 評価値
 		Move16 move;  // 候補手
-		Depth depth; // これはleaf nodeまでの手数
+		Depth  depth; // これはleaf nodeまでの手数
 	};
 
 	// build_tree_nega_max()で用いる返し値に用いる。
@@ -168,79 +168,79 @@ namespace {
 		if (pos.is_mated())
 			return VMD_Pair(mated_in(0), MOVE_NONE, 0);
 
-			// 現局面で宣言勝ちできる。
-			// 定跡ファイルにMOVE_WINが紛れたときの解釈を規定していないのでここでは入れないことにする。
-			if (pos.DeclarationWin() != MOVE_NONE)
+		// 現局面で宣言勝ちできる。
+		// 定跡ファイルにMOVE_WINが紛れたときの解釈を規定していないのでここでは入れないことにする。
+		if (pos.DeclarationWin() != MOVE_NONE)
 			return VMD_Pair(mate_in(1), MOVE_NONE, 0);
 
 		// この局面の手番
 		auto stm = pos.side_to_move();
 
-			// 千日手の検出などが必要でごじゃる。
+		// 千日手の検出などが必要でごじゃる。
 		auto draw_type = pos.is_repetition(pos.game_ply());
-			if (draw_type != REPETITION_NONE)
+		if (draw_type != REPETITION_NONE)
+		{
+			// この次の一手が欲しい気はする。is_repetition()が返して欲しい気はするのだが、
+			// StateInfoが指し手を保存していなくて返せないのか…。(´ω｀)
+			// これのためだけに"KEEP_LAST_MOVE"をdefineするのちょっと嫌だな…。自前で持つか…。
+
+			// 千日手
+			switch (draw_type)
 			{
-				// この次の一手が欲しい気はする。is_repetition()が返して欲しい気はするのだが、
-				// StateInfoが指し手を保存していなくて返せないのか…。(´ω｀)
-				// これのためだけに"KEEP_LAST_MOVE"をdefineするのちょっと嫌だな…。自前で持つか…。
+				// 千日手は-1にしてしまいたいが、先後で同じ定跡を用いるのでそれはできない(´ω｀)
+				// ここ、きちんとやらないと後手だと必ず千日手狙いになってしまう…。
+				// 解決策)
+				// rootColorがBLACK,WHITEの時それぞれ用のVMDを返すべき。
+				// value = rootColor == pos.side_to_move() ? -comtempt : +comtempt;
+				// みたいな感じ。
+				// ただ、後手番で千日手のcomtemptが30(千日手をevalの-30扱いにする)だとして、
+				// 後手だからと言って積極的に千日手を狙われても…みたいな問題はある。
+				// 定跡上は、先手のcontempt = 0 , 後手のcontempt = 70ぐらいがいいように思う。
 
-				// 千日手
-				switch (draw_type)
-				{
-					// 千日手は-1にしてしまいたいが、先後で同じ定跡を用いるのでそれはできない(´ω｀)
-					// ここ、きちんとやらないと後手だと必ず千日手狙いになってしまう…。
-					// 解決策)
-					// rootColorがBLACK,WHITEの時それぞれ用のVMDを返すべき。
-					// value = rootColor == pos.side_to_move() ? -comtempt : +comtempt;
-					// みたいな感じ。
-					// ただ、後手番で千日手のcomtemptが30(千日手をevalの-30扱いにする)だとして、
-					// 後手だからと言って積極的に千日手を狙われても…みたいな問題はある。
-					// 定跡上は、先手のcontempt = 0 , 後手のcontempt = 70ぐらいがいいように思う。
+				// PawnValue/100を掛けて正規化する処理はここではしないことにする。どんな探索部で生成された定跡かわからないので
+				// book上のevalの値は正規化されているものと仮定する。
+				// (makebook thinkコマンドだと正規化されないが…まあいいだろう..)
 
-					// PawnValue/100を掛けて正規化する処理はここではしないことにする。どんな探索部で生成された定跡かわからないので
-					// book上のevalの値は正規化されているものと仮定する。
-					// (makebook thinkコマンドだと正規化されないが…まあいいだろう..)
+			case REPETITION_DRAW:
+				// 千日手局面を実際に見つけて、その直後の指し手を取得する。
+			{
+				auto key = pos.key();
+				int i = 0;
+				auto* statePtr = pos.state();
+				do {
+					// 2手ずつ遡る
+					statePtr = statePtr->previous->previous;
+					i += 2;
+				} while (key != statePtr->key());
+				// i手前が同一局面であることがわかったので、その次の指し手を得る。
 
-				case REPETITION_DRAW:
-					// 千日手局面を実際に見つけて、その直後の指し手を取得する。
-				{
-					auto key = pos.key();
-					int i = 0;
-					auto* statePtr = pos.state();
-					do {
-						// 2手ずつ遡る
-						statePtr = statePtr->previous->previous;
-						i += 2;
-					} while (key != statePtr->key());
-					// i手前が同一局面であることがわかったので、その次の指し手を得る。
-
-					// 例) 4手前の局面とkey()が同じなら4手前から循環して千日手が成立。すなわち、lastMovesの後ろから5つ目の指し手で千日手局面に突入しているので
-					// その次の指し手(4手前の指し手)が、ここの次の一手のはず…。
+				// 例) 4手前の局面とkey()が同じなら4手前から循環して千日手が成立。すなわち、lastMovesの後ろから5つ目の指し手で千日手局面に突入しているので
+				// その次の指し手(4手前の指し手)が、ここの次の一手のはず…。
 				Move16 draw_move = lastMoves[lastMoves.size() - i];
-					// この普通の千日手以外のケースでこれをやると非合法手になる可能性があって…。
+				// この普通の千日手以外のケースでこれをやると非合法手になる可能性があって…。
 
-					//  contempt * Eval::PawnValue / 100 という処理はしない。
-					// 定跡DBはmakebook thinkコマンドで作成されていて、この正規化はすでになされている。
+				//  contempt * Eval::PawnValue / 100 という処理はしない。
+				// 定跡DBはmakebook thinkコマンドで作成されていて、この正規化はすでになされている。
 
-					// 現局面の手番を見て符号を決めないといけない。
+				// 現局面の手番を見て符号を決めないといけない。
 				return VMD_Pair(
 					(Value)(stm == BLACK ? -black_contempt : +black_contempt) /*先手のcomtempt */, draw_move, 0,
 					(Value)(stm == WHITE ? -white_contempt : +white_contempt) /*後手のcomtempt */, draw_move, 0
-					);
-				}
+				);
+			}
 
 			case REPETITION_INFERIOR: return VMD_Pair(-VALUE_SUPERIOR  , MOVE_NONE , 0);
 			case REPETITION_SUPERIOR: return VMD_Pair( VALUE_SUPERIOR  , MOVE_NONE , 0);
 			case REPETITION_WIN     : return VMD_Pair(mate_in(MAX_PLY) , MOVE_NONE , 0);
 			case REPETITION_LOSE    : return VMD_Pair(mated_in(MAX_PLY), MOVE_NONE , 0);
 
-					// これ入れておかないとclangで警告が出る。
-				case REPETITION_NONE:
-				case REPETITION_NB:
-					break;
+				// これ入れておかないとclangで警告が出る。
+			case REPETITION_NONE:
+			case REPETITION_NB:
+				break;
 
-				}
 			}
+		}
 
 		// -- すでに探索済みであるなら、そのときの値を返す。
 
@@ -268,123 +268,123 @@ namespace {
 
 		auto sfen_left = StringExtension::trim_number(sfen);
 		int gamePly = StringExtension::to_int(sfen.substr(sfen_left.length()), 0);
-		
+
 		auto it_write = vmd_write_cache.find(sfen_left);
 		if (it_write != vmd_write_cache.end() && it_write->second.gamePly <= gamePly)
 			return it_write->second.vmd_pair;
 
 		// -- 定跡にhitするのか？(手数無視で)
 
-			auto it_read = read_book.find(pos);
-			if (it_read == nullptr || it_read->size() == 0)
-				// このnodeについて、これ以上、何も処理できないでござる。
-			{
+		auto it_read = read_book.find(pos);
+		if (it_read == nullptr || it_read->size() == 0)
+			// このnodeについて、これ以上、何も処理できないでござる。
+		{
 			// 保存する価値がないと思うでvmd_write_cacheには保存しない
 			return VMD_Pair(VALUE_NONE, MOVE_NONE, 0);
-			}
+		}
 
-			// -- このnodeを展開する。
+		// -- このnodeを展開する。
 
-			// 新しいほうの定跡ファイルに登録すべきこのnodeの候補手
+		// 新しいほうの定跡ファイルに登録すべきこのnodeの候補手
 		auto list = BookMovesPtr(new BookMoves());
 
-			StateInfo si;
+		StateInfo si;
 
-			// このnodeの最善手。rootColorがBLACK,WHITE用、それぞれ。
-			VMD best[COLOR_NB];
+		// このnodeの最善手。rootColorがBLACK,WHITE用、それぞれ。
+		VMD best[COLOR_NB];
 
-			// ↑のbest.valueを上回る指し手であればその指し手でbest.move,best.depthを更新する。
+		// ↑のbest.valueを上回る指し手であればその指し手でbest.move,best.depthを更新する。
 		auto add_list = [&](Book::BookMove& bp, Color c /* このnodeのColor */, bool update_list)
-			{
-				ASSERT_LV3(bp.value != VALUE_NONE);
+		{
+			ASSERT_LV3(bp.value != VALUE_NONE);
 
-				// 定跡に登録する。
-				bp.num = 1; // 出現頻度を1に固定しておかないとsortのときに評価値で降順に並ばなくて困る。
+			// 定跡に登録する。
+			bp.num = 1; // 出現頻度を1に固定しておかないとsortのときに評価値で降順に並ばなくて困る。
 
-				if (update_list)
-					list->push_back(bp);
+			if (update_list)
+				list->push_back(bp);
 
-				// このnodeのbestValueを更新したら、それをreturnのときに返す必要があるので保存しておく。
+			// このnodeのbestValueを更新したら、それをreturnのときに返す必要があるので保存しておく。
 			VMD vmd((Value)bp.value, bp.move, (Depth)bp.depth);
 
-				// 値を上回ったのでこのnodeのbestを更新。
-				if (best[c].value < vmd.value)
-					best[c] = vmd;
-			};
+			// 値を上回ったのでこのnodeのbestを更新。
+			if (best[c].value < vmd.value)
+				best[c] = vmd;
+		};
 
-			// すべての合法手で1手進める。
-			// 1) 子ノードがない　→　思考したスコアがあるならそれで代用　なければ　その子ノードについては考えない
-			// 2) 子ノードがある　→　そのスコアを定跡として登録
+		// すべての合法手で1手進める。
+		// 1) 子ノードがない　→　思考したスコアがあるならそれで代用　なければ　その子ノードについては考えない
+		// 2) 子ノードがある　→　そのスコアを定跡として登録
 
-			for (const auto& m : MoveList<LEGAL_ALL>(pos))
+		for (const auto& m : MoveList<LEGAL_ALL>(pos))
+		{
+			// この指し手をたどる
+			this->do_move(pos, m, si);
+			auto vmd_pair = build_tree_nega_max(pos, read_book, write_book);
+			this->undo_move(pos, m);
+
+			for (auto color : COLOR)
 			{
-				// この指し手をたどる
-				this->do_move(pos, m, si);
-				auto vmd_pair = build_tree_nega_max(pos, read_book, write_book);
-				this->undo_move(pos, m);
+				// root_colorが先手用のbestの更新と後手用のbestの更新とが、個別に必要である。(DRAW_VALUEの処理のため)
+				auto& vmd = color == BLACK ? vmd_pair.black : vmd_pair.white;
 
-				for (auto color : COLOR)
+				// colorがこの局面の手番(≒root_color)であるときだけこのnodeの候補手リストを更新する。
+				// そうでないときもbestの更新は行う。
+				auto update_list = color == pos.side_to_move();
+
+				// 子nodeの探索結果を取り出す。
+				// depthは、この先にbestMoveを辿っていくときleaf nodeまで何手あるかという値なのでここで定跡が途切れるならDEPTH_ZERO。
+				auto value = vmd.value;
+				auto nextMove = vmd.move;
+				auto depth = vmd.depth + 1;
+
+				if (value == VALUE_NONE)
 				{
-					// root_colorが先手用のbestの更新と後手用のbestの更新とが、個別に必要である。(DRAW_VALUEの処理のため)
-					auto& vmd = color == BLACK ? vmd_pair.black : vmd_pair.white;
+					// 子がなかった
 
-					// colorがこの局面の手番(≒root_color)であるときだけこのnodeの候補手リストを更新する。
-					// そうでないときもbestの更新は行う。
-					auto update_list = color == pos.side_to_move();
-
-					// 子nodeの探索結果を取り出す。
-					// depthは、この先にbestMoveを辿っていくときleaf nodeまで何手あるかという値なのでここで定跡が途切れるならDEPTH_ZERO。
-					auto value = vmd.value;
-					auto nextMove = vmd.move;
-					auto depth = vmd.depth + 1;
-
-					if (value == VALUE_NONE)
-					{
-						// 子がなかった
-
-						// 定跡にこの指し手があったのであれば、それをコピーしてくる。なければこの指し手については何も処理しない。
+					// 定跡にこの指し手があったのであれば、それをコピーしてくる。なければこの指し手については何も処理しない。
 					auto it = it_read->find_move(Move16(m.move));
 					if (it != nullptr)
-						{
-						it->depth = 0; // depthはここがleafなので0扱い
-							add_list(*it, color, update_list);
-						}
-					}
-					else
 					{
-						// 子があったのでその値で定跡を登録したい。この場合、このnodeの思考の指し手にhitしてようと関係ない。
-
-						// nega maxなので符号を反転させる
-						value = -value;
-
-						// 詰みのスコアはrootから詰みまでの距離に応じてスコアを修正しないといけない。
-						if (value >= VALUE_MATE)
-							--value;
-						else if (value <= -VALUE_MATE)
-							++value;
-
-						//ASSERT_LV3(nextMove != MOVE_NONE);
-
-					Book::BookMove bp(m.move , nextMove, value, depth, 1);
-						add_list(bp, color, update_list);
+						it->depth = 0; // depthはここがleafなので0扱い
+						add_list(*it, color, update_list);
 					}
 				}
-			}
+				else
+				{
+					// 子があったのでその値で定跡を登録したい。この場合、このnodeの思考の指し手にhitしてようと関係ない。
 
-			// このnodeについて調べ終わったので格納
+					// nega maxなので符号を反転させる
+					value = -value;
+
+					// 詰みのスコアはrootから詰みまでの距離に応じてスコアを修正しないといけない。
+					if (value >= VALUE_MATE)
+						--value;
+					else if (value <= -VALUE_MATE)
+						++value;
+
+					//ASSERT_LV3(nextMove != MOVE_NONE);
+
+					Book::BookMove bp(m.move , nextMove, value, depth, 1);
+					add_list(bp, color, update_list);
+				}
+			}
+		}
+
+		// このnodeについて調べ終わったので格納
 		write_book.append(sfen,list);
 
-			// 10 / 1000 node 処理したので進捗を出力
-			output_progress();
+		// 10 / 1000 node 処理したので進捗を出力
+		output_progress();
 
 #if 0
-			// デバッグのためにこのnodeに関して、書き出す予定の定跡情報を表示させてみる。
+		// デバッグのためにこのnodeに関して、書き出す予定の定跡情報を表示させてみる。
 
-			cout << pos.sfen() << endl;
-			for (const auto& it : *list)
-			{
-				cout << it << endl;
-			}
+		cout << pos.sfen() << endl;
+		for (const auto& it : *list)
+		{
+			cout << it << endl;
+		}
 #endif
 
 		// このnodeの情報をwrite_cacheに保存
@@ -456,9 +456,9 @@ namespace {
 			this->lastMoves.clear();
 			vmd_write_cache.clear();
 
-		// 定跡ファイルには手数無視でヒットしてくれないと、先後協力してplyが2手だけ増えた
-		// 局面の定跡がいつまでも掘り進められなくなる。
-		build_tree_nega_max(pos, read_book, write_book);
+			// 定跡ファイルには手数無視でヒットしてくれないと、先後協力してplyが2手だけ増えた
+			// 局面の定跡がいつまでも掘り進められなくなる。
+			build_tree_nega_max(pos, read_book, write_book);
 		}
 
 		cout << endl;

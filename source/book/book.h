@@ -7,7 +7,6 @@
 #include "../usi.h"
 
 #include <unordered_map>
-#include <fstream>
 
 namespace Search { struct LimitsType; };
 

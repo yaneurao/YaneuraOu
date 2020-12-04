@@ -63,7 +63,7 @@
 #include "../misc.h"
 #include "../thread.h"
 #include "../position.h"
-#include "../extra/book/book.h"
+#include "../book/book.h"
 #include "../tt.h"
 #include "multi_think.h"
 
