@@ -1,0 +1,50 @@
+root = true
+
+# All files (Base Setting)
+[*]
+insert_final_newline = true
+indent_size = 2
+indent_style = space
+trim_trailing_whitespace = true
+charset = utf-8
+end_of_line = lf
+
+# Code files
+[*.{cpp,h,cs,csx,vb,vbx}]
+indent_size = 4
+indent_style = tab
+insert_final_newline = true
+charset = utf-8-bom
+end_of_line = lf
+
+# Visual Studio XML files
+[*.{csproj,xml,xslt,vcxproj,vcxproj.*}]
+charset = utf-8-bom
+end_of_line = crlf
+insert_final_newline = false
+
+# Document files
+[*.txt]
+charset = utf-8-bom
+end_of_line = crlf
+
+[*.md]
+charset = utf-8-bom
+end_of_line = crlf
+trim_trailing_whitespace = false
+
+# Windows executable files
+[*.{bat,cmd,ps1}]
+charset = utf-8-bom
+end_of_line = crlf
+
+# Any Platform executable files
+[*.{sh,py}]
+charset = utf-8
+end_of_line = lf
+
+# Makefile
+[{Makefile,*.mk}]
+indent_style = tab
+charset = utf-8
+end_of_line = lf
