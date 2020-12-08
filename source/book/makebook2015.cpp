@@ -644,6 +644,7 @@ namespace Book
 		return 1;
 	}
 
+} // namespace Book
+
 #endif // defined (ENABLE_MAKEBOOK_CMD)
 
-} // namespace Book

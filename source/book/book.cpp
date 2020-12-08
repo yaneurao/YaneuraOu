@@ -93,7 +93,8 @@ namespace Book
 		string move_str, ponder_str;
 		int value = 0;
 		int depth = 0;
-		u64 num = 1, win = 0, lose = 0;
+		u64 move_count = 1;
+		double win = 0, lose = 0;
 
 		//istringstream is(line);
 		// value以降は、元データに欠落してるかもですよ。
@@ -109,16 +110,16 @@ namespace Book
 		
 		value = (int)scanner.get_number(value);
 		depth = (int)scanner.get_number(depth);
-		num   = (u64)scanner.get_number(num);
-		win   = (u64)scanner.get_number(win);
-		lose  = (u64)scanner.get_number(lose);
+		move_count = (u64)scanner.get_number(move_count);
+		win        = (double)scanner.get_double(win);
+		lose       = (double)scanner.get_double(lose);
 
 		// 起動時なので変換に要するオーバーヘッドは最小化したいので合法かのチェックはしない。
 
 		move = (move_str == "none" || move_str == "resign") ? MOVE_NONE : USI::to_move16(move_str);
 		ponder = (ponder_str == "none" || ponder_str == "resign") ? MOVE_NONE : USI::to_move16(ponder_str);
 
-		return BookMove(move,ponder,value,depth,num,win,lose);
+		return BookMove(move,ponder,value,depth,move_count,win,lose);
 	}
 
 	void BookMoves::insert(const BookMove& bp, bool overwrite)
@@ -133,13 +134,13 @@ namespace Book
 				if (overwrite)
 				{
 					// すでに存在していたのでエントリーを置換。ただし採択回数は合算する。
-					auto num = b.num;
+					auto move_count = b.move_count;
 					auto win = b.win;
-					auto lose = b.lose;
+					auto draw       = b.draw;
 					b = bp;
-					b.num += num;
+					b.move_count += move_count;
 					b.win += win;
-					b.lose += lose;
+					b.draw       += draw;
 
 					sorted = false; // sort関係が崩れたのでフラグをfalseに戻しておく。
 				}
@@ -482,8 +483,8 @@ namespace Book
 			move_list.sort_moves();
 
 			for (auto& bp : move_list)
-				fs << bp.move << ' ' << bp.ponder << ' ' << bp.value << " " << bp.depth << " " << bp.num << " " << bp.win << " " << bp.lose << endl;
-			// 指し手、相手の応手、そのときの評価値、探索深さ、採択回数、win、lose
+				fs << bp.move << ' ' << bp.ponder << ' ' << bp.value << " " << bp.depth << " " << bp.move_count << " " << bp.win << " " << bp.draw << endl;
+			// 指し手、相手の応手、そのときの評価値、探索深さ、採択回数、win、draw
 
 			if (fs.fail())
 				return Tools::Result(Tools::ResultCode::FileWriteError);
@@ -935,8 +936,8 @@ namespace Book
 		auto move_list = *it;
 
 		// 出現回数のトータル(このあと出現頻度を求めるのに使う)
-		u64 num_total = std::accumulate(move_list.begin(), move_list.end(), (u64)0, [](u64 acc, BookMove& b) { return acc + b.num; });
-		num_total = std::max(num_total, (u64)1); // ゼロ除算対策
+		u64 move_count_total = std::accumulate(move_list.begin(), move_list.end(), (u64)0, [](u64 acc, BookMove& b) { return acc + b.move_count; });
+		move_count_total = std::max(move_count_total, (u64)1); // ゼロ除算対策
 
 		if (!silent)
 		{
@@ -964,8 +965,9 @@ namespace Book
 				// USIの"info"で読み筋を出力するときは"pv"サブコマンドはサブコマンドの一番最後にしなければならない。
 				// 複数出力するときに"multipv"は連番なのでこれが先頭に来ているほうが見やすいと思うので先頭に"multipv"を出力する。
 
-				// win,loseが記載されている定跡DBなら、それも出力してやる。
-				string win_lose_str = (it.win == 0 && it.lose == 0) ? "" : "," + to_string(it.win) + '-' + to_string(it.draw()) + '-' + to_string(it.lose);
+				// win,drawが記載されている定跡DBなら、それも出力してやる。
+				// さすがに両方0なら、意味のない数字であると思われる。
+				string win_lose_str = (it.win == 0 && it.draw == 0) ? "" : "," + to_string(int(it.win)) + '-' + to_string(int(it.draw)) + '-' + to_string(int(it.lose()));
 
 				sync_cout << "info"
 #if !defined(NICONICO)
@@ -973,7 +975,7 @@ namespace Book
 #endif					
 					<< " score cp " << it.value << " depth " << it.depth
 					<< " pv " << pv_string
-					<< " (" << fixed << std::setprecision(2) << (100 * it.num / double(num_total)) << "%" << win_lose_str << ")" // 採択確率
+					<< " (" << fixed << std::setprecision(2) << (100 * it.move_count / double(move_count_total)) << "%" << win_lose_str << ")" // 採択確率
 					<< sync_endl;
 
 				// 電王盤はMultiPV非対応なので1番目の読み筋だけを"multipv"をつけずに送信する。
@@ -1010,7 +1012,8 @@ namespace Book
 				auto n = move_list.size();
 
 				// 出現確率10%未満のものを取り除く。
-				auto it_end = std::remove_if(move_list.begin(), move_list.end(), [&](Book::BookMove & m) { return ((double)m.num / num_total) < 0.1; });
+				auto it_end = std::remove_if(move_list.begin(), move_list.end(), [&](Book::BookMove & m)
+					{ return ((double)m.move_count / move_count_total) < 0.1; });
 				move_list.erase(it_end, move_list.end());
 
 				// 1手でも取り除いたなら、定跡から取り除いたことをGUIに出力
@@ -1080,12 +1083,12 @@ namespace Book
 				// 採用回数の合計。
 				u64 sum = 0;
 				for (auto &move : move_list)
-					sum += move.num;
+					sum += move.move_count;
 
 				u64 sum_move_counts = 0;
 				for (auto &move : move_list)
 				{
-					u64 move_count = (sum == 0) ? 1 : move.num; // 上記 1.
+					u64 move_count = (sum == 0) ? 1 : move.move_count; // 上記 1.
 					sum_move_counts += move_count;
 					if (sum_move_counts != 0 // 上記 2.
 						&& prng.rand(sum_move_counts) < move_count)

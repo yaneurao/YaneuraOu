@@ -22,7 +22,7 @@ namespace Book
 	int makebook2019(Position& pos, istringstream& is, const string& token);
 
 	// 定跡生成コマンド2021年度版。makebook2021.cppで定義されている。MCTSによる生成。
-	int makebook2021(Position& pos, istringstream& is, const string& token);
+	//int makebook2021(Position& pos, istringstream& is, const string& token);
 
 	// ---------------------------------------------------------------------------------------------
 
@@ -64,8 +64,8 @@ namespace Book
 			return;
 
 		// 2021年に作ったmakebook拡張コマンド
-		if (makebook2021(pos, is, token))
-			return;
+		//if (makebook2021(pos, is, token))
+		//	return;
 
 		// いずれのコマンドも処理しなかったので、使用方法を出力しておく。
 

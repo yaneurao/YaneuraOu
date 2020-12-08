@@ -31,26 +31,26 @@ namespace Book
 		int value;     // moveを指したときの局面の評価値
 		int depth;     // moveの探索深さ
 
-		uint64_t num;  // 何らかの棋譜集において、この指し手が採択された回数。
+		uint64_t move_count; // 何らかの棋譜集において、この指し手が採択された回数。
 
 		// --- MCTSで作った定跡の場合これを記録しておき、これを見て指し手を選択する ---
 
-		uint64_t win;  // moveを採択してこの局面の手番側が勝利した回数
-		uint64_t lose; // moveを採択してこの局面の手番側が敗北した回数
+		double    win; // moveを採択してこの局面の手番側が勝利した回数(端数ありうる)
+		double   draw; // moveを採択して引き分けた回数。(端数はないはずだが、使用目的によってはあるかも)
 
-		// bestMoveを採択してこの局面の手番側が引き分けになった回数
+		// bestMoveを採択してこの局面の手番側が負けた回数
 		// これは計算して出すので、関数。
-		uint64_t draw() const {
-			return num - (win + lose);
+		double lose() const {
+			return move_count - (win + draw);
 		}
 
 		// ----------------------------------------------------------------------------
 
-		BookMove(Move16 move_, Move16 ponder_, int value_, int depth_, uint64_t num_)
-			: move(move_), ponder(ponder_), value(value_), depth(depth_), num(num_) , win(0),lose(0){}
+		BookMove(Move16 move_, Move16 ponder_, int value_, int depth_, uint64_t move_count_)
+			: move(move_), ponder(ponder_), value(value_), depth(depth_), move_count(move_count_) , win(0),draw(0){}
 
-		BookMove(Move16 move_, Move16 ponder_, int value_, int depth_, uint64_t num_ , uint64_t win_ , uint64_t lose_)
-			: move(move_), ponder(ponder_), value(value_), depth(depth_), num(num_) , win(win_),lose(lose_){}
+		BookMove(Move16 move_, Move16 ponder_, int value_, int depth_, uint64_t move_count_ , double win_ , double draw_)
+			: move(move_), ponder(ponder_), value(value_), depth(depth_), move_count(move_count_) , win(win_),draw(draw_){}
 
 		// 定跡フォーマットの、ある局面の指し手を書いてある一行を引数lineに渡して、
 		// BookMoveのオブジェクトを構築するbuilder。
@@ -65,7 +65,7 @@ namespace Book
 		// std::sort()で出現回数に対して降順ソートされて欲しいのでこう定義する。
 		// また出現回数が同じ時は、評価値順に降順ソートされて欲しいので…。
 		bool operator < (const BookMove& rhs) const {
-			return (num != rhs.num) ? (num > rhs.num ) : (value > rhs.value);
+			return (move_count != rhs.move_count) ? (move_count > rhs.move_count ) : (value > rhs.value);
 		}
 	};
 

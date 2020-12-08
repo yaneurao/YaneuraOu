@@ -299,7 +299,7 @@ namespace {
 			ASSERT_LV3(bp.value != VALUE_NONE);
 
 			// 定跡に登録する。
-			bp.num = 1; // 出現頻度を1に固定しておかないとsortのときに評価値で降順に並ばなくて困る。
+			bp.move_count = 1; // 出現頻度を1に固定しておかないとsortのときに評価値で降順に並ばなくて困る。
 
 			if (update_list)
 				list->push_back(bp);
