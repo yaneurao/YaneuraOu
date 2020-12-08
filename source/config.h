@@ -307,7 +307,7 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_SFEN_PACKER
 
 	// 定跡生成絡み
-	#define ENABLE_MAKEBOOK_CMD
+	// #define ENABLE_MAKEBOOK_CMD
 
 	// パラメーターの自動調整絡み
 	#define USE_GAMEOVER_HANDLER
