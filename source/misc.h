@@ -596,6 +596,7 @@ struct LineScanner
 	// 空の文字列である場合は引数の値がそのまま返る。
 	// "ABC"のような文字列で数値化できない場合は0が返る。(あまり良くない仕様だがatoll()を使うので仕方ない)
 	s64 get_number(s64 defaultValue);
+	double get_double(double defaultValue);
 
 	// 解析位置(カーソル)が行の末尾まで進んだのか？
 	// eolとはEnd Of Lineの意味。

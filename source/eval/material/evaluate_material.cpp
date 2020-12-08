@@ -414,17 +414,17 @@ namespace Eval
 
 		// 利きを評価するテーブル
 		//    [自玉の位置][対象となる升][利きの数(0～10)]
-		double our_effect_table[SQ_NB][SQ_NB][11];
+		double our_effect_table  [SQ_NB][SQ_NB][11];
 		double their_effect_table[SQ_NB][SQ_NB][11];
 
-		for (auto king_sq : SQ)
+		for(auto king_sq : SQ)
 			for (auto sq : SQ)
-				for (int m = 0; m < 3; ++m) // 利きの数
+				for(int m = 0 ; m < 3 ; ++m) // 利きの数
 				{
 					// 筋と段でたくさん離れているほうの数をその距離とする。
 					int d = dist(sq, king_sq);
 
-					our_effect_table[king_sq][sq][m] = double(multi_effect_value[m] * our_effect_value[d]) / (1024 * 1024);
+					our_effect_table  [king_sq][sq][m] = double(multi_effect_value[m] * our_effect_value  [d]) / (1024 * 1024);
 					their_effect_table[king_sq][sq][m] = double(multi_effect_value[m] * their_effect_value[d]) / (1024 * 1024);
 				}
 
@@ -439,8 +439,8 @@ namespace Eval
 			for (auto king_black : SQ)
 				for (auto king_white : SQ)
 					for (auto sq : SQ)
-						for (int m1 = 0; m1 < 3; ++m1) // 先手の利きの数
-							for (int m2 = 0; m2 < 3; ++m2) // 後手の利きの数
+						for(int m1 = 0; m1<3;++m1) // 先手の利きの数
+							for (int m2 = 0; m2 <3; ++m2) // 後手の利きの数
 							{
 								// いまから、先手から見たスコアを計算する。
 								double score = 0;
@@ -448,22 +448,20 @@ namespace Eval
 								// 対象升(sq)の利きの価値。
 								// これは双方の王様から対象升への距離に反比例する価値。
 
-								score += our_effect_table[king_black][sq][m1];
-								score -= their_effect_table[king_black][sq][m2];
-								score -= our_effect_table[Inv(king_white)][Inv(sq)][m2];
+								score += our_effect_table  [    king_black ][    sq ][m1];
+								score -= their_effect_table[    king_black ][    sq ][m2];
+								score -= our_effect_table  [Inv(king_white)][Inv(sq)][m2];
 								score += their_effect_table[Inv(king_white)][Inv(sq)][m1];
 
 								if (pc == NO_PIECE)
 								{
 									// 1) 駒がない対象升
 
-								}
-								else if (type_of(pc) == KING) {
+								} else if (type_of(pc) == KING) {
 
 									// 2) 玉がいる対象升
 
-								}
-								else {
+								} else  {
 
 									// 3) 玉以外の駒がいる対象升
 
@@ -481,7 +479,7 @@ namespace Eval
 
 									int effect_us = color_of(pc) == BLACK ? m1 : m2;
 									int effect_them = color_of(pc) == BLACK ? m2 : m1;
-									score += piece_value * our_effect_to_our_piece[effect_us] / 4096;
+									score += piece_value * our_effect_to_our_piece  [effect_us]   / 4096;
 									score -= piece_value * their_effect_to_our_piece[effect_them] / 4096;
 								}
 
@@ -497,7 +495,7 @@ namespace Eval
 		Value score = VALUE_ZERO;
 		for (auto sq : SQ)
 			score += KKPEE[pos.king_square(BLACK)][pos.king_square(WHITE)][sq]
-			[std::min(int(pos.board_effect[BLACK].effect(sq)), 2)][std::min(int(pos.board_effect[WHITE].effect(sq)), 2)][pos.piece_on(sq)];
+				[std::min(int(pos.board_effect[BLACK].effect(sq)),2)][std::min(int(pos.board_effect[WHITE].effect(sq)),2)][pos.piece_on(sq)];
 
 		// KKPEE配列はFV_SCALE倍されているのでこれで割ってから駒割を加算する。
 		score = score / FV_SCALE + pos.state()->materialValue;
@@ -550,17 +548,17 @@ namespace Eval
 
 		// 利きを評価するテーブル
 		//    [自玉の位置][対象となる升][利きの数(0～10)]
-		double our_effect_table[SQ_NB][SQ_NB][11];
+		double our_effect_table  [SQ_NB][SQ_NB][11];
 		double their_effect_table[SQ_NB][SQ_NB][11];
 
-		for (auto king_sq : SQ)
+		for(auto king_sq : SQ)
 			for (auto sq : SQ)
-				for (int m = 0; m < 3; ++m) // 利きの数
+				for(int m = 0 ; m < 3 ; ++m) // 利きの数
 				{
 					// 筋と段でたくさん離れているほうの数をその距離とする。
 					int d = dist(sq, king_sq);
 
-					our_effect_table[king_sq][sq][m] = double(multi_effect_value[m] * our_effect_value[d]) / (1024 * 1024);
+					our_effect_table  [king_sq][sq][m] = double(multi_effect_value[m] * our_effect_value  [d]) / (1024 * 1024);
 					their_effect_table[king_sq][sq][m] = double(multi_effect_value[m] * their_effect_value[d]) / (1024 * 1024);
 				}
 
@@ -591,8 +589,8 @@ namespace Eval
 			for (auto king_black : SQ)
 				for (auto king_white : SQ)
 					for (auto sq : SQ)
-						for (int m1 = 0; m1 < 3; ++m1) // 先手の利きの数
-							for (int m2 = 0; m2 < 3; ++m2) // 後手の利きの数
+						for(int m1 = 0; m1<3;++m1) // 先手の利きの数
+							for (int m2 = 0; m2 <3; ++m2) // 後手の利きの数
 							{
 								// いまから、先手から見たスコアを計算する。
 								double score = 0;
@@ -600,9 +598,9 @@ namespace Eval
 								// 対象升(sq)の利きの価値。
 								// これは双方の王様から対象升への距離に反比例する価値。
 
-								score += our_effect_table[king_black][sq][m1];
-								score -= their_effect_table[king_black][sq][m2];
-								score -= our_effect_table[Inv(king_white)][Inv(sq)][m2];
+								score += our_effect_table  [    king_black ][    sq ][m1];
+								score -= their_effect_table[    king_black ][    sq ][m2];
+								score -= our_effect_table  [Inv(king_white)][Inv(sq)][m2];
 								score += their_effect_table[Inv(king_white)][Inv(sq)][m1];
 
 								// 玉の8近傍に玉以外の味方の利きがなくて駒があるなら、ペナルティ(実は、加点。利きがなくとも駒があることはプラスであった) (+R15)
@@ -620,7 +618,7 @@ namespace Eval
 											score -= double((pc == NO_PIECE || color_of(pc) != color) ? 11 : -20) * (color == BLACK ? 1 : -1);
 										else
 											// 自玉以外の利きがある。この時、そこが空きか敵駒なら、減点なし。さもなくば9点加点。
-											score -= double((pc == NO_PIECE || color_of(pc) != color) ? 0 : -11) * (color == BLACK ? 1 : -1);
+											score -= double((pc == NO_PIECE || color_of(pc) != color) ? 0 : - 11 ) * (color == BLACK ? 1 : -1);
 									}
 								}
 
@@ -628,8 +626,7 @@ namespace Eval
 								{
 									// 1) 駒がない対象升
 
-								}
-								else if (type_of(pc) == KING) {
+								} else if (type_of(pc) == KING) {
 
 									// 2) 玉がいる対象升
 
@@ -638,11 +635,229 @@ namespace Eval
 
 									// 玉のいる升に対する加点
 									// テーブル、わかりやすいように段の順番で並べたので、やねうら王はSquareは筋の順で並んでいるから、転置する。
-									score += color_of(pc) == BLACK ? king_pos_bonus[(FILE_9 - file_of(sq)) + int(rank_of(sq) * 9)] :
-										-king_pos_bonus[(FILE_9 - file_of(Inv(sq))) + int(rank_of(Inv(sq)) * 9)];
+									score += color_of(pc) == BLACK ? king_pos_bonus[(FILE_9-file_of(    sq )) + int(rank_of(    sq )*9)] :
+																	-king_pos_bonus[(FILE_9-file_of(Inv(sq))) + int(rank_of(Inv(sq))*9)];
 
+								} else  {
+
+									// 3) 玉以外の駒がいる対象升
+									
+									// 盤上の駒に対しては、その価値を1/10ほど減ずる。
+									// 玉に∞の価値があるので、PieceValueを求めてその何%かを加点しようとすると発散するから玉はここから除く。
+
+									double piece_value = PieceValue[pc];
+									score -= piece_value * 104 / 1024;
+
+									// さらにこの駒に利きがある時は、その利きの価値を上乗せする。
+									// 味方の利き(紐がついてる)         = 加点
+									// 相手の利き(質(しち)に入っている) = 減点
+									// piece_valueは、後手の駒だと負の値になっている。
+									// scoreはいま先手から見たスコアを計算しているのでこれで辻褄は合う。
+
+									int effect_us = color_of(pc) == BLACK ? m1 : m2;
+									int effect_them = color_of(pc) == BLACK ? m2 : m1;
+									score += piece_value * our_effect_to_our_piece  [effect_us]   / 4096;
+									score -= piece_value * their_effect_to_our_piece[effect_them] / 4096;
 								}
-								else {
+
+								// 先手から見たスコア
+								KKPEE[king_black][king_white][sq][m1][m2][pc] = int16_t(score * FV_SCALE);
+							}
+	}
+
+	// KKPEE9 評価関数本体(わずか8行)
+	// 変数名短くするなどすれば１ツイート(140文字)に収まる。
+	Value compute_eval(const Position& pos) {
+
+		Value score = VALUE_ZERO;
+		for (auto sq : SQ)
+			score += KKPEE[pos.king_square(BLACK)][pos.king_square(WHITE)][sq]
+				[std::min(int(pos.board_effect[BLACK].effect(sq)),2)][std::min(int(pos.board_effect[WHITE].effect(sq)),2)][pos.piece_on(sq)];
+
+		// KKPEE配列はFV_SCALE倍されているのでこれで割ってから駒割を加算する。
+		score = score / FV_SCALE + pos.state()->materialValue;
+
+		return pos.side_to_move() == BLACK ? score : -score;
+	}
+
+#elif MATERIAL_LEVEL == 9
+
+	// 【連載】評価関数を作ってみよう！その11 : http://yaneuraou.yaneu.com/2020/12/07/make-evaluate-function-11/
+
+	// 方角ごとに利きの価値を変える。(長い時間で+R50～)
+
+	// KKPEEテーブル。Eが3通りなのでKKPEE9と呼ぶ。
+	// 利きの価値を合算した値を求めるテーブル
+	// [先手玉の升][後手玉の升][対象升][その升の先手の利きの数(最大2)][その升の後手の利きの数(最大2)][駒(先後区別あり)]
+	// 81*81*81*3*3*size_of(int16_t)*32 = 306MB
+	// 1つの升にある利きは、2つ以上の利きは同一視。
+	int16_t KKPEE[SQ_NB][SQ_NB][SQ_NB][3][3][PIECE_NB];
+
+	// ↑のテーブルに格納されている値の倍率
+	constexpr int FV_SCALE = 32;
+
+	// 先手玉にとってsqの升はどっちの方角であるかを返す。
+	// 返し値
+	//   0 :  真上
+	//   1 :  右上上
+	//   2 :  右上
+	//   3 :  右右上
+	//   4 :  右
+	//   5 :  右右下
+	//   6 :  右下
+	//   7 :  右下下
+	//   8 :  真下
+	//   9 :  同じ升
+	// 左半分に関しては、ミラーして扱い、上記と同じ値となる。
+	//
+	int direction_of(Square king, Square sq)
+	{
+		// 筋の差、段の差
+		int df = int(file_of(sq) - file_of(king));
+		int dr = int(rank_of(sq) - rank_of(king));
+
+		// sqが玉から見て左側にいればsqを(玉から見て)ミラーする。
+		// すなわち、筋の差が正なら、符号を反転させる。
+		if (df > 0) df = -df;
+
+		// バグらせないように愚直に書く。
+		if (df ==  0 && dr == 0) return 9;
+
+		if (df ==  0 && dr < 0 ) return 0;
+		if (df >  dr && dr < 0 ) return 1;
+		if (df == dr && dr < 0 ) return 2;
+		if (df <  dr && dr < 0 ) return 3;
+		if (df <   0 && dr == 0) return 4;
+		if (df < -dr && dr > 0 ) return 5;
+		if (df ==-dr && dr > 0 ) return 6;
+		if (df ==  0 && dr > 0 ) return 8; // こっち先にしないと7に含まれてしまう
+		if (df > -dr && dr > 0 ) return 7;
+
+		// ここには、こないはず。
+		ASSERT(false);
+		return -1;
+								}
+
+	void init() {
+
+		// 王様からの距離に応じたある升の利きの価値。
+
+		int our_effect_value[9];
+		int their_effect_value[9];
+
+		for (int d = 0; d < 9; ++d)
+		{
+			// 利きには、王様からの距離に反比例する価値がある。
+			our_effect_value[d]   = 83 * 1024  / (d + 1);
+			their_effect_value[d] = 92 * 1024  / (d + 1);
+		}
+
+		// 利きが1つの升にm個ある時に、our_effect_value(their_effect_value)の価値は何倍されるのか？
+		// 利きは最大で10個のことがある。格納されている値は1024を1.0とみなす固定小数。
+		// optimizerの答えは、{ 0 , 1024/* == 1.0 */ , 1800, 2300 , 2900,3500,3900,4300,4650,5000,5300 }
+		//   6365 - pow(0.8525,m-1)*5341 　みたいな感じ？
+
+		int multi_effect_value[11];
+
+		for (int m = 0; m < 11; ++m)
+			multi_effect_value[m] = m == 0 ? 0 : int(6365 - std::pow(0.8525, m - 1) * 5341);
+
+		// 利きを評価するテーブル
+		//    [自玉の位置][対象となる升][利きの数(0～10)]
+		double our_effect_table  [SQ_NB][SQ_NB][11];
+		double their_effect_table[SQ_NB][SQ_NB][11];
+
+		for(auto king_sq : SQ)
+			for (auto sq : SQ)
+				for(int m = 0 ; m < 3 ; ++m) // 利きの数
+				{
+					// 筋と段でたくさん離れているほうの数をその距離とする。
+					int d = dist(sq, king_sq);
+
+					our_effect_table  [king_sq][sq][m] = double(multi_effect_value[m] * our_effect_value  [d]) / (1024 * 1024);
+					their_effect_table[king_sq][sq][m] = double(multi_effect_value[m] * their_effect_value[d]) / (1024 * 1024);
+				}
+
+		// 駒に味方/相手の利きがn個ある時の価値(この係数×駒の価値/4096が上乗せされる)
+		int our_effect_to_our_piece[3]   = { 0,  33 ,  43 };
+		int their_effect_to_our_piece[3] = { 0, 113 , 122 };
+
+		// 方角ごとの利きの価値
+		// ※　direction_of(king_sq,sq)で返ってきた値ごとに。
+		// このテーブルの値 / 1024 を利きの価値に掛ける。
+		
+		int our_effect_rate[10]   = { 1120, 1872,  112,  760, 744, 880, 1320, 600,  904 , 1024 };
+		int their_effect_rate[10] = { 1056, 1714, 1688, 1208, 248, 240,  496, 816,  928 , 1024 };
+
+		// 玉の升ごとにBonus(盤面の1段目9筋から9段目1筋の順)
+		int king_pos_bonus[] = {
+			875, 655, 830, 680, 770, 815, 720, 945, 755,
+			605, 455, 610, 595, 730, 610, 600, 590, 615,
+			565, 640, 555, 525, 635, 565, 440, 600, 575,
+			520, 515, 580, 420, 640, 535, 565, 500, 510,
+			220, 355, 240, 375, 340, 335, 305, 275, 320,
+			500, 530, 560, 445, 510, 395, 455, 490, 410,
+			345, 275, 250, 355, 295, 280, 420, 235, 135,
+			335, 370, 385, 255, 295, 200, 265, 305, 305,
+			255, 225, 245, 295, 200, 320, 275,  70, 200
+		};
+
+		// ある升の利きの価値のテーブルの初期化。
+		// 対象升には駒がない時の価値をまず求める。(駒がある時の価値を計算する時にこの値を用いるため)
+		// そのため、Pieceのループを一番外側にしてある。
+		for (Piece pc = NO_PIECE; pc < PIECE_NB; ++pc) // 駒(先後の区別あり)
+			for (auto king_black : SQ)
+				for (auto king_white : SQ)
+					for (auto sq : SQ)
+						for(int m1 = 0; m1<3;++m1) // 先手の利きの数
+							for (int m2 = 0; m2 <3; ++m2) // 後手の利きの数
+							{
+								// いまから、先手から見たスコアを計算する。
+								double score = 0;
+
+								// 対象升(sq)の利きの価値。
+								// これは双方の王様から対象升への距離に反比例する価値。
+								// さらに、王様から見た利きの方角ごとにその価値を微調整する。
+
+								score += our_effect_table  [    king_black ][    sq ][m1] * our_effect_rate  [direction_of(    king_black ,    sq )] / 1024;
+								score -= their_effect_table[    king_black ][    sq ][m2] * their_effect_rate[direction_of(    king_black ,    sq )] / 1024;
+								score -= our_effect_table  [Inv(king_white)][Inv(sq)][m2] * our_effect_rate  [direction_of(Inv(king_white),Inv(sq))] / 1024;
+								score += their_effect_table[Inv(king_white)][Inv(sq)][m1] * their_effect_rate[direction_of(Inv(king_white),Inv(sq))] / 1024;
+
+
+								// 玉の8近傍に玉以外の味方の利きがなくて駒があるなら、ペナルティ(実は、加点。利きがなくとも駒があることはプラスであった) (+R15)
+								// 玉の8近傍で玉以外の味方の利きがなくて空いている(or 相手の駒)なら、ペナルティ。(+R20)
+								for (auto color : COLOR) // 両方の玉に対して
+								{
+									auto king_sq = color == BLACK ? king_black : king_white;
+
+									// 玉の8近傍
+									if (dist(sq, king_sq) == 1)
+									{
+										int effect_us = color == BLACK ? m1 : m2;
+										if (effect_us <= 1)
+											// 自玉以外の利きがない。この時、そこが空きか敵駒なら、減点。さもなくば加点。
+											score -= double((pc == NO_PIECE || color_of(pc) != color) ? 11 : -20) * (color == BLACK ? 1 : -1);
+										else
+											// 自玉以外の利きがある。この時、そこが空きか敵駒なら、減点なし。さもなくば9点加点。
+											score -= double((pc == NO_PIECE || color_of(pc) != color) ? 0 : - 11 ) * (color == BLACK ? 1 : -1);
+									}
+								}
+
+								if (pc == NO_PIECE)
+								{
+									// 1) 駒がない対象升
+
+								} else if (type_of(pc) == KING) {
+
+									// 2) 玉がいる対象升
+									
+									// 玉のいる升に対する加点
+									// テーブル、わかりやすいように段の順番で並べたので、やねうら王はSquareは筋の順で並んでいるから、転置する。
+									score += color_of(pc) == BLACK ? king_pos_bonus[(FILE_9-file_of(    sq )) + int(rank_of(    sq )*9)] :
+																	-king_pos_bonus[(FILE_9-file_of(Inv(sq))) + int(rank_of(Inv(sq))*9)];
+
+								} else  {
 
 									// 3) 玉以外の駒がいる対象升
 
@@ -660,7 +875,7 @@ namespace Eval
 
 									int effect_us = color_of(pc) == BLACK ? m1 : m2;
 									int effect_them = color_of(pc) == BLACK ? m2 : m1;
-									score += piece_value * our_effect_to_our_piece[effect_us] / 4096;
+									score += piece_value * our_effect_to_our_piece  [effect_us]   / 4096;
 									score -= piece_value * their_effect_to_our_piece[effect_them] / 4096;
 								}
 
@@ -676,7 +891,7 @@ namespace Eval
 		Value score = VALUE_ZERO;
 		for (auto sq : SQ)
 			score += KKPEE[pos.king_square(BLACK)][pos.king_square(WHITE)][sq]
-			[std::min(int(pos.board_effect[BLACK].effect(sq)), 2)][std::min(int(pos.board_effect[WHITE].effect(sq)), 2)][pos.piece_on(sq)];
+				[std::min(int(pos.board_effect[BLACK].effect(sq)),2)][std::min(int(pos.board_effect[WHITE].effect(sq)),2)][pos.piece_on(sq)];
 
 		// KKPEE配列はFV_SCALE倍されているのでこれで割ってから駒割を加算する。
 		score = score / FV_SCALE + pos.state()->materialValue;

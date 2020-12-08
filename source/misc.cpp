@@ -1246,6 +1246,14 @@ s64 LineScanner::get_number(s64 defaultValue)
 	return token.empty() ? defaultValue : atoll(token.c_str());
 }
 
+// 次の文字列を数値化して返す。数値化できない時は引数の値がそのまま返る。
+double LineScanner::get_double(double defaultValue)
+{
+	std::string token = get_text();
+	return token.empty() ? defaultValue : atof(token.c_str());
+}
+
+
 
 // --------------------
 //       Math
