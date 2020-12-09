@@ -458,6 +458,7 @@
     <ClCompile Include="bitboard.cpp" />
     <ClCompile Include="book\apery_book.cpp" />
     <ClCompile Include="book\book.cpp" />
+    <ClCompile Include="book\makebook.cpp" />
     <ClCompile Include="book\makebook2015.cpp" />
     <ClCompile Include="book\makebook2019.cpp" />
     <ClCompile Include="book\makebook2021.cpp" />

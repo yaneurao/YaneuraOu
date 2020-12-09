@@ -248,10 +248,10 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 	bool promote = false;
 	size_t idx;
 
+#if defined (USE_EVAL_LIST)
 	// evalListのclear。上でmemsetでゼロクリアしたときにクリアされているが…。
 	evalList.clear();
 
-#if defined (USE_FV38)
 	// PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
 	// それぞれの駒をどこまで使ったかのカウンター
 	PieceNumber piece_no_count[KING] = { PIECE_NUMBER_ZERO,PIECE_NUMBER_PAWN,PIECE_NUMBER_LANCE,PIECE_NUMBER_KNIGHT,
@@ -285,7 +285,7 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 			auto pc = Piece(idx + (promote ? u32(PIECE_PROMOTE) : 0));
 			put_piece(sq, pc);
 
-#if defined(USE_FV38)
+#if defined (USE_EVAL_LIST)
 			PieceNumber piece_no =
 				(idx == B_KING) ? PIECE_NUMBER_BKING : // 先手玉
 				(idx == W_KING) ? PIECE_NUMBER_WKING : // 後手玉
@@ -338,7 +338,8 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 			for (int i = 0; i < ct; ++i)
 			{
 				PieceType rpc = raw_type_of(Piece(idx));
-#if defined (USE_FV38)
+
+#if defined (USE_EVAL_LIST)
 				PieceNumber piece_no = piece_no_count[rpc]++;
 				ASSERT_LV1(is_ok(piece_no));
 				evalList.put_piece(piece_no, color_of(Piece(idx)), rpc, i);
@@ -372,7 +373,10 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 
 	// --- evaluate
 
+#if defined (USE_PIECE_VALUE)
 	st->materialValue = Eval::material(*this);
+#endif
+
 	Eval::compute_eval(*this);
 
 	// --- validation
@@ -1192,7 +1196,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 #if defined (KEEP_LAST_MOVE)
 	st->lastMove = m;
-	st->lastMovedPieceType = is_drop(m) ? (PieceType)move_from(m) : type_of(piece_on(move_from(m)));
+	st->lastMovedPieceType = is_drop(m) ? (PieceType)from_sq(m) : type_of(piece_on(from_sq(m)));
 #endif
 
 	// ----------------------
@@ -1203,10 +1207,14 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	Square to = to_sq(m);
 	ASSERT_LV2(is_ok(to));
 
+#if defined (USE_PIECE_VALUE)
 	// 駒割りの差分計算用
 	int materialDiff;
+#endif
 
+#if defined (USE_EVAL_LIST)
 	auto& dp = st->dirtyPiece;
+#endif
 
 	if (is_drop(m))
 	{
@@ -1234,7 +1242,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		put_piece(to, pc);
 
 		// 打駒した駒に関するevalListの更新。
-#if defined (USE_FV38)
+#if defined (USE_EVAL_LIST)
 		PieceNumber piece_no = piece_no_of(Us, pr);
 		ASSERT_LV3(is_ok(piece_no));
 
@@ -1271,8 +1279,10 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// put_piece()などを用いたのでupdateする
 		update_bitboards();
 
+#if defined(USE_PIECE_VALUE)
 		// 駒打ちなので駒割りの変動なし。
 		materialDiff = 0;
+#endif
 
 #if defined(LONG_EFFECT_LIBRARY)
 		// 駒打ちによる利きの更新処理
@@ -1293,7 +1303,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// もし成る指し手であるなら、成った後の駒を配置する。
 		Piece moved_after_pc = moved_piece_after(m);
 
+#if defined (USE_PIECE_VALUE)
 		materialDiff = is_promote(m) ? Eval::ProDiffPieceValue[moved_pc] : 0;
+#endif
 
 		// 移動先の升にある駒
 		Piece to_pc = piece_on(to);
@@ -1314,7 +1326,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			PieceType pr = raw_type_of(to_pc);
 
 			// 捕獲した駒に関するevalListの更新
-#if defined (USE_FV38)
+#if defined (USE_EVAL_LIST)
 			// このPieceNumberの駒が手駒に移動したのでEvalListのほうを更新しておく。
 			PieceNumber piece_no = piece_no_of(to);
 			ASSERT_LV3(is_ok(piece_no));
@@ -1338,8 +1350,10 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			// 捕獲した駒をStateInfoに保存しておく。(undo_moveのため)
 			st->capturedPiece = to_pc;
 
+#if defined (USE_PIECE_VALUE)
 			// 評価関数で使う駒割りの値も更新
 			materialDiff += Eval::CapturePieceValue[to_pc];
+#endif
 
 		} else {
 			// 駒を取らない指し手
@@ -1350,12 +1364,12 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			// 移動先で駒を捕獲しないときの利きの更新
 			LongEffect::update_by_no_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc);
 #endif
-#if defined (USE_FV38)
+#if defined (USE_EVAL_LIST)
 			dp.dirty_num = 1; // 動いた駒は1個
 #endif
 		}
 
-#if defined (USE_FV38)
+#if defined (USE_EVAL_LIST)
 		// 移動元にあった駒のpiece_noを得る
 		PieceNumber piece_no2 = piece_no_of(from);
 		dp.pieceNo[0] = piece_no2;
@@ -1367,7 +1381,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// 移動先の升に駒を配置
 		put_piece(to, moved_after_pc);
 
-#if defined (USE_FV38)
+#if defined (USE_EVAL_LIST)
 		evalList.put_piece(piece_no2, to, moved_after_pc);
 		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no2);
 
@@ -1475,8 +1489,10 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	// 相手番のほうは関係ないので前ノードの値をそのまま受け継ぐ。
 	st->continuousCheck[~Us] = prev->continuousCheck[~Us];
 
+#if defined (USE_PIECE_VALUE)
 	st->materialValue = (Value)(st->previous->materialValue + (Us == BLACK ? materialDiff : -materialDiff));
 	//ASSERT_LV5(st->materialValue == Eval::material(*this));
+#endif
 
 	// 相手番に変更する。
 	sideToMove = ~Us;
@@ -1506,7 +1522,7 @@ Key Position::key_after(Move m) const {
 	auto h = st->hand_key_;
 
 	// 移動先の升
-	Square to = move_to(m);
+	Square to = to_sq(m);
 	ASSERT_LV2(is_ok(to));
 
 	if (is_drop(m))
@@ -1524,7 +1540,7 @@ Key Position::key_after(Move m) const {
 	else
 	{
 		// -- 駒の移動
-		Square from = move_from(m);
+		Square from = from_sq(m);
 		ASSERT_LV2(is_ok(from));
 
 		// 移動させる駒
@@ -1576,7 +1592,7 @@ void Position::undo_move_impl(Move m)
 
 	Piece moved_after_pc = moved_piece_after(m);
 
-#if defined(USE_FV38)
+#if defined (USE_EVAL_LIST)
 	PieceNumber piece_no = piece_no_of(to); // 移動元のpiece_no == いまtoの場所にある駒のpiece_no
 	ASSERT_LV3(is_ok(piece_no));
 #endif
@@ -1596,7 +1612,7 @@ void Position::undo_move_impl(Move m)
 		// toの場所にある駒を手駒に戻す
 		PieceType pt = raw_type_of(moved_after_pc);
 
-#if defined(USE_FV38)
+#if defined (USE_EVAL_LIST)
 		evalList.put_piece(piece_no, Us, pt, hand_count(hand[Us], pt));
 #endif
 
@@ -1631,7 +1647,7 @@ void Position::undo_move_impl(Move m)
 			put_piece(to, to_pc);
 			put_piece(from, moved_pc);
 
-#if defined(USE_FV38)
+#if defined (USE_EVAL_LIST)
 			PieceNumber piece_no2 = piece_no_of(Us, raw_type_of(to_pc)); // 捕っていた駒(手駒にある)のpiece_no
 			ASSERT_LV3(is_ok(piece_no2));
 
@@ -1659,7 +1675,7 @@ void Position::undo_move_impl(Move m)
 
 			put_piece(from, moved_pc);
 
-#if defined(USE_FV38)
+#if defined (USE_EVAL_LIST)
 			// 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
 			evalList.put_piece(piece_no, from, moved_pc);
 #endif

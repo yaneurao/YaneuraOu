@@ -109,7 +109,10 @@ namespace USI
 			ss  << "info"
 				<< " depth "    << d
 				<< " seldepth " << rootMoves[i].selDepth
-				<< " score "    << USI::value(v);
+#if defined(USE_PIECE_VALUE)
+				<< " score "    << USI::value(v)
+#endif				
+				;
 
 			// これが現在探索中の指し手であるなら、それがlowerboundかupperboundかは表示させる
 			if (i == pvIdx)
@@ -866,7 +869,9 @@ namespace {
 	}
 }
 
+#if defined(USE_PIECE_VALUE)
 // スコアを歩の価値を100として正規化して出力する。
+// USE_PIECE_VALUEが定義されていない時は正規化しようがないのでこの関数は呼び出せない。
 std::string USI::value(Value v)
 {
 	ASSERT_LV3(-VALUE_INFINITE < v && v < VALUE_INFINITE);
@@ -891,6 +896,7 @@ std::string USI::value(Value v)
 
 	return s.str();
 }
+#endif
 
 // Square型をUSI文字列に変換する
 std::string USI::square(Square s) {

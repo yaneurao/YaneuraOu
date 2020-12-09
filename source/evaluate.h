@@ -1,6 +1,7 @@
 ﻿#ifndef _EVALUATE_H_
 #define _EVALUATE_H_
 
+#include "config.h"
 #include "types.h"
 
 // -------------------------------------
@@ -23,19 +24,11 @@ namespace Eval {
 	// これは起動直後に1度だけ呼び出される。
 	// ただし、(探索部に対して) TUNING_SEARCH_PARAMETERS が defineされている時は、
 	// "isready"タイミングで毎回(探索部から)呼び出される。
-	extern void init();
+	void init();
 
-	// 評価関数ファイルを読み込む。
-	// 時間のかかる評価関数の初期化処理はここに書くこと。
-	// これは、"is_ready"コマンドの応答時に1度だけ呼び出される。2度呼び出すことは想定していない。
-	// (ただし、EvalDir(評価関数フォルダ)が変更になったあと、isreadyが再度送られてきたら読みなおす。)
-	void load_eval();
-
-	// 駒割りを計算する。Position::set()から呼び出されて、以降do_move()では差分計算されるのでこの関数は呼び出されない。
-	Value material(const Position& pos);
-
-	// 評価関数本体
-	Value evaluate(const Position& pos);
+	// 駒割り以外の全計算して、その合計を返す。Position::set()で一度だけ呼び出される。
+	// あるいは差分計算が不可能なときに呼び出される。
+	Value compute_eval(const Position& pos);
 
 	// 評価関数本体
 	// このあとのdo_move()のあとのevaluate()で差分計算ができるように、
@@ -43,9 +36,21 @@ namespace Eval {
 	// 評価値自体は返さない。
 	void evaluate_with_no_return(const Position& pos);
 
-	// 駒割り以外の全計算して、その合計を返す。Position::set()で一度だけ呼び出される。
-	// あるいは差分計算が不可能なときに呼び出される。
-	Value compute_eval(const Position& pos);
+	// 評価値の内訳表示(デバッグ用)
+	void print_eval_stat(Position& pos);
+
+	// 評価関数ファイルを読み込む。
+	// 時間のかかる評価関数の初期化処理はここに書くこと。
+	// これは、"is_ready"コマンドの応答時に1度だけ呼び出される。2度呼び出すことは想定していない。
+	// (ただし、EvalDir(評価関数フォルダ)が変更になったあと、isreadyが再度送られてきたら読みなおす。)
+	void load_eval();
+
+	// 評価関数本体
+	Value evaluate(const Position& pos);
+
+	// 駒割りを計算する。Position::set()から呼び出されて、以降do_move()では差分計算されるのでこの関数は呼び出されない。
+	Value material(const Position& pos);
+
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 	// 評価関数パラメーターのチェックサムを返す。
@@ -58,10 +63,7 @@ namespace Eval {
 	static void print_softname(u64 check_sum) {}
 #endif
 
-	// 評価値の内訳表示(デバッグ用)
-	void print_eval_stat(Position& pos);
-
-#if defined (EVAL_MATERIAL) || defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_NNUE)
+#if defined (USE_PIECE_VALUE)
 
 	// Apery(WCSC26)の駒割り
 	enum {
@@ -80,7 +82,6 @@ namespace Eval {
 		DragonValue = 1395,
 		KingValue = 15000,
 	};
-#endif
 
 	// 駒の価値のテーブル(後手の駒は負の値)
 	extern int PieceValue[PIECE_NB];
@@ -94,11 +95,12 @@ namespace Eval {
 	// 駒の成ったものと成っていないものとの価値の差
 	// ※　PAWNでもPRO_PAWNでも　と金 - 歩 の価値が返る。
 	extern int ProDiffPieceValue[PIECE_NB];
+#endif
+
+
+#if defined(USE_EVAL_LIST)
 
 	// --- 評価関数で使う定数 KPP(玉と任意2駒)のPに相当するenum
-
-	// (評価関数の実験のときには、BonaPieceは自由に定義したいのでここでは定義しない。)
-
 
 	// BonanzaでKKP/KPPと言うときのP(Piece)を表現する型。
 	// Σ KPPを求めるときに、39の地点の歩のように、升×駒種に対して一意な番号が必要となる。
@@ -241,7 +243,6 @@ namespace Eval {
 		BonaPiece* piece_list_fb() const { return const_cast<BonaPiece*>(pieceListFb); }
 		BonaPiece* piece_list_fw() const { return const_cast<BonaPiece*>(pieceListFw); }
 
-#if defined(USE_FV38)
 		// 指定されたpiece_noの駒をExtBonaPiece型に変換して返す。
 		ExtBonaPiece bona_piece(PieceNumber piece_no) const
 		{
@@ -265,7 +266,6 @@ namespace Eval {
 		PieceNumber piece_no_of_hand(BonaPiece bp) const { return piece_no_list_hand[bp]; }
 		// 盤上のある升sqに対応するPieceNumberを返す。
 		PieceNumber piece_no_of_board(Square sq) const { return piece_no_list_board[sq]; }
-#endif
 
 		// pieceListを初期化する。
 		// 駒落ちに対応させる時のために、未使用の駒の値はBONA_PIECE_ZEROにしておく。
@@ -273,7 +273,6 @@ namespace Eval {
 		// piece_no_listのほうはデバッグが捗るようにPIECE_NUMBER_NBで初期化。
 		void clear()
 		{
-#if defined(USE_FV38)
 
 			for (auto& p : pieceListFb)
 				p = BONA_PIECE_ZERO;
@@ -286,7 +285,6 @@ namespace Eval {
 
 			for (auto& v : piece_no_list_board)
 				v = PIECE_NUMBER_NB;
-#endif
 		}
 
 		// 内部で保持しているpieceListFb[]が正しいBonaPieceであるかを検査する。
@@ -294,7 +292,6 @@ namespace Eval {
 		bool is_valid(const Position& pos);
 
 
-#if defined(USE_FV38)
 	protected:
 
 		// 盤上sqにあるpiece_noの駒のBonaPieceがfb,fwであることを設定する。
@@ -314,12 +311,10 @@ namespace Eval {
 			pieceListFw[piece_no] = fw;
 			piece_no_list_hand[fb] = piece_no;
 		}
-#endif
 
 		// 駒リスト。駒番号(PieceNumber)いくつの駒がどこにあるのか(BonaPiece)を示す。FV38などで用いる。
 
 		// 駒リストの長さ
-#if defined(USE_FV38)
 		// 38固定
 	public:
 		int length() const { return PIECE_NUMBER_KING; }
@@ -328,10 +323,10 @@ namespace Eval {
 		// また、KPPT型評価関数などは、39,40番目の要素がゼロであることを前提とした
 		// アクセスをしている箇所があるので注意すること。
 		static const int MAX_LENGTH = 40;
-	private:
-#endif
 
-#if defined(USE_AVX2)
+	private:
+
+	#if defined(USE_AVX2)
 		// AVX2を用いたKPPT評価関数は高速化できるので特別扱い。
 		// Skylake以降でないとほぼ効果がないが…。
 
@@ -339,13 +334,13 @@ namespace Eval {
 		alignas(32) BonaPiece pieceListFb[MAX_LENGTH];
 		alignas(32) BonaPiece pieceListFw[MAX_LENGTH];
 
-#else
+	#else
+
 		BonaPiece pieceListFb[MAX_LENGTH];
 		BonaPiece pieceListFw[MAX_LENGTH];
 
-#endif
+	#endif
 
-#if defined(USE_FV38)
 		// 手駒である、任意のBonaPieceに対して、その駒番号(PieceNumber)を保持している配列
 		PieceNumber piece_no_list_hand[fe_hand_end];
 
@@ -353,7 +348,6 @@ namespace Eval {
 		// 玉がSQ_NBに移動しているとき用に+1まで保持しておくが、
 		// SQ_NBの玉を移動させないので、この値を使うことはないはず。
 		PieceNumber piece_no_list_board[SQ_NB_PLUS1];
-#endif
 
 	};
 
@@ -362,8 +356,7 @@ namespace Eval {
 	// この移動した駒のことをDirtyPieceと呼ぶ。
 	// 1) FV38方式だと、DirtyPieceはたかだか2個。
 	// 2) FV_VAR方式だと、DirtyPieceは可変。
-
-#if defined (USE_FV38)
+	//       →　こっちは廃止した。
 
 	// 評価値の差分計算の管理用
 	// 前の局面から移動した駒番号を管理するための構造体
@@ -380,9 +373,8 @@ namespace Eval {
 		// null moveだと0ということもありうる。
 		// 動く駒と取られる駒とで最大で2つ。
 		int dirty_num;
-
-};
-#endif
+	};
+#endif // defined(USE_EVAL_LIST)
 
 #if defined(USE_EVAL_HASH)
 	// EvalHashのリサイズ

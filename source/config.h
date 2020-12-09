@@ -15,6 +15,7 @@
 // --------------------
 
 // やねうら王の思考エンジンとしてリリースする場合、以下から選択。(どれか一つは必ず選択しなければならない)
+// ここに書かれていないエンジンもあるのでMakefileを見ること。
 // オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE を defineして 他のエンジンのソースコードを参考に
 //  engine/user-engine/ フォルダの中身を書くべし。
 
@@ -140,8 +141,7 @@ constexpr int MAX_PLY_NUM = 246;
 // 「？」がついているもの..実装するかも
 // 「！」がついているもの..かつて実装していたがサポートを終了したもの。
 
-// #define EVAL_NO_USE    // ！　評価関数なし。※4
-// #define EVAL_MATERIAL  // ○  駒得のみの評価関数 ※5
+// #define EVAL_MATERIAL  // ○  駒得のみの評価関数 ※4
 // #define EVAL_PP        // ×  ツツカナ型 2駒関係(開発予定なし)
 // #define EVAL_KPP       // ！  Bonanza型 3駒関係、手番なし
 // #define EVAL_KPPT      // ○  Bonanza型 3駒関係、手番つき(Apery WCSC26相当)
@@ -152,18 +152,31 @@ constexpr int MAX_PLY_NUM = 246;
 // #define EVAL_PPET      // ×  技巧型 2駒+利き+手番(実装予定なし)
 // #define EVAL_KKPPT     // ○  KKPP型 4駒関係 手番あり。(55将棋、56将棋でも使えそう)※3
 // #define EVAL_KKPP_KKPT // ○  KKPP型 4駒関係 手番はKK,KKPTにのみあり。※3
+// #define EVAL_DL        //     Deep Learning系の評価関数。dlshogiを参考に。※5
 
 // ※1 : KPP_PPTは、差分計算が面倒で割に合わないことが判明したのでこれを使うぐらいならKPP_KKPTで十分だという結論。
 // ※2 : 実装したけどいまひとつだったので差分計算実装せず。そのため遅すぎて、実質使い物にならない。ソースコードの参考用。
 // ※3 : このシンボルの値として対象とする王の升の数を指定する。例えばEVAL_KPPPTを27とdefineすると玉が自陣(3*9升 = 27)に
 //       いるときのみがKPPPTの評価対象となる。(そこ以外に玉があるときは普通のKPPT)
-// ※4 : 以前、EVAL_NO_USEという評価関数なしのものが選択できるようになっていたが、
-//       需要がほとんどない上に、ソースコードがifdefの嵐になるので読みづらいのでバッサリ削除した。
-//		代わりにEVAL_MATERIALを使うと良い。追加コストはほぼ無視できる。
-// ※5 : MATERIAL_LEVELというシンボルで評価関数のタイプを選択できる。
-//       #define MATERIAL_LEVEL 001 なら、駒得のみの評価関数
-//       #define MATERIAL_LEVEL 002 なら…
+// ※4 : MATERIAL_LEVELというシンボルで評価関数のタイプを選択できる。
+//       #define MATERIAL_LEVEL 1 なら、駒得のみの評価関数
+//       #define MATERIAL_LEVEL 2 なら…
 //       → eval/material/evaluate_material.cppに定義があるのでそちらを見ること。
+// ※5 : // あとで
+
+// 駒の価値のテーブルを使うか。(Apery WCSC26の定義)
+// Eval::PieceValueなどが使えるようになる。
+//#define USE_PIECE_VALUE
+
+// do_move()のときに移動した駒の管理をして差分計算
+// 1. 駒番号を管理しているpiece_listについて
+//   これはPosition::eval_list()で取得可能。
+// 2. 移動した駒の管理について
+//   これは、Position::state()->dirtyPiece。
+//   最大で2個。
+// 3. 駒番号が何の駒であるかが決まっている。(PieceNumber型)
+//#define USE_EVAL_LIST
+
 
 // 評価関数を教師局面から学習させるときに使うときのモード
 //#define EVAL_LEARN
@@ -204,9 +217,6 @@ constexpr int MAX_PLY_NUM = 246;
 
 // TimeMangementクラスに、今回の思考時間を計算する機能を追加するか。
 // #define USE_TIME_MANAGEMENT
-
-// 置換表のなかでevalを持たない
-// #define NO_EVAL_IN_TT
 
 // 評価関数で金と小駒の成りを区別する
 // 駒の特徴量はBonaPiece。これはBonanzaに倣っている。
@@ -256,6 +266,14 @@ constexpr int MAX_PLY_NUM = 246;
 // "ThreadIdOffset"オプションと併用して、狙ったNUMAで動作することを強制することができる。
 //#define FORCE_BIND_THIS_THREAD
 
+// MovePickerを使うのか(Stockfish風のコード)
+//#define USE_MOVE_PICKER
+
+// 評価関数を使うオプション。
+// これを定義するなら、Eval::init() , Eval::compute_eval() , Eval::print_eval_stat()などを
+// 評価関数側で定義しないといけない。これらの評価関数を用いないなら、これは定義しないこと。
+//#define USE_EVAL
+
 // ---------------------
 // 探索パラメーターの自動調整用
 // ---------------------
@@ -276,21 +294,25 @@ constexpr int MAX_PLY_NUM = 246;
 
 	#define ENGINE_NAME "YaneuraOu"
 
-	// 探索部は通常のやねうら王エンジンを用いる。
+	// 通常のやねうら王探索部(Stockfishっぽいやつ)を用いる。
 	#define YANEURAOU_ENGINE
 
-	// EvalHashを用いるのは3駒型のみ。それ以外は差分計算用の状態が大きすぎてhitしたところでどうしようもない。
-	#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT)
-	#define USE_EVAL_HASH
-	#endif
-
+	#define USE_PIECE_VALUE
 	#define USE_SEE
+	#define USE_EVAL_LIST
 	#define USE_MATE_1PLY
 	#define USE_ENTERING_KING_WIN
 	#define USE_TIME_MANAGEMENT
+	#define USE_MOVE_PICKER
+	#define USE_EVAL
+
+	#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT)
+		// EvalHashを用いるのは3駒型のみ。それ以外は差分計算用の状態が大きすぎてhitしたところでどうしようもない。
+		#define USE_EVAL_HASH
 
 	// 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
 	#define USE_SHARED_MEMORY_IN_EVAL
+	#endif
 
 	// 学習機能を有効にするオプション。
 	// 教師局面の生成、定跡コマンド(makebook thinkなど)を用いる時には、これを
@@ -300,7 +322,6 @@ constexpr int MAX_PLY_NUM = 246;
 	// デバッグ絡み
 	//#define ASSERT_LV 3
 	//#define USE_DEBUG_ASSERT
-
 
 	#define ENABLE_TEST_CMD
 	// 学習絡みのオプション
@@ -322,9 +343,7 @@ constexpr int MAX_PLY_NUM = 246;
 
 		#define EVAL_MATERIAL
 		// 駒割のみの評価関数ではサポートされていない機能をundefする。
-		#undef USE_EVAL_HASH
 		#undef EVAL_LEARN
-		#undef USE_SHARED_MEMORY_IN_EVAL
 
 		// 実験用評価関数
 		// 駒得評価関数の拡張扱いをする。
@@ -344,8 +363,6 @@ constexpr int MAX_PLY_NUM = 246;
 
 	#if defined(YANEURAOU_ENGINE_NNUE)
 		#define EVAL_NNUE
-		// 現状、評価関数のメモリ共有はNNUEではサポートされていない。
-		#undef USE_SHARED_MEMORY_IN_EVAL
 
 		// 学習のためにOpenBLASを使う
 		// "../openblas/lib/libopenblas.dll.a"をlibとして追加すること。
@@ -364,7 +381,6 @@ constexpr int MAX_PLY_NUM = 246;
 
 #endif // defined(YANEURAOU_ENGINE_KPPT) || ...
 
-
 // --- 詰将棋エンジンとして実行ファイルを公開するとき用の設定集
 
 #if defined(MATE_ENGINE)
@@ -372,9 +388,7 @@ constexpr int MAX_PLY_NUM = 246;
 	#define KEEP_LAST_MOVE
 	#undef  MAX_PLY_NUM
 	#define MAX_PLY_NUM 2000
-	#define USE_SEE
 	#define USE_MATE_1PLY
-	#define EVAL_MATERIAL
 	//#define LONG_EFFECT_LIBRARY
 	#define USE_KEY_AFTER
 	#define ENABLE_TEST_CMD
@@ -519,7 +533,7 @@ constexpr bool pretty_jp = false;
 // KIF形式に変換するときにPositionクラスにその局面へ至る直前の指し手が保存されていないと
 // "同"金のように出力できなくて困る。
 #if defined (USE_KIF_CONVERT_TOOLS)
-#define KEEP_LAST_MOVE
+	#define KEEP_LAST_MOVE
 #endif
 
 // ----------------------------
@@ -528,12 +542,12 @@ constexpr bool pretty_jp = false;
 
 // ターゲットが64bitOSかどうか
 #if (defined(_WIN64) && defined(_MSC_VER)) || (defined(__GNUC__) && defined(__x86_64__)) || defined(IS_64BIT)
-constexpr bool Is64Bit = true;
-#ifndef IS_64BIT
-#define IS_64BIT
-#endif
+	constexpr bool Is64Bit = true;
+	#ifndef IS_64BIT
+		#define IS_64BIT
+	#endif
 #else
-constexpr bool Is64Bit = false;
+	constexpr bool Is64Bit = false;
 #endif
 
 // TARGET_CPU、Makefileのほうで"ZEN2"のようにダブルコーテーション有りの文字列として定義されているはずだが、
@@ -634,34 +648,10 @@ constexpr bool Is64Bit = false;
 	#define USE_BOARD_EFFECT_PREV
 #elif defined(EVAL_NNUE) // それ以外のNNUEなので標準NNUE halfKP256だと思われる。
 	#define EVAL_TYPE_NAME "NNUE"
+#elif defined(EVAL_DEEP)
+	#define EVAL_TYPE_NAME EVAL_DEEP
 #else
 	#define EVAL_TYPE_NAME ""
-#endif
-
-// -- do_move()のときに移動した駒の管理をして差分計算
-
-// 1. 駒番号を管理しているpiece_listについて
-//   これはPosition::eval_list()で取得可能。
-// 2. 移動した駒の管理について
-//   これは、Position::state()->dirtyPiece。
-//   FV38だと最大で2個。
-//   FV_VARだとn個(可変)。
-// 3. FV38だとある駒番号が何の駒であるかが決まっている。(PieceNumber型)
-// 4. FV_VARだとある駒番号が何の駒であるかは定まっていない。必要な駒だけがeval_list()に格納されている。
-//    駒落ちの場合、BonaPieceZeroは使われない。(必要ない駒はeval_list()に格納されていないため。)
-//    また、銀10枚のように特定の駒種の駒を増やすことにも対応できる。(EvalList::MAX_LENGTHを変更する必要はあるが。)
-// 5. FV38かFV_VARかどちらかを選択しなければならない。
-//    本来なら、そのどちらも用いないようにも出来ると良いのだが、ソースコードがぐちゃぐちゃになるのでそれはやらないことにした。
-// 6. FV_VAR方式は、Position::do_move()ではpiece_listは更新されず、dirtyPieceの情報のみが更新される。
-//    ゆえに、evaluate()ではdirtyPieceの情報に基づき、piece_listの更新もしなければならない。
-//    →　DirtyPiece::do_update()などを見ること。
-//    また、inv_piece()を用いるので、評価関数の初期化タイミングでEvalLearningTools::init_mir_inv_tables()を呼び出して
-//    inv_piece()が使える状態にしておかなければならない。
-// 7. FV_VAR方式のリファレンス実装として、EVAL_KPP_KKPT_FV_VARがあるので、そのソースコードを見ること。
-
-// あらゆる局面でP(駒)の数が増えないFV38と呼ばれる形式の差分計算用。
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_NNUE) || defined(EVAL_MATERIAL)
-#define USE_FV38
 #endif
 
 

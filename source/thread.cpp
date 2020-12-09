@@ -26,6 +26,7 @@ Thread::~Thread()
 // このクラスが保持している探索で必要なテーブル(historyなど)をクリアする。
 void Thread::clear()
 {
+#if defined(USE_MOVE_PICKER)
 	counterMoves.fill(MOVE_NONE);
 	mainHistory.fill(0);
 	lowPlyHistory.fill(0);
@@ -42,6 +43,7 @@ void Thread::clear()
 			h->fill(0);
 			continuationHistory[inCheck][c][SQ_ZERO][NO_PIECE]->fill(Search::CounterMovePruneThreshold - 1);
 		}
+#endif
 }
 
 // 待機していたスレッドを起こして探索を開始させる

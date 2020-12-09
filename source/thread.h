@@ -113,6 +113,7 @@ public:
 	//
 	Depth rootDepth, completedDepth;
 
+#if defined(USE_MOVE_PICKER)
 	// 近代的なMovePickerではオーダリングのために、スレッドごとにhistoryとcounter movesなどのtableを持たないといけない。
 	CounterMoveHistory counterMoves;
 	LowPlyHistory lowPlyHistory;
@@ -124,6 +125,7 @@ public:
 	// 添字の[2][2]は、[inCheck(王手がかかっているか)][captureOrPawnPromotion]
 	// →　この改造、レーティングがほぼ上がっていない。悪い改造のような気がする。
 	ContinuationHistory continuationHistory[2][2];
+#endif
 
 	// Stockfish10ではスレッドごとにcontemptを保持するように変わった。
 	//Score contempt;

@@ -1,6 +1,9 @@
 ﻿#ifndef MOVEPICK_H_INCLUDED
 #define MOVEPICK_H_INCLUDED
 
+#include "config.h"
+#if defined(USE_MOVE_PICKER)
+
 #include <array>
 //#include <limits>
 //#include <type_traits>
@@ -236,6 +239,8 @@ private:
 	// メモリアドレスが32byteの倍数になるようにcurを使いたいので+3して、611。
 	ExtMove moves[MAX_MOVES + 11];
 };
+
+#endif // defined(USE_MOVE_PICKER)
 
 #endif // #ifndef MOVEPICK_H_INCLUDED
 

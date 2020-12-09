@@ -1,4 +1,6 @@
 ﻿#include "movepick.h"
+#if defined(USE_MOVE_PICKER)
+
 #include "thread.h"
 
 // パラメーターの自動調整フレームワークからパラメーターの値を読み込む
@@ -499,3 +501,5 @@ top:
 	ASSERT(false);
 	return MOVE_NONE;
 }
+
+#endif // defined(USE_MOVE_PICKER)

@@ -1,6 +1,7 @@
-﻿#ifndef _SEARCH_H_
-#define _SEARCH_H_
+﻿#ifndef _SEARCH_H_INCLUDED_
+#define _SEARCH_H_INCLUDED_
 
+#include "config.h"
 #include "misc.h"
 #include "movepick.h"
 #include "position.h"
@@ -8,6 +9,7 @@
 // 探索関係
 namespace Search {
 
+#if defined(USE_MOVE_PICKER)
 	// countermoves based pruningで使う閾値
 	constexpr int CounterMovePruneThreshold = 0;
 
@@ -30,6 +32,7 @@ namespace Search {
 		bool ttPv;					// 置換表にPV nodeで調べた値が格納されていたか(これは価値が高い)
 		bool ttHit;					// 置換表にhitしたかのフラグ
 	};
+#endif
 
 	// root(探索開始局面)での指し手として使われる。それぞれのroot moveに対して、
 	// その指し手で進めたときのscore(評価値)とPVを持っている。(PVはfail lowしたときには信用できない)
@@ -182,4 +185,5 @@ namespace Search {
 
 } // end of namespace Search
 
-#endif // _SEARCH_H_
+#endif // _SEARCH_H_INCLUDED_
+

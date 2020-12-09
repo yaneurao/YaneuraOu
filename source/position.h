@@ -105,8 +105,10 @@ struct StateInfo {
 
 	// --- evaluate
 
+#if defined (USE_PIECE_VALUE)
 	// この局面での評価関数の駒割
 	Value materialValue;
+#endif
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 
@@ -120,7 +122,7 @@ struct StateInfo {
 	Eval::NNUE::Accumulator accumulator;
 #endif
 
-#if defined(USE_FV38)
+#if defined (USE_EVAL_LIST)
 	// 評価値の差分計算の管理用
 	Eval::DirtyPiece dirtyPiece;
 #endif
@@ -429,8 +431,10 @@ public:
 
 	// --- Evaluation
 
+#if defined(USE_EVAL_LIST)
 	// 評価関数で使うための、どの駒番号の駒がどこにあるかなどの情報。
 	const Eval::EvalList* eval_list() const { return &evalList; }
+#endif
 
 #if defined (USE_SEE)
 	// 指し手mのsee(Static Exchange Evaluation : 静的取り合い評価)において
@@ -660,7 +664,7 @@ private:
 	// 更新してくれないので、自前で更新するか、一連の処理のあとにこの関数を呼び出す必要がある。
 	void update_kingSquare();
 
-#if defined(USE_FV38)
+#if defined (USE_EVAL_LIST)
 	// --- 盤面を更新するときにEvalListの更新のために必要なヘルパー関数
 
 	// c側の手駒ptの最後の1枚のBonaPiece番号を返す
@@ -714,8 +718,10 @@ private:
 	// undo_move()で前の局面に戻るときはStateInfo::previousから辿って戻る。
 	StateInfo* st;
 
+#if defined(USE_EVAL_LIST)
 	// 評価関数で用いる駒のリスト
 	Eval::EvalList evalList;
+#endif
 };
 
 inline void Position::xor_piece(Piece pc, Square sq)
