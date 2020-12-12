@@ -96,10 +96,7 @@ namespace Search {
 			enteringKingRule = EKR_NONE;
 			silent = bench = consideration_mode = outout_fail_lh_pv = false;
 			pv_interval = 0;
-
-#if !defined(FOR_TOURNAMENT)
 			generate_all_legal_moves = false;
-#endif
 		}
 
 		// 時間制御を行うのか。
@@ -165,10 +162,10 @@ namespace Search {
 		// PVの出力間隔(探索のときにMainThread::search()内で初期化する)
 		TimePoint pv_interval;
 
-#if !defined(FOR_TOURNAMENT)
 		// 全合法手を生成するのか
+		// MATE_ENGINEではこの設定は無視されている。
 		bool generate_all_legal_moves;
-#endif
+
 #if defined(MATE_ENGINE)
 		std::vector<Move16> pv_check;
 #endif

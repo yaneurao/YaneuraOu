@@ -470,7 +470,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 	limits.max_game_ply = (max_game_ply == 0) ? 100000 : max_game_ply;
 
 	// すべての合法手を生成するのか
-#if !defined(MATE_ENGINE) && !defined(FOR_TOURNAMENT) 
+#if !defined(MATE_ENGINE)
 	limits.generate_all_legal_moves = Options["GenerateAllLegalMoves"];
 #endif
 
