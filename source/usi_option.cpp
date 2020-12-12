@@ -65,9 +65,6 @@ namespace USI {
 		// その局面での上位N個の候補手を調べる機能
 		o["MultiPV"] << Option(1, 1, 800);
 
-		// 弱くするために調整する。20なら手加減なし。0が最弱。
-		o["SkillLevel"] << Option(20, 0, 20);
-
 #else // !defined(MATE_ENGINE)
 
 		// MATE_ENGINEのとき
@@ -105,22 +102,6 @@ namespace USI {
 		// 探索ノード制限。0なら無制限。
 		o["NodesLimit"] << Option(0, 0, INT64_MAX);
 
-		// 引き分けを受け入れるスコア
-		// 歩を100とする。例えば、この値を100にすると引き分けの局面は評価値が -100とみなされる。
-
-		// 千日手での引き分けを回避しやすくなるように、デフォルト値を2に変更した。[2017/06/03]
-		// ちなみに、2にしてあるのは、
-		//  int contempt = Options["Contempt"] * PawnValue / 100; でPawnValueが100より小さいので
-		// 1だと切り捨てられてしまうからである。
-
-		o["Contempt"] << Option(2, -30000, 30000);
-
-		// Contemptの設定値を先手番から見た値とするオプション。Stockfishからの独自拡張。
-		// 先手のときは千日手を狙いたくなくて、後手のときは千日手を狙いたいような場合、
-		// このオプションをオンにすれば、Contemptをそういう解釈にしてくれる。
-		// この値がtrueのときは、Contemptを常に先手から見たスコアだとみなす。
-
-		o["ContemptFromBlack"] << Option(false);
 
 #if defined (USE_ENTERING_KING_WIN)
 		// 入玉ルール

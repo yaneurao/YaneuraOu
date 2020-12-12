@@ -1213,7 +1213,12 @@ struct SfenReader
 
 			// hash keyを求める。
 			StateInfo si;
-			pos.set_from_packed_sfen(ps.sfen,&si,th);
+			if (pos.set_from_packed_sfen(ps.sfen, &si, th).is_not_ok())
+			{
+				// 運悪くrmse計算用のsfenとして、不正なsfenを引いてしまっていた。
+				cout << "Error! : illegal packed sfen " << pos.sfen() << endl;
+				return;
+			}
 			sfen_for_mse_hash.insert(pos.key());
 		}
 	}
@@ -2630,14 +2635,6 @@ void learn(Position&, istringstream& is)
 		else if (option == "freeze_kkp")   is >> freeze[1];
 		else if (option == "freeze_kpp")   is >> freeze[2];
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA)
-
-#elif defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
-		else if (option == "freeze_kppp")  is >> freeze[3];
-#elif defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT)
-		else if (option == "freeze_kkpp")  is >> freeze[3];
-#endif
-
 #if defined (LOSS_FUNCTION_IS_ELMO_METHOD)
 		// LAMBDA
 		else if (option == "lambda")       is >> ELMO_LAMBDA;
@@ -2789,12 +2786,8 @@ void learn(Position&, istringstream& is)
 	cout << "eval_save_interval  : " << eval_save_interval << " sfens" << endl;
 	cout << "loss_output_interval: " << loss_output_interval << " sfens" << endl;
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_NABLA)
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 	cout << "freeze_kk/kkp/kpp      : " << freeze[0] << " , " << freeze[1] << " , " << freeze[2] << endl;
-#elif defined(EVAL_KPPPT) || defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
-	cout << "freeze_kk/kkp/kpp/kppp : " << freeze[0] << " , " << freeze[1] << " , " << freeze[2] << " , " << freeze[3] << endl;
-#elif defined(EVAL_KKPP_KKPT) || defined(EVAL_KKPPT)
-	cout << "freeze_kk/kkp/kpp/kkpp : " << freeze[0] << " , " << freeze[1] << " , " << freeze[2] << " , " << freeze[3] << endl;
 #endif
 
 	// -----------------------------------

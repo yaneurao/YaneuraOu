@@ -14,7 +14,7 @@ namespace Eval
 	void evaluate_with_no_return(const Position& pos) {}
 	void print_eval_stat(Position& pos) {}
 	void load_eval() {}
-	Value evaluate(const Position& pos) {}
+	Value evaluate(const Position& pos) { return VALUE_ZERO; }
 
 #endif
 

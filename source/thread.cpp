@@ -74,12 +74,12 @@ void Thread::idle_loop() {
 
 #if !defined(FORCE_BIND_THIS_THREAD)
 	if (Options["Threads"] > 8)
+#endif
 		WinProcGroup::bindThisThread(idx);
 		// このifを有効にすると何故かNUMA環境のマルチスレッド時に弱くなることがある気がする。
 		// (長い時間対局させ続けると安定するようなのだが…)
 		// 上の投稿者と条件が何か違うのだろうか…。
 		// 前のバージョンのソフトが、こちらのNUMAの割当を阻害している可能性が微レ存。
-#endif
 
 	while (true)
 	{

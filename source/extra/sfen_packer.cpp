@@ -355,19 +355,15 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 	// 手番
 	sideToMove = (Color)stream.read_one_bit();
 
+#if defined(USE_EVAL_LIST)
+
 	// evalListのclear。上でmemsetでゼロクリアしたときにクリアされているが…。
 	evalList.clear();
 
-#if defined(USE_FV38)
 	// PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
 	// それぞれの駒をどこまで使ったかのカウンター
 	PieceNumber piece_no_count[KING] = { PIECE_NUMBER_ZERO,PIECE_NUMBER_PAWN,PIECE_NUMBER_LANCE,PIECE_NUMBER_KNIGHT,
 		PIECE_NUMBER_SILVER, PIECE_NUMBER_BISHOP, PIECE_NUMBER_ROOK,PIECE_NUMBER_GOLD };
-#elif defined(USE_FV_VAR)
-	auto& dp = st->dirtyPiece;
-	// FV_VARのときは直接evalListに追加せず、DirtyPieceにいったん追加して、
-	// そのあと、DirtyPiece::update()でevalListに追加する。このupdate()の時に組み換えなどの操作をしたいため。
-	dp.set_state_info(st);
 #endif
 
 	kingSquare[BLACK] = kingSquare[WHITE] = SQ_NB;
@@ -409,22 +405,14 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 
 		put_piece(sq, Piece(pc));
 
+#if defined(USE_EVAL_LIST)
 		// evalListの更新
-#if defined(USE_FV38)
 		PieceNumber piece_no =
 			(pc == B_KING) ? PIECE_NUMBER_BKING : // 先手玉
 			(pc == W_KING) ? PIECE_NUMBER_WKING : // 後手玉
 			piece_no_count[raw_type_of(pc)]++; // それ以外
 
 		evalList.put_piece(piece_no, sq, pc); // sqの升にpcの駒を配置する
-#elif defined(USE_FV_VAR)
-		if (type_of(pc) != KING)
-		{
-			dp.add_piece(sq, pc);
-			dp.do_update(evalList);
-			dp.clear();
-			// DirtyPieceのBonaPieceを格納するバッファ、極めて小さいのでevalListに反映させるごとにクリアしておく。
-		}
 #endif
 
 		//cout << sq << ' ' << board[sq] << ' ' << stream.get_cursor() << endl;
@@ -446,7 +434,7 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 		auto pc = packer.read_hand_piece_from_stream();
 		add_hand(hand[(int)color_of(pc)], type_of(pc));
 
-#if defined(USE_FV38) || defined(USE_FV_VAR)
+#if defined(USE_EVAL_LIST)
 		// 何枚目のその駒であるかをカウントしておく。
 		if (lastPc != pc)
 			i = 0;
@@ -454,16 +442,10 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 
 		// FV38などではこの個数分だけpieceListに突っ込まないといけない。
 		PieceType rpc = raw_type_of(pc);
-#endif
 
-#if defined (USE_FV38)
 		PieceNumber piece_no = piece_no_count[rpc]++;
 		ASSERT_LV1(is_ok(piece_no));
 		evalList.put_piece(piece_no, color_of(pc), rpc, i++);
-#elif defined(USE_FV_VAR)
-		dp.add_piece(color_of(pc), rpc, i++);
-		dp.do_update(evalList);
-		dp.clear();
 #endif
 	}
 

@@ -127,13 +127,7 @@ namespace Eval {
 			// NDF(2014)の手番評価の手法。
 			// cf. http://www.computer-shogi.org/wcsc24/appeal/NineDayFever/NDF.txt
 
-#if defined(EVAL_KPPP_KKPT) || defined(EVAL_HELICES)
-			// p[0][1] = ΣBKPPP , p[1][1] = ΣWKPPPが入っているタイプのEvalSum
-			const int32_t scoreBoard = (p[0][0] + p[0][1]) - (p[1][0] + p[1][1]) + p[2][0];
-			// 手番に依存する評価値合計
-			const int32_t scoreTurn = p[2][1];
-
-#elif defined(EVAL_KPP_KKPT) || defined(EVAL_KKPP_KKPT) || defined(EVAL_KPP_KKPT_FV_VAR) || defined(EVAL_HELICES) || defined(EVAL_NABLA)			
+#if defined(EVAL_KPP_KKPT)
 
 			// p[0][1]とp[1][1]は使っていないタイプのEvalSum
 			const int32_t scoreBoard = p[0][0] - p[1][0] + p[2][0];

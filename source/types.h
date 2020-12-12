@@ -207,6 +207,9 @@ constexpr Square Inv(Square sq) { return (Square)((SQ_NB - 1) - sq); }
 // (5筋を軸としたミラーであって、玉の筋を軸としたミラーとかではない。)
 constexpr Square Mir(Square sq) { return File(8-(int)file_of(sq)) | rank_of(sq); }
 
+// 盤面を180度回転させた時の升を返す。
+constexpr Square Flip(Square sq) { return (Square)(SQ_NB - sq - 1); }
+
 // Squareを綺麗に出力する(USI形式ではない)
 // "PRETTY_JP"をdefineしていれば、日本語文字での表示になる。例 → ８八
 // "PRETTY_JP"をdefineしていなければ、数字のみの表示になる。例 → 88
