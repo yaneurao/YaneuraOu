@@ -243,7 +243,7 @@ extern int MOVE_PICKER_Q_PARAM4;
 extern int MOVE_PICKER_Q_PARAM5;
 
 // ABテスト用
-// [PARAM] min:0,max:1,step:1,interval:1,time_rate:1
+// [PARAM] min:0,max:1,step:1,interval:1,time_rate:1,fixed
 extern int AB_TEST1;
 
 // ABテスト用

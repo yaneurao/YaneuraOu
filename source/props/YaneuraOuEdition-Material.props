@@ -2,17 +2,16 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros">
-    <YaneuraOuTarget>mate</YaneuraOuTarget>
-    <YaneuraOuDir>mate</YaneuraOuDir>
+    <YaneuraOuTarget>Material</YaneuraOuTarget>
+    <YaneuraOuDir>Material</YaneuraOuDir>
   </PropertyGroup>
   <PropertyGroup>
     <OutDir>$(OutBaseDir)$(YaneuraOuDir)\</OutDir>
     <TargetName>$(ProjectName)-$(YaneuraOuTarget)</TargetName>
-    <_PropertySheetDisplayName>YaneuraOuEdition-mate</_PropertySheetDisplayName>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <PreprocessorDefinitions>USE_MAKEFILE;MATE_ENGINE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_MAKEFILE;YANEURAOU_ENGINE_MATERIAL;EVAL_EXP=999;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -135,7 +135,7 @@ namespace USI {
 		o["SkipLoadingEval"] << Option(false);
 #endif
 
-#if !defined(MATE_ENGINE) && !defined(FOR_TOURNAMENT)
+#if !defined(MATE_ENGINE)
 		// 読みの各局面ですべての合法手を生成する
 		// (普通、歩の2段目での不成などは指し手自体を生成しないのですが、これのせいで不成が必要な詰みが絡む問題が解けないことが
 		// あるので、このオプションを用意しました。トーナメントモードではこのオプションは無効化されます。)

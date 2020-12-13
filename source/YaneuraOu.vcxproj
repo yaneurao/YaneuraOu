@@ -21,6 +21,10 @@
       <Configuration>Release-KPP_KKPT</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-Material|x64">
+      <Configuration>Release-Material</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release-NNUE-GEN|x64">
       <Configuration>Release-NNUE-GEN</Configuration>
       <Platform>x64</Platform>
@@ -128,6 +132,20 @@
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Material|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-Material|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate-sse42|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
@@ -223,6 +241,20 @@
     <Import Project="props\YaneuraOu-common.props" />
     <Import Project="props\YaneuraOuSolution-release-x64.props" />
     <Import Project="props\YaneuraOuEdition-mate.props" />
+    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-Material|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-release-x64.props" />
+    <Import Project="props\YaneuraOuEdition-Material.props" />
+    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug-Material|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-debug-x64.props" />
+    <Import Project="props\YaneuraOuEdition-Material.props" />
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate-sse42|x64'" Label="PropertySheets">

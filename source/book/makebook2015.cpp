@@ -178,6 +178,9 @@ namespace Book
 			int cluster_id = 1;
 			int cluster_num = 1;
 
+			// "makebook think"コマンド時の自動保存の間隔。デフォルト15分。
+			u64 book_save_interval = 15 * 60;
+
 			while (true)
 			{
 				token = "";
@@ -194,6 +197,8 @@ namespace Book
 					is >> start_moves;
 				else if (from_thinking && token == "cluster")
 					is >> cluster_id >> cluster_num;
+				else if (from_thinking && token == "book_save_interval")
+					is >> book_save_interval;
 				else
 				{
 					cout << "Error! : Illigal token = " << token << endl;
@@ -219,11 +224,13 @@ namespace Book
 
 			if (from_sfen)
 				cout << "read sfen moves " << moves << endl;
+
 			if (from_thinking)
-				cout << "read sfen moves from " << start_moves << " to " << moves
-				<< " , depth = " << depth
-				<< " , nodes = " << nodes
-				<< " , cluster = " << cluster_id << "/" << cluster_num << endl;
+				cout << "read sfen moves from " << start_moves << " to " << moves << endl
+					 << " depth = " << depth << endl
+					 << " nodes = " << nodes << endl
+					 << " cluster = " << cluster_id << "/" << cluster_num << endl
+					 << " book_save_interval = " << book_save_interval << endl;
 
 			// 解析対象とするsfen集合。
 			// 読み込むべきsfenファイル名が2つ指定されている時は、
@@ -506,7 +513,7 @@ namespace Book
 
 				// 15分ごとに保存
 				// (ファイルが大きくなってくると保存の時間も馬鹿にならないのでこれくらいの間隔で妥協)
-				multi_think.callback_seconds = 15 * 60;
+				multi_think.callback_seconds = book_save_interval;
 				multi_think.callback_func = [&]()
 				{
 					std::unique_lock<std::mutex> lk(multi_think.io_mutex);

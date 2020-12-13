@@ -180,7 +180,6 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 		rootMoves.emplace_back(MOVE_WIN);
 #endif
 
-#if !defined(MATE_ENGINE) && !defined(FOR_TOURNAMENT) 
 	// 全合法手を生成するオプションが有効ならば。
 	if (limits.generate_all_legal_moves)
 	{
@@ -188,9 +187,9 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 			if (limits.searchmoves.empty()
 				|| std::count(limits.searchmoves.begin(), limits.searchmoves.end(), m))
 				rootMoves.emplace_back(m);
-	} else
-#endif
-	{   // トーナメントモードなら、歩の不成は生成しない。
+
+	} else {
+
 		for (auto m : MoveList<LEGAL>(pos))
 			if (limits.searchmoves.empty()
 				|| std::count(limits.searchmoves.begin(), limits.searchmoves.end(), m))
