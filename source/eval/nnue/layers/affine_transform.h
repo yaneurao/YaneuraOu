@@ -57,8 +57,10 @@ class AffineTransform {
 	// Read network parameters
 	// パラメータを読み込む
 	bool ReadParameters(std::istream& stream) {
-		if (!previous_layer_.ReadParameters(stream)) return false;
-		for (std::size_t i = 0; i < kOutputDimensions; ++i) biases_[i] = read_little_endian<BiasType>(stream);
+		if (!previous_layer_.ReadParameters(stream))
+			return false;
+		for (std::size_t i = 0; i < kOutputDimensions; ++i)
+			biases_[i] = read_little_endian<BiasType>(stream);
 		for (std::size_t i = 0; i < kOutputDimensions * kPaddedInputDimensions; ++i)
 			weights_[i] = read_little_endian<WeightType>(stream);
 		return !stream.fail();
@@ -66,7 +68,8 @@ class AffineTransform {
 
 	// パラメータを書き込む
 	bool WriteParameters(std::ostream& stream) const {
-		if (!previous_layer_.WriteParameters(stream)) return false;
+		if (!previous_layer_.WriteParameters(stream))
+			return false;
 		// TODO : endiannessの調整するコード必要なのでは。(やね)
 		stream.write(reinterpret_cast<const char*>(biases_), kOutputDimensions * sizeof(BiasType));
 		stream.write(reinterpret_cast<const char*>(weights_),
@@ -176,13 +179,27 @@ class AffineTransform {
 			return _mm512_add_epi32(_mm512_permutexvar_epi32(indices, x), bias);
 		};
 
-#if defined(USE_VNNI)
 		[[maybe_unused]] auto m512_add_dpbusd_epi32 = [=](__m512i& acc, __m512i a, __m512i b) {
+#if defined(USE_VNNI)
 			acc = _mm512_dpbusd_epi32(acc, a, b);
 #else
-		[[maybe_unused]] auto m512_dpbusd_epi32 = [=](__m512i a, __m512i b) -> __m512i {
 			__m512i product0 = _mm512_maddubs_epi16(a, b);
-			return _mm512_madd_epi16(product0, kOnes512);
+			product0         = _mm512_madd_epi16(product0, kOnes512);
+			acc              = _mm512_add_epi32(acc, product0);
+#endif
+		};
+
+		[[maybe_unused]] auto m512_add_dpbusd_epi32x2 = [=](__m512i& acc, __m512i a0, __m512i b0, __m512i a1,
+		                                                    __m512i b1) {
+#if defined(USE_VNNI)
+			acc = _mm512_dpbusd_epi32(acc, a0, b0);
+			acc = _mm512_dpbusd_epi32(acc, a1, b1);
+#else
+			__m512i product0 = _mm512_maddubs_epi16(a0, b0);
+			__m512i product1 = _mm512_maddubs_epi16(a1, b1);
+			product0         = _mm512_adds_epi16(product0, product1);
+			product0         = _mm512_madd_epi16(product0, kOnes512);
+			acc              = _mm512_add_epi32(acc, product0);
 #endif
 		};
 
@@ -210,13 +227,28 @@ class AffineTransform {
 
 			return _mm_add_epi32(_mm_add_epi32(sum128lo, sum128hi), bias);
 		};
-#if defined(USE_VNNI)
+
 		[[maybe_unused]] auto m256_add_dpbusd_epi32 = [=](__m256i& acc, __m256i a, __m256i b) {
+#if defined(USE_VNNI)
 			acc = _mm256_dpbusd_epi32(acc, a, b);
 #else
-		[[maybe_unused]] auto m256_dpbusd_epi32 = [=](__m256i a, __m256i b) -> __m256i {
 			__m256i product0 = _mm256_maddubs_epi16(a, b);
-			return _mm256_madd_epi16(product0, kOnes256);
+			product0         = _mm256_madd_epi16(product0, kOnes256);
+			acc              = _mm256_add_epi32(acc, product0);
+#endif
+		};
+
+		[[maybe_unused]] auto m256_add_dpbusd_epi32x2 = [=](__m256i& acc, __m256i a0, __m256i b0, __m256i a1,
+		                                                    __m256i b1) {
+#if defined(USE_VNNI)
+			acc = _mm256_dpbusd_epi32(acc, a0, b0);
+			acc = _mm256_dpbusd_epi32(acc, a1, b1);
+#else
+			__m256i product0 = _mm256_maddubs_epi16(a0, b0);
+			__m256i product1 = _mm256_maddubs_epi16(a1, b1);
+			product0         = _mm256_adds_epi16(product0, product1);
+			product0         = _mm256_madd_epi16(product0, kOnes256);
+			acc              = _mm256_add_epi32(acc, product0);
 #endif
 		};
 
@@ -242,9 +274,19 @@ class AffineTransform {
 			return _mm_add_epi32(sum0, bias);
 		};
 
-		[[maybe_unused]] auto m128_dpbusd_epi32 = [=](__m128i a, __m128i b) -> __m128i {
+		[[maybe_unused]] auto m128_add_dpbusd_epi32 = [=](__m128i& acc, __m128i a, __m128i b) {
 			__m128i product0 = _mm_maddubs_epi16(a, b);
-			return _mm_madd_epi16(product0, kOnes128);
+			product0         = _mm_madd_epi16(product0, kOnes128);
+			acc              = _mm_add_epi32(acc, product0);
+		};
+
+		[[maybe_unused]] auto m128_add_dpbusd_epi32x2 = [=](__m128i& acc, __m128i a0, __m128i b0, __m128i a1,
+		                                                    __m128i b1) {
+			__m128i product0 = _mm_maddubs_epi16(a0, b0);
+			__m128i product1 = _mm_maddubs_epi16(a1, b1);
+			product0         = _mm_adds_epi16(product0, product1);
+			product0         = _mm_madd_epi16(product0, kOnes128);
+			acc              = _mm_add_epi32(acc, product0);
 		};
 
 #endif
@@ -286,6 +328,15 @@ class AffineTransform {
 				const __m512i bias   = *reinterpret_cast<const __m512i*>(&biases_[i]);
 				__m512i*      outptr = reinterpret_cast<__m512i*>(&output[i]);
 
+				__m512i sum01a = _mm512_setzero_si512();
+				__m512i sum23a = _mm512_setzero_si512();
+				__m512i sum45a = _mm512_setzero_si512();
+				__m512i sum67a = _mm512_setzero_si512();
+				__m512i sum01b = _mm512_setzero_si512();
+				__m512i sum23b = _mm512_setzero_si512();
+				__m512i sum45b = _mm512_setzero_si512();
+				__m512i sum67b = _mm512_setzero_si512();
+
 				const auto row01a = *reinterpret_cast<const __m512i*>(&weights_[offset01a]);
 				const auto row23a = *reinterpret_cast<const __m512i*>(&weights_[offset23a]);
 				const auto row45a = *reinterpret_cast<const __m512i*>(&weights_[offset45a]);
@@ -298,16 +349,6 @@ class AffineTransform {
 				const __m256i in256 = input_vector256[0];
 				const __m512i in    = _mm512_inserti64x4(_mm512_castsi256_si512(in256), in256, 1);
 
-#if defined(USE_VNNI)
-				__m512i sum01a = _mm512_setzero_si512();
-				__m512i sum23a = _mm512_setzero_si512();
-				__m512i sum45a = _mm512_setzero_si512();
-				__m512i sum67a = _mm512_setzero_si512();
-				__m512i sum01b = _mm512_setzero_si512();
-				__m512i sum23b = _mm512_setzero_si512();
-				__m512i sum45b = _mm512_setzero_si512();
-				__m512i sum67b = _mm512_setzero_si512();
-
 				m512_add_dpbusd_epi32(sum01a, in, row01a);
 				m512_add_dpbusd_epi32(sum23a, in, row23a);
 				m512_add_dpbusd_epi32(sum45a, in, row45a);
@@ -316,16 +357,6 @@ class AffineTransform {
 				m512_add_dpbusd_epi32(sum23b, in, row23b);
 				m512_add_dpbusd_epi32(sum45b, in, row45b);
 				m512_add_dpbusd_epi32(sum67b, in, row67b);
-#else
-				__m512i sum01a = m512_dpbusd_epi32(in, row01a);
-				__m512i sum23a = m512_dpbusd_epi32(in, row23a);
-				__m512i sum45a = m512_dpbusd_epi32(in, row45a);
-				__m512i sum67a = m512_dpbusd_epi32(in, row67a);
-				__m512i sum01b = m512_dpbusd_epi32(in, row01b);
-				__m512i sum23b = m512_dpbusd_epi32(in, row23b);
-				__m512i sum45b = m512_dpbusd_epi32(in, row45b);
-				__m512i sum67b = m512_dpbusd_epi32(in, row67b);
-#endif
 
 				*outptr = m512_hadd256x16(sum01a, sum23a, sum45a, sum67a, sum01b, sum23b, sum45b, sum67b, bias);
 			}
@@ -340,76 +371,56 @@ class AffineTransform {
 				__m128i*      outptr = reinterpret_cast<__m128i*>(&output[i]);
 
 				if constexpr (kPaddedInputDimensions % (kSimdWidth * 2) == 0) {
+					__m512i sum0 = _mm512_setzero_si512();
+					__m512i sum1 = _mm512_setzero_si512();
+					__m512i sum2 = _mm512_setzero_si512();
+					__m512i sum3 = _mm512_setzero_si512();
+
 					const auto row0 = reinterpret_cast<const __m512i*>(&weights_[offset0]);
 					const auto row1 = reinterpret_cast<const __m512i*>(&weights_[offset1]);
 					const auto row2 = reinterpret_cast<const __m512i*>(&weights_[offset2]);
 					const auto row3 = reinterpret_cast<const __m512i*>(&weights_[offset3]);
 
-#if defined(USE_VNNI)
-					__m512i         sum0   = _mm512_setzero_si512();
-					__m512i         sum1   = _mm512_setzero_si512();
-					__m512i         sum2   = _mm512_setzero_si512();
-					__m512i         sum3   = _mm512_setzero_si512();
-					const IndexType kStart = 0;
-#else
-					__m512i         sum0   = m512_dpbusd_epi32(input_vector512[0], row0[0]);
-					__m512i         sum1   = m512_dpbusd_epi32(input_vector512[0], row1[0]);
-					__m512i         sum2   = m512_dpbusd_epi32(input_vector512[0], row2[0]);
-					__m512i         sum3   = m512_dpbusd_epi32(input_vector512[0], row3[0]);
-					const IndexType kStart = 1;
-#endif
+					int j = 0;
+					if (!canSaturate16x4[i / 4]) {
+						for (; j < (int)kNumChunks512 - 1; j += 2) {
+							const __m512i in0 = input_vector512[j];
+							const __m512i in1 = input_vector512[j + 1];
 
-					for (IndexType j = kStart; j < kNumChunks512; ++j) {
+							m512_add_dpbusd_epi32x2(sum0, in0, row0[j], in1, row0[j + 1]);
+							m512_add_dpbusd_epi32x2(sum1, in0, row1[j], in1, row1[j + 1]);
+							m512_add_dpbusd_epi32x2(sum2, in0, row2[j], in1, row2[j + 1]);
+							m512_add_dpbusd_epi32x2(sum3, in0, row3[j], in1, row3[j + 1]);
+						}
+					}
+					for (; j < (int)kNumChunks512; ++j) {
 						const __m512i in = input_vector512[j];
 
-#if defined(USE_VNNI)
 						m512_add_dpbusd_epi32(sum0, in, row0[j]);
 						m512_add_dpbusd_epi32(sum1, in, row1[j]);
 						m512_add_dpbusd_epi32(sum2, in, row2[j]);
 						m512_add_dpbusd_epi32(sum3, in, row3[j]);
-#else
-						sum0 = _mm512_add_epi32(sum0, m512_dpbusd_epi32(in, row0[j]));
-						sum1 = _mm512_add_epi32(sum1, m512_dpbusd_epi32(in, row1[j]));
-						sum2 = _mm512_add_epi32(sum2, m512_dpbusd_epi32(in, row2[j]));
-						sum3 = _mm512_add_epi32(sum3, m512_dpbusd_epi32(in, row3[j]));
-#endif
 					}
 
 					*outptr = m512_haddx4(sum0, sum1, sum2, sum3, bias);
 				} else {
+					__m256i sum0 = _mm256_setzero_si256();
+					__m256i sum1 = _mm256_setzero_si256();
+					__m256i sum2 = _mm256_setzero_si256();
+					__m256i sum3 = _mm256_setzero_si256();
+
 					const auto row0 = reinterpret_cast<const __m256i*>(&weights_[offset0]);
 					const auto row1 = reinterpret_cast<const __m256i*>(&weights_[offset1]);
 					const auto row2 = reinterpret_cast<const __m256i*>(&weights_[offset2]);
 					const auto row3 = reinterpret_cast<const __m256i*>(&weights_[offset3]);
 
-#if defined(USE_VNNI)
-					__m256i         sum0   = _mm256_setzero_si256();
-					__m256i         sum1   = _mm256_setzero_si256();
-					__m256i         sum2   = _mm256_setzero_si256();
-					__m256i         sum3   = _mm256_setzero_si256();
-					const IndexType kStart = 0;
-#else
-					__m256i         sum0   = m256_dpbusd_epi32(input_vector256[0], row0[0]);
-					__m256i         sum1   = m256_dpbusd_epi32(input_vector256[0], row1[0]);
-					__m256i         sum2   = m256_dpbusd_epi32(input_vector256[0], row2[0]);
-					__m256i         sum3   = m256_dpbusd_epi32(input_vector256[0], row3[0]);
-					const IndexType kStart = 1;
-#endif
-
-					for (IndexType j = kStart; j < kNumChunks256; ++j) {
+					for (IndexType j = 0; j < kNumChunks256; ++j) {
 						const __m256i in = input_vector256[j];
 
-#if defined(USE_VNNI)
 						m256_add_dpbusd_epi32(sum0, in, row0[j]);
 						m256_add_dpbusd_epi32(sum1, in, row1[j]);
 						m256_add_dpbusd_epi32(sum2, in, row2[j]);
 						m256_add_dpbusd_epi32(sum3, in, row3[j]);
-#else
-						sum0 = _mm256_add_epi32(sum0, m256_dpbusd_epi32(in, row0[j]));
-						sum1 = _mm256_add_epi32(sum1, m256_dpbusd_epi32(in, row1[j]));
-						sum2 = _mm256_add_epi32(sum2, m256_dpbusd_epi32(in, row2[j]));
-						sum3 = _mm256_add_epi32(sum3, m256_dpbusd_epi32(in, row3[j]));
-#endif
 					}
 
 					*outptr = m256_haddx4(sum0, sum1, sum2, sum3, bias);
@@ -417,46 +428,26 @@ class AffineTransform {
 			}
 		} else if constexpr (kOutputDimensions == 1) {
 			if constexpr (kPaddedInputDimensions % (kSimdWidth * 2) == 0) {
+				__m512i sum0 = _mm512_setzero_si512();
+
 				const auto row0 = reinterpret_cast<const __m512i*>(&weights_[0]);
 
-#if defined(USE_VNNI)
-				__m512i         sum0   = _mm512_setzero_si512();
-				const IndexType kStart = 0;
-#else
-				__m512i         sum0   = m512_dpbusd_epi32(input_vector512[0], row0[0]);
-				const IndexType kStart = 1;
-#endif
-
-				for (IndexType j = kStart; j < kNumChunks512; ++j) {
+				for (IndexType j = 0; j < kNumChunks512; ++j) {
 					const __m512i in = input_vector512[j];
 
-#if defined(USE_VNNI)
 					m512_add_dpbusd_epi32(sum0, in, row0[j]);
-#else
-					sum0 = _mm512_add_epi32(sum0, m512_dpbusd_epi32(in, row0[j]));
-#endif
 				}
 
 				output[0] = m512_hadd(sum0, biases_[0]);
 			} else {
+				__m256i sum0 = _mm256_setzero_si256();
+
 				const auto row0 = reinterpret_cast<const __m256i*>(&weights_[0]);
 
-#if defined(USE_VNNI)
-				__m256i         sum0   = _mm256_setzero_si256();
-				const IndexType kStart = 0;
-#else
-				__m256i         sum0   = m256_dpbusd_epi32(input_vector256[0], row0[0]);
-				const IndexType kStart = 1;
-#endif
-
-				for (IndexType j = kStart; j < kNumChunks256; ++j) {
+				for (IndexType j = 0; j < kNumChunks256; ++j) {
 					const __m256i in = input_vector256[j];
 
-#if defined(USE_VNNI)
 					m256_add_dpbusd_epi32(sum0, in, row0[j]);
-#else
-					sum0 = _mm256_add_epi32(sum0, m256_dpbusd_epi32(in, row0[j]));
-#endif
 				}
 
 				output[0] = m256_hadd(sum0, biases_[0]);
@@ -486,62 +477,48 @@ class AffineTransform {
 				const __m128i bias   = *reinterpret_cast<const __m128i*>(&biases_[i]);
 				__m128i*      outptr = reinterpret_cast<__m128i*>(&output[i]);
 
+				__m256i sum0 = _mm256_setzero_si256();
+				__m256i sum1 = _mm256_setzero_si256();
+				__m256i sum2 = _mm256_setzero_si256();
+				__m256i sum3 = _mm256_setzero_si256();
+
 				const auto row0 = reinterpret_cast<const __m256i*>(&weights_[offset0]);
 				const auto row1 = reinterpret_cast<const __m256i*>(&weights_[offset1]);
 				const auto row2 = reinterpret_cast<const __m256i*>(&weights_[offset2]);
 				const auto row3 = reinterpret_cast<const __m256i*>(&weights_[offset3]);
 
-#if defined(USE_VNNI)
-				__m256i         sum0   = _mm256_setzero_si256();
-				__m256i         sum1   = _mm256_setzero_si256();
-				__m256i         sum2   = _mm256_setzero_si256();
-				__m256i         sum3   = _mm256_setzero_si256();
-				const IndexType kStart = 0;
-#else
-				__m256i         sum0   = m256_dpbusd_epi32(input_vector[0], row0[0]);
-				__m256i         sum1   = m256_dpbusd_epi32(input_vector[0], row1[0]);
-				__m256i         sum2   = m256_dpbusd_epi32(input_vector[0], row2[0]);
-				__m256i         sum3   = m256_dpbusd_epi32(input_vector[0], row3[0]);
-				const IndexType kStart = 1;
-#endif
+				int j = 0;
+				if (!canSaturate16x4[i / 4]) {
+					for (; j < (int)kNumChunks - 1; j += 2) {
+						const __m256i in0 = input_vector[j];
+						const __m256i in1 = input_vector[j + 1];
 
-				for (IndexType j = kStart; j < kNumChunks; ++j) {
+						m256_add_dpbusd_epi32x2(sum0, in0, row0[j], in1, row0[j + 1]);
+						m256_add_dpbusd_epi32x2(sum1, in0, row1[j], in1, row1[j + 1]);
+						m256_add_dpbusd_epi32x2(sum2, in0, row2[j], in1, row2[j + 1]);
+						m256_add_dpbusd_epi32x2(sum3, in0, row3[j], in1, row3[j + 1]);
+					}
+				}
+				for (; j < (int)kNumChunks; ++j) {
 					const __m256i in = input_vector[j];
 
-#if defined(USE_VNNI)
 					m256_add_dpbusd_epi32(sum0, in, row0[j]);
 					m256_add_dpbusd_epi32(sum1, in, row1[j]);
 					m256_add_dpbusd_epi32(sum2, in, row2[j]);
 					m256_add_dpbusd_epi32(sum3, in, row3[j]);
-#else
-					sum0 = _mm256_add_epi32(sum0, m256_dpbusd_epi32(in, row0[j]));
-					sum1 = _mm256_add_epi32(sum1, m256_dpbusd_epi32(in, row1[j]));
-					sum2 = _mm256_add_epi32(sum2, m256_dpbusd_epi32(in, row2[j]));
-					sum3 = _mm256_add_epi32(sum3, m256_dpbusd_epi32(in, row3[j]));
-#endif
 				}
 
 				*outptr = m256_haddx4(sum0, sum1, sum2, sum3, bias);
 			}
 		} else if constexpr (kOutputDimensions == 1) {
+			__m256i sum0 = _mm256_setzero_si256();
+
 			const auto row0 = reinterpret_cast<const __m256i*>(&weights_[0]);
 
-#if defined(USE_VNNI)
-			__m256i         sum0   = _mm256_setzero_si256();
-			const IndexType kStart = 0;
-#else
-			__m256i sum0 = m256_dpbusd_epi32(input_vector[0], row0[0]);
-			const IndexType kStart = 1;
-#endif
-
-			for (IndexType j = kStart; j < kNumChunks; ++j) {
+			for (IndexType j = 0; j < kNumChunks; ++j) {
 				const __m256i in = input_vector[j];
 
-#if defined(USE_VNNI)
 				m256_add_dpbusd_epi32(sum0, in, row0[j]);
-#else
-				sum0 = _mm256_add_epi32(sum0, m256_dpbusd_epi32(in, row0[j]));
-#endif
 			}
 
 			output[0] = m256_hadd(sum0, biases_[0]);
@@ -570,34 +547,48 @@ class AffineTransform {
 				const __m128i bias   = *reinterpret_cast<const __m128i*>(&biases_[i]);
 				__m128i*      outptr = reinterpret_cast<__m128i*>(&output[i]);
 
+				__m128i sum0 = _mm_setzero_si128();
+				__m128i sum1 = _mm_setzero_si128();
+				__m128i sum2 = _mm_setzero_si128();
+				__m128i sum3 = _mm_setzero_si128();
+
 				const auto row0 = reinterpret_cast<const __m128i*>(&weights_[offset0]);
 				const auto row1 = reinterpret_cast<const __m128i*>(&weights_[offset1]);
 				const auto row2 = reinterpret_cast<const __m128i*>(&weights_[offset2]);
 				const auto row3 = reinterpret_cast<const __m128i*>(&weights_[offset3]);
 
-				__m128i sum0 = m128_dpbusd_epi32(input_vector[0], row0[0]);
-				__m128i sum1 = m128_dpbusd_epi32(input_vector[0], row1[0]);
-				__m128i sum2 = m128_dpbusd_epi32(input_vector[0], row2[0]);
-				__m128i sum3 = m128_dpbusd_epi32(input_vector[0], row3[0]);
+				int j = 0;
+				if (!canSaturate16x4[i / 4]) {
+					for (; j < (int)kNumChunks - 1; j += 2) {
+						const __m128i in0 = input_vector[j];
+						const __m128i in1 = input_vector[j + 1];
 
-				for (int j = 1; j < (int)kNumChunks; ++j) {
+						m128_add_dpbusd_epi32x2(sum0, in0, row0[j], in1, row0[j + 1]);
+						m128_add_dpbusd_epi32x2(sum1, in0, row1[j], in1, row1[j + 1]);
+						m128_add_dpbusd_epi32x2(sum2, in0, row2[j], in1, row2[j + 1]);
+						m128_add_dpbusd_epi32x2(sum3, in0, row3[j], in1, row3[j + 1]);
+					}
+				}
+				for (; j < (int)kNumChunks; ++j) {
 					const __m128i in = input_vector[j];
 
-					sum0 = _mm_add_epi32(sum0, m128_dpbusd_epi32(in, row0[j]));
-					sum1 = _mm_add_epi32(sum1, m128_dpbusd_epi32(in, row1[j]));
-					sum2 = _mm_add_epi32(sum2, m128_dpbusd_epi32(in, row2[j]));
-					sum3 = _mm_add_epi32(sum3, m128_dpbusd_epi32(in, row3[j]));
+					m128_add_dpbusd_epi32(sum0, in, row0[j]);
+					m128_add_dpbusd_epi32(sum1, in, row1[j]);
+					m128_add_dpbusd_epi32(sum2, in, row2[j]);
+					m128_add_dpbusd_epi32(sum3, in, row3[j]);
 				}
 
 				*outptr = m128_haddx4(sum0, sum1, sum2, sum3, bias);
 			}
 		} else if constexpr (kOutputDimensions == 1) {
+			__m128i sum0 = _mm_setzero_si128();
+
 			const auto row0 = reinterpret_cast<const __m128i*>(&weights_[0]);
 
-			__m128i sum0 = m128_dpbusd_epi32(input_vector[0], row0[0]);
+			for (int j = 0; j < (int)kNumChunks; ++j) {
+				const __m128i in = input_vector[j];
 
-			for (int j = 1; j < (int)kNumChunks; ++j) {
-				sum0 = _mm_add_epi32(sum0, m128_dpbusd_epi32(input_vector[j], row0[j]));
+				m128_add_dpbusd_epi32(sum0, in, row0[j]);
 			}
 
 			output[0] = m128_hadd(sum0, biases_[0]);
@@ -607,7 +598,7 @@ class AffineTransform {
 			ASSERT_LV5(false);
 		}
 
-#else  // if not defined (USE_AVX512|USE_AVX2|USE_SSSE3)
+#else
 
 		// Use old implementation for the other architectures.
 
@@ -642,9 +633,8 @@ class AffineTransform {
 			for (IndexType j = 0; j < kNumChunks; ++j) {
 				__m128i row_j             = _mm_load_si128(&row[j]);
 				__m128i input_j           = _mm_load_si128(&input_vector[j]);
-				__m128i row_signs         = _mm_cmpgt_epi8(kZeros, row_j);
-				__m128i extended_row_lo   = _mm_unpacklo_epi8(row_j, row_signs);
-				__m128i extended_row_hi   = _mm_unpackhi_epi8(row_j, row_signs);
+				__m128i extended_row_lo   = _mm_srai_epi16(_mm_unpacklo_epi8(row_j, row_j), 8);
+				__m128i extended_row_hi   = _mm_srai_epi16(_mm_unpackhi_epi8(row_j, row_j), 8);
 				__m128i extended_input_lo = _mm_unpacklo_epi8(input_j, kZeros);
 				__m128i extended_input_hi = _mm_unpackhi_epi8(input_j, kZeros);
 				__m128i product_lo        = _mm_madd_epi16(extended_row_lo, extended_input_lo);
@@ -666,9 +656,8 @@ class AffineTransform {
 			for (IndexType j = 0; j < kNumChunks; ++j) {
 				__m64 row_j             = row[j];
 				__m64 input_j           = input_vector[j];
-				__m64 row_signs         = _mm_cmpgt_pi8(kZeros, row_j);
-				__m64 extended_row_lo   = _mm_unpacklo_pi8(row_j, row_signs);
-				__m64 extended_row_hi   = _mm_unpackhi_pi8(row_j, row_signs);
+				__m64 extended_row_lo   = _mm_srai_pi16(_mm_unpacklo_pi8(row_j, row_j), 8);
+				__m64 extended_row_hi   = _mm_srai_pi16(_mm_unpackhi_pi8(row_j, row_j), 8);
 				__m64 extended_input_lo = _mm_unpacklo_pi8(input_j, kZeros);
 				__m64 extended_input_hi = _mm_unpackhi_pi8(input_j, kZeros);
 				__m64 product_lo        = _mm_madd_pi16(extended_row_lo, extended_input_lo);
@@ -703,7 +692,7 @@ class AffineTransform {
 		_mm_empty();
 #endif
 
-#endif  // not defined (USE_AVX512|USE_AVX2|USE_SSSE3)
+#endif
 
 		return output;
 	}
@@ -722,6 +711,10 @@ class AffineTransform {
 	// パラメータ
 	alignas(kCacheLineSize) BiasType biases_[kOutputDimensions];
 	alignas(kCacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
+	union {
+		uint32_t canSaturate16x4[(kOutputDimensions + 3) / 4];
+		bool     canSaturate16[kOutputDimensions];
+	};
 };
 
 }  // namespace Eval::NNUE::Layers
