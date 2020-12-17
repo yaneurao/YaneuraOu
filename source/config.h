@@ -381,6 +381,20 @@ constexpr int MAX_PLY_NUM = 246;
 
 #endif // defined(YANEURAOU_ENGINE_KPPT) || ...
 
+// --- Deep Learning系のエンジン
+#if defined(YANEURAOU_ENGINE_DEEP)
+	#define ENGINE_NAME "FukauraOu"
+	#define EVAL_DEEP "dlshogi-denryu2020"
+	#define USE_MATE_1PLY
+	#define USE_EVAL
+
+	// ONNXRUNTIMEを用いて推論を行うときは、これをdefineすること。
+	// ※　GPUがなくても動作する。
+	#define ONNXRUNTIME
+
+
+#endif
+
 // --- 詰将棋エンジンとして実行ファイルを公開するとき用の設定集
 
 #if defined(MATE_ENGINE)
@@ -399,7 +413,9 @@ constexpr int MAX_PLY_NUM = 246;
 #if defined(USER_ENGINE)
 	#define ENGINE_NAME "YaneuraOu user engine"
 	#define USE_SEE
+	#define USE_EVAL
 	#define EVAL_MATERIAL
+	#define USE_PIECE_VALUE
 #endif
 
 // --------------------
@@ -649,7 +665,12 @@ constexpr bool pretty_jp = false;
 #elif defined(EVAL_NNUE) // それ以外のNNUEなので標準NNUE halfKP256だと思われる。
 	#define EVAL_TYPE_NAME "NNUE"
 #elif defined(EVAL_DEEP)
+	#if defined(ONNXRUNTIME)
+		#define EVAL_TYPE_NAME "ONNX-" << EVAL_DEEP
+	#else
 	#define EVAL_TYPE_NAME EVAL_DEEP
+	#endif
+
 #else
 	#define EVAL_TYPE_NAME ""
 #endif

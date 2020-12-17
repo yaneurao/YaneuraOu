@@ -228,7 +228,7 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 > makebook think 2016.sfen yaneura_book.db moves 16 depth 32
 	// nodes 100000000 のように、探索node数を指定することもできる。
 
-	※　	やねうら王2018 Otafukuなど、この機能に対応している思考エンジンが必要。
+	※　	やねうら王のLEARN版 など、この機能に対応している思考エンジンが必要。
 
 	2016.sfenという棋譜を読みこみ、その16手目までをdepth 32で思考させて、
 	そのときの上位3手を定跡ファイルに書き出す。
@@ -242,6 +242,7 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 	保存中に終了させるとファイルが破損する可能性がある。
 	前回から新たな指し手が追加されていないときは's'(小文字)を表示して、ファイルには書き出さない。
 	・Contemptの値は無視される。(0だとみなされる)
+	・book_save_interval 秒数  というオプションでbookの保存間隔を指定できる。(デフォルト15分)
 
 	例)
 	Hashメモリ4096MB、スレッド数8(それぞれのスレッドが1局面ずつ担当して検討)、MultiPV 5(それぞれの局面で候補手5手書き出し)、
@@ -649,7 +650,20 @@ makefileを使ってcleanするときに、.oファイルを削除しないと�
 mingw32-make clean YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE
 
 
-■　MSYS2上でNNUE型の評価関数の実行ファイルがビルドできない件
+■　Visual StudioでNNUE型の評価関数の学習用実行ファイル(NNUE-LEARN)がビルドできない件
+
+
+OpenBLASが必要。NuGetでインストールしてしまうのが楽。
+
+Visual StudioのNuGetの使い方
+	クイック スタート: Visual Studio にパッケージをインストールして使用する (Windows のみ)
+	https://docs.microsoft.com/ja-jp/nuget/quickstart/install-and-use-a-package-in-visual-studio
+
+パッケージ名 : OpenBLAS
+
+
+■　MSYS2上でNNUE型の評価関数の学習用実行ファイル(NNUE-LEARN)がビルドできない件
+
 
 OpenBLASが必要なので、まずこれをpacmanで入れます。
 
@@ -781,3 +795,28 @@ PARAM_FUTILITY_MARGIN_QUIET:
 source/engine/yaneuraou-engine/yaneuraou-param.h
 で定義されている値をよさげな方向に動かすとか、何かパラメーターの自動調整フレームワークと
 組み合わせるだとかすると良いでしょう。
+
+
+■　ふかうら王(YaneuraOu-Deep)のビルド手順
+
+ふかうら王をCPUで動かすには、OnnxRuntimeが必要になります。
+Visual Studioでは、NuGetを用いてOnnxRuntimeをインストールするのが手軽です。
+
+Visual StudioのNuGetの使い方
+	クイック スタート: Visual Studio にパッケージをインストールして使用する (Windows のみ)
+	https://docs.microsoft.com/ja-jp/nuget/quickstart/install-and-use-a-package-in-visual-studio
+
+Visual StudioのNuGetでインストールするときのpackage名
+
+	Microsoft.ML.OnnxRuntime.DirectML
+
+また、Windows SDKが必要です。DirectML.hのincludeでコンパイルエラーになる場合は、これが原因です。
+
+// 関連記事)
+// ONNX Runtimeを使ってみる                 : https://tadaoyamaoka.hatenablog.com/entry/2020/05/26/233159
+// ONNX Runtimeを使ってみる その2(性能測定) : https://tadaoyamaoka.hatenablog.com/entry/2020/06/06/190259
+// ONNX Runtimeを使ってみる その3(DirectML) : https://tadaoyamaoka.hatenablog.com/entry/2020/06/07/113616
+
+// あと、"DirectML.dll"もなぜか実行時に必要らしい。
+// 上の記事「その3(DirectML)」によると、dlshogiの実行ファイルからコピーしてくるとよいようだ。
+// 世界将棋AI 電竜戦バージョン（「GCT電竜」同梱） : https://github.com/TadaoYamaoka/DeepLearningShogi/releases/tag/denryu2020

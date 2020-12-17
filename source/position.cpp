@@ -392,7 +392,7 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 
 // 局面のsfen文字列を取得する。
 // Position::set()の逆変換。
-const std::string Position::sfen() const
+const std::string Position::sfen(int gamePly_) const
 {
 	std::ostringstream ss;
 
@@ -458,7 +458,7 @@ const std::string Position::sfen() const
 	ss << (found ? " " : "- ");
 
 	// --- 初期局面からの手数
-	ss << gamePly;
+	ss << gamePly_;
 
 	return ss.str();
 }
@@ -1252,10 +1252,10 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		dp.changed_piece[0].old_piece = evalList.bona_piece(piece_no);
 		evalList.put_piece(piece_no , to, pc);
 		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no);
+#endif
 
 		// piece_no_of()のときにこの手駒の枚数を参照するのであとで更新。
 		sub_hand(hand[Us], pr);
-#endif
 
 		// 王手している駒のbitboardを更新する。
 		// 駒打ちなのでこの駒で王手になったに違いない。駒打ちで両王手はありえないので王手している駒はいまtoに置いた駒のみ。
@@ -1384,13 +1384,14 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #if defined (USE_EVAL_LIST)
 		evalList.put_piece(piece_no2, to, moved_after_pc);
 		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no2);
+#endif
 
 		// 王を移動させる手であるなら、kingSquareを更新しておく。
+		// これを更新しておかないとking_square()が使えなくなってしまう。
 		// 王は駒打できないのでdropの指し手に含まれていることはないから
 		// dropのときにはkingSquareを更新する必要はない。
 		if (type_of(moved_pc) == KING)
 			kingSquare[Us] = to;
-#endif
 
 		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
 		k -= Zobrist::psq[from][moved_pc];

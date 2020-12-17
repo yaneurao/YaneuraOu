@@ -36,6 +36,8 @@ namespace USI {
 		// 並列探索するときのスレッド数
 		// CPUの搭載コア数をデフォルトとすべきかも知れないが余計なお世話のような気もするのでしていない。
 
+#if !defined(YANEURAOU_ENGINE_DEEP)
+
 		// ※　やねうら王独自改良
 		// スレッド数の変更やUSI_Hashのメモリ確保をそのハンドラでやってしまうと、
 		// そのあとThreadIdOffsetや、LargePageEnableを送られても困ることになる。
@@ -44,6 +46,7 @@ namespace USI {
 		// Stockfishもこうすべきだと思う。
 
 		o["Threads"] << Option(4, 1, 512, [](const Option& o) { /* Threads.set(o); */ });
+#endif
 
 #if !defined(MATE_ENGINE)
 		// 置換表のサイズ。[MB]で指定。

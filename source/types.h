@@ -586,7 +586,7 @@ struct Move16
 	// Moveに変換が必要なときは、そのあとMove()にcastすることはできる。(上位16bitは0のまま)
 	// 内部的に用いる。基本的にはこの関数を呼び出さないこと。
 	// このMove16のinstanceをMoveに戻したい時は、Position::to_move(Move16)を使うこと。
-	uint16_t to_u16() const { return (u16)move; }
+	constexpr uint16_t to_u16() const { return (u16)move; }
 
 	// 比較
 	// Move16同士とMoveの定数とも比較はできる。
@@ -616,15 +616,17 @@ static    bool is_drop(Move16 m){ return (m.to_u16() & MOVE_DROP)!=0; }
 
 // fromとtoをシリアライズする。駒打ちのときのfromは普通の移動の指し手とは異なる。
 // この関数は、0 ～ ((SQ_NB+7) * SQ_NB - 1)までの値が返る。
-constexpr int from_to(Move m  ) { return (int)(from_sq(m) + (is_drop(m) ? (SQ_NB - 1) : 0)) * (int)SQ_NB + (int)to_sq(m); }
+constexpr int from_to(Move   m) { return (int)(from_sq(m) + (is_drop(m) ? (SQ_NB - 1) : 0)) * (int)SQ_NB + (int)to_sq(m); }
 static    int from_to(Move16 m) { return (int)(from_sq(m) + (is_drop(m) ? (SQ_NB - 1) : 0)) * (int)SQ_NB + (int)to_sq(m); }
 
 // 指し手が成りか？
 constexpr bool is_promote(Move m) { return (m & MOVE_PROMOTE)!=0; }
+static    bool is_promote(Move16 m) { return (m.to_u16() & MOVE_PROMOTE)!=0; }
 
 // 駒打ち(is_drop()==true)のときの打った駒
 // 先後の区別なし。PAWN～ROOKまでの値が返る。
 constexpr PieceType move_dropped_piece(Move m) { return (PieceType)((m >> 7) & 0x7f); }
+static    PieceType move_dropped_piece(Move16 m) { return (PieceType)((m.to_u16() >> 7) & 0x7f); }
 
 // us側のptをfromからtoに移動させる指し手を生成して返す。
 // Move16を返すほうは、移動させる駒が何かの情報は持っていない。

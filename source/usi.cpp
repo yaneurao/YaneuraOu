@@ -289,11 +289,32 @@ void is_ready(bool skipCorruptCheck)
 	// --- Keep Alive的な処理ここまで ---
 
 	// スレッドを先に生成しないとUSI_Hashで確保したメモリクリアの並列化が行われなくて困る。
+
+#if defined(YANEURAOU_ENGINE_DEEP)
+
+	// ここ、max_gpu == 8固定として扱っている。あとで修正する。(かも)
+	int threads_num =
+		(int)Options["UCT_Threads1"] + (int)Options["UCT_Threads2"] + (int)Options["UCT_Threads3"] + (int)Options["UCT_Threads4"] +
+		(int)Options["UCT_Threads5"] + (int)Options["UCT_Threads6"] + (int)Options["UCT_Threads7"] + (int)Options["UCT_Threads8"];
+
+	Threads.set(std::max(threads_num,1));
+#else
 	Threads.set(size_t(Options["Threads"]));
+#endif
 
 #if defined (USE_EVAL_HASH)
 	Eval::EvalHash_Resize(Options["EvalHash"]);
 #endif
+
+	// 評価関数の読み込み
+
+#if defined(YANEURAOU_ENGINE_DEEP)
+
+	// 毎回、load_eval()は呼び出すものとする。
+	// モデルファイル名に変更がなければ、再読み込みされないような作りになっているならばこの実装のほうがシンプル。
+	Eval::load_eval();
+
+#else
 
 	// 評価関数の読み込みなど時間のかかるであろう処理はこのタイミングで行なう。
 	// 起動時に時間のかかる処理をしてしまうと将棋所がタイムアウト判定をして、思考エンジンとしての認識をリタイアしてしまう。
@@ -317,6 +338,7 @@ void is_ready(bool skipCorruptCheck)
 		if (!skipCorruptCheck && eval_sum != Eval::calc_check_sum())
 			sync_cout << "Error! : EVAL memory is corrupted" << sync_endl;
 	}
+#endif
 
 	// isreadyに対してはreadyokを返すまで次のコマンドが来ないことは約束されているので
 	// このタイミングで各種変数の初期化もしておく。

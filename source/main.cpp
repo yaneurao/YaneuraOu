@@ -20,7 +20,7 @@ int main(int argc, char* argv[])
 	Bitboards::init();
 	Position::init();
 	Search::init();
-	Threads.set(Options["Threads"]);
+	Threads.set(std::max((size_t)Options["Threads"],size_t(1)));
 	//Search::clear();
 	Eval::init();
 

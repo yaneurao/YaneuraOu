@@ -238,6 +238,74 @@ USIプロトコルの独自拡張コマンド
 		0 だと最弱。(R2000以上弱くなる) Stockfishの"Skill Level"をそのまま移植。
 
 
+	// ふかうら王(dlshogi互換エンジン)の場合
+
+	・dlshogiのほうの設定の説明も確認すること。
+		世界将棋AI 電竜戦バージョン（「GCT電竜」同梱）
+		https://github.com/TadaoYamaoka/DeepLearningShogi/releases/tag/denryu2020
+
+	ReuseSubtree
+		探索したノードを次の手番のときに再利用するかのフラグ
+
+	Resign_Threshold		 : 投了値                 : 1000分率で
+		この値を下回った時に投了する。0なら最後まで投了しない。
+
+	Draw_Value_Black		 : 先手の引き分けの時の値 : 1000分率で
+	Draw_Value_White         : 後手の引き分けの時の値 : 1000分率で
+
+		Draw_Value_Blackを1000(期待勝率 100%の意味)に設定すれば、先手は引き分けを勝ちだとみなすことになるので
+		先手をもったコンピューターは積極的に千日手を狙うことになります。
+		逆に、0(期待勝率 0%の意味)に設定すれば、引き分けを負けだとみなすことになるので、積極的に千日手を回避
+		るすようになります。
+
+	Draw_Value_From_Black
+
+		これがtrueであるなら、root color(探索開始局面の手番)が後手なら、
+		Draw_Value_BlackとDraw_Value_Whiteの値を入れ替えたものとみなす。
+
+		大会では「(自分が先手か後手かはわからないけど)自分はできれば千日手を狙いたくて、
+		相手のソフトは千日手を引き分けだとみなしている」状況では、root color(開始局面の手番)と、
+		root colorの反対の手番(相手のcolor)に対して、それぞれ、0.7 , 0.5のように設定したいことがある。
+		これを実現するために、root colorが後手なら、Draw_Value_BlackとDraw_Value_Whiteを入れ替えてくれる
+		オプションがあれば良い。それがこれ。
+
+	DNN_Model1 ～ 8
+	UCT_Threads1 ～ 8
+	DNN_Batch_Size1 ～ 8
+
+		各GPU用のDNNモデル名(評価関数ファイルの名前)と、そのGPU用のUCT探索のスレッド数と、
+		そのGPUに一度に何個の局面をまとめて評価(推論)を行わせるのか。GPUは最大で8個まで扱える。
+
+		DNN_Batch_Size1～8 は、通常時の推奨128 , 検討の時は推奨256。
+
+		DNN_Model2～8は、""である(何も設定されていない)場合、DNN_Model1の値が採用される。(そのスレッド数に1以上が設定されているとき)
+		DNN_Batch_Size2～8は、0が設定されている場合、DNN_Batch_Size1の値が採用される。(そのスレッド数に1以上が設定されているとき)
+		例) 
+			UCT_Threads2 = 8  ← GPU2に割り当てるスレッド数が8
+			DNN_Model2 = ""   ← GPU2用のモデル名はないが、↑でスレッドを割り当てているので、DNN_Model1で指定したモデルがGPU2用に読み込まれる。
+			DNN_Batch_Size2 = 0 ← GPU2用のバッチサイズは0だが、↑でスレッドを割り当てているので、GPU2用のバッチサイズは、DNN_Batch_Size1の値と同じになる。
+
+
+
+	DebugMessage
+
+		デバッグ用のメッセージ出力の有無。
+
+	UCT_NodeLimit
+
+		探索するときに調べたNode数に比例してメモリを使用するが、このNodeをいくつ作るかという制限。
+		これに比例したメモリが必要となる。
+		NodesLimitは、これとは異なり、単に探索したノード数の制限。
+
+
+	★　dlshogiとの違いについて
+
+		// EvalDir　　　 →　dlshogiではサポートされていないが、やねうら王は、EvalDirにあるモデルファイルを読み込むようにする。
+
+		// 以下も、探索パラメーターだから、いらない。開発側が最適値にチューニングすべきという考え。
+		// C_fpu_reduction , C_fpu_reduction_root , C_init , C_base , C_init_root , C_base_root
+
+
 ・getoption
 
 
