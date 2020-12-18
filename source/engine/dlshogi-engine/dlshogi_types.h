@@ -35,9 +35,14 @@ namespace dlshogi
 	constexpr WinCountType VALUE_DRAW =   FLT_MAX / 2;
 
 	// UctSearcher::UctSearch()の返し値として使う。
-	// 探索の結果を評価のキューに追加したか、破棄したか。
+	// 探索の結果を評価関数の呼び出しキューに追加したか、破棄したか。
+
+	// 評価関数の呼び出しキューに追加した。
 	constexpr float QUEUING   =  FLT_MAX;
-	constexpr float DISCARDED = -FLT_MAX; // 他のスレッドがすでにこのnodeの評価関数の呼び出しをしたあとであったので、何もせずにリターンしたことを示す。
+
+	// 他のスレッドがすでにこのnodeの評価関数の呼び出しをしたあとであった(処理はまだ完了していない)ので、
+	// 何もせずにリターンしたことを示す。
+	constexpr float DISCARDED = -FLT_MAX;
 
 
 }

@@ -352,10 +352,16 @@
     <ClInclude Include="engine\dlshogi-engine\dlshogi_searcher.h">
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClInclude>
-    <ClInclude Include="eval\deep\nn_evaluate.h">
+    <ClInclude Include="eval\deep\nn.h">
       <Filter>リソース ファイル\eval\deep</Filter>
     </ClInclude>
-    <ClInclude Include="eval\deep\nn_gpu.h">
+    <ClInclude Include="eval\deep\nn_onnx_runtime.h">
+      <Filter>リソース ファイル\eval\deep</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\deep\nn_tensorrt.h">
+      <Filter>リソース ファイル\eval\deep</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\deep\nn_types.h">
       <Filter>リソース ファイル\eval\deep</Filter>
     </ClInclude>
   </ItemGroup>
@@ -528,10 +534,16 @@
     <ClCompile Include="engine\dlshogi-engine\YaneuraOu_dlshogi_bridge.cpp">
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClCompile>
-    <ClCompile Include="eval\deep\nn_evaluate.cpp">
+    <ClCompile Include="eval\deep\nn.cpp">
       <Filter>リソース ファイル\eval\deep</Filter>
     </ClCompile>
-    <ClCompile Include="eval\deep\nn_gpu.cpp">
+    <ClCompile Include="eval\deep\nn_onnx_runtime.cpp">
+      <Filter>リソース ファイル\eval\deep</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\deep\nn_tensorrt.cpp">
+      <Filter>リソース ファイル\eval\deep</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\deep\nn_types.cpp">
       <Filter>リソース ファイル\eval\deep</Filter>
     </ClCompile>
   </ItemGroup>
@@ -552,6 +564,9 @@
       <Filter>script</Filter>
     </Text>
     <Text Include="..\docs\最初に：やねうら王遊び方説明.txt">
+      <Filter>docs</Filter>
+    </Text>
+    <Text Include="..\docs\ふかうら王に関する資料.txt">
       <Filter>docs</Filter>
     </Text>
   </ItemGroup>
@@ -579,5 +594,10 @@
     </None>
     <None Include="packages.config" />
     <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
+    <None Include="..\.editorconfig" />
+    <None Include="..\.gitattributes" />
+    <None Include="..\.gitignore" />
+    <None Include="..\README.md" />
+    <None Include="..\script\bench.py" />
   </ItemGroup>
 </Project>

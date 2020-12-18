@@ -469,8 +469,10 @@
     <ClInclude Include="engine\yaneuraou-engine\yaneuraou-param.h" />
     <ClInclude Include="engine\yaneuraou-engine\yaneuraou-param_gen.h" />
     <ClInclude Include="evaluate.h" />
-    <ClInclude Include="eval\deep\nn_evaluate.h" />
-    <ClInclude Include="eval\deep\nn_gpu.h" />
+    <ClInclude Include="eval\deep\nn_types.h" />
+    <ClInclude Include="eval\deep\nn.h" />
+    <ClInclude Include="eval\deep\nn_onnx_runtime.h" />
+    <ClInclude Include="eval\deep\nn_tensorrt.h" />
     <ClInclude Include="eval\evalhash.h" />
     <ClInclude Include="eval\evaluate_io.h" />
     <ClInclude Include="eval\evaluate_common.h" />
@@ -549,8 +551,10 @@
     <ClCompile Include="engine\mate-engine\mate-search.cpp" />
     <ClCompile Include="engine\user-engine\user-search.cpp" />
     <ClCompile Include="engine\yaneuraou-engine\yaneuraou-search.cpp" />
-    <ClCompile Include="eval\deep\nn_evaluate.cpp" />
-    <ClCompile Include="eval\deep\nn_gpu.cpp" />
+    <ClCompile Include="eval\deep\nn_types.cpp" />
+    <ClCompile Include="eval\deep\nn.cpp" />
+    <ClCompile Include="eval\deep\nn_onnx_runtime.cpp" />
+    <ClCompile Include="eval\deep\nn_tensorrt.cpp" />
     <ClCompile Include="eval\evaluate_bona_piece.cpp" />
     <ClCompile Include="eval\evaluate_io.cpp" />
     <ClCompile Include="eval\evaluate.cpp" />
@@ -594,6 +598,7 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt" />
+    <Text Include="..\docs\ふかうら王に関する資料.txt" />
     <Text Include="..\docs\やねうら大定跡.txt" />
     <Text Include="..\docs\更新履歴.txt" />
     <Text Include="..\docs\最初に：やねうら王遊び方説明.txt" />

@@ -1,83 +1,27 @@
-#include "nn_gpu.h"
+ï»¿#include "nn_onnx_runtime.h"
 
-#if defined(YANEURAOU_ENGINE_DEEP)
+#if defined(YANEURAOU_ENGINE_DEEP) && defined(ONNXRUNTIME)
 
 //#include "dlshogi_types.h"
 
-#if defined (ONNXRUNTIME)
-	#include <dml_provider_factory.h>
-	// ¨@‚±‚±‚ÅDirectML.h ‚ªŒ©‚Â‚©‚ç‚È‚¢‚ÆƒGƒ‰[‚ªo‚é‚È‚ç Windows SDK‚ÌÅV”Å‚ğƒCƒ“ƒXƒg[ƒ‹‚·‚é‚±‚ÆB
-	//	   https://github.com/microsoft/DirectML/issues/1
-#endif
+#include <dml_provider_factory.h>
+// â†’ã€€ã“ã“ã§DirectML.h ãŒè¦‹ã¤ã‹ã‚‰ãªã„ã¨ã‚¨ãƒ©ãƒ¼ãŒå‡ºã‚‹ãªã‚‰ Windows SDKã®æœ€æ–°ç‰ˆã‚’ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã™ã‚‹ã“ã¨ã€‚
+//	   https://github.com/microsoft/DirectML/issues/1
 
 using namespace std;
 using namespace Tools;
 
 namespace Eval::dlshogi
 {
-	// forward‚É“n‚·ƒƒ‚ƒŠ‚ÌŠm•Û
-	void* NN::alloc(size_t size)
-	{
-		void* ptr;
-#if defined (ONNXRUNTIME)
-		ptr = (void*)new u8[size];
-#else
-		checkCudaErrors(cudaHostAlloc(&ptr, size, cudaHostAllocPortable));
-#endif
-
-		return ptr;
-	}
-
-	// alloc()‚ÅŠm•Û‚µ‚½ƒƒ‚ƒŠ‚ÌŠJ•ú
-	void NN::free(void*ptr)
-	{
-
-#if defined (ONNXRUNTIME)
-		delete[] (u8*)ptr;
-#else
-		checkCudaErrors(cudaFreeHost(ptr));
-#endif
-
-	}
-	
-	// ƒ‚ƒfƒ‹ƒtƒ@ƒCƒ‹–¼‚ğ“n‚·‚Æ‚»‚ê‚É‰‚¶‚½NN”h¶ƒNƒ‰ƒX‚ğbuild‚µ‚Ä•Ô‚µ‚Ä‚­‚ê‚éBƒfƒUƒpƒ^‚ÅŒ¾‚¤‚Æ‚±‚ë‚ÌbuilderB
-	std::shared_ptr<NN> NN::build_nn(const std::string& model_path , int gpu_id)
-	{
-		shared_ptr<NN> nn;
-#if defined (ONNXRUNTIME)
-		nn = std::make_unique<NNOnnxRuntime>();
-#else
-		if (model_filename.find("onnx") != string::npos)
-			nn = std::make_unique<NNTensorRT>();
-		else if (model_path[gpu_id].find("wideresnet15") != string::npos)
-			nn = std::make_unique<NNWideResnet15>();
-		else if (model_path[gpu_id].find("fused_wideresnet10") != string::npos)
-			nn = std::make_unique<NNFusedWideResnet10>();
-		else if (model_path[gpu_id].find("senet10") != string::npos)
-			nn = std::make_unique<NNSENet10>();
-		else
-			nn = std::make_unique<NNWideResnet10>();
-#endif
-
-		if (nn->load(model_path , gpu_id).is_not_ok())
-		{
-			sync_cout << "Error! : read error , model path = " << model_path << sync_endl;
-		}
-
-		return nn;
-	}
-
-	// ---- NNOnnxRuntime
-
-	// ƒ‚ƒfƒ‹ƒtƒ@ƒCƒ‹‚Ì“Ç‚İ‚İB
-	Result NNOnnxRuntime::load(const std::string& model_filename , int gpu_id)
+	// ãƒ¢ãƒ‡ãƒ«ãƒ•ã‚¡ã‚¤ãƒ«ã®èª­ã¿è¾¼ã¿ã€‚
+	Result NNOnnxRuntime::load(const std::string& model_filename , int gpu_id , int batch_size)
 	{
 		Ort::SessionOptions session_options;
 		session_options.DisableMemPattern();
 		session_options.SetExecutionMode(ORT_SEQUENTIAL);
 		Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_DML(session_options, gpu_id));
 
-		// WindowsŠÂ‹«‚Å‚Íwstring‚Åƒtƒ@ƒCƒ‹–¼‚ğ“n‚·•K—v‚ª‚ ‚é‚æ‚¤‚¾‚ªH
+		// Windowsç’°å¢ƒã§ã¯wstringã§ãƒ•ã‚¡ã‚¤ãƒ«åã‚’æ¸¡ã™å¿…è¦ãŒã‚ã‚‹ã‚ˆã†ã ãŒï¼Ÿ
 		std::wstring onnx_filename = MultiByteToWideChar(model_filename);
 		//std::string onnx_filename(filename);
 
@@ -86,7 +30,7 @@ namespace Eval::dlshogi
 		return ResultCode::Ok;
 	}
 
-	// NN‚É‚æ‚é„˜_
+	// NNã«ã‚ˆã‚‹æ¨è«–
 	void NNOnnxRuntime::forward(const int batch_size, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2)
 	{
 		// input
@@ -120,4 +64,5 @@ namespace Eval::dlshogi
 } // namespace Eval::dlshogi
 
 
-#endif // defined(YANEURAOU_ENGINE_DEEP)
+#endif // defined(YANEURAOU_ENGINE_DEEP) && defined(ONNXRUNTIME)
+

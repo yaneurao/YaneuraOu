@@ -799,7 +799,13 @@ source/engine/yaneuraou-engine/yaneuraou-param.h
 
 ■　ふかうら王(YaneuraOu-Deep)のビルド手順
 
-ふかうら王をCPUで動かすには、OnnxRuntimeが必要になります。
+ふかうら王をCPUで動かすには、
+
+1) OnnxRuntime
+2) CUDA + TensorRT
+のいずれかが必要になります。(NVIDIAのGPUを搭載しているPCなら後者のほうがパフォーマンスが高い)
+
+1)
 Visual Studioでは、NuGetを用いてOnnxRuntimeをインストールするのが手軽です。
 
 Visual StudioのNuGetの使い方
@@ -820,3 +826,33 @@ Visual StudioのNuGetでインストールするときのpackage名
 // あと、"DirectML.dll"もなぜか実行時に必要らしい。
 // 上の記事「その3(DirectML)」によると、dlshogiの実行ファイルからコピーしてくるとよいようだ。
 // 世界将棋AI 電竜戦バージョン（「GCT電竜」同梱） : https://github.com/TadaoYamaoka/DeepLearningShogi/releases/tag/denryu2020
+
+2)
+https://github.com/TadaoYamaoka/DeepLearningShogi/releases/tag/denryu2020
+の手順を参考にしてください。
+
+   > cuDNN 8.0をダウンロードして、cudaディレクトリの中身（cudaディレクトリごとではないので注意）をCUDAのインストールディレクトに上書きコピーする。
+   > 環境変数PATHの設定
+   > 環境変数PATHに、CUDAのbinディレクトリを追加する。
+   > デフォルトのインストールディレクトリの場合、以下のパスになる。
+   > C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\bin
+   > 環境変数PATHに、TensorRTのlibディレクトリを追加する。
+   > C:\に解凍した場合、以下のパスになる。
+   > C:\TensorRT-7.2.1.6\lib
+   - %CUDA_PATH%がCUDAのインストール先になっているはずなので
+     - %CUDA_PATH%\bin
+     - C:\TensorRT-7.2.1.6\lib
+    と追加すればよさげ。
+
+      CUDA Toolkitは以下にあるものとします。
+        include  = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include
+        lib path = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64
+                                                                 // ↑64bit版の場合 , 32bit版の場合は "lib\x86"
+                                                                 // cudart.lib が必要。
+       TensorRTは以下のフォルダにあるものとします。
+        C:\TensorRT-7.2.1.6\include
+        C:\TensorRT-7.2.1.6\lib
+                        // nvinfer.lib , nvonnxparser.lib が必要
+
+      YaneuraOuEdition-Deep.propというプロパティシートでこのフォルダを追加のinclude/libフォルダとして指定してあるので
+      適宜修正して使ってください。

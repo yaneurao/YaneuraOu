@@ -142,7 +142,7 @@ namespace Eval::dlshogi
 
 	// エンジンオプションで設定されたモデルファイル名。(フォルダ名含む)
 	// このsize() == max_gpuのはず。
-	// Eval::init()で初期化されている。
+	// "isready"で初期化されている。
 	extern std::vector<std::string> ModelPaths;
 
 } // namespace Eval::dlshogi

@@ -8,8 +8,8 @@
 
 // この探索部は、NN専用なので直接読み込む。
 
-#include "../../eval/deep/nn_evaluate.h"
-#include "../../eval/deep/nn_gpu.h"
+#include "../../eval/deep/nn_types.h"
+#include "../../eval/deep/nn.h"
 
 using namespace Eval::dlshogi;
 
@@ -23,7 +23,7 @@ namespace dlshogi
 	class UctSearcherGroup
 	{
 	public:
-		UctSearcherGroup() :  threads(0) , gpu_id(-1) , policy_value_batch_maxsize(0) {}
+		UctSearcherGroup() :  threads(0) , gpu_id(-1) , policy_value_batch_maxsize(0) , alloced_policy_value_batch_maxsize(0){}
 
 		// 初期化
 		// "isready"に対して呼び出される。
@@ -43,11 +43,20 @@ namespace dlshogi
 
 			mutex_gpu.lock();
 
-			// やねうら王独自拡張 : モデルpathが異なる時だけ生成しなおす。
-			if (this->model_path != model_path)
+			// やねうら王独自拡張 : モデルpathが異なる時か、batchsizeが異なるかした時だけ生成しなおす。
+			// batchsizeは、forward()するためのbufferをGPU側でメモリを確保しないといけないので、この値が変わった時には
+			// バッファの再確保が必要となる。
+			if (this->model_path != model_path || policy_value_batch_maxsize != alloced_policy_value_batch_maxsize)
 			{
-				nn = NN::build_nn(model_path, gpu_id);
+				// 以前のやつを先に開放しないと次のを確保するメモリが足りないかも知れない。
+				if (nn)
+					nn.reset();
+
+				nn = NN::build_nn(model_path, gpu_id, policy_value_batch_maxsize);
+
+				// 次回、このmodel_pathかalloced_policy_value_batch_maxsizeに変更があれば、再度NNをbuildする。
 				this->model_path = model_path;
+				this->alloced_policy_value_batch_maxsize = policy_value_batch_maxsize;
 			}
 			this->gpu_id = gpu_id;
 
@@ -113,6 +122,9 @@ namespace dlshogi
 		// このインスタンスが生成したスレッドがNNのforward()を呼び出す時のbatchsize
 		// Initialize()で引数として渡される。
 		int policy_value_batch_maxsize;
+
+		// 前回のInitGPU()の時のpolicy_value_batch_maxsizeの値
+		int alloced_policy_value_batch_maxsize;
 
 		// ↑のnnにアクセスする時のmutex
 		std::mutex mutex_gpu;

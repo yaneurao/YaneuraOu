@@ -1,4 +1,4 @@
-﻿#include "nn_evaluate.h"
+﻿#include "nn_types.h"
 
 #if defined(EVAL_DEEP)
 #include "../../usi.h"
@@ -11,8 +11,8 @@ namespace
 	// 指し手に対して、Policy Networkの返してくる配列のindexを返すためのテーブル
 	// Eval::init()で初期化する。
 	u16 MoveLabel[0x10000][COLOR_NB];
-
 }
+
 
 namespace Eval::dlshogi
 {
@@ -386,9 +386,12 @@ namespace Eval
 		}
 
 		// モデルファイル(NNで使う評価関数ファイル)の確認。
+		// これは"isready"に対して毎回初期化する。(ファイル名が変わるかも知れないので)
 		dlshogi::init_model_paths();
 	}
 
+	// 考え中。
+	// NN::forward()を呼ぶ実装にするかも。
 	Value evaluate(const Position& pos) { return VALUE_ZERO; }
 }
 

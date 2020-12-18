@@ -821,7 +821,7 @@ namespace dlshogi
 
 			// po_info.node_limit を超えたら打ち切る
 			auto& node_searched = ds->search_limit.node_searched;
-			if (!pondering && node_limit > 0 && node_searched > node_limit) {
+			if (!pondering && node_limit > 0 && node_searched >= node_limit) {
 				/*if (monitoring_thread)
 					cout << "info string interrupt_node_limit" << endl;*/
 				break;

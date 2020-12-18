@@ -139,7 +139,11 @@ namespace dlshogi::UctPrint
 	{
 		std::vector<BestMove> bests;
 
-		if (node->child_num == 0 || node->move_count == 0 /* Evalはされているが、nnrateまで拾う意味はないと思うので、無視する。*/)
+		// node->child_num != 0であるなら、ノードは展開されてはいるが、move_count == 0 であるなら、
+		// この時、nnrateまで拾う意味はないと思うので、無視する。
+		// そもそもrootはExpandRoot()で展開されているし、そのあと、1ノードでも読めば、どの子かは展開されているはずだから、
+		// rootの1番目の指し手自体は存在するはず。(2番目以降は存在性を保証しなくていいと思う)
+		if (node->child_num == 0 || node->move_count == 0 )
 			return bests;
 
 		// 子ノードすべてから、上位multiPv個の優れたChildNodeを選択してそれを返す。

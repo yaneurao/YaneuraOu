@@ -11,7 +11,7 @@
 #include "UctSearch.h"
 #include "dlshogi_searcher.h"
 
-#include "../../eval/deep/nn_evaluate.h"
+#include "../../eval/deep/nn_types.h"
 
 // やねうら王フレームワークと、dlshogiの橋渡しを行うコード
 
