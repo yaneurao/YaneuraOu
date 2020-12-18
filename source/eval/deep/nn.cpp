@@ -25,7 +25,6 @@ namespace Eval::dlshogi
 #else
 		checkCudaErrors(cudaHostAlloc(&ptr, size, cudaHostAllocPortable));
 #endif
-
 		return ptr;
 	}
 

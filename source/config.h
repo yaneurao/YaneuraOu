@@ -274,6 +274,11 @@ constexpr int MAX_PLY_NUM = 246;
 // 評価関数側で定義しないといけない。これらの評価関数を用いないなら、これは定義しないこと。
 //#define USE_EVAL
 
+// ふかうら王で、ONNXRUNTIMEを用いて推論を行うときは、これをdefineすること。
+// ※　GPUがなくても動作する。
+//#define ONNXRUNTIME
+
+
 // ---------------------
 // 探索パラメーターの自動調整用
 // ---------------------
@@ -387,10 +392,11 @@ constexpr int MAX_PLY_NUM = 246;
 	#define EVAL_DEEP "dlshogi-denryu2020"
 	#define USE_MATE_1PLY
 	#define USE_EVAL
+	#define USE_TIME_MANAGEMENT
 
 	// ONNXRUNTIMEを用いて推論を行うときは、これをdefineすること。
 	// ※　GPUがなくても動作する。
-	#define ONNXRUNTIME
+	//#define ONNXRUNTIME
 
 
 #endif

@@ -28,21 +28,19 @@ namespace dlshogi
 		// 0 なら制限されていない。これが0以外の時は、↓↓の項目が有効。
 		NodeCountType node_limit = 0;
 		
-		// 先後に対する残りの持ち時間
-		TimePoint remaining_time[COLOR_NB];
-
-		// 1手の最小思考時間
-		// 0 なら設定されておらず。
-		TimePoint minimum_time;
-
-		// 今回の思考時間目安。
-		// 0なら、思考時間制限はない。
-		// 直接取得せずにDlshogiSearcher::GetTimeLimit()を用いて取得すること。
-		TimePoint time_limit;
+		// 持ち時間制御用
+		Timer time_manager;
 
 		// 思考時間の延長が可能なのか。
 		// ※　思考時間が固定ではなく、ノード数固定でもないなら、探索の状況によっては時間延長してもよい。
-		bool extend_time;
+		//bool extend_time;
+		// →　やねうら王のtime managerを用いるので不要。
+
+		// 思考時間固定
+		// 0なら、思考時間制限はない。
+		TimePoint time_limit;
+
+		// -- 探索開始局面の情報
 
 		// 今回の探索のrootColor
 		// ※　draw_value_from_blackの実装のためにこここに持っておく必要がある。
@@ -58,7 +56,8 @@ namespace dlshogi
 		std::atomic<NodeCountType> node_searched;
 
 		// 探索停止フラグ。これがtrueになれば探索は強制打ち切り。
-		std::atomic<bool> uct_search_stop;
+		// →　やねうら王では使わない。Threads.stopかsearch_limit.interruptionを使う。
+		//std::atomic<bool> uct_search_stop;
 
 		// 探索している時間を計測する用のtimer
 		// 探索開始時にresetされる。
@@ -66,6 +65,9 @@ namespace dlshogi
 
 		// 最後にPVを出力した時刻(begin_time相対)
 		TimePoint last_pv_print;
+
+		// ponder modeでsearch()が呼び出されているかのフラグ。
+		bool pondering;
 
 		// 中断用フラグ
 		// これがtrueになると全スレッドは探索を終了する。
@@ -122,7 +124,9 @@ namespace dlshogi
 
 		// 予測読みの設定
 		// エンジンオプションの"USI_Ponder"の値。
-		bool pondering_mode = false;
+		// これがtrueのときだけ "bestmove XXX ponder YYY" のようにponderの指し手を返す。
+		// ※　dlshogiは変数名pondering_mode。
+		bool usi_ponder = false;
 
 		// エンジンオプションの "UCT_NodeLimit" の値。
 		// これは、Nodeを作る数の制限。これはメモリ使用量に影響する。
@@ -141,8 +145,9 @@ namespace dlshogi
 		DlshogiSearcher();
 		~DlshogiSearcher(){ FinalizeUctSearch(); }
 
-		// pondering modeの設定
-		// "USI_Ponder"の値が反映する。
+		// エンジンオプションの"USI_Ponder"の値をセットする。
+		// "bestmove XXX ponder YYY"
+		// のようにponderの指し手を返すようになる。
 		void SetPonderingMode(bool flag);
 
 		// 各UctSearchThreadGroupに属するそれぞれのスレッド数と、各スレッドごとのNNのbatch sizeの設定
@@ -180,7 +185,8 @@ namespace dlshogi
 		}
 
 		// 1手にかける時間取得[ms]
-		TimePoint GetTimeLimit() const;
+		//TimePoint GetTimeLimit() const;
+		// →　search_limit.time_limitから取得すればいいか…。
 
 		//  ノード再利用の設定
 		//    flag : 探索したノードの再利用をするのか
@@ -220,7 +226,7 @@ namespace dlshogi
 		//   gameRootSfen  : 対局開始局面のsfen文字列(探索開始局面ではない)
 		//   moves         : 探索開始局面からの手順
 		//   ponderMove    : ponderの指し手 [Out]
-		//   ponder        : ponder modeで呼び出されているのかのフラグ。
+		//   ponder        : ponder mode("go ponder")で呼び出されているのかのフラグ。
 		//            このフラグがtrueであるなら、この関数はMOVE_NONEしか返さない。
 		//   start_threads : この関数を呼び出すと全スレッドがParallelUctSearch()を呼び出して探索を開始するものとする。
 		// 返し値 : この局面でのbestな指し手
@@ -243,9 +249,6 @@ namespace dlshogi
 
 		// デバッグ用のメッセージの出力を行うかのフラグ。
 		bool debug_message = false;
-
-		// ponder modeでsearch()が呼び出されているかのフラグ。
-		bool pondering;
 
 		// プレイアウト情報。
 		// 探索打ち切り条件などはここに格納されている。

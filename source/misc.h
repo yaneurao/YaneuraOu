@@ -264,7 +264,7 @@ struct Timer
 #if defined(USE_TIME_MANAGEMENT)
 
   // 今回の思考時間を計算して、optimum(),maximum()が値をきちんと返せるようにする。
-	void init(Search::LimitsType& limits, Color us, int ply);
+	void init(const Search::LimitsType& limits, Color us, int ply);
 
 	TimePoint minimum() const { return minimumTime; }
 	TimePoint optimum() const { return optimumTime; }

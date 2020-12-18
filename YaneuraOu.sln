@@ -7,8 +7,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "YaneuraOu", "source\Yaneura
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug-Deep|x64 = Debug-Deep|x64
-		Debug-Deep|x86 = Debug-Deep|x86
+		Debug-Deep-ONNX|x64 = Debug-Deep-ONNX|x64
+		Debug-Deep-ONNX|x86 = Debug-Deep-ONNX|x86
+		Debug-Deep-TensorRT|x64 = Debug-Deep-TensorRT|x64
+		Debug-Deep-TensorRT|x86 = Debug-Deep-TensorRT|x86
 		Debug-mate|x64 = Debug-mate|x64
 		Debug-mate|x86 = Debug-mate|x86
 		Debug-Material|x64 = Debug-Material|x64
@@ -19,6 +21,10 @@ Global
 		Debug-user|x86 = Debug-user|x86
 		Release-Deep|x64 = Release-Deep|x64
 		Release-Deep|x86 = Release-Deep|x86
+		Release-Deep-ONNX|x64 = Release-Deep-ONNX|x64
+		Release-Deep-ONNX|x86 = Release-Deep-ONNX|x86
+		Release-Deep-TensorRT|x64 = Release-Deep-TensorRT|x64
+		Release-Deep-TensorRT|x86 = Release-Deep-TensorRT|x86
 		Release-KPP_KKPT|x64 = Release-KPP_KKPT|x64
 		Release-KPP_KKPT|x86 = Release-KPP_KKPT|x86
 		Release-KPPT|x64 = Release-KPPT|x64
@@ -43,9 +49,12 @@ Global
 		Release-user-sse42|x86 = Release-user-sse42|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep|x64.ActiveCfg = Debug-Deep|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep|x64.Build.0 = Debug-Deep|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep|x86.ActiveCfg = TEST|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ONNX|x64.ActiveCfg = Debug-Deep-ONNX|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ONNX|x64.Build.0 = Debug-Deep-ONNX|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ONNX|x86.ActiveCfg = Debug-Deep-ONNX|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-TensorRT|x64.ActiveCfg = Debug-Deep-TensorRT|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-TensorRT|x64.Build.0 = Debug-Deep-TensorRT|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-TensorRT|x86.ActiveCfg = TEST|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-mate|x64.ActiveCfg = Debug-mate|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-mate|x64.Build.0 = Debug-mate|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-mate|x86.ActiveCfg = Debug-mate|x64
@@ -58,9 +67,14 @@ Global
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-user|x64.ActiveCfg = Debug-user|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-user|x64.Build.0 = Debug-user|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-user|x86.ActiveCfg = Debug-user|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep|x64.ActiveCfg = Release-Deep|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep|x64.Build.0 = Release-Deep|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep|x86.ActiveCfg = Release-Deep|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep|x64.ActiveCfg = Release-Deep-ONNX|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep|x86.ActiveCfg = Release-Deep-ONNX|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-ONNX|x64.ActiveCfg = Release-Deep-ONNX|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-ONNX|x64.Build.0 = Release-Deep-ONNX|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-ONNX|x86.ActiveCfg = Release-Deep-ONNX|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-TensorRT|x64.ActiveCfg = Release-Deep-TensorRT|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-TensorRT|x64.Build.0 = Release-Deep-TensorRT|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-TensorRT|x86.ActiveCfg = Release-Deep-TensorRT|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-KPP_KKPT|x64.ActiveCfg = Release-KPP_KKPT|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-KPP_KKPT|x64.Build.0 = Release-KPP_KKPT|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-KPP_KKPT|x86.ActiveCfg = Release-KPP_KKPT|x64
