@@ -265,12 +265,12 @@ namespace dlshogi
 	//#endif
 	}
 
-	// 探索条件をPosition抜きで設定する。
-	// "go"コマンドに対して今回の探索条件を設定してやる。
+	// 探索の"go"コマンドの前に呼ばれ、今回の探索の打ち切り条件を設定する。
 	//    limits.nodes        : 探索を打ち切るnode数   　→  search_limit.node_limitに反映する。
 	//    limits.movetime     : 思考時間固定時の指定     →　search_limit.time_limitに反映する。
 	//    limits.max_game_ply : 引き分けになる手数の設定 →  search_limit.draw_plyに反映する。
-	void DlshogiSearcher::SetLimits(const Search::LimitsType& limits)
+	// その他、"go"コマンドで渡された残り時間等から、今回の思考時間を算出し、search_limit.time_managerに反映する。
+	void DlshogiSearcher::SetLimits(const Position* pos, const Search::LimitsType& limits)
 	{
 		// 探索を打ち切るnode数
 		search_limit.node_limit = (NodeCountType)limits.nodes;
@@ -280,11 +280,7 @@ namespace dlshogi
 
 		// 引き分けになる手数の設定。
 		search_options.draw_ply = limits.max_game_ply;
-	}
 
-	// 探索の"go"コマンドの前に呼ばれ、今回の探索の打ち切り条件を設定する。
-	void DlshogiSearcher::SetLimits(const Position* pos, const Search::LimitsType& limits)
-	{
 		// dlshogiのコード
 #if 0
 		// ノード数固定ならばそれを設定。
@@ -432,6 +428,9 @@ namespace dlshogi
 		// 探索の延長判定
 		// →　これは探索の停止判定で行うから削除
 
+		// この時点で探索スレッドをすべて停止させないと
+		// Virtual Lossを元に戻す前にbestmoveを選出してしまう。
+
 		// PVの取得と表示
 		auto best = UctPrint::get_best_move_multipv(current_root , search_limit , search_options);
 		ponderMove = best.ponder;
@@ -498,6 +497,8 @@ namespace dlshogi
 			return false;
 
 		// 最適時間の半分未満であるならもうちょっと考える。
+		// 100 [ms]前には指してるが、batch sizeによっては、その帰りを待っていたのでは100[ms]すぎてしまうかもしれない。
+		// あとは"NetworkDelay"で調整してもらうしか…。
 		if (elapsed - 100 < s.time_manager.optimum())
 			return false;
 

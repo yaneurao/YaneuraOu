@@ -203,14 +203,11 @@ namespace dlshogi
 		//  UCT探索の終了処理
 		void TerminateUctSearch();
 
-		// 探索条件をPosition抜きで設定する。
-		// "go"コマンドに対して今回の探索条件を設定してやる。
+		// 探索の"go"コマンドの前に呼ばれ、今回の探索の打ち切り条件を設定する。
 		//    limits.nodes        : 探索を打ち切るnode数   　→  search_limit.node_limitに反映する。
 		//    limits.movetime     : 思考時間固定時の指定     →　search_limit.time_limitに反映する。
 		//    limits.max_game_ply : 引き分けになる手数の設定 →  search_limit.draw_plyに反映する。
-		void SetLimits(const Search::LimitsType& limits);
-
-		// 探索の"go"コマンドの前に呼ばれ、今回の探索の打ち切り条件を設定する。
+		// その他、"go"コマンドで渡された残り時間等から、今回の思考時間を算出し、search_limit.time_managerに反映する。
 		void SetLimits(const Position* pos, const Search::LimitsType& limits);
 
 		// 終了させるために、search_groupsを開放する。

@@ -1,4 +1,4 @@
-#include "../../config.h"
+ï»¿#include "../../config.h"
 
 #if defined(YANEURAOU_ENGINE_DEEP)
 
@@ -13,19 +13,19 @@
 
 #include "../../eval/deep/nn_types.h"
 
-// ‚â‚Ë‚¤‚ç‰¤ƒtƒŒ[ƒ€ƒ[ƒN‚ÆAdlshogi‚Ì‹´“n‚µ‚ğs‚¤ƒR[ƒh
+// ã‚„ã­ã†ã‚‰ç‹ãƒ•ãƒ¬ãƒ¼ãƒ ãƒ¯ãƒ¼ã‚¯ã¨ã€dlshogiã®æ©‹æ¸¡ã—ã‚’è¡Œã†ã‚³ãƒ¼ãƒ‰
 
-// --- ‚â‚Ë‚¤‚ç‰¤‚Ìsearch‚Ìoverride
+// --- ã‚„ã­ã†ã‚‰ç‹ã®searchã®override
 
 using namespace dlshogi;
 using namespace Eval::dlshogi;
 
-// ’Tõ•”–{‘ÌB‚Æ‚è‚ÜAglobal‚É”z’u‚µ‚Ä‚¨‚­B
+// æ¢ç´¢éƒ¨æœ¬ä½“ã€‚ã¨ã‚Šã¾ã€globalã«é…ç½®ã—ã¦ãŠãã€‚
 DlshogiSearcher searcher;
 
 void USI::extra_option(USI::OptionsMap& o)
 {
-	// ƒGƒ“ƒWƒ“ƒIƒvƒVƒ‡ƒ“‚ğ¶‚â‚·
+	// ã‚¨ãƒ³ã‚¸ãƒ³ã‚ªãƒ—ã‚·ãƒ§ãƒ³ã‚’ç”Ÿã‚„ã™
 #if 0
     (*this)["Book_File"]                   = USIOption("book.bin");
     (*this)["Best_Book_Move"]              = USIOption(true);
@@ -35,53 +35,53 @@ void USI::extra_option(USI::OptionsMap& o)
     (*this)["Stochastic_Ponder"]           = USIOption(true);
     (*this)["Time_Margin"]                 = USIOption(1000, 0, INT_MAX);
     (*this)["Mate_Root_Search"]            = USIOption(29, 0, 35);
-    (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnƒnƒbƒVƒ…ƒTƒCƒY
+    (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnãƒãƒƒã‚·ãƒ¥ã‚µã‚¤ã‚º
     (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
 #endif
 
 #ifdef MAKE_BOOK
-	// ’èÕ‚ğ¶¬‚·‚é‚Æ‚«‚ÍPVo—Í‚Í—}§‚µ‚½‚Ù‚¤‚ª—Ç‚³‚°B
+	// å®šè·¡ã‚’ç”Ÿæˆã™ã‚‹ã¨ãã¯PVå‡ºåŠ›ã¯æŠ‘åˆ¶ã—ãŸã»ã†ãŒè‰¯ã•ã’ã€‚
     o["PV_Interval"]                 << USI::Option(0, 0, INT_MAX);
     o["Save_Book_Interval"]          << USI::Option(100, 0, INT_MAX);
 #else
     o["PV_Interval"]                 << USI::Option(500, 0, INT_MAX);
 #endif // !MAKE_BOOK
 
-	o["UCT_NodeLimit"]				 << USI::Option(10000000, 100000, 1000000000); // UCTƒm[ƒh‚ÌãŒÀ
+	o["UCT_NodeLimit"]				 << USI::Option(10000000, 100000, 1000000000); // UCTãƒãƒ¼ãƒ‰ã®ä¸Šé™
 
-	// ƒfƒoƒbƒO—p‚ÌƒƒbƒZ[ƒWo—Í‚Ì—L–³
+	// ãƒ‡ãƒãƒƒã‚°ç”¨ã®ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸å‡ºåŠ›ã®æœ‰ç„¡
 	o["DebugMessage"]                << USI::Option(false);
 
-	// ƒm[ƒh‚ğÄ—˜—p‚·‚é‚©B
+	// ãƒãƒ¼ãƒ‰ã‚’å†åˆ©ç”¨ã™ã‚‹ã‹ã€‚
     o["ReuseSubtree"]                << USI::Option(true);
 
-	// “Š—¹’l : 1000•ª—¦‚Å
+	// æŠ•äº†å€¤ : 1000åˆ†ç‡ã§
 	o["Resign_Threshold"]            << USI::Option(0, 0, 1000);
 
-	// ˆø‚«•ª‚¯‚Ì‚Ì’l : 1000•ª—¦‚Å
+	// å¼•ãåˆ†ã‘ã®æ™‚ã®å€¤ : 1000åˆ†ç‡ã§
 
 	o["Draw_Value_Black"]            << USI::Option(500, 0, 1000);
     o["Draw_Value_White"]            << USI::Option(500, 0, 1000);
 
-	// ‚±‚ê‚ªtrue‚Å‚ ‚é‚È‚çAroot color(’TõŠJn‹Ç–Ê‚Ìè”Ô)‚ªŒãè‚È‚çA
+	// ã“ã‚ŒãŒtrueã§ã‚ã‚‹ãªã‚‰ã€root color(æ¢ç´¢é–‹å§‹å±€é¢ã®æ‰‹ç•ª)ãŒå¾Œæ‰‹ãªã‚‰ã€
 	//
-	// Draw_Value_Black‚ÆDraw_Value_White‚Ì’l‚ğ“ü‚ê‘Ö‚¦‚½‚à‚Ì‚Æ‚İ‚È‚·B
-	// ‘å‰ï‚Å‚Íu(©•ª‚ªæè‚©Œãè‚©‚Í‚í‚©‚ç‚È‚¢‚¯‚Ç)©•ª‚Í‚Å‚«‚ê‚Îç“úè‚ğ‘_‚¢‚½‚­‚ÄA
-	// ‘Šè‚Ìƒ\ƒtƒg‚Íç“úè‚ğˆø‚«•ª‚¯‚¾‚Æ‚İ‚È‚µ‚Ä‚¢‚évó‹µ‚Å‚ÍAroot color(ŠJn‹Ç–Ê‚Ìè”Ô)‚ÆA
-	// root color‚Ì”½‘Î‚Ìè”Ô(‘Šè‚Ìcolor)‚É‘Î‚µ‚ÄA‚»‚ê‚¼‚êA0.7 , 0.5‚Ì‚æ‚¤‚Éİ’è‚µ‚½‚¢‚±‚Æ‚ª‚ ‚éB
-	// ‚±‚ê‚ğÀŒ»‚·‚é‚½‚ß‚ÉAroot color‚ªŒãè‚È‚çADraw_Value_Black‚ÆDraw_Value_White‚ğ“ü‚ê‘Ö‚¦‚Ä‚­‚ê‚é
-	// ƒIƒvƒVƒ‡ƒ“‚ª‚ ‚ê‚Î—Ç‚¢B‚»‚ê‚ª‚±‚êB
+	// Draw_Value_Blackã¨Draw_Value_Whiteã®å€¤ã‚’å…¥ã‚Œæ›¿ãˆãŸã‚‚ã®ã¨ã¿ãªã™ã€‚
+	// å¤§ä¼šã§ã¯ã€Œ(è‡ªåˆ†ãŒå…ˆæ‰‹ã‹å¾Œæ‰‹ã‹ã¯ã‚ã‹ã‚‰ãªã„ã‘ã©)è‡ªåˆ†ã¯ã§ãã‚Œã°åƒæ—¥æ‰‹ã‚’ç‹™ã„ãŸãã¦ã€
+	// ç›¸æ‰‹ã®ã‚½ãƒ•ãƒˆã¯åƒæ—¥æ‰‹ã‚’å¼•ãåˆ†ã‘ã ã¨ã¿ãªã—ã¦ã„ã‚‹ã€çŠ¶æ³ã§ã¯ã€root color(é–‹å§‹å±€é¢ã®æ‰‹ç•ª)ã¨ã€
+	// root colorã®åå¯¾ã®æ‰‹ç•ª(ç›¸æ‰‹ã®color)ã«å¯¾ã—ã¦ã€ãã‚Œãã‚Œã€0.7 , 0.5ã®ã‚ˆã†ã«è¨­å®šã—ãŸã„ã“ã¨ãŒã‚ã‚‹ã€‚
+	// ã“ã‚Œã‚’å®Ÿç¾ã™ã‚‹ãŸã‚ã«ã€root colorãŒå¾Œæ‰‹ãªã‚‰ã€Draw_Value_Blackã¨Draw_Value_Whiteã‚’å…¥ã‚Œæ›¿ãˆã¦ãã‚Œã‚‹
+	// ã‚ªãƒ—ã‚·ãƒ§ãƒ³ãŒã‚ã‚Œã°è‰¯ã„ã€‚ãã‚ŒãŒã“ã‚Œã€‚
 
 	o["Draw_Value_From_Black"]       << USI::Option(false);
 
-	// --- PUCT‚Ì‚Ì’è”
-	// ‚±‚êA’Tõƒpƒ‰ƒ[ƒ^[‚Ìˆêí‚Æl‚¦‚ç‚ê‚é‚©‚çAÅ“K‚È’l‚ğ–‘O‚Éƒ`ƒ…[ƒjƒ“ƒO‚µ‚Äİ’è‚·‚é‚æ‚¤‚É
-	// ‚µ‚Ä‚¨‚«Aƒ†[ƒU[‚©‚ç‚ÍG‚ê‚È‚¢(G‚ç‚È‚­‚Ä‚à—Ç‚¢)‚æ‚¤‚É‚µ‚Ä‚¨‚­B
-	// ¨@dlshogi‚Íoptimizer‚ÅÅ“K‰»‚·‚é‚½‚ß‚ÉŠO‚¾‚µ‚µ‚Ä‚¢‚é‚æ‚¤‚¾B
+	// --- PUCTã®æ™‚ã®å®šæ•°
+	// ã“ã‚Œã€æ¢ç´¢ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãƒ¼ã®ä¸€ç¨®ã¨è€ƒãˆã‚‰ã‚Œã‚‹ã‹ã‚‰ã€æœ€é©ãªå€¤ã‚’äº‹å‰ã«ãƒãƒ¥ãƒ¼ãƒ‹ãƒ³ã‚°ã—ã¦è¨­å®šã™ã‚‹ã‚ˆã†ã«
+	// ã—ã¦ãŠãã€ãƒ¦ãƒ¼ã‚¶ãƒ¼ã‹ã‚‰ã¯è§¦ã‚Œãªã„(è§¦ã‚‰ãªãã¦ã‚‚è‰¯ã„)ã‚ˆã†ã«ã—ã¦ãŠãã€‚
+	// â†’ã€€dlshogiã¯optimizerã§æœ€é©åŒ–ã™ã‚‹ãŸã‚ã«å¤–ã ã—ã—ã¦ã„ã‚‹ã‚ˆã†ã ã€‚
 
 #if 0
-	// fpu_reduction‚Ì’l‚ğ100•ª—¦‚Åİ’èB
-	// c_fpu_reduction_root‚ÍAroot‚Å‚Ìfpu_reduction‚Ì’lB
+	// fpu_reductionã®å€¤ã‚’100åˆ†ç‡ã§è¨­å®šã€‚
+	// c_fpu_reduction_rootã¯ã€rootã§ã®fpu_reductionã®å€¤ã€‚
     o["C_fpu_reduction"]             << USI::Option(27, 0, 100);
     o["C_fpu_reduction_root"]        << USI::Option(0, 0, 100);
 
@@ -93,8 +93,8 @@ void USI::extra_option(USI::OptionsMap& o)
     o["Softmax_Temperature"]         << USI::Option(174, 1, 500);
 #endif
 
-	// ŠeGPU—p‚ÌDNNƒ‚ƒfƒ‹–¼‚ÆA‚»‚ÌGPU—p‚ÌUCT’Tõ‚ÌƒXƒŒƒbƒh”‚ÆA‚»‚ÌGPU‚Éˆê“x‚É‰½ŒÂ‚Ì‹Ç–Ê‚ğ‚Ü‚Æ‚ß‚Ä•]‰¿(„˜_)‚ğs‚í‚¹‚é‚Ì‚©B
-	// GPU‚ÍÅ‘å‚Å8ŒÂ‚Ü‚Åˆµ‚¦‚éB
+	// å„GPUç”¨ã®DNNãƒ¢ãƒ‡ãƒ«åã¨ã€ãã®GPUç”¨ã®UCTæ¢ç´¢ã®ã‚¹ãƒ¬ãƒƒãƒ‰æ•°ã¨ã€ãã®GPUã«ä¸€åº¦ã«ä½•å€‹ã®å±€é¢ã‚’ã¾ã¨ã‚ã¦è©•ä¾¡(æ¨è«–)ã‚’è¡Œã‚ã›ã‚‹ã®ã‹ã€‚
+	// GPUã¯æœ€å¤§ã§8å€‹ã¾ã§æ‰±ãˆã‚‹ã€‚
 
     o["UCT_Threads1"]                << USI::Option(4, 0, 256);
     o["UCT_Threads2"]                << USI::Option(0, 0, 256);
@@ -114,10 +114,10 @@ void USI::extra_option(USI::OptionsMap& o)
     o["DNN_Model8"]                  << USI::Option("");
 
 #if defined(ONNXRUNTIME)
-	// CPU‚ğg‚Á‚Ä‚¢‚é‚±‚Æ‚ª‚ ‚é‚Ì‚ÅAdefault’lA‚¿‚å‚Á‚Æ­‚È‚ß‚É‚µ‚Ä‚¨‚­B
+	// CPUã‚’ä½¿ã£ã¦ã„ã‚‹ã“ã¨ãŒã‚ã‚‹ã®ã§ã€defaultå€¤ã€ã¡ã‚‡ã£ã¨å°‘ãªã‚ã«ã—ã¦ãŠãã€‚
 	o["DNN_Batch_Size1"]             << USI::Option(32, 1, 1024);
 #else
-	// ’Êí‚Ì„§128 , ŒŸ“¢‚Ì‚Í„§256B
+	// é€šå¸¸æ™‚ã®æ¨å¥¨128 , æ¤œè¨ã®æ™‚ã¯æ¨å¥¨256ã€‚
 	o["DNN_Batch_Size1"]             << USI::Option(128, 1, 1024);
 #endif
 	o["DNN_Batch_Size2"]             << USI::Option(0, 0, 65536);
@@ -130,34 +130,34 @@ void USI::extra_option(USI::OptionsMap& o)
 
 
     //(*this)["Const_Playout"]               = USIOption(0, 0, INT_MAX);
-	// ¨@Playout”ŒÅ’èB‚±‚ê‚ÍNodeLimit‚Å‚Å‚«‚é‚Ì‚Å•s—vB
+	// â†’ã€€Playoutæ•°å›ºå®šã€‚ã“ã‚Œã¯NodeLimitã§ã§ãã‚‹ã®ã§ä¸è¦ã€‚
 
 }
 
-// "isready"ƒRƒ}ƒ“ƒh‚É‘Î‚·‚é‰‰ñ‰“š
+// "isready"ã‚³ãƒãƒ³ãƒ‰ã«å¯¾ã™ã‚‹åˆå›å¿œç­”
 void Search::init(){}
 
-// "isready"ƒRƒ}ƒ“ƒh‚É–ˆ‰ñŒÄ‚Ño‚³‚ê‚éB
+// "isready"ã‚³ãƒãƒ³ãƒ‰æ™‚ã«æ¯å›å‘¼ã³å‡ºã•ã‚Œã‚‹ã€‚
 void Search::clear()
 {
-	// ƒGƒ“ƒWƒ“ƒIƒvƒVƒ‡ƒ“‚Ì”½‰f
+	// ã‚¨ãƒ³ã‚¸ãƒ³ã‚ªãƒ—ã‚·ãƒ§ãƒ³ã®åæ˜ 
 #if 0
-			// ƒIƒvƒVƒ‡ƒ“İ’è
+			// ã‚ªãƒ—ã‚·ãƒ§ãƒ³è¨­å®š
 			dfpn_min_search_millisecs = options["DfPn_Min_Search_Millisecs"];
 #endif
 
 	searcher.SetPvInterval((TimePoint)Options["PV_Interval"]);
 
-	// ƒm[ƒh‚ğÄ—˜—p‚·‚é‚©‚Ìİ’èB
+	// ãƒãƒ¼ãƒ‰ã‚’å†åˆ©ç”¨ã™ã‚‹ã‹ã®è¨­å®šã€‚
 	searcher.SetReuseSubtree(Options["ReuseSubtree"]);
 
-	// “Š—¹’l
+	// æŠ•äº†å€¤
 	searcher.SetResignThreshold((int)Options["Resign_Threshold"]);
 
-	// ƒfƒoƒbƒO—p‚ÌƒƒbƒZ[ƒWo—Í‚Ì—L–³B
+	// ãƒ‡ãƒãƒƒã‚°ç”¨ã®ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸å‡ºåŠ›ã®æœ‰ç„¡ã€‚
 	searcher.debug_message = Options["DebugMessage"];
 
-	// ƒXƒŒƒbƒh”‚ÆŠeGPU‚Ìbatchsize‚ğsearcher‚Éİ’è‚·‚éB
+	// ã‚¹ãƒ¬ãƒƒãƒ‰æ•°ã¨å„GPUã®batchsizeã‚’searcherã«è¨­å®šã™ã‚‹ã€‚
 
 	const int new_thread[max_gpu] = {
 		(int)Options["UCT_Threads1"], (int)Options["UCT_Threads2"], (int)Options["UCT_Threads3"], (int)Options["UCT_Threads4"],
@@ -177,12 +177,12 @@ void Search::clear()
 	}
 	searcher.SetThread(thread_nums, policy_value_batch_maxsizes);
 
-	// ‚»‚Ì‘¼Adlshogi‚É‚Í‚ ‚é‚¯‚ÇAƒTƒ|[ƒg‚µ‚È‚¢‚à‚ÌB
+	// ãã®ä»–ã€dlshogiã«ã¯ã‚ã‚‹ã‘ã©ã€ã‚µãƒãƒ¼ãƒˆã—ãªã„ã‚‚ã®ã€‚
 
-	// UCT_NodeLimit ¨@dlshogi‚Å‚Í‘¶İ‚·‚é‚ªA‚â‚Ë‚¤‚ç‰¤‹Œ—ˆ‚©‚ç‚ ‚éƒGƒ“ƒWƒ“ƒIƒvƒVƒ‡ƒ“‚Ì"NodesLimit"‚ğ—¬—p‚µ‚Ä—Ç‚¢‚Æv‚¤B
-	// EvalDir@@@ ¨@dlshogi‚Å‚ÍƒTƒ|[ƒg‚³‚ê‚Ä‚¢‚È‚¢‚ªA‚â‚Ë‚¤‚ç‰¤‚ÍAEvalDir‚É‚ ‚éƒ‚ƒfƒ‹ƒtƒ@ƒCƒ‹‚ğ“Ç‚İ‚Ş‚æ‚¤‚É‚·‚éB
+	// UCT_NodeLimit â†’ã€€dlshogiã§ã¯å­˜åœ¨ã™ã‚‹ãŒã€ã‚„ã­ã†ã‚‰ç‹æ—§æ¥ã‹ã‚‰ã‚ã‚‹ã‚¨ãƒ³ã‚¸ãƒ³ã‚ªãƒ—ã‚·ãƒ§ãƒ³ã®"NodesLimit"ã‚’æµç”¨ã—ã¦è‰¯ã„ã¨æ€ã†ã€‚
+	// EvalDirã€€ã€€ã€€ â†’ã€€dlshogiã§ã¯ã‚µãƒãƒ¼ãƒˆã•ã‚Œã¦ã„ãªã„ãŒã€ã‚„ã­ã†ã‚‰ç‹ã¯ã€EvalDirã«ã‚ã‚‹ãƒ¢ãƒ‡ãƒ«ãƒ•ã‚¡ã‚¤ãƒ«ã‚’èª­ã¿è¾¼ã‚€ã‚ˆã†ã«ã™ã‚‹ã€‚
 
-	// ˆÈ‰º‚àA’Tõƒpƒ‰ƒ[ƒ^[‚¾‚©‚çA‚¢‚ç‚È‚¢BŠJ”­‘¤‚ªÅ“K’l‚Éƒ`ƒ…[ƒjƒ“ƒO‚·‚×‚«‚Æ‚¢‚¤l‚¦B
+	// ä»¥ä¸‹ã‚‚ã€æ¢ç´¢ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãƒ¼ã ã‹ã‚‰ã€ã„ã‚‰ãªã„ã€‚é–‹ç™ºå´ãŒæœ€é©å€¤ã«ãƒãƒ¥ãƒ¼ãƒ‹ãƒ³ã‚°ã™ã¹ãã¨ã„ã†è€ƒãˆã€‚
 	// C_fpu_reduction , C_fpu_reduction_root , C_init , C_base , C_init_root , C_base_root
 #if 0
 	search_options.c_fpu_reduction      =                Options["C_fpu_reduction"     ] / 100.0f;
@@ -196,9 +196,9 @@ void Search::clear()
 	set_softmax_temperature(options["Softmax_Temperature"] / 100.0f);
 #endif
 
-	// softmax‚Ì‚Ìƒ{ƒ‹ƒcƒ}ƒ“‰·“xİ’è
-	// ‚±‚ê‚ÍAdlshogi‚Ì"Softmax_Temperature"‚Ì’lB(174)
-	// Œˆ‚ß‘Å‚¿‚Å‚¢‚¢‚Æv‚¤B
+	// softmaxã®æ™‚ã®ãƒœãƒ«ãƒ„ãƒãƒ³æ¸©åº¦è¨­å®š
+	// ã“ã‚Œã¯ã€dlshogiã®"Softmax_Temperature"ã®å€¤ã€‚(174)
+	// æ±ºã‚æ‰“ã¡ã§ã„ã„ã¨æ€ã†ã€‚
 	Eval::dlshogi::set_softmax_temperature( 174 / 100.0f);
 
 	searcher.SetDrawValue(
@@ -213,11 +213,11 @@ void Search::clear()
 	searcher.SetModelPaths(Eval::dlshogi::ModelPaths);
 
 #if 0
-	// dlshogi‚Å‚ÍA
-	// "isready"‚É‘Î‚µ‚Änode limit = 1 , batch_size = 128 ‚Å’Tõ‚µ‚Ä‚¨‚­B
-	// ‰Šú‹Ç–Ê‚É‘Î‚µ‚Ä‚Í‚í‚è‚Æ“¾‚©H
+	// dlshogiã§ã¯ã€
+	// "isready"ã«å¯¾ã—ã¦node limit = 1 , batch_size = 128 ã§æ¢ç´¢ã—ã¦ãŠãã€‚
+	// åˆæœŸå±€é¢ã«å¯¾ã—ã¦ã¯ã‚ã‚Šã¨å¾—ã‹ï¼Ÿ
 
-	// ‰‰ñ’Tõ‚ğƒLƒƒƒbƒVƒ…
+	// åˆå›æ¢ç´¢ã‚’ã‚­ãƒ£ãƒƒã‚·ãƒ¥
 	Position pos_tmp;
 	StateInfo si;
 	pos_tmp.set_hirate(&si,Threads.main());
@@ -233,58 +233,62 @@ void Search::clear()
 
 }
 
-// "go"ƒRƒ}ƒ“ƒh‚É‘Î‚µ‚ÄŒÄ‚Ño‚³‚ê‚éB
+// "go"ã‚³ãƒãƒ³ãƒ‰ã«å¯¾ã—ã¦å‘¼ã³å‡ºã•ã‚Œã‚‹ã€‚
 void MainThread::search()
 {
-	// ŠJn‹Ç–Ê‚Ìè”Ô‚ğglobal‚ÉŠi”[‚µ‚Ä‚¨‚¢‚½‚Ù‚¤‚ª•Ö—˜B
+	// é–‹å§‹å±€é¢ã®æ‰‹ç•ªã‚’globalã«æ ¼ç´ã—ã¦ãŠã„ãŸã»ã†ãŒä¾¿åˆ©ã€‚
 	searcher.search_limit.root_color = rootPos.side_to_move();
 
-	// "NodesLimit"‚Ì’l‚È‚ÇA¡‰ñ‚Ì"go"ƒRƒ}ƒ“ƒh‚É‚æ‚Á‚ÄŒˆ’è‚µ‚½’l‚ª”½‰f‚³‚ê‚éB
-	searcher.SetLimits(Search::Limits);
+	// "NodesLimit"ã®å€¤ãªã©ã€ä»Šå›ã®"go"ã‚³ãƒãƒ³ãƒ‰ã«ã‚ˆã£ã¦æ±ºå®šã—ãŸå€¤ãŒåæ˜ ã•ã‚Œã‚‹ã€‚
+	searcher.SetLimits(&rootPos,Search::Limits);
 
 	// MultiPV
-	// ¦@dlshogi‚Å‚ÍŒ»ó–¢ƒTƒ|[ƒg‚¾‚ªA—~‚µ‚¢‚Ì‚Å’Ç‰Á‚µ‚Ä‚¨‚­B
-	// ‚±‚ê‚ÍAisready‚Ì‚ ‚ÆAgo‚Ì’¼‘O‚Ü‚Å•ÏX‰Â”\
+	// â€»ã€€dlshogiã§ã¯ç¾çŠ¶æœªã‚µãƒãƒ¼ãƒˆã ãŒã€æ¬²ã—ã„ã®ã§è¿½åŠ ã—ã¦ãŠãã€‚
+	// ã“ã‚Œã¯ã€isreadyã®ã‚ã¨ã€goã®ç›´å‰ã¾ã§å¤‰æ›´å¯èƒ½
 	searcher.search_options.multi_pv = Options["MultiPV"];
 
-	// ‘SƒXƒŒƒbƒh‚Å’Tõ‚ğŠJn‚·‚élambda
+	// å…¨ã‚¹ãƒ¬ãƒƒãƒ‰ã§æ¢ç´¢ã‚’é–‹å§‹ã™ã‚‹lambda
 	auto start_threads = [&]()
 	{
-		Threads.start_searching(); // mainˆÈŠO‚Ìthread‚ğŠJn‚·‚é
-		Thread::search();          // main thread(‚±‚ÌƒXƒŒƒbƒh)‚à’Tõ‚ÉQ‰Á‚·‚éB
+		Threads.start_searching(); // mainä»¥å¤–ã®threadã‚’é–‹å§‹ã™ã‚‹
+		Thread::search();          // main thread(ã“ã®ã‚¹ãƒ¬ãƒƒãƒ‰)ã‚‚æ¢ç´¢ã«å‚åŠ ã™ã‚‹ã€‚
+
+		// ã“ã‚Œã§æ¢ç´¢ãŒå§‹ã¾ã£ã¦ã€ã“ã®ã‚ã¨mainã‚¹ãƒ¬ãƒƒãƒ‰ãŒå¸°é‚„ã™ã‚‹ã€‚
+		// ponderãªã‚‰ãã“ã§å¾…ã£ã¦ã€
+		// ãã®ã‚ã¨å…¨æ¢ç´¢ã‚¹ãƒ¬ãƒƒãƒ‰ã®çµ‚äº†ã‚’å¾…ã¤ã€‚
+		// (ãã†ã—ãªã„ã¨virtual lossãŒã‚ã‚‹çŠ¶æ…‹ã§best nodeã‚’æ‹¾ãŠã†ã¨ã—ã¦ã—ã¾ã†)
+
+	// æœ€å¤§depthæ·±ã•ã«åˆ°é”ã—ãŸã¨ãã«ã€ã“ã“ã¾ã§å®Ÿè¡ŒãŒåˆ°é”ã™ã‚‹ãŒã€
+	// ã¾ã Threads.stopãŒç”Ÿã˜ã¦ã„ãªã„ã€‚ã—ã‹ã—ã€ponderä¸­ã‚„ã€go infiniteã«ã‚ˆã‚‹æ¢ç´¢ã®å ´åˆã€
+	// USI(UCI)ãƒ—ãƒ­ãƒˆã‚³ãƒ«ã§ã¯ã€"stop"ã‚„"ponderhit"ã‚³ãƒãƒ³ãƒ‰ã‚’GUIã‹ã‚‰é€ã‚‰ã‚Œã¦ãã‚‹ã¾ã§best moveã‚’å‡ºåŠ›ã—ã¦ã¯ãªã‚‰ãªã„ã€‚
+	// ãã‚Œã‚†ãˆã€å˜ã«ã“ã“ã§GUIã‹ã‚‰ãã‚Œã‚‰ã®ã„ãšã‚Œã‹ã®ã‚³ãƒãƒ³ãƒ‰ãŒé€ã‚‰ã‚Œã¦ãã‚‹ã¾ã§å¾…ã¤ã€‚
+	// "stop"ãŒé€ã‚‰ã‚Œã¦ããŸã‚‰Threads.stop == trueã«ãªã‚‹ã€‚
+	// "ponderhit"ãŒé€ã‚‰ã‚Œã¦ããŸã‚‰Threads.ponder == falseã«ãªã‚‹ã®ã§ã€ãã‚Œã‚’å¾…ã¤ã€‚(stopOnPonderhitã¯ç”¨ã„ãªã„)
+	// "go infinite"ã«å¯¾ã—ã¦ã¯stopãŒé€ã‚‰ã‚Œã¦ãã‚‹ã¾ã§å¾…ã¤ã€‚
+	// ã¡ãªã¿ã«Stockfishã®ã»ã†ã€ã“ã“ã®ã‚³ãƒ¼ãƒ‰ã«é•·ã‚‰ãåŒæœŸä¸Šã®ãƒã‚°ãŒã‚ã£ãŸã€‚
+	// ã‚„ã­ã†ã‚‰ç‹ã®ã»ã†ã¯ã€ã‹ãªã‚Šæ—©ãã‹ã‚‰ã“ã®æ§‹é€ ã§æ›¸ã„ã¦ã„ãŸã€‚æœ€è¿‘ã®Stockfishã§ã¯ã“ã®æ›¸ãæ–¹ã«è¿½éšã—ãŸã€‚
+	while (!Threads.stop && (this->ponder || Search::Limits.infinite))
+	{
+		//	ã“ã¡ã‚‰ã®æ€è€ƒã¯çµ‚ã‚ã£ã¦ã„ã‚‹ã‚ã‘ã ã‹ã‚‰ã€ã‚ã‚‹ç¨‹åº¦ç´°ã‹ãå¾…ã£ã¦ã‚‚å•é¡Œãªã„ã€‚
+		// (æ€è€ƒã®ãŸã‚ã«ã¯è¨ˆç®—è³‡æºã‚’ä½¿ã£ã¦ã„ãªã„ã®ã§ã€‚)
+		Tools::sleep(1);
+
+		// Stockfishã®ã‚³ãƒ¼ãƒ‰ã€ã“ã“ã€busy waitã«ãªã£ã¦ã„ã‚‹ãŒã€ã•ã™ãŒã«ãã‚Œã¯è‰¯ããªã„ã¨æ€ã†ã€‚
+	}
+
+	// å…¨ã‚¹ãƒ¬ãƒƒãƒ‰ã«åœæ­¢å‘½ä»¤ã‚’é€ã‚‹ã€‚
+	Threads.stop = true;
+
+	// å„ã‚¹ãƒ¬ãƒƒãƒ‰ãŒçµ‚äº†ã™ã‚‹ã®ã‚’å¾…æ©Ÿã™ã‚‹(é–‹å§‹ã—ã¦ã„ãªã‘ã‚Œã°ã„ãªã„ã§æ§‹ã‚ãªã„)
+	Threads.wait_for_search_finished();
 	};
 
 	Move ponderMove;
 	Move move = searcher.UctSearchGenmove(&rootPos, rootPos.sfen(),{}, ponderMove, ponder , start_threads);
 
-	// Å‘ådepth[‚³‚É“’B‚µ‚½‚Æ‚«‚ÉA‚±‚±‚Ü‚ÅÀs‚ª“’B‚·‚é‚ªA
-	// ‚Ü‚¾Threads.stop‚ª¶‚¶‚Ä‚¢‚È‚¢B‚µ‚©‚µAponder’†‚âAgo infinite‚É‚æ‚é’Tõ‚Ìê‡A
-	// USI(UCI)ƒvƒƒgƒRƒ‹‚Å‚ÍA"stop"‚â"ponderhit"ƒRƒ}ƒ“ƒh‚ğGUI‚©‚ç‘—‚ç‚ê‚Ä‚­‚é‚Ü‚Åbest move‚ğo—Í‚µ‚Ä‚Í‚È‚ç‚È‚¢B
-	// ‚»‚ê‚ä‚¦A’P‚É‚±‚±‚ÅGUI‚©‚ç‚»‚ê‚ç‚Ì‚¢‚¸‚ê‚©‚ÌƒRƒ}ƒ“ƒh‚ª‘—‚ç‚ê‚Ä‚­‚é‚Ü‚Å‘Ò‚ÂB
-	// "stop"‚ª‘—‚ç‚ê‚Ä‚«‚½‚çThreads.stop == true‚É‚È‚éB
-	// "ponderhit"‚ª‘—‚ç‚ê‚Ä‚«‚½‚çThreads.ponder == false‚É‚È‚é‚Ì‚ÅA‚»‚ê‚ğ‘Ò‚ÂB(stopOnPonderhit‚Í—p‚¢‚È‚¢)
-	// "go infinite"‚É‘Î‚µ‚Ä‚Ístop‚ª‘—‚ç‚ê‚Ä‚­‚é‚Ü‚Å‘Ò‚ÂB
-	// ‚¿‚È‚İ‚ÉStockfish‚Ì‚Ù‚¤A‚±‚±‚ÌƒR[ƒh‚É’·‚ç‚­“¯Šúã‚ÌƒoƒO‚ª‚ ‚Á‚½B
-	// ‚â‚Ë‚¤‚ç‰¤‚Ì‚Ù‚¤‚ÍA‚©‚È‚è‘‚­‚©‚ç‚±‚Ì\‘¢‚Å‘‚¢‚Ä‚¢‚½BÅ‹ß‚ÌStockfish‚Å‚Í‚±‚Ì‘‚«•û‚É’Ç‚µ‚½B
-	while (!Threads.stop && (this->ponder || Search::Limits.infinite))
-	{
-		//	‚±‚¿‚ç‚Ìvl‚ÍI‚í‚Á‚Ä‚¢‚é‚í‚¯‚¾‚©‚çA‚ ‚é’ö“x×‚©‚­‘Ò‚Á‚Ä‚à–â‘è‚È‚¢B
-		// (vl‚Ì‚½‚ß‚É‚ÍŒvZ‘Œ¹‚ğg‚Á‚Ä‚¢‚È‚¢‚Ì‚ÅB)
-		Tools::sleep(1);
-
-		// Stockfish‚ÌƒR[ƒhA‚±‚±Abusy wait‚É‚È‚Á‚Ä‚¢‚é‚ªA‚³‚·‚ª‚É‚»‚ê‚Í—Ç‚­‚È‚¢‚Æv‚¤B
-	}
-
-	// ‘SƒXƒŒƒbƒh‚É’â~–½—ß‚ğ‘—‚éB
-	Threads.stop = true;
-
-	// ŠeƒXƒŒƒbƒh‚ªI—¹‚·‚é‚Ì‚ğ‘Ò‹@‚·‚é(ŠJn‚µ‚Ä‚¢‚È‚¯‚ê‚Î‚¢‚È‚¢‚Å\‚í‚È‚¢)
-	Threads.wait_for_search_finished();
-
-
 	sync_cout << "bestmove " << to_usi_string(move);
 
-	// USI_Ponder‚ªtrue‚È‚ç‚ÎB
+	// USI_PonderãŒtrueãªã‚‰ã°ã€‚
 	if (searcher.search_options.usi_ponder && ponderMove)
 		std::cout << " ponder " << to_usi_string(move);
 
@@ -293,10 +297,10 @@ void MainThread::search()
 
 void Thread::search()
 {
-	// searcher‚ªA‚±‚ÌƒXƒŒƒbƒh‚ª‚Ç‚ÌƒCƒ“ƒXƒ^ƒ“ƒX‚Ì
-	// UCTSearcher::ParallelUctSearch()‚ğŒÄ‚Ño‚·‚©’m‚Á‚Ä‚¢‚éB
+	// searcherãŒã€ã“ã®ã‚¹ãƒ¬ãƒƒãƒ‰ãŒã©ã®ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ã®
+	// UCTSearcher::ParallelUctSearch()ã‚’å‘¼ã³å‡ºã™ã‹çŸ¥ã£ã¦ã„ã‚‹ã€‚
 
-	// ‚±‚ÌrootPos‚ÍƒXƒŒƒbƒh‚²‚Æ‚É—pˆÓ‚³‚ê‚Ä‚¢‚é‚©‚çƒRƒs[‰Â”\B
+	// ã“ã®rootPosã¯ã‚¹ãƒ¬ãƒƒãƒ‰ã”ã¨ã«ç”¨æ„ã•ã‚Œã¦ã„ã‚‹ã‹ã‚‰ã‚³ãƒ”ãƒ¼å¯èƒ½ã€‚
 
 	searcher.parallel_search(rootPos,thread_id());
 }

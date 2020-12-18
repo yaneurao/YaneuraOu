@@ -254,7 +254,7 @@ namespace dlshogi::UctPrint
 		nps << " nps "      << (po_info.node_searched * 1000LL / (u64)finish_time)
 			<< " time "     <<  finish_time
 			<< " nodes "    <<  po_info.node_searched
-			<< " hashfull"  << (po_info.current_root->move_count * 1000LL / options.uct_node_limit);
+			<< " hashfull " << (po_info.current_root->move_count * 1000LL / options.uct_node_limit);
 		
 		if (multiPv <= 1)
 		{

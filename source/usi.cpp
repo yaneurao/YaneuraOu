@@ -539,6 +539,9 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 		// この探索ノード数で探索を打ち切る
 		else if (token == "nodes")     is >> limits.nodes;
 
+		// 持ち時間固定(将棋だと対応しているGUIが無いかもしれないが..)
+		else if (token == "movetime")  is >> limits.movetime;
+
 		// 詰み探索。"UCI"プロトコルではこのあとには手数が入っており、その手数以内に詰むかどうかを判定するが、
 		// "USI"プロトコルでは、ここは探索のための時間制限に変更となっている。
 		else if (token == "mate") {
