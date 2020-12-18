@@ -10,7 +10,7 @@ charset = utf-8
 end_of_line = lf
 
 # Code files
-[*.{cpp,h,cs,csx,vb,vbx}]
+[*.{cpp,h,hpp,cs,csx,vb,vbx}]
 indent_size = 4
 indent_style = tab
 insert_final_newline = true
@@ -18,7 +18,7 @@ charset = utf-8-bom
 end_of_line = lf
 
 # Visual Studio XML files
-[*.{csproj,xml,xslt,vcxproj,vcxproj.*}]
+[*.{csproj,xml,xslt,vcxproj,vcxproj.*,props}]
 charset = utf-8-bom
 end_of_line = crlf
 insert_final_newline = false
@@ -44,7 +44,15 @@ charset = utf-8
 end_of_line = lf
 
 # Makefile
-[{Makefile,*.mk}]
+[Makefile]
+indent_size = 4
 indent_style = tab
+charset = utf-8
+end_of_line = lf
+
+# Android Makefile
+[*.{mk}]
+indent_size = 2
+indent_style = space
 charset = utf-8
 end_of_line = lf
