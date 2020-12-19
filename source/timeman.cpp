@@ -61,7 +61,8 @@ void Timer::init(const Search::LimitsType& limits, Color us, int ply)
 	search_end = 0;
 
 	// 今回の最大残り時間(これを超えてはならない)
-	remain_time = limits.time[us] + limits.byoyomi[us] - (TimePoint)Options["NetworkDelay2"];
+	// byoyomiとincの指定は残り時間にこの時点で加算して考える。
+	remain_time = limits.time[us] + limits.byoyomi[us] + limits.inc[us] - (TimePoint)Options["NetworkDelay2"];
 	// ここを0にすると時間切れのあと自爆するのでとりあえず100にしておく。
 	remain_time = std::max(remain_time, (TimePoint)100);
 
@@ -139,7 +140,9 @@ void Timer::init(const Search::LimitsType& limits, Color us, int ply)
 		TimePoint t1 = minimumTime + remain_estimate / MTG;
 
 		// -- maximumTime
-		float max_ratio = 5.0f;
+		//float max_ratio = 5.0f;
+		float max_ratio = 3.0f;
+		// 5.0f、やりすぎな気がする。時間使いすぎて他のところで足りなくなる。
 
 		// 切れ負けルールにおいては、5分を切っていたら、このratioを抑制する。
 		if (limits.inc[us] == 0 && limits.byoyomi[us] == 0)
