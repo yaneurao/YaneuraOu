@@ -6,6 +6,7 @@
 #include <functional>
 #include <fstream>
 #include <mutex>
+#include <atomic>
 
 #include "types.h"
 
