@@ -469,7 +469,7 @@ namespace Book
 					// その局面の情報は、write_book()で書き出されないのでまあいいか…。
 
 					// MemoryBookにエントリーが存在しないなら無条件で、この局面について思考して良い。
-					if (it != nullptr)
+					if (it == nullptr || it->size() == 0)
 						sfens_.push_back(s);
 					else
 					{
