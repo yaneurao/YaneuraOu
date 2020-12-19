@@ -241,54 +241,6 @@
     <ClInclude Include="eval\nnue\trainer\features\factorizer_half_kp.h">
       <Filter>リソース ファイル\eval\nnue\trainer\features</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkp_1024x2-512-128-32.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkp_2048x2-1024-256-64.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkp_128x2-32xx6.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkp_512x2-32xx8.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkp_128x2-32xx2.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkp_512x2-32xx2.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\k-p_256x2-32xx8.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkp_1024x2-32xx2.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkp_1024x2-128xx2.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkp_256x2-128xx2.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\k-p_2048x2-32xx2.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkp_2048x2-32xx2.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\k-p_512x2-32xx2.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\k-p_128x2-32xx2.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\k-p_2048x2-32xx2-P8.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\k-p_16384x2-32xx2-P8.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
     <ClInclude Include="usi.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
