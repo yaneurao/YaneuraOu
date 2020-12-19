@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.6.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.props" Condition="Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.6.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.props')" />
-  <Import Project="..\packages\Microsoft.AI.DirectML.1.4.0\build\Microsoft.AI.DirectML.props" Condition="Exists('..\packages\Microsoft.AI.DirectML.1.4.0\build\Microsoft.AI.DirectML.props')" />
+  <Import Project="..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.6.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.props" Condition="('$(Configuration)'=='Debug-Deep-ONNX' Or '$(Configuration)'=='Release-Deep-ONNX') And Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.6.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.props')" />
+  <Import Project="..\packages\Microsoft.AI.DirectML.1.4.0\build\Microsoft.AI.DirectML.props" Condition="('$(Configuration)'=='Debug-Deep-ONNX' Or '$(Configuration)'=='Release-Deep-ONNX') And Exists('..\packages\Microsoft.AI.DirectML.1.4.0\build\Microsoft.AI.DirectML.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug-Deep-ONNX|x64">
       <Configuration>Debug-Deep-ONNX</Configuration>
@@ -194,7 +194,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Deep-ONNX|x64'" Label="Configuration">
     <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
-  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release-NNUE-LEARN|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-NNUE-LEARN|x64'" Label="Configuration">
     <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -324,12 +324,12 @@
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
     <Import Project="props\YaneuraOuEdition-Deep-ONNX.props" />
   </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release-NNUE-LEARN|x64'">
-    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
-    <Import Project="props\YaneuraOuEdition-NNUE.props" />
-    <Import Project="props\YaneuraOuSolution-release-x64.props" />
-    <Import Project="props\YaneuraOu-EvalLearn.props" />
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-NNUE-LEARN|x64'" Label="PropertySheets">
     <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-release-x64.props" />
+    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
+    <Import Project="props\YaneuraOu-EvalLearn.props" />
+    <Import Project="props\YaneuraOuEdition-NNUE.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-mate|x64'">

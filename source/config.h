@@ -681,8 +681,8 @@ constexpr bool pretty_jp = false;
 #elif defined(EVAL_DEEP)
 	#if defined(ONNXRUNTIME)
 		#define EVAL_TYPE_NAME "ONNX-" << EVAL_DEEP
-	#else
-	#define EVAL_TYPE_NAME EVAL_DEEP
+	#elif defined(TENSOR_RT)
+		#define EVAL_TYPE_NAME "TensorRT-" << EVAL_DEEP
 	#endif
 
 #else

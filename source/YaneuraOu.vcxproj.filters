@@ -596,7 +596,6 @@
       <Filter>リソース ファイル</Filter>
     </None>
     <None Include="packages.config" />
-    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
     <None Include="..\.editorconfig" />
     <None Include="..\.gitattributes" />
     <None Include="..\.gitignore" />
