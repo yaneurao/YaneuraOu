@@ -116,7 +116,7 @@ void USI::extra_option(USI::OptionsMap& o)
 #if defined(ONNXRUNTIME)
 	// CPUを使っていることがあるので、default値、ちょっと少なめにしておく。
 	o["DNN_Batch_Size1"]             << USI::Option(32, 1, 1024);
-#elif defind(TENSOR_RT)
+#elif defined(TENSOR_RT)
 	// 通常時の推奨128 , 検討の時は推奨256。
 	o["DNN_Batch_Size1"]             << USI::Option(128, 1, 1024);
 #endif
@@ -297,7 +297,7 @@ void MainThread::search()
 void Thread::search()
 {
 	// searcherが、このスレッドがどのインスタンスの
-	// UCTSearcher::ParallelUctSearch()を呼び出すか知っている。
+	// UCTSearcher::ParallelUctSearch()を呼び出すかを知っている。
 
 	// このrootPosはスレッドごとに用意されているからコピー可能。
 

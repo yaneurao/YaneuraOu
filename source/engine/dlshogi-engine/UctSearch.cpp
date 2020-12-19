@@ -25,7 +25,6 @@ using namespace std;
 #define LOCK_EXPAND grp->get_dlsearcher()->mutex_expand.lock();
 #define UNLOCK_EXPAND grp->get_dlsearcher()->mutex_expand.unlock();
 
-
 #if defined(LOG_PRINT)
 struct MoveIntFloat
 {
@@ -248,29 +247,15 @@ namespace dlshogi
 		// これが、policy_value_batch_maxsize分だけ溜まったら、nn->forward()を呼び出す。
 	}
 
-
-	//  並列処理で呼び出す関数
-	//  UCTアルゴリズムを反復する
+	// UCTアルゴリズム(UctSearch())を反復的に実行する。
+	// 探索用のすべてのスレッドが並列的にこの関数を実行をする。
+	// この関数とUctSearch()、SelectMaxUcbChild()が探索部本体と言えると思う。
 	void UctSearcher::ParallelUctSearch(const Position& rootPos)
 	{
 		Node* current_root = get_node_tree()->GetCurrentHead();
 		DlshogiSearcher* ds = grp->get_dlsearcher();
 		auto& search_limit = ds->search_limit;
-		auto& search_options = ds->search_options;
-		auto& time_man = search_limit.time_manager;
-
-		// 探索打ち切り判定関数
-		auto stop_search = [&]()
-		{
-			// 終了予定時刻が確定しているなら、その時刻を超過していないかのチェックを(こまめに)行う。
-			auto search_end = time_man.search_end.load();
-			if (search_end > 0 && time_man.elapsed_from_ponderhit() > search_end)
-				search_limit.interruption = true;
-
-			//   Threads.stop              : "stop"コマンドが送られてきたか、main threadがすでに指し手を返したので待機中である。
-			//   search_limit.interruption : 探索の打ち切り条件を満たしたとmain threadが判定した。
-			return Threads.stop || search_limit.interruption;
-		};
+		auto stop = [&]() { return Threads.stop || search_limit.interruption; };
 
 		// ルートノードを評価。これは最初にevaledでないことを見つけたスレッドが行えば良い。
 		LOCK_EXPAND;
@@ -281,23 +266,6 @@ namespace dlshogi
 		}
 		UNLOCK_EXPAND;
 
-		// いずれか一つのスレッドが時間を監視する
-		// このスレッドがそれを担当するかを判定する。
-		//bool monitoring_thread = false;
-		//if (!init_search_begin_time.exchange(true)) {
-		//	search_begin_time.restart();
-		//	last_pv_print = 0;
-		//	monitoring_thread = true;
-		//}
-
-		// 単にメインスレッドが時刻を監視したりPVを出力したりする。
-		bool main_thread = (thread_id == 0);
-		auto& last_pv_print = ds->search_limit.last_pv_print;
-		auto  pv_interval   = ds->search_options.pv_interval;
-
-		if (main_thread)
-			last_pv_print = 0;
-
 		// 探索経路のバッチ
 		vector<vector<NodeTrajectory>> trajectories_batch;
 		vector<vector<NodeTrajectory>> trajectories_batch_discarded;
@@ -305,14 +273,14 @@ namespace dlshogi
 		trajectories_batch_discarded.reserve(policy_value_batch_maxsize);
 
 		// 探索回数が閾値を超える, または探索が打ち切られたらループを抜ける
-		while ( !stop_search() )
+		while ( ! stop() )
 		{
 			trajectories_batch.clear();
 			trajectories_batch_discarded.clear();
 			current_policy_value_batch_index = 0;
 
 			// バッチサイズ分探索を繰り返す
-			for (int i = 0; i < policy_value_batch_maxsize && !stop_search(); i++) {
+			for (int i = 0; i < policy_value_batch_maxsize && !stop(); i++) {
 
 				// 盤面のコピー
 
@@ -325,9 +293,11 @@ namespace dlshogi
 				trajectories_batch.emplace_back();
 				float result = UctSearch(&pos, current_root, 0, trajectories_batch.back());
 
-				if (result != DISCARDED) {
-					// 探索回数を1回増やす
-					atomic_fetch_add(&ds->search_limit.node_searched, 1);
+				if (result != DISCARDED)
+				{
+				  atomic_fetch_add(&search_limit.node_searched, 1);
+					//  →　ここで加算するとnpsの計算でまだEvalNodeしてないものまで加算されて
+					// 大きく見えてしまうのでもう少しあとで加算したいところだが…。
 				}
 				else {
 					// 破棄した探索経路を保存
@@ -344,9 +314,8 @@ namespace dlshogi
 			// 評価
 			// 探索終了の合図が来ているなら、なるべくただちに終了したいので、EvalNode()もskipして
 			// virtual lossを戻して終わる。
-			if (!stop_search())
+			if (!stop())
 			EvalNode();
-
 
 			// 破棄した探索経路のVirtual Lossを戻す
 			for (auto& trajectories : trajectories_batch_discarded) {
@@ -384,31 +353,6 @@ namespace dlshogi
 					result = 1.0f - result;
 				}
 			}
-
-			// 探索停止の合図が来ているなら、このあとのPV出力も、探索停止チェックも不要である。
-			if (stop_search())
-				break;
-
-			// PV表示
-			// これはmainスレッドが担当。
-			if (main_thread && search_options.pv_interval > 0) {
-				const auto elapsed_time = time_man.elapsed();
-				if (elapsed_time > last_pv_print + pv_interval) {
-					const auto prev_last_pv_print = last_pv_print;
-					last_pv_print = elapsed_time;
-
-					// PV表示
-					//get_and_print_pv();
-					UctPrint::get_best_move_multipv(current_root , search_limit , search_options );
-				}
-			}
-
-			// 探索を打ち切るか確認
-			// この確認は、main_threadのみが行う。
-			// → batch sizeが大きいとEvalNode()してる時に時間オーバーになりやすいので
-			// 　全スレッドでやることに。どうせbatch sizeごとにしか行わないので、オーバーヘッドは無視できるはず。
-			ds->InterruptionCheck();
-
 		}
 
 	}

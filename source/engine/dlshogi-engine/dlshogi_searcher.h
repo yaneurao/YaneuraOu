@@ -16,6 +16,7 @@ namespace dlshogi
 	class NodeGarbageCollector;
 	class UctSearcher;
 	class UctSearcherGroup;
+	class SearchInterruptionChecker;
 
 	// 探索したノード数など探索打ち切り条件を保持している。
 	// ※　dlshogiのstruct po_info_t。
@@ -63,6 +64,8 @@ namespace dlshogi
 		// --- ↓これだけ探索中に書き換える。(増えていく) 
 		
 		// 現在の探索ノード数
+		// これは"go","go ponder"に対してゼロに初期化される。
+		// 前回、rootの局面に対して訪問していた回数は考慮されない。
 		std::atomic<NodeCountType> node_searched;
 
 		// 探索停止フラグ。これがtrueになれば探索は強制打ち切り。
@@ -72,11 +75,13 @@ namespace dlshogi
 		// 最後にPVを出力した時刻(begin_time相対)
 		TimePoint last_pv_print;
 
-		// ponder modeでsearch()が呼び出されているかのフラグ。
+		// ponder mode("go ponder"コマンド)でsearch()が呼び出されているかのフラグ。
+		// これがtrueのときは探索は"bestmove"を返すのを"stop"が来るまで待機しなければならない。
 		bool pondering;
 
 		// 中断用フラグ
 		// これがtrueになると全スレッドは探索を終了する。
+		// この停止のためのチェックは、SearchInterruptionCheckerが行う。
 		std::atomic<bool> interruption;
 	};
 
@@ -250,6 +255,9 @@ namespace dlshogi
 		// NNに渡すモデルPathの設定。
 		void SetModelPaths(const std::vector<std::string>& paths);
 
+		// 最後にPVを出力した時刻をリセットする。
+		void ResetLastPvPrint() { search_limit.last_pv_print = 0; }
+
 		// NodeTreeを取得。
 		NodeTree* get_node_tree() const { return tree.get(); }
 
@@ -272,7 +280,12 @@ namespace dlshogi
 		std::mutex mutex_expand;
 
 		//  探索停止の確認
+		// SearchInterruptionCheckerから呼び出される。
 		void InterruptionCheck();
+
+		// PV表示の確認
+		// SearchInterruptionCheckerから呼び出される。
+		void OutputPvCheck();
 
 	private:
 
@@ -281,7 +294,7 @@ namespace dlshogi
 
 		//  思考時間延長の確認
 		//    返し値 : 探索を延長したほうが良さそうならtrue
-		bool ExtendTime();
+		//bool ExtendTime();
 
 		// UCT探索を行う、GPUに対応するスレッドグループの集合
 		std::unique_ptr<UctSearcherGroup[]> search_groups;
@@ -291,6 +304,9 @@ namespace dlshogi
 		
 		// ガーベジコレクタ
 		std::unique_ptr<NodeGarbageCollector> gc;
+
+		// 探索停止チェック用
+		std::unique_ptr<SearchInterruptionChecker> interruption_checker;
 
 		// PVの出力と、ベストの指し手の取得
 		std::tuple<Move /*bestMove*/, float /* best_wp */, Move /* ponderMove */> get_and_print_pv();
@@ -303,6 +319,27 @@ namespace dlshogi
 		// スレッドIDから対応するgpu_idへのmapper
 		std::vector<int> thread_id_to_gpu_id;
 		std::vector<UctSearcher*> thread_id_to_uct_searcher;
+	};
+
+	// 探索の終了条件を満たしたかを調べるスレッド
+	// dlshogiにはないが、これがないと正確な時刻で探索を終了させることが困難だと思った。
+	// GCと同じような作りになっている。
+	// スレッドの生成は、やねうら王フレームワーク側で行うものとする。(探索用スレッドを1つ使う)
+	// また、PVの表示チェックと探索終了チェックは、DlshogiSearcher側に実装してあるものとする。
+	class SearchInterruptionChecker
+	{
+	public:
+		SearchInterruptionChecker(DlshogiSearcher* ds) : ds(ds) {}
+
+		// この間隔ごとに探索停止のチェック、PVの出力のチェックを行う。
+		const int kCheckIntervalMs = 10;
+
+		// ガーベジ用のスレッドが実行するworker
+		// 探索開始時にこの関数を呼び出す。
+		void Worker();
+
+	private:
+		DlshogiSearcher* ds;
 	};
 
 

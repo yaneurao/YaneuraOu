@@ -201,14 +201,17 @@ namespace dlshogi
 	// 定期的に走るガーベジコレクタ。
 	// 別スレッドで開放していく。
 	// ※　dlshogiでは"Node.cpp"に書いてあったが、こちらに移動させた。
+	// ※　探索スレッドからスレッドを割り当てるとシンプルなコードになるのだが、
+	//    GCに時間がかかることがあり、bestmoveを返すときに全スレッドの終了を待機するので
+	//    それは良くないアイデアであった。
 	class NodeGarbageCollector
 	{
 	public:
-		// この間隔ごとにGCを走らせる。
-		const int kGCIntervalMs = 100;
-
 		// コンストラクタでGCスレッドを開始する。
 		NodeGarbageCollector() : current_thread_id(-1), gc_thread(std::thread([this]() { Worker(); })) {}
+
+		// この間隔ごとにGCを走らせる。
+		const int kGCIntervalMs = 100;
 
 		// GC対象に追加する。ここから辿れるNode,ChildNodeはすべて開放する。
 		// また、Nodeは循環していないものとする。
@@ -271,8 +274,6 @@ namespace dlshogi
 				}
 			};
 		}
-
-	private:
 
 		// subtrees_to_gc を変更する時のmutex
 		mutable std::mutex gc_mutex;
