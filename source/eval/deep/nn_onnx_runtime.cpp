@@ -4,9 +4,13 @@
 
 //#include "dlshogi_types.h"
 
+#if defined(ORT_DML)
 #include <dml_provider_factory.h>
 // →　ここでDirectML.h が見つからないとエラーが出るなら Windows SDKの最新版をインストールすること。
 //	   https://github.com/microsoft/DirectML/issues/1
+#else
+#include <cpu_provider_factory.h>
+#endif
 
 using namespace std;
 using namespace Tools;
@@ -19,8 +23,11 @@ namespace Eval::dlshogi
 		Ort::SessionOptions session_options;
 		session_options.DisableMemPattern();
 		session_options.SetExecutionMode(ORT_SEQUENTIAL);
+#if defined(ORT_DML)
 		Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_DML(session_options, gpu_id));
-
+#else
+	    Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CPU(session_options, true));
+#endif
 		// Windows環境ではwstringでファイル名を渡す必要があるようだが？
 		std::wstring onnx_filename = MultiByteToWideChar(model_filename);
 		//std::string onnx_filename(filename);
