@@ -238,6 +238,7 @@ SOURCES  = \
 	extra/test_cmd.cpp                                                         \
 	extra/sfen_packer.cpp                                                      \
 	extra/kif_converter/kif_convert_tools.cpp                                  \
+	extra/super_sort.cpp                                                       \
 	eval/evaluate_bona_piece.cpp                                               \
 	eval/evaluate.cpp                                                          \
 	eval/evaluate_io.cpp                                                       \
@@ -321,13 +322,10 @@ endif
 ifeq ($(findstring dev,$(ENGINE_BRANCH)),dev)
 	# SuperSort使ってみよう。
 	CPPFLAGS += -DDEV_BRANCH
-	SOURCES += extra/super_sort.cpp
 endif
 
 # abe
 ifeq ($(findstring abe,$(ENGINE_BRANCH)),abe)
-	SOURCES += extra/super_sort.cpp
-	CPPFLAGS += -DDEV_BRANCH
 	CPPFLAGS += -DPV_OUTPUT_DRAW_ONLY -DFORCE_BIND_THIS_THREAD
 endif
 

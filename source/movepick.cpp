@@ -6,9 +6,15 @@
 // パラメーターの自動調整フレームワークからパラメーターの値を読み込む
 #include "engine/yaneuraou-engine/yaneuraou-param-common.h"
 
-#if defined(DEV_BRANCH) && defined(USE_AVX2)
+#if defined(USE_SUPER_SORT) && defined(USE_AVX2)
 // partial_insertion_sort()のSuperSortを用いた実装
 extern void partial_super_sort(ExtMove* start, ExtMove* end, int limit);
+
+/*
+  - 少し高速化されるらしい。
+  - 安定ソートではないので並び順が以前のとは異なるから、benchコマンドの探索ノード数は変わる。
+  - CPU targetによって実装が変わるのでCPUによってbenchコマンドの探索ノード数は変わる。
+*/
 #endif
 
 namespace {
@@ -369,7 +375,7 @@ top:
 			// 指し手を部分的にソートする。depthに線形に依存する閾値で。
 			// (depthが低いときに真面目に全要素ソートするのは無駄だから)
 
-#if defined(DEV_BRANCH) && defined(USE_AVX2)
+#if defined(USE_SUPER_SORT) && defined(USE_AVX2)
 
 			// AVX2なので自動的にlittle endianと仮定できるのでint64_tとみなしてソートして良い。
 			// このとき、sortの高速化として、SuperSortが使える。
