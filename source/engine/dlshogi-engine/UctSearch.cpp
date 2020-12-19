@@ -254,8 +254,8 @@ namespace dlshogi
 	{
 		Node* current_root = get_node_tree()->GetCurrentHead();
 		DlshogiSearcher* ds = grp->get_dlsearcher();
-		auto& search_limit = ds->search_limit;
-		auto stop = [&]() { return Threads.stop || search_limit.interruption; };
+		auto& search_limits = ds->search_limits;
+		auto stop = [&]() { return Threads.stop || search_limits.interruption; };
 
 		// ルートノードを評価。これは最初にevaledでないことを見つけたスレッドが行えば良い。
 		LOCK_EXPAND;
@@ -295,7 +295,7 @@ namespace dlshogi
 
 				if (result != DISCARDED)
 				{
-				  atomic_fetch_add(&search_limit.node_searched, 1);
+				  atomic_fetch_add(&search_limits.nodes_searched, 1);
 					//  →　ここで加算するとnpsの計算でまだEvalNodeしてないものまで加算されて
 					// 大きく見えてしまうのでもう少しあとで加算したいところだが…。
 				}
@@ -451,7 +451,16 @@ namespace dlshogi
 			trajectories.emplace_back(current, next_index);
 
 			// 千日手チェック
-			switch (pos->is_repetition(16))
+
+			RepetitionState rep;
+
+			// この局面の手数が最大手数を超えているなら千日手扱いにする。
+			if (options.max_moves_to_draw < pos->game_ply())
+				rep = REPETITION_DRAW;
+			else
+				rep = pos->is_repetition(16);
+
+			switch (rep)
 			{
 				case REPETITION_WIN     : // 連続王手の千日手で反則勝ち
 				case REPETITION_SUPERIOR: // 優等局面は勝ち扱い

@@ -195,16 +195,16 @@ namespace dlshogi::UctPrint
 	}
 
 	// ベストの指し手とponderの指し手の取得
-	BestMovePonder get_best_move_multipv(const Node* rootNode , const SearchLimit& po_info , const SearchOptions& options )
+	BestMovePonder get_best_move_multipv(const Node* rootNode , const SearchLimits& po_info , const SearchOptions& options )
 	{
 		size_t multiPv = options.multi_pv;
 		
 		// 探索にかかった時間を求める
 		auto finish_time = std::max((TimePoint)1, po_info.time_manager.elapsed());
 		std::stringstream nps;
-		nps << " nps "      << (po_info.node_searched * 1000LL / (u64)finish_time)
+		nps << " nps "      << (po_info.nodes_searched * 1000LL / (u64)finish_time)
 			<< " time "     <<  finish_time
-			<< " nodes "    <<  po_info.node_searched
+			<< " nodes "    <<  po_info.nodes_searched
 			<< " hashfull " << (po_info.current_root->move_count * 1000LL / options.uct_node_limit);
 		
 		// MultiPVであれば、現在のnodeで複数の候補手を表示する。
@@ -234,7 +234,7 @@ namespace dlshogi::UctPrint
 	// --- Debug Message ---
 
 	// 探索の情報の表示
-	void PrintPlayoutInformation(const Node* root, const SearchLimit* po_info, const TimePoint finish_time, const NodeCountType pre_simulated)
+	void PrintPlayoutInformation(const Node* root, const SearchLimits* po_info, const TimePoint finish_time, const NodeCountType pre_simulated)
 	{
 		double finish_time_sec = finish_time / 1000.0;
 
@@ -258,7 +258,7 @@ namespace dlshogi::UctPrint
 
 		// 思考時間が0でないなら、Playout/secを出す。
 		if (finish_time_sec != 0.0)
-			sync_cout << "Playout Speed      :  " << std::setw(7) << (int)(po_info->node_searched / finish_time_sec) << " PO/sec " << sync_endl;
+			sync_cout << "Playout Speed      :  " << std::setw(7) << (int)(po_info->nodes_searched / finish_time_sec) << " PO/sec " << sync_endl;
 
 	}
 

@@ -21,14 +21,14 @@ namespace dlshogi
 	// 探索したノード数など探索打ち切り条件を保持している。
 	// ※　dlshogiのstruct po_info_t。
 	//     dlshogiではglobalになっていた探索条件に関する変数もこの構造体に含めている。
-	struct SearchLimit
+	struct SearchLimits
 	{
 		// --- ↓今回のgoコマンド後に決定した値
 
 		// 探索を打ち切る探索ノード数
 		// 探索したノード数
 		// 0 なら制限されていない。これが0以外の時は、↓↓の項目が有効。
-		NodeCountType node_limit = 0;
+		NodeCountType nodes_limit = 0;
 		
 		// 探索している時間を計測する用のtimer
 		// 探索開始時にresetされる。
@@ -66,10 +66,10 @@ namespace dlshogi
 		// 現在の探索ノード数
 		// これは"go","go ponder"に対してゼロに初期化される。
 		// 前回、rootの局面に対して訪問していた回数は考慮されない。
-		std::atomic<NodeCountType> node_searched;
+		std::atomic<NodeCountType> nodes_searched;
 
 		// 探索停止フラグ。これがtrueになれば探索は強制打ち切り。
-		// →　やねうら王では使わない。Threads.stopかsearch_limit.interruptionを使う。
+		// →　やねうら王では使わない。Threads.stopかsearch_limits.interruptionを使う。
 		//std::atomic<bool> uct_search_stop;
 
 		// 最後にPVを出力した時刻(begin_time相対)
@@ -131,7 +131,7 @@ namespace dlshogi
 
 		// 決着つかずで引き分けとなる手数
 		// エンジンオプションの"MaxMovesToDraw"の値。
-		int draw_ply = 512;
+		int max_moves_to_draw = 512;
 
 		// 予測読みの設定
 		// エンジンオプションの"USI_Ponder"の値。
@@ -187,21 +187,21 @@ namespace dlshogi
 
 		// 先手の引き分けのスコアを返す。
 		float draw_value_black() const {
-			return (search_options.draw_value_from_black && search_limit.root_color == WHITE)
+			return (search_options.draw_value_from_black && search_limits.root_color == WHITE)
 				? search_options.draw_value_white // draw_value_from_blackかつ後手番なら、後手の引き分けのスコアを返す
 				: search_options.draw_value_black;
 		}
 
 		// 後手の引き分けのスコアを返す。
 		float draw_value_white() const {
-			return (search_options.draw_value_from_black && search_limit.root_color == WHITE)
+			return (search_options.draw_value_from_black && search_limits.root_color == WHITE)
 				? search_options.draw_value_black
 				: search_options.draw_value_white;
 		}
 
 		// 1手にかける時間取得[ms]
 		//TimePoint GetTimeLimit() const;
-		// →　search_limit.time_limitから取得すればいいか…。
+		// →　search_limits.time_limitから取得すればいいか…。
 
 		//  ノード再利用の設定
 		//    flag : 探索したノードの再利用をするのか
@@ -224,18 +224,18 @@ namespace dlshogi
 		void TerminateUctSearch();
 
 		// 探索の"go"コマンドの前に呼ばれ、今回の探索の打ち切り条件を設定する。
-		//    limits.nodes        : 探索を打ち切るnode数   　→  search_limit.node_limitに反映する。
-		//    limits.movetime     : 思考時間固定時の指定     →　search_limit.time_limitに反映する。
-		//    limits.max_game_ply : 引き分けになる手数の設定 →  search_limit.draw_plyに反映する。
+		//    limits.nodes        : 探索を打ち切るnode数   　→  search_limits.nodes_limitに反映する。
+		//    limits.movetime     : 思考時間固定時の指定     →　search_limits.movetimeに反映する。
+		//    limits.max_game_ply : 引き分けになる手数の設定 →  search_limits.max_moves_to_drawに反映する。
 		// などなど。
-		// その他、"go"コマンドで渡された残り時間等から、今回の思考時間を算出し、search_limit.time_managerに反映する。
+		// その他、"go"コマンドで渡された残り時間等から、今回の思考時間を算出し、search_limits.time_managerに反映する。
 		void SetLimits(const Position* pos, const Search::LimitsType& limits);
 
 		// 終了させるために、search_groupsを開放する。
 		void FinalizeUctSearch();
 
 		// UCT探索を停止させる。
-		// search_limit.uct_search_stop == trueになる。
+		// search_limits.uct_search_stop == trueになる。
 		void StopUctSearch();
 
 		// UCTアルゴリズムによる着手生成
@@ -256,7 +256,7 @@ namespace dlshogi
 		void SetModelPaths(const std::vector<std::string>& paths);
 
 		// 最後にPVを出力した時刻をリセットする。
-		void ResetLastPvPrint() { search_limit.last_pv_print = 0; }
+		void ResetLastPvPrint() { search_limits.last_pv_print = 0; }
 
 		// NodeTreeを取得。
 		NodeTree* get_node_tree() const { return tree.get(); }
@@ -270,7 +270,7 @@ namespace dlshogi
 
 		// プレイアウト情報。
 		// 探索打ち切り条件などはここに格納されている。
-		SearchLimit search_limit;
+		SearchLimits search_limits;
 
 		// エンジンオプションで設定された値
 		SearchOptions search_options;

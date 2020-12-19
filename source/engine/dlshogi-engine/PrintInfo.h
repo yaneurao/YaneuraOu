@@ -9,7 +9,7 @@
 
 namespace dlshogi
 {
-	struct SearchLimit;
+	struct SearchLimits;
 	struct SearchOptions;
 }
 
@@ -18,7 +18,7 @@ namespace dlshogi::UctPrint
 	// --- 探索情報の表示 ---
 
 	// 探索の情報の表示
-	void PrintPlayoutInformation(const Node* root, const SearchLimit* po_info, const TimePoint finish_time, const NodeCountType pre_simulated);
+	void PrintPlayoutInformation(const Node* root, const SearchLimits* po_info, const TimePoint finish_time, const NodeCountType pre_simulated);
 
 	// 探索時間の出力
 	void PrintPlayoutLimits(const Timer& time_manager, const int playout_limit);
@@ -45,7 +45,7 @@ namespace dlshogi::UctPrint
 	};
 
 	// ベストの指し手とponderの指し手の取得と表示
-	BestMovePonder get_best_move_multipv(const Node* rootNode , const SearchLimit& po_info , const SearchOptions& options );
+	BestMovePonder get_best_move_multipv(const Node* rootNode , const SearchLimits& po_info , const SearchOptions& options );
 
 }
 

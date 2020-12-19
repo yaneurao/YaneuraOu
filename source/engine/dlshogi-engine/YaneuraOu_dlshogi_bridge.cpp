@@ -236,7 +236,7 @@ void Search::clear()
 void MainThread::search()
 {
 	// 開始局面の手番をglobalに格納しておいたほうが便利。
-	searcher.search_limit.root_color = rootPos.side_to_move();
+	searcher.search_limits.root_color = rootPos.side_to_move();
 
 	// "NodesLimit"の値など、今回の"go"コマンドによって決定した値が反映される。
 	searcher.SetLimits(&rootPos,Search::Limits);
