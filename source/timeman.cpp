@@ -10,7 +10,8 @@
 namespace {
 
   // これぐらい自分が指すと終局すると考えて計画を練る。
-  const int MoveHorizon = 80;
+	// 近年、将棋ソフトは終局までの平均手数が伸びているので 160に設定しておく。
+	const int MoveHorizon = 160;
 
   // 思考時間のrtimeが指定されたときに用いる乱数
   PRNG prng;
