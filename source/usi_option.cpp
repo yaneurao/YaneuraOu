@@ -78,15 +78,23 @@ namespace USI {
 		// cin/coutの入出力をファイルにリダイレクトする
 		o["WriteDebugLog"] << Option(false, [](const Option& o) { start_logger(o); });
 
+		// 指し手がGUIに届くまでの時間。
+#if defined(YANEURAOU_ENGINE_DEEP)
+		// GPUからの結果を待っている時間も込みなので少し上げておく。
+		int time_margin = 400;
+#else
+		int time_margin = 120;
+#endif
+
 		// ネットワークの平均遅延時間[ms]
 		// この時間だけ早めに指せばだいたい間に合う。
 		// 切れ負けの瞬間は、NetworkDelayのほうなので大丈夫。
-		o["NetworkDelay"] << Option(120, 0, 10000);
+		o["NetworkDelay"] << Option(time_margin, 0, 10000);
 
 		// ネットワークの最大遅延時間[ms]
 		// 切れ負けの瞬間だけはこの時間だけ早めに指す。
 		// 1.2秒ほど早く指さないとfloodgateで切れ負けしかねない。
-		o["NetworkDelay2"] << Option(1120, 0, 10000);
+		o["NetworkDelay2"] << Option(time_margin + 1000, 0, 10000);
 
 		// 最小思考時間[ms]
 		o["MinimumThinkingTime"] << Option(2000, 1000, 100000);

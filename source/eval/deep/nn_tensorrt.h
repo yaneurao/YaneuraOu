@@ -2,7 +2,7 @@
 #define __NN_TENSORRT_H_INCLUDED__
 #include "../../config.h"
 
-#if defined(YANEURAOU_ENGINE_DEEP) && !defined(ONNXRUNTIME)
+#if defined(YANEURAOU_ENGINE_DEEP) && defined(TENSOR_RT)
 
 // TensorRT版
 
@@ -81,5 +81,5 @@ namespace Eval::dlshogi
 
 } // namespace Eval::dlshogi
 
-#endif // defined(YANEURAOU_ENGINE_DEEP) && !defined(ONNXRUNTIME)
+#endif // defined(YANEURAOU_ENGINE_DEEP) && defined(TENSOR_RT)
 #endif // ndef __NN_TENSORRT_H_INCLUDED__

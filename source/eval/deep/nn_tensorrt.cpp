@@ -1,6 +1,6 @@
 ﻿#include "nn_tensorrt.h"
 
-#if defined(YANEURAOU_ENGINE_DEEP) && !defined (ONNXRUNTIME)
+#if defined(YANEURAOU_ENGINE_DEEP) && defined (TENSOR_RT)
 
 //#include "dlshogi_types.h"
 
@@ -269,5 +269,5 @@ namespace Eval::dlshogi
 
 } // namespace Eval::dlshogi
 
-#endif // defined(YANEURAOU_ENGINE_DEEP) && !defined (ONNXRUNTIME)
+#endif // defined(YANEURAOU_ENGINE_DEEP) && defined (TENSOR_RT)
 

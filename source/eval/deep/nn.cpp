@@ -4,7 +4,7 @@
 
 #if defined (ONNXRUNTIME)
 	#include "nn_onnx_runtime.h"
-#else
+#elif defined (TENSOR_RT)
 	#include <cuda_runtime.h> // cudaHostAlloc()
 	#include "nn_tensorrt.h"
 #endif
@@ -22,7 +22,7 @@ namespace Eval::dlshogi
 		void* ptr;
 #if defined (ONNXRUNTIME)
 		ptr = (void*)new u8[size];
-#else
+#elif defined (TENSOR_RT)
 		checkCudaErrors(cudaHostAlloc(&ptr, size, cudaHostAllocPortable));
 #endif
 		return ptr;
@@ -34,7 +34,7 @@ namespace Eval::dlshogi
 
 #if defined (ONNXRUNTIME)
 		delete[] (u8*)ptr;
-#else
+#elif defined (TENSOR_RT)
 		checkCudaErrors(cudaFreeHost(ptr));
 #endif
 	}
@@ -45,7 +45,7 @@ namespace Eval::dlshogi
 		shared_ptr<NN> nn;
 #if defined (ONNXRUNTIME)
 		nn = std::make_unique<NNOnnxRuntime>();
-#else
+#elif defined (TENSOR_RT)
 		// フォルダ名に"onnx"と入ってると誤爆するのでそれを回避する必要がある。
 		auto file_name = Path::GetFileName(model_path);
 		if (file_name.find("onnx") != string::npos)

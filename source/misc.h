@@ -275,7 +275,7 @@ struct Timer
 	TimePoint round_up(TimePoint t) const;
 
 	// 探索終了の時間(startTime + search_end >= now()になったら停止)
-	TimePoint search_end;
+	std::atomic<TimePoint> search_end;
 
 private:
 	TimePoint minimumTime;

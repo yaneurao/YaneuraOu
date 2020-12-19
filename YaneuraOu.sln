@@ -19,8 +19,6 @@ Global
 		Debug-NNUE|x86 = Debug-NNUE|x86
 		Debug-user|x64 = Debug-user|x64
 		Debug-user|x86 = Debug-user|x86
-		Release-Deep|x64 = Release-Deep|x64
-		Release-Deep|x86 = Release-Deep|x86
 		Release-Deep-ONNX|x64 = Release-Deep-ONNX|x64
 		Release-Deep-ONNX|x86 = Release-Deep-ONNX|x86
 		Release-Deep-TensorRT|x64 = Release-Deep-TensorRT|x64
@@ -67,8 +65,10 @@ Global
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-user|x64.ActiveCfg = Debug-user|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-user|x64.Build.0 = Debug-user|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-user|x86.ActiveCfg = Debug-user|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep|x64.ActiveCfg = Release-Deep-ONNX|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep|x86.ActiveCfg = Release-Deep-ONNX|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep|x64.ActiveCfg = Release-Deep-TensorRT|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep|x64.Build.0 = Release-Deep-TensorRT|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep|x86.ActiveCfg = Release-user-sse42|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep|x86.Build.0 = Release-user-sse42|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-ONNX|x64.ActiveCfg = Release-Deep-ONNX|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-ONNX|x64.Build.0 = Release-Deep-ONNX|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-ONNX|x86.ActiveCfg = Release-Deep-ONNX|x64

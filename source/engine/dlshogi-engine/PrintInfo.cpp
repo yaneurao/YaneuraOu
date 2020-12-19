@@ -19,10 +19,13 @@ namespace dlshogi::UctPrint
 	struct ValueWinMoveCount
 	{
 		//ValueWinMoveCount(WinCountType value_win_, NodeCountType move_count_) : value_win(value_win_), move_count(move_count_) {}
-		ValueWinMoveCount(const ChildNode& child) : child(const_cast<ChildNode*>(&child)) , value_win(child.node ? (WinCountType)child.node->value_win : 0), move_count(child.move_count) {}
+		ValueWinMoveCount(const ChildNode& child) :
+			child(const_cast<ChildNode*>(&child)) , value_win(child.node ? (WinCountType)child.node->value_win : 0),
+			move_count(child.move_count) , nnrate(child.nnrate){}
 
 		WinCountType value_win;
 		NodeCountType move_count;
+		WinCountType nnrate;
 		ChildNode* child;
 	};
 
@@ -39,8 +42,12 @@ namespace dlshogi::UctPrint
 		int t1 = win_type_of(lhs.value_win);
 		int t2 = win_type_of(rhs.value_win);
 
-		// 同じwin_typeなら、move_countが大きいほう。さもなくば、win_typeの値が大きいほうの順番で並んでほしい。
-		return t1 == t2 ? lhs.move_count > rhs.move_count : t1 > t2;
+		// win_typeが異なるならwin_typeの値が大きいほうの順番で並んでほしい。
+		// 同じwin_typeなら、move_countが大きいほう。move_countが両方0なら、nnrateが大きいほう。
+
+		return t1 != t2 ? t1 > t2 :
+				lhs.move_count || rhs.move_count ? lhs.move_count > rhs.move_count :
+				lhs.nnrate > rhs.nnrate;
 	}
 
 
@@ -92,58 +99,12 @@ namespace dlshogi::UctPrint
 
 	// あるnodeの子ノードのbestのやつの指し手を返す。
 	// 詰みの局面ならMOVE_NONEが返る。
-	BestMove select_best_move(const Node* node)
-	{
-		// 子ノードが未展開であるなら比較自体ができない。
-		if (node->move_count == 0 || !node->child)
-			return BestMove();
-
-		// 子ノードすべてから、一番優れたChildNodeを選択してそれを返す。
-		const ChildNode* child = node->child.get();
-
-		// 一番良かった子ノードのindex
-		int best_child = 0;
-
-		// 一つはVALUE_LOSEであった == その指し手を選んで勝ち = 期待勝率 100%
-		bool found_lose = false;
-
-		// すべてVALUE_WINであった == どうやっても負け = 期待勝率 0%
-		bool all_win  = true;
-
-		for (int i = 1; i < node->child_num; ++i)
-		{
-			const auto& c = child[i];
-			const Node* child_node = c.node.get();
-			const WinCountType child_value_win = child_node ? (WinCountType)child_node->value_win : 0;
-
-			found_lose  |= child_value_win == VALUE_LOSE;
-			all_win     &= child_value_win == VALUE_WIN;
-
-			if (is_superior_to(c,child[best_child]))
-				best_child = i;
-		}
-
-		// 期待勝率
-		WinCountType wp = 
-			  found_lose ? (WinCountType)1.0
-			: all_win    ? (WinCountType)0.0
-			: child[best_child].move_count == 0 ? (WinCountType)0.5 // わからんからとりあえず0.5にしとく。
-			: child[best_child].win / child[best_child].move_count;
-
-		return BestMove(node->child[best_child].move, wp ,child[best_child].node.get());
-	}
-
-	// あるnodeの子ノードのbestのやつの指し手を返す。
-	// 詰みの局面ならMOVE_NONEが返る。
 	std::vector<BestMove> select_best_moves(const Node* node , size_t multiPv)
 	{
 		std::vector<BestMove> bests;
 
-		// node->child_num != 0であるなら、ノードは展開されてはいるが、move_count == 0 であるなら、
-		// この時、nnrateまで拾う意味はないと思うので、無視する。
-		// そもそもrootはExpandRoot()で展開されているし、そのあと、1ノードでも読めば、どの子かは展開されているはずだから、
-		// rootの1番目の指し手自体は存在するはず。(2番目以降は存在性を保証しなくていいと思う)
-		if (node->child_num == 0 || node->move_count == 0 )
+		// 子ノードがない == 詰みだと思う。
+		if (node->child_num == 0)
 			return bests;
 
 		// 子ノードすべてから、上位multiPv個の優れたChildNodeを選択してそれを返す。
@@ -164,35 +125,25 @@ namespace dlshogi::UctPrint
 		for (int i = 0; i < multiPv ; ++i)
 		{
 			const auto& c = child[list[i].first];
+			WinCountType wp;
 			if (c.node == nullptr)
-				continue;
-
+				wp = (WinCountType)0.0; // 未訪問なのでわからん。
+			else
+			{
 			const Node* child_node = c.node.get();
 			const WinCountType child_value_win = child_node ? (WinCountType)child_node->value_win : 0;
 
-			WinCountType wp = 
-				   child_value_win == VALUE_LOSE ? (WinCountType)1.0
+				wp =  child_value_win == VALUE_LOSE ? (WinCountType)1.0
 				:  child_value_win == VALUE_WIN  ? (WinCountType)0.0
 				:  child_node->move_count == 0   ? (WinCountType)0.5 // 未訪問なら0.5にしとく。
 				:  (1 - child_node->win / child_node->move_count);
+			}
 
 			bests.push_back(BestMove(c.move, wp, c.node.get()));
 		}
 		return bests;
 	}
 
-
-	// rootNodeのベストな指し手とponderの指し手を取得する。期待勝率も計算して代入して返す。
-	BestMovePonder get_best_move_ponder(Node* rootNode)
-	{
-		// 普通にbestな子ノードを選択。
-		auto best = select_best_move(rootNode);
-
-		// 子ノードに移動してponderの指し手をもらう
-		Move ponderMove = best.node ? select_best_move(best.node).move : MOVE_NONE;
-
-		return BestMovePonder(best.move, best.wp, ponderMove);
-	}
 
 	// あるノード以降のPV(最善応手列)を取得する。
 	void  get_pv(Node* node , std::vector<Move>& moves)
@@ -249,31 +200,14 @@ namespace dlshogi::UctPrint
 		size_t multiPv = options.multi_pv;
 		
 		// 探索にかかった時間を求める
-		auto finish_time = std::max((TimePoint)1, po_info.begin_time.elapsed());
+		auto finish_time = std::max((TimePoint)1, po_info.time_manager.elapsed());
 		std::stringstream nps;
 		nps << " nps "      << (po_info.node_searched * 1000LL / (u64)finish_time)
 			<< " time "     <<  finish_time
 			<< " nodes "    <<  po_info.node_searched
 			<< " hashfull " << (po_info.current_root->move_count * 1000LL / options.uct_node_limit);
 		
-		if (multiPv <= 1)
-		{
-			auto best = select_best_move(rootNode);
-			if (best.move == MOVE_NONE)
-				return BestMovePonder();
-
-			// 2手目以降のPVを取得する。
-			std::vector<Move> moves = { best.move };
-			get_pv(best.node,moves);
-
-			sync_cout << pv_to_string(best, moves ,multiPv ,0 , nps.str() ) << sync_endl;
-
-			Move ponder = moves.size() >= 2 ? moves[1] : MOVE_NONE;
-			return BestMovePonder(best.move, best.wp, ponder );
-
-		} else {
-
-			// MultiPVなので、現在のnodeで複数の候補手を表示する。
+		// MultiPVであれば、現在のnodeで複数の候補手を表示する。
 
 			auto bests = select_best_moves(rootNode , multiPv);
 			if (bests.size() == 0)
@@ -294,7 +228,6 @@ namespace dlshogi::UctPrint
 			}
 
 			return BestMovePonder(bests[0].move, bests[0].wp, ponder);
-		}
 
 	}
 
@@ -330,9 +263,11 @@ namespace dlshogi::UctPrint
 	}
 
 	// 探索時間の出力
-	void PrintPlayoutLimits(const TimePoint time_limit, const int playout_limit)
+	void PrintPlayoutLimits(const Timer& time_manager, const int playout_limit)
 	{
-		sync_cout << "Time Limit    : " << time_limit    << " Sec" << sync_endl;
+		sync_cout << "Minimum Time  : " << time_manager.minimum() << "[ms]" << sync_endl;
+		sync_cout << "Optimum Time  : " << time_manager.optimum() << "[ms]" << sync_endl;
+		sync_cout << "Maximum Time  : " << time_manager.maximum() << "[ms]" << sync_endl;
 		sync_cout << "Playout Limit : " << playout_limit << " PO"  << sync_endl;
 	}
 

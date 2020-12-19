@@ -21,7 +21,7 @@ namespace dlshogi::UctPrint
 	void PrintPlayoutInformation(const Node* root, const SearchLimit* po_info, const TimePoint finish_time, const NodeCountType pre_simulated);
 
 	// 探索時間の出力
-	void PrintPlayoutLimits(const TimePoint time_limit, const int playout_limit);
+	void PrintPlayoutLimits(const Timer& time_manager, const int playout_limit);
 
 	// 再利用した探索回数の出力
 	void PrintReuseCount(const int count);

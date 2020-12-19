@@ -274,10 +274,16 @@ constexpr int MAX_PLY_NUM = 246;
 // 評価関数側で定義しないといけない。これらの評価関数を用いないなら、これは定義しないこと。
 //#define USE_EVAL
 
+// ---------------------
+// ふかうら王(dlshogi互換エンジン)に関する設定。
+// ---------------------
+
 // ふかうら王で、ONNXRUNTIMEを用いて推論を行うときは、これをdefineすること。
 // ※　GPUがなくても動作する。
 //#define ONNXRUNTIME
 
+// ふかうら王でTensorRTを使う時はこちら。
+//#define TENSOR_RT
 
 // ---------------------
 // 探索パラメーターの自動調整用
@@ -398,6 +404,8 @@ constexpr int MAX_PLY_NUM = 246;
 	// ※　GPUがなくても動作する。
 	//#define ONNXRUNTIME
 
+	// TensorRTを使う時はこちら。
+	//#define TENSOR_RT
 
 #endif
 

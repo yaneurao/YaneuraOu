@@ -11,6 +11,7 @@
 
 namespace dlshogi
 {
+	struct Node;
 	class NodeTree;
 	class NodeGarbageCollector;
 	class UctSearcher;
@@ -28,6 +29,11 @@ namespace dlshogi
 		// 0 なら制限されていない。これが0以外の時は、↓↓の項目が有効。
 		NodeCountType node_limit = 0;
 		
+		// 探索している時間を計測する用のtimer
+		// 探索開始時にresetされる。
+		// →　やねうら王ではtime_managerで行うので削除。
+		//Timer begin_time;
+
 		// 持ち時間制御用
 		Timer time_manager;
 
@@ -37,8 +43,12 @@ namespace dlshogi
 		// →　やねうら王のtime managerを用いるので不要。
 
 		// 思考時間固定
-		// 0なら、思考時間制限はない。
-		TimePoint time_limit;
+		// movetimeが反映される。これはgoコマンドの時に付与されているmovetimeの値。
+		// 0なら、movetimeによる思考時間制限はない。
+		TimePoint movetime;
+
+		// "go infinite"されているか。("stop"がくるまで思考を継続する)
+		bool infinite;
 
 		// -- 探索開始局面の情報
 
@@ -58,10 +68,6 @@ namespace dlshogi
 		// 探索停止フラグ。これがtrueになれば探索は強制打ち切り。
 		// →　やねうら王では使わない。Threads.stopかsearch_limit.interruptionを使う。
 		//std::atomic<bool> uct_search_stop;
-
-		// 探索している時間を計測する用のtimer
-		// 探索開始時にresetされる。
-		Timer begin_time;
 
 		// 最後にPVを出力した時刻(begin_time相対)
 		TimePoint last_pv_print;
@@ -135,6 +141,10 @@ namespace dlshogi
 
 		// エンジンオプションの"MultiPV"の値。
 		size_t multi_pv;
+
+		// デバッグ用のメッセージの出力を行うかのフラグ。
+		// エンジンオプションの"DebugMessage"の値。
+		bool debug_message = false;
 	};
 
 	// UCT探索部
@@ -150,9 +160,9 @@ namespace dlshogi
 		// のようにponderの指し手を返すようになる。
 		void SetPonderingMode(bool flag);
 
-		// 各UctSearchThreadGroupに属するそれぞれのスレッド数と、各スレッドごとのNNのbatch sizeの設定
+		// GPUの初期化、各UctSearchThreadGroupに属するそれぞれのスレッド数と、各スレッドごとのNNのbatch sizeの設定
 		// "isready"に対して呼び出される。
-		void SetThread(std::vector<int> thread_nums, std::vector<int> policy_value_batch_maxsizes);
+		void InitGPU(const std::vector<std::string>& model_paths, std::vector<int> new_thread, std::vector<int> policy_value_batch_maxsizes);
 
 		// 対局開始時に呼び出されるハンドラ
 		void NewGame();
@@ -195,6 +205,11 @@ namespace dlshogi
 		// PV表示間隔設定[ms]
 		void SetPvInterval(const TimePoint interval);
 
+		// DebugMessageの出力。
+		// エンジンオプションの"DebugMessage"の値をセットする。
+		// search_options.debug_messageに反映される。
+		void SetDebugMessage(bool flag);
+
 		// UCT探索の初期設定
 		//    node_limit : 探索ノード数の制限 0 = 無制限
 		//  →　これ、SetLimitsで反映するから、ここでは設定しない。
@@ -207,6 +222,7 @@ namespace dlshogi
 		//    limits.nodes        : 探索を打ち切るnode数   　→  search_limit.node_limitに反映する。
 		//    limits.movetime     : 思考時間固定時の指定     →　search_limit.time_limitに反映する。
 		//    limits.max_game_ply : 引き分けになる手数の設定 →  search_limit.draw_plyに反映する。
+		// などなど。
 		// その他、"go"コマンドで渡された残り時間等から、今回の思考時間を算出し、search_limit.time_managerに反映する。
 		void SetLimits(const Position* pos, const Search::LimitsType& limits);
 
@@ -244,9 +260,6 @@ namespace dlshogi
 
 		// -- public variables..
 
-		// デバッグ用のメッセージの出力を行うかのフラグ。
-		bool debug_message = false;
-
 		// プレイアウト情報。
 		// 探索打ち切り条件などはここに格納されている。
 		SearchLimit search_limit;
@@ -259,8 +272,7 @@ namespace dlshogi
 		std::mutex mutex_expand;
 
 		//  探索停止の確認
-		//	  返し値 : 探索停止条件を満たしていればtrue
-		bool InterruptionCheck();
+		void InterruptionCheck();
 
 	private:
 

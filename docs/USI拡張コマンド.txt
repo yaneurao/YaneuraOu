@@ -285,7 +285,12 @@ USIプロトコルの独自拡張コマンド
 			DNN_Model2 = ""   ← GPU2用のモデル名はないが、↑でスレッドを割り当てているので、DNN_Model1で指定したモデルがGPU2用に読み込まれる。
 			DNN_Batch_Size2 = 0 ← GPU2用のバッチサイズは0だが、↑でスレッドを割り当てているので、GPU2用のバッチサイズは、DNN_Batch_Size1の値と同じになる。
 
+    DNN_Batch_Sizeを上げると、GPUからの帰りを待つ時間が増えるので、時間超過になりやすい。
+    その場合、NetworkDelay,NetworkDelay2の値を調整すること。
+    // NetworkDelayは普通、400ぐらいが最適値だと思う。
 
+    // 持ち時間0秒、秒読み3秒に設定して、time upにならないように NetworkDelay2 を調整して、仮にそれが400だとしたら、
+    // NetworkDelay = 400 , NetworkDelay = 1400 (←切れたら即負けなので少しマージンを持たせる) のように調整する。
 
 	DebugMessage
 

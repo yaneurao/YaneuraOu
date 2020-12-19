@@ -570,6 +570,7 @@
     <ClCompile Include="book\makebook2015.cpp" />
     <ClCompile Include="book\makebook2019.cpp" />
     <ClCompile Include="book\makebook2021.cpp" />
+    <ClCompile Include="engine\dlshogi-engine\dlshogi_searcher.cpp" />
     <ClCompile Include="engine\dlshogi-engine\PrintInfo.cpp" />
     <ClCompile Include="engine\dlshogi-engine\UctSearch.cpp" />
     <ClCompile Include="engine\dlshogi-engine\Node.cpp" />
