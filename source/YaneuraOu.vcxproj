@@ -317,12 +317,16 @@
     <Import Project="props\YaneuraOuSolution-debug-x64.props" />
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
     <Import Project="props\YaneuraOuEdition-Deep-ONNX.props" />
+    <Import Project="..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.6.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets" Condition="Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.6.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets')" />
+    <Import Project="..\packages\Microsoft.AI.DirectML.1.4.0\build\Microsoft.AI.DirectML.targets" Condition="Exists('..\packages\Microsoft.AI.DirectML.1.4.0\build\Microsoft.AI.DirectML.targets')" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-Deep-ONNX|x64'" Label="PropertySheets">
     <Import Project="props\YaneuraOu-common.props" />
     <Import Project="props\YaneuraOuSolution-release-x64.props" />
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
     <Import Project="props\YaneuraOuEdition-Deep-ONNX.props" />
+    <Import Project="..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.6.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets" Condition="Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.6.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets')" />
+    <Import Project="..\packages\Microsoft.AI.DirectML.1.4.0\build\Microsoft.AI.DirectML.targets" Condition="Exists('..\packages\Microsoft.AI.DirectML.1.4.0\build\Microsoft.AI.DirectML.targets')" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-NNUE-LEARN|x64'" Label="PropertySheets">
     <Import Project="props\YaneuraOu-common.props" />
@@ -330,6 +334,7 @@
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
     <Import Project="props\YaneuraOu-EvalLearn.props" />
     <Import Project="props\YaneuraOuEdition-NNUE.props" />
+    <Import Project="..\packages\OpenBLAS.0.2.14.1\build\native\openblas.targets" Condition="Exists('..\packages\OpenBLAS.0.2.14.1\build\native\openblas.targets')" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-mate|x64'">
@@ -649,9 +654,6 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\packages\Microsoft.AI.DirectML.1.4.0\build\Microsoft.AI.DirectML.targets" Condition="Exists('..\packages\Microsoft.AI.DirectML.1.4.0\build\Microsoft.AI.DirectML.targets')" />
-    <Import Project="..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.6.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets" Condition="Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.6.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets')" />
-    <Import Project="..\packages\OpenBLAS.0.2.14.1\build\native\openblas.targets" Condition="Exists('..\packages\OpenBLAS.0.2.14.1\build\native\openblas.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
