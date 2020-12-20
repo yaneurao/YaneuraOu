@@ -10,34 +10,30 @@
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
 #define ENGINE_VERSION "5.40"
 
+
 // --------------------
 //  思考エンジンの種類
 // --------------------
+
 
 // やねうら王の思考エンジンとしてリリースする場合、以下から選択。(どれか一つは必ず選択しなければならない)
 // ここに書かれていないエンジンもあるのでMakefileを見ること。
 // オリジナルの思考エンジンをユーザーが作成する場合は、USER_ENGINE を defineして 他のエンジンのソースコードを参考に
 //  engine/user-engine/ フォルダの中身を書くべし。
 
-#if !defined (USE_MAKEFILE)
-
-#define YANEURAOU_ENGINE_NNUE            // やねうら王 通常探索部 NNUE評価関数
+//#define YANEURAOU_ENGINE_DEEP            // ふかうら王
+//#define YANEURAOU_ENGINE_NNUE            // やねうら王 通常探索部 NNUE評価関数
+//#define YANEURAOU_ENGINE_KPPT            // やねうら王 通常探索部 KPPT評価関数
+//#define YANEURAOU_ENGINE_KPP_KKPT        // やねうら王 通常探索部 KPP_KKPT評価関数
+//#define YANEURAOU_ENGINE_MATERIAL        // やねうら王 通常探索部 駒得評価関数
 //#define MATE_ENGINE                      // 詰め将棋solverとしてリリースする場合。(開発中2017/05/06～)
 //#define USER_ENGINE                      // ユーザーの思考エンジン
 
-#else
-
-// Makefileを使ってビルドをするときは、Makefile側で選択する。
-
-#endif
 
 // --------------------
-// コンパイル時設定
+//  CPUの種類、CPU拡張命令の使用の有無
 // --------------------
 
-// --- ターゲットCPUの選択
-
-#if !defined(USE_MAKEFILE)
 
 // USE_AVX512VNNI : AVX-512かつ、VNNI命令対応(Cascade Lake以降)でサポートされた命令を使うか。
 // USE_AVX512 : AVX-512(サーバー向けSkylake以降)でサポートされた命令を使うか。
@@ -56,80 +52,74 @@
 
 //#define USE_AVX512VNNI
 //#define USE_AVX512
-#define USE_AVX2
+//#define USE_AVX2
 //#define USE_SSE42
 //#define USE_SSE41
 //#define USE_SSSE3
 //#define USE_SSE2
 //#define NO_SSE
 
-// -- BMI2命令を使う/使わない
+// BMI2命令を使う/使わない
 
 // AVX2環境でBMI2が使えるときに、BMI2対応命令を使うのか(ZEN/ZEN2ではBMI2命令は使わないほうが速い)
 // AMDのRyzenシリーズ(ZEN1/ZEN2)では、BMI2命令遅いので、これを定義しないほうが速い。
-#define USE_BMI2
-
-// やねうら王の従来の遠方駒の利きを求めるコードを用いる。
-// これをundefするとApery型の利きのコードを用いる。(そっちのほうがPEXTが使えない環境だと速い)
-// 互換性維持および、55将棋のように盤面を変形させるときに、magic tableで用いるmagic numberを求めたくないときに用いる。
-
-// #define USE_OLD_YANEURAOU_EFFECT
+//#define USE_BMI2
 
 
-#else
-
-// Makefileを使ってbuildする手順は docs/解説.txt を見ること。
-
-#endif
+// ---------------------
+//  探索に関する設定
+// ---------------------
 
 
-// 通例hash keyは64bitだが、これを128にするとPosition::state()->long_key()から128bit hash keyが
-// 得られるようになる。研究時に局面が厳密に合致しているかどうかを判定したいときなどに用いる。
-// 実験用の機能なので、128bit,256bitのhash keyのサポートはAVX2のみ。
-#define HASH_KEY_BITS 64
-//#define HASH_KEY_BITS 128
-//#define HASH_KEY_BITS 256
+// Position::see()を用いるか。これはSEE(Static Exchange Evaluation : 静的取り合い評価)の値を返す関数。
+// #define USE_SEE
 
 
-// 通常探索時の最大探索深さ
-constexpr int MAX_PLY_NUM = 246;
-
-// --- デバッグ時の標準出力への局面表示などに日本語文字列を用いる。
-
-#define PRETTY_JP
-
-//
-// 以下、デフォルトではdefineしていないので、必要に応じてdefineすること。
-//
-
-// --- assertのレベルを6段階で。
-//  ASSERT_LV 0 : assertなし(全体的な処理が速い)
-//  ASSERT_LV 1 : 軽量なassert
-//  　　　…
-//  ASSERT_LV 5 : 重度のassert(全体的な処理が遅い)
-// あまり重度のassertにすると、探索性能が落ちるので時間当たりに調べられる局面数が低下するから
-// そのへんのバランスをユーザーが決めれるようにこの仕組みを導入。
-
-//#define ASSERT_LV 3
-
-// --- ASSERTのリダイレクト
-// ASSERTに引っかかったときに、それを"Error : x=1"のように標準出力に出力する。
-
-//#define USE_DEBUG_ASSERT
+// Timerクラスに、今回の思考時間を計算する機能を追加するか。
+// #define USE_TIME_MANAGEMENT
 
 
-// --- USI拡張コマンドの"test"コマンドを有効にする。
-// 非常にたくさんのテストコードが書かれているのでコードサイズが膨らむため、
-// 思考エンジンとしてリリースするときはコメントアウトしたほうがいいと思う。
+// MovePickerを使うのか(Stockfish風のコード)
+// ※　通常探索部以外では使わないので、切り離せるようになっている。
+// #define USE_MOVE_PICKER
 
-//#define ENABLE_TEST_CMD
 
-// --- StateInfoに直前の指し手、移動させた駒などの情報を保存しておくのか
-// これが保存されていると詰将棋ルーチンなどを自作する場合においてそこまでの手順を表示するのが簡単になる。
-// (Position::moves_from_start_pretty()などにより、わかりやすい手順が得られる。
-// ただし通常探索においてはやや遅くなるので思考エンジンとしてリリースするときには無効にしておくこと。
+// 入玉時の宣言勝ち機能を用いるか
+// これをdefineすると、"EnteringKingRule"というオプションが自動追加される。
+// ※　Search::Limits.enteringKingRule に↑のオプションの値が反映される。
+//     Position::DeclarationWin()は、宣言勝ち判定を行うときに、それを見る。
+// #define USE_ENTERING_KING_WIN
 
-//#define KEEP_LAST_MOVE
+
+// 全合法手を生成する機能を追加するか。
+// これをdefineすると、"GenerateAllLegalMoves"というオプションが自動追加される。
+// ※　Search::Limits.generate_all_legal_moves に↑のオプションの値が反映されるので、
+//     それを見て、trueならば、指し手生成の時に歩の不成も含めて生成すれば良い。
+// #define USE_GENERATE_ALL_LEGAL_MOVES
+
+
+// PV(読み筋)を表示するときに置換表の指し手をかき集めてきて表示するか。
+// 自前でPVを管理してRootMoves::pvを更新するなら、この機能を使う必要はない。
+// これはPVの更新が不要なので実装が簡単だが、Ponderの指し手を返すためには
+// PVが常に正常に更新されていないといけないので最近はこの方法は好まれない。
+// ただしShogiGUIの解析モードでは思考エンジンが出力した最後の読み筋を記録するようなので、
+// 思考を途中で打ち切るときに、fail low/fail highが起きていると、中途半端なPVが出力され、それが棋譜に残る。
+// かと言って、そのときにPVの出力をしないと、最後に出力されたPVとbest moveとは異なる可能性があるので、
+// それはよろしくない。検討モード用の思考オプションを用意すべき。
+// #define USE_TT_PV
+// →　ConsiderationMode というエンジンオプションを用意したので、この機能は無効化する。
+
+
+// ---------------------
+//  評価関数関連の設定
+// ---------------------
+
+
+// 評価関数を使うオプション。
+// これを定義するなら、Eval::init() , Eval::compute_eval() , Eval::print_eval_stat()などを
+// 評価関数側で定義しないといけない。これらの評価関数を用いないなら、これは定義しないこと。
+//#define USE_EVAL
+
 
 // 協力詰め用思考エンジンなどで評価関数を使わないときにまで評価関数用のテーブルを
 // 確保するのはもったいないので、そのテーブルを確保するかどうかを選択するためのオプション。
@@ -178,110 +168,90 @@ constexpr int MAX_PLY_NUM = 246;
 //#define USE_EVAL_LIST
 
 
-// 評価関数を教師局面から学習させるときに使うときのモード
-//#define EVAL_LEARN
-
-// 教師生成用の特殊コマンド"gensfen2019"を使えるようにするモード。
-// 教師生成用の探索パラメーターも別途用意するといいかも。
-//#define GENSFEN2019
-
-// 長い利き(遠方駒の利き)のライブラリを用いるか。
-// 超高速1手詰め判定などではこのライブラリが必要。
-// do_move()のときに利きの差分更新を行なうので、do_move()は少し遅くなる。(その代わり、利きが使えるようになる)
-//#define LONG_EFFECT_LIBRARY
-
-// 1手詰め判定ルーチンを用いるか。
-// LONG_EFFECT_LIBRARYが有効なときは、利きを利用した高速な一手詰め。
-// LONG_EFFECT_LIBRARYが無効なときは、Bonanza6風の一手詰め。
-//#define USE_MATE_1PLY
-
-// Position::see()を用いるか。これはSEE(Static Exchange Evaluation : 静的取り合い評価)の値を返す関数。
-// #define USE_SEE
-
-// PV(読み筋)を表示するときに置換表の指し手をかき集めてきて表示するか。
-// 自前でPVを管理してRootMoves::pvを更新するなら、この機能を使う必要はない。
-// これはPVの更新が不要なので実装が簡単だが、Ponderの指し手を返すためには
-// PVが常に正常に更新されていないといけないので最近はこの方法は好まれない。
-// ただしShogiGUIの解析モードでは思考エンジンが出力した最後の読み筋を記録するようなので、
-// 思考を途中で打ち切るときに、fail low/fail highが起きていると、中途半端なPVが出力され、それが棋譜に残る。
-// かと言って、そのときにPVの出力をしないと、最後に出力されたPVとbest moveとは異なる可能性があるので、
-// それはよろしくない。検討モード用の思考オプションを用意すべき。
-// #define USE_TT_PV
-// →　ConsiderationMode というエンジンオプションを用意したので、この機能は無効化する。
-
-// 定跡を作るコマンド("makebook")を有効にする。
-// #define ENABLE_MAKEBOOK_CMD
-
-// 入玉時の宣言勝ちを用いるか
-// #define USE_ENTERING_KING_WIN
-
-// TimeMangementクラスに、今回の思考時間を計算する機能を追加するか。
-// #define USE_TIME_MANAGEMENT
-
-// 評価関数で金と小駒の成りを区別する
-// 駒の特徴量はBonaPiece。これはBonanzaに倣っている。
-// このオプションを有効化すると、金と小駒の成りを区別する。(Bonanzaとは異なる特徴量になる)
-// #define DISTINGUISH_GOLDS
-
 // 評価関数を計算したときに、それをHashTableに記憶しておく機能。KPPT評価関数においてのみサポート。
 // #define USE_EVAL_HASH
 
-// sfenを256bitにpackする機能、unpackする機能を有効にする。
-// これをdefineするとPosition::packe_sfen(),unpack_sfen()が使えるようになる。
-// #define USE_SFEN_PACKER
-
-// 置換表のprobeに必ず失敗する設定
-// 自己生成棋譜からの学習でqsearch()のPVが欲しいときに
-// 置換表にhitして枝刈りされたときにPVが得られないの悔しいので
-// #define USE_FALSE_PROBE_IN_TT
 
 // 評価関数パラメーターを共有メモリを用いて他プロセスのものと共有する。
 // 少ないメモリのマシンで思考エンジンを何十個も立ち上げようとしたときにメモリ不足になるので
 // 評価関数をshared memoryを用いて他のプロセスと共有する機能。(対応しているのはいまのところKPPT評価関数のみ。かつWindows限定)
 // #define USE_SHARED_MEMORY_IN_EVAL
 
-// USIプロトコルでgameoverコマンドが送られてきたときに gameover_handler()を呼び出す。
-// #define USE_GAMEOVER_HANDLER
 
-// GlobalOptionという、EVAL_HASHを有効/無効を切り替えたり、置換表の有効/無効を切り替えたりする
-// オプションのための変数が使えるようになる。スピードが1%ぐらい遅くなるので大会用のビルドではオフを推奨。
-// #define USE_GLOBAL_OPTIONS
+// 評価関数で金と小駒の成りを区別する
+// 駒の特徴量はBonaPiece。これはBonanzaに倣っている。
+// このオプションを有効化すると、金と小駒の成りを区別する。(Bonanzaとは異なる特徴量になる)
+// #define DISTINGUISH_GOLDS
+
+
+// ---------------------
+//  機械学習関連の設定
+// ---------------------
+
+// 評価関数を教師局面から学習させるときに使うときのモード
+//#define EVAL_LEARN
+
+
+// 教師生成用の特殊コマンド"gensfen2019"を使えるようにするモード。
+// 教師生成用の探索パラメーターも別途用意するといいかも。
+//#define GENSFEN2019
+
+
+// sfenを256bitにpackする機能、unpackする機能を有効にする。
+// これをdefineするとPosition::packe_sfen(),unpack_sfen()が使えるようになる。
+// ※　機械学習関連で局面の読み書きをする時に使う。
+// #define USE_SFEN_PACKER
+
+
+// 置換表のprobeに必ず失敗する設定
+// ※　 自己生成棋譜からの学習でqsearch()のPVが欲しいときに
+// 置換表にhitして枝刈りされたときにPVが得られないの悔しいので。
+// #define USE_FALSE_PROBE_IN_TT
+
+
+// ---------------------
+//  詰将棋ルーチン関係の設定
+// ---------------------
+
+// 1手詰め判定ルーチンを用いるか。
+// LONG_EFFECT_LIBRARYが有効なときは、利きを利用した高速な一手詰め。
+// LONG_EFFECT_LIBRARYが無効なときは、Bonanza6風の一手詰め。
+//#define USE_MATE_1PLY
+
+
+// 奇数手詰めルーチンを用いるか。
+// これをdefineするとMate::is_mate_odd_ply()が使えるようになる。
+// ※　同時にUSE_MATE_1PLYがdefineされていないといけない。
+//#define USE_MATE_N_PLY
+
+
+// ---------------------
+//  定跡に関する設定
+// ---------------------
+
+
+// 定跡を作るコマンド("makebook")を有効にする。
+// #define ENABLE_MAKEBOOK_CMD
+
+
+// ---------------------
+//  高速化に関する設定
+// ---------------------
+
 
 // トーナメント(大会)用のビルド。最新CPU(いまはAVX2)用でEVAL_HASH大きめ。EVAL_LEARN、TEST_CMD使用不可。ASSERTなし。GlobalOptionsなし。
 // #define FOR_TOURNAMENT
-
-// 棋譜の変換などを行なうツールセット。CSA,KIF,KIF2(KI2)形式などの入出力を担う。
-// これをdefineすると、extra/kif_converter/ フォルダにある棋譜や指し手表現の変換を行なう関数群が使用できるようになる。
-// #define USE_KIF_CONVERT_TOOLS
-
-// ニコニコ生放送の電王盤用
-// 電王盤はMultiPV非対応なので定跡を送るとき、"multipv"をつけずに1番目の候補手を送信する必要がある。
-// #define NICONICO
-
-// PVの出力時の千日手に関する出力をすべて"rep_draw"に変更するオプション。
-// GUI側が、何らかの都合で"rep_draw"のみしか処理できないときに用いる。
-// #define PV_OUTPUT_DRAW_ONLY
-
-// "Threads"オプション が 8以下の設定の時でも強制的に bindThisThread()を呼び出して、指定されたNUMAで動作するようにする。
-// "ThreadIdOffset"オプションと併用して、狙ったNUMAで動作することを強制することができる。
-//#define FORCE_BIND_THIS_THREAD
-
-// MovePickerを使うのか(Stockfish風のコード)
-//#define USE_MOVE_PICKER
-
-// 評価関数を使うオプション。
-// これを定義するなら、Eval::init() , Eval::compute_eval() , Eval::print_eval_stat()などを
-// 評価関数側で定義しないといけない。これらの評価関数を用いないなら、これは定義しないこと。
-//#define USE_EVAL
 
 // sortが少し高速化されるらしい。
 // 安定ソートではないので並び順が以前のとは異なるから、benchコマンドの探索ノード数は変わる。
 // CPU targetによって実装が変わるのでCPUによってbenchコマンドの探索ノード数は変わる。
 //#define USE_SUPER_SORT
 
+
 // ---------------------
 // ふかうら王(dlshogi互換エンジン)に関する設定。
 // ---------------------
+
 
 // ふかうら王で、ONNXRUNTIMEを用いて推論を行うときは、これをdefineすること。
 // ※　GPUがなくても動作する。
@@ -290,15 +260,120 @@ constexpr int MAX_PLY_NUM = 246;
 // ふかうら王でTensorRTを使う時はこちら。
 //#define TENSOR_RT
 
+
 // ---------------------
 // 探索パラメーターの自動調整用
 // ---------------------
+
 
 // 探索パラメーターのチューニングを行うモード
 //
 // 実行時に"param/yaneuraou-param.h" からパラメーターファイルを読み込むので
 // "source/engine/yaneuraou-engine/yaneuraou-param.h"をそこに配置すること。
 //#define TUNING_SEARCH_PARAMETERS
+
+
+// ---------------------
+// デバッグに関する設定
+// ---------------------
+
+
+// assertのレベルを6段階で。
+//  ASSERT_LV 0 : assertなし(全体的な処理が速い)
+//  ASSERT_LV 1 : 軽量なassert
+//  　　　…
+//  ASSERT_LV 5 : 重度のassert(全体的な処理が遅い)
+// あまり重度のassertにすると、探索性能が落ちるので時間当たりに調べられる局面数が低下するから
+// そのへんのバランスをユーザーが決めれるようにこの仕組みを導入。
+
+//#define ASSERT_LV 3
+
+// ASSERTのリダイレクト
+// ASSERTに引っかかったときに、それを"Error : x=1"のように標準出力に出力する。
+
+//#define USE_DEBUG_ASSERT
+
+
+// USI拡張コマンドの"test"コマンドを有効にする。
+// 非常にたくさんのテストコードが書かれているのでコードサイズが膨らむため、
+// 思考エンジンとしてリリースするときはコメントアウトしたほうがいいと思う。
+
+//#define ENABLE_TEST_CMD
+
+
+// ---------------------
+// その他、オプション機能
+// ---------------------
+
+
+// 長い利き(遠方駒の利き)のライブラリを用いるか。
+// 超高速1手詰め判定などではこのライブラリが必要。
+// do_move()のときに利きの差分更新を行なうので、do_move()は少し遅くなる。(その代わり、利きが使えるようになる)
+//#define LONG_EFFECT_LIBRARY
+
+
+// やねうら王の従来の遠方駒の利きを求めるコードを用いる。
+// これをundefするとApery型の利きのコードを用いる。(そっちのほうがPEXTが使えない環境だと速い)
+// 互換性維持および、55将棋のように盤面を変形させるときに、magic tableで用いるmagic numberを求めたくないときに用いる。
+
+// #define USE_OLD_YANEURAOU_EFFECT
+
+
+// position.hのStateInfoに直前の指し手、移動させた駒などの情報を保存しておくのか
+// これが保存されていると詰将棋ルーチンなどを自作する場合においてそこまでの手順を表示するのが簡単になる。
+// (Position::moves_from_start_pretty()などにより、わかりやすい手順が得られる。
+// ただし通常探索においてはやや遅くなるので思考エンジンとしてリリースするときには無効にしておくこと。
+
+//#define KEEP_LAST_MOVE
+
+
+// GlobalOptionという、EVAL_HASHを有効/無効を切り替えたり、置換表の有効/無効を切り替えたりする
+// オプションのための変数が使えるようになる。スピードが1%ぐらい遅くなるので大会用のビルドではオフを推奨。
+// #define USE_GLOBAL_OPTIONS
+
+
+// USIプロトコルでgameoverコマンドが送られてきたときに gameover_handler()を呼び出す。
+// #define USE_GAMEOVER_HANDLER
+
+
+// "Threads"オプション が 8以下の設定の時でも強制的に bindThisThread()を呼び出して、指定されたNUMAで動作するようにする。
+// "ThreadIdOffset"オプションと併用して、狙ったNUMAで動作することを強制することができる。
+//#define FORCE_BIND_THIS_THREAD
+
+
+// PVの出力時の千日手に関する出力をすべて"rep_draw"に変更するオプション。
+// GUI側が、何らかの都合で"rep_draw"のみしか処理できないときに用いる。
+// #define PV_OUTPUT_DRAW_ONLY
+
+
+// 棋譜の変換などを行なうツールセット。CSA,KIF,KIF2(KI2)形式などの入出力を担う。
+// これをdefineすると、extra/kif_converter/ フォルダにある棋譜や指し手表現の変換を行なう関数群が使用できるようになる。
+// #define USE_KIF_CONVERT_TOOLS
+
+
+// ニコニコ生放送の電王盤用
+// 電王盤はMultiPV非対応なので定跡を送るとき、"multipv"をつけずに1番目の候補手を送信する必要がある。
+// #define NICONICO
+
+
+// ===============================================================
+// ここ以降では、↑↑↑で設定した内容に基づき必要なdefineを行う。
+// ===============================================================
+
+
+// 通例hash keyは64bitだが、これを128にするとPosition::state()->long_key()から128bit hash keyが
+// 得られるようになる。研究時に局面が厳密に合致しているかどうかを判定したいときなどに用いる。
+// 実験用の機能なので、128bit,256bitのhash keyのサポートはAVX2のみ。
+#define HASH_KEY_BITS 64
+//#define HASH_KEY_BITS 128
+//#define HASH_KEY_BITS 256
+
+// 通常探索時の最大探索深さ
+constexpr int MAX_PLY_NUM = 246;
+
+// デバッグ時の標準出力への局面表示などに日本語文字列を用いる。
+
+#define PRETTY_JP
 
 // --------------------
 // release configurations
@@ -317,10 +392,11 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_SEE
 	#define USE_EVAL_LIST
 	#define USE_MATE_1PLY
-	#define USE_ENTERING_KING_WIN
 	#define USE_TIME_MANAGEMENT
 	#define USE_MOVE_PICKER
 	#define USE_EVAL
+	#define USE_GENERATE_ALL_LEGAL_MOVES
+	#define USE_ENTERING_KING_WIN
 
 	#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT)
 		// EvalHashを用いるのは3駒型のみ。それ以外は差分計算用の状態が大きすぎてhitしたところでどうしようもない。
@@ -397,20 +473,17 @@ constexpr int MAX_PLY_NUM = 246;
 
 #endif // defined(YANEURAOU_ENGINE_KPPT) || ...
 
-// --- Deep Learning系のエンジン
+// --- Deep Learning系のエンジン ふかうら王(dlshogi互換エンジン)
+
 #if defined(YANEURAOU_ENGINE_DEEP)
+
 	#define ENGINE_NAME "FukauraOu"
 	#define EVAL_DEEP "dlshogi-denryu2020"
 	#define USE_MATE_1PLY
 	#define USE_EVAL
 	#define USE_TIME_MANAGEMENT
-
-	// ONNXRUNTIMEを用いて推論を行うときは、これをdefineすること。
-	// ※　GPUがなくても動作する。
-	//#define ONNXRUNTIME
-
-	// TensorRTを使う時はこちら。
-	//#define TENSOR_RT
+	#define USE_GENERATE_ALL_LEGAL_MOVES
+	#define USE_ENTERING_KING_WIN
 
 #endif
 
@@ -472,7 +545,7 @@ struct GlobalOptions_
 	// (USE_EVAL_HASHがdefineされていないと有効にはならない。)
 	bool use_eval_hash;
 
-	// 置換表のprobe()を有効化/無効化する。
+	// 置換表のprobe()を有効化/無効化する。E
 	// (無効化するとTT.probe()が必ずmiss hitするようになる)
 	bool use_hash_probe;
 

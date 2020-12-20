@@ -485,11 +485,6 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 	// 思考開始時刻の初期化。なるべく早い段階でこれをしておかないとサーバー時間との誤差が大きくなる。
 	Time.reset();
 
-#if defined (USE_ENTERING_KING_WIN)
-	// 入玉ルール
-	limits.enteringKingRule = to_entering_king_rule(Options["EnteringKingRule"]);
-#endif
-
 	// 終局(引き分け)になるまでの手数
 	// 引き分けになるまでの手数。(Options["MaxMovesToDraw"]として与えられる。エンジンによってはこのオプションを持たないこともある。)
 	// 0のときは制限なしだが、これをINT_MAXにすると残り手数を計算するときに桁があふれかねないので100000を設定。
@@ -499,8 +494,13 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 		max_game_ply = (int)Options["MaxMovesToDraw"];
 	limits.max_game_ply = (max_game_ply == 0) ? 100000 : max_game_ply;
 
+#if defined (USE_ENTERING_KING_WIN)
+	// 入玉ルール
+	limits.enteringKingRule = to_entering_king_rule(Options["EnteringKingRule"]);
+#endif
+
 	// すべての合法手を生成するのか
-#if !defined(MATE_ENGINE)
+#if defined (USE_GENERATE_ALL_LEGAL_MOVES)
 	limits.generate_all_legal_moves = Options["GenerateAllLegalMoves"];
 #endif
 

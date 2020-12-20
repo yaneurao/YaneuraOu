@@ -2188,6 +2188,7 @@ bool Position::has_game_cycle(int plies_from_root, int rep_ply /*= 16*/) const
 //      入玉判定
 // ----------------------------------
 
+#if defined(USE_ENTERING_KING_WIN)
 Move Position::DeclarationWin() const
 {
 	auto rule = Search::Limits.enteringKingRule;
@@ -2297,6 +2298,7 @@ Move Position::DeclarationWin() const
 		return MOVE_NONE;
 	}
 }
+#endif
 
 // ----------------------------------
 //      内部情報の正当性のテスト
