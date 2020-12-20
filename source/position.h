@@ -527,26 +527,6 @@ public:
 	// 捕獲する指し手であるか。
 	bool capture(Move m) const { return !is_drop(m) && piece_on(to_sq(m)) != NO_PIECE; }
 
-	// --- 1手詰め判定
-#if defined(USE_MATE_1PLY)
-  // 現局面で1手詰めであるかを判定する。1手詰めであればその指し手を返す。
-  // ただし1手詰めであれば確実に詰ませられるわけではなく、簡単に判定できそうな近接王手による
-  // 1手詰めのみを判定する。(要するに判定に漏れがある。)
-  // 
-  // 返し値は、16bitのMove。このあとpseudo_legal()等を使いたいなら、
-  // pos.to_move()を使って32bitのMoveに変換すること。
-
-	Move mate1ply() const;
-
-	// ↑の先後別のバージョン。(内部的に用いる)
-	template <Color Us> Move mate1ply_impl() const;
-
-	// 利きのある場所への取れない近接王手からのply手詰め
-	// ply = 1,3,5,…,
-	Move weak_mate_n_ply(int ply) const;
-
-#endif
-
 	// 入玉時の宣言勝ち
   // Search::Limits.enteringKingRuleに基いて、宣言勝ちを行なう。
   // 条件を満たしているとき、MOVE_WINや、玉を移動する指し手(トライルール時)が返る。さもなくば、MOVE_NONEが返る。

@@ -2,6 +2,7 @@
 #include "misc.h"
 #include "tt.h"
 #include "thread.h"
+#include "mate/mate.h"
 
 #include <iostream>
 #include <sstream>

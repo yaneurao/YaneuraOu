@@ -27,6 +27,7 @@
 #include "../../movepick.h"
 #include "../../usi.h"
 #include "../../learn/learn.h"
+#include "../../mate/mate.h"
 
 // -------------------
 // やねうら王独自追加
@@ -1568,7 +1569,7 @@ namespace {
 			{
 				if (PARAM_WEAK_MATE_PLY == 1)
 				{
-					move = pos.mate1ply();
+					move = Mate::mate1ply(pos);
 
 					if (move != MOVE_NONE)
 					{
@@ -1591,7 +1592,7 @@ namespace {
 
 				} else {
 
-					move = pos.weak_mate_n_ply(PARAM_WEAK_MATE_PLY);
+					move = Mate::weak_mate_n_ply(pos,PARAM_WEAK_MATE_PLY);
 					if (move != MOVE_NONE)
 					{
 						// N手詰めかも知れないのでPARAM_WEAK_MATE_PLY手詰めのスコアを返す。
@@ -2829,12 +2830,12 @@ namespace {
 				// 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
 				if (PARAM_WEAK_MATE_PLY == 1)
 				{
-					if (pos.mate1ply() != MOVE_NONE)
+					if (Mate::mate1ply(pos) != MOVE_NONE)
 						return mate_in(ss->ply + 1);
 				}
 				else
 				{
-					if (pos.weak_mate_n_ply(PARAM_WEAK_MATE_PLY) != MOVE_NONE)
+					if (Mate::weak_mate_n_ply(pos, PARAM_WEAK_MATE_PLY) != MOVE_NONE)
 						// 1手詰めかも知れないがN手詰めの可能性があるのでNを返す。
 						return mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
 				}

@@ -127,7 +127,7 @@ namespace dlshogi::UctPrint
 			const auto& c = child[list[i].first];
 			WinCountType wp;
 			if (c.node == nullptr)
-				wp = (WinCountType)0.0; // 未訪問なのでわからん。
+				wp = (WinCountType)0.5; // 未訪問なのでわからん。
 			else
 			{
 			const Node* child_node = c.node.get();

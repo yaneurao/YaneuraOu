@@ -8,6 +8,7 @@
 
 #include "../../search.h"
 #include "../../thread.h"
+#include "../../mate/mate.h"
 
 namespace dlshogi
 {
@@ -317,7 +318,7 @@ namespace dlshogi
 			if (!pos->in_check())
 			{
 				// 詰みを発見しているはず
-				Move move = pos->mate1ply();
+				Move move = Mate::mate1ply(*pos);
 
 				// 長手数の詰みはあとで。
 

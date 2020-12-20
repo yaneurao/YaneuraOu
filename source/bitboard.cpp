@@ -1,6 +1,6 @@
 ﻿#include "bitboard.h"
 #include "extra/long_effect.h"
-#include "extra/mate/mate1ply.h"
+#include "mate/mate.h"
 
 #include <sstream>
 
@@ -830,6 +830,9 @@ void Bitboards::init()
 			CheckCandidateKingBB[ksq] = target & ~Bitboard(ksq);
 		}
 
+	// 以下はBitboardとは関係はないが、Bitboardが初期化されていないと初期化できないので
+	// ここから初期化しておいてやる。
+
 	// 10. LONG_EFFECT_LIBRARYの初期化
 
 #if defined (LONG_EFFECT_LIBRARY)
@@ -838,7 +841,7 @@ void Bitboards::init()
 
 	// 11. 1手詰めテーブルの初期化
 #if defined (USE_MATE_1PLY)
-	Mate1Ply::init();
+	Mate::init();
 #endif
 
 }

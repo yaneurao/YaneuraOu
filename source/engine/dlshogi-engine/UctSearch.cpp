@@ -9,6 +9,7 @@
 
 #include "../../thread.h"
 #include "../../usi.h"
+#include "../../mate/mate.h"
 
 #include <limits>           // max<T>()
 
@@ -490,7 +491,7 @@ namespace dlshogi
 
 #if 1
 					bool isMate =
-						(!pos->in_check() && pos->mate1ply() != MOVE_NONE) // 1手詰め
+						(!pos->in_check() && Mate::mate1ply(*pos) != MOVE_NONE) // 1手詰め
 						|| (pos->DeclarationWin() != MOVE_NONE)            // 宣言勝ち
 						;
 #else

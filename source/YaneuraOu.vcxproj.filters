@@ -26,9 +26,6 @@
     <Filter Include="script">
       <UniqueIdentifier>{efb5b189-918a-4b2a-ba65-731c674603a7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\extra\mate">
-      <UniqueIdentifier>{d2aac0fd-42da-4a14-b6c2-22d534701934}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\extra\kif_converter">
       <UniqueIdentifier>{d3015e32-f402-423d-8643-dcc571f62564}</UniqueIdentifier>
     </Filter>
@@ -80,6 +77,9 @@
     <Filter Include="リソース ファイル\eval\dlshogi">
       <UniqueIdentifier>{db26b1dc-4879-4d29-9e67-327dca35aee8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\mate">
+      <UniqueIdentifier>{ecd5f9f1-13cf-4dd8-b466-6b8b4ad4ad0b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -117,9 +117,6 @@
     </ClInclude>
     <ClInclude Include="learn\learn.h">
       <Filter>リソース ファイル\learn</Filter>
-    </ClInclude>
-    <ClInclude Include="extra\mate\mate1ply.h">
-      <Filter>リソース ファイル\extra\mate</Filter>
     </ClInclude>
     <ClInclude Include="learn\half_float.h">
       <Filter>リソース ファイル\learn</Filter>
@@ -316,6 +313,9 @@
     <ClInclude Include="eval\deep\nn_types.h">
       <Filter>リソース ファイル\eval\deep</Filter>
     </ClInclude>
+    <ClInclude Include="mate\mate.h">
+      <Filter>リソース ファイル\mate</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -365,15 +365,6 @@
     </ClCompile>
     <ClCompile Include="learn\multi_think.cpp">
       <Filter>リソース ファイル\learn</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\mate\mate_n_ply.cpp">
-      <Filter>リソース ファイル\extra\mate</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\mate\mate1ply_with_effect.cpp">
-      <Filter>リソース ファイル\extra\mate</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\mate\mate1ply_without_effect.cpp">
-      <Filter>リソース ファイル\extra\mate</Filter>
     </ClCompile>
     <ClCompile Include="learn\learning_tools.cpp">
       <Filter>リソース ファイル\learn</Filter>
@@ -501,6 +492,18 @@
     <ClCompile Include="engine\dlshogi-engine\dlshogi_searcher.cpp">
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClCompile>
+    <ClCompile Include="mate\mate_n_ply.cpp">
+      <Filter>リソース ファイル\mate</Filter>
+    </ClCompile>
+    <ClCompile Include="mate\mate1ply_with_effect.cpp">
+      <Filter>リソース ファイル\mate</Filter>
+    </ClCompile>
+    <ClCompile Include="mate\mate1ply_without_effect.cpp">
+      <Filter>リソース ファイル\mate</Filter>
+    </ClCompile>
+    <ClCompile Include="mate\mate.cpp">
+      <Filter>リソース ファイル\mate</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">
@@ -553,5 +556,6 @@
     <None Include="..\.gitignore" />
     <None Include="..\README.md" />
     <None Include="..\script\bench.py" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
   </ItemGroup>
 </Project>
