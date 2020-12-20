@@ -43,10 +43,6 @@
       <Configuration>Release-Material</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Release-NNUE-GEN|x64">
-      <Configuration>Release-NNUE-GEN</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Release-NNUE-LEARN|x64">
       <Configuration>Release-NNUE-LEARN</Configuration>
       <Platform>x64</Platform>

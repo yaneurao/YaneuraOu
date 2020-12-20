@@ -33,8 +33,6 @@ Global
 		Release-Material|x86 = Release-Material|x86
 		Release-mate-sse42|x64 = Release-mate-sse42|x64
 		Release-mate-sse42|x86 = Release-mate-sse42|x86
-		Release-NNEU-Gen|x64 = Release-NNEU-Gen|x64
-		Release-NNEU-Gen|x86 = Release-NNEU-Gen|x86
 		Release-NNEU-sse42|x64 = Release-NNEU-sse42|x64
 		Release-NNEU-sse42|x86 = Release-NNEU-sse42|x86
 		Release-NNUE|x64 = Release-NNUE|x64
@@ -86,10 +84,6 @@ Global
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate-sse42|x64.ActiveCfg = Release-mate-sse42|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate-sse42|x64.Build.0 = Release-mate-sse42|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-mate-sse42|x86.ActiveCfg = Release-mate-sse42|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-NNEU-Gen|x64.ActiveCfg = Release-NNUE-GEN|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-NNEU-Gen|x64.Build.0 = Release-NNUE-GEN|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-NNEU-Gen|x86.ActiveCfg = Release-NNUE-SSE42|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-NNEU-Gen|x86.Build.0 = Release-NNUE-SSE42|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-NNEU-sse42|x64.ActiveCfg = Release-NNUE-SSE42|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-NNEU-sse42|x64.Build.0 = Release-NNUE-SSE42|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-NNEU-sse42|x86.ActiveCfg = Release-NNUE-SSE42|x64

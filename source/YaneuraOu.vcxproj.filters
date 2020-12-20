@@ -556,6 +556,5 @@
     <None Include="..\.gitignore" />
     <None Include="..\README.md" />
     <None Include="..\script\bench.py" />
-    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
   </ItemGroup>
 </Project>

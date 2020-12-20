@@ -232,13 +232,13 @@ SOURCES  = \
 	book/makebook2021.cpp                                                      \
 	extra/bitop.cpp                                                            \
 	extra/long_effect.cpp                                                      \
-	extra/mate/mate1ply_with_effect.cpp                                        \
 	extra/test_cmd.cpp                                                         \
 	extra/sfen_packer.cpp                                                      \
 	extra/kif_converter/kif_convert_tools.cpp                                  \
 	extra/super_sort.cpp                                                       \
 	mate/mate.cpp                                                              \
 	mate/mate1ply_without_effect.cpp                                           \
+	mate/mate1ply_with_effect.cpp                                              \
 	mate/mate_n_ply.cpp                                                        \
 	eval/evaluate_bona_piece.cpp                                               \
 	eval/evaluate.cpp                                                          \
