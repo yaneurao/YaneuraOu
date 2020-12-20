@@ -49,6 +49,10 @@ void USI::extra_option(USI::OptionsMap& o)
 
 	o["UCT_NodeLimit"]				 << USI::Option(10000000, 100000, 1000000000); // UCTノードの上限
 
+	// 読みの各局面ですべての合法手を生成する
+	// (普通、歩の2段目での不成などは指し手自体を生成しないのですが、これのせいで不成が必要な詰みが絡む問題が解けないことが
+	// あるので、このオプションを用意しました。
+	o["GenerateAllLegalMoves"]       << USI::Option(false);
 	// デバッグ用のメッセージ出力の有無
 	o["DebugMessage"]                << USI::Option(false);
 
@@ -147,6 +151,8 @@ void Search::clear()
 #endif
 
 	searcher.SetPvInterval((TimePoint)Options["PV_Interval"]);
+
+	searcher.SetGetnerateAllLegalMoves(Options["GenerateAllLegalMoves"]);
 
 	// ノードを再利用するかの設定。
 	searcher.SetReuseSubtree(Options["ReuseSubtree"]);

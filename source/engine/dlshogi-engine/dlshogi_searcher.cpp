@@ -298,7 +298,7 @@ namespace dlshogi
 
 		// UCTの初期化。
 		// 探索開始局面の初期化
-		ExpandRoot(pos);
+		ExpandRoot(pos , search_options.generate_all_legal_moves );
 
 		//create_test_node(tree.GetCurrentHead());
 
@@ -371,11 +371,12 @@ namespace dlshogi
 	}
 
 	// Root Node(探索開始局面)を展開する。
-	void DlshogiSearcher::ExpandRoot(const Position* pos)
+	// generate_all : 歩の不成なども生成する。
+	void DlshogiSearcher::ExpandRoot(const Position* pos , bool generate_all)
 	{
 		Node* current_head = tree->GetCurrentHead();
 		if (current_head->child_num == 0) {
-			current_head->ExpandNode(pos);
+			current_head->ExpandNode(pos , generate_all);
 		}
 	}
 

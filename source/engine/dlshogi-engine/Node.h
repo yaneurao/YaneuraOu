@@ -82,19 +82,18 @@ namespace dlshogi
 		}
 
 		// 候補手の展開
-		void ExpandNode(const Position* pos)
+		// pos          : thisに対応する展開する局面
+		// generate_all : 歩の不成なども生成する。
+		void ExpandNode(const Position* pos, bool generate_all)
 		{
-			// 全合法手を生成する。(歩の不成などは除く)
-			// 不成も生成するほうが良いかはあとで考える。
-			MoveList<LEGAL> ml(*pos);
+			// 全合法手を生成する。
 
-			// 子ノードの数 = 生成された指し手の数
-			child_num = (u16)ml.size();
-
-			child = std::make_unique<ChildNode[]>(child_num);
-			auto* child_node = child.get();
-			for(auto m : ml)
-				(child_node++)->move = m.move;
+			if (generate_all)
+				// 歩の不成などを含めて生成する。
+				expand_node<LEGAL_ALL>(pos);
+			else
+				// 歩の不成は生成しない。
+				expand_node<LEGAL>(pos);
 		}
 
 		// 引数のmoveで指定した子ノード以外の子ノードをすべて開放する。
@@ -156,6 +155,21 @@ namespace dlshogi
 	private:
 		// このnodeのchildを展開する時にこのlockが必要なので、Lock()～Unlock()を用いること。
 		std::mutex mutex;
+
+		// ExpandNode()の下請け。生成する指し手の種類を指定できる。
+		template <MOVE_GEN_TYPE T>
+		void expand_node(const Position* pos)
+		{
+			MoveList<T> ml(*pos);
+
+			// 子ノードの数 = 生成された指し手の数
+			child_num = (u16)ml.size();
+
+			child = std::make_unique<ChildNode[]>(child_num);
+			auto* child_node = child.get();
+			for (auto m : ml)
+				(child_node++)->move = m.move;
+		}
 	};
 
 	// 前回探索した局面から2手進んだ局面かを判定するための情報を保持しておくためのNodeTree。

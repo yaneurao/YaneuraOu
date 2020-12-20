@@ -505,7 +505,7 @@ namespace dlshogi
 					}
 					else {
 						// 候補手を展開する（千日手や詰みの場合は候補手の展開が不要なため、タイミングを遅らせる）
-						child_node->ExpandNode(pos);
+						child_node->ExpandNode(pos,options.generate_all_legal_moves);
 						if (child_node->child_num == 0) {
 							// 詰み
 							child_node->value_win = VALUE_LOSE;

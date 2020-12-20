@@ -136,6 +136,11 @@ void USI::extra_option(USI::OptionsMap & o)
 
 	// fail low/highのときにPVを出力するかどうか。
 	o["OutputFailLHPV"] << Option(true);
+
+	// 読みの各局面ですべての合法手を生成する
+	// (普通、歩の2段目での不成などは指し手自体を生成しないのですが、これのせいで不成が必要な詰みが絡む問題が解けないことが
+	// あるので、このオプションを用意しました。
+	o["GenerateAllLegalMoves"] << Option(false);
 }
 
 // パラメーターのランダム化のときには、

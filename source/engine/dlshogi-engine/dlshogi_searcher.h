@@ -150,6 +150,10 @@ namespace dlshogi
 		// デバッグ用のメッセージの出力を行うかのフラグ。
 		// エンジンオプションの"DebugMessage"の値。
 		bool debug_message = false;
+
+		// (歩の不成、敵陣2段目の香の不成など)全合法手を生成するのか。
+		bool generate_all_legal_moves = false;
+
 	};
 
 	// UCT探索部
@@ -214,6 +218,9 @@ namespace dlshogi
 		// エンジンオプションの"DebugMessage"の値をセットする。
 		// search_options.debug_messageに反映される。
 		void SetDebugMessage(bool flag);
+
+		// (歩の不成、敵陣2段目の香の不成など)全合法手を生成するのか。
+		void SetGetnerateAllLegalMoves(bool flag) { search_options.generate_all_legal_moves = flag; }
 
 		// UCT探索の初期設定
 		//    node_limit : 探索ノード数の制限 0 = 無制限
@@ -290,7 +297,8 @@ namespace dlshogi
 	private:
 
 		// Root Node(探索開始局面)を展開する。
-		void ExpandRoot(const Position* pos);
+		// generate_all : 歩の不成なども生成する。
+		void ExpandRoot(const Position* pos , bool generate_all);
 
 		//  思考時間延長の確認
 		//    返し値 : 探索を延長したほうが良さそうならtrue

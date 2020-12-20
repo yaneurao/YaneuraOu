@@ -146,13 +146,6 @@ namespace USI {
 		o["SkipLoadingEval"] << Option(false);
 #endif
 
-#if !defined(MATE_ENGINE)
-		// 読みの各局面ですべての合法手を生成する
-		// (普通、歩の2段目での不成などは指し手自体を生成しないのですが、これのせいで不成が必要な詰みが絡む問題が解けないことが
-		// あるので、このオプションを用意しました。トーナメントモードではこのオプションは無効化されます。)
-		o["GenerateAllLegalMoves"] << Option(false);
-#endif
-
 #if defined(_WIN32)
 		// 3990XのようなWindows上で複数のプロセッサグループを持つCPUで、思考エンジンを同時起動したときに
 		// 同じプロセッサグループに割り当てられてしまうのを避けるために、スレッドオフセットを
