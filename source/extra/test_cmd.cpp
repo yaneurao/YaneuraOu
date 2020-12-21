@@ -1858,22 +1858,26 @@ void gen_mate(Position& pos, istringstream& is)
 	// StateInfoを最大手数分だけ確保
 		auto states = std::make_unique<StateInfo[]>(MAX_PLY + 1);
 
-	//Move moves[MAX_PLY]; // 局面の巻き戻し用に指し手を記憶
-	int ply; // 初期局面からの手数
+		std::mutex mutex;
 
 		Position pos;
 		while (true)
 	{
 			pos.set_hirate(&(states[0]), Threads[thread_id]);
 
-		for (ply = 0; ply < MAX_PLY; ++ply)
+			for (int ply = 0; ply < MAX_PLY; ++ply)
 		{
 			MoveList<LEGAL_ALL> mg(pos);
 			if (mg.size() == 0)
 				break;
 
 				auto pv = Learner::search(pos, 3 + (int)prng.rand(3) /* depth 3～5 */, 1);
+
 			Move m = pv.second[0];
+				if (m == MOVE_NONE)
+					break;
+
+				pos.do_move(m, states[ply + 1]);
 
 			// mate_min_ply - 2で詰まなくて、
 			// mate_max_plyで詰むことを確認すれば良いはず。
@@ -1889,9 +1893,13 @@ void gen_mate(Position& pos, istringstream& is)
 					//cout << Mate::mate_odd_ply(pos, max_ply, true) << endl;
 
 					string sfen = pos.sfen();
+					{
+						std::lock_guard<std::mutex> lk(mutex);
+
 				//sync_cout << "sfen = " << sfen << sync_endl;
 					fs << sfen << endl;
 					fs.flush();
+					}
 
 					// 生成した数
 					if (++generated_count >= loop_max)
@@ -1899,11 +1907,6 @@ void gen_mate(Position& pos, istringstream& is)
 
 					break; // ここで次の対局へ
 			}
-
-			if (m == MOVE_NONE)
-				break;
-
-				pos.do_move(m, states[ply + 1]);
 
 			//moves[ply] = m;
 		}

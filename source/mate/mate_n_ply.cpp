@@ -119,57 +119,57 @@ namespace {
 	class MovePicker {
 	public:
 		explicit MovePicker(const Position& pos) {
+
+			// givesCheckを呼び出すのかのフラグ
+			bool doGivesCheck = false;
 			if (or_node) {
 				// ORノードなのですべての王手の指し手を生成。
 
-				if (GEN_ALL)
-					last_ = generateMoves<CHECKS_ALL>(pos, moveList_);
-				else
-					last_ = generateMoves<CHECKS    >(pos, moveList_);
+				// dlshogi、ここ、王手になる指し手を生成して、自玉に王手がかかっている場合、
+				// 回避手になっているかをpseudo_legal()でチェックしているが、
+				// pseudo_legal()のほうはわりと重い処理なので、自玉に王手がかかっているなら
+				// evasionの指し手を生成して、それがgives_check()で王手の指し手になっているか
+				// 見たほうが自然では？
 
 				if (INCHECK)
 				{
-					// 自玉が王手の場合、逃げる手かつ王手をかける手を生成
-
-					ExtMove* curr = moveList_;
-					while (curr != last_) {
-						// legalでない指し手はいまのうちに除外。
-						// ※　dlshogi、ここpseudoLegalMoveIsLegal()になっているが、合ってるのか？
-						if (!pos.legal(curr->move))
-							// 末尾の指し手を現在のcursorに移動させることでこの手を削除する。
-							curr->move = (--last_)->move;
-						else
-							++curr;
+					last = GEN_ALL ? generateMoves<EVASIONS_ALL>(pos, moveList) : generateMoves<EVASIONS>(pos, moveList);
+					// これが王手になるかはのちほどチェックする。
+					doGivesCheck = true;
+				}
+				else {
+					last = GEN_ALL ? generateMoves<CHECKS_ALL>(pos, moveList) : generateMoves<CHECKS>(pos, moveList);
 					}
 				}
-			} else {
+			else {
 				// ANDノードなので回避の指し手のみを生成
 				// (王手になる指し手も含まれる)
+				last = GEN_ALL ? generateMoves<EVASIONS_ALL>(pos, moveList): generateMoves<EVASIONS>(pos, moveList);
+			}
 
-				if (GEN_ALL)
-					last_ = generateMoves<EVASIONS_ALL>(pos, moveList_);
-				else
-					last_ = generateMoves<EVASIONS>(pos, moveList_);
-
-				// 玉の移動による自殺手と、pinされている駒の移動による自殺手を削除
-				ExtMove* curr = moveList_;
-				while (curr != last_) {
-					if (!pos.legal(curr->move))
-						curr->move = (--last_)->move;
+			// legalでない指し手はいまのうちに除外。
+			auto* curr = moveList;
+			while (curr != last ) {
+				// 以下の２つの指し手は除外する。
+				// 1. doGivesCheck==trueなのに、王手になる指し手ではない。
+				// 2. legalではない。
+				if ((doGivesCheck && !pos.gives_check(curr->move)) || !pos.legal(curr->move))
+					// 末尾の指し手を現在のcursorに移動させることでこの手を削除する。
+					curr->move = (--last)->move;
 					else
 						++curr;
 				}
-			}
+			
 			ASSERT_LV3(size() <= MaxCheckMoves);
 		}
-		size_t size() const { return static_cast<size_t>(last_ - moveList_); }
-		ExtMove* begin() { return &moveList_[0]; }
-		ExtMove* end() { return last_; }
+		size_t size() const { return static_cast<size_t>(last - moveList); }
+		ExtMove* begin() { return &moveList[0]; }
+		ExtMove* end() { return last; }
 		bool empty() const { return size() == 0; }
 
 	private:
-		ExtMove moveList_[MaxCheckMoves];
-		ExtMove* last_;
+		ExtMove moveList[MaxCheckMoves];
+		ExtMove* last;
 	};
 }
 
@@ -178,7 +178,6 @@ namespace {
 namespace Mate {
 
 	// 3手詰めチェック
-	// 手番側が王手でないこと
 	// mated_even_ply()から内部的に呼び出される。
 	template <bool INCHECK , bool GEN_ALL>
 	FORCE_INLINE Move mate_3ply(Position& pos)
@@ -213,15 +212,18 @@ namespace Mate {
 					found_mate = true;
 				}
 				else {
-					for (const auto& move : move_picker2)
+					for (const auto& ml2 : move_picker2)
 					{
-						auto m2 = move.move;
+						auto m2 = ml2.move;
 
 						// この指し手で逆王手になるなら、不詰めとして扱う
 						if (pos.gives_check(m2))
 							goto NEXT_CHECK;
 
 						pos.do_move(m2, si2, /* givesCheck */false);
+
+						// mate_1ply()は王手がかかっている時に呼べないが、
+						// この局面は王手はかかっていないから問題ない。
 
 						if (! Mate::mate_1ply(pos)) {
 							// 詰んでないので、m2で詰みを逃れている。
@@ -255,7 +257,9 @@ namespace Mate {
 		if (ply == 3)
 			return mate_3ply<INCHECK,GEN_ALL>(pos);
 		else if (ply == 1)
-			return mate_1ply(pos);
+			// 王手がかかっていないなら1手詰めを呼び出せるが、王手がかかっているなら1手詰めを呼べないので
+			// evasionのなかから詰む指し手を探す必要がある。レアケースなので、ここでは不詰み扱いをしておく。
+			return !pos.in_check() ? mate_1ply(pos) : MOVE_NONE;
 
 		// OR接点なので一つでも詰みを見つけたらそれで良し。
 
