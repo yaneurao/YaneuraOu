@@ -17,6 +17,8 @@ Global
 		Debug-Material|x86 = Debug-Material|x86
 		Debug-NNUE|x64 = Debug-NNUE|x64
 		Debug-NNUE|x86 = Debug-NNUE|x86
+		Debug-NNUE-LEARN|x64 = Debug-NNUE-LEARN|x64
+		Debug-NNUE-LEARN|x86 = Debug-NNUE-LEARN|x86
 		Debug-user|x64 = Debug-user|x64
 		Debug-user|x86 = Debug-user|x86
 		Release-Deep-ONNX|x64 = Release-Deep-ONNX|x64
@@ -60,6 +62,9 @@ Global
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-NNUE|x64.ActiveCfg = Debug-NNUE|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-NNUE|x64.Build.0 = Debug-NNUE|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-NNUE|x86.ActiveCfg = Debug-NNUE|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-NNUE-LEARN|x64.ActiveCfg = Debug-NNUE-LEARN|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-NNUE-LEARN|x64.Build.0 = Debug-NNUE-LEARN|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-NNUE-LEARN|x86.ActiveCfg = Debug-NNUE-LEARN|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-user|x64.ActiveCfg = Debug-user|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-user|x64.Build.0 = Debug-user|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-user|x86.ActiveCfg = Debug-user|x64

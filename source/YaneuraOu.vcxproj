@@ -15,6 +15,10 @@
       <Configuration>Debug-mate</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug-NNUE-LEARN|x64">
+      <Configuration>Debug-NNUE-LEARN</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug-NNUE|x64">
       <Configuration>Debug-NNUE</Configuration>
       <Platform>x64</Platform>
@@ -122,13 +126,6 @@
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-NNUE-GEN|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-NNUE-SSE42|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
@@ -193,6 +190,9 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-NNUE-LEARN|x64'" Label="Configuration">
     <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-NNUE-LEARN|x64'" Label="Configuration">
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
@@ -239,13 +239,6 @@
     <Import Project="props\YaneuraOuSolution-release-x64.props" />
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
     <Import Project="props\YaneuraOuEdition-KPP_KKPT.props" />
-  </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-NNUE-GEN|x64'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="props\YaneuraOu-common.props" />
-    <Import Project="props\YaneuraOuSolution-release-x64.props" />
-    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
-    <Import Project="props\YaneuraOuEdition-NNUE.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-NNUE-SSE42|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -332,6 +325,14 @@
     <Import Project="props\YaneuraOuEdition-NNUE.props" />
     <Import Project="..\packages\OpenBLAS.0.2.14.1\build\native\openblas.targets" Condition="Exists('..\packages\OpenBLAS.0.2.14.1\build\native\openblas.targets')" />
   </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug-NNUE-LEARN|x64'" Label="PropertySheets">
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-debug-x64.props" />
+    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
+    <Import Project="props\YaneuraOu-EvalLearn.props" />
+    <Import Project="props\YaneuraOuEdition-NNUE.props" />
+    <Import Project="..\packages\OpenBLAS.0.2.14.1\build\native\openblas.targets" Condition="Exists('..\packages\OpenBLAS.0.2.14.1\build\native\openblas.targets')" />
+  </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-mate|x64'">
     <ClCompile>
@@ -394,17 +395,6 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-NNUE-GEN|x64'">
-    <ClCompile>
-      <OpenMPSupport>
-      </OpenMPSupport>
-      <PreprocessorDefinitions>USE_AVX2;GENSFEN2019;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <LanguageStandard>stdcpp17</LanguageStandard>
-    </ClCompile>
-    <Link>
-      <AdditionalDependencies>../openblas/lib/libopenblas.dll.a;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-NNUE-SSE42|x64'">
@@ -478,6 +468,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-NNUE-LEARN|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>_CONSOLE;_UNICODE;UNICODE;%(PreprocessorDefinitions);USE_BLAS</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-NNUE-LEARN|x64'">
     <ClCompile>
       <PreprocessorDefinitions>_CONSOLE;_UNICODE;UNICODE;%(PreprocessorDefinitions);USE_BLAS</PreprocessorDefinitions>
     </ClCompile>

@@ -392,6 +392,7 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_SEE
 	#define USE_EVAL_LIST
 	#define USE_MATE_1PLY
+	#define USE_MATE_N_PLY
 	#define USE_TIME_MANAGEMENT
 	#define USE_MOVE_PICKER
 	#define USE_EVAL
@@ -480,6 +481,7 @@ constexpr int MAX_PLY_NUM = 246;
 	#define ENGINE_NAME "FukauraOu"
 	#define EVAL_DEEP "dlshogi-denryu2020"
 	#define USE_MATE_1PLY
+	#define USE_MATE_N_PLY
 	#define USE_EVAL
 	#define USE_TIME_MANAGEMENT
 	#define USE_GENERATE_ALL_LEGAL_MOVES

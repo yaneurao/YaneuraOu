@@ -374,7 +374,7 @@ namespace MateEngine
 		// if (n is a terminal node) { handle n and return; }
 
 		// 1手読みルーチンによるチェック
-		if (or_node && !n.in_check() && Mate::mate1ply(n)) {
+		if (or_node && !n.in_check() && Mate::mate_1ply(n)) {
 			entry.pn = 0;
 			entry.dn = kInfinitePnDn;
 			entry.minimum_distance = std::min(entry.minimum_distance, depth);
@@ -689,7 +689,7 @@ namespace MateEngine
 		visited.insert(pos.key());
 
 		MovePicker move_picker(pos, or_node);
-		Move mate1ply = Mate::mate1ply(pos);
+		Move mate1ply = Mate::mate_1ply(pos);
 		if (mate1ply || move_picker.empty()) {
 			if (mate1ply) {
 				moves.push_back(mate1ply);
@@ -768,7 +768,7 @@ namespace MateEngine
 		}
 		auto& mate_state = memo[key];
 
-		auto mate1ply = Mate::mate1ply(pos);
+		auto mate1ply = Mate::mate_1ply(pos);
 		if (or_node && !pos.in_check() && mate1ply) {
 			mate_state.num_moves_to_mate = 1;
 			mate_state.move_to_mate = mate1ply;

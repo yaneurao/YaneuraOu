@@ -318,7 +318,7 @@ namespace dlshogi
 			if (!pos->in_check())
 			{
 				// 詰みを発見しているはず
-				Move move = Mate::mate1ply(*pos);
+				Move move = Mate::mate_1ply(*pos);
 
 				// 長手数の詰みはあとで。
 

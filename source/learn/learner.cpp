@@ -65,6 +65,7 @@
 #include "../position.h"
 #include "../book/book.h"
 #include "../tt.h"
+#include "../mate/mate.h"
 #include "multi_think.h"
 
 #if defined(EVAL_NNUE)
@@ -3092,7 +3093,7 @@ namespace Learner {
 			{
 				// /* 詰みの局面もゴミでしかない。1手詰め、宣言勝ちの局面も除外。*/
 				if (pos.is_mated()
-					|| (!pos.checkers() && pos.mate1ply() != MOVE_NONE)
+					|| (!pos.checkers() && Mate::mate_1ply(pos) != MOVE_NONE)
 					|| pos.DeclarationWin() != MOVE_NONE
 					)
 					break;
@@ -3176,7 +3177,7 @@ namespace Learner {
 
 			// 詰みの局面、1手詰めの局面を除外
 			if (pos.is_mated()
-				|| (!pos.checkers() && pos.mate1ply() != MOVE_NONE)
+				|| (!pos.checkers() && Mate::mate_1ply(pos) != MOVE_NONE)
 				|| pos.DeclarationWin() != MOVE_NONE
 				)
 				goto Retry;

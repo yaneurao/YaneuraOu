@@ -1569,7 +1569,7 @@ namespace {
 			{
 				if (PARAM_WEAK_MATE_PLY == 1)
 				{
-					move = Mate::mate1ply(pos);
+					move = Mate::mate_1ply(pos);
 
 					if (move != MOVE_NONE)
 					{
@@ -1592,7 +1592,7 @@ namespace {
 
 				} else {
 
-					move = Mate::weak_mate_n_ply(pos,PARAM_WEAK_MATE_PLY);
+					move = Mate::weak_mate_3ply(pos,PARAM_WEAK_MATE_PLY);
 					if (move != MOVE_NONE)
 					{
 						// N手詰めかも知れないのでPARAM_WEAK_MATE_PLY手詰めのスコアを返す。
@@ -2830,12 +2830,12 @@ namespace {
 				// 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
 				if (PARAM_WEAK_MATE_PLY == 1)
 				{
-					if (Mate::mate1ply(pos) != MOVE_NONE)
+					if (Mate::mate_1ply(pos) != MOVE_NONE)
 						return mate_in(ss->ply + 1);
 				}
 				else
 				{
-					if (Mate::weak_mate_n_ply(pos, PARAM_WEAK_MATE_PLY) != MOVE_NONE)
+					if (Mate::weak_mate_3ply(pos, PARAM_WEAK_MATE_PLY) != MOVE_NONE)
 						// 1手詰めかも知れないがN手詰めの可能性があるのでNを返す。
 						return mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
 				}

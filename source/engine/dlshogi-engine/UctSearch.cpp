@@ -302,7 +302,7 @@ namespace dlshogi
 				}
 				else {
 					// 破棄した探索経路を保存
-					trajectories_batch_discarded.emplace_back(trajectories_batch.back());
+					trajectories_batch_discarded.emplace_back(std::move(trajectories_batch.back()));
 				}
 
 				// 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
@@ -491,7 +491,7 @@ namespace dlshogi
 
 #if 1
 					bool isMate =
-						(!pos->in_check() && Mate::mate1ply(*pos) != MOVE_NONE) // 1手詰め
+						(!pos->in_check() && Mate::mate_1ply(*pos) != MOVE_NONE) // 1手詰め
 						|| (pos->DeclarationWin() != MOVE_NONE)            // 宣言勝ち
 						;
 #else

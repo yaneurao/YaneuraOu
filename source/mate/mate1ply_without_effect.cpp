@@ -681,7 +681,7 @@ namespace {
 namespace Mate {
 
 	// Mate1Ply関係のテーブル初期化
-	void init_mate1ply()
+	void init_mate_1ply()
 	{
 		// CHECK_CAND_BB、CHECK_AROUND_BBの初期化
 		init_check_bb();
@@ -689,7 +689,7 @@ namespace Mate {
 
 	// 1手で詰むならばその指し手を返す。なければMOVE_NONEを返す
 	template <Color Us>
-	Move is_mate_in_1ply_imp(const Position& pos)
+	Move mate_1ply_imp(const Position& pos)
 	{
 		ASSERT_LV3(!pos.checkers());
 
@@ -2112,8 +2112,8 @@ namespace Mate {
 } // namespace Mate
 
 // templateの明示的な実体化
-template Move Mate::is_mate_in_1ply_imp<BLACK>(const Position& pos);
-template Move Mate::is_mate_in_1ply_imp<WHITE>(const Position& pos);
+template Move Mate::mate_1ply_imp<BLACK>(const Position& pos);
+template Move Mate::mate_1ply_imp<WHITE>(const Position& pos);
 
 #endif // if defined(MATE_1PLY)...
 

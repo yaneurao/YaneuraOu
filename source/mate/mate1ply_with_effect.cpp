@@ -96,7 +96,7 @@ namespace Mate
 {
 	// 超高速1手詰め判定、本体。
 	template <Color Us>
-	Move is_mate_in_1ply_imp(const Position& pos)
+	Move mate_1ply_imp(const Position& pos)
 	{
 		Square from, to;
 		auto them = ~Us;
@@ -477,7 +477,7 @@ NextCandidate:;
 	}
 
 	// Mate1Ply関係のテーブル初期化
-	void init_mate1ply()
+	void init_mate_1ply()
 	{
 		for (auto c : COLOR)
 			for (uint32_t info = 0; info < 0x10000; ++info)
@@ -535,7 +535,7 @@ NextCandidate:;
 } // namespace Mate
 
 // templateの明示的な実体化
-template Move Mate::is_mate_in_1ply_imp<BLACK>(const Position& pos);
-template Move Mate::is_mate_in_1ply_imp<WHITE>(const Position& pos);
+template Move Mate::mate_1ply_imp<BLACK>(const Position& pos);
+template Move Mate::mate_1ply_imp<WHITE>(const Position& pos);
 
 #endif

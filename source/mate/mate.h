@@ -13,16 +13,56 @@ namespace Mate
 	// 現局面で1手詰めであるかを判定する。1手詰めであればその指し手を返す。
 	// ただし1手詰めであれば確実に詰ませられるわけではなく、簡単に判定できそうな近接王手による
 	// 1手詰めのみを判定する。(要するに判定に漏れがある。)
-	Move mate1ply(const Position& pos);
+	// 詰みがある場合は、その指し手を返す。詰みがない場合は、MOVE_NONEが返る。
+	Move mate_1ply(const Position& pos);
 
-	// 1手で詰むならばその指し手を返す。なければMOVE_NONEを返す
+	// mate_1ply()の手番をtemplateにしたやつ。
 	template <Color Us>
-	Move is_mate_in_1ply_imp(const Position& pos);
+	Move mate_1ply_imp(const Position& pos);
 
-	// これ↓あとで消すかも。
+	// n手詰め
+#if defined(USE_MATE_N_PLY)
 
 	// 利きのある場所への取れない近接王手からの3手詰め
-	Move weak_mate_n_ply(const Position& pos,int ply);
+	// 詰みがある場合は、その1手目の指し手を返す。詰みがない場合は、MOVE_NONEが返る。
+	Move weak_mate_3ply(const Position& pos,int ply);
+
+	// 奇数手詰め
+	// 詰みがある場合は、その1手目の指し手を返す。詰みがない場合は、MOVE_NONEが返る。
+	// ply     : 最大で調べる手数
+	// gen_all : 歩の不成も生成するのか
+	Move mate_odd_ply(Position& pos, const int ply , bool gen_all);
+
+	// mate_odd_ply()の王手がかかっているかをtemplateにしたやつ。
+	// ※　dlshogiのmateMoveInOddPlyReturnMove()を参考にさせていただいています。
+	// INCHECK : 王手がかかっているか
+	// GEN_ALL : 歩の不成も生成するのか
+	template <bool INCHECK,bool GEN_ALL>
+	Move mate_odd_ply(Position& pos, const int ply);
+
+	// 偶数手詰め
+	// 前提) 手番側が王手されていること。
+	// この関数は、その王手が、逃れられずに手番側が詰むのかを判定する。
+	// 返し値は、詰まされる時、その指し手を返す。詰まない時はMOVE_NONEが返る。
+	// ply     : 最大で調べる手数
+	// gen_all : 歩の不成も生成するのか。
+	Move mated_even_ply(Position& pos, const int ply , bool gen_all);
+
+	// mated_even_ply()のtemplate版。
+	// GEN_ALL : 歩の不成も生成するのか。
+	template <bool GEN_ALL>
+	Move mated_even_ply(Position& pos, const int ply);
+
+	// 3手詰めチェック
+	// 手番側が王手でないこと
+	// mate_even_ply()から内部的に呼び出される。
+	// INCHECK : 王手がかかっているか
+	// GEN_ALL : 歩の不成も生成するのか。
+	template <bool INCHECK , bool GEN_ALL>
+	Move mate_3ply(Position& pos);
+
+#endif
+
 }
 
 #endif // namespace Mate
