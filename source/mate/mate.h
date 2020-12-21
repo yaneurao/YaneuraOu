@@ -43,7 +43,7 @@ namespace Mate
 	// 偶数手詰め
 	// 前提) 手番側が王手されていること。
 	// この関数は、その王手が、逃れられずに手番側が詰むのかを判定する。
-	// 返し値は、詰まされる時、その指し手を返す。詰まない時はMOVE_NONEが返る。
+	// 返し値は、逃れる指し手がある時、その指し手を返す。どうやっても詰む場合は、MOVE_NONEが返る。
 	// ply     : 最大で調べる手数
 	// gen_all : 歩の不成も生成するのか。
 	Move mated_even_ply(Position& pos, const int ply , bool gen_all);

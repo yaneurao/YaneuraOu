@@ -289,8 +289,16 @@ USIプロトコルの独自拡張コマンド
     その場合、NetworkDelay,NetworkDelay2の値を調整すること。
     // NetworkDelayは普通、400ぐらいが最適値だと思う。
 
-    // 持ち時間0秒、秒読み3秒に設定して、time upにならないように NetworkDelay2 を調整して、仮にそれが400だとしたら、
-    // NetworkDelay = 400 , NetworkDelay = 1400 (←切れたら即負けなので少しマージンを持たせる) のように調整する。
+    例)
+    DebugMessageをオンにすると以下のようなログが出力される。
+    > info string search search_end = 3600[ms], interruption time = 3604[ms]
+    > info nps 172 time 4257 nodes 735 hashfull 0 depth 4 score cp 176 pv 2g2f 8c8d 1g1f 1c1d
+    これは、3600[ms]の時点で停止するようにそれより前の段階で計画した、そして3604[ms]の時点で探索スレッドに停止信号を送った、
+    ところが全スレッドが停止したのは4257[ms]の時点であった。このとき4257-3604 = 653[ms]だけ停止させるための遅延が発生している。
+    (GPUが処理中ですぐに停止できていない)　この場合、NetworDelayは 653 + α = 800ぐらいに設定するのが順当。
+    NetworkDelay2 は(ネット対戦であれば)そこに1秒ぐらい足して、1800ぐらいが順当。(←切れたら即負けなので少しマージンを持たせる)
+    ネット対戦でなければ、+500程度のマージンで良いと思う。
+
 
 	DebugMessage
 
@@ -417,6 +425,20 @@ USIプロトコルの独自拡張コマンド
 				・REsolve MUtationエンジンの使い方
 					http://qhapaq.hatenablog.com/entry/2017/07/17/001152
 
+    test genmate          : 詰将棋の自動生成(LEARN版のみ)
+      loop     : 生成する個数
+      min_ply  : 生成する詰将棋の最小手数(奇数にすること)
+      max_ply  : 生成する詰将棋の最大手数(奇数にすること)
+      filename : 生成するファイル名(sfen形式)
+
+      例) test genmate loop 10000 min_ply 5 max_ply 7 filename mate.sfen
+        とすると5手か7手の詰将棋がsfen形式で1万局面出力されます。
+
+        スレッド並列で生成するので、そのときのエンジンオプションのThreadsの数だけ並列生成します。
+      例) // 8スレッドで生成したいなら、以下のようにします。
+          Threads 8
+          test genmate loop 10000 min_ply 5 max_ply 7 filename mate.sfen
+      
 
 	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。
 

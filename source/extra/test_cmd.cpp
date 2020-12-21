@@ -1796,8 +1796,11 @@ void gen_mate(Position& pos, istringstream& is)
 	uint64_t loop_max = 50000;
 
 	// この手数で詰む詰みの局面を探す
+	// min_ply以上、max_ply以下の詰みを探す。
 	int min_ply = 3;
-	int max_ply = 7;
+	int max_ply = 5;
+
+	string filename = "mate_sfen.txt";
 
 	string token;
 	while (is >> token)
@@ -1808,30 +1811,60 @@ void gen_mate(Position& pos, istringstream& is)
 			is >> min_ply;
 		else if (token == "max_ply")
 			is >> max_ply;
+		else if (token == "filename")
+			is >> filename;
 	}
+
+	size_t thread_num = Options["Threads"];
 
 	cout << "gen_mate command" << endl
 		<< "  loop_max     = " << loop_max << endl
 		<< "  min_ply = "      << min_ply << endl
 		<< "  max_ply = "      << max_ply << endl
+		<< "  output filename  = " << filename   << endl
+		<< "  Threads          = " << thread_num << endl
 		;
 
+	ofstream fs(filename);
+
+	// 最小手数と最大手数が逆転している
+	if (min_ply > max_ply)
+	{
+		cout << "Error! min_ply > max_ply" << endl;
+		return;
+	}
+
+	// 偶数手の詰将棋はない
+	if (min_ply % 2 == 0 || max_ply % 2 == 0)
+	{
+		cout << "Error! min_ply , max_ply must be odd." << endl;
+		return;
+	}
+
 	const int MAX_PLY = 256; // 256手までテスト
-
-	// StateInfoを最大手数分だけ確保
-	auto states = std::make_unique<StateInfo[]>(MAX_PLY+1);
-
-	//Move moves[MAX_PLY]; // 局面の巻き戻し用に指し手を記憶
-	int ply; // 初期局面からの手数
-
-	auto start = now();
 
 	// isreadyが呼び出されたものとする。
 	Search::clear();
 
-	for (uint64_t i = 0; i < loop_max; ++i)
+	// 並列化しないと時間かかる。
+
+	atomic<u64> generated_count = 0;
+
+	auto worker = [&](int thread_id) {
+		WinProcGroup::bindThisThread(thread_id);
+
+		PRNG prng;
+
+	// StateInfoを最大手数分だけ確保
+		auto states = std::make_unique<StateInfo[]>(MAX_PLY + 1);
+
+	//Move moves[MAX_PLY]; // 局面の巻き戻し用に指し手を記憶
+	int ply; // 初期局面からの手数
+
+		Position pos;
+		while (true)
 	{
-		pos.set_hirate(&(states[0]),Threads.main());
+			pos.set_hirate(&(states[0]), Threads[thread_id]);
 
 		for (ply = 0; ply < MAX_PLY; ++ply)
 		{
@@ -1839,36 +1872,58 @@ void gen_mate(Position& pos, istringstream& is)
 			if (mg.size() == 0)
 				break;
 
-			auto pv = Learner::search(pos,3,1);
+				auto pv = Learner::search(pos, 3 + (int)prng.rand(3) /* depth 3～5 */, 1);
 			Move m = pv.second[0];
 
 			// mate_min_ply - 2で詰まなくて、
 			// mate_max_plyで詰むことを確認すれば良いはず。
-			if (   Mate::mate_odd_ply(pos, min_ply - 2 , true) == MOVE_NONE
-				&& Mate::mate_odd_ply(pos, max_ply     , true) != MOVE_NONE)
+				if (Mate::mate_odd_ply(pos, min_ply - 2, true) == MOVE_NONE
+					&& Mate::mate_odd_ply(pos, max_ply, true) != MOVE_NONE)
 			{
 				// 発見した。
 
-				//string sfen = pos.sfen();
+					// 局面図を出力してみる。
+					//sync_cout << pos << sync_endl;
+
+					// 初手を出力してみる。
+					//cout << Mate::mate_odd_ply(pos, max_ply, true) << endl;
+
+					string sfen = pos.sfen();
 				//sync_cout << "sfen = " << sfen << sync_endl;
-				sync_cout << pos << sync_endl;
+					fs << sfen << endl;
+					fs.flush();
 
-				// 初手を出力してみる。
-				cout << Mate::mate_odd_ply(pos, max_ply, true);
-				cout << Mate::mate_odd_ply(pos, max_ply, true);
+					// 生成した数
+					if (++generated_count >= loop_max)
+						return;
 
+					break; // ここで次の対局へ
 			}
 
 			if (m == MOVE_NONE)
 				break;
 
-			pos.do_move(m, states[ply+1]);
+				pos.do_move(m, states[ply + 1]);
 
 			//moves[ply] = m;
 		}
-		// 1局ごとに'.'を出力(進んでいることがわかるように)
-		cout << ".";
 	}
+	};
+
+	auto threads = make_unique<std::thread[]>(thread_num);
+	for (int i = 0; i < thread_num; ++i)
+		threads[i] = std::thread(worker,i);
+
+	while (generated_count < loop_max)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+		sync_cout << generated_count << sync_endl;
+	}
+
+	for (int i = 0; i < thread_num; ++i)
+		threads[i].join();
+
+	sync_cout << "..done" << sync_endl;
 }
 
 #endif // EVAL_LEARN

@@ -294,7 +294,7 @@ namespace Mate {
 				//std::cout << ml.move().toUSI() << std::endl;
 
 				// さらにこの局面から偶数手で相手が詰まされるかのチェック
-				found_mate = mated_even_ply<GEN_ALL>(pos, ply - 1) != MOVE_NONE;
+				found_mate = mated_even_ply<GEN_ALL>(pos, ply - 1) == MOVE_NONE /* 回避手がない == 詰み */;
 				break;
 
 			default: UNREACHABLE;
@@ -325,7 +325,7 @@ namespace Mate {
 	// 偶数手詰め
 	// 前提) 手番側が王手されていること。
 	// この関数は、その王手が、逃れられずに手番側が詰むのかを判定する。
-	// 返し値は、詰まされる時、その指し手を返す。詰まない時はMOVE_NONEが返る。
+	// 返し値は、逃れる指し手がある時、その指し手を返す。どうやっても詰む場合は、MOVE_NONEが返る。
 	// ply     : 最大で調べる手数
 	// GEN_ALL : 歩の不成も生成するのか。
 	template <bool GEN_ALL>
@@ -368,11 +368,11 @@ namespace Mate {
 			case REPETITION_SUPERIOR: // この関数に与えられた局面から見て相手が駒得 →　逃れているかどうかはさらに調べないと…。
 				if (ply == 4)
 					// 3手詰めかどうか
-					found_escape = !(givesCheck ? !mate_3ply<true, GEN_ALL>(pos) : !mate_3ply<false, GEN_ALL>(pos));
+					found_escape = !(givesCheck ? mate_3ply<true, GEN_ALL>(pos) : mate_3ply<false, GEN_ALL>(pos));
 				//	// 詰みが見つからなかったら、逃れている。
 				else
 					// 奇数手詰めかどうか
-					found_escape = !(givesCheck ? !mate_odd_ply<true , GEN_ALL>(pos, ply - 1) : !mate_odd_ply<false , GEN_ALL>(pos, ply - 1));
+					found_escape = !(givesCheck ? mate_odd_ply<true , GEN_ALL>(pos, ply - 1) : mate_odd_ply<false , GEN_ALL>(pos, ply - 1));
 					// 詰みが見つからなかったら、逃れている。
 				break;
 
@@ -383,7 +383,7 @@ namespace Mate {
 
 			// 1手でも逃れる指し手を見つけた場合は、与えられた局面で詰まされない。
 			if (found_escape)
-				return m;
+				return m; // この指し手で逃れている。
 		}
 
 		// 詰みを逃れる指し手を見つけられなかった = 詰み
@@ -393,7 +393,7 @@ namespace Mate {
 	// 偶数手詰め
 	// 前提) 手番側が王手されていること。
 	// この関数は、その王手が、逃れられずに手番側が詰むのかを判定する。
-	// 返し値は、詰まされる時、その指し手を返す。詰まない時はMOVE_NONEが返る。
+	// 返し値は、逃れる指し手がある時、その指し手を返す。どうやっても詰む場合は、MOVE_NONEが返る。
 	// ply     : 最大で調べる手数
 	// gen_all : 歩の不成も生成するのか。
 	Move mated_even_ply(Position& pos, const int ply, bool gen_all)
