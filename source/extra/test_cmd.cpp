@@ -1914,7 +1914,7 @@ void gen_mate(Position& pos, istringstream& is)
 	};
 
 	auto threads = make_unique<std::thread[]>(thread_num);
-	for (int i = 0; i < thread_num; ++i)
+	for (size_t i = 0; i < thread_num; ++i)
 		threads[i] = std::thread(worker,i);
 
 	while (generated_count < loop_max)
@@ -1923,7 +1923,7 @@ void gen_mate(Position& pos, istringstream& is)
 		sync_cout << generated_count << sync_endl;
 	}
 
-	for (int i = 0; i < thread_num; ++i)
+	for (size_t i = 0; i < thread_num; ++i)
 		threads[i].join();
 
 	sync_cout << "..done" << sync_endl;
