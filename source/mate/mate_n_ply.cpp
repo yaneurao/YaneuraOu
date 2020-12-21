@@ -159,7 +159,7 @@ namespace {
 					else
 						++curr;
 				}
-			
+
 			ASSERT_LV3(size() <= MaxCheckMoves);
 		}
 		size_t size() const { return static_cast<size_t>(last - moveList); }
@@ -247,6 +247,11 @@ namespace Mate {
 		return MOVE_NONE;
 	}
 
+	// mated_even_ply() 定義前の宣言。
+	// 明示的なテンプレート引数を持つ関数呼び出しで、事前に宣言されていない関数テンプレート名を使用することは、C++20 の拡張機能です。
+	template <bool GEN_ALL>
+	Move mated_even_ply(Position& pos, const int ply);
+
 	// mate_odd_ply()の王手がかかっているかをtemplateにしたやつ。
 	// ※　dlshogiのmateMoveInOddPlyReturnMove()を参考にさせていただいています。
 	// InCheck : 王手がかかっているか
@@ -325,7 +330,7 @@ namespace Mate {
 		return GEN_ALL ? (pos.in_check() ? mate_odd_ply<true,true >(pos, depth) : mate_odd_ply<false,true >(pos, depth))
 		               : (pos.in_check() ? mate_odd_ply<true,false>(pos, depth) : mate_odd_ply<false,false>(pos, depth));
 	}
-		
+
 	// 偶数手詰め
 	// 前提) 手番側が王手されていること。
 	// この関数は、その王手が、逃れられずに手番側が詰むのかを判定する。
@@ -355,7 +360,7 @@ namespace Mate {
 			// 手番側が逃れる指し手を見つけたか。
 			// これがtrueになった時は、その指し手で逃れているので、この関数はfalseを返す。
 			bool found_escape = false;
-			
+
 			// 千日手チェック
 			switch (pos.is_repetition(16)) {
 			case REPETITION_WIN:	  // この関数に与えられた局面から見て相手が勝ち = 詰みを逃れていない
