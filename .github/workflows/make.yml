@@ -4,16 +4,17 @@ name: Make CI (for Ubuntu Linux)
 on:
   push:
     branches:
-      - '**'
+      - "**"
   pull_request:
     branches:
-      - '**'
+      - "**"
 
 jobs:
-  build:
-    # ubuntu-latest = ubuntu-18.04
+  build-ubuntu:
+    # ubuntu-latest = ubuntu-18.04 => ubuntu-20.04
+    # https://github.com/actions/virtual-environments/issues/1816
     # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     strategy:
       matrix:
@@ -24,92 +25,108 @@ jobs:
           - YANEURAOU_ENGINE_KPPT
           - YANEURAOU_ENGINE_KPP_KKPT
           - YANEURAOU_ENGINE_MATERIAL*
-          - MATE_ENGINE
+          - YANEURAOU_MATE_ENGINE
+          - TANUKI_MATE_ENGINE
           - USER_ENGINE
-        compiler: [ clang++-12, clang++-10, g++-10, g++-8 ]
-        target: [ 'normal,tournament', gensfen, evallearn ]
-        archcpu: [ 'AVX512,AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN1', 'ZEN2,AVX512VNNI', 'ZEN3,AVXVNNI', 'NO_SSE' ]
+        compiler: [clang++-12, clang++-10, g++-10]
+        target: ["normal,tournament", gensfen, evallearn]
+        archcpu:
+          [
+            "AVX512,AVX2,SSE42,SSE2",
+            "SSE41,SSSE3,OTHER,ZEN1",
+            "ZEN2,AVX512VNNI",
+            "ZEN3,AVXVNNI",
+            "NO_SSE",
+          ]
         exclude:
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
           - edition: YANEURAOU_ENGINE_MATERIAL*
             target: evallearn
-          - edition: MATE_ENGINE
+          - edition: YANEURAOU_MATE_ENGINE
+            target: evallearn
+          - edition: TANUKI_MATE_ENGINE
             target: evallearn
           - edition: USER_ENGINE
             target: evallearn
           # 以下のエディションはgensfenに対応しない
-          - edition: MATE_ENGINE
+          - edition: YANEURAOU_MATE_ENGINE
+            target: gensfen
+          - edition: TANUKI_MATE_ENGINE
             target: gensfen
           - edition: USER_ENGINE
             target: gensfen
-          # Ubuntu-18.04 g++-8 は archcpu ZEN3,ZEN2,AVX512VNNI,AVXVNNI のサポートを行わない
-          # ubuntu-18.04 g++-8 will not support the archcpu ZEN3,ZEN2,AVX512VNNI,AVXVNNI
+          # Ubuntu-20.04 g++-10 は archcpu ZEN3,AVXVNNI のサポートを行わない
+          # ubuntu-20.04 g++-10 will not support the archcpu ZEN3,AVXVNNI
           # `-march=cascadelake`: LLVM8, GCC9 support (AVX512VNNI)
           # `-march=znver2`: LLVM9, GCC9 support
           # `-march=alderlake` : LLVM12, GCC11 support (AVX-VNNI)
           # `-march=znver3`: LLVM12, GCC11? support
-          - compiler: g++-8
-            archcpu: 'ZEN2,AVX512VNNI'
-          - compiler: g++-8
-            archcpu: 'ZEN3,AVXVNNI'
           - compiler: g++-10
-            archcpu: 'ZEN3,AVXVNNI'
+            archcpu: "ZEN3,AVXVNNI"
           - compiler: clang++-10
-            archcpu: 'ZEN3,AVXVNNI'
-          # g++-10 は Ubuntu20.04LTSイメージ移行後に
-          - compiler: g++-10
+            archcpu: "ZEN3,AVXVNNI"
           # Linux 32bit archcpu 向けのビルドは通常はしない
           # don't usually build for Linux 32bit archcpu
           - archcpu: NO_SSE
 
     steps:
-    - name: Checkout own repository
-      uses: actions/checkout@v2
-      with:
-        path: main
+      - name: Checkout own repository
+        uses: actions/checkout@v2
+        with:
+          path: main
 
-    - name: install g++-8
-      # Ubuntu 18.04
-      run: |
-        sudo apt update
-        sudo apt install build-essential libopenblas-dev g++-8
-      if: ${{ matrix.compiler == 'g++-8' }}
-    - name: install g++-10
-      # Ubuntu 20.04
-      run: |
-        sudo apt update
-        sudo apt install build-essential libopenblas-dev g++-10
-      if: ${{ matrix.compiler == 'g++-10' }}
-    - name: install clang-10
-      # Ubuntu 18.04, Ubuntu 20.04
-      run: |
-        sudo apt update
-        sudo apt install build-essential libopenblas-dev clang-10
-      if: ${{ matrix.compiler == 'clang++-10' }}
-    - name: install clang-11
-      # Ubuntu 20.10 or LLVM APT
-      run: |
-        wget https://apt.llvm.org/llvm.sh
-        chmod +x llvm.sh
-        sudo ./llvm.sh 11
-        sudo apt update
-        sudo apt install build-essential libopenblas-dev
-      if: ${{ matrix.compiler == 'clang++-11' }}
-    - name: install clang-12
-      # Ubuntu 21.04 or LLVM APT
-      run: |
-        wget https://apt.llvm.org/llvm.sh
-        chmod +x llvm.sh
-        sudo ./llvm.sh 12
-        sudo apt update
-        sudo apt install build-essential libopenblas-dev
-      if: ${{ matrix.compiler == 'clang++-12' }}
+      - name: install g++-8
+        # Ubuntu 18.04
+        run: |
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+          sudo apt update
+          sudo apt install build-essential libopenblas-dev g++-8
+        if: ${{ matrix.compiler == 'g++-8' }}
+      - name: install g++-10
+        # Ubuntu 20.04
+        run: |
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+          sudo apt update
+          sudo apt install build-essential libopenblas-dev g++-10
+        if: ${{ matrix.compiler == 'g++-10' }}
+      - name: install clang-10
+        # Ubuntu 18.04, Ubuntu 20.04
+        run: |
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+          sudo apt update
+          sudo apt install build-essential libopenblas-dev clang-10
+        if: ${{ matrix.compiler == 'clang++-10' }}
+      - name: install clang-11
+        # Ubuntu 20.10 or LLVM APT
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 11
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+          sudo apt update
+          sudo apt install build-essential libopenblas-dev
+        if: ${{ matrix.compiler == 'clang++-11' }}
+      - name: install clang-12
+        # Ubuntu 21.04 or LLVM APT
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 12
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+          sudo apt update
+          sudo apt install build-essential libopenblas-dev
+        if: ${{ matrix.compiler == 'clang++-12' }}
 
-    - name: make
-      run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }}
+      - name: make
+        run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }}
 
-    - uses: actions/upload-artifact@v2
-      with:
-        name: build-linux
-        path: ./main/build/**/**/*
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-linux_${{ github.run_number }}_${{ github.sha }}
+          path: ./main/build/**/**/*
