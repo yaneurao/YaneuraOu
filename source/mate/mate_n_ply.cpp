@@ -147,18 +147,12 @@ namespace {
 				last = GEN_ALL ? generateMoves<EVASIONS_ALL>(pos, moveList): generateMoves<EVASIONS>(pos, moveList);
 			}
 
-			// legalでない指し手はいまのうちに除外。
-			auto* curr = moveList;
-			while (curr != last ) {
 				// 以下の２つの指し手は除外する。
 				// 1. doGivesCheck==trueなのに、王手になる指し手ではない。
 				// 2. legalではない。
-				if ((doGivesCheck && !pos.gives_check(curr->move)) || !pos.legal(curr->move))
-					// 末尾の指し手を現在のcursorに移動させることでこの手を削除する。
-					curr->move = (--last)->move;
-					else
-						++curr;
-				}
+			last = std::remove_if(moveList, last, [&](const auto& ml) {
+				return (doGivesCheck && !pos.gives_check(ml.move)) || !pos.legal(ml.move);
+			});
 
 			ASSERT_LV3(size() <= MaxCheckMoves);
 		}

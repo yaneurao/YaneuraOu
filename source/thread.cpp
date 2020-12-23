@@ -73,7 +73,8 @@ void Thread::idle_loop() {
 	// cf. NUMA for 9 threads or more : https://github.com/official-stockfish/Stockfish/commit/bc3b148d5712ef9ea00e74d3ff5aea10a4d3cabe
 
 #if !defined(FORCE_BIND_THIS_THREAD)
-	if (Options["Threads"] > 8)
+	// "Threads"というオプションがない時は、強制的にbindThisThread()しておいていいと思う。(使うスレッド数がここではわからないので..)
+	if (Options.count("Threads")==0 || Options["Threads"] > 8)
 #endif
 		WinProcGroup::bindThisThread(idx);
 		// このifを有効にすると何故かNUMA環境のマルチスレッド時に弱くなることがある気がする。

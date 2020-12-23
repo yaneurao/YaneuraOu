@@ -20,7 +20,11 @@ int main(int argc, char* argv[])
 	Bitboards::init();
 	Position::init();
 	Search::init();
-	Threads.set(std::max((size_t)Options["Threads"],size_t(1)));
+
+	// エンジンオプションの"Threads"があるとは限らないので…。
+	size_t thread_num = Options.count("Threads") ? (size_t)Options["Threads"] : 1;
+	Threads.set(thread_num);
+
 	//Search::clear();
 	Eval::init();
 

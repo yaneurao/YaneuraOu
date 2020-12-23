@@ -1849,16 +1849,15 @@ void gen_mate(Position& pos, istringstream& is)
 	// 並列化しないと時間かかる。
 
 	atomic<u64> generated_count = 0;
+	std::mutex mutex;
 
-	auto worker = [&](int thread_id) {
+	auto worker = [&](size_t thread_id) {
 		WinProcGroup::bindThisThread(thread_id);
 
 		PRNG prng;
 
 	// StateInfoを最大手数分だけ確保
 		auto states = std::make_unique<StateInfo[]>(MAX_PLY + 1);
-
-		std::mutex mutex;
 
 		Position pos;
 		while (true)
@@ -2068,18 +2067,21 @@ void test_cmd(Position& pos, istringstream& is)
 	else if (param == "evalsave") Eval::save_eval("");               // 現在の評価関数のパラメーターをファイルに保存
 	else if (param == "genmate") gen_mate(pos, is);                  // N手詰みの局面を生成する。
 #endif
+
 #if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 	else if (param == "evalmerge") eval_merge(is);                   // 評価関数の合成コマンド
 	else if (param == "evalconvert") eval_convert(is);               // 評価関数の変換コマンド
 	else if (param == "evalexam") eval_exam(is);                     // 評価関数ファイルの調査用
 	else if (param == "evalresolve") eval_resolve(is);               // 評価関数ファイルの調査用
-#if defined(EVAL_LEARN)
+	#if defined(EVAL_LEARN)
 	else if (param == "regkk") regularize_kk_cmd(is);				 // 評価関数のKKの正規化
+	#endif
 #endif
-#endif
+
 #if defined (USE_KIF_CONVERT_TOOLS)
 	else if (param == "kifconvert") test_kif_convert_tools(pos, is); // 現局面からの全合法手を各種形式で出力チェック
 #endif
+
 #if defined(EVAL_NNUE)
 	else if (param == "nnue") Eval::NNUE::TestCommand(pos, is);
 #endif
