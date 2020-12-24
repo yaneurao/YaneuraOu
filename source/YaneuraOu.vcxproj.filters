@@ -336,9 +336,6 @@
     <ClCompile Include="misc.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="extra\test_cmd.cpp">
-      <Filter>リソース ファイル\extra</Filter>
-    </ClCompile>
     <ClCompile Include="extra\long_effect.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
@@ -492,9 +489,6 @@
     <ClCompile Include="engine\dlshogi-engine\dlshogi_searcher.cpp">
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClCompile>
-    <ClCompile Include="mate\mate_n_ply.cpp">
-      <Filter>リソース ファイル\mate</Filter>
-    </ClCompile>
     <ClCompile Include="mate\mate1ply_with_effect.cpp">
       <Filter>リソース ファイル\mate</Filter>
     </ClCompile>
@@ -502,6 +496,15 @@
       <Filter>リソース ファイル\mate</Filter>
     </ClCompile>
     <ClCompile Include="mate\mate.cpp">
+      <Filter>リソース ファイル\mate</Filter>
+    </ClCompile>
+    <ClCompile Include="mate\mate_dfpn.cpp">
+      <Filter>リソース ファイル\mate</Filter>
+    </ClCompile>
+    <ClCompile Include="mate\mate_test_cmd.cpp">
+      <Filter>リソース ファイル\mate</Filter>
+    </ClCompile>
+    <ClCompile Include="mate\mate_solver.cpp">
       <Filter>リソース ファイル\mate</Filter>
     </ClCompile>
   </ItemGroup>
@@ -556,5 +559,6 @@
     <None Include="..\.gitignore" />
     <None Include="..\README.md" />
     <None Include="..\script\bench.py" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
   </ItemGroup>
 </Project>

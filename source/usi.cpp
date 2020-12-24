@@ -10,28 +10,75 @@
 
 using namespace std;
 
+// ----------------------------------
+//      USI拡張コマンド "test"
+// ----------------------------------
+
+#if defined(ENABLE_TEST_CMD)
+
+// USI拡張コマンドのうち、開発上のテスト関係のコマンド。
+// 思考エンジンの実行には関係しない。
+
+namespace Test
+{
+	// 詰み関係のテストコマンド。コマンドを処理した時 trueが返る。
+	bool mate_test_cmd(Position& pos, std::istringstream& is, const std::string& token);
+
+	void test_cmd(Position& pos, std::istringstream& is)
+	{
+		// 探索をするかも知れないので初期化しておく。
+		is_ready();
+
+		std::string token;
+		is >> token;
+
+		// デザパタのDecoratorみたいな感じで書いていく。
+
+		// 詰み関係の拡張コマンド
+		if (mate_test_cmd(pos,is,token))
+			return;
+
+	}
+
+}
+
+#endif // defined(ENABLE_TEST_CMD)
+
+
+//
+// あとで整理する
+//
+
+
 // ユーザーの実験用に開放している関数。
 // USI拡張コマンドで"user"と入力するとこの関数が呼び出される。
 // "user"コマンドの後続に指定されている文字列はisのほうに渡される。
 void user_test(Position& pos, std::istringstream& is);
 
-// USI拡張コマンドの"test"コマンドなど。
-// サンプル用のコードを含めてtest.cppのほうに色々書いてあるのでそれを呼び出すために使う。
 #if defined(ENABLE_TEST_CMD)
-	void test_cmd(Position& pos, istringstream& is);
 	void generate_moves_cmd(Position& pos);
 #if defined(MATE_ENGINE)
 	void test_mate_engine_cmd(Position& pos, istringstream& is);
 #endif
 #endif
 
-// "bench"コマンドは、"test"コマンド群とは別。常に呼び出せるようにしてある。
-extern void bench_cmd(Position& pos, istringstream& is);
+#if defined(USE_MATE_DFPN)
+// "mate"コマンド
+void mate_cmd(Position& pos, istream& is);
+#endif
+
+// ----------------------------------
+//      USI拡張コマンド "makebook"
+// ----------------------------------
 
 // 定跡を作るコマンド
 #if defined(ENABLE_MAKEBOOK_CMD)
 namespace Book { extern void makebook_cmd(Position& pos, istringstream& is); }
 #endif
+
+// ----------------------------------
+//      USI拡張コマンド "learn"
+// ----------------------------------
 
 // 棋譜を自動生成するコマンド
 #if defined (EVAL_LEARN)
@@ -57,10 +104,19 @@ namespace Learner
 }
 #endif
 
+// ----------------------------------
+//      USI拡張コマンド "bench"
+// ----------------------------------
+
+// "bench"コマンドは、"test"コマンド群とは別。常に呼び出せるようにしてある。
+extern void bench_cmd(Position& pos, istringstream& is);
+
+
 // "gameover"コマンドに対するハンドラ
 #if defined(USE_GAMEOVER_HANDLER)
 void gameover_handler(const string& cmd);
 #endif
+
 
 namespace USI
 {
@@ -822,10 +878,10 @@ void USI::loop(int argc, char* argv[])
 		
 #if defined (ENABLE_TEST_CMD)
 		// 指し手生成のテスト
-		else if (token == "s") generate_moves_cmd(pos);
+		//else if (token == "s") generate_moves_cmd(pos);
 
 		// テストコマンド
-		else if (token == "test") test_cmd(pos, is);
+		else if (token == "test") Test::test_cmd(pos, is);
 
 #if defined (MATE_ENGINE)
 		else if (token == "test_mate_engine") test_mate_engine_cmd(pos, is);

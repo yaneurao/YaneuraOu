@@ -532,10 +532,16 @@ NextCandidate:;
 			}
 	}
 
+	// 現局面で1手詰めであるかを判定する。1手詰めであればその指し手を返す。
+	Move mate_1ply(const Position& pos)
+	{
+		return pos.side_to_move() == BLACK ? Mate::mate_1ply_imp<BLACK>(pos) : Mate::mate_1ply_imp<WHITE>(pos);
+	}
+
 } // namespace Mate
 
 // templateの明示的な実体化
-template Move Mate::mate_1ply_imp<BLACK>(const Position& pos);
-template Move Mate::mate_1ply_imp<WHITE>(const Position& pos);
+//template Move Mate::mate_1ply_imp<BLACK>(const Position& pos);
+//template Move Mate::mate_1ply_imp<WHITE>(const Position& pos);
 
 #endif

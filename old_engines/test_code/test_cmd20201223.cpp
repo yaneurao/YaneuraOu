@@ -20,7 +20,7 @@ using namespace EvalLearningTools;
 
 #include <unordered_set>
 #include <cmath>               // sqrt() , fabs()
-#include "all.h"
+#include "../extra/all.h"
 
 // ----------------------------------
 //      USI拡張コマンド "test"
@@ -1818,9 +1818,9 @@ void gen_mate(Position& pos, istringstream& is)
 	size_t thread_num = Options["Threads"];
 
 	cout << "gen_mate command" << endl
-		<< "  loop_max     = " << loop_max << endl
-		<< "  min_ply = "      << min_ply << endl
-		<< "  max_ply = "      << max_ply << endl
+		<< "  loop_max         = " << loop_max   << endl
+		<< "  min_ply          = " << min_ply    << endl
+		<< "  max_ply          = " << max_ply    << endl
 		<< "  output filename  = " << filename   << endl
 		<< "  Threads          = " << thread_num << endl
 		;
@@ -1856,34 +1856,34 @@ void gen_mate(Position& pos, istringstream& is)
 
 		PRNG prng;
 
-	// StateInfoを最大手数分だけ確保
+		// StateInfoを最大手数分だけ確保
 		auto states = std::make_unique<StateInfo[]>(MAX_PLY + 1);
 
 		Position pos;
 		while (true)
-	{
+		{
 			pos.set_hirate(&(states[0]), Threads[thread_id]);
 
 			for (int ply = 0; ply < MAX_PLY; ++ply)
-		{
-			MoveList<LEGAL_ALL> mg(pos);
-			if (mg.size() == 0)
-				break;
+			{
+				MoveList<LEGAL_ALL> mg(pos);
+				if (mg.size() == 0)
+					break;
 
 				auto pv = Learner::search(pos, 3 + (int)prng.rand(3) /* depth 3～5 */, 1);
 
-			Move m = pv.second[0];
+				Move m = pv.second[0];
 				if (m == MOVE_NONE)
 					break;
 
 				pos.do_move(m, states[ply + 1]);
 
-			// mate_min_ply - 2で詰まなくて、
-			// mate_max_plyで詰むことを確認すれば良いはず。
+				// mate_min_ply - 2で詰まなくて、
+				// mate_max_plyで詰むことを確認すれば良いはず。
 				if (Mate::mate_odd_ply(pos, min_ply - 2, true) == MOVE_NONE
 					&& Mate::mate_odd_ply(pos, max_ply, true) != MOVE_NONE)
-			{
-				// 発見した。
+				{
+					// 発見した。
 
 					// 局面図を出力してみる。
 					//sync_cout << pos << sync_endl;
@@ -1895,9 +1895,9 @@ void gen_mate(Position& pos, istringstream& is)
 					{
 						std::lock_guard<std::mutex> lk(mutex);
 
-				//sync_cout << "sfen = " << sfen << sync_endl;
-					fs << sfen << endl;
-					fs.flush();
+						//sync_cout << "sfen = " << sfen << sync_endl;
+						fs << sfen << endl;
+						fs.flush();
 					}
 
 					// 生成した数
@@ -1905,11 +1905,11 @@ void gen_mate(Position& pos, istringstream& is)
 						return;
 
 					break; // ここで次の対局へ
-			}
+				}
 
-			//moves[ply] = m;
+				//moves[ply] = m;
+			}
 		}
-	}
 	};
 
 	auto threads = make_unique<std::thread[]>(thread_num);
@@ -1929,6 +1929,161 @@ void gen_mate(Position& pos, istringstream& is)
 }
 
 #endif // EVAL_LEARN
+
+#if defined (USE_MATE_N_PLY) || defined(USE_MATE_DFPN)
+// 詰みルーチンのテスト
+void mate_bench(Position& pos, istringstream& is)
+{
+
+	// 読み込む問題数
+	size_t num = 1000;
+
+	// 問題を何回解かせるのか。
+	size_t loop = 1;
+
+	// 詰み局面のファイル名(genmateコマンドで生成したもの)
+	string filename = "mate/mate3.sfen";
+
+	// mate_odd_plyで読む手数
+	int mate_ply = 3;
+
+	// ノード数制限
+	u32 nodes_limit = 10000;
+
+	// dfpn用のメモリ[MB]
+	u32 dfpn_mem = 1024;
+
+	// デバッグ用に、解けなかった問題を出力する。
+	bool debug = false;
+
+	int test_mode = 3; // mate_odd_plyとdfpnと両方のテストを行う。
+
+	std::string token;
+	while (is >> token)
+	{
+		if (token == "num")
+			is >> num;
+		else if (token == "loop")
+			is >> loop;
+		else if (token == "file")
+			is >> filename;
+		else if (token == "mate_ply")
+			is >> mate_ply;
+		else if (token == "nodes")
+			is >> nodes_limit;
+		else if (token == "debug")
+			debug = true;
+		else if (token == "mode")
+			is >> test_mode;
+
+#if defined(USE_MATE_DFPN)
+		else if (token == "dfpn_mem")
+			is >> dfpn_mem;
+#endif
+	}
+
+	std::cout << "mate bench :" << std::endl
+		<< " num (number of problems) = " << num << endl
+		<< " sfen file name           = " << filename << endl
+		<< " mate_ply                 = " << mate_ply << endl
+		<< " nodes(nodes limit)       = " << nodes_limit << endl
+		<< " debug message            = " << debug << endl
+		<< " mode                     = " << test_mode << endl
+#if defined(USE_MATE_DFPN)
+		<< " dfpn_mem [MB]            = " << dfpn_mem << endl
+#endif
+		;
+
+#if defined(USE_MATE_DFPN)
+	Mate::Dfpn::DfpnSolver dfpn;
+	dfpn.alloc(dfpn_mem);
+#endif
+
+	ifstream f(filename);
+	unique_ptr<vector<string>> problems = make_unique<vector<string>>();
+	problems->reserve(num);
+
+	cout << "read problems.." << endl;
+	for (size_t i = 0; i < num; ++i)
+	{
+		string sfen;
+		if (!getline(f, sfen) || f.eof())
+			break;
+		problems->emplace_back(sfen);
+
+		// 読み込み経過を出力
+		if (i % 10000 == 0 && i > 0)
+			cout << ".";
+	}
+	cout << "..number of problems read = " << problems->size() << endl;
+
+	auto bench = [&](function<Move()> solver , string test_name) {
+		Timer timer;
+		timer.reset();
+
+		cout <<  test_name << " test start" << endl;
+
+		// 解けた問題数
+		u32 solved = 0;
+
+		TimePoint last_pv = 0;
+
+		for (size_t i = 0; i < num; ++i)
+		{
+			auto elapsed = timer.elapsed();
+			// pvは一定間隔で出力する。
+			if (last_pv + 2000 < elapsed)
+			{
+				last_pv = elapsed;
+
+				// mateを呼び出した回数。
+				size_t times = i * loop;
+				cout << " number of times = " << times << " , elapsed = " << elapsed
+					<< " , solved per second = " << (double)times * 1000 / (elapsed + 0.00000001) << endl;
+			}
+
+			auto sfen = (*problems)[i];
+			StateInfo si;
+			pos.set(sfen, &si, Threads.main());
+			Move move;
+			for (size_t j = 0; j < loop; ++j)
+			{
+				move = solver();
+				if (move)
+					solved++;
+				else if (debug && j == 0)
+					// 解けなかった時にその問題を出力する。
+					cout << "unsolved : line = " << i + 1 << endl <<
+							"sfen " << sfen << endl; // このままの形式でどこかに貼り付けたり、やねうら王に局面設定したりできる。
+
+			}
+		}
+		{
+			auto elapsed = timer.elapsed();
+			size_t times = num * loop;
+			cout << " number of times = " << times << " , elapsed = " << elapsed
+				 << " , solved per second = " << (double)times * 1000 / (elapsed + 0.00000001) << endl;
+			cout << " solved = " << solved << " , accuracy = " << (100.0 * solved / times) << "%" << endl;
+
+			cout <<  test_name << " test end" << endl;
+		}
+	};
+
+#if defined(USE_MATE_N_PLY)
+	// 2進数にしてbit0が立ってたら奇数詰めを呼び出す
+	if (test_mode & 1)
+		bench([&]() { return Mate::mate_odd_ply(pos, mate_ply, true); } , "mate_odd_ply");
+#endif
+
+#if defined(USE_MATE_DFPN)
+	// 2進数にしてbit1が立ってたらdfpnを呼び出す
+	if (test_mode & 2)
+		bench([&]() { return dfpn.mate_dfpn(pos, nodes_limit); }, "mate_dfpn");
+#endif
+}
+
+#endif
+
 
 #if defined (USE_KIF_CONVERT_TOOLS)
 void test_kif_convert_tools(Position& pos, istringstream& is)
@@ -2061,6 +2216,11 @@ void test_cmd(Position& pos, istringstream& is)
 	else if (param == "timeman") test_timeman();                     // TimeManagerのテスト
 	else if (param == "exambook") exam_book(pos);                    // 定跡の精査用コマンド
 	else if (param == "bookcheck") book_check_cmd(pos, is);          // 定跡のチェックコマンド
+
+#if defined (USE_MATE_N_PLY) || defined(USE_MATE_DFPN)
+	else if (param == "matebench") mate_bench(pos, is);             // 詰みルーチンのテスト
+#endif
+
 #if defined (EVAL_LEARN)
 	else if (param == "search") test_search(pos, is);                // 現局面からLearner::search()を呼び出して探索させる
 	else if (param == "dumpsfen") dump_sfen(pos, is);                // gensfenコマンドで生成した教師局面のダンプ

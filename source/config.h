@@ -219,10 +219,16 @@
 //#define USE_MATE_1PLY
 
 
-// 奇数手詰めルーチンを用いるか。
-// これをdefineするとMate::is_mate_odd_ply()が使えるようになる。
+// MateSolver(奇数手詰めルーチン)を用いるか。
+// これをdefineするとMateSolverが使えるようになる。
 // ※　同時にUSE_MATE_1PLYがdefineされていないといけない。
-//#define USE_MATE_N_PLY
+//#define USE_MATE_SOLVER
+
+
+// df-pn詰将棋ルーチンを用いるか。
+// これをdefineするとMate::Dfpnクラスが使えるようになる。(開発中)
+// ※　同時にUSE_MATE_1PLYがdefineされていないといけない。
+//#define USE_MATE_DFPN
 
 
 // ---------------------
@@ -392,7 +398,7 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_SEE
 	#define USE_EVAL_LIST
 	#define USE_MATE_1PLY
-	#define USE_MATE_N_PLY
+	#define USE_MATE_SOLVER
 	#define USE_TIME_MANAGEMENT
 	#define USE_MOVE_PICKER
 	#define USE_EVAL
@@ -467,6 +473,9 @@ constexpr int MAX_PLY_NUM = 246;
 		// EVAL_NNUE_KP256      : KP256(評価関数1MB未満)
 		// EVAL_NNUE_HALFKPE9   : 標準NNUE型のおよそ9倍(540MB程度)
 
+		 //#undef EVAL_NNUE_KP256
+		 //#define EVAL_NNUE_HALFKPE9
+
 		// #define EVAL_NNUE_HALFKP256
 		// #define EVAL_NNUE_KP256
 		// #define EVAL_NNUE_HALFKPE9
@@ -480,13 +489,18 @@ constexpr int MAX_PLY_NUM = 246;
 
 	#define ENGINE_NAME "FukauraOu"
 	#define EVAL_DEEP "dlshogi-denryu2020"
-	#define USE_MATE_1PLY
-	#define USE_MATE_N_PLY
 	#define USE_EVAL
 	#define USE_TIME_MANAGEMENT
 	#define USE_GENERATE_ALL_LEGAL_MOVES
 	#define USE_ENTERING_KING_WIN
+	#define USE_MATE_1PLY
+	#define USE_MATE_SOLVER
+	#define USE_MATE_DFPN
+	#define ENABLE_TEST_CMD
 
+//#define USE_KIF_CONVERT_TOOLS
+
+	//#define ASSERT_LV 3
 #endif
 
 // --- 詰将棋エンジンとして実行ファイルを公開するとき用の設定集

@@ -1,13 +1,16 @@
-﻿#if defined(USE_KIF_CONVERT_TOOLS)
+﻿#include "../../config.h"
+
+#if defined(USE_KIF_CONVERT_TOOLS)
+
+#include <iomanip>
+#include <stack>
+#include <sstream>
 
 #include "kif_convert_tools.h"
 #include "kif_convert_consts.h"
 
 #include "../../position.h"
-
-#include <iomanip>
-
-extern void is_ready();
+#include "../../usi.h"
 
 namespace KifConvertTools
 {
@@ -954,5 +957,125 @@ namespace KifConvertTools
 	}
 
 } // namespace KifConvertTools
+
+#if defined (USE_KIF_CONVERT_TOOLS)
+namespace {
+	void test_kif_convert_tools(Position& pos, std::istringstream& is)
+	{
+		is_ready();
+
+		std::string token = "";
+
+		KifConvertTools::ColorFormat colorfmt = KifConvertTools::ColorFmt_KIF;
+		KifConvertTools::SquareFormat sqfmt = KifConvertTools::SqFmt_ASCII;
+		KifConvertTools::SamePosFormat spfmt = KifConvertTools::SamePosFmt_Short;
+		int fmti = 0;
+		bool sfenrec = false, csarec = false, kifrec = false, kif2rec = false;
+		bool sfen = false, csa = false, csa1 = false, kif = false, kif2 = false, all = true;
+
+		while (true)
+		{
+			token = "";
+			is >> token;
+			if (token == "") break;
+			else if (token == "sfenrec") { all = false; sfenrec = true; }
+			else if (token == "csarec") { all = false; csarec = true; }
+			else if (token == "kifrec") { all = false; kifrec = true; }
+			else if (token == "kif2rec") { all = false; kif2rec = true; }
+			else if (token == "sfen") { all = false; sfen = true; }
+			else if (token == "csa") { all = false; csa = true; }
+			else if (token == "csa1") { all = false; csa1 = true; }
+			else if (token == "kif") { all = false; kif = true; }
+			else if (token == "kif2") { all = false; kif2 = true; }
+			else if (token == "colorformat")
+			{
+				is >> fmti;
+				if (fmti >= 0 && fmti < (int)KifConvertTools::ColorFmt_NB)
+					colorfmt = (KifConvertTools::ColorFormat)fmti;
+			}
+			else if (token == "squareformat")
+			{
+				is >> fmti;
+				if (fmti >= 0 && fmti < (int)KifConvertTools::SqFmt_NB)
+					sqfmt = (KifConvertTools::SquareFormat)fmti;
+			}
+			else if (token == "sameposformat")
+			{
+				is >> fmti;
+				if (fmti >= 0 && fmti < (int)KifConvertTools::SamePosFmt_NB)
+					spfmt = (KifConvertTools::SamePosFormat)fmti;
+			}
+		}
+
+		std::cout << "position: " << pos.sfen() << std::endl;
+
+		if (all || sfenrec)
+		{
+			std::cout << "sfenrec:" << std::endl
+				<< KifConvertTools::to_sfen_string(pos);
+		}
+		if (all || csarec)
+		{
+			std::cout << "csarec:" << std::endl
+				<< KifConvertTools::to_csa_string(pos, KifConvertTools::CsaFmt);
+		}
+		if (all || kifrec)
+		{
+			KifConvertTools::KifFormat fmt(colorfmt, sqfmt, spfmt);
+			std::cout << "kifrec:" << std::endl
+				<< KifConvertTools::to_kif_string(pos, KifConvertTools::KifFmtKn1);
+		}
+		if (all || kif2rec)
+		{
+			KifConvertTools::KifFormat fmt(colorfmt, sqfmt, spfmt);
+			std::cout << "kif2rec:" << std::endl
+				<< KifConvertTools::to_kif2_string(pos, KifConvertTools::KifFmtK2);
+		}
+		if (all || sfen)
+		{
+			std::cout << "sfen:";
+			for (auto m : MoveList<LEGAL_ALL>(pos))
+				std::cout << " " << m.move;
+			std::cout << std::endl;
+		}
+		if (all || csa)
+		{
+			std::cout << "csa:";
+			for (auto m : MoveList<LEGAL_ALL>(pos))
+				std::cout << " " << KifConvertTools::to_csa_string(pos, m.move, KifConvertTools::CsaFmt);
+			std::cout << std::endl;
+		}
+		if (all || csa1)
+		{
+			std::cout << "csa1:";
+			for (auto m : MoveList<LEGAL_ALL>(pos))
+				std::cout << " " << KifConvertTools::to_csa_string(pos, m.move, KifConvertTools::Csa1Fmt);
+			std::cout << std::endl;
+		}
+		if (all || kif)
+		{
+			KifConvertTools::KifFormat fmt(colorfmt, sqfmt, spfmt);
+			std::cout << "kif:";
+			for (auto m : MoveList<LEGAL_ALL>(pos))
+				std::cout << " " << KifConvertTools::to_kif_string(pos, m.move, fmt);
+			std::cout << std::endl;
+		}
+		if (all || kif2)
+		{
+			KifConvertTools::KifFormat fmt(colorfmt, sqfmt, spfmt);
+			std::cout << "kif2:";
+			for (auto m : MoveList<LEGAL_ALL>(pos))
+				std::cout << " " << KifConvertTools::to_kif2_string(pos, m.move, fmt);
+			std::cout << std::endl;
+		}
+
+	}
+}
+#endif // #if defined (USE_KIF_CONVERT_TOOLS)
+
+namespace Test
+{
+	// あとで書く。
+}
 
 #endif

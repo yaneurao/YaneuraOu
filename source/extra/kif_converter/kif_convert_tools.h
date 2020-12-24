@@ -1,12 +1,16 @@
 ﻿#ifndef _KIF_CONVERT_TOOLS_H_
 #define _KIF_CONVERT_TOOLS_H_
 
+#include "../../config.h"
+
 // 棋譜の変換などを行なうツールセット
 // CSA,KIF,KIF2(KI2)形式などの入出力を担う。
 
 #if defined(USE_KIF_CONVERT_TOOLS)
 
-struct Position;
+#include "../../types.h"
+
+class Position;
 namespace KifConvertTools
 {
 

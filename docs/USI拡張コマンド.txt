@@ -383,6 +383,8 @@ USIプロトコルの独自拡張コマンド
 	search  : 現在の局面に対してLearner::search()を直接呼び出して評価値と読み筋を表示する。
 				(デバッグ用 , EVAL_LEARNを有効にしてコンパイルした実行ファイルのみ使える。)
 
+	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。
+
 	bench   : ベンチマーク
 		bench [置換表サイズ][スレッド数][→の指定][LimitType = depth , nodes, time][局面の指定]
 		例)
@@ -396,36 +398,17 @@ USIプロトコルの独自拡張コマンド
 		例) bench 1024 1 10 default depth
 
 
+■　テストコマンド
+
 	test    : テスト用コマンド
-		実験的に実装してあるコマンドで、突然無くなることがあります。
+		※　testコマンドは実験的に実装してあるコマンドで、突然無くなることがあります。
 
-		test unit            : unit test
-		test perft [depth]   : perft(パフォーマンステスト)。深さを指定できる。
-		test rp    [回数]    : random playerのテスト。回数を指定できる。
-		test rpbench [回数]  : ランダムプレイヤーを用いたbenchマーク。
-		test checks [回数]	 : ランダムプレイヤーで対局させて、王手の指し手生成ルーチンで指し手が
-								正しく生成出来ているかをテストする。
-		test autoplay [回数] : 思考ルーチンを呼び出して連続自己対戦をさせる。
-		test timeman         : TimeManagerで消費する時間のテスト結果を表示する。(やねうら王classic-tce以降のみ)
-		test evalmerge [DIR1] [DIR2] [DIR3] [PERCENT] : DIR1の評価関数とDIR2の評価関数を
-				指定されたPERCENTで按分してDIR3に書き出す。(やねうら王2017Early以降のみ)
-				例) test evalmerge eval1 eval2 eval_out 20
-				  このときeval1が20%、eval2が80%の新しい評価関数ファイルがeval_out/フォルダに出力される。
-		test evalsave        : 現在の評価関数をファイルに保存。"EvalSaveDir"オプションで指定したフォルダに保存。
-		test evalresolve [DIR0] [DIR1] [DIR2] ...
-				DIR0,DIR1,DIR2,…は、評価関数フォルダ。
-				DIR0の評価関数が、DIR1,DIR2,…の、どの評価関数からevalmergeされているのかを調べる。
-					X1 DIR1 + X2 DIR2 + X3 DIR3 + ...
-				のような形で分解した結果を教えてくれる。
-				
-				以下の記事も参考に。
 
-				・評価関数ファイルの合成、学習元を解析するツールREsolveMUtationエンジンを公開します
-					http://qhapaq.hatenablog.com/entry/2017/07/16/040830
-				・REsolve MUtationエンジンの使い方
-					http://qhapaq.hatenablog.com/entry/2017/07/17/001152
+    test genmate          : 詰将棋の自動生成(やねうら王通常探索部のLEARN版のみ)
 
-    test genmate          : 詰将棋の自動生成(LEARN版のみ)
+      自己対局を行い、その対局中に見つけた詰め将棋の局面をsfen形式で出力します。
+      // 自己対局を行うので、評価関数は正常に読み込め、エンジンは正常に動作している必要があります。
+
       loop     : 生成する個数
       min_ply  : 生成する詰将棋の最小手数(奇数にすること)
       max_ply  : 生成する詰将棋の最大手数(奇数にすること)
@@ -441,7 +424,46 @@ USIプロトコルの独自拡張コマンド
           test genmate loop 10000 min_ply 5 max_ply 7 filename mate.sfen
       
 
-	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。
+    test matebench        :  詰みルーチンに関するbenchをとる。
+
+      このbenchには、"test genmate"コマンドで生成した詰み局面を利用すると良い。
+
+      file   : 詰将棋のsfen文字列が書かれているファイル名
+      num    : ファイルから読み込む問題数(先頭からこの行数だけ読み込む)
+      loop   : 問題を何回ずつ解かせるのか。
+		      sfen文字列からPositionにセットする時間がロスするので、
+		      何度かずつ同じを局面を繰り返し解かせる時に用いる。
+
+      mate_ply : 奇数詰めルーチンを呼ぶ時の上限の詰み手数。
+      dfpn_mem : df-pnルーチン用のメモリをどれだけ割り当てるか。[MB]単位。
+
+      verbose  : 出力を多めにする。不詰がある時、その時のsfen文字列を出力する。
+
+      mode     : 1 : 奇数詰めのベンチをする ,  2 : df-pnルーチンのベンチをする。
+                  1 + 2 = 3を指定すると両方のベンチをする。
+
+      例) test matebench file mate/mate.sfen num 1000000
+        mate/mate.sfenファイルを、その先頭から100万局面分読み込んでベンチを行う。
+
+
+    test dfpnmate         :  現在の局面に対してdf-pn詰将棋ルーチンを呼び出す
+
+      // df-pnルーチン自体が現在調整中につき非公開なのでこのコマンドは使えません。
+
+      解けた場合、その時の探索したノード数と読み筋を返す。
+
+      nodes		: 探索ノード数の制限
+      mem			: df-pn用のメモリ[MB]
+
+      現在の局面は、"position"コマンドか"sfen"コマンドで設定する。
+      positionコマンドの前には"isready"コマンドを送信してある必要がある。
+
+      例) sfenで指定した局面をdf-pn詰将棋ルーチンで解かせる。
+
+        isready
+        sfen ln6+P/2sk1G3/p1ppn2pp/5BP2/9/2N6/P1PPPP2P/1SG6/LN1KR+r3 w 2G2L5Pb2s 72
+        test matedfpn
+        
 
 
 ■　詰将棋エンジン
