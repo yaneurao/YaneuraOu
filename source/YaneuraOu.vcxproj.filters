@@ -26,9 +26,6 @@
     <Filter Include="script">
       <UniqueIdentifier>{efb5b189-918a-4b2a-ba65-731c674603a7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\extra\kif_converter">
-      <UniqueIdentifier>{d3015e32-f402-423d-8643-dcc571f62564}</UniqueIdentifier>
-    </Filter>
     <Filter Include="docs">
       <UniqueIdentifier>{8bb34244-8e89-49f6-a303-c043ef5d8647}</UniqueIdentifier>
     </Filter>
@@ -126,12 +123,6 @@
     </ClInclude>
     <ClInclude Include="extra\key128.h">
       <Filter>リソース ファイル\extra</Filter>
-    </ClInclude>
-    <ClInclude Include="extra\kif_converter\kif_convert_tools.h">
-      <Filter>リソース ファイル\extra\kif_converter</Filter>
-    </ClInclude>
-    <ClInclude Include="extra\kif_converter\kif_convert_consts.h">
-      <Filter>リソース ファイル\extra\kif_converter</Filter>
     </ClInclude>
     <ClInclude Include="eval\evaluate_io.h">
       <Filter>リソース ファイル\eval</Filter>
@@ -365,9 +356,6 @@
     </ClCompile>
     <ClCompile Include="learn\learning_tools.cpp">
       <Filter>リソース ファイル\learn</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\kif_converter\kif_convert_tools.cpp">
-      <Filter>リソース ファイル\extra\kif_converter</Filter>
     </ClCompile>
     <ClCompile Include="eval\evaluate_io.cpp">
       <Filter>リソース ファイル\eval</Filter>

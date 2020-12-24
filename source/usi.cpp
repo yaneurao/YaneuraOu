@@ -57,9 +57,6 @@ void user_test(Position& pos, std::istringstream& is);
 
 #if defined(ENABLE_TEST_CMD)
 	void generate_moves_cmd(Position& pos);
-#if defined(MATE_ENGINE)
-	void test_mate_engine_cmd(Position& pos, istringstream& is);
-#endif
 #endif
 
 #if defined(USE_MATE_DFPN)
@@ -882,10 +879,6 @@ void USI::loop(int argc, char* argv[])
 
 		// テストコマンド
 		else if (token == "test") Test::test_cmd(pos, is);
-
-#if defined (MATE_ENGINE)
-		else if (token == "test_mate_engine") test_mate_engine_cmd(pos, is);
-#endif
 #endif
 
 #if defined (ENABLE_MAKEBOOK_CMD)

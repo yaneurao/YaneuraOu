@@ -1,5 +1,5 @@
 ﻿#include "mate.h"
-#if defined(USE_MATE_1PLY)
+#if defined(USE_MATE_SOLVER)
 #include "../position.h"
 
 // ---------------------
@@ -320,4 +320,4 @@ namespace Mate {
 
 } // namespace Mate
 
-#endif // if defined(MATE_1PLY)...
+#endif // defined(USE_MATE_SOLVER)

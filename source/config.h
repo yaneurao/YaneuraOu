@@ -352,11 +352,6 @@
 // #define PV_OUTPUT_DRAW_ONLY
 
 
-// 棋譜の変換などを行なうツールセット。CSA,KIF,KIF2(KI2)形式などの入出力を担う。
-// これをdefineすると、extra/kif_converter/ フォルダにある棋譜や指し手表現の変換を行なう関数群が使用できるようになる。
-// #define USE_KIF_CONVERT_TOOLS
-
-
 // ニコニコ生放送の電王盤用
 // 電王盤はMultiPV非対応なので定跡を送るとき、"multipv"をつけずに1番目の候補手を送信する必要がある。
 // #define NICONICO

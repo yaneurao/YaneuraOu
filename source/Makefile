@@ -233,7 +233,6 @@ SOURCES  = \
 	extra/bitop.cpp                                                            \
 	extra/long_effect.cpp                                                      \
 	extra/sfen_packer.cpp                                                      \
-	extra/kif_converter/kif_convert_tools.cpp                                  \
 	extra/super_sort.cpp                                                       \
 	mate/mate.cpp                                                              \
 	mate/mate1ply_without_effect.cpp                                           \

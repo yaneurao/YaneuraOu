@@ -20,7 +20,6 @@
 #include "long_effect.h"
 #include "../book/book.h"
 #include "../learn/learn.h"
-#include "kif_converter/kif_convert_tools.h"
 #include "../mate/mate.h"
 
 // これもおまけしておく。

@@ -101,6 +101,7 @@ namespace Mate
 
 namespace Mate::Dfpn
 {
+	template <typename NodeCountType>
 	class DfpnImp;
 
 	// df-pn詰将棋ルーチン
@@ -136,7 +137,7 @@ namespace Mate::Dfpn
 
 	private:
 		// 実装本体。
-		std::shared_ptr<DfpnImp> imp;
+		std::shared_ptr<DfpnImp<u32>> imp;
 	};
 } // namespace Mate::Dfpn
 #endif

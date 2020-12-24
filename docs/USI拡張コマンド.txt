@@ -446,7 +446,11 @@ USIプロトコルの独自拡張コマンド
         mate/mate.sfenファイルを、その先頭から100万局面分読み込んでベンチを行う。
 
 
-    test dfpnmate         :  現在の局面に対してdf-pn詰将棋ルーチンを呼び出す
+    test matebench2    : tanuki-詰将棋ルーチンのベンチマークテスト
+      // そのうち削除するかも知れないので説明は割愛
+
+
+    test dfpn         :  現在の局面に対してdf-pn詰将棋ルーチンを呼び出す
 
       // df-pnルーチン自体が現在調整中につき非公開なのでこのコマンドは使えません。
 
@@ -462,7 +466,7 @@ USIプロトコルの独自拡張コマンド
 
         isready
         sfen ln6+P/2sk1G3/p1ppn2pp/5BP2/9/2N6/P1PPPP2P/1SG6/LN1KR+r3 w 2G2L5Pb2s 72
-        test matedfpn
+        test dfpn
         
 
 
