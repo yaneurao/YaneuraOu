@@ -35,14 +35,15 @@ namespace Mate
 		Unknown, // そのいずれでもない
 	};
 
+	// MateSolverやMateDfpnSolverで千日手判定のために遡る最大手数
+	constexpr int MAX_REPETITION_PLY = 16;
+
 	// 連続王手などの千日手判定を行う。
 	// plies_from_root : 詰み探索開始局面からの手数
 	// repetition_ply  : 千日手判定を行う最大手数 (16ぐらいでいいと思う)
 	// or_node         : 攻め方のnodeであればtrue。受け方のnodeであればfalse。
 	MateRepetitionState mate_repetition(const Position& pos, const int plies_from_root , const int repetition_ply, bool or_node);
 
-	// MateSolverやMateDfpnSolverで千日手判定のために遡る最大手数
-	constexpr int MAX_REPETITION_PLY = 16;
 
 	// n手詰め
 #if defined(USE_MATE_SOLVER)
@@ -101,44 +102,83 @@ namespace Mate
 
 namespace Mate::Dfpn
 {
-	template <typename NodeCountType>
-	class DfpnImp;
-
-	// df-pn詰将棋ルーチン
+	// df-pn詰将棋ルーチンのinterface
 	// 事前にメモリ確保やら何やらしないといけないのでクラス化してある。
 	// 古来からあるdf-pnとは異なる、新しいコンセプトによる実装。
-	class MateDfpnSolver
+	class MateDfpnSolverInterface
 	{
 	public:
 		// このクラスを用いるには、この関数を呼び出して事前にdf-pn用のメモリを確保する必要がある。
 		// size_mb [MB] だけ探索用のメモリを確保する。
-		void alloc(size_t size_mb);
+		virtual void alloc(size_t size_mb) = 0;
 
 		// 探索して初手を返す。
 		// nodes_limit内に解ければその初手が返る。
 		// 不詰が証明できれば、MOVE_NULL、解がわからなかった場合は、MOVE_NONEが返る。
 		// nodes_limit : ノード制限。0を指定するとノード制限なし。(ただしメモリの制限から解けないことはある)
-		Move mate_dfpn(Position& pos , u32 nodes_limit);
+		virtual Move mate_dfpn(Position& pos , u32 nodes_limit)= 0;
 
 		// mate_dfpn()がMOVE_NULL,MOVE_NONE以外を返した場合にその手順を取得する。
 		// ※　最短手順である保証はない。
-		std::vector<Move> get_pv() const;
+		virtual std::vector<Move> get_pv() const = 0;
 
 		// 解けた時に今回の探索ノード数を取得する。
-		u32 get_node_searched() const;
+		virtual u64 get_nodes_searched() const = 0;
 
 		// 解けた時に今回の詰み手数を取得する。
-		int get_mate_ply() const;
+		virtual int get_mate_ply() const= 0;
 
 		// mate_dfpn()でMOVE_NONE以外が返ってきた時にメモリが不足しているかを返す。
-		bool is_out_of_memory() const;
+		virtual bool is_out_of_memory() const= 0;
+	};
 
-		MateDfpnSolver();
+	// DfpnのSolverの種類
+	enum class DfpnSolverType
+	{
+		// ガーベジなし。
+		Node32bit,         // nodes_limit < 2^32 の時に使うやつ 省メモリ版
+		Node16bitOrdering, // nodes_limit < 2^16 の時に使うやつ 省メモリ版 かつ orderingあり(実験中)
+		Node64bit       ,  // nodes_limit < 2^64 の時に使うやつ 
+		Node48bitOrdering, // nodes_limit < 2^48 の時に使うやつ            かつ orderingあり(実験中)
+
+		// ガーベジあり
+
+		// 未実装。気が向いたら実装するが、ふかうら王で使わないと思われるのであまり気が進まない…。
+	};
+
+	// MateDfpnSolverInterfaceの入れ物。
+	class MateDfpnSolver : MateDfpnSolverInterface
+	{
+	public:
+		MateDfpnSolver(DfpnSolverType t);
+
+		// このクラスを用いるには、この関数を呼び出して事前にdf-pn用のメモリを確保する必要がある。
+		// size_mb [MB] だけ探索用のメモリを確保する。
+		virtual void alloc(size_t size_mb) { return impl->alloc(size_mb); }
+
+		// 探索して初手を返す。
+		// nodes_limit内に解ければその初手が返る。
+		// 不詰が証明できれば、MOVE_NULL、解がわからなかった場合は、MOVE_NONEが返る。
+		// nodes_limit : ノード制限。0を指定するとノード制限なし。(ただしメモリの制限から解けないことはある)
+		virtual Move mate_dfpn(Position& pos, u32 nodes_limit) { return impl->mate_dfpn(pos, nodes_limit); }
+
+		// mate_dfpn()がMOVE_NULL,MOVE_NONE以外を返した場合にその手順を取得する。
+		// ※　最短手順である保証はない。
+		virtual std::vector<Move> get_pv() const { return impl->get_pv(); }
+
+		// 解けた時に今回の探索ノード数を取得する。
+		virtual u64 get_nodes_searched() const { return impl->get_nodes_searched(); }
+
+		// 解けた時に今回の詰み手数を取得する。
+		virtual int get_mate_ply() const { return impl->get_mate_ply(); }
+
+		// mate_dfpn()でMOVE_NONE以外が返ってきた時にメモリが不足しているかを返す。
+		virtual bool is_out_of_memory() const { return impl->is_out_of_memory(); }
 
 	private:
-		// 実装本体。
-		std::shared_ptr<DfpnImp<u32>> imp;
+		std::unique_ptr<MateDfpnSolverInterface> impl;
 	};
+
 } // namespace Mate::Dfpn
 #endif
 

@@ -238,7 +238,8 @@ SOURCES  = \
 	mate/mate1ply_without_effect.cpp                                           \
 	mate/mate1ply_with_effect.cpp                                              \
 	mate/mate_solver.cpp                                                       \
-	mate/mate_dfpn.cpp                                                         \
+	mate/mate_dfpn32.cpp                                                       \
+	mate/mate_dfpn64.cpp                                                       \
 	mate/mate_test_cmd.cpp                                                      \
 	eval/evaluate_bona_piece.cpp                                               \
 	eval/evaluate.cpp                                                          \

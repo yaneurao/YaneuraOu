@@ -545,6 +545,7 @@
     <ClInclude Include="learn\learning_tools.h" />
     <ClInclude Include="learn\multi_think.h" />
     <ClInclude Include="mate\mate.h" />
+    <ClInclude Include="mate\mate_move_picker.h" />
     <ClInclude Include="misc.h" />
     <ClInclude Include="movepick.h" />
     <ClInclude Include="search.h" />
@@ -602,10 +603,11 @@
     <ClCompile Include="learn\learning_tools.cpp" />
     <ClCompile Include="learn\multi_think.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="mate\mate_dfpn.cpp" />
     <ClCompile Include="mate\mate.cpp" />
     <ClCompile Include="mate\mate1ply_without_effect.cpp" />
     <ClCompile Include="mate\mate1ply_with_effect.cpp" />
+    <ClCompile Include="mate\mate_dfpn32.cpp" />
+    <ClCompile Include="mate\mate_dfpn64.cpp" />
     <ClCompile Include="mate\mate_solver.cpp" />
     <ClCompile Include="mate\mate_test_cmd.cpp" />
     <ClCompile Include="misc.cpp" />

@@ -307,6 +307,9 @@
     <ClInclude Include="mate\mate.h">
       <Filter>リソース ファイル\mate</Filter>
     </ClInclude>
+    <ClInclude Include="mate\mate_move_picker.h">
+      <Filter>リソース ファイル\mate</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -486,13 +489,16 @@
     <ClCompile Include="mate\mate.cpp">
       <Filter>リソース ファイル\mate</Filter>
     </ClCompile>
-    <ClCompile Include="mate\mate_dfpn.cpp">
-      <Filter>リソース ファイル\mate</Filter>
-    </ClCompile>
     <ClCompile Include="mate\mate_test_cmd.cpp">
       <Filter>リソース ファイル\mate</Filter>
     </ClCompile>
     <ClCompile Include="mate\mate_solver.cpp">
+      <Filter>リソース ファイル\mate</Filter>
+    </ClCompile>
+    <ClCompile Include="mate\mate_dfpn32.cpp">
+      <Filter>リソース ファイル\mate</Filter>
+    </ClCompile>
+    <ClCompile Include="mate\mate_dfpn64.cpp">
       <Filter>リソース ファイル\mate</Filter>
     </ClCompile>
   </ItemGroup>

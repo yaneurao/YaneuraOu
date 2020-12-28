@@ -217,7 +217,27 @@ namespace Mate
 		}
 		return MateRepetitionState::Unknown;
 	}
-
 }
+
+#if defined(USE_MATE_DFPN)
+namespace Mate::Dfpn
+{
+	std::unique_ptr<MateDfpnSolverInterface> BuildNode32bitSolver();
+	std::unique_ptr<MateDfpnSolverInterface> BuildNode16bitOrderingSolver();
+	std::unique_ptr<MateDfpnSolverInterface> BuildNode64bitSolver();
+	std::unique_ptr<MateDfpnSolverInterface> BuildNode48bitOrderingSolver();
+
+	MateDfpnSolver::MateDfpnSolver(DfpnSolverType t)
+	{
+		switch (t)
+		{
+		case DfpnSolverType::Node32bit        : impl = BuildNode32bitSolver();         break;
+		case DfpnSolverType::Node16bitOrdering: impl = BuildNode16bitOrderingSolver(); break;
+		case DfpnSolverType::Node64bit        : impl = BuildNode64bitSolver();         break;
+		case DfpnSolverType::Node48bitOrdering: impl = BuildNode48bitOrderingSolver(); break;
+		}
+	}
+}
+#endif
 
 #endif // defined (USE_MATE_1PLY)

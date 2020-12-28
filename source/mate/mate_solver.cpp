@@ -1,73 +1,11 @@
 ﻿#include "mate.h"
 #if defined(USE_MATE_SOLVER)
 #include "../position.h"
+#include "mate_move_picker.h"
 
 // ---------------------
 // mate_odd_ply()
 // ---------------------
-
-namespace {
-
-	// 王手の可能な組み合わせ。91通り？
-	// https://tadaoyamaoka.hatenablog.com/entry/2018/06/03/225012
-	// 自信がないので少し多めに確保する。
-	const constexpr size_t MaxCheckMoves = 100;
-
-	// n手詰み探索用のMovePicker
-	// or_node : どれか一つでも詰みがあれば良いノードであるか。(詰みまで奇数手であればそう)
-	// INCHECK : 王手がかかっているか
-	// GEN_ALL : 歩の不成なども生成するのか
-	template <bool or_node, bool INCHECK , bool GEN_ALL>
-	class MovePicker {
-	public:
-		explicit MovePicker(const Position& pos) {
-
-			// givesCheckを呼び出すのかのフラグ
-			bool doGivesCheck = false;
-			if (or_node) {
-				// ORノードなのですべての王手の指し手を生成。
-
-				// dlshogi、ここ、王手になる指し手を生成して、自玉に王手がかかっている場合、
-				// 回避手になっているかをpseudo_legal()でチェックしているが、
-				// pseudo_legal()のほうはわりと重い処理なので、自玉に王手がかかっているなら
-				// evasionの指し手を生成して、それがgives_check()で王手の指し手になっているか
-				// 見たほうが自然では？
-
-				if (INCHECK)
-				{
-					last = GEN_ALL ? generateMoves<EVASIONS_ALL>(pos, moveList) : generateMoves<EVASIONS>(pos, moveList);
-					// これが王手になるかはのちほどチェックする。
-					doGivesCheck = true;
-				}
-				else {
-					last = GEN_ALL ? generateMoves<CHECKS_ALL>(pos, moveList) : generateMoves<CHECKS>(pos, moveList);
-				}
-			}
-			else {
-				// ANDノードなので回避の指し手のみを生成
-				// (王手になる指し手も含まれる)
-				last = GEN_ALL ? generateMoves<EVASIONS_ALL>(pos, moveList): generateMoves<EVASIONS>(pos, moveList);
-			}
-
-			// 以下の２つの指し手は除外する。
-			// 1. doGivesCheck==trueなのに、王手になる指し手ではない。
-			// 2. legalではない。
-			last = std::remove_if(moveList, last, [&](const auto& ml) {
-				return (doGivesCheck && !pos.gives_check(ml.move)) || !pos.legal(ml.move);
-			});
-			
-			ASSERT_LV3(size() <= MaxCheckMoves);
-		}
-		size_t size() const { return static_cast<size_t>(last - moveList); }
-		ExtMove* begin() { return &moveList[0]; }
-		ExtMove* end() { return last; }
-		bool empty() const { return size() == 0; }
-
-	private:
-		ExtMove moveList[MaxCheckMoves];
-		ExtMove* last;
-	};
-}
 
 // dlshogiのN手詰めルーチン
 
@@ -83,7 +21,7 @@ namespace Mate {
 		StateInfo si;
 		StateInfo si2;
 
-		for (const auto& ml : MovePicker<true, INCHECK , GEN_ALL>(pos))
+		for (const auto& ml : MovePicker<true, INCHECK , GEN_ALL , false /* no ordering */>(pos))
 		{
 			auto m = ml.move;
 
@@ -111,7 +49,7 @@ namespace Mate {
 				// いずれでもないので、きちんと調べる必要がある。
 
 				// この局面ですべてのevasion(王手回避手)を試す
-				MovePicker<false, false, GEN_ALL> move_picker2(pos);
+				MovePicker<false, false, GEN_ALL, false /* no ordering */> move_picker2(pos);
 
 				if (move_picker2.size() == 0) {
 					// 回避手がない = 指し手mで詰んだ。
@@ -172,7 +110,7 @@ namespace Mate {
 		// OR接点なので一つでも詰みを見つけたらそれで良し。
 
 		// すべての合法手について
-		for (const auto& ml : MovePicker<true, INCHECK , GEN_ALL>(pos)) {
+		for (const auto& ml : MovePicker<true, INCHECK , GEN_ALL , false /* no ordering */>(pos)) {
 
 			// MovePickerの指し手で1手進める。
 			// これが合法手であることは、MovePickerのほうで保証されている。
@@ -233,7 +171,7 @@ namespace Mate {
 		// 一つでも詰まない手があるならfalseを返す。
 
 		// すべてのEvasion(王手回避の指し手)について
-		for (const auto& ml : MovePicker<false, false , GEN_ALL>(pos))
+		for (const auto& ml : MovePicker<false, false , GEN_ALL , false /* no ordering */>(pos))
 		{
 			//std::cout << depth << " : " << pos.toSFEN() << " : " << ml.move.toUSI() << std::endl;
 			auto m = ml.move;

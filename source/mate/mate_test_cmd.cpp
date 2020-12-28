@@ -103,6 +103,7 @@ namespace {
 
 			Position pos;
 			Mate::MateSolver solver;
+
 			while (true)
 			{
 				pos.set_hirate(&(states[0]), Threads[thread_id]);
@@ -256,8 +257,14 @@ namespace {
 			;
 
 #if defined(USE_MATE_DFPN)
-		Mate::Dfpn::MateDfpnSolver dfpn;
+		Mate::Dfpn::MateDfpnSolver dfpn(Mate::Dfpn::DfpnSolverType::Node32bit);
 		dfpn.alloc(dfpn_mem);
+
+		Mate::Dfpn::MateDfpnSolver dfpn2(Mate::Dfpn::DfpnSolverType::Node16bitOrdering);
+		dfpn2.alloc(dfpn_mem);
+
+		Mate::Dfpn::MateDfpnSolver dfpn3(Mate::Dfpn::DfpnSolverType::Node48bitOrdering);
+		dfpn3.alloc(dfpn_mem);
 #endif
 
 		ifstream f(filename);
@@ -282,6 +289,9 @@ namespace {
 		if (problem_num == 0)
 			return;
 
+		string sfen2;
+		u64 nodes_searched;
+
 		auto bench = [&](function<Move()> solver, string test_name) {
 			Timer timer;
 			timer.reset();
@@ -291,6 +301,7 @@ namespace {
 
 			// 解けた問題数
 			u32 solved = 0;
+			nodes_searched = 0;
 
 			TimePoint last_pv = 0;
 
@@ -306,10 +317,12 @@ namespace {
 					// mateを呼び出した回数。
 					size_t times = i * loop;
 					cout << " number of times = " << times << " , elapsed = " << elapsed
-						<< " , solved per second = " << (double)times * 1000 / (elapsed + 0.00000001) << endl;
+						<< " , called per second = " << (double)times * 1000 / (elapsed + 0.00000001)
+						<< " nps = " << nodes_searched * 1000 / elapsed << endl;
 				}
 
 				auto sfen = (*problems)[i];
+				sfen2 = sfen;
 				StateInfo si;
 				pos.set(sfen, &si, Threads.main());
 				Move move;
@@ -344,8 +357,16 @@ namespace {
 
 #if defined(USE_MATE_DFPN)
 		// 2進数にしてbit1が立ってたらdfpnを呼び出す
+		// 速度比較用。
 		if (test_mode & 2)
-			bench([&]() { return dfpn.mate_dfpn(pos, nodes_limit); }, "mate_dfpn");
+			bench([&]() { auto m = dfpn.mate_dfpn(pos, nodes_limit); nodes_searched += dfpn.get_nodes_searched(); return m; }, "mate_dfpn");
+
+		if (test_mode & 4)
+			bench([&]() { auto m = dfpn2.mate_dfpn(pos, nodes_limit); nodes_searched += dfpn2.get_nodes_searched(); return m; }, "mate_dfpn2");
+
+		if (test_mode & 8)
+			bench([&]() { auto m = dfpn3.mate_dfpn(pos, nodes_limit); nodes_searched += dfpn3.get_nodes_searched(); return m; }, "mate_dfpn3");
+
 #endif
 
 		// 他にも詰将棋ルーチンを追加(or 改良)した時に、ここに追加していく。
@@ -384,7 +405,7 @@ namespace {
 			<< " nodes = " << nodes
 			<< " mem   = " << mem << "[MB]" << endl;
 
-		Mate::Dfpn::MateDfpnSolver dfpn;
+		Mate::Dfpn::MateDfpnSolver dfpn(Mate::Dfpn::DfpnSolverType::Node64bit);
 		dfpn.alloc(mem);
 
 		Timer time;
@@ -394,7 +415,7 @@ namespace {
 		cout << "time = " << time.elapsed() << endl;
 		if (m != MOVE_NONE && m != MOVE_NULL)
 		{
-			auto nodes_searched = dfpn.get_node_searched();
+			auto nodes_searched = dfpn.get_nodes_searched();
 			cout << "solved! , nodes_searched = " << nodes_searched << endl;
 
 			auto pv = dfpn.get_pv();
@@ -406,9 +427,12 @@ namespace {
 		else {
 			if (m == MOVE_NULL)
 				cout << "solved! this is unmate." << endl;
-
-			if (dfpn.is_out_of_memory())
+			else if (dfpn.is_out_of_memory())
 				cout << "out of memory" << endl;
+			else if (dfpn.get_nodes_searched() >= nodes)
+				cout << "unsolved , nodes limit." << endl;
+			else
+				cout << "unsolved. why?" << endl;
 		}
 
 #endif
