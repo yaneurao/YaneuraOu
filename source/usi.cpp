@@ -986,7 +986,8 @@ std::string USI::square(Square s) {
 }
 
 // 指し手をUSI文字列に変換する。
-std::string USI::move(Move m)
+std::string USI::move(Move   m) { return move(Move16(m)); }
+std::string USI::move(Move16 m)
 {
 	std::stringstream ss;
 	if (!is_ok(m))

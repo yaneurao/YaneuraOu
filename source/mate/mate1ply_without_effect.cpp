@@ -1574,6 +1574,7 @@ namespace Mate {
 		}
 
 	DC_CHECK:;
+#if 0
 		// 両王手による詰み
 		if (dcCandidates)
 		{
@@ -1583,11 +1584,11 @@ namespace Mate {
 			// 敵陣
 			Bitboard enemyBB = enemy_field(Us);
 
-			bb = dcCandidates;
+			auto bb_candidates = dcCandidates;
 
-			while (bb)
+			while (bb_candidates)
 			{
-				from = bb.pop();
+				from = bb_candidates.pop();
 				PieceType pt = type_of(pos.piece_on(from));
 				switch (pt)
 				{
@@ -1630,6 +1631,7 @@ namespace Mate {
 					continue; // 香による両王手はない。
 
 				case KNIGHT:
+					// TODO : ここのチェック間違ってるらしいのだが
 					if (!(check_around_bb(Us, KNIGHT, sq_king) & from)) continue;
 
 					bb = knightEffect(Us, from) &knightEffect(them, sq_king) & bb_move;
@@ -1821,6 +1823,7 @@ namespace Mate {
 				}
 			}
 		}
+
 		// 両王手ではないが、玉の24近傍から24-8 = 16近傍への移動で、かつfromに利きがなければ
 		// この移動で詰む可能性が濃厚なので、これについては調べることにする。
 		// 合い駒なしである可能性が高い場合についてのみ。
@@ -2100,6 +2103,7 @@ namespace Mate {
 				}
 			}
 		}
+#endif
 
 		// 持将棋の判定入れておくか…。
 		// どうせ玉が入玉してないときはほとんど判定コストゼロだしな

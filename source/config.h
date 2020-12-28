@@ -361,7 +361,6 @@
 // ここ以降では、↑↑↑で設定した内容に基づき必要なdefineを行う。
 // ===============================================================
 
-
 // 通例hash keyは64bitだが、これを128にするとPosition::state()->long_key()から128bit hash keyが
 // 得られるようになる。研究時に局面が厳密に合致しているかどうかを判定したいときなどに用いる。
 // 実験用の機能なので、128bit,256bitのhash keyのサポートはAVX2のみ。
@@ -492,6 +491,7 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_MATE_SOLVER
 	#define USE_MATE_DFPN
 	#define ENABLE_TEST_CMD
+	#define USE_PIECE_VALUE
 
 //#define USE_KIF_CONVERT_TOOLS
 

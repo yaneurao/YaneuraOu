@@ -977,6 +977,7 @@ void Thread::search()
 	  MateEngine::pv_check_from_table(rootPos, Limits.pv_check);
 	  return;
 	}
+
 	// 通常のgoコマンドで呼ばれたときは、resignを返す。
 	// 詰み用のworkerでそれだと支障がある場合は適宜変更する。
 	if (Search::Limits.mate == 0) {
@@ -986,6 +987,7 @@ void Thread::search()
 		sync_cout << "bestmove resign" << sync_endl;
 		return;
 	}
+
 	MateEngine::dfpn(rootPos);
 }
 

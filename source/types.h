@@ -550,6 +550,8 @@ constexpr bool is_ok(PieceNumber pn) { return pn < PIECE_NUMBER_NB; }
 //       指し手
 // --------------------
 
+struct Move16;
+
 // 指し手 bit0..6 = 移動先のSquare、bit7..13 = 移動元のSquare(駒打ちのときは駒種)、bit14..駒打ちか、bit15..成りか
 // 32bit形式の指し手の場合、上位16bitには、この指し手によってto(移動後の升)に来る駒(先後の区別あり)が格納されている。
 enum Move: uint32_t {
@@ -567,9 +569,7 @@ enum Move: uint32_t {
 // USI形式の文字列にする。
 // USI::move(Move m)と同等。互換性のために残されている。
 std::string to_usi_string(Move m);
-
-// USI形式で指し手を表示する
-static std::ostream& operator<<(std::ostream& os, Move m) { os << to_usi_string(m); return os; }
+std::string to_usi_string(Move16 m);
 
 // 16bit型の指し手。Move型の下位16bit。
 // 32bit型のMoveか16bit型のMoveかが不明瞭で、それがバグの原因となりやすいので
@@ -596,11 +596,18 @@ struct Move16
 	bool operator != (const Move rhs) const { return !(*this == rhs); }
 
 	// USI形式の文字列にする。
-	std::string to_usi_string() const { return ::to_usi_string((Move)move); }
+	std::string to_usi_string() const { return ::to_usi_string(move); }
+
+	// 通常の指し手であるかのチェック。is_ok(Move)と同等。
+	constexpr bool is_ok() const { return (move >> 7) != (move & 0x7f); }
 
 private:
 	uint16_t move;
 };
+
+// USI形式で指し手を表示する
+static std::ostream& operator<<(std::ostream& os, Move m)   { os << to_usi_string(m); return os; }
+static std::ostream& operator<<(std::ostream& os, Move16 m) { os << to_usi_string(m); return os; }
 
 // 指し手の移動元の升を返す。
 constexpr Square from_sq(Move m) { return Square((m >> 7) & 0x7f); }
@@ -659,15 +666,14 @@ constexpr bool is_ok(Move m) {
   return (m >> 7) != (m & 0x7f);
 }
 
+static bool is_ok(Move16 m) { return m.is_ok(); }
+
 // 見た目に、わかりやすい形式で表示する
 std::string pretty(Move m);
 
 // 移動させた駒がわかっているときに指し手をわかりやすい表示形式で表示する。
 std::string pretty(Move m, Piece movedPieceType);
 static std::string pretty(Move m, PieceType movedPieceType) { return pretty(m, (Piece)movedPieceType); }
-
-// USI形式で指し手を表示する
-static std::ostream& operator<<(std::ostream& os, Move16 m) { os << m.to_usi_string(); return os; }
 
 // Stockfishとの互換性を保つために導入。
 // 普通の指し手か成りの指し手かを判定するのに用いる。

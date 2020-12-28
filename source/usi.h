@@ -115,6 +115,7 @@ namespace USI
 
 	// 指し手をUSI文字列に変換する。
 	std::string move(Move m /*, bool chess960*/);
+	std::string move(Move16 m /*, bool chess960*/);
 
 	// pv(読み筋)をUSIプロトコルに基いて出力する。
 	// depth : 反復深化のiteration深さ。
