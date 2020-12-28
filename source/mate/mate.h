@@ -5,6 +5,7 @@
 #if defined (USE_MATE_1PLY)
 
 #include <vector>
+#include <memory> // std::unique_ptr<>
 
 namespace Mate
 {
@@ -130,6 +131,8 @@ namespace Mate::Dfpn
 
 		// mate_dfpn()でMOVE_NONE以外が返ってきた時にメモリが不足しているかを返す。
 		virtual bool is_out_of_memory() const= 0;
+
+		virtual ~MateDfpnSolverInterface() {}
 	};
 
 	// DfpnのSolverの種類
@@ -137,9 +140,9 @@ namespace Mate::Dfpn
 	{
 		// ガーベジなし。
 		Node32bit,         // nodes_limit < 2^32 の時に使うやつ 省メモリ版
-		Node16bitOrdering, // nodes_limit < 2^16 の時に使うやつ 省メモリ版 かつ orderingあり(実験中)
+		Node16bitOrdering, // nodes_limit < 2^16 の時に使うやつ 省メモリ版 かつ orderingあり
 		Node64bit       ,  // nodes_limit < 2^64 の時に使うやつ 
-		Node48bitOrdering, // nodes_limit < 2^48 の時に使うやつ            かつ orderingあり(実験中)
+		Node48bitOrdering, // nodes_limit < 2^48 の時に使うやつ            かつ orderingあり
 
 		// ガーベジあり
 

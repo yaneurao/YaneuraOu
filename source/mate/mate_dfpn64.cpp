@@ -110,7 +110,7 @@ namespace Mate::Dfpn64
 		void init_mate_move(Move move)
 		{
 			this->lastMove = move;
-			set_mate<true>();
+			this->template set_mate<true>();
 
 			children = nullptr;
 			child_num = CHILDNUM_NOT_INIT;
@@ -392,7 +392,7 @@ namespace Mate::Dfpn64
 		// node*以下の詰みツリーを全部出力する。(デバッグ用)
 		void dump_tree(NodeType* node , std::string pv = "")
 		{
-			Node* children = node_manager.get_nodeptr(node);
+			NodeType* children = node_manager.get_nodeptr(node);
 			if (children == nullptr)
 			{
 				std::cout << pv << std::endl;
@@ -413,6 +413,7 @@ namespace Mate::Dfpn64
 					found = true;
 					//auto pv2 = pv + to_usi_string(children[i].move) + " ";
 					auto pv2 = pv + "[" + std::to_string(node->dn) + "] " + to_usi_string(children[i].move);
+					NodeType* next = node->children[i].children;
 					dump_tree(next, pv2);
 				}
 			}
@@ -483,9 +484,9 @@ namespace Mate::Dfpn64
 		NodeType* select_the_best_child(NodeType* node,NodeCountType& second_pn,NodeCountType& second_dn)
 		{
 			auto children = node->children;
-			auto child_num = node->child_num;
+			u32 child_num = node->child_num;
 
-			int selected_index = 0;
+			u32 selected_index = 0;
 			NodeCountType pn2 = second_pn;
 			NodeCountType dn2 = second_dn;
 
@@ -648,13 +649,16 @@ namespace Mate::Dfpn64
 			{
 			case MateRepetitionState::Mate:
 				node->set_child(0);
-				node->set_mate<or_node>();
+				node->template set_mate<or_node>();
 				return;
 
 			case MateRepetitionState::Mated:
 				node->set_child(0);
-				node->set_mated<or_node>();
+				node->template set_mated<or_node>();
 				return;
+
+			case MateRepetitionState::Unknown:
+				break;
 			}
 
 #if 1
@@ -667,10 +671,10 @@ namespace Mate::Dfpn64
 				{
 					// 詰んだ
 					NodeType* child = new_node(1);
-					child->init_mate_move<or_node>(mate_move);
+					child->template init_mate_move<or_node>(mate_move);
 
 					node->set_child(1,child);
-					node->set_mate<or_node>(1 /* 次の局面で詰むので */);
+					node->template set_mate<or_node>(1 /* 次の局面で詰むので */);
 					
 					return;
 				}
@@ -687,7 +691,7 @@ namespace Mate::Dfpn64
 				// 攻め方で指し手がない == 王手が続かない == 詰まない = pn ∞ , dn 0に。
 				// 受け方で指し手がない == 詰んでいる = pn 0 , dn ∞に
 				node->set_child(0);
-				node->set_mated<or_node>();
+				node->template set_mated<or_node>();
 			}
 			else {
 				NodeType* children = new_node(child_num);
@@ -702,7 +706,7 @@ namespace Mate::Dfpn64
 				node->set_child(child_num , children );
 
 				for (auto m : mp)
-					(children++)->init<or_node>(m);
+					(children++)->template init<or_node>(m);
 
 				// 子の数が決まったのでdn,pnを集計してからリターンする。
 				// 今回生成した子の数ではあるが、指し手オーダリングをするなら、新規ノードのdn=pn=1ではない仕様かも知れないので。
@@ -752,7 +756,7 @@ namespace Mate::Dfpn
 
 	std::unique_ptr<MateDfpnSolverInterface> BuildNode48bitOrderingSolver()
 	{
-		return std::make_unique<Mate::Dfpn64::MateDfpnPn<u64,true /* /* 指し手Orderingあり*/>>();
+		return std::make_unique<Mate::Dfpn64::MateDfpnPn<u64,true /* 指し手Orderingあり*/>>();
 	}
 
 }
