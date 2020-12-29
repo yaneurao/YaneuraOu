@@ -614,7 +614,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 				limits.mate = stoi(token);
 		}
 
-#if defined(MATE_ENGINE)
+#if defined(TANUKI_MATE_ENGINE)
 		// MateEngineのデバッグ用コマンド: 詰将棋の特定の変化に対する解析を効率的に行うことが出来る。
 		//	cf.https ://github.com/yaneurao/YaneuraOu/pull/115
 			
@@ -1012,6 +1012,18 @@ std::string USI::move(Move16 m)
 	}
 	return ss.str();
 }
+
+// 読み筋をUSI文字列化して返す。
+// " 7g7f 8c8d" のように返る。
+std::string USI::move(const std::vector<Move>& moves)
+{
+	std::ostringstream oss;
+	for (const auto& move : moves) {
+		oss << " " << move;
+	}
+	return oss.str();
+}
+
 
 // 局面posとUSIプロトコルによる指し手を与えて
 // もし可能なら等価で合法な指し手を返す。(合法でないときはMOVE_NONEを返す)

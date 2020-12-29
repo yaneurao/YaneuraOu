@@ -220,23 +220,62 @@ namespace Mate
 }
 
 #if defined(USE_MATE_DFPN)
+
+// dfpnの実装、以下の二通りをifdefで書き分けてあるので、DFPN32とDFPN64をそれぞれdefineして、二度includeする。
+
+// Node数32bitまでしか扱えない版
+#define DFPN32
+#include "mate_dfpn.hpp"
+#undef DFPN32
+
+// Node数64bitまで扱える版
+#define DFPN64
+#include "mate_dfpn.hpp"
+#undef DFPN64
+
+namespace {
+
+	std::unique_ptr<Mate::Dfpn::MateDfpnSolverInterface> BuildNode32bitSolver()
+	{
+		return std::make_unique<Mate::Dfpn32::MateDfpnPn<u32 , false /* 指し手Orderingなし*/>>();
+	}
+
+	std::unique_ptr<Mate::Dfpn::MateDfpnSolverInterface> BuildNode16bitOrderingSolver()
+	{
+		return std::make_unique<Mate::Dfpn32::MateDfpnPn<u32, true /* 指し手Orderingあり*/>>();
+	}
+
+	std::unique_ptr<Mate::Dfpn::MateDfpnSolverInterface> BuildNode64bitSolver()
+	{
+		return std::make_unique<Mate::Dfpn64::MateDfpnPn<u64 , false /* 指し手Orderingなし*/>>();
+	}
+
+	std::unique_ptr<Mate::Dfpn::MateDfpnSolverInterface> BuildNode48bitOrderingSolver()
+	{
+		return std::make_unique<Mate::Dfpn64::MateDfpnPn<u64,true /* 指し手Orderingあり*/>>();
+	}
+}
+
 namespace Mate::Dfpn
 {
-	std::unique_ptr<MateDfpnSolverInterface> BuildNode32bitSolver();
-	std::unique_ptr<MateDfpnSolverInterface> BuildNode16bitOrderingSolver();
-	std::unique_ptr<MateDfpnSolverInterface> BuildNode64bitSolver();
-	std::unique_ptr<MateDfpnSolverInterface> BuildNode48bitOrderingSolver();
-
 	MateDfpnSolver::MateDfpnSolver(DfpnSolverType t)
+	{
+		ChangeSolverType(t);
+	}
+
+	// Solverのtypeをあとから変更する。
+	void MateDfpnSolver::ChangeSolverType(DfpnSolverType t)
 	{
 		switch (t)
 		{
+		case DfpnSolverType::None             : impl = std::unique_ptr<MateDfpnSolverInterface>(); break;
 		case DfpnSolverType::Node32bit        : impl = BuildNode32bitSolver();         break;
 		case DfpnSolverType::Node16bitOrdering: impl = BuildNode16bitOrderingSolver(); break;
 		case DfpnSolverType::Node64bit        : impl = BuildNode64bitSolver();         break;
 		case DfpnSolverType::Node48bitOrdering: impl = BuildNode48bitOrderingSolver(); break;
 		}
 	}
+
 }
 #endif
 

@@ -14,9 +14,6 @@
     <Filter Include="リソース ファイル\engine\user-engine">
       <UniqueIdentifier>{6cab9abd-d0e7-4497-bbe3-67a203fe5dee}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\engine\mate-engine">
-      <UniqueIdentifier>{4848b7b4-f5f3-4fa3-84f5-a5dd21e63f3c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\eval">
       <UniqueIdentifier>{74e286a5-5565-4995-9fc2-737328172971}</UniqueIdentifier>
     </Filter>
@@ -76,6 +73,12 @@
     </Filter>
     <Filter Include="リソース ファイル\mate">
       <UniqueIdentifier>{ecd5f9f1-13cf-4dd8-b466-6b8b4ad4ad0b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\engine\tanuki-mate-engine">
+      <UniqueIdentifier>{4848b7b4-f5f3-4fa3-84f5-a5dd21e63f3c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\engine\yaneuraou-mate-engine">
+      <UniqueIdentifier>{83e2b88b-605b-4d0d-9ade-bdfb8d89efdd}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -345,9 +348,6 @@
     <ClCompile Include="engine\user-engine\user-search.cpp">
       <Filter>リソース ファイル\engine\user-engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\mate-engine\mate-search.cpp">
-      <Filter>リソース ファイル\engine\mate-engine</Filter>
-    </ClCompile>
     <ClCompile Include="learn\learner.cpp">
       <Filter>リソース ファイル\learn</Filter>
     </ClCompile>
@@ -495,11 +495,14 @@
     <ClCompile Include="mate\mate_solver.cpp">
       <Filter>リソース ファイル\mate</Filter>
     </ClCompile>
-    <ClCompile Include="mate\mate_dfpn32.cpp">
+    <ClCompile Include="mate\mate_dfpn.hpp">
       <Filter>リソース ファイル\mate</Filter>
     </ClCompile>
-    <ClCompile Include="mate\mate_dfpn64.cpp">
-      <Filter>リソース ファイル\mate</Filter>
+    <ClCompile Include="engine\yaneuraou-mate-engine\yaneuraou-mate-search.cpp">
+      <Filter>リソース ファイル\engine\yaneuraou-mate-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\tanuki-mate-engine\tanuki-mate-search.cpp">
+      <Filter>リソース ファイル\engine\tanuki-mate-engine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -553,6 +556,5 @@
     <None Include="..\.gitignore" />
     <None Include="..\README.md" />
     <None Include="..\script\bench.py" />
-    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
   </ItemGroup>
 </Project>

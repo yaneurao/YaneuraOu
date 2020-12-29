@@ -238,6 +238,32 @@ USIプロトコルの独自拡張コマンド
 		0 だと最弱。(R2000以上弱くなる) Stockfishの"Skill Level"をそのまま移植。
 
 
+  // やねうら王詰将棋エンジン(2020/12/29 release)
+
+  USI_Hash   : 詰将棋エンジンに割り当てるメモリ[MB]
+  NodesLimit : 探索ノード数 (0 : 無制限)
+  SolverType :
+      32bitNodeSolver(探索ノード数 32bitで表現できる42億までしか扱えないが、必要メモリが64bitNodeSolverの半分で済む)
+      64bitNodeSolver(探索ノード数 64bitで表現できる範囲なので実質無制限だが、必要メモリは32bitNodeSolverの倍)
+  PvInterval : 読み筋の出力間隔 (0 : 出力しない)
+
+  例)
+    USI_Hash 4096 // 4096[MB]割り当てる
+    isready
+    sfen l2g5/2s3g2/3k1p2p/P2pp2P1/1pP4s1/p1+B6/NP1P+nPS1P/K1G4+p1/L6NL b RBGNLPrs3p 1    // 局面図
+    go mate 10000 // 10秒で解かせてみる
+
+    // ↓info ～でPvIntervalごとに読み筋が出力されて、最後、checkmate XXXで詰み手順が出力される。
+    // 詰まない(不詰が証明できた)ときは"checkmate nomate"と返ってくる。
+    // 時間切れの時は"checkmate timeout"と返ってくる。
+    // 探索ノード数制限で解けなかった時や、詰将棋用のメモリ(USI_Hashで指定している)がリミットに達した場合は、"checkmate none"が返ってくる。
+		//	※　その直前に "info string Out Of Memory."(メモリ不足) 、 "info string Exceeded NodesLimit."(探索ノード数に達した)　が出力される。
+
+    info time 1317 nodes 1781726 nps 1352867 hashfull 35 pv 7f8e 6c6b G*5b 6a5b 8e5b 6b5b P*5c 5b6c B*7d 6c5c R*5b 5c4d N*3f 2e3f G*3d 4d3d 5b3b+ R*3c P*3e 3d2d 3b3c 2d3c G*3d 3c2b L*2c 2b3a R*4a 3a3b 4a2a+ 3b4b 2a4a 4b5c 4a5b
+    checkmate 7f8e 6c6b G*5b 6a5b 8e5b 6b5b P*5c 5b6c B*7d 6c5c R*5b 5c4d N*3f 2e3f G*3d 4d3d 5b3b+ R*3c P*3e 3d2d 3b3c 2d3c G*3d 3c2b L*2c 2b3a R*4a 3a3b 4a2a+ 3b4b 2a4a 4b5c 4a5b
+
+
+
 	// ふかうら王(dlshogi互換エンジン)の場合
 
 	・dlshogiのほうの設定の説明も確認すること。

@@ -1,5 +1,5 @@
 ﻿#include "../../config.h"
-#if defined(MATE_ENGINE)
+#if defined(TANUKI_MATE_ENGINE)
 
 #include <unordered_set>
 #include <cstring>	// std::memset()
@@ -18,7 +18,7 @@ using namespace Search;
 // TODO(someone): 優越関係の実装
 // TODO(someone): 証明駒の実装
 // TODO(someone): Source Node Detection Algorithm (SNDA)の実装
-//
+// 
 // リンク＆参考文献
 //
 // Ayumu Nagai , Hiroshi Imai , "df-pnアルゴリズムの詰将棋を解くプログラムへの応用",
@@ -40,10 +40,10 @@ using namespace Search;
 // proof-number search. In: Proceedings of the AAAI-10, pp. 108-113 (2010)
 //
 // A. Kishimoto, M. Winands, M. Müller and J. Saito. Game-Tree Search Using Proof Numbers: The First
-// Twenty Years. ICGA Journal 35(3), 131-156, 2012.
+// Twenty Years. ICGA Journal 35(3), 131-156, 2012. 
 //
 // A. Kishimoto and M. Mueller, Tutorial 4: Proof-Number Search Algorithms
-//
+// 
 // df-pnアルゴリズム学習記(1) - A Succulent Windfall
 // http://caprice-j.hatenablog.com/entry/2014/02/14/010932
 //
@@ -973,9 +973,9 @@ void MainThread::search() { Thread::search(); }
 void Thread::search()
 {
 
-    	if (Search::Limits.pv_check.size() != 0){
-	  MateEngine::pv_check_from_table(rootPos, Limits.pv_check);
-	  return;
+	if (Search::Limits.pv_check.size() != 0){
+		MateEngine::pv_check_from_table(rootPos, Limits.pv_check);
+		return;
 	}
 
 	// 通常のgoコマンドで呼ばれたときは、resignを返す。

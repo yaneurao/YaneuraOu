@@ -117,11 +117,14 @@ namespace Mate::Dfpn
 		// nodes_limit内に解ければその初手が返る。
 		// 不詰が証明できれば、MOVE_NULL、解がわからなかった場合は、MOVE_NONEが返る。
 		// nodes_limit : ノード制限。0を指定するとノード制限なし。(ただしメモリの制限から解けないことはある)
-		virtual Move mate_dfpn(Position& pos , u32 nodes_limit)= 0;
+		virtual Move mate_dfpn(Position& pos , u64 nodes_limit)= 0;
 
 		// mate_dfpn()がMOVE_NULL,MOVE_NONE以外を返した場合にその手順を取得する。
 		// ※　最短手順である保証はない。
 		virtual std::vector<Move> get_pv() const = 0;
+
+		// 現在の探索中のPVを出力する。
+		virtual std::vector<Move> get_current_pv() const = 0;
 
 		// 解けた時に今回の探索ノード数を取得する。
 		virtual u64 get_nodes_searched() const = 0;
@@ -132,17 +135,22 @@ namespace Mate::Dfpn
 		// mate_dfpn()でMOVE_NONE以外が返ってきた時にメモリが不足しているかを返す。
 		virtual bool is_out_of_memory() const= 0;
 
+		// hash使用率を1000分率で返す。
+		virtual int hashfull() const = 0;
+
 		virtual ~MateDfpnSolverInterface() {}
 	};
 
 	// DfpnのSolverの種類
 	enum class DfpnSolverType
 	{
+		None,              // あとで設定する時に使う。
+
 		// ガーベジなし。
 		Node32bit,         // nodes_limit < 2^32 の時に使うやつ 省メモリ版
-		Node16bitOrdering, // nodes_limit < 2^16 の時に使うやつ 省メモリ版 かつ orderingあり
+		Node16bitOrdering, // nodes_limit < 2^16 の時に使うやつ 省メモリ版 かつ orderingあり(実験中)
 		Node64bit       ,  // nodes_limit < 2^64 の時に使うやつ 
-		Node48bitOrdering, // nodes_limit < 2^48 の時に使うやつ            かつ orderingあり
+		Node48bitOrdering, // nodes_limit < 2^48 の時に使うやつ            かつ orderingあり(実験中)
 
 		// ガーベジあり
 
@@ -155,6 +163,9 @@ namespace Mate::Dfpn
 	public:
 		MateDfpnSolver(DfpnSolverType t);
 
+		// Solverのtypeをあとから変更する。
+		void ChangeSolverType(DfpnSolverType t);
+
 		// このクラスを用いるには、この関数を呼び出して事前にdf-pn用のメモリを確保する必要がある。
 		// size_mb [MB] だけ探索用のメモリを確保する。
 		virtual void alloc(size_t size_mb) { return impl->alloc(size_mb); }
@@ -163,11 +174,14 @@ namespace Mate::Dfpn
 		// nodes_limit内に解ければその初手が返る。
 		// 不詰が証明できれば、MOVE_NULL、解がわからなかった場合は、MOVE_NONEが返る。
 		// nodes_limit : ノード制限。0を指定するとノード制限なし。(ただしメモリの制限から解けないことはある)
-		virtual Move mate_dfpn(Position& pos, u32 nodes_limit) { return impl->mate_dfpn(pos, nodes_limit); }
+		virtual Move mate_dfpn(Position& pos, u64 nodes_limit) { return impl->mate_dfpn(pos, nodes_limit); }
 
 		// mate_dfpn()がMOVE_NULL,MOVE_NONE以外を返した場合にその手順を取得する。
 		// ※　最短手順である保証はない。
 		virtual std::vector<Move> get_pv() const { return impl->get_pv(); }
+
+		// 現在の探索中のPVを出力する。
+		virtual std::vector<Move> get_current_pv() const { return impl->get_current_pv(); }
 
 		// 解けた時に今回の探索ノード数を取得する。
 		virtual u64 get_nodes_searched() const { return impl->get_nodes_searched(); }
@@ -177,6 +191,9 @@ namespace Mate::Dfpn
 
 		// mate_dfpn()でMOVE_NONE以外が返ってきた時にメモリが不足しているかを返す。
 		virtual bool is_out_of_memory() const { return impl->is_out_of_memory(); }
+
+		// hash使用率を1000分率で返す。
+		virtual int hashfull() const { return impl->hashfull(); }
 
 	private:
 		std::unique_ptr<MateDfpnSolverInterface> impl;

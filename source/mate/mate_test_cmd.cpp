@@ -445,7 +445,7 @@ namespace {
 	// tanuki-詰将棋ルーチンのbench
 	// そのうち削除するかも。
 
-#if defined (MATE_ENGINE)
+#if defined (TANUKI_MATE_ENGINE) || defined(YANEURAOU_MATE_ENGINE)
 	// 詰将棋エンジンテスト用局面集
 	static const char* TestMateEngineSfen[] = {
 		// http://www.ne.jp/asahi/tetsu/toybox/shogi/kifu.htm
@@ -480,8 +480,8 @@ namespace {
 	// MATE ENGINEのテスト。(ENGINEに対して局面図を送信する)
 	void mate_bench2(Position& pos, std::istringstream& is)
 	{
-#if !defined (MATE_ENGINE)
-		cout << "Error! : define MATE_ENGINE" << endl;
+#if !defined (TANUKI_MATE_ENGINE) && !defined(YANEURAOU_MATE_ENGINE)
+		cout << "Error! : define TANUKI_MATE_ENGINE or YANEURAOU_MATE_ENGINE" << endl;
 #else
 		string token;
 
@@ -546,7 +546,7 @@ namespace {
 
 		cout << sync_endl;
 
-#endif // !defined (MATE_ENGINE)
+#endif // !defined (TANUKI_MATE_ENGINE) && !defined(YANEURAOU_MATE_ENGINE)
 	}
 
 } // namespace

@@ -166,11 +166,11 @@ namespace Search {
 
 #if defined (USE_GENERATE_ALL_LEGAL_MOVES)
 		// 全合法手を生成するのか
-		// MATE_ENGINEではこの設定は無視されている。
+		// TANUKI_MATE_ENGINE , YANEURAOU_MATE_ENGINE ではこの設定は無視されている。
 		bool generate_all_legal_moves;
 #endif
 
-#if defined(MATE_ENGINE)
+#if defined(TANUKI_MATE_ENGINE)
 		std::vector<Move16> pv_check;
 #endif
 	};

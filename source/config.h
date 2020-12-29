@@ -26,7 +26,8 @@
 //#define YANEURAOU_ENGINE_KPPT            // やねうら王 通常探索部 KPPT評価関数
 //#define YANEURAOU_ENGINE_KPP_KKPT        // やねうら王 通常探索部 KPP_KKPT評価関数
 //#define YANEURAOU_ENGINE_MATERIAL        // やねうら王 通常探索部 駒得評価関数
-//#define MATE_ENGINE                      // 詰め将棋solverとしてリリースする場合。(開発中2017/05/06～)
+//#define TANUKI_MATE_ENGINE               // tanuki- 詰め将棋solver  (2017/05/06～)
+//#define YANEURAOU_MATE_ENGINE            // やねうら王 詰将棋solver (2020/12/29～)
 //#define USER_ENGINE                      // ユーザーの思考エンジン
 
 
@@ -491,18 +492,18 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_MATE_1PLY
 	#define USE_MATE_SOLVER
 	#define USE_MATE_DFPN
-	#define ENABLE_TEST_CMD
 	#define USE_PIECE_VALUE
+	#define ENABLE_TEST_CMD
 
 //#define USE_KIF_CONVERT_TOOLS
 
 	//#define ASSERT_LV 3
 #endif
 
-// --- 詰将棋エンジンとして実行ファイルを公開するとき用の設定集
+// --- tanuki-詰将棋エンジンとして実行ファイルを公開するとき用の設定集
 
-#if defined(MATE_ENGINE)
-	#define ENGINE_NAME "YaneuraOu mate solver"
+#if defined(TANUKI_MATE_ENGINE)
+	#define ENGINE_NAME "tanuki- mate solver"
 	#define KEEP_LAST_MOVE
 	#undef  MAX_PLY_NUM
 	#define MAX_PLY_NUM 2000
@@ -511,6 +512,21 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_KEY_AFTER
 	#define ENABLE_TEST_CMD
 #endif
+
+// --- やねうら王詰将棋エンジンとして実行ファイルを公開するとき用の設定集
+
+#if defined(YANEURAOU_MATE_ENGINE)
+	#define ENGINE_NAME "YaneuraOu mate solver"
+	#undef  MAX_PLY_NUM
+	#define MAX_PLY_NUM 2000
+	#define USE_MATE_1PLY
+	//#define LONG_EFFECT_LIBRARY
+	#define USE_MATE_SOLVER
+	#define USE_MATE_DFPN
+	#define USE_PIECE_VALUE
+	#define ENABLE_TEST_CMD
+#endif
+
 
 // --- ユーザーの自作エンジンとして実行ファイルを公開するとき用の設定集
 

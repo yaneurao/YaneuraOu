@@ -48,43 +48,25 @@ namespace USI {
 		o["Threads"] << Option(4, 1, 512, [](const Option& o) { /* Threads.set(o); */ });
 #endif
 
-#if !defined(MATE_ENGINE)
+#if !defined(TANUKI_MATE_ENGINE) && !defined(YANEURAOU_MATE_ENGINE)
 		// 置換表のサイズ。[MB]で指定。
 		o["USI_Hash"] << Option(16, 1, MaxHashMB, [](const Option&o) { /* TT.resize(o); */ });
 
-#if defined(USE_EVAL_HASH)
+	#if defined(USE_EVAL_HASH)
 		// 評価値用のcacheサイズ。[MB]で指定。
 
-#if defined(FOR_TOURNAMENT)
+		#if defined(FOR_TOURNAMENT)
 		// トーナメント用は少し大きなサイズ
 		o["EvalHash"] << Option(1024, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
-#else
+		#else
 		o["EvalHash"] << Option(128, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
-#endif // defined(FOR_TOURNAMENT)
-#endif // defined(USE_EVAL_HASH)
+		#endif // defined(FOR_TOURNAMENT)
+	#endif // defined(USE_EVAL_HASH)
 
 		o["USI_Ponder"] << Option(false);
 
 		// その局面での上位N個の候補手を調べる機能
 		o["MultiPV"] << Option(1, 1, 800);
-
-#else // !defined(MATE_ENGINE)
-
-		// MATE_ENGINEのとき
-		o["USI_Hash"] << Option(4096, 1, MaxHashMB);
-
-#endif // !defined(MATE_ENGINE)
-
-		// cin/coutの入出力をファイルにリダイレクトする
-		o["WriteDebugLog"] << Option(false, [](const Option& o) { start_logger(o); });
-
-		// 指し手がGUIに届くまでの時間。
-#if defined(YANEURAOU_ENGINE_DEEP)
-		// GPUからの結果を待っている時間も込みなので少し上げておく。
-		int time_margin = 400;
-#else
-		int time_margin = 120;
-#endif
 
 		// ネットワークの平均遅延時間[ms]
 		// この時間だけ早めに指せばだいたい間に合う。
@@ -113,6 +95,35 @@ namespace USI {
 		// 探索ノード制限。0なら無制限。
 		o["NodesLimit"] << Option(0, 0, INT64_MAX);
 
+		// 評価関数フォルダ。これを変更したとき、評価関数を次のisreadyタイミングで読み直す必要がある。
+		last_eval_dir = "eval";
+		o["EvalDir"] << Option("eval", [](const USI::Option&o) {
+			if (last_eval_dir != string(o))
+			{
+				// 評価関数フォルダ名の変更に際して、評価関数ファイルの読み込みフラグをクリアする。
+				last_eval_dir = string(o);
+				load_eval_finished = false;
+			}
+		});
+
+#else
+		
+		// TANUKI_MATE_ENGINEのとき
+		o["USI_Hash"] << Option(4096, 1, MaxHashMB);
+
+#endif // !defined(TANUKI_MATE_ENGINE) && !defined(YANEURAOU_MATE_ENGINE)
+
+		// cin/coutの入出力をファイルにリダイレクトする
+		o["WriteDebugLog"] << Option(false, [](const Option& o) { start_logger(o); });
+
+		// 指し手がGUIに届くまでの時間。
+#if defined(YANEURAOU_ENGINE_DEEP)
+		// GPUからの結果を待っている時間も込みなので少し上げておく。
+		int time_margin = 400;
+#else
+		int time_margin = 120;
+#endif
+
 
 #if defined (USE_ENTERING_KING_WIN)
 		// 入玉ルール
@@ -126,16 +137,6 @@ namespace USI {
 		o["GenerateAllLegalMoves"] << Option(false);
 #endif
 
-		// 評価関数フォルダ。これを変更したとき、評価関数を次のisreadyタイミングで読み直す必要がある。
-		last_eval_dir = "eval";
-		o["EvalDir"] << Option("eval", [](const USI::Option&o) {
-			if (last_eval_dir != string(o))
-			{
-				// 評価関数フォルダ名の変更に際して、評価関数ファイルの読み込みフラグをクリアする。
-				last_eval_dir = string(o);
-				load_eval_finished = false;
-			}
-		});
 
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32) && \
 	 (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) )

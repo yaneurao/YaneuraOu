@@ -6,6 +6,8 @@
 #include <vector>
 #include <functional>	// function
 
+#include "types.h"
+
 // --------------------
 //     USI関連
 // --------------------
@@ -116,6 +118,10 @@ namespace USI
 	// 指し手をUSI文字列に変換する。
 	std::string move(Move m /*, bool chess960*/);
 	std::string move(Move16 m /*, bool chess960*/);
+
+	// 読み筋をUSI文字列化して返す。
+	// " 7g7f 8c8d" のように返る。
+	std::string move(const std::vector<Move>& moves);
 
 	// pv(読み筋)をUSIプロトコルに基いて出力する。
 	// depth : 反復深化のiteration深さ。

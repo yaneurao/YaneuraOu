@@ -11,8 +11,8 @@
       <Configuration>Debug-Material</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Debug-mate|x64">
-      <Configuration>Debug-mate</Configuration>
+    <ProjectConfiguration Include="Debug-tanuki-mate|x64">
+      <Configuration>Debug-tanuki-mate</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Debug-NNUE-LEARN|x64">
@@ -25,6 +25,10 @@
     </ProjectConfiguration>
     <ProjectConfiguration Include="Debug-user|x64">
       <Configuration>Debug-user</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug-YaneuraOu-mate|x64">
+      <Configuration>Debug-YaneuraOu-mate</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release-Deep-ONNX|x64">
@@ -59,12 +63,8 @@
       <Configuration>Release-NNUE</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Release-mate-sse42|x64">
-      <Configuration>Release-mate-sse42</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release-mate|x64">
-      <Configuration>Release-mate</Configuration>
+    <ProjectConfiguration Include="Release-tanuki-mate|x64">
+      <Configuration>Release-tanuki-mate</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release-user-sse42|x64">
@@ -79,6 +79,10 @@
       <Configuration>Debug-Deep-TensorRT</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-YaneuraOu-mate|x64">
+      <Configuration>Release-YaneuraOu-mate</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}</ProjectGuid>
@@ -87,7 +91,13 @@
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-mate|x64'" Label="Configuration">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-tanuki-mate|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-YaneuraOu-mate|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
@@ -133,7 +143,14 @@
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate|x64'" Label="Configuration">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-tanuki-mate|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-YaneuraOu-mate|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
@@ -148,13 +165,6 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-Material|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate-sse42|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
@@ -198,11 +208,18 @@
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug-mate|x64'" Label="PropertySheets">
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug-tanuki-mate|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="props\YaneuraOu-common.props" />
     <Import Project="props\YaneuraOuSolution-debug-x64.props" />
-    <Import Project="props\YaneuraOuEdition-mate.props" />
+    <Import Project="props\YaneuraOuEdition-tanuki-mate.props" />
+    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug-YaneuraOu-mate|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-debug-x64.props" />
+    <Import Project="props\YaneuraOuEdition-yaneuraou-mate.props" />
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug-NNUE|x64'" Label="PropertySheets">
@@ -247,11 +264,18 @@
     <Import Project="props\YaneuraOuCpu-x64-sse42.props" />
     <Import Project="props\YaneuraOuEdition-NNUE.props" />
   </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate|x64'" Label="PropertySheets">
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-tanuki-mate|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="props\YaneuraOu-common.props" />
     <Import Project="props\YaneuraOuSolution-release-x64.props" />
-    <Import Project="props\YaneuraOuEdition-mate.props" />
+    <Import Project="props\YaneuraOuEdition-tanuki-mate.props" />
+    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-YaneuraOu-mate|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\YaneuraOu-common.props" />
+    <Import Project="props\YaneuraOuSolution-release-x64.props" />
+    <Import Project="props\YaneuraOuEdition-yaneuraou-mate.props" />
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-Material|x64'" Label="PropertySheets">
@@ -267,13 +291,6 @@
     <Import Project="props\YaneuraOuSolution-debug-x64.props" />
     <Import Project="props\YaneuraOuEdition-Material.props" />
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
-  </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate-sse42|x64'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="props\YaneuraOu-common.props" />
-    <Import Project="props\YaneuraOuSolution-release-x64.props" />
-    <Import Project="props\YaneuraOuEdition-mate.props" />
-    <Import Project="props\YaneuraOuCpu-x64-sse42.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-user|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -334,7 +351,17 @@
     <Import Project="..\packages\OpenBLAS.0.2.14.1\build\native\openblas.targets" Condition="Exists('..\packages\OpenBLAS.0.2.14.1\build\native\openblas.targets')" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-mate|x64'">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-tanuki-mate|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-YaneuraOu-mate|x64'">
     <ClCompile>
       <OpenMPSupport>
       </OpenMPSupport>
@@ -407,7 +434,17 @@
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-mate|x64'">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-tanuki-mate|x64'">
+    <ClCompile>
+      <OpenMPSupport>
+      </OpenMPSupport>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-YaneuraOu-mate|x64'">
     <ClCompile>
       <OpenMPSupport>
       </OpenMPSupport>
@@ -570,9 +607,10 @@
     <ClCompile Include="engine\dlshogi-engine\UctSearch.cpp" />
     <ClCompile Include="engine\dlshogi-engine\Node.cpp" />
     <ClCompile Include="engine\dlshogi-engine\YaneuraOu_dlshogi_bridge.cpp" />
-    <ClCompile Include="engine\mate-engine\mate-search.cpp" />
+    <ClCompile Include="engine\tanuki-mate-engine\tanuki-mate-search.cpp" />
     <ClCompile Include="engine\user-engine\user-search.cpp" />
     <ClCompile Include="engine\yaneuraou-engine\yaneuraou-search.cpp" />
+    <ClCompile Include="engine\yaneuraou-mate-engine\yaneuraou-mate-search.cpp" />
     <ClCompile Include="eval\deep\nn_types.cpp" />
     <ClCompile Include="eval\deep\nn.cpp" />
     <ClCompile Include="eval\deep\nn_onnx_runtime.cpp" />
@@ -606,8 +644,7 @@
     <ClCompile Include="mate\mate.cpp" />
     <ClCompile Include="mate\mate1ply_without_effect.cpp" />
     <ClCompile Include="mate\mate1ply_with_effect.cpp" />
-    <ClCompile Include="mate\mate_dfpn32.cpp" />
-    <ClCompile Include="mate\mate_dfpn64.cpp" />
+    <ClCompile Include="mate\mate_dfpn.hpp" />
     <ClCompile Include="mate\mate_solver.cpp" />
     <ClCompile Include="mate\mate_test_cmd.cpp" />
     <ClCompile Include="misc.cpp" />

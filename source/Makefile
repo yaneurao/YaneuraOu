@@ -16,7 +16,8 @@
 # YANEURAOU_ENGINE_KPPT          : KPPT型評価関数
 # YANEURAOU_ENGINE_KPP_KKPT      : KPP_KKPT型評価関数
 # YANEURAOU_ENGINE_MATERIAL      : 駒得のみの評価関数(複数変種あり。MATERIAL_LEVELで選択できる)
-# MATE_ENGINE                    : tanuki- 詰将棋エンジン
+# TANUKI_MATE_ENGINE             : tanuki- 詰め将棋solver  (2017/05/06～)
+# YANEURAOU_MATE_ENGINE          : やねうら王 詰将棋solver (2020/12/29～)
 # USER_ENGINE                    : USER定義エンジン
 
 YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
@@ -25,7 +26,8 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_KPPT
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_KPP_KKPT
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_MATERIAL
-#YANEURAOU_EDITION = MATE_ENGINE
+#YANEURAOU_EDITION = TANUKI_MATE_ENGINE
+#YANEURAOU_EDITION = YANEURAOU_MATE_ENGINE
 #YANEURAOU_EDITION = USER_ENGINE
 
 
@@ -238,13 +240,12 @@ SOURCES  = \
 	mate/mate1ply_without_effect.cpp                                           \
 	mate/mate1ply_with_effect.cpp                                              \
 	mate/mate_solver.cpp                                                       \
-	mate/mate_dfpn32.cpp                                                       \
-	mate/mate_dfpn64.cpp                                                       \
 	mate/mate_test_cmd.cpp                                                      \
 	eval/evaluate_bona_piece.cpp                                               \
 	eval/evaluate.cpp                                                          \
 	eval/evaluate_io.cpp                                                       \
 	eval/evaluate_mir_inv_tools.cpp                                            \
+	eval/material/evaluate_material.cpp                                        \
 	learn/learner.cpp                                                          \
 	learn/learning_tools.cpp                                                   \
 	learn/multi_think.cpp
@@ -266,8 +267,7 @@ endif
 
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_MATERIAL)
 	SOURCES += \
-		engine/yaneuraou-engine/yaneuraou-search.cpp                           \
-		eval/material/evaluate_material.cpp
+		engine/yaneuraou-engine/yaneuraou-search.cpp
 
 	CPPFLAGS += -DMATERIAL_LEVEL=$(MATERIAL_LEVEL)
 endif
@@ -302,23 +302,28 @@ ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_
 		engine/yaneuraou-engine/yaneuraou-search.cpp
 endif
 
-ifeq ($(YANEURAOU_EDITION),MATE_ENGINE)
-	SOURCES += \
-		engine/mate-engine/mate-search.cpp                              \
-	    eval/material/evaluate_material.cpp
 
+ifeq ($(YANEURAOU_EDITION),TANUKI_MATE_ENGINE)
+	SOURCES += \
+		engine/tanuki-mate-engine/tanuki-mate-search.cpp
+endif
+
+
+ifeq ($(YANEURAOU_EDITION),YANEURAOU_MATE_ENGINE)
+	SOURCES += \
+		engine/yaneuraou-mate-engine/yaneuraou-mate-search.cpp
 endif
 
 ifeq ($(YANEURAOU_EDITION),USER_ENGINE)
 	SOURCES += \
-		engine/user-engine/user-search.cpp                              \
-		eval/material/evaluate_material.cpp
-
+		engine/user-engine/user-search.cpp
 endif
+
 
 ifneq ($(ENGINE_NAME),)
 	CPPFLAGS += -DENGINE_NAME_FROM_MAKEFILE=$(ENGINE_NAME)
 endif
+
 
 # 開発用branch
 ifeq ($(findstring dev,$(ENGINE_BRANCH)),dev)
