@@ -4,6 +4,8 @@
 #include "../../config.h"
 #if defined(YANEURAOU_ENGINE_DEEP)
 
+#include <cstring>
+#include <cmath>
 #include "../../position.h"
 
 namespace Eval::dlshogi
@@ -21,7 +23,7 @@ namespace Eval::dlshogi
 	// 歩が先手の手駒に9枚の状況だとして、残り7枚は相手の手駒 or 盤上にあるはずだし、盤上の歩は入力特徴量として持っているので
 	// 駒割自体は正しく計算できるはず。
 	// MAX_HPAWN_NUMが7だと、手駒を先手が9枚、後手が7枚持っているような状況だと、どちらが数多く持っているのかが判定できないのでまずい。
-	
+
 	constexpr int MAX_HPAWN_NUM   = 8; // 歩の持ち駒の上限
 	constexpr int MAX_HLANCE_NUM  = 4;
 	constexpr int MAX_HKNIGHT_NUM = 4;

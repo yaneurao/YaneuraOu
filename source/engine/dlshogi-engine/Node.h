@@ -4,6 +4,7 @@
 
 #if defined(YANEURAOU_ENGINE_DEEP)
 
+#include <thread>
 #include "../../position.h"
 #include "dlshogi_types.h"
 
@@ -54,7 +55,7 @@ namespace dlshogi
 		// 勝った回数
 		// あとで // まだplayoutをしていない時は、nnrateの値がそのままここに入る？
 		// ※　勝率 = win / move_count の計算式で算出する。
-		// 
+		//
 		std::atomic<WinCountType> win;
 
 		// Policy Networkが返してきた、moveが選ばれる確率
@@ -62,7 +63,7 @@ namespace dlshogi
 
 		// 子ノードへのポインタ
 		// これがnullptrであれば、この子ノードはまだexpand(展開)されていないという意味。
-		// 
+		//
 		// TODO : ここに持つともったいないから、親nodeに最小限だけ持たせたほうが良いような…。
 		std::unique_ptr<Node> node;
 	};
