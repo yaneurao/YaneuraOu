@@ -261,11 +261,12 @@ namespace dlshogi
 	//   moves         : 探索開始局面からの手順
 	//   ponderMove    : ponderの指し手 [Out]
 	//   ponder        : ponder mode("go ponder")で呼び出されているのかのフラグ。
+	//   →　使わないので削除。Threads.main()->ponderのほうを参照すべき。
 	//   start_threads : この関数を呼び出すと全スレッドがParallelUctSearch()を呼び出して探索を開始するものとする。
 	// 返し値 : この局面でのbestな指し手
 	// ※　事前にSetLimits()で探索条件を設定しておくこと。
 	Move DlshogiSearcher::UctSearchGenmove(Position *pos, const std::string& gameRootSfen, const std::vector<Move>& moves, Move &ponderMove,
-		bool ponder,const std::function<void()>& start_threads)
+		const std::function<void()>& start_threads)
 	{
 		// これ[Out]なのでとりあえず初期化しておかないと忘れてしまう。
 		ponderMove = MOVE_NONE;
@@ -294,7 +295,7 @@ namespace dlshogi
 		search_limits.current_root = tree->GetCurrentHead();
 
 		// "go ponder"で呼び出されているかのフラグの設定
-		search_limits.pondering = ponder;
+		//search_limits.pondering = ponder;
 
 		// 探索ノード数のクリア
 		search_limits.nodes_searched = 0;
@@ -388,6 +389,7 @@ namespace dlshogi
 
 		// PVの取得と表示
 		auto best = UctPrint::get_best_move_multipv(current_root , search_limits , search_options);
+		// それに対するponderの指し手もあるはずなのでそれをセットしておく。
 		ponderMove = best.ponder;
 
 		// 探索にかかった時間を求める
@@ -497,8 +499,8 @@ namespace dlshogi
 		if (s.infinite)
 			return;
 
-		// "go ponder"で呼び出されているなら持ち時間制御の対象外。
-		if (search_limits.pondering)
+		// "go ponder"で呼び出されて、"ponderhit"が来ていないなら持ち時間制御の対象外。
+		if (Threads.main()->ponder)
 			return;
 			
 		// -- 時間制御

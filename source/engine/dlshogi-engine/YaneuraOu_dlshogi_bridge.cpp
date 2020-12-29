@@ -300,11 +300,11 @@ void MainThread::search()
 	};
 
 	Move ponderMove;
-	Move move = searcher.UctSearchGenmove(&rootPos, rootPos.sfen(),{}, ponderMove, ponder , start_threads);
+	Move move = searcher.UctSearchGenmove(&rootPos, rootPos.sfen(),{}, ponderMove, start_threads);
 
 	sync_cout << "bestmove " << to_usi_string(move);
 
-	// USI_Ponderがtrueならば。
+	// USI_Ponderがtrueならば、bestmoveに続けて、ponderの指し手も出力する。
 	if (searcher.search_options.usi_ponder && ponderMove)
 		std::cout << " ponder " << to_usi_string(ponderMove);
 

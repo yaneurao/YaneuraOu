@@ -79,7 +79,8 @@ namespace dlshogi
 
 		// ponder mode("go ponder"コマンド)でsearch()が呼び出されているかのフラグ。
 		// これがtrueのときは探索は"bestmove"を返すのを"stop"が来るまで待機しなければならない。
-		bool pondering;
+		// →　やねうら王では、Threads.main()->ponderを用いるのでこのフラグは使わない。
+		//bool pondering;
 
 		// 中断用フラグ
 		// これがtrueになると全スレッドは探索を終了する。
@@ -258,13 +259,11 @@ namespace dlshogi
 		//   gameRootSfen  : 対局開始局面のsfen文字列(探索開始局面ではない)
 		//   moves         : 探索開始局面からの手順
 		//   ponderMove    : ponderの指し手 [Out]
-		//   ponder        : ponder mode("go ponder")で呼び出されているのかのフラグ。
-		//            このフラグがtrueであるなら、この関数はMOVE_NONEしか返さない。
 		//   start_threads : この関数を呼び出すと全スレッドがParallelUctSearch()を呼び出して探索を開始するものとする。
 		// 返し値 : この局面でのbestな指し手
 		// ※　事前にSetLimits()で探索条件を設定しておくこと。
-		Move UctSearchGenmove(Position* pos, const std::string& gameRootSfen, const std::vector<Move>& moves, Move& ponderMove, bool ponder,
-			const std::function<void()>& start_threads);
+		Move UctSearchGenmove(Position* pos, const std::string& gameRootSfen, const std::vector<Move>& moves,
+			Move& ponderMove,const std::function<void()>& start_threads);
 
 		// NNに渡すモデルPathの設定。
 		void SetModelPaths(const std::vector<std::string>& paths);
