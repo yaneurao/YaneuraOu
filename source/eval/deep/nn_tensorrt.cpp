@@ -71,18 +71,18 @@ using namespace Tools;
 namespace Eval::dlshogi
 {
 // モデルファイルの読み込み。
-	Tools::Result NNTensorRT::load(const std::string& model_path, int gpu_id, int batch_size)
+	Tools::Result NNTensorRT::load(const std::string& model_path, int gpu_id, int max_batch_size)
 	{
 		this->gpu_id = gpu_id;
-		this->max_batch_size = batch_size;
+		this->max_batch_size = max_batch_size;
 
 		// Create host and device buffers
 		// host(GPU側)に同じだけメモリを確保しておいて、CPU側からそこに転送する。
 
 		checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(NN_Input1)        * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(NN_Input2)        * max_batch_size));
-		checkCudaErrors(cudaMalloc((void**)&y1_dev, sizeof(NN_Output_Policy) * max_batch_size ));
-		checkCudaErrors(cudaMalloc((void**)&y2_dev, sizeof(NN_Output_Value)  * max_batch_size ));
+		checkCudaErrors(cudaMalloc((void**)&y1_dev, sizeof(NN_Output_Policy) * max_batch_size));
+		checkCudaErrors(cudaMalloc((void**)&y2_dev, sizeof(NN_Output_Value)  * max_batch_size));
 
 		inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev };
 

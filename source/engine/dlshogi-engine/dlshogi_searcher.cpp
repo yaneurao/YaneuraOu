@@ -267,6 +267,9 @@ namespace dlshogi
 	Move DlshogiSearcher::UctSearchGenmove(Position *pos, const std::string& gameRootSfen, const std::vector<Move>& moves, Move &ponderMove,
 		bool ponder,const std::function<void()>& start_threads)
 	{
+		// これ[Out]なのでとりあえず初期化しておかないと忘れてしまう。
+		ponderMove = MOVE_NONE;
+
 		// 探索停止フラグをreset。
 		// →　やねうら王では使わない。Threads.stopかsearch_limits.interruptionを使う。
 		//search_limits.uct_search_stop = false;
@@ -318,16 +321,47 @@ namespace dlshogi
 			if (!pos->in_check())
 			{
 				// 詰みを発見しているはず
-				Move move = Mate::mate_1ply(*pos);
+				// Solverで解かせてみる。
 
-				// 長手数の詰みはあとで。
+				// 宣言勝ちか？
+				Move move = pos->DeclarationWin();
+
+				if (move)
+					return move;
+
+				// いくらなんでも5手詰めで発見できるはずだが？
+				move = mate_solver.mate_odd_ply(*pos, 5 ,true);
 
 				if (move)
 					return move;
 
 				// これ、子ノードのいずれかは勝ちのはずだからその子ノードを選択したほうが良いのでは…。
+				// 伝播された勝ちが本当ならば、だが。
+				// とりま、↓以下、普通に探索する。
 			}
 		}
+
+		// ---------------------
+		//     定跡の選択部
+		// ---------------------
+
+		// 定跡DBにhitするか調べる。
+
+		// main threadの取得
+		auto th = pos->this_thread();
+
+		if (book.probe(*th, Search::Limits))
+		{
+			// 定跡にhitしている以上、合法手がここに格納されているはず。
+			Move bestMove   = th->rootMoves[0].pv[0];
+			     ponderMove = th->rootMoves[0].pv[1];
+
+			return bestMove;
+		}
+
+		// 長手数の詰みはdf-pn呼び出す
+		// 呼び出したほうが強いのかがわからないので検証環境を用意してから実装する。
+
 
 		// 前回、この現在の探索局面を何回訪問したのか
 		NodeCountType pre_simulated = current_root->move_count;
@@ -598,6 +632,7 @@ namespace dlshogi
 		for (int i = 0; i < child_num; i++) {
 			if (uct_child[i].move_count > max) {
 				second = max;
+				second_eval = max_eval;
 				max = uct_child[i].move_count;
 				max_eval = uct_child[i].win / uct_child[i].move_count;
 			}
@@ -646,7 +681,6 @@ namespace dlshogi
 
 		else
 			ASSERT_LV3(false);
-
 	}
 
 	// --------------------------------------------------------------------

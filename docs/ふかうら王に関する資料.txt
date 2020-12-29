@@ -1,0 +1,45 @@
+﻿
+ふかうら王に関する資料
+
+ふかうら王は、dlshogi互換エンジンとして2020年12月に開発をスタートしました。
+
+- dlshogi GitHub : https://github.com/TadaoYamaoka/DeepLearningShogi
+
+- dlshogiの環境構築手順
+  - Linux // dlshogiの環境構築手順 : https://tadaoyamaoka.hatenablog.com/entry/2020/05/05/172132 
+  - Linux // dlshogiをAWSのNVIDIA A100インスタンスで動かす : https://tadaoyamaoka.hatenablog.com/entry/2020/11/07/154352
+  - WSL 2 //
+    // k_kanouさんより
+    //  CUDA on WSL 2 でもdlshogi の環境構築できました。
+    //  NVIDIA Drivers for CUDA on WSL だと、以下にcuda のライブラリが配置されるのが注意点です。
+    //  /usr/lib/wsl/lib/libcuda.so.1
+    - 待ってました CUDA on WSL 2 : https://qiita.com/ksasaki/items/ee864abd74f95fea1efa
+  - Windows :
+    - ONNX RUNTIME版はWindows標準で動作するはず。パフォーマンスは劣るけども。
+      - ONNX Runtimeを使ってみる : https://tadaoyamaoka.hatenablog.com/entry/2020/05/26/233159
+        > dlshogiはCUDAに対応したNvidiaのGPUが必須になっているが、AMDのGPUやCPUのみでも動かせるようにしたいと思っている。
+      - ONNX Runtimeを使ってみる その2(性能測定) : https://tadaoyamaoka.hatenablog.com/entry/2020/06/06/190259
+      - ONNX Runtimeを使ってみる その3(DirectML) : https://tadaoyamaoka.hatenablog.com/entry/2020/06/07/113616
+
+      // あと、"DirectML.dll"もなぜか実行時に必要らしい。
+      // 上の記事「その3(DirectML)」によると、dlshogiの実行ファイルからコピーしてくるとよいようだ。
+      // 世界将棋AI 電竜戦バージョン（「GCT電竜」同梱） : https://github.com/TadaoYamaoka/DeepLearningShogi/releases/tag/denryu2020
+
+    - TensorRT版
+      - 世界将棋AI 電竜戦バージョン（「GCT電竜」同梱）: https://github.com/TadaoYamaoka/DeepLearningShogi/releases/tag/denryu2020
+      // TensorRTはCUDAを最適化するものらしく、CUDAのToolkitも必要。
+
+      - CUDA Toolkit 11.0 Download : https://developer.nvidia.com/cuda-11.0-download-archive
+      - WindowsでTensorRTを動かす : https://tadaoyamaoka.hatenablog.com/entry/2020/04/12/155648
+          > なお、リリースノートによれば、Windowsでは、パフォーマンスが30%落ちるようである。
+          > TCCモードに変更すれば、10%に抑えられると書かれている
+      - TensorRTのインストール
+        - ↓からdownloadをクリックして会員登録が必要っぽい。2020/12/18現在 TensorRT 7.2.1が最新。
+        - https://developer.nvidia.com/tensorrt
+        - TensorRT7 download(会員登録後) : https://developer.nvidia.com/nvidia-tensorrt-7x-download
+        - NVIDIA TENSORRT DOCUMENTATION : https://docs.nvidia.com/deeplearning/tensorrt/archives/index.html#trt_7
+
+      - cuDNN 8.0.5 ダウンロード(会員登録後) : https://developer.nvidia.com/rdp/cudnn-download
+        > Download cuDNN v8.0.5 (November 9th, 2020), for CUDA 11.1
+
+

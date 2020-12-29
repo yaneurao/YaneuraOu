@@ -68,6 +68,14 @@ namespace USI {
 		// その局面での上位N個の候補手を調べる機能
 		o["MultiPV"] << Option(1, 1, 800);
 
+		// 指し手がGUIに届くまでの時間。
+	#if defined(YANEURAOU_ENGINE_DEEP)
+			// GPUからの結果を待っている時間も込みなので少し上げておく。
+			int time_margin = 400;
+	#else
+			int time_margin = 120;
+	#endif
+
 		// ネットワークの平均遅延時間[ms]
 		// この時間だけ早めに指せばだいたい間に合う。
 		// 切れ負けの瞬間は、NetworkDelayのほうなので大丈夫。
@@ -115,14 +123,6 @@ namespace USI {
 
 		// cin/coutの入出力をファイルにリダイレクトする
 		o["WriteDebugLog"] << Option(false, [](const Option& o) { start_logger(o); });
-
-		// 指し手がGUIに届くまでの時間。
-#if defined(YANEURAOU_ENGINE_DEEP)
-		// GPUからの結果を待っている時間も込みなので少し上げておく。
-		int time_margin = 400;
-#else
-		int time_margin = 120;
-#endif
 
 
 #if defined (USE_ENTERING_KING_WIN)

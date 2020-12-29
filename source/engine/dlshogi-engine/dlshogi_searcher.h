@@ -5,6 +5,8 @@
 #if defined(YANEURAOU_ENGINE_DEEP)
 
 #include "../../position.h"
+#include "../../book/book.h"
+#include "../../mate/mate.h"
 #include "dlshogi_types.h"
 
 // dlshogiの探索部で構造体化・クラス化されていないものを集めたもの。
@@ -154,6 +156,11 @@ namespace dlshogi
 		// (歩の不成、敵陣2段目の香の不成など)全合法手を生成するのか。
 		bool generate_all_legal_moves = false;
 
+		// leaf node(探索の末端の局面)での奇数手詰みルーチンを呼び出す時の手数
+		// 0 = 奇数手詰めを呼び出さない。
+		// エンジンオプションの"MateSearchPly"の値。
+		int mate_search_ply;
+
 	};
 
 	// UCT探索部
@@ -286,6 +293,9 @@ namespace dlshogi
 		// UCTSearcher::ParallelUctSearch()で用いる。
 		std::mutex mutex_expand;
 
+		// 定跡の指し手を選択するモジュール
+		Book::BookMoveSelector book;
+
 		//  探索停止の確認
 		// SearchInterruptionCheckerから呼び出される。
 		void InterruptionCheck();
@@ -327,6 +337,11 @@ namespace dlshogi
 		// スレッドIDから対応するgpu_idへのmapper
 		std::vector<int> thread_id_to_gpu_id;
 		std::vector<UctSearcher*> thread_id_to_uct_searcher;
+
+		// 探索とは別スレッドでの詰み探索用
+
+		// 奇数手詰め
+		Mate::MateSolver mate_solver;
 	};
 
 	// 探索の終了条件を満たしたかを調べるスレッド

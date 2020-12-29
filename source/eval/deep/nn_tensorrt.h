@@ -42,7 +42,7 @@ namespace Eval::dlshogi
 		virtual ~NNTensorRT() { release(); }
 
 		// モデルファイルの読み込み。
-		virtual Tools::Result load(const std::string& model_path , int gpu_id , int batch_size);
+		virtual Tools::Result load(const std::string& model_path , int gpu_id , int max_batch_size);
 
 		// 推論
 		virtual void forward(const int batch_size, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2);

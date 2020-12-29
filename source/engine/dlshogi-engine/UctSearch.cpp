@@ -487,16 +487,11 @@ namespace dlshogi
 				{
 					// 詰みチェック
 
-					// TODO : あとでN手詰め実装する。
-
-#if 1
 					bool isMate =
-						(!pos->in_check() && Mate::mate_1ply(*pos) != MOVE_NONE) // 1手詰め
+						// Mate::mate_odd_ply()は自分に王手がかかっていても詰みを読めるはず…。
+						(options.mate_search_ply && mate_solver.mate_odd_ply(*pos,options.mate_search_ply,options.generate_all_legal_moves) != MOVE_NONE) // N手詰め
 						|| (pos->DeclarationWin() != MOVE_NONE)            // 宣言勝ち
 						;
-#else
-					bool isMate = false;
-#endif
 
 					// 詰みの場合、ValueNetの値を上書き
 					if (isMate) {

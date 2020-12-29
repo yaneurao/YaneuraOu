@@ -4,6 +4,8 @@
 #include "../../config.h"
 #if defined(YANEURAOU_ENGINE_DEEP)
 #include "../../position.h"
+#include "../../mate/mate.h"
+
 #include "Node.h"
 
 // この探索部は、NN専用なので直接読み込む。
@@ -248,6 +250,8 @@ namespace dlshogi
 		// NodeTreeを取得
 		NodeTree* get_node_tree() const;
 
+		// 奇数手詰め用のsolver
+		Mate::MateSolver mate_solver;
 	};
 
 

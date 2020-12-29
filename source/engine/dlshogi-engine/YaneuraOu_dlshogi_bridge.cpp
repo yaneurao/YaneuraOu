@@ -26,6 +26,10 @@ DlshogiSearcher searcher;
 void USI::extra_option(USI::OptionsMap& o)
 {
 	// エンジンオプションを生やす
+
+	//   定跡のオプションを生やす
+	searcher.book.init(o);
+
 #if 0
     (*this)["Book_File"]                   = USIOption("book.bin");
     (*this)["Best_Book_Move"]              = USIOption(true);
@@ -131,6 +135,8 @@ void USI::extra_option(USI::OptionsMap& o)
     //(*this)["Const_Playout"]               = USIOption(0, 0, INT_MAX);
 	// →　Playout数固定。これはNodeLimitでできるので不要。
 
+	// leaf nodeでの奇数手詰めルーチンを呼び出す時の手数
+	o["MateSearchPly"]               << USI::Option(5, 0, 255);
 }
 
 // "isready"コマンドに対する初回応答
@@ -140,6 +146,13 @@ void Search::init(){}
 void Search::clear()
 {
 	// エンジンオプションの反映
+
+	// -----------------------
+	//   定跡の読み込み
+	// -----------------------
+
+	searcher.book.read_book();
+
 #if 0
 			// オプション設定
 			dfpn_min_search_millisecs = options["DfPn_Min_Search_Millisecs"];
@@ -211,6 +224,9 @@ void Search::clear()
 	searcher.SetPonderingMode(Options["USI_Ponder"]);
 
 	searcher.InitializeUctSearch((NodeCountType)Options["UCT_NodeLimit"]);
+
+	searcher.search_options.mate_search_ply = (int)Options["MateSearchPly"];
+
 
 #if 0
 	// dlshogiでは、
@@ -290,7 +306,7 @@ void MainThread::search()
 
 	// USI_Ponderがtrueならば。
 	if (searcher.search_options.usi_ponder && ponderMove)
-		std::cout << " ponder " << to_usi_string(move);
+		std::cout << " ponder " << to_usi_string(ponderMove);
 
 	std::cout << sync_endl;
 }
