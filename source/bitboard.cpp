@@ -253,14 +253,14 @@ const u64 BishopMagic[SQ_NB_PLUS1] = {
 // これらは一度値を設定したら二度と変更しない。
 // 本当は const 化したい。
 #if defined (USE_BMI2)
-Bitboard RookAttack[495616];
+Bitboard RookAttack[495616 + 1 /* SQ_NB対応*/];
 #else
-Bitboard RookAttack[512000];
+Bitboard RookAttack[512000 + 1 /* SQ_NB対応*/];
 #endif
 
 int RookAttackIndex[SQ_NB_PLUS1];
 Bitboard RookBlockMask[SQ_NB_PLUS1];
-Bitboard BishopAttack[20224];
+Bitboard BishopAttack[20224 + 1 /* SQ_NB対応*/];
 int BishopAttackIndex[SQ_NB_PLUS1];
 Bitboard BishopBlockMask[SQ_NB_PLUS1];
 
@@ -363,6 +363,11 @@ namespace {
 			}
 			index += 1 << (64 - shift[sq]);
 		}
+
+		// 駒(飛車・角)がSQ_NBの時には利きは発生してはならない。
+		blockMask[SQ_NB] = ZERO_BB; // 駒はない扱い (マスク後、ZERO_BBになる)
+		attackIndex[SQ_NB] = index; // そうするとindexの先頭を指すはず
+		attacks[index] = ZERO_BB;   // そこにはZERO_BBが書き込まれていると。
 	}
 
 	// Apery型の遠方駒の利きの処理で用いるテーブルの初期化
@@ -628,6 +633,7 @@ void Bitboards::init()
 			// RookRankEffect[FILE_NB][x] には値を代入していないがC++の規約によりゼロ初期化されている。
 		}
 	}
+
 #else
 
 	// Apery型の遠方駒の利きの処理で用いるテーブルの初期化

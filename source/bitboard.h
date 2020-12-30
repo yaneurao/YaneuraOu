@@ -462,7 +462,7 @@ extern Bitboard RookRankEffect[FILE_NB + 1][128];
 // --- 角の利き
 
 // メモリ節約の為、1次元配列にして無駄が無いようにしている。
-extern Bitboard BishopAttack[20224];
+extern Bitboard BishopAttack[20224 + 1 /* SQ_NB対応*/];
 extern int BishopAttackIndex[SQ_NB_PLUS1];
 extern Bitboard BishopBlockMask[SQ_NB_PLUS1];
 // メモリ節約をせず、無駄なメモリを持っている。
@@ -477,9 +477,9 @@ extern const int RookShiftBits[SQ_NB_PLUS1];
 
 #if defined (USE_BMI2)
 // PEXT2命令を用いるなら、配列サイズ、少し小さくて済む
-extern Bitboard RookAttack[495616];
+extern Bitboard RookAttack[495616 + 1 /* SQ_NB対応*/];
 #else
-extern Bitboard RookAttack[512000];
+extern Bitboard RookAttack[512000 + 1 /* SQ_NB対応*/];
 #endif
 
 extern int RookAttackIndex[SQ_NB_PLUS1];

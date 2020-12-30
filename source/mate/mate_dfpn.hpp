@@ -560,12 +560,14 @@ namespace Mate::Dfpn32
 					else {
 						if (current)
 						{
-							// pn最小で、pnの値が同じならdn最大を選びたい。
+							// pn最小で、pnの値が同じならdn最小を(受け方は選ぶであろうから)選ぶ。
 							if (children[i].pn < children[selected_index].pn
 								|| (children[i].pn == children[selected_index].pn && children[i].dn < children[selected_index].dn))
 								selected_index = i;
 						}
 						else {
+							// pn >= DNPN_MATE , dn = 0は証明されているので、pn = 0のところを辿るだけだが、
+							// 受け方(!or_node)はdnが小さめ(長い手順の詰み)を選びたい。
 							if (children[i].dn < children[selected_index].dn)
 								selected_index = i;
 						}
