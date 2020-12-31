@@ -238,7 +238,7 @@ namespace dlshogi
 		make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
 
 		// 現在のNodeと手番を保存しておく。
-		policy_value_batch[current_policy_value_batch_index] = { node, pos->side_to_move() };
+		policy_value_batch[current_policy_value_batch_index] = { node, pos->side_to_move() /* , pos->key() */};
 
 	#ifdef MAKE_BOOK
 		policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
@@ -425,7 +425,8 @@ namespace dlshogi
 
 		// 現在見ているノードをロック
 		// これは、このNode(current)の展開(child[i].node = new Node(); ... )を行う時にLockすることになっている。
-		current->Lock();
+		auto& mutex = ds->get_node_mutex(pos);
+		mutex.lock();
 
 		// 子ノードのなかからUCB値最大の手を求める
 		next_index = SelectMaxUcbChild(pos, current, depth);
@@ -452,7 +453,10 @@ namespace dlshogi
 			// ノードを展開したので、もうcurrentは書き換えないからunlockして良い。
 
 			// 現在見ているノードのロックを解除
-			current->UnLock();
+			mutex.unlock();
+			// →　CreateChildNode()で新しく作られたNodeは、evaledがfalseのままになっているので
+			// 　　他の探索スレッドがここに到達した場合、DISCARDする。
+			//     この新しく作られたNodeは、EvalNode()のなかで最後にevaled = trueに変更される。
 
 			// 経路を記録
 			trajectories.emplace_back(current, next_index);
@@ -536,7 +540,7 @@ namespace dlshogi
 		}
 		else {
 			// 現在見ているノードのロックを解除
-			current->UnLock();
+			mutex.unlock();
 
 			// 経路を記録
 			trajectories.emplace_back(current, next_index);
@@ -657,6 +661,7 @@ namespace dlshogi
 
 		// batchに積まれているデータの個数
 		const int policy_value_batch_size = current_policy_value_batch_index;
+		auto ds = grp->get_dlsearcher();
 
 #if defined(LOG_PRINT)
 		// 入力特徴量
@@ -681,8 +686,6 @@ namespace dlshogi
 		for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
 			Node* node  = policy_value_batch[i].node;
 			Color color = policy_value_batch[i].color;
-
-			node->Lock();
 
 			const int child_num = node->child_num;
 			ChildNode *uct_child = node->child.get();
@@ -766,7 +769,6 @@ namespace dlshogi
 			}
 	#endif
 			node->evaled = true;
-			node->UnLock();
 		}
 	}
 }

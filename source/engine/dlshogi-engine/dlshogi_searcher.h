@@ -164,6 +164,35 @@ namespace dlshogi
 
 	};
 
+	// ノードのlock用。
+	// 子ノードの構造体にstd::mutex(sizeof(std::mutex)==80)を持たせると子ノードがメモリを消費しすぎるので
+	// 局面のhash keyからindexを計算して、↓の配列の要素を使う。
+
+	class NodeMutexs
+	{
+	public:
+		static const uint64_t MUTEX_NUM = 65536; // must be 2^n
+		static_assert((MUTEX_NUM & (MUTEX_NUM - 1)) == 0);
+
+		// ある局面に対応するmutexを返す。
+		std::mutex& get_mutex(const Position* pos)
+		{
+			return get_mutex(pos->key());
+		}
+
+	private:
+		// ある局面のHASH_KEY(Position::key()にて取得できる)に対応するmutexを返す。
+		// →　これ外から呼び出して使わなくていいっぽいのでとりまprivateにしておく。
+		std::mutex& get_mutex(const HASH_KEY key)
+		{
+			return mutexes[key & (MUTEX_NUM - 1)];
+		}
+
+	private:
+		std::mutex mutexes[MUTEX_NUM];
+	};
+
+
 	// UCT探索部
 	// ※　dlshogiでは、この部分、class化されていない。
 	class DlshogiSearcher
@@ -303,6 +332,12 @@ namespace dlshogi
 		// SearchInterruptionCheckerから呼び出される。
 		void OutputPvCheck();
 
+		// 子ノードで使うstd::mutexを返す。
+		//   pos : 子ノードの局面になっていること。
+		// Nodeのchildrenの書き換えの時などにこれをlockすることになっている。
+		std::mutex& get_node_mutex(const Position* pos) { return node_mutexes.get_mutex(pos); }
+		//std::mutex& get_child_node_mutex(const HASH_KEY posKey) { return child_node_mutexes.get_mutex(posKey); }
+
 	private:
 
 		// Root Node(探索開始局面)を展開する。
@@ -336,6 +371,9 @@ namespace dlshogi
 		// スレッドIDから対応するgpu_idへのmapper
 		std::vector<int> thread_id_to_gpu_id;
 		std::vector<UctSearcher*> thread_id_to_uct_searcher;
+
+		// ノードのlockに使うmutex
+		NodeMutexs node_mutexes;
 
 		// 探索とは別スレッドでの詰み探索用
 

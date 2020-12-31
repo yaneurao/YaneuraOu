@@ -108,11 +108,6 @@ namespace dlshogi
 		// 子ノードが一つも見つからない時は、新しいノードを作成する。
 		Node* ReleaseChildrenExceptOne(NodeGarbageCollector* gc, Move move);
 
-		// mutexをlock/unlockする。
-		// このnodeに関してchild(ChildNode)の展開(child[i].node = new Node(); ... )をする時にこの関数を呼び出すこと。
-		void Lock() { mutex.lock(); }
-		void UnLock() { mutex.unlock(); }
-
 		// --- public members..
 
 		// このノードの訪問回数

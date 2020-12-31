@@ -113,6 +113,7 @@ namespace dlshogi
 	struct BatchElement {
 		Node*	node;  // どのNodeに対するEvalNode()なのか。
 		Color	color; // その時の手番
+		//u64     posKey; // その時のPosition::key()
 	};
 
 	// leaf nodeまでに辿ったNodeを記録しておく構造体。
