@@ -18,7 +18,6 @@
 # YANEURAOU_ENGINE_MATERIAL      : 駒得のみの評価関数(複数変種あり。MATERIAL_LEVELで選択できる)
 # TANUKI_MATE_ENGINE             : tanuki- 詰め将棋solver  (2017/05/06～)
 # YANEURAOU_MATE_ENGINE          : やねうら王 詰将棋solver (2020/12/29～)
-# YANEURAOU_ENGINE_DEEP          : ふかうら王              (2020/12/29～)
 # USER_ENGINE                    : USER定義エンジン
 
 YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
@@ -29,7 +28,6 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_MATERIAL
 #YANEURAOU_EDITION = TANUKI_MATE_ENGINE
 #YANEURAOU_EDITION = YANEURAOU_MATE_ENGINE
-#YANEURAOU_EDITION = YANEURAOU_ENGINE_DEEP
 #YANEURAOU_EDITION = USER_ENGINE
 
 
@@ -205,13 +203,6 @@ ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_
 	endif
 endif
 
-# ふかうら王ビルド用 ONNX Runtime
-ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP)
-	CPPFLAGS += -I/d/onnxruntime-linux-x64-1.6.0/include
-	CPPFLAGS += -DONNXRUNTIME
-	LDFLAGS  += -L/d/onnxruntime-linux-x64-1.6.0/lib
-endif
-
 CPPFLAGS += -DNO_EXCEPTIONS
 LDFLAGS += -lpthread
 LDFLAGS += -v
@@ -354,19 +345,6 @@ endif
 ifeq ($(YANEURAOU_EDITION),TANUKI_MATE_ENGINE)
 	SOURCES += \
 		engine/tanuki-mate-engine/tanuki-mate-search.cpp
-endif
-
-ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP)
-	SOURCES += \
-		eval/deep/nn.cpp                                                \
-		eval/deep/nn_onnx_runtime.cpp                                   \
-		eval/deep/nn_types.cpp                                          \
-		engine/dlshogi-engine/Node.cpp                                  \
-		engine/dlshogi-engine/PrintInfo.cpp                             \
-		engine/dlshogi-engine/UctSearch.cpp                             \
-		engine/dlshogi-engine/YaneuraOu_dlshogi_bridge.cpp              \
-		engine/dlshogi-engine/dlshogi_searcher.cpp                      \
-		engine/yaneuraou-engine/yaneuraou-search.cpp
 endif
 
 
