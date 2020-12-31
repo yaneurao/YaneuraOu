@@ -57,6 +57,7 @@ class YOBench():
     rlines = ""
     child = pexpect.spawn(self.path) if platform.system() != "Windows" else pexpect.popen_spawn.PopenSpawn(self.path.replace("\\", "/"))
     child.sendline("setoption name EvalDir value %s" % self.eval)
+    child.sendline("setoption name PvInterval value %s" % 0)
     child.sendline("isready")
     child.expect(r"readyok\s*\n", 60)
     rlines += child.before.decode("cp932", errors="ignore")
