@@ -113,7 +113,7 @@ namespace dlshogi
 	}
 
 	// 探索結果の更新
-	// 1) resultをcurrentとchildのwinに加算
+	// 1) result(child->value_win = NNが返してきたvalue ← 期待勝率)をcurrentとchildのwinに加算
 	// 2) VIRTUAL_LOSSが1でないときは、currnetとchildのmove_countに (1 - VIRTUAL_LOSS) を加算。
 	inline void UpdateResult(ChildNode* child, WinCountType result, Node* current)
 	{
@@ -238,7 +238,7 @@ namespace dlshogi
 		make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
 
 		// 現在のNodeと手番を保存しておく。
-		policy_value_batch[current_policy_value_batch_index] = { node, pos->side_to_move() };
+		policy_value_batch[current_policy_value_batch_index] = { node, pos->side_to_move() /* , pos->key() */};
 
 	#ifdef MAKE_BOOK
 		policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
@@ -332,6 +332,11 @@ namespace dlshogi
 			// バックアップ
 			// 通った経路(rootからleaf node)までのmove_countを加算するなどの処理。
 			// AlphaZeroの論文で、"Backup"と呼ばれている。
+
+			// leaf nodeでの期待勝率(NNの返してきたvalue)。
+			// ただし詰みを発見している場合はVALUE_WIN or VALUE_LOSEであるので
+			// これをそれぞれ1.0f,0.0fに変換して保持する。
+			// これをleaf nodeからrootに向かって、伝播していく。(Node::winに加算していく)
 			float result = 0.0f;
 			for (auto& trajectories : trajectories_batch) {
 				for (int i = (int)trajectories.size() - 1; i >= 0; i--) {
@@ -348,6 +353,7 @@ namespace dlshogi
 						else if (value_win == VALUE_LOSE)
 							result = 1.0f;
 						else
+							// 親nodeでは、自分の手番から見た期待勝率なので値が反転する。
 							result = 1.0f - value_win;
 					}
 					UpdateResult(&uct_child[next_index], result, current);
@@ -419,7 +425,8 @@ namespace dlshogi
 
 		// 現在見ているノードをロック
 		// これは、このNode(current)の展開(child[i].node = new Node(); ... )を行う時にLockすることになっている。
-		current->Lock();
+		auto& mutex = ds->get_node_mutex(pos);
+		mutex.lock();
 
 		// 子ノードのなかからUCB値最大の手を求める
 		next_index = SelectMaxUcbChild(pos, current, depth);
@@ -446,7 +453,10 @@ namespace dlshogi
 			// ノードを展開したので、もうcurrentは書き換えないからunlockして良い。
 
 			// 現在見ているノードのロックを解除
-			current->UnLock();
+			mutex.unlock();
+			// →　CreateChildNode()で新しく作られたNodeは、evaledがfalseのままになっているので
+			// 　　他の探索スレッドがここに到達した場合、DISCARDする。
+			//     この新しく作られたNodeは、EvalNode()のなかで最後にevaled = trueに変更される。
 
 			// 経路を記録
 			trajectories.emplace_back(current, next_index);
@@ -530,7 +540,7 @@ namespace dlshogi
 		}
 		else {
 			// 現在見ているノードのロックを解除
-			current->UnLock();
+			mutex.unlock();
 
 			// 経路を記録
 			trajectories.emplace_back(current, next_index);
@@ -570,6 +580,7 @@ namespace dlshogi
 
 		// move_countの合計
 		const NodeCountType sum = current->move_count;
+		const float sum_win = current->win;
 		float q, u, max_value;
 		float ucb_value;
 		int child_win_count = 0;
@@ -579,7 +590,14 @@ namespace dlshogi
 		auto ds = grp->get_dlsearcher();
 		auto& options = ds->search_options;
 
+		// ループの外でsqrtしておく。
+		const float sqrt_sum = (float)sqrt(sum);
+		const float c = depth > 0 ?
+			FastLog((sum + options.c_base + 1.0f) / options.c_base) + options.c_init :
+			FastLog((sum + options.c_base_root + 1.0f) / options.c_base_root) + options.c_init_root;
 		float fpu_reduction = (depth > 0 ? options.c_fpu_reduction : options.c_fpu_reduction_root) * sqrtf((float)current->visited_nnrate);
+		const float parent_q = sum_win > 0 ? std::max(0.0f, sum_win / sum - fpu_reduction) : 0.0f;
+		const float init_u = sum == 0 ? 1.0f : sqrt_sum;
 
 		// UCB値最大の手を求める
 		for (int i = 0; i < child_num; i++) {
@@ -597,27 +615,21 @@ namespace dlshogi
 				}
 			}
 
-			float win = uct_child[i].win;
-			NodeCountType move_count = uct_child[i].move_count;
+			const float win = uct_child[i].win;
+			const NodeCountType move_count = uct_child[i].move_count;
 
 			if (move_count == 0) {
-				// 未探索のノードの価値に、親ノードの価値を使用する
-				if (current->win > 0)
-					q = std::max(0.0f, current->win / current->move_count - fpu_reduction);
-				else
-					q = 0.0f;
-				u = sum == 0 ? 1.0f : (float)sqrt((double)sum); /* ここdoubleにしておかないと精度足りないように思う */
+				// 未探索の子ノードの価値に、親ノードでのpoの勝率(win/move_count)を使用する
+				q = parent_q;
+				u = init_u;
 			}
 			else {
 				q = win / move_count;
-				u = (float)(sqrt((double)sum) / (1 + move_count));
+				u = sqrt_sum / (1 + move_count);
 			}
 
 			const float rate = uct_child[i].nnrate;
 
-			const float c = depth > 0 ?
-				FastLog((sum + options.c_base + 1.0f) / options.c_base) + options.c_init :
-				FastLog((sum + options.c_base_root + 1.0f) / options.c_base_root) + options.c_init_root;
 			ucb_value = q + c * u * rate;
 
 			if (ucb_value > max_value) {
@@ -649,6 +661,7 @@ namespace dlshogi
 
 		// batchに積まれているデータの個数
 		const int policy_value_batch_size = current_policy_value_batch_index;
+		auto ds = grp->get_dlsearcher();
 
 #if defined(LOG_PRINT)
 		// 入力特徴量
@@ -673,8 +686,6 @@ namespace dlshogi
 		for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
 			Node* node  = policy_value_batch[i].node;
 			Color color = policy_value_batch[i].color;
-
-			node->Lock();
 
 			const int child_num = node->child_num;
 			ChildNode *uct_child = node->child.get();
@@ -758,7 +769,6 @@ namespace dlshogi
 			}
 	#endif
 			node->evaled = true;
-			node->UnLock();
 		}
 	}
 }

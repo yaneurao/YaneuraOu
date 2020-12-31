@@ -1,6 +1,10 @@
 ﻿#include "nn_types.h"
 
 #if defined(EVAL_DEEP)
+
+#include <cstring> // memset,wchar_t
+#include <cmath>   // expf,logf
+
 #include "../../usi.h"
 
 using namespace std;

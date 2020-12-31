@@ -4,6 +4,8 @@
 #include "../../config.h"
 #if defined(YANEURAOU_ENGINE_DEEP)
 
+#include <cfloat>
+
 // dlshogiのソースコードを参考にさせていただいています。
 // DeepLearningShogi GitHub : https://github.com/TadaoYamaoka/DeepLearningShogi
 

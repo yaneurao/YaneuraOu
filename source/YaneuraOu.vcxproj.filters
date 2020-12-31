@@ -68,9 +68,6 @@
     <Filter Include="リソース ファイル\engine\dlshogi-engine\misc">
       <UniqueIdentifier>{660660a3-9887-4239-a09c-1e56fc843b62}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\eval\dlshogi">
-      <UniqueIdentifier>{db26b1dc-4879-4d29-9e67-327dca35aee8}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\mate">
       <UniqueIdentifier>{ecd5f9f1-13cf-4dd8-b466-6b8b4ad4ad0b}</UniqueIdentifier>
     </Filter>

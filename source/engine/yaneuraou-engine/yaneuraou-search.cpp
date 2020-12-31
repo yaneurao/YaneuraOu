@@ -666,7 +666,9 @@ SKIP_SEARCH:;
 	// その読み筋は出力していなかったはずなのでここで読み筋を出力しておく。
 	// ただし、これはiterationの途中で停止させているので中途半端なPVである可能性が高い。
 	// 検討モードではこのPVを出力しない。
-	if (bestThread != this && !Limits.silent && !Limits.consideration_mode)
+	// →　いずれにせよ、mateを見つけた時に最終的なPVを出力していないと、詰みではないscoreのPVが最終的な読み筋としてGUI上に
+	//     残ることになるからよろしくない。PV自体は必ず出力すべきなのでは。
+	if (/*bestThread != this &&*/ !Limits.silent && !Limits.consideration_mode)
 		sync_cout << USI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
 
 	// ---------------------
@@ -1005,7 +1007,7 @@ void Thread::search()
 
 			// メインスレッド以外はPVを出力しない。
 			// また、silentモードの場合もPVは出力しない。
-			if (mainThread && !Limits.silent)
+			if (mainThread && !Limits.silent && !Threads.stop)
 			{
 				// 停止するときにもPVを出力すべき。(少なくともnode数などは出力されるべき)
 				// (そうしないと正確な探索node数がわからなくなってしまう)
@@ -1013,22 +1015,18 @@ void Thread::search()
 				// ただし、反復深化のiterationを途中で打ち切る場合、PVが途中までしか出力されないので困る。
 				// かと言ってstopに対してPVを出力しないと、PvInterval = 300などに設定されていて短い時間で
 				// 指し手を返したときに何も読み筋が出力されない。
-				// 検討モードのときは、stopのときには、PVを出力しないことにする。
+				// →　これは、ここで出力するべきではない。best threadの選出後に出力する。
 
-				if (Threads.stop ||
+				if (/* Threads.stop || */
 					// MultiPVのときは最後の候補手を求めた直後とする。
 					// ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
 					((pvIdx + 1 == multiPV || Time.elapsed() > 3000)
 						&& (rootDepth < 3 || mainThread->lastPvInfoTime + Limits.pv_interval <= Time.elapsed())))
 				{
-					// ただし検討モードのときは、stopのときにPVを出力しないことにする。
-					if (!(Threads.stop && Limits.consideration_mode))
-					{
 						mainThread->lastPvInfoTime = Time.elapsed();
 						sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
 					}
 				}
-			}
 
 		} // multi PV
 
@@ -1068,13 +1066,13 @@ void Thread::search()
 			// mateを読みきったとき、そのmateの倍以上、iterationを回しても仕方ない気がするので探索を打ち切るようにする。
 			if (!Limits.mate
 				&& bestValue >= VALUE_MATE_IN_MAX_PLY
-				&& (VALUE_MATE - bestValue) * 2 < (Value)(rootDepth))
+				&& (VALUE_MATE - bestValue) * 5/2 < (Value)(rootDepth))
 				break;
 
-			// 詰まされる形についても同様。こちらはmateの2倍以上、iterationを回したなら探索を打ち切る。
+			// 詰まされる形についても同様。こちらはmateの2.5倍以上、iterationを回したなら探索を打ち切る。
 			if (!Limits.mate
 				&& bestValue <= VALUE_MATED_IN_MAX_PLY
-				&& (bestValue - (-VALUE_MATE)) * 2 < (Value)(rootDepth))
+				&& (bestValue - (-VALUE_MATE)) * 5/2 < (Value)(rootDepth))
 				break;
 		}
 
