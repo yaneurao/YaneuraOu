@@ -49,16 +49,15 @@ namespace dlshogi
 		// 親局面(Node)で、このedgeに至るための指し手
 		Move move;
 
-		// このedgeの訪問回数
+		// このedgeの訪問回数。
+		// Node::move_countと同じ意味。
 		std::atomic<NodeCountType> move_count;
 
-		// 勝った回数
-		// あとで // まだplayoutをしていない時は、nnrateの値がそのままここに入る？
-		// ※　勝率 = win / move_count の計算式で算出する。
-		//
+		// このedgeの勝った回数。Node::winと同じ意味。
+		// ※　あるNodeの期待勝率 = win / move_count の計算式で算出する。
 		std::atomic<WinCountType> win;
 
-		// Policy Networkが返してきた、moveが選ばれる確率
+		// Policy Networkが返してきた、moveが選ばれる確率を正規化したもの。
 		float nnrate;
 
 		// 子ノードへのポインタ
@@ -140,9 +139,11 @@ namespace dlshogi
 		// 備考) RepetitionWin (連続王手の千日手による反則勝ち) , RepetitionSuperior(優等局面)の場合も、VALUE_WINに含まれる。
 		//       RepetitionLose(連続王手の千日手による反則負け) , RepetitionSuperior(劣等局面)の場合も、VALUE_LOSEに含まれる。
 		// この変数は、UctSearcher::SelectMaxUcbChild()を呼び出した時に、子ノードを調べて、その結果が代入される。
+		// TODO : この変数、この構造体に持たせる必要ないのでは…。
 		std::atomic<WinCountType> value_win;
 
-		// 子ノードのnnrateの何か // あとで
+		// 訪問した子ノードのnnrateを累積(加算)したもの。
+		// 訪問ごとに加算している。// 目的はよくわからん…。
 		std::atomic<WinCountType> visited_nnrate;
 
 		// 子ノードの数

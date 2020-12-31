@@ -57,14 +57,14 @@ Global
 		Release-YaneuraOu-mate|x86 = Release-YaneuraOu-mate|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-CPU|x64.ActiveCfg = Release-Deep-ORT-DML|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-CPU|x64.Build.0 = Release-Deep-ORT-DML|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-CPU|x64.ActiveCfg = Debug-Deep-ORT-CPU|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-CPU|x64.Build.0 = Debug-Deep-ORT-CPU|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-CPU|x86.ActiveCfg = Debug-Deep-ORT-CPU|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-DML|x64.ActiveCfg = Debug-Deep-ORT-DML|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-DML|x64.Build.0 = Debug-Deep-ORT-DML|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-DML|x86.ActiveCfg = Debug-Deep-ORT-DML|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-MKL|x64.ActiveCfg = Release-Deep-ORT-DML|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-MKL|x64.Build.0 = Release-Deep-ORT-DML|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-MKL|x64.ActiveCfg = Debug-Deep-ORT-MKL|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-MKL|x64.Build.0 = Debug-Deep-ORT-MKL|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-MKL|x86.ActiveCfg = Debug-Deep-ORT-MKL|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-TensorRT|x64.ActiveCfg = Debug-Deep-TensorRT|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-TensorRT|x64.Build.0 = Debug-Deep-TensorRT|x64

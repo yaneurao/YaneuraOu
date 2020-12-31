@@ -4,8 +4,6 @@
 #include "../../config.h"
 #if defined(YANEURAOU_ENGINE_DEEP)
 
-#include <cstring>
-#include <cmath>
 #include "../../position.h"
 
 namespace Eval::dlshogi
