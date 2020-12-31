@@ -641,7 +641,7 @@ extern GlobalOptions_ GlobalOptions;
 #elif defined(__GNUC__)
 #define ALIGNED(X) __attribute__ ((aligned(X)))
 #else
-#define ALIGNED(X) 
+#define ALIGNED(X)
 #endif
 
 // --- output for Japanese notation
@@ -786,7 +786,15 @@ constexpr bool pretty_jp = false;
 	#define EVAL_TYPE_NAME "NNUE"
 #elif defined(EVAL_DEEP)
 	#if defined(ONNXRUNTIME)
-		#define EVAL_TYPE_NAME "ONNX-" << EVAL_DEEP
+		#if defined(ORT_CPU)
+			#define EVAL_TYPE_NAME "ORT_CPU-" << EVAL_DEEP
+		#elif defined(ORT_DML)
+			#define EVAL_TYPE_NAME "ORT_DML-" << EVAL_DEEP
+		#elif defined(ORT_MKL)
+			#define EVAL_TYPE_NAME "ORT_MKL-" << EVAL_DEEP
+		#else
+			#define EVAL_TYPE_NAME "ORT-" << EVAL_DEEP
+		#endif
 	#elif defined(TENSOR_RT)
 		#define EVAL_TYPE_NAME "TensorRT-" << EVAL_DEEP
 	#endif

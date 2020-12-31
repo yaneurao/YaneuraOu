@@ -34,7 +34,7 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 # ターゲットCPU (target cpu)
 
 # 利用できるCPU拡張命令を指定する。
-# 
+#
 # AMDのRyzen(Zen/Zen2)はZEN1/ZEN2を選択するとBMI2命令が使わずに速くなる。(10%程度高速化)
 # Ryzen Zen3シリーズはZEN3を選択。こちらはAVX2用とたぶん変わらない。
 #
@@ -75,7 +75,7 @@ COMPILER = clang++
 
 
 # developing branch // 現状、非公開 (currently private)
-# dev : 開発中のbranchならdevと指定する (developing branch) : 
+# dev : 開発中のbranchならdevと指定する (developing branch) :
 # abe : abe
 #ENGINE_BRANCH = dev
 
@@ -83,12 +83,12 @@ COMPILER = clang++
 # 標準的なコンパイルオプション (standard compile options)
 CPPFLAGS   = -std=c++17 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
 WCPPFLAGS  =
-LDFLAGS  =
+LDFLAGS  = $(EXTRA_LDFLAGS)
 LIBS     =
 INCLUDE  = # -I../include
 
 # makeするときにCPPFLAGSを追加で指定したいときはこれを用いる。
-EXTRA_CPPFLAGS = 
+EXTRA_CPPFLAGS =
 
 # YANEURAOU_EDITION = YANEURAOU_ENGINE_MATERIALのときに指定できる、評価関数の通し番号
 #  1 : 普通の駒得のみの評価関数
@@ -136,13 +136,14 @@ else
 	endif
 endif
 
+TARGETDIR = .
 ifeq ($(OS),Windows_NT)
 	CPPFLAGS += $(WCPPFLAGS)
 	LDFLAGS += -static -Wl,--stack,25000000
-	TARGET = YaneuraOu-by-gcc.exe
+	TARGET = $(TARGETDIR)/YaneuraOu-by-gcc.exe
 else
 	CPPFLAGS += -D_LINUX
-	TARGET = YaneuraOu-by-gcc
+	TARGET = $(TARGETDIR)/YaneuraOu-by-gcc
 endif
 
 # リンク時最適化。
@@ -240,7 +241,7 @@ SOURCES  = \
 	mate/mate1ply_without_effect.cpp                                           \
 	mate/mate1ply_with_effect.cpp                                              \
 	mate/mate_solver.cpp                                                       \
-	mate/mate_test_cmd.cpp                                                      \
+	mate/mate_test_cmd.cpp                                                     \
 	eval/evaluate_bona_piece.cpp                                               \
 	eval/evaluate.cpp                                                          \
 	eval/evaluate_io.cpp                                                       \
@@ -272,6 +273,44 @@ ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_MATERIAL)
 	CPPFLAGS += -DMATERIAL_LEVEL=$(MATERIAL_LEVEL)
 endif
 
+ifeq ($(findstring YANEURAOU_ENGINE_DEEP,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_DEEP)
+	ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP)
+	else
+		# YANEURAOU_EDITIONがYANEURAOU_ENGINE_DEEPの後ろに文字が入っている名前なら、
+		# とりあえず"YANEURAOU_ENGINE_DEEP"というシンボルを定義してやる。
+		CPPFLAGS += -DYANEURAOU_ENGINE_DEEP
+
+		ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_TENSOR_RT)
+			CPPFLAGS += -DTENSOR_RT
+			LDFLAGS += -lnvinfer -lnvparsers -lnvonnxparser -lcuda -lcudnn -lcudart -lcublas
+			# CPPFLAGS += -I/usr/local/cuda/include
+			# LDFLAGS += -L/usr/local/cuda/lib64
+
+		else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_ORT_CPU)
+			CPPFLAGS += -DORT_CPU
+
+		else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_ORT_DML)
+			CPPFLAGS += -DORT_DML
+
+		else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_ORT_MKL)
+			CPPFLAGS += -DORT_MKL
+
+		endif
+	endif
+
+	# 大して大きなファイルではないので全部してしまう。
+	SOURCES += \
+		eval/deep/nn_types.cpp                                          \
+		eval/deep/nn.cpp                                                \
+		eval/deep/nn_onnx_runtime.cpp                                   \
+		eval/deep/nn_tensorrt.cpp                                       \
+		engine/dlshogi-engine/dlshogi_searcher.cpp                      \
+		engine/dlshogi-engine/PrintInfo.cpp                             \
+		engine/dlshogi-engine/UctSearch.cpp                             \
+		engine/dlshogi-engine/Node.cpp                                  \
+		engine/dlshogi-engine/YaneuraOu_dlshogi_bridge.cpp
+endif
+
 ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_NNUE)
 	ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE)
 	else
@@ -297,8 +336,8 @@ ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_
 		eval/nnue/features/p.cpp                                        \
 		eval/nnue/features/half_kp.cpp                                  \
 		eval/nnue/features/half_relative_kp.cpp                         \
-		eval/nnue/features/half_kpe9.cpp								\
-		eval/nnue/features/pe9.cpp										\
+		eval/nnue/features/half_kpe9.cpp                                \
+		eval/nnue/features/pe9.cpp                                      \
 		engine/yaneuraou-engine/yaneuraou-search.cpp
 endif
 
@@ -368,7 +407,7 @@ else ifeq ($(TARGET_CPU),ZEN3)
 
 else ifeq ($(TARGET_CPU),AVX512VNNI)
 
-	CPPFLAGS += -DUSE_AVX512 -DUSE_VNNI -march=cascadelake
+	CPPFLAGS += -DUSE_AVX512 -DUSE_BMI2 -DUSE_VNNI -march=cascadelake
 	# NNUEのコード、USE_VNNIが指定されているとVNNI対応のコードになる。
 	# cascadelakeとicelakeとの違いがあるのかは知らないので、cascadelakeのみでいいや。
 

@@ -5,84 +5,230 @@ on:
     tags:
       # 動作条件を変えたい場合、 workflow-syntax-for-github-actions#フィルタパターンのチートシート 参照。
       # https://docs.github.com/ja/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions
-      - 'v*'
-      - 'V*'
+      - "v*"
+      - "V*"
 
 jobs:
-
-  build-windows:
+  build-msys2-windows:
     # ubuntu-latest = windows-2019
     # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
     runs-on: windows-latest
 
     strategy:
       matrix:
-        target: [ normal, tournament, evallearn, gensfen ]
-        archcpu: [ 'ZEN2,ZEN1,AVX512VNNI,AVX512,AVX2,SSE42', 'SSE41,SSSE3,SSE2,NO_SSE', 'ZEN3,AVXVNNI,OTHER' ]
+        target: [normal, tournament, evallearn, gensfen]
+        archcpu:
+          [
+            "ZEN2,ZEN1,AVX512VNNI,AVX512,AVX2,SSE42",
+            "SSE41,SSSE3,SSE2,NO_SSE",
+            "ZEN3,AVXVNNI,OTHER",
+          ]
         edition:
-          - 'YANEURAOU_ENGINE_NNUE,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256'
-          - 'YANEURAOU_ENGINE_KPPT,YANEURAOU_ENGINE_KPP_KKPT'
+          - "YANEURAOU_ENGINE_NNUE,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256"
+          - "YANEURAOU_ENGINE_KPPT,YANEURAOU_ENGINE_KPP_KKPT"
           - YANEURAOU_ENGINE_MATERIAL*
-          - MATE_ENGINE
+          - YANEURAOU_MATE_ENGINE
+          - TANUKI_MATE_ENGINE
           - USER_ENGINE
-        compiler: [ clang++, g++ ]
+        compiler: [clang++, g++]
         exclude:
           # Release target exclude: edition USER_ENGINE
           - edition: USER_ENGINE
-          # Release target exclude: compiler g++
+          # Release target exclude: compiler g++ normal/tournament
           - compiler: g++
+            target: normal
+          - compiler: g++
+            target: tournament
+          # Release target exclude: compiler clang++ evallearn/gensfen
+          - compiler: clang++
+            target: evallearn
+          - compiler: clang++
+            target: gensfen
           # Release target exclude: archcpu ZEN3,AVXVNNI,OTHER
           # `-march=cascadelake`: LLVM8, GCC9 support (AVX512VNNI)
           # `-march=alderlake` : LLVM12, GCC11 support (AVX-VNNI)
           # `-march=znver3`: LLVM12 support
-          - archcpu: 'ZEN3,AVXVNNI,OTHER'
+          - archcpu: "ZEN3,AVXVNNI,OTHER"
           # Release target exclude: archcpu 'SSE41,SSSE3,SSE2,NO_SSE' and target 'tournament,evallearn'
           - target: tournament
-            archcpu: 'SSE41,SSSE3,SSE2,NO_SSE'
+            archcpu: "SSE41,SSSE3,SSE2,NO_SSE"
           - target: evallearn
-            archcpu: 'SSE41,SSSE3,SSE2,NO_SSE'
+            archcpu: "SSE41,SSSE3,SSE2,NO_SSE"
           - target: gensfen
-            archcpu: 'SSE41,SSSE3,SSE2,NO_SSE'
+            archcpu: "SSE41,SSSE3,SSE2,NO_SSE"
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
           - edition: YANEURAOU_ENGINE_MATERIAL*
             target: evallearn
-          - edition: MATE_ENGINE
+          - edition: YANEURAOU_MATE_ENGINE
+            target: evallearn
+          - edition: TANUKI_MATE_ENGINE
             target: evallearn
           - edition: USER_ENGINE
             target: evallearn
           # 以下のエディションはgensfenに対応しない
-          - edition: MATE_ENGINE
+          - edition: YANEURAOU_MATE_ENGINE
+            target: gensfen
+          - edition: TANUKI_MATE_ENGINE
+            target: gensfen
+          - edition: USER_ENGINE
+            target: gensfen
+          # 以下のエディションは別途build
+          - edition: YANEURAOU_ENGINE_MATERIAL*
+    steps:
+      - name: Checkout own repository
+        uses: actions/checkout@v2
+        with:
+          path: main
+
+      - name: Install pkg
+        run: |
+          $ErrorActionPreference = 'Continue'
+          C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu'
+          C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu'
+          C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu pactoys-git'
+          C:\msys64\usr\bin\bash.exe -lc 'pacboy --needed --noconfirm -Sy clang:m openblas:x openmp:x toolchain:m base-devel:'
+          $ErrorActionPreference = 'Stop'
+
+      - name: make
+        run: |
+          $env:PATH+=';C:\msys64';
+          .\main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
+        shell: pwsh
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-windows_${{ github.run_number }}_${{ github.sha }}
+          path: ./main/build/**/*
+
+  build-msys2-material-windows:
+    # ubuntu-latest = windows-2019
+    # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        target: [normal, tournament, evallearn, gensfen]
+        archcpu:
+          [
+            ZEN2,
+            ZEN1,
+            AVX2,
+            SSE42,
+            SSE2,
+            NO_SSE,
+          ]
+        edition:
+          - YANEURAOU_ENGINE_MATERIAL*
+        compiler: [clang++, g++]
+        exclude:
+          # Release target exclude: edition USER_ENGINE
+          - edition: USER_ENGINE
+          # Release target exclude: compiler g++ normal/tournament
+          - compiler: g++
+            target: normal
+          - compiler: g++
+            target: tournament
+          # Release target exclude: compiler clang++ evallearn/gensfen
+          - compiler: clang++
+            target: evallearn
+          - compiler: clang++
+            target: gensfen
+          # Release target exclude: archcpu 'SSE2,NO_SSE' and target 'tournament,evallearn'
+          - target: tournament
+            archcpu: SSE2
+          - target: evallearn
+            archcpu: SSE2
+          - target: gensfen
+            archcpu: SSE2
+          - target: tournament
+            archcpu: NO_SSE
+          - target: evallearn
+            archcpu: NO_SSE
+          - target: gensfen
+            archcpu: NO_SSE
+          # 以下のエディションには機械学習の実装が存在しない
+          # There is no machine learning implementation for the following editions
+          - edition: YANEURAOU_ENGINE_MATERIAL*
+            target: evallearn
+          - edition: YANEURAOU_MATE_ENGINE
+            target: evallearn
+          - edition: TANUKI_MATE_ENGINE
+            target: evallearn
+          - edition: USER_ENGINE
+            target: evallearn
+          # 以下のエディションはgensfenに対応しない
+          - edition: YANEURAOU_MATE_ENGINE
+            target: gensfen
+          - edition: TANUKI_MATE_ENGINE
             target: gensfen
           - edition: USER_ENGINE
             target: gensfen
 
     steps:
-    - name: Checkout own repository
-      uses: actions/checkout@v2
-      with:
-        path: main
+      - name: Checkout own repository
+        uses: actions/checkout@v2
+        with:
+          path: main
 
-    - name: Install pkg
-      run: |
-        C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Sy pactoys-git'
-        C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Sy pactoys-git'
-        C:\msys64\usr\bin\bash.exe -lc 'pacboy --needed --noconfirm -S clang:m openblas:m openmp:m toolchain:m base-devel: msys2-devel:'
+      - name: Install pkg
+        run: |
+          $ErrorActionPreference = 'Continue'
+          C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu'
+          C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu'
+          C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu pactoys-git'
+          C:\msys64\usr\bin\bash.exe -lc 'pacboy --needed --noconfirm -Sy clang:m openblas:x openmp:x toolchain:m base-devel:'
+          $ErrorActionPreference = 'Stop'
 
-    - name: make
-      run: |
-        $env:PATH+=';C:\msys64';
-        .\main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
+      - name: make
+        run: |
+          $env:PATH+=';C:\msys64';
+          .\main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
+        shell: pwsh
 
-    - uses: actions/upload-artifact@v2
-      with:
-        name: build-windows
-        path: ./main/build/**/*
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-material-windows_${{ github.run_number }}_${{ github.sha }}
+          path: ./main/build/**/*
+
+  build-deep-windows:
+    # ubuntu-latest = windows-2019
+    # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
+    runs-on: windows-latest
+
+    steps:
+      - uses: nuget/setup-nuget@v1
+        with:
+          nuget-version: '5.x'
+
+      - uses: microsoft/setup-msbuild@v1
+
+      - name: Checkout own repository
+        uses: actions/checkout@v2
+        with:
+          path: main
+
+      - name: Install pkg
+        run: nuget.exe restore YaneuraOu.sln
+        working-directory: main
+
+      - name: make
+        run: |
+          MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-DML /p:Platform=x64
+          MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-CPU /p:Platform=x64
+          MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-MKL /p:Platform=x64
+        working-directory: main
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-deep-windows_${{ github.run_number }}_${{ github.sha }}
+          path: ./main/build/**/*
 
   build-android:
-    # ubuntu-latest = ubuntu-18.04
+    # ubuntu-latest = ubuntu-18.04 => ubuntu-20.04
+    # https://github.com/actions/virtual-environments/issues/1816
     # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     strategy:
       matrix:
@@ -93,37 +239,43 @@ jobs:
           - YANEURAOU_ENGINE_KPPT
           - YANEURAOU_ENGINE_KPP_KKPT
           - YANEURAOU_ENGINE_MATERIAL*
-          - MATE_ENGINE
+          - YANEURAOU_MATE_ENGINE
+          - TANUKI_MATE_ENGINE
           - USER_ENGINE
         exclude:
           # Release target exclude: edition USER_ENGINE
           - edition: USER_ENGINE
 
     steps:
-    - name: Setup Android NDK r21d
-      uses: nttld/setup-ndk@v1
-      with:
-        ndk-version: r21d
+      - name: Setup Android NDK r21d
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r21d
 
-    - name: Checkout own repository
-      uses: actions/checkout@v2
-      with:
-        path: main
+      - name: Checkout own repository
+        uses: actions/checkout@v2
+        with:
+          path: main
 
-    - name: ndk-build
-      run: ./main/script/android_build.sh -e ${{ matrix.edition }}
+      - name: ndk-build
+        run: ./main/script/android_build.sh -e ${{ matrix.edition }}
 
-    - uses: actions/upload-artifact@v2
-      with:
-        name: build-android
-        path: ./main/build/**/*
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-android_${{ github.run_number }}_${{ github.sha }}
+          path: ./main/build/**/*
 
   release-pkg:
     name: Release package
     needs:
-      - build-windows
+      - build-msys2-windows
+      - build-msys2-material-windows
+      - build-deep-windows
       - build-android
-    runs-on: ubuntu-latest
+    # ubuntu-latest = ubuntu-18.04 => ubuntu-20.04
+    # https://github.com/actions/virtual-environments/issues/1816
+    # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
+    runs-on: ubuntu-20.04
     steps:
       - name: Set version
         id: version
@@ -138,44 +290,72 @@ jobs:
       - name: Download artifact to get build-windows
         uses: actions/download-artifact@v2
         with:
-          name: build-windows
-          path: release
+          name: build-windows_${{ github.run_number }}_${{ github.sha }}
+          path: release-windows
+      - name: Download artifact to get build-material-windows
+        uses: actions/download-artifact@v2
+        with:
+          name: build-material-windows_${{ github.run_number }}_${{ github.sha }}
+          path: release-material-windows
+      - name: Download artifact to get build-deep-windows
+        uses: actions/download-artifact@v2
+        with:
+          name: build-deep-windows_${{ github.run_number }}_${{ github.sha }}
+          path: release-deep-windows
       - name: Download artifact to get build-android
         uses: actions/download-artifact@v2
         with:
-          name: build-android
-          path: release
+          name: build-android_${{ github.run_number }}_${{ github.sha }}
+          path: release-android
       - name: Display structure of downloaded files
-        run: ls -R
-        working-directory: release
+        run: ls -R release-windows release-material-windows release-deep-windows release-android
       - name: copy docs
         run: |
-          cp main/Copying.txt release/windows
-          cp -r main/source/ release/windows
-          cp -r main/docs/ release/windows
-          cp main/Copying.txt release/android
-          cp -r main/source/ release/andorid
-          cp -r main/docs/ release/android
-      - name: Display structure of release files
-        run: ls -R
-        working-directory: release
+          cp main/Copying.txt release-windows/windows
+          cp -r main/source/ release-windows/windows
+          cp -r main/docs/ release-windows/windows
+          cp main/Copying.txt release-material-windows/windows
+          cp -r main/source/ release-material-windows/windows
+          cp -r main/docs/ release-material-windows/windows
+          cp main/Copying.txt release-deep-windows
+          cp -r main/source/ release-deep-windows
+          cp -r main/docs/ release-deep-windows
+          cp main/Copying.txt release-android/android
+          cp -r main/source/ release-android/andorid
+          cp -r main/docs/ release-android/android
+      - name: Display structure of downloaded files
+        run: ls -R release-windows release-material-windows release-deep-windows release-android
       - name: make build-windows zip/7z
         run: |
           7z a -tzip build-windows.zip windows
           7z a -t7z build-windows.7z windows
-        working-directory: release
+        working-directory: release-windows
+      - name: make build-material-windows zip/7z
+        run: |
+          7z a -tzip build-material-windows.zip windows
+          7z a -t7z build-material-windows.7z windows
+        working-directory: release-material-windows
+      - name: make build-deep-windows zip/7z
+        run: |
+          7z a -tzip build-deep-windows.zip Deep-* source docs Copying.txt
+          7z a -t7z build-deep-windows.7z Deep-* source docs Copying.txt
+        working-directory: release-deep-windows
       - name: make build-android zip/7z
         run: |
           7z a -tzip build-android.zip android
           7z a -t7z build-android.7z android
-        working-directory: release
+        working-directory: release-android
       - name: Archive Size
         id: archive_size
         run: |
-          echo ::set-output name=windows_zip::$(stat -c%s "release/build-windows.zip" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
-          echo ::set-output name=windows_7z::$(stat -c%s "release/build-windows.7z" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
-          echo ::set-output name=android_zip::$(stat -c%s "release/build-android.zip" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
-          echo ::set-output name=android_7z::$(stat -c%s "release/build-android.7z" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=windows_zip::$(stat -c%s "release-windows/build-windows.zip" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=windows_7z::$(stat -c%s "release-windows/build-windows.7z" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=material_windows_zip::$(stat -c%s "release-material-windows/build-material-windows.zip" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=material_windows_7z::$(stat -c%s "release-material-windows/build-material-windows.7z" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=deep_windows_zip::$(stat -c%s "release-deep-windows/build-deep-windows.zip" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=deep_windows_7z::$(stat -c%s "release-deep-windows/build-deep-windows.7z" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=android_zip::$(stat -c%s "release-android/build-android.zip" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=android_7z::$(stat -c%s "release-android/build-android.7z" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
@@ -192,35 +372,62 @@ jobs:
             2. KPP_KKPT型
             3. NNUE型
               a. 標準NNUE(HalfKP)型
-              b. HalfKPE9型 cf. [NNUE-HalfKPE9](https://github.com/tttak/YaneuraOu/releases/tag/V4.89_NNUE-HalfKPE9)
-              c. K-P型 cf. [魚沼産やねうら王できました](http://yaneuraou.yaneu.com/2019/02/12/%e9%ad%9a%e6%b2%bc%e7%94%a3%e3%82%84%e3%81%ad%e3%81%86%e3%82%89%e7%8e%8b%e3%81%a7%e3%81%8d%e3%81%be%e3%81%97%e3%81%9f/)
-            4. MaterialLv1～6
+              b. HalfKPE9型
+                 cf. [NNUE-HalfKPE9](https://github.com/tttak/YaneuraOu/releases/tag/V4.89_NNUE-HalfKPE9)
+              c. K-P型
+                 cf. [魚沼産やねうら王できました](http://yaneuraou.yaneu.com/2019/02/12/%e9%ad%9a%e6%b2%bc%e7%94%a3%e3%82%84%e3%81%ad%e3%81%86%e3%82%89%e7%8e%8b%e3%81%a7%e3%81%8d%e3%81%be%e3%81%97%e3%81%9f/)
+            4. MaterialLv1～9
               a. MaterialLv1 駒得のみ
               b. MaterialLv2 駒得＋手駒評価
-                [【連載】評価関数を作ってみよう！その1](http://yaneuraou.yaneu.com/2020/11/17/make-evaluate-function/)
+                cf. [【連載】評価関数を作ってみよう！その1](http://yaneuraou.yaneu.com/2020/11/17/make-evaluate-function/)
               c. MaterialLv3 ＋盤上の利きを評価
-                [【連載】評価関数を作ってみよう！その2](http://yaneuraou.yaneu.com/2020/11/19/make-evaluate-function-2/)
-                [【連載】評価関数を作ってみよう！その3](http://yaneuraou.yaneu.com/2020/11/20/make-evaluate-function-3/)
-                [【連載】評価関数を作ってみよう！その4](http://yaneuraou.yaneu.com/2020/11/23/make-evaluate-function-4/)
+                cf. [【連載】評価関数を作ってみよう！その2](http://yaneuraou.yaneu.com/2020/11/19/make-evaluate-function-2/)
+                cf. [【連載】評価関数を作ってみよう！その3](http://yaneuraou.yaneu.com/2020/11/20/make-evaluate-function-3/)
+                cf. [【連載】評価関数を作ってみよう！その4](http://yaneuraou.yaneu.com/2020/11/23/make-evaluate-function-4/)
               d. MaterialLv4 ＋複数の利きに減衰評価
-                [【連載】評価関数を作ってみよう！その5](http://yaneuraou.yaneu.com/2020/11/25/make-evaluate-function-5/)
+                cf. [【連載】評価関数を作ってみよう！その5](http://yaneuraou.yaneu.com/2020/11/25/make-evaluate-function-5/)
               e. MaterialLv5 ＋利きの価値合算テーブル
-                [【連載】評価関数を作ってみよう！その6](http://yaneuraou.yaneu.com/2020/11/26/make-evaluate-function-6/)
+                cf. [【連載】評価関数を作ってみよう！その6](http://yaneuraou.yaneu.com/2020/11/26/make-evaluate-function-6/)
               f. MaterialLv6 ＋KKPEE9テーブルに一本化
-                [【連載】評価関数を作ってみよう！その7](http://yaneuraou.yaneu.com/2020/11/27/make-evaluate-function-7/)
-            5. tanuki-詰将棋エンジン
+                cf. [【連載】評価関数を作ってみよう！その7](http://yaneuraou.yaneu.com/2020/11/27/make-evaluate-function-7/)
+              g. MaterialLv7 ＋味方・敵の駒の利きによる加減
+                cf. [【連載】評価関数を作ってみよう！その8](http://yaneuraou.yaneu.com/2020/11/30/make-evaluate-function-8/)
+              h. MaterialLv8 ＋玉近傍への味方駒の利きと駒の有無、玉位置加点
+                cf. [【連載】評価関数を作ってみよう！その9](http://yaneuraou.yaneu.com/2020/12/01/make-evaluate-function-9/)
+                cf. [【連載】評価関数を作ってみよう！その10](http://yaneuraou.yaneu.com/2020/12/02/make-evaluate-function-10/)
+              i. MaterialLv9 ＋方角ごとの利き評価
+                cf. [【連載】評価関数を作ってみよう！その11](http://yaneuraou.yaneu.com/2020/12/07/make-evaluate-function-11/)
+            5. YaneuraOu詰将棋エンジン
+               cf. [やねうら王詰将棋エンジンを公開しました](http://yaneuraou.yaneu.com/2020/12/29/yaneuraou-mate-solver/)
+            6. tanuki-詰将棋エンジン
+            7. ふかうら王(dlshogi互換エンジン)
+              cf. [ふかうら王(dlshogi互換エンジン) Technology Preview #1](http://yaneuraou.yaneu.com/2020/12/17/fukauraou-technology-preview01/)
 
             に対する
 
             - [${{ steps.version.outputs.filename }}-windows.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-windows.zip) (${{ steps.archive_size.outputs.windows_zip }})
             - [${{ steps.version.outputs.filename }}-windows.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-windows.7z) (${{ steps.archive_size.outputs.windows_7z }})
-              - 実行ファイルWindows版 各CPU向け(ZEN2/ZEN1/AVX512VNNI/AVX512/AVX2/SSE4.2/SSE4.1/SSSE3/SSE2/32bit環境用)
-              - トーナメントWindows版 (ZEN2/ZEN1/AVX512VNNI/AVX512/AVX2/SSE4.2)
-              - 教師生成用実行ファイルWindows版 (ZEN2/ZEN1/AVX512VNNI/AVX512/AVX2/SSE4.2)
+              - 1.2.3.5.6.の実行ファイルWindows版 各CPU向け(ZEN2/ZEN1/AVX512VNNI/AVX512/AVX2/SSE4.2/SSE4.1/SSSE3/SSE2/32bit環境用)
+              - 1.2.3.5.6.のトーナメントWindows版 (ZEN2/ZEN1/AVX512VNNI/AVX512/AVX2/SSE4.2)
+              - 1.2.3.の教師生成用実行ファイルWindows版 (ZEN2/ZEN1/AVX512VNNI/AVX512/AVX2/SSE4.2)
               - 1.2.3.の学習用実行ファイルWindows版 (ZEN2/ZEN1/AVX512VNNI/AVX512/AVX2/SSE4.2)
+            - [${{ steps.version.outputs.filename }}-material-windows.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-material-windows.zip) (${{ steps.archive_size.outputs.material_windows_zip }})
+            - [${{ steps.version.outputs.filename }}-material-windows.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-material-windows.7z) (${{ steps.archive_size.outputs.material_windows_7z }})
+              - 4.の実行ファイルWindows版 各CPU向け(ZEN2/ZEN1/AVX2/SSE4.2/SSE2/32bit環境用)
+              - 4.のトーナメントWindows版 (ZEN2/ZEN1/AVX2/SSE4.2)
+              - 4.の教師生成用実行ファイルWindows版 (ZEN2/ZEN1/AVX2/SSE4.2)
+            - [${{ steps.version.outputs.filename }}-deep-windows.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-deep-windows.zip) (${{ steps.archive_size.outputs.deep_windows_zip }})
+            - [${{ steps.version.outputs.filename }}-deep-windows.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-deep-windows.7z) (${{ steps.archive_size.outputs.deep_windows_7z }})
+              - 7.の実行ファイルWindows版 (AVX2)
+                - ORT-CPU : ONNX Runtime (ORT) のデフォルト、CPU向け。（MKL向けの設定を別途適切に行えば、おそらくORT-MKLのが高速）
+                - ORT-MKL : Intel(R) Math Kernel Library (MKL) を使用、CPU向け。
+                  cf. [ONNX Runtimeを使ってみる その2(性能測定)](https://tadaoyamaoka.hatenablog.com/entry/2020/06/06/190259)
+                - ORT-DML : Windows 10 DirectML (DML) 対応のGPU向け。（対応環境であればおそらくTensorRTのが高速）
+                  cf. [DirectML の概要](https://docs.microsoft.com/ja-jp/windows/win32/direct3d12/dml-intro)
+                - ~~TensorRT : TensorRT 対応、NVIDIA GPU向け。~~ 現在、TensorRT版は自動ビルドの対象外です。
             - [${{ steps.version.outputs.filename }}-android.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-android.zip) (${{ steps.archive_size.outputs.android_zip }})
             - [${{ steps.version.outputs.filename }}-android.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-android.7z) (${{ steps.archive_size.outputs.android_7z }})
-              - 実行ファイルAndroid版 各CPU向け(arm64-v8a/armeabi-v7a/x86_64/x86)
+              - 1.2.3.4.5.の実行ファイルAndroid版 各CPU向け(arm64-v8a/armeabi-v7a/x86_64/x86)
 
             使い方などは添付ファイルの中にある
             docs
@@ -235,17 +442,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release/build-windows.zip
+          asset_path: release-windows/build-windows.zip
           asset_name: ${{ steps.version.outputs.filename }}-windows.zip
-          asset_content_type: application/zip
-      - name: Upload release asset build-android.zip
-        uses: actions/upload-release-asset@v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release/build-android.zip
-          asset_name: ${{ steps.version.outputs.filename }}-android.zip
           asset_content_type: application/zip
       - name: Upload release asset build-windows.7z
         uses: actions/upload-release-asset@v1.0.1
@@ -253,16 +451,60 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release/build-windows.7z
+          asset_path: release-windows/build-windows.7z
           asset_name: ${{ steps.version.outputs.filename }}-windows.7z
           asset_content_type: application/octet-stream
+      - name: Upload release asset build-material-windows.zip
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-material-windows/build-material-windows.zip
+          asset_name: ${{ steps.version.outputs.filename }}-material-windows.zip
+          asset_content_type: application/zip
+      - name: Upload release asset build-material-windows.7z
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-material-windows/build-material-windows.7z
+          asset_name: ${{ steps.version.outputs.filename }}-material-windows.7z
+          asset_content_type: application/octet-stream
+      - name: Upload release asset build-deep-windows.zip
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-deep-windows/build-deep-windows.zip
+          asset_name: ${{ steps.version.outputs.filename }}-deep-windows.zip
+          asset_content_type: application/zip
+      - name: Upload release asset build-deep-windows.7z
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-deep-windows/build-deep-windows.7z
+          asset_name: ${{ steps.version.outputs.filename }}-deep-windows.7z
+          asset_content_type: application/octet-stream
+      - name: Upload release asset build-android.zip
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-android/build-android.zip
+          asset_name: ${{ steps.version.outputs.filename }}-android.zip
+          asset_content_type: application/zip
       - name: Upload release asset build-android.7z
         uses: actions/upload-release-asset@v1.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release/build-android.7z
+          asset_path: release-android/build-android.7z
           asset_name: ${{ steps.version.outputs.filename }}-android.7z
           asset_content_type: application/octet-stream
-

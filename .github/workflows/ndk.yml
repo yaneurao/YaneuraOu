@@ -4,16 +4,17 @@ name: NDK CI (for Android)
 on:
   push:
     branches:
-      - '**'
+      - "**"
   pull_request:
     branches:
-      - '**'
+      - "**"
 
 jobs:
-  build:
-    # ubuntu-latest = ubuntu-18.04
+  build-android:
+    # ubuntu-latest = ubuntu-18.04 => ubuntu-20.04
+    # https://github.com/actions/virtual-environments/issues/1816
     # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     strategy:
       matrix:
@@ -24,24 +25,26 @@ jobs:
           - YANEURAOU_ENGINE_KPPT
           - YANEURAOU_ENGINE_KPP_KKPT
           - YANEURAOU_ENGINE_MATERIAL*
-          - MATE_ENGINE
+          - YANEURAOU_MATE_ENGINE
+          - TANUKI_MATE_ENGINE
           - USER_ENGINE
 
     steps:
-    - name: Setup Android NDK r21d
-      uses: nttld/setup-ndk@v1
-      with:
-        ndk-version: r21d
+      # https://developer.android.com/ndk/downloads?hl=ja#stable-downloads
+      - name: Setup Android NDK r21b
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r21b
 
-    - name: Checkout own repository
-      uses: actions/checkout@v2
-      with:
-        path: main
+      - name: Checkout own repository
+        uses: actions/checkout@v2
+        with:
+          path: main
 
-    - name: ndk-build
-      run: ./main/script/android_build.sh -e ${{ matrix.edition }}
+      - name: ndk-build
+        run: ./main/script/android_build.sh -e ${{ matrix.edition }}
 
-    - uses: actions/upload-artifact@v2
-      with:
-        name: build-android
-        path: ./main/build/**/*
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-android_${{ github.run_number }}_${{ github.sha }}
+          path: ./main/build/**/*

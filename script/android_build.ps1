@@ -30,8 +30,50 @@ Push-Location (Join-Path $PSScriptRoot ..);
     Dir = ".\build\android\MaterialLv1";
   };
   @{
-    EDITION = "MATE_ENGINE";
-    Dir = ".\build\android\MATE";
+    EDITION = "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=2";
+    Dir = ".\build\android\MaterialLv2";
+  };
+  @{
+    EDITION = "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=3";
+    Dir = ".\build\android\MaterialLv3";
+  };
+  @{
+    EDITION = "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=4";
+    Dir = ".\build\android\MaterialLv4";
+  };
+  @{
+    EDITION = "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=5";
+    Dir = ".\build\android\MaterialLv5";
+  };
+  @{
+    EDITION = "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=6";
+    Dir = ".\build\android\MaterialLv6";
+  };
+  @{
+    EDITION = "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=7";
+    Dir = ".\build\android\MaterialLv7";
+  };
+  @{
+    EDITION = "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=8";
+    Dir = ".\build\android\MaterialLv8";
+  };
+  @{
+    EDITION = "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=9";
+    Dir = ".\build\android\MaterialLv9";
+  };
+<#
+  @{
+    EDITION = "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=10";
+    Dir = ".\build\android\MaterialLv10";
+  };
+#>
+  @{
+    EDITION = "YANEURAOU_MATE_ENGINE";
+    Dir = ".\build\android\YaneuraOu_MATE";
+  };
+  @{
+    EDITION = "TANUKI_MATE_ENGINE";
+    Dir = ".\build\android\tanuki_MATE";
   };
   @{
     EDITION = "USER_ENGINE";

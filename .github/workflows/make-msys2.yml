@@ -4,13 +4,13 @@ name: Make CI (MSYS2 for Windows)
 on:
   push:
     branches:
-      - '**'
+      - "**"
   pull_request:
     branches:
-      - '**'
+      - "**"
 
 jobs:
-  build:
+  build-msys2-windows:
     # ubuntu-latest = windows-2019
     # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
     runs-on: windows-latest
@@ -24,22 +24,32 @@ jobs:
           - YANEURAOU_ENGINE_KPPT
           - YANEURAOU_ENGINE_KPP_KKPT
           - YANEURAOU_ENGINE_MATERIAL*
-          - MATE_ENGINE
+          - YANEURAOU_MATE_ENGINE
+          - TANUKI_MATE_ENGINE
           - USER_ENGINE
-        compiler: [ clang++, g++ ]
-        target: [ 'normal,tournament', gensfen, evallearn ]
-        archcpu: [ 'AVX512VNNI,AVX512,AVX2,SSE42,SSE41,SSSE3,SSE2,ZEN1,ZEN2', NO_SSE, 'ZEN3,AVXVNNI,OTHER' ]
+        compiler: [clang++, g++]
+        target: ["normal,tournament", gensfen, evallearn]
+        archcpu:
+          [
+            "AVX512VNNI,AVX512,AVX2,SSE42,SSE41,SSSE3,SSE2,ZEN1,ZEN2",
+            NO_SSE,
+            "ZEN3,AVXVNNI,OTHER",
+          ]
         exclude:
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
           - edition: YANEURAOU_ENGINE_MATERIAL*
             target: evallearn
-          - edition: MATE_ENGINE
+          - edition: YANEURAOU_MATE_ENGINE
+            target: evallearn
+          - edition: TANUKI_MATE_ENGINE
             target: evallearn
           - edition: USER_ENGINE
             target: evallearn
           # 以下のエディションはgensfenに対応しない
-          - edition: MATE_ENGINE
+          - edition: YANEURAOU_MATE_ENGINE
+            target: gensfen
+          - edition: TANUKI_MATE_ENGINE
             target: gensfen
           - edition: USER_ENGINE
             target: gensfen
@@ -53,30 +63,35 @@ jobs:
           # https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
           # https://gcc.gnu.org/pipermail/gcc-patches/2020-October/556110.html
           # https://twitter.com/herumi/status/1318418425295720448
-          - archcpu: 'ZEN3,AVXVNNI,OTHER'
-          # MSYS2 MINGW32 clang++ ではOpenMPのリンクが出来ないのでgensfenを除外
-          - compiler: clang++
-            target: gensfen
+          - archcpu: "ZEN3,AVXVNNI,OTHER"
+          # NO_SSEではevallearn,gensfenビルドを除外
+          - target: evallearn
+            archcpu: NO_SSE
+          - target: gensfen
             archcpu: NO_SSE
 
     steps:
-    - name: Checkout own repository
-      uses: actions/checkout@v2
-      with:
-        path: main
+      - name: Checkout own repository
+        uses: actions/checkout@v2
+        with:
+          path: main
 
-    - name: Install pkg
-      run: |
-        C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Sy pactoys-git'
-        C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Sy pactoys-git'
-        C:\msys64\usr\bin\bash.exe -lc 'pacboy --needed --noconfirm -S clang:m openblas:m openmp:m toolchain:m base-devel: msys2-devel:'
+      - name: Install pkg
+        run: |
+          $ErrorActionPreference = 'Continue'
+          C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu'
+          C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu'
+          C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu pactoys-git'
+          C:\msys64\usr\bin\bash.exe -lc 'pacboy --needed --noconfirm -Sy clang:m openblas:x openmp:x toolchain:m base-devel:'
+          $ErrorActionPreference = 'Stop'
 
-    - name: make
-      run: |
-        $env:PATH+=';C:\msys64';
-        .\main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
+      - name: make
+        run: |
+          $env:PATH+=';C:\msys64';
+          .\main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
+        shell: pwsh
 
-    - uses: actions/upload-artifact@v2
-      with:
-        name: build-windows
-        path: ./main/build/**/*
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-windows_${{ github.run_number }}_${{ github.sha }}
+          path: ./main/build/**/*

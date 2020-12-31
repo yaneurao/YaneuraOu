@@ -108,32 +108,32 @@ namespace Eval::dlshogi
 		auto builder = InferUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(gLogger));
 		if (!builder)
 		{
-			throw std::runtime_error("createInferBuilder");
+			FatalError("createInferBuilder");
 		}
 
 		const auto explicitBatch = 1U << static_cast<uint32_t>(nvinfer1::NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
 		auto network = InferUniquePtr<nvinfer1::INetworkDefinition>(builder->createNetworkV2(explicitBatch));
 		if (!network)
 		{
-			throw std::runtime_error("createNetworkV2");
+			FatalError("createNetworkV2");
 		}
 
 		auto config = InferUniquePtr<nvinfer1::IBuilderConfig>(builder->createBuilderConfig());
 		if (!config)
 		{
-			throw std::runtime_error("createBuilderConfig");
+			FatalError("createBuilderConfig");
 		}
 
 		auto parser = InferUniquePtr<nvonnxparser::IParser>(nvonnxparser::createParser(*network, gLogger));
 		if (!parser)
 		{
-			throw std::runtime_error("createParser");
+			FatalError("createParser");
 		}
 
 		auto parsed = parser->parseFromFile(onnx_filename.c_str(), (int)nvinfer1::ILogger::Severity::kWARNING);
 		if (!parsed)
 		{
-			throw std::runtime_error("parseFromFile");
+			FatalError("parseFromFile");
 		}
 
 		builder->setMaxBatchSize(max_batch_size);
@@ -189,7 +189,7 @@ namespace Eval::dlshogi
 		engine.reset(builder->buildEngineWithConfig(*network, *config));
 		if (!engine)
 		{
-			throw std::runtime_error("buildEngineWithConfig");
+			FatalError("buildEngineWithConfig");
 		}
 	}
 

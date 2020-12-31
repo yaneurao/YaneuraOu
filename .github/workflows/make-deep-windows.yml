@@ -1,0 +1,44 @@
+# deep-learning windows build
+name: Make CI (DeepLearning for Windows)
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+
+jobs:
+  build-deep-windows:
+    # ubuntu-latest = windows-2019
+    # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
+    runs-on: windows-latest
+
+    steps:
+      - uses: nuget/setup-nuget@v1
+        with:
+          nuget-version: '5.x'
+
+      - uses: microsoft/setup-msbuild@v1
+
+      - name: Checkout own repository
+        uses: actions/checkout@v2
+        with:
+          path: main
+
+      - name: Install pkg
+        run: nuget.exe restore YaneuraOu.sln
+        working-directory: main
+
+      - name: make
+        run: |
+          MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-DML /p:Platform=x64
+          MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-CPU /p:Platform=x64
+          MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-MKL /p:Platform=x64
+        working-directory: main
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-deep-windows_${{ github.run_number }}_${{ github.sha }}
+          path: ./main/build/**/*

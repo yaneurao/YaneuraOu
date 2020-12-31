@@ -67,7 +67,7 @@ EXTRA_CPPFLAGS =
 # 001 : 普通の駒得のみの評価関数
 # 002 : …
 # cf.【連載】評価関数を作ってみよう！その1 : http://yaneuraou.yaneu.com/2020/11/17/make-evaluate-function/
-MATERIAL_LEVEL = 001
+MATERIAL_LEVEL = 1
 
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPPT)
   CPPFLAGS += -DUSE_MAKEFILE -DYANEURAOU_ENGINE_KPPT
@@ -79,9 +79,9 @@ ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPP_KKPT)
   ENGINE_NAME := YaneuraOu_KPP_KKPT
 endif
 
-ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_MATERIAL)
+ifeq ($(findstring YANEURAOU_ENGINE_MATERIAL,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_MATERIAL)
   CPPFLAGS += -DUSE_MAKEFILE -DYANEURAOU_ENGINE_MATERIAL
-  ENGINE_NAME := YaneuraOu_MaterialLv1
+  ENGINE_NAME := YaneuraOu_MaterialLv$(MATERIAL_LEVEL)
 endif
 
 ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_NNUE)
@@ -107,8 +107,13 @@ ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_
   endif
 endif
 
-ifeq ($(YANEURAOU_EDITION),MATE_ENGINE)
-  CPPFLAGS += -DUSE_MAKEFILE -DMATE_ENGINE
+ifeq ($(YANEURAOU_EDITION),YANEURAOU_MATE_ENGINE)
+  CPPFLAGS += -DUSE_MAKEFILE -DYANEURAOU_MATE_ENGINE
+  ENGINE_NAME := YaneuraOu_MATE
+endif
+
+ifeq ($(YANEURAOU_EDITION),TANUKI_MATE_ENGINE)
+  CPPFLAGS += -DUSE_MAKEFILE -DTANUKI_MATE_ENGINE
   ENGINE_NAME := tanuki_MATE
 endif
 
@@ -149,21 +154,26 @@ LOCAL_SRC_FILES := \
   ../source/movepick.cpp                                               \
   ../source/timeman.cpp                                                \
   ../source/benchmark.cpp                                              \
-  ../source/extra/book/apery_book.cpp                                  \
-  ../source/extra/book/book.cpp                                        \
-  ../source/extra/book/makebook2019.cpp                                \
+  ../source/book/apery_book.cpp                                        \
+  ../source/book/book.cpp                                              \
+  ../source/book/makebook.cpp                                          \
+  ../source/book/makebook2015.cpp                                      \
+  ../source/book/makebook2019.cpp                                      \
+  ../source/book/makebook2021.cpp                                      \
   ../source/extra/bitop.cpp                                            \
   ../source/extra/long_effect.cpp                                      \
-  ../source/extra/mate/mate1ply_with_effect.cpp                        \
-  ../source/extra/mate/mate1ply_without_effect.cpp                     \
-  ../source/extra/mate/mate_n_ply.cpp                                  \
-  ../source/extra/test_cmd.cpp                                         \
   ../source/extra/sfen_packer.cpp                                      \
-  ../source/extra/kif_converter/kif_convert_tools.cpp                  \
+  ../source/extra/super_sort.cpp                                       \
+  ../source/mate/mate.cpp                                              \
+  ../source/mate/mate1ply_without_effect.cpp                           \
+  ../source/mate/mate1ply_with_effect.cpp                              \
+  ../source/mate/mate_solver.cpp                                       \
+  ../source/mate/mate_test_cmd.cpp                                     \
   ../source/eval/evaluate_bona_piece.cpp                               \
   ../source/eval/evaluate.cpp                                          \
   ../source/eval/evaluate_io.cpp                                       \
   ../source/eval/evaluate_mir_inv_tools.cpp                            \
+  ../source/eval/material/evaluate_material.cpp                        \
   ../source/learn/learner.cpp                                          \
   ../source/learn/learning_tools.cpp                                   \
   ../source/learn/multi_think.cpp
@@ -185,8 +195,7 @@ endif
 
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_MATERIAL)
 LOCAL_SRC_FILES += \
-  ../source/engine/yaneuraou-engine/yaneuraou-search.cpp               \
-  ../source/eval/material/evaluate_material.cpp
+  ../source/engine/yaneuraou-engine/yaneuraou-search.cpp
 
 CPPFLAGS += -DMATERIAL_LEVEL=$(MATERIAL_LEVEL)
 endif
@@ -205,16 +214,19 @@ LOCAL_SRC_FILES += \
   ../source/engine/yaneuraou-engine/yaneuraou-search.cpp
 endif
 
-ifeq ($(YANEURAOU_EDITION),MATE_ENGINE)
+ifeq ($(YANEURAOU_EDITION),TANUKI_MATE_ENGINE)
 LOCAL_SRC_FILES += \
-  ../source/engine/mate-engine/mate-search.cpp                         \
-  ../source/eval/material/evaluate_material.cpp
+  ../source/engine/tanuki-mate-engine/tanuki-mate-search.cpp
+endif
+
+ifeq ($(YANEURAOU_EDITION),YANEURAOU_MATE_ENGINE)
+LOCAL_SRC_FILES += \
+  ../source/engine/yaneuraou-mate-engine/yaneuraou-mate-search.cpp
 endif
 
 ifeq ($(YANEURAOU_EDITION),USER_ENGINE)
 LOCAL_SRC_FILES += \
-  ../source/engine/user-engine/user-search.cpp                         \
-  ../source/eval/material/evaluate_material.cpp
+  ../source/engine/user-engine/user-search.cpp
 endif
 
 ifneq ($(ENGINE_NAME),)
@@ -224,15 +236,11 @@ endif
 # 開発用branch
 ifeq ($(findstring dev,$(ENGINE_BRANCH)),dev)
 CPPFLAGS += -DDEV_BRANCH
-LOCAL_SRC_FILES += \
-  ../source/extra/super_sort.cpp
 endif
 
 # abe
 ifeq ($(findstring abe,$(ENGINE_BRANCH)),abe)
-CPPFLAGS += -DPV_OUTPUT_DRAW_ONLY
-LOCAL_SRC_FILES += \
-  ../source/extra/super_sort.cpp
+CPPFLAGS += -DPV_OUTPUT_DRAW_ONLY -DFORCE_BIND_THIS_THREAD
 endif
 
 
