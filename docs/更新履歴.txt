@@ -1,13 +1,815 @@
 ﻿
 やねうら王 更新履歴
 
-	TODO:
-		https://github.com/yaneurao/YaneuraOu/pull/100
-		llvmのリンクオプション最適化
-		ちゃんと検証してからMakefile書き直す。
+
+■　2021/1/1
 
 
-■　2020/12/02
+- やねうら王 V6.00
+  - やねうら王 詰将棋エンジン追加
+    - df-pnを用いた新しい詰将棋ルーチンを用いたもの。
+    - 30手前後の詰将棋は従来のソフトより速く解ける(メモリはわりと必要)
+    - 詰み・不詰を100%間違わない。不詰(nomate)と出力された場合、100%不詰。
+    - 単玉問題に対応している。
+  - ふかうら王(dlshogi互換エンジン)追加
+    - CPU版、DirectML版、Intel MKL版、TensorRT版を用意。
+    - 強さ的には本家dlshogiと同等ぐらいのはず。
+    - MultiPVに対応している、やねうら王の定跡ファイルがそのまま使える、64スレッド超えにも対応しているなど、
+      本家dlshogiより優れている点もある。
+  - やねうら王の探索部の改良
+    - やねうら王V5.00から比べると+R100以上。
+    - PV(読み筋)を思考の最後に必ず出力するようにした。
+    - 詰将棋問題(実戦形式)の生成に対応。
+      - やねうら王公式からクリスマスプレゼントに詰将棋500万問を謹呈 : http://yaneuraou.yaneu.com/2020/12/25/christmas-present/
+    - 詰みを見つけてから、その2倍のdepthは回すようにしていたが、これだと最短手順を見つけられないことがあるので
+      2.5倍のdepthまで継続して探索するようにした。
+
+
+■　2020/12/31
+
+
+- 詰みを見つけた時にPVの出力を省略することがあったのを修正。
+  - issue #139 : https://github.com/yaneurao/YaneuraOu/issues/139
+    // おかしいのではと言われている局面
+    isready
+    sfen l6nl/6k2/+P3p2p1/1B1p1Pp1p/1p7/7nP/3P1SP1L/2+p3GK1/L6+r1 b B2G2S5Prgs2np 0
+    go btime 0 wtime 0 byoyomi 20000
+
+- PVはstopであろうとbyoyomiであろうと必ず最後に出力することにした。(ConsiderationModeの時は別だが)
+  - 電竜戦で、Qhapaqチームがやねうら王を合議に使ってmateの時にPVが出力されてなくて困ったという話があった。
+    http://qhapaq.hatenablog.com/entry/2020/11/22/085822
+
+- 詰みを見つけてから、その2倍のdepthは回すようにしていたが、これだと最短手順を見つけられないことがあるので
+  2.5倍のdepthまで継続して探索するようにした。
+
+
+- ふかうら王、子ノードの構造体からstd::mutexを取り除く。
+  - メモリ使用量10%ぐらい削減？
+  - dlshogiのbranch : https://github.com/TadaoYamaoka/DeepLearningShogi/compare/feature/new_node_manage
+  - 将棋AIの進捗 その52（探索部の改良）: https://tadaoyamaoka.hatenablog.com/entry/2020/12/30/113425
+  > インデックスはノードに保持しなくても、探索中の局面のハッシュから導出した方がメモリの節約になる（←Discordでのやねうら氏からの指摘）。
+
+
+- ふかうら王、UCBの定数をループの外で計算する
+  - dlshogi , UCBの定数をループの外で計算する : https://github.com/TadaoYamaoka/DeepLearningShogi/commit/f0b7710e16a5aa12af6c2004bf1bc9abcbf31f5e
+- VSのプロジェクト構成間違っていたの修正。
+  - Debug-Deep-ORT-CPUなど
+  - 直近のプルリクで追加されたもの
+- nn_types.hにあったincludeをnn_types.cppに移動
+- VSのプロジェクトのeval/dlshogiフィルター削除
+
+
+- .editorconfig #151
+    *.props: no insert final newline
+    Makefile: 4 tab indent
+    *.mk: 2 space indent
+    *.hpp: 4 tab indent
+  - Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/151
+
+
+-  badge for DeepLearning CI #150
+  - #149 依存
+  - README.md への DeepLearning CI ビルド結果バッジの表示部分です。
+  - Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/150
+
+
+- Pr cibuild #149
+    ビルドスクリプトの YANEURAOU_ENGINE_MATERIAL*, YANEURAOU_MATE_ENGINE 対応
+    GitHub自動ビルド用タスクランナーの修正
+    Ubuntu18.04 → Ubuntu20.04
+    DeepLearningビルド対応 (MSBuild)
+    ビルド対象タスクの調整
+    Releaseでの YANEURAOU_ENGINE_MATERIAL* の分離
+    DeepLearning Onnx Runtime版でのCPU版構成の追加
+    Onnx Runtimeソースコード内部での略称に倣い、Onnx Runtimeの略称を ONNX から ORT に変更
+    従来の ONNX ターゲットは ORT-DML (Onnx RunTime DirectML) に名称変更
+    ORT-CPU (比較的プレーンなCPU実行用)、ORT-MKL (Intel Math Kernel Library での高速化を図ったCPU実行用) を追加
+    DeepLearning 版を clang++/g++ 上でビルドするためのコード修正
+    指定不足ヘッダの補完
+    例外禁止を回避するため、throwを使って記述していた部分の措置
+      * - ORT-CPU, ORT-MKL, ORT-DML
+      従来のONNXはORT-DML (Onnx RunTime DirectML)にリネーム
+      ORT-CPU (ORTのCPUデフォルト動作) と ORT-MKL(Intel Math Kernel Library,
+      CPU向け)を追加
+    * - Makefile
+    * - Android.mk
+    * - build scripts
+    * - runner settings
+    * - deep fix
+  - Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/149
+
+
+- bench.py: PvInterval 0 #148
+    bench.py 実行時、エンジンオプションで PvInterval 0 を指定します。
+    実行画面への影響は特に無い部分ですが、
+    ファイルに出力されるログからPVをする時に役立つ場合もあるかと思います。
+  - Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/148
+
+
+■　2020/12/30
+
+
+- やねうら王詰将棋エンジン、単玉対応
+
+- magic bitboardで利きを求めるコード、盤外に玉がいる(SQ_NB)時に、飛車と角の利きがおかしくなるの修正。
+  - これ、Aperyのコードそのままなのに…。
+	  auto bb = rookEffect(SQ_NB,ZERO_BB);
+	  std::cout << bb << std::endl;
+  がなぜにZERO_BB相当でないのか…。
+
+  - 詰将棋ルーチンで単玉問題で解けないことがあったのはこれのせいで、攻め方の玉が盤外だと王手がかかっていると誤認識して、
+  回避かつ王手になる指し手がないということで1つ目のnodeで不詰だと返すことになっていたため。
+
+
+■　2020/12/29
+
+
+- ふかうら王、ponderhit後、bestmoveを返さない件、修正。
+  - Mizarさんからの報告。
+
+
+- ふかうら王、Technology Preview #02
+  - TensorRT対応(これはすでにMizarさんによって動作確認が完了しているみたい)
+  - leaf nodeで5手詰め
+    - MateSearchPlyエンジンオプション追加。
+		  leaf node(探索の末端の局面)での詰み探索を呼び出す時の手数
+		  奇数手詰めルーチンをを呼び出す。
+		  0 なら 奇数手詰めを呼び出さない。
+  - 宣言勝ち対応
+  - PonderMove、bestmove出力してたの修正。
+- やねうら王詰将棋エンジンの追加でコンパイルエラーになっていたの修正。
+
+
+
+- やねうら王詰将棋エンジン追加
+
+  メリット
+  ・置換表を使わないので、詰み・不詰を間違えない。
+  ・合流を処理しないので、千日手絡みのバグが起きようがない。
+  ・nps、置換表を使う実装と比べてわりと速い。
+  デメリット
+  ・メモリ凄い速度で消費する:face_vomiting: 
+  ・GC未実装
+
+- MATE_ENGINE →　TANUKI_MATE_ENGINE    // tanuki- 詰め将棋solver    (2017/05/06～)
+　に変更。
+
+- YANEURAOU_MATE_ENGINE                 // やねうら王 詰将棋solver (2020/12/29～)
+　追加。
+
+やねうら王詰将棋エンジンへのコマンドの例)
+  NodesLimit 10000
+  isready
+  sfen ln1gkg1nl/6+P2/2sppps1p/2p3p2/p8/P1P1P3P/2NP1PP2/3s1KSR1/L1+b2G1NL w R2Pbgp 42
+  go mate 100000
+
+  NodesLimit 0
+  isready
+  sfen l2g5/2s3g2/3k1p2p/P2pp2P1/1pP4s1/p1+B6/NP1P+nPS1P/K1G4+p1/L6NL b RBGNLPrs3p 1
+  go mate 100000
+
+- mate_dfpn32.cpp , mate_dfpn64.cpp統合
+  - mate_dfpn.hppに一本化
+  // 似たファイル２つあると保守が大変なので
+
+- USI::move(vector<Move>) 追加
+
+
+■　2020/12/28
+
+
+- DFPN詰将棋ルーチン、Clangでエラーが出ていたのを修正。
+- MateDfpnSolverInterfaceに仮想デストラクタ書くの忘れてたの修正。
+
+
+- DFPN詰将棋ルーチン実装
+  32bit版と64bit版を用意した。
+  オーダリングは実験中。
+  32bit版はメモリ使用量がおよそ半分で済むが、Node数が32bitまでしか扱えない。
+  // ふかうら王で使うために実装した。
+
+
+- mate_1ply()の両王手の時のバグ修正。
+  - dlshogiの山岡さんからの指摘。
+  - ただ、レアケースかつ、両王手・開き王手・離し飛車(角)の筋は、チェックはしてもしなくとも強さにほぼ影響がないので
+  この部分はコメントアウトしてしまうことにした。
+
+  engine1 = YaneuraOuNNUE_20201228.exe , eval = suishou_wcso1      ←　改造前
+  engine2 = YaneuraOuNNUE_20201228no_dc.exe , eval = suishou_wcso1 ← 改良後
+  T2,b1000,1447 - 116 - 1437(50.17% R1.2[-9.44,11.84]) winrate black , white = 51.49% , 48.51%
+  T2,b2000,700 - 68 - 682(50.65% R4.53[-10.84,19.89]) winrate black , white = 50.8% , 49.2%  
+  T2,b4000,302 - 52 - 316(48.87% R-7.87[-30.85,15.11]) winrate black , white = 51.29% , 48.71%
+
+- Move16関係の関数追加。
+
+
+■　2020/12/25
+
+
+- 初期化されていない max_batch_size の値(0)を参照してメモリ確保していたため、NNTensorRT::forward() での評価の際にエラーを起こしていました。
+  - Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/147
+
+
+■　2020/12/24
+
+
+- KIF_CONVERT_TOOLS削除。
+  - 使ってない & メンテしてないのでいったんold_engines/extraに移動。
+  - また使うときに持ってくる。
+
+// 棋譜の変換などを行なうツールセット。CSA,KIF,KIF2(KI2)形式などの入出力を担う。
+// これをdefineすると、extra/kif_converter/ フォルダにある棋譜や指し手表現の変換を行なう関数群が使用できるようになる。
+// #define USE_KIF_CONVERT_TOOLS
+
+
+- tanuki-詰将棋ルーチン用のベンチコマンド移植
+  - test matebench2
+
+
+- test command整理
+  - source/extra/test_cmd.cpp削除。
+  - コマンド種ごとにファイルを分割する。
+  - デザパタのDecoratorみたいな感じで新たなコマンドをplugできるようにする。
+  - 使ってないコード(KPPT用)、ばっさり削除していいんじゃないかな。
+      old_engines/test_code/test_cmd20201223.cpp
+    に移動させて、いま使っているものだけ新規に書き直す。
+  - evalmergeとか、KPPTでしか使ってないものもはや要らないのでは…。
+  - test perftも、perftコマンド探索部にあるから、もはや不要。
+  - test rp : ランダムプレイヤーによる対局コマンドも、mate_test_cmd.cppに対局のコードはあるからそれを参考にしたほうが良い。
+
+  - mate/mate_test_cmd.cpp 追加。
+    // 詰み関係のテストはここに追加。新規にいくつかコマンドを追加する。
+
+  - test genmate移植。少し書き直す。
+    - sfen化してmate_odd_ply()を呼び出さないとまずいことに気づいた。修正する。
+
+  - 千日手の開始局面さかのぼり問題があるのでroot_game_plyが必要だとわかったので、
+    MateSolverとしてクラス化する。
+    USE_MATE_N_PLY →　USE_MATE_SOLVER に変更。
+
+  - mate.cppのコード整理。
+  - mate_repetition()追加。
+
+  - test matebenchコマンド移植。
+  - test matedfpnコマンド追加。
+    // df-pnルーチン、現在調整中につき非公開
+  - kif_convert_tools.cppコンパイル通らない。Mizarさんに相談する。
+
+
+
+
+■　2020/12/23
+
+
+- genmate、mutexの場所間違えていたの修正。
+- matebenchコマンド追加。
+
+- エンジンによっては"Threads"オプションが存在しないことがあるので修正。
+
+
+■　2020/12/22
+
+
+- test_cmd.cppにて、thread_numを上限としたfor文のカウンタにintを使用していたのをsize_tに変更（警告対応） #145
+  - たまさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/145
+
+- define templated mated_even_ply() : Avoid C++20 features (#146)
+  - Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/146
+
+
+■　2020/12/21
+
+
+- N手詰めルーチン修正
+  - 100万局面ほど5手詰め作ってみたが、正常に動いているようであった。
+
+- "test genmate"コマンド、ファイル書き出しの排他忘れてたの修正。
+
+
+- 詰将棋生成コマンド"test genmate"追加
+  - 使い方は、USI拡張コマンド.txtに書いた
+  - Mateルーチンのテスト用
+  - うまく生成できているっぽい。
+
+
+- 奇数手詰めルーチン追加
+  - Mate::mate_odd_ply()
+  - dlshogiに存在するやつ。ふかうら王をdlshogiコンパチにするために必要。
+  // デバッグ中
+  - "test genmate"コマンド追加。(あとで消す)
+  - is_mate_in_1ply_imp -> mate_1ply_impにrename
+  - mate1ply -> mate_1plyにrename
+
+- ふかうら王 dlshogiの修正をマージ
+  - コピーからムーブに変更 : https://github.com/TadaoYamaoka/DeepLearningShogi/commit/50357035056a6c8da770d00d1d32bca8540681d9
+
+
+- NNUE-LEARNでGENSFEN2019をdefineしてビルドするように変更。
+- プロジェクト構成にDebug NNUE-LEARN追加
+- LEARN版でGENSFEN2019をdefineするようにした。
+- GENSFEN2019をdefineしたときにコンパイルエラーになっていたの修正。
+
+
+
+- Makefile、修正忘れを修正。
+
+- プロジェクト設定のRelease-NNUE-GEN削除
+  - もはや使ってないので
+
+- llvmのリンクオプション最適化
+	https://github.com/yaneurao/YaneuraOu/pull/100
+	llvmのリンクオプション最適化
+	ちゃんと検証してからMakefile書き直す。
+  →　Mizarさんにお願いしてみた。
+  →　以前やって、効果がなかったとのこと。
+  →　この件は、忘れよう。
+
+- StockfishのEvalListの除去、これ将棋ではやる価値がないように思うのでスルーでいいや。
+
+  Remove EvalList
+  https://github.com/official-stockfish/Stockfish/commit/9b4967071e2fb116673820127522bc43d01d2257
+  Use incremental updates more #3157
+  https://github.com/official-stockfish/Stockfish/pull/3157
+
+
+
+- config.h整理
+
+- USE_MAKEFILEのシンボル削除
+
+
+- ふかうら王、"GenerateAllLegalMoves"に対応。
+
+- エンジンオプションの"GenerateAllLegalMoves"の処理、エンジン側に移動
+
+
+■　2020/12/20
+
+
+- 詰み関係の処理を分離。
+    source/extra/mate/ を
+    source/mate/ に移動
+  - Positionクラスから詰め将棋関係の関数をnamespace Mateに移動。
+  - mate/mate.cpp追加。
+
+
+- move_picker.cppの指し手のsortにsuper_sort導入。
+  - TokusiNさん作のSuperSort。
+  - sortが少し高速化されるらしい。
+  - 安定ソートではないので並び順が以前のとは異なるから、benchコマンドの探索ノード数は変わる。
+  - AVX2専用なので、AVX2とSSE4のようにCPUによってbenchコマンドの探索ノード数は変わる。(ので少し不便)
+  - デフォルトではオフにしておく。
+
+
+- NNUEの実験用に作ったarchitecturesをold_engines/nnueに放り込んでおく。
+  - 2年近く前に作ったやつ。
+
+
+- ふかうら王に引き分けの手数反映
+
+dlshogi、draw_plyが未実装になっているような？
+
+  // これ、PositionクラスのgamePly、現局面のgamePlyを返すように修正して、gamePlyがdraw_ply以上のときは、
+  // UctSearch()で引き分け扱いするだけなので対応するのは簡単だと思うのですが、このタイミングだと、CreateChildNode()したあとなので
+  // それが嫌なんですかねー😅　← どうするのがベストなのかわかってない。
+
+- SearchLimit →　SearchLimitsとrename
+  - draw_ply →　max_moves_to_drawに変更。やねうら王のオプション名と同じにしておかないと紛らわしいと思ったので。
+  - node_limit →　nodes_limit
+  - node_searched →　nodes_searched // Stockfishで変数名、nodes_XXXとかになっているのでそれに合わせたほうが良さげ。
+
+- hashfullの判定をponderより先にしないと、メモリ使い切って死ぬので修正。
+- NodesLimit利いてなかったの修正。
+
+- 全部詰みの時にもっと速く指せないのか…。
+    - 詰将棋ルーチンがあればいいのか。
+    - そのとき最短手数での詰みを見つけて欲しい気はするが。
+
+- 後手の時の評価値、符号が反転してる気が？　→　そうでもなかった。
+
+
+
+- ふかうら王、PVの出力と探索停止の判定は専用スレッドが行うように。
+  - GPUがbatchで処理してるからお留守なことがあり、一定のタイミングでチェックできない。
+    - 専用スレッドで行うことにする。
+  - GC用のスレッドもやねうら王側で生成することにする。
+    - スレッド管理のコードがGCから消せたのでとても綺麗なコードになった。
+    → GCがガーベジ中だとスレッドの終了ができなくて長い時間がかかるということはあるのか…。そうか…。よくなかった
+    →　これrevertする。
+
+    
+-　持ち時間制御ムズすぎ、クソワロタ
+
+  ふかうら王の時間制御、やねうら王のタイムマネージメントをそのまま持ってきたんですけど、よく時間切れになります😥
+  dlshogiはこのへん、大雑把にbestmoveを返すようにしてあって、秒読み3秒のときに2.9秒まで使おうとかそんなセコイことは眼中にないのかも知れませんが、これはこれでわりと重要だと思うので頑張って書いているのですが、とてもムズかしいです😥
+
+  狙った時間で探索を停止しようにも、探索スレッドが探索中で、EvalNode()から返ってきてないから、bestmoveを返せないためです。
+  探索中は、Eval用のqueueにガンガン局面を積むので、これが終わるのを待っていると平気で1秒ぐらい経過します。
+
+  そこで探索が停止(interruption == true)させないといけないことがわかった時点で、次のEvalNode()はskipするようにしました。
+  それでも、他のスレッドがガンガンqueueに積んでるので、500[ms]ぐらいオーバーします。
+
+  そもそも探索の停止を確認するのはdlshogiではどれか1つのスレッドだけになっているので、そのスレッドがEvalNode()で時間がかかり、チェックする間隔が甘くなることもあります。これでbatch sizeによっては数百[ms]の誤差がでます。
+
+  仕方ないので、やねうら王では、探索の停止用のスレッドを一つ回すことにしました。
+
+  あと、将棋所で動かしているとなぜかnpsが出ないことがあります。バックグラウンドプロセスなのでプロセスの優先度が低く、EvalNode()の処理(GPU側？)が遅くなっているのかも知れません。
+
+  npsが下がると、EvalNode()に時間がかかるということで、このため800[ms]ぐらいのオーバーしうるので、マージンをどうとっても時間切れ負けする時は時間切れ負けになります。
+  先行してbestmoveだけ返そうと思えば返すことはできるのですが、探索スレッドを停止させてからでないとvirtual lossが加算されたままになっています。
+
+  結論的にはタイムマネージメント(というか、時間になってすぐにbestmoveを返す部分が)、とても難しいです。
+
+  子ノードの構造体(child_node_t)をなくして、ノードの構造体(uct_node_t)にvirtual_lossという変数でも用意すれば、virtual lossによる訪問回数(move_count)への影響はなくせそうですけど、子ノードの構造体をなくすと、UCB最大の子ノードを選ぶ処理(SelectMaxUcbChild() )でメモリのランダムアクセスが発生して、将棋では(チェスと違って)平均100手も合法手があるから、このランダムアクセスが許容できない可能性があります。😥
+
+  子ノードの構造体をなくせば、メモリ使用量が1/10ぐらいになりそうですけど、その代わりに30%速度ダウン(自己対戦で -R80ぐらい？)って我々は到底許容できないですしね。
+
+  別案として、RootNodeだけvirtual lossを別枠で持っておくという実装が考えられます。
+  // ソースコードがぐちゃぐちゃになりかねないので嫌なんですけど、わりとアリではないかと…。
+
+
+
+- 持ち時間制御 終局までの平均手数を80→160とみなすように変更
+  - 近年の将棋ソフトの対局からすると80は少なすぎる。
+- Timer::round_upのコード、round upした結果、元の時刻より小さくなるなら、もう1秒使うように修正。
+  network delay = 120で、round_up(900)が880になっていた。(1880にならないと時間の使い方としてもったいない)
+
+
+- 切れ負けのテストをしていたら、将棋所のバグを見つけた。
+
+  将棋所、isreadyに対してreadyok以外のメッセージを無視してくれないと連続対局で非合法手指すんだけど😥
+
+  > 1:gameover win
+  > 2:gameover lose     ←　エンジン2が時間切れ負けになった
+  > 1:isready
+  > 2:isready
+  > 1:readyok
+  > 2:bestmove 8b5b     ←　エンジン2の探索部が指し手を返した(isreadyに対してreadyokを送る前なので合法のはず)
+  > 1:gameover win      ←　エンジン2が開始局面で非合法手を送信して負けたことにされた
+  > 1:quit
+
+  これ、これを回避できるようにすることは探索部では不可能なので("isready"受信と入れ違いに"bestmove"を返すことはありうる)、この将棋所の仕様はおかしい。
+
+  これ、いままで誰も気づかないのか…。まあ、切れ負けになる対局なんて普通、ないしな…。
+  →　よく見たら、将棋所、連続対局のとき、局後に2秒ぐらいwaitがあるので、それ以上にオーバーしてbestmove返す思考エンジンが悪い感もある。
+
+
+■　2020/12/19
+
+
+- vcxproj: 依存ライブラリ分離 (#144)
+  - Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/commit/bdbd85f1edce73d75e8f8243c44152492e70fa2d
+
+
+- misc.hがgcc/clangでコンパイルエラーになっていたの修正。
+  - include <atomic> が必要らしい。
+
+
+- TensorRT用の時のエンジン名に"TensorRT-" の文字を追加。
+
+- NNUE-LEARNのフォルダがsource/に作られていたの修正。
+  - ひとつ前のcommitでは修正できてなかった😥
+  - プロパティシートの順番なのか…そうか…。まあいいや。
+
+- old_enginesをsource/から、上のフォルダに移動させる。
+  - sourceフォルダは綺麗にしときたい。
+
+
+
+- ふかうら王、持ち時間制御、修正その3
+  - interrupt check、全スレッドで行うように変更。
+  - 探索終了時にPVが2度出力されるの修正。
+  - 探索ノードが0のときにnnrateが一番高い指し手をbestmoveとして返すように。
+  - interruptするとき、なるべく即座に終了したいのでEvalNode()をskipするように。
+  - UctSearcherGroup::InitGPU()削除。
+  - DNN_Batch_Size1がpolicy_value_batch_maxsizeに反映してなかったの修正。
+  - ふかうら王のNetworkDelay,NetworkDelay2の値、調整。
+  - 時間制御のコード、optimum timeの半分は使うように。そのあと1,2番目の指し手が逆転しそうな時はoptimum timeまでは使うように。
+  - DebugMessage = true のときの探索開始時の情報で、今回のminimum_time(),optimum_time(),maximum_time()を出力するようにした。
+  - go infinite反映してなかったの修正。
+  - 持ち時間の秒ぎりぎりまで思考するように修正。
+  - 投了の時にresignを返していなかったの修正。
+  - PV出力の時にchild nodeが展開されていなくともnnrateから最善手を返すように。
+  - PV出力の時にmultipvとそうでない時の処理を分けるのやめた。
+  - たまに時間めっちゃ使う // あとで調べる
+     GCがメモリ回収するの、デバッグ用のランタイムだと遅くて、それで時間超過になっている可能性がある。
+     他のソフトを起動すると顕著に遅くなることがある。(その間、探索が進んでない) なんぞこれ。EvalNodeでforwardしたときに
+     画面描画とか忙しくて処理が後回しになっているのであろうか…。
+  - DlshogiSearcher::debug_messageをsearch_optionsに移動。
+  - optimumの何倍まで使うかという係数を用意した。
+
+  // たまに時間切れ負けになるのであとで修正する。
+
+  // dlshogiの探索の終了の処理、どのスレッドかが探索終了条件を満たしていることを見つけても、
+  // 他のスレッド、batch分だけ探索してEvalNode()までしてしまい、
+  // メインスレッドは全スレッドの探索の終了を待機してからbestmoveを返すので、止まる時のラグがひどい気がします。
+  // (batch sizeが小さいなら無視できるのかもしれませんが)
+  // 探索途中であっても、uct_search_stopになった時点で、EvalNode()はskipして、Virtual Loss戻してBackupして、
+  // ParallelUctSearch()を抜けたほうがより正確なtime managementができると思います。
+
+- プロジェクト構成にRelease-Deepが残っていたの削除。
+- プロジェクト構成いじったときにNNUEがsource/にビルドされてたの修正。
+- dlshogi_searcher.cpp追加。
+- TensorRTを使う時、TENSOR_RTをDefineするようにした。
+
+
+- "isready"を呼び出さずに"go"を呼び出した時に落ちるの修正。
+  - これ落ちるとデバッグの時、面倒なので。
+
+
+- inc timeの解釈が間違っていたの修正。
+
+  - inc time(フィッシャールール)のとき、対局開始の初手、将棋所だと
+    go btime 0 wtime 0 binc 5000 winc 5000
+    のようにメッセージがやってくることに気づいた。
+    これ知らずに、こう送られてきたら時間がない扱いで初手 0.1秒で指していたの修正。
+
+- time managementのmax timeの係数、5.0f → 3.0fに変更。
+
+
+- makebookコマンド、リファクタリングのときに壊していたの修正。
+  - thanks! lefu777さん、Mizarさん
+
+
+
+■　2020/12/18
+
+
+- ふかうら王、持ち時間制御 修正その2
+  - 持ち時間がtime managerに反映してなかったの修正。
+  - hashfullの出力のあとスペースが空いてなかったの修正。
+  - YaneuraOu_dlshogi_bridge.cpp , utf8で保存されてなかったっぽい。修正。
+  // 詰みを見つけた時にハングするときがあるようだ。明日調べる。
+
+
+- ふかうら王、持ち時間修正など
+  - "go ponder"に対してbestmoveを返していない件
+    - "stop"が送られてくるまで待機するように修正した。
+    - dlshogiのほう、ponderモードでの呼び出しだとponderhitでもいったんStopUctSearch()で探索を停止させているが、同一局面の再探索のコストが
+        小さければこういう実装もあるのか。
+        // stopでbestmove返さないのはちょっとおかしい気がするけど。
+
+  - batch sizeが大きいと評価値がおかしいものを返すことがある件。
+        //  評価値は、極めて短い時間で対局させると、rootを展開した直後とか、virtual lossのため、
+        //  すべての指し手が負け扱いになっているので、すごく低い評価値に見えるのが原因ではないかと。
+        //  というか、(技術的に可能かどうかはさておき)AlphaZero型のソフトは、virtual lossの効果を無効化して評価値を表示すべきでは。
+
+        // 例) batch size = 256で 0.1秒の思考時間として、playout 256回で探索が終了するケース。
+        // rootからすべての指し手を展開してleaf nodeでevalのため局面をqueueに積みvirtual lossを加算している状態になる。
+        // rootのすべての子を展開したあと、どれも展開できなくなってdiscardしてbatch size maxになる。この時点でPVを表示するとすべてが負けの指し手に見える。
+
+  - 詰みを見つけてMoveNoneを返すの修正
+    - 他のスレッドの探索止めてなかった。修正。
+
+  - USI_Ponderがfalseのときに"bestmove XXX ponder YYY"のようにponderの指し手を返すの修正。
+
+  - movetimeの条件間違っていて時間指定ある時に即指しになっていたの修正。
+
+  - 探索打ち切り条件の簡略化。
+
+  - 持ち時間制御にやねうら王のtime manager導入。
+    - 未調整。
+    - 秒読みの時1秒指ししてるな…。あとでなおす。
+
+- goコマンドでmovetimeを指定できるようにした。
+- Timer::initの引数のconstつけ忘れ修正。
+
+- プロジェクト構成でDeep-ONNXとDeep-TensorRT と分離。
+
+
+
+- ふかうら王、TensorRT対応
+  - nn_evaluate.h/cpp → nn_types.h/cppにrename
+  - nn_gpu.h/cpp → nn.h/cppとnn_onnx_runtime.h/cppに分離
+  - nn_tensorrt.h/cpp追加
+  - コンパイルは通ったが、NVIDIAのGPUがないので動作確認しておらず。
+  // そのうちやる。
+  - ONNX RUNTIME版のビルドにCUDAが必要なの、ちょっと嫌なので、プロジェクト構成、次回分ける。
+
+- ふかうら王
+  - NodesLimitを超えたら、ではなく、同じ数以上になった時点で探索を打ち切るように修正。
+
+
+■　2020/12/17
+
+
+- Stockfish PR#3254, PR#3261 
+	- #143 (Mizarさんのプルリク)
+	- https://github.com/yaneurao/YaneuraOu/pull/143
+
+
+- ふかうら王(dlshogi互換エンジン) Technology Preview #01
+	- dlshogi互換エンジン
+	- dlshogiの詰将棋ルーチンをオフにして、1スレッドで5万ノードを探索して、探索したノードが完全に同一、NNへの入力特徴量の値と
+	　　出力特徴量の値が完全に同一であることを確認した。
+	- いまのところONNX RUNTIMEのみ対応
+	- CUDA,TensorRTのコードそのうち移植する
+	- TimeManagementまだ。とりあえず、NodesLimitでノード数を指定できるのでこれで対局してください。
+		- GPUなしで対局するときはいまのところDNN_Batch_Size1は1～16ぐらいが最適値かも。
+	- GCT電竜の評価関数ファイル(model-0000167.onnx)をmodel.onnxとrenameして Evalフォルダに放り込むと読み込めることは確認した。
+		- 世界将棋AI 電竜戦バージョン（「GCT電竜」同梱） : https://github.com/TadaoYamaoka/DeepLearningShogi/releases/tag/denryu2020
+	- ふかうら王の実行ファイルの配置フォルダに onnxruntime.dll , DirectML.dll が必要っぽい。GCT電竜からコピーしてくるべし。
+	- 詰将棋ルーチン、未搭載。あとで実装する。
+	- 評価関数は独立して使えるように設計してあるが、もう少し手を入れないと。これは気が向いたら作業する。
+	- いまのところVisual Studioでしかビルドできない。
+		- ビルド方法については、docs/解説.txt に書きました。
+	- dlshogiにない特徴
+		- MultiPV対応
+		- stopコマンド対応
+		- USIまわりのUSIプロトコルへの準拠度の高さ
+	- 今後の予定
+		- CUDA,TensorRT対応
+		- TimeManagement
+		- 詰将棋探索
+		- df-pn
+		- VIRTUAL_LOSSを可変に
+		- 高効率なメモリマネージメント
+		- 特徴因子の追加
+		- EvalフォルダにNNのアーキテクチャ(入出力特徴量含む)に関するtagファイルを配置すればそれを自動的に構築する機能。
+		- Policy Network最適化
+
+- USE_EVAL_LISTのifdefの範囲間違っていたの修正。
+
+
+■　2020/12/13
+
+
+- USER_ENGINEをdefineした時にコンパイルが通らなかったの修正。
+- Visual StudioのプロジェクトにMaterial追加。
+
+
+
+- makebookコマンドにbook_save_interval追加。
+
+- 一つ前のcommitで修正しきれてなかったの修正。
+
+- プロジェクト設定など微修正。
+
+
+
+-	GenerateAllLegalMovesオプションをトーナメント用でも有効に変更。
+
+	//		読みの各局面ですべての合法手を生成する
+	//		(普通、歩の2段目での不成などは指し手自体を生成しないのですが、これのせいで不成が必要な詰みが絡む問題が解けないことが
+	//		あるので、このオプションを用意しました。オンにすると勝率が少し下がるのでデフォルトではオフになっています。)
+
+			関連) 将棋ソフトは不成が読めないという嘘 : http://yaneuraou.yaneu.com/2020/12/12/all-legal-moves/
+
+
+■　2020/12/12
+
+
+- sfen_packerにUSE_FV_VARのコード残っていたの修正。
+	- learnコマンドでpacked sfenの読み込みの時にエラーになっていたのを修正。
+
+- FORCE_BIND_THIS_THREADのendifの場所間違ってた。
+
+- 盤面を180度回転させた時の升を返すFlip()追加。
+
+- USE_EVALがないときにコンパイルエラーになっていたの修正。
+
+- エンジンオプションを一部、やねうら王の通常探索エンジンのほうに移動
+	SkillLevel
+	Contempt
+	ContemptFromBlack
+// 他のエンジンではこのオプションは不要なので。
+
+
+
+■　2020/12/09
+
+
+- モジュール化のための作業。オプションの整理。
+	- USE_FV38削除。
+	- NO_EVAL_IN_TT削除。
+	- EVAL_NO_USE削除。
+
+	- USE_PIECE_VALUE追加。
+	- USE_EVAL_LIST追加。
+	- USE_EVAL追加。
+
+- ２つ前のcommitでmakebook.cppをVisual Studioのプロジェクトに追加するの忘れていたの修正。
+- gensfen2019.cpp、learner.cppに追加してファイルの削除を忘れていたの修正。
+
+
+
+- 駒得系評価関数 MaterialLv.9追加
+	- 【連載】評価関数を作ってみよう！その11 : http://yaneuraou.yaneu.com/2020/12/07/make-evaluate-function-11/
+
+- 一つ前のcommitでコンパイルエラーになっていたの修正。
+
+
+- 定跡DBにwin,drawのfield追加。
+
+
+- add .editorconfig #142
+	- Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/142
+
+
+
+■　2020/12/04
+
+
+- makebook2015をplug-inのような処理に変更。
+- BookMoves::size()
+		// 指し		// 指し手の数は、MAX_MOVESであるので、intの範囲で十分であるのだが、
+		// std::vector.size()とコンパチでないと色んなところで警告が出てうざいのでsize_tにしておく。
+- gensfen2019.cpp削除。learn.cppに含める。
+	- learnコマンド、コマンドごとにファイルを分けるなり整理したいが、動作検証が大変なので学習回すときにやる。
+- book/makebook.cpp 追加。
+- NNUEでClangでのコンパイル時に警告でてたの修正。
+- 解説.txt 内容が古かったので修正。
+
+
+
+- Makefile修正したのcommit忘れてた。
+
+
+- book/makebook2021.cpp 追加。これから書く。
+- book.cppにあったmakebookコマンドの処理ルーチン、book/makebook2015.cppに移動。
+	- 2015年ごろに書いたコードだから。
+- Aperyの定跡読み込みで使っているMT64bit、apery_book.cppでしか使っていないので無名namespaceに変更。
+
+
+- 定跡クラス、秋の大ファクタリング祭り
+	BookPos → BookMoveにrenameする
+	BookPos::bestMove,nextMove → move,ponder にrenameする。
+	BookPos::prob削除
+	//		float prob;    // ↑のnumをパーセンテージで表現したもの。(read_bookしたときには反映される。ファイルには書き出していない。)
+- Book読み込み高速化
+	- 定跡読み込み時にBookPosのsortやめる。
+	- 定跡読み込み時のprobの計算もやめる。
+- BookMovesクラス、thread safeにして書き直す。
+- 定跡DB拡張。採択回数の後ろにwin,loseを記入する。(optional)
+- 定跡DBにwin,loseの数字が書かれていれば(1以上の数字がどちらかに書かれていれば)、定跡にhitしたときに採択率とともに win-draw-loseも出力するようにした。
+- MemoryBook、ほぼASYNC化した。
+- WriteBookのときにwin/loseも書き出すようにした。
+- Bookにponderが記入されていない場合、1手進めて定跡にhitすればそのときのbestmoveをponderとして返すようにした。
+- 定跡関連のファイルをsource/extra/book から source/book/に移動
+- Aperyの定跡ルーチンのためのMT乱数のコードをapery_book.cppに移動
+- Makefile修正
+
+
+■　2020/12/03
+
+
+- FOREACH_BB()マクロ除去
+- Bitboard::foreach_part()追加。
+
+- Unroller、templateで書く。
+	- Aperyのコードを参考にさせていただいています。: https://github.com/HiraokaTakuya/apery/blob/master/src/common.hpp
+	- VC++でコンパイルしても以前のコードに比べて特に遅くはなっていないようだった。
+
+
+
+- 指し手生成のコード、defineマクロ廃止する方向で書き直す。
+	- defineマクロ、ちょっと減らす方向で(デバッグしにくいため)
+	- Bitboard::foreach() 導入。
+	- Moveに関して、MoveとMove16が紛らわしくて使いにくいので、もうちょっと厳密な規則を導入。
+		- make_move()はMoveを返すなら、上位16bitに駒種が返ってきてないと紛らわしい。
+		- 駒種の格納されていないMoveが返ってくるのはバグの原因となる。
+		- make_move16()など追加。
+	- 1手詰め判定はMoveの上位にきちんと動かす駒を入れて返すように変更。
+	- move_to()廃止。
+	- move_from()廃止。
+- KEEP_PIECE_IN_GENERATE_MOVES 廃止。Moveの上位には常に移動先の駒が来て良い。
+- USE_DROPBIT_IN_STATS廃止。これ結局、使わない。
+
+
+■　2020/12/02 V5.40
+
+
+- MaterialLv8追加
+	- 【連載】評価関数を作ってみよう！その9  : http://yaneuraou.yaneu.com/2020/12/01/make-evaluate-function-9/
+	- 【連載】評価関数を作ってみよう！その10 : http://yaneuraou.yaneu.com/2020/12/02/make-evaluate-function-10/
+
+
+- パラメーター、チューニング
+	- Assorted search and eval parameter tune : https://github.com/official-stockfish/Stockfish/commit/9fb6383ed804d0bc86d52b07def14352f44eb5b4
+- LMRで指し手がkillerの時のbonus削除
+	- Remove bonus for killers. : https://github.com/official-stockfish/Stockfish/commit/66da1e802c22b1952c2a07af65c6224d0e01b3df
+- SEEの条件式、単純化
+	- Search simplification : https://github.com/official-stockfish/Stockfish/commit/6c429c4d6527a8e88d2ad1e7bfc8f4bd0ec05729
+- Reduction、単純化
+	- Reductions simplification : https://github.com/official-stockfish/Stockfish/commit/2442ba2b0e8a399b0dbfe9d23a8a2819cb0af987
+	
+	engine1 = YaneuraOu-NNUE_V540.exe , eval = suishou_wcso1  : 前回のやつ
+	engine2 = YaneuraOu-NNUE_V540a.exe , eval = suishou_wcso1 : 今回のやつ
+	T2,r100,1462 - 55 - 1483(49.64% R-2.48[-13.01,8.05]) winrate black , white = 49.58% , 50.42%
+	T2,b1000,1414 - 111 - 1345(51.25% R8.69[-2.19,19.57]) winrate black , white = 50.56% , 49.44%
+	T2,b2000,675 - 50 - 675(50.0% R-0.0[-15.55,15.55]) winrate black , white = 52.52% , 47.48%
+	T2,b2000,666 - 48 - 686(49.26% R-5.14[-20.68,10.4]) winrate black , white = 50.15% , 49.85%
+
+	// 強さ、ほぼ変わらん模様
+
+
+
+- 探索、LMRまわりのコード、刷新
+	- 強さほぼ変わらないが弱くはなってなさそう
+- 探索パラメーター刷新(+R10～)
+- MovePickerにパラメーターチューニング導入
+- バージョンナンバー5.40にするの忘れてたの修正
+
 
 
 - やねうら王 V5.40
