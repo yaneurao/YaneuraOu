@@ -302,6 +302,26 @@ void MainThread::search()
 	Move ponderMove;
 	Move move = searcher.UctSearchGenmove(&rootPos, rootPos.sfen(),{}, ponderMove, start_threads);
 
+	// 定跡Hitした場合など、幾つかのケースで DlshogiSearcher::UctSearchGenmove() はすぐに結果を返す。
+	// go ponderでの探索の場合、bestmoveを返すのはstopもしくはponderhitを待たないとならない。
+
+	// 最大depth深さに到達したときに、ここまで実行が到達するが、
+	// まだThreads.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
+	// USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまでbest moveを出力してはならない。
+	// それゆえ、単にここでGUIからそれらのいずれかのコマンドが送られてくるまで待つ。
+	// "stop"が送られてきたらThreads.stop == trueになる。
+	// "ponderhit"が送られてきたらThreads.ponder == falseになるので、それを待つ。(stopOnPonderhitは用いない)
+	// "go infinite"に対してはstopが送られてくるまで待つ。
+	// ちなみにStockfishのほう、ここのコードに長らく同期上のバグがあった。
+	// やねうら王のほうは、かなり早くからこの構造で書いていた。最近のStockfishではこの書き方に追随した。
+	while (!Threads.stop && (this->ponder || Search::Limits.infinite)) {
+		//	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
+		// (思考のためには計算資源を使っていないので。)
+		Tools::sleep(1);
+
+		// Stockfishのコード、ここ、busy waitになっているが、さすがにそれは良くないと思う。
+	}
+
 	sync_cout << "bestmove " << to_usi_string(move);
 
 	// USI_Ponderがtrueならば、bestmoveに続けて、ponderの指し手も出力する。
