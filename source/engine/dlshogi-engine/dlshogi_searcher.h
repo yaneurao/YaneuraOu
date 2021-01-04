@@ -284,15 +284,21 @@ namespace dlshogi
 
 		// UCTアルゴリズムによる着手生成
 		// 並列探索を開始して、PVを表示したりしつつ、指し手ひとつ返す。
+		// ※　事前にSetLimits()で探索条件を設定しておくこと。
 		//   pos           : 探索開始局面
 		//   gameRootSfen  : 対局開始局面のsfen文字列(探索開始局面ではない)
 		//   moves         : 探索開始局面からの手順
-		//   ponderMove    : ponderの指し手 [Out]
-		//   start_threads : この関数を呼び出すと全スレッドがParallelUctSearch()を呼び出して探索を開始するものとする。
+		//   ponderMove    : [Out] ponderの指し手(ないときはMOVE_NONEが代入される)
+		//   start_threads    : この関数を呼び出すと全スレッドがParallelUctSearch()を呼び出して探索を開始する。
+		//   teminate_threads :	ponderが解除されるのを待機して、そのあとstart_threadsで開始した全スレッドが終了するのを待機する。
+		//                    // start_threadsを呼び出さずにteminate_threads()だけ呼び出すことがある。
 		// 返し値 : この局面でのbestな指し手
-		// ※　事前にSetLimits()で探索条件を設定しておくこと。
-		Move UctSearchGenmove(Position* pos, const std::string& gameRootSfen, const std::vector<Move>& moves,
-			Move& ponderMove,const std::function<void()>& start_threads);
+		// この関数は、定跡にhitした時や宣言勝ちなどで、実際の探索を行わない場合でもteminate_threads()を呼び出してから
+		// リターンすることは保証する。
+		Move UctSearchGenmove(Position* pos, const std::string& gameRootSfen, const std::vector<Move>& moves, Move& ponderMove,
+			const std::function<void()>& start_threads,
+			const std::function<void()>& terminate_threads
+			);
 
 		// NNに渡すモデルPathの設定。
 		void SetModelPaths(const std::vector<std::string>& paths);

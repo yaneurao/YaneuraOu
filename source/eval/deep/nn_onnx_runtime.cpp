@@ -11,6 +11,7 @@
 #else
 #include <cpu_provider_factory.h>
 #endif
+#include "../../usi.h"
 
 using namespace std;
 using namespace Tools;
@@ -23,6 +24,10 @@ namespace Eval::dlshogi
 		Ort::SessionOptions session_options;
 		session_options.DisableMemPattern();
 		session_options.SetExecutionMode(ORT_SEQUENTIAL);
+#if defined(ORT_MKL)
+		session_options.SetInterOpNumThreads((int)Options["InterOpNumThreads"]);
+		session_options.SetIntraOpNumThreads((int)Options["IntraOpNumThreads"]);
+#endif
 #if defined(ORT_DML)
 		Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_DML(session_options, gpu_id));
 #else

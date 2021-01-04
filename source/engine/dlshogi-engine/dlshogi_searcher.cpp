@@ -251,23 +251,30 @@ namespace dlshogi
 		gc.release();
 	}
 
-	// あとで
-	// std::tuple<Move, float, Move> get_and_print_pv()
 
 	// UCTアルゴリズムによる着手生成
 	// 並列探索を開始して、PVを表示したりしつつ、指し手ひとつ返す。
+	// ※　事前にSetLimits()で探索条件を設定しておくこと。
 	//   pos           : 探索開始局面
 	//   gameRootSfen  : 対局開始局面のsfen文字列(探索開始局面ではない)
 	//   moves         : 探索開始局面からの手順
-	//   ponderMove    : ponderの指し手 [Out]
-	//   ponder        : ponder mode("go ponder")で呼び出されているのかのフラグ。
-	//   →　使わないので削除。Threads.main()->ponderのほうを参照すべき。
-	//   start_threads : この関数を呼び出すと全スレッドがParallelUctSearch()を呼び出して探索を開始するものとする。
+	//   ponderMove    : [Out] ponderの指し手(ないときはMOVE_NONEが代入される)
+	//   start_threads    : この関数を呼び出すと全スレッドがParallelUctSearch()を呼び出して探索を開始する。
+	//   teminate_threads :	ponderが解除されるのを待機して、そのあとstart_threadsで開始した全スレッドが終了するのを待機する。
+	//                    // start_threadsを呼び出さずにteminate_threads()だけ呼び出すことがある。
 	// 返し値 : この局面でのbestな指し手
-	// ※　事前にSetLimits()で探索条件を設定しておくこと。
-	Move DlshogiSearcher::UctSearchGenmove(Position *pos, const std::string& gameRootSfen, const std::vector<Move>& moves, Move &ponderMove,
-		const std::function<void()>& start_threads)
+	// この関数は、定跡にhitした時や宣言勝ちなどで、実際の探索を行わない場合でもteminate_threads()を呼び出してから
+	// リターンすることは保証する。
+	Move DlshogiSearcher::UctSearchGenmove(Position* pos, const std::string& gameRootSfen, const std::vector<Move>& moves, Move& ponderMove,
+		const std::function<void()>& start_threads,
+		const std::function<void()>& terminate_threads
+		)
 	{
+		// 定跡にhitした場合や詰みを見つけた場合、宣言勝ちをした場合など、ponder中でも
+		// この関数は速攻でbestmoveを返すことはある。
+		// しかしponder中ならそれが解除されるまでbestmoveを返すのを待機しなければならない。
+		SCOPE_EXIT(terminate_threads(););
+
 		// これ[Out]なのでとりあえず初期化しておかないと忘れてしまう。
 		ponderMove = MOVE_NONE;
 
@@ -275,7 +282,8 @@ namespace dlshogi
 		// →　やねうら王では使わない。Threads.stopかsearch_limits.interruptionを使う。
 		//search_limits.uct_search_stop = false;
 
-		// わからん。あとで。
+		// begin_timeを初期化したかのフラグ
+		// →　やねうら王ではTimerクラスを使ってgoコマンドからの経過時間を計測しているので不要
 		//init_search_begin_time = false;
 
 		// 探索開始時にタイマーをリセットして経過時間を計測する。
@@ -304,9 +312,9 @@ namespace dlshogi
 		// 探索開始局面の初期化
 		ExpandRoot(pos , search_options.generate_all_legal_moves );
 
-		//create_test_node(tree.GetCurrentHead());
-
-		// 詰みのチェック
+		// ---------------------
+		//     詰まされチェック
+		// ---------------------
 
 		// ExpandRoot()が呼び出されている以上、子ノードの初期化は完了していて、この局面の合法手の数がchild_numに
 		// 代入されているはず。これが0であれば、合法手がないということだから、詰みの局面であり、探索ができることは何もない。
@@ -315,6 +323,10 @@ namespace dlshogi
 			// 投了しておく。
 			return MOVE_RESIGN;
 		}
+
+		// ---------------------
+		//     詰みのチェック
+		// ---------------------
 
 		// この局面で子ノードから伝播されて、勝ちが確定している。
 		if (current_root->value_win == VALUE_WIN)
@@ -360,9 +372,17 @@ namespace dlshogi
 			return bestMove;
 		}
 
+		// ---------------------
+		//     即詰みの用のdf-pn
+		// ---------------------
+
 		// 長手数の詰みはdf-pn呼び出す
 		// 呼び出したほうが強いのかがわからないので検証環境を用意してから実装する。
 
+
+		// ---------------------
+		//     並列探索の開始
+		// ---------------------
 
 		// 前回、この現在の探索局面を何回訪問したのか
 		NodeCountType pre_simulated = current_root->move_count;
@@ -371,8 +391,15 @@ namespace dlshogi
 		if (search_options.debug_message)
 			UctPrint::PrintPlayoutLimits(search_limits.time_manager , search_limits.nodes_limit);
 
-		// スレッドの開始と終了
+		// 探索スレッドの開始
 		start_threads();
+
+		// 探索スレッドの終了
+		terminate_threads();
+
+		// ---------------------
+		//     PV出力して終了
+		// ---------------------
 
 		// ponderモードでは指し手自体は返さない。
 		// →　やねうら王では、stopが来るまで待機して返す。
