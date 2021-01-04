@@ -63,9 +63,10 @@ namespace Eval::dlshogi
 		//	nn = std::make_unique<NNWideResnet10>();
 #endif
 
+		sync_cout << "info string Start loading the model file, path = " << model_path << sync_endl;
 		if (!nn)
 		{
-			sync_cout << "Error! : unknown model type , model path = " << model_path << sync_endl;
+			sync_cout << "Error! : unknown model type." << sync_endl;
 			return nullptr;
 		}
 
@@ -74,6 +75,7 @@ namespace Eval::dlshogi
 			sync_cout << "Error! : read error , model path = " << model_path << sync_endl;
 			return nullptr;
 		}
+		sync_cout << "info string The model file has been loaded." << sync_endl;
 
 		return nn;
 	}
