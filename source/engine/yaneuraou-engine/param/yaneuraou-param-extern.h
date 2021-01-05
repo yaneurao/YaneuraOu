@@ -25,7 +25,7 @@
 extern int PARAM_FUTILITY_MARGIN_ALPHA1;
 
 // 
-// 元の値 = 170 , step = 20
+// 元の値 = 159 , step = 20
 // [PARAM] min:100,max:240,step:2,interval:1,time_rate:1,fixed
 extern int PARAM_FUTILITY_MARGIN_BETA;
 
@@ -36,7 +36,7 @@ extern int PARAM_FUTILITY_MARGIN_QUIET;
 
 // futility pruningの適用depth。
 // この制限自体が要らない可能性がある。→　そうでもなかった。
-// 元の値 = 8 , step = 1
+// 元の値 = 9 , step = 1
 // [PARAM] min:5,max:15,step:1,interval:1,time_rate:1,fixed
 extern int PARAM_FUTILITY_RETURN_DEPTH;
 
@@ -47,7 +47,7 @@ extern int PARAM_FUTILITY_RETURN_DEPTH;
 extern int PARAM_FUTILITY_AT_PARENT_NODE_DEPTH;
 
 // 親nodeでのfutility margin
-// 元の値 = 266 , step = 20
+// 元の値 = 254 , step = 20
 // [PARAM] min:100,max:400,step:3,interval:1,time_rate:1,fixed
 extern int PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1;
 
@@ -61,7 +61,7 @@ extern int PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1;
 extern int PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2;
 
 // lmrのときのseeの値。
-// 元の値 = 221 ,step = 40
+// 元の値 = 218 ,step = 40
 // [PARAM] min:0,max:300,step:3,interval:1,time_rate:1,fixed
 extern int PARAM_LMR_SEE_MARGIN1;
 
@@ -131,7 +131,7 @@ extern int PARAM_PROBCUT_DEPTH;
 // probcutのmargin
 //    式 = beta + PARAM_PROBCUT_MARGIN1 - improving * PARAM_PROBCUT_MARGIN2
 //   improvingの効果怪しいので抑え気味にしておく。
-// 元の値 = 183
+// 元の値 = 194
 // [PARAM] min:100,max:300,step:3,interval:1,time_rate:1,fixed
 extern int PARAM_PROBCUT_MARGIN1;
 
@@ -167,14 +167,6 @@ extern int PARAM_PRUNING_BY_HISTORY_DEPTH;
 // 元の値 = 5278 , step = 500
 // [PARAM] min:2000,max:8000,step:250,interval:1,time_rate:1,fixed
 extern int PARAM_REDUCTION_BY_HISTORY;
-
-//
-// razoring pruning
-// 
-// 以下、変更しても計測できるほどの差ではないようだが。
-// 元の値 = 510 , step = 100
-// [PARAM] min:400,max:700,step:3,interval:1,time_rate:1,fixed
-extern int PARAM_RAZORING_MARGIN;
 
 //
 // etc..

@@ -406,6 +406,7 @@ namespace {
 			<< " mem   = " << mem << "[MB]" << endl;
 
 		Mate::Dfpn::MateDfpnSolver dfpn(Mate::Dfpn::DfpnSolverType::Node64bit);
+		//Mate::Dfpn::MateDfpnSolver dfpn(Mate::Dfpn::DfpnSolverType::Node48bitOrdering);
 		dfpn.alloc(mem);
 
 		Timer time;
@@ -416,7 +417,6 @@ namespace {
 		auto nodes_searched = dfpn.get_nodes_searched();
 		if (m != MOVE_NONE && m != MOVE_NULL)
 		{
-			auto nodes_searched = dfpn.get_nodes_searched();
 			cout << "solved! , nodes_searched = " << nodes_searched << endl;
 
 			auto pv = dfpn.get_pv();

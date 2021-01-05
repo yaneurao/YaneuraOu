@@ -298,3 +298,15 @@ void ThreadPool::wait_for_search_finished() const {
 		if (th != front())
 			th->wait_for_search_finished();
 }
+
+// main thread以外の探索スレッドがすべて終了しているか。
+// すべて終了していればtrueが返る。
+bool ThreadPool::search_finished() const
+{
+	for (Thread* th : *this)
+		if (th != front())
+			if (th->is_searching())
+				return false;
+
+	return true;
+}

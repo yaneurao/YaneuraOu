@@ -71,6 +71,11 @@ public:
 	// 探索が終わるのを待機する。(searchingフラグがfalseになるのを待つ)
 	void wait_for_search_finished();
 
+	// === やねうら王独自拡張 ===
+
+	// 探索中であるかを返す。
+	bool is_searching() const { return searching; }
+
 	// ------------------------------
 	//       探索に必要なもの
 	// ------------------------------
@@ -242,6 +247,12 @@ struct ThreadPool: public std::vector<Thread*>
 	// increaseDepth : 一定間隔ごとに反復深化の探索depthが増えて行っているかをチェックするためのフラグ
 	//                 増えて行ってないなら、同じ深さを再度探索するのに用いる。
 	std::atomic_bool stop , increaseDepth;
+
+	// === やねうら王独自拡張 ===
+
+	// main thread以外の探索スレッドがすべて終了しているか。
+	// すべて終了していればtrueが返る。
+	bool search_finished() const;
 	
 private:
 
