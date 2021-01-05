@@ -3,7 +3,12 @@
 
 ふかうら王は、dlshogi互換エンジンとして2020年12月に開発をスタートしました。
 
+
+■　dlshogiについて
+
+
 - dlshogi GitHub : https://github.com/TadaoYamaoka/DeepLearningShogi
+- TadaoYamaokaの日記 : https://tadaoyamaoka.hatenablog.com/
 
 - dlshogiの環境構築手順
   - Linux // dlshogiの環境構築手順 : https://tadaoyamaoka.hatenablog.com/entry/2020/05/05/172132 
@@ -42,4 +47,28 @@
       - cuDNN 8.0.5 ダウンロード(会員登録後) : https://developer.nvidia.com/rdp/cudnn-download
         > Download cuDNN v8.0.5 (November 9th, 2020), for CUDA 11.1
 
+
+■ AobaZeroについて
+
+
+- AobaZeroの公式サイト : http://www.yss-aya.com/aobazero/
+- AobaZeroのGitHub : https://github.com/kobanium/aobazero
+- AobaZeroで生成した棋譜(GoogleDrive) : https://drive.google.com/drive/folders/1dbE5xWGQLsduR00oxEGPpZQJtQr_EQ75
+  - 日々追加されている。教師棋譜としてそのまま使える。ありがたい。
+
+- AobaZeroの棋譜の加工 : https://tadaoyamaoka.hatenablog.com/entry/2020/11/28/113312
+  - AobaZeroの棋譜の勝敗情報を5手詰めを呼び出して修正する。
+
+- aoba_to_hcpe.py : https://github.com/TadaoYamaoka/DeepLearningShogi/blob/master/utils/aoba_to_hcpe.py
+  - AobaZeroの棋譜の勝敗情報の加工スクリプト
+  - cshogiを使ったスクリプト。
+  > 711ファイルの変換を行った。4時間43分で変換できた。
+    // 5手詰め
+  - 並列化したい＆df-pnを呼び出したいので、同等のものをやねうら王のほうでも独自に実装する。
+
+
+■　学習手法
+
+
+- SoTAを総なめ！衝撃のオプティマイザー「SAM」爆誕&解説！ : https://qiita.com/omiita/items/f24e4f06ae89115d248e
 

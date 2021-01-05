@@ -159,6 +159,12 @@ struct MainThread: public Thread
 	// 探索を開始する時に呼び出される。
 	void search() override;
 	
+	// Thread::search()を呼び出す。
+	// ※　Stockfish、MainThreadがsearch()をoverrideする設計になっているの、良くないと思う。
+	//     そのため、MainThreadに対して外部からThread::search()を呼び出させることが出来ない。
+	//     仕方ないのでこれを回避するために抜け道を用意しておく。
+	void thread_search() { Thread::search(); }
+
 	// 思考時間の終わりが来たかをチェックする。
 	void check_time();
 
