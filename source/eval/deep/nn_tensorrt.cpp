@@ -79,6 +79,7 @@ namespace Eval::dlshogi
 		// Create host and device buffers
 		// host(GPU側)に同じだけメモリを確保しておいて、CPU側からそこに転送する。
 
+		cudaSetDevice(gpu_id);
 		checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(NN_Input1)        * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(NN_Input2)        * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&y1_dev, sizeof(NN_Output_Policy) * max_batch_size));
@@ -94,6 +95,7 @@ namespace Eval::dlshogi
 		// load()でメモリ確保を行った場合、inputBindings.size() == 4のはず。
 		if (inputBindings.size())
 		{
+			cudaSetDevice(gpu_id);
 			checkCudaErrors(cudaFree(x1_dev));
 			checkCudaErrors(cudaFree(x2_dev));
 			checkCudaErrors(cudaFree(y1_dev));
@@ -254,6 +256,7 @@ namespace Eval::dlshogi
 
 	void NNTensorRT::forward(const int batch_size, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2)
 	{
+		cudaSetDevice(gpu_id);
 		inputDims1.d[0] = batch_size;
 		inputDims2.d[0] = batch_size;
 		context->setBindingDimensions(0, inputDims1);
