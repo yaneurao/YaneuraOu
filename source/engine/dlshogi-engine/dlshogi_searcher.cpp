@@ -745,7 +745,7 @@ namespace dlshogi
 
 		// 通常の探索スレッドは、並列UCT探索へ。
 		if (thread_id < s)
-		thread_id_to_uct_searcher[thread_id]->ParallelUctSearch(rootPos);
+			thread_id_to_uct_searcher[thread_id]->ParallelUctSearchStart(rootPos);
 
 		// 探索終了判定用。
 		else if (thread_id == s)

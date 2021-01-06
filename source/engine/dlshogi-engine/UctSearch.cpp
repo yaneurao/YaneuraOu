@@ -248,6 +248,17 @@ namespace dlshogi
 		// これが、policy_value_batch_maxsize分だけ溜まったら、nn->forward()を呼び出す。
 	}
 
+	// UCTアルゴリズムによる並列探索の各スレッドのEntry Point
+	// ※　Thread::search()から呼び出す。
+	void UctSearcher::ParallelUctSearchStart(const Position& rootPos)
+	{
+		// このスレッドとGPUとを紐付ける。
+		grp->set_device();
+
+		// 並列探索の開始
+		ParallelUctSearch(rootPos);
+	}
+
 	// UCTアルゴリズム(UctSearch())を反復的に実行する。
 	// 探索用のすべてのスレッドが並列的にこの関数を実行をする。
 	// この関数とUctSearch()、SelectMaxUcbChild()が探索部本体と言えると思う。
