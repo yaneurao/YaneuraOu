@@ -44,6 +44,9 @@ namespace dlshogi
 			mutex_gpu.unlock();
 		}
 
+		// 各探索スレッドは探索開始時に(nn_forward()の呼び出しまでに)、この関数を呼び出してスレッドとGPUとを紐付けないといけない。
+		void set_device() { nn->set_device(gpu_id); }
+
 		// やねうら王では、スレッドの生成～解体はThreadクラスが行うので、これらはコメントアウト。
 
 		//	void Run();
@@ -187,12 +190,14 @@ namespace dlshogi
 		//void Join();
 		//void Term();
 
-		//  並列処理で呼び出す関数
-		//  UCTアルゴリズムを反復する
+		// UCTアルゴリズムによる並列探索の各スレッドのEntry Point
 		// ※　Thread::search()から呼び出す。
-		void ParallelUctSearch(const Position& rootPos);
+		void ParallelUctSearchStart(const Position& rootPos);
 
 	private:
+		//  並列処理で呼び出す関数
+		//  UCTアルゴリズムを反復する
+		void ParallelUctSearch(const Position& rootPos);
 
 		//  UCT探索(1回の呼び出しにつき, 1回の探索)
 		float UctSearch(Position* pos, Node* current, const int depth, std::vector<NodeTrajectory>& trajectories);

@@ -144,6 +144,9 @@ void USI::extra_option(USI::OptionsMap& o)
 
 	// leaf nodeでの奇数手詰めルーチンを呼び出す時の手数
 	o["MateSearchPly"]               << USI::Option(5, 0, 255);
+
+	// root nodeでのdf-pn詰将棋探索の最大ノード数
+	o["RootMateSearchNodesLimit"]    << USI::Option(1000000, 0, UINT32_MAX);
 }
 
 // "isready"コマンドに対する初回応答
@@ -197,7 +200,7 @@ void Search::clear()
 		policy_value_batch_maxsizes.push_back(new_policy_value_batch_maxsize[i]);
 	}
 
-	searcher.InitGPU(Eval::dlshogi::ModelPaths , thread_nums, policy_value_batch_maxsizes);
+	searcher.InitGPU(Eval::dlshogi::ModelPaths , thread_nums, policy_value_batch_maxsizes , (u32)Options["RootMateSearchNodesLimit"]);
 
 	// その他、dlshogiにはあるけど、サポートしないもの。
 
@@ -234,7 +237,6 @@ void Search::clear()
 
 	searcher.search_options.mate_search_ply = (int)Options["MateSearchPly"];
 
-
 #if 0
 	// dlshogiでは、
 	// "isready"に対してnode limit = 1 , batch_size = 128 で探索しておく。
@@ -270,36 +272,10 @@ void MainThread::search()
 	// これは、isreadyのあと、goの直前まで変更可能
 	searcher.search_options.multi_pv = Options["MultiPV"];
 
-	// start_threads()を呼び出したかのフラグ
-	bool called_start_threads = false;
+	Move ponderMove;
+	Move move = searcher.UctSearchGenmove(&rootPos, rootPos.sfen(), {}, ponderMove);
 
-	// terminate_threads()を呼び出したかのフラグ
-	bool called_teminate_threads = false;
-
-	// 全スレッドで探索を開始するlambda
-	auto start_threads = [&]()
-	{
-		called_start_threads = true;
-
-		Threads.start_searching(); // main以外のthreadを開始する
-		Thread::search();          // main thread(このスレッド)も探索に参加する。
-
-		// これで探索が始まって、このあとmainスレッドが帰還する。
-		// ponderならそこで待って、
-		// そのあと全探索スレッドの終了を待つ。
-		// (そうしないとvirtual lossがある状態でbest nodeを拾おうとしてしまう)
-	};
-
-	// 開始した探索の終了を待つlambda
-	// ※　start_threadsを呼び出していない時もこのlambdaを呼び出して良い
-	// ponder中なら、ponderが解除されるのを待つ。
-	auto terminate_threads = [&]()
-	{
-		// terminate_threads()の二度目の呼び出しに対しては何もせずにリターンする。
-		// ※　しなくても大丈夫だが、全スレッドの停止を知らべる時間を省略するため。
-		if (called_teminate_threads)
-			return;
-		called_teminate_threads = true;
+	// ponder中であれば、呼び出し元で待機しなければならない。
 
 	// 最大depth深さに到達したときに、ここまで実行が到達するが、
 	// まだThreads.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
@@ -318,23 +294,6 @@ void MainThread::search()
 
 		// Stockfishのコード、ここ、busy waitになっているが、さすがにそれは良くないと思う。
 	}
-
-		// start_threads()を呼び出していない時は、探索スレッド自体が開始されていないのでこの処理は不要。
-		// ※　この判定はしなくても大丈夫だが、全スレッドの停止を知らべる時間を省略するため。
-		if (called_start_threads)
-		{
-	// 全スレッドに停止命令を送る。
-	Threads.stop = true;
-
-	// 各スレッドが終了するのを待機する(開始していなければいないで構わない)
-	Threads.wait_for_search_finished();
-		}
-	};
-
-	Move ponderMove;
-	Move move = searcher.UctSearchGenmove(&rootPos, rootPos.sfen(), {}, ponderMove, start_threads , terminate_threads);
-
-	// ponder中であれば、UctSearchGenmove()側でそれが解除されるのを待機することは保証されている。
 
 	sync_cout << "bestmove " << to_usi_string(move);
 

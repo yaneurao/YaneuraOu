@@ -19,6 +19,7 @@ namespace dlshogi
 	class UctSearcher;
 	class UctSearcherGroup;
 	class SearchInterruptionChecker;
+	class DlshogiSearcher;
 
 	// 探索したノード数など探索打ち切り条件を保持している。
 	// ※　dlshogiのstruct po_info_t。
@@ -162,13 +163,21 @@ namespace dlshogi
 		// エンジンオプションの"MateSearchPly"の値。
 		int mate_search_ply;
 
+		// root node(探索開始局面)でのdf-pnによる詰み探索を行う時の調べるノード(局面)数
+		// これが0だと詰み探索を行わない。最大で指定したノード数まで詰み探索を行う。
+		// ここで指定した数×16バイト、詰み探索用に消費する。
+		// 例) 100万を指定すると16MB消費する。
+		// 1秒間に100万～200万局面ぐらい調べられると思うので、最大で5秒調べさせたいのであれば500万～1000万ぐらいを設定するのが吉。
+		// デフォルトは100万
+		// 不詰が証明できた場合はそこで詰み探索は終了する。
+		u32 root_mate_search_nodes_limit;
 	};
 
 	// ノードのlock用。
 	// 子ノードの構造体にstd::mutex(sizeof(std::mutex)==80)を持たせると子ノードがメモリを消費しすぎるので
 	// 局面のhash keyからindexを計算して、↓の配列の要素を使う。
 
-	class NodeMutexs
+	class MutexPool
 	{
 	public:
 		static const uint64_t MUTEX_NUM = 65536; // must be 2^n
@@ -192,6 +201,36 @@ namespace dlshogi
 		std::mutex mutexes[MUTEX_NUM];
 	};
 
+	// あとで
+	class RootDfpnSearcher
+	{
+	public:
+		RootDfpnSearcher(DlshogiSearcher* dlshogi_searcher);
+
+		// 詰み探索用のメモリを確保する。
+		// 確保するメモリ量ではなくノード数を指定するので注意。
+		void alloc(u32 nodes_limit);
+
+		// df-pn探索する。
+		// この関数を呼び出すとsearching = trueになり、探索が終了するとsearching = falseになる。
+		// nodes_limit = 探索ノード数上限
+		void search(const Position& rootPos , u32 nodes_limit);
+
+		// 探索中であるかのフラグ
+		std::atomic<bool> searching;
+
+		// 解けた時の詰みになる指し手とponder move(相手の指し手の予想手)
+		std::atomic<Move> mate_move , mate_ponder_move;
+
+		// 解けた時のPV
+		std::string pv;
+
+	private:
+		// df-pn探索を行うsolver
+		std::unique_ptr<Mate::Dfpn::MateDfpnSolver> solver;
+
+		DlshogiSearcher* dlshogi_searcher;
+	};
 
 	// UCT探索部
 	// ※　dlshogiでは、この部分、class化されていない。
@@ -208,7 +247,9 @@ namespace dlshogi
 
 		// GPUの初期化、各UctSearchThreadGroupに属するそれぞれのスレッド数と、各スレッドごとのNNのbatch sizeの設定
 		// "isready"に対して呼び出される。
-		void InitGPU(const std::vector<std::string>& model_paths, std::vector<int> new_thread, std::vector<int> policy_value_batch_maxsizes);
+		// root_mate_search_nodes_limit : root nodeでのdf-pn探索のノード数上限
+		void InitGPU(const std::vector<std::string>& model_paths, std::vector<int> new_thread, std::vector<int> policy_value_batch_maxsizes ,
+			u32 root_mate_search_nodes_limit);
 
 		// 対局開始時に呼び出されるハンドラ
 		void NewGame();
@@ -289,16 +330,9 @@ namespace dlshogi
 		//   gameRootSfen  : 対局開始局面のsfen文字列(探索開始局面ではない)
 		//   moves         : 探索開始局面からの手順
 		//   ponderMove    : [Out] ponderの指し手(ないときはMOVE_NONEが代入される)
-		//   start_threads    : この関数を呼び出すと全スレッドがParallelUctSearch()を呼び出して探索を開始する。
-		//   teminate_threads :	ponderが解除されるのを待機して、そのあとstart_threadsで開始した全スレッドが終了するのを待機する。
-		//                    // start_threadsを呼び出さずにteminate_threads()だけ呼び出すことがある。
 		// 返し値 : この局面でのbestな指し手
-		// この関数は、定跡にhitした時や宣言勝ちなどで、実際の探索を行わない場合でもteminate_threads()を呼び出してから
-		// リターンすることは保証する。
-		Move UctSearchGenmove(Position* pos, const std::string& gameRootSfen, const std::vector<Move>& moves, Move& ponderMove,
-			const std::function<void()>& start_threads,
-			const std::function<void()>& terminate_threads
-			);
+		// ponderの場合は、呼び出し元で待機すること。
+		Move UctSearchGenmove(Position* pos, const std::string& gameRootSfen, const std::vector<Move>& moves, Move& ponderMove);
 
 		// NNに渡すモデルPathの設定。
 		void SetModelPaths(const std::vector<std::string>& paths);
@@ -354,6 +388,11 @@ namespace dlshogi
 		//    返し値 : 探索を延長したほうが良さそうならtrue
 		//bool ExtendTime();
 
+		// 全スレッドでの探索開始
+		void StartThreads();
+		// 探索スレッドの終了(main thread以外)
+		void TeminateThreads();
+
 		// UCT探索を行う、GPUに対応するスレッドグループの集合
 		std::unique_ptr<UctSearcherGroup[]> search_groups;
 
@@ -365,6 +404,9 @@ namespace dlshogi
 
 		// 探索停止チェック用
 		std::unique_ptr<SearchInterruptionChecker> interruption_checker;
+
+		// root局面での詰み探索用。
+		std::unique_ptr<RootDfpnSearcher> root_dfpn_searcher;
 
 		// PVの出力と、ベストの指し手の取得
 		std::tuple<Move /*bestMove*/, float /* best_wp */, Move /* ponderMove */> get_and_print_pv();
@@ -379,7 +421,7 @@ namespace dlshogi
 		std::vector<UctSearcher*> thread_id_to_uct_searcher;
 
 		// ノードのlockに使うmutex
-		NodeMutexs node_mutexes;
+		MutexPool node_mutexes;
 
 		// 探索とは別スレッドでの詰み探索用
 

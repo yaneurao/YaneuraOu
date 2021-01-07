@@ -113,11 +113,15 @@ namespace Mate::Dfpn
 		// size_mb [MB] だけ探索用のメモリを確保する。
 		virtual void alloc(size_t size_mb) = 0;
 
+		// 探索ノード数の上限を指定してメモリを確保する。
+		// alloc()かalloc_by_nodes_limit()か、どちらかを呼び出してメモリを確保すること！
+		virtual void alloc_by_nodes_limit(size_t nodes_limit) = 0;
+
 		// 探索して初手を返す。
 		// nodes_limit内に解ければその初手が返る。
 		// 不詰が証明できれば、MOVE_NULL、解がわからなかった場合は、MOVE_NONEが返る。
 		// nodes_limit : ノード制限。0を指定するとノード制限なし。(ただしメモリの制限から解けないことはある)
-		virtual Move mate_dfpn(Position& pos , u64 nodes_limit)= 0;
+		virtual Move mate_dfpn(const Position& pos , u64 nodes_limit)= 0;
 
 		// mate_dfpn()がMOVE_NULL,MOVE_NONE以外を返した場合にその手順を取得する。
 		// ※　最短手順である保証はない。
@@ -168,13 +172,17 @@ namespace Mate::Dfpn
 
 		// このクラスを用いるには、この関数を呼び出して事前にdf-pn用のメモリを確保する必要がある。
 		// size_mb [MB] だけ探索用のメモリを確保する。
-		virtual void alloc(size_t size_mb) { return impl->alloc(size_mb); }
+		virtual void alloc(size_t size_mb) { impl->alloc(size_mb); }
+
+		// 探索ノード数の上限を指定してメモリを確保する。
+		// alloc()かalloc_by_nodes_limit()か、どちらかを呼び出してメモリを確保すること！
+		virtual void alloc_by_nodes_limit(size_t nodes_limit) { impl->alloc_by_nodes_limit(nodes_limit); }
 
 		// 探索して初手を返す。
 		// nodes_limit内に解ければその初手が返る。
 		// 不詰が証明できれば、MOVE_NULL、解がわからなかった場合は、MOVE_NONEが返る。
 		// nodes_limit : ノード制限。0を指定するとノード制限なし。(ただしメモリの制限から解けないことはある)
-		virtual Move mate_dfpn(Position& pos, u64 nodes_limit) { return impl->mate_dfpn(pos, nodes_limit); }
+		virtual Move mate_dfpn(const Position& pos, u64 nodes_limit) { return impl->mate_dfpn(pos, nodes_limit); }
 
 		// mate_dfpn()がMOVE_NULL,MOVE_NONE以外を返した場合にその手順を取得する。
 		// ※　最短手順である保証はない。

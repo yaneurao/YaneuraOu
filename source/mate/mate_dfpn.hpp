@@ -288,7 +288,7 @@ namespace Mate::Dfpn32
 
 		NodeManager() :node_index(0), nodes_num(0) {}
 
-		// メモリ確保。size個分確保される。
+		// メモリ確保。size_個分Nodeが確保される。
 		void alloc(size_t size_) {
 			// 前のを開放してからでないと新しいのを確保するメモリがないかも知れない。
 			release();
@@ -413,20 +413,33 @@ namespace Mate::Dfpn32
 
 			// 使っていいメモリサイズ。
 			size_t size = size_mb * 1024 * 1024;
-			node_manager .alloc(size / sizeof(Node<NodeCountType,MoveOrdering>));
+			node_manager.alloc(size / sizeof(Node<NodeCountType,MoveOrdering>));
+		}
+
+		// 探索ノード数の上限を指定してメモリを確保する。
+		// alloc()かalloc_by_nodes_limit()か、どちらかを呼び出してメモリを確保すること！
+		virtual void alloc_by_nodes_limit(size_t nodes_limit)
+		{
+			// 前に使用していたメモリを先に開放しないと次に確保できないかも知れない。
+			release();
+
+			node_manager.alloc(nodes_limit);
 		}
 
 		// alloc()で確保していたメモリを開放する。
 		void release()
 		{
-			node_manager .release();
+			node_manager.release();
 		}
 
 		// 詰み探索をしてnodes_limit内のノード数で解ければその初手が返る。
 		// 不詰が証明できれば、MOVE_NULL、解がわからなかった場合は、MOVE_NONEが返る。
 		// nodes_limit : ノード制限。0を指定するとノード制限なし。(ただしメモリの制限から解けないことはある)
-		virtual Move mate_dfpn(Position& pos, u64 nodes_limit)
+		virtual Move mate_dfpn(const Position& pos_, u64 nodes_limit)
 		{
+			// const剥がし。ここからreturnする時には、元の局面になっているのでconst性は崩れていないという解釈
+			auto& pos = *const_cast<Position*>(&pos_);
+
 			nodes_searched = 0;
 			this->nodes_limit = (NodeCountType)nodes_limit;
 			bestmove = MOVE_NONE;
