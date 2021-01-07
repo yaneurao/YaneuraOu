@@ -112,7 +112,9 @@ namespace Eval::dlshogi
 	// ※　CUDAの場合、cudaSetDevice()を呼び出す。必ず、そのスレッドの探索開始時(forward()まで)に一度はこれを呼び出さないといけない。
 	void NNTensorRT::set_device(int gpu_id)
 	{
-		cudaSetDevice(gpu_id);
+		// 存在しないCUDAデバイスに設定しようとした場合、例えば↓のようなエラーを起こす。
+		// Error! : Cuda failure , Error = invalid device ordinal
+		checkCudaErrors(cudaSetDevice(gpu_id));
 	}
 
 	// 初回のみビルドが必要。
