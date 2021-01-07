@@ -115,6 +115,13 @@ namespace Eval::dlshogi
 		}
 	}
 
+	// 使用可能なデバイス数を取得する。
+	int NNTensorRT::get_device_count() {
+		int device_count = 0;
+		checkCudaErrors(cudaGetDeviceCount(&device_count));
+		return device_count;
+	}
+
 	// 現在のスレッドとGPUを紐付ける。
 	// ※　CUDAの場合、cudaSetDevice()を呼び出す。必ず、そのスレッドの探索開始時(forward()まで)に一度はこれを呼び出さないといけない。
 	void NNTensorRT::set_device(int gpu_id)

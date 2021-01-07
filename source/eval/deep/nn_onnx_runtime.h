@@ -25,6 +25,9 @@ namespace Eval::dlshogi
 		// NNによる推論
 		virtual void forward(const int batch_size, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2);
 
+		// 使用可能なデバイス数を取得する。
+		static int get_device_count();
+
 	private:
 		Ort::Env env;
 		std::unique_ptr<Ort::Session> session;

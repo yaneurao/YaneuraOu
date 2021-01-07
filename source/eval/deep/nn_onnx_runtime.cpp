@@ -6,6 +6,7 @@
 
 #if defined(ORT_DML)
 #include <dml_provider_factory.h>
+#include <dxgi.h>
 // →　ここでDirectML.h が見つからないとエラーが出るなら Windows SDKの最新版をインストールすること。
 //	   https://github.com/microsoft/DirectML/issues/1
 #else
@@ -31,7 +32,7 @@ namespace Eval::dlshogi
 #if defined(ORT_DML)
 		Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_DML(session_options, gpu_id));
 #else
-	    Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CPU(session_options, true));
+		Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CPU(session_options, true));
 #endif
 		// Windows環境ではwstringでファイル名を渡す必要があるようだが？
 		std::wstring onnx_filename = MultiByteToWideChar(model_filename);
@@ -40,6 +41,31 @@ namespace Eval::dlshogi
 		session.reset(new Ort::Session(env, onnx_filename.c_str(), session_options));
 
 		return ResultCode::Ok;
+	}
+
+	// 使用可能なデバイス数を取得する。
+	int NNOnnxRuntime::get_device_count() {
+#if defined(ORT_DML)
+		// D3D12対応のハードウェアデバイス数をカウント
+		// dxgi.h , DXGI.lib , D3D12.lib に依存する。
+		IDXGIFactory1* pFactory1;
+		HRESULT hr = CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)(&pFactory1));
+		IDXGIAdapter1* pAdapter1;
+		int device_count = 0;
+		UINT i = 0;
+		while (pFactory1->EnumAdapters1(i++, &pAdapter1) != DXGI_ERROR_NOT_FOUND) {
+			DXGI_ADAPTER_DESC1 desc1;
+			pAdapter1->GetDesc1(&desc1);
+			if (desc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+				continue;
+			if (SUCCEEDED(D3D12CreateDevice(pAdapter1, D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), nullptr)))
+				device_count++;
+		}
+		return device_count;
+#else
+		// ORT_CPU, ORT_MKL ではデバイス数を1とする
+		return 1;
+#endif
 	}
 
 	// NNによる推論

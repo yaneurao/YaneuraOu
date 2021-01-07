@@ -192,11 +192,15 @@ void Search::clear()
 		(int)Options["DNN_Batch_Size5"], (int)Options["DNN_Batch_Size6"], (int)Options["DNN_Batch_Size7"], (int)Options["DNN_Batch_Size8"]
 	};
 
+	// 対応デバイス数を取得する
+	int device_count = NN::get_device_count();
+
 	std::vector<int> thread_nums;
 	std::vector<int> policy_value_batch_maxsizes;
 	for (int i = 0; i < max_gpu; ++i)
 	{
-		thread_nums.push_back(new_thread[i]);
+		// 対応デバイス数以上のデバイスIDのスレッド数は 0 として扱う(デバイスの無効化)
+		thread_nums.push_back(i < device_count ? new_thread[i] : 0);
 		policy_value_batch_maxsizes.push_back(new_policy_value_batch_maxsize[i]);
 	}
 
