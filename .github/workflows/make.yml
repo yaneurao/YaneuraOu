@@ -28,7 +28,7 @@ jobs:
           - YANEURAOU_MATE_ENGINE
           - TANUKI_MATE_ENGINE
           - USER_ENGINE
-        compiler: [clang++-12, clang++-10, g++-10]
+        compiler: [clang++-12, clang++-11, g++-10]
         target: ["normal,tournament", gensfen, evallearn]
         archcpu:
           [
@@ -66,6 +66,8 @@ jobs:
             archcpu: "ZEN3,AVXVNNI"
           - compiler: clang++-10
             archcpu: "ZEN3,AVXVNNI"
+          - compiler: clang++-11
+            archcpu: "ZEN3,AVXVNNI"
           # Linux 32bit archcpu 向けのビルドは通常はしない
           # don't usually build for Linux 32bit archcpu
           - archcpu: NO_SSE
@@ -101,27 +103,33 @@ jobs:
           sudo apt install build-essential libopenblas-dev clang-10 libstdc++-10-dev libomp-10-dev
         if: ${{ matrix.compiler == 'clang++-10' }}
       - name: install clang-11
-        # Ubuntu 20.10 or LLVM APT
+        # Ubuntu 20.04
         run: |
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 11
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install build-essential libopenblas-dev
+          sudo apt install build-essential libopenblas-dev clang-11 libomp-11-dev
         if: ${{ matrix.compiler == 'clang++-11' }}
       - name: install clang-12
         # Ubuntu 21.04 or LLVM APT
         run: |
           wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 12
+          sudo bash ./llvm.sh 12
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
           sudo apt install build-essential libopenblas-dev
         if: ${{ matrix.compiler == 'clang++-12' }}
+      - name: install clang-13
+        # LLVM APT
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          sudo bash ./llvm.sh 13
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+          sudo apt update
+          sudo apt install build-essential libopenblas-dev
+        if: ${{ matrix.compiler == 'clang++-13' }}
 
       - name: make
         run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }}
