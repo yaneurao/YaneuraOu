@@ -95,6 +95,11 @@ namespace Eval::dlshogi
 		// load()でメモリ確保を行った場合、inputBindings.size() == 4のはず。
 		if (inputBindings.size())
 		{
+			// 安全のため、GPU IDをスレッドと関連付けてから開放する。
+			// ※　これは本来しなくても良いと思うのだが、ドライバー側の実装次第では
+			//     何か地雷を踏む可能性がなくはないので安全側に倒しておく。
+			set_device(gpu_id);
+
 			checkCudaErrors(cudaFree(x1_dev));
 			checkCudaErrors(cudaFree(x2_dev));
 			checkCudaErrors(cudaFree(y1_dev));
