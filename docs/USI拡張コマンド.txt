@@ -543,7 +543,8 @@ USIプロトコルの独自拡張コマンド
 ■　定跡生成
 
 
-	// MAKE_BOOK_CMDをdefineしてコンパイルしたときにのみ有効。
+	// MAKE_BOOK_CMD,EVAL_LEARN をdefineしてコンパイルしたときにのみ有効。
+  // NNUEのLEARN版などで使えます。
 	makebook : 定跡作成コマンド。詳しくは doc/解説.txt のほうを参考に。
 
 

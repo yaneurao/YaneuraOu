@@ -203,6 +203,10 @@ ShogiGUIの検討モードで「定跡を使用する」のオプションはオ
 	http://yaneuraou.yaneu.com/2019/05/28/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B%E3%82%A2%E3%83%83%E3%83%97%E3%83%87%E3%83%BC%E3%83%88%EF%BC%81%E3%83%86%E3%83%A9%E3%82%B7%E3%83%A7%E3%83%83%E3%82%AF%E5%AE%9A%E8%B7%A1%E3%81%AE%E7%94%9F/
 
 
+  // makebookコマンドは、
+	// MAKE_BOOK_CMD,EVAL_LEARN をdefineしてコンパイルしたときにのみ有効。
+  // NNUEのLEARN版などで使えます。
+
 	
 > makebook from_sfen book.sfen standard_book.db moves 16
 	※　	やねうら王2017Earlyなど、この機能に対応している思考エンジンが必要。

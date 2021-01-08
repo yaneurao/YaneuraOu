@@ -2,6 +2,145 @@
 やねうら王 更新履歴
 
 
+
+■　2021/1/8
+
+
+- やねうら王 V6.01
+  - V6.00→V6.01の主な更新内容
+    - ふかうら王、マルチGPUに対応
+      - 対応したつもりが対応できてなかった。
+    - ふかうら王、探索開始局面でのdf-pn詰将棋を実装
+    - ふかうら王でgo ponder で、stopもしくはponderhitを待たずにbestmoveを返す事があった
+      - 関連 : https://github.com/yaneurao/YaneuraOu/pull/155 : go ponder で、stopもしくはponderhitを待たずにbestmoveを返す事があった #155
+    - ふかうら王で評価関数ファイルの読み込み時にmodel pathを出力するようにした。
+    - ふかうら王、ORT_MKL に エンジンオプション InterOpNumThreads, IntraOpNumThreads を追加。 #154
+
+    - やねうら王、PV出力まわりの改善。(検討モードやponderで"stop"が来る前に最終的なPVを必ず出力するように)
+
+    - やねうら王探索部、Stockfish 2021/01/05へのキャッチアップ
+        engine1 = YaneuraOuV600.exe , eval = suishou_wcso1
+        engine2 = YaneuraOuV601.exe , eval = suishou_wcso1
+        T2,b1000,1392 - 122 - 1486(48.37% R-11.35[-22.01,-0.7]) winrate black , white = 50.87% , 49.13%
+        T2,b2000,1455 - 149 - 1396(51.03% R7.19[-3.51,17.89]) winrate black , white = 52.61% , 47.39%
+        T2,b4000,1174 - 162 - 1224(48.96% R-7.25[-18.92,4.43]) winrate black , white = 50.83% , 49.17%
+        // 弱くはなってなさそう。
+
+    - NNUEの学習でHalfKPE9以外のfactorizerが無効化されている件、修正。
+
+
+- makebookコマンドは、EVAL_LEARNかつENABLE_MAKEBOOK_CMDが有効な時だけ使えるように変更。// NNUEのLEARN版などで使える。
+- makebook2021.cpp書きかけ。
+- TensorRT : release()のときも安全のためcudaSetDevice()呼び出すようにした。
+
+
+■　2021/1/7
+
+
+- TensorRT: cudaSetDevice()の呼び出しタイミングの調整。
+
+
+■　2021/1/6
+
+
+- TensorRT: cudaSetDevice() #157
+  - ふかうら王、複数GPUがあるときに2つ目のGPU以降を使わなかったのを修正。
+  - Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/157
+
+
+
+■　2021/1/5
+
+
+- Stockfish 2021/01/05へのキャッチアップ
+  - Assorted parameter tweak : https://github.com/official-stockfish/Stockfish/commit/c57c71bf5c56665b0339fa983665bdef4bf8a099
+  - Remove razoring : https://github.com/official-stockfish/Stockfish/commit/8ec97d161ed82b7c1d8f1f05c305e9a55d8ccff3
+    - has become ineffective now.
+  - Simplify condition for assigning static-eval based bonus : https://github.com/official-stockfish/Stockfish/commit/1f3b5b8b54fbf9d3b74bcba831466eeb1104b421
+  - Assorted search and eval parameter tune : https://github.com/official-stockfish/Stockfish/commit/9fb6383ed804d0bc86d52b07def14352f44eb5b4
+  - Increase reduction in case of stable best move : https://github.com/official-stockfish/Stockfish/commit/a88a38c3a91749181ffa5d6dc0af7314a70a1c41
+  - PARAM_FUTILITY_RETURN_DEPTH 8→9に変更
+  - PARAM_PROBCUT_MARGIN1 199→194に変更
+  - 弱くはなってなさそう。(計測中)
+
+- やねうら王、go ponderやgo infiniteで詰みを見つけた時に、その詰み筋をstopが来るまで出力しないことがあったのを修正。
+    isready
+    sfen l6nl/6k2/+P3p2p1/1B1p1Pp1p/1p7/7nP/3P1SP1L/2+p3GK1/L6+r1 b B2G2S5Prgs2np 0
+    go infinite
+
+    isready
+    sfen l6nl/6k2/+P3p2p1/1B1p1Pp1p/1p7/7nP/3P1SP1L/2+p3GK1/L6+r1 b B2G2S5Prgs2np 0
+    go ponder
+    ponderhit
+    stop
+
+- やねうら王、詰みを見つけてからgo ponder,infiniteのときはmain以外の探索スレッドが停止していなかったのを修正。
+
+- やねうら王、"go mate"コマンド対応コード削除。
+  - checkmate XXXを返せていないので中途半端な対応は良くないと思った。
+
+
+- ふかうら王、root nodeでのdf-pnによる詰み探索実装
+  - エンジンオプションの"RootMateSearchNodesLimit"
+  - これが0だと詰み探索を行わない。最大で指定したノード数まで詰み探索を行う。
+  - ここで指定した数×16バイト、詰み探索用に消費する。
+  - 例) 100万を指定すると16MB消費する。
+  - これ、ponder中は延々と調べたい気はするが…。
+    - 手順を記憶していないので長く読んで飛車を捨てる手からの詰み手順を見つけたとして
+    2手後の局面がやってきたときに詰みを発見できなくて頓死する可能性があるの嫌だな…。
+  - dlshogi、dfpnは19手・300msがデフォルト値になってて、これが最小値かつ最大値になっている。
+
+- ふかうら王、go infiniteで詰みを見つけた時にPV出力せずにstopを待つの修正。
+
+- NodeMutexs →　MutexPoolに名前変更
+
+
+
+isready
+sfen ln1gkg1nl/6+P2/2sppps1p/2p3p2/p8/P1P1P3P/2NP1PP2/3s1KSR1/L1+b2G1NL w R2Pbgp 42
+go btime 1000 wtime 1000 byoyomi 3000
+
+// 反証駒 : https://tadaoyamaoka.hatenablog.com/entry/2018/05/31/001822
+> 下の19手詰めの局面で最大深さまでループが発生していたため、優越関係を反証に利用すると、最大深さに達した局面が不詰み扱いになるため、誤って不詰みと判定されていた。
+
+isready
+sfen ln6K/1ksPg1sG1/5s2p/ppp3p2/9/P1P3P2/4+p3P/1+r7/LN3L2L w RBSb2g2n7p 1
+go btime 1000 wtime 1000 byoyomi 3000
+
+info nps 32 time 371 nodes 12 hashfull 0 depth 3 score cp 2327 pv 8h2h B*5e B*7c
+info string solved by df-pn , mate = G*2a , mate_nodes_searched = 83649
+info score mate 27 pv G*2a 2b2a G*1b 1a1b 3b2a 1b2a 8h2h B*2g B*3b 2a1b G*2a 1b1c P*1b 1c2d 2h2g R*2e B*4b S*3c 4b3c 2d3c N*4a 3c2d S*1c 2d1e 1c1d 1e2d 2g2e
+bestmove G*2a
+// 371[ms]で詰みを見つけた。
+
+
+
+■　2021/1/4
+
+
+
+- HalfKPE9以外のfactorizerが無効化されている件、修正。
+  - tanuki-さんからの指摘
+  - HalfKPE9以外のfactorizerが無効化されている #156 : https://github.com/yaneurao/YaneuraOu/issues/156
+
+
+
+- ふかうら王でgo ponder で、stopもしくはponderhitを待たずにbestmoveを返す事があった
+  - 関連 : https://github.com/yaneurao/YaneuraOu/pull/155 : go ponder で、stopもしくはponderhitを待たずにbestmoveを返す事があった #155
+
+- ふかうら王で評価関数ファイルの読み込み時にmodel pathを出力するようにした。
+
+
+- ORT_MKL に エンジンオプション InterOpNumThreads, IntraOpNumThreads を追加。 #154
+  - Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/154
+    InterOpNumThreadsはグラフ全体のスレッド数（default値1）、
+      IntraOpNumThreadsはノード内の実行並列化の際のスレッド数設定（default値4）。
+      使用スレッドを変更したい時は IntraOpNumThreads の設定値を変更する。
+      InterOpNumThreads の効果はよく分からない。ORT_MKLでは効果無いかも。
+      cf: https://tadaoyamaoka.hatenablog.com/entry/2020/06/06/190259
+      TadaiYamaokaの日記 - 2020-06-06 - ONNX Runtimeを使ってみる その2(性能測定)
+
+
 ■　2021/1/1
 
 

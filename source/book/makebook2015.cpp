@@ -1,6 +1,6 @@
 ﻿#include "../config.h"
 
-#if defined (ENABLE_MAKEBOOK_CMD)
+#if defined (ENABLE_MAKEBOOK_CMD) && defined(EVAL_LEARN)
 
 #include "book.h"
 #include "../position.h"
@@ -653,5 +653,5 @@ namespace Book
 
 } // namespace Book
 
-#endif // defined (ENABLE_MAKEBOOK_CMD)
+#endif // defined (ENABLE_MAKEBOOK_CMD) && defined(EVAL_LEARN)
 

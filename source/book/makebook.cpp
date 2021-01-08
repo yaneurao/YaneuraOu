@@ -1,4 +1,7 @@
 ﻿#include "../config.h"
+
+#if defined (ENABLE_MAKEBOOK_CMD) && defined(EVAL_LEARN)
+
 #include "book.h"
 #include "../position.h"
 #include <sstream>
@@ -8,7 +11,6 @@ using namespace std;
 namespace Book
 {
 
-#if defined (ENABLE_MAKEBOOK_CMD)
 	// ----------------------------------
 	// USI拡張コマンド "makebook"(定跡作成)
 	// ----------------------------------
@@ -22,7 +24,7 @@ namespace Book
 	int makebook2019(Position& pos, istringstream& is, const string& token);
 
 	// 定跡生成コマンド2021年度版。makebook2021.cppで定義されている。MCTSによる生成。
-	//int makebook2021(Position& pos, istringstream& is, const string& token);
+	int makebook2021(Position& pos, istringstream& is, const string& token);
 
 	// ---------------------------------------------------------------------------------------------
 
@@ -64,8 +66,8 @@ namespace Book
 			return;
 
 		// 2021年に作ったmakebook拡張コマンド
-		//if (makebook2021(pos, is, token))
-		//	return;
+		if (makebook2021(pos, is, token))
+			return;
 
 		// いずれのコマンドも処理しなかったので、使用方法を出力しておく。
 
@@ -76,8 +78,10 @@ namespace Book
 		cout << "> makebook sort book_src.db book_sorted.db" << endl;
 		cout << "> makebook convert_from_apery book_src.bin book_converted.db" << endl;
 		cout << "> makebook build_tree book2019.db user_book1.db" << endl;
+		cout << "> makebook mcts filename book2021.db" << endl;
 
 	}
-#endif
 
 } // namespace Book
+
+#endif // defined (ENABLE_MAKEBOOK_CMD) && defined(EVAL_LEARN)
