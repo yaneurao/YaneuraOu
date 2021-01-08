@@ -228,6 +228,8 @@ namespace Eval::dlshogi
 		checkCudaErrors(cudaGetDeviceProperties(&device_prop, gpu_id));
 		checkCudaErrors(cudaDeviceGetPCIBusId(pciBusId, cBufLen, gpu_id));
 
+		sync_cout << "info string gpu_id = " << gpu_id << ", device_name = " << device_prop.name << ", pci_bus_id = " << pciBusId << sync_endl;
+
 		// ファイル名 + "." + GPU_ID + "." + DEVICE_NAME + "." + PCI_BUS_ID + "." + MAX_BATCH_SIZE + ".serialized"
 		// GPU_ID は個体に固有・固定ではない。（構成変更時に限らず、リブートしたらIDが変わることもある）
 		// 複数のCUDAデバイスが存在した時、全てのCUDAデバイスが同一とは限らない。
