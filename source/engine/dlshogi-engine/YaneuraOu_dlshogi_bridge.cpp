@@ -31,32 +31,32 @@ void USI::extra_option(USI::OptionsMap& o)
 	searcher.book.init(o);
 
 #if 0
-    (*this)["Book_File"]                   = USIOption("book.bin");
-    (*this)["Best_Book_Move"]              = USIOption(true);
-    (*this)["OwnBook"]                     = USIOption(false);
-    (*this)["Min_Book_Score"]              = USIOption(-3000, -ScoreInfinite, ScoreInfinite);
-    (*this)["USI_Ponder"]                  = USIOption(false);
-    (*this)["Stochastic_Ponder"]           = USIOption(true);
-    (*this)["Time_Margin"]                 = USIOption(1000, 0, INT_MAX);
-    (*this)["Mate_Root_Search"]            = USIOption(29, 0, 35);
-    (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
-    (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
+	(*this)["Book_File"]                   = USIOption("book.bin");
+	(*this)["Best_Book_Move"]              = USIOption(true);
+	(*this)["OwnBook"]                     = USIOption(false);
+	(*this)["Min_Book_Score"]              = USIOption(-3000, -ScoreInfinite, ScoreInfinite);
+	(*this)["USI_Ponder"]                  = USIOption(false);
+	(*this)["Stochastic_Ponder"]           = USIOption(true);
+	(*this)["Time_Margin"]                 = USIOption(1000, 0, INT_MAX);
+	(*this)["Mate_Root_Search"]            = USIOption(29, 0, 35);
+	(*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
+	(*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
 #endif
 
 #ifdef MAKE_BOOK
 	// 定跡を生成するときはPV出力は抑制したほうが良さげ。
-    o["PV_Interval"]                 << USI::Option(0, 0, INT_MAX);
-    o["Save_Book_Interval"]          << USI::Option(100, 0, INT_MAX);
+	o["PV_Interval"]                 << USI::Option(0, 0, INT_MAX);
+	o["Save_Book_Interval"]          << USI::Option(100, 0, INT_MAX);
 #else
-    o["PV_Interval"]                 << USI::Option(500, 0, INT_MAX);
+	o["PV_Interval"]                 << USI::Option(500, 0, INT_MAX);
 #endif // !MAKE_BOOK
 
-	o["UCT_NodeLimit"]				 << USI::Option(10000000, 100000, 1000000000); // UCTノードの上限
+	o["UCT_NodeLimit"]               << USI::Option(10000000, 100000, 1000000000); // UCTノードの上限
 	// デバッグ用のメッセージ出力の有無
 	o["DebugMessage"]                << USI::Option(false);
 
 	// ノードを再利用するか。
-    o["ReuseSubtree"]                << USI::Option(true);
+	o["ReuseSubtree"]                << USI::Option(true);
 
 	// 投了値 : 1000分率で
 	o["Resign_Threshold"]            << USI::Option(0, 0, 1000);
@@ -64,7 +64,7 @@ void USI::extra_option(USI::OptionsMap& o)
 	// 引き分けの時の値 : 1000分率で
 
 	o["Draw_Value_Black"]            << USI::Option(500, 0, 1000);
-    o["Draw_Value_White"]            << USI::Option(500, 0, 1000);
+	o["Draw_Value_White"]            << USI::Option(500, 0, 1000);
 
 	// これがtrueであるなら、root color(探索開始局面の手番)が後手なら、
 	//
@@ -85,36 +85,36 @@ void USI::extra_option(USI::OptionsMap& o)
 #if 0
 	// fpu_reductionの値を100分率で設定。
 	// c_fpu_reduction_rootは、rootでのfpu_reductionの値。
-    o["C_fpu_reduction"]             << USI::Option(27, 0, 100);
-    o["C_fpu_reduction_root"]        << USI::Option(0, 0, 100);
+	o["C_fpu_reduction"]             << USI::Option(27, 0, 100);
+	o["C_fpu_reduction_root"]        << USI::Option(0, 0, 100);
 
-    o["C_init"]                      << USI::Option(144, 0, 500);
-    o["C_base"]                      << USI::Option(28288, 10000, 100000);
-    o["C_init_root"]                 << USI::Option(116, 0, 500);
-    o["C_base_root"]                 << USI::Option(25617, 10000, 100000);
+	o["C_init"]                      << USI::Option(144, 0, 500);
+	o["C_base"]                      << USI::Option(28288, 10000, 100000);
+	o["C_init_root"]                 << USI::Option(116, 0, 500);
+	o["C_base_root"]                 << USI::Option(25617, 10000, 100000);
 
-    o["Softmax_Temperature"]         << USI::Option(174, 1, 500);
+	o["Softmax_Temperature"]         << USI::Option(174, 1, 500);
 #endif
 
 	// 各GPU用のDNNモデル名と、そのGPU用のUCT探索のスレッド数と、そのGPUに一度に何個の局面をまとめて評価(推論)を行わせるのか。
 	// GPUは最大で8個まで扱える。
 
-    o["UCT_Threads1"]                << USI::Option(4, 0, 256);
-    o["UCT_Threads2"]                << USI::Option(0, 0, 256);
-    o["UCT_Threads3"]                << USI::Option(0, 0, 256);
-    o["UCT_Threads4"]                << USI::Option(0, 0, 256);
-    o["UCT_Threads5"]                << USI::Option(0, 0, 256);
-    o["UCT_Threads6"]                << USI::Option(0, 0, 256);
-    o["UCT_Threads7"]                << USI::Option(0, 0, 256);
-    o["UCT_Threads8"]                << USI::Option(0, 0, 256);
-    o["DNN_Model1"]                  << USI::Option(R"(model.onnx)");
-    o["DNN_Model2"]                  << USI::Option("");
-    o["DNN_Model3"]                  << USI::Option("");
-    o["DNN_Model4"]                  << USI::Option("");
-    o["DNN_Model5"]                  << USI::Option("");
-    o["DNN_Model6"]                  << USI::Option("");
-    o["DNN_Model7"]                  << USI::Option("");
-    o["DNN_Model8"]                  << USI::Option("");
+	o["UCT_Threads1"]                << USI::Option(4, 0, 256);
+	o["UCT_Threads2"]                << USI::Option(0, 0, 256);
+	o["UCT_Threads3"]                << USI::Option(0, 0, 256);
+	o["UCT_Threads4"]                << USI::Option(0, 0, 256);
+	o["UCT_Threads5"]                << USI::Option(0, 0, 256);
+	o["UCT_Threads6"]                << USI::Option(0, 0, 256);
+	o["UCT_Threads7"]                << USI::Option(0, 0, 256);
+	o["UCT_Threads8"]                << USI::Option(0, 0, 256);
+	o["DNN_Model1"]                  << USI::Option(R"(model.onnx)");
+	o["DNN_Model2"]                  << USI::Option("");
+	o["DNN_Model3"]                  << USI::Option("");
+	o["DNN_Model4"]                  << USI::Option("");
+	o["DNN_Model5"]                  << USI::Option("");
+	o["DNN_Model6"]                  << USI::Option("");
+	o["DNN_Model7"]                  << USI::Option("");
+	o["DNN_Model8"]                  << USI::Option("");
 
 #if defined(ONNXRUNTIME)
 	// CPUを使っていることがあるので、default値、ちょっと少なめにしておく。
@@ -124,22 +124,22 @@ void USI::extra_option(USI::OptionsMap& o)
 	o["DNN_Batch_Size1"]             << USI::Option(128, 1, 1024);
 #endif
 	o["DNN_Batch_Size2"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size3"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size4"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size5"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size6"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size7"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size8"]             << USI::Option(0, 0, 65536);
+	o["DNN_Batch_Size3"]             << USI::Option(0, 0, 65536);
+	o["DNN_Batch_Size4"]             << USI::Option(0, 0, 65536);
+	o["DNN_Batch_Size5"]             << USI::Option(0, 0, 65536);
+	o["DNN_Batch_Size6"]             << USI::Option(0, 0, 65536);
+	o["DNN_Batch_Size7"]             << USI::Option(0, 0, 65536);
+	o["DNN_Batch_Size8"]             << USI::Option(0, 0, 65536);
 
 #if defined(ORT_MKL)
-	// nn_onnx_runtime.cpp の NNOnnxRuntime::load() で使用するオプション。 
+	// nn_onnx_runtime.cpp の NNOnnxRuntime::load() で使用するオプション。
 	// グラフ全体のスレッド数?（default値1）ORT_MKLでは効果が無いかもしれない。
 	o["InterOpNumThreads"]           << USI::Option(1, 1, 65536);
 	// ノード内の実行並列化の際のスレッド数設定（default値4、NNUE等でのThreads相当）
 	o["IntraOpNumThreads"]           << USI::Option(4, 1, 65536);
 #endif
 
-    //(*this)["Const_Playout"]               = USIOption(0, 0, INT_MAX);
+	//(*this)["Const_Playout"]               = USIOption(0, 0, INT_MAX);
 	// →　Playout数固定。これはNodeLimitでできるので不要。
 
 	// leaf nodeでの奇数手詰めルーチンを呼び出す時の手数
@@ -164,8 +164,8 @@ void Search::clear()
 	searcher.book.read_book();
 
 #if 0
-			// オプション設定
-			dfpn_min_search_millisecs = options["DfPn_Min_Search_Millisecs"];
+	// オプション設定
+	dfpn_min_search_millisecs = options["DfPn_Min_Search_Millisecs"];
 #endif
 
 	searcher.SetPvInterval((TimePoint)Options["PV_Interval"]);
@@ -277,23 +277,23 @@ void MainThread::search()
 
 	// ponder中であれば、呼び出し元で待機しなければならない。
 
-	// 最大depth深さに到達したときに、ここまで実行が到達するが、
-	// まだThreads.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
-	// USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまでbest moveを出力してはならない。
-	// それゆえ、単にここでGUIからそれらのいずれかのコマンドが送られてくるまで待つ。
-	// "stop"が送られてきたらThreads.stop == trueになる。
-	// "ponderhit"が送られてきたらThreads.ponder == falseになるので、それを待つ。(stopOnPonderhitは用いない)
-	// "go infinite"に対してはstopが送られてくるまで待つ。
-	// ちなみにStockfishのほう、ここのコードに長らく同期上のバグがあった。
-	// やねうら王のほうは、かなり早くからこの構造で書いていた。最近のStockfishではこの書き方に追随した。
-	while (!Threads.stop && (this->ponder || Search::Limits.infinite))
-	{
-		//	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
-		// (思考のためには計算資源を使っていないので。)
-		Tools::sleep(1);
+		// 最大depth深さに到達したときに、ここまで実行が到達するが、
+		// まだThreads.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
+		// USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまでbest moveを出力してはならない。
+		// それゆえ、単にここでGUIからそれらのいずれかのコマンドが送られてくるまで待つ。
+		// "stop"が送られてきたらThreads.stop == trueになる。
+		// "ponderhit"が送られてきたらThreads.ponder == falseになるので、それを待つ。(stopOnPonderhitは用いない)
+		// "go infinite"に対してはstopが送られてくるまで待つ。
+		// ちなみにStockfishのほう、ここのコードに長らく同期上のバグがあった。
+		// やねうら王のほうは、かなり早くからこの構造で書いていた。最近のStockfishではこの書き方に追随した。
+		while (!Threads.stop && (this->ponder || Search::Limits.infinite))
+		{
+			//	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
+			// (思考のためには計算資源を使っていないので。)
+			Tools::sleep(1);
 
-		// Stockfishのコード、ここ、busy waitになっているが、さすがにそれは良くないと思う。
-	}
+			// Stockfishのコード、ここ、busy waitになっているが、さすがにそれは良くないと思う。
+		}
 
 	sync_cout << "bestmove " << to_usi_string(move);
 
