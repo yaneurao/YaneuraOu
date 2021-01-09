@@ -2,6 +2,7 @@
 
 #if defined(YANEURAOU_ENGINE_DEEP) && defined (TENSOR_RT)
 
+#include <regex>
 //#include "dlshogi_types.h"
 
 namespace {
@@ -95,24 +96,39 @@ namespace Eval::dlshogi
 		// load()でメモリ確保を行った場合、inputBindings.size() == 4のはず。
 		if (inputBindings.size())
 		{
-			// 安全のため、GPU IDをスレッドと関連付けてから開放する。
-			// ※　これは本来しなくても良いと思うのだが、ドライバー側の実装次第では
-			//     何か地雷を踏む可能性がなくはないので安全側に倒しておく。
-			set_device(gpu_id);
-
+			// 別のCUDAデバイスを使用していたスレッドから呼ばれる場合がある。
+			// 念の為、現在使用しているCUDAデバイスのIDを一旦退避する。
+			// (現状は、 UctSearcherGroup::Initialize() で nn.reset() から NNTensorRT のデストラクタを経由して呼ばれる例を確認)
+			int dev;
+			checkCudaErrors(cudaGetDevice(&dev));
+			// メモリを確保した時のCUDAデバイスを設定する。
+			checkCudaErrors(cudaSetDevice(gpu_id));
+			// メモリの開放
 			checkCudaErrors(cudaFree(x1_dev));
 			checkCudaErrors(cudaFree(x2_dev));
 			checkCudaErrors(cudaFree(y1_dev));
 			checkCudaErrors(cudaFree(y2_dev));
 			inputBindings.resize(0);
+			// CUDAデバイスを元に戻す。
+			// NNTensorRT::release() の後、きちんとCUDAデバイスを設定して使い始めれば、ここで敢えてCUDAデバイスを元に戻す必要は無いが、意図しないケースの防止の為。
+			checkCudaErrors(cudaSetDevice(dev));
 		}
+	}
+
+	// 使用可能なデバイス数を取得する。
+	int NNTensorRT::get_device_count() {
+		int device_count = 0;
+		checkCudaErrors(cudaGetDeviceCount(&device_count));
+		return device_count;
 	}
 
 	// 現在のスレッドとGPUを紐付ける。
 	// ※　CUDAの場合、cudaSetDevice()を呼び出す。必ず、そのスレッドの探索開始時(forward()まで)に一度はこれを呼び出さないといけない。
 	void NNTensorRT::set_device(int gpu_id)
 	{
-		cudaSetDevice(gpu_id);
+		// 存在しないCUDAデバイスに設定しようとした場合、例えば↓のようなエラーを起こす。
+		// Error! : Cuda failure , Error = invalid device ordinal
+		checkCudaErrors(cudaSetDevice(gpu_id));
 	}
 
 	// 初回のみビルドが必要。
@@ -210,8 +226,27 @@ namespace Eval::dlshogi
 	{
 		// シリアライズされたファイルがあるなら、それを代わりに読み込む。
 
-		// ファイル名 + "." + GPU_ID + "." + serialized"
-		std::string serialized_filename = filename + "." + std::to_string(gpu_id) + "." + std::to_string(max_batch_size) + ".serialized";
+		// デバイス情報の取得
+		const int  cBufLen = 256;
+		const auto re  = std::regex("[^A-Za-z0-9._-]");
+		const auto fmt = std::string("_");
+		cudaDeviceProp device_prop;
+		char pciBusId[cBufLen];
+		checkCudaErrors(cudaGetDeviceProperties(&device_prop, gpu_id));
+		checkCudaErrors(cudaDeviceGetPCIBusId(pciBusId, cBufLen, gpu_id));
+
+		sync_cout << "info string gpu_id = " << gpu_id << ", device_name = " << device_prop.name << ", pci_bus_id = " << pciBusId << sync_endl;
+
+		// ファイル名 + "." + GPU_ID + "." + DEVICE_NAME + "." + PCI_BUS_ID + "." + MAX_BATCH_SIZE + ".serialized"
+		// GPU_ID は個体に固有・固定ではない。（構成変更時に限らず、リブートしたらIDが変わることもある）
+		// 複数のCUDAデバイスが存在した時、全てのCUDAデバイスが同一とは限らない。
+
+		std::string serialized_filename =
+			filename + "." +
+			std::to_string(gpu_id) + "." +
+			std::regex_replace(std::string(device_prop.name), re, fmt) + "." +
+			std::regex_replace(std::string(pciBusId), re, fmt) + "." +
+			std::to_string(max_batch_size) + ".serialized";
 		std::ifstream seriarizedFile(serialized_filename, std::ios::binary);
 
 		if (seriarizedFile.is_open())
@@ -283,4 +318,3 @@ namespace Eval::dlshogi
 } // namespace Eval::dlshogi
 
 #endif // defined(YANEURAOU_ENGINE_DEEP) && defined (TENSOR_RT)
-

@@ -38,7 +38,16 @@ namespace Eval::dlshogi
 		checkCudaErrors(cudaFreeHost(ptr));
 #endif
 	}
-	
+
+	// 使用可能なデバイス数を取得する。
+	int NN::get_device_count() {
+#if defined(ONNXRUNTIME)
+		return NNOnnxRuntime::get_device_count();
+#elif defined(TENSOR_RT)
+		return NNTensorRT::get_device_count();
+#endif
+	}
+
 	// モデルファイル名を渡すとそれに応じたNN派生クラスをbuildして返してくれる。デザパタで言うところのbuilder。
 	std::shared_ptr<NN> NN::build_nn(const std::string& model_path , int gpu_id , int batch_size)
 	{
@@ -63,7 +72,7 @@ namespace Eval::dlshogi
 		//	nn = std::make_unique<NNWideResnet10>();
 #endif
 
-		sync_cout << "info string Start loading the model file, path = " << model_path << sync_endl;
+		sync_cout << "info string Start loading the model file, path = " << model_path << ", gpu_id = " << gpu_id << ", batch_size = " << batch_size << sync_endl;
 		if (!nn)
 		{
 			sync_cout << "Error! : unknown model type." << sync_endl;
