@@ -142,6 +142,13 @@ namespace Mate::Dfpn64
 			this->dn = or_node ? 0                             :NodeCountType(DNPN_INF - ply);
 		}
 
+		// 詰まない時のpnとdnの値を設定する。
+		void set_nomate(int ply = 0)
+		{
+			this->pn = NodeCountType(DNPN_INF - ply);
+			this->dn = 0; // 不詰が証明されている。
+		}
+
 		// この構造体のchild_num(子ノードの数)とnode(これは子ノードへのポインタ相当),を設定してやる。
 		void set_child(u8 child_num , Node* children = nullptr)
 		{
@@ -262,6 +269,13 @@ namespace Mate::Dfpn32
 		{
 			this->pn = or_node ? NodeCountType(DNPN_INF - ply): 0;
 			this->dn = or_node ? 0                             :NodeCountType(DNPN_INF - ply);
+		}
+
+		// 詰まない時のpnとdnの値を設定する。
+		void set_nomate(int ply = 0)
+		{
+			this->pn = NodeCountType(DNPN_INF - ply);
+			this->dn = 0; // 不詰が証明されている。
 		}
 
 		// この構造体のchild_num(子ノードの数)とnode(これは子ノードへのポインタ相当),を設定してやる。
@@ -430,6 +444,14 @@ namespace Mate::Dfpn32
 		void release()
 		{
 			node_manager.release();
+		}
+
+		// 最大探索深さ。これを超えた局面は不詰扱いとする。
+		// Position::game_ply()がこれを超えた時点で不詰扱い。
+		// 0を指定すると制限なし。デフォルトは0。
+		virtual void set_max_game_ply(int max_game_ply)
+		{
+			this->max_game_ply = max_game_ply;
 		}
 
 		// 詰み探索をしてnodes_limit内のノード数で解ければその初手が返る。
@@ -858,6 +880,16 @@ namespace Mate::Dfpn32
 		{
 			ASSERT_LV3(node != nullptr && node->child_num == NodeType::CHILDNUM_NOT_INIT);
 
+			// 手数が超えているなら、max_game_plyを超えているなら不詰扱い。
+			// max_game_plyが0の時は無制限なのでこの判定は無効。
+			if (max_game_ply && pos.game_ply() > max_game_ply)
+			{
+				// ここで次の一手は指せない。(例:256手ルールにおける257手目の局面)
+				node->set_child(0);
+				node->set_nomate();
+				return;
+			}
+
 			int plies_from_root = pos.game_ply() - root_game_ply;
 			auto rep = mate_repetition(pos, plies_from_root, MAX_REPETITION_PLY, or_node);
 
@@ -958,6 +990,11 @@ namespace Mate::Dfpn32
 
 		// current_rootの局面での詰みの指し手
 		Move bestmove;
+
+		// この手数に達したら、引き分け扱い(不詰)とする。
+		// set_max_game_ply()で設定された値。
+		// 0は制限なし。
+		int max_game_ply;
 
 	private:
 		// Node,Childのcustom allocatorみたいなもん。

@@ -123,6 +123,11 @@ namespace Mate::Dfpn
 		// nodes_limit : ノード制限。0を指定するとノード制限なし。(ただしメモリの制限から解けないことはある)
 		virtual Move mate_dfpn(const Position& pos , u64 nodes_limit)= 0;
 
+		// 最大探索深さ。これを超えた局面は不詰扱いとする。
+		// Position::game_ply()がこれを超えた時点で不詰扱い。
+		// 0を指定すると制限なし。デフォルトは0。
+		virtual void set_max_game_ply(int max_game_ply) = 0;
+
 		// mate_dfpn()がMOVE_NULL,MOVE_NONE以外を返した場合にその手順を取得する。
 		// ※　最短手順である保証はない。
 		virtual std::vector<Move> get_pv() const = 0;
@@ -183,6 +188,11 @@ namespace Mate::Dfpn
 		// 不詰が証明できれば、MOVE_NULL、解がわからなかった場合は、MOVE_NONEが返る。
 		// nodes_limit : ノード制限。0を指定するとノード制限なし。(ただしメモリの制限から解けないことはある)
 		virtual Move mate_dfpn(const Position& pos, u64 nodes_limit) { return impl->mate_dfpn(pos, nodes_limit); }
+
+		// 最大探索深さ。これを超えた局面は不詰扱いとする。
+		// Position::game_ply()がこれを超えた時点で不詰扱い。
+		// 0を指定すると制限なし。デフォルトは0。
+		virtual void set_max_game_ply(int max_game_ply) { impl->set_max_game_ply(max_game_ply); }
 
 		// mate_dfpn()がMOVE_NULL,MOVE_NONE以外を返した場合にその手順を取得する。
 		// ※　最短手順である保証はない。

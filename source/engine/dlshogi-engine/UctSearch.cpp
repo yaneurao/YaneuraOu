@@ -115,12 +115,12 @@ namespace dlshogi
 	// 探索結果の更新
 	// 1) result(child->value_win = NNが返してきたvalue ← 期待勝率)をcurrentとchildのwinに加算
 	// 2) VIRTUAL_LOSSが1でないときは、currnetとchildのmove_countに (1 - VIRTUAL_LOSS) を加算。
-	inline void UpdateResult(ChildNode* child, WinCountType result, Node* current)
+	inline void UpdateResult(ChildNode* child, float result, Node* current)
 	{
-		atomic_fetch_add(&current->win, result);
+		atomic_fetch_add(&current->win, (WinType)result);
 		if constexpr (VIRTUAL_LOSS != 1) current->move_count += 1 - VIRTUAL_LOSS;
-		atomic_fetch_add(&child->win   , result);
-		if constexpr (VIRTUAL_LOSS != 1) child->move_count   += 1 - VIRTUAL_LOSS;
+		atomic_fetch_add(&child  ->win, (WinType)result);
+		if constexpr (VIRTUAL_LOSS != 1) child  ->move_count += 1 - VIRTUAL_LOSS;
 	}
 
 	// --------------------------------------------------------------------
@@ -219,7 +219,7 @@ namespace dlshogi
 	NodeTree* UctSearcher::get_node_tree() const { return grp->get_dlsearcher()->get_node_tree(); }
 
 	// Evaluateを呼び出すリスト(queue)に追加する。
-	void UctSearcher::QueuingNode(const Position *pos, Node* node)
+	void UctSearcher::QueuingNode(const Position *pos, Node* node, float* value_win)
 	{
 #if defined(LOG_PRINT)
 		logger.print("sfen "+pos->sfen(0));
@@ -238,7 +238,7 @@ namespace dlshogi
 		make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
 
 		// 現在のNodeと手番を保存しておく。
-		policy_value_batch[current_policy_value_batch_index] = { node, pos->side_to_move() /* , pos->key() */};
+		policy_value_batch[current_policy_value_batch_index] = { node, pos->side_to_move() /* , pos->key() */ , value_win};
 
 	#ifdef MAKE_BOOK
 		policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
@@ -264,34 +264,40 @@ namespace dlshogi
 	// この関数とUctSearch()、SelectMaxUcbChild()が探索部本体と言えると思う。
 	void UctSearcher::ParallelUctSearch(const Position& rootPos)
 	{
-		Node* current_root = get_node_tree()->GetCurrentHead();
 		DlshogiSearcher* ds = grp->get_dlsearcher();
 		auto& search_limits = ds->search_limits;
 		auto stop = [&]() { return Threads.stop || search_limits.interruption; };
 
+		// ↓ dlshogiのコードここから ↓
+
+		Node* current_root = get_node_tree()->GetCurrentHead();
+
 		// ルートノードを評価。これは最初にevaledでないことを見つけたスレッドが行えば良い。
 		LOCK_EXPAND;
-		if (!current_root->evaled) {
+		if (!current_root->IsEvaled()) {
 			current_policy_value_batch_index = 0;
-			QueuingNode(&rootPos, current_root);
+			float value_win; // EvalNode()した時に、ここにvalueが書き戻される。ダミーの変数。
+			QueuingNode(&rootPos, current_root, &value_win);
 			EvalNode();
 		}
 		UNLOCK_EXPAND;
 
 		// 探索経路のバッチ
-		vector<vector<NodeTrajectory>> trajectories_batch;
-		vector<vector<NodeTrajectory>> trajectories_batch_discarded;
-		trajectories_batch.reserve(policy_value_batch_maxsize);
+		vector<NodeVisitor> visitor_batch;
+		vector<NodeTrajectories> trajectories_batch_discarded;
+		visitor_batch.reserve(policy_value_batch_maxsize);
 		trajectories_batch_discarded.reserve(policy_value_batch_maxsize);
 
 		// 探索回数が閾値を超える, または探索が打ち切られたらループを抜ける
 		while ( ! stop() )
 		{
-			trajectories_batch.clear();
+			visitor_batch.clear();
 			trajectories_batch_discarded.clear();
 			current_policy_value_batch_index = 0;
 
 			// バッチサイズ分探索を繰り返す
+			// stop()になったらなるべく早く終わりたいので終了判定のところに "&& !stop"を書いておく。
+			// TODO : VirtualLossを無くすなどして、stop()になったら直ちにリターンすべき。
 			for (int i = 0; i < policy_value_batch_maxsize && !stop(); i++) {
 
 				// 盤面のコピー
@@ -302,8 +308,8 @@ namespace dlshogi
 				memcpy(&pos, &rootPos, sizeof(Position));
 
 				// 1回プレイアウトする
-				trajectories_batch.emplace_back();
-				float result = UctSearch(&pos, current_root, 0, trajectories_batch.back());
+				visitor_batch.emplace_back();
+				const float result = UctSearch(&pos, nullptr, current_root, visitor_batch.back());
 
 				if (result != DISCARDED)
 				{
@@ -313,29 +319,28 @@ namespace dlshogi
 				}
 				else {
 					// 破棄した探索経路を保存
-					trajectories_batch_discarded.emplace_back(std::move(trajectories_batch.back()));
+					trajectories_batch_discarded.emplace_back(std::move(visitor_batch.back().trajectories));
 				}
 
 				// 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
 				if (result == DISCARDED || result != QUEUING) {
-					trajectories_batch.pop_back();
+					visitor_batch.pop_back();
 				}
 
 			}
 
 			// 評価
-			// 探索終了の合図が来ているなら、なるべくただちに終了したいので、EvalNode()もskipして
-			// virtual lossを戻して終わる。
-			if (!stop())
 			EvalNode();
 
 			// 破棄した探索経路のVirtual Lossを戻す
 			for (auto& trajectories : trajectories_batch_discarded) {
-				for (int i = (int)trajectories.size() - 1; i >= 0; i--) {
-					NodeTrajectory& current_next = trajectories[i];
+				for (auto it = trajectories.rbegin(); it != trajectories.rend(); ++it)
+				{
+					NodeTrajectory& current_next  = *it;
 					Node* current        = current_next.node;
 					ChildNode* uct_child = current->child.get();
-					const u16 next_index = current_next.index;
+					const ChildNumType next_index = current_next.index;
+
 					SubVirtualLoss(&uct_child[next_index], current);
 				}
 			}
@@ -345,29 +350,23 @@ namespace dlshogi
 			// AlphaZeroの論文で、"Backup"と呼ばれている。
 
 			// leaf nodeでの期待勝率(NNの返してきたvalue)。
-			// ただし詰みを発見している場合はVALUE_WIN or VALUE_LOSEであるので
-			// これをそれぞれ1.0f,0.0fに変換して保持する。
 			// これをleaf nodeからrootに向かって、伝播していく。(Node::winに加算していく)
-			float result = 0.0f;
-			for (auto& trajectories : trajectories_batch) {
-				for (int i = (int)trajectories.size() - 1; i >= 0; i--) {
-					NodeTrajectory& current_next = trajectories[i];
+			for (auto& visitor : visitor_batch) {
+				// leaf nodeの一つ上のnode用にvisitor.value_winから取り出す。
+				float result = 1.0f - visitor.value_win;
+
+				auto& trajectories = visitor.trajectories;
+				for (auto it = trajectories.rbegin(); it != trajectories.rend() ; ++it)
+				{
+					auto& current_next = *it;
 					Node* current = current_next.node;
-					const u16 next_index = current_next.index;
+					const ChildNumType next_index = current_next.index;
 					ChildNode* uct_child = current->child.get();
-					if (i == (int)trajectories.size() - 1) {
-						const Node* child_node = uct_child[next_index].node.get();
-						const float value_win = child_node->value_win;
-						// 他スレッドの詰みの伝播によりvalue_winがVALUE_WINまたはVALUE_LOSEに上書きされる場合があるためチェックする
-						if (value_win == VALUE_WIN)
-							result = 0.0f;
-						else if (value_win == VALUE_LOSE)
-							result = 1.0f;
-						else
-							// 親nodeでは、自分の手番から見た期待勝率なので値が反転する。
-							result = 1.0f - value_win;
-					}
+					const auto* uct_child_nodes = current->child_nodes.get();
+
 					UpdateResult(&uct_child[next_index], result, current);
+
+					// Value Networkの返した期待勝率を手番ごとに反転させて伝播する。
 					result = 1.0f - result;
 				}
 			}
@@ -380,68 +379,37 @@ namespace dlshogi
 	// (leaf nodeで呼び出すものとする)
 	//   pos          : UCT探索を行う開始局面
 	//   current      : UCT探索を行う開始局面
-	//   depth        : 
-	//   trajectories : 探索開始局面(tree.GetCurrentHead())から、currentに至る手順。あるNodeで何番目のchildを選択したかというpair。
+	//   visitor      : 探索開始局面(tree.GetCurrentHead())から、currentに至る手順。あるNodeで何番目のchildを選択したかという情報。
 	//
 	// 返し値 : currentの局面の期待勝率を返すが、以下の特殊な定数を取ることがある。
 	//   QUEUING      : 評価関数を呼び出した。(呼び出しはqueuingされていて、完了はしていない)
 	//   DISCARDED    : 他のスレッドがすでにこのnodeの評価関数の呼び出しをしたあとであったので、何もせずにリターンしたことを示す。
 	// 
-	float UctSearcher::UctSearch(Position* pos, Node* current, const int depth, std::vector<NodeTrajectory>& trajectories)
+	float UctSearcher::UctSearch(Position* pos, ChildNode* parent , Node* current, NodeVisitor& visitor)
 	{
-		// policy計算中のため破棄する(他のスレッドが同じノードを先に展開中である場合)
-		if (!current->evaled)
-			return DISCARDED;
-
 		auto ds = grp->get_dlsearcher();
 		auto& options = ds->search_options;
 
-		// 探索開始局面ではないなら、このnodeが詰みか千日手でないかのチェツクを行う。
-		if (current != get_node_tree()->GetCurrentHead()) {
-			// 詰みのチェック
-			if (current->value_win == VALUE_WIN) {
-				// 詰み、もしくはRepetitionWinかRepetitionSuperior
-				return 0.0f;  // 反転して値を返すため0を返す
-			}
-			else if (current->value_win == VALUE_LOSE) {
-				// 自玉の詰み、もしくはRepetitionLoseかRepetitionInferior
-				return 1.0f; // 反転して値を返すため1を返す
-			}
-
-			// 千日手チェック
-			if (current->value_win == VALUE_DRAW) {
-				if (pos->side_to_move() == BLACK) {
-					// 白が選んだ手なので、白の引き分けの価値を返す
-					return ds->draw_value_white();
-				}
-				else {
-					// 黒が選んだ手なので、黒の引き分けの価値を返す
-					return ds->draw_value_black();
-				}
-			}
-
-			// 詰みのチェック
-			if (current->child_num == 0) {
-				return 1.0f; // 反転して値を返すため1を返す
-			}
-		}
+		// ↓dlshogiのコード、ここから↓
 
 		float result;
-		u16 next_index;
-		//double score;
-		// →　この変数、使ってない
 
 		// 初回に訪問した場合、子ノードを展開する（メモリを節約するためExpandNodeでは候補手のみ準備して子ノードは展開していない）
 		ChildNode* uct_child = current->child.get();
+
+		// ここまでの手順
+		auto& trajectories = visitor.trajectories;
 
 		// 現在見ているノードをロック
 		// これは、このNode(current)の展開(child[i].node = new Node(); ... )を行う時にLockすることになっている。
 		auto& mutex = ds->get_node_mutex(pos);
 		mutex.lock();
 
-		// 子ノードのなかからUCB値最大の手を求める
-		next_index = SelectMaxUcbChild(pos, current, depth);
+		// 子ノードへのポインタ配列が初期化されていない場合、初期化する
+		if (!current->child_nodes) current->InitChildNodes();
 
+		// 子ノードのなかからUCB値最大の手を求める
+		const ChildNumType next_index = SelectMaxUcbChild(parent, current);
 
 #if defined(LOG_PRINT)
 		logger.print("do_move = " + to_usi_string(uct_child[next_index].move));
@@ -452,13 +420,15 @@ namespace dlshogi
 		pos->do_move(uct_child[next_index].move, st);
 
 		// Virtual Lossを加算
+		// ※　ノードの訪問回数をmove_countに加算。
+		// 　　この時点では勝率は加算していないのでこの指し手の勝率が相対的に低く見えるようになる。
 		AddVirtualLoss(&uct_child[next_index], current);
 
 		// ノードの展開の確認
 		// この子ノードがまだ展開されていないなら、この子ノードを展開する。
-		if (!uct_child[next_index].node) {
-			// ノードの展開
-			Node* child_node = uct_child[next_index].CreateChildNode();
+		if (!current->child_nodes[next_index]) {
+			// ノードの作成
+			Node* child_node = current->CreateChildNode(next_index);
 			//cerr << "value evaluated " << result << " " << v << " " << *value_result << endl;
 
 			// ノードを展開したので、もうcurrentは書き換えないからunlockして良い。
@@ -487,19 +457,19 @@ namespace dlshogi
 				case REPETITION_WIN     : // 連続王手の千日手で反則勝ち
 				case REPETITION_SUPERIOR: // 優等局面は勝ち扱い
 					// 千日手の場合、ValueNetの値を使用しない（合流を処理しないため、value_winを上書きする）
-					child_node->value_win = VALUE_WIN;
+					uct_child[next_index].SetWin();
 					result = 0.0f;
 					break;
 
 				case REPETITION_LOSE    : // 連続王手の千日手で反則負け
 				case REPETITION_INFERIOR: // 劣等局面は負け扱い
 					// 千日手の場合、ValueNetの値を使用しない（合流を処理しないため、value_winを上書きする）
-					child_node->value_win = VALUE_LOSE;
+					uct_child[next_index].SetLose();
 					result = 1.0f;
 					break;
 
 				case REPETITION_DRAW    : // 引き分け
-					child_node->value_win = VALUE_DRAW;
+					uct_child[next_index].SetDraw();
 					// 現在の局面が先手番であるとしたら、この指し手は後手が選んだ指し手による千日手成立なので後手の引き分けのスコアを用いる。
 					result = (pos->side_to_move() == BLACK) ? ds->draw_value_white() : ds->draw_value_black();
 					break;
@@ -510,13 +480,14 @@ namespace dlshogi
 
 					bool isMate =
 						// Mate::mate_odd_ply()は自分に王手がかかっていても詰みを読めるはず…。
+						// TODO : 他の詰みsolver試す。
 						(options.mate_search_ply && mate_solver.mate_odd_ply(*pos,options.mate_search_ply,options.generate_all_legal_moves) != MOVE_NONE) // N手詰め
 						|| (pos->DeclarationWin() != MOVE_NONE)            // 宣言勝ち
 						;
 
 					// 詰みの場合、ValueNetの値を上書き
 					if (isMate) {
-						child_node->value_win = VALUE_WIN;
+						uct_child[next_index].SetWin();
 						result = 0.0f;
 					}
 					else {
@@ -524,13 +495,13 @@ namespace dlshogi
 						child_node->ExpandNode(pos,options.generate_all_legal_moves);
 						if (child_node->child_num == 0) {
 							// 詰み
-							child_node->value_win = VALUE_LOSE;
+							uct_child[next_index].SetLose();
 							result = 1.0f;
 						}
 						else
 						{
 							// ノードをキューに追加
-							QueuingNode(pos, child_node);
+							QueuingNode(pos, child_node , &visitor.value_win);
 
 							// このとき、まだEvalNodeが完了していないのでchild_node->evaledはまだfalseのまま
 							// にしておく必要がある。
@@ -545,8 +516,8 @@ namespace dlshogi
 				default: UNREACHABLE;
 			}
 
-			// ノードの展開は終わって、詰みであるなら、value_winにそれが反映されている。
-			child_node->evaled = true;
+			// ノードの展開は終わって、詰みであるなら、SetWin()/SetLose()等でそれがChildNodeに反映されている。
+			child_node->SetEvaled();
 
 		}
 		else {
@@ -556,14 +527,46 @@ namespace dlshogi
 			// 経路を記録
 			trajectories.emplace_back(current, next_index);
 
+			Node* next_node = current->child_nodes[next_index].get();
+
+			// policy計算中のため破棄する(他のスレッドが同じノードを先に展開した場合)
+			if (!next_node->IsEvaled())
+				return DISCARDED;
+
+			if (uct_child[next_index].IsWin()) {
+				// 詰み、もしくはRepetitionWinかRepetitionSuperior
+				result = 0.0f;  // 反転して値を返すため0を返す
+			}
+			else if (uct_child[next_index].IsLose()) {
+				// 自玉の詰み、もしくはRepetitionLoseかRepetitionInferior
+				result = 1.0f; // 反転して値を返すため1を返す
+			}
+			// 千日手チェック
+			else if (uct_child[next_index].IsDraw()) {
+				if (pos->side_to_move() == BLACK) {
+					// 白が選んだ手なので、白の引き分けの価値を返す
+					result = ds->draw_value_white();
+				}
+				else {
+					// 黒が選んだ手なので、黒の引き分けの価値を返す
+					result = ds->draw_value_black();
+				}
+			}
+			// 詰みのチェック
+			else if (next_node->child_num == 0) {
+				result = 1.0f; // 反転して値を返すため1を返す
+			}
+			else {
 			// 手番を入れ替えて1手深く読む
-			result = UctSearch(pos, uct_child[next_index].node.get() , depth + 1, trajectories);
+				result = UctSearch(pos, &uct_child[next_index], next_node, visitor);
+			}
 		}
 
 		if (result == QUEUING)
 			return result;
 		else if (result == DISCARDED) {
 			// Virtual Lossはバッチ完了までそのままにする
+			// →　そうしないとまた同じNodeに辿り着いてしまう。
 			return result;
 		}
 
@@ -576,72 +579,82 @@ namespace dlshogi
 	}
 
 	//  UCBが最大となる子ノードのインデックスを返す関数
-	//    pos     : 調べたい局面
+	//    parent  : 調べたい局面の親局面のcurrentに至るedge。(current == rootであるなら、nullptrを設定しておく)
 	//    current : 調べたい局面
-	//    depth   : root(探索開始局面から)からの手数。0ならposとcurrentがrootであることを意味する。 
-	//  current->value_winに、子ノードを調べた結果が代入される。
-	int UctSearcher::SelectMaxUcbChild(const Position *pos, Node* current, const int depth)
+	//  返し値 : currentの局面においてUCB最大の子のindex
+	//  currentノードがすべて勝ちなら、親ノードは負けなので、parent->SetLose()を呼び出す。
+	ChildNumType UctSearcher::SelectMaxUcbChild(ChildNode* parent, Node* current)
 	{
+		auto ds = grp->get_dlsearcher();
+		auto& options = ds->search_options;
+
+		// ↓dlshogiのコード、ここから↓
+
 		// 子ノード一覧
 		const ChildNode *uct_child = current->child.get();
 		// 子ノードの数
-		const int child_num = current->child_num;
+		const ChildNumType child_num = current->child_num;
 
-		int max_child = 0;
+		// 最大となる子のindex
+		ChildNumType max_child = 0;
 
 		// move_countの合計
 		const NodeCountType sum = current->move_count;
-		const float sum_win = current->win;
+
+		// ExpandNode()は終わっているわけだから、move_count != NOT_EXPANDED
+		ASSERT_LV3(sum != NOT_EXPANDED);
+
+		// 勝率の集計用
+		const WinType sum_win = current->win;
+
 		float q, u, max_value;
-		float ucb_value;
 		int child_win_count = 0;
 
 		max_value = -FLT_MAX;
 
-		auto ds = grp->get_dlsearcher();
-		auto& options = ds->search_options;
-
 		// ループの外でsqrtしておく。
-		const float sqrt_sum = (float)sqrt(sum);
-		const float c = depth > 0 ?
-			FastLog((sum + options.c_base + 1.0f) / options.c_base) + options.c_init :
-			FastLog((sum + options.c_base_root + 1.0f) / options.c_base_root) + options.c_init_root;
-		float fpu_reduction = (depth > 0 ? options.c_fpu_reduction : options.c_fpu_reduction_root) * sqrtf((float)current->visited_nnrate);
-		const float parent_q = sum_win > 0 ? std::max(0.0f, sum_win / sum - fpu_reduction) : 0.0f;
+		// sumは、doubleで計算しているとき、sqrt()してからfloatにしたほうがいいか？
+		const float sqrt_sum = sqrtf((float)sum);
+		const float c = parent == nullptr ?
+			FastLog((sum + options.c_base_root + 1.0f) / options.c_base_root) + options.c_init_root :
+			FastLog((sum + options.c_base + 1.0f) / options.c_base) + options.c_init;
+		const float fpu_reduction = (parent == nullptr ? options.c_fpu_reduction_root : options.c_fpu_reduction) * sqrtf(current->visited_nnrate);
+		const float parent_q = sum_win > 0 ? std::max(0.0f, (float)(sum_win / sum - fpu_reduction)) : 0.0f;
 		const float init_u = sum == 0 ? 1.0f : sqrt_sum;
 
 		// UCB値最大の手を求める
-		for (int i = 0; i < child_num; i++) {
-			if (uct_child[i].node) {
-				const Node* child_node = uct_child[i].node.get();
-				const float child_value_win = child_node->value_win;
-				if (child_value_win == VALUE_WIN) {
+		for (ChildNumType i = 0; i < child_num; i++) {
+			if (uct_child[i].IsWin()) {
 					child_win_count++;
 					// 負けが確定しているノードは選択しない
 					continue;
 				}
-				else if (child_value_win == VALUE_LOSE) {
+			else if (uct_child[i].IsLose()) {
 					// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
-					current->value_win = VALUE_WIN;
-				}
+				if (parent != nullptr)
+					parent->SetWin();
+
+				// 勝ちが確定しているため、親からは、この子ノードを選択する
+				return i;
 			}
 
-			const float win = uct_child[i].win;
+			const WinType win = uct_child[i].win;
 			const NodeCountType move_count = uct_child[i].move_count;
 
 			if (move_count == 0) {
-				// 未探索の子ノードの価値に、親ノードでのpoの勝率(win/move_count)を使用する
+				// 未探索の子ノードの価値に、親ノードの価値を使用する。
+				// ※　親ノードの価値 = 親ノードでのpoの勝率(win/move_count)
 				q = parent_q;
 				u = init_u;
 			}
 			else {
-				q = win / move_count;
+				q = (float)(win / move_count);
 				u = sqrt_sum / (1 + move_count);
 			}
 
 			const float rate = uct_child[i].nnrate;
 
-			ucb_value = q + c * u * rate;
+			const float ucb_value = q + c * u * rate;
 
 			if (ucb_value > max_value) {
 				max_value = ucb_value;
@@ -651,11 +664,12 @@ namespace dlshogi
 
 		if (child_win_count == child_num) {
 			// 子ノードがすべて勝ちのため、自ノードを負けにする
-			current->value_win = VALUE_LOSE;
-		}
+			if (parent != nullptr)
+				parent->SetLose();
+
+		} else {
 
 		// for FPU reduction
-		if (uct_child[max_child].node) {
 			atomic_fetch_add(&current->visited_nnrate, uct_child[max_child].nnrate);
 		}
 
@@ -666,7 +680,7 @@ namespace dlshogi
 	// batchに積まれていた入力特徴量をまとめてGPUに投げて、結果を得る。
 	void UctSearcher::EvalNode()
 	{
-		// 何もデータが積まれていないなら呼び出してはならない。
+		// 何もデータが積まれていないならこのあとforwardを呼び出してはならないので帰る。
 		if (current_policy_value_batch_index == 0)
 			return;
 
@@ -694,12 +708,12 @@ namespace dlshogi
 		const NN_Output_Policy *logits = y1;
 		const NN_Output_Value  *value  = y2;
 
-		for (int i = 0; i < policy_value_batch_size; i++, logits++, value++) {
+		for (int i = 0; i < policy_value_batch_size; i++, logits++, value++)
+		{
 			Node* node  = policy_value_batch[i].node;
-			Color color = policy_value_batch[i].color;
-
-			const int child_num = node->child_num;
-			ChildNode *uct_child = node->child.get();
+			const Color        color     = policy_value_batch[i].color;
+			const ChildNumType child_num = node->child_num;
+			      ChildNode *  uct_child = node->child.get();
 
 			// 合法手それぞれに対する遷移確率
 			std::vector<float> legal_move_probabilities;
@@ -724,7 +738,7 @@ namespace dlshogi
 			}
 #endif
 
-			for (int j = 0; j < child_num; j++) {
+			for (ChildNumType j = 0; j < child_num; j++) {
 				Move move = uct_child[j].move;
 				const int move_label = make_move_label(move, color);
 				const float logit = (*logits)[move_label];
@@ -737,11 +751,12 @@ namespace dlshogi
 			// Boltzmann distribution
 			softmax_temperature_with_normalize(legal_move_probabilities);
 
-			for (int j = 0; j < child_num; j++) {
+			for (ChildNumType j = 0; j < child_num; j++) {
 				uct_child[j].nnrate = legal_move_probabilities[j];
 			}
 
-			node->value_win = *value;
+			// valueの値はここに返すことになっている。
+			*policy_value_batch[i].value_win = *value;
 
 #if defined(LOG_PRINT)
 			std::vector<MoveIntFloat> m;
@@ -779,7 +794,7 @@ namespace dlshogi
 				}
 			}
 	#endif
-			node->evaled = true;
+			node->SetEvaled();
 		}
 	}
 }

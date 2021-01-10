@@ -149,7 +149,7 @@ namespace dlshogi
 		NodeCountType uct_node_limit;
 
 		// エンジンオプションの"MultiPV"の値。
-		size_t multi_pv;
+		ChildNumType multi_pv;
 
 		// デバッグ用のメッセージの出力を行うかのフラグ。
 		// エンジンオプションの"DebugMessage"の値。
@@ -214,7 +214,8 @@ namespace dlshogi
 		// df-pn探索する。
 		// この関数を呼び出すとsearching = trueになり、探索が終了するとsearching = falseになる。
 		// nodes_limit = 探索ノード数上限
-		void search(const Position& rootPos , u32 nodes_limit);
+		// draw_game_ply = 引き分けになるgame ply。この値になった時点で不詰扱い。
+		void search(const Position& rootPos, u32 nodes_limit, int draw_game_ply);
 
 		// 探索中であるかのフラグ
 		std::atomic<bool> searching;

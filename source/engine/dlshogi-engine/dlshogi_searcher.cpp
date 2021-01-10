@@ -345,40 +345,29 @@ namespace dlshogi
 
 		// ExpandRoot()が呼び出されている以上、子ノードの初期化は完了していて、この局面の合法手の数がchild_numに
 		// 代入されているはず。これが0であれば、合法手がないということだから、詰みの局面であり、探索ができることは何もない。
-		const int child_num = current_root->child_num;
+		const ChildNumType child_num = current_root->child_num;
 		if (child_num == 0) {
 			// 投了しておく。
 			return MOVE_RESIGN;
 		}
 
 		// ---------------------
-		//     詰みのチェック
+		//     宣言勝ちのチェック
 		// ---------------------
 
-		// この局面で子ノードから伝播されて、勝ちが確定している。
-		if (current_root->value_win == VALUE_WIN)
 		{
-			if (!pos->in_check())
+			// 宣言勝ちか？
+			Move move = pos->DeclarationWin();
+
+			if (move)
 			{
-				// 詰みを発見しているはず
-				// Solverで解かせてみる。
-
-				// 宣言勝ちか？
-				Move move = pos->DeclarationWin();
-
-				if (move)
-					return move;
-
-				// いくらなんでも5手詰めで発見できるはずだが？
-				move = mate_solver.mate_odd_ply(*pos, 5 ,true);
-
-				if (move)
-					return move;
-
-				// これ、子ノードのいずれかは勝ちのはずだからその子ノードを選択したほうが良いのでは…。
-				// 伝播された勝ちが本当ならば、だが。
-				// とりま、↓以下、普通に探索する。
+				// 宣言勝ち
+				sync_cout << "info mate 1 pv MOVE_WIN" << sync_endl;
+				return move;
 			}
+
+			// 詰みはdf-pnで詰め探索をしているので何もせずとも普通に見つけるはず…。
+			// ここでN手詰めを呼び出すと、解けた時に読み筋が出ないのであまり嬉しくない。
 		}
 
 		// ---------------------
@@ -404,7 +393,8 @@ namespace dlshogi
 		// ---------------------
 
 		// 前回、この現在の探索局面を何回訪問したのか
-		NodeCountType pre_simulated = current_root->move_count;
+		const NodeCountType pre_simulated = current_root->move_count != NOT_EXPANDED
+			? current_root->move_count.load() : 0;
 
 		// 探索時間とプレイアウト回数の予測値を出力
 		if (search_options.debug_message)
@@ -551,7 +541,9 @@ namespace dlshogi
 		}
 
 			// hashfull
-		if ((NodeCountType)s.current_root->move_count >= o.uct_node_limit)
+		// s.current_root->move_count == NOT_EXPANDED  開始まもなくはこれでありうるので、
+		// +1してから比較する。(NOT_EXPANDEDはu32::max()なので+1すると0になる)
+		if ( (NodeCountType)(s.current_root->move_count + 1) > o.uct_node_limit)
 		{
 			// これは、時間制御の対象外。
 			// ただちに中断すべき。(メモリ足りなくなって死ぬので)
@@ -752,7 +744,10 @@ namespace dlshogi
 			interruption_checker->Worker();
 
 		else if (thread_id == s + 1)
-			root_dfpn_searcher->search(rootPos, search_options.root_mate_search_nodes_limit);
+			root_dfpn_searcher->search(rootPos,
+				search_options.root_mate_search_nodes_limit , // df-pnの探索ノード数制限
+				search_options.max_moves_to_draw              // 引き分けになるgame ply
+			);
 
 		else
 			ASSERT_LV3(false);
@@ -811,18 +806,20 @@ namespace dlshogi
 	void RootDfpnSearcher::alloc(u32 nodes_limit)
 	{
 		// 子ノードを展開するから、探索ノード数の8倍ぐらいのメモリを要する
-		solver->alloc_by_nodes_limit(nodes_limit * 8);
+		solver->alloc_by_nodes_limit((size_t)(nodes_limit * 8));
 	}
 
 	// df-pn探索する。
 	// この関数を呼び出すとsearching = trueになり、探索が終了するとsearching = falseになる。
 	// nodes_limit = 探索ノード数上限
-	void RootDfpnSearcher::search(const Position& rootPos , u32 nodes_limit)
+	// draw_game_ply = 引き分けになるgame ply。この値になった時点で不詰扱い。
+	void RootDfpnSearcher::search(const Position& rootPos , u32 nodes_limit , int draw_game_ply)
 	{
 		searching = true;
 		mate_move = MOVE_NONE;
 		mate_ponder_move = MOVE_NONE;
 
+		solver->set_max_game_ply(draw_game_ply);
 		Move move = solver->mate_dfpn(rootPos,nodes_limit);
 		if (is_ok(move))
 		{

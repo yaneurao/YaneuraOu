@@ -34,7 +34,7 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 # ターゲットCPU (target cpu)
 
 # 利用できるCPU拡張命令を指定する。
-#
+# 
 # AMDのRyzen(Zen/Zen2)はZEN1/ZEN2を選択するとBMI2命令が使わずに速くなる。(10%程度高速化)
 # Ryzen Zen3シリーズはZEN3を選択。こちらはAVX2用とたぶん変わらない。
 #
@@ -75,7 +75,7 @@ COMPILER = clang++
 
 
 # developing branch // 現状、非公開 (currently private)
-# dev : 開発中のbranchならdevと指定する (developing branch) :
+# dev : 開発中のbranchならdevと指定する (developing branch) : 
 # abe : abe
 #ENGINE_BRANCH = dev
 
@@ -88,7 +88,7 @@ LIBS     =
 INCLUDE  = # -I../include
 
 # makeするときにCPPFLAGSを追加で指定したいときはこれを用いる。
-EXTRA_CPPFLAGS =
+EXTRA_CPPFLAGS = 
 
 # YANEURAOU_EDITION = YANEURAOU_ENGINE_MATERIALのときに指定できる、評価関数の通し番号
 #  1 : 普通の駒得のみの評価関数
@@ -229,10 +229,6 @@ SOURCES  = \
 	benchmark.cpp                                                              \
 	book/book.cpp                                                              \
 	book/apery_book.cpp                                                        \
-	book/makebook.cpp                                                          \
-	book/makebook2015.cpp                                                      \
-	book/makebook2019.cpp                                                      \
-	book/makebook2021.cpp                                                      \
 	extra/bitop.cpp                                                            \
 	extra/long_effect.cpp                                                      \
 	extra/sfen_packer.cpp                                                      \
@@ -246,20 +242,28 @@ SOURCES  = \
 	eval/evaluate.cpp                                                          \
 	eval/evaluate_io.cpp                                                       \
 	eval/evaluate_mir_inv_tools.cpp                                            \
-	eval/material/evaluate_material.cpp                                        \
-	learn/learner.cpp                                                          \
-	learn/learning_tools.cpp                                                   \
-	learn/multi_think.cpp
+	eval/material/evaluate_material.cpp
+
+ifeq (,$(findstring evallearn,$@))
+	SOURCES  +=                                                                \
+		book/makebook.cpp                                                      \
+		book/makebook2015.cpp                                                  \
+		book/makebook2019.cpp                                                  \
+		book/makebook2021.cpp                                                  \
+		learn/learner.cpp                                                      \
+		learn/learning_tools.cpp                                               \
+		learn/multi_think.cpp
+endif
 
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPPT)
-	SOURCES += \
+	SOURCES  +=                                                                \
 		eval/kppt/evaluate_kppt.cpp                                            \
 		eval/kppt/evaluate_kppt_learner.cpp                                    \
 		engine/yaneuraou-engine/yaneuraou-search.cpp
 endif
 
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPP_KKPT)
-	SOURCES += \
+	SOURCES  +=                                                                \
 		eval/kppt/evaluate_kppt.cpp                                            \
 		eval/kpp_kkpt/evaluate_kpp_kkpt.cpp                                    \
 		eval/kpp_kkpt/evaluate_kpp_kkpt_learner.cpp                            \
@@ -267,7 +271,7 @@ ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPP_KKPT)
 endif
 
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_MATERIAL)
-	SOURCES += \
+	SOURCES  +=                                                                \
 		engine/yaneuraou-engine/yaneuraou-search.cpp
 
 	CPPFLAGS += -DMATERIAL_LEVEL=$(MATERIAL_LEVEL)
@@ -365,13 +369,13 @@ endif
 
 
 # 開発用branch
-ifeq ($(findstring dev,$(ENGINE_BRANCH)),dev)
+ifeq (,$(findstring dev,$(ENGINE_BRANCH)))
 	# SuperSort使ってみよう。
 	CPPFLAGS += -DDEV_BRANCH
 endif
 
 # abe
-ifeq ($(findstring abe,$(ENGINE_BRANCH)),abe)
+ifeq (,$(findstring abe,$(ENGINE_BRANCH)))
 	CPPFLAGS += -DPV_OUTPUT_DRAW_ONLY -DFORCE_BIND_THIS_THREAD
 endif
 

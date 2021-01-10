@@ -27,6 +27,9 @@ namespace Eval::dlshogi
 		// モデルファイルの読み込み。
 		virtual Tools::Result load(const std::string& model_path, int gpu_id , int batch_size) = 0;
 
+		// 使用可能なデバイス数を取得する。
+		static int get_device_count();
+
 		// 現在のスレッドとGPUを紐付ける。
 		// ※　CUDAの場合、cudaSetDevice()を呼び出す。必ず、そのスレッドの探索開始時(forward()まで)に一度はこれを呼び出さないといけない。
 		virtual void set_device(int gpu_id) {};

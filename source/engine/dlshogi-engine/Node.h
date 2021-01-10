@@ -13,11 +13,10 @@ namespace dlshogi
 	struct Node;
 	class NodeGarbageCollector;
 
-	// 子ノードを表現する。
-	// より正確に言うなら、あるNodeから子ノードへのedge(辺)を表現する。
+	// 子ノード(に至るEdge(辺))を表現する。
 	// あるノードから実際に子ノードにアクセスするとランダムアクセスになってしまうので
 	// それが許容できないから、ある程度の情報をedgeがcacheするという考え。
-	// UctNodeが親ノードで、基本的には合法手の数だけChildNodeを持つ。
+	// Nodeが親ノードを表現していて、基本的には合法手の数だけ、このChildNodeを持つ。
 	// ※　dlshogiのchild_node_t
 	struct ChildNode
 	{
@@ -28,23 +27,27 @@ namespace dlshogi
 
 		// ムーブコンストラクタ
 		ChildNode(ChildNode&& o) noexcept
-			: move(o.move), move_count(0), win(0.0f), nnrate(0.0f), node(std::move(o.node)) {}
+			: move(o.move), move_count(0), win(0.0f), nnrate(0.0f) {}
 
 		// ムーブ代入演算子
 		ChildNode& operator=(ChildNode&& o) noexcept {
 			move = o.move;
-			move_count = (int)o.move_count;
-			win = (WinCountType)o.win;
-			node = std::move(o.node);
+			move_count = (NodeCountType)o.move_count;
+			win        = (WinType)o.win;
+			nnrate     = (float)o.nnrate;
 			return *this;
 		}
 
-		Node* CreateChildNode() {
-			node = std::make_unique<Node>();
-			return node.get();
-		}
-
 		// --- public variables
+
+		// メモリ節約のため、moveの最上位バイトでWin/Lose/Drawの状態を表す
+		// (32bit型のMoveでは、ここは使っていないはずなので)
+		bool IsWin()  const { return move & VALUE_WIN; }
+		void SetWin()  { move = (Move)(move | VALUE_WIN); }
+		bool IsLose() const { return move & VALUE_LOSE; }
+		void SetLose() { move = (Move)(move | VALUE_LOSE); }
+		bool IsDraw() const { return move & VALUE_DRAW; }
+		void SetDraw() { move = (Move)(move | VALUE_DRAW); }
 
 		// 親局面(Node)で、このedgeに至るための指し手
 		Move move;
@@ -54,24 +57,24 @@ namespace dlshogi
 		std::atomic<NodeCountType> move_count;
 
 		// このedgeの勝った回数。Node::winと同じ意味。
-		// ※　あるNodeの期待勝率 = win / move_count の計算式で算出する。
-		std::atomic<WinCountType> win;
+		// ※　このChildNodeの着手moveによる期待勝率 = win / move_count の計算式で算出する。
+		std::atomic<WinType> win;
 
 		// Policy Networkが返してきた、moveが選ばれる確率を正規化したもの。
 		float nnrate;
-
-		// 子ノードへのポインタ
-		// これがnullptrであれば、この子ノードはまだexpand(展開)されていないという意味。
-		//
-		// TODO : ここに持つともったいないから、親nodeに最小限だけ持たせたほうが良いような…。
-		std::unique_ptr<Node> node;
 	};
 
 	// 局面一つを表現する構造体
 	// dlshogiのuct_node_t
 	struct Node
 	{
-		Node() : move_count(0), win(0.0f), evaled(false) , value_win(0.0f) , visited_nnrate(0.0f) , child_num(0) {}
+		Node()
+			: move_count(NOT_EXPANDED), win(0), visited_nnrate(0.0f) , child_num(0) {}
+
+		// 子ノード作成
+		Node* CreateChildNode(int i) {
+			return (child_nodes[i] = std::make_unique<Node>()).get();
+		}
 
 		// 子ノード1つのみで初期化する。
 		void CreateSingleChildNode(const Move move)
@@ -96,6 +99,11 @@ namespace dlshogi
 				expand_node<LEGAL>(pos);
 		}
 
+		// 子ノードへのポインタ配列の初期化
+		void InitChildNodes() {
+			child_nodes = std::make_unique<std::unique_ptr<Node>[]>(child_num);
+		}
+
 		// 引数のmoveで指定した子ノード以外の子ノードをすべて開放する。
 		// 前回探索した局面からmoveの指し手を選んだ局面の以外の情報を開放するのに用いる。
 		// moveを指した子ノードが見つかった場合はそのNode*を返す。
@@ -108,6 +116,17 @@ namespace dlshogi
 		// 子ノードが一つも見つからない時は、新しいノードを作成する。
 		Node* ReleaseChildrenExceptOne(NodeGarbageCollector* gc, Move move);
 
+		// このノードがexpand(展開)されたあと、評価関数を呼び出しをするが、それが完了しているかのフラグ。
+		// ※　実際は、フラグ用の変数がもったいないので、move_countを使いまわしている。
+		// ノードはexpandされた時点で評価関数は呼び出されるので、これがfalseであれば、まだ評価関数の評価中であることを意味する。
+		// これがtrueになっていれば、評価関数からの値が反映されている。
+		// 評価関数にはPolicy Networkも含むので、このフラグがtrueになっていれば、各ChildNode(child*)のnnrateに値が反映されていることも保証される。
+		bool IsEvaled() const { return move_count != NOT_EXPANDED; }
+
+		// Evalした時にEvaledフラグをtrueにする関数
+		// ※　実際は、フラグ用の変数がもったいないので、move_countを使いまわしている。
+		void SetEvaled() { move_count = 0; }
+
 		// --- public members..
 
 		// このノードの訪問回数
@@ -118,40 +137,28 @@ namespace dlshogi
 		// 端数が発生するから浮動小数点数になっている。
 		// UctSearcher::UctSearch()で子ノードを辿った時に、その子ノードの期待勝率がここに加算される。
 		// これは累積されるので、このノードの期待勝率は、 win / move_count で求める。
-		std::atomic<WinCountType> win;
-
-		// このノードがexpand(展開)されたあと、評価関数を呼び出しをするが、それが完了しているかのフラグ。
-		// ノードはexpandされた時点で評価関数は呼び出されるので、これがfalseであれば、まだ評価関数の評価中であることを意味する。
-		// これがtrueになっていれば、評価関数からの値が反映されている。
-		// 評価関数にはPolicy Networkも含むので、このフラグがtrueになっていれば、各ChildNode(child*)のnnrateに値が反映されていることも保証される。
-		std::atomic<bool> evaled;
-
-		// Eval()したときに、NNから返ってきたこの局面のvalue(期待勝率)の値。
-		// ただし詰み探索などで子ノードから伝播した場合、以下の定数をとることがある。
-		// ・このノードで勝ちなら      VALUE_WIN   // 子ノードで一つでもVALUE_LOSEがあればその指し手を選択するので       VALUE_WIN
-		// ・このノードで負けなら      VALUE_LOSE  // 子ノードがすべてVALUE_WINであればどうやってもこの局面では負けなのでVALUE_LOSE
-		// ・このノードで引き分けなら、VALUE_DRAW
-		// 備考) RepetitionWin (連続王手の千日手による反則勝ち) , RepetitionSuperior(優等局面)の場合も、VALUE_WINに含まれる。
-		//       RepetitionLose(連続王手の千日手による反則負け) , RepetitionSuperior(劣等局面)の場合も、VALUE_LOSEに含まれる。
-		// この変数は、UctSearcher::SelectMaxUcbChild()を呼び出した時に、子ノードを調べて、その結果が代入される。
-		// TODO : この変数、この構造体に持たせる必要ないのでは…。
-		std::atomic<WinCountType> value_win;
+		std::atomic<WinType> win;
 
 		// 訪問した子ノードのnnrateを累積(加算)したもの。
-		// 訪問ごとに加算している。// 目的はよくわからん…。
-		std::atomic<WinCountType> visited_nnrate;
+		// 訪問ごとに加算している。
+		// 目的はよくわからんが、fpu reductionで用いるからか？
+		// これWinTypeでなくて良いのか？
+		std::atomic<float> visited_nnrate;
 
 		// 子ノードの数
-		// 将棋では合法手は593手とされており、メモリがもったいないので、16bit整数で持つ。
-		u16 child_num;
+		ChildNumType child_num;
 
 		// 子ノード(に至るedge)
 		// child_numの数だけ、ChildNodeをnewして保持している。
 		std::unique_ptr<ChildNode[]> child;
 
+		// 子ノードへのポインタ配列
+		// もったいないので必要になってからnewする。
+		// 展開した子ノード以外はnullptrのまま。
+		std::unique_ptr<std::unique_ptr<Node>[]> child_nodes;
+
+
 	private:
-		// このnodeのchildを展開する時にこのlockが必要なので、Lock()～Unlock()を用いること。
-		std::mutex mutex;
 
 		// ExpandNode()の下請け。生成する指し手の種類を指定できる。
 		template <MOVE_GEN_TYPE T>
@@ -160,7 +167,7 @@ namespace dlshogi
 			MoveList<T> ml(*pos);
 
 			// 子ノードの数 = 生成された指し手の数
-			child_num = (u16)ml.size();
+			child_num = (ChildNumType)ml.size();
 
 			child = std::make_unique<ChildNode[]>(child_num);
 			auto* child_node = child.get();
@@ -199,10 +206,11 @@ namespace dlshogi
 		Node* current_head = nullptr;
 
 		// ゲーム木のroot node = ゲームの開始局面
-		// dlshogiでは、gamebegin_node_という変数名
+		// ※　dlshogiでは、gamebegin_node_という変数名
 		std::unique_ptr<Node> game_root_node;
 
 		// ゲーム木のroot nodeのsfen文字列
+		// ※　dlshogiではhistory_starting_pos_key_というKey型の変数
 		std::string game_root_sfen;
 
 		// dlshogiではGCはglobalになっているが、NodeTreeからも使えるようにしておく。
