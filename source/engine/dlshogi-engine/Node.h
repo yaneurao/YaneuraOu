@@ -31,7 +31,7 @@ namespace dlshogi
 
 		// ムーブ代入演算子
 		ChildNode& operator=(ChildNode&& o) noexcept {
-			move = o.move;
+			move       = o.move;
 			move_count = (NodeCountType)o.move_count;
 			win        = (WinType)o.win;
 			nnrate     = (float)o.nnrate;
@@ -141,8 +141,8 @@ namespace dlshogi
 
 		// 訪問した子ノードのnnrateを累積(加算)したもの。
 		// 訪問ごとに加算している。
-		// 目的はよくわからんが、fpu reductionで用いるからか？
-		// これWinTypeでなくて良いのか？
+		// fpu reductionで用いる。
+		// ※　visited_nnrateはfpu_reductionが1を超えると意味のない値なのでfloatでも精度的に問題ないらしい。
 		std::atomic<float> visited_nnrate;
 
 		// 子ノードの数

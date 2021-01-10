@@ -34,11 +34,11 @@ namespace Book
 			m =  make_move_promote16(static_cast<Square>(from), static_cast<Square>(to));
 		else
 		{
-		const bool is_drop = ((apery_move >> 7) & 0x7f) >= SQ_NB;
-		if (is_drop) {
-			const uint16_t piece = from - SQ_NB + 1;
+			const bool is_drop = ((apery_move >> 7) & 0x7f) >= SQ_NB;
+			if (is_drop) {
+				const uint16_t piece = from - SQ_NB + 1;
 				m = make_move_drop16(static_cast<PieceType>(piece), static_cast<Square>(to));
-		}
+			}
 			else
 				m = make_move16(static_cast<Square>(from), static_cast<Square>(to));
 		}
@@ -135,11 +135,11 @@ namespace Book
 				{
 					// すでに存在していたのでエントリーを置換。ただし採択回数は合算する。
 					auto move_count = b.move_count;
-					auto win = b.win;
+					auto win        = b.win;
 					auto draw       = b.draw;
 					b = bp;
 					b.move_count += move_count;
-					b.win += win;
+					b.win        += win;
 					b.draw       += draw;
 
 					sorted = false; // sort関係が崩れたのでフラグをfalseに戻しておく。
@@ -412,10 +412,10 @@ namespace Book
 			vectored_book.push_back(it);
 		}
 
-			// sfen文字列は手駒の表記に揺れがある。
-			// (USI原案のほうでは規定されているのだが、将棋所が採用しているUSIプロトコルではこの規定がない。)
-			// sortするタイミングで、一度すべての局面を読み込み、sfen()化しなおすことで
-			// やねうら王が用いているsfenの手駒表記(USI原案)に統一されるようにする。
+		// sfen文字列は手駒の表記に揺れがある。
+		// (USI原案のほうでは規定されているのだが、将棋所が採用しているUSIプロトコルではこの規定がない。)
+		// sortするタイミングで、一度すべての局面を読み込み、sfen()化しなおすことで
+		// やねうら王が用いているsfenの手駒表記(USI原案)に統一されるようにする。
 
 		// 進捗の出力
 		u64 counter = 0;
@@ -430,36 +430,36 @@ namespace Book
 			counter++;
 		};
 
-			{
-				Position pos;
+		{
+			Position pos;
 
-				// std::vectorにしてあるのでit.firstを書き換えてもitは無効にならないはず。
-				for (auto& it : vectored_book)
-				{
+			// std::vectorにしてあるのでit.firstを書き換えてもitは無効にならないはず。
+			for (auto& it : vectored_book)
+			{
 				output_progress();
 
-					StateInfo si;
-					pos.set(it.first,&si,Threads.main());
-					auto sfen = pos.sfen();
-					it.first = sfen;
+				StateInfo si;
+				pos.set(it.first,&si,Threads.main());
+				auto sfen = pos.sfen();
+				it.first = sfen;
 
-					auto sfen_left = StringExtension::trim_number(sfen); // 末尾にplyがあるはずじゃろ
+				auto sfen_left = StringExtension::trim_number(sfen); // 末尾にplyがあるはずじゃろ
 				int ply = StringExtension::to_int(sfen.substr(sfen_left.length()), 0);
 
-					auto it2 = book_ply.find(sfen_left);
-					if (it2 == book_ply.end())
-						book_ply[sfen_left] = ply; // エントリーが見つからなかったので何も考えずに追加
-					else
-						it2->second = std::min(it2->second, ply); // 手数の短いほうを代入しておく。
-				}
+				auto it2 = book_ply.find(sfen_left);
+				if (it2 == book_ply.end())
+					book_ply[sfen_left] = ply; // エントリーが見つからなかったので何も考えずに追加
+				else
+					it2->second = std::min(it2->second, ply); // 手数の短いほうを代入しておく。
 			}
+		}
 
-			// ここvectored_bookが、sfen文字列でsortされていて欲しいのでsortする。
-			// アルファベットの範囲ではlocaleの影響は受けない…はず…。
-			std::sort(vectored_book.begin(), vectored_book.end(),
+		// ここvectored_bookが、sfen文字列でsortされていて欲しいのでsortする。
+		// アルファベットの範囲ではlocaleの影響は受けない…はず…。
+		std::sort(vectored_book.begin(), vectored_book.end(),
 			[](const pair<string, BookMovesPtr>&lhs, const pair<string, BookMovesPtr>&rhs) {
-				return lhs.first < rhs.first;
-			});
+			return lhs.first < rhs.first;
+		});
 
 		for (auto& it : vectored_book)
 		{
@@ -514,7 +514,7 @@ namespace Book
 	{
 		std::lock_guard<std::recursive_mutex> lock(mutex_);
 		book_body[sfen] = ptr;
-				}
+	}
 
 
 	BookMovesPtr MemoryBook::find(const Position& pos)
@@ -524,7 +524,7 @@ namespace Book
 		// "no_book"は定跡なしという意味なので定跡の指し手が見つからなかったことにする。
 		if (pure_book_name == "no_book")
 			return BookMovesPtr();
-
+		 
 		if (pure_book_name == kAperyBookName) {
 
 			BookMovesPtr pml_entry(new BookMoves());
@@ -607,7 +607,7 @@ namespace Book
 					// seek_from == 0の場合も、ここで1行読み捨てられるが、1行目は
 					// ヘッダ行であり、問題ない。
 					getline(fs, line);
-
+					
 					// getlineはeof()を正しく反映させないのでgetline()の返し値を用いる必要がある。
 					while (getline(fs, line))
 					{
@@ -616,7 +616,7 @@ namespace Book
 							// ios::binaryつけているので末尾に'\r'が付与されている。禿げそう。
 							// →　trim()で吸収する。(trimがStringExtension::trim_number()を呼び出すがそちらで吸収される)
 							return trim(line.substr(5));
-						// "sfen"という文字列は取り除いたものを返す。
+							// "sfen"という文字列は取り除いたものを返す。
 							// IgnoreBookPly == trueのときは手数の表記も取り除いて比較したほうがいい。
 						}
 					}
@@ -832,7 +832,7 @@ namespace Book
 			, "user_book1.db", "user_book2.db", "user_book3.db", "book.bin" };
 
 		o["BookFile"] << Option(book_list, book_list[1]);
-
+		
 		o["BookDir"] << Option("book");
 
 		//  BookEvalDiff: 定跡の指し手で1番目の候補の指し手と、2番目以降の候補の指し手との評価値の差が、
@@ -1056,7 +1056,7 @@ namespace Book
 
 				// 候補手が1手でも減ったなら減った理由を出力
 				if (!silent && n != move_list.size())
-					sync_cout << "info string BookEvalDiff = " << eval_diff << " ,  " << stm_string << " = " << value_limit2
+					sync_cout << "info string BookEvalDiff = " << eval_diff << " , " << stm_string << " = " << value_limit2
 					<< " , " << n << " moves to " << move_list.size() << " moves." << sync_endl;
 			}
 		}

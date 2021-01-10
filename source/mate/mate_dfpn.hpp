@@ -880,9 +880,13 @@ namespace Mate::Dfpn32
 		{
 			ASSERT_LV3(node != nullptr && node->child_num == NodeType::CHILDNUM_NOT_INIT);
 
-			// 手数が超えているなら、max_game_plyを超えているなら不詰扱い。
-			// max_game_plyが0の時は無制限なのでこの判定は無効。
-			if (max_game_ply && pos.game_ply() > max_game_ply)
+			// orノード  : 手数がmax_game_plyを超えているなら不詰扱い。
+			// 　　　　　  max_game_plyが0の時は無制限なのでこの判定はしない。
+			// andノード : 手数がmax_game_plyを超えているなら不詰扱い。ただし、現局面で詰んでいる or 禁則手しか残っていないなら
+			// 　　　　　　この限りではない。
+			// なのでandノードでは、このチェックは、指し手生成しないと正確な判定ができない。
+			// よって、このあとでチェックを行う。
+			if (or_node && max_game_ply && max_game_ply < pos.game_ply())
 			{
 				// ここで次の一手は指せない。(例:256手ルールにおける257手目の局面)
 				node->set_child(0);
@@ -935,6 +939,20 @@ namespace Mate::Dfpn32
 			// 歩の不成も含めて生成しておく。(詰め将棋ルーチンでそれが詰ませられないと悔しいので)
 			auto mp = MovePicker<or_node, INCHECK, true , MoveOrdering>(pos);
 			u32 child_num = (u32)mp.size();
+
+			if (!or_node && max_game_ply && max_game_ply < pos.game_ply() && child_num)
+			{
+				// ここで次の一手は指せないが、指し手はあるので詰んでいないことは言える。
+				// (例:256手ルールにおける257手目の局面)
+				// なのでand nodeでは、これで逃れている。= 不詰。
+				// 仮にこの指し手で連続王手の千日手(禁則)になるとしても、
+				// ここで詰んでいないので手番が来た時点で引き分けが成立するから不詰。
+				node->set_child(0);
+				node->set_nomate();
+				return;
+			}
+
+
 			node->child_num = child_num;
 
 			if (child_num == 0)

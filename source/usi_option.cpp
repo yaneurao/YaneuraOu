@@ -23,7 +23,7 @@ namespace USI {
 		return std::lexicographical_compare(s1.begin(), s1.end(), s2.begin(), s2.end(),
 			[](char c1, char c2) { return tolower(c1) < tolower(c2); });
 	}
-
+	
 	// 前回のOptions["EvalDir"]
 	std::string last_eval_dir;
 
@@ -53,13 +53,13 @@ namespace USI {
 		o["USI_Hash"] << Option(16, 1, MaxHashMB, [](const Option&o) { /* TT.resize(o); */ });
 
 	#if defined(USE_EVAL_HASH)
-		// 評価値用のcacheサイズ。[MB]で指定。
+			// 評価値用のcacheサイズ。[MB]で指定。
 
 		#if defined(FOR_TOURNAMENT)
-		// トーナメント用は少し大きなサイズ
-		o["EvalHash"] << Option(1024, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
+				// トーナメント用は少し大きなサイズ
+				o["EvalHash"] << Option(1024, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
 		#else
-		o["EvalHash"] << Option(128, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
+				o["EvalHash"] << Option(128, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
 		#endif // defined(FOR_TOURNAMENT)
 	#endif // defined(USE_EVAL_HASH)
 

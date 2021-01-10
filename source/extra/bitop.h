@@ -35,7 +35,7 @@
 #include <arm_neon.h>
 #include <mm_malloc.h> // for _mm_alloc()
 #else
-#if defined (__GNUC__)
+#if defined (__GNUC__) 
 #include <mm_malloc.h> // for _mm_alloc()
 #endif
 #endif

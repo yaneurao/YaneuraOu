@@ -143,7 +143,7 @@ namespace dlshogi
 		// ※　先にNNが構築されていないと、このあとNNからalloc()できないのでUctSearcherより先に構築する。
 		// batch sizeに変更があった場合も、このbatch size分だけGPU側にメモリを確保したいので、この時もNNのインスタンスを作りなおす。
 		if (this->model_path != model_path || policy_value_batch_maxsize != this->policy_value_batch_maxsize)
-	{
+		{
 			std::lock_guard<std::mutex> lk(mutex_gpu);
 
 			// 以前のやつを先に開放しないと次のを確保するメモリが足りないかも知れない。
@@ -154,7 +154,7 @@ namespace dlshogi
 
 			// 次回、このmodel_pathかalloced_policy_value_batch_maxsizeに変更があれば、再度NNをbuildする。
 			this->model_path = model_path;
-	}
+		}
 
 		// スレッド数に変更があるか、batchサイズが前回から変更があったならばUctSearcherのインスタンス自体を生成しなおす。
 		if (searchers.size() != new_thread || policy_value_batch_maxsize != this->policy_value_batch_maxsize)
@@ -165,8 +165,8 @@ namespace dlshogi
 			for (int i = 0; i < new_thread; ++i)
 				searchers.emplace_back(this, i, policy_value_batch_maxsize);
 
-		this->policy_value_batch_maxsize = policy_value_batch_maxsize;
-	}
+			this->policy_value_batch_maxsize = policy_value_batch_maxsize;
+		}
 	}
 
 	// やねうら王では探索スレッドはThreadPoolが管理しているのでこれらは不要。
@@ -255,6 +255,10 @@ namespace dlshogi
 		// このスレッドとGPUとを紐付ける。
 		grp->set_device();
 
+		// 引き分けになる手数をleaf nodeで用いるmate solverに設定する。
+		int max_moves_to_draw = grp->get_dlsearcher()->search_options.max_moves_to_draw;
+		mate_solver.set_max_game_ply(max_moves_to_draw);
+
 		// 並列探索の開始
 		ParallelUctSearch(rootPos);
 	}
@@ -313,7 +317,7 @@ namespace dlshogi
 
 				if (result != DISCARDED)
 				{
-				  atomic_fetch_add(&search_limits.nodes_searched, 1);
+					atomic_fetch_add(&search_limits.nodes_searched, 1);
 					//  →　ここで加算するとnpsの計算でまだEvalNodeしてないものまで加算されて
 					// 大きく見えてしまうのでもう少しあとで加算したいところだが…。
 				}
@@ -337,8 +341,8 @@ namespace dlshogi
 				for (auto it = trajectories.rbegin(); it != trajectories.rend(); ++it)
 				{
 					NodeTrajectory& current_next  = *it;
-					Node* current        = current_next.node;
-					ChildNode* uct_child = current->child.get();
+					Node* current				  = current_next.node;
+					ChildNode* uct_child		  = current->child.get();
 					const ChildNumType next_index = current_next.index;
 
 					SubVirtualLoss(&uct_child[next_index], current);
@@ -359,7 +363,7 @@ namespace dlshogi
 				for (auto it = trajectories.rbegin(); it != trajectories.rend() ; ++it)
 				{
 					auto& current_next = *it;
-					Node* current = current_next.node;
+					Node* current      = current_next.node;
 					const ChildNumType next_index = current_next.index;
 					ChildNode* uct_child = current->child.get();
 					const auto* uct_child_nodes = current->child_nodes.get();
@@ -557,7 +561,7 @@ namespace dlshogi
 				result = 1.0f; // 反転して値を返すため1を返す
 			}
 			else {
-			// 手番を入れ替えて1手深く読む
+				// 手番を入れ替えて1手深く読む
 				result = UctSearch(pos, &uct_child[next_index], next_node, visitor);
 			}
 		}
@@ -625,12 +629,12 @@ namespace dlshogi
 		// UCB値最大の手を求める
 		for (ChildNumType i = 0; i < child_num; i++) {
 			if (uct_child[i].IsWin()) {
-					child_win_count++;
-					// 負けが確定しているノードは選択しない
-					continue;
-				}
+				child_win_count++;
+				// 負けが確定しているノードは選択しない
+				continue;
+			}
 			else if (uct_child[i].IsLose()) {
-					// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
+				// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
 				if (parent != nullptr)
 					parent->SetWin();
 
@@ -669,7 +673,7 @@ namespace dlshogi
 
 		} else {
 
-		// for FPU reduction
+			// for FPU reduction
 			atomic_fetch_add(&current->visited_nnrate, uct_child[max_child].nnrate);
 		}
 
@@ -710,7 +714,7 @@ namespace dlshogi
 
 		for (int i = 0; i < policy_value_batch_size; i++, logits++, value++)
 		{
-			Node* node  = policy_value_batch[i].node;
+			      Node*        node      = policy_value_batch[i].node;
 			const Color        color     = policy_value_batch[i].color;
 			const ChildNumType child_num = node->child_num;
 			      ChildNode *  uct_child = node->child.get();

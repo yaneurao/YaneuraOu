@@ -59,7 +59,7 @@ struct StateInfo {
 	HASH_KEY long_key()           const { return board_key_ + hand_key_; }
 	HASH_KEY board_long_key()     const { return board_key_; }
 	HASH_KEY hand_long_key()      const { return hand_key_; }
-  
+
 	// 現局面で手番側に対して王手をしている駒のbitboard
 	Bitboard checkersBB;
 
@@ -256,7 +256,7 @@ public:
 
 	// 定跡DBや置換表から取り出したMove16(16bit型の指し手)を32bit化する。
 	Move to_move(Move16 m) const;
-
+	
 	// 普通の千日手、連続王手の千日手等を判定する。
 	// そこまでの局面と同一局面であるかを、局面を遡って調べる。
 	// plies_from_root : rootからの手数。ss->plyを渡すこと。
@@ -530,9 +530,9 @@ public:
 
 #if defined(USE_ENTERING_KING_WIN)
 	// 入玉時の宣言勝ち
-  // Search::Limits.enteringKingRuleに基いて、宣言勝ちを行なう。
-  // 条件を満たしているとき、MOVE_WINや、玉を移動する指し手(トライルール時)が返る。さもなくば、MOVE_NONEが返る。
-  // mate1ply()から内部的に呼び出す。(そうするとついでに処理出来て良い)
+	// Search::Limits.enteringKingRuleに基いて、宣言勝ちを行なう。
+	// 条件を満たしているとき、MOVE_WINや、玉を移動する指し手(トライルール時)が返る。さもなくば、MOVE_NONEが返る。
+	// mate1ply()から内部的に呼び出す。(そうするとついでに処理出来て良い)
 	// 32bit Moveが返る。
 	Move DeclarationWin() const;
 #endif
@@ -560,7 +560,7 @@ public:
 	// -- 利き
 #if defined(LONG_EFFECT_LIBRARY)
 
-  // 各升の利きの数
+	// 各升の利きの数
 	LongEffect::ByteBoard board_effect[COLOR_NB];
 
 	// NNUE halfKPE9で局面の差分計算をするときに用いる

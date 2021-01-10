@@ -100,6 +100,11 @@ namespace Mate {
 	template <bool INCHECK , bool GEN_ALL>
 	Move MateSolver::mate_odd_ply(Position& pos, const int ply)
 	{
+		// 手数制限オーバーか？
+		if (max_game_ply && max_game_ply < pos.game_ply())
+			// 次の1手が指せない以上、これは不詰
+			return MOVE_NONE;
+
 		if (ply == 3)
 			return mate_3ply<INCHECK,GEN_ALL>(pos);
 		else if (ply == 1)
@@ -167,11 +172,19 @@ namespace Mate {
 	template <bool GEN_ALL>
 	Move MateSolver::mated_even_ply(Position& pos, const int ply)
 	{
+		MovePicker<false, false, GEN_ALL, false /* no ordering */> picker(pos);
+
+		// 手数制限オーバーか？
+		// 手数制限があり、かつ、手数が設定された手数を超えていて、かつ指し手がある(詰みではない)なら、引き分け = 不詰。
+		if (max_game_ply && max_game_ply < pos.game_ply() && picker.size())
+			// 次の1手が指せないが、この局面で詰んでいなければセフセフ
+			return MOVE_WIN; // とりま、MOVE_NONE以外を返せばそれで逃れているということで。
+
 		// AND節点なのでこの局面のすべての指し手に対して(手番側が)詰まなければならない。
 		// 一つでも詰まない手があるならfalseを返す。
 
 		// すべてのEvasion(王手回避の指し手)について
-		for (const auto& ml : MovePicker<false, false , GEN_ALL , false /* no ordering */>(pos))
+		for (const auto& ml : picker)
 		{
 			//std::cout << depth << " : " << pos.toSFEN() << " : " << ml.move.toUSI() << std::endl;
 			auto m = ml.move;

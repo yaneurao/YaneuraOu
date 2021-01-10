@@ -116,7 +116,7 @@ namespace USI
 	std::string square(Square s);
 
 	// 指し手をUSI文字列に変換する。
-	std::string move(Move m /*, bool chess960*/);
+	std::string move(Move   m /*, bool chess960*/);
 	std::string move(Move16 m /*, bool chess960*/);
 
 	// 読み筋をUSI文字列化して返す。

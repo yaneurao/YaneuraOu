@@ -38,7 +38,7 @@ namespace Eval::dlshogi
 		checkCudaErrors(cudaFreeHost(ptr));
 #endif
 	}
-
+	
 	// 使用可能なデバイス数を取得する。
 	int NN::get_device_count() {
 #if defined(ONNXRUNTIME)
@@ -59,7 +59,7 @@ namespace Eval::dlshogi
 
 #elif defined (TENSOR_RT)
 
-			nn = std::make_unique<NNTensorRT>();
+		nn = std::make_unique<NNTensorRT>();
 
 		// ファイル名に応じて、他のフォーマットに対応させるはずだったが、
 		// TensorRTの場合、モデルファイル側にその情報があるので

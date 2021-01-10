@@ -54,46 +54,57 @@ namespace Mate
 	class MateSolver
 	{
 	public:
-	// 奇数手詰め
-	// 詰みがある場合は、その1手目の指し手を返す。詰みがない場合は、MOVE_NONEが返る。
-	// ply     : 最大で調べる手数
-	// gen_all : 歩の不成も生成するのか
+		// 奇数手詰め
+		// 詰みがある場合は、その1手目の指し手を返す。詰みがない場合は、MOVE_NONEが返る。
+		// ply     : 最大で調べる手数
+		// gen_all : 歩の不成も生成するのか
 		Move mate_odd_ply(Position& pos, const int ply, bool gen_all);
+
+		// 最大探索深さ。これを超えた局面は不詰扱いとする。
+		// Position::game_ply()がこれを超えた時点で不詰扱い。
+		// 0を指定すると制限なし。デフォルトは0。
+		void set_max_game_ply(int max_game_ply) { this->max_game_ply = max_game_ply; }
 
 	private:
 
-	// mate_odd_ply()の王手がかかっているかをtemplateにしたやつ。
-	// ※　dlshogiのmateMoveInOddPlyReturnMove()を参考にさせていただいています。
-	// INCHECK : 王手がかかっているか
-	// GEN_ALL : 歩の不成も生成するのか
+		// mate_odd_ply()の王手がかかっているかをtemplateにしたやつ。
+		// ※　dlshogiのmateMoveInOddPlyReturnMove()を参考にさせていただいています。
+		// INCHECK : 王手がかかっているか
+		// GEN_ALL : 歩の不成も生成するのか
 		template <bool INCHECK, bool GEN_ALL>
-	Move mate_odd_ply(Position& pos, const int ply);
+		Move mate_odd_ply(Position& pos, const int ply);
 
-	// 偶数手詰め
-	// 前提) 手番側が王手されていること。
-	// この関数は、その王手が、逃れられずに手番側が詰むのかを判定する。
-	// 返し値は、逃れる指し手がある時、その指し手を返す。どうやっても詰む場合は、MOVE_NONEが返る。
-	// ply     : 最大で調べる手数
-	// gen_all : 歩の不成も生成するのか。
+		// 偶数手詰め
+		// 前提) 手番側が王手されていること。
+		// この関数は、その王手が、逃れられずに手番側が詰むのかを判定する。
+		// 返し値は、逃れる指し手がある時、その指し手を返す。どうやっても詰む場合は、MOVE_NONEが返る。
+		// ply     : 最大で調べる手数
+		// gen_all : 歩の不成も生成するのか。
 		Move mated_even_ply(Position& pos, const int ply, bool gen_all);
 
-	// mated_even_ply()のtemplate版。
-	// GEN_ALL : 歩の不成も生成するのか。
-	template <bool GEN_ALL>
-	Move mated_even_ply(Position& pos, const int ply);
+		// mated_even_ply()のtemplate版。
+		// GEN_ALL : 歩の不成も生成するのか。
+		template <bool GEN_ALL>
+		Move mated_even_ply(Position& pos, const int ply);
 
-	// 3手詰めチェック
-	// 手番側が王手でないこと
-	// mate_even_ply()から内部的に呼び出される。
-	// INCHECK : 王手がかかっているか
-	// GEN_ALL : 歩の不成も生成するのか。
+
+		// 3手詰めチェック
+		// 手番側が王手でないこと
+		// mate_even_ply()から内部的に呼び出される。
+		// INCHECK : 王手がかかっているか
+		// GEN_ALL : 歩の不成も生成するのか。
 		template <bool INCHECK, bool GEN_ALL>
-	Move mate_3ply(Position& pos);
+		Move mate_3ply(Position& pos);
 
 	private:
 		// 探索開始時のgame_plyを保存しておく。
 		// 千日手判定のためにこの局面以前に遡る時と、そうでない時とで処理が異なるので。
 		int root_game_ply;
+
+		// 最大探索深さ。これを超えた局面は不詰扱いとする。
+		// Position::game_ply()がこれを超えた時点で不詰扱い。
+		// 0を指定すると制限なし。デフォルトは0。
+		int max_game_ply = 0;
 	};
 
 #endif

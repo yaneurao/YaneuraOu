@@ -91,7 +91,7 @@ namespace dlshogi::UctPrint
 		// 子ノードがない == 詰みだと思う。
 		if (node->child_num == 0)
 			return bests;
-
+		
 		// 子ノードすべてから、上位multiPv個の優れたChildNodeを選択してそれを返す。
 
 		const ChildNode* child = node->child.get();
@@ -108,7 +108,7 @@ namespace dlshogi::UctPrint
 
 		// listには良い順に並んでいる。例えば、1番良いChildNodeは、child[list[0].first]
 		for (ChildNumType i = 0; i < multiPv ; ++i)
-			{
+		{
 			ChildNumType index = list[i].first;
 			const auto& child  = list[i].second;
 			auto next_node = node->child_nodes ? node->child_nodes[index].get() : nullptr;
@@ -186,25 +186,25 @@ namespace dlshogi::UctPrint
 		
 		// MultiPVであれば、現在のnodeで複数の候補手を表示する。
 
-			auto bests = select_best_moves(rootNode , multiPv);
-			if (bests.size() == 0)
-				return BestMovePonder();
+		auto bests = select_best_moves(rootNode , multiPv);
+		if (bests.size() == 0)
+			return BestMovePonder();
 
-			Move ponder = MOVE_NONE;
+		Move ponder = MOVE_NONE;
 		for(ChildNumType i = 0; i < (ChildNumType)bests.size() ; ++i)
-			{
-				auto best = bests[i];
+		{
+			auto best = bests[i];
 
-				std::vector<Move> moves = { best.move };
-				get_pv(best.node, moves);
+			std::vector<Move> moves = { best.move };
+			get_pv(best.node, moves);
 
-				sync_cout << pv_to_string(best, moves, multiPv, i , nps.str() ) << sync_endl;
+			sync_cout << pv_to_string(best, moves, multiPv, i , nps.str() ) << sync_endl;
 
-				if (i == 0 && moves.size() >= 2)
-					ponder = moves[1];
-			}
+			if (i == 0 && moves.size() >= 2)
+				ponder = moves[1];
+		}
 
-			return BestMovePonder(bests[0].move, bests[0].wp, ponder);
+		return BestMovePonder(bests[0].move, bests[0].wp, ponder);
 
 	}
 

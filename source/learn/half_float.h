@@ -36,7 +36,7 @@ namespace HalfFloat
 
 		// build from a float
 		void from_float(float f) { *this = to_float16(f); }
-
+			
 		// --- implicit converters
 
 		operator s32() const { return (s32)to_float(*this); }
@@ -78,7 +78,7 @@ namespace HalfFloat
 
 			// The exponent of IEEE 754's float 32 is biased +127 , so we change this bias into +15 and limited to 5-bit.
 			u16 exponent = (((n >> 23) - 127 + 15) & 0x1f) << 10;
-
+	
 			// The fraction is limited to 10-bit.
 			u16 fraction = (n >> (23-10)) & 0x3ff;
 
@@ -111,7 +111,7 @@ namespace HalfFloat
 			std::cout << (float)c << std::endl;
 			d = a + c;
 			std::cout << (float)d << std::endl;
-
+			
 			c *= 1.5;
 			std::cout << (float)c << std::endl;
 

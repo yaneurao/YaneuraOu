@@ -36,12 +36,12 @@
 
 
 // USE_AVX512VNNI : AVX-512かつ、VNNI命令対応(Cascade Lake以降)でサポートされた命令を使うか。
-// USE_AVX512 : AVX-512(サーバー向けSkylake以降)でサポートされた命令を使うか。
-// USE_AVX2   : AVX2(Haswell以降)でサポートされた命令を使うか。pextなど。
-// USE_SSE42  : SSE4.2でサポートされた命令を使うか。popcnt命令など。
-// USE_SSE41  : SSE4.1でサポートされた命令を使うか。_mm_testz_si128など。
-// USE_SSE2   : SSE2  でサポートされた命令を使うか。
-// NO_SSE     : SSEは使用しない。
+// USE_AVX512     : AVX-512(サーバー向けSkylake以降)でサポートされた命令を使うか。
+// USE_AVX2       : AVX2(Haswell以降)でサポートされた命令を使うか。pextなど。
+// USE_SSE42      : SSE4.2でサポートされた命令を使うか。popcnt命令など。
+// USE_SSE41      : SSE4.1でサポートされた命令を使うか。_mm_testz_si128など。
+// USE_SSE2       : SSE2  でサポートされた命令を使うか。
+// NO_SSE         : SSEは使用しない。
 // (Windowsの64bit環境だと自動的にSSE2は使えるはず)
 // noSSE ⊂ SSE2 ⊂ SSE4.1 ⊂ SSE4.2 ⊂ AVX2 ⊂  AVX-512
 
@@ -404,8 +404,8 @@ constexpr int MAX_PLY_NUM = 246;
 		// EvalHashを用いるのは3駒型のみ。それ以外は差分計算用の状態が大きすぎてhitしたところでどうしようもない。
 		#define USE_EVAL_HASH
 
-	// 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
-	#define USE_SHARED_MEMORY_IN_EVAL
+		// 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
+		#define USE_SHARED_MEMORY_IN_EVAL
 	#endif
 
 	// 学習機能を有効にするオプション。
@@ -640,7 +640,7 @@ extern GlobalOptions_ GlobalOptions;
 #elif defined(__GNUC__)
 #define ALIGNED(X) __attribute__ ((aligned(X)))
 #else
-#define ALIGNED(X)
+#define ALIGNED(X) 
 #endif
 
 // --- output for Japanese notation
@@ -764,10 +764,10 @@ constexpr bool pretty_jp = false;
 // -- 評価関数の種類によりエンジン名に使用する文字列を変更する。
 #if defined(EVAL_MATERIAL)
 	#if defined(MATERIAL_LEVEL)
-	// MATERIAL_LEVELの番号を"Level"として出力してやる。
+		// MATERIAL_LEVELの番号を"Level"として出力してやる。
 		#define EVAL_TYPE_NAME "MaterialLv" << MATERIAL_LEVEL
 	#else
-	// 適切な評価関数がないので単にEVAL_MATERIALを指定しているだけだから、EVAL_TYPE_NAMEとしては空欄でいいかと。
+		// 適切な評価関数がないので単にEVAL_MATERIALを指定しているだけだから、EVAL_TYPE_NAMEとしては空欄でいいかと。
 		#define EVAL_TYPE_NAME ""
 	#endif
 #elif defined(EVAL_KPPT)
