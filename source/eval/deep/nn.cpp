@@ -78,7 +78,10 @@ namespace Eval::dlshogi
 			sync_cout << "Error! : read error , model path = " << model_path << sync_endl;
 			return nullptr;
 		}
-		sync_cout << "info string The model file has been loaded." << sync_endl;
+		sync_cout << "info string The model file has been loaded, path = " << model_path
+			<< ", gpu_id = " << gpu_id
+			<< ", batch_size = " << batch_size
+			<< sync_endl;
 
 		return nn;
 	}
