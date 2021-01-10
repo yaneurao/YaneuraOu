@@ -22,19 +22,30 @@ namespace dlshogi
 	// とりあえず、あとで変更できるように設計しておく。
 	typedef u32 NodeCountType;
 
-	// 勝った回数の記録用の型
-	// floatだとIEE754においてfractionが23bitしかないのでdoubleにしたほうがよさげ。
-	typedef float WinCountType;
+	// 勝った回数(勝率)の記録用の型
+	// floatだとIEE754においてfractionが23bitしかないのでdoubleにしたほうがよさげだが、
+	// 少しnpsが下がるので、10M nodeぐらいしか読ませないとわかっている時は、floatでもいいかも。
+#if defined(WIN_TYPE_DOUBLE)
+	typedef double WinType;
+#else
+	typedef float WinType;
+#endif
 
-	// 詰み探索で詰みの場合のvalue_winの定数
-	// Node構造体のvalue_winがこの値をとる。
-	// value_winはfloatで表現されているので、これの最大値を詰みを見つけた時の定数としておく。
-	// 探索で取りえない範囲の値であれば何でも良い。(例えば、FLT_MINは、0より大きく1より小さいので偶然取り得る可能性はある)
-	// -FLT_MAXは、floatの取りうる最小値として規格上、保証されている。
-	constexpr WinCountType VALUE_WIN  =   FLT_MAX;
-	constexpr WinCountType VALUE_LOSE =  -FLT_MAX;
+	// 子ノードの数を表現する型
+	// 将棋では合法手は593手とされており、メモリがもったいないので、16bit整数で持つ。
+	typedef u16 ChildNumType;
+
+	// 詰み探索で詰みの場合の定数
+	// Moveの最上位byteでWin/Lose/Drawの状態を表現する。(32bit型のMoveでは、ここは使っていないはずなので)
+	constexpr u32 VALUE_WIN  = 0x1000000;
+	constexpr u32 VALUE_LOSE = 0x2000000;
 	// 千日手の場合のvalue_winの定数
-	constexpr WinCountType VALUE_DRAW =   FLT_MAX / 2;
+	constexpr u32 VALUE_DRAW = 0x4000000;
+
+	// ノード未展開を表す定数
+	// move_countがこの値であれば、ノードは未展開。
+	constexpr NodeCountType NOT_EXPANDED = std::numeric_limits<NodeCountType>::max();
+
 
 	// UctSearcher::UctSearch()の返し値として使う。
 	// 探索の結果を評価関数の呼び出しキューに追加したか、破棄したか。

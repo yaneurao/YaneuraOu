@@ -52,24 +52,18 @@ namespace Eval::dlshogi
 	std::shared_ptr<NN> NN::build_nn(const std::string& model_path , int gpu_id , int batch_size)
 	{
 		shared_ptr<NN> nn;
+
 #if defined (ONNXRUNTIME)
+
 		nn = std::make_unique<NNOnnxRuntime>();
+
 #elif defined (TENSOR_RT)
-		// フォルダ名に"onnx"と入ってると誤爆するのでそれを回避する必要がある。
-		auto file_name = Path::GetFileName(model_path);
-		if (file_name.find("onnx") != string::npos)
+
 			nn = std::make_unique<NNTensorRT>();
 
-		// あとのことは知らん。なんぞこれ。
-
-		//else if (model_path[gpu_id].find("wideresnet15") != string::npos)
-		//	nn = std::make_unique<NNWideResnet15>();
-		//else if (model_path[gpu_id].find("fused_wideresnet10") != string::npos)
-		//	nn = std::make_unique<NNFusedWideResnet10>();
-		//else if (model_path[gpu_id].find("senet10") != string::npos)
-		//	nn = std::make_unique<NNSENet10>();
-		//else
-		//	nn = std::make_unique<NNWideResnet10>();
+		// ファイル名に応じて、他のフォーマットに対応させるはずだったが、
+		// TensorRTの場合、モデルファイル側にその情報があるので
+		// ここで振り分ける必要はなさげ。
 #endif
 
 		sync_cout << "info string Start loading the model file, path = " << model_path << ", gpu_id = " << gpu_id << ", batch_size = " << batch_size << sync_endl;

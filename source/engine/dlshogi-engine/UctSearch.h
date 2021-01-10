@@ -109,6 +109,36 @@ namespace dlshogi
 		std::string model_path;
 	};
 
+	// leaf nodeまでに辿ったNodeを記録しておく構造体。
+	// ※　dlshogiではtrajectory_t
+	struct NodeTrajectory {
+		Node*			node;   // Node
+		ChildNumType	index;  // そのnodeで何番目のchild[index]を選択したのか
+
+		NodeTrajectory(Node* node, ChildNumType index) : node(node), index(index) {}
+	};
+
+	// NodeTrajectoryのvector
+	// ※　dlshogiではtrajectories_t
+	typedef std::vector<NodeTrajectory> NodeTrajectories;
+
+	// 訪問したNodeに対してEvalNodeが完了した時に辿るための構造体。
+	// ※　dlshogiではvisitor_t
+	struct NodeVisitor {
+		// 訪問してきたNode
+		NodeTrajectories trajectories;
+
+		// leaf nodeでのvalue_win。(これを辿ってきたNodeに対して符号を反転させながら伝播させていく)
+		// Eval()したときに、NNから返ってきたこの局面のvalue(期待勝率)の値。
+		// ただし詰み探索などで子ノードから伝播した場合、以下の定数をとることがある。
+		// ・このノードで勝ちなら      VALUE_WIN   // 子ノードで一つでもVALUE_LOSEがあればその指し手を選択するので       VALUE_WIN
+		// ・このノードで負けなら      VALUE_LOSE  // 子ノードがすべてVALUE_WINであればどうやってもこの局面では負けなのでVALUE_LOSE
+		// ・このノードで引き分けなら、VALUE_DRAW
+		// 備考) RepetitionWin (連続王手の千日手による反則勝ち) , RepetitionSuperior(優等局面)の場合も、VALUE_WINに含まれる。
+		//       RepetitionLose(連続王手の千日手による反則負け) , RepetitionSuperior(劣等局面)の場合も、VALUE_LOSEに含まれる。
+		// この変数は、UctSearcher::SelectMaxUcbChild()を呼び出した時に、子ノードを調べて、その結果が代入される。
+		float value_win;
+	};
 
 	// バッチの要素
 	// EvalNode()ごとにどのNodeとColorから呼び出されたのかを記録しておく構造体。
@@ -116,15 +146,9 @@ namespace dlshogi
 	struct BatchElement {
 		Node*	node;  // どのNodeに対するEvalNode()なのか。
 		Color	color; // その時の手番
-		//u64     posKey; // その時のPosition::key()
-	};
 
-	// leaf nodeまでに辿ったNodeを記録しておく構造体。
-	struct NodeTrajectory {
-		Node*	node;   // Node
-		u16		index;  // そのnodeで何番目のchild[index]を選択したのか
-
-		NodeTrajectory(Node* node, u16 index) : node(node), index(index) {}
+		// 通常の探索では、このポインターはNodeVisitor::value_win を指している。
+		float* value_win; // leaf nodeでのvalue_winの値(これを辿ってきたNodeに対して符号を反転させながら伝播させていく)
 	};
 
 	// UCT探索を行う、それぞれのスレッドを表現する。
@@ -199,14 +223,27 @@ namespace dlshogi
 		//  UCTアルゴリズムを反復する
 		void ParallelUctSearch(const Position& rootPos);
 
-		//  UCT探索(1回の呼び出しにつき, 1回の探索)
-		float UctSearch(Position* pos, Node* current, const int depth, std::vector<NodeTrajectory>& trajectories);
+		// UCT探索を行う関数
+		// 1回の呼び出しにつき, 1プレイアウトする。
+		// (leaf nodeで呼び出すものとする)
+		//   pos          : UCT探索を行う開始局面
+		//   current      : UCT探索を行う開始局面
+		//   visitor      : 探索開始局面(tree.GetCurrentHead())から、currentに至る手順。あるNodeで何番目のchildを選択したかという情報。
+		//
+		// 返し値 : currentの局面の期待勝率を返すが、以下の特殊な定数を取ることがある。
+		//   QUEUING      : 評価関数を呼び出した。(呼び出しはqueuingされていて、完了はしていない)
+		//   DISCARDED    : 他のスレッドがすでにこのnodeの評価関数の呼び出しをしたあとであったので、何もせずにリターンしたことを示す。
+		// 
+		float UctSearch(Position* pos, ChildNode* parent, Node* current, NodeVisitor& visitor);
 
-		// UCB値が最大の子ノードを返す
-		int SelectMaxUcbChild(const Position* pos, Node* current, const int depth);
+		//  UCBが最大となる子ノードのインデックスを返す関数
+		//    pos     : 調べたい局面
+		//    current : 調べたい局面
+		//  current->value_winに、子ノードを調べた結果が代入される。
+		ChildNumType SelectMaxUcbChild(ChildNode* parent, Node* current);
 
-		// ノードをキューに追加
-		void QueuingNode(const Position* pos, Node* node);
+		// Evaluateを呼び出すリスト(queue)に追加する。
+		void QueuingNode(const Position* pos, Node* node, float* value_win);
 
 		// ノードを評価
 		void EvalNode();

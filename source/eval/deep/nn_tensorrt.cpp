@@ -96,6 +96,10 @@ namespace Eval::dlshogi
 		// load()でメモリ確保を行った場合、inputBindings.size() == 4のはず。
 		if (inputBindings.size())
 		{
+			// 安全のため、GPU IDをスレッドと関連付けてから開放する。
+			// ※　これは本来しなくても良いと思うのだが、ドライバー側の実装次第では
+			//     何か地雷を踏む可能性がなくはないので安全側に倒しておく。
+
 			// 別のCUDAデバイスを使用していたスレッドから呼ばれる場合がある。
 			// 念の為、現在使用しているCUDAデバイスのIDを一旦退避する。
 			// (現状は、 UctSearcherGroup::Initialize() で nn.reset() から NNTensorRT のデストラクタを経由して呼ばれる例を確認)
@@ -318,3 +322,4 @@ namespace Eval::dlshogi
 } // namespace Eval::dlshogi
 
 #endif // defined(YANEURAOU_ENGINE_DEEP) && defined (TENSOR_RT)
+

@@ -38,10 +38,10 @@ namespace dlshogi::UctPrint
 		Move ponder;
 
 		// moveを選んだ時の期待勝率
-		WinCountType wp;
+		WinType wp;
 
 		BestMovePonder();
-		BestMovePonder(Move move_,WinCountType wp_,Move ponder_) :move(move_), wp(wp_) , ponder(ponder_){}
+		BestMovePonder(Move move_,WinType wp_,Move ponder_) :move(move_), wp(wp_) , ponder(ponder_){}
 	};
 
 	// ベストの指し手とponderの指し手の取得と表示

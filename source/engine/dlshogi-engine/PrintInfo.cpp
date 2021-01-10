@@ -15,47 +15,32 @@ namespace dlshogi::UctPrint
 {
 	// ---   print PV   ---
 
-	// ChildNode.value_winとmove_countを組にした構造体
-	struct ValueWinMoveCount
-	{
-		//ValueWinMoveCount(WinCountType value_win_, NodeCountType move_count_) : value_win(value_win_), move_count(move_count_) {}
-		ValueWinMoveCount(const ChildNode& child) :
-			child(const_cast<ChildNode*>(&child)) , value_win(child.node ? (WinCountType)child.node->value_win : 0),
-			move_count(child.move_count) , nnrate(child.nnrate){}
-
-		WinCountType value_win;
-		NodeCountType move_count;
-		WinCountType nnrate;
-		ChildNode* child;
-	};
-
-	// ChildNodeのvalue_winとmove_count の組を与えて、どちらのほうが良い指し手であるかを判定する。
+	// ChildNode*を2つ与えて、どちらのほうが良い指し手であるかを判定する。
 	// 前者のほうが優れていれば、trueが返る。
-	bool is_superior_to(const ValueWinMoveCount& lhs,const ValueWinMoveCount& rhs)
+	// ※　dlshogiのUctSearch.cppにある、compare_child_node_ptr_descending()相当の関数。
+	bool is_superior_to(const ChildNode* lhs,const ChildNode* rhs)
 	{
 		// 子がVALUE_LOSEなら勝ちなので、この指し手を優先して選択。しかし、両方がVALUE_LOSEなら、move_countが多いほうを選択。
 		// 子がVALUE_WINなら負けなので、そうでないほうを選びたいが、どちらもVALUE_WINなら、move_countが多いほうが良い指し手のはずなので、move_countが多いほうを選択。
 
 		// win_typeとして、 勝ち = 2 , わからない = 1 , 負け = 0 を返す。
-		auto win_type_of = [](WinCountType v) { return v == VALUE_LOSE ? 2 : v == VALUE_WIN ? 0 : 1; };
+		auto win_type_of = [](const ChildNode* c) { return c->IsLose() ? 2 : c->IsWin() ? 0 : 1; };
 
-		int t1 = win_type_of(lhs.value_win);
-		int t2 = win_type_of(rhs.value_win);
+		int t1 = win_type_of(lhs);
+		int t2 = win_type_of(rhs);
 
 		// win_typeが異なるならwin_typeの値が大きいほうの順番で並んでほしい。
 		// 同じwin_typeなら、move_countが大きいほう。move_countが両方0なら、nnrateが大きいほう。
+		// ※ dlshogi、nnrateは見てないっぽい。
 
-		return t1 != t2 ? t1 > t2 :
-				lhs.move_count || rhs.move_count ? lhs.move_count > rhs.move_count :
-				lhs.nnrate > rhs.nnrate;
-	}
-
-
-	// 子ノード同士の優劣を比較して、親局面から見てどちらを選択すべきであるかを判定する。
-	// lhsのほうがrhsより優れていたらtrueを返す。
-	bool is_superior_to(const ChildNode& lhs, const ChildNode& rhs)
-	{
-		return is_superior_to(ValueWinMoveCount(lhs), ValueWinMoveCount(rhs));
+		// この実装、NOT_EXPANDEDがu32::max()であることに注意しながら比較しないといけない。
+		// +1して、NOT_EXPANDEDは0とみなしてして大小比較するか。
+		const NodeCountType lm = lhs->move_count + 1;
+		const NodeCountType rm = rhs->move_count + 1;
+		
+		return t1 != t2  ? t1 > t2 :       // t1,t2の大きいほう。
+				lm != rm ? lm > rm :       // move_countの値が違うなら大きいほうを採用
+				lhs->nnrate > rhs->nnrate; // move_countも同じ値なら、nnrateで比べるしかない。
 	}
 
 	// あるNodeで選択すべき指し手を表現する。
@@ -65,13 +50,13 @@ namespace dlshogi::UctPrint
 		Move move;
 
 		// moveを選んだ時の勝率
-		WinCountType wp;
+		WinType wp;
 
 		// moveを指した時に遷移するNode
 		Node* node;
 
 		BestMove() : move(MOVE_NONE), wp(0), node(nullptr){}
-		BestMove(Move move_,WinCountType wp_,Node* node_) :move(move_), wp(wp_) , node(node_) {}
+		BestMove(Move move_,WinType wp_,Node* node_) :move(move_), wp(wp_) , node(node_) {}
 	};
 
 	BestMovePonder::BestMovePonder() : move(MOVE_NONE), wp(0), ponder(MOVE_NONE) {}
@@ -91,7 +76,7 @@ namespace dlshogi::UctPrint
 		int best_child = 0;
 		
 		for (int i = 1; i < child_num; ++i)
-			if (is_superior_to(child[i],child[best_child]))
+			if (is_superior_to(&child[i],&child[best_child]))
 				best_child = i;
 
 		return best_child;
@@ -99,7 +84,7 @@ namespace dlshogi::UctPrint
 
 	// あるnodeの子ノードのbestのやつの指し手を返す。
 	// 詰みの局面ならMOVE_NONEが返る。
-	std::vector<BestMove> select_best_moves(const Node* node , size_t multiPv)
+	std::vector<BestMove> select_best_moves(const Node* node , ChildNumType multiPv)
 	{
 		std::vector<BestMove> bests;
 
@@ -111,35 +96,26 @@ namespace dlshogi::UctPrint
 
 		const ChildNode* child = node->child.get();
 
-		// 子ノードのValueWinMoveCountの一覧を作って、この上位 multiPV個を選出する。
-		std::vector<std::pair<int,ValueWinMoveCount>> list;
+		// ChildNode*の一覧を作って、この上位 multiPV個を選出する。
+		std::vector<std::pair<ChildNumType,const ChildNode*>> list;
 		list.reserve(node->child_num);
-		for (int i = 0; i < node->child_num; ++i)
-			list.emplace_back(i, ValueWinMoveCount(child[i]));
+		for (ChildNumType i = 0; i < node->child_num; ++i)
+			list.emplace_back(i, &child[i]);
 
 		// 上位 multiPv個をソートして、あとは捨てる
-		multiPv = std::min(multiPv, list.size());
+		multiPv = std::min(multiPv, (ChildNumType)list.size());
 		std::partial_sort(list.begin(), list.begin() + multiPv , list.end(), [](auto& rhs, auto& lhs){ return is_superior_to(rhs.second,lhs.second); });
 
 		// listには良い順に並んでいる。例えば、1番良いChildNodeは、child[list[0].first]
-		for (int i = 0; i < multiPv ; ++i)
-		{
-			const auto& c = child[list[i].first];
-			WinCountType wp;
-			if (c.node == nullptr)
-				wp = (WinCountType)0.5; // 未訪問なのでわからん。
-			else
+		for (ChildNumType i = 0; i < multiPv ; ++i)
 			{
-			const Node* child_node = c.node.get();
-			const WinCountType child_value_win = child_node ? (WinCountType)child_node->value_win : 0;
+			ChildNumType index = list[i].first;
+			const auto& child  = list[i].second;
+			auto next_node = node->child_nodes ? node->child_nodes[index].get() : nullptr;
 
-				wp =  child_value_win == VALUE_LOSE ? (WinCountType)1.0
-				:  child_value_win == VALUE_WIN  ? (WinCountType)0.0
-				:  child_node->move_count == 0   ? (WinCountType)0.5 // 未訪問なら0.5にしとく。
-				:  (1 - child_node->win / child_node->move_count);
-			}
-
-			bests.push_back(BestMove(c.move, wp, c.node.get()));
+			// 期待勝率
+			float wp = child->move_count ? (float)(child->win / child->move_count) : /* 未訪問なのでわからん… */0.5f;
+			bests.push_back(BestMove(child->move, wp , next_node ));
 		}
 		return bests;
 	}
@@ -150,6 +126,10 @@ namespace dlshogi::UctPrint
 	{
 		while (node)
 		{
+			// NOT_EXPANDED or 0
+			if ((NodeCountType)(node->move_count+1) <= 1)
+				break;
+
 			auto best_child = select_best_child(node);
 			if (best_child == -1)
 				break;
@@ -158,22 +138,19 @@ namespace dlshogi::UctPrint
 			if (!node->child)
 				break;
 
-			if (node->move_count == 0)
-				break;
-
-			node = node->child[best_child].node.get();
+			node = node->child_nodes ? node->child_nodes[best_child].get() : nullptr;
 		}
 	}
 
 	// 読み筋を出力する。
 	// multipv      : Options["MultiPV"]の値
 	// multipv_num  : MultiPVの何番目の指し手であるか。(0～multipv-1の間の数値)
-	std::string pv_to_string(BestMove best, std::vector<Move>& moves , size_t multipv , int multipv_num , const std::string& nps)
+	std::string pv_to_string(BestMove best, std::vector<Move>& moves , ChildNumType multipv , ChildNumType multipv_num , const std::string& nps)
 	{
 		std::stringstream ss;
 
 		// 勝率を[centi-pawn]に変換
-		int cp = Eval::dlshogi::value_to_cp(best.wp);
+		int cp = Eval::dlshogi::value_to_cp((float)best.wp);
 
 		ss << "info" << nps;
 
@@ -197,7 +174,7 @@ namespace dlshogi::UctPrint
 	// ベストの指し手とponderの指し手の取得
 	BestMovePonder get_best_move_multipv(const Node* rootNode , const SearchLimits& po_info , const SearchOptions& options )
 	{
-		size_t multiPv = options.multi_pv;
+		ChildNumType multiPv = options.multi_pv;
 		
 		// 探索にかかった時間を求める
 		auto finish_time = std::max((TimePoint)1, po_info.time_manager.elapsed());
@@ -214,7 +191,7 @@ namespace dlshogi::UctPrint
 				return BestMovePonder();
 
 			Move ponder = MOVE_NONE;
-			for(int i = 0; i < bests.size() ; ++i)
+		for(ChildNumType i = 0; i < (ChildNumType)bests.size() ; ++i)
 			{
 				auto best = bests[i];
 
@@ -239,7 +216,8 @@ namespace dlshogi::UctPrint
 		double finish_time_sec = finish_time / 1000.0;
 
 		// rootの訪問回数がPlayoutの回数
-		sync_cout << "All Playouts       :  " << std::setw(7) << root->move_count << sync_endl;
+		auto root_move_count = root->move_count == NOT_EXPANDED ? 0 : root->move_count.load();
+		sync_cout << "All Playouts       :  " << std::setw(7) << root_move_count << sync_endl;
 
 		// 前回の探索での現在のrootの局面の訪問回数(この分は今回探索していない)
 		sync_cout << "Pre Simulated      :  " << std::setw(7) << pre_simulated << sync_endl;
@@ -250,7 +228,7 @@ namespace dlshogi::UctPrint
 		// 期待勝率
 		// 今回の探索の期待勝率は、rootの局面の勝ち数 / rootの訪問回数
 		// double型で計算するのでゼロ除算の例外はでないが、-Nan/INFとか出ても嫌なので分母が0なら表示しないようにしておく。
-		if (root->move_count)
+		if (root_move_count)
 		{
 			double winning_percentage = (double)root->win / root->move_count;
 			sync_cout << "Winning Percentage :  " << std::setw(7) << (winning_percentage * 100) << "%" << sync_endl;

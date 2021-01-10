@@ -274,7 +274,7 @@ void MainThread::search()
 	// MultiPV
 	// ※　dlshogiでは現状未サポートだが、欲しいので追加しておく。
 	// これは、isreadyのあと、goの直前まで変更可能
-	searcher.search_options.multi_pv = Options["MultiPV"];
+	searcher.search_options.multi_pv = (ChildNumType)Options["MultiPV"];
 
 	Move ponderMove;
 	Move move = searcher.UctSearchGenmove(&rootPos, rootPos.sfen(), {}, ponderMove);

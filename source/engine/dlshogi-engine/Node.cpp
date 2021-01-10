@@ -10,37 +10,50 @@ namespace dlshogi
 	// 前回探索した局面からmoveの指し手を選んだ局面の以外の情報を開放するのに用いる。
 	Node* Node::ReleaseChildrenExceptOne(NodeGarbageCollector* gc, const Move move)
 	{
+		if (child_num > 0 && child_nodes) {
 		bool found = false;
 		for (int i = 0; i < child_num; ++i)
 		{
 			auto& uct_child = child[i];
+				auto& child_node = child_nodes[i];
 			if (uct_child.move == move) {
 				found = true;
 				// 子ノードへのedgeは見つかっているけど実体がまだ。
-				if (!uct_child.node)
-	                uct_child.node = std::make_unique<Node>();
+					if (!child_node)
+	                    // 新しいノードを作成する
+	                    child_node = std::make_unique<Node>();
 
 				// 0番目の要素に移動させる。
-				if (i != 0)
+					if (i != 0) {
 					child[0] = std::move(uct_child);
+						child_nodes[0] = std::move(child_node);
+					}
 			}
 			else {
 				// 子ノードを削除（ガベージコレクタに追加）
-				if (uct_child.node)
-	                gc->AddToGcQueue(std::move(uct_child.node));
+					if (child_node)
+						gc->AddToGcQueue(std::move(child_node));
 			}
 		}
 
 		if (found) {
 			// 子ノードを1つにする。
 			child_num = 1;
-			return child[0].node.get();
+				return child_nodes[0].get();
 		}
 		else {
 	        // 子ノードが見つからなかった場合、新しいノードを作成する
 			CreateSingleChildNode(move);
-			child[0].node = std::make_unique<Node>();
-			return child[0].node.get();
+				InitChildNodes();
+				return (child_nodes[0] = std::make_unique<Node>()).get();
+			}
+		}
+		else {
+			// 子ノード未展開、または子ノードへのポインタ配列が未初期化の場合
+			CreateSingleChildNode(move);
+			// 子ノードへのポインタ配列を初期化する
+			InitChildNodes();
+			return (child_nodes[0] = std::make_unique<Node>()).get();
 		}
 	}
 
@@ -94,7 +107,7 @@ namespace dlshogi
 			seen_old_head |= old_head == current_head;
 		}
 
-		// TODO ここの処理、あとでよくかんがえる
+		// TODO : ここの処理、あとでよくかんがえる
 
 		// MakeMoveは兄弟が存在しないことを保証する 
 		// ただし、古いヘッドが現れない場合は、以前に検索された位置の祖先である位置がある可能性があることを意味する
@@ -103,10 +116,10 @@ namespace dlshogi
 		if (!seen_old_head && current_head != old_head) {
 			if (prev_head) {
 				ASSERT_LV3(prev_head->child_num == 1);
-				auto& prev_uct_child = prev_head->child[0];
-				gc->AddToGcQueue(std::move(prev_uct_child.node));
-				prev_uct_child.node = std::make_unique<Node>();
-				current_head = prev_uct_child.node.get();
+				auto& prev_uct_child_node = prev_head->child_nodes[0];
+				gc->AddToGcQueue(std::move(prev_uct_child_node));
+				prev_uct_child_node = std::make_unique<Node>();
+				current_head = prev_uct_child_node.get();
 			}
 			else {
 				// 開始局面に戻った場合
