@@ -575,14 +575,16 @@ namespace dlshogi
 
 		// 終了時刻が確定しているなら、そこ以降の時刻であれば停止させないといけない。
 		if (s.time_manager.search_end)
+		{
 			if (elapsed_from_ponderhit >= s.time_manager.search_end)
 			{
 				// 終了予定時刻より時間が超過している。
 				interrupt();
 				return;
 			}
-			else {
-				// 探索終了時刻は設定されているのでこれ以上、探索打ち切りの判定は不要。
+		}
+		else {
+			// 探索終了時刻は設定されているのでこれ以上、探索打ち切りの判定は不要。
 			return;
 		}
 
