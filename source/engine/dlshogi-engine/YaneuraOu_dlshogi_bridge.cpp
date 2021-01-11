@@ -204,7 +204,9 @@ void Search::clear()
 		policy_value_batch_maxsizes.push_back(new_policy_value_batch_maxsize[i]);
 	}
 
-	searcher.InitGPU(Eval::dlshogi::ModelPaths , thread_nums, policy_value_batch_maxsizes , (u32)Options["RootMateSearchNodesLimit"]);
+	// ※　InitGPU()に先だってSetMateLimits()でのmate solverの初期化が必要。この呼出をInitGPU()のあとにしないこと！
+	searcher.SetMateLimits((int)Options["MaxMovesToDraw"] , (u32)Options["RootMateSearchNodesLimit"] , (int)Options["MateSearchPly"]);
+	searcher.InitGPU(Eval::dlshogi::ModelPaths , thread_nums, policy_value_batch_maxsizes);
 
 	// その他、dlshogiにはあるけど、サポートしないもの。
 
@@ -238,8 +240,6 @@ void Search::clear()
 	searcher.SetPonderingMode(Options["USI_Ponder"]);
 
 	searcher.InitializeUctSearch((NodeCountType)Options["UCT_NodeLimit"]);
-
-	searcher.search_options.mate_search_ply              = (int)Options["MateSearchPly"];
 
 #if 0
 	// dlshogiでは、

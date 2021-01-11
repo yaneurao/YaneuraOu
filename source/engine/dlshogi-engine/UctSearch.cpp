@@ -248,16 +248,27 @@ namespace dlshogi
 		// これが、policy_value_batch_maxsize分だけ溜まったら、nn->forward()を呼び出す。
 	}
 
+	// leaf node用の詰め将棋ルーチンの初期化を行う。
+	void UctSearcher::InitMateSearcher(const SearchOptions& options)
+	{
+		// -- leaf nodeで奇数手詰めを用いる時
+
+		// 引き分けの手数の設定
+		mate_solver.set_max_game_ply(options.max_moves_to_draw);
+
+		// -- leaf nodeでdf-pn solverを用いる時はメモリの確保も必要
+
+		//mate_solver.alloc           (options.leaf_mate_search_nodes_limit);
+
+		// →　気が向いたら実装する
+	}
+
 	// UCTアルゴリズムによる並列探索の各スレッドのEntry Point
 	// ※　Thread::search()から呼び出す。
 	void UctSearcher::ParallelUctSearchStart(const Position& rootPos)
 	{
 		// このスレッドとGPUとを紐付ける。
 		grp->set_device();
-
-		// 引き分けになる手数をleaf nodeで用いるmate solverに設定する。
-		int max_moves_to_draw = grp->get_dlsearcher()->search_options.max_moves_to_draw;
-		mate_solver.set_max_game_ply(max_moves_to_draw);
 
 		// 並列探索の開始
 		ParallelUctSearch(rootPos);

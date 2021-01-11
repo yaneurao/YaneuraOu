@@ -214,8 +214,11 @@ namespace dlshogi
 		// df-pn探索する。
 		// この関数を呼び出すとsearching = trueになり、探索が終了するとsearching = falseになる。
 		// nodes_limit   = 探索ノード数上限
-		// draw_game_ply = 引き分けになるgame ply。この値になった時点で不詰扱い。
-		void search(const Position& rootPos, u32 nodes_limit, int draw_game_ply);
+		void search(const Position& rootPos, u32 nodes_limit);
+
+		// 引き分けになる手数の設定
+		// max_game_ply = 引き分けになるgame ply。この値になった時点で不詰扱い。
+		void set_max_game_ply(int max_game_ply);
 
 		// 探索中であるかのフラグ
 		std::atomic<bool> searching;
@@ -246,11 +249,26 @@ namespace dlshogi
 		// のようにponderの指し手を返すようになる。
 		void SetPonderingMode(bool flag);
 
+		// 詰み探索の設定
+		// 　　root_mate_search_nodes_limit : root nodeでのdf-pn探索のノード数上限。 (Options["RootMateSearchNodesLimit"]の値)
+		// 　　max_moves_to_draw            : 引き分けになる最大手数。               (Options["MaxMovesToDraw"]の値)
+		//     mate_search_ply              : leaf nodeで奇数手詰めを呼び出す時の手数(Options["MateSearchPly"]の値)
+		// それぞれの引数の値は、同名のsearch_optionsのメンバ変数に代入される。
+		void SetMateLimits(int max_moves_to_draw, u32 root_mate_search_nodes_limit, int mate_search_ply);
+			
+		// root nodeでの詰め将棋ルーチンの呼び出しに関する条件を設定し、メモリを確保する。
+		void InitMateSearcher();
+
 		// GPUの初期化、各UctSearchThreadGroupに属するそれぞれのスレッド数と、各スレッドごとのNNのbatch sizeの設定
 		// "isready"に対して呼び出される。
-		// root_mate_search_nodes_limit : root nodeでのdf-pn探索のノード数上限
-		void InitGPU(const std::vector<std::string>& model_paths, std::vector<int> new_thread, std::vector<int> policy_value_batch_maxsizes ,
-			u32 root_mate_search_nodes_limit);
+		// スレッドの生成ついでに、詰将棋探索系の初期化もここで行う。
+		//
+		// 呼び出しの前提条件)
+		//   SetMateLimits()を呼び出すことによって、以下の3つの変数には事前に値が設定されているものとする。
+		// 　　search_options.root_mate_search_nodes_limit : root nodeでのdf-pn探索のノード数上限。 (Options["RootMateSearchNodesLimit"]の値)
+		// 　　search_options.max_moves_to_draw            : 引き分けになる最大手数。               (Options["MaxMovesToDraw"]の値)
+		//     search_options.mate_search_ply              : leaf nodeで奇数手詰めを呼び出す時の手数(Options["MateSearchPly"]の値)
+		void InitGPU(const std::vector<std::string>& model_paths, std::vector<int> new_thread, std::vector<int> policy_value_batch_maxsizes);
 
 		// 対局開始時に呼び出されるハンドラ
 		void NewGame();

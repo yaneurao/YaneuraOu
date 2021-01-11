@@ -19,6 +19,7 @@ namespace dlshogi
 {
 	class UctSearcher;
 	class DlshogiSearcher;
+	struct SearchOptions;
 
 	// UctSearcher(探索用スレッド)をGPU一つ利用する分ずつひとまとめにしたもの。
 	// 一つのGPUにつき、UctSearchThreadGroupひとつが対応する。
@@ -217,6 +218,9 @@ namespace dlshogi
 		// UCTアルゴリズムによる並列探索の各スレッドのEntry Point
 		// ※　Thread::search()から呼び出す。
 		void ParallelUctSearchStart(const Position& rootPos);
+
+		// leaf node用の詰め将棋ルーチンの初期化を行う。
+		void InitMateSearcher(const SearchOptions& options);
 
 	private:
 		//  並列処理で呼び出す関数
