@@ -60,6 +60,11 @@ namespace Mate
 	// gen_all : 歩の不成も生成するのか
 		Move mate_odd_ply(Position& pos, const int ply, bool gen_all);
 
+		// 最大探索深さ。これを超えた局面は不詰扱いとする。
+		// Position::game_ply()がこれを超えた時点で不詰扱い。
+		// 0を指定すると制限なし。デフォルトは0。
+		void set_max_game_ply(int max_game_ply) { this->max_game_ply = max_game_ply; }
+
 	private:
 
 	// mate_odd_ply()の王手がかかっているかをtemplateにしたやつ。
@@ -94,6 +99,11 @@ namespace Mate
 		// 探索開始時のgame_plyを保存しておく。
 		// 千日手判定のためにこの局面以前に遡る時と、そうでない時とで処理が異なるので。
 		int root_game_ply;
+
+		// 最大探索深さ。これを超えた局面は不詰扱いとする。
+		// Position::game_ply()がこれを超えた時点で不詰扱い。
+		// 0を指定すると制限なし。デフォルトは0。
+		int max_game_ply = 0;
 	};
 
 #endif

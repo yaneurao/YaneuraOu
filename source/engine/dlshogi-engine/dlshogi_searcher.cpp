@@ -362,7 +362,7 @@ namespace dlshogi
 			if (move)
 			{
 				// 宣言勝ち
-				sync_cout << "info mate 1 pv MOVE_WIN" << sync_endl;
+				sync_cout << "info score mate 1 pv MOVE_WIN" << sync_endl;
 				return move;
 			}
 

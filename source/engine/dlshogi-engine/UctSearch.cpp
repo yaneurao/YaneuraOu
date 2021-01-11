@@ -255,6 +255,10 @@ namespace dlshogi
 		// このスレッドとGPUとを紐付ける。
 		grp->set_device();
 
+		// 引き分けになる手数をleaf nodeで用いるmate solverに設定する。
+		int max_moves_to_draw = grp->get_dlsearcher()->search_options.max_moves_to_draw;
+		mate_solver.set_max_game_ply(max_moves_to_draw);
+
 		// 並列探索の開始
 		ParallelUctSearch(rootPos);
 	}
