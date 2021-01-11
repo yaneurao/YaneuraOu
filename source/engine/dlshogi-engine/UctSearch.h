@@ -144,8 +144,8 @@ namespace dlshogi
 	// EvalNode()ごとにどのNodeとColorから呼び出されたのかを記録しておく構造体。
 	// NNから返し値がもらえた時に、ここに記録されているNodeについて、その情報を更新する。
 	struct BatchElement {
-		Node*	node;  // どのNodeに対するEvalNode()なのか。
-		Color	color; // その時の手番
+		Node*	node;     // どのNodeに対するEvalNode()なのか。
+		Color	color;    // その時の手番
 
 		// 通常の探索では、このポインターはNodeVisitor::value_win を指している。
 		float* value_win; // leaf nodeでのvalue_winの値(これを辿ってきたNodeに対して符号を反転させながら伝播させていく)

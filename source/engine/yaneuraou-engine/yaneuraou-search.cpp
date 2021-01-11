@@ -997,8 +997,8 @@ void Thread::search()
 					// やねうら王ではstopOnPonderhit使ってないのでこれはコメントアウト。
 #if 0
 					//if (mainThread)
-						//	mainThread->stopOnPonderhit = false;
-						// →　探索終了時刻が確定していてもこの場合、延長できるなら延長したい気はするが…。
+					//	  mainThread->stopOnPonderhit = false;
+					// →　探索終了時刻が確定していてもこの場合、延長できるなら延長したい気はするが…。
 #endif
 
 				}
@@ -1045,10 +1045,10 @@ void Thread::search()
 					((pvIdx + 1 == multiPV || Time.elapsed() > 3000)
 						&& (rootDepth < 3 || mainThread->lastPvInfoTime + Limits.pv_interval <= Time.elapsed())))
 				{
-						mainThread->lastPvInfoTime = Time.elapsed();
-						sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
-					}
+					mainThread->lastPvInfoTime = Time.elapsed();
+					sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
 				}
+			}
 
 		} // multi PV
 
@@ -1413,7 +1413,7 @@ namespace {
 		// このように計算された親局面のstatScoreは、LMRにおけるreduction rulesに影響を与える。
 		if (!rootNode)
 			(ss + 2)->statScore = 0;
-
+	
 		// -----------------------
 		// Step 4. Transposition table lookup.
 		// -----------------------
@@ -1445,7 +1445,7 @@ namespace {
 		// それが置換表にあったものとして指し手を進める。
 
 		ttMove = rootNode ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
-				: ss->ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
+			  : ss->ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
 
 		// 置換表にhitしなかった時は、PV nodeのときだけttPvとして扱う。
 		// これss->ttPVに保存してるけど、singularの判定等でsearchをss+1ではなくssで呼び出すことがあり、
@@ -1472,7 +1472,7 @@ namespace {
 		// 移動平均のようなものを算出している。
 		thisThread->ttHitAverage = (TtHitAverageWindow - 1) * thisThread->ttHitAverage / TtHitAverageWindow
 			+ TtHitAverageResolution * ss->ttHit;
-
+		
 		// 置換表の値による枝刈り
 
 		if (!PvNode        // PV nodeでは置換表の指し手では枝刈りしない(PV nodeはごくわずかしかないので..)
@@ -1480,7 +1480,7 @@ namespace {
 			&& tte->depth() >= depth   // 置換表に登録されている探索深さのほうが深くて
 			&& ttValue != VALUE_NONE   // (VALUE_NONEだとすると他スレッドからTTEntryが読みだす直前に破壊された可能性がある)
 			&& (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
-				: (tte->bound() & BOUND_UPPER))
+				                : (tte->bound() & BOUND_UPPER))
 			// ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
 			// ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
 			// 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
@@ -1643,7 +1643,7 @@ namespace {
 		{
 			// Skip early pruning when in check
 			// 王手がかかっているときは、early pruning(早期枝刈り)をスキップする
-
+			
 			ss->staticEval = eval = VALUE_NONE;
 			improving = false;
 			goto moves_loop;
@@ -1733,7 +1733,7 @@ namespace {
 			? ss->staticEval > (ss - 4)->staticEval || (ss - 4)->staticEval == VALUE_NONE
 			: ss->staticEval > (ss - 2)->staticEval;
 
-			//	  || ss->staticEval == VALUE_NONE
+		//	  || ss->staticEval == VALUE_NONE
 			// この条件は一つ上の式に暗黙的に含んでいる。
 			// ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはないので。
 
@@ -1755,7 +1755,7 @@ namespace {
 		if (!PvNode
 			&&  depth < PARAM_FUTILITY_RETURN_DEPTH/*9*/
 			&&  eval - futility_margin(depth, improving) >= beta
-			&& eval < VALUE_KNOWN_WIN) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
+			&&  eval < VALUE_KNOWN_WIN) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
 			return eval;
 		// 次のようにするより、単にevalを返したほうが良いらしい。
 		//	 return eval - futility_margin(depth);
@@ -1875,7 +1875,7 @@ namespace {
 
 			MovePicker mp(pos, ttMove, probCutBeta - ss->staticEval, &captureHistory);
 			int probCutCount = 0;
-			bool ttPv = ss->ttPv; // このあとの探索でss->ttPvを潰してしまうのでtte->save()のときはこっちを用いる。
+			bool ttPv = ss->ttPv;  // このあとの探索でss->ttPvを潰してしまうのでtte->save()のときはこっちを用いる。
 			ss->ttPv = false;
 
 			// 試行回数は2回(cutNodeなら4回)までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
@@ -1926,8 +1926,8 @@ namespace {
 								BOUND_LOWER,
 								depth - (PARAM_PROBCUT_DEPTH - 1), move, ss->staticEval);
 						return value;
+					}
 				}
-			}
 			}
 
 			// ss->ttPvはprobCutの探索で書き換えてしまったかも知れないので復元する。
@@ -1942,7 +1942,7 @@ namespace {
 		// ※　このあとも置換表にヒットしないであろうから、ここを浅めで探索しておく。
 		// (次に他のスレッドがこの局面に来たときには置換表にヒットするのでそのときにここの局面の
 		//   探索が完了しているほうが助かるため)
-
+		
 		if (PvNode
 			&& depth >= 6
 			&& !ttMove)
@@ -2041,9 +2041,9 @@ namespace {
 			//      extension
 			// -----------------------
 
-		//
-		// Extend checks
-		//
+			//
+			// Extend checks
+			//
 
 			extension = 0;
 
@@ -2225,8 +2225,8 @@ namespace {
 					ss->excludedMove = MOVE_NONE;
 
 					if (value >= beta)
-					return beta;
-			}
+						return beta;
+				}
 
 			}
 
@@ -2295,7 +2295,7 @@ namespace {
 			// depthを減らした探索。LMR(Late Move Reduction)
 
 			// If the move fails high it will be re - searched at full depth.
-			// depthを減らして探索させて、その指し手がfail highしたら元のdepthで再度探索するという手法 
+			// depthを減らして探索させて、その指し手がfail highしたら元のdepthで再度探索するという手法
 
 			// 【計測資料 32.】LMRのコード、Stockfish9と10の比較
 
@@ -2475,7 +2475,7 @@ namespace {
 				if (didLMR && !captureOrPawnPromotion)
 				{
 					int bonus = value > alpha ? stat_bonus(newDepth)
-						: -stat_bonus(newDepth);
+											  : -stat_bonus(newDepth);
 
 					update_continuation_histories(ss, movedPiece, to_sq(move), bonus);
 				}
@@ -2790,6 +2790,21 @@ namespace {
 
 		if (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
 			return draw_value(REPETITION_DRAW, pos.side_to_move());
+		/*
+			この最大手数の判定、厳密には誤り。
+
+			256手ルールにおいて、256手目で、ある指し手を指すと詰みなのだが(257手目の局面が相手にやってこない)、
+			qsearch(), search()は257手目の局面になった時に引き分けだと思っているので、引き分けのスコアを返す。
+			そうすると256手目でどの指し手も引き分けのスコアに見えるので、適当な手を指してしまうと言う問題がある。
+
+			しかし、1手詰めに関しては1手詰めルーチンを呼びだしているので通例このような場合でも問題とはならない。
+			ところが1手詰めはすべての1手詰めを発見できない。(開き王手や離し飛車で合駒なしみたいな詰みを調べていない)
+
+			なので、そういう指し手で詰む時に詰ませられないという問題がある。
+
+			// 大会は512手ルールになりそうだし、非常にレアケースだし、これパフォーマンスを落とさずに修正するのわりと難しい
+			(qsearch(),search()には指し手生成をする前の枝刈りがある)ので、この件は修正しないことにする。[2021/01/11]
+		*/
 
 		ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
 
@@ -2800,13 +2815,13 @@ namespace {
 		// 置換表に登録するdepthはあまりマイナスの値だとおかしいので、
 		// 王手がかかっているときは、DEPTH_QS_CHECKS(=0)、王手がかかっていないときはDEPTH_QS_NO_CHECKS(-1)とみなす。
 		ttDepth = ss->inCheck || depth >= DEPTH_QS_CHECKS ? DEPTH_QS_CHECKS
-													  : DEPTH_QS_NO_CHECKS;
+													      : DEPTH_QS_NO_CHECKS;
 
 		posKey = pos.key();
 		tte = TT.probe(posKey, ss->ttHit);
 		ttValue = ss->ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
-		ttMove = ss->ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
-		pvHit = ss->ttHit && tte->is_pv();
+		ttMove  = ss->ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
+		pvHit   = ss->ttHit && tte->is_pv();
 
 		// nonPVでは置換表の指し手で枝刈りする
 		// PVでは置換表の指し手では枝刈りしない(前回evaluateした値は使える)
@@ -2904,17 +2919,17 @@ namespace {
 
 				if (!PARAM_QSEARCH_FORCE_EVAL)
 				{
-			// Stockfish相当のコード
-				ss->staticEval = bestValue =
-					(ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
-					: -(ss - 1)->staticEval + 2 * PARAM_EVAL_TEMPO;
+					// Stockfish相当のコード
+					ss->staticEval = bestValue =
+						(ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
+														   : -(ss - 1)->staticEval + 2 * PARAM_EVAL_TEMPO;
 
 				} else {
 
 					// 評価関数の実行時間・精度によっては、こう書いたほうがいいかもという書き方。
 					// 残り探索深さが大きい時は、こっちに切り替えるのはありかも…。
 					// どちらが優れているかわからないので、optimizerに任せる。
-				ss->staticEval = bestValue = evaluate(pos);
+					ss->staticEval = bestValue = evaluate(pos);
 				}
 			}
 
@@ -2926,7 +2941,7 @@ namespace {
 	            // Save gathered info in transposition table
 				if (!ss->ttHit)
 					tte->save(posKey, value_to_tt(bestValue, ss->ply), false /* ss->ttHit == false */, BOUND_LOWER,
-						DEPTH_NONE, MOVE_NONE, ss->staticEval);
+								DEPTH_NONE, MOVE_NONE, ss->staticEval);
 
 				return bestValue;
 			}
@@ -3092,7 +3107,7 @@ namespace {
 					bestMove = move;
 
 					if (PvNode)  // Update pv even in fail-high case
-					// fail-highの場合もPVは更新する。
+						// fail-highの場合もPVは更新する。
 						update_pv(ss->pv, move, (ss + 1)->pv);
 
 					if (PvNode && value < beta) // Update alpha here!
@@ -3125,9 +3140,9 @@ namespace {
 	    // Save gathered info in transposition table
 		// 詰みではなかったのでこれを書き出す。
 		tte->save(posKey, value_to_tt(bestValue, ss->ply), pvHit,
-			bestValue >= beta ? BOUND_LOWER :
-			PvNode && bestValue > oldAlpha ? BOUND_EXACT : BOUND_UPPER,
-			ttDepth, bestMove, ss->staticEval);
+				  bestValue >= beta ? BOUND_LOWER :
+				  PvNode && bestValue > oldAlpha ? BOUND_EXACT : BOUND_UPPER,
+				  ttDepth, bestMove, ss->staticEval);
 
 		// 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
 		// しかし置換表が衝突した場合はそうではない。3手詰めの局面で、置換表衝突により1手詰めのスコアが
@@ -3479,7 +3494,7 @@ void init_param()
 			if (line.find("PARAM_DEFINE") != std::string::npos)
 			{
 				for (size_t i = 0; i < param_names.size(); ++i)
-					{
+				{
 					auto pos = line.find(param_names[i]);
 					if (pos != std::string::npos)
 					{
@@ -3587,7 +3602,7 @@ void init_param()
 		// 上のコードでパラメーターが変更された可能性があるのでこのタイミングで再度呼び出す。
 		Eval::init();
 
-		}
+	}
 
 #endif
 	}

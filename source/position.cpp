@@ -179,7 +179,7 @@ void Position::init() {
 	//assert(count == 3668); // chessの場合
 
 	// cout << "count = " << count << " , count2 = " << count2 << endl;
-	// chessの2倍の配列時 : count = 16456 , count2 = 4499
+	// chessの2倍の配列時 : count = 16456 , count2 = 4499 
 	// chessの4倍の配列時 : count = 16456 , count2 = 1623
 	ASSERT_LV3(count == 16456);
 #endif
@@ -269,7 +269,7 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 		// 数字は、空の升の数なのでその分だけ筋(File)を進める
 		if (isdigit(token))
 			f -= File(token - '0');
-		// '/'は次の段を意味する
+		// '/'は次の段を意味する                              
 		else if (token == '/')
 		{
 			f = FILE_9;
@@ -812,92 +812,92 @@ bool Position::is_mated() const
 
 bool Position::legal_drop(const Square to) const
 {
-  const auto us = sideToMove;
+	const auto us = sideToMove;
 
-  // 打とうとする歩の利きに相手玉がいることは前提条件としてクリアしているはず。
-  ASSERT_LV3(pawnEffect(us, to) == Bitboard(king_square(~us)));
+	// 打とうとする歩の利きに相手玉がいることは前提条件としてクリアしているはず。
+	ASSERT_LV3(pawnEffect(us, to) == Bitboard(king_square(~us)));
 
-  // この歩に利いている自駒(歩を打つほうの駒)がなければ詰みには程遠いのでtrue
-  if (!effected_to(us, to))
-    return true;
+	// この歩に利いている自駒(歩を打つほうの駒)がなければ詰みには程遠いのでtrue
+	if (!effected_to(us, to))
+		return true;
 
-  // ここに利いている敵の駒があり、その駒で取れるなら打ち歩詰めではない
-  // ここでは玉は除外されるし、香が利いていることもないし、そういう意味では、特化した関数が必要。
-  Bitboard b = attackers_to_pawn(~us, to);
+	// ここに利いている敵の駒があり、その駒で取れるなら打ち歩詰めではない
+	// ここでは玉は除外されるし、香が利いていることもないし、そういう意味では、特化した関数が必要。
+	Bitboard b = attackers_to_pawn(~us, to);
 
 	// 敵玉に対するpinしている駒(自駒も含むが、bが敵駒なので問題ない。)
 	Bitboard pinned = blockers_for_king(~us);
 
-  // pinされていない駒が1つでもあるなら、相手はその駒で取って何事もない。
-  if (b & (~pinned | FILE_BB[file_of(to)]))
-    return true;
+	// pinされていない駒が1つでもあるなら、相手はその駒で取って何事もない。
+	if (b & (~pinned | FILE_BB[file_of(to)]))
+		return true;
 
-  // 攻撃駒はすべてpinされていたということであり、
-  // 王の頭に打たれた打ち歩をpinされている駒で取れるケースは、
-  // いろいろあるが、例1),例2)のような場合であるから、例3)のケースを除き、
-  // いずれも玉の頭方向以外のところからの玉頭方向への移動であるから、
-  // pinされている方向への移動ということはありえない。
-  // 例3)のケースを除くと、この歩は取れないことが確定する。
-  // 例3)のケースを除外するために同じ筋のものはpinされていないものとして扱う。
-  //    上のコードの　 " | FILE_BB[file_of(to)] " の部分がそれ。
+	// 攻撃駒はすべてpinされていたということであり、
+	// 王の頭に打たれた打ち歩をpinされている駒で取れるケースは、
+	// いろいろあるが、例1),例2)のような場合であるから、例3)のケースを除き、
+	// いずれも玉の頭方向以外のところからの玉頭方向への移動であるから、
+	// pinされている方向への移動ということはありえない。
+	// 例3)のケースを除くと、この歩は取れないことが確定する。
+	// 例3)のケースを除外するために同じ筋のものはpinされていないものとして扱う。
+	//    上のコードの　 " | FILE_BB[file_of(to)] " の部分がそれ。
 
-  // 例1)
-  // ^玉 ^角  飛
-  //  歩
+	// 例1)
+	// ^玉 ^角  飛
+	//  歩
 
-  // 例2)
-  // ^玉
-  //  歩 ^飛
-  //          角
+	// 例2)
+	// ^玉
+	//  歩 ^飛
+	//          角
 
-  // 例3)
-  // ^玉
-  //  歩
-  // ^飛
-  //  香
+	// 例3)
+	// ^玉
+	//  歩
+	// ^飛
+	//  香
 
-  // 玉の退路を探す
-  // 自駒がなくて、かつ、to(はすでに調べたので)以外の地点
+	// 玉の退路を探す
+	// 自駒がなくて、かつ、to(はすでに調べたので)以外の地点
 
-  // 相手玉の場所
-  Square sq_king = king_square(~us);
+	// 相手玉の場所
+	Square sq_king = king_square(~us);
 
 #ifndef LONG_EFFECT_LIBRARY
-  // LONG EFFECT LIBRARYがない場合、愚直に8方向のうち逃げられそうな場所を探すしかない。
+	// LONG EFFECT LIBRARYがない場合、愚直に8方向のうち逃げられそうな場所を探すしかない。
 
-  Bitboard escape_bb = kingEffect(sq_king) & ~pieces(~us);
-  escape_bb ^= to;
-  auto occ = pieces() ^ to; // toには歩をおく前提なので、ここには駒があるものとして、これでの利きの遮断は考えないといけない。
-  while (escape_bb)
-  {
-    Square king_to = escape_bb.pop();
-    if (!attackers_to(us, king_to, occ))
-      return true; // 退路が見つかったので打ち歩詰めではない。
-  }
+	Bitboard escape_bb = kingEffect(sq_king) & ~pieces(~us);
+	escape_bb ^= to;
+	auto occ = pieces() ^ to; // toには歩をおく前提なので、ここには駒があるものとして、これでの利きの遮断は考えないといけない。
+	while (escape_bb)
+	{
+		Square king_to = escape_bb.pop();
+		if (!attackers_to(us, king_to, occ))
+			return true; // 退路が見つかったので打ち歩詰めではない。
+	}
 
-  // すべての検査を抜けてきたのでこれは打ち歩詰めの条件を満たしている。
-  return false;
+	// すべての検査を抜けてきたのでこれは打ち歩詰めの条件を満たしている。
+	return false;
 #else
-  // LONG EFFECT LIBRARYがあれば、玉の8近傍の利きなどを直列化して逃げ場所があるか調べるだけで良いはず。
+	// LONG EFFECT LIBRARYがあれば、玉の8近傍の利きなどを直列化して逃げ場所があるか調べるだけで良いはず。
 
-  auto a8_effet_us = board_effect[us].around8(sq_king);
-  // 玉の逃げ場所は、本来はEffect8::around8(escape_bb,sq_king)なのだが、どうせaround8が8近傍だけを直列化するので、
-  // これが玉の利きと一致しているからこのkingEffect(sq_king)でマスクする必要がない。
-  auto a8_them_movable = Effect8::around8(~pieces(~us), sq_king) & Effect8::board_mask(sq_king);
+	auto a8_effet_us = board_effect[us].around8(sq_king);
+	// 玉の逃げ場所は、本来はEffect8::around8(escape_bb,sq_king)なのだが、どうせaround8が8近傍だけを直列化するので、
+	// これが玉の利きと一致しているからこのkingEffect(sq_king)でマスクする必要がない。
+	auto a8_them_movable = Effect8::around8(~pieces(~us), sq_king) & Effect8::board_mask(sq_king);
 
-  // 打った歩での遮断を考える前の段階ですでにすでに歩を打つ側の利きがない升があり、
-  // そこに移動できるのであれば、これは打ち歩ではない。
-  if (~a8_effet_us & a8_them_movable)
-    return true;
+	// 打った歩での遮断を考える前の段階ですでにすでに歩を打つ側の利きがない升があり、
+	// そこに移動できるのであれば、これは打ち歩ではない。
+	if (~a8_effet_us & a8_them_movable)
+		return true;
 
-  // 困ったことに行けそうな升がなかったので打った歩による利きの遮断を考える。
-  // いまから打つ歩による遮断される升の利きが2以上でなければそこに逃げられるはず。
-  auto a8_long_effect_to = long_effect.directions_of(us, to);
-  auto to_dir = (us == BLACK) ? DIRECT_D : DIRECT_U;  // 王から見た歩の方角
+	// 困ったことに行けそうな升がなかったので打った歩による利きの遮断を考える。
+	// いまから打つ歩による遮断される升の利きが2以上でなければそこに逃げられるはず。
+	auto a8_long_effect_to = long_effect.directions_of(us, to);
+	auto to_dir = (us == BLACK) ? DIRECT_D : DIRECT_U;  // 王から見た歩の方角
 	auto a8_cutoff_dir = Effect8::cutoff_directions(to_dir, a8_long_effect_to);
-  auto a8_target = a8_cutoff_dir & a8_them_movable & ~board_effect[us].around8_greater_than_one(sq_king);
+	auto a8_target = a8_cutoff_dir & a8_them_movable & ~board_effect[us].around8_greater_than_one(sq_king);
 
-  return a8_target != 0;
+	return a8_target != 0;
 #endif
 }
 
@@ -1173,7 +1173,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 	// 厳密には、これはrootからの手数ではなく、初期盤面からの手数ではあるが。
 	++gamePly;
-
+	
 	// st->previousで遡り可能な手数カウンタ
 	st->pliesFromNull = prev->pliesFromNull + 1;
 
@@ -1257,7 +1257,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 		// piece_no_of()のときにこの手駒の枚数を参照するのであとで更新。
 		sub_hand(hand[Us], pr);
-
+		
 		// 王手している駒のbitboardを更新する。
 		// 駒打ちなのでこの駒で王手になったに違いない。駒打ちで両王手はありえないので王手している駒はいまtoに置いた駒のみ。
 		if (givesCheck)
@@ -1468,7 +1468,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 				case DIRECT_RU: case DIRECT_LD:
 				case DIRECT_RD: case DIRECT_LU:
 					st->checkersBB |= bishopEffect(ksq, pieces()) & pieces(Us, BISHOP_HORSE); break;
-
+					
 #endif
 				default: UNREACHABLE;
 				}
@@ -1870,7 +1870,7 @@ namespace {
 #else
 		// Aperyの利き実装を用いる場合
 		// bishopEffect()で斜め四方向の利きが一気に求まるのでこれを分かつことはできない。
-
+			
 		// 斜め方向なら斜め方向の升をスキャンしてその上にある角・馬を足す
 		case DIRECT_RU: case DIRECT_LD:
 		case DIRECT_RD: case DIRECT_LU:
@@ -2094,15 +2094,15 @@ RepetitionState Position::is_repetition(int repPly /* = 16 */) const
 			// 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
 			if (stp->hand == st->hand)
 			{
-					// 自分が王手をしている連続王手の千日手なのか？
-					if (i <= st->continuousCheck[sideToMove])
-						return REPETITION_LOSE;
+				// 自分が王手をしている連続王手の千日手なのか？
+				if (i <= st->continuousCheck[sideToMove])
+					return REPETITION_LOSE;
 
-					// 相手が王手をしている連続王手の千日手なのか？
-					if (i <= st->continuousCheck[~sideToMove])
-						return REPETITION_WIN;
+				// 相手が王手をしている連続王手の千日手なのか？
+				if (i <= st->continuousCheck[~sideToMove])
+					return REPETITION_WIN;
 
-					return REPETITION_DRAW;
+				return REPETITION_DRAW;
 			}
 			else {
 				// 優等局面か劣等局面であるか。(手番が相手番になっている場合はいま考えない)

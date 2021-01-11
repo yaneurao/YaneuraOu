@@ -206,7 +206,7 @@ void MovePicker::score()
 			Square movedSq = to_sq(m);
 
 #if 0
-			m.value = (*mainHistory)[from_to(m)][pos.side_to_move()]
+			m.value =     (*mainHistory)[from_to(m)][pos.side_to_move()]
 					+ 2 * (*continuationHistory[0])[movedSq][movedPiece]
 					+ 2 * (*continuationHistory[1])[movedSq][movedPiece]
 					+ 2 * (*continuationHistory[3])[movedSq][movedPiece]

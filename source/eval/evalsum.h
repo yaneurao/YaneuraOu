@@ -101,21 +101,21 @@ namespace Eval {
 
 #if defined(USE_AVX2)
 		EvalSum(const EvalSum & es) {
-		  _mm256_store_si256(&mm, es.mm);
+			_mm256_store_si256(&mm, es.mm);
 		}
 		EvalSum& operator = (const EvalSum & rhs) {
-		  _mm256_store_si256(&mm, rhs.mm);
-		  return *this;
+			_mm256_store_si256(&mm, rhs.mm);
+			return *this;
 		}
 #elif defined(USE_SSE2)
 		EvalSum(const EvalSum & es) {
-		  _mm_store_si128(&m[0], es.m[0]);
-		  _mm_store_si128(&m[1], es.m[1]);
+			_mm_store_si128(&m[0], es.m[0]);
+			_mm_store_si128(&m[1], es.m[1]);
 		}
 		EvalSum& operator = (const EvalSum & rhs) {
-		  _mm_store_si128(&m[0], rhs.m[0]);
-		  _mm_store_si128(&m[1], rhs.m[1]);
-		  return *this;
+			_mm_store_si128(&m[0], rhs.m[0]);
+			_mm_store_si128(&m[1], rhs.m[1]);
+			return *this;
 		}
 #endif
 
@@ -128,7 +128,7 @@ namespace Eval {
 			// cf. http://www.computer-shogi.org/wcsc24/appeal/NineDayFever/NDF.txt
 
 #if defined(EVAL_KPP_KKPT)
-
+			
 			// p[0][1]とp[1][1]は使っていないタイプのEvalSum
 			const int32_t scoreBoard = p[0][0] - p[1][0] + p[2][0];
 			// 手番に依存する評価値合計
@@ -140,7 +140,7 @@ namespace Eval {
 			// p[1][0]はΣWKPPなので符号はマイナス。
 			const int32_t scoreBoard = p[0][0] - p[1][0] + p[2][0];
 			// 手番に依存する評価値合計
-			const int32_t scoreTurn  = p[0][1] + p[1][1] + p[2][1];
+			const int32_t scoreTurn = p[0][1] + p[1][1] + p[2][1];
 #endif
 
 			// この関数は手番側から見た評価値を返すのでscoreTurnは必ずプラス
@@ -193,7 +193,7 @@ namespace Eval {
 #else
 			key ^= data[0] ^ data[1] ^ data[2];
 #endif
-	    }
+		}
 		// decode()はencode()の逆変換だが、xorなので逆変換も同じ変換。
 		void decode() { encode(); }
 
@@ -205,19 +205,19 @@ namespace Eval {
 		union {
 			// array<.. , 3>でいいが、この下のstructに合わせてpaddingしておく。
 			std::array<std::array<int32_t, 2>, 4> p;
-      
+
 			struct {
-			u64 data[3];
-			u64 key; // EVAL_HASH用。pos.key() >> 1 したもの。
+				u64 data[3];
+				u64 key; // EVAL_HASH用。pos.key() >> 1 したもの。
 			};
 #if defined(USE_AVX2)
 			__m256i mm;
 			__m128i m[2];
 #elif defined(USE_SSE2)
-	      __m128i m[2];
+			__m128i m[2];
 #endif
-			};
 		};
+	};
 
 	// 抑制していた警告を元に戻す。
 #if defined (__GNUC__) && !defined(__clang__)
@@ -236,7 +236,7 @@ namespace Eval {
 	// 比較演算子
 
 	static bool operator == (const EvalSum& lhs, const EvalSum rhs) { return lhs.p[0] == rhs.p[0] && lhs.p[1] == rhs.p[1] && lhs.p[2] == rhs.p[2]; }
-	static bool operator != (const EvalSum& lhs, const EvalSum rhs)	{ return !(lhs == rhs);	}
+	static bool operator != (const EvalSum& lhs, const EvalSum rhs) { return !(lhs == rhs); }
 
 } // namespace Eval
 

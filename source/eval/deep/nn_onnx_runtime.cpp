@@ -32,7 +32,7 @@ namespace Eval::dlshogi
 #if defined(ORT_DML)
 		Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_DML(session_options, gpu_id));
 #else
-		Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CPU(session_options, true));
+	    Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CPU(session_options, true));
 #endif
 		// Windows環境ではwstringでファイル名を渡す必要があるようだが？
 		std::wstring onnx_filename = MultiByteToWideChar(model_filename);

@@ -2688,7 +2688,7 @@ void learn(Position&, istringstream& is)
 	if (target_dir != "")
 	{
 		string kif_base_dir = Path::Combine(base_dir, target_dir);
-
+		
 		// このフォルダのファイルを根こそぎ取る。base_dir相対にしておく。
 		filenames = Directory::EnumerateFiles(kif_base_dir, ".bin");
 	}
@@ -2752,7 +2752,7 @@ void learn(Position&, istringstream& is)
 		// sfen reader、逆順で読むからここでreverseしておく。すまんな。
 		for (auto it = filenames.rbegin(); it != filenames.rend(); ++it)
 			sr.filenames.push_back(Path::Combine(base_dir, *it));
-
+			
 #if !defined(EVAL_NNUE)
 	cout << "Gradient Method   : " << LEARN_UPDATE      << endl;
 #endif

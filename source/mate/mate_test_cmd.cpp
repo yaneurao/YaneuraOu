@@ -437,7 +437,7 @@ namespace {
 		}
 
 #endif
-		}
+	}
 
 	// ----------------------------------
 	//      "test matebench2" command
@@ -562,12 +562,12 @@ namespace Test
 	// 詰み関係のテストコマンド。コマンドを処理した時 trueが返る。
 	bool mate_test_cmd(Position& pos , std::istringstream& is, const std::string& token)
 	{
-		if (token == "genmate") gen_mate(pos, is);            // N手詰みの局面を生成する。
-		else if (token == "matebench") mate_bench(pos, is);   // 詰みルーチンに関するbenchをとる。
+		if (token == "genmate")         gen_mate(pos, is);         // N手詰みの局面を生成する。
+		else if (token == "matebench")  mate_bench(pos, is);       // 詰みルーチンに関するbenchをとる。
 		else if (token == "matebench2") mate_bench2(pos, is);      // MATE ENGINEのテスト。(ENGINEに対して局面図を送信する)
 		else if (token == "dfpn")       mate_dfpn(pos, is);        // 現在の局面に対してdf-pn詰め将棋ルーチンを呼び出す。
 		//else if (token == "matesolve") mate_solve(pos, is);      // 現在の局面に対してN手詰みルーチンを呼び出す。
-		else return false;									  // どのコマンドも処理することがなかった
+		else return false;									       // どのコマンドも処理することがなかった
 			
 		// いずれかのコマンドを処理した。
 		return true;

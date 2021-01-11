@@ -32,7 +32,7 @@ namespace dlshogi
 		// 探索したノード数
 		// 0 なら制限されていない。これが0以外の時は、↓↓の項目が有効。
 		NodeCountType nodes_limit = 0;
-		
+
 		// 探索している時間を計測する用のtimer
 		// 探索開始時にresetされる。
 		// →　やねうら王ではtime_managerで行うので削除。
@@ -213,7 +213,7 @@ namespace dlshogi
 
 		// df-pn探索する。
 		// この関数を呼び出すとsearching = trueになり、探索が終了するとsearching = falseになる。
-		// nodes_limit = 探索ノード数上限
+		// nodes_limit   = 探索ノード数上限
 		// draw_game_ply = 引き分けになるgame ply。この値になった時点で不詰扱い。
 		void search(const Position& rootPos, u32 nodes_limit, int draw_game_ply);
 
@@ -331,7 +331,7 @@ namespace dlshogi
 		//   gameRootSfen  : 対局開始局面のsfen文字列(探索開始局面ではない)
 		//   moves         : 探索開始局面からの手順
 		//   ponderMove    : [Out] ponderの指し手(ないときはMOVE_NONEが代入される)
-		// 返し値 : この局面でのbestな指し手
+		//   返し値 : この局面でのbestな指し手
 		// ponderの場合は、呼び出し元で待機すること。
 		Move UctSearchGenmove(Position* pos, const std::string& gameRootSfen, const std::vector<Move>& moves, Move& ponderMove);
 

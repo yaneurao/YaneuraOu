@@ -102,12 +102,12 @@ class ClippedReLU {
     const auto in = reinterpret_cast<const __m128i*>(input);
     const auto out = reinterpret_cast<__m128i*>(output);
     for (IndexType i = 0; i < kNumChunks; ++i) {
-      const __m128i words0 = _mm_srai_epi16(_mm_packs_epi32(
-          _mm_load_si128(&in[i * 4 + 0]),
-          _mm_load_si128(&in[i * 4 + 1])), kWeightScaleBits);
-      const __m128i words1 = _mm_srai_epi16(_mm_packs_epi32(
-          _mm_load_si128(&in[i * 4 + 2]),
-          _mm_load_si128(&in[i * 4 + 3])), kWeightScaleBits);
+        const __m128i words0 = _mm_srai_epi16(_mm_packs_epi32(
+            _mm_load_si128(&in[i * 4 + 0]),
+            _mm_load_si128(&in[i * 4 + 1])), kWeightScaleBits);
+        const __m128i words1 = _mm_srai_epi16(_mm_packs_epi32(
+            _mm_load_si128(&in[i * 4 + 2]),
+            _mm_load_si128(&in[i * 4 + 3])), kWeightScaleBits);
         const __m128i packedbytes = _mm_packs_epi16(words0, words1);
         _mm_store_si128(&out[i],
   #if defined(USE_SSE41)
@@ -162,11 +162,11 @@ class ClippedReLU {
   }
 
  private:
-  // 学習用クラスをfriendにする
-  friend class Trainer<ClippedReLU>;
-
-  // この層の直前の層
-  PreviousLayer previous_layer_;
+   // 学習用クラスをfriendにする
+   friend class Trainer<ClippedReLU>;
+ 
+   // この層の直前の層
+   PreviousLayer previous_layer_;
 };
 
 }  // namespace Eval::NNUE::Layers

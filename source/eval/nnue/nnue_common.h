@@ -108,7 +108,7 @@ namespace Eval::NNUE {
   // n以上で最小のbaseの倍数を求める
   template <typename IntType>
   constexpr IntType CeilToMultiple(IntType n, IntType base) {
-  return (n + base - 1) / base * base;
+    return (n + base - 1) / base * base;
   }
 
   // read_little_endian() is our utility to read an integer (signed or unsigned, any size)

@@ -11,39 +11,39 @@ namespace dlshogi
 	Node* Node::ReleaseChildrenExceptOne(NodeGarbageCollector* gc, const Move move)
 	{
 		if (child_num > 0 && child_nodes) {
-		bool found = false;
-		for (int i = 0; i < child_num; ++i)
-		{
-			auto& uct_child = child[i];
+			bool found = false;
+			for (int i = 0; i < child_num; ++i)
+			{
+				auto& uct_child = child[i];
 				auto& child_node = child_nodes[i];
-			if (uct_child.move == move) {
-				found = true;
-				// 子ノードへのedgeは見つかっているけど実体がまだ。
+				if (uct_child.move == move) {
+					found = true;
+					// 子ノードへのedgeは見つかっているけど実体がまだ。
 					if (!child_node)
 	                    // 新しいノードを作成する
 	                    child_node = std::make_unique<Node>();
 
-				// 0番目の要素に移動させる。
+					// 0番目の要素に移動させる。
 					if (i != 0) {
-					child[0] = std::move(uct_child);
+						child[0] = std::move(uct_child);
 						child_nodes[0] = std::move(child_node);
 					}
-			}
-			else {
-				// 子ノードを削除（ガベージコレクタに追加）
+				}
+				else {
+					// 子ノードを削除（ガベージコレクタに追加）
 					if (child_node)
 						gc->AddToGcQueue(std::move(child_node));
+				}
 			}
-		}
 
-		if (found) {
-			// 子ノードを1つにする。
-			child_num = 1;
+			if (found) {
+				// 子ノードを1つにする。
+				child_num = 1;
 				return child_nodes[0].get();
-		}
-		else {
-	        // 子ノードが見つからなかった場合、新しいノードを作成する
-			CreateSingleChildNode(move);
+			}
+			else {
+				// 子ノードが見つからなかった場合、新しいノードを作成する
+				CreateSingleChildNode(move);
 				InitChildNodes();
 				return (child_nodes[0] = std::make_unique<Node>()).get();
 			}

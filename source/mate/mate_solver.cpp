@@ -172,7 +172,7 @@ namespace Mate {
 	template <bool GEN_ALL>
 	Move MateSolver::mated_even_ply(Position& pos, const int ply)
 	{
-		auto& picker = MovePicker<false, false, GEN_ALL, false /* no ordering */>(pos);
+		MovePicker<false, false, GEN_ALL, false /* no ordering */> picker(pos);
 
 		// 手数制限オーバーか？
 		// 手数制限があり、かつ、手数が設定された手数を超えていて、かつ指し手がある(詰みではない)なら、引き分け = 不詰。

@@ -31,7 +31,7 @@ namespace dlshogi
 
 		// ムーブ代入演算子
 		ChildNode& operator=(ChildNode&& o) noexcept {
-			move = o.move;
+			move       = o.move;
 			move_count = (NodeCountType)o.move_count;
 			win        = (WinType)o.win;
 			nnrate     = (float)o.nnrate;

@@ -119,7 +119,7 @@ typedef Stats<Move, NOT_USED, SQ_NB , PIECE_NB> CounterMoveHistory;
 
 /// CapturePieceToHistoryは、指し手の[to][piece][captured piece type]で示される。
 // ※　Stockfishとは、添字の順番を変更してあるので注意。
-//    Stockfishでは、[piece][to][captured piece type]の順。
+//     Stockfishでは、[piece][to][captured piece type]の順。
 typedef Stats<int16_t, 10692, SQ_NB, PIECE_NB , PIECE_TYPE_NB> CapturePieceToHistory;
 
 /// PieceToHistoryは、ButterflyHistoryに似たものだが、指し手の[to][piece]で示される。

@@ -183,14 +183,14 @@ namespace Book
 		// --------------------------------------------------------------------------
 		//     以下のメンバは、普段は外部から普段は直接アクセスすべきではない 
 		//
-		// 定跡を書き換えてwrite_book()で書き出すような作業を行なうときだけアクセスする。
+		//   定跡を書き換えてwrite_book()で書き出すような作業を行なうときだけアクセスする。
 		// --------------------------------------------------------------------------
 
 		// [ASYNC] book_body.find()のwrapper。book_body.find()ではなく、こちらのfindを呼び出して用いること。
 		BookMovesPtr find(const std::string& sfen) const;
 
 		// [ASYNC] メモリに保持している定跡に局面を一つ追加する。
-		// book_body[sfen] = ptr;
+		//   book_body[sfen] = ptr;
 		// と等価。すでに登録されているとしたら、それは置き換わる。
 		void append(const std::string& sfen, const Book::BookMovesPtr& ptr);
 

@@ -357,7 +357,7 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 
 #if defined(USE_EVAL_LIST)
 
-	// evalListのclear。上でmemsetでゼロクリアしたときにクリアされているが…。
+    // evalListのclear。上でmemsetでゼロクリアしたときにクリアされているが…。
 	evalList.clear();
 
 	// PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
@@ -443,7 +443,7 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 		// FV38などではこの個数分だけpieceListに突っ込まないといけない。
 		PieceType rpc = raw_type_of(pc);
 
-		PieceNumber piece_no = piece_no_count[rpc]++;
+        PieceNumber piece_no = piece_no_count[rpc]++;
 		ASSERT_LV1(is_ok(piece_no));
 		evalList.put_piece(piece_no, color_of(pc), rpc, i++);
 #endif

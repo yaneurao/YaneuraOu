@@ -20,8 +20,8 @@ namespace dlshogi
 
 	DlshogiSearcher::DlshogiSearcher()
 	{
-		search_groups = std::make_unique<UctSearcherGroup[]>(max_gpu);
-		gc = std::make_unique<NodeGarbageCollector>();
+		search_groups        = std::make_unique<UctSearcherGroup[]>(max_gpu);
+		gc                   = std::make_unique<NodeGarbageCollector>();
 		interruption_checker = std::make_unique<SearchInterruptionChecker>(this);
 		root_dfpn_searcher   = std::make_unique<RootDfpnSearcher>(this);
 	}
@@ -298,7 +298,7 @@ namespace dlshogi
 	//   gameRootSfen  : 対局開始局面のsfen文字列(探索開始局面ではない)
 	//   moves         : 探索開始局面からの手順
 	//   ponderMove    : [Out] ponderの指し手(ないときはMOVE_NONEが代入される)
-	// 返し値 : この局面でのbestな指し手
+	//   返し値 : この局面でのbestな指し手
 	// ponderの場合は、呼び出し元で待機すること。
 	Move DlshogiSearcher::UctSearchGenmove(Position* pos, const std::string& gameRootSfen, const std::vector<Move>& moves, Move& ponderMove)
 	{
@@ -529,8 +529,8 @@ namespace dlshogi
 		// 探索depth固定
 		// →　PV掘らないとわからないので実装しない。
 
-			// 探索ノード固定(NodesLimitで設定する)
-			//   ※　この時、時間制御は行わない
+		// 探索ノード固定(NodesLimitで設定する)
+		//   ※　この時、時間制御は行わない
 		if (s.nodes_limit)
 		{
 			if (s.nodes_searched >= s.nodes_limit)
@@ -540,7 +540,7 @@ namespace dlshogi
 			return;
 		}
 
-			// hashfull
+		// hashfull
 		// s.current_root->move_count == NOT_EXPANDED  開始まもなくはこれでありうるので、
 		// +1してから比較する。(NOT_EXPANDEDはu32::max()なので+1すると0になる)
 		if ( (NodeCountType)(s.current_root->move_count + 1) > o.uct_node_limit)
@@ -551,7 +551,7 @@ namespace dlshogi
 			interrupt();
 			return;
 		}
-			
+
 		// リミットなしなので"stop"が来るまで停止しない。
 		// ただしhashfullの判定は先にやっておかないと、メモリ使い切ってしまう。
 		if (s.infinite)
@@ -583,8 +583,8 @@ namespace dlshogi
 			}
 			else {
 				// 探索終了時刻は設定されているのでこれ以上、探索打ち切りの判定は不要。
-			return;
-		}
+				return;
+			}
 
 		const Node* current_root = tree->GetCurrentHead();
 		const int child_num = current_root->child_num;
@@ -811,7 +811,7 @@ namespace dlshogi
 
 	// df-pn探索する。
 	// この関数を呼び出すとsearching = trueになり、探索が終了するとsearching = falseになる。
-	// nodes_limit = 探索ノード数上限
+	// nodes_limit   = 探索ノード数上限
 	// draw_game_ply = 引き分けになるgame ply。この値になった時点で不詰扱い。
 	void RootDfpnSearcher::search(const Position& rootPos , u32 nodes_limit , int draw_game_ply)
 	{

@@ -538,7 +538,7 @@ void* LargeMemory::static_alloc(size_t size, void*& mem, size_t align, bool zero
 	// メモリが正常に確保されていることを保証する
 	if (ptr == nullptr)
 		error_exit("can't alloc enough memory.");
-		
+
 	// ptrがalignmentされていることを保証する
 	if ((reinterpret_cast<size_t>(ptr) % align) != 0)
 		error_exit("can't alloc algined memory.");
@@ -549,7 +549,7 @@ void* LargeMemory::static_alloc(size_t size, void*& mem, size_t align, bool zero
 		// 確保したのが256MB以上なら並列化してゼロクリアする。
 		if (size < 256 * 1024 * 1024)
 			// そんなに大きな領域ではないから、普通にmemset()でやっとく。
-		memset(ptr, 0, size);
+			memset(ptr, 0, size);
 		else
 			// 並列版ゼロクリア
 			Tools::memclear(nullptr, ptr, size);
@@ -752,44 +752,44 @@ namespace Tools
 	// ※ Stockfishのtt.cppのTranspositionTable::clear()にあるコードと同等のコード。
 	void memclear(const char* name_, void* table, size_t size)
 	{
-	// Windows10では、このゼロクリアには非常に時間がかかる。
-	// malloc()時点ではメモリを実メモリに割り当てられておらず、
-	// 初回にアクセスするときにその割当てがなされるため。
-	// ゆえに、分割してゼロクリアして、一定時間ごとに進捗を出力する。
+		// Windows10では、このゼロクリアには非常に時間がかかる。
+		// malloc()時点ではメモリを実メモリに割り当てられておらず、
+		// 初回にアクセスするときにその割当てがなされるため。
+		// ゆえに、分割してゼロクリアして、一定時間ごとに進捗を出力する。
 
-	// memset(table, 0, size);
+		// memset(table, 0, size);
 
 		if (name_ != nullptr)
 			sync_cout << "info string " + std::string(name_) + " Clear begin , Hash size =  " << size / (1024 * 1024) << "[MB]" << sync_endl;
 
-	// マルチスレッドで並列化してクリアする。
+		// マルチスレッドで並列化してクリアする。
 
-	std::vector<std::thread> threads;
+		std::vector<std::thread> threads;
 
-	auto thread_num = (size_t)Options["Threads"];
+		auto thread_num = (size_t)Options["Threads"];
 
-	for (size_t idx = 0; idx < thread_num; idx++)
-	{
-		threads.push_back(std::thread([table, size, thread_num, idx]() {
+		for (size_t idx = 0; idx < thread_num; idx++)
+		{
+			threads.push_back(std::thread([table, size, thread_num, idx]() {
 
-			// NUMA環境では、bindThisThread()を呼び出しておいたほうが速くなるらしい。
+				// NUMA環境では、bindThisThread()を呼び出しておいたほうが速くなるらしい。
 
-			// Thread binding gives faster search on systems with a first-touch policy
-			if (Options["Threads"] > 8)
-				WinProcGroup::bindThisThread(idx);
+				// Thread binding gives faster search on systems with a first-touch policy
+				if (Options["Threads"] > 8)
+					WinProcGroup::bindThisThread(idx);
 
-			// それぞれのスレッドがhash tableの各パートをゼロ初期化する。
-			const size_t stride = size / thread_num,
-				start = stride * idx,
-				len = idx != thread_num - 1 ?
-				stride : size - start;
+				// それぞれのスレッドがhash tableの各パートをゼロ初期化する。
+				const size_t stride = size / thread_num,
+					start = stride * idx,
+					len = idx != thread_num - 1 ?
+					stride : size - start;
 
-			std::memset((uint8_t*)table + start, 0, len);
-		}));
-	}
+				std::memset((uint8_t*)table + start, 0, len);
+				}));
+		}
 
-	for (std::thread& th : threads)
-		th.join();
+		for (std::thread& th : threads)
+			th.join();
 
 		if (name_ != nullptr)
 			sync_cout << "info string " + std::string(name_) + " Clear done." << sync_endl;
@@ -823,7 +823,7 @@ namespace Tools
 		auto now = std::chrono::system_clock::now();
 		auto tp = std::chrono::system_clock::to_time_t(now);
 		auto result = string(std::ctime(&tp));
-	
+
 		// 末尾に改行コードが含まれているならこれを除去する
 		while (*result.rbegin() == '\n' || (*result.rbegin() == '\r'))
 			result.pop_back();
@@ -1124,7 +1124,7 @@ Tools::Result TextFileReader::read_line_simple()
 			// line_bufferが空のままeofに遭遇したなら、eofとして扱う。
 			// さもなくば、line_bufferを一度返す。(次回呼び出し時にeofとして扱う)
 			if (line_buffer.size() == 0)
-					return Tools::ResultCode::Eof;
+				return Tools::ResultCode::Eof;
 
 			break;
 		}
@@ -1139,7 +1139,7 @@ Tools::Result TextFileReader::read_line_simple()
 		// 直前は"\r"ではないことは確定したのでこの段階でis_prev_crフラグをクリアしておく。
 		// ただし、このあと"\n"の判定の時に使うので古いほうの値をコピーして保持しておく。
 		auto prev_cr = is_prev_cr;
-		is_prev_cr = false;
+		is_prev_cr = false; 
 
 		if (c == '\n')
 		{
@@ -1170,16 +1170,16 @@ Tools::Result TextFileReader::ReadLine(std::string& line)
 		if (read_line_simple().is_eof())
 			return Tools::ResultCode::Eof;
 
-	// trimフラグが立っているなら末尾スペース、タブを除去する。
-	if (trim)
-		while (line_buffer.size() > 0)
-		{
-			char c = *line_buffer.rbegin();
-			if (!(c == ' ' || c == '\t'))
-				break;
+		// trimフラグが立っているなら末尾スペース、タブを除去する。
+		if (trim)
+			while (line_buffer.size() > 0)
+			{
+				char c = *line_buffer.rbegin();
+				if (!(c == ' ' || c == '\t'))
+					break;
 
-			line_buffer.resize(line_buffer.size() - 1);
-		}
+				line_buffer.resize(line_buffer.size() - 1);
+			}
 
 		// 空行をスキップするモートであるなら、line_bufferが結果的に空になった場合は繰り返すようにする。
 		if (skipEmptyLine && line_buffer.size() == 0)
@@ -1359,7 +1359,7 @@ namespace StringExtension
 
 		return to_upper(s1) != to_upper(s2);
 	}
-	
+
 	// スペースに相当する文字か
 	bool is_space(char c) { return c == '\r' || c == '\n' || c == ' ' || c == '\t'; }
 
@@ -1379,8 +1379,8 @@ namespace StringExtension
 
 		auto cur = s.length();
 
-			// 改行文字、スペース、タブではないならループを抜ける。
-			// これらの文字が出現しなくなるまで末尾を切り詰める。
+		// 改行文字、スペース、タブではないならループを抜ける。
+		// これらの文字が出現しなくなるまで末尾を切り詰める。
 		while (cur > 0 && is_space(s[cur-1]))
 			cur--;
 

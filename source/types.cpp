@@ -43,7 +43,7 @@ std::string pretty(Move m, Piece movedPieceType)
 		return pretty(to_sq(m)) + pretty2(movedPieceType) + (is_promote(m) ? (pretty_jp ? "成" : "+") : "") + "[" + pretty(from_sq(m)) + "]";
 }
 
-std::string to_usi_string(Move m){ return USI::move(m); }
+std::string to_usi_string(Move   m){ return USI::move(m); }
 std::string to_usi_string(Move16 m){ return USI::move(m); }
 
 std::ostream& operator<<(std::ostream& os, Color c) { os << ((c == BLACK) ? (pretty_jp ? "先手" : "BLACK") : (pretty_jp ? "後手" : "WHITE")); return os; }
