@@ -552,8 +552,13 @@ constexpr bool is_ok(PieceNumber pn) { return pn < PIECE_NUMBER_NB; }
 
 struct Move16;
 
-// 指し手 bit0..6 = 移動先のSquare、bit7..13 = 移動元のSquare(駒打ちのときは駒種)、bit14..駒打ちか、bit15..成りか
-// 32bit形式の指し手の場合、上位16bitには、この指し手によってto(移動後の升)に来る駒(先後の区別あり)が格納されている。
+// Move16 : 16bit形式の指し手
+//   指し手 bit0..6 = 移動先のSquare、bit7..13 = 移動元のSquare(駒打ちのときは駒種)、bit14..駒打ちか、bit15..成りか
+// Move   : 32bit形式の指し手
+//   上位16bitには、この指し手によってto(移動後の升)に来る駒(先後の区別あり)が格納されている。つまりは Piece(5bit)が上位16bitに来る。
+//   move = move16 + (piece << 16)
+// なので、Moveが使うのは、16bit(Move16) + 5bit(Piece) = 下位21bit
+//
 enum Move: uint32_t {
 
 	MOVE_NONE    = 0,             // 無効な移動
