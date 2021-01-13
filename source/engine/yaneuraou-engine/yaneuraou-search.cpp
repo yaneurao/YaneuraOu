@@ -1367,10 +1367,19 @@ namespace {
 				return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 
 			// 最大手数を超えている、もしくは停止命令が来ている。
-			if (Threads.stop.load(std::memory_order_relaxed)
-				|| (ss->ply >= MAX_PLY
-					|| pos.game_ply() > Limits.max_game_ply))
+			if (Threads.stop.load(std::memory_order_relaxed) || (ss->ply >= MAX_PLY))
 				return draw_value(REPETITION_DRAW, pos.side_to_move());
+
+			if (pos.game_ply() > Limits.max_game_ply)
+			{
+				// この局面で詰んでいる可能性がある。その時はmatedのスコアを返すべき。
+				// 詰んでいないなら引き分けのスコアを返すべき。
+				// 関連)
+				//    多くの将棋ソフトで256手ルールの実装がバグっている件
+				//    https://yaneuraou.yaneu.com/2021/01/13/incorrectly-implemented-the-256-moves-rule/
+
+				return pos.is_mated() ? mated_in(ss->ply) : draw_value(REPETITION_DRAW, pos.side_to_move());
+			}
 
 			// -----------------------
 			// Step 3. Mate distance pruning.
@@ -2788,23 +2797,19 @@ namespace {
 		//    最大手数へ到達したか？
 		// -----------------------
 
-		if (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
+		if (ss->ply >= MAX_PLY)
 			return draw_value(REPETITION_DRAW, pos.side_to_move());
-		/*
-			この最大手数の判定、厳密には誤り。
 
-			256手ルールにおいて、256手目で、ある指し手を指すと詰みなのだが(257手目の局面が相手にやってこない)、
-			qsearch(), search()は257手目の局面になった時に引き分けだと思っているので、引き分けのスコアを返す。
-			そうすると256手目でどの指し手も引き分けのスコアに見えるので、適当な手を指してしまうと言う問題がある。
+		if (pos.game_ply() > Limits.max_game_ply)
+		{
+			// この局面で詰んでいる可能性がある。その時はmatedのスコアを返すべき。
+			// 詰んでいないなら引き分けのスコアを返すべき。
+			// 関連)
+			//    多くの将棋ソフトで256手ルールの実装がバグっている件
+			//    https://yaneuraou.yaneu.com/2021/01/13/incorrectly-implemented-the-256-moves-rule/
 
-			しかし、1手詰めに関しては1手詰めルーチンを呼びだしているので通例このような場合でも問題とはならない。
-			ところが1手詰めはすべての1手詰めを発見できない。(開き王手や離し飛車で合駒なしみたいな詰みを調べていない)
-
-			なので、そういう指し手で詰む時に詰ませられないという問題がある。
-
-			// 大会は512手ルールになりそうだし、非常にレアケースだし、これパフォーマンスを落とさずに修正するのわりと難しい
-			(qsearch(),search()には指し手生成をする前の枝刈りがある)ので、この件は修正しないことにする。[2021/01/11]
-		*/
+			return pos.is_mated() ? mated_in(ss->ply) : draw_value(REPETITION_DRAW, pos.side_to_move());
+		}
 
 		ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
 
