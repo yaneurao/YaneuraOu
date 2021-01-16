@@ -42,8 +42,6 @@ namespace EvalLearningTools
 
 #if defined(_MSC_VER)
 #pragma pack(push,2)
-#elif defined(__GNUC__)
-#pragma pack(2)
 #endif
 	struct Weight
 	{
@@ -197,8 +195,6 @@ namespace EvalLearningTools
 	};
 #if defined(_MSC_VER)
 #pragma pack(pop)
-#elif defined(__GNUC__)
-#pragma pack(0)
 #endif
 
 	// 手番つきのweight配列
