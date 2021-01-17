@@ -465,9 +465,14 @@ namespace dlshogi
 
 			// この局面で詰んでいる可能性がある。その時はmatedのスコアを返すべき。
 			// 詰んでいないなら引き分けのスコアを返すべき。
+			//
 			// 関連)
 			//    多くの将棋ソフトで256手ルールの実装がバグっている件
 			//    https://yaneuraou.yaneu.com/2021/01/13/incorrectly-implemented-the-256-moves-rule/
+			//
+			// デフォルトではleaf nodeで5手詰めは呼び出しているので、その5手詰めで普通1手詰めが漏れることはないので、
+			// 256手ルールの256手目で1手詰めがあるのにそれを逃して257手目の局面に到達することはありえない…ということであれば、
+			// これは問題とはない。(leaf nodeで5手詰めを呼び出さないエンジン設定にした時に困るが。)
 
 			if (options.max_moves_to_draw < pos->game_ply())
 				rep = pos->is_mated() ? REPETITION_LOSE /* 負け扱い */ : REPETITION_DRAW;
