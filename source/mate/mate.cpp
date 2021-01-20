@@ -17,7 +17,7 @@ namespace Mate
 	{
 		init_mate_1ply();
 	}
-
+		
 	// ---------------------
 	// weak_mate_3ply()
 	// ---------------------
@@ -217,7 +217,121 @@ namespace Mate
 		}
 		return MateRepetitionState::Unknown;
 	}
-}
+
+#if defined(USE_MATE_SOLVER)|| defined(USE_MATE_DFPN)
+
+	// ---------------------
+	// class MateHashTable
+	// ---------------------
+
+	// このEntryに保存する。
+	void MateHashEntry::save(Key board_key, Color root_color, /*Color side_to_move,*/ Hand hand, bool is_mate, u32 ply, Move move)
+	{
+		lock();
+
+		// 書き出しの時に同一のboard_keyの情報があるなら、
+		// 優劣関係を調べて、情報量が多いほうを書き出すべき。
+
+		if (   this->board_key  == (board_key & 0xffffffffffff) /* 48bit/4 = fが12個 */
+			&& this->root_color == root_color
+			&& this->is_mate    == is_mate
+			)
+		{
+			// 盤面が一致したので、手駒の優劣関係を調べる。
+
+			// or_node(攻め方の局面)であるか
+			bool or_node = root_color == side_to_move();
+
+			// この置換表の情報のほうが優れているか
+			bool entry_is_better;
+			if (is_mate)
+			{
+				// 詰みの情報
+				//  詰みが証明されている局面の情報があるとして、
+				// 　攻め方は、それより手駒が同じか多ければ同様に詰む。
+				//   受け方は、それより手駒が同じか少なければ同様に詰む(詰まされる)。
+				// この時、このエントリーの情報は与えられた情報を包含しているので上書きする必要はない。
+				entry_is_better =
+					   ( or_node && hand_is_equal_or_superior(hand            , this->get_hand()))
+					|| (!or_node && hand_is_equal_or_superior(this->get_hand(), hand            ));
+			}
+			else {
+				// 不詰の情報
+				entry_is_better =
+					   ( or_node && hand_is_equal_or_superior(this->get_hand(), hand            ))
+					|| (!or_node && hand_is_equal_or_superior(hand            , this->get_hand()));
+			}
+
+			if (entry_is_better)
+			{
+				unlock();
+				return;
+			}
+		}
+
+		this->board_key    = board_key;
+		this->root_color   = root_color;
+		//this->side_to_move = side_to_move;
+		this->is_mate      = is_mate;
+		this->ply          = ply;
+		this->hand         = (u32)hand;
+		this->set_move(move);
+		unlock();
+	}
+
+
+	// このentryをlockする。
+	void MateHashEntry::lock()
+	{
+		// 典型的なCAS lock
+		while (true)
+		{
+			bool expected = false;
+			if (mutex.compare_exchange_weak(expected,/* desired = */true))
+				break;
+		}
+
+	}
+
+	// このentryをunlockする。
+	// lock済みであること。
+	void MateHashEntry::unlock()
+	{
+		mutex = false;
+	}
+
+	// 与えられたboard_keyを持つMateHashEntryの先頭アドレスを返す。
+	// (現状、1つしか該当するエントリーはない)
+	MateHashEntry* MateHashTable::first_entry(const Key board_key) const {
+		uint64_t index = mul_hi64((u64)board_key >> 1, entryCount);
+		return &table[(index << 1) | ((u64)board_key & 1)];
+	}
+
+	// 置換表のサイズを変更する。mbSize == 確保するメモリサイズ。MB単位。
+	void MateHashTable::resize(size_t mbSize) {
+		size_t size = mbSize * 1024 * 1024 / 16;
+
+		if (entryCount != size)
+		{
+			table = new MateHashEntry[size];
+			entryCount = size;
+
+			//clear();
+			// →　呼び出し元でクリアすること。
+		}
+	}
+
+	// 置換表のエントリーの全クリア
+	void MateHashTable::clear()
+	{
+		Tools::memclear("MateHash", table , entryCount * sizeof(MateHashEntry));
+	}
+
+
+#endif // #if defined(USE_MATE_SOLVER)|| defined(USE_MATE_DFPN)
+
+} // namespace Mate
+
 
 #if defined(USE_MATE_DFPN)
 
@@ -237,22 +351,42 @@ namespace {
 
 	std::unique_ptr<Mate::Dfpn::MateDfpnSolverInterface> BuildNode32bitSolver()
 	{
-		return std::make_unique<Mate::Dfpn32::MateDfpnPn<u32 , false /* 指し手Orderingなし*/>>();
+		return std::make_unique<Mate::Dfpn32::MateDfpnPn<u32 , false /* 指し手Orderingなし*/, false /* no hash */>>();
 	}
 
 	std::unique_ptr<Mate::Dfpn::MateDfpnSolverInterface> BuildNode16bitOrderingSolver()
 	{
-		return std::make_unique<Mate::Dfpn32::MateDfpnPn<u32, true /* 指し手Orderingあり*/>>();
+		return std::make_unique<Mate::Dfpn32::MateDfpnPn<u32, true /* 指し手Orderingあり*/, false /* no hash */>>();
 	}
 
 	std::unique_ptr<Mate::Dfpn::MateDfpnSolverInterface> BuildNode64bitSolver()
 	{
-		return std::make_unique<Mate::Dfpn64::MateDfpnPn<u64 , false /* 指し手Orderingなし*/>>();
+		return std::make_unique<Mate::Dfpn64::MateDfpnPn<u64 , false /* 指し手Orderingなし*/, false /* no hash */>>();
 	}
 
 	std::unique_ptr<Mate::Dfpn::MateDfpnSolverInterface> BuildNode48bitOrderingSolver()
 	{
-		return std::make_unique<Mate::Dfpn64::MateDfpnPn<u64,true /* 指し手Orderingあり*/>>();
+		return std::make_unique<Mate::Dfpn64::MateDfpnPn<u64,true /* 指し手Orderingあり*/, false /* no hash */ >>();
+	}
+
+	std::unique_ptr<Mate::Dfpn::MateDfpnSolverInterface> BuildNode32bitWithHashSolver()
+	{
+		return std::make_unique<Mate::Dfpn32::MateDfpnPn<u32 , false /* 指し手Orderingなし*/ , true /* with hash*/>>();
+	}
+
+	std::unique_ptr<Mate::Dfpn::MateDfpnSolverInterface> BuildNode16bitOrderingWithHashSolver()
+	{
+		return std::make_unique<Mate::Dfpn32::MateDfpnPn<u32, true /* 指し手Orderingあり*/, true /* with hash*/>>();
+	}
+
+	std::unique_ptr<Mate::Dfpn::MateDfpnSolverInterface> BuildNode64bitWithHashSolver()
+	{
+		return std::make_unique<Mate::Dfpn64::MateDfpnPn<u64 , false /* 指し手Orderingなし*/, true /* with hash*/>>();
+	}
+
+	std::unique_ptr<Mate::Dfpn::MateDfpnSolverInterface> BuildNode48bitOrderingWithHashSolver()
+	{
+		return std::make_unique<Mate::Dfpn64::MateDfpnPn<u64,true /* 指し手Orderingあり*/, true /* with hash*/>>();
 	}
 }
 
@@ -273,6 +407,10 @@ namespace Mate::Dfpn
 		case DfpnSolverType::Node16bitOrdering: impl = BuildNode16bitOrderingSolver(); break;
 		case DfpnSolverType::Node64bit        : impl = BuildNode64bitSolver();         break;
 		case DfpnSolverType::Node48bitOrdering: impl = BuildNode48bitOrderingSolver(); break;
+		case DfpnSolverType::Node32bitWithHash        : impl = BuildNode32bitWithHashSolver();         break;
+		case DfpnSolverType::Node16bitOrderingWithHash: impl = BuildNode16bitOrderingWithHashSolver(); break;
+		case DfpnSolverType::Node64bitWithHash        : impl = BuildNode64bitWithHashSolver();         break;
+		case DfpnSolverType::Node48bitOrderingWithHash: impl = BuildNode48bitOrderingWithHashSolver(); break;
 		}
 	}
 

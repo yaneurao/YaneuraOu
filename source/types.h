@@ -504,6 +504,11 @@ constexpr PieceType type_of(Piece pc) { return (PieceType)(pc & 15); }
 // ただし、pc == KINGでの呼び出しはNO_PIECEが返るものとする。
 constexpr PieceType raw_type_of(Piece pc) { return (PieceType)(pc & 7); }
 
+// 成ってない駒を返す。
+// 例) 成銀→銀 , 後手の馬→後手の角
+// ただし、pc == KINGでの呼び出しはNO_PIECEが返るものとする。
+constexpr Piece raw_of(Piece pc) { return (Piece)(pc & ~8); }
+
 // pcとして先手の駒を渡し、cが後手なら後手の駒を返す。cが先手なら先手の駒のまま。pcとしてNO_PIECEは渡してはならない。
 constexpr Piece make_piece(Color c, PieceType pt) { /*ASSERT_LV3(color_of(pt) == BLACK && pt!=NO_PIECE); */ return (Piece)((c << 4) + pt); }
 

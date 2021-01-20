@@ -766,7 +766,8 @@ namespace Tools
 
 		std::vector<std::thread> threads;
 
-		auto thread_num = (size_t)Options["Threads"];
+		// Options["Threads"]が使用できるスレッド数とは限らない(ふかうら王など)
+		auto thread_num = (size_t)Threads.size(); // Options["Threads"];
 
 		for (size_t idx = 0; idx < thread_num; idx++)
 		{
@@ -775,7 +776,7 @@ namespace Tools
 				// NUMA環境では、bindThisThread()を呼び出しておいたほうが速くなるらしい。
 
 				// Thread binding gives faster search on systems with a first-touch policy
-				if (Options["Threads"] > 8)
+				if (thread_num > 8)
 					WinProcGroup::bindThisThread(idx);
 
 				// それぞれのスレッドがhash tableの各パートをゼロ初期化する。

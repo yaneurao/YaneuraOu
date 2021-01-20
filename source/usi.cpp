@@ -38,6 +38,7 @@ namespace Test
 		if (mate_test_cmd(pos,is,token))
 			return;
 
+		sync_cout << "Error! : unknown command = " << token << sync_endl;
 	}
 
 }

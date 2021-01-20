@@ -215,6 +215,9 @@ namespace {
 		// dfpn用のメモリ[MB]
 		u32 dfpn_mem = 1024;
 
+		// dfpn-hash table用のメモリ[MB]
+		u32 dfpn_hash = 1024;
+
 		// デバッグ用に、解けなかった問題を出力する。
 		bool verbose = false;
 
@@ -241,6 +244,8 @@ namespace {
 #if defined(USE_MATE_DFPN)
 			else if (token == "dfpn_mem")
 				is >> dfpn_mem;
+			else if (token == "dfpn_hash")
+				is >> dfpn_hash;
 #endif
 		}
 
@@ -253,18 +258,31 @@ namespace {
 			<< " mode                     = " << test_mode << endl
 #if defined(USE_MATE_DFPN)
 			<< " dfpn_mem [MB]            = " << dfpn_mem << endl
+			<< " dfpn_hash[MB]            = " << dfpn_hash << endl
 #endif
 			;
 
 #if defined(USE_MATE_DFPN)
-		Mate::Dfpn::MateDfpnSolver dfpn(Mate::Dfpn::DfpnSolverType::Node32bit);
-		dfpn.alloc(dfpn_mem);
+		Mate::MateHashTable mate_hash;
+		mate_hash.resize(dfpn_hash);
+
+		Mate::Dfpn::MateDfpnSolver dfpn1(Mate::Dfpn::DfpnSolverType::Node32bit);
+		dfpn1.alloc(dfpn_mem);
 
 		Mate::Dfpn::MateDfpnSolver dfpn2(Mate::Dfpn::DfpnSolverType::Node16bitOrdering);
 		dfpn2.alloc(dfpn_mem);
 
 		Mate::Dfpn::MateDfpnSolver dfpn3(Mate::Dfpn::DfpnSolverType::Node48bitOrdering);
 		dfpn3.alloc(dfpn_mem);
+
+		Mate::Dfpn::MateDfpnSolver dfpn4(Mate::Dfpn::DfpnSolverType::Node32bitWithHash);
+		dfpn4.alloc(dfpn_mem);
+		dfpn4.set_hash_table(&mate_hash);
+
+		Mate::Dfpn::MateDfpnSolver dfpn5(Mate::Dfpn::DfpnSolverType::Node48bitOrderingWithHash);
+		dfpn5.alloc(dfpn_mem);
+		dfpn5.set_hash_table(&mate_hash);
+
 #endif
 
 		ifstream f(filename);
@@ -305,20 +323,32 @@ namespace {
 
 			TimePoint last_pv = 0;
 
+			TimePoint elapsed = 0;
+
+			// 詰み探索を呼び出した回数。
+			size_t times = 0;
+			
+			auto output_pv = [&]()
+			{
+				// mateを呼び出した回数。
+				cout << " number of times = " << times << " , elapsed = " << elapsed
+					<< " , called per second = " << (double)times * 1000 / (elapsed + 0.00000001)
+					<< " , solved per second = " << (double)solved * 1000 / (elapsed + 0.00000001)
+					<< " , nps = " << nodes_searched * 1000 / elapsed
+					<< " , solved = " << solved << " , accuracy = " << (100.0 * solved / times) << "%" << endl;
+			};
+
 			size_t size = min(num, problem_num);
 			for (size_t i = 0; i < size; ++i)
 			{
-				auto elapsed = timer.elapsed();
+				elapsed = timer.elapsed();
 				// pvは一定間隔で出力する。
 				if (last_pv + 2000 < elapsed)
 				{
 					last_pv = elapsed;
-
-					// mateを呼び出した回数。
-					size_t times = i * loop;
-					cout << " number of times = " << times << " , elapsed = " << elapsed
-						<< " , called per second = " << (double)times * 1000 / (elapsed + 0.00000001)
-						<< " nps = " << nodes_searched * 1000 / elapsed << endl;
+					times = i * loop;
+					
+					output_pv();
 				}
 
 				auto sfen = (*problems)[i];
@@ -339,11 +369,9 @@ namespace {
 				}
 			}
 
-			auto elapsed = timer.elapsed();
-			size_t times = size * loop;
-			cout << " number of times = " << times << " , elapsed = " << elapsed
-				<< " , solved per second = " << (double)times * 1000 / (elapsed + 0.00000001) << endl;
-			cout << " solved = " << solved << " , accuracy = " << (100.0 * solved / times) << "%" << endl;
+			elapsed = timer.elapsed();
+			times = size * loop;
+			output_pv();
 
 			cout << test_name << " test end" << endl;
 
@@ -359,13 +387,25 @@ namespace {
 		// 2進数にしてbit1が立ってたらdfpnを呼び出す
 		// 速度比較用。
 		if (test_mode & 2)
-			bench([&]() { auto m = dfpn.mate_dfpn(pos, nodes_limit); nodes_searched += dfpn.get_nodes_searched(); return m; }, "mate_dfpn");
+			bench([&]() { auto m = dfpn1.mate_dfpn(pos, nodes_limit); nodes_searched += dfpn1.get_nodes_searched(); return m; }, "mate_dfpn1 : Node32bit");
 
 		if (test_mode & 4)
-			bench([&]() { auto m = dfpn2.mate_dfpn(pos, nodes_limit); nodes_searched += dfpn2.get_nodes_searched(); return m; }, "mate_dfpn2");
+			bench([&]() { auto m = dfpn2.mate_dfpn(pos, nodes_limit); nodes_searched += dfpn2.get_nodes_searched(); return m; }, "mate_dfpn2 : Node16bitOrdering");
 
 		if (test_mode & 8)
-			bench([&]() { auto m = dfpn3.mate_dfpn(pos, nodes_limit); nodes_searched += dfpn3.get_nodes_searched(); return m; }, "mate_dfpn3");
+			bench([&]() { auto m = dfpn3.mate_dfpn(pos, nodes_limit); nodes_searched += dfpn3.get_nodes_searched(); return m; }, "mate_dfpn3 : Node48bitOrdering");
+
+		if (test_mode & 16)
+		{
+			mate_hash.clear();
+			bench([&]() { auto m = dfpn4.mate_dfpn(pos, nodes_limit); nodes_searched += dfpn4.get_nodes_searched(); return m; }, "mate_dfpn4 : Node32bitWithHash");
+		}
+
+		if (test_mode & 32)
+		{
+			mate_hash.clear();
+			bench([&]() { auto m = dfpn5.mate_dfpn(pos, nodes_limit); nodes_searched += dfpn5.get_nodes_searched(); return m; }, "mate_dfpn5 : Node48bitOrderingWithHash");
+		}
 
 #endif
 
@@ -391,6 +431,7 @@ namespace {
 
 		// df-pn用メモリ
 		size_t mem = 1024;
+		size_t dfpn_hash = 1024;
 
 		string token;
 		while (is >> token)
@@ -399,14 +440,28 @@ namespace {
 				is >> nodes;
 			else if (token == "mem")
 				is >> mem;
+			else if (token == "hash")
+				is >> dfpn_hash;
 		}
 
 		cout << "df-pn mate :" << endl
-			<< " nodes = " << nodes
-			<< " mem   = " << mem << "[MB]" << endl;
+			 << " nodes = " << nodes << endl
+			 << " mem   = " << mem << "[MB]"<< endl
+			 << " hash  = " << dfpn_hash << "[MB]" << endl
+			;
 
+#if 0
 		Mate::Dfpn::MateDfpnSolver dfpn(Mate::Dfpn::DfpnSolverType::Node64bit);
 		//Mate::Dfpn::MateDfpnSolver dfpn(Mate::Dfpn::DfpnSolverType::Node48bitOrdering);
+#else
+		// 置換表を持っているdfpn solver。テスト用。
+		Mate::Dfpn::MateDfpnSolver dfpn(Mate::Dfpn::DfpnSolverType::Node48bitOrderingWithHash);
+		Mate::MateHashTable mate_hash;
+		mate_hash.resize(dfpn_hash);
+		mate_hash.clear();
+		dfpn.set_hash_table(&mate_hash);
+#endif
+
 		dfpn.alloc(mem);
 
 		Timer time;
