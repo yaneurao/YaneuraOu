@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <memory> // std::unique_ptr<>
+#include <atomic> // std::atomic<>
 
 namespace Mate
 {
