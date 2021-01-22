@@ -881,7 +881,7 @@ namespace dlshogi
 			this->pv = ss.str();
 
 			mate_move = move;
-			if (pv.size() >= 2)
+			if (mate_pv.size() >= 2)
 				mate_ponder_move = mate_pv[1]; // ponder moveも設定しておいてやる。
 
 			// 探索の中断を申し入れる。
