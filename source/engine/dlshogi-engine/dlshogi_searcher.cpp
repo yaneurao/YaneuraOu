@@ -284,6 +284,9 @@ namespace dlshogi
 		// 思考時間固定の時の指定
 		s.movetime = limits.movetime;
 
+		// 出力の抑制フラグの反映
+		s.silent = limits.silent;
+
 		// 引き分けになる手数の設定。
 		o.max_moves_to_draw = limits.max_game_ply;
 
@@ -409,7 +412,8 @@ namespace dlshogi
 			if (move)
 			{
 				// 宣言勝ち
-				sync_cout << "info score mate 1 pv MOVE_WIN" << sync_endl;
+				if (!search_limits.silent)
+					sync_cout << "info score mate 1 pv MOVE_WIN" << sync_endl;
 				return move;
 			}
 
@@ -459,7 +463,7 @@ namespace dlshogi
 		// ---------------------
 
 		// PVの取得と表示
-		auto best = UctPrint::get_best_move_multipv(current_root , search_limits , search_options);
+		auto best = UctPrint::get_best_move_multipv(current_root , search_limits , search_options , search_limits.silent);
 
 		// デバッグ用のメッセージ出力
 		if (search_options.debug_message)
@@ -480,7 +484,8 @@ namespace dlshogi
 		if (root_dfpn_searcher->mate_move)
 		{
 			// 詰み筋を表示してやる。
-			sync_cout << root_dfpn_searcher->pv << sync_endl;
+			if (!search_limits.silent)
+				sync_cout << root_dfpn_searcher->pv << sync_endl;
 
 			ponderMove = root_dfpn_searcher->mate_ponder_move;
 			return root_dfpn_searcher->mate_move;
@@ -536,7 +541,7 @@ namespace dlshogi
 
 			// PV表示
 			//get_and_print_pv();
-			UctPrint::get_best_move_multipv(tree->GetCurrentHead() , search_limits , search_options );
+			UctPrint::get_best_move_multipv(tree->GetCurrentHead() , search_limits , search_options , search_limits.silent);
 
 			// 出力が終わった時点から数えて pv_interval後以降に再度表示。
 			// (前回の出力時刻から数えてしまうと、PVの出力がたくさんあるとき出力が間に合わなくなる)

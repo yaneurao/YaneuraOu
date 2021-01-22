@@ -83,6 +83,11 @@ namespace dlshogi
 		// →　やねうら王では、Threads.main()->ponderを用いるのでこのフラグは使わない。
 		//bool pondering;
 
+		// 出力を抑制するのか
+		// Search::Limits.silentの値。
+		// DlshogiSearcher::SetLimits()で設定される。
+		bool silent;
+
 		// 中断用フラグ
 		// これがtrueになると全スレッドは探索を終了する。
 		// この停止のためのチェックは、SearchInterruptionCheckerが行う。

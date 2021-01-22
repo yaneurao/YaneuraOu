@@ -44,8 +44,9 @@ namespace dlshogi::UctPrint
 		BestMovePonder(Move move_,WinType wp_,Move ponder_) :move(move_), wp(wp_) , ponder(ponder_){}
 	};
 
-	// ベストの指し手とponderの指し手の取得と表示
-	BestMovePonder get_best_move_multipv(const Node* rootNode , const SearchLimits& po_info , const SearchOptions& options );
+	// ベストの指し手とponderの指し手の取得
+	//   silent : これがtrueなら読み筋は出力しない。
+	BestMovePonder get_best_move_multipv(const Node* rootNode, const SearchLimits& po_info, const SearchOptions& options, bool silent);
 
 }
 

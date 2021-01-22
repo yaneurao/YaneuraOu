@@ -299,13 +299,17 @@ void MainThread::search()
 		// Stockfishのコード、ここ、busy waitになっているが、さすがにそれは良くないと思う。
 	}
 
-	sync_cout << "bestmove " << to_usi_string(move);
+	// silent modeでないなら、bestmoveとponderの指し手を出力する。
+	if (!Search::Limits.silent)
+	{
+		sync_cout << "bestmove " << to_usi_string(move);
 
-	// USI_Ponderがtrueならば、bestmoveに続けて、ponderの指し手も出力する。
-	if (searcher.search_options.usi_ponder && ponderMove)
-		std::cout << " ponder " << to_usi_string(ponderMove);
+		// USI_Ponderがtrueならば、bestmoveに続けて、ponderの指し手も出力する。
+		if (searcher.search_options.usi_ponder && ponderMove)
+			std::cout << " ponder " << to_usi_string(ponderMove);
 
-	std::cout << sync_endl;
+		std::cout << sync_endl;
+	}
 }
 
 void Thread::search()
