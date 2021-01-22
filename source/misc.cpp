@@ -759,15 +759,15 @@ namespace Tools
 
 		// memset(table, 0, size);
 
+		// Options["Threads"]が使用できるスレッド数とは限らない(ふかうら王など)
+		auto thread_num = (size_t)Threads.size(); // Options["Threads"];
+
 		if (name_ != nullptr)
-			sync_cout << "info string " + std::string(name_) + " Clear begin , Hash size =  " << size / (1024 * 1024) << "[MB]" << sync_endl;
+			sync_cout << "info string " + std::string(name_) + " : Start clearing with " <<  thread_num << " threads , Hash size =  " << size / (1024 * 1024) << "[MB]" << sync_endl;
 
 		// マルチスレッドで並列化してクリアする。
 
 		std::vector<std::thread> threads;
-
-		// Options["Threads"]が使用できるスレッド数とは限らない(ふかうら王など)
-		auto thread_num = (size_t)Threads.size(); // Options["Threads"];
 
 		for (size_t idx = 0; idx < thread_num; idx++)
 		{
@@ -793,7 +793,7 @@ namespace Tools
 			th.join();
 
 		if (name_ != nullptr)
-			sync_cout << "info string " + std::string(name_) + " Clear done." << sync_endl;
+			sync_cout << "info string " + std::string(name_) + " : Finish clearing." << sync_endl;
 	}
 
 	// 途中での終了処理のためのwrapper
