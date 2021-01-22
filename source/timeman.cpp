@@ -92,6 +92,14 @@ void Timer::init(const Search::LimitsType& limits, Color us, int ply)
 		return;
 	}
 
+	// 時間固定モード
+	// "go movetime 100"のようにして思考をさせた場合。
+	if (limits.movetime)
+	{
+		remain_time = minimumTime = optimumTime = maximumTime = limits.movetime;
+		return;
+	}
+
 	// 残り手数
 	// plyは平手の初期局面が1。
 	// なので、256手ルールとして、max_game_ply == 256
