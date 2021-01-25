@@ -140,6 +140,8 @@ namespace dlshogi
 
 		// 決着つかずで引き分けとなる手数
 		// エンジンオプションの"MaxMovesToDraw"の値。
+		// ※　"MaxMovesToDraw"が0(手数による引き分けなし)のときは、この変数には
+		//   100000が代入されることになっているので、この変数が0であることは考慮しなくて良い。
 		int max_moves_to_draw = 512;
 
 		// 予測読みの設定
@@ -350,13 +352,13 @@ namespace dlshogi
 		// UCTアルゴリズムによる着手生成
 		// 並列探索を開始して、PVを表示したりしつつ、指し手ひとつ返す。
 		// ※　事前にSetLimits()で探索条件を設定しておくこと。
-		//   pos           : 探索開始局面
-		//   gameRootSfen  : 対局開始局面のsfen文字列(探索開始局面ではない)
-		//   moves         : 探索開始局面からの手順
-		//   ponderMove    : [Out] ponderの指し手(ないときはMOVE_NONEが代入される)
+		//   pos            : 探索開始局面
+		//   game_root_sfen : ゲーム開始局面のsfen文字列
+		//   moves          : ゲーム開始局面からの手順
+		//   ponderMove     : [Out] ponderの指し手(ないときはMOVE_NONEが代入される)
 		//   返し値 : この局面でのbestな指し手
 		// ponderの場合は、呼び出し元で待機すること。
-		Move UctSearchGenmove(Position* pos, const std::string& gameRootSfen, const std::vector<Move>& moves, Move& ponderMove);
+		Move UctSearchGenmove(Position* pos, const std::string& game_root_sfen , const std::vector<Move>& moves, Move& ponderMove);
 
 		// NNに渡すモデルPathの設定。
 		void SetModelPaths(const std::vector<std::string>& paths);

@@ -280,7 +280,7 @@ void MainThread::search()
 	searcher.search_options.multi_pv = (ChildNumType)Options["MultiPV"];
 
 	Move ponderMove;
-	Move move = searcher.UctSearchGenmove(&rootPos, rootPos.sfen(), {}, ponderMove);
+	Move move = searcher.UctSearchGenmove(&rootPos, game_root_sfen , moves_from_game_root , ponderMove);
 
 	// ponder中であれば、呼び出し元で待機しなければならない。
 	

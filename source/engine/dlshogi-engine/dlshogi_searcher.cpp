@@ -344,13 +344,13 @@ namespace dlshogi
 	// UCTアルゴリズムによる着手生成
 	// 並列探索を開始して、PVを表示したりしつつ、指し手ひとつ返す。
 	// ※　事前にSetLimits()で探索条件を設定しておくこと。
-	//   pos           : 探索開始局面
-	//   gameRootSfen  : 対局開始局面のsfen文字列(探索開始局面ではない)
-	//   moves         : 探索開始局面からの手順
-	//   ponderMove    : [Out] ponderの指し手(ないときはMOVE_NONEが代入される)
+	//   pos            : 探索開始局面
+	//   game_root_sfen : ゲーム開始局面のsfen文字列
+	//   moves          : ゲーム開始局面からの手順
+	//   ponderMove     : [Out] ponderの指し手(ないときはMOVE_NONEが代入される)
 	//   返し値 : この局面でのbestな指し手
 	// ponderの場合は、呼び出し元で待機すること。
-	Move DlshogiSearcher::UctSearchGenmove(Position* pos, const std::string& gameRootSfen, const std::vector<Move>& moves, Move& ponderMove)
+	Move DlshogiSearcher::UctSearchGenmove(Position* pos, const std::string& game_root_sfen , const std::vector<Move>& moves, Move& ponderMove)
 	{
 		// これ[Out]なのでとりあえず初期化しておかないと忘れてしまう。
 		ponderMove = MOVE_NONE;
@@ -370,7 +370,7 @@ namespace dlshogi
 		search_limits.interruption = false;
 
 		// ゲーム木を現在の局面にリセット
-		tree->ResetToPosition(gameRootSfen, moves);
+		tree->ResetToPosition(game_root_sfen,moves);
 
 		// ルート局面をグローバル変数に保存
 		//pos_root =  pos;

@@ -16,17 +16,13 @@
 // 完全なログ出力をしてdlshogiと比較する時用。
 //#define LOG_PRINT
 
+// -------------------------------------------------------------------------------------------
+//  LOG_PRINT
+//   ※　たぶんあとで消す
+// -------------------------------------------------------------------------------------------
+
 #if defined(LOG_PRINT)
 #include <sstream>
-#endif
-
-using namespace Eval::dlshogi;
-using namespace std;
-
-#define LOCK_EXPAND grp->get_dlsearcher()->mutex_expand.lock();
-#define UNLOCK_EXPAND grp->get_dlsearcher()->mutex_expand.unlock();
-
-#if defined(LOG_PRINT)
 struct MoveIntFloat
 {
 	MoveIntFloat(Move move, int label, float nnrate) : move(move),label(label),nnrate(nnrate){}
@@ -71,22 +67,30 @@ public:
 
 	void print(const std::string& s)
 	{
-		fs << s << endl;
+		fs << s << std::endl;
 	}
 	void print(std::vector<MoveIntFloat>& m)
 	{
 		//std::sort(m.begin(), m.end());
 
 		for (auto ml : m)
-			fs << ml.to_string() << endl;
+			fs << ml.to_string() << std::endl;
 
 		fs.flush();
 	}
 
-	ofstream fs;
+	std::ofstream fs;
 };
 MyLogger logger;
 #endif
+
+// -------------------------------------------------------------------------------------------
+
+using namespace Eval::dlshogi;
+using namespace std;
+
+#define LOCK_EXPAND grp->get_dlsearcher()->mutex_expand.lock();
+#define UNLOCK_EXPAND grp->get_dlsearcher()->mutex_expand.unlock();
 
 namespace dlshogi
 {
@@ -337,7 +341,8 @@ namespace dlshogi
 
 			// バッチサイズ分探索を繰り返す
 			// stop()になったらなるべく早く終わりたいので終了判定のところに "&& !stop"を書いておく。
-			// TODO : VirtualLossを無くすなどして、stop()になったら直ちにリターンすべき。
+			// ※　VirtualLossを無くすなどして、stop()になったら直ちにリターンすべきだが、
+			//    1回のbatch sizeはGPU側で0.1秒程度で完了できる量にすると思うので、普通のGPUでは誤差か。
 			for (int i = 0; i < policy_value_batch_maxsize && !stop(); i++) {
 
 				// 盤面のコピー
@@ -398,11 +403,10 @@ namespace dlshogi
 				auto& trajectories = visitor.trajectories;
 				for (auto it = trajectories.rbegin(); it != trajectories.rend() ; ++it)
 				{
-					auto& current_next = *it;
-					Node* current      = current_next.node;
+					auto& current_next            = *it;
+					Node* current                 = current_next.node;
 					const ChildNumType next_index = current_next.index;
-					ChildNode* uct_child = current->child.get();
-					const auto* uct_child_nodes = current->child_nodes.get();
+					ChildNode* uct_child          = current->child.get();
 
 					UpdateResult(&uct_child[next_index], result, current);
 
@@ -530,15 +534,29 @@ namespace dlshogi
 				{
 					// 詰みチェック
 
+#if !defined(LOG_PRINT)
+					
 					bool isMate =
 						// Mate::mate_odd_ply()は自分に王手がかかっていても詰みを読めるはず…。
-						// TODO : 他の詰みsolver試す。
+					#if defined(USE_DFPN_AT_LEAF_NODE)
+						// df-pn mate solverをleaf nodeで使う。
+						// ※　実験中
+						(is_ok(mate_solver.mate_dfpn(*pos,300)) /* MOVE_NONE(詰み不明) , MOVE_NULL(不詰)ではない 。これらはis_ok(m) == false */ )
+					#else
 						(options.mate_search_ply && mate_solver.mate_odd_ply(*pos,options.mate_search_ply,options.generate_all_legal_moves) != MOVE_NONE) // N手詰め
+						//(options.mate_search_ply && mate_solver.mate_odd_ply(*pos,1,options.generate_all_legal_moves) != MOVE_NONE) // N手詰め
+					#endif
 						|| (pos->DeclarationWin() != MOVE_NONE)            // 宣言勝ち
 						;
+#else
+					// mateが絡むとdlshogiと異なるノードを探索してしまうのでログ調査する時はオフにする。
+					bool isMate = (pos->DeclarationWin() != MOVE_NONE);            // 宣言勝ち
+#endif
 
 					// 詰みの場合、ValueNetの値を上書き
 					if (isMate) {
+						// 親nodeでnext_indexの子を選択した時に即詰みがあったので、この子ノードを勝ち扱いにして、
+						// 今回の期待勝率は0%に設定する。
 						uct_child[next_index].SetWin();
 						result = 0.0f;
 					}
@@ -665,13 +683,13 @@ namespace dlshogi
 		max_value = -FLT_MAX;
 
 		// ループの外でsqrtしておく。
-		// sumは、doubleで計算しているとき、sqrt()してからfloatにしたほうがいいか？
+		// sumは、double型で計算しているとき、sqrt()してからfloatにしたほうがいいか？
 		const float sqrt_sum = sqrtf((float)sum);
 		const float c = parent == nullptr ?
 			FastLog((sum + options.c_base_root + 1.0f) / options.c_base_root) + options.c_init_root :
 			FastLog((sum + options.c_base + 1.0f) / options.c_base) + options.c_init;
 		const float fpu_reduction = (parent == nullptr ? options.c_fpu_reduction_root : options.c_fpu_reduction) * sqrtf(current->visited_nnrate);
-		const float parent_q = sum_win > 0 ? std::max(0.0f, (float)(sum_win / sum - fpu_reduction)) : 0.0f;
+		const float parent_q = sum_win > 0 ? std::max(0.0f, (float)(sum_win / sum) - fpu_reduction) : 0.0f;
 		const float init_u = sum == 0 ? 1.0f : sqrt_sum;
 
 		// UCB値最大の手を求める
@@ -815,7 +833,7 @@ namespace dlshogi
 			for (int j = 0; j < child_num; ++j)
 				m.emplace_back(uct_child[j].move, move_labels[j], uct_child[j].nnrate);
 			logger.print(m);
-			logger.print("NN value = " + std::to_string(node->value_win));
+			logger.print("NN value = " + std::to_string(*value));
 			static int visit_count = 0;
 			++visit_count;
 			logger.print("visit = " + std::to_string(visit_count));

@@ -187,13 +187,13 @@ namespace dlshogi
 		// デストラクタではゲーム木を開放する。
 		~NodeTree() { DeallocateTree(); }
 
-		// 局面(Position)を渡して、node tree内からこの局面を探す。
+		// ゲーム開始局面からの手順を渡して、node tree内からこの局面を探す。
 		// もし見つかれば、node treeの再利用を試みる。
 		// 新しい位置が古い位置と同じゲームであるかどうかを返す。
-		//   sfen  : 今回探索するrootとなる局面のsfen文字列
-		//   moves : 初期局面からposに至る指し手
+		//   game_root_sfen : ゲーム開始局面のsfen文字列
+		//   moves          : game_root_sfenの局面からposに至る指し手
 		// ※　位置が完全に異なる場合、または以前よりも短い指し手がmovesとして与えられている場合は、falseを返す
-		bool ResetToPosition(const std::string& rootSfen, const std::vector<Move>& moves);
+		bool ResetToPosition(const std::string& game_root_sfen, const std::vector<Move>& moves);
 
 		// 現在の探索開始局面の取得
 		Node* GetCurrentHead() const { return current_head; }
@@ -209,7 +209,7 @@ namespace dlshogi
 		// ※　dlshogiでは、gamebegin_node_という変数名
 		std::unique_ptr<Node> game_root_node;
 
-		// ゲーム木のroot nodeのsfen文字列
+		// ゲーム開始局面
 		// ※　dlshogiではhistory_starting_pos_key_というKey型の変数
 		std::string game_root_sfen;
 
