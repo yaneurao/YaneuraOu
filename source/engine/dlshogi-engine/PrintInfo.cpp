@@ -104,7 +104,7 @@ namespace dlshogi::UctPrint
 
 		// 上位 multiPv個をソートして、あとは捨てる
 		multiPv = std::min(multiPv, (ChildNumType)list.size());
-		std::partial_sort(list.begin(), list.begin() + multiPv , list.end(), [](auto& rhs, auto& lhs){ return is_superior_to(rhs.second,lhs.second); });
+		std::partial_sort(list.begin(), list.begin() + multiPv , list.end(), [](auto& lhs, auto& rhs){ return is_superior_to(lhs.second,rhs.second); });
 
 		// listには良い順に並んでいる。例えば、1番良いChildNodeは、child[list[0].first]
 		for (ChildNumType i = 0; i < multiPv ; ++i)

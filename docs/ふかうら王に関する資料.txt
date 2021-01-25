@@ -67,8 +67,66 @@
   - 並列化したい＆df-pnを呼び出したいので、同等のものをやねうら王のほうでも独自に実装する。
 
 
+■　dlshogiの定跡生成手順について
+
+
+https://github.com/TadaoYamaoka/DeepLearningShogi/tree/master/usi
+
+
+-DMAKE_BOOK
+を付けてビルドして、
+
+./usi
+setoption name DNN_Model value /home/ubuntu/model-0000167.onnx
+setoption name UCT_Threads value 3
+setoption name UCT_Threads2 value 3
+setoption name UCT_Threads3 value 3
+setoption name UCT_Threads4 value 3
+setoption name UCT_Threads5 value 3
+setoption name UCT_Threads6 value 3
+setoption name UCT_Threads7 value 3
+setoption name UCT_Threads8 value 3
+setoption name Save_Book_Interval value 100
+isready
+make_book [bookFileName] [outFileName] [playoutNum] [limitTrialNum]
+
+※
+Save_Book_Intervalは、途中で保存する間隔(デフォルト100)
+bookFileNameは、対戦相手が使用する定跡を指定します。
+outFileNameは、ファイルがないと作られます。すでにあると続きから探索します。
+playoutNumは、10000000（1千万）
+limitTrialNumは、500
+にして、時間のある限り何回も実行しています。
+基本はメモリが許す限り探索しています。
+
+
+rubyスクリプトでは、
+
+https://github.com/TadaoYamaoka/shogi-server/blob/master/bin/usiToCsa_denryu
+UCT_NodeLimit=50000000
+本番で3分くらい思考する場合があるので、hashfullにならない十分な大きさにしています。
+GitHub
+TadaoYamaoka/DeepLearningShogi
+Contribute to TadaoYamaoka/DeepLearningShogi development by creating an account on GitHub.
+
+GitHub
+TadaoYamaoka/shogi-server
+Contribute to TadaoYamaoka/shogi-server development by creating an account on GitHub.
+
+
+
 ■　学習手法
 
 
 - SoTAを総なめ！衝撃のオプティマイザー「SAM」爆誕&解説！ : https://qiita.com/omiita/items/f24e4f06ae89115d248e
 
+
+
+■　指し手のランダム性について
+
+
+PUCTだと指し手にランダム性がなく、自己対局では同一の棋譜になりやすい。
+
+
+- dlshogiでは、ランダム性を持たせるために、強化学習時にはディリクレノイズを使っている。
+  - 将棋でディープラーニングする その51(ディリクレノイズ) : https://tadaoyamaoka.hatenablog.com/?page=1515162256

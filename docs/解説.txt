@@ -36,9 +36,9 @@ source/
     test_cmd.cpp                UnitTestなど。USI拡張コマンドの"test"コマンド関係。
 
     mate/
-    mate1ply.h                  1手詰めのヘッダー
-	mate1ply_with_effect.cpp    利きを利用した超高速1手詰め判定関数(おそらく世界最速)
-	mate1ply_without_effect.cpp 利きを用いない、Bonanza6風の1手詰め
+      mate1ply.h                  1手詰めのヘッダー
+	  mate1ply_with_effect.cpp    利きを利用した超高速1手詰め判定関数(おそらく世界最速)
+	  mate1ply_without_effect.cpp 利きを用いない、Bonanza6風の1手詰め
 
   learn/                        評価関数パラメーターの学習関連
 	learn.h                     ここで学習関係のオプション設定を行なうことが出来る。
@@ -53,12 +53,12 @@ source/
 	kpp_kkpt/					KPP_KKPT型の評価関数とその学習用
 	nnue/                       NNUE型の評価関数とその学習用
 	material/                   駒得評価関数とその拡張
-	
+
 
 ■　解説記事等
 
 やねうら王mini公式より解説記事が一通り読めます。
-http://yaneuraou.yaneu.com/YaneuraOu_Mini/ 
+http://yaneuraou.yaneu.com/YaneuraOu_Mini/
 
 やねうら王公式には、コンピューター将棋関係の記事・資料が盛りだくさん！
 http://yaneuraou.yaneu.com/
@@ -150,7 +150,7 @@ make -j8 tournament TARGET_CPU=AVX2 COMPILER=g++ YANEURAOU_EDITION=YANEURAOU_ENG
 		※　複雑な文字列の場合、ダブルコーテーションで囲んだほうが良いというのと、( )の手前では \ でのエスケープが必要です。
 	・ビルドターゲットはtournament(トーナメントモード用)、evallearn(評価関数の学習用)、normal(普通のもの)、gensfen(教師生成用。現状、非公開)から選びます。
 	詳しくはMakefileのなかを見てください。
-	
+
 
 ■  ShogiGUIの検討モードで使う方法
 
@@ -198,7 +198,7 @@ ShogiGUIの検討モードで「定跡を使用する」のオプションはオ
 
 	将棋ソフト用の標準定跡ファイルフォーマットの提案
 	http://yaneuraou.yaneu.com/2016/02/05/%E5%B0%86%E6%A3%8B%E3%82%BD%E3%83%95%E3%83%88%E7%94%A8%E3%81%AE%E6%A8%99%E6%BA%96%E5%AE%9A%E8%B7%A1%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB%E3%83%95%E3%82%A9%E3%83%BC%E3%83%9E%E3%83%83%E3%83%88%E3%81%AE/
-	
+
 	やねうら王アップデート！テラショック定跡の生成に対応しました
 	http://yaneuraou.yaneu.com/2019/05/28/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B%E3%82%A2%E3%83%83%E3%83%97%E3%83%87%E3%83%BC%E3%83%88%EF%BC%81%E3%83%86%E3%83%A9%E3%82%B7%E3%83%A7%E3%83%83%E3%82%AF%E5%AE%9A%E8%B7%A1%E3%81%AE%E7%94%9F/
 
@@ -207,7 +207,7 @@ ShogiGUIの検討モードで「定跡を使用する」のオプションはオ
 	// MAKE_BOOK_CMD,EVAL_LEARN をdefineしてコンパイルしたときにのみ有効。
   // NNUEのLEARN版などで使えます。
 
-	
+
 > makebook from_sfen book.sfen standard_book.db moves 16
 	※　	やねうら王2017Earlyなど、この機能に対応している思考エンジンが必要。
 
@@ -326,7 +326,7 @@ floodgateのよさ気な棋譜をsfenに変換してこのコマンドで定跡�
 
 	read_book.dbの定跡に対して、read_sfen.txtのsfenの局面から開始して延長する枝をwrite_sfen.txtに書き出します。
 	read_sfen.txtの局面から、評価値が先手で-50以上、後手で-150以上の値がついている枝だけを延長していきます。
-	
+
 	ここで書き出されたsfenファイルを、makebook thinkコマンドで思考させるのを繰り返すと定跡ツリーが成長していきます。
 
 	※　read_sfen.txtにはこの延長を行う開始局面を複数指定できます。(わからなければ、"startpos"とだけ書いたテキストを用意すれば、

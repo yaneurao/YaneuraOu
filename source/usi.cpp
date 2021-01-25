@@ -576,8 +576,9 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states) {
 
 	// エンジンオプションによる探索制限(0なら無制限)
 	// このあと、depthもしくはnodesが指定されていたら、その値で上書きされる。(この値は無視される)
-	if (Options["DepthLimit"] >= 0)    limits.depth = (int)Options["DepthLimit"];
-	if (Options["NodesLimit"] >= 0)    limits.nodes = (u64)Options["NodesLimit"];
+	
+	limits.depth = Options.count("DepthLimit") ? (int)Options["DepthLimit"] : 0;
+	limits.nodes = Options.count("NodesLimit") ? (u64)Options["NodesLimit"] : 0;
 
 	while (is >> token)
 	{
