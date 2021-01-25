@@ -1,10 +1,10 @@
-﻿#include "types.h"
+﻿#include "../types.h"
 
 #include <sstream>
-#include "tt.h"
-#include "search.h"
-#include "thread.h"
-#include "usi.h"
+#include "../tt.h"
+#include "../search.h"
+#include "../thread.h"
+#include "../usi.h"
 
 using namespace std;
 

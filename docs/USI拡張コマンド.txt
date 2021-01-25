@@ -171,7 +171,7 @@ USIプロトコルの独自拡張コマンド
 	IgnoreBookPly   : 定跡DB上の手数を無視する。
 			例) 局面図が同じであれば、定跡上の36手目の局面に40手目の局面でもヒットする。
 
-
+	
 	ResignValue     : 投了スコア。例えば3000にすると相手から見た評価値が3000以上(自分から見たら-3000以下)に
 		なった場合に投了する。デフォルトは99999。
 
@@ -449,6 +449,42 @@ USIプロトコルの独自拡張コマンド
 	test    : テスト用コマンド
 		※　testコマンドは実験的に実装してあるコマンドで、突然無くなることがあります。
 
+    // ----------------------------
+    //   通常のテストコマンド
+    // ----------------------------
+
+    test genmoves :
+        指し手生成のスピードテストを行なう。
+	      王手がかかっているときはEVASIONS,かかっていないときはNON_EVASIONS
+
+        loop X : 繰り返す回数X
+
+        例)
+        isready
+        position sfen l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1
+        test genmoves
+        // positionコマンドはisreadyしてからでないと使えないのでisreadyを入れてからpositionコマンドを
+        // 送って、そのあとにtest genmovesを実行する。
+
+        // ↓のような結果が返ってくる。
+        sfen l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1
+        1d1e 2e2f 6c6d 7d7e 9d9e 9a9b 9a9c 2a1c 2a3c 7c6e 7c8e 3i1g+ 3i2h+ 3i4h+ 3i5g+ 6f4h+ 6f5g+ 6f7g+ 6f8h+ 6f9i+ 6f3c 6f4d 6f5e 6f7e 6f8d 6f9c 1b1c 1b2c 2b1c 2b2c 2b3b 2b3c P*3a P*3b P*3c P*3d P*3h P*4a P*4d P*4e P*4f P*4g P*4h P*5a P*5b P*5c P*5d P*5e P*5f P*5g P*5h P*8a P*8b P*8c P*8d P*8e P*8g P*8h S*4i G*4i S*5i G*5i S*6i G*6i S*7i G*7i S*1h G*1h S*2h G*2h S*3h G*3h S*4h G*4h S*5h G*5h S*6h G*6h S*7h G*7h S*8h G*8h N*1c S*1c G*1c N*1e S*1e G*1e N*1g S*1g G*1g N*2c S*2c G*2c N*2f S*2f G*2f N*3a S*3a G*3a N*3b S*3b G*3b N*3c S*3c G*3c N*3d S*3d G*3d N*4a S*4a G*4a N*4d S*4d G*4d N*4e S*4e G*4e N*4f S*4f G*4f N*4g S*4g G*4g N*5a S*5a G*5a N*5b S*5b G*5b N*5c S*5c G*5c N*5d S*5d G*5d N*5e S*5e G*5e N*5f S*5f G*5f N*5g S*5g G*5g N*6a S*6a G*6a N*6b S*6b G*6b N*6d S*6d G*6d N*6g S*6g G*6g N*7a S*7a G*7a N*7b S*7b G*7b N*7e S*7e G*7e N*7g S*7g G*7g N*8a S*8a G*8a N*8b S*8b G*8b N*8c S*8c G*8c N*8d S*8d G*8d N*8e S*8e G*8e N*8g S*8g G*8g N*9b S*9b G*9b N*9c S*9c G*9c N*9e S*9e G*9e N*9f S*9f G*9f
+        2957121 times per second.
+
+
+    test autoplay : 自己対局テストコマンド
+        探索部や指し手生成にバグがないかを調べる時に用いる。
+        // ASSERT_LV 5とかに設定してコンパイルして、連続自己対局させれば、探索や指し手生成のバグがあれば
+        // どこかでASSERTに引っかかるという考え。
+
+        loop X     : 連続自己対局の回数X
+        movetime N : 1手あたりの思考時間がN[ms]になる。default 100[ms]
+        verbose    : 詳細な出力。対局棋譜を"position startpos moves ..."の形式で出力する。
+
+
+    // ----------------------------
+    //   詰み関連のテストコマンド
+    // ----------------------------
 
     test genmate          : 詰将棋の自動生成(やねうら王通常探索部のLEARN版のみ)
 

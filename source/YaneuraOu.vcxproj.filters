@@ -77,6 +77,9 @@
     <Filter Include="リソース ファイル\engine\yaneuraou-mate-engine">
       <UniqueIdentifier>{83e2b88b-605b-4d0d-9ade-bdfb8d89efdd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\testcmd">
+      <UniqueIdentifier>{f54ef520-240b-40a2-be3a-0c6c3df35b0b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -420,9 +423,6 @@
     <ClCompile Include="extra\super_sort.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
-    <ClCompile Include="benchmark.cpp">
-      <Filter>リソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="eval\nnue\features\half_kpe9.cpp">
       <Filter>リソース ファイル\eval\nnue\features</Filter>
     </ClCompile>
@@ -486,9 +486,6 @@
     <ClCompile Include="mate\mate.cpp">
       <Filter>リソース ファイル\mate</Filter>
     </ClCompile>
-    <ClCompile Include="mate\mate_test_cmd.cpp">
-      <Filter>リソース ファイル\mate</Filter>
-    </ClCompile>
     <ClCompile Include="mate\mate_solver.cpp">
       <Filter>リソース ファイル\mate</Filter>
     </ClCompile>
@@ -500,6 +497,15 @@
     </ClCompile>
     <ClCompile Include="engine\tanuki-mate-engine\tanuki-mate-search.cpp">
       <Filter>リソース ファイル\engine\tanuki-mate-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="testcmd\normal_test_cmd.cpp">
+      <Filter>リソース ファイル\testcmd</Filter>
+    </ClCompile>
+    <ClCompile Include="testcmd\mate_test_cmd.cpp">
+      <Filter>リソース ファイル\testcmd</Filter>
+    </ClCompile>
+    <ClCompile Include="testcmd\benchmark.cpp">
+      <Filter>リソース ファイル\testcmd</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

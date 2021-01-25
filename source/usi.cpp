@@ -21,7 +21,10 @@ using namespace std;
 
 namespace Test
 {
-	// 詰み関係のテストコマンド。コマンドを処理した時 trueが返る。
+	// 通常のテスト用コマンド。コマンドを処理した時 trueが返る。
+	bool normal_test_cmd(Position& pos, std::istringstream& is, const std::string& token);
+
+	// 詰み関係のテスト用コマンド。コマンドを処理した時 trueが返る。
 	bool mate_test_cmd(Position& pos, std::istringstream& is, const std::string& token);
 
 	void test_cmd(Position& pos, std::istringstream& is)
@@ -32,9 +35,13 @@ namespace Test
 		std::string token;
 		is >> token;
 
-		// デザパタのDecoratorみたいな感じで書いていく。
+		// デザパタのDecoratorの呼び出しみたいな感じで書いていく。
 
-		// 詰み関係の拡張コマンド
+		// 通常のテスト用コマンド
+		if (normal_test_cmd(pos, is, token))
+			return;
+
+		// 詰み関係のテスト用コマンド
 		if (mate_test_cmd(pos,is,token))
 			return;
 
@@ -875,9 +882,6 @@ void USI::loop(int argc, char* argv[])
 #endif
 		
 #if defined (ENABLE_TEST_CMD)
-		// 指し手生成のテスト
-		//else if (token == "s") generate_moves_cmd(pos);
-
 		// テストコマンド
 		else if (token == "test") Test::test_cmd(pos, is);
 #endif

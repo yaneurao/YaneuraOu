@@ -652,7 +652,6 @@
     <ClInclude Include="usi.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="benchmark.cpp" />
     <ClCompile Include="bitboard.cpp" />
     <ClCompile Include="book\apery_book.cpp" />
     <ClCompile Include="book\book.cpp" />
@@ -704,10 +703,12 @@
     <ClCompile Include="mate\mate1ply_with_effect.cpp" />
     <ClCompile Include="mate\mate_dfpn.hpp" />
     <ClCompile Include="mate\mate_solver.cpp" />
-    <ClCompile Include="mate\mate_test_cmd.cpp" />
     <ClCompile Include="misc.cpp" />
     <ClCompile Include="movegen.cpp" />
     <ClCompile Include="movepick.cpp" />
+    <ClCompile Include="testcmd\benchmark.cpp" />
+    <ClCompile Include="testcmd\mate_test_cmd.cpp" />
+    <ClCompile Include="testcmd\normal_test_cmd.cpp" />
     <ClCompile Include="timeman.cpp" />
     <ClCompile Include="types.cpp" />
     <ClCompile Include="position.cpp" />

@@ -10,7 +10,7 @@
 
 #include <sstream>
 
-#include "mate.h"
+#include "../mate/mate.h"
 
 #include "../position.h"
 #include "../usi.h"
@@ -450,7 +450,7 @@ namespace {
 			 << " hash  = " << dfpn_hash << "[MB]" << endl
 			;
 
-#if 0
+#if 1
 		Mate::Dfpn::MateDfpnSolver dfpn(Mate::Dfpn::DfpnSolverType::Node64bit);
 		//Mate::Dfpn::MateDfpnSolver dfpn(Mate::Dfpn::DfpnSolverType::Node48bitOrdering);
 #else

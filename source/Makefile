@@ -237,12 +237,15 @@ SOURCES  = \
 	mate/mate1ply_without_effect.cpp                                           \
 	mate/mate1ply_with_effect.cpp                                              \
 	mate/mate_solver.cpp                                                       \
-	mate/mate_test_cmd.cpp                                                     \
 	eval/evaluate_bona_piece.cpp                                               \
 	eval/evaluate.cpp                                                          \
 	eval/evaluate_io.cpp                                                       \
 	eval/evaluate_mir_inv_tools.cpp                                            \
-	eval/material/evaluate_material.cpp
+	eval/material/evaluate_material.cpp                                        \
+	testcmd/mate_test_cmd.cpp                                                  \
+	testcmd/normal_test_cmd.cpp                                                \
+	testcmd/benchmark.cpp
+
 
 ifeq (,$(findstring evallearn,$@))
 	SOURCES  +=                                                                \
