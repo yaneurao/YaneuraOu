@@ -467,6 +467,8 @@ void position_cmd(Position& pos, istringstream& is , StateListPtr& states)
 	states = StateListPtr(new StateList(1));
 	pos.set(sfen , &states->back() , Threads.main());
 
+	std::vector<Move> moves_from_game_root;
+
 	// 指し手のリストをパースする(あるなら)
 	while (is >> token && (m = USI::to_move(pos, token)) != MOVE_NONE)
 	{
@@ -476,7 +478,14 @@ void position_cmd(Position& pos, istringstream& is , StateListPtr& states)
 			pos.do_null_move(states->back());
 		else
 			pos.do_move(m, states->back());
+
+		moves_from_game_root.emplace_back(m);
 	}
+
+	// やねうら王では、ここに保存しておくことになっている。
+	Threads.main()->game_root_sfen = sfen;
+	Threads.main()->moves_from_game_root = std::move(moves_from_game_root);
+
 }
 
 // "setoption"コマンド応答。

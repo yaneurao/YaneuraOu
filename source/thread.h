@@ -206,6 +206,12 @@ struct MainThread: public Thread
 	// Stockfishは置換表からponder moveをひねり出すコードになっているが、
 	// 前回iteration時のPVの2手目の指し手で良いのではなかろうか…。
 	Move ponder_candidate;
+
+	// "Position"コマンドで1つ目に送られてきた文字列("startpos" or sfen文字列)
+	std::string game_root_sfen;
+
+	// "Position"コマンドで"moves"以降にあった、rootの局面からこの局面に至るまでの手順
+	std::vector<Move> moves_from_game_root;
 };
 
 
