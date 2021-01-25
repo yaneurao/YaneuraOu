@@ -75,7 +75,7 @@ namespace {
 
 		// 1手の思考長さ[ms]
 		int movetime = 500;    // default 500ms
-		
+
 		std::string token;
 		while (is >> token)
 		{
@@ -107,7 +107,7 @@ namespace {
 		// ふかうら王の場合、root mate searchが回っていると探索を打ち切らないので、ここで
 		// 同じ思考時間になってしまう可能性がある。
 		if (Options.count("RootMateSearchNodesLimit"))
-			Options["RootMateSearchNodesLimit"] = "100"; // 100ノードに減らしておく。
+			Options["RootMateSearchNodesLimit"] = std::string("100"); // 100ノードに減らしておく。
 
 		//if (Options.count("DNN_Batch_Size1"))
 		//	Options["DNN_Batch_Size1"] = "32";			 // これも減らしておかないとbatchsizeまでで時間がきてしまう。
@@ -140,9 +140,13 @@ namespace {
 				if (rep == REPETITION_DRAW)
 					break;
 
+#if defined(USE_ENTERING_KING_WIN)
+				// MateEngineなど宣言勝ちをサポートしていないエンジンもある…。
+
 				// 宣言勝ちのチェック
 				if (pos.DeclarationWin())
 					break;
+#endif
 
 				Time.reset();
 
@@ -192,7 +196,7 @@ namespace Test
 		if (token == "genmoves")         gen_moves(pos, is);       // 現在の局面に対して指し手生成のテストを行う。
 		else if (token == "autoplay")    auto_play(pos, is);       // 連続自己対局を行う。
 		else return false;									       // どのコマンドも処理することがなかった
-			
+
 		// いずれかのコマンドを処理した。
 		return true;
 	}
