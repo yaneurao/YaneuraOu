@@ -167,6 +167,11 @@ namespace dlshogi
 			//		term_th(false),
 			//#endif
 			policy_value_batch_maxsize(policy_value_batch_maxsize)
+		#if defined(USE_DFPN_AT_LEAF_NODE)
+			// df-pn mate solverをleaf nodeで使う。
+			// ※　実験中
+			,mate_solver(Mate::Dfpn::DfpnSolverType::Node16bitOrdering)
+		#endif
 		{
 			// 推論(NN::forward())のためのメモリを動的に確保する。
 			// GPUを利用する場合は、GPU側のメモリを確保しなければならないので、alloc()は抽象化されている。
@@ -189,6 +194,9 @@ namespace dlshogi
 			thread_id(o.thread_id),
 			mt(std::move(o.mt)),
 			features1(o.features1),features2(o.features2),y1(o.y1),y2(o.y2)
+		#if defined(USE_DFPN_AT_LEAF_NODE)
+			,mate_solver(std::move(o.mate_solver))
+		#endif
 		{
 			o.features1 = nullptr;
 			o.features2 = nullptr;
@@ -219,8 +227,13 @@ namespace dlshogi
 		// ※　Thread::search()から呼び出す。
 		void ParallelUctSearchStart(const Position& rootPos);
 
-		// leaf node用の詰め将棋ルーチンの初期化を行う。
+		// leaf node用の詰め将棋ルーチンの初期化(alloc)を行う。
+		// ※　SetLimits()が"go"に対してしか呼び出されていないからmax_moves_to_drawは未確定なのでここで設定するわけにはいかない。
 		void InitMateSearcher(const SearchOptions& options);
+
+		// "go"に対して探索を開始する時に呼び出す。
+		// "go"に対してしかmax_moves_to_drawは未確定なので、それが確定してから呼び出す。
+		void SetMateSearcher(const SearchOptions& options);
 
 	private:
 		//  並列処理で呼び出す関数
@@ -297,10 +310,14 @@ namespace dlshogi
 		// NodeTreeを取得
 		NodeTree* get_node_tree() const;
 
+	#if !defined(USE_DFPN_AT_LEAF_NODE)
 		// 奇数手詰め用のsolver
 		Mate::MateSolver mate_solver;
+	#else
+		// leaf node用のdf-pn solver
+		Mate::Dfpn::MateDfpnSolver mate_solver;
+	#endif
 	};
-
 
 }
 

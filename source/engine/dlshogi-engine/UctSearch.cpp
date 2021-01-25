@@ -248,19 +248,40 @@ namespace dlshogi
 		// これが、policy_value_batch_maxsize分だけ溜まったら、nn->forward()を呼び出す。
 	}
 
-	// leaf node用の詰め将棋ルーチンの初期化を行う。
+	// leaf node用の詰め将棋ルーチンの初期化(alloc)を行う。
+	// ※　SetLimits()が"go"に対してしか呼び出されていないからmax_moves_to_drawは未確定なので
+	//     ここでそれを用いた設定をするわけにはいかない。
 	void UctSearcher::InitMateSearcher(const SearchOptions& options)
 	{
+	#if defined(USE_DFPN_AT_LEAF_NODE)
+
+		// -- leaf nodeでdf-pn solverを用いる時はメモリの確保が必要
+
+		// 300 nodeと5手詰めがだいたい等価(時間的に)
+		// ※　options.leaf_mate_search_nodes_limit とか用意すべきか？
+		// 300/* nodes */ * 16 /* bytes */ * 10 /* 平均分岐数 */ / (1024 * 1024) = 0.045[MB] お、、おう…。1MBあれば十分だな。
+		mate_solver.alloc(1);
+	#endif
+	}
+
+	// "go"に対して探索を開始する時に呼び出す。
+	// "go"に対してしかmax_moves_to_drawは未確定なので、それが確定してから呼び出す。
+	void UctSearcher::SetMateSearcher(const SearchOptions& options)
+	{
+
+	#if !defined(USE_DFPN_AT_LEAF_NODE)
 		// -- leaf nodeで奇数手詰めを用いる時
 
 		// 引き分けの手数の設定
 		mate_solver.set_max_game_ply(options.max_moves_to_draw);
 
-		// -- leaf nodeでdf-pn solverを用いる時はメモリの確保も必要
+	#else
+		// -- leaf nodeでdf-pn solverを用いる時
 
-		//mate_solver.alloc           (options.leaf_mate_search_nodes_limit);
+		// 引き分けの手数の設定
+		mate_solver.set_max_game_ply(options.max_moves_to_draw);
+	#endif
 
-		// →　気が向いたら実装する
 	}
 
 	// UCTアルゴリズムによる並列探索の各スレッドのEntry Point
@@ -269,6 +290,10 @@ namespace dlshogi
 	{
 		// このスレッドとGPUとを紐付ける。
 		grp->set_device();
+
+		// 詰み探索部の"go"コマンド時の初期化
+		auto& options = grp->get_dlsearcher()->search_options;
+		SetMateSearcher(options);
 
 		// 並列探索の開始
 		ParallelUctSearch(rootPos);
