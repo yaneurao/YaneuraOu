@@ -68,19 +68,16 @@ namespace dlshogi
 	bool NodeTree::ResetToPosition(const std::string& game_root_sfen , const std::vector<Move>& moves)
 	{
 		// 前回思考した時とは異なるゲーム開始局面であるなら異なるゲームである。
+		// root nodeがまだ生成されていない
+
+		// DeallocateTree()したかのフラグ
+		bool deallocated = false;
 		if (this->game_root_sfen != game_root_sfen)
 		{
+			// Node作り直す必要がある
 			DeallocateTree();
 			this->game_root_sfen = game_root_sfen;
-		}
-
-		// root nodeがまだ生成されていない
-		if (!game_root_node)
-		{
-			// 新しい対局であり、一度目のこの関数の呼び出しであるから、現在の局面のために新規のNodeを作成し、
-			// このNodeが対局開始のnodeであり、かつ、探索のroot nodeであると設定しておく。
-			game_root_node = std::make_unique<Node>();
-			current_head = game_root_node.get();
+			deallocated = true;
 		}
 
 		// 前回の探索開始局面
@@ -108,9 +105,27 @@ namespace dlshogi
 			seen_old_head |= old_head == current_head;
 		}
 
-		// 以前の局面に戻っているのか何かは知らないが、存在しないので新規扱いでいいのでは…。
+		// 前回の局面が見当たらなかった。
+		// 以前の局面に戻っているのか、新しいゲームであるか。
 		if (!seen_old_head)
-			DeallocateTree();
+		{
+			// 1手前のNodeがある場合、現局面のNodeは今回のゲームで進行した指し手(1手)以外は
+			// 開放してしまっているので、一つ前のNodeから、現局面のNodeを新しく作り直す必要がある。
+			if (prev_head)
+			{
+				ASSERT_LV3(prev_head->child_num == 1);
+				auto& prev_uct_child_node = prev_head->child_nodes[0];
+				gc->AddToGcQueue(std::move(prev_uct_child_node));
+				prev_uct_child_node = std::make_unique<Node>();
+				current_head = prev_uct_child_node.get();
+			}
+			else {
+				// 1手前の局面が存在しないということは、現在の局面が開始局面なので、
+				// 丸ごとNodeを作り直しておけば良い。
+				if (!deallocated)
+					DeallocateTree();
+			}
+		}
 
 		return seen_old_head;
 	}
@@ -118,8 +133,9 @@ namespace dlshogi
 	void NodeTree::DeallocateTree()
 	{
 		// ゲームツリーを保持しているならそれを開放する。
-		// (保持していない時は何もしない)
+		// ※　AddToGcQueue()はnullptrを渡しても良いことになっている。
 		gc->AddToGcQueue(std::move(game_root_node));
+
 		game_root_node = std::make_unique<Node>();
 		current_head = game_root_node.get();
 	}

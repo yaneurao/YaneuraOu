@@ -234,6 +234,7 @@ namespace dlshogi
 
 		// GC対象に追加する。ここから辿れるNode,ChildNodeはすべて開放する。
 		// また、Nodeは循環していないものとする。
+		// また、node == nullptrなら何もせずにreturnする。
 		void AddToGcQueue(std::unique_ptr<Node> node) {
 			if (!node) return;
 
