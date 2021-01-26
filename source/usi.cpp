@@ -506,8 +506,8 @@ void setoption_cmd(istringstream& is)
 	if (Options.count(name))
 		Options[name] = value;
 	else
-			// この名前のoptionは存在しなかった
-			sync_cout << "Error! : No such option: " << name << sync_endl;
+		// この名前のoptionは存在しなかった
+		sync_cout << "Error! : No such option: " << name << sync_endl;
 
 }
 

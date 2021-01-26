@@ -535,16 +535,15 @@ namespace dlshogi
 					// 詰みチェック
 
 #if !defined(LOG_PRINT)
-					
+										
 					bool isMate =
 						// Mate::mate_odd_ply()は自分に王手がかかっていても詰みを読めるはず…。
 					#if defined(USE_DFPN_AT_LEAF_NODE)
 						// df-pn mate solverをleaf nodeで使う。
-						// ※　実験中
+						// →　なんか弱くなる。なんでなん…。
 						(is_ok(mate_solver.mate_dfpn(*pos,300)) /* MOVE_NONE(詰み不明) , MOVE_NULL(不詰)ではない 。これらはis_ok(m) == false */ )
 					#else
 						(options.mate_search_ply && mate_solver.mate_odd_ply(*pos,options.mate_search_ply,options.generate_all_legal_moves) != MOVE_NONE) // N手詰め
-						//(options.mate_search_ply && mate_solver.mate_odd_ply(*pos,1,options.generate_all_legal_moves) != MOVE_NONE) // N手詰め
 					#endif
 						|| (pos->DeclarationWin() != MOVE_NONE)            // 宣言勝ち
 						;

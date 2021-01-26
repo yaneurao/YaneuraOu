@@ -2,6 +2,521 @@
 やねうら王 更新履歴
 
 
+■　2021/1/26
+
+
+- V6.02
+  - ふかうら王、2手前に思考した時の情報が使えていなかったのを修正。
+    - これだけで+R200ぐらい変わるのか…。
+    - やっとdlshogiと互角になった。
+  - testcmd/normal_test_cmd.cpp追加
+    - 指し手生成コマンド(s)は、そちらに移動させる。
+    -"test genmoves"コマンド追加
+    -"test autoplay"コマンド追加
+
+
+- ふかうら王、同じ開始局面で手数が戻る時の処理を修正。
+  - 自己対局でたまに落ちるのこれであった…。
+
+
+- MATEエンジンのビルド出力先ディレクトリ名を修正
+  - Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/commit/3b84966402dbd0925b1cedf351ef519977f25682
+
+
+■　2021/1/25
+
+- cibuild (#163)
+  - Android等のビルドスクリプトの修正。
+  - Clang/GCCでコンパイル通らなかったの修正。
+  - Mizarさんのプルリク :  https://github.com/yaneurao/YaneuraOu/commit/83be784e51fea781cb3ec98149fdb74f66f92070
+
+
+- DepthLimit , NodesLimitは、このオプションを探索部がサポートしている時だけ反映させるように。
+- ドキュメント類の軽微な修正。
+
+
+- ふかうら王、2手前に思考した時の情報が使えていなかったのを修正。
+  - これだけで+R200ぐらい変わるのか…。
+  - やっとdlshogiと互角になった。
+  
+
+- MainThreadにゲーム開始時のsfenとそこからの指し手を保存するようにした。
+  - 探索部によっては必要になる。
+
+
+- ふかうら王、奇数手詰めにMaxMovesToDrawの値が反映していなかったのを修正。
+  - "go"コマンドに対してしか値が反映しないのであった…。
+
+
+- testcmd/normal_test_cmd.cpp追加
+  - 指し手生成コマンド(s)は、そちらに移動させる。
+    - test genmoves
+  -"test genmoves"コマンド追加
+  -"test autoplay"コマンド追加
+- source/testcmd/ 追加
+  - benchmark.cppはそちらに移動
+  - mate_test_cmd.cppもそちらに移動
+
+
+- 時間固定で思考する、go movetime X サポートしているのに説明書くの忘れていたの修正。
+
+
+■　2021/1/22
+
+
+- 並列メモリクリアの時に何スレッドでやっているのかを出力するようにした。
+
+
+- "go movetime 100"
+  のような"movetime"を指定した場合の時間固定での思考コマンド、ドキュメントに書いたまま実装するの忘れていたの修正。
+
+
+- ふかうら王、Search::Limits.silentのときに読み筋等の出力を抑制するように。
+
+
+- ふかうら王、詰んだときに相手の指し手、ponderで返そうとしてアクセス違反になることがあったのを修正。
+
+
+■　2021/1/20
+
+
+- mate.hでinclude忘れ修正。
+
+
+- df-pn mateルーチンにhash tableありのバージョンを導入
+  - df-pnのNodeにrepeatedフラグを追加。
+  - 循環が絡まない詰み・不詰を証明した局面だけこのフラグがfalseになる。
+  - 延々と合駒を打てる3手詰め局面を用いてデバッグする。
+
+isready
+sfen 8k/7P1/8+P/9/9/9/9/9/R8 b 2b4g4s4n4l16p 1
+test dfpn
+
+// ↑の局面は1/4ぐらいのnodeで詰みが証明できるが、他の局面ではnps2/3ぐらいになるので全然得してないようである。
+// 実際の対局だと違うかも知れないが…。
+
+// 通常のdf-pnだと340万node
+solved! , nodes_searched = 3424908
+9i9a P*8a 9a8a B*7a 8a7a B*6a 7a6a S*5a 2b2a+ 1a2a 6a5a+ 2a3b B*2c 3b3c 5a5c 3c2d 2c1d+ 2d3e 5c5e 3e2f 5e2e 2f3g 2e3f 3g4h 3f4g 4h3i B*4h 3i2h 4g3g 2h1h P*1i 1h1i S*2h 1i1h 3g1g 1h2i 1g1i 2i3h 1i3i
+d
+
+// orderingありでも変わらず…。
+solved! , nodes_searched = 3545390
+9i9a+ P*8a 9a8a B*7a 8a7a B*6a 7a6a S*5a 2b2a+ 1a2a 6a5a 2a3b B*2c 3b3c 5a5c 3c2d 2c1d+ 2d3e 5c5e 3e2f 5e2e 2f3g 2e3f 3g4h 3f4g 4h3i B*4h 3i2i S*3h 2i1i 4h3g 1i1h P*1i 1h1g 3g2h 1g2h 4g2g 2h3i 2g2i 3i4h 1d4g
+
+// 置換表ありだとその1/4ぐらい。
+solved! , nodes_searched = 966759
+9i9a B*8a 9a8a+ B*7a 8a7a G*6a 2b2a+ 1a2a 7a6a 2a3b B*2c 3b4b B*3a 4b4c G*5d 4c3c 3a4b 3c4b 2c4a+ 4b3c 4a2c
+
+time = 1051
+solved! , nodes_searched = 925689
+9i9a P*8a 9a8a B*7a 8a7a G*6a 7a6a+ B*5a
+// 置換表、saveで優劣関係を考慮するようにしたら、ちょっと改善したっぽい。
+
+// 不詰を証明するのに単純なdfpnだと8Mほど読まないといけない局面
+isready
+sfen +B2B1n2K/7+R1/p2p1p1ps/3g2+r1k/1p3n3/4n1P+s1/PP7/1S6p/L7L b 3GS7Pn2l2p 1
+test dfpn mem 4096
+start mate.
+time = 4200
+solved! this is no mate. nodes_searched = 3159214
+// 証明駒と反証駒導入しないと縮まないな…。
+// もうちょっと考える…。
+
+test matebench mode 63 file mate/mate13.sfen nodes 300 num 100000
+info string Hash table allocation: Windows Large Pages used.
+info string read book file : book/standard_book.db
+info string read book done.
+info string Start loading the model file, path = eval/model.onnx, gpu_id = 0, batch_size = 32
+info string The model file has been loaded.
+mate bench :
+ num (number of problems) = 100000
+ sfen file name           = mate/mate13.sfen
+ mate_ply                 = 3
+ nodes(nodes limit)       = 300
+ verbose                  = 0
+ mode                     = 63
+ dfpn_mem [MB]            = 1024
+ dfpn_hash[MB]            = 1024
+read problems..
+...........number of problems read = 100000
+===== mate_odd_ply =====
+test start
+ number of times = 100000 , elapsed = 1668 , called per second = 59952
+ , solved per second = 0
+ solved = 0 , accuracy = 0%
+mate_odd_ply test end
+===== mate_dfpn1 : Node32bit =====
+test start
+ number of times = 10528 , elapsed = 2001 , called per second = 5261.37 nps = 1562834
+ number of times = 20926 , elapsed = 4002 , called per second = 5228.89 nps = 1553225
+ number of times = 31548 , elapsed = 6003 , called per second = 5255.37 nps = 1562167
+ number of times = 42196 , elapsed = 8004 , called per second = 5271.86 nps = 1567220
+ number of times = 52787 , elapsed = 10005 , called per second = 5276.06 nps = 1568865
+ number of times = 63435 , elapsed = 12006 , called per second = 5283.61 nps = 1571204
+ number of times = 74237 , elapsed = 14007 , called per second = 5299.99 nps = 1576118
+ number of times = 85126 , elapsed = 16008 , called per second = 5317.72 nps = 1581675
+ number of times = 95936 , elapsed = 18009 , called per second = 5327.11 nps = 1584355
+ number of times = 100000 , elapsed = 18802 , called per second = 5318.58
+ , solved per second = 129.454
+ solved = 2434 , accuracy = 2.434%
+mate_dfpn1 : Node32bit test end
+===== mate_dfpn2 : Node16bitOrdering =====
+test start
+ number of times = 8808 , elapsed = 2001 , called per second = 4401.8 nps = 1294199
+ number of times = 17373 , elapsed = 4002 , called per second = 4341.08 nps = 1276750
+ number of times = 25915 , elapsed = 6003 , called per second = 4317.01 nps = 1270918
+ number of times = 34630 , elapsed = 8004 , called per second = 4326.59 nps = 1274490
+ number of times = 43157 , elapsed = 10005 , called per second = 4313.54 nps = 1270817
+ number of times = 51867 , elapsed = 12006 , called per second = 4320.09 nps = 1272820
+ number of times = 60499 , elapsed = 14007 , called per second = 4319.2 nps = 1272585
+ number of times = 69072 , elapsed = 16008 , called per second = 4314.84 nps = 1271336
+ number of times = 77795 , elapsed = 18009 , called per second = 4319.78 nps = 1273068
+ number of times = 86314 , elapsed = 20010 , called per second = 4313.54 nps = 1271469
+ number of times = 95052 , elapsed = 22011 , called per second = 4318.39 nps = 1272732
+ number of times = 100000 , elapsed = 23168 , called per second = 4316.3
+ , solved per second = 195.874
+ solved = 4538 , accuracy = 4.538%
+mate_dfpn2 : Node16bitOrdering test end
+===== mate_dfpn3 : Node48bitOrdering =====
+test start
+ number of times = 8796 , elapsed = 2001 , called per second = 4395.8 nps = 1292400
+ number of times = 17510 , elapsed = 4002 , called per second = 4375.31 nps = 1286723
+ number of times = 26182 , elapsed = 6003 , called per second = 4361.49 nps = 1284066
+ number of times = 34852 , elapsed = 8004 , called per second = 4354.32 nps = 1282521
+ number of times = 43584 , elapsed = 10005 , called per second = 4356.22 nps = 1283273
+ number of times = 52211 , elapsed = 12006 , called per second = 4348.74 nps = 1281233
+ number of times = 60875 , elapsed = 14007 , called per second = 4346.04 nps = 1280513
+ number of times = 69436 , elapsed = 16008 , called per second = 4337.58 nps = 1278046
+ number of times = 77824 , elapsed = 18009 , called per second = 4321.39 nps = 1273538
+ number of times = 85458 , elapsed = 20010 , called per second = 4270.76 nps = 1258826
+ number of times = 93539 , elapsed = 22011 , called per second = 4249.65 nps = 1252491
+ number of times = 100000 , elapsed = 23519 , called per second = 4251.88
+ , solved per second = 192.95
+ solved = 4538 , accuracy = 4.538%
+mate_dfpn3 : Node48bitOrdering test end
+info string MateHash Clear begin , Hash size =  2048[MB]
+info string MateHash Clear done.
+===== mate_dfpn4 : Node32bitWithHash =====
+test start
+ number of times = 7549 , elapsed = 2001 , called per second = 3772.61 nps = 1120520
+ number of times = 15202 , elapsed = 4002 , called per second = 3798.6 nps = 1128236
+ number of times = 22911 , elapsed = 6003 , called per second = 3816.59 nps = 1133631
+ number of times = 30584 , elapsed = 8004 , called per second = 3821.09 nps = 1135570
+ number of times = 38271 , elapsed = 10005 , called per second = 3825.19 nps = 1136917
+ number of times = 46029 , elapsed = 12006 , called per second = 3833.83 nps = 1139618
+ number of times = 53652 , elapsed = 14007 , called per second = 3830.37 nps = 1138848
+ number of times = 61365 , elapsed = 16008 , called per second = 3833.4 nps = 1139851
+ number of times = 69100 , elapsed = 18009 , called per second = 3836.97 nps = 1140866
+ number of times = 76790 , elapsed = 20010 , called per second = 3837.58 nps = 1141111
+ number of times = 84522 , elapsed = 22011 , called per second = 3839.99 nps = 1141987
+ number of times = 92148 , elapsed = 24012 , called per second = 3837.58 nps = 1141268
+ number of times = 99849 , elapsed = 26013 , called per second = 3838.43 nps = 1141474
+ number of times = 100000 , elapsed = 26056 , called per second = 3837.89
+ , solved per second = 95.0261
+ solved = 2476 , accuracy = 2.476%
+mate_dfpn4 : Node32bitWithHash test end
+info string MateHash Clear begin , Hash size =  2048[MB]
+info string MateHash Clear done.
+===== mate_dfpn5 : Node48bitOrderingWithHash =====
+test start
+ number of times = 6517 , elapsed = 2001 , called per second = 3256.87 nps = 957420
+ number of times = 12966 , elapsed = 4002 , called per second = 3239.88 nps = 952628
+ number of times = 19537 , elapsed = 6003 , called per second = 3254.54 nps = 957134
+ number of times = 25813 , elapsed = 8004 , called per second = 3225.01 nps = 949099
+ number of times = 32116 , elapsed = 10005 , called per second = 3210 nps = 945074
+ number of times = 38352 , elapsed = 12006 , called per second = 3194.4 nps = 940596
+ number of times = 44823 , elapsed = 14007 , called per second = 3200.04 nps = 942437
+ number of times = 51386 , elapsed = 16008 , called per second = 3210.02 nps = 945399
+ number of times = 57910 , elapsed = 18009 , called per second = 3215.61 nps = 947201
+ number of times = 64410 , elapsed = 20010 , called per second = 3218.89 nps = 948174
+ number of times = 71000 , elapsed = 22011 , called per second = 3225.66 nps = 950232
+ number of times = 77619 , elapsed = 24012 , called per second = 3232.51 nps = 952381
+ number of times = 84121 , elapsed = 26013 , called per second = 3233.81 nps = 952929
+ number of times = 90686 , elapsed = 28014 , called per second = 3237.17 nps = 953841
+ number of times = 97294 , elapsed = 30015 , called per second = 3241.51 nps = 955083
+ number of times = 100000 , elapsed = 30842 , called per second = 3242.33
+ , solved per second = 149.115
+ solved = 4599 , accuracy = 4.599%
+mate_dfpn5 : Node48bitOrderingWithHash test end
+
+
+
+test matebench mode 63 file mate/mate11.sfen nodes 300 num 100000
+mate bench :
+ num (number of problems) = 100000
+ sfen file name           = mate/mate11.sfen
+ mate_ply                 = 3
+ nodes(nodes limit)       = 300
+ verbose                  = 0
+ mode                     = 63
+ dfpn_mem [MB]            = 1024
+ dfpn_hash[MB]            = 1024
+read problems..
+...........number of problems read = 100000
+===== mate_odd_ply =====
+test start
+ number of times = 100000 , elapsed = 1930 , called per second = 51813.5
+ , solved per second = 0
+ solved = 0 , accuracy = 0%
+mate_odd_ply test end
+===== mate_dfpn1 : Node32bit =====
+test start
+ number of times = 9651 , elapsed = 2001 , called per second = 4823.09 nps = 1396021
+ number of times = 20972 , elapsed = 4002 , called per second = 5240.38 nps = 1518112
+ number of times = 32116 , elapsed = 6003 , called per second = 5349.99 nps = 1551960
+ number of times = 42973 , elapsed = 8004 , called per second = 5368.94 nps = 1557527
+ number of times = 54123 , elapsed = 10005 , called per second = 5409.6 nps = 1570232
+ number of times = 65233 , elapsed = 12006 , called per second = 5433.37 nps = 1577475
+ number of times = 76506 , elapsed = 14007 , called per second = 5461.98 nps = 1586107
+ number of times = 87612 , elapsed = 16008 , called per second = 5473.01 nps = 1588972
+ number of times = 98612 , elapsed = 18009 , called per second = 5475.71 nps = 1589707
+ number of times = 100000 , elapsed = 18259 , called per second = 5476.75
+ , solved per second = 445.26
+ solved = 8130 , accuracy = 8.13%
+mate_dfpn1 : Node32bit test end
+===== mate_dfpn2 : Node16bitOrdering =====
+test start
+ number of times = 8951 , elapsed = 2001 , called per second = 4473.26 nps = 1259642
+ number of times = 17883 , elapsed = 4002 , called per second = 4468.52 nps = 1256582
+ number of times = 27001 , elapsed = 6003 , called per second = 4497.92 nps = 1265572
+ number of times = 36100 , elapsed = 8004 , called per second = 4510.24 nps = 1268313
+ number of times = 45083 , elapsed = 10005 , called per second = 4506.05 nps = 1268328
+ number of times = 54092 , elapsed = 12006 , called per second = 4505.41 nps = 1268869
+ number of times = 63137 , elapsed = 14007 , called per second = 4507.53 nps = 1269662
+ number of times = 72176 , elapsed = 16008 , called per second = 4508.75 nps = 1270155
+ number of times = 81395 , elapsed = 18009 , called per second = 4519.68 nps = 1272727
+ number of times = 90413 , elapsed = 20010 , called per second = 4518.39 nps = 1272465
+ number of times = 99333 , elapsed = 22011 , called per second = 4512.88 nps = 1271205
+ number of times = 100000 , elapsed = 22161 , called per second = 4512.43
+ , solved per second = 628.717
+ solved = 13933 , accuracy = 13.933%
+mate_dfpn2 : Node16bitOrdering test end
+===== mate_dfpn3 : Node48bitOrdering =====
+test start
+ number of times = 8981 , elapsed = 2001 , called per second = 4488.26 nps = 1263907
+ number of times = 17979 , elapsed = 4002 , called per second = 4492.5 nps = 1263436
+ number of times = 26982 , elapsed = 6003 , called per second = 4494.75 nps = 1264668
+ number of times = 36166 , elapsed = 8004 , called per second = 4518.49 nps = 1270674
+ number of times = 45175 , elapsed = 10005 , called per second = 4515.24 nps = 1270909
+ number of times = 54321 , elapsed = 12006 , called per second = 4524.49 nps = 1274265
+ number of times = 63425 , elapsed = 14007 , called per second = 4528.09 nps = 1275411
+ number of times = 72525 , elapsed = 16008 , called per second = 4530.55 nps = 1276167
+ number of times = 81781 , elapsed = 18009 , called per second = 4541.12 nps = 1278785
+ number of times = 90816 , elapsed = 20010 , called per second = 4538.53 nps = 1278246
+ number of times = 99790 , elapsed = 22011 , called per second = 4533.64 nps = 1277128
+ number of times = 100000 , elapsed = 22076 , called per second = 4529.81
+ , solved per second = 631.138
+ solved = 13933 , accuracy = 13.933%
+mate_dfpn3 : Node48bitOrdering test end
+info string MateHash Clear begin , Hash size =  2048[MB]
+info string MateHash Clear done.
+===== mate_dfpn4 : Node32bitWithHash =====
+test start
+ number of times = 7322 , elapsed = 2001 , called per second = 3659.17 nps = 1059027
+ number of times = 14832 , elapsed = 4002 , called per second = 3706.15 nps = 1072538
+ number of times = 22439 , elapsed = 6003 , called per second = 3737.96 nps = 1082946
+ number of times = 30307 , elapsed = 8004 , called per second = 3786.48 nps = 1098017
+ number of times = 38235 , elapsed = 10005 , called per second = 3821.59 nps = 1108191
+ number of times = 46164 , elapsed = 12006 , called per second = 3845.08 nps = 1115518
+ number of times = 53890 , elapsed = 14007 , called per second = 3847.36 nps = 1116375
+ number of times = 61915 , elapsed = 16008 , called per second = 3867.75 nps = 1122517
+ number of times = 69795 , elapsed = 18009 , called per second = 3875.56 nps = 1124878
+ number of times = 77820 , elapsed = 20010 , called per second = 3889.06 nps = 1128915
+ number of times = 85777 , elapsed = 22011 , called per second = 3897.01 nps = 1130945
+ number of times = 93684 , elapsed = 24012 , called per second = 3901.55 nps = 1132394
+ number of times = 100000 , elapsed = 25607 , called per second = 3905.18
+ , solved per second = 320.576
+ solved = 8209 , accuracy = 8.209%
+mate_dfpn4 : Node32bitWithHash test end
+info string MateHash Clear begin , Hash size =  2048[MB]
+info string MateHash Clear done.
+===== mate_dfpn5 : Node48bitOrderingWithHash =====
+test start
+ number of times = 6854 , elapsed = 2001 , called per second = 3425.29 nps = 963529
+ number of times = 13666 , elapsed = 4002 , called per second = 3414.79 nps = 959821
+ number of times = 20559 , elapsed = 6003 , called per second = 3424.79 nps = 962642
+ number of times = 27081 , elapsed = 8004 , called per second = 3383.43 nps = 951470
+ number of times = 33401 , elapsed = 10005 , called per second = 3338.43 nps = 938247
+ number of times = 39474 , elapsed = 12006 , called per second = 3287.86 nps = 924517
+ number of times = 45740 , elapsed = 14007 , called per second = 3265.51 nps = 918689
+ number of times = 52352 , elapsed = 16008 , called per second = 3270.36 nps = 920366
+ number of times = 59202 , elapsed = 18009 , called per second = 3287.36 nps = 925418
+ number of times = 66126 , elapsed = 20010 , called per second = 3304.65 nps = 930216
+ number of times = 73026 , elapsed = 22011 , called per second = 3317.7 nps = 933997
+ number of times = 79968 , elapsed = 24012 , called per second = 3330.33 nps = 937306
+ number of times = 86910 , elapsed = 26013 , called per second = 3341.02 nps = 940216
+ number of times = 93813 , elapsed = 28014 , called per second = 3348.79 nps = 942560
+ number of times = 100000 , elapsed = 29812 , called per second = 3354.35
+ , solved per second = 471.891
+ solved = 14068 , accuracy = 14.068%
+mate_dfpn5 : Node48bitOrderingWithHash test end
+
+
+
+■　2021/1/17
+
+
+- Clang++12からpragma packで警告が出るようになったので削除
+  - 構造体18-bytesで、20-bytes確保されるのが気に食わなくてつけていた。
+  - KPPTの学習いまさらやらないから関係なさげ。
+  - 関連
+    - clang++12における警告抑止措置 #161 : https://github.com/yaneurao/YaneuraOu/pull/161
+
+
+■　2021/1/13
+
+
+- 256手引き分けルールの件、修正。
+  - やねうら王通常探索部とふかうら王の両方
+  - dlshogiもこのバグがあった。山岡さんに報告済み。
+
+  // dlshogiの場合、デフォルトではleaf nodeで5手詰めは呼び出しているので、その5手詰めで普通1手詰めが漏れることはないので、
+  // 256手ルールの256手目で1手詰めがあるのにそれを逃して257手目の局面に到達することはありえない…ということであれば、これは問題とはないならいですね。
+  // leaf nodeで5手詰めを呼び出さないエンジン設定にした時に困りますけども。
+
+
+- 256手引き分けルールに関するコメント追加。
+
+		  初手(76歩とか)が1手目である。1手目を指す前の局面はPosition::game_ply() == 1である。
+		  そして256手指された時点(257手目の局面で指す権利があること。サーバーから257手目の局面はやってこないものとする)で引き分けだとしたら
+		  257手目(を指す前の局面)は、game_ply() == 257である。これが、引き分け扱いということになる。
+
+			pos.game_ply() > limits.max_game_ply
+
+		　で(かつ、詰みでなければ)引き分けということになる。
+
+  関連)
+    多くの将棋ソフトで256手ルールの実装がバグっている件
+    https://yaneuraou.yaneu.com/2021/01/13/incorrectly-implemented-the-256-moves-rule/
+
+
+■　2021/1/11
+
+
+- ふかうら王、mate関連のmax_moves_to_drawはisready応答で設定するように変更。
+  - root node , leaf node用のmate solverの初期化を抽象化したのでmate solverの差し替えが比較的容易になった。
+
+
+- ふかうら王、5手詰めに関して、MaxMovesToDrawの影響をちゃんと考慮するように。
+  - MateOddPly、class化はされているので、draw plyだけ設定できればよさげ。
+
+- ふかうら王、宣言勝ちのテストする
+  - 将棋所とShogiGUIでどうなるか
+  	-			sync_cout << "info score mate 1 pv MOVE_WIN" << sync_endl;
+    - 将棋所、"MOVE_WIN"はそのまま読み筋に出力された。
+    - "score mate"の"score"を書き忘れていたの修正。
+    - ShogiGUIのほうは"MOVE_WIN"には非対応のようで、対応していない文字に関しては無視されるようである。
+      - "rep_draw"とかは以前ShogiGUIの掲示板で伝えたから対応してもらえているのか…。そうか…。
+
+- df-pnのmax_draw_plyによる制限、and nodeでの扱いが間違っていたので修正。
+  - and nodeでは、例えば256手ルールにおける257手の局面のand node側の手番で、指し手がある(詰みではない)時に不詰扱い。
+  - 「この指し手がある」という条件が考慮に入っていなかった。
+  - or nodeであれば、257手目の局面で不詰(自分が詰んでいる可能性もあるが、自分が詰んでいる場合も
+    いずれにせよ相手は不詰だから不詰扱いで問題ない)
+
+- NNTensorRT::release() のコード、cudaGetDevice()でdevice id退避させてるのは、あまり良くないと思うのでお掃除。
+  // Mizarさんのcommitに含まれていたコード。
+
+
+
+■　2021/1/10
+
+
+- ふかうら王、dlshogi 2021/01/09へのキャッチアップ
+  ※　大改造につき、何かバグってる可能性がある。あとでなおす。
+
+  cuDNN版を廃止 : https://github.com/TadaoYamaoka/DeepLearningShogi/commit/2134eedf3e1d8f37bab12444e55763a83eff1027
+    - ふかうら王、元から対応してなかった。
+  ノード管理の変更 : https://github.com/TadaoYamaoka/DeepLearningShogi/commit/f6d8ee9392c64e4696fab13da0bbd3e73b23c6d9
+  mutex pool : https://github.com/TadaoYamaoka/DeepLearningShogi/commit/aedc38482e2d240c6a2983d6d409fb8ef53de991
+    - これは適用済み
+  Draw_Ply対応 : https://github.com/TadaoYamaoka/DeepLearningShogi/commit/b17821705f90fbc0ef64e519f84355e294ed630e
+    - ふかうら王、対応済みであったが、df-pnの詰将棋では対応してなかったので修正した。
+
+  doMoveでgamePlyをインクリメントする : https://github.com/TadaoYamaoka/DeepLearningShogi/commit/4827213e16c88150ab9312f17907d3eb4f132772
+  undoMoveでgamePlyをデクリメントする : https://github.com/TadaoYamaoka/DeepLearningShogi/commit/b62363b54b79d17c7b360e6bb9d05026c3b47775
+    - 私が報告したAperyのバグ(仕様？)
+
+  visited_nnrateの加算にノード展開チェックは不要 : https://github.com/TadaoYamaoka/DeepLearningShogi/commit/10faf5f4d8383ffdf57c10d5e2dccd1563cf1893
+  未使用の引数削除 : https://github.com/TadaoYamaoka/DeepLearningShogi/commit/37a8424b17876f0bb16b0ca2e46bcab744d6437a
+  ノードの詰みなどの状態チェックを再帰呼び出しの前に行う : https://github.com/TadaoYamaoka/DeepLearningShogi/commit/070cc1217c645796844b8c16d876d93bf8063482
+  ルートでの詰みチェックを削除 : https://github.com/TadaoYamaoka/DeepLearningShogi/commit/4d3637f3194d249e5a1208e1de943b13e6bf070e
+    - これは残しておく。
+  リファクタリング : https://github.com/TadaoYamaoka/DeepLearningShogi/commit/671f6d0746389b8811c11e29ebd6d037978a4d03
+  未使用コード削除 : https://github.com/TadaoYamaoka/DeepLearningShogi/commit/5357f1010149ec841e679485c0922d6210950166
+    - 関係なさげ
+
+  WinCountType →　dlshogiに倣ってWinTypeに変更
+
+  PrintInfo.cppのコード整理
+    - ValueWinMoveCount削除　→　整理したら要らなくなった。
+
+  stopがきたとき、EvalNode()呼ばずにバックアップしてるのまずい気がする…。修正した。
+
+  ChildNumType導入。
+
+  dtype_one,dtype_zero廃止。
+    - fill_nで 1.0fと書かないと警告でるので、廃止しないでおく。
+
+  MoveCountType u32にしたら、NOT_EXPANDEDがすごく大きな数になってしまい、dlshogiと違うところで結構ハマるな…。
+
+  宣言勝ちの時、そのpvを出力する。
+			sync_cout << "info mate 1 pv MOVE_WIN" << sync_endl;
+
+- MaxMovesToDrawを超える手順の詰みは不詰扱いになっているかのテスト。
+  - 150手引き分けにして、140手目において20数手の詰みがある局面を思考させてみる。
+
+DebugMessage true
+MaxMovesToDraw 150
+isready
+position startpos moves 6i7h 8c8d 7g7f 8d8e 8h7g 3c3d 7i6h 2b7g+ 6h7g 4a3b 3g3f 3a4b 5i6h 7a6b 2g2f 4b3c 3i4h 7c7d 4g4f 9c9d 2i3g 6b7c 4i3h 7c6d 2f2e 7d7e 7f7e 6d7e 2e2d 2c2d P*2e P*7f 7g8h 8e8f 2e2d 8f8g+ 8h8g P*2b 2h2e P*8f 8g9h 7e6d 4h4g 5a5b 2e2i 9d9e P*8h 9e9f 9g9f B*7d 6h5h 7d9f 7h6h 8f8g+ 9h8g 9f8g+ 8h8g 9a9i+ 6h7h 9i8i 2i8i S*7g P*7i 8b9b L*9i P*9h B*8c 9b9g+ 8c6a+ 5b6a B*4a 6a7b G*8h 7g8h+ 7h8h 9g9c 9i9h 9c7c 4a3b+ 7f7g+ 8h7g 7c7g G*7h 7g7c 3b4a N*5e 4a5a 5e4g+ 3h4g S*3h S*4i B*2i N*8d 7b8c 5a7c 6d7c 4i3h 2i3h+ R*4h 3h3i 8d9b+ S*3h 9h9c+ 8c7b 5h6h 8a9c 8i9i 9c8e 9i9c+ 3h4g+ S*8c 7b6b 4h4g G*4h 9c8b 7c8b 8c7b+ 6b7b 9b8b 7b8b S*9c 8b9c P*9d 9c9d P*9e 9d9e S*8f 9e8d 8f8e 8d8e 8g8f 8e8f 7h7g 8f9g P*9h 9g9h P*9i 9h9i 4g4h
+go infinite
+
+
+
+■　2021/1/9
+
+
+- ふかうら王、GPU周りの改善
+  - Mizarさんのプルリク
+  - deep: 複数デバイス検知周りの改善 #159 : https://github.com/yaneurao/YaneuraOu/pull/159
+
+  deep/nn : モデル読込中の gpu_id, batchsize を出力
+  出力する項目の追加。
+
+  TensorRT : 存在しないCUDAデバイスを使おうとした時のエラー検知
+  cudaSetDevice() した時のエラー検知、これだけだと存在しないデバイスのスレッド数を設定した場合にエンジンがエラーで落ちるだけなので、後述のコミットで緩和を試みています。
+
+  TensorRT : cudaFree() の際、一時的に cudaMalloc() したデバイスに変更する
+  b2c38ec の補強、念の為、cudaFree()後に元のデバイスに戻るようにする。
+
+  TensorRT: シリアライズ時、ファイル名に device_name, pci_bus_id を含める
+  gpu_idが同じデバイスがずっと同じデバイスとは限らないため、ファイル名に device_name, pci_bus_id を含めて混同の可能性を薄める。
+
+  TensorRT : info string gpu_id , device_name , pci_bus_id
+  NNTensorRT::load_model() の際、gpu_id , device_name , pci_bus_id の情報を出力する。
+
+  indent YaneuraOu_dlshogi_bridge.cpp
+
+  deep : 対応デバイス数以上のIDに設定されたスレッド数を無視する
+  対応デバイスの数を検知し、デバイス数以上のIDに設定されたスレッド数を無視する事で、設定の食い違いによるエラー落ちを軽減する試み。
+  同じ設定で、8GPUでも2GPUでも1GPUでもそこそこ動く構成が出来るようにしたい。
+  ORT_DMLはその影響で、D3D12へのライブラリ依存を追加。とは言え、DirectMLはそもそもDirectX12対応が必須なので…。（自分の環境でしかテストしていないので、特にORT_DML版の方は何か拙い部分があるかもしれません）
+  cf. Direct ML#minimum_requirements - onnx runtime
+
+  The DirectML execution provider requires any DirectX 12 capable device. Almost all commercially-available graphics cards released in the last several years support DirectX 12. Examples of compatible hardware include:
+
+  NVIDIA Kepler (GTX 600 series) and above
+  AMD GCN 1st Gen (Radeon HD 7000 series) and above
+  Intel Haswell (4th-gen core) HD Integrated Graphics and above
+  DirectML is compatible with Windows 10, version 1709 (10.0.16299; RS3, “Fall Creators Update”) and newer.
+
+
+
+- Makefile修正。evallearnを指定した時だけ関連ソースファイルをコンパイルするように。
+  - そうでないときのビルド時間、少し短縮される？
+
 
 ■　2021/1/8
 

@@ -70,14 +70,11 @@ namespace dlshogi
 		// 前回思考した時とは異なるゲーム開始局面であるなら異なるゲームである。
 		// root nodeがまだ生成されていない
 
-		// DeallocateTree()したかのフラグ
-		bool deallocated = false;
-		if (this->game_root_sfen != game_root_sfen)
+		if (!game_root_node || this->game_root_sfen != game_root_sfen)
 		{
-			// Node作り直す必要がある
+			// Nodeを作る/作り直す必要がある
 			DeallocateTree();
 			this->game_root_sfen = game_root_sfen;
-			deallocated = true;
 		}
 
 		// 前回の探索開始局面
@@ -86,7 +83,7 @@ namespace dlshogi
 		// nodeを辿って行った時の一つ前のnode
 		Node* prev_head = nullptr;
 
-		// 現在のnode。ゲーム開始局面から辿っていく。
+		// 現在のNode。ゲーム開始局面から辿っていく。
 		current_head = game_root_node.get();
 
 		// 前回の探索rootの局面が、与えられた手順中に見つかったのかのフラグ
@@ -122,8 +119,7 @@ namespace dlshogi
 			else {
 				// 1手前の局面が存在しないということは、現在の局面が開始局面なので、
 				// 丸ごとNodeを作り直しておけば良い。
-				if (!deallocated)
-					DeallocateTree();
+				DeallocateTree();
 			}
 		}
 
