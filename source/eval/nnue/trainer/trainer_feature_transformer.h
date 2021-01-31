@@ -91,30 +91,41 @@ class Trainer<FeatureTransformer> {
     }
     batch_ = &batch;
     // affine transform
-#pragma omp parallel for
-    for (IndexType b = 0; b < batch.size(); ++b) {
-      const IndexType batch_offset = kOutputDimensions * b;
-      for (IndexType c = 0; c < 2; ++c) {
-        const IndexType output_offset = batch_offset + kHalfDimensions * c;
-#if defined(USE_BLAS)
-        cblas_scopy(kHalfDimensions, biases_, 1, &output_[output_offset], 1);
-        for (const auto& feature : batch[b].training_features[c]) {
-          const IndexType weights_offset = kHalfDimensions * feature.GetIndex();
-          cblas_saxpy(kHalfDimensions, (float)feature.GetCount(),
-                      &weights_[weights_offset], 1, &output_[output_offset], 1);
-        }
-#else
-        for (IndexType i = 0; i < kHalfDimensions; ++i) {
-          output_[output_offset + i] = biases_[i];
-        }
-        for (const auto& feature : batch[b].training_features[c]) {
-          const IndexType weights_offset = kHalfDimensions * feature.GetIndex();
-          for (IndexType i = 0; i < kHalfDimensions; ++i) {
-            output_[output_offset + i] +=
-                feature.GetCount() * weights_[weights_offset + i];
-          }
-        }
+#pragma omp parallel
+    {
+
+#if defined(_OPENMP)
+      // Windows環境下でCPUが２つあるときに、論理64コアまでしか使用されないのを防ぐために
+      // ここで明示的にCPUに割り当てる
+      int thread_index = omp_get_thread_num();    // 自分のthread numberを取得
+      WinProcGroup::bindThisThread(thread_index);
 #endif
+
+#pragma omp for
+      for (IndexType b = 0; b < batch.size(); ++b) {
+        const IndexType batch_offset = kOutputDimensions * b;
+        for (IndexType c = 0; c < 2; ++c) {
+          const IndexType output_offset = batch_offset + kHalfDimensions * c;
+#if defined(USE_BLAS)
+          cblas_scopy(kHalfDimensions, biases_, 1, &output_[output_offset], 1);
+          for (const auto& feature : batch[b].training_features[c]) {
+            const IndexType weights_offset = kHalfDimensions * feature.GetIndex();
+            cblas_saxpy(kHalfDimensions, (float)feature.GetCount(),
+                        &weights_[weights_offset], 1, &output_[output_offset], 1);
+          }
+#else
+          for (IndexType i = 0; i < kHalfDimensions; ++i) {
+            output_[output_offset + i] = biases_[i];
+          }
+          for (const auto& feature : batch[b].training_features[c]) {
+            const IndexType weights_offset = kHalfDimensions * feature.GetIndex();
+            for (IndexType i = 0; i < kHalfDimensions; ++i) {
+              output_[output_offset + i] +=
+                  feature.GetCount() * weights_[weights_offset + i];
+            }
+          }
+#endif
+        }
       }
     }
     // clipped ReLU
@@ -167,6 +178,10 @@ class Trainer<FeatureTransformer> {
 #if defined(_OPENMP)
       const IndexType num_threads = omp_get_num_threads();
       const IndexType thread_index = omp_get_thread_num();
+
+      // Windows環境下でCPUが２つあるときに、論理64コアまでしか使用されないのを防ぐために
+      // ここで明示的にCPUに割り当てる
+      WinProcGroup::bindThisThread(thread_index);
 #endif
       for (IndexType b = 0; b < batch_->size(); ++b) {
         const IndexType batch_offset = kOutputDimensions * b;
@@ -254,18 +269,29 @@ class Trainer<FeatureTransformer> {
           Round<typename LayerType::BiasType>(biases_[i] * kBiasScale);
     }
     std::vector<TrainingFeature> training_features;
-#pragma omp parallel for private(training_features)
-    for (IndexType j = 0; j < RawFeatures::kDimensions; ++j) {
-      training_features.clear();
-      Features::Factorizer<RawFeatures>::AppendTrainingFeatures(
-          j, &training_features);
-      for (IndexType i = 0; i < kHalfDimensions; ++i) {
-        double sum = 0.0;
-        for (const auto& feature : training_features) {
-          sum += weights_[kHalfDimensions * feature.GetIndex() + i];
+#pragma omp parallel
+    {
+
+#if defined(_OPENMP)
+      // Windows環境下でCPUが２つあるときに、論理64コアまでしか使用されないのを防ぐために
+      // ここで明示的にCPUに割り当てる
+      int thread_index = omp_get_thread_num();    // 自分のthread numberを取得
+      WinProcGroup::bindThisThread(thread_index);
+#endif
+
+#pragma omp for private(training_features)
+      for (IndexType j = 0; j < RawFeatures::kDimensions; ++j) {
+        training_features.clear();
+        Features::Factorizer<RawFeatures>::AppendTrainingFeatures(
+            j, &training_features);
+        for (IndexType i = 0; i < kHalfDimensions; ++i) {
+          double sum = 0.0;
+          for (const auto& feature : training_features) {
+            sum += weights_[kHalfDimensions * feature.GetIndex() + i];
+          }
+          target_layer_->weights_[kHalfDimensions * j + i] =
+              Round<typename LayerType::WeightType>(sum * kWeightScale);
         }
-        target_layer_->weights_[kHalfDimensions * j + i] =
-            Round<typename LayerType::WeightType>(sum * kWeightScale);
       }
     }
   }
