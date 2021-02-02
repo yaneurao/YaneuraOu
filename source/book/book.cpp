@@ -541,7 +541,25 @@ namespace Book
 			// この場合、sum_count == 0になるので、採用率を当確率だとみなして、1.0 / entries.size() にしておく。
 
 			for (const auto& entry : entries) {
-				BookMove book_pos(convert_move_from_apery(entry.fromToPro), MOVE_NONE , entry.score, 256, entry.count);
+
+				Move16 theMove16 = convert_move_from_apery(entry.fromToPro);
+				Move16 thePonder = MOVE_NONE;
+#if 0
+				// Aperyの定跡、ponderの指し手が書かれていない。合法手であるなら、1手進めて、その局面の定跡をprobe()して取得する。
+				// →　呼び出し元で定跡PVの構築のためにこれに該当する処理は行われるから、ここでやらなくてよさそう。
+				Move   theMove   = pos.to_move(theMove16);
+				if (pos.pseudo_legal_s<true>(theMove) && pos.legal(theMove))
+				{
+					StateInfo si;
+					Position* thePos = const_cast<Position*>(&pos);
+					thePos->do_move(theMove,si);
+					const auto& entries2 = apery_book->get_entries(pos);
+					if (entries2.size())
+						thePonder = convert_move_from_apery(entries2[0].fromToPro); // 1つ目の指し手にしておく。
+					thePos->undo_move(theMove);
+				}
+#endif
+				BookMove book_pos(theMove16 , thePonder , entry.score, 256, entry.count);
 				pml_entry->insert(book_pos,true);
 			}
 			pml_entry->sort_moves();

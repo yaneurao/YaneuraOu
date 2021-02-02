@@ -433,8 +433,9 @@ namespace dlshogi
 		if (book.probe(*th, Search::Limits))
 		{
 			// 定跡にhitしている以上、合法手がここに格納されているはず。
+			// ただし定跡DBによっては、2手目が格納されていないことはある。
 			Move bestMove   = th->rootMoves[0].pv[0];
-			     ponderMove = th->rootMoves[0].pv[1];
+			     ponderMove = th->rootMoves[0].pv.size() >= 2 ? th->rootMoves[0].pv[1] : MOVE_NONE;
 
 			return bestMove;
 		}
