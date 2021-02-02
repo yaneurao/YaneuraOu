@@ -440,6 +440,11 @@ USIプロトコルの独自拡張コマンド
 		[局面の指定]について
 		  "default"=デフォルトの局面、"current"=現在の局面、
 		  それ以外 = ファイル名とみなしてそのsfenファイルを読み込む
+      ※　ファイルの中身は、positionコマンドの、"position"より右側の羅列。
+        例)
+          sfen XXX
+          startpos
+          startpos moves XXX XXX ...
 
 		例) bench 1024 1 10 default depth
 

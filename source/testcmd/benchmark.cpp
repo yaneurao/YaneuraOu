@@ -12,23 +12,25 @@ using namespace std;
 //  USI拡張コマンド "bench"(ベンチマーク)
 // ----------------------------------
 
-// benchmark用デフォルトの局面集
-// これを増やすなら、下のほうの fens.assign のところの局面数も増やすこと。
-static const char* BenchSfen[] = {
+// positionコマンドのparserをbenchmarkコマンドから呼び出したい。
+extern void position_cmd(Position & pos, istringstream & is, StateListPtr & states);
 
+// benchmark用デフォルトの局面集
+const vector<string> BenchSfen =
+{
 	// 初期局面に近い曲面。
-	//"lnsgkgsnl/1r7/p1ppp1bpp/1p3pp2/7P1/2P6/PP1PPPP1P/1B3S1R1/LNSGKG1NL b - 9",
+	//"sfen lnsgkgsnl/1r7/p1ppp1bpp/1p3pp2/7P1/2P6/PP1PPPP1P/1B3S1R1/LNSGKG1NL b - 9",
 
 	// 読めば読むほど後手悪いような局面
-	"l4S2l/4g1gs1/5p1p1/pr2N1pkp/4Gn3/PP3PPPP/2GPP4/1K7/L3r+s2L w BS2N5Pb 1",
+	"sfen l4S2l/4g1gs1/5p1p1/pr2N1pkp/4Gn3/PP3PPPP/2GPP4/1K7/L3r+s2L w BS2N5Pb 1",
 
 	// 57同銀は詰み、みたいな。
 	// 読めば読むほど先手が悪いことがわかってくる局面。
-	"6n1l/2+S1k4/2lp4p/1np1B2b1/3PP4/1N1S3rP/1P2+pPP+p1/1p1G5/3KG2r1 b GSN2L4Pgs2p 1",
+	"sfen 6n1l/2+S1k4/2lp4p/1np1B2b1/3PP4/1N1S3rP/1P2+pPP+p1/1p1G5/3KG2r1 b GSN2L4Pgs2p 1",
 
 	// 指し手生成祭りの局面
 	// cf. http://d.hatena.ne.jp/ak11/20110508/p1
-	"l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1",
+	"sfen l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1",
 };
 
 void bench_cmd(Position& current, istringstream& is)
@@ -71,13 +73,19 @@ void bench_cmd(Position& current, istringstream& is)
 	else
 		limits.depth = stoi(limit);
 
-	Options["USI_Hash"] = ttSize;
-	Options["Threads"] = threads;
+	if (Options.count("USI_Hash"))
+		Options["USI_Hash"] = ttSize;
 
-#if defined(YANEURAOU_ENGINE)
+	// "Threads"があるとは仮定できない
+	if (Options.count("Threads"))
+		Options["Threads"] = threads;
+
+	if (Options.count("UCT_Threads1"))
+		Options["UCT_Threads1"] = threads;
+
 	// 定跡にhitされるとベンチマークにならない。
-	Options["BookFile"] = string("no_book");
-#endif
+	if (Options.count("BookFile"))
+		Options["BookFile"] = string("no_book");
 
 	// ベンチマークモードにしておかないとPVの出力のときに置換表を漁られて探索に影響がある。
 	limits.bench = true;
@@ -88,7 +96,7 @@ void bench_cmd(Position& current, istringstream& is)
 	// テスト用の局面
 	// "default"=デフォルトの局面、"current"=現在の局面、それ以外 = ファイル名とみなしてそのsfenファイルを読み込む
 	if (fenFile == "default")
-		fens.assign(BenchSfen, BenchSfen + 3);
+		fens = BenchSfen;
 	else if (fenFile == "current")
 		fens.push_back(current.sfen());
 	else
@@ -116,7 +124,9 @@ void bench_cmd(Position& current, istringstream& is)
 		// SetupStatesは破壊したくないのでローカルに確保
 		StateListPtr states(new StateList(1));
 
-		pos.set(fens[i] ,&states->back() , Threads.main());
+		// sfen文字列、Positionコマンドのparserで解釈させる。
+		istringstream is(fens[i]);
+		position_cmd(pos, is, states);
 
 		sync_cout << "\nPosition: " << (i + 1) << '/' << fens.size() << sync_endl;
 
@@ -137,7 +147,7 @@ void bench_cmd(Position& current, istringstream& is)
 		<< "\nNodes searched  : " << nodes
 		<< "\nNodes/second    : " << 1000 * nodes / elapsed;
 
-	if ((int)Options["Threads"] > 1)
+	if (stoi(threads) > 1)
 		cout
 		<< "\nNodes searched(main thread) : " << nodes_main
 		<< "\nNodes/second  (main thread) : " << 1000 * nodes_main / elapsed;
