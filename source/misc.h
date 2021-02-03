@@ -458,8 +458,8 @@ struct FileOperator
 	// また、callbackされた関数のなかでバッファが確保できなかった場合や、想定していたファイルサイズと異なった場合は、
 	// nullptrを返せば良い。このとき、read_file_to_memory()は、読み込みを中断し、エラーリターンする。
 
-	static Tools::Result ReadFileToMemory(const std::string& filename, std::function<void* (u64)> callback_func);
-	static Tools::Result WriteMemoryToFile(const std::string& filename, void* ptr, u64 size);
+	static Tools::Result ReadFileToMemory(const std::string& filename, std::function<void* (size_t)> callback_func);
+	static Tools::Result WriteMemoryToFile(const std::string& filename, void* ptr, size_t size);
 };
 
 // C#のTextReaderみたいなもの。

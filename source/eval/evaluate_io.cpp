@@ -73,8 +73,8 @@ namespace EvalIO
 				// file to memory
 				else if (in_.file_or_memory.file() && out_.file_or_memory.memory())
 				{
-					if (FileOperator::ReadFileToMemory(in_.file_or_memory.filename, [&](u64 size) {
-						if (size != input_block_size)
+					if (FileOperator::ReadFileToMemory(in_.file_or_memory.filename, [&](size_t size) {
+						if ((u64)size != input_block_size)
 						{
 							std::cout << "info string Error! : file size incorrect , file = " << in_.file_or_memory.filename
 								<< " , actual size = "<< size << " , needed_size = " << input_block_size << std::endl;
@@ -149,8 +149,8 @@ namespace EvalIO
 					input_buffer.resize(input_block_size);
 					in_ptr = (void*)&input_buffer[0];
 
-					if (FileOperator::ReadFileToMemory(in_.file_or_memory.filename, [&](u64 file_size) {
-						if (file_size != input_block_size)
+					if (FileOperator::ReadFileToMemory(in_.file_or_memory.filename, [&](size_t file_size) {
+						if ((u64)file_size != input_block_size)
 						{
 							std::cout << "info string Error! file_size = " << file_size << " , input_block_size = " << input_block_size << std::endl;
 							return (void*)nullptr;

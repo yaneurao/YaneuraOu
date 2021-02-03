@@ -561,7 +561,7 @@ ExtMove* generate_general(const Position& pos, ExtMove* mlist, Square recapSq = 
 }
 
 // -----------------------------------------------------
-//     王手生成関係。(やねうら王nanoでは削除予定)
+//      王手生成関係
 // -----------------------------------------------------
 
 // make_move_targetを呼び出すための踏み台

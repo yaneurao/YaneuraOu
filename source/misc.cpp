@@ -964,19 +964,19 @@ Tools::Result FileOperator::ReadAllLines(const std::string& filename, std::vecto
 	return Tools::Result::Ok();
 }
 
-Tools::Result FileOperator::ReadFileToMemory(const std::string& filename, std::function<void*(u64)> callback_func)
+Tools::Result FileOperator::ReadFileToMemory(const std::string& filename, std::function<void*(size_t)> callback_func)
 {
-	fstream fs(filename, ios::in | ios::binary);
-	if (fs.fail())
+	// fstream、遅いので、FILEを用いて書き換える。
+
+	FILE* fp = fopen(filename.c_str(), "rb");
+	if (fp == nullptr)
 		return Tools::Result(Tools::ResultCode::FileOpenError);
 
-	fs.seekg(0, fstream::end);
-	u64 eofPos = (u64)fs.tellg();
-	fs.clear(); // これをしないと次のseekに失敗することがある。
-	fs.seekg(0, fstream::beg);
-	u64 begPos = (u64)fs.tellg();
-	u64 file_size = eofPos - begPos;
-	//std::cout << "filename = " << filename << " , file_size = " << file_size << endl;
+	fseek(fp, 0, SEEK_END);
+	size_t endPos = (size_t)ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+	size_t beginPos = (size_t)ftell(fp);
+	size_t file_size = endPos - beginPos;
 
 	// ファイルサイズがわかったのでcallback_funcを呼び出してこの分のバッファを確保してもらい、
 	// そのポインターをもらう。
@@ -990,26 +990,27 @@ Tools::Result FileOperator::ReadFileToMemory(const std::string& filename, std::f
 
 	// 細切れに読み込む
 
-	const u64 block_size = 1024 * 1024 * 1024; // 1回のreadで読み込む要素の数(1GB)
-	for (u64 pos = 0; pos < file_size; pos += block_size)
+	const size_t block_size = 1024 * 1024 * 1024; // 1回のreadで読み込む要素の数(1GB)
+	for (size_t pos = 0; pos < file_size; pos += block_size)
 	{
 		// 今回読み込むサイズ
-		u64 read_size = (pos + block_size < file_size) ? block_size : (file_size - pos);
-		fs.read((char*)ptr + pos, read_size);
+		size_t read_size = (pos + block_size < file_size) ? block_size : (file_size - pos);
+		fread((u8*)ptr + pos, 1, read_size , fp);
 
 		// ファイルの途中で読み込みエラーに至った。
-		if (fs.fail())
-			return Tools::Result(Tools::ResultCode::FileReadError); // ファイル読み込み時のエラー
+		//if (fp.fail())
+		//	return Tools::Result(Tools::ResultCode::FileReadError); // ファイル読み込み時のエラー
+		// →　検出方法わからん
 
 		//cout << ".";
 	}
-	fs.close();
+	fclose(fp);
 
 	return Tools::Result::Ok();
 }
 
 
-Tools::Result FileOperator::WriteMemoryToFile(const std::string& filename, void* ptr, u64 size)
+Tools::Result FileOperator::WriteMemoryToFile(const std::string& filename, void* ptr, size_t size)
 {
 	fstream fs(filename, ios::out | ios::binary);
 	if (fs.fail())

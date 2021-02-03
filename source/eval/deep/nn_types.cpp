@@ -84,7 +84,7 @@ namespace Eval::dlshogi
 						(*features1)[c2][PIECETYPE_NUM + pt - 1][sq2] = dtype_one;
 				}
 
-				// ある升に対する利き数。MAX_ATTACK_NUM以上の利きは、MAX_ATTACK_NUM個であるとみなす。
+				// ある升sqに対するc側の利き数。MAX_ATTACK_NUM以上の利きは、MAX_ATTACK_NUM個であるとみなす。
 				const int num = std::min(MAX_ATTACK_NUM, position.attackers_to(c, sq, occupied_bb).pop_count());
 				for (int k = 0; k < num; k++)
 					// 利きの数のlayer数だけ、各layerに対してその升を1にしておく。

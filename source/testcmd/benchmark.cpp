@@ -71,6 +71,7 @@ void bench_cmd(Position& current, istringstream& is)
 		limits.mate = stoi(limit);
 
 	else
+		// depth limit
 		limits.depth = stoi(limit);
 
 	if (Options.count("USI_Hash"))

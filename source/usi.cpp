@@ -485,7 +485,6 @@ void position_cmd(Position& pos, istringstream& is , StateListPtr& states)
 	// やねうら王では、ここに保存しておくことになっている。
 	Threads.main()->game_root_sfen = sfen;
 	Threads.main()->moves_from_game_root = std::move(moves_from_game_root);
-
 }
 
 // "setoption"コマンド応答。

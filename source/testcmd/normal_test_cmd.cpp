@@ -75,7 +75,7 @@ namespace {
 
 		// 1手の思考長さ[ms]
 		int movetime = 500;    // default 500ms
-
+		
 		std::string token;
 		while (is >> token)
 		{
@@ -142,7 +142,7 @@ namespace {
 
 #if defined(USE_ENTERING_KING_WIN)
 				// MateEngineなど宣言勝ちをサポートしていないエンジンもある…。
-
+				
 				// 宣言勝ちのチェック
 				if (pos.DeclarationWin())
 					break;
@@ -196,7 +196,7 @@ namespace Test
 		if (token == "genmoves")         gen_moves(pos, is);       // 現在の局面に対して指し手生成のテストを行う。
 		else if (token == "autoplay")    auto_play(pos, is);       // 連続自己対局を行う。
 		else return false;									       // どのコマンドも処理することがなかった
-
+			
 		// いずれかのコマンドを処理した。
 		return true;
 	}

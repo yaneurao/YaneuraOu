@@ -222,6 +222,9 @@ namespace Eval::dlshogi
 
 	Tools::Result NNTensorRT::load_model(const string& filename)
 	{
+		// 前に読み込んでいたものがあるなら、それを開放する。
+		engine.reset();
+
 		// シリアライズされたファイルがあるなら、それを代わりに読み込む。
 
 		// デバイス情報の取得
@@ -229,15 +232,15 @@ namespace Eval::dlshogi
 		const auto re  = std::regex("[^A-Za-z0-9._-]");
 		const auto fmt = std::string("_");
 		cudaDeviceProp device_prop;
-		char pciBusId[cBufLen];
+		//char pciBusId[cBufLen];
 		checkCudaErrors(cudaGetDeviceProperties(&device_prop, gpu_id));
-		checkCudaErrors(cudaDeviceGetPCIBusId(pciBusId, cBufLen, gpu_id));
-
-		sync_cout << "info string gpu_id = " << gpu_id << ", device_name = " << device_prop.name << ", pci_bus_id = " << pciBusId << sync_endl;
+		//checkCudaErrors(cudaDeviceGetPCIBusId(pciBusId, cBufLen, gpu_id));
 
 		// ファイル名 + "." + (GPU_ID + "." +) DEVICE_NAME + "." + (PCI_BUS_ID + "." +) MAX_BATCH_SIZE + ".TRT" + NV_TENSORRT_VERSION + ".serialized"
 		// GPU_ID は個体に固有・固定ではない。（構成変更時に限らず、リブートしたらIDが変わることもある）
 		// 複数のCUDAデバイスが存在した時、全てのCUDAデバイスが同一とは限らない。
+
+		//sync_cout << "info string gpu_id = " << gpu_id << ", device_name = " << device_prop.name << ", pci_bus_id = " << pciBusId << sync_endl;
 
 		std::string serialized_filename =
 			filename + "." +
@@ -246,23 +249,33 @@ namespace Eval::dlshogi
 			// std::regex_replace(std::string(pciBusId), re, fmt) + "." +
 			std::to_string(max_batch_size) + "." +
 			"TRT" + std::to_string(NV_TENSORRT_VERSION) + ".serialized";
-		std::ifstream seriarizedFile(serialized_filename, std::ios::binary);
 
-		if (seriarizedFile.is_open())
+		sync_cout << "info string serialized filename = " << serialized_filename << sync_endl;
+
+		//std::ifstream seriarizedFile(serialized_filename, std::ios::binary);
+		// →　遅いのでReadFileToMemory()を用いる。これで一発で読み込める。
+
+		u8* modelPtr = nullptr;
+		size_t modelSize = 0;
+		auto result = FileOperator::ReadFileToMemory(serialized_filename, [&](size_t size) { modelPtr = new u8[size]; modelSize = size; return modelPtr; });
+
+		if (result.is_ok())
 		{
-			// deserializing a model
-			seriarizedFile.seekg(0, std::ios_base::end);
-			const size_t modelSize = seriarizedFile.tellg();
-			seriarizedFile.seekg(0, std::ios_base::beg);
-			std::unique_ptr<char[]> blob(new char[modelSize]);
-			seriarizedFile.read(blob.get(), modelSize);
 			auto runtime = InferUniquePtr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(gLogger));
-			engine = InferUniquePtr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(blob.get(), modelSize, nullptr));
+			engine = InferUniquePtr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(modelPtr , modelSize, nullptr));
+
+			// ドライバのバージョンが異なるなどが原因で、デシリアライズに失敗することがある。その場合はやりなおす。
+			if (!engine)
+				sync_cout << "info string Warning! TensorRT : Failed to deserialize the model file. filename = " << serialized_filename << sync_endl;
 		}
-		else
+
+		// デシリアライズされたファイルがなかったか、デシリアライズに失敗している。
+		if (!engine)
 		{
 			// 初回のみビルドが必要。
 			// シリアライズされたファイルを生成する。
+			sync_cout << "info string TensorRT : build the model file." << sync_endl;
+
 			build(filename);
 
 			// serializing a model
