@@ -235,16 +235,17 @@ namespace Eval::dlshogi
 
 		sync_cout << "info string gpu_id = " << gpu_id << ", device_name = " << device_prop.name << ", pci_bus_id = " << pciBusId << sync_endl;
 
-		// ファイル名 + "." + GPU_ID + "." + DEVICE_NAME + "." + PCI_BUS_ID + "." + MAX_BATCH_SIZE + ".serialized"
+		// ファイル名 + "." + (GPU_ID + "." +) DEVICE_NAME + "." + (PCI_BUS_ID + "." +) MAX_BATCH_SIZE + ".TRT" + NV_TENSORRT_VERSION + ".serialized"
 		// GPU_ID は個体に固有・固定ではない。（構成変更時に限らず、リブートしたらIDが変わることもある）
 		// 複数のCUDAデバイスが存在した時、全てのCUDAデバイスが同一とは限らない。
 
 		std::string serialized_filename =
 			filename + "." +
-			std::to_string(gpu_id) + "." +
+			// std::to_string(gpu_id) + "." +
 			std::regex_replace(std::string(device_prop.name), re, fmt) + "." +
-			std::regex_replace(std::string(pciBusId), re, fmt) + "." +
-			std::to_string(max_batch_size) + ".serialized";
+			// std::regex_replace(std::string(pciBusId), re, fmt) + "." +
+			std::to_string(max_batch_size) + "." +
+			"TRT" + std::to_string(NV_TENSORRT_VERSION) + ".serialized";
 		std::ifstream seriarizedFile(serialized_filename, std::ios::binary);
 
 		if (seriarizedFile.is_open())
