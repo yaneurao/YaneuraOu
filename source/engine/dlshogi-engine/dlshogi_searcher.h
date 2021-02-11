@@ -115,16 +115,12 @@ namespace dlshogi
 		NodeCountType c_base_root  = 25617;
 
 		// --- 千日手の価値
-		// →これらの値を直接使わずに、get_draw_value_black(),get_draw_value_white()を用いること。
+		// →これらの値を直接使わずに、draw_value()を用いること。
 
-		// エンジンオプションの"Draw_Value_Black","Draw_Value_White","Draw_Value_From_Black"の値。
+		// エンジンオプションの"Draw_Value_Black","Draw_Value_White"の値。
 
-		float draw_value_black = 0.5f; // 先手が千日手にした時の価値(≒評価値)。1.0fにすると勝ちと同じ扱い。0.0fにすると負けと同じ扱い。
-		float draw_value_white = 0.5f; // 後手が千日手にした時の価値(≒評価値)。
-
-		// エンジンオプションの"Draw_Value_From_Black"の値。
-		// これがtrueでかつrootColor == WHITEなら、draw_value_blackとdraw_value_whiteを入れ替えて考える。
-		bool draw_value_from_black = false; 
+		float draw_value_black = 0.5f; // rootcolorが先手で、千日手にした時の価値(≒評価値)。1.0fにすると勝ちと同じ扱い。0.0fにすると負けと同じ扱い。
+		float draw_value_white = 0.5f; // rootcolorが後手で、千日手にした時の価値(≒評価値)。
 
 		// 投了する勝率。これを下回った時に投了する。
 		// エンジンオプションの"Resign_Threshold"を1000で割った値
@@ -153,6 +149,7 @@ namespace dlshogi
 		// エンジンオプションの "UCT_NodeLimit" の値。
 		// これは、Nodeを作る数の制限。これはメモリ使用量に影響する。
 		// 探索したノード数とは異なる。
+		// ※　探索rootでの訪問回数(move_count)がこれを超えたらhashfullとして探索を中止する。
 		NodeCountType uct_node_limit;
 
 		// エンジンオプションの"MultiPV"の値。
@@ -290,21 +287,14 @@ namespace dlshogi
 		// 千日手の価値設定
 		//   value_black           : この値を先手の千日手の価値とみなす。(千分率)
 		//   value_white           : この値を後手の千日手の価値とみなす。(千分率)
-		//   draw_value_from_black : エンジンオプションの"Draw_Value_From_Black"の値。
-		void SetDrawValue(const int value_black, const int value_white,bool draw_value_from_black);
+		void SetDrawValue(const int value_black, const int value_white);
 
-		// 先手の引き分けのスコアを返す。
-		float draw_value_black() const {
-			return (search_options.draw_value_from_black && search_limits.root_color == WHITE)
-				? search_options.draw_value_white // draw_value_from_blackかつ後手番なら、後手の引き分けのスコアを返す
-				: search_options.draw_value_black;
-		}
-
-		// 後手の引き分けのスコアを返す。
-		float draw_value_white() const {
-			return (search_options.draw_value_from_black && search_limits.root_color == WHITE)
-				? search_options.draw_value_black
-				: search_options.draw_value_white;
+		// 引き分けのスコアを返す。
+		// これは、root color , side_to_move に依存する。
+		float draw_value(Color side_to_move) const {
+			return (search_limits.root_color == BLACK)
+				? (side_to_move == BLACK ? search_options.draw_value_black : 1 - search_options.draw_value_black)
+				: (side_to_move == WHITE ? search_options.draw_value_white : 1 - search_options.draw_value_white);
 		}
 
 		// 1手にかける時間取得[ms]

@@ -526,8 +526,8 @@ namespace dlshogi
 
 				case REPETITION_DRAW    : // 引き分け
 					uct_child[next_index].SetDraw();
-					// 現在の局面が先手番であるとしたら、この指し手は後手が選んだ指し手による千日手成立なので後手の引き分けのスコアを用いる。
-					result = (pos->side_to_move() == BLACK) ? ds->draw_value_white() : ds->draw_value_black();
+					// 引き分け時のスコア(これはroot colorに依存する)
+					result = 1 - ds->draw_value(pos->side_to_move());
 					break;
 
 				case REPETITION_NONE    : // 繰り返しはない
@@ -535,7 +535,7 @@ namespace dlshogi
 					// 詰みチェック
 
 #if !defined(LOG_PRINT)
-										
+
 					bool isMate =
 						// Mate::mate_odd_ply()は自分に王手がかかっていても詰みを読めるはず…。
 					#if defined(USE_DFPN_AT_LEAF_NODE)
@@ -612,14 +612,8 @@ namespace dlshogi
 			}
 			// 千日手チェック
 			else if (uct_child[next_index].IsDraw()) {
-				if (pos->side_to_move() == BLACK) {
-					// 白が選んだ手なので、白の引き分けの価値を返す
-					result = ds->draw_value_white();
-				}
-				else {
-					// 黒が選んだ手なので、黒の引き分けの価値を返す
-					result = ds->draw_value_black();
-				}
+				// 反転して値を返すため、1から引き算して返す。
+				result = 1 - ds->draw_value(pos->side_to_move());
 			}
 			// 詰みのチェック
 			else if (next_node->child_num == 0) {
@@ -707,7 +701,7 @@ namespace dlshogi
 				return i;
 			}
 
-			const WinType win = uct_child[i].win;
+			const WinType       win        = uct_child[i].win;
 			const NodeCountType move_count = uct_child[i].move_count;
 
 			if (move_count == 0) {
@@ -721,7 +715,23 @@ namespace dlshogi
 				u = sqrt_sum / (1 + move_count);
 			}
 
+			// policy networkの値
 			const float rate = uct_child[i].nnrate;
+
+			// MCTSとの組み合わせの時には、UCBの代わりにp-UCB値を用いる。
+			//
+			// 親ノードでi番目の指し手を指した局面を子ノードと呼ぶ。 
+			// 　子ノードのvalue networkの値           : v(s_i)    ==> 変数 q
+			// 　親ノードの指し手iのpolicy networkの値 :   p_i     ==> 変数 rate
+			// 　親nodeの訪問数                        :   n       ==> 変数 sum
+			// 　子ノードの訪問数                      :   n_i     ==> 変数 move_count
+			//
+			//   (論文によく出てくるp-UCBの式は、)
+			//         p-UCB = v(s_i) + p_i・c・sqrt(n)/(1+n_i)
+			//
+			//   ※　v(s_i)は、初回はvalue networkの値を使うが、そのあとは、win / move_count のほうがより正確な期待勝率なのでそれを用いる。
+			//   ※　sqrt(n) ==> 変数sqrt_sum // 高速化のためループの外で計算している 
+			//    
 
 			const float ucb_value = q + c * u * rate;
 

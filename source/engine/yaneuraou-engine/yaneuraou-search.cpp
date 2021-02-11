@@ -75,22 +75,18 @@ void USI::extra_option(USI::OptionsMap & o)
 	o["SkillLevel"] << Option(20, 0, 20);
 
 	// 引き分けを受け入れるスコア
-	// 歩を100とする。例えば、この値を100にすると引き分けの局面は評価値が -100とみなされる。
+	// 歩を100とする。例えば、この値を -100にすると引き分けの局面は評価値が -100とみなされる。
 
-	// 千日手での引き分けを回避しやすくなるように、デフォルト値を2に変更した。[2017/06/03]
-	// ちなみに、2にしてあるのは、
-	//  int contempt = Options["Contempt"] * PawnValue / 100; でPawnValueが100より小さいので
+	// 千日手での引き分けを回避しやすくなるように、デフォルト値を-2。
+	// ちなみに、-2にしてあるのは、
+	//  int draw_value = Options["DrawValueBlack"] * PawnValue / 100; でPawnValueが100より小さいので
 	// 1だと切り捨てられてしまうからである。
 
-	o["Contempt"] << Option(2, -30000, 30000);
+	// Stockfishでは"Contempt"というエンジンオプションであったが、先後の区別がつけられないし、
+	// 分かりづらいので変更した。
 
-	// Contemptの設定値を先手番から見た値とするオプション。Stockfishからの独自拡張。
-	// 先手のときは千日手を狙いたくなくて、後手のときは千日手を狙いたいような場合、
-	// このオプションをオンにすれば、Contemptをそういう解釈にしてくれる。
-	// この値がtrueのときは、Contemptを常に先手から見たスコアだとみなす。
-
-	o["ContemptFromBlack"] << Option(false);
-
+	o["DrawValueBlack"] << Option(-2, -30000, 30000);
+	o["DrawValueWhite"] << Option(-2, -30000, 30000);
 
 	//  PVの出力の抑制のために前回出力時間からの間隔を指定できる。
 	o["PvInterval"] << Option(300, 0, 100000);
@@ -460,24 +456,14 @@ void MainThread::search()
 
 	// --- contempt factor(引き分けのスコア)
 
-	// Option["Contempt"]とOption["ContemptFromBlack"]をdrawValueTableに反映させる。
+	// 引き分け時の値として現在の手番に応じた値を設定してやる。
 
-	// Contempt: 引き分けを受け入れるスコア。歩を100とする。例えば、この値を100にすると引き分けの局面は
-	// 評価値が - 100とみなされる。(互角と思っている局面であるなら引き分けを選ばずに他の指し手を選ぶ)
-	// contempt_from_blackがtrueのときは、Contemptを常に先手から見たスコアだとみなす。
+	int draw_value = (int)((us == BLACK ? Options["DrawValueBlack"] : Options["DrawValueWhite"]) * PawnValue / 100);
 
-	int contempt = (int)(Options["Contempt"] * PawnValue / 100);
-	if (!Options["ContemptFromBlack"])
-	{
-		// contemptの値を現在の手番側(us)から見た値とみなす。
-		drawValueTable[REPETITION_DRAW][ us] = VALUE_ZERO - Value(contempt);
-		drawValueTable[REPETITION_DRAW][~us] = VALUE_ZERO + Value(contempt);
-	}
-	else {
-		// contemptの値を、現在の手番ではなく先手から見た値だとみなす。
-		drawValueTable[REPETITION_DRAW][BLACK] = VALUE_ZERO - Value(contempt);
-		drawValueTable[REPETITION_DRAW][WHITE] = VALUE_ZERO + Value(contempt);
-	}
+	// 探索のleaf nodeでは、相手番(root_color != side_to_move)である場合、 +draw_valueではなく、-draw_valueを設定してやらないと非対称な探索となって良くない。
+	// 例) 自分は引き分けを勝ち扱いだと思って探索しているなら、相手は、引き分けを負けとみなしてくれないと非対称になる。
+	drawValueTable[REPETITION_DRAW][ us] = Value(+draw_value);
+	drawValueTable[REPETITION_DRAW][~us] = Value(-draw_value);
 
 	// PVの出力間隔[ms]
 	// go infiniteはShogiGUIなどの検討モードで動作させていると考えられるので

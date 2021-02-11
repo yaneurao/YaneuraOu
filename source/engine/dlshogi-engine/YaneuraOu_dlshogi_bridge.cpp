@@ -62,20 +62,11 @@ void USI::extra_option(USI::OptionsMap& o)
 	o["Resign_Threshold"]            << USI::Option(0, 0, 1000);
 
 	// 引き分けの時の値 : 1000分率で
-
-	o["Draw_Value_Black"]            << USI::Option(500, 0, 1000);
-    o["Draw_Value_White"]            << USI::Option(500, 0, 1000);
-
-	// これがtrueであるなら、root color(探索開始局面の手番)が後手なら、
-	//
-	// Draw_Value_BlackとDraw_Value_Whiteの値を入れ替えたものとみなす。
-	// 大会では「(自分が先手か後手かはわからないけど)自分はできれば千日手を狙いたくて、
-	// 相手のソフトは千日手を引き分けだとみなしている」状況では、root color(開始局面の手番)と、
-	// root colorの反対の手番(相手のcolor)に対して、それぞれ、0.7 , 0.5のように設定したいことがある。
-	// これを実現するために、root colorが後手なら、Draw_Value_BlackとDraw_Value_Whiteを入れ替えてくれる
-	// オプションがあれば良い。それがこれ。
-
-	o["Draw_Value_From_Black"]       << USI::Option(false);
+	// 引き分けの局面では、この値とみなす。
+	// root color(探索開始局面の手番)に応じて、2通り。
+	
+	o["DrawValueBlack"]            << USI::Option(500, 0, 1000);
+	o["DrawValueWhite"]            << USI::Option(500, 0, 1000);
 
 	// --- PUCTの時の定数
 	// これ、探索パラメーターの一種と考えられるから、最適な値を事前にチューニングして設定するように
@@ -234,9 +225,8 @@ void Search::clear()
 	Eval::dlshogi::set_softmax_temperature( 174 / 100.0f);
 
 	searcher.SetDrawValue(
-		(int)Options["Draw_Value_Black"],
-		(int)Options["Draw_Value_White"],
-		Options["Draw_Value_From_Black"]);
+		(int)Options["DrawValueBlack"],
+		(int)Options["DrawValueWhite"]);
 
 	searcher.SetPonderingMode(Options["USI_Ponder"]);
 

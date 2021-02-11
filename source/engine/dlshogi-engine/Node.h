@@ -48,6 +48,7 @@ namespace dlshogi
 		void SetLose() { move = (Move)(move | VALUE_LOSE); }
 		bool IsDraw() const { return move & VALUE_DRAW; }
 		void SetDraw() { move = (Move)(move | VALUE_DRAW); }
+		// →　SetDraw()したときに、win = DRAW_VALUEにしたほうが良くないかな…。
 
 		// 親局面(Node)で、このedgeに至るための指し手
 		Move move;

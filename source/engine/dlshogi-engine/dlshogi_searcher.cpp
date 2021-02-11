@@ -198,14 +198,13 @@ namespace dlshogi
 	}
 
 	// 千日手の価値設定
-	//   value_black           : この値を先手の千日手の価値とみなす。(千分率)
-	//   value_white           : この値を後手の千日手の価値とみなす。(千分率)
+	//   value_black           : この値をroot colorが先手番の時の千日手の価値とみなす。(千分率)
+	//   value_white           : この値をroot colorが後手番の時の千日手の価値とみなす。(千分率)
 	//   draw_value_from_black : エンジンオプションの"Draw_Value_From_Black"の値。
-	void DlshogiSearcher::SetDrawValue(const int value_black, const int value_white,bool draw_value_from_black)
+	void DlshogiSearcher::SetDrawValue(const int value_black, const int value_white)
 	{
 		search_options.draw_value_black = (float)value_black / 1000.0f;
 		search_options.draw_value_white = (float)value_white / 1000.0f;
-		search_options.draw_value_from_black = draw_value_from_black;
 	}
 
 	// →　これは、エンジンオプションの"MaxMovesToDraw"を自動的にDlshogiSearcher::SetLimits()で設定するので不要。
