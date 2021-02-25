@@ -199,7 +199,6 @@ namespace Mate
 		template <bool GEN_ALL>
 		Move mated_even_ply(Position& pos, const int ply);
 
-
 		// 3手詰めチェック
 		// 手番側が王手でないこと
 		// mate_even_ply()から内部的に呼び出される。

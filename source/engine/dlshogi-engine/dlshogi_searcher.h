@@ -57,7 +57,7 @@ namespace dlshogi
 		// -- 探索開始局面の情報
 
 		// 今回の探索のrootColor
-		// ※　draw_value_from_blackの実装のためにこここに持っておく必要がある。
+		// ※　draw_valueなどの実装のためにこここに持っておく必要がある。
 		Color root_color;
 
 		// 探索開始局面

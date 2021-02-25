@@ -510,6 +510,7 @@ namespace Mate::Dfpn32
 				return MOVE_NULL;
 
 			// 制限ノード数では解けなかった。
+			// もしくはout of memory
 			return MOVE_NONE;
 		}
 
@@ -1064,6 +1065,10 @@ namespace Mate::Dfpn32
 					if (node == current_root)
 					{
 						NodeType* child = new_node(1);
+						// メモリ確保に失敗ぽ。
+						if (child == nullptr)
+							return;
+
 						child->template init_mate_move<or_node>(move);
 						node->set_child(1,node_manager.node_to_node_index(child));
 					}
@@ -1132,6 +1137,10 @@ namespace Mate::Dfpn32
 				{
 					// 詰んだ
 					NodeType* child = new_node(1);
+					// メモリ確保に失敗ぽ。
+					if (child == nullptr)
+						return;
+
 					child->template init_mate_move<or_node>(mate_move);
 
 					node->set_child(1,node_manager.node_to_node_index(child));
@@ -1175,14 +1184,9 @@ namespace Mate::Dfpn32
 			}
 			else {
 				NodeType* children = new_node(child_num);
-				// out of memory
+				// メモリ確保に失敗ぽ。
 				if (children == nullptr)
-				{
-					node->pn = node->dn = 1; // とりま何らか設定だけしておく。
-					if (WithHash)
-						node->repeated = true;
 					return;
-				}
 
 				// 忘れないうちにぶら下げておく。
 				node->set_child(child_num , node_manager.node_to_node_index(children) );
