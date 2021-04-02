@@ -30,7 +30,7 @@ struct MoveIntFloat
 	bool operator < (const MoveIntFloat& rhs) const {
 		return nnrate < rhs.nnrate;
 	}
-	
+
 	std::string to_string()
 	{
 		return to_usi_string(move) + " " + std::to_string(label) + " " + std::to_string(nnrate);
@@ -227,7 +227,7 @@ namespace dlshogi
 	{
 #if defined(LOG_PRINT)
 		logger.print("sfen "+pos->sfen(0));
-#endif		
+#endif
 
 		//cout << "QueuingNode:" << index << ":" << current_policy_value_queue_index << ":" << current_policy_value_batch_index << endl;
 		//cout << pos->toSFEN() << endl;
@@ -358,7 +358,7 @@ namespace dlshogi
 
 				if (result != DISCARDED)
 				{
-					atomic_fetch_add(&search_limits.nodes_searched, 1);
+					atomic_fetch_add(&search_limits.nodes_searched, (NodeCountType)1);
 					//  →　ここで加算するとnpsの計算でまだEvalNodeしてないものまで加算されて
 					// 大きく見えてしまうのでもう少しあとで加算したいところだが…。
 				}
@@ -428,7 +428,7 @@ namespace dlshogi
 	// 返し値 : currentの局面の期待勝率を返すが、以下の特殊な定数を取ることがある。
 	//   QUEUING      : 評価関数を呼び出した。(呼び出しはqueuingされていて、完了はしていない)
 	//   DISCARDED    : 他のスレッドがすでにこのnodeの評価関数の呼び出しをしたあとであったので、何もせずにリターンしたことを示す。
-	// 
+	//
 	float UctSearcher::UctSearch(Position* pos, ChildNode* parent , Node* current, NodeVisitor& visitor)
 	{
 		auto ds = grp->get_dlsearcher();
@@ -720,7 +720,7 @@ namespace dlshogi
 
 			// MCTSとの組み合わせの時には、UCBの代わりにp-UCB値を用いる。
 			//
-			// 親ノードでi番目の指し手を指した局面を子ノードと呼ぶ。 
+			// 親ノードでi番目の指し手を指した局面を子ノードと呼ぶ。
 			// 　子ノードのvalue networkの値           : v(s_i)    ==> 変数 q
 			// 　親ノードの指し手iのpolicy networkの値 :   p_i     ==> 変数 rate
 			// 　親nodeの訪問数                        :   n       ==> 変数 sum
@@ -730,8 +730,8 @@ namespace dlshogi
 			//         p-UCB = v(s_i) + p_i・c・sqrt(n)/(1+n_i)
 			//
 			//   ※　v(s_i)は、初回はvalue networkの値を使うが、そのあとは、win / move_count のほうがより正確な期待勝率なのでそれを用いる。
-			//   ※　sqrt(n) ==> 変数sqrt_sum // 高速化のためループの外で計算している 
-			//    
+			//   ※　sqrt(n) ==> 変数sqrt_sum // 高速化のためループの外で計算している
+			//
 
 			const float ucb_value = q + c * u * rate;
 
