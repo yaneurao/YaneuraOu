@@ -306,6 +306,10 @@ USIプロトコルの独自拡張コマンド
     その場合、NetworkDelay,NetworkDelay2の値を調整すること。
     // NetworkDelayは普通、400ぐらいが最適値だと思う。
 
+	DebugMessage
+
+		デバッグ用のメッセージ出力の有無。
+
     例)
     DebugMessageをオンにすると以下のようなログが出力される。
     > info string search search_end = 3600[ms], interruption time = 3604[ms]
@@ -316,10 +320,17 @@ USIプロトコルの独自拡張コマンド
     NetworkDelay2 は(ネット対戦であれば)そこに1秒ぐらい足して、1800ぐらいが順当。(←切れたら即負けなので少しマージンを持たせる)
     ネット対戦でなければ、+500程度のマージンで良いと思う。
 
+	
+	Softmax_Temperature
+		探索のSoftmaxの温度。100分率で指定する。
+		174を指定すると1.74の意味。
 
-	DebugMessage
+		以下記事に書いてあるように、従来は1.74だったが、hcpe3形式の教師ファイルから学習させると
+		1.40～1.50ぐらいが最適値となるようだ。
 
-		デバッグ用のメッセージ出力の有無。
+			将棋AIの実験ノート：方策の分布を学習すると探索パラメータの調整が必要になる
+			https://tadaoyamaoka.hatenablog.com/entry/2021/04/05/215431
+
 
 	UCT_NodeLimit
 

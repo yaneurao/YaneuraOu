@@ -84,8 +84,9 @@ void USI::extra_option(USI::OptionsMap& o)
     o["C_init_root"]                 << USI::Option(116, 0, 500);
     o["C_base_root"]                 << USI::Option(25617, 10000, 100000);
 
-    o["Softmax_Temperature"]         << USI::Option(174, 1, 500);
 #endif
+	// 探索のSoftmaxの温度
+	o["Softmax_Temperature"]		 << USI::Option( 174 /* 新しいmodelファイルだと140から150ぐらいが最適値 */ , 1, 500);
 
 	// 各GPU用のDNNモデル名と、そのGPU用のUCT探索のスレッド数と、そのGPUに一度に何個の局面をまとめて評価(推論)を行わせるのか。
 	// GPUは最大で8個まで扱える。
@@ -216,13 +217,14 @@ void Search::clear()
 	search_options.c_init_root          =                Options["C_init_root"         ] / 100.0f;
 	search_options.c_base_root          = (NodeCountType)Options["C_base_root"         ];
 
-	set_softmax_temperature(options["Softmax_Temperature"] / 100.0f);
 #endif
 
 	// softmaxの時のボルツマン温度設定
-	// これは、dlshogiの"Softmax_Temperature"の値。(174)
-	// 決め打ちでいいと思う。
-	Eval::dlshogi::set_softmax_temperature( 174 / 100.0f);
+	// これは、dlshogiの"Softmax_Temperature"の値。(174) = 1.74
+	// hcpe3から学習させたmodelの場合、1.40～1.50ぐらいにしないといけない。
+	// cf. https://tadaoyamaoka.hatenablog.com/entry/2021/04/05/215431
+
+	Eval::dlshogi::set_softmax_temperature(Options["Softmax_Temperature"] / 100.0f);
 
 	searcher.SetDrawValue(
 		(int)Options["DrawValueBlack"],

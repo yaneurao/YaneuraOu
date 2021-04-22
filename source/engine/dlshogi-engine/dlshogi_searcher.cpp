@@ -868,6 +868,7 @@ namespace dlshogi
 	// df-pn探索する。
 	// この関数を呼び出すとsearching = trueになり、探索が終了するとsearching = falseになる。
 	// nodes_limit   = 探索ノード数上限
+	// Threads.stop == trueになるとdfpn探索を終了する。
 	void RootDfpnSearcher::search(const Position& rootPos , u32 nodes_limit)
 	{
 		searching = true;
