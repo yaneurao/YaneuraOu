@@ -162,10 +162,10 @@ namespace dlshogi
 		// (歩の不成、敵陣2段目の香の不成など)全合法手を生成するのか。
 		bool generate_all_legal_moves = false;
 
-		// leaf node(探索の末端の局面)での奇数手詰みルーチンを呼び出す時の手数
-		// 0 = 奇数手詰めを呼び出さない。
-		// エンジンオプションの"MateSearchPly"の値。
-		int mate_search_ply;
+		// leaf node(探索の末端の局面)でのdf-pn詰みルーチンを呼び出す時のノード数上限
+		// 0 = 呼び出さない。
+		// エンジンオプションの"LeafDfpnNodesLimit"の値。
+		int leaf_dfpn_nodes_limit;
 
 		// root node(探索開始局面)でのdf-pnによる詰み探索を行う時の調べるノード(局面)数
 		// これが0だと詰み探索を行わない。最大で指定したノード数まで詰み探索を行う。

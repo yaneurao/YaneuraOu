@@ -166,12 +166,9 @@ namespace dlshogi
 			//		ready_th(true),
 			//		term_th(false),
 			//#endif
-			policy_value_batch_maxsize(policy_value_batch_maxsize)
-		#if defined(USE_DFPN_AT_LEAF_NODE)
+			policy_value_batch_maxsize(policy_value_batch_maxsize),
 			// df-pn mate solverをleaf nodeで使う。
-			// ※　実験中
-			,mate_solver(Mate::Dfpn::DfpnSolverType::Node16bitOrdering)
-		#endif
+			mate_solver(Mate::Dfpn::DfpnSolverType::Node16bitOrdering)			
 		{
 			// 推論(NN::forward())のためのメモリを動的に確保する。
 			// GPUを利用する場合は、GPU側のメモリを確保しなければならないので、alloc()は抽象化されている。
@@ -193,10 +190,8 @@ namespace dlshogi
 			grp(o.grp),
 			thread_id(o.thread_id),
 			mt(std::move(o.mt)),
-			features1(o.features1),features2(o.features2),y1(o.y1),y2(o.y2)
-		#if defined(USE_DFPN_AT_LEAF_NODE)
-			,mate_solver(std::move(o.mate_solver))
-		#endif
+			features1(o.features1),features2(o.features2),y1(o.y1),y2(o.y2),
+			mate_solver(std::move(o.mate_solver))
 		{
 			o.features1 = nullptr;
 			o.features2 = nullptr;
@@ -310,15 +305,12 @@ namespace dlshogi
 		// NodeTreeを取得
 		NodeTree* get_node_tree() const;
 
-	#if !defined(USE_DFPN_AT_LEAF_NODE)
 		// 奇数手詰め用のsolver
-		Mate::MateSolver mate_solver;
-	#else
+		// Mate::MateSolver mate_solver;
+
 		// leaf node用のdf-pn solver
 		Mate::Dfpn::MateDfpnSolver mate_solver;
-	#endif
 	};
-
 }
 
 #endif

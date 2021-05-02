@@ -493,6 +493,7 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_MATE_DFPN
 	#define USE_PIECE_VALUE
 	#define ENABLE_TEST_CMD
+
 	// 勝率の集計を行う型としてdouble型を用いる。
 	#define WIN_TYPE_DOUBLE
 

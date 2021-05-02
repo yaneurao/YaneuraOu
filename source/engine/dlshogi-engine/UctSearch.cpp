@@ -257,34 +257,23 @@ namespace dlshogi
 	//     ここでそれを用いた設定をするわけにはいかない。
 	void UctSearcher::InitMateSearcher(const SearchOptions& options)
 	{
-	#if defined(USE_DFPN_AT_LEAF_NODE)
-
 		// -- leaf nodeでdf-pn solverを用いる時はメモリの確保が必要
 
 		// 300 nodeと5手詰めがだいたい等価(時間的に)
-		// ※　options.leaf_mate_search_nodes_limit とか用意すべきか？
-		// 300/* nodes */ * 16 /* bytes */ * 10 /* 平均分岐数 */ / (1024 * 1024) = 0.045[MB] お、、おう…。1MBあれば十分だな。
+		// でもマルチスレッドだとメモリアクセスが足を引っ張るようで50nodeぐらいでないと…。
+		// 50 nodeデフォルトでいいや。強さこれで5手詰めとほぼ変わらないし、nps 5%ほど速いので…。
+		// 10000/* nodes */ * 16 /* bytes */ * 10 /* 平均分岐数 */ / (1024 * 1024) = 1.525[MB] お、、おう…。1万nodeぐらいまでは1MBあればいけるか。
 		mate_solver.alloc(1);
-	#endif
 	}
 
 	// "go"に対して探索を開始する時に呼び出す。
 	// "go"に対してしかmax_moves_to_drawは未確定なので、それが確定してから呼び出す。
 	void UctSearcher::SetMateSearcher(const SearchOptions& options)
 	{
-
-	#if !defined(USE_DFPN_AT_LEAF_NODE)
-		// -- leaf nodeで奇数手詰めを用いる時
-
-		// 引き分けの手数の設定
-		mate_solver.set_max_game_ply(options.max_moves_to_draw);
-
-	#else
 		// -- leaf nodeでdf-pn solverを用いる時
 
 		// 引き分けの手数の設定
 		mate_solver.set_max_game_ply(options.max_moves_to_draw);
-	#endif
 
 	}
 
@@ -538,13 +527,11 @@ namespace dlshogi
 
 					bool isMate =
 						// Mate::mate_odd_ply()は自分に王手がかかっていても詰みを読めるはず…。
-					#if defined(USE_DFPN_AT_LEAF_NODE)
+
 						// df-pn mate solverをleaf nodeで使う。
-						// →　なんか弱くなる。なんでなん…。
-						(is_ok(mate_solver.mate_dfpn(*pos,300)) /* MOVE_NONE(詰み不明) , MOVE_NULL(不詰)ではない 。これらはis_ok(m) == false */ )
-					#else
-						(options.mate_search_ply && mate_solver.mate_odd_ply(*pos,options.mate_search_ply,options.generate_all_legal_moves) != MOVE_NONE) // N手詰め
-					#endif
+						(options.leaf_dfpn_nodes_limit // 0なら詰み探索無効
+							&& is_ok(mate_solver.mate_dfpn(*pos, options.leaf_dfpn_nodes_limit)))
+							// MOVE_NONE(詰み不明) , MOVE_NULL(不詰)ではない 。これらはis_ok(m) == false
 						|| (pos->DeclarationWin() != MOVE_NONE)            // 宣言勝ち
 						;
 #else

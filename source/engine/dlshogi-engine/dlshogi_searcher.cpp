@@ -37,13 +37,13 @@ namespace dlshogi
 	// 詰み探索の設定
 	// 　　root_mate_search_nodes_limit : root nodeでのdf-pn探索のノード数上限。 (Options["RootMateSearchNodesLimit"]の値)
 	// 　　max_moves_to_draw            : 引き分けになる最大手数。               (Options["MaxMovesToDraw"]の値)
-	//     mate_search_ply              : leaf nodeで奇数手詰めを呼び出す時の手数(Options["MateSearchPly"]の値)
+	//     leaf_dfpn_nodes_limit        : leaf nodeでdf-pnのノード数上限         (Options["LeafDfpnNodesLimit"]の値)
 	// それぞれの引数の値は、同名のsearch_optionsのメンバ変数に代入される。
-	void DlshogiSearcher::SetMateLimits(int max_moves_to_draw, u32 root_mate_search_nodes_limit, int mate_search_ply)
+	void DlshogiSearcher::SetMateLimits(int max_moves_to_draw, u32 root_mate_search_nodes_limit, int leaf_dfpn_nodes_limit)
 	{
 		search_options.root_mate_search_nodes_limit = root_mate_search_nodes_limit;
 		search_options.max_moves_to_draw            = max_moves_to_draw;
-		search_options.mate_search_ply              = mate_search_ply;
+		search_options.leaf_dfpn_nodes_limit        = leaf_dfpn_nodes_limit;
 	}
 
 	// root nodeでの詰め将棋ルーチンの呼び出しに関する条件を設定し、メモリを確保する。
@@ -842,12 +842,7 @@ namespace dlshogi
 	RootDfpnSearcher::RootDfpnSearcher(DlshogiSearcher* dlshogi_searcher)
 	{
 		this->dlshogi_searcher = dlshogi_searcher;
-
-#if !defined(DEV)
-		solver = std::make_unique<Mate::Dfpn::MateDfpnSolver>(Mate::Dfpn::DfpnSolverType::Node32bit);
-#else
 		solver = std::make_unique<Mate::Dfpn::MateDfpnSolver>(Mate::Dfpn::DfpnSolverType::Node48bitOrdering);
-#endif
 	}
 
 	// 詰み探索用のメモリを確保する。
