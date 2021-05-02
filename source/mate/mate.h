@@ -285,9 +285,9 @@ namespace Mate::Dfpn
 
 		// ガーベジなし。
 		Node32bit        , // nodes_limit < 2^32 の時に使うやつ 省メモリ版
-		Node16bitOrdering, // nodes_limit < 2^16 の時に使うやつ 省メモリ版 かつ orderingあり(実験中)
+		Node16bitOrdering, // nodes_limit < 2^16 の時に使うやつ 省メモリ版 かつ orderingあり
 		Node64bit        , // nodes_limit < 2^64 の時に使うやつ 
-		Node48bitOrdering, // nodes_limit < 2^48 の時に使うやつ            かつ orderingあり(実験中)
+		Node48bitOrdering, // nodes_limit < 2^48 の時に使うやつ            かつ orderingあり
 
 		// ガーベジなし、Hash対応
 		Node32bitWithHash,

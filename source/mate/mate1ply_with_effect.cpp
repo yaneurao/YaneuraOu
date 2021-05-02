@@ -13,6 +13,8 @@ using namespace Effect8; // Effect24のほうは必要に応じて書く。
 namespace {
 
 	// 超高速1手詰め判定ライブラリ
+
+
 	// cf. 新規節点で固定深さの探索を併用するdf-pnアルゴリズム gpw05.pdf
 	// →　この論文に書かれている手法をBitboard型の将棋プログラム(やねうら王mini)に適用し、さらに発展させ、改良した。
 
