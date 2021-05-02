@@ -701,7 +701,13 @@ namespace Mate::Dfpn32
 				 && node->pn
 				 && node->dn
 				 && !out_of_memory
-				 && (!nodes_limit || nodes_searched < nodes_limit)
+				 //&& (!nodes_limit || nodes_searched < nodes_limit)
+				 && (!nodes_limit ||
+						 ( MoveOrdering && (nodes_limit - nodes_searched > (std::max(current_root->pn, node->pn) >>16) )) ||
+						 (!MoveOrdering && (nodes_limit - nodes_searched > (std::max(current_root->pn, node->pn)))))
+				 // pnはMoveOrdering有りだと 2**16 されていることに注意。
+				 // 残り探索ノード数がpnを上回ると証明不可。不詰は証明できるかもしれないが、不詰の証明はあまり価値がないのでこの状況下ならできなくていいと思う。
+				 // ↑この枝刈りは、やねうらお考案。leaf nodeから呼び出すときに3%ぐらいnps上がる。
 				 && !Threads.stop // スレッド停止命令が来たら即座に終了する。
 				)
 			{
