@@ -30,7 +30,7 @@ struct MoveIntFloat
 	bool operator < (const MoveIntFloat& rhs) const {
 		return nnrate < rhs.nnrate;
 	}
-
+	
 	std::string to_string()
 	{
 		return to_usi_string(move) + " " + std::to_string(label) + " " + std::to_string(nnrate);
@@ -428,7 +428,7 @@ namespace dlshogi
 	// 返し値 : currentの局面の期待勝率を返すが、以下の特殊な定数を取ることがある。
 	//   QUEUING      : 評価関数を呼び出した。(呼び出しはqueuingされていて、完了はしていない)
 	//   DISCARDED    : 他のスレッドがすでにこのnodeの評価関数の呼び出しをしたあとであったので、何もせずにリターンしたことを示す。
-	//
+	// 
 	float UctSearcher::UctSearch(Position* pos, ChildNode* parent , Node* current, NodeVisitor& visitor)
 	{
 		auto ds = grp->get_dlsearcher();
@@ -671,7 +671,6 @@ namespace dlshogi
 		const WinType sum_win = current->win;
 
 		float q, u, max_value;
-		int child_win_count = 0;
 
 		max_value = -FLT_MAX;
 
@@ -685,14 +684,21 @@ namespace dlshogi
 		const float parent_q = sum_win > 0 ? std::max(0.0f, (float)(sum_win / sum) - fpu_reduction) : 0.0f;
 		const float init_u = sum == 0 ? 1.0f : sqrt_sum;
 
+		// すべて指し手をbitwise andして、すべての指し手にIsWin()かIsLose()のフラグが立っていないかを見る。
+		// すべての子ノードがIsWin()なら、このノードは負け確定。
+		// すべての子ノードがIsDraw()なら、このノードは引き分け確定。
+		u32 and_move = 0xffffffff;
+
 		// UCB値最大の手を求める
 		for (ChildNumType i = 0; i < child_num; i++) {
-			if (uct_child[i].IsWin()) {
-				child_win_count++;
-				// 負けが確定しているノードは選択しない
+
+			Move move = uct_child[i].move;
+
+			// 負けが確定しているノードは選択しない
+			if (ChildNode::IsMoveWin(move))
 				continue;
-			}
-			else if (uct_child[i].IsLose()) {
+
+			if (ChildNode::IsMoveLose(move)) {
 				// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
 				if (parent != nullptr)
 					parent->SetWin();
@@ -700,6 +706,19 @@ namespace dlshogi
 				// 勝ちが確定しているため、親からは、この子ノードを選択する
 				return i;
 			}
+
+			// --- 引き分けについて
+
+			//	1. 子ノードすべてが負け
+			//	2. 子ノードすべてが引き分け
+			//	3. 子ノードすべてが引き分け or 負け
+
+			// 引き分け とは、 2. or (3. and (not 1.))である。
+			// 上の2つのifより↓を先に書くと、3.の条件が抜けてしまい、2. になってしまうので誤り。
+
+			and_move &= (u32)move;
+
+			// 引き分けに関しては特にスキップしない。普通に計算する。
 
 			const WinType       win        = uct_child[i].win;
 			const NodeCountType move_count = uct_child[i].move_count;
@@ -720,7 +739,7 @@ namespace dlshogi
 
 			// MCTSとの組み合わせの時には、UCBの代わりにp-UCB値を用いる。
 			//
-			// 親ノードでi番目の指し手を指した局面を子ノードと呼ぶ。
+			// 親ノードでi番目の指し手を指した局面を子ノードと呼ぶ。 
 			// 　子ノードのvalue networkの値           : v(s_i)    ==> 変数 q
 			// 　親ノードの指し手iのpolicy networkの値 :   p_i     ==> 変数 rate
 			// 　親nodeの訪問数                        :   n       ==> 変数 sum
@@ -730,8 +749,8 @@ namespace dlshogi
 			//         p-UCB = v(s_i) + p_i・c・sqrt(n)/(1+n_i)
 			//
 			//   ※　v(s_i)は、初回はvalue networkの値を使うが、そのあとは、win / move_count のほうがより正確な期待勝率なのでそれを用いる。
-			//   ※　sqrt(n) ==> 変数sqrt_sum // 高速化のためループの外で計算している
-			//
+			//   ※　sqrt(n) ==> 変数sqrt_sum // 高速化のためループの外で計算している 
+			//    
 
 			const float ucb_value = q + c * u * rate;
 
@@ -741,10 +760,18 @@ namespace dlshogi
 			}
 		}
 
-		if (child_win_count == child_num) {
+		if (ChildNode::IsMoveWin((Move)and_move)) {
 			// 子ノードがすべて勝ちのため、自ノードを負けにする
+			// このときmax_child == 0(初期値)。
 			if (parent != nullptr)
 				parent->SetLose();
+
+		} else if (ChildNode::IsMoveDraw((Move)and_move)) {
+
+			// 子ノードがすべて引き分けのため、自ノードを引き分けにする
+			// このときmax_childは普通に計算される。
+			if (parent != nullptr)
+				parent->SetDraw();
 
 		} else {
 

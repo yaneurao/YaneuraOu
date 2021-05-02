@@ -40,13 +40,18 @@ namespace dlshogi
 
 		// --- public variables
 
+		// 指し手(Move)が、SetWin()されているかの判定
+		static bool IsMoveWin(Move m) { return m & VALUE_WIN; }
+		static bool IsMoveLose(Move m) { return m & VALUE_LOSE; }
+		static bool IsMoveDraw(Move m) { return m & VALUE_DRAW; }
+
 		// メモリ節約のため、moveの最上位バイトでWin/Lose/Drawの状態を表す
 		// (32bit型のMoveでは、ここは使っていないはずなので)
-		bool IsWin()  const { return move & VALUE_WIN; }
+		bool IsWin()  const { return IsMoveWin(move); }
 		void SetWin()  { move = (Move)(move | VALUE_WIN); }
-		bool IsLose() const { return move & VALUE_LOSE; }
+		bool IsLose() const { return IsMoveLose(move); }
 		void SetLose() { move = (Move)(move | VALUE_LOSE); }
-		bool IsDraw() const { return move & VALUE_DRAW; }
+		bool IsDraw() const { return IsMoveDraw(move); }
 		void SetDraw() { move = (Move)(move | VALUE_DRAW); }
 		// →　SetDraw()したときに、win = DRAW_VALUEにしたほうが良くないかな…。
 
