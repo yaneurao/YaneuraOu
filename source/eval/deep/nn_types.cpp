@@ -267,6 +267,8 @@ namespace Eval::dlshogi
 	//		Reinforcement Learning: An Introduction 2nd Ed.
 	//		http://incompleteideas.net/book/the-book.html
 
+	// Softmaxの時の温度パラメーター。
+	// エンジンオプションの"Softmax_Temperature"で設定できる。
 	constexpr float default_softmax_temperature = 1.0f;
 	float beta = 1.0f / default_softmax_temperature; 
 	void set_softmax_temperature(const float temperature) {
@@ -305,17 +307,28 @@ namespace Eval::dlshogi
 
 		ModelPaths.clear();
 
+		// ファイルが存在することが既知であるpath。
+		// (一度調べたやつは記憶しておく)
+		// モデルファイルはたかだか1,2個だと思うのでvectorで十分。
+		static std::vector<std::string> checked_paths;
+
 		// モデルファイル存在チェック
 		bool is_err = false;
 		for (int i = 0; i < max_gpu; ++i) {
 			if (model_paths[i] != "")
 			{
 				string path = Path::Combine(eval_dir, model_paths[i].c_str());
-				std::ifstream ifs(path);
-				if (!ifs.is_open()) {
-					sync_cout << "Error! : " << path << " file not found" << sync_endl;
-					is_err = true;
-					break;
+				if (std::find(checked_paths.begin(), checked_paths.end(), path) == checked_paths.end())
+				{
+					// 未チェックのやつなので調べる。
+					std::ifstream ifs(path);
+					if (!ifs.is_open()) {
+						sync_cout << "Error! : " << path << " file not found" << sync_endl;
+						is_err = true;
+						break;
+					}
+					// 記憶しておく。
+					checked_paths.push_back(path);
 				}
 				ModelPaths.push_back(path);
 			}

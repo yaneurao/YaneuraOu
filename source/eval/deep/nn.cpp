@@ -51,7 +51,7 @@ namespace Eval::dlshogi
 	// モデルファイル名を渡すとそれに応じたNN派生クラスをbuildして返してくれる。デザパタで言うところのbuilder。
 	std::shared_ptr<NN> NN::build_nn(const std::string& model_path , int gpu_id , int batch_size)
 	{
-		shared_ptr<NN> nn;
+		std::shared_ptr<NN> nn;
 
 #if defined (ONNXRUNTIME)
 
