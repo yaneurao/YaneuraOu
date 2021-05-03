@@ -678,16 +678,10 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states , bool
 				// 1手前の局面(相手番)に戻して、ponderとして思考する。
 				// Threads.main()->moves_from_game_root に保存されているので大丈夫。
 
-				//for (int i = 0; i < 2; ++i) // N手前に戻す
-				{
-					// ponderhitの時に今回の局面に戻すために、最後の2手を記憶しておかないといけない。
-					// それはThreads.main()->moves_redoに保存しておく。
-
-					auto m = main_thread->moves_from_game_root.back();
-					main_thread->moves_from_game_root.pop_back();
-					const_cast<Position*>(&pos)->undo_move(m);
-					states->pop_back();
-				}
+				auto m = main_thread->moves_from_game_root.back();
+				main_thread->moves_from_game_root.pop_back();
+				const_cast<Position*>(&pos)->undo_move(m);
+				states->pop_back();
 				main_thread->position_is_dirty = true;
 			}
 		}

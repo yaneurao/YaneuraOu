@@ -134,16 +134,12 @@ void USI::extra_option(USI::OptionsMap& o)
     //(*this)["Const_Playout"]               = USIOption(0, 0, INT_MAX);
 	// →　Playout数固定。これはNodeLimitでできるので不要。
 
-	// leaf nodeでの奇数手詰めルーチンを呼び出す時の手数
-	//o["MateSearchPly"]               << USI::Option(5, 0, 255);
-
 	// → leaf nodeではdf-pnに変更。
 	// 探索ノード数の上限値を設定する。0 : 呼び出さない。
-	o["LeafDfpnNodesLimit"]            << USI::Option(50, 0, 10000);
-
+	o["LeafDfpnNodesLimit"]			<< USI::Option(40, 0, 10000);
 
 	// root nodeでのdf-pn詰将棋探索の最大ノード数
-	o["RootMateSearchNodesLimit"]    << USI::Option(1000000, 0, UINT32_MAX);
+	o["RootMateSearchNodesLimit"]	<< USI::Option(1000000, 0, UINT32_MAX);
 }
 
 // "isready"コマンドに対する初回応答
@@ -204,7 +200,7 @@ void Search::clear()
 	}
 
 	// ※　InitGPU()に先だってSetMateLimits()でのmate solverの初期化が必要。この呼出をInitGPU()のあとにしないこと！
-	searcher.SetMateLimits((int)Options["MaxMovesToDraw"] , (u32)Options["RootMateSearchNodesLimit"] , (int)Options["LeafDfpnNodesLimit"] /*Options["MateSearchPly"]*/);
+	searcher.SetMateLimits((int)Options["MaxMovesToDraw"] , (u32)Options["RootMateSearchNodesLimit"] , (u32)Options["LeafDfpnNodesLimit"] /*Options["MateSearchPly"]*/);
 	searcher.InitGPU(Eval::dlshogi::ModelPaths , thread_nums, policy_value_batch_maxsizes);
 
 	// その他、dlshogiにはあるけど、サポートしないもの。

@@ -39,10 +39,10 @@ namespace dlshogi
 	// 　　max_moves_to_draw            : 引き分けになる最大手数。               (Options["MaxMovesToDraw"]の値)
 	//     leaf_dfpn_nodes_limit        : leaf nodeでdf-pnのノード数上限         (Options["LeafDfpnNodesLimit"]の値)
 	// それぞれの引数の値は、同名のsearch_optionsのメンバ変数に代入される。
-	void DlshogiSearcher::SetMateLimits(int max_moves_to_draw, u32 root_mate_search_nodes_limit, int leaf_dfpn_nodes_limit)
+	void DlshogiSearcher::SetMateLimits(int max_moves_to_draw, u32 root_mate_search_nodes_limit, u32 leaf_dfpn_nodes_limit)
 	{
-		search_options.root_mate_search_nodes_limit = root_mate_search_nodes_limit;
 		search_options.max_moves_to_draw            = max_moves_to_draw;
+		search_options.root_mate_search_nodes_limit = root_mate_search_nodes_limit;
 		search_options.leaf_dfpn_nodes_limit        = leaf_dfpn_nodes_limit;
 	}
 
@@ -384,6 +384,9 @@ namespace dlshogi
 		// 探索ノード数のクリア
 		search_limits.nodes_searched = 0;
 
+		// 対局開始からの手数を設定しておく。(持ち時間制御などで使いたいため)
+		search_limits.game_ply = pos->game_ply();
+
 		// UCTの初期化。
 		// 探索開始局面の初期化
 		ExpandRoot(pos , search_options.generate_all_legal_moves );
@@ -667,107 +670,119 @@ namespace dlshogi
 		if (root_dfpn_searcher->searching)
 			return;
 
-		// 最適時間のrate倍を基準時間と考える。
-		// なぜなら、残り時間を使っても1番目の指し手が2番目の指し手を超えないことが判明して探索を打ち切ることがあるから(頻度はそれほど高くない)
-		// 平均的にoptimum()の時間が使えていない。そこでoptimumに係数をかけて、それを基準に考える。
-		const float rate = 1.2f;
-		auto optimum = std::min((TimePoint)(s.time_manager.optimum() * rate), s.time_manager.maximum());
+		// 残り最適時間。残り最大時間。
+		auto optimum = s.time_manager.optimum();
+		auto maximum = s.time_manager.maximum();
 
-		if (elapsed_from_ponderhit >= optimum)
-		{
-			// 残り時間くりあげて使って、終了すべき。
-			s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
-			return;
-		}
+		// 序盤32手目まで少なめのおむすび型にする。
+		// TODO: パラメータの調整、optimizerでやるべき。
+		// Time management (LC0 blog)     : https://lczero.org/blog/2018/09/time-management/
+		// PR1195: Time management update : https://lczero.org/dev/docs/timemgr/
+		double game_ply_factor =
+			  s.game_ply <  16 ? 2.0
+			: s.game_ply <  32 ? 3.0
+			: s.game_ply <  80 ? 5.0 // 中盤の難所では時間使ったほうがいいと思う。
+			: s.game_ply < 120 ? 4.0
+			: 3.0;
+		maximum = (TimePoint)std::min((double)optimum * game_ply_factor, (double)maximum);
 
 		// 残りの探索を全て次善手に費やしても optimum_timeまでに
 		// 最善手を超えられない場合は探索を打ち切る。
-		// TODO : 勝率の差とかも考慮したほうが良いのではないだろうか…。
 
-		NodeCountType max_searched = 0, second = 0;
+		NodeCountType max_searched = 0, second_searched = 0;
+		WinType       max_eval     = 0, second_eval     = 0;
 		const ChildNode* uct_child = current_root->child.get();
 
-		// 探索回数が最も多い手と次に多い手を求める
+		// 探索回数が最も多い手と次に多い手の評価値を求める。
+		const WinType delta = (WinType)0.00001f; // 0割回避のための微小な値
 		for (int i = 0; i < child_num; i++) {
 			if (uct_child[i].move_count > max_searched) {
-				second = max_searched;
-				max_searched = uct_child[i].move_count;
+				second_searched = max_searched;
+				second_eval     = max_eval;
+				max_searched    = uct_child[i].move_count;
+				max_eval        = uct_child[i].win / (uct_child[i].move_count+ delta);
 			}
-			else if (uct_child[i].move_count > second) {
-				second = uct_child[i].move_count;
+			else if (uct_child[i].move_count > second_searched) {
+				second_searched = uct_child[i].move_count;
+				second_eval     = uct_child[i].win / (uct_child[i].move_count+ delta);
 			}
 		}
 
 		// elapsed : "go" , "go ponder"からの経過時間
-		// rest_po : 残り何回ぐらいplayoutできそうか。
 
 		// nps = 今回探索したノード数 / "go ponder"からの経過時間
 		// 今回探索したノード数 = node_searched
 		// なので、nps = node_searched / (e + 1)
 		// ※　0のとき0除算になるので分母を +1 する。
-		// rest_po = nps × 残り時間
-		// 残り時間 = optimum - elapsed
+		// rest_max_po = nps × 最大残り時間
+		// 最大残り時間 = maximum - elapsed
 		// なので、
-		// rest_po = (node_searched - pre_simulated)*(optimum - elapsed) / (e + 1)
+		// rest_po = (node_searched - pre_simulated)*(maximum - elapsed) / (e + 1)
 		
-		auto elapsed = s.time_manager.elapsed();
-		s64 rest_po = (s64)(s.nodes_searched * (optimum - elapsed_from_ponderhit) / (elapsed + 1) );
+		auto elapsed    = s.time_manager.elapsed();
 
+		// 最大残りpo
+		s64 rest_max_po = (s64)(s.nodes_searched * (maximum - elapsed_from_ponderhit) / (elapsed + 1));
 		// 何か条件をいじっているときに、rest_poがマイナスになりうるようになってしまうことがあるので
 		// マイナスであれば0とみなす。
-		rest_po = std::max(rest_po, (s64)0);
+		rest_max_po = std::max(rest_max_po, (s64)0);
 
-		if (max_searched - second > rest_po) {
+		// 最大残りpoを費やしても1番目と2番目の訪問回数が逆転しない。
+		// これはもうだめぽ。
+		if (max_searched > second_searched + rest_max_po)
+		{
 			if (o.debug_message)
-				sync_cout << "info string interrupt_no_movechange , max_searched = " << max_searched << " , second = " << second
-						  << " , rest po = " << rest_po << sync_endl;
+				sync_cout << "info string interrupted by no movechange , max_searched = " << max_searched << " , second_searched = " << second_searched
+				<< " , rest_max_po = " << rest_max_po << sync_endl;
 
-			// だめぽ。時間を秒のギリギリまで使ったら、もう探索を切り上げる。
-
-			// "ponderhit"しているときは、そこからの経過時間を丸める。
-			// "ponderhit"していないときは開始からの経過時間を丸める。
-			// そのいずれもtime_manager.elapsed_from_ponderhit()から計算して良い。
+			// 残り時間くりあげて使って、終了すべき。
 			s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
+			return;
+		}
+
+		// 経過時間がoptimum/2を超えてるのに1番目と2番目の勝率が大差でかつ訪問回数も大差
+		if (elapsed_from_ponderhit >= optimum/2
+			&& second_eval - max_eval > 0.2
+			&& max_searched > second_searched * 5)
+		{
+			if (o.debug_message)
+				sync_cout << "info string interrupted by early exit , max_eval = " << second_eval << " , second_eval = " << second_eval
+				<< " , max_searched = " << max_searched << " , second_searched = " << second_searched << sync_endl;
+
+			// 残り時間くりあげて使って、終了すべき。
+			s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
+			return;
+		}
+
+		// optimumを0%、maximumを100%として、何%ぐらい延長して良いのか。
+
+		// 延長度 = evalの差について + 1番目と2番目の訪問回数の比について
+		// evalの差について     = 差が0なら0%。差×r
+		// 訪問回数の比について = ((2番目の訪問回数/1番目の訪問回数) - k)/(1-k)
+		//     2番目の訪問回数/1番目の訪問回数 = k1以下のときに    0%になる
+		//     2番目の訪問回数/1番目の訪問回数 = k2以上のときに  100%になる
+
+		// TODO : パラメーターのチューニングすべき。
+		const float k1 = 0.70000;
+		const float k2 = 1.00000;
+		const float r = 20.0f; // 勝率0.02の差 = 延長度40%
+		const float eval_alpha = 0.02; // evalの差に下駄履きさせる値。微差は拾い上げる考え。
+
+		float eval_bonus  = std::min(std::max(float((second_eval - max_eval + eval_alpha) * r),0.0f),1.0f);
+		float visit_bonus = std::max(float( (double(second_searched) / (double(max_searched) + 1) - k1)/(k2-k1)),0.0f);
+		float bonus = std::max(std::min(eval_bonus + visit_bonus , 1.0f),0.0f);
+		TimePoint time_limit = (TimePoint)(double(optimum) * (1.0 - bonus) + double(maximum) * bonus);
+		if (elapsed_from_ponderhit >= time_limit)
+		{
+			if (o.debug_message)
+				sync_cout << "info string interrupted by bonus limit , eval_bonus = " << eval_bonus << " , visit_bonus = " << visit_bonus
+				<< " , time_limit = " << time_limit << " , max_searched = " << max_searched << ", second_searched = " << second_searched << sync_endl;
+
+			// 残り時間くりあげて使って、終了すべき。
+			s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
+			return;
 		}
 	}
-
-#if 0
-	//  思考時間延長の確認
-	bool DlshogiSearcher::ExtendTime()
-	{
-		// あとでよく見る。
-
-		// 1番探索した指し手のノード数、2番目に探索した指し手のノード数
-		NodeCountType max = 0, second = 0;
-		float max_eval = 0, second_eval = 0;
-		const Node* current_root = tree->GetCurrentHead();
-		const int child_num = current_root->child_num;
-		const ChildNode *uct_child = current_root->child.get();
-
-		// 探索回数が最も多い手と次に多い手を求める
-		for (int i = 0; i < child_num; i++) {
-			if (uct_child[i].move_count > max) {
-				second = max;
-				second_eval = max_eval;
-				max = uct_child[i].move_count;
-				max_eval = uct_child[i].win / uct_child[i].move_count;
-			}
-			else if (uct_child[i].move_count > second) {
-				second = uct_child[i].move_count;
-				second_eval = uct_child[i].win / uct_child[i].move_count;
-			}
-		}
-
-		// 最善手の探索回数がが次善手の探索回数の1.5倍未満
-		// もしくは、勝率が逆なら探索延長
-		if (max < second * 1.5 || max_eval < second_eval) {
-			return true;
-		}
-		else {
-			return false;
-		}
-	}
-#endif
 
 	// 並列探索を行う。
 	//   rootPos   : 探索開始局面

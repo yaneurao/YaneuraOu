@@ -150,8 +150,14 @@ void Timer::init(const Search::LimitsType& limits, Color us, int ply)
 
 		// -- maximumTime
 		//float max_ratio = 5.0f;
+#if !defined(YANEURAOU_ENGINE_DEEP)
 		float max_ratio = 3.0f;
 		// 5.0f、やりすぎな気がする。時間使いすぎて他のところで足りなくなる。
+#else
+		// ふかうら王、5.0fでもうまくマネージメントできるんじゃないか？(根拠なし。計測すべき)
+		float max_ratio = 5.0f;
+#endif
+
 
 		// 切れ負けルールにおいては、5分を切っていたら、このratioを抑制する。
 		if (limits.inc[us] == 0 && limits.byoyomi[us] == 0)
@@ -171,10 +177,13 @@ void Timer::init(const Search::LimitsType& limits, Color us, int ply)
 		optimumTime = std::min(t1, optimumTime) * slowMover / 100;
 		maximumTime = std::min(t2, maximumTime);
 
+#if !defined(YANEURAOU_ENGINE_DEEP)
 		// Ponderが有効になっている場合、ponderhitすると時間が本来の予測より余っていくので思考時間を心持ち多めにとっておく。
 		// これ本当はゲーム開始時にUSIコマンドで送られてくるべきだと思う。→　将棋所では、送られてきてた。"USI_Ponder"  [2019/04/29]
+		// ふかうら王の場合、Ponder当たったからと言って探索量減らさないし、Stochastic Ponderがあるから、まあこれはいいや…。
 		if (/* Threads.main()->received_go_ponder*/ Options["USI_Ponder"])
 			optimumTime += optimumTime / 4;
+#endif
 	}
 
 	// 秒読みモードでかつ、持ち時間がないなら、最小思考時間も最大思考時間もその時間にしたほうが得

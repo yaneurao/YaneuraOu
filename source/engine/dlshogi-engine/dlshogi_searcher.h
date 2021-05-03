@@ -92,6 +92,9 @@ namespace dlshogi
 		// これがtrueになると全スレッドは探索を終了する。
 		// この停止のためのチェックは、SearchInterruptionCheckerが行う。
 		std::atomic<bool> interruption;
+
+		// 現在のrootの対局開始からの手数
+		int game_ply;
 	};
 
 	// エンジンオプションで設定された定数。
@@ -256,9 +259,9 @@ namespace dlshogi
 		// 詰み探索の設定
 		// 　　root_mate_search_nodes_limit : root nodeでのdf-pn探索のノード数上限。 (Options["RootMateSearchNodesLimit"]の値)
 		// 　　max_moves_to_draw            : 引き分けになる最大手数。               (Options["MaxMovesToDraw"]の値)
-		//     mate_search_ply              : leaf nodeで奇数手詰めを呼び出す時の手数(Options["MateSearchPly"]の値)
+		//     leaf_dfpn_nodes_limit        : leaf nodeでdf-pnのノード数上限         (Options["LeafDfpnNodesLimit"]の値)
 		// それぞれの引数の値は、同名のsearch_optionsのメンバ変数に代入される。
-		void SetMateLimits(int max_moves_to_draw, u32 root_mate_search_nodes_limit, int mate_search_ply);
+		void SetMateLimits(int max_moves_to_draw, u32 root_mate_search_nodes_limit, u32 leaf_dfpn_nodes_limit);
 			
 		// root nodeでの詰め将棋ルーチンの呼び出しに関する条件を設定し、メモリを確保する。
 		void InitMateSearcher();
@@ -269,9 +272,9 @@ namespace dlshogi
 		//
 		// 呼び出しの前提条件)
 		//   SetMateLimits()を呼び出すことによって、以下の3つの変数には事前に値が設定されているものとする。
-		// 　　search_options.root_mate_search_nodes_limit : root nodeでのdf-pn探索のノード数上限。 (Options["RootMateSearchNodesLimit"]の値)
 		// 　　search_options.max_moves_to_draw            : 引き分けになる最大手数。               (Options["MaxMovesToDraw"]の値)
-		//     search_options.mate_search_ply              : leaf nodeで奇数手詰めを呼び出す時の手数(Options["MateSearchPly"]の値)
+		// 　　search_options.root_mate_search_nodes_limit : root nodeでのdf-pn探索のノード数上限。 (Options["RootMateSearchNodesLimit"]の値)
+		//     search_options.leaf_dfpn_nodes_limit        : leaf nodeでdf-pnのノード数上限         (Options["LeafDfpnNodesLimit"]の値)
 		void InitGPU(const std::vector<std::string>& model_paths, std::vector<int> new_thread, std::vector<int> policy_value_batch_maxsizes);
 
 		// 対局開始時に呼び出されるハンドラ
