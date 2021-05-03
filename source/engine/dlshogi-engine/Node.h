@@ -75,7 +75,7 @@ namespace dlshogi
 	struct Node
 	{
 		Node()
-			: move_count(NOT_EXPANDED), win(0), visited_nnrate(0.0f) , child_num(0) {}
+			: move_count(NOT_EXPANDED), win(0), visited_nnrate(0.0f) , child_num(0) , select_interval(0){}
 
 		// 子ノード作成
 		Node* CreateChildNode(int i) {
@@ -163,6 +163,10 @@ namespace dlshogi
 		// 展開した子ノード以外はnullptrのまま。
 		std::unique_ptr<std::unique_ptr<Node>[]> child_nodes;
 
+		// SelectMaxUcbChild()の高速化のために前回選択した子ノードのindexを記憶しておく。
+		// 調べる間隔は、select_intervalにする。
+		u16 last_best_child;
+		u16 select_interval;
 
 	private:
 
