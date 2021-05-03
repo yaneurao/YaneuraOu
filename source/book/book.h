@@ -33,24 +33,10 @@ namespace Book
 
 		uint64_t move_count; // 何らかの棋譜集において、この指し手が採択された回数。
 
-		// --- MCTSで作った定跡の場合これを記録しておき、これを見て指し手を選択する ---
-
-		double    win; // moveを採択してこの局面の手番側が勝利した回数(端数ありうる)
-		double   draw; // moveを採択して引き分けた回数。(端数はないはずだが、使用目的によってはあるかも)
-
-		// bestMoveを採択してこの局面の手番側が負けた回数
-		// これは計算して出すので、関数。
-		double lose() const {
-			return move_count - (win + draw);
-		}
-
 		// ----------------------------------------------------------------------------
 
 		BookMove(Move16 move_, Move16 ponder_, int value_, int depth_, uint64_t move_count_)
-			: move(move_), ponder(ponder_), value(value_), depth(depth_), move_count(move_count_) , win(0),draw(0){}
-
-		BookMove(Move16 move_, Move16 ponder_, int value_, int depth_, uint64_t move_count_ , double win_ , double draw_)
-			: move(move_), ponder(ponder_), value(value_), depth(depth_), move_count(move_count_) , win(win_),draw(draw_){}
+			: move(move_), ponder(ponder_), value(value_), depth(depth_), move_count(move_count_){}
 
 		// 定跡フォーマットの、ある局面の指し手を書いてある一行を引数lineに渡して、
 		// BookMoveのオブジェクトを構築するbuilder。

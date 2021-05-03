@@ -94,7 +94,6 @@ namespace Book
 		int value = 0;
 		int depth = 0;
 		u64 move_count = 1;
-		double win = 0, lose = 0;
 
 		//istringstream is(line);
 		// value以降は、元データに欠落してるかもですよ。
@@ -111,15 +110,13 @@ namespace Book
 		value = (int)scanner.get_number(value);
 		depth = (int)scanner.get_number(depth);
 		move_count = (u64)scanner.get_number(move_count);
-		win        = (double)scanner.get_double(win);
-		lose       = (double)scanner.get_double(lose);
 
 		// 起動時なので変換に要するオーバーヘッドは最小化したいので合法かのチェックはしない。
 
 		move = (move_str == "none" || move_str == "resign") ? MOVE_NONE : USI::to_move16(move_str);
 		ponder = (ponder_str == "none" || ponder_str == "resign") ? MOVE_NONE : USI::to_move16(ponder_str);
 
-		return BookMove(move,ponder,value,depth,move_count,win,lose);
+		return BookMove(move,ponder,value,depth,move_count);
 	}
 
 	void BookMoves::insert(const BookMove& bp, bool overwrite)
@@ -135,12 +132,8 @@ namespace Book
 				{
 					// すでに存在していたのでエントリーを置換。ただし採択回数は合算する。
 					auto move_count = b.move_count;
-					auto win        = b.win;
-					auto draw       = b.draw;
 					b = bp;
 					b.move_count += move_count;
-					b.win        += win;
-					b.draw       += draw;
 
 					sorted = false; // sort関係が崩れたのでフラグをfalseに戻しておく。
 				}
@@ -483,7 +476,7 @@ namespace Book
 			move_list.sort_moves();
 
 			for (auto& bp : move_list)
-				fs << bp.move << ' ' << bp.ponder << ' ' << bp.value << " " << bp.depth << " " << bp.move_count << " " << bp.win << " " << bp.draw << endl;
+				fs << bp.move << ' ' << bp.ponder << ' ' << bp.value << " " << bp.depth << " " << bp.move_count << endl;
 			// 指し手、相手の応手、そのときの評価値、探索深さ、採択回数、win、draw
 
 			if (fs.fail())
@@ -983,17 +976,13 @@ namespace Book
 				// USIの"info"で読み筋を出力するときは"pv"サブコマンドはサブコマンドの一番最後にしなければならない。
 				// 複数出力するときに"multipv"は連番なのでこれが先頭に来ているほうが見やすいと思うので先頭に"multipv"を出力する。
 
-				// win,drawが記載されている定跡DBなら、それも出力してやる。
-				// さすがに両方0なら、意味のない数字であると思われる。
-				string win_lose_str = (it.win == 0 && it.draw == 0) ? "" : "," + to_string(int(it.win)) + '-' + to_string(int(it.draw)) + '-' + to_string(int(it.lose()));
-
 				sync_cout << "info"
 #if !defined(NICONICO)
 					<< " multipv " << (i + 1)
 #endif					
 					<< " score cp " << it.value << " depth " << it.depth
 					<< " pv " << pv_string
-					<< " (" << fixed << std::setprecision(2) << (100 * it.move_count / double(move_count_total)) << "%" << win_lose_str << ")" // 採択確率
+					<< " (" << fixed << std::setprecision(2) << (100 * it.move_count / double(move_count_total)) << "%" << ")" // 採択確率
 					<< sync_endl;
 
 				// 電王盤はMultiPV非対応なので1番目の読み筋だけを"multipv"をつけずに送信する。

@@ -1,10 +1,29 @@
 ﻿#include "../types.h"
 
-#if defined (ENABLE_MAKEBOOK_CMD) && defined(EVAL_LEARN)
+#if defined (ENABLE_MAKEBOOK_CMD) && defined(YANEURAOU_ENGINE_DEEP)
 
 // -----------------------
 // MCTSで定跡を生成する
 // -----------------------
+
+/*
+	dlshogiの定跡生成部を参考にしつつも独自の改良を加えた。
+
+	大きな改良点) 親ノードに訪問回数を伝播する。
+
+		dlshogiはこれをやっていない。
+		これを行うと、局面に循環があると訪問回数が発散してしまうからだと思う。
+		// これだと訪問回数を親ノードに伝播しないと、それぞれの局面で少ないPlayoutで事前に思考しているに過ぎない。
+
+		そこで、親ノードに訪問回数は伝播するが、局面の合流は処理しないようにする。
+
+		この場合、合流が多い変化では同じ局面を何度も探索することになりパフォーマンスが落ちるが、
+		それを改善するためにleaf nodeでの思考結果はcacheしておき、同じ局面に対しては探索部を２回
+		呼び出さないようにして解決する。
+
+		また合流を処理しないため、同一の局面であっても経路によって異なるNodeとなるが、書き出す定跡ファイルとは別に
+		この経路情報を別のファイルに保存しておくので、前回の定跡の生成途中から再開できる。
+*/
 
 #include <sstream>
 #include <chrono>
@@ -35,12 +54,14 @@ namespace {
 			// この回数だけ探索したら終了する。
 			u64 loop_max = 10000;
 
-			// depth_min～depth_maxの間のランダムな深さでsearch()を呼び出す。
-			int depth_min = 6;
-			int depth_max = 8;
+			// 一つの局面(leaf node)でのPlayoutの回数
+			u64 playout = 10000;
 
 			// 定跡ファイル名
 			string filename = "book2021.db";
+
+			// 定跡cacheファイル名
+			string cache_filename = "book_cache.db";
 
 			// 定跡ファイルの保存間隔。デフォルト、30分ごと。
 			TimePoint book_save_interval = 60 * 30;
@@ -53,51 +74,30 @@ namespace {
 			{
 				if (token == "loop")
 					is >> loop_max;
-				else if (token == "depth_min")
-					is >> depth_min;
-				else if (token == "depth_max")
-					is >> depth_max;
+				else if (token == "playout")
+					is >> playout;
 				else if (token == "filename")
 					is >> filename;
+				else if (token == "cache_filename")
+					is >> cache_filename;
 				else if (token == "book_save_interval")
 					is >> book_save_interval;
 				else if (token == "max_ply")
 					is >> max_ply;
 			}
 
-			size_t thread_num = Options["Threads"];
-
-			cout << "gen_mate command" << endl
-				<< "  Threads            = " << thread_num << endl
+			cout << "makebook mcts command" << endl
 				<< "  loop_max           = " << loop_max << endl
-				<< "  depth_min          = " << depth_min << endl
-				<< "  depth_max          = " << depth_max << endl
+				<< "  playout            = " << playout << endl
 				<< "  book filename      = " << filename << endl
-				<< "  max_ply            = " << max_ply << endl
+				<< "  cache filename     = " << cache_filename << endl
 				<< "  book_save_interval = " << book_save_interval << endl
+				<< "  max_ply            = " << max_ply << endl
 				;
-
-			// depth_minとdepth_maxの大小関係が逆転している
-			if (depth_min > depth_max)
-			{
-				cout << "Error! depth_min > depth_max" << endl;
-				return;
-			}
 
 			// 定跡ファイルの読み込み。
 			// 新規に作るかも知れないので、存在しなくとも構わない。
 			book.read_book(filename, false);
-
-			this->loop_max       = loop_max;
-			this->nodes_searched = 0;
-			this->depth_min      = depth_min;
-			this->depth_max      = depth_max;
-			this->max_ply        = max_ply;
-
-			// スレッドを開始する。
-			auto threads = make_unique<std::thread[]>(thread_num);
-			for (size_t i = 0; i < thread_num; ++i)
-				threads[i] = std::thread(&MctsMakeBook::Worker,this, i);
 
 			// 定跡DBを書き出す。
 			auto save_book = [&]()
@@ -112,7 +112,7 @@ namespace {
 			// 定跡保存用のtimer
 			Timer time;
 
-			while (nodes_searched < loop_max)
+			for (u64 loop_counter = 0 ; loop_counter < loop_max ; ++loop_counter)
 			{
 				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
@@ -125,10 +125,6 @@ namespace {
 					time.reset();
 				}
 			}
-
-			// スレッドの終了を待機する。
-			for (size_t i = 0; i < thread_num; ++i)
-				threads[i].join();
 
 			// 最後にも保存しないといけない。
 			save_book();
@@ -180,10 +176,11 @@ namespace {
 					return pos.side_to_move() == rootColor ? 1 : -1;
 
 				// 探索深さにランダム性を持たせることによって、毎回異なる棋譜になるようにする。
-				int search_depth = depth_min + (int)prng.rand(depth_max - depth_min + 1);
-				auto pv = Learner::search(pos, search_depth, 1);
+				//int search_depth = depth_min + (int)prng.rand(depth_max - depth_min + 1);
+				//auto pv = Learner::search(pos, search_depth, 1);
 
-				Move m = pv.second[0];
+				//Move m = pv.second[0];
+				Move m;
 
 				// 指し手が存在しなかった。現在の手番側の負け。
 				if (m == MOVE_NONE)
@@ -200,16 +197,6 @@ namespace {
 	private:
 		// 定跡DB本体
 		MemoryBook book;
-
-		// 探索したノード数
-		atomic<u64> nodes_searched;
-
-		// この回数だけ探索したら終了する。
-		u64 loop_max;
-
-		// depth_min～depth_maxの間のランダムな深さでsearch()を呼び出す。
-		int depth_min;
-		int depth_max;
 
 		// 最大手数
 		int max_ply;
@@ -240,5 +227,5 @@ namespace Book
 	}
 }
 
-#endif //defined (ENABLE_MAKEBOOK_CMD) && defined(EVAL_LEARN)
+#endif // defined (ENABLE_MAKEBOOK_CMD) && defined(YANEURAOU_ENGINE_DEEP)
 

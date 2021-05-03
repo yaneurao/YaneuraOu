@@ -23,8 +23,10 @@ namespace Book
 	// 定跡生成コマンド2019年度版。makebook2019.cppで定義されている。テラショック定跡手法。
 	int makebook2019(Position& pos, istringstream& is, const string& token);
 
+#if defined(YANEURAOU_ENGINE_DEEP)
 	// 定跡生成コマンド2021年度版。makebook2021.cppで定義されている。MCTSによる生成。
 	int makebook2021(Position& pos, istringstream& is, const string& token);
+#endif
 
 	// ---------------------------------------------------------------------------------------------
 
@@ -65,9 +67,11 @@ namespace Book
 		if (makebook2019(pos, is, token))
 			return;
 
+#if defined(YANEURAOU_ENGINE_DEEP)
 		// 2021年に作ったmakebook拡張コマンド
 		if (makebook2021(pos, is, token))
 			return;
+#endif
 
 		// いずれのコマンドも処理しなかったので、使用方法を出力しておく。
 
