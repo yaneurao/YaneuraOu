@@ -50,6 +50,13 @@ USIプロトコルの独自拡張コマンド
 
 	USI_Ponder		: ponder(相手番での思考) on/off
 
+	Stochastic_Ponder :
+		go ponderでponderする時に、1手前の局面(相手番)で思考することによって
+		そこからすべての指し手が探索されるので、ponderのハズれがなくなる。
+		// dlshogiであるやつ。
+		これを有効化するとponderの1手前(相手番)の局面で思考しているため、GUIの読み筋はおかしくなる。
+		// GUI側に相手番のときにその1手前の局面でgoコマンドで思考させてくれる機能があると良いのだが…。
+
 	WriteDebugLog	: 標準入出力をファイル("io_log.txt")にリダイレクトする(logコマンドでonには出来る)
 
 	NetworkDelay	: 通信時の平均遅延時間[ms]
@@ -89,8 +96,9 @@ USIプロトコルの独自拡張コマンド
 
 	MultiPV         : その局面での上位N個の候補手を調べる機能
 	NarrowBook		: 実現確率の低い定跡を採用しない
-	Param1			: パラメーターの自動調整用X軸
-	Param2			: パラメーターの自動調整用Y軸
+
+//	Param1			: パラメーターの自動調整用X軸
+//	Param2			: パラメーターの自動調整用Y軸
 
 	MinimumThinkingTime : 最小思考時間。2秒以内に指すと計測1秒となる場合、2000を指定すべき。(CSAルールなど)
 					このとき、NetworkDelayの分は減じて思考するので計測1秒となるはず。
