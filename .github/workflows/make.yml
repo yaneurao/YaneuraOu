@@ -98,7 +98,7 @@ jobs:
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install build-essential libopenblas-dev clang-10
+          sudo apt install build-essential libopenblas-dev clang-10 libstdc++-10-dev libomp-10-dev
         if: ${{ matrix.compiler == 'clang++-10' }}
       - name: install clang-11
         # Ubuntu 20.10 or LLVM APT
