@@ -844,9 +844,10 @@ void USI::loop(int argc, char* argv[])
 				Threads.main()->wait_for_search_finished();
 				Search::Limits.silent = org;
 
-				// 前回と同様のgoコマンドをそのまま送る。ただし"ponder"の文字は無視する
+				// 前回と同様のgoコマンドをそのまま送る。ただし"ponder"の文字は無視する。
+				// last_go_cmd_stringには先頭に"go"の文字があるが、それはgo_cmdのなかで無視されるので気にしなくて良い。
 				istringstream iss(Threads.main()->last_go_cmd_string);
-				go_cmd(pos, iss,states , true);
+				go_cmd(pos, iss, states, true);
 			}
 			else {
 				// 通常のponder
@@ -942,6 +943,12 @@ void USI::loop(int argc, char* argv[])
 
 		// この局面のhash keyの値を出力
 		else if (token == "key") cout << hex << pos.state()->key() << dec << endl;
+
+		// 探索の終了を待機するコマンド("stop"は送らずに。goコマンドの終了を待機できて便利。)
+		else if (token == "wait") Threads.main()->wait_for_search_finished();
+
+		// 一定時間待機するコマンド。("quit"の前に一定時間待ちたい時などに用いる。sleep 1000 == 1秒待つ)
+		else if (token == "sleep") { u64 ms; is >> ms; Tools::sleep(ms); }
 
 #if defined(MATE_1PLY) && defined(LONG_EFFECT_LIBRARY)
 		// この局面での1手詰め判定

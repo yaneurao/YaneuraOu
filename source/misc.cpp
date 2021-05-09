@@ -805,7 +805,7 @@ namespace Tools
 	}
 
 	// 指定されたミリ秒だけsleepする。
-	void sleep(int ms)
+	void sleep(u64 ms)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 	}

@@ -344,7 +344,7 @@ namespace Tools
 	extern void exit();
 
 	// 指定されたミリ秒だけsleepする。
-	extern void sleep(int ms);
+	extern void sleep(u64 ms);
 
 	// 現在時刻を文字列化したもを返す。(評価関数の学習時などにログ出力のために用いる)
 	extern std::string now_string();
