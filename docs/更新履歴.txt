@@ -2,6 +2,294 @@
 やねうら王 更新履歴
 
 
+■　2021/5/9
+
+
+- V6.03
+	- Stochastic_Ponder追加
+	- ふかうら王
+		- 持ち時間制御改善
+	- wait,sleepコマンド追加
+	- LeafDfpnNodesLimitを50→40に変更
+	- エンジンオプションにSoftmax_Temperature追加。(dlshogiと違い、千分率)
+	- df-pnで落ちることがあったの修正。
+
+
+- ふかうら王の大会用の設定について説明追加。
+
+
+- wait,sleepコマンド追加
+- Tools::sleep()の引数をint→u64に変更。
+
+
+- CIビルド、エラーが出ていたのを修正。
+	- https://github.com/yaneurao/YaneuraOu/pull/169
+	Add development packages
+
+	libstdc++-10-dev for
+	#include <chrono>
+
+	libomp-10-dev for
+	openmp
+
+
+
+■　2021/5/4
+
+
+- 探索打ち切り条件のチューニング。
+	- パラメーターの調整が、長時間の対局×optimizerのようなものを使わないと無理。
+	- 以前の持ち時間制御よりマシやろ、程度。
+	- 勝負どころ(1番目の指し手と2番目の指し手の評価値が近いほど)で多くの時間を使うようにしてあるので
+	強い相手と対局すると時間たくさん使うし、弱い相手とだと時間かなり余るかも。
+	- WCSC31の持ち時間(15分+1手5秒加算)においてSlowMover 100でだいたいいい感じだと思う。
+
+- positionコマンドを送らずにgoコマンドを2回送るとresignが返っていたの修正。
+// 実際の対局ではpositionコマンドを送らずにgoは来ないはずだが…。
+
+
+- ふかうら王 LeafDfpnNodesLimitを50→40に変更
+	A100/GeForce GTX 3090 5スレでGPUを使い切りたいために調整。
+
+
+
+■　2021/5/3
+
+
+- やねうら王/ふかうら王にStochastic Ponder実装する。
+	- dlshogiにあるやつ。実装方法は全く異なるが。
+	- エンジンオプションに "Stochastic_Ponder"追加。
+	// →　go ponder二度呼び出されると困るのかｗ　これはまずい。
+	// →　うまく動くようにした。色々難しいなｗ
+
+	デフォルト、オフにしとこう…。
+	これデフォルトでオンだと相手番で思考するので将棋所で読み筋の指し手のところがおかしくなって、初心者が大恐慌に陥るわ:rofl:
+
+
+- 新しい定跡生成ルーチン、WCSC31終わってから作るのでいったんrevert。
+
+
+- ふかうら王、訪問回数の多いnodeでSelectMaxUcbChild()の結果をしばらくcacheしておくようにした。
+	A100×8のような高スペックなGPU環境においてroot付近のnodeのlockで待たさせることが減るはず。
+	// 弱くなっていないかはそんな環境で棋力計測ができないのでわからない…。
+
+
+- leaf nodeで使っているdf-pn、ノード数が指定されている時に、残り探索ノード数が証明数より少ないと証明不可なわけで、即座に不詰と判定するように変更。
+	// →　不詰が証明できるかもしれないが、不詰を証明する価値に乏しいので…。
+	// →　途中で切り上げる分、だいぶ軽くなった。
+	RTX3090で10ブロック、3スレッド設定で降るに回せそう。
+
+	検証用) RTX3090にて
+
+	evaldir taya-model052
+	DNN_Batch_Size1 256
+	UCT_Threads1 3
+	isready
+	position startpos moves 7g7f 8c8d 2g2f 8d8e 2f2e 4a3b 8h7g 3c3d 7i8h 2b7g+ 8h7g 3a2b 4g4f 2b3c 3i3h 5a4b 6i7h 7a7b 3g3f 7c7d 3h4g 1c1d 2i3g 6c6d 1g1f 8a7c 5i6h 7b6c 4i4h 6a6b 9g9f 9c9d 4g5f 8b8a 6g6f 6c5d 2h2i 5d6c 6h7i 4b5b 7i8h 5b4b 5f6g 6c5d 3g4e 3c4d 2e2d 2c2d 2i2d B*1c 2d2i P*2h 2i4i 8e8f 8g8f 1c4f P*2b 4d4e 2b2a+ 8a2a 4h4g 4f1c 1f1e N*5e 1e1d 1c2d P*2e 5e6g+ 2e2d 6g7h 8h7h P*1e 4i4h 2a2d 7f7e 2d2g+ 7e7d 7c6e 6f6e S*3i
+	go btime 10000 wtime 10000 inc 100000
+
+	↓dfpn50 枝刈りなし
+	info nps 55773 time 1619 nodes 90298 hashfull 9 depth 29 score cp 114 pv N*2d 2g2d 4h6h 2d2g B*8d G*7b N*3g N*5e 3g4e 5e4g+ N*2d 2g2d S*7c G*5b 7c6b 7b6b 7d7c+ 6b7c 8d7c+ N*7e 7g7f 4g5g 6h6i S*6g 7h7g 5d4e 7f7e 2d2g 6i3i
+
+	↓dfpn50 枝刈りあり
+	info nps 57540 time 1617 nodes 93043 hashfull 9 depth 28 score cp 105 pv N*2d 2g2d 4h6h 2d2g B*8d G*7b N*3g N*5e 3g4e 5e4g+ N*2d 2g2d S*7c G*5b 7c6b 7b6b 7d7c+ 6b7c 8d7c+ N*7e 7g7f 4g5g 6h6f 5d4e 7f7e 5g5f 6f7f 2d2g
+
+	// 3%ほどnps上がったか。
+
+
+
+- ふかうら王、leaf nodeでの詰将棋をオーダリング付きdf-pnに変更。default 50 node。
+	- root nodeでのdf-pnをオーダリング付きdf-pnに変更。
+	- エンジンオプション : "MateSearchPly"廃止。
+	- エンジンオプション : "LeafDfpnNodesLimit"追加。
+	- docs/USI拡張コマンド.txtに↑の説明追加。
+
+	// 5手詰めをdfpn 50nodesに置き換えても強さほぼ変わらない＆nps 5%ほど上がる。(RTX 3090 4スレ時中盤の局面)
+	// なので置き換えたほうが得だと思われる。
+	// 指定するのはノード数なので細かい調整もできるだろうし…。
+
+	engine1 = YaneuraOu-Deep-TensorRT_V604.exe , eval = deep\gct2020
+	engine2 = YaneuraOu-Deep-TensorRT_V604DFPN50.exe , eval = deep\gct2020
+	T1,n1600.n1600,266 - 61 - 261(50.47% R3.3[-21.58,28.17]) winrate black , white = 47.82% , 52.18%
+
+	engine1 = YaneuraOu-Deep-TensorRT_V604.exe , eval = deep\gct2020
+	engine2 = YaneuraOu-Deep-TensorRT_V604DFPN50.exe , eval = deep\gct2020
+	T1,n800.n800,1223 - 615 - 1162(51.28% R8.89[-2.82,20.59]) winrate black , white = 51.32% , 48.68%
+
+	engine1 = YaneuraOu-Deep-TensorRT_V604.exe , eval = deep\taya-model051
+	engine2 = YaneuraOu-Deep-TensorRT_V604DFPN50.exe , eval = deep\taya-model051
+	T1,n3000.n3000,505 - 80 - 499(50.3% R2.08[-15.95,20.1]) winrate black , white = 50.3% , 49.7%
+
+	engine1 = YaneuraOu-Deep-TensorRT_V604.exe , eval = deep\gct2020
+	engine2 = YaneuraOu-Deep-TensorRT_V604DFPN50.exe , eval = deep\gct2020
+	T1,n3000.n3000,702 - 105 - 647(52.04% R14.17[-1.39,29.74]) winrate black , white = 50.33% , 49.67%
+
+
+	// npsの計測データ。
+	// RTX3090で計測
+
+	evaldir taya-model052
+	DNN_Batch_Size1 256
+	UCT_Threads1 4
+	isready
+	position startpos moves 7g7f 8c8d 2g2f 8d8e 2f2e 4a3b 8h7g 3c3d 7i8h 2b7g+ 8h7g 3a2b 4g4f 2b3c 3i3h 5a4b 6i7h 7a7b 3g3f 7c7d 3h4g 1c1d 2i3g 6c6d 1g1f 8a7c 5i6h 7b6c 4i4h 6a6b 9g9f 9c9d 4g5f 8b8a 6g6f 6c5d 2h2i 5d6c 6h7i 4b5b 7i8h 5b4b 5f6g 6c5d 3g4e 3c4d 2e2d 2c2d 2i2d B*1c 2d2i P*2h 2i4i 8e8f 8g8f 1c4f P*2b 4d4e 2b2a+ 8a2a 4h4g 4f1c 1f1e N*5e 1e1d 1c2d P*2e 5e6g+ 2e2d 6g7h 8h7h P*1e 4i4h 2a2d 7f7e 2d2g+ 7e7d 7c6e 6f6e S*3i
+	go btime 10000 wtime 10000 inc 100000
+
+	↓dfpn300
+	info nps 22104 time 1615 nodes 35698 hashfull 10 depth 28 score cp 79 pv N*2d 2g2d 4h6h 2d2g B*8d G*7b N*3g N*5e 3g4e 5e4g+ N*2d 2g2d S*7c N*7e 8d7e 5d4e 6e6d P*6g 6h6g N*5e 6g6i 4g5h 6i3i 2h2i+ 3i3h G*6e 7e8d 6b7c
+
+	↓dfpn80
+	info nps 44287 time 1622 nodes 71835 hashfull 7 depth 26 score cp 149 pv N*2d 2g2d 4h6h 2d2g B*8d 6b6a N*3g N*5e B*4i 2g2f 3g4e 5e4g+ 6e6d G*5h 6h5h 4g5h 6d6c+ 5d4e 4i5h N*6e 7g6f 3i4h+ 5h7f 2f3f S*2d P*7g
+	bestmove N*2d
+
+	↓dfpn50
+	info nps 55773 time 1619 nodes 90298 hashfull 9 depth 29 score cp 114 pv N*2d 2g2d 4h6h 2d2g B*8d G*7b N*3g N*5e 3g4e 5e4g+ N*2d 2g2d S*7c G*5b 7c6b 7b6b 7d7c+ 6b7c 8d7c+ N*7e 7g7f 4g5g 6h6i S*6g 7h7g 5d4e 7f7e 2d2g 6i3i
+
+	↓5手詰め
+	info nps 53620 time 1622 nodes 86972 hashfull 8 depth 26 score cp 103 pv N*2d 2g2d 4h6h 2d2g B*8d 6b6a N*3g N*5e B*4i 2g2f 3g4e 5e4g+ 6e6d G*5h 6h5h 4g5h 6d6c+ 5d4e 4i5h N*6e 7g6f 3i4h+ 5h7f 2f3f S*2d P*7g
+
+	// dfpn50と同等でござったか…。
+
+	↓dfpn50 with hash
+	info nps 39798 time 1615 nodes 64274 hashfull 6 depth 26 score cp 135 pv N*2d 2g2d 4h6h 2d2g B*8d 6b6a N*3g N*5e B*4i 2g2f 3g4e 5e4g+ 6e6d G*5h 6h5h 4g5h 6d6c+ 5d4e 4i5h N*6e 7g6f 3i4h+ 5h7f 2f3f S*2d P*7g
+	bestmove N*2d
+	// 遅いでござる…。なんぞこれ…。
+
+
+- 指し手Ordering有りDFPNルーチンを公開。
+
+
+■　2021/5/2
+
+
+- ふかうら王、ビルドに用いるTensorRTのバージョンアップ
+	// dlshogiで用いているバージョンに合わせておく
+	TensorRT-7.2.1.6 →　TensorRT-7.2.3.4
+
+	TensorRT-7.2.1.6 →　TensorRT-7.2.3.4にバージョンアップして、シリアライズファイルに互換性なくなってるのに、
+	NV_TENSORRT_VERSIONが7203のままなんですけど:face_vomiting:  このシンボルの値、シリアライズするファイル名に使ってるので、
+	同じ値のまま互換性失われてると困るんですけど:face_vomiting:
+
+
+- ふかうら王、isreadyに対して、毎回modelファイルの存在チェックをしているの、無駄なので存在していたファイルは
+　記憶しておくことにした。
+
+
+- ふかうら王、引き分けの上位ノードへの伝播
+
+	1. 子ノードすべてが負け
+	2. 子ノードすべてが引き分け
+	3. 子ノードすべてが引き分け or 負け
+	引き分け とは、 2. or ( 3. and (not 1.))
+
+	レアケースかもしれないが、弱くはなってなさそうなので採用。
+
+	engine1 = YaneuraOu-Deep-TensorRT_V603_DRAW3.exe , eval = deep\gct2020
+	engine2 = YaneuraOu-Deep-TensorRT_V603.exe , eval = deep\gct2020
+	T1,n800.n800,1216 - 632 - 1152(51.35% R9.39[-2.35,21.14]) winrate black , white = 50.21% , 49.79%
+	T1,n1600.n1600,943 - 275 - 840(52.89% R20.09[6.54,33.65]) winrate black , white = 49.8% , 50.2%
+	T1,n3000.n3000,534 - 87 - 503(51.49% R10.39[-7.36,28.14]) winrate black , white = 52.65% , 47.35%
+
+- 子ノード選択のAVX2化。
+	→　dlshogiのコード、あまりよくないように思うので保留。
+	https://github.com/TadaoYamaoka/DeepLearningShogi/blob/feature/avx2/usi/UctSearch.cpp#L1398
+
+
+
+
+■　2021/4/23
+
+
+- ふかうら王、エンジンオプションにSoftmax_Temperature、百分率から千分率に変更
+
+
+■　2021/4/22
+
+
+- ふかうら王、エンジンオプションにSoftmax_Temperature追加
+
+
+
+■　2021/2/25
+
+
+- df-pnでメモリ確保できなかった時のnull check、忘れてたの修正。
+	// あとで実装しようと思って忘れてたっぽい。
+
+
+■　2021/2/11
+
+
+- 千日手の処理が非対称なのを修正
+	- エンジンオプションのContempt , ComtemptForBlack廃止
+	- やねうら王 , ふかうら王ともに、DrawValueBlack , DrawValueWhite に変更
+		- やねうら王のほうは、cp , ふかうら王のほうは、0.0～1.0の実数値で勝率を指定
+		- ふかうら王、Draw_Value_Black , Draw_Value_Whiteから、DrawValueBlack , DrawValueWhite に変更。
+			// dlshogiとは異なる名前になってしまうが、まあええやろ…。
+
+- dlshogiも同様の問題があるのでdlshogiのissueで報告
+
+	千日手の処理が非対称 #36
+	https://github.com/TadaoYamaoka/DeepLearningShogi/issues/36
+
+	https://github.com/TadaoYamaoka/DeepLearningShogi/blob/2ec875c037c4abc3e6f5511e2169461cf3457ff4/usi/UctSearch.cpp#L1227
+
+	これだと、例えば、draw_value_white = 1.0(勝ち)、draw_value_black = 0.5(引き分け)の時、先手は千日手を引き分け、後手は千日手を負けだと思って探索するという非対称な探索を行っていることになります。こういう非対称な探索がやりたい機会は現実的にはほとんどないので、これは無意味な設定だと思います。
+
+	現実的には(例えば大会では)、先手番であるなら、引き分けを避けたくて、後手番なら引き分けは0.5勝扱いとみなして、対称的な探索をしたいのです。
+
+	例えば、この時、次のように設定したいわけです。
+
+　	 draw_value_black = 0
+　	 draw_value_white = 0.5
+
+	よって、上の当該箇所は、pos->turn() == BLACK ではなく、root_color(探索開始局面の手番) == WHITE になっているべきだと思うのです。
+
+
+■　2021/2/4
+
+
+- TensorRTのモデル、デシリアライズしたものを読み込んだ時に、ドライバのバージョン違いなどが原因で読み込みに失敗した時に、
+	デシリアライズからやりなおすコードを追加。
+- TensorRTのモデルの読み込みに、FileOperator::ReadFileToMemory()を用いるようにする。
+- ReadFileToMemory()の高速化。
+
+
+■　2021/2/3
+
+
+- TRT: 最適化ファイル名からGPU_ID, PCI_BUS_ID削除、TensorRTバージョン追加 #166
+	- Mizarさんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/166
+	- TensorRT用にシリアライズしたmodelファイル、ドライバのバージョンが違うと互換性が無いようなので
+	ドライバのバージョンをシリアライズしたファイル名に埋め込む。
+
+
+- "benchmark"コマンド改善
+  - ふかうら王で、benchコマンドでassertに引っかかるのを修正。
+  - ふかうら王で、benchコマンドで定跡ファイルの読み込みをオフにしていなかったの修正。
+  - benchmarkコマンドで、外部からsfen文字列、"startpos moves XXX"のような文字列などを書かれたファイルを読み込めるようにした。
+
+
+■　2021/2/2
+
+
+- ふかうら王でbook.binを使う時、ponderの出力がおかしいかったの修正。
+  - ponderの指し手がないときにvectorの範囲外にアクセスしてた。
+  (ponderの指し手がMOVE_NONEであることを想定していなかった)
+
+bookfile book.bin
+USI_Ponder true
+isready
+position startpos moves 6i7h 8c8d 7g7f
+go btime 64000 wtime 58000 binc 3000 winc 3000
+
+
+■　2021/2/1
+
+- NNUE評価関数学習時、Windows環境下でCPUが2つある場合に、論理64コアに負荷が集中する問題を修正した #165
+  tanuki-さんのプルリク : https://github.com/yaneurao/YaneuraOu/pull/165
+
+
 ■　2021/1/26
 
 
