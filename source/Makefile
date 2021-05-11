@@ -228,6 +228,10 @@ SOURCES  = \
 	timeman.cpp                                                                \
 	book/book.cpp                                                              \
 	book/apery_book.cpp                                                        \
+	book/makebook.cpp                                                          \
+	book/makebook2015.cpp                                                      \
+	book/makebook2019.cpp                                                      \
+	book/makebook2021.cpp                                                      \
 	extra/bitop.cpp                                                            \
 	extra/long_effect.cpp                                                      \
 	extra/sfen_packer.cpp                                                      \
@@ -243,19 +247,10 @@ SOURCES  = \
 	eval/material/evaluate_material.cpp                                        \
 	testcmd/mate_test_cmd.cpp                                                  \
 	testcmd/normal_test_cmd.cpp                                                \
-	testcmd/benchmark.cpp
-
-
-ifeq (,$(findstring evallearn,$@))
-	SOURCES  +=                                                                \
-		book/makebook.cpp                                                      \
-		book/makebook2015.cpp                                                  \
-		book/makebook2019.cpp                                                  \
-		book/makebook2021.cpp                                                  \
-		learn/learner.cpp                                                      \
-		learn/learning_tools.cpp                                               \
-		learn/multi_think.cpp
-endif
+	testcmd/benchmark.cpp                                                      \
+	learn/learner.cpp                                                          \
+	learn/learning_tools.cpp                                                   \
+	learn/multi_think.cpp
 
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPPT)
 	SOURCES  +=                                                                \
@@ -371,13 +366,13 @@ endif
 
 
 # 開発用branch
-ifeq (,$(findstring dev,$(ENGINE_BRANCH)))
+ifeq ($(findstring dev,$(ENGINE_BRANCH)),dev)
 	# SuperSort使ってみよう。
 	CPPFLAGS += -DDEV_BRANCH
 endif
 
 # abe
-ifeq (,$(findstring abe,$(ENGINE_BRANCH)))
+ifeq ($(findstring abe,$(ENGINE_BRANCH)),abe)
 	CPPFLAGS += -DPV_OUTPUT_DRAW_ONLY -DFORCE_BIND_THIS_THREAD
 endif
 
