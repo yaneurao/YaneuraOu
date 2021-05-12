@@ -6,7 +6,6 @@
 # tournament : 大会で使う用
 # gensfen    : 教師生成用(2019年版)
 
-
 # === ビルドオプション (build options) ===
 
 # やねうら王の使いたいエディションを指定する (select YaneuraOu Edition)
@@ -99,13 +98,24 @@ MATERIAL_LEVEL = 1
 
 # === implementations ===
 
+# 以下では、
+#   ifneq (,$(findstring A,B))
+# というイデオムが出てくる。
+#
+# findstringは文字列Bに文字列Aが含まれているかを判定し、含まれていればAを返す。含まれていなければ空の文字列を返す。
+# なので、AがBに含まれている場合は、findstringはAを返し、ifneq(if not equal)でそれが空かどうかを判定した場合、空ではないから、ifneqは成立する。
+# つまり、このイデオムは、「BにAが含まれているならば、以下を実行してください。」という意味である。
+#
+# ※ ifeq (A,B) は「AとBが等しいならば、以下を実行してください。」という意味。紛らわしいので気をつけよう。
+
+
 # デバッガーを使わないなら、NDEBUGをdefineする。
 ifeq ($(DEBUG),OFF)
 	CPPFLAGS += -DNDEBUG
 endif
 
 # clang用にCPPFLAGSなどを変更
-ifeq ($(findstring clang++,$(COMPILER)),clang++)
+ifneq (,$(findstring clang++,$(COMPILER)))
 	# stdlib
 	CPPFLAGS += -stdlib=libstdc++
 
@@ -124,7 +134,7 @@ ifeq ($(findstring clang++,$(COMPILER)),clang++)
 	WCPPFLAGS += -fno-threadsafe-statics
 
 else
-	ifeq ($(findstring g++,$(COMPILER)),g++)
+	ifneq (,$(findstring g++,$(COMPILER)))
 		# mingw g++ で AVX512 向けビルドを行おうとするとエラーになる問題の回避
 		# https://stackoverflow.com/questions/43152633/invalid-register-for-seh-savexmm-in-cygwin
 		# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=65782
@@ -171,18 +181,18 @@ LDFLAGS += -Wl,-s
 # clangでOPENMPを有効にしてビルドする方法については、解説.txtを参照のこと。
 
 
-ifeq ($(findstring g++,$(COMPILER)),g++)
+ifneq (,$(findstring g++,$(COMPILER)))
 	OPENMP   = -fopenmp
 	OPENMP_LDFLAGS =
 endif
-ifeq ($(findstring clang++,$(COMPILER)),clang++)
+ifneq (,$(findstring clang++,$(COMPILER)))
 		ifeq ($(MSYSTEM),MINGW64)
 		# MSYS2 MINGW64 env
 		# libgompを指定した場合、ビルドは通るがOpenMPは無効化される？
 		OPENMP = -fopenmp=libgomp
 		OPENMP_LDFLAGS =
 	else
-		ifeq ($(findstring w64-mingw32,$(COMPILER)),w64-mingw32)
+		ifneq (,$(findstring w64-mingw32,$(COMPILER)))
 			# Ubuntu mingw-w64 clang++ env (experimental)
 			OPENMP = -fopenmp=libgomp
 			OPENMP_LDFLAGS =
@@ -195,7 +205,7 @@ ifeq ($(findstring clang++,$(COMPILER)),clang++)
 endif
 
 # NNUE評価関数 学習バイナリ用 OpenBLAS
-ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_NNUE)
+ifneq (,$(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)))
 	BLAS = -DUSE_BLAS
 	BLAS_LDFLAGS = -lopenblas
 	ifeq ($(MSYSTEM),MINGW64)
@@ -246,7 +256,13 @@ SOURCES  = \
 	testcmd/benchmark.cpp
 
 
-ifeq (,$(findstring evallearn,$@))
+#ifneq (,$(findstring evallearn,$@))
+# →これこの時点で$@を取得できないのか…。なんぞこれ。
+
+# 仕方ないので無条件で追加しておく。cppファイルのほうで、
+#  if!defined(EVAL_LEARN)..とか書いてあるのでとりあえずいいや。
+
+ifeq (,)
 	SOURCES  +=                                                                \
 		book/makebook.cpp                                                      \
 		book/makebook2015.cpp                                                  \
@@ -279,7 +295,7 @@ ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_MATERIAL)
 	CPPFLAGS += -DMATERIAL_LEVEL=$(MATERIAL_LEVEL)
 endif
 
-ifeq ($(findstring YANEURAOU_ENGINE_DEEP,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_DEEP)
+ifneq (,$(findstring YANEURAOU_ENGINE_DEEP,$(YANEURAOU_EDITION)))
 	ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP)
 	else
 		# YANEURAOU_EDITIONがYANEURAOU_ENGINE_DEEPの後ろに文字が入っている名前なら、
@@ -304,7 +320,7 @@ ifeq ($(findstring YANEURAOU_ENGINE_DEEP,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_
 		endif
 	endif
 
-	# 大して大きなファイルではないので全部してしまう。
+	# 大して大きなファイルではないので全部追加する。
 	SOURCES += \
 		eval/deep/nn_types.cpp                                          \
 		eval/deep/nn.cpp                                                \
@@ -317,7 +333,7 @@ ifeq ($(findstring YANEURAOU_ENGINE_DEEP,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_
 		engine/dlshogi-engine/YaneuraOu_dlshogi_bridge.cpp
 endif
 
-ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_NNUE)
+ifneq (,$(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)))
 	ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE)
 	else
 		# YANEURAOU_EDITIONがYANEURAOU_ENGINE_NNUEの後ろに文字が入っている名前なら、これは
@@ -371,13 +387,13 @@ endif
 
 
 # 開発用branch
-ifeq (,$(findstring dev,$(ENGINE_BRANCH)))
+ifneq (,$(findstring dev,$(ENGINE_BRANCH)))
 	# SuperSort使ってみよう。
 	CPPFLAGS += -DDEV_BRANCH
 endif
 
 # abe
-ifeq (,$(findstring abe,$(ENGINE_BRANCH)))
+ifneq (,$(findstring abe,$(ENGINE_BRANCH)))
 	CPPFLAGS += -DPV_OUTPUT_DRAW_ONLY -DFORCE_BIND_THIS_THREAD
 endif
 

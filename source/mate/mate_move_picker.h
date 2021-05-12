@@ -130,7 +130,8 @@ namespace Mate
 				// 最後に調べたtoとそこの利きの数
 				Square lastTo = SQ_NB;
 				// 味方の利きの数、敵の利きの数
-				int our_effect, their_effect;
+				// ※ 未初期化かもしれないという警告がでて気持ち悪いのでゼロ初期化している。
+				int our_effect = 0 , their_effect = 0;
 
 				for (auto& m : *this)
 				{
