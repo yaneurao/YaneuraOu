@@ -462,6 +462,17 @@ USIプロトコルの独自拡張コマンド
 		例) 1024MB USI_Hash , 1スレッド , デフォルト局面 , 10万ノードまで探索
 			bench 1024 1 100000 default nodes
 
+		V6.04から、引数の名前でも指定できるようになりました。
+		例)
+			bench 1024 4 3000 default nodes
+				↓こう書ける
+			benchmark hash 1024 threads 4 limit 3000 type nodes file sfen.txt
+		例)
+			特定の引数だけ変更できる。
+
+			benchmark type nodes limit 3000
+			// 3000 nodesで探索
+
 
 ■　テストコマンド
 

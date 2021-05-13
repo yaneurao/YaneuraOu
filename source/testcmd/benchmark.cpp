@@ -38,18 +38,44 @@ void bench_cmd(Position& current, istringstream& is)
 	// Optionsを書き換えるのであとで復元する。
 	auto oldOptions = Options;
 
-	string token;
+	std::string token;
 	Search::LimitsType limits;
-	vector<string> fens;
+	vector<std::string> fens;
 
-	// →　デフォルト1024にしておかないと置換表あふれるな。
-	std::string ttSize = (is >> token) ? token : "1024";
+	// hashはデフォルト1024にしておかないと置換表あふれるな。
+	std::string ttSize = "1024", threads  ="1", limit ="17" , fenFile ="default", limitType = "depth";
+	string* positional_args[] = { &ttSize, &threads, &limit, &fenFile, &limitType };
 
-	string threads     = (is >> token) ? token : "1";
-	string limit       = (is >> token) ? token : "17";
+#if defined(YANEURAOU_ENGINE_DEEP)
+	// ふかうら王は、depth指定に対応していない。
+	// defaultでnodes limitに変更しておく。
+	limitType = "nodes";
+	limit = "200000";
+#endif
 
-	string fenFile     = (is >> token) ? token : "default";
-	string limitType   = (is >> token) ? token : "depth";
+	// "benchmark hash 1024 threads 4 limit 3000 type nodes file sfen.txt"のようにも書きたい。
+
+	// 解析中の引数の位置
+	int p = 0;
+	while (is >> token)
+	{
+		if (token == "hash")
+			is >> ttSize;
+		else if (token == "threads")
+			is >> threads;
+		else if (token == "limit")
+			is >> limit;
+		else if (token == "file")
+			is >> fenFile;
+		else if (token == "type")
+			is >> limitType;
+		else
+		{
+			// 解釈できなかったものは、位置固定の引数と解釈する
+			if (p < /*positional_args.size()*/ 5)
+				*positional_args[p++] = token;
+		}
+	}
 
 	if (ttSize == "d")
 	{
@@ -67,14 +93,7 @@ void bench_cmd(Position& current, istringstream& is)
 
 	// これふかうら王だわ
 	if (Options.count("UCT_Threads1"))
-	{
 		Options["UCT_Threads1"] = threads;
-
-		// ふかうら王は、depth指定に対応していない。
-		// defaultでnodes limitに変更しておく。
-		limitType = "nodes";
-		limit = "200000";
-	}
 
 	if (limitType == "time")
 		limits.movetime = (TimePoint)1000 * stoi(limit); // movetime is in ms
@@ -129,8 +148,10 @@ void bench_cmd(Position& current, istringstream& is)
 
 	// bench条件を出力。
 	sync_cout << "Benchmark" << endl
+			  << "    hash    : " << ttSize << endl
 			  << "    threads : " << threads << endl
-			  << "    limit   : " << limitType << " " << limit << sync_endl;
+			  << "    limit   : " << limitType << " " << limit << endl
+			  << "    sfen    : " << fenFile << sync_endl;
 
 	Position pos;
 	for (size_t i = 0; i < fens.size(); ++i)
