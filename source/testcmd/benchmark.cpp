@@ -61,6 +61,21 @@ void bench_cmd(Position& current, istringstream& is)
 		limit = "6";
 	}
 
+	// "Threads"があるとは仮定できない
+	if (Options.count("Threads"))
+		Options["Threads"] = threads;
+
+	// これふかうら王だわ
+	if (Options.count("UCT_Threads1"))
+	{
+		Options["UCT_Threads1"] = threads;
+
+		// ふかうら王は、depth指定に対応していない。
+		// defaultでnodes limitに変更しておく。
+		limitType = "nodes";
+		limit = "200000";
+	}
+
 	if (limitType == "time")
 		limits.movetime = (TimePoint)1000 * stoi(limit); // movetime is in ms
 
@@ -76,13 +91,6 @@ void bench_cmd(Position& current, istringstream& is)
 
 	if (Options.count("USI_Hash"))
 		Options["USI_Hash"] = ttSize;
-
-	// "Threads"があるとは仮定できない
-	if (Options.count("Threads"))
-		Options["Threads"] = threads;
-
-	if (Options.count("UCT_Threads1"))
-		Options["UCT_Threads1"] = threads;
 
 	// 定跡にhitされるとベンチマークにならない。
 	if (Options.count("BookFile"))
@@ -118,6 +126,11 @@ void bench_cmd(Position& current, istringstream& is)
 	// ベンチの計測用タイマー
 	Timer time;
 	time.reset();
+
+	// bench条件を出力。
+	sync_cout << "Benchmark" << endl
+			  << "    threads : " << threads << endl
+			  << "    limit   : " << limitType << " " << limit << sync_endl;
 
 	Position pos;
 	for (size_t i = 0; i < fens.size(); ++i)
