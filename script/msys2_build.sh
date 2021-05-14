@@ -25,7 +25,7 @@ COMPILERS="clang++,g++"
 EDITIONS='*'
 TARGETS='*'
 
-while getopts c:e:t: OPT
+while getopts c:e:t:p: OPT
 do
   case $OPT in
     c) COMPILERS="$OPTARG"
@@ -175,11 +175,12 @@ for COMPILER in ${COMPILERSARR[@]}; do
             set +f
             if [[ $TARGET == $TARGETPTN ]]; then
               set -f
+              echo "* target: ${TARGET}"
               for CPU in ${CPUS[@]}; do
                 for CPUPTN in ${CPUSARR[@]}; do
                   set +f
                   if [[ $CPU == $CPUPTN ]]; then
-                    echo "* target: ${TARGET}"
+                    echo "* cpu: ${CPU}"
                     TGSTR=${FILESTR[$EDITION]}-msys2-${CSTR}-${TARGET}
                     ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
                     nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET_CPU=${CPU} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
