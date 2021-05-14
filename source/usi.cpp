@@ -77,7 +77,7 @@ void mate_cmd(Position& pos, istream& is);
 // ----------------------------------
 
 // 定跡を作るコマンド
-#if defined (ENABLE_MAKEBOOK_CMD) && defined(EVAL_LEARN)
+#if defined (ENABLE_MAKEBOOK_CMD) && (defined(EVAL_LEARN) || defined(YANEURAOU_ENGINE_DEEP))
 namespace Book { extern void makebook_cmd(Position& pos, istringstream& is); }
 #endif
 
@@ -960,7 +960,7 @@ void USI::loop(int argc, char* argv[])
 		else if (token == "test") Test::test_cmd(pos, is);
 #endif
 
-#if defined (ENABLE_MAKEBOOK_CMD) && defined(EVAL_LEARN)
+#if defined (ENABLE_MAKEBOOK_CMD) && (defined(EVAL_LEARN) || defined(YANEURAOU_ENGINE_DEEP))
 		// 定跡を作るコマンド
 		else if (token == "makebook") Book::makebook_cmd(pos, is);
 #endif

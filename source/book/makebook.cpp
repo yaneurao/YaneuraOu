@@ -1,6 +1,6 @@
 ﻿#include "../config.h"
 
-#if defined (ENABLE_MAKEBOOK_CMD) && defined(EVAL_LEARN)
+#if defined (ENABLE_MAKEBOOK_CMD) && (defined(EVAL_LEARN) || defined(YANEURAOU_ENGINE_DEEP))
 
 #include "book.h"
 #include "../position.h"
@@ -35,8 +35,8 @@ namespace Book
 	void makebook_cmd(Position& pos, istringstream& is)
 	{
 		// makebookコマンドは、ほとんどがEVAL_LEARNが有効でないと使えないので、丸ごと使えないようにしておく。
-#if !(defined(EVAL_LEARN) && defined(YANEURAOU_ENGINE))
-		cout << "Error!:define EVAL_LEARN and YANEURAOU_ENGINE" << endl;
+#if ! (defined (ENABLE_MAKEBOOK_CMD) && (defined(EVAL_LEARN) || defined(YANEURAOU_ENGINE_DEEP)))
+		cout << "Error!:define EVAL_LEARN and (YANEURAOU_ENGINE or YANEUROU_ENGINE_DEEP)" << endl;
 		return;
 #endif
 
@@ -88,4 +88,5 @@ namespace Book
 
 } // namespace Book
 
-#endif // defined (ENABLE_MAKEBOOK_CMD) && defined(EVAL_LEARN)
+#endif // defined (ENABLE_MAKEBOOK_CMD) && (defined(EVAL_LEARN) || defined(YANEURAOU_ENGINE_DEEP))
+

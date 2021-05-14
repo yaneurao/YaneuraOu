@@ -1,6 +1,7 @@
 ﻿#include "../types.h"
 
-#if defined (ENABLE_MAKEBOOK_CMD) && defined(YANEURAOU_ENGINE_DEEP)
+#if defined (ENABLE_MAKEBOOK_CMD) && (/*defined(EVAL_LEARN) ||*/ defined(YANEURAOU_ENGINE_DEEP))
+// いまのところ、ふかうら王のみ対応。気が向いたら、NNUEにも対応させるが、NNUEの評価関数だとMCTS、あまり相性良くない気も…。
 
 // -----------------------
 // MCTSで定跡を生成する
@@ -23,12 +24,45 @@
 
 		また合流を処理しないため、同一の局面であっても経路によって異なるNodeとなるが、書き出す定跡ファイルとは別に
 		この経路情報を別のファイルに保存しておくので、前回の定跡の生成途中から再開できる。
+
+		その他、いくつかのテクニックを導入することでMCTSで定跡を生成する上での問題点を解決している。
+
+*/
+
+/*
+	それぞれのfileフォーマット
+
+	入力)
+		root_sfen.txt
+		// 探索開始局面
+		例)
+		sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1
+		↑のようなsfen形式か、
+		startpos moves 7g7f ...
+		のようなUSIプロトコルの"position"コマンドとして送られる形式でも可。
+		// この場合、それぞれの局面が探索開始対象となる。
+
+	出力)
+		leaf_sfen.txt
+			探索済leaf nodeのsfenとそのvalue,指し手
+			例)
+				sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1 // sfen
+				0.5,10000,7g7f,100
+				// この局面の探索した時のvalue(float値,手番側から見た値),playoutの回数,1つ目の指し手(ないときはresign),1つ目の指し手の探索回数
+
+		mctsbook.serialized
+			探索tree(内部状態)をそのまま書き出したの。
+
+		user_book_mcts.db
+			やねうら王で定跡ファイルとして使えるファイル
+
 */
 
 #include <sstream>
 #include <chrono>
 #include <thread>
 #include <mutex>
+#include <unordered_set>
 
 #include "../usi.h"
 #include "../misc.h"
@@ -41,6 +75,149 @@ using namespace Book;
 
 namespace {
 
+	// =================================================================
+	//                        探索済みのNode
+	// =================================================================
+
+	// 探索部を呼び出してある局面で探索した結果
+	struct SearchResult
+	{
+		float value;    // この局面の評価値(手番側から見た値)
+		Move16 move;    // この局面の最善手(無い場合はMOVE_NONE)
+		u64 move_count; // 探索したノード数
+	};
+
+	// 探索したノードを記録しておく構造体。
+	// ファイルへのserialize/deserializeもできる。
+	class SearchNodes
+	{
+	public:
+		// ファイルから読み込み。
+		void Deserialize(const std::string& filename) {}
+
+		// ファイルに保存。
+		void Serialize(const std::string& filename) {}
+
+		// 要素ひとつ追加する
+		void append(const SearchResult& result) {}
+
+		// 指定されたsfenが格納されているかを調べる。
+		// sfenは末尾に手数は書かれていないものとする。
+		SearchResult* find(const std::string& sfen) { return nullptr; }
+
+	private:
+		// 探索した結果
+		std::unordered_map<std::string /*sfen*/, SearchResult> nodes;
+	};
+
+	// =================================================================
+	//                        MCTSの探索木
+	// =================================================================
+
+	// MCTSで用いるNode構造体
+	struct MctsNode {
+
+	};
+
+	// MCTSの探索木
+	class MctsTree {
+
+
+	};
+
+	// =================================================================
+	//                   MCTSの探索rootを表現する
+	// =================================================================
+
+	// 探索Root集合の型
+	typedef std::vector<std::string> RootSfens;
+
+	// positionコマンドに渡す形式で書かれているsfenファイルを読み込み、そのsfen集合を返す。
+	// 重複局面は除去される。
+	// all_node   : そこまでの手順(経由した各局面)も含めてすべて読み込む。
+	// ignore_ply : 手数を無視する。(sfen化するときに手数をtrimする)
+	// 
+	// file formatは、
+	// "startpos move xxxx xxxx"
+	// "[sfen文字列] moves xxxx xxxx"
+	RootSfens ReadPositionFile(const string& filename, bool all_node, bool ignore_ply)
+	{
+		std::unordered_set<std::string> sfens;
+
+		TextFileReader reader;
+		reader.Open(filename);
+
+		std::string line, token, sfen;
+		while (!reader.ReadLine(line).is_eof())
+		{
+			// line : この1行がpositionコマンドに渡す文字列と同等のもの
+			std::istringstream is(line);
+			is >> token;
+			if (token == "startpos")
+			{
+				sfen = SFEN_HIRATE;
+				is >> token; // "moves"を消費する
+			}
+			else {
+				// "sfen"は書いてなくても可。
+				if (token != "sfen")
+					sfen += token + " ";
+				while (is >> token && token != "moves")
+					sfen += token + " ";
+			}
+
+			// 新しく渡す局面なので古いものは捨てて新しいものを作る。
+			auto states = StateListPtr(new StateList(1));
+			Position pos;
+			pos.set(sfen, &states->back(), Threads.main());
+
+			// 返す局面集合に追加する関数
+			auto insert = [&] {
+				std::string s = pos.sfen();
+				if (sfens.count(s) == 0)
+					sfens.insert(s);
+			};
+
+			// 開始局面をsfen化したものを格納
+			if (all_node)
+				insert();
+
+			// 指し手のparser
+			Move m;
+			while (is >> token && (m = USI::to_move(pos, token)) != MOVE_NONE)
+			{
+				// 1手進めるごとにStateInfoが積まれていく。これは千日手の検出のために必要。
+				states->emplace_back();
+				if (m == MOVE_NULL) // do_move に MOVE_NULL を与えると死ぬので
+					pos.do_null_move(states->back());
+				else
+					pos.do_move(m, states->back());
+
+				if (all_node)
+					insert();
+			}
+
+			// all_node == falseならば、最後の局面だけ返す。
+			if (!all_node)
+				insert();
+		}
+
+		// vectorに変換して返す。
+		std::vector<std::string> sfens_vector;
+		for (auto s : sfens)
+		{
+			if (ignore_ply)
+				s = StringExtension::trim_number(s);
+			sfens_vector.emplace_back(s);
+		}
+
+		return sfens_vector;
+	}
+
+	// =================================================================
+	//             mcts定跡生成コマンド本体
+	// =================================================================
+
 	// MCTSで定跡を生成する本体
 	class MctsMakeBook
 	{
@@ -51,17 +228,24 @@ namespace {
 		{
 			// loop_maxに達するか、"stop"が来るまで回る
 
-			// この回数だけ探索したら終了する。
-			u64 loop_max = 10000;
+			// この回数だけrootから探索したら終了する。
+			u64 loop_max = 10000000;
 
 			// 一つの局面(leaf node)でのPlayoutの回数
 			u64 playout = 10000;
 
+			// 探索root集合
+			string root_filename = "root_sfen.txt";
+
 			// 定跡ファイル名
-			string filename = "book2021.db";
+			string book_filename = "user_book_mcts.db";
 
 			// 定跡cacheファイル名
-			string cache_filename = "book_cache.db";
+			string serialized_filename = "mctsbook.serialized";
+
+			// 定跡のleaf nodeのsfen
+			string leaf_filename = "leaf_sfen.txt";
+
 
 			// 定跡ファイルの保存間隔。デフォルト、30分ごと。
 			TimePoint book_save_interval = 60 * 30;
@@ -76,10 +260,14 @@ namespace {
 					is >> loop_max;
 				else if (token == "playout")
 					is >> playout;
-				else if (token == "filename")
-					is >> filename;
-				else if (token == "cache_filename")
-					is >> cache_filename;
+				else if (token == "root_filename")
+					is >> root_filename;
+				else if (token == "book_filename")
+					is >> book_filename;
+				else if (token == "serialized_filename")
+					is >> serialized_filename;
+				else if (token == "leaf_filename")
+					is >> leaf_filename;
 				else if (token == "book_save_interval")
 					is >> book_save_interval;
 				else if (token == "max_ply")
@@ -87,17 +275,30 @@ namespace {
 			}
 
 			cout << "makebook mcts command" << endl
-				<< "  loop_max           = " << loop_max << endl
-				<< "  playout            = " << playout << endl
-				<< "  book filename      = " << filename << endl
-				<< "  cache filename     = " << cache_filename << endl
-				<< "  book_save_interval = " << book_save_interval << endl
-				<< "  max_ply            = " << max_ply << endl
+				<< "  root filename       = " << root_filename << endl
+				<< "  loop                = " << loop_max << endl
+				<< "  playout             = " << playout << endl
+				<< "  book_filename       = " << book_filename << endl
+				<< "  serialized_filename = " << serialized_filename << endl
+				<< "  book_save_interval  = " << book_save_interval << endl
+				<< "  max_ply             = " << max_ply << endl
 				;
 
-			// 定跡ファイルの読み込み。
-			// 新規に作るかも知れないので、存在しなくとも構わない。
-			book.read_book(filename, false);
+			cout << "read root file.." << endl;
+
+			// そこまでの手順も含めてすべて読み込み、sfenにする。
+			auto roots = ReadPositionFile(root_filename, true, true);
+			cout << "  root sfens size()  = " << roots.size() << endl;
+
+#if 0
+			// デバッグ用に読み込まれたsfenを出力する。
+			for (auto sfen : roots)
+				cout << "sfen " << sfen << endl;
+#endif
+
+
+
+#if 0
 
 			// 定跡DBを書き出す。
 			auto save_book = [&]()
@@ -128,10 +329,12 @@ namespace {
 
 			// 最後にも保存しないといけない。
 			save_book();
+#endif
 
 			cout << "makebook mcts , done." << endl;
 		}
 
+#if 0
 		// 各探索用スレッドのentry point
 		void Worker(size_t thread_id)
 		{
@@ -154,6 +357,7 @@ namespace {
 			auto book_pos = book.find(pos);
 
 		}
+
 
 		// 指定された局面から、終局までplayout(対局)を試みる。
 		// 返し値 :
@@ -193,7 +397,6 @@ namespace {
 			return 0;
 		}
 
-
 	private:
 		// 定跡DB本体
 		MemoryBook book;
@@ -206,6 +409,7 @@ namespace {
 
 		// MemoryBookのsaveに対するmutex。
 		mutex book_mutex;
+#endif
 	};
 }
 
@@ -227,5 +431,4 @@ namespace Book
 	}
 }
 
-#endif // defined (ENABLE_MAKEBOOK_CMD) && defined(YANEURAOU_ENGINE_DEEP)
-
+#endif // defined (ENABLE_MAKEBOOK_CMD) && (/*defined(EVAL_LEARN) ||*/ defined(YANEURAOU_ENGINE_DEEP))

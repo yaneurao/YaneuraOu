@@ -1,6 +1,6 @@
 ﻿#include "../types.h"
 
-#if defined (ENABLE_MAKEBOOK_CMD) && defined(EVAL_LEARN)
+#if defined (ENABLE_MAKEBOOK_CMD) && (defined(EVAL_LEARN) || defined(YANEURAOU_ENGINE_DEEP))
 
 #include "book.h"
 #include "../position.h"
@@ -862,5 +862,5 @@ namespace Book
 	}
 }
 
-#endif // defined (ENABLE_MAKEBOOK_CMD) && defined(EVAL_LEARN)
+#endif // defined(YANEURAOU_ENGINE) && (defined(EVAL_LEARN) || defined(YANEUROU_ENGINE_DEEP))
 

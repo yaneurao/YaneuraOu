@@ -497,7 +497,11 @@ constexpr int MAX_PLY_NUM = 246;
 	// 勝率の集計を行う型としてdouble型を用いる。
 	#define WIN_TYPE_DOUBLE
 
-	//#define ASSERT_LV 3
+	// ふかうら王ではEVAL_LEARNみたいなのがない(実装していない)ので
+	// 定跡生成関係のコマンドは常にオンにしておく。
+	#define ENABLE_MAKEBOOK_CMD
+
+	 //#define ASSERT_LV 3
 #endif
 
 // --- tanuki-詰将棋エンジンとして実行ファイルを公開するとき用の設定集
