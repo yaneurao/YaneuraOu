@@ -500,6 +500,7 @@ constexpr int MAX_PLY_NUM = 246;
 	// ふかうら王ではEVAL_LEARNみたいなのがない(実装していない)ので
 	// 定跡生成関係のコマンドは常にオンにしておく。
 	#define ENABLE_MAKEBOOK_CMD
+	#define USE_SFEN_PACKER
 
 	 //#define ASSERT_LV 3
 #endif

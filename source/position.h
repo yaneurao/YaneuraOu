@@ -159,7 +159,44 @@ typedef std::unique_ptr<StateList> StateListPtr;
 // --------------------
 
 // packされたsfen
-struct PackedSfen { u8 data[32]; };
+struct PackedSfen {
+	u8 data[32];
+
+	// std::unordered_mapで使用できるように==と!=を定義しておく。
+
+	bool operator==(const PackedSfen& rhs) const {
+		static_assert(sizeof(PackedSfen) % sizeof(u64) == 0);
+
+		for (int i = 0; i < sizeof(PackedSfen); i += sizeof(size_t))
+		{
+			// 8バイト単位で比較していく。一度でも内容が異なれば不一致。
+			if (*(u64*)&data[i] != *(u64*)&rhs.data[i])
+				return false;
+		}
+		return true;
+	}
+
+	bool operator!=(const PackedSfen& rhs) const {
+		return !(this->operator==(rhs));
+	}
+};
+
+// std::unordered_mapで使用できるようにhash関数を定義しておく。
+// std::unordered_map<PackedSfen,int,PackedSfenHash> packed_sfen_to_int;のようにtemplateの第3引数に指定する。
+struct PackedSfenHash {
+	size_t operator()(const PackedSfen& ps) const
+	{
+		static_assert(sizeof(PackedSfen) % sizeof(size_t) == 0);
+
+		size_t s = 0;
+		for (int i = 0; i < sizeof(PackedSfen) ; i+= sizeof(size_t))
+		{
+			// size_tのsize分ずつをxorしていき、それをhash keyとする。
+			s ^= *(size_t*)&ps.data[i];
+		}
+		return s;
+	}
+};
 
 // 盤面
 class Position

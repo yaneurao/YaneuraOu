@@ -73,23 +73,84 @@
 using namespace std;
 using namespace Book;
 
+// positionコマンドのparserを呼び出したい。
+extern void position_cmd(Position& pos, istringstream& is, StateListPtr& states);
+
 namespace {
 
 	// =================================================================
 	//                        探索済みのNode
 	// =================================================================
 
-	// 探索部を呼び出してある局面で探索した結果
+	// 生の探索結果
 	struct SearchResult
 	{
-		float value;    // この局面の評価値(手番側から見た値)
-		Move16 move;    // この局面の最善手(無い場合はMOVE_NONE)
-		u64 move_count; // 探索したノード数
+		float		value;	// 探索した時のこの局面の評価値(手番側から見た値)
+		Move16		move;	// 探索した時のこの局面の最善手(MOVE_RESIGN,MOVE_WINもありうる)
 	};
 
-	// 探索したノードを記録しておく構造体。
+	// ↓これを引換券にして、↑のinstanceがもらえたりする。
+	typedef u32 NodeIndex;
+
+	// 探索結果をシリアルに並べたもの。この順番は入れ替わらないものとする。
+	// SearchResults results;
+	// NodeIndex index;
+	// auto result = results[index];
+	// のように、indexが局面のIDであるものとする。
+	typedef std::vector<SearchResult> SearchResults;
+
+	// PackedSfenから、SearchResultIndexへのmap。このindexを使って、↑のSearchResults型のinstanceの要素にアクセスする。
+	// unordered_mapに直接SearchResultを持たせたいのだが、そうすると、このコンテナに対してinsert()したときなどにコンテナ要素のアドレスが変わってしまうので
+	// アドレスで扱うわけにいかない。そこで、object IDのようなものでこの部分を抽象化する必要がある。
+	// ここでは、SearchResultsをvectorにして、このコンテナの何番目の要素であるか、というのをSearchResultIndex型で示すというようにしてある。
+	typedef std::unordered_map<PackedSfen, NodeIndex, PackedSfenHash> SfenToIndex;
+
+	// ファイルに保存しておく探索結果の 1 record
+	// 32 + 4 + 2 = 38 byte
+	struct SearchResultRecord
+	{
+		PackedSfen	 packed_sfen;	// 局面をPositionクラスでpackしたもの。32 bytes固定長。
+		SearchResult result;
+	};
+
+	// =================================================================
+	//                        MCTSの探索木
+	// =================================================================
+
+	// MCTSで用いるNode構造体
+	struct MctsNode {
+		u32		move_count;				// このノードの訪問回数。
+		u32		move_count_from_this;	// このノードから訪問した回数
+		double	value_win;				// このノードの勝率(手番側から見たもの)
+	};
+
+	// ↑をシリアル化に並べた型
+	typedef std::vector<MctsNode> MctsNodes;
+
+	// 子ノードへのedgeと子ノードを表現する構造体
+	struct MctsChild
+	{
+		// 子ノードへ到達するための指し手
+		Move move;
+
+		// 子ノードのindex(これを元にSearchResult*が確定する)
+		NodeIndex index;
+	};
+
+	// あるNodeの子node一覧を表現する型
+	typedef std::vector<MctsChild> MctsChildren;
+
+	// ↑の何番目に格納されているのかを表現する型
+	typedef u32 MctsChildrenIndex;
+
+	// =================================================================
+	//                        Nodeの管理用
+	// =================================================================
+
+	// 探索したノードを記録しておくclass。
 	// ファイルへのserialize/deserializeもできる。
-	class SearchNodes
+	// 純粋な探索の結果なので、これは価値があるはずで、SearchResultRecordを繰り返すだけの単純なデータフォーマットにしておく。
+	class NodeManager
 	{
 	public:
 		// ファイルから読み込み。
@@ -99,30 +160,126 @@ namespace {
 		void Serialize(const std::string& filename) {}
 
 		// 要素ひとつ追加する
-		void append(const SearchResult& result) {}
+		void append(const PackedSfen& ps , const SearchResult& result) {
+			// この要素を持っていてはならない。
+			ASSERT_LV3(sfen_to_index.find(ps) == sfen_to_index.end());
 
-		// 指定されたsfenが格納されているかを調べる。
-		// sfenは末尾に手数は書かれていないものとする。
-		SearchResult* find(const std::string& sfen) { return nullptr; }
+			NodeIndex index = (NodeIndex)search_results.size();
+			search_results.emplace_back(result);
+			sfen_to_index[ps] = index;
+		}
+
+		// indexを指定してSearchResult*を得る
+		// このpointerはappend()やgo_search()などが呼び出されるまでは有効。
+		// index == UINT32_MAXのときは、nullptrが返る。
+		SearchResult* get_search_result(NodeIndex index)
+		{
+			if (index == UINT32_MAX)
+				return nullptr;
+			return &search_results[(size_t)index];
+		}
+
+		// indexを指定してMctsNode*を得る。
+		// このpointerはappend()やgo_search()などが呼び出されるまでは有効。
+		// index == UINT32_MAXのときは、nullptrが返る。
+		MctsNode* get_node(NodeIndex index)
+		{
+			if (index == UINT32_MAX)
+				return nullptr;
+			return &mcts_nodes[(size_t)index];
+		}
+
+		// 指定されたsfenに対応するindexを得る。
+		// 格納されていなければUINT32_MAXが返る。
+		NodeIndex get_index(const PackedSfen& ps) {
+			auto it = sfen_to_index.find(ps);
+			if (it == sfen_to_index.end())
+				return UINT32_MAX;
+			return it->second;
+		}
+
+		// sfenで指定した局面を探索して、この構造体の集合のなかに追加する。
+		SearchResult* go_search(std::string& sfen , u64 nodes_limit)
+		{
+			// SetupStatesは破壊したくないのでローカルに確保
+			StateListPtr states(new StateList(1));
+
+			Position pos;
+
+			// sfen文字列、Positionコマンドのparserで解釈させる。
+			istringstream is(sfen);
+			position_cmd(pos, is, states);
+
+			sync_cout << "Position: " << sfen << sync_endl;
+
+			// 探索時にnpsが表示されるが、それはこのglobalなTimerに基づくので探索ごとにリセットを行なうようにする。
+			Time.reset();
+			Search::LimitsType limits;
+			limits.nodes = nodes_limit; // これだけ思考する
+			limits.silent = true;       // silent modeで
+
+			Threads.start_thinking(pos, states, limits);
+			Threads.main()->wait_for_search_finished(); // 探索の終了を待つ。
+
+			sync_cout << "nodes_searched = " << Threads.nodes_searched() << sync_endl;
+
+			// TODO : 探索結果は何とかして取り出すべし。
+
+
+			return nullptr;
+		}
 
 	private:
-		// 探索した結果
-		std::unordered_map<std::string /*sfen*/, SearchResult> nodes;
+
+		// packed sfenから、NodeIndexへのmap
+		SfenToIndex sfen_to_index;
+
+		// SearchResultをシリアルに並べた型
+		SearchResults search_results;
+
+		// MctsNodeをシリアルに並べた型
+		MctsNodes mcts_nodes;
 	};
 
-	// =================================================================
-	//                        MCTSの探索木
-	// =================================================================
+	// MctsChildrenをcacheしておく。
+	// MCTSの探索時に毎回、指し手生成をして1手進めて、探索済みのchild nodeであるかを確認して1手戻す..みたいなことを繰り返したくないため)
+	class MctsChildrenCacheManager
+	{
+		// あるNodeIndexに対応する、(そのnodeの)MctsChildrenを返す。
+		// cacheされていなければnullptrが返る。
+		// ここで返されたpointerは、次にappend()かclear()が呼び出されるまで有効。
+		MctsChildren* get_children(NodeIndex index)
+		{
+			auto it = node_index_to_children_index.find(index);
+			if (it == node_index_to_children_index.end())
+				return nullptr;
+			return &childrens[it->second];
+		}
 
-	// MCTSで用いるNode構造体
-	struct MctsNode {
+		// あるNodeIndexに対応するMctsChildrenを格納する。
+		void append(NodeIndex index,const MctsChildren& children)
+		{
+			// すでに格納されているなら、これ以上重複して格納することはできない。
+			ASSERT_LV3(get_children(index) == nullptr);
 
-	};
+			auto children_index = (MctsChildrenIndex)children.size();
+			childrens.emplace_back(children);
+			node_index_to_children_index[index] = children_index;
+		}
 
-	// MCTSの探索木
-	class MctsTree {
+		// cacheしているMctsChildrenをクリアする。
+		void clear()
+		{
+			childrens.clear();
+			node_index_to_children_index.clear();
+		}
 
+	private:
+		// cacheされているMctsChildren集合。
+		std::vector<MctsChildren> childrens;
 
+		// ↑の何番目に格納されているのかの対応関係のmap
+		std::unordered_map<NodeIndex, MctsChildrenIndex> node_index_to_children_index;
 	};
 
 	// =================================================================
@@ -235,16 +392,16 @@ namespace {
 			u64 playout = 10000;
 
 			// 探索root集合
-			string root_filename = "root_sfen.txt";
+			string root_filename = "mctsbook_root_sfen.txt";
 
 			// 定跡ファイル名
-			string book_filename = "user_book_mcts.db";
+			string book_filename = "mctsbook_user_book.db";
 
-			// 定跡cacheファイル名
-			string serialized_filename = "mctsbook.serialized";
+			// 定跡のMCTS探索中のメモリ状態をserializeしたやつ
+			string mcts_tree_filename = "mctsbook_mcts_tree.db";
 
 			// 定跡のleaf nodeのsfen
-			string leaf_filename = "leaf_sfen.txt";
+			string search_result_filename = "mctsbook_search_result.db";
 
 
 			// 定跡ファイルの保存間隔。デフォルト、30分ごと。
@@ -264,10 +421,10 @@ namespace {
 					is >> root_filename;
 				else if (token == "book_filename")
 					is >> book_filename;
-				else if (token == "serialized_filename")
-					is >> serialized_filename;
-				else if (token == "leaf_filename")
-					is >> leaf_filename;
+				else if (token == "tree_filename")
+					is >> mcts_tree_filename;
+				else if (token == "search_result_filename")
+					is >> search_result_filename;
 				else if (token == "book_save_interval")
 					is >> book_save_interval;
 				else if (token == "max_ply")
@@ -276,10 +433,10 @@ namespace {
 
 			cout << "makebook mcts command" << endl
 				<< "  root filename       = " << root_filename << endl
+				<< "  book_filename       = " << book_filename << endl
+				<< "  mcts_tree_filename  = " << mcts_tree_filename << endl
 				<< "  loop                = " << loop_max << endl
 				<< "  playout             = " << playout << endl
-				<< "  book_filename       = " << book_filename << endl
-				<< "  serialized_filename = " << serialized_filename << endl
 				<< "  book_save_interval  = " << book_save_interval << endl
 				<< "  max_ply             = " << max_ply << endl
 				;
