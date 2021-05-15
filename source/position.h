@@ -167,7 +167,7 @@ struct PackedSfen {
 	bool operator==(const PackedSfen& rhs) const {
 		static_assert(sizeof(PackedSfen) % sizeof(u64) == 0);
 
-		for (int i = 0; i < sizeof(PackedSfen); i += sizeof(size_t))
+		for (size_t i = 0; i < sizeof(PackedSfen); i += sizeof(size_t))
 		{
 			// 8バイト単位で比較していく。一度でも内容が異なれば不一致。
 			if (*(u64*)&data[i] != *(u64*)&rhs.data[i])
@@ -189,7 +189,7 @@ struct PackedSfenHash {
 		static_assert(sizeof(PackedSfen) % sizeof(size_t) == 0);
 
 		size_t s = 0;
-		for (int i = 0; i < sizeof(PackedSfen) ; i+= sizeof(size_t))
+		for (size_t i = 0; i < sizeof(PackedSfen) ; i+= sizeof(size_t))
 		{
 			// size_tのsize分ずつをxorしていき、それをhash keyとする。
 			s ^= *(size_t*)&ps.data[i];
