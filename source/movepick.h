@@ -5,7 +5,7 @@
 #if defined(USE_MOVE_PICKER)
 
 #include <array>
-//#include <limits>
+#include <limits>
 //#include <type_traits>
 
 //#include "movegen.h"
