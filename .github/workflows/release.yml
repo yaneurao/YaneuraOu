@@ -247,10 +247,10 @@ jobs:
           - edition: USER_ENGINE
 
     steps:
-      - name: Setup Android NDK r21d
+      - name: Setup Android NDK r21e
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r21d
+          ndk-version: r21e
 
       - name: Checkout own repository
         uses: actions/checkout@v2
