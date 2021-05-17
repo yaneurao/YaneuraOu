@@ -301,7 +301,7 @@ namespace {
 	{
 		std::unordered_set<std::string> sfens;
 
-		TextFileReader reader;
+		SystemIO::TextReader reader;
 		reader.Open(filename);
 
 		std::string line, token, sfen;

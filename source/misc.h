@@ -113,6 +113,8 @@ static_assert(sizeof(TimePoint) == sizeof(int64_t), "TimePoint should be 64 bits
 static TimePoint now() {
 	return std::chrono::duration_cast<std::chrono::milliseconds>
 		(std::chrono::steady_clock::now().time_since_epoch()).count();
+		//(std::chrono::steady_clock::now().time_since_epoch()).count() * 10;
+		// 10倍早く時間が経過するようにして、持ち時間制御のテストなどを行う。
 }
 
 // --------------------
@@ -441,12 +443,12 @@ namespace Tools
 //  ファイルの丸読み
 // --------------------
 
-struct FileOperator
+namespace SystemIO
 {
 	// ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。末尾の改行は除去される。
 	// 引数で渡されるlinesは空であるを期待しているが、空でない場合は、そこに追加されていく。
 	// 引数で渡されるtrimはtrueを渡すと末尾のスペース、タブがトリムされる。
-	static Tools::Result ReadAllLines(const std::string& filename, std::vector<std::string>& lines, bool trim = false);
+	extern Tools::Result ReadAllLines(const std::string& filename, std::vector<std::string>& lines, bool trim = false);
 
 
 	// msys2、Windows Subsystem for Linuxなどのgcc/clangでコンパイルした場合、
@@ -458,90 +460,124 @@ struct FileOperator
 	// また、callbackされた関数のなかでバッファが確保できなかった場合や、想定していたファイルサイズと異なった場合は、
 	// nullptrを返せば良い。このとき、read_file_to_memory()は、読み込みを中断し、エラーリターンする。
 
-	static Tools::Result ReadFileToMemory(const std::string& filename, std::function<void* (size_t)> callback_func);
-	static Tools::Result WriteMemoryToFile(const std::string& filename, void* ptr, size_t size);
+	extern Tools::Result ReadFileToMemory(const std::string& filename, std::function<void* (size_t)> callback_func);
+	extern Tools::Result WriteMemoryToFile(const std::string& filename, void* ptr, size_t size);
+
+	// C#のTextReaderみたいなもの。
+	// C++のifstreamが遅すぎるので、高速化されたテキストファイル読み込み器
+	// fopen()～fread()で実装されている。
+	struct TextReader
+	{
+		TextReader();
+		~TextReader();
+
+		// ファイルをopenする。
+		Tools::Result Open(const std::string& filename);
+
+		// Open()を呼び出してオープンしたファイルをクローズする。
+		void Close();
+
+		// ファイルの終了判定。
+		// ファイルを最後まで読み込んだのなら、trueを返す。
+
+		// 1行読み込む(改行まで) 引数のlineに代入される。
+		// 改行コードは返さない。
+		// SkipEmptyLine(),SetTrim()の設定を反映する。
+		// Eofに達した場合は、返し値としてTools::ResultCode::Eofを返す。
+		Tools::Result ReadLine(std::string& line);
+
+		// ReadLine()で空行を読み飛ばすかどうかの設定。
+		// (ここで行った設定はOpen()/Close()ではクリアされない。)
+		// デフォルトでfalse
+		void SkipEmptyLine(bool skip = true) { skipEmptyLine = skip; }
+
+		// ReadLine()でtrimするかの設定。
+		// 引数のtrimがtrueの時は、ReadLine()のときに末尾のスペース、タブはトリムする
+		// (ここで行った設定はOpen()/Close()ではクリアされない。)
+		// デフォルトでfalse
+		void SetTrim(bool trim = true) { this->trim = trim; }
+
+	private:
+		// 各種状態変数の初期化
+		void clear();
+
+		// 次のblockのbufferへの読み込み。
+		void read_next_block();
+
+		// オープンしているファイル。
+		// オープンしていなければnullptrが入っている。
+		FILE* fp;
+
+		// バッファから1文字読み込む。eofに達したら、-1を返す。
+		int read_char();
+
+		// ReadLineの下請け。何も考えずに1行読み込む。行のtrim、空行のskipなどなし。
+		// line_bufferに読み込まれた行が代入される。
+		Tools::Result read_line_simple();
+
+		// ファイルの読み込みバッファ 1MB
+		std::vector<u8> buffer;
+
+		// 行バッファ
+		std::vector<u8> line_buffer;
+
+		// バッファに今回読み込まれたサイズ
+		size_t read_size;
+
+		// bufferの解析位置
+		// 次のReadLine()でここから解析して1行返す
+		// 次の文字 c = buffer[cursor]
+		size_t cursor;
+
+		// eofフラグ。
+		// fp.eof()は、bufferにまだ未処理のデータが残っているかも知れないのでそちらを信じるわけにはいかない。
+		bool is_eof;
+
+		// 直前が\r(CR)だったのか？のフラグ
+		bool is_prev_cr;
+
+		// ReadLine()で行の末尾をtrimするかのフラグ。
+		bool trim;
+
+		// ReadLine()で空行をskipするかのフラグ
+		bool skipEmptyLine;
+	};
+
+
+	// binary fileの読み込みお手伝いclass
+	struct BinaryReader
+	{
+		// ファイルのopen
+		Tools::Result open(const std::string& filename);
+
+		// ファイルサイズの取得
+		// ファイルポジションは先頭に移動する。
+		size_t get_size();
+
+		// ptrの指すメモリにsize[byte]だけファイルから読み込む
+		Tools::Result read(void* ptr , size_t size);
+
+		// ファイルを閉じる。デストラクタからclose()は呼び出されるので明示的に閉じなくても良い。
+		Tools::Result close();
+
+		~BinaryReader() { close(); }
+	};
+
+	// binary fileの書き出しお手伝いclass
+	struct BinaryWriter
+	{
+		// ファイルのopen
+		Tools::Result open(const std::string& filename);
+
+		// ptrの指すメモリからsize[byte]だけファイルに書き込む。
+		Tools::Result write(void* ptr, size_t size);
+
+		// ファイルを閉じる。デストラクタからclose()は呼び出されるので明示的に閉じなくても良い。
+		Tools::Result close();
+
+		~BinaryWriter() { close(); }
+	};
 };
-
-// C#のTextReaderみたいなもの。
-// C++のifstreamが遅すぎるので、高速化されたテキストファイル読み込み器
-// fopen()～fread()で実装されている。
-struct TextFileReader
-{
-	TextFileReader();
-	~TextFileReader();
-
-	// ファイルをopenする。
-	Tools::Result Open(const std::string& filename);
-
-	// Open()を呼び出してオープンしたファイルをクローズする。
-	void Close();
-
-	// ファイルの終了判定。
-	// ファイルを最後まで読み込んだのなら、trueを返す。
-
-	// 1行読み込む(改行まで) 引数のlineに代入される。
-	// 改行コードは返さない。
-	// SkipEmptyLine(),SetTrim()の設定を反映する。
-	// Eofに達した場合は、返し値としてTools::ResultCode::Eofを返す。
-	Tools::Result ReadLine(std::string& line);
-
-	// ReadLine()で空行を読み飛ばすかどうかの設定。
-	// (ここで行った設定はOpen()/Close()ではクリアされない。)
-	// デフォルトでfalse
-	void SkipEmptyLine(bool skip = true) { skipEmptyLine = skip;  }
-
-	// ReadLine()でtrimするかの設定。
-	// 引数のtrimがtrueの時は、ReadLine()のときに末尾のスペース、タブはトリムする
-	// (ここで行った設定はOpen()/Close()ではクリアされない。)
-	// デフォルトでfalse
-	void SetTrim(bool trim = true) { this->trim = trim; }
-
-private:
-	// 各種状態変数の初期化
-	void clear();
-
-	// 次のblockのbufferへの読み込み。
-	void read_next_block();
-
-	// オープンしているファイル。
-	// オープンしていなければnullptrが入っている。
-	FILE* fp;
-
-	// バッファから1文字読み込む。eofに達したら、-1を返す。
-	int read_char();
-
-	// ReadLineの下請け。何も考えずに1行読み込む。行のtrim、空行のskipなどなし。
-	// line_bufferに読み込まれた行が代入される。
-	Tools::Result read_line_simple();
-
-	// ファイルの読み込みバッファ 1MB
-	std::vector<u8> buffer;
-
-	// 行バッファ
-	std::vector<u8> line_buffer;
-
-	// バッファに今回読み込まれたサイズ
-	size_t read_size;
-
-	// bufferの解析位置
-	// 次のReadLine()でここから解析して1行返す
-	// 次の文字 c = buffer[cursor]
-	size_t cursor;
-
-	// eofフラグ。
-	// fp.eof()は、bufferにまだ未処理のデータが残っているかも知れないのでそちらを信じるわけにはいかない。
-	bool is_eof;
-
-	// 直前が\r(CR)だったのか？のフラグ
-	bool is_prev_cr;
-
-	// ReadLine()で行の末尾をtrimするかのフラグ。
-	bool trim;
-
-	// ReadLine()で空行をskipするかのフラグ
-	bool skipEmptyLine;
-};
-
 
 // --------------------
 //    PRNGのasync版

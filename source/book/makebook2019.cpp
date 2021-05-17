@@ -661,7 +661,7 @@ namespace {
 			return;
 		}
 		vector<string> lines;
-		FileOperator::ReadAllLines(read_sfen_name, lines);
+		SystemIO::ReadAllLines(read_sfen_name, lines);
 
 		// 初期局面から(depth 10000ではないものを)辿ってgame treeを構築する。
 

@@ -263,7 +263,7 @@ namespace Book
 
 			sync_cout << "info string read book file : " << filename << sync_endl;
 
-			TextFileReader reader;
+			SystemIO::TextReader reader;
 			// ReadLine()の時に行の末尾のスペース、タブを自動トリム。空行は自動スキップ。
 			reader.SetTrim(true);
 			reader.SkipEmptyLine(true);

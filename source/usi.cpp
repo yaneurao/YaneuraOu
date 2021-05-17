@@ -757,7 +757,7 @@ void USI::loop(int argc, char* argv[])
 	if (argc >= 3 && string(argv[1]) == "file")
 	{
 		vector<string> cmds0;
-		FileOperator::ReadAllLines(argv[2], cmds0);
+		SystemIO::ReadAllLines(argv[2], cmds0);
 
 		// queueに変換する。
 		for (auto c : cmds0)

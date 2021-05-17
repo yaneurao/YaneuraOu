@@ -2383,7 +2383,7 @@ void shuffle_files_on_memory(const vector<string>& filenames,const string output
 	for (auto filename : filenames)
 	{
 		std::cout << "read : " << filename << std::endl;
-		FileOperator::ReadFileToMemory(filename, [&buf](u64 size) {
+		SystemIO::ReadFileToMemory(filename, [&buf](u64 size) {
 			ASSERT_LV1((size % sizeof(PackedSfenValue)) == 0);
 			// バッファを拡充して、前回の末尾以降に読み込む。
 			u64 last = buf.size();
@@ -2402,7 +2402,7 @@ void shuffle_files_on_memory(const vector<string>& filenames,const string output
 	std::cout << "write : " << output_file_name << endl;
 
 	// 書き出すファイルが2GBを超えるとfstream::write一発では書き出せないのでwrapperを用いる。
-	FileOperator::WriteMemoryToFile(output_file_name, (void*)&buf[0], (u64)sizeof(PackedSfenValue)*(u64)buf.size());
+	SystemIO::WriteMemoryToFile(output_file_name, (void*)&buf[0], (u64)sizeof(PackedSfenValue)*(u64)buf.size());
 
 	std::cout << "..shuffle_on_memory done." << std::endl;
 }
@@ -2941,7 +2941,7 @@ namespace Learner {
 			std::cout << endl << prng << std::endl;
 
 			cout << "read book" << endl;
-			if (FileOperator::ReadAllLines(book_file_name, my_book).is_not_ok())
+			if (SystemIO::ReadAllLines(book_file_name, my_book).is_not_ok())
 			{
 				cout << endl << "info string Error! read book error!";
 				// 定跡ファイルがないと、開始局面に困るのでこの時点でexitする。				

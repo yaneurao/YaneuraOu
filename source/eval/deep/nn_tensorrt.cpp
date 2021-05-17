@@ -255,14 +255,16 @@ namespace Eval::dlshogi
 		//std::ifstream seriarizedFile(serialized_filename, std::ios::binary);
 		// →　遅いのでReadFileToMemory()を用いる。これで一発で読み込める。
 
-		u8* modelPtr = nullptr;
+		std::unique_ptr<u8[]> modelPtr;
 		size_t modelSize = 0;
-		auto result = FileOperator::ReadFileToMemory(serialized_filename, [&](size_t size) { modelPtr = new u8[size]; modelSize = size; return modelPtr; });
+		auto result = SystemIO::ReadFileToMemory(serialized_filename, [&](size_t size) {
+			modelPtr = make_unique<u8[]>(size); modelSize = size; return modelPtr.get();
+		});
 
 		if (result.is_ok())
 		{
 			auto runtime = InferUniquePtr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(gLogger));
-			engine = InferUniquePtr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(modelPtr , modelSize, nullptr));
+			engine = InferUniquePtr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(modelPtr.get() , modelSize, nullptr));
 
 			// ドライバのバージョンが異なるなどが原因で、デシリアライズに失敗することがある。その場合はやりなおす。
 			if (!engine)
