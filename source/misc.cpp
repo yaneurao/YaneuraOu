@@ -996,12 +996,10 @@ namespace SystemIO
 		{
 			// 今回読み込むサイズ
 			size_t read_size = (pos + block_size < file_size) ? block_size : (file_size - pos);
-			fread((u8*)ptr + pos, 1, read_size, fp);
 
-			// ファイルの途中で読み込みエラーに至った。
-			//if (fp.fail())
-			//	return Tools::Result(Tools::ResultCode::FileReadError); // ファイル読み込み時のエラー
-			// →　検出方法わからん
+			if (fread((u8*)ptr + pos, 1, read_size, fp) != read_size)
+				// 指定サイズだけ読み込めていないということは、読み込み上のエラーである。
+				return Tools::Result(Tools::ResultCode::FileReadError);
 
 			//cout << ".";
 		}
@@ -1206,6 +1204,78 @@ namespace SystemIO
 
 		// 読み込まれたサイズが0なら、終端に達したと判定する。
 		is_eof = read_size == 0;
+	}
+
+	// === BinaryBase ===
+
+	// ファイルを閉じる。デストラクタからclose()は呼び出されるので明示的に閉じなくても良い。
+	Tools::Result BinaryBase::close()
+	{
+		Tools::ResultCode result = Tools::ResultCode::Ok;
+		if (fp != nullptr)
+		{
+			if (fclose(fp) != 0)
+				result = Tools::ResultCode::FileCloseError;
+			fp = nullptr;
+		}
+		return Tools::Result(result);
+	}
+
+	// === BinaryReader ===
+
+	// ファイルのopen
+	Tools::Result BinaryReader::open(const std::string& filename)
+	{
+		fp = fopen(filename.c_str(), "rb");
+		if (fp == nullptr)
+			return Tools::Result(Tools::ResultCode::FileOpenError);
+
+		return Tools::Result::Ok();
+	}
+
+	// ファイルサイズの取得
+	// ファイルポジションは先頭に移動する。
+	size_t BinaryReader::get_size()
+	{
+		ASSERT_LV3(fp != nullptr);
+
+		fseek(fp, 0, SEEK_END);
+		size_t endPos = (size_t)ftell(fp);
+		fseek(fp, 0, SEEK_SET);
+		size_t beginPos = (size_t)ftell(fp);
+		size_t file_size = endPos - beginPos;
+
+		return file_size;
+	}
+
+	// ptrの指すメモリにsize[byte]だけファイルから読み込む
+	Tools::Result BinaryReader::read(void* ptr, size_t size)
+	{
+		if (fread((u8*)ptr, 1, size, fp) != size)
+			return Tools::Result(Tools::ResultCode::FileReadError);
+
+		return Tools::Result::Ok();
+	}
+
+	// === BinaryWriter ===
+
+	// ファイルのopen
+	Tools::Result BinaryWriter::open(const std::string& filename)
+	{
+		fp = fopen(filename.c_str(), "wb");
+		if (fp == nullptr)
+			return Tools::Result(Tools::ResultCode::FileOpenError);
+
+		return Tools::Result::Ok();
+	}
+
+	// ptrの指すメモリからsize[byte]だけファイルに書き込む
+	Tools::Result BinaryWriter::write(void* ptr, size_t size)
+	{
+		if (fwrite((u8*)ptr, 1, size, fp) != size)
+			return Tools::Result(Tools::ResultCode::FileWriteError);
+
+		return Tools::Result::Ok();
 	}
 }
 

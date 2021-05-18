@@ -398,6 +398,9 @@ namespace Tools
 		// ファイル書き込み時のエラー。
 		FileWriteError,
 
+		// ファイルClose時のエラー。
+		FileCloseError,
+
 		// フォルダ作成時のエラー。
 		CreateFolderError,
 
@@ -543,10 +546,23 @@ namespace SystemIO
 		bool skipEmptyLine;
 	};
 
+	// BinaryReader,BinaryWriterの基底クラス
+	class BinaryBase
+	{
+	public:
+		// ファイルを閉じる。デストラクタからclose()は呼び出されるので明示的に閉じなくても良い。
+		Tools::Result close();
+
+		virtual ~BinaryBase() { close(); }
+
+	protected:
+		FILE* fp = nullptr;
+	};
 
 	// binary fileの読み込みお手伝いclass
-	struct BinaryReader
+	class BinaryReader : public BinaryBase
 	{
+	public:
 		// ファイルのopen
 		Tools::Result open(const std::string& filename);
 
@@ -556,26 +572,17 @@ namespace SystemIO
 
 		// ptrの指すメモリにsize[byte]だけファイルから読み込む
 		Tools::Result read(void* ptr , size_t size);
-
-		// ファイルを閉じる。デストラクタからclose()は呼び出されるので明示的に閉じなくても良い。
-		Tools::Result close();
-
-		~BinaryReader() { close(); }
 	};
 
 	// binary fileの書き出しお手伝いclass
-	struct BinaryWriter
+	class BinaryWriter : public BinaryBase
 	{
+	public:
 		// ファイルのopen
 		Tools::Result open(const std::string& filename);
 
 		// ptrの指すメモリからsize[byte]だけファイルに書き込む。
 		Tools::Result write(void* ptr, size_t size);
-
-		// ファイルを閉じる。デストラクタからclose()は呼び出されるので明示的に閉じなくても良い。
-		Tools::Result close();
-
-		~BinaryWriter() { close(); }
 	};
 };
 
