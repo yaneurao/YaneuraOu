@@ -763,8 +763,8 @@ namespace dlshogi
 		//     2番目の訪問回数/1番目の訪問回数 = k2以上のときに  100%になる
 
 		// TODO : パラメーターのチューニングすべき。
-		const float k1 = 0.70000;
-		const float k2 = 1.00000;
+		const float k1 = 0.70000f;
+		const float k2 = 1.00000f;
 		const float r = 20.0f; // 勝率0.02の差 = 延長度40%
 		const float eval_alpha = 0.02; // evalの差に下駄履きさせる値。微差は拾い上げる考え。
 

@@ -327,7 +327,7 @@ namespace USI {
 	// このとき、Optionのhandlerとidxは書き換えない。
 	void build_option(string line)
 	{
-		LineScanner scanner(line);
+		Parser::LineScanner scanner(line);
 		if (scanner.get_text() != "option") return;
 
 		string name, value, option_type;

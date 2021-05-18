@@ -1283,62 +1283,65 @@ namespace SystemIO
 //       Parser
 // --------------------
 
-/*
-	LineScanner parser("AAA BBB CCC DDD");
-	auto token = parser.peek_text();
-	cout << token << endl;
-	token = parser.get_text();
-	cout << token << endl;
-	token = parser.get_text();
-	cout << token << endl;
-	token = parser.get_text();
-	cout << token << endl;
-	token = parser.get_text();
-	cout << token << endl;
-*/
-
-// 次のtokenを先読みして返す。get_token()するまで解析位置は進まない。
-std::string LineScanner::peek_text()
+namespace Parser
 {
-	// 二重にpeek_text()を呼び出すのは合法であるものとする。
-	if (!token.empty())
-		return token;
 
-	// assert(token.empty());
+	/*
+		LineScanner parser("AAA BBB CCC DDD");
+		auto token = parser.peek_text();
+		cout << token << endl;
+		token = parser.get_text();
+		cout << token << endl;
+		token = parser.get_text();
+		cout << token << endl;
+		token = parser.get_text();
+		cout << token << endl;
+		token = parser.get_text();
+		cout << token << endl;
+	*/
 
-	while (!raw_eol())
+	// 次のtokenを先読みして返す。get_token()するまで解析位置は進まない。
+	std::string LineScanner::peek_text()
 	{
-		char c = line[pos++];
-		if (c == ' ')
-			break;
-		token += c;
+		// 二重にpeek_text()を呼び出すのは合法であるものとする。
+		if (!token.empty())
+			return token;
+
+		// assert(token.empty());
+
+		while (!raw_eol())
+		{
+			char c = line[pos++];
+			if (c == ' ')
+				break;
+			token += c;
+		}
+		return token;
 	}
-	return token;
+
+	// 次のtokenを返す。
+	std::string LineScanner::get_text()
+	{
+		auto result = (!token.empty() ? token : peek_text());
+		token.clear();
+		return result;
+	}
+
+	// 次の文字列を数値化して返す。数値化できない時は引数の値がそのまま返る。
+	s64 LineScanner::get_number(s64 defaultValue)
+	{
+		std::string token = get_text();
+		return token.empty() ? defaultValue : atoll(token.c_str());
+	}
+
+	// 次の文字列を数値化して返す。数値化できない時は引数の値がそのまま返る。
+	double LineScanner::get_double(double defaultValue)
+	{
+		std::string token = get_text();
+		return token.empty() ? defaultValue : atof(token.c_str());
+	}
+
 }
-
-// 次のtokenを返す。
-std::string LineScanner::get_text()
-{
-	auto result = (!token.empty() ? token : peek_text());
-	token.clear();
-	return result;
-}
-
-// 次の文字列を数値化して返す。数値化できない時は引数の値がそのまま返る。
-s64 LineScanner::get_number(s64 defaultValue)
-{
-	std::string token = get_text();
-	return token.empty() ? defaultValue : atoll(token.c_str());
-}
-
-// 次の文字列を数値化して返す。数値化できない時は引数の値がそのまま返る。
-double LineScanner::get_double(double defaultValue)
-{
-	std::string token = get_text();
-	return token.empty() ? defaultValue : atof(token.c_str());
-}
-
-
 
 // --------------------
 //       Math
@@ -1529,7 +1532,7 @@ namespace StringExtension
 	std::vector<std::string> split(const std::string& input)
 	{
 		auto result = std::vector<string>();
-		LineScanner scanner(input);
+		Parser::LineScanner scanner(input);
 		while (!scanner.eol())
 			result.push_back(scanner.get_text());
 

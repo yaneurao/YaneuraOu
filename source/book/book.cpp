@@ -101,7 +101,7 @@ namespace Book
 
 		// → istringstream、げろげろ遅いので、自前でparseする。
 
-		LineScanner scanner(line);
+		Parser::LineScanner scanner(line);
 		move_str   = scanner.get_text();
 		ponder_str = scanner.get_text();
 
