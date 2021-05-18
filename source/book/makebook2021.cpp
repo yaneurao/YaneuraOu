@@ -83,7 +83,11 @@ namespace {
 	//                        探索済みのNode
 	// =================================================================
 
-	// MCTSの1 node
+	// 訪問回数をカウントする型
+	// 42億を超えることはしばらくないだろうからとりあえずこれで。
+	typedef u32 MoveCountType;
+
+	// MCTSのnodeを表現する。
 	struct MctsNode
 	{
 		// ======= 探索部を呼び出した結果 =======
@@ -93,8 +97,8 @@ namespace {
 
 		// =======      MCTSした結果      =======
 
-		u32		move_count;				// このノードの訪問回数。42億を超えることはしばらくないだろうからとりあえずこれで。
-		u32		move_count_from_this;	// このノードから訪問した回数
+		MoveCountType	move_count;				// このノードの訪問回数。
+		MoveCountType	move_count_from_this;	// このノードから訪問した回数
 		double	value_win;				// このノードの勝率(手番側から見たもの) 累積するのでdoubleでないと精度足りない。
 
 		// このnodeの初期化。新しくnodeを生成する時は、これを呼び出して初期化しなければならない。
@@ -140,6 +144,9 @@ namespace {
 
 		// 子ノードのindex(これを元にSearchResult*が確定する)
 		NodeIndex index;
+
+		MctsChild(Move move_, NodeIndex index_) :
+			move(move_), index(index_) {}
 	};
 
 	// あるNodeの子node一覧を表現する型
@@ -295,7 +302,6 @@ namespace {
 			return it->second;
 		}
 
-#if 0
 		// sfenで指定した局面を探索して、この構造体の集合のなかに追加する。
 		NodeIndex* go_search(std::string& sfen , u64 nodes_limit)
 		{
@@ -325,22 +331,42 @@ namespace {
 
 			return nullptr;
 		}
-#endif
 
 		// === MctsChildrenのcache ===
 
 		// あるNodeIndexに対応する、(そのnodeの)MctsChildrenを返す。
 		// cacheされていなければchildrenを生成して返す。
 		// ここで返されたpointerは、次にclear_children()かget_children()が呼び出されるまで有効。
-		MctsChildren* get_children(Position& pos , NodeIndex index)
+		// ChildNodeは、まだ存在しないものに関しては、NULLNODEになっている。
+		MctsChildren* get_children(Position& pos , NodeIndex node_index)
 		{
-			auto it = node_index_to_children_index.find(index);
+			auto it = node_index_to_children_index.find(node_index);
 			if (it == node_index_to_children_index.end())
 			{
-				// TODO : 合法手一覧から生成する。
-				
+				PackedSfen sfen;
 
-				return nullptr;
+				// すべての合法手を生成する。
+				MoveList<LEGAL_ALL> ml(pos);
+
+				MctsChildren children;
+				children.reserve(ml.size());
+
+				for (auto m : ml)
+				{
+					// この指し手で一手進めて、その局面のNodeIndexを取得する。
+					StateInfo si;
+					pos.do_move(m,si);
+
+					pos.sfen_pack(sfen);
+					NodeIndex index = get_index(sfen);
+					// なければindex == NULL_NODEになる
+					pos.undo_move(m);
+
+					children.emplace_back(MctsChild(m,index));
+				}
+				NodeIndex lastIndex = (NodeIndex)childrens.size();
+				childrens.emplace_back(children);
+				node_index_to_children_index[node_index] = lastIndex;
 			}
 			return &childrens[it->second];
 		}
@@ -481,6 +507,11 @@ namespace {
 		// MCTSをやって定跡を生成する。
 		void make_book(Position& pos, istringstream& is)
 		{
+			// 定跡ファイル名
+			//string book_filename = "mctsbook_user_book.db";
+			// → やねうら王で使う定跡DBのファイル
+			// これは専用の変換コマンドを別途用意。
+
 			// loop_maxに達するか、"stop"が来るまで回る
 
 			// この回数だけrootから探索したら終了する。
@@ -492,44 +523,38 @@ namespace {
 			// 探索root集合
 			string root_filename = "mctsbook_root_sfen.txt";
 
-			// 定跡ファイル名
-			string book_filename = "mctsbook_user_book.db";
-
 			// 定跡のMCTS探索中のメモリ状態をserializeしたやつ
 			string mcts_tree_filename = "mctsbook_mcts_tree.db";
 
-			// 定跡ファイルの保存間隔。デフォルト、30分ごと。
-			TimePoint book_save_interval = 60 * 30;
+			// rootのうち、最小手数と最大手数。
+			// root_min_ply <= game_ply <= root_max_ply に該当する局面しかrootの対象としない。
+			int root_min_ply = 1;
+			int root_max_ply = 256;
 
 			// 最大手数
 			int max_ply = 384;
 
-			string token;
-			while (is >> token)
-			{
-				if (token == "loop")
-					is >> loop_max;
-				else if (token == "playout")
-					is >> playout;
-				else if (token == "root_filename")
-					is >> root_filename;
-				else if (token == "book_filename")
-					is >> book_filename;
-				else if (token == "tree_filename")
-					is >> mcts_tree_filename;
-				else if (token == "book_save_interval")
-					is >> book_save_interval;
-				else if (token == "max_ply")
-					is >> max_ply;
-			}
+			// 途中セーブ機能はないが、1時間で終わるぐらいの量にして、
+			// 延々とこのコマンドを呼び出すことを想定。
+
+			Parser::ArgumentParser parser;
+			parser.add_argument("loop"         ,loop_max);
+			parser.add_argument("playout"      , playout);
+			parser.add_argument("root_filename", root_filename);
+			parser.add_argument("tree_filename", mcts_tree_filename);
+			parser.add_argument("root_min_ply" , root_min_ply);
+			parser.add_argument("root_max_ply" , root_max_ply);
+			parser.add_argument("max_ply"      , max_ply);
+			parser.parse_args(is);
 
 			cout << "makebook mcts command" << endl
 				<< "  root filename       = " << root_filename << endl
-				<< "  book_filename       = " << book_filename << endl
 				<< "  mcts_tree_filename  = " << mcts_tree_filename << endl
 				<< "  loop                = " << loop_max << endl
 				<< "  playout             = " << playout << endl
-				<< "  book_save_interval  = " << book_save_interval << endl
+				<< "  playout             = " << playout << endl
+				<< "  root_min_ply        = " << root_min_ply << endl
+				<< "  root_max_ply        = " << root_max_ply << endl
 				<< "  max_ply             = " << max_ply << endl
 				;
 
@@ -538,6 +563,9 @@ namespace {
 			// そこまでの手順も含めてすべて読み込み、sfenにする。
 			auto roots = ReadPositionFile(root_filename, true, true);
 			cout << "  root sfens size()  = " << roots.size() << endl;
+
+			// treeの復元
+			node_manager.Deserialize(mcts_tree_filename);
 
 			// 定跡生成部本体
 			for (size_t sfen_no = 0 ; sfen_no < roots.size() ; ++sfen_no)
@@ -552,6 +580,9 @@ namespace {
 					uct_main(root_sfen);
 				}
 			}
+
+			// treeの保存
+			node_manager.Serialize(mcts_tree_filename);
 
 			cout << "makebook mcts , done." << endl;
 		}
@@ -573,7 +604,105 @@ namespace {
 			PackedSfen packed_sfen;
 			pos.sfen_pack(packed_sfen);
 
+			NodeIndex node_index = node_manager.get_index(packed_sfen);
+			if (node_index == NULL_NODE)
+			{
+				// 未展開のnodeであったか。playoutする
+			}
+
+			MctsNode* this_node = node_manager.get_node(node_index);
+
+			// ↑↑でplayoutしているので、this_node == nullptrはありえない
+			ASSERT_LV3(this_node != nullptr);
+
+			MctsChildren* children = node_manager.get_children(pos, node_index);
+
+			if (children == nullptr)
+			{
+				// 合法手がない。詰みなのでは…。
+				return;
+			}
+
+			// === UCB1で最良ノードを選択する。===
+
+			// value_winの最大値
+			double ucb1_max_value = std::numeric_limits<double>::min();
+
+			// 最良の子のindex。children[best_child]がbestな子
+			size_t best_child = std::numeric_limits<size_t>::max();
+
+			// このノードのmove_count
+			u32 M = this_node->move_count_from_this;
+
+			for (size_t i = 0; i < children->size(); ++i)
+			{
+				// ChildNodeへのedge
+				MctsChild child = children->at(i);
+
+				MctsNode* child_node = child.index != NULL_NODE ? node_manager.get_node(child.index) : nullptr;
+
+				// 子のvalue_win。未展開のnodeなら親nodeの価値を使う。
+				double child_value_win = child_node ? child_node->value_win : this_node->value_win;
+
+				// 子のmove_count
+				MoveCountType child_move_count = child_node ? child_node->move_count : 0;
+				// 子のmove_countは分母に来るので、0割防止に微小な数を加算しておく。
+				double N = child_move_count ? child_move_count : 0.01;
+
+				// === UCB1値を計算する ===
+
+				// 典型的なucb1の計算
+				double child_ucb1 = child_value_win / N + sqrt(2.0 * log(M) / N );
+
+				// ucb1値を更新したらそれを記憶しておく。
+				if (ucb1_max_value < child_ucb1)
+				{
+					ucb1_max_value = child_ucb1;
+					best_child = i;
+				}
+			}
+			// best childが決定した
+
+			// TODO:あとでかく
 		}
+
+		// "makebook mcts"コマンドで生成したtreeをやねうら王形式の定跡DBに変換する。
+		void convert_book(Position& pos, istringstream& is)
+		{
+			// 定跡のMCTS探索中のメモリ状態をserializeしたやつ
+			string mcts_tree_filename = "mctsbook_mcts_tree.db";
+
+			// 定跡ファイル名
+			// → やねうら王で使う定跡DBのファイル
+			string book_filename = "mctsbook_user_book.db";
+
+			// この回数以上訪問しているnodeでなければ定跡に書き出さない。
+			u32 min_move_count = 1000;
+
+			Parser::ArgumentParser parser;
+			parser.add_argument("tree_filename" , mcts_tree_filename);
+			parser.add_argument("book_filename" , book_filename);
+			parser.add_argument("min_move_count", min_move_count);
+			parser.parse_args(is);
+
+			cout << "makebook mcts_convert command" << endl
+				<< "  mcts_tree_filename  = " << mcts_tree_filename << endl
+				<< "  book_filename       = " << book_filename << endl
+				<< "  min_move_count      = " << min_move_count
+				;
+
+			// treeの読み込み
+			node_manager.Deserialize(mcts_tree_filename);
+
+			// 全件のなかから、条件の合致するnodeだけ書き出す。
+
+
+			// 書きかけ
+		}
+
+
+	private:
+		NodeManager node_manager;
 	};
 }
 
@@ -590,6 +719,14 @@ namespace Book
 			mcts.make_book(pos, is);
 			return 1;
 		}
+		if (token == "mcts_convert")
+		{
+			// やねうら王で使う定跡ファイルの形式に変換する(書き出す)コマンド
+			MctsMakeBook mcts;
+			mcts.convert_book(pos, is);
+			return 1;
+		}
+
 
 		return 0;
 	}
