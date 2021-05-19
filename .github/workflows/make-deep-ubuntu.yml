@@ -1,0 +1,87 @@
+# for Linux environment
+name: Make CI (DeepLearning for Ubuntu Linux)
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+
+jobs:
+  build-ubuntu:
+    # ubuntu-latest = ubuntu-18.04 => ubuntu-20.04
+    # https://github.com/actions/virtual-environments/issues/1816
+    # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
+    runs-on: ubuntu-20.04
+
+    strategy:
+      matrix:
+        edition:
+          - YANEURAOU_ENGINE_DEEP_TENSOR_RT
+        compiler: [clang++-13, clang++-12, clang++-11, g++-10]
+        target: [normal]
+        archcpu: [AVX2]
+
+    steps:
+      - name: Checkout own repository
+        uses: actions/checkout@v2
+        with:
+          path: main
+
+      - name: install CUDA, TensorRT
+        # ここではCUDAアプリケーションの開発環境用に、CUDAドライバーを含まない cuda-toolkit-11-3 をインストールしている。
+        # CUDAアプリケーションの実行環境用にセットアップする場合、 cuda-toolkit-11-3 の代わりに
+        # CUDAドライバーを含むメタパッケージ、 cuda-11-3 もしくは cuda をインストールする。
+        # https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#package-manager-metas
+        run: |
+          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
+          sudo mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
+          sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/7fa2af80.pub
+          echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /" | sudo tee -a /etc/apt/sources.list
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+          sudo apt update
+          sudo apt install cuda-toolkit-11-3 libnvinfer-dev libnvinfer-plugin-dev libnvonnxparsers-dev libnvparsers-dev
+
+      - name: install g++-10
+        # Ubuntu 20.04
+        run: |
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+          sudo apt update
+          sudo apt install g++-10
+        if: ${{ matrix.compiler == 'g++-10' }}
+      - name: install clang-11
+        # Ubuntu 20.04
+        run: |
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+          sudo apt update
+          sudo apt install clang-11 libomp-11-dev
+        if: ${{ matrix.compiler == 'clang++-11' }}
+      - name: install clang-12
+        # Ubuntu 21.04 or LLVM APT
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          sudo bash ./llvm.sh 12
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+        if: ${{ matrix.compiler == 'clang++-12' }}
+      - name: install clang-13
+        # LLVM APT
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          sudo bash ./llvm.sh 13
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+        if: ${{ matrix.compiler == 'clang++-13' }}
+
+      - name: make
+        run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS='-I/usr/local/cuda/include' EXTRA_LDFLAGS='-L/usr/local/cuda/lib64'"
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-linux_deep_${{ github.run_number }}_${{ github.sha }}
+          path: ./main/build/**/**/*
