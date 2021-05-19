@@ -183,7 +183,7 @@ for COMPILER in ${COMPILERSARR[@]}; do
                     echo "* cpu: ${CPU}"
                     TGSTR=${FILESTR[$EDITION]}-msys2-${CSTR}-${TARGET}
                     ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
-                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET_CPU=${CPU} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
+                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET_CPU=${CPU} >& >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
                     cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
                     ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
                     set -f

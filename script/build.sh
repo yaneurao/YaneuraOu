@@ -191,7 +191,7 @@ for COMPILER in ${COMPILERSARR[@]}; do
                     echo "* archcpu: ${ARCHCPU}"
                     TGSTR=${FILESTR[$EDITION]}-${OS}-${CSTR}-${TARGET}-${ARCHCPU}
                     ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
-                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} TARGET_CPU=${ARCHCPU} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET=${BUILDDIR}/${TGSTR} ${EXTRA} > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
+                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} TARGET_CPU=${ARCHCPU} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET=${BUILDDIR}/${TGSTR} ${EXTRA} >& >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
                     ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
                     break
                   fi
