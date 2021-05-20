@@ -161,7 +161,7 @@ namespace dlshogi
 		}
 
 		// スレッド数に変更があるか、batchサイズが前回から変更があったならばUctSearcherのインスタンス自体を生成しなおす。
-		if (searchers.size() != new_thread || policy_value_batch_maxsize != this->policy_value_batch_maxsize)
+		if (searchers.size() != (size_t)new_thread || policy_value_batch_maxsize != this->policy_value_batch_maxsize)
 		{
 			searchers.clear();
 			searchers.reserve(new_thread); // いまから追加する要素数はわかっているので事前に確保しておく。

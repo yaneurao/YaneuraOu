@@ -64,6 +64,7 @@
 #include <mutex>
 #include <unordered_set>
 #include <limits>
+#include <cmath>
 
 #include "../usi.h"
 #include "../misc.h"
