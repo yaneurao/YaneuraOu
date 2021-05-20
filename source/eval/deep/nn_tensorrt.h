@@ -24,6 +24,15 @@ namespace Eval::dlshogi
 {
 	struct InferDeleter
 	{
+		// TensorRT 7 までは protected だったデストラクタが、TensorRT 8 からは public となり、 destroy() メソッドの使用は非推奨となった。
+		// destroy() メソッドは TensorRT 10.0 にて削除される見込み。
+		// TensorRT 8 GA (General Availability: 正規版、一般公開版) リリース後に対応するのが望ましいか。
+		//
+		// Deprecated And Removed Features
+		// The following features are deprecated in TensorRT 8.0.0:
+		// - Destructors for classes with destroy() methods were previously protected. They are now public, enabling use of smart pointers for these classes. The destroy() methods are deprecated.
+		// https://docs.nvidia.com/deeplearning/tensorrt/api/c_api/deprecated.html
+		// https://docs.nvidia.com/deeplearning/tensorrt/archives/tensorrt-800-ea/release-notes/tensorrt-8.html#rel_8-0-0-EA
 		template <typename T>
 		void operator()(T* obj) const
 		{
