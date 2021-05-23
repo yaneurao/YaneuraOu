@@ -791,7 +791,7 @@ namespace Mate::Dfpn32
 				for (u32 i = 0; i < child_num; ++i)
 					if (i != selected_index)
 					{
-						if (children[i].pn < second_pn)
+						if (children[i].pn < pn2)
 							pn2 = children[i].pn;
 
 						// dnは、子ノードのdnの和になるから、次に進む子ノードのdnをdn_nextとして、残りの子ノードのdnの和が dn_sumが
@@ -818,7 +818,7 @@ namespace Mate::Dfpn32
 				for (u32 i = 0; i < child_num; ++i)
 					if (i != selected_index)
 					{
-						if (children[i].dn < second_dn)
+						if (children[i].dn < dn2)
 							dn2 = children[i].dn;
 
 						if (children[i].pn < NodeType::DNPN_MATE)
