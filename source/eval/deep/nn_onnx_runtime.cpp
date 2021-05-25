@@ -9,6 +9,8 @@
 #include <dxgi.h>
 // →　ここでDirectML.h が見つからないとエラーが出るなら Windows SDKの最新版をインストールすること。
 //	   https://github.com/microsoft/DirectML/issues/1
+#elif defined(ORT_CUDA)
+#include <cuda_provider_factory.h>
 #else
 #include <cpu_provider_factory.h>
 #endif
@@ -31,6 +33,8 @@ namespace Eval::dlshogi
 #endif
 #if defined(ORT_DML)
 		Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_DML(session_options, gpu_id));
+#elif defined(ORT_CUDA)
+		Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CUDA(session_options, gpu_id));
 #else
 	    Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CPU(session_options, true));
 #endif
