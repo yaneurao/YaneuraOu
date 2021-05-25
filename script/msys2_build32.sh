@@ -159,7 +159,7 @@ for COMPILER in ${COMPILERSARR[@]}; do
               echo "* target: ${TARGET}"
               TGSTR=YaneuraOu-${FILESTR[$EDITION]}-msys2-${CSTR}-${TARGET}
               ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
-              nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET_CPU=NO_SSE > >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
+              nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET_CPU=NO_SSE >& >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
               cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
               ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
               set -f

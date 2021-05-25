@@ -94,7 +94,7 @@ for EDITION in ${EDITIONS[@]}; do
       BUILDDIR=build/android/${DIRSTR[$EDITION]}
       mkdir -p ${BUILDDIR}
       ndk-build clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
-      ndk-build YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} V=1 -j${JOBS} > >(tee ${BUILDDIR}/build.log) || exit $?
+      ndk-build YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} V=1 -j${JOBS} >& >(tee ${BUILDDIR}/build.log) || exit $?
       bash -c "cp libs/**/* ${BUILDDIR}"
       ndk-build clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
       break
