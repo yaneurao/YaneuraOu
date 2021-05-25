@@ -164,6 +164,7 @@ namespace Book
 
 		// [ASYNC] Aperyの定跡ファイルを読み込む（定跡コンバート用）
 		// ・Aperyの定跡ファイルはAperyBookで別途読み込んでいるため、read_apery_bookは定跡のコンバート専用。
+		// ・unreg_depth は定跡未登録の局面を再探索する深さ。デフォルト値1。
 		Tools::Result read_apery_book(const std::string& filename, int unreg_depth = 1);
 
 		// [ASYNC] Aperyの定跡ファイルに書き出す（定跡コンバート用）

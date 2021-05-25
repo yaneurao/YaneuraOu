@@ -732,7 +732,9 @@ namespace Book
 		}
 	}
 
-	// Apery用定跡ファイルの読み込み
+	// Apery用定跡ファイルの読み込み（定跡コンバート用）
+	// ・Aperyの定跡ファイルはAperyBookで別途読み込んでいるため、read_apery_bookは定跡のコンバート専用。
+	// ・unreg_depth は定跡未登録の局面を再探索する深さ。デフォルト値1。
 	Tools::Result MemoryBook::read_apery_book(const std::string& filename, const int unreg_depth)
 	{
 		std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -836,7 +838,7 @@ namespace Book
 		return Tools::Result::Ok();
 	}
 
-	// Apery用定跡ファイルの書き出し
+	// Apery用定跡ファイルの書き出し（定跡コンバート用）
 	Tools::Result MemoryBook::write_apery_book(const std::string& filename)
 	{
 		std::lock_guard<std::recursive_mutex> lock(mutex_);
