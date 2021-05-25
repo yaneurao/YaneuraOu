@@ -760,6 +760,7 @@ namespace Book
 		function<void(Position&, int)> search = [&](Position& pos, int unreg_depth_current) {
 			const string sfen = pos.sfen();
 			if (unreg_depth == unreg_depth_current) {
+				// 探索済みチェック: 未登録局面の深掘り時は探索済みセットのメモリ消費量が溢れるのを防ぐため、ここではチェックしない
 				const string sfen_for_key = StringExtension::trim_number(sfen);
 				if (seen.count(sfen_for_key)) return;
 				seen.insert(sfen_for_key);
@@ -772,6 +773,7 @@ namespace Book
 				if (unreg_depth_current < 1) return;
 			} else {
 				if (unreg_depth != unreg_depth_current) {
+					// 探索済みチェック: 未登録局面の深堀り時は、登録局面にヒットした時のみここでチェックする
 					const string sfen_for_key = StringExtension::trim_number(sfen);
 
 					if (seen.count(sfen_for_key))
