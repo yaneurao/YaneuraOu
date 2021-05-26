@@ -126,9 +126,11 @@ namespace Book
 		bool book_sort = token == "sort";
 		// 定跡の変換
 		bool convert_from_apery = token == "convert_from_apery";
-		
+		// 定跡の変換
+		bool convert_to_apery = token == "convert_to_apery";
+
 		// いずれのコマンドでもないなら、このtokenのコマンドを自分は処理できない。
-		if (!(from_sfen || from_thinking || book_merge || book_sort || convert_from_apery))
+		if (!(from_sfen || from_thinking || book_merge || book_sort || convert_from_apery || convert_to_apery))
 			return 0;
 
 		if (from_sfen || from_thinking)
@@ -646,6 +648,15 @@ namespace Book
 			book.read_apery_book(book_src);
 
 			book.write_book(book_dst);
+		}
+		else if (convert_to_apery) {
+			MemoryBook book;
+			string book_src, book_dst;
+			is >> book_src >> book_dst;
+			cout << "convert book from " << book_src << " , write apery book to " << book_dst << endl;
+			book.read_book(book_src);
+
+			book.write_apery_book(book_dst);
 		}
 
 		return 1;
