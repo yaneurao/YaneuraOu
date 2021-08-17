@@ -901,6 +901,11 @@ bool Position::legal_drop(const Square to) const
 #endif
 }
 
+bool Position::pseudo_legal2(const Move m) const
+{
+	return Search::Limits.generate_all_legal_moves ? pseudo_legal_s<true>(m) : pseudo_legal_s<false>(m);
+}
+
 // ※　mがこの局面においてpseudo_legalかどうかを判定するための関数。
 template <bool All>
 bool Position::pseudo_legal_s(const Move m) const {
