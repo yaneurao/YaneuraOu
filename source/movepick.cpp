@@ -342,13 +342,13 @@ top:
 	case REFUTATION:
 
 		// 直前に置換表の指し手を返しているし、CAPTURES_PRO_PLUSでの指し手も返しているので
-		// それらの指し手は除外する。
-		// 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
-		// pseudo_legalでない指し手以外に歩や大駒の不成なども除外
+				// それらの指し手は除外する。
+				// 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
+				// pseudo_legalでない指し手以外に歩や大駒の不成なども除外
 		if (select<Next>([&]() { return    *cur != MOVE_NONE
-										&& !pos.capture_or_pawn_promotion(*cur)
+			&& !pos.capture_or_pawn_promotion(*cur)
 										&&  pseudo_legal(pos,*cur); }))
-			return *(cur - 1);
+				return *(cur - 1);
 
 		++stage;
 		[[fallthrough]];
