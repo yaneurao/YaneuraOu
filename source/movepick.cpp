@@ -127,12 +127,11 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 {
 	// 通常探索から呼び出されているので残り深さはゼロより大きい。
 	ASSERT_LV3(d > 0);
-	// 突然自陣内にて飛車を成ってしまう · Issue #184 · yaneurao/YaneuraOu https://github.com/yaneurao/YaneuraOu/issues/184
-	ASSERT_LV3(pos.pseudo_legal2(ttm));
 
 	// 次の指し手生成の段階
 	// 王手がかかっているなら回避手、かかっていないなら通常探索用の指し手生成
-	stage = (pos.in_check() ? EVASION_TT : MAIN_TT) + !ttm;
+	stage = (pos.in_check() ? EVASION_TT : MAIN_TT) +
+		!(ttm && pseudo_legal(pos,ttm));
 
 	// 置換表の指し手があるならそれを最初に試す。ただしpseudo_legalでなければならない。
 	// 置換表の指し手がないなら、次のstageから開始する。
@@ -146,15 +145,14 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 
 	// 静止探索から呼び出されているので残り深さはゼロ以下。
 	ASSERT_LV3(d <= 0);
-	// 突然自陣内にて飛車を成ってしまう · Issue #184 · yaneurao/YaneuraOu https://github.com/yaneurao/YaneuraOu/issues/184
-	ASSERT_LV3(pos.pseudo_legal2(ttm));
 
 	// 王手がかかっているなら王手回避のフェーズへ。さもなくばQSEARCHのフェーズへ。
 	// 歩の不成、香の2段目への不成、大駒の不成を除外
 
 	stage = (pos.in_check() ? EVASION_TT : QSEARCH_TT) +
 		!(ttm
-			&& (pos.in_check() || depth > DEPTH_QS_RECAPTURES || to_sq(ttm) == recaptureSquare));
+			&& (pos.in_check() || depth > DEPTH_QS_RECAPTURES || to_sq(ttm) == recaptureSquare)
+			&& pseudo_legal(pos,ttm));
 
 }
 
@@ -164,13 +162,12 @@ MovePicker::MovePicker(const Position& p, Move ttm, Value th , const CapturePiec
 			: pos(p), captureHistory(cph) , ttMove(ttm),threshold(th) {
 
 	ASSERT_LV3(!pos.in_check());
-	// 突然自陣内にて飛車を成ってしまう · Issue #184 · yaneurao/YaneuraOu https://github.com/yaneurao/YaneuraOu/issues/184
-	ASSERT_LV3(pos.pseudo_legal2(ttm));
 
 	// ProbCutにおいて、SEEが与えられたthresholdの値以上の指し手のみ生成する。
 	// (置換表の指しても、この条件を満たさなければならない)
 	// 置換表の指し手がないなら、次のstageから開始する。
 	stage = PROBCUT_TT + !(ttm && pos.capture(ttm)
+		&& pseudo_legal(pos,ttm)
 		&& pos.see_ge(ttm, threshold));
 
 }
@@ -349,10 +346,9 @@ top:
 		// 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
 		// pseudo_legalでない指し手以外に歩や大駒の不成なども除外
 		if (select<Next>([&]() { return    *cur != MOVE_NONE
-			&& !pos.capture_or_pawn_promotion(*cur)
+										&& !pos.capture_or_pawn_promotion(*cur)
 										&&  pseudo_legal(pos,*cur); }))
-				return *(cur - 1);
-		}
+			return *(cur - 1);
 
 		++stage;
 		[[fallthrough]];

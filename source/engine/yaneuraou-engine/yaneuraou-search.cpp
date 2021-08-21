@@ -1443,7 +1443,6 @@ namespace {
 			  : ss->ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
 
 		// 非合法手なので置換表にhitしなかったことにする。
-		// 突然自陣内にて飛車を成ってしまう · Issue #184 · yaneurao/YaneuraOu https://github.com/yaneurao/YaneuraOu/issues/184
 		// 第2回世界将棋AI電竜戦エキシビジョン 電竜戦長時間マッチ 第1局 水匠 vs dlshogi において、
 		// 水匠が自陣で飛車を成る手を読んでしまったバグを回避するため。
 		//
@@ -1463,11 +1462,6 @@ namespace {
 		//    後手の８一の飛車を４一に移動させ成るという手が読み込まれる。後手番で後手が指す手を指すことになるので、
 		//    pseudo_legal() に引っかからない。
 		// 5. Counter Move の手が指され、後手の飛車が自陣で成る。
-		//
-		// ttMoveにはMOVE_WINも含まれる場合があるが、
-		// 置換表のハッシュが衝突、かつttMove==MOVE_WINの場合、置換表による誤ったβカット等が行われる可能性がある。
-		// これを防ぐため、MOVE_WINもPosition::pseudo_legal2()に渡し、疑似合法手判定を子なう。
-		// 仮にfalseが返った場合でも、直後のステップで宣言勝ち判定が行われるため、大きな問題はない。
 		if (ttMove && !pos.pseudo_legal2(ttMove)) {
 			ss->ttHit = false;
 			ttMove = MOVE_NONE;
@@ -2845,15 +2839,6 @@ namespace {
 		ttValue = ss->ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
 		ttMove  = ss->ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
 		pvHit   = ss->ttHit && tte->is_pv();
-
-		// 非合法手なので置換表にhitしなかったことにする。
-		// 突然自陣内にて飛車を成ってしまう · Issue #184 · yaneurao/YaneuraOu https://github.com/yaneurao/YaneuraOu/issues/184
-		if (ttMove && !pos.pseudo_legal2(ttMove)) {
-			ss->ttHit = false;
-			ttMove = MOVE_NONE;
-			ttValue = VALUE_NONE;
-			pvHit = false;
-		}
 
 		// nonPVでは置換表の指し手で枝刈りする
 		// PVでは置換表の指し手では枝刈りしない(前回evaluateした値は使える)
