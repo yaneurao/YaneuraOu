@@ -350,25 +350,7 @@ top:
 		// pseudo_legalでない指し手以外に歩や大駒の不成なども除外
 		if (select<Next>([&]() { return    *cur != MOVE_NONE
 			&& !pos.capture_or_pawn_promotion(*cur)
-			&& pseudo_legal(pos, *cur); })) {
-				{
-					auto move = *(cur - 1);
-					auto us = pos.side_to_move();
-					Square from_square = from_sq(Move16(move));
-					Square to_square = to_sq(Move16(move));
-					Rank from_rank = rank_of(from_square);
-					Rank to_rank = rank_of(to_square);
-					if (is_promote(Move16(move)) &&
-						(
-							(us == BLACK && !(from_rank <= RANK_3 || to_rank <= RANK_3)) ||
-							(us == WHITE && !(from_rank >= RANK_7 || to_rank >= RANK_7))
-							)
-						) {
-						sync_cout << pos << move << " from_rank=" << from_rank << " to_rank=" << to_rank << sync_endl;
-						ASSERT(false);
-					}
-				}
-
+										&&  pseudo_legal(pos,*cur); }))
 				return *(cur - 1);
 		}
 
