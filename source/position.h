@@ -448,6 +448,12 @@ public:
 	// 確認しなくてはならない。このためpseudo_legal()とlegal()とで重複する自殺手チェックはしていない。
 	bool pseudo_legal(const Move m) const { return pseudo_legal_s<true>(m); }
 
+#if defined (USE_GENERATE_ALL_LEGAL_MOVES)
+	// mがpseudo_legalな指し手であるかを判定する。
+	// Options["GenerateAllLegalMoves"]を反映させるバージョン
+	bool pseudo_legal2(const Move m) const;
+#endif
+
 	// All == false        : 歩や大駒の不成に対してはfalseを返すpseudo_legal()
 	template <bool All> bool pseudo_legal_s(const Move m) const;
 
