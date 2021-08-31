@@ -1021,7 +1021,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 			// is_ok(m) == falseの時、Position::to_move(m)はそのままmを返すので、この時、
 			// moved_piece_after(m) == NO_PIECEであるが、from_sq(m)のPieceがたまたまNO_PIECEであった場合、
 			// ここまで抜けてくるのでその場合、falseを返すことを保証しなければならない。
-			if (pt == NO_PIECE)
+			if (pt == NO_PIECE_TYPE)
 				return false;
 
 			// 駒打ちのところに書いた理由により、不成で進めない升への指し手のチェックも不要。
