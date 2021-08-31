@@ -2,6 +2,198 @@
 やねうら王 更新履歴
 
 
+
+■　2021/08/31
+
+
+V6.04
+- V6.03からの変更点
+	- Counter Moveに非合法手が混入するバグ修正。(tanuki-さんのプルリク)
+	- pseudo-leaglまわりのソースコード整理。
+	- benchコマンドでGenerateAllLegalMovesオプションが反映されていなかったの、反映するように修正。
+
+
+- is_ok(m)==falseの時、Position::pseudo_leagl(m)がfalseを返すことを保証するように変更。
+
+
+- pseudo-leaglまわりのソースコード整理。
+	- USE_GENERATE_ALL_LEGAL_MOVES削除。常に指し手生成のtemplateは、歩の不成をバージョンとそうでないバージョンを実体化する。
+
+	// 全合法手を生成する機能を追加するか。
+	// これをdefineすると、"GenerateAllLegalMoves"というオプションが自動追加される。
+	// ※　Search::Limits.generate_all_legal_moves に↑のオプションの値が反映されるので、
+	//     それを見て、trueならば、指し手生成の時に歩の不成も含めて生成すれば良い。
+	// #define USE_GENERATE_ALL_LEGAL_MOVES
+
+	- 定跡で歩の不成が指せなかったの修正。
+		- GenerateAllLegalMovesがtrueの時は、それを指す。
+	- 一つ前のプルリクのコメントをブログに移動。コメント追加。
+
+- benchコマンドでGenerateAllLegalMovesオプションが反映されていなかったの、反映するように修正。
+
+
+
+- Counter Moveに非合法手が混入するバグ修正。(tanuki-さんのプルリク)
+	- https://github.com/yaneurao/YaneuraOu/pull/185
+	- cf : https://yaneuraou.yaneu.com/2021/08/17/about-the-yaneuraou-bug-that-appeared-in-the-long-match/
+
+
+■　2021/05/25
+
+
+- Ubuntu20.04 TensorRT ビルドテスト環境 #183(Mizarさんのプルリク)
+	- https://github.com/yaneurao/YaneuraOu/pull/183
+	- Ubuntu20.04 + CUDA11.3 + TensorRT8.0.0EA 環境でTensorRT版のビルドテストを行えるようにしました。
+
+
+- update DML 1.5.1, ORT 1.7.0/1.7.1, add ORT_CUDA (for NVIDIA CUDA) #182(Mizarさんのプルリク)
+	- https://github.com/yaneurao/YaneuraOu/pull/182
+
+	Microsoft.AI.DirectML 1.4.0 -> 1.5.1
+	Microsoft.ML.OnnxRuntime 1.6.0 -> 1.7.0
+	Microsoft.ML.OnnxRuntime.DirectML 1.6.0 -> 1.7.0
+	Microsoft.ML.OnnxRuntime.Gpu 1.7.1 (新規導入)
+	NuGetパッケージの更新を行い、 Microsoft.ML.OnnxRuntime.Gpu を利用してTensorRT無しでCUDAを利用するビルドターゲットを追加しました。自分の環境では、ORT_DML (DirectML) より ORT_CUDA は早く、 TensorRT よりは遅く動作するようです。
+
+
+- dangling-else #181
+	- https://github.com/yaneurao/YaneuraOu/pull/181
+
+- モデル読み込み時の情報表示追加 #179(Mizarさんのプルリク)
+	- https://github.com/yaneurao/YaneuraOu/pull/179
+	- 8個modelファイルを読み込む部分を並列化したほうがいいような気も…。😥
+
+- switch main clang to clang-11 #178 (Mizarさんのプルリク)
+	- https://github.com/yaneurao/YaneuraOu/pull/178
+
+
+
+■　2021/05/23
+
+
+- df-pnのsecond_pn,second_dnの計算が正しくない問題を修正 #176
+	https://github.com/yaneurao/YaneuraOu/pull/176/files
+
+	sfen 3+R1gknl/4+B1s2/6pp1/5p3/8p/9/9/9/9 b RSNPb3g2s2n3l13p 1
+	が解けなかったの修正されている。
+
+	- https://github.com/yaneurao/YaneuraOu/issues/174
+
+
+■　2021/5/20
+
+
+- Clangで警告でてたの修正。
+	- thanks > Mizarさん
+
+
+
+【新しい定跡生成部について】
+
+いまMCTS + UCB1で定跡生成するルーチンが8割ぐらい書けたのだが、単純なUCB1だと角交換された時など(取り返す指し手以外が絶望的な局面)、1手以外がすべて非常に悪い指し手なので、ランダムに次の一手を選ぶと悪い手ばかり拾ってきてしまい、その先を探索しなくなってしまう。:sob: 
+
+Policy使ってAlphaZero式に選んだほうが良いのか、それとも取り返す指し手を優先して選んだほうが良いのか…。(後者の場合、未訪問の枝のUCB1が∞になってしまうのでやはりその局面のすべての指し手を探索されることにはなるはずで…)
+
+そう考えると、もともと(定跡生成に限らず)MCTS + UCB1で将棋はちょっと厳しいのか？
+
+そして、Policy使う場合、ふかうら王でないとこの定跡生成ルーチン、使えないことになるな…。
+
+
+
+■　2021/5/18
+
+
+- makebook mctsコマンド。4/5ぐらい書けた。
+
+
+- Parser::ArgumentParser追加。PythonのArgumentParserっぽく使える。
+
+		Parser::ArgumentParser parser;
+		int min = 0, max = 100;
+		parser.add_argument("min", min);
+		parser.add_argument("max", max);
+		parser.parse_args(is);
+		cout << "min = " << min << endl;
+		cout << "max = " << max << endl;
+
+- LineScanner →　namespace Parserに移動。
+
+- dlshogi_searcher.cppでfloat変数に代入するところで警告が出ていたの修正。
+
+
+- makebook mctsコマンド。3/4ぐらい書けた。
+
+
+- BinaryReader,BinaryWriter実装。
+- ReadFileToMemoryで読み込みエラーの時のResultきちんと返すようにした。
+
+
+- TensorRTのserializeされたファイル読み込みの時にメモリ解放してなかったのを修正。
+- struct FileOperator →　namespace SystemIOに変更
+- TextFileReader → SystemIO::TextReaderに変更
+- BinaryReader,BinaryWriter追加。(実装中)
+
+
+
+■　2021/5/16
+
+
+- PackedSfenにメソッド追加したらclangで警告でるようになっていたの修正。(takotakotさんのプルリク)
+	https://github.com/yaneurao/YaneuraOu/pull/172
+
+
+- NDK のバージョンを r21e にする #171(takotakotさんのプルリク)
+	https://github.com/yaneurao/YaneuraOu/pull/171
+
+
+
+■　2021/5/15
+
+
+- makebook mctsコマンド。半分ぐらい書けた。
+
+
+- move_pick.hでUbuntuでコンパイルエラーになるようになっていたの修正。
+	#include <limits>
+	↑これがないとコンパイルエラーになるようになった(突然)
+
+//	C++は、コンパイラの実装者ごとに標準includeファイルのなかでincludeしているファイルが異なっていて、
+//	ある環境ではincludeせずに済んでいたものが他の環境ではincludeを明示的に書いていないとエラーになるのでは、
+//	portablityも何もあったものではないですな…。
+
+
+
+■　2021/5/14
+
+
+- makebook mctsコマンド。1/3ぐらい書けた。
+
+
+- benchコマンドで引数の名前でも値を指定できるようにした。
+	例)
+		benchmark type nodes limit 3000
+		// 3000 nodesで探索
+
+
+■　2021/5/13
+
+
+- benchコマンドで開始時にbench条件を出力すようにした
+- benchコマンド、ふかうら王では探索時のdepth limitの指定には対応していないので
+	ふかうら王の時は、defaultで LimitType = nodes (node limit)に変更。
+
+
+■　2021/5/12
+
+
+- Makefileで常にdev,abeが有効にコンパイルされていたの修正。
+	- nosseで動かなかったの、これが原因らしい。Mizarさん、調査ありがとう。
+	- 関連 : https://github.com/yaneurao/YaneuraOu/pull/170
+
+- MateMovePickerで変数未初期化の警告が出ていたの修正。
+
+
+
 ■　2021/5/9
 
 
