@@ -1317,9 +1317,9 @@ namespace {
 		bestValue = -VALUE_INFINITE;
 		//	maxValue = VALUE_INFINITE;
 
-			//  Timerの監視
+		//  Timerの監視
 
-			// これはメインスレッドのみが行なう。
+		// これはメインスレッドのみが行なう。
 		if (thisThread == Threads.main())
 			static_cast<MainThread*>(thisThread)->check_time();
 
@@ -1485,26 +1485,14 @@ namespace {
 			// 置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
 			// ただし、捕獲する指し手か成る指し手であればこれは(captureで生成する指し手なので)killerを更新する価値はない。
 
-			// 第2回世界将棋AI電竜戦エキシビジョン 電竜戦長時間マッチ 第1局 水匠 vs dlshogi において、
-			// 水匠が自陣で飛車を成る手を読んだ。
-			// 当日起こったと考えられる現象をローカルで調査したところ、原因として以下が浮かんだ。
-			// (実験条件・環境の違いにより、指し手は異なっている。)
-			// 1. 先手番、局面 A、先手の飛車が８一にいる。８一の飛車を４一に移動させ、かつ成る指し手が指される。
-			//    この指し手が置換表に保存される。
-			// 2. 先手番、局面 B、後手の飛車が８一にいる。局面 A と局面 B のハッシュが衝突している。
-			//    直前の後手の指し手の移動先は１二。置換表の指し手が読み込まれる。 Move16 から Move に変換される。
-			//    このとき、８一には後手の飛車がいるため、 Move の上位 16 - bit には、
-			//    後手の飛車が移動されて成る、という情報が格納される。
-			// 3. 局面 B、置換表の指し手によるβカットが起きる。このとき、指し手が Counter Move に登録される。
-			// 4. 後手番、局面 C、後手の飛車が８一にいる。直前の後手の指し手は null move。１二には後手の駒がいる。
-			//    Counter Move の指し手が読み込まれる。直前の手が null move だったため、
-			//    １二に移動した指し手として扱われる。１二には後手の駒がいるため、後手の指し手として扱われる。
-			//    Counter Move から後手の指し手の次の手として、
-			//    後手の８一の飛車を４一に移動させ成るという手が読み込まれる。後手番で後手が指す手を指すことになるので、
-			//    pseudo_legal() に引っかからない。
-			// 5. Counter Move の手が指され、後手の飛車が自陣で成る。
-			// 上記を回避するため、非合法手をCounter Moveに記録しないようにする。
-			if (ttMove && pos.pseudo_legal2(ttMove))
+			// ただし置換表の指し手には、hash衝突によりpseudo-leaglでない指し手である可能性がある。
+			// update_quiet_stats()で、この指し手の移動先の駒を取得してCounter Moveとするが、
+			// それがこの局面の手番側の駒ではないことがあるのでゆえにここでpseudo_legalのチェックをして、
+			// Counter Moveに先手の指し手として後手の指し手が登録されるような事態を回避している。
+			// その時に行われる誤ったβcut(枝刈り)は許容できる。(non PVで生じることなのでそこまで探索に対して悪い影響がない)
+			// cf. https://yaneuraou.yaneu.com/2021/08/17/about-the-yaneuraou-bug-that-appeared-in-the-long-match/
+
+			if (ttMove && pos.pseudo_legal(ttMove))
 			{
 				if (ttValue >= beta)
 				{

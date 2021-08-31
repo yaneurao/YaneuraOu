@@ -91,13 +91,6 @@
 // #define USE_ENTERING_KING_WIN
 
 
-// 全合法手を生成する機能を追加するか。
-// これをdefineすると、"GenerateAllLegalMoves"というオプションが自動追加される。
-// ※　Search::Limits.generate_all_legal_moves に↑のオプションの値が反映されるので、
-//     それを見て、trueならば、指し手生成の時に歩の不成も含めて生成すれば良い。
-// #define USE_GENERATE_ALL_LEGAL_MOVES
-
-
 // PV(読み筋)を表示するときに置換表の指し手をかき集めてきて表示するか。
 // 自前でPVを管理してRootMoves::pvを更新するなら、この機能を使う必要はない。
 // これはPVの更新が不要なので実装が簡単だが、Ponderの指し手を返すためには
@@ -397,7 +390,6 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_TIME_MANAGEMENT
 	#define USE_MOVE_PICKER
 	#define USE_EVAL
-	#define USE_GENERATE_ALL_LEGAL_MOVES
 	#define USE_ENTERING_KING_WIN
 
 	#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT)
@@ -486,7 +478,6 @@ constexpr int MAX_PLY_NUM = 246;
 	#define EVAL_DEEP "dlshogi-denryu2020"
 	#define USE_EVAL
 	#define USE_TIME_MANAGEMENT
-	#define USE_GENERATE_ALL_LEGAL_MOVES
 	#define USE_ENTERING_KING_WIN
 	#define USE_MATE_1PLY
 	#define USE_MATE_SOLVER

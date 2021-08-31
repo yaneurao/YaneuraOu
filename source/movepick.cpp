@@ -104,17 +104,6 @@ void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 		}
 }
 
-
-// 合法手か判定する
-// ※　やねうら王独自追加。
-// 歩の不成を生成するモードが必要なのでこの部分をwrapしておく必要があった。
-bool pseudo_legal(const Position& pos, Move ttm)
-{
-	// 歩の不成を生成するかは、Options["GenerateAllLegalMoves"]に依存する。
-	return Search::Limits.generate_all_legal_moves ? pos.pseudo_legal_s<true>(ttm) : pos.pseudo_legal_s<false>(ttm);
-}
-
-
 } // end of namespace
 
 // 指し手オーダリング器
@@ -131,7 +120,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 	// 次の指し手生成の段階
 	// 王手がかかっているなら回避手、かかっていないなら通常探索用の指し手生成
 	stage = (pos.in_check() ? EVASION_TT : MAIN_TT) +
-		!(ttm && pseudo_legal(pos,ttm));
+		!(ttm && pos.pseudo_legal(ttm));
 
 	// 置換表の指し手があるならそれを最初に試す。ただしpseudo_legalでなければならない。
 	// 置換表の指し手がないなら、次のstageから開始する。
@@ -152,7 +141,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 	stage = (pos.in_check() ? EVASION_TT : QSEARCH_TT) +
 		!(ttm
 			&& (pos.in_check() || depth > DEPTH_QS_RECAPTURES || to_sq(ttm) == recaptureSquare)
-			&& pseudo_legal(pos,ttm));
+			&& pos.pseudo_legal(ttm));
 
 }
 
@@ -167,7 +156,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Value th , const CapturePiec
 	// (置換表の指しても、この条件を満たさなければならない)
 	// 置換表の指し手がないなら、次のstageから開始する。
 	stage = PROBCUT_TT + !(ttm && pos.capture(ttm)
-		&& pseudo_legal(pos,ttm)
+		&& pos.pseudo_legal(ttm)
 		&& pos.see_ge(ttm, threshold));
 
 }
@@ -347,7 +336,7 @@ top:
 		// pseudo_legalでない指し手以外に歩や大駒の不成なども除外
 		if (select<Next>([&]() { return    *cur != MOVE_NONE
 										&& !pos.capture_or_pawn_promotion(*cur)
-										&&  pseudo_legal(pos,*cur); }))
+										&&  pos.pseudo_legal(*cur); }))
 			return *(cur - 1);
 
 		++stage;

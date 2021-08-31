@@ -182,7 +182,6 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 #endif
 
 	// 全合法手を生成するオプションが有効ならば。
-#if defined(USE_GENERATE_ALL_LEGAL_MOVES)
 	if (limits.generate_all_legal_moves)
 	{
 		for (auto m : MoveList<LEGAL_ALL>(pos))
@@ -190,9 +189,7 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 				|| std::count(limits.searchmoves.begin(), limits.searchmoves.end(), m))
 				rootMoves.emplace_back(m);
 
-	} else
-#endif
-	{
+	} else {
 
 		for (auto m : MoveList<LEGAL>(pos))
 			if (limits.searchmoves.empty()

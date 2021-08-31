@@ -128,19 +128,21 @@ namespace USI {
 		// cin/coutの入出力をファイルにリダイレクトする
 		o["WriteDebugLog"] << Option(false, [](const Option& o) { start_logger(o); });
 
+		// 読みの各局面ですべての合法手を生成する
+		// (普通、歩の2段目での不成などは指し手自体を生成しないが、
+		// これのせいで不成が必要な詰みが絡む問題が解けないことがあるので、このオプションを用意しました。)
+#if defined(TANUKI_MATE_ENGINE) || defined(YANEURAOU_MATE_ENGINE)
+		// 詰将棋エンジンではデフォルトでオン。
+		o["GenerateAllLegalMoves"] << Option(true);
+#else
+		// 通常探索エンジンではデフォルトでオフ。
+		o["GenerateAllLegalMoves"] << Option(false);
+#endif
 
 #if defined (USE_ENTERING_KING_WIN)
 		// 入玉ルール
 		o["EnteringKingRule"] << Option(USI::ekr_rules, USI::ekr_rules[EKR_27_POINT]);
 #endif
-
-#if defined(USE_GENERATE_ALL_LEGAL_MOVES)
-		// 読みの各局面ですべての合法手を生成する
-		// (普通、歩の2段目での不成などは指し手自体を生成しないのですが、これのせいで不成が必要な詰みが絡む問題が解けないことが
-		// あるので、このオプションを用意しました。トーナメントモードではこのオプションは無効化されます。)
-		o["GenerateAllLegalMoves"] << Option(false);
-#endif
-
 
 #if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32) && \
 	 (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) )

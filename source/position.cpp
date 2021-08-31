@@ -901,12 +901,20 @@ bool Position::legal_drop(const Square to) const
 #endif
 }
 
-#if defined (USE_GENERATE_ALL_LEGAL_MOVES)
-bool Position::pseudo_legal2(const Move m) const
+// mがpseudo_legalな指し手であるかを判定する。
+// ※　pseudo_legalとは、擬似合法手(自殺手が含まれていて良い)
+// 置換表の指し手でdo_move()して良いのかの事前判定のために使われる。
+// 指し手生成ルーチンのテストなどにも使える。(指し手生成ルーチンはpseudo_legalな指し手を返すはずなので)
+// killerのような兄弟局面の指し手がこの局面において合法かどうかにも使う。
+// ※　置換表の検査だが、pseudo_legal()で擬似合法手かどうかを判定したあとlegal()で自殺手でないことを
+// 確認しなくてはならない。このためpseudo_legal()とlegal()とで重複する自殺手チェックはしていない。
+//
+// Options["GenerateAllLegalMoves"]を反映させる。
+// ↑これがtrueならば、歩の不成も合法手扱い。
+bool Position::pseudo_legal(const Move m) const
 {
 	return Search::Limits.generate_all_legal_moves ? pseudo_legal_s<true>(m) : pseudo_legal_s<false>(m);
 }
-#endif
 
 // ※　mがこの局面においてpseudo_legalかどうかを判定するための関数。
 template <bool All>

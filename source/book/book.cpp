@@ -1221,7 +1221,7 @@ namespace Book
 			if (!is_ok((Move)ponderMove.to_u16()))
 			{
 				Move best = rootPos.to_move(bestMove);
-				if (rootPos.pseudo_legal_s<true>(best) && rootPos.legal(best))
+				if (rootPos.pseudo_legal(best) && rootPos.legal(best))
 				{
 					StateInfo si;
 					rootPos.do_move(best,si);
@@ -1253,6 +1253,8 @@ namespace Book
 		Move bestMove = pos.to_move(bestMove16);
 
 		// bestMoveが合法かチェックしておく。
+		// 不成の指し手が含まれているかも知れないが、GenerateAllLegalMovesがtrueでないと指してはならないと思うので、
+		// 指さないようにする。(Position::pseudo_legal()はOptions["GenerateAllLegalMoves"]が反映する)
 		if (!pos.pseudo_legal(bestMove) || !pos.legal(bestMove))
 		{
 			// gensfenすると定跡のチェックになって面白いかも知れない…。

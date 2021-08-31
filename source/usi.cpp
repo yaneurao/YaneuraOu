@@ -586,9 +586,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states , bool
 #endif
 
 	// すべての合法手を生成するのか
-#if defined (USE_GENERATE_ALL_LEGAL_MOVES)
 	limits.generate_all_legal_moves = Options["GenerateAllLegalMoves"];
-#endif
 
 	// エンジンオプションによる探索制限(0なら無制限)
 	// このあと、depthもしくはnodesが指定されていたら、その値で上書きされる。(この値は無視される)

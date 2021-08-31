@@ -446,13 +446,11 @@ public:
 	// killerのような兄弟局面の指し手がこの局面において合法かどうかにも使う。
 	// ※　置換表の検査だが、pseudo_legal()で擬似合法手かどうかを判定したあとlegal()で自殺手でないことを
 	// 確認しなくてはならない。このためpseudo_legal()とlegal()とで重複する自殺手チェックはしていない。
-	bool pseudo_legal(const Move m) const { return pseudo_legal_s<true>(m); }
-
-#if defined (USE_GENERATE_ALL_LEGAL_MOVES)
-	// mがpseudo_legalな指し手であるかを判定する。
-	// Options["GenerateAllLegalMoves"]を反映させるバージョン
-	bool pseudo_legal2(const Move m) const;
-#endif
+	//
+	// また、
+	// Options["GenerateAllLegalMoves"]を反映させる。
+	// ↑これがtrueならば、歩の不成も合法手扱い。
+	bool pseudo_legal(const Move m) const;
 
 	// All == false        : 歩や大駒の不成に対してはfalseを返すpseudo_legal()
 	template <bool All> bool pseudo_legal_s(const Move m) const;

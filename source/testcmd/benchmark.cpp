@@ -118,6 +118,9 @@ void bench_cmd(Position& current, istringstream& is)
 	// ベンチマークモードにしておかないとPVの出力のときに置換表を漁られて探索に影響がある。
 	limits.bench = true;
 
+	// すべての合法手を生成するのか
+	limits.generate_all_legal_moves = Options["GenerateAllLegalMoves"];
+
 	// Optionsの影響を受けると嫌なので、その他の条件を固定しておく。
 	limits.enteringKingRule = EKR_NONE;
 
