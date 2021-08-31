@@ -1438,6 +1438,9 @@ namespace {
 		// 置換表にhitしなければMOVE_NONE
 		// RootNodeであるなら、(MultiPVなどでも)現在注目している1手だけがベストの指し手と仮定できるから、
 		// それが置換表にあったものとして指し手を進める。
+		// 注意)
+		// tte->move()にはMOVE_WINも含まれている可能性がある。
+		// この時、pos.to_move(MOVE_WIN) == MOVE_WINなので、ttMove == MOVE_WINとなる。
 
 		ttMove = rootNode ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
 			  : ss->ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
@@ -1486,11 +1489,16 @@ namespace {
 			// ただし、捕獲する指し手か成る指し手であればこれは(captureで生成する指し手なので)killerを更新する価値はない。
 
 			// ただし置換表の指し手には、hash衝突によりpseudo-leaglでない指し手である可能性がある。
-			// update_quiet_stats()で、この指し手の移動先の駒を取得してCounter Moveとするが、
+			// update_quiet_stats()で、この指し手の移動元の駒を取得してCounter Moveとするが、
 			// それがこの局面の手番側の駒ではないことがあるのでゆえにここでpseudo_legalのチェックをして、
 			// Counter Moveに先手の指し手として後手の指し手が登録されるような事態を回避している。
 			// その時に行われる誤ったβcut(枝刈り)は許容できる。(non PVで生じることなのでそこまで探索に対して悪い影響がない)
 			// cf. https://yaneuraou.yaneu.com/2021/08/17/about-the-yaneuraou-bug-that-appeared-in-the-long-match/
+
+			// ttMoveがMOVE_WINであることはありうるので注意が必要。
+			// is_ok(m)==falseの時、Position::to_move(m)がmをそのまま帰すことは保証されており、
+			// また、pos.pseudo_legal(MOVE_WIN)はfalseが返ることが保証されているので、
+			// pseudo_legal(MOVE_WIN)==falseになる。この場合、statのupdateは行わない。
 
 			if (ttMove && pos.pseudo_legal(ttMove))
 			{

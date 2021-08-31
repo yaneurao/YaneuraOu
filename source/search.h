@@ -178,7 +178,11 @@ namespace Search {
 		// PVの出力間隔(探索のときにMainThread::search()内で初期化する)
 		TimePoint pv_interval;
 
-		// 全合法手を生成するのか
+		// 合法手を生成する時に全合法手を生成するのか(歩の不成など)
+		// エンジンオプションのGenerateAllLegalMovesの値がこのフラグに反映される。
+		// 
+		// Position::pseudo_legal()も、このフラグに応じてどこまでをpseudo-legalとみなすかが変わる。
+		// (このフラグがfalseなら歩の不成は非合法手扱い)
 		bool generate_all_legal_moves;
 
 #if defined(TANUKI_MATE_ENGINE)

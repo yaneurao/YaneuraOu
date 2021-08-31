@@ -130,7 +130,7 @@ namespace USI {
 
 		// 読みの各局面ですべての合法手を生成する
 		// (普通、歩の2段目での不成などは指し手自体を生成しないが、
-		// これのせいで不成が必要な詰みが絡む問題が解けないことがあるので、このオプションを用意しました。)
+		// これのせいで不成が必要な詰みが絡む問題が解けないことがあるので、このオプションを用意した。)
 #if defined(TANUKI_MATE_ENGINE) || defined(YANEURAOU_MATE_ENGINE)
 		// 詰将棋エンジンではデフォルトでオン。
 		o["GenerateAllLegalMoves"] << Option(true);

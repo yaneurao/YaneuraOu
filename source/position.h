@@ -447,6 +447,9 @@ public:
 	// ※　置換表の検査だが、pseudo_legal()で擬似合法手かどうかを判定したあとlegal()で自殺手でないことを
 	// 確認しなくてはならない。このためpseudo_legal()とlegal()とで重複する自殺手チェックはしていない。
 	//
+	// is_ok(m)==falseの時、すなわち、m == MOVE_WINやMOVE_NONEのような時に
+	// Position::to_move(m) == mは保証されており、この時、本関数pseudo_legal(m)がfalseを返すことは保証する。
+	// 
 	// また、
 	// Options["GenerateAllLegalMoves"]を反映させる。
 	// ↑これがtrueならば、歩の不成も合法手扱い。

@@ -909,6 +909,10 @@ bool Position::legal_drop(const Square to) const
 // ※　置換表の検査だが、pseudo_legal()で擬似合法手かどうかを判定したあとlegal()で自殺手でないことを
 // 確認しなくてはならない。このためpseudo_legal()とlegal()とで重複する自殺手チェックはしていない。
 //
+//
+// is_ok(m)==falseの時、すなわち、m == MOVE_WINやMOVE_NONEのような時に
+// Position::to_move(m) == mは保証されており、この時、本関数pseudo_legal(m)がfalseを返すことは保証する。
+// 
 // Options["GenerateAllLegalMoves"]を反映させる。
 // ↑これがtrueならば、歩の不成も合法手扱い。
 bool Position::pseudo_legal(const Move m) const
@@ -1006,9 +1010,18 @@ bool Position::pseudo_legal_s(const Move m) const {
 		else {
 
 			// --- 成らない指し手
+			// ※　MOVE_WINやMOVE_NULLに対してfalseが返ることを保証しなければならないので以下の実装時に注意すること。
 
 			// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
 			if (moved_piece_after(m) != pc)
+				return false;
+
+			// is_ok(m) == falseな指し手、具体的にはMOVE_WINやMOVE_NULLに対して本関数がfalseを返すことを保証する。
+			// 
+			// is_ok(m) == falseの時、Position::to_move(m)はそのままmを返すので、この時、
+			// moved_piece_after(m) == NO_PIECEであるが、from_sq(m)のPieceがたまたまNO_PIECEであった場合、
+			// ここまで抜けてくるのでその場合、falseを返すことを保証しなければならない。
+			if (pt == NO_PIECE)
 				return false;
 
 			// 駒打ちのところに書いた理由により、不成で進めない升への指し手のチェックも不要。
@@ -1019,7 +1032,8 @@ bool Position::pseudo_legal_s(const Move m) const {
 
 			if (All)
 			{
-				// 歩と香に関しては1段目への不成は不可。桂は、桂飛びが出来る駒は桂しかないので
+				// 歩と香に関しては1段目への不成は不可。
+				// 桂は、桂飛びが出来る駒は桂しかないので
 				// 移動元と移動先がこれであるかぎり、それは桂の指し手生成によって生成されたものだから
 				// これが非合法手であることはない。
 
@@ -1028,6 +1042,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 						return false;
 			}
 			else {
+
 				// 歩の不成と香の2段目への不成を禁止。
 				// 大駒の不成を禁止
 				switch (pt)
