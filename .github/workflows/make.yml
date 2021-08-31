@@ -28,7 +28,7 @@ jobs:
           - YANEURAOU_MATE_ENGINE
           - TANUKI_MATE_ENGINE
           - USER_ENGINE
-        compiler: [clang++-12, clang++-11, g++-10]
+        compiler: [clang++-13, clang++-12, g++-10]
         target: ["normal,tournament", gensfen, evallearn]
         archcpu:
           [
@@ -118,7 +118,7 @@ jobs:
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install build-essential libopenblas-dev
+          sudo apt install build-essential libopenblas-dev libomp-12-dev
         if: ${{ matrix.compiler == 'clang++-12' }}
       - name: install clang-13
         # LLVM APT
@@ -128,7 +128,7 @@ jobs:
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install build-essential libopenblas-dev
+          sudo apt install build-essential libopenblas-dev libomp-13-dev
         if: ${{ matrix.compiler == 'clang++-13' }}
 
       - name: make
