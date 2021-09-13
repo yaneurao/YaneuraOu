@@ -263,6 +263,7 @@ SOURCES  = \
 	eval/evaluate_io.cpp                                                       \
 	eval/evaluate_mir_inv_tools.cpp                                            \
 	eval/material/evaluate_material.cpp                                        \
+	testcmd/unit_tester.cpp                                                    \
 	testcmd/mate_test_cmd.cpp                                                  \
 	testcmd/normal_test_cmd.cpp                                                \
 	testcmd/benchmark.cpp

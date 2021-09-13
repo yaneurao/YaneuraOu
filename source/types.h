@@ -1014,6 +1014,15 @@ namespace Eval
 }
 
 // --------------------
+//      UnitTest
+// --------------------
+
+// 前方宣言だけ。
+// 実際に使う時は、"testcmd/unit_tester.h"をincludeせよ。
+// 使い方については、Position::UnitTest()などを参考にすること。
+struct UnitTester;
+
+// --------------------
 //  operators and macros
 // --------------------
 

@@ -292,6 +292,8 @@ public:
 	}
 
 	// 定跡DBや置換表から取り出したMove16(16bit型の指し手)を32bit化する。
+	// is_ok(m) == false ならば、mをそのまま返す。
+	// 例 : MOVE_WINやMOVE_NULLに対してはそれがそのまま返ってくる。つまり、この時、上位16bitは0(NO_PIECE)である。
 	Move to_move(Move16 m) const;
 	
 	// 普通の千日手、連続王手の千日手等を判定する。
@@ -638,6 +640,9 @@ public:
 	// MoveGenerator(指し手生成器)からは盤面・手駒にアクセス出来る必要があるのでfriend
 	template <MOVE_GEN_TYPE gen_type, bool gen_all>
 	friend struct MoveGenerator;
+
+	// UnitTest
+	static void UnitTest(UnitTester&);
 
 private:
 	// StateInfoの初期化(初期化するときに内部的に用いる)

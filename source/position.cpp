@@ -3,6 +3,7 @@
 #include "tt.h"
 #include "thread.h"
 #include "mate/mate.h"
+#include "testcmd/unit_tester.h"
 
 #include <iostream>
 #include <sstream>
@@ -2395,6 +2396,27 @@ bool Position::pos_is_ok() const
 	return true;
 }
 
-// 明示的な実体化
+// ----------------------------------
+//			UnitTest
+// ----------------------------------
+
+void Position::UnitTest(UnitTester& tester)
+{
+	auto s1 = tester.section("Position");
+	{
+		// 入玉のテスト
+		auto s2 = tester.section("EnteringWin");
+		{
+			// 駒落ち時の入玉テスト(書きかけ)
+			tester.test("Handcapped", true);
+
+		}
+	}
+}
+
+
+// ----------------------------------
+//         明示的な実体化
+// ----------------------------------
 template bool Position::pseudo_legal_s<false>(const Move m) const;
 template bool Position::pseudo_legal_s< true>(const Move m) const;
