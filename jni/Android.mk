@@ -170,7 +170,8 @@ LOCAL_SRC_FILES := \
   ../source/eval/material/evaluate_material.cpp                        \
   ../source/testcmd/benchmark.cpp                                      \
   ../source/testcmd/mate_test_cmd.cpp                                  \
-  ../source/testcmd/normal_test_cmd.cpp
+  ../source/testcmd/normal_test_cmd.cpp                                \
+  ../source/testcmd/unit_test.cpp
 
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPPT)
 LOCAL_SRC_FILES += \
