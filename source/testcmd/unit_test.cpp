@@ -4,6 +4,7 @@
 #include <sstream>
 #include "../position.h"
 #include "../usi.h"
+#include "../search.h"
 
 using namespace std;
 
@@ -64,6 +65,18 @@ namespace Test
 		++test_count;
 	}
 
+	void UnitTester::run(std::function<void(UnitTester&)> f)
+	{
+		// 対象の関数を実行する前に呼び出されるcallback
+		if (before_run)
+			before_run();
+
+		f(*this);
+
+		if (after_run)
+			after_run();
+	}
+
 	// Sectionを作る。
 	// 使い方は、Position::UnitTest()を見ること。
 	const std::string UnitTester::section_name()
@@ -91,11 +104,22 @@ namespace Test
 
 	void UnitTest(Position& pos, istringstream& is)
 	{
+		// UnitTest開始時に"isready"コマンドを実行したのに相当する初期化はなされているものとする。
 		is_ready();
+
+		// UnitTestを呼び出してくれるclass。
 		UnitTester tester;
 
+		// --- run()の実行ごとに退避させていたものを元に戻す。
+
+		// 退避させるもの
+		auto limits_org = Search::Limits;
+		tester.after_run = [&]() { Search::Limits = limits_org; };
+
+		// --- 各classに対するUnitTest
+
 		// Position class
-		Position::UnitTest(tester);
+		tester.run(Position::UnitTest);
 
 	}
 

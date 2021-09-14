@@ -2274,11 +2274,12 @@ void Position::update_entering_point()
 	{
 		// 56から足りない分だけ後手が駒落ちにしていると考えられる。
 		// 駒落ち対応入玉ルールであるなら、この分を引き算して考える。
-		// ただし、駒落ちにおいてはWHITEが上手(先手)だと考えられるので、
-		// BLACKとWHITEの駒点を入れ替える必要はある。
 
-		// 先後の点数を入れ替えて…。
-		std::swap(points[BLACK], points[WHITE]);
+		// 駒落ちにおいては上手(うわて)が先手だと考えるなら、
+		// BLACKとWHITEの駒点を入れ替える必要がある。
+		// std::swap(points[BLACK], points[WHITE]);
+		// →　AobaZeroでは駒落ちの場合、上手は後手とみなすらしい。やねうら王もこれに倣う。
+		// cf. やねうら王がAobaZeroに駒落ちで負けまくっている件について : https://yaneuraou.yaneu.com/2021/09/14/yaneuraou-is-losing-too-much-to-aobazero/
 
 		// 56 - p だけ駒落ち。マイナスになることはない(上の計算法だと裸玉でも1点あるので..)
 		points[WHITE] -= 56 - p;
@@ -2478,10 +2479,6 @@ void Position::UnitTest(Test::UnitTester& tester)
 {
 	auto section1 = tester.section("Position");
 
-	// 退避させておく。
-	auto limits_org = Search::Limits;
-	SCOPE_EXIT( Search::Limits = limits_org; );
-
 	// Search::Limitsのalias
 	auto& limits = Search::Limits;
 
@@ -2593,13 +2590,13 @@ void Position::UnitTest(Test::UnitTester& tester)
 
 			tester.test("hirate", limits.enteringKingPoint[BLACK] == 28 && limits.enteringKingPoint[WHITE] == 27);
 
-			// 2枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=18,下手(BLACK)=27
+			// 2枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=17,下手(BLACK)=28
 			handi2_init();
-			tester.test("handi2", limits.enteringKingPoint[BLACK] == 27 && limits.enteringKingPoint[WHITE] == 18);
+			tester.test("handi2", limits.enteringKingPoint[BLACK] == 28 && limits.enteringKingPoint[WHITE] == 17);
 
-			// 4枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=16,下手(BLACK)=27
+			// 4枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=15,下手(BLACK)=28
 			handi4_init();
-			tester.test("handi4", limits.enteringKingPoint[BLACK] == 27 && limits.enteringKingPoint[WHITE] == 16);
+			tester.test("handi4", limits.enteringKingPoint[BLACK] == 28 && limits.enteringKingPoint[WHITE] == 15);
 		}
 
 		{
@@ -2615,7 +2612,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 			handi2_init();
 			tester.test("handi2", limits.enteringKingPoint[BLACK] == 31 && limits.enteringKingPoint[WHITE] == 21);
 
-			// 4枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=19,下手(BLACK)=27
+			// 4枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=19,下手(BLACK)=31
 			handi4_init();
 			tester.test("handi4", limits.enteringKingPoint[BLACK] == 31 && limits.enteringKingPoint[WHITE] == 19);
 		}

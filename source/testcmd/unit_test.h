@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <functional>
 class Position;
 
 namespace Test
@@ -56,6 +57,15 @@ namespace Test
 		{
 			return UnitTesterSection(this, section_name);
 		}
+
+		// 各classに実装されたstatic UnitTest(UnitTest&)を呼び出す時に用いる。
+		// この関数fが呼び出される前にbefore_run()、呼び出された後にafter_run()が呼び出されるので
+		// そこに共通の初期化コードを書いたりできる。(かも)
+		void run(std::function<void(UnitTester&)> f);
+
+		// run()の直前、直後に呼び出されるcallback
+		std::function<void()> before_run;
+		std::function<void()> after_run;
 
 	protected:
 		// 現在のsection名。

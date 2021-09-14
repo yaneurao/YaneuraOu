@@ -1946,7 +1946,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 		{
 			// 変なsfenを掴かまされた。デバッグすべき！
 			// 不正なsfenなのでpos.sfen()で表示できるとは限らないが、しないよりマシ。
-			cout << "Error! : illigal packed sfen = " << pos.sfen() << endl;
+			cout << "Error! : illegal packed sfen = " << pos.sfen() << endl;
 			goto RetryRead;
 		}
 #if !defined(EVAL_NNUE)
