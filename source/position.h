@@ -294,6 +294,8 @@ public:
 	// 定跡DBや置換表から取り出したMove16(16bit型の指し手)を32bit化する。
 	// is_ok(m) == false ならば、mをそのまま返す。
 	// 例 : MOVE_WINやMOVE_NULLに対してはそれがそのまま返ってくる。つまり、この時、上位16bitは0(NO_PIECE)である。
+	// 	  
+	// 注意 : mの移動元の駒が現在の手番の駒であることはこの関数ではチェックしないものとする。
 	Move to_move(Move16 m) const;
 	
 	// 普通の千日手、連続王手の千日手等を判定する。
@@ -642,7 +644,7 @@ public:
 	friend struct MoveGenerator;
 
 	// UnitTest
-	static void UnitTest(UnitTester&);
+	static void UnitTest(Test::UnitTester&);
 
 private:
 	// StateInfoの初期化(初期化するときに内部的に用いる)

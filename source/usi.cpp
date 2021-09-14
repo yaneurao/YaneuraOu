@@ -47,11 +47,9 @@ namespace Test
 
 		sync_cout << "Error! : unknown command = " << token << sync_endl;
 	}
-
 }
 
 #endif // defined(ENABLE_TEST_CMD)
-
 
 //
 // あとで整理する
@@ -957,6 +955,9 @@ void USI::loop(int argc, char* argv[])
 		// テストコマンド
 		else if (token == "test") Test::test_cmd(pos, is);
 #endif
+
+		// UnitTest
+		else if (token == "unittest") Test::UnitTest(pos, is);
 
 #if defined (ENABLE_MAKEBOOK_CMD) && (defined(EVAL_LEARN) || defined(YANEURAOU_ENGINE_DEEP))
 		// 定跡を作るコマンド

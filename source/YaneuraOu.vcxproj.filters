@@ -313,7 +313,7 @@
     <ClInclude Include="mate\mate_move_picker.h">
       <Filter>リソース ファイル\mate</Filter>
     </ClInclude>
-    <ClInclude Include="testcmd\unit_tester.h">
+    <ClInclude Include="testcmd\unit_test.h">
       <Filter>リソース ファイル\testcmd</Filter>
     </ClInclude>
   </ItemGroup>

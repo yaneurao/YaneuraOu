@@ -3,7 +3,7 @@
 #include "tt.h"
 #include "thread.h"
 #include "mate/mate.h"
-#include "testcmd/unit_tester.h"
+#include "testcmd/unit_test.h"
 
 #include <iostream>
 #include <sstream>
@@ -2400,17 +2400,72 @@ bool Position::pos_is_ok() const
 //			UnitTest
 // ----------------------------------
 
-void Position::UnitTest(UnitTester& tester)
+void Position::UnitTest(Test::UnitTester& tester)
 {
-	auto s1 = tester.section("Position");
-	{
-		// 入玉のテスト
-		auto s2 = tester.section("EnteringWin");
-		{
-			// 駒落ち時の入玉テスト(書きかけ)
-			tester.test("Handcapped", true);
+	auto section1 = tester.section("Position");
 
-		}
+	Position pos;
+	StateInfo si;
+	pos.set_hirate(&si, Threads.main());
+
+	Move16 m16;
+	Move m;
+
+	// to_move() のテスト
+	{
+		auto section2 = tester.section("to_move()");
+
+		// is_ok(m) == falseな指し手に対して、to_move()がその指し手をそのまま返すことを保証する。
+		tester.test("MOVE_NONE", pos.to_move(MOVE_NONE) == MOVE_NONE);
+		tester.test("MOVE_WIN" , pos.to_move(MOVE_WIN ) == MOVE_WIN );
+		tester.test("MOVE_NULL", pos.to_move(MOVE_NULL) == MOVE_NULL);
+
+		// 88の角を22に不成で移動。(非合法手) 移動後の駒は先手の角。
+		m16 = make_move16(SQ_88, SQ_22);
+		tester.test("make_move16(SQ_88, SQ_22)", pos.to_move(m16) == (Move)((u32)m16.to_u16() + (u32)(B_BISHOP << 16)));
+
+		// 88の角を22に成る移動。(非合法手) 移動後の駒は先手の馬。
+		m16 = make_move_promote16(SQ_88, SQ_22);
+		tester.test("make_move_promote16(SQ_88, SQ_22)", pos.to_move(m16) == (Move)((u32)m16.to_u16() + (u32)(B_HORSE << 16)));
+
+		// 22の角を88に不成で移動。(非合法手) 移動後の駒は後手の角。
+		m16 = make_move16(SQ_22, SQ_88);
+		tester.test("make_move16(SQ_22, SQ_88)", pos.to_move(m16) == (Move)((u32)m16.to_u16() + (u32)(W_BISHOP << 16)));
+
+		// 22の角を88に成る移動。(非合法手) 移動後の駒は後手の馬。
+		m16 = make_move_promote16(SQ_22, SQ_88);
+		tester.test("make_move_promote16(SQ_22, SQ_88)", pos.to_move(m16) == (Move)((u32)m16.to_u16() + (u32)(W_HORSE << 16)));
+	}
+
+	// pseudo_legal() のテスト
+	{
+		auto section2 = tester.section("legality");
+
+		// 77の歩を76に移動。(合法手)
+		// これはpseudo_legalではある。
+		m16 = make_move16(SQ_77, SQ_76);
+		m = pos.to_move(m16);
+		tester.test("make_move(SQ_77, SQ_76) is pseudo_legal == true", pos.pseudo_legal(m) == true);
+
+		// 後手の駒の場合、現在の手番の駒ではないので、pseudo_legalではない。(pseudo_legalは手番側の駒であることを保証する)
+		m16 = make_move16(SQ_83, SQ_84);
+		m = pos.to_move(m16);
+		tester.test("make_move(SQ_83, SQ_84) is pseudo_legal == false", pos.pseudo_legal(m) == false);
+
+		// 88の先手の角を22に移動。これは途中に駒があって移動できないのでpseudo_legalではない。
+		// (pseudo_legalは、その駒が移動できる(移動先の升にその駒の利きがある)ことを保証する)
+		m16 = make_move16(SQ_88, SQ_22);
+		m = pos.to_move(m16);
+		tester.test("make_move(SQ_88, SQ_22) is pseudo_legal == false", pos.pseudo_legal(m) == false);
+	}
+
+
+	// 入玉のテスト
+	{
+		auto section2 = tester.section("EnteringWin");
+		// 駒落ち時の入玉テスト(書きかけ)
+		tester.test("Handcapped", true);
+
 	}
 }
 

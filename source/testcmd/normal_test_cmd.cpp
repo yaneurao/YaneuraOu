@@ -7,7 +7,6 @@
 // ----------------------------------
 
 #include <sstream>
-#include "unit_tester.h"
 #include "../position.h"
 #include "../usi.h"
 #include "../thread.h"
@@ -182,13 +181,6 @@ namespace {
 				std::cout << ".";
 		}
 	}
-
-
-	void unit_test(Position& pos, std::istringstream& is)
-	{
-		UnitTester tester;
-		Position::UnitTest(tester);
-	}
 }
 
 // ----------------------------------
@@ -202,7 +194,6 @@ namespace Test
 	{
 		if (token == "genmoves")         gen_moves(pos, is);       // 現在の局面に対して指し手生成のテストを行う。
 		else if (token == "autoplay")    auto_play(pos, is);       // 連続自己対局を行う。
-		else if (token == "unit")        unit_test(pos, is);       // UnitTest
 		else return false;									       // どのコマンドも処理することがなかった
 			
 		// いずれかのコマンドを処理した。

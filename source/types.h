@@ -1018,9 +1018,13 @@ namespace Eval
 // --------------------
 
 // 前方宣言だけ。
-// 実際に使う時は、"testcmd/unit_tester.h"をincludeせよ。
+// 実際に使う時は、"testcmd/unit_test.h"をincludeせよ。
 // 使い方については、Position::UnitTest()などを参考にすること。
-struct UnitTester;
+namespace Test
+{
+	class UnitTester;
+	void UnitTest(Position& pos,std::istringstream& is);
+}
 
 // --------------------
 //  operators and macros
