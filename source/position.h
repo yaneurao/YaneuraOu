@@ -576,14 +576,12 @@ public:
 	// 捕獲する指し手であるか。
 	bool capture(Move m) const { return !is_drop(m) && piece_on(to_sq(m)) != NO_PIECE; }
 
-#if defined(USE_ENTERING_KING_WIN)
 	// 入玉時の宣言勝ち
 	// Search::Limits.enteringKingRuleに基いて、宣言勝ちを行なう。
 	// 条件を満たしているとき、MOVE_WINや、玉を移動する指し手(トライルール時)が返る。さもなくば、MOVE_NONEが返る。
 	// mate1ply()から内部的に呼び出す。(そうするとついでに処理出来て良い)
 	// 32bit Moveが返る。
 	Move DeclarationWin() const;
-#endif
 
 	// -- sfen化ヘルパ
 #if defined(USE_SFEN_PACKER)
@@ -660,6 +658,9 @@ private:
 
 	// undo_move()の先後分けたもの。内部的に呼び出される。
 	template <Color Us> void undo_move_impl(Move m);
+
+	// 現在の盤面から、入玉に必要な駒点を計算し、Search::Limits::enteringKingPointに設定する。
+	void update_entering_point();
 
 	// --- Bitboards
 	// alignas(16)を要求するものを先に宣言。

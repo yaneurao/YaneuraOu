@@ -478,6 +478,11 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 	st->materialValue = Eval::material(*this);
 	Eval::compute_eval(*this);
 
+	// --- 入玉の駒点の設定
+
+	update_entering_point();
+
+
 //	sync_cout << sfen() << *this << pieces(BLACK) << pieces(WHITE) << pieces() << sync_endl;
 
 	//if (!is_ok(*this))

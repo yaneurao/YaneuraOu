@@ -381,6 +381,10 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 
 	Eval::compute_eval(*this);
 
+	// --- 入玉の駒点の設定
+
+	update_entering_point();
+
 	// --- validation
 
 #if ASSERT_LV >= 3
@@ -390,6 +394,7 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 #endif
 
 	thisThread = th;
+
 }
 
 // 局面のsfen文字列を取得する。
@@ -2219,7 +2224,70 @@ bool Position::has_game_cycle(int plies_from_root, int rep_ply /*= 16*/) const
 //      入玉判定
 // ----------------------------------
 
-#if defined(USE_ENTERING_KING_WIN)
+// 現在の盤面から、入玉に必要な駒点を計算し、Search::Limits::enteringKingPointに設定する。
+void Position::update_entering_point()
+{
+	auto& limits = Search::Limits;
+	auto rule = limits.enteringKingRule;
+	int points[COLOR_NB];
+
+	switch (rule)
+	{
+	case EKR_24_POINT:   // 24点法(31点以上で宣言勝ち)
+	case EKR_24_POINT_H: // 24点法 , 駒落ち対応
+		points[BLACK] = points[WHITE] = 31;
+		break;
+
+	case EKR_27_POINT:   // 27点法 == CSAルール
+	case EKR_27_POINT_H: // 27点法 , 駒落ち対応
+		points[BLACK] = 28;
+		points[WHITE] = 27;
+		break;
+
+	default:
+		// それ以外では入玉の駒点を用いないので無視できる。
+		return;
+	}
+
+	// --- 盤上の駒を数える。大駒5点、小駒1点とする。これは、Bitboardを用いると速い。
+
+	// 盤上のすべての駒の枚数
+	auto p1 = pieces().pop_count();
+
+	// 盤上の大駒の枚数
+	auto p2 = (pieces(BISHOP) | pieces(ROOK) | pieces(HORSE) | pieces(DRAGON)).pop_count();
+
+	// 盤上の駒点
+	// 大駒の枚数の4倍を加算すれば、小駒を1点、大駒を5点とみなして計算したことになる。
+	auto p = p1 + p2 * 4;
+
+	// 手駒の駒点
+	for (auto c : COLOR )
+	{
+		auto h = hand[c];
+		p += hand_count(h, PAWN) + hand_count(h, LANCE) + hand_count(h, KNIGHT) + hand_count(h, SILVER) + hand_count(h, GOLD)
+			+ hand_count(h, BISHOP) * 5 + hand_count(h, ROOK) * 5;
+	}
+	// すべての駒があるなら、p == 56になるはず。
+	// (先手、小駒9*2段(=18枚*1点=18点) + 大駒2枚(=2枚*5点=10点) = 28点。後手も同様で、全体ではこの倍 = 56点)
+	if (p != 56 && (rule == EKR_24_POINT_H || rule == EKR_27_POINT_H))
+	{
+		// 56から足りない分だけ後手が駒落ちにしていると考えられる。
+		// 駒落ち対応入玉ルールであるなら、この分を引き算して考える。
+		// ただし、駒落ちにおいてはWHITEが上手(先手)だと考えられるので、
+		// BLACKとWHITEの駒点を入れ替える必要はある。
+
+		// 先後の点数を入れ替えて…。
+		std::swap(points[BLACK], points[WHITE]);
+
+		// 56 - p だけ駒落ち。マイナスになることはない(上の計算法だと裸玉でも1点あるので..)
+		points[WHITE] -= 56 - p;
+	}
+
+	limits.enteringKingPoint[BLACK] = points[BLACK];
+	limits.enteringKingPoint[WHITE] = points[WHITE];
+}
+
 Move Position::DeclarationWin() const
 {
 	auto rule = Search::Limits.enteringKingRule;
@@ -2234,6 +2302,8 @@ Move Position::DeclarationWin() const
 		// cf.http://www.computer-shogi.org/protocol/tcp_ip_1on1_11.html
 	case EKR_24_POINT: // 24点法(31点以上で宣言勝ち)
 	case EKR_27_POINT: // 27点法 == CSAルール
+	case EKR_24_POINT_H: // 24点法 , 駒落ち対応
+	case EKR_27_POINT_H: // 27点法 , 駒落ち対応
 	{
 		/*
 		「入玉宣言勝ち」の条件(第13回選手権で使用のもの):
@@ -2294,10 +2364,15 @@ Move Position::DeclarationWin() const
 			+ hand_count(h, GOLD) + (hand_count(h, BISHOP) + hand_count(h, ROOK)) * 5;
 
 		// rule==EKR_27_POINTならCSAルール。rule==EKR_24_POINTなら24点法(30点以下引き分けなので31点以上あるときのみ勝ち扱いとする)
-		if (score < (rule == EKR_27_POINT ? (us == BLACK ? 28 : 27) : 31))
+		//if (score < (rule == EKR_27_POINT ? (us == BLACK ? 28 : 27) : 31))
+			//return MOVE_NONE;
+
+		// ↓ 駒落ち対応などを考慮して、enteringKingPoint[]を参照することにした。
+
+		if (score < Search::Limits.enteringKingPoint[us])
 			return MOVE_NONE;
 
-		// 評価関数でそのまま使いたいので非0のときは駒点を返しておく。
+		// 評価関数でそのまま使いたいので駒点を返しておくのもアリか…。
 		return MOVE_WIN;
 	}
 
@@ -2329,7 +2404,6 @@ Move Position::DeclarationWin() const
 		return MOVE_NONE;
 	}
 }
-#endif
 
 // ----------------------------------
 //      内部情報の正当性のテスト
@@ -2404,9 +2478,25 @@ void Position::UnitTest(Test::UnitTester& tester)
 {
 	auto section1 = tester.section("Position");
 
+	// 退避させておく。
+	auto limits_org = Search::Limits;
+	SCOPE_EXIT( Search::Limits = limits_org; );
+
+	// Search::Limitsのalias
+	auto& limits = Search::Limits;
+
 	Position pos;
 	StateInfo si;
-	pos.set_hirate(&si, Threads.main());
+
+	// 平手初期化
+	auto hirate_init  = [&] { pos.set_hirate(&si, Threads.main()); };
+	// 2枚落ち初期化
+	auto handi2_sfen = "lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1";
+	auto handi2_init = [&] { pos.set(handi2_sfen , &si, Threads.main()); };
+
+	// 4枚落ち初期化
+	auto handi4_sfen = "1nsgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1";
+	auto handi4_init = [&] { pos.set(handi4_sfen, &si, Threads.main()); };
 
 	Move16 m16;
 	Move m;
@@ -2415,9 +2505,12 @@ void Position::UnitTest(Test::UnitTester& tester)
 	{
 		auto section2 = tester.section("to_move()");
 
+		// 平手初期化
+		hirate_init();
+
 		// is_ok(m) == falseな指し手に対して、to_move()がその指し手をそのまま返すことを保証する。
 		tester.test("MOVE_NONE", pos.to_move(MOVE_NONE) == MOVE_NONE);
-		tester.test("MOVE_WIN" , pos.to_move(MOVE_WIN ) == MOVE_WIN );
+		tester.test("MOVE_WIN" , pos.to_move(MOVE_WIN) == MOVE_WIN);
 		tester.test("MOVE_NULL", pos.to_move(MOVE_NULL) == MOVE_NULL);
 
 		// 88の角を22に不成で移動。(非合法手) 移動後の駒は先手の角。
@@ -2437,7 +2530,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 		tester.test("make_move_promote16(SQ_22, SQ_88)", pos.to_move(m16) == (Move)((u32)m16.to_u16() + (u32)(W_HORSE << 16)));
 	}
 
-	// pseudo_legal() のテスト
+	// pseudo_legal() , legal() のテスト
 	{
 		auto section2 = tester.section("legality");
 
@@ -2459,14 +2552,76 @@ void Position::UnitTest(Test::UnitTester& tester)
 		tester.test("make_move(SQ_88, SQ_22) is pseudo_legal == false", pos.pseudo_legal(m) == false);
 	}
 
-
 	// 入玉のテスト
 	{
-		auto section2 = tester.section("EnteringWin");
-		// 駒落ち時の入玉テスト(書きかけ)
-		tester.test("Handcapped", true);
+		auto section2 = tester.section("EnteringKing");
+		
+		{
+			// 27点法の入玉可能点数 平手 : 先手=28,後手=27
+			auto section3 = tester.section("EKR_27_POINT");
+
+			limits.enteringKingRule = EKR_27_POINT;
+			hirate_init();
+			
+			tester.test("hirate", limits.enteringKingPoint[BLACK] == 28 && limits.enteringKingPoint[WHITE] == 27);
+
+			// 2枚落ち初期化 , 駒落ち対応でないなら、この時も 先手=28,後手=27
+			handi2_init();
+			tester.test("handi2", limits.enteringKingPoint[BLACK] == 28 && limits.enteringKingPoint[WHITE] == 27);
+		}
+
+		{
+			// 24点法の入玉可能点数 平手 : 先手=31,後手=31
+			auto section3 = tester.section("EKR_24_POINT");
+
+			limits.enteringKingRule = EKR_24_POINT;
+			hirate_init();
+
+			tester.test("hirate", limits.enteringKingPoint[BLACK] == 31 && limits.enteringKingPoint[WHITE] == 31);
+
+			// 2枚落ち初期化 , 駒落ち対応でないなら、この時も 先手=31,後手=31
+			handi2_init();
+			tester.test("handi2", limits.enteringKingPoint[BLACK] == 31 && limits.enteringKingPoint[WHITE] == 31);
+		}
+
+		{
+			// 27点法の入玉可能点数 平手 : 先手=28,後手=27
+			auto section3 = tester.section("EKR_27_POINT_H");
+
+			limits.enteringKingRule = EKR_27_POINT_H;
+			hirate_init();
+
+			tester.test("hirate", limits.enteringKingPoint[BLACK] == 28 && limits.enteringKingPoint[WHITE] == 27);
+
+			// 2枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=18,下手(BLACK)=27
+			handi2_init();
+			tester.test("handi2", limits.enteringKingPoint[BLACK] == 27 && limits.enteringKingPoint[WHITE] == 18);
+
+			// 4枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=16,下手(BLACK)=27
+			handi4_init();
+			tester.test("handi4", limits.enteringKingPoint[BLACK] == 27 && limits.enteringKingPoint[WHITE] == 16);
+		}
+
+		{
+			// 24点法の入玉可能点数 平手 : 先手=31,後手=31
+			auto section3 = tester.section("EKR_24_POINT_H");
+
+			limits.enteringKingRule = EKR_24_POINT_H;
+			hirate_init();
+
+			tester.test("hirate", limits.enteringKingPoint[BLACK] == 31 && limits.enteringKingPoint[WHITE] == 31);
+
+			// 2枚落ち初期化 , 駒落ち対応なのでこの時 上手(WHITE)=21,下手(BLACK)=31
+			handi2_init();
+			tester.test("handi2", limits.enteringKingPoint[BLACK] == 31 && limits.enteringKingPoint[WHITE] == 21);
+
+			// 4枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=19,下手(BLACK)=27
+			handi4_init();
+			tester.test("handi4", limits.enteringKingPoint[BLACK] == 31 && limits.enteringKingPoint[WHITE] == 19);
+		}
 
 	}
+
 }
 
 

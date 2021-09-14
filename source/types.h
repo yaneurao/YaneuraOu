@@ -964,7 +964,9 @@ enum EnteringKingRule
 {
 	EKR_NONE,            // 入玉ルールなし
 	EKR_24_POINT,        // 24点法(31点以上で宣言勝ち)
-	EKR_27_POINT,        // 27点法 = CSAルール
+	EKR_24_POINT_H,      // 24点法 , 駒落ち対応
+	EKR_27_POINT,        // 27点法 = CSAルール(先手28点、後手27点)
+	EKR_27_POINT_H,      // 27点法 , 駒落ち対応
 	EKR_TRY_RULE,        // トライルール
 };
 

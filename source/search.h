@@ -88,12 +88,17 @@ namespace Search {
 			depth = mate = perft = infinite = 0;
 			nodes = 0;
 
-			// やねうら王で、将棋用に追加したメンバーの初期化。
+			// --- やねうら王で、将棋用に追加したメンバーの初期化。
 
 			byoyomi[WHITE] = byoyomi[BLACK] = TimePoint(0);
 			max_game_ply = 100000;
 			rtime = 0;
+
+			// 入玉に関して
 			enteringKingRule = EKR_NONE;
+			enteringKingPoint[BLACK] = 28; // Position::set()でupdate_entering_point()が呼び出されて設定される。
+			enteringKingPoint[WHITE] = 27; // Position::set()でupdate_entering_point()が呼び出されて設定される。
+
 			silent = bench = consideration_mode = outout_fail_lh_pv = false;
 			pv_interval = 0;
 			generate_all_legal_moves = true;
@@ -161,6 +166,9 @@ namespace Search {
 
 		// 入玉ルール設定
 		EnteringKingRule enteringKingRule;
+		// 駒落ち対応入玉ルーの時に、この点数以上であれば入玉宣言可能。
+		// 例) 27点法の2枚落ちならば、↓の[BLACK(下手 = 後手)]には 27 , ↓の[WHITE(上手 = 先手)]には 28-10 = 18 が代入されている。
+		int enteringKingPoint[COLOR_NB];
 
 		// 画面に出力しないサイレントモード(プロセス内での連続自己対戦のとき用)
 		// このときPVを出力しない。

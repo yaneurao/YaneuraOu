@@ -510,6 +510,9 @@
     <ClCompile Include="testcmd\benchmark.cpp">
       <Filter>リソース ファイル\testcmd</Filter>
     </ClCompile>
+    <ClCompile Include="testcmd\unit_test.cpp">
+      <Filter>リソース ファイル\testcmd</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">

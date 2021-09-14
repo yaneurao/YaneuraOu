@@ -92,8 +92,9 @@ namespace Test
 	void UnitTest(Position& pos, istringstream& is)
 	{
 		is_ready();
-
 		UnitTester tester;
+
+		// Position class
 		Position::UnitTest(tester);
 
 	}

@@ -13,7 +13,7 @@ namespace USI {
 	// --- やねうら王独自拡張分の前方宣言
 
 	// 入玉ルールのUSI文字列
-	std::vector<std::string> ekr_rules = { "NoEnteringKing", "CSARule24" , "CSARule27" , "TryRule" };
+	std::vector<std::string> ekr_rules = { "NoEnteringKing", "CSARule24" , "CSARule24H" , "CSARule27" , "CSARule27H", "TryRule" };
 
 	void read_engine_options();
 
