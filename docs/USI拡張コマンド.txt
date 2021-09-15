@@ -88,6 +88,9 @@ USIプロトコルの独自拡張コマンド
 	EvalDir			: 評価関数用のファイルの配置フォルダ(デフォルトでは eval/ )
 					isreadyコマンドで評価関数ファイルを読み込むので、起動後isreadyまでにsetoptionでこの設定を変更しないと効かない。
 
+					やねうら王 V6.05からフォルダは、絶対Pathでの指定が可能になりました。
+					例) C:/YaneuraOu/Eval
+
 	EnteringKingRule: 入玉ルール
 		NoEnteringKing  : 入玉ルールなし
 		CSARule24       : 24点法。31点で宣言勝ちなので31点にならないと宣言勝ちはしない。

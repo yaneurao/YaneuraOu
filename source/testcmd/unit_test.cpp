@@ -5,6 +5,7 @@
 #include "../position.h"
 #include "../usi.h"
 #include "../search.h"
+#include "../misc.h"
 
 using namespace std;
 
@@ -120,6 +121,9 @@ namespace Test
 
 		// Position class
 		tester.run(Position::UnitTest);
+
+		// Misc tools
+		tester.run(Misc::UnitTest);
 
 	}
 

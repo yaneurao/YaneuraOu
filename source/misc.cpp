@@ -48,6 +48,7 @@ extern "C" {
 #include "misc.h"
 #include "thread.h"
 #include "usi.h"
+#include "testcmd/unit_test.h"
 
 using namespace std;
 
@@ -1369,6 +1370,10 @@ namespace Path
 	// ('/'自体は、Pathの区切り文字列として、WindowsでもLinuxでも使えるはずなので。
 	std::string Combine(const std::string& folder, const std::string& filename)
 	{
+		// 与えられたfileが絶対Pathであるかの判定
+		if (IsAbsolute(filename))
+			return filename;
+
 		if (folder.length() >= 1 && *folder.rbegin() != '/' && *folder.rbegin() != '\\')
 			return folder + "/" + filename;
 
@@ -1406,6 +1411,33 @@ namespace Path
 		return (length == 0) ? "" : path.substr(0,length);
 	}
 
+	// 絶対Pathであるかの判定。
+	// "\\"(WindowsのUNC)で始まるか、"/"で始まるか(Windows / Linuxのroot)、"~"で始まるか、"C:"(ドライブレター + ":")で始まるか。
+	bool IsAbsolute(const std::string& path)
+	{
+		// path separator
+		const auto path_char1 = '\\';
+		const auto path_char2 = '/';
+
+		// home directory
+		const auto home_char  = '~';
+
+		// dirve letter separator
+		const auto drive_char = ':';
+
+		if (path.length() >= 1)
+		{
+			const char c = path[0];
+			if (c == path_char1 || c == path_char2 || c == home_char)
+				return true;
+
+			// 2文字目が":"なら1文字目をチェックしなくとも良いかな？
+			if (path.length() >= 2 && path[1] == drive_char)
+				return true;
+		}
+
+		return false;
+	}
 };
 
 // --------------------
@@ -1771,4 +1803,30 @@ namespace CommandLine {
 			binaryDirectory.replace(0, 1, workingDirectory);
 	}
 
+}
+
+namespace Misc {
+	// このheaderに書いてある関数のUnitTest。
+	void UnitTest(Test::UnitTester& tester)
+	{
+		auto section1 = tester.section("Misc");
+
+		{
+			auto section2 = tester.section("Path");
+
+			{
+				auto section3 = tester.section("Combine");
+
+				tester.test("Absolute Path Root1",        Path::Combine("xxxx"  , "/dir"   ) == "/dir"     );
+				tester.test("Absolute Path Root2",        Path::Combine("xxxx"  , "\\dir"  ) == "\\dir"    );
+				tester.test("Absolute Path Home",         Path::Combine("xxxx"  , "~dir"   ) == "~dir"     );
+				tester.test("Absolute Path Drive Letter", Path::Combine("xxxx"  , "c:\\dir") == "c:\\dir"  );
+				tester.test("Absolute Path UNC",          Path::Combine("xxxx"  , "\\\\dir") == "\\\\dir"  );
+				tester.test("Relative Path1",             Path::Combine("xxxx"  , "yyy"    ) == "xxxx/yyy" );
+				tester.test("Relative Path2",             Path::Combine("xxxx/" , "yyy"    ) == "xxxx/yyy" );
+				tester.test("Relative Path3",             Path::Combine("xxxx\\", "yyy"    ) == "xxxx\\yyy");
+			}
+
+		}
+	}
 }

@@ -745,6 +745,10 @@ namespace Path
 {
 	// path名とファイル名を結合して、それを返す。
 	// folder名のほうは空文字列でないときに、末尾に'/'か'\\'がなければそれを付与する。
+	// 与えられたfilenameが絶対Pathである場合、folderを連結せずに単にfilenameをそのまま返す。
+	// 与えられたfilenameが絶対Pathであるかの判定は、内部的にはPath::IsAbsolute()を用いて行う。
+	// 
+	// 実際の連結のされ方については、UnitTestに例があるので、それも参考にすること。
 	extern std::string Combine(const std::string& folder, const std::string& filename);
 
 	// full path表現から、(フォルダ名をすべて除いた)ファイル名の部分を取得する。
@@ -752,6 +756,19 @@ namespace Path
 
 	// full path表現から、(ファイル名だけを除いた)ディレクトリ名の部分を取得する。
 	extern std::string GetDirectoryName(const std::string& path);
+
+	// 絶対Pathであるかの判定。
+	// ※　std::filesystem::absolute() は MSYS2 で Windows の絶対パスの判定に失敗するらしいので自作。
+	//
+	// 絶対Pathの条件 :
+	//   "\\"(WindowsのUNC)で始まるか、"/"で始まるか(Windows / Linuxのroot)、"~"で始まるか、"C:"(ドライブレター + ":")で始まるか。
+	//
+	// 絶対Pathの例)
+	//   C:/YaneuraOu/Eval  ← Windowsのドライブレター付きの絶対Path
+	//   \\MyNet\MyPC\Eval  ← WindowsのUNC
+	//   ~myeval            ← Linuxのhome
+	//   /YaneuraOu/Eval    ← Windows、Linuxのroot
+	extern bool IsAbsolute(const std::string& path);
 };
 
 // --------------------
@@ -832,5 +849,9 @@ namespace CommandLine {
 	extern std::string workingDirectory; // path of the working directory
 }
 
+namespace Misc {
+	// このheaderに書いてある関数のUnitTest。
+	extern void UnitTest(Test::UnitTester& tester);
+}
 
 #endif // #ifndef MISC_H_INCLUDED
