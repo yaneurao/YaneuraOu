@@ -4,6 +4,7 @@
 #include "search.h"
 #include "thread.h"
 #include "tt.h"
+#include "testcmd/unit_test.h"
 
 #include <sstream>
 #include <queue>
@@ -246,7 +247,9 @@ namespace USI
 						// 宣言勝ちでないならこれが合法手であるかのチェックが必要。
 						if (m != MOVE_WIN)
 						{
-							if (!(pos.pseudo_legal(m) && pos.legal(m)))
+							// 歩の不成が読み筋に含まれていようともそれは表示できなくてはならないので
+							// pseudo_legal_s<true>()を用いて判定。
+							if (!(pos.pseudo_legal_s<true>(m) && pos.legal(m)))
 								break;
 						}
 					}
@@ -1101,8 +1104,8 @@ std::string USI::move(const std::vector<Move>& moves)
 }
 
 
-// 局面posとUSIプロトコルによる指し手を与えて
-// もし可能なら等価で合法な指し手を返す。(合法でないときはMOVE_NONEを返す)
+// 局面posとUSIプロトコルによる指し手を与えてもし可能なら等価で合法な指し手を返す。
+// また合法でない指し手の場合、エラーである旨を出力する。
 Move USI::to_move(const Position& pos, const std::string& str)
 {
 	// 全合法手のなかからusi文字列に変換したときにstrと一致する指し手を探してそれを返す
@@ -1125,18 +1128,13 @@ Move USI::to_move(const Position& pos, const std::string& str)
 	// usi文字列を高速にmoveに変換するやつがいるがな..
 	Move move = pos.to_move(USI::to_move16(str));
 
-#if defined(MUST_CAPTURE_SHOGI_ENGINE)
-	// 取る一手将棋は合法手かどうかをGUI側でチェックしてくれないから、
-	// 合法手かどうかのチェックを入れる。
-	if (!MoveList<LEGAL>(pos).contains(move))
-		sync_cout << "info string Error!! Illegal Move = " << move << sync_endl;
-#endif
-
-	if (pos.pseudo_legal(move) && pos.legal(move))
+	// 現在の局面に至る手順として歩の不成が与えられることはあるので、
+	// pseudo_legal_s<true>()で判定する。
+	if (pos.pseudo_legal_s<true>(move) && pos.legal(move))
 		return move;
 
-	// いかなる状況であろうとこのような指し手はエラー表示をして弾いていいと思うが…。
-	// cout << "\nIlligal Move : " << str << "\n";
+	// 入力に非合法手が含まれていた。エラーとして出力すべき。
+	sync_cout << "info string Error! : Illegal Input Move : " << str << sync_endl;
 
 	return MOVE_NONE;
 }
@@ -1180,4 +1178,57 @@ Move16 USI::to_move16(const string& str)
 
 END:
 	return move;
+}
+
+// namespace USI内のUnitTest。
+void USI::UnitTest(Test::UnitTester& tester)
+{
+	auto section1 = tester.section("USI");
+
+	Position pos;
+	StateInfo si;
+
+	// 平手初期化
+	auto hirate_init = [&] { pos.set_hirate(&si, Threads.main()); };
+
+	// SFEN文字列でのPosition初期化
+	auto sfen_init = [&](const string& sfen) { pos.set(sfen, &si, Threads.main()); };
+
+	// Search::Limitsのalias
+	auto& limits = Search::Limits;
+
+	{
+
+		auto section2 = tester.section("to_move()");
+		{
+			//auto section3 = tester.section("unpromoted pawn move");
+
+			sfen_init("2sgkgs2/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1");
+
+			// いま不成を生成するオプションがオフであると仮定する。
+			limits.generate_all_legal_moves = false;
+
+			auto moves = "6a5b 1g1f 4a3b 1f1e 3a2b 2g2f 2c2d 7g7f 3b2c 2f2e 2d2e 2h2e P*2d 2e9e 7a8b 8h6f 8c8d 3i3h 5b6b 7i6h 6b7b 9e9f 7b8c 6h7g 7c7d 7f7e 7d7e 7g8f 8b7c 1e1d 1c1d 8f7e P*7d 7e8f 5a5b P*7b 5b6b 7b7a+ 6b7a P*7e 7a6b 7e7d 7c7d 8f9e P*7e 9f8f 8d8e 8f9f 5c5d 5g5f 6c6d 5f5e 6b6c 5e5d 6c5d 8i7g 6d6e 6f5g 2c3d 6i7h 3d4e 4g4f P*5f 5g6h 4e5e 3h4g 6e6f 4f4e 9c9d 9e9d 8c8d 6g6f P*9e 9d9c 8d9d P*5g 9e9f P*2c 2b2c 5g5f 5e4e P*4f 4e4d 4f4e 4d4e 9c8b 7e7f 7g6e 7d7e P*4f 4e4d 4f4e 4d4e 7h6g R*8i 5i4h 8i9i+ P*4f 4e4d 4f4e 4d4e 6e7c+ 4c4d 7c7d 9d8d 7d8d 7e8d 4g4f 4e4f 6h4f L*4e 6g5g 4e4f 5g4f 5d4c 5f5e P*5c G*2b 2c3d L*5i 4d4e 4f3f 4e4f 3f4f P*4e 4f3f 4e4f 3f4f P*4e 4f3f 4e4f 3f4f P*4e 4f3f 4e4f 3f4f P*4e 4f3f 4e4f 3f4f P*4e 4f3f N*4d 4h3h 4d3f 3g3f 4e4f P*2g S*4g 3h2h 4g3f P*4d 4c4d P*4h 2d2e P*3g 3f2g 2h2g 2e2f 2g2f 3d3e 2f2e G*2d 2e1f 1d1e 1f1g P*2f N*3f 3e3f 3g3f B*2g S*3h 2g3f+ 1g2h N*3e S*1h 2f2g+ 1h2g 3e2g+ 3h2g 3f6c N*3f 4d3d 3f2d P*2f 2g2f S*2g 2h3i P*2h G*3g 2h2i+ 3i2i P*2h 2i3i N*5g 3g4f 5g4i+ 3i4i G*6h P*7i 9i7i G*5h 6h5h 4i5h 7i7h G*6h G*6g 5h4g 7h6h N*3f G*5g 4g3g 6h4h 3g2g 4h4f P*3g 3d4e S*3e 4f4g P*4i 4e5f 4i4h 4g4h 5i5g 5f5g 1i1e 5g5h 2g1f 5h5i P*4f 4h4i 1e1c+ 4i5h 1f1e 5h4g G*3i 4g5h 8b7a+ 6c6d 1e1d 6d5e 8g8f 8e8f P*8g 8f8g";
+			// ↑この局面、最後の8f8gが歩の不成だが、これがUSI::to_move()で非合法手扱いされないかをテストする。
+			// cf. https://github.com/yaneurao/YaneuraOu/issues/190
+
+			istringstream is(moves);
+			string token;
+			bool fail = false;
+
+			StateInfo si[512];
+			while (is >> token)
+			{
+				Move m = USI::to_move(pos,token);
+				if (m == MOVE_NONE)
+					fail = true;
+				
+				pos.do_move(m, si[pos.game_ply()]);
+			}
+
+			tester.test("pawn's unpromoted move",!fail);
+
+		}
+
+	}
 }

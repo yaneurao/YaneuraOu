@@ -2255,7 +2255,7 @@ void Position::update_entering_point()
 	auto p1 = pieces().pop_count();
 
 	// 盤上の大駒の枚数
-	auto p2 = (pieces(BISHOP) | pieces(ROOK) | pieces(HORSE) | pieces(DRAGON)).pop_count();
+	auto p2 = pieces(BISHOP_HORSE,ROOK_DRAGON).pop_count();
 
 	// 盤上の駒点
 	// 大駒の枚数の4倍を加算すれば、小駒を1点、大駒を5点とみなして計算したことになる。
@@ -2498,6 +2498,9 @@ void Position::UnitTest(Test::UnitTester& tester)
 	Move16 m16;
 	Move m;
 
+	// 歩の不成の指し手を生成しない状態でテストする。
+	limits.generate_all_legal_moves = false;
+
 	// to_move() のテスト
 	{
 		auto section2 = tester.section("to_move()");
@@ -2618,6 +2621,47 @@ void Position::UnitTest(Test::UnitTester& tester)
 		}
 
 	}
+
+#if 0
+	// ランダムプレイヤーでの対局
+	{
+		auto section2 = tester.section("GamesOfRandomPlayer");
+
+		// 対局回数
+		s64 random_player_loop = tester.options["random_player_loop"];
+
+		// seed固定乱数(再現性ある乱数)
+		PRNG my_rand;
+		StateInfo si[512];
+
+		for (s64 i = 0; i < random_player_loop; ++i)
+		{
+			// 平手初期化
+			hirate_init();
+			bool fail = false;
+
+			// 512手目まで
+			for (int ply = 0; ply < 512; ++ply)
+			{
+				MoveList<LEGAL_ALL> ml(pos);
+
+				// 指し手がない == 負け == 終了
+				if (ml.size() == 0)
+					break;
+
+				Move m = ml.at(size_t(my_rand.rand(ml.size()))).move;
+
+				pos.do_move(m,si[ply]);
+
+				if (!pos.pos_is_ok())
+					fail = true;
+			}
+
+			// 今回のゲームのなかでおかしいものがなかったか
+			tester.test(string("game ")+to_string(i+1),!fail);
+		}
+	}
+#endif
 
 }
 

@@ -5,6 +5,7 @@
 #include <vector>
 #include <sstream>
 #include <functional>
+#include "../usi.h"
 class Position;
 
 namespace Test
@@ -66,6 +67,13 @@ namespace Test
 		// run()の直前、直後に呼び出されるcallback
 		std::function<void()> before_run;
 		std::function<void()> after_run;
+
+		// それぞれのUnitTestに渡すオプション一式。
+		// 繰り返し回数などをこのパラメーターで設定する。
+		// string->Variant(何でも取れる型)みたいなものがあれば良いだけなのだが、
+		// C++にそういうのはないし、いまやりたいのは、パラメーター名からu64とstringにmapできる程度で良いので
+		// OptionsMapを流用して用いることにする。
+		USI::OptionsMap options;
 
 	protected:
 		// 現在のsection名。

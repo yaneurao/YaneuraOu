@@ -399,7 +399,7 @@ namespace Book
 		fs << "#YANEURAOU-DB2016 1.00" << endl;
 
 		vector<pair<string, BookMovesPtr> > vectored_book;
-
+		
 		// 重複局面の手数違いを除去するのに用いる。
 		// 手数違いの重複局面はOptions["IgnoreBookPly"]==trueのときに有害であるため、plyが最小のもの以外を削除する必要がある。
 		// (Options["BookOnTheFly"]==true かつ Options["IgnoreBookPly"] == true のときに、手数違いのものがヒットするだとか、そういう問題と、
@@ -528,7 +528,7 @@ namespace Book
 		// "no_book"は定跡なしという意味なので定跡の指し手が見つからなかったことにする。
 		if (pure_book_name == "no_book")
 			return BookMovesPtr();
-
+		 
 		if (pure_book_name == kAperyBookName) {
 
 			BookMovesPtr pml_entry(new BookMoves());
@@ -629,7 +629,7 @@ namespace Book
 					// seek_from == 0の場合も、ここで1行読み捨てられるが、1行目は
 					// ヘッダ行であり、問題ない。
 					getline(fs, line);
-
+					
 					// getlineはeof()を正しく反映させないのでgetline()の返し値を用いる必要がある。
 					while (getline(fs, line))
 					{
@@ -803,7 +803,6 @@ namespace Book
 			}
 
 			if (entries.empty()) return;
-
 			for (const auto& entry : entries) {
 				const Move16 move = convert_move_from_apery(entry.fromToPro);
 				BookMove bp(move, MOVE_NONE , entry.score, 256, entry.count);
@@ -954,7 +953,7 @@ namespace Book
 			, "user_book1.db", "user_book2.db", "user_book3.db", "book.bin" };
 
 		o["BookFile"] << Option(book_list, book_list[1]);
-
+		
 		o["BookDir"] << Option("book");
 
 		//  BookEvalDiff: 定跡の指し手で1番目の候補の指し手と、2番目以降の候補の指し手との評価値の差が、
@@ -998,7 +997,7 @@ namespace Book
 
 		Move m = pos.to_move(m16);
 
-		if (pos.pseudo_legal(m) && pos.legal(m))
+		if (pos.pseudo_legal_s<true>(m) && pos.legal(m))
 		{
 			StateInfo si;
 			pos.do_move(m, si);
@@ -1042,7 +1041,7 @@ namespace Book
 		// 定跡にhitした。逆順で出力しないと将棋所だと逆順にならないという問題があるので逆順で出力する。
 		// →　将棋所、updateでMultiPVに対応して改良された
 		// 　ShogiGUIでの表示も問題ないようなので正順に変更する。
-
+		
 		// また、it->size()!=0をチェックしておかないと指し手のない定跡が登録されていたときに困る。
 
 		// 1) やねうら標準定跡のように評価値なしの定跡DBにおいては
@@ -1090,7 +1089,7 @@ namespace Book
 				sync_cout << "info"
 #if !defined(NICONICO)
 					<< " multipv " << (i + 1)
-#endif
+#endif					
 					<< " score cp " << it.value << " depth " << it.depth
 					<< " pv " << pv_string
 					<< " (" << fixed << std::setprecision(2) << (100 * it.move_count / double(move_count_total)) << "%" << ")" // 採択確率
@@ -1221,7 +1220,7 @@ namespace Book
 			if (!is_ok((Move)ponderMove.to_u16()))
 			{
 				Move best = rootPos.to_move(bestMove);
-				if (rootPos.pseudo_legal(best) && rootPos.legal(best))
+				if (rootPos.pseudo_legal_s<true>(best) && rootPos.legal(best))
 				{
 					StateInfo si;
 					rootPos.do_move(best,si);
@@ -1253,12 +1252,12 @@ namespace Book
 		Move bestMove = pos.to_move(bestMove16);
 
 		// bestMoveが合法かチェックしておく。
-		// 不成の指し手が含まれているかも知れないが、GenerateAllLegalMovesがtrueでないと指してはならないと思うので、
-		// 指さないようにする。(Position::pseudo_legal()はOptions["GenerateAllLegalMoves"]が反映する)
-		if (!pos.pseudo_legal(bestMove) || !pos.legal(bestMove))
+		// 不成の指し手が含まれているかも知れないが、GenerateAllLegalMovesがfalseであっても、
+		// 定跡の指し手であればそれは指すようにしておく。
+		if (!pos.pseudo_legal_s<true>(bestMove) || !pos.legal(bestMove))
 		{
 			// gensfenすると定跡のチェックになって面白いかも知れない…。
-			cout << "Error : illigal move in book" << endl
+			cout << "Error : illegal move in book" << endl
 				<< pos.sfen() << endl
 				<< "Move = " << bestMove << endl;
 			return MOVE_NONE;

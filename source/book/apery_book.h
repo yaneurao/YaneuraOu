@@ -28,8 +28,8 @@
 
 namespace Book {
 
-using Key = uint64_t;
-using Score = int;
+	using Key = uint64_t;
+	using Score = int;
 
 	struct AperyBookEntry {
 		Key key;

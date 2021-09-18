@@ -111,6 +111,21 @@ namespace Test
 		// UnitTestを呼び出してくれるclass。
 		UnitTester tester;
 
+		// 入力文字列を解釈
+		string token;
+		s64 random_player_loop = 1000; // ランダムプレイヤーの対局回数
+		while (is >> token)
+		{
+			if (token == "random_player_loop")
+			{
+				is >> random_player_loop;
+			}
+		}
+		cout << "random_player_loop : " << random_player_loop << endl;
+
+		// testerのoptionsに代入しておく。
+		tester.options["random_player_loop"] << USI::Option(random_player_loop, (s64)0, INT64_MAX );
+
 		// --- run()の実行ごとに退避させていたものを元に戻す。
 
 		// 退避させるもの
@@ -122,8 +137,14 @@ namespace Test
 		// Position class
 		tester.run(Position::UnitTest);
 
+		// USI namespace
+		tester.run(USI::UnitTest);
+
 		// Misc tools
 		tester.run(Misc::UnitTest);
+
+		// 指し手生成のテスト
+		//tester.run(MoveGen::UnitTest)
 
 	}
 

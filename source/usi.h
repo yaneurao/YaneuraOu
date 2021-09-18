@@ -128,9 +128,11 @@ namespace USI
 	std::string pv(const Position& pos, Depth depth, Value alpha, Value beta);
 
 	// 局面posとUSIプロトコルによる指し手を与えて
-	// もし可能なら等価で合法な指し手を返す。(合法でないときはMOVE_NONEを返す。"resign"に対してはMOVE_RESIGNを返す。)
+	// もし可能なら等価で合法な指し手を返す。
+	// 合法でないときはMOVE_NONEを返す。(この時、エラーである旨を出力する。)
+	// "resign"に対してはMOVE_RESIGNを返す。
 	// Stockfishでは第二引数にconstがついていないが、これはつけておく。
-	// 32bit Moveが返る。
+	// 32bit Moveが返る。(Move16ではないことに注意)
 	Move to_move(const Position& pos, const std::string& str);
 
 	// -- 以下、やねうら王、独自拡張。
@@ -156,6 +158,8 @@ namespace USI
 	extern EnteringKingRule to_entering_king_rule(const std::string& rule);
 #endif
 
+	// namespace USI内のUnitTest。
+	extern void UnitTest(Test::UnitTester& tester);
 }
 
 // USIのoption設定はここに保持されている。

@@ -457,6 +457,10 @@ public:
 	// また、
 	// Options["GenerateAllLegalMoves"]を反映させる。
 	// ↑これがtrueならば、歩の不成も合法手扱い。
+	// 
+	// 注意)
+	// ↑のオプションに依らず、常に歩の不成の指し手も合法手として扱いたいならば、
+	// この関数ではなく、pseudo_legal_s<true>()を用いること。
 	bool pseudo_legal(const Move m) const;
 
 	// All == false        : 歩や大駒の不成に対してはfalseを返すpseudo_legal()
