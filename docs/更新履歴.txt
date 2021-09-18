@@ -2,8 +2,127 @@
 やねうら王 更新履歴
 
 
+■　2021/09/19 V6.05
+
+
+- V6.05
+	- 現在の局面に至るまでに歩の不成が含まれているとそれを非合法手扱いしていたのを修正。(最近のcommitでのエンバグ)
+	- 定跡の指し手の歩の不成は、GenerateAllLegalMovesがtrueであっても選択できるように変更。
+	- EvalDirなどフォルダ指定の時に絶対Pathでの指定を可能にした。
+	- 駒落ちの入玉宣言に対応。
+	- UnitTest導入。
+		- "test unit"コマンド。
+
+
+- 現在の局面に至るまでに歩の不成が含まれているとそれを非合法手扱いしていたのを修正。(最近のcommitでのエンバグ)
+
+  - cf : https://github.com/yaneurao/YaneuraOu/issues/190
+  - yssayaさん、iwkjosecさん、tttakさん、バグレポ誠にありがとうございました。
+
+- 読み筋に歩の不成が表示されないことがあったの修正。
+
+- 定跡の指し手の歩の不成は、GenerateAllLegalMovesがtrueであっても選択できるように変更。
+
+- USIの"position"コマンドで入力文字列に非合法手があった場合、その旨を出力することにした。
+	"Error! : Illegal Input Move : "
+	みたいなの。
+
+- UnitTest用のパラメーター設定ができるように拡張
+	- 指し手生成のテストコード、少し書いたが、今回のバグそこではなかったのでコメントアウトしておく。
+- UnitTestにUSI::UnitTest()追加
+
+- MUST_CAPTURE_SHOGIのコード、掃除。(また再実装する時に追加する)
+
+#if defined(MUST_CAPTURE_SHOGI_ENGINE)
+	// 取る一手将棋は合法手かどうかをGUI側でチェックしてくれないから、
+	// 合法手かどうかのチェックを入れる。
+	if (!MoveList<LEGAL>(pos).contains(move))
+		sync_cout << "info string Error!! Illegal Input Move = " << move << sync_endl;
+#endif
+
+
+■　2021/09/15
+
+
+- EvalDirなどフォルダ指定の時に絶対Pathでの指定を可能にした。
+	例)
+		C:/YaneuraOu/Eval  ← Windowsのドライブレター付きの絶対Path
+		\\MyNet\MyPC\Eval  ← WindowsのUNC
+		~myeval            ← Linuxのhome
+		/YaneuraOu/Eval    ← Windows、Linuxのroot
+
+- Path.IsAbsolute()追加。
+
+- namespace MiscにUnitTest追加。
+
+
+- Android.mk: add source/testcmd/unit_test.cpp #191 (Mizarさんのプルリク)
+	- UnitTestのためにunit_test.cppを追加したことに対する、Android用のmakefileの修正。
+
+
+- 駒落ちの入玉宣言、AobaZeroに合わせる。
+	- AobaZeroは、上手を後手とみなし27点以上(二枚落ちなら17点以上)で入玉宣言できる模様。
+		- https://github.com/yssaya/komaochi/blob/73258b38a52da395456ed180ea07edea8c491225/src/usi-engine/bona/ysszero.cpp#L1952
+
+- 学習部でのエラーメッセージ、illegalの綴りtypoしてたの修正。
+
+
+■　2021/09/14
+
+
+- 駒落ちの入玉宣言に対応。
+
+	以下のCSARule24HとCSARule27Hが新規に追加されたもの。
+
+	EnteringKingRule: 入玉ルール
+		NoEnteringKing  : 入玉ルールなし
+		CSARule24       : 24点法。31点で宣言勝ちなので31点にならないと宣言勝ちはしない。
+		CSARule24H      : 24点法 , 駒落ち対応
+		CSARule27       : 27点法(CSAルール。先手は28点、後手は27点で宣言勝ちできる)
+		CSARule27H      : 27点法 , 駒落ち対応
+		TryRule         : トライルール(敵の玉が最初にいた升に自玉が移動できたら入玉とみなす)
+
+		駒落ち対応と書いてあるものは、例えば二枚落ちならば、上手(うわて)は5点×2枚=10点だけ事前に点数を持っているとみなして宣言勝ちの条件を満たすかを
+		チェックします。駒落ちでは上手が先手なので、上手は 28 - 10 = 18点の駒点で入玉できます。(敵陣に10枚の駒がないといけない等の条件は元のまま)
+		注意 : 盤上で足りない駒は、上手の駒を落としているとみなします。
+
+		将棋所、ShogiGUIなどではトライルール、駒落ちの宣言法に対応していないので注意。
+
+
+
+
+- UnitTest Position classの分を少し書いた。
+	- "test unit"コマンドやめて、"unittest"というコマンドを作った。
+	- うまく動いていて、いい感じの出力をしてくれる。
+
+
+- UnitTest導入。
+	- "test unit"コマンド。
+
+
+- AMD Optimized BLISを使用するための変数を追加した #189 (tanuki-さんのプルリク)
+ 	tanuki- 2021-09-03 AMD Optimizing CPU Libraries
+	実験結果 - Google ドキュメント https://docs.google.com/document/d/1c-5VxR_TWH3okgTN28mZznPjdB06wxV13JfWNx7pCkU/edit
+	AMD Ryzen Threadripper 3990X を用いた場合、 OpenBLAS に比べ、 4% 程度学習が高速になりました。
+
+	- https://github.com/yaneurao/YaneuraOu/pull/189
+
+
+
 
 ■　2021/08/31
+
+
+- libomp-12-dev #188 (Mizarさんのプルリク)
+	Ubuntuでのビルドテスト環境において、以下の修正を行います。
+
+	clang++-11でのビルドテストを削除。
+	clang++-12のインストール時に、libomp-12-devを明示的にインストールするように変更。（明示的に指定しないとインストールされなくなったopenmpが必要なビルドテストに失敗していたため。）
+	clang++-13でのビルドテストを追加。
+
+
+- 一つ前のcommitでNO_PIECE_TYPEと書くべきところがNO_PIECEになっていたの修正。
+  - gccで警告が出てた。
 
 
 V6.04
@@ -17,7 +136,7 @@ V6.04
 
 
 - pseudo-leaglまわりのソースコード整理。
-	- USE_GENERATE_ALL_LEGAL_MOVES削除。常に指し手生成のtemplateは、歩の不成をバージョンとそうでないバージョンを実体化する。
+	- USE_GENERATE_ALL_LEGAL_MOVES削除。常に指し手生成のtemplateは、歩の不成を生成するバージョンとそうでないバージョンを実体化する。
 
 	// 全合法手を生成する機能を追加するか。
 	// これをdefineすると、"GenerateAllLegalMoves"というオプションが自動追加される。
