@@ -1056,6 +1056,31 @@ namespace Book
 
 		auto move_list = *it;
 
+		// 非合法手の排除(歩の不成を生成しないモードなら、それも排除)
+		{
+			auto it_end = std::remove_if(move_list.begin(), move_list.end(), [&](Book::BookMove& m) {
+				Move move = rootPos.to_move(m.move);
+				bool legal =  rootPos.pseudo_legal(move) && rootPos.legal(move);
+
+				// moveが歩の不成は合法手とみなすとして、moveが本当の非合法手ならば、エラーメッセージを出力しておいてやる。
+				if (!silent && !legal && (!rootPos.pseudo_legal_s<true>(move) || !rootPos.legal(move)))
+				{
+					sync_cout << "info string Error! : Illegal Move In Book DB : move = " << move
+							  << " , sfen = " << rootPos.sfen() << sync_endl;
+
+					// Position::legal()を用いて合法手判定をする時、これが連続王手の千日手を弾かないが、
+					// 定跡で連続王手の千日手の指し手があると指してしまう。
+					// これは回避が難しいので、仕様であるものとする。
+					// 
+					// "position"コマンドでも千日手局面は弾かないし、この仕様は仕方ない意味はある。
+				}
+
+				// 非合法手の排除
+				return !legal;
+				});
+			move_list.erase(it_end, move_list.end());
+		}
+
 		// 出現回数のトータル(このあと出現頻度を求めるのに使う)
 		u64 move_count_total = std::accumulate(move_list.begin(), move_list.end(), (u64)0, [](u64 acc, BookMove& b) { return acc + b.move_count; });
 		move_count_total = std::max(move_count_total, (u64)1); // ゼロ除算対策
@@ -1251,17 +1276,8 @@ namespace Book
 
 		Move bestMove = pos.to_move(bestMove16);
 
-		// bestMoveが合法かチェックしておく。
-		// 不成の指し手が含まれているかも知れないが、GenerateAllLegalMovesがfalseであっても、
-		// 定跡の指し手であればそれは指すようにしておく。
-		if (!pos.pseudo_legal_s<true>(bestMove) || !pos.legal(bestMove))
-		{
-			// gensfenすると定跡のチェックになって面白いかも知れない…。
-			cout << "Error : illegal move in book" << endl
-				<< pos.sfen() << endl
-				<< "Move = " << bestMove << endl;
-			return MOVE_NONE;
-		}
+		// bestMoveが合法であることは保証されている。(非合法手は除外してから選択を行うので)
+		// なので、ここではそのチェックは行わない。
 
 		return bestMove;
 	}
@@ -1284,6 +1300,10 @@ namespace Book
 
 			// RootMovesに含まれているかどうかをチェックしておく。
 			// RootMovesをUSIプロトコル経由で指定されることがあるので、必ずこれはチェックしないといけない。
+			// 注意)
+			// 定跡で歩の不成の指し手がある場合、
+			// "GenerateAllLegalMoves"がfalseだとrootMovesにはそれが生成されておらず、find()に失敗する。
+			// この時、定跡にhitしなかった扱いとする。
 			auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
 			if (it_move != rootMoves.end())
 			{

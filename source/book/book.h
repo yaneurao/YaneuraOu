@@ -287,6 +287,10 @@ namespace Book
 
 		// probe()の下請け
 		// forceHit == trueのときは、設定オプションの値を無視して強制的に定跡にhitさせる。(BookPvMovesの実装で用いる)
+		// 注意)
+		// bestMoveが合法手であることは保証される。
+		// GenerateAllLegalMovesがfalseの時、歩の不成の指し手を返さないことも保証する。
+		// 但し、ponderMoveが合法手であることは保証しない。
 		bool probe_impl(Position& rootPos, bool silent, Move16& bestMove, Move16& ponderMove , bool forceHit = false);
 
 		// 定跡のpv文字列を生成して返す。
