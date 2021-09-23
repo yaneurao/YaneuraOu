@@ -6,6 +6,7 @@
 #include "../usi.h"
 #include "../search.h"
 #include "../misc.h"
+#include "../book/book.h"
 
 using namespace std;
 
@@ -145,6 +146,9 @@ namespace Test
 
 		// 指し手生成のテスト
 		//tester.run(MoveGen::UnitTest)
+
+		// Book namespace
+		tester.run(Book::UnitTest);
 
 	}
 

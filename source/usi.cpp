@@ -598,6 +598,10 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states , bool
 	while (is >> token)
 	{
 		// 探索すべき指し手。(探索開始局面から特定の初手だけ探索させるとき)
+		// これ、Stockfishのコードでこうなっているからそのままにしてあるが、
+		// これを指定しても定跡の指し手としてはこれ以外を指したりする問題はある。
+		// またふかうら王ではこのオプションをサポートしていない。
+		// ゆえに、非対応扱いで考えて欲しい。
 		if (token == "searchmoves")
 			// 残りの指し手すべてをsearchMovesに突っ込む。
 			while (is >> token)

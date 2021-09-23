@@ -1060,10 +1060,10 @@ namespace Book
 		{
 			auto it_end = std::remove_if(move_list.begin(), move_list.end(), [&](Book::BookMove& m) {
 				Move move = rootPos.to_move(m.move);
-				bool legal =  rootPos.pseudo_legal(move) && rootPos.legal(move);
+				bool legal =  rootPos.pseudo_legal_s<true>(move) && rootPos.legal(move);
 
-				// moveが歩の不成は合法手とみなすとして、moveが本当の非合法手ならば、エラーメッセージを出力しておいてやる。
-				if (!silent && !legal && (!rootPos.pseudo_legal_s<true>(move) || !rootPos.legal(move)))
+				// moveが非合法手ならば、エラーメッセージを出力しておいてやる。
+				if (!silent && !legal)
 				{
 					sync_cout << "info string Error! : Illegal Move In Book DB : move = " << move
 							  << " , sfen = " << rootPos.sfen() << sync_endl;
@@ -1073,6 +1073,11 @@ namespace Book
 					// これは回避が難しいので、仕様であるものとする。
 					// 
 					// "position"コマンドでも千日手局面は弾かないし、この仕様は仕方ない意味はある。
+				}
+				else {
+					// GenerateAllLegalMovesがfalseの時は歩の不成での移動は非合法手扱いで、この時点で除去してこのあとの抽選を行う。
+					// 不成の指し手が選択されて、このあとrootMovesに登録されていないので定跡にhitしなかった扱いになってしまうのはもったいない。
+					legal &= rootPos.pseudo_legal(move);
 				}
 
 				// 非合法手の排除
@@ -1299,7 +1304,7 @@ namespace Book
 			Move bestMove = pos.to_move(bestMove16);
 
 			// RootMovesに含まれているかどうかをチェックしておく。
-			// RootMovesをUSIプロトコル経由で指定されることがあるので、必ずこれはチェックしないといけない。
+			// RootMovesをgoコマンドで指定されることがあるので、必ずこれはチェックしないといけない。
 			// 注意)
 			// 定跡で歩の不成の指し手がある場合、
 			// "GenerateAllLegalMoves"がfalseだとrootMovesにはそれが生成されておらず、find()に失敗する。
@@ -1332,5 +1337,32 @@ namespace Book
 		return false;
 	}
 
+	// 定跡部のUnitTest
+	void UnitTest(Test::UnitTester& tester)
+	{
+		// 少し書こうとしたが、ファイルから読み込むテストでないと大したテストにならないので考え中。
+#if 0
+		auto s1 = tester.section("Book");
+
+		// Search::Limitsのalias
+		auto& limits = Search::Limits;
+
+		Position pos;
+		StateInfo si;
+
+		// 平手初期化
+		auto hirate_init = [&] { pos.set_hirate(&si, Threads.main()); };
+
+		{
+			// Bookのprobeのテスト
+			auto s2 = tester.section("probe");
+			MemoryBook book;
+
+			limits.generate_all_legal_moves = true;
+
+			tester.test("pawn's unpromoted move", true);
+		}
+#endif
+	}
 
 }

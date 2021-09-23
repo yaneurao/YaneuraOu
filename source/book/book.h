@@ -5,6 +5,7 @@
 #include "../position.h"
 #include "../misc.h"
 #include "../usi.h"
+#include "../testcmd/unit_test.h"
 
 #include <unordered_map>
 
@@ -301,6 +302,8 @@ namespace Book
 		AsyncPRNG prng;
 	};
 
+	// 定跡部のUnitTest
+	extern void UnitTest(Test::UnitTester& tester);
 }
 
 #endif // #ifndef INCLUDED_
