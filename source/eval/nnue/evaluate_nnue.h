@@ -24,7 +24,7 @@ namespace Eval::NNUE {
 	// Deleter for automating release of memory area
 	// メモリ領域の解放を自動化するためのデリータ
 	template <typename T>
-	struct AlignedDeleter {
+	struct LargeMemoryDeleter {
 
 	    void operator()(T* ptr) const {
 	
@@ -38,7 +38,7 @@ namespace Eval::NNUE {
 	};
 
 	template <typename T>
-	using AlignedPtr = std::unique_ptr<T, AlignedDeleter<T>>;
+	using AlignedPtr = std::unique_ptr<T, LargeMemoryDeleter<T>>;
 
 	// 入力特徴量変換器
 	extern AlignedPtr<FeatureTransformer> feature_transformer;
