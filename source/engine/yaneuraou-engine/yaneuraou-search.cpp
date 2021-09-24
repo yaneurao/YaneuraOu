@@ -1873,7 +1873,7 @@ namespace {
 		// もし、このnodeで非常に良いcaptureの指し手があり(例えば、SEEの値が動かす駒の価値を上回るようなもの)
 		// 探索深さを減らしてざっくり見てもbetaを非常に上回る値を返すようなら、このnodeをほぼ安全に枝刈りすることが出来る。
 
-		if (!PvNode
+		if (   !PvNode
 			&&  depth > PARAM_PROBCUT_DEPTH/*4*/
 			&&  abs(beta) < VALUE_TB_WIN_IN_MAX_PLY
 			
@@ -1887,24 +1887,11 @@ namespace {
 			// なぜなら、probCut searchはdepth - 4に設定されていますが、我々はその前に指すので、
 			// 実効的な深さはdepth - 3と同じになるからです。
 
-			&& !(ss->ttHit
+			&& !(  ss->ttHit
 				&& tte->depth() >= depth - (PARAM_PROBCUT_DEPTH-1)
 				&& ttValue != VALUE_NONE
 				&& ttValue < probCutBeta))
 		{
-			// if ttMove is a capture and value from transposition table is good enough produce probCut
-			// cutoff without digging into actual probCut search
-			// もしttMoveが捕獲する指し手であり、置換表から取り出した値が十分に良い場合、実際のprobCut searchをせずに
-			// probCutしてしまう。
-
-			if (ss->ttHit
-				&& tte->depth() >= depth - (PARAM_PROBCUT_DEPTH - 1)
-				&& ttValue != VALUE_NONE
-				&& ttValue >= probCutBeta
-				&& ttMove
-				&& pos.capture_or_promotion(ttMove))
-				return probCutBeta;
-
 			ASSERT_LV3(probCutBeta < VALUE_INFINITE);
 
 			MovePicker mp(pos, ttMove, probCutBeta - ss->staticEval, &captureHistory);
@@ -1916,7 +1903,10 @@ namespace {
 			// cf. Do move-count pruning in probcut : https://github.com/official-stockfish/Stockfish/commit/b87308692a434d6725da72bbbb38a38d3cac1d5f
 			while ((move = mp.next_move()) != MOVE_NONE
 				&& probCutCount < 2 + 2 * cutNode)
+
+			// Stockfishでは省略してあるけどこの"{"、省略するとbugの原因になりうる。
 			{
+				
 				if (move != excludedMove && pos.legal(move))
 				{
 					ASSERT_LV3(pos.capture_or_pawn_promotion(move));
@@ -1953,7 +1943,7 @@ namespace {
 						// if transposition table doesn't have equal or more deep info write probCut data into it
 						// もし置換表が、等しいかより深く探索した情報ではないなら、probCutの情報をそこに書く
 
-						if (!(ss->ttHit
+						if ( !(ss->ttHit
 							&& tte->depth() >= depth - (PARAM_PROBCUT_DEPTH - 1)
 							&& ttValue != VALUE_NONE))
 							tte->save(posKey, value_to_tt(value, ss->ply), ttPv,
@@ -1962,14 +1952,16 @@ namespace {
 						return value;
 					}
 				}
-			}
+
+			} // end of while
+
 
 			// ss->ttPvはprobCutの探索で書き換えてしまったかも知れないので復元する。
 			ss->ttPv = ttPv;
 		}
 
 		// -----------------------
-		// Step 10. If the position is not in TT, decrease depth by 2
+		// Step 10. If the position is not in TT, decrease depth by 2 or 1 depending on node type
 		// -----------------------
 
 		// 局面がTTになかったのなら、探索深さを2下げる。
@@ -1977,10 +1969,15 @@ namespace {
 		// (次に他のスレッドがこの局面に来たときには置換表にヒットするのでそのときにここの局面の
 		//   探索が完了しているほうが助かるため)
 		
-		if (PvNode
+		if (   PvNode
 			&& depth >= 6
 			&& !ttMove)
 			depth -= 2;
+
+		if (   cutNode
+			&& depth >= 9
+			&& !ttMove)
+			depth--;
 
 		// When in check, search starts here
 		// 王手がかかっている局面では、探索はここから始まる。
@@ -2002,8 +1999,18 @@ namespace {
 		// Step 11. A small Probcut idea, when we are in check
 		// -----------------------
 
-		// TODO : あとで書く。
-
+		probCutBeta = beta + 409;
+		if (   ss->inCheck
+			&& !PvNode
+			&& depth >= 4
+			&& ttCapture
+			&& (tte->bound() & BOUND_LOWER)
+			&& tte->depth() >= depth - 3
+			&& ttValue >= probCutBeta
+			&& abs(ttValue) <= VALUE_KNOWN_WIN
+			&& abs(beta) <= VALUE_KNOWN_WIN
+			)
+			return probCutBeta;
 
 
 		// -----------------------
@@ -2124,15 +2131,16 @@ namespace {
 			givesCheck = pos.gives_check(move);
 
 			// -----------------------
-			// Step 13. Pruning at shallow depth (~200 Elo)
+			// Step 13. Pruning at shallow depth (~200 Elo). Depth conditions are important for mate finding.
 			// -----------------------
 
 			// 浅い深さでの枝刈り
 
+			// Calculate new depth for this move
 			// 今回の指し手に関して新しいdepth(残り探索深さ)を計算する。
 			newDepth = depth - 1;
 
-			if (!rootNode
+			if (  !rootNode
 				// 【計測資料 7.】 浅い深さでの枝刈りを行なうときに王手がかかっていないことを条件に入れる/入れない
 			//	&& pos.non_pawn_material(us)  // これに相当する処理、将棋でも必要だと思う。
 				&& bestValue > VALUE_TB_LOSS_IN_MAX_PLY)
@@ -2145,46 +2153,8 @@ namespace {
 				// 次のLMR探索における軽減された深さ
 				int lmrDepth = std::max(newDepth - reduction(improving, depth, moveCount), 0);
 
-				if (!captureOrPawnPromotion
-					&& !givesCheck)
-				{
-
-					// Continuation history pruning (~20 Elo)
-					// Continuation historyに基づいた枝刈り(historyの値が悪いものに関してはskip) : ~20 Elo
-
-					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH/*4*/ + ((ss - 1)->statScore > 0 || (ss - 1)->moveCount == 1)
-						&& (*contHist[0])[to_sq(move)][movedPiece] < CounterMovePruneThreshold
-						&& (*contHist[1])[to_sq(move)][movedPiece] < CounterMovePruneThreshold)
-						// contHist[][]はStockfishと逆順なので注意。
-						continue;
-
-					// Futility pruning: parent node (~5 Elo)
-					// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
-
-					// パラメーター調整の係数を調整したほうが良いのかも知れないが、
-					// ここ、そんなに大きなEloを持っていないので、調整しても無意味。
-
-					if (lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*7*/
-						&& !ss->inCheck
-						&&  ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1/*254*/ + PARAM_FUTILITY_MARGIN_BETA/*159*/ * lmrDepth <= alpha
-						&& (*contHist[0])[to_sq(move)][movedPiece]
-						 + (*contHist[1])[to_sq(move)][movedPiece]
-						 + (*contHist[3])[to_sq(move)][movedPiece]
-						 + (*contHist[5])[to_sq(move)][movedPiece] / 2 < 26394)
-						continue;
-
-					// ※　このLMRまわり、棋力に極めて重大な影響があるので枝刈りを入れるかどうかを含めて慎重に調整すべき。
-
-					// Prune moves with negative SEE (~20 Elo)
-					// 将棋ではseeが負の指し手もそのあと詰むような場合があるから、あまり無碍にも出来ないようだが…。
-
-					// 【計測資料 20.】SEEが負の指し手を枝刈りする/しない
-
-					if (!pos.see_ge(move, Value(-(PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1/*30*/
-							- std::min(lmrDepth, PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2/*18*/)) * lmrDepth * lmrDepth)))
-						continue;
-				}
-				else
+				if (   captureOrPawnPromotion
+					|| givesCheck)
 				{
 					// Capture history based pruning when the move doesn't give check
 					if (  !givesCheck
@@ -2196,10 +2166,44 @@ namespace {
 					if (!pos.see_ge(move, - Value(PARAM_LMR_SEE_MARGIN1 /*218*/) * depth)) // (~25 Elo)
 						continue;
 				}
+				else
+				{
+					// // Continuation history based pruning (~20 Elo)
+					// Continuation historyに基づいた枝刈り(historyの値が悪いものに関してはskip) : ~20 Elo
+
+					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH/*5*/
+						&& (*contHist[0])[to_sq(move)][movedPiece]
+						+  (*contHist[1])[to_sq(move)][movedPiece]
+						+  (*contHist[3])[to_sq(move)][movedPiece] < -3000 * depth + 3000)
+						// contHist[][]はStockfishと逆順なので注意。
+						continue;
+
+					// Futility pruning: parent node (~5 Elo)
+					// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
+
+					// パラメーター調整の係数を調整したほうが良いのかも知れないが、
+					// ここ、そんなに大きなEloを持っていないので、調整しても無意味。
+
+					if (   !ss->inCheck
+						&& lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*8*/
+						&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1/*172*/ + PARAM_FUTILITY_MARGIN_BETA/*145*/ * lmrDepth <= alpha)
+						continue;
+
+					// ※　このLMRまわり、棋力に極めて重大な影響があるので枝刈りを入れるかどうかを含めて慎重に調整すべき。
+
+					// Prune moves with negative SEE (~20 Elo)
+					// 将棋ではseeが負の指し手もそのあと詰むような場合があるから、あまり無碍にも出来ないようだが…。
+
+					// 【計測資料 20.】SEEが負の指し手を枝刈りする/しない
+
+					if (!pos.see_ge(move, Value( - PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1/*21*/ * lmrDepth * lmrDepth
+						- PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2/*21*/ * lmrDepth )))
+						continue;
+				}
 			}
 
 			// -----------------------
-			// Step 14. Extensions. : ~75 Elo
+			// Step 14. Extensions (~75 Elo)
 			// -----------------------
 
 			// singular延長と王手延長。
@@ -2229,13 +2233,14 @@ namespace {
 			// 2番目にベストな指し手のスコアを小さなコストで求めることは出来ないので…。
 
 			// singular延長をするnodeであるか。
-			if (depth >= PARAM_SINGULAR_EXTENSION_DEPTH/*7*/
-				&& move == ttMove
+			if (   !rootNode
+				&&  depth >= PARAM_SINGULAR_EXTENSION_DEPTH/*7*/
+				&&  move == ttMove
 				&& !excludedMove // 再帰的なsingular延長を除外する。
 			/*  &&  ttValue != VALUE_NONE Already implicit in the next condition */
 				&&  abs(ttValue) < VALUE_KNOWN_WIN // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
 				&& (tte->bound() & BOUND_LOWER)
-				&& tte->depth() >= depth - 3)
+				&&  tte->depth() >= depth - 3)
 				// このnodeについてある程度調べたことが置換表によって証明されている。(ttMove == moveなのでttMove != MOVE_NONE)
 				// (そうでないとsingularの指し手以外に他の有望な指し手がないかどうかを調べるために
 				// null window searchするときに大きなコストを伴いかねないから。)
@@ -2297,25 +2302,27 @@ namespace {
 					if (value >= beta)
 						return beta;
 				}
-
 			}
 
-			// 王手延長 : ~2 Elo
+			// Capture extensions for PvNodes and cutNodes
+			// 捕獲する指し手とcutNodeでの延長。
+			else if ((PvNode || cutNode)
+				&& captureOrPawnPromotion
+				&& moveCount != 1)
+				extension = 1;
+
+			// Check extensions
+			// 王手延長
 
 			// 王手となる指し手でSEE >= 0であれば残り探索深さに1手分だけ足す。
 			// また、moveCountPruningでない指し手(置換表の指し手とか)も延長対象。
 			// これはYSSの0.5手延長に似たもの。
 			// ※　将棋においてはこれはやりすぎの可能性も..
 
-			// 【計測資料 33.】王手延長のコード、pos.blockers_for_king(~us) & from_sq(move)も延長する/しない
-			
-			// Stockfish9では、	&& !moveCountPruning が条件式に入っていた。
-			// Stockfish10のコードは、敵側のpin駒を取る指し手か、駒得になる王手に限定して延長している。
-			// pin駒を剥がす指し手は、こちらの利きはあるということなので2枚利いていることが多く、駒得でなくとも有効。
-
-			// Check extension (~2 Elo)
-			else if (givesCheck
-				&& (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move)))
+			// 静的評価に基づく王手延長。この前提条件、パラメーター調整したほうがいいかも。
+			else if (   givesCheck
+					 && depth > 6
+					 && abs(ss->staticEval) > Value(100))
 				extension = 1;
 
 			// Last captures extension
@@ -2335,6 +2342,9 @@ namespace {
 			// 再帰的にsearchを呼び出すとき、search関数に渡す残り探索深さ。
 			// これはsingluar extensionの探索が終わってから決めなければならない。(singularなら延長したいので)
 			newDepth += extension;
+
+			// doubleExtensionsは、前のノードで延長したかと本ノードで延長したかを加算した値
+			ss->doubleExtensions = (ss - 1)->doubleExtensions + (extension == 2);
 
 			// -----------------------
 			//      1手進める
@@ -2367,7 +2377,9 @@ namespace {
 			// If the move fails high it will be re - searched at full depth.
 			// depthを減らして探索させて、その指し手がfail highしたら元のdepthで再度探索するという手法
 
-			// 【計測資料 32.】LMRのコード、Stockfish9と10の比較
+			// We use various heuristics for the sons of a node after the first son has
+			// been searched. In general we would like to reduce them, but there are many
+			// cases where we extend a son if it has good chances to be "interesting".
 
 			// moveCountが大きいものなどは探索深さを減らしてざっくり調べる。
 			// alpha値を更新しそうなら(fail highが起きたら)、full depthで探索しなおす。
@@ -2402,7 +2414,7 @@ namespace {
 				// best moveが頻繁に変更されていないならば局面が安定しているのだろうから、rootとnon-PVではreductionを増やす。
 				if (   (rootNode || !PvNode)
 					&& thisThread->bestMoveChanges <= 2)
-						r++;
+					r++;
 
 				// Decrease reduction if opponent's move count is high (~5 Elo)
 				// 相手の指し手(1手前の指し手)のmove countが高い場合、reduction量を減らす。
@@ -2437,10 +2449,10 @@ namespace {
 				// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
 				// contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？
 				ss->statScore = thisThread->mainHistory[from_to(move)][us]
-					+ (*contHist[0])[to_sq(move)][movedPiece]
-					+ (*contHist[1])[to_sq(move)][movedPiece]
-					+ (*contHist[3])[to_sq(move)][movedPiece]
-					- PARAM_REDUCTION_BY_HISTORY/*4923*/; // 修正項
+								+ (*contHist[0])[to_sq(move)][movedPiece]
+								+ (*contHist[1])[to_sq(move)][movedPiece]
+								+ (*contHist[3])[to_sq(move)][movedPiece]
+								- PARAM_REDUCTION_BY_HISTORY/*4923*/; // 修正項
 
 
 				// Decrease/increase reduction for moves with a good/bad history (~30 Elo)
@@ -2452,11 +2464,11 @@ namespace {
 				// to be searched deeper than the first move in specific cases (note that
 				// this may lead to hidden double extensions if newDepth got it own extension
 				// before).
-				int deeper = r >= -1 ? 0
-					: noLMRExtension ? 0
-					: moveCount <= 5 ? 1
-					: (depth > 6 && PvNode) ? 1
-					: 0;
+				int deeper =  r >= -1               ? 0
+							: noLMRExtension        ? 0
+							: moveCount <= 5        ? 1
+							: (depth > 6 && PvNode) ? 1
+							:                         0;
 
 				// depth >= 3なのでqsearchは呼ばれないし、かつ、
 				// moveCount > 1 すなわち、このnodeの2手目以降なのでsearch<NonPv>が呼び出されるべき。
@@ -2644,7 +2656,7 @@ namespace {
 		// end of while
 
 		// -----------------------
-		// Step 19. Check for mate and stalemate
+		// Step 20. Check for mate and stalemate
 		// -----------------------
 
 		// 詰みとステイルメイトをチェックする。
@@ -2652,10 +2664,23 @@ namespace {
 		// このStockfishのassert、合法手を生成しているので重すぎる。良くない。
 		ASSERT_LV5(moveCount || !ss->inCheck || excludedMove || !MoveList<LEGAL>(pos).size());
 
+
+		// Stockfishでは、ここのコードは以下のようになっているが、これは、
+		// 自玉に王手がかかっておらず指し手がない場合(stalemate)、引き分けだから。
+		/*
+		if (!moveCount)
+			bestValue = excludedMove ? alpha :
+						 ss->inCheck ? mated_in(ss->ply)
+									 : VALUE_DRAW;
+		*/
+
+		// ※　ここ、Stockfishのコードをそのままコピペしてこないように注意！
+
 		// (将棋では)合法手がない == 詰まされている なので、rootの局面からの手数で詰まされたという評価値を返す。
 		// ただし、singular extension中のときは、ttMoveの指し手が除外されているので単にalphaを返すべき。
 		if (!moveCount)
 			bestValue = excludedMove ? alpha : mated_in(ss->ply);
+
 
 	    // If there is a move which produces search value greater than alpha we update stats of searched moves
 		// bestMoveがあるならこの指し手に基いてhistoryのupdateを行なう。
@@ -2673,11 +2698,15 @@ namespace {
 
 		else if ((depth >= 3 || PvNode)
 				&& !priorCapture)
-			update_continuation_histories(ss - 1, /*pos.piece_on(prevSq)*/prevPc, prevSq, stat_bonus(depth));
+			// continuation historyのupdate。PvNodeかcutNodeならボーナスを2倍する。
+			update_continuation_histories(ss - 1, /*pos.piece_on(prevSq)*/prevPc, prevSq, stat_bonus(depth) * (1 + (PvNode || cutNode)));
 
 		// 将棋ではtable probe使っていないのでmaxValue関係ない。
-		//if (PvNode)
-		//	bestValue = std::min(bestValue, maxValue);
+		// ゆえにStockfishのここのコードは不要。
+		/*
+		if (PvNode)
+			bestValue = std::min(bestValue, maxValue);
+		*/
 
 		// もし良い指し手が見つからず(bestValueがalphaを更新せず)、前の局面はttPvを選んでいた場合は、
 		// 前の相手の手がおそらく良い手であり、新しい局面が探索木に追加される。
@@ -2978,6 +3007,11 @@ namespace {
 												nullptr					  , (ss - 4)->continuationHistory,
 												nullptr					  , (ss - 6)->continuationHistory };
 
+		// Initialize a MovePicker object for the current position, and prepare
+		// to search the moves. Because the depth is <= 0 here, only captures,
+		// queen promotions, and other checks (only if depth >= DEPTH_QS_CHECKS)
+		// will be generated.
+
 		// 取り合いの指し手だけ生成する
 		// searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうるが、
 		// 静止探索の1つ目の深さではrecaptureを生成しないならこれは問題とならない。
@@ -3012,7 +3046,7 @@ namespace {
 			moveCount++;
 
 			//
-			//  Futility pruning
+			//  Futility pruning and moveCount pruning
 			//
 
 			// 自玉に王手がかかっていなくて、敵玉に王手にならない指し手であるとき、
@@ -3020,11 +3054,9 @@ namespace {
 			// 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
 
 			if (   bestValue > VALUE_TB_LOSS_IN_MAX_PLY
-				// cf. https://github.com/official-stockfish/Stockfish/commit/392b529c3f52103ad47ad096b86103c17758cb4f
-				// !ss->inCheck
 				&& !givesCheck
 				&&  futilityBase > -VALUE_KNOWN_WIN
-			//	&& !pos.advanced_pawn_push(move))
+			//	&&  type_of(move) != PROMOTION)
 				)
 			{
 				//assert(type_of(move) != ENPASSANT); // Due to !pos.advanced_pawn_push
@@ -3069,7 +3101,7 @@ namespace {
 			// Do not search moves with negative SEE values
 			if (    bestValue > VALUE_TB_LOSS_IN_MAX_PLY
 				// !ss->inCheck
-				// これ不要らしい。cf. https://github.com/official-stockfish/Stockfish/commit/392b529c3f52103ad47ad096b86103c17758cb4f
+				// この条件↑、不要らしい。cf. https://github.com/official-stockfish/Stockfish/commit/392b529c3f52103ad47ad096b86103c17758cb4f
 				&& !pos.see_ge(move))
 				continue;
 
@@ -3091,6 +3123,7 @@ namespace {
 																	  [pos.moved_piece_after(move)];
 
 
+			// Continuation history based pruning
 			// Continuation historyベースの枝刈り
 			// ※ Stockfish12でqsearch()にも導入された。
 			// 成りは歩だけに限定してあるが、これが適切かどうかはよくわからない。(大抵計測しても誤差ぐらいでしかない…)
@@ -3148,7 +3181,12 @@ namespace {
 
 		// 【計測資料 26.】 qsearchで詰みのときに置換表に保存する/しない。
 		if (ss->inCheck && bestValue == -VALUE_INFINITE)
+		{
+			// 合法手は存在しないはず。
+			ASSERT_LV5(!MoveList<LEGAL>(pos).size());
+
 			return mated_in(ss->ply); // rootからの手数による詰みである。
+		}
 
 	    // Save gathered info in transposition table
 		// 詰みではなかったのでこれを書き出す。
@@ -3174,7 +3212,6 @@ namespace {
 
 		return bestValue;
 	}
-
 
 	// 詰みのスコアは置換表上は、このnodeからあと何手で詰むかというスコアを格納する。
 	// しかし、search()の返し値は、rootからあと何手で詰むかというスコアを使っている。

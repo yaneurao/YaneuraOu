@@ -36,9 +36,9 @@ PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 186;
 
 // 
 
-// 元の値 = 159 , step = 20
+// 元の値 = 145 , step = 20
 // [PARAM] min:100,max:240,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 159;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 145;
 
 
 // 静止探索でのfutility pruning
@@ -54,23 +54,22 @@ PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 9;
 
 // 親nodeでのfutilityの適用depth。
 // この枝刈り、depthの制限自体が要らないような気がする。→　そうでもなかった。
-// 元の値 = 7
+// 元の値 = 8
 // [PARAM] min:5,max:20,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 7;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 8;
 
 // 親nodeでのfutility margin
-// 元の値 = 254 , step = 20
+// 元の値 = 172 , step = 20
 // [PARAM] min:100,max:400,step:3,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 = 254;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 = 172;
 
-// 元の値 = 30
-// [PARAM] min:20,max:50,step:2,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 30;
+// 元の値 = 21
+// [PARAM] min:15,max:50,step:2,interval:2,time_rate:1,fixed
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 21;
 
-// lmrのときのdepthの上限値。(これを超えるdepthは、↓この値とみなす)
-// 元の値 = 18 , step = 1
+// 元の値 = 21 , step = 1
 // [PARAM] min:10,max:30,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 = 19;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 = 21;
 
 // lmrのときのseeの値。
 // 元の値 = 218 ,step = 40
@@ -96,38 +95,40 @@ PARAM_DEFINE PARAM_REDUCTION_BETA = 904;
 // null move dynamic pruningのときの
 //  Reduction = (α + β * depth ) / 256 + ...みたいなαとβ
 
-// 元の値 = 1015 , step = 50
-// [PARAM] min:500,max:1500,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_ALPHA = 1015;
+// 256倍されていることに注意。
+// 元の値 = 1024 , step = 50
+// [PARAM] min:500,max:1500,step:32,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_ALPHA = 1024;
 
+// 256倍されていることに注意。85なら85/256 = 1/3とほぼ等価。
 // 元の値 = 85 , step = 15
-// [PARAM] min:50,max:120,step:3,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 97;
+// [PARAM] min:50,max:120,step:16,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 85;
 
-// 元の値 = 191 , step = 40
+// 元の値 = 205 , step = 40
 // [PARAM] min:50,max:400,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 191;
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 205;
 
 
-// 元の値 = 22977 , step = 8000
+// 元の値 = 23767 , step = 8000
 // [PARAM] min:0,max:50000,step:500,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN0 = 24477;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN0 = 23767;
 
-// 元の値 = 30
+// 元の値 = 20
 // [PARAM] min:10,max:60,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 28;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 20;
 
-// 元の値 = 28 , step = 2
+// 元の値 = 22 , step = 2
 // [PARAM] min:10,max:60,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN2 = 29;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN2 = 22;
 
-// 元の値 = 84 , step = 4
+// 元の値 = 168 , step = 4
 // [PARAM] min:10,max:100,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN3 = 84;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN3 = 168;
 
-// 元の値 = 168 , step = 50
+// 元の値 = 177 , step = 50
 // [PARAM] min:0,max:400,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 168;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 177;
 
 
 
@@ -183,9 +184,9 @@ PARAM_DEFINE PARAM_SINGULAR_MARGIN = 768;
 
 // historyによる枝刈りをする深さ。適用depth。
 // Stockfish10からこの値を大きくしすぎると良くないようだ。
-// 元の値 = 4 , step = 1
+// 元の値 = 5 , step = 1
 // [PARAM] min:2,max:16,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 4;
+PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 5;
 
 
 // historyの値によってreductionするときの係数
