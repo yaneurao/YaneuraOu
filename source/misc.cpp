@@ -34,21 +34,29 @@ extern "C" {
 //#include <iostream>
 #include <sstream>
 //#include <vector>
-
-#include <ctime>	// std::ctime()
-#include <cstring>	// std::memset()
-#include <cmath>	// std::exp()
-#include <cstdio>	// fopen(),fread()
+//#include <cstdlib>
 
 #if defined(__linux__) && !defined(__ANDROID__)
 #include <stdlib.h>
 #include <sys/mman.h> // madvise()
 #endif
 
+#if defined(__APPLE__) || defined(__ANDROID__) || defined(__OpenBSD__) || (defined(__GLIBCXX__) && !defined(_GLIBCXX_HAVE_ALIGNED_ALLOC) && !defined(_WIN32)) || defined(__e2k__)
+#define POSIXALIGNEDALLOC
+#include <stdlib.h>
+#endif
+
 #include "misc.h"
 #include "thread.h"
-#include "usi.h"
-#include "testcmd/unit_test.h"
+
+// === やねうら王独自追加
+
+#include <ctime>				// std::ctime()
+#include <cstring>				// std::memset()
+#include <cstdio>				// fopen(),fread()
+#include <cmath>				// std::exp()
+#include "usi.h"				// Options
+#include "testcmd/unit_test.h"	// UnitTester
 
 using namespace std;
 
@@ -446,10 +454,10 @@ static void* aligned_large_pages_alloc_windows(size_t allocSize) {
 	#endif
 }
 
-void* aligned_large_pages_alloc(size_t allocSize , size_t align /* ignore */) {
+void* aligned_large_pages_alloc(size_t allocSize) {
 
 	// ※　ここでは4KB単位でalignされたメモリが返ることは保証されているので
-	//     引数で指定されたalignは無視して良い。
+	//     引数でalignを指定できる必要はない。(それを超えた大きなalignを行いたいケースがない)
 
 	//static bool firstCall = true;
 
@@ -490,6 +498,8 @@ void* aligned_large_pages_alloc(size_t allocSize , size_t align /* ignore */) {
 }
 
 #else
+// LargePage非対応の環境であれば、std::aligned_alloc()を用いて確保しておく。
+// 最低でも4KBでalignされたメモリが返るので、引数でalignを指定できるようにする必要はない。
 
 void* aligned_large_pages_alloc(size_t allocSize) {
 
@@ -561,7 +571,7 @@ void LargeMemory::free()
 // alloc()のstatic関数版。memには、static_free()に渡すべきポインタが得られる。
 void* LargeMemory::static_alloc(size_t size, size_t align, bool zero_clear)
 {
-	void* mem = aligned_large_pages_alloc(size, align);
+	void* mem = aligned_large_pages_alloc(size);
 
 	auto error_exit = [&](std::string mes) {
 		sync_cout << "info string Error! : " << mes << " in LargeMemory::alloc(" << size << "," << align << ")" << sync_endl;
