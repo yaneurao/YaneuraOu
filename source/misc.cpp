@@ -45,6 +45,11 @@ extern "C" {
 #include <sys/mman.h> // madvise()
 #endif
 
+#if defined(__APPLE__) || defined(__ANDROID__) || defined(__OpenBSD__) || (defined(__GLIBCXX__) && !defined(_GLIBCXX_HAVE_ALIGNED_ALLOC) && !defined(_WIN32)) || defined(__e2k__)
+#define POSIXALIGNEDALLOC
+#include <stdlib.h>
+#endif
+
 #include "misc.h"
 #include "thread.h"
 #include "usi.h"
@@ -166,7 +171,7 @@ const string engine_info() {
 #undef TOSTRING
 #else
 			ENGINE_NAME
-#endif			
+#endif
 			<< ' '
 			<< EVAL_TYPE_NAME << ' '
 			<< ENGINE_VERSION << std::setfill('0')
@@ -491,7 +496,7 @@ void* aligned_large_pages_alloc(size_t allocSize , size_t align /* ignore */) {
 
 #else
 
-void* aligned_large_pages_alloc(size_t allocSize) {
+void* aligned_large_pages_alloc(size_t allocSize , size_t align /* ignore */) {
 
 #if defined(__linux__)
 	constexpr size_t alignment = 2 * 1024 * 1024; // assumed 2MB page size
@@ -919,7 +924,7 @@ namespace Tools
 			buffer,					// マップ先ワイド文字列を入れるバッファのアドレス
 			length					// バッファのサイズ
 		);
- 
+
 		if (result == 0)
 			return std::wstring(); // 何故かエラーなのだ…。
 
@@ -1505,7 +1510,7 @@ namespace StringExtension
 
 	// 数字に相当する文字か
 	bool is_number(char c) { return '0' <= c && c <= '9'; }
-	
+
 	// 行の末尾の"\r","\n",スペース、"\t"を除去した文字列を返す。
 	std::string trim(const std::string& input)
 	{
@@ -1737,7 +1742,7 @@ namespace Directory {
 	}
 }
 
-#elif defined(__GNUC__) 
+#elif defined(__GNUC__)
 
 #include <direct.h>
 namespace Directory {
