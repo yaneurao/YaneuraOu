@@ -166,12 +166,7 @@ namespace {
 	// -----------------------
 
 	// 探索しているnodeの種類
-	// Rootはここでは用意しない。Rootに特化した関数を用意するのが少し無駄なので。
-	enum NodeType { NonPV, PV };
-
-	// 置換表にどれくらいhitしているかという統計情報
-	constexpr uint64_t TtHitAverageWindow = 4096;
-	constexpr uint64_t TtHitAverageResolution = 1024;
+	enum NodeType { NonPV, PV , Root};
 
 	// Futility margin
 	// RazoringはStockfish12で効果がないとされてしまい除去された。
@@ -214,14 +209,14 @@ namespace {
 
 		// historyとstatsの更新時のボーナス値。depthに基づく。
 
-		// [Stockfish10]
-		//return d > 17 ? 0 : 29 * d * d + 138 * d - 134;
-
 		// [Stockfish12 2020/09]
 		//return d > 13 ? 29 : 17 * d * d + 134 * d - 134;
 
-		// [Stockfish12 2021/01]
-		return d > 14 ? 29 : 8 * d * d + 224 * d - 215;
+		// [Stockfish13 2021/01]
+		//return d > 14 ? 29 : 8 * d * d + 224 * d - 215;
+
+		// [Stockfish14 2021/09]
+		return d > 14 ? 73 : 6 * d * d + 229 * d - 215;
 	}
 
 	// チェスでは、引き分けが0.5勝扱いなので引き分け回避のための工夫がしてあって、
@@ -258,58 +253,10 @@ namespace {
 		Move best = MOVE_NONE;
 	};
 
-
-	// Breadcrumbs(パンくず)は、指定されたスレッドで探索されたノードをマークするために使用される。
-	// スレッドが極めて多い時に同一ノードを探索するのを回避するためのhack。
-	// スレッド競合でTTが破壊されるのを防ぐため？
-
-	struct Breadcrumb {
-		std::atomic<Thread*> thread;
-		std::atomic<Key> key;
-	};
-	std::array<Breadcrumb, 1024> breadcrumbs;
-
-	// ThreadHolding構造体は、指定されたノードでどのスレッドがパンくずを残したかを追跡する。
-	// フリーノードはコンストラクタによって moves ループに入るとマークされ、デストラクタに
-	// よってそのループから出るとマークされなくなる。
-	struct ThreadHolding {
-		explicit ThreadHolding(Thread* thisThread, Key posKey, int ply) {
-			location = ply < 8 ? &breadcrumbs[posKey & (breadcrumbs.size() - 1)] : nullptr;
-			otherThread = false;
-			owning = false;
-			if (location)
-			{
-				// See if another already marked this location, if not, mark it ourselves
-				Thread* tmp = (*location).thread.load(std::memory_order_relaxed);
-				if (tmp == nullptr)
-				{
-					(*location).thread.store(thisThread, std::memory_order_relaxed);
-					(*location).key.store(posKey, std::memory_order_relaxed);
-					owning = true;
-				}
-				else if (tmp != thisThread
-					&& (*location).key.load(std::memory_order_relaxed) == posKey)
-					otherThread = true;
-			}
-		}
-
-		~ThreadHolding() {
-			if (owning) // Free the marked location
-				(*location).thread.store(nullptr, std::memory_order_relaxed);
-		}
-
-		bool marked() { return otherThread; }
-
-	private:
-		Breadcrumb* location;
-		bool otherThread, owning;
-	};
-
-
-	template <NodeType NT>
+	template <NodeType nodeType>
 	Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode);
 
-	template <NodeType NT>
+	template <NodeType nodeType>
 	Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth = 0);
 
 	Value value_to_tt(Value v, int ply);
@@ -722,6 +669,45 @@ SKIP_SEARCH:;
 
 // ----------------------------------------------------------------------------------------------------------
 
+// 探索スレッド用の初期化(探索部と学習部と共通)
+void search_thread_init(Thread* th, Stack* ss)
+{
+	// 先頭10個を初期化しておけば十分。そのあとはsearch()の先頭でss+1,ss+2を適宜初期化していく。
+	// RootNodeはss->ply == 0がその条件。
+	// ゼロクリアするので、ss->ply == 0となるので大丈夫…。
+	std::memset(ss - 7, 0, 10 * sizeof(Stack));
+
+	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
+	for (int i = 7; i > 0; i--)
+		(ss - i)->continuationHistory = &th->continuationHistory[0][0][SQ_ZERO][NO_PIECE]; // Use as a sentinel
+
+	// Stack(探索用の構造体)上のply(手数)は事前に初期化しておけば探索時に代入する必要がない。
+	for (int i = 0; i <= MAX_PLY + 2; ++i)
+		(ss + i)->ply = i;
+
+	// lowPlyHistoryのコピー(世代を一つ新しくする)
+	std::copy(&th->lowPlyHistory[2][0], &th->lowPlyHistory.back().back() + 1, &th->lowPlyHistory[0][0]);
+	std::fill(&th->lowPlyHistory[MAX_LPH - 2][0], &th->lowPlyHistory.back().back() + 1, 0);
+
+	// ---------------------
+	//   移動平均を用いる統計情報の初期化
+	// ---------------------
+
+	// 置換表hit率
+	th->ttHitAverage.set(50, 100);                  // initialize the running average at 50%
+
+	// 二重延長率
+	th->doubleExtensionAverage[WHITE].set(0, 100);  // initialize the running average at 0%
+	th->doubleExtensionAverage[BLACK].set(0, 100);  // initialize the running average at 0%
+
+	th->nodesLastExplosive = th->nodes;
+	th->nodesLastNormal = th->nodes;
+	th->state = EXPLOSION_NONE;
+	th->trend = VALUE_ZERO;
+
+}
+
+
 // 探索本体。並列化している場合、ここがslaveのエントリーポイント。
 // Lazy SMPなので、置換表を共有しながらそれぞれのスレッドが勝手に探索しているだけ。
 void Thread::search()
@@ -759,12 +745,9 @@ void Thread::search()
 	// 0から3までの値をとる。
 	int iterIdx = 0;
 
-	// 先頭10個を初期化しておけば十分。そのあとはsearch()の先頭でss+1,ss+2を適宜初期化していく。
-	memset(ss - 7, 0, 10 * sizeof(Stack));
+	// 探索部、学習部のスレッドの共通初期化コード
+	search_thread_init(this,ss);
 
-	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
-	for (int i = 7; i > 0; i--)
-		(ss - i)->continuationHistory = &this->continuationHistory[0][0][SQ_ZERO][NO_PIECE]; // Use as a sentinel
 	ss->pv = pv;
 
 	// 反復深化のiterationが浅いうちはaspiration searchを使わない。
@@ -782,11 +765,6 @@ void Thread::search()
 				mainThread->iterValue[i] = mainThread->bestPreviousScore;
 	}
 
-	// lowPlyHistoryのコピー(世代を一つ新しくする)
-	std::copy(&lowPlyHistory[2][0], &lowPlyHistory.back().back() + 1, &lowPlyHistory[0][0]);
-	std::fill(&lowPlyHistory[MAX_LPH - 2][0], &lowPlyHistory.back().back() + 1, 0);
-
-
 	// --- MultiPV
 
 	// bestmoveとしてしこの局面の上位N個を探索する機能
@@ -803,12 +781,10 @@ void Thread::search()
 	// この局面での指し手の数を上回ってはいけない
 	multiPV = std::min(multiPV, rootMoves.size());
 
-	// 最近の置換表の平均ヒット率の初期化。
-	ttHitAverage = TtHitAverageWindow * TtHitAverageResolution / 2;
-
 	// Contemptの処理は、やねうら王ではMainThread::search()で行っているのでここではやらない。
 	// Stockfishもそうすべきだと思う。
 	//int ct = int(Options["Contempt"]) * PawnValueEg / 100; // From centipawns
+	// →　Stockfishこのコードなくなった？[2021/09/24]
 
 	// ---------------------
 	//   反復深化のループ
@@ -932,7 +908,7 @@ void Thread::search()
 			{
 				// fail highするごとにdepthを下げていく処理
 				Depth adjustedDepth = std::max(1, rootDepth - failedHighCnt - searchAgainCounter);
-				bestValue = ::search<PV>(rootPos, ss, alpha, beta, adjustedDepth, false);
+				bestValue = ::search<Root>(rootPos, ss, alpha, beta, adjustedDepth, false);
 
 				// それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
 				// 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
@@ -1179,7 +1155,7 @@ void Thread::search()
 namespace {
 
 	// cutNode = LMRで悪そうな指し手に対してreduction量を増やすnode
-	template <NodeType NT>
+	template <NodeType nodeType>
 	Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode)
 	{
 		// -----------------------
@@ -1187,11 +1163,11 @@ namespace {
 		// -----------------------
 
 		// PV nodeであるか(root nodeはPV nodeに含まれる)
-		constexpr bool PvNode = NT == PV;
+		constexpr bool PvNode = nodeType != NonPV;
 
 		// root nodeであるか
-		const bool rootNode = PvNode && ss->ply == 0;
-
+		constexpr bool rootNode = nodeType == Root;
+		
 		// 次の最大探索深さ。
 		// これを超える深さでsearch()を再帰的に呼び出さない。
 		// 延長されすぎるのを回避する。
@@ -1230,7 +1206,7 @@ namespace {
 
 		// 残り探索深さが1手未満であるなら静止探索を呼び出す
 		if (depth <= 0)
-			return qsearch<NT>(pos, ss, alpha, beta);
+			return qsearch<PvNode ? PV : NonPV>(pos, ss, alpha, beta);
 
 		ASSERT_LV3(-VALUE_INFINITE <= alpha && alpha < beta && beta <= VALUE_INFINITE);
 		ASSERT_LV3(PvNode || (alpha == beta - 1));
@@ -1391,7 +1367,6 @@ namespace {
 		// rootからの手数
 		ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
 
-		(ss + 1)->ply = ss->ply + 1;
 		(ss + 1)->ttPv = false;
 		(ss + 1)->excludedMove = bestMove = MOVE_NONE;
 
@@ -1466,11 +1441,11 @@ namespace {
 			&& is_ok((ss - 1)->currentMove))
 			thisThread->lowPlyHistory[ss->ply - 1][from_to((ss - 1)->currentMove)] << stat_bonus(depth - 5);
 
+		// running average of ttHit
 		// thisThread->ttHitAverageは、ttHit(置換表にhitしたかのフラグ)の実行時の平均を近似するために用いられる。
-		// 移動平均のようなものを算出している。
-		thisThread->ttHitAverage = (TtHitAverageWindow - 1) * thisThread->ttHitAverage / TtHitAverageWindow
-			+ TtHitAverageResolution * ss->ttHit;
-		
+		// 移動平均を算出している。
+		thisThread->ttHitAverage.update(ss->ttHit);
+
 		// 置換表の値による枝刈り
 
 		if (!PvNode        // PV nodeでは置換表の指し手では枝刈りしない(PV nodeはごくわずかしかないので..)
@@ -1999,17 +1974,23 @@ namespace {
 
 		ttCapture = ttMove && pos.capture_or_pawn_promotion(ttMove);
 
-		// このnodeを探索中であると印をつけておく。
-		// (極めて多いスレッドで探索するときに同一ノードを探索するのを回避するため)
-		ThreadHolding th(thisThread, posKey, ss->ply);
+		// -----------------------
+		// Step 11. A small Probcut idea, when we are in check
+		// -----------------------
+
+		// TODO : あとで書く。
+
 
 		// -----------------------
-		// Step 11. Loop through moves
+		// Step 12. Loop through all pseudo-legal moves until no moves remain
+		//			or a beta cutoff occurs.
 		// -----------------------
 
 		//  一手ずつ調べていく
 
-		//  指し手がなくなるか、beta cutoffが発生するまで、すべての疑似合法手を調べる。
+		//  指し手がなくなるか、beta cutoffが発生するまで、すべての指し手を調べる。
+		//  MovePickerが返す指し手はpseudo-legalであることは保証されている。
+		// ※　do_move()までにはlegalかどうかの判定が必要。
 
 		while ((move = mp.next_move(moveCountPruning)) != MOVE_NONE)
 		{
@@ -2019,14 +2000,17 @@ namespace {
 				continue;
 
 			// root nodeでは、rootMoves()の集合に含まれていない指し手は探索をスキップする。
+			// Stockfishでは、2行目、
+			//  thisThread->rootMoves.end() + thisThread->pvLast となっているが
+			// 将棋ではこの処理不要なのでやねうら王ではpvLastは使わない。
 			if (rootNode && !std::count(thisThread->rootMoves.begin() + thisThread->pvIdx,
-				thisThread->rootMoves.end(), move))
+										thisThread->rootMoves.end()   , move))
 				continue;
 
 			// Check for legality
 			// moveの合法性をチェック。
 
-			// root nodeはlegal()だとわかっているのでこのチェックは不要。
+			// root nodeなら、rootMovesになければlegalではない。
 			// 非合法手はほとんど含まれていないから、以前はこの判定はdo_move()の直前まで遅延させたほうが得だったが、
 			// do_move()するまでの枝刈りが増えてきたので、ここでやったほうが良いようだ。
 			if (!rootNode && !pos.legal(move))
@@ -2076,7 +2060,7 @@ namespace {
 			givesCheck = pos.gives_check(move);
 
 			// -----------------------
-			// Step 12. Pruning at shallow depth (~200 Elo)
+			// Step 13. Pruning at shallow depth (~200 Elo)
 			// -----------------------
 
 			// 浅い深さでの枝刈り
@@ -2101,8 +2085,8 @@ namespace {
 					&& !givesCheck)
 				{
 
-					// Countermoves based pruning (~20 Elo)
-					// Countermovesに基づいた枝刈り(historyの値が悪いものに関してはskip) : ~20 Elo
+					// Continuation history pruning (~20 Elo)
+					// Continuation historyに基づいた枝刈り(historyの値が悪いものに関してはskip) : ~20 Elo
 
 					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH/*4*/ + ((ss - 1)->statScore > 0 || (ss - 1)->moveCount == 1)
 						&& (*contHist[0])[to_sq(move)][movedPiece] < CounterMovePruneThreshold
@@ -2151,7 +2135,7 @@ namespace {
 			}
 
 			// -----------------------
-			// Step 13. Singular and Gives Check Extensions. : ~75 Elo
+			// Step 14. Singular and Gives Check Extensions. : ~75 Elo
 			// -----------------------
 
 			// singular延長と王手延長。
@@ -2294,14 +2278,14 @@ namespace {
 			ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck][captureOrPawnPromotion][to_sq(move)][movedPiece];
 
 			// -----------------------
-			// Step 14. Make the move
+			// Step 15. Make the move
 			// -----------------------
 
 			// 指し手で1手進める
 			pos.do_move(move, st, givesCheck);
 
 			// -----------------------
-			// Step 15. Reduced depth search (LMR, ~200 Elo). 
+			// Step 16. Late moves reduction / extension (LMR, ~200 Elo)
 			// -----------------------
 			// depthを減らした探索。LMR(Late Move Reduction)
 
@@ -2315,25 +2299,21 @@ namespace {
 
 			if (    depth >= 3
 				&&  moveCount > 1 + 3 * rootNode
-				&& (!captureOrPawnPromotion
-					|| moveCountPruning
-					|| ss->staticEval + CapturePieceValue[pos.captured_piece()] <= alpha
-					|| cutNode
-	              || (!PvNode && !formerPv && thisThread->captureHistory[to_sq(move)][movedPiece][type_of(pos.captured_piece())] < 4506)
-					|| thisThread->ttHitAverage < 432 * TtHitAverageResolution * TtHitAverageWindow / 1024))
+				&& (  !captureOrPawnPromotion
+					|| (cutNode && (ss - 1)->moveCount > 1)
+					|| !ss->ttPv)
+				&& (!PvNode || ss->ply > 1 || thisThread->id() % 4 != 3))
 			{
 				// Reduction量
 				Depth r = reduction(improving, depth, moveCount);
 
-				// Decrease reduction if the ttHit running average is large
-				if (thisThread->ttHitAverage > 537 * TtHitAverageResolution * TtHitAverageWindow / 1024)
+				// PV nodeではreductionしない。
+				if (PvNode)
 					r--;
 
-				// Increase reduction if other threads are searching this position
-				// 他のスレッドがこの局面を探索中であるならreductionを増やす。
-				// (どうせそのスレッドが探索するであろうから)
-				if (th.marked())
-					r++;
+				// Decrease reduction if the ttHit running average is large (~0 Elo)
+				if (thisThread->ttHitAverage.is_greater(537, 1024))
+					r--;
 
 				// Decrease reduction if position is or has been on the PV (~10 Elo)
 				// この局面がPV上であるならreductionを減らす
@@ -2472,7 +2452,7 @@ namespace {
 
 
 			// -----------------------
-			// Step 16. Full depth search when LMR is skipped or fails high
+			// Step 17. Full depth search when LMR is skipped or fails high
 			// -----------------------
 
 			// Full depth search。LMRがskipされたか、LMRにおいてfail highを起こしたなら元の探索深さで探索する。
@@ -2506,7 +2486,7 @@ namespace {
 			}
 
 			// -----------------------
-			// Step 17. Undo move
+			// Step 18. Undo move
 			// -----------------------
 
 			//      1手戻す
@@ -2516,7 +2496,7 @@ namespace {
 			ASSERT_LV3(-VALUE_INFINITE < value && value < VALUE_INFINITE);
 
 			// -----------------------
-			// Step 18. Check for a new best move
+			// Step 19. Check for a new best move
 			// -----------------------
 
 			// 指し手を探索するのを終了する。
@@ -2606,11 +2586,6 @@ namespace {
 						// beta cutである。
 
 						ASSERT_LV3(value >= beta);
-
-						// fail highのときには、負のstatScoreをリセットしたほうが良いらしい。
-						// cf. Reset negative statScore on fail high : https://github.com/official-stockfish/Stockfish/commit/b88374b14a7baa2f8e4c37b16a2e653e7472adcc
-						// →　その後、単に0にリセットしたほうが良いことが判明した。
-						ss->statScore = 0;
 						break;
 					}
 				}
@@ -2718,7 +2693,7 @@ namespace {
 	// qsearch()は静止探索を行う関数で、search()でdepth(残り探索深さ)が0になったときに呼び出されるか、
 	// このqseach()自身から再帰的にもっと低いdepthで呼び出される。
 
-	template <NodeType NT>
+	template <NodeType nodeType>
 	Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	{
 		// -----------------------
@@ -2726,7 +2701,8 @@ namespace {
 		// -----------------------
 
 		// PV nodeであるか。
-		constexpr bool PvNode = NT == PV;
+		// ※　ここがRoot nodeであることはないので、そのケースは考えなくて良い。
+		constexpr bool PvNode = nodeType == PV;
 
 		ASSERT_LV3(-VALUE_INFINITE <= alpha && alpha < beta && beta <= VALUE_INFINITE);
 		ASSERT_LV3(PvNode || alpha == beta - 1);
@@ -2787,10 +2763,6 @@ namespace {
 		}
 
 		Thread* thisThread = pos.this_thread();
-
-		// rootからの手数
-		(ss + 1)->ply = ss->ply + 1;
-
 		bestMove = MOVE_NONE;
 		ss->inCheck = pos.checkers();
 		moveCount = 0;
@@ -3099,7 +3071,7 @@ namespace {
 
 			// 1手動かして、再帰的にqsearch()を呼ぶ
 			pos.do_move(move, st, givesCheck);
-			value = -qsearch<NT>(pos, ss + 1, -beta, -alpha, depth - 1);
+			value = -qsearch<nodeType>(pos, ss + 1, -beta, -alpha, depth - 1);
 			pos.undo_move(move);
 
 			ASSERT_LV3(-VALUE_INFINITE < value && value < VALUE_INFINITE);
@@ -3629,11 +3601,6 @@ namespace Learner
 	void init_for_search(Position& pos, Stack* ss)
 	{
 
-		// RootNodeはss->ply == 0がその条件。
-		// ゼロクリアするので、ss->ply == 0となるので大丈夫…。
-
-		memset(ss - 7, 0, 10 * sizeof(Stack));
-
 		// Search::Limitsに関して
 		// このメンバー変数はglobalなので他のスレッドに影響を及ぼすので気をつけること。
 		{
@@ -3681,8 +3648,8 @@ namespace Learner
 			// history類を全部クリアする。この初期化は少し時間がかかるし、探索の精度はむしろ下がるので善悪はよくわからない。
 			// th->clear();
 
-			for (int i = 7; i > 0; i--)
-				(ss - i)->continuationHistory = &th->continuationHistory[0][0][SQ_ZERO][NO_PIECE];
+			// 探索スレッド用の初期化(探索部・学習部で共通)
+			search_thread_init(th,ss);
 
 			// rootMovesの設定
 			auto& rootMoves = th->rootMoves;
@@ -3696,9 +3663,6 @@ namespace Learner
 			// 学習用の実行ファイルではスレッドごとに置換表を持っているので
 			// 探索前に自分(のスレッド用)の置換表の世代カウンターを回してやる。
 			th->tt.new_search();
-
-			// 最近の置換表の平均ヒット率の初期化。
-			th->ttHitAverage = TtHitAverageWindow * TtHitAverageResolution / 2;
 		}
 	}
 

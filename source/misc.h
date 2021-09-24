@@ -100,6 +100,47 @@ void dbg_mean_of(int v);
 // このとき、以下の関数を呼び出すと、その統計情報をcerrに出力する。
 void dbg_print();
 
+// RunningAverage : a class to calculate a running average of a series of values.
+// For efficiency, all computations are done with integers.
+// 
+// 置換表のhit率などを集計するためのクラス。
+// ttHitAverageとして、Threadクラスが持っている。
+//
+// cf. Detect search explosions : https://github.com/official-stockfish/Stockfish/commit/73018a03375b4b72ee482eb5a4a2152d7e4f0aac
+// →　二重の探索延長によって組合せ爆発が生じてiterationが進みにくくなるのを回避する狙い。
+//
+class RunningAverage {
+public:
+
+	// Constructor
+	RunningAverage() {}
+
+	// Reset the running average to rational value p / q
+	void set(int64_t p, int64_t q)
+	{
+		average = p * PERIOD * RESOLUTION / q;
+	}
+
+	// Update average with value v
+	// 
+	// これは、ttHit(置換表にhitしたかのフラグ)の実行時の平均を近似するために用いられる。
+	// 移動平均を算出している。
+	void update(int64_t v)
+	{
+		average = RESOLUTION * v + (PERIOD - 1) * average / PERIOD;
+	}
+
+	// Test if average is strictly greater than rational a / b
+	bool is_greater(int64_t a, int64_t b)
+	{
+		return b * average > a * PERIOD * RESOLUTION;
+	}
+
+private:
+	static constexpr int64_t PERIOD = 4096;
+	static constexpr int64_t RESOLUTION = 1024;
+	int64_t average;
+};
 
 // --------------------
 //  Time[ms] wrapper
