@@ -35,7 +35,7 @@ void prefetch(void* addr);
 // --------------------
 
 // cin/coutへの入出力をファイルにリダイレクトを開始/終了する。
-void start_logger(bool b);
+void start_logger(const std::string& fname);
 
 // --------------------
 //  Large Page確保
@@ -66,11 +66,10 @@ struct LargeMemory
 	void free();
 
 	// alloc()が呼び出されてメモリが確保されている状態か？
-	bool alloced() const { return mem != nullptr; }
+	bool alloced() const { return ptr != nullptr; }
 
 	// alloc()のstatic関数版。この関数で確保したメモリはstatic_free()で開放する。
-	// 引数のmemには、static_free()に渡すべきポインタが得られる。
-	static void* static_alloc(size_t size, void*& mem, size_t align = 256, bool zero_clear = false);
+	static void* static_alloc(size_t size, size_t align = 256, bool zero_clear = false);
 
 	// static_alloc()で確保したメモリを開放する。
 	static void static_free(void* mem);
@@ -80,7 +79,7 @@ struct LargeMemory
 private:
 	// allocで確保されたメモリの先頭アドレス
 	// (free()で開放するときにこのアドレスを用いる)
-	void* mem = nullptr;
+	void* ptr = nullptr;
 };
 
 // --------------------

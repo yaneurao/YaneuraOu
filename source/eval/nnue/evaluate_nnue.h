@@ -30,12 +30,11 @@ namespace Eval::NNUE {
 	
 	        // Tクラスのデストラクタ
 	        ptr->~T();
-	
-	        LargeMemory::static_free(mem);
+
+			// このメモリはLargeMemoryクラスを利用して確保したものなので、
+			// このクラスのfree()を呼び出して開放する。
+	        LargeMemory::static_free(ptr);
 	    }
-	
-	    // operator()で開放すべきメモリ(LargeMemory::static_alloc()で確保するときの引数に指定したmem)
-	    void* mem = nullptr;
 	};
 
 	template <typename T>

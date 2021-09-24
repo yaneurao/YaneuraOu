@@ -80,30 +80,7 @@ namespace {
 		streambuf *buf, *log; // 標準入出力 , ログファイル
 	};
 
-	struct Logger {
-		static void start(bool b)
-		{
-			static Logger log;
-
-			if (b && !log.file.is_open())
-			{
-				log.file.open("io_log.txt", ifstream::out);
-				cin.rdbuf(&log.in);
-				cout.rdbuf(&log.out);
-				cout << "start logger" << endl;
-			}
-			else if (!b && log.file.is_open())
-			{
-				cout << "end logger" << endl;
-				cout.rdbuf(log.out.buf);
-				cin.rdbuf(log.in.buf);
-				log.file.close();
-			}
-		}
-
-	private:
-		Tie in, out;   // 標準入力とファイル、標準出力とファイルのひも付け
-		ofstream file; // ログを書き出すファイル
+	class Logger {
 
 		// clangだとここ警告が出るので一時的に警告を抑制する。
 #pragma warning (disable : 4068) // MSVC用の不明なpragmaの抑制
@@ -112,13 +89,46 @@ namespace {
 		Logger() : in(cin.rdbuf(), file.rdbuf()), out(cout.rdbuf(), file.rdbuf()) {}
 #pragma clang diagnostic pop
 
-		~Logger() { start(false); }
+		~Logger() { start(""); }
+
+	public:
+		// ログ記録の開始。
+		// fname : ログを書き出すファイル名
+		static void start(const std::string& fname) {
+
+			static Logger l;
+
+			if (l.file.is_open())
+			{
+				cout.rdbuf(l.out.buf);
+				cin.rdbuf(l.in.buf);
+				l.file.close();
+			}
+
+			if (!fname.empty())
+			{
+				l.file.open(fname, ifstream::out);
+
+				if (!l.file.is_open())
+				{
+					cerr << "Unable to open debug log file " << fname << endl;
+					exit(EXIT_FAILURE);
+				}
+
+				cin.rdbuf(&l.in);
+				cout.rdbuf(&l.out);
+			}
+		}
+
+	private:
+		Tie in, out;   // 標準入力とファイル、標準出力とファイルのひも付け
+		ofstream file; // ログを書き出すファイル
 	};
 
 } // 無名namespace
 
-// Trampoline helper to avoid moving Logger to misc.h
-void start_logger(bool b) { Logger::start(b); }
+/// Trampoline helper to avoid moving Logger to misc.h
+void start_logger(const std::string& fname) { Logger::start(fname); }
 
 // --------------------
 //  engine info
@@ -340,33 +350,46 @@ namespace {
 	bool largeMemoryAllocFirstCall = true;
 }
 
-/// aligned_ttmem_alloc will return suitably aligned memory, and if possible use large pages.
-/// The returned pointer is the aligned one, while the mem argument is the one that needs to be passed to free.
-/// With c++17 some of this functionality can be simplified.
-#if defined(__linux__) && !defined(__ANDROID__)
+/// std_aligned_alloc() is our wrapper for systems where the c++17 implementation
+/// does not guarantee the availability of aligned_alloc(). Memory allocated with
+/// std_aligned_alloc() must be freed with std_aligned_free().
 
-void* aligned_ttmem_alloc(size_t allocSize, void*& mem , size_t align /* ignore */ ) {
+void* std_aligned_alloc(size_t alignment, size_t size) {
 
-	constexpr size_t alignment = 2 * 1024 * 1024; // assumed 2MB page sizes
-	size_t size = ((allocSize + alignment - 1) / alignment) * alignment; // multiple of alignment
-	if (posix_memalign(&mem, alignment, size))
-		mem = nullptr;
-	madvise(mem, allocSize, MADV_HUGEPAGE);
-
-	// Linux環境で、Hash TableのためにLarge Pageを確保したことを出力する。
-	if (largeMemoryAllocFirstCall)
-	{
-		sync_cout << "info string Hash table allocation: Linux Large Pages used." << sync_endl;
-		largeMemoryAllocFirstCall = false;
-	}
-
-	return mem;
+#if defined(POSIXALIGNEDALLOC)
+	void* mem;
+	return posix_memalign(&mem, alignment, size) ? nullptr : mem;
+#elif defined(_WIN32)
+	return _mm_malloc(size, alignment);
+#else
+	return std::aligned_alloc(alignment, size);
+#endif
 }
 
-#elif defined(_WIN64)
+void std_aligned_free(void* ptr) {
 
-static void* aligned_ttmem_alloc_large_pages(size_t allocSize) {
+#if defined(POSIXALIGNEDALLOC)
+	free(ptr);
+#elif defined(_WIN32)
+	_mm_free(ptr);
+#else
+	free(ptr);
+#endif
+}
 
+// Windows
+#if defined(_WIN32)
+
+static void* aligned_large_pages_alloc_windows(size_t allocSize) {
+
+	// Windows 64bit用専用。
+	// Windows 32bit用ならこの機能は利用できない。
+	#if !defined(_WIN64)
+		(void)allocSize; // suppress unused-parameter compiler warning
+		return nullptr;
+	#else
+
+	// ※ やねうら王独自拡張
 	// LargePageはエンジンオプションにより無効化されているなら何もせずに返る。
 	if (!Options["LargePageEnable"])
 		return nullptr;
@@ -419,14 +442,19 @@ static void* aligned_ttmem_alloc_large_pages(size_t allocSize) {
 	CloseHandle(hProcessToken);
 
 	return mem;
+
+	#endif
 }
 
-void* aligned_ttmem_alloc(size_t allocSize , void*& mem , size_t align /* ignore */) {
+void* aligned_large_pages_alloc(size_t allocSize , size_t align /* ignore */) {
+
+	// ※　ここでは4KB単位でalignされたメモリが返ることは保証されているので
+	//     引数で指定されたalignは無視して良い。
 
 	//static bool firstCall = true;
 
 	// try to allocate large pages
-	mem = aligned_ttmem_alloc_large_pages(allocSize);
+	void* ptr = aligned_large_pages_alloc_windows(allocSize);
 
 	// Suppress info strings on the first call. The first call occurs before 'uci'
 	// is received and in that case this output confuses some GUIs.
@@ -441,7 +469,7 @@ void* aligned_ttmem_alloc(size_t allocSize , void*& mem , size_t align /* ignore
 //	if (!firstCall)
 	if (largeMemoryAllocFirstCall)
 	{
-		if (mem)
+		if (ptr)
 			sync_cout << "info string Hash table allocation: Windows Large Pages used." << sync_endl;
 		else
 			sync_cout << "info string Hash table allocation: Windows Large Pages not used." << sync_endl;
@@ -451,61 +479,65 @@ void* aligned_ttmem_alloc(size_t allocSize , void*& mem , size_t align /* ignore
 
 	// fall back to regular, page aligned, allocation if necessary
 	// 4KB単位であることは保証されているはず..
-	if (!mem)
-		mem = VirtualAlloc(NULL, allocSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	if (!ptr)
+		ptr = VirtualAlloc(NULL, allocSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
 	// VirtualAlloc()はpage size(4KB)でalignされていること自体は保証されているはず。
 
 	//cout << (u64)mem << "," << allocSize << endl;
 
-	return mem;
+	return ptr;
 }
 
 #else
 
-void* aligned_ttmem_alloc(size_t allocSize, void*& mem , size_t align) {
+void* aligned_large_pages_alloc(size_t allocSize) {
 
-	//constexpr size_t alignment = 64; // assumed cache line size
-	
-	// 引数で指定された値でalignmentされていて欲しい。
-	const size_t alignment = align;
+#if defined(__linux__)
+	constexpr size_t alignment = 2 * 1024 * 1024; // assumed 2MB page size
+#else
+	constexpr size_t alignment = 4096; // assumed small page size
+#endif
 
-	size_t size = allocSize + alignment - 1; // allocate some extra space
-	mem = malloc(size);
+	// round up to multiples of alignment
+	size_t size = ((allocSize + alignment - 1) / alignment) * alignment;
+	void* mem = std_aligned_alloc(alignment, size);
+#if defined(MADV_HUGEPAGE)
+	madvise(mem, size, MADV_HUGEPAGE);
+#endif
 
-	if (largeMemoryAllocFirstCall)
-	{
-		sync_cout << "info string Hash table allocation: Large Pages not used." << sync_endl;
-		largeMemoryAllocFirstCall = false;
-	}
-
-	void* ret = reinterpret_cast<void*>((uintptr_t(mem) + alignment - 1) & ~uintptr_t(alignment - 1));
-	return ret;
+	return mem;
 }
 
 #endif
 
-/// aligned_ttmem_free will free the previously allocated ttmem
-#if defined(_WIN64)
+/// aligned_large_pages_free() will free the previously allocated ttmem
 
-void aligned_ttmem_free(void* mem) {
+#if defined(_WIN32)
+
+void aligned_large_pages_free(void* mem) {
 
 	if (mem && !VirtualFree(mem, 0, MEM_RELEASE))
 	{
 		DWORD err = GetLastError();
-		std::cerr << "Failed to free transposition table. Error code: 0x" <<
-			std::hex << err << std::dec << std::endl;
-		Tools::exit();
+		std::cerr << "Failed to free large page memory. Error code: 0x"
+			<< std::hex << err
+			<< std::dec << std::endl;
+		exit(EXIT_FAILURE);
 	}
 }
 
 #else
 
-void aligned_ttmem_free(void* mem) {
-	free(mem);
+void aligned_large_pages_free(void* mem) {
+	std_aligned_free(mem);
 }
 
 #endif
+
+// --------------------
+//  LargeMemory class
+// --------------------
 
 // メモリを確保する。Large Pageに確保できるなら、そこにする。
 // aligned_ttmem_alloc()を内部的に呼び出すので、アドレスは少なくとも2MBでalignされていることは保証されるが、
@@ -515,21 +547,21 @@ void aligned_ttmem_free(void* mem) {
 void* LargeMemory::alloc(size_t size, size_t align , bool zero_clear)
 {
 	free();
-	return static_alloc(size, this->mem, align, zero_clear);
+	return static_alloc(size, align, zero_clear);
 }
 
 // alloc()で確保したメモリを開放する。
 // このクラスのデストラクタからも自動でこの関数が呼び出されるので明示的に呼び出す必要はない(かも)
 void LargeMemory::free()
 {
-	static_free(mem);
-	mem = nullptr;
+	static_free(ptr);
+	ptr = nullptr;
 }
 
 // alloc()のstatic関数版。memには、static_free()に渡すべきポインタが得られる。
-void* LargeMemory::static_alloc(size_t size, void*& mem, size_t align, bool zero_clear)
+void* LargeMemory::static_alloc(size_t size, size_t align, bool zero_clear)
 {
-	void* ptr = aligned_ttmem_alloc(size, mem, align);
+	void* mem = aligned_large_pages_alloc(size, align);
 
 	auto error_exit = [&](std::string mes) {
 		sync_cout << "info string Error! : " << mes << " in LargeMemory::alloc(" << size << "," << align << ")" << sync_endl;
@@ -537,11 +569,11 @@ void* LargeMemory::static_alloc(size_t size, void*& mem, size_t align, bool zero
 	};
 
 	// メモリが正常に確保されていることを保証する
-	if (ptr == nullptr)
+	if (mem == nullptr)
 		error_exit("can't alloc enough memory.");
 
 	// ptrがalignmentされていることを保証する
-	if ((reinterpret_cast<size_t>(ptr) % align) != 0)
+	if ((reinterpret_cast<size_t>(mem) % align) != 0)
 		error_exit("can't alloc algined memory.");
 
 	// ゼロクリアが必要なのか？
@@ -550,19 +582,19 @@ void* LargeMemory::static_alloc(size_t size, void*& mem, size_t align, bool zero
 		// 確保したのが256MB以上なら並列化してゼロクリアする。
 		if (size < 256 * 1024 * 1024)
 			// そんなに大きな領域ではないから、普通にmemset()でやっとく。
-			memset(ptr, 0, size);
+			std::memset(mem, 0, size);
 		else
 			// 並列版ゼロクリア
-			Tools::memclear(nullptr, ptr, size);
+			Tools::memclear(nullptr, mem, size);
 	}
 
-	return ptr;
+	return mem;
 }
 
 // static_alloc()で確保したメモリを開放する。
 void LargeMemory::static_free(void* mem)
 {
-	aligned_ttmem_free(mem);
+	aligned_large_pages_free(mem);
 }
 
 

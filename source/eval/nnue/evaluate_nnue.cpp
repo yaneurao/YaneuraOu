@@ -45,10 +45,8 @@ namespace Eval {
                 void Initialize(AlignedPtr<T>& pointer) {
 
                     // →　メモリはLarge Pageから確保することで高速化する。
-                    void* mem; // 開放すべきポインタ
-                    void* ptr = LargeMemory::static_alloc(sizeof(T), mem , alignof(T), true);
+                    void* ptr = LargeMemory::static_alloc(sizeof(T) , alignof(T), true);
                     pointer.reset(reinterpret_cast<T*>(ptr));
-                    pointer.get_deleter().mem = mem;
 
                     //sync_cout << "nnue.alloc(" << sizeof(T) << "," << alignof(T) << ")" << sync_endl;
                 }

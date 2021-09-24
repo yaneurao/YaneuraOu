@@ -85,6 +85,25 @@ struct TranspositionTable {
 
 	static_assert(sizeof(Cluster) == 32, "Unexpected Cluster size");
 
+	// --- Constants used to refresh the hash table periodically
+
+	// nb of bits reserved for other things
+	// generation8の下位↓bitは、generation用ではなく、別の情報を格納するのに用いる。
+	// (PV nodeかどうかのフラグとBoundに用いている。)
+	static constexpr unsigned GENERATION_BITS = 3;
+	
+	// increment for generation field
+	// 次のgenerationにするために加算する定数。2の↑乗。
+	static constexpr int      GENERATION_DELTA = (1 << GENERATION_BITS);
+
+	// cycle length
+	// generationを加算していき、1周して戻ってくるまでの長さ。
+	static constexpr int      GENERATION_CYCLE = 255 + (1 << GENERATION_BITS);
+
+	// mask to pull out generation number
+	// generationを取り出す時のmask。
+	static constexpr int      GENERATION_MASK = (0xFF << GENERATION_BITS) & 0xFF;
+
 public:
 	//~TranspositionTable() { aligned_ttmem_free(mem); }
 	// メモリの開放は、LargeMemoryクラスが勝手にやってくれるので、やねうら王では、
@@ -93,7 +112,7 @@ public:
 	// 新しい探索ごとにこの関数を呼び出す。(generationを加算する。)
 	// USE_GLOBAL_OPTIONSが有効のときは、このタイミングで、Options["Threads"]の値を
 	// キャプチャして、探索スレッドごとの置換表と世代カウンターを用意する。
-	void new_search() { generation8 += 8; } // 下位3bitはPV nodeかどうかのフラグとBoundに用いている。
+	void new_search() { generation8 += GENERATION_DELTA; } // 下位3bitはPV nodeかどうかのフラグとBoundに用いている。
 
 	// 置換表のなかから与えられたkeyに対応するentryを探す。
 	// 見つかったならfound == trueにしてそのTT_ENTRY*を返す。
