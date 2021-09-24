@@ -1112,7 +1112,10 @@ void Thread::search()
 					th->bestMoveChanges = 0;
 				}
 
-				double bestMoveInstability = 1 + 2 * totBestMoveChanges / Threads.size();
+				// rootでのbestmoveの不安定性。
+				// bestmoveが不安定であるなら思考時間を増やしたほうが良い。
+				double bestMoveInstability = 1.073 + std::max(1.0, 2.25 - 9.9 / rootDepth)
+													* totBestMoveChanges / Threads.size();
 
 				// 合法手が1手しかないときはtotalTime = 0となり、即指しする計算式。
 				double totalTime = rootMoves.size() == 1 ? 0 :
@@ -1186,7 +1189,7 @@ namespace {
 		// -----------------------
 
 		// 探索が組合せ爆発しているかのチェック
-		if (ss->ply > 10
+		if (   ss->ply > 10
 			&& search_explosion(thisThread) == MUST_CALM_DOWN
 			&& depth > (ss - 1)->depth)
 			depth = (ss - 1)->depth;
@@ -1219,8 +1222,7 @@ namespace {
 			&& !rootNode
 			&& pos.has_game_cycle(ss->ply))
 		{
-			//alpha = value_draw(depth, pos.this_thread());
-			alpha = ValueDraw;
+			alpha = value_draw(depth, pos.this_thread());
 			if (alpha >= beta)
 				return alpha;
 
@@ -1284,7 +1286,6 @@ namespace {
 		// probCutBeta          : prob cutする時のbetaの値。
 		Value bestValue, value, ttValue, eval /*, maxValue */, probCutBeta;
 
-		// formerPv				: このnode、以前は(置換表を見る限りは)PV nodeだったのに、今回はPV nodeではない。
 		// givesCheck			: moveによって王手になるのか
 		// improving			: 直前のnodeから評価値が上がってきているのか
 		//   このフラグを各種枝刈りのmarginの決定に用いる
@@ -1292,7 +1293,7 @@ namespace {
 		//   cf. Use evaluation trend to adjust futility margin : https://github.com/official-stockfish/Stockfish/commit/65c3bb8586eba11277f8297ef0f55c121772d82c
 		// didLMR				: LMRを行ったのフラグ
 		// priorCapture         : 1つ前の局面は駒を取る指し手か？
-		bool formerPv ,givesCheck, improving, didLMR, priorCapture;
+		bool givesCheck, improving, didLMR, priorCapture;
 
 		// captureOrPawnPromotion : moveが駒を捕獲する指し手もしくは歩を成る手であるか
 		// doFullDepthSearch	: LMRのときにfail highが起きるなどしたので元の残り探索深さで探索することを示すフラグ
@@ -1302,7 +1303,7 @@ namespace {
 		// singularQuietLMR     : QuietLMRのsingular延長をするフラグ
 		// noLMRExtension		: LMR延長をしないフラグ
 		bool captureOrPawnPromotion, doFullDepthSearch, moveCountPruning,
-			ttCapture, singularQuietLMR , noLMRExtension;
+			 ttCapture, singularQuietLMR , noLMRExtension;
 
 		// moveによって移動させる駒
 		Piece movedPiece;
@@ -1466,8 +1467,6 @@ namespace {
 
 		if (!excludedMove)
 			ss->ttPv = PvNode || (ss->ttHit && tte->is_pv());
-
-		formerPv = ss->ttPv && !PvNode;
 
 	    // Update low ply history for previous move if we are near root and position is or has been in PV
 		// もし、root付近で局面がPVである場合、直前の指し手に対するlow ply historyを更新する
@@ -1805,11 +1804,11 @@ namespace {
 		//  evalの見積りがbetaを超えているので1手パスしてもbetaは超えそう。
 		if (!PvNode
 			&& (ss - 1)->currentMove != MOVE_NULL
-			&& (ss - 1)->statScore < PARAM_NULL_MOVE_MARGIN0/*22977*/
+			&& (ss - 1)->statScore < PARAM_NULL_MOVE_MARGIN0/*23767*/
 			&&  eval >= beta
 			&&  eval >= ss->staticEval
-			&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 /*30*/ * depth - PARAM_NULL_MOVE_MARGIN2 /*28*/ * improving
-									+ PARAM_NULL_MOVE_MARGIN3 /*84*/ * ss->ttPv + PARAM_NULL_MOVE_MARGIN4/*168*/
+			&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 /*20*/ * depth - PARAM_NULL_MOVE_MARGIN2 /*22*/ * improving
+									+ PARAM_NULL_MOVE_MARGIN3 /*168*/ * ss->ttPv + PARAM_NULL_MOVE_MARGIN4/*177*/
 			&& !excludedMove
 			//		&&  pos.non_pawn_material(us)  // これ終盤かどうかを意味する。将棋でもこれに相当する条件が必要かも。
 			&& (ss->ply >= thisThread->nmpMinPly || us != thisThread->nmpColor)
@@ -1819,8 +1818,8 @@ namespace {
 			ASSERT_LV3(eval - beta >= 0);
 
 			// 残り探索深さと評価値によるnull moveの深さを動的に減らす
-			Depth R = ((PARAM_NULL_MOVE_DYNAMIC_ALPHA/*1015*/ + PARAM_NULL_MOVE_DYNAMIC_BETA/*85*/ * depth) / 256
-				+ std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA/*191*/, 3));
+			Depth R = std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA/*205*/, 3) +
+					  (PARAM_NULL_MOVE_DYNAMIC_ALPHA/*1024*/ + PARAM_NULL_MOVE_DYNAMIC_BETA/*85*/ * depth) / 256;
 
 			ss->currentMove = MOVE_NULL;
 			// null moveなので、王手はかかっていなくて駒取りでもない。
@@ -1867,7 +1866,7 @@ namespace {
 		// -----------------------
 
 		// probCutに使うbeta値。
-		probCutBeta = beta + PARAM_PROBCUT_MARGIN1/*194*/ - PARAM_PROBCUT_MARGIN2/*49*/ * improving;
+		probCutBeta = beta + PARAM_PROBCUT_MARGIN1/*209*/ - PARAM_PROBCUT_MARGIN2/*44*/ * improving;
 
 		// ProbCut(王手のときはスキップする)
 
@@ -1983,6 +1982,7 @@ namespace {
 			&& !ttMove)
 			depth -= 2;
 
+		// When in check, search starts here
 		// 王手がかかっている局面では、探索はここから始まる。
 	moves_loop:
 
@@ -1991,6 +1991,24 @@ namespace {
 		// do_move()で行っている評価関数はこの限りではないが、NNUEでも
 		// このタイミングで呼び出したほうが高速化するようなので呼び出す。
 		Eval::evaluate_with_no_return(pos);
+
+		// 置換表の指し手がcaptureOrPromotionであるか。
+		// 置換表の指し手がcaptureOrPromotionなら高い確率でこの指し手がベストなので、他の指し手を
+		// そんなに読まなくても大丈夫。なので、このnodeのすべての指し手のreductionを増やす。
+
+		ttCapture = ttMove && pos.capture_or_pawn_promotion(ttMove);
+
+		// -----------------------
+		// Step 11. A small Probcut idea, when we are in check
+		// -----------------------
+
+		// TODO : あとで書く。
+
+
+
+		// -----------------------
+		// moves loopに入る前の準備
+		// -----------------------
 
 		// continuationHistory[0]  = Counter Move History    : ある指し手が指されたときの応手
 		// continuationHistory[1]  = Follow up Move History  : 2手前の自分の指し手の継続手
@@ -2006,28 +2024,25 @@ namespace {
 		Move countermove = thisThread->counterMoves[prevSq][prevPc];
 
 		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory,
-			&thisThread->lowPlyHistory,
-			&captureHistory,
-			contHist,
-			countermove,
-			ss->killers,
-			ss->ply);
+										  &thisThread->lowPlyHistory,
+										  &captureHistory,
+										  contHist,
+										  countermove,
+										  ss->killers,
+										  ss->ply);
+
 
 		value = bestValue;
 
 		singularQuietLMR = moveCountPruning = noLMRExtension = false;
 
-		// 置換表の指し手がcaptureOrPromotionであるか。
-		// 置換表の指し手がcaptureOrPromotionなら高い確率でこの指し手がベストなので、他の指し手を
-		// そんなに読まなくても大丈夫。なので、このnodeのすべての指し手のreductionを増やす。
-
-		ttCapture = ttMove && pos.capture_or_pawn_promotion(ttMove);
-
-		// -----------------------
-		// Step 11. A small Probcut idea, when we are in check
-		// -----------------------
-
-		// TODO : あとで書く。
+		// Indicate PvNodes that will probably fail low if the node was searched
+		// at a depth equal or greater than the current depth, and the result of this search was a fail low.
+		// ノードが現在のdepth以上で探索され、fail lowである時に、PvNodeがfail lowしそうであるかを示すフラグ。
+		bool likelyFailLow =   PvNode
+							&& ttMove
+							&& (tte->bound() & BOUND_UPPER)
+							&& tte->depth() >= depth;
 
 
 		// -----------------------
@@ -2226,8 +2241,8 @@ namespace {
 				// null window searchするときに大きなコストを伴いかねないから。)
 			{
 				// このmargin値は評価関数の性質に合わせて調整されるべき。
-				Value singularBeta = ttValue - ((formerPv + PARAM_SINGULAR_MARGIN/*4*/ ) * depth) / 2;
-				Depth singularDepth = (depth - 1 + 3 * formerPv) / 2;
+				Value singularBeta = ttValue - PARAM_SINGULAR_MARGIN/* == 3 * 256 */* depth / 256;
+				Depth singularDepth = (depth - 1) / 2;
 
 				// move(ttMove)の指し手を以下のsearch()での探索から除外
 
@@ -2375,19 +2390,19 @@ namespace {
 				if (thisThread->ttHitAverage.is_greater(537, 1024))
 					r--;
 
-				// Decrease reduction if position is or has been on the PV (~10 Elo)
-				// この局面がPV上であるならreductionを減らす
-				if (ss->ttPv)
+				// Decrease reduction if position is or has been on the PV
+				// and node is not likely to fail low. (~3 Elo)
+				// この局面がPV上にあり、fail lowしそうであるならreductionを減らす
+				// (fail lowしてしまうとまた探索をやりなおさないといけないので)
+				if (   ss->ttPv
+					&& !likelyFailLow)
 					r -= 2 ;
 
 				// Increase reduction at root and non-PV nodes when the best move does not change frequently
 				// best moveが頻繁に変更されていないならば局面が安定しているのだろうから、rootとnon-PVではreductionを増やす。
-				if ((rootNode || !PvNode) && thisThread->rootDepth > 10 && thisThread->bestMoveChanges <= 2)
+				if (   (rootNode || !PvNode)
+					&& thisThread->bestMoveChanges <= 2)
 						r++;
-
-				// More reductions for late moves if position was not in previous PV
-				if (moveCountPruning && !formerPv)
-					r++;
 
 				// Decrease reduction if opponent's move count is high (~5 Elo)
 				// 相手の指し手(1手前の指し手)のmove countが高い場合、reduction量を減らす。
@@ -2413,11 +2428,11 @@ namespace {
 				if (cutNode && move != ss->killers[0])
 					r += 2;
 
-				// Increase reduction if ttMove is a capture (~5 Elo)
+				// Increase reduction if ttMove is a capture (~3 Elo)
 				// 【計測資料 3.】置換表の指し手がcaptureのときにreduction量を増やす。
 
 				if (ttCapture)
-					r ++;
+					r++;
 
 				// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
 				// contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？

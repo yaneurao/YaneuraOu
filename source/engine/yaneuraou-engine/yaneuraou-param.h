@@ -151,13 +151,13 @@ PARAM_DEFINE PARAM_PROBCUT_DEPTH = 4;
 // probcutのmargin
 //    式 = beta + PARAM_PROBCUT_MARGIN1 - improving * PARAM_PROBCUT_MARGIN2
 //   improvingの効果怪しいので抑え気味にしておく。
-// 元の値 = 194
+// 元の値 = 209
 // [PARAM] min:100,max:300,step:3,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 194;
+PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 209;
 
-// 元の値 = 49 , step = 5
+// 元の値 = 44 , step = 5
 // [PARAM] min:20,max:80,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 49;
+PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 44;
 
 
 //
@@ -171,10 +171,10 @@ PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 49;
 // [PARAM] min:4,max:13,step:1,interval:2,time_rate:1,fixed
 PARAM_DEFINE PARAM_SINGULAR_EXTENSION_DEPTH = 7;
 
-// singular extensionのmarginを計算するときの係数
-// 元の値 = 4 , step = 1
-// [PARAM] min:0,max:10,step:1,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_SINGULAR_MARGIN = 4;
+// singular extensionのmarginを計算するときの係数(Stockfishのコードから256倍にscalingしてある)
+// 元の値 = 768 , step = 1
+// [PARAM] min:0,max:1024,step:1,interval:32,time_rate:1,fixed
+PARAM_DEFINE PARAM_SINGULAR_MARGIN = 768;
 
 
 //
