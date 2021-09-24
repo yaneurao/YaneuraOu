@@ -123,16 +123,6 @@ void ThreadPool::set(size_t requested)
 		// 　　isreadyの応答でやるべき。
 
 		//TT.resize(size_t(Options["USI_Hash"]));
-
-
-		// Init thread number dependent search params.
-		// スレッド数に依存する探索パラメーターの初期化
-
-		// →　Stockfish 12との互換性を保つために一応呼び出しておくが、
-		// 　　こんなところで初期化せずに、isreadyの応答として初期化すべきだと思う。
-
-		Search::init();
-
 	}
 
 #if defined(EVAL_LEARN)

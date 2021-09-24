@@ -387,6 +387,9 @@ enum Value: int32_t
 {
 	VALUE_ZERO = 0,
 
+	// 引き分け時のスコア(千日手のスコアリングなどで用いる)
+	VALUE_DRAW = 0,
+
 	// 0手詰めのスコア(rootで詰んでいるときのscore)
 	// 例えば、3手詰めならこの値より3少ない。
 	VALUE_MATE = 32000,

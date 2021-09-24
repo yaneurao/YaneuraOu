@@ -25,12 +25,14 @@ namespace Search {
 		Move excludedMove;			// singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手
 		Move killers[2];			// killer move
 		Value staticEval;			// 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
+		Depth depth;				// 残り探索深さ。
 		int statScore;				// 一度計算したhistoryの合計値をcacheしておくのに用いる。
 		int moveCount;				// このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
 
 		bool inCheck;				// この局面で王手がかかっていたかのフラグ
 		bool ttPv;					// 置換表にPV nodeで調べた値が格納されていたか(これは価値が高い)
 		bool ttHit;					// 置換表にhitしたかのフラグ
+		int doubleExtensions;		// 二重に延長したのかのフラグ
 	};
 #endif
 

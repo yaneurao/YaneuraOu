@@ -30,7 +30,7 @@
 //
 
 // 深さに比例したfutility pruning
-// 元の値 = 224 , step = 20
+// 元の値 = 214 , step = 20
 // [PARAM] min:100,max:300,step:3,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 186;
 
@@ -79,15 +79,15 @@ PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 218;
 
 
 // Reductionの計算式に出てくる定数
-// 元の値 = 503 ,step = 16
+// 元の値 = 534 ,step = 16
 // [PARAM] min:0,max:1024,step:3,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_REDUCTION_ALPHA = 477;
 
 // Reductionの計算式に出てくる定数
 // このパラメーター怖くて調整できない。
-// 元の値 = 915 , step = 128
+// 元の値 = 904 , step = 128
 // [PARAM] min:600,max:1500,step:128,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_BETA = 915;
+PARAM_DEFINE PARAM_REDUCTION_BETA = 904;
 
 //
 // null move dynamic pruning
@@ -189,9 +189,9 @@ PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 4;
 
 
 // historyの値によってreductionするときの係数
-// 元の値 = 5278 , step = 500
+// 元の値 = 4923 , step = 500
 // [PARAM] min:2000,max:8000,step:250,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 4828;
+PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 4923;
 
 
 //

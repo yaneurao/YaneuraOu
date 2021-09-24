@@ -141,15 +141,15 @@ public:
 	// →　この改造、レーティングがほぼ上がっていない。悪い改造のような気がする。
 	ContinuationHistory continuationHistory[2][2];
 
-	// 探索で組合せ爆発を制御する時の指標として用いる。
-	Value trend;
 #endif
 
 	// Stockfish10ではスレッドごとにcontemptを保持するように変わった。
 	//Score contempt;
 
-	// 反復深化のループで何度fail highしたかのカウンター
-	int failedHighCnt;
+	// trendは千日手を受け入れるスコア。動的に変更する。(dynamic contempt)
+	// 勝ってるほうは千日手にはしたくないし、負けてるほうは千日手やむなしという…。
+	//Value trend;
+	// →　やねうら王ではこの値、使わないことにする。
 
 	// ------------------------------
 	//   やねうら王、独自追加
