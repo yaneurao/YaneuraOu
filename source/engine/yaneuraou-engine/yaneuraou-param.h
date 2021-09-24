@@ -238,12 +238,6 @@ PARAM_DEFINE PARAM_QSEARCH_FORCE_EVAL = 0;
 PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 17;
 
 
-
-// 評価関数での手番の価値
-// 元の値 = 20 , step = 2
-// [PARAM] min:10,max:50,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_EVAL_TEMPO = 20;
-
 // MovePickerの quietのvalue計算用の係数
 
 

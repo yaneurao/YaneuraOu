@@ -1387,8 +1387,8 @@ namespace {
 			// そこで、alpha , betaの値をまずこの範囲に補正したあと、
 			// alphaがbeta値を超えているならbeta cutする。
 
-			alpha = std::max(mated_in(ss->ply), alpha);
-			beta = std::min(mate_in(ss->ply + 1), beta);
+			alpha = std::max(mated_in(ss->ply    ), alpha);
+			beta  = std::min(mate_in (ss->ply + 1), beta );
 			if (alpha >= beta)
 				return alpha;
 		}
@@ -1658,10 +1658,10 @@ namespace {
 		}
 
 		// -----------------------
-		// Step 6. Evaluate the position statically
+		// Step 6. Static evaluation of the position
 		// -----------------------
 
-		//  局面を評価値によって静的に評価
+		//  局面の静的な評価
 
 		CapturePieceToHistory& captureHistory = thisThread->captureHistory;
 
@@ -1719,7 +1719,7 @@ namespace {
 			if ((ss - 1)->currentMove != MOVE_NULL)
 				ss->staticEval = eval = evaluate(pos);
 			else
-				ss->staticEval = eval = -(ss - 1)->staticEval + 2 * PARAM_EVAL_TEMPO;
+				ss->staticEval = eval = -(ss - 1)->staticEval;
 				// 手番の価値、PARAM_EVAL_TEMPOと仮定している。
 				// 将棋では終盤の手番の価値があがるので、ここは進行度に比例する値にするだとか、
 				// 評価関数からもらうだとか何とかしたほうがいい気はする。
@@ -1727,7 +1727,12 @@ namespace {
 	        // Save static evaluation into transposition table
 			// 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
 			// ※　bonus分だけ加算されているが静止探索の値ということで…。
-			tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
+			//
+			// また、excludedMoveがある時は、これを置換表に保存するのは危ない。
+			// cf . Add / remove leaves from search tree ttPv : https://github.com/official-stockfish/Stockfish/commit/c02b3a4c7a339d212d5c6f75b3b89c926d33a800
+
+			if (!excludedMove)
+				tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
 
 			// どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないのだが、mate1ply()を
 			// 実行したという証にはなるので意味がある。
@@ -1744,7 +1749,7 @@ namespace {
 
 		if (is_ok((ss-1)->currentMove) && !(ss-1)->inCheck && !priorCapture)
 		{
-			int bonus = std::clamp(-depth * 4 * int((ss-1)->staticEval + ss->staticEval - 2 * PARAM_EVAL_TEMPO), -1000, 1000);
+			int bonus = std::clamp(-depth * 4 * int((ss-1)->staticEval + ss->staticEval), -1000, 1000);
 			thisThread->mainHistory[from_to((ss-1)->currentMove)][~us] << bonus;
 		}
 
@@ -2716,6 +2721,7 @@ namespace {
 
 		// PV nodeであるか。
 		// ※　ここがRoot nodeであることはないので、そのケースは考えなくて良い。
+		static_assert(nodeType != Root);
 		constexpr bool PvNode = nodeType == PV;
 
 		ASSERT_LV3(-VALUE_INFINITE <= alpha && alpha < beta && beta <= VALUE_INFINITE);
@@ -2915,7 +2921,7 @@ namespace {
 					// Stockfish相当のコード
 					ss->staticEval = bestValue =
 						(ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
-														   : -(ss - 1)->staticEval + 2 * PARAM_EVAL_TEMPO;
+														   : -(ss - 1)->staticEval;
 
 				} else {
 
@@ -2973,6 +2979,13 @@ namespace {
 		{
 			// MovePickerで生成された指し手はpseudo_legalであるはず。
 			ASSERT_LV3(pos.pseudo_legal(move));
+
+			// Check for legality
+			// 指し手の合法性の判定は直前まで遅延させたほうが得だと思われていたのだが
+			// (これが非合法手である可能性はかなり低いので他の判定によりskipされたほうが得)
+			// Stockfish14から、静止探索でも、早い段階でlegal()を呼び出すようになった。
+			if (!pos.legal(move))
+				continue;
 
 			// -----------------------
 			//  局面を進める前の枝刈り
@@ -3054,14 +3067,6 @@ namespace {
 			//     局面を1手進める
 			// -----------------------
 
-			// 指し手の合法性の判定は直前まで遅延させたほうが得。
-			// (これが非合法手である可能性はかなり低いので他の判定によりskipされたほうが得)
-			if (!pos.legal(move))
-			{
-				moveCount--;
-				continue;
-			}
-
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
 
@@ -3071,7 +3076,7 @@ namespace {
 																	  [pos.moved_piece_after(move)];
 
 
-			// MoveCountベースの枝刈り
+			// Continuation historyベースの枝刈り
 			// ※ Stockfish12でqsearch()にも導入された。
 			// 成りは歩だけに限定してあるが、これが適切かどうかはよくわからない。(大抵計測しても誤差ぐらいでしかない…)
 			if (!captureOrPawnPromotion
@@ -3226,8 +3231,8 @@ namespace {
 		PieceType captured = type_of(pos.piece_on(to_sq(bestMove)));
 
 		bonus1 = stat_bonus(depth + 1);
-		bonus2 = bestValue > beta + PawnValue ? bonus1               // larger bonus
-			: stat_bonus(depth);   // smaller bonus
+		bonus2 = bestValue > beta + PawnValue ? bonus1								// larger bonus
+											  : std::min(bonus1,stat_bonus(depth));	// smaller bonus
 
 		if (!pos.capture_or_promotion(bestMove))
 		{
