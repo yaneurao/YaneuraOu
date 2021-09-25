@@ -80,7 +80,7 @@ PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 218;
 // Reductionの計算式に出てくる定数
 // 元の値 = 534 ,step = 16
 // [PARAM] min:0,max:1024,step:3,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_ALPHA = 477;
+PARAM_DEFINE PARAM_REDUCTION_ALPHA = 534;
 
 // Reductionの計算式に出てくる定数
 // このパラメーター怖くて調整できない。

@@ -32,7 +32,7 @@ namespace Search {
 		bool inCheck;				// この局面で王手がかかっていたかのフラグ
 		bool ttPv;					// 置換表にPV nodeで調べた値が格納されていたか(これは価値が高い)
 		bool ttHit;					// 置換表にhitしたかのフラグ
-		int doubleExtensions;		// 二重に延長したのかのフラグ
+		int doubleExtensions;		// 前のノードで延長した手数と今回のノードで延長したか手数を加算した値
 	};
 #endif
 
