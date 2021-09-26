@@ -15,8 +15,6 @@ namespace USI {
 	// 入玉ルールのUSI文字列
 	std::vector<std::string> ekr_rules = { "NoEnteringKing", "CSARule24" , "CSARule24H" , "CSARule27" , "CSARule27H", "TryRule" };
 
-	void read_engine_options();
-
 	// USIプロトコルで必要とされるcase insensitiveな less()関数
 	bool CaseInsensitiveLess::operator() (const string& s1, const string& s2) const {
 
@@ -183,7 +181,7 @@ namespace USI {
 		USI::extra_option(o);
 
 		// カレントフォルダに"engine_options.txt"があればそれをオプションとしてOptions[]の値をオーバーライドする機能。
-		read_engine_options();
+		read_engine_options("engine_options.txt");
 	}
 
 	std::ostream& operator<<(std::ostream& os, const OptionsMap& om)
@@ -327,48 +325,75 @@ namespace USI {
 	// "option name USI_Hash type spin default 256"
 	// のような文字列が引数として渡される。
 	// このとき、Optionのhandlerとidxは書き換えない。
-	void build_option(string line)
+	void build_option(std::string line)
 	{
 		Parser::LineScanner scanner(line);
-		if (scanner.get_text() != "option") return;
-
-		string name, value, option_type;
-		int64_t min_value = 0, max_value = 1;
-		std::vector<string> combo_list;
-		while (!scanner.eol())
+		string token0 = scanner.get_text();
+		if (token0 != "option")
 		{
-			auto token = scanner.get_text();
-			if (token == "name") name = scanner.get_text();
-			else if (token == "type") option_type = scanner.get_text();
-			else if (token == "default") value = scanner.get_text();
-			else if (token == "min") min_value = stoll(scanner.get_text());
-			else if (token == "max") max_value = stoll(scanner.get_text());
-			else if (token == "var") {
-				auto varText = scanner.get_text();
-				combo_list.push_back(varText);
-			}
-			else {
-				std::cout << "Error : invalid command: " << token << std::endl;
-			}
-		}
+			// 空行は無視
+			if (token0 == "")
+				return;
 
-		if (Options.count(name) != 0)
-		{
-			// typeに応じたOptionの型を生成して代入する。このときに "<<"を用いるとidxが変わってしまうので overwriteで代入する。
-			if (option_type == "check") Options[name].overwrite(Option(value == "true"));
-			else if (option_type == "spin") Options[name].overwrite(Option(stoll(value), min_value, max_value));
-			else if (option_type == "string") Options[name].overwrite(Option(value.c_str()));
-			else if (option_type == "combo") Options[name].overwrite(Option(combo_list, value));
+			// エンジンオプション名と値だけを指定する形式で書かれているのかも知れない。
+			// 既存のオプションの値のoverrideがしたいのだろう。
+
+			auto it = Options.find(token0);
+			if (it == Options.end())
+			{
+				// 違うのか。何の形式で書こうとしているのだろうか…。
+				std::cout << "Error : option name not found : " << token0 << std::endl;
+				return;
+			}
+
+			// オプション設定の強制的な置換
+			// min = max = default = この値　になる。
+			auto param = scanner.get_text();
+			Options[token0].overwrite(param);
+
+			sync_cout << "info string engine option override. name = " << token0 << " , value = " << param << sync_endl;
 		}
-		else
-			std::cout << "Error : option name not found : " << name << std::endl;
+		else {
+
+			string name, value, option_type;
+			int64_t min_value = 0, max_value = 1;
+			std::vector<string> combo_list;
+			while (!scanner.eol())
+			{
+				string token = scanner.get_text();
+				if      (token == "name"   ) name = scanner.get_text();
+				else if (token == "type"   ) option_type = scanner.get_text();
+				else if (token == "default") value = scanner.get_text();
+				else if (token == "min"    ) min_value = stoll(scanner.get_text());
+				else if (token == "max"    ) max_value = stoll(scanner.get_text());
+				else if (token == "var"    ) {
+					auto varText = scanner.get_text();
+					combo_list.push_back(varText);
+				}
+				else {
+					std::cout << "Error : invalid command: " << token << std::endl;
+				}
+			}
+
+			if (Options.count(name) != 0)
+			{
+				// typeに応じたOptionの型を生成して代入する。このときに "<<"を用いるとidxが変わってしまうので overwriteで代入する。
+				if      (option_type == "check" ) Options[name].overwrite(Option(value == "true"));
+				else if (option_type == "spin"  ) Options[name].overwrite(Option(stoll(value), min_value, max_value));
+				else if (option_type == "string") Options[name].overwrite(Option(value.c_str()));
+				else if (option_type == "combo" ) Options[name].overwrite(Option(combo_list, value));
+			}
+			else
+				std::cout << "Error : option name not found : " << name << std::endl;
+		}
 
 	}
 
-	// カレントフォルダに"engine_options.txt"があればそれをオプションとしてOptions[]の値をオーバーライドする機能。
-	void read_engine_options()
+	// カレントフォルダに"engine_options.txt"(これは引数で指定されている)が
+	// あればそれをオプションとしてOptions[]の値をオーバーライドする機能。
+	void read_engine_options(const string& filename)
 	{
-		std::ifstream ifs("engine_options.txt");
+		std::ifstream ifs(filename);
 		if (!ifs.fail())
 		{
 			std::string str;
@@ -392,6 +417,34 @@ namespace USI {
 		// restore
 		idx = idx_;
 		this->on_change = fn;
+
+		// 値が書き換わったならハンドラを呼び出してやる。
+		if (modified && fn)
+			fn(*this);
+	}
+
+	// min = max = default = paramになる上書き
+	void Option::overwrite(const std::string& param)
+	{
+		// 値が書き換わるのか？
+		bool modified = this->currentValue != param;
+		auto fn = this->on_change;
+
+		if (modified)
+		{
+			this->currentValue = this->defaultValue = param;
+			if (type == "spin")
+				min = max = stoll(param);
+			else if (type == "check")
+				min = max = param == "true";
+			else if (type == "combo")
+			{
+				list.clear();
+				list.emplace_back(param);
+			}
+			// else if (type == "string")
+			//	; // do_nothing
+		}
 
 		// 値が書き換わったならハンドラを呼び出してやる。
 		if (modified && fn)

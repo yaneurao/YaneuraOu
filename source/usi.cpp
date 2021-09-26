@@ -301,6 +301,10 @@ u64 eval_sum;
 // 局面は初期化されないので注意。
 void is_ready(bool skipCorruptCheck)
 {
+	// EvalDirにある"eval_options.txt"を読み込む。
+	// ここに評価関数に応じた設定を書いておくことができる。
+
+	USI::read_engine_options(Path::Combine(Options["EvalDir"], "eval_options.txt"));
 
 	// --- Keep Alive的な処理 ---
 

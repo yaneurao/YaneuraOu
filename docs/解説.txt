@@ -517,10 +517,29 @@ GUIで連続対局をさせる場合など、エンジン名として任意の�
 "usi"に対して応答として返している文字列なので、コマンドプロンプト上でエンジンを
 実行して、"usi"とタイプして、返ってきた文字列一覧をコピペして編集すると良い)
 
-例)
+例1)
 option name EvalDir type string default ../eval/YaneuraOu_2018
 option name EvalShare type check default true
 option name BookDir type string default ../book
+
+また、エンジンオプション名 のあとにデフォルト値だけ書くこともできます。
+
+例2)
+EvalDir ../eval/YaneuraOu_2018
+BookMoves 16
+
+// この場合、BookMovesの最小値 = 最大値 = default値 = 16となります。
+// minとmaxが同じ値なのでGUI側から値の変更はできません。
+
+
+■　評価関数ファイルに応じたエンジンオプション
+
+評価関数ファイルに応じて、エンジンオプションを調整しないといけないことがあり、
+どの評価関数ファイルがどの設定値であるかわからなくなることがあります。
+
+そこで、EvalDirオプションで指定されているフォルダのなかにある
+"eval_options.txt"というファイルを"isready"コマンドが送られてきた時(評価関数を読み込む直前)に
+読み込みに行くようになっています。
 
 
 ■　Aperyの定跡DB / まふ定跡の読み込みについて

@@ -79,6 +79,11 @@ namespace USI
 		// コマンド文字列からOptionのインスタンスを構築する時にこの機能が必要となる。
 		void overwrite(const Option&);
 
+		// 既存のOptionの上書き。
+		// min = max = default = param になる。
+		void overwrite(const std::string& param);
+
+
 	private:
 		friend std::ostream& operator<<(std::ostream& os, const OptionsMap& om);
 
@@ -157,6 +162,11 @@ namespace USI
 	// 入玉ルール文字列をEnteringKingRule型に変換する。
 	extern EnteringKingRule to_entering_king_rule(const std::string& rule);
 #endif
+
+	// エンジンオプションのoverrideのためにファイルから設定を読み込む。
+	// 1) これは起動時に"engine_options.txt"という設定ファイルを読み込むのに用いる。
+	// 2) "isready"応答に対して、EvalDirのなかにある"eval_options.txt"という設定ファイルを読み込むのにも用いる。
+	extern void read_engine_options(const std::string& filename);
 
 	// namespace USI内のUnitTest。
 	extern void UnitTest(Test::UnitTester& tester);
