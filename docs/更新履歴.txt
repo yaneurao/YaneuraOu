@@ -2,7 +2,242 @@
 やねうら王 更新履歴
 
 
+■　2021/09/27 V6.50
+
+- V6.50
+
+- やねうら王探索部、V6.05から短い時間で+R50程度強くなった。
+
+engine1 = YaneuraOu2018NNUE_V605.exe , eval = suishou_wcso1
+engine2 = YaneuraOu2018NNUE_V650.exe , eval = suishou_wcso1
+T2,b1000,1233 - 86 - 1681(42.31% R-53.84[-64.55,-43.13]) winrate black , white = 51.48% , 48.52%
+T2,b2000,1329 - 137 - 1534(46.42% R-24.92[-35.63,-14.21]) winrate black , white = 50.96% , 49.04%
+T2,b4000,734 - 73 - 853(46.25% R-26.1[-40.48,-11.72]) winrate black , white = 52.61% , 47.39%
+
+V6.50で水匠4を超えているらしい。
+
+https://twitter.com/tayayan_ts/status/1442104187601375233
+
+最近本家やねうら王の開発が進んでいるのはご存じでしょうか！（やる気なしツイートは何だったのか…笑）
+既に水匠4改同梱の探索部を超えた強さになっているようなので、導入できる方はご検討ください！
+参考(4T1手200万ノード)：
+YO6.03kai2(水匠4改同梱) vs YO6.05最新
+1256-299-1332(勝率48.53%)
+
+- "engine_options.txt"、オプション名と設定値をそのまま書けるようにした。
+- "eval_options.txt"の読み込み対応。(docs/解説.txt に説明がある)
+- GenerateAllLegalMovesオフの時に定跡で不成の指し手にhitすると定跡にhitしない扱いにしてたの修正。
+- 定跡DBに非合法手がある時、それをエラーとして出力するようにした。
+- etc..
+
+
+■　2021/09/26
+
+
+- エンジンオプションのEvalDirで指定されたフォルタにある"eval_options.txt"でエンジン設定を読み込めるように。
+- "engine_options.txt"で↓の例2の形式でも設定できるように。
+
+// ↓説明を解説.txtに追加。
+
+ ■　エンジンオプションのデフォルト値の変更
+
+"usi"に対して返すオプションリストのオプションのデフォルト値を変更する機能
+カレントフォルダに"engine_options.txt"というファイルを配置して、
+ここにOptionを構築するための文字列を書きます。(この"option"で始まる文字列は、
+"usi"に対して応答として返している文字列なので、コマンドプロンプト上でエンジンを
+実行して、"usi"とタイプして、返ってきた文字列一覧をコピペして編集すると良い)
+
+例1)
+option name EvalDir type string default ../eval/YaneuraOu_2018
+option name EvalShare type check default true
+option name BookDir type string default ../book
+
+また、エンジンオプション名 のあとにデフォルト値だけ書くこともできます。
+
+例2)
+EvalDir ../eval/YaneuraOu_2018
+BookMoves 16
+
+// この場合、BookMovesの最小値 = 最大値 = default値 = 16となります。
+// minとmaxが同じ値なのでGUI側から値の変更はできません。
+
+
+ ■　評価関数ファイルに応じたエンジンオプション
+
+評価関数ファイルに応じて、エンジンオプションを調整しないといけないことがあり、
+どの評価関数ファイルがどの設定値であるかわからなくなることがあります。
+
+そこで、EvalDirオプションで指定されているフォルダのなかにある
+"eval_options.txt"というファイルを"isready"コマンドが送られてきた時(評価関数を読み込む直前)に
+読み込みに行くようになっています。
+
+
+■　2021/09/25
+
+
+- LMRの条件中のmove countの計算式修正。
+
+- PARAM_REDUCTION_ALPHAの値、Stockfishの値にいったん戻す。
+
+- 探索部のコメント、Stockfishのものもコピペして貼り付けておく。
+	// 元のコードとの対応がわかりやすくなる。
+
+- 探索部、コメントの誤りをいくつか修正。
+
+
+- 静的評価に基づく王手延長
+	- Check Extension with Static Evaluation : https://github.com/official-stockfish/Stockfish/commit/e8418bb1b92800550264b9a4993f51208f8fe681
+
+- doubleExtensionsの値を更新してなかったの修正。
+
+- continuation_historiesのupdate、詰みの時は、PvNodeかcutNodeならボーナスを2倍する。
+	- Further improve history updates : https://github.com/official-stockfish/Stockfish/commit/b7b6b4ba18bc9d291c2c2fd300c22a3e008dcbb2
+
+- captureと成りを延長する
+	Extend captures and promotions : https://github.com/official-stockfish/Stockfish/commit/e404a7d97c94890dda18ca3a16cfd15b5a7ef235
+
+- PARAM_FUTILITY_AT_PARENT_NODE_DEPTHを7から8に変更。
+
+- root nodeでsingular延長していたの修正。
+
+- Pruning at shallow depthのreorder
+	- Reorder conditions in LMR and pruning : https://github.com/official-stockfish/Stockfish/commit/2c1be0be8ec51005befcd4fc422e88b6e32cef45
+	- 並び替えただけなので棋力に影響はないはず。
+
+- SEEの単純化
+	- SEE simplification : https://github.com/official-stockfish/Stockfish/commit/a1a83f38691ae3f39c827a46e59ae9875605aa3b
+
+- 探索部のコメントに書いてあるEloの上昇値を修正
+	- Update Elo estimates for terms in search : https://github.com/official-stockfish/Stockfish/commit/114ddb789bed2d74d6a786f5da6c9ce63d44de27
+
+- TTでないときのCutNodeのdepthを減らす。
+	- Decrease depth for cutnodes with no tt move : https://github.com/official-stockfish/Stockfish/commit/30fdbf43283eb0d2f8e5ca325877d3e514758804
+
+- ProbCutでmoveがTTの指し手である場合の枝刈り削除
+
+-  王手がかかっているときのprobcut導入
+	- Introduce ProbCut for check evasions : https://github.com/official-stockfish/Stockfish/commit/7c30091a92abddb8265e53768b32751c49642040
+
+
+
+- rootでのbestmoveが不安定であるときに思考時間を増やす。
+	- Make extra time for bestMoveInstability dependent on rootdepth. : https://github.com/official-stockfish/Stockfish/commit/9353e72103d4dc4880506c2f54b6426cbd182450
+
+- null moveのmargin調整。
+	- Tuning Search : https://github.com/official-stockfish/Stockfish/commit/ff4c22238a199625cf7f02be1816b07fc49f5d45
+
+- ProbCutの定数調整。
+	- Search Parameters Tuning : https://github.com/official-stockfish/Stockfish/commit/29ed22de8cd347cacb0ba826ee43fa587985a98d
+
+- likelyFailLow導入
+	- Cleanup of likelyFailLow logic : https://github.com/official-stockfish/Stockfish/commit/d777ea79fff0f651bd948c881946cd06bebd9381
+	- Simplify LMR rules for statScore : https://github.com/official-stockfish/Stockfish/commit/c82f6f56a65759461f417602059ad7c97b9451aa
+
+- formerPv削除
+	- Remove formerPV variable. : https://github.com/official-stockfish/Stockfish/commit/95f73ff393e5b87b2a3b4195d698b6620fd4a123
+
+- LMRのnonPVのbestmoveが不安定なときのreduction条件変更。
+	- Small cleanups (march 2021) : https://github.com/official-stockfish/Stockfish/commit/83eac08e7562d93787f75eccd4b7781c4bd45dd3
+
+
+- excludedMoveがある時は、置換表にsaveしない。
+	- Add / remove leaves from search tree ttPv : https://github.com/official-stockfish/Stockfish/commit/c02b3a4c7a339d212d5c6f75b3b89c926d33a800
+
+- PARAM_EVAL_TEMPO、削除。
+
+	// 評価関数での手番の価値
+	// 元の値 = 20 , step = 2
+	// [PARAM] min:10,max:50,step:1,interval:1,time_rate:1,fixed
+	PARAM_DEFINE PARAM_EVAL_TEMPO = 20;
+
+	- Remove Tempo : https://github.com/official-stockfish/Stockfish/commit/754fc8a8b5ca7466926d54465eeb1df4d4a481ac
+	- 評価関数(NNUE)は手番込みの評価関数だから、相手番から見た評価値は単に符号を変更せよとのこと。
+
+- update_all_stats()の時のbonus2を変更。
+	- Search Parameters Tuning : https://github.com/official-stockfish/Stockfish/commit/29ed22de8cd347cacb0ba826ee43fa587985a98d
+
+engine1 = YaneuraOu2018NNUE_V605.exe , eval = suishou_wcso1
+engine2 = YaneuraOu2018NNUE_V605f.exe , eval = suishou_wcso1
+T2,b1000,1196 - 104 - 1530(43.87% R-42.78[-53.81,-31.76]) winrate black , white = 50.07% , 49.93%
+// ここまででV6.05から+R43ほどあがった模様。(短時間計測なので長時間だともっと？)
+
+
+
+■　2021/09/24
+
+
+- Reduction配列の初期値変更。
+	- Simplify Reductions Initialization : https://github.com/official-stockfish/Stockfish/commit/e47b74457ef12ff28ced317fef942cfad18b18a0
+	- スレッド数によってreductionの係数を変更するの、やる必要なかったようだ。
+	- スレッド数が変更になった時にvoid Search::init()を呼び出すのやめる。
+
+- Singluarの二重延長防止
+	- Detect search explosions : https://github.com/official-stockfish/Stockfish/commit/73018a03375b4b72ee482eb5a4a2152d7e4f0aac
+	- Tweak doubly singular condition (Topo's patch) : https://github.com/official-stockfish/Stockfish/commit/ff3fa0c664a5799e5531b0908018c59633d761bf
+
+- LMRの旧コード削除
+
+
+- やねうら王探索部にNodeTypeとしてRootを追加。
+	- Rootの時の条件分岐が不要になるのでわずかだがspeed upする。
+	- Introducing NodeType Root : https://github.com/official-stockfish/Stockfish/commit/0b7cc8bd2f5a51de9f911fcdfb253b1c9f513897
+
+- RunningAverage導入。
+	- Detect search explosions : https://github.com/official-stockfish/Stockfish/commit/73018a03375b4b72ee482eb5a4a2152d7e4f0aac
+
+- LMRにThreadベースのreduction導入。
+	- Thread based reduction tweak. : https://github.com/official-stockfish/Stockfish/commit/c0ff241464338f7e5bb815b4f72c2a95d12244a0
+
+- PV nodeではLMR reductionしない
+	- Reduce in LMR reduction on PvNode : https://github.com/official-stockfish/Stockfish/commit/999e142c548f61852ace7b8f025d71bc8a805e3c
+
+- stat_bonus調整
+	- Tuning Search : https://github.com/official-stockfish/Stockfish/commit/ff4c22238a199625cf7f02be1816b07fc49f5d45
+
+- Breadcrumb,ThreadHoldingのコード除去
+	- Remove coordination between searching threads : https://github.com/official-stockfish/Stockfish/commit/a0e2debe3f1d14f84984a9a2c1482dc41f695548
+
+- Learner::searchでlowPlyHistoryの初期化コード等が足りてなかったの修正。
+
+
+- aligned_large_pages_alloc() , WIN32用とAndroid用でビルドエラーになっていたの修正。
+
+
+- NNUEで使っているAlignedDeleter、LargeMemoryDeleterとrename。
+- NNUE LEARNがコンパイルエラーになっていたの修正。
+
+
+- MovePickerでのordering調整。
+	- QUIETSのscoring、continuationHistory[1],[3]に関しては2倍しないほうがいいらしい。
+		- Tune ordering of moves at internal nodes : https://github.com/official-stockfish/Stockfish/commit/6617ad6e033fc636e82453e121469f10e4f31a1a
+
+
+- Misc::LargeMemory、リファクタリング。
+	- NNUEのメモリ確保の方もコード整頓した。
+
+- Misc::start_logger()の引数をboolからconst string&に変更。
+	- Improve handling of the debug log file. : https://github.com/official-stockfish/Stockfish/commit/ccf0239bc468c1fb599785e0dea178e84279674d
+
+- TTのコード、定数値がmagic numberになっているのをconstexprでわかりやすくした。
+	- Better code for hash table generation : https://github.com/official-stockfish/Stockfish/commit/573f0e364ff4c1e5928be2ca947f65c5d4e177d5
+
+
+- goコマンドで思考するときに、定跡DBのその局面の非合法手に関してはエラー出力を行うようにした。
+
+
 ■　2021/09/19 V6.05
+
+
+- 定跡DB上に非合法手があると、その手を選択した場合、定跡にhitしなかった扱いになっていたが、非合法手は事前に除外してからbestmoveを選ぶように修正した。
+- 定跡DB上の非合法手、probe()した時にそれをエラーメッセージとして出力するようにした。
+
+- やはり、定跡上の歩の不成の指し手、GenerateAllLegalMovesがfalseならhitしないように変更。
+	- probeの時にそれを除外する処理を追加。
+
+- Position::legal()を用いて合法手判定をする時、これが連続王手の千日手を弾かないが、
+	定跡で連続王手の千日手の指し手があると指してしまう。
+	これは回避が難しいので、仕様であるものとする。
+	"position"コマンドでも千日手局面は弾かないし、この仕様は仕方ない意味はある。
 
 
 - V6.05
