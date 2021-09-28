@@ -4009,7 +4009,7 @@ namespace Learner
 				while (true)
 				{
 					Depth adjustedDepth = std::max(1, rootDepth - failedHighCnt);
-					bestValue = ::search<PV>(pos, ss, alpha, beta, adjustedDepth, false);
+					bestValue = ::search<Root>(pos, ss, alpha, beta, adjustedDepth, false);
 
 					stable_sort(rootMoves.begin() + pvIdx, rootMoves.end());
 					//my_stable_sort(pos.this_thread()->thread_id(),&rootMoves[0] + pvIdx, rootMoves.size() - pvIdx);
