@@ -219,6 +219,14 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 		th->nodes = th->bestMoveChanges = /* th->tbHits = */ th->nmpMinPly = 0;
 
 		th->rootDepth = th->completedDepth = 0;
+
+		// 以上の初期化、探索スレッド側でやるべきだと思うが、しかしth->nodesなどはmain threadが探索ノード数の
+		// 出力のために積算するので、main threadが積算する時にはすでに他のスレッドのth->nodesがゼロ初期化されている状態でないと
+		// おかしい値になってしまう。
+		// 
+		// そこで、main threadが開始する時点では、すべてのスレッドのスレッド初期化が完了していることを保証しなければならない。
+		// ゆえにここに書くしかないのである。
+
 		th->rootMoves = rootMoves;
 		th->rootPos.set(sfen, &th->rootState,th);
 		th->rootState = setupStates->back();

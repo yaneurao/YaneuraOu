@@ -89,10 +89,10 @@ void USI::extra_option(USI::OptionsMap & o)
 	o["DrawValueWhite"] << Option(-2, -30000, 30000);
 
 	//  PVの出力の抑制のために前回出力時間からの間隔を指定できる。
-	o["PvInterval"] << Option(300, 0, 100000);
+	o["PvInterval"]     << Option(300, 0, 100000);
 
 	// 投了スコア
-	o["ResignValue"] << Option(99999, 0, 99999);
+	o["ResignValue"]    << Option(99999, 0, 99999);
 
 #if 0
 	// nodes as timeモード。
@@ -691,12 +691,15 @@ SKIP_SEARCH:;
 
 // 探索スレッド用の初期化(探索部と学習部と共通)
 // やねうら王、独自拡張。
-void search_thread_init(Thread* th, Stack* ss)
+void search_thread_init(Thread* th, Stack* ss , Move pv[])
 {
 	// 先頭10個を初期化しておけば十分。そのあとはsearch()の先頭でss+1,ss+2を適宜初期化していく。
 	// RootNodeはss->ply == 0がその条件。
 	// ゼロクリアするので、ss->ply == 0となるので大丈夫…。
 	std::memset(ss - 7, 0, 10 * sizeof(Stack));
+
+	// 最善応手列(Principal Variation)
+	ss->pv = pv;
 
 	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
 	for (int i = 7; i > 0; i--)
@@ -721,9 +724,9 @@ void search_thread_init(Thread* th, Stack* ss)
 	th->doubleExtensionAverage[WHITE].set(0, 100);  // initialize the running average at 0%
 	th->doubleExtensionAverage[BLACK].set(0, 100);  // initialize the running average at 0%
 
-	th->nodesLastExplosive = th->nodes;
-	th->nodesLastNormal = th->nodes;
-	th->state = EXPLOSION_NONE;
+	th->nodesLastExplosive	= th->nodes;			// th->nodes == 0のはずだが…。
+	th->nodesLastNormal		= th->nodes;
+	th->state				= EXPLOSION_NONE;
 
 	// 千日手の時の動的なcontempt。これ、やねうら王では使わないことにする。
 	//th->trend = VALUE_ZERO;
@@ -774,9 +777,7 @@ void Thread::search()
 	int iterIdx = 0;
 
 	// 探索部、学習部のスレッドの共通初期化コード
-	search_thread_init(this,ss);
-
-	ss->pv = pv;
+	search_thread_init(this,ss,pv);
 
 	// 反復深化のiterationが浅いうちはaspiration searchを使わない。
 	// 探索窓を (-VALUE_INFINITE , +VALUE_INFINITE)とする。
@@ -3343,7 +3344,7 @@ namespace {
 		//		assert(v != VALUE_NONE);
 		ASSERT_LV3(-VALUE_INFINITE < v && v < VALUE_INFINITE);
 
-		return  v >= VALUE_TB_WIN_IN_MAX_PLY ? v + ply
+		return  v >= VALUE_TB_WIN_IN_MAX_PLY  ? v + ply
 			  : v <= VALUE_TB_LOSS_IN_MAX_PLY ? v - ply : v;
 	}
 
@@ -3814,7 +3815,7 @@ namespace Learner
 
 	// 学習のための初期化。
 	// Learner::search(),Learner::qsearch()から呼び出される。
-	void init_for_search(Position& pos, Stack* ss)
+	void init_for_search(Position& pos, Stack* ss , Move pv[], bool qsearch)
 	{
 
 		// Search::Limitsに関して
@@ -3854,27 +3855,30 @@ namespace Learner
 		{
 			auto th = pos.this_thread();
 
-			th->completedDepth = 0;
-			th->selDepth = 0;
-			th->rootDepth = 0;
-
-			// 探索ノード数のゼロ初期化
-			th->nodes = 0;
+			// 探索ノード数のゼロ初期化等。(threads.cppに書いてある初期化コードのコピペ)
+			th->nodes = th->bestMoveChanges = /* th->tbHits = */ th->nmpMinPly = 0;
+			th->rootDepth = th->completedDepth = 0;
 
 			// history類を全部クリアする。この初期化は少し時間がかかるし、探索の精度はむしろ下がるので善悪はよくわからない。
 			// th->clear();
 
 			// 探索スレッド用の初期化(探索部・学習部で共通)
-			search_thread_init(th,ss);
+			search_thread_init(th,ss,pv);
 
-			// rootMovesの設定
-			auto& rootMoves = th->rootMoves;
+			if (!qsearch)
+			{
+				// 通常探索の時はrootMovesを設定してやる。
+				// qsearchの時はrootMovesは用いないので関係がない。
 
-			rootMoves.clear();
-			for (auto m : MoveList<LEGAL>(pos))
-				rootMoves.push_back(Search::RootMove(m));
+				// rootMovesの設定
+				auto& rootMoves = th->rootMoves;
 
-			ASSERT_LV3(!rootMoves.empty());
+				rootMoves.clear();
+				for (auto m : MoveList<LEGAL>(pos))
+					rootMoves.push_back(Search::RootMove(m));
+
+				ASSERT_LV3(!rootMoves.empty());
+			}
 
 			// 学習用の実行ファイルではスレッドごとに置換表を持っているので
 			// 探索前に自分(のスレッド用)の置換表の世代カウンターを回してやる。
@@ -3903,15 +3907,15 @@ namespace Learner
 		Move pv[MAX_PLY + 1];
 		std::vector<Move> pvs;
 
-		init_for_search(pos, ss);
-		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
-
 		// 詰まされているのか
 		if (pos.is_mated())
 		{
 			pvs.push_back(MOVE_RESIGN);
 			return ValueAndPV(mated_in(/*ss->ply*/ 0 + 1), pvs);
 		}
+
+		// 探索の初期化
+		init_for_search(pos, ss , pv, /* qsearch = */true);
 
 		auto bestValue = ::qsearch<PV>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, 0);
 
@@ -3933,6 +3937,10 @@ namespace Learner
 	// rootでの宣言勝ち判定はしないので(扱いが面倒なので)、ここでは行わない。
 	// 呼び出し側で処理すること。
 	//
+	// 注意)
+	// また引数で指定されたdepth == 0の時、qsearch、0未満の時、evaluateを呼び出すが、
+	// この時、rootMovesは得られない。
+	// 
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
 	// 　また、Threads.stopが来ると探索を中断してしまうので、そのときのPVは正しくない。
 	// 　search()から戻ったあと、Threads.stop == trueなら、その探索結果を用いてはならない。
@@ -3942,6 +3950,7 @@ namespace Learner
 	{
 		std::vector<Move> pvs;
 
+		// depth == 0の時、qsearch、0未満の時、evaluateを呼び出すが、この時、rootMovesは得られないので注意。
 		Depth depth = depth_;
 		if (depth < 0)
 			return std::pair<Value, std::vector<Move>>(Eval::evaluate(pos), std::vector<Move>());
@@ -3952,17 +3961,17 @@ namespace Learner
 		Stack stack[MAX_PLY + 10], *ss = stack + 7;
 		Move pv[MAX_PLY + 1];
 
-		init_for_search(pos, ss);
+		// 探索の初期化
+		init_for_search(pos, ss , pv, /* qsearch = */ false);
 
-		ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
-
-		// this_threadに関連する変数の初期化
-		auto th = pos.this_thread();
-		auto& rootDepth = th->rootDepth;
-		auto& pvIdx = th->pvIdx;
-		auto& rootMoves = th->rootMoves;
+		// this_threadに関連する変数のaliasを用意。
+		// ※ "th->"と書かずに済むのであれば、Stockfishのsearch()のコードをコピペできるので。
+		auto th				 = pos.this_thread();
+		auto& rootDepth		 = th->rootDepth;
+		auto& pvIdx			 = th->pvIdx;
+		auto& rootMoves		 = th->rootMoves;
 		auto& completedDepth = th->completedDepth;
-		auto& selDepth = th->selDepth;
+		auto& selDepth		 = th->selDepth;
 
 		// bestmoveとしてしこの局面の上位N個を探索する機能
 		//size_t multiPV = Options["MultiPV"];
@@ -3973,10 +3982,10 @@ namespace Learner
 		// ノード制限にMultiPVの値を掛けておかないと、depth固定、MultiPVありにしたときに1つの候補手に同じnodeだけ思考したことにならない。
 		nodesLimit *= multiPV;
 
-		Value alpha = -VALUE_INFINITE;
-		Value beta = VALUE_INFINITE;
-		Value delta = -VALUE_INFINITE;
-		Value bestValue = -VALUE_INFINITE;
+		Value alpha			 = -VALUE_INFINITE;
+		Value beta			 =  VALUE_INFINITE;
+		Value delta			 = -VALUE_INFINITE;
+		Value bestValue		 = -VALUE_INFINITE;
 
 		while (++rootDepth <= depth
 			// node制限を超えた場合もこのループを抜ける
@@ -4001,7 +4010,7 @@ namespace Learner
 					Value p = rootMoves[pvIdx].previousScore;
 
 					alpha = std::max(p - delta, -VALUE_INFINITE);
-					beta = std::min(p + delta, VALUE_INFINITE);
+					beta  = std::min(p + delta,  VALUE_INFINITE);
 				}
 
 				// aspiration search
