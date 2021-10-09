@@ -27,5 +27,17 @@
     <BuildMacro Include="YaneuraOuDir">
       <Value>$(YaneuraOuDir)</Value>
     </BuildMacro>
+    <None Include="C:\TensorRT-7.2.3.4\lib\nvinfer.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </None>
+    <None Include="C:\TensorRT-7.2.3.4\lib\nvinfer_plugin.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </None>
+    <None Include="C:\TensorRT-7.2.3.4\lib\nvonnxparser.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </None>
   </ItemGroup>
 </Project>
