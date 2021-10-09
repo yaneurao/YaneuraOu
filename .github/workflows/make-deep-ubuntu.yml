@@ -37,19 +37,18 @@ jobs:
           path: main
 
       - name: install CUDA, TensorRT
-        # ここではCUDAアプリケーションの開発環境用に、CUDAドライバーを含まない cuda-toolkit-11-3 をインストールしている。
-        # CUDAアプリケーションの実行環境用にセットアップする場合、 cuda-toolkit-11-3 の代わりに
-        # CUDAドライバーを含むメタパッケージ、 cuda-11-3 もしくは cuda をインストールする。
+        # ここではCUDAアプリケーションの開発環境用に、CUDAドライバーを含まない cuda-toolkit-11-4 をインストールしている。
+        # CUDAアプリケーションの実行環境用にセットアップする場合、 cuda-toolkit-11-4 の代わりに
+        # CUDAドライバーを含むメタパッケージ、 cuda-11-4 もしくは cuda をインストールする。
         # https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#package-manager-metas
         run: |
-          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
-          sudo mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
-          sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/7fa2af80.pub
-          echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /" | sudo tee -a /etc/apt/sources.list
+          sudo curl "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin" -o /etc/apt/preferences.d/cuda-repository-pin-600
+          sudo curl "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/7fa2af80.pub" -o /usr/share/keyrings/cuda.gpg.asc
+          echo "deb [signed-by=/usr/share/keyrings/cuda.gpg.asc] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /" | sudo tee /etc/apt/sources.list.d/cuda.list &&\
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install cuda-toolkit-11-3 libnvinfer-dev libnvinfer-plugin-dev libnvonnxparsers-dev libnvparsers-dev
+          sudo apt install cuda-toolkit-11-4 libnvinfer-dev libnvinfer-plugin-dev libnvonnxparsers-dev libnvparsers-dev
 
       - name: install g++-10
         # Ubuntu 20.04
