@@ -1269,6 +1269,11 @@ namespace SystemIO
 	// ファイルのopen
 	Tools::Result BinaryReader::open(const std::string& filename)
 	{
+		auto close_result = close();
+		if (!close_result.is_ok()) {
+			return close_result;
+		}
+
 		fp = fopen(filename.c_str(), "rb");
 		if (fp == nullptr)
 			return Tools::Result(Tools::ResultCode::FileOpenError);
