@@ -1255,8 +1255,6 @@ struct SfenReader
 	// SFEN_READ_SIZEはTHREAD_BUFFER_SIZEの倍数であるものとする。
 	const size_t SFEN_READ_SIZE = LEARN_SFEN_READ_SIZE;
 
-	const size_t FILE_READ_BUFFER_SIZE = 4096;
-
 	// [ASYNC] スレッドが局面を一つ返す。なければfalseが返る。
 	bool read_to_thread_buffer(size_t thread_id, PackedSfenValue& ps)
 	{
