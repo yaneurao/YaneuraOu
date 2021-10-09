@@ -1292,11 +1292,24 @@ namespace SystemIO
 	}
 
 	// ptrの指すメモリにsize[byte]だけファイルから読み込む
-	Tools::Result BinaryReader::read(void* ptr, size_t size)
+	Tools::Result BinaryReader::read(void* ptr, size_t size, size_t* size_of_read_bytes)
 	{
-		if (fread((u8*)ptr, 1, size, fp) != size)
+		size_t actual_size_of_read_bytes = fread(ptr, 1, size, fp);
+
+		if (size_of_read_bytes) {
+			*size_of_read_bytes = actual_size_of_read_bytes;
+		}
+
+		if (feof(fp)) {
+			// ファイルの末尾を超えて読もうとした場合。
+			return Tools::Result(Tools::ResultCode::Eof);
+		}
+
+		if (actual_size_of_read_bytes != size)
 			return Tools::Result(Tools::ResultCode::FileReadError);
 
+		// ファイルの末尾を超えて読もうとしなかった場合。
+		// ファイルの末尾までちょうどを読んだ場合はこちら。
 		return Tools::Result::Ok();
 	}
 
