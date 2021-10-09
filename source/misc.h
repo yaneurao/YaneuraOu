@@ -615,6 +615,7 @@ namespace SystemIO
 		// ファイルの末尾を超えて読み込もうとした場合、Eofが返る。
 		// ファイルの末尾に超えて読み込もうとしなかった場合、Okが返る。
 		// 引数で渡されたバイト数読み込むことができなかった場合、FileReadErrorが返る。
+		// size_of_read_bytesがnullptrでない場合、実際に読み込まれたバイト数が代入される。
 		Tools::Result read(void* ptr , size_t size, size_t* size_of_read_bytes = nullptr);
 	};
 
