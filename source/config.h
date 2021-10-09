@@ -792,7 +792,8 @@ constexpr bool pretty_jp = false;
 			#define EVAL_TYPE_NAME "ORT-" << EVAL_DEEP
 		#endif
 	#elif defined(TENSOR_RT)
-		#define EVAL_TYPE_NAME "TensorRT-" << EVAL_DEEP
+		#include "NvInferRuntimeCommon.h"
+		#define EVAL_TYPE_NAME "TensorRT" << NV_TENSORRT_VERSION << "-" << EVAL_DEEP
 	#endif
 
 #else
