@@ -21,10 +21,12 @@ jobs:
         edition:
           - YANEURAOU_ENGINE_DEEP_TENSOR_RT
         compiler:
+          - clang++-14
           - clang++-13
           - clang++-12
           - clang++-11
           - g++-10
+          - g++-11
         target:
           - normal
         archcpu:
@@ -58,6 +60,16 @@ jobs:
           sudo apt update
           sudo apt install g++-10
         if: ${{ matrix.compiler == 'g++-10' }}
+      - name: install g++-11
+        #
+        run: |
+          # sudo curl "https://keyserver.ubuntu.com/pks/lookup?search=0x1e9377a2ba9ef27f&op=get" -o /usr/share/keyrings/ubuntu-toolchain-r.gpg.asc
+          # echo "deb [signed-by=/usr/share/keyrings/ubuntu-toolchain-r.gpg.asc] http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu focal main" | sudo tee /etc/apt/sources.list.d/ubuntu-toolchain-r-test-focal.list
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+          sudo apt update
+          sudo apt install g++-11
+        if: ${{ matrix.compiler == 'g++-11' }}
       - name: install clang-11
         # Ubuntu 20.04
         run: |
@@ -67,21 +79,33 @@ jobs:
           sudo apt install clang-11 libomp-11-dev
         if: ${{ matrix.compiler == 'clang++-11' }}
       - name: install clang-12
-        # Ubuntu 21.04 or LLVM APT
+        # Ubuntu 20.04 or LLVM APT
         run: |
-          wget https://apt.llvm.org/llvm.sh
-          sudo bash ./llvm.sh 12
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
+          sudo apt update
+          sudo apt install clang-12 libomp-12-dev
         if: ${{ matrix.compiler == 'clang++-12' }}
       - name: install clang-13
         # LLVM APT
         run: |
+          # Remove packages that conflict with clang-13 installation
+          sudo apt remove -y clang-10 lldb-10 lld-10 clang-format-10 clang-11 lldb-11 lld-11 clang-format-11 clang-12 lldb-12 lld-12 clang-format-12
+          sudo apt autoremove -y
+          # install clang-13
           wget https://apt.llvm.org/llvm.sh
           sudo bash ./llvm.sh 13
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
         if: ${{ matrix.compiler == 'clang++-13' }}
+      - name: install clang-14
+        # LLVM APT
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          sudo bash ./llvm.sh 14
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+        if: ${{ matrix.compiler == 'clang++-14' }}
 
       - name: make
         run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS='-I/usr/local/cuda/include' EXTRA_LDFLAGS='-L/usr/local/cuda/lib64'"
