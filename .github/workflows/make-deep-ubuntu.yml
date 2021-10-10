@@ -20,9 +20,15 @@ jobs:
       matrix:
         edition:
           - YANEURAOU_ENGINE_DEEP_TENSOR_RT
-        compiler: [clang++-13, clang++-12, clang++-11, g++-10]
-        target: [normal]
-        archcpu: [AVX2]
+        compiler:
+          - clang++-13
+          - clang++-12
+          - clang++-11
+          - g++-10
+        target:
+          - normal
+        archcpu:
+          - AVX2
 
     steps:
       - name: Checkout own repository
