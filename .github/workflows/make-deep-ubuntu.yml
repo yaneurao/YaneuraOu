@@ -11,8 +11,8 @@ on:
 
 jobs:
   build-ubuntu:
-    # ubuntu-latest = ubuntu-18.04 => ubuntu-20.04
-    # https://github.com/actions/virtual-environments/issues/1816
+    # ubuntu-latest = ubuntu-20.04
+    # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md
     # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
     runs-on: ubuntu-20.04
 
