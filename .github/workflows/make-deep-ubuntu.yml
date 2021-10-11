@@ -90,8 +90,7 @@ jobs:
         # LLVM APT
         run: |
           # Remove packages that conflict with clang-13 installation
-          sudo apt remove -y clang-10 lldb-10 lld-10 clang-format-10 clang-11 lldb-11 lld-11 clang-format-11 clang-12 lldb-12 lld-12 clang-format-12
-          sudo apt autoremove -y
+          sudo apt remove -y clang-10 lldb-10 lld-10 clang-format-10 libomp5-10 clang-11 lldb-11 lld-11 clang-format-11 libomp5-11 clang-12 lldb-12 lld-12 clang-format-12 libomp5-12
           # install clang-13
           wget https://apt.llvm.org/llvm.sh
           sudo bash ./llvm.sh 13
