@@ -1326,9 +1326,6 @@ struct SfenReader
 	{
 		auto open_next_file = [&]()
 		{
-			if (fs.is_open())
-				fs.close();
-
 			// もう無い
 			if (filenames.size() == 0)
 				return false;
@@ -1337,12 +1334,14 @@ struct SfenReader
 			string filename = *filenames.rbegin();
 			filenames.pop_back();
 
-			fs.open(filename, ios::in | ios::binary);
+			auto result = binary_reader.open(filename);
 			cout << "open filename = " << filename << endl;
-			ASSERT(fs);
+			ASSERT(result.is_ok());
 
 			return true;
 		};
+
+		open_next_file();
 
 		while (true)
 		{
@@ -1353,19 +1352,26 @@ struct SfenReader
 			if (stop_flag)
 				return;
 
-			PSVector sfens;
-			sfens.reserve(SFEN_READ_SIZE);
+			PSVector sfens(SFEN_READ_SIZE);
+			// 次にこの位置から読み込む。
+			int sfens_read_offset = 0;
 
 			// ファイルバッファにファイルから読み込む。
-			while (sfens.size() < SFEN_READ_SIZE)
+			while (sfens_read_offset < SFEN_READ_SIZE)
 			{
-				PackedSfenValue p;
-				if (fs.read((char*)&p, sizeof(PackedSfenValue)))
-				{
-					sfens.push_back(p);
-				} else
-				{
-					// 読み込み失敗
+				size_t expected_size_of_read_bytes = (SFEN_READ_SIZE - sfens_read_offset) * sizeof(PackedSfenValue);
+				size_t actual_size_of_read_bytes = 0;
+				auto result = binary_reader.read(&sfens[sfens_read_offset], expected_size_of_read_bytes, &actual_size_of_read_bytes);
+				if (!(result.is_ok() || result.is_eof())) {
+					cout << endl << "Failed to read a file." << endl;
+					end_of_files = true;
+					return;
+				}
+
+				sfens_read_offset += actual_size_of_read_bytes / sizeof(PackedSfenValue);
+				if (sfens_read_offset < SFEN_READ_SIZE) {
+					// ファイルの終端に達した等、必要な量を読み込むことができなかった。
+					// 次のファイルを読み込む。
 					if (!open_next_file())
 					{
 						// 次のファイルもなかった。あぼーん。
@@ -1468,7 +1474,7 @@ protected:
 
 
 	// sfenファイルのハンドル
-	std::fstream fs;
+	SystemIO::BinaryReader binary_reader;
 
 	// 各スレッド用のsfen
 	// (使いきったときにスレッドが自らdeleteを呼び出して開放すべし。)
