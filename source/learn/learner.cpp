@@ -1354,7 +1354,7 @@ struct SfenReader
 
 			PSVector sfens(SFEN_READ_SIZE);
 			// 次にこの位置から読み込む。
-			int sfens_read_offset = 0;
+			size_t sfens_read_offset = 0;
 
 			// ファイルバッファにファイルから読み込む。
 			while (sfens_read_offset < SFEN_READ_SIZE)
