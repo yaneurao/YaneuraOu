@@ -31,11 +31,11 @@
 #include <tmmintrin.h>
 #elif defined(USE_SSE2)
 #include <emmintrin.h>
-#elif defined(USE_NEON)
+#elif defined(__ARM_NEON)
 #include <arm_neon.h>
 #include <mm_malloc.h> // for _mm_alloc()
 #else
-#if defined (__GNUC__) && !defined(__ARM_ARCH)
+#if defined (__GNUC__)
 #include <mm_malloc.h> // for _mm_alloc()
 #endif
 #endif
