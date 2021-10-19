@@ -36,6 +36,7 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 #
 # AMDのRyzen(Zen/Zen2)はZEN1/ZEN2を選択するとBMI2命令が使わずに速くなる。(10%程度高速化)
 # Ryzen Zen3シリーズはZEN3を選択。こちらはAVX2用とたぶん変わらない。
+# → ZEN3、作業中。しばらくはAVX2を選んでおいてください。
 #
 # ARM系はGraviton2ならGRAVITON2、これ以外ならOTHERを指定する。
 # 32bit環境用はNO_SSEを指定する。
@@ -44,18 +45,21 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 # AVX-512対応でさらにVNNI命令対応(Cascade Lake以降)なら、AVX512VNNIを指定する。
 
 
+# --- Intel/AMD系 (x86/x64 Platform)
 #TARGET_CPU = AVX512VNNI
 #TARGET_CPU = AVX512
 TARGET_CPU = AVX2
-#TARGET_CPU = GRAVITON2
 #TARGET_CPU = SSE42
 #TARGET_CPU = SSE41
 #TARGET_CPU = SSSE3
 #TARGET_CPU = SSE2
 #TARGET_CPU = NO_SSE
-#TARGET_CPU = OTHER
+# --- AMD Ryzen
 #TARGET_CPU = ZEN1
 #TARGET_CPU = ZEN2
+# -- ARMとか
+#TARGET_CPU = OTHER
+#TARGET_CPU = GRAVITON2
 
 
 # デバッガーを使用するか (debugger)
