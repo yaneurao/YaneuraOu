@@ -37,7 +37,7 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 # AMDのRyzen(Zen/Zen2)はZEN1/ZEN2を選択するとBMI2命令が使わずに速くなる。(10%程度高速化)
 # Ryzen Zen3シリーズはZEN3を選択。こちらはAVX2用とたぶん変わらない。
 #
-# ARM系ならOTHERを指定する。
+# ARM系はGraviton2ならGRAVITON2、これ以外ならOTHERを指定する。
 # 32bit環境用はNO_SSEを指定する。
 #
 # AVX-512対応(サーバー向けSkylake以降)ならAVX512を指定する。
@@ -47,6 +47,7 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 #TARGET_CPU = AVX512VNNI
 #TARGET_CPU = AVX512
 TARGET_CPU = AVX2
+#TARGET_CPU = GRAVITON2
 #TARGET_CPU = SSE42
 #TARGET_CPU = SSE41
 #TARGET_CPU = SSSE3
@@ -478,6 +479,8 @@ else ifeq ($(TARGET_CPU),NO_SSE)
 	# 32bit用。-m32は、MSYS2 MinGW-64だと無視されるので、
 	# MinGW-64の32bit環境用でコンパイルする必要がある。
 	CPPFLAGS += -DNO_SSE -m32 -march=pentium3
+else ifeq ($(TARGET_CPU),GRAVITON2)
+	CPPFLAGS += -DIS_64BIT -DUSE_NEON -mfpu=neon
 
 else ifeq ($(TARGET_CPU),OTHER)
 	CPPFLAGS += -DNO_SSE
