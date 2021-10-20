@@ -145,12 +145,14 @@ namespace dlshogi::UctPrint
 	// 読み筋を出力する。
 	// multipv      : Options["MultiPV"]の値
 	// multipv_num  : MultiPVの何番目の指し手であるか。(0～multipv-1の間の数値)
-	std::string pv_to_string(BestMove best, std::vector<Move>& moves , ChildNumType multipv , ChildNumType multipv_num , const std::string& nps)
+	// eval_coef    : Options["Eval_Coef"]の値
+	std::string pv_to_string(BestMove best, std::vector<Move>& moves , ChildNumType multipv , ChildNumType multipv_num
+		, const std::string& nps , float eval_coef)
 	{
 		std::stringstream ss;
 
 		// 勝率を[centi-pawn]に変換
-		int cp = Eval::dlshogi::value_to_cp((float)best.wp);
+		int cp = Eval::dlshogi::value_to_cp((float)best.wp,eval_coef);
 
 		ss << "info" << nps;
 
@@ -200,7 +202,7 @@ namespace dlshogi::UctPrint
 			get_pv(best.node, moves);
 
 			if (!silent)
-				sync_cout << pv_to_string(best, moves, multiPv, i , nps.str() ) << sync_endl;
+				sync_cout << pv_to_string(best, moves, multiPv, i , nps.str() , options.eval_coef) << sync_endl;
 
 			if (i == 0 && moves.size() >= 2)
 				ponder = moves[1];

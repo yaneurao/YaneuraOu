@@ -58,6 +58,9 @@ void USI::extra_option(USI::OptionsMap& o)
 	// ノードを再利用するか。
     o["ReuseSubtree"]                << USI::Option(true);
 
+	// 勝率を評価値に変換する時の定数。
+	o["Eval_Coef"]                   << USI::Option(756, 1, 10000);
+
 	// 投了値 : 1000分率で
 	o["Resign_Threshold"]            << USI::Option(0, 0, 1000);
 
@@ -65,8 +68,8 @@ void USI::extra_option(USI::OptionsMap& o)
 	// 引き分けの局面では、この値とみなす。
 	// root color(探索開始局面の手番)に応じて、2通り。
 	
-	o["DrawValueBlack"]            << USI::Option(500, 0, 1000);
-	o["DrawValueWhite"]            << USI::Option(500, 0, 1000);
+	o["DrawValueBlack"]              << USI::Option(500, 0, 1000);
+	o["DrawValueWhite"]              << USI::Option(500, 0, 1000);
 
 	// --- PUCTの時の定数
 	// これ、探索パラメーターの一種と考えられるから、最適な値を事前にチューニングして設定するように
@@ -169,6 +172,9 @@ void Search::clear()
 
 	// ノードを再利用するかの設定。
 	searcher.SetReuseSubtree(Options["ReuseSubtree"]);
+
+	// 勝率を評価値に変換する時の定数を設定。
+	searcher.SetEvalCoef((int)Options["Eval_Coef"]);
 
 	// 投了値
 	searcher.SetResignThreshold((int)Options["Resign_Threshold"]);

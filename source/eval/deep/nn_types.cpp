@@ -359,11 +359,13 @@ namespace Eval::dlshogi
 
 	// 価値(勝率)を評価値[cp]に変換。
 	// USIではcp(centi-pawn)でやりとりするので、そのための変換に必要。
+	// 	 eval_coef : 勝率を評価値に変換する時の定数。default = 756
+	// 
 	// 返し値 :
 	//   +29900は、評価値の最大値
 	//   -29900は、評価値の最小値
 	//   +30000,-30000は、(おそらく)詰みのスコア
-	Value value_to_cp(const float score)
+	Value value_to_cp(const float score , float eval_coef)
 	{
 		int cp;
 		if (score == 1.0f)
@@ -372,7 +374,7 @@ namespace Eval::dlshogi
 			cp = -30000;
 		else
 		{
-			cp = (int)(-logf(1.0f / score - 1.0f) * 756.0864962951762f);
+			cp = (int)(-logf(1.0f / score - 1.0f) * eval_coef);
 
 			// 勝率がオーバーフローしてたらclampしておく。
 			cp = std::min(cp, +29900);

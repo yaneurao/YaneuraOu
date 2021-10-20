@@ -225,6 +225,14 @@ namespace dlshogi
 		search_options.reuse_subtree = flag;
 	}
 
+	// 勝率から評価値に変換する際の係数を設定する。
+	// ここで設定した値が1/1000倍されて使用される。
+	// デフォルトは 756。
+	void DlshogiSearcher::SetEvalCoef(const int eval_coef)
+	{
+		search_options.eval_coef = (float)eval_coef;
+	}
+
 	// PV表示間隔設定
 	void DlshogiSearcher::SetPvInterval(const TimePoint interval)
 	{
@@ -772,7 +780,7 @@ namespace dlshogi
 		const float k1 = 0.70000f;
 		const float k2 = 1.00000f;
 		const float r = 20.0f; // 勝率0.02の差 = 延長度40%
-		const float eval_alpha = 0.02; // evalの差に下駄履きさせる値。微差は拾い上げる考え。
+		const float eval_alpha = 0.02f; // evalの差に下駄履きさせる値。微差は拾い上げる考え。
 
 		float eval_bonus  = std::min(std::max(float((second_eval - max_eval + eval_alpha) * r),0.0f),1.0f);
 		float visit_bonus = std::max(float( (double(second_searched) / (double(max_searched) + 1) - k1)/(k2-k1)),0.0f);
