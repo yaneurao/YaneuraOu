@@ -89,6 +89,12 @@ jobs:
       - name: install clang-14
         # LLVM APT
         run: |
+          # Remove packages that conflict with clang-14 installation
+          sudo apt remove -y \
+          liblldb-10 libomp-10-dev libomp5-10 lldb-10 python3-lldb-10 \
+          liblldb-11 libomp-11-dev libomp5-11 lldb-11 python3-lldb-11 \
+          liblldb-12 libomp-12-dev libomp5-12 lldb-12 python3-lldb-12
+          # install clang-14
           wget https://apt.llvm.org/llvm.sh
           sudo bash ./llvm.sh 14
           sudo cat /etc/apt/sources.list

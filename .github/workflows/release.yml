@@ -16,13 +16,15 @@ jobs:
 
     strategy:
       matrix:
-        target: [normal, tournament, evallearn, gensfen]
+        target:
+          - normal
+          - tournament
+          - evallearn
+          - gensfen
         archcpu:
-          [
-            "ZEN2,ZEN1,AVX512VNNI,AVX512,AVX2,SSE42",
-            "SSE41,SSSE3,SSE2,NO_SSE",
-            "ZEN3,AVXVNNI,OTHER",
-          ]
+          - "ZEN2,ZEN1,AVX512VNNI,AVX512,AVX2,SSE42"
+          - "SSE41,SSSE3,SSE2,NO_SSE"
+          - "ZEN3,AVXVNNI,OTHER"
         edition:
           - "YANEURAOU_ENGINE_NNUE,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256"
           - "YANEURAOU_ENGINE_KPPT,YANEURAOU_ENGINE_KPP_KKPT"
@@ -30,7 +32,9 @@ jobs:
           - YANEURAOU_MATE_ENGINE
           - TANUKI_MATE_ENGINE
           - USER_ENGINE
-        compiler: [clang++, g++]
+        compiler:
+          - clang++
+          - g++
         exclude:
           # Release target exclude: edition USER_ENGINE
           - edition: USER_ENGINE
@@ -108,19 +112,23 @@ jobs:
 
     strategy:
       matrix:
-        target: [normal, tournament, evallearn, gensfen]
+        target:
+          - normal
+          - tournament
+          - evallearn
+          - gensfen
         archcpu:
-          [
-            ZEN2,
-            ZEN1,
-            AVX2,
-            SSE42,
-            SSE2,
-            NO_SSE,
-          ]
+          - ZEN2
+          - ZEN1
+          - AVX2
+          - SSE42
+          - SSE2
+          - NO_SSE
         edition:
           - YANEURAOU_ENGINE_MATERIAL*
-        compiler: [clang++, g++]
+        compiler:
+          - clang++
+          - g++
         exclude:
           # Release target exclude: edition USER_ENGINE
           - edition: USER_ENGINE

@@ -28,17 +28,20 @@ jobs:
           - YANEURAOU_MATE_ENGINE
           - TANUKI_MATE_ENGINE
           - USER_ENGINE
-        compiler: [x86_64-w64-mingw32-g++-posix, i686-w64-mingw32-g++-posix]
-        target: ["normal,tournament", gensfen, evallearn]
+        compiler:
+          - x86_64-w64-mingw32-g++-posix
+          - i686-w64-mingw32-g++-posix
+        target:
+          - "normal,tournament"
+          - gensfen
+          - evallearn
         archcpu:
-          [
-            "AVX512VNNI,AVX512",
-            "AVX2,SSE42,SSE2",
-            "SSE41,SSSE3,OTHER",
-            "ZEN1,ZEN2",
-            "ZEN3,AVXVNNI",
-            "NO_SSE",
-          ]
+          - "AVX512VNNI,AVX512"
+          - "AVX2,SSE42,SSE2"
+          - "SSE41,SSSE3,OTHER"
+          - "ZEN1,ZEN2"
+          - "ZEN3,AVXVNNI"
+          - "NO_SSE"
         exclude:
           # NNUEの教師生成/機械学習ビルドにはBLASが必要だが、現状はUbuntuのMinGWでOpenBLASを扱えない
           # NNUE's machine learning build requires BLAS, but currently Ubuntu's MinGW cannot handle OpenBLAS
