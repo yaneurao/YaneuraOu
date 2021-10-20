@@ -270,7 +270,7 @@ namespace Eval::dlshogi
 	// Softmaxの時の温度パラメーター。
 	// エンジンオプションの"Softmax_Temperature"で設定できる。
 	constexpr float default_softmax_temperature = 1.0f;
-	float beta = 1.0f / default_softmax_temperature; 
+	float beta = 1.0f / default_softmax_temperature;
 	void set_softmax_temperature(const float temperature) {
 		beta = 1.0f / temperature;
 	}
@@ -352,20 +352,20 @@ namespace Eval::dlshogi
 	// 評価値から価値(勝率)に変換
 	// スケールパラメータは、elmo_for_learnの勝率から調査した値
 	// 何かの変換の時に必要になる。
-	float cp_to_value(const Value score)
+	float cp_to_value(const Value score , const float eval_coef)
 	{
-		return 1.0f / (1.0f + expf(-(float)score * 0.0013226f));
+		return 1.0f / (1.0f + expf(-(float)score / eval_coef));
 	}
 
 	// 価値(勝率)を評価値[cp]に変換。
 	// USIではcp(centi-pawn)でやりとりするので、そのための変換に必要。
 	// 	 eval_coef : 勝率を評価値に変換する時の定数。default = 756
-	// 
+	//
 	// 返し値 :
 	//   +29900は、評価値の最大値
 	//   -29900は、評価値の最小値
 	//   +30000,-30000は、(おそらく)詰みのスコア
-	Value value_to_cp(const float score , float eval_coef)
+	Value value_to_cp(const float score , const float eval_coef)
 	{
 		int cp;
 		if (score == 1.0f)
@@ -377,8 +377,7 @@ namespace Eval::dlshogi
 			cp = (int)(-logf(1.0f / score - 1.0f) * eval_coef);
 
 			// 勝率がオーバーフローしてたらclampしておく。
-			cp = std::min(cp, +29900);
-			cp = std::max(cp, -29900);
+			cp = std::clamp(cp, -29900, +29900);
 		}
 
 		return (Value)cp;
