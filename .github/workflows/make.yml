@@ -19,25 +19,23 @@ jobs:
     strategy:
       matrix:
         edition:
-          - YANEURAOU_ENGINE_NNUE
-          - YANEURAOU_ENGINE_NNUE_HALFKPE9
-          - YANEURAOU_ENGINE_NNUE_KP256
-          - YANEURAOU_ENGINE_KPPT
-          - YANEURAOU_ENGINE_KPP_KKPT
+          - "YANEURAOU_ENGINE_NNUE,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256,YANEURAOU_ENGINE_KPPT,YANEURAOU_ENGINE_KPP_KKPT"
           - YANEURAOU_ENGINE_MATERIAL*
           - YANEURAOU_MATE_ENGINE
           - TANUKI_MATE_ENGINE
           - USER_ENGINE
-        compiler: [clang++-13, clang++-12, g++-10]
-        target: ["normal,tournament", gensfen, evallearn]
+        compiler:
+          - clang++-14
+          - clang++-12
+          - g++-10
+        target:
+          - "normal,tournament"
+          - gensfen
+          - evallearn
         archcpu:
-          [
-            "AVX512,AVX2,SSE42,SSE2",
-            "SSE41,SSSE3,OTHER,ZEN1",
-            "ZEN2,AVX512VNNI",
-            "ZEN3,AVXVNNI",
-            "NO_SSE",
-          ]
+          - "AVX512,AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN2,ZEN1,AVX512VNNI"
+          - "ZEN3,AVXVNNI"
+          - "NO_SSE"
         exclude:
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
@@ -71,6 +69,12 @@ jobs:
           # Linux 32bit archcpu 向けのビルドは通常はしない
           # don't usually build for Linux 32bit archcpu
           - archcpu: NO_SSE
+        include:
+          # GRAVITON2
+          - edition: "YANEURAOU_ENGINE_NNUE,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256,YANEURAOU_ENGINE_KPPT,YANEURAOU_ENGINE_KPP_KKPT,YANEURAOU_ENGINE_MATERIAL*,YANEURAOU_MATE_ENGINE,TANUKI_MATE_ENGINE,USER_ENGINE"
+            compiler: aarch64-linux-gnu-g++
+            target: "normal,tournament"
+            archcpu: GRAVITON2
 
     steps:
       - name: Checkout own repository
@@ -86,6 +90,14 @@ jobs:
           sudo apt update
           sudo apt install build-essential libopenblas-dev g++-8
         if: ${{ matrix.compiler == 'g++-8' }}
+      - name: install g++-9
+        # Ubuntu 20.04
+        run: |
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+          sudo apt update
+          sudo apt install build-essential libopenblas-dev g++-9
+        if: ${{ matrix.compiler == 'g++-9' }}
       - name: install g++-10
         # Ubuntu 20.04
         run: |
@@ -94,6 +106,16 @@ jobs:
           sudo apt update
           sudo apt install build-essential libopenblas-dev g++-10
         if: ${{ matrix.compiler == 'g++-10' }}
+      - name: install g++-11
+        #
+        run: |
+          # sudo curl "https://keyserver.ubuntu.com/pks/lookup?search=0x1e9377a2ba9ef27f&op=get" -o /usr/share/keyrings/ubuntu-toolchain-r.gpg.asc
+          # echo "deb [signed-by=/usr/share/keyrings/ubuntu-toolchain-r.gpg.asc] http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu focal main" | sudo tee /etc/apt/sources.list.d/ubuntu-toolchain-r-test-focal.list
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+          sudo apt update
+          sudo apt install build-essential libopenblas-dev g++-11
+        if: ${{ matrix.compiler == 'g++-11' }}
       - name: install clang-10
         # Ubuntu 18.04, Ubuntu 20.04
         run: |
@@ -111,25 +133,48 @@ jobs:
           sudo apt install build-essential libopenblas-dev clang-11 libomp-11-dev
         if: ${{ matrix.compiler == 'clang++-11' }}
       - name: install clang-12
-        # Ubuntu 21.04 or LLVM APT
+        # Ubuntu 20.04 or LLVM APT
         run: |
-          wget https://apt.llvm.org/llvm.sh
-          sudo bash ./llvm.sh 12
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install build-essential libopenblas-dev libomp-12-dev
+          sudo apt install build-essential libopenblas-dev clang-12 libomp-12-dev
         if: ${{ matrix.compiler == 'clang++-12' }}
       - name: install clang-13
         # LLVM APT
         run: |
+          # Remove packages that conflict with clang-13 installation
+          sudo apt remove -y \
+          liblldb-10 libomp-10-dev libomp5-10 lldb-10 python3-lldb-10 \
+          liblldb-11 libomp-11-dev libomp5-11 lldb-11 python3-lldb-11 \
+          liblldb-12 libomp-12-dev libomp5-12 lldb-12 python3-lldb-12
+          # install clang-13
           wget https://apt.llvm.org/llvm.sh
           sudo bash ./llvm.sh 13
+          sudo apt install build-essential libopenblas-dev clang-13 libomp-13-dev
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
-          sudo apt update
-          sudo apt install build-essential libopenblas-dev libomp-13-dev
         if: ${{ matrix.compiler == 'clang++-13' }}
+      - name: install clang-14
+        # LLVM APT
+        run: |
+          # Remove packages that conflict with clang-14 installation
+          sudo apt remove -y \
+          liblldb-10 libomp-10-dev libomp5-10 lldb-10 python3-lldb-10 \
+          liblldb-11 libomp-11-dev libomp5-11 lldb-11 python3-lldb-11 \
+          liblldb-12 libomp-12-dev libomp5-12 lldb-12 python3-lldb-12
+          # install clang-14
+          wget https://apt.llvm.org/llvm.sh
+          sudo bash ./llvm.sh 14
+          sudo apt install build-essential libopenblas-dev clang-14 libomp-14-dev
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+        if: ${{ matrix.compiler == 'clang++-14' }}
+      - name: install aarch64-linux-gnu-g++
+        run: |
+          sudo apt update
+          sudo apt install crossbuild-essential-arm64
+        if: ${{ matrix.compiler == 'aarch64-linux-gnu-g++' }}
 
       - name: make
         run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }}
