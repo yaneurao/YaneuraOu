@@ -35,9 +35,9 @@ jobs:
           - gensfen
           - evallearn
         archcpu:
-          - "AVX512VNNI,AVX512,AVX2,SSE42,SSE41,SSSE3,SSE2,ZEN1,ZEN2"
+          - "AVX512VNNI,AVXVNNI,AVX512,AVX2,SSE42,SSE41,SSSE3,SSE2,ZEN1,ZEN2,ZEN3"
           - NO_SSE
-          - "ZEN3,AVXVNNI,OTHER"
+          - OTHER
         exclude:
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
@@ -60,13 +60,13 @@ jobs:
           # Build check exclude: archcpu ZEN3,AVXVNNI,OTHER
           # `-march=cascadelake`: LLVM8, GCC9 support (AVX512VNNI)
           # `-march=alderlake` : LLVM12, GCC11 support (AVX-VNNI)
-          # `-march=znver3`: LLVM12 support
+          # `-march=znver3`: LLVM12, GCC11 support
           # https://llvm.org/docs/ReleaseNotes.html#changes-to-the-x86-target
           # https://gcc.gnu.org/gcc-11/changes.html#x86
           # https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
           # https://gcc.gnu.org/pipermail/gcc-patches/2020-October/556110.html
           # https://twitter.com/herumi/status/1318418425295720448
-          - archcpu: "ZEN3,AVXVNNI,OTHER"
+          - archcpu: OTHER
           # NO_SSEではevallearn,gensfenビルドを除外
           - target: evallearn
             archcpu: NO_SSE
