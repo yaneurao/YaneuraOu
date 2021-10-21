@@ -116,7 +116,7 @@ jobs:
           sudo apt install cuda-toolkit-11-4 libnvinfer-dev libnvinfer-plugin-dev libnvonnxparsers-dev libnvparsers-dev
 
       - name: make
-        run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS='-I/usr/local/cuda/include' EXTRA_LDFLAGS='-L/usr/local/cuda/lib64'"
+        run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS='-I/usr/local/cuda-11.4/include' EXTRA_LDFLAGS='-L/usr/local/cuda-11.4/lib64'"
 
       - uses: actions/upload-artifact@v2
         with:
