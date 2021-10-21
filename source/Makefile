@@ -35,11 +35,10 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 # 利用できるCPU拡張命令を指定する。
 #
 # AMDのRyzen(Zen/Zen2)はZEN1/ZEN2を選択するとBMI2命令が使わずに速くなる。(10%程度高速化)
-# Ryzen Zen3シリーズはZEN3を選択。こちらはAVX2用とたぶん変わらない。
-# → ZEN3、作業中。しばらくはAVX2を選んでおいてください。
+# Ryzen Zen3シリーズはZEN3を選択。(clang/llvm 13.0.0以降、gcc 11.2以降)
 #
 # ARM系はGraviton2ならGRAVITON2、これ以外ならOTHERを指定する。
-# 32bit環境用はNO_SSEを指定する。
+# Windows x86(32bit環境)用はNO_SSEを指定する。
 #
 # AVX-512対応(サーバー向けSkylake以降)ならAVX512を指定する。
 # AVX-512対応でさらにVNNI命令対応(Cascade Lake以降)なら、AVX512VNNIを指定する。
@@ -57,6 +56,7 @@ TARGET_CPU = AVX2
 # --- AMD Ryzen
 #TARGET_CPU = ZEN1
 #TARGET_CPU = ZEN2
+#TARGET_CPU = ZEN3
 # -- ARMとか
 #TARGET_CPU = OTHER
 #TARGET_CPU = GRAVITON2
