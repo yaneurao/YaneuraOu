@@ -9,8 +9,8 @@
     <OutDir>$(OutBaseDir)$(YaneuraOuDir)\</OutDir>
     <TargetName>$(ProjectName)-$(YaneuraOuTarget)</TargetName>
     <_PropertySheetDisplayName>YaneuraOuEdition-Deep-TensorRT</_PropertySheetDisplayName>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\TensorRT-8.2.0.6\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.4\include</IncludePath>
-    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);C:\TensorRT-8.2.0.6\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.4\lib\x64</LibraryPath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\TensorRT-8.2.0.6\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\include</IncludePath>
+    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);C:\TensorRT-8.2.0.6\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\lib\x64</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
