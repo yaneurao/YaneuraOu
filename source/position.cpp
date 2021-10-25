@@ -1550,10 +1550,13 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	//evalList.is_valid(*this);
 }
 
-#if defined(USE_KEY_AFTER)
-
 // ある指し手を指した後のhash keyを返す。
 Key Position::key_after(Move m) const {
+	return (Key)long_key_after(m);
+}
+
+// ある指し手を指した後のhash keyを返す。
+HASH_KEY Position::long_key_after(Move m) const {
 
 	Color Us = side_to_move();
 	auto k = st->board_key_ ^ Zobrist::side;
@@ -1615,7 +1618,6 @@ Key Position::key_after(Move m) const {
 
 	return k + h;
 }
-#endif
 
 // 指し手で盤面を1手戻す。do_move()の逆変換。
 template <Color Us>

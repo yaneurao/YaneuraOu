@@ -503,14 +503,14 @@ public:
 
 	// StateInfo::key()への簡易アクセス。
 	Key key() const { return st->key(); }
+	HASH_KEY long_key() const { return st->long_key(); }
 
-#if defined(USE_KEY_AFTER)
 	// ある指し手を指した後のhash keyを返す。
 	// 将棋だとこの計算にそこそこ時間がかかるので、通常の探索部でprefetch用に
 	// これを計算するのはあまり得策ではないが、詰将棋ルーチンでは置換表を投機的に
 	// prefetchできるとずいぶん速くなるのでこの関数を用意しておく。
 	Key key_after(Move m) const;
-#endif
+	HASH_KEY long_key_after(Move m) const;
 
 	// --- misc
 
