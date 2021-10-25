@@ -1631,6 +1631,22 @@ namespace StringExtension
 		return result;
 	}
 
+	// 先頭にゼロサプライした文字列を返す。
+	// 例) n = 123 , digit = 6 なら "000123"という文字列が返る。
+	std::string to_string_with_zero(u64 n, int digit)
+	{
+		// 現在の状態
+		std::ios::fmtflags curret_flag = std::cout.flags();
+
+		std::ostringstream ss;
+		ss << std::setw(digit) << std::setfill('0') << n;
+		string s(ss.str());
+
+		// 状態を戻す
+		std::cout.flags(curret_flag);
+		return s;
+	}
+
 	// 文字列valueが、文字列endingで終了していればtrueを返す。
 	bool StartsWith(std::string const& value, std::string const& starting)
 	{
@@ -1887,6 +1903,13 @@ namespace Misc {
 				tester.test("Relative Path3",             Path::Combine("xxxx\\", "yyy"    ) == "xxxx\\yyy");
 			}
 
+		}
+		{
+			auto section2 = tester.section("StringExtension");
+			{
+				tester.test("to_string_with_zero", StringExtension::to_string_with_zero(123 , 6) == "000123");
+				tester.test("to_string_with_zero", StringExtension::to_string_with_zero(1234, 6) == "001234");
+			}
 		}
 	}
 }

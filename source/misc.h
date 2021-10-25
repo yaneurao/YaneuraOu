@@ -713,11 +713,16 @@ namespace Parser
 	// PythonのArgumenetParserみたいなやつ
 	// istringstream isを食わせて、そのうしろを解析させて、所定の変数にその値を格納する。
 	// 使い方)
-	// ArgumentParser parser;
-	// int min=0,max=100;
-	// parser.add_argument("min",min);
-	// parser.add_argument("max",max);
-	// parser.parse_args(is);
+	//  isに"min 10 max 80"のような文字列が入っているとする。
+	// 
+	//   ArgumentParser parser;
+	//   int min=0,max=100;
+	//   parser.add_argument("min",min);
+	//   parser.add_argument("max",max);
+	//   parser.parse_args(is);
+	//
+	// とすると min = 10 , max = 80となる。
+
 	class ArgumentParser
 	{
 	public:
@@ -849,6 +854,10 @@ namespace StringExtension
 
 	// スペース、タブなど空白に相当する文字で分割して返す。
 	extern std::vector<std::string> split(const std::string& input);
+
+	// 先頭にゼロサプライした文字列を返す。
+	// 例) n = 123 , digit = 6 なら "000123"という文字列が返る。
+	extern std::string to_string_with_zero(u64 n, int digit);
 
 	// --- 以下、C#のstringクラスにあるやつ。
 
