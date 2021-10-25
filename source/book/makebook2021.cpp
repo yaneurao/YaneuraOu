@@ -1,35 +1,16 @@
 ﻿#include "../types.h"
 
-#if defined (ENABLE_MAKEBOOK_CMD) && (/*defined(EVAL_LEARN) ||*/ defined(YANEURAOU_ENGINE_DEEP))
-// いまのところ、ふかうら王のみ対応。気が向いたら、NNUEにも対応させるが、NNUEの評価関数だとMCTS、あまり相性良くない気も…。
+#if defined (ENABLE_MAKEBOOK_CMD) &&  defined(YANEURAOU_ENGINE_DEEP)
+// いまのところ、ふかうら王のみ対応。
+// 探索させた局面のすべての指し手の訪問回数(≒評価値)が欲しいので、この定跡生成ルーチンはNNUEとは相性良くない。
 
-// -----------------------
-// MCTSで定跡を生成する
-// -----------------------
-
+// ------------------------------
+//  スーパーテラショック定跡手法
+// ------------------------------
 /*
-	dlshogiの定跡生成部を参考にしつつも独自の改良を加えた。
+	スーパーテラショックコマンド
+		> makebook s_tera
 
-	大きな改良点) 親ノードに訪問回数を伝播する。
-
-		dlshogiはこれをやっていない。
-		これを行うと、局面に循環があると訪問回数が発散してしまうからだと思う。
-		// これだと訪問回数を親ノードに伝播しないと、それぞれの局面で少ないPlayoutで事前に思考しているに過ぎない。
-
-		そこで、親ノードに訪問回数は伝播するが、局面の合流は処理しないようにする。
-
-		この場合、合流が多い変化では同じ局面を何度も探索することになりパフォーマンスが落ちるが、
-		それを改善するためにleaf nodeでの思考結果はcacheしておき、同じ局面に対しては探索部を２回
-		呼び出さないようにして解決する。
-
-		また合流を処理しないため、同一の局面であっても経路によって異なるNodeとなるが、書き出す定跡ファイルとは別に
-		この経路情報を別のファイルに保存しておくので、前回の定跡の生成途中から再開できる。
-
-		その他、いくつかのテクニックを導入することでMCTSで定跡を生成する上での問題点を解決している。
-
-*/
-
-/*
 	それぞれのfileフォーマット
 
 	入力)
@@ -43,19 +24,15 @@
 		// この場合、それぞれの局面が探索開始対象となる。
 
 	出力)
-		leaf_sfen.txt
-			探索済leaf nodeのsfenとそのvalue,指し手
-			例)
-				sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1 // sfen
-				0.5,10000,7g7f,100
-				// この局面の探索した時のvalue(float値,手番側から見た値),playoutの回数,1つ目の指し手(ないときはresign),1つ目の指し手の探索回数
+		book.db
+		→　このあと、このファイルをテラショック化コマンドでテラショック定跡化して使う。
 
-		mctsbook.serialized
-			探索tree(内部状態)をそのまま書き出したの。
+		例)
+		> makebook build_tree book.db user_book1.db
 
-		user_book_mcts.db
-			やねうら王で定跡ファイルとして使えるファイル
 
+	高速化のために、局面をSFEN文字列ではなく、局面のhash値で一致しているかどうかをチェックするので
+	局面のhash値は衝突しないように128bit以上のhashを用いる。(べき)
 */
 
 #include <sstream>
@@ -71,6 +48,7 @@
 #include "../thread.h"
 #include "../book/book.h"
 #include "../learn/learn.h"
+#include "../mate/mate.h"
 
 using namespace std;
 using namespace Book;
@@ -78,633 +56,1014 @@ using namespace Book;
 // positionコマンドのparserを呼び出したい。
 extern void position_cmd(Position& pos, istringstream& is, StateListPtr& states);
 
-namespace {
+namespace dlshogi {
+	// 探索結果を返す。
+	//   Threads.start_thinking(pos, states , limits);
+	//   Threads.main()->wait_for_search_finished(); // 探索の終了を待つ。
+	// のようにUSIのgoコマンド相当で探索したあと、rootの各候補手とそれに対応する評価値を返す。
+	extern std::vector < std::pair<Move, float>> GetSearchResult();
+}
 
-	// =================================================================
-	//                        探索済みのNode
-	// =================================================================
+namespace Eval::dlshogi {
+	// 価値(勝率)を評価値[cp]に変換。
+	// USIではcp(centi-pawn)でやりとりするので、そのための変換に必要。
+	// 	 eval_coef : 勝率を評価値に変換する時の定数。default = 756
+	// 
+	// 返し値 :
+	//   +29900は、評価値の最大値
+	//   -29900は、評価値の最小値
+	//   +30000,-30000は、(おそらく)詰みのスコア
+	Value value_to_cp(const float score, float eval_coef);
+}
 
-	// 訪問回数をカウントする型
-	// 42億を超えることはしばらくないだろうからとりあえずこれで。
-	typedef u32 MoveCountType;
-
-	// MCTSのnodeを表現する。
-	struct MctsNode
+namespace MakeBook2021
+{
+	// Node(局面)からその子ノードへのedgeを表現する。
+	struct Child
 	{
-		// ======= 探索部を呼び出した結果 =======
+		// 子ノードへ至るための指し手
+		// メモリを節約するためにMove16にする。
+		Move16 move;
 
-		float		value;	// 探索した時のこの局面の評価値(手番側から見た値)
-		Move16		move;	// 探索した時のこの局面の最善手(MOVE_RESIGN,MOVE_WINもありうる)
+		// その時の評価値(親局面から見て)
+		int16_t eval;
 
-		// =======      MCTSした結果      =======
+		// Node*を持たせても良いが、メモリ勿体ない。
+		// HASH_KEYで管理しておき、実際にdo_move()してHASH_KEYを見ることにする。
 
-		MoveCountType	move_count;				// このノードの訪問回数。
-		MoveCountType	move_count_from_this;	// このノードから訪問した回数
-		double	value_win;				// このノードの勝率(手番側から見たもの) 累積するのでdoubleでないと精度足りない。
-
-		// このnodeの初期化。新しくnodeを生成する時は、これを呼び出して初期化しなければならない。
-		void init(float value_ , Move16 move_)
-		{
-			value                = value_;
-			move                 = move_;
-
-			move_count           = 0;
-			move_count_from_this = 0;
-			value_win            = 0.0;
-		}
+		Child() {}
+		Child(Move m, Value e) : move(m), eval((int16_t)e) {}
 	};
 
-	// unordered_mapに直接SearchResultを持たせたいのだが、そうすると、このコンテナに対してinsert()したときなどにコンテナ要素のアドレスが変わってしまうので
-	// アドレスで扱うわけにいかない。そこで、object IDのようなものでこの部分を抽象化する必要がある。
-	// ここでは、SearchResultをvectorにして、このコンテナの何番目の要素であるか、というのをNodeIndex型で示すというようにしてある。
-
-	// ↓これを引換券にして、↑のinstanceがもらえたりする。
-	typedef u32 NodeIndex;
-
-	// NodeIndexの無効値
-	constexpr NodeIndex NULL_NODE = std::numeric_limits<NodeIndex>::max();
-
-	// 探索結果DBの1record。
-	// 探索結果DBのdefaultファイル名 : "mctsbook_mcts_tree.db"
-	// 32 + (4+2)+(4+4+8) = 54 byte
-	struct MctsTreeRecord
+	// 局面を1つ表現する構造体
+	struct Node
 	{
-		PackedSfen	packed_sfen;	// 局面をPositionクラスでpackしたもの。32 bytes固定長。
-		MctsNode	node;
+		// 局面のSFEN文字列
+		string sfen;
+
+		// 子ノードへのEdgeの集合。
+		vector<Child> children;
+
+		// この局面の評価値(この定跡生成ルーチンで探索した時の)
+		// 未探索ならVALUE_NONE
+		// childrenのなかで最善手を指した時のevalが、この値。
+		Value search_value = VALUE_NONE;
+
+		// ↑のsearch_valueは循環を経て(千日手などで)得られたスコアであるかのフラグ。
+		// これがfalseであり、かつ、search_value!=VALUE_NONEであるなら、
+		// このNodeをleaf node扱いして良い。(探索で得られたスコアなので)
+		bool is_cyclic = false;
+
+		// この局面での最善手。保存する時などには使わないけど、PV表示したりする時にあれば便利。
+		Move bestmove = MOVE_NONE;
 	};
 
-	// =================================================================
-	//                        MCTSの探索木
-	// =================================================================
-
-	// 子ノードへのedgeと子ノードを表現する構造体
-	struct MctsChild
-	{
-		// 子ノードへ到達するための指し手
-		Move move;
-
-		// 子ノードのindex(これを元にSearchResult*が確定する)
-		NodeIndex index;
-
-		MctsChild(Move move_, NodeIndex index_) :
-			move(move_), index(index_) {}
-	};
-
-	// あるNodeの子node一覧を表現する型
-	typedef std::vector<MctsChild> MctsChildren;
-
-	// ↑の何番目に格納されているのかを表現する型
-	typedef u32 MctsChildrenIndex;
-
-	// =================================================================
-	//                        Nodeの管理用
-	// =================================================================
-
-	// 探索したノードを記録しておくclass。
-	// ファイルへのserialize/deserializeもできる。
-	class NodeManager
+	// 局面管理用クラス。
+	// HASH_KEYからそのに対応するNode構造体を取り出す。(あるいは格納する)
+	// Node構造体には、その局面の全合法手とその指し手を指した時の評価値が格納されている。
+	class PositionManager
 	{
 	public:
 
-		// 読み込んでいるMctsNodeのclear
-		void clear_nodes()
+		// 定跡ファイルを読み込む
+		void read_book(string filename)
 		{
-			node_index_to_children_index.clear();
-			childrens.clear();
-		}
+			MemoryBook book;
+			book.read_book(filename);
 
-		// MtsChildrenのcacheをclear
-		void clear_cache()
-		{
-			node_index_to_children_index.clear();
-			childrens.clear();
-		}
+			Position pos;
 
-		// ファイルから読み込み。
-		void Deserialize(const std::string& filename) {
-			clear_nodes();
-			clear_cache();
+			cout << "book examination";
 
-			cout << "deserialize from " << filename << endl;
+			// それぞれの局面を列挙
+			StateInfo si;
+			u64 count = 0;
+			book.foreach([&](string sfen, BookMovesPtr ptr) {
+				pos.set(sfen,&si,Threads.main());
 
-			SystemIO::BinaryReader reader;
-			if (reader.open(filename).is_not_ok())
-			{
-				cout << "Error! : file not found , filename = " << filename << endl;
-				return;
-				// まあ、初回はファイルは存在しないのでこれは無視する。
-			}
+				store(sfen, pos, ptr);
 
-			// ファイルサイズ
-			size_t file_size = reader.get_size();
-
-			// 格納されているレコード数
-			size_t record_num = file_size / sizeof(MctsTreeRecord);
-
-			// レコード数は確定しているので、この数の分だけ事前に配列を確保したほうが高速化する。
-			mcts_nodes.reserve(record_num);
-			sfen_to_index.reserve(record_num);
-
-			// 1/100読み込みごとに"."を出力する。そのためのcounter。
-			size_t progress = 0;
-
-			for (size_t i = 0; i < record_num; ++i)
-			{
-				MctsTreeRecord record;
-				if (reader.read(&record, sizeof(MctsTreeRecord)).is_not_ok())
-				{
-					cout << "Error! : file read error , filename = " << filename << " , record at " << i << endl;
-					return; // 途中までは読み込めているかも知れないし、これも無視する。
-				}
-
-				// このrecordの内容をこのclassで保持している構造体に追加。
-
-				// 重複していないことは保証されているはずなのでここではチェックしない。
-				// (定跡ファイルのmergeについてはまた別途実装する(かも))
-				size_t last_index = mcts_nodes.size();
-				sfen_to_index[record.packed_sfen] = (NodeIndex)last_index;
-				mcts_nodes.emplace_back(record.node);
-
-				if (100 * i / record_num >= progress)
-				{
-					++progress;
+				// 進捗を表現するのに1000局面ごとに"."を出力。
+				if (++count % 1000 == 0)
 					cout << ".";
-				}
-			}
-			cout << "done" << endl;
+				});
+
+			cout << endl << "readbook DB has completed." << endl;
 		}
 
-		// ファイルに保存。
-		void Serialize(const std::string& filename) {
+		// SFEN文字列とそれに対応する局面の情報(定跡の指し手、evalの値等)を
+		// このクラスの構造体に保存する。
+		void store(string sfen, Position& pos, const BookMovesPtr& ptr)
+		{
+			// Node一つ作る。
+			Node& node = *create_node(pos);
 
-			cout << "serialize to " << filename << endl;
+			node.sfen = sfen;
 
-			SystemIO::BinaryWriter writer;
-			if (writer.open(filename).is_not_ok())
+			// この局面の定跡の各指し手に対応する評価値を保存していく。
+			unordered_map<Move, Value> move_to_eval;
+			(*ptr).foreach([&](BookMove& bm) {
+				Move move = pos.to_move(bm.move);
+				move_to_eval[move] = (Value)bm.value;
+				});
+
+			// 全合法手の生成と、この局面の定跡の各手の情報を保存。
+			MoveList<LEGAL_ALL> ml(pos);
+			for (auto move : ml)
 			{
-				cout << "Error! : file open error , filename = " << filename << endl;
-				return;
+				// 指し手moveがBookMovesのなかにあるなら、その評価値も取得して登録
+				// 愚直にやると計算量はO(N^2)になるのでmoveに対応するevalのmapを使う。
+				Value eval = VALUE_NONE;
+				auto it = move_to_eval.find(move);
+				if (it != move_to_eval.end())
+					eval = it->second;
+				node.children.emplace_back(Child(move,eval));
 			}
+		}
 
-			// 格納すべきレコード数
-			size_t record_num = mcts_nodes.size();
+		// Nodeを新規に生成して、そのNode*を返す。
+		Node* create_node(Position& pos)
+		{
+			auto key = pos.long_key();
+			auto r = hashkey_to_node.emplace(key, Node());
+			auto& node = r.first->second;
+			return &node;
+		}
 
-			// 1/100読み込みごとに"."を出力する。そのためのcounter。
-			size_t progress = 0;
+		// 引数で指定されたkeyに対応するNode*を返す。
+		// 見つからなければnullptrが返る。
+		Node* probe(HASH_KEY key)
+		{
+			auto it = hashkey_to_node.find(key);
+			return it == hashkey_to_node.end() ? nullptr : &it->second;
+		}
 
-			// mcts_nodes.size()分だけループをぶん回す場合、それに対応するpacked sfenが取得しにくいので、
-			// unordered_mapであるsfen_to_index側をiteratorで回す。こちらならpacked_sfenが取得できる。
-			size_t i = 0;
-			for (const auto &it : sfen_to_index)
+		// 指定された局面の情報を表示させてみる。(デバッグ用)
+		void dump(Position& pos)
+		{
+			auto key = pos.long_key();
+
+			auto* node = probe(key);
+			if (node == nullptr)
 			{
-				MctsTreeRecord record;
-				record.packed_sfen = it.first;
-				record.node = mcts_nodes[it.second];
+				cout << "Position HashKey , Not Found." << endl;
+			}
+			else
+			{
+				cout << "sfen      : " << node->sfen << endl;
+				cout << "child_num : " << node->children.size() << endl;
 
-				writer.write(&record, sizeof(MctsTreeRecord));
-
-				// 進捗の表示
-				if (100 * i / record_num >= progress)
+				for (auto& child : node->children)
 				{
-					++progress;
-					cout << ".";
+					string eval = (child.eval == VALUE_NONE) ? "none" : to_string(child.eval);
+					cout << " move : " << child.move << " eval : " << eval << endl;
 				}
-				++i;
 			}
-			cout << "done" << endl;
 		}
 
-		// 要素ひとつ追加する
-		void append(const PackedSfen& ps , const MctsNode& node) {
-			// この要素を持っていてはならない。
-			ASSERT_LV3(sfen_to_index.find(ps) == sfen_to_index.end());
-
-			NodeIndex index = (NodeIndex)mcts_nodes.size();
-			mcts_nodes.emplace_back(node);
-			sfen_to_index[ps] = index;
-		}
-
-		// indexを指定してMctsNode*を得る。
-		// このpointerはappend()やgo_search()などが呼び出されるまでは有効。
-		// index == NULL_NODE のときは、nullptrが返る。
-		MctsNode* get_node(NodeIndex index)
+		// 指定された局面からPVを辿って表示する。(デバッグ用)
+		// search_start()を呼び出してPVが確定している必要がある。
+		void dump_pv(Position& pos)
 		{
-			if (index == NULL_NODE)
-				return nullptr;
-			return &mcts_nodes[(size_t)index];
+			auto key = pos.long_key();
+
+			auto* node = probe(key);
+			if (node == nullptr)
+				return; // これ以上辿れなかった。
+
+			Move m = node->bestmove;
+			cout << m << " ";
+
+			// bestmoveで進められるんか？
+			StateInfo si;
+			pos.do_move(m,si);
+			dump_pv(pos);
+			pos.undo_move(m);
 		}
 
-		// 指定されたsfenに対応するindexを得る。
-		// 格納されていなければNULL_NODEが返る。
-		NodeIndex get_index(const PackedSfen& ps) {
-			auto it = sfen_to_index.find(ps);
-			if (it == sfen_to_index.end())
-				return NULL_NODE;
-			return it->second;
-		}
-
-		// sfenで指定した局面を探索して、この構造体の集合のなかに追加する。
-		NodeIndex* go_search(std::string& sfen , u64 nodes_limit)
+		// posで指定された局面から"PV line = ... , Value = .."の形でPV lineを出力する。
+		// vは引数で渡す。
+		void dump_pv_line(Position& pos , Value v)
 		{
+			cout << "PV line = ";
+			dump_pv(pos);
+			cout << ", Value = " << v << endl;
+		}
+
+		// 持っているNode情報をすべて定跡DBに保存する。
+		// path : 保存する定跡ファイルのpath
+		void save_book(string path)
+		{
+			MemoryBook book;
+			for (auto& it : hashkey_to_node)
+			{
+				auto& node = it.second;
+				auto sfen = node.sfen;
+
+				BookMovesPtr bms(new BookMoves);
+
+				for (auto& child : node.children)
+				{
+					// 値が未定。この指し手は書き出す価値がない。
+					if (child.eval == VALUE_NONE)
+						continue;
+
+					// テラショック化するからponder moveいらんやろ
+					bms->push_back(BookMove(child.move, /*ponder*/ MOVE_NONE , child.eval,/*depth*/32,/*move_count*/ 1));
+				}
+
+				book.append(sfen,bms);
+			}
+
+			book.write_book(path);
+		}
+
+		// 各Nodeのsearch_valueを初期化(VALUE_NONE)にする。
+		// 探索の前に初期化しておけば、訪問済みのNodeかどうかがわかる。
+		void clear_all_search_value()
+		{
+			for (auto& it : hashkey_to_node)
+			{
+				auto& node = it.second;
+
+				node.search_value = VALUE_NONE;
+				node.is_cyclic = false;
+			}
+		}
+
+	protected:
+		// その局面のHASH_KEYからNode構造体へのmap。
+		unordered_map<HASH_KEY, Node> hashkey_to_node;
+	};
+
+
+	// 探索モード。SearchOptionで用いる。
+	enum class SearchType
+	{
+		AlphaBeta,       // 通常のnaiveなαβ探索
+		AlphaBetaRange,  // leaf nodeのevalが区間[alpha,beta) であるものをすべて列挙するためのαβ探索
+		AlphaBetaOnKif,  // 与えられた棋譜上の局面でかつ、区間[alpha,beta) であるものをすべて列挙するためのαβ探索
+	};
+
+	// 探索オプション
+	// search_startを呼び出す時に用いる。
+	struct SearchOption
+	{
+		// 探索モード
+		SearchType search_type;
+
+		// この局面数だけ思考するごとにファイルに保存する。
+		u64 book_save_interval;
+
+		// 定跡を保存するファイル名。
+		string write_book_name;
+
+		// ↑のファイル、一時保存していくときのナンバリング
+		int write_book_number = 0;
+
+		// 1局面の探索ノード数
+		u64 nodes_limit;
+
+		// ranged alpha beta探索を行う時の、best_valueとの差。
+		// best_value = 70のときにsearch_delta = 10であれば、60～70の評価値となるleaf nodeを
+		// 選出して、それを延長(思考対象として思考)する。
+		int search_delta;
+
+		// ranged alpha beta探索した時のleaf nodeで棋譜上に出現したleaf nodeを選出して延長する。
+		// その時の、best_valueとの差。
+		// best_value = 70ときにsearch_delta_on_kif = 30であれば、40～70の評価値となるleaf nodeでかつ
+		// 棋譜上に出現した局面だけを思考対象とする。
+		int search_delta_on_kif;
+
+		// 勝率から評価値に変換する時の定数
+		float eval_coef;
+	};
+
+	// あとで思考すべきNode
+	struct SearchNode
+	{
+		// あとで探索すべき局面のNode
+		Node* node;
+
+		// そこで探索すべき指し手(この指し手で1手進めた局面を探索する)
+		Move16 move;
+
+		SearchNode() {}
+		SearchNode(Node* node_, Move16 move_) :node(node_), move(move_) {}
+
+		// このクラスの指している局面のSFENと指し手を出力する。(デバッグ用)
+		void print() const
+		{
+			cout << node->sfen << " : " << move << endl;
+		}
+
+		// 文字列化する
+		string to_string() const
+		{
+			return "SFEN = " + node->sfen + " , move = " + to_usi_string(move);
+		}
+	};
+
+	// あとで探索すべきNode集。
+	typedef vector<SearchNode> SearchNodes;
+
+	// スーパーテラショック定跡手法で定跡を生成するルーチン
+	// "makebook stera read_book book1.db write_book book2.db"
+	class SuperTeraBook
+	{
+	public:
+		void make_book(Position& pos, istringstream& is)
+		{
+			cout << endl;
+			cout << "makebook stera command : " << endl;
+
+			// HashKey、64bit超えを推奨。(これのbit数が少ないとhash衝突してしまう)
+			// コンパイルするときに、config.hの HASH_KEY_BITS のdefineを128か256にすることを推奨。
+			if (HASH_KEY_BITS < 128)
+				cout << "[WARNING!] It is recommended that HASH_KEY_BITS is 128-bits or higher." << endl;
+
+			string read_book_name = "book/read_book.db";
+			string write_book_name = "book/write_book.db";
+
+			// 探索開始rootとなるsfenの集合。ファイルがなければ平手の初期局面をrootとする。
+			string root_sfens_name = "root_sfens.txt";
+
+			// 探索に追加したい棋譜
+			// USIの"position"コマンドの、"position"の後続に来る文字列(これが1つの棋譜)が複数行(複数棋譜)書かれているようなファイル。
+			string kif_sfens_name = "kif_sfens.txt";
+
+			// ↓の局面数を思考するごとにsaveする。
+			u64 book_save_interval = 1000;
+
+			// 1局面に対する探索ノード数
+			u64 nodes_limit = 3000;
+			
+			// 探索局面数
+			u64 think_limit = 10000;
+
+			// ranged alpha beta探索を行う時の、best_valueとの差。
+			// best_value = 70のときにsearch_delta = 10であれば、60～70の評価値となるleaf nodeを
+			// 選出して、それを延長(思考対象として思考)する。
+			// 0を指定すると、この工程を常にskipする。
+			int search_delta = 10;
+
+			// ranged alpha beta探索した時のleaf nodeで棋譜上に出現したleaf nodeを選出して延長する。
+			// その時の、best_valueとの差。
+			// best_value = 70ときにsearch_delta_on_kif = 30であれば、40～70の評価値となるleaf nodeでかつ
+			// 棋譜上に出現した局面だけを思考対象とする。
+			// 0を指定すると、この工程を常にskipする。
+			int search_delta_on_kif = 30;
+
+			// このコマンドの流れとしては、
+			// 1) 通常のalpha-beta探索でbest valueを確定させる
+			// 2) ranged alpha-beta探索 区間[best_value - search_delta , best_value+1)
+			//    でleaf nodeを列挙。(それが思考対象局面)
+			// 3) ranged alpha-beta探索 区間[best_value - search_delta_on_kif , best_value+1)
+			//    で列挙されたleaf nodeかつ、与えられたKIF上に出現した局面を列挙。(それが思考対象局面)
+			// root_sfenで与えた局面に対して、1)～3)を繰り返して、think_limitの局面数だけ思考したら終了。
+
+			Parser::ArgumentParser parser;
+			parser.add_argument("read_book"           , read_book_name);
+			parser.add_argument("write_book"          , write_book_name);
+			parser.add_argument("book_save_interval"  , book_save_interval);
+			parser.add_argument("nodes_limit"         , nodes_limit);
+			parser.add_argument("think_limit"         , think_limit);
+			parser.add_argument("search_delta"        , search_delta);
+			parser.add_argument("search_delta_on_kif" , search_delta_on_kif);
+			parser.add_argument("root_sfens_name"     , root_sfens_name);
+			parser.add_argument("kif_sfens_name"      , kif_sfens_name);
+
+			parser.parse_args(is);
+
+			cout << "ReadBook  DB file    : " << read_book_name       << endl;
+			cout << "WriteBook DB file    : " << write_book_name      << endl;
+			cout << "book_save_interval   : " << book_save_interval   << "[" << "[positions]" << "]" << endl;
+			cout << "nodes_limit          : " << nodes_limit          << endl;
+			cout << "think_limit          : " << think_limit          << endl;
+			cout << "search_delta         : " << search_delta         << endl;
+			cout << "search_delta_on_kif  : " << search_delta_on_kif  << endl;
+			cout << "root_sfens_name      : " << root_sfens_name      << endl;
+			cout << "kif_sfens_name       : " << kif_sfens_name       << endl;
+			cout << endl;
+
+			// 定跡ファイルの読み込み。
+			pm.read_book(read_book_name);
+
+			// root sfen集合の読み込み
+			vector<string> root_sfens;
+			if (SystemIO::ReadAllLines(root_sfens_name, root_sfens, true).is_not_ok())
+			{
+				// ここで読み込むroot集合のsfenファイルは、
+				// sfen XXX moves YY ZZ..
+				// startpos moves VV WW..
+				// のようなUSIの"position"コマンドとしてやってくるような棋譜形式であれば
+				// いずれでも解釈できるものとする。
+
+				// なければ無いで良いが..
+				cout << "Warning , root sfens file = " << root_sfens_name << " , is not found." << endl;
+
+				// なければ平手の初期局面を設定しておいてやる。
+				root_sfens.emplace_back("sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
+			}
+
+			vector<string> kif_sfens;
+			if (SystemIO::ReadAllLines(kif_sfens_name, kif_sfens, true).is_not_ok())
+			{
+				// なければ無いで良いが..
+				cout << "Warning , kif file = " << kif_sfens_name << " , is not found." << endl;
+
+				// この時、棋譜に出現する局面を探索する工程はスキップする
+				search_delta_on_kif = 0;
+			}
+			else {
+				// 棋譜に出現した局面を this->kif_hashに追加する。
+				// (これはコマンド実行時の最初に1度行えば良い)
+				vector<StateInfo> si(1024 /* above MAX_PLY */);
+				for (auto kif : kif_sfens)
+					set_root(pos, kif, si, true);
+			}
+
+			// 与えられたパラメーターをsearch_optionに反映。
+			search_option.book_save_interval   = book_save_interval;
+			search_option.write_book_name      = write_book_name;
+			search_option.nodes_limit          = nodes_limit;
+			search_option.search_delta         = search_delta;
+			search_option.search_delta_on_kif  = search_delta_on_kif;
+			search_option.eval_coef            = (float)Options["Eval_Coef"];
+
+			// USIオプションを探索用に設定する。
+			set_usi_options();
+
+			// 準備完了したのであとは
+			// think limitに達するまで延々と思考する。
+
+			while (this->think_count < think_limit)
+			{
+				// 与えられたroot局面集合から。
+				for (auto& root_sfen : root_sfens)
+				{
+					// rootとなる局面のsfenを出力しておく。
+					cout << "[Step 1.] search root = " << root_sfen << endl;
+
+					// 指定されたrootから定跡を生成する。
+					make_book_from_root(pos, root_sfen);
+				}
+			}
+
+			// 定跡ファイルの書き出し(最終)
+			save_book(write_book_name);
+
+			// コマンドが完了したことを出力。
+			cout << "makebook stera command has finished." << endl;
+		}
+
+		// root_sfenで与えられたsfen(もしくは"moves"以下指し手がついているような棋譜の場合、その末尾の局面)をposに設定する。
+		//
+		// root_sfenとして、
+		// "startpos"
+		// "sfen XXX moves YY ZZ.."
+		// "startpos moves VV WW.."
+		// のようなUSIの"position"コマンドとしてやってくるような棋譜形式であれば
+		// いずれでも解釈できるものとする。
+		// 
+		// append_to_kif = trueのとき、その局面のhash keyがkif_hashにappendされる。
+		void set_root(Position& pos, const string& root_sfen, vector<StateInfo>& si , bool append_to_kif = false)
+		{
+			// -- makebook2015.cppから拝借
+
+			// issから次のtokenを取得する
+			auto feed_next = [](istringstream& iss)
+			{
+				string token = "";
+				iss >> token;
+				return token;
+			};
+
+			// "sfen"に後続するsfen文字列をissからfeedする
+			auto feed_sfen = [&feed_next](istringstream& iss)
+			{
+				stringstream sfen;
+
+				// ループではないが条件外であるときにbreakでreturnのところに行くためのhack
+				while(true)
+				{
+					string token;
+
+					// 盤面を表すsfen文字列
+					sfen << feed_next(iss);
+
+					// 手番
+					token = feed_next(iss);
+					if (token != "w" && token != "b")
+						break;
+					sfen << " " << token;
+
+					// 手駒
+					sfen << " " << feed_next(iss);
+
+					// 初期局面からの手数
+					sfen <<  " " << feed_next(iss);
+
+					break;
+				}
+				return sfen.str();
+			};
+
+			// append_to_kif == trueならば現在の局面のhash keyを、kif_hashに追加する。
+			auto append_to_kif_hash = [&]() {
+				if (append_to_kif)
+				{
+					HASH_KEY key = pos.long_key();
+					if (kif_hash.find(key) == kif_hash.end())
+						kif_hash.insert(key);
+				}
+			};
+
+			si.clear();
+			si.emplace_back(StateInfo()); // このあとPosition::set()かset_hirate()を呼び出すので一つは必要。
+
+			istringstream iss(root_sfen);
+			string token;
+			bool hirate = true;
+			do {
+				token = feed_next(iss);
+				if (token == "sfen")
+				{
+					// 駒落ちなどではsfen xxx movesとなるのでこれをfeedしなければならない。
+					auto sfen = feed_sfen(iss);
+					pos.set(sfen,&si[0],Threads.main());
+					hirate = false;
+				}
+			} while (token == "startpos" || token == "moves" || token == "sfen");
+
+			if (hirate)
+				pos.set_hirate(&si[0],Threads.main());
+
+			append_to_kif_hash();
+
+			// moves以降は1手ずつ進める
+			while (token != "")
+			{
+				Move move = USI::to_move(pos, token);
+				if (move == MOVE_NONE)
+					break;
+
+				if (!pos.pseudo_legal_s<true>(move) || !pos.legal(move))
+				{
+					cout << "Error : illegal move : sfen = " << root_sfen << " , move = " << token << endl;
+					// もうだめぽ
+					token = "";
+				}
+				si.emplace_back(StateInfo());
+				pos.do_move(move, si.back());
+
+				// 棋譜hashに追加。
+				append_to_kif_hash();
+
+				iss >> token;
+			}
+
+			// 局面posは指し手で進めて、与えられたsfen(棋譜)の末尾の局面になっている。
+		}
+
+		// 現在のrootから定跡を生成する。
+		void make_book_from_root(Position& pos, const string& root_sfen)
+		{
+			// 局面の初期化
+			vector<StateInfo> si(1024 /* above MAX_PLY */);
+			set_root(pos, root_sfen , si);
+
+			// ----------------------------------------
+			//      Normal Alpha-Beta Search
+			// ----------------------------------------
+
+			// まず通常のαβ探索を行う。
+
+			cout << "[Step 2.] normal alpha beta search [-INF,INF)" << endl;
+			search_option.search_type = SearchType::AlphaBeta;
+			Value best_value = search_start(pos, -VALUE_INFINITE, VALUE_INFINITE);
+
+			// 探索で得られたPV lineの表示。
+			pm.dump_pv_line(pos,best_value);
+
+			// ----------------------------------------
+			//      Ranged Alpha-Beta Search
+			// ----------------------------------------
+
+			// 区間[best_value - delta , best_value + 1) で探索しなおす。
+			// 条件に合致するleaf nodeをすべて列挙して、search_nodes(思考対象局面)に追加する。
+			// delta = 10ぐらいで十分だと思う。
+			// 
+			// ranged alpha-beta searchでは、alpha値のupdateは行わない。常に最初に渡された区間内を探索。
+			// 前回のbestvalueを与えているのでここからはみ出すことはないはず。
+
+			if (search_option.search_delta != 0)
+			{
+				cout << "[Step 3.] ranged alpha beta search ["
+					 << (best_value - search_option.search_delta) << ", " << best_value << "]" << endl;
+				search_option.search_type = SearchType::AlphaBetaRange;
+				search_start(pos, best_value - search_option.search_delta, best_value + 1);
+				// 探索結果にさきほどのleaf nodeが現れないことがある。(局面の循環などで)
+				// 仕方ないので、deltaを少し広げる。
+				if (search_nodes.size() == 0)
+					search_option.search_delta += 5;
+				think_nodes(pos);
+			}
+
+			// ----------------------------------------
+			//    Ranged Alpha-Beta Search With Kif
+			// ----------------------------------------
+
+			// 区間[best_value - delta , best_value + 1) で探索しなおし、leaf nodeでかつ棋譜上に出現した局面を
+			// search_nodes(思考対象局面)に追加する。
+			// delta = 30ぐらいでいいと思う。
+
+			if (search_option.search_delta_on_kif != 0)
+			{
+				cout << "[Step 4.] alpha beta search on kif ["
+					 <<  (best_value - search_option.search_delta_on_kif) << "," << best_value  << "]" << endl;
+				search_option.search_type = SearchType::AlphaBetaOnKif;
+				search_start(pos, best_value - search_option.search_delta_on_kif, best_value + 1);
+				think_nodes(pos);
+			}
+		}
+
+		// search_nodesを思考対象局面として、
+		// それらについて思考する。
+		void think_nodes(Position& pos)
+		{
+			// 思考対象局面の数を出力
+			cout << "think nodes = " << search_nodes.size() << endl;
+
+			// 列挙された局面を思考対象として思考させる。
+			for (auto& p : search_nodes)
+				think(pos, &p);
+		}
+
+		// 探索させて、そのNodeを追加する。
+		// 結果はpmにNode追加して書き戻される。
+		Node* think(Position& pos, const SearchNode* s_node)
+		{
+			string sfen = s_node->node->sfen;
+			Move16 m16 = s_node->move;
+			Move move = pos.to_move(m16);
+
+			// 思考中の局面を出力してやる。
+			cout << "thinking : " << sfen << " , move = " << move << endl;
+
+			return think_sub(pos , sfen + " moves " + to_usi_string(m16));
+		}
+
+		// SFEN文字列を指定して、その局面について思考させる。
+		// 結果はpmにNode追加して書き戻される。
+		Node* think(Position& pos, string sfen)
+		{
+			// 思考中の局面を出力してやる。
+			cout << "thinking : " << sfen << endl;
+
+			return think_sub(pos,sfen);
+		}
+
+		// 探索の入り口。
+		Value search_start(Position& pos, Value alpha, Value beta)
+		{
+			// RootNode
+			Node* node = pm.probe(pos.long_key());
+			if (node == nullptr)
+			{
+				// これが存在しない時は、生成しなくてはならない。
+				node = think(pos,pos.sfen());
+			}
+
+			// 探索前に各nodeのsearch_valueはクリアする必要がある。
+			pm.clear_all_search_value();
+
+			// 思考対象局面もクリアする必要がある。
+			search_nodes.clear();
+
+			// αβ探索ルーチンへ
+			return search(pos, node, alpha, beta , 1);
+		}
+
+		// αβ探索
+		// plyはrootからの手数。0ならroot。
+		Value search(Position& pos, Node* node, Value alpha, Value beta , int ply)
+		{
+			// このnodeで得られたsearch_scoreは、循環が絡んだスコアなのか
+			node->is_cyclic = true;
+
+			// 手数制限による引き分け
+
+			int game_ply = pos.game_ply();
+			if (game_ply >= 512)
+				return VALUE_DRAW; // 最大手数で引き分け。
+
+			// 千日手の処理
+
+			auto draw_type = pos.is_repetition(game_ply /* 千日手判定のために遡れる限り遡って良い */);
+			if (draw_type != REPETITION_NONE)
+				// draw_value()はデフォルトのままでいいや。すなわち千日手引き分けは VALUE_ZERO。
+				return draw_value(draw_type, pos.side_to_move());
+
+			// Mate distance pruning.
+			//
+			// この処理を入れておかないと長いほうの詰み手順に行ったりするし、
+			// 詰みまで定跡を掘るにしても長い手順のほうを悪い値にしたい。
+			// 
+			// また、best value = -INFの時に、そこから - deltaすると範囲外の数値になってしまうので
+			// それの防止でもある。
+
+			alpha = std::max(mated_in(ply    ), alpha);
+			beta  = std::min(mate_in (ply + 1), beta );
+			if (alpha >= beta)
+				return alpha;
+
+			node->is_cyclic = false;
+
+			ASSERT_LV3(node != nullptr);
+
+			Move bestmove = MOVE_NONE;
+			Value value;
+			// 引数で渡されたalphaの値
+			Value old_alpha = alpha;
+
+			// すでに探索済みでかつ千日手が絡まないスコアが記入されている。
+			if (node->search_value != VALUE_NONE)
+				return node->search_value;
+
+			// 現局面で詰んでますが？
+			// こんなNodeまで掘ったら駄目でしょ…。
+			if (node->children.size() == 0 /*pos.is_mated()*/)
+				return mated_in(0);
+
+			// 宣言勝ちの判定
+			if (pos.DeclarationWin())
+				// 次の宣言で勝ちになるから1手詰め相当。
+				return mate_in(1);
+
+			// 1手詰めもついでに判定しておく。
+			if (Mate::mate_1ply(pos))
+				return mate_in(1);
+
+			// 上記のいずれかの条件に合致した場合、このnodeからさらに掘ることは考えられないので
+			// このnodeでは何も情報を記録せずに即座にreturnして良い。
+
+			// main-loop
+
+			// 各合法手で1手進める。
+			for (auto& child : node->children)
+			{
+				Move16 m16 = child.move;
+				Move m = pos.to_move(m16);
+				bool is_cyclic = false;
+
+				// 今回の指し手によって、到達したleaf nodeのうち、
+				// alpha <= eval < beta なnodeのものだけ残していく。
+				size_t search_nodes_index = search_nodes.size();
+
+				// 指し手mで進めた時のhash key。
+				HASH_KEY key_next = pos.long_key_after(m);
+				Node* next_node = pm.probe(key_next);
+				if (next_node == nullptr)
+				{
+					// 見つからなかったので、この子nodeのevalがそのまま評価値
+					// これがVALUE_NONEだとしたら、その定跡ファイルの作りが悪いのでは。
+					// 何らかの値は入っているべき。
+					// 
+					// すなわち、定跡の各局面で全合法手に対して何らかの評価値はついているべき。
+					// 評価値がついていない時点で、この局面、探索しなおしたほうが良いと思う。
+					value = (Value)child.eval;
+					if (value == VALUE_NONE)
+						continue;
+
+					// AlphaBetaOnKifの時)
+					// いまnext_node == nullptrだが、この時のkey_nextが、
+					// 棋譜上に出現している(kif_hash上に存在する)なら、
+					// この局面を追加する。さもなくば追加しない。
+					// 
+					// AlphaBeta , RangedAlphaBetaの時)
+					// 未探索のleafをここで無条件で追加して良い。
+					//
+					bool append_cancel = (search_option.search_type == SearchType::AlphaBetaOnKif) // AlphaBetaOnKif探索モードにおいて
+						              && (kif_hash.find(key_next) == kif_hash.end()); // 棋譜上に出現しないleaf nodeである
+
+					if (!append_cancel)
+						search_nodes.emplace_back(SearchNode(node, m16));
+
+				}
+				else {
+					// alpha-beta searchなので 1手進めてalphaとbetaを入れ替えて探索。
+					StateInfo si;
+					pos.do_move(m, si);
+
+					if (search_option.search_type == SearchType::AlphaBeta)
+						// 通常のalpha-beta探索
+						value = -search(pos, next_node, -beta, -alpha, ply+1);
+					else
+						// alpha値は更新しない感じのalpha-beta探索
+						// 区間[alpha,beta)に収まるleaf nodeをすべて展開したいので。
+						value = -search(pos, next_node, -beta, -old_alpha, ply+1);
+
+					// 子ノードのスコアが循環が絡んだスコアであるなら、このnodeにも伝播すべき。
+					is_cyclic = next_node->is_cyclic;
+					pos.undo_move(m);
+
+					// なぜかvalue_none
+					if (value == VALUE_NONE)
+						continue;
+				}
+
+				// alpha値を更新するのか？
+				if (alpha < value)
+				{
+					// alpha値を更新するのに用いた子nodeに関するis_cyclicだけをこのノードに伝播させる。
+					node->is_cyclic |= is_cyclic;
+
+					// beta以上ならbeta cutが生じる。
+					if (beta <= value)
+						return value;
+
+					// update alpha
+					alpha = value;
+					bestmove = m;
+				}
+				else
+				{
+					// 今回、alpha値を更新しなかった。
+
+					// SearchType::AlphaBetaの場合)
+					// 
+					// 今回得たleaf nodeの集合は不要な集合であったと言える。
+					// そこで、search_nodesを巻き戻す。
+					// 
+					// SearchType::AlphaBetaRange
+					// SearchType::AlphaBetaOnKif
+					// の場合)
+					// 引数で渡されたalpha値(old_alpha)未満のvalueであるleaf nodeは思考対象としない。
+					// そこで、value < old_alphaならsearch_nodesを巻き戻す。
+
+					if (search_option.search_type == SearchType::AlphaBeta || value < old_alpha)
+						search_nodes.resize(search_nodes_index);
+				}
+			}
+
+			// このループを回ったということは、search_valueがVALUE_NONE(未代入状態)であったか、
+			// VALUE_NONEではないがcyclicな状態であったかのいずれかだから、今回の結果を代入してしまって良い。
+
+			node->search_value = alpha;
+			node->bestmove = bestmove;
+
+			// bestmoveが見つかったので、それが1番目ではないなら入れ替えておくべきか？
+			// まあ、普通に探索した場合、1番目の指し手が1番目に来ているだろうから、まあいいか…。
+
+			return alpha;
+		}
+
+		// 現在の局面について思考して、その結果をpmにNode作って返す。
+		Node* think_sub(Position& pos,string sfen)
+		{
+			// ================================
+			//        Limitsの設定
+			// ================================
+
+			Search::LimitsType limits = Search::Limits;
+
+			// ノード数制限
+			limits.nodes = search_option.nodes_limit;
+
+			// すべての合法手を生成する
+			limits.generate_all_legal_moves = true;
+
+			// 探索中にPVの出力を行わない。
+			limits.silent = true;
+
+			// ================================
+			//           思考開始
+			// ================================
+
 			// SetupStatesは破壊したくないのでローカルに確保
 			StateListPtr states(new StateList(1));
 
-			Position pos;
-
 			// sfen文字列、Positionコマンドのparserで解釈させる。
-			istringstream is(sfen);
+			istringstream is("sfen " + sfen);
 			position_cmd(pos, is, states);
 
-			sync_cout << "Position: " << sfen << sync_endl;
+			// すでにあるのでskip
+			Node* n = pm.probe(pos.long_key());
+			if (n != nullptr)
+				return n;
 
-			// 探索時にnpsが表示されるが、それはこのglobalなTimerに基づくので探索ごとにリセットを行なうようにする。
-			Time.reset();
-			Search::LimitsType limits;
-			limits.nodes = nodes_limit; // これだけ思考する
-			limits.silent = true;       // silent modeで
+			// 思考部にUSIのgoコマンドが来たと錯覚させて思考させる。
+			Threads.start_thinking(pos, states , limits);
+			Threads.main()->wait_for_search_finished();
+			
+			// ================================
+			//        探索結果の取得
+			// ================================
 
-			Threads.start_thinking(pos, states, limits);
-			Threads.main()->wait_for_search_finished(); // 探索の終了を待つ。
+			auto search_result = dlshogi::GetSearchResult();
 
-			sync_cout << "nodes_searched = " << Threads.nodes_searched() << sync_endl;
+			// 新規にNodeを作成してそこに書き出す
 
-			// TODO : 探索結果は何とかして取り出すべし。
+			Node& node = *pm.create_node(pos);
+			node.sfen = pos.sfen();
 
-			return nullptr;
+			// 合法手の数
+			size_t num = search_result.size();
+			node.children.reserve(num);
+
+			for (auto& r : search_result)
+			{
+				Move m = r.first;
+
+				// 勝率
+				float wp = r.second;
+
+				// 勝率を[centi-pawn]に変換
+				Value cp = Eval::dlshogi::value_to_cp((float)wp,search_option.eval_coef);
+
+				// Nodeのchildrenに追加。
+				node.children.emplace_back(Child(m, cp));
+			}
+
+			// Childのなかで一番評価値が良い指し手がbestmoveであり、
+			// その時の評価値がこのnodeの評価値。
+
+			Value best_value = -VALUE_INFINITE;
+			size_t max_index = -1;
+			for (size_t i = 0; i < num; ++i)
+			{
+				Value eval = (Value)node.children[i].eval;
+				if (best_value < eval)
+				{
+					best_value = eval;
+					max_index = i;
+				}
+			}
+			// 普通は合法手、ひとつは存在するはずなのだが…。
+			if (max_index != -1)
+			{
+				node.bestmove = pos.to_move(node.children[max_index].move);
+
+				// この指し手をchildrentの先頭に持ってきておく。(alpha-beta探索で早い段階で枝刈りさせるため)
+				std::swap(node.children[0], node.children[max_index]);
+			}
+
+			// ================================
+			//   定跡ファイルの定期的な書き出し
+			// ================================
+
+			if (++think_count % search_option.book_save_interval == 0)
+			{
+				string path = search_option.write_book_name
+					// ゼロサプライして6桁にする。
+					// "write_book.db.000001"
+					// みたいな感じ。
+					+ "." +StringExtension::to_string_with_zero(search_option.write_book_number++,6);
+
+				save_book(path);
+			}
+
+			return &node;
 		}
 
-		// === MctsChildrenのcache ===
-
-		// あるNodeIndexに対応する、(そのnodeの)MctsChildrenを返す。
-		// cacheされていなければchildrenを生成して返す。
-		// ここで返されたpointerは、次にclear_children()かget_children()が呼び出されるまで有効。
-		// ChildNodeは、まだ存在しないものに関しては、NULLNODEになっている。
-		MctsChildren* get_children(Position& pos , NodeIndex node_index)
+		// 定跡をファイルに保存する。
+		void save_book(const string& path )
 		{
-			auto it = node_index_to_children_index.find(node_index);
-			if (it == node_index_to_children_index.end())
-			{
-				PackedSfen sfen;
+			cout << "save book , path = " << path << endl;
+			pm.save_book(path);
+		}
 
-				// すべての合法手を生成する。
-				MoveList<LEGAL_ALL> ml(pos);
+		// USIオプションを探索用に設定する。
+		void set_usi_options()
+		{
+			// 定跡にhitされると困るので定跡なしに
+			Options["BookFile"] = "no_book";
 
-				MctsChildren children;
-				children.reserve(ml.size());
-
-				for (auto m : ml)
-				{
-					// この指し手で一手進めて、その局面のNodeIndexを取得する。
-					StateInfo si;
-					pos.do_move(m,si);
-
-					pos.sfen_pack(sfen);
-					NodeIndex index = get_index(sfen);
-					// なければindex == NULL_NODEになる
-					pos.undo_move(m);
-
-					children.emplace_back(MctsChild(m,index));
-				}
-				NodeIndex lastIndex = (NodeIndex)childrens.size();
-				childrens.emplace_back(children);
-				node_index_to_children_index[node_index] = lastIndex;
-			}
-			return &childrens[it->second];
+			// rootでdf-pnで詰みが見つかると候補手が得られないので
+			// とりまオフにしておく。
+			Options["RootMateSearchNodesLimit"] = "0";
 		}
 
 	private:
 
-		// PackedSfenから、NodeIndexへのmap
-		std::unordered_map<PackedSfen, NodeIndex, PackedSfenHash> sfen_to_index;
+		// 局面管理クラス
+		PositionManager pm;
 
-		// MctsNodeをシリアルに並べた型
-		// NodeIndex index;
-		// mcts_nodes[index] = xx
-		// のようにアクセスできる。
-		std::vector<MctsNode> mcts_nodes;
+		// 探索時のオプション
+		SearchOption search_option;
 
-		// === MctsChildrenのcache ===
+		// あとで思考すべき局面集
+		// search()の時に列挙していく。
+		SearchNodes search_nodes;
 
-		// MctsChildrenをcacheしておく。
-		// MCTSの探索時に毎回、指し手生成をして1手進めて、探索済みのchild nodeであるかを確認して1手戻す..みたいなことを繰り返したくないため)
+		// 思考した局面数のカウンター
+		u64 think_count = 0;
 
-		// ↓の何番目に格納されているのかの対応関係のmap
-		std::unordered_map<NodeIndex, MctsChildrenIndex> node_index_to_children_index;
-
-		// cacheされているMctsChildren集合。
-		std::vector<MctsChildren> childrens;
-
-		// あるNodeIndexに対応するMctsChildrenを格納する。
-		void append_children(NodeIndex index, const MctsChildren& children)
-		{
-			// すでに格納されているなら、これ以上重複して格納することはできない。
-			//ASSERT_LV3(get_children(index) == nullptr);
-
-			auto children_index = (MctsChildrenIndex)children.size();
-			childrens.emplace_back(children);
-			node_index_to_children_index[index] = children_index;
-		}
-
+		// 棋譜上に出現した局面のhash key
+		unordered_set<HASH_KEY> kif_hash;
 	};
 
-	// =================================================================
-	//                   MCTSの探索rootを表現する
-	// =================================================================
-
-	// 探索Root集合の型
-	typedef std::vector<std::string> RootSfens;
-
-	// positionコマンドに渡す形式で書かれているsfenファイルを読み込み、そのsfen集合を返す。
-	// 重複局面は除去される。
-	//   all_node   : そこまでの手順(経由した各局面)も含めてすべて読み込む。
-	//   ignore_ply : 手数を無視する。(sfen化するときに手数をtrimする)
-	// 
-	// file formatは、
-	// "startpos move xxxx xxxx"
-	// "[sfen文字列] moves xxxx xxxx"
-	RootSfens ReadPositionFile(const string& filename, bool all_node, bool ignore_ply)
-	{
-		std::unordered_set<std::string> sfens;
-
-		SystemIO::TextReader reader;
-		reader.Open(filename);
-
-		std::string line, token, sfen;
-		while (!reader.ReadLine(line).is_eof())
-		{
-			// line : この1行がpositionコマンドに渡す文字列と同等のもの
-			std::istringstream is(line);
-			is >> token;
-			if (token == "startpos")
-			{
-				sfen = SFEN_HIRATE;
-				is >> token; // "moves"を消費する
-			}
-			else {
-				// "sfen"は書いてなくても可。
-				if (token != "sfen")
-					sfen += token + " ";
-				while (is >> token && token != "moves")
-					sfen += token + " ";
-			}
-
-			// 新しく渡す局面なので古いものは捨てて新しいものを作る。
-			auto states = StateListPtr(new StateList(1));
-			Position pos;
-			pos.set(sfen, &states->back(), Threads.main());
-
-			// 返す局面集合に追加する関数
-			auto insert = [&] {
-				std::string s = pos.sfen();
-				if (sfens.count(s) == 0)
-					sfens.insert(s);
-			};
-
-			// 開始局面をsfen化したものを格納
-			if (all_node)
-				insert();
-
-			// 指し手のparser
-			Move m;
-			while (is >> token && (m = USI::to_move(pos, token)) != MOVE_NONE)
-			{
-				// 1手進めるごとにStateInfoが積まれていく。これは千日手の検出のために必要。
-				states->emplace_back();
-				if (m == MOVE_NULL) // do_move に MOVE_NULL を与えると死ぬので
-					pos.do_null_move(states->back());
-				else
-					pos.do_move(m, states->back());
-
-				if (all_node)
-					insert();
-			}
-
-			// all_node == falseならば、最後の局面だけ返す。
-			if (!all_node)
-				insert();
-		}
-
-		// vectorに変換して返す。
-		std::vector<std::string> sfens_vector;
-		for (auto s : sfens)
-		{
-			if (ignore_ply)
-				s = StringExtension::trim_number(s);
-			sfens_vector.emplace_back(s);
-		}
-
-		return sfens_vector;
-	}
-
-	// =================================================================
-	//             mcts定跡生成コマンド本体
-	// =================================================================
-
-	// MCTSで定跡を生成する本体
-	class MctsMakeBook
-	{
-	public:
-
-		// MCTSをやって定跡を生成する。
-		void make_book(Position& pos, istringstream& is)
-		{
-			// 定跡ファイル名
-			//string book_filename = "mctsbook_user_book.db";
-			// → やねうら王で使う定跡DBのファイル
-			// これは専用の変換コマンドを別途用意。
-
-			// loop_maxに達するか、"stop"が来るまで回る
-
-			// この回数だけrootから探索したら終了する。
-			u64 loop_max = 10000000;
-
-			// 一つの局面(leaf node)でのPlayoutの回数
-			u64 playout = 10000;
-
-			// 探索root集合
-			string root_filename = "mctsbook_root_sfen.txt";
-
-			// 定跡のMCTS探索中のメモリ状態をserializeしたやつ
-			string mcts_tree_filename = "mctsbook_mcts_tree.db";
-
-			// rootのうち、最小手数と最大手数。
-			// root_min_ply <= game_ply <= root_max_ply に該当する局面しかrootの対象としない。
-			int root_min_ply = 1;
-			int root_max_ply = 256;
-
-			// 最大手数
-			int max_ply = 384;
-
-			// 途中セーブ機能はないが、1時間で終わるぐらいの量にして、
-			// 延々とこのコマンドを呼び出すことを想定。
-
-			Parser::ArgumentParser parser;
-			parser.add_argument("loop"         ,loop_max);
-			parser.add_argument("playout"      , playout);
-			parser.add_argument("root_filename", root_filename);
-			parser.add_argument("tree_filename", mcts_tree_filename);
-			parser.add_argument("root_min_ply" , root_min_ply);
-			parser.add_argument("root_max_ply" , root_max_ply);
-			parser.add_argument("max_ply"      , max_ply);
-			parser.parse_args(is);
-
-			cout << "makebook mcts command" << endl
-				<< "  root filename       = " << root_filename << endl
-				<< "  mcts_tree_filename  = " << mcts_tree_filename << endl
-				<< "  loop                = " << loop_max << endl
-				<< "  playout             = " << playout << endl
-				<< "  playout             = " << playout << endl
-				<< "  root_min_ply        = " << root_min_ply << endl
-				<< "  root_max_ply        = " << root_max_ply << endl
-				<< "  max_ply             = " << max_ply << endl
-				;
-
-			cout << "read root file.." << endl;
-
-			// そこまでの手順も含めてすべて読み込み、sfenにする。
-			auto roots = ReadPositionFile(root_filename, true, true);
-			cout << "  root sfens size()  = " << roots.size() << endl;
-
-			// treeの復元
-			node_manager.Deserialize(mcts_tree_filename);
-
-			// 定跡生成部本体
-			for (size_t sfen_no = 0 ; sfen_no < roots.size() ; ++sfen_no)
-			{
-				// 探索開始局面(root)のsfenを出力
-				auto root_sfen = roots[sfen_no];
-				cout << "root sfen [" << (sfen_no+1) << "/" << roots.size() << "] : " << root_sfen << endl;
-
-				// 探索開始局面から、loopで指定された回数だけMCTSでのplayoutを行う。
-				for (u64 loop = 0; loop < loop_max; ++loop)
-				{
-					uct_main(root_sfen);
-				}
-			}
-
-			// treeの保存
-			node_manager.Serialize(mcts_tree_filename);
-
-			cout << "makebook mcts , done." << endl;
-		}
-
-		// 与えられたsfen文字列の局面からMCTSしていく。
-		void uct_main(const string& root_sfen)
-		{
-			Position pos;
-			StateInfo si;
-			pos.set(root_sfen, &si, Threads.main());
-
-			// ここからMCTSしていく。
-			uct_search(pos);
-		}
-
-		// 与えられた局面から最良の子nodeを選択していき、leaf nodeに到達したら探索を呼び出す。
-		void uct_search(Position& pos)
-		{
-			PackedSfen packed_sfen;
-			pos.sfen_pack(packed_sfen);
-
-			NodeIndex node_index = node_manager.get_index(packed_sfen);
-			if (node_index == NULL_NODE)
-			{
-				// 未展開のnodeであったか。playoutする
-			}
-
-			MctsNode* this_node = node_manager.get_node(node_index);
-
-			// ↑↑でplayoutしているので、this_node == nullptrはありえない
-			ASSERT_LV3(this_node != nullptr);
-
-			MctsChildren* children = node_manager.get_children(pos, node_index);
-
-			if (children == nullptr)
-			{
-				// 合法手がない。詰みなのでは…。
-				return;
-			}
-
-			// === UCB1で最良ノードを選択する。===
-
-			// value_winの最大値
-			double ucb1_max_value = std::numeric_limits<double>::min();
-
-			// 最良の子のindex。children[best_child]がbestな子
-			size_t best_child = std::numeric_limits<size_t>::max();
-
-			// このノードのmove_count
-			u32 M = this_node->move_count_from_this;
-
-			for (size_t i = 0; i < children->size(); ++i)
-			{
-				// ChildNodeへのedge
-				MctsChild child = children->at(i);
-
-				MctsNode* child_node = child.index != NULL_NODE ? node_manager.get_node(child.index) : nullptr;
-
-				// 子のvalue_win。未展開のnodeなら親nodeの価値を使う。
-				double child_value_win = child_node ? child_node->value_win : this_node->value_win;
-
-				// 子のmove_count
-				MoveCountType child_move_count = child_node ? child_node->move_count : 0;
-				// 子のmove_countは分母に来るので、0割防止に微小な数を加算しておく。
-				double N = child_move_count ? child_move_count : 0.01;
-
-				// === UCB1値を計算する ===
-
-				// 典型的なucb1の計算
-				double child_ucb1 = child_value_win / N + sqrt(2.0 * log(M) / N );
-
-				// ucb1値を更新したらそれを記憶しておく。
-				if (ucb1_max_value < child_ucb1)
-				{
-					ucb1_max_value = child_ucb1;
-					best_child = i;
-				}
-			}
-			// best childが決定した
-
-			// TODO:あとでかく
-		}
-
-		// "makebook mcts"コマンドで生成したtreeをやねうら王形式の定跡DBに変換する。
-		void convert_book(Position& pos, istringstream& is)
-		{
-			// 定跡のMCTS探索中のメモリ状態をserializeしたやつ
-			string mcts_tree_filename = "mctsbook_mcts_tree.db";
-
-			// 定跡ファイル名
-			// → やねうら王で使う定跡DBのファイル
-			string book_filename = "mctsbook_user_book.db";
-
-			// この回数以上訪問しているnodeでなければ定跡に書き出さない。
-			u32 min_move_count = 1000;
-
-			Parser::ArgumentParser parser;
-			parser.add_argument("tree_filename" , mcts_tree_filename);
-			parser.add_argument("book_filename" , book_filename);
-			parser.add_argument("min_move_count", min_move_count);
-			parser.parse_args(is);
-
-			cout << "makebook mcts_convert command" << endl
-				<< "  mcts_tree_filename  = " << mcts_tree_filename << endl
-				<< "  book_filename       = " << book_filename << endl
-				<< "  min_move_count      = " << min_move_count
-				;
-
-			// treeの読み込み
-			node_manager.Deserialize(mcts_tree_filename);
-
-			// 全件のなかから、条件の合致するnodeだけ書き出す。
-
-
-			// 書きかけ
-		}
-
-
-	private:
-		NodeManager node_manager;
-	};
 }
 
 namespace Book
@@ -714,20 +1073,14 @@ namespace Book
 	// この拡張コマンドを処理したら、この関数は非0を返す。
 	int makebook2021(Position& pos, istringstream& is, const string& token)
 	{
-		if (token == "mcts")
+		// makebook steraコマンド
+		// スーパーテラショック定跡手法での定跡生成。
+		if (token == "stera")
 		{
-			MctsMakeBook mcts;
-			mcts.make_book(pos, is);
+			MakeBook2021::SuperTeraBook st;
+			st.make_book(pos, is);
 			return 1;
 		}
-		if (token == "mcts_convert")
-		{
-			// やねうら王で使う定跡ファイルの形式に変換する(書き出す)コマンド
-			MctsMakeBook mcts;
-			mcts.convert_book(pos, is);
-			return 1;
-		}
-
 
 		return 0;
 	}

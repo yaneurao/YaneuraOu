@@ -82,7 +82,6 @@ namespace Book
 		cout << "> makebook sort book_src.db book_sorted.db" << endl;
 		cout << "> makebook convert_from_apery book_src.bin book_converted.db" << endl;
 		cout << "> makebook build_tree book2019.db user_book1.db" << endl;
-		cout << "> makebook mcts filename book2021.db" << endl;
 
 	}
 
