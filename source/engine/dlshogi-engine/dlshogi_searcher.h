@@ -203,7 +203,7 @@ namespace dlshogi
 	private:
 		// ある局面のHASH_KEY(Position::key()にて取得できる)に対応するmutexを返す。
 		// →　これ外から呼び出して使わなくていいっぽいのでとりまprivateにしておく。
-		std::mutex& get_mutex(const HASH_KEY key)
+		std::mutex& get_mutex(const Key key)
 		{
 			return mutexes[key & (MUTEX_NUM - 1)];
 		}
@@ -313,7 +313,8 @@ namespace dlshogi
 		void SetReuseSubtree(bool flag);
 
 		// 勝率から評価値に変換する際の係数を設定する。
-		// ここで設定した値が1/1000倍されて使用される。
+		// ここで設定した値は、そのままsearch_options.eval_coefに反映する。
+		// 変換部の内部的には、ここで設定した値が1/1000倍されて計算時に使用される。
 		// デフォルトは 756。
 		void SetEvalCoef(const int eval_coef);
 
@@ -477,7 +478,6 @@ namespace dlshogi
 	private:
 		DlshogiSearcher* ds;
 	};
-
 
 } // namespace dlshogi
 

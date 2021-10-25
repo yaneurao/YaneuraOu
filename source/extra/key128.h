@@ -59,6 +59,16 @@ struct alignas(16) Key128
 
 };
 
+// std::unorded_map<Key128,string>みたいなのを使うときにoperator==とhash化が必要。
+
+template <>
+struct std::hash<Key128> {
+	size_t operator()(const Key128& k) const {
+		// 下位bit返すだけで良いのでは？
+		return (size_t)(k._u64[0]);
+	}
+};
+
 // 256bit版
 struct alignas(32) Key256
 {
@@ -91,6 +101,14 @@ struct alignas(32) Key256
 	Key256 operator + (const Key256& rhs) const { return Key256(*this) += rhs; }
 	Key256 operator ^ (const Key256& rhs) const { return Key256(*this) ^= rhs; }
 
+};
+
+template <>
+struct std::hash<Key256> {
+	size_t operator()(const Key256& k) const {
+		// 下位bit返すだけで良いのでは？
+		return (size_t)(k._u64[0]);
+	}
 };
 
 #endif

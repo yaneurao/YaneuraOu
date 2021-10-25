@@ -1191,8 +1191,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	// hash key
 
 	// 現在の局面のhash keyはこれで、これを更新していき、次の局面のhash keyを求めてStateInfo::key_に格納。
-	Key64 k = st->board_key_ ^ Zobrist::side;
-	Key64 h = st->hand_key_;
+	HASH_KEY k = st->board_key_ ^ Zobrist::side;
+	HASH_KEY h = st->hand_key_;
 
 	// StateInfoの構造体のメンバーの上からkeyのところまでは前のを丸ごとコピーしておく。
 	// undo_moveで戻すときにこの部分はundo処理が要らないので細かい更新処理が必要なものはここに載せておけばundoが速くなる。

@@ -226,7 +226,8 @@ namespace dlshogi
 	}
 
 	// 勝率から評価値に変換する際の係数を設定する。
-	// ここで設定した値が1/1000倍されて使用される。
+	// ここで設定した値は、そのままsearch_options.eval_cosefに反映する。
+	// 変換部の内部的には、ここで設定した値が1/1000倍されて計算時に使用される。
 	// デフォルトは 756。
 	void DlshogiSearcher::SetEvalCoef(const int eval_coef)
 	{
@@ -938,7 +939,6 @@ namespace dlshogi
 
 		searching = false;
 	}
-
 }
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
