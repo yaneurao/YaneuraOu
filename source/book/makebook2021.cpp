@@ -68,7 +68,7 @@ namespace Eval::dlshogi {
 	// 価値(勝率)を評価値[cp]に変換。
 	// USIではcp(centi-pawn)でやりとりするので、そのための変換に必要。
 	// 	 eval_coef : 勝率を評価値に変換する時の定数。default = 756
-	// 
+	//
 	// 返し値 :
 	//   +29900は、評価値の最大値
 	//   -29900は、評価値の最小値
@@ -528,7 +528,7 @@ namespace MakeBook2021
 		// "startpos moves VV WW.."
 		// のようなUSIの"position"コマンドとしてやってくるような棋譜形式であれば
 		// いずれでも解釈できるものとする。
-		// 
+		//
 		// append_to_kif = trueのとき、その局面のhash keyがkif_hashにappendされる。
 		void set_root(Position& pos, const string& root_sfen, vector<StateInfo>& si , bool append_to_kif = false)
 		{
@@ -656,11 +656,11 @@ namespace MakeBook2021
 			// 区間[best_value - delta , best_value + delta + 1) で探索しなおす。
 			// 条件に合致するleaf nodeをすべて列挙して、search_nodes(思考対象局面)に追加する。
 			// delta = 10ぐらいで十分だと思う。
-			// 
+			//
 			// 区間の上側、広げなくても良いと思っていたのだが、循環が絡むと、fail highしてしまうことが
 			// あるようで、その時に思考すべきleaf nodeがゼロになってしまってまずいようだ。
 			// 仕方ないので上川にも区間を広げておく。
-			// 
+			//
 			// ranged alpha-beta searchでは、alpha値のupdateは行わない。常に最初に渡された区間内を探索。
 			// 前回のbestvalueを与えているのでここからはみ出すことはないはず。
 
@@ -795,7 +795,7 @@ namespace MakeBook2021
 			//
 			// この処理を入れておかないと長いほうの詰み手順に行ったりするし、
 			// 詰みまで定跡を掘るにしても長い手順のほうを悪い値にしたい。
-			// 
+			//
 			// また、best value = -INFの時に、そこから - deltaすると範囲外の数値になってしまうので
 			// それの防止でもある。
 
@@ -856,7 +856,7 @@ namespace MakeBook2021
 					// 見つからなかったので、この子nodeのevalがそのまま評価値
 					// これがVALUE_NONEだとしたら、その定跡ファイルの作りが悪いのでは。
 					// 何らかの値は入っているべき。
-					// 
+					//
 					// すなわち、定跡の各局面で全合法手に対して何らかの評価値はついているべき。
 					// 評価値がついていない時点で、この局面、探索しなおしたほうが良いと思う。
 					value = (Value)child.eval;
@@ -867,7 +867,7 @@ namespace MakeBook2021
 					// いまnext_node == nullptrだが、この時のkey_nextが、
 					// 棋譜上に出現している(kif_hash上に存在する)なら、
 					// この局面を追加する。さもなくば追加しない。
-					// 
+					//
 					// AlphaBeta , RangedAlphaBetaの時)
 					// 未探索のleafをここで無条件で追加して良い。
 					//
@@ -927,10 +927,10 @@ namespace MakeBook2021
 					// 今回、alpha値を更新しなかった。
 
 					// SearchType::AlphaBetaの場合)
-					// 
+					//
 					// 今回得たleaf nodeの集合は不要な集合であったと言える。
 					// そこで、search_nodesを巻き戻す。
-					// 
+					//
 					// SearchType::AlphaBetaRange
 					// SearchType::AlphaBetaOnKif
 					// の場合)
@@ -991,7 +991,7 @@ namespace MakeBook2021
 			// 思考部にUSIのgoコマンドが来たと錯覚させて思考させる。
 			Threads.start_thinking(pos, states , limits);
 			Threads.main()->wait_for_search_finished();
-			
+
 			// ================================
 			//        探索結果の取得
 			// ================================
@@ -1073,11 +1073,11 @@ namespace MakeBook2021
 		void set_usi_options()
 		{
 			// 定跡にhitされると困るので定跡なしに
-			Options["BookFile"] = "no_book";
+			Options["BookFile"] = std::string("no_book");
 
 			// rootでdf-pnで詰みが見つかると候補手が得られないので
 			// とりまオフにしておく。
-			Options["RootMateSearchNodesLimit"] = "0";
+			Options["RootMateSearchNodesLimit"] = std::string("0");
 		}
 
 	private:
