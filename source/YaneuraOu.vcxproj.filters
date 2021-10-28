@@ -316,6 +316,9 @@
     <ClInclude Include="testcmd\unit_test.h">
       <Filter>リソース ファイル\testcmd</Filter>
     </ClInclude>
+    <ClInclude Include="eval\nnue\features\half_kp_vm.h">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -512,6 +515,9 @@
     </ClCompile>
     <ClCompile Include="testcmd\unit_test.cpp">
       <Filter>リソース ファイル\testcmd</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\nnue\features\half_kp_vm.cpp">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
