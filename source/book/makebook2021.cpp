@@ -664,6 +664,15 @@ namespace MakeBook2021
 			// 探索避けleaf nodeのクリア。
 			searched_hash.clear();
 
+			// 世代カウンターをインクリメント
+			// 探索前に各nodeのsearch_valueはクリアする必要があるが、
+			// generationが合致していなければ無視すれば良いのでクリアしないことにする。
+			// (このカウンターがlap aroundした時には困るがu32なので、まあ…)
+			//
+			// これ、search_start()のごとに行ったほうが正確なのだが、そうすると
+			// 毎回全域を探索することになって効率がすこぶる悪い。
+			++search_option.generation;
+
 			for(int i = 0 ; i < search_option.ranged_alpha_beta_loop ; ++i)
 			{
 				// 局面の初期化
@@ -693,12 +702,6 @@ namespace MakeBook2021
 				// これが存在しない時は、生成しなくてはならない。
 				node = think(pos,pos.sfen());
 			}
-
-			// 世代カウンターをインクリメント
-			// 探索前に各nodeのsearch_valueはクリアする必要があるが、
-			// generationが合致していなければ無視すれば良いのでクリアしないことにする。
-			// (このカウンターがlap aroundした時には困るがu32なので、まあ…)
-			++search_option.generation;
 
 			// 探索PVのクリア
 			search_pv.clear();

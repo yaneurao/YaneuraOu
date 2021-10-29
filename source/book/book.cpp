@@ -371,7 +371,7 @@ namespace Book
 		this->book_name = filename;
 		this->pure_book_name = pure_filename;
 
-		sync_cout << "info string read book done." << sync_endl;
+		sync_cout << "info string read book done. number of positions = " << size() << sync_endl;
 
 		return Tools::Result::Ok();
 	}
