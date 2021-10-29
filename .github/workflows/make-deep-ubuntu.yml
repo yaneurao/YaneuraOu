@@ -102,9 +102,9 @@ jobs:
         if: ${{ matrix.compiler == 'clang++-14' }}
 
       - name: install CUDA, TensorRT
-        # ここではCUDAアプリケーションの開発環境用に、CUDAドライバーを含まない cuda-toolkit-11-4 をインストールしている。
-        # CUDAアプリケーションの実行環境用にセットアップする場合、 cuda-toolkit-11-4 の代わりに
-        # CUDAドライバーを含むメタパッケージ、 cuda-11-4 もしくは cuda をインストールする。
+        # ここではCUDAアプリケーションの開発環境用に、CUDAドライバーを含まない cuda-toolkit-11-5 をインストールしている。
+        # CUDAアプリケーションの実行環境用にセットアップする場合、 cuda-toolkit-11-5 の代わりに
+        # CUDAドライバーを含むメタパッケージ、 cuda-11-5 もしくは cuda をインストールする。
         # https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#package-manager-metas
         run: |
           sudo curl "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin" -o /etc/apt/preferences.d/cuda-repository-pin-600
@@ -113,10 +113,10 @@ jobs:
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install cuda-toolkit-11-4 libnvinfer-dev libnvinfer-plugin-dev libnvonnxparsers-dev libnvparsers-dev
+          sudo apt install cuda-toolkit-11-5 libnvinfer-dev libnvinfer-plugin-dev libnvonnxparsers-dev libnvparsers-dev
 
       - name: make
-        run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS='-I/usr/local/cuda-11.4/include' EXTRA_LDFLAGS='-L/usr/local/cuda-11.4/lib64'"
+        run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS='-I/usr/local/cuda-11.5/include' EXTRA_LDFLAGS='-L/usr/local/cuda-11.5/lib64'"
 
       - uses: actions/upload-artifact@v2
         with:
