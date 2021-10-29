@@ -156,6 +156,18 @@ namespace MakeBook2021
 		// search_value,is_cyclic,best_move は、generationが合致しなければ無視する。
 		// 全域に渡って、Nodeの↑の3つの変数をクリアするのが大変なのでgenerationカウンターで管理する。
 		u32 generation = 0;
+
+		// childrenのなかから、bestを先頭に持ってくる。
+		void set_best_move(Move16 best_move)
+		{
+			auto it = std::find_if(children.begin(), children.end(), [&](const Child& c) { return c.move == best_move; });
+			if (it == children.end())
+				return; // そんな馬鹿な…
+
+			// 見つかった以上は、要素が1つ以上存在するはずで、children[0]が存在することは保証されているから
+			// それを指定してswapすることはできる。
+			std::swap(children[0], *it);
+		}
 	};
 
 	// 局面管理用クラス。
@@ -193,6 +205,7 @@ namespace MakeBook2021
 
 		// SFEN文字列とそれに対応する局面の情報(定跡の指し手、evalの値等)を
 		// このクラスの構造体に保存する。
+		// ただしすべての合法手の評価値がついていない局面は登録しない。
 		void store(string sfen, Position& pos, const BookMovesPtr& ptr)
 		{
 			// Node一つ作る。
@@ -209,14 +222,23 @@ namespace MakeBook2021
 
 			// 全合法手の生成と、この局面の定跡の各手の情報を保存。
 			MoveList<LEGAL_ALL> ml(pos);
-			for (auto move : ml)
+			for (auto m : ml)
 			{
+				Move move = m.move;
 				// 指し手moveがBookMovesのなかにあるなら、その評価値も取得して登録
 				// 愚直にやると計算量はO(N^2)になるのでmoveに対応するevalのmapを使う。
-				Value eval = VALUE_NONE;
+				Value eval;
 				auto it = move_to_eval.find(move);
 				if (it != move_to_eval.end())
 					eval = it->second;
+				else
+				{
+					// 合法手すべてに評価値がついていないとまずい。
+					// このnodeはなかったことにしてしまう。
+					sync_cout << "remove node , sfen = " << sfen << " , missing move = " << move << sync_endl;
+					remove_node(pos);
+					return;
+				}
 				node.children.emplace_back(Child(move,eval));
 			}
 		}
@@ -230,10 +252,22 @@ namespace MakeBook2021
 			return &node;
 		}
 
-		// 引数で指定されたkeyに対応するNode*を返す。
+		// Nodeを削除する。
+		void remove_node(Position& pos)
+		{
+			auto key = pos.long_key();
+			hashkey_to_node.erase(key);
+		}
+
+		// probe()とcreate_node()だけmutexを用いたいので、
+		// create_nodeを呼び出す前後でこのmutexをlockすればprobe()から守られる。
+		std::mutex* get_mutex() { return &mutex_; }
+
+		// [ASYNC] 引数で指定されたkeyに対応するNode*を返す。
 		// 見つからなければnullptrが返る。
 		Node* probe(HASH_KEY key)
 		{
+			std::unique_lock<std::mutex> lk(mutex_);
 			auto it = hashkey_to_node.find(key);
 			return it == hashkey_to_node.end() ? nullptr : &it->second;
 		}
@@ -285,9 +319,11 @@ namespace MakeBook2021
 		// vは引数で渡す。
 		void dump_pv_line(Position& pos , Value v)
 		{
+			std::cout << IO_LOCK;
 			cout << "PV line = ";
 			dump_pv(pos);
 			cout << ", Value = " << v << endl;
+			std::cout << IO_UNLOCK;
 		}
 
 		// 持っているNode情報をすべて定跡DBに保存する。
@@ -335,6 +371,38 @@ namespace MakeBook2021
 	protected:
 		// その局面のHASH_KEYからNode構造体へのmap。
 		unordered_map<HASH_KEY, Node> hashkey_to_node;
+
+		std::mutex mutex_;
+	};
+
+	// 探索中のnodeを表現する。
+	struct SearchingNodes
+	{
+		// [ASYNC] nodeのkeyを追加する
+		void append(HASH_KEY key)
+		{
+			std::unique_lock<std::mutex> lk(mutex_);
+			keys.emplace(key);
+		}
+
+		// [ASYNC] nodeのkeyを保持しているか。保持していればtrue。
+		bool contains(HASH_KEY key)
+		{
+			std::unique_lock<std::mutex> lk(mutex_);
+			return keys.find(key) != keys.end();
+		}
+
+		// [ASYNC] nodeのkeyを削除する。
+		void remove(HASH_KEY key)
+		{
+			std::unique_lock<std::mutex> lk(mutex_);
+			if (keys.find(key) != keys.end()) // ここcontains()を用いるとmutex二重にlockされてstaleする。
+				keys.erase(key);
+		}
+
+	private:
+		std::mutex mutex_;
+		std::unordered_set<HASH_KEY> keys;
 	};
 
 	// 探索オプション
@@ -377,8 +445,11 @@ namespace MakeBook2021
 		// そこで探索すべき指し手(この指し手で1手進めた局面を探索する)
 		Move16 move;
 
+		// nodeからmoveで1手進めた局面のhash key。
+		HASH_KEY key;
+
 		SearchNode() {}
-		SearchNode(Node* node_, Move16 move_) :node(node_), move(move_) {}
+		SearchNode(Node* node_, Move16 move_,HASH_KEY key_) :node(node_), move(move_) , key(key_) {}
 
 		// このクラスの指している局面のSFENと指し手を出力する。(デバッグ用)
 		void print() const
@@ -415,16 +486,16 @@ namespace MakeBook2021
 			string write_book_name = "book/write_book.db";
 
 			// 探索開始rootとなるsfenの集合。ファイルがなければ平手の初期局面をrootとする。
-			string root_sfens_name = "root_sfens.txt";
+			string root_sfens_name = "book/root_sfens.txt";
 
 			// 探索に追加したい棋譜
 			// USIの"position"コマンドの、"position"の後続に来る文字列(これが1つの棋譜)が複数行(複数棋譜)書かれているようなファイル。
-			string kif_sfens_name = "kif_sfens.txt";
+			string kif_sfens_name = "book/kif_sfens.txt";
 
 			// 1局面に対する探索ノード数
 			// 1局面1秒ぐらい
 			u64 nodes_limit = 30000;
-			//u64 nodes_limit = 300;
+			//u64 nodes_limit = 100;
 			
 			// ↓の局面数を思考するごとにsaveする。
 			// 15分に1回ぐらいで良いような？
@@ -434,7 +505,7 @@ namespace MakeBook2021
 			u64 think_limit = 1000000;
 
 			// 何回ranged alpha searchを連続して行うのか。
-			size_t ranged_alpha_beta_loop = 100;
+			size_t ranged_alpha_beta_loop = 5;
 
 			// ranged alpha beta searchの時に棋譜上に出現したleaf nodeに加点するスコア。
 			// そのleaf nodeが選ばれやすくなる。
@@ -488,9 +559,21 @@ namespace MakeBook2021
 				// なければ無いで良いが..
 				cout << "Warning , root sfens file = " << root_sfens_name << " , is not found." << endl;
 
-				// なければ平手の初期局面を設定しておいてやる。
-				root_sfens.emplace_back("sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
+				// なければ平手の初期局面と後手の初期局面を設定しておいてやる。
+				string ms[] = {
+					"2g2f","7g7f","1g1f","9g9f","6i7h","3i3h","3i4h","3g3f","5i6h","4i5h",
+					"7i6h","5i5h","6g6f","5g5f","4g4f","6i6h","4i4h","7i7h","5i4h","4i3h",
+					"2h3h","2h6h","2h5h","2h4h","1i1h","2h1h","2h7h","6i5h","9i9h","8g8f"};
+
+				// 後手の初期局面 : 初期局面から先手が↑のいずれかの指し手を指した局面
+				for (auto s : ms)
+					root_sfens.emplace_back("startpos moves " + s);
+
+				// 先手の初期局面
+				root_sfens.emplace_back("startpos");
 			}
+
+			cout << "[Step 1] extract leaf nodes on kif." << endl;
 
 			vector<string> kif_sfens;
 			if (SystemIO::ReadAllLines(kif_sfens_name, kif_sfens, true).is_not_ok())
@@ -523,17 +606,15 @@ namespace MakeBook2021
 			// 準備完了したのであとは
 			// think limitに達するまで延々と思考する。
 
+			// rootに対応するNode自体は必要。これは特別扱いする。
+			cout << "[Step 2] root nodes check." << endl;
+			for (auto& root_sfen : root_sfens)
+				create_root_node(pos, root_sfen);
+
 			while (this->think_count < think_limit)
 			{
-				// 与えられたroot局面集合から。
-				for (auto& root_sfen : root_sfens)
-				{
-					// rootとなる局面のsfenを出力しておく。
-					cout << "[Step 1] search root = " << root_sfen << endl;
-
-					// 指定されたrootから定跡を生成する。
-					make_book_from_root(pos, root_sfen);
-				}
+				// 指定されたrootから定跡を生成する。
+				make_book_from_roots(pos, root_sfens);
 			}
 
 			// 定跡ファイルの書き出し(最終)
@@ -610,7 +691,6 @@ namespace MakeBook2021
 
 			istringstream iss(root_sfen);
 			string token;
-			bool hirate = true;
 			do {
 				token = feed_next(iss);
 				if (token == "sfen")
@@ -618,78 +698,134 @@ namespace MakeBook2021
 					// 駒落ちなどではsfen xxx movesとなるのでこれをfeedしなければならない。
 					auto sfen = feed_sfen(iss);
 					pos.set(sfen,&si[0],Threads.main());
-					hirate = false;
 				}
-			} while (token == "startpos" || token == "moves" || token == "sfen");
-
-			if (hirate)
-				pos.set_hirate(&si[0],Threads.main());
+				else if (token == "startpos")
+				{
+					// 平手初期化
+					pos.set_hirate(&si[0], Threads.main());
+				}
+			} while (token == "startpos" || token == "sfen" || token == "moves"/* movesは無視してループを回る*/ );
 
 			append_to_kif_hash();
 
 			// moves以降は1手ずつ進める
 			while (token != "")
 			{
+				// 非合法手ならUSI::to_moveはMOVE_NONEを返すはず…。
 				Move move = USI::to_move(pos, token);
 				if (move == MOVE_NONE)
 					break;
 
-				if (!pos.pseudo_legal_s<true>(move) || !pos.legal(move))
-				{
-					cout << "Error : illegal move : sfen = " << root_sfen << " , move = " << token << endl;
-					// もうだめぽ
-					token = "";
-				}
+				// MOVE_NULL,MOVE_WINでは局面を進められないのでここで終了。
+				if (!is_ok(move))
+					break;
+
 				si.emplace_back(StateInfo());
 				pos.do_move(move, si.back());
 
 				// 棋譜hashに追加。
 				append_to_kif_hash();
 
-				iss >> token;
+				token = feed_next(iss);
 			}
 
 			// 局面posは指し手で進めて、与えられたsfen(棋譜)の末尾の局面になっている。
 		}
 
 		// 現在のrootから定跡を生成する。
-		void make_book_from_root(Position& pos, const string& root_sfen)
+		void make_book_from_roots(Position& pos, const vector<string>& root_sfens)
 		{
 			// ----------------------------------------
 			//      Ranged Alpha-Beta Search
 			// ----------------------------------------
 
-			cout << "[Step 2] ranged alpha beta search (-INF,INF)" << endl;
+			sync_cout << "[Step 3] ranged alpha beta search (-INF,INF)" << sync_endl;
 
-			// 探索避けleaf nodeのクリア。
-			searched_hash.clear();
+			// 探索スレッドの起動
+			auto th = std::thread([&] {
+				// 与えられたroot局面集合から。
+				for (auto& root_sfen : root_sfens)
+				{
+					// rootとなる局面のsfenを出力しておく。
+					sync_cout << "[Step 4] search root = " << root_sfen << sync_endl;
 
-			// 世代カウンターをインクリメント
-			// 探索前に各nodeのsearch_valueはクリアする必要があるが、
-			// generationが合致していなければ無視すれば良いのでクリアしないことにする。
-			// (このカウンターがlap aroundした時には困るがu32なので、まあ…)
-			//
-			// これ、search_start()のごとに行ったほうが正確なのだが、そうすると
-			// 毎回全域を探索することになって効率がすこぶる悪い。
-			++search_option.generation;
+					// 世代カウンターをインクリメント
+					// 探索前に各nodeのsearch_valueはクリアする必要があるが、
+					// generationが合致していなければ無視すれば良いのでクリアしないことにする。
+					// (このカウンターがlap aroundした時には困るがu32なので、まあ…)
+					//
+					// これ、search_start()のごとに行ったほうが正確なのだが、そうすると
+					// 毎回全域を探索することになって効率がすこぶる悪い。
+					++search_option.generation;
 
-			for(int i = 0 ; i < search_option.ranged_alpha_beta_loop ; ++i)
+					for (int i = 0; i < search_option.ranged_alpha_beta_loop; ++i)
+					{
+						// 局面の初期化
+						vector<StateInfo> si(1024 /* above MAX_PLY */);
+						Position root_pos;
+						set_root(root_pos, root_sfen, si);
+
+						// ここ、aspiration searchにしたほうが効率が良いのだろうが、
+						// そこまで変わらない＆面倒なのでこのまま。
+						Value best_value = search_start(root_pos, -VALUE_INFINITE, VALUE_INFINITE);
+
+						// 初回のみ探索で得られたPV lineの表示。
+						if (i == 0)
+							pm.dump_pv_line(root_pos, best_value);
+
+						// best valueを記録したnodeを思考するためのqueueに追加。
+
+						// 無い。おそらく初期局面ですべての指し手がqueueに入っている、みたいな状況。
+						if (search_pv.size() == 0)
+						{
+							--i; continue;
+						}
+
+						const auto next = search_pv.back();
+
+						sync_cout << "leaf node , sfen = " << next.node->sfen << " , move = " << next.move << sync_endl;
+
+						// 思考中なのでここはleaf nodeとして回避せよ。
+						searching_nodes.append(next.key);
+
+						// 思考するためのqueueに追加。
+						search_nodes.push(next);
+					}
+				}
+			});
+
+			// ↑のスレッドが局面を作って、queueに積んでくれるはず。
+			Timer time;
+			for (int i = 0; i < search_option.ranged_alpha_beta_loop * root_sfens.size(); ++i)
 			{
-				// 局面の初期化
-				vector<StateInfo> si(1024 /* above MAX_PLY */);
-				set_root(pos, root_sfen , si);
+				// 思考するための局面queueから取り出す。
+				auto s_node = search_nodes.pop();
+				time.reset();
+				think(pos,&s_node);
+				sync_cout << "think time = " << time.elapsed() << "[ms] , queue.size() = " << search_nodes.size() << sync_endl;
 
-				// ここ、aspiration searchにしたほうが効率が良いのだろうが、
-				// そこまで変わらない＆面倒なのでこのまま。
-				Value best_value = search_start(pos, -VALUE_INFINITE, VALUE_INFINITE);
-
-				// 初回のみ探索で得られたPV lineの表示。
-				if (i==0)
-					pm.dump_pv_line(pos,best_value);
-
-				// best valueを記録したnodeを思考する。
-				think(pos,&search_pv.back());
+				// 探索が終わったので、いま以降、このleaf nodeに来ても大丈夫！
+				searching_nodes.remove(s_node.key);
 			}
+
+			// worker threadは自動的に終了するはずなのだが？
+			th.join();
+		}
+
+		// rootに対応するNodeを生成する。
+		Node* create_root_node(Position& pos,string rootSfen)
+		{
+			StateInfo si;
+			pos.set(rootSfen, &si, Threads.main());
+
+			// RootNode
+			Node* node = pm.probe(pos.long_key());
+			if (node == nullptr)
+			{
+				// これが存在しない時は、生成しなくてはならない。
+				node = think(pos,rootSfen);
+			}
+			return node;
 		}
 
 		// 探索の入り口。
@@ -697,11 +833,9 @@ namespace MakeBook2021
 		{
 			// RootNode
 			Node* node = pm.probe(pos.long_key());
-			if (node == nullptr)
-			{
-				// これが存在しない時は、生成しなくてはならない。
-				node = think(pos,pos.sfen());
-			}
+
+			// →　存在は保証されている。
+			ASSERT_LV3(node != nullptr);
 
 			// 探索PVのクリア
 			search_pv.clear();
@@ -802,12 +936,17 @@ namespace MakeBook2021
 				// search_pvを巻き戻すために1手進める前のsearch_pvの要素数を記録しておく。
 				size_t search_pv_index2 = search_pv.size();
 
-				// PVに追加
-				search_pv.emplace_back(SearchNode(node, m));
-
 				// 指し手mで進めた時のhash key。
 				const HASH_KEY key_next = pos.long_key_after(m);
+
 				Node* next_node = pm.probe(key_next);
+
+				// 探索中のleaf nodeは無いことにする。
+				if (searching_nodes.contains(key_next))
+					continue;
+
+				// PVに追加
+				search_pv.emplace_back(SearchNode(node, m, key_next));
 
 				if (next_node == nullptr)
 				{
@@ -819,28 +958,18 @@ namespace MakeBook2021
 					// 評価値がついていない時点で、この局面、探索しなおしたほうが良いと思う。
 					value = (Value)child.eval;
 
-					if (value == VALUE_NONE)
-					{
-						/*
-						cout << "Error! eval=VALUE_NONE , sfen = " << node->sfen << " , move = " << m << endl;
-						Tools::exit();
-						*/
-						// →　不成を生成しないモードで定跡を作ってしまっていると思われ。まあいいや…。
-
-						continue;
-					}
+					ASSERT_LV3(value != VALUE_NONE);
+					// →　不成を生成しないモードで定跡を作ってしまっていると思われ。
+					// 定跡読み込み時に削除しているはずなのだが。
 
 					// ======================================
 					//  leaf nodeに対するペナルティ/ボーナス
 					// ======================================
 
-					// 探索済みの局面に100点減点(このleaf nodeを避けるため)
-					if (searched_hash.find(key_next) != searched_hash.end())
-						value -= 100;
-
-					// 棋譜上に出現する局面に100点加点(このleaf nodeに行きたいため)
+					// 棋譜上に出現する局面がleaf nodeならば、ここに100点加点(このleaf nodeに行きたいため)
 					if (kif_hash.find(key_next) != kif_hash.end())
 						value += 100;
+
 				}
 				else {
 					// alpha-beta searchなので 1手進めてalphaとbetaを入れ替えて探索。
@@ -858,6 +987,10 @@ namespace MakeBook2021
 					is_cyclic = next_node->is_cyclic;
 					pos.undo_move(m);
 				}
+
+				// ======================================
+				//              α値の更新
+				// ======================================
 
 				// alpha値を更新するのか？
 				if (alpha < value)
@@ -891,9 +1024,6 @@ namespace MakeBook2021
 				}
 			}
 
-			// best_move、それが1番目ではないなら入れ替えておくべきか？
-			// まあ、普通に探索した場合、1番良い指し手が1番目に来ているだろうから、まあいいか…。
-
 			// fail lowしていない。また、ここに来るということはbeta cutが生じなかったのでfail highもしていない。
 			if (alpha != old_alpha)
 			{
@@ -904,6 +1034,10 @@ namespace MakeBook2021
 				node->search_value = alpha;
 				// 世代の更新(このnodeは探索しなおすので)
 				node->generation = search_option.generation;
+
+				// best_move、それが1番目ではないなら次回の探索に備えて入れ替えておくべき。
+				// 循環は完全に排除しているので、いまの祖先にこのnodeが含まれることはない。
+				node->set_best_move(best_move);
 			}
 
 			return alpha;
@@ -911,7 +1045,6 @@ namespace MakeBook2021
 
 		// 探索させて、そのNodeを追加する。
 		// 結果はpmにNode追加して書き戻される。
-		// ここで探索中のleaf nodeは探索時の除外node(searched_hash)に追加される。
 		Node* think(Position& pos, const SearchNode* s_node)
 		{
 			string sfen = s_node->node->sfen;
@@ -919,23 +1052,27 @@ namespace MakeBook2021
 			Move move = pos.to_move(m16);
 
 			// 思考中の局面を出力してやる。
-			cout << "thinking : " << sfen << " , move = " << move << endl;
+			sync_cout << "thinking : " << sfen << " , move = " << move << sync_endl;
 
-			return think_sub(pos , sfen + " moves " + to_usi_string(m16),true);
+			return think_sub(pos , "sfen " + sfen + " moves " + to_usi_string(m16));
 		}
 
 		// SFEN文字列を指定して、その局面について思考させる。
 		// 結果はpmにNode追加して書き戻される。
+		// sfen : positionコマンドで送れる形の文字列
+		// 例) "sfen xxxx" , "startpos" , "startpos moves xxxx" , "sfen xxxx moves yyyy..."
 		Node* think(Position& pos, string sfen)
 		{
 			// 思考中の局面を出力してやる。
 			cout << "thinking : " << sfen << endl;
 
-			return think_sub(pos,sfen,false);
+			return think_sub(pos,sfen);
 		}
 
 		// 現在の局面について思考して、その結果をpmにNode作って返す。
-		Node* think_sub(Position& pos,string sfen,bool append_to_hash)
+		// sfen : positionコマンドで送れる形の文字列
+		// 例) "sfen xxxx" , "startpos" , "startpos moves xxxx" , "sfen xxxx moves yyyy..."
+		Node* think_sub(Position& pos,string sfen)
 		{
 			// ================================
 			//        Limitsの設定
@@ -957,7 +1094,7 @@ namespace MakeBook2021
 			StateListPtr states(new StateList(1));
 
 			// sfen文字列、Positionコマンドのparserで解釈させる。
-			istringstream is("sfen " + sfen);
+			istringstream is(sfen);
 			position_cmd(pos, is, states);
 
 			// すでにあるのでskip
@@ -974,57 +1111,62 @@ namespace MakeBook2021
 			// ================================
 
 			auto search_result = dlshogi::GetSearchResult();
+			Node* node_;
 
 			// 新規にNodeを作成してそこに書き出す
-
-			Node& node = *pm.create_node(pos);
-			node.sfen = pos.sfen();
-
-			// 合法手の数
-			size_t num = search_result.size();
-			node.children.reserve(num);
-
-			for (auto& r : search_result)
 			{
-				Move m = r.first;
+				// nodeを追加するので、create_node()付近でmutexをlockしなければならない。
+				// これはthinkが終わった瞬間に行うだけなので、全体時間からするとlockされている時間は
+				// 極わずかだから、問題ない。
+				std::unique_lock<std::mutex> lk(*pm.get_mutex());
 
-				// 勝率
-				float wp = r.second;
+				node_ = pm.create_node(pos);
+				Node& node = *node_;
 
-				// 勝率を[centi-pawn]に変換
-				Value cp = Eval::dlshogi::value_to_cp((float)wp,search_option.eval_coef);
+				node.sfen = pos.sfen();
 
-				// Nodeのchildrenに追加。
-				node.children.emplace_back(Child(m, cp));
-			}
+				// 合法手の数
+				size_t num = search_result.size();
+				node.children.reserve(num);
 
-			// Childのなかで一番評価値が良い指し手がbest_moveであり、
-			// その時の評価値がこのnodeの評価値。
-
-			Value best_value = -VALUE_INFINITE;
-			size_t max_index = -1;
-			for (size_t i = 0; i < num; ++i)
-			{
-				Value eval = (Value)node.children[i].eval;
-				if (best_value < eval)
+				for (auto& r : search_result)
 				{
-					best_value = eval;
-					max_index = i;
+					Move m = r.first;
+
+					// 勝率
+					float wp = r.second;
+
+					// 勝率を[centi-pawn]に変換
+					Value cp = Eval::dlshogi::value_to_cp((float)wp, search_option.eval_coef);
+
+					// Nodeのchildrenに追加。
+					node.children.emplace_back(Child(m, cp));
+				}
+
+				// Childのなかで一番評価値が良い指し手がbest_moveであり、
+				// その時の評価値がこのnodeの評価値。
+
+				Value best_value = -VALUE_INFINITE;
+				size_t max_index = -1;
+				for (size_t i = 0; i < num; ++i)
+				{
+					Value eval = (Value)node.children[i].eval;
+					if (best_value < eval)
+					{
+						best_value = eval;
+						max_index = i;
+					}
+				}
+
+				// 普通は合法手、ひとつは存在するはずなのだが…。
+				if (max_index != -1)
+				{
+					node.best_move = pos.to_move(node.children[max_index].move);
+
+					// この指し手をchildrentの先頭に持ってきておく。(alpha-beta探索で早い段階で枝刈りさせるため)
+					std::swap(node.children[0], node.children[max_index]);
 				}
 			}
-
-			// 普通は合法手、ひとつは存在するはずなのだが…。
-			if (max_index != -1)
-			{
-				node.best_move = pos.to_move(node.children[max_index].move);
-
-				// この指し手をchildrentの先頭に持ってきておく。(alpha-beta探索で早い段階で枝刈りさせるため)
-				std::swap(node.children[0], node.children[max_index]);
-			}
-
-			// このleaf nodeに次の探索で来ないように記録しておく。
-			if (append_to_hash)
-				searched_hash.emplace(pos.long_key());
 
 			// ================================
 			//   定跡ファイルの定期的な書き出し
@@ -1041,7 +1183,7 @@ namespace MakeBook2021
 				save_book(path);
 			}
 
-			return &node;
+			return node_;
 		}
 
 		// 定跡をファイルに保存する。
@@ -1089,7 +1231,10 @@ namespace MakeBook2021
 		unordered_set<HASH_KEY> kif_hash;
 
 		// ranged alpha beta searchで探索中なので避けるべきnodeのhash key
-		unordered_set<HASH_KEY> searched_hash;
+		SearchingNodes searching_nodes;
+
+		// 探索すべき局面が詰まっているQueue。
+		Concurrent::ConcurrentQueue<SearchNode> search_nodes;
 	};
 
 }

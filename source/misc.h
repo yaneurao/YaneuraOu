@@ -8,6 +8,7 @@
 #include <mutex>
 #include <atomic>
 #include <sstream>
+#include <queue>
 
 #include "types.h"
 
@@ -901,6 +902,70 @@ namespace CommandLine {
 	extern std::string binaryDirectory;  // path of the executable directory
 	extern std::string workingDirectory; // path of the working directory
 }
+
+// --------------------
+//    Concurrent
+// --------------------
+
+// 並列プログラミングでよく使うコンテナ類
+namespace Concurrent
+{
+	// マルチスレッドプログラミングでよく出てくるProducer Consumer Queue
+	template <typename T>
+	class ConcurrentQueue
+	{
+	public:
+		// [ASYNC] Queueのpop(一番最後にpushされた要素を取り出す)
+		T pop()
+		{
+			std::unique_lock<std::mutex> lk(mutex_);
+
+			// 要素がないなら待つしかない
+			while (queue_.empty())
+				cond_.wait(lk);
+
+			auto val = queue_.front();
+			queue_.pop();
+
+			lk.unlock();
+			cond_.notify_one();
+			return val;
+		}
+
+		// [ASYNC] Queueのpush(queueに要素を一つ追加する)
+		void push(const T& item)
+		{
+			std::unique_lock<std::mutex> lk(mutex_);
+			queue_.push(item);
+			lk.unlock();
+			cond_.notify_one();
+		}
+
+		// [ASYNC] Queueの保持している要素数を返す。
+		size_t size()
+		{
+			std::unique_lock<std::mutex> lk(mutex_);
+			return queue_.size();
+		}
+
+		// copyの禁止
+		ConcurrentQueue() = default;
+		ConcurrentQueue(const ConcurrentQueue&) = delete;
+
+		// 代入の禁止
+		ConcurrentQueue& operator=(const ConcurrentQueue&) = delete;
+
+	private:
+		std::queue<T> queue_;
+		std::mutex mutex_;
+		std::condition_variable cond_;
+	};
+
+}
+
+// --------------------
+//     UnitTest
+// --------------------
 
 namespace Misc {
 	// このheaderに書いてある関数のUnitTest。
