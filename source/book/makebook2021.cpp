@@ -8,13 +8,33 @@
 //  スーパーテラショック定跡手法
 // ------------------------------
 /*
-	スーパーテラショックコマンド
-		> makebook s_tera
+	スーパーテラショック定跡コマンド
+	// ふかうら王のみ使えるコマンド。
+
+	> makebook s_tera
+
+	パラメーター)
+
+		read_book         : 前回書きだした定跡ファイル名(例:"book/read_book.db")
+		write_book        : 今回書き出す定跡ファイル名  (例:"book/write_book.db")
+		root_sfens_name   : 探索開始局面集のファイル名。指定しなければ平手の初期局面から。
+			// 平手の初期局面をrootとすると後手番の定跡があまり生成されないので(先手の初手は26歩か34歩を主な読み筋としてしまうので)
+			// 初期局面から1手指した局面をこのファイルとして与えたほうがいいかも？
+			// あと駒落ちの定跡を生成するときは同様に駒落ちの初期局面と、そこから1手指した局面ぐらいをこのファイルで指定すると良いかも。
+		kif_sfens_name    : 棋譜のファイル名。この棋譜上の局面かつPVまわりを思考させることもできる。
+		book_save_interval: この局面数だけ思考するごとに定跡ファイルを書き出す。
+			// "book/read_book.db.000001"のようなファイルに通しナンバー付きで書き出していく。
+			// このコマンドが終了するときにも書き出すので、数時間に1度保存される程度のペースでも良いと思う。
+		nodes_limit       : 1局面について思考するnode数。30knps出るPCで30000を指定すると1局面1秒。
+		think_limit       : この局面数思考したらこのコマンドを終了する。
+		search_delta_on_kif : ranged alpha beta searchの時に棋譜上に出現したleaf nodeに加点するスコア。
+							そのleaf nodeが選ばれやすくなる。
 
 	それぞれのfileフォーマット
 
 	入力)
-		root_sfen.txt
+		book/root_sfens.txt
+
 		// 探索開始局面
 		例)
 		sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1
@@ -23,16 +43,31 @@
 		のようなUSIプロトコルの"position"コマンドとして送られる形式でも可。
 		// この場合、それぞれの局面が探索開始対象となる。
 
+		book/kif_sfens.txt
+		読み込ませたい棋譜。この棋譜上の局面かつ、PVまわりを思考する。
+		例)
+		startpos moves 7g7f ...
+		// このファイルはなければなくとも良い。
+
+		book/read_book.db
+		前回出力された出力ファイル(book/write_book.db)をread_book.dbとrenameしたもの。
+		// 配置するとその続きから掘ってくれる。
+		(初回はこのファイルは不要)
+
 	出力)
-		book.db
+		book/write_book.db
 		→　このあと、このファイルをテラショック化コマンドでテラショック定跡化して使う。
 
 		例)
-		> makebook build_tree book.db user_book1.db
+		> makebook build_tree book/write_book.db book/user_book1.db
 
+	注意点)
 
-	高速化のために、局面をSFEN文字列ではなく、局面のhash値で一致しているかどうかをチェックするので
-	局面のhash値は衝突しないように128bit以上のhashを用いる。(べき)
+		高速化のために、局面をSFEN文字列ではなく、局面のhash値で一致しているかどうかをチェックするので
+		局面のhash値は衝突しないように128bit以上のhashを用いる。(べき)
+
+		→　具体的には、config.hでHASH_KEY_BITSのdefineを128にしてビルドする。
+
 */
 
 #include <sstream>
@@ -107,15 +142,20 @@ namespace MakeBook2021
 		// この局面の評価値(この定跡生成ルーチンで探索した時の)
 		// 未探索ならVALUE_NONE
 		// childrenのなかで最善手を指した時のevalが、この値。
-		Value search_value = VALUE_NONE;
+		Value search_value;
 
 		// ↑のsearch_valueは循環を経て(千日手などで)得られたスコアであるかのフラグ。
 		// これがfalseであり、かつ、search_value!=VALUE_NONEであるなら、
 		// このNodeをleaf node扱いして良い。(探索で得られたスコアなので)
-		bool is_cyclic = false;
+		bool is_cyclic;
 
 		// この局面での最善手。保存する時などには使わないけど、PV表示したりする時にあれば便利。
-		Move bestmove = MOVE_NONE;
+		Move best_move;
+
+		// このクラスのメンバー変数の世代。
+		// search_value,is_cyclic,best_move は、generationが合致しなければ無視する。
+		// 全域に渡って、Nodeの↑の3つの変数をクリアするのが大変なのでgenerationカウンターで管理する。
+		u32 generation = 0;
 	};
 
 	// 局面管理用クラス。
@@ -231,10 +271,10 @@ namespace MakeBook2021
 			if (node == nullptr)
 				return; // これ以上辿れなかった。
 
-			Move m = node->bestmove;
+			Move m = node->best_move;
 			cout << m << " ";
 
-			// bestmoveで進められるんか？
+			// best_moveで進められるんか？
 			StateInfo si;
 			pos.do_move(m,si);
 			dump_pv(pos);
@@ -280,6 +320,7 @@ namespace MakeBook2021
 
 		// 各Nodeのsearch_valueを初期化(VALUE_NONE)にする。
 		// 探索の前に初期化しておけば、訪問済みのNodeかどうかがわかる。
+		// → generationで管理することにしたので、実際はこの関数は使わない。
 		void clear_all_search_value()
 		{
 			for (auto& it : hashkey_to_node)
@@ -296,22 +337,10 @@ namespace MakeBook2021
 		unordered_map<HASH_KEY, Node> hashkey_to_node;
 	};
 
-
-	// 探索モード。SearchOptionで用いる。
-	enum class SearchType
-	{
-		AlphaBeta,       // 通常のnaiveなαβ探索
-		AlphaBetaRange,  // leaf nodeのevalが区間[alpha,beta) であるものをすべて列挙するためのαβ探索
-		AlphaBetaOnKif,  // 与えられた棋譜上の局面でかつ、区間[alpha,beta) であるものをすべて列挙するためのαβ探索
-	};
-
 	// 探索オプション
 	// search_startを呼び出す時に用いる。
 	struct SearchOption
 	{
-		// 探索モード
-		SearchType search_type;
-
 		// この局面数だけ思考するごとにファイルに保存する。
 		u64 book_save_interval;
 
@@ -324,19 +353,19 @@ namespace MakeBook2021
 		// 1局面の探索ノード数
 		u64 nodes_limit;
 
-		// ranged alpha beta探索を行う時の、best_valueとの差。
-		// best_value = 70のときにsearch_delta = 10であれば、60～70の評価値となるleaf nodeを
-		// 選出して、それを延長(思考対象として思考)する。
-		int search_delta;
+		// ranged alpha betaを連続して行う回数。
+		size_t ranged_alpha_beta_loop;
 
-		// ranged alpha beta探索した時のleaf nodeで棋譜上に出現したleaf nodeを選出して延長する。
-		// その時の、best_valueとの差。
-		// best_value = 70ときにsearch_delta_on_kif = 30であれば、40～70の評価値となるleaf nodeでかつ
-		// 棋譜上に出現した局面だけを思考対象とする。
+		// ranged alpha beta searchの時に棋譜上に出現したleaf nodeに加点するスコア。
+		// そのleaf nodeが選ばれやすくなる。
 		int search_delta_on_kif;
 
 		// 勝率から評価値に変換する時の定数
 		float eval_coef;
+
+		// 世代カウンター。
+		// Nodeのメンバー変数にアクセスする時に世代が一致しない変数は無効扱いする。
+		u32 generation = 0;
 	};
 
 	// あとで思考すべきNode
@@ -364,8 +393,8 @@ namespace MakeBook2021
 		}
 	};
 
-	// あとで探索すべきNode集。
-	typedef vector<SearchNode> SearchNodes;
+	// 探索node type
+	enum NodeType { PV, NonPV };
 
 	// スーパーテラショック定跡手法で定跡を生成するルーチン
 	// "makebook stera read_book book1.db write_book book2.db"
@@ -395,8 +424,8 @@ namespace MakeBook2021
 			// 1局面に対する探索ノード数
 			// 1局面1秒ぐらい
 			u64 nodes_limit = 30000;
-//			u64 nodes_limit = 300; // for debug
-
+			//u64 nodes_limit = 300;
+			
 			// ↓の局面数を思考するごとにsaveする。
 			// 15分に1回ぐらいで良いような？
 			u64 book_save_interval = 30000/*nps*/ / nodes_limit * 15*60 /* 15分 */;
@@ -404,17 +433,11 @@ namespace MakeBook2021
 			// 探索局面数
 			u64 think_limit = 1000000;
 
-			// ranged alpha beta探索を行う時の、best_valueとの差。
-			// best_value = 70のときにsearch_delta = 10であれば、60～70の評価値となるleaf nodeを
-			// 選出して、それを延長(思考対象として思考)する。
-			// 0を指定すると、この工程を常にskipする。
-			int search_delta = 5;
+			// 何回ranged alpha searchを連続して行うのか。
+			size_t ranged_alpha_beta_loop = 100;
 
-			// ranged alpha beta探索した時のleaf nodeで棋譜上に出現したleaf nodeを選出して延長する。
-			// その時の、best_valueとの差。
-			// best_value = 70ときにsearch_delta_on_kif = 30であれば、40～70の評価値となるleaf nodeでかつ
-			// 棋譜上に出現した局面だけを思考対象とする。
-			// 0を指定すると、この工程を常にskipする。
+			// ranged alpha beta searchの時に棋譜上に出現したleaf nodeに加点するスコア。
+			// そのleaf nodeが選ばれやすくなる。
 			int search_delta_on_kif = 30;
 
 			// このコマンドの流れとしては、
@@ -431,22 +454,22 @@ namespace MakeBook2021
 			parser.add_argument("book_save_interval"  , book_save_interval);
 			parser.add_argument("nodes_limit"         , nodes_limit);
 			parser.add_argument("think_limit"         , think_limit);
-			parser.add_argument("search_delta"        , search_delta);
+			parser.add_argument("ranged_alpha_beta_loop", ranged_alpha_beta_loop);
 			parser.add_argument("search_delta_on_kif" , search_delta_on_kif);
 			parser.add_argument("root_sfens_name"     , root_sfens_name);
 			parser.add_argument("kif_sfens_name"      , kif_sfens_name);
 
 			parser.parse_args(is);
 
-			cout << "ReadBook  DB file    : " << read_book_name       << endl;
-			cout << "WriteBook DB file    : " << write_book_name      << endl;
-			cout << "book_save_interval   : " << book_save_interval   << "[" << "[positions]" << "]" << endl;
-			cout << "nodes_limit          : " << nodes_limit          << endl;
-			cout << "think_limit          : " << think_limit          << endl;
-			cout << "search_delta         : " << search_delta         << endl;
-			cout << "search_delta_on_kif  : " << search_delta_on_kif  << endl;
-			cout << "root_sfens_name      : " << root_sfens_name      << endl;
-			cout << "kif_sfens_name       : " << kif_sfens_name       << endl;
+			cout << "ReadBook  DB file      : " << read_book_name         << endl;
+			cout << "WriteBook DB file      : " << write_book_name        << endl;
+			cout << "book_save_interval     : " << book_save_interval     << "[positions]" << endl;
+			cout << "nodes_limit            : " << nodes_limit            << endl;
+			cout << "think_limit            : " << think_limit            << endl;
+			cout << "ranged_alpha_beta_loop : " << ranged_alpha_beta_loop << endl;
+			cout << "search_delta_on_kif    : " << search_delta_on_kif    << endl;
+			cout << "root_sfens_name        : " << root_sfens_name        << endl;
+			cout << "kif_sfens_name         : " << kif_sfens_name         << endl;
 			cout << endl;
 
 			// 定跡ファイルの読み込み。
@@ -487,12 +510,12 @@ namespace MakeBook2021
 			}
 
 			// 与えられたパラメーターをsearch_optionに反映。
-			search_option.book_save_interval   = book_save_interval;
-			search_option.write_book_name      = write_book_name;
-			search_option.nodes_limit          = nodes_limit;
-			search_option.search_delta         = search_delta;
-			search_option.search_delta_on_kif  = search_delta_on_kif;
-			search_option.eval_coef            = (float)Options["Eval_Coef"];
+			search_option.book_save_interval     = book_save_interval;
+			search_option.write_book_name        = write_book_name;
+			search_option.nodes_limit            = nodes_limit;
+			search_option.ranged_alpha_beta_loop = ranged_alpha_beta_loop;
+			search_option.search_delta_on_kif    = search_delta_on_kif;
+			search_option.eval_coef              = (float)Options["Eval_Coef"];
 
 			// USIオプションを探索用に設定する。
 			set_usi_options();
@@ -506,7 +529,7 @@ namespace MakeBook2021
 				for (auto& root_sfen : root_sfens)
 				{
 					// rootとなる局面のsfenを出力しておく。
-					cout << "[Step 1.] search root = " << root_sfen << endl;
+					cout << "[Step 1] search root = " << root_sfen << endl;
 
 					// 指定されたrootから定跡を生成する。
 					make_book_from_root(pos, root_sfen);
@@ -578,7 +601,7 @@ namespace MakeBook2021
 				{
 					HASH_KEY key = pos.long_key();
 					if (kif_hash.find(key) == kif_hash.end())
-						kif_hash.insert(key);
+						kif_hash.emplace(key);
 				}
 			};
 
@@ -632,118 +655,32 @@ namespace MakeBook2021
 		// 現在のrootから定跡を生成する。
 		void make_book_from_root(Position& pos, const string& root_sfen)
 		{
-			// 局面の初期化
-			vector<StateInfo> si(1024 /* above MAX_PLY */);
-			set_root(pos, root_sfen , si);
-
-			// ----------------------------------------
-			//      Normal Alpha-Beta Search
-			// ----------------------------------------
-
-			// まず通常のαβ探索を行う。
-
-			cout << "[Step 2.] normal alpha beta search [-INF,INF)" << endl;
-			search_option.search_type = SearchType::AlphaBeta;
-			Value best_value = search_start(pos, -VALUE_INFINITE, VALUE_INFINITE);
-
-			// 探索で得られたPV lineの表示。
-			pm.dump_pv_line(pos,best_value);
-
 			// ----------------------------------------
 			//      Ranged Alpha-Beta Search
 			// ----------------------------------------
 
-			// 区間[best_value - delta , best_value + delta + 1) で探索しなおす。
-			// 条件に合致するleaf nodeをすべて列挙して、search_nodes(思考対象局面)に追加する。
-			// delta = 10ぐらいで十分だと思う。
-			// 
-			// 区間の上側、広げなくても良いと思っていたのだが、循環が絡むと、fail highしてしまうことが
-			// あるようで、その時に思考すべきleaf nodeがゼロになってしまってまずいようだ。
-			// 仕方ないので上川にも区間を広げておく。
-			// 
-			// ranged alpha-beta searchでは、alpha値のupdateは行わない。常に最初に渡された区間内を探索。
-			// 前回のbestvalueを与えているのでここからはみ出すことはないはず。
+			cout << "[Step 2] ranged alpha beta search (-INF,INF)" << endl;
 
-			if (search_option.search_delta != 0)
+			// 探索避けleaf nodeのクリア。
+			searched_hash.clear();
+
+			for(int i = 0 ; i < search_option.ranged_alpha_beta_loop ; ++i)
 			{
-				cout << "[Step 3.] ranged alpha beta search ["
-					 << (best_value - search_option.search_delta) << ", "
-					 << (best_value + search_option.search_delta) << "]" << endl;
-				search_option.search_type = SearchType::AlphaBetaRange;
-				best_value = search_start(pos,
-					best_value - search_option.search_delta,
-					best_value + search_option.search_delta + 1);
+				// 局面の初期化
+				vector<StateInfo> si(1024 /* above MAX_PLY */);
+				set_root(pos, root_sfen , si);
 
-				// 探索で得られたPV lineの表示。
-				pm.dump_pv_line(pos,best_value);
+				// ここ、aspiration searchにしたほうが効率が良いのだろうが、
+				// そこまで変わらない＆面倒なのでこのまま。
+				Value best_value = search_start(pos, -VALUE_INFINITE, VALUE_INFINITE);
 
-				// 探索結果にさきほどのleaf nodeが現れないことがある。(局面の循環などで)
-				// 仕方ないので、deltaを少し広げる。
-				if (search_nodes.size() == 0)
-				{
-					search_option.search_delta += 5;
-					// save_book("book/write_book_0_nodes.db"); // 原因究明のために保存する。(デバッグ用)
-				}
-				else
-					think_nodes(pos);
+				// 初回のみ探索で得られたPV lineの表示。
+				if (i==0)
+					pm.dump_pv_line(pos,best_value);
+
+				// best valueを記録したnodeを思考する。
+				think(pos,&search_pv.back());
 			}
-
-			// ----------------------------------------
-			//    Ranged Alpha-Beta Search With Kif
-			// ----------------------------------------
-
-			// 区間[best_value - delta , best_value + delta + 1) で探索しなおし、
-			// leaf nodeでかつ棋譜上に出現した局面を
-			// search_nodes(思考対象局面)に追加する。
-			// delta = 30ぐらいでいいと思う。
-
-			if (search_option.search_delta_on_kif != 0)
-			{
-				cout << "[Step 4.] alpha beta search on kif ["
-					 << (best_value - search_option.search_delta_on_kif) << ","
-					 << (best_value + search_option.search_delta_on_kif)  << "]" << endl;
-				search_option.search_type = SearchType::AlphaBetaOnKif;
-				search_start(pos,
-					best_value - search_option.search_delta_on_kif,
-					best_value + search_option.search_delta_on_kif + 1);
-				think_nodes(pos);
-			}
-		}
-
-		// search_nodesを思考対象局面として、
-		// それらについて思考する。
-		void think_nodes(Position& pos)
-		{
-			// 思考対象局面の数を出力
-			cout << "think nodes = " << search_nodes.size() << endl;
-
-			// 列挙された局面を思考対象として思考させる。
-			for (auto& p : search_nodes)
-				think(pos, &p);
-		}
-
-		// 探索させて、そのNodeを追加する。
-		// 結果はpmにNode追加して書き戻される。
-		Node* think(Position& pos, const SearchNode* s_node)
-		{
-			string sfen = s_node->node->sfen;
-			Move16 m16 = s_node->move;
-			Move move = pos.to_move(m16);
-
-			// 思考中の局面を出力してやる。
-			cout << "thinking : " << sfen << " , move = " << move << endl;
-
-			return think_sub(pos , sfen + " moves " + to_usi_string(m16));
-		}
-
-		// SFEN文字列を指定して、その局面について思考させる。
-		// 結果はpmにNode追加して書き戻される。
-		Node* think(Position& pos, string sfen)
-		{
-			// 思考中の局面を出力してやる。
-			cout << "thinking : " << sfen << endl;
-
-			return think_sub(pos,sfen);
 		}
 
 		// 探索の入り口。
@@ -757,23 +694,35 @@ namespace MakeBook2021
 				node = think(pos,pos.sfen());
 			}
 
-			// 探索前に各nodeのsearch_valueはクリアする必要がある。
-			pm.clear_all_search_value();
+			// 世代カウンターをインクリメント
+			// 探索前に各nodeのsearch_valueはクリアする必要があるが、
+			// generationが合致していなければ無視すれば良いのでクリアしないことにする。
+			// (このカウンターがlap aroundした時には困るがu32なので、まあ…)
+			++search_option.generation;
 
-			// 思考対象局面もクリアする必要がある。
-			search_nodes.clear();
+			// 探索PVのクリア
+			search_pv.clear();
 
 			// αβ探索ルーチンへ
-			return search(pos, node, alpha, beta , 1);
+			return search<PV>(pos, node, alpha, beta , 1);
 		}
 
 		// αβ探索
 		// plyはrootからの手数。0ならroot。
+		template <NodeType nodeType>
 		Value search(Position& pos, Node* node, Value alpha, Value beta , int ply)
 		{
 			// すでに探索済みでかつ千日手が絡まないスコアが記入されている。
-			if (!node->is_cyclic && node->search_value != VALUE_NONE)
+			// (generationが合致した時のみ)
+			if (nodeType == NonPV
+				&&  node->generation == search_option.generation
+				&& !node->is_cyclic
+				&&  node->search_value != VALUE_NONE)
 				return node->search_value;
+
+			// =========================================
+			//            nodeの初期化
+			// =========================================
 
 			// このnodeで得られたsearch_scoreは、循環が絡んだスコアなのか
 			node->is_cyclic = true;
@@ -799,6 +748,9 @@ namespace MakeBook2021
 			// また、best value = -INFの時に、そこから - deltaすると範囲外の数値になってしまうので
 			// それの防止でもある。
 
+			// →　これ、plyは経路に依存していて、経路に依存した枝刈りなので
+			// cyclic扱いしておく。
+
 			alpha = std::max(mated_in(ply    ), alpha);
 			beta  = std::min(mate_in (ply + 1), beta );
 			if (alpha >= beta)
@@ -807,11 +759,6 @@ namespace MakeBook2021
 			node->is_cyclic = false;
 
 			ASSERT_LV3(node != nullptr);
-
-			Move bestmove = MOVE_NONE;
-			Value value;
-			// 引数で渡されたalphaの値
-			Value old_alpha = alpha;
 
 			// 現局面で詰んでますが？
 			// こんなNodeまで掘ったら駄目でしょ…。
@@ -830,27 +777,35 @@ namespace MakeBook2021
 			// 上記のいずれかの条件に合致した場合、このnodeからさらに掘ることは考えられないので
 			// このnodeでは何も情報を記録せずに即座にreturnして良い。
 
-			// main-loop
+			// ===================================
+			//             main-loop
+			// ===================================
 
-			// 今回の指し手によって、到達したleaf nodeのうち、
-			// alpha <= eval < beta なnodeのものだけ残していく。
-			// beta cutが生じた時、このnodeで生成したものはすべて巻き戻す必要があるので、これを保存。
-			size_t search_nodes_index0 = search_nodes.size();
+			// search_pvを巻き戻すためにこの関数の入り口でのsearch_pvの要素数を記録しておく。
+			size_t search_pv_index1 = search_pv.size();
+
+			Move best_move = MOVE_NONE;
+			Value old_alpha = alpha;
 
 			// 各合法手で1手進める。
 			for (auto& child : node->children)
 			{
+				Value value;
+
 				Move16 m16 = child.move;
 				Move m = pos.to_move(m16);
 				bool is_cyclic = false;
 
-				// 今回の指し手によって、到達したleaf nodeのうち、
-				// alpha <= eval < beta なnodeのものだけ残していく。
-				size_t search_nodes_index = search_nodes.size();
+				// search_pvを巻き戻すために1手進める前のsearch_pvの要素数を記録しておく。
+				size_t search_pv_index2 = search_pv.size();
+
+				// PVに追加
+				search_pv.emplace_back(SearchNode(node, m));
 
 				// 指し手mで進めた時のhash key。
-				HASH_KEY key_next = pos.long_key_after(m);
+				const HASH_KEY key_next = pos.long_key_after(m);
 				Node* next_node = pm.probe(key_next);
+
 				if (next_node == nullptr)
 				{
 					// 見つからなかったので、この子nodeのevalがそのまま評価値
@@ -860,102 +815,124 @@ namespace MakeBook2021
 					// すなわち、定跡の各局面で全合法手に対して何らかの評価値はついているべき。
 					// 評価値がついていない時点で、この局面、探索しなおしたほうが良いと思う。
 					value = (Value)child.eval;
+
 					if (value == VALUE_NONE)
+					{
+						/*
+						cout << "Error! eval=VALUE_NONE , sfen = " << node->sfen << " , move = " << m << endl;
+						Tools::exit();
+						*/
+						// →　不成を生成しないモードで定跡を作ってしまっていると思われ。まあいいや…。
+
 						continue;
+					}
 
-					// AlphaBetaOnKifの時)
-					// いまnext_node == nullptrだが、この時のkey_nextが、
-					// 棋譜上に出現している(kif_hash上に存在する)なら、
-					// この局面を追加する。さもなくば追加しない。
-					// 
-					// AlphaBeta , RangedAlphaBetaの時)
-					// 未探索のleafをここで無条件で追加して良い。
-					//
-					bool append_cancel = (search_option.search_type == SearchType::AlphaBetaOnKif) // AlphaBetaOnKif探索モードにおいて
-						              && (kif_hash.find(key_next) == kif_hash.end()); // 棋譜上に出現しないleaf nodeである
+					// ======================================
+					//  leaf nodeに対するペナルティ/ボーナス
+					// ======================================
 
-					if (!append_cancel)
-						search_nodes.emplace_back(SearchNode(node, m16));
+					// 探索済みの局面に100点減点(このleaf nodeを避けるため)
+					if (searched_hash.find(key_next) != searched_hash.end())
+						value -= 100;
 
+					// 棋譜上に出現する局面に100点加点(このleaf nodeに行きたいため)
+					if (kif_hash.find(key_next) != kif_hash.end())
+						value += 100;
 				}
 				else {
 					// alpha-beta searchなので 1手進めてalphaとbetaを入れ替えて探索。
 					StateInfo si;
 					pos.do_move(m, si);
 
-					if (search_option.search_type == SearchType::AlphaBeta)
-						// 通常のalpha-beta探索
-						value = -search(pos, next_node, -beta, -alpha, ply+1);
-					else
-						// alpha値は更新しない感じのalpha-beta探索
-						// 区間[alpha,beta)に収まるleaf nodeをすべて展開したいので。
-						value = -search(pos, next_node, -beta, -old_alpha, ply+1);
+					// 通常のalpha-beta探索
+					value = -search<NonPV>(pos, next_node, -beta, -alpha, ply+1);
+
+					// alpha値を更新するなら、PVとして探索しなおす。
+					if (nodeType == PV && alpha < value)
+						value = -search<PV>(pos, next_node, -beta, -alpha, ply+1);
 
 					// 子ノードのスコアが循環が絡んだスコアであるなら、このnodeにも伝播すべき。
 					is_cyclic = next_node->is_cyclic;
 					pos.undo_move(m);
-
-					// なぜかvalue_none
-					if (value == VALUE_NONE)
-						continue;
 				}
 
 				// alpha値を更新するのか？
 				if (alpha < value)
 				{
+					// --- nodeの更新
+
 					// alpha値を更新するのに用いた子nodeに関するis_cyclicだけをこのノードに伝播させる。
 					node->is_cyclic |= is_cyclic;
 
 					// beta以上ならbeta cutが生じる。
 					// (親nodeでalpha値を更新しないので)
 					if (beta <= value)
-					{
-						// このnodeから探索して到達したleaf nodeはすべてなかったことにする。
-						// この処理をしなくとも親nodeで value <= alpha(alpha値を更新しない)
-						// であるから消されることになるのだが、このnodeがrootだとその処理がなされないのでまずい。
-						// ここでも消しておくべき。
-						search_nodes.resize(search_nodes_index0);
 						return value;
-					}
 
 					// update alpha
 					alpha = value;
-					bestmove = m;
+					best_move = m;
+
+					// alphaを更新したので、このノードで得たPVは今回のPVの末尾のもの(leaf node)だけで良い。
+					// best valueを記録するときのleaf nodeだけ欲しいのでそれ以外の手順は消して問題ない。
+					if (search_pv.size() > search_pv_index1 + 1)
+					{
+						search_pv[search_pv_index1] = search_pv.back();
+						search_pv.resize(search_pv_index1 + 1);
+					}
 				}
-				else
-				{
-					// 今回、alpha値を更新しなかった。
-
-					// SearchType::AlphaBetaの場合)
-					// 
-					// 今回得たleaf nodeの集合は不要な集合であったと言える。
-					// そこで、search_nodesを巻き戻す。
-					// 
-					// SearchType::AlphaBetaRange
-					// SearchType::AlphaBetaOnKif
-					// の場合)
-					// 引数で渡されたalpha値(old_alpha)未満のvalueであるleaf nodeは思考対象としない。
-					// そこで、value < old_alphaならsearch_nodesを巻き戻す。
-
-					if (search_option.search_type == SearchType::AlphaBeta || value < old_alpha)
-						search_nodes.resize(search_nodes_index);
+				else {
+					// alphaを更新しなかったので今回の指し手によるPVはすべて巻き戻して良い。
+					// (それがPVであることはない)
+					search_pv.resize(search_pv_index2);
 				}
 			}
 
-			// このループを回ったということは、search_valueがVALUE_NONE(未代入状態)であったか、
-			// VALUE_NONEではないがcyclicな状態であったかのいずれかだから、今回の結果を上書きで代入してしまって問題ない。
+			// best_move、それが1番目ではないなら入れ替えておくべきか？
+			// まあ、普通に探索した場合、1番良い指し手が1番目に来ているだろうから、まあいいか…。
 
-			node->search_value = alpha;
-			node->bestmove = bestmove;
+			// fail lowしていない。また、ここに来るということはbeta cutが生じなかったのでfail highもしていない。
+			if (alpha != old_alpha)
+			{
+				// fail low/fail highしなかった時の探索結果は、信用できるので今回の親nodeとは異なる親nodeから訪問した時には
+				// 今回得られた結論をそのまま用いて良い。
 
-			// bestmoveが見つかったので、それが1番目ではないなら入れ替えておくべきか？
-			// まあ、普通に探索した場合、1番目の指し手が1番目に来ているだろうから、まあいいか…。
+				node->best_move = best_move;
+				node->search_value = alpha;
+				// 世代の更新(このnodeは探索しなおすので)
+				node->generation = search_option.generation;
+			}
 
 			return alpha;
 		}
 
+		// 探索させて、そのNodeを追加する。
+		// 結果はpmにNode追加して書き戻される。
+		// ここで探索中のleaf nodeは探索時の除外node(searched_hash)に追加される。
+		Node* think(Position& pos, const SearchNode* s_node)
+		{
+			string sfen = s_node->node->sfen;
+			Move16 m16 = s_node->move;
+			Move move = pos.to_move(m16);
+
+			// 思考中の局面を出力してやる。
+			cout << "thinking : " << sfen << " , move = " << move << endl;
+
+			return think_sub(pos , sfen + " moves " + to_usi_string(m16),true);
+		}
+
+		// SFEN文字列を指定して、その局面について思考させる。
+		// 結果はpmにNode追加して書き戻される。
+		Node* think(Position& pos, string sfen)
+		{
+			// 思考中の局面を出力してやる。
+			cout << "thinking : " << sfen << endl;
+
+			return think_sub(pos,sfen,false);
+		}
+
 		// 現在の局面について思考して、その結果をpmにNode作って返す。
-		Node* think_sub(Position& pos,string sfen)
+		Node* think_sub(Position& pos,string sfen,bool append_to_hash)
 		{
 			// ================================
 			//        Limitsの設定
@@ -965,9 +942,6 @@ namespace MakeBook2021
 
 			// ノード数制限
 			limits.nodes = search_option.nodes_limit;
-
-			// すべての合法手を生成する
-			limits.generate_all_legal_moves = true;
 
 			// 探索中にPVの出力を行わない。
 			limits.silent = true;
@@ -1021,7 +995,7 @@ namespace MakeBook2021
 				node.children.emplace_back(Child(m, cp));
 			}
 
-			// Childのなかで一番評価値が良い指し手がbestmoveであり、
+			// Childのなかで一番評価値が良い指し手がbest_moveであり、
 			// その時の評価値がこのnodeの評価値。
 
 			Value best_value = -VALUE_INFINITE;
@@ -1035,14 +1009,19 @@ namespace MakeBook2021
 					max_index = i;
 				}
 			}
+
 			// 普通は合法手、ひとつは存在するはずなのだが…。
 			if (max_index != -1)
 			{
-				node.bestmove = pos.to_move(node.children[max_index].move);
+				node.best_move = pos.to_move(node.children[max_index].move);
 
 				// この指し手をchildrentの先頭に持ってきておく。(alpha-beta探索で早い段階で枝刈りさせるため)
 				std::swap(node.children[0], node.children[max_index]);
 			}
+
+			// このleaf nodeに次の探索で来ないように記録しておく。
+			if (append_to_hash)
+				searched_hash.emplace(pos.long_key());
 
 			// ================================
 			//   定跡ファイルの定期的な書き出し
@@ -1073,11 +1052,17 @@ namespace MakeBook2021
 		void set_usi_options()
 		{
 			// 定跡にhitされると困るので定跡なしに
-			Options["BookFile"] = "no_book";
+			Options["BookFile"] = string("no_book");
 
 			// rootでdf-pnで詰みが見つかると候補手が得られないので
 			// とりまオフにしておく。
-			Options["RootMateSearchNodesLimit"] = "0";
+			Options["RootMateSearchNodesLimit"] = std::to_string(0);
+
+			// 全合法手を生成する。
+			Options["GenerateAllLegalMoves"] = true;
+
+			// ↓isreadyを送ってやらないと↑が反映しない。
+			is_ready();
 		}
 
 	private:
@@ -1088,15 +1073,20 @@ namespace MakeBook2021
 		// 探索時のオプション
 		SearchOption search_option;
 
-		// あとで思考すべき局面集
-		// search()の時に列挙していく。
-		SearchNodes search_nodes;
+		// alpha-beta探索した時のPV
+		// best_valueを記録したleaf nodeしか要らない。
+		// それは、search_pv.back()であることが保証されている。
+		vector<SearchNode> search_pv;
 
-		// 思考した局面数のカウンター
-		u64 think_count = 0;
+		// 思考した局面数
+		// (一定間隔ごとに定跡をファイルに保存しないといけないのでそのためのカウンター)
+		size_t think_count = 0;
 
 		// 棋譜上に出現した局面のhash key
 		unordered_set<HASH_KEY> kif_hash;
+
+		// ranged alpha beta searchで探索中なので避けるべきnodeのhash key
+		unordered_set<HASH_KEY> searched_hash;
 	};
 
 }

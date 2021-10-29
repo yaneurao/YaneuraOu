@@ -128,7 +128,7 @@ namespace Book
 		bool convert_from_apery = token == "convert_from_apery";
 		// 定跡の変換
 		bool convert_to_apery = token == "convert_to_apery";
-
+		
 		// いずれのコマンドでもないなら、このtokenのコマンドを自分は処理できない。
 		if (!(from_sfen || from_thinking || book_merge || book_sort || convert_from_apery || convert_to_apery))
 			return 0;

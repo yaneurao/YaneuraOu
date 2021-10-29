@@ -21,6 +21,13 @@
 // 64bit版
 typedef uint64_t Key64;
 
+template <>
+struct std::hash<Key64> {
+	size_t operator()(const Key64& k) const {
+		// 下位bit返すだけで良いのでは？
+		return (size_t)(k);
+	}
+};
 
 // 実験用の機能なので、128bit,256bitのhash keyのサポートはAVX2のみ。
 #if defined (USE_AVX2)
