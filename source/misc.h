@@ -7,6 +7,7 @@
 #include <fstream>
 #include <mutex>
 #include <atomic>
+#include <condition_variable>
 #include <sstream>
 #include <queue>
 
