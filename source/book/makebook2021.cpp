@@ -152,6 +152,9 @@ namespace MakeBook2021
 		// この局面での最善手。保存する時などには使わないけど、PV表示したりする時にあれば便利。
 		Move best_move;
 
+		// ↑search_value、best_moveの性質。
+		Bound bound;
+
 		// このクラスのメンバー変数の世代。
 		// search_value,is_cyclic,best_move は、generationが合致しなければ無視する。
 		// 全域に渡って、Nodeの↑の3つの変数をクリアするのが大変なのでgenerationカウンターで管理する。
@@ -903,6 +906,9 @@ namespace MakeBook2021
 			// 探索PVのクリア
 			search_pv.clear();
 
+			node_searched = 0;
+			search_timer.reset();
+
 			// αβ探索ルーチンへ
 			return search<PV>(pos, node, alpha, beta , 1);
 		}
@@ -912,13 +918,25 @@ namespace MakeBook2021
 		template <NodeType nodeType>
 		Value search(Position& pos, Node* node, Value alpha, Value beta , int ply)
 		{
+			/*
+			// ノートパソコンでnps 160kほど。
+			if (node_searched++ % 10000 == 0)
+				sync_cout << "search nps = " << 1000 * node_searched / (search_timer.elapsed() + 1) << sync_endl;
+			*/
+
 			// すでに探索済みでかつ千日手が絡まないスコアが記入されている。
 			// (generationが合致した時のみ)
 			if (nodeType == NonPV
 				&&  node->generation == search_option.generation
 				&& !node->is_cyclic
 				&&  node->search_value != VALUE_NONE)
-				return node->search_value;
+			{
+				if (   node->bound == Bound::BOUND_EXACT
+					||(node->bound == Bound::BOUND_LOWER && node->search_value >= beta /* beta cut*/)
+					||(node->bound == Bound::BOUND_UPPER && node->search_value <= alpha /* 更新する可能性がない */)
+					)
+					return node->search_value;
+			}
 
 			// =========================================
 			//            nodeの初期化
@@ -985,6 +1003,9 @@ namespace MakeBook2021
 			size_t search_pv_index1 = search_pv.size();
 
 			Move best_move = MOVE_NONE;
+			// alphaとは無縁に、bestな値は求めておく必要がある。
+			Value best_value = -VALUE_INFINITE;
+
 			Value old_alpha = alpha;
 
 			// 各合法手で1手進める。
@@ -1078,6 +1099,13 @@ namespace MakeBook2021
 				//              α値の更新
 				// ======================================
 
+				// update best value
+				if (best_value < value)
+				{
+					best_value = value;
+					best_move = m;
+				}
+
 				// alpha値を更新するのか？
 				if (alpha < value)
 				{
@@ -1086,14 +1114,13 @@ namespace MakeBook2021
 					// alpha値を更新するのに用いた子nodeに関するis_cyclicだけをこのノードに伝播させる。
 					node->is_cyclic |= is_cyclic;
 
+					// update alpha
+					alpha = value;
+
 					// beta以上ならbeta cutが生じる。
 					// (親nodeでalpha値を更新しないので)
 					if (beta <= value)
-						return value;
-
-					// update alpha
-					alpha = value;
-					best_move = m;
+						break;
 
 					// alphaを更新したので、このノードで得たPVは今回のPVの末尾のもの(leaf node)だけで良い。
 					// best valueを記録するときのleaf nodeだけ欲しいのでそれ以外の手順は消して問題ない。
@@ -1110,23 +1137,22 @@ namespace MakeBook2021
 				}
 			}
 
-			// fail lowしていない。また、ここに来るということはbeta cutが生じなかったのでfail highもしていない。
-			if (alpha != old_alpha)
-			{
-				// fail low/fail highしなかった時の探索結果は、信用できるので今回の親nodeとは異なる親nodeから訪問した時には
-				// 今回得られた結論をそのまま用いて良い。
+			// 今回得られたbest_valueの性質
+			node->bound = (best_value <= old_alpha) ? Bound::BOUND_UPPER
+						: (best_value >= beta     ) ? Bound::BOUND_LOWER
+													: Bound::BOUND_EXACT;
 
-				node->best_move = best_move;
-				node->search_value = alpha;
-				// 世代の更新(このnodeは探索しなおすので)
-				node->generation = search_option.generation;
+			node->best_move = best_move;
+			node->search_value = alpha;
 
-				// best_move、それが1番目ではないなら次回の探索に備えて入れ替えておくべき。
-				// 循環は完全に排除しているので、いまの祖先にこのnodeが含まれることはない。
-				node->set_best_move(best_move);
-			}
+			// 世代の更新(このnodeは探索しなおすので)
+			node->generation = search_option.generation;
 
-			return alpha;
+			// best_move、それが1番目ではないなら次回の探索に備えて入れ替えておくべき。
+			// 循環は完全に排除しているので、いまの祖先にこのnodeが含まれることはない。
+			node->set_best_move(best_move);
+
+			return best_value;
 		}
 
 		// 探索させて、そのNodeを追加する。
@@ -1327,6 +1353,12 @@ namespace MakeBook2021
 
 		// 探索すべき局面が詰まっているQueue。
 		Concurrent::ConcurrentQueue<SearchNode> search_nodes;
+
+		// 探索したノード数
+		u64 node_searched;
+
+		// ↑の計測用タイマー
+		Timer search_timer;
 	};
 
 }
