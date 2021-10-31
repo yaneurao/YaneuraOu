@@ -921,6 +921,9 @@ struct MoveList {
 	// 局面をコンストラクタの引数に渡して使う。すると指し手が生成され、lastが初期化されるので、
 	// このclassのbegin(),end()が正常な値を返すようになる。
 	// lastは内部のバッファを指しているので、このクラスのコピーは不可。
+	//
+	// for(auto extmove : MoveList<LEGAL_ALL>(pos)) ...
+	// のような書き方ができる。
 
 	explicit MoveList(const Position& pos) : last(generateMoves<GenType>(pos, mlist)) {}
 

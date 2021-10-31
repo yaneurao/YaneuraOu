@@ -185,7 +185,10 @@ namespace MakeBook2021
 
 			Position pos;
 
-			cout << "book examination";
+			cout << "book examination" << endl;
+
+			Tools::ProgressBar progress(book.size());
+			u64 counter = 0;
 
 			// それぞれの局面を列挙
 			StateInfo si;
@@ -195,12 +198,9 @@ namespace MakeBook2021
 
 				store(sfen, pos, ptr);
 
-				// 進捗を表現するのに1000局面ごとに"."を出力。
-				if (++count % 1000 == 0)
-					cout << ".";
+				// 進捗の出力
+				progress.check(++counter);
 				});
-
-			cout << endl << "readbook DB has completed." << endl;
 		}
 
 		// SFEN文字列とそれに対応する局面の情報(定跡の指し手、evalの値等)を
@@ -330,6 +330,12 @@ namespace MakeBook2021
 		// path : 保存する定跡ファイルのpath
 		void save_book(string path)
 		{
+			sync_cout << "making save file in memory" << sync_endl;
+
+			// 進捗出力用
+			Tools::ProgressBar progress(hashkey_to_node.size());
+			u64 counter = 0;
+
 			MemoryBook book;
 			for (auto& it : hashkey_to_node)
 			{
@@ -349,6 +355,57 @@ namespace MakeBook2021
 				}
 
 				book.append(sfen,bms);
+
+				progress.check(++counter);
+			}
+
+			book.write_book(path);
+		}
+
+		// 持っているNode情報をすべて定跡DBに保存する。
+		// メモリ上の定跡はテラショック化されているものとする。
+		// path : 保存する定跡ファイルのpath
+		void save_tera_book(string path)
+		{
+			sync_cout << "making save file in memory" << sync_endl;
+
+			// 進捗出力用
+			Tools::ProgressBar progress(hashkey_to_node.size());
+			u64 counter = 0;
+
+			Position pos;
+			MemoryBook book;
+			for (auto& it : hashkey_to_node)
+			{
+				auto& node = it.second;
+				auto sfen = node.sfen;
+
+				BookMovesPtr bms(new BookMoves);
+
+				for (auto& child : node.children)
+				{
+					// 値が未定。この指し手は書き出す価値がない。
+					// child.evalには、その先のleaf nodeでの評価値が反映されているものとする。
+					if (child.eval == VALUE_NONE)
+						continue;
+
+					Move16 move = child.move;
+					Move16 ponder = MOVE_NONE;
+
+					// このnodeから1手進めて、次の局面のbestを広い、ponderを確定させる。
+					StateInfo si;
+					pos.set(sfen,&si,Threads.main());
+					HASH_KEY next_key = pos.long_key_after(pos.to_move(move));
+					auto it = hashkey_to_node.find(next_key);
+					if (it != hashkey_to_node.end())
+						ponder = it->second.best_move;
+
+					bms->push_back(BookMove(move, ponder , child.eval,/*depth*/32,/*move_count*/ 1));
+				}
+
+				book.append(sfen,bms);
+
+				progress.check(++counter);
 			}
 
 			book.write_book(path);
@@ -405,6 +462,13 @@ namespace MakeBook2021
 		std::unordered_set<HASH_KEY> keys;
 	};
 
+	// 探索モード
+	enum SearchMode
+	{
+		NormalAlphaBeta, // 通常のAlphaBeta探索
+		TeraShockSearch, // テラショック化する時のAlphaBeta探索
+	};
+
 	// 探索オプション
 	// search_startを呼び出す時に用いる。
 	struct SearchOption
@@ -434,6 +498,10 @@ namespace MakeBook2021
 		// 世代カウンター。
 		// Nodeのメンバー変数にアクセスする時に世代が一致しない変数は無効扱いする。
 		u32 generation = 0;
+
+		// 探索モード
+		// search関数の挙動が変わる。
+		SearchMode search_mode = SearchMode::NormalAlphaBeta;
 	};
 
 	// あとで思考すべきNode
@@ -485,7 +553,7 @@ namespace MakeBook2021
 			string read_book_name = "book/read_book.db";
 			string write_book_name = "book/write_book.db";
 
-			// 探索開始rootとなるsfenの集合。ファイルがなければ平手の初期局面をrootとする。
+			// 探索開始rootとなるsfenの集合。ファイルがなければ平手の初期局面(先手、後手)をrootとする。
 			string root_sfens_name = "book/root_sfens.txt";
 
 			// 探索に追加したい棋譜
@@ -560,6 +628,11 @@ namespace MakeBook2021
 				cout << "Warning , root sfens file = " << root_sfens_name << " , is not found." << endl;
 
 				// なければ平手の初期局面と後手の初期局面を設定しておいてやる。
+
+				//auto root_sfens = BookTools::get_next_sfens("startpos");
+				// →　これで良いのだが、定跡掘るのが進んできたら明らかに悪い枝は
+				// 掘り進めたくないのでここではカスタマイズできるように↓に直に書く。
+
 				string ms[] = {
 					"2g2f","7g7f","1g1f","9g9f","6i7h","3i3h","3i4h","3g3f","5i6h","4i5h",
 					"7i6h","5i5h","6g6f","5g5f","4g4f","6i6h","4i4h","7i7h","5i4h","4i3h",
@@ -599,6 +672,7 @@ namespace MakeBook2021
 			search_option.ranged_alpha_beta_loop = ranged_alpha_beta_loop;
 			search_option.search_delta_on_kif    = search_delta_on_kif;
 			search_option.eval_coef              = (float)Options["Eval_Coef"];
+			search_option.search_mode            = SearchMode::NormalAlphaBeta;
 
 			// USIオプションを探索用に設定する。
 			set_usi_options();
@@ -624,6 +698,76 @@ namespace MakeBook2021
 			cout << "makebook stera command has finished." << endl;
 		}
 
+		// スーパーテラショック定跡手法で生成した定跡を、テラショック化する。
+		// これにより、通常の思考エンジンで使える定跡になる。
+		void stera_convert(Position& pos, istringstream& is)
+		{
+			cout << endl;
+			cout << "makebook stera_convert command : " << endl;
+
+			string read_book_name = "book/read_book.db";
+			string write_book_name = "book/write_tera_book.db";
+
+			// 探索開始rootとなるsfenの集合。ファイルがなければ平手、駒落ちの初期局面をrootとする。
+			string root_sfens_name = "book/root_sfens.txt";
+
+			Parser::ArgumentParser parser;
+			parser.add_argument("read_book"           , read_book_name);
+			parser.add_argument("write_book"          , write_book_name);
+			parser.add_argument("root_sfens_name"     , root_sfens_name);
+
+			// 定跡ファイルの読み込み。
+			pm.read_book(read_book_name);
+
+			// root sfen集合の読み込み
+			vector<string> root_sfens;
+			if (SystemIO::ReadAllLines(root_sfens_name, root_sfens, true).is_not_ok())
+			{
+				// なければ無いで良いが..
+				cout << "Warning , root sfens file = " << root_sfens_name << " , is not found." << endl;
+
+				// 平手、駒落ちの初期局面に対して…
+				for (auto root_sfen : BookTools::get_start_sfens())
+				{
+					// その局面と
+					root_sfens.emplace_back(root_sfen);
+
+					// ↓そこから１手指した局面も含めておく。
+
+					auto next_sfens = BookTools::get_next_sfens(root_sfen);
+					root_sfens.insert(root_sfens.begin(),next_sfens.begin(),next_sfens.end());
+				}
+			}
+
+			sync_cout << "root_sfens.size() == " << root_sfens.size() << sync_endl;
+
+			vector<StateInfo> si(1024);
+			for (auto root_sfen : root_sfens)
+			{
+				BookTools::feed_position_string(pos, root_sfen, si);
+
+				// Node is not found in Book DB , skipped.
+				if (pm.probe(pos.long_key()) == nullptr)
+					continue;
+
+				sync_cout << "[Step 1] set root , root sfen = " << root_sfen << sync_endl;
+
+				sync_cout << "[Step 2] alpha-beta search from root." << sync_endl;
+
+				// generationを変更。
+				++search_option.generation;
+				search_option.search_mode = TeraShockSearch;
+
+				search_start(pos, -VALUE_INFINITE, VALUE_INFINITE);
+			}
+
+			// 定跡ファイルの書き出し(最終)
+			save_tera_book(write_book_name);
+
+			// コマンドが完了したことを出力。
+			cout << "makebook stera_convert command has finished." << endl;
+		}
+
 		// root_sfenで与えられたsfen(もしくは"moves"以下指し手がついているような棋譜の場合、その末尾の局面)をposに設定する。
 		//
 		// root_sfenとして、
@@ -636,48 +780,8 @@ namespace MakeBook2021
 		// append_to_kif = trueのとき、その局面のhash keyがkif_hashにappendされる。
 		void set_root(Position& pos, const string& root_sfen, vector<StateInfo>& si , bool append_to_kif = false)
 		{
-			// -- makebook2015.cppから拝借
-
-			// issから次のtokenを取得する
-			auto feed_next = [](istringstream& iss)
-			{
-				string token = "";
-				iss >> token;
-				return token;
-			};
-
-			// "sfen"に後続するsfen文字列をissからfeedする
-			auto feed_sfen = [&feed_next](istringstream& iss)
-			{
-				stringstream sfen;
-
-				// ループではないが条件外であるときにbreakでreturnのところに行くためのhack
-				while(true)
-				{
-					string token;
-
-					// 盤面を表すsfen文字列
-					sfen << feed_next(iss);
-
-					// 手番
-					token = feed_next(iss);
-					if (token != "w" && token != "b")
-						break;
-					sfen << " " << token;
-
-					// 手駒
-					sfen << " " << feed_next(iss);
-
-					// 初期局面からの手数
-					sfen <<  " " << feed_next(iss);
-
-					break;
-				}
-				return sfen.str();
-			};
-
 			// append_to_kif == trueならば現在の局面のhash keyを、kif_hashに追加する。
-			auto append_to_kif_hash = [&]() {
+			auto append_to_kif_hash = [&](Position& pos) {
 				if (append_to_kif)
 				{
 					HASH_KEY key = pos.long_key();
@@ -686,48 +790,7 @@ namespace MakeBook2021
 				}
 			};
 
-			si.clear();
-			si.emplace_back(StateInfo()); // このあとPosition::set()かset_hirate()を呼び出すので一つは必要。
-
-			istringstream iss(root_sfen);
-			string token;
-			do {
-				token = feed_next(iss);
-				if (token == "sfen")
-				{
-					// 駒落ちなどではsfen xxx movesとなるのでこれをfeedしなければならない。
-					auto sfen = feed_sfen(iss);
-					pos.set(sfen,&si[0],Threads.main());
-				}
-				else if (token == "startpos")
-				{
-					// 平手初期化
-					pos.set_hirate(&si[0], Threads.main());
-				}
-			} while (token == "startpos" || token == "sfen" || token == "moves"/* movesは無視してループを回る*/ );
-
-			append_to_kif_hash();
-
-			// moves以降は1手ずつ進める
-			while (token != "")
-			{
-				// 非合法手ならUSI::to_moveはMOVE_NONEを返すはず…。
-				Move move = USI::to_move(pos, token);
-				if (move == MOVE_NONE)
-					break;
-
-				// MOVE_NULL,MOVE_WINでは局面を進められないのでここで終了。
-				if (!is_ok(move))
-					break;
-
-				si.emplace_back(StateInfo());
-				pos.do_move(move, si.back());
-
-				// 棋譜hashに追加。
-				append_to_kif_hash();
-
-				token = feed_next(iss);
-			}
+			BookTools::feed_position_string(pos, root_sfen, si, append_to_kif_hash );
 
 			// 局面posは指し手で進めて、与えられたsfen(棋譜)の末尾の局面になっている。
 		}
@@ -976,12 +1039,35 @@ namespace MakeBook2021
 					StateInfo si;
 					pos.do_move(m, si);
 
-					// 通常のalpha-beta探索
-					value = -search<NonPV>(pos, next_node, -beta, -alpha, ply+1);
+					switch (search_option.search_mode)
+					{
+					case SearchMode::NormalAlphaBeta:
+						// 通常のalpha-beta探索
+						value = -search<NonPV>(pos, next_node, -beta, -alpha, ply+1);
 
-					// alpha値を更新するなら、PVとして探索しなおす。
-					if (nodeType == PV && alpha < value)
-						value = -search<PV>(pos, next_node, -beta, -alpha, ply+1);
+						// alpha値を更新するなら、PVとして探索しなおす。
+						if (nodeType == PV && alpha < value)
+							value = -search<PV>(pos, next_node, -beta, -alpha, ply+1);
+
+						break;
+
+					case SearchMode::TeraShockSearch:
+						// テラショック化する時の探索。
+						// 1) 探索Windowは全域。(枝刈りしてはならない)
+						//  →　Windowが全域になっているのでβcutは発生しないはず。
+						// 2) 探索結果のvalueをこのchild.evalに反映させる必要がある。(定跡DBに書き出す時に用いるため)
+
+						// 1)
+						value = -search<NonPV>(pos, next_node, -VALUE_INFINITE, VALUE_INFINITE, ply+1);
+						if (nodeType == PV && alpha < value)
+							value = -search<PV>(pos, next_node, -VALUE_INFINITE, VALUE_INFINITE, ply+1);
+
+						// 2)
+						child.eval = value;
+
+						break;
+					}
+
 
 					// 子ノードのスコアが循環が絡んだスコアであるなら、このnodeにも伝播すべき。
 					is_cyclic = next_node->is_cyclic;
@@ -1193,6 +1279,12 @@ namespace MakeBook2021
 			pm.save_book(path);
 		}
 
+		void save_tera_book(const string& path)
+		{
+			cout << "save tera-book , path = " << path << endl;
+			pm.save_tera_book(path);
+		}
+
 		// USIオプションを探索用に設定する。
 		void set_usi_options()
 		{
@@ -1252,6 +1344,16 @@ namespace Book
 		{
 			MakeBook2021::SuperTeraBook st;
 			st.make_book(pos, is);
+			return 1;
+		}
+
+		// makebook stera_convert
+		// スーパーテラショック定跡コマンド("makebook stera")で生成した
+		// 定跡をテラショック化(思考エンジンで使う形の定跡に)変換する。
+		if (token == "stera_convert")
+		{
+			MakeBook2021::SuperTeraBook st;
+			st.stera_convert(pos, is);
 			return 1;
 		}
 

@@ -937,6 +937,31 @@ namespace Tools
 #endif
 	}
 
+	// size_ : 全件でいくらあるかを設定する。
+	ProgressBar::ProgressBar(u64 size_) : size(size_)
+	{
+		cout << "0% [";
+		dots = 0;
+	}
+
+	// 進捗を出力する。
+	// current : 現在までに完了している件数
+	void ProgressBar::check(u64 current)
+	{
+		// 何個dotを打つべきか。
+		const size_t all_dots = 70; // 100%になった時に70個打つ。
+
+		size_t d = (size == 0) ? all_dots : (all_dots * current / size);
+		for (; dots < d; ++dots)
+			cout << ".";
+		if (dots == all_dots)
+		{
+			cout << "] 100%" << endl;
+			dots++; // 1加算しておけば完了したことがわかる。
+		}
+	}
+
+
 	// ResultCodeを文字列化する。
 	std::string to_string(ResultCode code)
 	{
@@ -958,7 +983,7 @@ namespace Tools
 }
 
 // --------------------
-//  ファイルの読み書き
+//  ファイル操作
 // --------------------
 
 namespace SystemIO
@@ -1341,83 +1366,6 @@ namespace SystemIO
 }
 
 // --------------------
-//       Parser
-// --------------------
-
-namespace Parser
-{
-
-	/*
-		LineScanner parser("AAA BBB CCC DDD");
-		auto token = parser.peek_text();
-		cout << token << endl;
-		token = parser.get_text();
-		cout << token << endl;
-		token = parser.get_text();
-		cout << token << endl;
-		token = parser.get_text();
-		cout << token << endl;
-		token = parser.get_text();
-		cout << token << endl;
-	*/
-
-	// 次のtokenを先読みして返す。get_token()するまで解析位置は進まない。
-	std::string LineScanner::peek_text()
-	{
-		// 二重にpeek_text()を呼び出すのは合法であるものとする。
-		if (!token.empty())
-			return token;
-
-		// assert(token.empty());
-
-		while (!raw_eol())
-		{
-			char c = line[pos++];
-			if (c == ' ')
-				break;
-			token += c;
-		}
-		return token;
-	}
-
-	// 次のtokenを返す。
-	std::string LineScanner::get_text()
-	{
-		auto result = (!token.empty() ? token : peek_text());
-		token.clear();
-		return result;
-	}
-
-	// 次の文字列を数値化して返す。数値化できない時は引数の値がそのまま返る。
-	s64 LineScanner::get_number(s64 defaultValue)
-	{
-		std::string token = get_text();
-		return token.empty() ? defaultValue : atoll(token.c_str());
-	}
-
-	// 次の文字列を数値化して返す。数値化できない時は引数の値がそのまま返る。
-	double LineScanner::get_double(double defaultValue)
-	{
-		std::string token = get_text();
-		return token.empty() ? defaultValue : atof(token.c_str());
-	}
-
-}
-
-// --------------------
-//       Math
-// --------------------
-
-double Math::sigmoid(double x) {
-	return 1.0 / (1.0 + std::exp(-x));
-}
-
-double Math::dsigmoid(double x) {
-	return sigmoid(x) * (1.0 - sigmoid(x));
-}
-
-
-// --------------------
 //       Path
 // --------------------
 
@@ -1499,6 +1447,241 @@ namespace Path
 		return false;
 	}
 };
+
+// --------------------
+//    Directory
+// --------------------
+
+#if defined(_MSC_VER)
+
+// C++17から使えるようになり、VC++2019でも2018年末のupdateから使えるようになったらしいのでこれを使う。
+#include <filesystem>
+
+#elif defined(__GNUC__)
+
+// GCC/clangのほうはfilesystem使う方法がよくわからないので保留しとく。
+/*
+備考)
+GCC 8.1では、リンクオプションとして -lstdc++fsが必要
+Clang 7.0では、リンクオプションとして -lc++fsが必要
+
+2020/1/17現時点で最新版はClang 9.0.0のようだが、OpenBlas等が使えるかわからないので、使えるとわかってから
+filesystemを使うように修正する。
+
+Mizarさんより。
+https://gcc.gnu.org/bugzilla/show_bug.cgi?id=91786#c2
+Fixed for GCC 9.3
+とあるのでまだMSYS2でfilesystemは無理じゃないでしょうか
+*/
+
+#include <dirent.h>
+#endif
+
+// ディレクトリに存在するファイルの列挙用
+// C#のDirectoryクラスっぽい何か
+namespace Directory
+{
+	// 指定されたフォルダに存在するファイルをすべて列挙する。
+	// 列挙するときに拡張子を指定できる。(例 : ".bin")
+	// 拡張子として""を指定すればすべて列挙される。
+	std::vector<std::string> EnumerateFiles(const std::string& sourceDirectory, const string& extension)
+	{
+		std::vector<std::string> filenames;
+
+#if defined(_MSC_VER)
+		// ※　std::tr2は、std:c++14 の下では既定で非推奨の警告を出し、/std:c++17 では既定で削除された。
+		// Visual C++2019がupdateでC++17に対応したので、std::filesystemを素直に使ったほうが良い。
+
+		namespace fs = std::filesystem;
+
+		// filesystemのファイル列挙、ディレクトリとして空の文字列を渡すと例外で落ちる。
+		// current directoryにしたい時は明示的に指定してやらなければならない。
+		auto src = sourceDirectory.empty() ? fs::current_path() : fs::path(sourceDirectory);
+
+		for (auto ent : fs::directory_iterator(src))
+			if (fs::is_regular_file(ent)
+				&& StringExtension::EndsWith(ent.path().filename().string(), extension))
+
+				filenames.push_back(Path::Combine(ent.path().parent_path().string(), ent.path().filename().string()));
+
+#elif defined(__GNUC__)
+
+		// 仕方ないのでdirent.hを用いて読み込む。
+		DIR* dp;       // ディレクトリへのポインタ
+		dirent* entry; // readdir() で返されるエントリーポイント
+
+		dp = opendir(sourceDirectory.c_str());
+		if (dp != NULL)
+		{
+			do {
+				entry = readdir(dp);
+				// ".bin"で終わるファイルのみを列挙
+				// →　連番でファイル生成するときにこの制約ちょっと嫌だな…。
+				if (entry != NULL && StringExtension::EndsWith(entry->d_name, extension))
+				{
+					//cout << entry->d_name << endl;
+					filenames.push_back(Path::Combine(sourceDirectory, entry->d_name));
+				}
+			} while (entry != NULL);
+			closedir(dp);
+		}
+#endif
+
+		return filenames;
+	}
+
+	// カレントフォルダを返す(起動時のフォルダ)
+	// main関数に渡された引数から設定してある。
+	// "GetCurrentDirectory"という名前はWindowsAPI(で定義されているマクロ)と競合する。
+	std::string GetCurrentFolder() { return CommandLine::workingDirectory; }
+}
+
+// ----------------------------
+//     mkdir wrapper
+// ----------------------------
+
+// working directory相対で指定する。
+// フォルダを作成する。日本語は使っていないものとする。
+// どうもMSYS2環境下のgccだと_wmkdir()だとフォルダの作成に失敗する。原因不明。
+// 仕方ないので_mkdir()を用いる。
+// ※　C++17のfilesystemがどの環境でも問題なく動くようになれば、
+//     std::filesystem::create_directories()を用いて書き直すべき。
+
+#if defined(_WIN32)
+// Windows用
+
+#if defined(_MSC_VER)
+
+namespace Directory {
+	Tools::Result CreateFolder(const std::string& dir_name)
+	{
+		// working folder相対で指定する。
+		// working folderは本ソフトで変更していないので、普通に
+		// mkdirすれば、working folderに作られるはずである。
+
+		int result =  _wmkdir(Tools::MultiByteToWideChar(dir_name).c_str());
+		//	::CreateDirectory(Tools::MultiByteToWideChar(dir_name).c_str(),NULL);
+
+		return result == 0 ? Tools::Result::Ok() : Tools::Result(Tools::ResultCode::CreateFolderError);
+	}
+}
+
+#elif defined(__GNUC__) 
+
+#include <direct.h>
+namespace Directory {
+	Tools::Result CreateFolder(const std::string& dir_name)
+	{
+		int result = _mkdir(dir_name.c_str());
+		return result == 0 ? Tools::Result::Ok() : Tools::Result(Tools::ResultCode::CreateFolderError);
+	}
+}
+
+#endif
+#elif defined(_LINUX)
+
+// linux環境において、この_LINUXというシンボルはmakefileにて定義されるものとする。
+
+// Linux用のmkdir実装。
+#include "sys/stat.h"
+
+namespace Directory {
+	Tools::Result CreateFolder(const std::string& dir_name)
+	{
+		int result = ::mkdir(dir_name.c_str(), 0777);
+		return result == 0 ? Tools::Result::Ok() : Tools::Result(Tools::ResultCode::CreateFolderError);
+	}
+}
+#else
+
+// Linux環境かどうかを判定するためにはmakefileを分けないといけなくなってくるな..
+// Linuxでフォルダ掘る機能は、とりあえずナシでいいや..。評価関数ファイルの保存にしか使ってないし…。
+
+namespace Directory {
+	Tools::Result CreateFolder(const std::string& dir_name)
+	{
+		return Tools::Result(Tools::ResultCode::NotImplementedError);
+	}
+}
+
+#endif
+
+
+// --------------------
+//       Parser
+// --------------------
+
+namespace Parser
+{
+
+	/*
+		LineScanner parser("AAA BBB CCC DDD");
+		auto token = parser.peek_text();
+		cout << token << endl;
+		token = parser.get_text();
+		cout << token << endl;
+		token = parser.get_text();
+		cout << token << endl;
+		token = parser.get_text();
+		cout << token << endl;
+		token = parser.get_text();
+		cout << token << endl;
+	*/
+
+	// 次のtokenを先読みして返す。get_token()するまで解析位置は進まない。
+	std::string LineScanner::peek_text()
+	{
+		// 二重にpeek_text()を呼び出すのは合法であるものとする。
+		if (!token.empty())
+			return token;
+
+		// assert(token.empty());
+
+		while (!raw_eol())
+		{
+			char c = line[pos++];
+			if (c == ' ')
+				break;
+			token += c;
+		}
+		return token;
+	}
+
+	// 次のtokenを返す。
+	std::string LineScanner::get_text()
+	{
+		auto result = (!token.empty() ? token : peek_text());
+		token.clear();
+		return result;
+	}
+
+	// 次の文字列を数値化して返す。数値化できない時は引数の値がそのまま返る。
+	s64 LineScanner::get_number(s64 defaultValue)
+	{
+		std::string token = get_text();
+		return token.empty() ? defaultValue : atoll(token.c_str());
+	}
+
+	// 次の文字列を数値化して返す。数値化できない時は引数の値がそのまま返る。
+	double LineScanner::get_double(double defaultValue)
+	{
+		std::string token = get_text();
+		return token.empty() ? defaultValue : atof(token.c_str());
+	}
+
+}
+
+// --------------------
+//       Math
+// --------------------
+
+double Math::sigmoid(double x) {
+	return 1.0 / (1.0 + std::exp(-x));
+}
+
+double Math::dsigmoid(double x) {
+	return sigmoid(x) * (1.0 - sigmoid(x));
+}
 
 // --------------------
 //    文字列 拡張
@@ -1663,164 +1846,6 @@ namespace StringExtension
 
 };
 
-// --------------------
-//  FileSystem
-// --------------------
-
-#if defined(_MSC_VER)
-
-// C++17から使えるようになり、VC++2019でも2018年末のupdateから使えるようになったらしいのでこれを使う。
-#include <filesystem>
-
-#elif defined(__GNUC__)
-
-// GCC/clangのほうはfilesystem使う方法がよくわからないので保留しとく。
-/*
- 備考)
-   GCC 8.1では、リンクオプションとして -lstdc++fsが必要
-   Clang 7.0では、リンクオプションとして -lc++fsが必要
-
- 2020/1/17現時点で最新版はClang 9.0.0のようだが、OpenBlas等が使えるかわからないので、使えるとわかってから
- filesystemを使うように修正する。
-
-Mizarさんより。
-https://gcc.gnu.org/bugzilla/show_bug.cgi?id=91786#c2
-Fixed for GCC 9.3
-とあるのでまだMSYS2でfilesystemは無理じゃないでしょうか
-*/
-
-#include <dirent.h>
-#endif
-
-// ディレクトリに存在するファイルの列挙用
-// C#のDirectoryクラスっぽい何か
-namespace Directory
-{
-	// 指定されたフォルダに存在するファイルをすべて列挙する。
-	// 列挙するときに拡張子を指定できる。(例 : ".bin")
-	// 拡張子として""を指定すればすべて列挙される。
-	std::vector<std::string> EnumerateFiles(const std::string& sourceDirectory, const string& extension)
-	{
-		std::vector<std::string> filenames;
-
-#if defined(_MSC_VER)
-		// ※　std::tr2は、std:c++14 の下では既定で非推奨の警告を出し、/std:c++17 では既定で削除された。
-		// Visual C++2019がupdateでC++17に対応したので、std::filesystemを素直に使ったほうが良い。
-
-		namespace fs = std::filesystem;
-
-		// filesystemのファイル列挙、ディレクトリとして空の文字列を渡すと例外で落ちる。
-		// current directoryにしたい時は明示的に指定してやらなければならない。
-		auto src = sourceDirectory.empty() ? fs::current_path() : fs::path(sourceDirectory);
-
-		for (auto ent : fs::directory_iterator(src))
-			if (fs::is_regular_file(ent)
-				&& StringExtension::EndsWith(ent.path().filename().string(), extension))
-
-				filenames.push_back(Path::Combine(ent.path().parent_path().string(), ent.path().filename().string()));
-
-#elif defined(__GNUC__)
-
-		// 仕方ないのでdirent.hを用いて読み込む。
-		DIR* dp;       // ディレクトリへのポインタ
-		dirent* entry; // readdir() で返されるエントリーポイント
-
-		dp = opendir(sourceDirectory.c_str());
-		if (dp != NULL)
-		{
-			do {
-				entry = readdir(dp);
-				// ".bin"で終わるファイルのみを列挙
-				// →　連番でファイル生成するときにこの制約ちょっと嫌だな…。
-				if (entry != NULL && StringExtension::EndsWith(entry->d_name, extension))
-				{
-					//cout << entry->d_name << endl;
-					filenames.push_back(Path::Combine(sourceDirectory, entry->d_name));
-				}
-			} while (entry != NULL);
-			closedir(dp);
-		}
-#endif
-
-		return filenames;
-	}
-
-	// カレントフォルダを返す(起動時のフォルダ)
-	// main関数に渡された引数から設定してある。
-	// "GetCurrentDirectory"という名前はWindowsAPI(で定義されているマクロ)と競合する。
-	std::string GetCurrentFolder() { return CommandLine::workingDirectory; }
-}
-
-// ----------------------------
-//     mkdir wrapper
-// ----------------------------
-
-// working directory相対で指定する。
-// フォルダを作成する。日本語は使っていないものとする。
-// どうもMSYS2環境下のgccだと_wmkdir()だとフォルダの作成に失敗する。原因不明。
-// 仕方ないので_mkdir()を用いる。
-// ※　C++17のfilesystemがどの環境でも問題なく動くようになれば、
-//     std::filesystem::create_directories()を用いて書き直すべき。
-
-#if defined(_WIN32)
-// Windows用
-
-#if defined(_MSC_VER)
-
-namespace Directory {
-	Tools::Result CreateFolder(const std::string& dir_name)
-	{
-		// working folder相対で指定する。
-		// working folderは本ソフトで変更していないので、普通に
-		// mkdirすれば、working folderに作られるはずである。
-
-		int result =  _wmkdir(Tools::MultiByteToWideChar(dir_name).c_str());
-		//	::CreateDirectory(Tools::MultiByteToWideChar(dir_name).c_str(),NULL);
-
-		return result == 0 ? Tools::Result::Ok() : Tools::Result(Tools::ResultCode::CreateFolderError);
-	}
-}
-
-#elif defined(__GNUC__) 
-
-#include <direct.h>
-namespace Directory {
-	Tools::Result CreateFolder(const std::string& dir_name)
-	{
-		int result = _mkdir(dir_name.c_str());
-		return result == 0 ? Tools::Result::Ok() : Tools::Result(Tools::ResultCode::CreateFolderError);
-	}
-}
-
-#endif
-#elif defined(_LINUX)
-
-// linux環境において、この_LINUXというシンボルはmakefileにて定義されるものとする。
-
-// Linux用のmkdir実装。
-#include "sys/stat.h"
-
-namespace Directory {
-	Tools::Result CreateFolder(const std::string& dir_name)
-	{
-		int result = ::mkdir(dir_name.c_str(), 0777);
-		return result == 0 ? Tools::Result::Ok() : Tools::Result(Tools::ResultCode::CreateFolderError);
-	}
-}
-#else
-
-// Linux環境かどうかを判定するためにはmakefileを分けないといけなくなってくるな..
-// Linuxでフォルダ掘る機能は、とりあえずナシでいいや..。評価関数ファイルの保存にしか使ってないし…。
-
-namespace Directory {
-	Tools::Result CreateFolder(const std::string& dir_name)
-	{
-		return Tools::Result(Tools::ResultCode::NotImplementedError);
-	}
-}
-
-#endif
-
 // ----------------------------
 //     working directory
 // ----------------------------
@@ -1880,6 +1905,10 @@ namespace CommandLine {
 	}
 
 }
+
+// --------------------
+//     UnitTest
+// --------------------
 
 namespace Misc {
 	// このheaderに書いてある関数のUnitTest。

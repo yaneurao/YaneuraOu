@@ -309,4 +309,28 @@ namespace Book
 	extern void UnitTest(Test::UnitTester& tester);
 }
 
+// 定跡関係の処理のための補助ツール群
+namespace BookTools
+{
+	// USIの"position"コマンドに設定できる文字列で、局面を初期化する。
+	// 例)
+	// "startpos"
+	// "startpos moves xxx ..."
+	// "sfen xxx"
+	// "sfen xxx moves yyy ..."
+	// また、局面を1つ進めるごとにposition_callback関数が呼び出される。
+	// 辿った局面すべてに対して何かを行いたい場合は、これを利用すると良い。
+	void feed_position_string(Position& pos, const std::string& root_sfen, std::vector<StateInfo>& si, const std::function<void(Position&)>& position_callback = [](Position&) {});
+
+	// 平手、駒落ちの開始局面集
+	// ここで返ってきた配列の、[0]は平手のsfenであることは保証されている。
+	// 先頭に"sfen "とついているので注意。
+	std::vector<std::string> get_start_sfens();
+
+	// "position"コマンドに設定できるsfen文字列を渡して、そこから全合法手で１手進めたsfen文字列を取得する。
+	// 先頭に"sfen "とついているので注意。
+	std::vector<std::string> get_next_sfens(std::string root_sfen);
+
+}
+
 #endif // #ifndef INCLUDED_

@@ -393,7 +393,7 @@ namespace Book
 		if (fs.fail())
 			return Tools::Result(Tools::ResultCode::FileOpenError);
 
-		cout << endl << "write " + filename;
+		cout << endl << "write " + filename << endl;
 
 		// バージョン識別用文字列
 		fs << "#YANEURAOU-DB2016 1.00" << endl;
@@ -423,16 +423,7 @@ namespace Book
 
 		// 進捗の出力
 		u64 counter = 0;
-		auto output_progress = [&]()
-		{
-			if ((counter % 1000) == 0)
-			{
-				if ((counter % 80000) == 0) // 80文字ごとに改行
-					cout << endl;
-				cout << ".";
-			}
-			counter++;
-		};
+		Tools::ProgressBar progress(vectored_book.size() * 2);
 
 		{
 			Position pos;
@@ -440,8 +431,6 @@ namespace Book
 			// std::vectorにしてあるのでit.firstを書き換えてもitは無効にならないはず。
 			for (auto& it : vectored_book)
 			{
-				output_progress();
-
 				StateInfo si;
 				pos.set(it.first,&si,Threads.main());
 				auto sfen = pos.sfen();
@@ -455,6 +444,8 @@ namespace Book
 					book_ply[sfen_left] = ply; // エントリーが見つからなかったので何も考えずに追加
 				else
 					it2->second = std::min(it2->second, ply); // 手数の短いほうを代入しておく。
+
+				progress.check(++counter);
 			}
 		}
 
@@ -467,8 +458,6 @@ namespace Book
 
 		for (auto& it : vectored_book)
 		{
-			output_progress();
-
 			// -- 重複局面の手数違いの局面はスキップする(ファイルに書き出さない)
 
 			auto sfen = it.first;
@@ -492,11 +481,11 @@ namespace Book
 
 			if (fs.fail())
 				return Tools::Result(Tools::ResultCode::FileWriteError);
+
+			progress.check(++counter);
 		}
 
 		fs.close();
-
-		cout << endl << "done!" << endl;
 
 		return Tools::Result::Ok();
 	}
@@ -1364,5 +1353,150 @@ namespace Book
 		}
 #endif
 	}
+}
 
+// ===================================================
+//                  BookTools
+// ===================================================
+
+// 定跡関係の処理のための補助ツール群
+namespace BookTools
+{
+	// USIの"position"コマンドに設定できる文字列で、局面を初期化する。
+	// 例)
+	// "startpos"
+	// "startpos moves xxx ..."
+	// "sfen xxx"
+	// "sfen xxx moves yyy ..."
+	// また、局面を1つ進めるごとにposition_callback関数が呼び出される。
+	// 辿った局面すべてに対して何かを行いたい場合は、これを利用すると良い。
+	void feed_position_string(Position& pos, const std::string& root_sfen, std::vector<StateInfo>& si, const std::function<void(Position&)>& position_callback)
+	{
+		// issから次のtokenを取得する
+		auto feed_next = [](istringstream& iss)
+		{
+			string token = "";
+			iss >> token;
+			return token;
+		};
+
+		// "sfen"に後続するsfen文字列をissからfeedする
+		auto feed_sfen = [&feed_next](istringstream& iss)
+		{
+			stringstream sfen;
+
+			// ループではないが条件外であるときにbreakでreturnのところに行くためのhack
+			while(true)
+			{
+				string token;
+
+				// 盤面を表すsfen文字列
+				sfen << feed_next(iss);
+
+				// 手番
+				token = feed_next(iss);
+				if (token != "w" && token != "b")
+					break;
+				sfen << " " << token;
+
+				// 手駒
+				sfen << " " << feed_next(iss);
+
+				// 初期局面からの手数
+				sfen <<  " " << feed_next(iss);
+
+				break;
+			}
+			return sfen.str();
+		};
+
+		si.clear();
+		si.emplace_back(StateInfo()); // このあとPosition::set()かset_hirate()を呼び出すので一つは必要。
+
+		istringstream iss(root_sfen);
+		string token;
+		do {
+			token = feed_next(iss);
+			if (token == "sfen")
+			{
+				// 駒落ちなどではsfen xxx movesとなるのでこれをfeedしなければならない。
+				auto sfen = feed_sfen(iss);
+				pos.set(sfen,&si[0],Threads.main());
+			}
+			else if (token == "startpos")
+			{
+				// 平手初期化
+				pos.set_hirate(&si[0], Threads.main());
+			}
+		} while (token == "startpos" || token == "sfen" || token == "moves"/* movesは無視してループを回る*/ );
+
+		// callbackを呼び出してやる。
+		position_callback(pos);
+
+		// moves以降は1手ずつ進める
+		while (token != "")
+		{
+			// 非合法手ならUSI::to_moveはMOVE_NONEを返すはず…。
+			Move move = USI::to_move(pos, token);
+			if (move == MOVE_NONE)
+				break;
+
+			// MOVE_NULL,MOVE_WINでは局面を進められないのでここで終了。
+			if (!is_ok(move))
+				break;
+
+			si.emplace_back(StateInfo());
+			pos.do_move(move, si.back());
+
+			// callbackを呼び出してやる。
+			position_callback(pos);
+
+			token = feed_next(iss);
+		}
+	}
+
+	// 平手、駒落ちの開始局面集
+	// ここで返ってきた配列の、[0]は平手のsfenであることは保証されている。
+	std::vector<std::string> get_start_sfens()
+	{
+		std::vector<std::string> start_sfens = {
+			/*public static readonly string HIRATE = */       "sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1" ,
+			/*public static readonly string HANDICAP_KYO = */ "sfen lnsgkgsn1/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1" ,
+			/*public static readonly string HANDICAP_RIGHT_KYO = */ "sfen 1nsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+			/*public static readonly string HANDICAP_KAKU = */ "sfen lnsgkgsnl/1r7/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+			/*public static readonly string HANDICAP_HISYA = */ "sfen lnsgkgsnl/7b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+			/*public static readonly string HANDICAP_HISYA_KYO = */ "sfen lnsgkgsn1/7b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+			/*public static readonly string HANDICAP_2 =      */ "sfen lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+			/*public static readonly string HANDICAP_3 =      */ "sfen lnsgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+			/*public static readonly string HANDICAP_4 =      */ "sfen 1nsgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+			/*public static readonly string HANDICAP_5 =      */ "sfen 2sgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+			/*public static readonly string HANDICAP_LEFT_5 = */ "sfen 1nsgkgs2/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+			/*public static readonly string HANDICAP_6 =      */ "sfen 2sgkgs2/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+			/*public static readonly string HANDICAP_8 =      */ "sfen 3gkg3/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+			/*public static readonly string HANDICAP_10 =     */ "sfen 4k4/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1",
+			/*public static readonly string HANDICAP_PAWN3 =  */ "sfen 4k4/9/9/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w 3p 1",
+		};
+
+		return start_sfens;
+	}
+
+	// "position"コマンドに設定できるsfen文字列を渡して、そこから全合法手で１手進めたsfen文字列を取得する。
+	std::vector<std::string> get_next_sfens(std::string root_sfen)
+	{
+		Position pos;
+		std::vector<StateInfo> si;
+		feed_position_string(pos, root_sfen, si);
+		StateInfo si2;
+		vector<string> sfens;
+
+		for (auto ml : MoveList<LEGAL_ALL>(pos))
+		{
+			auto m = ml.move;
+			pos.do_move(m, si2);
+			sfens.emplace_back("sfen " + pos.sfen());
+			pos.undo_move(m);
+		}
+
+		return sfens;
+	}
 }
