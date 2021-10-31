@@ -84,7 +84,7 @@ jobs:
           $ErrorActionPreference = 'Continue'
           C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu'
           C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu'
-          C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu pactoys-git'
+          C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu pactoys'
           C:\msys64\usr\bin\bash.exe -lc 'pacboy --needed --noconfirm -Sy clang:m openblas:x openmp:x toolchain:m base-devel:'
           $ErrorActionPreference = 'Stop'
 
