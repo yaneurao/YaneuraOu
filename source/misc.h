@@ -566,6 +566,14 @@ namespace SystemIO
 		// デフォルトでfalse
 		void SetTrim(bool trim = true) { this->trim = trim; }
 
+		// ファイルサイズの取得
+		// ファイルポジションは先頭に移動する。
+		size_t GetSize();
+
+		// 現在のファイルポジションを取得する。
+		// 先読みしているのでReadLineしている場所よりは先まで進んでいる。
+		size_t FilePos() { return ftell(fp); }
+
 	private:
 		// 各種状態変数の初期化
 		void clear();
@@ -616,10 +624,10 @@ namespace SystemIO
 	class BinaryBase
 	{
 	public:
-		// ファイルを閉じる。デストラクタからclose()は呼び出されるので明示的に閉じなくても良い。
-		Tools::Result close();
+		// ファイルを閉じる。デストラクタからClose()は呼び出されるので明示的に閉じなくても良い。
+		Tools::Result Close();
 
-		virtual ~BinaryBase() { close(); }
+		virtual ~BinaryBase() { Close(); }
 
 	protected:
 		FILE* fp = nullptr;
@@ -630,18 +638,18 @@ namespace SystemIO
 	{
 	public:
 		// ファイルのopen
-		Tools::Result open(const std::string& filename);
+		Tools::Result Open(const std::string& filename);
 
 		// ファイルサイズの取得
 		// ファイルポジションは先頭に移動する。
-		size_t get_size();
+		size_t GetSize();
 
 		// ptrの指すメモリにsize[byte]だけファイルから読み込む
 		// ファイルの末尾を超えて読み込もうとした場合、Eofが返る。
 		// ファイルの末尾に超えて読み込もうとしなかった場合、Okが返る。
 		// 引数で渡されたバイト数読み込むことができなかった場合、FileReadErrorが返る。
 		// size_of_read_bytesがnullptrでない場合、実際に読み込まれたバイト数が代入される。
-		Tools::Result read(void* ptr , size_t size, size_t* size_of_read_bytes = nullptr);
+		Tools::Result Read(void* ptr , size_t size, size_t* size_of_read_bytes = nullptr);
 	};
 
 	// binary fileの書き出しお手伝いclass
@@ -649,10 +657,10 @@ namespace SystemIO
 	{
 	public:
 		// ファイルのopen
-		Tools::Result open(const std::string& filename);
+		Tools::Result Open(const std::string& filename);
 
 		// ptrの指すメモリからsize[byte]だけファイルに書き込む。
-		Tools::Result write(void* ptr, size_t size);
+		Tools::Result Write(void* ptr, size_t size);
 	};
 };
 

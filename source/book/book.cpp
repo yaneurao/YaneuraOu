@@ -302,9 +302,12 @@ namespace Book
 			// (これがtrueならばsfenから手数を除去しておく)
 			bool ignoreBookPly = Options["IgnoreBookPly"];
 
+			Tools::ProgressBar progress(reader.GetSize());
+
 			std::string line;
 			while(reader.ReadLine(line).is_ok())
 			{
+				progress.check(reader.FilePos());
 
 				// バージョン識別文字列(とりあえず読み飛ばす)
 				if (line.length() >= 1 && line[0] == '#')

@@ -300,8 +300,12 @@ namespace MakeBook2021
 
 		// 指定された局面からPVを辿って表示する。(デバッグ用)
 		// search_start()を呼び出してPVが確定している必要がある。
-		void dump_pv(Position& pos)
+		void dump_pv(Position& pos,int ply = 0)
 		{
+			// 千日手などで循環する可能性があるのでその防止。
+			if (ply >= MAX_PLY)
+				return;
+
 			auto key = pos.long_key();
 
 			auto* node = probe(key);
@@ -314,7 +318,7 @@ namespace MakeBook2021
 			// best_moveで進められるんか？
 			StateInfo si;
 			pos.do_move(m,si);
-			dump_pv(pos);
+			dump_pv(pos,ply+1);
 			pos.undo_move(m);
 		}
 

@@ -1334,7 +1334,7 @@ struct SfenReader
 			string filename = *filenames.rbegin();
 			filenames.pop_back();
 
-			auto result = binary_reader.open(filename);
+			auto result = binary_reader.Open(filename);
 			cout << "open filename = " << filename << endl;
 			ASSERT(result.is_ok());
 
@@ -1361,7 +1361,7 @@ struct SfenReader
 			{
 				size_t expected_size_of_read_bytes = (SFEN_READ_SIZE - sfens_read_offset) * sizeof(PackedSfenValue);
 				size_t actual_size_of_read_bytes = 0;
-				auto result = binary_reader.read(&sfens[sfens_read_offset], expected_size_of_read_bytes, &actual_size_of_read_bytes);
+				auto result = binary_reader.Read(&sfens[sfens_read_offset], expected_size_of_read_bytes, &actual_size_of_read_bytes);
 				if (!(result.is_ok() || result.is_eof())) {
 					cout << endl << "Failed to read a file." << endl;
 					end_of_files = true;
@@ -1666,8 +1666,8 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 			double local_sum_norm = 0.0;
 			int local_move_accord_count = 0;
 
-			int num_sfens = (int)sr.sfen_for_mse.size();
-			for (int position_index = global_position_index++; position_index < num_sfens;
+			size_t num_sfens = sr.sfen_for_mse.size();
+			for (size_t position_index = global_position_index++; position_index < num_sfens;
 				position_index = global_position_index++) {
 				auto th = Threads[thread_id];
 				auto& pos = th->rootPos;

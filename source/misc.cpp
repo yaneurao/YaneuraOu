@@ -951,8 +951,10 @@ namespace Tools
 		// 何個dotを打つべきか。
 		const size_t all_dots = 70; // 100%になった時に70個打つ。
 
-		size_t d = (size == 0) ? all_dots : (all_dots * current / size);
-		for (; dots < d; ++dots)
+		// 何dot塗りつぶすのか。
+		size_t d = (size == 0) ? all_dots : std::min((all_dots * current / size), all_dots);
+
+		for (; dots < d ; ++dots)
 			cout << ".";
 		if (dots == all_dots)
 		{
@@ -1274,10 +1276,26 @@ namespace SystemIO
 		is_eof = read_size == 0;
 	}
 
+	// ファイルサイズの取得
+	// ファイルポジションは先頭に移動する。
+	size_t TextReader::GetSize()
+	{
+		ASSERT_LV3(fp != nullptr);
+
+		fseek(fp, 0, SEEK_END);
+		// ftell()は失敗した時に-1を返すらしいのだが…。ここでは失敗を想定していない。
+		size_t endPos = (size_t)ftell(fp);
+		fseek(fp, 0, SEEK_SET);
+		size_t beginPos = (size_t)ftell(fp);
+		size_t file_size = endPos - beginPos;
+
+		return file_size;
+	}
+
 	// === BinaryBase ===
 
 	// ファイルを閉じる。デストラクタからclose()は呼び出されるので明示的に閉じなくても良い。
-	Tools::Result BinaryBase::close()
+	Tools::Result BinaryBase::Close()
 	{
 		Tools::ResultCode result = Tools::ResultCode::Ok;
 		if (fp != nullptr)
@@ -1292,9 +1310,9 @@ namespace SystemIO
 	// === BinaryReader ===
 
 	// ファイルのopen
-	Tools::Result BinaryReader::open(const std::string& filename)
+	Tools::Result BinaryReader::Open(const std::string& filename)
 	{
-		auto close_result = close();
+		auto close_result = Close();
 		if (!close_result.is_ok()) {
 			return close_result;
 		}
@@ -1308,7 +1326,7 @@ namespace SystemIO
 
 	// ファイルサイズの取得
 	// ファイルポジションは先頭に移動する。
-	size_t BinaryReader::get_size()
+	size_t BinaryReader::GetSize()
 	{
 		ASSERT_LV3(fp != nullptr);
 
@@ -1322,7 +1340,7 @@ namespace SystemIO
 	}
 
 	// ptrの指すメモリにsize[byte]だけファイルから読み込む
-	Tools::Result BinaryReader::read(void* ptr, size_t size, size_t* size_of_read_bytes)
+	Tools::Result BinaryReader::Read(void* ptr, size_t size, size_t* size_of_read_bytes)
 	{
 		size_t actual_size_of_read_bytes = fread(ptr, 1, size, fp);
 
@@ -1346,7 +1364,7 @@ namespace SystemIO
 	// === BinaryWriter ===
 
 	// ファイルのopen
-	Tools::Result BinaryWriter::open(const std::string& filename)
+	Tools::Result BinaryWriter::Open(const std::string& filename)
 	{
 		fp = fopen(filename.c_str(), "wb");
 		if (fp == nullptr)
@@ -1356,7 +1374,7 @@ namespace SystemIO
 	}
 
 	// ptrの指すメモリからsize[byte]だけファイルに書き込む
-	Tools::Result BinaryWriter::write(void* ptr, size_t size)
+	Tools::Result BinaryWriter::Write(void* ptr, size_t size)
 	{
 		if (fwrite((u8*)ptr, 1, size, fp) != size)
 			return Tools::Result(Tools::ResultCode::FileWriteError);
