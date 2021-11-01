@@ -956,7 +956,7 @@ namespace Tools
 		const size_t all_dots = 70; // 100%になった時に70個打つ。
 
 		// 何dot塗りつぶすのか。
-		size_t d = (size == 0) ? all_dots : std::min((all_dots * current / size), all_dots);
+		size_t d = (size == 0) ? all_dots : std::min((size_t)(all_dots * current / size), all_dots);
 
 		for (; dots < d ; ++dots)
 			cout << ".";

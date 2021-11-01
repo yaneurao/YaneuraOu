@@ -579,12 +579,12 @@ namespace MakeBook2021
 			// 探索局面数
 			u64 think_limit = 1000000;
 
-			// 何回ranged alpha searchを連続して行うのか。
+			// 1つのroot局面に対して、何回ranged alpha searchを連続して行うのか。
 			size_t ranged_alpha_beta_loop = 5;
 
 			// ranged alpha beta searchの時に棋譜上に出現したleaf nodeに加点するスコア。
 			// そのleaf nodeが選ばれやすくなる。
-			int search_delta_on_kif = 30;
+			int search_delta_on_kif = 100;
 
 			// このコマンドの流れとしては、
 			// 1) 通常のalpha-beta探索でbest valueを確定させる
@@ -1060,9 +1060,9 @@ namespace MakeBook2021
 					//  leaf nodeに対するペナルティ/ボーナス
 					// ======================================
 
-					// 棋譜上に出現する局面がleaf nodeならば、ここに100点加点(このleaf nodeに行きたいため)
+					// 棋譜上に出現する局面がleaf nodeならば、ここに加点(このleaf nodeに行きたいため)
 					if (kif_hash.find(key_next) != kif_hash.end())
-						value += 100;
+						value += search_option.search_delta_on_kif;
 
 				}
 				else {
