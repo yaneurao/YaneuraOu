@@ -723,6 +723,12 @@ namespace MakeBook2021
 			parser.add_argument("write_book"          , write_book_name);
 			parser.add_argument("root_sfens_name"     , root_sfens_name);
 
+			parser.parse_args(is);
+
+			cout << "ReadBook  DB file      : " << read_book_name         << endl;
+			cout << "WriteBook DB file      : " << write_book_name        << endl;
+			cout << "root_sfens_name        : " << root_sfens_name        << endl;
+
 			// 定跡ファイルの読み込み。
 			pm.read_book(read_book_name);
 

@@ -940,7 +940,8 @@ namespace Tools
 	// size_ : 全件でいくらあるかを設定する。
 	ProgressBar::ProgressBar(u64 size_) : size(size_)
 	{
-		cout << "0% [";
+		if (enable_)
+			cout << "0% [";
 		dots = 0;
 	}
 
@@ -948,6 +949,9 @@ namespace Tools
 	// current : 現在までに完了している件数
 	void ProgressBar::check(u64 current)
 	{
+		if (!enable_)
+			return;
+
 		// 何個dotを打つべきか。
 		const size_t all_dots = 70; // 100%になった時に70個打つ。
 
@@ -956,12 +960,14 @@ namespace Tools
 
 		for (; dots < d ; ++dots)
 			cout << ".";
+
 		if (dots == all_dots)
 		{
 			cout << "] 100%" << endl;
 			dots++; // 1加算しておけば完了したことがわかる。
 		}
 	}
+	bool ProgressBar::enable_ = false;
 
 
 	// ResultCodeを文字列化する。

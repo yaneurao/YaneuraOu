@@ -50,7 +50,12 @@ namespace Book
 		auto original_ignore_book_ply = (bool)Options["IgnoreBookPly"];
 		Options["IgnoreBookPly"] = false;
 
-		SCOPE_EXIT(Options["BookFile"] = original_book_file; Options["IgnoreBookPly"] = original_ignore_book_ply; );
+		Tools::ProgressBar::enable(true);
+		SCOPE_EXIT(
+			Options["BookFile"] = original_book_file;
+			Options["IgnoreBookPly"] = original_ignore_book_ply;
+			Tools::ProgressBar::enable(false);
+			);
 
 		// ↑ SCOPE_EXIT()により、この関数を抜けるときには復旧する。
 

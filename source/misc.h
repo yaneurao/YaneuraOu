@@ -428,12 +428,19 @@ namespace Tools
 		// current : 現在までに完了している件数
 		void check(u64 current);
 
+		// Progress Barの有効/無効を切り替える。
+		// "readyok"までにProgressBarが被るとよろしくないので
+		// learnコマンドとmakebookコマンドの時以外はオフでいいと思う。
+		static void enable(bool b) { enable_ = b; }
+
 	private:
 		// 全件の数。
 		u64 size;
 
 		// 前回までに何個dotを出力したか。
 		size_t dots;
+
+		static bool enable_;
 	};
 
 	// --------------------
