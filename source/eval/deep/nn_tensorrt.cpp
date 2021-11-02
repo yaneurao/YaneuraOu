@@ -251,9 +251,7 @@ namespace Eval::dlshogi
 		// シリアライズされたファイルがあるなら、それを代わりに読み込む。
 
 		// デバイス情報の取得
-		const int  cBufLen = 256;
-		const auto re  = std::regex("[^A-Za-z0-9._-]");
-		const auto fmt = std::string("_");
+		//const int  cBufLen = 256;
 		cudaDeviceProp device_prop;
 		//char pciBusId[cBufLen];
 		checkCudaErrors(cudaGetDeviceProperties(&device_prop, gpu_id));
@@ -268,10 +266,11 @@ namespace Eval::dlshogi
 		std::string serialized_filename =
 			filename + "." +
 			// std::to_string(gpu_id) + "." +
-			std::regex_replace(std::string(device_prop.name), re, fmt) + "." +
-			// std::regex_replace(std::string(pciBusId), re, fmt) + "." +
+			std::regex_replace(std::string(device_prop.name), std::regex("[^A-Za-z0-9._-]"), std::string("_")) + "." +
+			// std::regex_replace(std::string(pciBusId), std::regex("[^A-Za-z0-9._-]"), std::string("_")) + "." +
 			std::to_string(max_batch_size) + "." +
-			"TRT" + std::to_string(NV_TENSORRT_VERSION) + ".serialized";
+			"TRT" + std::to_string(getInferLibVersion()) + "." +
+			"serialized";
 
 		sync_cout << "info string serialized filename = " << serialized_filename << sync_endl;
 
