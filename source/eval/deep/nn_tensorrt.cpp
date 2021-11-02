@@ -270,13 +270,7 @@ namespace Eval::dlshogi
 		if (result.is_ok())
 		{
 			auto runtime = InferUniquePtr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(gLogger));
-			// TensorRT 8 より nvinfer1::IRuntime::deserializeCudaEngine() は非推奨。
-			// nvinfer1::IRuntime::deserializeCudaEngine() は TensorRT 10.0 にて削除される見込み。
-			// TensorRT 8 GA (General Availability: 正規版、一般公開版) リリース後に対応するのが望ましいか。
-			//
-			// https://docs.nvidia.com/deeplearning/tensorrt/api/c_api/deprecated.html
-			// https://docs.nvidia.com/deeplearning/tensorrt/archives/tensorrt-800-ea/release-notes/tensorrt-8.html#rel_8-0-0-EA
-			engine = InferUniquePtr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(modelPtr.get() , modelSize, nullptr));
+			engine = InferUniquePtr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(modelPtr.get(), modelSize));
 
 			// ドライバのバージョンが異なるなどが原因で、デシリアライズに失敗することがある。その場合はやりなおす。
 			if (!engine)
