@@ -213,17 +213,32 @@ namespace Eval::dlshogi
 		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
 		config->addOptimizationProfile(profile);
 
-		// TensorRT 8 より IBuilder::buildSerializedNetwork() が追加され、 nvinfer1::IBuilder::buildEngineWithConfig() は非推奨となった。
+		// TensorRT 8 より nvinfer1::IBuilder::buildSerializedNetwork() が追加され、 nvinfer1::IBuilder::buildEngineWithConfig() は非推奨となった。
 		// nvinfer1::IBuilder::buildEngineWithConfig() は TensorRT 10.0 にて削除される見込み。
-		// TensorRT 8 GA (General Availability: 正規版、一般公開版) リリース後に対応するのが望ましいか。
-		//
 		// https://docs.nvidia.com/deeplearning/tensorrt/api/c_api/deprecated.html
 		// https://docs.nvidia.com/deeplearning/tensorrt/archives/tensorrt-800-ea/release-notes/tensorrt-8.html#rel_8-0-0-EA
+#if NV_TENSORRT_MAJOR >= 8
+		auto serializedEngine = InferUniquePtr<nvinfer1::IHostMemory>(builder->buildSerializedNetwork(*network, *config));
+		if (!serializedEngine)
+		{
+			FatalError("buildSerializedNetwork");
+		}
+		auto runtime = InferUniquePtr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(gLogger));
+		engine.reset(runtime->deserializeCudaEngine(serializedEngine->data(), serializedEngine->size()));
+		if (!engine)
+		{
+			FatalError("deserializeCudaEngine");
+		}
+		// 一旦シリアライズ化されたエンジンはデシリアライズを行った上で捨てているが、
+		// この後またすぐにファイル書き出し用にシリアライズを行っているので、手順改善の余地あり。
+		// // auto serializedEngine = InferUniquePtr<nvinfer1::IHostMemory>(engine->serialize());
+#else
 		engine.reset(builder->buildEngineWithConfig(*network, *config));
 		if (!engine)
 		{
 			FatalError("buildEngineWithConfig");
 		}
+#endif
 	}
 
 	Tools::Result NNTensorRT::load_model(const string& filename)
