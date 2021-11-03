@@ -546,7 +546,7 @@ namespace SystemIO
 	struct TextReader
 	{
 		TextReader();
-		~TextReader();
+		virtual ~TextReader();
 
 		// ファイルをopenする。
 		Tools::Result Open(const std::string& filename);
@@ -581,7 +581,7 @@ namespace SystemIO
 
 		// 現在のファイルポジションを取得する。
 		// 先読みしているのでReadLineしている場所よりは先まで進んでいる。
-		size_t FilePos() { return ftell(fp); }
+		size_t GetFilePos() { return ftell(fp); }
 
 		// 現在の行数を返す。(次のReadLine()で返すのがテキストファイルの何行目であるかを返す) 0 origin。
 		// またここで返す数値は空行で読み飛ばした時も、その空行を1行としてカウントしている。
@@ -636,6 +636,45 @@ namespace SystemIO
 
 		// ReadLine()で空行をskipするかのフラグ
 		bool skipEmptyLine;
+	};
+
+	// Text書き出すの速いやつ。
+	class TextWriter
+	{
+	public:
+		// 書き出し用のバッファサイズ([byte])
+		const size_t buf_size = 4096;
+
+		Tools::Result Open(const std::string& filename);
+
+		// 文字列を書き出す(改行コードは書き出さない)
+		Tools::Result Write(const std::string& str);
+
+		// 1行を書き出す(改行コードも書き出す) 改行コードは"\r\n"とする。
+		Tools::Result WriteLine(const std::string& line);
+
+		// ptrの指すところからsize [byte]だけ書き出す。
+		Tools::Result Write(const char* ptr, size_t size);
+
+		// 内部バッファにあってまだファイルに書き出していないデータをファイルに書き出す。
+		// ※　Close()する時に呼び出されるので通常この関数を呼び出す必要はない。
+		Tools::Result Flush();
+
+		Tools::Result Close();
+		TextWriter() : buf(buf_size) { clear(); }
+		virtual ~TextWriter() { Close(); }
+
+	private:
+		// 変数を初期化する。
+		void clear() { fp = nullptr; write_cursor = 0; }
+
+		FILE* fp = nullptr;
+
+		// 書き出し用のbuffer。これがいっぱいになるごとにfwriteする。
+		std::vector<char> buf;
+
+		// 書き出し用のcursor。次に書き出す場所は、buf[write_cursor]。
+		size_t write_cursor;
 	};
 
 	// BinaryReader,BinaryWriterの基底クラス

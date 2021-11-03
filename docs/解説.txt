@@ -192,7 +192,7 @@ ShogiGUIの検討モードで「定跡を使用する」のオプションはオ
 	これにより、「古いエンジンで思考させた指し手は採用しない」などの処理を行うことが出来るようになります。
 
 	補足)
-	ファイル形式はASCIIとする。BOMつきutf-8、将来的には対応させるかも知れないが現状やねうら王は対応していない。
+	ファイル形式はASCIIとする。UTF-8のBOM付きでも読み込めるはずなのだが保証はしない。
 
 	参考)
 
@@ -891,9 +891,9 @@ https://github.com/TadaoYamaoka/DeepLearningShogi/releases/tag/denryu2020
 
 	パラメーター)
 
-		read_book         : 前回書きだした定跡ファイル名(例:"book/read_book.db")
-		write_book        : 今回書き出す定跡ファイル名  (例:"book/write_book.db")
-		root_sfens_name   : 探索開始局面集のファイル名。指定しなければ平手の初期局面から。
+		read_book         : 前回書きだした定跡ファイル名(デフォルトでは "book/read_book.db")
+		write_book        : 今回書き出す定跡ファイル名  (デフォルトでは "book/write_book.db")
+		root_sfens_name   : 探索開始局面集のファイル名。デフォルトでは"book/root_sfens.txt"。このファイルがなければ平手の初期局面から。
 			// 平手の初期局面をrootとすると後手番の定跡があまり生成されないので(先手の初手は26歩か34歩を主な読み筋としてしまうので)
 			// 初期局面から1手指した局面をこのファイルとして与えたほうがいいかも？
 			// あと駒落ちの定跡を生成するときは同様に駒落ちの初期局面と、そこから1手指した局面ぐらいをこのファイルで指定すると良いかも。
@@ -959,3 +959,31 @@ https://github.com/TadaoYamaoka/DeepLearningShogi/releases/tag/denryu2020
 	を書き出す。
 
 	前者は、スーパーテラショック定跡コマンドで生成された定跡。(デフォルトでは book/write_book.db として書き出されている)
+
+■　定跡の変換コマンド
+
+	・定跡DBから局面をsfen形式で抽出するコマンド
+
+	> makebook extract_sfen_from_db
+
+	book/read_book.db
+	を読み込んで、そのなかの局面図のみのsfenファイル
+	book/write_sfen.txt
+	を書き出す。
+	// こんなコマンド使わずとも、grep等でsfenで始まる行を抽出すればいいだけなのだが…。
+
+	ここで書き出された局面をスーパーテラショック定跡の生成の時に棋譜として与えれば、この棋譜の局面をある程度優先して掘ってくれるので
+	特定の定跡を狙い撃ちするような定跡を作る時に役立つ。
+
+	・USIのPositionコマンドで指定できる形で書かれた棋譜ファイルなどを読み込み、その各局面をsfen形式で書き出すコマンド
+
+	> makebook extract_sfen_from_sfen
+
+	book/read_sfen.txt
+	を読み込んで、そのなかの局面図のみのsfenファイル
+	book/write_sfen.txt
+	を書き出す。
+
+	Positionコマンドなので"startpos moves xxx.."とか"sfen xxx moves yyy.."のような形式の棋譜が指定できる。
+
+

@@ -15,9 +15,9 @@
 
 	パラメーター)
 
-		read_book         : 前回書きだした定跡ファイル名(例:"book/read_book.db")
-		write_book        : 今回書き出す定跡ファイル名  (例:"book/write_book.db")
-		root_sfens_name   : 探索開始局面集のファイル名。指定しなければ平手の初期局面から。
+		read_book         : 前回書きだした定跡ファイル名(デフォルトでは "book/read_book.db")
+		write_book        : 今回書き出す定跡ファイル名  (デフォルトでは "book/write_book.db")
+		root_sfens_name   : 探索開始局面集のファイル名。デフォルトでは"book/root_sfens.txt"。このファイルがなければ平手の初期局面から。
 			// 平手の初期局面をrootとすると後手番の定跡があまり生成されないので(先手の初手は26歩か34歩を主な読み筋としてしまうので)
 			// 初期局面から1手指した局面をこのファイルとして与えたほうがいいかも？
 			// あと駒落ちの定跡を生成するときは同様に駒落ちの初期局面と、そこから1手指した局面ぐらいをこのファイルで指定すると良いかも。
@@ -622,6 +622,8 @@ namespace MakeBook2021
 			pm.read_book(read_book_name);
 
 			// root sfen集合の読み込み
+			// このroot sfenとして棋譜を与えて棋譜の局面も全部掘りたい気はするが、そうしたい時とそうしたくない時があるので
+			// それやるなら棋譜の全部のsfenを列挙するconverterみたいなの作った方がいいと思う。
 			vector<string> root_sfens;
 			if (SystemIO::ReadAllLines(root_sfens_name, root_sfens, true).is_not_ok())
 			{
@@ -635,19 +637,10 @@ namespace MakeBook2021
 				cout << "Warning , root sfens file = " << root_sfens_name << " , is not found." << endl;
 
 				// なければ平手の初期局面と後手の初期局面を設定しておいてやる。
+				// 初手86歩みたいな指し手は掘っても仕方がないと思うが、
+				// そのへんをカスタマイズしたければ、root_sfens.txtを用意してそこで指定すればいい。
 
-				//auto root_sfens = BookTools::get_next_sfens("startpos");
-				// →　これで良いのだが、定跡掘るのが進んできたら明らかに悪い枝は
-				// 掘り進めたくないのでここではカスタマイズできるように↓に直に書く。
-
-				string ms[] = {
-					"2g2f","7g7f","1g1f","9g9f","6i7h","3i3h","3i4h","3g3f","5i6h","4i5h",
-					"7i6h","5i5h","6g6f","5g5f","4g4f","6i6h","4i4h","7i7h","5i4h","4i3h",
-					"2h3h","2h6h","2h5h","2h4h","1i1h","2h1h","2h7h","6i5h","9i9h","8g8f"};
-
-				// 後手の初期局面 : 初期局面から先手が↑のいずれかの指し手を指した局面
-				for (auto s : ms)
-					root_sfens.emplace_back("startpos moves " + s);
+				root_sfens = BookTools::get_next_sfens("startpos");
 
 				// 先手の初期局面
 				root_sfens.emplace_back("startpos");
@@ -834,7 +827,7 @@ namespace MakeBook2021
 					// 毎回全域を探索することになって効率がすこぶる悪い。
 					++search_option.generation;
 
-					for (int i = 0; i < search_option.ranged_alpha_beta_loop; ++i)
+					for (size_t i = 0; i < search_option.ranged_alpha_beta_loop; ++i)
 					{
 						// 局面の初期化
 						vector<StateInfo> si(1024 /* above MAX_PLY */);
@@ -872,7 +865,7 @@ namespace MakeBook2021
 
 			// ↑のスレッドが局面を作って、queueに積んでくれるはず。
 			Timer time;
-			for (int i = 0; i < search_option.ranged_alpha_beta_loop * root_sfens.size(); ++i)
+			for (size_t i = 0; i < search_option.ranged_alpha_beta_loop * root_sfens.size(); ++i)
 			{
 				// 思考するための局面queueから取り出す。
 				auto s_node = search_nodes.pop();
@@ -1097,6 +1090,8 @@ namespace MakeBook2021
 						child.eval = value;
 
 						break;
+
+					default: UNREACHABLE; break;
 					}
 
 
@@ -1269,7 +1264,7 @@ namespace MakeBook2021
 				// その時の評価値がこのnodeの評価値。
 
 				Value best_value = -VALUE_INFINITE;
-				size_t max_index = -1;
+				size_t max_index = SIZE_MAX; /* not found flag */
 				for (size_t i = 0; i < num; ++i)
 				{
 					Value eval = (Value)node.children[i].eval;
@@ -1281,7 +1276,7 @@ namespace MakeBook2021
 				}
 
 				// 普通は合法手、ひとつは存在するはずなのだが…。
-				if (max_index != -1)
+				if (max_index != SIZE_MAX)
 				{
 					node.best_move = pos.to_move(node.children[max_index].move);
 
@@ -1371,6 +1366,117 @@ namespace MakeBook2021
 		Timer search_timer;
 	};
 
+	// 定跡DBからsfenと書かれている行だけを抽出するコマンド。
+	void extract_sfen_from_db(Position& pos, istringstream& is)
+	{
+		cout << "extract sfen from db command." << endl;
+
+		string read_book_name  = "book/read_book.db";
+		string write_sfen_name = "book/write_sfen.txt";
+
+		Parser::ArgumentParser parser;
+		parser.add_argument("read_book"           , read_book_name);
+		parser.add_argument("write_sfen"          , write_sfen_name);
+		parser.parse_args(is);
+
+		cout << "ReadBook DB file      : " << read_book_name         << endl;
+		cout << "Write  SFEN file      : " << write_sfen_name        << endl;
+
+		SystemIO::TextReader reader;
+		if (reader.Open(read_book_name).is_not_ok())
+		{
+			cout << "read file not found , file = " << read_book_name << endl;
+			return;
+		}
+
+		size_t filesize = reader.GetSize();
+		Tools::ProgressBar progress(filesize);
+
+		SystemIO::TextWriter writer;
+		if (writer.Open(write_sfen_name).is_not_ok())
+		{
+			cout << "write file open failed , file = " << write_sfen_name << endl;
+			return;
+		}
+
+		string line;
+		while (reader.ReadLine(line).is_ok())
+		{
+			progress.check(reader.GetFilePos());
+
+			// sfenで始まる行だけを書き出す。(これだけならgrepでいいような気も…)
+			if (StringExtension::StartsWith(line, "sfen"))
+				writer.WriteLine(line);
+		}
+
+		writer.Close();
+		reader.Close();
+
+		// コマンドが完了したことを出力。
+		cout << "extract sfen from db command has finished." << endl;
+	}
+
+	// USIのPositionコマンドで指定できる形で書かれた棋譜ファイルなどを読み込み、その各局面をsfen形式で書き出すコマンド
+	void extract_sfen_from_sfen(Position& pos, istringstream& is)
+	{
+		cout << "extract sfen from sfen command." << endl;
+
+		string read_sfen_name  = "book/read_sfen.txt";
+		string write_sfen_name = "book/write_sfen.txt";
+
+		Parser::ArgumentParser parser;
+		parser.add_argument("read_sfen"           , read_sfen_name);
+		parser.add_argument("write_sfen"          , write_sfen_name);
+		parser.parse_args(is);
+
+		cout << "ReadBook DB file      : " << read_sfen_name         << endl;
+		cout << "Write  SFEN file      : " << write_sfen_name        << endl;
+
+		SystemIO::TextReader reader;
+		if (reader.Open(read_sfen_name).is_not_ok())
+		{
+			cout << "read file not found , file = " << read_sfen_name << endl;
+			return;
+		}
+
+		size_t filesize = reader.GetSize();
+		Tools::ProgressBar progress(filesize);
+
+		SystemIO::TextWriter writer;
+		if (writer.Open(write_sfen_name).is_not_ok())
+		{
+			cout << "write file open failed , file = " << write_sfen_name << endl;
+			return;
+		}
+
+		// 重複除去のためのset
+		unordered_set<string> written_sfens;
+
+		string line;
+		while (reader.ReadLine(line).is_ok())
+		{
+			progress.check(reader.GetFilePos());
+
+			// この行の棋譜の各局面をsfenにして書き出す。
+
+			std::vector<StateInfo> si(1024);
+			BookTools::feed_position_string(pos, line , si,[&](Position& pos){
+				// 各局面でcallbackがかかるので、sfen化したものを書き出す。
+				auto sfen = pos.sfen();
+				if (written_sfens.find(sfen) == written_sfens.end())
+				{
+					written_sfens.emplace(sfen);
+					writer.WriteLine(pos.sfen());
+				}
+			});
+		}
+
+		writer.Close();
+		reader.Close();
+
+		// コマンドが完了したことを出力。
+		cout << "extract sfen from sfen command has finished." << endl;
+	}
 }
 
 namespace Book
@@ -1396,6 +1502,22 @@ namespace Book
 		{
 			MakeBook2021::SuperTeraBook st;
 			st.stera_convert(pos, is);
+			return 1;
+		}
+
+		// 定跡DBからsfenと書かれている行だけを抽出するコマンド。
+		// 定跡DBに対してその局面をスーパーテラショック定跡の棋譜として与えて
+		// その棋譜周りを掘っていくために用いる。
+		if (token == "extract_sfen_from_db")
+		{
+			MakeBook2021::extract_sfen_from_db(pos, is);
+			return 1;
+		}
+
+		// USIのPositionコマンドで指定できる形で書かれた棋譜ファイルなどを読み込み、その各局面をsfen形式で書き出すコマンド
+		if (token == "extract_sfen_from_sfen")
+		{
+			MakeBook2021::extract_sfen_from_sfen(pos, is);
 			return 1;
 		}
 

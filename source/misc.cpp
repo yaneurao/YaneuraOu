@@ -1315,6 +1315,99 @@ namespace SystemIO
 		return file_size;
 	}
 
+	// === TextWriter ===
+
+	Tools::Result TextWriter::Open(const std::string& filename)
+	{
+		Close();
+		fp = fopen(filename.c_str(), "wb");
+		return fp == nullptr ? Tools::ResultCode::FileOpenError
+                             : Tools::ResultCode::Ok;
+	}
+
+	// 文字列を書き出す(改行コードは書き出さない)
+	Tools::Result TextWriter::Write(const std::string& str)
+	{
+		return Write(str.c_str(), str.size());
+	}
+
+	// 1行を書き出す(改行コードも書き出す) 改行コードは"\r\n"とする。
+	Tools::Result TextWriter::WriteLine(const std::string& line)
+	{
+		auto result = Write(line.c_str(), line.size());
+		if (result.is_not_ok())
+			return result;
+
+		// 改行コードも書き出す。
+		return Write("\r\n", (size_t)2);
+	}
+
+	// ptrの指すところからsize [byte]だけ書き出す。
+	Tools::Result TextWriter::Write(const char* ptr, size_t size)
+	{
+		// Openしていなければ書き出せない。
+		if (fp == nullptr)
+			return Tools::ResultCode::FileWriteError;
+
+		// 書き込みカーソルの終端がどこに来るのか。
+		size_t write_cursor_end = write_cursor + size;
+		char* ptr2 = const_cast<char*>(ptr);
+
+		size_t write_size;
+		while (write_cursor_end >= buf_size)
+		{
+			// とりあえず、書けるだけ書いてfwriteする。
+
+			// 今回のループで書き込むbyte数
+			write_size = buf_size - write_cursor;
+			std::memcpy(&buf[write_cursor], ptr2, write_size);
+			if (fwrite(&buf[0], buf_size, 1, fp) == 0)
+				return Tools::ResultCode::FileWriteError;
+
+			// buf[0..write_cursor-1]が窓で、ループごとにその窓がbuf_sizeずつずれていくと考える。
+			// 例えば、ループ2回目ならbuf[write_cursor..write_cursor*2-1]が窓だと考える。
+
+			ptr2             += write_size;
+			size             -= write_size;
+			write_cursor_end -= buf_size;
+			write_cursor      = 0;
+		}
+		std::memcpy(&buf[write_cursor], ptr2, size);
+		write_cursor += size;
+
+		return Tools::ResultCode::Ok;
+	}
+
+	// 内部バッファにあってまだファイルに書き出していないデータをファイルに書き出す。
+	// ※　Close()する時に呼び出されるので通常この関数を呼び出す必要はない。
+	Tools::Result TextWriter::Flush()
+	{
+		// Openしていなければ書き出せない。
+		if (fp == nullptr)
+			return Tools::ResultCode::FileWriteError;
+
+		// bufのwrite_cursorの指している手前までを書き出す。
+		if (write_cursor > 0 && fwrite(&buf[0], write_cursor, 1, fp) == 0)
+			return Tools::ResultCode::FileWriteError;
+
+		write_cursor = 0;
+		return Tools::ResultCode::Ok;
+	}
+
+	Tools::Result TextWriter::Close()
+	{
+		if (fp)
+		{
+			// バッファ、まだflushが終わっていないデータがあるならそれをflushする。
+			if (Flush().is_not_ok())
+				return Tools::ResultCode::FileWriteError;
+
+			fclose(fp); // GetLastErrorでエラーを取得することはできるが…。
+			fp = nullptr;
+		}
+		return Tools::ResultCode::Ok;
+	}
+
 	// === BinaryBase ===
 
 	// ファイルを閉じる。デストラクタからclose()は呼び出されるので明示的に閉じなくても良い。

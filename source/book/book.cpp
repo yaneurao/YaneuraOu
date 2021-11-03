@@ -307,7 +307,7 @@ namespace Book
 			std::string line;
 			while(reader.ReadLine(line).is_ok())
 			{
-				progress.check(reader.FilePos());
+				progress.check(reader.GetFilePos());
 
 				// バージョン識別文字列(とりあえず読み飛ばす)
 				if (line.length() >= 1 && line[0] == '#')
