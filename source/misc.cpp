@@ -1138,6 +1138,7 @@ namespace SystemIO
 		cursor = 0;
 		read_size = 0;
 		is_prev_cr = false;
+		line_number = 0;
 	}
 
 	// ファイルをopenする。
@@ -1176,6 +1177,7 @@ namespace SystemIO
 
 	// ReadLineの下請け。何も考えずに1行読み込む。行のtrim、空行のskipなどなし。
 	// line_bufferに読み込まれた行が代入される。
+	// 先頭のUTF-8のBOM(EF BB BF)は無視する。
 	Tools::Result TextReader::read_line_simple()
 	{
 		// buffer[cursor]から読み込んでいく。
@@ -1240,6 +1242,7 @@ namespace SystemIO
 
 
 	// 1行読み込む(改行まで)
+	// 先頭のUTF-8のBOM(EF BB BF)は無視する。
 	Tools::Result TextReader::ReadLine(std::string& line)
 	{
 		while (true)
@@ -1258,11 +1261,25 @@ namespace SystemIO
 					line_buffer.resize(line_buffer.size() - 1);
 				}
 
-			// 空行をスキップするモートであるなら、line_bufferが結果的に空になった場合は繰り返すようにする。
-			if (skipEmptyLine && line_buffer.size() == 0)
+			// ファイル先頭のBOMは読み飛ばす
+			size_t skip_byte = 0;
+			if (line_number == 0)
+				// UTF-8 BOM (EF BB BF)
+				if (line_buffer.size() >= 3 && line_buffer[0] == 0xef && line_buffer[1] == 0xbb && line_buffer[2] == 0xbf)
+					skip_byte = 3;
+			// 他のBOMも読み飛ばしても良いが、まあいいや…。
+
+			// この1行のbyte数(BOMは含まず)
+			size_t line_size = line_buffer.size() - skip_byte;
+
+			// この時点で1行読み込んだことになるので(行をskipしても1行とカウントするので)行番号をインクリメントしておく。
+			line_number++;
+
+			// 空行をスキップするモートであるなら、line_sizeが結果的に空になった場合は次の行を調べる。
+			if (skipEmptyLine && line_size == 0)
 				continue;
 
-			line = std::string((const char*)line_buffer.data(), line_buffer.size());
+			line = std::string((const char*)line_buffer.data() + skip_byte, line_size );
 			return Tools::ResultCode::Ok;
 		}
 	}

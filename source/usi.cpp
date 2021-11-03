@@ -908,6 +908,21 @@ void USI::loop(int argc, char* argv[])
 		// 現在の局面を表示する。(デバッグ用)
 		else if (token == "d") cout << pos << endl;
 
+		// USI Commands from File
+		else if (token == "f") {
+			string filename = "";
+			is >> filename;
+			if (!filename.empty())
+			{
+				filename += ".txt";
+				sync_cout << "USI Commands from File = " << filename << sync_endl;
+				vector<string> lines;
+				SystemIO::ReadAllLines(filename, lines);
+				for (auto& line : lines)
+					cmds.push(line);
+			}
+		}
+
 		// 現在の局面について評価関数を呼び出して、その値を返す。
 		else if (token == "eval") cout << "eval = " << Eval::compute_eval(pos) << endl;
 		else if (token == "evalstat") Eval::print_eval_stat(pos);

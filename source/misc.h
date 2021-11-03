@@ -524,6 +524,7 @@ namespace SystemIO
 	// ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。末尾の改行は除去される。
 	// 引数で渡されるlinesは空であるを期待しているが、空でない場合は、そこに追加されていく。
 	// 引数で渡されるtrimはtrueを渡すと末尾のスペース、タブがトリムされる。
+	// 先頭のUTF-8のBOM(EF BB BF)は無視する。
 	extern Tools::Result ReadAllLines(const std::string& filename, std::vector<std::string>& lines, bool trim = false);
 
 
@@ -560,6 +561,7 @@ namespace SystemIO
 		// 改行コードは返さない。
 		// SkipEmptyLine(),SetTrim()の設定を反映する。
 		// Eofに達した場合は、返し値としてTools::ResultCode::Eofを返す。
+		// 先頭のUTF-8のBOM(EF BB BF)は無視する。
 		Tools::Result ReadLine(std::string& line);
 
 		// ReadLine()で空行を読み飛ばすかどうかの設定。
@@ -580,6 +582,10 @@ namespace SystemIO
 		// 現在のファイルポジションを取得する。
 		// 先読みしているのでReadLineしている場所よりは先まで進んでいる。
 		size_t FilePos() { return ftell(fp); }
+
+		// 現在の行数を返す。(次のReadLine()で返すのがテキストファイルの何行目であるかを返す) 0 origin。
+		// またここで返す数値は空行で読み飛ばした時も、その空行を1行としてカウントしている。
+		size_t GetLineNumber() const { return line_number; }
 
 	private:
 		// 各種状態変数の初期化
@@ -619,6 +625,11 @@ namespace SystemIO
 
 		// 直前が\r(CR)だったのか？のフラグ
 		bool is_prev_cr;
+
+		// 何行目であるか
+		// エラー表示の時などに用いる
+		// 現在の行。(0 origin)
+		size_t line_number;
 
 		// ReadLine()で行の末尾をtrimするかのフラグ。
 		bool trim;

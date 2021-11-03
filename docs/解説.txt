@@ -858,24 +858,104 @@ https://github.com/TadaoYamaoka/DeepLearningShogi/releases/tag/denryu2020
    > 環境変数PATHの設定
    > 環境変数PATHに、CUDAのbinディレクトリを追加する。
    > デフォルトのインストールディレクトリの場合、以下のパスになる。
-   > C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\bin
+   > C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin
    > 環境変数PATHに、TensorRTのlibディレクトリを追加する。
    > C:\に解凍した場合、以下のパスになる。
-   > C:\TensorRT-7.2.1.6\lib
+   > C:\TensorRT-8.2.0.6\lib
    - %CUDA_PATH%がCUDAのインストール先になっているはずなので
      - %CUDA_PATH%\bin
-     - C:\TensorRT-7.2.1.6\lib
+     - C:\TensorRT-8.2.0.6\lib
     と追加すればよさげ。
 
       CUDA Toolkitは以下にあるものとします。
-        include  = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\include
-        lib path = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1\lib\x64
+        include  = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\include
+        lib path = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\lib\x64
                                                                  // ↑64bit版の場合 , 32bit版の場合は "lib\x86"
                                                                  // cudart.lib が必要。
        TensorRTは以下のフォルダにあるものとします。
-        C:\TensorRT-7.2.1.6\include
-        C:\TensorRT-7.2.1.6\lib
+        C:\TensorRT-8.2.0.6\include
+        C:\TensorRT-8.2.0.6\lib
                         // nvinfer.lib , nvonnxparser.lib が必要
 
-      YaneuraOuEdition-Deep.propというプロパティシートでこのフォルダを追加のinclude/libフォルダとして指定してあるので
-      適宜修正して使ってください。
+
+      source/prop/YaneuraOuEdition-Deep.propというプロパティシートでこのフォルダを追加のinclude/libフォルダとして指定してあるので
+      そこを適宜修正して使ってください。
+
+
+■　スーパーテラショック定跡生成コマンド
+
+	スーパーテラショック定跡コマンド
+	// ふかうら王のみ使えるコマンド。
+
+	> makebook s_tera
+
+	パラメーター)
+
+		read_book         : 前回書きだした定跡ファイル名(例:"book/read_book.db")
+		write_book        : 今回書き出す定跡ファイル名  (例:"book/write_book.db")
+		root_sfens_name   : 探索開始局面集のファイル名。指定しなければ平手の初期局面から。
+			// 平手の初期局面をrootとすると後手番の定跡があまり生成されないので(先手の初手は26歩か34歩を主な読み筋としてしまうので)
+			// 初期局面から1手指した局面をこのファイルとして与えたほうがいいかも？
+			// あと駒落ちの定跡を生成するときは同様に駒落ちの初期局面と、そこから1手指した局面ぐらいをこのファイルで指定すると良いかも。
+		kif_sfens_name    : 棋譜のファイル名。この棋譜上の局面かつPVまわりを思考させることもできる。
+		book_save_interval: この局面数だけ思考するごとに定跡ファイルを書き出す。
+			// "book/read_book.db.000001"のようなファイルに通しナンバー付きで書き出していく。
+			// このコマンドが終了するときにも書き出すので、数時間に1度保存される程度のペースでも良いと思う。
+		nodes_limit       : 1局面について思考するnode数。30knps出るPCで30000を指定すると1局面1秒。
+		think_limit       : この局面数思考したらこのコマンドを終了する。
+		search_delta      : PVのbest_valueとの差がsearch_deltaのleaf nodeを拾い上げて思考する。
+							このパラメーターに0を指定すると、その処理はskipされる。
+		search_delta_on_kif : PVのbest_valueとの差がsearch_delta_on_kifのleaf nodeでかつ、
+							kif_sfens_nameで指定した棋譜上の局面について思考する。
+							このパラメーターに0を指定すると、その処理はskipされる。
+
+	それぞれのfileフォーマット
+
+	入力)
+		book/root_sfens.txt
+
+		// 探索開始局面
+		例)
+		sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1
+		↑のようなsfen形式か、
+		startpos moves 7g7f ...
+		のようなUSIプロトコルの"position"コマンドとして送られる形式でも可。
+		// この場合、それぞれの局面が探索開始対象となる。
+
+		book/kif_sfens.txt
+		読み込ませたい棋譜。この棋譜上の局面かつ、PVまわりを思考する。
+		例)
+		startpos moves 7g7f ...
+		// このファイルはなければなくとも良い。
+
+		book/read_book.db
+		前回出力された出力ファイル(book/write_book.db)をread_book.dbとrenameしたもの。
+		// 配置するとその続きから掘ってくれる。
+		(初回はこのファイルは不要)
+
+	出力)
+		book/write_book.db
+		→　このあと、このファイルをテラショック化コマンドでテラショック定跡化して使う。
+
+		例)
+		> makebook build_tree book/write_book.db book/user_book1.db
+
+	注意点)
+
+		高速化のために、局面をSFEN文字列ではなく、局面のhash値で一致しているかどうかをチェックするので
+		局面のhash値は衝突しないように128bit以上のhashを用いる。(べき)
+
+		→　具体的には、config.hでHASH_KEY_BITSのdefineを128にしてビルドする。
+
+
+
+■　スーパーテラショック定跡コマンド("makebook stera")で生成した定跡を超高速にテラショック化するコマンド。
+
+	> makebook stera_convert
+
+	book/read_book.db
+	を読み込んで
+	book/write_tera_book.db
+	を書き出す。
+
+	前者は、スーパーテラショック定跡コマンドで生成された定跡。(デフォルトでは book/write_book.db として書き出されている)
