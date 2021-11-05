@@ -1,5 +1,6 @@
 Param(
-  [String[]]$Edition
+  [String[]]$Edition,
+  [String]$Extra
 )
 Push-Location (Join-Path $PSScriptRoot ..);
 @(
@@ -104,7 +105,7 @@ ndk-build.cmd clean YANEURAOU_EDITION=$_Edition;
 
 "`n* Build Binary"|Out-Host;
 $log = $null;
-ndk-build.cmd YANEURAOU_EDITION=$_Edition NNUE_EVAL_ARCH=$($_.Nnue) V=1 -j $Jobs|Tee-Object -Variable log;
+ndk-build.cmd -j $Jobs YANEURAOU_EDITION=$_Edition NNUE_EVAL_ARCH=$($_.Nnue) V=1 $Extra|Tee-Object -Variable log;
 $log|Out-File -Encoding utf8 -Force (Join-Path $Dir "build.log");
 
 "`n* Copy Binary"|Out-Host;

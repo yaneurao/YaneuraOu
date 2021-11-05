@@ -21,7 +21,7 @@ namespace USI {
 		return std::lexicographical_compare(s1.begin(), s1.end(), s2.begin(), s2.end(),
 			[](char c1, char c2) { return tolower(c1) < tolower(c2); });
 	}
-	
+
 	// 前回のOptions["EvalDir"]
 	std::string last_eval_dir;
 
@@ -106,8 +106,13 @@ namespace USI {
 		o["NodesLimit"] << Option(0, 0, INT64_MAX);
 
 		// 評価関数フォルダ。これを変更したとき、評価関数を次のisreadyタイミングで読み直す必要がある。
-		last_eval_dir = "eval";
-		o["EvalDir"] << Option("eval", [](const USI::Option&o) {
+	#if defined(EVAL_EMBEDDING)
+		const char *default_eval_dir = "<internal>";
+	#else
+		const char *default_eval_dir = "eval";
+	#endif
+		last_eval_dir = default_eval_dir;
+		o["EvalDir"] << Option(default_eval_dir, [](const USI::Option&o) {
 			if (last_eval_dir != string(o))
 			{
 				// 評価関数フォルダ名の変更に際して、評価関数ファイルの読み込みフラグをクリアする。
@@ -117,7 +122,7 @@ namespace USI {
 		});
 
 #else
-		
+
 		// TANUKI_MATE_ENGINEのとき
 		o["USI_Hash"] << Option(4096, 1, MaxHashMB);
 

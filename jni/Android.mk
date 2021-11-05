@@ -69,6 +69,10 @@ EXTRA_CPPFLAGS =
 # cf.【連載】評価関数を作ってみよう！その1 : http://yaneuraou.yaneu.com/2020/11/17/make-evaluate-function/
 MATERIAL_LEVEL = 1
 
+# NNUE評価関数を実行ファイルに内蔵する。 `eval/nnue/embedded_nnue.cpp` が別途必要。
+EVAL_EMBEDDING = OFF
+# EVAL_EMBEDDING = ON
+
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPPT)
   CPPFLAGS += -DUSE_MAKEFILE -DYANEURAOU_ENGINE_KPPT
   ENGINE_NAME := YaneuraOu_KPPT
@@ -207,6 +211,11 @@ LOCAL_SRC_FILES += \
   ../source/eval/nnue/features/half_kpe9.cpp                           \
   ../source/eval/nnue/features/pe9.cpp                                 \
   ../source/engine/yaneuraou-engine/yaneuraou-search.cpp
+	ifeq ($(EVAL_EMBEDDING),ON)
+		LOCAL_SRC_FILES += \
+			../source/eval/nnue/embedded_nnue.cpp
+		CPPFLAGS += -DEVAL_EMBEDDING
+	endif
 endif
 
 ifeq ($(YANEURAOU_EDITION),TANUKI_MATE_ENGINE)
