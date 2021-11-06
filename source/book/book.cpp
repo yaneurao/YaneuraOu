@@ -390,16 +390,14 @@ namespace Book
 		// →　この関数はbookコマンドからしか呼び出さず、bookコマンドの処理の先頭付近でis_ready()を
 		// 呼び出しているため、この関数のなかでのis_ready()は呼び出さないことにする。
 
-		fstream fs;
-		fs.open(filename, ios::out);
-
-		if (fs.fail())
+		SystemIO::TextWriter writer;
+		if (writer.Open(filename).is_not_ok())
 			return Tools::Result(Tools::ResultCode::FileOpenError);
 
 		cout << endl << "write " + filename << endl;
 
 		// バージョン識別用文字列
-		fs << "#YANEURAOU-DB2016 1.00" << endl;
+		writer.WriteLine("#YANEURAOU-DB2016 1.00");
 
 		vector<pair<string, BookMovesPtr> > vectored_book;
 		
@@ -471,24 +469,23 @@ namespace Book
 
 			// -- このentryを書き出す
 
-			fs << "sfen " << it.first /* is sfen string */ << endl; // sfen
+			writer.WriteLine("sfen " + it.first /* is sfen string */); // sfen
 
 			auto& move_list = *it.second;
 
 			// 何らかsortしておく。
 			move_list.sort_moves();
 
+			// 指し手、相手の応手、そのときの評価値、探索深さ、採択回数
 			for (auto& bp : move_list)
-				fs << bp.move << ' ' << bp.ponder << ' ' << bp.value << " " << bp.depth << " " << bp.move_count << endl;
-			// 指し手、相手の応手、そのときの評価値、探索深さ、採択回数、win、draw
-
-			if (fs.fail())
-				return Tools::Result(Tools::ResultCode::FileWriteError);
+				if (writer.WriteLine(to_usi_string(bp.move) + ' ' + to_usi_string(bp.ponder) + ' '
+					+ std::to_string(bp.value) + " " + std::to_string(bp.depth) + " " + std::to_string(bp.move_count)).is_not_ok())
+					return Tools::Result(Tools::ResultCode::FileWriteError);
 
 			progress.check(++counter);
 		}
 
-		fs.close();
+		writer.Close();
 
 		return Tools::Result::Ok();
 	}
