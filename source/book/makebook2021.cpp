@@ -493,7 +493,12 @@ namespace MakeBook2021
 		u64 nodes_limit;
 
 		// ranged alpha betaを連続して行う回数。
+		// 思考した局面がなかなか増えない時は、これを増やしていく必要がある。(と思う)
 		size_t ranged_alpha_beta_loop;
+
+		// 思考済みの局面にhitした回数を数えるカウンター。
+		// これが一定数に増えた時にranged_alpha_beta_loopを増やす。
+		size_t thought_out_counter;
 
 		// ranged alpha beta searchの時に棋譜上に出現したleaf nodeに加点するスコア。
 		// そのleaf nodeが選ばれやすくなる。
@@ -577,10 +582,11 @@ namespace MakeBook2021
 			u64 book_save_interval = 30000/*nps*/ / nodes_limit * 15*60 /* 15分 */;
 
 			// 探索局面数
-			u64 think_limit = 1000000;
+			u64 think_limit = 10000000;
 
 			// 1つのroot局面に対して、何回ranged alpha searchを連続して行うのか。
-			size_t ranged_alpha_beta_loop = 5;
+			// これ、同じ局面にhitし続けるようなら加算していくほうが健全だと思う。
+			u64 ranged_alpha_beta_loop = 5;
 
 			// ranged alpha beta searchの時に棋譜上に出現したleaf nodeに加点するスコア。
 			// そのleaf nodeが選ばれやすくなる。
@@ -673,6 +679,7 @@ namespace MakeBook2021
 			search_option.search_delta_on_kif    = search_delta_on_kif;
 			search_option.eval_coef              = (float)Options["Eval_Coef"];
 			search_option.search_mode            = SearchMode::NormalAlphaBeta;
+			search_option.thought_out_counter    = 0;
 
 			// USIオプションを探索用に設定する。
 			set_usi_options();
@@ -685,10 +692,20 @@ namespace MakeBook2021
 			for (auto& root_sfen : root_sfens)
 				create_root_node(pos, root_sfen);
 
+			// 指定局面数に達するまでループ
 			while (this->think_count < think_limit)
 			{
 				// 指定されたrootから定跡を生成する。
 				make_book_from_roots(pos, root_sfens);
+
+				// stuckしていたら、リカバーする。
+				if (search_option.thought_out_counter >= search_option.ranged_alpha_beta_loop)
+				{
+					search_option.ranged_alpha_beta_loop++;
+					search_option.thought_out_counter = 0;
+					sync_cout << "Warning! thought_out_counter has reached 100 , ranged_alpha_beta_loop = "
+						<< search_option.ranged_alpha_beta_loop << sync_endl;
+				}
 			}
 
 			// 定跡ファイルの書き出し(最終)
@@ -1217,7 +1234,11 @@ namespace MakeBook2021
 			// すでにあるのでskip
 			Node* n = pm.probe(pos.long_key());
 			if (n != nullptr)
+			{
+				// すでに思考したあとの局面であった。
+				search_option.thought_out_counter++;
 				return n;
+			}
 
 			// 思考部にUSIのgoコマンドが来たと錯覚させて思考させる。
 			Threads.start_thinking(pos, states , limits);
