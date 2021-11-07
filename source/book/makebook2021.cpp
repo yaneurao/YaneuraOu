@@ -113,6 +113,50 @@ namespace Eval::dlshogi {
 
 namespace MakeBook2021
 {
+	// ValueとDepthが一体になった型
+	struct ValueDepth
+	{
+		ValueDepth() {}
+		ValueDepth(Value value_) : value((s16)value_), depth(0) {}
+		ValueDepth(Value value_, u16 depth_) : value((s16)value_), depth((u16)depth_) {}
+
+		// 評価値
+		s16 value;
+
+		// rootからの手数
+		u16 depth;
+
+		// --- 算術演算子
+
+		const ValueDepth operator+() const { return *this; }
+		const ValueDepth operator-() const { return ValueDepth(Value(-value),depth); }
+
+		// --- 比較演算子その1
+
+		constexpr bool operator == (const ValueDepth& rhs) const { return value == rhs.value && depth == rhs.depth; }
+		constexpr bool operator != (const ValueDepth& rhs) const { return !(*this == rhs); }
+
+		// --- static const.
+
+		static ValueDepth mate_in(u16 ply) { return ValueDepth(::mate_in(ply), ply); }
+		static ValueDepth mated_in(u16 ply) { return ValueDepth(::mated_in(ply), ply); }
+
+	};
+
+	// --- 比較演算子その2
+
+	constexpr bool operator<(const ValueDepth& t1, const ValueDepth& t2)
+	{
+		// valueが同じ時は、plyが大きい方が良い評価値扱いをする。
+		// →　そうしてしまうと先後協力して飛車を動かして手数を伸ばした千日手にすることになって、探索が終わらなくなるので駄目だった。
+
+		return t1.value < t2.value
+		/*|| (t1.value == t2.value && t1.depth < t2.depth)*/ ;
+	}
+	constexpr bool operator>(const ValueDepth& t1, const ValueDepth& t2) { return t2 < t1; }
+	constexpr bool operator<=(const ValueDepth& t1, const ValueDepth& t2) { return !(t1 > t2); }
+	constexpr bool operator>=(const ValueDepth& t1, const ValueDepth& t2) { return !(t1 < t2); }
+
 	// Node(局面)からその子ノードへのedgeを表現する。
 	struct Child
 	{
@@ -121,13 +165,13 @@ namespace MakeBook2021
 		Move16 move;
 
 		// その時の評価値(親局面から見て)
-		int16_t eval;
+		ValueDepth eval;
 
 		// Node*を持たせても良いが、メモリ勿体ない。
 		// HASH_KEYで管理しておき、実際にdo_move()してHASH_KEYを見ることにする。
 
 		Child() {}
-		Child(Move m, Value e) : move(m), eval((int16_t)e) {}
+		Child(Move m, ValueDepth e) : move(m), eval(e) {}
 	};
 
 	// 局面を1つ表現する構造体
@@ -142,7 +186,7 @@ namespace MakeBook2021
 		// この局面の評価値(この定跡生成ルーチンで探索した時の)
 		// 未探索ならVALUE_NONE
 		// childrenのなかで最善手を指した時のevalが、この値。
-		Value search_value;
+		ValueDepth search_value;
 
 		// ↑のsearch_valueは循環を経て(千日手などで)得られたスコアであるかのフラグ。
 		// これがfalseであり、かつ、search_value!=VALUE_NONEであるなら、
@@ -242,7 +286,7 @@ namespace MakeBook2021
 					remove_node(pos);
 					return;
 				}
-				node.children.emplace_back(Child(move,eval));
+				node.children.emplace_back(Child(move,ValueDepth(eval,0)));
 			}
 		}
 
@@ -292,7 +336,7 @@ namespace MakeBook2021
 
 				for (auto& child : node->children)
 				{
-					string eval = (child.eval == VALUE_NONE) ? "none" : to_string(child.eval);
+					string eval = (child.eval.value == VALUE_NONE) ? "none" : to_string(child.eval.value) + " depth : " + to_string(child.eval.depth);
 					cout << " move : " << child.move << " eval : " << eval << endl;
 				}
 			}
@@ -324,12 +368,12 @@ namespace MakeBook2021
 
 		// posで指定された局面から"PV line = ... , Value = .."の形でPV lineを出力する。
 		// vは引数で渡す。
-		void dump_pv_line(Position& pos , Value v)
+		void dump_pv_line(Position& pos , ValueDepth v)
 		{
 			std::cout << IO_LOCK;
 			cout << "PV line = ";
 			dump_pv(pos);
-			cout << ", Value = " << v << endl;
+			cout << ", Value = " << v.value << " , Depth = " << v.depth << endl;
 			std::cout << IO_UNLOCK;
 		}
 
@@ -354,11 +398,11 @@ namespace MakeBook2021
 				for (auto& child : node.children)
 				{
 					// 値が未定。この指し手は書き出す価値がない。
-					if (child.eval == VALUE_NONE)
+					if (child.eval.value == VALUE_NONE)
 						continue;
 
 					// テラショック化するからponder moveいらんやろ
-					bms->push_back(BookMove(child.move, /*ponder*/ MOVE_NONE , child.eval,/*depth*/32,/*move_count*/ 1));
+					bms->push_back(BookMove(child.move, /*ponder*/ MOVE_NONE , child.eval.value,/*depth*/ child.eval.depth ,/*move_count*/ 1));
 				}
 
 				book.append(sfen,bms);
@@ -393,7 +437,7 @@ namespace MakeBook2021
 				{
 					// 値が未定。この指し手は書き出す価値がない。
 					// child.evalには、その先のleaf nodeでの評価値が反映されているものとする。
-					if (child.eval == VALUE_NONE)
+					if (child.eval.value == VALUE_NONE)
 						continue;
 
 					Move16 move = child.move;
@@ -407,7 +451,8 @@ namespace MakeBook2021
 					if (it != hashkey_to_node.end())
 						ponder = it->second.best_move;
 
-					bms->push_back(BookMove(move, ponder , child.eval,/*depth*/32,/*move_count*/ 1));
+					// depthとしてchild.eval.plyを埋めておく。
+					bms->push_back(BookMove(move, ponder , child.eval.value , /* depth */child.eval.depth ,/*move_count*/ 1));
 				}
 
 				book.append(sfen,bms);
@@ -427,7 +472,7 @@ namespace MakeBook2021
 			{
 				auto& node = it.second;
 
-				node.search_value = VALUE_NONE;
+				node.search_value = ValueDepth(VALUE_NONE,0);
 				node.is_cyclic = false;
 			}
 		}
@@ -857,7 +902,7 @@ namespace MakeBook2021
 
 						// ここ、aspiration searchにしたほうが効率が良いのだろうが、
 						// そこまで変わらない＆面倒なのでこのまま。
-						Value best_value = search_start(root_pos, -VALUE_INFINITE, VALUE_INFINITE);
+						ValueDepth best_value = search_start(root_pos, -VALUE_INFINITE, VALUE_INFINITE);
 
 						// 初回のみ探索で得られたPV lineの表示。
 						if (i == 0)
@@ -942,7 +987,7 @@ namespace MakeBook2021
 		}
 
 		// 探索の入り口。
-		Value search_start(Position& pos, Value alpha, Value beta)
+		ValueDepth search_start(Position& pos, Value alpha, Value beta)
 		{
 			// RootNode
 			Node* node = pm.probe(pos.long_key());
@@ -956,27 +1001,44 @@ namespace MakeBook2021
 			node_searched = 0;
 			search_timer.reset();
 
+			u32 game_ply = pos.game_ply();
+
 			// αβ探索ルーチンへ
-			return search<PV>(pos, node, alpha, beta , 1);
+			switch (search_option.search_mode)
+			{
+			case SearchMode::NormalAlphaBeta:
+				return search<PV , SearchMode::NormalAlphaBeta>(pos, node, ValueDepth(alpha,game_ply), ValueDepth(beta,game_ply) , 1);
+
+			case SearchMode::TeraShockSearch:
+			{
+				cout << endl; // progressの出力のため
+				auto v = search<PV, SearchMode::TeraShockSearch>(pos, node, ValueDepth(alpha, game_ply), ValueDepth(beta, game_ply), 1);
+				cout << endl; // progressを出力のため
+				return v;
+			}
+
+			default: UNREACHABLE; break;
+			}
 		}
 
 		// αβ探索
 		// plyはrootからの手数。0ならroot。
-		template <NodeType nodeType>
-		Value search(Position& pos, Node* node, Value alpha, Value beta , int ply)
+		template <NodeType nodeType , SearchMode searchMode>
+		ValueDepth search(Position& pos, Node* node, ValueDepth alpha, ValueDepth beta , int ply)
 		{
-			/*
-			// ノートパソコンでnps 160kほど。
-			if (node_searched++ % 10000 == 0)
-				sync_cout << "search nps = " << 1000 * node_searched / (search_timer.elapsed() + 1) << sync_endl;
-			*/
+			// ノートパソコンでnps 160k～600knpsほど。
+			// デスクトップ機でnps 300k～1300knpsほど。
+			if (searchMode == SearchMode::TeraShockSearch && (node_searched++ % 1000000 == 0))
+				cout << ".";
+			//sync_cout << "search nps = " << 1000 * node_searched / (search_timer.elapsed() + 1) << sync_endl;
 
 			// すでに探索済みでかつ千日手が絡まないスコアが記入されている。
 			// (generationが合致した時のみ)
-			if (nodeType == NonPV
+			if (    nodeType == NonPV
 				&&  node->generation == search_option.generation
 				&& !node->is_cyclic
-				&&  node->search_value != VALUE_NONE)
+				// 木が大きくなってくると、この条件↑を入れていると時間すごくかかるかも知れない。
+				&&  node->search_value.value != VALUE_NONE)
 			{
 				if (   node->bound == Bound::BOUND_EXACT
 					||(node->bound == Bound::BOUND_LOWER && node->search_value >= beta /* beta cut*/)
@@ -1016,8 +1078,8 @@ namespace MakeBook2021
 			// →　これ、plyは経路に依存していて、経路に依存した枝刈りなので
 			// cyclic扱いしておく。
 
-			alpha = std::max(mated_in(ply    ), alpha);
-			beta  = std::min(mate_in (ply + 1), beta );
+			alpha = std::max(ValueDepth::mated_in(ply    ), alpha);
+			beta  = std::min(ValueDepth::mate_in (ply + 1), beta );
 			if (alpha >= beta)
 				return alpha;
 
@@ -1028,16 +1090,16 @@ namespace MakeBook2021
 			// 現局面で詰んでますが？
 			// こんなNodeまで掘ったら駄目でしょ…。
 			if (node->children.size() == 0 /*pos.is_mated()*/)
-				return mated_in(0);
+				return ValueDepth::mated_in(0);
 
 			// 宣言勝ちの判定
 			if (pos.DeclarationWin())
 				// 次の宣言で勝ちになるから1手詰め相当。
-				return mate_in(1);
+				return ValueDepth::mate_in(1);
 
 			// 1手詰めもついでに判定しておく。
 			if (Mate::mate_1ply(pos))
-				return mate_in(1);
+				return ValueDepth::mate_in(1);
 
 			// 上記のいずれかの条件に合致した場合、このnodeからさらに掘ることは考えられないので
 			// このnodeでは何も情報を記録せずに即座にreturnして良い。
@@ -1051,14 +1113,14 @@ namespace MakeBook2021
 
 			Move best_move = MOVE_NONE;
 			// alphaとは無縁に、bestな値は求めておく必要がある。
-			Value best_value = -VALUE_INFINITE;
+			ValueDepth best_value = -VALUE_INFINITE;
 
-			Value old_alpha = alpha;
+			ValueDepth old_alpha = alpha;
 
 			// 各合法手で1手進める。
 			for (auto& child : node->children)
 			{
-				Value value;
+				ValueDepth value;
 
 				Move16 m16 = child.move;
 				Move m = pos.to_move(m16);
@@ -1087,9 +1149,9 @@ namespace MakeBook2021
 					// 
 					// すなわち、定跡の各局面で全合法手に対して何らかの評価値はついているべき。
 					// 評価値がついていない時点で、この局面、探索しなおしたほうが良いと思う。
-					value = (Value)child.eval;
+					value = child.eval;
 
-					ASSERT_LV3(value != VALUE_NONE);
+					ASSERT_LV3(value.value != VALUE_NONE);
 					// →　不成を生成しないモードで定跡を作ってしまっていると思われ。
 					// 定跡読み込み時に削除しているはずなのだが。
 
@@ -1099,7 +1161,7 @@ namespace MakeBook2021
 
 					// 棋譜上に出現する局面がleaf nodeならば、ここに加点(このleaf nodeに行きたいため)
 					if (kif_hash.find(key_next) != kif_hash.end())
-						value += search_option.search_delta_on_kif;
+						value.value += search_option.search_delta_on_kif;
 
 				}
 				else {
@@ -1107,28 +1169,36 @@ namespace MakeBook2021
 					StateInfo si;
 					pos.do_move(m, si);
 
-					switch (search_option.search_mode)
+					switch (searchMode)
 					{
 					case SearchMode::NormalAlphaBeta:
 						// 通常のalpha-beta探索
-						value = -search<NonPV>(pos, next_node, -beta, -alpha, ply+1);
+						value = -search<NonPV, searchMode>(pos, next_node, -beta, -alpha, ply+1);
+						value.depth++;
 
 						// alpha値を更新するなら、PVとして探索しなおす。
 						if (nodeType == PV && alpha < value)
-							value = -search<PV>(pos, next_node, -beta, -alpha, ply+1);
+						{
+							value = -search<PV, searchMode>(pos, next_node, -beta, -alpha, ply + 1);
+							value.depth++;
+						}
 
 						break;
 
 					case SearchMode::TeraShockSearch:
 						// テラショック化する時の探索。
-						// 1) 探索Windowは全域。(枝刈りしてはならない)
+						// 1) 探索Windowは全域。(alpha-betaのWindowでの枝刈りをしてはならない)
 						//  →　Windowが全域になっているのでβcutは発生しないはず。
 						// 2) 探索結果のvalueをこのchild.evalに反映させる必要がある。(定跡DBに書き出す時に用いるため)
 
 						// 1)
-						value = -search<NonPV>(pos, next_node, -VALUE_INFINITE, VALUE_INFINITE, ply+1);
+						value = -search<NonPV, searchMode>(pos, next_node, -VALUE_INFINITE , VALUE_INFINITE , ply + 1);
+						value.depth++;
 						if (nodeType == PV && alpha < value)
-							value = -search<PV>(pos, next_node, -VALUE_INFINITE, VALUE_INFINITE, ply+1);
+						{
+							value = -search<PV, searchMode>(pos, next_node, -VALUE_INFINITE, VALUE_INFINITE , ply + 1);
+							value.depth++;
+						}
 
 						// 2)
 						child.eval = value;
@@ -1305,9 +1375,10 @@ namespace MakeBook2021
 
 					// 勝率を[centi-pawn]に変換
 					Value cp = Eval::dlshogi::value_to_cp((float)wp, search_option.eval_coef);
+					ValueDepth vp(cp, 0);
 
 					// Nodeのchildrenに追加。
-					node.children.emplace_back(Child(m, cp));
+					node.children.emplace_back(Child(m, vp));
 				}
 
 				// Childのなかで一番評価値が良い指し手がbest_moveであり、
@@ -1317,7 +1388,7 @@ namespace MakeBook2021
 				size_t max_index = SIZE_MAX; /* not found flag */
 				for (size_t i = 0; i < num; ++i)
 				{
-					Value eval = (Value)node.children[i].eval;
+					Value eval = (Value)node.children[i].eval.value;
 					if (best_value < eval)
 					{
 						best_value = eval;
@@ -1354,7 +1425,7 @@ namespace MakeBook2021
 		}
 
 		// 定跡をファイルに保存する。
-		void save_book(const string& path )
+		void save_book(const string& path)
 		{
 			cout << "save book , path = " << path << endl;
 			pm.save_book(path);
