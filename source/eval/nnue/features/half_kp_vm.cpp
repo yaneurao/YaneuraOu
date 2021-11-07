@@ -17,12 +17,16 @@ namespace Eval {
 			template <Side AssociatedKing>
 			inline IndexType HalfKP_vm<AssociatedKing>::MakeIndex(Square sq_k, BonaPiece p) {
 				if (sq_k >= SQ_61) {
+					// 玉が6筋～9筋にいる場合、4筋～1筋に反転する。
 					sq_k = Mir(sq_k);
 
-					IndexType piece_index = (p - fe_hand_end) / SQ_NB;
-					Square sq_p = static_cast<Square>((p - fe_hand_end) % SQ_NB);
-					sq_p = Mir(sq_p);
-					p = static_cast<BonaPiece>(fe_hand_end + piece_index * static_cast<IndexType>(SQ_NB) + sq_p);
+					if (p >= fe_hand_end) {
+						// 持駒は反転しない。
+						IndexType piece_index = (p - fe_hand_end) / SQ_NB;
+						Square sq_p = static_cast<Square>((p - fe_hand_end) % SQ_NB);
+						sq_p = Mir(sq_p);
+						p = static_cast<BonaPiece>(fe_hand_end + piece_index * static_cast<IndexType>(SQ_NB) + sq_p);
+					}
 				}
 				return static_cast<IndexType>(fe_end) * static_cast<IndexType>(sq_k) + p;
 			}
