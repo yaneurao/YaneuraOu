@@ -1038,6 +1038,14 @@ namespace Concurrent
 			return queue_.size();
 		}
 
+		// [ASYNC] Queueをclearする。
+		void clear()
+		{
+			std::unique_lock<std::mutex> lk(mutex_);
+			// clear by assignment
+			queue_ = std::queue<T>();
+		}
+
 		// copyの禁止
 		ConcurrentQueue() = default;
 		ConcurrentQueue(const ConcurrentQueue&) = delete;

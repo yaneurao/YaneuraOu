@@ -464,6 +464,20 @@ namespace MakeBook2021
 				keys.erase(key);
 		}
 
+		// [ASYNC] keyを丸ごとclearする。
+		void clear()
+		{
+			std::unique_lock<std::mutex> lk(mutex_);
+			keys.clear();
+		}
+
+		// [ASYNC] 要素の数を返す。
+		size_t size()
+		{
+			std::unique_lock<std::mutex> lk(mutex_);
+			return keys.size();
+		}
+
 	private:
 		std::mutex mutex_;
 		std::unordered_set<HASH_KEY> keys;
@@ -493,12 +507,7 @@ namespace MakeBook2021
 		u64 nodes_limit;
 
 		// ranged alpha betaを連続して行う回数。
-		// 思考した局面がなかなか増えない時は、これを増やしていく必要がある。(と思う)
 		size_t ranged_alpha_beta_loop;
-
-		// 思考済みの局面にhitした回数を数えるカウンター。
-		// これが一定数に増えた時にranged_alpha_beta_loopを増やす。
-		size_t thought_out_counter;
 
 		// ranged alpha beta searchの時に棋譜上に出現したleaf nodeに加点するスコア。
 		// そのleaf nodeが選ばれやすくなる。
@@ -579,7 +588,7 @@ namespace MakeBook2021
 			
 			// ↓の局面数を思考するごとにsaveする。
 			// 15分に1回ぐらいで良いような？
-			u64 book_save_interval = 30000/*nps*/ / nodes_limit * 15*60 /* 15分 */;
+			u64 book_save_interval = 30000/*nps*/ / nodes_limit * 30*60 /* 30分 */;
 
 			// 探索局面数
 			u64 think_limit = 10000000;
@@ -679,7 +688,11 @@ namespace MakeBook2021
 			search_option.search_delta_on_kif    = search_delta_on_kif;
 			search_option.eval_coef              = (float)Options["Eval_Coef"];
 			search_option.search_mode            = SearchMode::NormalAlphaBeta;
-			search_option.thought_out_counter    = 0;
+
+			// 各種変数の初期化(この関数を二度呼び出す時のために一応..)
+			search_nodes.clear();
+			searching_nodes.clear();
+			banned_nodes.clear();
 
 			// USIオプションを探索用に設定する。
 			set_usi_options();
@@ -697,15 +710,6 @@ namespace MakeBook2021
 			{
 				// 指定されたrootから定跡を生成する。
 				make_book_from_roots(pos, root_sfens);
-
-				// stuckしていたら、リカバーする。
-				if (search_option.thought_out_counter >= search_option.ranged_alpha_beta_loop)
-				{
-					search_option.ranged_alpha_beta_loop++;
-					search_option.thought_out_counter = 0;
-					sync_cout << "Warning! thought_out_counter has reached 100 , ranged_alpha_beta_loop = "
-						<< search_option.ranged_alpha_beta_loop << sync_endl;
-				}
 			}
 
 			// 定跡ファイルの書き出し(最終)
@@ -887,15 +891,37 @@ namespace MakeBook2021
 				// 思考するための局面queueから取り出す。
 				auto s_node = search_nodes.pop();
 				time.reset();
-				think(pos,&s_node);
-				sync_cout << "think time = " << time.elapsed() << "[ms] , queue.size() = " << search_nodes.size() << sync_endl;
+				bool already_exists,banned_node=false;
+				think(pos,&s_node,already_exists);
+				if (already_exists)
+				{
+					// 統計を取ってみて、2回以上ここに来たらsearching_nodesからのremoveはしないことにする。
+					// おそらく千日手なので。
+
+					// 定跡掘り始めた直後にranged_alpha_beta_loopを大きくしていると3回以上同じノードに
+					// 来ることはあるかも知れないが。
+					// 本当は、回数を5回目とかにすべきかも知れないが、次に掘り直す時になおるだろうからまあいいや。
+
+					if (!banned_nodes.contains(s_node.key))
+						banned_nodes.append(s_node.key);
+					else
+						banned_node = true;
+
+				} else {
+					sync_cout << "think time = " << time.elapsed() << "[ms] , queue.size() = " << search_nodes.size() << sync_endl;
+				}
 
 				// 探索が終わったので、いま以降、このleaf nodeに来ても大丈夫！
-				searching_nodes.remove(s_node.key);
+				if (!banned_node)
+					searching_nodes.remove(s_node.key);
 			}
 
 			// worker threadは自動的に終了するはずなのだが？
 			th.join();
+
+			// 参考のためbanされているnodeの数を出力しておく。
+			if (banned_nodes.size())
+				sync_cout << "banned nodes.size() = " << banned_nodes.size() << sync_endl;
 		}
 
 		// rootに対応するNodeを生成する。
@@ -909,7 +935,8 @@ namespace MakeBook2021
 			if (node == nullptr)
 			{
 				// これが存在しない時は、生成しなくてはならない。
-				node = think(pos,rootSfen);
+				bool already_exists;
+				node = think(pos,rootSfen,already_exists);
 			}
 			return node;
 		}
@@ -1179,7 +1206,8 @@ namespace MakeBook2021
 
 		// 探索させて、そのNodeを追加する。
 		// 結果はpmにNode追加して書き戻される。
-		Node* think(Position& pos, const SearchNode* s_node)
+		// 思考する前にNodeが存在していた時は、already_exists == trueになる。
+		Node* think(Position& pos, const SearchNode* s_node,bool& already_exists)
 		{
 			string sfen = s_node->node->sfen;
 			Move16 m16 = s_node->move;
@@ -1188,25 +1216,27 @@ namespace MakeBook2021
 			// 思考中の局面を出力してやる。
 			sync_cout << "thinking : " << sfen << " , move = " << move << sync_endl;
 
-			return think_sub(pos , "sfen " + sfen + " moves " + to_usi_string(m16));
+			return think_sub(pos , "sfen " + sfen + " moves " + to_usi_string(m16),already_exists);
 		}
 
 		// SFEN文字列を指定して、その局面について思考させる。
 		// 結果はpmにNode追加して書き戻される。
 		// sfen : positionコマンドで送れる形の文字列
 		// 例) "sfen xxxx" , "startpos" , "startpos moves xxxx" , "sfen xxxx moves yyyy..."
-		Node* think(Position& pos, string sfen)
+		// 思考する前にNodeが存在していた時は、already_exists == trueになる。
+		Node* think(Position& pos, string sfen , bool& already_exists)
 		{
 			// 思考中の局面を出力してやる。
 			cout << "thinking : " << sfen << endl;
 
-			return think_sub(pos,sfen);
+			return think_sub(pos,sfen,already_exists);
 		}
 
 		// 現在の局面について思考して、その結果をpmにNode作って返す。
 		// sfen : positionコマンドで送れる形の文字列
 		// 例) "sfen xxxx" , "startpos" , "startpos moves xxxx" , "sfen xxxx moves yyyy..."
-		Node* think_sub(Position& pos,string sfen)
+		// 思考する前にNodeが存在していた時は、already_exists == trueになる。
+		Node* think_sub(Position& pos,string sfen,bool& already_exists)
 		{
 			// ================================
 			//        Limitsの設定
@@ -1233,12 +1263,11 @@ namespace MakeBook2021
 
 			// すでにあるのでskip
 			Node* n = pm.probe(pos.long_key());
-			if (n != nullptr)
-			{
-				// すでに思考したあとの局面であった。
-				search_option.thought_out_counter++;
+
+			// すでに思考したあとの局面であった。
+			already_exists = (n != nullptr);
+			if (already_exists)
 				return n;
-			}
 
 			// 思考部にUSIのgoコマンドが来たと錯覚させて思考させる。
 			Threads.start_thinking(pos, states , limits);
@@ -1376,6 +1405,10 @@ namespace MakeBook2021
 
 		// ranged alpha beta searchで探索中なので避けるべきnodeのhash key
 		SearchingNodes searching_nodes;
+
+		// 何度もPV leaf nodeがここになる。おそらく、千日手による局面だと思う。
+		// これは探索の時に除外する。
+		SearchingNodes banned_nodes;
 
 		// 探索すべき局面が詰まっているQueue。
 		Concurrent::ConcurrentQueue<SearchNode> search_nodes;
