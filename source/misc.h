@@ -9,6 +9,7 @@
 #include <atomic>
 #include <sstream>
 #include <queue>
+#include <unordered_set>
 #include <condition_variable>
 
 #include "types.h"
@@ -1059,6 +1060,58 @@ namespace Concurrent
 		std::condition_variable cond_;
 	};
 
+	// std::unordered_setの並列版
+	template <typename T>
+	class ConcurrentSet
+	{
+	public:
+		// [ASYNC] Setのremove。
+		void remove(const T& item)
+		{
+			std::unique_lock<std::mutex> lk(mutex_);
+			set_.remove(item);
+		}
+
+		// [ASYNC] Setに要素を一つ追加する。
+		void emplace(const T& item)
+		{
+			std::unique_lock<std::mutex> lk(mutex_);
+			set_.insert(item);
+		}
+
+		// [ASYNC] Setに要素があるか確認する。
+		bool contains(const T& item)
+		{
+			std::unique_lock<std::mutex> lk(mutex_);
+			return set_.find(item) != set_.end();
+		}
+
+		// [ASYNC] Setの保持している要素数を返す。
+		size_t size()
+		{
+			std::unique_lock<std::mutex> lk(mutex_);
+			return set_.size();
+		}
+
+		// [ASYNC] Setをclearする。
+		void clear()
+		{
+			std::unique_lock<std::mutex> lk(mutex_);
+			// clear by assignment
+			set_ = std::unordered_set<T>();
+		}
+
+		// copyの禁止
+		ConcurrentSet() = default;
+		ConcurrentSet(const ConcurrentSet&) = delete;
+
+		// 代入の禁止
+		ConcurrentSet& operator=(const ConcurrentSet&) = delete;
+
+	private:
+		std::unordered_set<T> set_;
+		std::mutex mutex_;
+	};
 }
 
 // --------------------

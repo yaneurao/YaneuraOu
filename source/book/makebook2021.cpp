@@ -87,6 +87,7 @@
 
 using namespace std;
 using namespace Book;
+using namespace Concurrent; // concurrent library from misc.h
 
 // positionコマンドのparserを呼び出したい。
 extern void position_cmd(Position& pos, istringstream& is, StateListPtr& states);
@@ -129,7 +130,7 @@ namespace MakeBook2021
 		// --- 算術演算子
 
 		const ValueDepth operator+() const { return *this; }
-		const ValueDepth operator-() const { return ValueDepth(Value(-value),depth); }
+		const ValueDepth operator-() const { return ValueDepth(Value(-value), depth); }
 
 		// --- 比較演算子その1
 
@@ -151,7 +152,7 @@ namespace MakeBook2021
 		// →　そうしてしまうと先後協力して飛車を動かして手数を伸ばした千日手にすることになって、探索が終わらなくなるので駄目だった。
 
 		return t1.value < t2.value
-		/*|| (t1.value == t2.value && t1.depth < t2.depth)*/ ;
+			/*|| (t1.value == t2.value && t1.depth < t2.depth)*/;
 	}
 	constexpr bool operator>(const ValueDepth& t1, const ValueDepth& t2) { return t2 < t1; }
 	constexpr bool operator<=(const ValueDepth& t1, const ValueDepth& t2) { return !(t1 > t2); }
@@ -241,7 +242,7 @@ namespace MakeBook2021
 			StateInfo si;
 			u64 count = 0;
 			book.foreach([&](string sfen, BookMovesPtr ptr) {
-				pos.set(sfen,&si,Threads.main());
+				pos.set(sfen, &si, Threads.main());
 
 				store(sfen, pos, ptr);
 
@@ -286,7 +287,7 @@ namespace MakeBook2021
 					remove_node(pos);
 					return;
 				}
-				node.children.emplace_back(Child(move,ValueDepth(eval,0)));
+				node.children.emplace_back(Child(move, ValueDepth(eval, 0)));
 			}
 		}
 
@@ -344,7 +345,7 @@ namespace MakeBook2021
 
 		// 指定された局面からPVを辿って表示する。(デバッグ用)
 		// search_start()を呼び出してPVが確定している必要がある。
-		void dump_pv(Position& pos,int ply = 0)
+		void dump_pv(Position& pos, int ply = 0)
 		{
 			// 千日手などで循環する可能性があるのでその防止。
 			if (ply >= MAX_PLY)
@@ -361,14 +362,14 @@ namespace MakeBook2021
 
 			// best_moveで進められるんか？
 			StateInfo si;
-			pos.do_move(m,si);
-			dump_pv(pos,ply+1);
+			pos.do_move(m, si);
+			dump_pv(pos, ply + 1);
 			pos.undo_move(m);
 		}
 
 		// posで指定された局面から"PV line = ... , Value = .."の形でPV lineを出力する。
 		// vは引数で渡す。
-		void dump_pv_line(Position& pos , ValueDepth v)
+		void dump_pv_line(Position& pos, ValueDepth v)
 		{
 			std::cout << IO_LOCK;
 			cout << "PV line = ";
@@ -402,10 +403,10 @@ namespace MakeBook2021
 						continue;
 
 					// テラショック化するからponder moveいらんやろ
-					bms->push_back(BookMove(child.move, /*ponder*/ MOVE_NONE , child.eval.value,/*depth*/ child.eval.depth ,/*move_count*/ 1));
+					bms->push_back(BookMove(child.move, /*ponder*/ MOVE_NONE, child.eval.value,/*depth*/ child.eval.depth,/*move_count*/ 1));
 				}
 
-				book.append(sfen,bms);
+				book.append(sfen, bms);
 
 				progress.check(++counter);
 			}
@@ -445,17 +446,17 @@ namespace MakeBook2021
 
 					// このnodeから1手進めて、次の局面のbestを広い、ponderを確定させる。
 					StateInfo si;
-					pos.set(sfen,&si,Threads.main());
+					pos.set(sfen, &si, Threads.main());
 					HASH_KEY next_key = pos.long_key_after(pos.to_move(move));
 					auto it = hashkey_to_node.find(next_key);
 					if (it != hashkey_to_node.end())
 						ponder = it->second.best_move;
 
 					// depthとしてchild.eval.plyを埋めておく。
-					bms->push_back(BookMove(move, ponder , child.eval.value , /* depth */child.eval.depth ,/*move_count*/ 1));
+					bms->push_back(BookMove(move, ponder, child.eval.value, /* depth */child.eval.depth,/*move_count*/ 1));
 				}
 
-				book.append(sfen,bms);
+				book.append(sfen, bms);
 
 				progress.check(++counter);
 			}
@@ -472,7 +473,7 @@ namespace MakeBook2021
 			{
 				auto& node = it.second;
 
-				node.search_value = ValueDepth(VALUE_NONE,0);
+				node.search_value = ValueDepth(VALUE_NONE, 0);
 				node.is_cyclic = false;
 			}
 		}
@@ -583,7 +584,7 @@ namespace MakeBook2021
 		HASH_KEY key;
 
 		SearchNode() {}
-		SearchNode(Node* node_, Move16 move_,HASH_KEY key_) :node(node_), move(move_) , key(key_) {}
+		SearchNode(Node* node_, Move16 move_, HASH_KEY key_) :node(node_), move(move_), key(key_) {}
 
 		// このクラスの指している局面のSFENと指し手を出力する。(デバッグ用)
 		void print() const
@@ -596,7 +597,26 @@ namespace MakeBook2021
 		{
 			return "SFEN = " + node->sfen + " , move = " + to_usi_string(move);
 		}
+
+		// operator==を設定しとかないとunordered_setで使えない。
+		bool operator==(const SearchNode& rhs) const
+		{
+			return node == rhs.node && move == rhs.move && key == rhs.key;
+		}
 	};
+}
+
+	// これ、templateの特殊化なのでnamespace MakeBook2021のなかで定義できない。
+	// この提案はrejectされたのかな…。→　http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3730.html
+	template <>
+	struct std::hash<MakeBook2021::SearchNode> {
+		size_t operator()(const MakeBook2021::SearchNode& sn) const {
+			// nodeと指し手の組み合わせがuniqueっぽくなってほしい。
+			return (size_t)((size_t)sn.node ^ ((u32)sn.move.to_u16() << 16));
+		}
+	};
+
+namespace MakeBook2021 {
 
 	// 探索node type
 	enum NodeType { PV, NonPV };
@@ -943,22 +963,15 @@ namespace MakeBook2021
 					// 統計を取ってみて、2回以上ここに来たらsearching_nodesからのremoveはしないことにする。
 					// おそらく千日手なので。
 
-					// 定跡掘り始めた直後にranged_alpha_beta_loopを大きくしていると3回以上同じノードに
-					// 来ることはあるかも知れないが。
-					// 本当は、回数を5回目とかにすべきかも知れないが、次に掘り直す時になおるだろうからまあいいや。
-
-					if (!banned_nodes.contains(s_node.key))
-						banned_nodes.append(s_node.key);
-					else
-						banned_node = true;
+					if (!banned_nodes.contains(s_node))
+						banned_nodes.emplace(s_node);
 
 				} else {
 					sync_cout << "think time = " << time.elapsed() << "[ms] , queue.size() = " << search_nodes.size() << sync_endl;
 				}
 
 				// 探索が終わったので、いま以降、このleaf nodeに来ても大丈夫！
-				if (!banned_node)
-					searching_nodes.remove(s_node.key);
+				searching_nodes.remove(s_node.key);
 			}
 
 			// worker threadは自動的に終了するはずなのだが？
@@ -1036,8 +1049,9 @@ namespace MakeBook2021
 			// (generationが合致した時のみ)
 			if (    nodeType == NonPV
 				&&  node->generation == search_option.generation
-				&& !node->is_cyclic
+				//&& !node->is_cyclic
 				// 木が大きくなってくると、この条件↑を入れていると時間すごくかかるかも知れない。
+				// この条件、いったん外す。
 				&&  node->search_value.value != VALUE_NONE)
 			{
 				if (   node->bound == Bound::BOUND_EXACT
@@ -1138,8 +1152,13 @@ namespace MakeBook2021
 				if (searching_nodes.contains(key_next))
 					continue;
 
+				SearchNode sn(node, m, key_next);
+				// この局面でこの指し手mは千日手になるのでbanされている。
+				if (banned_nodes.contains(sn))
+					continue;
+
 				// PVに追加
-				search_pv.emplace_back(SearchNode(node, m, key_next));
+				search_pv.emplace_back(sn);
 
 				if (next_node == nullptr)
 				{
@@ -1208,7 +1227,6 @@ namespace MakeBook2021
 					default: UNREACHABLE; break;
 					}
 
-
 					// 子ノードのスコアが循環が絡んだスコアであるなら、このnodeにも伝播すべき。
 					is_cyclic = next_node->is_cyclic;
 					pos.undo_move(m);
@@ -1230,8 +1248,10 @@ namespace MakeBook2021
 				{
 					// --- nodeの更新
 
-					// alpha値を更新するのに用いた子nodeに関するis_cyclicだけをこのノードに伝播させる。
-					node->is_cyclic |= is_cyclic;
+					// alpha値を更新するのに用いた最後の子nodeに関するis_cyclicだけをこのノードに伝播させる。
+					// そこまでにis_cyclicな子がいても最終的にこのnodeのalphaを更新しないなら、その指し手は選択しないわけだから
+					// このnodeを循環ノードとみなさなくて良いと思う。
+					node->is_cyclic = is_cyclic;
 
 					// update alpha
 					alpha = value;
@@ -1479,7 +1499,7 @@ namespace MakeBook2021
 
 		// 何度もPV leaf nodeがここになる。おそらく、千日手による局面だと思う。
 		// これは探索の時に除外する。
-		SearchingNodes banned_nodes;
+		ConcurrentSet<SearchNode> banned_nodes;
 
 		// 探索すべき局面が詰まっているQueue。
 		Concurrent::ConcurrentQueue<SearchNode> search_nodes;
