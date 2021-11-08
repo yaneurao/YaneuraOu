@@ -601,6 +601,11 @@
       <PreprocessorDefinitions>_CONSOLE;_UNICODE;UNICODE;%(PreprocessorDefinitions);USE_BLAS</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalOptions>/source-charset:utf-8 /execution-charset:utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="bitboard.h" />
     <ClInclude Include="book\apery_book.h" />
