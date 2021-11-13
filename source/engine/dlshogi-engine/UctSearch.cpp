@@ -30,7 +30,7 @@ struct MoveIntFloat
 	bool operator < (const MoveIntFloat& rhs) const {
 		return nnrate < rhs.nnrate;
 	}
-	
+
 	std::string to_string()
 	{
 		return to_usi_string(move) + " " + std::to_string(label) + " " + std::to_string(nnrate);
@@ -171,6 +171,10 @@ namespace dlshogi
 
 			this->policy_value_batch_maxsize = policy_value_batch_maxsize;
 		}
+
+		for (int i = 0; i < new_thread; ++i) {
+			searchers[i].DummyForward();
+		}
 	}
 
 	// やねうら王では探索スレッドはThreadPoolが管理しているのでこれらは不要。
@@ -275,6 +279,102 @@ namespace dlshogi
 		// 引き分けの手数の設定
 		mate_solver.set_max_game_ply(options.max_moves_to_draw);
 
+	}
+
+	// 初期化時に呼び出す。
+	// policy_value_batch_maxsize と同数のダミーデータを作成し、推論を行う。
+	// ORT-TensorRT では、 最大バッチサイズ(policy_value_batch_maxsize) と 最小バッチサイズ(1) で
+	// それぞれ推論を実行してTensorRT推論エンジンを暖気する必要がある。
+	void UctSearcher::DummyForward()
+	{
+		// 適当なダミー局面を生成するルーチン
+		auto dummy_sfen = [](u32 value) {
+			Piece board[SQ_NB];
+			for (size_t sq = SQ_ZERO; sq < SQ_NB; ++sq)
+				board[sq] = NO_PIECE;
+			board[FILE_1 | ((((value >>  0) & 1) == 0) ? RANK_9 : RANK_8)] = B_LANCE;
+			board[FILE_9 | ((((value >>  1) & 1) == 0) ? RANK_9 : RANK_8)] = B_LANCE;
+			board[FILE_2 | RANK_9] = B_KNIGHT;
+			board[FILE_8 | RANK_9] = B_KNIGHT;
+			board[FILE_3 | ((((value >>  2) & 1) == 0) ? RANK_9 : RANK_8)] = B_SILVER;
+			board[FILE_7 | ((((value >>  3) & 1) == 0) ? RANK_9 : RANK_8)] = B_SILVER;
+			board[FILE_4 | ((((value >>  4) & 1) == 0) ? RANK_9 : RANK_8)] = B_GOLD;
+			board[FILE_6 | ((((value >>  5) & 1) == 0) ? RANK_9 : RANK_8)] = B_GOLD;
+			board[FILE_5 | ((((value >>  6) & 1) == 0) ? RANK_9 : RANK_8)] = B_KING;
+			board[FILE_2 | RANK_8] = B_ROOK;
+			board[FILE_8 | RANK_8] = B_BISHOP;
+			board[FILE_1 | ((((value >>  7) & 1) == 0) ? RANK_7 : RANK_6)] = B_PAWN;
+			board[FILE_9 | ((((value >>  8) & 1) == 0) ? RANK_7 : RANK_6)] = B_PAWN;
+			board[FILE_2 | ((((value >>  9) & 1) == 0) ? RANK_7 : RANK_6)] = B_PAWN;
+			board[FILE_8 | ((((value >> 10) & 1) == 0) ? RANK_7 : RANK_6)] = B_PAWN;
+			board[FILE_3 | ((((value >> 11) & 1) == 0) ? RANK_7 : RANK_6)] = B_PAWN;
+			board[FILE_7 | ((((value >> 12) & 1) == 0) ? RANK_7 : RANK_6)] = B_PAWN;
+			board[FILE_4 | ((((value >> 13) & 1) == 0) ? RANK_7 : RANK_6)] = B_PAWN;
+			board[FILE_6 | ((((value >> 14) & 1) == 0) ? RANK_7 : RANK_6)] = B_PAWN;
+			board[FILE_5 | ((((value >> 15) & 1) == 0) ? RANK_7 : RANK_6)] = B_PAWN;
+			board[FILE_9 | ((((value >> 16) & 1) == 0) ? RANK_1 : RANK_2)] = W_LANCE;
+			board[FILE_1 | ((((value >> 17) & 1) == 0) ? RANK_1 : RANK_2)] = W_LANCE;
+			board[FILE_8 | RANK_1] = W_KNIGHT;
+			board[FILE_2 | RANK_1] = W_KNIGHT;
+			board[FILE_7 | ((((value >> 18) & 1) == 0) ? RANK_1 : RANK_2)] = W_SILVER;
+			board[FILE_3 | ((((value >> 19) & 1) == 0) ? RANK_1 : RANK_2)] = W_SILVER;
+			board[FILE_6 | ((((value >> 20) & 1) == 0) ? RANK_1 : RANK_2)] = W_GOLD;
+			board[FILE_4 | ((((value >> 21) & 1) == 0) ? RANK_1 : RANK_2)] = W_GOLD;
+			board[FILE_5 | ((((value >> 22) & 1) == 0) ? RANK_1 : RANK_2)] = W_KING;
+			board[FILE_8 | RANK_2] = W_ROOK;
+			board[FILE_2 | RANK_2] = W_BISHOP;
+			board[FILE_9 | ((((value >> 23) & 1) == 0) ? RANK_3 : RANK_4)] = W_PAWN;
+			board[FILE_1 | ((((value >> 24) & 1) == 0) ? RANK_3 : RANK_4)] = W_PAWN;
+			board[FILE_8 | ((((value >> 25) & 1) == 0) ? RANK_3 : RANK_4)] = W_PAWN;
+			board[FILE_2 | ((((value >> 26) & 1) == 0) ? RANK_3 : RANK_4)] = W_PAWN;
+			board[FILE_7 | ((((value >> 27) & 1) == 0) ? RANK_3 : RANK_4)] = W_PAWN;
+			board[FILE_3 | ((((value >> 28) & 1) == 0) ? RANK_3 : RANK_4)] = W_PAWN;
+			board[FILE_6 | ((((value >> 29) & 1) == 0) ? RANK_3 : RANK_4)] = W_PAWN;
+			board[FILE_4 | ((((value >> 30) & 1) == 0) ? RANK_3 : RANK_4)] = W_PAWN;
+			board[FILE_5 | ((((value >> 31) & 1) == 0) ? RANK_3 : RANK_4)] = W_PAWN;
+
+			std::ostringstream ss;
+			int emptyCnt;
+			for (Rank r = RANK_1; r <= RANK_9; ++r)
+			{
+				for (File f = FILE_9; f >= FILE_1; --f)
+				{
+					for (emptyCnt = 0; f >= FILE_1 && board[f | r] == NO_PIECE; --f)
+						++emptyCnt;
+					if (emptyCnt)
+						ss << emptyCnt;
+					if (f >= FILE_1)
+						ss << board[f | r];
+				}
+				if (r < RANK_9)
+					ss << '/';
+			}
+			ss << " b - " << 1;
+
+			return ss.str();
+		};
+
+		if (policy_value_batch_maxsize < 1)
+			return;
+
+		// ダミー局面推論開始時間
+		TimePoint tpforwardbegin = now();
+		// ダミー局面設定
+		Position pos;
+		StateInfo si;
+		for (int i = 0; i < policy_value_batch_maxsize; ++i) {
+			pos.set(dummy_sfen((u32)i), &si, Threads.main());
+			make_input_features(pos, &features1[i], &features2[i]);
+		}
+		// このスレッドとGPUとを紐付ける。
+		grp->set_device();
+		// 最大バッチサイズ(policy_value_batch_maxsize) と 最小バッチサイズ(1) でそれぞれ推論を実行しておく
+		grp->nn_forward(policy_value_batch_maxsize, features1, features2, y1, y2);
+		grp->nn_forward(1, features1, features2, y1, y2);
+		// ダミー局面推論終了時間
+		TimePoint tpforwardend = now();
+
+		sync_cout << "info string engine forward test. batch_size = " << policy_value_batch_maxsize << ", Processing time = " << tpforwardend - tpforwardbegin << "ms." << sync_endl;
 	}
 
 	// UCTアルゴリズムによる並列探索の各スレッドのEntry Point
@@ -417,7 +517,7 @@ namespace dlshogi
 	// 返し値 : currentの局面の期待勝率を返すが、以下の特殊な定数を取ることがある。
 	//   QUEUING      : 評価関数を呼び出した。(呼び出しはqueuingされていて、完了はしていない)
 	//   DISCARDED    : 他のスレッドがすでにこのnodeの評価関数の呼び出しをしたあとであったので、何もせずにリターンしたことを示す。
-	// 
+	//
 	float UctSearcher::UctSearch(Position* pos, ChildNode* parent , Node* current, NodeVisitor& visitor)
 	{
 		auto ds = grp->get_dlsearcher();
@@ -740,7 +840,7 @@ namespace dlshogi
 
 			// MCTSとの組み合わせの時には、UCBの代わりにp-UCB値を用いる。
 			//
-			// 親ノードでi番目の指し手を指した局面を子ノードと呼ぶ。 
+			// 親ノードでi番目の指し手を指した局面を子ノードと呼ぶ。
 			// 　子ノードのvalue networkの値           : v(s_i)    ==> 変数 q
 			// 　親ノードの指し手iのpolicy networkの値 :   p_i     ==> 変数 rate
 			// 　親nodeの訪問数                        :   n       ==> 変数 sum
@@ -750,8 +850,8 @@ namespace dlshogi
 			//         p-UCB = v(s_i) + p_i・c・sqrt(n)/(1+n_i)
 			//
 			//   ※　v(s_i)は、初回はvalue networkの値を使うが、そのあとは、win / move_count のほうがより正確な期待勝率なのでそれを用いる。
-			//   ※　sqrt(n) ==> 変数sqrt_sum // 高速化のためループの外で計算している 
-			//    
+			//   ※　sqrt(n) ==> 変数sqrt_sum // 高速化のためループの外で計算している
+			//
 
 			const float ucb_value = q + c * u * rate;
 

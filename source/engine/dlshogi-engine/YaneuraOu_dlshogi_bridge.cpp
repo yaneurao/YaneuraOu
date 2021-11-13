@@ -110,12 +110,12 @@ void USI::extra_option(USI::OptionsMap& o)
     o["DNN_Model7"]                  << USI::Option("");
     o["DNN_Model8"]                  << USI::Option("");
 
-#if defined(ONNXRUNTIME)
-	// CPUを使っていることがあるので、default値、ちょっと少なめにしておく。
-	o["DNN_Batch_Size1"]             << USI::Option(32, 1, 1024);
-#elif defined(TENSOR_RT)
+#if defined(TENSOR_RT) || defined(ORT_TRT)
 	// 通常時の推奨128 , 検討の時は推奨256。
 	o["DNN_Batch_Size1"]             << USI::Option(128, 1, 1024);
+#elif defined(ONNXRUNTIME)
+	// CPUを使っていることがあるので、default値、ちょっと少なめにしておく。
+	o["DNN_Batch_Size1"]             << USI::Option(32, 1, 1024);
 #endif
 	o["DNN_Batch_Size2"]             << USI::Option(0, 0, 65536);
     o["DNN_Batch_Size3"]             << USI::Option(0, 0, 65536);

@@ -633,7 +633,7 @@ extern GlobalOptions_ GlobalOptions;
 #elif defined(__GNUC__)
 #define ALIGNED(X) __attribute__ ((aligned(X)))
 #else
-#define ALIGNED(X) 
+#define ALIGNED(X)
 #endif
 
 // --- output for Japanese notation
@@ -784,6 +784,8 @@ constexpr bool pretty_jp = false;
 			#define EVAL_TYPE_NAME "ORT_DML-" << EVAL_DEEP
 		#elif defined(ORT_MKL)
 			#define EVAL_TYPE_NAME "ORT_MKL-" << EVAL_DEEP
+		#elif defined(ORT_TRT)
+			#define EVAL_TYPE_NAME "ORT_TRT-" << EVAL_DEEP
 		#else
 			#define EVAL_TYPE_NAME "ORT-" << EVAL_DEEP
 		#endif
