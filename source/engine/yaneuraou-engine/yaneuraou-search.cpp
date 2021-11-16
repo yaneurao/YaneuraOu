@@ -749,10 +749,9 @@ void Thread::search()
 	Stack stack[MAX_PLY + 10], *ss = stack + 7;
 	Move  pv[MAX_PLY + 1];
 
-	// bestValue  : このnodeでbestMoveを指したときの(探索の)評価値
 	// alpha,beta : aspiration searchの窓の範囲(alpha,beta)
 	// delta      : apritation searchで窓を動かす大きさdelta
-	Value bestValue, alpha, beta, delta;
+	Value alpha, beta, delta;
 
 	// 探索の安定性を評価するために前回のiteration時のbest moveを記録しておく。
 	Move  lastBestMove = MOVE_NONE;
@@ -1335,7 +1334,8 @@ namespace {
 		// moveCount			: 調べた指し手の数(合法手に限る)
 		// captureCount			: 調べた駒を捕獲する指し手の数(capturesSearched[]用のカウンター)
 		// quietCount			: 調べた駒を捕獲しない指し手の数(quietsSearched[]用のカウンター)
-		int moveCount, captureCount, quietCount;
+		// bestMoveCount		: このnodeにおいて、αの値を更新した回数。
+		int moveCount, captureCount, quietCount, bestMoveCount;
 
 		// -----------------------
 		// Step 1. Initialize node
@@ -1346,7 +1346,7 @@ namespace {
 		ss->inCheck		= pos.checkers();
 		priorCapture	= pos.captured_piece();
 		Color us		= pos.side_to_move();
-		moveCount		= captureCount = quietCount = ss->moveCount = 0;
+		moveCount		= bestMoveCount = captureCount = quietCount = ss->moveCount = 0;
 		bestValue		= -VALUE_INFINITE;
 		//	maxValue	= VALUE_INFINITE;
 
@@ -1427,6 +1427,9 @@ namespace {
 			if (alpha >= beta)
 				return alpha;
 		}
+		else
+			// root nodeなら
+			thisThread->rootDelta = beta - alpha;
 
 		// -----------------------
 		//  探索Stackの初期化
@@ -2454,13 +2457,14 @@ namespace {
 				if (PvNode)
 					r--;
 
-				/*
 				// Decrease reduction at some PvNodes (~2 Elo)
+				// PvNodeでのreductionを減らす。
+				// bestMoveCountはこのnodeでαを更新した回数。
+				// これが少ないうちは良い指し手が見つかっていないわけだからreductionすべきではない。
 				if (   PvNode
 					&& bestMoveCount <= 3
 					&& beta - alpha >= thisThread->rootDelta / 4)
 					r--;
-				*/
 
 				// Decrease reduction if position is or has been on the PV
 				// and node is not likely to fail low. (~3 Elo)
@@ -2696,6 +2700,9 @@ namespace {
 					if (PvNode && value < beta)
 					{
 						alpha = value;
+
+						// alphaを更新した回数をインクリメント
+						bestMoveCount++;
 
 						// PvNodeでalpha値を更新した。
 						// このとき相手からの詰みがあるかどうかを調べるなどしたほうが良いなら

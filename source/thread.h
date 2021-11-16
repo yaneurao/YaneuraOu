@@ -107,6 +107,10 @@ public:
  	// bestMoveChanges : 反復深化においてbestMoveが変わった回数。nodeの安定性の指標として用いる。全スレ分集計して使う。
 	std::atomic<uint64_t> nodes,/* tbHits,*/ bestMoveChanges;
 
+	// search()で、そのnodeでbestMoveを指したときの(探索の)評価値
+	// Stockfishではevaluate()の遅延評価のためにThreadクラスに持たせることになった。
+	// cf. Reduce use of lazyEval : https://github.com/official-stockfish/Stockfish/commit/7b278aab9f61620b9dba31896b38aeea1eb911e2
+	Value bestValue;
 
 	// 探索開始局面
 	Position rootPos;
@@ -125,6 +129,9 @@ public:
 	// completedDepth : このスレッドに関して、終了した反復深化の深さ
 	//
 	Depth rootDepth, completedDepth;
+
+	// aspiration searchのrootでの beta - alpha
+	Value rootDelta;
 
 #if defined(USE_MOVE_PICKER)
 	// 近代的なMovePickerではオーダリングのために、スレッドごとにhistoryとcounter movesなどのtableを持たないといけない。
