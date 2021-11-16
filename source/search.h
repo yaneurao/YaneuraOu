@@ -67,6 +67,9 @@ namespace Search {
 		// 次のiteration時の探索窓の範囲を決めるときに使う。
 		Value previousScore = -VALUE_INFINITE;
 
+		// aspiration searchの時に用いる。previousScoreの移動平均。
+		Value averageScore = -VALUE_INFINITE;
+
 		// このスレッドがrootから最大、何手目まで探索したか(選択深さの最大)
 		int selDepth = 0;
 

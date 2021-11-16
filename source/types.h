@@ -676,6 +676,10 @@ static Move16 make_move_drop16(PieceType pt, Square to) { return (Move16)(to + (
 constexpr Move make_move_drop(PieceType pt, Square to , Color us ) { return (Move)(to + (pt << 7) + MOVE_DROP + (((us ? u32(PIECE_WHITE) : 0) + (pt)) << 16)); }
 
 // 移動元の升と移動先の升を逆転させた指し手を生成する。探索部で用いる。
+// ※　最新のStockfishでは使っていないのでもはや不要なのだが一応残しておく。
+// 将棋はチェスと違って元の場所に戻れない駒が多いのでreverse_move()を用いるhistory updateは
+// 大抵、悪影響しかない。
+// また、reverse_move()を用いるならば、ifの条件式に " && !is_drop(move)"が要ると思う。
 static Move16 reverse_move(Move m) { return make_move16(to_sq(m), from_sq(m)); }
 
 // 指し手がおかしくないかをテストする
