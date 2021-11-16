@@ -691,15 +691,13 @@ SKIP_SEARCH:;
 
 // 探索スレッド用の初期化(探索部と学習部と共通)
 // やねうら王、独自拡張。
+// ssにはstack+7が渡されるものとする。
 void search_thread_init(Thread* th, Stack* ss , Move pv[])
 {
 	// 先頭10個を初期化しておけば十分。そのあとはsearch()の先頭でss+1,ss+2を適宜初期化していく。
 	// RootNodeはss->ply == 0がその条件。
 	// ゼロクリアするので、ss->ply == 0となるので大丈夫…。
 	std::memset(ss - 7, 0, 10 * sizeof(Stack));
-
-	// 最善応手列(Principal Variation)
-	ss->pv = pv;
 
 	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
 	for (int i = 7; i > 0; i--)
@@ -709,6 +707,9 @@ void search_thread_init(Thread* th, Stack* ss , Move pv[])
 	for (int i = 0; i <= MAX_PLY + 2; ++i)
 		(ss + i)->ply = i;
 
+	// 最善応手列(Principal Variation)
+	ss->pv = pv;
+
 	// lowPlyHistoryのコピー(世代を一つ新しくする)
 	std::copy(&th->lowPlyHistory[2][0], &th->lowPlyHistory.back().back() + 1, &th->lowPlyHistory[0][0]);
 	std::fill(&th->lowPlyHistory[MAX_LPH - 2][0], &th->lowPlyHistory.back().back() + 1, 0);
@@ -716,9 +717,6 @@ void search_thread_init(Thread* th, Stack* ss , Move pv[])
 	// ---------------------
 	//   移動平均を用いる統計情報の初期化
 	// ---------------------
-
-	// 置換表hit率
-	th->ttHitAverage.set(50, 100);                  // initialize the running average at 50%
 
 	// 二重延長率
 	th->doubleExtensionAverage[WHITE].set(0, 100);  // initialize the running average at 0%
@@ -1522,11 +1520,6 @@ namespace {
 			&& !priorCapture
 			&& is_ok((ss - 1)->currentMove))
 			thisThread->lowPlyHistory[ss->ply - 1][from_to((ss - 1)->currentMove)] << stat_bonus(depth - 5);
-
-		// running average of ttHit
-		// thisThread->ttHitAverageは、ttHit(置換表にhitしたかのフラグ)の実行時の平均を近似するために用いられる。
-		// 移動平均を算出している。
-		thisThread->ttHitAverage.update(ss->ttHit);
 
 	    // At non-PV nodes we check for an early TT cutoff
 		// 置換表の値による枝刈り
@@ -2461,9 +2454,13 @@ namespace {
 				if (PvNode)
 					r--;
 
-				// Decrease reduction if the ttHit running average is large (~0 Elo)
-				if (thisThread->ttHitAverage.is_greater(537, 1024))
+				/*
+				// Decrease reduction at some PvNodes (~2 Elo)
+				if (   PvNode
+					&& bestMoveCount <= 3
+					&& beta - alpha >= thisThread->rootDelta / 4)
 					r--;
+				*/
 
 				// Decrease reduction if position is or has been on the PV
 				// and node is not likely to fail low. (~3 Elo)
@@ -3162,7 +3159,7 @@ namespace {
 			// 今回捕獲されるであろう駒による評価値の上昇分を
 			// 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
 
-			if (   bestValue > VALUE_TB_LOSS_IN_MAX_PLY
+			if (    bestValue > VALUE_TB_LOSS_IN_MAX_PLY
 				&& !givesCheck
 				&&  futilityBase > -VALUE_KNOWN_WIN
 			//	&&  type_of(move) != PROMOTION)
@@ -3815,6 +3812,7 @@ namespace Learner
 
 	// 学習のための初期化。
 	// Learner::search(),Learner::qsearch()から呼び出される。
+	// ssにはstack + 7が渡されるものとする。
 	void init_for_search(Position& pos, Stack* ss , Move pv[], bool qsearch)
 	{
 

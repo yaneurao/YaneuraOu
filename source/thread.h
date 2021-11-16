@@ -90,8 +90,6 @@ public:
 
 	// 置換表に平均的にどれくらいhitしているかという統計情報。
 	// これに基づき、枝刈りを調整する。
-	RunningAverage ttHitAverage;
-	// 
 	RunningAverage doubleExtensionAverage[COLOR_NB];
 
 	uint64_t nodesLastExplosive;

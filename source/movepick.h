@@ -99,12 +99,12 @@ enum StatsType { NoCaptures, Captures };
 // やねうら王では、ここで用いられるfromは、駒打ちのときに特殊な値になっていて、盤上のfromとは区別される。
 // そのため、(SQ_NB + 7)まで移動元がある。
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-typedef Stats<int16_t, 13365, int(SQ_NB + 7) * int(SQ_NB) , COLOR_NB> ButterflyHistory;
+typedef Stats<int16_t, 14365, int(SQ_NB + 7) * int(SQ_NB) , COLOR_NB> ButterflyHistory;
 
 
 // より高い探索深さにおいて、LowPlyHistoryは、root付近の成功したquietな指し手と
-// PV(ttPV)にある/あったquietな指し手を記録します。LowPlyHistoryは、新しい探索の
-// たびにクリアされて、反復深化の間に埋められます。
+// PV(ttPV)にある/あったquietな指し手を記録します。LowPlyHistoryは、反復深化の間に埋められ、
+// 新しい探索のたびに2手シフトダウンされる。
 //
 // Stockfishと異なり、from_to()は、int(SQ_NB + 7) * int(SQ_NB)の間の値が返るのでこの部分のサイズ変更してある。
 // [ply][from_to] これは逆順にしたほうが少し高速化が図れるのだが、Stockfishでこの順に依存するコードがあったので、
