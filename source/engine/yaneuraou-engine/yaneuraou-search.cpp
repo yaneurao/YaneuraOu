@@ -1555,7 +1555,7 @@ namespace {
 
 		// depthが高くてplyが低いときは、lowPlyHistoryを更新する。
 		// 直前の指し手がcaptureでなければ(それは良い手のはずだから)、bonusをちょこっと加算。
-		if (ss->ttPv
+		if (   ss->ttPv
 			&& depth > 12
 			&& ss->ply - 1 < MAX_LPH
 			&& !priorCapture
@@ -1598,10 +1598,8 @@ namespace {
 				{
 					// Bonus for a quiet ttMove that fails high
 					// fail highしたquietなquietな(駒を取らない)ttMove(置換表の指し手)に対するボーナス
-					
-					// 【計測資料 8.】 capture()とcaputure_or_pawn_promotion()の比較
 
-					if (!pos.capture(ttMove))
+					if (!ttCapture)
 						update_quiet_stats(pos, ss, ttMove, stat_bonus(depth), depth);
 
 					// Extra penalty for early quiet moves of the previous ply
@@ -1616,15 +1614,9 @@ namespace {
 						update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_bonus(depth + 1));
 
 				}
+				// Penalty for a quiet ttMove that fails low
 				// fails lowのときのquiet ttMoveに対するペナルティ
-				// 【計測資料 9.】capture_or_promotion(),capture_or_pawn_promotion(),capture()での比較
-#if 1
-				// Stockfish 10～12相当のコード
-				else if (!pos.capture_or_promotion(ttMove))
-#else
-				else if (!pos.capture_or_pawn_promotion(ttMove))
-					//		else if (!pos.capture(ttMove))
-#endif
+				else if (!ttCapture)
 				{
 					int penalty = -stat_bonus(depth);
 					thisThread->mainHistory[from_to(ttMove)][us] << penalty;
@@ -1974,14 +1966,12 @@ namespace {
 			ASSERT_LV3(probCutBeta < VALUE_INFINITE);
 
 			MovePicker mp(pos, ttMove, probCutBeta - ss->staticEval, &captureHistory);
-			int probCutCount = 0;
 			bool ttPv = ss->ttPv;  // このあとの探索でss->ttPvを潰してしまうのでtte->save()のときはこっちを用いる。
 			ss->ttPv = false;
 
 			// 試行回数は2回(cutNodeなら4回)までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
 			// cf. Do move-count pruning in probcut : https://github.com/official-stockfish/Stockfish/commit/b87308692a434d6725da72bbbb38a38d3cac1d5f
-			while ((move = mp.next_move()) != MOVE_NONE
-				&& probCutCount < 2 + 2 * cutNode)
+			while ((move = mp.next_move()) != MOVE_NONE)
 
 			// Stockfishでは省略してあるけどこの"{"、省略するとbugの原因になりうる。
 			{
@@ -1994,7 +1984,6 @@ namespace {
 					// なぜにifの条件式に倣って"depth > 4"と書かないのか…。
 
 					captureOrPawnPromotion = true;
-					probCutCount++;
 
 					ss->currentMove = move;
 					ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck]
@@ -2550,13 +2539,12 @@ namespace {
 				// Decrease/increase reduction for moves with a good/bad history (~30 Elo)
 				r -= ss->statScore / 14721;
 
-				// In general we want to cap the LMR depth search at newDepth. But if
-				// reductions are really negative and movecount is low, we allow this move
-				// to be searched deeper than the first move in specific cases (note that
-				// this may lead to hidden double extensions if newDepth got it own extension
-				// before).
+				// In general we want to cap the LMR depth search at newDepth. But if reductions
+				// are really negative and movecount is low, we allow this move to be searched
+				// deeper than the first move (this may lead to hidden double extensions).
+
 				int deeper =  r >= -1					? 0
-							: moveCount <= 5			? 1
+							: moveCount <= 5			? 2
 							: PvNode && depth > 6       ? 1
 							: cutNode && moveCount <= 7 ? 1
 							:							  0;
