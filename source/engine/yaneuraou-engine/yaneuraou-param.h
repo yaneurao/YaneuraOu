@@ -122,13 +122,13 @@ PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 20;
 // [PARAM] min:10,max:60,step:1,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_NULL_MOVE_MARGIN2 = 22;
 
-// 元の値 = 168 , step = 4
-// [PARAM] min:10,max:100,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN3 = 168;
+// 元の値 = 15 , step = 1
+// [PARAM] min:5,max:40,step:1,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN3 = 15;
 
-// 元の値 = 177 , step = 50
+// 元の値 = 204 , step = 50
 // [PARAM] min:0,max:400,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 177;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 204;
 
 
 

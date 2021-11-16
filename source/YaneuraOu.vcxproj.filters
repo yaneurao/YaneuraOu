@@ -250,9 +250,6 @@
     <ClInclude Include="engine\yaneuraou-engine\yaneuraou-param.h">
       <Filter>リソース ファイル\engine\yaneuraou-engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\yaneuraou-engine\yaneuraou-param_gen.h">
-      <Filter>リソース ファイル\engine\yaneuraou-engine</Filter>
-    </ClInclude>
     <ClInclude Include="eval\evalhash.h">
       <Filter>リソース ファイル\eval</Filter>
     </ClInclude>
@@ -565,5 +562,6 @@
     <None Include="..\.gitignore" />
     <None Include="..\README.md" />
     <None Include="..\script\bench.py" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
   </ItemGroup>
 </Project>

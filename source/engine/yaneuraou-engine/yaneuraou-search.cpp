@@ -1363,7 +1363,7 @@ namespace {
 		// captureCount			: 調べた駒を捕獲する指し手の数(capturesSearched[]用のカウンター)
 		// quietCount			: 調べた駒を捕獲しない指し手の数(quietsSearched[]用のカウンター)
 		// bestMoveCount		: このnodeにおいて、αの値を更新した回数。
-		// improvement			: 
+		// improvement			: improvingフラグのもうちょっと細かい版(int型なので)  improving = improvement > 0
 		int moveCount, captureCount, quietCount, bestMoveCount, improvement;
 
 		// -----------------------
@@ -1823,24 +1823,24 @@ namespace {
 			thisThread->mainHistory[from_to((ss-1)->currentMove)][~us] << bonus;
 		}
 
-		// Set up improving flag that is used in various pruning heuristics
-		// We define position as improving if static evaluation of position is better
-		// Than the previous static evaluation at our turn
-		// In case of us being in check at our previous move we look at move prior to it
-
-		// 評価値が2手前の局面から上がって行っているのかのフラグ
+		// Set up the improvement variable, which is the difference between the current
+		// static evaluation and the previous static evaluation at our turn (if we were
+		// in check at our previous move we look at the move prior to it). The improvement
+		// margin and the improving flag are used in various pruning heuristics.
+		//
+		// 評価値が2手前の局面から上がって行っているのかのフラグ(improving)
 		// 上がって行っているなら枝刈りを甘くする。
 		// ※ VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
 		//   枝刈りを甘くして調べないといけないのでimproving扱いとする。
 
-		improving = (ss - 2)->staticEval == VALUE_NONE
-			? ss->staticEval > (ss - 4)->staticEval || (ss - 4)->staticEval == VALUE_NONE
-			: ss->staticEval > (ss - 2)->staticEval;
+		improvement =	  (ss-2)->staticEval != VALUE_NONE ? ss->staticEval - (ss-2)->staticEval
+						: (ss-4)->staticEval != VALUE_NONE ? ss->staticEval - (ss-4)->staticEval
+						:                                    200;
 
-		//	  || ss->staticEval == VALUE_NONE
-			// この条件は一つ上の式に暗黙的に含んでいる。
-			// ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはないので。
+		// ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはない。
 
+		// improvingフラグは、improvementをbool化したもの。
+		improving = improvement > 0;
 
 		// -----------------------
 		// Step 7. Futility pruning: child node (~50 Elo).
@@ -1878,8 +1878,10 @@ namespace {
 			&& (ss - 1)->statScore < PARAM_NULL_MOVE_MARGIN0/*23767*/
 			&&  eval >= beta
 			&&  eval >= ss->staticEval
-			&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 /*20*/ * depth - PARAM_NULL_MOVE_MARGIN2 /*22*/ * improving
-									+ PARAM_NULL_MOVE_MARGIN3 /*168*/ * ss->ttPv + PARAM_NULL_MOVE_MARGIN4/*177*/
+			&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 /*20*/ * depth
+								- improvement / PARAM_NULL_MOVE_MARGIN3 /* 15 */
+								+ PARAM_NULL_MOVE_MARGIN4 /*204*/
+
 			&& !excludedMove
 		//	&&  pos.non_pawn_material(us)  // これ終盤かどうかを意味する。将棋でもこれに相当する条件が必要かも。
 			&& (ss->ply >= thisThread->nmpMinPly || us != thisThread->nmpColor)
@@ -2925,8 +2927,7 @@ namespace {
 		// ttValue			: 置換表に登録されていたスコア
 		// futilityValue	: futility pruningに用いるスコア
 		// futilityBase		: futility pruningの基準となる値
-		// oldAlpha			: この関数が呼び出された時点でのalpha値
-		Value bestValue, value, ttValue, futilityValue, futilityBase, oldAlpha;
+		Value bestValue, value, ttValue, futilityValue, futilityBase;
 
 		// pvHit			: 置換表から取り出した指し手が、PV nodeでsaveされたものであった。
 		// givesCheck		: MovePickerから取り出した指し手で王手になるか
@@ -2942,13 +2943,6 @@ namespace {
 
 		if (PvNode)
 		{
-			// PV nodeではalpha値を上回る指し手が存在した場合は(そこそこ指し手を調べたので)置換表にはBOUND_EXACTで保存したいから、
-			// そのことを示すフラグとして元の値が必要(non PVではこの変数は参照しない)
-			// PV nodeでalpha値を上回る指し手が存在しなかった場合は、調べ足りないのかも知れないからBOUND_UPPERとしてbestValueを保存しておく。
-			oldAlpha = alpha; // To flag BOUND_EXACT when eval above alpha and no available moves
-
-			// PvNodeのときしかoldAlphaを初期化していないが、PvNodeのときしか使わないのでこれは問題ない。
-
 			(ss + 1)->pv = pv;
 			ss->pv[0] = MOVE_NONE;
 		}
@@ -3093,9 +3087,6 @@ namespace {
 			} else {
 
 				// In case of null move search use previous static eval with a different sign
-				// and addition of two tempos
-
-				// ※　↑ここ、Stockfishのコメントが古い。tempo定数は除去された。
 
 				// 置換表がhitしなかった場合、bestValueの初期値としてevaluate()を呼び出すしかないが、
 				// NULL_MOVEの場合は前の局面での値を反転させると良い。(手番を考慮しない評価関数であるなら)
@@ -3341,9 +3332,9 @@ namespace {
 
 	    // Save gathered info in transposition table
 		// 詰みではなかったのでこれを書き出す。
+		// ※　qsearch()の結果は信用ならないのでBOUND_EXACTで書き出すことはない。
 		tte->save(posKey, value_to_tt(bestValue, ss->ply), pvHit,
-				  bestValue >= beta ? BOUND_LOWER :
-				  PvNode && bestValue > oldAlpha ? BOUND_EXACT : BOUND_UPPER,
+				  bestValue >= beta ? BOUND_LOWER : BOUND_UPPER,
 				  ttDepth, bestMove, ss->staticEval);
 
 		// 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
