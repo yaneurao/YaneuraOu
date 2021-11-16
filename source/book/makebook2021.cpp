@@ -1188,44 +1188,39 @@ namespace MakeBook2021 {
 					StateInfo si;
 					pos.do_move(m, si);
 
-					switch (searchMode)
+					// テラショック化する時の探索。
+					// 1) 探索Windowは全域。(alpha-betaのWindowでの枝刈りをしてはならない)
+					//  →　Windowが全域になっているのでβcutは発生しないはず。
+					// 2) 探索結果のvalueをこのchild.evalに反映させる必要がある。(定跡DBに書き出す時に用いるため)
+					// 3) ただしrootではすべてPVとして探索する。
+
+					// 1)
+					ValueDepth new_alpha = (searchMode == NormalAlphaBeta) ? -beta  : -VALUE_INFINITE;
+					ValueDepth new_beta  = (searchMode == NormalAlphaBeta) ? -alpha :  VALUE_INFINITE;
+
+					bool is_root = (ply == 1);
+					if (is_root)
 					{
-					case SearchMode::NormalAlphaBeta:
-						// 通常のalpha-beta探索
-						value = -search<NonPV, searchMode>(pos, next_node, -beta, -alpha, ply+1);
+						// 3)
+						value = -search<PV, searchMode>(pos, next_node, new_alpha, new_beta, ply + 1);
+						value.depth++;
+					}
+					else {
+
+						value = -search<NonPV, searchMode>(pos, next_node, new_alpha, new_beta, ply + 1);
 						value.depth++;
 
 						// alpha値を更新するなら、PVとして探索しなおす。
 						if (nodeType == PV && alpha < value)
 						{
-							value = -search<PV, searchMode>(pos, next_node, -beta, -alpha, ply + 1);
+							value = -search<PV, searchMode>(pos, next_node, new_alpha, new_beta, ply + 1);
 							value.depth++;
 						}
-
-						break;
-
-					case SearchMode::TeraShockSearch:
-						// テラショック化する時の探索。
-						// 1) 探索Windowは全域。(alpha-betaのWindowでの枝刈りをしてはならない)
-						//  →　Windowが全域になっているのでβcutは発生しないはず。
-						// 2) 探索結果のvalueをこのchild.evalに反映させる必要がある。(定跡DBに書き出す時に用いるため)
-
-						// 1)
-						value = -search<NonPV, searchMode>(pos, next_node, -VALUE_INFINITE , VALUE_INFINITE , ply + 1);
-						value.depth++;
-						if (nodeType == PV && alpha < value)
-						{
-							value = -search<PV, searchMode>(pos, next_node, -VALUE_INFINITE, VALUE_INFINITE , ply + 1);
-							value.depth++;
-						}
-
-						// 2)
-						child.eval = value;
-
-						break;
-
-					default: UNREACHABLE; break;
 					}
+
+					// 2)
+					if (searchMode == TeraShockSearch)
+						child.eval = value;
 
 					// 子ノードのスコアが循環が絡んだスコアであるなら、このnodeにも伝播すべき。
 					is_cyclic = next_node->is_cyclic;
