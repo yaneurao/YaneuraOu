@@ -1853,7 +1853,16 @@ namespace {
 		if (!PvNode
 			&&  depth < PARAM_FUTILITY_RETURN_DEPTH/*9*/
 			&&  eval - futility_margin(depth, improving) >= beta
-			&&  eval < VALUE_KNOWN_WIN) // 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
+			&&  eval < VALUE_KNOWN_WIN + 700)
+			// 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
+			// Stockfishでは、上の最後の条件は、
+			//   &&  eval < 15000) // 50% larger than VALUE_KNOWN_WIN, but smaller than TB wins.
+			// となっているが、StockfishではVALUE_KNOWN_WIN == 10000で、これより十分大きく、
+			// TB winより小さな値として15000となっている。
+			// やねうら王では、VALUE_KNOWN_WINは mateと1000しか離れていないため、
+			// VALUE_KNOWN_WIN +700で代用する。(そこまではfutility pruningして良いという考え)
+			// そこを超えるとmateのスコアになってくるので futilityで刈るのは危ない。
+
 			return eval;
 		// 次のようにするより、単にevalを返したほうが良いらしい。
 		//	 return eval - futility_margin(depth);
@@ -2359,18 +2368,12 @@ namespace {
 				else if (singularBeta >= beta)
 					return singularBeta;
 
-				// If the eval of ttMove is greater than beta we try also if there is another
-				// move that pushes it over beta, if so also produce a cutoff.
+				// If the eval of ttMove is greater than beta, we reduce it (negative extension)
+				// ttMoveのevalがbetaより大きいなら、extensionを減らす(負の延長)
 
 				else if (ttValue >= beta)
-				{
-					ss->excludedMove = move;
-					value = search<NonPV>(pos, ss, beta - 1, beta, (depth + 3) / 2, cutNode);
-					ss->excludedMove = MOVE_NONE;
+					extension = -2;
 
-					if (value >= beta)
-						return beta;
-				}
 			}
 
 			// Capture extensions for PvNodes and cutNodes
@@ -2679,13 +2682,18 @@ namespace {
 					for (Move* m = (ss + 1)->pv; *m != MOVE_NONE; ++m)
 						rm.pv.push_back(*m);
 
-					// We record how often the best move has been changed in each
-					// iteration. This information is used for time management and LMR
-
+					// We record how often the best move has been changed in each iteration.
+					// This information is used for time management and LMR. In MultiPV mode,
+					// we must take care to only do this for the first PV line.
+					//
 					// bestMoveが何度変更されたかを記録しておく。
 					// これが頻繁に行われるのであれば、思考時間を少し多く割り当てる。
+					//
+					// !thisThread->pvIdx という条件を入れておかないとMultiPVで
+					// time managementがおかしくなる。
 
-					if (moveCount > 1)
+					if (   moveCount > 1
+						&& !thisThread->pvIdx)
 						++thisThread->bestMoveChanges;
 
 				} else {
