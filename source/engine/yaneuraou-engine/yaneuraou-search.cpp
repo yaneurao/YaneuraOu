@@ -2463,17 +2463,12 @@ namespace {
 
 			if (    depth >= 3
 				&&  moveCount > 1 + 2 * rootNode
-				&& (  !captureOrPawnPromotion
-					|| (cutNode && (ss - 1)->moveCount > 1)
-					|| !ss->ttPv)
-				&& (!PvNode || ss->ply > 1 || thisThread->id() % 4 != 3))
+				&& (   !ss->ttPv
+					|| !captureOrPawnPromotion
+					|| (cutNode && (ss-1)->moveCount > 1)))
 			{
 				// Reduction量
 				Depth r = reduction(improving, depth, moveCount, rangeReduction > 2);
-
-				// PV nodeではreductionしない。
-				if (PvNode)
-					r--;
 
 				// Decrease reduction at some PvNodes (~2 Elo)
 				// PvNodeでのreductionを減らす。
