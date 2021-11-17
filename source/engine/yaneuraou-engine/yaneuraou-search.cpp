@@ -1565,9 +1565,10 @@ namespace {
 	    // At non-PV nodes we check for an early TT cutoff
 		// 置換表の値による枝刈り
 
-		if (  !PvNode        // PV nodeでは置換表の指し手では枝刈りしない(PV nodeはごくわずかしかないので..)
-			&& ss->ttHit         // 置換表の指し手がhitして
-			&& tte->depth() >= depth   // 置換表に登録されている探索深さのほうが深くて
+		if (  !PvNode                  // PV nodeでは置換表の指し手では枝刈りしない(PV nodeはごくわずかしかないので..)
+			&& ss->ttHit               // 置換表の指し手がhitして
+			&& tte->depth() > depth - (thisThread->id() % 2 == 1)   // 置換表に登録されている探索深さのほうが深くて
+									   // ↑ スレッドごとに探索がばらけるように。
 			&& ttValue != VALUE_NONE   // (VALUE_NONEだとすると他スレッドからTTEntryが読みだす直前に破壊された可能性がある)
 			&& (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
 				                : (tte->bound() & BOUND_UPPER))
@@ -2388,20 +2389,20 @@ namespace {
 			// ※　将棋においてはこれはやりすぎの可能性も..
 
 			// 静的評価に基づく王手延長。この前提条件、パラメーター調整したほうがいいかも。
+			// →　将棋では王手はわりと続くので明らかにやりすぎ。
 			else if (   givesCheck
 					 && depth > 6
-					 && abs(ss->staticEval) > Value(100))
+					 && abs(ss->staticEval) > 100)
 				extension = 1;
 
-			// Last captures extension
+			// Quiet ttMove extensions
+			// PV nodeで quietなttは良い指し手のはずだから延長するというもの。
 
-			// 最後に捕獲した駒による延長
-			// 捕獲した駒の終盤での価値がPawnより大きく、詰みに直結しそうなら延長する。
-			// 将棋では駒は終盤で増えていくので関係なさげ。
-
-			//else if (PieceValue[EG][pos.captured_piece()] > PawnValueEg
-			//	&& pos.non_pawn_material() <= 2 * RookValueMg)
-			//	extension = 1;
+			else if (   PvNode
+				&& move == ttMove
+				&& move == ss->killers[0]
+				&& (*contHist[0])[movedPiece][to_sq(move)] >= 10000)
+				extension = 1;
 
 			// -----------------------
 			//   1手進める前の枝刈り
