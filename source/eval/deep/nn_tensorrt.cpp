@@ -81,6 +81,7 @@ namespace Eval::dlshogi
 		// host(GPU側)に同じだけメモリを確保しておいて、CPU側からそこに転送する。
 		set_device(gpu_id);
 
+		checkCudaErrors(cudaStreamCreate(&stream));
 		checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(NN_Input1)        * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(NN_Input2)        * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&y1_dev, sizeof(NN_Output_Policy) * max_batch_size));
@@ -104,6 +105,7 @@ namespace Eval::dlshogi
 			set_device(gpu_id);
 
 			// メモリの開放
+			checkCudaErrors(cudaStreamDestroy(stream));
 			checkCudaErrors(cudaFree(x1_dev));
 			checkCudaErrors(cudaFree(x2_dev));
 			checkCudaErrors(cudaFree(y1_dev));
@@ -342,12 +344,22 @@ namespace Eval::dlshogi
 		context->setBindingDimensions(0, inputDims1);
 		context->setBindingDimensions(1, inputDims2);
 
+#if 1
+		checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(NN_Input1) * batch_size, cudaMemcpyHostToDevice, stream));
+		checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(NN_Input2) * batch_size, cudaMemcpyHostToDevice, stream));
+		const bool status = context->enqueue(batch_size, inputBindings.data(), stream, nullptr);
+		ASSERT_LV3(status);
+		checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(NN_Output_Policy) * batch_size, cudaMemcpyDeviceToHost, stream));
+		checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(NN_Output_Value ) * batch_size, cudaMemcpyDeviceToHost, stream));
+		checkCudaErrors(cudaStreamSynchronize(stream));
+#else
 		checkCudaErrors(cudaMemcpy(x1_dev, x1, sizeof(NN_Input1) * batch_size, cudaMemcpyHostToDevice));
 		checkCudaErrors(cudaMemcpy(x2_dev, x2, sizeof(NN_Input2) * batch_size, cudaMemcpyHostToDevice));
 		const bool status = context->executeV2(inputBindings.data());
 		ASSERT_LV3(status);
 		checkCudaErrors(cudaMemcpy(y1, y1_dev, sizeof(NN_Output_Policy) * batch_size, cudaMemcpyDeviceToHost));
 		checkCudaErrors(cudaMemcpy(y2, y2_dev, sizeof(NN_Output_Value ) * batch_size, cudaMemcpyDeviceToHost));
+#endif
 	}
 
 } // namespace Eval::dlshogi
