@@ -76,7 +76,6 @@ void USI::extra_option(USI::OptionsMap& o)
 	// しておき、ユーザーからは触れない(触らなくても良い)ようにしておく。
 	// →　dlshogiはoptimizerで最適化するために外だししているようだ。
 
-#if 0
 	// fpu_reductionの値を100分率で設定。
 	// c_fpu_reduction_rootは、rootでのfpu_reductionの値。
     o["C_fpu_reduction"]             << USI::Option(27, 0, 100);
@@ -87,7 +86,6 @@ void USI::extra_option(USI::OptionsMap& o)
     o["C_init_root"]                 << USI::Option(116, 0, 500);
     o["C_base_root"]                 << USI::Option(25617, 10000, 100000);
 
-#endif
 	// 探索のSoftmaxの温度
 	o["Softmax_Temperature"]		 << USI::Option( 1740 /* 方策分布を学習させた場合、1400から1500ぐらいが最適値らしいが… */ , 1, 5000);
 
@@ -214,9 +212,7 @@ void Search::clear()
 
 	// EvalDir　　　 →　dlshogiではサポートされていないが、やねうら王は、EvalDirにあるモデルファイルを読み込むようにする。
 
-	// 以下も、探索パラメーターだから、いらない。開発側が最適値にチューニングすべきという考え。
-	// C_fpu_reduction , C_fpu_reduction_root , C_init , C_base , C_init_root , C_base_root
-#if 0
+	auto& search_options = searcher.search_options;
 	search_options.c_fpu_reduction      =                Options["C_fpu_reduction"     ] / 100.0f;
 	search_options.c_fpu_reduction_root =                Options["C_fpu_reduction_root"] / 100.0f;
 
@@ -224,8 +220,6 @@ void Search::clear()
 	search_options.c_base               = (NodeCountType)Options["C_base"              ];
 	search_options.c_init_root          =                Options["C_init_root"         ] / 100.0f;
 	search_options.c_base_root          = (NodeCountType)Options["C_base_root"         ];
-
-#endif
 
 	// softmaxの時のボルツマン温度設定
 	// これは、dlshogiの"Softmax_Temperature"の値。(1740) = 1.740

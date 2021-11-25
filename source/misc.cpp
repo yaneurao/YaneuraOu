@@ -1979,6 +1979,16 @@ namespace StringExtension
 		return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 	};
 
+	// 文字列valueに対して文字xを文字yに置換した新しい文字列を返す。
+	std::string Replace(std::string const& value, char x, char y)
+	{
+		std::string r(value);
+		for (size_t i = 0; i < r.size(); ++i)
+			if (r[i] == x)
+				r[i] = y;
+		return r;
+	}
+
 };
 
 // ----------------------------

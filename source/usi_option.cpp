@@ -325,18 +325,26 @@ namespace USI {
 	// "option name USI_Hash type spin default 256"
 	// のような文字列が引数として渡される。
 	// このとき、Optionのhandlerとidxは書き換えない。
-	void build_option(std::string line)
+	void build_option(const std::string& line)
 	{
-		Parser::LineScanner scanner(line);
+		// 1. "option ..."の形式
+
+		// 2. エンジンオプション名と値だけを指定する形式で書かれているのかも知れない。
+		// (既存のオプションの値のoverrideがしたい場合)
+
+		// 3. オプション名=値 のような形式かも知れない(dlshogiの.iniはそうなっている)
+		// その形式にも対応する必要がある。
+		// よって、最初に"="を" "に置換してしまう。そうすれば、3.は、2.の形式と同じになる。
+
+		const auto& line2 = StringExtension::Replace(line,'=', ' ');
+
+		Parser::LineScanner scanner(line2);
 		string token0 = scanner.get_text();
 		if (token0 != "option")
 		{
 			// 空行は無視
 			if (token0 == "")
 				return;
-
-			// エンジンオプション名と値だけを指定する形式で書かれているのかも知れない。
-			// 既存のオプションの値のoverrideがしたいのだろう。
 
 			auto it = Options.find(token0);
 			if (it == Options.end())

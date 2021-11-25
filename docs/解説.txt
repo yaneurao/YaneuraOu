@@ -531,6 +531,10 @@ BookMoves 16
 // この場合、BookMovesの最小値 = 最大値 = default値 = 16となります。
 // minとmaxが同じ値なのでGUI側から値の変更はできません。
 
+dlshogiの.iniファイルと同じく、オプション名=値という書き方もできるようにしました。
+例3)
+c_init=144
+
 
 ■　評価関数ファイルに応じたエンジンオプション
 
@@ -959,6 +963,7 @@ https://github.com/TadaoYamaoka/DeepLearningShogi/releases/tag/denryu2020
 	を書き出す。
 
 	前者は、スーパーテラショック定跡コマンドで生成された定跡。(デフォルトでは book/write_book.db として書き出されている)
+
 
 ■　定跡の変換コマンド
 

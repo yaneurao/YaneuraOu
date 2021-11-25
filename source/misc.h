@@ -992,6 +992,9 @@ namespace StringExtension
 	// 文字列valueが、文字列endingで終了していればtrueを返す。
 	extern bool EndsWith(std::string const& value, std::string const& ending);
 
+	// 文字列valueに対して文字xを文字yに置換した新しい文字列を返す。
+	extern std::string Replace(std::string const& value, char x, char y);
+
 };
 
 // --------------------
@@ -1021,6 +1024,13 @@ namespace Concurrent
 			lk.unlock();
 			cond_.notify_one();
 			return val;
+		}
+
+		// [ASYNC] 先頭要素を返す。
+		T& front() {
+			// dequeは再配置しないことが保証されている。
+			// そのためread-onlyで取得するだけならlock不要。
+			return queue_.front();
 		}
 
 		// [ASYNC] Queueのpush(queueに要素を一つ追加する)

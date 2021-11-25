@@ -395,13 +395,29 @@ USIプロトコルの独自拡張コマンド
 		- dlshogiの同名のオプションと同じ機能。
 			- https://tadaoyamaoka.hatenablog.com/entry/2021/10/19/230601
 
+	// 以下の6パラメーターはdlshogiと同じ。
+	C_fpu_reduction , C_fpu_reduction_root , C_init , C_base, C_init_root , C_base_root
+
 
 	★　dlshogiとの違いについて
 
 		// EvalDir　　　 →　dlshogiではサポートされていないが、やねうら王は、EvalDirにあるモデルファイルを読み込むようにする。
 
-		// 以下も、探索パラメーターだから、いらない。開発側が最適値にチューニングすべきという考え。
-		// C_fpu_reduction , C_fpu_reduction_root , C_init , C_base , C_init_root , C_base_root
+		dlshogiは、モデルファイル名が model-dr2_exhi.onnx の時、model-dr2_exhi.onnx.ini にオプション設定を書けるようになっている。
+		やねうら王は、EvalDirで指定したフォルダのなかにある eval_options.txt にオプション設定を書けるようになっている。
+		// よって、dlshogiの model-dr2_exhi.onnx.ini を、やねうら王の eval/eval_options.txt にコピーすればそのまま動く。
+
+		その書式は、
+			エンジンオプション名 = 値
+		のように書ける。(やねうら王、dlshogi共通)
+
+		例)
+		C_init=127
+		C_base=27126
+		C_fpu_reduction=31
+		C_init_root=112
+		C_base_root=33311
+		Softmax_Temperature=140
 
 
 ・getoption
