@@ -358,9 +358,12 @@
 // 通例hash keyは64bitだが、これを128にするとPosition::state()->long_key()から128bit hash keyが
 // 得られるようになる。研究時に局面が厳密に合致しているかどうかを判定したいときなどに用いる。
 // 実験用の機能なので、128bit,256bitのhash keyのサポートはAVX2のみ。
+#if !defined(HASH_KEY_BITS) // Makefileの方から指定されているかも知れない。
 #define HASH_KEY_BITS 64
 //#define HASH_KEY_BITS 128
 //#define HASH_KEY_BITS 256
+// 注意 : ふかうら王で、スーパーテラショック定跡の生成を行う時は、HASH_KEY_BITSを128に設定すること。
+#endif
 
 // 通常探索時の最大探索深さ
 constexpr int MAX_PLY_NUM = 246;
