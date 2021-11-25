@@ -2395,8 +2395,8 @@ namespace {
 				extension = 1;
 #endif
 
-			// →　王手延長は、開き王手と駒得しながらの王手に限定する。
-			// 　　上の前2つの条件も悪くはないだろうから入れておく。
+			// →　王手延長は、開き王手と駒得しながらの王手に限定する。(こっちにした方が、+R20ぐらい強い。)
+			// 　　上の前2つの条件も悪くはないだろうから入れておく。(入れたほうが+R10ぐらい強い)
 			else if (givesCheck
 				&& depth > 6
 				&& abs(ss->staticEval) > 100
@@ -2761,6 +2761,9 @@ namespace {
 
 			if (move != bestMove)
 			{
+				 bool captureOrPromotion = captureOrPawnPromotion || is_promote(move);
+				// ↑これを用いて↓ではcaptureOrPromotionを使った方が+R10ぐらい強いみたい？
+
 				// 探索した駒を捕獲する指し手を32手目まで
 				if (captureOrPawnPromotion && captureCount < 32)
 					capturesSearched[captureCount++] = move;
