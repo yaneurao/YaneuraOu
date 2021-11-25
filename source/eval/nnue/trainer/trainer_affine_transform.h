@@ -254,13 +254,13 @@ class Trainer<Layers::AffineTransform<PreviousLayer, OutputDimensions>> {
   // パラメータの整数化で用いる係数
   static constexpr LearnFloatType kActivationScale =
       std::numeric_limits<std::int8_t>::max();
-  static constexpr LearnFloatType kBiasScale = kIsOutputLayer ?
-      (kPonanzaConstant * FV_SCALE) :
-      ((1 << kWeightScaleBits) * kActivationScale);
-  static constexpr LearnFloatType kWeightScale = kBiasScale / kActivationScale;
+  const LearnFloatType kBiasScale = kIsOutputLayer ?
+      (LearnFloatType)(kPonanzaConstant * FV_SCALE) :
+      (LearnFloatType)((1 << kWeightScaleBits) * kActivationScale);
+  const LearnFloatType kWeightScale = kBiasScale / kActivationScale;
 
   // パラメータの整数化でオーバーフローさせないために用いる重みの絶対値の上限
-  static constexpr LearnFloatType kMaxWeightMagnitude =
+  const LearnFloatType kMaxWeightMagnitude =
       std::numeric_limits<typename LayerType::WeightType>::max() / kWeightScale;
 
   // ミニバッチのサンプル数

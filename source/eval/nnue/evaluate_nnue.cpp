@@ -21,6 +21,8 @@ namespace Eval {
 
     namespace NNUE {
 
+		int FV_SCALE = 16; // 水匠5では24がベストらしいのでエンジンオプション"FV_SCALE"で変更可能にした。
+
         // 入力特徴量変換器
         AlignedPtr<FeatureTransformer> feature_transformer;
 

@@ -132,6 +132,11 @@ void USI::extra_option(USI::OptionsMap & o)
 
 	// fail low/highのときにPVを出力するかどうか。
 	o["OutputFailLHPV"] << Option(true);
+
+#if defined(YANEURAOU_ENGINE_NNUE)
+	// NNUEのFV_SCALEの値
+	o["FV_SCALE"] << Option(16, 1, 128);
+#endif
 }
 
 // パラメーターのランダム化のときには、
@@ -142,6 +147,13 @@ void gameover_handler(const std::string& cmd)
 	result_log << cmd << std::endl << std::flush;
 #endif
 }
+
+#if defined(YANEURAOU_ENGINE_NNUE)
+void init_fv_scale() {
+	Eval::NNUE::FV_SCALE = (int)Options["FV_SCALE"];
+}
+#endif
+
 
 // "isready"に対して探索パラメーターを動的にファイルから読み込んだりして初期化するための関数。
 void init_param();
@@ -406,6 +418,15 @@ void Search::clear()
 	TT.clear();
 	Threads.clear();
 	//	Tablebases::init(Options["SyzygyPath"]); // Free up mapped files
+
+	// -----------------------
+	//   評価関数の定数を初期化
+	// -----------------------
+
+#if defined(YANEURAOU_ENGINE_NNUE)
+	init_fv_scale();
+#endif
+
 }
 
 /// MainThread::search() is started when the program receives the UCI 'go'
@@ -3898,6 +3919,10 @@ namespace Learner
 			// 探索前に自分(のスレッド用)の置換表の世代カウンターを回してやる。
 			th->tt.new_search();
 		}
+
+#if defined(YANEURAOU_ENGINE_NNUE)
+		init_fv_scale();
+#endif
 	}
 
 	// 読み筋と評価値のペア。Learner::search(),Learner::qsearch()が返す。

@@ -296,6 +296,12 @@ USIプロトコルの独自拡張コマンド
     info time 1317 nodes 1781726 nps 1352867 hashfull 35 pv 7f8e 6c6b G*5b 6a5b 8e5b 6b5b P*5c 5b6c B*7d 6c5c R*5b 5c4d N*3f 2e3f G*3d 4d3d 5b3b+ R*3c P*3e 3d2d 3b3c 2d3c G*3d 3c2b L*2c 2b3a R*4a 3a3b 4a2a+ 3b4b 2a4a 4b5c 4a5b
     checkmate 7f8e 6c6b G*5b 6a5b 8e5b 6b5b P*5c 5b6c B*7d 6c5c R*5b 5c4d N*3f 2e3f G*3d 4d3d 5b3b+ R*3c P*3e 3d2d 3b3c 2d3c G*3d 3c2b L*2c 2b3a R*4a 3a3b 4a2a+ 3b4b 2a4a 4b5c 4a5b
 
+	// やねうら王NNUE 用の追加オプション
+
+	FV_SCALE
+		評価関数の計算の時に、最終的にいくらで割って整数値にするかの値。
+		default = 16なので、例えば48なら48/16 = 3という評価値になる。
+		水匠5ではFV_SCALE = 24にしたほうが強いらしいので調整できるようにした。
 
 
 	// ふかうら王(dlshogi互換エンジン)の場合
