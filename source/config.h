@@ -8,7 +8,7 @@
 
 // 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列。
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
-#define ENGINE_VERSION "6.50"
+#define ENGINE_VERSION "7.00beta"
 
 // --------------------
 //  思考エンジンの種類
@@ -479,7 +479,7 @@ constexpr int MAX_PLY_NUM = 246;
 #if defined(YANEURAOU_ENGINE_DEEP)
 
 	#define ENGINE_NAME "FukauraOu"
-	#define EVAL_DEEP "dlshogi-denryu2020"
+	#define EVAL_DEEP "dlshogi-denryu2021"
 	#define USE_EVAL
 	#define USE_TIME_MANAGEMENT
 	#define USE_ENTERING_KING_WIN

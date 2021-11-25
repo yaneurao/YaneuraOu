@@ -2,6 +2,601 @@
 やねうら王 更新履歴
 
 
+■　2021/11/26 V7.00beta
+
+
+- やねうら王 V7.00beta
+
+
+- HASH_KEY_BITS、Makefileの方から変更できるようにした。
+	- スーパーテラショック定跡を生成するとき128を指定してコンパイルした実行ファイルを使いたい。
+
+
+- やねうら王TheClusterその1(まだ書きかけ)
+
+
+- "test evalsave"コマンド復活。これがないと空の評価関数ファイルを作る時に困るのだった。
+	- たまさんからの指摘。
+
+
+- ふかうら王のエンジンオプションに以下の6パラメーターを追加。(dlshogiにあるのと同じ意味)
+	C_fpu_reduction , C_fpu_reduction_root , C_init , C_base, C_init_root , C_base_root
+
+- dlshogiのモデルの設定ファイルと互換性をもたせる。
+
+第2回世界将棋AI電竜戦エキシビジョンバージョン
+https://github.com/TadaoYamaoka/DeepLearningShogi/releases/tag/dr2_exhi
+
+// 以下のパラメーターをふかうら王に追加し、dlshogiと同じ設定ファイルが使えるようにする。
+
+	C_init=127
+	C_base=27126
+	C_fpu_reduction=31
+	C_init_root=112
+	C_base_root=33311
+	Softmax_Temperature=140
+
+dlshogiは、モデルファイル名が model-dr2_exhi.onnx の時、model-dr2_exhi.onnx.ini にオプション設定を書けるようになっている。
+やねうら王は、EvalDirで指定したフォルダのなかにある eval_options.txt にオプション設定を書けるようになっている。
+// よって、dlshogiの model-dr2_exhi.onnx.ini を、やねうら王の eval/eval_options.txt にコピーすればそのまま動く。
+
+- engine_options.txt , eval_options.txt は、
+1. option name UCT_Threads1 type spin default 2 min 0 max 256 のような形式("usi"コマンドに対してエンジンが返してくる形式)
+2. オプション 値
+3. オプション名=値
+の3通りの書き方ができるようにした。(以前は、1.と2.だけサポートしていた。今回dlshogiの.iniを読み込むために3.の形式をサポートすることにした)
+
+
+- NNUEのエンジンオプションにFV_SCALE追加。
+	- 水匠5ではFV_SCALE = 24にしたほうが強いらしいので。
+
+
+■　2021/11/25
+
+
+- やねうら王探索パラメーター刷新。(+R15)
+
+
+- やねうら王探索、capturesSearchedに追加する条件、調整。(+R10)
+
+
+- 王手延長の条件を調整する。
+	- たややんさんからの報告。
+
+	// 将棋では王手はわりと続くのでStockfishのコードは明らかにやりすぎ。
+	else if (   givesCheck
+				&& depth > 6
+				&& abs(ss->staticEval) > 100)
+		extension = 1;
+
+	以下のようにする。
+
+	// 王手延長は、開き王手と駒得しながらの王手に限定する。
+	else if (givesCheck
+		&& depth > 6
+		&& abs(ss->staticEval) > 100)
+		&& (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move)))
+		extension = 1;
+
+
+- TensorRT: 転送・推論を非同期に行う #211 (Mizarさんのプルリク)
+
+	cudaStream_t stream はこのPRではGPUごとに持っていますが、推論自体を並列に行いたい時は context, stream, inputDims1, inputDims2, x1_dev, x2_dev, y1_dev, y2_dev などは探索スレッドごとに持つように変更した方が良いかもしれません。（推測であり未確認）
+
+	参考:
+	ふかうら王 アピール文章
+	https://drive.google.com/open?id=1aO0gLSYvhph1uL_gaaohLYWTMpe1BdA8
+
+
+
+- NNUEにHalfKP_vmの評価巻数を追加 #212
+	- https://github.com/yaneurao/YaneuraOu/pull/212 (tanuki-さんのプルリク)
+	- @nodchip : 第 2 回世界将棋 AI 電竜戦本戦で「タヌキの為に鐘は鳴る」が採用した、HalfKP_vm の PR です。よろしくお願いいたします。
+
+
+	* HalfKP_vmを追加した
+
+	# Conflicts:
+	#	source/YaneuraOu.vcxproj.filters
+
+	* halfkp_vm_256x2-32-32.hを追加した
+
+	# Conflicts:
+	#	source/YaneuraOu.vcxproj
+	#	source/eval/nnue/nnue_architecture.h
+
+	* HalfKP_vmの駒インデックスの誤りを修正した
+
+	* Makefileでhalfkp_vm_256x2-32-32を指定できるようにした
+
+	# Conflicts:
+	#	source/Makefile
+
+	# Conflicts:
+	#	source/Makefile
+	#	source/eval/nnue/nnue_architecture.h
+
+
+
+■　2021/11/17
+
+
+- 王手延長の条件を調整する。
+	- たややんさんからの報告。
+
+	// 将棋では王手はわりと続くのでStockfishのコードは明らかにやりすぎ。
+	else if (   givesCheck
+				&& depth > 6
+				&& abs(ss->staticEval) > 100)
+		extension = 1;
+
+	以下のようにする。
+
+	// 王手延長は、開き王手と駒得しながらの王手に限定する。
+	else if (givesCheck
+		&& depth > 6
+		&& abs(ss->staticEval) > 100)
+		&& (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move)))
+		extension = 1;
+
+
+
+V650k
+
+- Simplify Pv nodes related logic in LMR : https://github.com/official-stockfish/Stockfish/commit/f5df517145890ecee3d855e98470241b68645b87
+- Simplify LMR multiThread condition : https://github.com/official-stockfish/Stockfish/commit/1163d972a9a1e480d9130c5fabbf869cdb7f7ecb
+
+
+V650j
+
+- Time-management fix in MultiPV mode. : https://github.com/official-stockfish/Stockfish/commit/371b522e9ed9cab91274ff111c0bf4b0f6ec3340
+	- MultiPVでtime managementがおかしかった原因。
+- More futility pruning : https://github.com/official-stockfish/Stockfish/commit/11c6cf720d4cdd882bc0f2c36e25910cf77fb57b
+- Simplify multi-cut condition : https://github.com/official-stockfish/Stockfish/commit/673841301b0cc6ed78c4db3e6ec2a0b9a010c8cb
+
+
+V650i
+
+- Increase TTdepth acceptance some Threads : https://github.com/official-stockfish/Stockfish/commit/927a84d310fb41222518ea80d398933a0ba3e5b7
+
+- Extend quiet tt moves at PvNodes : https://github.com/official-stockfish/Stockfish/commit/21ad356c0900c9eba9b7b1f7453f934eab80f303
+	- PV nodeで quietなttは良い指し手のはずだから延長するというもの。
+
+- ソースから取り除く
+```
+		// Last captures extension
+
+		// 最後に捕獲した駒による延長
+		// 捕獲した駒の終盤での価値がPawnより大きく、詰みに直結しそうなら延長する。
+		// 将棋では駒は終盤で増えていくので関係なさげ。
+
+		//else if (PieceValue[EG][pos.captured_piece()] > PawnValueEg
+		//	&& pos.non_pawn_material() <= 2 * RookValueMg)
+		//	extension = 1;
+```
+
+
+V650h
+
+- Simplify probCutCount away : https://github.com/official-stockfish/Stockfish/commit/67d06164833857d3497010e952fd0d2c5f00c095
+	- probCutCount要らなかったらしい…。
+
+- Compute ttCapture earlier : https://github.com/official-stockfish/Stockfish/commit/580698e5e57f40dcba52b92a7f0c7a0e9ab09437
+	- ttCaptureの値を早めに計算してこれで枝刈りするようにした。
+	- 枝刈り条件がcaptureOrPawnPromotionに変わった影響が出るかも。
+
+- Do more deeper LMR searches. : https://github.com/official-stockfish/Stockfish/commit/a8330d5c3bfeb4c9d5c55083223792e0989bb9c6
+
+
+V650g
+
+- do not store qsearch positions in TT as exact. : https://github.com/official-stockfish/Stockfish/commit/45e5e65a28ce7e304c279fabf5f8a83cced73013
+	- oldAlpha変数が除去された。
+	- qsearchした局面を置換表にexactとして保存しなくなった。
+	- Mateが出て詰まし損なうことがあったの、これが原因か？
+
+
+V650f
+
+- Smooth improving : https://github.com/official-stockfish/Stockfish/commit/4231d99ab408674115623f42f7ff89f3f189ca23
+	- PARAM_NULL_MOVE_MARGIN3の意味が変わったので注意。
+
+
+V650e
+
+- Remove noLMRExtension flag : https://github.com/official-stockfish/Stockfish/commit/8a74c089286913f24a641aa37532006088d0f438
+
+- Simplify Skill implementation : https://github.com/official-stockfish/Stockfish/commit/ef4822aa8d5945d490acca674eb1db8c3c38e9d5
+	- SkillLevelというハンデ用のオプションの実装を単純化するだけなので通常対局の棋力には影響しないはず。
+
+
+V650d
+
+- Capping stat bonus at 2000 : https://github.com/official-stockfish/Stockfish/commit/54a989930ebed200c3278c725151e26a2c0da37a
+	- stat bonusは2000でcapする。(最大値を2000にする)
+
+- Range reductions : https://github.com/official-stockfish/Stockfish/commit/00e34a758f2ca170986550a1f8f25dfe691ca511
+	- adding reductions for when the delta between the static eval and the child's eval is consistently low.
+
+- このコード削除
+#if 1
+		// 【計測資料 37.】 update_quiet_stats()で、歩以外に対してreverse_moveにペナルティ。
+
+		if (type_of(pos.moved_piece_after(move)) != PAWN && !is_drop(move))
+			thisThread->mainHistory[from_to(reverse_move(move))][us] << -bonus;
+#endif
+
+V650c
+- Tweak initial aspiration window. : https://github.com/official-stockfish/Stockfish/commit/a0259d8ab9661b7f625474d2cbe18481ef69bbf2
+
+
+■　2021/11/16
+
+
+- スーパーテラショック定跡、探索部のソースコード整理。
+
+
+Fix processor group binding under Windows. :  https://github.com/official-stockfish/Stockfish/commit/9048ac00db12a9ac48bff9b9eb145b30ff88d984
+	- Windows Build 20348からNUMA APIの挙動が変更になるらしく、その対策。
+
+
+V650b
+- Reduce more if multiple moves exceed alpha : https://github.com/official-stockfish/Stockfish/commit/c8459b18ba2d6ddc76d6db90d6eab346ed682e69
+	- あるnodeでalphaが更新された回数を記録して枝刈りに利用する。
+- Do more reductions at Pv nodes with low delta : https://github.com/official-stockfish/Stockfish/commit/c2b9134c6e7637ea375b4755a6f96dc772c6bb17
+- Simplify Pv nodes related logic in LMR : https://github.com/official-stockfish/Stockfish/commit/f5df517145890ecee3d855e98470241b68645b87
+- Reduce use of lazyEval : https://github.com/official-stockfish/Stockfish/commit/7b278aab9f61620b9dba31896b38aeea1eb911e2
+	- これ、evaluateの評価を遅延させていないので、やねうら王では影響受けない。
+	- 単にThreadクラスにbestevalが移動しただけ。
+
+V650a
+- Simplify ttHitAverage away : https://github.com/official-stockfish/Stockfish/commit/0bddd942b4d096ff31132a4c3e7aef016d0f2d41
+- Adjust ButterflyHistory decay parameter : https://github.com/official-stockfish/Stockfish/commit/2c86ae196df8b2a1197e0de1853a6458e404a976
+
+
+■　2021/11/09
+
+- スーパーテラショック定跡、banned_nodesの取り扱いが間違っていたの修正。
+- テラショック化コマンド、循環を許すようにした。(変換が組み合わせ爆発を起こして終わらないので…)
+- Concurrent::ConcurrentSet追加。
+
+
+■　2021/11/08
+
+
+- スーパーテラショック定跡のテラショック化コマンド("makebook stera_convert")で、leaf nodeまでのdepthをdepthとして出力するようにした。
+	- 千日手手順は長くなるほうを選択したいのだが、leaf nodeまでのdepthが深いほうに加点して、alpha-beta探索を行う場合、
+	先後協力して(飛車を無駄に動かし合うなど)、depth伸ばしたほうが得となってしまう。
+	// 定跡掘ってる時に、組み上げた局面で手待ちのためにそういう手順が可能な局面がある。
+	- 仕方ないので、テラショック化の時はvalueが同じ時にdepthを優先しないようにする。色々難しいんだな…ほえほえ。
+	- 自分(root)が先手だとして、先手は最長、後手は最短を目指すべきではある。(以前作ったテラショック化コマンドはそうしてあるが、
+	　あれ実装が複雑になる＆遅いんだよな…)
+	- どのみち、自分が最長、相手が最短にしようとする場合でも、飛車だけそれとなく動かし続けて手待ちできる場合、すごく長手順の千日手に
+	  なる可能性はあって、そういう時に長手数で千日手になるほうを定跡として目指すのが正しいかというとそうではないから…。
+	  単純に手数が最長になるところを目指すのは無理がある。
+
+
+
+■　2021/11/07
+
+
+- スーパーテラショック定跡、千日手局面を自動的にbanする仕組みを導入。
+	- banされている局面数を定期的に出力する
+	- ranged_alpha_beta_loopをインクリメントするのやめる。
+
+
+- スーパーテラショック定跡、千日手局面に到達して思考対象局面がなくなってしまう時のリカバー処理追加。
+
+
+- 定跡の書き出しをTextWriterクラスを用いて高速化。
+
+
+■　2021/11/04
+
+
+- "makebook extract_sfen_from_db"コマンド追加。
+- "makebook extract_sfen_from_sfen"コマンド追加。
+
+- SystemIO::TextWriter追加。わりと速い。
+
+- スーパーテラショック定跡生成部、gccで警告でてたの修正。
+
+- 定跡ファイルBOMついてても、二分探索する時に先頭行はヘッダ行だから関係なくて、うまくprobeできるような気がしてきた。
+
+
+■　2021/11/03
+
+
+- TensorRT8以降に対応
+	https://github.com/yaneurao/YaneuraOu/pull/210 (Mizarさんのプルリク)
+
+	* - TensorRT8 : `deserializeCudaEngine()` を2引数に変更
+	  3引数のものはTensorRT8以降、非推奨。
+	  https://docs.nvidia.com/deeplearning/tensorrt/api/c_api/deprecated.html
+	  TensorRT 7.2.3 API : https://docs.nvidia.com/deeplearning/tensorrt/archives/tensorrt-723/api/c_api/classnvinfer1_1_1_i_runtime.html#a8821d6dbbc7bcec2da4ae8ebd927eb89
+	  TensorRT 8.2.0 API : https://docs.nvidia.com/deeplearning/tensorrt/archives/tensorrt-820-ea/api/c_api/classnvinfer1_1_1_i_runtime.html#aa0fa4ae510ad803ac2f0caf5a6abe320
+
+	* - TensorRT8 : `buildEngineWithConfig()` -> `buildSerializedNetwork()`
+	https://docs.nvidia.com/deeplearning/tensorrt/api/c_api/deprecated.html
+
+	* - TensorRT8 : Deprecated `destroy()`
+	https://docs.nvidia.com/deeplearning/tensorrt/api/c_api/deprecated.html
+
+
+- fコマンド追加。
+	- f 1 とやると1.txtからUSIコマンドを読み込みそれを丸ごと実行する。
+	- USI拡張コマンド.txtにその説明を追加。
+
+- SystemIO::ReadAllLines()でutf-8のBOMは読み飛ばすように。
+- SystemIO::TextReader()でもutf-8のBOMは読み飛ばすように。
+	- あとGetLineNumber()追加。
+- 定跡ファイルの読み込みはTextReader()を使っているが、on the flyで読み込む時はそうではないので
+	定跡ファイルはon the flyで読み込むときはutf-8のBOMついてると駄目。
+	なので、結論的には、現時点では定跡ファイルにはBOMつけないで。
+
+- スーパーテラショックコマンドの説明を解説.txtに追加。
+
+
+■　2021/11/01
+
+
+- msys2: pactoys-git -> pactoys #209 (Mizarさんのプルリク)
+
+
+- makebook steraコマンド、search_delta_on_kifが反映していなかったのを修正。
+- misc.cppがコンパイルエラーになっていたの修正。
+
+
+- makebook stera_convertコマンド、パラメータが指定できていなかったのを修正。
+- ProgressBar、"readyok"などにタイミングが被るとGUIが誤動作しかねないので
+	makebookコマンドの時だけ有効にするように変更。
+	learnコマンドもやったほうがいい？
+
+
+■　2021/10/30
+
+
+- スーパーテラショック定跡コマンドでPVが千日手になった時に無限再帰でstack overflowになる問題修正。
+- 定跡の読み込み時にProgressBarを使うようにした。(これUSI違反になるか…？)
+- BinaryReader、method名が小文字から始まっていたのでTextReaderに倣い、大文字から始めるようにした。
+
+
+- スーパーテラショック定跡コマンド、高速化その3
+	- 次に思考するleaf nodeの選出、100倍ぐらい速くなった。
+	- テラショック化コマンドも速くなった？
+
+
+- スーパーテラショック定跡のテラショック化コマンド"makebook stera_convert"追加。(テスト中)
+- BookTools追加。
+- ProgressBar追加。
+
+- misc.hで include <condition_variable> がなくてコンパイルエラーになっていたのを修正
+	- Mizarさんからの指摘
+
+
+- スーパーテラショック定跡、高速化その2。
+	- 別スレッドで思考すべきスレッドを探索する。
+		- GPU利用率ほぼ100%になった。
+	- 定跡DB上に全合法手が存在しないnodeは作り直す。
+	- root_sfens.txtに"startpos moves XX"と書くと指し手が弾かれていたの修正。
+	- root_sfens.txtを指定しない場合、以下の先手の初期局面、後手の初期局面(初期局面から先手が1手指したすべての局面)が用いられるようにした。
+
+// book/root_sfens.txt
+startpos moves 2g2f
+startpos moves 7g7f
+startpos moves 1g1f
+startpos moves 9g9f
+startpos moves 6i7h
+startpos moves 3i3h
+startpos moves 3i4h
+startpos moves 3g3f
+startpos moves 5i6h
+startpos moves 4i5h
+startpos moves 7i6h
+startpos moves 5i5h
+startpos moves 6g6f
+startpos moves 5g5f
+startpos moves 4g4f
+startpos moves 6i6h
+startpos moves 4i4h
+startpos moves 7i7h
+startpos moves 5i4h
+startpos moves 4i3h
+startpos moves 2h3h
+startpos moves 2h6h
+startpos moves 2h5h
+startpos moves 2h4h
+startpos moves 1i1h
+startpos moves 2h1h
+startpos moves 2h7h
+startpos moves 6i5h
+startpos moves 9i9h
+startpos moves 8g8f
+startpos
+
+- Producer Consumer Queueの実装をした。
+	- Concurrent::ConcurrentQueue
+
+
+■　2021/10/29
+
+
+- deep-ubuntu: cuda-toolkit-11-5 #207
+	https://github.com/yaneurao/YaneuraOu/pull/207 (Mizarさんのプルリク)
+
+
+- スーパーテラショック定跡、高速化。
+- 定跡読み込み時に読み込んだ局面数を出力するようにした。
+- hash<Key64>の定義不要だったので削除。
+
+/*
+template <>
+struct std::hash<Key64> {
+	size_t operator()(const Key64& k) const {
+		// 下位bit返すだけで良いのでは？
+		return (size_t)(k);
+	}
+};
+*/
+// →　これは 最初からC++のheader上で定義されているはず。
+
+
+- スーパーテラショック定跡生成ルーチン 作り直した
+	- ranged alpha beta探索、無理があった。
+
+
+■　2021/10/26
+
+
+- スーパーテラショック定跡、deltaを調整
+	- beta cutの時の処理、間違っていたの修正。
+	- デフォルト値を調整。
+	- ranged alpha-beta searchの時もPV出力。
+
+
+
+■　2021/10/25
+
+
+- スーパーテラショック定跡手法による定跡生成コマンド追加。
+	makebook steraコマンド
+	- 簡単な動作は確認した。
+	- 使い方の説明はあとで書く。
+
+
+- ふかうら王、デフォルトで2スレッドに変更。(最近15bを使うことが多くなってきたので)
+- dlshogi::GetSearchResult()追加。これで探索結果を学習部や定跡部に返すことができる。
+- ArgumentParserのソースコメント追加。
+- StringExtension::to_string_with_zero()追加。
+
+
+- HASH_KEY_BITSを128,256にした時にコンパイルエラーになっていたの修正。
+- std::unordered_set/mapにHASH_KEYが、HASH_KEY_BITSが128,256の時に使えなかった問題を修正。
+- eval_coefのコメント、紛らわしかったので修正。
+
+
+- ふかうら王のTensorRT版のビルド、CUDA 11.4→CUDA 11.5を参照するように変更。
+
+
+■　2021/10/22
+
+
+- msys2 toolchain llvm-13, gcc-11.2 (add arch AVXVNNI, ZEN3) #205
+	- https://github.com/yaneurao/YaneuraOu/pull/205 (Mizarさんのプルリク)
+
+	https://twitter.com/msys2org/status/1451060685044129795
+	Toolchain updates: clang/llvm 12.0.1 → 13.0.0 and gcc 10.3 → 11.2
+	msys2 toolchain の更新に伴い、 ZEN3, AVXVNNI を msys2 でのビルドテストおよびリリースビルドの対象に加えるよう変更します。
+
+
+- cuda-11.4 の明示 #204
+	- https://github.com/yaneurao/YaneuraOu/pull/204 (Mizarさんのプルリク)
+
+	CUDA Toolkit 11.5 Downloads : https://developer.nvidia.com/cuda-downloads
+	NVIDIA CUDA Toolkit Release Notes : https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
+	CUDA Toolkit 11.5 のリリースに伴ってなのか、TensorRT版のビルドテストにおいてincludeファイルが見つからなくなるエラーが発生しているため、当面は /usr/local/cuda/ ではなく、明示的に /usr/local/cuda-11.4/ 以下を見るよう変更します。
+
+
+■　2021/10/20
+
+
+- ふかうら王 Eval_Coefオプション追加。
+	- dlshogiで追加されたやつ
+		- https://tadaoyamaoka.hatenablog.com/entry/2021/10/19/230601
+		- https://github.com/TadaoYamaoka/DeepLearningShogi/commit/b7f0a8773bb38e30bd4fa347d0ccd1c260868e35
+
+
+- graviton2 build test #202
+	- https://github.com/yaneurao/YaneuraOu/pull/202 (Mizarさんのプルリク)
+
+	Graviton2 向けビルドテストを Ubuntu Linux 20.04 (amd64) 環境、 aarch64-linux-gnu-g++-9 コンパイラにて行います。(normal, tournament target のみ)
+	Graviton2 向けビルドオプションを -mfpu=neon から -march=armv8.2-a+fp16+rcpc+dotprod+crypto に変更します。（-mfpu=neon のままではビルドテストに失敗するため）
+	変更元: Graviton2をARM NEON SIMD対応 #201
+	参考: https://github.com/aws/aws-graviton-getting-started/blob/main/c-c++.md
+	参考: https://d1.awsstatic.com/webinars/jp/pdf/services/20200707_BlackBelt_Graviton2.pdf
+	Ubuntu Linux 20.04 (amd64) 環境でのビルドテストに使うコンパイラの一部を変更します。 clang++-13 → clang++-14
+	最新のclangで発生するwarning, error等を確認できるように。
+	その他、ビルドマトリクスの整理など。
+
+
+- bitop.hからmm_alloc.hのinclude文を削除
+	- mm_alloc、以下のcommitで使わないようにしたのだった。
+		https://github.com/yaneurao/YaneuraOu/commit/f726457d03ccd3c51332b8cee8254a7d2a80dc69
+	- -mfpu=neonをつけてコンパイルした時にコンパイルエラーになっていた。
+
+- Makefile、CPU種別の整理
+
+
+■　2021/10/19
+
+- Graviton2をARM NEON SIMD対応 #201
+  - https://github.com/yaneurao/YaneuraOu/pull/201 (quiverさんのプルリク)
+
+
+■　2021/10/17
+
+
+- g++ & arm64 でビルドできない問題を修正 #200
+	- https://github.com/yaneurao/YaneuraOu/pull/200 (quiverさんのプルリク)
+
+
+- ベンチマークの実行時間を一定にする改良
+	- ベンチマーク、探索部の改良により、実行時間が変動するのはあまり良くない性質
+	- 固定時間で計測してnpsで比較すべき。
+	- 現状、デフォルトでは固定depthになっているが、これを固定timeに変更する。
+	- cf. https://github.com/yaneurao/YaneuraOu/issues/195
+	- ベンチマーク局面、一つ追加。4局面×15秒 = 60秒。
+
+- learnerでコンパイル時にwarning出てたの修正。
+
+
+- extra/bitop.h内のマクロ定義でARM向け向け分岐が足りていない問題を修正 #199
+	- https://github.com/yaneurao/YaneuraOu/pull/199 (quiverさんのプルリク)
+
+	extra/bitop.h内のマクロ定義でARM向け向け分岐が足りていない問題を修正
+	AWSにはGraviton2というARM Neoverse N1系のプロセッサが存在します。
+
+	https://www.arm.com/why-arm/partner-ecosystem/aws
+
+
+■　2021/10/12
+
+- 学習データをまとめて読み込むようにした #196 (nodchip)
+	- https://github.com/yaneurao/YaneuraOu/pull/196
+
+- テストロスの計算のスレッド並列処理をApery方式に変更し、高速化した #197 (nodchip)
+	- https://github.com/yaneurao/YaneuraOu/pull/197
+
+- TensorRT 8.2 EarlyAccess #198
+	- https://github.com/yaneurao/YaneuraOu/pull/198 (mizar)
+
+	* - EVAL_TYPE_NAME に TensorRT のバージョンを含める
+	* - ビルド時にTensorRTのdllを出力先にコピー
+	* - TensorRT8.2.0.6, CUDA 11.4
+	* - Ubuntu2004-README.md
+	* - make-deep-ububtu : expand single-line list
+	* - cuda-toolkit-11-4
+	* - g++-11, clang++-12, clang++-13, clang++-14
+	* - reorder compiler
+	* - remove libomp5-*
+	* - remove libomp5-*, and others
+	* - install CUDA, TensorRT later
+
+
+■　2021/09/28
+
+
+- Learner::search,qsearchのコード、整理
+	- コードを少し整理した。
+	- 初期化コード少し足した。
+	- th->selDepthの初期化は不要だったので削除。
+  - reformat
+
+
+- gensfenコマンド正常に生成できていなかったの修正。
+	- Learner::search()でsearch<Root>にしていなかった。
+
+
 ■　2021/09/27 V6.50
 
 - V6.50
