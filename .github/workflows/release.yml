@@ -27,7 +27,7 @@ jobs:
           - "SSE41,SSSE3,SSE2,NO_SSE"
           - "OTHER"
         edition:
-          - "YANEURAOU_ENGINE_NNUE,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256"
+          - "YANEURAOU_ENGINE_NNUE,YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256"
           - "YANEURAOU_ENGINE_KPPT,YANEURAOU_ENGINE_KPP_KKPT"
           - YANEURAOU_ENGINE_MATERIAL*
           - YANEURAOU_MATE_ENGINE
@@ -246,6 +246,7 @@ jobs:
       matrix:
         edition:
           - YANEURAOU_ENGINE_NNUE
+          - YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32
           - YANEURAOU_ENGINE_NNUE_HALFKPE9
           - YANEURAOU_ENGINE_NNUE_KP256
           - YANEURAOU_ENGINE_KPPT
@@ -388,6 +389,8 @@ jobs:
                  cf. [NNUE-HalfKPE9](https://github.com/tttak/YaneuraOu/releases/tag/V4.89_NNUE-HalfKPE9)
               c. K-P型
                  cf. [魚沼産やねうら王できました](http://yaneuraou.yaneu.com/2019/02/12/%e9%ad%9a%e6%b2%bc%e7%94%a3%e3%82%84%e3%81%ad%e3%81%86%e3%82%89%e7%8e%8b%e3%81%a7%e3%81%8d%e3%81%be%e3%81%97%e3%81%9f/)
+              d. HalfKPvm型
+                 cf. [tanuki-denryu2](https://github.com/nodchip/tanuki-/releases/tag/tanuki-denryu2)
             4. MaterialLv1～9
               a. MaterialLv1 駒得のみ
               b. MaterialLv2 駒得＋手駒評価

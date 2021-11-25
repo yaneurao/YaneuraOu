@@ -33,6 +33,9 @@ CPPFLAGS := -DTARGET_ARCH="$(TARGET_ARCH_ABI)"
 # example: EVAL_NNUE_HALFKP_256x2_32_32 (2018 T.N.K.)
 # $ ndk-build YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE
 
+# example: EVAL_NNUE_HALFKP_VM_256X2_32_32
+# $ ndk-build YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32
+
 # example: EVAL_NNUE_HALFKPE9_256x2_32_32
 # $ ndk-build YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE_HALFKPE9
 
@@ -43,6 +46,7 @@ CPPFLAGS := -DTARGET_ARCH="$(TARGET_ARCH_ABI)"
 # $ ndk-build YANEURAOU_EDITION=MATE_ENGINE
 
 YANEURAOU_EDITION := YANEURAOU_ENGINE_NNUE
+#YANEURAOU_EDITION := YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32
 #YANEURAOU_EDITION := YANEURAOU_ENGINE_NNUE_HALFKPE9
 #YANEURAOU_EDITION := YANEURAOU_ENGINE_NNUE_KP256
 #YANEURAOU_EDITION := YANEURAOU_ENGINE_KPPT
@@ -107,6 +111,15 @@ ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_
     ifeq ($(NNUE_EVAL_ARCH),HALFKPE9)
       ENGINE_NAME := YaneuraOu_NNUE_HALFKPE9
       CPPFLAGS += -DEVAL_NNUE_HALFKPE9
+    endif
+  endif
+  ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE_HALFKPE9)
+    ENGINE_NAME := YaneuraOu_NNUE_HALFKP_VM
+    CPPFLAGS += -DEVAL_NNUE_HALFKP_VM_256X2_32_32
+  else
+    ifeq ($(NNUE_EVAL_ARCH),EVAL_NNUE_HALFKP_VM_256X2_32_32)
+      ENGINE_NAME := YaneuraOu_NNUE_HALFKP_VM
+      CPPFLAGS += -DEVAL_NNUE_HALFKP_VM_256X2_32_32
     endif
   endif
 endif
@@ -207,6 +220,7 @@ LOCAL_SRC_FILES += \
   ../source/eval/nnue/features/k.cpp                                   \
   ../source/eval/nnue/features/p.cpp                                   \
   ../source/eval/nnue/features/half_kp.cpp                             \
+  ../source/eval/nnue/features/half_kp_vm.cpp                          \
   ../source/eval/nnue/features/half_relative_kp.cpp                    \
   ../source/eval/nnue/features/half_kpe9.cpp                           \
   ../source/eval/nnue/features/pe9.cpp                                 \

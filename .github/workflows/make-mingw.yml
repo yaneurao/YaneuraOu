@@ -20,6 +20,7 @@ jobs:
       matrix:
         edition:
           - YANEURAOU_ENGINE_NNUE
+          - YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32
           - YANEURAOU_ENGINE_NNUE_HALFKPE9
           - YANEURAOU_ENGINE_NNUE_KP256
           - YANEURAOU_ENGINE_KPPT
@@ -47,11 +48,15 @@ jobs:
           # NNUE's machine learning build requires BLAS, but currently Ubuntu's MinGW cannot handle OpenBLAS
           - edition: YANEURAOU_ENGINE_NNUE
             target: evallearn
+          - edition: YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32
+            target: evallearn
           - edition: YANEURAOU_ENGINE_NNUE_HALFKPE9
             target: evallearn
           - edition: YANEURAOU_ENGINE_NNUE_KP256
             target: evallearn
           - edition: YANEURAOU_ENGINE_NNUE
+            target: gensfen
+          - edition: YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32
             target: gensfen
           - edition: YANEURAOU_ENGINE_NNUE_HALFKPE9
             target: gensfen

@@ -9,6 +9,11 @@ Push-Location (Join-Path $PSScriptRoot ..);
     Dir = ".\build\android\NNUE";
   };
   @{
+    EDITION = "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32";
+    Nnue = "HALFKP_VM";
+    Dir = ".\build\android\NNUE_HALFKP_VM";
+  };
+  @{
     EDITION = "YANEURAOU_ENGINE_NNUE_HALFKPE9";
     Nnue = "HALFKPE9";
     Dir = ".\build\android\NNUE_HALFKPE9";
