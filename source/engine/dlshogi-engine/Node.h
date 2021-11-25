@@ -262,6 +262,8 @@ namespace dlshogi
 
 		// GC用のスレッドのスレッドIDを設定する。
 		// これは、WinProcGroup::bindThisThread()を呼び出す時のID。
+		// worker thread自体は、やねうら王フレームワーク側(ThreadPoolクラス)で作成してもらうのではなく
+		// コンストラクタで起動させ、デストラクタで終了する感じ。
 		void set_thread_id(size_t thread_id) { next_thread_id = (int)thread_id; }
 
 	private:

@@ -266,6 +266,7 @@
 
 
 // 探索パラメーターのチューニングを行うモード
+// ※　使い方は、"docs/解説.txt" の 「探索パラメーターのチューニングについて」をご覧ください。
 //
 // 実行時に"param/yaneuraou-param.h" からパラメーターファイルを読み込むので
 // "source/engine/yaneuraou-engine/yaneuraou-param.h"をそこに配置すること。

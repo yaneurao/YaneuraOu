@@ -14,7 +14,7 @@ namespace dlshogi
 	// Virtual Loss (Best Parameter)
 	// Virtual Lossが何かわからない人は「MCTS Virtual Loss」とかでググれ。
 	constexpr int VIRTUAL_LOSS = 1;
-
+	
 	// nodeの訪問回数を表現する型。
 	// AWSのA100×8で3Mnpsぐらい出ると思うのだが、その場合、1430秒ほどで
 	// u32の範囲を超えてしまう。(先にメモリが枯渇するだろうが)
