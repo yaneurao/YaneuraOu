@@ -44,7 +44,7 @@ PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 145;
 // 静止探索でのfutility pruning
 // 元の値 = 155 , step = 10
 // [PARAM] min:50,max:200,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 132;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 155;
 
 // futility pruningの適用depth。
 // この制限自体が要らない可能性がある。→　そうでもなかった。
