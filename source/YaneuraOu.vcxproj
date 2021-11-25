@@ -627,6 +627,7 @@
     <ClInclude Include="eval\kpp_kkpt\evaluate_kpp_kkpt.h" />
     <ClInclude Include="eval\nnue\architectures\halfkpe9_256x2-32-32.h" />
     <ClInclude Include="eval\nnue\architectures\halfkp_256x2-32-32.h" />
+    <ClInclude Include="eval\nnue\architectures\halfkp_vm_256x2-32-32.h" />
     <ClInclude Include="eval\nnue\architectures\k-p_256x2-32-32.h" />
     <ClInclude Include="eval\nnue\evaluate_nnue.h" />
     <ClInclude Include="eval\nnue\evaluate_nnue_learner.h" />
@@ -634,6 +635,7 @@
     <ClInclude Include="eval\nnue\features\feature_set.h" />
     <ClInclude Include="eval\nnue\features\half_kp.h" />
     <ClInclude Include="eval\nnue\features\half_kpe9.h" />
+    <ClInclude Include="eval\nnue\features\half_kp_vm.h" />
     <ClInclude Include="eval\nnue\features\half_relative_kp.h" />
     <ClInclude Include="eval\nnue\features\index_list.h" />
     <ClInclude Include="eval\nnue\features\k.h" />
@@ -714,6 +716,7 @@
     <ClCompile Include="eval\nnue\evaluate_nnue_learner.cpp" />
     <ClCompile Include="eval\nnue\features\half_kp.cpp" />
     <ClCompile Include="eval\nnue\features\half_kpe9.cpp" />
+    <ClCompile Include="eval\nnue\features\half_kp_vm.cpp" />
     <ClCompile Include="eval\nnue\features\half_relative_kp.cpp" />
     <ClCompile Include="eval\nnue\features\k.cpp" />
     <ClCompile Include="eval\nnue\features\p.cpp" />

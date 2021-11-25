@@ -27,6 +27,11 @@
 // halfKPE9型
 #include "architectures/halfkpe9_256x2-32-32.h"
 
+#elif defined(EVAL_NNUE_HALFKP_VM_256X2_32_32)
+
+// halfkp_vm_256x2-32-32型
+#include "architectures/halfkp_vm_256x2-32-32.h"
+
 #else
 
 // どれも定義されていなかったので標準NNUE型にしておく。
