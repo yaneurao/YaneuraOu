@@ -62,10 +62,6 @@ Bitboard LanceStepEffectBB[SQ_NB_PLUS1][COLOR_NB];
 Bitboard BishopStepEffectBB[SQ_NB_PLUS1];
 Bitboard RookStepEffectBB[SQ_NB_PLUS1];
 
-
-// 歩が打てる筋を得るためのmask
-u64 PAWN_DROP_MASKS[SQ_NB];
-
 // LineBBは、王手の指し手生成からしか使っていないが、move_pickerからQUIET_CHECKS呼び出しているので…。
 // そして、配列シュリンクした。
 Bitboard LineBB[SQ_NB][4];
@@ -615,12 +611,7 @@ void Bitboards::init()
 			// StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_CROSS45] = bishopEffect(sq, ALL_BB);
 		}
 
-	// 7) 二歩用のテーブル初期化
-
-	for (auto sq : SQ)
-		PAWN_DROP_MASKS[sq] = ~FILE_BB[SquareToFile[sq]].p[Bitboard::part(sq)];
-
-	// 8) BetweenBB , LineBBの初期化
+	// 7) BetweenBB , LineBBの初期化
 	{
 		u16 between_index = 1;
 		// BetweenBB[0] == ZERO_BBであることを保証する。
@@ -683,7 +674,7 @@ void Bitboards::init()
 		}
 
 
-	// 9) 王手となる候補の駒のテーブル初期化(王手の指し手生成に必要。やねうら王nanoでは削除予定)
+	// 8) 王手となる候補の駒のテーブル初期化(王手の指し手生成に必要。やねうら王nanoでは削除予定)
 
 #define FOREACH_KING(BB, EFFECT ) { for(auto sq : BB){ target|= EFFECT(sq); } }
 #define FOREACH(BB, EFFECT ) { for(auto sq : BB){ target|= EFFECT(them,sq); } }
@@ -754,13 +745,13 @@ void Bitboards::init()
 	// 以下はBitboardとは関係はないが、Bitboardが初期化されていないと初期化できないので
 	// ここから初期化しておいてやる。
 
-	// 10. LONG_EFFECT_LIBRARYの初期化
+	// 9. LONG_EFFECT_LIBRARYの初期化
 
 #if defined (LONG_EFFECT_LIBRARY)
 	LongEffect::init();
 #endif
 
-	// 11. 1手詰めテーブルの初期化
+	// 10. 1手詰めテーブルの初期化
 #if defined (USE_MATE_1PLY)
 	Mate::init();
 #endif

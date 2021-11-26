@@ -32,7 +32,7 @@ namespace Zobrist {
 // ----------------------------------
 
 // 王手情報の初期化
-template <bool doNullMove>
+template <bool doNullMove , Color Us>
 void Position::set_check_info(StateInfo* si) const {
 
 	//: si->blockersForKing[WHITE] = slider_blockers(pieces(BLACK), square<KING>(WHITE),si->pinners[WHITE]);
@@ -56,18 +56,18 @@ void Position::set_check_info(StateInfo* si) const {
 	// そういう意味で(ksq,them)となっている。
 
 	Bitboard occ = pieces();
-	Color them = ~sideToMove;
+	constexpr Color Them = ~Us;
 
 	// この指し手が二歩でないかは、この時点でテストしない。指し手生成で除外する。なるべくこの手のチェックは遅延させる。
-	si->checkSquares[PAWN]   = pawnEffect(them, ksq);
-	si->checkSquares[KNIGHT] = knightEffect(them, ksq);
-	si->checkSquares[SILVER] = silverEffect(them, ksq);
-	si->checkSquares[BISHOP] = bishopEffect(ksq, occ);
-	si->checkSquares[ROOK]   = rookEffect(ksq, occ);
-	si->checkSquares[GOLD]   = goldEffect(them, ksq);
+	si->checkSquares[PAWN]   = pawnEffect<Them>  (ksq);
+	si->checkSquares[KNIGHT] = knightEffect<Them>(ksq);
+	si->checkSquares[SILVER] = silverEffect<Them>(ksq);
+	si->checkSquares[BISHOP] = bishopEffect      (ksq, occ);
+	si->checkSquares[ROOK]   = rookEffect        (ksq, occ);
+	si->checkSquares[GOLD]   = goldEffect<Them>  (ksq);
 
 	// 香で王手になる升は利きを求め直さずに飛車で王手になる升を香のstep effectでマスクしたものを使う。
-	si->checkSquares[LANCE]  = si->checkSquares[ROOK] & lanceStepEffect(them,ksq);
+	si->checkSquares[LANCE]  = si->checkSquares[ROOK] & lanceStepEffect<Them>(ksq);
 
 	// 王を移動させて直接王手になることはない。それは自殺手である。
 	si->checkSquares[KING]   = ZERO_BB;
@@ -648,27 +648,25 @@ Bitboard Position::slider_blockers(Color c, Square s , Bitboard& pinners) const 
 
 // sに利きのあるc側の駒を列挙する。
 // (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
-Bitboard Position::attackers_to(Color c, Square sq, const Bitboard& occ) const
+template <Color C>
+Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 {
-	ASSERT_LV3(is_ok(c) && sq <= SQ_NB);
+	ASSERT_LV3(is_ok(C) && sq <= SQ_NB);
 
-	Color them = ~c;
+	constexpr Color Them = ~C;
 
 	// sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
 	// 香の利きを求めるコストが惜しいのでrookEffect()を利用する。
 	return
-		(     (pawnEffect(them, sq)		&  pieces(PAWN)        )
-			| (knightEffect(them, sq)	&  pieces(KNIGHT)      )
-			| (silverEffect(them, sq)	&  pieces(SILVER_HDK)  )
-			| (goldEffect(them, sq)		&  pieces(GOLDS_HDK)   )
+		(     (pawnEffect  <Them>(sq)	&  pieces(PAWN)        )
+			| (knightEffect<Them>(sq)	&  pieces(KNIGHT)      )
+			| (silverEffect<Them>(sq)	&  pieces(SILVER_HDK)  )
+			| (goldEffect  <Them>(sq)	&  pieces(GOLDS_HDK)   )
 			| (bishopEffect(sq, occ)	&  pieces(BISHOP_HORSE))
-			| (rookEffect(sq, occ)		& (
-					pieces(ROOK_DRAGON)
-				|  (lanceStepEffect(them,sq) & pieces(LANCE))
-			  ))
+			| (rookEffect(sq, occ)		& (pieces(ROOK_DRAGON) | (lanceStepEffect<Them>(sq) & pieces(LANCE))))
 		//  | (kingEffect(sq) & pieces(c, HDK));
 		// →　HDKは、銀と金のところに含めることによって、参照するテーブルを一個減らして高速化しようというAperyのアイデア。
-			) & pieces(c); // 先後混在しているのでc側の駒だけ最後にマスクする。
+			) & pieces<C>(); // 先後混在しているのでc側の駒だけ最後にマスクする。
 		;
 
 }

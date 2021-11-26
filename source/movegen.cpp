@@ -299,13 +299,7 @@ template <Color Us> struct GenerateDropMoves {
 			// →　この方法はPEXTが必要なので愚直な方法に変更する。
 
 			// 歩の打てる場所
-			Bitboard target2 = rank1_n_bb(~Us, RANK_8) & target;
-
-			// 歩が二歩のために打てない筋を消していく(Aperyの手法)
-			Bitboard pawnBB = pos.pieces(Us, PAWN);
-			pawnBB.foreach_part([&](Square pawnSq,int part) {
-				target2.p[part] &= PAWN_DROP_MASKS[pawnSq];
-			});
+			Bitboard target2 = target & pawn_drop_mask<Us>(pos.pieces(Us, PAWN));
 
 			// 打ち歩詰めチェック
 			// 敵玉に敵の歩を置いた位置に打つ予定だったのなら、打ち歩詰めチェックして、打ち歩詰めならそこは除外する。

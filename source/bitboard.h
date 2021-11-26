@@ -156,6 +156,7 @@ struct alignas(16) Bitboard
 	Bitboard operator | (const Bitboard& rhs) const { return Bitboard(*this) |= rhs; }
 	Bitboard operator ^ (const Bitboard& rhs) const { return Bitboard(*this) ^= rhs; }
 	Bitboard operator + (const Bitboard& rhs) const { return Bitboard(*this) += rhs; }
+	Bitboard operator - (const Bitboard& rhs) const { return Bitboard(*this) -= rhs; }
 	Bitboard operator << (const int i) const { return Bitboard(*this) <<= i; }
 	Bitboard operator >> (const int i) const { return Bitboard(*this) >>= i; }
 
@@ -359,10 +360,6 @@ inline const Bitboard rank1_n_bb(Color US, const Rank r) { ASSERT_LV2(is_ok(r));
 extern Bitboard EnemyField[COLOR_NB];
 inline const Bitboard enemy_field(Color Us) { return EnemyField[Us]; }
 
-// 歩が打てる筋を得るためのmask。指し手生成で用いる。
-// ~FILE_BB[SquareToFile[pawnSq]].p[Bitboard::part(pawnSq)]の意味。
-extern u64 PAWN_DROP_MASKS[SQ_NB];
-
 // 2升に挟まれている升を返すためのテーブル(その2升は含まない)
 // この配列には直接アクセスせずにbetween_bb()を使うこと。
 // 配列サイズが大きくてcache汚染がひどいのでシュリンクしてある。
@@ -413,6 +410,53 @@ inline const Bitboard around24_bb(Square sq)
 {
 	ASSERT_LV3(sq <= SQ_NB);
 	return CheckCandidateKingBB[sq];
+}
+
+// 歩が打てる筋が1になっているBitboardを返す。
+// pawns : いま歩を打とうとしている手番側の歩のBitboard
+//
+// ここで返すBitboardは、
+// C == BLACKの時は、1段目は0(歩が打てないから)、
+// C == WHITEの時は、9段目は0(歩が打てないから)を保証する。
+template <Color C>
+inline Bitboard pawn_drop_mask(const Bitboard& pawns) {
+	// Quigy[WCSC21]の手法。
+	// cf. https://www.apply.computer-shogi.org/wcsc31/appeal/Qugiy/appeal.pdf
+
+	const Bitboard left(0x4020100804020100ULL, 0x0000000000020100ULL);
+
+	// 9段目だけ1にしたbitboardから、歩の升を引き算すると、桁借りで上位bit(9段目)が0になる。これを敷衍するという考えかた。
+	Bitboard t = left - pawns;
+
+#if 0
+	// 8回シフトで1段目に移動する。
+	t = (t & left) >> 8;
+
+	// tを 9段目が1になっているleftが引き算すると、
+	// 1) 1段目が1の時、9段目が0、1段目から8段目が1のBitboardになる。
+	// 2) 1段目が0の時、9段目が1、1段目から8段目は0のBitboardになる。
+	// ここにleftとxorすると、
+	// 1') 1段目が1の時、9段目が1、1段目から8段目が1のBitboardになる。= 1段目から9段目が1。
+	// 2') 1段目が0の時、9段目が0、1段目から8段目は0のBitboardになる。= 1段目から9段目が0。
+	// というように、tの内容が敷衍された。
+
+	return left ^ (left - t);
+#endif
+	// ↑これだと先後に関わらず1段目から9段目が1になる。
+	// 先手の時は1段目を1にしたくないし、後手の時は9段目を1にしたくない。
+	// そこで少し調整する必要がある。
+
+	if (C == BLACK)
+	{
+		// 2段目に移動させて、それを9段目まで敷衍させる。
+		t = (t & left) >> 7;
+		return left ^ (left - t);
+	}
+	else {
+		// 1段目に移動させて、それを8段目まで敷衍させる。
+		t = (t & left) >> 8;
+		return left.andnot(left - t);
+	}
 }
 
 // --------------------
@@ -561,6 +605,14 @@ inline Bitboard knightEffect(const Color c, const Square sq)
 	return KnightEffectBB[sq][c];
 }
 
+// ↑のtemplate版。
+template <Color C>
+inline Bitboard knightEffect(const Square sq)
+{
+	ASSERT_LV3(is_ok(C) && sq <= SQ_NB);
+	return KnightEffectBB[sq][C];
+}
+
 // 銀の利き
 inline Bitboard silverEffect(const Color c, const Square sq)
 {
@@ -568,10 +620,25 @@ inline Bitboard silverEffect(const Color c, const Square sq)
 	return SilverEffectBB[sq][c];
 }
 
+// ↑のtemplate版
+template <Color C>
+inline Bitboard silverEffect( const Square sq)
+{
+	ASSERT_LV3(is_ok(C) && sq <= SQ_NB);
+	return SilverEffectBB[sq][C];
+}
+
 // 金の利き
 inline Bitboard goldEffect(const Color c, const Square sq) {
 	ASSERT_LV3(is_ok(c) && sq <= SQ_NB);
 	return GoldEffectBB[sq][c];
+}
+
+// ↑のtemplate版
+template <Color C>
+inline Bitboard goldEffect(const Square sq) {
+	ASSERT_LV3(is_ok(C) && sq <= SQ_NB);
+	return GoldEffectBB[sq][C];
 }
 
 // --- 遠方仮想駒(盤上には駒がないものとして求める利き)
@@ -704,8 +771,7 @@ inline Bitboard rookRankEffect(Square sq, const Bitboard& occupied)
 	return rookEffect(sq, occupied) & RANK_BB[rank_of(sq)];
 }
 
-
-#endif // defined(USE_OLD_YANEURAOU_EFFECT)
+#endif
 
 // --- 馬と龍
 
