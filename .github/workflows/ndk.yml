@@ -32,10 +32,10 @@ jobs:
 
     steps:
       # https://developer.android.com/ndk/downloads?hl=ja#stable-downloads
-      - name: Setup Android NDK r21e
+      - name: Setup Android NDK r23b
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r21e
+          ndk-version: r23b
 
       - name: Checkout own repository
         uses: actions/checkout@v2
