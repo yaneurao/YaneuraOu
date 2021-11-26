@@ -184,7 +184,7 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
 		auto pieces = pos.pieces(Us, PAWN);
 
 		// 歩の利き
-		auto target2 = pawnEffect(Us,pieces) & target;
+		auto target2 = pawnBbEffect<Us>(pieces) & target;
 
 		// 先手に対する1段目(後手ならば9段目)を表す定数
 		const Rank T_RANK1 = (Us == BLACK) ? RANK_1 : RANK_9;

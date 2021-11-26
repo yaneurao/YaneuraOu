@@ -2477,6 +2477,30 @@ bool Position::pos_is_ok() const
 //			UnitTest
 // ----------------------------------
 
+namespace {
+	// performance test
+	// ある局面から、全合法手を生成して depth深さまで辿り、局面数がいくらあったかを返す。
+	u64 perft(Position& pos, Depth depth)
+	{
+		StateInfo st;
+		u64 cnt, nodes = 0;
+
+		auto ml = MoveList<LEGAL_ALL>(pos);
+		if (depth == 1)
+			return ml.size();
+
+		const bool leaf = (depth == 2);
+		for (const auto& m : ml)
+		{
+			pos.do_move(m, st);
+			cnt = leaf ? MoveList<LEGAL_ALL>(pos).size() : perft(pos, depth - 1);
+			nodes += cnt;
+			pos.undo_move(m);
+		}
+		return nodes;
+	};
+}
+
 void Position::UnitTest(Test::UnitTester& tester)
 {
 	auto section1 = tester.section("Position");
@@ -2621,7 +2645,20 @@ void Position::UnitTest(Test::UnitTester& tester)
 			handi4_init();
 			tester.test("handi4", limits.enteringKingPoint[BLACK] == 31 && limits.enteringKingPoint[WHITE] == 19);
 		}
+	}
 
+	{
+		auto section2 = tester.section("Perft");
+
+		hirate_init();
+		const s64 p_nodes[] = { 0 , 30 , 900, 25470, 719731, 19861490, 547581517 };
+
+		for (Depth d = 1; d <= 6; ++d)
+		{
+			u64 nodes = perft(pos, d);
+			u64 pn = p_nodes[d];
+			tester.test("depth " + to_string(d) + " = " + to_string(pn), nodes == pn);
+		}
 	}
 
 #if 0

@@ -312,13 +312,6 @@
 //#define LONG_EFFECT_LIBRARY
 
 
-// やねうら王の従来の遠方駒の利きを求めるコードを用いる。
-// これをundefするとApery型の利きのコードを用いる。(そっちのほうがPEXTが使えない環境だと速い)
-// 互換性維持および、55将棋のように盤面を変形させるときに、magic tableで用いるmagic numberを求めたくないときに用いる。
-
-// #define USE_OLD_YANEURAOU_EFFECT
-
-
 // position.hのStateInfoに直前の指し手、移動させた駒などの情報を保存しておくのか
 // これが保存されていると詰将棋ルーチンなどを自作する場合においてそこまでの手順を表示するのが簡単になる。
 // (Position::moves_from_start_pretty()などにより、わかりやすい手順が得られる。

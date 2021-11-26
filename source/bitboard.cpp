@@ -99,21 +99,6 @@ SquareWithWall sqww_table[SQ_NB_PLUS1];
 // 飛車の縦の利き
 u64      RookFileEffect[RANK_NB + 1][128];
 
-#if defined(USE_OLD_YANEURAOU_EFFECT)
-
-// magic bitboardを用いない時の実装
-
-// 角の利き
-Bitboard BishopEffect[2][1856 + 1];
-Bitboard BishopEffectMask[2][SQ_NB_PLUS1];
-int BishopEffectIndex[2][SQ_NB_PLUS1];
-
-// 飛車の横の利き
-Bitboard RookRankEffect[FILE_NB + 1][128];
-
-#else
-
-
 // ----------------------------------
 //  Magic Bitboard Table from Apery
 //  https://github.com/HiraokaTakuya/apery/blob/master/src/bitboard.cpp
@@ -383,8 +368,6 @@ namespace {
 } // of nameless namespace
 
 
-#endif // defined(USE_OLD_YANEURAOU_EFFECT)
-
 // ----------------------------------------------------------------------------------------------
 
 // Bitboardを表示する(USI形式ではない) デバッグ用
@@ -406,14 +389,14 @@ Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ)
 {
 	switch (pc)
 	{
-	case B_PAWN: return pawnEffect(BLACK, sq);
-	case B_LANCE: return lanceEffect(BLACK, sq, occ);
+	case B_PAWN:   return pawnEffect(BLACK, sq);
+	case B_LANCE:  return lanceEffect<BLACK>(sq, occ);
 	case B_KNIGHT: return knightEffect(BLACK, sq);
 	case B_SILVER: return silverEffect(BLACK, sq);
 	case B_GOLD: case B_PRO_PAWN: case B_PRO_LANCE: case B_PRO_KNIGHT: case B_PRO_SILVER: return goldEffect(BLACK, sq);
 
-	case W_PAWN: return pawnEffect(WHITE, sq);
-	case W_LANCE: return lanceEffect(WHITE, sq, occ);
+	case W_PAWN:   return pawnEffect(WHITE, sq);
+	case W_LANCE:  return lanceEffect<WHITE>(sq, occ);
 	case W_KNIGHT: return knightEffect(WHITE, sq);
 	case W_SILVER: return silverEffect(WHITE, sq);
 	case W_GOLD: case W_PRO_PAWN: case W_PRO_LANCE: case W_PRO_KNIGHT: case W_PRO_SILVER: return goldEffect(WHITE, sq);
@@ -564,82 +547,8 @@ void Bitboards::init()
 		}
 	}
 
-#if defined(USE_OLD_YANEURAOU_EFFECT)
-
-	// 角の利きテーブルの初期化
-	for (int n : { 0 , 1 })
-	{
-		int index = 0;
-		for (auto sq : SQ)
-		{
-			// sqの升に対してテーブルのどこを見るかのindex
-			BishopEffectIndex[n][sq] = index;
-
-			// sqの地点にpieceがあるときにその利きを得るのに関係する升を取得する
-			auto& mask = BishopEffectMask[n][sq];
-			mask = calcBishopEffectMask(sq, n);
-
-			// p[0]とp[1]が被覆していると正しく計算できないのでNG。
-			// Bitboardのレイアウト的に、正しく計算できるかのテスト。
-			// 縦型Bitboardであるならp[0]のbit63を余らせるようにしておく必要がある。
-			ASSERT_LV3(!(mask.cross_over()));
-
-			// sqの升用に何bit情報を拾ってくるのか
-			const int bits = mask.pop_count();
-
-			// 参照するoccupied bitboardのbit数と、そのbitの取りうる状態分だけ..
-			const int num = 1 << bits;
-
-			for (int i = 0; i < num; ++i)
-			{
-				Bitboard occupied = indexToOccupied(i, bits, mask);
-				// 初期化するテーブル
-				BishopEffect[n][index + occupiedToIndex(occupied & mask, mask)] = effectCalc(sq, occupied, n);
-			}
-			index += num;
-		}
-
-		// 盤外(SQ_NB)に駒を配置したときに利きがZERO_BBとなるときのための処理
-		BishopEffectIndex[n][SQ_NB] = index;
-
-		// 何番まで使ったか出力してみる。(確保する配列をこのサイズに収めたいので)
-		// cout << index << endl;
-	}
-
-	// 飛車の横の利き
-	for (File file = FILE_1 ; file <= FILE_9 ; ++file )
-	{
-		// sq = SQ_11 , SQ_21 , ... , SQ_NBまで
-		Square sq = file | RANK_1;
-		
-		const int num1s = 7;
-		for (int i = 0; i < (1 << num1s); ++i)
-		{
-			int ii = i << 1;
-			Bitboard bb = ZERO_BB;
-			for (int f = file_of(sq) - 1; f >= FILE_1; --f)
-			{
-				bb |= (File)f | rank_of(sq);
-				if (ii & (1 << f))
-					break;
-			}
-			for (int f = file_of(sq) + 1; f <= FILE_9; ++f)
-			{
-				bb |= (File)f | rank_of(sq);
-				if (ii & (1 << f))
-					break;
-			}
-			RookRankEffect[file][i] = bb;
-			// RookRankEffect[FILE_NB][x] には値を代入していないがC++の規約によりゼロ初期化されている。
-		}
-	}
-
-#else
-
 	// Apery型の遠方駒の利きの処理で用いるテーブルの初期化
 	init_apery_attack_tables();
-
-#endif
 
 	// 6. 近接駒(+盤上の利きを考慮しない駒)のテーブルの初期化。
 	// 上で初期化した、香・馬・飛の利きを用いる。
@@ -651,17 +560,23 @@ void Bitboards::init()
 	}
 
 	for (auto c : COLOR)
-		for(auto sq : SQ)
+		for (auto sq : SQ)
+		{
 			// 障害物がないときの香の利き
 			// これを最初に初期化しないとlanceEffect()が使えない。
 			LanceStepEffectBB[sq][c] = rookEffect(sq, ZERO_BB) & ForwardRanksBB[c][rank_of(sq)];
 
+			// 歩は長さ1の香の利きとして定義できる
+			// →　香の利きにQugiyのアルゴリズムを用いるようにしたので香の利きを求めるのに歩の利きを用いるから、これはダメ。
+			//PawnEffectBB[sq][c] = lanceEffect(c, sq, ALL_BB);
+
+			PawnEffectBB[sq][c] = Bitboard(c == BLACK ? sq + SQ_U : sq + SQ_D);
+			// PawnEffectBBを初期化しておけば、以降でlanceEffectをつかかえる。
+		}
+
 	for (auto c : COLOR)
 		for (auto sq : SQ)
 		{
-			// 歩は長さ1の香の利きとして定義できる
-			PawnEffectBB[sq][c] = lanceEffect(c, sq, ALL_BB);
-
 			// 桂の利きは、歩の利きの地点に長さ1の角の利きを作って、前方のみ残す。
 			Bitboard tmp = ZERO_BB;
 			Bitboard pawn = lanceEffect(c, sq, ALL_BB);

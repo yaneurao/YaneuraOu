@@ -125,6 +125,12 @@ struct alignas(16) Bitboard
 	// 右シフト(縦型Bitboardでは右1回シフトで1段上の升に移動する)
 	Bitboard& operator >>= (int shift) { /*ASSERT_LV3(shift == 1);*/ m = _mm_srli_epi64(m, shift); return *this; }
 
+	// and_not演算
+	// *this = (~*this) & b1;
+	// ただし、notする時に、将棋盤の81升以外のところもnotされるので注意。
+	// 自分自身は書き換えない。
+	Bitboard andnot(const Bitboard& b1) const { Bitboard b0; b0.m = _mm_andnot_si128(m, b1.m); return b0; }
+
 #else
 	Bitboard& operator |= (const Bitboard& b1) { this->p[0] |= b1.p[0]; this->p[1] |= b1.p[1]; return *this; }
 	Bitboard& operator &= (const Bitboard& b1) { this->p[0] &= b1.p[0]; this->p[1] &= b1.p[1]; return *this; }
@@ -134,6 +140,9 @@ struct alignas(16) Bitboard
 
 	Bitboard& operator <<= (int shift) { /*ASSERT_LV3(shift == 1);*/ this->p[0] <<= shift; this->p[1] <<= shift; return *this; }
 	Bitboard& operator >>= (int shift) { /*ASSERT_LV3(shift == 1);*/ this->p[0] >>= shift; this->p[1] >>= shift; return *this; }
+
+	Bitboard and_not(const Bitboard& b1) const { Bitboard b0; b0.p[0] = ~p[0] & b1.p[0]; b0.p[1] = ~p[1] & b1.p[1]; return b0; }
+
 #endif
 
 	// 比較演算子
@@ -502,29 +511,50 @@ extern const u64 BishopMagic[SQ_NB_PLUS1];
 // --- 近接駒
 
 // 王の利き
-inline Bitboard kingEffect(const Square sq) { ASSERT_LV3(sq <= SQ_NB); return KingEffectBB[sq]; }
+// 王の利きは先後の区別はない。
+inline Bitboard kingEffect(const Square sq)
+{
+	ASSERT_LV3(sq <= SQ_NB);
+	return KingEffectBB[sq];
+}
 
 // 歩の利き
-inline Bitboard pawnEffect(const Color c, const Square sq)
+// c側の升sqに置いた歩の利き。
+template <Color c>
+inline Bitboard pawnEffect(const Square sq)
 {
 	ASSERT_LV3(is_ok(c) && sq <= SQ_NB);
 	return PawnEffectBB[sq][c];
 }
 
-// Bitboardに対する歩の利き
-// color = BLACKのとき、51の升は49の升に移動するので、注意すること。
+// 歩の利き、非template版。
+inline Bitboard pawnEffect(Color c, Square sq)
+{
+	return (c == BLACK) ? pawnEffect<BLACK>(sq) : pawnEffect<WHITE>(sq);
+}
+
+// 歩を複数配置したBitboardに対して、その歩の利きのBitboardを返す。
+// color = BLACKのとき、51の歩は49の升に移動するので、注意すること。
 // (51の升にいる先手の歩は存在しないので、歩の移動に用いる分には問題ないが。)
-inline Bitboard pawnEffect(const Color c, const Bitboard bb)
+template <Color C>
+inline Bitboard pawnBbEffect(const Bitboard& bb)
 {
 	// Apery型の縦型Bitboardにおいては歩の利きはbit shiftで済む。
-	ASSERT_LV3(is_ok(c));
+	ASSERT_LV3(is_ok(C));
 	return
-		c == BLACK ? (bb >> 1) :
-		c == WHITE ? (bb << 1) :
+		C == BLACK ? (bb >> 1) :
+		C == WHITE ? (bb << 1) :
 		ZERO_BB;
 }
 
+// ↑の非template版
+inline Bitboard pawnBbEffect(Color c, const Bitboard& bb)
+{
+	return (c == BLACK) ? pawnBbEffect<BLACK>(bb) : pawnBbEffect<WHITE>(bb);
+}
+
 // 桂の利き
+// これは遮断されることはないのでOccupiedBitboard不要。
 inline Bitboard knightEffect(const Color c, const Square sq)
 {
 	ASSERT_LV3(is_ok(c) && sq <= SQ_NB);
@@ -532,30 +562,61 @@ inline Bitboard knightEffect(const Color c, const Square sq)
 }
 
 // 銀の利き
-inline Bitboard silverEffect(const Color c, const Square sq) { ASSERT_LV3(is_ok(c) && sq <= SQ_NB); return SilverEffectBB[sq][c]; }
+inline Bitboard silverEffect(const Color c, const Square sq)
+{
+	ASSERT_LV3(is_ok(c) && sq <= SQ_NB);
+	return SilverEffectBB[sq][c];
+}
 
 // 金の利き
-inline Bitboard goldEffect(const Color c, const Square sq) { ASSERT_LV3(is_ok(c) && sq <= SQ_NB); return GoldEffectBB[sq][c]; }
+inline Bitboard goldEffect(const Color c, const Square sq) {
+	ASSERT_LV3(is_ok(c) && sq <= SQ_NB);
+	return GoldEffectBB[sq][c];
+}
 
 // --- 遠方仮想駒(盤上には駒がないものとして求める利き)
 
 // 盤上の駒を考慮しない角の利き
-inline Bitboard bishopStepEffect(Square sq) { ASSERT_LV3(sq <= SQ_NB); return BishopStepEffectBB[sq]; }
+inline Bitboard bishopStepEffect(Square sq) {
+	ASSERT_LV3(sq <= SQ_NB);
+	return BishopStepEffectBB[sq];
+}
 
 // 盤上の駒を考慮しない飛車の利き
-inline Bitboard rookStepEffect(Square sq) { ASSERT_LV3(sq <= SQ_NB); return RookStepEffectBB[sq]; }
+inline Bitboard rookStepEffect(Square sq) {
+	ASSERT_LV3(sq <= SQ_NB);
+	return RookStepEffectBB[sq];
+}
 
 // 盤上の駒を考慮しない香の利き
-inline Bitboard lanceStepEffect(Color c, Square sq) { ASSERT_LV3(is_ok(c) && sq <= SQ_NB); return LanceStepEffectBB[sq][c]; }
+inline Bitboard lanceStepEffect(Color c, Square sq) {
+	ASSERT_LV3(is_ok(c) && sq <= SQ_NB);
+	return LanceStepEffectBB[sq][c];
+}
+// ↑のtemplate版。
+template <Color C>
+inline Bitboard lanceStepEffect(Square sq) {
+	ASSERT_LV3(is_ok(C) && sq <= SQ_NB);
+	return LanceStepEffectBB[sq][C];
+}
 
 // 盤上の駒を無視するQueenの動き。
-inline Bitboard queenStepEffect(Square sq) { ASSERT_LV3(sq <= SQ_NB); return rookStepEffect(sq) | bishopStepEffect(sq); }
+inline Bitboard queenStepEffect(Square sq) {
+	ASSERT_LV3(sq <= SQ_NB);
+	return rookStepEffect(sq) | bishopStepEffect(sq);
+}
 
 // 縦横十字の利き 利き長さ=1升分。
-inline Bitboard cross00StepEffect(Square sq) { ASSERT_LV3(sq <= SQ_NB); return rookStepEffect(sq) & kingEffect(sq); }
+inline Bitboard cross00StepEffect(Square sq) {
+	ASSERT_LV3(sq <= SQ_NB);
+	return rookStepEffect(sq) & kingEffect(sq);
+}
 
 // 斜め十字の利き 利き長さ=1升分。
-inline Bitboard cross45StepEffect(Square sq) { ASSERT_LV3(sq <= SQ_NB); return bishopStepEffect(sq) & kingEffect(sq); }
+inline Bitboard cross45StepEffect(Square sq) {
+	ASSERT_LV3(sq <= SQ_NB);
+	return bishopStepEffect(sq) & kingEffect(sq);
+}
 
 // --- 遠方駒(盤上の駒の状態を考慮しながら利きを求める)
 
@@ -571,65 +632,52 @@ inline Bitboard rookFileEffect(Square sq, const Bitboard& occupied)
 }
 
 // 香 : occupied bitboardを考慮しながら香の利きを求める
+template <Color C>
+inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
+{
+	ASSERT_LV3(is_ok(C) && sq <= SQ_NB);
+
+	// これは、Qugiy[WCSC31]のアイデア
+	// cf. https://www.apply.computer-shogi.org/wcsc31/appeal/Qugiy/appeal.pdf
+
+	if (C == WHITE)
+	{
+		// 9段目が0、その他の升が1になっているmask。
+		const Bitboard mask(0x3fdfeff7fbfdfeffULL , 0x000000000001feffULL);
+
+		// 駒が存在しない升が1となるmaskを作る。ただし9段目は0固定。
+		Bitboard em = occupied.andnot(mask);
+
+		// emに歩を利きを足すと2進数の足し算の繰り上がりによって利きが届く升まで1になっていく。(縦型Bitboard特有)
+		Bitboard t = em + pawnEffect<C>(sq);
+
+		// tとemの差分が香の利き
+		return t ^ em;
+
+	} else {
+
+		// step effectなのでsqの升は0であることが保証されている。
+		const Bitboard se = lanceStepEffect<C>(sq);
+
+		// 香の利きがあるかも知れない範囲に対して、駒がある升だけ1にする。
+		Bitboard mocc = se & occupied;
+
+		// 1を上方向に8升上書きコピーしてやる。これで、駒がある升より上は1になる。
+		// 1になっていない升が、香の利きが通っている升ということになる。
+		mocc |= mocc >> 1;
+		mocc |= mocc >> 2;
+		mocc |= mocc >> 4;
+		mocc >>= 1;
+
+		return mocc.andnot(se);
+	}
+}
+
+// 香の利き、非template版。
 inline Bitboard lanceEffect(Color c, Square sq, const Bitboard& occupied)
 {
-	// rootFileEffect()は遅くないのでこれを利用する。
-	return rookFileEffect(sq, occupied) & lanceStepEffect(c, sq);
+	return (c == BLACK) ? lanceEffect<BLACK>(sq, occupied) : lanceEffect<WHITE>(sq, occupied);
 }
-
-
-#if defined(USE_OLD_YANEURAOU_EFFECT)
-
-// 旧来のやねうら王の遠方駒の実装
-
-// Haswellのpext()を呼び出す。occupied = occupied bitboard , mask = 利きの算出に絡む升が1のbitboard
-// この関数で戻ってきた値をもとに利きテーブルを参照して、遠方駒の利きを得る。
-// PEXT命令を使うのでZEN1/ZEN2では遅い。
-inline uint64_t occupiedToIndex(const Bitboard& occupied, const Bitboard& mask) { return PEXT64(occupied.merge(), mask.merge()); }
-
-// 角の右上と左下方向への利き
-inline Bitboard bishopEffect0(Square sq, const Bitboard& occupied)
-{
-	ASSERT_LV3(sq <= SQ_NB);
-	const Bitboard block0(occupied & BishopEffectMask[0][sq]);
-	return BishopEffect[0][BishopEffectIndex[0][sq] + occupiedToIndex(block0, BishopEffectMask[0][sq])];
-}
-
-// 角の左上と右下方向への利き
-inline Bitboard bishopEffect1(Square sq, const Bitboard& occupied)
-{
-	ASSERT_LV3(sq <= SQ_NB);
-	const Bitboard block1(occupied & BishopEffectMask[1][sq]);
-	return BishopEffect[1][BishopEffectIndex[1][sq] + occupiedToIndex(block1, BishopEffectMask[1][sq])];
-}
-
-// 角 : occupied bitboardを考慮しながら角の利きを求める
-inline Bitboard bishopEffect(Square sq, const Bitboard& occupied)
-{
-	return bishopEffect0(sq, occupied) | bishopEffect1(sq, occupied);
-}
-
-// 飛車の横の利き(これはPEXTを使っているのでPEXTが遅い環境だと遅い)
-inline Bitboard rookRankEffect(Square sq, const Bitboard& occupied)
-{
-	ASSERT_LV3(sq <= SQ_NB);
-	// 将棋盤をシフトして、SQ_71 , SQ_61 .. SQ_11に飛車の横方向の情報を持ってくる。
-	// このbitを直列化して7bit取り出して、これがindexとなる。
-	// しかし、r回の右シフトを以下の変数uに対して行なうと計算完了まで待たされるので、
-	// PEXT64()の第二引数のほうを左シフトしておく。
-	int r = rank_of(sq);
-	u64 u = (occupied.extract64<1>() << 6 * 9) + (occupied.extract64<0>() >> 9);
-	u64 index = PEXT64(u, 0b1000000001000000001000000001000000001000000001000000001 << r);
-	return RookRankEffect[file_of(sq)][index] << r;
-}
-
-// 飛 : occupied bitboardを考慮しながら飛車の利きを求める
-inline Bitboard rookEffect(Square sq, const Bitboard& occupied)
-{
-	return rookFileEffect(sq, occupied) | rookRankEffect(sq, occupied);
-}
-
-#else // defined(USE_OLD_YANEURAOU_EFFECT)
 
 // Aperyの遠方駒の実装
 // USE_BMI2が定義されていないときはMagic Bitboardで処理する。
@@ -649,26 +697,6 @@ inline Bitboard bishopEffect(const Square sq, const Bitboard& occupied) {
 	const Bitboard block(occupied & BishopBlockMask[sq]);
 	return BishopAttack[BishopAttackIndex[sq] + occupiedToIndex(block, BishopBlockMask[sq])];
 }
-#else
-
-// magic bitboard.
-
-// magic number を使って block の模様から利きのテーブルへのインデックスを算出
-inline u64 occupiedToIndex(const Bitboard& block, const u64 magic, const int shiftBits) {
-	return (block.merge() * magic) >> shiftBits;
-}
-
-inline Bitboard rookEffect(const Square sq, const Bitboard& occupied) {
-	const Bitboard block(occupied & RookBlockMask[sq]);
-	return RookAttack[RookAttackIndex[sq] + occupiedToIndex(block, RookMagic[sq], RookShiftBits[sq])];
-}
-
-inline Bitboard bishopEffect(const Square sq, const Bitboard& occupied) {
-	const Bitboard block(occupied & BishopBlockMask[sq]);
-	return BishopAttack[BishopAttackIndex[sq] + occupiedToIndex(block, BishopMagic[sq], BishopShiftBits[sq])];
-}
-
-#endif // defined (USE_BMI2)
 
 // 飛車の横の利き(一度、飛車の利きを求めてからマスクしているのでやや遅い。どうしても必要な時だけ使う)
 inline Bitboard rookRankEffect(Square sq, const Bitboard& occupied)
