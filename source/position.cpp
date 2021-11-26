@@ -2519,6 +2519,10 @@ void Position::UnitTest(Test::UnitTester& tester)
 	auto handi4_sfen = "1nsgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1";
 	auto handi4_init = [&] { pos.set(handi4_sfen, &si, Threads.main()); };
 
+	// 指し手生成祭りの局面
+	auto matsuri_sfen = "l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1";
+	auto matsuri_init = [&] { pos.set(matsuri_sfen, &si, Threads.main()); };
+
 	Move16 m16;
 	Move m;
 
@@ -2648,16 +2652,34 @@ void Position::UnitTest(Test::UnitTester& tester)
 	{
 		auto section2 = tester.section("Perft");
 
-		hirate_init();
-		const s64 p_nodes[] = { 0 , 30 , 900, 25470, 719731, 19861490, 547581517 };
-
-		for (Depth d = 1; d <= 6; ++d)
 		{
-			u64 nodes = perft(pos, d);
-			u64 pn = p_nodes[d];
-			tester.test("depth " + to_string(d) + " = " + to_string(pn), nodes == pn);
+			auto section3 = tester.section("hirate");
+			hirate_init();
+			const s64 p_nodes[] = { 0 , 30 , 900, 25470, 719731, 19861490, 547581517 };
+
+			for (Depth d = 1; d <= 6; ++d)
+			{
+				u64 nodes = perft(pos, d);
+				u64 pn = p_nodes[d];
+				tester.test("depth " + to_string(d) + " = " + to_string(pn), nodes == pn);
+			}
+		}
+
+		{
+			auto section3 = tester.section("matsuri");
+			matsuri_init();
+
+			const s64 p_nodes[] = { 0 , 207 , 28684, 4810133, 517050879};
+
+			for (Depth d = 1; d <= 4; ++d)
+			{
+				u64 nodes = perft(pos, d);
+				u64 pn = p_nodes[d];
+				tester.test("depth " + to_string(d) + " = " + to_string(nodes), nodes == pn);
+			}
 		}
 	}
+
 
 #if 0
 	// ランダムプレイヤーでの対局
