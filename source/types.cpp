@@ -67,7 +67,7 @@ std::ostream& operator<<(std::ostream& os, Hand hand)
 			// 1枚なら枚数は出力しない。2枚以上なら枚数を最初に出力
 			// PRETTY_JPが指定されているときは、枚数は後ろに表示。
 			const std::string cs = (c != 1) ? std::to_string(c) : "";
-			std::cout << (pretty_jp ? "" : cs) << pretty(pr) << (pretty_jp ? cs : "");
+			os << (pretty_jp ? "" : cs) << pretty(pr) << (pretty_jp ? cs : "");
 		}
 	}
 	return os;
