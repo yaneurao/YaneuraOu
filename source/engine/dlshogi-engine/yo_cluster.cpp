@@ -5,6 +5,9 @@
 
 // Windows以外の環境は未サポート
 
+#include <sstream>
+#include "../../position.h"
+
 namespace YaneuraouTheCluster
 {
 	// cluster時のUSIメッセージの処理ループ
@@ -57,7 +60,7 @@ namespace YaneuraouTheCluster
 //   yane-cluster.bat cluster
 // とすればいいと思う。
 
-#include <istream>
+#include <sstream>
 #include <thread>
 #include <variant>
 #include "../../position.h"
