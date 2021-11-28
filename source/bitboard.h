@@ -573,7 +573,7 @@ inline bool Bitboard256::operator == (const Bitboard256& rhs) const
 {
 #if defined (USE_AVX2)
 	__m256i neq = _mm256_xor_si256(this->m, rhs.m);
-	return _mm256_test_all_zeros(neq, neq) ? true : false;
+	return /*_mm256_test_all_zeros*/ _mm256_testz_si256(neq, neq) ? true : false;
 #else
 	return (this->p[0] == rhs.p[0]) && (this->p[1] == rhs.p[1]) && (this->p[2] == rhs.p[2]) && (this->p[3] == rhs.p[3]);
 	// return (this->p[0] ^ rhs.p[0]) | (this->p[1] ^ rhs.p[1]) | (this->p[2] ^ rhs.p[2]) | (this->p[3] == rhs.p[3]);

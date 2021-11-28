@@ -331,12 +331,12 @@ inline u64 byte_reverse(u64 u)
 {
 //#if (defined(_WIN64) && defined(_MSC_VER)) || (defined(__GNUC__) && defined(IS_64BIT))
 #if defined(_WIN64)
-	return _load_be_u64(&u); // MSVCとGCCはこのマクロが定義されているはず？
+//	return _load_be_u64(&u); // MSVCとGCCはこのマクロが定義されているはず？Clangで存在しない模様。
+	return _loadbe_i64(&u);  // こう書けばMSVCとClangでコンパイル通る模様。
 #else 
 	// 下位4バイトを逆順にして上位へ。上位4バイトを逆順にして下位へ。
 	return ((u64)byte_reverse32((u32)u) << 32) | (u64)byte_reverse32((u32)(u >> 32));
 #endif
 }
-
 
 #endif
