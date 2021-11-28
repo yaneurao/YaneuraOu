@@ -646,31 +646,6 @@ Bitboard Position::slider_blockers(Color c, Square s , Bitboard& pinners) const 
 }
 
 
-// sに利きのあるc側の駒を列挙する。
-// (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
-template <Color C>
-Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
-{
-	ASSERT_LV3(is_ok(C) && sq <= SQ_NB);
-
-	constexpr Color Them = ~C;
-
-	// sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
-	// 香の利きを求めるコストが惜しいのでrookEffect()を利用する。
-	return
-		(     (pawnEffect  <Them>(sq)	&  pieces(PAWN)        )
-			| (knightEffect<Them>(sq)	&  pieces(KNIGHT)      )
-			| (silverEffect<Them>(sq)	&  pieces(SILVER_HDK)  )
-			| (goldEffect  <Them>(sq)	&  pieces(GOLDS_HDK)   )
-			| (bishopEffect(sq, occ)	&  pieces(BISHOP_HORSE))
-			| (rookEffect(sq, occ)		& (pieces(ROOK_DRAGON) | (lanceStepEffect<Them>(sq) & pieces(LANCE))))
-		//  | (kingEffect(sq) & pieces(c, HDK));
-		// →　HDKは、銀と金のところに含めることによって、参照するテーブルを一個減らして高速化しようというAperyのアイデア。
-			) & pieces<C>(); // 先後混在しているのでc側の駒だけ最後にマスクする。
-		;
-
-}
-
 // sに利きのあるc側の駒を列挙する。先後両方。
 // (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
 // sq == SQ_NBでの呼び出しは合法。ZERO_BBが返る。
