@@ -141,7 +141,7 @@ struct alignas(16) Bitboard
 	Bitboard& operator <<= (int shift) { /*ASSERT_LV3(shift == 1);*/ this->p[0] <<= shift; this->p[1] <<= shift; return *this; }
 	Bitboard& operator >>= (int shift) { /*ASSERT_LV3(shift == 1);*/ this->p[0] >>= shift; this->p[1] >>= shift; return *this; }
 
-	Bitboard and_not(const Bitboard& b1) const { Bitboard b0; b0.p[0] = ~p[0] & b1.p[0]; b0.p[1] = ~p[1] & b1.p[1]; return b0; }
+	Bitboard andnot(const Bitboard& b1) const { Bitboard b0; b0.p[0] = ~p[0] & b1.p[0]; b0.p[1] = ~p[1] & b1.p[1]; return b0; }
 
 #endif
 
@@ -488,22 +488,6 @@ extern Bitboard RookStepEffectBB[SQ_NB_PLUS1];
 extern u8		Slide[SQ_NB_PLUS1];
 extern u64      RookFileEffect[RANK_NB + 1][128];
 
-#if defined(USE_OLD_YANEURAOU_EFFECT)
-
-// 従来のやねうら王の実装
-
-// --- 角の利き
-
-extern Bitboard BishopEffect[2][1856+1];
-extern Bitboard BishopEffectMask[2][SQ_NB_PLUS1];
-extern int		BishopEffectIndex[2][SQ_NB_PLUS1];
-
-// --- 飛車の横の利き
-
-extern Bitboard RookRankEffect[FILE_NB + 1][128];
-
-#else // defined(USE_OLD_YANEURAOU_EFFECT)
-
 // Apery型の遠方駒の利きの実装
 
 // やねうら王では、Aperyと異なり、駒がSQ_NBにいる場合を考慮して、SQ_NB_PLUS1の分だけ配列を確保している。
@@ -545,8 +529,6 @@ extern Bitboard RookBlockMask[SQ_NB_PLUS1];
 extern const u64 RookMagic[SQ_NB_PLUS1];
 extern const u64 BishopMagic[SQ_NB_PLUS1];
 #endif
-
-#endif // defined(USE_OLD_YANEURAOU_EFFECT)
 
 // --------------------
 //   大駒・小駒の利き
@@ -765,13 +747,32 @@ inline Bitboard bishopEffect(const Square sq, const Bitboard& occupied) {
 	return BishopAttack[BishopAttackIndex[sq] + occupiedToIndex(block, BishopBlockMask[sq])];
 }
 
+#else
+
+// magic bitboard.
+
+// magic number を使って block の模様から利きのテーブルへのインデックスを算出
+inline u64 occupiedToIndex(const Bitboard& block, const u64 magic, const int shiftBits) {
+	return (block.merge() * magic) >> shiftBits;
+}
+
+inline Bitboard rookEffect(const Square sq, const Bitboard& occupied) {
+	const Bitboard block(occupied & RookBlockMask[sq]);
+	return RookAttack[RookAttackIndex[sq] + occupiedToIndex(block, RookMagic[sq], RookShiftBits[sq])];
+}
+
+inline Bitboard bishopEffect(const Square sq, const Bitboard& occupied) {
+	const Bitboard block(occupied & BishopBlockMask[sq]);
+	return BishopAttack[BishopAttackIndex[sq] + occupiedToIndex(block, BishopMagic[sq], BishopShiftBits[sq])];
+}
+
+#endif // defined (USE_BMI2)
+
 // 飛車の横の利き(一度、飛車の利きを求めてからマスクしているのでやや遅い。どうしても必要な時だけ使う)
 inline Bitboard rookRankEffect(Square sq, const Bitboard& occupied)
 {
 	return rookEffect(sq, occupied) & RANK_BB[rank_of(sq)];
 }
-
-#endif
 
 // --- 馬と龍
 
