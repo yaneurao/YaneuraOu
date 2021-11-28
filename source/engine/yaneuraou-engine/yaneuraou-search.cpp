@@ -2430,7 +2430,7 @@ namespace {
 			else if (   PvNode
 				&& move == ttMove
 				&& move == ss->killers[0]
-				&& (*contHist[0])[movedPiece][to_sq(move)] >= 10000)
+				&& (*contHist[0])[to_sq(move)][movedPiece] >= 10000)
 				extension = 1;
 
 			// -----------------------
