@@ -1,6 +1,7 @@
 ﻿#include "bitboard.h"
 #include "extra/long_effect.h"
 #include "mate/mate.h"
+#include "testcmd/unit_test.h"
 
 #include <sstream>
 
@@ -757,3 +758,98 @@ void Bitboards::init()
 #endif
 
 }
+
+// Bitboard256の1の升を'*'、0の升を'.'として表示する。デバッグ用。
+std::ostream& operator<<(std::ostream& os, const Bitboard256& board)
+{
+	Bitboard b1, b2;
+	board.toBitboard(b1, b2);
+
+	auto print_rank = [&](const Bitboard& b,Rank r) {
+		for (File f = FILE_9; f >= FILE_1; --f)
+			os << (b.test(f | r) ? " *" : " .");
+	};
+
+	for (Rank r = RANK_1; r <= RANK_9; ++r)
+	{
+		// Bitboardを2列表示する。
+		print_rank(b1,r);
+		os << ' ';
+		print_rank(b2,r);
+		os << endl;
+	}
+	return os;
+}
+
+// byte単位で入れ替えたBitboardを返す。
+// 飛車の利きの右方向と角の利きの右上、右下方向を求める時に使う。
+Bitboard Bitboard::byte_reverse() const
+{
+#if defined(USE_SSE2)
+	const __m128i shuffle = _mm_set_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+	Bitboard b0;
+	b0.m = _mm_shuffle_epi8(m, shuffle);
+	return b0;
+#else
+	Bitboard b0;
+	b0.p[0] = ::byte_reverse(p[1]);
+	b0.p[1] = ::byte_reverse(p[0]);
+	return b0;
+#endif
+}
+
+
+// UnitTest
+void Bitboard::UnitTest(Test::UnitTester& tester)
+{
+	auto section1 = tester.section("Bitboard");
+
+	{
+		// SQの升のbitを立てて、それがちゃんと読み取れるかのテスト
+		bool all_ok = true;
+		for (Rank r = RANK_1; r <= RANK_9; ++r)
+			for (File f = FILE_1; f <= FILE_9; ++f)
+			{
+				Square sq = f | r;
+				Bitboard b(sq);
+				all_ok &= b.test(sq);    // そのbitが立っているか
+				all_ok &= b.pop() == sq; // 1の立っているbitをもらえば、その升であるか。
+			}
+		tester.test("sq occupied", all_ok);
+	}
+	{
+		// ByteReverseがちゃんと機能しているかのテスト
+
+		Bitboard b(0x0123456789abcdef, 0xfedcba9876543210);
+		Bitboard r = b.byte_reverse();
+
+		tester.test("byte_reverse", r.p[0] == 0x1032547698badcfe && r.p[1] == 0xefcdab8967452301);
+	}
+
+}
+
+// UnitTest
+void Bitboard256::UnitTest(Test::UnitTester& tester)
+{
+	auto section1 = tester.section("Bitboard256");
+	{
+		// 2つのBitboardを合体させて、分離させて一致するかのテスト
+
+		bool all_ok = true;
+
+		Bitboard b1, b2 , b3 ,b4;
+
+		for (auto sq : SQ)
+		{
+			b1 = Bitboard(sq);
+			b2 = Bitboard(SQ_99 - sq);
+
+			Bitboard256 b256(b1, b2);
+			b256.toBitboard(b3, b4);
+			all_ok &= b1 == b3 && b2 == b4;
+		}
+
+		tester.test("toBitboard", all_ok);
+	}
+}
+
