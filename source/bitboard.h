@@ -480,7 +480,7 @@ inline Bitboard pawn_drop_mask(const Bitboard& pawns) {
 struct alignas(32) Bitboard256
 {
 	// Bitboard 2つ分。
-#if defined (USE_SSE2)
+#if defined (USE_AVX2)
 	union
 	{
 		// 64bitずつとして扱うとき用
