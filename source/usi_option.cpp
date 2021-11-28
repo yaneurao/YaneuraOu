@@ -401,13 +401,13 @@ namespace USI {
 	// あればそれをオプションとしてOptions[]の値をオーバーライドする機能。
 	void read_engine_options(const string& filename)
 	{
-		std::ifstream ifs(filename);
-		if (!ifs.fail())
-		{
-			std::string str;
-			while (Tools::getline(ifs, str))
-				build_option(str);
-		}
+		SystemIO::TextReader reader;
+		if (reader.Open(filename).is_not_ok())
+			return;
+
+		string line;
+		while (reader.ReadLine(line).is_ok())
+			build_option(line);
 	}
 
 	// idxの値を書き換えないoperator "<<"
