@@ -789,13 +789,15 @@ std::ostream& operator<<(std::ostream& os, const Bitboard256& board)
 	return os;
 }
 
-// byte単位で入れ替えたBitboardを返す。(SSE2以降専用)
+// byte単位で入れ替えたBitboardを返す。
 // 飛車の利きの右方向と角の利きの右上、右下方向を求める時に使う。
+// SSSE3以降でないと使えない。AVX2以降の環境で使うのを想定。
 Bitboard Bitboard::byte_reverse() const
 {
-#if defined(USE_SSE2)
+#if defined(USE_SSSE3)
 	const __m128i shuffle = _mm_set_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
 	Bitboard b0;
+	// _mm_shuffle_epi8はSSSE3で実装された命令らしい。
 	b0.m = _mm_shuffle_epi8(m, shuffle);
 	return b0;
 #else

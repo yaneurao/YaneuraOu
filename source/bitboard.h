@@ -166,6 +166,7 @@ struct alignas(16) Bitboard
 
 	// byte単位で入れ替えたBitboardを返す。
 	// 飛車の利きの右方向と角の利きの右上、右下方向を求める時に使う。
+	// SSSE3以降でないと使えない。AVX2以降の環境で使うのを想定。
 	Bitboard byte_reverse() const;
 
 	// range-forで回せるようにするためのhack(少し遅いので速度が要求されるところでは使わないこと)
