@@ -2,7 +2,207 @@
 やねうら王 更新履歴
 
 
+
+■　2021/11/30 V700beta2
+
+
+- V700beta2
+
+engine1 = YaneuraOuNNUE_V700beta2.exe , eval = Suisho5_211028
+engine2 = YaneuraOuNNUE_V700beta1.exe , eval = Suisho5_211028
+T2,b1000,1450 - 170 - 1380(51.24% R8.6[-2.15,19.34]) winrate black , white = 53.22% , 46.78%
+T2,b2000,920 - 155 - 925(49.86% R-0.94[-14.24,12.36]) winrate black , white = 52.41% , 47.59%
+T2,b4000,452 - 99 - 439(50.73% R5.07[-14.07,24.21]) winrate black , white = 54.43% , 45.57%
+Quiet ttMove extensionsの修正と高速化で、弱くはなってなさそう。
+
+
+
+■　2021/11/29
+
+
+- Mate1plyのコードまわり、templateをかなり導入した。
+
+
+- _mm_shuffle_epi8はSSE3の命令らしくSSE2用のビルドが失敗していたの修正。
+
+
+- Qugiyの香の利きを実装した時に差し替えた歩の利きの初期化コード、バグっていたの修正。
+	- これで落ちなくなった。よかった。
+- MoveGenに対してassert増した。
+- attackers_toなどtemplate版の利きを使うようにした。
+
+
+- 起動時に startup_info.txt があれば、それを出力する。
+	- 開発時にfコマンドによるマクロの説明などを書いておくのに便利。
+- bitboard.cpp、SSE2なし環境でコンパイル通ってなかったの修正。
+
+
+- attackers_to(Square sq, const Bitboard& occ)、利きをtemplate版の方を呼ぶようにした。
+	- 少しだけ高速化。
+- byte_reverse()、g++だとコンパイル通ってなかった。
+	- MOVBE自体、対応してないCPUわりとあるようで、使わないほうが無難。
+	- https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
+	- byte_reverse()削除。
+
+// ----------------------------
+//    byte reverse
+// ----------------------------
+
+// 書いてみたものの、この速度なら使う価値がないと思う。
+
+// 32bitの値をbyte単位で逆順にして返す。
+// byte_reverse()から64bit環境でない時に呼び出される。
+inline u32 byte_reverse32(u32 u)
+{
+//#if defined(__GNUC__) && !defined(IS_64BIT)
+	// GCCはこのマクロが定義されているはず。
+	//return _loadbe_i32(&u);
+	//
+	// 	→ MOVBE命令が実装されている環境(SSE3以降？)でないと使えないようだ。
+	// 
+//#else
+	// それ以外なのでどうしようもない。
+	// これ遅いから使わないほうがいいと思う。
+	return ((u&0xff000000)>>24) | (((u&0x00ff0000)<<8)>>16) | (((u&0x0000ff00)>>8)<<16) | ((u & 0x000000ff) << 24);
+//#endif
+}
+
+// 64bitの値をbyte単位で逆順にして返す。
+inline u64 byte_reverse(u64 u)
+{
+//#if (defined(_WIN64) && defined(_MSC_VER)) || (defined(__GNUC__) && defined(IS_64BIT))
+#if defined(_WIN64)
+
+#if !defined( __clang__ ) 
+	return _load_be_u64(&u); // MSVCとg++はこのマクロが定義されているはず？Clangで存在しない模様。
+#else
+	return _loadbe_i64(&u);  // こう書けばMSVCとClangでコンパイル通る模様。でもg++でコンパイルが通らない。
+#endif
+
+#else 
+	// 下位4バイトを逆順にして上位へ。上位4バイトを逆順にして下位へ。
+	return ((u64)byte_reverse32((u32)u) << 32) | (u64)byte_reverse32((u32)(u >> 32));
+#endif
+}
+
+
+
+- Quiet ttMove extensions修正。
+
+			else if (   PvNode
+				&& move == ttMove
+				&& move == ss->killers[0]
+				&& (*contHist[0])[to_sq(move)][movedPiece] >= 10000)
+				extension = 1;
+
+	このcontHist[0]の[]内、1つ目と2つ目が入れ替わっていた。(Stockfishからやねうら王に持ってくる時、ここ入れ替えないといけないので注意)
+
+
+- engine_options.txt、TextReaderを用いて読み込むように変更。
+	- 以前のコードだとutf-8のBOMがついていると読み込めていなかった。
+
+
+- Bitboard256、AVX2命令使ってあるのにUSE_SSE2になっていたの修正。
+	- SSE2用のビルドに失敗していた。
+
+
+- Clangでビルドエラーになっていたの修正。
+	- ひとつ前のcommitの_load_be_u64()、Clangだと_loadbe_i64と書かないといけないようだった。
+
+
+- 角と飛車の飛び利きをmagic bitboardを用いないで実現する作業、途中でgive upしたので作業途中まで反映。
+	- Qugiyのコードに似た考えかた。
+		- Qugiyの作者に色々教えていただきました。ありがとうございます。
+	- Bitboard256みたいなclassを作って、そのclassの演算子だけで実装する。
+		- Bitboard256のclassの実装に関して、wain_CGPさんに色々教えていただきました。ありがとうございます。
+	- Bitboard512があれば、角の4方向の利きは並列的に求められる。
+	- 飛車の利きは、上方向がshuffleでbyte単位で逆順にした時に、升が逆順に並ばないから求まらない。
+		- Qugiyもここは先手の香の利きを合成している。
+
+	- 角の利きをBitboard256 classで
+
+	Bitboard256という、Bitboardを２つ連結させたclassを用意した。
+	また、Bitboard::byte_reverse()というbyteで逆順にしたBitboardを返すメソッドを追加した。
+	あとwainさんに教えていただいたSIMDでymmレジスタに対して128bit×2のaddを行うテクニックを用いて、Bitboard256::add128()を実装する。(まだしていない)
+
+	これらを用いて、角の利きを計算することは出来るはず。(私の理解が間違っていなければ)
+	ところが、byte_reverse()するのにMOVBEすらない環境だとbyteを入れ替えるだけでも大変なので、magic bitboardを用いるより遅くなる。(計測していない。あくまで予想)
+
+	そのため、AVX2が使える環境に限定した方がいいような気はしている。問題は、ZEN2のようなPEXTが激遅である環境以外で高速になるのかどうかである。
+	せめてmagic bitboardと同じぐらいの速度(1%程度の速度低下は可)であるなら、これを使うことにしてmagic bitboardの実装を削除できる。
+	しかしその場合でもMOVBEが使えない環境のためにmagic bitboardの実装を残しておかないといけないかもしれない。
+
+	正直、magic bitboard(PEXTありとなし)の実装と、Bitboard256の実装(AVX2ありとなし)と、byte_reverse(MOVBEありとなし)とこの3つを同時に保守していくのは避けたいところである。
+
+	WCSC32では、AWSのc6i.32xlarge(128 vCPU)を使うとしてこれ、
+		最大 3.5 GHz の第 3 世代インテル Xeon スケーラブルプロセッサー
+	と書いてあるのでPEXT、遅くない。
+
+	そんなわけで、飛び利きのコード、刷新してもこの環境で速くなるかどうか怪しいので、ここで一旦作業を保留しておく。
+
+
+■　2021/11/28
+
+
+- Androidのclangなどでビルドが通らなくなっていたの修正。
+	- attackers_toをtemplate化した時に、.cppから.hに移動させてなかったから、
+		C++ templateの扱いがinclusion modelだとコンパイル通らないのだった。
+
+
+- SSEなし環境でビルドが通らなくなっていたの修正。
+	- andnot()実装した時に、SSEなしの時の関数名をand_notとしてしまっていた。
+	- 古い利きのコードと間違えて掃除してしまっていた。
+- 古い利きのコード、掃除。
+
+
+
 ■　2021/11/26 V7.00beta
+
+
+- Handに対するoperator<<の出力先が正しくない問題を修正 #213(komori-nさんのプルリク)
+	- https://github.com/yaneurao/YaneuraOu/pull/213
+
+
+- Position::UnitTestに指し手生成祭りのperft追加。
+- 一つ前のcommitでまだコンパイルエラーになっていたの修正。
+
+
+- yo_cluster.cppが非Windows環境用にビルドした時にコンパイルエラーになっていたの修正。
+
+
+- Qugiyの飛び利きのコードを移植その2。
+	- 二歩になる升のBitboardをbit演算で得るコードを実装。
+
+- Position::set_check_infoをtemplate化。
+	template <bool doNullMove , Color Us>
+	void Position::set_check_info(StateInfo* si) const;
+
+- Position::attackers_to()をtemplate化して先後分けた。
+- 駒の利き関連のコード、先後をtemplate化して分けた。
+
+
+- Qugiyの飛び利きのコードを移植その1。香の飛び利き、先後。
+	- cf.WCSC31 Qugiy アピール文書 : https://www.apply.computer-shogi.org/wcsc31/appeal/Qugiy/appeal.pdf
+	- 最終的に全部盛りで、ZEN2で4%ぐらい速くなるらしい。
+- PositionにperftのUnitTest追加。
+- pawnEffect,lanceEffectなどtemplate化。
+- Bitboardにandnotなど追加。
+- PawnEffect(Bitboard)紛らわしいのでPawnBbEffectと改名。
+
+
+		//Square sq = SQ_21;
+		//Bitboard occ(SQ_27);
+		Square sq = SQ_11;
+		Bitboard occ(SQ_17);
+		cout << lanceEffect<WHITE>(sq, occ);
+
+
+// やねうら王の従来の遠方駒の利きを求めるコードを用いる。
+// これをundefするとApery型の利きのコードを用いる。(そっちのほうがPEXTが使えない環境だと速い)
+// 互換性維持および、55将棋のように盤面を変形させるときに、magic tableで用いるmagic numberを求めたくないときに用いる。
+
+// #define USE_OLD_YANEURAOU_EFFECT
+→　削除
 
 
 - やねうら王 V7.00beta
