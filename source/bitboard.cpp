@@ -2,6 +2,7 @@
 #include "extra/long_effect.h"
 #include "mate/mate.h"
 #include "testcmd/unit_test.h"
+#include "misc.h"
 
 #include <sstream>
 
