@@ -387,25 +387,25 @@ Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ)
 {
 	switch (pc)
 	{
-	case B_PAWN:   return pawnEffect(BLACK, sq);
-	case B_LANCE:  return lanceEffect<BLACK>(sq, occ);
-	case B_KNIGHT: return knightEffect(BLACK, sq);
-	case B_SILVER: return silverEffect(BLACK, sq);
-	case B_GOLD: case B_PRO_PAWN: case B_PRO_LANCE: case B_PRO_KNIGHT: case B_PRO_SILVER: return goldEffect(BLACK, sq);
+	case B_PAWN:   return pawnEffect  <BLACK>(sq);
+	case B_LANCE:  return lanceEffect <BLACK>(sq, occ);
+	case B_KNIGHT: return knightEffect<BLACK>(sq);
+	case B_SILVER: return silverEffect<BLACK>(sq);
+	case B_GOLD: case B_PRO_PAWN: case B_PRO_LANCE: case B_PRO_KNIGHT: case B_PRO_SILVER: return goldEffect<BLACK>(sq);
 
-	case W_PAWN:   return pawnEffect(WHITE, sq);
-	case W_LANCE:  return lanceEffect<WHITE>(sq, occ);
-	case W_KNIGHT: return knightEffect(WHITE, sq);
-	case W_SILVER: return silverEffect(WHITE, sq);
-	case W_GOLD: case W_PRO_PAWN: case W_PRO_LANCE: case W_PRO_KNIGHT: case W_PRO_SILVER: return goldEffect(WHITE, sq);
+	case W_PAWN:   return pawnEffect  <WHITE>(sq);
+	case W_LANCE:  return lanceEffect <WHITE>(sq, occ);
+	case W_KNIGHT: return knightEffect<WHITE>(sq);
+	case W_SILVER: return silverEffect<WHITE>(sq);
+	case W_GOLD: case W_PRO_PAWN: case W_PRO_LANCE: case W_PRO_KNIGHT: case W_PRO_SILVER: return goldEffect<WHITE>(sq);
 
 		//　先後同じ移動特性の駒
 	case B_BISHOP: case W_BISHOP: return bishopEffect(sq, occ);
-	case B_ROOK:   case W_ROOK:   return rookEffect(sq, occ);
-	case B_HORSE:  case W_HORSE:  return horseEffect(sq, occ);
+	case B_ROOK:   case W_ROOK:   return rookEffect  (sq, occ);
+	case B_HORSE:  case W_HORSE:  return horseEffect (sq, occ);
 	case B_DRAGON: case W_DRAGON: return dragonEffect(sq, occ);
-	case B_KING:   case W_KING:   return kingEffect(sq);
-	case B_QUEEN:  case W_QUEEN:  return horseEffect(sq, occ) | dragonEffect(sq, occ);
+	case B_KING:   case W_KING:   return kingEffect  (sq     );
+	case B_QUEEN:  case W_QUEEN:  return horseEffect (sq, occ) | rookEffect(sq, occ); // 馬+飛でいいや。(馬+龍は王の利きを2回合成して損)
 	case NO_PIECE: case PIECE_WHITE: return ZERO_BB; // これも入れておかないと初期化が面倒になる。
 
 	default: UNREACHABLE; return ALL_BB;
@@ -568,7 +568,14 @@ void Bitboards::init()
 			// →　香の利きにQugiyのアルゴリズムを用いるようにしたので香の利きを求めるのに歩の利きを用いるから、これはダメ。
 			//PawnEffectBB[sq][c] = lanceEffect(c, sq, ALL_BB);
 
-			PawnEffectBB[sq][c] = Bitboard(c == BLACK ? sq + SQ_U : sq + SQ_D);
+			Bitboard b;
+			if (   (c == BLACK && rank_of(sq) == RANK_1)
+				|| (c == WHITE && rank_of(sq) == RANK_9))
+				b = ZERO_BB; // 行き先のない歩。
+			else
+				b = Bitboard(c == BLACK ? sq + SQ_U : sq + SQ_D);
+
+			PawnEffectBB[sq][c] = b;
 			// PawnEffectBBを初期化しておけば、以降でlanceEffectをつかかえる。
 		}
 

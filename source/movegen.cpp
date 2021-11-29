@@ -6,6 +6,36 @@
 #include <iostream>
 using namespace std;
 
+// mlist_startからmlist_endまで(mlist_endは含まない)の指し手がpseudo_legalであるかを
+// 調べて、すべてpseudo_legalならばtrueを返す。
+bool pseudo_legal_check(const Position& pos, ExtMove* mlist_start, ExtMove* mlist_end)
+{
+	bool all_ok = true;
+
+	for (auto it = mlist_start; it != mlist_end; ++it)
+		all_ok = pos.pseudo_legal(it->move);
+
+	// Debug用に、非合法手があった時に局面とその指し手を出力する。
+#if 0
+	if (!all_ok)
+	{
+		sync_cout << "Error! : A non-pseudo legal move was generated." << endl
+			      << pos << sync_endl;
+
+		for (auto it = mlist_start; it != mlist_end; ++it)
+		{
+			if (!pos.pseudo_legal(it->move))
+				sync_cout << "move = " << it->move << sync_endl;
+		}
+
+		// ここ↓にbreak pointを仕掛けておくと便利
+		sync_cout << "stopped." << sync_endl;
+	}
+#endif
+
+	return all_ok;
+}
+
 // ----------------------------------
 //      移動による指し手
 // ----------------------------------
@@ -417,6 +447,8 @@ template <Color Us> struct GenerateDropMoves {
 template<Color Us, bool All>
 ExtMove* generate_evasions(const Position& pos, ExtMove* mlist)
 {
+	ExtMove* mlist_org = mlist;
+
 	// この実装において引数のtargetは無視する。
 
 	// この関数を呼び出しているということは、王手がかかっているはずであり、
@@ -462,45 +494,36 @@ ExtMove* generate_evasions(const Position& pos, ExtMove* mlist)
 	Bitboard bb = kingEffect(ksq) & ~(pos.pieces(Us) | sliderAttacks);
 	while (bb) { Square to = bb.pop(); mlist++->move = make_move(ksq, to , Us, KING); }
 
-	// 両王手であるなら、王の移動のみが回避手となる。ゆえにこれで指し手生成は終了。
-	if (checkersCnt > 1)
-		return mlist;
+	// 両王手(checkersCnt == 2)であるなら、王の移動のみが回避手となる。ゆえにこれで指し手生成は終了。
+	// 1以下なら、両王手ではないので..
+	if (checkersCnt <= 1)
+	{
+		// 両王手でないことは確定した
 
-	// 両王手でないことは確定した
+		// このあと生成すべきは
+		// 1) 王手している駒を王以外で取る指し手
+		// 2) 王手している駒と王の間に駒を移動させる指し手(移動合い)
+		// 3) 王手している駒との間に駒を打つ指し手(合駒打ち)
 
-	// このあと生成すべきは
-	// 1) 王手している駒を王以外で取る指し手
-	// 2) 王手している駒と王の間に駒を移動させる指し手(移動合い)
-	// 3) 王手している駒との間に駒を打つ指し手(合駒打ち)
+		// target1 == 王手している駒と王との間の升 == 3)の駒打ちの場所
+		// target2 == 移動による指し手は1)+2) = 王手している駒と王との間の升 + 王手している駒　の升
 
-	// target1 == 王手している駒と王との間の升 == 3)の駒打ちの場所
-	// target2 == 移動による指し手は1)+2) = 王手している駒と王との間の升 + 王手している駒　の升
+		const Bitboard target1 = between_bb(checksq, ksq);
+		const Bitboard target2 = target1 | checksq;
 
-	const Bitboard target1 = between_bb(checksq, ksq);
-	const Bitboard target2 = target1 | checksq;
+		// あとはNON_EVASIONS扱いで普通に指し手生成。
+		mlist = GeneratePieceMoves<NON_EVASIONS, PAWN   , Us, All>()(pos, mlist, target2);
+		mlist = GeneratePieceMoves<NON_EVASIONS, LANCE  , Us, All>()(pos, mlist, target2);
+		mlist = GeneratePieceMoves<NON_EVASIONS, KNIGHT , Us, All>()(pos, mlist, target2);
+		mlist = GeneratePieceMoves<NON_EVASIONS, SILVER , Us, All>()(pos, mlist, target2);
+		mlist = GeneratePieceMoves<NON_EVASIONS, GPM_BR , Us, All>()(pos, mlist, target2);
+		mlist = GeneratePieceMoves<NON_EVASIONS, GPM_GHD, Us, All>()(pos, mlist, target2); // 玉は除かないといけない
+		mlist = GenerateDropMoves<Us>()(pos, mlist, target1);
+	}
 
-	// あとはNON_EVASIONS扱いで普通に指し手生成。
-	mlist = GeneratePieceMoves<NON_EVASIONS, PAWN   , Us, All>()(pos, mlist, target2);
-	mlist = GeneratePieceMoves<NON_EVASIONS, LANCE  , Us, All>()(pos, mlist, target2);
-	mlist = GeneratePieceMoves<NON_EVASIONS, KNIGHT , Us, All>()(pos, mlist, target2);
-	mlist = GeneratePieceMoves<NON_EVASIONS, SILVER , Us, All>()(pos, mlist, target2);
-	mlist = GeneratePieceMoves<NON_EVASIONS, GPM_BR , Us, All>()(pos, mlist, target2);
-	mlist = GeneratePieceMoves<NON_EVASIONS, GPM_GHD, Us, All>()(pos, mlist, target2); // 玉は除かないといけない
-	mlist = GenerateDropMoves<Us>()(pos, mlist, target1);
+	ASSERT_LV5(pseudo_legal_check(pos, mlist_org, mlist));
 
 	return mlist;
-}
-
-// mlist_startからmlist_endまで(mlist_endは含まない)の指し手がpseudo_legalであるかを
-// 調べて、すべてpseudo_legalならばtrueを返す。
-bool pseudo_legal_check(const Position& pos, ExtMove* mlist_start, ExtMove* mlist_end)
-{
-	bool all_ok = true;
-
-	for (auto it = mlist_start; it != mlist_end; ++it)
-		all_ok = pos.pseudo_legal(it->move);
-
-	return all_ok;
 }
 
 // ----------------------------------
