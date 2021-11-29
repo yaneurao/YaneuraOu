@@ -781,7 +781,7 @@ std::ostream& operator<<(std::ostream& os, const Bitboard256& board)
 	return os;
 }
 
-// byte単位で入れ替えたBitboardを返す。
+// byte単位で入れ替えたBitboardを返す。(SSE2以降専用)
 // 飛車の利きの右方向と角の利きの右上、右下方向を求める時に使う。
 Bitboard Bitboard::byte_reverse() const
 {
@@ -791,10 +791,14 @@ Bitboard Bitboard::byte_reverse() const
 	b0.m = _mm_shuffle_epi8(m, shuffle);
 	return b0;
 #else
+	/*
 	Bitboard b0;
 	b0.p[0] = ::byte_reverse(p[1]);
 	b0.p[1] = ::byte_reverse(p[0]);
 	return b0;
+	*/
+	sync_cout << "Error! byte_reverse() , not implemented." << sync_endl;
+	Tools::exit();
 #endif
 }
 
@@ -818,12 +822,20 @@ void Bitboard::UnitTest(Test::UnitTester& tester)
 		tester.test("sq occupied", all_ok);
 	}
 	{
+#if defined(USE_SSE2)
 		// ByteReverseがちゃんと機能しているかのテスト
 
 		Bitboard b(0x0123456789abcdef, 0xfedcba9876543210);
 		Bitboard r = b.byte_reverse();
 
 		tester.test("byte_reverse", r.p[0] == 0x1032547698badcfe && r.p[1] == 0xefcdab8967452301);
+#endif
+	}
+	{
+		// 9段目が0、そこ以外が1のmask(香の利きを求めるコードのなかで使っている)
+		Bitboard mask(0x3fdfeff7fbfdfeffULL , 0x000000000001feffULL);
+
+		tester.test("RANK9_BB", RANK9_BB == ~mask);
 	}
 
 }

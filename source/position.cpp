@@ -656,26 +656,26 @@ Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 	// sqの地点に敵駒ptをおいて、その利きに自駒のptがあればsqに利いているということだ。
 	return
 		// 先手の歩・桂・銀・金・HDK
-		((    (pawnEffect(WHITE, sq)   & pieces(PAWN)        )
-			| (knightEffect(WHITE, sq) & pieces(KNIGHT)      )
-			| (silverEffect(WHITE, sq) & pieces(SILVER_HDK)  )
-			| (goldEffect(WHITE, sq)   & pieces(GOLDS_HDK)   )
-			) & pieces(BLACK))
+		((    (pawnEffect  <WHITE>(sq) & pieces(PAWN)        )
+			| (knightEffect<WHITE>(sq) & pieces(KNIGHT)      )
+			| (silverEffect<WHITE>(sq) & pieces(SILVER_HDK)  )
+			| (goldEffect  <WHITE>(sq) & pieces(GOLDS_HDK)   )
+			) & pieces<BLACK>())
 		|
 
 		// 後手の歩・桂・銀・金・HDK
-		((    (pawnEffect(BLACK, sq)   & pieces(PAWN)        )
-			| (knightEffect(BLACK, sq) & pieces(KNIGHT)      )
-			| (silverEffect(BLACK, sq) & pieces(SILVER_HDK)  )
-			| (goldEffect(BLACK, sq)   & pieces(GOLDS_HDK)   )
-			) & pieces(WHITE))
+		((    (pawnEffect  <BLACK>(sq) & pieces(PAWN)        )
+			| (knightEffect<BLACK>(sq) & pieces(KNIGHT)      )
+			| (silverEffect<BLACK>(sq) & pieces(SILVER_HDK)  )
+			| (goldEffect  <BLACK>(sq) & pieces(GOLDS_HDK)   )
+			) & pieces<WHITE>())
 
 		// 先後の角・飛・香
 		| (bishopEffect(sq, occ) & pieces(BISHOP_HORSE) )
 		| (rookEffect(sq, occ) & (
 			   pieces(ROOK_DRAGON)
-			| (pieces(BLACK , LANCE) & lanceStepEffect(WHITE , sq))
-			| (pieces(WHITE , LANCE) & lanceStepEffect(BLACK , sq))
+			| (pieces(BLACK , LANCE) & lanceStepEffect<WHITE>(sq))
+			| (pieces(WHITE , LANCE) & lanceStepEffect<BLACK>(sq))
 			// 香も、StepEffectでマスクしたあと飛車の利きを使ったほうが香の利きを求めなくて済んで速い。
 			));
 }

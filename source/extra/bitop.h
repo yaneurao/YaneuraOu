@@ -303,40 +303,4 @@ extern ymm ymm_one;   // all packed bytes are 1.
 template <typename T> FORCE_INLINE int pop_lsb(T& b) {  int index = LSB32(b);  b = T(BLSR(b)); return index; }
 FORCE_INLINE int pop_lsb(u64 & b) { int index = LSB64(b);  b = BLSR(b); return index; }
 
-// ----------------------------
-//    byte reverse
-// ----------------------------
-
-// 書いてみたものの、この速度なら使う価値がないと思う。
-
-// 32bitの値をbyte単位で逆順にして返す。
-// byte_reverse()から64bit環境でない時に呼び出される。
-inline u32 byte_reverse32(u32 u)
-{
-//#if defined(__GNUC__) && !defined(IS_64BIT)
-	// GCCはこのマクロが定義されているはず。
-	//return _loadbe_i32(&u);
-	//
-	// 	→ MOVBE命令が実装されている環境(SSE3以降？)でないと使えないようだ。
-	// 
-//#else
-	// それ以外なのでどうしようもない。
-	// これ遅いから使わないほうがいいと思う。
-	return ((u&0xff000000)>>24) | (((u&0x00ff0000)<<8)>>16) | (((u&0x0000ff00)>>8)<<16) | ((u & 0x000000ff) << 24);
-//#endif
-}
-
-// 64bitの値をbyte単位で逆順にして返す。
-inline u64 byte_reverse(u64 u)
-{
-//#if (defined(_WIN64) && defined(_MSC_VER)) || (defined(__GNUC__) && defined(IS_64BIT))
-#if defined(_WIN64)
-//	return _load_be_u64(&u); // MSVCとGCCはこのマクロが定義されているはず？Clangで存在しない模様。
-	return _loadbe_i64(&u);  // こう書けばMSVCとClangでコンパイル通る模様。
-#else 
-	// 下位4バイトを逆順にして上位へ。上位4バイトを逆順にして下位へ。
-	return ((u64)byte_reverse32((u32)u) << 32) | (u64)byte_reverse32((u32)(u >> 32));
-#endif
-}
-
 #endif

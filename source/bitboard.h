@@ -850,7 +850,7 @@ inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
 
 	} else {
 
-		// step effectなのでsqの升は0であることが保証されている。
+		// step effectなのでここで返ってくるBitboardのsqの升は0であることが保証されている。
 		const Bitboard se = lanceStepEffect<C>(sq);
 
 		// 香の利きがあるかも知れない範囲に対して、駒がある升だけ1にする。

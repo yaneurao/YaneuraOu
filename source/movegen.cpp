@@ -491,6 +491,17 @@ ExtMove* generate_evasions(const Position& pos, ExtMove* mlist)
 	return mlist;
 }
 
+// mlist_startからmlist_endまで(mlist_endは含まない)の指し手がpseudo_legalであるかを
+// 調べて、すべてpseudo_legalならばtrueを返す。
+bool pseudo_legal_check(const Position& pos, ExtMove* mlist_start, ExtMove* mlist_end)
+{
+	bool all_ok = true;
+
+	for (auto it = mlist_start; it != mlist_end; ++it)
+		all_ok = pos.pseudo_legal(it->move);
+
+	return all_ok;
+}
 
 // ----------------------------------
 //      指し手生成器本体
@@ -514,6 +525,8 @@ ExtMove* generate_general(const Position& pos, ExtMove* mlist, Square recapSq = 
 	//   (価値のある成り以外はオーダリングを阻害するので含めない)
 
 	static_assert(GenType != EVASIONS_ALL && GenType != NON_EVASIONS_ALL && GenType != RECAPTURES_ALL, "*_ALL is not allowed.");
+
+	ExtMove* mlist_org = mlist;
 
 	// 歩以外の駒の移動先
 	const Bitboard target =
@@ -550,6 +563,8 @@ ExtMove* generate_general(const Position& pos, ExtMove* mlist, Square recapSq = 
 	// →　オーダリング性能改善のためにDropをもう少し細分化できるといいのだが、なかなか簡単ではなさげ。
 	if (GenType == NON_CAPTURES || GenType == NON_CAPTURES_PRO_MINUS || GenType == NON_EVASIONS)
 		mlist = GenerateDropMoves<Us>()(pos, mlist, pos.empties());
+
+	ASSERT_LV5(pseudo_legal_check(pos,mlist_org, mlist));
 
 	return mlist;
 }
