@@ -253,8 +253,16 @@ public:
 	// c側の手駒を返す。
 	Hand hand_of(Color c) const { ASSERT_LV3(is_ok(c));  return hand[c]; }
 
+	// ↑のtemplate版
+	template <Color C>
+	Hand hand_of() const { ASSERT_LV3(is_ok(C));  return hand[C]; }
+
 	// c側の玉の位置を返す。
 	FORCE_INLINE Square king_square(Color c) const { ASSERT_LV3(is_ok(c)); return kingSquare[c]; }
+
+	// ↑のtemplate版
+	template <Color C>
+	Square king_square() const { ASSERT_LV3(is_ok(C)); return kingSquare[C]; }
 
 	// 保持しているデータに矛盾がないかテストする。
 	bool pos_is_ok() const;
@@ -352,6 +360,8 @@ public:
 	Bitboard pieces(Color c, PieceType pr1, PieceType pr2, PieceType pr3, PieceType pr4, PieceType pr5) const { return pieces(pr1, pr2, pr3, pr4, pr5) & pieces(c); }
 
 	// ↑のtemplate版
+	template<Color C>
+	Bitboard pieces(PieceType pr) const { return pieces(pr) & pieces(C); }
 	template<Color C,PieceType PR>
 	Bitboard pieces() const { return pieces(PR) & pieces(C); }
 
@@ -373,6 +383,10 @@ public:
 
 	// c側の玉に対してpinしている駒(その駒をc側の玉との直線上から動かしたときにc側の玉に王手となる)
 	Bitboard blockers_for_king(Color c) const { return st->blockersForKing[c]; }
+
+	// ↑のtemplate版
+	template <Color C>
+	Bitboard blockers_for_king() const { return st->blockersForKing[C]; }
 
 	// 現局面で駒Ptを動かしたときに王手となる升を表現するBitboard
 	Bitboard check_squares(PieceType pt) const { ASSERT_LV3(pt!= NO_PIECE_TYPE && pt < PIECE_TYPE_NB); return st->checkSquares[pt]; }
@@ -539,13 +553,24 @@ public:
 	// LONG_EFFECT_LIBRARYを使うときのmateルーチンで使用しているので消さないで！
 	Bitboard pinned_pieces(Color c) const { ASSERT_LV3(is_ok(c)); return st->blockersForKing[c] & pieces(c); }
 
+	// ↑のtemplate版
+	template<Color C>
+	Bitboard pinned_pieces() const { ASSERT_LV3(is_ok(C)); return st->blockersForKing[C] & pieces<C>(); }
+
 	// avoidで指定されている遠方駒は除外して、pinされている駒のbitboardを得る。
 	// ※利きのない1手詰め判定のときに必要。
-	Bitboard pinned_pieces(Color c, Square avoid) const;
+	Bitboard pinned_pieces(Color c, Square avoid) const { return c == BLACK ? pinned_pieces<BLACK>(avoid) : pinned_pieces<WHITE>(avoid); }
+
+	template<Color C>
+	Bitboard pinned_pieces(Square avoid) const;
 
 	// fromからtoに駒が移動したものと仮定して、pinを得る
 	// ※利きのない1手詰め判定のときに必要。
-	Bitboard pinned_pieces(Color c, Square from, Square to) const;
+	Bitboard pinned_pieces(Color c, Square from, Square to) const { return c == BLACK ? pinned_pieces<BLACK>(from,to) : pinned_pieces<WHITE>(from,to); }
+
+	// ↑のtemplate版
+	template<Color C>
+	Bitboard pinned_pieces(Square from, Square to) const;
 
 
 	// 指し手mで王手になるかを判定する。
@@ -810,6 +835,59 @@ inline Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 			// →　HDKは、銀と金のところに含めることによって、参照するテーブルを一個減らして高速化しようというAperyのアイデア。
 			) & pieces<C>(); // 先後混在しているのでc側の駒だけ最後にマスクする。
 	;
+}
+
+// ピンされているc側の駒。下手な方向に移動させるとc側の玉が素抜かれる。
+// avoidで指定されている遠方駒は除外して、pinされている駒のbitboardを得る。
+template <Color C>
+Bitboard Position::pinned_pieces(Square avoid) const
+{
+	Bitboard b, pinners, result = ZERO_BB;
+	Square ksq = king_square(C);
+
+	// avoidを除外して考える。
+	Bitboard avoid_bb = ~Bitboard(avoid);
+
+	pinners = (
+		(  pieces(ROOK_DRAGON)   & rookStepEffect    (ksq))
+		| (pieces(BISHOP_HORSE)  & bishopStepEffect  (ksq))
+		| (pieces(LANCE)         & lanceStepEffect<C>(ksq))
+		) & avoid_bb & pieces<~C>();
+
+	while (pinners)
+	{
+		b = between_bb(ksq, pinners.pop()) & pieces() & avoid_bb;
+		if (!more_than_one(b))
+			result |= b & pieces<C>();
+	}
+	return result;
+}
+
+// ピンされているc側の駒。下手な方向に移動させるとc側の玉が素抜かれる。
+// fromからtoに駒が移動したものと仮定して、pinを得る
+template <Color C>
+Bitboard Position::pinned_pieces(Square from, Square to) const {
+	Bitboard b, pinners, result = ZERO_BB;
+	Square ksq = king_square(C);
+
+	// avoidを除外して考える。
+	Bitboard avoid_bb = ~Bitboard(from);
+
+	pinners = (
+		(  pieces(ROOK_DRAGON)  & rookStepEffect    (ksq))
+		| (pieces(BISHOP_HORSE) & bishopStepEffect  (ksq))
+		| (pieces(LANCE)        & lanceStepEffect<C>(ksq))
+		) & avoid_bb & pieces<~C>();
+
+	// fromからは消えて、toの地点に駒が現れているものとして
+	Bitboard new_pieces = (pieces() & avoid_bb) | to;
+	while (pinners)
+	{
+		b = between_bb(ksq, pinners.pop()) & new_pieces;
+		if (!more_than_one(b))
+			result |= b & pieces(C);
+	}
+	return result;
 }
 
 inline void Position::xor_piece(Piece pc, Square sq)

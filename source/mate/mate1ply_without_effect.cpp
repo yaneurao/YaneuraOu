@@ -52,11 +52,25 @@ namespace {
 		return CHECK_CAND_BB[sq_king][pc][us];
 	}
 
+	// ↑のtemplate版
+	template <Color Us>
+	inline Bitboard check_cand_bb(PieceTypeCheck pc, Square sq_king)
+	{
+		return CHECK_CAND_BB[sq_king][pc][Us];
+	}
+
 	// 敵玉8近傍の利きに関係する自駒の候補のbitboardを返す。ここになければ玉周辺に利きをつけない。
 	// pt = PAWN～HDK
 	inline Bitboard check_around_bb(Color us, PieceType pt, Square sq_king)
 	{
 		return CHECK_AROUND_BB[sq_king][pt - 1][us];
+	}
+
+	// ↑のtemplate版
+	template <Color Us>
+	inline Bitboard check_around_bb(PieceType pt, Square sq_king)
+	{
+		return CHECK_AROUND_BB[sq_king][pt - 1][Us];
 	}
 
 	// sq1に対してsq2の升の延長上にある次の升を得る。
@@ -398,37 +412,37 @@ namespace {
 	}
 
 	// NonSliderの利きのみ列挙
-	template<Color ourKing>
+	template<Color OurKing>
 	Bitboard AttacksAroundKingNonSlider(const Position& pos)
 	{
-		Square sq_king = pos.king_square(ourKing);
-		constexpr Color them = ~ourKing;
+		Square sq_king = pos.king_square<OurKing>();
+		constexpr Color Them = ~OurKing;
 		Square from;
 		Bitboard bb;
 
 		// 歩は普通でいい
-		Bitboard sum = pawnBbEffect<them>(pos.pieces(them, PAWN));
+		Bitboard sum = pawnBbEffect<Them>(pos.pieces<Them>(PAWN));
 
 		// ほとんどのケースにおいて候補になる駒はなく、whileで回らずに抜けると期待している。
-		bb = pos.pieces(them, KNIGHT) & check_around_bb(them, KNIGHT, sq_king);
+		bb = pos.pieces<Them,KNIGHT>() & check_around_bb<Them>(KNIGHT, sq_king);
 		while (bb)
 		{
 			from = bb.pop();
-			sum |= knightEffect(them, from);
+			sum |= knightEffect<Them>(from);
 		}
-		bb = pos.pieces(them, SILVER) & check_around_bb(them, SILVER, sq_king);
+		bb = pos.pieces<Them,SILVER>() & check_around_bb<Them>(SILVER, sq_king);
 		while (bb)
 		{
 			from = bb.pop();
-			sum |= silverEffect(them, from);
+			sum |= silverEffect<Them>(from);
 		}
-		bb = pos.pieces(them, GOLDS) & check_around_bb(them, GOLD, sq_king);
+		bb = pos.pieces<Them,GOLDS>() & check_around_bb<Them>(GOLD, sq_king);
 		while (bb)
 		{
 			from = bb.pop();
-			sum |= goldEffect(them, from);
+			sum |= goldEffect<Them>(from);
 		}
-		bb = pos.pieces(them, HDK) & check_around_bb(them, KING, sq_king);
+		bb = pos.pieces<Them,HDK>() & check_around_bb<Them>(KING, sq_king);
 		while (bb)
 		{
 			from = bb.pop();
@@ -438,29 +452,29 @@ namespace {
 	}
 
 	// Sliderの利きのみ列挙
-	template <Color ourKing>
+	template <Color OurKing>
 	Bitboard AttacksAroundKingSlider(const Position& pos)
 	{
-		constexpr Color Them = ~ourKing;
+		constexpr Color Them = ~OurKing;
 
-		Square sq_king = pos.king_square(ourKing);
+		Square sq_king = pos.king_square<OurKing>();
 		Square from;
 		Bitboard bb;
 		Bitboard sum = ZERO_BB;
 
-		bb = pos.pieces(Them, LANCE) & check_around_bb(Them, LANCE, sq_king);
+		bb = pos.pieces<Them,LANCE>() & check_around_bb<Them>(LANCE, sq_king);
 		while (bb)
 		{
 			from = bb.pop();
 			sum |= lanceEffect<Them>( from, pos.pieces());
 		}
-		bb = pos.pieces(Them, BISHOP_HORSE) & check_around_bb(Them, BISHOP, sq_king);
+		bb = pos.pieces<Them,BISHOP_HORSE>() & check_around_bb<Them>(BISHOP, sq_king);
 		while (bb)
 		{
 			from = bb.pop();
 			sum |= bishopEffect(from, pos.pieces());
 		}
-		bb = pos.pieces(Them, ROOK_DRAGON) & check_around_bb(Them, ROOK, sq_king);
+		bb = pos.pieces<Them,ROOK_DRAGON>() & check_around_bb<Them>(ROOK, sq_king);
 		while (bb)
 		{
 			from = bb.pop();
@@ -473,34 +487,34 @@ namespace {
 	Bitboard AttacksAroundKingNonSliderInAvoiding(const Position& pos, Square avoid_from)
 	{
 		Square sq_king = pos.king_square(Us);
-		constexpr Color them = ~Us;
+		constexpr Color Them = ~Us;
 		Bitboard bb;
 		Bitboard avoid_bb = ~Bitboard(avoid_from);
 		Square from;
 
 		// 歩は普通でいい
-		Bitboard sum = pawnBbEffect<them>(pos.pieces(them, PAWN));
+		Bitboard sum = pawnBbEffect<Them>(pos.pieces<Them,PAWN>());
 
 		// ほとんどのケースにおいて候補になる駒はなく、whileで回らずに抜けると期待している。
-		bb = pos.pieces(them, KNIGHT) & check_around_bb(them, KNIGHT, sq_king) & avoid_bb;
+		bb = pos.pieces<Them,KNIGHT>() & check_around_bb<Them>(KNIGHT, sq_king) & avoid_bb;
 		while (bb)
 		{
 			from = bb.pop();
-			sum |= knightEffect(them, from);
+			sum |= knightEffect<Them>(from);
 		}
-		bb = pos.pieces(them, SILVER) & check_around_bb(them, SILVER, sq_king) & avoid_bb;
+		bb = pos.pieces<Them,SILVER>() & check_around_bb<Them>(SILVER, sq_king) & avoid_bb;
 		while (bb)
 		{
 			from = bb.pop();
-			sum |= silverEffect(them, from);
+			sum |= silverEffect<Them>(from);
 		}
-		bb = pos.pieces(them, GOLDS) & check_around_bb(them, GOLD, sq_king) & avoid_bb;
+		bb = pos.pieces<Them,GOLDS>() & check_around_bb<Them>(GOLD, sq_king) & avoid_bb;
 		while (bb)
 		{
 			from = bb.pop();
-			sum |= goldEffect(them, from);
+			sum |= goldEffect<Them>(from);
 		}
-		bb = pos.pieces(them, HDK) & check_around_bb(them, KING, sq_king) & avoid_bb;
+		bb = pos.pieces<Them,HDK>() & check_around_bb<Them>(KING, sq_king) & avoid_bb;
 		while (bb)
 		{
 			from = bb.pop();
@@ -527,7 +541,7 @@ namespace {
 	inline bool can_pawn_drop(const Position& pos, Square sq)
 	{
 		// 歩を持っていて、二歩ではない。
-		return hand_count(pos.hand_of(Us), PAWN) > 0 && !((pos.pieces(Us, PAWN) & FILE_BB[file_of(sq)]));
+		return hand_count(pos.hand_of<Us>(), PAWN) > 0 && !((pos.pieces<Us,PAWN>() & FILE_BB[file_of(sq)]));
 	}
 
 }
@@ -538,13 +552,14 @@ namespace {
 
 	// kingがtoとbb_avoid以外の升に逃げられるか
 	// toに駒がない場合、駒が打たれているのでこれによって升は遮断されているものとして考える。
-	bool can_king_escape(const Position& pos, Color us, Square to, const Bitboard& bb_avoid, const Bitboard& slide_)
+	template <Color Us>
+	bool can_king_escape(const Position& pos, Square to, const Bitboard& bb_avoid, const Bitboard& slide_)
 	{
 		// toには駒が置かれているのでこれにより利きの遮断は発生している。(attackers_to()で利きを見るときに重要)
 		// captureの場合、もともとtoには駒があるわけで、ここをxorで処理するわけにはいかない。
 		Bitboard slide = slide_ | to;
 
-		Square sq_king = pos.king_square(us);
+		Square sq_king = pos.king_square(Us);
 		/*
 		// kingもいないものとして考える必要がある。
 		slide ^= sq_king;
@@ -552,13 +567,13 @@ namespace {
 		*/
 
 		// bbとtoと自駒のないところから移動先を探す
-		Bitboard bb = kingEffect(sq_king) & ~(bb_avoid | to | pos.pieces(us));
+		Bitboard bb = kingEffect(sq_king) & ~(bb_avoid | to | pos.pieces<Us>());
 
 		while (bb)
 		{
 			Square escape = bb.pop();
 
-			if (!pos.attackers_to(~us, escape, slide))
+			if (!pos.attackers_to<~Us>(escape, slide))
 				return true;
 			// 何も破壊していないので即座に返って良い。
 
@@ -569,25 +584,26 @@ namespace {
 	// kingがtoとbb_avoid以外の升に逃げられるか
 	// toに駒がない場合、駒が打たれているのでこれによって升は遮断されているものとして考える。
 	// またfromからは駒が除去されているものとして考える。
-	bool can_king_escape(const Position& pos, Color us, Square from, Square to, const Bitboard& bb_avoid, const Bitboard& slide_)
+	template <Color Us>
+	bool can_king_escape(const Position& pos, Square from, Square to, const Bitboard& bb_avoid, const Bitboard& slide_)
 	{
 		// toには駒が置かれているのでこれにより利きの遮断は発生している。(attackers_to()で利きを見るときに重要)
 		Bitboard slide = slide_ | to;
 
-		Square sq_king = pos.king_square(us);
+		Square sq_king = pos.king_square(Us);
 		// kingもいないものとして考える必要がある。
 		slide ^= sq_king;
 		// これは呼び出し側でbb_avoidを計算するときに保証するものとする。
 		// →　ああ、だめだ。fromの後ろにあった駒での開き王手が..
 
 		// bb_avoidとtoと自駒のないところから移動先を探す
-		Bitboard bb = kingEffect(sq_king) & ~(bb_avoid | to | pos.pieces(us));
+		Bitboard bb = kingEffect(sq_king) & ~(bb_avoid | to | pos.pieces<Us>());
 
 		while (bb)
 		{
 			Square escape = bb.pop();
 
-			if (!(pos.attackers_to(~us, escape, slide) & ~Bitboard(from)))
+			if (!(pos.attackers_to<~Us>(escape, slide) & ~Bitboard(from)))
 				// fromにある攻撃駒は移動済なのでこれは対象外。
 				return true;
 			// 何も破壊していないので即座に返って良い。
@@ -600,19 +616,20 @@ namespace {
 	// toに駒がない場合、駒が打たれているのでこれによって升は遮断されているものとして考える。
 	// またfromからは駒が除去されているものとして考える。
 	// ただしtoには行けるものとする。
-	bool can_king_escape_cangoto(const Position& pos, Color us, Square from, Square to, const Bitboard& bb_avoid, const Bitboard& slide_)
+	template <Color Us>
+	bool can_king_escape_cangoto(const Position& pos, Square from, Square to, const Bitboard& bb_avoid, const Bitboard& slide_)
 	{
 		// toには駒が置かれているのでこれにより利きの遮断は発生している。(attackers_to()で利きを見るときに重要)
 		Bitboard slide = slide_ | to;
 
-		Square sq_king = pos.king_square(us);
+		Square sq_king = pos.king_square<Us>();
 		// kingもいないものとして考える必要がある。
 		slide ^= sq_king;
 		// これは呼び出し側でbb_avoidを計算するときに保証するものとする。
 		// →　ああ、だめだ。fromの後ろにあった駒での開き王手が..
 
 		// bb_avoid/*とto*/と自駒のないところから移動先を探す
-		Bitboard bb = kingEffect(sq_king) & ~((bb_avoid /*| to*/ | pos.pieces(us)) & ~Bitboard(to));
+		Bitboard bb = kingEffect(sq_king) & ~((bb_avoid /*| to*/ | pos.pieces<Us>()) & ~Bitboard(to));
 
 		// toには移動できるのだよ。pos.pieces(us)には玉側の駒がtoにあることがあって、これは取られるものとして
 		// 考える必要があるから、toを除外するコードが必要なのだよ。
@@ -621,7 +638,7 @@ namespace {
 		{
 			Square escape = bb.pop();
 
-			if (!(pos.attackers_to(~us, escape, slide) & ~Bitboard(from)))
+			if (!(pos.attackers_to<~Us>(escape, slide) & ~Bitboard(from)))
 				// fromにある攻撃駒は移動済なのでこれは対象外。
 				return true;
 			// 何も破壊していないので即座に返って良い。
@@ -631,12 +648,13 @@ namespace {
 	}
 
 	// 玉以外の駒でtoの駒が取れるのか？(toの地点には敵の利きがある or 届かないので玉では取れないものとする)
-	bool can_piece_capture(const Position& pos, Color us, Square to, const Bitboard& pinned, const Bitboard& slide)
+	template <Color Us>
+	bool can_piece_capture(const Position& pos, Square to, const Bitboard& pinned, const Bitboard& slide)
 	{
-		Square sq_king = pos.king_square(us);
+		Square sq_king = pos.king_square(Us);
 
 		// 玉以外の駒でこれが取れるのか？(toの地点には敵の利きがある or 届かないので玉では取れないものとする)
-		Bitboard sum = pos.attackers_to(us, to, slide) & ~pos.pieces(KING);
+		Bitboard sum = pos.attackers_to<Us>(to, slide) & ~pos.pieces(KING);
 		while (sum)
 		{
 			Square from = sum.pop();
@@ -654,14 +672,15 @@ namespace {
 
 	// toにある駒が捕獲できるのか
 	// ただしavoid升の駒でのcaptureは除外する。
-	bool can_piece_capture(const Position& pos, Color us, Square to, Square avoid, const Bitboard& pinned, const Bitboard& slide)
+	template <Color Us>
+	bool can_piece_capture(const Position& pos, Square to, Square avoid, const Bitboard& pinned, const Bitboard& slide)
 	{
 		ASSERT_LV3(is_ok(to));
 
-		Square sq_king = pos.king_square(us);
+		Square sq_king = pos.king_square<Us>();
 
 		// 玉以外の駒でこれが取れるのか？(toの地点には敵の利きがあるので玉では取れないものとする)
-		Bitboard sum = pos.attackers_to(us, to, slide) & ~(pos.pieces(KING) | Bitboard(avoid));
+		Bitboard sum = pos.attackers_to<Us>(to, slide) & ~(pos.pieces(KING) | Bitboard(avoid));
 		while (sum)
 		{
 			Square from = sum.pop();
@@ -698,10 +717,10 @@ namespace Mate {
 		Square sq_king = pos.king_square(Them);
 
 		// 移動させると(相手側＝非手番側)の玉に対して空き王手となる候補の(手番側)駒のbitboard。
-		Bitboard dcCandidates = pos.blockers_for_king(Them) & pos.pieces(Us);
+		Bitboard dcCandidates = pos.blockers_for_king(Them) & pos.pieces<Us>();
 
 		// 相手玉側のpinされている駒の列挙(相手玉側は、この駒を動かすと素抜きに遭う)
-		Bitboard pinned = pos.blockers_for_king(Them) & pos.pieces(Them);
+		Bitboard pinned = pos.blockers_for_king<Them>() & pos.pieces<Them>();
 	
 		Square from, to;
 
@@ -716,8 +735,8 @@ namespace Mate {
 		// 攻撃範囲計算用
 		Bitboard bb_attacks;
 
-		Hand ourHand = pos.hand_of(Us);
-		Hand themHand = pos.hand_of(Them);
+		Hand ourHand  = pos.hand_of<Us  >();
+		Hand themHand = pos.hand_of<Them>();
 
 		// 飛車を短く打つ場合
 		if (hand_count(ourHand, ROOK))
@@ -729,14 +748,14 @@ namespace Mate {
 			{
 				to = bb.pop();
 				// toに対して自駒が利いてないと意味ない
-				if (!pos.attackers_to(Us, to))
+				if (!pos.attackers_to<Us>(to))
 					continue;
 
 				// このtoに飛車を打つものとして…この十字方向には逃げられないわけだから…そこは駄目ですよ、と。
 				bb_attacks = rookStepEffect(to);
 
-				if (can_king_escape(pos, Them, to, bb_attacks, pos.pieces())) { continue; }
-				if (can_piece_capture(pos, Them, to, pinned, pos.pieces())) { continue; }
+				if (can_king_escape  <Them>(pos, to, bb_attacks, pos.pieces())) { continue; }
+				if (can_piece_capture<Them>(pos, to, pinned    , pos.pieces())) { continue; }
 				return make_move_drop(ROOK, to , Us);
 			}
 		}
@@ -748,11 +767,11 @@ namespace Mate {
 			if (bb)
 			{
 				to = bb.pop();
-				if (pos.attackers_to(Us, to))
+				if (pos.attackers_to<Us>(to))
 				{
-					bb_attacks = lanceStepEffect(Us, to);
-					if (can_king_escape(pos, Them, to, bb_attacks, pos.pieces())) { goto SKIP_LANCE; }
-					if (can_piece_capture(pos, Them, to, pinned, pos.pieces())) { goto SKIP_LANCE; }
+					bb_attacks = lanceStepEffect<Us>(to);
+					if (can_king_escape  <Them>(pos, to, bb_attacks, pos.pieces())) { goto SKIP_LANCE; }
+					if (can_piece_capture<Them>(pos, to, pinned    , pos.pieces())) { goto SKIP_LANCE; }
 					return make_move_drop(LANCE, to, Us);
 
 				SKIP_LANCE:;
@@ -770,14 +789,14 @@ namespace Mate {
 			{
 				to = bb.pop();
 				// toに対して自駒が利いてないと意味ない
-				if (!pos.attackers_to(Us, to))
+				if (!pos.attackers_to<Us>(to))
 					continue;
 
 				// このtoに角を打つものとして…この斜め方向には逃げられないわけだから…そこは駄目ですよ、と。
 				bb_attacks = bishopStepEffect(to);
 
-				if (can_king_escape(pos, Them, to, bb_attacks, pos.pieces())) { continue; }
-				if (can_piece_capture(pos, Them, to, pinned, pos.pieces())) { continue; }
+				if (can_king_escape  <Them>(pos, to, bb_attacks, pos.pieces())) { continue; }
+				if (can_piece_capture<Them>(pos, to, pinned    , pos.pieces())) { continue; }
 				return make_move_drop(BISHOP, to , Us);
 			}
 		}
@@ -796,13 +815,13 @@ namespace Mate {
 			{
 				to = bb.pop();
 				// toに対して自駒が利いてないと意味ない
-				if (!pos.attackers_to(Us, to))
+				if (!pos.attackers_to<Us>(to))
 					continue;
 
-				bb_attacks = goldEffect(Us, to);
+				bb_attacks = goldEffect<Us>(to);
 
-				if (can_king_escape(pos, Them, to, bb_attacks, pos.pieces())) { continue; }
-				if (can_piece_capture(pos, Them, to, pinned, pos.pieces())) { continue; }
+				if (can_king_escape  <Them>(pos, to, bb_attacks, pos.pieces())) { continue; }
+				if (can_piece_capture<Them>(pos, to, pinned    , pos.pieces())) { continue; }
 				return make_move_drop(GOLD, to , Us);
 			}
 		}
@@ -817,22 +836,22 @@ namespace Mate {
 					goto SILVER_DROP_END;
 
 				// 前方向を除外するために金のnotを用いる。
-				bb = silverEffect(Them, sq_king) & ~goldEffect(Them, sq_king) & bb_drop;
+				bb = silverEffect<Them>(sq_king) & ~goldEffect<Them>(sq_king) & bb_drop;
 			}
 			else {
-				bb = silverEffect(Them, sq_king) & bb_drop;
+				bb = silverEffect<Them>(sq_king) &  bb_drop;
 			}
 			while (bb)
 			{
 				to = bb.pop();
 				// toに対して自駒が利いてないと意味ない
-				if (!pos.attackers_to(Us, to))
+				if (!pos.attackers_to<Us>(to))
 					continue;
 
-				bb_attacks = silverEffect(Us, to);
+				bb_attacks = silverEffect<Us>(to);
 
-				if (can_king_escape(pos, Them, to, bb_attacks, pos.pieces())) { continue; }
-				if (can_piece_capture(pos, Them, to, pinned, pos.pieces())) { continue; }
+				if (can_king_escape  <Them>(pos, to, bb_attacks, pos.pieces())) { continue; }
+				if (can_piece_capture<Them>(pos, to, pinned    , pos.pieces())) { continue; }
 				return make_move_drop(SILVER, to , Us);
 			}
 		}
@@ -841,7 +860,7 @@ namespace Mate {
 		// 桂打ち
 		if (hand_count(ourHand, KNIGHT))
 		{
-			bb = knightEffect(Them, sq_king) & bb_drop;
+			bb = knightEffect<Them>(sq_king) & bb_drop;
 
 			while (bb)
 			{
@@ -849,8 +868,8 @@ namespace Mate {
 				//      bb_attacks =knightEffect(Us, to);
 				// 桂馬はto以外は王が1手で移動できない場所なので求めるまでもない。
 
-				if (can_king_escape(pos, Them, to, ZERO_BB, pos.pieces())) { continue; }
-				if (can_piece_capture(pos, Them, to, pinned, pos.pieces())) { continue; }
+				if (can_king_escape  <Them>(pos, to, ZERO_BB, pos.pieces())) { continue; }
+				if (can_piece_capture<Them>(pos, to, pinned , pos.pieces())) { continue; }
 				return make_move_drop(KNIGHT, to , Us);
 			}
 		}
@@ -858,19 +877,19 @@ namespace Mate {
 		// -- 移動による1手詰め
 
 		// 駒の移動可能な場所
-		Bitboard bb_move = ~pos.pieces(Us);
+		Bitboard bb_move = ~pos.pieces<Us>();
 
 		// 王手となる移動先
 		Bitboard bb_check;
 
 		// 自分のpin駒
-		Bitboard our_pinned = pos.blockers_for_king(Us) & pos.pieces(Us);
+		Bitboard our_pinned = pos.blockers_for_king<Us>() & pos.pieces<Us>();
 
 		// 自玉
-		Square our_king = pos.king_square(Us);
+		Square our_king = pos.king_square<Us>();
 
 		// 龍
-		bb = pos.pieces(Us, DRAGON);
+		bb = pos.pieces<Us,DRAGON>();
 		while (bb)
 		{
 			from = bb.pop();
@@ -887,7 +906,7 @@ namespace Mate {
 			// 飛　龍　^金 　^王
 			// こういうケースがあるので龍自体を除去しないとおかしくなるな…。
 
-			Bitboard new_pin = pos.pinned_pieces(Them, from);
+			Bitboard new_pin = pos.pinned_pieces<Them>(from);
 			// ここで調べるのは近接王手だけなのでpinが解除されることはないから移動先toによるpinの解除/増加はなく、
 			// 考慮しなくてよい。
 
@@ -895,7 +914,7 @@ namespace Mate {
 			{
 				to = bb_check.pop();
 				// fromの駒以外のtoへの利きがあるかを調べる。
-				if (!(pos.attackers_to(Us, to, slide) ^ from)) { continue; }
+				if (!(pos.attackers_to<Us>(to, slide) ^ from)) { continue; }
 
 				// 王手であることは保証されている。
 
@@ -908,10 +927,10 @@ namespace Mate {
 				else
 					bb_attacks = rookStepEffect(to) | kingEffect(to);
 
-				if (can_king_escape(pos, Them, from, to, bb_attacks, slide)) { continue; }
+				if (can_king_escape<Them>(pos, from, to, bb_attacks, slide)) { continue; }
 
 				// 龍によるtoが玉8近傍の場合の両王手はない。
-				if (can_piece_capture(pos, Them, to, new_pin, slide)) { continue; }
+				if (can_piece_capture<Them>(pos, to, new_pin, slide)) { continue; }
 				return make_move(from, to , Us , DRAGON);
 			}
 		}
@@ -933,12 +952,12 @@ namespace Mate {
 			// 角
 			//   この場合、飛車を移動させて金があらたにpinに入るのか..
 
-			Bitboard new_pin = pos.pinned_pieces(Them, from);
+			Bitboard new_pin = pos.pinned_pieces<Them>(from);
 
 			while (bb_check)
 			{
 				to = bb_check.pop();
-				if (!(pos.attackers_to(Us, to, slide) ^ from)) { continue; }
+				if (!(pos.attackers_to<Us>(to, slide) ^ from)) { continue; }
 
 				// 敵陣へ/から の移動であれば成りなので
 				if (canPromote(Us, from, to))
@@ -955,12 +974,12 @@ namespace Mate {
 				if (!(bb_attacks & sq_king)) { continue; }
 
 				if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
-				if (can_king_escape(pos, Them, from, to, bb_attacks, slide)) { continue; }
+				if (can_king_escape<Them>(pos, from, to, bb_attacks, slide)) { continue; }
 
 				// 移動元で飛車の、近接王手になっている以上、pin方向と違う方向への移動であるからこれは両王手である。
 				if (dcCandidates & from)
 					;
-				else if (can_piece_capture(pos, Them, to, new_pin, slide)) { continue; }
+				else if (can_piece_capture<Them>(pos, to, new_pin, slide)) { continue; }
 
 				if (!canPromote(Us, from, to))
 					return make_move(from, to ,Us, ROOK);
@@ -994,7 +1013,7 @@ namespace Mate {
 			//      香
 			// こういう配置から斜めに馬が移動しての王手で金が新たにpinされる。
 
-			Bitboard new_pin = pos.pinned_pieces(Them, from);
+			Bitboard new_pin = pos.pinned_pieces<Them>(from);
 
 			while (bb_check)
 			{
@@ -1005,11 +1024,11 @@ namespace Mate {
 
 				if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
 				bb_attacks = bishopStepEffect(to) | kingEffect(to);
-				if (can_king_escape(pos, Them, from, to, bb_attacks, slide)) { continue; }
+				if (can_king_escape<Them>(pos, from, to, bb_attacks, slide)) { continue; }
 				// 移動元で馬だとpin方向を確認しないといけない。違う方向への移動による攻撃なら、これは両王手である。
 				if ((dcCandidates & from) && !aligned(from, to, sq_king))
 					;
-				else if (can_piece_capture(pos, Them, to, new_pin, slide)) { continue; }
+				else if (can_piece_capture<Them>(pos, to, new_pin, slide)) { continue; }
 
 				return make_move(from, to , Us, HORSE);
 			}
@@ -1022,12 +1041,12 @@ namespace Mate {
 			from = bb.pop();
 			Bitboard slide = pos.pieces() ^ from;
 			bb_check = bishopEffect(from, slide) & bb_move & kingEffect(sq_king);
-			Bitboard new_pin = pos.pinned_pieces(Them, from);
+			Bitboard new_pin = pos.pinned_pieces<Them>(from);
 
 			while (bb_check)
 			{
 				to = bb_check.pop();
-				if (!(pos.attackers_to(Us, to, slide) ^ from)) { continue; }
+				if (!(pos.attackers_to<Us>(to, slide) ^ from)) { continue; }
 
 				// 敵陣へ/から の移動であれば成りなので
 				if (canPromote(Us, from, to))
@@ -1037,12 +1056,12 @@ namespace Mate {
 
 				// これで王手になってないと駄目
 				if (!(bb_attacks & sq_king)) { continue; }
-				if (pos.discovered(from, to, pos.king_square(Us), our_pinned)) { continue; }
-				if (can_king_escape(pos, Them, from, to, bb_attacks, slide)) { continue; }
+				if (pos.discovered(from, to, pos.king_square<Us>(), our_pinned)) { continue; }
+				if (can_king_escape<Them>(pos, from, to, bb_attacks, slide)) { continue; }
 				// 移動元で角だとpin方向を変える王手なので、これは両王手である。
 				if (dcCandidates & from)
 					;
-				else if (can_piece_capture(pos, Them, to, new_pin, slide)) { continue; }
+				else if (can_piece_capture<Them>(pos, to, new_pin, slide)) { continue; }
 
 				if (!canPromote(Us, from, to))
 					return make_move(from, to , Us , BISHOP);
@@ -1052,7 +1071,7 @@ namespace Mate {
 		}
 
 		// 香の移動王手
-		bb = check_cand_bb(Us, PIECE_TYPE_CHECK_LANCE, sq_king) & pos.pieces(Us, LANCE);
+		bb = check_cand_bb<Us>(PIECE_TYPE_CHECK_LANCE, sq_king) & pos.pieces<Us, LANCE>();
 		while (bb)
 		{
 			from = bb.pop();
@@ -1060,7 +1079,7 @@ namespace Mate {
 			bb_attacks = lanceEffect<Us>(from, slide);
 
 			// 金で王手になる升を列挙するか…。
-			bb_check = bb_attacks & bb_move & goldEffect(Them, sq_king);
+			bb_check = bb_attacks & bb_move & goldEffect<Them>(sq_king);
 
 			// 香の場合も香の移動によってpinが解除されるケースはないのでpinは初期のもので良い。
 
@@ -1069,18 +1088,18 @@ namespace Mate {
 				to = bb_check.pop();
 
 				if (canPromote(Us, to))
-					bb_attacks = goldEffect(Us, to);
+					bb_attacks = goldEffect<Us>(to);
 				else
-					bb_attacks = lanceStepEffect(Us, to);
+					bb_attacks = lanceStepEffect<Us>(to);
 
 				if (!(bb_attacks & sq_king)) { goto LANCE_NO_PRO; }
-				if (!(pos.attackers_to(Us, to, slide) ^ from)) { goto LANCE_NO_PRO; }
+				if (!(pos.attackers_to<Us>(to, slide) ^ from)) { goto LANCE_NO_PRO; }
 				if (pos.discovered(from, to, our_king, our_pinned)) { goto LANCE_NO_PRO; }
-				if (can_king_escape(pos, Them, from, to, bb_attacks, slide)) { goto LANCE_NO_PRO; }
+				if (can_king_escape<Them>(pos, from, to, bb_attacks, slide)) { goto LANCE_NO_PRO; }
 				// 成って角との両王手
 				if (dcCandidates & from)
 					;
-				else if (can_piece_capture(pos, Them, to, pinned, slide)) { goto LANCE_NO_PRO; }
+				else if (can_piece_capture<Them>(pos, to, pinned, slide)) { goto LANCE_NO_PRO; }
 
 				if (!canPromote(Us, to))
 					return make_move(from, to , Us , LANCE);
@@ -1091,13 +1110,13 @@ namespace Mate {
 			LANCE_NO_PRO:;
 				if ((Us == BLACK ? RANK3_BB : RANK7_BB) & to)
 				{
-					bb_attacks = lanceStepEffect(Us, to);
+					bb_attacks = lanceStepEffect<Us>(to);
 					if (!(bb_attacks & sq_king)) { continue; }
-					if (!(pos.attackers_to(Us, to, slide) ^ from)) { continue; }
+					if (!(pos.attackers_to<Us>(to, slide) ^ from)) { continue; }
 					if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
-					if (can_king_escape(pos, Them, from, to, bb_attacks, slide)) { continue; }
+					if (can_king_escape<Them>(pos, from, to, bb_attacks, slide)) { continue; }
 					// 串刺しでの両王手はありえない
-					if (can_piece_capture(pos, Them, to, pinned, slide)) { continue; }
+					if (can_piece_capture<Them>(pos, to, pinned, slide)) { continue; }
 					return make_move(from, to , Us , LANCE);
 				}
 			}
@@ -1124,13 +1143,13 @@ namespace Mate {
 		if (hand_count(themHand, PAWN) == (int)themHand)
 		{
 			// 玉の8近傍の移動可能箇所の列挙
-			Bitboard bb_king_movable = ~pos.pieces(Them) & kingEffect(sq_king);
+			Bitboard bb_king_movable = ~pos.pieces<Them>() & kingEffect(sq_king);
 
 			// 玉周辺の利きを列挙。(これ、せっかく求めたならできればあとで使いまわしたいが…)
 			// これ王手のかかっていない局面で呼び出すことを想定しているので貫通でなくてもいいか。
-			Bitboard aakns = AttacksAroundKingNonSlider<~Us>(pos); // これはあとで使いまわす
-			Bitboard aaks = AttacksAroundKingSlider<~Us>(pos);
-			Bitboard aak = aakns | aaks;
+			Bitboard aakns = AttacksAroundKingNonSlider<Them>(pos); // これはあとで使いまわす
+			Bitboard aaks  = AttacksAroundKingSlider   <Them>(pos);
+			Bitboard aak   = aakns | aaks;
 
 			Bitboard escape_bb = bb_king_movable & ~aak; // 利きがない場所が退路の候補
 
@@ -1182,7 +1201,7 @@ namespace Mate {
 				if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) == Us) continue;
 
 				// oneが二歩で打てないことを確認しよう。
-				if (can_pawn_drop<~Us>(pos, one)) continue; // もう駄目
+				if (can_pawn_drop<Them>(pos, one)) continue; // もう駄目
 
 				// toの地点にあるのが歩だと、このtoの地点とoneが同じ筋だと
 				// このtoの歩を取ってoneに打てるようになってしまう。
@@ -1217,10 +1236,10 @@ namespace Mate {
 				// このケースはtoの駒を取ればいけるかも知れん。盤上の駒ptを移動できないか調べろ
 
 				// oneに駒の移動合いができない
-				if (can_piece_capture(pos, Them, one, pinned, pos.pieces())) goto NEXT2;
+				if (can_piece_capture<Them>(pos, one, pinned, pos.pieces())) goto NEXT2;
 
 				// toに打つ駒が取れない
-				if (can_piece_capture(pos, Them, to, pinned, pos.pieces())) goto NEXT2;
+				if (can_piece_capture<Them>(pos, to , pinned, pos.pieces())) goto NEXT2;
 
 				// 退路が1個以下であればこれで詰みなのだが、もともと利きがあって塞がれていたほうの退路だとそうでもないから
 				// 最終的に次のような処理が必要なのだ…。
@@ -1249,8 +1268,8 @@ namespace Mate {
 					Square nextTo = nextSquare(one, to);
 					if (nextTo == SQ_NB) goto NEXT2;
 					if (pos.piece_on(nextTo)) goto NEXT2;
-					if (can_pawn_drop<~Us>(pos, to)) goto NEXT2;
-					if (can_piece_capture(pos, Them, nextTo, pinned, pos.pieces())) goto NEXT2;
+					if (can_pawn_drop<Them>(pos, to)) goto NEXT2;
+					if (can_piece_capture<Them>(pos, nextTo, pinned, pos.pieces())) goto NEXT2;
 
 					escape_bb = bb_king_movable & ~(aakns | AttacksSlider<Us>(pos, pos.pieces() | nextTo));
 
@@ -1273,20 +1292,20 @@ namespace Mate {
 				{
 					// どこかtoの近くに飛車は落ちてないかね..
 					// 飛車を移動させた結果、oneに敵の利きが生じるかも知らんけど。
-					bool is_rook = rookStepEffect(to) & pos.pieces(Us, ROOK_DRAGON);
-					bool is_dragon = kingEffect(to) & pos.pieces(Us, DRAGON);
-					bool is_lance = (canLanceAttack) ? (lanceStepEffect(Them, to) & pos.pieces(Us, LANCE)) : false;
+					bool is_rook = rookStepEffect(to) & pos.pieces<Us, ROOK_DRAGON>();
+					bool is_dragon = kingEffect(to) & pos.pieces<Us, DRAGON>();
+					bool is_lance = (canLanceAttack) ? (lanceStepEffect<Them>(to) & pos.pieces<Us, LANCE>()) : false;
 
 					if (is_rook || is_dragon || is_lance)
 					{
 						// 落ちてるっぽい。移動可能かどうか調べる。
 						bb = ZERO_BB;
 						if (is_rook)
-							bb = rookEffect(to, pos.pieces()) & pos.pieces(Us, ROOK_DRAGON);
+							bb = rookEffect(to, pos.pieces()) & pos.pieces<Us, ROOK_DRAGON>();
 						if (is_dragon)
-							bb |= kingEffect(to) & pos.pieces(Us, DRAGON);
+							bb |= kingEffect(to) & pos.pieces<Us, DRAGON>();
 						if (is_lance)
-							bb |= lanceEffect<Them>( to, pos.pieces()) & pos.pieces(Us, LANCE);
+							bb |= lanceEffect<Them>( to, pos.pieces()) & pos.pieces<Us, LANCE>();
 
 						while (bb)
 						{
@@ -1299,12 +1318,12 @@ namespace Mate {
 							Bitboard slide = pos.pieces() ^ from;
 
 							// toに移動させた駒が取れない
-							if (can_piece_capture(pos, Them, to, pinned, slide)) continue;
+							if (can_piece_capture<Them>(pos, to, pinned, slide)) continue;
 							// oneも移動合い等ができない。
 							// toへの移動でさらにpinされることはあっても、pinが解除されることはない。
 							// (将棋にはQUEENがないので)
 							// ゆえに古いpinで考えておけばいいや。
-							if (can_piece_capture(pos, Them, one, to, pinned, slide)) continue;
+							if (can_piece_capture<Them>(pos, one, to, pinned, slide)) continue;
 
 							if (type_of(pos.piece_on(from)) == LANCE)
 							{
@@ -1326,7 +1345,7 @@ namespace Mate {
 							// aakns使わない実装にしよう..
 
 							if (!(kingEffect(sq_king)
-								& ~(pos.pieces(Them) | AttacksAroundKingInAvoiding<~Us>(pos, from, new_slide) | bb_attacks)))
+								& ~(pos.pieces<Them>() | AttacksAroundKingInAvoiding<Them>(pos, from, new_slide) | bb_attacks)))
 							{
 								// これで詰みが確定した
 								PieceType pt = type_of(pos.piece_on(from));
@@ -1342,16 +1361,16 @@ namespace Mate {
 				else {
 					// 同じく角
 
-					bool is_bishop = bishopStepEffect(to) & pos.pieces(Us, BISHOP_HORSE);
-					bool is_horse = kingEffect(to) & pos.pieces(Us, HORSE);
+					bool is_bishop = bishopStepEffect(to) & pos.pieces<Us, BISHOP_HORSE>();
+					bool is_horse = kingEffect(to) & pos.pieces<Us, HORSE>();
 					if (is_bishop || is_horse)
 					{
 						// 落ちてるっぽい。移動可能かどうか調べる。
 						bb = ZERO_BB;
 						if (is_bishop)
-							bb = bishopEffect(to, pos.pieces()) & pos.pieces(Us, BISHOP_HORSE);
+							bb = bishopEffect(to, pos.pieces()) & pos.pieces<Us, BISHOP_HORSE>();
 						if (is_horse)
-							bb |= kingEffect(to) & pos.pieces(Us, HORSE);
+							bb |= kingEffect(to) & pos.pieces<Us, HORSE>();
 
 						while (bb)
 						{
@@ -1364,10 +1383,10 @@ namespace Mate {
 							Bitboard slide = pos.pieces() ^ from;
 							// oneに駒の移動合いができない
 							// このときtoの駒はcapられている可能性があるのでこの駒による移動合いは除外する。
-							if (can_piece_capture(pos, Them, one, to, pinned, slide)) continue;
+							if (can_piece_capture<Them>(pos, one, to, pinned, slide)) continue;
 
 							// toに打つ駒が取れない
-							if (can_piece_capture(pos, Them, to, pinned, slide)) continue;
+							if (can_piece_capture<Them>(pos, to, pinned, slide)) continue;
 
 							// fromから飛車がいなくなったことにより、利きがどうなるかを調べる必要がある。
 							// 王手になることは保証されているから、
@@ -1381,7 +1400,7 @@ namespace Mate {
 							Bitboard new_slide = (pos.pieces() ^ from) | to;
 
 							if (!(kingEffect(sq_king)
-								&  ~(pos.pieces(Them) | AttacksAroundKingInAvoiding<~Us>(pos, from, new_slide) | queenStepEffect(to)
+								&  ~(pos.pieces<Them>() | AttacksAroundKingInAvoiding<Them>(pos, from, new_slide) | queenStepEffect(to)
 									)))
 								// 貫通で考えておく
 							{
@@ -1405,34 +1424,34 @@ namespace Mate {
 		// 以下、金、銀、桂、歩。ひとまとめにして判定できるが…これらのひとまとめにしたbitboardがないしな…。
 		// まあ、一応、やるだけやるか…。
 
-		bb = check_cand_bb(Us, PIECE_TYPE_CHECK_NON_SLIDER, sq_king)
+		bb = check_cand_bb<Us>(PIECE_TYPE_CHECK_NON_SLIDER, sq_king)
 			& (pos.pieces(Us, GOLDS, SILVER, KNIGHT, PAWN));
 		if (!bb)
 			goto DC_CHECK;
 
 		// 金
-		bb = check_cand_bb(Us, PIECE_TYPE_CHECK_GOLD, sq_king)  & pos.pieces(Us, GOLDS);
+		bb = check_cand_bb<Us>( PIECE_TYPE_CHECK_GOLD, sq_king)  & pos.pieces(Us, GOLDS);
 		while (bb)
 		{
 			from = bb.pop();
-			bb_check = goldEffect(Us, from) & bb_move & goldEffect(Them, sq_king);
+			bb_check = goldEffect<Us>(from) & bb_move & goldEffect<Them>(sq_king);
 			// 金は成りがないのでこれで100%王手。
 
 			if (!bb_check) { continue; }
 
-			Bitboard slide = pos.pieces() ^ from;
-			Bitboard new_pin = pos.pinned_pieces(Them, from);
+			Bitboard slide   = pos.pieces()          ^ from;
+			Bitboard new_pin = pos.pinned_pieces<Them>(from);
 
 			while (bb_check)
 			{
 				to = bb_check.pop();
-				if (!(pos.attackers_to(Us, to, slide) ^ from)) { continue; }
+				if (!(pos.attackers_to<Us>(to, slide) ^ from)) { continue; }
 				if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
-				bb_attacks = goldEffect(Us, to);
-				if (can_king_escape(pos, Them, from, to, bb_attacks, slide)) { continue; }
+				bb_attacks = goldEffect<Us>(to);
+				if (can_king_escape<Them>(pos, from, to, bb_attacks, slide)) { continue; }
 				if ((dcCandidates & from) && !aligned(from, to, sq_king))
 					;
-				else if (can_piece_capture(pos, Them, to, new_pin, slide)) { continue; }
+				else if (can_piece_capture<Them>(pos, to, new_pin, slide)) { continue; }
 				return make_move(from, to , pos.piece_on(from) /* 金相当の駒が何かは不明。 */);
 			}
 		}
@@ -1443,26 +1462,26 @@ namespace Mate {
 		while (bb)
 		{
 			from = bb.pop();
-			bb_check = silverEffect(Us, from) & bb_move & kingEffect(sq_king);
+			bb_check = silverEffect<Us>(from) & bb_move & kingEffect(sq_king);
 			// 敵玉8近傍を移動先の候補とする。金+銀の王手なので…。
 			if (!bb_check) { continue; }
 
-			Bitboard slide = pos.pieces() ^ from;
-			Bitboard new_pin = pos.pinned_pieces(Them, from);
+			Bitboard slide   = pos.pieces()          ^ from;
+			Bitboard new_pin = pos.pinned_pieces<Them>(from);
 
 			while (bb_check)
 			{
 				to = bb_check.pop();
-				bb_attacks = silverEffect(Us, to);
+				bb_attacks = silverEffect<Us>(to);
 				// これで王手になってないと駄目
 				if (!(bb_attacks & sq_king)) { goto PRO_SILVER; }
-				if (!(pos.attackers_to(Us, to, slide) ^ from)) { goto PRO_SILVER; }
-				if (pos.discovered(from, to, our_king, our_pinned)) { goto PRO_SILVER; }
-				if (can_king_escape(pos, Them, from, to, bb_attacks, slide)) { goto PRO_SILVER; }
+				if (!(pos.attackers_to<Us>(to, slide) ^ from))               { goto PRO_SILVER; }
+				if (pos.discovered(from, to, our_king, our_pinned))          { goto PRO_SILVER; }
+				if (can_king_escape<Them>(pos, from, to, bb_attacks, slide)) { goto PRO_SILVER; }
 				if ((dcCandidates & from) && !aligned(from, to, sq_king))
 					;
 				else
-					if (can_piece_capture(pos, Them, to, new_pin, slide)) { goto PRO_SILVER; }
+					if (can_piece_capture<Them>(pos, to, new_pin, slide)) { goto PRO_SILVER; }
 				// fromから移動したことにより、この背後にあった駒によって新たなpinが発生している可能性がある。
 				// fromとtoと玉が直線上にない場合はpinの更新が必要。
 				// これは面倒なのですべての場合で事前に新しいpinを求めることにする。
@@ -1478,31 +1497,31 @@ namespace Mate {
 
 				bb_attacks = goldEffect(Us, to);
 				if (!(bb_attacks & sq_king)) { continue; }
-				if (!(pos.attackers_to(Us, to, slide) ^ from)) { continue; }
+				if (!(pos.attackers_to<Us>(to, slide) ^ from)) { continue; }
 				if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
-				if (can_king_escape(pos, Them, from, to, bb_attacks, slide)) { continue; }
+				if (can_king_escape<Them>(pos, from, to, bb_attacks, slide)) { continue; }
 				if ((dcCandidates & from) && !aligned(from, to, sq_king))
 					;
-				else if (can_piece_capture(pos, Them, to, new_pin, slide)) { continue; }
+				else if (can_piece_capture<Them>(pos, to, new_pin, slide)) { continue; }
 				return make_move_promote(from, to , Us , SILVER);
 			}
 		}
 
 		// 桂も成りと不成が選択できるので少し嫌らしい
-		bb = check_cand_bb(Us, PIECE_TYPE_CHECK_KNIGHT, sq_king)  & pos.pieces(Us, KNIGHT);
+		bb = check_cand_bb(Us, PIECE_TYPE_CHECK_KNIGHT, sq_king)  & pos.pieces<Us, KNIGHT>();
 		while (bb)
 		{
 			from = bb.pop();
-			bb_check = knightEffect(Us, from) & bb_move;
+			bb_check = knightEffect<Us>(from) & bb_move;
 			if (!bb_check) { continue; }
 
-			Bitboard slide = pos.pieces() ^ from;
-			Bitboard new_pin = pos.pinned_pieces(Them, from);
+			Bitboard slide   = pos.pieces()          ^ from;
+			Bitboard new_pin = pos.pinned_pieces<Them>(from);
 
 			while (bb_check)
 			{
 				to = bb_check.pop();
-				bb_attacks = knightEffect(Us, to);
+				bb_attacks = knightEffect<Us>(to);
 				// 敵陣1,2段目からのStepAttackはZERO_BB相当なのでここへの不成りが生成されることはない
 				if (!(bb_attacks & sq_king)) { goto PRO_KNIGHT; }
 				// 桂馬の特性上、成りと不成の二通りの王手の両方が同時に可能になることはないので以下ではcontinueで良い。
@@ -1510,67 +1529,67 @@ namespace Mate {
 				// →　この駒は取られないならそれで良い。ここへの味方の利きは不要。
 
 				if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
-				if (can_king_escape(pos, Them, from, to, bb_attacks, slide)) { continue; }
+				if (can_king_escape<Them>(pos, from, to, bb_attacks, slide)) { continue; }
 				// 桂馬はpinされているなら移動で必ず両王手になっているはずである。
 				if (dcCandidates & from)
 					;
-				else if (can_piece_capture(pos, Them, to, new_pin, slide)) { continue; }
+				else if (can_piece_capture<Them>(pos, to, new_pin, slide)) { continue; }
 				return make_move(from, to , Us , KNIGHT);
 
 			PRO_KNIGHT:;
 				// 桂成りでの王手
 
 				if (!(canPromote(Us, from, to))) { continue; }
-				bb_attacks = goldEffect(Us, to);
+				bb_attacks = goldEffect<Us>(to);
 				if (!(bb_attacks & sq_king)) { continue; }
-				if (!(pos.attackers_to(Us, to, slide) ^ from)) { continue; }
+				if (!(pos.attackers_to<Us>(to, slide) ^ from)) { continue; }
 				if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
-				if (can_king_escape(pos, Them, from, to, bb_attacks, slide)) { continue; }
+				if (can_king_escape<Them>(pos, from, to, bb_attacks, slide)) { continue; }
 				// 桂馬はpinされているなら移動で必ず両王手になっているはずである。
 				if (dcCandidates & from)
 					;
-				else if (can_piece_capture(pos, Them, to, new_pin, slide)) { continue; }
+				else if (can_piece_capture<Them>(pos, to, new_pin, slide)) { continue; }
 				return make_move_promote(from, to , Us , KNIGHT);
 			}
 		}
 
 		// 歩の移動による詰み
-		if (check_cand_bb(Us, PIECE_TYPE_CHECK_PAWN_WITH_NO_PRO, sq_king) & pos.pieces(Us, PAWN))
+		if (check_cand_bb<Us>(PIECE_TYPE_CHECK_PAWN_WITH_NO_PRO, sq_king) & pos.pieces<Us, PAWN>())
 		{
 			// 先手の歩による敵玉の王手だとすると、敵玉の一升下(SQ_D)が歩の移動先。
 			to = sq_king + (Us == BLACK ? SQ_D : SQ_U);
-			if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) != ~Us) { goto SKIP_PAWN; }
+			if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) != Them) { goto SKIP_PAWN; }
 			from = to + (Us == BLACK ? SQ_D : SQ_U);
 
 			// 敵陣であれば成りによる詰みチェックで引っかかるだろう。
 			if (canPromote(Us, to)) { goto SKIP_PAWN; }
 
 			Bitboard slide = pos.pieces() ^ from;
-			if (!(pos.attackers_to(Us, to, slide) ^ from)) { goto SKIP_PAWN; }
+			if (!(pos.attackers_to<Us>(to, slide) ^ from)) { goto SKIP_PAWN; }
 			if (pos.discovered(from, to, our_king, our_pinned)) { goto SKIP_PAWN; }
-			if (can_king_escape(pos, Them, from, to, ZERO_BB, slide)) { goto SKIP_PAWN; }
+			if (can_king_escape<Them>(pos, from, to, ZERO_BB, slide)) { goto SKIP_PAWN; }
 			// 移動王手となるpinされている歩などはないので両王手は考慮しなくて良い。
-			if (can_piece_capture(pos, Them, to, pinned, slide)) { goto SKIP_PAWN; }
+			if (can_piece_capture<Them>(pos, to, pinned, slide)) { goto SKIP_PAWN; }
 			return make_move(from, to , Us , PAWN);
 		}
 	SKIP_PAWN:;
 
 		// 歩の成りによる詰み
-		bb = check_cand_bb(Us, PIECE_TYPE_CHECK_PAWN_WITH_PRO, sq_king) & pos.pieces(Us, PAWN);
+		bb = check_cand_bb<Us>(PIECE_TYPE_CHECK_PAWN_WITH_PRO, sq_king) & pos.pieces<Us, PAWN>();
 		while (bb)
 		{
 			from = bb.pop();
 			to = from + (Us == BLACK ? SQ_U : SQ_D);
-			if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) != ~Us) { continue; }
-			bb_attacks = goldEffect(Us, to);
+			if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) != Them) { continue; }
+			bb_attacks = goldEffect<Us>(to);
 
 			if (!(bb_attacks & sq_king)) { continue; }
 
 			Bitboard slide = pos.pieces() ^ from;
-			if (!(pos.attackers_to(Us, to, slide) ^ from)) { continue; }
+			if (!(pos.attackers_to<Us>(to, slide) ^ from)) { continue; }
 			if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
-			if (can_king_escape(pos, Them, from, to, bb_attacks, slide)) { continue; }
-			if (can_piece_capture(pos, Them, to, pinned, slide)) { continue; }
+			if (can_king_escape<Them>(pos, from, to, bb_attacks, slide)) { continue; }
+			if (can_piece_capture<Them>(pos, to, pinned, slide)) { continue; }
 			return make_move_promote(from, to , Us , PAWN);
 		}
 
@@ -1603,7 +1622,7 @@ namespace Mate {
 
 					// 移動性の保証
 					to = from + (Us == BLACK ? SQ_U : SQ_D);
-					if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) != ~Us) { continue; }
+					if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) != Them) { continue; }
 
 					// toの地点で成れないと駄目
 					if (!canPromote(Us, to)) continue;
@@ -1940,7 +1959,7 @@ namespace Mate {
 						continue;
 
 					// fromに歩が打てない
-					if (can_pawn_drop<~Us>(pos, from))
+					if (can_pawn_drop<Them>(pos, from))
 						continue;
 
 					// ただし、toが歩のcaptureだとfromに歩が打ててしまう可能性があるのでskip。
@@ -2020,7 +2039,7 @@ namespace Mate {
 					// 逃げ場所があるのか？
 					// 王手がかかっている局面において逃げ場所を見るときに裏側からのpinnerによる攻撃を考慮して、玉はいないものとして考える必要がある。
 					if (kingEffect(sq_king)
-						& ~(bb_attacks | AttacksAroundKingInAvoiding<~Us>(pos, from, new_slide ^ sq_king) | pos.pieces(Them)))
+						& ~(bb_attacks | AttacksAroundKingInAvoiding<Them>(pos, from, new_slide ^ sq_king) | pos.pieces(Them)))
 						goto DISCOVER_ATTACK_CONTINUE_SILVER;
 
 					// ここでは開き王手であることは保証されている。
@@ -2051,7 +2070,7 @@ namespace Mate {
 								break;
 
 							// s2に合駒ができない。
-							if (can_pawn_drop<~Us>(pos, s2) || (capPawn && file_of(s2) == file_of(to)))
+							if (can_pawn_drop<Them>(pos, s2) || (capPawn && file_of(s2) == file_of(to)))
 								goto DISCOVER_ATTACK_CONTINUE_SILVER;
 
 							Square s3 = nextSquare(s1, s2);
@@ -2079,7 +2098,7 @@ namespace Mate {
 							goto DISCOVER_ATTACK_CONTINUE;
 
 						if (kingEffect(sq_king)
-							& ~(bb_attacks | AttacksAroundKingInAvoiding<~Us>(pos, from, new_slide ^ sq_king) | pos.pieces(Them)))
+							& ~(bb_attacks | AttacksAroundKingInAvoiding<Them>(pos, from, new_slide ^ sq_king) | pos.pieces(Them)))
 							goto DISCOVER_ATTACK_CONTINUE;
 
 						Square s1 = sq_king;
@@ -2090,7 +2109,7 @@ namespace Mate {
 								goto DISCOVER_ATTACK_CONTINUE;
 							if (s2 != from && pos.piece_on(s2))
 								break;
-							if (can_pawn_drop<~Us>(pos, s2) || (capPawn && file_of(s2) == file_of(to)))
+							if (can_pawn_drop<Them>(pos, s2) || (capPawn && file_of(s2) == file_of(to)))
 								goto DISCOVER_ATTACK_CONTINUE;
 							Square s3 = nextSquare(s1, s2);
 							s1 = s2;

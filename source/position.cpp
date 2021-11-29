@@ -732,52 +732,6 @@ bool Position::gives_check(Move m) const
 		&& !aligned(from, to, square<KING>(~sideToMove)));
 }
 
-Bitboard Position::pinned_pieces(Color c, Square avoid) const {
-	Bitboard b, pinners, result = ZERO_BB;
-	Square ksq = king_square(c);
-
-	// avoidを除外して考える。
-	Bitboard avoid_bb = ~Bitboard(avoid);
-
-	pinners = (
-		  (pieces(ROOK_DRAGON)   & rookStepEffect(ksq))
-		| (pieces(BISHOP_HORSE)  & bishopStepEffect(ksq))
-		| (pieces(LANCE)         & lanceStepEffect(c, ksq))
-		) & avoid_bb & pieces(~c);
-
-	while (pinners)
-	{
-		b = between_bb(ksq, pinners.pop()) & pieces() & avoid_bb;
-		if (!more_than_one(b))
-			result |= b & pieces(c);
-	}
-	return result;
-}
-
-Bitboard Position::pinned_pieces(Color c, Square from, Square to) const {
-	Bitboard b, pinners, result = ZERO_BB;
-	Square ksq = king_square(c);
-
-	// avoidを除外して考える。
-	Bitboard avoid_bb = ~Bitboard(from);
-
-	pinners = (
-		(pieces(ROOK_DRAGON)    & rookStepEffect(ksq))
-		| (pieces(BISHOP_HORSE) & bishopStepEffect(ksq))
-		| (pieces(LANCE)        & lanceStepEffect(c, ksq))
-		) & avoid_bb & pieces(~c);
-
-	// fromからは消えて、toの地点に駒が現れているものとして
-	Bitboard new_pieces = (pieces() & avoid_bb) | to;
-	while (pinners)
-	{
-		b = between_bb(ksq, pinners.pop()) & new_pieces;
-		if (!more_than_one(b))
-			result |= b & pieces(c);
-	}
-	return result;
-}
-
 // 現局面で指し手がないかをテストする。指し手生成ルーチンを用いるので速くない。探索中には使わないこと。
 bool Position::is_mated() const
 {
