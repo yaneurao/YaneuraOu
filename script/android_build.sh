@@ -5,7 +5,7 @@ JOBS=`grep -c ^processor /proc/cpuinfo 2>/dev/null`
 EDITIONS='*'
 EXTRA=''
 
-while getopts c:e:t: OPT
+while getopts e:x: OPT
 do
   case $OPT in
     e) EDITIONS="$OPTARG"
