@@ -81,7 +81,6 @@ namespace Eval::dlshogi
 		// host(GPU側)に同じだけメモリを確保しておいて、CPU側からそこに転送する。
 		set_device(gpu_id);
 
-		checkCudaErrors(cudaStreamCreate(&stream));
 		checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(NN_Input1)        * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(NN_Input2)        * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&y1_dev, sizeof(NN_Output_Policy) * max_batch_size));
@@ -105,7 +104,6 @@ namespace Eval::dlshogi
 			set_device(gpu_id);
 
 			// メモリの開放
-			checkCudaErrors(cudaStreamDestroy(stream));
 			checkCudaErrors(cudaFree(x1_dev));
 			checkCudaErrors(cudaFree(x2_dev));
 			checkCudaErrors(cudaFree(y1_dev));
@@ -251,9 +249,7 @@ namespace Eval::dlshogi
 		// シリアライズされたファイルがあるなら、それを代わりに読み込む。
 
 		// デバイス情報の取得
-		const int  cBufLen = 256;
-		const auto re  = std::regex("[^A-Za-z0-9._-]");
-		const auto fmt = std::string("_");
+		//const int  cBufLen = 256;
 		cudaDeviceProp device_prop;
 		//char pciBusId[cBufLen];
 		checkCudaErrors(cudaGetDeviceProperties(&device_prop, gpu_id));
@@ -268,10 +264,11 @@ namespace Eval::dlshogi
 		std::string serialized_filename =
 			filename + "." +
 			// std::to_string(gpu_id) + "." +
-			std::regex_replace(std::string(device_prop.name), re, fmt) + "." +
-			// std::regex_replace(std::string(pciBusId), re, fmt) + "." +
+			std::regex_replace(std::string(device_prop.name), std::regex("[^A-Za-z0-9._-]"), std::string("_")) + "." +
+			// std::regex_replace(std::string(pciBusId), std::regex("[^A-Za-z0-9._-]"), std::string("_")) + "." +
 			std::to_string(max_batch_size) + "." +
-			"TRT" + std::to_string(NV_TENSORRT_VERSION) + ".serialized";
+			"TRT" + std::to_string(getInferLibVersion()) + "." +
+			"serialized";
 
 		sync_cout << "info string serialized filename = " << serialized_filename << sync_endl;
 
@@ -345,13 +342,13 @@ namespace Eval::dlshogi
 		context->setBindingDimensions(1, inputDims2);
 
 #if 1
-		checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(NN_Input1) * batch_size, cudaMemcpyHostToDevice, stream));
-		checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(NN_Input2) * batch_size, cudaMemcpyHostToDevice, stream));
-		const bool status = context->enqueue(batch_size, inputBindings.data(), stream, nullptr);
+		checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(NN_Input1) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
+		checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(NN_Input2) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
+		const bool status = context->enqueue(batch_size, inputBindings.data(), cudaStreamPerThread, nullptr);
 		ASSERT_LV3(status);
-		checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(NN_Output_Policy) * batch_size, cudaMemcpyDeviceToHost, stream));
-		checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(NN_Output_Value ) * batch_size, cudaMemcpyDeviceToHost, stream));
-		checkCudaErrors(cudaStreamSynchronize(stream));
+		checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(NN_Output_Policy) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread));
+		checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(NN_Output_Value ) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread));
+		checkCudaErrors(cudaStreamSynchronize(cudaStreamPerThread));
 #else
 		checkCudaErrors(cudaMemcpy(x1_dev, x1, sizeof(NN_Input1) * batch_size, cudaMemcpyHostToDevice));
 		checkCudaErrors(cudaMemcpy(x2_dev, x2, sizeof(NN_Input2) * batch_size, cudaMemcpyHostToDevice));

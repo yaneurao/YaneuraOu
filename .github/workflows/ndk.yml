@@ -11,15 +11,16 @@ on:
 
 jobs:
   build-android:
-    # ubuntu-latest = ubuntu-18.04 => ubuntu-20.04
-    # https://github.com/actions/virtual-environments/issues/1816
-    # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
+    # ubuntu-latest = ubuntu-20.04
+    # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
+    # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md
     runs-on: ubuntu-20.04
 
     strategy:
       matrix:
         edition:
           - YANEURAOU_ENGINE_NNUE
+          - YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32
           - YANEURAOU_ENGINE_NNUE_HALFKPE9
           - YANEURAOU_ENGINE_NNUE_KP256
           - YANEURAOU_ENGINE_KPPT
@@ -31,10 +32,10 @@ jobs:
 
     steps:
       # https://developer.android.com/ndk/downloads?hl=ja#stable-downloads
-      - name: Setup Android NDK r21e
+      - name: Setup Android NDK r23b
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r21e
+          ndk-version: r23b
 
       - name: Checkout own repository
         uses: actions/checkout@v2

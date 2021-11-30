@@ -101,6 +101,14 @@ void USI::extra_option(USI::OptionsMap& o)
     o["UCT_Threads6"]                << USI::Option(0, 0, 256);
     o["UCT_Threads7"]                << USI::Option(0, 0, 256);
     o["UCT_Threads8"]                << USI::Option(0, 0, 256);
+    o["UCT_Threads9"]                << USI::Option(0, 0, 256);
+    o["UCT_Threads10"]                << USI::Option(0, 0, 256);
+    o["UCT_Threads11"]                << USI::Option(0, 0, 256);
+    o["UCT_Threads12"]                << USI::Option(0, 0, 256);
+    o["UCT_Threads13"]                << USI::Option(0, 0, 256);
+    o["UCT_Threads14"]                << USI::Option(0, 0, 256);
+    o["UCT_Threads15"]                << USI::Option(0, 0, 256);
+    o["UCT_Threads16"]                << USI::Option(0, 0, 256);
     o["DNN_Model1"]                  << USI::Option(R"(model.onnx)");
     o["DNN_Model2"]                  << USI::Option("");
     o["DNN_Model3"]                  << USI::Option("");
@@ -109,13 +117,21 @@ void USI::extra_option(USI::OptionsMap& o)
     o["DNN_Model6"]                  << USI::Option("");
     o["DNN_Model7"]                  << USI::Option("");
     o["DNN_Model8"]                  << USI::Option("");
+    o["DNN_Model9"]                  << USI::Option("");
+    o["DNN_Model10"]                  << USI::Option("");
+    o["DNN_Model11"]                  << USI::Option("");
+    o["DNN_Model12"]                  << USI::Option("");
+    o["DNN_Model13"]                  << USI::Option("");
+    o["DNN_Model14"]                  << USI::Option("");
+    o["DNN_Model15"]                  << USI::Option("");
+    o["DNN_Model16"]                  << USI::Option("");
 
-#if defined(ONNXRUNTIME)
-	// CPUを使っていることがあるので、default値、ちょっと少なめにしておく。
-	o["DNN_Batch_Size1"]             << USI::Option(32, 1, 1024);
-#elif defined(TENSOR_RT)
+#if defined(TENSOR_RT) || defined(ORT_TRT)
 	// 通常時の推奨128 , 検討の時は推奨256。
 	o["DNN_Batch_Size1"]             << USI::Option(128, 1, 1024);
+#elif defined(ONNXRUNTIME)
+	// CPUを使っていることがあるので、default値、ちょっと少なめにしておく。
+	o["DNN_Batch_Size1"]             << USI::Option(32, 1, 1024);
 #endif
 	o["DNN_Batch_Size2"]             << USI::Option(0, 0, 65536);
     o["DNN_Batch_Size3"]             << USI::Option(0, 0, 65536);
@@ -124,6 +140,14 @@ void USI::extra_option(USI::OptionsMap& o)
     o["DNN_Batch_Size6"]             << USI::Option(0, 0, 65536);
     o["DNN_Batch_Size7"]             << USI::Option(0, 0, 65536);
     o["DNN_Batch_Size8"]             << USI::Option(0, 0, 65536);
+    o["DNN_Batch_Size9"]             << USI::Option(0, 0, 65536);
+    o["DNN_Batch_Size10"]             << USI::Option(0, 0, 65536);
+    o["DNN_Batch_Size11"]             << USI::Option(0, 0, 65536);
+    o["DNN_Batch_Size12"]             << USI::Option(0, 0, 65536);
+    o["DNN_Batch_Size13"]             << USI::Option(0, 0, 65536);
+    o["DNN_Batch_Size14"]             << USI::Option(0, 0, 65536);
+    o["DNN_Batch_Size15"]             << USI::Option(0, 0, 65536);
+    o["DNN_Batch_Size16"]             << USI::Option(0, 0, 65536);
 
 #if defined(ORT_MKL)
 	// nn_onnx_runtime.cpp の NNOnnxRuntime::load() で使用するオプション。 
@@ -185,11 +209,15 @@ void Search::clear()
 
 	const int new_thread[max_gpu] = {
 		(int)Options["UCT_Threads1"], (int)Options["UCT_Threads2"], (int)Options["UCT_Threads3"], (int)Options["UCT_Threads4"],
-		(int)Options["UCT_Threads5"], (int)Options["UCT_Threads6"], (int)Options["UCT_Threads7"], (int)Options["UCT_Threads8"]
+		(int)Options["UCT_Threads5"], (int)Options["UCT_Threads6"], (int)Options["UCT_Threads7"], (int)Options["UCT_Threads8"],
+		(int)Options["UCT_Threads9"], (int)Options["UCT_Threads10"], (int)Options["UCT_Threads11"], (int)Options["UCT_Threads12"],
+		(int)Options["UCT_Threads13"], (int)Options["UCT_Threads14"], (int)Options["UCT_Threads15"], (int)Options["UCT_Threads16"]
 	};
 	const int new_policy_value_batch_maxsize[max_gpu] = {
 		(int)Options["DNN_Batch_Size1"], (int)Options["DNN_Batch_Size2"], (int)Options["DNN_Batch_Size3"], (int)Options["DNN_Batch_Size4"],
-		(int)Options["DNN_Batch_Size5"], (int)Options["DNN_Batch_Size6"], (int)Options["DNN_Batch_Size7"], (int)Options["DNN_Batch_Size8"]
+		(int)Options["DNN_Batch_Size5"], (int)Options["DNN_Batch_Size6"], (int)Options["DNN_Batch_Size7"], (int)Options["DNN_Batch_Size8"],
+		(int)Options["DNN_Batch_Size9"], (int)Options["DNN_Batch_Size10"], (int)Options["DNN_Batch_Size11"], (int)Options["DNN_Batch_Size12"],
+		(int)Options["DNN_Batch_Size13"], (int)Options["DNN_Batch_Size14"], (int)Options["DNN_Batch_Size15"], (int)Options["DNN_Batch_Size16"]
 	};
 
 	// 対応デバイス数を取得する

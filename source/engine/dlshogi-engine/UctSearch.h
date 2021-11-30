@@ -230,6 +230,10 @@ namespace dlshogi
 		// "go"に対してしかmax_moves_to_drawは未確定なので、それが確定してから呼び出す。
 		void SetMateSearcher(const SearchOptions& options);
 
+		// 初期化時に呼び出す。
+		// policy_value_batch_maxsize と同数のダミーデータを作成し、推論を行う。
+		void DummyForward();
+
 	private:
 		//  並列処理で呼び出す関数
 		//  UCTアルゴリズムを反復する

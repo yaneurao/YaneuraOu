@@ -11,14 +11,16 @@ on:
 
 jobs:
   build-msys2-windows:
-    # ubuntu-latest = windows-2019
-    # https://docs.github.com/ja/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners
+    # windows-latest = windows-2019
+    # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
+    # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2019-Readme.md
     runs-on: windows-latest
 
     strategy:
       matrix:
         edition:
           - YANEURAOU_ENGINE_NNUE
+          - YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32
           - YANEURAOU_ENGINE_NNUE_HALFKPE9
           - YANEURAOU_ENGINE_NNUE_KP256
           - YANEURAOU_ENGINE_KPPT

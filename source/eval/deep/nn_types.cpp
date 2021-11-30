@@ -300,7 +300,9 @@ namespace Eval::dlshogi
 	{
 		const std::string model_paths[max_gpu] = {
 			Options["DNN_Model1"], Options["DNN_Model2"], Options["DNN_Model3"], Options["DNN_Model4"],
-			Options["DNN_Model5"], Options["DNN_Model6"], Options["DNN_Model7"], Options["DNN_Model8"]
+			Options["DNN_Model5"], Options["DNN_Model6"], Options["DNN_Model7"], Options["DNN_Model8"],
+			Options["DNN_Model9"], Options["DNN_Model10"], Options["DNN_Model11"], Options["DNN_Model12"],
+			Options["DNN_Model13"], Options["DNN_Model14"], Options["DNN_Model15"], Options["DNN_Model16"]
 		};
 
 		string eval_dir = Options["EvalDir"];

@@ -9,8 +9,9 @@
 #include <dxgi.h>
 // →　ここでDirectML.h が見つからないとエラーが出るなら Windows SDKの最新版をインストールすること。
 //	   https://github.com/microsoft/DirectML/issues/1
-#elif defined(ORT_CUDA)
-#include <cuda_provider_factory.h>
+#elif defined(ORT_TRT)
+// #include <cuda_runtime.h> // OnnxRuntimeの機能のみへの依存を優先し、当面CUDAライブラリへの直接依存は無効化する
+#include <tensorrt_provider_factory.h>
 #else
 #include <cpu_provider_factory.h>
 #endif
@@ -33,7 +34,38 @@ namespace Eval::dlshogi
 #endif
 #if defined(ORT_DML)
 		Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_DML(session_options, gpu_id));
-#elif defined(ORT_CUDA)
+#elif defined(ORT_TRT)
+		int computeCapabilityMajor = 0;
+#if defined(__CUDA_RUNTIME_H__)
+		// 暫定的に、Compute Capability >= 7.0 であればFP16有効とみなす
+		// https://developer.nvidia.com/cuda-gpus
+		cudaDeviceGetAttribute(&computeCapabilityMajor, cudaDevAttrComputeCapabilityMajor, gpu_id);
+#else
+		// CUDAからデバイス情報を取得できない場合、デバイスはfp16有効であるとみなす
+		computeCapabilityMajor = 8;
+#endif
+
+		OrtTensorRTProviderOptions trt_options{};
+		trt_options.device_id = gpu_id;
+		trt_options.trt_max_partition_iterations = 1000;
+		trt_options.trt_min_subgraph_size = 1;
+		// trt_options.trt_max_workspace_size = 1073741824; // 1GB (Onnx-TensorRT の デフォルト値)
+		trt_options.trt_max_workspace_size = 67108864; // 64MB
+		trt_options.trt_fp16_enable = ((computeCapabilityMajor >= 7) ? 1 : 0);
+		trt_options.trt_int8_enable = 0;
+		trt_options.trt_int8_calibration_table_name = "";
+		trt_options.trt_int8_use_native_calibration_table = 0;
+		trt_options.trt_dla_enable = 0;
+		trt_options.trt_dla_core = 0;
+		trt_options.trt_dump_subgraphs = 0;
+		trt_options.trt_engine_cache_enable = 1;
+		trt_options.trt_engine_cache_path = "";
+		trt_options.trt_engine_decryption_enable = 0;
+		trt_options.trt_engine_decryption_lib_path = "";
+		trt_options.trt_force_sequential_engine_build = 1;
+		session_options.AppendExecutionProvider_TensorRT(trt_options);
+
+		// Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_Tensorrt(session_options, gpu_id));
 		Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CUDA(session_options, gpu_id));
 #else
 	    Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CPU(session_options, true));
@@ -65,6 +97,18 @@ namespace Eval::dlshogi
 			if (SUCCEEDED(D3D12CreateDevice(pAdapter1, D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), nullptr)))
 				device_count++;
 		}
+		return device_count;
+#elif defined(ORT_TRT)
+		int device_count = 0;
+#if defined(__CUDA_RUNTIME_H__)
+		// CUDAデバイス数を取得
+		cudaGetDeviceCount(&device_count);
+#else
+		// CUDAからデバイス数が取得出来ない時は、デバイス数 max_gpu と仮定。
+		// 実装していないgpu_idに対して、USIオプション UCT_Threads1 ~ UCT_Threads16 で指定された値を無視して、
+		// 自動的にスレッド数を 0 として取り扱う処理を行わなくなる。
+		device_count = max_gpu;
+#endif
 		return device_count;
 #else
 		// ORT_CPU, ORT_MKL ではデバイス数を1とする

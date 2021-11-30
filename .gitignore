@@ -18,6 +18,9 @@ YaneuraOu_backup*.lnk
 *~
 ~*
 
+# embedded_nnue.cpp
+embedded_nnue.cpp
+
 # experimental
 
 evaluate_experimental.*
