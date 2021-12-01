@@ -94,9 +94,6 @@ SquareWithWall sqww_table[SQ_NB_PLUS1];
 // 飛車・角の利きのためのテーブル
 // ----------------------------------------------------------------------------------------------
 
-// 飛車の縦の利き
-u64      RookFileEffect[RANK_NB + 1][128];
-
 // ----------------------------------
 //  Magic Bitboard Table from Apery
 //  https://github.com/HiraokaTakuya/apery/blob/master/src/bitboard.cpp
@@ -540,8 +537,6 @@ void Bitboards::init()
 				if (ii & (1 << r))
 					break;
 			}
-			RookFileEffect[rank][i] = bb.p[0];
-			// RookEffectFile[RANK_NB][x] には値を代入していないがC++の規約によりゼロ初期化されている。
 		}
 	}
 

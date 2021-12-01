@@ -926,6 +926,51 @@ inline Bitboard lanceEffect(Color c, Square sq, const Bitboard& occupied)
 	return (c == BLACK) ? lanceEffect<BLACK>(sq, occupied) : lanceEffect<WHITE>(sq, occupied);
 }
 
+// 飛車の縦の利き(これはPEXTを用いていないのでどんな環境でも遅くはない)
+// 香の利きを求めるQugiyのコードを応用。
+inline Bitboard rookFileEffect(Square sq, const Bitboard& occupied)
+{
+	ASSERT_LV3(sq <= SQ_NB);
+
+	if (Bitboard::part(sq) == 0)
+	{
+		// 飛車がp[0]に属する
+
+		// 後手の香の利き
+		u64 mask = 0x3fdfeff7fbfdfeffULL;
+		u64 em = ~occupied.p[0] & mask;
+		u64 t = em + pawnEffect<WHITE>(sq).p[0];
+
+		// 先手の香の利き
+		u64 se = lanceStepEffect<BLACK>(sq).p[0];
+		u64 mocc = se & occupied.p[0];
+		mocc |= mocc >> 1;
+		mocc |= mocc >> 2;
+		mocc |= mocc >> 4;
+		mocc >>= 1;
+
+		// 後手の香の利きと先手の香の利きを合成
+		return Bitboard((t ^ em) | (~mocc & se), 0);
+	}
+	else {
+		// 飛車がp[1]に属する
+		// ↑の処理と同様。
+
+		u64 mask = 0x000000000001feffULL;
+		u64 em =  ~occupied.p[1] & mask;
+		u64 t = em + pawnEffect<WHITE>(sq).p[1];
+
+		u64 se = lanceStepEffect<BLACK>(sq).p[1];
+		u64 mocc = se & occupied.p[1];
+		mocc |= mocc >> 1;
+		mocc |= mocc >> 2;
+		mocc |= mocc >> 4;
+		mocc >>= 1;
+
+		return Bitboard(0,(t ^ em) | (~mocc & se));
+	}
+}
+
 // Aperyの遠方駒の実装
 // USE_BMI2が定義されていないときはMagic Bitboardで処理する。
 
@@ -968,17 +1013,6 @@ inline Bitboard bishopEffect(const Square sq, const Bitboard& occupied) {
 }
 
 #endif // defined (USE_BMI2)
-
-// 飛車の縦の利き(これはPEXTを用いていないのでどんな環境でも遅くはない)
-inline Bitboard rookFileEffect(Square sq, const Bitboard& occupied)
-{
-	ASSERT_LV3(sq <= SQ_NB);
-	const int index = (occupied.p[Bitboard::part(sq)] >> Slide[sq]) & 0x7f;
-	File f = file_of(sq);
-	return (f <= FILE_7) ?
-		Bitboard(RookFileEffect[rank_of(sq)][index] << int(f | RANK_1), 0) :
-		Bitboard(0, RookFileEffect[rank_of(sq)][index] << int((File)(f - FILE_8) | RANK_1));
-}
 
 // 飛車の横の利き(一度、飛車の利きを求めてからマスクしているのでやや遅い。どうしても必要な時だけ使う)
 inline Bitboard rookRankEffect(Square sq, const Bitboard& occupied)
