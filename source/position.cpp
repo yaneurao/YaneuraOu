@@ -2598,7 +2598,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 			auto section3 = tester.section("matsuri");
 			matsuri_init();
 
-			const s64 p_nodes[] = { 0 , 207 , 28684, 4810133, 517050879};
+			const s64 p_nodes[] = { 0 , 207 , 28684, 4809015, 516925165};
 
 			for (Depth d = 1; d <= 4; ++d)
 			{

@@ -814,6 +814,8 @@ inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
 {
 	ASSERT_LV3(is_ok(C) && sq <= SQ_NB);
 
+	// Bitboard 128bitのまま操作する。
+#if 0
 	// これは、Qugiy[WCSC31]のアイデア
 	// cf. https://www.apply.computer-shogi.org/wcsc31/appeal/Qugiy/appeal.pdf
 
@@ -866,6 +868,56 @@ inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
 
 		return mocc.andnot(se);
 	}
+#endif
+
+#if 1
+	// Qugiyのアルゴリズムを1～7筋と8～9筋に分けたもの。
+	// こうすることで飛車の縦利きのコードがちょっと短くなる。
+	if (C == WHITE)
+	{
+		// 後手の香
+
+		if (Bitboard::part(sq) == 0)
+		{
+			// 香がp[0]に属する
+			u64 mask = 0x3fdfeff7fbfdfeffULL;
+			u64 em = ~occupied.p[0] & mask;
+			u64 t = em + pawnEffect<C>(sq).p[0];
+			return Bitboard(t ^ em , 0);
+		}
+		else {
+			// 香がp[1]に属する
+			u64 mask = 0x000000000001feffULL;
+			u64 em =  ~occupied.p[1] & mask;
+			u64 t = em + pawnEffect<C>(sq).p[1];
+			return Bitboard(0 , t ^ em );
+		}
+	} else {
+		// 先手の香
+
+		if (Bitboard::part(sq) == 0)
+		{
+			// 香がp[0]に属する
+			u64 se = lanceStepEffect<C>(sq).p[0];
+			u64 mocc = se & occupied.p[0];
+			mocc |= mocc >> 1;
+			mocc |= mocc >> 2;
+			mocc |= mocc >> 4;
+			mocc >>= 1;
+			return Bitboard(~mocc & se , 0);
+		}
+		else {
+			// 香がp[1]に属する
+			u64 se = lanceStepEffect<C>(sq).p[1];
+			u64 mocc = se & occupied.p[1];
+			mocc |= mocc >> 1;
+			mocc |= mocc >> 2;
+			mocc |= mocc >> 4;
+			mocc >>= 1;
+			return Bitboard(0 , ~mocc & se);
+		}
+	}
+#endif
 }
 
 // 香の利き、非template版。
