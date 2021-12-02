@@ -2579,6 +2579,8 @@ void Position::UnitTest(Test::UnitTester& tester)
 	}
 
 	{
+		// 深いdepthのperftのテストが通っていれば、利きの計算、指し手生成はおおよそ間違っていないと言える。
+
 		auto section2 = tester.section("Perft");
 
 		{

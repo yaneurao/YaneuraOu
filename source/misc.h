@@ -995,6 +995,9 @@ namespace StringExtension
 	// 文字列valueに対して文字xを文字yに置換した新しい文字列を返す。
 	extern std::string Replace(std::string const& value, char x, char y);
 
+	// 文字列を大文字にして返す。
+	extern std::string ToUpper(std::string const& value);
+
 };
 
 // --------------------

@@ -102,7 +102,16 @@ namespace {
 	public:
 		// ログ記録の開始。
 		// fname : ログを書き出すファイル名
-		static void start(const std::string& fname) {
+		static void start(const std::string& name) {
+
+			string fname = name;
+			string upper_fname = StringExtension::ToUpper(fname);
+			// 以前、"WriteDebugLog"オプションはチェックボックスになっていたので
+			// GUIがTrue/Falseを渡してくることがある。
+			if (upper_fname == "FALSE")
+				fname = ""; // なかったことにする。
+			else if (upper_fname == "TRUE")
+				fname = "io_log.txt";
 
 			static Logger l;
 
@@ -1989,6 +1998,16 @@ namespace StringExtension
 		return r;
 	}
 
+	// 文字列を大文字にして返す。
+	std::string ToUpper(std::string const& value)
+	{
+		std::string s(value);
+		transform(s.begin(), s.end(), s.begin(),
+			[](unsigned char c){ return toupper(c); });
+		return s;
+	}
+
+
 };
 
 // ----------------------------
@@ -2083,6 +2102,7 @@ namespace Misc {
 			{
 				tester.test("to_string_with_zero", StringExtension::to_string_with_zero(123 , 6) == "000123");
 				tester.test("to_string_with_zero", StringExtension::to_string_with_zero(1234, 6) == "001234");
+				tester.test("ToUpper"            , StringExtension::ToUpper("False&True") == "FALSE&TRUE");
 			}
 		}
 	}
