@@ -94,274 +94,8 @@ SquareWithWall sqww_table[SQ_NB_PLUS1];
 // 飛車・角の利きのためのテーブル
 // ----------------------------------------------------------------------------------------------
 
-// ----------------------------------
-//  Magic Bitboard Table from Apery
-//  https://github.com/HiraokaTakuya/apery/blob/master/src/bitboard.cpp
-// ----------------------------------
-
-// 各マスのrookが利きを調べる必要があるマスの数
-const int RookBlockBits[SQ_NB_PLUS1] = {
-	14, 13, 13, 13, 13, 13, 13, 13, 14,
-	13, 12, 12, 12, 12, 12, 12, 12, 13,
-	13, 12, 12, 12, 12, 12, 12, 12, 13,
-	13, 12, 12, 12, 12, 12, 12, 12, 13,
-	13, 12, 12, 12, 12, 12, 12, 12, 13,
-	13, 12, 12, 12, 12, 12, 12, 12, 13,
-	13, 12, 12, 12, 12, 12, 12, 12, 13,
-	13, 12, 12, 12, 12, 12, 12, 12, 13,
-	14, 13, 13, 13, 13, 13, 13, 13, 14,
-	0
-};
-
-// 各マスのbishopが利きを調べる必要があるマスの数
-const int BishopBlockBits[SQ_NB_PLUS1] = {
-	7,  6,  6,  6,  6,  6,  6,  6,  7,
-	6,  6,  6,  6,  6,  6,  6,  6,  6,
-	6,  6,  8,  8,  8,  8,  8,  6,  6,
-	6,  6,  8, 10, 10, 10,  8,  6,  6,
-	6,  6,  8, 10, 12, 10,  8,  6,  6,
-	6,  6,  8, 10, 10, 10,  8,  6,  6,
-	6,  6,  8,  8,  8,  8,  8,  6,  6,
-	6,  6,  6,  6,  6,  6,  6,  6,  6,
-	7,  6,  6,  6,  6,  6,  6,  6,  7,
-	0
-};
-
-// Magic Bitboard で利きを求める際のシフト量
-// RookShiftBits[17], RookShiftBits[53] はマジックナンバーが見つからなかったため、
-// シフト量を 1 つ減らす。(テーブルサイズを 2 倍にする。)
-// この方法は issei_y さんに相談したところ、教えて頂いた方法。
-// PEXT Bitboardを使用する際はシフト量を減らす必要が無い。
-const int RookShiftBits[SQ_NB_PLUS1] = {
-	50, 51, 51, 51, 51, 51, 51, 51, 50,
-#if defined (USE_BMI2)
-	51, 52, 52, 52, 52, 52, 52, 52, 51,
-#else
-	51, 52, 52, 52, 52, 52, 52, 52, 50, // [17]: 51 -> 50
-#endif
-	51, 52, 52, 52, 52, 52, 52, 52, 51,
-	51, 52, 52, 52, 52, 52, 52, 52, 51,
-	51, 52, 52, 52, 52, 52, 52, 52, 51,
-#if defined (USE_BMI2)
-	51, 52, 52, 52, 52, 52, 52, 52, 51,
-#else
-	51, 52, 52, 52, 52, 52, 52, 52, 50, // [53]: 51 -> 50
-#endif
-	51, 52, 52, 52, 52, 52, 52, 52, 51,
-	51, 52, 52, 52, 52, 52, 52, 52, 51,
-	50, 51, 51, 51, 51, 51, 51, 51, 50,
-	0
-};
-
-// Magic Bitboard で利きを求める際のシフト量
-const int BishopShiftBits[SQ_NB_PLUS1] = {
-	57, 58, 58, 58, 58, 58, 58, 58, 57,
-	58, 58, 58, 58, 58, 58, 58, 58, 58,
-	58, 58, 56, 56, 56, 56, 56, 58, 58,
-	58, 58, 56, 54, 54, 54, 56, 58, 58,
-	58, 58, 56, 54, 52, 54, 56, 58, 58,
-	58, 58, 56, 54, 54, 54, 56, 58, 58,
-	58, 58, 56, 56, 56, 56, 56, 58, 58,
-	58, 58, 58, 58, 58, 58, 58, 58, 58,
-	57, 58, 58, 58, 58, 58, 58, 58, 57,
-	0
-};
-
-#if defined (USE_BMI2)
-#else
-const u64 RookMagic[SQ_NB_PLUS1] = {
-	UINT64_C(0x140000400809300),  UINT64_C(0x1320000902000240), UINT64_C(0x8001910c008180),
-	UINT64_C(0x40020004401040),   UINT64_C(0x40010000d01120),   UINT64_C(0x80048020084050),
-	UINT64_C(0x40004000080228),   UINT64_C(0x400440000a2a0a),   UINT64_C(0x40003101010102),
-	UINT64_C(0x80c4200012108100), UINT64_C(0x4010c00204000c01), UINT64_C(0x220400103250002),
-	UINT64_C(0x2600200004001),    UINT64_C(0x40200052400020),   UINT64_C(0xc00100020020008),
-	UINT64_C(0x9080201000200004), UINT64_C(0x2200201000080004), UINT64_C(0x80804c0020200191),
-	UINT64_C(0x45383000009100),   UINT64_C(0x30002800020040),   UINT64_C(0x40104000988084),
-	UINT64_C(0x108001000800415),  UINT64_C(0x14005000400009),   UINT64_C(0xd21001001c00045),
-	UINT64_C(0xc0003000200024),   UINT64_C(0x40003000280004),   UINT64_C(0x40021000091102),
-	UINT64_C(0x2008a20408000d00), UINT64_C(0x2000100084010040), UINT64_C(0x144080008008001),
-	UINT64_C(0x50102400100026a2), UINT64_C(0x1040020008001010), UINT64_C(0x1200200028005010),
-	UINT64_C(0x4280030030020898), UINT64_C(0x480081410011004),  UINT64_C(0x34000040800110a),
-	UINT64_C(0x101000010c0021),   UINT64_C(0x9210800080082),    UINT64_C(0x6100002000400a7),
-	UINT64_C(0xa2240800900800c0), UINT64_C(0x9220082001000801), UINT64_C(0x1040008001140030),
-	UINT64_C(0x40002220040008),   UINT64_C(0x28000124008010c),  UINT64_C(0x40008404940002),
-	UINT64_C(0x40040800010200),   UINT64_C(0x90000809002100),   UINT64_C(0x2800080001000201),
-	UINT64_C(0x1400020001000201), UINT64_C(0x180081014018004),  UINT64_C(0x1100008000400201),
-	UINT64_C(0x80004000200201),   UINT64_C(0x420800010000201),  UINT64_C(0x2841c00080200209),
-	UINT64_C(0x120002401040001),  UINT64_C(0x14510000101000b),  UINT64_C(0x40080000808001),
-	UINT64_C(0x834000188048001),  UINT64_C(0x4001210000800205), UINT64_C(0x4889a8007400201),
-	UINT64_C(0x2080044080200062), UINT64_C(0x80004002861002),   UINT64_C(0xc00842049024),
-	UINT64_C(0x8040000202020011), UINT64_C(0x400404002c0100),   UINT64_C(0x2080028202000102),
-	UINT64_C(0x8100040800590224), UINT64_C(0x2040009004800010), UINT64_C(0x40045000400408),
-	UINT64_C(0x2200240020802008), UINT64_C(0x4080042002200204), UINT64_C(0x4000b0000a00a2),
-	UINT64_C(0xa600000810100),    UINT64_C(0x1410000d001180),   UINT64_C(0x2200101001080),
-	UINT64_C(0x100020014104e120), UINT64_C(0x2407200100004810), UINT64_C(0x80144000a0845050),
-	UINT64_C(0x1000200060030c18), UINT64_C(0x4004200020010102), UINT64_C(0x140600021010302)
-};
-
-const u64 BishopMagic[SQ_NB_PLUS1] = {
-	UINT64_C(0x20101042c8200428), UINT64_C(0x840240380102),     UINT64_C(0x800800c018108251),
-	UINT64_C(0x82428010301000),   UINT64_C(0x481008201000040),  UINT64_C(0x8081020420880800),
-	UINT64_C(0x804222110000),     UINT64_C(0xe28301400850),     UINT64_C(0x2010221420800810),
-	UINT64_C(0x2600010028801824), UINT64_C(0x8048102102002),    UINT64_C(0x4000248100240402),
-	UINT64_C(0x49200200428a2108), UINT64_C(0x460904020844),     UINT64_C(0x2001401020830200),
-	UINT64_C(0x1009008120),       UINT64_C(0x4804064008208004), UINT64_C(0x4406000240300ca0),
-	UINT64_C(0x222001400803220),  UINT64_C(0x226068400182094),  UINT64_C(0x95208402010d0104),
-	UINT64_C(0x4000807500108102), UINT64_C(0xc000200080500500), UINT64_C(0x5211000304038020),
-	UINT64_C(0x1108100180400820), UINT64_C(0x10001280a8a21040), UINT64_C(0x100004809408a210),
-	UINT64_C(0x202300002041112),  UINT64_C(0x4040a8000460408),  UINT64_C(0x204020021040201),
-	UINT64_C(0x8120013180404),    UINT64_C(0xa28400800d020104), UINT64_C(0x200c201000604080),
-	UINT64_C(0x1082004000109408), UINT64_C(0x100021c00c410408), UINT64_C(0x880820905004c801),
-	UINT64_C(0x1054064080004120), UINT64_C(0x30c0a0224001030),  UINT64_C(0x300060100040821),
-	UINT64_C(0x51200801020c006),  UINT64_C(0x2100040042802801), UINT64_C(0x481000820401002),
-	UINT64_C(0x40408a0450000801), UINT64_C(0x810104200000a2),   UINT64_C(0x281102102108408),
-	UINT64_C(0x804020040280021),  UINT64_C(0x2420401200220040), UINT64_C(0x80010144080c402),
-	UINT64_C(0x80104400800002),   UINT64_C(0x1009048080400081), UINT64_C(0x100082000201008c),
-	UINT64_C(0x10001008080009),   UINT64_C(0x2a5006b80080004),  UINT64_C(0xc6288018200c2884),
-	UINT64_C(0x108100104200a000), UINT64_C(0x141002030814048),  UINT64_C(0x200204080010808),
-	UINT64_C(0x200004013922002),  UINT64_C(0x2200000020050815), UINT64_C(0x2011010400040800),
-	UINT64_C(0x1020040004220200), UINT64_C(0x944020104840081),  UINT64_C(0x6080a080801c044a),
-	UINT64_C(0x2088400811008020), UINT64_C(0xc40aa04208070),    UINT64_C(0x4100800440900220),
-	UINT64_C(0x48112050),         UINT64_C(0x818200d062012a10), UINT64_C(0x402008404508302),
-	UINT64_C(0x100020101002),     UINT64_C(0x20040420504912),   UINT64_C(0x2004008118814),
-	UINT64_C(0x1000810650084024), UINT64_C(0x1002a03002408804), UINT64_C(0x2104294801181420),
-	UINT64_C(0x841080240500812),  UINT64_C(0x4406009000004884), UINT64_C(0x80082004012412),
-	UINT64_C(0x80090880808183),   UINT64_C(0x300120020400410),  UINT64_C(0x21a090100822002)
-};
-#endif
-
-// これらは一度値を設定したら二度と変更しない。
-// 本当は const 化したい。
-#if defined (USE_BMI2)
-Bitboard RookAttack[495616 + 1 /* SQ_NB対応*/];
-#else
-Bitboard RookAttack[512000 + 1 /* SQ_NB対応*/];
-#endif
-
-int RookAttackIndex[SQ_NB_PLUS1];
-Bitboard RookBlockMask[SQ_NB_PLUS1];
-Bitboard BishopAttack[20224 + 1 /* SQ_NB対応*/];
-int BishopAttackIndex[SQ_NB_PLUS1];
-Bitboard BishopBlockMask[SQ_NB_PLUS1];
-
-namespace {
-
-	// square のマスにおける、障害物を調べる必要がある場所を調べて Bitboard で返す。
-	Bitboard rookBlockMaskCalc(const Square square) {
-		Bitboard result = FILE_BB[file_of(square)] ^ RANK_BB[rank_of(square)];
-		if (file_of(square) != FILE_9) result &= ~FILE9_BB;
-		if (file_of(square) != FILE_1) result &= ~FILE1_BB;
-		if (rank_of(square) != RANK_9) result &= ~RANK9_BB;
-		if (rank_of(square) != RANK_1) result &= ~RANK1_BB;
-		return result;
-	}
-
-	// square のマスにおける、障害物を調べる必要がある場所を調べて Bitboard で返す。
-	Bitboard bishopBlockMaskCalc(const Square square) {
-		const Rank rank = rank_of(square);
-		const File file = file_of(square);
-		Bitboard result = ZERO_BB;
-		for (auto sq : SQ)
-		{
-			const Rank r = rank_of(sq);
-			const File f = file_of(sq);
-			if (abs(rank - r) == abs(file - f))
-				result |= sq;
-		}
-		result &= ~(RANK9_BB | RANK1_BB | FILE9_BB | FILE1_BB);
-		result &= ~Bitboard(square);
-
-		return result;
-	}
-
-	// Rook or Bishop の利きの範囲を調べて bitboard で返す。
-	// occupied  障害物があるマスが 1 の bitboard
-	Bitboard attackCalc(const Square square, const Bitboard& occupied, const bool isBishop) {
-
-		// 飛車と角の利きの方角
-		const SquareWithWall deltaArray[2][4] = {
-			{ SQWW_U, SQWW_D , SQWW_L , SQWW_R },
-			{ SQWW_LU , SQWW_LD , SQWW_RD , SQWW_RU}
-		};
-
-		Bitboard result = ZERO_BB;
-		for (SquareWithWall delta : deltaArray[isBishop]) {
-
-			// 壁に当たるまでsqを利き方向に伸ばしていく
-			for (auto sq = to_sqww(square) + delta; is_ok(sq) ; sq += delta)
-			{
-				auto s = sqww_to_sq(sq);  // まだ障害物に当っていないのでここまでは利きが到達している
-				result |= s;
-				if (occupied & s) // sqの地点に障害物があればこのrayは終了。
-					break;
-			}
-		}
-
-		return result;
-	}
-
-	// index, bits の情報を元にして、occupied の 1 のbit を いくつか 0 にする。
-	// index の値を, occupied の 1のbit の位置に変換する。
-	// index   [0, 1<<bits) の範囲のindex
-	// bits    bit size
-	// blockMask   利きのあるマスが 1 のbitboard
-	// result  occupied
-	Bitboard indexToOccupied(const int index, const int bits, const Bitboard& blockMask) {
-		Bitboard tmpBlockMask = blockMask;
-		Bitboard result = ZERO_BB;;
-		for (int i = 0; i < bits; ++i) {
-			const Square sq = tmpBlockMask.pop();
-			if (index & (1 << i))
-				result |= sq;
-		}
-		return result;
-	}
-
-	void initAttacks(const bool isBishop)
-	{
-		auto* attacks = (isBishop ? BishopAttack : RookAttack);
-		auto* attackIndex = (isBishop ? BishopAttackIndex : RookAttackIndex);
-		auto* blockMask = (isBishop ? BishopBlockMask : RookBlockMask);
-		auto* shift = (isBishop ? BishopShiftBits : RookShiftBits);
-#if defined (USE_BMI2)
-#else
-		auto* magic = (isBishop ? BishopMagic : RookMagic);
-#endif
-		int index = 0;
-		for (Square sq = SQ_11; sq < SQ_NB; ++sq) {
-			blockMask[sq] = (isBishop ? bishopBlockMaskCalc(sq) : rookBlockMaskCalc(sq));
-			attackIndex[sq] = index;
-
-			const int num1s = (isBishop ? BishopBlockBits[sq] : RookBlockBits[sq]);
-			for (int i = 0; i < (1 << num1s); ++i) {
-				const Bitboard occupied = indexToOccupied(i, num1s, blockMask[sq]);
-#if defined (USE_BMI2)
-				attacks[index + occupiedToIndex(occupied & blockMask[sq], blockMask[sq])] = attackCalc(sq, occupied, isBishop);
-#else
-				attacks[index + occupiedToIndex(occupied, magic[sq], shift[sq])] = attackCalc(sq, occupied, isBishop);
-#endif
-			}
-			index += 1 << (64 - shift[sq]);
-		}
-
-		// 駒(飛車・角)がSQ_NBの時には利きは発生してはならない。
-		blockMask[SQ_NB] = ZERO_BB; // 駒はない扱い (マスク後、ZERO_BBになる)
-		attackIndex[SQ_NB] = index; // そうするとindexの先頭を指すはず
-		attacks[index] = ZERO_BB;   // そこにはZERO_BBが書き込まれていると。
-	}
-
-	// Apery型の遠方駒の利きの処理で用いるテーブルの初期化
-	void init_apery_attack_tables()
-	{
-		// 飛車の利きテーブルの初期化
-		initAttacks(false);
-
-		// 角の利きテーブルの初期化
-		initAttacks(true);
-	}
-
-} // of nameless namespace
-
+Bitboard QUGIY_ROOK_MASK[SQ_NB_PLUS1][2];
+Bitboard256 QUGIY_BISHOP_MASK[SQ_NB_PLUS1][2];
 
 // ----------------------------------------------------------------------------------------------
 
@@ -445,134 +179,100 @@ void Bitboards::init()
 		SquareBB[sq].p[1] = (f >= FILE_8) ? ((uint64_t)1 << ((f - FILE_8) * 9 + r)) : 0;
 	}
 
+	// 4) Qugiyの飛車のBitboardテーブルの初期化
+	
+	for (File f = FILE_1; f <= FILE_9; ++f) {
+		for (Rank r = RANK_1; r <= RANK_9; ++r) {
 
-	// 4) 遠方利きのテーブルの初期化
-	//  thanks to Apery (Takuya Hiraoka)
+			Bitboard left = ZERO_BB ,right = ZERO_BB;
 
-	// 引数のindexをbits桁の2進数としてみなす。すなわちindex(0から2^bits-1)。
-	// 与えられたmask(1の数がbitsだけある)に対して、1のbitのいくつかを(indexの値に従って)0にする。
-	auto indexToOccupied = [](const int index, const int bits, const Bitboard& mask_)
-	{
-		auto mask = mask_;
-		auto result = ZERO_BB;
-		for (int i = 0; i < bits; ++i)
-		{
-			const Square sq = mask.pop();
-			if (index & (1 << i))
-			result ^= sq;
-		}
-		return result;
-	};
+			// SQの升から左方向
+			for (File f2 = (File)(f + 1); f2 <= FILE_9; ++f2)
+				left |= Bitboard(f2 | r);
 
-	// Rook or Bishop の利きの範囲を調べて bitboard で返す。
-	// occupied  障害物があるマスが 1 の bitboard
-	// n = 0 右上から左下 , n = 1 左上から右下
-	auto effectCalc = [](const Square square, const Bitboard& occupied, int n)
-	{
-		auto result = ZERO_BB;
+			// SQの升から右方向
+			for (File f2 = (File)(f - 1); f2 >= FILE_1; --f2)
+				right |= Bitboard(f2 | r);
 
-		// 角の利きのrayと飛車の利きのray
-		const SquareWithWall deltaArray[2][2] = { { SQWW_RU, SQWW_LD },{ SQWW_RD, SQWW_LU} };
-		for (auto delta : deltaArray[n])
-		{
-			// 壁に当たるまでsqを利き方向に伸ばしていく
-			for (auto sq = to_sqww(square) + delta; is_ok(sq); sq += delta)
-			{
-				result ^= sqww_to_sq(sq); // まだ障害物に当っていないのでここまでは利きが到達している
+			Bitboard right_rev = right.byte_reverse();
 
-				if (occupied & sqww_to_sq(sq)) // sqの地点に障害物があればこのrayは終了。
-					break;
-			}
-		}
-		return result;
-	};
+			Bitboard hi, lo;
+			Bitboard::unpack(right_rev, left, hi, lo);
 
-	// pieceをsqにおいたときに利きを得るのに関係する升を返す
-	auto calcBishopEffectMask = [](Square sq, int n)
-	{
-		Bitboard result = ZERO_BB;
-
-		// 外周は角の利きには関係ないのでそこは除外する。
-		for (Rank r = RANK_2; r <= RANK_8; ++r)
-			for (File f = FILE_2; f <= FILE_8; ++f)
-			{
-				auto dr = rank_of(sq) - r;
-				auto df = file_of(sq) - f;
-				// dr == dfとdr != dfとをnが0,1とで切り替える。
-				if (abs(dr) == abs(df)
-					&& (!!((int)dr == (int)df) ^ n ))
-						result ^= (f | r);
-			}
-
-		// sqの地点は関係ないのでクリアしておく。
-		result &= ~Bitboard(sq);
-
-		return result;
-	};
-  
-	// 5. 飛車の縦方向の利きテーブルの初期化
-	// ここでは飛車の利きを使わずに初期化しないといけない。
-
-	for (Rank rank = RANK_1; rank <= RANK_9; ++rank)
-	{
-		// sq = SQ_11 , SQ_12 , ... , SQ_19
-		Square sq = FILE_1 | rank;
-
-		const int num1s = 7;
-		for (int i = 0; i < (1 << num1s); ++i)
-		{
-			// iはsqに駒をおいたときに、その筋の2段～8段目の升がemptyかどうかを表現する値なので
-			// 1ビットシフトして、1～9段目の升を表現するようにする。
-			int ii = i << 1;
-			Bitboard bb = ZERO_BB;
-			for (int r = rank_of(sq) - 1; r >= RANK_1; --r)
-			{
-				bb |= file_of(sq) | (Rank)r;
-				if (ii & (1 << r))
-					break;
-			}
-			for (int r = rank_of(sq) + 1; r <= RANK_9; ++r)
-			{
-				bb |= file_of(sq) | (Rank)r;
-				if (ii & (1 << r))
-					break;
-			}
+			QUGIY_ROOK_MASK[f | r][0] = lo;
+			QUGIY_ROOK_MASK[f | r][1] = hi;
 		}
 	}
 
-	// Apery型の遠方駒の利きの処理で用いるテーブルの初期化
-	init_apery_attack_tables();
+	// 5) Qugiyの角のBitboardテーブルの初期化
 
+	// 4方向
+	const Effect8::Direct bishop_direct[4] ={
+		Effect8::Direct::DIRECT_LU , // 左上
+		Effect8::Direct::DIRECT_LD , // 左下
+		Effect8::Direct::DIRECT_RU , // 右上
+		Effect8::Direct::DIRECT_RD   // 右下
+	};
+
+	for (File f = FILE_1; f <= FILE_9; ++f) {
+		for (Rank r = RANK_1; r <= RANK_9; ++r) {
+
+			// 対象升から
+			Square sq = f | r;
+
+			// 角の左上、左下、右上、右下それぞれへのstep effect
+			Bitboard step_effect[4];
+
+			// 4方向の利きをループで求める
+			for (int i = 0; i < 4; ++i)
+			{
+				Bitboard& bb = step_effect[i];
+
+				bb = ZERO_BB;
+				auto delta = Effect8::DirectToDeltaWW(bishop_direct[i]);
+				// 壁に突き当たるまで進む
+				for (auto sq2 = to_sqww(sq) + delta; is_ok(sq2); sq2 += delta)
+					bb |= Bitboard(sqww_to_sq(sq2));
+			}
+
+			// 右上、右下はbyte reverseしておかないとうまく求められない。(先手の香の利きがうまく求められないのと同様)
+
+			step_effect[2] = step_effect[2].byte_reverse();
+			step_effect[3] = step_effect[3].byte_reverse();
+
+			for (int i = 0; i < 2; ++i)
+				QUGIY_BISHOP_MASK[sq][i] = Bitboard256(
+					Bitboard(step_effect[0].p[i], step_effect[2].p[i]),
+					Bitboard(step_effect[1].p[i], step_effect[3].p[i])
+				);
+		}
+	}
+	
 	// 6. 近接駒(+盤上の利きを考慮しない駒)のテーブルの初期化。
-	// 上で初期化した、香・馬・飛の利きを用いる。
+	// なるべく他の駒の利きに依存しない形で初期化する。
 
-	for (auto sq : SQ)
-	{
-		// 玉は長さ1の角と飛車の利きを合成する
-		KingEffectBB[sq] = bishopEffect(sq, ALL_BB) | rookEffect(sq, ALL_BB);
-	}
-
+	// 歩と香のstep effect(障害物がないときの利き)
 	for (auto c : COLOR)
 		for (auto sq : SQ)
 		{
-			// 障害物がないときの香の利き
-			// これを最初に初期化しないとlanceEffect()が使えない。
-			LanceStepEffectBB[sq][c] = rookEffect(sq, ZERO_BB) & ForwardRanksBB[c][rank_of(sq)];
+			// 香のstep effectは他の駒の利きに依存せず初期化できる。
+			LanceStepEffectBB[sq][c] = FILE_BB[file_of(sq)] & ForwardRanksBB[c][rank_of(sq)];
 
-			// 歩は長さ1の香の利きとして定義できる
-			// →　香の利きにQugiyのアルゴリズムを用いるようにしたので香の利きを求めるのに歩の利きを用いるから、これはダメ。
+			// 歩の利きは駒が敷き詰められている時の香の利きとして定義できる。
 			//PawnEffectBB[sq][c] = lanceEffect(c, sq, ALL_BB);
+			// → QugiyのアルゴリズムでlanceEffectの計算にpawnEffectを用いるようになったのでこれができなくなった。
 
-			Bitboard b;
-			if (   (c == BLACK && rank_of(sq) == RANK_1)
-				|| (c == WHITE && rank_of(sq) == RANK_9))
-				b = ZERO_BB; // 行き先のない歩。
-			else
-				b = Bitboard(c == BLACK ? sq + SQ_U : sq + SQ_D);
-
-			PawnEffectBB[sq][c] = b;
-			// PawnEffectBBを初期化しておけば、以降でlanceEffectをつかかえる。
+			// 歩の利きは何段目であるか。
+			Rank r = (Rank)(rank_of(sq) + (c == BLACK ? -1 : +1));
+			PawnEffectBB[sq][c] = (RANK_1 <= r && r <= RANK_9) ? FILE_BB[file_of(sq)] & RANK_BB[r] : ZERO_BB;
 		}
+
+	// 備考) ここでlanceEffectが使えるようになったので、以降、rookEffectが使える。
+
+	// 王の利き
+	for (auto sq : SQ)
+		// 玉は駒が敷き詰められている時の角と飛車の利きの重ね合わせとして定義できる。
+		KingEffectBB[sq] = bishopEffect(sq, ALL_BB) | rookEffect(sq, ALL_BB);
 
 	for (auto c : COLOR)
 		for (auto sq : SQ)
@@ -580,6 +280,7 @@ void Bitboards::init()
 			// 桂の利きは、歩の利きの地点に長さ1の角の利きを作って、前方のみ残す。
 			Bitboard tmp = ZERO_BB;
 			Bitboard pawn = lanceEffect(c, sq, ALL_BB);
+
 			if (pawn)
 			{
 				Square sq2 = pawn.pop();
@@ -786,7 +487,6 @@ std::ostream& operator<<(std::ostream& os, const Bitboard256& board)
 
 // byte単位で入れ替えたBitboardを返す。
 // 飛車の利きの右方向と角の利きの右上、右下方向を求める時に使う。
-// SSSE3以降でないと使えない。AVX2以降の環境で使うのを想定。
 Bitboard Bitboard::byte_reverse() const
 {
 #if defined(USE_SSSE3)
@@ -796,21 +496,219 @@ Bitboard Bitboard::byte_reverse() const
 	b0.m = _mm_shuffle_epi8(m, shuffle);
 	return b0;
 #else
-	/*
 	Bitboard b0;
-	b0.p[0] = ::byte_reverse(p[1]);
-	b0.p[1] = ::byte_reverse(p[0]);
+	b0.p[0] = bswap64(p[1]);
+	b0.p[1] = bswap64(p[0]);
 	return b0;
-	*/
-	sync_cout << "Error! byte_reverse() , not implemented." << sync_endl;
-	Tools::exit();
 #endif
 }
+
+// SSE2のunpackを実行して返す。
+// hi_out = _mm_unpackhi_epi64(lo_in,hi_in);
+// lo_out = _mm_unpacklo_epi64(lo_in,hi_in);
+void Bitboard::unpack(const Bitboard hi_in, const Bitboard lo_in, Bitboard& hi_out, Bitboard& lo_out)
+{
+#if defined(USE_SSE2)
+	hi_out.m = _mm_unpackhi_epi64(lo_in.m , hi_in.m);
+	lo_out.m = _mm_unpacklo_epi64(lo_in.m , hi_in.m);
+#else
+	hi_out.p[0] = lo_in.p[1];
+	hi_out.p[1] = hi_in.p[1];
+
+	lo_out.p[0] = lo_in.p[0];
+	lo_out.p[1] = hi_in.p[0];
+#endif
+}
+
+// 2組のBitboardを、それぞれ64bitのhi×2とlo×2と見たときに(unpackするとそうなる)
+// 128bit整数とみなして1引き算したBitboardを返す。
+void Bitboard::decrement(const Bitboard hi_in,const Bitboard lo_in, Bitboard& hi_out, Bitboard& lo_out)
+{
+#if defined(USE_SSE2)
+
+	// loが0の時だけ1減算するときにhiからの桁借りが生じるので、
+	// hi += (lo == 0) ? -1 : 0;
+	// みたいな処理で良い。
+	hi_out.m = _mm_add_epi64(hi_in.m, _mm_cmpeq_epi64(lo_in.m, _mm_setzero_si128()));
+
+	//  1減算する
+	lo_out.m = _mm_add_epi64(lo_in.m, _mm_set1_epi64x(-1LL)); // cmpeqとどっちがいいか？
+#else
+	// bool型はtrueだと(暗黙の型変換で)1だとみなされる。
+	hi_out.p[0] = hi_in.p[0] - (lo_in.p[0] == 0);
+	hi_out.p[1] = hi_in.p[1] - (lo_in.p[1] == 0);
+
+	lo_out.p[0] = lo_in.p[0] - 1;
+	lo_out.p[1] = lo_in.p[1] - 1;
+#endif
+}
+
+// byte単位で入れ替えたBitboardを返す。
+// 飛車の利きの右方向と角の利きの右上、右下方向を求める時に使う。
+Bitboard256 Bitboard256::byte_reverse() const
+{
+#if defined(USE_AVX2) & 0
+	const __m256i shuffle = _mm256_set_epi8
+		(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 ,
+		 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+	Bitboard256 b0;
+	b0.m = _mm256_shuffle_epi8(m, shuffle);
+	return b0;
+#else
+	Bitboard256 b0;
+	b0.p[0] = bswap64(p[3]);
+	b0.p[1] = bswap64(p[2]);
+	b0.p[2] = bswap64(p[1]);
+	b0.p[3] = bswap64(p[0]);
+	return b0;
+#endif
+}
+
+// SSE2のunpackを実行して返す。
+// hi_out = _mm256_unpackhi_epi64(lo_in,hi_in);
+// lo_out = _mm256_unpacklo_epi64(lo_in,hi_in);
+void Bitboard256::unpack(const Bitboard256 hi_in,const Bitboard256 lo_in, Bitboard256& hi_out, Bitboard256& lo_out)
+{
+#if defined(USE_AVX2)
+	hi_out.m = _mm256_unpackhi_epi64(lo_in.m , hi_in.m);
+	lo_out.m = _mm256_unpacklo_epi64(lo_in.m , hi_in.m);
+#else
+	hi_out.p[0] = lo_in.p[1];
+	hi_out.p[1] = hi_in.p[1];
+	hi_out.p[2] = lo_in.p[3];
+	hi_out.p[3] = hi_in.p[3];
+
+	lo_out.p[0] = lo_in.p[0];
+	lo_out.p[1] = hi_in.p[0];
+	lo_out.p[2] = lo_in.p[2];
+	lo_out.p[3] = hi_in.p[2];
+#endif
+}
+
+// 2組のBitboard256を、それぞれ64bitのhi×2とlo×2と見たときに(unpackするとそうなる)
+// 128bit整数とみなして1引き算したBitboardを返す。
+void Bitboard256::decrement(const Bitboard256 hi_in,const Bitboard256 lo_in, Bitboard256& hi_out, Bitboard256& lo_out)
+{
+#if defined(USE_AVX2)
+
+	// loが0の時だけ1減算するときにhiからの桁借りが生じるので、
+	// hi += (lo == 0) ? -1 : 0;
+	// みたいな処理で良い。
+	hi_out.m = _mm256_add_epi64(hi_in.m, _mm256_cmpeq_epi64(lo_in.m, _mm256_setzero_si256()));
+
+	//  1減算する
+	lo_out.m = _mm256_add_epi64(lo_in.m, _mm256_set1_epi64x(-1LL)); // cmpeqとどっちがいいか？
+#else
+	// bool型はtrueだと(暗黙の型変換で)1だとみなされる。
+	hi_out.p[0] = hi_in.p[0] - (lo_in.p[0] == 0);
+	hi_out.p[1] = hi_in.p[1] - (lo_in.p[1] == 0);
+	hi_out.p[2] = hi_in.p[2] - (lo_in.p[2] == 0);
+	hi_out.p[3] = hi_in.p[3] - (lo_in.p[3] == 0);
+
+	lo_out.p[0] = lo_in.p[0] - 1;
+	lo_out.p[1] = lo_in.p[1] - 1;
+	lo_out.p[2] = lo_in.p[2] - 1;
+	lo_out.p[3] = lo_in.p[3] - 1;
+#endif
+}
+
+// 保持している2つの盤面を重ね合わせた(OR)Bitboardを返す。
+Bitboard Bitboard256::merge() const
+{
+#if defined(USE_AVX2)
+	Bitboard b;
+	b.m = _mm_or_si128(_mm256_castsi256_si128(m), _mm256_extracti128_si256(m, 1));
+	return b;
+#else
+	Bitboard b;
+	b.p[0] = p[0] | p[2];
+	b.p[1] = p[1] | p[3];
+	return b;
+#endif
+}
+
+
+// Qugiyのアルゴリズムによる、飛車と角の利きの実装。
+// magic bitboard tableが不要になる。
+
+// 飛車の横の利き
+Bitboard rookRankEffect(Square sq, const Bitboard& occupied)
+{
+	// Qugiyのアルゴリズムを忠実にBitboardで実装。
+	Bitboard hi, lo , t1, t0;
+
+	const Bitboard mask_lo = QUGIY_ROOK_MASK[sq][0];
+	const Bitboard mask_hi = QUGIY_ROOK_MASK[sq][1];
+
+	// occupiedを逆順にする
+
+	// reversed byte occupied bitboard
+	Bitboard rocc = occupied.byte_reverse();
+
+	// roccとoccを2枚並べて、その上位u64をhi、下位u64をloに集める。
+	// occ側は(先手から見て)左方向への利き、roccは右方向への利き。
+	Bitboard::unpack(rocc , occupied, hi, lo);
+
+	// 飛車のstep effectでmaskして…
+	hi &= mask_hi;
+	lo &= mask_lo;
+
+	// 1減算することにより、利きが通る升までが変化する。
+	Bitboard::decrement(hi, lo , t1, t0);
+
+	// xorで変化した升を抽出して、step effectでmaskすれば完成
+	t1 = (t1 ^ hi) & mask_hi;
+	t0 = (t0 ^ lo) & mask_lo;
+
+	// unpackしていたものを元の状態に戻す(unpackの逆変換はunpack)
+	Bitboard::unpack(t1 , t0 , hi , lo);
+
+	// byte_reverseして元の状態に戻して、重ね合わせる。
+	// hiの方には、右方向の利き、loは左方向の利きが得られている。
+	return hi.byte_reverse() | lo;
+}
+
+// 角の利き
+Bitboard bishopEffect(const Square sq, const Bitboard& occupied)
+{
+	const Bitboard256 mask_lo =  QUGIY_BISHOP_MASK[sq][0];
+	const Bitboard256 mask_hi =  QUGIY_BISHOP_MASK[sq][1];
+
+	// occupiedを2枚並べたBitboard256を用意する。
+	const Bitboard256 occ2(occupied);
+
+	// occupiedを(byte単位で)左右反転させたBitboardを2枚並べたBitboard256を用意する。
+	const Bitboard256 rocc2(occupied.byte_reverse());
+
+	Bitboard256 hi, lo ,t1 , t0;
+	Bitboard256::unpack(rocc2, occ2, hi, lo);
+
+	hi &= mask_hi;
+	lo &= mask_lo;
+
+	Bitboard256::decrement(hi, lo, t1, t0);
+
+	// xorで変化した升を抽出して、step effectでmaskすれば完成
+	t1 = (t1 ^ hi) & mask_hi;
+	t0 = (t0 ^ lo) & mask_lo;
+
+	// unpackしていたものを元の状態に戻す(unpackの逆変換はunpack)
+	Bitboard256::unpack(t1 , t0 , hi , lo);
+
+	// byte_reverseして元の状態に戻して、重ね合わせる。
+	// hiの方には、右方向の利き、loは左方向の利きが得られている。
+	return (hi.byte_reverse() | lo).merge();
+}
+
 
 
 // UnitTest
 void Bitboard::UnitTest(Test::UnitTester& tester)
 {
+	//Bitboard b(SQ_75);
+	//cout << lanceEffect<WHITE>(SQ_71, b) << endl;
+	//cout << lanceEffect<WHITE>(SQ_72, b) << endl;
+
 	auto section1 = tester.section("Bitboard");
 
 	{
@@ -843,6 +741,96 @@ void Bitboard::UnitTest(Test::UnitTester& tester)
 		tester.test("RANK9_BB", RANK9_BB == ~mask);
 	}
 
+	{
+		bool all_ok = true;
+
+		// 何も駒のない盤面上に駒ptを55に置いた時の利きの数。
+		int p0_table[] = {
+			0,1,4,2,5,16,16,6,	// Empty、歩、香、桂、銀、角、飛、金
+			8,6,6,6,6,20,20,32,	// 玉、と、…
+		};
+		// 駒が敷き詰められた盤面上で駒ptを55に置いた時の利きの数。
+		int p1_table[] = {
+			0,1,1,2,5, 4, 4,6,	// Empty、歩、香、桂、銀、角、飛
+			8,6,6,6,6, 8, 8,8,	// 玉、と、…
+		};
+
+		for (Color c : COLOR)
+			for (PieceType pt = PAWN ; pt < PIECE_TYPE_NB ; ++pt )
+			{
+				Piece pc = make_piece(c, pt);
+				Bitboard bb0 = effects_from(pc, SQ_55, ZERO_BB);
+				int p0 = bb0.pop_count();
+				Bitboard bb1 = effects_from(pc, SQ_55, ALL_BB);
+				int p1 = bb1.pop_count();
+				bool ok0 = (p0 == p0_table[(int)pt]);
+				if (!ok0)
+				{
+					cout << "Effect " << pc  << "(" << pretty(pc) << ")" << " on SQ_55 in ZERO_BB , pop_count = " << p0 << endl;
+					cout << bb0 << endl;
+				}
+				bool ok1 = (p1 == p1_table[(int)pt]);
+				if (!ok1)
+				{
+					cout << "Effect " << pc  << "(" << pretty(pc) << ")" << " on SQ_55 in ALL_BB , pop_count = " << p1 << endl;
+					cout << bb1 << endl;
+				}
+				all_ok &= ok0 & ok1;
+			}
+		tester.test("effects_from", all_ok);
+	}
+
+	{
+		// SSE unpack
+
+		const Bitboard bb_0000(0, 0);
+		const Bitboard bb_ff00((u64)0, (u64)-1LL); // Bitboard(low64,high64)と書くようになっている。
+		const Bitboard bb_00ff((u64)-1LL, (u64)0);
+		const Bitboard bb_ffff((u64)-1LL, (u64)-1LL);
+
+		bool all_ok = true;
+		Bitboard hi_out, lo_out;
+
+		Bitboard::unpack(bb_ffff, bb_0000, hi_out, lo_out);
+
+		all_ok &= hi_out == bb_ff00;
+		all_ok &= lo_out == bb_ff00;
+
+		Bitboard::unpack(bb_ff00, bb_ff00, hi_out, lo_out);
+
+		all_ok &= hi_out == bb_ffff;
+		all_ok &= lo_out == bb_0000;
+
+		Bitboard::unpack(bb_ff00, bb_00ff, hi_out, lo_out);
+
+		all_ok &= hi_out == bb_ff00;
+		all_ok &= lo_out == bb_00ff;
+
+		tester.test("unpack", all_ok );
+	}
+
+	{
+		const Bitboard all_bb((u64)-1LL, (u64)-1LL);
+		const Bitboard all_bb_minus_one((u64)-2LL, (u64)-2LL);
+		const Bitboard zero_bb(0, 0);
+
+		bool all_ok = true;
+		Bitboard hi_out, lo_out;
+
+		// これなら桁借りは生じない。
+		Bitboard::decrement(zero_bb, all_bb, hi_out, lo_out);
+	
+		all_ok &= hi_out == zero_bb;
+		all_ok &= lo_out == all_bb_minus_one;
+		
+		// これは桁借りが生じる。
+		Bitboard::decrement(all_bb, zero_bb, hi_out, lo_out);
+
+		all_ok &= hi_out == all_bb_minus_one;
+		all_ok &= lo_out == all_bb;
+		
+		tester.test("decrement", all_ok );
+	}
 }
 
 // UnitTest

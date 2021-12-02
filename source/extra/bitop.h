@@ -8,6 +8,10 @@
 #include <cstddef> // std::size_t
 #include <cstdint> // uint64_tなどの定義
 
+#if defined(_MSC_VER)
+#include <stdlib.h> // _byteswap_uint64
+#endif
+
 // ターゲット環境でSSE,AVX,AVX2が搭載されていない場合はこれらの命令をsoftware emulationにより実行する。
 // software emulationなので多少遅いが、SSE2,SSE4.1,SSE4.2,AVX,AVX2,AVX-512の使えない環境でそれに合わせたコードを書く労力が省ける。
 
@@ -302,5 +306,28 @@ extern ymm ymm_one;   // all packed bytes are 1.
 
 template <typename T> FORCE_INLINE int pop_lsb(T& b) {  int index = LSB32(b);  b = T(BLSR(b)); return index; }
 FORCE_INLINE int pop_lsb(u64 & b) { int index = LSB64(b);  b = BLSR(b); return index; }
+
+// ----------------------------
+//    byte reverse
+// ----------------------------
+
+// 64bitの値をbyte単位で逆順にして返す。
+inline uint64_t bswap64(uint64_t u) {
+#if defined(_MSC_VER)
+	return _byteswap_uint64(u);
+#elif defined(__GNUC__)
+	return __builtin_bswap64(u);
+#else
+	return
+		((u & 0xFF00000000000000u) >> 56u) |
+		((u & 0x00FF000000000000u) >> 40u) |
+		((u & 0x0000FF0000000000u) >> 24u) |
+		((u & 0x000000FF00000000u) >> 8u) |
+		((u & 0x00000000FF000000u) << 8u) |
+		((u & 0x0000000000FF0000u) << 24u) |
+		((u & 0x000000000000FF00u) << 40u) |
+		((u & 0x00000000000000FFu) << 56u);
+#endif
+}
 
 #endif
