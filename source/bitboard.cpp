@@ -251,32 +251,54 @@ void Bitboards::init()
 	// 6. 近接駒(+盤上の利きを考慮しない駒)のテーブルの初期化。
 	// なるべく他の駒の利きに依存しない形で初期化する。
 
-	// 歩と香のstep effect(障害物がないときの利き)
+	// 歩と香のstep effect
+	// ※　step effectとは、障害物がないときの利きのこと。
 	for (auto c : COLOR)
 		for (auto sq : SQ)
 		{
-			// 香のstep effectは他の駒の利きに依存せず初期化できる。
+			// 香
+			// 香のstep effectは、筋のBitboardとsqより前の段を表現するBitboardを用いて、他の駒の利きに依存せず初期化できる。
+
 			LanceStepEffectBB[sq][c] = FILE_BB[file_of(sq)] & ForwardRanksBB[c][rank_of(sq)];
 
-			// 歩の利きは駒が敷き詰められている時の香の利きとして定義できる。
-			//PawnEffectBB[sq][c] = lanceEffect(c, sq, ALL_BB);
+			// 歩
+
+			// 備考) 歩の利きは駒が敷き詰められている時の香の利きとして定義できる。
+			//  PawnEffectBB[sq][c] = lanceEffect(c, sq, ALL_BB);
 			// → QugiyのアルゴリズムでlanceEffectの計算にpawnEffectを用いるようになったのでこれができなくなった。
 
 			// 歩の利きは何段目であるか。
 			Rank r = (Rank)(rank_of(sq) + (c == BLACK ? -1 : +1));
-			PawnEffectBB[sq][c] = (RANK_1 <= r && r <= RANK_9) ? FILE_BB[file_of(sq)] & RANK_BB[r] : ZERO_BB;
+			// その段数が1～9段目に収まるなら..
+			PawnEffectBB[sq][c] = (RANK_1 <= r && r <= RANK_9) ? Bitboard(file_of(sq) | r) : ZERO_BB;
 		}
 
 	// 備考) ここでlanceEffectが使えるようになったので、以降、rookEffectが使える。
+	// (rookEffectは縦利きを求めるのにlanceEffectに依存している)
+	// ※　bishopEffectは、上でQugiyのテーブルを初期化した時以降使える。
+	// 以下では、rookEffect,bishopEffect,lanceEffectを用いて残りの駒の利きを定義する。
 
-	// 王の利き
+	// 先後の区別のないstep effect (玉、角、飛)
 	for (auto sq : SQ)
-		// 玉は駒が敷き詰められている時の角と飛車の利きの重ね合わせとして定義できる。
+	{
+		// 玉
+		// 玉の利きは駒が敷き詰められている時の角と飛車の利きの重ね合わせとして定義できる。
 		KingEffectBB[sq] = bishopEffect(sq, ALL_BB) | rookEffect(sq, ALL_BB);
 
+		// 角
+		// 角のstep effectは、盤上に駒がない時の角の利き。
+		BishopStepEffectBB[sq] = bishopEffect(sq, ZERO_BB);
+
+		// 飛
+		// 飛車のstep effectは、盤上に駒がない時の飛車の利き。
+		RookStepEffectBB[sq]   = rookEffect(sq, ZERO_BB);
+	}
+
+	// 先後の区別のあるstep effect (桂、銀、金)
 	for (auto c : COLOR)
 		for (auto sq : SQ)
 		{
+			// 桂
 			// 桂の利きは、歩の利きの地点に長さ1の角の利きを作って、前方のみ残す。
 			Bitboard tmp = ZERO_BB;
 			Bitboard pawn = lanceEffect(c, sq, ALL_BB);
@@ -290,21 +312,19 @@ void Bitboards::init()
 			}
 			KnightEffectBB[sq][c] = tmp;
 
-			// 銀は長さ1の角の利きと長さ1の香の利きの合成として定義できる。
+			// 銀
+			// 銀の利きは長さ1の角の利きと長さ1の香の利きの合成として定義できる。
 			SilverEffectBB[sq][c] = lanceEffect(c, sq, ALL_BB) | bishopEffect(sq, ALL_BB);
 
-			// 金は長さ1の角と飛車の利き。ただし、角のほうは相手側の歩の行き先の段でmaskしてしまう。
+			// 金
+			// 金の利きは長さ1の角と飛車の利き。ただし、角のほうは相手側の歩の行き先の段でmaskしてしまう。
 			Bitboard e_pawn = lanceEffect(~c, sq, ALL_BB);
 			Bitboard mask = ZERO_BB;
 			if (e_pawn)
 				mask = RANK_BB[rank_of(e_pawn.pop())];
 			GoldEffectBB[sq][c]= (bishopEffect(sq, ALL_BB) & ~mask) | rookEffect(sq, ALL_BB);
 
-			// 障害物がないときの角と飛車の利き
-			BishopStepEffectBB[sq] = bishopEffect(sq, ZERO_BB);
-			RookStepEffectBB[sq]   = rookEffect(sq, ZERO_BB);
-
-			// --- 以下のbitboard、あまり頻繁に呼び出さないので他のbitboardを合成して代用する。
+			// --- 以下のbitboard、あまり頻繁に用いないので他のbitboardを合成して代用する。
 
 			// 盤上の駒がないときのqueenの利き
 			// StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_QUEEN] = bishopEffect(sq, ZERO_BB) | rookEffect(sq, ZERO_BB);

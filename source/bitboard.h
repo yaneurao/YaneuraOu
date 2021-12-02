@@ -630,55 +630,6 @@ extern Bitboard LanceStepEffectBB[SQ_NB_PLUS1][COLOR_NB];
 extern Bitboard BishopStepEffectBB[SQ_NB_PLUS1];
 extern Bitboard RookStepEffectBB[SQ_NB_PLUS1];
 
-// -- 飛車の縦の利き
-
-// 飛車の縦方向の利きを求めるときに、指定した升sqの属するfileのbitをshiftし、
-// index を求める為に使用する。(from Apery)
-extern u8		Slide[SQ_NB_PLUS1];
-extern u64      RookFileEffect[RANK_NB + 1][128];
-
-// Apery型の遠方駒の利きの実装
-
-// やねうら王では、Aperyと異なり、駒がSQ_NBにいる場合を考慮して、SQ_NB_PLUS1の分だけ配列を確保している。
-
-// magic tableのサイズは、飛車の横の利きと縦の利きに分解するなら、それぞれ256*sizeof(Bitboard)=4096bytes)
-// 横と縦に分解しないほうが処理は減るが、テーブルが大きくなる。81升*4KB(2**縦横12升)*sizeof(Bitboatd) = 5MB+α ≒ 8MB
-// →　いまどきのCPUなら問題ないかも。
-
-// --- 角の利き
-
-// メモリ節約の為、1次元配列にして無駄が無いようにしている。
-extern Bitboard BishopAttack[20224 + 1 /* SQ_NB対応*/];
-extern int BishopAttackIndex[SQ_NB_PLUS1];
-extern Bitboard BishopBlockMask[SQ_NB_PLUS1];
-// メモリ節約をせず、無駄なメモリを持っている。
-
-extern const int BishopBlockBits[SQ_NB_PLUS1];
-extern const int BishopShiftBits[SQ_NB_PLUS1];
-
-// --- 飛車の利き
-
-extern const int RookBlockBits[SQ_NB_PLUS1];
-extern const int RookShiftBits[SQ_NB_PLUS1];
-
-#if defined (USE_BMI2)
-// PEXT2命令を用いるなら、配列サイズ、少し小さくて済む
-extern Bitboard RookAttack[495616 + 1 /* SQ_NB対応*/];
-#else
-extern Bitboard RookAttack[512000 + 1 /* SQ_NB対応*/];
-#endif
-
-extern int RookAttackIndex[SQ_NB_PLUS1];
-extern Bitboard RookBlockMask[SQ_NB_PLUS1];
-
-// BMI2命令がないなら、Magicテーブルが必要
-
-#if defined (USE_BMI2)
-#else
-extern const u64 RookMagic[SQ_NB_PLUS1];
-extern const u64 BishopMagic[SQ_NB_PLUS1];
-#endif
-
 // =====================
 //   大駒・小駒の利き
 // =====================
@@ -1012,9 +963,6 @@ inline Bitboard rookFileEffect(Square sq, const Bitboard& occupied)
 }
 
 // ==== 飛車と角の利き ===
-
-// Qugiyのアルゴリズムによる、飛車と角の利きの実装。
-// magic bitboard tableが不要になる。
 
 // 飛車の横の利き
 extern Bitboard rookRankEffect(Square sq, const Bitboard& occupied);
