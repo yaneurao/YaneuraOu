@@ -129,7 +129,7 @@ namespace USI {
 #endif // !defined(TANUKI_MATE_ENGINE) && !defined(YANEURAOU_MATE_ENGINE)
 
 		// cin/coutの入出力をファイルにリダイレクトする
-		o["WriteDebugLog"] << Option(false, [](const Option& o) { start_logger(o); });
+		o["WriteDebugLog"] << Option("", [](const Option& o) { start_logger(o); });
 
 		// 読みの各局面ですべての合法手を生成する
 		// (普通、歩の2段目での不成などは指し手自体を生成しないが、
