@@ -567,7 +567,7 @@ void Bitboard::decrement(const Bitboard hi_in,const Bitboard lo_in, Bitboard& hi
 // 飛車の利きの右方向と角の利きの右上、右下方向を求める時に使う。
 Bitboard256 Bitboard256::byte_reverse() const
 {
-#if defined(USE_AVX2) & 0
+#if defined(USE_AVX2)
 	const __m256i shuffle = _mm256_set_epi8
 		(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 ,
 		 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
