@@ -180,7 +180,7 @@ void Bitboards::init()
 	}
 
 	// 4) Qugiyの飛車のBitboardテーブルの初期化
-	
+
 	for (File f = FILE_1; f <= FILE_9; ++f) {
 		for (Rank r = RANK_1; r <= RANK_9; ++r) {
 
@@ -247,7 +247,7 @@ void Bitboards::init()
 				);
 		}
 	}
-	
+
 	// 6. 近接駒(+盤上の利きを考慮しない駒)のテーブルの初期化。
 	// なるべく他の駒の利きに依存しない形で初期化する。
 
@@ -347,7 +347,7 @@ void Bitboards::init()
 				// 十字方向か、斜め方向かだけを判定して、例えば十字方向なら
 				// rookEffect(sq1,Bitboard(s2)) & rookEffect(sq2,Bitboard(s1))
 				// のように初期化したほうが明快なコードだが、この初期化をそこに依存したくないので愚直にやる。
-					
+
 				// これについてはあとで設定する。
 				if (s1 >= s2)
 					continue;
@@ -544,7 +544,7 @@ void Bitboard::unpack(const Bitboard hi_in, const Bitboard lo_in, Bitboard& hi_o
 // 128bit整数とみなして1引き算したBitboardを返す。
 void Bitboard::decrement(const Bitboard hi_in,const Bitboard lo_in, Bitboard& hi_out, Bitboard& lo_out)
 {
-#if defined(USE_SSE2)
+#if defined(USE_SSE41)
 
 	// loが0の時だけ1減算するときにhiからの桁借りが生じるので、
 	// hi += (lo == 0) ? -1 : 0;
@@ -839,16 +839,16 @@ void Bitboard::UnitTest(Test::UnitTester& tester)
 
 		// これなら桁借りは生じない。
 		Bitboard::decrement(zero_bb, all_bb, hi_out, lo_out);
-	
+
 		all_ok &= hi_out == zero_bb;
 		all_ok &= lo_out == all_bb_minus_one;
-		
+
 		// これは桁借りが生じる。
 		Bitboard::decrement(all_bb, zero_bb, hi_out, lo_out);
 
 		all_ok &= hi_out == all_bb_minus_one;
 		all_ok &= lo_out == all_bb;
-		
+
 		tester.test("decrement", all_ok );
 	}
 }
