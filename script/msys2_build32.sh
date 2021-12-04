@@ -24,8 +24,9 @@ JOBS=`grep -c ^processor /proc/cpuinfo 2>/dev/null`
 COMPILERS="clang++,g++"
 EDITIONS='*'
 TARGETS='*'
+EXTRA=''
 
-while getopts c:e:t: OPT
+while getopts c:e:t:x: OPT
 do
   case $OPT in
     c) COMPILERS="$OPTARG"
@@ -33,6 +34,8 @@ do
     e) EDITIONS="$OPTARG"
       ;;
     t) TARGETS="$OPTARG"
+      ;;
+    x) EXTRA="$OPTARG"
       ;;
   esac
 done
@@ -163,7 +166,7 @@ for COMPILER in ${COMPILERSARR[@]}; do
               echo "* target: ${TARGET}"
               TGSTR=YaneuraOu-${FILESTR[$EDITION]}-msys2-${CSTR}-${TARGET}
               ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
-              nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET_CPU=NO_SSE >& >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
+              nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET_CPU=NO_SSE ${EXTRA} >& >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
               cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
               ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
               set -f
