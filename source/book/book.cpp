@@ -593,20 +593,22 @@ namespace Book
 				fs.seekg(0, std::ios::beg);
 				auto file_start = fs.tellg();
 
-				// 現在のファイルのシーク位置を返す関数(ファイルの先頭位置を0とする)
-				auto current_pos = [&]() { return s64(fs.tellg() - file_start); };
-
 				fs.clear();
 				fs.seekg(0, std::ios::end);
 
-				// ファイルサイズ(現在、ファイルの末尾を指しているはずなので..)
-				auto file_size = current_pos();
+				// ファイルサイズ
+				auto file_size = s64(fs.tellg() - file_start);
 
 				// 与えられたseek位置から"sfen"文字列を探し、それを返す。どこまでもなければ""が返る。
 				// hackとして、seek位置は-2しておく。(1行読み捨てるので、seek_fromぴったりのところに
 				// "sfen"から始まる文字列があるとそこを読み捨ててしまうため。-2してあれば、そこに
 				// CR+LFがあるはずだから、ここを読み捨てても大丈夫。)
-				auto next_sfen = [&](s64 seek_from)
+
+				// last_posには、現在のファイルポジションが返ってくる。
+				// ※　実際の位置より改行コードのせいで少し手前である可能性はある。
+				// ftell()を用いると、MSYS2 + g++ 環境でtellgが嘘を返す(getlineを呼び出した時に内部的に
+				// bufferingしているため(?)、かなり先のファイルポジションを返す)ので自前で計算する。
+				auto next_sfen = [&](s64 seek_from , s64& last_pos)
 				{
 					string line;
 
@@ -618,10 +620,14 @@ namespace Book
 					// seek_from == 0の場合も、ここで1行読み捨てられるが、1行目は
 					// ヘッダ行であり、問題ない。
 					getline(fs, line);
-					
+					last_pos = seek_from + (s64)line.size() + 1;
+					// 改行コードが1文字はあるはずだから、+1しておく。
+
 					// getlineはeof()を正しく反映させないのでgetline()の返し値を用いる必要がある。
 					while (getline(fs, line))
 					{
+						last_pos += s64(line.size()) + 1;
+
 						if (!line.compare(0, 4, "sfen"))
 						{
 							// ios::binaryつけているので末尾に'\r'が付与されている。禿げそう。
@@ -635,9 +641,13 @@ namespace Book
 				};
 
 				// バイナリサーチ
-				// [s,e) の範囲で求める。
+				//
+				// 区間 [s,e) で解を求める。現時点での中間地点がm。
+				// 解とは、探しているsfen文字列が書いてある行の先頭のファイルポジションのことである。
+				// 
+				// next_sfen()でm以降にある"sfen"で始まる行を読み込んだ時、そのあとのファイルポジションがlast_pos。
 
-				s64 s = 0, e = file_size, m;
+				s64 s = 0, e = file_size, m , last_pos;
 				// s,eは無符号型だと、s - 2のような式が負にならないことを保証するのが面倒くさい。
 				// こういうのを無符号型で扱うのは筋が悪い。
 
@@ -645,16 +655,21 @@ namespace Book
 				{
 					m = (s + e) / 2;
 
-					auto sfen2 = next_sfen(m);
-					if (sfen2 == "" || sfen < sfen2)
-					{ // 左(それより小さいところ)を探す
+					auto sfen2 = next_sfen(m, last_pos);
+					if (sfen2 == "" || sfen < sfen2) {
+
+						// 左(それより小さいところ)を探す
 						e = m;
-					}
-					else if (sfen > sfen2)
-					{ // 右(それより大きいところ)を探す
-						s = m;
-					}
-					else {
+
+					} else if (sfen > sfen2) {
+
+						// 右(それより大きいところ)を探す
+
+						// next_sfen()のなかでgetline()し終わった時の位置より後ろに解がある。
+						// ここでftell()を使いたいが、上に書いた理由で嘘が返ってくるようだ。
+						s = last_pos;
+
+					} else {
 						// 見つかった！
 						break;
 					}
@@ -664,7 +679,7 @@ namespace Book
 					// ゆえに、探索範囲がこれより小さいなら先頭から調べて("sfen"と書かれている文字列を探して)終了。
 					if (s + 40 > e)
 					{
-						if ( next_sfen(s) == sfen)
+						if ( next_sfen(s, last_pos) == sfen)
 							// 見つかった！
 							break;
 
