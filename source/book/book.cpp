@@ -652,7 +652,7 @@ namespace Book
 					}
 					else if (sfen > sfen2)
 					{ // 右(それより大きいところ)を探す
-						s = current_pos();
+						s = m;
 					}
 					else {
 						// 見つかった！
