@@ -21,8 +21,9 @@ COMPILERS="x86_64-w64-mingw32-g++-posix,i686-w64-mingw32-g++-posix"
 EDITIONS='*'
 OS='Windows_NT'
 TARGETS='*'
+EXTRA=''
 
-while getopts a:c:e:t: OPT
+while getopts a:c:e:t:x: OPT
 do
   case $OPT in
     a) ARCHCPUS="$OPTARG"
@@ -34,6 +35,8 @@ do
     o) OS="$OPTARG"
       ;;
     t) TARGETS="$OPTARG"
+      ;;
+    x) EXTRA="$OPTARG"
       ;;
   esac
 done
@@ -188,7 +191,7 @@ for COMPILER in ${COMPILERSARR[@]}; do
                     echo "* archcpu: ${ARCHCPU}"
                     TGSTR=${FILESTR[$EDITION]}-windows-${CSTR}-${TARGET}-${ARCHCPU}
                     ${MAKE} -f ${MAKEFILE} clean OS=${OS} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
-                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} OS=${OS} TARGET_CPU=${ARCHCPU} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} >& >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
+                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} OS=${OS} TARGET_CPU=${ARCHCPU} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} ${EXTRA} >& >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
                     cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
                     ${MAKE} -f ${MAKEFILE} clean OS=${OS} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
                     break

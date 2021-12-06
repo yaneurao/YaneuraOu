@@ -3,7 +3,7 @@
 # MSYS2 (MinGW 64-bit) 上で Windows バイナリのビルド
 # ビルド用パッケージの導入
 # $ pacman --needed --noconfirm -Syuu pactoys
-# $ pacboy --needed --noconfirm -Syuu clang:m openblas:x openmp:x toolchain:m base-devel:
+# $ pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m base-devel:
 # MSYS2パッケージの更新、更新出来る項目が無くなるまで繰り返し実行、場合によってはMSYS2の再起動が必要
 # $ pacman -Syuu --noconfirm
 
@@ -21,20 +21,24 @@ MAKE=mingw32-make
 MAKEFILE=Makefile
 JOBS=`grep -c ^processor /proc/cpuinfo 2>/dev/null`
 
+ARCHCPUS='*'
 COMPILERS="clang++,g++"
 EDITIONS='*'
 TARGETS='*'
+EXTRA=''
 
-while getopts c:e:t:p: OPT
+while getopts a:c:e:t:x: OPT
 do
   case $OPT in
+    a) ARCHCPUS="$OPTARG"
+      ;;
     c) COMPILERS="$OPTARG"
       ;;
     e) EDITIONS="$OPTARG"
       ;;
     t) TARGETS="$OPTARG"
       ;;
-    p) CPUS="$OPTARG"
+    x) EXTRA="$OPTARG"
       ;;
   esac
 done
@@ -42,7 +46,7 @@ done
 set -f
 IFS=, eval 'COMPILERSARR=($COMPILERS)'
 IFS=, eval 'EDITIONSARR=($EDITIONS)'
-IFS=, eval 'CPUSARR=($CPUS)'
+IFS=, eval 'ARCHCPUSARR=($ARCHCPUS)'
 IFS=, eval 'TARGETSARR=($TARGETS)'
 
 pushd `dirname $0`
@@ -77,7 +81,7 @@ TARGETS=(
   gensfen
 )
 
-CPUS=(
+ARCHCPUS=(
   ZEN3
   ZEN2
   ZEN1
@@ -180,14 +184,14 @@ for COMPILER in ${COMPILERSARR[@]}; do
             if [[ $TARGET == $TARGETPTN ]]; then
               set -f
               echo "* target: ${TARGET}"
-              for CPU in ${CPUS[@]}; do
-                for CPUPTN in ${CPUSARR[@]}; do
+              for ARCHCPU in ${ARCHCPUS[@]}; do
+                for ARCHCPUSPTN in ${ARCHCPUSARR[@]}; do
                   set +f
-                  if [[ $CPU == $CPUPTN ]]; then
+                  if [[ $ARCHCPU == $ARCHCPUSPTN ]]; then
                     echo "* cpu: ${CPU}"
                     TGSTR=${FILESTR[$EDITION]}-msys2-${CSTR}-${TARGET}
                     ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
-                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET_CPU=${CPU} >& >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
+                    nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET_CPU=${ARCHCPU} ${EXTRA} >& >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
                     cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
                     ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
                     set -f
