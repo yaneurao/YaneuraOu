@@ -21,18 +21,26 @@ namespace Bitboards { void init(); }
 struct alignas(16) Bitboard
 {
 #if defined (USE_SSE2)
+/*
 	union
 	{
 		// 64bitずつとして扱うとき用
 		u64 p[2];
 
 		// SSEで取り扱い時用
-		// bit0がSQ_11,bit1がSQ_12,…,bit81がSQ_99を表現する。
+		// bit0がSQ_11,bit1がSQ_12,…,bit81がSQ_99を表現する。(縦型Bitboard)
 		// このbit位置がSquare型と対応する。
-		// ただしbit63は未使用。これは、ここを余らせることで飛車の利きをpext1回で求めるためのhack。
+		//
+		// ただしbit63は未使用。これは、ここを余らせることで香の利きや歩の打てる場所を求めやすくする。
 		// Aperyを始めとするmagic bitboard派によって考案された。
 		__m128i m;
 	};
+*/
+	// unionにすると最適化を阻害されてしまうことがある。
+	// 128bitレジスタとして扱い続けたほうが良い。
+	// ここから上位/下位64bitを取り出すのはメンバのextract()を使うべし。
+	__m128i m;
+
 #else // no SSE
 	u64 p[2];
 #endif
@@ -73,6 +81,8 @@ struct alignas(16) Bitboard
 
 	// p[n]を取り出す。SSE4の命令が使えるときはそれを使う。
 	template <int n> u64 extract64() const;
+
+	u64 extract64(int n) const { return n == 0 ? extract64<0>() : extract64<1>(); }
 
 	// p[n]に値を設定する。SSE4の命令が使えるときはそれを使う。
 	template <int n> Bitboard& insert64(u64 u);
@@ -864,8 +874,8 @@ inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
 			// ↓sqの次の升(＝歩の利き)に1加算する代わりに全体から1引く考え方。
 			//    こっちの方が、定数が一つ消せて良いと思う。
 
-			u64 mask = lanceStepEffect<WHITE>(sq).p[0];
-			u64 em = occupied.p[0] & mask;
+			u64 mask = lanceStepEffect<WHITE>(sq).template extract64<0>();
+			u64 em = occupied.extract64<0>() & mask;
 			u64 t = em - 1; // 1引き算すれば、桁借りが上位桁が1のところまで波及する。
 			return Bitboard((em ^ t) & mask, 0);
 		}
@@ -878,8 +888,8 @@ inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
 			return Bitboard(0 , t ^ em );
 			*/
 
-			u64 mask = lanceStepEffect<WHITE>(sq).p[1];
-			u64 em = occupied.p[1] & mask;
+			u64 mask = lanceStepEffect<WHITE>(sq).template extract64<1>();
+			u64 em = occupied.extract64<1>() & mask;
 			u64 t = em - 1;
 			return Bitboard(0, (em ^ t) & mask);
 		}
@@ -889,8 +899,8 @@ inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
 		if (Bitboard::part(sq) == 0)
 		{
 			// 香がp[0]に属する
-			u64 se = lanceStepEffect<C>(sq).p[0];
-			u64 mocc = se & occupied.p[0];
+			u64 se = lanceStepEffect<C>(sq).template extract64<0>();
+			u64 mocc = se & occupied.extract64<0>();
 			mocc |= mocc >> 1;
 			mocc |= mocc >> 2;
 			mocc |= mocc >> 4;
@@ -899,8 +909,8 @@ inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
 		}
 		else {
 			// 香がp[1]に属する
-			u64 se = lanceStepEffect<C>(sq).p[1];
-			u64 mocc = se & occupied.p[1];
+			u64 se = lanceStepEffect<C>(sq).template extract64<1>();
+			u64 mocc = se & occupied.extract64<1>();
 			mocc |= mocc >> 1;
 			mocc |= mocc >> 2;
 			mocc |= mocc >> 4;
@@ -928,13 +938,13 @@ inline Bitboard rookFileEffect(Square sq, const Bitboard& occupied)
 		// 飛車がp[0]に属する
 
 		// 後手の香の利き
-		u64 mask = lanceStepEffect<WHITE>(sq).p[0];
-		u64 em = occupied.p[0] & mask;
+		u64 mask = lanceStepEffect<WHITE>(sq).template extract64<0>();
+		u64 em = occupied.extract64<0>() & mask;
 		u64 t = em - 1; // 1引き算すれば、桁借りが上位桁が1のところまで波及する。
 
 		// 先手の香の利き
-		u64 se = lanceStepEffect<BLACK>(sq).p[0];
-		u64 mocc = se & occupied.p[0];
+		u64 se = lanceStepEffect<BLACK>(sq).template extract64<0>();
+		u64 mocc = se & occupied.extract64<0>();
 		mocc |= mocc >> 1;
 		mocc |= mocc >> 2;
 		mocc |= mocc >> 4;
@@ -947,12 +957,12 @@ inline Bitboard rookFileEffect(Square sq, const Bitboard& occupied)
 		// 飛車がp[1]に属する
 		// ↑の処理と同様。
 
-		u64 mask = lanceStepEffect<WHITE>(sq).p[1];
-		u64 em = occupied.p[1] & mask;
+		u64 mask = lanceStepEffect<WHITE>(sq).template extract64<1>();
+		u64 em = occupied.extract64<1>() & mask;
 		u64 t = em - 1;
 
-		u64 se = lanceStepEffect<BLACK>(sq).p[1];
-		u64 mocc = se & occupied.p[1];
+		u64 se = lanceStepEffect<BLACK>(sq).template extract64<1>();
+		u64 mocc = se & occupied.extract64<1>();
 		mocc |= mocc >> 1;
 		mocc |= mocc >> 2;
 		mocc |= mocc >> 4;

@@ -668,22 +668,39 @@ Msys2では、たまさんの情報によると…。
 
 ■　MSYS2上でNNUEのAVX2以外の評価関数の実行ファイルがビルドできない件
 
-toolchainの問題かと思います。例えば以下のようにすると32bit NO SSE版がビルドできるようです。
+toolchainの問題かと思います。ビルドに際して、clang、lld、(NNUE LEARN版などには)openblas、openmpが必要です。
 
-(MSYS2 MinGW 32-bit上で)
-$ pacman -S mingw-w64-i686-clang mingw-w64-i686-toolchain
-$ pacman -Syuu
-$ mingw32-make -j8 nosse YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE 2>&1 | tee nnue_nosse.log｀
+pactoys入れて、それ使ってインストールすると楽ちんのようです。
 
-64bit版
-$ pacman -S mingw-w64-x86_64-clang mingw-w64-x86_64-toolchain
+	% pacman --needed --noconfirm -Syuu
+	% pacman --needed --noconfirm -Syuu pactoys
+	% pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m base-devel:
+
+// :m は32/64bit両方、 :x は64bitのみ、 : はMSYS環境のパッケージという感じの指定です
+// 例) clangには :m を指定しているので、MSYS2の32bit,64bitの両環境用にclangがインストールされます。
+
+・上記インストール時に署名エラーが出た場合
+
+	#パッケージのキャッシュを削除
+	% rm -rf /var/cache/pacman/pkg/*
+ 
+	# pacman keyのリセット
+	% rm -r /etc/pacman.d/gnupg/
+	% pacman-key --init
+	% pacman-key --populate msys2
+ 
+	# 先にkeyringパッケージを更新
+	% pacman -S msys2-keyring
+ 
+	# 他のパッケージ更新
+	% pacman -Syyu
 
 注意点)
 makefileを使ってcleanするときに、.oファイルを削除しないといけないが、そのときにYANEURAOU_EDITIONを指定していないと
 コンパイル対象のソースファイルとしてNNUE用の評価関数のソースコードファイルが追加されず、.oファイルが全部消えないので
 コンパイルに失敗することがある。cleanするときは、この点に注意すること。
 
-mingw32-make clean YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE
+	mingw32-make clean YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE
 
 
 ■　Visual StudioでNNUE型の評価関数の学習用実行ファイル(NNUE-LEARN)がビルドできない件

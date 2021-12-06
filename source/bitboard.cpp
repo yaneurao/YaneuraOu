@@ -175,8 +175,10 @@ void Bitboards::init()
 	{
 		Rank r = rank_of(sq);
 		File f = file_of(sq);
-		SquareBB[sq].p[0] = (f <= FILE_7) ? ((uint64_t)1 << (f * 9 + r)) : 0;
-		SquareBB[sq].p[1] = (f >= FILE_8) ? ((uint64_t)1 << ((f - FILE_8) * 9 + r)) : 0;
+		SquareBB[sq] = Bitboard(
+			(f <= FILE_7) ? ((uint64_t)1 << (f * 9 + r)) : 0,
+			(f >= FILE_8) ? ((uint64_t)1 << ((f - FILE_8) * 9 + r)) : 0
+		);
 	}
 
 	// 4) Qugiyの飛車のBitboardテーブルの初期化
@@ -242,8 +244,8 @@ void Bitboards::init()
 
 			for (int i = 0; i < 2; ++i)
 				QUGIY_BISHOP_MASK[sq][i] = Bitboard256(
-					Bitboard(step_effect[0].p[i], step_effect[2].p[i]),
-					Bitboard(step_effect[1].p[i], step_effect[3].p[i])
+					Bitboard(step_effect[0].extract64(i), step_effect[2].extract64(i)),
+					Bitboard(step_effect[1].extract64(i), step_effect[3].extract64(i))
 				);
 		}
 	}
@@ -751,7 +753,7 @@ void Bitboard::UnitTest(Test::UnitTester& tester)
 		Bitboard b(0x0123456789abcdef, 0xfedcba9876543210);
 		Bitboard r = b.byte_reverse();
 
-		tester.test("byte_reverse", r.p[0] == 0x1032547698badcfe && r.p[1] == 0xefcdab8967452301);
+		tester.test("byte_reverse", r.extract64<0>() == 0x1032547698badcfe && r.extract64<1>() == 0xefcdab8967452301);
 #endif
 	}
 	{

@@ -489,7 +489,8 @@ USIプロトコルの独自拡張コマンド
 	search  : 現在の局面に対してLearner::search()を直接呼び出して評価値と読み筋を表示する。
 				(デバッグ用 , EVAL_LEARNを有効にしてコンパイルした実行ファイルのみ使える。)
 
-	log		: ログファイル("io_log.txt")に標準入出力を書き出す設定。Write Debug Logでon/offも出来る。
+	log		: ログファイル("io_log.txt"固定)に標準入出力を書き出す設定。
+		"WriteDebugLog"オプションで、ファイル名を指定すれば、そのファイル名のファイルに書き出すこともできる。
 
 	bench   : ベンチマーク
 		bench [置換表サイズ][スレッド数][→の指定][LimitType = depth , nodes, time][局面の指定]
