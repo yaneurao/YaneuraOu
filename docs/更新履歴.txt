@@ -2,6 +2,274 @@
 やねうら王 更新履歴
 
 
+■  2021/12/06 V7.00beta3
+
+
+- V7.00beta3
+
+	- NUMAでうまくスレッドが使えていなかった環境でうまく動いていることが確認された。(Komafontさんから)
+		- Revert and fix earlier windows NUMA patch のcommitで。
+
+		OS Name: Microsoft Windows 10 Pro
+		Version: 10.0.19041 Build 19041
+		Processor: AMD Ryzen Threadripper 2950X 16-Core Processor, 3500 Mhz, 16 Core(s), 32 Logical Processor(s)
+
+	- BookOnTheFlyで定跡hitしなかったの修正されてる。(たぶん)
+
+	- Qugiyの利きを導入してmagic bitboardのコードを完全除去
+		- Core i7 , Surface Pro6 8スレッドで+1%程度nps上がった。
+		- ZEN2 , 128スレッドで+2%程度nps上がった
+		- ZEN3 , 16スレッドで -2%程度nps下がった
+		- ZEN3 , 128スレッド → 未計測
+		- まとめ :
+			- 1手詰めルーチン高速化、attackers_toなどのtemplate化で+1%ぐらいnpsアップ。
+			- 香の利きと歩の打てる場所の高速化で1%ぐらいnpsアップ(Qugiyのアルゴリズム)
+			- 角の利きはZEN3やIntel系では1%ぐらいnpsダウン。(Qugiyのアルゴリズム)
+			- 飛車の利きもZEN3やIntel系では0.5%ぐらいnpsダウン。(Qugiyのアルゴリズム)
+			- トータルとしては、悪化していないし、
+				magic bitboardとPEXT bitboardのコードが完全に除去できているし、
+				利きのテーブルサイズが大幅に縮んだことにより128スレッドのような
+				many threadsでメモリ帯域が問題となる環境の場合、高速化が期待できるのでこれで良しとする。
+
+
+
+■  2021/12/05
+
+
+- BookOnTheFlyでtellg()を使わずにファイルポジションを時前で算出するように修正。
+
+
+- BookOnTheFlyで二分探索が正しく行われないバグを修正した #217
+	- https://github.com/yaneurao/YaneuraOu/pull/217 (たぬきさんのプルリク)
+
+nodchip@tanuki- — 今日 20:54
+軽く printf デバッグをした のですが、 current_pos() が、ストリームから最後に読み取った位置より、少し先を指しているように見えます。
+
+info string s=21290C7 m=2129511 e=212995B
+next_sfen(): seek_from=2129511
+line= 0 1
+line=9c9d 7g7f 0 0 1
+line=sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B3S1R1/LNSGKG1NL w - 2
+info string lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B3S1R1/LNSGKG1NL w - 2
+current_pos(): fs.tellg()=61C7E640 file_start=61C7E630
+info string Go to right. current_pos()=21295D0
+current_pos(): fs.tellg()=61C7E640 file_start=61C7E630
+
+printf デバッグの出力の一部をコピペしたものです。定跡ファイルの [0x21290C7 バイト目, 0x212995B バイト目) を調べています。その中点は 0x2129511 バイト目です。 next_sfen() に 0x2129511 を渡し、「sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B3S1R1/LNSGKG1NL w - 2」という行が得られました。このタイミングで current_pos() を呼んだところ、  0x21295D0 が返ってきました。ところがこの場所は、「sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B3S1R1/LNSGKG1NL w - 2」の次の行の先頭より、だいぶ先を指しています。参考までに「sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B3S1R1/LNSGKG1NL w - 2」の次の行の先頭は、0x212956E でした。
+tellg() が返す値が、 VS2019 と MSYS2 + g++ とで異なっているということなのだと思います。
+
+
+
+- Revert and fix earlier windows NUMA patch
+	- https://github.com/official-stockfish/Stockfish/commit/7218ec4df9fef1146a451b71f0ed3bfd8123c9f9
+
+	> Revert and fix earlier windows NUMA patch
+	> revert 9048ac0 due to core spread problem and fix new OS compatibility with another method.
+
+	以前のWindows NUMAパッチを元に戻して修正
+	9048ac0のコア分散問題を元に戻し、新しいOSとの互換性を別の方法で修正しました。
+
+- Do more aggressive pruning for some node types
+	- https://github.com/official-stockfish/Stockfish/commit/e4b7403f127a36a35bbace9f833ab43babd98a6c
+
+	Enable compilation on older Windows systems
+	Improve compatibility of the last NUMA patch when running under older versions of Windows,
+	for instance Windows Server 2003. 
+
+	古いWindowsシステムでのコンパイルを可能にする
+	旧バージョンのWindows上で動作するNUMAパッチの互換性を向上させました。
+	最後のNUMAパッチの互換性を向上させます（Windows Server 2003など）。
+
+
+■　2021/12/03
+
+
+- Bitboard::decrement()で使っている命令、SSE4.1以降の命令であったのでifdef修正。
+	USE_SSE41 for _mm_add_epi64 #216
+	- https://github.com/yaneurao/YaneuraOu/pull/216 (Mizarさんのプルリク)
+
+
+
+- WriteDebugLogオプションで以前の(チェックボックスの)ままFalseを代入してくるGUIに対して、
+	Falseが指定されている時にファイルは書き出さないように。Trueが指定されていれば"io_log.txt"に
+	書き出すようにした。
+- StringExtension::ToUpper()追加。
+
+
+- Bitboard512::byte_reverse()がifdef無効にしたままだったの修正。
+	- 以前のコードと同等ぐらいにはなった。
+
+===========================
+Total time (ms) : 60040
+Nodes searched  : 162063034
+Nodes/second    : 2699251
+Nodes searched(main thread) : 20570836
+Nodes/second  (main thread) : 342618
+
+
+
+- Bitboardの利きの初期化コード、整理した
+- magic bitboardのtableが残っていたので掃除した。
+
+
+- 角・飛車の利きにQugiyのアルゴリズムを導入し、magic bitboardを使わないようにした。
+- magic tableの初期化が不要になって、起動が少し速くなった。
+- 香の利きのコード、足し算でなく引き算を使うように変更。
+- BitboardのUnitTestに、利きのテストを追加。
+- bswap64のコード、Mizarさんに書いたのもらった。
+- Bitboard::unpack(),Bitboard::decrement()追加
+- エンジンオプションの"WriteDebugLog"の説明を USI拡張コマンド.txt に追記。
+- 角の利きのコード、Qugiyの利きアルゴリズムを導入。
+- Bitboard256::unpack(),Bitboard256::decrement,Bitboard256::merge()を追加。
+
+///////////////////////////////////////////////
+  大駒の利きの実装に関して、
+  Qugiyの作者の森さん、CGPのwainさん、Mizarさんに
+  大変お世話になりました。ありがとうございます。
+///////////////////////////////////////////////
+
+以下、
+bench 1024 1
+bench 1024 8
+の結果。Surface Pro6で計測。
+
+// 角の利き、1スレだとむしろ遅くなっているが、この環境、AVX256が遅いのだと思う。
+
+・Qugiyの飛車・角の利きコード導入
+
+// 1スレ
+===========================
+Total time (ms) : 60040
+Nodes searched  : 42965064
+Nodes/second    : 715607
+
+===========================
+Total time (ms) : 60031
+Nodes searched  : 43189598
+Nodes/second    : 719454
+
+// 8スレ
+
+===========================
+Total time (ms) : 60038
+Nodes searched  : 158268802
+Nodes/second    : 2636143
+Nodes searched(main thread) : 19002682
+Nodes/second  (main thread) : 316510
+
+===========================
+Total time (ms) : 60039
+Nodes searched  : 161386424
+Nodes/second    : 2688026
+Nodes searched(main thread) : 20355963
+Nodes/second  (main thread) : 339045
+
+
+・Qugiyの飛車の利きコード導入(角は前のまま)
+
+// 1スレ
+===========================
+Total time (ms) : 60043
+Nodes searched  : 43571370
+Nodes/second    : 725669
+
+===========================
+Total time (ms) : 60032
+Nodes searched  : 43542455
+Nodes/second    : 725320
+
+===========================
+Total time (ms) : 60025
+Nodes searched  : 43388836
+Nodes/second    : 722846
+
+// 8スレ
+===========================
+Total time (ms) : 60037
+Nodes searched  : 161223118
+Nodes/second    : 2685395
+Nodes searched(main thread) : 20611811
+Nodes/second  (main thread) : 343318
+
+===========================
+Total time (ms) : 60036
+Nodes searched  : 162226247
+Nodes/second    : 2702149
+Nodes searched(main thread) : 20152300
+Nodes/second  (main thread) : 335670
+
+
+・以前のコード
+===========================
+Total time (ms) : 60029
+Nodes searched  : 41541531
+Nodes/second    : 692024
+
+===========================
+Total time (ms) : 60022
+Nodes searched  : 42866963
+Nodes/second    : 714187
+
+// 8スレ
+===========================
+Total time (ms) : 60040
+Nodes searched  : 167172767
+Nodes/second    : 2784356
+Nodes searched(main thread) : 21334570
+Nodes/second  (main thread) : 355339
+
+===========================
+Total time (ms) : 60046
+Nodes searched  : 163801397
+Nodes/second    : 2727931
+Nodes searched(main thread) : 19962799
+Nodes/second  (main thread) : 332458
+
+
+■　2021/12/02
+
+
+- 香の利きのコード、足し算でなく引き算を使うように変更。
+- BitboardのUnitTestに、利きのテストを追加。
+- bswap64のコード、Mizarさんに書いたのもらった。
+
+
+- start_logger()の引数がboolから`std::string`に変更されたが、WriteDebugLogオプションのデフォルト値が`false`のままだったため、デフォルトではデバッグログがファイル名`false`に常に書き出されていた。
+	- https://github.com/yaneurao/YaneuraOu/pull/215 (Mizarさんのプルリク)
+
+https://github.com/yaneurao/YaneuraOu/commit/fa10bc3ad096c265041fbfe82f7259bcfc5aa680#diff-56d0745227250f49421f61a56de172b8b68624734977a6ff2c8f4a5fd67d0ba2L120-R131
+
+
+■　2021/12/01
+
+
+- 飛車の縦利きを求めるコード、表引きをやめる。
+	- 速くはなってないかも知れないが、余計な表引きが減るのでまあいいや。
+
+
+- unittestの指し手生成祭りのperftの値が間違っていたの修正。
+- 香の利き、1～7筋と8～9筋とで処理を分けた。
+
+
+- 評価関数埋め込み対応、HalfKPvmビルド対応など #214(Mizarさんのプルリク
+	- https://github.com/yaneurao/YaneuraOu/pull/214
+
+	TensorRTのバージョン取得、ヘッダ埋め込み定数ではなく getInferLibVersion() を参照
+	ビルド時に参照したTensorRTのバージョンではなく、実行時に読み込まれたTensorRTのダイナミックリンクライブラリのバージョンを参照してシリアライズ化ファイルのファイル名を決定するため。
+	VisualC++でのソースコード読み込みにて、UTF-8の文字セットを既定に
+	CUDA/TensorRT関連のビルド時に、インクルードファイルを別の文字セットとして読み込んで警告が出ていたため。
+	Make CI (DeepLearning for Ubuntu Linux) ビルドにてビルド環境にインストールするパッケージを削減
+	Deep-TensorRT ビルドにて使用する TensorRT のバージョンを 8.2.1 GA に変更
+	dllの環境変数等による読み込み順の影響を低減するため、ビルド時に関連するdllを極力実行ファイルと同じフォルダに配置するよう設定。
+	ONNX Runtime NuGetパッケージの更新、ORT-CUDA 廃止、ORT-TRT 対応。
+	ORT-TRTはORT無しのTensorRTビルドより若干遅く、挙動も若干特殊ですが、自動ビルド対応が容易となります。
+	USIオプションを16GPUまで対応
+	NNUE評価関数の実行バイナリ埋め込みに対応、水匠5評価関数実行バイナリ埋め込み版のリリースビルド対応
+	HalfKPvmのビルド対応
+	Android NDK を最新のLTS版に変更
+	明示的にストリームを作成しないで、Per-thread default stream(cudaStreamPerThread)を使う
+	TadaoYamaoka/DeepLearningShogi@3d408cc の取り込み
+
 
 ■　2021/11/30 V700beta2
 
