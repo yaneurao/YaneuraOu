@@ -21,10 +21,12 @@ namespace Bitboards { void init(); }
 struct alignas(16) Bitboard
 {
 #if defined (USE_SSE2)
-/*
+
 	union
 	{
 		// 64bitずつとして扱うとき用
+		// SSE4.1以上なら、このメンバを用いずに 変数m の方を用いて、一貫して128bitレジスタとして扱ったほうが良いと思う。
+
 		u64 p[2];
 
 		// SSEで取り扱い時用
@@ -33,13 +35,11 @@ struct alignas(16) Bitboard
 		//
 		// ただしbit63は未使用。これは、ここを余らせることで香の利きや歩の打てる場所を求めやすくする。
 		// Aperyを始めとするmagic bitboard派によって考案された。
+
+		// ここから上位/下位64bitを取り出すのは、メンバのextract()を使うべし。
+
 		__m128i m;
 	};
-*/
-	// unionにすると最適化を阻害されてしまうことがある。
-	// 128bitレジスタとして扱い続けたほうが良い。
-	// ここから上位/下位64bitを取り出すのはメンバのextract()を使うべし。
-	__m128i m;
 
 #else // no SSE
 	u64 p[2];
@@ -82,6 +82,7 @@ struct alignas(16) Bitboard
 	// p[n]を取り出す。SSE4の命令が使えるときはそれを使う。
 	template <int n> u64 extract64() const;
 
+	// p[n]を取り出す。nがtemplate引数でないバージョン。
 	u64 extract64(int n) const { return n == 0 ? extract64<0>() : extract64<1>(); }
 
 	// p[n]に値を設定する。SSE4の命令が使えるときはそれを使う。
