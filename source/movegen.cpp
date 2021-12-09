@@ -456,7 +456,7 @@ ExtMove* generate_evasions(const Position& pos, ExtMove* mlist)
 	ASSERT_LV2(pos.in_check());
 
 	// 自玉に王手をかけている敵の駒の利き(そこには玉は移動できないので)
-	Bitboard sliderAttacks = ZERO_BB;
+	Bitboard sliderAttacks = Bitboard(ZERO);
 
 	// 王手している駒
 	Bitboard checkers = pos.checkers();

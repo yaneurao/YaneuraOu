@@ -842,7 +842,7 @@ inline Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 template <Color C>
 Bitboard Position::pinned_pieces(Square avoid) const
 {
-	Bitboard b, pinners, result = ZERO_BB;
+	Bitboard b, pinners, result = Bitboard(ZERO);
 	Square ksq = king_square(C);
 
 	// avoidを除外して考える。
@@ -867,7 +867,7 @@ Bitboard Position::pinned_pieces(Square avoid) const
 // fromからtoに駒が移動したものと仮定して、pinを得る
 template <Color C>
 Bitboard Position::pinned_pieces(Square from, Square to) const {
-	Bitboard b, pinners, result = ZERO_BB;
+	Bitboard b, pinners, result = Bitboard(ZERO);
 	Square ksq = king_square(C);
 
 	// avoidを除外して考える。

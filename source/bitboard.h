@@ -8,7 +8,11 @@
 // --------------------
 
 // Bitboard関連のテーブル初期化のための関数
-namespace Bitboards { void init(); }
+namespace Bitboards { extern void init(); }
+
+// Bitboardをゼロクリアするコンストラクタに指定する引数
+// 例) Bitboard(ZERO) のように指定するとゼロクリアされたBitboardが出来上がる。
+enum BitboardZero{ ZERO };
 
 // Bitboardクラスは、コンストラクタでの初期化が保証できないので(オーバーヘッドがあるのでやりたくないので)
 // GCC 7.1.0以降で警告が出るのを回避できない。ゆえに、このクラスではこの警告を抑制する。
@@ -57,6 +61,20 @@ struct alignas(16) Bitboard
 
 	// 初期化しない。このとき中身は不定。
 	Bitboard() {}
+
+	// ゼロクリアされたBitboard
+	// 引数は、ダミーの型。
+	//   Bitboard x(ZERO);
+	// のように使う。
+	Bitboard(BitboardZero)
+	{
+#if defined (USE_SSE2)
+		// xorでclearするのがメモリ参照がなくて速いはず。
+		m = _mm_xor_si128(m, m);
+#else
+		p[0] = p[1] = 0;
+#endif
+	}
 
 	// p[0],p[1]の値を直接指定しての初期化。(Bitboard定数の初期化のときのみ用いる)
 	Bitboard(u64 p0, u64 p1);
@@ -324,6 +342,8 @@ inline Bitboard::Bitboard(Square sq) { *this = SquareBB[sq]; }
 extern Bitboard ALL_BB;
 
 // 全升が0であるBitboard
+// →　Bitboard(ZERO)を用いた方が、メモリ参照がなくて速い。
+//     ZERO_BBはテーブル初期化以外では使わないように。
 extern Bitboard ZERO_BB;
 
 // Square型との演算子
@@ -337,7 +357,7 @@ inline Bitboard operator ~ (const Bitboard& a) { return a ^ ALL_BB; }
 
 // range-forで回せるようにするためのhack(少し遅いので速度が要求されるところでは使わないこと)
 inline const Bitboard begin(const Bitboard& b) { return b; }
-inline const Bitboard end(const Bitboard&) { return ZERO_BB; }
+inline const Bitboard end(const Bitboard&) { return Bitboard(ZERO); }
 
 // Bitboardの1の升を'*'、0の升を'.'として表示する。デバッグ用。
 std::ostream& operator<<(std::ostream& os, const Bitboard& board);
@@ -675,7 +695,7 @@ inline Bitboard pawnBbEffect(const Bitboard& bb)
 	return
 		C == BLACK ? (bb >> 1) :
 		C == WHITE ? (bb << 1) :
-		ZERO_BB;
+		Bitboard(ZERO);
 }
 
 // ↑の非template版

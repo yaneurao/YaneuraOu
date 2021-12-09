@@ -70,7 +70,7 @@ void Position::set_check_info(StateInfo* si) const {
 	si->checkSquares[LANCE]  = si->checkSquares[ROOK] & lanceStepEffect<Them>(ksq);
 
 	// 王を移動させて直接王手になることはない。それは自殺手である。
-	si->checkSquares[KING]   = ZERO_BB;
+	si->checkSquares[KING]   = Bitboard(ZERO);
 
 	// 成り駒。この初期化は馬鹿らしいようだが、gives_check()は指し手ごとに呼び出されるので、その処理を軽くしたいので
 	// ここでの初期化は許容できる。(このコードはdo_move()に対して1回呼び出されるだけなので)
@@ -605,11 +605,11 @@ std::string Position::moves_from_start(bool is_pretty) const
 
 Bitboard Position::slider_blockers(Color c, Square s , Bitboard& pinners) const {
 
-	Bitboard blockers = ZERO_BB;
+	Bitboard blockers(ZERO);
 
 	// pinnersは返し値。
-	pinners = ZERO_BB;
-
+	pinners = Bitboard(ZERO);
+	
 	// cが与えられていないと香の利きの方向を確定させることが出来ない。
 	// ゆえに将棋では、この関数は手番を引数に取るべき。(チェスとはこの点において異なる。)
 
@@ -1233,7 +1233,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			// 前ノードの値に対して、" + 2 "しないといけない。
 
 		} else {
-			st->checkersBB = ZERO_BB;
+			st->checkersBB = Bitboard(ZERO);
 			st->continuousCheck[Us] = 0;
 		}
 
@@ -1447,7 +1447,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 		} else {
 
-			st->checkersBB = ZERO_BB;
+			st->checkersBB = Bitboard(ZERO);
 			st->continuousCheck[Us] = 0;
 		}
 	}
