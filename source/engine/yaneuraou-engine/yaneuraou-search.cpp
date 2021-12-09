@@ -1277,39 +1277,6 @@ namespace {
 		// 延長されすぎるのを回避する。
 		const Depth maxNextDepth = rootNode ? depth : depth + 1;
 
-
-		// 【計測資料 34.】cuckooコード Stockfishの2倍のサイズのcuckoo配列で実験
-
-#if defined(CUCKOO)
-		// この局面から数手前の局面に到達させる指し手があるなら、それによって千日手になるので
-		// このnodeで千日手スコアを即座に返すことで早期枝刈りを実施することができるらしい。
-
-		// Check if we have an upcoming move which draws by repetition, or
-		// if the opponent had an alternative move earlier to this position.
-
-		Value ValueDraw = draw_value(REPETITION_DRAW, pos.side_to_move());
-	    if (   !rootNode
-	        && pos.rule50_count() >= 3
-	        && alpha < VALUE_DRAW
-			&& pos.has_game_cycle(ss->ply))
-		{
-			alpha = value_draw(pos.this_thread());
-			if (alpha >= beta)
-				return alpha;
-
-			/*
-				将棋では、1手あれば現局面よりプラスになる指し手がほぼ確実に存在するであろうから、
-				4+2n手前の局面に戻る指し手があるからと言って、draw_valueを返すのは、もったいない意味が。
-				
-				手番の価値(Eval::Turn)を返すのはありかな？
-
-				あと、連続王手による千日手到達に関してはdraw_value返すのはやめたほうが…。
-				これは、rating下がりうる。戻る指し手が王手ではないことを条件に含めないと。
-			*/
-
-		}
-#endif
-
 		// Dive into quiescence search when the depth reaches zero
 		// 残り探索深さが1手未満であるなら静止探索を呼び出す
 		if (depth <= 0)

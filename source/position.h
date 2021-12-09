@@ -314,13 +314,6 @@ public:
 	// rep_ply         : 遡る手数。デフォルトでは16手。あまり大きくすると速度低下を招く。
 	RepetitionState is_repetition(int rep_ply = 16) const;
 
-#if defined(CUCKOO)
-	// この局面から以前と同一局面に到達する指し手があるか。
-	// plies_from_root : rootからの手数。ss->plyを渡すこと。
-	// rep_ply         : 遡る手数。デフォルトでは16手。あまり大きくすると速度低下を招く。
-	bool has_game_cycle(int plies_from_root , int rep_ply = 16) const;
-#endif
-
 	// --- Bitboard
 
 	// 先手か後手か、いずれかの駒がある場所が1であるBitboardが返る。

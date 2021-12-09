@@ -86,26 +86,6 @@ void Position::set_check_info(StateInfo* si) const {
 //       Zorbrist keyの初期化
 // ----------------------------------
 
-#if defined(CUCKOO)
-// Marcel van Kervinck's cuckoo algorithm for fast detection of "upcoming repetition"
-// situations. Description of the algorithm in the following paper:
-// https://marcelk.net/2013-04-06/paper/upcoming-rep-v2.pdf
-
-// Stockfishの2倍の配列を確保
-
-// First and second hash functions for indexing the cuckoo tables
-inline int H1(Key h) { return h & 0x3fff; }
-inline int H2(Key h) { return (h >> 16) & 0x3fff; }
-
-// Cuckoo tables with Zobrist hashes of valid reversible moves, and the moves themselves
-Key cuckoo[8192*2];
-Move cuckooMove[8192*2];
-
-//  →　cuckooアルゴリズムとやらで、千日手局面に到達する指し手の検出が高速化できるらしい。
-// (数手前の局面と現在の局面の差が、ある駒の移動(+捕獲)だけであることが高速に判定できれば、
-// 　早期枝刈りとしてdraw_valueを返すことができる。)
-#endif
-
 void Position::init() {
 	PRNG rng(20151225); // 開発開始日 == 電王トーナメント2015,最終日
 
@@ -130,60 +110,6 @@ void Position::init() {
 
 	for (int i = 0; i < MAX_PLY; ++i)
 		SET_HASH(Zobrist::depth[i], rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>());
-
-#if defined(CUCKOO)
-	// Prepare the cuckoo tables
-	std::memset(cuckoo, 0, sizeof(cuckoo));
-	std::memset(cuckooMove, 0, sizeof(cuckooMove));
-	int count = 0;
-	// 重複カウント用
-	int count2 = 0;
-	for (auto pc : Piece())
-	{
-		auto pt = type_of(pc);
-		if (!(pt == PAWN || pt == LANCE || pt == KNIGHT || pt == SILVER || pt == GOLD || pt == BISHOP || pt == ROOK || pt == KING
-			|| pt == PRO_PAWN || pt == PRO_LANCE || pt == PRO_KNIGHT || pt == PRO_SILVER || pt == HORSE || pt == DRAGON))
-			continue;
-
-		// 将棋だとチェスと異なり、from →　toに動かせるからと言ってto→fromに動かせるとは限らないので
-		// ここのコード、ずいぶん違ってくる。
-		for (auto s1 : SQ)
-			for (Square s2 : SQ)
-				if (effects_from(pc, s1, ZERO_BB) & s2)
-				{
-					Move move = (Move)(make_move(s1, s2) + (pc << 16));
-					// 手番のところ使わない。無視するために潰す。
-					Key key = (Zobrist::psq[s2][pc] - Zobrist::psq[s1][pc]) >> 1/* Zobrist::side*/;
-					int i = H1(key);
-					while (true)
-					{
-						std::swap(cuckoo[i], key);
-						std::swap(cuckooMove[i], move);
-						if (move == MOVE_NONE) // Arrived at empty slot?
-							break;
-
-						//i = (i == H1(key)) ? H2(key) : H1(key); // Push victim to alternative slot
-						// →　これ、テーブル小さいので衝突しつづける…(´ω｀)　H1になかったらH2でええで..
-
-						i = H2(key);
-						std::swap(cuckoo[i], key);
-						std::swap(cuckooMove[i], move);
-
-						if (move != MOVE_NONE)
-							count2++;
-
-						break;
-					}
-					count++;
-				}
-	}
-	//assert(count == 3668); // chessの場合
-
-	// cout << "count = " << count << " , count2 = " << count2 << endl;
-	// chessの2倍の配列時 : count = 16456 , count2 = 4499 
-	// chessの4倍の配列時 : count = 16456 , count2 = 1623
-	ASSERT_LV3(count == 16456);
-#endif
 }
 
 // depthに応じたZobrist Hashを得る。depthを含めてhash keyを求めたいときに用いる。
@@ -2082,72 +2008,6 @@ RepetitionState Position::is_repetition(int repPly /* = 16 */) const
 	// 同じhash keyの局面が見つからなかったので…。
 	return REPETITION_NONE;
 }
-
-#if defined(CUCKOO)
-// この局面から以前の局面に到達する指し手があるか。
-// ply : 遡る手数
-bool Position::has_game_cycle(int plies_from_root, int rep_ply /*= 16*/) const
-{
-	int j;
-
-	int end = std::min(/* st->rule50*/ rep_ply , st->pliesFromNull);
-
-	if (end < 3)
-		return false;
-
-	Key originalKey = st->key();
-	StateInfo* stp = st->previous;
-
-	for (int i = 3; i <= end; i += 2)
-	{
-		stp = stp->previous->previous;
-
-		// やねうら王ではZobrist Hashに足し算を使っているので、差を取る必要がある。
-		// bit 0はside(手番)なので、ここは削る。
-		Key moveKey = (stp->key() - originalKey) >> 1;
-		if ((j = H1(moveKey), cuckoo[j] == moveKey)
-			|| (j = H2(moveKey), cuckoo[j] == moveKey))
-		{
-			Move move = cuckooMove[j];
-			Square s1 = from_sq(move);
-			Square s2 = to_sq(move);
-			Piece pc = (Piece)(move >> 16);
-			if (piece_on(s1) != pc)
-				continue;
-
-			// 間に駒がないのでたぶんいける。開き王手とか知らん。
-			// ざっくりした枝刈りにしか使わないのでこのへんの判定甘くても問題ない。
-
-			// あと、連続王手による千日手到達に関してはdraw_value返すのはやめたほうが…。
-			// これは、rating下がりうる。王手の指し手ではないことを条件に含めないと。
-
-			if (!(between_bb(s1, s2) & pieces()))
-			{
-				if (plies_from_root > i)
-					return true;
-
-				// For repetitions before or at the root, require one more
-				// rootまでに指し手が見つかった場合、もう一度同じ局面に遭遇する必要がある。
-
-				// Stockfish10のコード
-				//if (stp->repetition)
-				//	return true;
-
-				// Stockfish9の時のコード。(StateInfo->repetitionを持っていないのでこんなコードになる)
-				StateInfo* next_stp = stp;
-				for (int k = i + 2; k <= end; k += 2)
-				{
-					next_stp = next_stp->previous->previous;
-					if (next_stp->key() == stp->key())
-						return true;
-				}
-
-			}
-		}
-	}
-	return false;
-}
-#endif
 
 // ----------------------------------
 //      入玉判定
