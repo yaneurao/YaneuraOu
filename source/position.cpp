@@ -44,11 +44,13 @@ void Position::set_check_info(StateInfo* si) const {
 	if (!doNullMove)
 	{
 		// null moveのときは前の局面でこの情報は設定されているので更新する必要がない。
-		si->blockersForKing[WHITE] = slider_blockers(BLACK, square<KING>(WHITE), si->pinners[WHITE]);
-		si->blockersForKing[BLACK] = slider_blockers(WHITE, square<KING>(BLACK), si->pinners[BLACK]);
+		si->blockersForKing[WHITE] = slider_blockers(BLACK, king_square(WHITE), si->pinners[WHITE]);
+		si->blockersForKing[BLACK] = slider_blockers(WHITE, king_square(BLACK), si->pinners[BLACK]);
 	}
 
-	Square ksq = square<KING>(~sideToMove);
+	constexpr Color Them = ~Us;
+
+	Square ksq = king_square(Them);
 
 	// 駒種Xによって敵玉に王手となる升のbitboard
 
@@ -56,7 +58,6 @@ void Position::set_check_info(StateInfo* si) const {
 	// そういう意味で(ksq,them)となっている。
 
 	Bitboard occ = pieces();
-	constexpr Color Them = ~Us;
 
 	// この指し手が二歩でないかは、この時点でテストしない。指し手生成で除外する。なるべくこの手のチェックは遅延させる。
 	si->checkSquares[PAWN]   = pawnEffect<Them>  (ksq);
@@ -653,9 +654,9 @@ bool Position::gives_check(Move m) const
 
 	// 開き王手になる駒の候補があるとして、fromにあるのがその駒で、fromからtoは玉と直線上にないなら
 	// 前提条件より、fromにあるのが自駒であることは確定しているので、pieces(sideToMove)は不要。
-	return !is_drop(m)
+	return  !is_drop(m)
 		&& (((blockers_for_king(~sideToMove) /*& pieces(sideToMove)*/) & from)
-		&& !aligned(from, to, square<KING>(~sideToMove)));
+		&&  !aligned(from, to, king_square(~sideToMove)));
 }
 
 // 現局面で指し手がないかをテストする。指し手生成ルーチンを用いるので速くない。探索中には使わないこと。
@@ -970,7 +971,7 @@ bool Position::legal(Move m) const
 		Square from = from_sq(m);
 
 		ASSERT_LV5(color_of(piece_on(from_sq(m))) == us);
-		ASSERT_LV5(piece_on(square<KING>(us)) == make_piece(us, KING));
+		ASSERT_LV5(piece_on(king_square(us)) == make_piece(us, KING));
 
 		// もし移動させる駒が玉であるなら、行き先の升に相手側の利きがないかをチェックする。
 		if (type_of(piece_on(from)) == KING)
@@ -978,8 +979,8 @@ bool Position::legal(Move m) const
 
 		// blockers_for_king()は、pinされている駒(自駒・敵駒)を表現するが、fromにある駒は自駒であることは
 		// わかっているのでこれで良い。
-		return   !(blockers_for_king(us) & from)
-			|| aligned(from, to_sq(m), square<KING>(us));
+		return !(blockers_for_king(us) & from)
+			 || aligned(from, to_sq(m), king_square(us));
 	}
 }
 
@@ -1031,6 +1032,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	ASSERT_LV3(is_ok(m));
 
 	ASSERT_LV3(&new_st != st);
+
+	constexpr Color Them = ~Us;
 
 	// 探索ノード数 ≒do_move()の呼び出し回数のインクリメント。
 	thisThread->nodes.fetch_add(1, std::memory_order_relaxed);
@@ -1084,7 +1087,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 	// 直前の指し手を保存するならばここで行なう。
 
-#if defined (KEEP_LAST_MOVE)
+#if defined(KEEP_LAST_MOVE)
 	st->lastMove = m;
 	st->lastMovedPieceType = is_drop(m) ? (PieceType)from_sq(m) : type_of(piece_on(from_sq(m)));
 #endif
@@ -1301,20 +1304,21 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// 王手している駒のbitboardを更新する。
 		if (givesCheck)
 		{
-			// 高速化のためにごにょごにょ。
 #if 1
+			// 高速化のために差分更新する時用
+
 			const StateInfo* prevSt = st->previous;
 
 			// 1) 直接王手であるかどうかは、移動によって王手になる駒別のBitboardを調べればわかる。
 			st->checkersBB = prevSt->checkSquares[type_of(moved_after_pc)] & to;
 
 			// 2) 開き王手になるのか
-			const Square ksq = king_square(~Us);
+			const Square ksq = king_square(Them);
 			// pos->discovered_check_candidates()で取得したいが、もうstを更新してしまっているので出来ないので
 			// prevSt->blockersForKing[~Us] & pieces(Us)と愚直に書く。
 			// また、pieces(Us)のうち今回移動させる駒は、実はすでに移動させてしまっているので、fromと書く。
 
-			if (discovered(from, to, ksq, prevSt->blockersForKing[~Us] & from))
+			if (discovered(from, to, ksq, prevSt->blockersForKing[Them] & from))
 			{
 				auto directions = directions_of(from, ksq);
 				switch (pop_directions(directions)) {
@@ -1324,28 +1328,27 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 					// 敵玉はpieces(Us)なので含まれないはずであり、結果として自分の開き王手している駒だけが足される。
 
 					// rookEffect()を用いると、香での王手に対応するのが難しくなるので、
-					// 縦と横を場合分けするほうが簡単
+					// 利きの方向ごとに場合分けするほうが簡単
 
-				case DIRECT_U: case DIRECT_D:
-					st->checkersBB |= rookFileEffect(from, pieces()) & pieces(Us); break;
+					//   玉
+					//   □
+					//   駒 ← 今回動かした駒のfrom
+					//   □
+					//   香
+					// のようになっているとして、駒のfromから見て玉が上(DIRECT_U)にあるということは、
+					// 駒のfromの下に王手している駒があって、それによって開き王手になったということ。
+					// だから、DIRECT_Uならその反対方向である下方向に駒を探さないといけない。
+
+				case DIRECT_U:
+					st->checkersBB |= lanceEffect<WHITE>(from, pieces()) & pieces<Us>(); break;
+				case DIRECT_D:
+					st->checkersBB |= lanceEffect<BLACK>(from, pieces()) & pieces<Us>(); break;
 
 					// 横に利く遠方駒は飛車(+龍)しかないので、玉の位置から飛車の利きを求めてその利きのなかにいる飛車を足す。
 					// →　飛車の横だけの利きを求める関数を用意したので、それを用いると上と同様の手法で求まる。
 
 				case DIRECT_R: case DIRECT_L:
-					st->checkersBB |= rookRankEffect(from, pieces()) & pieces(Us); break;
-
-
-#if defined(USE_OLD_YANEURAOU_EFFECT)
-					// 斜めに利く遠方駒は角(+馬)しかないので、玉の位置から角の利きを求めてその利きのなかにいる角を足す。
-					// →　上と同様の方法が使える。discovered()により開き王手になることは確定している。
-
-				case DIRECT_RU: case DIRECT_LD:
-					st->checkersBB |= bishopEffect0(from, pieces()) & pieces(Us); break;
-
-				case DIRECT_RD: case DIRECT_LU:
-					st->checkersBB |= bishopEffect1(from, pieces()) & pieces(Us); break;
-#else
+					st->checkersBB |= rookRankEffect(from, pieces()) & pieces<Us>(); break;
 
 				// magic bitboardを用いる場合の処理
 
@@ -1356,18 +1359,17 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 				case DIRECT_RU: case DIRECT_LD:
 				case DIRECT_RD: case DIRECT_LU:
-					st->checkersBB |= bishopEffect(ksq, pieces()) & pieces(Us, BISHOP_HORSE); break;
+					st->checkersBB |= bishopEffect(ksq, pieces()) & pieces<Us,BISHOP_HORSE>(); break;
 					
-#endif
 				default: UNREACHABLE;
 				}
 			}
 
 			// 差分更新したcheckersBBが正しく更新されているかをテストするためのassert
-			ASSERT_LV3(st->checkersBB == attackers_to(Us, king_square(~Us)));
+			ASSERT_LV3(st->checkersBB == attackers_to<Us>(king_square(Them)));
 #else
-			// 差分更新しないとき用。
-			st->checkersBB = attackers_to(Us, king_square(~Us));
+			// 差分更新しないとき用。(デバッグ等の目的で用いる)
+			st->checkersBB = attackers_to<Us>(king_square(Them));
 #endif
 			st->continuousCheck[Us] = prev->continuousCheck[Us] + 2;
 
@@ -1378,7 +1380,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		}
 	}
 	// 相手番のほうは関係ないので前ノードの値をそのまま受け継ぐ。
-	st->continuousCheck[~Us] = prev->continuousCheck[~Us];
+	st->continuousCheck[Them] = prev->continuousCheck[Them];
 
 #if defined (USE_PIECE_VALUE)
 	st->materialValue = (Value)(st->previous->materialValue + (Us == BLACK ? materialDiff : -materialDiff));
@@ -1386,13 +1388,13 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #endif
 
 	// 相手番に変更する。
-	sideToMove = ~Us;
+	sideToMove = Them;
 
 	// 更新されたhash keyをStateInfoに書き戻す。
 	st->board_key_ = k;
 	st->hand_key_ = h;
 
-	st->hand = hand[sideToMove];
+	st->hand = hand[Them];
 
 	// このタイミングで王手関係の情報を更新しておいてやる。
 	set_check_info<false>(st);

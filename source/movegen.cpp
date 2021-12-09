@@ -310,6 +310,10 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
 template <Color Us> struct GenerateDropMoves {
 	ExtMove* operator()(const Position&pos, ExtMove*mlist, const Bitboard& target) {
 
+		// 相手の手番
+		constexpr Color Them = ~Us;
+
+		// 手駒
 		const Hand hand = pos.hand_of(Us);
 		// 手駒を持っていないならば終了
 		if (hand == 0)
@@ -327,13 +331,14 @@ template <Color Us> struct GenerateDropMoves {
 			// cf. http://yaneuraou.yaneu.com/2015/10/15/%E7%B8%A6%E5%9E%8Bbitboard%E3%81%AE%E5%94%AF%E4%B8%80%E3%81%AE%E5%BC%B1%E7%82%B9%E3%82%92%E5%85%8B%E6%9C%8D%E3%81%99%E3%82%8B/
 			// このときにテーブルを引くので、用意するテーブルのほうで先に1)の処理をしておく。
 			// →　この方法はPEXTが必要なので愚直な方法に変更する。
+			// →　pawn_drop_mask()はQugiyのアルゴリズムを用いるように変更する。[2021/12/01]
 
 			// 歩の打てる場所
-			Bitboard target2 = target & pawn_drop_mask<Us>(pos.pieces(Us, PAWN));
+			Bitboard target2 = target & pawn_drop_mask<Us>(pos.pieces<Us>(PAWN));
 
 			// 打ち歩詰めチェック
 			// 敵玉に敵の歩を置いた位置に打つ予定だったのなら、打ち歩詰めチェックして、打ち歩詰めならそこは除外する。
-			Bitboard pe = pawnEffect(~Us, pos.king_square(~Us));
+			Bitboard pe = pawnEffect<Them>(pos.king_square<Them>());
 			if (pe & target2)
 			{
 				Square to = pe.pop_c();
@@ -401,7 +406,7 @@ template <Color Us> struct GenerateDropMoves {
 
 				Bitboard target1 = target & rank1_n_bb(Us, RANK_1); // 1段目
 				Bitboard target2 = target & (Us == BLACK ? RANK2_BB : RANK8_BB); // 2段目
-				Bitboard target3 = target & rank1_n_bb(~Us, RANK_7); // 3～9段目( == 後手から見たときの1～7段目)
+				Bitboard target3 = target & rank1_n_bb(Them, RANK_7); // 3～9段目( == 後手から見たときの1～7段目)
 
 				switch (num - nextToLance) // 1段目に対する香・桂以外の駒打ちの指し手生成(最大で4種の駒)
 				{
@@ -550,21 +555,22 @@ ExtMove* generate_general(const Position& pos, ExtMove* mlist, Square recapSq = 
 	static_assert(GenType != EVASIONS_ALL && GenType != NON_EVASIONS_ALL && GenType != RECAPTURES_ALL, "*_ALL is not allowed.");
 
 	ExtMove* mlist_org = mlist;
-
+	constexpr Color Them = ~Us;
+	
 	// 歩以外の駒の移動先
 	const Bitboard target =
-		(GenType == NON_CAPTURES)      ? pos.empties()      : // 捕獲しない指し手 = 移動先の升は駒のない升
-		(GenType == CAPTURES)          ? pos.pieces(~Us)    : // 捕獲する指し手 = 移動先の升は敵駒のある升
-		(GenType == NON_CAPTURES_PRO_MINUS) ? pos.empties() : // 捕獲しない指し手 - 歩の成る指し手 = 移動先の升は駒のない升 - 敵陣(歩のときのみ)
-		(GenType == CAPTURES_PRO_PLUS) ? pos.pieces(~Us)    : // 捕獲 + 歩の成る指し手 = 移動先の升は敵駒のある升 + 敵陣(歩のときのみ)
-		(GenType == NON_EVASIONS)      ? ~pos.pieces(Us)    : // すべて = 移動先の升は自駒のない升
-		(GenType == RECAPTURES)        ? Bitboard(recapSq)  : // リキャプチャー用の升(直前で相手の駒が移動したわけだからここには移動できるはず)
+		(GenType == NON_CAPTURES)           ?  pos.empties()      : // 捕獲しない指し手 = 移動先の升は駒のない升
+		(GenType == CAPTURES)               ?  pos.pieces(Them)   : // 捕獲する指し手 = 移動先の升は敵駒のある升
+		(GenType == NON_CAPTURES_PRO_MINUS) ?  pos.empties()      : // 捕獲しない指し手 - 歩の成る指し手 = 移動先の升は駒のない升 - 敵陣(歩のときのみ)
+		(GenType == CAPTURES_PRO_PLUS)      ?  pos.pieces(Them)   : // 捕獲 + 歩の成る指し手 = 移動先の升は敵駒のある升 + 敵陣(歩のときのみ)
+		(GenType == NON_EVASIONS)           ? ~pos.pieces(Us)     : // すべて = 移動先の升は自駒のない升
+		(GenType == RECAPTURES)             ?  Bitboard(recapSq)  : // リキャプチャー用の升(直前で相手の駒が移動したわけだからここには移動できるはず)
 		ALL_BB; // error
 
 	// 歩の移動先(↑のtargetと違う部分のみをオーバーライド)
 	const Bitboard targetPawn =
-		(GenType == NON_CAPTURES_PRO_MINUS) ? (pos.empties() & ~enemy_field(Us)) : // 駒を取らない指し手 かつ、歩の成る指し手を引いたもの
-		(GenType == CAPTURES_PRO_PLUS)      ? (pos.pieces(~Us) | (~pos.pieces(Us) & enemy_field(Us))) : // 歩の場合は敵陣での成りもこれに含める
+		(GenType == NON_CAPTURES_PRO_MINUS) ?  enemy_field(Us).andnot(pos.empties())                          : // 駒を取らない指し手 かつ、歩の成る指し手を引いたもの
+		(GenType == CAPTURES_PRO_PLUS)      ? (pos.pieces<Us>().andnot(enemy_field(Us)) | pos.pieces<Them>()) : // 歩の場合は敵陣での成りもこれに含める
 		target;
 
 	// 各駒による移動の指し手の生成
@@ -637,14 +643,14 @@ ExtMove* make_move_target_pro(Square from, const Bitboard& target, ExtMove* mlis
 			mlist++->move = make_move_promote(from, to , Us, Pt);
 		else
 		{
-			if (((Pt == PAWN) &&
-				((!All && !canPromote(Us, to)) ||
-				(All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_9))))
+			if (   ((Pt == PAWN) &&
+					((!All && !canPromote(Us, to)) ||
+					(  All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_9))))
 				|| ((Pt == LANCE) &&
-				((!All && ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_7))) ||
-					(All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_9))))
-				|| (Pt == KNIGHT && ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_7)))
-				|| (Pt == SILVER)
+					((!All && ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_7))) ||
+					 ( All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_9))))
+				|| ( Pt == KNIGHT && ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_7)))
+				|| ( Pt == SILVER)
 				|| ((Pt == BISHOP || Pt == ROOK) && (!(canPromote(Us, from) || canPromote(Us, to)) || All))
 				)
 
