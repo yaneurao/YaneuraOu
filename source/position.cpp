@@ -561,7 +561,7 @@ Bitboard Position::slider_blockers(Color c, Square s , Bitboard& pinners) const 
 		Bitboard b = between_bb(s, sniperSq) & pieces() /* occupancy */;
 
 		// snipperと玉との間にある駒が1個であるなら。
-		if (b && !more_than_one(b))
+		if (b && !b.more_than_one())
 		{
 			blockers |= b;
 			if (b & pieces(~c))
@@ -722,7 +722,7 @@ bool Position::legal_drop(const Square to) const
 	// 相手玉の場所
 	Square sq_king = king_square(~us);
 
-#ifndef LONG_EFFECT_LIBRARY
+#if !defined(LONG_EFFECT_LIBRARY)
 	// LONG EFFECT LIBRARYがない場合、愚直に8方向のうち逃げられそうな場所を探すしかない。
 
 	Bitboard escape_bb = kingEffect(sq_king) & ~pieces(~us);
@@ -759,6 +759,13 @@ bool Position::legal_drop(const Square to) const
 
 	return a8_target != 0;
 #endif
+}
+
+// 二歩でなく、かつ打ち歩詰めでないならtrueを返す。
+bool Position::legal_pawn_drop(const Color us, const Square to) const
+{
+	return !((pieces(us, PAWN) & FILE_BB[file_of(to)])                             // 二歩
+		|| ((pawnEffect(us, to) == Bitboard(king_square(~us)) && !legal_drop(to)))); // 打ち歩詰め
 }
 
 // mがpseudo_legalな指し手であるかを判定する。
@@ -939,7 +946,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 			if (type_of(pc) != KING)
 			{
 				// 両王手なら王の移動をさせなければならない。
-				if (more_than_one(checkers()))
+				if (checkers().more_than_one())
 					return false;
 
 				// 指し手は、王手を遮断しているか、王手している駒の捕獲でなければならない。
@@ -1320,49 +1327,22 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 			if (discovered(from, to, ksq, prevSt->blockersForKing[Them] & from))
 			{
-				auto directions = directions_of(from, ksq);
-				switch (pop_directions(directions)) {
+				// fromと敵玉とは同じ筋にあり、かつfromから駒を移動させて空き王手になる。
+				// つまりfromから上下を見ると、敵玉と、自分の開き王手をしている遠方駒(飛車 or 香)があるはずなのでこれを追加する。
+				// 敵玉はpieces(Us)なので含まれないはずであり、結果として自分の開き王手している駒だけが足される。
 
-					// fromと敵玉とは同じ筋にあり、かつfromから駒を移動させて空き王手になる。
-					// つまりfromから上下を見ると、敵玉と、自分の開き王手をしている遠方駒(飛車 or 香)があるはずなのでこれを追加する。
-					// 敵玉はpieces(Us)なので含まれないはずであり、結果として自分の開き王手している駒だけが足される。
+				// rookEffect()を用いると、香での王手に対応するのが難しくなるので、
+				// 利きの方向ごとに場合分けするほうが簡単
 
-					// rookEffect()を用いると、香での王手に対応するのが難しくなるので、
-					// 利きの方向ごとに場合分けするほうが簡単
+				//   玉
+				//   □
+				//   駒 ← 今回動かした駒のfrom
+				//   □
+				//   香
+				// のようになっているとして、玉から見て駒のfromが(DIRECT_D)にあるということは、
+				// 駒のfromの下に王手している駒があって、それによって開き王手になったということ。
 
-					//   玉
-					//   □
-					//   駒 ← 今回動かした駒のfrom
-					//   □
-					//   香
-					// のようになっているとして、駒のfromから見て玉が上(DIRECT_U)にあるということは、
-					// 駒のfromの下に王手している駒があって、それによって開き王手になったということ。
-					// だから、DIRECT_Uならその反対方向である下方向に駒を探さないといけない。
-
-				case DIRECT_U:
-					st->checkersBB |= lanceEffect<WHITE>(from, pieces()) & pieces<Us>(); break;
-				case DIRECT_D:
-					st->checkersBB |= lanceEffect<BLACK>(from, pieces()) & pieces<Us>(); break;
-
-					// 横に利く遠方駒は飛車(+龍)しかないので、玉の位置から飛車の利きを求めてその利きのなかにいる飛車を足す。
-					// →　飛車の横だけの利きを求める関数を用意したので、それを用いると上と同様の手法で求まる。
-
-				case DIRECT_R: case DIRECT_L:
-					st->checkersBB |= rookRankEffect(from, pieces()) & pieces<Us>(); break;
-
-				// magic bitboardを用いる場合の処理
-
-				// 斜め方向にあった駒を移動させての開き王手になっているので移動させた駒は角・馬ではない。
-				// (移動させた駒が角か馬であったなら、その駒で王を取れるので、非合法局面である)
-				// この移動させた駒はすでに取り除かれている。
-				// よって、王の升目から角が利いているUsの駒(角・馬)があれば、それは王手している遠方駒。
-
-				case DIRECT_RU: case DIRECT_LD:
-				case DIRECT_RD: case DIRECT_LU:
-					st->checkersBB |= bishopEffect(ksq, pieces()) & pieces<Us,BISHOP_HORSE>(); break;
-					
-				default: UNREACHABLE;
-				}
+				st->checkersBB |= directEffect(from, direct_of(ksq, from), pieces()) & pieces<Us>();
 			}
 
 			// 差分更新したcheckersBBが正しく更新されているかをテストするためのassert
@@ -1745,61 +1725,25 @@ namespace {
 		// sqにあった駒が消えるので、toから見てsqの延長線上にある駒を追加する。
 
 		auto dirs = directions_of(to, sq);
-		if (dirs) switch (pop_directions(dirs))
+		if (dirs) switch(pop_directions(dirs))
 		{
-
-#if defined(USE_OLD_YANEURAOU_EFFECT)
-		case DIRECT_RU: case DIRECT_LD:
-			// 斜め方向なら斜め方向の升をスキャンしてその上にある角・馬を足す
-			attackers |= bishopEffect0(to, occupied) & pos.pieces(BISHOP_HORSE);
-
-			ASSERT_LV3((bishopStepEffect(to) & sq));
-			break;
-
-		case DIRECT_RD: case DIRECT_LU:
-			attackers |= bishopEffect1(to, occupied) & pos.pieces(BISHOP_HORSE);
-			ASSERT_LV3((bishopStepEffect(to) & sq));
-			break;
-#else
-		// Aperyの利き実装を用いる場合
-		// bishopEffect()で斜め四方向の利きが一気に求まるのでこれを分かつことはできない。
-			
 		// 斜め方向なら斜め方向の升をスキャンしてその上にある角・馬を足す
-		case DIRECT_RU: case DIRECT_LD:
-		case DIRECT_RD: case DIRECT_LU:
-			attackers |= bishopEffect(to, occupied) & pos.pieces(BISHOP_HORSE);
-			ASSERT_LV3((bishopStepEffect(to) & sq));
-			break;
+		case DIRECT_RU: attackers |= rayEffect<DIRECT_RU>(to, occupied) & pos.pieces<BISHOP_HORSE>(); break;
+		case DIRECT_LD: attackers |= rayEffect<DIRECT_LD>(to, occupied) & pos.pieces<BISHOP_HORSE>(); break;
+		case DIRECT_RD: attackers |= rayEffect<DIRECT_RD>(to, occupied) & pos.pieces<BISHOP_HORSE>(); break;
+		case DIRECT_LU: attackers |= rayEffect<DIRECT_LU>(to, occupied) & pos.pieces<BISHOP_HORSE>(); break;
 
-#endif
-		case DIRECT_U:
-			// 後手の香 + 先後の飛車
-			attackers |= lanceEffect(BLACK, to, occupied) & (pos.pieces(ROOK_DRAGON) | pos.pieces(WHITE, LANCE));
+		// 上方向に移動した時の背後の駒によってtoの地点に利くのは、後手の香 + 先後の飛車
+		case DIRECT_U : attackers |= lanceEffect<BLACK>  (to, occupied) & (pos.pieces<ROOK_DRAGON>() | pos.pieces<WHITE, LANCE>()); break;
 
-			ASSERT_LV3((lanceStepEffect(BLACK, to) & sq));
-			break;
+		// 下方向に移動した時の背後の駒によってtoの地点に利くのは、先手の香 + 先後の飛車
+		case DIRECT_D : attackers |= lanceEffect<WHITE>  (to, occupied) & (pos.pieces<ROOK_DRAGON>() | pos.pieces<BLACK, LANCE>()); break;
 
-		case DIRECT_D:
-			// 先手の香 + 先後の飛車
-			attackers |= lanceEffect(WHITE, to, occupied) & (pos.pieces(ROOK_DRAGON) | pos.pieces(BLACK, LANCE));
+		// 左右方向に移動した時の背後の駒によってtoの地点に利くのは、飛車・龍。
+		case DIRECT_L : attackers |= rayEffect<DIRECT_L> (to, occupied) & pos.pieces<ROOK_DRAGON>(); break;
+		case DIRECT_R : attackers |= rayEffect<DIRECT_R> (to, occupied) & pos.pieces<ROOK_DRAGON>(); break;
 
-			ASSERT_LV3((lanceStepEffect(WHITE, to) & sq));
-			break;
-
-		case DIRECT_L: case DIRECT_R:
-			// 左右なので先後の飛車
-
-#if defined(USE_OLD_YANEURAOU_EFFECT)
-			attackers |= rookRankEffect(to, occupied) & pos.pieces(ROOK_DRAGON);
-#else
-			attackers |= rookEffect(to, occupied) & pos.pieces(ROOK_DRAGON);
-#endif
-
-			ASSERT_LV3(((rookStepEffect(to) & sq)));
-			break;
-
-		default:
-			UNREACHABLE;
+		default: UNREACHABLE; break;
 		}
 		else {
 			// DIRECT_MISC

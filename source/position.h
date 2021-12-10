@@ -488,11 +488,7 @@ public:
 	bool legal_drop(const Square to) const;
 
 	// 二歩でなく、かつ打ち歩詰めでないならtrueを返す。
-	bool legal_pawn_drop(const Color us, const Square to) const
-	{
-		return !((pieces(us, PAWN) & FILE_BB[file_of(to)])                             // 二歩
-			|| ((pawnEffect(us, to) == Bitboard(king_square(~us)) && !legal_drop(to)))); // 打ち歩詰め
-	}
+	bool legal_pawn_drop(const Color us, const Square to) const;
 
 	// --- StateInfo
 
@@ -551,7 +547,10 @@ public:
 
 	// fromからtoに駒が移動したものと仮定して、pinを得る
 	// ※利きのない1手詰め判定のときに必要。
-	Bitboard pinned_pieces(Color c, Square from, Square to) const { return c == BLACK ? pinned_pieces<BLACK>(from,to) : pinned_pieces<WHITE>(from,to); }
+	Bitboard pinned_pieces(Color c, Square from, Square to) const
+	{
+		return c == BLACK ? pinned_pieces<BLACK>(from,to) : pinned_pieces<WHITE>(from,to);
+	}
 
 	// ↑のtemplate版
 	template<Color C>
@@ -842,7 +841,7 @@ Bitboard Position::pinned_pieces(Square avoid) const
 	while (pinners)
 	{
 		b = between_bb(ksq, pinners.pop()) & pieces() & avoid_bb;
-		if (!more_than_one(b))
+		if (!b.more_than_one())
 			result |= b & pieces<C>();
 	}
 	return result;
@@ -869,7 +868,7 @@ Bitboard Position::pinned_pieces(Square from, Square to) const {
 	while (pinners)
 	{
 		b = between_bb(ksq, pinners.pop()) & new_pieces;
-		if (!more_than_one(b))
+		if (!b.more_than_one())
 			result |= b & pieces(C);
 	}
 	return result;

@@ -683,7 +683,7 @@ ExtMove* make_move_check(const Position& pos, Piece pc, Square from, Square ksq,
     if (!(enemy_field(Us) & from))                                     \
       dst &= enemy_field(Us);                                          \
     mlist = make_move_target_pro<X, Us, All, true>(from, dst, mlist);  \
-    if (file_of(from) == file_of(ksq) && !more_than_one(between_bb(from, ksq) & occ)){ \
+    if (file_of(from) == file_of(ksq) && !(between_bb(from, ksq) & occ).more_than_one()){ \
       dst = pos.pieces(~Us) & between_bb(from, ksq) & target;            \
       mlist = make_move_target_pro<X, Us, All, false>(from, dst, mlist); \
     }}

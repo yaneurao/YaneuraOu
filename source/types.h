@@ -296,6 +296,15 @@ namespace Effect8
 	// Directionsに相当するものを引数に渡して1つ方角を取り出す。
 	static Direct pop_directions(Directions& d) { return (Direct)pop_lsb(d); }
 
+	// sq1にとってsq2がどの方角であるかを返す。
+	// sq1がsq2に対して八方向のいずれかであることがわかっている時に用いる。
+	static Direct direct_of(Square sq1, Square sq2)
+	{
+		auto d = directions_of(sq1, sq2);
+		ASSERT_LV3(d != DIRECTIONS_ZERO);
+		return pop_directions(d);
+	}
+
 	// ある方角の反対の方角(180度回転させた方角)を得る。
 	constexpr Direct operator~(Direct d) {
 		// Directの定数値を変更したら、この関数はうまく動作しない。

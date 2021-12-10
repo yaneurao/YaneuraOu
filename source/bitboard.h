@@ -3,12 +3,15 @@
 
 #include "types.h"
 
+namespace Bitboards
+{
+	// Bitboard関連のテーブル初期化のための関数
+	extern void init();
+}
+
 // --------------------
 //     Bitboard
 // --------------------
-
-// Bitboard関連のテーブル初期化のための関数
-namespace Bitboards { extern void init(); }
 
 // Bitboardをゼロクリアするコンストラクタに指定する引数
 // 例) Bitboard(ZERO) のように指定するとゼロクリアされたBitboardが出来上がる。
@@ -70,7 +73,8 @@ struct alignas(16) Bitboard
 	{
 #if defined (USE_SSE2)
 		// xorでclearするのがメモリ参照がなくて速いはず。
-		m = _mm_xor_si128(m, m);
+		__m128i a;
+		m = _mm_xor_si128(a, a);
 #else
 		p[0] = p[1] = 0;
 #endif
@@ -126,14 +130,10 @@ struct alignas(16) Bitboard
 	// while(to = bb.pop())
 	//  make_move(from,to);
 	// のように用いる。
-	FORCE_INLINE Square pop();
+	Square pop();
 
 	// このBitboardの値を変えないpop()
-	FORCE_INLINE Square pop_c() const { u64 q0 = extract64<0>();  return (q0 != 0) ? Square(LSB64(q0)) : Square(LSB64(extract64<1>()) + 63); }
-
-	// pop()をp[0],p[1]に分けて片側ずつする用
-	FORCE_INLINE Square pop_from_p0() { u64 q0 = extract64<0>(); ASSERT_LV3(q0 != 0);  Square sq = Square(pop_lsb(q0)); insert64<0>(q0); return sq; }
-	FORCE_INLINE Square pop_from_p1() { u64 q1 = extract64<1>(); ASSERT_LV3(q1 != 0);  Square sq = Square(pop_lsb(q1) + 63); insert64<1>(q1); return sq; }
+	Square pop_c() const { u64 q0 = extract64<0>();  return (q0 != 0) ? Square(LSB64(q0)) : Square(LSB64(extract64<1>()) + 63); }
 
 	// 1のbitを数えて返す。
 	int pop_count() const { return (int)(POPCNT64(extract64<0>()) + POPCNT64(extract64<1>())); }
@@ -206,6 +206,13 @@ struct alignas(16) Bitboard
 	// 128bit整数とみなして1引き算したBitboardを返す。
 	static void decrement(const Bitboard hi_in,const Bitboard lo_in, Bitboard& hi_out, Bitboard& lo_out);
 
+	// このbitboardを128bitレジスタとみなして1減算したBitboardを返す。方向利きの計算で用いる。
+	Bitboard decrement() const;
+
+	// 2bit以上あるかどうかを判定する。縦横斜め方向に並んだ駒が2枚以上であるかを判定する。この関係にないと駄目。
+	// この関係にある場合、Bitboard::merge()によって被覆しないことがBitboardのレイアウトから保証されている。
+	bool more_than_one() const;
+
 	// range-forで回せるようにするためのhack(少し遅いので速度が要求されるところでは使わないこと)
 	Square operator*() { return pop(); }
 	void operator++() {}
@@ -245,55 +252,6 @@ struct alignas(16) Bitboard
 #pragma GCC diagnostic warning "-Wmaybe-uninitialized"
 #endif
 
-// --- Bitboardの実装
-
-inline Bitboard::Bitboard(u64 p0, u64 p1) :
-#if defined(USE_SSE2)
-	// この命令、引数の順に注意。
-	m( _mm_set_epi64x(p1,p0))
-#else
-	p { p0 , p1 }
-#endif
-{}
-
-// 値を直接代入する。
-inline void Bitboard::set(u64 p0, u64 p1)
-{
-#if defined(USE_SSE2)
-	m = _mm_set_epi64x(p1,p0);
-#else
-	p[0] = p0; p[1] = p1;
-#endif
-}
-
-
-
-inline Bitboard::operator bool() const
-{
-#if defined(USE_SSE41)
-	return !_mm_testz_si128(m, m);
-#else
-	return (this->merge() ? true : false);
-#endif
-}
-
-inline bool Bitboard::test(Bitboard rhs) const
-{
-#if defined(USE_SSE41)
-	return !_mm_testz_si128(m, rhs.m);
-#else
-	return (*this & rhs);
-#endif
-}
-
-FORCE_INLINE Square Bitboard::pop()
-{
-	u64 q0 = extract64<0>();  Square sq;
-	if (q0 != 0) { sq = Square(pop_lsb(q0)); insert64<0>(q0); }
-	else { u64 q1 = extract64<1>();  sq = Square(pop_lsb(q1) + 63); insert64<1>(q1); }
-	return sq;
-}
-
 // p[n]を取り出す。SSE4の命令が使えるときはそれを使う。
 template <int n>
 inline u64 Bitboard::extract64() const
@@ -318,49 +276,152 @@ inline Bitboard& Bitboard::insert64(u64 u)
 	return *this;
 }
 
-inline bool Bitboard::operator == (const Bitboard& rhs) const
-{
-#if defined (USE_SSE41)
-	// 以下のようにすると2命令で済むらしい。
-	// testing equality between two __m128i variables
-	// cf.http://stackoverflow.com/questions/26880863/sse-testing-equality-between-two-m128i-variables
-	__m128i neq = _mm_xor_si128(this->m, rhs.m);
-	return _mm_test_all_zeros(neq, neq) ? true : false;
-#else
-	return (this->p[0] == rhs.p[0]) && (this->p[1] == rhs.p[1]);
-#endif
-}
-
-// --- Bitboard定数
-
-// sqの升が1であるbitboard
-extern Bitboard SquareBB[SQ_NB_PLUS1];
-inline Bitboard::Bitboard(Square sq) { *this = SquareBB[sq]; }
-
-// 全升が1であるBitboard
-// p[0]の63bit目は0
-extern Bitboard ALL_BB;
-
-// 全升が0であるBitboard
-// →　Bitboard(ZERO)を用いた方が、メモリ参照がなくて速い。
-//     ZERO_BBはテーブル初期化以外では使わないように。
-extern Bitboard ZERO_BB;
-
 // Square型との演算子
-inline Bitboard operator|(const Bitboard& b, Square s) { return b | SquareBB[s]; }
-inline Bitboard operator&(const Bitboard& b, Square s) { return b & SquareBB[s]; }
-inline Bitboard operator^(const Bitboard& b, Square s) { return b ^ SquareBB[s]; }
+extern Bitboard operator|(const Bitboard& b, Square s);
+extern Bitboard operator&(const Bitboard& b, Square s);
+extern Bitboard operator^(const Bitboard& b, Square s);
 
 // 単項演算子
 // →　NOTで書くと、使っていないbit(p[0]のbit63)がおかしくなるのでALL_BBでxorしないといけない。
-inline Bitboard operator ~ (const Bitboard& a) { return a ^ ALL_BB; }
+extern Bitboard operator ~ (const Bitboard& a);
 
 // range-forで回せるようにするためのhack(少し遅いので速度が要求されるところでは使わないこと)
-inline const Bitboard begin(const Bitboard& b) { return b; }
-inline const Bitboard end(const Bitboard&) { return Bitboard(ZERO); }
+extern const Bitboard begin(const Bitboard& b);
+extern const Bitboard end(const Bitboard&);
 
 // Bitboardの1の升を'*'、0の升を'.'として表示する。デバッグ用。
-std::ostream& operator<<(std::ostream& os, const Bitboard& board);
+extern std::ostream& operator<<(std::ostream& os, const Bitboard& board);
+
+// --------------------
+//     Bitboard256
+// --------------------
+
+// Bitboard 2つを256bit registerで扱う。
+// これをうまく用いると飛車、角の利きがmagic bitboardなしで求められる。
+// Qugiy[WCSC31]のアイデアの応用。
+
+struct alignas(32) Bitboard256
+{
+	// Bitboard 2つ分。
+#if defined (USE_AVX2)
+	union
+	{
+		// 64bitずつとして扱うとき用
+		u64 p[4];
+
+		__m256i m;
+	};
+#else // no SSE
+	u64 p[4];
+#endif
+
+	Bitboard256() {}
+#if defined (USE_AVX2)
+	Bitboard256& operator = (const Bitboard256& rhs) { _mm256_store_si256(&this->m, rhs.m); return *this; }
+	Bitboard256(const Bitboard256& bb) { _mm256_store_si256(&this->m, bb.m); }
+
+	// 同じBitboardを2つに複製し、それをBitboard256とする。
+	Bitboard256(const Bitboard& b1) { m = _mm256_broadcastsi128_si256(b1.m); }
+
+	// 2つのBitboardを合わせたBitboard256を作る。
+	Bitboard256(const Bitboard& b1, const Bitboard& b2) {
+		// m = _mm256_set_epi64x(b2.p[1],b2.p[0],b1.p[1],b1.p[0]);
+		m = _mm256_castsi128_si256(b1.m);        // 256bitにcast(上位は0)。これはcompiler向けの命令。
+		m = _mm256_inserti128_si256(m, b2.m, 1); // 上位128bitにb2.mを代入
+	}
+#else
+	Bitboard256(const Bitboard& b1, const Bitboard& b2) { p[0] = b1.p[0]; p[1] = b1.p[1]; p[2] = b2.p[0]; p[3]=b2.p[1]; }
+	Bitboard256(const Bitboard& b1) { p[0] = p[2] = b1.p[0]; p[1] = p[3] = b1.p[1]; }
+#endif
+
+#if defined (USE_AVX2)
+	Bitboard256& operator |= (const Bitboard256& b1) { this->m = _mm256_or_si256( m, b1.m); return *this; }
+	Bitboard256& operator &= (const Bitboard256& b1) { this->m = _mm256_and_si256(m, b1.m); return *this; }
+	Bitboard256& operator ^= (const Bitboard256& b1) { this->m = _mm256_xor_si256(m, b1.m); return *this; }
+	Bitboard256& operator += (const Bitboard256& b1) { this->m = _mm256_add_epi64(m, b1.m); return *this; }
+	Bitboard256& operator -= (const Bitboard256& b1) { this->m = _mm256_sub_epi64(m, b1.m); return *this; }
+
+	// 左シフト(縦型Bitboardでは左1回シフトで1段下の升に移動する)
+	// ※　シフト演算子は歩の利きを求めるためだけに使う。
+	Bitboard256& operator <<= (int shift) { /*ASSERT_LV3(shift == 1);*/ m = _mm256_slli_epi64(m, shift); return *this; }
+
+	// 右シフト(縦型Bitboardでは右1回シフトで1段上の升に移動する)
+	Bitboard256& operator >>= (int shift) { /*ASSERT_LV3(shift == 1);*/ m = _mm256_srli_epi64(m, shift); return *this; }
+
+	// and_not演算
+	// *this = (~*this) & b1;
+	// ただし、notする時に、将棋盤の81升以外のところもnotされるので注意。
+	// 自分自身は書き換えない。
+	Bitboard256 andnot(const Bitboard256& b1) const { Bitboard256 b0; b0.m = _mm256_andnot_si256(m, b1.m); return b0; }
+
+#else
+	Bitboard256& operator |= (const Bitboard256& b1) { this->p[0] |= b1.p[0]; this->p[1] |= b1.p[1]; this->p[2] |= b1.p[2]; this->p[3] |= b1.p[3]; return *this; }
+	Bitboard256& operator &= (const Bitboard256& b1) { this->p[0] &= b1.p[0]; this->p[1] &= b1.p[1]; this->p[2] &= b1.p[2]; this->p[3] &= b1.p[3]; return *this; }
+	Bitboard256& operator ^= (const Bitboard256& b1) { this->p[0] ^= b1.p[0]; this->p[1] ^= b1.p[1]; this->p[2] ^= b1.p[2]; this->p[3] ^= b1.p[3]; return *this; }
+	Bitboard256& operator += (const Bitboard256& b1) { this->p[0] += b1.p[0]; this->p[1] += b1.p[1]; this->p[2] += b1.p[2]; this->p[3] += b1.p[3]; return *this; }
+	Bitboard256& operator -= (const Bitboard256& b1) { this->p[0] -= b1.p[0]; this->p[1] -= b1.p[1]; this->p[2] -= b1.p[2]; this->p[3] -= b1.p[3]; return *this; }
+
+	Bitboard256& operator <<= (int shift) { /*ASSERT_LV3(shift == 1);*/ this->p[0] <<= shift; this->p[1] <<= shift; this->p[2] <<= shift; this->p[3] <<= shift; return *this; }
+	Bitboard256& operator >>= (int shift) { /*ASSERT_LV3(shift == 1);*/ this->p[0] >>= shift; this->p[1] >>= shift; this->p[2] >>= shift; this->p[3] >>= shift; return *this; }
+
+	Bitboard256 andnot(const Bitboard256& b1) const { Bitboard256 b0; b0.p[0] = ~p[0] & b1.p[0]; b0.p[1] = ~p[1] & b1.p[1]; b0.p[2] = ~p[2] & b1.p[2]; b0.p[3] = ~p[3] & b1.p[3]; return b0; }
+
+#endif
+
+	// 比較演算子
+
+	bool operator == (const Bitboard256& rhs) const;
+	bool operator != (const Bitboard256& rhs) const { return !(*this == rhs); }
+
+	// 2項演算子
+
+	Bitboard256 operator & (const Bitboard256& rhs) const { return Bitboard256(*this) &= rhs; }
+	Bitboard256 operator | (const Bitboard256& rhs) const { return Bitboard256(*this) |= rhs; }
+	Bitboard256 operator ^ (const Bitboard256& rhs) const { return Bitboard256(*this) ^= rhs; }
+	Bitboard256 operator + (const Bitboard256& rhs) const { return Bitboard256(*this) += rhs; }
+	Bitboard256 operator - (const Bitboard256& rhs) const { return Bitboard256(*this) -= rhs; }
+	Bitboard256 operator << (const int i) const { return Bitboard256(*this) <<= i; }
+	Bitboard256 operator >> (const int i) const { return Bitboard256(*this) >>= i; }
+
+	// その他の操作
+
+	// このBitboard256をBitboard2つに分離する。(デバッグ用)
+	void toBitboard(Bitboard& b1, Bitboard& b2) const { b1 = Bitboard(p[0], p[1]); b2 = Bitboard(p[2], p[3]); }
+
+	// byte単位で入れ替えたBitboardを返す。
+	// 飛車の利きの右方向と角の利きの右上、右下方向を求める時に使う。
+	Bitboard256 byte_reverse() const;
+
+	// SSE2のunpackを実行して返す。
+	// hi_out = _mm256_unpackhi_epi64(lo_in,hi_in);
+	// lo_out = _mm256_unpacklo_epi64(lo_in,hi_in);
+	static void unpack(const Bitboard256 hi_in,const Bitboard256 lo_in, Bitboard256& hi_out, Bitboard256& lo_out);
+
+	// 2組のBitboard256を、それぞれ64bitのhi×2とlo×2と見たときに(unpackするとそうなる)
+	// 128bit整数とみなして1引き算したBitboardを返す。
+	static void decrement(const Bitboard256 hi_in,const Bitboard256 lo_in, Bitboard256& hi_out, Bitboard256& lo_out);
+
+	// 保持している2つの盤面を重ね合わせた(ORした)Bitboardを返す。
+	Bitboard merge() const;
+
+	// UnitTest
+	static void UnitTest(Test::UnitTester&);
+};
+
+inline bool Bitboard256::operator == (const Bitboard256& rhs) const
+{
+#if defined (USE_AVX2)
+	__m256i neq = _mm256_xor_si256(this->m, rhs.m);
+	return /*_mm256_test_all_zeros*/ _mm256_testz_si256(neq, neq) ? true : false;
+#else
+	return (this->p[0] == rhs.p[0]) && (this->p[1] == rhs.p[1]) && (this->p[2] == rhs.p[2]) && (this->p[3] == rhs.p[3]);
+	// return (this->p[0] ^ rhs.p[0]) | (this->p[1] ^ rhs.p[1]) | (this->p[2] ^ rhs.p[2]) | (this->p[3] == rhs.p[3]);
+	// の方が速いかも？
+#endif
+}
+
+// Bitboard256の1の升を'*'、0の升を'.'として表示する。デバッグ用。
+std::ostream& operator<<(std::ostream& os, const Bitboard256& board);
 
 // --------------------
 //     Bitboard定数
@@ -508,136 +569,6 @@ inline Bitboard pawn_drop_mask(const Bitboard& pawns) {
 	}
 }
 
-// --------------------
-//     Bitboard256
-// --------------------
-
-// Bitboard 2つを256bit registerで扱う。
-// これをうまく用いると飛車、角の利きがmagic bitboardなしで求められる。
-// Qugiy[WCSC31]のアイデアの応用。
-
-struct alignas(32) Bitboard256
-{
-	// Bitboard 2つ分。
-#if defined (USE_AVX2)
-	union
-	{
-		// 64bitずつとして扱うとき用
-		u64 p[4];
-
-		__m256i m;
-	};
-#else // no SSE
-	u64 p[4];
-#endif
-
-	Bitboard256() {}
-#if defined (USE_AVX2)
-	Bitboard256& operator = (const Bitboard256& rhs) { _mm256_store_si256(&this->m, rhs.m); return *this; }
-	Bitboard256(const Bitboard256& bb) { _mm256_store_si256(&this->m, bb.m); }
-
-	// 同じBitboardを2つに複製し、それをBitboard256とする。
-	Bitboard256(const Bitboard& b1) { m = _mm256_broadcastsi128_si256(b1.m); }
-
-	// 2つのBitboardを合わせたBitboard256を作る。
-	Bitboard256(const Bitboard& b1, const Bitboard& b2) {
-		// m = _mm256_set_epi64x(b2.p[1],b2.p[0],b1.p[1],b1.p[0]);
-		m = _mm256_castsi128_si256(b1.m);        // 256bitにcast(上位は0)。これはcompiler向けの命令。
-		m = _mm256_inserti128_si256(m, b2.m, 1); // 上位128bitにb2.mを代入
-	}
-#else
-	Bitboard256(const Bitboard& b1, const Bitboard& b2) { p[0] = b1.p[0]; p[1] = b1.p[1]; p[2] = b2.p[0]; p[3]=b2.p[1]; }
-	Bitboard256(const Bitboard& b1) { p[0] = p[2] = b1.p[0]; p[1] = p[3] = b1.p[1]; }
-#endif
-
-#if defined (USE_AVX2)
-	Bitboard256& operator |= (const Bitboard256& b1) { this->m = _mm256_or_si256( m, b1.m); return *this; }
-	Bitboard256& operator &= (const Bitboard256& b1) { this->m = _mm256_and_si256(m, b1.m); return *this; }
-	Bitboard256& operator ^= (const Bitboard256& b1) { this->m = _mm256_xor_si256(m, b1.m); return *this; }
-	Bitboard256& operator += (const Bitboard256& b1) { this->m = _mm256_add_epi64(m, b1.m); return *this; }
-	Bitboard256& operator -= (const Bitboard256& b1) { this->m = _mm256_sub_epi64(m, b1.m); return *this; }
-
-	// 左シフト(縦型Bitboardでは左1回シフトで1段下の升に移動する)
-	// ※　シフト演算子は歩の利きを求めるためだけに使う。
-	Bitboard256& operator <<= (int shift) { /*ASSERT_LV3(shift == 1);*/ m = _mm256_slli_epi64(m, shift); return *this; }
-
-	// 右シフト(縦型Bitboardでは右1回シフトで1段上の升に移動する)
-	Bitboard256& operator >>= (int shift) { /*ASSERT_LV3(shift == 1);*/ m = _mm256_srli_epi64(m, shift); return *this; }
-
-	// and_not演算
-	// *this = (~*this) & b1;
-	// ただし、notする時に、将棋盤の81升以外のところもnotされるので注意。
-	// 自分自身は書き換えない。
-	Bitboard256 andnot(const Bitboard256& b1) const { Bitboard256 b0; b0.m = _mm256_andnot_si256(m, b1.m); return b0; }
-
-#else
-	Bitboard256& operator |= (const Bitboard256& b1) { this->p[0] |= b1.p[0]; this->p[1] |= b1.p[1]; this->p[2] |= b1.p[2]; this->p[3] |= b1.p[3]; return *this; }
-	Bitboard256& operator &= (const Bitboard256& b1) { this->p[0] &= b1.p[0]; this->p[1] &= b1.p[1]; this->p[2] &= b1.p[2]; this->p[3] &= b1.p[3]; return *this; }
-	Bitboard256& operator ^= (const Bitboard256& b1) { this->p[0] ^= b1.p[0]; this->p[1] ^= b1.p[1]; this->p[2] ^= b1.p[2]; this->p[3] ^= b1.p[3]; return *this; }
-	Bitboard256& operator += (const Bitboard256& b1) { this->p[0] += b1.p[0]; this->p[1] += b1.p[1]; this->p[2] += b1.p[2]; this->p[3] += b1.p[3]; return *this; }
-	Bitboard256& operator -= (const Bitboard256& b1) { this->p[0] -= b1.p[0]; this->p[1] -= b1.p[1]; this->p[2] -= b1.p[2]; this->p[3] -= b1.p[3]; return *this; }
-
-	Bitboard256& operator <<= (int shift) { /*ASSERT_LV3(shift == 1);*/ this->p[0] <<= shift; this->p[1] <<= shift; this->p[2] <<= shift; this->p[3] <<= shift; return *this; }
-	Bitboard256& operator >>= (int shift) { /*ASSERT_LV3(shift == 1);*/ this->p[0] >>= shift; this->p[1] >>= shift; this->p[2] >>= shift; this->p[3] >>= shift; return *this; }
-
-	Bitboard256 andnot(const Bitboard256& b1) const { Bitboard256 b0; b0.p[0] = ~p[0] & b1.p[0]; b0.p[1] = ~p[1] & b1.p[1]; b0.p[2] = ~p[2] & b1.p[2]; b0.p[3] = ~p[3] & b1.p[3]; return b0; }
-
-#endif
-
-	// 比較演算子
-
-	bool operator == (const Bitboard256& rhs) const;
-	bool operator != (const Bitboard256& rhs) const { return !(*this == rhs); }
-
-	// 2項演算子
-
-	Bitboard256 operator & (const Bitboard256& rhs) const { return Bitboard256(*this) &= rhs; }
-	Bitboard256 operator | (const Bitboard256& rhs) const { return Bitboard256(*this) |= rhs; }
-	Bitboard256 operator ^ (const Bitboard256& rhs) const { return Bitboard256(*this) ^= rhs; }
-	Bitboard256 operator + (const Bitboard256& rhs) const { return Bitboard256(*this) += rhs; }
-	Bitboard256 operator - (const Bitboard256& rhs) const { return Bitboard256(*this) -= rhs; }
-	Bitboard256 operator << (const int i) const { return Bitboard256(*this) <<= i; }
-	Bitboard256 operator >> (const int i) const { return Bitboard256(*this) >>= i; }
-
-	// その他の操作
-
-	// このBitboard256をBitboard2つに分離する。(デバッグ用)
-	void toBitboard(Bitboard& b1, Bitboard& b2) const { b1 = Bitboard(p[0], p[1]); b2 = Bitboard(p[2], p[3]); }
-
-	// byte単位で入れ替えたBitboardを返す。
-	// 飛車の利きの右方向と角の利きの右上、右下方向を求める時に使う。
-	Bitboard256 byte_reverse() const;
-
-	// SSE2のunpackを実行して返す。
-	// hi_out = _mm256_unpackhi_epi64(lo_in,hi_in);
-	// lo_out = _mm256_unpacklo_epi64(lo_in,hi_in);
-	static void unpack(const Bitboard256 hi_in,const Bitboard256 lo_in, Bitboard256& hi_out, Bitboard256& lo_out);
-
-	// 2組のBitboard256を、それぞれ64bitのhi×2とlo×2と見たときに(unpackするとそうなる)
-	// 128bit整数とみなして1引き算したBitboardを返す。
-	static void decrement(const Bitboard256 hi_in,const Bitboard256 lo_in, Bitboard256& hi_out, Bitboard256& lo_out);
-
-	// 保持している2つの盤面を重ね合わせた(ORした)Bitboardを返す。
-	Bitboard merge() const;
-
-	// UnitTest
-	static void UnitTest(Test::UnitTester&);
-};
-
-inline bool Bitboard256::operator == (const Bitboard256& rhs) const
-{
-#if defined (USE_AVX2)
-	__m256i neq = _mm256_xor_si256(this->m, rhs.m);
-	return /*_mm256_test_all_zeros*/ _mm256_testz_si256(neq, neq) ? true : false;
-#else
-	return (this->p[0] == rhs.p[0]) && (this->p[1] == rhs.p[1]) && (this->p[2] == rhs.p[2]) && (this->p[3] == rhs.p[3]);
-	// return (this->p[0] ^ rhs.p[0]) | (this->p[1] ^ rhs.p[1]) | (this->p[2] ^ rhs.p[2]) | (this->p[3] == rhs.p[3]);
-	// の方が速いかも？
-#endif
-}
-
-// Bitboard256の1の升を'*'、0の升を'.'として表示する。デバッグ用。
-std::ostream& operator<<(std::ostream& os, const Bitboard256& board);
 
 // --------------------
 // 利きのためのテーブル
@@ -660,6 +591,15 @@ extern Bitboard PawnEffectBB[SQ_NB_PLUS1][COLOR_NB];
 extern Bitboard LanceStepEffectBB[SQ_NB_PLUS1][COLOR_NB];
 extern Bitboard BishopStepEffectBB[SQ_NB_PLUS1];
 extern Bitboard RookStepEffectBB[SQ_NB_PLUS1];
+
+// 全升が1であるBitboard
+// p[0]の63bit目は0
+extern Bitboard ALL_BB;
+
+// 全升が0であるBitboard
+// →　Bitboard(ZERO)を用いた方が、メモリ参照がなくて速い。
+//     ZERO_BBはテーブル初期化以外では使わないように。
+extern Bitboard ZERO_BB;
 
 // =====================
 //   大駒・小駒の利き
@@ -729,7 +669,7 @@ inline Bitboard silverEffect(const Color c, const Square sq)
 
 // ↑のtemplate版
 template <Color C>
-inline Bitboard silverEffect( const Square sq)
+inline Bitboard silverEffect(const Square sq)
 {
 	ASSERT_LV3(is_ok(C) && sq <= SQ_NB);
 	return SilverEffectBB[sq][C];
@@ -821,13 +761,13 @@ inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
 
 	// Bitboard 128bitのまま操作する。
 #if 0
-	// これは、Qugiyのアイデア。
-	// Quigy[WCSC31]の手法 : cf. https://www.apply.computer-shogi.org/wcsc31/appeal/Qugiy/appeal.pdf
+// これは、Qugiyのアイデア。
+// Quigy[WCSC31]の手法 : cf. https://www.apply.computer-shogi.org/wcsc31/appeal/Qugiy/appeal.pdf
 
 	if (C == WHITE)
 	{
 		// 9段目が0、その他の升が1になっているmask。
-		const Bitboard mask(0x3fdfeff7fbfdfeffULL , 0x000000000001feffULL);
+		const Bitboard mask(0x3fdfeff7fbfdfeffULL, 0x000000000001feffULL);
 
 		// 駒が存在しない升が1となるmaskを作る。ただし9段目は0固定。
 		Bitboard em = occupied.andnot(mask);
@@ -856,7 +796,8 @@ inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
 		// tとemの差分が香の利き
 		return t ^ em;
 
-	} else {
+	}
+	else {
 
 		// step effectなのでここで返ってくるBitboardのsqの升は0であることが保証されている。
 		const Bitboard se = lanceStepEffect<C>(sq);
@@ -914,7 +855,8 @@ inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
 			u64 t = em - 1;
 			return Bitboard(0, (em ^ t) & mask);
 		}
-	} else {
+	}
+	else {
 		// 先手の香
 
 		if (Bitboard::part(sq) == 0)
@@ -926,7 +868,7 @@ inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
 			mocc |= mocc >> 2;
 			mocc |= mocc >> 4;
 			mocc >>= 1;
-			return Bitboard(~mocc & se , 0);
+			return Bitboard(~mocc & se, 0);
 		}
 		else {
 			// 香がp[1]に属する
@@ -936,7 +878,7 @@ inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
 			mocc |= mocc >> 2;
 			mocc |= mocc >> 4;
 			mocc >>= 1;
-			return Bitboard(0 , ~mocc & se);
+			return Bitboard(0, ~mocc & se);
 		}
 	}
 #endif
@@ -989,7 +931,7 @@ inline Bitboard rookFileEffect(Square sq, const Bitboard& occupied)
 		mocc |= mocc >> 4;
 		mocc >>= 1;
 
-		return Bitboard(0,(em ^ t) & mask | (~mocc & se));
+		return Bitboard(0, (em ^ t) & mask | (~mocc & se));
 	}
 }
 
@@ -1019,6 +961,46 @@ inline Bitboard dragonEffect(Square sq, const Bitboard& occupied)
 	return rookEffect(sq, occupied) | kingEffect(sq);
 }
 
+// === 大駒の部分利き(SEEなどで用いる) ===
+
+// sqの升から各方向への利き
+// 右上、右、右下、上方向は、byte_reverse()してあるので、普通の利きではないから注意。
+extern Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB][SQ_NB_PLUS1];
+
+// 方向利き
+template <Effect8::Direct D>
+Bitboard rayEffect(Square sq, const Bitboard& occupied)
+{
+	const Bitboard mask = QUGIY_STEP_EFFECT[D][sq];
+
+	// 右上、右、右下、上方向(Squareとしてみた時に、値が減る方向)
+	constexpr bool reverse =
+			D == Effect8::DIRECT_RU
+		||  D == Effect8::DIRECT_R
+		||  D == Effect8::DIRECT_RD
+		||  D == Effect8::DIRECT_U;
+
+	Bitboard bb = occupied;
+
+	if (reverse)
+		bb = bb.byte_reverse();
+
+	// 利きに関係する升のoccupiedだけを抽出
+	bb &= mask;
+	// 1減算することにより、利きが通る升までが変化する。
+	Bitboard bb_minus_one = bb.decrement();
+	// 変化したbitを抽出してmaskすれば出来上がり。
+	bb = (bb ^ bb_minus_one) & mask;
+
+	if (reverse)
+		bb = bb.byte_reverse();
+
+	return bb;
+}
+
+// sqの升から指定した方向dへの利き。盤上の駒も考慮する。
+extern Bitboard directEffect(Square sq, Effect8::Direct d, const Bitboard& occupied);
+
 // --------------------
 //   汎用性のある利き
 // --------------------
@@ -1026,15 +1008,6 @@ inline Bitboard dragonEffect(Square sq, const Bitboard& occupied)
 // 盤上sqに駒pc(先後の区別あり)を置いたときの利き。
 // pc == QUEENだと馬+龍の利きが返る。
 extern Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ);
-
-// --------------------
-//   Bitboard tools
-// --------------------
-
-// 2bit以上あるかどうかを判定する。縦横斜め方向に並んだ駒が2枚以上であるかを判定する。この関係にないと駄目。
-// この関係にある場合、Bitboard::merge()によって被覆しないことがBitboardのレイアウトから保証されている。
-inline bool more_than_one(const Bitboard& bb) { ASSERT_LV2(!bb.cross_over()); return POPCNT64(bb.merge()) > 1; }
-
 
 
 #endif // #ifndef _BITBOARD_H_
