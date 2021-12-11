@@ -250,10 +250,11 @@ enum SquareWithWall: int32_t {
 // 型変換。下位8bit == Square
 constexpr Square sqww_to_sq(SquareWithWall sqww) { return Square(sqww & 0xff); }
 
-extern SquareWithWall sqww_table[SQ_NB_PLUS1];
+// to_sqww()で使うテーブル。直接アクセスしないようにnamespaceに入れてある。
+namespace BB_Table { extern SquareWithWall sqww_table[SQ_NB_PLUS1]; }
 
 // 型変換。Square型から。
-static SquareWithWall to_sqww(Square sq) { return sqww_table[sq]; }
+static SquareWithWall to_sqww(Square sq) { return BB_Table::sqww_table[sq]; }
 
 // 盤内か。壁(盤外)だとfalseになる。
 constexpr bool is_ok(SquareWithWall sqww) { return (sqww & SQWW_BORROW_MASK) == 0; }

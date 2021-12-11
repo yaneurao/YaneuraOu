@@ -9,6 +9,7 @@
 
 //#include <iostream>
 //using std::cout;
+using namespace BB_Table;
 
 namespace {
 
@@ -233,7 +234,7 @@ namespace {
 						bb = kingEffect(sq);
 						bb = pawnBbEffect(c, bb);
 						// →　このシフトでp[0]の63bit目に来るとまずいので..
-						bb &= ALL_BB; // ALL_BBでand取っておく。
+						bb &= Bitboard(1); // Bitboard(1)でand取っておく。
 						break;
 
 					case LANCE:
@@ -343,8 +344,8 @@ namespace {
 	}
 
 	// 桂馬が次に成れる移動元の表現のために必要となるので用意。
-	static Bitboard RANK3_5BB = RANK3_BB | RANK4_BB | RANK5_BB;
-	static Bitboard RANK5_7BB = RANK5_BB | RANK6_BB | RANK7_BB;
+	const Bitboard RANK3_5BB = RANK3_BB | RANK4_BB | RANK5_BB;
+	const Bitboard RANK5_7BB = RANK5_BB | RANK6_BB | RANK7_BB;
 
 	//
 	//　以下、本当ならPositionに用意すべきヘルパ関数
@@ -1736,7 +1737,7 @@ namespace Mate {
 				case BISHOP:
 
 					bb = bishopEffect(sq_king, pos.pieces()) |
-						(kingEffect(sq_king) & (canPromote(Us, from) ? ALL_BB : enemyBB));
+						(kingEffect(sq_king) & (canPromote(Us, from) ? Bitboard(1) : enemyBB));
 					// 敵陣8近傍、王からの角の利き、fromが敵陣であれば、敵陣にかぎらず玉8近傍も。
 					// ここが角が移動してくれば王手になる升
 					// これと角の利きとの交差をとって、そこを移動の候補とする。
@@ -1756,7 +1757,7 @@ namespace Mate {
 				case ROOK:
 					// 角のときと同様
 					bb = rookEffect(sq_king, pos.pieces()) |
-						(kingEffect(sq_king) & (canPromote(Us, from) ? ALL_BB : enemyBB));
+						(kingEffect(sq_king) & (canPromote(Us, from) ? Bitboard(1) : enemyBB));
 					bb &= rookEffect(from, pos.pieces());
 
 					// いやー。龍がpinされているということは背後にいるのはたぶん角であって、

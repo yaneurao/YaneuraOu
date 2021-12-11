@@ -689,7 +689,7 @@ bool Position::legal_drop(const Square to) const
 	Bitboard pinned = blockers_for_king(~us);
 
 	// pinされていない駒が1つでもあるなら、相手はその駒で取って何事もない。
-	if (b & (~pinned | FILE_BB[file_of(to)]))
+	if (b & (~pinned | file_bb(file_of(to))))
 		return true;
 
 	// 攻撃駒はすべてpinされていたということであり、
@@ -764,7 +764,7 @@ bool Position::legal_drop(const Square to) const
 // 二歩でなく、かつ打ち歩詰めでないならtrueを返す。
 bool Position::legal_pawn_drop(const Color us, const Square to) const
 {
-	return !((pieces(us, PAWN) & FILE_BB[file_of(to)])                             // 二歩
+	return !((pieces(us, PAWN) & file_bb(file_of(to)))                               // 二歩
 		|| ((pawnEffect(us, to) == Bitboard(king_square(~us)) && !legal_drop(to)))); // 打ち歩詰め
 }
 

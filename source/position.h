@@ -331,7 +331,7 @@ public:
 	Bitboard pieces() const { ASSERT_LV3(is_ok(C)); return byColorBB[C]; }
 
 	// 駒がない升が1になっているBitboardが返る
-	Bitboard empties() const { return pieces() ^ ALL_BB; }
+	Bitboard empties() const { return pieces() ^ Bitboard(1); }
 
 	// 駒に対応するBitboardを得る。
 	// ・引数でcの指定がないものは先後両方の駒が返る。

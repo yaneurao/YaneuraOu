@@ -53,7 +53,7 @@ namespace Mate
 
 #if ! defined(LONG_EFFECT_LIBRARY)
 				// toに利きがあるかどうか。mが移動の指し手の場合、mの元の利きを取り除く必要がある。
-				&& (is_drop(m) ? pos.effected_to(us, to) : (pos.attackers_to(us, to, pos.pieces() ^ from_sq(m)) ^ from_sq(m)))
+				&& (is_drop(m) ? pos.effected_to(us, to) : (bool)(pos.attackers_to(us, to, pos.pieces() ^ from_sq(m)) ^ from_sq(m)))
 
 				// 敵玉の利きは必ずtoにあるのでそれを除いた利きがあるかどうか。
 				&& (pos.attackers_to(them, to, pos.pieces()) ^ pos.king_square(them))

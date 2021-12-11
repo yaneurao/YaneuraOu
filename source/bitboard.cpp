@@ -10,103 +10,109 @@ using namespace std;
 
 // ----- Bitboard const
 
-// 全升が1であるBitboard
-// p[0]の63bit目は0
-Bitboard ALL_BB = Bitboard(UINT64_C(0x7FFFFFFFFFFFFFFF), UINT64_C(0x3FFFF));
-
-Bitboard FILE1_BB = Bitboard(UINT64_C(0x1ff) << (9 * 0), 0);
-Bitboard FILE2_BB = Bitboard(UINT64_C(0x1ff) << (9 * 1), 0);
-Bitboard FILE3_BB = Bitboard(UINT64_C(0x1ff) << (9 * 2), 0);
-Bitboard FILE4_BB = Bitboard(UINT64_C(0x1ff) << (9 * 3), 0);
-Bitboard FILE5_BB = Bitboard(UINT64_C(0x1ff) << (9 * 4), 0);
-Bitboard FILE6_BB = Bitboard(UINT64_C(0x1ff) << (9 * 5), 0);
-Bitboard FILE7_BB = Bitboard(UINT64_C(0x1ff) << (9 * 6), 0);
-Bitboard FILE8_BB = Bitboard(0, 0x1ff << (9 * 0));
-Bitboard FILE9_BB = Bitboard(0, 0x1ff << (9 * 1));
-
-Bitboard RANK1_BB = Bitboard(UINT64_C(0x40201008040201) << 0, 0x201 << 0);
-Bitboard RANK2_BB = Bitboard(UINT64_C(0x40201008040201) << 1, 0x201 << 1);
-Bitboard RANK3_BB = Bitboard(UINT64_C(0x40201008040201) << 2, 0x201 << 2);
-Bitboard RANK4_BB = Bitboard(UINT64_C(0x40201008040201) << 3, 0x201 << 3);
-Bitboard RANK5_BB = Bitboard(UINT64_C(0x40201008040201) << 4, 0x201 << 4);
-Bitboard RANK6_BB = Bitboard(UINT64_C(0x40201008040201) << 5, 0x201 << 5);
-Bitboard RANK7_BB = Bitboard(UINT64_C(0x40201008040201) << 6, 0x201 << 6);
-Bitboard RANK8_BB = Bitboard(UINT64_C(0x40201008040201) << 7, 0x201 << 7);
-Bitboard RANK9_BB = Bitboard(UINT64_C(0x40201008040201) << 8, 0x201 << 8);
-
-Bitboard FILE_BB[FILE_NB] = { FILE1_BB,FILE2_BB,FILE3_BB,FILE4_BB,FILE5_BB,FILE6_BB,FILE7_BB,FILE8_BB,FILE9_BB };
-Bitboard RANK_BB[RANK_NB] = { RANK1_BB,RANK2_BB,RANK3_BB,RANK4_BB,RANK5_BB,RANK6_BB,RANK7_BB,RANK8_BB,RANK9_BB };
-
-Bitboard ForwardRanksBB[COLOR_NB][RANK_NB] =
+// 外部から直接アクセスしないようにnamespaceに入れておく。
+namespace BB_Table
 {
+	const Bitboard FILE1_BB = Bitboard(UINT64_C(0x1ff) << (9 * 0), 0);
+	const Bitboard FILE2_BB = Bitboard(UINT64_C(0x1ff) << (9 * 1), 0);
+	const Bitboard FILE3_BB = Bitboard(UINT64_C(0x1ff) << (9 * 2), 0);
+	const Bitboard FILE4_BB = Bitboard(UINT64_C(0x1ff) << (9 * 3), 0);
+	const Bitboard FILE5_BB = Bitboard(UINT64_C(0x1ff) << (9 * 4), 0);
+	const Bitboard FILE6_BB = Bitboard(UINT64_C(0x1ff) << (9 * 5), 0);
+	const Bitboard FILE7_BB = Bitboard(UINT64_C(0x1ff) << (9 * 6), 0);
+	const Bitboard FILE8_BB = Bitboard(0, 0x1ff << (9 * 0));
+	const Bitboard FILE9_BB = Bitboard(0, 0x1ff << (9 * 1));
+
+	const Bitboard RANK1_BB = Bitboard(UINT64_C(0x40201008040201) << 0, 0x201 << 0);
+	const Bitboard RANK2_BB = Bitboard(UINT64_C(0x40201008040201) << 1, 0x201 << 1);
+	const Bitboard RANK3_BB = Bitboard(UINT64_C(0x40201008040201) << 2, 0x201 << 2);
+	const Bitboard RANK4_BB = Bitboard(UINT64_C(0x40201008040201) << 3, 0x201 << 3);
+	const Bitboard RANK5_BB = Bitboard(UINT64_C(0x40201008040201) << 4, 0x201 << 4);
+	const Bitboard RANK6_BB = Bitboard(UINT64_C(0x40201008040201) << 5, 0x201 << 5);
+	const Bitboard RANK7_BB = Bitboard(UINT64_C(0x40201008040201) << 6, 0x201 << 6);
+	const Bitboard RANK8_BB = Bitboard(UINT64_C(0x40201008040201) << 7, 0x201 << 7);
+	const Bitboard RANK9_BB = Bitboard(UINT64_C(0x40201008040201) << 8, 0x201 << 8);
+
+	const Bitboard FILE_BB[FILE_NB] = { FILE1_BB,FILE2_BB,FILE3_BB,FILE4_BB,FILE5_BB,FILE6_BB,FILE7_BB,FILE8_BB,FILE9_BB };
+	const Bitboard RANK_BB[RANK_NB] = { RANK1_BB,RANK2_BB,RANK3_BB,RANK4_BB,RANK5_BB,RANK6_BB,RANK7_BB,RANK8_BB,RANK9_BB };
+
+
+	// sqの升が1であるbitboard
+	Bitboard SquareBB[SQ_NB_PLUS1];
+
+	const Bitboard ForwardRanksBB[COLOR_NB][RANK_NB] =
 	{
-		Bitboard(ZERO),
-		RANK1_BB,
-		RANK1_BB | RANK2_BB,
-		RANK1_BB | RANK2_BB | RANK3_BB,
-		RANK1_BB | RANK2_BB | RANK3_BB | RANK4_BB,
-		~(RANK9_BB | RANK8_BB | RANK7_BB | RANK6_BB),
-		~(RANK9_BB | RANK8_BB | RANK7_BB),
-		~(RANK9_BB | RANK8_BB),
-		~RANK9_BB
-	},{
-		~RANK1_BB,
-		~(RANK1_BB | RANK2_BB),
-		~(RANK1_BB | RANK2_BB | RANK3_BB),
-		~(RANK1_BB | RANK2_BB | RANK3_BB | RANK4_BB),
-		RANK9_BB | RANK8_BB | RANK7_BB | RANK6_BB,
-		RANK9_BB | RANK8_BB | RANK7_BB,
-		RANK9_BB | RANK8_BB,
-		RANK9_BB,
-		Bitboard(ZERO)
-	}
-};
+		{
+			Bitboard(0),
+			RANK1_BB,
+			RANK1_BB | RANK2_BB,
+			RANK1_BB | RANK2_BB | RANK3_BB,
+			RANK1_BB | RANK2_BB | RANK3_BB | RANK4_BB,
+			~(RANK9_BB | RANK8_BB | RANK7_BB | RANK6_BB),
+			~(RANK9_BB | RANK8_BB | RANK7_BB),
+			~(RANK9_BB | RANK8_BB),
+			~RANK9_BB
+		},{
+			~RANK1_BB,
+			~(RANK1_BB | RANK2_BB),
+			~(RANK1_BB | RANK2_BB | RANK3_BB),
+			~(RANK1_BB | RANK2_BB | RANK3_BB | RANK4_BB),
+			RANK9_BB | RANK8_BB | RANK7_BB | RANK6_BB,
+			RANK9_BB | RANK8_BB | RANK7_BB,
+			RANK9_BB | RANK8_BB,
+			RANK9_BB,
+			Bitboard(0)
+		}
+	};
 
-// 敵陣を表現するBitboard。
-Bitboard EnemyField[COLOR_NB] = {
-	RANK1_BB | RANK2_BB | RANK3_BB ,
-	RANK7_BB | RANK8_BB | RANK9_BB
-};
+	// 敵陣を表現するBitboard。
+	const Bitboard EnemyField[COLOR_NB] = {
+		RANK1_BB | RANK2_BB | RANK3_BB ,
+		RANK7_BB | RANK8_BB | RANK9_BB
+	};
 
-// 玉、金、銀、桂、歩の利き
-Bitboard KingEffectBB[SQ_NB_PLUS1];
-Bitboard GoldEffectBB[SQ_NB_PLUS1][COLOR_NB];
-Bitboard SilverEffectBB[SQ_NB_PLUS1][COLOR_NB];
-Bitboard KnightEffectBB[SQ_NB_PLUS1][COLOR_NB];
-Bitboard PawnEffectBB[SQ_NB_PLUS1][COLOR_NB];
+	// 玉、金、銀、桂、歩の利き
+	Bitboard KingEffectBB[SQ_NB_PLUS1];
+	Bitboard GoldEffectBB[SQ_NB_PLUS1][COLOR_NB];
+	Bitboard SilverEffectBB[SQ_NB_PLUS1][COLOR_NB];
+	Bitboard KnightEffectBB[SQ_NB_PLUS1][COLOR_NB];
+	Bitboard PawnEffectBB[SQ_NB_PLUS1][COLOR_NB];
 
-// 盤上の駒をないものとして扱う、遠方駒の利き。香、角、飛
-Bitboard LanceStepEffectBB[SQ_NB_PLUS1][COLOR_NB];
-Bitboard BishopStepEffectBB[SQ_NB_PLUS1];
-Bitboard RookStepEffectBB[SQ_NB_PLUS1];
+	// 盤上の駒をないものとして扱う、遠方駒の利き。香、角、飛
+	Bitboard LanceStepEffectBB[SQ_NB_PLUS1][COLOR_NB];
+	Bitboard BishopStepEffectBB[SQ_NB_PLUS1];
+	Bitboard RookStepEffectBB[SQ_NB_PLUS1];
 
-// sqの升が1であるbitboard
-Bitboard SquareBB[SQ_NB_PLUS1];
+	// LineBBは、王手の指し手生成からしか使っていないが、move_pickerからQUIET_CHECKS呼び出しているので…。
+	// そして、配列シュリンクした。
+	Bitboard LineBB[SQ_NB][4];
 
-// LineBBは、王手の指し手生成からしか使っていないが、move_pickerからQUIET_CHECKS呼び出しているので…。
-// そして、配列シュリンクした。
-Bitboard LineBB[SQ_NB][4];
+	Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING - 1][COLOR_NB];
 
-Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING-1][COLOR_NB];
-//Bitboard CheckCandidateKingBB[SQ_NB_PLUS1];
+#if defined(LONG_EFFECT_LIBRARY) // 詰みルーチンでは使わなくなったが、LONG_EFFECT_LIBRARYのなかで使っている。
+	Bitboard CheckCandidateKingBB[SQ_NB_PLUS1];
+#endif
 
-Bitboard BetweenBB[785];
-u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
+	Bitboard BetweenBB[785];
+	u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
 
-// SquareからSquareWithWallへの変換テーブル
-SquareWithWall sqww_table[SQ_NB_PLUS1];
+	// SquareからSquareWithWallへの変換テーブル
+	SquareWithWall sqww_table[SQ_NB_PLUS1];
 
-// ----------------------------------------------------------------------------------------------
-// 飛車・角の利きのためのテーブル
-// ----------------------------------------------------------------------------------------------
+	// ----------------------------------------------------------------------------------------------
+	// 飛車・角の利きのためのテーブル
+	// ----------------------------------------------------------------------------------------------
 
-Bitboard QUGIY_ROOK_MASK[SQ_NB_PLUS1][2];
-Bitboard256 QUGIY_BISHOP_MASK[SQ_NB_PLUS1][2];
+	Bitboard QUGIY_ROOK_MASK[SQ_NB_PLUS1][2];
+	Bitboard256 QUGIY_BISHOP_MASK[SQ_NB_PLUS1][2];
 
-// sqの升から各方向への利き
-// 右上、右、右下、上方向は、byte_reverse()してあるので、普通の利きではないから注意。
-// 6方向しか使っていないの、ちょっともったいないので詰める。
-Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB - 2][SQ_NB_PLUS1];
+	// sqの升から各方向への利き
+	// 右上、右、右下、上方向は、byte_reverse()してあるので、普通の利きではないから注意。
+	// 6方向しか使っていないの、ちょっともったいないので詰める。
+	Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB - 2][SQ_NB_PLUS1];
+}
+
+using namespace BB_Table;
 
 // ----------------------------------------------------------------------------------------------
 
@@ -277,7 +283,7 @@ void Bitboards::init()
 			// 歩
 
 			// 備考) 歩の利きは駒が敷き詰められている時の香の利きとして定義できる。
-			//  PawnEffectBB[sq][c] = lanceEffect(c, sq, ALL_BB);
+			//  PawnEffectBB[sq][c] = lanceEffect(c, sq, Bitboard(1));
 			// → QugiyのアルゴリズムでlanceEffectの計算にpawnEffectを用いるようになったのでこれができなくなった。
 
 			// 歩の利きは何段目であるか。
@@ -296,15 +302,15 @@ void Bitboards::init()
 	{
 		// 玉
 		// 玉の利きは駒が敷き詰められている時の角と飛車の利きの重ね合わせとして定義できる。
-		KingEffectBB[sq] = bishopEffect(sq, ALL_BB) | rookEffect(sq, ALL_BB);
+		KingEffectBB[sq] = bishopEffect(sq, Bitboard(1)) | rookEffect(sq, Bitboard(1));
 
 		// 角
 		// 角のstep effectは、盤上に駒がない時の角の利き。
-		BishopStepEffectBB[sq] = bishopEffect(sq, Bitboard(ZERO));
+		BishopStepEffectBB[sq] = bishopEffect(sq, Bitboard(0));
 
 		// 飛
 		// 飛車のstep effectは、盤上に駒がない時の飛車の利き。
-		RookStepEffectBB[sq]   = rookEffect(sq, Bitboard(ZERO));
+		RookStepEffectBB[sq]   = rookEffect(sq, Bitboard(0));
 	}
 
 	// 先後の区別のあるstep effect (桂、銀、金)
@@ -314,28 +320,28 @@ void Bitboards::init()
 			// 桂
 			// 桂の利きは、歩の利きの地点に長さ1の角の利きを作って、前方のみ残す。
 			Bitboard tmp(ZERO);
-			Bitboard pawn = lanceEffect(c, sq, ALL_BB);
+			Bitboard pawn = lanceEffect(c, sq, Bitboard(1));
 
 			if (pawn)
 			{
 				Square sq2 = pawn.pop();
-				Bitboard pawn2 = lanceEffect(c, sq2, ALL_BB); // さらに1つ前
+				Bitboard pawn2 = lanceEffect(c, sq2, Bitboard(1)); // さらに1つ前
 				if (pawn2)
-					tmp = bishopEffect(sq2, ALL_BB) & RANK_BB[rank_of(pawn2.pop())];
+					tmp = bishopEffect(sq2, Bitboard(1)) & RANK_BB[rank_of(pawn2.pop())];
 			}
 			KnightEffectBB[sq][c] = tmp;
 
 			// 銀
 			// 銀の利きは長さ1の角の利きと長さ1の香の利きの合成として定義できる。
-			SilverEffectBB[sq][c] = lanceEffect(c, sq, ALL_BB) | bishopEffect(sq, ALL_BB);
+			SilverEffectBB[sq][c] = lanceEffect(c, sq, Bitboard(1)) | bishopEffect(sq, Bitboard(1));
 
 			// 金
 			// 金の利きは長さ1の角と飛車の利き。ただし、角のほうは相手側の歩の行き先の段でmaskしてしまう。
-			Bitboard e_pawn = lanceEffect(~c, sq, ALL_BB);
+			Bitboard e_pawn = lanceEffect(~c, sq, Bitboard(1));
 			Bitboard mask(ZERO);
 			if (e_pawn)
 				mask = RANK_BB[rank_of(e_pawn.pop())];
-			GoldEffectBB[sq][c]= (bishopEffect(sq, ALL_BB) & ~mask) | rookEffect(sq, ALL_BB);
+			GoldEffectBB[sq][c]= (bishopEffect(sq, Bitboard(1)) & ~mask) | rookEffect(sq, Bitboard(1));
 
 			// --- 以下のbitboard、あまり頻繁に用いないので他のbitboardを合成して代用する。
 
@@ -343,10 +349,10 @@ void Bitboards::init()
 			// StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_QUEEN] = bishopEffect(sq, Bitboard(ZERO)) | rookEffect(sq, Bitboard(ZERO));
 
 			// 長さ1の十字
-			// StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_CROSS00] = rookEffect(sq, ALL_BB);
+			// StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_CROSS00] = rookEffect(sq, Bitboard(1));
 
 			// 長さ1の斜め
-			// StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_CROSS45] = bishopEffect(sq, ALL_BB);
+			// StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_CROSS45] = bishopEffect(sq, Bitboard(1));
 		}
 
 	// 7) BetweenBB , LineBBの初期化
@@ -566,8 +572,8 @@ Bitboard operator&(const Bitboard& b, Square s) { return b & SquareBB[s]; }
 Bitboard operator^(const Bitboard& b, Square s) { return b ^ SquareBB[s]; }
 
 // 単項演算子
-// →　NOTで書くと、使っていないbit(p[0]のbit63)がおかしくなるのでALL_BBでxorしないといけない。
-Bitboard operator ~ (const Bitboard& a) { return a ^ ALL_BB; }
+// →　NOTで書くと、使っていないbit(p[0]のbit63)がおかしくなるのでBitboard(1)でxorしないといけない。
+Bitboard operator ~ (const Bitboard& a) { return a ^ Bitboard(1); }
 
 // range-forで回せるようにするためのhack(少し遅いので速度が要求されるところでは使わないこと)
 const Bitboard begin(const Bitboard& b) { return b; }
@@ -806,7 +812,7 @@ Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ)
 	case B_QUEEN:  case W_QUEEN:  return horseEffect (sq, occ) | rookEffect(sq, occ); // 馬+飛でいいや。(馬+龍は王の利きを2回合成して損)
 	case NO_PIECE: case PIECE_WHITE: return Bitboard(ZERO); // これも入れておかないと初期化が面倒になる。
 
-	default: UNREACHABLE; return ALL_BB;
+	default: UNREACHABLE; return Bitboard(1);
 	}
 }
 
@@ -962,7 +968,7 @@ void Bitboard::UnitTest(Test::UnitTester& tester)
 				Piece pc = make_piece(c, pt);
 				Bitboard bb0 = effects_from(pc, SQ_55, Bitboard(ZERO));
 				int p0 = bb0.pop_count();
-				Bitboard bb1 = effects_from(pc, SQ_55, ALL_BB);
+				Bitboard bb1 = effects_from(pc, SQ_55, Bitboard(1));
 				int p1 = bb1.pop_count();
 				bool ok0 = (p0 == p0_table[(int)pt]);
 				if (!ok0)
@@ -973,7 +979,7 @@ void Bitboard::UnitTest(Test::UnitTester& tester)
 				bool ok1 = (p1 == p1_table[(int)pt]);
 				if (!ok1)
 				{
-					cout << "Effect " << pc  << "(" << pretty(pc) << ")" << " on SQ_55 in ALL_BB , pop_count = " << p1 << endl;
+					cout << "Effect " << pc  << "(" << pretty(pc) << ")" << " on SQ_55 in Bitboard(1) , pop_count = " << p1 << endl;
 					cout << bb1 << endl;
 				}
 				all_ok &= ok0 & ok1;
@@ -988,7 +994,7 @@ void Bitboard::UnitTest(Test::UnitTester& tester)
 		Bitboard occ(SQ_77);
 		Bitboard zero(ZERO);
 		all_ok = rayEffect<Effect8::DIRECT_LD>(SQ_55, occ) == between_bb(SQ_55, SQ_88);
-		all_ok = rayEffect<Effect8::DIRECT_LD>(SQ_55, zero) == QUGIY_STEP_EFFECT[Effect8::DIRECT_LD][SQ_55];
+		all_ok = rayEffect<Effect8::DIRECT_LD>(SQ_55, zero) == QUGIY_STEP_EFFECT[Effect8::DIRECT_LD - 2][SQ_55];
 
 		Bitboard occ2(SQ_33);
 		all_ok = rayEffect<Effect8::DIRECT_RU>(SQ_55, occ2) == between_bb(SQ_55, SQ_22);
