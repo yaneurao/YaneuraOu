@@ -72,9 +72,7 @@ struct alignas(16) Bitboard
 	Bitboard(BitboardZero)
 	{
 #if defined (USE_SSE2)
-		// xorでclearするのがメモリ参照がなくて速いはず。
-		__m128i a;
-		m = _mm_xor_si128(a, a);
+		m = _mm_setzero_si128();
 #else
 		p[0] = p[1] = 0;
 #endif

@@ -351,28 +351,27 @@ namespace {
 	//　以下、本当ならPositionに用意すべきヘルパ関数
 	//
 
-
-	// 上の関数群とは異なる。usのSliderの利きを列挙する。
+	// 上の関数群とは異なる。UsのSliderの利きを列挙する。
 	// avoid升にいる駒の利きは除外される。
 	template <Color Us>
 	Bitboard AttacksSlider(const Position& pos, const Bitboard& slide)
 	{
-		Bitboard bb, sum = ZERO_BB;
+		Bitboard bb, sum(ZERO);
 		Square from;
 
-		bb = pos.pieces(Us, LANCE);
+		bb = pos.pieces<Us, LANCE>();
 		while (bb)
 		{
 			from = bb.pop();
 			sum |= lanceEffect<Us>( from, slide);
 		}
-		bb = pos.pieces(Us, BISHOP_HORSE);
+		bb = pos.pieces<Us, BISHOP_HORSE>();
 		while (bb)
 		{
 			from = bb.pop();
 			sum |= bishopEffect(from, slide);
 		}
-		bb = pos.pieces(Us, ROOK_DRAGON);
+		bb = pos.pieces<Us, ROOK_DRAGON>();
 		while (bb)
 		{
 			from = bb.pop();
@@ -386,23 +385,23 @@ namespace {
 	template <Color Us>
 	Bitboard AttacksSlider(const Position& pos, Square avoid_from, const Bitboard& occ)
 	{
-		Bitboard bb, sum = ZERO_BB;
+		Bitboard bb, sum(ZERO);
 		Bitboard avoid_bb = ~Bitboard(avoid_from);
 		Square from;
 
-		bb = pos.pieces(Us, LANCE) & avoid_bb;
+		bb = pos.pieces<Us, LANCE>() & avoid_bb;
 		while (bb)
 		{
 			from = bb.pop();
 			sum |= lanceEffect<Us>( from, occ);
 		}
-		bb = pos.pieces(Us, BISHOP_HORSE) & avoid_bb;
+		bb = pos.pieces<Us, BISHOP_HORSE>() & avoid_bb;
 		while (bb)
 		{
 			from = bb.pop();
 			sum |= bishopEffect(from, occ);
 		}
-		bb = pos.pieces(Us, ROOK_DRAGON) & avoid_bb;
+		bb = pos.pieces<Us, ROOK_DRAGON>() & avoid_bb;
 		while (bb)
 		{
 			from = bb.pop();
@@ -460,7 +459,7 @@ namespace {
 		Square sq_king = pos.king_square<OurKing>();
 		Square from;
 		Bitboard bb;
-		Bitboard sum = ZERO_BB;
+		Bitboard sum(ZERO);
 
 		bb = pos.pieces<Them,LANCE>() & check_around_bb<Them>(LANCE, sq_king);
 		while (bb)
@@ -1123,8 +1122,8 @@ namespace Mate {
 		}
 
 		// 離し角・飛車等で詰むかどうか。
-		// これ、レアケースなのでportingしてくるの面倒だし、判定できなくていいや。
-	#if 1
+		// →　離し角・飛車での詰み、そんなに出てこないので調べるコストに見合っていないようだ。
+#if 0
 
 		// 離し角・離し飛車、移動飛車・龍での合い効かずで詰むかも知れん。
 		// Bonanzaにはないが、これを入れておかないと普通の1手詰め判定と判定される集合が違って気持ち悪い。
@@ -1143,7 +1142,7 @@ namespace Mate {
 		if (hand_count(themHand, PAWN) == (int)themHand)
 		{
 			// 玉の8近傍の移動可能箇所の列挙
-			Bitboard bb_king_movable = ~pos.pieces<Them>() & kingEffect(sq_king);
+			Bitboard bb_king_movable = pos.pieces<Them>().andnot(kingEffect(sq_king));
 
 			// 玉周辺の利きを列挙。(これ、せっかく求めたならできればあとで使いまわしたいが…)
 			// これ王手のかかっていない局面で呼び出すことを想定しているので貫通でなくてもいいか。
@@ -1151,7 +1150,7 @@ namespace Mate {
 			Bitboard aaks  = AttacksAroundKingSlider   <Them>(pos);
 			Bitboard aak   = aakns | aaks;
 
-			Bitboard escape_bb = bb_king_movable & ~aak; // 利きがない場所が退路の候補
+			Bitboard escape_bb = aak.andnot(bb_king_movable); // 利きがない場所が退路の候補
 
 														 // 利きが正しく生成できているかのテスト
 														 //    sync_cout << aak << sync_endl;
@@ -1163,7 +1162,7 @@ namespace Mate {
 
 							// 退路がなかろうが、あろうが、玉8近傍の駒のない升に対して順番に探そう。
 							// 退路が3以下である以上、そんなに空いてはないはずだ。
-			Bitboard bb2 = ~pos.pieces() & kingEffect(sq_king);
+			Bitboard bb2 = pos.pieces().andnot(kingEffect(sq_king));
 
 			//    bool esc_align = (esc_count == 1);
 			// 退路が1個、もしくは
@@ -1275,12 +1274,12 @@ namespace Mate {
 
 					if (dr & DIRECTIONS_DIAG) // pt == BISHOP
 					{
-						if (!(~bishopStepEffect(nextTo) & escape_bb))
+						if (!bishopStepEffect(nextTo).andnot(escape_bb))
 							return make_move_drop(pt, nextTo, Us);
 					}
 					else // if (pt == ROOK || pt==LANCE)
 					{
-						if (!(~rookStepEffect(nextTo) & escape_bb))
+						if (!rookStepEffect(nextTo).andnot(escape_bb))
 							return make_move_drop(pt, nextTo, Us);
 					}
 				}
@@ -1305,7 +1304,7 @@ namespace Mate {
 						if (is_dragon)
 							bb |= kingEffect(to) & pos.pieces<Us, DRAGON>();
 						if (is_lance)
-							bb |= lanceEffect<Them>( to, pos.pieces()) & pos.pieces<Us, LANCE>();
+							bb |= lanceEffect<Them>(to, pos.pieces()) & pos.pieces<Us, LANCE>();
 
 						while (bb)
 						{
@@ -1395,7 +1394,7 @@ namespace Mate {
 							// 馬の場合でも、one以外に玉の8近傍には利いていないので龍のときのような処理は不要。
 
 							//cout << kingEffect(sq_king) << pos.pieces(them) << aakns
-							//  << pos.AttacksAroundKingSlider(them, from, to) << pos.StepAttacksQueen(to);
+							//     << pos.AttacksAroundKingSlider(them, from, to) << pos.StepAttacksQueen(to);
 
 							Bitboard new_slide = (pos.pieces() ^ from) | to;
 

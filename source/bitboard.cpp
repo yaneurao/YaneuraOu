@@ -573,18 +573,27 @@ Bitboard Bitboard::decrement() const
 #if defined(USE_SSE2)
 
 	// p[0]--;
-	__m128i c = _mm_set_epi64x(0, 1);
+	__m128i c  = _mm_set_epi64x(0, 1);
 	__m128i t1 = _mm_sub_epi64(m, c);
 
 	// if (p[0] MSB == 1) p[1]++;
+#if defined(USE_SSE41)
+	__m128i t2 = _mm_cmpeq_epi64(m, _mm_setzero_si128());
+	//_mm_setzero_si128()は同一レジスタのXORとなる。
+	//同一レジスタのXORは依存性が切れる
+	//SandyBridge以降Skylake系までなら実行ユニットも使用しない
+	t2 = _mm_slli_si128(t2, 8);
+	t1 = _mm_add_epi64(t1, t2);
+#else // SSE2用のコード
 	__m128i t2 = _mm_srli_epi64(t1, 63); // MSBをbit0に持ってきて、byte shiftで上位64bit側に移動させて減算
 	t2 = _mm_slli_si128(t2, 8);
 	t1 = _mm_sub_epi64(t1, t2);
+#endif
 
 	Bitboard bb;
 	bb.m = t1;
 	return bb;
-#else
+#else // no SSE
 	return Bitboard(p[0] - 1, p[0] == 0 ? p[1] - 1 : p[1]);
 #endif
 }
