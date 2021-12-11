@@ -55,7 +55,7 @@ namespace Effect8
       for (auto d : Direct())
       {
         // SQ_22の地点でその周辺8近傍の状態を使ってテーブルを初期化する
-        auto effect = effects_from(pc, SQ_22 + DirectToDelta(d), ZERO_BB);
+        auto effect = effects_from(pc, SQ_22 + DirectToDelta(d), Bitboard(ZERO));
         // 利きがある場所が0、ない場所が1なのでnotしておく。
         auto effect8_not = ~around8(effect, SQ_22);
 
@@ -67,7 +67,7 @@ namespace Effect8
     for (auto pc : Piece())
     {
       // SQ_22に相手の駒を置いたときの利きの場所が、そこに置いてSQ_22に王手になる場所
-      auto effect = effects_from(Piece(pc ^ PIECE_WHITE), SQ_22,ZERO_BB);
+      auto effect = effects_from(Piece(pc ^ PIECE_WHITE), SQ_22, Bitboard(ZERO));
       auto effect8 = around8(effect, SQ_22);
       piece_check_around8_table[pc] = effect8;
     }
@@ -77,7 +77,7 @@ namespace Effect8
     for (int d1 = 0; d1 < DIRECT_NB_PLUS4; ++d1)
       for (uint16_t d2 = 0; d2 < 0x100; ++d2)
       {
-        Bitboard bb = ZERO_BB;
+        Bitboard bb(ZERO);
 
         // SQ_55の地点でやってみる。
 
@@ -319,10 +319,10 @@ namespace LongEffect
       // 短いを持っていないもの
     case B_LANCE: case B_BISHOP: case B_ROOK:
     case W_LANCE: case W_BISHOP: case W_ROOK:
-      return ZERO_BB;
+      return Bitboard(ZERO);
 
     default:
-      UNREACHABLE; return ZERO_BB;
+      UNREACHABLE; return Bitboard(ZERO);
     }
   }
 

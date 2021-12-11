@@ -575,7 +575,7 @@ Bitboard Position::slider_blockers(Color c, Square s , Bitboard& pinners) const 
 
 // sに利きのあるc側の駒を列挙する。先後両方。
 // (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
-// sq == SQ_NBでの呼び出しは合法。ZERO_BBが返る。
+// sq == SQ_NBでの呼び出しは合法。Bitboard(ZERO)が返る。
 Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 {
 	ASSERT_LV3(sq <= SQ_NB);
@@ -1734,10 +1734,10 @@ namespace {
 		case DIRECT_LU: attackers |= rayEffect<DIRECT_LU>(to, occupied) & pos.pieces<BISHOP_HORSE>(); break;
 
 		// 上方向に移動した時の背後の駒によってtoの地点に利くのは、後手の香 + 先後の飛車
-		case DIRECT_U : attackers |= lanceEffect<BLACK>  (to, occupied) & (pos.pieces<ROOK_DRAGON>() | pos.pieces<WHITE, LANCE>()); break;
+		case DIRECT_U : attackers |= rayEffect<DIRECT_U >(to, occupied) & (pos.pieces<ROOK_DRAGON>() | pos.pieces<WHITE, LANCE>()); break;
 
 		// 下方向に移動した時の背後の駒によってtoの地点に利くのは、先手の香 + 先後の飛車
-		case DIRECT_D : attackers |= lanceEffect<WHITE>  (to, occupied) & (pos.pieces<ROOK_DRAGON>() | pos.pieces<BLACK, LANCE>()); break;
+		case DIRECT_D : attackers |= rayEffect<DIRECT_D >(to, occupied) & (pos.pieces<ROOK_DRAGON>() | pos.pieces<BLACK, LANCE>()); break;
 
 		// 左右方向に移動した時の背後の駒によってtoの地点に利くのは、飛車・龍。
 		case DIRECT_L : attackers |= rayEffect<DIRECT_L> (to, occupied) & pos.pieces<ROOK_DRAGON>(); break;

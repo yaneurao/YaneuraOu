@@ -86,7 +86,7 @@ namespace {
 			for (auto sq : SQ)
 				for (auto c : COLOR)
 				{
-					Bitboard bb = ZERO_BB, tmp = ZERO_BB;
+					Bitboard bb(ZERO), tmp(ZERO);
 					Square to;
 
 					// 敵陣
@@ -222,9 +222,8 @@ namespace {
 			for (auto sq : SQ)
 				for (auto c : COLOR)
 				{
-					Bitboard bb = ZERO_BB, tmp = ZERO_BB;
+					Bitboard bb(ZERO), tmp(ZERO);
 					Square to;
-					bb = ZERO_BB;
 
 					switch (p)
 					{
@@ -566,7 +565,7 @@ namespace {
 		*/
 
 		// bbとtoと自駒のないところから移動先を探す
-		Bitboard bb = kingEffect(sq_king) & ~(bb_avoid | to | pos.pieces<Us>());
+		Bitboard bb = (bb_avoid | to | pos.pieces<Us>()).andnot(kingEffect(sq_king));
 
 		while (bb)
 		{
@@ -596,13 +595,13 @@ namespace {
 		// →　ああ、だめだ。fromの後ろにあった駒での開き王手が..
 
 		// bb_avoidとtoと自駒のないところから移動先を探す
-		Bitboard bb = kingEffect(sq_king) & ~(bb_avoid | to | pos.pieces<Us>());
+		Bitboard bb = (bb_avoid | to | pos.pieces<Us>()).andnot(kingEffect(sq_king));
 
 		while (bb)
 		{
 			Square escape = bb.pop();
 
-			if (!(pos.attackers_to<~Us>(escape, slide) & ~Bitboard(from)))
+			if (!(Bitboard(from).andnot(pos.attackers_to<~Us>(escape, slide) )))
 				// fromにある攻撃駒は移動済なのでこれは対象外。
 				return true;
 			// 何も破壊していないので即座に返って良い。
@@ -618,6 +617,8 @@ namespace {
 	template <Color Us>
 	bool can_king_escape_cangoto(const Position& pos, Square from, Square to, const Bitboard& bb_avoid, const Bitboard& slide_)
 	{
+		constexpr Color Them = ~Us;
+
 		// toには駒が置かれているのでこれにより利きの遮断は発生している。(attackers_to()で利きを見るときに重要)
 		Bitboard slide = slide_ | to;
 
@@ -628,7 +629,9 @@ namespace {
 		// →　ああ、だめだ。fromの後ろにあった駒での開き王手が..
 
 		// bb_avoid/*とto*/と自駒のないところから移動先を探す
-		Bitboard bb = kingEffect(sq_king) & ~((bb_avoid /*| to*/ | pos.pieces<Us>()) & ~Bitboard(to));
+
+		// Bitboard bb = kingEffect(sq_king) & ~((bb_avoid /*| to*/ | pos.pieces<Us>()) & ~Bitboard(to));
+		Bitboard bb = ((bb_avoid /*| to*/ | pos.pieces<Us>()).andnot(Bitboard(to).andnot(kingEffect(sq_king))));
 
 		// toには移動できるのだよ。pos.pieces(us)には玉側の駒がtoにあることがあって、これは取られるものとして
 		// 考える必要があるから、toを除外するコードが必要なのだよ。
@@ -637,7 +640,7 @@ namespace {
 		{
 			Square escape = bb.pop();
 
-			if (!(pos.attackers_to<~Us>(escape, slide) & ~Bitboard(from)))
+			if (!(Bitboard(from).andnot(pos.attackers_to<Them>(escape, slide))))
 				// fromにある攻撃駒は移動済なのでこれは対象外。
 				return true;
 			// 何も破壊していないので即座に返って良い。
@@ -653,7 +656,7 @@ namespace {
 		Square sq_king = pos.king_square(Us);
 
 		// 玉以外の駒でこれが取れるのか？(toの地点には敵の利きがある or 届かないので玉では取れないものとする)
-		Bitboard sum = pos.attackers_to<Us>(to, slide) & ~pos.pieces(KING);
+		Bitboard sum = pos.pieces<KING>().andnot(pos.attackers_to<Us>(to, slide));
 		while (sum)
 		{
 			Square from = sum.pop();
@@ -679,7 +682,7 @@ namespace {
 		Square sq_king = pos.king_square<Us>();
 
 		// 玉以外の駒でこれが取れるのか？(toの地点には敵の利きがあるので玉では取れないものとする)
-		Bitboard sum = pos.attackers_to<Us>(to, slide) & ~(pos.pieces(KING) | Bitboard(avoid));
+		Bitboard sum = (pos.pieces(KING) | Bitboard(avoid)).andnot(pos.attackers_to<Us>(to, slide));
 		while (sum)
 		{
 			Square from = sum.pop();
@@ -808,7 +811,7 @@ namespace Mate {
 			// 飛車を持っているならすでに調べた上の升は除外して良い。
 			// (そこに金をおいて詰むなら飛車をおいて詰んでいるはずだから)
 			if (hand_count(ourHand, ROOK))
-				bb &= ~pawnEffect<Us>(sq_king);
+				bb = pawnEffect<Us>(sq_king).andnot(bb);
 
 			while (bb)
 			{
@@ -835,7 +838,7 @@ namespace Mate {
 					goto SILVER_DROP_END;
 
 				// 前方向を除外するために金のnotを用いる。
-				bb = silverEffect<Them>(sq_king) & ~goldEffect<Them>(sq_king) & bb_drop;
+				bb = silverEffect<Them>(sq_king) & goldEffect<Them>(sq_king).andnot(bb_drop);
 			}
 			else {
 				bb = silverEffect<Them>(sq_king) &  bb_drop;
@@ -867,8 +870,8 @@ namespace Mate {
 				//      bb_attacks =knightEffect(Us, to);
 				// 桂馬はto以外は王が1手で移動できない場所なので求めるまでもない。
 
-				if (can_king_escape  <Them>(pos, to, ZERO_BB, pos.pieces())) { continue; }
-				if (can_piece_capture<Them>(pos, to, pinned , pos.pieces())) { continue; }
+				if (can_king_escape  <Them>(pos, to, Bitboard(ZERO), pos.pieces())) { continue; }
+				if (can_piece_capture<Them>(pos, to, pinned        , pos.pieces())) { continue; }
 				return make_move_drop(KNIGHT, to , Us);
 			}
 		}
@@ -1298,7 +1301,7 @@ namespace Mate {
 					if (is_rook || is_dragon || is_lance)
 					{
 						// 落ちてるっぽい。移動可能かどうか調べる。
-						bb = ZERO_BB;
+						bb = Bitboard(ZERO);
 						if (is_rook)
 							bb = rookEffect(to, pos.pieces()) & pos.pieces<Us, ROOK_DRAGON>();
 						if (is_dragon)
@@ -1365,7 +1368,7 @@ namespace Mate {
 					if (is_bishop || is_horse)
 					{
 						// 落ちてるっぽい。移動可能かどうか調べる。
-						bb = ZERO_BB;
+						bb = Bitboard(ZERO);
 						if (is_bishop)
 							bb = bishopEffect(to, pos.pieces()) & pos.pieces<Us, BISHOP_HORSE>();
 						if (is_horse)
@@ -1521,7 +1524,7 @@ namespace Mate {
 			{
 				to = bb_check.pop();
 				bb_attacks = knightEffect<Us>(to);
-				// 敵陣1,2段目からのStepAttackはZERO_BB相当なのでここへの不成りが生成されることはない
+				// 敵陣1,2段目からのStepAttackはBitboard(ZERO)相当なのでここへの不成りが生成されることはない
 				if (!(bb_attacks & sq_king)) { goto PRO_KNIGHT; }
 				// 桂馬の特性上、成りと不成の二通りの王手の両方が同時に可能になることはないので以下ではcontinueで良い。
 				//if (!(pos.attackers_to(Us, to, slide) ^ from)) { continue; }
@@ -1564,11 +1567,11 @@ namespace Mate {
 			if (canPromote(Us, to)) { goto SKIP_PAWN; }
 
 			Bitboard slide = pos.pieces() ^ from;
-			if (!(pos.attackers_to<Us>(to, slide) ^ from)) { goto SKIP_PAWN; }
-			if (pos.discovered(from, to, our_king, our_pinned)) { goto SKIP_PAWN; }
-			if (can_king_escape<Them>(pos, from, to, ZERO_BB, slide)) { goto SKIP_PAWN; }
+			if (!(pos.attackers_to<Us>(to, slide) ^ from))                   { goto SKIP_PAWN; }
+			if (pos.discovered(from, to, our_king, our_pinned))              { goto SKIP_PAWN; }
+			if (can_king_escape<Them>(pos, from, to, Bitboard(ZERO), slide)) { goto SKIP_PAWN; }
 			// 移動王手となるpinされている歩などはないので両王手は考慮しなくて良い。
-			if (can_piece_capture<Them>(pos, to, pinned, slide)) { goto SKIP_PAWN; }
+			if (can_piece_capture<Them>(pos, to, pinned, slide))             { goto SKIP_PAWN; }
 			return make_move(from, to , Us , PAWN);
 		}
 	SKIP_PAWN:;
@@ -1817,7 +1820,7 @@ namespace Mate {
 					case DRAGON: bb_attacks = rookStepEffect(to) | kingEffect(to); break;
 					default:
 						ASSERT_LV3(false);
-						bb_attacks = ZERO_BB;
+						bb_attacks = Bitboard(ZERO);
 					}
 
 					if (!can_king_escape_cangoto(pos, Them, from, to, bb_attacks, slide))

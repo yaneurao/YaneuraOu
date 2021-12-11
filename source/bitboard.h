@@ -475,7 +475,7 @@ inline const Bitboard enemy_field(Color Us) { return EnemyField[Us]; }
 extern Bitboard BetweenBB[785];
 extern u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
 
-// 2升に挟まれている升を表すBitboardを返す。sq1とsq2が縦横斜めの関係にないときはZERO_BBが返る。
+// 2升に挟まれている升を表すBitboardを返す。sq1とsq2が縦横斜めの関係にないときはBitboard(ZERO)が返る。
 inline const Bitboard between_bb(Square sq1, Square sq2) { return BetweenBB[BetweenIndex[sq1][sq2]]; }
 
 // 2升を通過する直線を返すためのテーブル
@@ -503,7 +503,9 @@ inline bool aligned(Square s1, Square s2, Square s3) {
 // sqの升にいる敵玉に王手となるc側の駒ptの候補を得るテーブル。第2添字は(pr-1)を渡して使う。
 // 直接アクセスせずに、check_candidate_bb()、around24_bb()を用いてアクセスすること。
 extern Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING-1][COLOR_NB];
-extern Bitboard CheckCandidateKingBB[SQ_NB_PLUS1];
+
+//extern Bitboard CheckCandidateKingBB[SQ_NB_PLUS1];
+// →　詰みルーチンで使わなくなった。
 
 // sqの升にいる敵玉に王手となるus側の駒ptの候補を得る
 // pr == ROOKは無条件全域なので代わりにHORSEで王手になる領域を返す。
@@ -514,12 +516,14 @@ inline const Bitboard check_candidate_bb(Color us, PieceType pr, Square sq)
 	return CheckCandidateBB[sq][pr - 1][us];
 }
 
+#if 0 // 詰みルーチンで使わなくなった。
 // ある升の24近傍のBitboardを返す。
 inline const Bitboard around24_bb(Square sq)
 {
 	ASSERT_LV3(sq <= SQ_NB);
 	return CheckCandidateKingBB[sq];
 }
+#endif
 
 // 歩が打てる筋が1になっているBitboardを返す。
 // pawns : いま歩を打とうとしている手番側の歩のBitboard
@@ -595,9 +599,8 @@ extern Bitboard RookStepEffectBB[SQ_NB_PLUS1];
 extern Bitboard ALL_BB;
 
 // 全升が0であるBitboard
-// →　Bitboard(ZERO)を用いた方が、メモリ参照がなくて速い。
-//     ZERO_BBはテーブル初期化以外では使わないように。
-extern Bitboard ZERO_BB;
+// →　Bitboard(ZERO)を用いた方が、メモリ参照がなくて速いのでこの定数は廃止。
+//extern Bitboard ZERO_BB;
 
 // =====================
 //   大駒・小駒の利き
@@ -959,24 +962,37 @@ inline Bitboard dragonEffect(Square sq, const Bitboard& occupied)
 	return rookEffect(sq, occupied) | kingEffect(sq);
 }
 
+// 角と飛車の利きはセットで用いることが多いので、
+// Queen(角+飛)の利きを(AVX512等で)求める関数を用意して、
+// rookStepEffectとbishopStepEffectで分解してしまう方が速いかも知れない。
+
 // === 大駒の部分利き(SEEなどで用いる) ===
 
 // sqの升から各方向への利き
 // 右上、右、右下、上方向は、byte_reverse()してあるので、普通の利きではないから注意。
-extern Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB][SQ_NB_PLUS1];
+// 6方向しか使っていないので詰めてある。
+extern Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB-2][SQ_NB_PLUS1];
 
 // 方向利き
 template <Effect8::Direct D>
 Bitboard rayEffect(Square sq, const Bitboard& occupied)
 {
-	const Bitboard mask = QUGIY_STEP_EFFECT[D][sq];
+	// DIRECT_Uはbyte_reverse()しても正しく求められないからlanceEffectを用いる。
+	// DIRECT_Dも、lanceEffectにこれ専用の高速なコードが書いてあるのでそれを用いる。
+	if (D == Effect8::DIRECT_U) return lanceEffect<BLACK>(sq, occupied);
+	if (D == Effect8::DIRECT_D) return lanceEffect<WHITE>(sq, occupied);
+
+	ASSERT_LV3(D < Effect8::DIRECT_NB);
+
+	// 6方向しか使っていないのでテーブルを詰めてある。
+	const int dd = D > Effect8::DIRECT_D ? D - 2 : D;
+	const Bitboard mask = QUGIY_STEP_EFFECT[dd][sq];
 
 	// 右上、右、右下、上方向(Squareとしてみた時に、値が減る方向)
 	constexpr bool reverse =
-			D == Effect8::DIRECT_RU
-		||  D == Effect8::DIRECT_R
-		||  D == Effect8::DIRECT_RD
-		||  D == Effect8::DIRECT_U;
+		   D == Effect8::DIRECT_RU
+		|| D == Effect8::DIRECT_R
+		|| D == Effect8::DIRECT_RD;
 
 	Bitboard bb = occupied;
 
