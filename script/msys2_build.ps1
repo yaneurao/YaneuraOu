@@ -179,7 +179,7 @@ function MakeExec($o) {
   msys2_shell.cmd -here -defterm -no-start $MinGW -lc "nice $($o.Make) -f $($o.Makefile) -j$($o.Jobs) $($o.Target) YANEURAOU_EDITION=$($o.Edition) COMPILER=$($o.Compiler) OS=$($o.Os) TARGET_CPU=$($o.Cpu) OBJDIR=$TempDirCyg TARGETDIR=$TempDirCyg $($o.Extra) 2>&1"|Tee-Object -Variable log;
   $log|Out-File -Encoding utf8 -Force (Join-Path $o.BuildDir "$($o.BuildName)-$($o.Target)-$($o.Compiler)-$($o.Cpu.ToLower()).log");
   Copy-Item (Join-Path $TempDir YaneuraOu-by-gcc.exe) (Join-Path $o.BuildDir "$($o.BuildName)-$($o.Target)-$($o.Compiler)-$($o.Cpu.ToLower()).exe") -Force;
-  msys2_shell.cmd -here -defterm -no-start $MinGW -lc "$($o.Make) -f $($o.Makefile) clean YANEURAOU_EDITION=$($o.Edition) OBJDIR=$TempDirCyg TARGETDIR=$TempDirCyg";
+  msys2_shell.cmd -here -defterm -no-start $MinGW -lc "$($o.Make) -f $($o.Makefile) $($o.Extra) clean YANEURAOU_EDITION=$($o.Edition) OBJDIR=$TempDirCyg TARGETDIR=$TempDirCyg";
   $TempDir|Where-Object{ Test-Path $_ }|Remove-Item -Recurse;
   Pop-Location;
 }

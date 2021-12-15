@@ -190,10 +190,10 @@ for COMPILER in ${COMPILERSARR[@]}; do
                   if [[ $ARCHCPU == $ARCHCPUSPTN ]]; then
                     echo "* cpu: ${CPU}"
                     TGSTR=${FILESTR[$EDITION]}-msys2-${CSTR}-${TARGET}
-                    ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
+                    ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} ${EXTRA}
                     nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET_CPU=${ARCHCPU} ${EXTRA} >& >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
                     cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
-                    ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
+                    ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} ${EXTRA}
                     set -f
                     break
                   fi
