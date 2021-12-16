@@ -195,9 +195,9 @@ for COMPILER in ${COMPILERSARR[@]}; do
                     set -f
                     echo "* archcpu: ${ARCHCPU}"
                     TGSTR=${FILESTR[$EDITION]}-${OS}-${CSTR}-${TARGET}-${ARCHCPU}
-                    ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
+                    ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} ${EXTRA}
                     nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} TARGET_CPU=${ARCHCPU} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET=${BUILDDIR}/${TGSTR} ${EXTRA} >& >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
-                    ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]}
+                    ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} ${EXTRA}
                     break
                   fi
                   set -f

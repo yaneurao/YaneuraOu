@@ -106,7 +106,7 @@ if(-not (Test-Path $Dir)){
 }
 
 "`n* Clean Build"|Out-Host;
-ndk-build.cmd clean YANEURAOU_EDITION=$_Edition;
+ndk-build.cmd clean YANEURAOU_EDITION=$_Edition $Extra;
 
 "`n* Build Binary"|Out-Host;
 $log = $null;
@@ -120,7 +120,7 @@ ForEach-Object{
 };
 
 "`n* Clean Build"|Out-Host;
-ndk-build.cmd clean YANEURAOU_EDITION=$_Edition;
+ndk-build.cmd clean YANEURAOU_EDITION=$_Edition $Extra;
 
 }
 
