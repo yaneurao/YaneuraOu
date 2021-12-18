@@ -3,6 +3,7 @@
 #include "tt.h"
 #include "thread.h"
 #include "mate/mate.h"
+#include "book/book.h"
 #include "testcmd/unit_test.h"
 
 #include <iostream>
@@ -630,7 +631,6 @@ inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 			| (rookEffect(pawn_sq, occ)    &  pieces(ROOK_DRAGON)     )
 			) & pieces(c);
 }
-
 
 // 指し手が、(敵玉に)王手になるかをテストする。
 
@@ -1955,6 +1955,61 @@ RepetitionState Position::is_repetition(int repPly /* = 16 */) const
 	return REPETITION_NONE;
 }
 
+// is_repetition()の、千日手が見つかった時に、原局面から何手遡ったかを返すバージョン。
+// found_plyにその値が返ってくる。
+RepetitionState Position::is_repetition(int repPly, int& found_ply) const
+{
+	// pliesFromNullが未初期化になっていないかのチェックのためのassert
+	ASSERT_LV3(st->pliesFromNull >= 0);
+
+	// 遡り可能な手数。
+	// 最大でもrepPly手までしか遡らないことにする。
+	int end = std::min(repPly, st->pliesFromNull);
+
+	found_ply = 0;
+
+	// 少なくとも4手かけないと千日手にはならないから、4手前から調べていく。
+	if (end < 4)
+		return REPETITION_NONE;
+
+	StateInfo* stp = st->previous->previous;
+
+	for (found_ply = 4; found_ply <= end ; found_ply += 2)
+	{
+		stp = stp->previous->previous;
+
+		// board_key : 盤上の駒のみのhash(手駒を除く)
+		// 盤上の駒が同じ状態であるかを判定する。
+		if (stp->board_key() == st->board_key())
+		{
+			// 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
+			if (stp->hand == st->hand)
+			{
+				// 自分が王手をしている連続王手の千日手なのか？
+				if (found_ply <= st->continuousCheck[sideToMove])
+					return REPETITION_LOSE;
+
+				// 相手が王手をしている連続王手の千日手なのか？
+				if (found_ply <= st->continuousCheck[~sideToMove])
+					return REPETITION_WIN;
+
+				return REPETITION_DRAW;
+			}
+			else {
+				// 優等局面か劣等局面であるか。(手番が相手番になっている場合はいま考えない)
+				if (hand_is_equal_or_superior(st->hand, stp->hand))
+					return REPETITION_SUPERIOR;
+				if (hand_is_equal_or_superior(stp->hand, st->hand))
+					return REPETITION_INFERIOR;
+			}
+		}
+	}
+
+	// 同じhash keyの局面が見つからなかったので…。
+	return REPETITION_NONE;
+}
+
+
 // ----------------------------------
 //      入玉判定
 // ----------------------------------
@@ -2313,6 +2368,22 @@ void Position::UnitTest(Test::UnitTester& tester)
 		m16 = make_move16(SQ_88, SQ_22);
 		m = pos.to_move(m16);
 		tester.test("make_move(SQ_88, SQ_22) is pseudo_legal == false", pos.pseudo_legal(m) == false);
+	}
+
+	// 千日手検出のテスト
+	{
+		auto section2 = tester.section("is_repetition");
+
+		std::vector<StateInfo> sis;
+		sis.reserve(MAX_PLY);
+
+		// 4手前の局面に戻っているパターン
+		BookTools::feed_position_string(pos, "startpos moves 5i5h 5a5b 5h5i 5b5a", sis);
+
+		int found_ply;
+		auto rep = pos.is_repetition(16, found_ply);
+
+		tester.test("REPETITION_DRAW", rep == REPETITION_DRAW && found_ply == 4);
 	}
 
 	// 入玉のテスト

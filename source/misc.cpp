@@ -1134,6 +1134,31 @@ namespace SystemIO
 		return Tools::Result::Ok();
 	}
 
+	// 通常のftell/fseekは2GBまでしか対応していないので特別なバージョンが必要である。
+	// 64bit環境でないと対応していない。まあいいや…。
+
+	size_t ftell64(FILE* f)
+	{
+#if defined(_MSC_VER)
+		return _ftelli64(f);
+#elif defined(__GNUC__)
+		return ftello64(f);
+#else
+		return ftell(f);
+#endif
+	}
+
+	int fseek64(FILE* f, size_t offset, int origin)
+	{
+#if defined(_MSC_VER)
+		return _fseeki64(f,offset,origin);
+#elif defined(__GNUC__)
+		return fseeko64(f,offset,origin);
+#else
+		return fseek(f, offset, origin);
+#endif
+	}
+
 	// --- TextFileReader
 
 	// C++のifstreamが遅すぎるので、高速化されたテキストファイル読み込み器
@@ -1330,11 +1355,11 @@ namespace SystemIO
 	{
 		ASSERT_LV3(fp != nullptr);
 
-		fseek(fp, 0, SEEK_END);
+		fseek64(fp, 0, SEEK_END);
 		// ftell()は失敗した時に-1を返すらしいのだが…。ここでは失敗を想定していない。
-		size_t endPos = (size_t)ftell(fp);
-		fseek(fp, 0, SEEK_SET);
-		size_t beginPos = (size_t)ftell(fp);
+		size_t endPos = ftell64(fp);
+		fseek64(fp, 0, SEEK_SET);
+		size_t beginPos = ftell64(fp);
 		size_t file_size = endPos - beginPos;
 
 		return file_size;
@@ -1471,10 +1496,10 @@ namespace SystemIO
 	{
 		ASSERT_LV3(fp != nullptr);
 
-		fseek(fp, 0, SEEK_END);
-		size_t endPos = (size_t)ftell(fp);
-		fseek(fp, 0, SEEK_SET);
-		size_t beginPos = (size_t)ftell(fp);
+		fseek64(fp, 0, SEEK_END);
+		size_t endPos = ftell64(fp);
+		fseek64(fp, 0, SEEK_SET);
+		size_t beginPos = ftell64(fp);
 		size_t file_size = endPos - beginPos;
 
 		return file_size;

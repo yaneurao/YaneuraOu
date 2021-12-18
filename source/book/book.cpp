@@ -1385,6 +1385,8 @@ namespace BookTools
 	// "sfen xxx moves yyy ..."
 	// また、局面を1つ進めるごとにposition_callback関数が呼び出される。
 	// 辿った局面すべてに対して何かを行いたい場合は、これを利用すると良い。
+	// 注意) siは、vector<StateInfo> si; si.reserve(MAX_PLY);のようにして事前に十分確保しておくこと。
+	//  (そうでないとsi.emplace_back()で配列の要素のメモリ移動が起きると previous等のポインタが無効になってしまう)
 	void feed_position_string(Position& pos, const std::string& root_sfen, std::vector<StateInfo>& si, const std::function<void(Position&)>& position_callback)
 	{
 		// issから次のtokenを取得する
@@ -1500,6 +1502,7 @@ namespace BookTools
 	{
 		Position pos;
 		std::vector<StateInfo> si;
+		si.reserve(MAX_PLY);
 		feed_position_string(pos, root_sfen, si);
 		StateInfo si2;
 		vector<string> sfens;

@@ -531,6 +531,7 @@ namespace SystemIO
 
 	// msys2、Windows Subsystem for Linuxなどのgcc/clangでコンパイルした場合、
 	// C++のstd::ifstreamで::read()は、一発で2GB以上のファイルの読み書きが出来ないのでそのためのwrapperである。
+	// 	※　注意　どのみち32bit環境ではsize_tが4バイトなので2(4?)GB以上のファイルは書き出せない。
 	//
 	// read_file_to_memory()の引数のcallback_funcは、ファイルがオープン出来た時点でそのファイルサイズを引数として
 	// callbackされるので、バッファを確保して、その先頭ポインタを返す関数を渡すと、そこに読み込んでくれる。
@@ -540,6 +541,11 @@ namespace SystemIO
 
 	extern Tools::Result ReadFileToMemory(const std::string& filename, std::function<void* (size_t)> callback_func);
 	extern Tools::Result WriteMemoryToFile(const std::string& filename, void* ptr, size_t size);
+
+	// 通常のftell/fseekは2GBまでしか対応していないので特別なバージョンが必要である。
+
+	extern u64 ftell64(FILE* f);
+	extern int fseek64(FILE* f , u64 offset , int origin);
 
 	// C#のTextReaderみたいなもの。
 	// C++のifstreamが遅すぎるので、高速化されたテキストファイル読み込み器
@@ -582,7 +588,7 @@ namespace SystemIO
 
 		// 現在のファイルポジションを取得する。
 		// 先読みしているのでReadLineしている場所よりは先まで進んでいる。
-		size_t GetFilePos() { return ftell(fp); }
+		size_t GetFilePos() { return ftell64(fp); }
 
 		// 現在の行数を返す。(次のReadLine()で返すのがテキストファイルの何行目であるかを返す) 0 origin。
 		// またここで返す数値は空行で読み飛ばした時も、その空行を1行としてカウントしている。
@@ -707,6 +713,7 @@ namespace SystemIO
 		// ファイルの末尾に超えて読み込もうとしなかった場合、Okが返る。
 		// 引数で渡されたバイト数読み込むことができなかった場合、FileReadErrorが返る。
 		// size_of_read_bytesがnullptrでない場合、実際に読み込まれたバイト数が代入される。
+		// ※　sizeは2GB制限があるので気をつけて。
 		Tools::Result Read(void* ptr , size_t size, size_t* size_of_read_bytes = nullptr);
 	};
 
@@ -718,6 +725,7 @@ namespace SystemIO
 		Tools::Result Open(const std::string& filename);
 
 		// ptrの指すメモリからsize[byte]だけファイルに書き込む。
+		// ※　sizeは2GB制限があるので気をつけて。
 		Tools::Result Write(void* ptr, size_t size);
 	};
 };

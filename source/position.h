@@ -311,11 +311,12 @@ public:
 	
 	// 普通の千日手、連続王手の千日手等を判定する。
 	// そこまでの局面と同一局面であるかを、局面を遡って調べる。
-	// plies_from_root : rootからの手数。ss->plyを渡すこと。
-	// 　※　rootとは、探索開始局面であり、そこまでの経路(手順)がある場合、そこよりさらに遡って調べる。
-	// →　これ無駄なのでやめた。(V4.87)[2019/06/09]
 	// rep_ply         : 遡る手数。デフォルトでは16手。あまり大きくすると速度低下を招く。
 	RepetitionState is_repetition(int rep_ply = 16) const;
+
+	// is_repetition()の、千日手が見つかった時に、原局面から何手遡ったかを返すバージョン。
+	// REPETITION_NONEではない時は、found_plyにその値が返ってくる。	// ※　定跡生成の時にしか使わない。
+	RepetitionState is_repetition(int rep_ply , int& found_ply) const;
 
 	// --- Bitboard
 
