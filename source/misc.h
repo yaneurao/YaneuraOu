@@ -105,7 +105,7 @@ void dbg_print();
 
 // RunningAverage : a class to calculate a running average of a series of values.
 // For efficiency, all computations are done with integers.
-// 
+//
 // 置換表のhit率などを集計するためのクラス。
 // ttHitAverageとして、Threadクラスが持っている。
 //
@@ -125,7 +125,7 @@ public:
 	}
 
 	// Update average with value v
-	// 
+	//
 	// これは、ttHit(置換表にhitしたかのフラグ)の実行時の平均を近似するために用いられる。
 	// 移動平均を算出している。
 	void update(int64_t v)
@@ -544,8 +544,8 @@ namespace SystemIO
 
 	// 通常のftell/fseekは2GBまでしか対応していないので特別なバージョンが必要である。
 
-	extern u64 ftell64(FILE* f);
-	extern int fseek64(FILE* f , u64 offset , int origin);
+	extern size_t ftell64(FILE* f);
+	extern int fseek64(FILE* f, size_t offset, int origin);
 
 	// C#のTextReaderみたいなもの。
 	// C++のifstreamが遅すぎるので、高速化されたテキストファイル読み込み器
@@ -743,7 +743,7 @@ namespace Path
 	// folder名のほうは空文字列でないときに、末尾に'/'か'\\'がなければそれを付与する。
 	// 与えられたfilenameが絶対Pathである場合、folderを連結せずに単にfilenameをそのまま返す。
 	// 与えられたfilenameが絶対Pathであるかの判定は、内部的にはPath::IsAbsolute()を用いて行う。
-	// 
+	//
 	// 実際の連結のされ方については、UnitTestに例があるので、それも参考にすること。
 	extern std::string Combine(const std::string& folder, const std::string& filename);
 
@@ -883,7 +883,7 @@ namespace Parser
 	// istringstream isを食わせて、そのうしろを解析させて、所定の変数にその値を格納する。
 	// 使い方)
 	//  isに"min 10 max 80"のような文字列が入っているとする。
-	// 
+	//
 	//   ArgumentParser parser;
 	//   int min=0,max=100;
 	//   parser.add_argument("min",min);
