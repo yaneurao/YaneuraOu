@@ -185,7 +185,7 @@ const string engine_info() {
 #undef TOSTRING
 #else
 			ENGINE_NAME
-#endif			
+#endif
 			<< ' '
 			<< EVAL_TYPE_NAME << ' '
 			<< ENGINE_VERSION << std::setfill('0')
@@ -954,7 +954,7 @@ namespace Tools
 			buffer,					// マップ先ワイド文字列を入れるバッファのアドレス
 			length					// バッファのサイズ
 		);
- 
+
 		if (result == 0)
 			return std::wstring(); // 何故かエラーなのだ…。
 
@@ -1141,7 +1141,7 @@ namespace SystemIO
 	{
 #if defined(_MSC_VER)
 		return _ftelli64(f);
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) && defined(IS_64BIT) && !(defined(__ANDROID__) && defined(__ANDROID_API__) && __ANDROID_API__ < 24)
 		return ftello64(f);
 #else
 		return ftell(f);
@@ -1151,9 +1151,9 @@ namespace SystemIO
 	int fseek64(FILE* f, size_t offset, int origin)
 	{
 #if defined(_MSC_VER)
-		return _fseeki64(f,offset,origin);
-#elif defined(__GNUC__)
-		return fseeko64(f,offset,origin);
+		return _fseeki64(f, offset, origin);
+#elif defined(__GNUC__) && defined(IS_64BIT) && !(defined(__ANDROID__) && defined(__ANDROID_API__) && __ANDROID_API__ < 24)
+		return fseeko64(f, offset, origin);
 #else
 		return fseek(f, offset, origin);
 #endif
@@ -1750,7 +1750,7 @@ namespace Directory {
 	}
 }
 
-#elif defined(__GNUC__) 
+#elif defined(__GNUC__)
 
 #include <direct.h>
 namespace Directory {
@@ -1900,7 +1900,7 @@ namespace StringExtension
 
 	// 数字に相当する文字か
 	bool is_number(char c) { return '0' <= c && c <= '9'; }
-	
+
 	// 行の末尾の"\r","\n",スペース、"\t"を除去した文字列を返す。
 	std::string trim(const std::string& input)
 	{
