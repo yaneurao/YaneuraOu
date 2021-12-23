@@ -511,6 +511,9 @@ else ifeq ($(TARGET_CPU),GRAVITON2)
 	# for Amazon Web Servece EC2, the Graviton2 CPU [M6g/M6gd, C6g/C6gd/C6gn, R6g/R6gd, T4g, X2gd] instances
 	# https://github.com/aws/aws-graviton-getting-started/blob/main/c-c++.md
 	CPPFLAGS += -DIS_64BIT -DUSE_NEON -march=armv8.2-a+fp16+rcpc+dotprod+crypto
+else ifeq ($(TARGET_CPU),M1)
+	# for Apple M1
+	CPPFLAGS += -DIS_64BIT -DUSE_NEON -march=armv8.5-a+fp16+rcpc+dotprod+crypto -mcpu=apple-m1
 
 else ifeq ($(TARGET_CPU),OTHER)
 	CPPFLAGS += -DNO_SSE
