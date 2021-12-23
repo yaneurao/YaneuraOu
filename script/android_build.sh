@@ -1,7 +1,5 @@
 #!/bin/bash
 
-JOBS=`grep -c ^processor /proc/cpuinfo 2>/dev/null`
-
 EDITIONS='*'
 EXTRA=''
 
@@ -100,7 +98,7 @@ for EDITION in ${EDITIONS[@]}; do
       BUILDDIR=build/android/${DIRSTR[$EDITION]}
       mkdir -p ${BUILDDIR}
       ndk-build clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} ${EXTRA}
-      ndk-build -j${JOBS} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} V=1 ${EXTRA} >& >(tee ${BUILDDIR}/build.log) || exit $?
+      ndk-build -j$(nproc) YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} V=1 ${EXTRA} >& >(tee ${BUILDDIR}/build.log) || exit $?
       bash -c "cp libs/**/* ${BUILDDIR}"
       ndk-build clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} ${EXTRA}
       break

@@ -19,7 +19,6 @@
 OS=Windows_NT
 MAKE=mingw32-make
 MAKEFILE=Makefile
-JOBS=`grep -c ^processor /proc/cpuinfo 2>/dev/null`
 
 COMPILERS="clang++,g++"
 EDITIONS='*'
@@ -166,7 +165,7 @@ for COMPILER in ${COMPILERSARR[@]}; do
               echo "* target: ${TARGET}"
               TGSTR=YaneuraOu-${FILESTR[$EDITION]}-msys2-${CSTR}-${TARGET}
               ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} ${EXTRA}
-              nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET_CPU=NO_SSE ${EXTRA} >& >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
+              nice ${MAKE} -f ${MAKEFILE} -j$(nproc) ${TARGET} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET_CPU=NO_SSE ${EXTRA} >& >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
               cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
               ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} ${EXTRA}
               set -f
