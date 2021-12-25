@@ -48,18 +48,18 @@ namespace USI {
 
 #if !defined(TANUKI_MATE_ENGINE) && !defined(YANEURAOU_MATE_ENGINE)
 		// 置換表のサイズ。[MB]で指定。
-		o["USI_Hash"] << Option(16, 1, MaxHashMB, [](const Option&o) { /* TT.resize(o); */ });
+		o["USI_Hash"] << Option(16, 1, MaxHashMB, [](const Option& o) { /* TT.resize(o); */ });
 
-	#if defined(USE_EVAL_HASH)
-			// 評価値用のcacheサイズ。[MB]で指定。
+#if defined(USE_EVAL_HASH)
+		// 評価値用のcacheサイズ。[MB]で指定。
 
-		#if defined(FOR_TOURNAMENT)
-				// トーナメント用は少し大きなサイズ
-				o["EvalHash"] << Option(1024, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
-		#else
-				o["EvalHash"] << Option(128, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
-		#endif // defined(FOR_TOURNAMENT)
-	#endif // defined(USE_EVAL_HASH)
+#if defined(FOR_TOURNAMENT)
+		// トーナメント用は少し大きなサイズ
+		o["EvalHash"] << Option(1024, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
+#else
+		o["EvalHash"] << Option(128, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
+#endif // defined(FOR_TOURNAMENT)
+#endif // defined(USE_EVAL_HASH)
 
 		// ponderの有無
 		o["USI_Ponder"] << Option(false);
@@ -71,12 +71,12 @@ namespace USI {
 		o["MultiPV"] << Option(1, 1, 800);
 
 		// 指し手がGUIに届くまでの時間。
-	#if defined(YANEURAOU_ENGINE_DEEP)
-			// GPUからの結果を待っている時間も込みなので少し上げておく。
-			int time_margin = 400;
-	#else
-			int time_margin = 120;
-	#endif
+#if defined(YANEURAOU_ENGINE_DEEP)
+		// GPUからの結果を待っている時間も込みなので少し上げておく。
+		int time_margin = 400;
+#else
+		int time_margin = 120;
+#endif
 
 		// ネットワークの平均遅延時間[ms]
 		// この時間だけ早めに指せばだいたい間に合う。
@@ -106,13 +106,13 @@ namespace USI {
 		o["NodesLimit"] << Option(0, 0, INT64_MAX);
 
 		// 評価関数フォルダ。これを変更したとき、評価関数を次のisreadyタイミングで読み直す必要がある。
-	#if defined(EVAL_EMBEDDING)
-		const char *default_eval_dir = "<internal>";
-	#else
-		const char *default_eval_dir = "eval";
-	#endif
+#if defined(EVAL_EMBEDDING)
+		const char* default_eval_dir = "<internal>";
+#else
+		const char* default_eval_dir = "eval";
+#endif
 		last_eval_dir = default_eval_dir;
-		o["EvalDir"] << Option(default_eval_dir, [](const USI::Option&o) {
+		o["EvalDir"] << Option(default_eval_dir, [](const USI::Option& o) {
 			if (last_eval_dir != string(o))
 			{
 				// 評価関数フォルダ名の変更に際して、評価関数ファイルの読み込みフラグをクリアする。
@@ -184,6 +184,11 @@ namespace USI {
 
 		// 各エンジンがOptionを追加したいだろうから、コールバックする。
 		USI::extra_option(o);
+
+#if defined(ENGINE_OPTIONS)
+		const string opt = ENGINE_OPTIONS;
+		set_engine_options(opt);
+#endif
 
 		// カレントフォルダに"engine_options.txt"があればそれをオプションとしてOptions[]の値をオーバーライドする機能。
 		read_engine_options("engine_options.txt");
@@ -400,6 +405,17 @@ namespace USI {
 				std::cout << "Error : option name not found : " << name << std::endl;
 		}
 
+	}
+
+	// エンジンオプションをコンパイル時に設定する機能
+	// "ENGINE_OPTIONS"で指定した内容を設定する。
+	// 例) #define ENGINE_OPTIONS "FV_SCALE=24;BookFile=no_book"
+	void set_engine_options(const string& options)
+	{
+		// ";"で区切って複数指定できるものとする。
+		auto v = StringExtension::Split(options, ";");
+		for (auto line : v)
+			build_option(line);
 	}
 
 	// カレントフォルダに"engine_options.txt"(これは引数で指定されている)が

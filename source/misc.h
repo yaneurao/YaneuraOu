@@ -1006,6 +1006,9 @@ namespace StringExtension
 	// 文字列を大文字にして返す。
 	extern std::string ToUpper(std::string const& value);
 
+	// sを文字列spで分割した文字列集合を返す。
+	extern std::vector<std::string> Split(const std::string& s , const std::string& sep);
+
 };
 
 // --------------------

@@ -163,6 +163,11 @@ namespace USI
 	extern EnteringKingRule to_entering_king_rule(const std::string& rule);
 #endif
 
+	// エンジンオプションをコンパイル時に設定する機能
+	// "ENGINE_OPTIONS"で指定した内容を設定する。
+	// 例) #define ENGINE_OPTIONS "FV_SCALE=24;BookFile=no_book"
+	extern void set_engine_options(const std::string& options);
+
 	// エンジンオプションのoverrideのためにファイルから設定を読み込む。
 	// 1) これは起動時に"engine_options.txt"という設定ファイルを読み込むのに用いる。
 	// 2) "isready"応答に対して、EvalDirのなかにある"eval_options.txt"という設定ファイルを読み込むのにも用いる。

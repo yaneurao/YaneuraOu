@@ -2047,6 +2047,26 @@ namespace StringExtension
 		return s;
 	}
 
+	// sを文字列sepで分割した文字列集合を返す。
+	std::vector<std::string> Split(const std::string& s, const std::string& sep)
+	{
+		std::vector<std::string> v;
+		string ss = s;
+		size_t p = 0; // 前回の分割場所
+		while (true)
+		{
+			size_t pos = ss.find(sep , p);
+			if (pos == string::npos)
+			{
+				// sepが見つからなかったのでこれでおしまい。
+				v.emplace_back(ss.substr(p));
+				break;
+			}
+			v.emplace_back(ss.substr(p, pos - p));
+			p = pos + sep.length();
+		}
+		return v;
+	}
 
 };
 
@@ -2143,6 +2163,9 @@ namespace Misc {
 				tester.test("to_string_with_zero", StringExtension::to_string_with_zero(123 , 6) == "000123");
 				tester.test("to_string_with_zero", StringExtension::to_string_with_zero(1234, 6) == "001234");
 				tester.test("ToUpper"            , StringExtension::ToUpper("False&True") == "FALSE&TRUE");
+
+				auto v = StringExtension::Split("ABC ; DEF ; GHI", " ; ");
+				tester.test("Split"              , v[0]=="ABC" && v[1]=="DEF" && v[2] =="GHI");
 			}
 		}
 	}
