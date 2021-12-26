@@ -98,13 +98,13 @@ jobs:
       - name: make
         run: |
           $env:PATH+=';C:\msys64';
-          .\main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
+          main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
         shell: pwsh
 
       - uses: actions/upload-artifact@v2
         with:
           name: build-windows_${{ github.run_number }}_${{ github.sha }}
-          path: ./main/build/**/*
+          path: main/build/**/*
 
   build-msys2-material:
     # windows-latest = windows-2019 => windows-2022
@@ -196,13 +196,13 @@ jobs:
       - name: make
         run: |
           $env:PATH+=';C:\msys64';
-          .\main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
+          main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
         shell: pwsh
 
       - uses: actions/upload-artifact@v2
         with:
           name: build-windows-material_${{ github.run_number }}_${{ github.sha }}
-          path: ./main/build/**/*
+          path: main/build/**/*
 
 
   build-deep-windows:
@@ -239,7 +239,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: build-deep-windows_${{ github.run_number }}_${{ github.sha }}
-          path: ./main/build/**/*
+          path: main/build/**/*
 
 
   build-android-general:
@@ -277,13 +277,156 @@ jobs:
           path: main
 
       - name: ndk-build
-        run: ./main/script/android_build.sh -e ${{ matrix.edition }}
+        run: main/script/android_build.sh -e ${{ matrix.edition }}
 
       - uses: actions/upload-artifact@v2
         with:
           name: build-android_${{ github.run_number }}_${{ github.sha }}
-          path: ./main/build/**/*
+          path: main/build/**/*
 
+  build-macos-general:
+    # macos-11
+    # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
+    # https://github.com/actions/virtual-environments/blob/main/images/macos/macos-11-Readme.md
+    runs-on: macos-11
+
+    strategy:
+      matrix:
+        edition:
+          - YANEURAOU_ENGINE_NNUE
+          - "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256"
+          - "YANEURAOU_ENGINE_KPPT,YANEURAOU_ENGINE_KPP_KKPT"
+          - "YANEURAOU_ENGINE_MATERIAL,YANEURAOU_ENGINE_MATERIAL9"
+          - "YANEURAOU_MATE_ENGINE,TANUKI_MATE_ENGINE"
+          #- USER_ENGINE
+        compiler:
+          - clang++
+          #- g++-11
+        target:
+          - "normal,tournament"
+        archcpu:
+          #- AVX2
+          #- SSE42
+          - APPLEAVX2
+          - APPLESSE42
+          - APPLEM1
+        exclude:
+          # M1 Mac向けは g++-11 ではビルドしない
+          - compiler: g++-11
+            archcpu: APPLEAVX2
+          - compiler: g++-11
+            archcpu: APPLESSE42
+          - compiler: g++-11
+            archcpu: APPLEM1
+
+    steps:
+      - name: Checkout own repository
+        uses: actions/checkout@v2
+        with:
+          path: main
+
+      - name: make
+        uses: actions/github-script@v5
+        env:
+          JOBS: '8'
+          EDITION: '${{ matrix.edition }}'
+          COMPILER: '${{ matrix.compiler }}'
+          TARGET: '${{ matrix.target }}'
+          CPU: '${{ matrix.archcpu }}'
+          OS: 'macos11'
+        with:
+          script: |
+            const fs = require('fs');
+            const {JOBS, EDITION, COMPILER, TARGET, CPU, OS, EXTRA} = process.env;
+            const editionh = {
+              "YANEURAOU_ENGINE_NNUE": "YANEURAOU_ENGINE_NNUE",
+              "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32": "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32",
+              "YANEURAOU_ENGINE_NNUE_HALFKPE9": "YANEURAOU_ENGINE_NNUE_HALFKPE9",
+              "YANEURAOU_ENGINE_NNUE_KP256": "YANEURAOU_ENGINE_NNUE_KP256",
+              "YANEURAOU_ENGINE_DEEP_TENSOR_RT": "YANEURAOU_ENGINE_DEEP_TENSOR_RT",
+              "YANEURAOU_ENGINE_KPPT": "YANEURAOU_ENGINE_KPPT",
+              "YANEURAOU_ENGINE_KPP_KKPT": "YANEURAOU_ENGINE_KPP_KKPT",
+              "YANEURAOU_ENGINE_MATERIAL": "YANEURAOU_ENGINE_MATERIAL",
+              "YANEURAOU_ENGINE_MATERIAL2": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=2",
+              "YANEURAOU_ENGINE_MATERIAL3": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=3",
+              "YANEURAOU_ENGINE_MATERIAL4": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=4",
+              "YANEURAOU_ENGINE_MATERIAL5": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=5",
+              "YANEURAOU_ENGINE_MATERIAL6": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=6",
+              "YANEURAOU_ENGINE_MATERIAL7": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=7",
+              "YANEURAOU_ENGINE_MATERIAL8": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=8",
+              "YANEURAOU_ENGINE_MATERIAL9": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=9",
+              "YANEURAOU_ENGINE_MATERIAL10": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=10",
+              "YANEURAOU_MATE_ENGINE": "YANEURAOU_MATE_ENGINE",
+              "TANUKI_MATE_ENGINE": "TANUKI_MATE_ENGINE",
+              "USER_ENGINE": "USER_ENGINE",
+            };
+            const dirh = {
+              "YANEURAOU_ENGINE_NNUE": "NNUE",
+              "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32": "NNUE_HALFKP_VM",
+              "YANEURAOU_ENGINE_NNUE_HALFKPE9": "NNUE_HALFKPE9",
+              "YANEURAOU_ENGINE_NNUE_KP256": "NNUE_KP256",
+              "YANEURAOU_ENGINE_DEEP_TENSOR_RT": "DEEP_TRT",
+              "YANEURAOU_ENGINE_KPPT": "KPPT",
+              "YANEURAOU_ENGINE_KPP_KKPT": "KPP_KKPT",
+              "YANEURAOU_ENGINE_MATERIAL": "MaterialLv1",
+              "YANEURAOU_ENGINE_MATERIAL2": "MaterialLv2",
+              "YANEURAOU_ENGINE_MATERIAL3": "MaterialLv3",
+              "YANEURAOU_ENGINE_MATERIAL4": "MaterialLv4",
+              "YANEURAOU_ENGINE_MATERIAL5": "MaterialLv5",
+              "YANEURAOU_ENGINE_MATERIAL6": "MaterialLv6",
+              "YANEURAOU_ENGINE_MATERIAL7": "MaterialLv7",
+              "YANEURAOU_ENGINE_MATERIAL8": "MaterialLv8",
+              "YANEURAOU_ENGINE_MATERIAL9": "MaterialLv9",
+              "YANEURAOU_ENGINE_MATERIAL10": "MaterialLv10",
+              "YANEURAOU_MATE_ENGINE": "YaneuraOu_MATE",
+              "TANUKI_MATE_ENGINE": "tanuki_MATE",
+              "USER_ENGINE": "USER",
+            };
+            const fileh = {
+              "YANEURAOU_ENGINE_NNUE": "YaneuraOu_NNUE",
+              "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32": "YaneuraOu_NNUE_HALFKP_VM",
+              "YANEURAOU_ENGINE_NNUE_HALFKPE9": "YaneuraOu_NNUE_HalfKPE9",
+              "YANEURAOU_ENGINE_NNUE_KP256": "YaneuraOu_NNUE_KP256",
+              "YANEURAOU_ENGINE_DEEP_TENSOR_RT": "YaneuraOu_Deep_TRT",
+              "YANEURAOU_ENGINE_KPPT": "YaneuraOu_KPPT",
+              "YANEURAOU_ENGINE_KPP_KKPT": "YaneuraOu_KPP_KKPT",
+              "YANEURAOU_ENGINE_MATERIAL": "YaneuraOu_MaterialLv1",
+              "YANEURAOU_ENGINE_MATERIAL2": "YaneuraOu_MaterialLv2",
+              "YANEURAOU_ENGINE_MATERIAL3": "YaneuraOu_MaterialLv3",
+              "YANEURAOU_ENGINE_MATERIAL4": "YaneuraOu_MaterialLv4",
+              "YANEURAOU_ENGINE_MATERIAL5": "YaneuraOu_MaterialLv5",
+              "YANEURAOU_ENGINE_MATERIAL6": "YaneuraOu_MaterialLv6",
+              "YANEURAOU_ENGINE_MATERIAL7": "YaneuraOu_MaterialLv7",
+              "YANEURAOU_ENGINE_MATERIAL8": "YaneuraOu_MaterialLv8",
+              "YANEURAOU_ENGINE_MATERIAL9": "YaneuraOu_MaterialLv9",
+              "YANEURAOU_ENGINE_MATERIAL10": "YaneuraOu_MaterialLv10",
+              "YANEURAOU_MATE_ENGINE": "YaneuraOu_MATE",
+              "TANUKI_MATE_ENGINE": "tanuki_MATE",
+              "USER_ENGINE": "user",
+            };
+            for(let edition of EDITION.split(',')) {
+            for(let compiler of COMPILER.split(',')) {
+            for(let target of TARGET.split(',')) {
+            for(let cpu of CPU.split(',')) {
+              const builddir = `../build/${OS}/${dirh[edition]}`;
+              const filename = `${fileh[edition]}-${OS}-${compiler}-${target}-${cpu.toLowerCase()}`;
+              let log = '';
+              await io.mkdirP(`./main/source/${builddir}`);
+              await exec.exec('nice', `make -j${JOBS} ${target} TARGET_CPU=${cpu} YANEURAOU_EDITION=${editionh[edition]} COMPILER=${compiler} TARGET=${builddir}/${filename}`.split(' '), {
+                "cwd": "./main/source/",
+                listeners: {
+                  stdout: (data) => { log += data.toString(); },
+                  stderr: (data) => { log += data.toString(); },
+                }
+              });
+              await exec.exec(`make`, `clean TARGET_CPU=${cpu} YANEURAOU_EDITION=${edition}`.split(' '), {"cwd": "./main/source/"});
+              fs.writeFileSync(`./main/source/${builddir}/${filename}.log`, log);
+            }}}}
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-macos_${{ github.run_number }}_${{ github.sha }}
+          path: main/build/**/**/*
 
   build-msys2-suisho:
     # windows-latest = windows-2019 => windows-2022
@@ -334,19 +477,18 @@ jobs:
       - name: make
         run: |
           $env:PATH+=';C:\msys64';
-          .\main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }} -Extra 'EVAL_EMBEDDING=ON';
+          main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }} -Extra 'EVAL_EMBEDDING=ON EXTRA_CPPFLAGS=''-DENGINE_OPTIONS=""\\""option=name=FV_SCALE=type=spin=default=24=min=1=max=128;option=name=BookFile=type=combo=default=no_book=var=no_book=var=standard_book.db=var=yaneura_book1.db=var=yaneura_book2.db=var=yaneura_book3.db=var=yaneura_book4.db=var=user_book1.db=var=user_book2.db=var=user_book3.db=var=book.bin\\""""''';
         shell: pwsh
 
       - name: add resource
         run: |
-          echo 'Suisho5(20211123)-${{ steps.version.outputs.filename }}' > ./main/build/windows/NNUE/engine_name.txt;
-          echo 'yaneurao, tayayan' >> .\main\build\windows\NNUE\engine_name.txt;
-          echo 'option name FV_SCALE type spin default 24 min 1 max 128' > ./main/build/windows/NNUE/engine_options.txt;
+          echo 'Suisho5(20211123)-${{ steps.version.outputs.filename }}' > main/build/windows/NNUE/engine_name.txt;
+          echo 'yaneurao, tayayan' >> main/build/windows/NNUE/engine_name.txt;
 
       - uses: actions/upload-artifact@v2
         with:
           name: build-windows-suisho_${{ github.run_number }}_${{ github.sha }}
-          path: ./main/build/**/*
+          path: main/build/**/*
 
   build-android-suisho:
     # ubuntu-latest = ubuntu-20.04
@@ -384,28 +526,444 @@ jobs:
           gzip -df main/source/eval/nnue/embedded_nnue.cpp.gz;
 
       - name: ndk-build
-        run: ./main/script/android_build.sh -e ${{ matrix.edition }} -x "EVAL_EMBEDDING=ON"
+        run: main/script/android_build.sh -e ${{ matrix.edition }} -x 'EVAL_EMBEDDING=ON EXTRA_CPPFLAGS=''-DENGINE_OPTIONS="\"option=name=FV_SCALE=type=spin=default=24=min=1=max=128;option=name=BookFile=type=combo=default=no_book=var=no_book=var=standard_book.db=var=yaneura_book1.db=var=yaneura_book2.db=var=yaneura_book3.db=var=yaneura_book4.db=var=user_book1.db=var=user_book2.db=var=user_book3.db=var=book.bin\""'''
 
       - name: add resource
         run: |
-          echo 'Suisho5(20211123)-${{ steps.version.outputs.filename }}' > ./main/build/android/NNUE/engine_name.txt;
-          echo 'yaneurao, tayayan' >> ./main/build/android/NNUE/engine_name.txt;
-          echo 'option name FV_SCALE type spin default 24 min 1 max 128' > ./main/build/android/NNUE/engine_options.txt;
+          echo 'Suisho5(20211123)-${{ steps.version.outputs.filename }}' > main/build/android/NNUE/engine_name.txt;
+          echo 'yaneurao, tayayan' >> main/build/android/NNUE/engine_name.txt;
 
       - uses: actions/upload-artifact@v2
         with:
           name: build-android-suisho_${{ github.run_number }}_${{ github.sha }}
-          path: ./main/build/**/*
+          path: main/build/**/*
+
+  build-macos-suisho:
+    # macos-11
+    # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
+    # https://github.com/actions/virtual-environments/blob/main/images/macos/macos-11-Readme.md
+    runs-on: macos-11
+
+    strategy:
+      matrix:
+        edition:
+          - YANEURAOU_ENGINE_NNUE
+        compiler:
+          - clang++
+          #- g++-11
+        target:
+          #- normal
+          - tournament
+        archcpu:
+          #- AVX2
+          #- SSE42
+          - APPLEAVX2
+          - APPLESSE42
+          - APPLEM1
+        exclude:
+          # M1 Mac向けは g++-11 ではビルドしない
+          - compiler: g++-11
+            archcpu: APPLEAVX2
+          - compiler: g++-11
+            archcpu: APPLESSE42
+          - compiler: g++-11
+            archcpu: APPLEM1
+
+    steps:
+      - name: Checkout own repository
+        uses: actions/checkout@v2
+        with:
+          path: main
+
+      - name: suisho5 embedded_nnue
+        run: |
+          curl -LRo main/source/eval/nnue/embedded_nnue.cpp.gz https://github.com/mizar/YaneuraOu/releases/download/resource/suisho5_20211123.halfkp.nnue.cpp.gz;
+          gzip -df main/source/eval/nnue/embedded_nnue.cpp.gz;
+
+      - name: make
+        uses: actions/github-script@v5
+        env:
+          JOBS: '8'
+          EDITION: '${{ matrix.edition }}'
+          COMPILER: '${{ matrix.compiler }}'
+          TARGET: '${{ matrix.target }}'
+          CPU: '${{ matrix.archcpu }}'
+          OS: 'macos11'
+        with:
+          script: |
+            const fs = require('fs');
+            const {JOBS, EDITION, COMPILER, TARGET, CPU, OS, EXTRA} = process.env;
+            const editionh = {
+              "YANEURAOU_ENGINE_NNUE": "YANEURAOU_ENGINE_NNUE",
+              "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32": "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32",
+              "YANEURAOU_ENGINE_NNUE_HALFKPE9": "YANEURAOU_ENGINE_NNUE_HALFKPE9",
+              "YANEURAOU_ENGINE_NNUE_KP256": "YANEURAOU_ENGINE_NNUE_KP256",
+            };
+            const dirh = {
+              "YANEURAOU_ENGINE_NNUE": "NNUE",
+              "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32": "NNUE_HALFKP_VM",
+              "YANEURAOU_ENGINE_NNUE_HALFKPE9": "NNUE_HALFKPE9",
+              "YANEURAOU_ENGINE_NNUE_KP256": "NNUE_KP256",
+            };
+            const fileh = {
+              "YANEURAOU_ENGINE_NNUE": "Suisho5_YaneuraOu",
+              "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32": "YaneuraOu_NNUE_HALFKP_VM",
+              "YANEURAOU_ENGINE_NNUE_HALFKPE9": "YaneuraOu_NNUE_HalfKPE9",
+              "YANEURAOU_ENGINE_NNUE_KP256": "YaneuraOu_NNUE_KP256",
+            };
+            for(let edition of EDITION.split(',')) {
+            for(let compiler of COMPILER.split(',')) {
+            for(let target of TARGET.split(',')) {
+            for(let cpu of CPU.split(',')) {
+              const builddir = `../build/${OS}/${dirh[edition]}`;
+              const filename = `${fileh[edition]}-${OS}-${compiler}-${target}-${cpu.toLowerCase()}`;
+              let log = '';
+              await io.mkdirP(`./main/source/${builddir}`);
+              await exec.exec('nice', `make -j${JOBS} ${target} TARGET_CPU=${cpu} YANEURAOU_EDITION=${editionh[edition]} COMPILER=${compiler} TARGET=${builddir}/${filename} EVAL_EMBEDDING=ON EXTRA_CPPFLAGS='-DENGINE_OPTIONS=\\\\\"\\\"option=name=FV_SCALE=type=spin=default=24=min=1=max=128\\;option=name=BookFile=type=combo=default=no_book=var=no_book=var=standard_book.db=var=yaneura_book1.db=var=yaneura_book2.db=var=yaneura_book3.db=var=yaneura_book4.db=var=user_book1.db=var=user_book2.db=var=user_book3.db=var=book.bin\\\\\\\"\"'`.split(' '), {
+                "cwd": "./main/source/",
+                listeners: {
+                  stdout: (data) => { log += data.toString(); },
+                  stderr: (data) => { log += data.toString(); },
+                }
+              });
+              await exec.exec(`make`, `clean TARGET_CPU=${cpu} YANEURAOU_EDITION=${edition} EVAL_EMBEDDING=ON`.split(' '), {"cwd": "./main/source/"});
+              fs.writeFileSync(`./main/source/${builddir}/${filename}.log`, log);
+            }}}}
+
+      - name: add resource
+        run: |
+          echo 'Suisho5(20211123)-YaneuraOu' > main/build/macos11/NNUE/engine_name.txt;
+          echo 'yaneurao, tayayan' >> main/build/macos11/NNUE/engine_name.txt;
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-macos-suisho_${{ github.run_number }}_${{ github.sha }}
+          path: main/build/**/**/*
+
+  archive-msys2-general:
+    runs-on: ubuntu-20.04
+    needs:
+      - build-msys2-general
+    steps:
+      - name: Set version
+        id: version
+        run: |
+          REPOSITORY=$(echo ${{ github.repository }} | sed -e "s#.*/##")
+          VERSION=$(echo ${{ github.ref }} | sed -e "s#refs/tags/##g")
+          echo ::set-output name=version::$VERSION
+          echo ::set-output name=filename::$REPOSITORY-$VERSION
+      - uses: actions/checkout@v2
+        with:
+          path: main
+      - name: Download artifact to get build-windows
+        uses: actions/download-artifact@v2
+        with:
+          name: build-windows_${{ github.run_number }}_${{ github.sha }}
+          path: release
+      - name: copy docs
+        run: |
+          cp main/Copying.txt release/windows
+          cp -r main/docs release/windows
+          tar -Jcf release/windows/source.tar.xz -C main source
+      - name: Display structure of downloaded files
+        run: ls -R release
+      - name: make build-windows zip/7z
+        run: |
+          7z a -tzip build-windows.zip windows
+          7z a -t7z build-windows.7z windows
+        working-directory: release
+      - uses: actions/upload-artifact@v2
+        with:
+          name: archive-windows_${{ github.run_number }}_${{ github.sha }}
+          path: |
+            release/*.zip
+            release/*.7z
+  archive-msys2-material:
+    runs-on: ubuntu-20.04
+    needs:
+      - build-msys2-material
+    steps:
+      - name: Set version
+        id: version
+        run: |
+          REPOSITORY=$(echo ${{ github.repository }} | sed -e "s#.*/##")
+          VERSION=$(echo ${{ github.ref }} | sed -e "s#refs/tags/##g")
+          echo ::set-output name=version::$VERSION
+          echo ::set-output name=filename::$REPOSITORY-$VERSION
+      - uses: actions/checkout@v2
+        with:
+          path: main
+      - name: Download artifact to get build-windows-material
+        uses: actions/download-artifact@v2
+        with:
+          name: build-windows-material_${{ github.run_number }}_${{ github.sha }}
+          path: release
+      - name: copy docs
+        run: |
+          cp main/Copying.txt release/windows
+          cp -r main/docs release/windows
+          tar -Jcf release/windows/source.tar.xz -C main source
+      - name: Display structure of downloaded files
+        run: ls -R release
+      - name: make build-windows zip/7z
+        run: |
+          7z a -tzip build-windows-material.zip windows
+          7z a -t7z build-windows-material.7z windows
+        working-directory: release
+      - uses: actions/upload-artifact@v2
+        with:
+          name: archive-windows-material_${{ github.run_number }}_${{ github.sha }}
+          path: |
+            release/*.zip
+            release/*.7z
+  archive-msys2-suisho:
+    runs-on: ubuntu-20.04
+    needs:
+      - build-msys2-suisho
+    steps:
+      - name: Set version
+        id: version
+        run: |
+          REPOSITORY=$(echo ${{ github.repository }} | sed -e "s#.*/##")
+          VERSION=$(echo ${{ github.ref }} | sed -e "s#refs/tags/##g")
+          echo ::set-output name=version::$VERSION
+          echo ::set-output name=filename::$REPOSITORY-$VERSION
+      - uses: actions/checkout@v2
+        with:
+          path: main
+      - name: Download artifact to get build-windows-suisho
+        uses: actions/download-artifact@v2
+        with:
+          name: build-windows-suisho_${{ github.run_number }}_${{ github.sha }}
+          path: release
+      - name: copy docs
+        run: |
+          cp main/Copying.txt release/windows/NNUE
+          cp -r main/docs release/windows/NNUE
+          curl -LRo main/source/eval/nnue/embedded_nnue.cpp.gz https://github.com/mizar/YaneuraOu/releases/download/resource/suisho5_20211123.halfkp.nnue.cpp.gz;
+          gzip -df main/source/eval/nnue/embedded_nnue.cpp.gz;
+          tar -Jcf release/windows/NNUE/source.tar.xz -C main source
+      - name: Display structure of downloaded files
+        run: ls -R release
+      - name: make build-windows-suisho zip/7z
+        run: |
+          7z a -tzip ../../build-windows-suisho.zip *
+          7z a -t7z ../../build-windows-suisho.7z *
+        working-directory: release/windows/NNUE
+      - uses: actions/upload-artifact@v2
+        with:
+          name: archive-windows-suisho_${{ github.run_number }}_${{ github.sha }}
+          path: |
+            release/*.zip
+            release/*.7z
+  archive-deep-windows:
+    runs-on: ubuntu-20.04
+    needs:
+      - build-deep-windows
+    steps:
+      - name: Set version
+        id: version
+        run: |
+          REPOSITORY=$(echo ${{ github.repository }} | sed -e "s#.*/##")
+          VERSION=$(echo ${{ github.ref }} | sed -e "s#refs/tags/##g")
+          echo ::set-output name=version::$VERSION
+          echo ::set-output name=filename::$REPOSITORY-$VERSION
+      - uses: actions/checkout@v2
+        with:
+          path: main
+      - name: Download artifact to get build-deep-windows
+        uses: actions/download-artifact@v2
+        with:
+          name: build-deep-windows_${{ github.run_number }}_${{ github.sha }}
+          path: release
+      - name: copy docs
+        run: |
+          cp main/Copying.txt release
+          cp -r main/docs release
+          tar -Jcf release/source.tar.xz -C main source
+      - name: Display structure of downloaded files
+        run: ls -R release
+      - name: make build-deep-windows zip/7z
+        run: |
+          7z a -tzip build-deep-windows.zip *
+          7z a -t7z build-deep-windows.7z *
+        working-directory: release
+      - uses: actions/upload-artifact@v2
+        with:
+          name: archive-deep-windows_${{ github.run_number }}_${{ github.sha }}
+          path: |
+            release/*.zip
+            release/*.7z
+  archive-android-general:
+    runs-on: ubuntu-20.04
+    needs:
+      - build-android-general
+    steps:
+      - name: Set version
+        id: version
+        run: |
+          REPOSITORY=$(echo ${{ github.repository }} | sed -e "s#.*/##")
+          VERSION=$(echo ${{ github.ref }} | sed -e "s#refs/tags/##g")
+          echo ::set-output name=version::$VERSION
+          echo ::set-output name=filename::$REPOSITORY-$VERSION
+      - uses: actions/checkout@v2
+        with:
+          path: main
+      - name: Download artifact to get build-android
+        uses: actions/download-artifact@v2
+        with:
+          name: build-android_${{ github.run_number }}_${{ github.sha }}
+          path: release
+      - name: copy docs
+        run: |
+          cp main/Copying.txt release/android
+          cp -r main/docs release/android
+          tar -Jcf release/android/source.tar.xz -C main source
+      - name: Display structure of downloaded files
+        run: ls -R release
+      - name: make build-android zip/7z
+        run: |
+          7z a -tzip build-android.zip android
+          7z a -t7z build-android.7z android
+        working-directory: release
+      - uses: actions/upload-artifact@v2
+        with:
+          name: archive-android_${{ github.run_number }}_${{ github.sha }}
+          path: |
+            release/*.zip
+            release/*.7z
+  archive-android-suisho:
+    runs-on: ubuntu-20.04
+    needs:
+      - build-android-suisho
+    steps:
+      - name: Set version
+        id: version
+        run: |
+          REPOSITORY=$(echo ${{ github.repository }} | sed -e "s#.*/##")
+          VERSION=$(echo ${{ github.ref }} | sed -e "s#refs/tags/##g")
+          echo ::set-output name=version::$VERSION
+          echo ::set-output name=filename::$REPOSITORY-$VERSION
+      - uses: actions/checkout@v2
+        with:
+          path: main
+      - name: Download artifact to get build-android-suisho
+        uses: actions/download-artifact@v2
+        with:
+          name: build-android-suisho_${{ github.run_number }}_${{ github.sha }}
+          path: release
+      - name: copy docs
+        run: |
+          cp main/Copying.txt release/android/NNUE
+          cp -r main/docs release/android/NNUE
+          curl -LRo main/source/eval/nnue/embedded_nnue.cpp.gz https://github.com/mizar/YaneuraOu/releases/download/resource/suisho5_20211123.halfkp.nnue.cpp.gz;
+          gzip -df main/source/eval/nnue/embedded_nnue.cpp.gz;
+          tar -Jcf release/android/NNUE/source.tar.xz -C main source
+      - name: Display structure of downloaded files
+        run: ls -R release
+      - name: make build-android-suisho zip/7z
+        run: |
+          7z a -tzip ../../build-android-suisho.zip *
+          7z a -t7z ../../build-android-suisho.7z *
+        working-directory: release/android/NNUE
+      - uses: actions/upload-artifact@v2
+        with:
+          name: archive-android-suisho_${{ github.run_number }}_${{ github.sha }}
+          path: |
+            release/*.zip
+            release/*.7z
+  archive-macos-general:
+    runs-on: macos-11
+    needs:
+      - build-macos-general
+    steps:
+      - name: Set version
+        id: version
+        run: |
+          REPOSITORY=$(echo ${{ github.repository }} | sed -e "s#.*/##")
+          VERSION=$(echo ${{ github.ref }} | sed -e "s#refs/tags/##g")
+          echo ::set-output name=version::$VERSION
+          echo ::set-output name=filename::$REPOSITORY-$VERSION
+      - uses: actions/checkout@v2
+        with:
+          path: main
+      - name: Download artifact to get build-macos
+        uses: actions/download-artifact@v2
+        with:
+          name: build-macos_${{ github.run_number }}_${{ github.sha }}
+          path: release
+      - name: set executable
+        run: |
+          find release|grep ++|grep -v \.log|xargs -I _file_ chmod +x _file_
+      - name: copy docs
+        run: |
+          cp main/Copying.txt release/macos11
+          cp -r main/docs release/macos11
+          tar -Jcf release/macos11/source.tar.xz -C main source
+      - name: Display structure of downloaded files
+        run: ls -R release
+      - name: make build-macos .tar.xz
+        run: |
+          tar -Jcf build-macos.tar.xz macos11
+        working-directory: release
+      - uses: actions/upload-artifact@v2
+        with:
+          name: archive-macos_${{ github.run_number }}_${{ github.sha }}
+          path: |
+            release/*.tar.xz
+  archive-macos-suisho:
+    runs-on: macos-11
+    needs:
+      - build-macos-suisho
+    steps:
+      - name: Set version
+        id: version
+        run: |
+          REPOSITORY=$(echo ${{ github.repository }} | sed -e "s#.*/##")
+          VERSION=$(echo ${{ github.ref }} | sed -e "s#refs/tags/##g")
+          echo ::set-output name=version::$VERSION
+          echo ::set-output name=filename::$REPOSITORY-$VERSION
+      - uses: actions/checkout@v2
+        with:
+          path: main
+      - name: Download artifact to get build-macos-suisho
+        uses: actions/download-artifact@v2
+        with:
+          name: build-macos-suisho_${{ github.run_number }}_${{ github.sha }}
+          path: release
+      - name: set executable
+        run: |
+          find release|grep ++|grep -v \.log|xargs -I _file_ chmod +x _file_
+      - name: copy docs
+        run: |
+          cp main/Copying.txt release/macos11/NNUE
+          cp -r main/docs release/macos11/NNUE
+          curl -LRo main/source/eval/nnue/embedded_nnue.cpp.gz https://github.com/mizar/YaneuraOu/releases/download/resource/suisho5_20211123.halfkp.nnue.cpp.gz;
+          gzip -df main/source/eval/nnue/embedded_nnue.cpp.gz;
+          tar -Jcf release/macos11/NNUE/source.tar.xz -C main source
+      - name: Display structure of downloaded files
+        run: ls -R release
+      - name: make build-macos-suisho .tar.xz
+        run: |
+          tar -Jcf ../../build-macos-suisho.tar.xz *
+        working-directory: release/macos11/NNUE
+      - uses: actions/upload-artifact@v2
+        with:
+          name: archive-macos-suisho_${{ github.run_number }}_${{ github.sha }}
+          path: |
+            release/*.tar.xz
 
   release-pkg:
     name: Release package
     needs:
-      - build-msys2-general
-      - build-msys2-material
-      - build-msys2-suisho
-      - build-deep-windows
-      - build-android-general
-      - build-android-suisho
+      - archive-msys2-general
+      - archive-msys2-material
+      - archive-msys2-suisho
+      - archive-deep-windows
+      - archive-android-general
+      - archive-android-suisho
+      - archive-macos-general
+      - archive-macos-suisho
     # ubuntu-latest = ubuntu-20.04
     # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
     # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md
@@ -424,87 +982,45 @@ jobs:
       - name: Download artifact to get build-windows
         uses: actions/download-artifact@v2
         with:
-          name: build-windows_${{ github.run_number }}_${{ github.sha }}
+          name: archive-windows_${{ github.run_number }}_${{ github.sha }}
           path: release-windows
       - name: Download artifact to get build-windows-material
         uses: actions/download-artifact@v2
         with:
-          name: build-windows-material_${{ github.run_number }}_${{ github.sha }}
+          name: archive-windows-material_${{ github.run_number }}_${{ github.sha }}
           path: release-windows-material
       - name: Download artifact to get build-windows-suisho
         uses: actions/download-artifact@v2
         with:
-          name: build-windows-suisho_${{ github.run_number }}_${{ github.sha }}
+          name: archive-windows-suisho_${{ github.run_number }}_${{ github.sha }}
           path: release-windows-suisho
       - name: Download artifact to get build-deep-windows
         uses: actions/download-artifact@v2
         with:
-          name: build-deep-windows_${{ github.run_number }}_${{ github.sha }}
+          name: archive-deep-windows_${{ github.run_number }}_${{ github.sha }}
           path: release-deep-windows
       - name: Download artifact to get build-android
         uses: actions/download-artifact@v2
         with:
-          name: build-android_${{ github.run_number }}_${{ github.sha }}
+          name: archive-android_${{ github.run_number }}_${{ github.sha }}
           path: release-android
       - name: Download artifact to get build-android-suisho
         uses: actions/download-artifact@v2
         with:
-          name: build-android-suisho_${{ github.run_number }}_${{ github.sha }}
+          name: archive-android-suisho_${{ github.run_number }}_${{ github.sha }}
           path: release-android-suisho
+      - name: Download artifact to get build-macos
+        uses: actions/download-artifact@v2
+        with:
+          name: archive-macos_${{ github.run_number }}_${{ github.sha }}
+          path: release-macos
+      - name: Download artifact to get build-macos-suisho
+        uses: actions/download-artifact@v2
+        with:
+          name: archive-macos-suisho_${{ github.run_number }}_${{ github.sha }}
+          path: release-macos-suisho
       - name: Display structure of downloaded files
-        run: ls -R release-windows release-windows-material release-windows-suisho release-deep-windows release-android release-android-suisho
-      - name: copy docs
-        run: |
-          cp main/Copying.txt release-windows/windows
-          cp -r main/source/ release-windows/windows
-          cp -r main/docs/ release-windows/windows
-          cp main/Copying.txt release-windows-material/windows
-          cp -r main/source/ release-windows-material/windows
-          cp -r main/docs/ release-windows-material/windows
-          cp main/Copying.txt release-windows-suisho/windows/NNUE
-          cp -r main/source/ release-windows-suisho/windows/NNUE
-          cp -r main/docs/ release-windows-suisho/windows/NNUE
-          cp main/Copying.txt release-deep-windows
-          cp -r main/source/ release-deep-windows
-          cp -r main/docs/ release-deep-windows
-          cp main/Copying.txt release-android/android
-          cp -r main/source/ release-android/andorid
-          cp -r main/docs/ release-android/android
-          cp main/Copying.txt release-android-suisho/android/NNUE
-          cp -r main/source/ release-android-suisho/android/NNUE
-          cp -r main/docs/ release-android-suisho/android/NNUE
-      - name: Display structure of downloaded files
-        run: ls -R release-windows release-windows-material release-windows-suisho release-deep-windows release-android release-android-suisho
-      - name: make build-windows zip/7z
-        run: |
-          7z a -tzip build-windows.zip windows
-          7z a -t7z build-windows.7z windows
-        working-directory: release-windows
-      - name: make build-windows-material zip/7z
-        run: |
-          7z a -tzip build-windows-material.zip windows
-          7z a -t7z build-windows-material.7z windows
-        working-directory: release-windows-material
-      - name: make build-windows-suisho zip/7z
-        run: |
-          7z a -tzip ../../build-windows-suisho.zip *
-          7z a -t7z ../../build-windows-suisho.7z *
-        working-directory: release-windows-suisho/windows/NNUE
-      - name: make build-deep-windows zip/7z
-        run: |
-          7z a -tzip build-deep-windows.zip Deep-* source docs Copying.txt
-          7z a -t7z build-deep-windows.7z Deep-* source docs Copying.txt
-        working-directory: release-deep-windows
-      - name: make build-android zip/7z
-        run: |
-          7z a -tzip build-android.zip android
-          7z a -t7z build-android.7z android
-        working-directory: release-android
-      - name: make build-android-suisho zip/7z
-        run: |
-          7z a -tzip ../../build-android-suisho.zip *
-          7z a -t7z ../../build-android-suisho.7z *
-        working-directory: release-android-suisho/android/NNUE
+        run: ls -R release-windows release-windows-material release-windows-suisho release-deep-windows release-android release-android-suisho release-macos-suisho release-macos-suisho
       - name: Archive Size
         id: archive_size
         run: |
@@ -520,6 +1036,8 @@ jobs:
           echo ::set-output name=android_7z::$(stat -c%s "release-android/build-android.7z" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
           echo ::set-output name=android_suisho_zip::$(stat -c%s "release-android-suisho/build-android-suisho.zip" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
           echo ::set-output name=android_suisho_7z::$(stat -c%s "release-android-suisho/build-android-suisho.7z" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=macos_tar_xz::$(stat -c%s "release-macos/build-macos.tar.xz" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=macos_suisho_tar_xz::$(stat -c%s "release-macos-suisho/build-macos-suisho.tar.xz" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
@@ -570,6 +1088,8 @@ jobs:
             - [Suisho5-${{ steps.version.outputs.filename }}-android.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/Suisho5-${{ steps.version.outputs.filename }}-android.zip) (${{ steps.archive_size.outputs.android_suisho_zip }})
             - [Suisho5-${{ steps.version.outputs.filename }}-android.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/Suisho5-${{ steps.version.outputs.filename }}-android.7z) (${{ steps.archive_size.outputs.android_suisho_7z }})
               - 3.の実行ファイルAndroid版+水匠5(20211123)評価関数 (arm64-v8a/armeabi-v7a/x86_64/x86)
+            - [Suisho5-${{ steps.version.outputs.filename }}-macos.tar.xz](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/Suisho5-${{ steps.version.outputs.filename }}-macos.tar.xz) (${{ steps.archive_size.outputs.macos_suisho_tar_xz }})
+              - 3.の実行ファイルMacOS版+水匠5(20211123)評価関数 (AVX2/SSE42/APPLEM1) (testing)
             - [${{ steps.version.outputs.filename }}-windows.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-windows.zip) (${{ steps.archive_size.outputs.windows_zip }})
             - [${{ steps.version.outputs.filename }}-windows.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-windows.7z) (${{ steps.archive_size.outputs.windows_7z }})
               - 1.2.3.5.6.の実行ファイルWindows版 各CPU向け(ZEN3/ZEN2/ZEN1/AVX512VNNI/AVXVNNI/AVX512/AVX2/SSE4.2/SSE4.1/SSSE3/SSE2/32bit環境用)
@@ -622,6 +1142,8 @@ jobs:
             - [${{ steps.version.outputs.filename }}-android.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-android.zip) (${{ steps.archive_size.outputs.android_zip }})
             - [${{ steps.version.outputs.filename }}-android.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-android.7z) (${{ steps.archive_size.outputs.android_7z }})
               - 1.2.3.4.5.の実行ファイルAndroid版 (arm64-v8a/armeabi-v7a/x86_64/x86)
+            - [${{ steps.version.outputs.filename }}-macos.tar.xz](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-macos.tar.xz) (${{ steps.archive_size.outputs.macos_tar_xz }})
+              - 1.2.3.4.5.の実行ファイルMacOS版 (AVX2/SSE42/APPLEM1) (testing)
 
             使い方などは添付ファイルの中にある
             docs
@@ -631,7 +1153,7 @@ jobs:
           # 先行リリースのフラグを付ける(true)
           prerelease: true
       - name: Upload release asset build-windows.zip
-        uses: actions/upload-release-asset@v1.0.1
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -640,7 +1162,7 @@ jobs:
           asset_name: ${{ steps.version.outputs.filename }}-windows.zip
           asset_content_type: application/zip
       - name: Upload release asset build-windows.7z
-        uses: actions/upload-release-asset@v1.0.1
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -649,7 +1171,7 @@ jobs:
           asset_name: ${{ steps.version.outputs.filename }}-windows.7z
           asset_content_type: application/octet-stream
       - name: Upload release asset build-windows-material.zip
-        uses: actions/upload-release-asset@v1.0.1
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -658,7 +1180,7 @@ jobs:
           asset_name: ${{ steps.version.outputs.filename }}-windows-material.zip
           asset_content_type: application/zip
       - name: Upload release asset build-windows-material.7z
-        uses: actions/upload-release-asset@v1.0.1
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -667,7 +1189,7 @@ jobs:
           asset_name: ${{ steps.version.outputs.filename }}-windows-material.7z
           asset_content_type: application/octet-stream
       - name: Upload release asset build-deep-windows.zip
-        uses: actions/upload-release-asset@v1.0.1
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -676,7 +1198,7 @@ jobs:
           asset_name: ${{ steps.version.outputs.filename }}-deep-windows.zip
           asset_content_type: application/zip
       - name: Upload release asset build-deep-windows.7z
-        uses: actions/upload-release-asset@v1.0.1
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -685,7 +1207,7 @@ jobs:
           asset_name: ${{ steps.version.outputs.filename }}-deep-windows.7z
           asset_content_type: application/octet-stream
       - name: Upload release asset build-android.zip
-        uses: actions/upload-release-asset@v1.0.1
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -694,7 +1216,7 @@ jobs:
           asset_name: ${{ steps.version.outputs.filename }}-android.zip
           asset_content_type: application/zip
       - name: Upload release asset build-android.7z
-        uses: actions/upload-release-asset@v1.0.1
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -702,8 +1224,17 @@ jobs:
           asset_path: release-android/build-android.7z
           asset_name: ${{ steps.version.outputs.filename }}-android.7z
           asset_content_type: application/octet-stream
+      - name: Upload release asset build-macos.tar.xz
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-macos/build-macos.tar.xz
+          asset_name: ${{ steps.version.outputs.filename }}-macos.tar.xz
+          asset_content_type: application/x-xz
       - name: Upload release asset build-windows-suisho.zip
-        uses: actions/upload-release-asset@v1.0.1
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -712,7 +1243,7 @@ jobs:
           asset_name: Suisho5-${{ steps.version.outputs.filename }}-windows.zip
           asset_content_type: application/zip
       - name: Upload release asset build-windows-suisho.7z
-        uses: actions/upload-release-asset@v1.0.1
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -721,7 +1252,7 @@ jobs:
           asset_name: Suisho5-${{ steps.version.outputs.filename }}-windows.7z
           asset_content_type: application/octet-stream
       - name: Upload release asset build-android-suisho.zip
-        uses: actions/upload-release-asset@v1.0.1
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -730,7 +1261,7 @@ jobs:
           asset_name: Suisho5-${{ steps.version.outputs.filename }}-android.zip
           asset_content_type: application/zip
       - name: Upload release asset build-android-suisho.7z
-        uses: actions/upload-release-asset@v1.0.1
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -738,3 +1269,12 @@ jobs:
           asset_path: release-android-suisho/build-android-suisho.7z
           asset_name: Suisho5-${{ steps.version.outputs.filename }}-android.7z
           asset_content_type: application/octet-stream
+      - name: Upload release asset build-macos-suisho.tar.xz
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-macos-suisho/build-macos-suisho.tar.xz
+          asset_name: Suisho5-${{ steps.version.outputs.filename }}-macos.tar.xz
+          asset_content_type: application/x-xz
