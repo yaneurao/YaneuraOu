@@ -30,7 +30,6 @@ jobs:
         edition:
           - "YANEURAOU_ENGINE_NNUE,YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256"
           - "YANEURAOU_ENGINE_KPPT,YANEURAOU_ENGINE_KPP_KKPT"
-          - YANEURAOU_ENGINE_MATERIAL*
           - YANEURAOU_MATE_ENGINE
           - TANUKI_MATE_ENGINE
           - USER_ENGINE
@@ -119,7 +118,6 @@ jobs:
         target:
           - normal
           - tournament
-          - evallearn
           - gensfen
         archcpu:
           - ZEN3
@@ -130,7 +128,7 @@ jobs:
           - SSE2
           - NO_SSE
         edition:
-          - YANEURAOU_ENGINE_MATERIAL*
+          - "YANEURAOU_ENGINE_MATERIAL,YANEURAOU_ENGINE_MATERIAL9"
         compiler:
           - clang++
           - g++
@@ -163,6 +161,8 @@ jobs:
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
           - edition: YANEURAOU_ENGINE_MATERIAL*
+            target: evallearn
+          - edition: "YANEURAOU_ENGINE_MATERIAL,YANEURAOU_ENGINE_MATERIAL9"
             target: evallearn
           - edition: YANEURAOU_MATE_ENGINE
             target: evallearn
@@ -257,7 +257,7 @@ jobs:
           - YANEURAOU_ENGINE_NNUE_KP256
           - YANEURAOU_ENGINE_KPPT
           - YANEURAOU_ENGINE_KPP_KKPT
-          - YANEURAOU_ENGINE_MATERIAL*
+          - "YANEURAOU_ENGINE_MATERIAL,YANEURAOU_ENGINE_MATERIAL9"
           - YANEURAOU_MATE_ENGINE
           - TANUKI_MATE_ENGINE
           - USER_ENGINE
@@ -542,27 +542,20 @@ jobs:
                  cf. [魚沼産やねうら王できました](http://yaneuraou.yaneu.com/2019/02/12/%e9%ad%9a%e6%b2%bc%e7%94%a3%e3%82%84%e3%81%ad%e3%81%86%e3%82%89%e7%8e%8b%e3%81%a7%e3%81%8d%e3%81%be%e3%81%97%e3%81%9f/)
               d. HalfKPvm型
                  cf. [tanuki-denryu2](https://github.com/nodchip/tanuki-/releases/tag/tanuki-denryu2)
-            4. MaterialLv1～9
+            4. MaterialLv1, MaterialLv9
               a. MaterialLv1 駒得のみ
-              b. MaterialLv2 駒得＋手駒評価
-                cf. [【連載】評価関数を作ってみよう！その1](http://yaneuraou.yaneu.com/2020/11/17/make-evaluate-function/)
-              c. MaterialLv3 ＋盤上の利きを評価
-                cf. [【連載】評価関数を作ってみよう！その2](http://yaneuraou.yaneu.com/2020/11/19/make-evaluate-function-2/)
-                cf. [【連載】評価関数を作ってみよう！その3](http://yaneuraou.yaneu.com/2020/11/20/make-evaluate-function-3/)
-                cf. [【連載】評価関数を作ってみよう！その4](http://yaneuraou.yaneu.com/2020/11/23/make-evaluate-function-4/)
-              d. MaterialLv4 ＋複数の利きに減衰評価
-                cf. [【連載】評価関数を作ってみよう！その5](http://yaneuraou.yaneu.com/2020/11/25/make-evaluate-function-5/)
-              e. MaterialLv5 ＋利きの価値合算テーブル
-                cf. [【連載】評価関数を作ってみよう！その6](http://yaneuraou.yaneu.com/2020/11/26/make-evaluate-function-6/)
-              f. MaterialLv6 ＋KKPEE9テーブルに一本化
-                cf. [【連載】評価関数を作ってみよう！その7](http://yaneuraou.yaneu.com/2020/11/27/make-evaluate-function-7/)
-              g. MaterialLv7 ＋味方・敵の駒の利きによる加減
-                cf. [【連載】評価関数を作ってみよう！その8](http://yaneuraou.yaneu.com/2020/11/30/make-evaluate-function-8/)
-              h. MaterialLv8 ＋玉近傍への味方駒の利きと駒の有無、玉位置加点
-                cf. [【連載】評価関数を作ってみよう！その9](http://yaneuraou.yaneu.com/2020/12/01/make-evaluate-function-9/)
-                cf. [【連載】評価関数を作ってみよう！その10](http://yaneuraou.yaneu.com/2020/12/02/make-evaluate-function-10/)
-              i. MaterialLv9 ＋方角ごとの利き評価
-                cf. [【連載】評価関数を作ってみよう！その11](http://yaneuraou.yaneu.com/2020/12/07/make-evaluate-function-11/)
+              b. MaterialLv9 駒得＋手駒評価＋盤上の利きを評価＋複数の利きに減衰評価＋利きの価値合算テーブル＋KKPEE9テーブルに一本化＋味方・敵の駒の利きによる加減＋玉近傍への味方駒の利きと駒の有無、玉位置加点＋方角ごとの利き評価
+                - [【連載】評価関数を作ってみよう！その1](http://yaneuraou.yaneu.com/2020/11/17/make-evaluate-function/)
+                - [【連載】評価関数を作ってみよう！その2](http://yaneuraou.yaneu.com/2020/11/19/make-evaluate-function-2/)
+                - [【連載】評価関数を作ってみよう！その3](http://yaneuraou.yaneu.com/2020/11/20/make-evaluate-function-3/)
+                - [【連載】評価関数を作ってみよう！その4](http://yaneuraou.yaneu.com/2020/11/23/make-evaluate-function-4/)
+                - [【連載】評価関数を作ってみよう！その5](http://yaneuraou.yaneu.com/2020/11/25/make-evaluate-function-5/)
+                - [【連載】評価関数を作ってみよう！その6](http://yaneuraou.yaneu.com/2020/11/26/make-evaluate-function-6/)
+                - [【連載】評価関数を作ってみよう！その7](http://yaneuraou.yaneu.com/2020/11/27/make-evaluate-function-7/)
+                - [【連載】評価関数を作ってみよう！その8](http://yaneuraou.yaneu.com/2020/11/30/make-evaluate-function-8/)
+                - [【連載】評価関数を作ってみよう！その9](http://yaneuraou.yaneu.com/2020/12/01/make-evaluate-function-9/)
+                - [【連載】評価関数を作ってみよう！その10](http://yaneuraou.yaneu.com/2020/12/02/make-evaluate-function-10/)
+                - [【連載】評価関数を作ってみよう！その11](http://yaneuraou.yaneu.com/2020/12/07/make-evaluate-function-11/)
             5. YaneuraOu詰将棋エンジン
                cf. [やねうら王詰将棋エンジンを公開しました](http://yaneuraou.yaneu.com/2020/12/29/yaneuraou-mate-solver/)
             6. tanuki-詰将棋エンジン
