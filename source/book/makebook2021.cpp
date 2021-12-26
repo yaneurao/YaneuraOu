@@ -935,7 +935,10 @@ namespace MakeBook2021 {
 						// 無い。おそらく初期局面ですべての指し手がqueueに入っている、みたいな状況。
 						if (search_pv.size() == 0)
 						{
-							--i; continue;
+							// 空の指し手を積んでおく。
+							// こうしないとpopする回数と数が合わなくてdead lockになる。る
+							search_nodes.push(SearchNode(nullptr,MOVE_NONE,HASH_KEY()));
+							continue;
 						}
 
 						const auto next = search_pv.back();
@@ -957,6 +960,9 @@ namespace MakeBook2021 {
 			{
 				// 思考するための局面queueから取り出す。
 				auto s_node = search_nodes.pop();
+				// 空の局面(該当がなかった)
+				if (s_node.move == MOVE_NONE)
+					continue;
 				time.reset();
 				bool already_exists,banned_node=false;
 				think(pos,&s_node,already_exists);
@@ -1062,8 +1068,10 @@ namespace MakeBook2021 {
 					return node->search_value;
 			}
 
-			// PVであっても、cyclic == 0であれば枝刈りしていいと思う。
-			if (   nodeType == PV
+			// TeraShock searchの時は、PVであっても、cyclic == 0であれば枝刈りしていいと思う。
+			// (通常searchの時は、PV leafが書き換わるのでこれをやるなら、前回のPV lineをクリアする必要がある)
+			if (   searchMode == SearchMode::TeraShockSearch
+				&& nodeType == PV
 				&& node->generation == search_option.generation
 				&& node->cyclic == 0
 				&& node->search_value.value != VALUE_NONE)
