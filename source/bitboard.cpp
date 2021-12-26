@@ -809,7 +809,7 @@ Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ)
 	case B_HORSE:  case W_HORSE:  return horseEffect (sq, occ);
 	case B_DRAGON: case W_DRAGON: return dragonEffect(sq, occ);
 	case B_KING:   case W_KING:   return kingEffect  (sq     );
-	case B_QUEEN:  case W_QUEEN:  return horseEffect (sq, occ) | rookEffect(sq, occ); // 馬+飛でいいや。(馬+龍は王の利きを2回合成して損)
+	case B_QUEEN:  case W_QUEEN:  return bishopEffect (sq, occ) | rookEffect(sq, occ); // 角+飛でいいや。(馬+龍は王の利きを2回合成して損)
 	case NO_PIECE: case PIECE_WHITE: return Bitboard(ZERO); // これも入れておかないと初期化が面倒になる。
 
 	default: UNREACHABLE; return Bitboard(1);
