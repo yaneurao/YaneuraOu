@@ -8,6 +8,7 @@
 <#
 # MSYS2をインストールしたディレクトリで（もしくはPATH環境変数を設定して）以下を実行:
 
+msys2_shell.cmd -msys2 -defterm -no-start -lc 'pacman --needed --noconfirm -Syuu';
 msys2_shell.cmd -msys2 -defterm -no-start -lc 'pacman --needed --noconfirm -Syuu pactoys';
 msys2_shell.cmd -msys2 -defterm -no-start -lc 'pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m';
 
