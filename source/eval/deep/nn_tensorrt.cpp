@@ -194,6 +194,13 @@ namespace Eval::dlshogi
 			config->setFlag(nvinfer1::BuilderFlag::kFP16);
 		}
 
+#if defined(TRT_NN_FP16)
+		network->getInput(0)->setType(nvinfer1::DataType::kHALF);
+		network->getInput(1)->setType(nvinfer1::DataType::kHALF);
+		network->getOutput(0)->setType(nvinfer1::DataType::kHALF);
+		network->getOutput(1)->setType(nvinfer1::DataType::kHALF);
+#endif
+
 		ASSERT_LV3(network->getNbInputs() == 2);
 		nvinfer1::Dims inputDims[] = { network->getInput(0)->getDimensions(), network->getInput(1)->getDimensions() };
 		ASSERT_LV3(inputDims[0].nbDims == 4);
@@ -268,6 +275,9 @@ namespace Eval::dlshogi
 			// std::regex_replace(std::string(pciBusId), std::regex("[^A-Za-z0-9._-]"), std::string("_")) + "." +
 			std::to_string(max_batch_size) + "." +
 			"TRT" + std::to_string(getInferLibVersion()) + "." +
+#if defined(TRT_NN_FP16)
+			"FP16." +
+#endif
 			"serialized";
 
 		sync_cout << "info string serialized filename = " << serialized_filename << sync_endl;
