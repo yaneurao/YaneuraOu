@@ -1111,26 +1111,26 @@ jobs:
                 - ORT-DML : Windows 10 DirectML (DML) 対応のGPU向け。（対応環境であればおそらくORT-TRT や TensorRTのが高速）
                   cf. [DirectML の概要](https://docs.microsoft.com/ja-jp/windows/win32/direct3d12/dml-intro)
                 - ORT-TRT : NVIDIA TensorRT 対応のGPU向け。CUDA, cuDNN, TensorRT の導入も必要です。
-                  - CUDA (開発環境は 11.5.1)
+                  - CUDA (開発環境は 11.6.2)
                     - [Latest CUDA Toolkit Download](https://developer.nvidia.com/cuda-downloads)
                     - [CUDA Toolkit Archive](https://developer.nvidia.com/cuda-toolkit-archive)
                     - [CUDA Installation Guide for Microsoft Windows (CUDAインストール手順, CUDA 最新版)](https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/index.html)
-                    - CUDA Toolkit 11.5.1 の場合の導入例:
-                      - [Local Installer (2.4GB)](https://developer.download.nvidia.com/compute/cuda/11.5.1/local_installers/cuda_11.5.1_496.13_windows.exe) もしくは [Network Installer (28.7MB)](https://developer.download.nvidia.com/compute/cuda/11.5.1/network_installers/cuda_11.5.1_windows_network.exe) をダウンロード・実行してインストール
-                  - cuDNN (開発環境は v8.2.4 (Archive))
+                    - CUDA Toolkit 11.6.2 の場合の導入例:
+                      - [Local Installer (2.5GB)](https://developer.download.nvidia.com/compute/cuda/11.6.2/local_installers/cuda_11.6.2_511.65_windows.exe) もしくは [Network Installer (33.6MB)](https://developer.download.nvidia.com/compute/cuda/11.6.2/network_installers/cuda_11.6.2_windows_network.exe) をダウンロード・実行してインストール
+                  - cuDNN (開発環境は [v8.2.4 (Archive)](https://developer.nvidia.com/rdp/cudnn-archive))
                     - [cuDNN Download](https://developer.nvidia.com/rdp/cudnn-download) (要ログイン)
-                    - [cuDNN Archive](https://developer.nvidia.com/rdp/cudnn-archive) (要ログイン)
+                    - (注: Windows版では現状、v8.3.x 系は非推奨。過去のバージョンは [cuDNN Archive](https://developer.nvidia.com/rdp/cudnn-archive) (要ログイン) を参照。)
                     - [Installing cuDNN On Windows (cuDNNインストール手順)](https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#install-windows)
                     - cuDNN v8.2.4 (`cudnn-11.4-windows-x64-x64-v8.2.4.15.zip`) の場合の導入例:
                       - ダウンロードした `cudnn-11.4-windows-x64-x64-v8.2.4.15.zip` を右クリック → 「すべて展開」 → 展開時に展開されたファイルを表示する
                       - `cudnn-11.4-windows-x64-x64-v8.2.4.15/cuda/bin` フォルダ階層を選択して表示
                       - `cudnn_adv_infer64_8.dll`, `cudnn_cnn_infer64_8.dll`, `cudnn_ops_infer64_8.dll`, `cudnn64_8.dll` (種類: アプリケーション拡張) の4つのファイルを選択し、`YaneuraOu-Deep-ORT-TRT.exe` と同じフォルダにコピー
-                  - TensorRT (開発環境は 8.2.1 GA)
+                  - TensorRT (開発環境は 8.2 GA Update 2)
                     - [NVIDIA TensorRT Download](https://developer.nvidia.com/nvidia-tensorrt-download) (要ログイン)
                     - [Installing TensorRT (TensorRTインストール手順)](https://docs.nvidia.com/deeplearning/tensorrt/install-guide/index.html#installing-zip)
-                    - TensorRT 8.2.1 GA (`TensorRT-8.2.1.8.Windows10.x86_64.cuda-11.4.cudnn8.2.zip`) の場合の導入例:
-                      - ダウンロードした `TensorRT-8.2.1.8.Windows10.x86_64.cuda-11.4.cudnn8.2.zip` を右クリック → 「すべて展開」 → 展開時に展開されたファイルを表示する
-                      - `TensorRT-8.2.1.8/lib` フォルダ階層を選択して表示
+                    - TensorRT 8.2 GA Update 3 (`TensorRT-8.2.4.2.Windows10.x86_64.cuda-11.4.cudnn8.2.zip`) の場合の導入例:
+                      - ダウンロードした `TensorRT-8.2.4.2.Windows10.x86_64.cuda-11.4.cudnn8.2.zip` を右クリック → 「すべて展開」 → 展開時に展開されたファイルを表示する
+                      - `TensorRT-8.2.4.2/lib` フォルダ階層を選択して表示
                       - `nvinfer.dll`, `nvinfer_builder_resource.dll`, `nvinfer_plugin.dll`, `nvonnxparser.dll`, `nvparsers.dll` (種類: アプリケーション拡張) の5つのファイルを選択し、`YaneuraOu-Deep-ORT-TRT.exe` と同じフォルダにコピー
                   - [警告: 以下のような変更があった場合は、古いエンジンやプロファイルのキャッシュファイル(`.engine`, `.profile`)をクリーンアップしてください。](https://onnxruntime.ai/docs/execution-providers/TensorRT-ExecutionProvider.html#environment-variables)
                     - モデルの変更（モデルのトポロジー、opsetのバージョン、演算子などに変更があった場合）
