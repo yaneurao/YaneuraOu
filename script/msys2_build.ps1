@@ -30,7 +30,7 @@ $TGCOMPILERS = @('clang++';'g++';);
     TARGET = @('evallearn';'normal';'tournament';'gensfen';);
   };
   @{
-    BUILDDIR = 'NNUE_KPE9';
+    BUILDDIR = 'NNUE_HALFKP_VM';
     EDITION = 'YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32';
     BUILDNAME = 'YaneuraOu_NNUE_HalfKP_VM';
     TARGET = @('evallearn';'normal';'tournament';'gensfen';);
