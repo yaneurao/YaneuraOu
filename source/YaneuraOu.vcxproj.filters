@@ -307,6 +307,9 @@
     <ClInclude Include="eval\deep\nn_types.h">
       <Filter>リソース ファイル\eval\deep</Filter>
     </ClInclude>
+    <ClInclude Include="eval\deep\unpack.cuh">
+      <Filter>リソース ファイル\eval\deep</Filter>
+    </ClInclude>
     <ClInclude Include="mate\mate.h">
       <Filter>リソース ファイル\mate</Filter>
     </ClInclude>
@@ -590,5 +593,10 @@
     </None>
     <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
     <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime_providers_shared.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="eval\deep\unpack.cu">
+      <Filter>リソース ファイル\eval\deep</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

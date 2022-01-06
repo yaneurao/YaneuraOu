@@ -243,7 +243,7 @@ namespace dlshogi
 		// 現在の局面に出現している特徴量を設定する。
 		// current_policy_value_batch_indexは、UctSearchThreadごとに持っているのでlock不要
 
-		make_input_features(*pos, &features1[current_policy_value_batch_index], &features2[current_policy_value_batch_index]);
+		make_input_features(*pos, current_policy_value_batch_index, packed_features1, packed_features2);
 
 		// 現在のNodeと手番を保存しておく。
 		policy_value_batch[current_policy_value_batch_index] = { node, pos->side_to_move() /* , pos->key() */ , value_win};
@@ -364,13 +364,13 @@ namespace dlshogi
 		StateInfo si;
 		for (int i = 0; i < policy_value_batch_maxsize; ++i) {
 			pos.set(dummy_sfen((u32)i), &si, Threads.main());
-			make_input_features(pos, &features1[i], &features2[i]);
+			make_input_features(pos, i, packed_features1, packed_features2);
 		}
 		// このスレッドとGPUとを紐付ける。
 		grp->set_device();
 		// 最大バッチサイズ(policy_value_batch_maxsize) と 最小バッチサイズ(1) でそれぞれ推論を実行しておく
-		grp->nn_forward(policy_value_batch_maxsize, features1, features2, y1, y2);
-		grp->nn_forward(1, features1, features2, y1, y2);
+		grp->nn_forward(policy_value_batch_maxsize, packed_features1, packed_features2, features1, features2, y1, y2);
+		grp->nn_forward(1, packed_features1, packed_features2, features1, features2, y1, y2);
 		// ダミー局面推論終了時間
 		TimePoint tpforwardend = now();
 
@@ -894,7 +894,7 @@ namespace dlshogi
 
 		// predict
 		// policy_value_batch_sizeの数だけまとめて局面を評価する
-		grp->nn_forward(policy_value_batch_size, features1, features2, y1, y2);
+		grp->nn_forward(policy_value_batch_size, packed_features1, packed_features2, features1, features2, y1, y2);
 
 		//cout << *y2 << endl;
 

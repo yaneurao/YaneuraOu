@@ -7,7 +7,8 @@
 #include "../../position.h"
 
 #if defined(TENSOR_RT)
-#define TRT_NN_FP16
+//#define TRT_NN_FP16
+#define UNPACK_CUDA
 #endif
 
 #if defined(TRT_NN_FP16)
@@ -105,6 +106,7 @@ namespace Eval::dlshogi
 	// 16bitが使えるのは、cuDNNのときだけだが、cuDNNの利用はdlshogiでは廃止する予定らしいので、
 	// ここでは32bit floatとして扱う。
 #if defined(TRT_NN_FP16)
+	typedef uint8_t PType;
 	typedef __half DType;
 	extern const DType dtype_zero;
 	extern const DType dtype_one;
@@ -115,6 +117,7 @@ namespace Eval::dlshogi
 		return __float2half(x);
 	}
 #else
+	typedef uint8_t PType;
 	typedef float DType;
 	constexpr const DType dtype_zero = 0.0f; // DTypeで 0 を表現する型
 	constexpr const DType dtype_one  = 1.0f; // DTypeで 1 を表現する型
@@ -144,7 +147,10 @@ namespace Eval::dlshogi
 	//   position  : このあとEvalNode()を呼び出したい局面
 	//   features1 : ここに書き出す。(事前に呼び出し元でバッファを確保しておくこと)
 	//   features2 : ここに書き出す。(事前に呼び出し元でバッファを確保しておくこと)
-	void make_input_features(const Position& position, NN_Input1* features1, NN_Input2* features2);
+	void make_input_features(const Position& position, int batch_index, PType* packed_features1, PType* packed_features2);
+
+	// 入力特徴量を展開する。GPU側で展開する場合は不要。
+	void extract_input_features(int batch_size, PType* packed_features1, PType* packed_features2, NN_Input1* features1, NN_Input2* features2);
 
 	// 指し手に対して、Policy Networkの返してくる配列のindexを返す。
 	int make_move_label(Move move, Color color);
