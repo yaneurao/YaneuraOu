@@ -2299,6 +2299,9 @@ void Position::UnitTest(Test::UnitTester& tester)
 	Position pos;
 	StateInfo si;
 
+	// 任意局面での初期化。
+	auto pos_init = [&](const std::string& sfen_) { pos.set(sfen_, &si, Threads.main()); };
+
 	// 平手初期化
 	auto hirate_init  = [&] { pos.set_hirate(&si, Threads.main()); };
 	// 2枚落ち初期化
@@ -2485,6 +2488,59 @@ void Position::UnitTest(Test::UnitTester& tester)
 				u64 pn = p_nodes[d];
 				tester.test("depth " + to_string(d) + " = " + to_string(nodes), nodes == pn);
 			}
+		}
+	}
+
+	{
+		// 指し手生成のテスト
+		auto section2 = tester.section("GenMove");
+
+		{
+			// 23歩不成ができ、かつ、23歩不成では駒の捕獲にはならない局面。
+			pos_init("lnsgk1snl/1r4g2/p1ppppb1p/6pP1/7R1/2P6/P2PPPP1P/1SG6/LN2KGSNL b BP2p 21");
+			Move move1 = make_move(SQ_24, SQ_23,B_PAWN);
+			Move move2 = make_move_promote(SQ_24, SQ_23,B_PAWN);
+
+			ExtMove move_buf[MAX_MOVES] , *move_last;
+			// move_bufからmove_lastのなかにmoveがあるかを探す。あればtrueを返す。
+			auto find_move = [&](Move m) {
+				for (ExtMove* em = &move_buf[0]; em != move_last; ++em)
+					if (em->move == m)
+						return true;
+				return false;
+			};
+
+			bool all = true;
+
+			move_last = generateMoves<NON_CAPTURES>(pos, move_buf);
+			all &= !find_move(move1);
+			all &=  find_move(move2);
+
+			move_last = generateMoves<CAPTURES>(pos, move_buf);
+			all &= !find_move(move1);
+			all &= !find_move(move2);
+
+			move_last = generateMoves<NON_EVASIONS>(pos, move_buf);
+			all &= !find_move(move1);
+			all &=  find_move(move2);
+
+			move_last = generateMoves<NON_EVASIONS_ALL>(pos, move_buf);
+			all &=  find_move(move1);
+			all &=  find_move(move2);
+
+			move_last = generateMoves<CAPTURES>(pos, move_buf);
+			all &= !find_move(move1);
+			all &= !find_move(move2);
+
+			move_last = generateMoves<CAPTURES_PRO_PLUS>(pos, move_buf);
+			all &= !find_move(move1);
+			all &=  find_move(move2);
+
+			move_last = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, move_buf);
+			all &= !find_move(move1);
+			all &= !find_move(move2);
+
+			tester.test("pawn's unpromoted move", all);
 		}
 	}
 

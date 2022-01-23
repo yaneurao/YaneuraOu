@@ -232,7 +232,15 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
 				// ただしAll(全合法手を生成するとき)だけは不成も生成
 				// また、移動先の升が1段目は、成れないのでその指し手生成は除外
 				if (All && rank_of(to) != T_RANK1)
+				{
+					// CAPTURE_PRO_PLUSに対しては、捕獲できないなら、不成の歩の指し手を生成してはならない。
+					// toに自駒がないことはすでに保証されている。(移動できるので)
+					//if (GenType == CAPTURES_PRO_PLUS && !pos.piece_on(to))
+					//	continue;
+					// →　CAPTURE_PRO_PLUS_ALLは実装ややこしいから廃止する。
+
 					mlist++->move = make_move(from, to, Us, PAWN);
+				}
 			}
 			else
 				mlist++->move = make_move(from, to , Us, PAWN);
@@ -901,8 +909,8 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist, Square recapSq)
 	// 歩の不成などを含め、すべての指し手を生成するのか。
 	// GenTypeの末尾に"ALL"とついているものがその対象。
 	const bool All = (GenType == EVASIONS_ALL) || (GenType == CHECKS_ALL)     || (GenType == LEGAL_ALL)
-		|| (GenType == NON_EVASIONS_ALL)       || (GenType == RECAPTURES_ALL) || (GenType == QUIET_CHECKS_ALL)
-		|| (GenType == CAPTURES_PRO_PLUS_ALL)  || (GenType == NON_CAPTURES_PRO_MINUS_ALL);
+		|| (GenType == NON_EVASIONS_ALL)       || (GenType == RECAPTURES_ALL) || (GenType == QUIET_CHECKS_ALL);
+		//|| (GenType == CAPTURES_PRO_PLUS_ALL)  || (GenType == NON_CAPTURES_PRO_MINUS_ALL);
 
 	if (GenType == LEGAL || GenType == LEGAL_ALL)
 	{
@@ -951,8 +959,8 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist, Square recapSq)
 		GenType == NON_EVASIONS_ALL ? NON_EVASIONS :
 		GenType == RECAPTURES_ALL   ? RECAPTURES :
 		GenType == EVASIONS_ALL     ? EVASIONS :
-		GenType == CAPTURES_PRO_PLUS_ALL ? CAPTURES_PRO_PLUS :
-		GenType == NON_CAPTURES_PRO_MINUS_ALL ? NON_CAPTURES_PRO_MINUS :
+		//GenType == CAPTURES_PRO_PLUS_ALL ? CAPTURES_PRO_PLUS :
+		//GenType == NON_CAPTURES_PRO_MINUS_ALL ? NON_CAPTURES_PRO_MINUS :
 		GenType; // さもなくば元のまま。
 	return generateMoves<GenType2, All>(pos, mlist, recapSq);
 }
@@ -971,11 +979,8 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist)
 template ExtMove* generateMoves<NON_CAPTURES          >(const Position& pos, ExtMove* mlist);
 template ExtMove* generateMoves<CAPTURES              >(const Position& pos, ExtMove* mlist);
 
-template ExtMove* generateMoves<NON_CAPTURES_PRO_MINUS    >(const Position& pos, ExtMove* mlist);
-template ExtMove* generateMoves<NON_CAPTURES_PRO_MINUS_ALL>(const Position& pos, ExtMove* mlist);
-
-template ExtMove* generateMoves<CAPTURES_PRO_PLUS         >(const Position& pos, ExtMove* mlist);
-template ExtMove* generateMoves<CAPTURES_PRO_PLUS_ALL     >(const Position& pos, ExtMove* mlist);
+template ExtMove* generateMoves<NON_CAPTURES_PRO_MINUS>(const Position& pos, ExtMove* mlist);
+template ExtMove* generateMoves<CAPTURES_PRO_PLUS     >(const Position& pos, ExtMove* mlist);
 
 template ExtMove* generateMoves<EVASIONS              >(const Position& pos, ExtMove* mlist);
 template ExtMove* generateMoves<EVASIONS_ALL          >(const Position& pos, ExtMove* mlist);
