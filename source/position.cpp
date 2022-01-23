@@ -991,6 +991,24 @@ bool Position::legal(Move m) const
 	}
 }
 
+// leagl()では、成れるかどうかのチェックをしていない。
+// (先手の指し手を後手の指し手と混同しない限り、指し手生成された段階で
+// 成れるという条件は満たしているはずだから)
+// しかし、先手の指し手を後手の指し手と取り違えた場合、この前提が崩れるので
+// これをチェックするための関数。成れる条件を満たしていない場合、falseが帰る。
+bool Position::super_legal(Move m) const
+{
+	// 成りの指し手にしか関与しない
+	if (!is_promote(m))
+		return true;
+
+	Color us = sideToMove;
+	Square from = from_sq(m);
+	Square to   =   to_sq(m);
+
+	// 移動元か移動先が敵陣でなければ成れる条件を満たしていない。
+	return enemy_field(us) & (Bitboard(from) | Bitboard(to));
+}
 
 // 置換表から取り出したMoveを32bit化する。
 Move Position::to_move(Move16 m16) const

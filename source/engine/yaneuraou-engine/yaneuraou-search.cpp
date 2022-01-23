@@ -1521,6 +1521,7 @@ namespace {
 
 		ttMove = rootNode ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
 			  : ss->ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
+		ASSERT_LV3(pos.super_legal(ttMove));
 
 		// 置換表の指し手がcaptureOrPromotionであるか。
 		// 置換表の指し手がcaptureOrPromotionなら高い確率でこの指し手がベストなので、他の指し手を
@@ -1651,6 +1652,8 @@ namespace {
 				if (m != MOVE_NONE)
 				{
 					bestValue = mate_in(ss->ply + 1); // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
+
+					ASSERT_LV3(pos.super_legal(m));
 					tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
 						MAX_PLY, m, ss->staticEval);
 
@@ -1686,6 +1689,7 @@ namespace {
 						bestValue = mate_in(ss->ply + 1);
 
 						// staticEvalの代わりに詰みのスコア書いてもいいのでは..
+						ASSERT_LV3(pos.super_legal(move));
 						tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
 							MAX_PLY, move, /* ss->staticEval */ bestValue);
 
@@ -1706,6 +1710,7 @@ namespace {
 						// N手詰めかも知れないのでPARAM_WEAK_MATE_PLY手詰めのスコアを返す。
 						bestValue = mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
 
+						ASSERT_LV3(pos.super_legal(move));
 						tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
 							MAX_PLY, move, /* ss->staticEval */ bestValue);
 
@@ -2009,12 +2014,15 @@ namespace {
 						// if transposition table doesn't have equal or more deep info write probCut data into it
 						// もし置換表が、等しいかより深く探索した情報ではないなら、probCutの情報をそこに書く
 
-						if ( !(ss->ttHit
+						if (! (ss->ttHit
 							&& tte->depth() >= depth - (PARAM_PROBCUT_DEPTH - 1)
 							&& ttValue != VALUE_NONE))
+						{
+							ASSERT_LV3(pos.super_legal(move));
 							tte->save(posKey, value_to_tt(value, ss->ply), ttPv,
 								BOUND_LOWER,
 								depth - (PARAM_PROBCUT_DEPTH - 1), move, ss->staticEval);
+						}
 						return value;
 					}
 				}
@@ -2858,10 +2866,13 @@ namespace {
 		// すなわち、スコアは変動するかも知れないので、BOUND_UPPERという扱いをする。
 
 		if (!excludedMove && !(rootNode && thisThread->pvIdx))
+		{
+			ASSERT_LV3(pos.super_legal(bestMove));
 			tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv,
 				bestValue >= beta ? BOUND_LOWER :
 				PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
 				depth, bestMove, ss->staticEval);
+		}
 
 		// qsearch()内の末尾にあるassertの文の説明を読むこと。
 		ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
@@ -2986,6 +2997,8 @@ namespace {
 		ttValue = ss->ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
 		ttMove  = ss->ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
 		pvHit   = ss->ttHit && tte->is_pv();
+
+		ASSERT_LV3(pos.super_legal(ttMove));
 
 		// nonPVでは置換表の指し手で枝刈りする
 		// PVでは置換表の指し手では枝刈りしない(前回evaluateした値は使える)
@@ -3324,6 +3337,7 @@ namespace {
 	    // Save gathered info in transposition table
 		// 詰みではなかったのでこれを書き出す。
 		// ※　qsearch()の結果は信用ならないのでBOUND_EXACTで書き出すことはない。
+		ASSERT_LV3(pos.super_legal(bestMove));
 		tte->save(posKey, value_to_tt(bestValue, ss->ply), pvHit,
 				  bestValue >= beta ? BOUND_LOWER : BOUND_UPPER,
 				  ttDepth, bestMove, ss->staticEval);

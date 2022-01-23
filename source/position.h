@@ -491,6 +491,13 @@ public:
 	// 二歩でなく、かつ打ち歩詰めでないならtrueを返す。
 	bool legal_pawn_drop(const Color us, const Square to) const;
 
+	// leagl()では、成れるかどうかのチェックをしていない。
+	// (先手の指し手を後手の指し手と混同しない限り、指し手生成された段階で
+	// 成れるという条件は満たしているはずだから)
+	// しかし、先手の指し手を後手の指し手と取り違えた場合、この前提が崩れるので
+	// これをチェックするための関数。成れる条件を満たしていない場合、falseが帰る。
+	bool super_legal(Move m) const;
+
 	// --- StateInfo
 
 	// 現在の局面に対応するStateInfoを返す。
