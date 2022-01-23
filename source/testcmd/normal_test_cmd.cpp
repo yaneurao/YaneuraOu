@@ -79,6 +79,9 @@ namespace {
 
 		// 1手の思考長さ[ms]
 		int movetime = 500;    // default 500ms
+
+		// 1手のnodes limit
+		s64 nodes_limit = 0;
 		
 		std::string token;
 		while (is >> token)
@@ -89,12 +92,15 @@ namespace {
 				verbose = true;
 			else if (token == "movetime")
 				is >> movetime;
+			else if (token == "nodes")
+				is >> nodes_limit;
 		}
 
 		std::cout   << "Auto Play test : " << std::endl
 					<< "  loop     = " << loop << std::endl
 					<< "  movetime = " << movetime << std::endl
 					<< "  verbose  = " << verbose << std::endl
+					<< "  nodes    = " << nodes_limit << std::endl
 			;
 
 		const int MAX_PLY = 256; // 256手までテスト
@@ -133,23 +139,39 @@ namespace {
 			if (verbose)
 				std::cout << "position startpos moves";
 
-			for (int ply = 0; ply < MAX_PLY; ++ply)
+			char result = ' ';
+			for (int ply = 0;; ++ply)
 			{
+				if (!(ply < MAX_PLY))
+				{
+					result = 'M'; // MaxMoves
+					break;
+				}
+
 				// 詰まされているかのチェック
 				if (pos.is_mated())
+				{
+					result = (pos.side_to_move() == BLACK) ? 'W' : 'B'; // 勝ったほうのプレイヤーを出力
 					break;
+				}
 
 				// 千日手のチェック
 				auto rep = pos.is_repetition(16);
 				if (rep == REPETITION_DRAW)
+				{
+					result = '.'; // 引き分け
 					break;
+				}
 
 #if defined(USE_ENTERING_KING_WIN)
 				// MateEngineなど宣言勝ちをサポートしていないエンジンもある…。
 				
 				// 宣言勝ちのチェック
 				if (pos.DeclarationWin())
+				{
+					result = (pos.side_to_move() == BLACK) ? 'b' : 'w'; // 勝ったほうのプレイヤーを小文字で出力
 					break;
+				}
 #endif
 
 				Time.reset();
@@ -159,8 +181,9 @@ namespace {
 				StateListPtr states0(new StateList(0));
 				*states0.get() = *states.get(); // dequeのcopyを行う。
 
-				// 思考時間、1～4倍の間でランダム化
+				// 思考時間、nodes_limit、1～4倍の間でランダム化
 				lm.movetime = movetime * (1000 + prng.rand(3000)) / 1000;
+				lm.nodes    = nodes_limit * (1000 + prng.rand(3000)) / 1000;
 
 				Threads.start_thinking(pos, states0 , lm);
 				Threads.main()->wait_for_search_finished();
@@ -179,10 +202,10 @@ namespace {
 			}
 
 			if (verbose)
-				std::cout << std::endl;
+				std::cout << std::endl << "result = " << result << std::endl;
 			else
-				// 1局ごとに'.'を出力(進んでいることがわかるように)
-				std::cout << ".";
+				// 1局ごとに結果を出力(進んでいることがわかるように)
+				std::cout << result;
 		}
 	}
 }
