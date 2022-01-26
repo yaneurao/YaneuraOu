@@ -500,7 +500,9 @@ USIプロトコルの独自拡張コマンド
 		例)
 			bench 1024 1 10 default depth
 			※　パラメーター省略時は上記の設定
-		
+
+			// ふかうら王は、LimitType == depthは非対応。
+
 		[局面の指定]について
 		  "default"=デフォルトの局面、"current"=現在の局面、
 		  それ以外 = ファイル名とみなしてそのsfenファイルを読み込む
@@ -526,6 +528,18 @@ USIプロトコルの独自拡張コマンド
 
 			benchmark type nodes limit 3000
 			// 3000 nodesで探索
+
+		※　benchコマンドで集計の時の表示について。[V7.01～]
+			NNUE系とふかうら王とでは計測する基準が異なるので注意すること。
+
+			nodes_searched :
+				探索したノード数。局面を進めた回数。
+				(Position::do_move()の呼び出し回数)
+
+			nodes_visited :
+				局面を評価した回数。(evaluate()を呼び出した回数)
+				// nodes_visitedが出力されるのはいまのところふかうら王だけです。
+
 
 	unittest : UnitTest用のコマンド(開発用)
 

@@ -6,6 +6,11 @@
 #include "../thread.h"
 #include "../usi.h"
 
+#if defined(YANEURAOU_ENGINE_DEEP)
+// dlshogiではnodeのカウントの仕方が異なるので、nodes_searched()を別途用意する。
+#include "../engine/dlshogi-engine/dlshogi_min.h"
+#endif
+
 using namespace std;
 
 // ----------------------------------
@@ -48,13 +53,6 @@ void bench_cmd(Position& current, istringstream& is)
 	std::string ttSize = "1024", threads  ="1", limit ="15" , fenFile ="default", limitType = "time";
 
 	string* positional_args[] = { &ttSize, &threads, &limit, &fenFile, &limitType };
-
-#if defined(YANEURAOU_ENGINE_DEEP)
-	// ふかうら王は、depth指定に対応していない。
-	// defaultでnodes limitに変更しておく。
-	limitType = "nodes";
-	limit = "200000";
-#endif
 
 	// "benchmark hash 1024 threads 4 limit 3000 type nodes file sfen.txt"のようにも書きたい。
 
@@ -143,7 +141,11 @@ void bench_cmd(Position& current, istringstream& is)
 	// → is_ready()のなかでsearch::clear()が呼び出されて、そのなかでTT.clear()しているのでこの初期化は不要。
 
 	// トータルの探索したノード数
-	int64_t nodes = 0;
+#if !defined(YANEURAOU_ENGINE_DEEP)
+	int64_t nodes_searched = 0;
+#else
+	int64_t nodes_visited = 0;
+#endif
 
 	// main threadが探索したノード数
 	int64_t nodes_main = 0;
@@ -175,9 +177,15 @@ void bench_cmd(Position& current, istringstream& is)
 		Time.reset();
 
 		Threads.start_thinking(pos, states , limits);
+
 		Threads.main()->wait_for_search_finished(); // 探索の終了を待つ。
 
-		nodes += Threads.nodes_searched();
+#if !defined(YANEURAOU_ENGINE_DEEP)
+		nodes_searched += Threads.nodes_searched();
+#else
+		// ふかうら王の時は、訪問ノード数を集計する。
+		nodes_visited += dlshogi::nodes_visited();
+#endif
 		nodes_main += Threads.main()->nodes.load(std::memory_order_relaxed);
 	}
 
@@ -185,8 +193,14 @@ void bench_cmd(Position& current, istringstream& is)
 
 	sync_cout << "\n==========================="
 		<< "\nTotal time (ms) : " << elapsed
-		<< "\nNodes searched  : " << nodes
-		<< "\nNodes/second    : " << 1000 * nodes / elapsed;
+#if !defined(YANEURAOU_ENGINE_DEEP)
+		<< "\nNodes searched  : " << nodes_searched
+		<< "\nNodes_searched/second    : " << 1000 * nodes_searched / elapsed
+#else
+		<< "\nNodes visited  : " << nodes_visited
+		<< "\nNodes_visited /second    : " << 1000 * nodes_visited  / elapsed
+#endif
+		;
 
 	if (stoi(threads) > 1)
 		cout

@@ -382,6 +382,16 @@ namespace dlshogi
 
 		return v;
 	}
+
+	// 探索したノード数を返す。
+	// これは、ThreadPool classがnodes_searched()で返す値とは異なる。
+	//  →　そちらは、Position::do_move()した回数。
+	// こちらは、GPUでevaluate()を呼び出した回数
+	u64 nodes_visited()
+	{
+		return (u64)searcher.search_limits.nodes_searched;
+	}
+
 }
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)

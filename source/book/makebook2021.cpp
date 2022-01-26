@@ -84,6 +84,7 @@
 #include "../book/book.h"
 #include "../learn/learn.h"
 #include "../mate/mate.h"
+#include "../engine/dlshogi-engine/dlshogi_min.h"
 
 using namespace std;
 using namespace Book;
@@ -91,26 +92,6 @@ using namespace Concurrent; // concurrent library from misc.h
 
 // positionコマンドのparserを呼び出したい。
 extern void position_cmd(Position& pos, istringstream& is, StateListPtr& states);
-
-namespace dlshogi {
-	// 探索結果を返す。
-	//   Threads.start_thinking(pos, states , limits);
-	//   Threads.main()->wait_for_search_finished(); // 探索の終了を待つ。
-	// のようにUSIのgoコマンド相当で探索したあと、rootの各候補手とそれに対応する評価値を返す。
-	extern std::vector < std::pair<Move, float>> GetSearchResult();
-}
-
-namespace Eval::dlshogi {
-	// 価値(勝率)を評価値[cp]に変換。
-	// USIではcp(centi-pawn)でやりとりするので、そのための変換に必要。
-	// 	 eval_coef : 勝率を評価値に変換する時の定数。default = 756
-	// 
-	// 返し値 :
-	//   +29900は、評価値の最大値
-	//   -29900は、評価値の最小値
-	//   +30000,-30000は、(おそらく)詰みのスコア
-	Value value_to_cp(const float score, float eval_coef);
-}
 
 namespace MakeBook2021
 {

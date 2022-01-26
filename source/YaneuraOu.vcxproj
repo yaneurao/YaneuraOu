@@ -621,6 +621,7 @@
     <ClInclude Include="book\apery_book.h" />
     <ClInclude Include="book\book.h" />
     <ClInclude Include="config.h" />
+    <ClInclude Include="engine\dlshogi-engine\dlshogi_min.h" />
     <ClInclude Include="engine\dlshogi-engine\dlshogi_types.h" />
     <ClInclude Include="engine\dlshogi-engine\misc\fastmath.h" />
     <ClInclude Include="engine\dlshogi-engine\dlshogi_searcher.h" />

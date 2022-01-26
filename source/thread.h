@@ -262,6 +262,9 @@ struct ThreadPool: public std::vector<Thread*>
 	MainThread* main() { return static_cast<MainThread*>(at(0)); }
 
 	// 今回、goコマンド以降に探索したノード数
+	// →　これはPosition::do_move()を呼び出した回数。
+	// ※　dlshogiエンジンで、探索ノード数が知りたい場合は、
+	// 　dlshogi::nodes_visited()を呼び出すこと。
 	uint64_t nodes_searched() { return accumulate(&Thread::nodes); }
 
 	// 探索終了時に、一番良い探索ができていたスレッドを選ぶ。
