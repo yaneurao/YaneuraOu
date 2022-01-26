@@ -636,14 +636,16 @@ namespace MakeBook2021 {
 			
 			// ↓の局面数を思考するごとにsaveする。
 			// 15分に1回ぐらいで良いような？
+			// 定跡ファイルが大きくなってきたら数時間に1回でいいと思う。
 			u64 book_save_interval = 30000/*nps*/ / nodes_limit * 30*60 /* 30分 */;
 
 			// 探索局面数
 			u64 think_limit = 10000000;
 
 			// 1つのroot局面に対して、何回ranged alpha searchを連続して行うのか。
-			// これ、同じ局面にhitし続けるようなら加算していくほうが健全だと思う。
-			u64 ranged_alpha_beta_loop = 5;
+			// このloop回数分は、Nodeの値を信じるかどうかを判定するためのgenerationが
+			// 変わらないので探索効率が良い。
+			u64 ranged_alpha_beta_loop = 100;
 
 			// ranged alpha beta searchの時に棋譜上に出現したleaf nodeに加点するスコア。
 			// そのleaf nodeが選ばれやすくなる。
@@ -917,12 +919,12 @@ namespace MakeBook2021 {
 						if (search_pv.size() == 0)
 						{
 							// 空の指し手を積んでおく。
-							// こうしないとpopする回数と数が合わなくてdead lockになる。る
+							// こうしないとpopする回数と数が合わなくてdead lockになる。
 							search_nodes.push(SearchNode(nullptr,MOVE_NONE,HASH_KEY()));
 							continue;
 						}
 
-						const auto next = search_pv.back();
+						const auto& next = search_pv.back();
 
 						sync_cout << "leaf node , sfen = " << next.node->sfen << " , move = " << next.move << sync_endl;
 
@@ -941,9 +943,10 @@ namespace MakeBook2021 {
 			{
 				// 思考するための局面queueから取り出す。
 				auto s_node = search_nodes.pop();
-				// 空の局面(該当がなかった)
+				// 空の指し手(該当がなかった)
 				if (s_node.move == MOVE_NONE)
 					continue;
+
 				time.reset();
 				bool already_exists,banned_node=false;
 				think(pos,&s_node,already_exists);

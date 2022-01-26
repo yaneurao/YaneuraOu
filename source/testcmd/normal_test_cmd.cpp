@@ -140,6 +140,8 @@ namespace {
 				std::cout << "position startpos moves";
 
 			char result = ' ';
+			Color mateScoreColor = (Color)-1;
+
 			for (int ply = 0;; ++ply)
 			{
 				if (!(ply < MAX_PLY))
@@ -192,6 +194,19 @@ namespace {
 				ASSERT_LV3(rootMoves.size());
 
 				Move m = rootMoves.at(0).pv[0]; // 1番目に並び変わっているはず。
+				Value v = rootMoves.at(0).score;
+
+				if (mateScoreColor == pos.side_to_move() && v < VALUE_MATE)
+				{
+					// mate scoreをいったん出したのにそうでなくなった。
+					std::cout << std::endl << "[Error!:MateColor]" << std::endl; // error!!
+				}
+
+				// MateScoreを出したなら、記録しておく。
+				if (v >= VALUE_MATE)
+				{
+					mateScoreColor = pos.side_to_move();
+				}
 
 				// verboseモードならば対局棋譜(のsfen)を画面に出力する。
 				if (verbose)

@@ -1975,10 +1975,11 @@ namespace {
 			// 試行回数は2回(cutNodeなら4回)までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
 			// cf. Do move-count pruning in probcut : https://github.com/official-stockfish/Stockfish/commit/b87308692a434d6725da72bbbb38a38d3cac1d5f
 			while ((move = mp.next_move()) != MOVE_NONE)
-
-			// Stockfishでは省略してあるけどこの"{"、省略するとbugの原因になりうる。
 			{
-				
+				// ↑Stockfishでは省略してあるけど、この"{"、省略するとbugの原因になりうる。
+
+				ASSERT_LV3(pos.pseudo_legal(move) && pos.super_legal(move));
+
 				if (move != excludedMove && pos.legal(move))
 				{
 					ASSERT_LV3(pos.capture_or_pawn_promotion(move));
@@ -2136,7 +2137,7 @@ namespace {
 
 		while ((move = mp.next_move(moveCountPruning)) != MOVE_NONE)
 		{
-			ASSERT_LV3(is_ok(move));
+			ASSERT_LV3(pos.pseudo_legal(move) && pos.super_legal(move));
 
 			if (move == excludedMove)
 				continue;
@@ -2950,9 +2951,9 @@ namespace {
 		}
 
 		Thread* thisThread = pos.this_thread();
-		bestMove = MOVE_NONE;
-		ss->inCheck = pos.checkers();
-		moveCount = 0;
+		bestMove           = MOVE_NONE;
+		ss->inCheck        = pos.checkers();
+		moveCount          = 0;
 
 		// -----------------------
 		//    最大手数へ到達したか？
@@ -3167,7 +3168,7 @@ namespace {
 		while ((move = mp.next_move()) != MOVE_NONE)
 		{
 			// MovePickerで生成された指し手はpseudo_legalであるはず。
-			ASSERT_LV3(pos.pseudo_legal(move));
+			ASSERT_LV3(pos.pseudo_legal(move) && pos.super_legal(move));
 
 			// Check for legality
 			// 指し手の合法性の判定は直前まで遅延させたほうが得だと思われていたのだが
@@ -3210,11 +3211,14 @@ namespace {
 				futilityValue = futilityBase + (Value)CapturePieceValue[pos.piece_on(to_sq(move))]
 								+ (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(from_sq(move))] : VALUE_ZERO);
 
+				// これ、加算した結果、s16に収まらない可能性があるが、計算はs32で行ってして、そのあと、この値を用いないからセーフ。
+
 				// futilityValueは今回捕獲するであろう駒の価値の分を上乗せしているのに
 				// それでもalpha値を超えないというとってもひどい指し手なので枝刈りする。
 				if (futilityValue <= alpha)
 				{
 					bestValue = std::max(bestValue, futilityValue);
+					ASSERT_LV3(bestValue != -VALUE_INFINITE);
 					continue;
 				}
 
@@ -3224,6 +3228,7 @@ namespace {
 				if (futilityBase <= alpha && !pos.see_ge(move, VALUE_ZERO + 1))
 				{
 					bestValue = std::max(bestValue, futilityBase);
+					ASSERT_LV3(bestValue != -VALUE_INFINITE);
 					continue;
 				}
 			}
@@ -3325,9 +3330,26 @@ namespace {
 		// Stockfish10のコードが保存しないコードになっているので保存しないことにする。
 
 		// 【計測資料 26.】 qsearchで詰みのときに置換表に保存する/しない。
-		if (ss->inCheck && bestValue == -VALUE_INFINITE)
+
+#if 0
+		// Stockfishのコード。
+
+		// チェスでは王手がかかっていて、合法手がない時に詰みだが、
+		// 将棋では、合法手がなければ詰みなので ss->inCheckの条件は不要。
+		// また合法手が1手でもあればbestValue == -VALUE_INFINITEであることは、
+		// whileループのなかで保証されている。
+		// 
+		// ※　ただし、合法手が0手でも-VALUE_INFINITEではないケースがあるので、
+		// この判定の仕方は、良くないと思う。
+
+		//		if ( ss->inCheck && bestValue == -VALUE_INFINITE)
+#endif
+
+		// 将棋ではこう書くのが良いと思う。
+		// ※　bestValue == -VALUE_INFINITEの時は、moveCount == 0が保証されている。(逆は保証されていない)
+		if (moveCount == 0)
 		{
-			// 合法手は存在しないはず。
+			// 合法手は存在しないはずだから指し手生成しても速攻終わるはず。
 			ASSERT_LV5(!MoveList<LEGAL>(pos).size());
 
 			return mated_in(ss->ply); // Plies to mate from the root
@@ -3375,6 +3397,7 @@ namespace {
 
 		//		assert(v != VALUE_NONE);
 		ASSERT_LV3(-VALUE_INFINITE < v && v < VALUE_INFINITE);
+		// →　これ足した結果がabs(x) < VALUE_INFINITEであることを確認すべきでは…。
 
 		return  v >= VALUE_TB_WIN_IN_MAX_PLY  ? v + ply
 			  : v <= VALUE_TB_LOSS_IN_MAX_PLY ? v - ply : v;
