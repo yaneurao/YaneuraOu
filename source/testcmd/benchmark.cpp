@@ -143,12 +143,13 @@ void bench_cmd(Position& current, istringstream& is)
 	// トータルの探索したノード数
 #if !defined(YANEURAOU_ENGINE_DEEP)
 	int64_t nodes_searched = 0;
+	// main threadが探索したノード数
+	int64_t nodes_searched_main = 0;
 #else
 	int64_t nodes_visited = 0;
+	//int64_t nodes_visited_main = 0;
+	// →　ふかうら王、main threadだけ分けて集計していない。
 #endif
-
-	// main threadが探索したノード数
-	int64_t nodes_main = 0;
 
 	// ベンチの計測用タイマー
 	Timer time;
@@ -181,12 +182,12 @@ void bench_cmd(Position& current, istringstream& is)
 		Threads.main()->wait_for_search_finished(); // 探索の終了を待つ。
 
 #if !defined(YANEURAOU_ENGINE_DEEP)
-		nodes_searched += Threads.nodes_searched();
+		nodes_searched      += Threads.nodes_searched();
+		nodes_searched_main += Threads.main()->nodes.load(std::memory_order_relaxed);
 #else
 		// ふかうら王の時は、訪問ノード数を集計する。
-		nodes_visited += dlshogi::nodes_visited();
+		nodes_visited      += dlshogi::nodes_visited();
 #endif
-		nodes_main += Threads.main()->nodes.load(std::memory_order_relaxed);
 	}
 
 	auto elapsed = time.elapsed() + 1; // 0除算の回避のため
@@ -198,16 +199,22 @@ void bench_cmd(Position& current, istringstream& is)
 		<< "\nNodes_searched/second    : " << 1000 * nodes_searched / elapsed
 #else
 		<< "\nNodes visited  : " << nodes_visited
-		<< "\nNodes_visited /second    : " << 1000 * nodes_visited  / elapsed
+		<< "\nNodes_visited/second     : " << 1000 * nodes_visited  / elapsed
 #endif
 		;
 
+#if !defined(YANEURAOU_ENGINE_DEEP)
 	if (stoi(threads) > 1)
 		cout
-		<< "\nNodes searched(main thread) : " << nodes_main
-		<< "\nNodes/second  (main thread) : " << 1000 * nodes_main / elapsed;
+		<< "\nNodes searched       (main thread) : " << nodes_searched_main
+		<< "\nNodes searched/second(main thread) : " << 1000 * nodes_searched_main / elapsed;
+#endif
 
 	cout << sync_endl;
+
+	// 終了したことを出力しないと他のスクリプトから呼び出した時に終了判定にこまる。
+	cout << "\n==========================="
+		 << "\nThe bench command has completed." << sync_endl;
 
 	// Optionsを書き換えたので復元。
 	// 値を代入しないとハンドラが起動しないのでこうやって復元する。
