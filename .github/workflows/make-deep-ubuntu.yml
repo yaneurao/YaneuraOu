@@ -101,7 +101,7 @@ jobs:
           sudo ls -R /etc/apt/sources.list.d
         if: ${{ matrix.compiler == 'clang++-14' }}
 
-      - name: install CUDA, TensorRT
+      - name: install CUDA, cuBLAS, TensorRT
         # ここではCUDAアプリケーションの開発環境用に、CUDAドライバーを含まない cuda-minimal-build-11-5 をインストールしている。
         # CUDAアプリケーションの実行環境用にセットアップする場合、 cuda-minimal-build-11-5 の代わりに
         # CUDAドライバーを含むメタパッケージ、 cuda-11-5 もしくは cuda をインストールする。
@@ -113,7 +113,7 @@ jobs:
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install cuda-minimal-build-11-5 libnvinfer-dev libnvinfer-plugin-dev libnvonnxparsers-dev libnvparsers-dev
+          sudo apt install cuda-minimal-build-11-5 libblas-dev libnvinfer-dev libnvinfer-plugin-dev libnvonnxparsers-dev libnvparsers-dev
 
       - name: make
         run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS='-I/usr/local/cuda-11.5/include' EXTRA_LDFLAGS='-L/usr/local/cuda-11.5/lib64'"
