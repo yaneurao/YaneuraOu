@@ -456,13 +456,12 @@ USIプロトコルの独自拡張コマンド
 	  1手の持ち時間固定のオプション。この場合、1手100[ms]。
 	  GUI側が普通対応していないが。
 
-	perft [depth] :パフォーマンステスト。現在の局面(positionコマンドで与えられる)から深さdepthまで
+	go perft [depth] :パフォーマンステスト。現在の局面(positionコマンドで与えられる)から深さdepthまで
 		全合法手で進めるときの総node数を数えあげる。depthとして1以上の値を指定すること。
-		position～goコマンドと組み合わせて使う。
+		positionコマンドと組み合わせて使う。
 		例)
-			perft 10
 			position startpos
-			go
+			go perft 10
 
 
 ■　USI拡張コマンド
