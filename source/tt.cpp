@@ -133,11 +133,14 @@ void TranspositionTable::clear()
 
 	auto size = clusterCount * sizeof(Cluster);
 
-#if !defined(EVAL_LEARN)
+#if !defined(EVAL_LEARN) && !defined(__EMSCRIPTEN__)
 	// 進捗を表示しながら並列化してゼロクリア
 	// Stockfishのここにあったコードは、独自の置換表を実装した時にも使いたいため、tt.cppに移動させた。
 	Tools::memclear("USI_Hash" , table, size);
 #else
+	// yaneuraou.wasm
+	// pthread_joinによってブラウザのメインスレッドがブロックされるため、単一スレッドでメモリをクリアする処理に変更
+
 	// LEARN版のときは、
 	// 単一スレッドでメモリをクリアする。(他のスレッドは仕事をしているので..)
 	// 教師生成を行う時は、対局の最初にスレッドごとのTTに対して、
@@ -270,7 +273,7 @@ int TranspositionTable::hashfull() const
 
 	// Stockfish11では、1000 Cluster(3000 TTEntry)についてサンプリングするように変更されたが、
 	// 計測時間がもったいないので、古いコードのままにしておく。
-	
+
 	int cnt = 0;
 	for (int i = 0; i < 1000 / ClusterSize; ++i)
 		for (int j = 0; j < ClusterSize; ++j)
@@ -297,7 +300,7 @@ void TranspositionTable::init_tt_per_thread()
 	// 1スレッドあたりのクラスター数(端数切捨て)
 	// clusterCountは2の倍数でないと駄目なので、端数を切り捨てるためにLSBを0にする。
 	size_t clusterCountPerThread = (clusterCount / thread_size) & ~(size_t)1;
-	 
+
 	ASSERT_LV3((clusterCountPerThread & 1) == 0);
 
 	// これを、自分が確保したglobalな置換表用メモリから切り分けて割当てる。

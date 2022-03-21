@@ -400,7 +400,7 @@ namespace Book
 		writer.WriteLine("#YANEURAOU-DB2016 1.00");
 
 		vector<pair<string, BookMovesPtr> > vectored_book;
-		
+
 		// 重複局面の手数違いを除去するのに用いる。
 		// 手数違いの重複局面はOptions["IgnoreBookPly"]==trueのときに有害であるため、plyが最小のもの以外を削除する必要がある。
 		// (Options["BookOnTheFly"]==true かつ Options["IgnoreBookPly"] == true のときに、手数違いのものがヒットするだとか、そういう問題と、
@@ -517,7 +517,7 @@ namespace Book
 		// "no_book"は定跡なしという意味なので定跡の指し手が見つからなかったことにする。
 		if (pure_book_name == "no_book")
 			return BookMovesPtr();
-		 
+
 		if (pure_book_name == kAperyBookName) {
 
 			BookMovesPtr pml_entry(new BookMoves());
@@ -644,7 +644,7 @@ namespace Book
 				//
 				// 区間 [s,e) で解を求める。現時点での中間地点がm。
 				// 解とは、探しているsfen文字列が書いてある行の先頭のファイルポジションのことである。
-				// 
+				//
 				// next_sfen()でm以降にある"sfen"で始まる行を読み込んだ時、そのあとのファイルポジションがlast_pos。
 
 				s64 s = 0, e = file_size, m , last_pos;
@@ -956,9 +956,19 @@ namespace Book
 			, "yaneura_book1.db" , "yaneura_book2.db" , "yaneura_book3.db", "yaneura_book4.db"
 			, "user_book1.db", "user_book2.db", "user_book3.db", "book.bin" };
 
+#if !defined(__EMSCRIPTEN__)
 		o["BookFile"] << Option(book_list, book_list[1]);
-		
+#else
+		// WASM では no_book をデフォルトにする
+		o["BookFile"] << Option(book_list, book_list[0]);
+#endif
+
+#if !defined(__EMSCRIPTEN__)
 		o["BookDir"] << Option("book");
+#else
+		// WASM
+		o["BookDir"] << Option(".");
+#endif
 
 		//  BookEvalDiff: 定跡の指し手で1番目の候補の指し手と、2番目以降の候補の指し手との評価値の差が、
 		//    この範囲内であれば採用する。(1番目の候補の指し手しか選ばれて欲しくないときは0を指定する)
@@ -1045,7 +1055,7 @@ namespace Book
 		// 定跡にhitした。逆順で出力しないと将棋所だと逆順にならないという問題があるので逆順で出力する。
 		// →　将棋所、updateでMultiPVに対応して改良された
 		// 　ShogiGUIでの表示も問題ないようなので正順に変更する。
-		
+
 		// また、it->size()!=0をチェックしておかないと指し手のない定跡が登録されていたときに困る。
 
 		// 1) やねうら標準定跡のように評価値なしの定跡DBにおいては
@@ -1075,7 +1085,7 @@ namespace Book
 					// Position::legal()を用いて合法手判定をする時、これが連続王手の千日手を弾かないが、
 					// 定跡で連続王手の千日手の指し手があると指してしまう。
 					// これは回避が難しいので、仕様であるものとする。
-					// 
+					//
 					// "position"コマンドでも千日手局面は弾かないし、この仕様は仕方ない意味はある。
 				}
 				else {
@@ -1123,7 +1133,7 @@ namespace Book
 				sync_cout << "info"
 #if !defined(NICONICO)
 					<< " multipv " << (i + 1)
-#endif					
+#endif
 					<< " score cp " << it.value << " depth " << it.depth
 					<< " pv " << pv_string
 					<< " (" << fixed << std::setprecision(2) << (100 * it.move_count / double(move_count_total)) << "%" << ")" // 採択確率

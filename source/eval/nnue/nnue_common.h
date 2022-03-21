@@ -10,6 +10,10 @@
 
 #if defined(EVAL_NNUE)
 
+#if defined(USE_WASM_SIMD)
+#include "./wasm_simd.h"
+#endif
+
 // HACK: Use _mm256_loadu_si256() instead of _mm256_load_si256. Otherwise a binary
 //       compiled with older g++ crashes because the output memory is not aligned
 //       even though alignas is specified.
@@ -66,6 +70,8 @@ namespace Eval::NNUE {
   constexpr std::size_t kSimdWidth = 8;
 
   #elif defined(USE_NEON)
+  constexpr std::size_t kSimdWidth = 16;
+  #elif defined(USE_WASM_SIMD)
   constexpr std::size_t kSimdWidth = 16;
   #endif
   constexpr std::size_t kMaxSimdWidth = 32;

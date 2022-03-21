@@ -43,6 +43,7 @@ int main(int argc, char* argv[])
 	//Search::clear();
 	Eval::init();
 
+#if !defined(__EMSCRIPTEN__)
 	// USIコマンドの応答部
 
 	USI::loop(argc, argv);
@@ -50,6 +51,10 @@ int main(int argc, char* argv[])
 	// 生成して、待機させていたスレッドの停止
 
 	Threads.set(0);
+#else
+	// yaneuraOu.wasm
+	// ここでループしてしまうと、ブラウザのメインスレッドがブロックされてしまうため、コメントアウト
+#endif
 
 	return 0;
 }

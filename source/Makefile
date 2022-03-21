@@ -62,6 +62,7 @@ TARGET_CPU = AVX2
 # -- ARMとか
 #TARGET_CPU = OTHER
 #TARGET_CPU = GRAVITON2
+#TARGET_CPU = WASM
 
 
 # デバッガーを使用するか (debugger)
@@ -73,6 +74,7 @@ DEBUG = OFF
 # ※ clangでコンパイルしたほうがgccより数%速いっぽい。
 #COMPILER = g++
 COMPILER = clang++
+#COMPILER = em++
 
 
 # エンジンの表示名 (engine displayname)
@@ -87,7 +89,7 @@ COMPILER = clang++
 
 
 # 標準的なコンパイルオプション (standard compile options)
-CPPFLAGS   = -std=c++17 -fno-exceptions -fno-rtti -Wextra -Ofast -MMD -MP -fpermissive
+CPPFLAGS   = -std=c++17 -fno-exceptions -fno-rtti -Wextra -MMD -MP -fpermissive
 WCPPFLAGS  =
 LDFLAGS  = $(EXTRA_LDFLAGS)
 LIBS     =
@@ -123,6 +125,13 @@ EVAL_EMBEDDING = OFF
 # ※ ifeq (A,B) は「AとBが等しいならば、以下を実行してください。」という意味。紛らわしいので気をつけよう。
 
 
+# em++ では -Ofast の指定は対応していない
+ifneq (,$(findstring em++,$(COMPILER)))
+	CPPFLAGS += -O3
+else
+	CPPFLAGS += -Ofast
+endif
+
 # デバッガーを使わないなら、NDEBUGをdefineする。
 ifeq ($(DEBUG),OFF)
 	CPPFLAGS += -DNDEBUG
@@ -156,18 +165,42 @@ else
 
 		# C++17のfilesystem
 		# LDFLAGS += -lstdc++fs
-
+	endif
+	ifneq (,$(findstring em++,$(COMPILER)))
+		EM_EXPORT_NAME=YaneuraOu
+		EM_INITIAL_MEMORY_SIZE=$(shell if [ $(MATERIAL_LEVEL) -ge 5 ]; then echo 318767104; else echo 71303168; fi)
+		CPPFLAGS += -Wno-unused-parameter
+		CPPFLAGS += -DUSE_WASM_SIMD -msimd128
+		CPPFLAGS += -DUSE_SSE42 -msse4.2
+		CPPFLAGS += -march=wasm32
+		# CPPFLAGS += -march=corei7
+		CPPFLAGS += -s USE_PTHREADS=1
+		CPPFLAGS += -s STRICT=1
+		LDFLAGS += --pre-js wasm_pre.js
+		# LDFLAGS += --preload-file eval/nn.bin
+		LDFLAGS += -s MODULARIZE=1 -s EXPORT_NAME="$(EM_EXPORT_NAME)" -s ENVIRONMENT=web,worker,node
+		# LDFLAGS += -s PTHREAD_POOL_SIZE=32
+		LDFLAGS += -s FILESYSTEM=1 -s EXIT_RUNTIME=0 -s "EXPORTED_RUNTIME_METHODS=['FS','ccall']"
+		LDFLAGS += -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=$(EM_INITIAL_MEMORY_SIZE) -s MAXIMUM_MEMORY=4294967296
+		LDFLAGS += -s TOTAL_STACK=67108864
+		LDFLAGS += -s LLD_REPORT_UNDEFINED
+		# LDFLAGS += -s ALLOW_UNIMPLEMENTED_SYSCALLS
+		LDFLAGS += -s --closure 1
 	endif
 endif
 
 TARGETDIR = .
-ifeq ($(OS),Windows_NT)
-	CPPFLAGS += $(WCPPFLAGS)
-	LDFLAGS += -static -Wl,--stack,25000000
-	TARGET = $(TARGETDIR)/YaneuraOu-by-gcc.exe
+ifneq (,$(findstring em++,$(COMPILER)))
+	TARGET = $(TARGETDIR)/yaneuraou.js
 else
-	CPPFLAGS += -D_LINUX
-	TARGET = $(TARGETDIR)/YaneuraOu-by-gcc
+	ifeq ($(OS),Windows_NT)
+		CPPFLAGS += $(WCPPFLAGS)
+		LDFLAGS += -static -Wl,--stack,25000000
+		TARGET = $(TARGETDIR)/YaneuraOu-by-gcc.exe
+	else
+		CPPFLAGS += -D_LINUX
+		TARGET = $(TARGETDIR)/YaneuraOu-by-gcc
+	endif
 endif
 
 # リンク時最適化。
@@ -185,8 +218,11 @@ endif
 # wstringを使うためにこのシンボル定義が必要。
 CPPFLAGS  += -DUNICODE
 
+# em++ では strip: -Wl,-s の指定はしない
+ifeq (,$(findstring em++,$(COMPILER)))
 # stripの指示。(実行ファイルのサイズを小さく)
 LDFLAGS += -Wl,-s
+endif
 
 # mingw64では-D_WIN64,-D_WIN32は環境に応じて自動で設定されるので指定すべきではない。
 # CPPFLAGS += -D_WIN64
@@ -401,6 +437,10 @@ ifneq (,$(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)))
 		eval/nnue/features/pe9.cpp                                      \
 		engine/yaneuraou-engine/yaneuraou-search.cpp
 
+	ifneq (,$(findstring em++,$(COMPILER)))
+		SOURCES += \
+			eval/nnue/wasm_simd.cpp
+	endif
 	ifeq ($(EVAL_EMBEDDING),ON)
 		SOURCES += \
 			eval/nnue/embedded_nnue.cpp
@@ -517,6 +557,7 @@ else ifeq ($(TARGET_CPU),APPLESSE42)
 	CPPFLAGS += -DIS_64BIT -DUSE_SSE42 -target x86_64-apple-macos11
 else ifeq ($(TARGET_CPU),APPLEM1)
 	CPPFLAGS += -DIS_64BIT -DUSE_NEON -target arm64-apple-macos11
+else ifeq ($(TARGET_CPU),WASM)
 
 else ifeq ($(TARGET_CPU),OTHER)
 	CPPFLAGS += -DNO_SSE
