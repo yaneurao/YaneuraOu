@@ -640,6 +640,103 @@ jobs:
           name: build-macos-suisho_${{ github.run_number }}_${{ github.sha }}
           path: main/build/**/**/*
 
+  build-wasm:
+    # ubuntu-latest = ubuntu-20.04
+    # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
+    # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md
+    runs-on: ubuntu-20.04
+
+    strategy:
+      matrix:
+        edition:
+          - halfkp.noeval
+          - halfkpe9.noeval
+          - halfkpvm.noeval
+          - k-p.noeval
+          - material
+          - material9
+          - yaneuraou-mate
+          - tanuki-mate
+
+    steps:
+      - name: Checkout own repository
+        uses: actions/checkout@v2
+        with:
+          path: main
+
+      - name: docker pull
+        run: |
+          docker pull emscripten/emsdk:latest
+
+      - name: build wasm
+        run: |
+          docker run --rm -v ${PWD}/main:/src emscripten/emsdk:latest node script/wasm_build.js ${{ matrix.edition }}
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-wasm_${{ github.run_number }}_${{ github.sha }}
+          path: ./main/build/**/**/*
+
+  build-wasm-suisho:
+    # ubuntu-latest = ubuntu-20.04
+    # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
+    # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md
+    runs-on: ubuntu-20.04
+
+    strategy:
+      matrix:
+        edition:
+          - halfkp
+
+    steps:
+      - name: Checkout own repository
+        uses: actions/checkout@v2
+        with:
+          path: main
+
+      - name: docker pull
+        run: |
+          docker pull emscripten/emsdk:latest
+
+      - name: build wasm
+        run: |
+          docker run --rm -v ${PWD}/main:/src emscripten/emsdk:latest node script/wasm_build.js ${{ matrix.edition }}
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-wasm-suisho_${{ github.run_number }}_${{ github.sha }}
+          path: ./main/build/**/**/*
+
+  build-wasm-suishopetite:
+    # ubuntu-latest = ubuntu-20.04
+    # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
+    # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md
+    runs-on: ubuntu-20.04
+
+    strategy:
+      matrix:
+        edition:
+          - k-p
+
+    steps:
+      - name: Checkout own repository
+        uses: actions/checkout@v2
+        with:
+          path: main
+
+      - name: docker pull
+        run: |
+          docker pull emscripten/emsdk:latest
+
+      - name: build wasm
+        run: |
+          docker run --rm -v ${PWD}/main:/src emscripten/emsdk:latest node script/wasm_build.js ${{ matrix.edition }}
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-wasm-suishopetite_${{ github.run_number }}_${{ github.sha }}
+          path: ./main/build/**/**/*
+
   archive-msys2-general:
     runs-on: ubuntu-20.04
     needs:
@@ -952,6 +1049,124 @@ jobs:
           name: archive-macos-suisho_${{ github.run_number }}_${{ github.sha }}
           path: |
             release/*.tar.xz
+  archive-wasm:
+    runs-on: ubuntu-20.04
+    needs:
+      - build-wasm
+    steps:
+      - name: Set version
+        id: version
+        run: |
+          REPOSITORY=$(echo ${{ github.repository }} | sed -e "s#.*/##")
+          VERSION=$(echo ${{ github.ref }} | sed -e "s#refs/tags/##g")
+          echo ::set-output name=version::$VERSION
+          echo ::set-output name=filename::$REPOSITORY-$VERSION
+      - uses: actions/checkout@v2
+        with:
+          path: main
+      - name: Download artifact to get build-wasm
+        uses: actions/download-artifact@v2
+        with:
+          name: build-wasm_${{ github.run_number }}_${{ github.sha }}
+          path: release
+      - name: copy docs
+        run: |
+          cp main/Copying.txt release/wasm
+          cp -r main/docs release/wasm
+          tar -Jcf release/wasm/source.tar.xz -C main source
+      - name: Display structure of downloaded files
+        run: ls -R release
+      - name: make build-wasm zip/7z
+        run: |
+          7z a -tzip build-wasm.zip wasm
+          7z a -t7z build-wasm.7z wasm
+        working-directory: release
+      - uses: actions/upload-artifact@v2
+        with:
+          name: archive-wasm_${{ github.run_number }}_${{ github.sha }}
+          path: |
+            release/*.zip
+            release/*.7z
+  archive-wasm-suisho:
+    runs-on: ubuntu-20.04
+    needs:
+      - build-wasm-suisho
+    steps:
+      - name: Set version
+        id: version
+        run: |
+          REPOSITORY=$(echo ${{ github.repository }} | sed -e "s#.*/##")
+          VERSION=$(echo ${{ github.ref }} | sed -e "s#refs/tags/##g")
+          echo ::set-output name=version::$VERSION
+          echo ::set-output name=filename::$REPOSITORY-$VERSION
+      - uses: actions/checkout@v2
+        with:
+          path: main
+      - name: Download artifact to get build-wasm-suisho
+        uses: actions/download-artifact@v2
+        with:
+          name: build-wasm-suisho_${{ github.run_number }}_${{ github.sha }}
+          path: release
+      - name: copy docs
+        run: |
+          cp main/Copying.txt release/wasm
+          cp -r main/docs release/wasm
+          curl -LRo main/source/eval/nnue/embedded_nnue.cpp.gz https://github.com/mizar/YaneuraOu/releases/download/resource/suisho5_20211123.halfkp.nnue.cpp.gz;
+          gzip -df main/source/eval/nnue/embedded_nnue.cpp.gz;
+          tar -Jcf release/wasm/source.tar.xz -C main source
+      - name: Display structure of downloaded files
+        run: ls -R release
+      - name: make build-wasm zip/7z
+        run: |
+          7z a -tzip build-wasm-suisho.zip wasm
+          7z a -t7z build-wasm-suisho.7z wasm
+        working-directory: release
+      - uses: actions/upload-artifact@v2
+        with:
+          name: archive-wasm-suisho_${{ github.run_number }}_${{ github.sha }}
+          path: |
+            release/*.zip
+            release/*.7z
+  archive-wasm-suishopetite:
+    runs-on: ubuntu-20.04
+    needs:
+      - build-wasm-suishopetite
+    steps:
+      - name: Set version
+        id: version
+        run: |
+          REPOSITORY=$(echo ${{ github.repository }} | sed -e "s#.*/##")
+          VERSION=$(echo ${{ github.ref }} | sed -e "s#refs/tags/##g")
+          echo ::set-output name=version::$VERSION
+          echo ::set-output name=filename::$REPOSITORY-$VERSION
+      - uses: actions/checkout@v2
+        with:
+          path: main
+      - name: Download artifact to get build-wasm-suishopetite
+        uses: actions/download-artifact@v2
+        with:
+          name: build-wasm-suishopetite_${{ github.run_number }}_${{ github.sha }}
+          path: release
+      - name: copy docs
+        run: |
+          cp main/Copying.txt release/wasm
+          cp -r main/docs release/wasm
+          curl -LRo main/source/eval/nnue/embedded_nnue.cpp.gz https://github.com/mizar/YaneuraOu/releases/download/resource/suishopetite_20211123.k_p.nnue.cpp.gz;
+          gzip -df main/source/eval/nnue/embedded_nnue.cpp.gz;
+          tar -Jcf release/wasm/source.tar.xz -C main source
+      - name: Display structure of downloaded files
+        run: ls -R release
+      - name: make build-wasm zip/7z
+        run: |
+          7z a -tzip build-wasm-suishopetite.zip wasm
+          7z a -t7z build-wasm-suishopetite.7z wasm
+        working-directory: release
+      - uses: actions/upload-artifact@v2
+        with:
+          name: archive-wasm-suishopetite_${{ github.run_number }}_${{ github.sha }}
+          path: |
+            release/*.zip
+            release/*.7z
 
   release-pkg:
     name: Release package
@@ -964,6 +1179,9 @@ jobs:
       - archive-android-suisho
       - archive-macos-general
       - archive-macos-suisho
+      - archive-wasm
+      - archive-wasm-suisho
+      - archive-wasm-suishopetite
     # ubuntu-latest = ubuntu-20.04
     # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
     # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md
@@ -1019,8 +1237,23 @@ jobs:
         with:
           name: archive-macos-suisho_${{ github.run_number }}_${{ github.sha }}
           path: release-macos-suisho
+      - name: Download artifact to get build-wasm
+        uses: actions/download-artifact@v2
+        with:
+          name: archive-wasm_${{ github.run_number }}_${{ github.sha }}
+          path: release-wasm
+      - name: Download artifact to get build-wasm-suisho
+        uses: actions/download-artifact@v2
+        with:
+          name: archive-wasm-suisho_${{ github.run_number }}_${{ github.sha }}
+          path: release-wasm-suisho
+      - name: Download artifact to get build-wasm-suishopetite
+        uses: actions/download-artifact@v2
+        with:
+          name: archive-wasm-suishopetite_${{ github.run_number }}_${{ github.sha }}
+          path: release-wasm-suishopetite
       - name: Display structure of downloaded files
-        run: ls -R release-windows release-windows-material release-windows-suisho release-deep-windows release-android release-android-suisho release-macos-suisho release-macos-suisho
+        run: ls -R release-windows release-windows-material release-windows-suisho release-deep-windows release-android release-android-suisho release-macos-suisho release-macos-suisho release-wasm
       - name: Archive Size
         id: archive_size
         run: |
@@ -1038,6 +1271,12 @@ jobs:
           echo ::set-output name=android_suisho_7z::$(stat -c%s "release-android-suisho/build-android-suisho.7z" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
           echo ::set-output name=macos_tar_xz::$(stat -c%s "release-macos/build-macos.tar.xz" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
           echo ::set-output name=macos_suisho_tar_xz::$(stat -c%s "release-macos-suisho/build-macos-suisho.tar.xz" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=wasm_zip::$(stat -c%s "release-wasm/build-wasm.zip" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=wasm_7z::$(stat -c%s "release-wasm/build-wasm.7z" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=wasm-suisho_zip::$(stat -c%s "release-wasm-suisho/build-wasm-suisho.zip" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=wasm-suisho_7z::$(stat -c%s "release-wasm-suisho/build-wasm-suisho.7z" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=wasm-suishopetite_zip::$(stat -c%s "release-wasm-suishopetite/build-wasm-suishopetite.zip" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
+          echo ::set-output name=wasm-suishopetite_7z::$(stat -c%s "release-wasm-suishopetite/build-wasm-suishopetite.7z" | awk '{ split( "B KB MB GB TB PB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } printf "%.2f %s", $1, v[s] }')
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
@@ -1084,12 +1323,18 @@ jobs:
 
             - [Suisho5-${{ steps.version.outputs.filename }}-windows.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/Suisho5-${{ steps.version.outputs.filename }}-windows.zip) (${{ steps.archive_size.outputs.windows_suisho_zip }})
             - [Suisho5-${{ steps.version.outputs.filename }}-windows.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/Suisho5-${{ steps.version.outputs.filename }}-windows.7z) (${{ steps.archive_size.outputs.windows_suisho_7z }})
-              - 3.のトーナメントWindows版+水匠5(20211123)評価関数 (ZEN2/AVX2/SSE4.2)
+              - 3.a.のトーナメントWindows版+水匠5(20211123)評価関数 (ZEN2/AVX2/SSE4.2)
             - [Suisho5-${{ steps.version.outputs.filename }}-android.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/Suisho5-${{ steps.version.outputs.filename }}-android.zip) (${{ steps.archive_size.outputs.android_suisho_zip }})
             - [Suisho5-${{ steps.version.outputs.filename }}-android.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/Suisho5-${{ steps.version.outputs.filename }}-android.7z) (${{ steps.archive_size.outputs.android_suisho_7z }})
-              - 3.の実行ファイルAndroid版+水匠5(20211123)評価関数 (arm64-v8a/armeabi-v7a/x86_64/x86)
+              - 3.a.の実行ファイルAndroid版+水匠5(20211123)評価関数 (arm64-v8a/armeabi-v7a/x86_64/x86)
             - [Suisho5-${{ steps.version.outputs.filename }}-macos.tar.xz](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/Suisho5-${{ steps.version.outputs.filename }}-macos.tar.xz) (${{ steps.archive_size.outputs.macos_suisho_tar_xz }})
-              - 3.の実行ファイルMacOS版+水匠5(20211123)評価関数 (AVX2/SSE42/APPLEM1) (testing)
+              - 3.a.の実行ファイルMacOS版+水匠5(20211123)評価関数 (AVX2/SSE42/APPLEM1) (testing)
+            - [Suisho5-${{ steps.version.outputs.filename }}-wasm.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/Suisho5-${{ steps.version.outputs.filename }}-wasm.zip) (${{ steps.archive_size.outputs.wasm-suisho_zip }})
+            - [Suisho5-${{ steps.version.outputs.filename }}-wasm.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/Suisho5-${{ steps.version.outputs.filename }}-wasm.7z) (${{ steps.archive_size.outputs.wasm-suisho_7z }})
+              - 3.a.の実行ファイルWebAssembly版+水匠5(20211123)評価関数 (testing)
+            - [SuishoPetite-${{ steps.version.outputs.filename }}-wasm.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/SuishoPetite-${{ steps.version.outputs.filename }}-wasm.zip) (${{ steps.archive_size.outputs.wasm-suishopetite_zip }})
+            - [SuishoPetite-${{ steps.version.outputs.filename }}-wasm.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/SuishoPetite-${{ steps.version.outputs.filename }}-wasm.7z) (${{ steps.archive_size.outputs.wasm-suishopetite_7z }})
+              - 3.c.の実行ファイルWebAssembly版+SuishoPetite(20211123)評価関数 (testing)
             - [${{ steps.version.outputs.filename }}-windows.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-windows.zip) (${{ steps.archive_size.outputs.windows_zip }})
             - [${{ steps.version.outputs.filename }}-windows.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-windows.7z) (${{ steps.archive_size.outputs.windows_7z }})
               - 1.2.3.5.6.の実行ファイルWindows版 各CPU向け(ZEN3/ZEN2/ZEN1/AVX512VNNI/AVXVNNI/AVX512/AVX2/SSE4.2/SSE4.1/SSSE3/SSE2/32bit環境用)
@@ -1141,9 +1386,12 @@ jobs:
                 - ~~TensorRT : NVIDIA TensorRT 対応のGPU向け(ORT無し版)。~~ 現在、TensorRT(ORT無し)版は自動ビルドの対象外です。
             - [${{ steps.version.outputs.filename }}-android.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-android.zip) (${{ steps.archive_size.outputs.android_zip }})
             - [${{ steps.version.outputs.filename }}-android.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-android.7z) (${{ steps.archive_size.outputs.android_7z }})
-              - 1.2.3.4.5.の実行ファイルAndroid版 (arm64-v8a/armeabi-v7a/x86_64/x86)
+              - 1.2.3.4.5.6.の実行ファイルAndroid版 (arm64-v8a/armeabi-v7a/x86_64/x86)
             - [${{ steps.version.outputs.filename }}-macos.tar.xz](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-macos.tar.xz) (${{ steps.archive_size.outputs.macos_tar_xz }})
-              - 1.2.3.4.5.の実行ファイルMacOS版 (AVX2/SSE42/APPLEM1) (testing)
+              - 1.2.3.4.5.6.の実行ファイルMacOS版 (AVX2/SSE42/APPLEM1) (testing)
+            - [${{ steps.version.outputs.filename }}-wasm.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-wasm.zip) (${{ steps.archive_size.outputs.wasm_zip }})
+            - [${{ steps.version.outputs.filename }}-wasm.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-wasm.7z) (${{ steps.archive_size.outputs.wasm_7z }})
+              - 1.2.3.4.5.6.の実行ファイルWebAssembly版 (testing)
 
             使い方などは添付ファイルの中にある
             docs
@@ -1233,6 +1481,24 @@ jobs:
           asset_path: release-macos/build-macos.tar.xz
           asset_name: ${{ steps.version.outputs.filename }}-macos.tar.xz
           asset_content_type: application/x-xz
+      - name: Upload release asset build-wasm.zip
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-wasm/build-wasm.zip
+          asset_name: ${{ steps.version.outputs.filename }}-wasm.zip
+          asset_content_type: application/zip
+      - name: Upload release asset build-wasm.7z
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-wasm/build-wasm.7z
+          asset_name: ${{ steps.version.outputs.filename }}-wasm.7z
+          asset_content_type: application/octet-stream
       - name: Upload release asset build-windows-suisho.zip
         uses: actions/upload-release-asset@v1
         env:
@@ -1278,3 +1544,39 @@ jobs:
           asset_path: release-macos-suisho/build-macos-suisho.tar.xz
           asset_name: Suisho5-${{ steps.version.outputs.filename }}-macos.tar.xz
           asset_content_type: application/x-xz
+      - name: Upload release asset build-wasm-suisho.zip
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-wasm-suisho/build-wasm-suisho.zip
+          asset_name: Suisho5-${{ steps.version.outputs.filename }}-wasm.zip
+          asset_content_type: application/zip
+      - name: Upload release asset build-android-suisho.7z
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-wasm-suisho/build-wasm-suisho.7z
+          asset_name: Suisho5-${{ steps.version.outputs.filename }}-wasm.7z
+          asset_content_type: application/octet-stream
+      - name: Upload release asset build-wasm-suishopetite.zip
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-wasm-suishopetite/build-wasm-suishopetite.zip
+          asset_name: SuishoPetite-${{ steps.version.outputs.filename }}-wasm.zip
+          asset_content_type: application/zip
+      - name: Upload release asset build-android-suisho.7z
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-wasm-suishopetite/build-wasm-suishopetite.7z
+          asset_name: SuishoPetite-${{ steps.version.outputs.filename }}-wasm.7z
+          asset_content_type: application/octet-stream
