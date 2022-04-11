@@ -11,10 +11,11 @@ on:
 
 jobs:
   build-msys2-windows:
-    # windows-latest = windows-2019
+    # windows-latest = windows-2019 => windows-2022
     # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
     # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2019-Readme.md
-    runs-on: windows-latest
+    # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2022-Readme.md
+    runs-on: windows-2022
 
     strategy:
       matrix:

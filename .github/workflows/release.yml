@@ -10,10 +10,11 @@ on:
 
 jobs:
   build-msys2-general:
-    # windows-latest = windows-2019
+    # windows-latest = windows-2019 => windows-2022
     # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
     # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2019-Readme.md
-    runs-on: windows-latest
+    # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2022-Readme.md
+    runs-on: windows-2022
 
     strategy:
       matrix:
@@ -107,10 +108,11 @@ jobs:
           path: ./main/build/**/*
 
   build-msys2-material:
-    # windows-latest = windows-2019
+    # windows-latest = windows-2019 => windows-2022
     # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
     # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2019-Readme.md
-    runs-on: windows-latest
+    # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2022-Readme.md
+    runs-on: windows-2022
 
     strategy:
       matrix:
@@ -204,9 +206,11 @@ jobs:
 
 
   build-deep-windows:
+    # windows-latest = windows-2019 => windows-2022
     # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
     # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2019-Readme.md
-    runs-on: windows-latest
+    # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2022-Readme.md
+    runs-on: windows-2022
 
     steps:
       - uses: nuget/setup-nuget@v1
@@ -282,10 +286,11 @@ jobs:
 
 
   build-msys2-suisho:
-    # windows-latest = windows-2019
+    # windows-latest = windows-2019 => windows-2022
     # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
     # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2019-Readme.md
-    runs-on: windows-latest
+    # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2022-Readme.md
+    runs-on: windows-2022
 
     strategy:
       matrix:
