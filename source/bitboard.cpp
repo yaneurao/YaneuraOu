@@ -713,10 +713,10 @@ Bitboard256 Bitboard256::byte_reverse() const
 	return b0;
 #else
 	Bitboard256 b0;
-	b0.p[0] = bswap64(p[3]);
-	b0.p[1] = bswap64(p[2]);
-	b0.p[2] = bswap64(p[1]);
-	b0.p[3] = bswap64(p[0]);
+	b0.p[0] = bswap64(p[1]);
+	b0.p[1] = bswap64(p[0]);
+	b0.p[2] = bswap64(p[3]);
+	b0.p[3] = bswap64(p[2]);
 	return b0;
 #endif
 }
@@ -930,14 +930,12 @@ void Bitboard::UnitTest(Test::UnitTester& tester)
 		tester.test("sq occupied", all_ok);
 	}
 	{
-#if defined(USE_SSE2)
 		// ByteReverseがちゃんと機能しているかのテスト
 
 		Bitboard b(0x0123456789abcdef, 0xfedcba9876543210);
 		Bitboard r = b.byte_reverse();
 
 		tester.test("byte_reverse", r.extract64<0>() == 0x1032547698badcfe && r.extract64<1>() == 0xefcdab8967452301);
-#endif
 	}
 	{
 		// 9段目が0、そこ以外が1のmask(香の利きを求めるコードのなかで使っている)
@@ -1090,6 +1088,17 @@ void Bitboard256::UnitTest(Test::UnitTester& tester)
 		}
 
 		tester.test("toBitboard", all_ok);
+	}
+	{
+		// ByteReverseがちゃんと機能しているかのテスト
+
+		Bitboard256 b(Bitboard(0x0123456789abcdef, 0x123456789abcdef0), Bitboard(0x23456789abcdef01, 0x3456789abcdef012));
+		Bitboard256 r = b.byte_reverse();
+
+		tester.test("byte_reverse",
+			r.p[0] == 0xf0debc9a78563412 && r.p[1] == 0xefcdab8967452301 &&
+			r.p[2] == 0x12f0debc9a785634 && r.p[3] == 0x01efcdab89674523
+		);
 	}
 }
 
