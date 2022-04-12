@@ -317,7 +317,7 @@ namespace {
 	Value value_from_tt(Value v, int ply /*,int r50c */);
 	void update_pv(Move* pv, Move move, Move* childPv);
 	void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus);
-	void update_quiet_stats(const Position& pos, Stack* ss, Move move, int bonus, int depth);
+	void update_quiet_stats(const Position& pos, Stack* ss, Move move, int bonus);
 	void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestValue, Value beta, Square prevSq,
 		Move* quietsSearched, int quietCount, Move* capturesSearched, int captureCount, Depth depth);
 
@@ -757,10 +757,6 @@ void search_thread_init(Thread* th, Stack* ss , Move pv[])
 
 	// 最善応手列(Principal Variation)
 	ss->pv = pv;
-
-	// lowPlyHistoryのコピー(世代を一つ新しくする)
-	std::copy(&th->lowPlyHistory[2][0], &th->lowPlyHistory.back().back() + 1, &th->lowPlyHistory[0][0]);
-	std::fill(&th->lowPlyHistory[MAX_LPH - 2][0], &th->lowPlyHistory.back().back() + 1, 0);
 
 	// ---------------------
 	//   移動平均を用いる統計情報の初期化
@@ -1539,18 +1535,6 @@ namespace {
 		if (!excludedMove)
 			ss->ttPv = PvNode || (ss->ttHit && tte->is_pv());
 
-	    // Update low ply history for previous move if we are near root and position is or has been in PV
-		// もし、root付近で局面がPVである場合、直前の指し手に対するlow ply historyを更新する
-
-		// depthが高くてplyが低いときは、lowPlyHistoryを更新する。
-		// 直前の指し手がcaptureでなければ(それは良い手のはずだから)、bonusをちょこっと加算。
-		if (   ss->ttPv
-			&& depth > 12
-			&& ss->ply - 1 < MAX_LPH
-			&& !priorCapture
-			&& is_ok((ss - 1)->currentMove))
-			thisThread->lowPlyHistory[ss->ply - 1][from_to((ss - 1)->currentMove)] << stat_bonus(depth - 5);
-
 	    // At non-PV nodes we check for an early TT cutoff
 		// 置換表の値による枝刈り
 
@@ -1590,7 +1574,7 @@ namespace {
 					// fail highしたquietなquietな(駒を取らない)ttMove(置換表の指し手)に対するボーナス
 
 					if (!ttCapture)
-						update_quiet_stats(pos, ss, ttMove, stat_bonus(depth), depth);
+						update_quiet_stats(pos, ss, ttMove, stat_bonus(depth));
 
 					// Extra penalty for early quiet moves of the previous ply
 					// 1手前の早い時点のquietの指し手に対する追加のペナルティ
@@ -1968,7 +1952,7 @@ namespace {
 		{
 			ASSERT_LV3(probCutBeta < VALUE_INFINITE);
 
-			MovePicker mp(pos, ttMove, probCutBeta - ss->staticEval, &captureHistory);
+			MovePicker mp(pos, ttMove, probCutBeta - ss->staticEval, depth - 3, &captureHistory);
 			bool ttPv = ss->ttPv;  // このあとの探索でss->ttPvを潰してしまうのでtte->save()のときはこっちを用いる。
 			ss->ttPv = false;
 
@@ -2103,12 +2087,10 @@ namespace {
 		Move countermove = thisThread->counterMoves[prevSq][prevPc];
 
 		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory,
-										  &thisThread->lowPlyHistory,
 										  &captureHistory,
 										  contHist,
 										  countermove,
-										  ss->killers,
-										  ss->ply);
+										  ss->killers);
 
 
 		value = bestValue;
@@ -3473,7 +3455,7 @@ namespace {
 		if (!pos.capture_or_promotion(bestMove))
 		{
 	        // Increase stats for the best move in case it was a quiet move
-			update_quiet_stats(pos, ss, bestMove, bonus2, depth);
+			update_quiet_stats(pos, ss, bestMove, bonus2);
 
 			// Decrease stats for all non-best quiet moves
 			for (int i = 0; i < quietCount; ++i)
@@ -3538,7 +3520,7 @@ namespace {
 	// 具体的には駒を取らない指し手のstat tables、killer等を更新する。
 
 	// move      = これが良かった指し手
-	void update_quiet_stats(const Position& pos, Stack* ss, Move move, int bonus , int depth)
+	void update_quiet_stats(const Position& pos, Stack* ss, Move move, int bonus)
 	{
 		// Update killers
 		// killerの指し手のupdate
@@ -3564,10 +3546,6 @@ namespace {
 			Square prevSq = to_sq((ss - 1)->currentMove);
 			thisThread->counterMoves[prevSq][pos.piece_on(prevSq)] = move;
 		}
-
-		// Update low ply history
-		if (depth > 11 && ss->ply < MAX_LPH)
-			thisThread->lowPlyHistory[ss->ply][from_to(move)] << stat_bonus(depth - 7);
 	}
 
 	// When playing with strength handicap, choose best move among a set of RootMoves

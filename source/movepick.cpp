@@ -109,10 +109,13 @@ void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 // 指し手オーダリング器
 
 // 通常探索から呼び出されるとき用。
-MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh, const LowPlyHistory* lp,
-	const CapturePieceToHistory* cph , const PieceToHistory** ch, Move cm, const Move* killers,int pl)
-	: pos(p), mainHistory(mh), lowPlyHistory(lp),captureHistory(cph) , continuationHistory(ch),
-	ttMove(ttm), refutations{ { killers[0], 0 },{ killers[1], 0 },{ cm, 0 } }, depth(d), ply(pl)
+MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh,
+	const CapturePieceToHistory* cph ,
+	const PieceToHistory** ch,
+	Move cm,
+	const Move* killers)
+	: pos(p), mainHistory(mh), captureHistory(cph) , continuationHistory(ch),
+	ttMove(ttm), refutations{ { killers[0], 0 },{ killers[1], 0 },{ cm, 0 } }, depth(d)
 {
 	// 通常探索から呼び出されているので残り深さはゼロより大きい。
 	ASSERT_LV3(d > 0);
@@ -129,8 +132,11 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 // 静止探索から呼び出される時用。
 // rs : recapture square
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh,
-						const CapturePieceToHistory* cph, const PieceToHistory** ch, Square rs)
-	: pos(p), mainHistory(mh), captureHistory(cph) , continuationHistory(ch) , ttMove(ttm), recaptureSquare(rs), depth(d) {
+	const CapturePieceToHistory* cph,
+	const PieceToHistory** ch,
+	Square rs)
+	: pos(p), mainHistory(mh), captureHistory(cph) , continuationHistory(ch) , ttMove(ttm), recaptureSquare(rs), depth(d)
+{
 
 	// 静止探索から呼び出されているので残り深さはゼロ以下。
 	ASSERT_LV3(d <= 0);
@@ -147,8 +153,8 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 
 // 通常探索時にProbCutの処理から呼び出されるの専用
 // th = 枝刈りのしきい値
-MovePicker::MovePicker(const Position& p, Move ttm, Value th , const CapturePieceToHistory* cph)
-			: pos(p), captureHistory(cph) , ttMove(ttm),threshold(th) {
+MovePicker::MovePicker(const Position& p, Move ttm, Value th , Depth d , const CapturePieceToHistory* cph)
+			: pos(p), captureHistory(cph) , ttMove(ttm),threshold(th) , depth(d) {
 
 	ASSERT_LV3(!pos.in_check());
 
@@ -181,8 +187,38 @@ void MovePicker::score()
 
 			// 歩の成りは別途考慮してもいいような気はするのだが…。
 
-			m.value = int(Eval::CapturePieceValue[pos.piece_on(to_sq(m))])*6
-					+ (*captureHistory)[to_sq(m)][pos.moved_piece_after(m)][type_of(pos.piece_on(to_sq(m)))];
+			m.value = 6 * int(Eval::CapturePieceValue[pos.piece_on(to_sq(m))])
+					 +    (*captureHistory)[to_sq(m)][pos.moved_piece_after(m)][type_of(pos.piece_on(to_sq(m)))];
+
+#if 0
+			// Stockfishの新しいコード。あとで考える。
+
+			Bitboard threatened, threatenedByPawn, threatenedByMinor, threatenedByRook;
+			if constexpr (Type == QUIETS)
+			{
+				Color us = pos.side_to_move();
+				// squares threatened by pawns
+				threatenedByPawn = pos.attacks_by<PAWN>(~us);
+				// squares threatened by minors or pawns
+				threatenedByMinor = pos.attacks_by<KNIGHT>(~us) | pos.attacks_by<BISHOP>(~us) | threatenedByPawn;
+				// squares threatened by rooks, minors or pawns
+				threatenedByRook = pos.attacks_by<ROOK>(~us) | threatenedByMinor;
+
+				// pieces threatened by pieces of lesser material value
+				threatened = (pos.pieces(us, QUEEN) & threatenedByRook)
+					| (pos.pieces(us, ROOK) & threatenedByMinor)
+					| (pos.pieces(us, KNIGHT, BISHOP) & threatenedByPawn);
+			}
+			else
+			{
+				// Silence unused variable warnings
+				(void)threatened;
+				(void)threatenedByPawn;
+				(void)threatenedByMinor;
+				(void)threatenedByRook;
+			}
+#endif
+
 		}
 		else if constexpr (Type == QUIETS)
 		{
@@ -194,23 +230,12 @@ void MovePicker::score()
 			Piece movedPiece = pos.moved_piece_after(m);
 			Square movedSq = to_sq(m);
 
-#if 1
 			m.value =     (*mainHistory)[from_to(m)][pos.side_to_move()]
 					+ 2 * (*continuationHistory[0])[movedSq][movedPiece]
 					+     (*continuationHistory[1])[movedSq][movedPiece]
 					+     (*continuationHistory[3])[movedSq][movedPiece]
 					+     (*continuationHistory[5])[movedSq][movedPiece]
-					+ (ply < MAX_LPH ? 6 * (*lowPlyHistory)[ply][from_to(m)] : 0);
-#else
-
-			// パラメーターの調整フレームワークを利用するために、値を16倍して最適値を探す。
-			m.value = 16 * (*mainHistory)[from_to(m)][pos.side_to_move()]
-				+ MOVE_PICKER_Q_PARAM1 * (*continuationHistory[0])[movedSq][movedPiece]
-				+ MOVE_PICKER_Q_PARAM2 * (*continuationHistory[1])[movedSq][movedPiece]
-				+ MOVE_PICKER_Q_PARAM3 * (*continuationHistory[3])[movedSq][movedPiece]
-				+ MOVE_PICKER_Q_PARAM4 * (*continuationHistory[5])[movedSq][movedPiece]
-				+ MOVE_PICKER_Q_PARAM5 * (ply < MAX_LPH ? std::min(4, depth / 3) * (*lowPlyHistory)[ply][from_to(m)] : 0);
-#endif
+				;
 		}
 		else // Type == EVASIONS
 		{
@@ -301,7 +326,7 @@ top:
 
 		// 駒を捕獲する指し手に対してオーダリングのためのスコアをつける
 		score<CAPTURES>();
-
+		partial_insertion_sort(cur, endMoves, -3000 * depth);
 		++stage;
 		goto top;
 
@@ -309,7 +334,7 @@ top:
 	// (killer moveの前のフェーズなのでkiller除去は不要)
 	// SSEの値が悪いものはbad captureのほうに回す。
 	case GOOD_CAPTURE:
-		if (select<Best>([&]() {
+		if (select<Next>([&]() {
 				// moveは駒打ちではないからsee()の内部での駒打ちは判定不要だが…。
 				return pos.see_ge(*cur, Value(-69 * cur->value / 1024)) ?
 						// 損をする捕獲する指し手はあとのほうで試行されるようにendBadCapturesに移動させる
@@ -432,13 +457,13 @@ top:
 
 	// PROBCUTの指し手を返す
 	case PROBCUT_:
-		return select<Best>([&]() { return pos.see_ge(*cur, threshold); });
+		return select<Next>([&]() { return pos.see_ge(*cur, threshold); });
 		// threadshold以上のSEE値で、ベストのものを一つ
 
 	// 静止探索用の指し手を返す処理
 	case QCAPTURE_:
 		// depthがDEPTH_QS_RECAPTURES(-5)より深いなら、recaptureの升に移動する指し手のみを生成。
-		if (select<Best>([&]() { return    depth > DEPTH_QS_RECAPTURES
+		if (select<Next>([&]() { return    depth > DEPTH_QS_RECAPTURES
 										|| to_sq(*cur) == recaptureSquare; }))
 			return *(cur - 1);
 

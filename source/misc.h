@@ -115,9 +115,6 @@ void dbg_print();
 class RunningAverage {
 public:
 
-	// Constructor
-	RunningAverage() {}
-
 	// Reset the running average to rational value p / q
 	void set(int64_t p, int64_t q)
 	{
@@ -136,7 +133,12 @@ public:
 	// Test if average is strictly greater than rational a / b
 	bool is_greater(int64_t a, int64_t b)
 	{
-		return b * average > a * PERIOD * RESOLUTION;
+		return b * average > a * (PERIOD * RESOLUTION);
+	}
+
+	int64_t value() const
+	{
+		return average / (PERIOD * RESOLUTION);
 	}
 
 private:

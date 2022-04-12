@@ -29,7 +29,6 @@ void Thread::clear()
 #if defined(USE_MOVE_PICKER)
 	counterMoves.fill(MOVE_NONE);
 	mainHistory.fill(0);
-	lowPlyHistory.fill(0);
 	captureHistory.fill(0);
 
 	// ここは、未初期化のときに[SQ_ZERO][NO_PIECE]を指すので、ここを-1で初期化しておくことによって、

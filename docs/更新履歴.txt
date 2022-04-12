@@ -2,6 +2,33 @@
 やねうら王 更新履歴
 
 
+■　2022/04/13
+
+
+- lowPlyHistory削除 // V701b
+  - これ削除しても強さほぼ変わらなかった。
+
+
+■　2022/04/11
+
+
+- remove -lcublas #227
+	- Mizarさんからのプルリク。
+
+- virturlenv: windows-2022 (#226)
+	- Mizarさんからのプルリク。
+
+
+- Visual Studio 2022の最新版に対応
+	- 使用するPlatformToolset が v142 → v143 に
+- Visual Studioのプロジェクトウィンドウで、bench.pyがscriptフォルダに入っていなかったの修正。
+
+
+- Bitboard256::byte_reverse()、AVX2がない時の実装、AVX2用と互換性がなかった。
+	- dlshogiの山岡さんからの指摘
+	// 利きは正しく求まっているので気づかなかった。
+- Bitboard256::byte_reverse()をUnitTestに追加。
+
 
 ■　2021/12/23 V7.00
 
