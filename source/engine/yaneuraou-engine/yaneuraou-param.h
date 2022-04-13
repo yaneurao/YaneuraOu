@@ -48,9 +48,9 @@ PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 118;
 
 // futility pruningの適用depth。
 // この制限自体が要らない可能性がある。→　そうでもなかった。
-// 元の値 = 9 , step = 1
+// 元の値 = 8 , step = 1
 // [PARAM] min:5,max:15,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 9;
+PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 8;
 
 // 親nodeでのfutilityの適用depth。
 // この枝刈り、depthの制限自体が要らないような気がする。→　そうでもなかった。
@@ -103,20 +103,20 @@ PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_ALPHA = 1024;
 // 256倍されていることに注意。85なら85/256 = 1/3とほぼ等価。
 // 元の値 = 85 , step = 24
 // [PARAM] min:50,max:120,step:3,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 82;
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 85;
 
-// 元の値 = 205 , step = 40
+// 元の値 = 147 , step = 40
 // [PARAM] min:50,max:400,step:10,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 225;
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 147;
 
 
 // 元の値 = 14695 , step = 4000
 // [PARAM] min:0,max:50000,step:500,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_NULL_MOVE_MARGIN0 = 14695;
 
-// 元の値 = 20 , step = 2
+// 元の値 = 15 , step = 2
 // [PARAM] min:10,max:60,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 20;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 15;
 
 // 元の値 = 22 , step = 2
 // [PARAM] min:10,max:60,step:2,interval:1,time_rate:1,fixed
@@ -126,9 +126,9 @@ PARAM_DEFINE PARAM_NULL_MOVE_MARGIN2 = 22;
 // [PARAM] min:5,max:40,step:2,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_NULL_MOVE_MARGIN3 = 15;
 
-// 元の値 = 204 , step = 50
+// 元の値 = 198 , step = 50
 // [PARAM] min:0,max:400,step:30,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 204;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 198;
 
 
 

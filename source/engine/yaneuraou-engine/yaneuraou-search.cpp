@@ -1793,19 +1793,21 @@ namespace {
 		// Stockfish9までは、futility pruningを、root node以外に適用していたが、
 		// Stockfish10でnonPVにのみの適用に変更になった。
 
-		if (!PvNode
-			&&  depth < PARAM_FUTILITY_RETURN_DEPTH/*9*/
-			&&  eval - futility_margin(depth, improving) >= beta
-			&&  eval < VALUE_KNOWN_WIN + 700)
+		if (   !ss->ttPv
+			&&  depth < PARAM_FUTILITY_RETURN_DEPTH/*8*/
+			&&  eval - futility_margin(depth, improving) - (ss - 1)->statScore / 256 >= beta
+			&&  eval >= beta
+			&&  eval < VALUE_KNOWN_WIN + MAX_PLY * 2 /*26305*/) // larger than VALUE_KNOWN_WIN, but smaller than TB wins.
+
 			// 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
 			// Stockfishでは、上の最後の条件は、
-			//   &&  eval < 15000) // 50% larger than VALUE_KNOWN_WIN, but smaller than TB wins.
+			//   &&  eval < 26305) // larger than VALUE_KNOWN_WIN, but smaller than TB wins.
 			// となっているが、StockfishではVALUE_KNOWN_WIN == 10000で、これより十分大きく、
-			// TB winより小さな値として15000となっている。
+			// TB winより小さな値として26305となっている。
 			// やねうら王では、VALUE_KNOWN_WINは mateと1000しか離れていないため、
-			// VALUE_KNOWN_WIN +700で代用する。(そこまではfutility pruningして良いという考え)
+			// VALUE_KNOWN_WIN + MAX_PLY * 2で代用する。(そこまではfutility pruningして良いという考え)
 			// そこを超えるとmateのスコアになってくるので futilityで刈るのは危ない。
-
+			
 			return eval;
 		// 次のようにするより、単にevalを返したほうが良いらしい。
 		//	 return eval - futility_margin(depth);
@@ -1824,10 +1826,10 @@ namespace {
 			&& (ss - 1)->statScore < PARAM_NULL_MOVE_MARGIN0/*14695*/
 			&&  eval >= beta
 			&&  eval >= ss->staticEval
-			&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 /*20*/ * depth
+			&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 /*15*/ * depth
 								- improvement / PARAM_NULL_MOVE_MARGIN3 /* 15 */
-								+ PARAM_NULL_MOVE_MARGIN4 /*204*/
-
+								+ PARAM_NULL_MOVE_MARGIN4 /*198*/
+								/* + complexity / 28 */
 			&& !excludedMove
 		//	&&  pos.non_pawn_material(us)  // これ終盤かどうかを意味する。将棋でもこれに相当する条件が必要かも。
 			&& (ss->ply >= thisThread->nmpMinPly || us != thisThread->nmpColor)
@@ -1836,9 +1838,13 @@ namespace {
 		{
 			ASSERT_LV3(eval - beta >= 0);
 
+			// Null move dynamic reduction based on depth, eval and complexity of position
 			// 残り探索深さと評価値によるnull moveの深さを動的に減らす
-			Depth R = std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA/*205*/, 3) +
-					  (PARAM_NULL_MOVE_DYNAMIC_ALPHA/*1024*/ + PARAM_NULL_MOVE_DYNAMIC_BETA/*85*/ * depth) / 256;
+			Depth R = std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA/*147*/, 5)
+					+ (PARAM_NULL_MOVE_DYNAMIC_ALPHA/*1024*/ +  PARAM_NULL_MOVE_DYNAMIC_BETA/*85*/ * depth) / 256
+					//- (complexity > 753)
+					// →　やねうら王では complexityを導入せず
+				;
 
 			ss->currentMove = MOVE_NULL;
 			// null moveなので、王手はかかっていなくて駒取りでもない。
