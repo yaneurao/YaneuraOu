@@ -1748,15 +1748,38 @@ namespace {
 		improvement =	  (ss-2)->staticEval != VALUE_NONE ? ss->staticEval - (ss-2)->staticEval
 						: (ss-4)->staticEval != VALUE_NONE ? ss->staticEval - (ss-4)->staticEval
 						:                                    175;
+		// ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはない。
+
+		// やねうら王ではpsq_score()を実装していないのでcomplexityは導入せず[2022/04/13]
+
 		//complexity = abs(ss->staticEval - (us == WHITE ? eg_value(pos.psq_score()) : -eg_value(pos.psq_score())));
 
-		// ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはない。
+		//thisThread->complexityAverage.update(complexity);
 
 		// improvingフラグは、improvementをbool化したもの。
 		improving = improvement > 0;
 
 		// -----------------------
-		// Step 7. Futility pruning: child node (~50 Elo).
+		// Step 7. Razoring.
+		// -----------------------
+
+		// If eval is really low check with qsearch if it can exceed alpha, if it can't,
+		// return a fail low.
+
+		// eval が alpha よりもずっと下にある場合、qsearch が alpha よりも上に押し上げることが
+		// できるかどうかをチェックし、もしできなければ fail low を返す。
+
+		if (  !PvNode
+			&& depth <= 7
+			&& eval < alpha - 348 - 258 * depth * depth)
+		{
+			value = qsearch<NonPV>(pos, ss, alpha - 1, alpha);
+			if (value < alpha)
+				return value;
+		}
+
+		// -----------------------
+		// Step 8. Futility pruning: child node (~25 Elo).
 		//         The depth condition is important for mate finding.
 		// -----------------------
 
@@ -1787,6 +1810,7 @@ namespace {
 		// 次のようにするより、単にevalを返したほうが良いらしい。
 		//	 return eval - futility_margin(depth);
 		// cf. Simplify futility pruning return value : https://github.com/official-stockfish/Stockfish/commit/f799610d4bb48bc280ea7f58cd5f78ab21028bf5
+
 
 		// -----------------------
 		// Step 9. Null move search with verification search (~22 Elo)
@@ -3027,7 +3051,7 @@ namespace {
 
 			// futilityの基準となる値をbestValueにmargin値を加算したものとして、
 			// これを下回るようであれば枝刈りする。
-			futilityBase = bestValue + PARAM_FUTILITY_MARGIN_QUIET /*155*/;
+			futilityBase = bestValue + PARAM_FUTILITY_MARGIN_QUIET /*118*/;
 		}
 
 		// -----------------------
@@ -3089,6 +3113,7 @@ namespace {
 
 			if (    bestValue > VALUE_TB_LOSS_IN_MAX_PLY
 				&& !givesCheck
+				&&  to_sq(move) != prevSq
 				&&  futilityBase > -VALUE_KNOWN_WIN
 			//	&&  type_of(move) != PROMOTION) // TODO : これ入れたほうがいいのか？
 				)
