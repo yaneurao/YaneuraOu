@@ -2353,6 +2353,8 @@ namespace {
 			// 指し手で1手進める
 			pos.do_move(move, st, givesCheck);
 
+			bool doDeeperSearch = false;
+
 			// -----------------------
 			// Step 17. Late moves reduction / extension (LMR, ~98 Elo)
 			// -----------------------
@@ -2467,14 +2469,13 @@ namespace {
 				// 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす。
 
 				doFullDepthSearch = value > alpha && d < newDepth;
-
+				doDeeperSearch = value > (alpha + 78 + 11 * (newDepth - d));
 				didLMR = true;
 			}
 			else
 			{
 				// non PVか、PVでも2手目以降であればfull depth searchを行なう。
 				doFullDepthSearch = !PvNode || moveCount > 1;
-
 				didLMR = false;
 			}
 
@@ -2488,7 +2489,7 @@ namespace {
 			// ※　静止探索は残り探索深さはdepth = 0として開始されるべきである。(端数があるとややこしいため)
 			if (doFullDepthSearch)
 			{
-				value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
+				value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth + doDeeperSearch, !cutNode);
 
 				// If the move passed LMR update its stats
 				if (didLMR)
@@ -2708,15 +2709,24 @@ namespace {
 				quietsSearched, quietCount, capturesSearched, captureCount, depth);
 
 
+		// Bonus for prior countermove that caused the fail low
+
 		// bestMoveがない == fail lowしているケース。
 		// fail lowを引き起こした前nodeでのcounter moveに対してボーナスを加点する。
 		// 【計測資料 15.】search()でfail lowしているときにhistoryのupdateを行なう条件
 
-		else if (  (depth >= 3 || PvNode)
+		else if (  (depth >= 4 || PvNode)
 				&& !priorCapture)
-			// continuation historyのupdate。PvNodeかcutNodeならボーナスを2倍する。
-			update_continuation_histories(ss - 1, /*pos.piece_on(prevSq)*/prevPc, prevSq, stat_bonus(depth) * (1 + (PvNode || cutNode)));
+		{
+			//Assign extra bonus if current node is PvNode or cutNode
+			//or fail low was really bad
+			bool extraBonus =  PvNode
+							|| cutNode
+							|| bestValue < alpha - 70 * depth;
 
+			// continuation historyのupdate。PvNodeかcutNodeならボーナスを2倍する。
+			update_continuation_histories(ss - 1, /*pos.piece_on(prevSq)*/prevPc, prevSq, stat_bonus(depth) * (1 + extraBonus));
+		}
 		// 将棋ではtable probe使っていないのでmaxValue関係ない。
 		// ゆえにStockfishのここのコードは不要。(maxValueでcapする必要がない)
 		/*
