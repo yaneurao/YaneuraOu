@@ -800,7 +800,10 @@ void Thread::search()
 	//Skill skill(Options["SkillLevel"], Options["USI_LimitStrength"] ? int(Options["USI_Elo"]) : 0);
 	// ↑これでエンジンオプション2つも増えるのやだな…。気が向いたらサポートすることにする。
 	Skill skill((int)Options["SkillLevel"], 0);
-	
+
+	// When playing with strength handicap enable MultiPV search that we will
+	// use behind the scenes to retrieve a set of possible moves.
+
 	// 強さの手加減が有効であるとき、MultiPVを有効にして、その指し手のなかから舞台裏で指し手を探す。
 	// ※　SkillLevelが有効(設定された値が20未満)のときは、MultiPV = 4で探索。
 	if (skill.enabled())
@@ -808,6 +811,13 @@ void Thread::search()
 
 	// この局面での指し手の数を上回ってはいけない
 	multiPV = std::min(multiPV, rootMoves.size());
+
+	//complexityAverage.set(202, 1);
+	// →導入せず
+
+	//trend = SCORE_ZERO;
+	//optimism[ us] = Value(39);
+	//optimism[~us] = -optimism[us];
 
 	// Contemptの処理は、やねうら王ではMainThread::search()で行っているのでここではやらない。
 	// Stockfishもそうすべきだと思う。
@@ -921,16 +931,22 @@ void Thread::search()
 				alpha = std::max(prev - delta, -VALUE_INFINITE);
 				beta  = std::min(prev + delta,  VALUE_INFINITE);
 
-				// Adjust trend based on root move's previousScore (dynamic contempt)
-				// trendの値をrootの指し手のpreviousScoreを基に調整する。(動的なcontempt)
+#if 0
+				// Adjust trend and optimism based on root move's previousScore
+				// trendと楽観の値をrootの指し手のpreviousScoreを基に調整する。(動的なcontempt)
 
 				// ※　trendは千日手を受け入れるスコア。
 				//     勝ってるほうは千日手にはしたくないし、負けてるほうは千日手やむなしという…。
 
-				//int tr = 113 * prev / (abs(prev) + 147);
-				//trend = (us == WHITE ?  make_score(tr, tr / 2)
-				//	                   : -make_score(tr, tr / 2));
+				int tr = sigmoid(prev, 3, 8, 90, 125, 1);
 
+				trend = (us == WHITE ?  make_score(tr, tr / 2)
+					                 : -make_score(tr, tr / 2));
+
+				int opt = sigmoid(prev, 8, 17, 144, 13966, 183);
+				optimism[us] = Value(opt);
+				optimism[~us] = -optimism[us];
+#endif
 			}
 
 			// Start with a small aspiration window and, in the case of a fail
@@ -3082,6 +3098,9 @@ namespace {
 										  contHist,
 										  prevSq);
 
+		// 王手回避の指し手のうちquiet(駒を捕獲しない)な指し手の数
+		int quietCheckEvasions = 0;
+
 		// このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
 		// evaluate()を呼び出していないなら呼び出しておく。
 		evaluate_with_no_return(pos);
@@ -3197,6 +3216,22 @@ namespace {
 				&& (*contHist[0])[to_sq(move)][pos.moved_piece_after(move)] < CounterMovePruneThreshold
 				&& (*contHist[1])[to_sq(move)][pos.moved_piece_after(move)] < CounterMovePruneThreshold)
 				continue;
+
+			// movecount pruning for quiet check evasions
+			// quietな指し手による王手回避のためのmovecountによる枝刈り。
+
+			// 王手回避でquietな指し手は良いとは思えないから、捕獲する指し手を好むようにする。
+			// だから、もし、qsearchで2つのquietな王手回避に失敗したら、
+			// そこ以降(captureから生成しているのでそこ以降もquietな指し手)も良くないと
+			// 考えるのは理に適っている。
+
+			if (  bestValue > VALUE_TB_LOSS_IN_MAX_PLY
+				&& quietCheckEvasions > 1
+				&& !capture
+				&& ss->inCheck)
+				continue;
+
+			quietCheckEvasions += !capture && ss->inCheck;
 
 			// Make and search the move
 			// 1手動かして、再帰的にqsearch()を呼ぶ
