@@ -191,9 +191,9 @@ PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 5;
 
 
 // historyの値によってreductionするときの係数
-// 元の値 = 4923 , step = 500
+// 元の値 = 4334 , step = 500
 // [PARAM] min:2000,max:8000,step:250,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 4923;
+PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 4334;
 
 
 //

@@ -2358,8 +2358,8 @@ namespace {
 			// moveCountが大きいものなどは探索深さを減らしてざっくり調べる。
 			// alpha値を更新しそうなら(fail highが起きたら)、full depthで探索しなおす。
 
-			if (    depth >= 3
-				&&  moveCount > 1 + 2 * rootNode
+			if (   depth >= 2
+				&& moveCount > 1 + (PvNode && ss->ply <= 1)
 				&& (   !ss->ttPv
 					|| !capture
 					|| (cutNode && (ss-1)->moveCount > 1)))
@@ -2372,8 +2372,7 @@ namespace {
 				// bestMoveCountはこのnodeでαを更新した回数。
 				// これが少ないうちは良い指し手が見つかっていないわけだからreductionすべきではない。
 				if (   PvNode
-					&& bestMoveCount <= 3
-					&& beta - alpha >= thisThread->rootDelta / 4)
+					&& bestMoveCount <= 3)
 					r--;
 
 				// Decrease reduction if position is or has been on the PV
@@ -2384,12 +2383,6 @@ namespace {
 					&& !likelyFailLow)
 					r -= 2 ;
 
-				// Increase reduction at root and non-PV nodes when the best move does not change frequently
-				// best moveが頻繁に変更されていないならば局面が安定しているのだろうから、rootとnon-PVではreductionを増やす。
-				if (   (rootNode || !PvNode)
-					&& thisThread->bestMoveChanges <= 2)
-					r++;
-
 				// Decrease reduction if opponent's move count is high (~5 Elo)
 				// 相手の指し手(1手前の指し手)のmove countが高い場合、reduction量を減らす。
 				// 相手の指し手をたくさん読んでいるのにこちらだけreductionするとバランスが悪いから。
@@ -2399,7 +2392,8 @@ namespace {
 
 				// Decrease reduction if opponent's move count is high (~1 Elo)
 				// 相手の(1手前の)move countが大きければ、reductionを減らす。
-				if ((ss - 1)->moveCount > 13)
+				// ※ この > 7 の 7は調整が必要かも。
+				if ((ss - 1)->moveCount > 7)
 					r--;
 
 				// Increase reduction for cut nodes (~3 Elo)
@@ -2418,17 +2412,25 @@ namespace {
 				if (ttCapture)
 					r++;
 
+				// Decrease reduction at PvNodes if bestvalue
+				// is vastly different from static evaluation
+
+				// PvNodesでbestValueが静的評価(評価関数の返し値)と大きく異るなら
+				// reductionを減らす。
+				if (PvNode && !ss->inCheck && abs(ss->staticEval - bestValue) > 250)
+					r--;
+
 				// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
 				// contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？
 				ss->statScore = thisThread->mainHistory[from_to(move)][us]
 								+ (*contHist[0])[to_sq(move)][movedPiece]
 								+ (*contHist[1])[to_sq(move)][movedPiece]
 								+ (*contHist[3])[to_sq(move)][movedPiece]
-								- PARAM_REDUCTION_BY_HISTORY/*4923*/; // 修正項
+								- PARAM_REDUCTION_BY_HISTORY/*4334*/; // 修正項
 
 
 				// Decrease/increase reduction for moves with a good/bad history (~30 Elo)
-				r -= ss->statScore / 14721;
+				r -= ss->statScore / 15914;
 
 				// In general we want to cap the LMR depth search at newDepth. But if reductions
 				// are really negative and movecount is low, we allow this move to be searched
