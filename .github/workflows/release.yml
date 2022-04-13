@@ -328,15 +328,8 @@ jobs:
 
       - name: suisho5 embedded_nnue
         run: |
-          $FILE_ID="1T-Go2KImMfKD_4m_j4fQFXrEfaGgAcS_";
-          $FILE_NAME="suisho5_20211123.zip";
-          curl.exe -sc cookie "https://drive.google.com/uc?export=download&id=${FILE_ID}" -o NUL;
-          $CODE=(((Get-Content cookie) -split "\n"|?{$_ -match "_warning_"}) -split "\t")[-1];
-          curl.exe -Lb cookie "https://drive.google.com/uc?export=download&confirm=${CODE}&id=${FILE_ID}" -o ${FILE_NAME};
-          7z.exe e -y ${FILE_NAME} "**/source.rar";
-          7z.exe e -y source.rar "source/source/eval/nnue/embedded_nnue.cpp";
-          7z.exe a -t7z -mx9 embedded_nnue.7z embedded_nnue.cpp;
-          Copy-Item .\embedded_nnue.cpp .\main\source\eval\nnue\embedded_nnue.cpp;
+          curl.exe -LRo main/source/eval/nnue/embedded_nnue.cpp.gz https://github.com/mizar/YaneuraOu/releases/download/resource/suisho5_20211123.halfkp.nnue.cpp.gz;
+          gzip.exe -df main/source/eval/nnue/embedded_nnue.cpp.gz;
 
       - name: make
         run: |
@@ -349,7 +342,6 @@ jobs:
           echo 'Suisho5(20211123)-${{ steps.version.outputs.filename }}' > ./main/build/windows/NNUE/engine_name.txt;
           echo 'yaneurao, tayayan' >> .\main\build\windows\NNUE\engine_name.txt;
           echo 'option name FV_SCALE type spin default 24 min 1 max 128' > ./main/build/windows/NNUE/engine_options.txt;
-          Copy-Item ./embedded_nnue.7z ./main/build/embedded_nnue.7z;
 
       - uses: actions/upload-artifact@v2
         with:
@@ -388,15 +380,8 @@ jobs:
 
       - name: suisho5 embedded_nnue
         run: |
-          FILE_ID=1T-Go2KImMfKD_4m_j4fQFXrEfaGgAcS_;
-          FILE_NAME=suisho5_20211123.zip;
-          curl -sc cookie "https://drive.google.com/uc?export=download&id=${FILE_ID}" -o /dev/null;
-          CODE="$(awk '/_warning_/ {print $NF}' cookie)";
-          curl -Lb cookie "https://drive.google.com/uc?export=download&confirm=${CODE}&id=${FILE_ID}" -o ${FILE_NAME};
-          7z e -y ${FILE_NAME} "**/source.rar";
-          7z e -y source.rar "source/source/eval/nnue/embedded_nnue.cpp";
-          7z a -t7z -mx9 ./embedded_nnue.7z ./embedded_nnue.cpp;
-          cp ./embedded_nnue.cpp ./main/source/eval/nnue/embedded_nnue.cpp;
+          curl -LRo main/source/eval/nnue/embedded_nnue.cpp.gz https://github.com/mizar/YaneuraOu/releases/download/resource/suisho5_20211123.halfkp.nnue.cpp.gz;
+          gzip -df main/source/eval/nnue/embedded_nnue.cpp.gz;
 
       - name: ndk-build
         run: ./main/script/android_build.sh -e ${{ matrix.edition }} -x "EVAL_EMBEDDING=ON"
@@ -406,7 +391,6 @@ jobs:
           echo 'Suisho5(20211123)-${{ steps.version.outputs.filename }}' > ./main/build/android/NNUE/engine_name.txt;
           echo 'yaneurao, tayayan' >> ./main/build/android/NNUE/engine_name.txt;
           echo 'option name FV_SCALE type spin default 24 min 1 max 128' > ./main/build/android/NNUE/engine_options.txt;
-          cp ./embedded_nnue.7z ./main/build/embedded_nnue.7z;
 
       - uses: actions/upload-artifact@v2
         with:
@@ -503,7 +487,6 @@ jobs:
         working-directory: release-windows-material
       - name: make build-windows-suisho zip/7z
         run: |
-          cp ../../embedded_nnue.7z source/embedded_nnue.7z
           7z a -tzip ../../build-windows-suisho.zip *
           7z a -t7z ../../build-windows-suisho.7z *
         working-directory: release-windows-suisho/windows/NNUE
@@ -519,7 +502,6 @@ jobs:
         working-directory: release-android
       - name: make build-android-suisho zip/7z
         run: |
-          cp ../../embedded_nnue.7z source/embedded_nnue.7z
           7z a -tzip ../../build-android-suisho.zip *
           7z a -t7z ../../build-android-suisho.7z *
         working-directory: release-android-suisho/android/NNUE
