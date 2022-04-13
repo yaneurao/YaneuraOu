@@ -249,31 +249,6 @@ namespace {
 		return VALUE_DRAW + Value(2 * (thisThread->nodes & 1) - 1);
 	}
 
-	// Check if the current thread is in a search explosion
-	// 現在の探索が組合せ爆発を起こしているかをチェックする。
-	ExplosionState search_explosion(Thread* thisThread) {
-
-		uint64_t nodesNow = thisThread->nodes;
-		bool explosive =   thisThread->doubleExtensionAverage[WHITE].is_greater(2, 100)
-						|| thisThread->doubleExtensionAverage[BLACK].is_greater(2, 100);
-
-		if (explosive)
-			thisThread->nodesLastExplosive = nodesNow;
-		else
-			thisThread->nodesLastNormal = nodesNow;
-
-		if (   explosive
-			&& thisThread->state == EXPLOSION_NONE
-			&& nodesNow - thisThread->nodesLastNormal > 6000000)
-			thisThread->state = MUST_CALM_DOWN;
-
-		if (   thisThread->state == MUST_CALM_DOWN
-			&& nodesNow - thisThread->nodesLastExplosive > 6000000)
-			thisThread->state = EXPLOSION_NONE;
-
-		return thisThread->state;
-	}
-
 	// Skill structure is used to implement strength limit. If we have an uci_elo then
 	// we convert it to a suitable fractional skill level using anchoring to CCRL Elo
 	// (goldfish 1.13 = 2000) and a fit through Ordo derived Elo for match (TC 60+0.6)
@@ -1246,18 +1221,6 @@ namespace {
 	template <NodeType nodeType>
 	Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode)
 	{
-		Thread* thisThread = pos.this_thread();
-
-		// -----------------------
-		// Step 0. Limit search explosion
-		// -----------------------
-
-		// 探索が組合せ爆発しているかのチェック
-		if (   ss->ply > 10
-			&& search_explosion(thisThread) == MUST_CALM_DOWN
-			&& depth > (ss - 1)->depth)
-			depth = (ss - 1)->depth;
-
 		// -----------------------
 		//     nodeの種類
 		// -----------------------
@@ -1355,12 +1318,14 @@ namespace {
 
 		//     nodeの初期化
 
-		ss->inCheck		= pos.checkers();
-		priorCapture	= pos.captured_piece();
-		Color us		= pos.side_to_move();
-		moveCount		= bestMoveCount = captureCount = quietCount = ss->moveCount = 0;
-		bestValue		= -VALUE_INFINITE;
-		//	maxValue	= VALUE_INFINITE;
+		Thread* thisThread = pos.this_thread();
+		ss->inCheck		   = pos.checkers();
+		priorCapture	   = pos.captured_piece();
+		Color us		   = pos.side_to_move();
+		moveCount		   = bestMoveCount = captureCount = quietCount = ss->moveCount = 0;
+		bestValue		   = -VALUE_INFINITE;
+		//maxValue	       = VALUE_INFINITE;
+		// →　将棋ではtable probe使っていないのでmaxValue関係ない。
 
 		//  Timerの監視
 
@@ -1464,10 +1429,6 @@ namespace {
 		// TODO : null moveのときにprevSq == 1 == SQ_12になるのどうなのか…。
 		Square prevSq			= to_sq((ss - 1)->currentMove);
 
-		// Update the running average statistics for double extensions
-		// 二重延長に関する移動平均の統計情報を更新する。
-		thisThread->doubleExtensionAverage[us].update(ss->depth > (ss - 1)->depth);
-
 		// Initialize statScore to zero for the grandchildren of the current position.
 		// So statScore is shared between all grandchildren and only the first grandchild
 		// starts with statScore = 0. Later grandchildren start with the last calculated
@@ -1550,6 +1511,8 @@ namespace {
 			// このままこの値でreturnして良い。
 			)
 		{
+			// If ttMove is quiet, update move sorting heuristics on TT hit (~1 Elo)
+
 			// 置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
 			// ただし、捕獲する指し手か成る指し手であればこれは(captureで生成する指し手なので)killerを更新する価値はない。
 
@@ -1569,13 +1532,13 @@ namespace {
 			{
 				if (ttValue >= beta)
 				{
-					// Bonus for a quiet ttMove that fails high
+					// Bonus for a quiet ttMove that fails high (~3 Elo)
 					// fail highしたquietなquietな(駒を取らない)ttMove(置換表の指し手)に対するボーナス
 
 					if (!ttCapture)
 						update_quiet_stats(pos, ss, ttMove, stat_bonus(depth));
 
-					// Extra penalty for early quiet moves of the previous ply
+					// Extra penalty for early quiet moves of the previous ply (~0 Elo)
 					// 1手前の早い時点のquietの指し手に対する追加のペナルティ
 					// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
 
@@ -1583,7 +1546,7 @@ namespace {
 						update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_bonus(depth + 1));
 
 				}
-				// Penalty for a quiet ttMove that fails low
+				// Penalty for a quiet ttMove that fails low (~1 Elo)
 				// fails lowのときのquiet ttMoveに対するペナルティ
 				else if (!ttCapture)
 				{
