@@ -36,9 +36,9 @@ PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 168;
 
 // 
 
-// 元の値 = 145 , step = 20
+// 元の値 = 138 , step = 20
 // [PARAM] min:100,max:240,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 170;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 138;
 
 
 // 静止探索でのfutility pruning
@@ -54,27 +54,27 @@ PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 9;
 
 // 親nodeでのfutilityの適用depth。
 // この枝刈り、depthの制限自体が要らないような気がする。→　そうでもなかった。
-// 元の値 = 8
+// 元の値 = 11
 // [PARAM] min:5,max:20,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 8;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 11;
 
 // 親nodeでのfutility margin
-// 元の値 = 172 , step = 30
+// 元の値 = 122 , step = 30
 // [PARAM] min:100,max:400,step:20,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 = 172;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 = 122;
 
-// 元の値 = 21 , step = 4
+// 元の値 = 25 , step = 4
 // [PARAM] min:15,max:50,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 21;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 25;
 
-// 元の値 = 21 , step = 4
+// 元の値 = 20 , step = 4
 // [PARAM] min:10,max:30,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 = 21;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 = 20;
 
 // lmrのときのseeの値。
-// 元の値 = 218 ,step = 40
+// 元の値 = 203 ,step = 40
 // [PARAM] min:0,max:300,step:20,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 238;
+PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 203;
 
 
 // Reductionの計算式に出てくる定数

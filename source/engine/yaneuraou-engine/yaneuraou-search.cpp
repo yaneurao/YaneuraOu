@@ -1291,7 +1291,9 @@ namespace {
 		// quietCount			: 調べた駒を捕獲しない指し手の数(quietsSearched[]用のカウンター)
 		// bestMoveCount		: このnodeにおいて、αの値を更新した回数。
 		// improvement			: improvingフラグのもうちょっと細かい版(int型なので)  improving = improvement > 0
-		int moveCount, captureCount, quietCount, bestMoveCount, improvement;
+		// complexity           : 局面の複雑性。
+		// →この計算に psq_score()が必要なのだが、これ将棋で実装してないのでcomplexityの計算しないことにする。
+		int moveCount, captureCount, quietCount, bestMoveCount, improvement /*, complexity*/;
 
 		// -----------------------
 		// Step 1. Initialize node
@@ -1661,6 +1663,7 @@ namespace {
 			ss->staticEval = eval = VALUE_NONE;
 			improving = false;
 			improvement = 0;
+			//complexity = 0;
 			goto moves_loop;
 		}
 		else if (ss->ttHit)
@@ -1745,7 +1748,8 @@ namespace {
 		improvement =	  (ss-2)->staticEval != VALUE_NONE ? ss->staticEval - (ss-2)->staticEval
 						: (ss-4)->staticEval != VALUE_NONE ? ss->staticEval - (ss-4)->staticEval
 						:                                    175;
-		
+		//complexity = abs(ss->staticEval - (us == WHITE ? eg_value(pos.psq_score()) : -eg_value(pos.psq_score())));
+
 		// ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはない。
 
 		// improvingフラグは、improvementをbool化したもの。
@@ -2153,8 +2157,8 @@ namespace {
 						&& captureHistory[to_sq(move)][movedPiece][type_of(pos.piece_on(to_sq(move)))] < 0)
 						continue;
 
-					// SEE based pruning
-					if (!pos.see_ge(move, - Value(PARAM_LMR_SEE_MARGIN1 /*218*/) * depth)) // (~25 Elo)
+					// SEE based pruning (~9 Elo)
+					if (!pos.see_ge(move, - Value(PARAM_LMR_SEE_MARGIN1 /*203*/) * depth)) // (~25 Elo)
 						continue;
 				}
 				else
@@ -2162,33 +2166,39 @@ namespace {
 					// // Continuation history based pruning (~20 Elo)
 					// Continuation historyに基づいた枝刈り(historyの値が悪いものに関してはskip) : ~20 Elo
 
+					int history = (*contHist[0])[to_sq(move)][movedPiece]
+								+ (*contHist[1])[to_sq(move)][movedPiece]
+								+ (*contHist[3])[to_sq(move)][movedPiece];
+
 					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH/*5*/
-						&& (*contHist[0])[to_sq(move)][movedPiece]
-						+  (*contHist[1])[to_sq(move)][movedPiece]
-						+  (*contHist[3])[to_sq(move)][movedPiece] < -3000 * depth + 3000)
+						&& history < -3875 * (depth - 1))
 						// contHist[][]はStockfishと逆順なので注意。
 						continue;
 
-					// Futility pruning: parent node (~5 Elo)
+					// mainHistory[][]もStockfishと逆順なので注意。
+					history += thisThread->mainHistory[from_to(move)][ us];
+
+					// Futility pruning: parent node (~9 Elo)
 					// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
 
 					// パラメーター調整の係数を調整したほうが良いのかも知れないが、
 					// ここ、そんなに大きなEloを持っていないので、調整しても無意味。
 
 					if (   !ss->inCheck
-						&& lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*8*/
-						&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1/*172*/ + PARAM_FUTILITY_MARGIN_BETA/*145*/ * lmrDepth <= alpha)
+						&& lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*11*/
+						&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1/*122*/ + PARAM_FUTILITY_MARGIN_BETA/*138*/ * lmrDepth
+							+ history / 60 <= alpha )
 						continue;
 
 					// ※　このLMRまわり、棋力に極めて重大な影響があるので枝刈りを入れるかどうかを含めて慎重に調整すべき。
 
-					// Prune moves with negative SEE (~20 Elo)
+					// Prune moves with negative SEE (~3 Elo)
 					// 将棋ではseeが負の指し手もそのあと詰むような場合があるから、あまり無碍にも出来ないようだが…。
 
 					// 【計測資料 20.】SEEが負の指し手を枝刈りする/しない
 
-					if (!pos.see_ge(move, Value( - PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1/*21*/ * lmrDepth * lmrDepth
-						- PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2/*21*/ * lmrDepth )))
+					if (!pos.see_ge(move, Value( - PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1/*25*/ * lmrDepth * lmrDepth
+						- PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2/*20*/ * lmrDepth )))
 						continue;
 				}
 			}
@@ -2437,9 +2447,9 @@ namespace {
 				// deeper than the first move (this may lead to hidden double extensions).
 
 				int deeper =  r >= -1					? 0
-							: moveCount <= 5			? 2
-							: PvNode && depth > 6       ? 1
-							: cutNode && moveCount <= 7 ? 1
+							: moveCount <= 4			? 2
+							: PvNode && depth > 4       ? 1
+							: cutNode && moveCount <= 8 ? 1
 							:							  0;
 
 				// depth >= 3なのでqsearchは呼ばれないし、かつ、
@@ -2485,6 +2495,9 @@ namespace {
 				{
 					int bonus = value > alpha ?  stat_bonus(newDepth)
 											  : -stat_bonus(newDepth);
+
+					if (capture)
+						bonus /= 6;
 
 					update_continuation_histories(ss, movedPiece, to_sq(move), bonus);
 				}
