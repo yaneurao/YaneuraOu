@@ -159,7 +159,7 @@ void init_fv_scale() {
 void init_param();
 
 // -----------------------
-//   やねうら王2019探索部
+//   やねうら王2022探索部
 // -----------------------
 
 using namespace Search;
@@ -186,7 +186,7 @@ namespace {
 
 	// depth(残り探索深さ)に応じたfutility margin。
 	Value futility_margin(Depth d, bool improving) {
-		return Value(PARAM_FUTILITY_MARGIN_ALPHA1/*214*/ * (d - improving));
+		return Value(PARAM_FUTILITY_MARGIN_ALPHA1/*168*/ * (d - improving));
 	}
 
 	// 【計測資料 30.】　Reductionのコード、Stockfish 9と10での比較
@@ -198,11 +198,11 @@ namespace {
 	// 残り探索深さをこの深さだけ減らす。d(depth)とmn(move_count)
 	// i(improving)とは、評価値が2手前から上がっているかのフラグ。上がっていないなら
 	// 悪化していく局面なので深く読んでも仕方ないからreduction量を心もち増やす。
-	// rangeReductionは、staticEvalとchildのeval(value)の差が一貫して低い時にreduction量を増やしたいので、
+	// delta, rootDelta は、staticEvalとchildのeval(value)の差が一貫して低い時にreduction量を増やしたいので、
 	// そのためのフラグ。(これがtrueだとreduction量が1増える)
-	Depth reduction(bool i, Depth d, int mn, bool rangeReduction) {
+	Depth reduction(bool i, Depth d, int mn, Value delta, Value rootDelta) {
 		int r = Reductions[d] * Reductions[mn];
-		return (r + PARAM_REDUCTION_ALPHA /* 534*/ ) / 1024 + (!i && r > PARAM_REDUCTION_BETA /*904*/) + rangeReduction;
+		return (r + PARAM_REDUCTION_ALPHA/*1463*/ - int(delta) * 1024 / int(rootDelta)) / 1024 + (!i && r > PARAM_REDUCTION_BETA/*1010*/);
 	}
 
 	// 【計測資料 29.】　Move CountベースのFutiliy Pruning、Stockfish 9と10での比較
@@ -221,20 +221,8 @@ namespace {
 
 	// History and stats update bonus, based on depth
 	// depthに基づく、historyとstatsのupdate bonus
-	int stat_bonus(Depth depth) {
-		int d = depth;
-
-		// historyとstatsの更新時のボーナス値。depthに基づく。
-
-		// [Stockfish13 2021/01]
-		//return d > 14 ? 29 : 8 * d * d + 224 * d - 215;
-
-		// [Stockfish14 2021/09]
-		//return d > 14 ? 73 : 6 * d * d + 229 * d - 215;
-
-		// [Stockfish14.1 2021/11]
-		return std::min((6 * d + 229) * d - 215 , 2000);
-
+	int stat_bonus(Depth d) {
+		return std::min((9 * d + 270) * d - 311, 2145);
 	}
 
 	// チェスでは、引き分けが0.5勝扱いなので引き分け回避のための工夫がしてあって、
@@ -346,7 +334,7 @@ void Search::init()
 	// 0.05とか変更するだけで勝率えらく変わる
 
 	for (int i = 1; i < MAX_MOVES; ++i)
-		Reductions[i] = int(21.9 * std::log(i));
+		Reductions[i] = int(20.81 * std::log(i));
 
 	// Stockfish11.1で現在のスレッド数設定に依存する項が追加された。(以下コード)
 	// このため、スレッド数が確定するisreadyタイミングで初期化する必要があるが、
@@ -356,7 +344,7 @@ void Search::init()
 	//
 	// ※　デフォルトのスレッド数設定が4だとして、 (std::log(4) / 2) という項を加えて強くなったにすぎない。
 
-	//Reductions[i] = int((21.9 + std::log(Threads.size()) / 2) * std::log(i));
+	//Reductions[i] = int((20.81 + std::log(Threads.size()) / 2) * std::log(i));
 	// cf. Increase reductions with thread count : https://github.com/official-stockfish/Stockfish/commit/135caee606c86ade9e9c199ef469661c374eb9ba
 }
 
@@ -737,13 +725,6 @@ void search_thread_init(Thread* th, Stack* ss , Move pv[])
 	//   移動平均を用いる統計情報の初期化
 	// ---------------------
 
-	// 二重延長率
-	th->doubleExtensionAverage[WHITE].set(0, 100);  // initialize the running average at 0%
-	th->doubleExtensionAverage[BLACK].set(0, 100);  // initialize the running average at 0%
-
-	th->nodesLastExplosive	= th->nodes;			// th->nodes == 0のはずだが…。
-	th->nodesLastNormal		= th->nodes;
-	th->state				= EXPLOSION_NONE;
 
 	// 千日手の時の動的なcontempt。これ、やねうら王では使わないことにする。
 	//th->trend = VALUE_ZERO;
@@ -1298,8 +1279,7 @@ namespace {
 		// moveCountPruning		: moveCountによって枝刈りをするかのフラグ(quietの指し手を生成しない)
 		// ttCapture			: 置換表の指し手がcaptureする指し手であるか
 		// pvExact				: PvNodeで置換表にhitして、しかもBOUND_EXACT
-		// singularQuietLMR     : QuietLMRのsingular延長をするフラグ
-		bool capture, doFullDepthSearch, moveCountPruning, ttCapture, singularQuietLMR;
+		bool capture, doFullDepthSearch, moveCountPruning, ttCapture;
 
 		// moveによって移動させる駒
 		Piece movedPiece;
@@ -2052,7 +2032,7 @@ namespace {
 
 		value = bestValue;
 
-		singularQuietLMR = moveCountPruning = false;
+		moveCountPruning = false;
 
 		// Indicate PvNodes that will probably fail low if the node was searched
 		// at a depth equal or greater than the current depth, and the result of this search was a fail low.
@@ -2151,6 +2131,8 @@ namespace {
 			// 今回の指し手に関して新しいdepth(残り探索深さ)を計算する。
 			newDepth = depth - 1;
 
+			Value delta = beta - alpha;
+
 			if (  !rootNode
 				// 【計測資料 7.】 浅い深さでの枝刈りを行なうときに王手がかかっていないことを条件に入れる/入れない
 			//	&& pos.non_pawn_material(us)  // これに相当する処理、将棋でも必要だと思う。
@@ -2162,7 +2144,7 @@ namespace {
 
 				// Reduced depth of the next LMR search
 				// 次のLMR探索における軽減された深さ
-				int lmrDepth = std::max(newDepth - reduction(improving, depth, moveCount, rangeReduction > 2), 0);
+				int lmrDepth = std::max(newDepth - reduction(improving, depth, moveCount, delta, thisThread->rootDelta), 0);
 
 				if (   capture
 					|| givesCheck)
@@ -2272,7 +2254,6 @@ namespace {
 				if (value < singularBeta)
 				{
 					extension = 1;
-					singularQuietLMR = !ttCapture;
 
 #if 0
 					// singular extentionが生じた回数の統計を取ってみる。
@@ -2386,7 +2367,7 @@ namespace {
 					|| (cutNode && (ss-1)->moveCount > 1)))
 			{
 				// Reduction量
-				Depth r = reduction(improving, depth, moveCount, rangeReduction > 2);
+				Depth r = reduction(improving, depth, moveCount, delta, thisThread->rootDelta);
 
 				// Decrease reduction at some PvNodes (~2 Elo)
 				// PvNodeでのreductionを減らす。
@@ -2421,11 +2402,6 @@ namespace {
 				// Decrease reduction if opponent's move count is high (~1 Elo)
 				// 相手の(1手前の)move countが大きければ、reductionを減らす。
 				if ((ss - 1)->moveCount > 13)
-					r--;
-
-				// Decrease reduction if ttMove has been singularly extended (~1 Elo)
-				// 置換表の指し手でsingular延長がなされたなら、reductionを減らす。
-				if (singularQuietLMR)
 					r--;
 
 				// Increase reduction for cut nodes (~3 Elo)
@@ -2476,12 +2452,6 @@ namespace {
 				//
 				// ここにその他の枝刈り、何か入れるべき(かも)
 				//
-
-				// Range reductions (~3 Elo)
-				//
-				// staticEvalとchildのeval(value)の差が一貫して低い時にreduction量を増やす。
-				if (ss->staticEval - value < 30 && depth > 7)
-					rangeReduction++;
 
 				// If the son is reduced and fails high it will be re-searched at full depth
 				// 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす。
@@ -2750,17 +2720,6 @@ namespace {
 
 		if (bestValue <= alpha)
 			ss->ttPv = ss->ttPv || ((ss - 1)->ttPv && depth > 3);
-
-		// Otherwise, a counter move has been found and if the position is the last leaf
-		// in the search tree, remove the position from the search tree.
-
-		// それ以外の場合は、カウンターの手が見つかり、その局面が探索木のleafであれば、
-		// その局面を探索木から削除する。
-		// (ttPvをfalseに変更してTTEntryに保存する)
-
-		else if (depth > 3)
-			ss->ttPv = ss->ttPv && (ss + 1)->ttPv;
-
 
 		// -----------------------
 		//  置換表に保存する

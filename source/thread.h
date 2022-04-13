@@ -88,20 +88,12 @@ public:
 	// pvLast   : tbRank絡み。将棋では関係ないので用いない。
 	size_t pvIdx /*,pvLast*/;
 
-	// 置換表に平均的にどれくらいhitしているかという統計情報。
-	// これに基づき、枝刈りを調整する。
-	RunningAverage doubleExtensionAverage[COLOR_NB];
-
-	uint64_t nodesLastExplosive;
-	uint64_t nodesLastNormal;
-
 	// selDepth  : rootから最大、何手目まで探索したか(選択深さの最大)
 	// nmpMinPly : null moveの前回の適用ply
 	// nmpColor  : null moveの前回の適用Color
 	// state     : 探索で組合せ爆発が起きているか等を示す状態
 	int selDepth ,nmpMinPly;
 	Color nmpColor;
-	ExplosionState state;
 
 	// nodes     : このスレッドが探索したノード数(≒Position::do_move()を呼び出した回数)
  	// bestMoveChanges : 反復深化においてbestMoveが変わった回数。nodeの安定性の指標として用いる。全スレ分集計して使う。

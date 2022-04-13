@@ -432,7 +432,7 @@ top:
 		endMoves = endBadCaptures;
 
 		++stage;
-		/* fallthrough */
+		[[fallthrough]];
 
 	// see()が負の指し手を返す。
 	case BAD_CAPTURE:
