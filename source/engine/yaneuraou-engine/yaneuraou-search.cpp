@@ -1706,7 +1706,7 @@ namespace {
 			// if (eval == VALUE_DRAW)
 			//	   eval = value_draw(thisThread);
 
-			// Can ttValue be used as a better position evaluation?
+			// ttValue can be used as a better position evaluation (~4 Elo)
 			// ttValueのほうがこの局面の評価値の見積もりとして適切であるならそれを採用する。
 			// 1. ttValue > evaluate()でかつ、ttValueがBOUND_LOWERなら、真の値はこれより大きいはずだから、
 			//   evalとしてttValueを採用して良い。
@@ -1740,7 +1740,7 @@ namespace {
 		//   evalベースの枝刈り
 		// -----------------------
 
-		// Use static evaluation difference to improve quiet move ordering
+		// Use static evaluation difference to improve quiet move ordering (~3 Elo)
 
 		// 局面の静的評価値(eval)が得られたので、以下ではこの評価値を用いて各種枝刈りを行なう。
 		// 王手のときはここにはこない。(上のinCheckのなかでMOVES_LOOPに突入。)
@@ -1875,7 +1875,7 @@ namespace {
 		}
 
 		// -----------------------
-		// Step 9. ProbCut (~4 Elo)
+		// Step 10. ProbCut (~4 Elo)
 		// -----------------------
 
 		// probCutに使うbeta値。
@@ -1912,6 +1912,8 @@ namespace {
 
 			MovePicker mp(pos, ttMove, probCutBeta - ss->staticEval, depth - 3, &captureHistory);
 			bool ttPv = ss->ttPv;  // このあとの探索でss->ttPvを潰してしまうのでtte->save()のときはこっちを用いる。
+			//bool captureOrPromotion;
+			// ↑このStockfishのコード、ここで宣言しなくてもいいと思う。[2022/04/13]
 			ss->ttPv = false;
 
 			// 試行回数は2回(cutNodeなら4回)までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
@@ -1924,17 +1926,14 @@ namespace {
 
 				if (move != excludedMove && pos.legal(move))
 				{
-					ASSERT_LV3(pos.capture(move));
-					ASSERT_LV3(depth > PARAM_PROBCUT_DEPTH);
-					// Stockfish 12のコード、ここ"depth >= 5"と書いてある。
-					// なぜにifの条件式に倣って"depth > 4"と書かないのか…。
+					ASSERT_LV3(pos.capture(move) /* || promotion_type(move) == QUEEN */);
 
-					const bool captureOrPawnPromotion = true;
+					const bool captureOrPromotion = true;
 
 					ss->currentMove = move;
-					ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck]
-																			  [captureOrPawnPromotion]
-																			  [to_sq(move)]
+					ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck                ]
+																			  [captureOrPromotion         ]
+																			  [to_sq(move)                ]
 																			  [pos.moved_piece_after(move)];
 
 					pos.do_move(move, st);
@@ -1978,7 +1977,7 @@ namespace {
 		}
 
 		// -----------------------
-		// Step 10. If the position is not in TT, decrease depth by 2 or 1 depending on node type
+		// Step 11. If the position is not in TT, decrease depth by 2 or 1 depending on node type (~3 Elo)
 		// -----------------------
 
 		// 局面がTTになかったのなら、探索深さを2下げる。
@@ -2010,7 +2009,7 @@ namespace {
 		int rangeReduction = 0;
 
 		// -----------------------
-		// Step 11. A small Probcut idea, when we are in check
+		// Step 12. A small Probcut idea, when we are in check (~0 Elo)
 		// -----------------------
 
 		probCutBeta = beta + 409;
@@ -2065,7 +2064,7 @@ namespace {
 
 
 		// -----------------------
-		// Step 12. Loop through all pseudo-legal moves until no moves remain
+		// Step 13. Loop through all pseudo-legal moves until no moves remain
 		//			or a beta cutoff occurs.
 		// -----------------------
 
@@ -2143,7 +2142,7 @@ namespace {
 			givesCheck = pos.gives_check(move);
 
 			// -----------------------
-			// Step 13. Pruning at shallow depth (~200 Elo). Depth conditions are important for mate finding.
+			// Step 14. Pruning at shallow depth (~98 Elo). Depth conditions are important for mate finding.
 			// -----------------------
 
 			// 浅い深さでの枝刈り
@@ -2157,7 +2156,7 @@ namespace {
 			//	&& pos.non_pawn_material(us)  // これに相当する処理、将棋でも必要だと思う。
 				&& bestValue > VALUE_TB_LOSS_IN_MAX_PLY)
 			{
-				// Skip quiet moves if movecount exceeds our FutilityMoveCount threshold
+				// Skip quiet moves if movecount exceeds our FutilityMoveCount threshold (~7 Elo)
 				// move countベースの枝刈りを実行するかどうかのフラグ
 				moveCountPruning = moveCount >= futility_move_count(improving, depth);
 
@@ -2215,7 +2214,7 @@ namespace {
 			}
 
 			// -----------------------
-			// Step 14. Extensions (~75 Elo)
+			// Step 15. Extensions (~66 Elo)
 			// -----------------------
 
 			// singular延長と王手延長。
@@ -2359,14 +2358,14 @@ namespace {
 																	  [movedPiece ];
 
 			// -----------------------
-			// Step 15. Make the move
+			// Step 16. Make the move
 			// -----------------------
 
 			// 指し手で1手進める
 			pos.do_move(move, st, givesCheck);
 
 			// -----------------------
-			// Step 16. Late moves reduction / extension (LMR, ~200 Elo)
+			// Step 17. Late moves reduction / extension (LMR, ~98 Elo)
 			// -----------------------
 			// depthを減らした探索。LMR(Late Move Reduction)
 
@@ -2501,7 +2500,7 @@ namespace {
 
 
 			// -----------------------
-			// Step 17. Full depth search when LMR is skipped or fails high
+			// Step 18. Full depth search when LMR is skipped or fails high
 			// -----------------------
 
 			// Full depth search。LMRがskipされたか、LMRにおいてfail highを起こしたなら元の探索深さで探索する。
@@ -2539,7 +2538,7 @@ namespace {
 			}
 
 			// -----------------------
-			// Step 18. Undo move
+			// Step 19. Undo move
 			// -----------------------
 
 			//      1手戻す
@@ -2549,7 +2548,7 @@ namespace {
 			ASSERT_LV3(-VALUE_INFINITE < value && value < VALUE_INFINITE);
 
 			// -----------------------
-			// Step 19. Check for a new best move
+			// Step 20. Check for a new best move
 			// -----------------------
 
 
@@ -2597,7 +2596,7 @@ namespace {
 						rm.pv.push_back(*m);
 
 					// We record how often the best move has been changed in each iteration.
-					// This information is used for time management and LMR. In MultiPV mode,
+					// This information is used for time management. In MultiPV mode,
 					// we must take care to only do this for the first PV line.
 					//
 					// bestMoveが何度変更されたかを記録しておく。
@@ -2686,7 +2685,7 @@ namespace {
 		// end of while
 
 		// -----------------------
-		// Step 20. Check for mate and stalemate
+		// Step 21. Check for mate and stalemate
 		// -----------------------
 
 		// All legal moves have been searched and if there are no legal moves, it
@@ -2991,7 +2990,7 @@ namespace {
 				// 置換表の指し手でこのまま枝刈りできるケースがあるから難しい。
 				// 評価関数がKPPTより軽ければ、tte->eval()をなくしても良いぐらいなのだが…。
 
-				// Can ttValue be used as a better position evaluation?
+				// ttValue can be used as a better position evaluation (~7 Elo)
 
 				// 置換表に格納されていたスコアは、この局面で今回探索するものと同等か少しだけ劣るぐらいの
 				// 精度で探索されたものであるなら、それをbestValueの初期値として使う。
@@ -3065,10 +3064,11 @@ namespace {
 		// 取り合いの指し手だけ生成する
 		// searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうるが、
 		// 静止探索の1つ目の深さではrecaptureを生成しないならこれは問題とならない。
+		Square prevSq = to_sq((ss - 1)->currentMove);
 		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory,
 										  &thisThread->captureHistory,
 										  contHist,
-										  to_sq((ss - 1)->currentMove));
+										  prevSq);
 
 		// このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
 		// evaluate()を呼び出していないなら呼び出しておく。
@@ -3098,7 +3098,7 @@ namespace {
 			moveCount++;
 
 			//
-			//  Futility pruning and moveCount pruning
+			// Futility pruning and moveCount pruning (~5 Elo)
 			//
 
 			// 自玉に王手がかかっていなくて、敵玉に王手にならない指し手であるとき、
@@ -3153,11 +3153,8 @@ namespace {
 
 			// ここ、わりと棋力に影響する。下手なことするとR30ぐらい変わる。
 
-			// Stockfish 12のコード
-			// Do not search moves with negative SEE values
+			// Do not search moves with negative SEE values (~5 Elo)
 			if (    bestValue > VALUE_TB_LOSS_IN_MAX_PLY
-				// !ss->inCheck
-				// この条件↑、不要らしい。cf. https://github.com/official-stockfish/Stockfish/commit/392b529c3f52103ad47ad096b86103c17758cb4f
 				&& !pos.see_ge(move))
 				continue;
 
@@ -3179,14 +3176,10 @@ namespace {
 																	  [pos.moved_piece_after(move)];
 
 
-			// Continuation history based pruning
+			// Continuation history based pruning (~2 Elo)
 			// Continuation historyベースの枝刈り
 			// ※ Stockfish12でqsearch()にも導入された。
-			// 成りは歩だけに限定してあるが、これが適切かどうかはよくわからない。(大抵計測しても誤差ぐらいでしかない…)
-			if (!capture
-				//&& moveCount
-				// →　これは誤りらしい
-				// cf. https://github.com/official-stockfish/Stockfish/commit/a260c9a8a24a2630a900efc3821000c3481b0c5d
+			if (  !capture
 				&& bestValue > VALUE_TB_LOSS_IN_MAX_PLY
 				&& (*contHist[0])[to_sq(move)][pos.moved_piece_after(move)] < CounterMovePruneThreshold
 				&& (*contHist[1])[to_sq(move)][pos.moved_piece_after(move)] < CounterMovePruneThreshold)
