@@ -139,8 +139,9 @@ void ThreadPool::clear() {
 		th->clear();
 
 	main()->callsCnt = 0;
-	main()->bestPreviousScore = VALUE_INFINITE;
-	main()->previousTimeReduction = 1.0;
+	main()->bestPreviousScore        = VALUE_INFINITE;
+	main()->bestPreviousAverageScore = VALUE_INFINITE;
+	main()->previousTimeReduction    = 1.0;
 }
 
 // ilde_loop()で待機しているmain threadを起こして即座にreturnする。

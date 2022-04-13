@@ -191,9 +191,10 @@ struct MainThread: public Thread
 	// previousTimeReduction : 反復深化の前回のiteration時のtimeReductionの値。
 	double previousTimeReduction;
 
-	// 前回の探索時のスコア。
+	// 前回の探索時のスコアとその平均。
 	// 次回の探索のときに何らか使えるかも。
 	Value bestPreviousScore;
+	Value bestPreviousAverageScore;
 
 	// 時間まぎわのときに探索を終了させるかの判定に用いるための、
 	// 反復深化のiteration、前4回分のScore

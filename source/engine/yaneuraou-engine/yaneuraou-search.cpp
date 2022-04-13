@@ -315,6 +315,16 @@ namespace {
 		return nodes;
 	}
 
+	// --- やねうら王独自拡張 ---
+
+	// 指し手moveによってtoの地点の駒が捕獲できることがわかっている時の、駒を捕獲する価値
+	// moveが成りの指し手である場合、その価値も上乗せして計算する。
+	Value CapturePieceValueEg(const Position& pos, Move move)
+	{
+		return (Value)CapturePieceValue[pos.piece_on(to_sq(move))]
+			+ (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(from_sq(move))] : VALUE_ZERO);
+	}
+
 } // namespace 
 
 
@@ -644,9 +654,13 @@ SKIP_SEARCH:;
 	Threads.wait_for_search_finished();
 
 #if 0
+	// When playing in 'nodes as time' mode, subtract the searched nodes from
+	// the available ones before exiting.
+
 	// nodes as time(時間としてnodesを用いるモード)のときは、利用可能なノード数から探索したノード数を引き算する。
 	// 時間切れの場合、負の数になりうる。
 	// 将棋の場合、秒読みがあるので秒読みも考慮しないといけない。
+
 	if (Limits.npmsec)
 		Time.availableNodes += Limits.inc[us] + Limits.byoyomi[us] - Threads.nodes_searched();
 	// →　将棋と相性がよくないのでこの機能をサポートしないことにする。
@@ -659,7 +673,8 @@ SKIP_SEARCH:;
 	// ---------------------
 
 	// 次回の探索のときに何らか使えるのでベストな指し手の評価値を保存しておく。
-	bestPreviousScore = bestThread->rootMoves[0].score;
+	bestPreviousScore        = bestThread->rootMoves[0].score;
+	bestPreviousAverageScore = bestThread->rootMoves[0].averageScore;
 
 	// 投了スコアが設定されていて、歩の価値を100として正規化した値がそれを下回るなら投了。
 	// ただし定跡の指し手にhitした場合などはrootMoves[0].score == -VALUE_INFINITEになっているのでそれは除外。
@@ -1122,6 +1137,13 @@ void Thread::search()
 		if (skill.enabled() && skill.time_to_pick(rootDepth))
 			skill.pick_best(multiPV);
 
+		// Use part of the gained time from a previous stable move for the current move
+		for (Thread* th : Threads)
+		{
+			totBestMoveChanges += th->bestMoveChanges;
+			th->bestMoveChanges = 0;
+		}
+
 		// 残り時間的に、次のiterationに行って良いのか、あるいは、探索をいますぐここでやめるべきか？
 		if (Limits.use_time_management())
 		{
@@ -1130,27 +1152,27 @@ void Thread::search()
 			{
 				// 1つしか合法手がない(one reply)であるだとか、利用できる時間を使いきっているだとか、
 
-				double fallingEval = (318 + 6 * (mainThread->bestPreviousScore - bestValue)
-					+ 6 * (mainThread->iterValue[iterIdx] - bestValue)) / 825.0;
+				double fallingEval = (69 + 12 * (mainThread->bestPreviousAverageScore - bestValue)
+										 +  6 * (mainThread->iterValue[iterIdx] - bestValue)) / 781.4;
 				fallingEval = std::clamp(fallingEval, 0.5, 1.5);
 
 				// If the bestMove is stable over several iterations, reduce time accordingly
 				// もしbestMoveが何度かのiterationにおいて安定しているならば、思考時間もそれに応じて減らす
 
-				timeReduction = lastBestMoveDepth + 9 < completedDepth ? 1.92 : 0.95;
-				double reduction = (1.47 + mainThread->previousTimeReduction) / (2.32 * timeReduction);
-
-				// Use part of the gained time from a previous stable move for the current move
-				for (Thread* th : Threads)
-				{
-					totBestMoveChanges += th->bestMoveChanges;
-					th->bestMoveChanges = 0;
-				}
+				timeReduction = lastBestMoveDepth + 10 < completedDepth ? 1.63 : 0.73;
+				double reduction = (1.56 + mainThread->previousTimeReduction) / (2.20 * timeReduction);
 
 				// rootでのbestmoveの不安定性。
 				// bestmoveが不安定であるなら思考時間を増やしたほうが良い。
 				double bestMoveInstability = 1.073 + std::max(1.0, 2.25 - 9.9 / rootDepth)
 													* totBestMoveChanges / Threads.size();
+
+#if 0
+				int complexity = mainThread->complexityAverage.value();
+				double complexPosition = std::clamp(1.0 + (complexity - 326) / 1618.1, 0.5, 1.5);
+				double totalTime = Time.optimum() * fallingEval * reduction * bestMoveInstability * complexPosition;
+				// →　やねうら王ではcomplexityを導入しないので、以前のコードにしておく。
+#endif
 
 				// 合法手が1手しかないときはtotalTime = 0となり、即指しする計算式。
 				double totalTime = rootMoves.size() == 1 ? 0 :
@@ -2197,10 +2219,15 @@ namespace {
 				if (   capture
 					|| givesCheck)
 				{
-					// Capture history based pruning when the move doesn't give check
-					if (  !givesCheck
-						&& lmrDepth < 1
-						&& captureHistory[to_sq(move)][movedPiece][type_of(pos.piece_on(to_sq(move)))] < 0)
+					// Futility pruning for captures (~0 Elo)
+					if (   !pos.empty(to_sq(move))
+						&& !givesCheck
+						&& !PvNode
+						&& lmrDepth < 6
+						&& !ss->inCheck
+						&& ss->staticEval + 281 + 179 * lmrDepth + CapturePieceValueEg(pos,move)
+						 + captureHistory[to_sq(move)][movedPiece][type_of(pos.piece_on(to_sq(move)))] / 6 < alpha)
+						// やねうら王、captureHistory[to][pc]で、Stockfishと逆順なので注意。
 						continue;
 
 					// SEE based pruning (~9 Elo)
@@ -3151,8 +3178,7 @@ namespace {
 
 				// moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになるはず。
 				// 【計測資料 14.】 futility pruningのときにpromoteを考慮するかどうか。
-				futilityValue = futilityBase + (Value)CapturePieceValue[pos.piece_on(to_sq(move))]
-								+ (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(from_sq(move))] : VALUE_ZERO);
+				futilityValue = futilityBase + CapturePieceValueEg(pos, move);
 
 				// これ、加算した結果、s16に収まらない可能性があるが、計算はs32で行ってして、そのあと、この値を用いないからセーフ。
 
