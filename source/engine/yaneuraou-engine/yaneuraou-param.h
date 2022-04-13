@@ -110,11 +110,11 @@ PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 82;
 PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 225;
 
 
-// 元の値 = 23767 , step = 8000
+// 元の値 = 14695 , step = 4000
 // [PARAM] min:0,max:50000,step:500,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN0 = 23767;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN0 = 14695;
 
-// 元の値 = 20 , step 2
+// 元の値 = 20 , step = 2
 // [PARAM] min:10,max:60,step:2,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 20;
 
@@ -152,13 +152,13 @@ PARAM_DEFINE PARAM_PROBCUT_DEPTH = 4;
 // probcutのmargin
 //    式 = beta + PARAM_PROBCUT_MARGIN1 - improving * PARAM_PROBCUT_MARGIN2
 //   improvingの効果怪しいので抑え気味にしておく。
-// 元の値 = 209 , step = 20
+// 元の値 = 179 , step = 20
 // [PARAM] min:100,max:300,step:10,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 209;
+PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 179;
 
-// 元の値 = 44 , step = 10
+// 元の値 = 46 , step = 10
 // [PARAM] min:20,max:80,step:10,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 44;
+PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 46;
 
 
 //
@@ -235,9 +235,9 @@ PARAM_DEFINE PARAM_QSEARCH_FORCE_EVAL = 0;
 
 // aspiration searchの増加量。
 // 古い評価関数では20ぐらいがベストだったが、NNUEでは17がベストのようだ。
-// 元の値 = 17 , step = 1
+// 元の値 = 16 , step = 1
 // [PARAM] min:12,max:40,step:1,interval:2,time_rate:1, fixed
-PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 17;
+PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 16;
 
 
 // MovePickerの quietのvalue計算用の係数

@@ -915,7 +915,8 @@ void Thread::search()
 				// もっと精度の高い評価関数を用意すべき。
 				// この値はStockfish10では20に変更された。
 				// Stockfish 12(NNUEを導入した)では17に変更された。
-				delta = Value(PARAM_ASPIRATION_SEARCH_DELTA) + int(prev) * prev / 16384;
+				// Stockfish 12.1では16に変更された。
+				delta = Value(PARAM_ASPIRATION_SEARCH_DELTA) + int(prev) * prev / 19178;
 
 				alpha = std::max(prev - delta, -VALUE_INFINITE);
 				beta  = std::min(prev + delta,  VALUE_INFINITE);
@@ -1727,7 +1728,7 @@ namespace {
 
 		if (is_ok((ss-1)->currentMove) && !(ss-1)->inCheck && !priorCapture)
 		{
-			int bonus = std::clamp(-depth * 4 * int((ss-1)->staticEval + ss->staticEval), -1000, 1000);
+			int bonus = std::clamp(-16 * int((ss - 1)->staticEval + ss->staticEval), -2000, 2000);
 			thisThread->mainHistory[from_to((ss-1)->currentMove)][~us] << bonus;
 		}
 
@@ -1743,8 +1744,8 @@ namespace {
 
 		improvement =	  (ss-2)->staticEval != VALUE_NONE ? ss->staticEval - (ss-2)->staticEval
 						: (ss-4)->staticEval != VALUE_NONE ? ss->staticEval - (ss-4)->staticEval
-						:                                    200;
-
+						:                                    175;
+		
 		// ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはない。
 
 		// improvingフラグは、improvementをbool化したもの。
@@ -1784,7 +1785,7 @@ namespace {
 		// cf. Simplify futility pruning return value : https://github.com/official-stockfish/Stockfish/commit/f799610d4bb48bc280ea7f58cd5f78ab21028bf5
 
 		// -----------------------
-		// Step 8. Null move search with verification search (~40 Elo)
+		// Step 9. Null move search with verification search (~22 Elo)
 		// -----------------------
 
 		//  検証用の探索つきのnull move探索。PV nodeではやらない。
@@ -1792,7 +1793,7 @@ namespace {
 		//  evalの見積りがbetaを超えているので1手パスしてもbetaは超えそう。
 		if (!PvNode
 			&& (ss - 1)->currentMove != MOVE_NULL
-			&& (ss - 1)->statScore < PARAM_NULL_MOVE_MARGIN0/*23767*/
+			&& (ss - 1)->statScore < PARAM_NULL_MOVE_MARGIN0/*14695*/
 			&&  eval >= beta
 			&&  eval >= ss->staticEval
 			&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 /*20*/ * depth
@@ -1859,7 +1860,7 @@ namespace {
 		// -----------------------
 
 		// probCutに使うbeta値。
-		probCutBeta = beta + PARAM_PROBCUT_MARGIN1/*209*/ - PARAM_PROBCUT_MARGIN2/*44*/ * improving;
+		probCutBeta = beta + PARAM_PROBCUT_MARGIN1/*179*/ - PARAM_PROBCUT_MARGIN2/*46*/ * improving;
 
 		// ProbCut(王手のときはスキップする)
 
@@ -1966,12 +1967,12 @@ namespace {
 		//   探索が完了しているほうが助かるため)
 		
 		if (   PvNode
-			&& depth >= 6
+			&& depth >= 3
 			&& !ttMove)
 			depth -= 2;
 
 		if (   cutNode
-			&& depth >= 9
+			&& depth >= 8
 			&& !ttMove)
 			depth--;
 
@@ -1985,17 +1986,14 @@ namespace {
 		// このタイミングで呼び出したほうが高速化するようなので呼び出す。
 		Eval::evaluate_with_no_return(pos);
 
-		// staticEvalとchildのeval(value)の差が一貫して低い時にreduction量を増やしたいのでそのためのカウンター。
-		int rangeReduction = 0;
-
 		// -----------------------
 		// Step 12. A small Probcut idea, when we are in check (~0 Elo)
 		// -----------------------
 
-		probCutBeta = beta + 409;
+		probCutBeta = beta + 481;
 		if (   ss->inCheck
 			&& !PvNode
-			&& depth >= 4
+			&& depth >= 2
 			&& ttCapture
 			&& (tte->bound() & BOUND_LOWER)
 			&& tte->depth() >= depth - 3
@@ -3909,7 +3907,7 @@ namespace Learner
 				if (rootDepth >= 4)
 				{
 					Value prev = rootMoves[pvIdx].averageScore;
-					delta = Value(PARAM_ASPIRATION_SEARCH_DELTA) + int(prev) * prev / 16384;
+					delta = Value(PARAM_ASPIRATION_SEARCH_DELTA) + int(prev) * prev / 19178;
 
 					alpha = std::max(prev - delta, -VALUE_INFINITE);
 					beta  = std::min(prev + delta,  VALUE_INFINITE);
@@ -3945,7 +3943,7 @@ namespace Learner
 					else
 						break;
 
-					delta += delta / 4 + 5;
+					delta += delta / 4 + 2;
 					ASSERT_LV3(-VALUE_INFINITE <= alpha && beta <= VALUE_INFINITE);
 
 					// 暴走チェック
