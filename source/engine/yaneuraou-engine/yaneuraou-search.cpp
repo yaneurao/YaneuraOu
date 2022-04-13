@@ -2280,109 +2280,122 @@ namespace {
 			// Step 15. Extensions (~66 Elo)
 			// -----------------------
 
-			// singular延長と王手延長。
+			// We take care to not overdo to avoid search getting stuck.
+			// 探索がstuckしないように、やりすぎに気をつける。
+			// (rootDepthの2倍より延長しない)
 
-			// Singular extension search (~70 Elo). If all moves but one fail low on a
-			// search of (alpha-s, beta-s), and just one fails high on (alpha, beta),
-			// then that move is singular and should be extended. To verify this we do
-			// a reduced search on all the other moves but the ttMove and if the
-			// result is lower than ttValue minus a margin, then we will extend the ttMove.
-
-			// (alpha-s,beta-s)の探索(sはマージン値)において1手以外がすべてfail lowして、
-			// 1手のみが(alpha,beta)においてfail highしたなら、指し手はsingularであり、延長されるべきである。
-			// これを調べるために、ttMove以外の探索深さを減らして探索して、
-			// その結果がttValue-s 以下ならttMoveの指し手を延長する。
-
-			// Stockfishの実装だとmargin = 2 * depthだが、
-			// 将棋だと1手以外はすべてそれぐらい悪いことは多々あり、
-			// ほとんどの指し手がsingularと判定されてしまう。
-			// これでは効果がないので、1割ぐらいの指し手がsingularとなるぐらいの係数に調整する。
-
-			// note : 
-			// singular延長で強くなるのは、あるnodeで1手だけが特別に良い場合、相手のプレイヤーもそのnodeでは
-			// その指し手を選択する可能性が高く、それゆえ、相手のPVもそこである可能性が高いから、そこを相手よりわずかにでも
-			// 読んでいて詰みを回避などできるなら、その相手に対する勝率は上がるという理屈。
-			// いわば、0.5手延長が自己対戦で(のみ)強くなるのの拡張。
-			// そう考えるとベストな指し手のスコアと2番目にベストな指し手のスコアとの差に応じて1手延長するのが正しいのだが、
-			// 2番目にベストな指し手のスコアを小さなコストで求めることは出来ないので…。
-
-			// singular延長をするnodeであるか。
-			if (   !rootNode
-				&&  depth >= PARAM_SINGULAR_EXTENSION_DEPTH/*7*/
-				&&  move == ttMove
-				&& !excludedMove // 再帰的なsingular延長を除外する。
-			/*  &&  ttValue != VALUE_NONE Already implicit in the next condition */
-				&&  abs(ttValue) < VALUE_KNOWN_WIN // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
-				&& (tte->bound() & BOUND_LOWER)
-				&&  tte->depth() >= depth - 3)
-				// このnodeについてある程度調べたことが置換表によって証明されている。(ttMove == moveなのでttMove != MOVE_NONE)
-				// (そうでないとsingularの指し手以外に他の有望な指し手がないかどうかを調べるために
-				// null window searchするときに大きなコストを伴いかねないから。)
+			if (ss->ply < thisThread->rootDepth * 2)
 			{
-				// このmargin値は評価関数の性質に合わせて調整されるべき。
-				Value singularBeta = ttValue - PARAM_SINGULAR_MARGIN/* == 3 * 256 */* depth / 256;
-				Depth singularDepth = (depth - 1) / 2;
 
-				// move(ttMove)の指し手を以下のsearch()での探索から除外
+				// singular延長と王手延長。
 
-				ss->excludedMove = move;
-				// 局面はdo_move()で進めずにこのnodeから浅い探索深さで探索しなおす。
-				// 浅いdepthでnull windowなので、すぐに探索は終わるはず。
-				value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
-				ss->excludedMove = MOVE_NONE;
+				// Singular extension search (~70 Elo). If all moves but one fail low on a
+				// search of (alpha-s, beta-s), and just one fails high on (alpha, beta),
+				// then that move is singular and should be extended. To verify this we do
+				// a reduced search on all the other moves but the ttMove and if the
+				// result is lower than ttValue minus a margin, then we will extend the ttMove.
 
-				// 置換表の指し手以外がすべてfail lowしているならsingular延長確定。
-				if (value < singularBeta)
+				// (alpha-s,beta-s)の探索(sはマージン値)において1手以外がすべてfail lowして、
+				// 1手のみが(alpha,beta)においてfail highしたなら、指し手はsingularであり、延長されるべきである。
+				// これを調べるために、ttMove以外の探索深さを減らして探索して、
+				// その結果がttValue-s 以下ならttMoveの指し手を延長する。
+
+				// Stockfishの実装だとmargin = 2 * depthだが、
+				// 将棋だと1手以外はすべてそれぐらい悪いことは多々あり、
+				// ほとんどの指し手がsingularと判定されてしまう。
+				// これでは効果がないので、1割ぐらいの指し手がsingularとなるぐらいの係数に調整する。
+
+				// note : 
+				// singular延長で強くなるのは、あるnodeで1手だけが特別に良い場合、相手のプレイヤーもそのnodeでは
+				// その指し手を選択する可能性が高く、それゆえ、相手のPVもそこである可能性が高いから、そこを相手よりわずかにでも
+				// 読んでいて詰みを回避などできるなら、その相手に対する勝率は上がるという理屈。
+				// いわば、0.5手延長が自己対戦で(のみ)強くなるのの拡張。
+				// そう考えるとベストな指し手のスコアと2番目にベストな指し手のスコアとの差に応じて1手延長するのが正しいのだが、
+				// 2番目にベストな指し手のスコアを小さなコストで求めることは出来ないので…。
+
+				// singular延長をするnodeであるか。
+				if (!rootNode
+					&& depth >= PARAM_SINGULAR_EXTENSION_DEPTH/*7*/
+					&& move == ttMove
+					&& !excludedMove // 再帰的なsingular延長を除外する。
+				/*  &&  ttValue != VALUE_NONE Already implicit in the next condition */
+					&& abs(ttValue) < VALUE_KNOWN_WIN // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
+					&& (tte->bound() & BOUND_LOWER)
+					&& tte->depth() >= depth - 3)
+					// このnodeについてある程度調べたことが置換表によって証明されている。(ttMove == moveなのでttMove != MOVE_NONE)
+					// (そうでないとsingularの指し手以外に他の有望な指し手がないかどうかを調べるために
+					// null window searchするときに大きなコストを伴いかねないから。)
 				{
-					extension = 1;
+					// このmargin値は評価関数の性質に合わせて調整されるべき。
+					Value singularBeta = ttValue - PARAM_SINGULAR_MARGIN/* == 3 * 256 */ * depth / 256;
+					Depth singularDepth = (depth - 1) / 2;
+
+					// move(ttMove)の指し手を以下のsearch()での探索から除外
+
+					ss->excludedMove = move;
+					// 局面はdo_move()で進めずにこのnodeから浅い探索深さで探索しなおす。
+					// 浅いdepthでnull windowなので、すぐに探索は終わるはず。
+					value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
+					ss->excludedMove = MOVE_NONE;
+
+					// 置換表の指し手以外がすべてfail lowしているならsingular延長確定。
+					if (value < singularBeta)
+					{
+						extension = 1;
 
 #if 0
-					// singular extentionが生じた回数の統計を取ってみる。
-					dbg_hit_on(extension == 1);
+						// singular extentionが生じた回数の統計を取ってみる。
+						dbg_hit_on(extension == 1);
 #endif
 
-					// Avoid search explosion by limiting the number of double extensions
-					// 2重延長を制限することで探索の組合せ爆発を回避する。
-					if (   !PvNode
-						&& value < singularBeta - 75
-						&& ss->doubleExtensions <= 6)
-						extension = 2;
+						// Avoid search explosion by limiting the number of double extensions
+						// 2重延長を制限することで探索の組合せ爆発を回避する。
+						if (!PvNode
+							&& value < singularBeta - 75
+							&& ss->doubleExtensions <= 6)
+							extension = 2;
+					}
+
+					// Multi-cut pruning
+					// Our ttMove is assumed to fail high, and now we failed high also on a reduced
+					// search without the ttMove. So we assume this expected Cut-node is not singular,
+					// 今回のttMoveはfail highであろうし、そのttMoveなしでdepthを減らした探索においてもfail highした。
+					// that multiple moves fail high, and we can prune the whole subtree by returning
+					// a soft bound.
+					// だから、この期待されるCut-nodeはsingularではなく、複数の指し手でfail highすると考えられる。
+					// よって、hard beta boundを返すことでこの部分木全体を枝刈りする。
+					else if (singularBeta >= beta)
+						return singularBeta;
+
+					// If the eval of ttMove is greater than beta, we reduce it (negative extension)
+					// ttMoveのevalがbetaより大きいなら、extensionを減らす(負の延長)
+
+					else if (ttValue >= beta)
+						extension = -2;
+
 				}
 
-				// Multi-cut pruning
-				// Our ttMove is assumed to fail high, and now we failed high also on a reduced
-				// search without the ttMove. So we assume this expected Cut-node is not singular,
-				// 今回のttMoveはfail highであろうし、そのttMoveなしでdepthを減らした探索においてもfail highした。
-				// that multiple moves fail high, and we can prune the whole subtree by returning
-				// a soft bound.
-				// だから、この期待されるCut-nodeはsingularではなく、複数の指し手でfail highすると考えられる。
-				// よって、hard beta boundを返すことでこの部分木全体を枝刈りする。
-				else if (singularBeta >= beta)
-					return singularBeta;
+				// Check extensions
+				// 王手延長
 
-				// If the eval of ttMove is greater than beta, we reduce it (negative extension)
-				// ttMoveのevalがbetaより大きいなら、extensionを減らす(負の延長)
+				//  注意 : 王手延長に関して、Stockfishのコード、ここに持ってくる時には気をつけること！
+				// →　将棋では王手はわりと続くのでそのまま持ってくるとやりすぎの可能性が高い。
 
-				else if (ttValue >= beta)
-					extension = -2;
+				// Check extensions (~1 Elo)
+					else if (givesCheck
+						&& depth > 9
+						&& abs(ss->staticEval) > 71)
+						extension = 1;
 
+				// Quiet ttMove extensions (~0 Elo)
+				// PV nodeで quietなttは良い指し手のはずだから延長するというもの。
+
+				else if (PvNode
+					&& move == ttMove
+					&& move == ss->killers[0]
+					&& (*contHist[0])[to_sq(move)][movedPiece] >= 5491)
+					extension = 1;
 			}
-
-			// Check extensions
-			// 王手延長
-
-			//  注意 : 王手延長に関して、Stockfishのコード、ここに持ってこないこと!!
-			// →　将棋では王手はわりと続くのでStockfishの現在のコードは明らかにやりすぎ。
-			// →　Stockfish、王手延長のコードは削除された。[2022/04/13]
-
-			// Quiet ttMove extensions (~0 Elo)
-			// PV nodeで quietなttは良い指し手のはずだから延長するというもの。
-
-			else if (   PvNode
-				&& move == ttMove
-				&& move == ss->killers[0]
-				&& (*contHist[0])[to_sq(move)][movedPiece] >= 5491)
-				extension = 1;
 
 			// -----------------------
 			//   1手進める前の枝刈り
