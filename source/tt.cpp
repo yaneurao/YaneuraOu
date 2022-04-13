@@ -53,11 +53,11 @@ void TTEntry::save(Key k, Value v, bool pv , Bound b, Depth d, Move m , Value ev
 	// 　少しの深さのマイナスなら許容)
 	// 3. BOUND_EXACT(これはPVnodeで探索した結果で、とても価値のある情報なので無条件で書き込む)
 	// 1. or 2. or 3.
-	if ( b == BOUND_EXACT
+	if (   b == BOUND_EXACT
 		|| pos_key != key16
-		|| d - DEPTH_OFFSET > depth8 - 4
-		/*|| g != generation() // probe()において非0のkeyとマッチした場合、その瞬間に世代はrefreshされている。　*/
-		)
+		|| d - DEPTH_OFFSET + 2 * pv > depth8 - 4)
+		// ここ、 2 * pv を入れたほうが強いらしい。
+		// https://github.com/official-stockfish/Stockfish/commit/94514199123874c0029afb6e00634f26741d90db
 	{
 		ASSERT_LV3(d > DEPTH_OFFSET);
 		ASSERT_LV3(d < 256 + DEPTH_OFFSET);
