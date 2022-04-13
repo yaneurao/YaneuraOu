@@ -1330,14 +1330,13 @@ namespace {
 		// priorCapture         : 1つ前の局面は駒を取る指し手か？
 		bool givesCheck, improving, didLMR, priorCapture;
 
-		// captureOrPawnPromotion : moveが駒を捕獲する指し手もしくは歩を成る手であるか
+		// capture              : moveが駒を捕獲する指し手もしくは歩を成る手であるか
 		// doFullDepthSearch	: LMRのときにfail highが起きるなどしたので元の残り探索深さで探索することを示すフラグ
 		// moveCountPruning		: moveCountによって枝刈りをするかのフラグ(quietの指し手を生成しない)
 		// ttCapture			: 置換表の指し手がcaptureする指し手であるか
 		// pvExact				: PvNodeで置換表にhitして、しかもBOUND_EXACT
 		// singularQuietLMR     : QuietLMRのsingular延長をするフラグ
-		bool captureOrPawnPromotion, doFullDepthSearch, moveCountPruning,
-			 ttCapture, singularQuietLMR;
+		bool capture, doFullDepthSearch, moveCountPruning, ttCapture, singularQuietLMR;
 
 		// moveによって移動させる駒
 		Piece movedPiece;
@@ -1519,14 +1518,14 @@ namespace {
 			  : ss->ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
 		ASSERT_LV3(pos.super_legal(ttMove));
 
-		// 置換表の指し手がcaptureOrPromotionであるか。
-		// 置換表の指し手がcaptureOrPromotionなら高い確率でこの指し手がベストなので、他の指し手を
+		// 置換表の指し手がcaptureであるか。
+		// 置換表の指し手がcaptureなら高い確率でこの指し手がベストなので、他の指し手を
 		// そんなに読まなくても大丈夫。なので、このnodeのすべての指し手のreductionを増やす。
-		// 
-		// ここ、将棋だと成りの価値が低い駒(銀)があるし、チェスに比べてわりと成りが起こりやすいので
-		// capture_or_promotionではなく、capture_or_pawn_promotionにしたほうが良いようだ。
 
-		ttCapture = ttMove && pos.capture_or_pawn_promotion(ttMove);
+		// ここ、capture_or_promotion()とかcapture_or_pawn_promotion()とか色々変えてみたが、
+		// 現在では、capture()にするのが良いようだ。[2022/04/13]
+
+		ttCapture = ttMove && pos.capture(ttMove);
 
 		// 置換表にhitしなかった時は、PV nodeのときだけttPvとして扱う。
 		// これss->ttPVに保存してるけど、singularの判定等でsearchをss+1ではなくssで呼び出すことがあり、
@@ -1579,10 +1578,6 @@ namespace {
 					// Extra penalty for early quiet moves of the previous ply
 					// 1手前の早い時点のquietの指し手に対する追加のペナルティ
 					// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
-
-					// Stockfish 10～12相当のコード
-					// prioirCaptureのとこは、"pos.capture_or_pawn_promotion((ss - 1)->currentMove"
-					// とするほうが正しい気がするが、強さは変わらず。
 
 					if ((ss - 1)->moveCount <= 2 && !priorCapture)
 						update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_bonus(depth + 1));
@@ -1966,12 +1961,12 @@ namespace {
 
 				if (move != excludedMove && pos.legal(move))
 				{
-					ASSERT_LV3(pos.capture_or_pawn_promotion(move));
+					ASSERT_LV3(pos.capture(move));
 					ASSERT_LV3(depth > PARAM_PROBCUT_DEPTH);
 					// Stockfish 12のコード、ここ"depth >= 5"と書いてある。
 					// なぜにifの条件式に倣って"depth > 4"と書かないのか…。
 
-					captureOrPawnPromotion = true;
+					const bool captureOrPawnPromotion = true;
 
 					ss->currentMove = move;
 					ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck]
@@ -2176,11 +2171,7 @@ namespace {
 			// 指し手で捕獲する指し手、もしくは歩の成りである。
 			// 【検証資料 12.】extend checksのときのcaptureOrPawnPromotionをどう扱うか。
 
-			// Stockfish12のコード
-			//captureOrPawnPromotion = pos.capture(move);
-
-			// →　こう変えるほうが強いようだ。
-			captureOrPawnPromotion = pos.capture_or_pawn_promotion(move);
+			capture    = pos.capture(move);
 
 			// 今回移動させる駒(移動後の駒)
 			movedPiece = pos.moved_piece_after(move);
@@ -2211,7 +2202,7 @@ namespace {
 				// 次のLMR探索における軽減された深さ
 				int lmrDepth = std::max(newDepth - reduction(improving, depth, moveCount, rangeReduction > 2), 0);
 
-				if (   captureOrPawnPromotion
+				if (   capture
 					|| givesCheck)
 				{
 					// Capture history based pruning when the move doesn't give check
@@ -2353,42 +2344,20 @@ namespace {
 
 			}
 
-			// Capture extensions for PvNodes and cutNodes
-			// 捕獲する指し手とcutNodeでの延長。
-			else if (   (PvNode || cutNode)
-					 && captureOrPawnPromotion
-					 && moveCount != 1)
-				extension = 1;
-
 			// Check extensions
 			// 王手延長
 
 			//  注意 : 王手延長に関して、Stockfishのコード、ここに持ってこないこと!!
 			// →　将棋では王手はわりと続くのでStockfishの現在のコードは明らかにやりすぎ。
+			// →　Stockfish、王手延長のコードは削除された。[2022/04/13]
 
-#if 0
-			// 静的評価に基づく王手延長。
-			else if (   givesCheck
-					 && depth > 6
-					 && abs(ss->staticEval) > 100)
-				extension = 1;
-#endif
-
-			// →　王手延長は、開き王手と駒得しながらの王手に限定する。(こっちにした方が、+R20ぐらい強い。)
-			// 　　上の前2つの条件も悪くはないだろうから入れておく。(入れたほうが+R10ぐらい強い)
-			else if (givesCheck
-				&& depth > 6
-				&& abs(ss->staticEval) > 100
-				&& (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move)))
-				extension = 1;
-
-			// Quiet ttMove extensions
+			// Quiet ttMove extensions (~0 Elo)
 			// PV nodeで quietなttは良い指し手のはずだから延長するというもの。
 
 			else if (   PvNode
 				&& move == ttMove
 				&& move == ss->killers[0]
-				&& (*contHist[0])[to_sq(move)][movedPiece] >= 10000)
+				&& (*contHist[0])[to_sq(move)][movedPiece] >= 5491)
 				extension = 1;
 
 			// -----------------------
@@ -2421,10 +2390,10 @@ namespace {
 			// Update the current move (this must be done after singular extension search)
 			// 現在このスレッドで探索している指し手を更新しておく。(これは、singular extension探索のあとになされるべき)
 			ss->currentMove = move;
-			ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck           ]
-																	  [captureOrPawnPromotion]
-																	  [to_sq(move)           ]
-																	  [movedPiece            ];
+			ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck]
+																	  [capture    ]
+																	  [to_sq(move)]
+																	  [movedPiece ];
 
 			// -----------------------
 			// Step 15. Make the move
@@ -2451,7 +2420,7 @@ namespace {
 			if (    depth >= 3
 				&&  moveCount > 1 + 2 * rootNode
 				&& (   !ss->ttPv
-					|| !captureOrPawnPromotion
+					|| !capture
 					|| (cutNode && (ss-1)->moveCount > 1)))
 			{
 				// Reduction量
@@ -2580,7 +2549,7 @@ namespace {
 				value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
 
 				// If the move passed LMR update its stats
-				if (didLMR && !captureOrPawnPromotion)
+				if (didLMR)
 				{
 					int bonus = value > alpha ?  stat_bonus(newDepth)
 											  : -stat_bonus(newDepth);
@@ -2740,17 +2709,14 @@ namespace {
 
 			if (move != bestMove)
 			{
-				 bool captureOrPromotion = captureOrPawnPromotion || is_promote(move);
-				// ↑これを用いて↓ではcaptureOrPromotionを使った方が+R10ぐらい強いみたい？
-
 				// 探索した駒を捕獲する指し手を32手目まで
-				if (captureOrPawnPromotion && captureCount < 32)
+				if (capture && captureCount < 32)
 					capturesSearched[captureCount++] = move;
 
 				// 探索した駒を捕獲しない指し手を64手目までquietsSearchedに登録しておく。
 				// あとでhistoryなどのテーブルに加点/減点するときに使う。
 
-				if (!captureOrPawnPromotion && quietCount < 64)
+				else if (!capture && quietCount < 64)
 					quietsSearched[quietCount++] = move;
 			}
 		}
@@ -2916,8 +2882,8 @@ namespace {
 
 		// pvHit			: 置換表から取り出した指し手が、PV nodeでsaveされたものであった。
 		// givesCheck		: MovePickerから取り出した指し手で王手になるか
-		// captureOrPawnPromotion : 駒を捕獲する指し手か、歩を成る指し手であるか
-		bool pvHit, givesCheck , captureOrPawnPromotion;
+		// capture          : 駒を捕獲する指し手か
+		bool pvHit, givesCheck , capture;
 
 		// このnodeで何手目の指し手であるか
 		int moveCount;
@@ -3164,7 +3130,7 @@ namespace {
 			// -----------------------
 
 			givesCheck = pos.gives_check(move);
-			captureOrPawnPromotion = pos.capture_or_pawn_promotion(move);
+			capture = pos.capture(move);
 
 			moveCount++;
 
@@ -3245,7 +3211,7 @@ namespace {
 			ss->currentMove = move;
 
 			ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck                ]
-																	  [captureOrPawnPromotion     ]
+																	  [capture                    ]
 																	  [to_sq(move)                ]
 																	  [pos.moved_piece_after(move)];
 
@@ -3254,7 +3220,7 @@ namespace {
 			// Continuation historyベースの枝刈り
 			// ※ Stockfish12でqsearch()にも導入された。
 			// 成りは歩だけに限定してあるが、これが適切かどうかはよくわからない。(大抵計測しても誤差ぐらいでしかない…)
-			if (!captureOrPawnPromotion
+			if (!capture
 				//&& moveCount
 				// →　これは誤りらしい
 				// cf. https://github.com/official-stockfish/Stockfish/commit/a260c9a8a24a2630a900efc3821000c3481b0c5d
@@ -3452,7 +3418,8 @@ namespace {
 		bonus2 = bestValue > beta + PawnValue ? bonus1				// larger bonus
 											  : stat_bonus(depth);	// smaller bonus
 
-		if (!pos.capture_or_promotion(bestMove))
+		// Stockfishではcapture_or_promotion()からcapture()に変更された。[2022/3/23]
+		if (!pos.capture(bestMove))
 		{
 	        // Increase stats for the best move in case it was a quiet move
 			update_quiet_stats(pos, ss, bestMove, bonus2);
