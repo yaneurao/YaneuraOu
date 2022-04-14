@@ -272,7 +272,8 @@ public:
 
 	// 現局面に対して
 	// この指し手によって移動させる駒を返す。(移動前の駒)
-	// 後手の駒打ちは後手の駒が返る。
+	// 駒打ちに対しては、その打つ駒が返る。
+	// また、後手の駒打ちは後手の(その打つ)駒が返る。
 	Piece moved_piece_before(Move m) const
 	{
 		ASSERT_LV3(is_ok(m));
@@ -421,6 +422,9 @@ public:
 	// [Out] pinnersとは、pinされている駒が取り除かれたときに升sに利きが発生する大駒である。これは返し値。
 	// また、升sにある玉は~c側のKINGであるとする。
 	Bitboard slider_blockers(Color c, Square s, Bitboard& pinners) const;
+
+	// c側の駒Ptの利きのある升を表現するBitboardを返す。(MovePickerで用いている。)
+	template<PieceType Pt, Color C> Bitboard attacks_by() const;
 
 	// --- 局面を進める/戻す
 
@@ -827,6 +831,22 @@ inline Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 			// →　HDKは、銀と金のところに含めることによって、参照するテーブルを一個減らして高速化しようというAperyのアイデア。
 			) & pieces<C>(); // 先後混在しているのでc側の駒だけ最後にマスクする。
 	;
+}
+
+// c側の駒Ptの利きのある升を表現するBitboardを返す。(MovePickerで用いている。)
+template<PieceType Pt, Color C>
+Bitboard Position::attacks_by() const
+{
+	if constexpr (Pt == PAWN)
+		return C == WHITE ? pawnBbEffect<WHITE>(pieces<WHITE, PAWN>()) : pawnBbEffect<BLACK>(pieces<BLACK, PAWN>());
+	else
+	{
+		Bitboard threats   = Bitboard(ZERO);
+		Bitboard attackers = pieces(C, Pt);
+		while (attackers)
+			threats |= attacks_bb<make_piece(C,Pt)>(attackers.pop(), pieces());
+		return threats;
+	}
 }
 
 // ピンされているc側の駒。下手な方向に移動させるとc側の玉が素抜かれる。

@@ -786,6 +786,37 @@ Bitboard Bitboard256::merge() const
 
 // 駒の利きに関するnamespace
 
+// 盤上sqに駒pc(先後の区別あり)を置いたときの利き。(step effect)
+// pc == QUEENだと馬+龍の利きが返る。盤上には駒は何もないものとして考える。
+Bitboard effects_from(Piece pc, Square sq)
+{
+	switch (pc)
+	{
+	case B_PAWN:   return pawnEffect     <BLACK>(sq);
+	case B_LANCE:  return lanceStepEffect<BLACK>(sq);
+	case B_KNIGHT: return knightEffect   <BLACK>(sq);
+	case B_SILVER: return silverEffect   <BLACK>(sq);
+	case B_GOLD: case B_PRO_PAWN: case B_PRO_LANCE: case B_PRO_KNIGHT: case B_PRO_SILVER: return goldEffect<BLACK>(sq);
+
+	case W_PAWN:   return pawnEffect     <WHITE>(sq);
+	case W_LANCE:  return lanceStepEffect<WHITE>(sq);
+	case W_KNIGHT: return knightEffect   <WHITE>(sq);
+	case W_SILVER: return silverEffect   <WHITE>(sq);
+	case W_GOLD: case W_PRO_PAWN: case W_PRO_LANCE: case W_PRO_KNIGHT: case W_PRO_SILVER: return goldEffect<WHITE>(sq);
+
+		//　先後同じ移動特性の駒
+	case B_BISHOP: case W_BISHOP: return bishopStepEffect(sq);
+	case B_ROOK:   case W_ROOK:   return rookStepEffect  (sq);
+	case B_HORSE:  case W_HORSE:  return horseStepEffect (sq);
+	case B_DRAGON: case W_DRAGON: return dragonStepEffect(sq);
+	case B_KING:   case W_KING:   return kingEffect      (sq);
+	case B_QUEEN:  case W_QUEEN:  return bishopStepEffect(sq) | rookStepEffect(sq); // 角+飛でいいや。(馬+龍は王の利きを2回合成して損)
+	case NO_PIECE: case PIECE_WHITE: return Bitboard(ZERO); // これも入れておかないと初期化が面倒になる。
+
+	default: UNREACHABLE; return Bitboard(1);
+	}
+}
+
 // 盤上sqに駒pc(先後の区別あり)を置いたときの利き。
 Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ)
 {

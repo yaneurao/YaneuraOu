@@ -270,9 +270,9 @@ Thread* ThreadPool::get_best_thread() const {
 			if (th->rootMoves[0].score > bestThread->rootMoves[0].score)
 				bestThread = th;
 		}
-		else if (th->rootMoves[0].score >= VALUE_TB_WIN_IN_MAX_PLY
-			|| (th->rootMoves[0].score > VALUE_TB_LOSS_IN_MAX_PLY
-				&& votes[th->rootMoves[0].pv[0]] > votes[bestThread->rootMoves[0].pv[0]]))
+		else if (   th->rootMoves[0].score >= VALUE_TB_WIN_IN_MAX_PLY
+				 || (   th->rootMoves[0].score > VALUE_TB_LOSS_IN_MAX_PLY
+					 && votes[th->rootMoves[0].pv[0]] > votes[bestThread->rootMoves[0].pv[0]]))
 			bestThread = th;
 	}
 

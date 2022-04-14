@@ -173,6 +173,49 @@ void MovePicker::score()
 {
 	static_assert(Type == CAPTURES || Type == QUIETS || Type == EVASIONS, "Wrong type");
 
+	// threatened       : 自分より価値の安い駒で当たりになっているか
+	// threatenedByPawn : 敵の歩の利き。
+
+	//Bitboard threatened, threatenedByPawn, threatenedByMinor, threatenedByRook;
+	Bitboard threatened, threatenedByPawn;
+
+	if constexpr (Type == QUIETS)
+	{
+#if 0
+		Color us = pos.side_to_move();
+		// squares threatened by pawns
+		threatenedByPawn  = pos.attacks_by<PAWN>(~us);
+		// squares threatened by minors or pawns
+		threatenedByMinor = pos.attacks_by<KNIGHT>(~us) | pos.attacks_by<BISHOP>(~us) | threatenedByPawn;
+		// squares threatened by rooks, minors or pawns
+		threatenedByRook  = pos.attacks_by<ROOK>(~us) | threatenedByMinor;
+
+		// pieces threatened by pieces of lesser material value
+		threatened =  (pos.pieces(us, QUEEN) & threatenedByRook)
+					| (pos.pieces(us, ROOK)  & threatenedByMinor)
+					| (pos.pieces(us, KNIGHT, BISHOP) & threatenedByPawn);
+#endif
+		// →　Stockfishのコードを忠実に実装すると将棋ではたくさんの利きを計算しなくてはならないので
+		//     非常に計算コストが高くなる。
+		// ここでは歩による当たりになっている駒だけ考える。
+
+		const Color us = pos.side_to_move();
+
+		// squares threatened by pawns
+		threatenedByPawn = ~us == BLACK ? pos.attacks_by<PAWN,BLACK>() : pos.attacks_by<PAWN,WHITE>();
+
+		// 歩以外の自駒で、相手の歩の利きにある駒を表現するBitboard。
+		threatened =  pos.pieces(us,PAWN).andnot(pos.pieces(us)) & threatenedByPawn;
+	}
+	else
+	{
+		// Silence unused variable warnings
+		(void)threatened;
+		(void)threatenedByPawn;
+		//(void)threatenedByMinor;
+		//(void)threatenedByRook;
+	}
+
 	for (auto& m : *this)
 	{
 		if constexpr (Type == CAPTURES)
@@ -186,39 +229,11 @@ void MovePicker::score()
 			// Stockfish 9に倣いMVV + captureHistoryで処理する。
 
 			// 歩の成りは別途考慮してもいいような気はするのだが…。
+			// ここに来るCAPTURESに歩の成りを含めているので、捕獲する駒(pos.piece_on(to_sq(m)))がNO_PIECEで
+			// ある可能性については考慮しておく必要がある。
 
 			m.value = 6 * int(Eval::CapturePieceValue[pos.piece_on(to_sq(m))])
 					 +    (*captureHistory)[to_sq(m)][pos.moved_piece_after(m)][type_of(pos.piece_on(to_sq(m)))];
-
-#if 0
-			// Stockfishの新しいコード。あとで考える。
-
-			Bitboard threatened, threatenedByPawn, threatenedByMinor, threatenedByRook;
-			if constexpr (Type == QUIETS)
-			{
-				Color us = pos.side_to_move();
-				// squares threatened by pawns
-				threatenedByPawn = pos.attacks_by<PAWN>(~us);
-				// squares threatened by minors or pawns
-				threatenedByMinor = pos.attacks_by<KNIGHT>(~us) | pos.attacks_by<BISHOP>(~us) | threatenedByPawn;
-				// squares threatened by rooks, minors or pawns
-				threatenedByRook = pos.attacks_by<ROOK>(~us) | threatenedByMinor;
-
-				// pieces threatened by pieces of lesser material value
-				threatened = (pos.pieces(us, QUEEN) & threatenedByRook)
-					| (pos.pieces(us, ROOK) & threatenedByMinor)
-					| (pos.pieces(us, KNIGHT, BISHOP) & threatenedByPawn);
-			}
-			else
-			{
-				// Silence unused variable warnings
-				(void)threatened;
-				(void)threatenedByPawn;
-				(void)threatenedByMinor;
-				(void)threatenedByRook;
-			}
-#endif
-
 		}
 		else if constexpr (Type == QUIETS)
 		{
@@ -229,13 +244,29 @@ void MovePicker::score()
 
 			Piece movedPiece = pos.moved_piece_after(m);
 			Square movedSq = to_sq(m);
+			PieceType moved_piece = type_of(pos.moved_piece_before(m));
 
 			m.value =     (*mainHistory)[from_to(m)][pos.side_to_move()]
 					+ 2 * (*continuationHistory[0])[movedSq][movedPiece]
 					+     (*continuationHistory[1])[movedSq][movedPiece]
 					+     (*continuationHistory[3])[movedSq][movedPiece]
 					+     (*continuationHistory[5])[movedSq][movedPiece]
-				;
+				//	移動元の駒が安い駒で当たりになっている場合、移動させることでそれを回避できるなら価値を上げておく。
+#if 0
+					+     (threatened & from_sq(m) ?
+							 (type_of(pos.moved_piece_before(m)) == QUEEN && !(to_sq(m) & threatenedByRook ) ? 50000
+							: type_of(pos.moved_piece_before(m)) == ROOK  && !(to_sq(m) & threatenedByMinor) ? 25000
+							:                                                !(to_sq(m) & threatenedByPawn ) ? 15000
+							:																					0)
+																											    0);
+				// → Stockfishのコードそのままは書けない。
+#endif
+					+     (threatened & from_sq(m) ?
+							 ((moved_piece == ROOK || moved_piece == BISHOP) && !threatenedByPawn.test(to_sq(m)) ? 50000
+						:                                                       !threatenedByPawn.test(to_sq(m)) ? 15000
+						:                                                                                          0)
+						:                                                                                          0);
+
 		}
 		else // Type == EVASIONS
 		{

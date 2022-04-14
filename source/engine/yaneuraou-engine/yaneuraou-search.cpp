@@ -417,7 +417,7 @@ void MainThread::search()
 	// root nodeにおける自分の手番
 	Color us = rootPos.side_to_move();
 
-	// 今回、通常探索をしたかのフラグ
+	// 今回、通常探索をしたかのフラグ(やねうら王独自拡張)
 	// このフラグがtrueなら(定跡にhitしたり1手詰めを発見したりしたので)探索をスキップした。
 	bool search_skipped = true;
 
@@ -598,7 +598,7 @@ SKIP_SEARCH:;
 			Skill skill = Skill((int)Options["SkillLevel"], 0);
 
 			// 並列して探索させていたスレッドのうち、ベストのスレッドの結果を選出する。
-			if (Options["MultiPV"] == 1
+			if (   int(Options["MultiPV"]) == 1
 				&& !Limits.depth
 				&& !skill.enabled()
 				//&& rootMoves[0].pv[0] != MOVE_NONE // やねうら王では投了の局面でMOVE_NONEを突っ込まないのでこのチェックは不要。

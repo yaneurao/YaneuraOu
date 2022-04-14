@@ -646,7 +646,7 @@ namespace BB_Table
 // 歩の利き
 // c側の升sqに置いた歩の利き。
 template <Color c>
-inline Bitboard pawnEffect(const Square sq)
+inline Bitboard pawnEffect(Square sq)
 {
 	ASSERT_LV3(is_ok(c) && sq <= SQ_NB);
 	return BB_Table::PawnEffectBB[sq][c];
@@ -762,7 +762,21 @@ inline Bitboard rookStepEffect(Square sq) {
 	return BB_Table::RookStepEffectBB[sq];
 }
 
-// 盤上の駒を無視するQueenの動き。
+// 盤上の駒を考慮しない馬の利き
+inline Bitboard horseStepEffect(Square sq) {
+	ASSERT_LV3(sq <= SQ_NB);
+	// わざわざ用意するほどでもないので玉の利きと合成しておく。
+	return BB_Table::BishopStepEffectBB[sq] | BB_Table::KingEffectBB[sq];
+}
+
+// 盤上の駒を考慮しない龍の利き
+inline Bitboard dragonStepEffect(Square sq) {
+	ASSERT_LV3(sq <= SQ_NB);
+	// わざわざ用意するほどでもないので玉の利きと合成しておく。
+	return BB_Table::RookStepEffectBB[sq] | BB_Table::KingEffectBB[sq];
+}
+
+// 盤上の駒を考慮しないQueenの動き。
 inline Bitboard queenStepEffect(Square sq) {
 	ASSERT_LV3(sq <= SQ_NB);
 	return rookStepEffect(sq) | bishopStepEffect(sq);
@@ -1052,9 +1066,62 @@ extern Bitboard directEffect(Square sq, Effect8::Direct d, const Bitboard& occup
 //   汎用性のある利き
 // --------------------
 
+// 盤上sqに駒pc(先後の区別あり)を置いたときの利き。(step effect)
+// pc == QUEENだと馬+龍の利きが返る。盤上には駒は何もないものとして考える。
+extern Bitboard effects_from(Piece pc, Square sq);
+
 // 盤上sqに駒pc(先後の区別あり)を置いたときの利き。
 // pc == QUEENだと馬+龍の利きが返る。
 extern Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ);
+
+// --------------------
+//   Stockfishとの互換性のために用意
+// --------------------
+
+/// pawn_attacks_bb() returns the squares attacked by pawns of the given color
+/// from the squares in the given bitboard.
+
+// pawn_attacks_bb()は、手番C側の利き。
+// b : 手番C側の歩のBitboardを渡す。
+
+template<Color C>
+inline Bitboard pawn_attacks_bb(Bitboard b)
+{
+	return pawnBbEffect<C>(b);
+}
+
+inline Bitboard pawn_attacks_bb(Color c, Square s)
+{
+	return pawnEffect(c, s);
+}
+
+
+/// attacks_bb(Square) returns the pseudo attacks of the give piece type
+/// assuming an empty board.
+
+// attacks_bb<PC>(s)は、駒PCをsの升に置いた時の利き。
+// ※　StockfishではPCのところ、PieceType Ptとなっているので注意
+// 盤上には駒はないものとする。
+
+template<Piece PC>
+inline Bitboard attacks_bb(Square s) {
+
+	return effects_from(PC, s);
+}
+
+/// attacks_bb(Square, Bitboard) returns the attacks by the given piece
+/// assuming the board is occupied according to the passed Bitboard.
+/// Sliding piece attacks do not continue passed an occupied square.
+
+// attacks_bb<PC>(s)は、駒PCをsの升に置いた時の利き。
+// ※　StockfishではPCのところ、PieceType Ptとなっているので注意
+// occupied : 盤上の駒
+
+template<Piece PC>
+inline Bitboard attacks_bb(Square s, Bitboard occupied) {
+
+	return effects_from(PC, s, occupied);
+}
 
 
 #endif // #ifndef _BITBOARD_H_
