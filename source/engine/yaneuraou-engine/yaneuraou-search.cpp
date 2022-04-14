@@ -1050,7 +1050,7 @@ void Thread::search()
 					break;
 
 				// delta を等比級数的に大きくしていく
-				delta += delta / 4 + 5;
+				delta += delta / 4 + 2;
 
 				ASSERT_LV3(alpha >= -VALUE_INFINITE && beta <= VALUE_INFINITE);
 			}
@@ -2289,7 +2289,7 @@ namespace {
 
 				// singular延長と王手延長。
 
-				// Singular extension search (~70 Elo). If all moves but one fail low on a
+				// Singular extension search (~58 Elo). If all moves but one fail low on a
 				// search of (alpha-s, beta-s), and just one fails high on (alpha, beta),
 				// then that move is singular and should be extended. To verify this we do
 				// a reduced search on all the other moves but the ttMove and if the
@@ -2315,7 +2315,7 @@ namespace {
 
 				// singular延長をするnodeであるか。
 				if (!rootNode
-					&& depth >= PARAM_SINGULAR_EXTENSION_DEPTH/*7*/
+					&& depth >= PARAM_SINGULAR_EXTENSION_DEPTH /* 4 */ + 2 * (PvNode && tte->is_pv())
 					&& move == ttMove
 					&& !excludedMove // 再帰的なsingular延長を除外する。
 				/*  &&  ttValue != VALUE_NONE Already implicit in the next condition */
@@ -2351,8 +2351,8 @@ namespace {
 						// Avoid search explosion by limiting the number of double extensions
 						// 2重延長を制限することで探索の組合せ爆発を回避する。
 						if (!PvNode
-							&& value < singularBeta - 75
-							&& ss->doubleExtensions <= 6)
+							&& value < singularBeta - 26
+							&& ss->doubleExtensions <= 8)
 							extension = 2;
 					}
 
