@@ -210,7 +210,7 @@ void bench_cmd(Position& current, istringstream& is)
 		<< "\nNodes searched/second(main thread) : " << 1000 * nodes_searched_main / elapsed;
 #endif
 
-	cout << sync_endl;
+	cout << endl;
 
 	// 終了したことを出力しないと他のスクリプトから呼び出した時に終了判定にこまる。
 	cout << "\n==========================="
