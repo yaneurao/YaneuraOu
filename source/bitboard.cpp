@@ -796,13 +796,13 @@ Bitboard effects_from(Piece pc, Square sq)
 	case B_LANCE:  return lanceStepEffect<BLACK>(sq);
 	case B_KNIGHT: return knightEffect   <BLACK>(sq);
 	case B_SILVER: return silverEffect   <BLACK>(sq);
-	case B_GOLD: case B_PRO_PAWN: case B_PRO_LANCE: case B_PRO_KNIGHT: case B_PRO_SILVER: return goldEffect<BLACK>(sq);
+	case B_GOLD: case B_PRO_PAWN: case B_PRO_LANCE: case B_PRO_KNIGHT: case B_PRO_SILVER: case B_GOLDS: return goldEffect<BLACK>(sq);
 
 	case W_PAWN:   return pawnEffect     <WHITE>(sq);
 	case W_LANCE:  return lanceStepEffect<WHITE>(sq);
 	case W_KNIGHT: return knightEffect   <WHITE>(sq);
 	case W_SILVER: return silverEffect   <WHITE>(sq);
-	case W_GOLD: case W_PRO_PAWN: case W_PRO_LANCE: case W_PRO_KNIGHT: case W_PRO_SILVER: return goldEffect<WHITE>(sq);
+	case W_GOLD: case W_PRO_PAWN: case W_PRO_LANCE: case W_PRO_KNIGHT: case W_PRO_SILVER: case W_GOLDS: return goldEffect<WHITE>(sq);
 
 		//　先後同じ移動特性の駒
 	case B_BISHOP: case W_BISHOP: return bishopStepEffect(sq);
@@ -810,7 +810,7 @@ Bitboard effects_from(Piece pc, Square sq)
 	case B_HORSE:  case W_HORSE:  return horseStepEffect (sq);
 	case B_DRAGON: case W_DRAGON: return dragonStepEffect(sq);
 	case B_KING:   case W_KING:   return kingEffect      (sq);
-	case B_QUEEN:  case W_QUEEN:  return bishopStepEffect(sq) | rookStepEffect(sq); // 角+飛でいいや。(馬+龍は王の利きを2回合成して損)
+	//case B_QUEEN:  case W_QUEEN:  return bishopStepEffect(sq) | rookStepEffect(sq); // 角+飛でいいや。(馬+龍は王の利きを2回合成して損)
 	case NO_PIECE: case PIECE_WHITE: return Bitboard(ZERO); // これも入れておかないと初期化が面倒になる。
 
 	default: UNREACHABLE; return Bitboard(1);
@@ -826,13 +826,13 @@ Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ)
 	case B_LANCE:  return lanceEffect <BLACK>(sq, occ);
 	case B_KNIGHT: return knightEffect<BLACK>(sq);
 	case B_SILVER: return silverEffect<BLACK>(sq);
-	case B_GOLD: case B_PRO_PAWN: case B_PRO_LANCE: case B_PRO_KNIGHT: case B_PRO_SILVER: return goldEffect<BLACK>(sq);
+	case B_GOLD: case B_PRO_PAWN: case B_PRO_LANCE: case B_PRO_KNIGHT: case B_PRO_SILVER: case B_GOLDS: return goldEffect<BLACK>(sq);
 
 	case W_PAWN:   return pawnEffect  <WHITE>(sq);
 	case W_LANCE:  return lanceEffect <WHITE>(sq, occ);
 	case W_KNIGHT: return knightEffect<WHITE>(sq);
 	case W_SILVER: return silverEffect<WHITE>(sq);
-	case W_GOLD: case W_PRO_PAWN: case W_PRO_LANCE: case W_PRO_KNIGHT: case W_PRO_SILVER: return goldEffect<WHITE>(sq);
+	case W_GOLD: case W_PRO_PAWN: case W_PRO_LANCE: case W_PRO_KNIGHT: case W_PRO_SILVER: case W_GOLDS: return goldEffect<WHITE>(sq);
 
 		//　先後同じ移動特性の駒
 	case B_BISHOP: case W_BISHOP: return bishopEffect(sq, occ);
@@ -840,7 +840,7 @@ Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ)
 	case B_HORSE:  case W_HORSE:  return horseEffect (sq, occ);
 	case B_DRAGON: case W_DRAGON: return dragonEffect(sq, occ);
 	case B_KING:   case W_KING:   return kingEffect  (sq     );
-	case B_QUEEN:  case W_QUEEN:  return bishopEffect (sq, occ) | rookEffect(sq, occ); // 角+飛でいいや。(馬+龍は王の利きを2回合成して損)
+	//case B_QUEEN:  case W_QUEEN:  return bishopEffect (sq, occ) | rookEffect(sq, occ); // 角+飛でいいや。(馬+龍は王の利きを2回合成して損)
 	case NO_PIECE: case PIECE_WHITE: return Bitboard(ZERO); // これも入れておかないと初期化が面倒になる。
 
 	default: UNREACHABLE; return Bitboard(1);
@@ -983,12 +983,12 @@ void Bitboard::UnitTest(Test::UnitTester& tester)
 		// 何も駒のない盤面上に駒ptを55に置いた時の利きの数。
 		int p0_table[] = {
 			0,1,4,2,5,16,16,6,	// Empty、歩、香、桂、銀、角、飛、金
-			8,6,6,6,6,20,20,32,	// 玉、と、…
+			8,6,6,6,6,20,20,6,	// 玉、と、…
 		};
 		// 駒が敷き詰められた盤面上で駒ptを55に置いた時の利きの数。
 		int p1_table[] = {
 			0,1,1,2,5, 4, 4,6,	// Empty、歩、香、桂、銀、角、飛
-			8,6,6,6,6, 8, 8,8,	// 玉、と、…
+			8,6,6,6,6, 8, 8,6,	// 玉、と、…
 		};
 
 		for (Color c : COLOR)
@@ -1094,6 +1094,14 @@ void Bitboard::UnitTest(Test::UnitTester& tester)
 		all_ok = one_bb.decrement()  == zero_bb;
 
 		tester.test("decrement(method)", all_ok);
+	}
+	{
+		// pawn_attacks_bbのテスト
+		tester.test("pawn_attacks_bb<BLACK>",pawn_attacks_bb<BLACK>(RANK7_BB) == RANK6_BB);
+		tester.test("pawn_attacks_bb<WHITE>",pawn_attacks_bb<WHITE>(RANK7_BB) == RANK8_BB);
+
+		tester.test("attacks_bb<B_KNIGHT>",attacks_bb<B_KNIGHT>(SQ_77) == (Bitboard(SQ_85) | Bitboard(SQ_65)));
+		tester.test("attacks_bb<W_KNIGHT>",attacks_bb<W_KNIGHT>(SQ_77) == (Bitboard(SQ_89) | Bitboard(SQ_69)));
 	}
 }
 

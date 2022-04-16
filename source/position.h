@@ -337,9 +337,10 @@ public:
 
 	// 駒に対応するBitboardを得る。
 	// ・引数でcの指定がないものは先後両方の駒が返る。
-	// ・引数がPieceのものは、prはPAWN～DRAGON , GOLDS(金相当の駒) , HDK(馬・龍・玉) ,
-	//	  BISHOP_HORSE(角・馬) , ROOK_DRAGON(飛車・龍)。
-	// ・引数でPieceを2つ取るものは２種類の駒のBitboardを合成したものが返る。
+	// ・引数がPieceTypeのものは、PieceTypeのPAWN～DRAGON 以外に
+	//		PieceTypeの GOLDS(金相当の駒) , HDK(馬・龍・玉) , BISHOP_HORSE(角・馬) , ROOK_DRAGON(飛車・龍)などが指定できる。
+	//   ※　詳しくは、PieceTypeの定義を見ること。
+	// ・引数でPieceTypeを複数取るものはそれらの駒のBitboardを合成したものが返る。
 
 	Bitboard pieces(PieceType pr) const { ASSERT_LV3(pr < PIECE_BB_NB); return byTypeBB[pr]; }
 	Bitboard pieces(PieceType pr1, PieceType pr2) const { return pieces(pr1) | pieces(pr2); }
@@ -424,7 +425,7 @@ public:
 	Bitboard slider_blockers(Color c, Square s, Bitboard& pinners) const;
 
 	// c側の駒Ptの利きのある升を表現するBitboardを返す。(MovePickerで用いている。)
-	template<PieceType Pt, Color C> Bitboard attacks_by() const;
+	template<Color C , PieceType Pt> Bitboard attacks_by() const;
 
 	// --- 局面を進める/戻す
 
@@ -834,11 +835,12 @@ inline Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 }
 
 // c側の駒Ptの利きのある升を表現するBitboardを返す。(MovePickerで用いている。)
-template<PieceType Pt, Color C>
+// 遠方駒に関しては盤上の駒を考慮した利き。
+template<Color C , PieceType Pt>
 Bitboard Position::attacks_by() const
 {
 	if constexpr (Pt == PAWN)
-		return C == WHITE ? pawnBbEffect<WHITE>(pieces<WHITE, PAWN>()) : pawnBbEffect<BLACK>(pieces<BLACK, PAWN>());
+		return C == WHITE ? pawn_attacks_bb<WHITE>(pieces<WHITE, PAWN>()) : pawn_attacks_bb<BLACK>(pieces<BLACK, PAWN>());
 	else
 	{
 		Bitboard threats   = Bitboard(ZERO);

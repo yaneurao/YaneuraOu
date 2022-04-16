@@ -86,8 +86,8 @@ enum Stages: int {
 //   partial insertion sort
 // -----------------------
 
-// partial_insertion_sort()は指し手を与えられたlimitまで降順でソートする。
-// limitよりも小さい値の指し手の順序については、不定。
+// partial_insertion_sort()は指し手を与えられたlimitより、ExtMove::valueが大きいものだけを降順でソートする。
+// limitよりも小さい値の指し手の順序については、不定。(sortしたときに末尾のほうに移動する)
 // 将棋だと指し手の数が多い(ことがある)ので、数が多いときは途中で打ち切ったほうがいいかも。
 // 現状、全体時間の6.5～7.5%程度をこの関数で消費している。
 // (長い時間思考させるとこの割合が増えてくる)
@@ -201,11 +201,10 @@ void MovePicker::score()
 
 		const Color us = pos.side_to_move();
 
+#if 1 // 歩による脅威だけ。
 		// squares threatened by pawns
-		threatenedByPawn = ~us == BLACK ? pos.attacks_by<PAWN,BLACK>() : pos.attacks_by<PAWN,WHITE>();
-
-		// 歩以外の自駒で、相手の歩の利きにある駒を表現するBitboard。
-		threatened =  pos.pieces(us,PAWN).andnot(pos.pieces(us)) & threatenedByPawn;
+		threatenedByPawn = (~us == BLACK) ? pos.attacks_by<BLACK, PAWN>() : pos.attacks_by<WHITE, PAWN>();
+#endif
 	}
 	else
 	{

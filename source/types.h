@@ -467,7 +467,8 @@ enum PieceType : uint32_t
 	GPM_GHD = 18,     // Gold Horse Dragon
 	GPM_GHDK = 19,     // Gold Horse Dragon King
 
-	// --- Position::pieces()で用いる定数。空いてるところを順番に用いる。
+	// --- Position::pieces()で用いる特殊な定数。空いてるところを順番に用いる。
+	// Position::pieces()では、PAWN , LANCE , … , DRAGONはそのまま用いるが、それ以外に↓の定数が使える。
 	ALL_PIECES = 0,			// 駒がある升を示すBitboardが返る。
 	GOLDS = QUEEN,			// 金と同じ移動特性を持つ駒のBitboardが返る。
 	HDK,				    // H=Horse,D=Dragon,K=Kingの合体したBitboardが返る。
@@ -475,7 +476,7 @@ enum PieceType : uint32_t
 	ROOK_DRAGON,			// ROOK,DRAGONを合成したBitboardが返る。
 	SILVER_HDK,				// SILVER,HDKを合成したBitboardが返る。
 	GOLDS_HDK,				// GOLDS,HDKを合成したBitboardが返る。
-	PIECE_BB_NB,			// デリミタ
+	PIECE_BB_NB,			// 終端
 };
 
 // 駒(先後の区別あり)
@@ -484,8 +485,8 @@ enum Piece : uint32_t
 	NO_PIECE = 0,
 
 	// 以下、先後の区別のある駒(Bがついているのは先手、Wがついているのは後手)
-	B_PAWN = 1, B_LANCE, B_KNIGHT, B_SILVER, B_BISHOP, B_ROOK, B_GOLD, B_KING, B_PRO_PAWN, B_PRO_LANCE, B_PRO_KNIGHT, B_PRO_SILVER, B_HORSE, B_DRAGON, B_QUEEN,
-	W_PAWN = 17, W_LANCE, W_KNIGHT, W_SILVER, W_BISHOP, W_ROOK, W_GOLD, W_KING, W_PRO_PAWN, W_PRO_LANCE, W_PRO_KNIGHT, W_PRO_SILVER, W_HORSE, W_DRAGON, W_QUEEN,
+	B_PAWN = 1 , B_LANCE, B_KNIGHT, B_SILVER, B_BISHOP, B_ROOK, B_GOLD, B_KING, B_PRO_PAWN, B_PRO_LANCE, B_PRO_KNIGHT, B_PRO_SILVER, B_HORSE, B_DRAGON, B_GOLDS/*金相当の駒*/,
+	W_PAWN = 17, W_LANCE, W_KNIGHT, W_SILVER, W_BISHOP, W_ROOK, W_GOLD, W_KING, W_PRO_PAWN, W_PRO_LANCE, W_PRO_KNIGHT, W_PRO_SILVER, W_HORSE, W_DRAGON, W_GOLDS/*金相当の駒*/,
 	PIECE_NB, // 終端
 	PIECE_ZERO = 0,
 

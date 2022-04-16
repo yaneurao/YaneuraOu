@@ -2391,6 +2391,24 @@ void Position::UnitTest(Test::UnitTester& tester)
 		tester.test("make_move(SQ_88, SQ_22) is pseudo_legal == false", pos.pseudo_legal(m) == false);
 	}
 
+	// attacks_bb() のテスト
+	{
+		auto section2 = tester.section("attacks_bb");
+		hirate_init();
+		tester.test("attacks_by<BLACK,PAWN>"  , pos.attacks_by<BLACK,PAWN>() == BB_Table::RANK6_BB);
+		tester.test("attacks_by<WHITE,PAWN>"  , pos.attacks_by<WHITE,PAWN>() == BB_Table::RANK4_BB);
+		tester.test("attacks_by<BLACK,KNIGHT>", pos.attacks_by<BLACK,KNIGHT>() ==
+			(Bitboard(SQ_97) | Bitboard(SQ_77) | Bitboard(SQ_37) | Bitboard(SQ_17))
+		);
+		tester.test("attacks_by<BLACK,GOLDS>", pos.attacks_by<BLACK,GOLDS>() ==
+			(goldEffect<BLACK>(SQ_69) | goldEffect<BLACK>(SQ_49))
+		);
+		tester.test("attacks_by<WHITE,GOLDS>", pos.attacks_by<WHITE,GOLDS>() ==
+			(goldEffect<WHITE>(SQ_61) | goldEffect<WHITE>(SQ_41))
+		);
+
+	}
+
 	// 千日手検出のテスト
 	{
 		auto section2 = tester.section("is_repetition");
