@@ -2518,6 +2518,15 @@ namespace {
 				if (PvNode && !ss->inCheck && abs(ss->staticEval - bestValue) > 250)
 					r--;
 
+#if 0
+				// Increase depth based reduction if PvNode
+				if (PvNode)
+					r -= 15 / ( 3 + depth );
+
+				// → これ導入したのだが強くならない。[2022/04/19]
+				// cf. Decrease LMR at PV nodes with low depth. : https://github.com/official-stockfish/Stockfish/commit/df2f7e75276cc93a8cb8c70057903ab0edbd92bd
+#endif
+
 				// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
 				// contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？
 				ss->statScore = thisThread->mainHistory[from_to(move)][us]

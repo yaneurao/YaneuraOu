@@ -2,7 +2,141 @@
 やねうら王 更新履歴
 
 
+■　2022/04/19
+
+
+- Stockfish 15
+  - https://github.com/official-stockfish/Stockfish/commit/e6e324eb28fd49c1fc44b3b65784f85a773ec61c
+
+  // Stockfish 15相当までは完全に追いついた。
+
+- Decrease LMR at PV nodes with low depth. : https://github.com/official-stockfish/Stockfish/commit/df2f7e75276cc93a8cb8c70057903ab0edbd92bd
+  // V7.01dd
+  →　どうも導入前より悪いのでコメントアウト
+
+engine1 = YaneuraOuNNUE_V701aa_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V701dd_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1112 - 112 - 1076(50.82% R5.72[-6.5,17.93]) winrate black , white = 50.32% , 49.68%
+
+
+■　2022/04/16
+- benchコマンドで sync_endl一つ多かったの修正。
+
+
+- V7.01wに対して
+  - capture_or_promotionだけ元(capture)に戻して比較。
+  // V7.01aa
+
+engine1 = YaneuraOuNNUE_V701w_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V701aa_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1406 - 133 - 1461(49.04% R-6.67[-17.34,4.01]) winrate black , white = 49.42% , 50.58%
+T2,b2000,1445 - 184 - 1371(51.31% R9.13[-1.64,19.9]) winrate black , white = 51.31% , 48.69%
+T2,b4000,1385 - 226 - 1389(49.93% R-0.5[-11.35,10.35]) winrate black , white = 52.02% , 47.98%
+T2,b8000,909 - 208 - 943(49.08% R-6.38[-19.66,6.9]) winrate black , white = 52.43% , 47.57%
+  // aaのほうが良さげに見えるが誤差かも。
+
+
+engine1 = YaneuraOuNNUE_V700beta4.exe , eval = Suisho5_211028
+engine2 = YaneuraOuNNUE_V701aa_avx2.exe , eval = Suisho5_211028
+T2,b1000,1346 - 143 - 1511(47.11% R-20.09[-30.8,-9.38]) winrate black , white = 52.19% , 47.81%
+T2,b8000,650 - 140 - 820(44.22% R-40.36[-55.36,-25.36]) winrate black , white = 53.33% , 46.67%
+
+
+- V7.01wに対して
+ - super sort、条件が良さげな時だけ使う。
+  // V7.01z
+
+			// depth大きくて指し手の数も多い時だけsuper sortを使うとどう？
+			if (depth >= 10 && endMoves - cur >= 64)
+				partial_super_sort(cur, endMoves , -3000 * depth);
+			else
+				partial_insertion_sort(cur, endMoves, -3000 * depth);
+
+engine1 = YaneuraOuNNUE_V701w_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V701z_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1457 - 145 - 1398(51.03% R7.18[-3.52,17.88]) winrate black , white = 52.78% , 47.22%
+T2,b2000,817 - 124 - 879(48.17% R-12.71[-26.59,1.18]) winrate black , white = 52.06% , 47.94%
+T2,b4000,1392 - 217 - 1391(50.02% R0.12[-10.71,10.96]) winrate black , white = 53.47% , 46.53%
+T2,b8000,1333 - 290 - 1367(49.37% R-4.38[-15.37,6.62]) winrate black , white = 54.63% , 45.37%
+
+// super sortの使う条件、やはりこれでもおかしいのか…。
+// depth条件が悪いのか…。うーむ...
+
+
+- V7.01wに対してmovepicker、歩以外の駒に対する歩の脅威を実装。
+- supersortやめる
+  // V7.01y
+engine1 = YaneuraOuNNUE_V701w_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V701y_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,617 - 57 - 596(50.87% R6.02[-10.39,22.42]) winrate black , white = 54.49% , 45.51%
+// 良いとは言い難いので、脅威の実装やめる。
+
+
+- supersort使ってみる。
+- V7.01wに対して。
+  // V7.01x
+engine1 = YaneuraOuNNUE_V701w_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V701x_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1406 - 128 - 1466(48.96% R-7.26[-17.92,3.4]) winrate black , white = 51.53% , 48.47%
+T2,b8000,460 - 99 - 421(52.21% R15.39[-3.87,34.65]) winrate black , white = 56.41% , 43.59%
+
+// 短い時間では効果があるようなのだが、長い時間で効果がない。なんで？
+
+
+- movepickerのthreatenやめてみる。
+- 探索部のcapture → 全部capture_or_pawn_promotionに変更してみる。
+  // V7.01w
+
+engine1 = YaneuraOuNNUE_V700beta4.exe , eval = Suisho5_211028
+engine2 = YaneuraOuNNUE_V701w_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,656 - 66 - 748(46.72% R-22.8[-38.08,-7.52]) winrate black , white = 50.36% , 49.64%
+T2,b4000,708 - 118 - 824(46.21% R-26.36[-41.0,-11.72]) winrate black , white = 51.57% , 48.43%
+T2,b8000,666 - 138 - 936(41.57% R-59.12[-73.6,-44.64]) winrate black , white = 53.0% , 47.0%
+// 長い時間でわりと強い。
+
+engine1 = YaneuraOuNNUE_V700beta4.exe , eval = Suisho5_211028
+engine2 = YaneuraOuNNUE_V701w_avx2.exe , eval = Suisho5_211028
+T2,b1000,1322 - 145 - 1533(46.3% R-25.72[-36.45,-15.0]) winrate black , white = 51.45% , 48.55%
+T2,b8000,807 - 212 - 1001(44.63% R-37.42[-50.94,-23.91]) winrate black , white = 51.44% , 48.56%
+
+
+- movepickerでPRO_PLUS使うのやめてみる。
+- movepickerのthreatenやめてみる。
+  // V7.01v
+
+engine1 = YaneuraOuNNUE_V700beta4.exe , eval = Suisho5_211028
+engine2 = YaneuraOuNNUE_V701v_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,649 - 33 - 438(59.71% R68.31[50.65,85.97]) winrate black , white = 52.53% , 47.47%
+T2,b8000,111 - 15 - 74(60.0% R70.44[27.66,113.21]) winrate black , white = 46.49% , 53.51%
+
+// これはよくないな…。
+
+
+- movepickerにthreatenedByMinor追加。
+
+- Piece::QUEEN廃止。
+- Bitboard::attacks_bb()追加。
+- Bitboard::pawn_attacks_bb()追加
+- Position::attacks_by() template引数のColorとPieceを逆順に。
+
+- B_QUEEN , W_QUEEN削除。
+  - B_GOLDS , W_GOLDSとして使いたいので。
+    // V7.01u
+
+engine1 = YaneuraOuNNUE_V700beta4.exe , eval = Suisho5_211028
+engine2 = YaneuraOuNNUE_V701u_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1350 - 120 - 1430(48.56% R-10.0[-20.84,0.84]) winrate black , white = 51.69% , 48.31%
+T2,b2000,599 - 68 - 773(43.66% R-44.3[-59.85,-28.75]) winrate black , white = 51.82% , 48.18%
+T2,b8000,632 - 117 - 731(46.37% R-25.28[-40.8,-9.76]) winrate black , white = 51.58% , 48.42%
+
+// 短い時間では改善しているが、長い時間で改善しているか怪しい。
+
+
+
 ■　2022/04/14
+
+
+- attacks_bb()などのUnitTest追加。
 
 
 - やねうら王V7.10
@@ -15,6 +149,15 @@
 - Bitboard::attacks_bb()実装
 - Position::attacks_by()実装
   // V701t
+
+engine1 = YaneuraOuNNUE_V700beta4.exe , eval = Suisho5_211028
+engine2 = YaneuraOuNNUE_V701t_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1120 - 94 - 1136(49.65% R-2.46[-14.49,9.57]) winrate black , white = 52.53% , 47.47%
+T2,b2000,1069 - 142 - 1159(47.98% R-14.04[-26.16,-1.93]) winrate black , white = 52.42% , 47.58%
+T2,b4000,1054 - 176 - 1180(47.18% R-19.62[-31.72,-7.51]) winrate black , white = 52.24% , 47.76%
+T2,b8000,377 - 83 - 480(43.99% R-41.96[-61.61,-22.31]) winrate black , white = 54.03% , 45.97%
+// 長い時間ではそこまで悪くはなさげ？
+
 
 - bestThreadの選出、よく見直す。
 →　問題なさそう。
@@ -69,6 +212,9 @@ T2,b1000,1379 - 111 - 1510(47.73% R-15.77[-26.41,-5.12]) winrate black , white =
 engine1 = YaneuraOuNNUE_V700beta4.exe , eval = Suisho5_211028
 engine2 = YaneuraOuNNUE_V701r_avx2.exe , eval = suishou6_20220114-fv32
 T2,b1000,1319 - 124 - 1557(45.86% R-28.82[-39.51,-18.13]) winrate black , white = 52.16% , 47.84%
+T2,b2000,744 - 103 - 913(44.9% R-35.56[-49.67,-21.45]) winrate black , white = 51.84% , 48.16%
+T2,b4000,248 - 44 - 288(46.27% R-25.98[-50.71,-1.24]) winrate black , white = 52.05% , 47.95%
+// 長い時間で言うほどつよない
 
 
 - Reintroduce check extension

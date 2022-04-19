@@ -139,7 +139,7 @@ namespace Eval
 				for (Piece pc = NO_PIECE; pc < PIECE_NB; ++pc)
 				{
 					PieceType pt = type_of(pc);
-					if (pt == NO_PIECE_TYPE || pt == QUEEN) // 存在しない駒
+					if (pt == NO_PIECE_TYPE || pt == GOLDS) // 存在しない駒
 						continue;
 
 					// 駒pcのBonaPieceの開始番号
