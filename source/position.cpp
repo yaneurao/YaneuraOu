@@ -996,7 +996,7 @@ bool Position::legal(Move m) const
 // 成れるという条件は満たしているはずだから)
 // しかし、先手の指し手を後手の指し手と取り違えた場合、この前提が崩れるので
 // これをチェックするための関数。成れる条件を満たしていない場合、falseが返る。
-bool Position::super_legal(Move m) const
+bool Position::legal_promote(Move m) const
 {
 	// 成りの指し手にしか関与しない
 	if (!is_promote(m))

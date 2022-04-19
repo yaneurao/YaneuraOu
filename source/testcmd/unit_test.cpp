@@ -32,7 +32,7 @@ namespace Test
 		cout << "Summary : " << passed << " / " << test_count << " passed." << endl;
 
 		if (errors.empty())
-			cout << "-> Passed all UnitTest." << endl;
+			cout << "-> Passed all UnitTests." << endl;
 		else
 		{
 			cout << "Error List : " << endl;

@@ -501,7 +501,7 @@ public:
 	// 成れるという条件は満たしているはずだから)
 	// しかし、先手の指し手を後手の指し手と取り違えた場合、この前提が崩れるので
 	// これをチェックするための関数。成れる条件を満たしていない場合、falseが返る。
-	bool super_legal(Move m) const;
+	bool legal_promote(Move m) const;
 
 	// --- StateInfo
 
