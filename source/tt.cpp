@@ -43,8 +43,13 @@ void TTEntry::save(Key k, Value v, bool pv , Bound b, Depth d, Move m , Value ev
 	// これは、このnodeで、TT::probeでhitして、その指し手は試したが、それよりいい手が見つかって、枝刈り等が発生しているような
 	// ケースが考えられる。ゆえに、今回の指し手のほうが、いまの置換表の指し手より価値があると考えられる。
 
-	u16 pos_key = (u16)(k >> 1);
-	if (m || pos_key != key16)
+#if TTClusterSize == 3
+	u16 theKey = (u16)(k >> 1);
+#elif TTClusterSize == 2
+	// bit shiftする手間が惜しいのでそのまま格納する。
+	u64 theKey = (u64)(k);
+#endif
+	if (m || theKey != key)
 		move16 = (uint16_t)m;
 
 	// このエントリーの現在の内容のほうが価値があるなら上書きしない。
@@ -54,7 +59,7 @@ void TTEntry::save(Key k, Value v, bool pv , Bound b, Depth d, Move m , Value ev
 	// 3. BOUND_EXACT(これはPVnodeで探索した結果で、とても価値のある情報なので無条件で書き込む)
 	// 1. or 2. or 3.
 	if (   b == BOUND_EXACT
-		|| pos_key != key16
+		|| theKey != key
 		|| d - DEPTH_OFFSET + 2 * pv > depth8 - 4)
 		// ここ、 2 * pv を入れたほうが強いらしい。
 		// https://github.com/official-stockfish/Stockfish/commit/94514199123874c0029afb6e00634f26741d90db
@@ -62,7 +67,7 @@ void TTEntry::save(Key k, Value v, bool pv , Bound b, Depth d, Move m , Value ev
 		ASSERT_LV3(d > DEPTH_OFFSET);
 		ASSERT_LV3(d < 256 + DEPTH_OFFSET);
 
-		key16     = pos_key;
+		key       = theKey;
 		depth8    = (uint8_t)(d - DEPTH_OFFSET); // DEPTH_OFFSETだけ下駄履きさせてある。
 		genBound8 = (uint8_t)(TT.generation8 | uint8_t(pv) << 2 | b);
 		value16   = (int16_t)v;
@@ -164,9 +169,14 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found) const
 	// keyの下位bitをいくつか使って、このアドレスを求めるので、自ずと下位bitはいくらかは一致していることになる。
 	TTEntry* const tte = first_entry(key);
 
+#if TTClusterSize == 3
 	// 下位16bit(bit0は除く)が合致するTT_ENTRYを探す
 	// 上位bitは、tteのアドレスの算出に用いているので、だいたい合ってる。
-	const uint16_t key16 = (u16)(key >> 1);
+	const uint16_t theKey = (u16)(key >> 1);
+#elif TTClusterSize == 2
+	// bit shiftの手間が惜しいのでそのまま使う。
+	const uint64_t theKey = (u64)key;
+#endif
 
 	// クラスターのなかから、keyが合致するTT_ENTRYを探す
 	for (int i = 0; i < ClusterSize; ++i)
@@ -183,7 +193,7 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found) const
 		// Stockfish12からはdepth8 == 0が空のTTEntryを意味するように変わった。
 		// key16は1/65536の確率で0になりうるので…。
 
-		if (tte[i].key16 == key16 || !tte[i].depth8)
+		if (tte[i].key == theKey || !tte[i].depth8)
 		{
 			tte[i].genBound8 = uint8_t(generation8 | (tte[i].genBound8 & (GENERATION_DELTA - 1))); // Refresh
 
@@ -233,11 +243,15 @@ TTEntry* TranspositionTable::read_probe(const Key key, bool& found) const
 #endif
 
 	TTEntry* const tte = first_entry(key);
-	const uint16_t key16 = (u16)(key >> 1);
+#if TTClusterSize == 3
+	const uint16_t theKey = (u16)(key >> 1);
+#else TTClusterSize == 2
+	const uint64_t theKey = (u64)(key);
+#endif
 
 	for (int i = 0; i < ClusterSize; ++i)
 	{
-		if (tte[i].key16 == key16 || !tte[i].depth8)
+		if (tte[i].key == theKey || !tte[i].depth8)
 				return found = (bool)tte[i].depth8, &tte[i];
 	}
 	return found = false, nullptr;

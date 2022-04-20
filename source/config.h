@@ -103,6 +103,13 @@
 // →　ConsiderationMode というエンジンオプションを用意したので、この機能は無効化する。
 
 
+// 置換表に関する設定
+// TTClusterのなかのTTEntryの数。
+// Stockfishは3。これを2にすると、置換表効率は悪くなるが、hashの格納bit数が増えるので
+// hash衝突が起きる確率自体は下がるため、hash衝突由来のバグが出にくくなる。
+#define TTClusterSize 3
+//#define TTClusterSize 2
+
 // ---------------------
 //  評価関数関連の設定
 // ---------------------

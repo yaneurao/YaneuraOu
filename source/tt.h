@@ -46,7 +46,11 @@ private:
 	// Stockfishの最新版[2020/11/03]では、key16はhash_keyの下位16bitに変更になったが(取り出しやすいため)
 	// やねうら王ではhash_keyのbit0を先後フラグとして用いるので、bit16..1を使う。
 	// hash keyの上位bitは、TTClusterのindexの算出に用いるので、下位を格納するほうが理にかなっている。
-	uint16_t key16;
+#if TTClusterSize == 3
+	uint16_t key;
+#elif TTClusterSize == 2
+	uint64_t key;
+#endif
 
 	// 指し手(の下位16bit。Moveの上位16bitには移動させる駒種などが格納される)
 	uint16_t move16;
@@ -76,12 +80,18 @@ struct TranspositionTable {
 
 	// 1クラスターにおけるTTEntryの数
 	// TTEntry 10bytes×3つ + 2(padding) = 32bytes
-	static constexpr int ClusterSize = 3;
+	static constexpr int ClusterSize = TTClusterSize;
 
+#if TTClusterSize == 3
 	struct Cluster {
 		TTEntry entry[ClusterSize];
 		u8 padding[2]; // 全体を32byteぴったりにするためのpadding
 	};
+#elif TTClusterSize == 2
+	struct Cluster {
+		TTEntry entry[ClusterSize];
+	};
+#endif
 
 	static_assert(sizeof(Cluster) == 32, "Unexpected Cluster size");
 
