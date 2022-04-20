@@ -9,6 +9,7 @@
 #if defined(USE_SUPER_SORT) && defined(USE_AVX2)
 // partial_insertion_sort()のSuperSortを用いた実装
 extern void partial_super_sort(ExtMove* start, ExtMove* end, int limit);
+extern void super_sort(ExtMove* start, ExtMove* end);
 
 /*
   - 少し高速化されるらしい。
@@ -331,6 +332,7 @@ Move MovePicker::select(Pred filter) {
 // 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。
 // 指し手が尽きればMOVE_NONEが返る。
 // 置換表の指し手(ttMove)を返したあとは、それを取り除いた指し手を返す。
+// skipQuiets : これがtrueだとQUIETな指し手は返さない。
 Move MovePicker::next_move(bool skipQuiets) {
 
 top:
@@ -406,7 +408,22 @@ top:
 		{
 			cur = endBadCaptures;
 
-#if defined(USE_AVX2)
+			/*
+			moves          : バッファの先頭
+			endBadCaptures : movesから(endBadCaptures - 1) までに bad capturesの指し手が格納されている。
+				そこ以降はバッファの末尾まで自由に使って良い。
+
+				|--- 指し手生成用のバッファ -----------------------------------|
+				| ttMove | killer | captures |  未使用のバッファ               |  captures生成時 (CAPTURES_PRO_PLUS)
+				|--------------------------------------------------------------|
+				|   badCaptures      |     quiet         |  未使用のバッファ   |  quiet生成時    (NON_CAPTURES_PRO_MINUS)
+				|--------------------------------------------------------------|
+				↑                  ↑ 
+				moves          endBadCaptures
+			*/
+
+
+#if defined(USE_SUPER_SORT) && defined(USE_AVX2)
 			// curを32の倍数アドレスになるように少し進めてしまう。
 			// これにより、curがalignas(32)されているような効果がある。
 			// このあとSuperSortを使うときにこれが前提条件として必要。
@@ -423,21 +440,33 @@ top:
 			// (depthが低いときに真面目に全要素ソートするのは無駄だから)
 
 #if defined(USE_SUPER_SORT) && defined(USE_AVX2)
+			// 以下のSuperSortを有効にするとinsertion_sortと結果が異なるのでbenchコマンドの探索node数が変わって困ることがあるので注意。
 
-			// AVX2なので自動的にlittle endianと仮定できるのでint64_tとみなしてソートして良い。
-			// このとき、sortの高速化として、SuperSortが使える。
-			// cur == movesの先頭だし、MAX_MOVESの分だけbufferは確保されているので32の倍数になるように
-			// 後方のpaddingをしてAVX2を使ったsortをして良い。このとき、他にbuffer不要。
-			
+#if 0
 			partial_super_sort(cur, endMoves , -3000 * depth);
+#endif
+			
+#if 0
+			// depth大きくて指し手の数も多い時だけsuper sortを使うとどう？
+			if (depth >= 10 && endMoves - cur >= 64)
+			partial_super_sort(cur, endMoves , -3000 * depth);
+			else
+				partial_insertion_sort(cur, endMoves, -3000 * depth);
+#endif
 
-			// ↑を有効にするとinsertion_sortと結果が異なるのでbenchコマンドの探索node数が変わって困ることがあるので注意。
+#if 1
+			// depth大きくて指し手の数も多い時だけsuper sortを使うとどう？
+			if ((depth >= 15 && endMoves - cur >= 32) || (depth >= 10 && endMoves - cur >= 64) || (depth >= 5 && endMoves - cur >= 96) )
+				super_sort(cur, endMoves);
+			else
+				partial_insertion_sort(cur, endMoves, -3000 * depth);
+#endif
 
 #else
 
 			// TODO : このへん係数調整したほうが良いのでは…。
 			// →　sort時間がもったいないのでdepthが浅いときはscoreの悪い指し手を無視するようにしているだけで
-			//   sortできるなら全部したほうが良い。上のSuperSortを使う実装の場合、全部sortしている。
+			//   sortできるなら全部したほうが良い。
 			partial_insertion_sort(cur, endMoves, -3000 * depth);
 #endif
 		}
@@ -456,8 +485,8 @@ top:
 
 			return *(cur - 1);
 
-		// bad capturesの指し手に対して繰り返すためにポインタを準備する。
-		// bad capturesの先頭を指すようにする。これは指し手生成バッファの先頭付近を再利用している。
+		// bad capturesの指し手を返すためにポインタを準備する。
+		// bad capturesの先頭を指すようにする。これは指し手生成バッファの先頭からの領域を再利用している。
 		cur = moves;
 		endMoves = endBadCaptures;
 

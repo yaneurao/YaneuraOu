@@ -38,7 +38,58 @@ namespace {
 
 
 // MovePickerから呼び出す用
+// startは32byteでalignされているものとする。全ソートしてしまう。
+// depthが高い時か、指し手(end - start)が多い時にのみ呼び出すことを想定。
+void super_sort(ExtMove* start, ExtMove* end)
+{
+	size_t num = end - start;
+	ASSERT_LV3(num >= 32);
+
+	// 要素数が16の倍数になるようにalign
+	size_t aligned_num = Math::align(num,16);
+
+	// arrが32バイトでalignされているか
+	// 前提条件として、それは満たしているものとする。
+	bool isAligned = (((size_t)start) & 31) == 0;
+	ASSERT_LV3(isAligned);
+
+	size_t i;
+	constexpr std::uint64_t ONE = 3;
+	constexpr std::int64_t half_64bit = ONE << 62;
+
+	// 下駄を履かせる。これにより降順ソートとみなせる。0xC000...を加算している。
+	int64_t* startInt64 = reinterpret_cast<int64_t*>(start);
+	for (i = 0; i < num; i++)
+		startInt64[i] += half_64bit;
+
+	// 後ろにalignedsizeになるところまでpaddingしておく。指し手生成バッファはMAX_MOVES+αまで後ろを使っていいはずで…。
+	// 最大値をpaddingしておく。(これは昇順の並び替えによって末尾にくるはず)
+	double* startDouble = reinterpret_cast<double*>(start);
+	for (/* i = num */ ; i < aligned_num; i++)
+		// 以下ではdoubleとみなしてsortするので最大値はdouble::max()
+		startDouble[i] = std::numeric_limits<double>::max();
+
+	if (aligned_num > 64)
+		SuperSortDAligned(startDouble, aligned_num / 16);
+	else if (aligned_num == 32)
+		SuperSortD32(startDouble);
+	else if (aligned_num == 48)
+		SuperSortD48(startDouble);
+	else
+		SuperSortD64(startDouble);
+
+	// 履かせた下駄を取る処理を入れていないが、まあええやろ…。このあと使わへんしな。
+	//for (i = 0; i < num; i++)
+	//	start[i] -= half_64bit;
+}
+
+
+
+// MovePickerから呼び出す用
 // startは32byteでalignされているものとする。
+// AVX2なので自動的にlittle endianと仮定できるのでint64_tとみなしてソートして良い。
+// cur == movesの先頭だし、MAX_MOVESの分だけbufferは確保されているので32の倍数になるように
+// 後方のpaddingをしてAVX2を使ったsortをして良い。
 void partial_super_sort(ExtMove* start, ExtMove* end , int limit)
 {
 	size_t num_max = end - start;
@@ -118,7 +169,8 @@ void partial_super_sort(ExtMove* start, ExtMove* end , int limit)
 	// 最大値をpaddingしておく。(これは昇順の並び替えによって末尾にくるはず)
 	double* startDouble = reinterpret_cast<double*>(start);
 	for (/* i = num */ ; i < alignedsize; i++)
-		startDouble[i] = std::numeric_limits<float>::max();
+		// 以下ではdoubleとみなしてsortするので最大値はdouble::max()
+		startDouble[i] = std::numeric_limits<double>::max();
 
 	if (alignedsize > 64)
 		SuperSortDAligned(startDouble, alignedsize / 16);
@@ -545,6 +597,9 @@ namespace {
 		}
 	}
 
+	// 可変長配列のソート。
+	// array : 先頭アドレス
+	// num   : 要素数を16で割ったもの。
 	void SuperSortDAligned(double* array, size_t num)
 	{
 		// ここでsort用のbufferを確保してしまう。
