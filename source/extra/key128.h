@@ -33,14 +33,37 @@ struct alignas(16) Key128
 	};
 
 	Key128() {}
-	Key128(const Key& k) { _u64[0]= k; _u64[1] = 0; }
+
+	// kを下位64bitに格納する(上位64bitは0)
+	Key128(const Key& k) { set(k,0); }
 	Key128(const Key128& bb) { _mm_store_si128(&this->m, bb.m); }
 	Key128& operator = (const Key128& rhs) { _mm_store_si128(&this->m, rhs.m); return *this; }
 
-	void set(Key k0, Key k1) { _u64[0] = k0; _u64[1] = k1; }
+	// 下位64bitをk0、上位64bitをk1にする。
+	void set(Key k0, Key k1) {
+#if defined(USE_SSE2)
+	m = _mm_set_epi64x(k1,k0);
+#else
+	_u64[0] = k0; _u64[1] = k1;
+#endif
+	}
+
 	operator Key() const { return _u64[0]; }
 
 	uint64_t p(int i) const { return _u64[i]; }
+
+	// _u64[n]を取り出す。SSE4の命令が使えるときはそれを使う。
+	// n == 0なら下位64bit、n == 1なら上位64bitが取り出される。
+	template <int n>
+	u64 extract64() const
+	{
+		static_assert(n == 0 || n == 1, "");
+	#if defined(USE_SSE41)
+		return (u64)(_mm_extract_epi64(m, n));
+	#else
+		return _u64[n];
+	#endif
+	}
 
 	Key128& operator += (const Key128& b1) { this->m = _mm_add_epi64(m, b1.m); return *this; }
 	Key128& operator -= (const Key128& b1) { this->m = _mm_sub_epi64(m, b1.m); return *this; }
@@ -77,14 +100,34 @@ struct alignas(32) Key256
 	};
 
 	Key256() {}
-	Key256(const Key& k) { _u64[0]= k; _u64[1] = _u64[2] = _u64[3] = 0; }
+	Key256(const Key& k) { set(k, 0, 0, 0); }
 	Key256(const Key256& bb) { _mm256_store_si256(&this->m, bb.m); }
 	Key256& operator = (const Key256& rhs) { _mm256_store_si256(&this->m, rhs.m); return *this; }
 
-	void set(Key k0, Key k1, Key k2, Key k3) { _u64[0] = k0; _u64[1] = k1; _u64[2] = k2; _u64[3] = k3; }
+	// 下位64bitから順にk0, k1, k2, k3に設定する。
+	void set(Key k0, Key k1, Key k2, Key k3) {
+#if defined(USE_SSE2)
+	m = _mm256_set_epi64x(k3,k2,k1,k0);
+#else
+	_u64[0] = k0; _u64[1] = k1; _u64[2] = k2; _u64[3] = k3;
+#endif
+	}
+
 	operator Key() const { return _u64[0]; }
 
 	uint64_t p(int i) const { return _u64[i]; }
+
+	// p[n]を取り出す。SSE4の命令が使えるときはそれを使う。
+	template <int n>
+	u64 extract64() const
+	{
+		static_assert(n == 0 || n == 1 || n == 2 || n == 3 , "");
+	#if defined(USE_SSE41)
+		return (u64)(_mm256_extract_epi64(m, n));
+	#else
+		return _u64[n];
+	#endif
+	}
 
 	Key256& operator += (const Key256& b1) { this->m = _mm256_add_epi64(m, b1.m); return *this; }
 	Key256& operator -= (const Key256& b1) { this->m = _mm256_sub_epi64(m, b1.m); return *this; }

@@ -24,6 +24,9 @@ const std::string engine_info();
 // 使用したコンパイラについての文字列を返す。
 const std::string compiler_info();
 
+// config.hで設定した値などについて出力する。
+const std::string config_info();
+
 // --------------------
 //    prefetch命令
 // --------------------

@@ -944,6 +944,9 @@ void USI::loop(int argc, char* argv[])
 
 		// -- 以下、やねうら王独自拡張のカスタムコマンド
 
+		// config.hで設定した値などについて出力する。
+		else if (token == "config") sync_cout << config_info() << sync_endl;
+
 		// オプションを取得する(USI独自拡張)
 		else if (token == "getoption") getoption_cmd(is);
 

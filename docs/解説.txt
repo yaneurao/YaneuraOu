@@ -67,7 +67,7 @@ http://yaneuraou.yaneu.com/
 ■　コンパイル方法
 
 
-Visual Studio 2019 Community Edition(無料で使えます)でビルド一発で実行ファイルが出来るはずです。
+Visual Studio 2022 Community Edition(無料で使えます)でビルド一発で実行ファイルが出来るはずです。
 
 
 ★　思考エンジンの種類の選択
@@ -150,6 +150,9 @@ make -j8 tournament TARGET_CPU=AVX2 COMPILER=g++ YANEURAOU_EDITION=YANEURAOU_ENG
 		※　複雑な文字列の場合、ダブルコーテーションで囲んだほうが良いというのと、( )の手前では \ でのエスケープが必要です。
 	・ビルドターゲットはtournament(トーナメントモード用)、evallearn(評価関数の学習用)、normal(普通のもの)、gensfen(教師生成用。現状、非公開)から選びます。
 	詳しくはMakefileのなかを見てください。
+
+例) hash keyを128bitにして、TTClusterSizeを2にして、エンジン名を"YaneuraOu(dev)"にする。(わりとお勧めの設定)
+make -j8 tournament COMPILER=clang++ YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE ENGINE_NAME="YaneuraOu\(dev\)" TARGET_CPU=AVX2 EXTRA_CPPFLAGS="-DHASH_KEY_BITS=128 -DTT_CLUSTER_SIZE=2"
 
 
 ■  ShogiGUIの検討モードで使う方法

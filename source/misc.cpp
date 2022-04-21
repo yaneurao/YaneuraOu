@@ -198,7 +198,6 @@ const string engine_info() {
 #if defined(EVAL_LEARN)
 			<< " EVAL_LEARN"
 #endif
-
 			<< endl
 #if !defined(YANEURAOU_ENGINE_DEEP)
 			<< "id author by yaneurao" << std::endl;
@@ -279,6 +278,94 @@ const std::string compiler_info() {
 	compiler += "\n";
 
 	return compiler;
+}
+
+// config.hで設定した値などについて出力する。
+const std::string config_info()
+{
+	std::string config = "\nconfigured by config.h";
+
+	auto o  = [](std::string(p) , std::string(q)) { return "\n" + (p + std::string(20,' ')).substr(0,20) + " : " + q; };
+	auto o1 = [&o](const char* p , u64  u ) { return o(std::string(p) , std::to_string(u) ); };
+	auto o2 = [&o](const char* p , bool b ) { return o(std::string(p) , b ? "true":"false"); };
+
+	config += o1("ASSERT_LV"           , ASSERT_LV      );
+	config += o1("HASH_KEY_BITS"       , HASH_KEY_BITS  );
+	config += o1("TT_CLUSTER_SIZE"     , TT_CLUSTER_SIZE);
+
+	bool for_tournament = 
+#if defined(FOR_TOURNAMENT)
+		true;
+#else
+		false;
+#endif
+
+	bool test_cmd =
+#if defined(ENABLE_TEST_CMD)
+		true;
+#else
+		false;
+#endif
+
+	bool make_book_cmd = 
+#if defined(ENABLE_MAKEBOOK_CMD)
+		true;
+#else
+		false;
+#endif
+
+	bool use_super_sort =
+#if defined(USE_SUPER_SORT)
+		true;
+#else
+		false;
+#endif
+
+	bool tuning_parameters =
+#if defined(TUNING_SEARCH_PARAMETERS)
+		true;
+#else
+		false;
+#endif
+
+	bool global_options = 
+#if defined(USE_GLOBAL_OPTIONS)
+		true;
+#else
+		false;
+#endif
+
+	bool eval_learn =
+#if defined(EVAL_LEARN)
+		true;
+#else
+		false;
+#endif
+
+	bool use_mate_dfpn =
+#if defined(USE_MATE_DFPN)
+		true;
+#else
+		false;
+#endif
+
+
+	config += o2("PRETTY_JP"                , pretty_jp          );
+	config += o2("FOR_TOURNAMENT"           , for_tournament     );
+	config += o2("ENABLE_TEST_CMD"          , test_cmd           );
+	config += o2("ENABLE_MAKEBOOK_CMD"      , make_book_cmd      );
+	config += o2("USE_SUPER_SORT"           , use_super_sort     );
+	config += o2("TUNING_SEARCH_PARAMETERS" , tuning_parameters  );
+	config += o2("USE_GLOBAL_OPTIONS"       , global_options     );
+	config += o2("EVAL_LEARN"               , eval_learn         );
+	config += o2("USE_MATE_DFPN"            , use_mate_dfpn      );
+	
+	// コンパイラ情報もついでに出力する。
+	//config += "\n\n" + compiler_info();
+
+	// その他、欲しいものがあれば追加するかも。
+
+	return config;
 }
 
 // --------------------
