@@ -13,7 +13,7 @@ TranspositionTable TT; // 置換表をglobalに確保。
 //   gen  : TT.generation()
 // 引数のgenは、Stockfishにはないが、やねうら王では学習時にスレッドごとに別の局面を探索させたいので
 // スレッドごとに異なるgenerationの値を指定したくてこのような作りになっている。
-void TTEntry::save_(KEY_TYPE key_for_ttentry, Value v, bool pv , Bound b, Depth d, Move m , Value ev)
+void TTEntry::save_(TTEntry::KEY_TYPE key_for_ttentry, Value v, bool pv , Bound b, Depth d, Move m , Value ev)
 {
 	// ASSERT_LV3((-VALUE_INFINITE < v && v < VALUE_INFINITE) || v == VALUE_NONE);
 

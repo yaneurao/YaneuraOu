@@ -57,9 +57,9 @@ private:
 	typedef uint64_t KEY_TYPE;
 #endif
 	// save()の内部実装用
-	void save_(KEY_TYPE key_for_ttentry, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
+	void save_(TTEntry::KEY_TYPE key_for_ttentry, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
 
-	KEY_TYPE key;
+	TTEntry::KEY_TYPE key;
 
 	// 指し手(の下位16bit。Moveの上位16bitには移動させる駒種などが格納される)
 	uint16_t move16;
