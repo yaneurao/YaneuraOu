@@ -40,25 +40,30 @@ struct TTEntry {
 	//   pv   : PV nodeであるか
 	//   d    : その時の探索深さ
 	//   m    : ベストな指し手
+	// ※ KeyとしてKey(64 bit)以外に 128,256bitのhash keyにも対応。(やねうら王独自拡張)
 	void save(Key k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
 	void save(Key128 k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
 	void save(Key256 k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
 
-private:
-	friend struct TranspositionTable;
+	// -- やねうら王独自拡張
 
-	// hash keyの下位bit16(bit0は除く)
-	// Stockfishの最新版[2020/11/03]では、key16はhash_keyの下位16bitに変更になったが(取り出しやすいため)
-	// やねうら王ではhash_keyのbit0を先後フラグとして用いるので、bit16..1を使う。
-	// hash keyの上位bitは、TTClusterのindexの算出に用いるので、下位を格納するほうが理にかなっている。
+	// やねうら王では、TTClusterSizeを変更できて、これが2の時は、TTEntryに格納するhash keyは64bit。(Stockfishのように)3の時は16bit。
 #if TT_CLUSTER_SIZE == 3
 	typedef uint16_t KEY_TYPE;
 #elif TT_CLUSTER_SIZE == 2
 	typedef uint64_t KEY_TYPE;
 #endif
+
+private:
+	friend struct TranspositionTable;
+
 	// save()の内部実装用
 	void save_(TTEntry::KEY_TYPE key_for_ttentry, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
 
+	// hash keyの下位bit16(bit0は除く)
+	// Stockfishの最新版[2020/11/03]では、key16はhash_keyの下位16bitに変更になったが(取り出しやすいため)
+	// やねうら王ではhash_keyのbit0を先後フラグとして用いるので、bit16..1を使う。
+	// hash keyの上位bitは、TTClusterのindexの算出に用いるので、下位を格納するほうが理にかなっている。
 	TTEntry::KEY_TYPE key;
 
 	// 指し手(の下位16bit。Moveの上位16bitには移動させる駒種などが格納される)
@@ -132,13 +137,15 @@ public:
 	// 置換表のなかから与えられたkeyに対応するentryを探す。
 	// 見つかったならfound == trueにしてそのTT_ENTRY*を返す。
 	// 見つからなかったらfound == falseで、このとき置換表に書き戻すときに使うと良いTT_ENTRY*を返す。
+	// ※ KeyとしてKey(64 bit)以外に 128,256bitのhash keyにも対応。(やねうら王独自拡張)
 	TTEntry* probe(const Key key, bool& found) const;
 	TTEntry* probe(const Key128 key, bool& found) const;
 	TTEntry* probe(const Key256 key, bool& found) const;
 
-	// probe()の、置換表を一切書き換えないことが保証されている版。
+	// probe()の、置換表を一切書き換えないことが保証されている版。(やねうら王独自拡張)
 	// ConsiderationMode時のPVの出力時は置換表をprobe()したいが、hitしないときに空きTTEntryを作る挙動が嫌なので、
-	// こちらを用いる。(やねうら王独自拡張)
+	// こちらを用いる。
+	// ※ KeyとしてKey(64 bit)以外に 128,256bitのhash keyにも対応。(やねうら王独自拡張)
 	TTEntry* read_probe(const Key key, bool& found) const;
 	TTEntry* read_probe(const Key128 key, bool& found) const;
 	TTEntry* read_probe(const Key256 key, bool& found) const;
@@ -160,6 +167,7 @@ public:
 	void clear();
 
 	// keyを元にClusterのindexを求めて、その最初のTTEntry*を返す。
+	// ※　ここで渡されるkeyのbit 0は局面の手番フラグ(Position::side_to_move())であると仮定している。
 	TTEntry* first_entry(const Key key) const {
 		// Stockfishのコード
 		// mul_hi64は、64bit * 64bitの掛け算をして下位64bitを取得する関数。
