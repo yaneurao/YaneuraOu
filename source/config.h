@@ -107,7 +107,7 @@
 // TTClusterのなかのTTEntryの数。
 // Stockfishは3。これを2にすると、置換表効率は悪くなるが、hashの格納bit数が増えるので
 // hash衝突が起きる確率自体は下がるため、hash衝突由来のバグが出にくくなる。
-#define TTClusterSize 3
+//#define TTClusterSize 3
 //#define TTClusterSize 2
 
 // ---------------------
@@ -361,6 +361,7 @@
 // 通例hash keyは64bitだが、これを128にするとPosition::state()->long_key()から128bit hash keyが
 // 得られるようになる。研究時に局面が厳密に合致しているかどうかを判定したいときなどに用いる。
 // 実験用の機能なので、128bit,256bitのhash keyのサポートはAVX2のみ。
+// これ、128 or 256bitにすると、置換表に用いるhashのkeyにそれを使えるので置換表のhash衝突ちょっと減る。
 #if !defined(HASH_KEY_BITS) // Makefileの方から指定されているかも知れない。
 #define HASH_KEY_BITS 64
 //#define HASH_KEY_BITS 128
@@ -398,6 +399,9 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_MOVE_PICKER
 	#define USE_EVAL
 	#define USE_ENTERING_KING_WIN
+
+	//#define TTClusterSize 2
+	#define TTClusterSize 3
 
 	#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT)
 		// EvalHashを用いるのは3駒型のみ。それ以外は差分計算用の状態が大きすぎてhitしたところでどうしようもない。

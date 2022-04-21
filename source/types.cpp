@@ -119,7 +119,7 @@ namespace Search {
 			return false;
 
 		pos.do_move(pv[0], st, pos.gives_check(pv[0]));
-		TTEntry* tte = TT.read_probe(pos.state()->key(), ttHit);
+		TTEntry* tte = TT.read_probe(pos.state()->long_key(), ttHit);
 		Move m;
 		if (ttHit)
 		{

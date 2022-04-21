@@ -1288,7 +1288,7 @@ namespace {
 		TTEntry* tte;
 
 		// このnodeのhash key
-		Key posKey;
+		HASH_KEY posKey;
 
 		// ttMove				: 置換表の指し手
 		// move					: MovePickerから1手ずつもらうときの一時変数
@@ -1480,7 +1480,7 @@ namespace {
 		// excludedMoveがある(singular extension時)は、異なるentryにアクセスするように。
 		// ただし、このときpos.key()のbit0を破壊することは許されないので、make_key()でbit0はクリアしておく。
 		// excludedMoveがMOVE_NONEの時はkeyを変更してはならない。
-		posKey = excludedMove == MOVE_NONE ? pos.key() : pos.key() ^ make_key(excludedMove);
+		posKey = excludedMove == MOVE_NONE ? pos.long_key() : pos.long_key() ^ HASH_KEY(make_key(excludedMove));
 
 		tte = TT.probe(posKey, ss->ttHit);
 
@@ -2911,7 +2911,7 @@ namespace {
 		TTEntry* tte;
 
 		// この局面のhash key
-		Key posKey;
+		HASH_KEY posKey;
 
 		// ttMove			: 置換表に登録されていた指し手
 		// move				: MovePickerからもらった現在の指し手
@@ -2989,7 +2989,7 @@ namespace {
 		// Transposition table lookup
 		// 置換表のlookup
 
-		posKey = pos.key();
+		posKey = pos.long_key();
 		tte = TT.probe(posKey, ss->ttHit);
 		ttValue = ss->ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
 		ttMove  = ss->ttHit ? pos.to_move(tte->move()) : MOVE_NONE;

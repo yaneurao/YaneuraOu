@@ -4,6 +4,9 @@
 #include "types.h"
 #include "misc.h"
 
+struct Key128;
+struct Key256;
+
 // cf.【決定版】コンピュータ将棋のHASHの概念について詳しく : http://yaneuraou.yaneu.com/2018/11/18/%E3%80%90%E6%B1%BA%E5%AE%9A%E7%89%88%E3%80%91%E3%82%B3%E3%83%B3%E3%83%94%E3%83%A5%E3%83%BC%E3%82%BF%E5%B0%86%E6%A3%8B%E3%81%AEhash%E3%81%AE%E6%A6%82%E5%BF%B5%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6/
 
 // --------------------
@@ -38,6 +41,8 @@ struct TTEntry {
 	//   d    : その時の探索深さ
 	//   m    : ベストな指し手
 	void save(Key k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
+	void save(Key128 k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
+	void save(Key256 k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
 
 private:
 	friend struct TranspositionTable;
@@ -47,10 +52,14 @@ private:
 	// やねうら王ではhash_keyのbit0を先後フラグとして用いるので、bit16..1を使う。
 	// hash keyの上位bitは、TTClusterのindexの算出に用いるので、下位を格納するほうが理にかなっている。
 #if TTClusterSize == 3
-	uint16_t key;
+	typedef uint16_t KEY_TYPE;
 #elif TTClusterSize == 2
-	uint64_t key;
+	typedef uint64_t KEY_TYPE;
 #endif
+	// save()の内部実装用
+	void save_(KEY_TYPE key_for_ttentry, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
+
+	KEY_TYPE key;
 
 	// 指し手(の下位16bit。Moveの上位16bitには移動させる駒種などが格納される)
 	uint16_t move16;
@@ -128,11 +137,15 @@ public:
 	// 見つかったならfound == trueにしてそのTT_ENTRY*を返す。
 	// 見つからなかったらfound == falseで、このとき置換表に書き戻すときに使うと良いTT_ENTRY*を返す。
 	TTEntry* probe(const Key key, bool& found) const;
+	TTEntry* probe(const Key128 key, bool& found) const;
+	TTEntry* probe(const Key256 key, bool& found) const;
 
 	// probe()の、置換表を一切書き換えないことが保証されている版。
 	// ConsiderationMode時のPVの出力時は置換表をprobe()したいが、hitしないときに空きTTEntryを作る挙動が嫌なので、
 	// こちらを用いる。(やねうら王独自拡張)
 	TTEntry* read_probe(const Key key, bool& found) const;
+	TTEntry* read_probe(const Key128 key, bool& found) const;
+	TTEntry* read_probe(const Key256 key, bool& found) const;
 
 	// 置換表の使用率を1000分率で返す。(USIプロトコルで統計情報として出力するのに使う)
 	int hashfull() const;
@@ -175,7 +188,7 @@ public:
 		uint64_t index = mul_hi64((u64)key >> 1, clusterCount);
 
 		// indexは0～(clusterCount/2)-1の範囲にあるのでこれを2倍すると、0～clusterCount-2の範囲。
-		// clusterCountは偶数で、ここにkeyのbit0がbit-orされるので0～clusterCount-1が得られる。
+		// clusterCountは偶数で、ここにkeyのbit0がbit-orされるので0～clusterCount-1の範囲の値が得られる。
 		return &table[(index << 1) | ((u64)key & 1)].entry[0];
 	}
 
@@ -210,6 +223,17 @@ private:
 
 	// 置換表テーブルのメモリ確保用のhelpper
 	LargeMemory tt_memory;
+
+	// probe()の内部実装用。
+	// key_for_index   : first_entry()で使うためのkey
+	// key_for_ttentry : TTEntryに格納するためのkey
+	TTEntry* probe(const Key key_for_index, const TTEntry::KEY_TYPE key_for_ttentry , bool& found) const;
+	
+	// read_probe()の内部実装用
+	// key_for_index   : first_entry()で使うためのkey
+	// key_for_ttentry : TTEntryに格納するためのkey
+	TTEntry* read_probe(const Key key_for_index, const TTEntry::KEY_TYPE key_for_ttentry , bool& found) const;
+
 };
 
 // global object。探索部からこのinstanceを参照する。

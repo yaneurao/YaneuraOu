@@ -33,6 +33,7 @@ struct alignas(16) Key128
 	};
 
 	Key128() {}
+	Key128(const Key& k) { _u64[0]= k; _u64[1] = 0; }
 	Key128(const Key128& bb) { _mm_store_si128(&this->m, bb.m); }
 	Key128& operator = (const Key128& rhs) { _mm_store_si128(&this->m, rhs.m); return *this; }
 
@@ -55,7 +56,6 @@ struct alignas(16) Key128
 
 	Key128 operator + (const Key128& rhs) const { return Key128(*this) += rhs; }
 	Key128 operator ^ (const Key128& rhs) const { return Key128(*this) ^= rhs; }
-
 };
 
 // std::unorded_map<Key128,string>みたいなのを使うときにoperator==とhash化が必要。
@@ -77,6 +77,7 @@ struct alignas(32) Key256
 	};
 
 	Key256() {}
+	Key256(const Key& k) { _u64[0]= k; _u64[1] = _u64[2] = _u64[3] = 0; }
 	Key256(const Key256& bb) { _mm256_store_si256(&this->m, bb.m); }
 	Key256& operator = (const Key256& rhs) { _mm256_store_si256(&this->m, rhs.m); return *this; }
 
