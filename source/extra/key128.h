@@ -81,8 +81,9 @@ struct alignas(16) Key128
 
 	Key128& operator *= (int64_t i) { p[0] *= i; p[1] *= i; return *this; }
 	bool operator == (const Key128& rhs) const {
-#if defined (USE_SSE2)
-		return (_mm_testc_si128(_mm_cmpeq_epi8(this->m, rhs.m), _mm_set1_epi8(static_cast<char>(0xffu))) ? true : false);
+#if defined (USE_SSE41)
+		__m128i neq = _mm_xor_si128(this->m, rhs.m);
+		return _mm_test_all_zeros(neq, neq) ? true : false;
 #else
 		return p[0]==rhs.p[0] && p[1]==rhs.p[1];
 #endif
