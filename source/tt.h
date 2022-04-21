@@ -42,8 +42,8 @@ struct TTEntry {
 	//   m    : ベストな指し手
 	// ※ KeyとしてKey(64 bit)以外に 128,256bitのhash keyにも対応。(やねうら王独自拡張)
 	void save(Key k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
-	void save(Key128 k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
-	void save(Key256 k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
+	void save(Key128& k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
+	void save(Key256& k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
 
 	// -- やねうら王独自拡張
 
@@ -139,16 +139,16 @@ public:
 	// 見つからなかったらfound == falseで、このとき置換表に書き戻すときに使うと良いTT_ENTRY*を返す。
 	// ※ KeyとしてKey(64 bit)以外に 128,256bitのhash keyにも対応。(やねうら王独自拡張)
 	TTEntry* probe(const Key key, bool& found) const;
-	TTEntry* probe(const Key128 key, bool& found) const;
-	TTEntry* probe(const Key256 key, bool& found) const;
+	TTEntry* probe(const Key128& key, bool& found) const;
+	TTEntry* probe(const Key256& key, bool& found) const;
 
 	// probe()の、置換表を一切書き換えないことが保証されている版。(やねうら王独自拡張)
 	// ConsiderationMode時のPVの出力時は置換表をprobe()したいが、hitしないときに空きTTEntryを作る挙動が嫌なので、
 	// こちらを用いる。
 	// ※ KeyとしてKey(64 bit)以外に 128,256bitのhash keyにも対応。(やねうら王独自拡張)
 	TTEntry* read_probe(const Key key, bool& found) const;
-	TTEntry* read_probe(const Key128 key, bool& found) const;
-	TTEntry* read_probe(const Key256 key, bool& found) const;
+	TTEntry* read_probe(const Key128& key, bool& found) const;
+	TTEntry* read_probe(const Key256& key, bool& found) const;
 
 	// 置換表の使用率を1000分率で返す。(USIプロトコルで統計情報として出力するのに使う)
 	int hashfull() const;
