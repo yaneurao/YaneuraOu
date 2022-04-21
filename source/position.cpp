@@ -212,7 +212,7 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 		{
 			// 盤面の(f,r)の駒を設定する
 			auto sq = f | r;
-			auto pc = Piece(idx + (promote ? u32(PIECE_PROMOTE) : 0));
+			auto pc = promote ? make_promoted_piece(Piece(idx)) : Piece(idx);
 			put_piece(sq, pc);
 
 #if defined (USE_EVAL_LIST)
@@ -801,7 +801,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 		// KING打ちのような値であることはないものとする。
 
 		// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
-		if (moved_piece_after(m) != Piece(pr + (us == WHITE ? u32(PIECE_WHITE) : 0) ))
+		if (moved_piece_after(m) != make_piece(us, pr))
 			return false;
 
 		ASSERT_LV3(PAWN <= pr && pr < KING);
@@ -865,13 +865,11 @@ bool Position::pseudo_legal_s(const Move m) const {
 			// --- 成る指し手
 
 			// 成れない駒の成りではないことを確かめないといけない。
-			static_assert(GOLD == 7, "GOLD must be 7.");
-			if (pt >= GOLD)
+			if (is_promoted_piece(pc))
 				return false;
 
 			// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
-			// pcが成っていない駒であることは上で確認してあるので、"+ PIECE_PROMOTE"でも十分。
-			if (moved_piece_after(m) != Piece(pc + PIECE_PROMOTE))
+			if (moved_piece_after(m) != make_promoted_piece(pc))
 				return false;
 		}
 		else {
@@ -1028,20 +1026,29 @@ Move Position::to_move(Move16 m16) const
 	if (!is_ok(m))
 		return m;
 
-	return
-		Move(u16(m) +
-			((is_drop(m) ? (Piece)(make_piece(sideToMove, move_dropped_piece(m)))
-			: is_promote(m) ? (Piece)(piece_on(from_sq(m)) | PIECE_PROMOTE) : piece_on(from_sq(m))) << 16)
-		// "+ PIECE_PROMOTE" だと、玉や成り駒に対して 8足しておかしくなってしまう。(置換表の指し手をpseudo-legalか
-		// 確認せずに置換表の値で枝刈りして、そのあとupdate_statsを行う時に配列境界を超えかねない)
-		// " | PIECE_PROMOTE"が正しいコード。 WCSC29で平岡さんから教えてもらった。[2019/05/04]
+	if (is_drop(m))
+		return Move(u16(m) + ((u32)make_piece(side_to_move(), move_dropped_piece(m)) << 16));
 		// また、move_dropped_piece()はおかしい値になっていないことは保証されている(置換表に自分で書き出した値のため)
-		// これにより、配列境界の外側に書き出してしまうことはない。
+		// これにより、配列境界の外側に書き出してしまう心配はない。
 
-		// m==MOVE_NONE(0)の場合、piece_on(SQ_ZERO)の駒が上位16bitに格納されると少し気持ち悪いが、
-		// 移動元と移動先が SQ_11なので実質的に無害。
-	);
+	// 移動元にある駒が、現在の手番の駒であることを保証する。
+	// 現在の手番の駒でないか、駒がなければMOVE_NONEを返す。
+	Piece moved_piece = piece_on(from_sq(m));
+	if (color_of(moved_piece) != side_to_move() || moved_piece == NO_PIECE)
+		return MOVE_NONE;
 
+	// promoteで成ろうとしている駒は成れる駒であることを保証する。
+	if (is_promote(m))
+	{
+		// 成駒や金・玉であるなら、これ以上成れない。これは非合法手である。
+		if (is_promoted_piece(moved_piece))
+			return MOVE_NONE;
+
+		return Move(u16(m) + ((u32)(make_promoted_piece(moved_piece) << 16)));
+	}
+
+	// 通常の移動
+	return Move(u16(m) + ((u32)moved_piece << 16));
 }
 
 
@@ -1443,15 +1450,7 @@ HASH_KEY Position::long_key_after(Move m) const {
 
 		// 移動先に駒の配置
 		// もし成る指し手であるなら、成った後の駒を配置する。
-		Piece moved_after_pc;
-
-		if (is_promote(m))
-		{
-			moved_after_pc = moved_pc + PIECE_PROMOTE;
-		}
-		else {
-			moved_after_pc = moved_pc;
-		}
+		Piece moved_after_pc = is_promote(m) ? make_promoted_piece(moved_pc) : moved_pc;
 
 		// 移動先の升にある駒
 		Piece to_pc = piece_on(to);
@@ -2362,16 +2361,23 @@ void Position::UnitTest(Test::UnitTester& tester)
 
 		// 22の角を88に不成で移動。(非合法手) 移動後の駒は後手の角。
 		m16 = make_move16(SQ_22, SQ_88);
-		tester.test("make_move16(SQ_22, SQ_88)", pos.to_move(m16) == (Move)((u32)m16.to_u16() + (u32)(W_BISHOP << 16)));
+		tester.test("make_move16(SQ_22, SQ_88)", pos.to_move(m16) == MOVE_NONE);
 
 		// 22の角を88に成る移動。(非合法手) 移動後の駒は後手の馬。
 		m16 = make_move_promote16(SQ_22, SQ_88);
-		tester.test("make_move_promote16(SQ_22, SQ_88)", pos.to_move(m16) == (Move)((u32)m16.to_u16() + (u32)(W_HORSE << 16)));
+		tester.test("make_move_promote16(SQ_22, SQ_88)", pos.to_move(m16) == MOVE_NONE);
+
+		matsuri_init();
+		m16 = make_move_drop16(GOLD,SQ_55);
+		tester.test("make_move_drop(SQ_55,GOLD)", pos.to_move(m16) == (Move)((u32)m16.to_u16() + (u32)(W_GOLD << 16)));
 	}
 
 	// pseudo_legal() , legal() のテスト
 	{
 		auto section2 = tester.section("legality");
+
+		// 平手初期化
+		hirate_init();
 
 		// 77の歩を76に移動。(合法手)
 		// これはpseudo_legalではある。

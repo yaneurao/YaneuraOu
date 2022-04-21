@@ -215,6 +215,10 @@ namespace {
 	//
 	// この " 3 + "のところ、パラメーター調整をしたほうが良いかも知れないが、
 	// こんな細かいところいじらないほうがよさげ。(他のところでバランスを取ることにする)
+	// 
+	// 注意 : この関数は 0以下を返してはならない。例えば0を返すと、moveCount == 0でmoveCountPruningが trueになり、
+	//   MovePicker::move_next(true)で呼び出されることとなり、QUIETの指し手が生成されずに、whileループを抜けて
+	//   moveCount == 0 かつ、ループを抜けたので合法手がない判定になり、詰みの局面だと錯覚する。
 	constexpr int futility_move_count(bool improving, int depth) {
 		return (3 + depth * depth) / (2 - improving);
 	}
@@ -1500,6 +1504,10 @@ namespace {
 			  : ss->ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
 		ASSERT_LV3(pos.legal_promote(ttMove));
 
+		// pos.to_move()でlegalityのcheckに引っかかったパターンなので置換表にhitしなかったことにする。
+		if (tte->move().to_u16() && !ttMove)
+			ss->ttHit = false;
+
 		// 置換表の指し手がcaptureであるか。
 		// 置換表の指し手がcaptureなら高い確率でこの指し手がベストなので、他の指し手を
 		// そんなに読まなくても大丈夫。なので、このnodeのすべての指し手のreductionを増やす。
@@ -1545,11 +1553,11 @@ namespace {
 			// cf. https://yaneuraou.yaneu.com/2021/08/17/about-the-yaneuraou-bug-that-appeared-in-the-long-match/
 
 			// ttMoveがMOVE_WINであることはありうるので注意が必要。
-			// is_ok(m)==falseの時、Position::to_move(m)がmをそのまま帰すことは保証されており、
-			// また、pos.pseudo_legal(MOVE_WIN)はfalseが返ることが保証されているので、
-			// pseudo_legal(MOVE_WIN)==falseになる。この場合、statのupdateは行わない。
+			// is_ok(m)==falseの時、Position::to_move(m)がmをそのまま帰すことは保証されている。
+			// そのためttMoveがMOVE_WINでありうる。これはstatのupdateをされると困るのでis_ok()で弾く必要がある。
+			// is_ok()は、ttMove == MOVE_NONEの時はfalseなのでこの条件を省略できる。
 
-			if (ttMove && pos.pseudo_legal(ttMove))
+			if (/* ttMove && */ is_ok(ttMove))
 			{
 				if (ttValue >= beta)
 				{
@@ -2124,6 +2132,7 @@ namespace {
 		//  MovePickerが返す指し手はpseudo-legalであることは保証されている。
 		// ※　do_move()までにはlegalかどうかの判定が必要。
 
+		// moveCountPruningがtrueの時はnext_move()はQUIETの指し手を返さないので注意。
 		while ((move = mp.next_move(moveCountPruning)) != MOVE_NONE)
 		{
 			ASSERT_LV3(pos.pseudo_legal(move) && pos.legal_promote(move));
@@ -2987,6 +2996,10 @@ namespace {
 		pvHit   = ss->ttHit && tte->is_pv();
 
 		ASSERT_LV3(pos.legal_promote(ttMove));
+
+		// pos.to_move()でlegalityのcheckに引っかかったパターンなので置換表にhitしなかったことにする。
+		if (tte->move().to_u16() && !ttMove)
+			ss->ttHit = false;
 
 		// nonPVでは置換表の指し手で枝刈りする
 		// PVでは置換表の指し手では枝刈りしない(前回evaluateした値は使える)

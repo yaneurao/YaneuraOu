@@ -513,6 +513,13 @@ constexpr Color color_of(Piece pc)
 // 後手の歩→先手の歩のように、後手という属性を取り払った(先後の区別をなくした)駒種を返す
 constexpr PieceType type_of(Piece pc) { return (PieceType)(pc & 15); }
 
+// 駒に対して成れない駒かどうかを判定する。(玉、金に対してもtrueが返る)
+constexpr bool is_promoted_piece(Piece pc)
+{
+	static_assert(GOLD == 7, "GOLD must be 7.");
+	return (type_of(pc) >= GOLD) ? true : false;
+}
+
 // 成ってない駒を返す。後手という属性も消去する。
 // 例) 成銀→銀 , 後手の馬→先手の角
 // ただし、pc == KINGでの呼び出しはNO_PIECEが返るものとする。
@@ -525,6 +532,9 @@ constexpr Piece raw_of(Piece pc) { return (Piece)(pc & ~8); }
 
 // pcとして先手の駒を渡し、cが後手なら後手の駒を返す。cが先手なら先手の駒のまま。pcとしてNO_PIECEは渡してはならない。
 constexpr Piece make_piece(Color c, PieceType pt) { /*ASSERT_LV3(color_of(pt) == BLACK && pt!=NO_PIECE); */ return (Piece)((c << 4) + pt); }
+
+// 成り駒を返す。与えられたpcが成り駒の場合はそのまま返す。
+constexpr Piece make_promoted_piece(Piece pc) { return (Piece)(pc | PIECE_PROMOTE); }
 
 // pcが遠方駒であるかを判定する。LANCE,BISHOP(5),ROOK(6),HORSE(13),DRAGON(14)
 constexpr bool has_long_effect(Piece pc) { return (type_of(pc) == LANCE) || (((pc+1) & 6)==6); }
