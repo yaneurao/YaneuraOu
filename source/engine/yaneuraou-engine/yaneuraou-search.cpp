@@ -3123,6 +3123,11 @@ namespace {
 						(ss - 1)->currentMove != MOVE_NULL ? evaluate(pos)
 														   : -(ss - 1)->staticEval;
 
+					// 1手前の局面(相手の手番)において 評価値が 500だとしたら、
+					// 自分の手番側から見ると -500 なので、 -(ss - 1)->staticEval はそういう意味。
+					// ただ、1手パスしているのに同じ評価値のままなのかという問題はあるが、そこが下限で、
+					// そこ以上の指し手があるはずという意味で、bestValueの初期値としてはそうなっている。
+
 				} else {
 
 					// 評価関数の実行時間・精度によっては、こう書いたほうがいいかもという書き方。
@@ -3361,23 +3366,22 @@ namespace {
 
 		// 【計測資料 26.】 qsearchで詰みのときに置換表に保存する/しない。
 
-#if 0
-		// Stockfishのコード。
-
-		// チェスでは王手がかかっていて、合法手がない時に詰みだが、
-		// 将棋では、合法手がなければ詰みなので ss->inCheckの条件は不要。
-		// また合法手が1手でもあればbestValue == -VALUE_INFINITEであることは、
-		// whileループのなかで保証されている。
+		// チェスでは王手されていて、合法手がない時に詰みだが、将棋では、合法手がなければ詰みなので ss->inCheckの条件は不要かと思ったら、
+		// qsearch()で王手されていない時は、captures(駒を捕獲する指し手)とchecks(王手の指し手)の指し手しか生成していないから、
+		// moveCount==0だから詰みとは限らない。
 		// 
-		// ※　ただし、合法手が0手でも-VALUE_INFINITEではないケースがあるので、
-		// この判定の仕方は、良くないと思う。
+		// 王手されている局面なら、evasion(王手回避手)を生成するから、moveCount==0なら詰みと確定する。
+		// しかし置換表にhitした時にはbestValueの初期値は -VALUE_INFINITEではないので、そう考えると
+		// ここは(Stockfishのコードのように)bestValue == -VALUE_INFINITEとするのではなくmoveCount == 0としたほうが良いように思うのだが…。
+		// →　置換表にhitしたのに枝刈りがなされていない時点で有効手があるわけで詰みではないことは言えるのか…。
+		// cf. https://yaneuraou.yaneu.com/2022/04/22/yaneuraous-qsearch-is-buggy/
 
 		//		if ( ss->inCheck && bestValue == -VALUE_INFINITE)
-#endif
-
-		// 将棋ではこう書くのが良いと思う。
-		// ※　bestValue == -VALUE_INFINITEの時は、moveCount == 0が保証されている。(逆は保証されていない)
-		if (moveCount == 0)
+		// ↑Stockfishのコード。↓こう変更したほうが良いように思うが計測してみると大差ない。
+		// Stockfishも12年前は↑ではなく↓この書き方だったようだ。moveCountが除去された時に変更されてしまったようだ。
+		//  cf. https://github.com/official-stockfish/Stockfish/commit/452f0d16966e0ec48385442362c94a810feaacd9
+		// moveCountが再度導入されたからには、Stockfishもここは、↓の書き方に戻したほうが良いと思う。
+		if (ss->inCheck && moveCount == 0)
 		{
 			// 合法手は存在しないはずだから指し手生成しても速攻終わるはず。
 			ASSERT_LV5(!MoveList<LEGAL>(pos).size());
