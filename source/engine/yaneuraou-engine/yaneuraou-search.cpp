@@ -1987,7 +1987,8 @@ namespace {
 
 				if (move != excludedMove && pos.legal(move))
 				{
-					ASSERT_LV3(pos.capture(move) /* || promotion_type(move) == QUEEN */);
+					// 現状、prob cutでは 歩の成りも含まれる。
+					ASSERT_LV3(pos.capture_or_pawn_promotion(move) /* || promotion_type(move) == QUEEN */);
 
 					const bool captureOrPromotion = true;
 
@@ -2390,11 +2391,27 @@ namespace {
 				//  注意 : 王手延長に関して、Stockfishのコード、ここに持ってくる時には気をつけること！
 				// →　将棋では王手はわりと続くのでそのまま持ってくるとやりすぎの可能性が高い。
 
+#if 1
 				// Check extensions (~1 Elo)
+
+				// ※ Stockfish 14では depth > 6 だったのが、Stockfish 15でdepth > 9に変更されたが				
+				//  それでもまだやりすぎの感はある。
+
 					else if (givesCheck
 						&& depth > 9
 						&& abs(ss->staticEval) > 71)
 						extension = 1;
+#endif
+
+#if 0
+				// やねうら王独自コード
+				// →　王手延長は、開き王手と駒損しない王手に限定する。
+				else if (givesCheck
+					&& depth > 6
+					&& abs(ss->staticEval) > 71
+					&& (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move)))
+					extension = 1;
+#endif
 
 				// Quiet ttMove extensions (~0 Elo)
 				// PV nodeで quietなttは良い指し手のはずだから延長するというもの。
