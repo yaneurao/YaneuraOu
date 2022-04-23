@@ -2229,6 +2229,18 @@ namespace {
 				if (   capture
 					|| givesCheck)
 				{
+
+#if 0
+					// Stockfishでは削除された枝刈り。これはあったほうが良いかも。
+					// →　計測したら誤差だったのでコメントアウト
+					// 
+					// Capture history based pruning when the move doesn't give check
+					if (  !givesCheck
+						&& lmrDepth < 1
+						&& captureHistory[to_sq(move)][movedPiece][type_of(pos.piece_on(to_sq(move)))] < 0)
+						continue;
+#endif
+
 					// Futility pruning for captures (~0 Elo)
 					if (   !pos.empty(to_sq(move))
 						&& !givesCheck
