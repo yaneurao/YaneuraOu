@@ -1331,11 +1331,10 @@ namespace {
 		// moveCount			: 調べた指し手の数(合法手に限る)
 		// captureCount			: 調べた駒を捕獲する指し手の数(capturesSearched[]用のカウンター)
 		// quietCount			: 調べた駒を捕獲しない指し手の数(quietsSearched[]用のカウンター)
-		// bestMoveCount		: このnodeにおいて、αの値を更新した回数。
 		// improvement			: improvingフラグのもうちょっと細かい版(int型なので)  improving = improvement > 0
 		// complexity           : 局面の複雑性。
 		// →この計算に psq_score()が必要なのだが、これ将棋で実装してないのでcomplexityの計算しないことにする。
-		int moveCount, captureCount, quietCount, bestMoveCount, improvement /*, complexity*/;
+		int moveCount, captureCount, quietCount, improvement /*, complexity*/;
 
 		// -----------------------
 		// Step 1. Initialize node
@@ -1347,7 +1346,7 @@ namespace {
 		ss->inCheck		   = pos.checkers();
 		priorCapture	   = pos.captured_piece();
 		Color us		   = pos.side_to_move();
-		moveCount		   = bestMoveCount = captureCount = quietCount = ss->moveCount = 0;
+		moveCount		   = captureCount = quietCount = ss->moveCount = 0;
 		bestValue		   = -VALUE_INFINITE;
 		//maxValue	       = VALUE_INFINITE;
 		// →　将棋ではtable probe使っていないのでmaxValue関係ない。
@@ -2395,6 +2394,9 @@ namespace {
 					else if (ttValue >= beta)
 						extension = -2;
 
+					// If the eval of ttMove is less than alpha and value, we reduce it (negative extension)
+					else if (ttValue <= alpha && ttValue <= value)
+						extension = -1;
 				}
 
 				// Check extensions
@@ -2503,14 +2505,6 @@ namespace {
 				// Reduction量
 				Depth r = reduction(improving, depth, moveCount, delta, thisThread->rootDelta);
 
-				// Decrease reduction at some PvNodes (~2 Elo)
-				// PvNodeでのreductionを減らす。
-				// bestMoveCountはこのnodeでαを更新した回数。
-				// これが少ないうちは良い指し手が見つかっていないわけだからreductionすべきではない。
-				if (   PvNode
-					&& bestMoveCount <= 3)
-					r--;
-
 				// Decrease reduction if position is or has been on the PV
 				// and node is not likely to fail low. (~3 Elo)
 				// この局面がPV上にあり、fail lowしそうであるならreductionを減らす
@@ -2556,14 +2550,10 @@ namespace {
 				if (PvNode && !ss->inCheck && abs(ss->staticEval - bestValue) > 250)
 					r--;
 
-#if 0
-				// Increase depth based reduction if PvNode
+				// Decrease reduction for PvNodes based on depth
 				if (PvNode)
-					r -= 15 / ( 3 + depth );
+					r -= 1 + 15 / ( 3 + depth );
 
-				// → これ導入したのだが強くならない。[2022/04/19]
-				// cf. Decrease LMR at PV nodes with low depth. : https://github.com/official-stockfish/Stockfish/commit/df2f7e75276cc93a8cb8c70057903ab0edbd92bd
-#endif
 
 				// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
 				// contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？
@@ -2761,9 +2751,6 @@ namespace {
 					if (PvNode && value < beta)
 					{
 						alpha = value;
-
-						// alphaを更新した回数をインクリメント
-						bestMoveCount++;
 
 						// PvNodeでalpha値を更新した。
 						// このとき相手からの詰みがあるかどうかを調べるなどしたほうが良いなら
