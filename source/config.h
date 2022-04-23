@@ -194,9 +194,13 @@
 //#define HASH_KEY_BITS 64
 
 // 置換表に関する設定
-// TTClusterのなかのTTEntryの数。
-// Stockfishは3。これを2にすると、置換表効率は悪くなるが、hashの格納bit数が増えるので
+// TTClusterのなかのTTEntryの数。2,3,4,6,8,16,32などが選べる。
+// Stockfishは3。
+// これを2にすると、置換表効率は悪くなるが、hashの格納bit数が増えるので
 // hash衝突が起きる確率自体は下がるため、hash衝突由来のバグが出にくくなる。
+// cf. https://yaneuraou.yaneu.com/2022/04/23/yaneuraou-v710-128-bit-edition-released/
+// これを4にすると、1つのTTEntryが64byteになる。いまどきのPCならCPUのcache line sizeが64byteであるため、
+// 速度低下はほぼないはず。
 //#define TT_CLUSTER_SIZE 3
 
 

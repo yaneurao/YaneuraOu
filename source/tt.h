@@ -17,6 +17,9 @@ struct Key256;
 /// 本エントリーは10bytesに収まるようになっている。3つのエントリーを並べたときに32bytesに収まるので
 /// CPUのcache lineに一発で載るというミラクル。
 ///
+/// ※ cache line sizeは、IntelだとPentium4やPentiumMからでPentiumⅢ(3)までは32byte。
+///    そこ以降64byte。AMDだとK8のときには既に64byte。
+///
 /// key        16 bit : hash keyの下位16bit(bit0は除くのでbit16..1)
 /// depth       8 bit : 格納されているvalue値の探索深さ
 /// move       16 bit : このnodeの最善手(指し手16bit ≒ Move16 , Moveの上位16bitは無視される)
@@ -50,7 +53,7 @@ struct TTEntry {
 	// やねうら王では、TTClusterSizeを変更できて、これが2の時は、TTEntryに格納するhash keyは64bit。(Stockfishのように)3の時は16bit。
 #if TT_CLUSTER_SIZE == 3
 	typedef uint16_t KEY_TYPE;
-#elif TT_CLUSTER_SIZE == 2
+#else // TT_CLUSTER_SIZEが2,4,6,8の時は64bit。5,7は選択する意味がないと思うので考えない。
 	typedef uint64_t KEY_TYPE;
 #endif
 
@@ -93,7 +96,11 @@ private:
 struct TranspositionTable {
 
 	// 1クラスターにおけるTTEntryの数
-	// TTEntry 10bytes×3つ + 2(padding) = 32bytes
+	// TT_CLUSTER_SIZE == 2のとき、TTEntry 10bytes×3つ + 2(padding) =  32bytes
+	// TT_CLUSTER_SIZE == 3のとき、TTEntry 16bytes×2つ + 0(padding) =  32bytes
+	// TT_CLUSTER_SIZE == 4のとき、TTEntry 16bytes×4つ + 0(padding) =  64bytes
+	// TT_CLUSTER_SIZE == 6のとき、TTEntry 16bytes×6つ + 0(padding) =  96bytes
+	// TT_CLUSTER_SIZE == 8のとき、TTEntry 16bytes×8つ + 0(padding) = 128bytes
 	static constexpr int ClusterSize = TT_CLUSTER_SIZE;
 
 	struct Cluster {
@@ -103,7 +110,7 @@ struct TranspositionTable {
 #endif
 	};
 
-	static_assert(sizeof(Cluster) == 32, "Unexpected Cluster size");
+	static_assert((sizeof(Cluster) % 32) == 0, "Unexpected Cluster size");
 
 	// --- Constants used to refresh the hash table periodically
 

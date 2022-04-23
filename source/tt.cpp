@@ -110,7 +110,7 @@ void TranspositionTable::resize(size_t mbSize) {
 	// cf. Explicitly zero TT upon resize. : https://github.com/official-stockfish/Stockfish/commit/2ba47416cbdd5db2c7c79257072cd8675b61721f
 
 	// Large Pageを確保する。ランダムメモリアクセスが5%程度速くなる。
-	table = static_cast<Cluster*>(tt_memory.alloc(clusterCount * sizeof(Cluster),32));
+	table = static_cast<Cluster*>(tt_memory.alloc(clusterCount * sizeof(Cluster), sizeof(Cluster) ));
 
 	// clear();
 
