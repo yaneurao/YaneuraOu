@@ -36,7 +36,7 @@ struct alignas(16) Key128
 	Key128() {}
 
 	// kを下位64bitに格納する(上位64bitは0)
-	Key128(const Key& k) { set(k,0); }
+	Key128(const Key& k) { set(k, 0); }
 
 #if defined (USE_SSE2)
 	Key128(const Key128& bb) { _mm_store_si128(&this->m, bb.m); }
@@ -128,7 +128,7 @@ struct alignas(32) Key256
 	// 下位64bitから順にk0, k1, k2, k3に設定する。
 	void set(Key k0, Key k1, Key k2, Key k3) {
 #if defined(USE_AVX2)
-	m = _mm256_set_epi64x(k3,k2,k1,k0);
+	m = _mm256_set_epi64x(k3, k2, k1, k0);
 #else
 	p[0] = k0; p[1] = k1; p[2] = k2; p[3] = k3;
 #endif

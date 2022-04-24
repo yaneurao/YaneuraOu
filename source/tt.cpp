@@ -236,7 +236,7 @@ TTEntry* TranspositionTable::read_probe(const Key key_for_index, const TTEntry::
 	for (int i = 0; i < ClusterSize; ++i)
 	{
 		if (tte[i].key == key_for_ttentry || !tte[i].depth8)
-				return found = (bool)tte[i].depth8, &tte[i];
+			return found = (bool)tte[i].depth8, &tte[i];
 	}
 	return found = false, nullptr;
 }
@@ -250,13 +250,13 @@ TTEntry* TranspositionTable::read_probe(const Key key_for_index, const TTEntry::
 // TTClusterSizeとして3を選択した場合、TTEntryに格納されるhash keyは16bitになる。
 // → config.h で TTClusterSize を設定する。
 
-void TTEntry::save(Key    k, Value v, bool pv , Bound b, Depth d, Move m, Value ev) { save_((TTEntry::KEY_TYPE)(k >> 1),v, pv, b, d, m, ev);}
+void TTEntry::save(Key     k, Value v, bool pv , Bound b, Depth d, Move m, Value ev) { save_((TTEntry::KEY_TYPE)(k >> 1)          ,v, pv, b, d, m, ev);}
 void TTEntry::save(Key128& k, Value v, bool pv , Bound b, Depth d, Move m, Value ev) { save_((TTEntry::KEY_TYPE) k.extract64<1>() ,v, pv, b, d, m, ev);}
 void TTEntry::save(Key256& k, Value v, bool pv , Bound b, Depth d, Move m, Value ev) { save_((TTEntry::KEY_TYPE) k.extract64<1>() ,v, pv, b, d, m, ev);}
-TTEntry* TranspositionTable::probe     (const Key    key, bool& found) const { return      probe(key     ,(TTEntry::KEY_TYPE)(key >> 1), found); }
+TTEntry* TranspositionTable::probe     (const Key     key, bool& found) const { return      probe(key     ,(TTEntry::KEY_TYPE)(key >> 1), found); }
 TTEntry* TranspositionTable::probe     (const Key128& key, bool& found) const { return      probe(key.extract64<0>(),(TTEntry::KEY_TYPE)(key.extract64<1>()), found); }
 TTEntry* TranspositionTable::probe     (const Key256& key, bool& found) const { return      probe(key.extract64<0>(),(TTEntry::KEY_TYPE)(key.extract64<1>()), found); }
-TTEntry* TranspositionTable::read_probe(const Key    key, bool& found) const { return read_probe(key     ,(TTEntry::KEY_TYPE)(key >> 1), found); }
+TTEntry* TranspositionTable::read_probe(const Key     key, bool& found) const { return read_probe(key               ,(TTEntry::KEY_TYPE)(key >> 1          ), found); }
 TTEntry* TranspositionTable::read_probe(const Key128& key, bool& found) const { return read_probe(key.extract64<0>(),(TTEntry::KEY_TYPE)(key.extract64<1>()), found); }
 TTEntry* TranspositionTable::read_probe(const Key256& key, bool& found) const { return read_probe(key.extract64<0>(),(TTEntry::KEY_TYPE)(key.extract64<1>()), found); }
 

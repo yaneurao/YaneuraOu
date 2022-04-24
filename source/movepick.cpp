@@ -445,11 +445,11 @@ top:
 #if 0
 			partial_super_sort(cur, endMoves , -3000 * depth);
 #endif
-			
+
 #if 0
 			// depth大きくて指し手の数も多い時だけsuper sortを使うとどう？
 			if (depth >= 10 && endMoves - cur >= 64)
-			partial_super_sort(cur, endMoves , -3000 * depth);
+				partial_super_sort(cur, endMoves , -3000 * depth);
 			else
 				partial_insertion_sort(cur, endMoves, -3000 * depth);
 #endif

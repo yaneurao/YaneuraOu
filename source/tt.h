@@ -30,12 +30,12 @@ struct Key256;
 /// eval value 16 bit : このnodeでのevaluate()の返し値
 struct TTEntry {
 
-	Move16 move() const { return Move16(move16); }
-	Value value() const { return (Value)value16; }
-	Value eval() const { return (Value)eval16; }
-	Depth depth() const { return (Depth)depth8 + DEPTH_OFFSET; }
-	bool is_pv() const { return (bool)(genBound8 & 0x4); }
-	Bound bound() const { return (Bound)(genBound8 & 0x3); }
+	Move16 move()  const { return Move16(move16); }
+	Value  value() const { return (Value)value16; }
+	Value  eval()  const { return (Value)eval16;  }
+	Depth  depth() const { return (Depth)depth8 + DEPTH_OFFSET; }
+	bool   is_pv() const { return (bool )(genBound8 & 0x4); }
+	Bound  bound() const { return (Bound)(genBound8 & 0x3); }
 
 	// 置換表のエントリーに対して与えられたデータを保存する。上書き動作
 	//   v    : 探索のスコア
@@ -44,7 +44,7 @@ struct TTEntry {
 	//   d    : その時の探索深さ
 	//   m    : ベストな指し手
 	// ※ KeyとしてKey(64 bit)以外に 128,256bitのhash keyにも対応。(やねうら王独自拡張)
-	void save(Key k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
+	void save(Key     k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
 	void save(Key128& k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
 	void save(Key256& k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
 
@@ -145,7 +145,7 @@ public:
 	// 見つかったならfound == trueにしてそのTT_ENTRY*を返す。
 	// 見つからなかったらfound == falseで、このとき置換表に書き戻すときに使うと良いTT_ENTRY*を返す。
 	// ※ KeyとしてKey(64 bit)以外に 128,256bitのhash keyにも対応。(やねうら王独自拡張)
-	TTEntry* probe(const Key key, bool& found) const;
+	TTEntry* probe(const Key     key, bool& found) const;
 	TTEntry* probe(const Key128& key, bool& found) const;
 	TTEntry* probe(const Key256& key, bool& found) const;
 
@@ -153,7 +153,7 @@ public:
 	// ConsiderationMode時のPVの出力時は置換表をprobe()したいが、hitしないときに空きTTEntryを作る挙動が嫌なので、
 	// こちらを用いる。
 	// ※ KeyとしてKey(64 bit)以外に 128,256bitのhash keyにも対応。(やねうら王独自拡張)
-	TTEntry* read_probe(const Key key, bool& found) const;
+	TTEntry* read_probe(const Key     key, bool& found) const;
 	TTEntry* read_probe(const Key128& key, bool& found) const;
 	TTEntry* read_probe(const Key256& key, bool& found) const;
 
@@ -238,12 +238,12 @@ private:
 	// probe()の内部実装用。
 	// key_for_index   : first_entry()で使うためのkey
 	// key_for_ttentry : TTEntryに格納するためのkey
-	TTEntry* probe(const Key key_for_index, const TTEntry::KEY_TYPE key_for_ttentry , bool& found) const;
+	TTEntry* probe     (const Key key_for_index, const TTEntry::KEY_TYPE key_for_ttentry, bool& found) const;
 	
 	// read_probe()の内部実装用
 	// key_for_index   : first_entry()で使うためのkey
 	// key_for_ttentry : TTEntryに格納するためのkey
-	TTEntry* read_probe(const Key key_for_index, const TTEntry::KEY_TYPE key_for_ttentry , bool& found) const;
+	TTEntry* read_probe(const Key key_for_index, const TTEntry::KEY_TYPE key_for_ttentry, bool& found) const;
 
 };
 

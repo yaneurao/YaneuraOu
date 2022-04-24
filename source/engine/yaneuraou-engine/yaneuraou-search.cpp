@@ -2399,33 +2399,21 @@ namespace {
 						extension = -1;
 				}
 
-				// Check extensions
+				// Check extensions (~1 Elo)
 				// 王手延長
 
 				//  注意 : 王手延長に関して、Stockfishのコード、ここに持ってくる時には気をつけること！
 				// →　将棋では王手はわりと続くのでそのまま持ってくるとやりすぎの可能性が高い。
-
-#if 1
-				// Check extensions (~1 Elo)
-
+				// 
 				// ※ Stockfish 14では depth > 6 だったのが、Stockfish 15でdepth > 9に変更されたが				
-				//  それでもまだやりすぎの感はある。
+				//  それでもまだやりすぎの感はある。やねうら王では、延長の条件をさらに絞る。
 
-					else if (givesCheck
-						&& depth > 9
-						&& abs(ss->staticEval) > 71)
-						extension = 1;
-#endif
-
-#if 0
-				// やねうら王独自コード
-				// →　王手延長は、開き王手と駒損しない王手に限定する。
 				else if (givesCheck
-					&& depth > 6
+					&& depth > 9
 					&& abs(ss->staticEval) > 71
-					&& (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move)))
+					// ここもっと絞るべきか？
+					)
 					extension = 1;
-#endif
 
 				// Quiet ttMove extensions (~0 Elo)
 				// PV nodeで quietなttは良い指し手のはずだから延長するというもの。
@@ -3375,7 +3363,7 @@ namespace {
 		// →　置換表にhitしたのに枝刈りがなされていない時点で有効手があるわけで詰みではないことは言えるのか…。
 		// cf. https://yaneuraou.yaneu.com/2022/04/22/yaneuraous-qsearch-is-buggy/
 
-		//		if ( ss->inCheck && bestValue == -VALUE_INFINITE)
+		// if (ss->inCheck && bestValue == -VALUE_INFINITE)
 		// ↑Stockfishのコード。↓こう変更したほうが良いように思うが計測してみると大差ない。
 		// Stockfishも12年前は↑ではなく↓この書き方だったようだ。moveCountが除去された時に変更されてしまったようだ。
 		//  cf. https://github.com/official-stockfish/Stockfish/commit/452f0d16966e0ec48385442362c94a810feaacd9

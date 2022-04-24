@@ -1459,13 +1459,13 @@ HASH_KEY Position::long_key_after(Move m) const {
 			PieceType pr = raw_type_of(to_pc);
 
 			// 捕獲された駒が盤上から消えるので局面のhash keyを更新する
-			k -= Zobrist::psq[to][to_pc];
-			h += Zobrist::hand[Us][pr];
+			k -= Zobrist::psq [to][to_pc];
+			h += Zobrist::hand[Us][pr   ];
 		}
 
 		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
-		k -= Zobrist::psq[from][moved_pc];
-		k += Zobrist::psq[to][moved_after_pc];
+		k -= Zobrist::psq[from][moved_pc      ];
+		k += Zobrist::psq[to  ][moved_after_pc];
 	}
 
 	return k + h;
