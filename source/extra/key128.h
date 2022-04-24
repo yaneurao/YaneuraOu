@@ -54,7 +54,8 @@ struct alignas(16) Key128
 #endif
 	}
 
-	operator Key() const { return extract64<0>(); }
+	// これ暗黙で変換するの便利だが、バグに気づかずに危ない意味があるな…。
+	//operator Key() const { return extract64<0>(); }
 
 	// _u64[n]を取り出す。SSE4の命令が使えるときはそれを使う。
 	// n == 0なら下位64bit、n == 1なら上位64bitが取り出される。
@@ -134,7 +135,7 @@ struct alignas(32) Key256
 #endif
 	}
 
-	operator Key() const { return extract64<0>(); }
+	//operator Key() const { return extract64<0>(); }
 
 	// p[n]を取り出す。SSE4の命令が使えるときはそれを使う。
 	template <int n>
@@ -182,5 +183,10 @@ struct std::hash<Key256> {
 		return (size_t)(k.extract64<0>());
 	}
 };
+
+// HASH_KEYをKeyに変換する。
+static Key hash_key_to_key(const Key     key) { return key               ; }
+static Key hash_key_to_key(const Key128& key) { return key.extract64<0>(); }
+static Key hash_key_to_key(const Key256& key) { return key.extract64<0>(); }
 
 #endif // _KEY128_H_

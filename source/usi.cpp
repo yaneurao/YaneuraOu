@@ -247,7 +247,7 @@ namespace USI
 						// ただし置換表を破壊されるとbenchコマンドの時にシングルスレッドなのに探索内容の同一性が保証されなくて
 						// 困るのでread_probe()を用いる。
 						bool found;
-						auto* tte = TT.read_probe(pos.state()->long_key(), found);
+						auto* tte = TT.read_probe(pos.state()->hash_key(), found);
 
 						// 置換表になかった
 						if (!found)

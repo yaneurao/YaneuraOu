@@ -253,12 +253,15 @@ TTEntry* TranspositionTable::read_probe(const Key key_for_index, const TTEntry::
 void TTEntry::save(Key     k, Value v, bool pv , Bound b, Depth d, Move m, Value ev) { save_((TTEntry::KEY_TYPE)(k >> 1)          ,v, pv, b, d, m, ev);}
 void TTEntry::save(Key128& k, Value v, bool pv , Bound b, Depth d, Move m, Value ev) { save_((TTEntry::KEY_TYPE) k.extract64<1>() ,v, pv, b, d, m, ev);}
 void TTEntry::save(Key256& k, Value v, bool pv , Bound b, Depth d, Move m, Value ev) { save_((TTEntry::KEY_TYPE) k.extract64<1>() ,v, pv, b, d, m, ev);}
-TTEntry* TranspositionTable::probe     (const Key     key, bool& found) const { return      probe(key     ,(TTEntry::KEY_TYPE)(key >> 1), found); }
-TTEntry* TranspositionTable::probe     (const Key128& key, bool& found) const { return      probe(key.extract64<0>(),(TTEntry::KEY_TYPE)(key.extract64<1>()), found); }
-TTEntry* TranspositionTable::probe     (const Key256& key, bool& found) const { return      probe(key.extract64<0>(),(TTEntry::KEY_TYPE)(key.extract64<1>()), found); }
-TTEntry* TranspositionTable::read_probe(const Key     key, bool& found) const { return read_probe(key               ,(TTEntry::KEY_TYPE)(key >> 1          ), found); }
-TTEntry* TranspositionTable::read_probe(const Key128& key, bool& found) const { return read_probe(key.extract64<0>(),(TTEntry::KEY_TYPE)(key.extract64<1>()), found); }
-TTEntry* TranspositionTable::read_probe(const Key256& key, bool& found) const { return read_probe(key.extract64<0>(),(TTEntry::KEY_TYPE)(key.extract64<1>()), found); }
+TTEntry* TranspositionTable::probe      (const Key     key, bool& found) const { return      probe(key               ,(TTEntry::KEY_TYPE)(key >> 1          ), found); }
+TTEntry* TranspositionTable::probe      (const Key128& key, bool& found) const { return      probe(key.extract64<0>(),(TTEntry::KEY_TYPE)(key.extract64<1>()), found); }
+TTEntry* TranspositionTable::probe      (const Key256& key, bool& found) const { return      probe(key.extract64<0>(),(TTEntry::KEY_TYPE)(key.extract64<1>()), found); }
+TTEntry* TranspositionTable::read_probe (const Key     key, bool& found) const { return read_probe(key               ,(TTEntry::KEY_TYPE)(key >> 1          ), found); }
+TTEntry* TranspositionTable::read_probe (const Key128& key, bool& found) const { return read_probe(key.extract64<0>(),(TTEntry::KEY_TYPE)(key.extract64<1>()), found); }
+TTEntry* TranspositionTable::read_probe (const Key256& key, bool& found) const { return read_probe(key.extract64<0>(),(TTEntry::KEY_TYPE)(key.extract64<1>()), found); }
+TTEntry* TranspositionTable::first_entry(const Key     key) const { return _first_entry(key               ); }
+TTEntry* TranspositionTable::first_entry(const Key128& key) const { return _first_entry(key.extract64<0>()); }
+TTEntry* TranspositionTable::first_entry(const Key256& key) const { return _first_entry(key.extract64<0>()); }
 
 int TranspositionTable::hashfull() const
 {

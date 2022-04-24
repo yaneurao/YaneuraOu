@@ -1158,7 +1158,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 		// なるべく早い段階でのTTに対するprefetch
 		// 駒打ちのときはこの時点でTT entryのアドレスが確定できる
-		const Key key = k + h;
+		const HASH_KEY key = k + h;
 		prefetch(TT.first_entry(key));
 #if defined(USE_EVAL_HASH)
 		Eval::prefetch_evalhash(key);
@@ -1323,7 +1323,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		k += Zobrist::psq[to][moved_after_pc];
 
 		// 駒打ちでないときはprefetchはこの時点まで延期される。
-		const Key key = k + h;
+		const HASH_KEY key = k + h;
 		prefetch(TT.first_entry(key));
 #if defined(USE_EVAL_HASH)
 		Eval::prefetch_evalhash(key);
@@ -1412,11 +1412,11 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 // ある指し手を指した後のhash keyを返す。
 Key Position::key_after(Move m) const {
-	return (Key)long_key_after(m);
+	return hash_key_to_key(hash_key_after(m));
 }
 
 // ある指し手を指した後のhash keyを返す。
-HASH_KEY Position::long_key_after(Move m) const {
+HASH_KEY Position::hash_key_after(Move m) const {
 
 	Color Us = side_to_move();
 	auto k = st->board_key_ ^ Zobrist::side;
@@ -1645,7 +1645,7 @@ void Position::do_null_move(StateInfo& newSt) {
 	// 　prefetchのスケジューラーが処理しきれない可能性が…。
 	// CPUによっては有効なので一応やっておく。
 
-	const Key key = st->key();
+	const HASH_KEY key = st->hash_key();
 	prefetch(TT.first_entry(key));
 
 	// これは、さっきアクセスしたところのはずなので意味がない。

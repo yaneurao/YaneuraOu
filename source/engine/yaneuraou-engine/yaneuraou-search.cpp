@@ -1479,7 +1479,7 @@ namespace {
 		// excludedMoveがある(singular extension時)は、異なるentryにアクセスするように。
 		// ただし、このときpos.key()のbit0を破壊することは許されないので、make_key()でbit0はクリアしておく。
 		// excludedMoveがMOVE_NONEの時はkeyを変更してはならない。
-		posKey = excludedMove == MOVE_NONE ? pos.long_key() : pos.long_key() ^ HASH_KEY(make_key(excludedMove));
+		posKey = excludedMove == MOVE_NONE ? pos.hash_key() : pos.hash_key() ^ HASH_KEY(make_key(excludedMove));
 
 		tte = TT.probe(posKey, ss->ttHit);
 
@@ -2993,7 +2993,7 @@ namespace {
 		// Transposition table lookup
 		// 置換表のlookup
 
-		posKey = pos.long_key();
+		posKey = pos.hash_key();
 		tte = TT.probe(posKey, ss->ttHit);
 		ttValue = ss->ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
 		ttMove  = ss->ttHit ? pos.to_move(tte->move()) : MOVE_NONE;

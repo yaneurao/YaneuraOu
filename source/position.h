@@ -50,15 +50,15 @@ struct StateInfo {
 	// board_key()は盤面のhash。hand_key()は手駒のhash。それぞれ加算したのがkey() 盤面のhash。
 	// board_key()のほうは、手番も込み。
 	
-	Key key()                     const { return long_key(); }
-	Key board_key()               const { return board_long_key(); }
-	Key hand_key()                const { return hand_long_key(); }
+	Key key()                     const { return hash_key_to_key(hash_key());       }
+	Key board_key()               const { return hash_key_to_key(board_hash_key()); }
+	Key hand_key()                const { return hash_key_to_key(hand_hash_key());  }
 
 	// HASH_KEY_BITSが128のときはKey128が返るhash key,256のときはKey256
 
-	HASH_KEY long_key()           const { return board_key_ + hand_key_; }
-	HASH_KEY board_long_key()     const { return board_key_; }
-	HASH_KEY hand_long_key()      const { return hand_key_; }
+	HASH_KEY hash_key()           const { return board_key_ + hand_key_; }
+	HASH_KEY board_hash_key()     const { return board_key_            ; }
+	HASH_KEY hand_hash_key()      const { return              hand_key_; }
 
 	// 現局面で手番側に対して王手をしている駒のbitboard
 	Bitboard checkersBB;
@@ -529,15 +529,15 @@ public:
 	// --- Accessing hash keys
 
 	// StateInfo::key()への簡易アクセス。
-	Key key() const { return st->key(); }
-	HASH_KEY long_key() const { return st->long_key(); }
+	Key           key() const { return st->key()     ; }
+	HASH_KEY hash_key() const { return st->hash_key(); }
 
 	// ある指し手を指した後のhash keyを返す。
 	// 将棋だとこの計算にそこそこ時間がかかるので、通常の探索部でprefetch用に
 	// これを計算するのはあまり得策ではないが、詰将棋ルーチンでは置換表を投機的に
 	// prefetchできるとずいぶん速くなるのでこの関数を用意しておく。
-	Key key_after(Move m) const;
-	HASH_KEY long_key_after(Move m) const;
+	Key      key_after     (Move m) const;
+	HASH_KEY hash_key_after(Move m) const;
 
 	// --- misc
 

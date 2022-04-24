@@ -175,7 +175,22 @@ public:
 
 	// keyを元にClusterのindexを求めて、その最初のTTEntry*を返す。
 	// ※　ここで渡されるkeyのbit 0は局面の手番フラグ(Position::side_to_move())であると仮定している。
-	TTEntry* first_entry(const Key key) const {
+	TTEntry* first_entry(const Key     key) const;
+	TTEntry* first_entry(const Key128& key) const;
+	TTEntry* first_entry(const Key256& key) const;
+
+#if defined(EVAL_LEARN)
+	// スレッド数が変更になった時にThread.set()から呼び出される。
+	// これに応じて、スレッドごとに保持しているTTを初期化する。
+	void init_tt_per_thread();
+#endif
+
+private:
+	friend struct TTEntry;
+
+	// keyを元にClusterのindexを求めて、その最初のTTEntry*を返す。内部実装用。
+	// ※　ここで渡されるkeyのbit 0は局面の手番フラグ(Position::side_to_move())であると仮定している。
+	TTEntry* _first_entry(const Key key) const {
 		// Stockfishのコード
 		// mul_hi64は、64bit * 64bitの掛け算をして下位64bitを取得する関数。
 		//return &table[mul_hi64(key, clusterCount)].entry[0];
@@ -202,15 +217,6 @@ public:
 		// clusterCountは偶数で、ここにkeyのbit0がbit-orされるので0～clusterCount-1の範囲の値が得られる。
 		return &table[(index << 1) | ((u64)key & 1)].entry[0];
 	}
-
-#if defined(EVAL_LEARN)
-	// スレッド数が変更になった時にThread.set()から呼び出される。
-	// これに応じて、スレッドごとに保持しているTTを初期化する。
-	void init_tt_per_thread();
-#endif
-
-private:
-	friend struct TTEntry;
 
 	// この置換表が保持しているクラスター数。
 	// Stockfishはresize()ごとに毎回新しく置換表を確保するが、やねうら王では
