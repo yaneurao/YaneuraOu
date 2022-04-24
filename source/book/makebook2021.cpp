@@ -277,7 +277,7 @@ namespace MakeBook2021
 		// Nodeを新規に生成して、そのNode*を返す。
 		Node* create_node(Position& pos)
 		{
-			auto key = pos.long_key();
+			auto key = pos.hash_key();
 			auto r = hashkey_to_node.emplace(key, Node());
 			auto& node = r.first->second;
 			return &node;
@@ -286,7 +286,7 @@ namespace MakeBook2021
 		// Nodeを削除する。
 		void remove_node(Position& pos)
 		{
-			auto key = pos.long_key();
+			auto key = pos.hash_key();
 			hashkey_to_node.erase(key);
 		}
 
@@ -306,7 +306,7 @@ namespace MakeBook2021
 		// 指定された局面の情報を表示させてみる。(デバッグ用)
 		void dump(Position& pos)
 		{
-			auto key = pos.long_key();
+			auto key = pos.hash_key();
 
 			auto* node = probe(key);
 			if (node == nullptr)
@@ -334,7 +334,7 @@ namespace MakeBook2021
 			if (ply >= MAX_PLY)
 				return;
 
-			auto key = pos.long_key();
+			auto key = pos.hash_key();
 
 			auto* node = probe(key);
 			if (node == nullptr)
@@ -430,7 +430,7 @@ namespace MakeBook2021
 					// このnodeから1手進めて、次の局面のbestを広い、ponderを確定させる。
 					StateInfo si;
 					pos.set(sfen, &si, Threads.main());
-					HASH_KEY next_key = pos.long_key_after(pos.to_move(move));
+					HASH_KEY next_key = pos.hash_key_after(pos.to_move(move));
 					auto it = hashkey_to_node.find(next_key);
 					if (it != hashkey_to_node.end())
 						ponder = it->second.best_move;
@@ -824,7 +824,7 @@ namespace MakeBook2021 {
 				BookTools::feed_position_string(pos, root_sfen, si);
 
 				// Node is not found in Book DB , skipped.
-				if (pm.probe(pos.long_key()) == nullptr)
+				if (pm.probe(pos.hash_key()) == nullptr)
 					continue;
 
 				sync_cout << "[Step 1] set root , root sfen = " << root_sfen << sync_endl;
@@ -861,7 +861,7 @@ namespace MakeBook2021 {
 			auto append_to_kif_hash = [&](Position& pos) {
 				if (append_to_kif)
 				{
-					HASH_KEY key = pos.long_key();
+					HASH_KEY key = pos.hash_key();
 					if (kif_hash.find(key) == kif_hash.end())
 						kif_hash.emplace(key);
 				}
@@ -981,7 +981,7 @@ namespace MakeBook2021 {
 			pos.set(rootSfen, &si, Threads.main());
 
 			// RootNode
-			Node* node = pm.probe(pos.long_key());
+			Node* node = pm.probe(pos.hash_key());
 			if (node == nullptr)
 			{
 				// これが存在しない時は、生成しなくてはならない。
@@ -995,7 +995,7 @@ namespace MakeBook2021 {
 		ValueDepth search_start(Position& pos, Value alpha, Value beta)
 		{
 			// RootNode
-			Node* node = pm.probe(pos.long_key());
+			Node* node = pm.probe(pos.hash_key());
 
 			// →　存在は保証されている。
 			ASSERT_LV3(node != nullptr);
@@ -1160,7 +1160,7 @@ namespace MakeBook2021 {
 				size_t search_pv_index2 = search_pv.size();
 
 				// 指し手mで進めた時のhash key。
-				const HASH_KEY key_next = pos.long_key_after(m);
+				const HASH_KEY key_next = pos.hash_key_after(m);
 
 				Node* next_node = pm.probe(key_next);
 
@@ -1370,7 +1370,7 @@ namespace MakeBook2021 {
 			position_cmd(pos, is, states);
 
 			// すでにあるのでskip
-			Node* n = pm.probe(pos.long_key());
+			Node* n = pm.probe(pos.hash_key());
 
 			// すでに思考したあとの局面であった。
 			already_exists = (n != nullptr);
