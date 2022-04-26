@@ -47,7 +47,6 @@ USIプロトコルの独自拡張コマンド
 			しかし将棋所のバージョンアップにより、個別にUSI_Hashの値を設定できるようになったため、
 			USI原案に基づき、"USI_Hash"を採用するようにしました。
 
-
 	USI_Ponder		: ponder(相手番での思考) on/off
 
 	Stochastic_Ponder :
@@ -466,6 +465,21 @@ USIプロトコルの独自拡張コマンド
 		例)
 			position startpos
 			go perft 10
+
+
+■　ponderhitコマンドの拡張
+
+
+   やねうら王では、ponderhitコマンド時に、goコマンド同様に残り時間等を指定できるようにUSIプロトコルを拡張している。
+
+   ponderhitにbtime,wtime,winc,binc,byoyomiを指定できる。
+
+   これによりgo ponder (残りパラメーターなし)でponderさせといて、ponderhitで残り時間を渡すような方法が採れる。
+   これは、pre-ponderの実装などに使える。
+   cf. https://github.com/yaneurao/YaneuraOu/commit/0605abb53bdb631b8e51dff01ede5afb8f70feb6
+
+   例)
+   ponderhit btime 100000 wtime 100000 winc 5000 binc 5000
 
 
 ■　USI拡張コマンド
