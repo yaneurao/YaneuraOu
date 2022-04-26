@@ -714,6 +714,48 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states , bool
 	Threads.start_thinking(pos, states , limits , ponderMode);
 }
 
+// "ponderhit"に"go"で使うようなwtime,btime,winc,binc,byoyomiが書けるような拡張。(やねうら王独自拡張。USI拡張プロトコル)
+// 何かトークンを処理したらこの関数はtrueを返す。
+bool parse_ponderhit(istringstream& is)
+{
+	// 現在のSearch::Limitsに上書きしてしまう。
+	auto& limits = Search::Limits;
+	string token;
+	bool token_processed = false;
+
+	while (is >> token)
+	{
+		// 何かトークンを処理したらこの関数はtrueを返す。
+		token_processed = true;
+
+		// 先手、後手の残り時間。[ms]
+		     if (token == "wtime")     is >> limits.time[WHITE];
+		else if (token == "btime")     is >> limits.time[BLACK];
+
+		// フィッシャールール時における時間
+		else if (token == "winc")      is >> limits.inc[WHITE];
+		else if (token == "binc")      is >> limits.inc[BLACK];
+
+		// "go rtime 100"だと100～300[ms]思考する。
+		else if (token == "rtime")     is >> limits.rtime;
+
+		// 秒読み設定。
+		else if (token == "byoyomi") {
+			TimePoint t = 0;
+			is >> t;
+
+			// USIプロトコルで送られてきた秒読み時間より少なめに思考する設定
+			// ※　通信ラグがあるときに、ここで少なめに思考しないとタイムアップになる可能性があるので。
+
+			// t = std::max(t - Options["ByoyomiMinus"], Time::point(0));
+
+			// USIプロトコルでは、これが先手後手同じ値だと解釈する。
+			limits.byoyomi[BLACK] = limits.byoyomi[WHITE] = t;
+		}
+	}
+	return token_processed;
+}
+
 // --------------------
 // テスト用にqsearch(),search()を直接呼ぶ
 // --------------------
@@ -869,8 +911,14 @@ void USI::loop(int argc, char* argv[])
 				go_cmd(pos, iss, states, true);
 			}
 			else {
+				// ponderhitに追加パラメーターがあるか？(USI拡張プロトコル)
+				bool token_processed = parse_ponderhit(is);
+				// 追加パラメーターを処理したなら今回の思考時間を再計算する。
+				if (token_processed)
+					Time.reinit();
+
 				// 通常のponder
-				Time.reset_for_ponderhit(); // ponderhitから計測しなおすべきである。
+				Time.reset_for_ponderhit();     // ponderhitから計測しなおすべきである。
 				Threads.main()->ponder = false; // 通常探索に切り替える。
 			}
 		}
@@ -884,7 +932,7 @@ void USI::loop(int argc, char* argv[])
 
 		// 与えられた局面について思考するコマンド
 		else if (token == "go") {
-			Threads.main()->last_go_cmd_string = cmd;       // 保存しておく。
+			Threads.main()->last_go_cmd_string = cmd;       // Stochastic_Ponderで使うので保存しておく。
 			go_cmd(pos, is, states);
 		}
 

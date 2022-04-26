@@ -19,11 +19,21 @@ namespace {
 } // namespace
 
 
+void Timer::init(const Search::LimitsType& limits, Color us, int ply)
+{
+	// reinit()が呼び出された時のために呼び出し条件を保存しておく。
+	lastcall_Limits = const_cast<Search::LimitsType*>(&limits);
+	lastcall_Us     = us;
+	lastcall_Ply    = ply;
+
+	init_(limits, us, ply);
+}
+
 // 今回の思考時間を計算して、optimum(),maximum()が値をきちんと返せるようにする。
 // これは探索の開始時に呼び出されて、今回の指し手のための思考時間を計算する。
 // limitsで指定された条件に基いてうまく計算する。
 // ply : ここまでの手数。平手の初期局面なら1。(0ではない)
-void Timer::init(const Search::LimitsType& limits, Color us, int ply)
+void Timer::init_(const Search::LimitsType& limits, Color us, int ply)
 {
 #if 0
 	// nodes as timeモード

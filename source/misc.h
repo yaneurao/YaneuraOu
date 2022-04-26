@@ -345,8 +345,13 @@ struct Timer
 	// このシンボルが定義されていると、今回の思考時間を計算する機能が有効になる。
 #if defined(USE_TIME_MANAGEMENT)
 
-  // 今回の思考時間を計算して、optimum(),maximum()が値をきちんと返せるようにする。
+	// 今回の思考時間を計算して、optimum(),maximum()が値をきちんと返せるようにする。
+	// ※　ここで渡しているlimitsは、今回の探索の終わりまでなくならないものとする。
+	//    "ponderhit"でreinit()でこの変数を参照することがあるため。
 	void init(const Search::LimitsType& limits, Color us, int ply);
+
+	// ponderhitの時に残り時間が付与されている時(USI拡張)、再度思考時間を調整するために↑のinit()相当のことを行う。
+	void reinit() { init_(*lastcall_Limits, lastcall_Us, lastcall_Ply);}
 
 	TimePoint minimum() const { return minimumTime; }
 	TimePoint optimum() const { return optimumTime; }
@@ -371,6 +376,14 @@ private:
 
 	// 今回の残り時間 - Options["NetworkDelay2"]
 	TimePoint remain_time;
+
+	// init()の内部実装用。
+	void init_(const Search::LimitsType& limits, Color us, int ply);
+
+	// init()が最後に呼び出された時に各引数。これを保存しておき、reinit()の時にはこれを渡す。
+	Search::LimitsType* lastcall_Limits; // どこかに確保しっぱなしにするだろうからポインタでいいや…
+	Color lastcall_Us;
+	int lastcall_Ply;
 
 #endif
 
