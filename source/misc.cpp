@@ -2115,6 +2115,12 @@ namespace StringExtension
 		return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 	};
 
+	// 文字列sのなかに文字列tが含まれるかを判定する。含まれていればtrueを返す。
+	bool Contains(const std::string& s, const std::string& t) {
+	   return s.find(t) != std::string::npos;
+	   // C++20ならstring::contains()が使えるのだが…。
+	}
+
 	// 文字列valueに対して文字xを文字yに置換した新しい文字列を返す。
 	std::string Replace(std::string const& value, char x, char y)
 	{

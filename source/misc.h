@@ -1035,6 +1035,9 @@ namespace StringExtension
 	// 文字列valueが、文字列endingで終了していればtrueを返す。
 	extern bool EndsWith(std::string const& value, std::string const& ending);
 
+	// 文字列sのなかに文字列tが含まれるかを判定する。含まれていればtrueを返す。
+	extern bool Contains(const std::string& s, const std::string& t);
+
 	// 文字列valueに対して文字xを文字yに置換した新しい文字列を返す。
 	extern std::string Replace(std::string const& value, char x, char y);
 
