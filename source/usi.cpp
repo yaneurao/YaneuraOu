@@ -46,7 +46,7 @@ namespace Test
 		if (mate_test_cmd(pos,is,token))
 			return;
 
-		sync_cout << "Error! : unknown command = " << token << sync_endl;
+		sync_cout << "info string Error! : unknown command = " << token << sync_endl;
 	}
 }
 
@@ -415,7 +415,7 @@ void is_ready(bool skipCorruptCheck)
 		// メモリが破壊されていないかを調べるためにチェックサムを毎回調べる。
 		// 時間が少しもったいない気もするが.. 0.1秒ぐらいのことなので良しとする。
 		if (!skipCorruptCheck && eval_sum != Eval::calc_check_sum())
-			sync_cout << "Error! : EVAL memory is corrupted" << sync_endl;
+			sync_cout << "info string Error! : EVAL memory is corrupted" << sync_endl;
 	}
 #endif
 
@@ -526,7 +526,7 @@ void setoption_cmd(istringstream& is)
 		Options[name] = value;
 	else
 		// この名前のoptionは存在しなかった
-		sync_cout << "Error! : No such option: " << name << sync_endl;
+		sync_cout << "info string Error! : No such option: " << name << sync_endl;
 
 }
 
@@ -564,7 +564,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states , bool
 	// "isready"コマンド受信前に"go"コマンドが呼び出されている。
 	if (!USI::load_eval_finished)
 	{
-		sync_cout << "Error! go cmd before isready cmd." << sync_endl;
+		sync_cout << "info string Error! go cmd before isready cmd." << sync_endl;
 		return;
 	}
 
