@@ -74,7 +74,7 @@ Visual Studio 2022 Community Edition(無料で使えます)でビルド一発で
 
 ビルドする思考エンジンの種類として、
 
-・やねうら王2019(評価関数としてKPPT , KPP_KKPT , NNUEの3つのなかから1つ選択)
+・やねうら王通常探索エンジン(評価関数としてKPPT , KPP_KKPT , NNUEの3つのなかから1つ選択)
 ・詰め将棋エンジン
 ・ユーザーエンジン
 
@@ -153,6 +153,43 @@ make -j8 tournament TARGET_CPU=AVX2 COMPILER=g++ YANEURAOU_EDITION=YANEURAOU_ENG
 
 例) hash keyを128bitにして、TTClusterSizeを2にして、エンジン名を"YaneuraOu(dev)"にする。(わりとお勧めの設定)
 make -j8 tournament COMPILER=clang++ YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE ENGINE_NAME="YaneuraOu\(dev\)" TARGET_CPU=AVX2 EXTRA_CPPFLAGS="-DHASH_KEY_BITS=128 -DTT_CLUSTER_SIZE=2"
+
+
+■　Ubuntu20.04でmakeコマンド手前まで
+
+// 
+sudo apt-get update
+sudo apt-get -y install build-essential
+sudo apt-get -y install zip unzip
+sudo apt-get -y install libopenblas-dev
+sudo apt-get -y install clang
+
+// Clang 14にする場合(root userで。AWSだとrootのパスワードが設定されていないので、 sudo su - とかでrootになって。)
+
+apt-get update &&\
+DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends \
+-o Acquire::Retries="8" \
+-o DPkg::options::="--force-confdef" \
+-o DPkg::options::="--force-confold" \
+install \
+ca-certificates curl gpg gpg-agent &&\
+curl "https://apt.llvm.org/llvm-snapshot.gpg.key" | gpg --no-default-keyring --keyring /usr/share/keyrings/llvm-snapshot.gpg --import - &&\
+echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg] https://apt.llvm.org/focal/ llvm-toolchain-focal-14 main" | tee /etc/apt/sources.list.d/llvm-toolchain-focal.list &&\
+apt-get update &&\
+DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends \
+-o Acquire::Retries="8" \
+-o DPkg::options::="--force-confdef" \
+-o DPkg::options::="--force-confold" \
+install \
+build-essential clang-14 llvm-14 libomp-14-dev lld-14 libopenblas-dev
+
+
+// makeでNNUE評価関数のトーナメント版の実行ファイルを作る場合
+make clean tournament TARGET_CPU=AVX2 YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE
+make -j8 tournament TARGET_CPU=AVX2 COMPILER=clang++-14 YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE
+
+// やねうら王 128-bit Editionをビルドする時 , ZEN3用
+make -j8 tournament COMPILER=clang++-14 YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE ENGINE_BRANCH=dev ENGINE_NAME="YaneuraOu\(dev-tournament128-cl4\)" TARGET_CPU=ZEN3 EXTRA_CPPFLAGS="-DHASH_KEY_BITS=128 -DTT_CLUSTER_SIZE=4"
 
 
 ■  ShogiGUIの検討モードで使う方法
