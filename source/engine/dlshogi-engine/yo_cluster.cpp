@@ -67,6 +67,9 @@ namespace YaneuraouTheCluster
 #include <thread>
 #include <variant>
 #include "../../position.h"
+#include "../../thread.h"
+#include "../../usi.h"
+#include "../dlshogi-engine/dlshogi_min.h"
 
 #include <Windows.h>
 
@@ -401,6 +404,8 @@ namespace YaneuraouTheCluster
 		GAMEOVER,
 		POSITION,
 		GO,
+		GO_PONDER,
+		PONDERHIT,
 
 		QUIT,
 	};
@@ -411,7 +416,7 @@ namespace YaneuraouTheCluster
 			"NONE",
 			"USI","ISREADY","SETOPTION",
 			"USINEWGAME","GAMEOVER",
-			"POSITION","GO",
+			"POSITION","GO","GO_PONDER","PONDERHIT",
 			"QUIT"
 		};
 
@@ -567,7 +572,7 @@ namespace YaneuraouTheCluster
 				// 一応、警告だしとく。
 				// "usiok"が返ってきて、ゲーム対局前("usinewgame"が来る前)の状態。
 				if (state != RECEIVED_USIOK)
-					send_to_gui("info string Error! 'setoption' should be sent before isready.");
+					EngineError("'setoption' should be sent before 'isready'.");
 
 				// そのまま転送すれば良い。
 				send_to_engine(message.param);
@@ -576,6 +581,21 @@ namespace YaneuraouTheCluster
 			case USI_Message::ISREADY:
 				state = WAIT_READYOK;
 				send_to_engine("isready");
+				break;
+
+			case USI_Message::USINEWGAME:
+				// 一応警告出しておく。
+				if (state != IDLE_IN_GAME)
+					EngineError("'usinewgame' should be sent after 'isready'.");
+				send_to_engine("usinewgame");
+				break;
+
+			case USI_Message::GAMEOVER:
+				// 一応警告出しておく。
+				if (state != IDLE_IN_GAME)
+					EngineError("'gameover' should be sent after 'isready'.");
+				state = RECEIVED_USIOK;
+				send_to_engine("gameover");
 				break;
 			}
 		}
@@ -676,6 +696,12 @@ namespace YaneuraouTheCluster
 			DebugMessageCommon("[" + std::to_string(engine_id) + "]" + message);
 		}
 
+		// エンジン番号を付与して、GUIに送信する。
+		void EngineError(const string& message)
+		{
+			send_to_gui("info string [" +  std::to_string(engine_id) + "] Error! : " + message);
+		}
+
 		// [receive thread]
 		// エンジンに対する状態を変更する。
 		// ただしこれは内部状態なので外部からstateを直接変更したり参照したりしないこと。
@@ -772,18 +798,32 @@ namespace YaneuraouTheCluster
 	//          cluster observer
 	// ---------------------------------------
 
+	// クラスタリング時のオプション設定
+	struct ClusterOptions
+	{
+		// すべてのエンジンが起動するのを待つかどうかのフラグ。(1つでも起動しなければ、終了する)
+		//bool wait_all_engines_wakeup = true;
+		// →　これ今回はデフォルトでtrueでないとclusterの処理が煩雑になるので
+		//    前提としてすべて起動していて、すべて生きている、切断されないことをその条件とする。
+
+		// go ponderする局面を決める時にふかうら王で探索するノード数
+		// 3万npsだとしたら、1000で1/30秒。
+		u64  nodes_limit = 1000;
+	};
+
 	class ClusterObserver
 	{
 	public:
-		ClusterObserver()
+		ClusterObserver(const ClusterOptions& options_)
 		{
 			// スレッドを開始する。
-			worker_thread    = std::thread([&](){ worker(); });
+			worker_thread = std::thread([&](){ worker(); });
+			options       = options_; 
 		}
 
 		~ClusterObserver()
 		{
-			send(USI_Message::QUIT);
+			send_wait(USI_Message::QUIT);
 		}
 
 		// [main thread]
@@ -818,6 +858,11 @@ namespace YaneuraouTheCluster
 				auto& engine = engines.back();
 				engine.connect(engine_path , engine_id);
 			}
+
+			// すべてのエンジンの起動完了を待つ設定なら起動を待機する。
+			// →　現状、強制的にこのモードで良いと思う。
+			if (/* options.wait_all_engines_wakeup */ true)
+				wait_all_engines_wakeup();
 		}
 
 		// [ASYNC] 通信スレッドで受け取ったメッセージをこのSupervisorに伝える。
@@ -847,22 +892,8 @@ namespace YaneuraouTheCluster
 				Tools::sleep(0);
 		}
 
-		// [SYNC] すべてのエンジンが起動するのを待つ。(1つでも起動しなければ、終了する)
-		void wait_all_engines_wakeup()
-		{
-			Tools::sleep(3000); // 3秒待つ(この間にtimeoutになるやつとかおるかも)
-			for(auto& engine: engines)
-				if (engine.is_terminated())
-				{
-					size_t num = get_number_of_live_engines();
-					send_to_gui("info string The number of live engines = " + std::to_string(num));
-					send_to_gui("info string Some engines are failing to start.");
-					
-					Tools::exit();
-				}
-		}
-
 	private:
+		// worker thread
 		void worker()
 		{
 			bool quit = false;
@@ -892,6 +923,26 @@ namespace YaneuraouTheCluster
 						broadcast(message);
 						break;
 
+					case USI_Message::USINEWGAME:
+						// まず各エンジンに通知は必要。(各エンジンがこのタイミングで何かをする可能性はあるので)
+						broadcast(message);
+
+						// ゲームが開始した。いま以降、エンジンに対して"go ponder"とかしてOk. むしろ積極的にすべき。
+						usi = USI_Message::USINEWGAME;
+						search_sfen = "startpos";
+
+						// ponderする局面の選出(search_sfenの局面を探索してくれる)
+						search_for_ponder();
+
+						break;
+
+					case USI_Message::GAMEOVER:
+						usi = USI_Message::GAMEOVER;
+						// 各エンジンへの通知は思考を停止させてからの話なので、いますぐは何も送らない。
+						// エンジンが思考中なら停止させるような命令がいくので、停止してから"gameover"を送信すれば良いという考え。
+
+						break;
+
 					case USI_Message::QUIT:
 						broadcast(message);
 
@@ -899,6 +950,7 @@ namespace YaneuraouTheCluster
 						quit = true;
 						break;
 					}
+
 					done_counter++;
 				}
 
@@ -912,7 +964,6 @@ namespace YaneuraouTheCluster
 				// 一つもメッセージを受信していないならsleepを入れて休ませておく。
 				if (!received)
 					Tools::sleep(1);
-
 
 				// --------------------------------------------
 				// 何かの状態変化を待っていたなら..
@@ -947,6 +998,14 @@ namespace YaneuraouTheCluster
 							usi = USI_Message::NONE;
 							output_number_of_live_engines();
 						}
+						break;
+
+					case USI_Message::USINEWGAME:
+						// 対局は開始しているので各エンジンに思考させたりする必要がある。
+						break;
+
+					case USI_Message::GAMEOVER:
+						// 対局は終了しているので、探索中のエンジンは停止させる必要がある。
 						break;
 					}
 				}
@@ -988,12 +1047,88 @@ namespace YaneuraouTheCluster
 			send_to_gui("info string The number of live engines = " + std::to_string(num));
 		}
 
+		// すべてのエンジンが起動するのを待つ。(1つでも起動しなければ、exitを呼び出して終了する)
+		void wait_all_engines_wakeup()
+		{
+			Tools::sleep(3000); // 3秒待つ(この間にtimeoutになるやつとかおるかも)
+			for(auto& engine: engines)
+				if (engine.is_terminated())
+				{
+					size_t num = get_number_of_live_engines();
+					send_to_gui("info string The number of live engines = " + std::to_string(num));
+					send_to_gui("info string Some engines are failing to start.");
+					
+					Tools::exit();
+				}
+		}
+
 		// 全エンジンに同じメッセージを送信する。
 		void broadcast(Message message)
 		{
 			for(auto& engine: engines)
 				engine.send(message);
 		}
+
+		// ponderする局面の選出。
+		// this->search_sfenの局面から探索してくれる。
+		void search_for_ponder()
+		{
+			dlshogi::SfenNodeList snlist;
+			// エンジンの数だけ探索する。
+			size_t num = engines.size();
+			dl_search(num, snlist);
+
+			// debug用に出力してみる。
+			for(auto& sn : snlist)
+				DebugMessageCommon("sfen for pondering : " + sn.sfen + "(" + std::to_string(sn.nodes) + ")");
+		}
+
+		// ノード数固定でふかうら王で探索させる。
+		// 訪問回数の上位 n個のノードのsfenが返る。
+		// n      : 上位n個
+		// snlist : 訪問回数上位のsfen配列
+		// this->search_sfenの局面から探索してくれる。
+		void dl_search(size_t n, dlshogi::SfenNodeList& snlist)
+		{
+			// ================================
+			//        Limitsの設定
+			// ================================
+
+			Search::LimitsType limits = Search::Limits;
+
+			// ノード数制限
+			limits.nodes = options.nodes_limit;
+
+			// 探索中にPVの出力を行わない。
+			limits.silent = true;
+
+			// ================================
+			//           思考開始
+			// ================================
+
+			// SetupStatesは破壊したくないのでローカルに確保
+			StateListPtr states(new StateList(1));
+
+			// sfen文字列、Positionコマンドのparserで解釈させる。
+			istringstream is(search_sfen);
+
+			Position pos;
+			position_cmd(pos, is, states);
+
+			// 思考部にUSIのgoコマンドが来たと錯覚させて思考させる。
+			Threads.start_thinking(pos, states , limits);
+			Threads.main()->wait_for_search_finished();
+			
+			// ================================
+			//        探索結果の取得
+			// ================================
+
+			dlshogi::GetTopVisitedNodes(n, snlist);
+		}
+
+		// --- private members ---
+
+		ClusterOptions options;
 
 		// すべての思考エンジンを表現する。
 		vector<EngineNegotiator> engines;
@@ -1013,6 +1148,9 @@ namespace YaneuraouTheCluster
 
 		// Messageをsendした回数
 		atomic<u64> send_counter = 0;
+
+		// 現在ponderの中心となっている局面のsfen文字列。(startpos moves XX XX..の形式)
+		string search_sfen = "startpos";
 	};
 
 	// ---------------------------------------
@@ -1027,11 +1165,17 @@ namespace YaneuraouTheCluster
 		// これがUSIの通信スレッドであり、main thread。
 		void message_loop(Position& pos, std::istringstream& is)
 		{
-			// "cluster"コマンドのパラメーター解析
-			bool wait_all;
-			parse_cluster_param(is, wait_all);
+			// ふかうら王のエンジン初期化(評価関数の読み込みなど)
+			is_ready();
 
-			message_loop_main(pos, is, wait_all);
+			// clusterのオプション設定
+			ClusterOptions options;
+
+			// "cluster"コマンドのパラメーター解析
+			parse_cluster_param(is, options);
+
+			// GUIとの通信を行うmain threadのmessage loop
+			message_loop_main(pos, is, options);
 
 			// quitコマンドは受け取っているはず。
 			// ここで終了させないと、cluster engineが単体のengineのように見えない。
@@ -1041,16 +1185,19 @@ namespace YaneuraouTheCluster
 
 	private:
 		// "cluster"コマンドのパラメーターを解析して処理する。
-		// wait_all : "waitall"(エンジンすべての起動を待つ)が指定されていたか。
-		void parse_cluster_param(std::istringstream& is, bool& wait_all)
+		// 
+		// 指定できるオプション一覧)
+		// 
+		//   debug   : debug用に通信のやりとりをすべて標準出力に出力する。
+		//   nodes   : go ponderする局面を選ぶために探索するノード数(ふかうら王で探索する)
+		//
+		void parse_cluster_param(std::istringstream& is, ClusterOptions& options)
 		{
 			// USIメッセージの処理を開始している。いま何か出力してはまずい。
 
 			// USI拡張コマンドの"cluster"コマンドに付随できるオプション
 			// 例)
 			// cluster debug waitall
-			//
-			wait_all = false;
 			{
 				string token;
 				while (is >> token)
@@ -1059,31 +1206,26 @@ namespace YaneuraouTheCluster
 					if (token == "debug")
 						debug_mode = true;
 
-					// wait all
-					// wait_allフラグが立っていれば、すべてのエンジンが起動するのを待つ。
-					else if (token == "waitall")
-						wait_all = true;
+					else if (token == "nodes")
+						is >> options.nodes_limit;
 				}
 			}
 		}
 
 		// "cluster"のメインループ
 		// wait_all : "waitall"(エンジンすべての起動を待つ)が指定されていたか。
-		void message_loop_main(Position& pos, std::istringstream& is, bool& wait_all)
+		void message_loop_main(Position& pos, std::istringstream& is, const ClusterOptions& options)
 		{
 			// Clusterの監視者
-			ClusterObserver observer;
+			ClusterObserver observer(options);
 
 			// 全エンジンの起動。
 			observer.connect();
 
-			// 全エンジンの起動を待機するフラグが立っているなら待機。
-			if (wait_all)
-				observer.wait_all_engines_wakeup();
-
-			string cmd;
-			while (std::getline(cin, cmd))
+			while (true)
 			{
+				string cmd = std_input.input();
+
 				// GUI側から受け取ったメッセージをログに記録しておく。
 				// (ロギングしている時は、標準入力からの入力なのでファイルに書き出されているはず)
 				DebugMessageCommon("[H]< " + cmd);
@@ -1103,6 +1245,10 @@ namespace YaneuraouTheCluster
 					// setoption は普通 isreadyの直前にしか送られてこないので
 					// 何も考えずに エンジンにそのまま投げて問題ない。
 					observer.send(USI_Message::SETOPTION, cmd);
+				else if (token == "usinewgame")
+					observer.send(USI_Message::USINEWGAME);
+				else if (token == "gameover")
+					observer.send(USI_Message::GAMEOVER);
 				else if (token == "quit")
 					break;
 				// 拡張コマンド。途中でdebug出力がしたい時に用いる。
@@ -1117,7 +1263,7 @@ namespace YaneuraouTheCluster
 					send_to_gui("Error! : Unknown Command : " + token);
 				}
 			}
-
+			
 			// ClusterObserverがスコープアウトする時に自動的にQUITコマンドは送信されるはず。
 		}
 	};
