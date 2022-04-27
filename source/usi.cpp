@@ -4,6 +4,7 @@
 #include "search.h"
 #include "thread.h"
 #include "tt.h"
+#include "misc.h"
 #include "testcmd/unit_test.h"
 
 #include <sstream>
@@ -810,62 +811,11 @@ void USI::loop(int argc, char* argv[])
 	// 局面を遡るためのStateInfoのlist。
 	StateListPtr states(new StateList(1));
 
-	// 先行入力されているコマンド
-	// コマンドは前から取り出すのでqueueを用いる。
-	queue<string> cmds;
-
-	// ファイルからコマンドの指定
-	if (argc >= 3 && string(argv[1]) == "file")
-	{
-		vector<string> cmds0;
-		SystemIO::ReadAllLines(argv[2], cmds0);
-
-		// queueに変換する。
-		for (auto c : cmds0)
-			cmds.push(c);
-
-	} else {
-
-		// 引数として指定されたものを一つのコマンドとして実行する機能
-		// ただし、','が使われていれば、そこでコマンドが区切れているものとして解釈する。
-
-		for (int i = 1; i < argc; ++i)
-		{
-			string s = argv[i];
-
-			// sから前後のスペースを除去しないといけない。
-			while (*s.rbegin() == ' ') s.pop_back();
-			while (*s.begin() == ' ') s = s.substr(1, s.size() - 1);
-
-			if (s != ",")
-				cmd += s + " ";
-			else
-			{
-				cmds.push(cmd);
-				cmd = "";
-			}
-		}
-		if (cmd.size() != 0)
-			cmds.push(cmd);
-	}
+	std_input.parse_args(argc,argv);
 
 	do
 	{
-		if (cmds.size() == 0)
-		{
-			if (!std::getline(cin, cmd)) // 入力が来るかEOFがくるまでここで待機する。
-				cmd = "quit";
-		} else {
-			// 積んであるコマンドがあるならそれを実行する。
-			// 尽きれば"quit"だと解釈してdoループを抜ける仕様にすることはできるが、
-			// そうしてしまうとgoコマンド(これはノンブロッキングなので)の最中にquitが送られてしまう。
-			// ただ、
-			// YaneuraOu-mid.exe bench,quit
-			// のようなことは出来るのでPGOの役には立ちそうである。
-			cmd = cmds.front();
-			cmds.pop();
-		}
-
+		cmd = std_input.input();
 		istringstream is(cmd);
 
 		token.clear(); // getlineが空を返したときのためのクリア
@@ -979,7 +929,7 @@ void USI::loop(int argc, char* argv[])
 				vector<string> lines;
 				SystemIO::ReadAllLines(filename, lines);
 				for (auto& line : lines)
-					cmds.push(line);
+					std_input.push(line);
 			}
 		}
 

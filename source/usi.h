@@ -7,12 +7,11 @@
 #include <functional>	// function
 
 #include "types.h"
+#include "position.h"
 
 // --------------------
 //     USI関連
 // --------------------
-
-class Position;
 
 namespace USI
 {
@@ -180,10 +179,17 @@ namespace USI
 // USIのoption設定はここに保持されている。
 extern USI::OptionsMap Options;
 
+// === やねうら王独自実装 ===
+
 // USIの"isready"コマンドが呼び出されたときの処理。このときに評価関数の読み込みなどを行なう。
 // benchmarkコマンドのハンドラなどで"isready"が来ていないときに評価関数を読み込ませたいときに用いる。
 // skipCorruptCheck == trueのときは評価関数の2度目の読み込みのときのcheck sumによるメモリ破損チェックを省略する。
 // ※　この関数は、Stockfishにはないがないと不便なので追加しておく。
-void is_ready(bool skipCorruptCheck = false);
+extern void is_ready(bool skipCorruptCheck = false);
+
+// positionコマンドのparserを呼び出したいことがあるので外部から呼び出せるようにしておく。
+// 使い方はbenchコマンド(benchmark.cpp)のコードを見てほしい。
+extern void position_cmd(Position& pos, std::istringstream& is, StateListPtr& states);
+
 
 #endif // #ifndef USI_H_INCLUDED

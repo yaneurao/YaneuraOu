@@ -17,9 +17,6 @@ using namespace std;
 //  USI拡張コマンド "bench"(ベンチマーク)
 // ----------------------------------
 
-// positionコマンドのparserをbenchmarkコマンドから呼び出したい。
-extern void position_cmd(Position & pos, istringstream & is, StateListPtr & states);
-
 // benchmark用デフォルトの局面集
 const vector<string> BenchSfen =
 {
