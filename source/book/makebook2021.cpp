@@ -90,9 +90,6 @@ using namespace std;
 using namespace Book;
 using namespace Concurrent; // concurrent library from misc.h
 
-// positionコマンドのparserを呼び出したい。
-extern void position_cmd(Position& pos, istringstream& is, StateListPtr& states);
-
 namespace MakeBook2021
 {
 	// ValueとDepthが一体になった型
@@ -1385,7 +1382,8 @@ namespace MakeBook2021 {
 			//        探索結果の取得
 			// ================================
 
-			auto search_result = dlshogi::GetSearchResult();
+			std::vector<std::pair<Move, float>> search_result;
+			dlshogi::GetSearchResult(search_result);
 			Node* node_;
 
 			// 新規にNodeを作成してそこに書き出す
