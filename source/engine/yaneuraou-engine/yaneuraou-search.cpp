@@ -2411,7 +2411,9 @@ namespace {
 				else if (givesCheck
 					&& depth > 9
 					&& abs(ss->staticEval) > 71
-					// ここもっと絞るべきか？
+					// この条件、やねうら王で独自追加。
+					// →　王手延長は、開き王手と駒損しない王手に限定する。
+					&& (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move))
 					)
 					extension = 1;
 
