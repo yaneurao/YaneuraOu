@@ -445,11 +445,11 @@ namespace dlshogi
 	//   node : 探索開始node
 	//   tv   : 訪問回数上位 n
 	//   ply  : rootからの手数
-	void dfs_for_node_visited(Node* node, TopVisited& tv , int ply = 0)
+	void dfs_for_node_visited(Node* node, TopVisited& tv , int ply, bool same_color)
 	{
 		// rootではない偶数局面で、その訪問回数が現在のn thより多いならそれを記録する。
 		if (   ply != 0
-			&& (ply % 2) == 0
+			&& (ply % 2) == (same_color ? 0 : 1)
 			&& node->move_count > tv.nth_nodes()
 			)
 			tv.append(node->move_count);
@@ -465,7 +465,7 @@ namespace dlshogi
 			if (move_count > tv.nth_nodes())
 				// このnodeを再帰的に辿る必要がある。
 				// 超えていないものは辿らない、すなわち枝刈りする。
-				dfs_for_node_visited(node->child_nodes[i].get(), tv , ply + 1);
+				dfs_for_node_visited(node->child_nodes[i].get(), tv , ply + 1, same_color);
 		}
 	}
 
@@ -476,11 +476,11 @@ namespace dlshogi
 	//   sfens : 訪問回数上位 n のnodeまでのroot nodeからの手順文字列(先頭にスペースが入る)
 	//		→　これは返し値
 	//   pv    : rootから現在の局面までの手順
-	void dfs_for_sfen(Node* node, TopVisited& tv , int ply , SfenNodeList& snlist , std::vector<Move>& pv)
+	void dfs_for_sfen(Node* node, TopVisited& tv , int ply , bool same_color, SfenNodeList& snlist , std::vector<Move>& pv)
 	{
 		// rootではない偶数局面で、その訪問回数が現在のn thより多いならそれを記録する。
 		if (   ply != 0
-			&& (ply % 2) == 0
+			&& (ply % 2) == (same_color ? 0 : 1)
 			&& node->move_count >= tv.nth_nodes()
 			&& snlist.size() < tv.size()
 			)
@@ -508,14 +508,14 @@ namespace dlshogi
 				// このnodeを再帰的に辿る必要がある。
 				// move_count以下のものは辿らない、すなわち枝刈りする。
 				pv.push_back(m);
-				dfs_for_sfen(node->child_nodes[i].get(), tv , ply + 1, snlist, pv);
+				dfs_for_sfen(node->child_nodes[i].get(), tv , ply + 1, same_color, snlist, pv);
 				pv.pop_back();
 			}
 		}
 	}
 
 	// 訪問回数上位 n 個の局面のsfen文字列を返す。文字列の先頭にスペースが入る。
-	void GetTopVisitedNodes(size_t n, SfenNodeList& snlist)
+	void GetTopVisitedNodes(size_t n, SfenNodeList& snlist, bool same_color)
 	{
 		// root node
 		Node* root_node = searcher.search_limits.current_root;
@@ -524,12 +524,12 @@ namespace dlshogi
 		// そのあとx以上の訪問回数を持つ偶数node(rootと同じ手番を持つnode)を列挙すれば良い。
 
 		TopVisited tv(n);
-		dfs_for_node_visited(root_node , tv);
+		dfs_for_node_visited(root_node, tv , 0, same_color);
 
 		// n番目まで訪問回数が確定したので、再度dfsして局面を取り出す。
 
 		std::vector<Move> pv;
-		dfs_for_sfen(root_node, tv, 0 , snlist, pv);
+		dfs_for_sfen        (root_node, tv , 0, same_color, snlist, pv);
 
 		// 上位n個(同じ訪問回数のものがあると溢れてる可能性があるのでsortして上位n個を取り出す。)
 		std::sort(snlist.begin(), snlist.end());

@@ -114,6 +114,10 @@ namespace YaneuraouTheCluster
 
 	// 子プロセスを実行して、子プロセスの標準入出力をリダイレクトするのをお手伝いするクラス。
 	// 1つの子プロセスのつき、1つのProcessNegotiatorの instance が必要。
+	// 
+	// 親プロセス(このプログラム)の終了時に、子プロセスを自動的に終了させたいが、それは簡単ではない。
+	// アプリケーションが終了するときに、子プロセスを自動的に終了させる方法 : https://qiita.com/kenichiuda/items/3079ab93dae564dd5d17
+	// 親プロセスは必ず quit コマンドか何かで正常に終了させるものとする。
 	struct ProcessNegotiator
 	{
 		// 子プロセスの実行
@@ -460,26 +464,33 @@ namespace YaneuraouTheCluster
 	// Engineに対して現在何をやっている状態なのかを表現するenum
 	// ただしこれはEngineNegotiatorの内部状態だから、この状態をEngineNegotiatorの外部から参照してはならない。
 	// (勝手にこれを見て状態遷移をされると困るため)
-	enum EngineNegotiatorState
+	enum class EngineState
 	{
 		DISCONNECTED,      // 切断状態
 		CONNECTED,         // 接続直後の状態
-		WAIT_USIOK,        // "usiok"がをエンジンに送信待ち(connect直後)
-		RECEIVED_USIOK,    // "usiok"コマンドがエンジンから返ってきた直後の状態。
-		WAIT_READYOK,      // "readyok"待ち。"readyok"が返ってきたらIDLE_IN_GAMEになる。
+		WAIT_USIOK,        // エンジンからの"usiok"待ち。エンジンから"usiok"が返ってきたら、WAIT_ISREADYになる。
+		WAIT_ISREADY,      // "usiok"コマンドがエンジンから返ってきた直後の状態。あるいは、GUIからの"isready"待ち。"gameover"直後もこれ。
+		WAIT_READYOK,      // エンジンからの"readyok"待ち。エンジンから"readyok"が返ってきたらIN_GAMEになる。
 
 		IDLE_IN_GAME,      // エンジンが対局中の状態。"position"コマンドなど受信できる状態
 
-		PONDERING,         // "go ponder"中。ponderhitかstopが来ると状態はWAIT_BESTMOVEに。
-		WAIT_BESTMOVE,	   // 思考が終了するのを待っている。("go"コマンドであり、"go ponder"ではない。
+		GO,                // エンジンが"go"で思考中。 GUI側から"ponderhit"か"stop"が来ると状態はWAIT_BESTMOVEに。
+		GO_PONDER,         // エンジンが"go ponder"中。GUI側から"ponderhit"か"stop"が来ると状態はWAIT_BESTMOVEに。
+		WAIT_BESTMOVE,	   // エンジンが思考が終了するのを待っている。("go"コマンドであり、"go ponder"ではない。
 						   // 自動的にbestmoveが返ってくるはず。この間にくる"stop"は思考エンジンにそのまま送れば良い)
+		QUIT,              // "quit"コマンド送信後。
 	};
 
 	// EngineNegotiatorStateを文字列化する。
-	string to_string(EngineNegotiatorState state)
+	string to_string(EngineState state)
 	{
-		const string s[] = { "DISCONNECTED", "CONNECTED", "WAIT_USI", "RECEIVED_USIOK", "WAIT_READYOK", "IDLE_IN_GAME",};
-		return s[state];
+		const string s[] = {
+			"DISCONNECTED", "CONNECTED",
+			"WAIT_USI", "WAIT_ISREADY", "WAIT_READYOK",
+			"IDLE_IN_GAME", "GO", "PONDERING", "WAIT_BESTMOVE",
+			"QUIT"
+		};
+		return s[(int)state];
 	}
 
 	// エンジンとやりとりするためのクラス
@@ -498,7 +509,7 @@ namespace YaneuraouTheCluster
 
 		EngineNegotiator()
 		{
-			state = EngineNegotiatorState::DISCONNECTED;
+			state = EngineState::DISCONNECTED;
 		}
 
 		// copy constuctor
@@ -549,7 +560,7 @@ namespace YaneuraouTheCluster
 
 				// 起動直後でまだメッセージの受信スレッドが起動していないので例外的にmain threadからchange_state()を
 				// 呼び出しても大丈夫。
-				change_state(EngineNegotiatorState::CONNECTED);
+				change_state(EngineState::CONNECTED);
 			}
 		}
 
@@ -564,14 +575,14 @@ namespace YaneuraouTheCluster
 			switch(message.message)
 			{
 			case USI_Message::USI:
-				state = WAIT_USIOK;
+				state = EngineState::WAIT_USIOK;
 				send_to_engine("usi");
 				break;
 
 			case USI_Message::SETOPTION:
 				// 一応、警告だしとく。
 				// "usiok"が返ってきて、ゲーム対局前("usinewgame"が来る前)の状態。
-				if (state != RECEIVED_USIOK)
+				if (state != EngineState::WAIT_ISREADY)
 					EngineError("'setoption' should be sent before 'isready'.");
 
 				// そのまま転送すれば良い。
@@ -579,23 +590,46 @@ namespace YaneuraouTheCluster
 				break;
 
 			case USI_Message::ISREADY:
-				state = WAIT_READYOK;
+				state = EngineState::WAIT_READYOK;
 				send_to_engine("isready");
 				break;
 
 			case USI_Message::USINEWGAME:
 				// 一応警告出しておく。
-				if (state != IDLE_IN_GAME)
+				if (state != EngineState::IDLE_IN_GAME)
 					EngineError("'usinewgame' should be sent after 'isready'.");
 				send_to_engine("usinewgame");
 				break;
 
+			case USI_Message::GO:
+				// TODO : エンジン側からbestmove来るまで次のgo送れないのでは…。
+				if (state != EngineState::IDLE_IN_GAME)
+					EngineError("'go' should be sent when state is 'IDLE_IN_GAME'.");
+				searching_sfen = message.param;
+				send_to_engine("go ponder " + searching_sfen);
+				state = EngineState::GO;
+				break;
+
+			case USI_Message::GO_PONDER:
+				// TODO : エンジン側からbestmove来るまで次のgo ponder送れないのでは…。
+				if (state != EngineState::IDLE_IN_GAME)
+					EngineError("'go ponder' should be sent when state is 'IDLE_IN_GAME'.");
+				searching_sfen = message.param;
+				send_to_engine("go ponder " + searching_sfen);
+				state = EngineState::GO_PONDER;
+				break;
+
 			case USI_Message::GAMEOVER:
 				// 一応警告出しておく。
-				if (state != IDLE_IN_GAME)
+				if (state != EngineState::IDLE_IN_GAME)
 					EngineError("'gameover' should be sent after 'isready'.");
-				state = RECEIVED_USIOK;
+				state = EngineState::WAIT_ISREADY;
 				send_to_engine("gameover");
+				break;
+
+			case USI_Message::QUIT:
+				state = EngineState::QUIT;
+				send_to_engine("quit");
 				break;
 			}
 		}
@@ -605,15 +639,15 @@ namespace YaneuraouTheCluster
 		// メッセージを一つでも受信したならtrueを返す。
 		bool receive()
 		{
-			if (is_terminated() && state != DISCONNECTED)
+			if (is_terminated() && state != EngineState::DISCONNECTED)
 			{
 				// 初回切断時にメッセージを出力。
 				DebugMessage(": Error : process terminated , path = " + neg.get_engine_path());
 
-				state = DISCONNECTED;
+				state = EngineState::DISCONNECTED;
 			}
 
-			if (state == DISCONNECTED)
+			if (state == EngineState::DISCONNECTED)
 				return false;
 
 			// stateはchange_state()でしか変更されないが、
@@ -673,11 +707,11 @@ namespace YaneuraouTheCluster
 
 		// [main thread][receive thread]
 		// エンジンが対局中のモードに入っているのか？
-		bool is_gamemode() const { return state == IDLE_IN_GAME; }
+		bool is_idle_in_game()       const { return state == EngineState::IDLE_IN_GAME; }
 
 		// [main thread][receive thread]
-		// 現在のstateがRECEIVED_USIOK("usiok"を受信したの)か？
-		bool is_received_usiok() const { return state == RECEIVED_USIOK; }
+		// 現在のstateが"isready"の送信待ちの状態か？
+		bool does_wait_isready() const { return state == EngineState::WAIT_ISREADY; }
 
 	private:
 		// メッセージをエンジン側に送信する。
@@ -706,7 +740,7 @@ namespace YaneuraouTheCluster
 		// エンジンに対する状態を変更する。
 		// ただしこれは内部状態なので外部からstateを直接変更したり参照したりしないこと。
 		// 変更は、receive threadにおいてのみなされるので、mutexは必要ない。
-		void change_state(EngineNegotiatorState new_state)
+		void change_state(EngineState new_state)
 		{
 			DebugMessage(": change_state " + to_string(state) + " -> " + to_string(new_state));
 			state = new_state;
@@ -716,7 +750,7 @@ namespace YaneuraouTheCluster
 		// エンジン側から送られてきたメッセージを配る(解読して適切な配達先に渡す)
 		void dispatch_message(const string& message)
 		{
-			ASSERT_LV3(state != DISCONNECTED);
+			ASSERT_LV3(state != EngineState::DISCONNECTED);
 
 			// 受信したメッセージをログ出力しておく。
 			DebugMessage("> " + message);
@@ -739,21 +773,21 @@ namespace YaneuraouTheCluster
 
 			switch (state)
 			{
-			case WAIT_USIOK:
+			case EngineState::WAIT_USIOK:
 				// この間に送られてくるエンジン0のメッセージはguiに出力してやる。
 				// ただしusiokは送ってはダメ
 				if (token == "usiok")
-					change_state(RECEIVED_USIOK);
+					change_state(EngineState::WAIT_ISREADY);
 				else if (get_engine_id() == 0)
 					send_to_gui(message);
 				return;
 
-			case WAIT_READYOK:
+			case EngineState::WAIT_READYOK:
 				// この間に送られてくるエンジン0のメッセージはguiに出力してやる。
 				// ただしreadyokは送ってはダメ
 				// → readyokは全部のスレッドが IDLE_IN_GAMEになった時に親クラス(Observer)が送る。
 				if (token == "readyok")
-					change_state(IDLE_IN_GAME);
+					change_state(EngineState::IDLE_IN_GAME);
 				else if (get_engine_id() == 0)
 					send_to_gui(message);
 				return;
@@ -782,7 +816,7 @@ namespace YaneuraouTheCluster
 		size_t engine_id;
 
 		// エンジンに対して何をやっている状態であるのか。
-		EngineNegotiatorState state;
+		EngineState state;
 
 		// Supervisorから送られてくるMessageのqueue
 		Concurrent::ConcurrentQueue<Message> queue;
@@ -792,6 +826,10 @@ namespace YaneuraouTheCluster
 
 		// Messageをsendした回数
 		atomic<u64> send_counter = 0;
+
+		// 探索中の局面
+		// state == GO or GO_PONDER において探索中の局面。
+		string searching_sfen;
 	};
 
 	// ---------------------------------------
@@ -807,7 +845,7 @@ namespace YaneuraouTheCluster
 		//    前提としてすべて起動していて、すべて生きている、切断されないことをその条件とする。
 
 		// go ponderする局面を決める時にふかうら王で探索するノード数
-		// 3万npsだとしたら、1000で1/30秒。
+		// 3万npsだとしたら、1000で1/30秒。GPUによって調整すべし。
 		u64  nodes_limit = 1000;
 	};
 
@@ -824,6 +862,7 @@ namespace YaneuraouTheCluster
 		~ClusterObserver()
 		{
 			send_wait(USI_Message::QUIT);
+			worker_thread.join();
 		}
 
 		// [main thread]
@@ -929,10 +968,13 @@ namespace YaneuraouTheCluster
 
 						// ゲームが開始した。いま以降、エンジンに対して"go ponder"とかしてOk. むしろ積極的にすべき。
 						usi = USI_Message::USINEWGAME;
-						search_sfen = "startpos";
 
-						// ponderする局面の選出(search_sfenの局面を探索してくれる)
-						search_for_ponder();
+						// 現在、相手が初期局面("startpos")について思考しているものとする。
+						searching_sfen = "startpos";
+						our_searching = false;
+						
+						// 各エンジンのponderの開始
+						start_pondering();
 
 						break;
 
@@ -979,7 +1021,7 @@ namespace YaneuraouTheCluster
 						for(auto& engine : engines)
 							// 終了しているエンジンは無視してカウントしないと
 							// いつまでもusiokが出せない状態でhangする。
-							allOk &= engine.is_received_usiok() || engine.is_terminated();
+							allOk &= engine.does_wait_isready() || engine.is_terminated();
 						if (allOk)
 						{
 							send_to_gui("usiok");
@@ -991,7 +1033,7 @@ namespace YaneuraouTheCluster
 					case USI_Message::ISREADY:
 						// "readyok"をそれぞれのエンジンから受信するのを待機していた。
 						for(auto& engine : engines)
-							allOk &= engine.is_gamemode() || engine.is_terminated();
+							allOk &= engine.is_idle_in_game() || engine.is_terminated();
 						if (allOk)
 						{
 							send_to_gui("readyok");
@@ -1069,26 +1111,65 @@ namespace YaneuraouTheCluster
 				engine.send(message);
 		}
 
+
+		// 各エンジンのponderを開始する。
+		void start_pondering()
+		{
+			// 探索中の局面は定まっているか？
+			if (searching_sfen.empty())
+				return ; // ない
+
+			// 我々が探索中の局面があるなら、その2手、4手、のように偶数手先の局面について局面を選出し、ponderする。
+			// さもなくば現在相手が思考中の局面に対して、1手、3手のように奇数手先の局面について選出し、ponderする。
+
+			search_for_ponder(searching_sfen, our_searching);
+
+			// デバッグ用に逆側も出力してみる。
+			DebugMessageCommon("---");
+			search_for_ponder(searching_sfen, !our_searching);
+		}
+
 		// ponderする局面の選出。
-		// this->search_sfenの局面から探索してくれる。
-		void search_for_ponder()
+		// search_sfen : この局面から探索してくれる。
+		// same_color  : search_sfenと同じ手番の局面をponderで思考するのか？
+		void search_for_ponder(string search_sfen,  bool same_color)
 		{
 			dlshogi::SfenNodeList snlist;
-			// エンジンの数だけ探索する。
+
+			// エンジンの数だけ選出する。
 			size_t num = engines.size();
-			dl_search(num, snlist);
+
+			// ただし、自分の手番であるなら、エンジンのうち一つはsearch_sfenを探索しているので、
+			// 1つ数を減らす。
+			if (our_searching)
+				--num;
+
+			dl_search(num, snlist, search_sfen, same_color);
 
 			// debug用に出力してみる。
 			for(auto& sn : snlist)
-				DebugMessageCommon("sfen for pondering : " + sn.sfen + "(" + std::to_string(sn.nodes) + ")");
+				DebugMessageCommon("sfen for pondering :" + sn.sfen + "(" + std::to_string(sn.nodes) + ")");
+
+			// 局面が求まったので各エンジンに対して"go ponder"で思考させる。
+
+			size_t i = 0;
+			bool is_startpos = search_sfen == "startpos";
+			for(auto& engine : engines)
+			{
+				// "startpos"に連結するなら"moves"を付与。
+				string sfen = search_sfen + (is_startpos ? " moves" : "") + snlist[i].sfen;
+				engine.send(Message(USI_Message::GO_PONDER, sfen));
+				++i;
+			}
 		}
 
 		// ノード数固定でふかうら王で探索させる。
 		// 訪問回数の上位 n個のノードのsfenが返る。
-		// n      : 上位n個
-		// snlist : 訪問回数上位のsfen配列
-		// this->search_sfenの局面から探索してくれる。
-		void dl_search(size_t n, dlshogi::SfenNodeList& snlist)
+		// n           : 上位n個
+		// snlist      : 訪問回数上位のsfen配列
+		// search_sfen : この局面から探索してくれる。
+		// same_color  : search_sfenと同じ手番の局面をponderで思考するのか？
+		void dl_search(size_t n, dlshogi::SfenNodeList& snlist, string search_sfen, bool same_color)
 		{
 			// ================================
 			//        Limitsの設定
@@ -1123,7 +1204,7 @@ namespace YaneuraouTheCluster
 			//        探索結果の取得
 			// ================================
 
-			dlshogi::GetTopVisitedNodes(n, snlist);
+			dlshogi::GetTopVisitedNodes(n, snlist, same_color);
 		}
 
 		// --- private members ---
@@ -1149,8 +1230,10 @@ namespace YaneuraouTheCluster
 		// Messageをsendした回数
 		atomic<u64> send_counter = 0;
 
-		// 現在ponderの中心となっている局面のsfen文字列。(startpos moves XX XX..の形式)
-		string search_sfen = "startpos";
+		// 現在思考している局面のsfen。(startpos moves XX XX..の形式)
+		// ponderする時は、この局面を中心として行う。
+		string searching_sfen;  // 自分か相手がこの局面について思考しているものとする。(ponderする時の中心となる局面)
+		bool our_searching;     // search_sfenを探索しているのは自分ならばtrue。相手ならばfalse。
 	};
 
 	// ---------------------------------------

@@ -40,15 +40,17 @@ namespace dlshogi {
 
 	// 訪問回数上位 n 個の局面のsfen文字列を返す。(ただし探索開始局面と同じ手番になるように偶数手になるように)
 	// ここで得られた文字列は、探索開始局面のsfenに指し手として文字列の結合をして使う。文字列の先頭にスペースが入る。
+	// same_colorはtrueならrootと同じ手番の局面(偶数局面)、falseならrootと異なる手番の局面(奇数局面)を返す。
 	// 例)
 	// 　探索開始局面 = "startpos"
+	//   same_color   = true
 	// 　返ってきたsfens = [" 7g7f 8c8d", " 2g2f 3c3d"]
 	//
 	//   この時、実際にposition文字列として有効なsfen文字列は、
 	//    "startpos moves 7g7f 8c8d"
 	//    "startpos moves 2g2f 3c3d"
 	//   なので、そうなるように文字列を結合すること。
-	extern void GetTopVisitedNodes(size_t n, SfenNodeList& sfens);
+	extern void GetTopVisitedNodes(size_t n, SfenNodeList& sfens, bool same_color);
 
 	// 探索したノード数を返す。
 	// これは、ThreadPool classがnodes_searched()で返す値とは異なる。
