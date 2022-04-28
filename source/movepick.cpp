@@ -174,11 +174,12 @@ void MovePicker::score()
 {
 	static_assert(Type == CAPTURES || Type == QUIETS || Type == EVASIONS, "Wrong type");
 
-	// threatened       : 自分より価値の安い駒で当たりになっているか
-	// threatenedByPawn : 敵の歩の利き。
+	// threatened        : 自分より価値の安い駒で当たりになっているか
+	// threatenedByPawn  : 敵の歩の利き。
+	// threatenedByMinor : 敵の歩・小駒による利き
+	// threatenedByRook  : 敵の大駒による利き(やねうら王では使わず)
 
-	//Bitboard threatened, threatenedByPawn, threatenedByMinor, threatenedByRook;
-	Bitboard threatened, threatenedByPawn;
+	// Bitboard threatened, threatenedByPawn , threatenedByMinor , threatenedByRook */;
 
 	if constexpr (Type == QUIETS)
 	{
@@ -196,22 +197,27 @@ void MovePicker::score()
 					| (pos.pieces(us, ROOK)  & threatenedByMinor)
 					| (pos.pieces(us, KNIGHT, BISHOP) & threatenedByPawn);
 #endif
+
+#if 0
 		// →　Stockfishのコードを忠実に実装すると将棋ではたくさんの利きを計算しなくてはならないので
-		//     非常に計算コストが高くなる。
-		// ここでは歩による当たりになっている駒だけ考える。
+		//     非常に計算コストが高くなる。ここでは歩による当たりになっている駒だけ考える。
 
 		const Color us = pos.side_to_move();
 
-#if 1 // 歩による脅威だけ。
+		// 歩による脅威だけ。
 		// squares threatened by pawns
 		threatenedByPawn = (~us == BLACK) ? pos.attacks_by<BLACK, PAWN>() : pos.attacks_by<WHITE, PAWN>();
+
+		// 歩以外の自駒で、相手の歩の利きにある駒
+		threatened =  (pos.pieces(us,PAWN).andnot(pos.pieces(us))                 & threatenedByPawn );
 #endif
+		// →　やってみたが強くならないのでコメントアウトする。[2022/04/26]
 	}
 	else
 	{
 		// Silence unused variable warnings
-		(void)threatened;
-		(void)threatenedByPawn;
+		//(void)threatened;
+		//(void)threatenedByPawn;
 		//(void)threatenedByMinor;
 		//(void)threatenedByRook;
 	}
@@ -261,11 +267,16 @@ void MovePicker::score()
 																											    0);
 				// → Stockfishのコードそのままは書けない。
 #endif
+
+#if 0
 					+     (threatened & from_sq(m) ?
 							 ((moved_piece == ROOK || moved_piece == BISHOP) && !threatenedByPawn.test(to_sq(m)) ? 50000
 						:                                                       !threatenedByPawn.test(to_sq(m)) ? 15000
 						:                                                                                          0)
 						:                                                                                          0);
+#endif
+				// →　強くならなかったのでコメントアウト。
+					;
 
 		}
 		else // Type == EVASIONS
