@@ -862,10 +862,13 @@ void USI::loop(int argc, char* argv[])
 			}
 			else {
 				// ponderhitに追加パラメーターがあるか？(USI拡張プロトコル)
+
+#if defined(USE_TIME_MANAGEMENT)
 				bool token_processed = parse_ponderhit(is);
 				// 追加パラメーターを処理したなら今回の思考時間を再計算する。
 				if (token_processed)
 					Time.reinit();
+#endif
 
 				// 通常のponder
 				Time.reset_for_ponderhit();     // ponderhitから計測しなおすべきである。
