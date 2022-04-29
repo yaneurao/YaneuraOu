@@ -76,6 +76,8 @@ namespace YaneuraouTheCluster
 #include "../../usi.h"
 #include "../dlshogi-engine/dlshogi_min.h"
 
+// std::numeric_limits::max()みたいなのを壊さないように。
+#define NOMINMAX
 #include <Windows.h>
 
 // ↓これを↑これより先に書くと、byteがC++17で追加されているから、Windows.hのbyteの定義のところでエラーが出る。
@@ -124,22 +126,84 @@ namespace YaneuraouTheCluster
 	// ---------------------------------------
 
 	// "go XX YY"に対して1つ目のcommand("go")を取り除き、"XX YY"を返す。
+	// コピペミスで"  go XX YY"のように先頭にスペースが入るパターンも正常に"XX YY"にする。
 	string strip_command(const string& m)
 	{
 		// 現在の注目位置(cursor)
 		size_t i = 0;
 
-		// スペースを発見するまで cursorを進める。
+		// スペース以外になるまでcursorを進める。(先頭にあるスペースの除去)
+		while (i < m.size() && m[i]==' ')
+			++i;
+
+		// スペースを発見するまで cursorを進める。(トークンの除去)
 		while (i < m.size() && m[i]!=' ')
 			++i;
 
-		// スペース以外になるまでcursorを進める。
+		// スペース以外になるまでcursorを進める。(次のトークンの発見)
 		while (i < m.size() && m[i]==' ')
 			++i;
 
 		// 現在のcursor位置以降の文字列を返す。
 		return m.substr(i);
 	}
+
+	// 何文字目まで一致したかを返す。
+	size_t get_match_length(const string& s1, const string& s2)
+	{
+		size_t i = 0;
+		while (i < s1.size()
+			&& i < s2.size()
+			&& s1[i] == s2[i])
+			++i;
+
+		return i;
+	}
+
+	// sfen文字列("position"で渡されてくる文字列)を連結する。
+	// sfen1 == "startpos" , moves = " 7g7f"の時に、
+	// "startpos moves 7g7f"のように連結する。
+	// 引数のmovesの文字列の先頭にはスペースが入っていること。
+	string concat_sfen(const string&sfen1, const string& moves)
+	{
+		bool is_startpos = sfen1 == "startpos";
+		return sfen1 + (is_startpos ? " moves" : "") + moves;
+	}
+
+	// ---------------------------------------
+	//          コンテナ
+	// ---------------------------------------
+
+	// 固定長のvector
+	// 
+	// 通常のvectorはコンテナにcopy,moveが可能なことを要求するのだが、それをされたくない。
+	// かと言って、shared_ptrで配列確保するのも嫌。vectorのように使えて欲しい。
+	// 次善策としては、vector<shared_ptr<T>>なんだけど、ことあるごとに .get() とか -> とか書きたくない。
+	template <typename T>
+	class fixed_size_vector
+	{
+	public:
+
+		size_t size() const       { return s; }
+		void   resize(size_t n)   { release(); ptr = new T[n]; s = n; }
+		void   release()          { if (ptr) { delete[] ptr; ptr=nullptr; } }
+
+		T& operator[](size_t n)   { return ptr[n]; }
+
+		typedef T* iterator;
+		typedef const T* const_iterator;
+
+		iterator       begin()       { return ptr    ; }
+		iterator       end  ()       { return ptr + s; }
+		const_iterator begin() const { return ptr    ; }
+		const_iterator end  () const { return ptr + s; }
+
+		~fixed_size_vector()    { release(); }
+
+	private:
+		T*     ptr = nullptr;
+		size_t s   = 0;
+	};
 
 	// ---------------------------------------
 	//          ProcessNegotiator
@@ -288,51 +352,9 @@ namespace YaneuraouTheCluster
 		ProcessNegotiator() { init(); }
 		virtual ~ProcessNegotiator() { disconnect(); }
 
-		// atomicメンバーを含むので、copy constructorとmove constructorが必要。
-
-		// copy constructor
-		ProcessNegotiator(ProcessNegotiator& other)
-		{
-			pi = other.pi;
-			si = other.si;
-
-			child_std_out_read  = other.child_std_out_read;
-			child_std_out_write = other.child_std_out_write;
-			child_std_in_read   = other.child_std_in_read;
-			child_std_in_write  = other.child_std_in_write;
-
-			terminated  = other.terminated.load();
-			read_buffer = other.read_buffer;
-			engine_path = other.engine_path;
-
-			// move元のpiを潰すことで、move元のdestructorの呼び出しに対してdisconnectされないようにする。
-			// cf. C++でemplace_backを使う際の注意点 : https://tadaoyamaoka.hatenablog.com/entry/2018/02/24/230731
-
-			other.pi.hProcess = nullptr;
-			other.pi.hThread = nullptr;
-		}
-
-		// move constuctor
-		ProcessNegotiator(ProcessNegotiator&& other)
-		{
-			pi = other.pi;
-			si = other.si;
-
-			child_std_out_read  = other.child_std_out_read;
-			child_std_out_write = other.child_std_out_write;
-			child_std_in_read   = other.child_std_in_read;
-			child_std_in_write  = other.child_std_in_write;
-
-			terminated  = other.terminated.load();
-			read_buffer = other.read_buffer;
-			engine_path = other.engine_path;
-
-			// move元のpiを潰すことで、move元のdestructorの呼び出しに対してdisconnectされないようにする。
-			// cf. C++でemplace_backを使う際の注意点 : https://tadaoyamaoka.hatenablog.com/entry/2018/02/24/230731
-
-			other.pi.hProcess = nullptr;
-			other.pi.hThread = nullptr;
-		}
+		// これcopyされてはかなわんので、copyとmoveを禁止しておく。
+		ProcessNegotiator(const ProcessNegotiator& other)         = delete;
+		ProcessNegotiator&& operator = (const ProcessNegotiator&) = delete;
 
 	protected:
 
@@ -524,8 +546,6 @@ namespace YaneuraouTheCluster
 
 		GO,                // エンジンが"go"で思考中。 GUI側から"ponderhit"か"stop"が来ると状態はWAIT_BESTMOVEに。
 		GO_PONDER,         // エンジンが"go ponder"中。GUI側から"ponderhit"か"stop"が来ると状態はWAIT_BESTMOVEに。
-		WAIT_BESTMOVE,	   // エンジンが思考が終了するのを待っている。("go"コマンドであり、"go ponder"ではない。
-						   // 自動的にbestmoveが返ってくるはず。この間にくる"stop"は思考エンジンにそのまま送れば良い)
 		QUIT,              // "quit"コマンド送信後。
 	};
 
@@ -535,7 +555,7 @@ namespace YaneuraouTheCluster
 		const string s[] = {
 			"DISCONNECTED", "CONNECTED",
 			"WAIT_USI", "WAIT_ISREADY", "WAIT_READYOK",
-			"IDLE_IN_GAME", "GO", "PONDERING", "WAIT_BESTMOVE",
+			"IDLE_IN_GAME", "GO", "PONDERING",
 			"QUIT"
 		};
 		return s[(int)state];
@@ -560,15 +580,9 @@ namespace YaneuraouTheCluster
 			state = EngineState::DISCONNECTED;
 		}
 
-		// copy constuctor
-		EngineNegotiator(EngineNegotiator& other)
-			: neg(std::move(other.neg)), state(other.state), engine_id(other.engine_id)
-		{}
-
-		// move constuctor
-		EngineNegotiator(EngineNegotiator&& other)
-			: neg(std::move(other.neg)), state(other.state), engine_id(other.engine_id)
-		{}
+		// これcopyされてはかなわんので、copyとmoveを禁止しておく。
+		EngineNegotiator(const EngineNegotiator& other)         = delete;
+		EngineNegotiator&& operator = (const EngineNegotiator&) = delete;
 
 		// -------------------------------------------------------
 		//    Methods
@@ -651,7 +665,10 @@ namespace YaneuraouTheCluster
 				break;
 
 			case USI_Message::GO:
-				// TODO : エンジン側からbestmove来るまで次のgo送れないのでは…。いや、go ponderなら送れるのか…。
+				// "go ponder"中に次のgoが来ることはありうる。
+				stop_thinking();
+
+				// エンジン側からbestmove来るまで次のgo送れないのでは…。いや、go ponderなら送れるのか…。
 				if (state != EngineState::IDLE_IN_GAME)
 					EngineError("'go' should be sent when state is 'IDLE_IN_GAME'.");
 
@@ -663,6 +680,9 @@ namespace YaneuraouTheCluster
 				break;
 
 			case USI_Message::GO_PONDER:
+				// "go ponder"中に次の"go ponder"が来ることはありうる。
+				stop_thinking();
+
 				// 本来、エンジン側からbestmove来るまで次のgo ponder送れないが、
 				// ここでは、ignore_bestmoveをインクリメントしておき、この回数だけエンジン側からのbestmoveを
 				// 無視することによってこれを実現する。
@@ -700,6 +720,9 @@ namespace YaneuraouTheCluster
 				break;
 
 			case USI_Message::GAMEOVER:
+				// 思考の停止
+				stop_thinking();
+
 				// 一応警告出しておく。
 				if (state != EngineState::IDLE_IN_GAME)
 					EngineError("'gameover' should be sent after 'isready'.");
@@ -758,6 +781,26 @@ namespace YaneuraouTheCluster
 			return received;
 		}
 
+		// 思考中であったなら、思考を停止させる。
+		void stop_thinking()
+		{
+			if (state == EngineState::GO_PONDER)
+			{
+				// 前の思考("go ponder"によるもの)を停止させる必要がある。
+				send_to_engine("stop");
+				state = EngineState::IDLE_IN_GAME;
+			}
+			else if (state == EngineState::GO)
+			{
+				// 警告を出しておく。
+				error_to_gui("illegal state in stop_thinking() , state = " + to_string(state));
+
+				send_to_engine("stop");
+				// この場合、bestmoveを待ってから状態を変更してやる必要があるのだが…。
+				// そもそもで言うと "go"して stopが来る前に gameoverが来ているのがおかしいわけだが。
+				state = EngineState::IDLE_IN_GAME;
+			}
+		}
 
 		// -------------------------------------------------------
 		//    Property
@@ -772,7 +815,15 @@ namespace YaneuraouTheCluster
 		size_t get_engine_id() const { return engine_id; }
 
 		// 現在、"go","go ponder"によって探索中の局面。
+		// ただし、"go"に対してエンジンが"bestmove"を返したあとも
+		// その探索していた局面のsfenを、このメソッドで取得できる。
 		string get_searching_sfen() const { return searching_sfen; }
+
+		// GO状態なのか？
+		bool is_state_go() const { return state == EngineState::GO; }
+
+		// GO_PONDER状態なのか？
+		bool is_state_go_ponder() const { return state == EngineState::GO_PONDER; }
 
 		// [main thread][receive thread]
 		// エンジンが対局中のモードに入っているのか？
@@ -781,6 +832,15 @@ namespace YaneuraouTheCluster
 		// [main thread][receive thread]
 		// 現在のstateが"isready"の送信待ちの状態か？
 		bool does_wait_isready() const { return state == EngineState::WAIT_ISREADY; }
+
+		// エンジン側から受け取った"bestmove XX ponder YY"を返す。
+		// 一度このメソッドを呼び出すと、次以降は(エンジン側からさらに"bestmove XX ponder YY"を受信するまで)空の文字列が返る。
+		// つまりこれは、size = 1 の PC-queueとみなしている。
+		string get_bestmove() {
+			auto result = bestmove_string;
+			bestmove_string.clear();
+			return result;
+		}
 
 	private:
 		// メッセージをエンジン側に送信する。
@@ -878,10 +938,15 @@ namespace YaneuraouTheCluster
 					// 無視したらあかんやつなのでこのままGUIに投げる。
 					send_gui = true;
 
-					// 探索中の局面のsfenを示す変数をクリア。
-					searching_sfen = string();
+					// 思考は停止している。
+					change_state(EngineState::IDLE_IN_GAME);
 
-					// TODO : bestmoveの文字列をparseする。
+					// 探索中の局面のsfenを示す変数をクリア。
+					//searching_sfen = string();
+					// →　これは空にしては駄目。この情報使う。
+
+					// これを設定しておけば親クラスが検知してくれる。
+					bestmove_string = message;
 				}
 			}
 			else if (token == "usiok")
@@ -954,6 +1019,9 @@ namespace YaneuraouTheCluster
 		// "go ponder"時にエンジン側から送られてきた思考ログ。
 		// そのあと、"ponderhit"が送られてきたら、その時点までの思考ログをGUIにそこまでのログを出力するために必要。
 		vector<string> think_log;
+
+		// エンジン側から返ってきた、"bestmove XXX ponder YYY" みたいな文字列。
+		string bestmove_string;
 	};
 
 	// ---------------------------------------
@@ -978,9 +1046,12 @@ namespace YaneuraouTheCluster
 	public:
 		ClusterObserver(const ClusterOptions& options_)
 		{
+			// エンジン生成してからスレッドを開始しないと、エンジンが空で困る。
+			connect();
+
 			// スレッドを開始する。
-			worker_thread = std::thread([&](){ worker(); });
 			options       = options_; 
+			worker_thread = std::thread([&](){ worker(); });
 		}
 
 		~ClusterObserver()
@@ -991,10 +1062,8 @@ namespace YaneuraouTheCluster
 
 		// [main thread]
 		// 起動後に一度だけ呼び出すべし。
-		void connect() {
-
-			engines.clear();
-
+		void connect()
+		{
 			vector<string> lines;
 
 			// エンジンリストが書かれているファイル
@@ -1006,6 +1075,14 @@ namespace YaneuraouTheCluster
 				Tools::exit();
 			}
 
+			size_t engine_num = 0;
+			for (const auto& line : lines)
+				if (!line.empty())
+					engine_num++;
+
+			engines.resize(engine_num);
+			size_t engine_id = 0;
+
 			// それぞれのengineを起動する。
 			for (const auto& line : lines)
 			{
@@ -1016,10 +1093,8 @@ namespace YaneuraouTheCluster
 				string engine_path = line;
 
 				// エンジンを起動する。
-				size_t engine_id = engines.size();
-				engines.emplace_back(EngineNegotiator());
-				auto& engine = engines.back();
-				engine.connect(engine_path , engine_id);
+				engines[engine_id].connect(engine_path , engine_id);
+				engine_id++;
 			}
 
 			// すべてのエンジンの起動完了を待つ設定なら起動を待機する。
@@ -1092,11 +1167,13 @@ namespace YaneuraouTheCluster
 						broadcast(message);
 
 						// 現在、相手が初期局面("startpos")について思考しているものとする。
-						searching_sfen = "startpos";
-						our_searching = false;
-						
-						// 各エンジンのponderの開始
-						start_pondering();
+						searching_sfen2 = "startpos";
+						our_searching2 = false;
+
+						// 対局中である。
+						is_in_game = true;
+
+						// 対局中であれば自動的にponderingが始まるはず。
 
 						break;
 
@@ -1104,6 +1181,11 @@ namespace YaneuraouTheCluster
 
 						// GAMEOVERが来れば、各エンジンは自動的に停止するようになっている。
 						broadcast(message);
+
+						// 対局中ではない。
+						is_in_game = false;
+
+						// 対局中でなければ自動的にエンジンは停止するはず。
 
 						break;
 
@@ -1200,8 +1282,8 @@ namespace YaneuraouTheCluster
 		}
 
 		// 生きているエンジンが 0 なら終了する。
-		// 実際は、最初に起動させたエンジンの数と一致しないなら、終了すべきだと思うが…。
-		// ※　エンジンが1つでも生存していればなんとか頑張って凌ぐようなプログラムを書きたいところである。
+		// 実際は、最初に起動させたエンジンの数と一致しないなら、終了すべきだと思うが、
+		// 1つでも生きてたら頑張って凌ぐコードにする。
 		void engine_check()
 		{
 			size_t num = get_number_of_live_engines();
@@ -1209,6 +1291,85 @@ namespace YaneuraouTheCluster
 			{
 				send_to_gui("info string All engines are terminated.");
 				Tools::exit();
+			}
+
+			if (is_in_game)
+			{
+				// 対局中ならば、遊んでいるエンジンがないかのチェック
+
+				for(auto& engine : engines)
+				{
+					auto bestmove = engine.get_bestmove();
+					if (bestmove.empty())
+						continue;
+
+					// 何か積まれていたので、これをparseする。
+					auto searching_sfen = engine.get_searching_sfen();
+					istringstream is(bestmove);
+					string token;
+					string best_move;
+					string ponder_move;
+					while (is >> token)
+					{
+						if (token == "bestmove")
+							is >> best_move;
+						else if (token == "ponder")
+							is >> ponder_move;
+					}
+					// bestmoveで進めた局面を対局局面とする。
+					if (is_ok(USI::to_move16(best_move)))
+					{
+						searching_sfen2 = concat_sfen(searching_sfen , " " + best_move);
+						our_searching2  = false;
+
+						// さらにponderの指し手が有効手なのであるなら、ここを第一ponderとすべき。
+						if (is_ok(USI::to_move16(ponder_move)))
+						{
+							// 先頭にわざとスペース入れておく。
+							// ※　そうしてあったほうがdlエンジンが返してくる候補手と比較する時に便利。
+							engine_ponder = " " + ponder_move;
+							DebugMessageCommon("engine's ponder : " + searching_sfen2 + engine_ponder);
+						}
+					}
+				}
+
+				// 想定している局面と実際の対局局面が異なる。
+				if (searching_sfen1 != searching_sfen2)
+				{
+					if (our_searching2)
+						start_go();
+					else
+						// go ponderで局面を割当て。
+						start_pondering();
+				} else {
+
+					// 探索局面は合致しているが、自分手番なのに"go"しているエンジンが見当たらないパターン。
+					// (たぶん途中でエンジンが落ちた。)
+					// この時、再度 go してやる必要がある。
+					
+					if (our_searching2)
+					{
+						bool found = false;
+						for(auto& engine : engines)
+						{
+							if (engine.is_state_go())
+							{
+								if (engine.get_searching_sfen() != searching_sfen2)
+									error_to_gui("engine.get_searching_sfen() != searching_sfen2");
+
+								found = true;
+								break;
+							}
+						}
+						if (!found)
+							start_go();
+					}
+
+					// 局面が合致しているが遊んでいるエンジンがある。
+					// →　dl部が指し手列挙できなかった可能性があるのでこのパターンは気にしないことにする。
+				}
+			} else {
+				// 対局中でないなら、動いているエンジンがないかのチェックして動いているエンジンを停止させなければならない。
 			}
 		}
 
@@ -1244,56 +1405,72 @@ namespace YaneuraouTheCluster
 		// 親から送られてきた"position"～"go"コマンドに対して処理する。
 		void handle_go_cmd(const Message& message)
 		{
-			auto searching_sfen = strip_command(position_string);
-			our_searching = true;
+			searching_sfen2 = strip_command(position_string);
+			our_searching2  = true;
+			go_string       = message.command;
 
-			// ここ、局面に関して何らかのassert追加するかも。
-
-			if (searching_sfen.empty())
+			if (searching_sfen2.empty())
 			{
 				error_to_gui("Illegal position command : " + position_string);
 				return ;
 			}
 
+			start_go();
+		}
+
+		// searching_sfen2の"go"での探索を開始する。
+		void start_go()
+		{
+			// ここ、局面に関して何らかのassert追加するかも。
+
 			// 現在、与えられた局面についてGO_PONDERで思考しているエンジンがあるか？
 			// あるなら、そのエンジンに対して"ponderhit"を送信して、残りのエンジンに対しては
 			// 次に思考すべき局面の選出をした上で、それを残りのエンジンにGO_PONDERで思考させる。
 
-			EngineNegotiator* target = nullptr;
+			bool found = false;
 			for(auto& engine: engines)
-				if (engine.get_searching_sfen() == searching_sfen)
+				if (engine.is_state_go_ponder() && engine.get_searching_sfen() == searching_sfen2)
 				{
 					// 見つかった。
-					target = &engine;
+					found = true;
 
 					// PONDERHITの時は、commandとして"go XXX"のXXXの部分を送ることになっている。
-					engine.send(Message(USI_Message::PONDERHIT, strip_command(message.command)));
+					DebugMessageCommon("ponderhit [" + std::to_string(engine.get_engine_id()) + "] : " + searching_sfen2);
+					engine.send(Message(USI_Message::PONDERHIT, strip_command(go_string)));
 					break;
 				}
 
-			if (target == nullptr)
+			// 見つからなかった。
+			if (!found)
 			{
-				// 一番探索がこの局面から近いものに担当させてやる。
+				// どうしようもない。この探索局面に近い局面を探索しているエンジンもないので、エンジン 0 に探索させておく。
+				DebugMessageCommon("go [" + std::to_string(engines[0].get_engine_id()) + "] : " + searching_sfen2);
+				engines[0].send(Message(USI_Message::GO, go_string , searching_sfen2));
 			}
 
-			// 他のエンジンの処遇について
+			// 他のエンジンは、それ以外の局面を"go ponder"しておく。
+			start_pondering();
 		}
 
 		// 各エンジンのponderを開始する。
 		void start_pondering()
 		{
 			// 探索中の局面は定まっているか？
-			if (searching_sfen.empty())
+			if (searching_sfen2.empty())
 				return ; // ない
 
 			// 我々が探索中の局面があるなら、その2手、4手、のように偶数手先の局面について局面を選出し、ponderする。
 			// さもなくば現在相手が思考中の局面に対して、1手、3手のように奇数手先の局面について選出し、ponderする。
 
-			search_for_ponder(searching_sfen, our_searching);
+			search_for_ponder(searching_sfen2, our_searching2);
 
 			// デバッグ用に逆側も出力してみる。
 			//DebugMessageCommon("---");
 			//search_for_ponder(searching_sfen, !our_searching);
+
+			// ponderの中心局面の更新
+			searching_sfen1 = searching_sfen2;
+			our_searching1  = our_searching1;
 		}
 
 		// ponderする局面の選出。
@@ -1301,34 +1478,110 @@ namespace YaneuraouTheCluster
 		// same_color  : search_sfenと同じ手番の局面をponderで思考するのか？
 		void search_for_ponder(string search_sfen,  bool same_color)
 		{
+			// --- 空いてるエンジンの数だけ局面を選出する。
+
+			// 空いていたエンジンの数
+			size_t num = 0;
+
+			vector<bool> engine_empty;
+
+			for(size_t i = 0 ; i < engines.size() ; ++i)
+			{
+				// 現在ponderしているか、何もしていないエンジンは空きエンジンとみなす。
+				bool is_empty = engines[i].is_state_go_ponder() || engines[i].is_idle_in_game();
+				engine_empty.push_back(is_empty);
+
+				if (is_empty)
+					++num;
+			}
+
+			// なぜか空いているエンジンがない…。なんで？
+			if (num == 0)
+			{
+				error_to_gui("search_for_ponder() : No empty engine.");
+				return ;
+			}
+
 			dlshogi::SfenNodeList snlist;
-
-			// エンジンの数だけ選出する。
-			size_t num = engines.size();
-
-			// ただし、自分の手番であるなら、エンジンのうち一つはsearch_sfenを探索しているので、
-			// 1つ数を減らす。
-			if (our_searching)
-				--num;
 
 			dl_search(num, snlist, search_sfen, same_color);
 
 			// debug用に出力してみる。
-			for(auto& sn : snlist)
-				DebugMessageCommon("sfen for pondering :" + sn.sfen + "(" + std::to_string(sn.nodes) + ")");
+
+			bool found = false;
+			for(size_t i = 0; i < snlist.size() ; ++i)
+			{
+				string sfen = snlist[i].sfen;
+				if (engine_ponder == sfen)
+				{
+					DebugMessageCommon("sfen for pondering (" + std::to_string(i) + ") (engine's ponder) : " + sfen + "(" + std::to_string(snlist[i].nodes) + ")");
+					found = true;
+				}
+				else
+					DebugMessageCommon("sfen for pondering (" + std::to_string(i) + ") : " + sfen + "(" + std::to_string(snlist[i].nodes) + ")");
+			}
+
+			// エンジン側がponderで指定してきた局面が見つからからなかった。
+			if (!found && !engine_ponder.empty())
+			{
+				// 先頭に追加。
+				snlist.insert(snlist.begin(), dlshogi::SfenNode(engine_ponder,99999));
+
+				// 末尾要素を一つremove
+				snlist.resize(snlist.size() - 1);
+			}
 
 			// 局面が求まったので各エンジンに対して"go ponder"で思考させる。
 
-			bool is_startpos = search_sfen == "startpos";
-
-			// ここ、空いてるエンジンに対して行う必要がある。あとで書き直す。
 			for(size_t i = 0 ; i < snlist.size() ; ++i)
 			{
-				auto& engine = engines[i];
+				string sfen = concat_sfen(search_sfen , snlist[i].sfen);
 
-				// "startpos"に連結するなら"moves"を付与。
-				string sfen = search_sfen + (is_startpos ? " moves" : "") + snlist[i].sfen;
-				engine.send(Message(USI_Message::GO_PONDER, "" , sfen));
+				// 一番近くを探索していたエンジンに割り当てる
+				// すなわち探索中のsfen文字列が一番近いものに割り当てると良い。
+				size_t t = numeric_limits<size_t>::max();
+				size_t max_match_length = 0;
+				for(size_t j = 0; j < engines.size() ; ++j)
+				{
+					if (!engine_empty[j])
+						continue;
+					 
+					auto& engine = engines[j];
+					auto& sfen2  = engine.get_searching_sfen();
+
+					// ドンピシャでこれいま探索しとるで…。go ponderしなおす必要すらない。
+					if (sfen == sfen2)
+					{
+						engine_empty[j] = true;
+						goto Next;
+					}
+
+					// なるべく長い文字列が一致したほど、近い局面を探索していると言えると思うので、そのエンジンを使い回す。
+					// また、全く一致しなかった場合、0が返るが、それだとmax_match_lengthの初期値と同じなので + 1足してから比較する。
+					// (max_match_lengthは unsingedなので -1 のような負の値が取れないため)
+					size_t match_length = get_match_length(sfen, sfen2) + 1;
+					if (match_length > max_match_length)
+					{
+						max_match_length = match_length;
+						t = j;
+					}
+				}
+
+				// 空きがなかった。おかしいなぁ…。
+				if (t == numeric_limits<size_t>::max() )
+				{
+					error_to_gui("no empty engine.");
+					break;
+				}
+
+				{
+					auto& engine = engines[t];
+					DebugMessageCommon("go ponder [" + std::to_string(engine.get_engine_id()) + "] : " + sfen);
+					engines[t].send(Message(USI_Message::GO_PONDER, string() , sfen));
+					engine_empty[t] = false;
+				}
+
+			Next:;
 			}
 		}
 
@@ -1381,7 +1634,7 @@ namespace YaneuraouTheCluster
 		ClusterOptions options;
 
 		// すべての思考エンジンを表現する。
-		vector<EngineNegotiator> engines;
+		fixed_size_vector<EngineNegotiator> engines;
 
 		// Supervisorから送られてくるMessageのqueue
 		Concurrent::ConcurrentQueue<Message> queue;
@@ -1389,6 +1642,10 @@ namespace YaneuraouTheCluster
 		// 現在エンジンに対して行っているコマンド
 		// これがNONEになるまで次のメッセージは送信できない。
 		USI_Message usi = USI_Message::NONE;
+
+		// 対局中であるかのフラグ
+		// "usinewgame"を受信してから"gameover"を受信するまで。
+		bool is_in_game = false;
 
 		// workerスレッド
 		std::thread worker_thread;
@@ -1400,12 +1657,26 @@ namespace YaneuraouTheCluster
 		atomic<u64> send_counter = 0;
 
 		// 最後に受け取った"position"コマンド。次に"go"がやってきた時にこの局面に対して思考させる。
+		// "position"を含む。
 		string position_string;
 
-		// 現在思考している局面のsfen。(startpos moves XX XX..の形式)
-		// ponderする時は、この局面を中心として行う。
-		string searching_sfen;  // 自分か相手がこの局面について思考しているものとする。(ponderする時の中心となる局面)
-		bool our_searching;     // search_sfenを探索しているのは自分ならばtrue。相手ならばfalse。
+		// 最後に受け取った"go"コマンド。"go"を含む。
+		string go_string;
+
+		// 現在go ponderで思考している中心局面のsfen。(startpos moves XX XX..の形式)
+		string searching_sfen1;  // 自分か相手がこの局面について思考しているものとする。(ponderする時の中心となる局面)
+		bool   our_searching1;     // search_sfenを探索しているのは自分ならばtrue。相手ならばfalse。
+
+		// 現在の本当の局面
+		// これは searching_sfen1 == searching_sfen2
+		// であるのが普通なのだが、goしていたエンジンからbestmoveが返ってきた時に、
+		// ↓だけが更新されて、それを監視スレッド検知して、各エンジンに思考させなおすことで↑に反映される。
+		string searching_sfen2;
+		bool   our_searching2;
+
+		// エンジン側が"bestmove XX ponder YY"と返してきた時のYY。先頭にスペースわざと入れてある。
+		// ※　そうしてあったほうがdlエンジンが返してくる候補手と比較する時に便利。
+		string engine_ponder;
 	};
 
 	// ---------------------------------------
@@ -1472,10 +1743,8 @@ namespace YaneuraouTheCluster
 		void message_loop_main(Position& pos, std::istringstream& is, const ClusterOptions& options)
 		{
 			// Clusterの監視者
+			// コンストラクタで全エンジンが起動する。
 			ClusterObserver observer(options);
-
-			// 全エンジンの起動。
-			observer.connect();
 
 			while (true)
 			{
