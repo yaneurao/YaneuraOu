@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.28803.156
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32421.90
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "YaneuraOu", "source\YaneuraOu.vcxproj", "{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}"
 EndProject
@@ -120,8 +120,8 @@ Global
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Material|x86.ActiveCfg = Release-Material|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-NNUE|x64.ActiveCfg = Release-NNUE|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-NNUE|x64.Build.0 = Release-NNUE|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-NNUE|x86.ActiveCfg = Release-NNUE-SSE42|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-NNUE|x86.Build.0 = Release-NNUE-SSE42|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-NNUE|x86.ActiveCfg = Release-NNUE|x64
+		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-NNUE|x86.Build.0 = Release-NNUE|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-NNUE-LEARN|x64.ActiveCfg = Release-NNUE-LEARN|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-NNUE-LEARN|x64.Build.0 = Release-NNUE-LEARN|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-NNUE-LEARN|x86.ActiveCfg = Release-NNUE-LEARN|x64
