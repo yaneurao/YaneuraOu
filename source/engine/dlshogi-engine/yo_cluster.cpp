@@ -50,8 +50,9 @@ namespace YaneuraouTheCluster
 
 // 接続の安定性
 //     接続は途中で切断されないことが前提ではある。
-//     少なくとも、1つ目に指定したエンジンは切断されないことを想定している。
-//     2つ目以降は切断された場合は1つ目に指定したエンジンでの思考結果を返し、その思考エンジンへの再接続は行わない。
+//     エンジンが不正終了したり、
+//     ssh経由でエンジンに接続している時にエンジンとの接続が切断されてしまうと、本プログラムは思考を継続できなくなってしまう。
+//
 
 // 起動後 "cluster"というコマンドが入力されることを想定している。
 // 起動時の引数で指定すればいいと思う。
@@ -62,6 +63,10 @@ namespace YaneuraouTheCluster
 // と書いて(↑これが実行ファイル名)、
 //   yane-cluster.bat cluster
 // とすればいいと思う。
+
+// 注意)
+// 本プログラムが不正終了したりquitされる前に終了してしまうと、実行していたworkerのエンジンは実行したままになることがある。
+// その場合は、実行していたエンジンをタスクマネージャーから終了させるなり何なりしなければならない。
 
 #include <sstream>
 #include <thread>
@@ -106,6 +111,34 @@ namespace YaneuraouTheCluster
 
 		// 標準出力に対して出力する。(これはGUI側に届く)
 		sync_cout << message << sync_endl;
+	}
+
+	// "info string Error! : "をmessageの前方に付与してGUIにメッセージを出力する。
+	void error_to_gui(const string& message)
+	{
+		send_to_gui("info string Error! : " + message);
+	}
+
+	// ---------------------------------------
+	//          文字列操作
+	// ---------------------------------------
+
+	// "go XX YY"に対して1つ目のcommand("go")を取り除き、"XX YY"を返す。
+	string strip_command(const string& m)
+	{
+		// 現在の注目位置(cursor)
+		size_t i = 0;
+
+		// スペースを発見するまで cursorを進める。
+		while (i < m.size() && m[i]!=' ')
+			++i;
+
+		// スペース以外になるまでcursorを進める。
+		while (i < m.size() && m[i]==' ')
+			++i;
+
+		// 現在のcursor位置以降の文字列を返す。
+		return m.substr(i);
 	}
 
 	// ---------------------------------------
@@ -411,6 +444,7 @@ namespace YaneuraouTheCluster
 		GO_PONDER,
 		PONDERHIT,
 
+		STOP,
 		QUIT,
 	};
 
@@ -418,9 +452,12 @@ namespace YaneuraouTheCluster
 	{
 		const string s[] = {
 			"NONE",
+
 			"USI","ISREADY","SETOPTION",
 			"USINEWGAME","GAMEOVER",
 			"POSITION","GO","GO_PONDER","PONDERHIT",
+
+			"STOP",
 			"QUIT"
 		};
 
@@ -437,23 +474,34 @@ namespace YaneuraouTheCluster
 	struct Message
 	{
 		Message(USI_Message message_)
-			: message(message_) , param()         {}
-		Message(USI_Message message_, const string& param_)
-			: message(message_) , param(param_)   {}
+			: message(message_) , command()                                           {}
+		Message(USI_Message message_, const string& command_)
+			: message(message_) , command(command_)                                   {}
+		Message(USI_Message message_, const string& command_, const string& position_sfen_)
+			: message(message_) , command(command_) , position_sfen(position_sfen_)   {}
 
-		// メッセージ本体。
+		// メッセージ種別。
 		const USI_Message message;
 
 		// パラメーター。
-		const string param;
+		// GUI側から送られてきた1行がそのまま入る。
+		const string command;
+
+		// 追加のパラメーター
+		// GO , GO_PONDER に対しては、思考すべき局面のsfen文字列が入る。
+		// (positionコマンドに付随している局面文字列。例 : "startpos moves 7g7f")
+		const string position_sfen;
 
 		// このクラスのメンバーを文字列化する
 		string to_string() const
 		{
-			if (param.empty())
+			if (command.empty())
 				return "Message[" + YaneuraouTheCluster::to_string(message) + "]";
 
-			return "Message[" + YaneuraouTheCluster::to_string(message) + " : " + param + "]";
+			if (position_sfen.empty())
+				return "Message[" + YaneuraouTheCluster::to_string(message) + " : " + command + "]";
+
+			return "Message[" + YaneuraouTheCluster::to_string(message) + " : " + command + "] : " + position_sfen;
 		}
 	};
 
@@ -552,7 +600,7 @@ namespace YaneuraouTheCluster
 
 			if (is_terminated())
 				// 起動に失敗したくさい。
-				DebugMessage(": Error! : fail to connect = " + path);
+				error_to_gui("fail to connect = " + path);
 			else
 			{
 				// エンジンが起動したので出力しておく。
@@ -565,7 +613,8 @@ namespace YaneuraouTheCluster
 		}
 
 		// [SYNC] Messageを解釈してエンジンに送信する。
-		// 結果はすぐに返る。
+		// 結果はすぐに返る。親クラス(ClusterObserver)の送受信用スレッドから呼び出す。
+		// send()とreceive()とは同時に呼び出されない。(親クラスの送受信用のスレッドは、送受信のために1つしかスレッドが走っていないため。)
 		void send(Message message)
 		{
 			// エンジンがすでに終了していたらコマンド送信も何もあったものではない。
@@ -586,7 +635,7 @@ namespace YaneuraouTheCluster
 					EngineError("'setoption' should be sent before 'isready'.");
 
 				// そのまま転送すれば良い。
-				send_to_engine(message.param);
+				send_to_engine(message.command);
 				break;
 
 			case USI_Message::ISREADY:
@@ -602,21 +651,52 @@ namespace YaneuraouTheCluster
 				break;
 
 			case USI_Message::GO:
-				// TODO : エンジン側からbestmove来るまで次のgo送れないのでは…。
+				// TODO : エンジン側からbestmove来るまで次のgo送れないのでは…。いや、go ponderなら送れるのか…。
 				if (state != EngineState::IDLE_IN_GAME)
 					EngineError("'go' should be sent when state is 'IDLE_IN_GAME'.");
-				searching_sfen = message.param;
-				send_to_engine("go ponder " + searching_sfen);
+
+				searching_sfen = message.position_sfen;
+				send_to_engine("position " + searching_sfen);
+				send_to_engine(message.command);
+
 				state = EngineState::GO;
 				break;
 
 			case USI_Message::GO_PONDER:
-				// TODO : エンジン側からbestmove来るまで次のgo ponder送れないのでは…。
-				if (state != EngineState::IDLE_IN_GAME)
+				// 本来、エンジン側からbestmove来るまで次のgo ponder送れないが、
+				// ここでは、ignore_bestmoveをインクリメントしておき、この回数だけエンジン側からのbestmoveを
+				// 無視することによってこれを実現する。
+				if (   state != EngineState::IDLE_IN_GAME
+					&& state != EngineState::GO_PONDER
+					)
 					EngineError("'go ponder' should be sent when state is 'IDLE_IN_GAME'.");
-				searching_sfen = message.param;
-				send_to_engine("go ponder " + searching_sfen);
+
+				searching_sfen = message.position_sfen;
+				send_to_engine("position " + searching_sfen);
+				send_to_engine("go ponder");
+
 				state = EngineState::GO_PONDER;
+
+				++ignore_bestmove;
+				break;
+
+			case USI_Message::PONDERHIT:
+				// go ponder中以外にponderhitが送られてきた。
+				if (state != EngineState::GO_PONDER)
+					EngineError("'ponderhit' should be sent when state is 'GO_PONDER'.");
+				else
+					// 次のエンジンからの"bestmove"が送られてくるまでを無視する予定であったが、事情が変わった。
+					--ignore_bestmove;
+
+				// ここまでの思考ログを出力してやる必要がある。
+				output_thinklog();
+
+				send_to_engine("ponderhit " + message.command); // "ponderhit XXX"
+				state = EngineState::GO;
+
+				// 以降は、EngineStateがGOになっているのでエンジン側から送られてきた"info .."は、
+				// 直接GUIに出力されるはず。
+
 				break;
 
 			case USI_Message::GAMEOVER:
@@ -631,11 +711,16 @@ namespace YaneuraouTheCluster
 				state = EngineState::QUIT;
 				send_to_engine("quit");
 				break;
+
+			default:
+				EngineError("illegal message from ClusterObserver : " + message.to_string());
+				break;
 			}
 		}
 
 		// [SYNC]
-		// エンジンからメッセージを受信する(これは受信用スレッドから定期的に呼び出される
+		// エンジンからメッセージを受信して、dispatchする。
+		// このメソッドは親クラス(ClusterObserver)の送受信用スレッドから定期的に呼び出される。(呼び出さなければならない)
 		// メッセージを一つでも受信したならtrueを返す。
 		bool receive()
 		{
@@ -670,25 +755,6 @@ namespace YaneuraouTheCluster
 				dispatch_message(message);
 			}
 
-#if 0
-			// コマンドがあるか
-			while (commands.size() > 0)
-			{
-				// このコマンドを処理する。
-				auto& command = commands.front();
-				if (dispatch_command(command))
-				{
-					// コマンドが処理できたなら、いまのコマンドをPC-Queueから取り除いて
-					// コマンド受信処理を継続する。
-					commands.pop();
-					received = true;
-				}
-				else {
-					break;
-				}
-			}
-#endif
-
 			return received;
 		}
 
@@ -704,6 +770,9 @@ namespace YaneuraouTheCluster
 		// [main thread][receive thread]
 		// エンジンIDを取得。
 		size_t get_engine_id() const { return engine_id; }
+
+		// 現在、"go","go ponder"によって探索中の局面。
+		string get_searching_sfen() const { return searching_sfen; }
 
 		// [main thread][receive thread]
 		// エンジンが対局中のモードに入っているのか？
@@ -733,7 +802,7 @@ namespace YaneuraouTheCluster
 		// エンジン番号を付与して、GUIに送信する。
 		void EngineError(const string& message)
 		{
-			send_to_gui("info string [" +  std::to_string(engine_id) + "] Error! : " + message);
+			error_to_gui("[" +  std::to_string(engine_id) + "] " + message);
 		}
 
 		// [receive thread]
@@ -759,50 +828,105 @@ namespace YaneuraouTheCluster
 			string token;
 			is >> token;
 
+			// GUIに転送するのか？のフラグ
+			bool send_gui = false;
+
 			if (token == "info")
 			{
-				// "Error"という文字列が含まれていたなら(おそらく"info string Error : "みたいな形)、
-				// 何も考えずにGUIにそれを投げる。
-				// "info string [engine id] : xxx"の形にしたほうがいいかな？
-				if (StringExtension::Contains(message, "Error"))
+				// ponder中であればその間に送られてきたメッセージは全部ログに積んでおく。
+				// (ponderhitが送られてきた時に、そこまでのlogをGUIに出力しなければならないため)
+				if (state == EngineState::GO_PONDER)
 				{
+					if (ignore_bestmove == 0)
+						DebugMessage(": Warning! : Illegal state , state = " + to_string(state) + " , ignore_bestmove == 0");
+					else if (ignore_bestmove == 1)
+						think_log.push_back(message);
+					else
+						;
+						// ignore_bestmove >= 2なら、どうせいま受信したメッセージは捨てることになるのでthink_logに積まない。
+				}
+				// "go"("go ponder"ではない)で思考させているなら、そのままGUIに転送。
+				else if (state == EngineState::GO)
+					send_gui = true;
+				// "usiok", "readyok" 待ちの時は、engine id == 0のメッセージだけをGUIに転送。
+				else if (state == EngineState::WAIT_USIOK
+					  || state == EngineState::WAIT_READYOK
+					)
+					send_gui = get_engine_id() == 0;
+				else
+					// usiok/readyok待ちと go ponder , go 以外のタイミングでエンジン側からinfo stringでメッセージが来るのおかしいのでは…。
+					DebugMessage(": Warning! : Illegal info , state = " + to_string(state) + " , message = " + message);
+
+				// "Error"という文字列が含まれていたなら(おそらく"info string Error : "みたいな形)、
+				// 即座に何も考えずにGUIにそれを投げる。
+				// "info string [engine id] : xxx"の形にしたほうがいいかな？
+				if (!send_gui && StringExtension::Contains(message, "Error"))
 					send_to_gui("info string [" + std::to_string(engine_id) + "]> " + message);
-					return ;
+			}
+			// "bestmove XX"を受信した。
+			else if (token == "bestmove")
+			{
+				if (ignore_bestmove > 0)
+				{
+					--ignore_bestmove;
+
+					// bestmoveまでは無視して良かったことが確定したのでこの時点でクリアしてしまう。
+					think_log.clear();
+
+				} else {
+
+					// 無視したらあかんやつなのでこのままGUIに投げる。
+					send_gui = true;
+
+					// 探索中の局面のsfenを示す変数をクリア。
+					searching_sfen = string();
+
+					// TODO : bestmoveの文字列をparseする。
 				}
 			}
-
-			switch (state)
+			else if (token == "usiok")
+				// "usiok"は全部のエンジンが WAIT_ISREADYになった時に親クラス(Observer)がGUIに送るので状態の変更だけ。
+				change_state(EngineState::WAIT_ISREADY);
+			else if (token == "readyok")
+				// → "readyok"は全部のエンジンが IDLE_IN_GAMEになった時に親クラス(Observer)がGUIに送るので状態の変更だけ。
+				change_state(EngineState::IDLE_IN_GAME);
+			// "id"はエンジン起動時にしか来ないはずだが？
+			else if (token == "id")
 			{
-			case EngineState::WAIT_USIOK:
-				// この間に送られてくるエンジン0のメッセージはguiに出力してやる。
-				// ただしusiokは送ってはダメ
-				if (token == "usiok")
-					change_state(EngineState::WAIT_ISREADY);
-				else if (get_engine_id() == 0)
-					send_to_gui(message);
-				return;
+				StateAssert(EngineState::WAIT_USIOK);
 
-			case EngineState::WAIT_READYOK:
-				// この間に送られてくるエンジン0のメッセージはguiに出力してやる。
-				// ただしreadyokは送ってはダメ
-				// → readyokは全部のスレッドが IDLE_IN_GAMEになった時に親クラス(Observer)が送る。
-				if (token == "readyok")
-					change_state(EngineState::IDLE_IN_GAME);
-				else if (get_engine_id() == 0)
-					send_to_gui(message);
-				return;
-			}
+				send_gui = engine_id == 0;
 
-			// これは"usi"応答として送られてくる。
-			// WAIT_USIOK/WAIT_READYOKの時しか送られてこないはずなのだが…。
-			if (token == "id" || token == "option" || token == "usiok" || token == "isready")
-			{
 				// Warning
 				DebugMessage(": Warning! : Illegal Message , state = " + to_string(state)
 					+ " , message = " + message);
 			}
 
+			// GUIに転送しないといけないメッセージであった。
+			if (send_gui)
+				send_to_gui(message);
 
+		}
+
+		// そこまでの思考ログを出力する。
+		void output_thinklog()
+		{
+			// "GO_PONDER"が何重にも送られてきている。
+			// まだ直前のGO_PONDERのログがエンジン側から送られてきていない。
+			if (ignore_bestmove >= 1)
+				return ;
+
+			// ここまでの思考ログを吐き出してやる。
+			for(auto& log : think_log)
+				send_to_gui(log);
+			think_log.clear();
+		}
+
+		// EngineStateの状態がsではない時に警告をGUIに出力する。
+		void StateAssert(EngineState s)
+		{
+			if (state != s)
+				error_to_gui("illegal state : state = " + to_string(s));
 		}
 
 		// -------------------------------------------------------
@@ -818,18 +942,18 @@ namespace YaneuraouTheCluster
 		// エンジンに対して何をやっている状態であるのか。
 		EngineState state;
 
-		// Supervisorから送られてくるMessageのqueue
-		Concurrent::ConcurrentQueue<Message> queue;
-
-		// Messageを処理した個数
-		atomic<u64> done_counter = 0;
-
-		// Messageをsendした回数
-		atomic<u64> send_counter = 0;
-
 		// 探索中の局面
 		// state == GO or GO_PONDER において探索中の局面。
 		string searching_sfen;
+
+		// この回数だけエンジン側から送られてきたbestmoveを無視する。
+		// 連続して"go ponder"を送った時など、bestmoveを受信する前に次の"go ponder"を送信することがあるので
+		// その時に、前の"go ponder"に対応するbestmoveは無視しないといけないため。
+		atomic<int> ignore_bestmove;
+
+		// "go ponder"時にエンジン側から送られてきた思考ログ。
+		// そのあと、"ponderhit"が送られてきたら、その時点までの思考ログをGUIにそこまでのログを出力するために必要。
+		vector<string> think_log;
 	};
 
 	// ---------------------------------------
@@ -878,7 +1002,7 @@ namespace YaneuraouTheCluster
 
 			if (SystemIO::ReadAllLines(engine_list_path, lines, true).is_not_ok())
 			{
-				cout << "Error! engine list file not found. path = " << engine_list_path << endl;
+				error_to_gui("engine list file not found. path = " + engine_list_path);
 				Tools::exit();
 			}
 
@@ -904,7 +1028,7 @@ namespace YaneuraouTheCluster
 				wait_all_engines_wakeup();
 		}
 
-		// [ASYNC] 通信スレッドで受け取ったメッセージをこのSupervisorに伝える。
+		// [ASYNC] 通信スレッドで受け取ったメッセージをこのClusterObserverに伝える。
 		//    waitとついているほうのメソッドは送信し、処理の完了を待機する。
 		void send(USI_Message usi                     )       { send(Message(usi            )); }
 		void send(USI_Message usi, const string& param)       { send(Message(usi, param     )); }
@@ -914,7 +1038,8 @@ namespace YaneuraouTheCluster
 		// [ASYNC] Messageを解釈してエンジンに送信する。
 		void send(Message message)
 		{
-			DebugMessageCommon("Observer send : " + message.to_string());
+			// Observerからengineに対するメッセージ
+			DebugMessageCommon("Cluster to ClusterObserver : " + message.to_string());
 
 			queue.push(message);
 			send_counter++;
@@ -966,9 +1091,6 @@ namespace YaneuraouTheCluster
 						// まず各エンジンに通知は必要。(各エンジンがこのタイミングで何かをする可能性はあるので)
 						broadcast(message);
 
-						// ゲームが開始した。いま以降、エンジンに対して"go ponder"とかしてOk. むしろ積極的にすべき。
-						usi = USI_Message::USINEWGAME;
-
 						// 現在、相手が初期局面("startpos")について思考しているものとする。
 						searching_sfen = "startpos";
 						our_searching = false;
@@ -979,10 +1101,21 @@ namespace YaneuraouTheCluster
 						break;
 
 					case USI_Message::GAMEOVER:
-						usi = USI_Message::GAMEOVER;
-						// 各エンジンへの通知は思考を停止させてからの話なので、いますぐは何も送らない。
-						// エンジンが思考中なら停止させるような命令がいくので、停止してから"gameover"を送信すれば良いという考え。
 
+						// GAMEOVERが来れば、各エンジンは自動的に停止するようになっている。
+						broadcast(message);
+
+						break;
+
+					case USI_Message::POSITION:
+						// 最後に受け取った"position"コマンドの内容。
+						// 次の"go"コマンドの時に、この局面について投げてやる。
+						position_string = message.command;
+						break;
+
+					case USI_Message::GO:
+						// "go"コマンド。
+						handle_go_cmd(message);
 						break;
 
 					case USI_Message::QUIT:
@@ -990,6 +1123,11 @@ namespace YaneuraouTheCluster
 
 						// エンジン停止させて、それを待機する必要はある。
 						quit = true;
+						break;
+
+					default:
+						// ハンドラが書かれていない、送られてくること自体が想定されていないメッセージ。
+						error_to_gui("illegal message : " + message.to_string());
 						break;
 					}
 
@@ -1040,14 +1178,6 @@ namespace YaneuraouTheCluster
 							usi = USI_Message::NONE;
 							output_number_of_live_engines();
 						}
-						break;
-
-					case USI_Message::USINEWGAME:
-						// 対局は開始しているので各エンジンに思考させたりする必要がある。
-						break;
-
-					case USI_Message::GAMEOVER:
-						// 対局は終了しているので、探索中のエンジンは停止させる必要がある。
 						break;
 					}
 				}
@@ -1111,6 +1241,43 @@ namespace YaneuraouTheCluster
 				engine.send(message);
 		}
 
+		// 親から送られてきた"position"～"go"コマンドに対して処理する。
+		void handle_go_cmd(const Message& message)
+		{
+			auto searching_sfen = strip_command(position_string);
+			our_searching = true;
+
+			// ここ、局面に関して何らかのassert追加するかも。
+
+			if (searching_sfen.empty())
+			{
+				error_to_gui("Illegal position command : " + position_string);
+				return ;
+			}
+
+			// 現在、与えられた局面についてGO_PONDERで思考しているエンジンがあるか？
+			// あるなら、そのエンジンに対して"ponderhit"を送信して、残りのエンジンに対しては
+			// 次に思考すべき局面の選出をした上で、それを残りのエンジンにGO_PONDERで思考させる。
+
+			EngineNegotiator* target = nullptr;
+			for(auto& engine: engines)
+				if (engine.get_searching_sfen() == searching_sfen)
+				{
+					// 見つかった。
+					target = &engine;
+
+					// PONDERHITの時は、commandとして"go XXX"のXXXの部分を送ることになっている。
+					engine.send(Message(USI_Message::PONDERHIT, strip_command(message.command)));
+					break;
+				}
+
+			if (target == nullptr)
+			{
+				// 一番探索がこの局面から近いものに担当させてやる。
+			}
+
+			// 他のエンジンの処遇について
+		}
 
 		// 各エンジンのponderを開始する。
 		void start_pondering()
@@ -1125,8 +1292,8 @@ namespace YaneuraouTheCluster
 			search_for_ponder(searching_sfen, our_searching);
 
 			// デバッグ用に逆側も出力してみる。
-			DebugMessageCommon("---");
-			search_for_ponder(searching_sfen, !our_searching);
+			//DebugMessageCommon("---");
+			//search_for_ponder(searching_sfen, !our_searching);
 		}
 
 		// ponderする局面の選出。
@@ -1152,14 +1319,16 @@ namespace YaneuraouTheCluster
 
 			// 局面が求まったので各エンジンに対して"go ponder"で思考させる。
 
-			size_t i = 0;
 			bool is_startpos = search_sfen == "startpos";
-			for(auto& engine : engines)
+
+			// ここ、空いてるエンジンに対して行う必要がある。あとで書き直す。
+			for(size_t i = 0 ; i < snlist.size() ; ++i)
 			{
+				auto& engine = engines[i];
+
 				// "startpos"に連結するなら"moves"を付与。
 				string sfen = search_sfen + (is_startpos ? " moves" : "") + snlist[i].sfen;
-				engine.send(Message(USI_Message::GO_PONDER, sfen));
-				++i;
+				engine.send(Message(USI_Message::GO_PONDER, "" , sfen));
 			}
 		}
 
@@ -1229,6 +1398,9 @@ namespace YaneuraouTheCluster
 
 		// Messageをsendした回数
 		atomic<u64> send_counter = 0;
+
+		// 最後に受け取った"position"コマンド。次に"go"がやってきた時にこの局面に対して思考させる。
+		string position_string;
 
 		// 現在思考している局面のsfen。(startpos moves XX XX..の形式)
 		// ponderする時は、この局面を中心として行う。
@@ -1328,6 +1500,12 @@ namespace YaneuraouTheCluster
 					// setoption は普通 isreadyの直前にしか送られてこないので
 					// 何も考えずに エンジンにそのまま投げて問題ない。
 					observer.send(USI_Message::SETOPTION, cmd);
+				else if (token == "position")
+					observer.send(USI_Message::POSITION, cmd);
+				else if (token == "go")
+					observer.send(USI_Message::GO      , cmd);
+				else if (token == "stop")
+					observer.send(USI_Message::STOP    , cmd);
 				else if (token == "usinewgame")
 					observer.send(USI_Message::USINEWGAME);
 				else if (token == "gameover")
@@ -1343,7 +1521,7 @@ namespace YaneuraouTheCluster
 				else {
 					// 知らないコマンドなのでデバッグのためにエラー出力しておく。
 					// 利便性からすると何も考えずにエンジンに送ったほうがいいかも？
-					send_to_gui("Error! : Unknown Command : " + token);
+					error_to_gui("Unknown Command : " + token);
 				}
 			}
 			
