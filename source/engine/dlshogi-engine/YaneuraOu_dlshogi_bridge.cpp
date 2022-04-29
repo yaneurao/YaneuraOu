@@ -503,7 +503,9 @@ namespace dlshogi
 			Move          m          = child.move;
 
 			// n番目以上なのでこの訪問回数を追加する。
-			if (move_count >= tv.nth_nodes())
+			if (   move_count >= tv.nth_nodes()
+				&& node->child_nodes          != nullptr
+				&& node->child_nodes[i].get() != nullptr)
 			{
 				// このnodeを再帰的に辿る必要がある。
 				// move_count以下のものは辿らない、すなわち枝刈りする。

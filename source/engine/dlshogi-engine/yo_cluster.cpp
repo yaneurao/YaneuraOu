@@ -42,6 +42,8 @@ namespace YaneuraouTheCluster
 //    あと、sshコマンド自体も書ける。
 //    例) ssh -i "yaneen-wcsc32.pem" ubuntu@xx.xxx.xxx.xx ./YaneuraOu-by-gcc
 // 
+//	  ※　実行path、full pathにした時に日本語が混じっていると起動に失敗する。日本語の混じったフォルダを使わないように。
+// 
 // 思考エンジンの用意)
 //    ローカルPCに配置するなら普通に思考エンジンの実行pathを書けば良い。
 //    リモートPCに配置するならsshを経由して接続すること。例えばWindowsの .bat ファイルとして ssh 接続先 ./yaneuraou-clang
@@ -96,12 +98,32 @@ namespace YaneuraouTheCluster
 
 	// デバッグ用に標準出力にデバッグメッセージ(進捗など)を出力するのか？
 	static bool debug_mode = false;
+	static bool skip_info  = false;
+	static bool file_log   = false;
+	static FILE* file_log_ptr = nullptr;
+	#pragma warning(disable:4996) // fopen()
 
 	void DebugMessageCommon(const string& message)
 	{
+		if (file_log)
+		{
+			if (file_log_ptr == nullptr)
+				file_log_ptr = fopen("cluster-log.txt","a");
+			fprintf(file_log_ptr , message.c_str());
+			fprintf(file_log_ptr , "\n");
+			fflush(file_log_ptr);
+			return ;
+		}
+
 		// デバッグモードの時は標準出力にも出力する。
 		if (debug_mode)
+		{
+			// skip_infoがtrueなら、"info"文字列は出力しない。(これされると画面が流れて行って読めない。)
+			if (skip_info && StringExtension::Contains(message, "info "))
+				return;
+
 			sync_cout << message << sync_endl;
+		}
 
 		// あとはファイルに出力したければ出力すれば良い。
 	}
@@ -160,14 +182,34 @@ namespace YaneuraouTheCluster
 		return i;
 	}
 
+	// 何文字目まで一致したかを返す。sfen用。
+	// s1 = XX YY CC
+	// s2 = XX YY ZZ WW
+	// この場合、s1を探索していたエンジンは、s2の局面はほぼ探索していないと思われるので
+	// ペナルティ一致しなかった文字長さ("CC")に比例したペナルティを課す。
+	size_t get_match_length_sfen(const string& s1, const string& s2)
+	{
+		size_t i = 0;
+		while (i < s1.size()
+			&& i < s2.size()
+			&& s1[i] == s2[i])
+			++i;
+
+		if (i != s1.size())
+			// cursorが末尾じゃないところで停止しているのでペナルティ
+			i = (size_t)(std::max( (s64)s1.size() - (s64)(s1.size() - i)*3 , (s64)0));
+
+		return i;
+	}
+
 	// sfen文字列("position"で渡されてくる文字列)を連結する。
 	// sfen1 == "startpos" , moves = " 7g7f"の時に、
 	// "startpos moves 7g7f"のように連結する。
 	// 引数のmovesの文字列の先頭にはスペースが入っていること。
-	string concat_sfen(const string&sfen1, const string& moves)
+	string concat_sfen(const string&sfen, const string& moves)
 	{
-		bool is_startpos = sfen1 == "startpos";
-		return sfen1 + (is_startpos ? " moves" : "") + moves;
+		bool is_startpos = sfen == "startpos";
+		return sfen + (is_startpos ? " moves" : "") + moves;
 	}
 
 	// ---------------------------------------
@@ -236,6 +278,8 @@ namespace YaneuraouTheCluster
 			// Create the child process
 
 			DebugMessageCommon("workingDirectory = " + workingDirectory + " , " + app_path);
+
+			// 注意 : to_wstring()、encodingの問題があって日本語混じってると駄目。
 
 			bool success = ::CreateProcess(
 				NULL,                                         // ApplicationName
@@ -915,7 +959,9 @@ namespace YaneuraouTheCluster
 					send_gui = get_engine_id() == 0;
 				else
 					// usiok/readyok待ちと go ponder , go 以外のタイミングでエンジン側からinfo stringでメッセージが来るのおかしいのでは…。
-					DebugMessage(": Warning! : Illegal info , state = " + to_string(state) + " , message = " + message);
+					// ただしignore_bestmove > 0なら、bestmove来るまでは無視していいのか…。
+					if (ignore_bestmove == 0)
+						DebugMessage(": Warning! : Illegal info , state = " + to_string(state) + " , message = " + message);
 
 				// "Error"という文字列が含まれていたなら(おそらく"info string Error : "みたいな形)、
 				// 即座に何も考えずにGUIにそれを投げる。
@@ -938,15 +984,17 @@ namespace YaneuraouTheCluster
 					// 無視したらあかんやつなのでこのままGUIに投げる。
 					send_gui = true;
 
+					// GOで思考していたなら、bestmoveを親クラスに返す必要がある。
+					// これを設定しておけば親クラスが検知してくれる。
+					if (state == EngineState::GO)
+						bestmove_string = message;
+
 					// 思考は停止している。
 					change_state(EngineState::IDLE_IN_GAME);
 
 					// 探索中の局面のsfenを示す変数をクリア。
 					//searching_sfen = string();
 					// →　これは空にしては駄目。この情報使う。
-
-					// これを設定しておけば親クラスが検知してくれる。
-					bestmove_string = message;
 				}
 			}
 			else if (token == "usiok")
@@ -958,13 +1006,18 @@ namespace YaneuraouTheCluster
 			// "id"はエンジン起動時にしか来ないはずだが？
 			else if (token == "id")
 			{
+				string token2;
+				is >> token2;
+				// "id author"のタイミングでこのエンジンのinfoを出しておく。
+				// それ以外の"id XXX"は無視する。
+				if (engine_id == 0 && token2 == "author")
+					send_to_gui(engine_info());
+				send_gui = false;
+			}
+			else if (token == "option")
+			{
 				StateAssert(EngineState::WAIT_USIOK);
-
 				send_gui = engine_id == 0;
-
-				// Warning
-				DebugMessage(": Warning! : Illegal Message , state = " + to_string(state)
-					+ " , message = " + message);
 			}
 
 			// GUIに転送しないといけないメッセージであった。
@@ -1470,7 +1523,7 @@ namespace YaneuraouTheCluster
 
 			// ponderの中心局面の更新
 			searching_sfen1 = searching_sfen2;
-			our_searching1  = our_searching1;
+			our_searching1  = our_searching2;
 		}
 
 		// ponderする局面の選出。
@@ -1509,6 +1562,7 @@ namespace YaneuraouTheCluster
 			// debug用に出力してみる。
 
 			bool found = false;
+			size_t found_i = 0;
 			for(size_t i = 0; i < snlist.size() ; ++i)
 			{
 				string sfen = snlist[i].sfen;
@@ -1516,9 +1570,18 @@ namespace YaneuraouTheCluster
 				{
 					DebugMessageCommon("sfen for pondering (" + std::to_string(i) + ") (engine's ponder) : " + sfen + "(" + std::to_string(snlist[i].nodes) + ")");
 					found = true;
+					found_i = i;
 				}
 				else
 					DebugMessageCommon("sfen for pondering (" + std::to_string(i) + ") : " + sfen + "(" + std::to_string(snlist[i].nodes) + ")");
+			}
+
+			// 発見したのであれば、iを先頭に移動させておく。(engineのponder手なので優先的に探索したい。)
+			if (found)
+			{
+				auto sn = snlist[found_i];
+				snlist.erase(snlist.begin() + found_i);
+				snlist.insert(snlist.begin(), sn);
 			}
 
 			// エンジン側がponderで指定してきた局面が見つからからなかった。
@@ -1535,6 +1598,8 @@ namespace YaneuraouTheCluster
 
 			for(size_t i = 0 ; i < snlist.size() ; ++i)
 			{
+				//DebugMessageCommon("search_sfen = " + search_sfen + " , snlist[i].sfen = " + snlist[i].sfen);
+
 				string sfen = concat_sfen(search_sfen , snlist[i].sfen);
 
 				// 一番近くを探索していたエンジンに割り当てる
@@ -1546,20 +1611,39 @@ namespace YaneuraouTheCluster
 					if (!engine_empty[j])
 						continue;
 					 
-					auto& engine = engines[j];
-					auto& sfen2  = engine.get_searching_sfen();
+					auto& engine      = engines[j];
+					auto& engine_sfen = engine.get_searching_sfen();
+
+#if 0
+					DebugMessageCommon("search_sfen = " + search_sfen
+						+ " , sfen[" + std::to_string(i) + "] = " + sfen
+						+ " , engine_sfen[" + std::to_string(j) + "] = " + engine_sfen);
+#endif
 
 					// ドンピシャでこれいま探索しとるで…。go ponderしなおす必要すらない。
-					if (sfen == sfen2)
+					if (sfen == engine_sfen)
 					{
-						engine_empty[j] = true;
+						auto engine_id = std::to_string(engine.get_engine_id());
+						if (engine.is_idle_in_game())
+						{
+							// ただ、同じ局面を探索したあと停止している。
+							// この場合、ponderで再度思考させる。
+
+							DebugMessageCommon("go ponder [" + engine_id + "] : " + sfen);
+							engine.send(Message(USI_Message::GO_PONDER, string() , sfen));
+						} else {
+							// 現在ponderしているので継続で良い。
+							DebugMessageCommon("continue to pondering [" + engine_id +"]: " + sfen);
+						}
+
+						engine_empty[j] = false;
 						goto Next;
 					}
 
 					// なるべく長い文字列が一致したほど、近い局面を探索していると言えると思うので、そのエンジンを使い回す。
 					// また、全く一致しなかった場合、0が返るが、それだとmax_match_lengthの初期値と同じなので + 1足してから比較する。
 					// (max_match_lengthは unsingedなので -1 のような負の値が取れないため)
-					size_t match_length = get_match_length(sfen, sfen2) + 1;
+					size_t match_length = get_match_length_sfen(engine_sfen , sfen ) + 1;
 					if (match_length > max_match_length)
 					{
 						max_match_length = match_length;
@@ -1577,12 +1661,15 @@ namespace YaneuraouTheCluster
 				{
 					auto& engine = engines[t];
 					DebugMessageCommon("go ponder [" + std::to_string(engine.get_engine_id()) + "] : " + sfen);
-					engines[t].send(Message(USI_Message::GO_PONDER, string() , sfen));
+					engine.send(Message(USI_Message::GO_PONDER, string() , sfen));
 					engine_empty[t] = false;
 				}
 
 			Next:;
 			}
+
+			// エンジンの指定してきたponderはここで使い切っているはずなのでクリアしておく。
+			engine_ponder.clear();
 		}
 
 		// ノード数固定でふかうら王で探索させる。
@@ -1691,9 +1778,6 @@ namespace YaneuraouTheCluster
 		// これがUSIの通信スレッドであり、main thread。
 		void message_loop(Position& pos, std::istringstream& is)
 		{
-			// ふかうら王のエンジン初期化(評価関数の読み込みなど)
-			is_ready();
-
 			// clusterのオプション設定
 			ClusterOptions options;
 
@@ -1714,8 +1798,10 @@ namespace YaneuraouTheCluster
 		// 
 		// 指定できるオプション一覧)
 		// 
-		//   debug   : debug用に通信のやりとりをすべて標準出力に出力する。
-		//   nodes   : go ponderする局面を選ぶために探索するノード数(ふかうら王で探索する)
+		//   debug    : debug用に通信のやりとりをすべて標準出力に出力する。
+		//   nodes    : go ponderする局面を選ぶために探索するノード数(ふかうら王で探索する)
+		//   skipinfo : "info"文字列はdebugがオンでも出力しない。("info"で画面が流れていくの防止)
+		//   filelog  : このcluster engineのログをfileに書き出す。
 		//
 		void parse_cluster_param(std::istringstream& is, ClusterOptions& options)
 		{
@@ -1734,6 +1820,12 @@ namespace YaneuraouTheCluster
 
 					else if (token == "nodes")
 						is >> options.nodes_limit;
+
+					else if (token == "skipinfo")
+						skip_info = true;
+
+					else if (token == "filelog")
+						file_log  = true;
 				}
 			}
 		}
@@ -1764,7 +1856,12 @@ namespace YaneuraouTheCluster
 				if (token == "usi")
 					observer.send_wait(USI_Message::USI);
 				else if (token == "isready")
+				{
 					observer.send_wait(USI_Message::ISREADY);
+
+					// ふかうら王のエンジン初期化(評価関数の読み込みなど)
+					is_ready();
+				}
 				else if (token == "setoption")
 					// setoption は普通 isreadyの直前にしか送られてこないので
 					// 何も考えずに エンジンにそのまま投げて問題ない。
