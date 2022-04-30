@@ -709,8 +709,10 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states , bool
 
 	// goコマンド、デバッグ時に使うが、そのときに"go btime XXX wtime XXX byoyomi XXX"と毎回入力するのが面倒なので
 	// デフォルトで1秒読み状態で呼び出されて欲しい。
-	if (limits.byoyomi[BLACK] == 0 && limits.inc[BLACK] == 0 && limits.time[BLACK] == 0 && limits.rtime == 0)
-		limits.byoyomi[BLACK] = limits.byoyomi[WHITE] = 1000;
+	//if (limits.byoyomi[BLACK] == 0 && limits.inc[BLACK] == 0 && limits.time[BLACK] == 0 && limits.rtime == 0)
+	//	limits.byoyomi[BLACK] = limits.byoyomi[WHITE] = 1000;
+
+	// →　これやると、パラメーターなしで"go ponder"されて"ponderhit"したときに、byoyomi 1秒と錯覚する。
 
 	Threads.start_thinking(pos, states , limits , ponderMode);
 }
@@ -744,11 +746,6 @@ bool parse_ponderhit(istringstream& is)
 		else if (token == "byoyomi") {
 			TimePoint t = 0;
 			is >> t;
-
-			// USIプロトコルで送られてきた秒読み時間より少なめに思考する設定
-			// ※　通信ラグがあるときに、ここで少なめに思考しないとタイムアップになる可能性があるので。
-
-			// t = std::max(t - Options["ByoyomiMinus"], Time::point(0));
 
 			// USIプロトコルでは、これが先手後手同じ値だと解釈する。
 			limits.byoyomi[BLACK] = limits.byoyomi[WHITE] = t;
