@@ -260,7 +260,7 @@ class FeatureTransformer {
 				for (IndexType i = 1; i < kRefreshTriggers.size(); ++i) {
 					sum += accumulation[perspectives[p]][i][j];
 				}
-				output[offset + j] = static_cast<OutputType>(std::max<int>(0, std::min<int>(127, sum)));
+				output[offset + j] = static_cast<OutputType>(std::clamp<int>(sum, 0, 127));
 			}
 #endif
 		}

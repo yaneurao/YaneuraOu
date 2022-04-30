@@ -714,7 +714,7 @@ pactoys入れて、それ使ってインストールすると楽ちんのよう�
 
 	% pacman --needed --noconfirm -Syuu
 	% pacman --needed --noconfirm -Syuu pactoys
-	% pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m base-devel:
+	% pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m
 
 // :m は32/64bit両方、 :x は64bitのみ、 : はMSYS環境のパッケージという感じの指定です
 // 例) clangには :m を指定しているので、MSYS2の32bit,64bitの両環境用にclangがインストールされます。
@@ -723,15 +723,15 @@ pactoys入れて、それ使ってインストールすると楽ちんのよう�
 
 	#パッケージのキャッシュを削除
 	% rm -rf /var/cache/pacman/pkg/*
- 
+
 	# pacman keyのリセット
 	% rm -r /etc/pacman.d/gnupg/
 	% pacman-key --init
 	% pacman-key --populate msys2
- 
+
 	# 先にkeyringパッケージを更新
 	% pacman -S msys2-keyring
- 
+
 	# 他のパッケージ更新
 	% pacman -Syyu
 
@@ -797,7 +797,7 @@ WindowsのLarge Pageという方法で置換表用のメモリを確保すると
 	3. ここで適切なユーザーに権限を付与する。
 	4. OSを再起動する
 
-	cf. 
+	cf.
 	Enable the Lock Pages in Memory Option (Windows)
 	https://msdn.microsoft.com/en-us/library/ms190730.aspx
 

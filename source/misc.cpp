@@ -467,6 +467,8 @@ void* std_aligned_alloc(size_t alignment, size_t size) {
 	return posix_memalign(&mem, alignment, size) ? nullptr : mem;
 #elif defined(_WIN32)
 	return _mm_malloc(size, alignment);
+#elif defined(__EMSCRIPTEN__)
+	return aligned_alloc(alignment, size);
 #else
 	return std::aligned_alloc(alignment, size);
 #endif

@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 # MSYS2 (MinGW 32-bit) 上で Windows バイナリのビルド
 # ビルド用パッケージの導入
+# $ pacman --needed --noconfirm -Syuu
 # $ pacman --needed --noconfirm -Syuu pactoys
-# $ pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m base-devel:
+# $ pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m
 # MSYS2パッケージの更新、更新出来る項目が無くなるまで繰り返し実行、場合によってはMSYS2の再起動が必要
 # $ pacman -Syuu --noconfirm
 
@@ -19,7 +20,6 @@
 OS=Windows_NT
 MAKE=mingw32-make
 MAKEFILE=Makefile
-JOBS=`grep -c ^processor /proc/cpuinfo 2>/dev/null`
 
 COMPILERS="clang++,g++"
 EDITIONS='*'
@@ -166,7 +166,7 @@ for COMPILER in ${COMPILERSARR[@]}; do
               echo "* target: ${TARGET}"
               TGSTR=YaneuraOu-${FILESTR[$EDITION]}-msys2-${CSTR}-${TARGET}
               ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} ${EXTRA}
-              nice ${MAKE} -f ${MAKEFILE} -j${JOBS} ${TARGET} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET_CPU=NO_SSE ${EXTRA} >& >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
+              nice ${MAKE} -f ${MAKEFILE} -j$(nproc) ${TARGET} YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} COMPILER=${COMPILER} TARGET_CPU=NO_SSE ${EXTRA} >& >(tee ${BUILDDIR}/${TGSTR}.log) || exit $?
               cp YaneuraOu-by-gcc.exe ${BUILDDIR}/${TGSTR}.exe
               ${MAKE} -f ${MAKEFILE} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} ${EXTRA}
               set -f

@@ -28,6 +28,11 @@ namespace Eval::dlshogi
 	PieceType HandPiece2PieceType[HandPieceNum ] = { PAWN , LANCE , KNIGHT , SILVER , GOLD , BISHOP , ROOK };
 	//int       PieceType2HandPiece[PIECE_TYPE_NB] = { 0 , 1 , 2 , 3 , 4 , 6 , 7 , 5 };
 
+#if defined(TRT_NN_FP16)
+	const DType dtype_zero = __float2half(0.0f);
+	const DType dtype_one = __float2half(1.0f);
+#endif
+
 #if 0 // dlshogiに忠実に書かれたコード
 
 	// 入力特徴量を生成する。

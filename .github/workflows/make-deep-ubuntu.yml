@@ -27,6 +27,7 @@ jobs:
           - clang++-12
           - clang++-13
           - clang++-14
+          - clang++-15
         target:
           - normal
         archcpu:
@@ -100,23 +101,38 @@ jobs:
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
         if: ${{ matrix.compiler == 'clang++-14' }}
+      - name: install clang-15
+        # LLVM APT
+        run: |
+          # Remove packages that conflict with clang-15 installation
+          sudo apt remove -y \
+          liblldb-10 libomp-10-dev libomp5-10 lldb-10 python3-lldb-10 \
+          liblldb-11 libomp-11-dev libomp5-11 lldb-11 python3-lldb-11 \
+          liblldb-12 libomp-12-dev libomp5-12 lldb-12 python3-lldb-12
+          # install clang-15
+          wget https://apt.llvm.org/llvm.sh
+          sudo bash ./llvm.sh 15
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+        if: ${{ matrix.compiler == 'clang++-15' }}
 
       - name: install CUDA, TensorRT
-        # ここではCUDAアプリケーションの開発環境用に、CUDAドライバーを含まない cuda-minimal-build-11-5 をインストールしている。
-        # CUDAアプリケーションの実行環境用にセットアップする場合、 cuda-minimal-build-11-5 の代わりに
-        # CUDAドライバーを含むメタパッケージ、 cuda-11-5 もしくは cuda をインストールする。
+        # ここではCUDAアプリケーションの開発環境用に、CUDAドライバーを含まない cuda-minimal-build-11-6 をインストールしている。
+        # CUDAアプリケーションの実行環境用にセットアップする場合、 cuda-minimal-build-11-6 の代わりに
+        # CUDAドライバーを含むメタパッケージ、 cuda-11-6 もしくは cuda をインストールする。
         # https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#package-manager-metas
+        # https://github.com/NVIDIA/cuda-repo-management/issues/4
         run: |
           sudo curl "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin" -o /etc/apt/preferences.d/cuda-repository-pin-600
-          sudo curl "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/7fa2af80.pub" -o /usr/share/keyrings/cuda.gpg.asc
-          echo "deb [signed-by=/usr/share/keyrings/cuda.gpg.asc] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /" | sudo tee /etc/apt/sources.list.d/cuda.list &&\
+          sudo curl "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004-keyring.gpg" -o /usr/share/keyrings/cuda-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /" | sudo tee /etc/apt/sources.list.d/cuda-ubuntu2004-x86_64.list &&\
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install cuda-minimal-build-11-5 libnvinfer-dev libnvinfer-plugin-dev libnvonnxparsers-dev libnvparsers-dev
+          sudo apt install cuda-minimal-build-11-6 cuda-nvrtc-dev-11-6 libcublas-11-6 libcublas-dev-11-6 libnvinfer-dev libnvinfer-plugin-dev libnvonnxparsers-dev libnvparsers-dev
 
       - name: make
-        run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS='-I/usr/local/cuda-11.5/include' EXTRA_LDFLAGS='-L/usr/local/cuda-11.5/lib64'"
+        run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS=-I/usr/local/cuda-11.6/include EXTRA_LDFLAGS=-L/usr/local/cuda-11.6/lib64 EXTRA_LDFLAGS+=-L/usr/local/cuda-11.6/lib64/stubs"
 
       - uses: actions/upload-artifact@v2
         with:

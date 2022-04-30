@@ -1,0 +1,255 @@
+# for Linux environment
+name: Make CI (for MacOS)
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+
+jobs:
+  build-macos:
+    # macos-11
+    # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
+    # https://github.com/actions/virtual-environments/blob/main/images/macos/macos-11-Readme.md
+    runs-on: macos-11
+
+    strategy:
+      matrix:
+        edition:
+          - YANEURAOU_ENGINE_NNUE
+          - "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256"
+          - "YANEURAOU_ENGINE_KPPT,YANEURAOU_ENGINE_KPP_KKPT"
+          - "YANEURAOU_ENGINE_MATERIAL,YANEURAOU_ENGINE_MATERIAL9"
+          - "YANEURAOU_MATE_ENGINE,TANUKI_MATE_ENGINE"
+          - USER_ENGINE
+        compiler:
+          - clang++
+          - g++-11
+        target:
+          - "normal,tournament"
+        archcpu:
+          #- AVX2
+          #- SSE42
+          - APPLEAVX2
+          - APPLESSE42
+          - APPLEM1
+        exclude:
+          - compiler: g++-11
+            archcpu: APPLEAVX2
+          - compiler: g++-11
+            archcpu: APPLESSE42
+          - compiler: g++-11
+            archcpu: APPLEM1
+
+    steps:
+      - name: Checkout own repository
+        uses: actions/checkout@v2
+        with:
+          path: main
+
+      - name: make
+        uses: actions/github-script@v5
+        env:
+          JOBS: '8'
+          EDITION: '${{ matrix.edition }}'
+          COMPILER: '${{ matrix.compiler }}'
+          TARGET: '${{ matrix.target }}'
+          CPU: '${{ matrix.archcpu }}'
+          OS: 'macos11'
+        with:
+          script: |
+            const fs = require('fs');
+            const {JOBS, EDITION, COMPILER, TARGET, CPU, OS, EXTRA} = process.env;
+            const editionh = {
+              "YANEURAOU_ENGINE_NNUE": "YANEURAOU_ENGINE_NNUE",
+              "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32": "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32",
+              "YANEURAOU_ENGINE_NNUE_HALFKPE9": "YANEURAOU_ENGINE_NNUE_HALFKPE9",
+              "YANEURAOU_ENGINE_NNUE_KP256": "YANEURAOU_ENGINE_NNUE_KP256",
+              "YANEURAOU_ENGINE_DEEP_TENSOR_RT": "YANEURAOU_ENGINE_DEEP_TENSOR_RT",
+              "YANEURAOU_ENGINE_KPPT": "YANEURAOU_ENGINE_KPPT",
+              "YANEURAOU_ENGINE_KPP_KKPT": "YANEURAOU_ENGINE_KPP_KKPT",
+              "YANEURAOU_ENGINE_MATERIAL": "YANEURAOU_ENGINE_MATERIAL",
+              "YANEURAOU_ENGINE_MATERIAL2": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=2",
+              "YANEURAOU_ENGINE_MATERIAL3": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=3",
+              "YANEURAOU_ENGINE_MATERIAL4": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=4",
+              "YANEURAOU_ENGINE_MATERIAL5": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=5",
+              "YANEURAOU_ENGINE_MATERIAL6": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=6",
+              "YANEURAOU_ENGINE_MATERIAL7": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=7",
+              "YANEURAOU_ENGINE_MATERIAL8": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=8",
+              "YANEURAOU_ENGINE_MATERIAL9": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=9",
+              "YANEURAOU_ENGINE_MATERIAL10": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=10",
+              "YANEURAOU_MATE_ENGINE": "YANEURAOU_MATE_ENGINE",
+              "TANUKI_MATE_ENGINE": "TANUKI_MATE_ENGINE",
+              "USER_ENGINE": "USER_ENGINE",
+            };
+            const dirh = {
+              "YANEURAOU_ENGINE_NNUE": "NNUE",
+              "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32": "NNUE_HALFKP_VM",
+              "YANEURAOU_ENGINE_NNUE_HALFKPE9": "NNUE_HALFKPE9",
+              "YANEURAOU_ENGINE_NNUE_KP256": "NNUE_KP256",
+              "YANEURAOU_ENGINE_DEEP_TENSOR_RT": "DEEP_TRT",
+              "YANEURAOU_ENGINE_KPPT": "KPPT",
+              "YANEURAOU_ENGINE_KPP_KKPT": "KPP_KKPT",
+              "YANEURAOU_ENGINE_MATERIAL": "MaterialLv1",
+              "YANEURAOU_ENGINE_MATERIAL2": "MaterialLv2",
+              "YANEURAOU_ENGINE_MATERIAL3": "MaterialLv3",
+              "YANEURAOU_ENGINE_MATERIAL4": "MaterialLv4",
+              "YANEURAOU_ENGINE_MATERIAL5": "MaterialLv5",
+              "YANEURAOU_ENGINE_MATERIAL6": "MaterialLv6",
+              "YANEURAOU_ENGINE_MATERIAL7": "MaterialLv7",
+              "YANEURAOU_ENGINE_MATERIAL8": "MaterialLv8",
+              "YANEURAOU_ENGINE_MATERIAL9": "MaterialLv9",
+              "YANEURAOU_ENGINE_MATERIAL10": "MaterialLv10",
+              "YANEURAOU_MATE_ENGINE": "YaneuraOu_MATE",
+              "TANUKI_MATE_ENGINE": "tanuki_MATE",
+              "USER_ENGINE": "USER",
+            };
+            const fileh = {
+              "YANEURAOU_ENGINE_NNUE": "YaneuraOu_NNUE",
+              "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32": "YaneuraOu_NNUE_HALFKP_VM",
+              "YANEURAOU_ENGINE_NNUE_HALFKPE9": "YaneuraOu_NNUE_HalfKPE9",
+              "YANEURAOU_ENGINE_NNUE_KP256": "YaneuraOu_NNUE_KP256",
+              "YANEURAOU_ENGINE_DEEP_TENSOR_RT": "YaneuraOu_Deep_TRT",
+              "YANEURAOU_ENGINE_KPPT": "YaneuraOu_KPPT",
+              "YANEURAOU_ENGINE_KPP_KKPT": "YaneuraOu_KPP_KKPT",
+              "YANEURAOU_ENGINE_MATERIAL": "YaneuraOu_MaterialLv1",
+              "YANEURAOU_ENGINE_MATERIAL2": "YaneuraOu_MaterialLv2",
+              "YANEURAOU_ENGINE_MATERIAL3": "YaneuraOu_MaterialLv3",
+              "YANEURAOU_ENGINE_MATERIAL4": "YaneuraOu_MaterialLv4",
+              "YANEURAOU_ENGINE_MATERIAL5": "YaneuraOu_MaterialLv5",
+              "YANEURAOU_ENGINE_MATERIAL6": "YaneuraOu_MaterialLv6",
+              "YANEURAOU_ENGINE_MATERIAL7": "YaneuraOu_MaterialLv7",
+              "YANEURAOU_ENGINE_MATERIAL8": "YaneuraOu_MaterialLv8",
+              "YANEURAOU_ENGINE_MATERIAL9": "YaneuraOu_MaterialLv9",
+              "YANEURAOU_ENGINE_MATERIAL10": "YaneuraOu_MaterialLv10",
+              "YANEURAOU_MATE_ENGINE": "YaneuraOu_MATE",
+              "TANUKI_MATE_ENGINE": "tanuki_MATE",
+              "USER_ENGINE": "user",
+            };
+            for(let edition of EDITION.split(',')) {
+            for(let compiler of COMPILER.split(',')) {
+            for(let target of TARGET.split(',')) {
+            for(let cpu of CPU.split(',')) {
+              const builddir = `../build/${OS}/${dirh[edition]}`;
+              const filename = `${fileh[edition]}-${OS}-${compiler}-${target}-${cpu.toLowerCase()}`;
+              let log = '';
+              await io.mkdirP(`./main/source/${builddir}`);
+              await exec.exec('nice', `make -j${JOBS} ${target} TARGET_CPU=${cpu} YANEURAOU_EDITION=${editionh[edition]} COMPILER=${compiler} TARGET=${builddir}/${filename}`.split(' '), {
+                "cwd": "./main/source/",
+                listeners: {
+                  stdout: (data) => { log += data.toString(); },
+                  stderr: (data) => { log += data.toString(); },
+                }
+              });
+              await exec.exec(`make`, `clean TARGET_CPU=${cpu} YANEURAOU_EDITION=${edition}`.split(' '), {"cwd": "./main/source/"});
+              fs.writeFileSync(`./main/source/${builddir}/${filename}.log`, log);
+            }}}}
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-macos_${{ github.run_number }}_${{ github.sha }}
+          path: ./main/build/**/**/*
+
+  build-macos-suisho:
+    # macos-11
+    # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
+    # https://github.com/actions/virtual-environments/blob/main/images/macos/macos-11-Readme.md
+    runs-on: macos-11
+
+    strategy:
+      matrix:
+        edition:
+          - YANEURAOU_ENGINE_NNUE
+        compiler:
+          - clang++
+          - g++-11
+        target:
+          - normal
+          - tournament
+        archcpu:
+          #- AVX2
+          #- SSE42
+          - APPLEAVX2
+          - APPLESSE42
+          - APPLEM1
+        exclude:
+          - compiler: g++-11
+            archcpu: APPLEAVX2
+          - compiler: g++-11
+            archcpu: APPLESSE42
+          - compiler: g++-11
+            archcpu: APPLEM1
+
+    steps:
+      - name: Checkout own repository
+        uses: actions/checkout@v2
+        with:
+          path: main
+
+      - name: suisho5 embedded_nnue
+        run: |
+          curl -LRo ./main/source/eval/nnue/embedded_nnue.cpp.gz "https://github.com/mizar/YaneuraOu/releases/download/resource/suisho5_20211123.halfkp.nnue.cpp.gz";
+          gzip -df ./main/source/eval/nnue/embedded_nnue.cpp.gz;
+
+      - name: make
+        uses: actions/github-script@v5
+        env:
+          JOBS: '8'
+          EDITION: '${{ matrix.edition }}'
+          COMPILER: '${{ matrix.compiler }}'
+          TARGET: '${{ matrix.target }}'
+          CPU: '${{ matrix.archcpu }}'
+          OS: 'macos11'
+        with:
+          script: |
+            const fs = require('fs');
+            const {JOBS, EDITION, COMPILER, TARGET, CPU, OS, EXTRA} = process.env;
+            const editionh = {
+              "YANEURAOU_ENGINE_NNUE": "YANEURAOU_ENGINE_NNUE",
+              "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32": "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32",
+              "YANEURAOU_ENGINE_NNUE_HALFKPE9": "YANEURAOU_ENGINE_NNUE_HALFKPE9",
+              "YANEURAOU_ENGINE_NNUE_KP256": "YANEURAOU_ENGINE_NNUE_KP256",
+            };
+            const dirh = {
+              "YANEURAOU_ENGINE_NNUE": "NNUE",
+              "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32": "NNUE_HALFKP_VM",
+              "YANEURAOU_ENGINE_NNUE_HALFKPE9": "NNUE_HALFKPE9",
+              "YANEURAOU_ENGINE_NNUE_KP256": "NNUE_KP256",
+            };
+            const fileh = {
+              "YANEURAOU_ENGINE_NNUE": "Suisho5_YaneuraOu",
+              "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32": "YaneuraOu_NNUE_HALFKP_VM",
+              "YANEURAOU_ENGINE_NNUE_HALFKPE9": "YaneuraOu_NNUE_HalfKPE9",
+              "YANEURAOU_ENGINE_NNUE_KP256": "YaneuraOu_NNUE_KP256",
+            };
+            for(let edition of EDITION.split(',')) {
+            for(let compiler of COMPILER.split(',')) {
+            for(let target of TARGET.split(',')) {
+            for(let cpu of CPU.split(',')) {
+              const builddir = `../build/${OS}/${dirh[edition]}`;
+              const filename = `${fileh[edition]}-${OS}-${compiler}-${target}-${cpu.toLowerCase()}`;
+              let log = '';
+              await io.mkdirP(`./main/source/${builddir}`);
+              await exec.exec('nice', `make -j${JOBS} ${target} TARGET_CPU=${cpu} YANEURAOU_EDITION=${editionh[edition]} COMPILER=${compiler} TARGET=${builddir}/${filename} EVAL_EMBEDDING=ON EXTRA_CPPFLAGS='-DENGINE_OPTIONS=\\\\\"\\\"option=name=FV_SCALE=type=spin=default=24=min=1=max=128\\;option=name=BookFile=type=combo=default=no_book=var=no_book=var=standard_book.db=var=yaneura_book1.db=var=yaneura_book2.db=var=yaneura_book3.db=var=yaneura_book4.db=var=user_book1.db=var=user_book2.db=var=user_book3.db=var=book.bin\\\\\\\"\"'`.split(' '), {
+                "cwd": "./main/source/",
+                listeners: {
+                  stdout: (data) => { log += data.toString(); },
+                  stderr: (data) => { log += data.toString(); },
+                }
+              });
+              await exec.exec(`make`, `clean TARGET_CPU=${cpu} YANEURAOU_EDITION=${edition} EVAL_EMBEDDING=ON`.split(' '), {"cwd": "./main/source/"});
+              fs.writeFileSync(`./main/source/${builddir}/${filename}.log`, log);
+            }}}}
+
+      - name: add resource
+        run: |
+          echo 'Suisho5(20211123)-YaneuraOu' > ./main/build/macos11/NNUE/engine_name.txt;
+          echo 'yaneurao, tayayan' >> ./main/build/macos11/NNUE/engine_name.txt;
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-macos-embed_${{ github.run_number }}_${{ github.sha }}
+          path: ./main/build/**/**/*

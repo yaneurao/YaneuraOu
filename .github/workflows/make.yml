@@ -20,7 +20,8 @@ jobs:
       matrix:
         edition:
           - "YANEURAOU_ENGINE_NNUE,YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256,YANEURAOU_ENGINE_KPPT,YANEURAOU_ENGINE_KPP_KKPT"
-          - YANEURAOU_ENGINE_MATERIAL*
+          #- YANEURAOU_ENGINE_MATERIAL*
+          - "YANEURAOU_ENGINE_MATERIAL,YANEURAOU_ENGINE_MATERIAL9"
           - YANEURAOU_MATE_ENGINE
           - TANUKI_MATE_ENGINE
           - USER_ENGINE
@@ -40,6 +41,8 @@ jobs:
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
           - edition: YANEURAOU_ENGINE_MATERIAL*
+            target: evallearn
+          - edition: "YANEURAOU_ENGINE_MATERIAL,YANEURAOU_ENGINE_MATERIAL9"
             target: evallearn
           - edition: YANEURAOU_MATE_ENGINE
             target: evallearn
@@ -170,6 +173,21 @@ jobs:
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
         if: ${{ matrix.compiler == 'clang++-14' }}
+      - name: install clang-15
+        # LLVM APT
+        run: |
+          # Remove packages that conflict with clang-15 installation
+          sudo apt remove -y \
+          liblldb-10 libomp-10-dev libomp5-10 lldb-10 python3-lldb-10 \
+          liblldb-11 libomp-11-dev libomp5-11 lldb-11 python3-lldb-11 \
+          liblldb-12 libomp-12-dev libomp5-12 lldb-12 python3-lldb-12
+          # install clang-15
+          wget https://apt.llvm.org/llvm.sh
+          sudo bash ./llvm.sh 15
+          sudo apt install build-essential libopenblas-dev clang-15 libomp-15-dev
+          sudo cat /etc/apt/sources.list
+          sudo ls -R /etc/apt/sources.list.d
+        if: ${{ matrix.compiler == 'clang++-15' }}
       - name: install aarch64-linux-gnu-g++
         run: |
           sudo apt update

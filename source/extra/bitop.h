@@ -10,6 +10,7 @@
 
 #if defined(_MSC_VER)
 #include <stdlib.h> // _byteswap_uint64
+#include <intrin.h> // __popcnt, __popcnt64
 #endif
 
 // ターゲット環境でSSE,AVX,AVX2が搭載されていない場合はこれらの命令をsoftware emulationにより実行する。
@@ -112,8 +113,20 @@ inline uint64_t PEXT64(uint64_t a, uint64_t b) { return pext(a, b); }
 //     POPCNT(SSE4.2の命令)
 // ----------------------------
 
-#if defined (USE_SSE42)
+#if defined(_MSC_VER)
 
+inline s32 POPCNT32(u32 a) { return (s32)__popcnt(a); }
+inline s32 POPCNT64(u64 a) { return (s32)__popcnt64(a); }
+
+#elif defined(__GNUC__)
+
+inline s32 POPCNT32(u32 a) { return __builtin_popcount(a); }
+inline s32 POPCNT64(u64 a) { return __builtin_popcountll(a); }
+
+#elif defined (USE_SSE42)
+
+// SSE4.2有効でもPOPCNTが無効かもしれない環境のため、実装順位は下げる
+// 例: MacOS Apple M1 向けソフトウェアエミュレータ、AMD Bulldozer Family 15h core based CPU など
 #if defined (IS_64BIT)
 #define POPCNT32(a) _mm_popcnt_u32(a)
 #define POPCNT64(a) _mm_popcnt_u64(a)
@@ -170,12 +183,39 @@ FORCE_INLINE int MSB32(uint32_t v) { ASSERT_LV3(v != 0); unsigned long index; _B
 FORCE_INLINE int MSB64(uint64_t v) { ASSERT_LV3(v != 0); return uint32_t(v >> 32) ? 32 + MSB32(uint32_t(v >> 32)) : MSB32(uint32_t(v)); }
 #endif
 
-#elif defined(__GNUC__) && ( defined(__i386__) || defined(__x86_64__) || defined(__ANDROID__) || defined(__ARM_ARCH) )
+#elif defined(__GNUC__)
 
-FORCE_INLINE int LSB32(const u32 v) { ASSERT_LV3(v != 0); return __builtin_ctzll(v); }
+FORCE_INLINE int LSB32(const u32 v) { ASSERT_LV3(v != 0); return __builtin_ctz(v); }
 FORCE_INLINE int LSB64(const u64 v) { ASSERT_LV3(v != 0); return __builtin_ctzll(v); }
-FORCE_INLINE int MSB32(const u32 v) { ASSERT_LV3(v != 0); return 63 ^ __builtin_clzll(v); }
+FORCE_INLINE int MSB32(const u32 v) { ASSERT_LV3(v != 0); return 31 ^ __builtin_clz(v); }
 FORCE_INLINE int MSB64(const u64 v) { ASSERT_LV3(v != 0); return 63 ^ __builtin_clzll(v); }
+
+#else
+
+// software emulationによるbitscan forward(やや遅い)
+FORCE_INLINE s32 LSB32(u32 v) { ASSERT_LV3(v != 0); return POPCNT32((v & (-v)) - 1); }
+FORCE_INLINE s32 LSB64(u64 v) { ASSERT_LV3(v != 0); return POPCNT64((v & (-v)) - 1); }
+
+// software emulationによるbitscan reverse(やや遅い)
+FORCE_INLINE s32 MSB32(u32 v) {
+  ASSERT_LV3(v != 0);
+  v = v | (v >>  1);
+  v = v | (v >>  2);
+  v = v | (v >>  4);
+  v = v | (v >>  8);
+  v = v | (v >> 16);
+  return POPCNT32(v);
+}
+FORCE_INLINE s32 MSB64(u64 v) {
+  ASSERT_LV3(v != 0);
+  v = v | (v >>  1);
+  v = v | (v >>  2);
+  v = v | (v >>  4);
+  v = v | (v >>  8);
+  v = v | (v >> 16);
+  v = v | (v >> 32);
+  return POPCNT64(v);
+}
 
 #endif
 

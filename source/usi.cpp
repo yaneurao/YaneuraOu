@@ -7,6 +7,11 @@
 #include "misc.h"
 #include "testcmd/unit_test.h"
 
+#if defined(__EMSCRIPTEN__)
+// yaneuraou.wasm
+#include <emscripten.h>
+#endif
+
 #include <sstream>
 #include <queue>
 
@@ -145,8 +150,15 @@ namespace USI
 	std::string pv(const Position& pos, Depth depth, Value alpha, Value beta)
 	{
 		std::stringstream ss;
-		TimePoint elapsed = Time.elapsed() + 1;
 
+		TimePoint elapsed = Time.elapsed() + 1;
+#if defined(__EMSCRIPTEN__)
+		// yaneuraou.wasm
+		// Time.elapsed()が-1を返すことがある
+		// https://github.com/niklasf/stockfish.wasm/issues/5
+		// https://github.com/niklasf/stockfish.wasm/commit/4f591186650ab9729705dc01dec1b2d099cd5e29
+		elapsed = std::max(elapsed, TimePoint(1));
+#endif
 		const auto& rootMoves = pos.this_thread()->rootMoves;
 		size_t pvIdx = pos.this_thread()->pvIdx;
 		size_t multiPV = std::min((size_t)Options["MultiPV"], rootMoves.size());
@@ -184,7 +196,7 @@ namespace USI
 				<< " seldepth " << rootMoves[i].selDepth
 #if defined(USE_PIECE_VALUE)
 				<< " score "    << USI::value(v)
-#endif				
+#endif
 				;
 
 			// これが現在探索中の指し手であるなら、それがlowerboundかupperboundかは表示させる
@@ -319,6 +331,9 @@ void is_ready(bool skipCorruptCheck)
 
 	USI::read_engine_options(Path::Combine(Options["EvalDir"], "eval_options.txt"));
 
+	// yaneuraou.wasm
+	// ブラウザのメインスレッドをブロックしないよう、Keep Alive処理をコメントアウト
+#if !defined(__EMSCRIPTEN__)
 	// --- Keep Alive的な処理 ---
 
 	// "isready"を受け取ったあと、"readyok"を返すまで5秒ごとに改行を送るように修正する。(keep alive的な処理)
@@ -351,7 +366,7 @@ void is_ready(bool skipCorruptCheck)
 			if (++count >= 50 /* 5秒 */)
 			{
 				count = 0;
-				sync_cout << sync_endl; // 改行を送信する。	
+				sync_cout << sync_endl; // 改行を送信する。
 
 				// 定跡の読み込み部などで"info string.."で途中経過を出力する場合、
 				// sync_cout ～ sync_endlを用いて送信しないと、この改行を送るタイミングとかち合うと
@@ -366,6 +381,7 @@ void is_ready(bool skipCorruptCheck)
 		Tools::sleep(100);
 
 	// --- Keep Alive的な処理ここまで ---
+#endif
 
 	// スレッドを先に生成しないとUSI_Hashで確保したメモリクリアの並列化が行われなくて困る。
 
@@ -574,6 +590,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states , bool
 	bool ponderMode = false;
 
 	auto main_thread = Threads.main();
+
 	if (!states)
 	{
 		// 前回から"position"コマンドを処理せずに再度goが呼び出された。
@@ -608,7 +625,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states , bool
 
 	// エンジンオプションによる探索制限(0なら無制限)
 	// このあと、depthもしくはnodesが指定されていたら、その値で上書きされる。(この値は無視される)
-	
+
 	limits.depth = Options.count("DepthLimit") ? (int)Options["DepthLimit"] : 0;
 	limits.nodes = Options.count("NodesLimit") ? (u64)Options["NodesLimit"] : 0;
 
@@ -797,22 +814,11 @@ void search_cmd(Position& pos, istringstream& is)
 // --------------------
 
 // USI応答部本体
-void USI::loop(int argc, char* argv[])
+void usi_cmdexec(Position& pos, StateListPtr& states, string& cmd)
 {
-	// 探索開始局面(root)を格納するPositionクラス
-	// "position"コマンドで設定された局面が格納されている。
-	Position pos;
+	string token;
 
-	string cmd, token;
-
-	// 局面を遡るためのStateInfoのlist。
-	StateListPtr states(new StateList(1));
-
-	std_input.parse_args(argc,argv);
-
-	do
 	{
-		cmd = std_input.input();
 		istringstream is(cmd);
 
 		token.clear(); // getlineが空を返したときのためのクリア
@@ -899,10 +905,10 @@ void USI::loop(int argc, char* argv[])
 		// そもそもで言うと、"usinewgame"に対してはエンジン側は何ら応答を返さないので、
 		// GUI側は、エンジン側が処理中なのかどうかが判断できない。
 		// なのでここで長い時間のかかる処理はすべきではないと思うのだが。
-		else if (token == "usinewgame") continue;
+		else if (token == "usinewgame") return;
 
 		// 思考エンジンの準備が出来たかの確認
-		else if (token == "isready") is_ready_cmd(pos,states);
+		else if (token == "isready") is_ready_cmd(pos, states);
 
 		// 以下、デバッグのためのカスタムコマンド(非USIコマンド)
 		// 探索中には使わないようにすべし。
@@ -992,7 +998,7 @@ void USI::loop(int argc, char* argv[])
 		// この局面での1手詰め判定
 		else if (token == "mate1") cout << pos.mate1ply() << endl;
 #endif
-		
+
 #if defined (ENABLE_TEST_CMD)
 		// テストコマンド
 		else if (token == "test") Test::test_cmd(pos, is);
@@ -1051,7 +1057,31 @@ void USI::loop(int argc, char* argv[])
 			OPTION_FOUND:;
 			}
 		}
+	}
+}
 
+// USI応答部ループ
+void USI::loop(int argc, char* argv[])
+{
+	// 探索開始局面(root)を格納するPositionクラス
+	// "position"コマンドで設定された局面が格納されている。
+	Position pos;
+
+	string cmd, token;
+
+	// 局面を遡るためのStateInfoのlist。
+	StateListPtr states(new StateList(1));
+
+	std_input.parse_args(argc,argv);
+
+	do
+	{
+		cmd = std_input.input();
+		usi_cmdexec(pos, states, cmd);
+
+		// quit検知
+		istringstream is(cmd);
+		is >> skipws >> token;
 	} while (token != "quit");
 
 	// quitが来た時点ではまだ探索中かも知れないのでmain threadの停止を待つ。
@@ -1267,7 +1297,7 @@ void USI::UnitTest(Test::UnitTester& tester)
 				Move m = USI::to_move(pos,token);
 				if (m == MOVE_NONE)
 					fail = true;
-				
+
 				pos.do_move(m, si[pos.game_ply()]);
 			}
 
@@ -1277,3 +1307,27 @@ void USI::UnitTest(Test::UnitTester& tester)
 
 	}
 }
+
+#if defined(__EMSCRIPTEN__)
+// --------------------
+// EMSCRIPTEN support
+// --------------------
+static StateListPtr states(new StateList(1));
+
+// USI応答部 emscriptenインターフェース
+EMSCRIPTEN_KEEPALIVE extern "C" int usi_command(const char *c_cmd) {
+	std::string cmd(c_cmd);
+
+	static Position pos;
+	string token;
+
+	for (Thread* th : Threads) {
+		if (!th->threadStarted)
+			return 1;
+	}
+
+	usi_cmdexec(pos, states, cmd);
+
+	return 0;
+}
+#endif

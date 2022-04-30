@@ -29,59 +29,35 @@
     </BuildMacro>
   </ItemGroup>
   <ItemGroup>
-    <Content Condition="Exists('C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\cublas64_11.dll')" Include="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\cublas64_11.dll">
+    <Content Condition="Exists('C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\bin\cudnn_adv_infer64_8.dll')" Include="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\bin\cudnn_adv_infer64_8.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
-    <Content Condition="Exists('C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\cublasLt64_11.dll')" Include="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\cublasLt64_11.dll">
+    <Content Condition="Exists('C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\bin\cudnn_cnn_infer64_8.dll')" Include="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\bin\cudnn_cnn_infer64_8.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
-    <Content Condition="Exists('C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\cudart64_110.dll')" Include="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\cudart64_110.dll">
+    <Content Condition="Exists('C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\bin\cudnn_ops_infer64_8.dll')" Include="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\bin\cudnn_ops_infer64_8.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
-    <Content Condition="Exists('C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\cudnn_adv_infer64_8.dll')" Include="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\cudnn_adv_infer64_8.dll">
+    <Content Condition="Exists('C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\bin\cudnn64_8.dll')" Include="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\bin\cudnn64_8.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
-    <Content Condition="Exists('C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\cudnn_cnn_infer64_8.dll')" Include="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\cudnn_cnn_infer64_8.dll">
+    <Content Condition="Exists('C:\TensorRT-8.2.4.2\lib\nvinfer_builder_resource.dll')" Include="C:\TensorRT-8.2.4.2\lib\nvinfer_builder_resource.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
-    <Content Condition="Exists('C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\cudnn_ops_infer64_8.dll')" Include="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\cudnn_ops_infer64_8.dll">
+    <Content Condition="Exists('C:\TensorRT-8.2.4.2\lib\nvinfer.dll')" Include="C:\TensorRT-8.2.4.2\lib\nvinfer.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
-    <Content Condition="Exists('C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\cudnn64_8.dll')" Include="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\cudnn64_8.dll">
+    <Content Condition="Exists('C:\TensorRT-8.2.4.2\lib\nvinfer_plugin.dll')" Include="C:\TensorRT-8.2.4.2\lib\nvinfer_plugin.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
-    <Content Condition="Exists('C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\cufft64_10.dll')" Include="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\cufft64_10.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <Visible>false</Visible>
-    </Content>
-    <Content Condition="Exists('C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\nvrtc64_112_0.dll')" Include="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\nvrtc64_112_0.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <Visible>false</Visible>
-    </Content>
-    <Content Condition="Exists('C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\nvrtc-builtins64_114.dll')" Include="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.5\bin\nvrtc-builtins64_114.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <Visible>false</Visible>
-    </Content>
-    <Content Condition="Exists('C:\TensorRT-8.2.1.8\lib\nvinfer_builder_resource.dll')" Include="C:\TensorRT-8.2.1.8\lib\nvinfer_builder_resource.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <Visible>false</Visible>
-    </Content>
-    <Content Condition="Exists('C:\TensorRT-8.2.1.8\lib\nvinfer.dll')" Include="C:\TensorRT-8.2.1.8\lib\nvinfer.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <Visible>false</Visible>
-    </Content>
-    <Content Condition="Exists('C:\TensorRT-8.2.1.8\lib\nvinfer_plugin.dll')" Include="C:\TensorRT-8.2.1.8\lib\nvinfer_plugin.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <Visible>false</Visible>
-    </Content>
-    <Content Condition="Exists('C:\TensorRT-8.2.1.8\lib\nvonnxparser.dll')" Include="C:\TensorRT-8.2.1.8\lib\nvonnxparser.dll">
+    <Content Condition="Exists('C:\TensorRT-8.2.4.2\lib\nvonnxparser.dll')" Include="C:\TensorRT-8.2.4.2\lib\nvonnxparser.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>

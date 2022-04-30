@@ -7,8 +7,22 @@ ThreadPool Threads;		// Global object
 
 Thread::Thread(size_t n) : idx(n) , stdThread(&Thread::idle_loop, this)
 {
+#if !defined(__EMSCRIPTEN__)
 	// スレッドはsearching == trueで開始するので、このままworkerのほう待機状態にさせておく
 	wait_for_search_finished();
+#else
+	// yaneuraou.wasm
+	// wait_for_search_finished すると、ブラウザのメインスレッドをブロックしデッドロックが発生するため、コメントアウト。
+	//
+	// 新しいスレッドが cv を設定するのを待ってから、ブラウザに処理をパスしたいが、
+	// 新しいスレッド用のworkerを作成するためには、いったんブラウザに処理をパスする必要がある。
+	//
+	// https://bugzilla.mozilla.org/show_bug.cgi?id=1049079
+	//
+	// threadStarted という変数を設けて全てのスレッドが開始するまでリトライするようにする
+	//
+	// 参考：https://github.com/niklasf/stockfish.wasm/blob/a022fa1405458d1bc1ba22fe813bace961859102/src/thread.cpp#L38
+#endif
 }
 
 // std::threadの終了を待つ
@@ -92,6 +106,10 @@ void Thread::idle_loop() {
 	{
 		std::unique_lock<std::mutex> lk(mutex);
 		searching = false;
+#if defined(__EMSCRIPTEN__)
+		// yaneuraOu.wasm
+		threadStarted = true;
+#endif
 		cv.notify_one(); // 他のスレッドがこのスレッドを待機待ちしてるならそれを起こす
 		cv.wait(lk, [&] { return searching; });
 
@@ -108,18 +126,37 @@ void Thread::idle_loop() {
 // スレッド数を変更する。
 void ThreadPool::set(size_t requested)
 {
+#if defined(__EMSCRIPTEN__)
+	// yaneuraou.wasm
+	// ブラウザのメインスレッドをブロックしないようstockfish.wasmと同様の実装に修正
+	if (size() == requested)
+		return;
+#endif
+
 	if (size() > 0) { // いったんすべてのスレッドを解体(NUMA対策)
 		main()->wait_for_search_finished();
 
+#if !defined(__EMSCRIPTEN__)
 		while (size() > 0)
 			delete back(), pop_back();
+#else
+		// yaneuraou.wasm
+		while (size() > requested)
+			delete back(), pop_back();
+#endif
 	}
 
 	if (requested > 0) { // 要求された数だけのスレッドを生成
+#if !defined(__EMSCRIPTEN__)
 		push_back(new MainThread(0));
 
 		while (size() < requested)
 			push_back(new Thread(size()));
+#else
+		// yaneuraou.wasm
+		while (size() < requested)
+			push_back(size() ? new Thread(size()) : new MainThread(0));
+#endif
 		clear();
 
 		// Reallocate the hash with the new threadpool size
@@ -169,7 +206,7 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 	// 初期局面では合法手すべてを生成してそれをrootMovesに設定しておいてやる。
 	// このとき、歩の不成などの指し手は除く。(そのほうが勝率が上がるので)
 	// また、goコマンドでsearchmovesが指定されているなら、そこに含まれていないものは除く。
-	
+
 	// あと宣言勝ちできるなら、その指し手を先頭に入れておいてやる。
 	// (ただし、トライルールのときはMOVE_WINではないので、トライする指し手はsearchmovesに含まれていなければ
 	// 指しては駄目な手なのでrootMovesに追加しない。)
@@ -212,11 +249,11 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 	// be deduced from a fen string, so set() clears them and they are set from
 	// setupStates->back() later. The rootState is per thread, earlier states are shared
 	// since they are read-only.
-	  
+
 	// Position::set()によってst->previosがクリアされるので事前にコピーして保存する。
 	// これは、rootStateの役割。これはスレッドごとに持っている。
 	// cf. Fix incorrect StateInfo : https://github.com/official-stockfish/Stockfish/commit/232c50fed0b80a0f39322a925575f760648ae0a5
-	
+
 	auto sfen = pos.sfen();
 	for (Thread* th : *this)
 	{
@@ -230,7 +267,7 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 		// 以上の初期化、探索スレッド側でやるべきだと思うが、しかしth->nodesなどはmain threadが探索ノード数の
 		// 出力のために積算するので、main threadが積算する時にはすでに他のスレッドのth->nodesがゼロ初期化されている状態でないと
 		// おかしい値になってしまう。
-		// 
+		//
 		// そこで、main threadが開始する時点では、すべてのスレッドのスレッド初期化が完了していることを保証しなければならない。
 		// ゆえにここに書くしかないのである。
 

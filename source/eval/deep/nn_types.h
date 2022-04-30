@@ -6,6 +6,14 @@
 
 #include "../../position.h"
 
+#if defined(TENSOR_RT)
+#define TRT_NN_FP16
+#endif
+
+#if defined(TRT_NN_FP16)
+#include <cuda_fp16.h>
+#endif
+
 namespace Eval::dlshogi
 {
 	// === GPU関連の設定 ===
@@ -21,7 +29,7 @@ namespace Eval::dlshogi
 	// 歩が先手の手駒に9枚の状況だとして、残り7枚は相手の手駒 or 盤上にあるはずだし、盤上の歩は入力特徴量として持っているので
 	// 駒割自体は正しく計算できるはず。
 	// MAX_HPAWN_NUMが7だと、手駒を先手が9枚、後手が7枚持っているような状況だと、どちらが数多く持っているのかが判定できないのでまずい。
-	
+
 	constexpr int MAX_HPAWN_NUM   = 8; // 歩の持ち駒の上限
 	constexpr int MAX_HLANCE_NUM  = 4;
 	constexpr int MAX_HKNIGHT_NUM = 4;
@@ -93,11 +101,30 @@ namespace Eval::dlshogi
 	constexpr int MAX_MOVE_LABEL_NUM = MOVE_DIRECTION_NUM + HandPieceNum;
 
 	// 特徴量などに使う型。
+	//
 	// 16bitが使えるのは、cuDNNのときだけだが、cuDNNの利用はdlshogiでは廃止する予定らしいので、
 	// ここでは32bit floatとして扱う。
+#if defined(TRT_NN_FP16)
+	typedef __half DType;
+	extern const DType dtype_zero;
+	extern const DType dtype_one;
+	inline float to_float(const DType x) {
+		return __half2float(x);
+	}
+	inline DType to_dtype(const float x) {
+		return __float2half(x);
+	}
+#else
 	typedef float DType;
 	constexpr const DType dtype_zero = 0.0f; // DTypeで 0 を表現する型
 	constexpr const DType dtype_one  = 1.0f; // DTypeで 1 を表現する型
+	inline float to_float(const DType x) {
+		return x;
+	}
+	inline float to_dtype(const float x) {
+		return x;
+	}
+#endif
 
 	// NNの入力特徴量その1
 	// ※　dlshogiでは、features1_tという型名。

@@ -68,7 +68,7 @@ void USI::extra_option(USI::OptionsMap& o)
 	// 引き分けの時の値 : 1000分率で
 	// 引き分けの局面では、この値とみなす。
 	// root color(探索開始局面の手番)に応じて、2通り。
-	
+
 	o["DrawValueBlack"]              << USI::Option(500, 0, 1000);
 	o["DrawValueWhite"]              << USI::Option(500, 0, 1000);
 
@@ -134,24 +134,24 @@ void USI::extra_option(USI::OptionsMap& o)
 	// CPUを使っていることがあるので、default値、ちょっと少なめにしておく。
 	o["DNN_Batch_Size1"]             << USI::Option(32, 1, 1024);
 #endif
-	o["DNN_Batch_Size2"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size3"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size4"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size5"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size6"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size7"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size8"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size9"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size10"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size11"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size12"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size13"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size14"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size15"]             << USI::Option(0, 0, 65536);
-    o["DNN_Batch_Size16"]             << USI::Option(0, 0, 65536);
+	o["DNN_Batch_Size2"]             << USI::Option(0, 0, 1024);
+	o["DNN_Batch_Size3"]             << USI::Option(0, 0, 1024);
+	o["DNN_Batch_Size4"]             << USI::Option(0, 0, 1024);
+	o["DNN_Batch_Size5"]             << USI::Option(0, 0, 1024);
+	o["DNN_Batch_Size6"]             << USI::Option(0, 0, 1024);
+	o["DNN_Batch_Size7"]             << USI::Option(0, 0, 1024);
+	o["DNN_Batch_Size8"]             << USI::Option(0, 0, 1024);
+	o["DNN_Batch_Size9"]             << USI::Option(0, 0, 1024);
+	o["DNN_Batch_Size10"]             << USI::Option(0, 0, 1024);
+	o["DNN_Batch_Size11"]             << USI::Option(0, 0, 1024);
+	o["DNN_Batch_Size12"]             << USI::Option(0, 0, 1024);
+	o["DNN_Batch_Size13"]             << USI::Option(0, 0, 1024);
+	o["DNN_Batch_Size14"]             << USI::Option(0, 0, 1024);
+	o["DNN_Batch_Size15"]             << USI::Option(0, 0, 1024);
+	o["DNN_Batch_Size16"]             << USI::Option(0, 0, 1024);
 
 #if defined(ORT_MKL)
-	// nn_onnx_runtime.cpp の NNOnnxRuntime::load() で使用するオプション。 
+	// nn_onnx_runtime.cpp の NNOnnxRuntime::load() で使用するオプション。
 	// グラフ全体のスレッド数?（default値1）ORT_MKLでは効果が無いかもしれない。
 	o["InterOpNumThreads"]           << USI::Option(1, 1, 65536);
 	// ノード内の実行並列化の際のスレッド数設定（default値4、NNUE等でのThreads相当）
@@ -307,7 +307,7 @@ void MainThread::search()
 	Move move = searcher.UctSearchGenmove(&rootPos, game_root_sfen , moves_from_game_root , ponderMove);
 
 	// ponder中であれば、呼び出し元で待機しなければならない。
-	
+
 	// 最大depth深さに到達したときに、ここまで実行が到達するが、
 	// まだThreads.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
 	// USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまでbest moveを出力してはならない。
