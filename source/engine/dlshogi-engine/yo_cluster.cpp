@@ -699,6 +699,7 @@ namespace YaneuraouTheCluster
 			case USI_Message::ISREADY:
 				state = EngineState::WAIT_READYOK;
 				send_to_engine("isready");
+				init_for_think();
 				break;
 
 			case USI_Message::USINEWGAME:
@@ -721,6 +722,8 @@ namespace YaneuraouTheCluster
 				send_to_engine(message.command);
 
 				state = EngineState::GO;
+				++go_count;
+
 				break;
 
 			case USI_Message::GO_PONDER:
@@ -740,17 +743,14 @@ namespace YaneuraouTheCluster
 				send_to_engine("go ponder");
 
 				state = EngineState::GO_PONDER;
+				++go_count;
 
-				++ignore_bestmove;
 				break;
 
 			case USI_Message::PONDERHIT:
 				// go ponder中以外にponderhitが送られてきた。
 				if (state != EngineState::GO_PONDER)
 					EngineError("'ponderhit' should be sent when state is 'GO_PONDER'.");
-				else
-					// 次のエンジンからの"bestmove"が送られてくるまでを無視する予定であったが、事情が変わった。
-					--ignore_bestmove;
 
 				// ここまでの思考ログを出力してやる必要がある。
 				output_thinklog();
@@ -939,19 +939,22 @@ namespace YaneuraouTheCluster
 			{
 				// ponder中であればその間に送られてきたメッセージは全部ログに積んでおく。
 				// (ponderhitが送られてきた時に、そこまでのlogをGUIに出力しなければならないため)
-				if (state == EngineState::GO_PONDER)
+				if (state == EngineState::GO_PONDER || state == EngineState::GO)
 				{
-					if (ignore_bestmove == 0)
-						DebugMessage(": Warning! : Illegal state , state = " + to_string(state) + " , ignore_bestmove == 0");
-					else if (ignore_bestmove == 1)
-						think_log.push_back(message);
+					if (go_count == 0)
+						DebugMessage(": Warning! : Illegal state , state = " + to_string(state) + " , go_count == 0");
+					else if (go_count == 1)
+					{
+						if (state == EngineState::GO)
+							send_gui = true;
+						else // state == EngineState::GO_PONDER
+							think_log.push_back(message);
+					}
 					else
 						;
 						// ignore_bestmove >= 2なら、どうせいま受信したメッセージは捨てることになるのでthink_logに積まない。
+						// 当然ながら出力もしない。
 				}
-				// "go"("go ponder"ではない)で思考させているなら、そのままGUIに転送。
-				else if (state == EngineState::GO)
-					send_gui = true;
 				// "usiok", "readyok" 待ちの時は、engine id == 0のメッセージだけをGUIに転送。
 				else if (state == EngineState::WAIT_USIOK
 					  || state == EngineState::WAIT_READYOK
@@ -960,7 +963,7 @@ namespace YaneuraouTheCluster
 				else
 					// usiok/readyok待ちと go ponder , go 以外のタイミングでエンジン側からinfo stringでメッセージが来るのおかしいのでは…。
 					// ただしignore_bestmove > 0なら、bestmove来るまでは無視していいのか…。
-					if (ignore_bestmove == 0)
+					if (go_count == 0)
 						DebugMessage(": Warning! : Illegal info , state = " + to_string(state) + " , message = " + message);
 
 				// "Error"という文字列が含まれていたなら(おそらく"info string Error : "みたいな形)、
@@ -972,29 +975,36 @@ namespace YaneuraouTheCluster
 			// "bestmove XX"を受信した。
 			else if (token == "bestmove")
 			{
-				if (ignore_bestmove > 0)
+				--go_count;
+				if (go_count > 0)
 				{
-					--ignore_bestmove;
-
 					// bestmoveまでは無視して良かったことが確定したのでこの時点でクリアしてしまう。
 					think_log.clear();
 
 				} else {
 
-					// 無視したらあかんやつなのでこのままGUIに投げる。
-					send_gui = true;
+					// GO以外でbestmove返ってくるのおかしい。
+					// ただし、gameoverのあとかも知れんが…。
+					StateAssert(EngineState::GO);
 
 					// GOで思考していたなら、bestmoveを親クラスに返す必要がある。
 					// これを設定しておけば親クラスが検知してくれる。
 					if (state == EngineState::GO)
+					{
 						bestmove_string = message;
 
-					// 思考は停止している。
-					change_state(EngineState::IDLE_IN_GAME);
+						// 無視したらあかんやつなのでこのままGUIに投げる。
+						// is_in_game見て、対局中でないならbestmoveを返さないことも考えられるが、
+						// gameoverのあとでも bestmoveは遅れてでも返すべきだと思う。(bestmoveの回数をカウントするような実装系だと)
+						send_gui = true;
 
-					// 探索中の局面のsfenを示す変数をクリア。
-					//searching_sfen = string();
-					// →　これは空にしては駄目。この情報使う。
+						// 思考は停止している。
+						change_state(EngineState::IDLE_IN_GAME);
+
+						// 探索中の局面のsfenを示す変数をクリア。
+						//searching_sfen = string();
+						// →　これは空にしては駄目。この情報使う。
+					}
 				}
 			}
 			else if (token == "usiok")
@@ -1031,7 +1041,7 @@ namespace YaneuraouTheCluster
 		{
 			// "GO_PONDER"が何重にも送られてきている。
 			// まだ直前のGO_PONDERのログがエンジン側から送られてきていない。
-			if (ignore_bestmove >= 1)
+			if (go_count >= 2)
 				return ;
 
 			// ここまでの思考ログを吐き出してやる。
@@ -1045,6 +1055,15 @@ namespace YaneuraouTheCluster
 		{
 			if (state != s)
 				error_to_gui("illegal state : state = " + to_string(s));
+		}
+
+		// 状態変数のクリア
+		// ゲーム開始時/終局時の初期化。
+		void init_for_think()
+		{
+			searching_sfen.clear();
+			think_log.clear();
+			bestmove_string.clear();
 		}
 
 		// -------------------------------------------------------
@@ -1064,10 +1083,12 @@ namespace YaneuraouTheCluster
 		// state == GO or GO_PONDER において探索中の局面。
 		string searching_sfen;
 
-		// この回数だけエンジン側から送られてきたbestmoveを無視する。
+		// "go","go ponder"された回数。
+		// "bestmove"を受信すると 1 減る。
+		// このカウンターが2以上ならエンジン側から送られてきたbestmoveを無視する。
 		// 連続して"go ponder"を送った時など、bestmoveを受信する前に次の"go ponder"を送信することがあるので
 		// その時に、前の"go ponder"に対応するbestmoveは無視しないといけないため。
-		atomic<int> ignore_bestmove;
+		atomic<int> go_count;
 
 		// "go ponder"時にエンジン側から送られてきた思考ログ。
 		// そのあと、"ponderhit"が送られてきたら、その時点までの思考ログをGUIにそこまでのログを出力するために必要。
