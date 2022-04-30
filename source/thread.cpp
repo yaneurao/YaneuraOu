@@ -21,7 +21,7 @@ Thread::Thread(size_t n) : idx(n) , stdThread(&Thread::idle_loop, this)
 	//
 	// threadStarted という変数を設けて全てのスレッドが開始するまでリトライするようにする
 	//
-	// 参考：https://github.com/niklasf/stockfish.wasm/blob/a022fa1405458d1bc1ba22fe813bace961859102/src/thread.cpp#L38
+	// 参考：https://github.com/lichess-org/stockfish.wasm/blob/a022fa1405458d1bc1ba22fe813bace961859102/src/thread.cpp#L38
 #endif
 }
 
