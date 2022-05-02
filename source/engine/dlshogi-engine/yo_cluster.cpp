@@ -747,16 +747,26 @@ namespace YaneuraouTheCluster
 
 				break;
 
+			case USI_Message::STOP:
+				// これ、処理したくはないのだが、通常対局では送られてこないので
+				// 深く考えずにエンジンに丸投げしておく。
+				// ただし、go_count == 0だとそれは明らかに無効なstopなので無視する。
+				if (go_count > 0)
+					send_to_engine("stop");
+				break;
+
 			case USI_Message::PONDERHIT:
 				// go ponder中以外にponderhitが送られてきた。
 				if (state != EngineState::GO_PONDER)
 					EngineError("'ponderhit' should be sent when state is 'GO_PONDER'.");
 
-				// ここまでの思考ログを出力してやる必要がある。
-				output_thinklog();
-
 				send_to_engine("ponderhit " + message.command); // "ponderhit XXX"
 				state = EngineState::GO;
+
+				// ここまでの思考ログをGUIに出力してやる必要がある。
+				// ただしこの出力には時間がかかる可能性があるので(GUI側で詰まる可能性がある)、
+				// ponderhitのメッセージは先行してエンジンに送ったほうが良い。
+				output_thinklog();
 
 				// 以降は、EngineStateがGOになっているのでエンジン側から送られてきた"info .."は、
 				// 直接GUIに出力されるはず。
@@ -875,7 +885,7 @@ namespace YaneuraouTheCluster
 
 		// [main thread][receive thread]
 		// 現在のstateが"isready"の送信待ちの状態か？
-		bool does_wait_isready() const { return state == EngineState::WAIT_ISREADY; }
+		bool is_waiting_isready() const { return state == EngineState::WAIT_ISREADY; }
 
 		// エンジン側から受け取った"bestmove XX ponder YY"を返す。
 		// 一度このメソッドを呼び出すと、次以降は(エンジン側からさらに"bestmove XX ponder YY"を受信するまで)空の文字列が返る。
@@ -1242,7 +1252,9 @@ namespace YaneuraouTheCluster
 
 						// 現在、相手が初期局面("startpos")について思考しているものとする。
 						searching_sfen2 = "startpos";
-						our_searching2 = false;
+						our_searching2  = false;
+						engine_ponder.clear();
+						engine_ponder_engine_id = 0;
 
 						// 対局中である。
 						is_in_game = true;
@@ -1272,6 +1284,12 @@ namespace YaneuraouTheCluster
 					case USI_Message::GO:
 						// "go"コマンド。
 						handle_go_cmd(message);
+						break;
+
+					case USI_Message::STOP:
+						// "stop"コマンド。これ処理したくはないが、通常対局中にではどうせ
+						// "stop"は送られてこないので深く考えずにエンジンに丸投げしとく。
+						broadcast(message);
 						break;
 
 					case USI_Message::QUIT:
@@ -1315,7 +1333,7 @@ namespace YaneuraouTheCluster
 						for(auto& engine : engines)
 							// 終了しているエンジンは無視してカウントしないと
 							// いつまでもusiokが出せない状態でhangする。
-							allOk &= engine.does_wait_isready() || engine.is_terminated();
+							allOk &= engine.is_waiting_isready() || engine.is_terminated();
 						if (allOk)
 						{
 							send_to_gui("usiok");
@@ -1401,7 +1419,9 @@ namespace YaneuraouTheCluster
 						{
 							// 先頭にわざとスペース入れておく。
 							// ※　そうしてあったほうがdlエンジンが返してくる候補手と比較する時に便利。
-							engine_ponder = " " + ponder_move;
+							engine_ponder           = " " + ponder_move;
+							// その時のエンジンIDも入れておく。
+							engine_ponder_engine_id = engine.get_engine_id();
 							DebugMessageCommon("engine's ponder : " + searching_sfen2 + engine_ponder);
 						}
 					}
@@ -1518,7 +1538,8 @@ namespace YaneuraouTheCluster
 			if (!found)
 			{
 				// どうしようもない。この探索局面に近い局面を探索しているエンジンもないので、エンジン 0 に探索させておく。
-				DebugMessageCommon("go [" + std::to_string(engines[0].get_engine_id()) + "] : " + searching_sfen2);
+				// →　前回、bestmoveを返したエンジンのほうが良いのでは…。
+				DebugMessageCommon("go [" + std::to_string(engines[engine_ponder_engine_id].get_engine_id()) + "] : " + searching_sfen2);
 				engines[0].send(Message(USI_Message::GO, go_string , searching_sfen2));
 			}
 
@@ -1552,11 +1573,14 @@ namespace YaneuraouTheCluster
 		// same_color  : search_sfenと同じ手番の局面をponderで思考するのか？
 		void search_for_ponder(string search_sfen,  bool same_color)
 		{
+			// summeryはGUIに必ず出力してやる。
+			string summery;
+
 			// --- 空いてるエンジンの数だけ局面を選出する。
 
 			// 空いていたエンジンの数
 			size_t num = 0;
-
+			// 空いていたエンジンの配列
 			vector<bool> engine_empty;
 
 			for(size_t i = 0 ; i < engines.size() ; ++i)
@@ -1567,6 +1591,9 @@ namespace YaneuraouTheCluster
 
 				if (is_empty)
 					++num;
+				else
+					summery += "[" + std::to_string(i) + "G]";
+					// 現在の局面を思考中である。
 			}
 
 			// なぜか空いているエンジンがない…。なんで？
@@ -1609,7 +1636,7 @@ namespace YaneuraouTheCluster
 			if (!found && !engine_ponder.empty())
 			{
 				// 先頭に追加。
-				snlist.insert(snlist.begin(), dlshogi::SfenNode(engine_ponder,99999));
+				snlist.insert(snlist.begin(), dlshogi::SfenNode(engine_ponder,0));
 
 				// 末尾要素を一つremove
 				snlist.resize(snlist.size() - 1);
@@ -1621,7 +1648,33 @@ namespace YaneuraouTheCluster
 			{
 				//DebugMessageCommon("search_sfen = " + search_sfen + " , snlist[i].sfen = " + snlist[i].sfen);
 
-				string sfen = concat_sfen(search_sfen , snlist[i].sfen);
+				// 短い形式のsfen
+				string short_sfen = snlist[i].sfen;
+
+				// 長い形式のsfen
+				string sfen = concat_sfen(search_sfen , short_sfen);
+
+				// エンジンのponderの指し手であるか？
+				bool engine_ponder = (i == 0) && found;
+
+				// GUIに出力したい形式の短いsfen
+				// 例 : 7g7f(E100)   = 指し手7g7f 訪問回数100 これはEngineのbestmove返した時にponderとして指定してきた指し手でもある
+				string short_sfen2 = short_sfen + "(" + (engine_ponder?"E":"") + std::to_string(snlist[i].nodes) + ")";
+
+				// エンジンが指定してきたponderは、そのエンジンに思考させてあげるべき。
+				// たとえ、その局面をジャストでponderしているエンジンがあったとしても。
+				// (ここ、過去の思考時間等から統計的にこの局面について思考していた分量を算出して、
+				// このエンジンのほうが優れているかを比較するとなお良し。)
+				if (engine_ponder)
+				{
+					auto& engine     = engines[engine_ponder_engine_id];
+					string engine_id = std::to_string(engine_ponder_engine_id);
+					DebugMessageCommon("go engine's ponder [" + engine_id + "] : " + sfen);
+					engine.send(Message(USI_Message::GO_PONDER, string() , sfen));
+
+					summery += "[" + engine_id + "P]" + short_sfen2;
+					goto Next;
+				}
 
 				// 一番近くを探索していたエンジンに割り当てる
 				// すなわち探索中のsfen文字列が一番近いものに割り当てると良い。
@@ -1652,9 +1705,14 @@ namespace YaneuraouTheCluster
 
 							DebugMessageCommon("go ponder [" + engine_id + "] : " + sfen);
 							engine.send(Message(USI_Message::GO_PONDER, string() , sfen));
+
+							summery += "[" + engine_id + "P]" + short_sfen2;
+							// P = 前回思考してたと思われるエンジンで Go Ponderした
 						} else {
 							// 現在ponderしているので継続で良い。
 							DebugMessageCommon("continue to pondering [" + engine_id +"]: " + sfen);
+							summery += "[" + engine_id + "C]" + short_sfen2;
+							// C = Continue to ponder : Ponderの継続
 						}
 
 						engine_empty[j] = false;
@@ -1683,6 +1741,11 @@ namespace YaneuraouTheCluster
 					auto& engine = engines[t];
 					DebugMessageCommon("go ponder [" + std::to_string(engine.get_engine_id()) + "] : " + sfen);
 					engine.send(Message(USI_Message::GO_PONDER, string() , sfen));
+
+					auto engine_id = std::to_string(engine.get_engine_id());
+					summery += "[" + engine_id + "N]" + short_sfen2;
+					// Nは、新規のgo ponder
+
 					engine_empty[t] = false;
 				}
 
@@ -1691,6 +1754,9 @@ namespace YaneuraouTheCluster
 
 			// エンジンの指定してきたponderはここで使い切っているはずなのでクリアしておく。
 			engine_ponder.clear();
+
+			// summeryは強制出力。
+			send_to_gui("info string " + summery);
 		}
 
 		// ノード数固定でふかうら王で探索させる。
@@ -1785,6 +1851,8 @@ namespace YaneuraouTheCluster
 		// エンジン側が"bestmove XX ponder YY"と返してきた時のYY。先頭にスペースわざと入れてある。
 		// ※　そうしてあったほうがdlエンジンが返してくる候補手と比較する時に便利。
 		string engine_ponder;
+		// engine_ponderを返したエンジンのid
+		size_t engine_ponder_engine_id;
 	};
 
 	// ---------------------------------------
