@@ -1,7 +1,73 @@
 ﻿
 やねうら王 更新履歴
 
+
+■　2022/05/04
+
+
+- 更新履歴、ここまで分。
+- "startup.txt"に関する説明追加。
+
+
+- go ponderでbookにhitしてponderhitのパラメーターありが送られてくると落ちるの修正。
+
+setoption name BookFile value user_book1.db
+isready
+usinewgame
+
+position startpos moves 2g2f 8c8d
+go ponder
+ponderhit btime 60000 wtime 60000 binc 1000 winc 1000
+
+// V723
+
 ■　2022/05/03
+
+
+- 起動時にstartup.txtのコマンドを実行するようにした。
+
+
+- yo_cluster
+  - go_count、マイナスにしない。
+  - goコマンド、ゲーム外で受理しないように。
+  - ignore_bestmove、readyokの時点でリセットするように。
+  - 将棋所の連続対局、一局ごとにquitがきてプロセスが終了するのかと思っていたらそうではないようなので
+  　gameover時の処理が正常に行われないと以降の対局すべてに影響するようだ。
+  // cluster-d
+  // この修正バージョンで対局をやりなおしてみる。
+
+
+  // 1T*2とか勝率悪化したが、これはcluster-cが、エンジンが死ぬことがあって、実質的に単体エンジンに
+  // なっていたから互角の勝率になっていただけなのかも…。
+
+1T*1(=ponderあり,cluster-c) VS 1T*2 cluster-d
+T1,b1000,1599 - 101 - 1300(55.16% R35.96[25.29,46.63]) winrate black , white = 52.19% , 47.81%
+
+1T*1(=ponderあり,cluster-c) VS 1T*3 cluster-d
+T1,b1000,1247 - 78 - 975(56.12% R42.74[30.53,54.96]) winrate black , white = 54.23% , 45.77%
+
+1T*1(=ponderあり,cluster-c) VS 1T*4 cluster-d
+T1,b1000,850 - 44 - 666(56.07% R42.38[27.6,57.16]) winrate black , white = 53.76% , 46.24%
+
+定数ロスが生じているってことか。
+
+しかし、台数増えた時にはponder当たる確率は増えるはずだから、
+それなのに一定の効果しかないのおかしい気が。
+
+ponder当たる確率が増えるが、そのPCに割り当てる行為がロスである確率は一定であるため、
+ロスとしてはほぼ一定になるだとか？
+
+// よくわからん。1手2秒でも計測してみる。
+
+
+// 将棋所での対局
+1T*4 cluster-c VS 1T
+27-19-21
+→　対局回数少なくてわからん…。
+
+
+// 対局コマンド
+c:\python27\python engine_invoker6.py --engine1 cluster-c1/YaneuraOu-nnue-cluster-c.exe --eval1 . --engine2 cluster-d3/YaneuraOu-nnue-cluster-d.exe --eval2 . --hash1 128 --hash2 128 --time b1000 --loop 3000 --PARAMETERS_LOG_FILE_PATH result --cores 30 --cpu 2 --rand_book 1
 
 
 - yo_cluster ponderのPC割当アルゴリズムの修正。
@@ -38,17 +104,43 @@ engine2 = cluster-c/YaneuraOu-nnue-cluster-c.exe , eval = .
 T1,b1000,116 - 15 - 339(25.49% R-186.3[-216.99,-155.6]) winrate black , white = 49.45% , 50.55%
 // →たぶん、まだ単体エンジンを1T*2で超えてない。
 
-// cluster-c 1T VS cluster-c 1T*2
+engine1 = cluster-c1/YaneuraOu-nnue-cluster-c.exe , eval = .
+engine2 = cluster-c2/YaneuraOu-nnue-cluster-c.exe , eval = .
+T1,b1000,1514 - 87 - 1399(51.97% R13.72[3.13,24.32]) winrate black , white = 51.7% , 48.3%
+// 単体エンジンを超えていない。
 
+// cluster-c 1T VS cluster-c 1T*2
 
 engine1 = cluster/YaneuraOu-nnue-cluster.exe , eval = .
 engine2 = cluster-b/YaneuraOu-nnue-cluster-b.exe , eval = .
 T1,b1000,683 - 51 - 626(52.18% R15.14[-0.67,30.94]) winrate black , white = 50.57% , 49.43%
 
+engine1 = cluster-c1/YaneuraOu-nnue-cluster-c.exe , eval = .
+engine2 = cluster-c3/YaneuraOu-nnue-cluster-c.exe , eval = .
+T1,b1000,1442 - 99 - 1459(49.71% R-2.04[-12.64,8.57]) winrate black , white = 51.22% , 48.78%
+
+engine1 = cluster-c1/YaneuraOu-nnue-cluster-c.exe , eval = .
+engine2 = cluster-c4/YaneuraOu-nnue-cluster-c.exe , eval = .
+T1,b1000,1258 - 74 - 848(59.73% R68.51[55.82,81.21]) winrate black , white = 52.28% , 47.72%
+
+// 1T*4で急激に悪くなる。これは1手先から3手ずつ選出しているから、4つ目のエンジンが別の指し手を引いてきて
+その4つ目のエンジンのponderが当たった時にこいつの指し手を割り当てるが、それが良くない(時が多々ある)ことを
+示している。
+
+あるエンジンからの読み筋があるので、それ活かすか、もう少し統計情報を出力するように改造してあれば、
+ponderしてるエンジンと、元のエンジンと、どちらのほうがその局面についての情報を持っているかが
+判断できそうなものなのだが。
 
   1分+1秒
   yo_cluster-c(1T*4) VS 1T
+  34-14-36
 
+  1分+2秒
+  yo_cluster-c(1T*4) VS 1T
+  11-11-35
+
+  いやー、これはバグあるな…。
+  1T*4になった時に固有のバグが…。
 
 
 - makefile : NNUEのbuildに yo_cluster.cppが抜けていたの修正。
@@ -76,6 +168,9 @@ ponderには、同型のソフトだとほぼ2倍の価値がある。
 // 1T VS cluster 1T*4
 T1,b1000,237 - 27 - 616(27.78% R-165.93[-187.76,-144.11]) winrate black , white = 51.23% , 48.77%
 
+// 1T VS cluster 1T*3
+T1,b1000,274 - 46 - 700(28.13% R-162.94[-183.29,-142.59]) winrate black , white = 51.13% , 48.87%
+
 // 1T VS cluster 1T*2
 T1,b1000,446 - 46 - 1268(26.02% R-181.51[-197.24,-165.79]) winrate black , white = 50.29% , 49.71%
 
@@ -91,6 +186,20 @@ T1,b1000,446 - 46 - 1268(26.02% R-181.51[-197.24,-165.79]) winrate black , white
 // 1T VS cluster-a 1T*2
 T1,b1000,368 - 36 - 886(29.35% R-152.63[-170.35,-134.92]) winrate black , white = 51.67% , 48.33%
 // cluster-a、やらないほうがよさそう。
+
+↓直接対決。
+engine1 = cluster-a/YaneuraOu-nnue-cluster-a.exe , eval = .
+engine2 = cluster/YaneuraOu-nnue-cluster.exe , eval = .
+T1,b1000,379 - 21 - 420(47.43% R-17.84[-38.08,2.39]) winrate black , white = 52.19% , 47.81%
+
+
+あー、なんかわかった。
+・bestmove返して待機してるエンジン
+・ponderしてたエンジン
+この２つがあった時に先に見つけたほうに割当てている。
+これ良くないな…。これを割り当てるならponderしてたエンジンのほうが良いはず…。
+  →　これをcluster-bとする。
+
 
 
 // 自己対局コマンド
@@ -119,11 +228,91 @@ c:\python27\python engine_invoker6.py --engine1 nnue/YaneuraOuNNUE_V720_avx2.exe
   - ponder局面の選定、ふかうら王エンジンではなく、NNUEを使ってやる改造。
 
 
+
 ■　2022/05/02
 
 
-- yo_cluster すべてのponderが外れて、新規でGOする時に、0を選ぶのではなく前回bestmoveをGUIに返した
-  エンジンでGOする。
+- position::is_repetition()高速化
+  - position::is_repetition()は全体の3%程度か…。高速化する価値はあるかも？
+  - Stockfishのほうは、cuckoo + st->rule50だからこれに相当するコードがないのか…。
+
+  // Calculate the repetition info. It is the ply distance from the previous
+  // occurrence of the same position, negative in the 3-fold case, or zero
+  // if the position was not repeated.
+  st->repetition = 0;
+  int end = std::min(st->rule50, st->pliesFromNull);
+  if (end >= 4)
+  {
+      StateInfo* stp = st->previous->previous;
+      for (int i = 4; i <= end; i += 2)
+      {
+          stp = stp->previous->previous;
+          if (stp->key == st->key)
+          {
+              st->repetition = stp->repetition ? -i : i;
+              break;
+          }
+      }
+  }
+  // ここあるな…。
+
+
+- search()の引き分け局面の判定、search()の先頭で行うようにした。
+      // V750c
+    →　これ、Stockfishのコードと等価じゃない気がしてきた。
+あちらは、has_game_cycle()を呼び出していて、千日手局面に到達するかを判定しているだけのような気が…。
+
+			auto draw_type = pos.is_repetition(/*ss->ply*/);
+			if (draw_type != REPETITION_NONE)
+				return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
+
+
+engine1 = YaneuraOuNNUE_V720_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V750c_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1556 - 26 - 1418(52.32% R16.13[5.64,26.62]) winrate black , white = 52.29% , 47.71%
+T2,b2000,1332 - 46 - 1202(52.57% R17.84[6.47,29.21]) winrate black , white = 51.66% , 48.34%
+// 千日手、すごい減ってる。でもだいぶよわなってる。
+
+なんでこれで千日手減るのかはよくわからない。root nodeでも千日手判定するからか…。
+
+
+
+- search()の引き分け局面でのdraw_valueに±1の乱数を加算するようにした。
+      // V750b
+
+↓以前のV720 vs V750
+T2,b1000,1249 - 123 - 1258(49.82% R-1.25[-12.66,10.16]) winrate black , white = 53.25% , 46.75%
+
+engine1 = YaneuraOuNNUE_V720_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V750b_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1466 - 136 - 1398(51.19% R8.25[-2.43,18.93]) winrate black , white = 54.68% , 45.32%
+
+// つよなってない＆千日手減ってない。revertする。
+
+
+- search()の直後に千日手判定のコードを移動させた。
+
+  千日手で枝刈りをするのは、↓この条件に限ることにした。
+
+				if (alpha >= beta)
+					return alpha;
+      // V750a
+
+      これで勝率が変わらず、千日手が減っていれば良いのだが。
+
+↓以前のV720 vs V750
+T2,b1000,1249 - 123 - 1258(49.82% R-1.25[-12.66,10.16]) winrate black , white = 53.25% , 46.75%
+
+↓今回のやつ。
+engine1 = YaneuraOuNNUE_V720_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V750a_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1447 - 125 - 1428(50.33% R2.3[-8.36,12.95]) winrate black , white = 49.36% , 50.64%
+
+千日手が減ってないのだが…。
+また、強くなっているのかどうかはわからない。
+
+
+
 - yo_cluster 2022/05/02
   - "go ponder"(パラメーターなし)からの"ponderhit btime XX wtime XX binc YY winc YY"の時に最小時間で指してたの修正。
   - does_ で始まるメソッド名、おかしい気がするのでrename
@@ -165,9 +354,9 @@ c:\python27\python engine_invoker6.py --engine1 nnue/YaneuraOuNNUE_V720_avx2.exe
   35-25-60 , -R92.5
   // ダブルスコアぐらいで負けている。GPU使うoverheadにしては負けすぎでは…。
 
-  1分+4秒
-  yo_cluster(1T*7) VS 1T
-
+  1分+1秒
+  17-19-35
+  yo_cluster(1T*4) VS 1T
 
 
 - bench
