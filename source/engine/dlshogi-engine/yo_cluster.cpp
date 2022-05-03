@@ -216,9 +216,12 @@ namespace YaneuraouTheCluster
 	}
 
 	// 何文字目まで一致したかを返す。sfen用。
+	// s1 = XX YY
+	// s2 = XX YY ZZ WW
+	//   →　このように一致して欲しい。
 	// s1 = XX YY CC
 	// s2 = XX YY ZZ WW
-	// この場合、s1を探索していたエンジンは、s2の局面はほぼ探索していないと思われるので
+	// 　→　この場合、s1を探索していたエンジンは、s2の局面はほぼ探索していないと思われるので
 	// ペナルティ一致しなかった文字長さ("CC")に比例したペナルティを課す。
 	size_t get_match_length_sfen(const string& s1, const string& s2)
 	{
@@ -1711,24 +1714,32 @@ namespace YaneuraouTheCluster
 				// 例 : 7g7f(E100)   = 指し手7g7f 訪問回数100 これはEngineのbestmove返した時にponderとして指定してきた指し手でもある
 				string short_sfen2 = short_sfen + "(" + (engine_ponder?"E":"") + std::to_string(snlist[i].nodes) + ")";
 
-				// これやったほうが良いのか自信がない。比較すべき。
-				// →　やらないほうが良さそう。ponderのほうが価値がある。[2022/05/03]
-#if 0
-				// エンジンが指定してきたponderは、そのエンジンに思考させてあげるべき。
-				// たとえ、その局面をジャストでponderしているエンジンがあったとしても。
-				// (ここ、過去の思考時間等から統計的にこの局面について思考していた分量を算出して、
-				// このエンジンのほうが優れているかを比較するとなお良し。)
-				if (engine_ponder)
+				// 前回、この局面を探索していた(現在bestmoveを返したのか停止しているエンジンがあれば、それを用いる)
+				for(size_t j = 0; j < engines.size() ; ++j)
 				{
-					auto& engine     = engines[engine_ponder_engine_id];
-					string engine_id = std::to_string(engine_ponder_engine_id);
-					DebugMessageCommon("go engine's ponder [" + engine_id + "] : " + sfen);
-					engine.send(Message(USI_Message::GO_PONDER, string() , sfen));
+					if (!engine_empty[j])
+						continue;
+					
+					auto& engine      = engines[j];
+					auto  engine_sfen = engine.get_searching_sfen();
+					if (sfen == engine_sfen && !engine.is_state_go_ponder())
+					{
+						// ただ、同じ局面を探索したあと停止している。
+						// この場合、ponderで再度思考させる。
+						auto engine_id = std::to_string(engine.get_engine_id());
+						DebugMessageCommon("go ponder [" + engine_id + "] : " + sfen);
+						engine.send(Message(USI_Message::GO_PONDER, string() , sfen));
 
-					summery += "[" + engine_id + "P]" + short_sfen2;
-					goto Next;
+						// 常識的には、engine.get_engine_id() == engine_ponder_engine_id のはずなのだが。
+						// それ以外のパターンがあるのか？
+
+						summery += "[" + engine_id + "P]" + short_sfen2;
+						// P : Ponderの継続
+
+						engine_empty[j] = false;
+						goto Next;
+					}
 				}
-#endif
 
 				// ponderの継続をすればいいなら、そうする。
 				for(size_t j = 0; j < engines.size() ; ++j)
@@ -1745,32 +1756,6 @@ namespace YaneuraouTheCluster
 						DebugMessageCommon("continue to pondering [" + engine_id +"]: " + sfen);
 						summery += "[" + engine_id + "C]" + short_sfen2;
 						// C = Continue to ponder : Ponderの継続
-						engine_empty[j] = false;
-						goto Next;
-					}
-				}
-
-				// 前回、この局面を探索していた(現在bestmoveを返したのか停止しているエンジンがあれば、それを用いる)
-
-				// ponderの継続をすればいいなら、そうする。
-				for(size_t j = 0; j < engines.size() ; ++j)
-				{
-					if (!engine_empty[j])
-						continue;
-					 
-					auto& engine      = engines[j];
-					auto  engine_sfen = engine.get_searching_sfen();
-					if (sfen == engine_sfen /*&& engine.is_state_go_ponder()*/)
-					{
-						// ただ、同じ局面を探索したあと停止している。
-						// この場合、ponderで再度思考させる。
-						auto engine_id = std::to_string(engine.get_engine_id());
-						DebugMessageCommon("go ponder [" + engine_id + "] : " + sfen);
-						engine.send(Message(USI_Message::GO_PONDER, string() , sfen));
-
-						summery += "[" + engine_id + "P]" + short_sfen2;
-						// P : Ponderの継続
-
 						engine_empty[j] = false;
 						goto Next;
 					}

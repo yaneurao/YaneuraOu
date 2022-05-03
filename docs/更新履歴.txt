@@ -1,8 +1,1065 @@
 ﻿
 やねうら王 更新履歴
 
+■　2022/05/03
+
+
+- yo_cluster ponderのPC割当アルゴリズムの修正。
+
+1)	// ponderの継続をすればいいなら、そうする。
+2)	// 前回、この局面を探索していた(現在bestmoveを返したのか停止しているエンジンがあれば、それを用いる)
+    →　2)を優先してみると？
+    →　これをcluster-cとする。
+
+				// これやったほうが良いのか自信がない。比較すべき。
+				// →　やらないほうが良さそう。ponderのほうが価値がある。[2022/05/03]
+#if 0
+				// エンジンが指定してきたponderは、そのエンジンに思考させてあげるべき。
+				// たとえ、その局面をジャストでponderしているエンジンがあったとしても。
+				// (ここ、過去の思考時間等から統計的にこの局面について思考していた分量を算出して、
+				// このエンジンのほうが優れているかを比較するとなお良し。)
+				if (engine_ponder)
+				{
+					auto& engine     = engines[engine_ponder_engine_id];
+					string engine_id = std::to_string(engine_ponder_engine_id);
+					DebugMessageCommon("go engine's ponder [" + engine_id + "] : " + sfen);
+					engine.send(Message(USI_Message::GO_PONDER, string() , sfen));
+
+					summery += "[" + engine_id + "P]" + short_sfen2;
+					goto Next;
+				}
+#endif
+
+
+bestmoveを返して休憩中のエンジンだとしたら1手前の局面だしなぁ…。このケースは何なんだ？
+
+engine1 = nnue/YaneuraOuNNUE_V720_avx2.exe , eval = .
+engine2 = cluster-c/YaneuraOu-nnue-cluster-c.exe , eval = .
+T1,b1000,116 - 15 - 339(25.49% R-186.3[-216.99,-155.6]) winrate black , white = 49.45% , 50.55%
+// →たぶん、まだ単体エンジンを1T*2で超えてない。
+
+// cluster-c 1T VS cluster-c 1T*2
+
+
+engine1 = cluster/YaneuraOu-nnue-cluster.exe , eval = .
+engine2 = cluster-b/YaneuraOu-nnue-cluster-b.exe , eval = .
+T1,b1000,683 - 51 - 626(52.18% R15.14[-0.67,30.94]) winrate black , white = 50.57% , 49.43%
+
+
+  1分+1秒
+  yo_cluster-c(1T*4) VS 1T
+
+
+
+- makefile : NNUEのbuildに yo_cluster.cppが抜けていたの修正。
+- NNUEのbuildでyo_clusterで警告が出ていたの修正。
+- yo_clusterの割当アルゴリズム変更
+・bestmove返して待機してるエンジン
+・ponderしてたエンジン
+この２つがあった時に先に見つけたほうに割当てている。
+これ良くないな…。これを割り当てるならponderしてたエンジンのほうが良いはず…。
+
+
+- yo_cluster : エンジンが指定してきたponderは、そのエンジンに思考させてあげるの良くなかったので変更。
+
+
+- cluster版との比較
+
+// 1T VS cluster 1T*1(cluster 1T×1engine)
+engine1 = nnue/YaneuraOuNNUE_V720_avx2.exe , eval = .
+engine2 = cluster/YaneuraOu-nnue-cluster.exe , eval = .
+T1,b1000,192 - 24 - 684(21.92% R-220.7[-244.02,-197.38]) winrate black , white = 52.74% , 47.26%
+
+1秒 VS 2秒とほぼ同じレート差。これがponder自体の価値。
+ponderには、同型のソフトだとほぼ2倍の価値がある。
+
+// 1T VS cluster 1T*4
+T1,b1000,237 - 27 - 616(27.78% R-165.93[-187.76,-144.11]) winrate black , white = 51.23% , 48.77%
+
+// 1T VS cluster 1T*2
+T1,b1000,446 - 46 - 1268(26.02% R-181.51[-197.24,-165.79]) winrate black , white = 50.29% , 49.71%
+
+
+// 1T*4なのに1T*1よりR50ぐらい弱くなってる。
+// ponderhitの時の処理(GO)で損しているとしか考えられない。
+// ponder候補自体は、bestmoveを返してたエンジンのponderの指し手を含むので。
+
+
+- エンジンが指定してきたponderは、そのエンジンに思考させてあげるべき。
+  →これ cluster-aとする。
+
+// 1T VS cluster-a 1T*2
+T1,b1000,368 - 36 - 886(29.35% R-152.63[-170.35,-134.92]) winrate black , white = 51.67% , 48.33%
+// cluster-a、やらないほうがよさそう。
+
+
+// 自己対局コマンド
+c:\python27\python engine_invoker6.py --engine1 nnue/YaneuraOuNNUE_V720_avx2.exe --eval1 . --engine2 cluster/YaneuraOu-nnue-cluster.exe --eval2 . --hash1 128 --hash2 128 --time b1000 --loop 3000 --PARAMETERS_LOG_FILE_PATH result --cores 40 --cpu 2 --rand_book 1
+
+
+- yo_cluster ponder局面の選出にNNUEエンジンを利用できるようにした。
+  - ponderするエンジンがないときのエラー抑制。
+  - ponder局面の選定のコード、上位n/3+2手に対して3つずつ選出。
+  - bestmove ponder出力したエンジンにponderの局面を強制で割り当てるのやめる。
+  - gameoverのあとのbestmoveを受信した時の処理、ちゃんと書く。
+  - ponder局面の選定、ふかうら王エンジンではなく、NNUEを使ってやる改造。
+
+
+- yo_cluster
+  - ponderするエンジンがないときのエラー抑制。
+
+- yo_cluster
+  - ponder局面の選定のコード、上位n/3+2手に対して3つずつ選出。
+
+- yo_cluster
+  - bestmove ponder出力したエンジンにponderの局面を強制で割り当てるのやめる。
+  - gameoverのあとのbestmoveを受信した時の処理、ちゃんと書く。
+
+- yo_cluster
+  - ponder局面の選定、ふかうら王エンジンではなく、NNUEを使ってやる改造。
+
+
+■　2022/05/02
+
+
+- yo_cluster すべてのponderが外れて、新規でGOする時に、0を選ぶのではなく前回bestmoveをGUIに返した
+  エンジンでGOする。
+- yo_cluster 2022/05/02
+  - "go ponder"(パラメーターなし)からの"ponderhit btime XX wtime XX binc YY winc YY"の時に最小時間で指してたの修正。
+  - does_ で始まるメソッド名、おかしい気がするのでrename
+  - bestmove ponderの指し手は、そのengineに継続させる。
+  - すべてのponderが外れて、新規でGOする時に、0を選ぶのではなく前回bestmoveをGUIに返したエンジンでGOする。
+  - ponder中の局面(指し手)は必ずGUIに出力する
+
+  例
+    [0:P]7g7f(E100)
+
+    [0:P]
+      0 は、engine id // 0から 台数N - 1
+      そのあと
+	   P = 前回思考してたと思われるエンジンでの Go Ponder
+	   C = Continue to ponder : Ponderの継続
+	   N = New ponder         : 新規のgo ponder
+       G = Go                 : 現在の局面を思考中。
+    7g7f   : 指し手
+    (E100) :
+       E   = goしていたEngineがbestmove XX ponder YYで返してきたponderの指し手YYであるという意味
+       100 = 訪問回数
+
+
+- yo_cluster
+  - すべてのponderが外れて、新規でGOする時に、0を選ぶのではなく前回bestmoveをGUIに返したエンジンでGOする。
+
+
+- yo_cluster
+  - bestmove ponderの指し手は、そのengineに継続させる。
+
+  1分+2秒
+  yo_cluster(1T*7) VS 1T
+  6-6-7
+  // スーパーテラショック定跡 BookEvalDiff=30 , BookMoves=16 , BookBlackLimit 0 , BookWhiteLimit -100
+
+  1分+2秒
+  yo_cluster(1T*7) VS 1T
+  // スーパーテラショック定跡 BookEvalDiff=50 , BookMoves=24 , BookBlackLimit -100 , BookWhiteLimit -200
+  35-25-60 , -R92.5
+  // ダブルスコアぐらいで負けている。GPU使うoverheadにしては負けすぎでは…。
+
+  1分+4秒
+  yo_cluster(1T*7) VS 1T
+
+
+
+- bench
+  // bench
+  search()のPVのdbg_hit_on()
+  Total 55798603 Hits 36169 hit rate (%) 0.065
+  99.935%はNonPV
+
+  // bench 1024 16
+  Total 519605132 Hits 349256 hit rate (%) 0.067
+
+  many threadsでもほぼ同様
+
+  // bench
+  Total 33451 Hits 334 hit rate (%) 0.998
+  search()のmoves_loopのなか。
+	if (nodeType == Root)
+		dbg_hit_on(moveCount == 0);
+  Total 504724 Hits 4476 hit rate (%) 0.887
+
+  // 開始局面
+  info depth 35 seldepth 40 score cp 54 nodes 84600460 nps 4641745 hashfull 1000 time 18226 pv 2g2f 8c8d 7g7f 8d8e 8h7g 3c3d 7i6h 2b7g+ 6h7g 3a2b 3g3f 7a6b 2i3g 2b3c 3i3h 7c7d 6i7h 4a3b 1g1f 1c1d 2f2e 6a5b 5i6h 6c6d 4g4f 9c9d 9g9f 6b6c 2h2i 8a7c 4i4h 4c4d 3h4g
+  Total 5371 Hits 235 hit rate (%) 4.375
+
+開始局面、わりと選択肢あるんだな…。
+
+
+
+■　2022/05/01
+
+
+- yo_cluster
+  - ponder中の局面(指し手)は必ずGUIに出力する
+
+  例
+    [0:P]7g7f(E100)
+
+    [0:P]
+      0 は、engine id // 0から 台数N - 1
+      そのあと
+	   P = 前回思考してたと思われるエンジンでの Go Ponder
+	   C = Continue to ponder : Ponderの継続
+	   N = New ponder         : 新規のgo ponder
+       G = Go                 : 現在の局面を思考中。
+    7g7f   : 指し手
+    (E100) :
+       E   = goしていたEngineがbestmove XX ponder YYで返してきたponderの指し手YYであるという意味
+       100 = 訪問回数
+
+
+
+- yo_cluster
+  - does_ で始まるメソッド名、おかしい気がするのでrename
+
+
+Yo 1スレ×4 VS 1スレ(ponderあり) , 3分+2秒加算
+
+30-5-27 , 52.6% = R18.1
+// 差がほとんどつかない。これでは強くなっているのかがわからない。
+// FV_SCALE = 16のまま計測しとった。😥
+
+engine2 = YaneuraOuNNUE_V750_avx2.exe , eval = suishou6_20220114-fv32
+
+// 計測しなおす。
+Yo 1スレ×7 VS 1スレ(ponderあり) , 3分+3秒加算
+
+
+
+■　2022/04/30
+
+
+- Mizarさんのプルリク以降、定跡生成時に落ちるようになったという報告があったのでその前後で対局させてみる。
+engine1 = YaneuraOuNNUE_V720_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V750_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1249 - 123 - 1258(49.82% R-1.25[-12.66,10.16]) winrate black , white = 53.25% , 46.75%
+T2,b2000,1420 - 180 - 1400(50.35% R2.46[-8.3,13.22]) winrate black , white = 50.5% , 49.5%
+// 落ちない？
+
+
+- remove duplicate Debug-Deep-TensorRT #232
+  //  Mizarさんのプルリク 
+
+
+- build MacOS & WebAssembly, install CUDA-11.6 + TensorRT8.2.4 (#231)
+  //  Mizarさんのプルリク 
+  * - nproc
+
+  * - YANEURAOU_ENGINE_MATERIAL* ビルドテストの一部省略
+
+  * - release build material lv1,lv9
+
+  * - pacboy -Syuu
+
+  * - remove base-devel: from actions
+
+  * - remove base-devel:
+
+  * - pacman update
+
+  * - POPCNT, BSF, BSR の実装パターン追加
+
+  * - MacOS
+
+  * - NuGet packages bump up
+
+  * - CUDA 11.6 Update 2, TensorRT 8.2 GA Update 3, cuda-nvrtc, remove copy cuda dlls
+  - CUDA gpg-key change
+    cf. https://github.com/NVIDIA/cuda-repo-management/issues/4
+
+  * - clang-15
+
+  * - DNN_Batch_Size max 1024
+
+  * - fp16
+
+  * - .gitignore
+
+  * - badge MacOS, WebAssembly
+
+  * - WASM port
+    cf. https://github.com/arashigaoka/YaneuraOu.wasm
+    cf. https://github.com/niklasf/stockfish.wasm
+    cf. https://github.com/hi-ogawa/Stockfish
+
+  * - wasm_build
+
+  * - github workflows: wasm
+
+
+
+- yo_cluster
+  - SlowMover調整
+    - PCたくさんあると、ponderかなり当たるので時間余るからSlowMover増やしたほうがいいかも。
+
+
+- yo_cluster
+  - "stop"をhandleするコードを追加。
+
+
+- yo_cluster 20220430a
+  - GO_PONDER → stop → GO で GO_PONDERの最後のログがGUIに出力されてしまう。
+    GOでignore_bestmoveをインクリメントしないからか…。ここignoreではないのだが…。
+
+  1分 + 1手4秒
+  1スレッド(ponderなし) VS 1スレッド×4エンジン(Cluster)
+    1-3-3
+    // 対局回数少ないが改善したかも？
+
+  1分 + 1手4秒
+  1スレッド(ponderあり) VS 1スレッド×4エンジン(Cluster)
+    13-2-9
+    // 単体のエンジンにクラスターで4台も使って勝てないだと…。
+
+    私のWCSC32は本日を持ちまして終了したようです。
+    本当にありがとうございました。
+
+
+- "go ponder"(パラメーターなし)からの"ponderhit btime XX wtime XX binc YY winc YY"の時に最小時間で指してたの修正。
+
+
+- yo_cluster 20220430
+  - デバッグメッセージをファイルに出力できるようにする。
+  - id authorに対しては、clusterエンジンのエンジン名、作者名が反映するようにした。
+    - engine_name.txt で変更可能。
+  - Illegal Inputになるエンジンがあるの修正。
+  - 詰み間際でエンジン落ちるの修正。
+    - 詰んでて、ponderの指し手が無いからか…。
+  - isreadyコマンドが来てから、DL部のisready()呼び出すことに。
+  - usiに対してengine 0からのメッセージがGUIに返ってなかったの修正。
+  - gameover後にinfoを受け取って警告が出ていたの修正。
+  - ponderするengineの選出アルゴリズム、変更。
+
+  1分 + 1手5秒
+  1スレッド(ponderなし) VS 1スレッド×4エンジン(Cluster)
+  4-9-16
+  // ダブルスコア以上で負けとる…。俺のWCSC32、終わったな…。
+
+
+■　2022/04/29
+
+
+- yo_cluster 20220429
+  - goで思考局面になかった時のponderの局面がおかしいの修正。
+  - goしているエンジンからのbestmoveに対して、偶数局面を選出してponderする。
+  - 対局中に遊んでいるEngineがないか監視するコード追加。
+  - ProcessNegotiatorとEngineNegotiator、copyとmove禁止にした。
+  - goコマンドかなり実装した。
+  - fixed_size_vector導入。
+
+
+- sln: vs2022 (PR #230)
+  - Mizarさんからのプルリク。slnファイル、新しいVisual Studioのslnにする件。
+
+  
+- yo_cluster
+  - positionコマンド実装。
+  - goコマンド途中まで実装。
+    - 局面が当たった時に"ponderhit"を送信する。
+    - あとは、当たらなかった時の処理と、残りのエンジンの処遇を決める処理と…。
+  - エラー出力は、error_to_gui()にまとめる。
+  - エンジンからのメッセージハンドラ、整理する。
+  - エンジン側からのlogをbufferingしておき、"ponderhit"に対して出力するようにした。
+
+
+- 同じやねうら王同士で思考時間2倍でどれくらいの差なのか？のデータ。
+
+engine1 = YaneuraOuNNUE_V720_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V720_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000.b2000,607 - 144 - 2249(21.25% R-227.52[-240.59,-214.45]) winrate black , white = 51.26% , 48.74%
+T2,b2000.b4000,663 - 185 - 2152(23.55% R-204.53[-217.22,-191.84]) winrate black , white = 52.18% , 47.82%
+T2,b4000.b8000,308 - 89 - 833(26.99% R-172.84[-191.88,-153.79]) winrate black , white = 52.23% , 47.77%
+T2,b4000.b8000,258 - 109 - 863(23.02% R-209.76[-230.02,-189.49]) winrate black , white = 50.49% , 49.51%
+T2,b4000.b8000,284 - 98 - 848(25.09% R-190.03[-209.61,-170.45]) winrate black , white = 51.06% , 48.94%
+T2,b8000.b16000,318 - 135 - 787(28.78% R-157.42[-176.4,-138.44]) winrate black , white = 52.94% , 47.06%
+// 1 vs  2秒で R230ぐらいの差。
+// 2 vs  4秒で R205ぐらいの差。
+// 4 vs  8秒で R190ぐらいの差。
+// 8 vs 16秒で R160ぐらいの差。
+// 持時間が長くなると差が縮まっていく傾向はある。
+
+
+■　2022/04/28
+
+
+- yo_cluster
+  - クラスター本体が終了しているのにエンジン停止しないの修正。
+    - 対応が簡単ではないようなのでやめる。quitコマンドで終了するようにはできた。
+  - start_pondering()で各エンジンに"go ponder"でその局面を思考させるコードを追加。
+  - 先行して go ponderするコードを書く。
+    - their_search_sfen と our_search_sfenが必要。
+    - 与えられた局面に対して遷移確率の高い上位の偶数局面と奇数局面を拾ってくるルーチンが必要。(少し書いた)
+  - EngineNegotiatorState → EngineStateにrename
+
+
+■　2022/04/27
+
+
+- USE_TIME_MANAGEMENTがdefineされていない時にコンパイル通らなくなっていたのを修正。
+
+
+- makebook2021、ビルド通らなくなっていたの修正。
+
+- yo_cluster
+  - StandardInputを用いるように変更。
+  - usinewgameのあとは、局面が来るまで適当な局面でgo ponderしておくように。
+  - ある局面に対して、遷移可能性の高い上位N個の局面を列挙するルーチンを書く。
+    - dlshogi::GetTopVisitedNodes()実装
+    - dlshogi::GetSearchResult()、引数で返し値を用意することに変更。(vectorをreturnするの、コピーのコストちょっと嫌な気がした)
+    - n-thまでは返るようになった。あとで精査する。
+    - position_cmd()の宣言をusi.hに移動させる。
+  - usinewgame , gameoverの実装。
+
+
+- StandardInputクラス追加。
+  - f 1コマンドでこれがclusterコマンドに対してもqueueが積まれてくれないと使いづらい。
+
+
+■　2022/04/26
+
+
+- ponderhitコマンドの拡張の件、USI拡張コマンド.txtに記載する。
+
+
+- ponderhitコマンド時に、goコマンド同様に残り時間等を指定できるように拡張。
+  - btime,wtime,winc,binc,byoyomiを指定できる。
+  - これによりgo ponder (残りパラメーターなし)でponderさせといて、ponderhitで残り時間を渡すような方法が採れる。
+
+背景)
+・pre-ponder時のgo ponderに関して
+
+いまpre-ponderみたいなのを考える。
+
+サーバーからpositionコマンドが送られてくる前に各worker engineに対して
+go ponder
+で思考させておく。サーバーからのpositionコマンドがponderingしている局面であった時にそのworker engineに対して
+ponderhit
+を送信する。こうすれば、思考時間制御が不要になって、worker engine側の思考時間制御に頼ることができる。
+
+ところが、
+ponderhit の時には残り持ち時間を送らない仕様になっているので、これができないのである。
+そこで、
+ponderhit btime XX wtime XX binc XX winc XX
+みたいな形で現時点での残り時間をgoコマンドと同様に渡せるように拡張する必要がある。
+
+
+
+- yo_cluster 作り直し
+  - 気に入らないので作りなおす。
+  - エンジンとして.batファイル対応。
+  - エンジンとして"ssh ..."の形式に対応。
+  - waitallオプションを指定すればエンジンの起動に失敗していたら起動したエンジンの数を出力して、プログラムは終了するようにした。
+  - usi, isready, setoptionまで書けた。
+  - info stringのError、guiに戻すようにした。
+  - 起動したエンジンの数をreadyokのあとに出力するようにした。
+  - debug,nodebugコマンドの追加。
+- StringExtension::Contains()追加。
+
+
+- usiコマンドで解釈できなくてErrorを出す時に、先頭にinfo stringをつけて出力するようにした。
+
+- Ubuntu20.04でmakeコマンド手前までを 解説.txtに追記。
+
+
+■　2022/04/25
+
+
+- V7.20
+
+engine1 = YaneuraOuNNUE_V700beta4.exe , eval = Suisho5_211028
+engine2 = YaneuraOuNNUE_V720_avx2.exe , eval = suishou6_20220114-fv32 // HASH_KEY_BITS = 128, TT_CLUSTER_SIZE = 4
+T2,b1000,995 - 94 - 1171(45.94% R-28.29[-40.61,-15.98]) winrate black , white = 50.37% , 49.63%
+T2,b2000,1330 - 172 - 1498(47.03% R-20.66[-31.43,-9.9]) winrate black , white = 53.71% , 46.29%
+T2,b3000,1251 - 184 - 1565(44.42% R-38.9[-49.74,-28.07]) winrate black , white = 52.34% , 47.66%
+T2,b4000,1265 - 217 - 1518(45.45% R-31.67[-42.55,-20.8]) winrate black , white = 52.43% , 47.57%
+T2,b8000,1222 - 253 - 1525(44.48% R-38.48[-49.45,-27.51]) winrate black , white = 53.77% , 46.23%
+T2,b16000,642 - 177 - 781(45.12% R-34.05[-49.26,-18.83]) winrate black , white = 52.99% , 47.01%
+T2,b16000,741 - 191 - 958(43.61% R-44.62[-58.59,-30.64]) winrate black , white = 52.15% , 47.85%
+T2,b16000,716 - 193 - 1011(41.46% R-59.94[-73.89,-45.98]) winrate black , white = 55.3% , 44.7%
+
+// 持時間が倍になると+R10ずつぐらい強くなってる？
+
+
+- threatened 歩だけに変更してみる。
+  // V7.01ss
+
+engine1 = YaneuraOuNNUE_V701pp_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V701ss_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1428 - 139 - 1433(49.91% R-0.61[-11.29,10.08]) winrate black , white = 53.58% , 46.42%
+T2,b2000,1289 - 181 - 1310(49.6% R-2.81[-14.02,8.4]) winrate black , white = 52.14% , 47.86%
+T2,b3000,859 - 143 - 788(52.16% R14.99[0.9,29.08]) winrate black , white = 51.73% , 48.27%
+T2,b4000,621 - 99 - 600(50.86% R5.98[-10.37,22.33]) winrate black , white = 51.43% , 48.57%
+T2,b5000,204 - 49 - 227(47.33% R-18.56[-46.1,8.98]) winrate black , white = 52.9% , 47.1%
+
+→　誤差程度しか違わないがトータルで得していないので採用しないことにする。
+
+
+- yo_cluster engine_list.txt batファイル、ssh対応
+
+
+■　2022/04/24
+
+
+- makebook2021.cppがコンパイル通らなくなっていたのを修正。
+  - Position::long_key → hash_key の影響。
+
+
+- Position::long_key → hash_keyのようにrename
+- Key128,Key256に暗黙のKeyへの変換を無くす。
+
+
+- benchコマンドで結果に無駄な改行が出力されていたの修正。
+
+
+- prefetchのコード、HASH_KEYが128bitになった時に間違えていたの修正。
+  - 間違ってたと思ったら、アドレス計算自体はこれで合ってた…。
+  // V7.01rr
+
+after)
+Total time (ms) : 60011
+Nodes searched  : 74182734
+Nodes_searched/second    : 1236152
+
+before)
+Total time (ms) : 60010
+Nodes searched  : 73637043
+Nodes_searched/second    : 1227079
+
+after) bench 8192 16
+Total time (ms) : 60018
+Nodes searched  : 624959693
+Nodes_searched/second    : 10412871
+Nodes searched       (main thread) : 39646369
+Nodes searched/second(main thread) : 660574
+
+before) bench 8192 16
+Total time (ms) : 60015
+Nodes searched  : 610430866
+Nodes_searched/second    : 10171304
+Nodes searched       (main thread) : 38267842
+Nodes searched/second(main thread) : 637637
+
+
+- threatend bonusのコード、見直し。
+  - 歩以外の小駒による脅威を計算するようにした。
+  // V7.01qq
+
+engine1 = YaneuraOuNNUE_V701pp_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V701qq_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,705 - 87 - 628(52.89% R20.09[4.42,35.77]) winrate black , white = 49.74% , 50.26%
+T2,b2000,520 - 70 - 500(50.98% R6.81[-11.08,24.7]) winrate black , white = 52.25% , 47.75%
+T2,b3000,1235 - 177 - 1238(49.94% R-0.42[-11.91,11.07]) winrate black , white = 53.13% , 46.87%
+T2,b4000,1006 - 167 - 977(50.73% R5.08[-7.75,17.91]) winrate black , white = 51.99% , 48.01%
+T2,b4000,877 - 161 - 912(49.02% R-6.8[-20.31,6.71]) winrate black , white = 50.87% , 49.13%
+T2,b5000,502 - 78 - 430(53.86% R26.89[8.13,45.66]) winrate black , white = 52.68% , 47.32%
+
+// これたぶん悪いな…。
+
+
+  // 実験中のコード
+
+	if constexpr (Type == QUIETS)
+	{
+#if 0
+		Color us = pos.side_to_move();
+		// squares threatened by pawns
+		threatenedByPawn  = pos.attacks_by<PAWN>(~us);
+		// squares threatened by minors or pawns
+		threatenedByMinor = pos.attacks_by<KNIGHT>(~us) | pos.attacks_by<BISHOP>(~us) | threatenedByPawn;
+		// squares threatened by rooks, minors or pawns
+		threatenedByRook  = pos.attacks_by<ROOK>(~us) | threatenedByMinor;
+
+		// pieces threatened by pieces of lesser material value
+		threatened =  (pos.pieces(us, QUEEN) & threatenedByRook)
+					| (pos.pieces(us, ROOK)  & threatenedByMinor)
+					| (pos.pieces(us, KNIGHT, BISHOP) & threatenedByPawn);
+#endif
+		// →　Stockfishのコードを忠実に実装すると将棋ではたくさんの利きを計算しなくてはならないので
+		//     非常に計算コストが高くなる。
+		// ここでは歩による当たりになっている駒だけ考える。
+
+		const Color us = pos.side_to_move();
+
+#if 0 // 歩による脅威だけ。
+		// squares threatened by pawns
+		threatenedByPawn = (~us == BLACK) ? pos.attacks_by<BLACK, PAWN>() : pos.attacks_by<WHITE, PAWN>();
+#endif
+
+#if 0
+		// squares threatened by pawns
+		threatenedByPawn = (~us == BLACK) ? pos.attacks_by<BLACK, PAWN>() : pos.attacks_by<WHITE, PAWN>();
+
+		// squares threatened by minors or pawns
+		threatenedByMinor = ((~us == BLACK) ? (pos.attacks_by<BLACK, LANCE>() | pos.attacks_by<BLACK, KNIGHT>() | pos.attacks_by<BLACK, SILVER>() | pos.attacks_by<BLACK, GOLDS>())
+										    : (pos.attacks_by<WHITE, LANCE>() | pos.attacks_by<WHITE, KNIGHT>() | pos.attacks_by<WHITE, SILVER>() | pos.attacks_by<WHITE, GOLDS>()))
+			| threatenedByPawn;
+
+		// 歩以外の自駒で、相手の歩の利きにある駒 + 角馬飛龍の自駒に相手の小駒の利きがある
+		threatened =  (pos.pieces(us,PAWN).andnot(pos.pieces(us))                 & threatenedByPawn ) |
+					 ((pos.pieces(us,BISHOP_HORSE) | pos.pieces(us, ROOK_DRAGON)) & threatenedByMinor) ;
+#endif
+	}
+	else
+	{
+		// Silence unused variable warnings
+		//(void)threatened;
+		//(void)threatenedByPawn;
+		//(void)threatenedByMinor;
+		//(void)threatenedByRook;
+	}
+
+	for (auto& m : *this)
+	{
+		if constexpr (Type == CAPTURES)
+		{
+			// Position::see()を用いると遅い。単に取る駒の価値順に調べたほうがパフォーマンス的にもいい。
+			// 歩が成る指し手もあるのでこれはある程度優先されないといけない。
+			// CAPTURE系である以上、打つ指し手は除外されている。
+			// CAPTURES_PRO_PLUSで生成しているので歩の成る指し手が混じる。
+			
+			// MVV-LVAだが、将棋ではLVAあんまり関係なさげだが(複数の駒である1つの駒が取れるケースがチェスより少ない)、
+			// Stockfish 9に倣いMVV + captureHistoryで処理する。
+
+			// 歩の成りは別途考慮してもいいような気はするのだが…。
+			// ここに来るCAPTURESに歩の成りを含めているので、捕獲する駒(pos.piece_on(to_sq(m)))がNO_PIECEで
+			// ある可能性については考慮しておく必要がある。
+
+			m.value = 6 * int(Eval::CapturePieceValue[pos.piece_on(to_sq(m))])
+					 +    (*captureHistory)[to_sq(m)][pos.moved_piece_after(m)][type_of(pos.piece_on(to_sq(m)))];
+		}
+		else if constexpr (Type == QUIETS)
+		{
+			// 駒を取らない指し手をオーダリングする。
+			// ここ、歩以外の成りも含まれているのだが…。
+			// →　指し手オーダリングは、quietな指し手の間での優劣を付けたいわけで、
+			//    駒を成るような指し手はどうせevaluate()で大きな値がつくからそっちを先に探索することになる。
+
+			Piece movedPiece = pos.moved_piece_after(m);
+			Square movedSq = to_sq(m);
+			PieceType moved_piece = type_of(pos.moved_piece_before(m));
+
+			// threatedned bonus(やねうら王独自拡張)
+			//int bonus = 0;
+
+#if 0 // 歩以外の駒に対する歩の脅威だけ
+			if (threatened.test(from_sq(m)))
+			{
+				if (threatenedByPawn.test(to_sq(m)))
+					if (moved_piece == BISHOP || moved_piece == ROOK)
+						bonus = 50000;
+					else if (moved_piece != PAWN)
+						bonus = 15000;
+			}
+#endif
+
+#if 0 // 大駒に対する歩の脅威だけ
+					+     (threatened & from_sq(m) ?
+							((moved_piece == ROOK || moved_piece == BISHOP) && !threatenedByPawn.test(to_sq(m))) ? 50000
+						:                                                                                            0
+						:                                                                                            0)
+#endif
+
+#if 0 // 歩以外の駒に対する歩とminor駒の脅威
+					+     (threatened & from_sq(m) ?
+							((moved_piece == ROOK || moved_piece == BISHOP) && !threatenedByMinor.test(to_sq(m)) ? 50000
+						:    (moved_piece != ROOK && moved_piece != BISHOP) && !threatenedByPawn .test(to_sq(m)) ? 15000
+						:                                                                                            0)
+						:                                                                                            0)
+#endif
+
+			m.value =     (*mainHistory)[from_to(m)][pos.side_to_move()]
+					+ 2 * (*continuationHistory[0])[movedSq][movedPiece]
+					+     (*continuationHistory[1])[movedSq][movedPiece]
+					+     (*continuationHistory[3])[movedSq][movedPiece]
+					+     (*continuationHistory[5])[movedSq][movedPiece]
+				//	移動元の駒が安い駒で当たりになっている場合、移動させることでそれを回避できるなら価値を上げておく。
+#if 0
+					+     (threatened & from_sq(m) ?
+							 (type_of(pos.moved_piece_before(m)) == QUEEN && !(to_sq(m) & threatenedByRook ) ? 50000
+							: type_of(pos.moved_piece_before(m)) == ROOK  && !(to_sq(m) & threatenedByMinor) ? 25000
+							:                                                !(to_sq(m) & threatenedByPawn ) ? 15000
+							:																					0)
+																											    0);
+				// → Stockfishのコードそのままは書けない。
+#endif
+					//+ bonus;
+					;
+
+		}
+
+
+
+
+- reformat
+  - ソースコード、改行が崩れているところなど修正。
+
+- SlowMoverの説明を修正。
+
+
+■　2022/04/23
+
+
+- TT_ClusterSizeとして、2,3以外に4,6,8,16,32などを選べるようにした。
+
+TT_ClusterSize cl = 4
+===========================
+Total time (ms) : 60012
+Nodes searched  : 74991984
+Nodes_searched/second    : 1249616
+===========================
+
+TT_ClusterSize cl = 2
+===========================
+Total time (ms) : 60009
+Nodes searched  : 77259881
+Nodes_searched/second    : 1287471
+===========================
+
+3%違いか。どれくらい探索に影響出るかだな…。
+
+  // V7.10pp
+engine1 = YaneuraOuNNUE_V701oo_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V701pp_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1451 - 137 - 1412(50.68% R4.73[-5.95,15.41]) winrate black , white = 49.67% , 50.33%
+T2,b2000,1241 - 172 - 1227(50.28% R1.97[-9.53,13.47]) winrate black , white = 53.4% , 46.6%
+T2,b4000,432 - 81 - 457(48.59% R-9.77[-28.94,9.39]) winrate black , white = 53.77% , 46.23%
+T2,b4000,583 - 104 - 573(50.43% R3.01[-13.8,19.81]) winrate black , white = 55.19% , 44.81%
+
+// 長い時間で悪くない可能性が…ある…な？
+// 大会では、これ使うか。
+
+
+- 王手延長は開き王手と駒損しない王手に限定する。
+
+				else if (givesCheck
+					&& depth > 9
+					&& abs(ss->staticEval) > 71)
+					// この条件、やねうら王で独自追加。
+					// →　王手延長は、開き王手と駒損しない王手に限定する。
+					&& (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move)))
+					extension = 1;
+  // V701oo
+
+engine1 = YaneuraOuNNUE_V701nn_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V701oo_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1226 - 124 - 1300(48.54% R-10.18[-21.55,1.19]) winrate black , white = 52.22% , 47.78%
+T2,b2000,1421 - 161 - 1418(50.05% R0.37[-10.36,11.09]) winrate black , white = 53.12% , 46.88%
+T2,b4000,1162 - 192 - 1196(49.28% R-5.01[-16.78,6.76]) winrate black , white = 52.46% , 47.54%
+T2,b4000,1143 - 193 - 1214(48.49% R-10.47[-22.24,1.31]) winrate black , white = 55.45% , 44.55%
+
+→　これやったほうが良さそう。
+
+
+- V701nnを やねうら王 128-bit Editionとしてリリース。
+→ YaneuraOuNNUE_V710-128.zip
+https://github.com/yaneurao/YaneuraOu/releases/tag/v7.10
+
+
+- bestMoveCountという変数の除去
+  - Simplify away best move count logic : https://github.com/official-stockfish/Stockfish/commit/e41f727f0f7041b43997f04c031353be5087856b
+
+- 置換表上のスコア(value)がalpha,valueより小さいものは負の延長を行う。
+  - Negative extension for ttMove that is less than alpha and value : https://github.com/official-stockfish/Stockfish/commit/e1f12aa4e61a8bbb772918c405137acdd85e3eec
+  // V701nn
+
+engine1 = YaneuraOuNNUE_V701kk_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V701nn_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1430 - 150 - 1420(50.18% R1.22[-9.48,11.92]) winrate black , white = 51.89% , 48.11%
+T2,b2000,1426 - 189 - 1385(50.73% R5.07[-5.71,15.85]) winrate black , white = 53.18% , 46.82%
+T2,b4000,791 - 188 - 811(49.38% R-4.34[-18.61,9.94]) winrate black , white = 55.49% , 44.51%
+T2,b4000,489 - 77 - 494(49.75% R-1.77[-19.99,16.45]) winrate black , white = 54.83% , 45.17%
+
+// ほぼ互角だが、4秒で悪くないし、元のコードがよりシンプルになるので導入する。
+
+
+- LMRのcapture history based pruningのコード、復活させる。
+
+  // Stockfishでは削除された枝刈り。これはあったほうが良いらしい。
+  // Capture history based pruning when the move doesn't give check
+  if (  !givesCheck
+	  && lmrDepth < 1
+	  && captureHistory[to_sq(move)][movedPiece][type_of(pos.piece_on(to_sq(move)))] < 0)
+	  continue;
+  // V701mm
+
+engine1 = YaneuraOuNNUE_V701ll_avx2.exe , eval = suishou6_20220420-fv32
+engine2 = YaneuraOuNNUE_V701mm_avx2.exe , eval = suishou6_20220420-fv32
+T2,b1000,1395 - 110 - 1495(48.27% R-12.03[-22.66,-1.39]) winrate black , white = 53.53% , 46.47%
+T2,b2000,1424 - 169 - 1407(50.3% R2.09[-8.65,12.83]) winrate black , white = 51.11% , 48.89%
+T2,b4000,947 - 151 - 932(50.4% R2.77[-10.41,15.95]) winrate black , white = 54.07% , 45.93%
+T2,b4000,580 - 87 - 543(51.65% R11.45[-5.6,28.51]) winrate black , white = 52.98% , 47.02%
+
+→　ほぼ誤差だったのでこのコードは(ソースコード上に残すものの)コメントアウト
+
+
+
+■　2022/04/22
+
+
+- 王手延長のコード、ちょっと考えなおす。
+
+
+- probCutのassert、修正。
+
+
+- qsearch内での詰みの条件、考えなおして、8ヶ月前のコードに戻した。
+
+		// チェスでは王手がかかっていて、合法手がない時に詰みだが、
+		// 将棋では、合法手がなければ詰みなので ss->inCheckの条件は不要
+		// かと思ったら、qsearch()で王手がかかっていない時は、
+		//  captureとcheckの指し手しか生成していないから、moveCount==0だから詰みとは限らない。
+		// 王手されている局面なら、evasion(王手回避手)を生成するから、moveCount==0なら詰みと確定する。
+		// ただし、その場合、bestValue == -VALUE_INFINITEだし、仮にmoveCount !=0 でもその回避手で詰みなら
+		// bestValue == -VALUE_INFINITEのまま(だと思う)ので、moveCountよりbestValue == -VALUE_INFINITEで
+		// 比較するほうが優れている。
+
+		if (ss->inCheck && bestValue == -VALUE_INFINITE)
+		{
+			// 合法手は存在しないはずだから指し手生成しても速攻終わるはず。
+			ASSERT_LV5(!MoveList<LEGAL>(pos).size());
+
+			return mated_in(ss->ply); // Plies to mate from the root
+									  // rootから詰みまでの手数。
+		}
+    // V701ll
+engine1 = YaneuraOuNNUE_V701jj_avx2.exe , eval = suishou6_20220420-fv32
+engine2 = YaneuraOuNNUE_V701ll_avx2.exe , eval = suishou6_20220420-fv32
+T2,b1000,1457 - 138 - 1405(50.91% R6.31[-4.37,17.0]) winrate black , white = 51.89% , 48.11%
+T2,b2000,1380 - 185 - 1435(49.02% R-6.79[-17.56,3.98]) winrate black , white = 52.11% , 47.89%
+T2,b4000,568 - 89 - 573(49.78% R-1.52[-18.43,15.39]) winrate black , white = 50.22% , 49.78%
+
+
+- qsearch内での詰みの条件間違ってた。
+  - benchでmate1って出るの調べる。
+    - 王手がかかっていない時、captureとcheckの指し手しか生成していないの忘れていた。
+    // V701kk
+    if (ss->inCheck && moveCount == 0)
+    に変更。
+
+    Stockfishも12年前は↓ではなく↑この書き方だったようだ。moveCountが除去された時に変更されてしまったようだ。
+		if (ss->inCheck && bestValue == -VALUE_INFINITE)
+
+      cf. https://github.com/official-stockfish/Stockfish/commit/452f0d16966e0ec48385442362c94a810feaacd9
+
+    moveCountが再度導入されたからには、Stockfishもここは、↑の書き方に戻したほうが良いと思う。
+
+engine1 = YaneuraOuNNUE_V701jj_avx2.exe , eval = suishou6_20220420-fv32
+engine2 = YaneuraOuNNUE_V701kk_avx2.exe , eval = suishou6_20220420-fv32
+T2,b1000,1384 - 138 - 1478(48.36% R-11.42[-22.1,-0.73]) winrate black , white = 52.03% , 47.97%
+T2,b2000,1365 - 158 - 1277(51.67% R11.58[0.45,22.7]) winrate black , white = 51.36% , 48.64%
+T2,b4000,612 - 90 - 638(48.96% R-7.23[-23.39,8.93]) winrate black , white = 50.88% , 49.12%
+
+
+
+- SSSE3でコンパイルが通らなかったの修正。
+
+
+- 王手延長のコード、独自コードに変更。
+
+	// やねうら王独自コード
+	// →　王手延長は、開き王手と駒得しながらの王手に限定する。
+	else if (givesCheck
+		&& depth > 9
+		&& abs(ss->staticEval) > 71
+		&& (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move)))
+		extension = 1;
+  // V701jj
+engine1 = YaneuraOuNNUE_V701gg_avx2.exe , eval = suishou6_20220420-fv32
+engine2 = YaneuraOuNNUE_V701jj_avx2.exe , eval = suishou6_20220420-fv32
+T2,b1000,1470 - 149 - 1381(51.56% R10.85[0.14,21.56]) winrate black , white = 51.53% , 48.47%
+
+
+
+- Key128、Key256、AVX2以外の環境で動くようにするの忘れていたの修正。
+
+
+- tt.hで一部の環境でコンパイルエラーになっていたの修正。
+  // V701ii
+
+engine1 = YaneuraOuNNUE_V701gg_avx2.exe , eval = suishou6_20220420-fv32
+engine2 = YaneuraOuNNUE_V701ii_avx2.exe , eval = suishou6_20220420-fv32
+T2,b2000,1374 - 178 - 1448(48.69% R-9.11[-19.87,1.65]) winrate black , white = 53.26% , 46.74%
+
+
+engine1 = YaneuraOuNNUE_V701gg_avx2.exe , eval = suishou6_20220420-fv32
+engine2 = YaneuraOuNNUE_V701hh128-cl2_avx2.exe , eval = suishou6_20220420-fv32
+T2,b1000,1052 - 102 - 1036(50.38% R2.66[-9.84,15.17]) winrate black , white = 52.25% , 47.75%
+
+
+
+- tt.h 整形
+
+
+- TT_CLUSTER_SIZEをmakefileで指定できるようにした。
+- USI拡張コマンド "config" 追加。
+- Key128,256、高速化。
+
+
+■　2022/04/21
+
+- KEY_TYPEでコンパイルエラーになっていたの修正。
+
+- Hash key 128bit化対応
+
+・メモリ大容量時代の置換表について
+
+TTEntryにhash keyを64bit格納したところで、TTClusterのindexの計算にhash keyの上位bitを用いているので、
+例えば、TTClusterを2^32個(4G個)確保する時には、hash keyの下位32bitしかチェックしていないも同じである。
+TTClusterは32[byte]なので4G×32B = 128GBである。いまどきAWSのc5,c6インスタンスを借りることを思えば、
+128GBぐらいは確保するだろう。
+
+そうなると結局32bitのhash keyを用いているのと同じことになってしまう。4Gと言うと多いようだが、
+大会では0.1G nps近く出ているので、40秒に1回ぐらい違う局面のTTEntryを持ってきていることになる。
+それが詰み絡みの局面でないことを祈るばかりである。
+
+もう少し極論をすれば、TTClusterを2^64個確保した場合には、いまの実装の場合、TTEntryに格納されている
+keyは毎回TT.probe()に用いたkeyと合致してしまう。hash衝突率100%である。そう考えるとhash key自体は128bitで
+保持するのが正しく、TTEntryに格納するのはその下位64bit、TTClusterの計算に用いるのはその上位64bit、のようにせねばなるまい。
+
+
+   // YaneuraOuNNUE_V701hh64_avx2.exe : hash key 64bitのほう
+
+
+
+engine1 = YaneuraOuNNUE_V701gg_avx2.exe , eval = suishou6_20220420-fv32
+engine2 = YaneuraOuNNUE_V701hh64_avx2.exe , eval = suishou6_20220420-fv32
+T2,r100,929 - 39 - 942(49.65% R-2.41[-15.62,10.79]) winrate black , white = 50.45% , 49.55%
+
+engine1 = YaneuraOuNNUE_V701gg_avx2.exe , eval = suishou6_20220420-fv32
+engine2 = YaneuraOuNNUE_V701hh64-cl3_avx2.exe , eval = suishou6_20220420-fv32
+
+
+
+hh128 - TTCluster = 2
+===========================
+Total time (ms) : 60009
+Nodes searched  : 79764609
+Nodes_searched/second    : 1329210
+Nodes_searched/second    : 1298939
+===========================
+
+
+hh64 - TTCluster = 2
+===========================
+Total time (ms) : 60009
+Nodes searched  : 78675063
+Nodes_searched/second    : 1311054
+===========================
+
+ほぼ変わらん…？
+
+
+
+- make_promoted_piece() , is_promoted_piece()追加
+  - Positionクラス、↑を使って少し整理。
+    // V7.01hh
+
+- 改造したので壊していないかのチェック
+
+engine1 = YaneuraOuNNUE_V701gg_avx2.exe , eval = suishou6_20220420-fv32
+engine2 = YaneuraOuNNUE_V701hh_avx2.exe , eval = suishou6_20220420-fv32
+T2,r100,1491 - 52 - 1457(50.58% R4.01[-6.52,14.53]) winrate black , white = 50.88% , 49.12%
+
+壊してはなさそう。
+
+
+- 水匠 20220114 vs 20220420
+engine1 = YaneuraOuNNUE_V701ff_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V701ff_avx2.exe , eval = suishou6_20220420-fv32
+T2,b1000,1464 - 140 - 1396(51.19% R8.26[-2.43,18.95]) winrate black , white = 51.36% , 48.64%
+T2,b2000,1112 - 128 - 1100(50.27% R1.88[-10.26,14.03]) winrate black , white = 51.9% , 48.1%
+T2,b2000,511 - 53 - 476(51.77% R12.33[-5.87,30.52]) winrate black , white = 50.05% , 49.95%
+T2,b4000,752 - 112 - 766(49.54% R-3.2[-17.87,11.46]) winrate black , white = 52.77% , 47.23%
+
+// 強くなってない？
+
+
+■　2022/04/20
+
+
+- docs: go perft #229
+  - perftの説明古いままだった。
+  - Mizarさんのプルリク
+
+
+・hash key の bit数を16→64に。
+
+いつぞやのStockfishのcommitで TTEntryのhash keyの格納bit数が16bit(byte)になってしまった。そもそもで言うと、
+TTEntryは10byte、これを3つ束ねて30byte、そこに2byte paddingして32byteにしてある。
+素直にTTEntryを16byteにして2つ束ねて32byteにして何か問題があろうか。6byte増えれば格納できるhash keyは64bitになる。
+つまりは、いま探索部で使っているhash keyをそのまま格納できるわけである。TTEntryが3個から2個になるデメリット(置換表効率ダウン)は
+USI_Hashが大きければ無視できるはずで、格納keyが16bitであるためhash衝突していたのが回避できる分だけ強くなるはずである。
+またmateバグが置換表由来のバグなのであるなら、これでmateバグは起きないようになるはずである。
+
+・USI_Hashは2のべき乗のほうが良いのか？
+
+  USI_Hashのサイズ、いつぞやの改良で2のべき乗でなくても良くなった。
+  原理としては、TTClusterのアドレスを求める時に
+  index = hash_key(64bit) × clusterCount(TTClusterの数) / (2*64)
+  として
+  tt_entry = cluster[index]
+  とする。
+
+  こうすることによって、indexは 0 から (clusterCount - 1) の範囲の整数となる。それは良いのだが、そのあと、
+  probeの時にTTEntryに格納されているhash key(16bit)と比較する。このhash keyは元のhash keyの下位16bitを用いている。
+
+  ということは、上のindexの計算の時には元のhash keyの上位bit(できれば64-16=48bit)が用いられるのが望ましい。
+
+  そのためには、clusterCountは2のべき乗であるほうが上位bitからきっちり使われるので、都合がいいのである。
+
+  そんなわけで、USI_Hashは2のべき乗のほうがhash衝突の確率は下がるということになる。
+
+
+- TTClusterSize 2に設定できるようにした。
+  - config.hで TTClusterSize を変更できる。
+  // V7.01ff
+
+engine1 = YaneuraOuNNUE_V701ee_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V701ff_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1460 - 130 - 1410(50.87% R6.05[-4.61,16.72]) winrate black , white = 52.86% , 47.14%
+
+// USI_Hash 128MB vs 256MB
+engine1 = YaneuraOuNNUE_V701ee_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V701ff_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1462 - 143 - 1395(51.17% R8.15[-2.54,18.84]) winrate black , white = 50.09% , 49.91%
+T2,b2000,1438 - 155 - 1407(50.54% R3.79[-6.93,14.5]) winrate black , white = 51.56% , 48.44%
+T2,b4000,1218 - 190 - 1222(49.92% R-0.57[-12.14,11.0]) winrate black , white = 55.12% , 44.88%
+T2,b8000,723 - 181 - 726(49.9% R-0.72[-15.73,14.29]) winrate black , white = 53.21% , 46.79%
+
+// USI_Hashを倍にして比較した場合、強さにほぼ差がない。
+
 
 ■　2022/04/19
+
+
+- Position::to_move()で簡単な合法手判定を行うようにした。
+  - 速度が少し低下するが、置換表でhash衝突した時に変な指し手で枝刈りするよりマシ。
+- 探索部でPosition::to_move()を呼び出したあとにMOVE_NONEが返ってきたら置換表にhitしなかったことにするように変更した。
+  - 速度が少し低下するが、置換表でhash衝突した時に変な指し手で枝刈りするよりマシ。
+- Position::to_move()で駒打ちの時に上位に駒のbit持ってこれていなかったの修正。
+  // V7.01ee
+
+engine1 = YaneuraOuNNUE_V701aa_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V701ee_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1186 - 105 - 1169(50.36% R2.51[-9.27,14.28]) winrate black , white = 52.7% , 47.3%
+T2,b2000,553 - 78 - 549(50.18% R1.26[-15.95,18.47]) winrate black , white = 51.45% , 48.55%
+T2,b4000,597 - 97 - 656(47.65% R-16.37[-32.53,-0.22]) winrate black , white = 52.43% , 47.57%
+T2,b8000,1073 - 217 - 1060(50.3% R2.12[-10.25,14.49]) winrate black , white = 54.99% , 45.01%
+
+// ほぼ誤差
+
+
+- Position::super_legal → Position::legal_promote に rename
 
 
 - Stockfish 15
@@ -10,16 +1067,55 @@
 
   // Stockfish 15相当までは完全に追いついた。
 
-- Decrease LMR at PV nodes with low depth. : https://github.com/official-stockfish/Stockfish/commit/df2f7e75276cc93a8cb8c70057903ab0edbd92bd
+
+- V7.01aaに対して
+  Decrease LMR at PV nodes with low depth. : https://github.com/official-stockfish/Stockfish/commit/df2f7e75276cc93a8cb8c70057903ab0edbd92bd
   // V7.01dd
   →　どうも導入前より悪いのでコメントアウト
 
 engine1 = YaneuraOuNNUE_V701aa_avx2.exe , eval = suishou6_20220114-fv32
 engine2 = YaneuraOuNNUE_V701dd_avx2.exe , eval = suishou6_20220114-fv32
-T2,b1000,1112 - 112 - 1076(50.82% R5.72[-6.5,17.93]) winrate black , white = 50.32% , 49.68%
+T2,b1000,1462 - 135 - 1403(51.03% R7.16[-3.52,17.83]) winrate black , white = 51.59% , 48.41%
+T2,b2000,1156 - 157 - 1117(50.86% R5.96[-6.02,17.95]) winrate black , white = 50.68% , 49.32%
+T2,b4000,518 - 93 - 499(50.93% R6.49[-11.42,24.41]) winrate black , white = 52.31% , 47.69%
+T2,b8000,681 - 159 - 630(51.95% R13.52[-2.27,29.31]) winrate black , white = 52.71% , 47.29%
 
 
 ■　2022/04/16
+
+- V7.01aaに対してsuper_sortを使う条件をさらに調整。
+  // V7.01cc
+			// depth大きくて指し手の数も多い時だけsuper sortを使うとどう？
+			if ((depth >= 15 && endMoves - cur >= 32) || (depth >= 10 && endMoves - cur >= 64) || (depth >= 5 && endMoves - cur >= 96) )
+				super_sort(cur, endMoves);
+			else
+				partial_insertion_sort(cur, endMoves, -3000 * depth);
+
+engine1 = YaneuraOuNNUE_V701aa_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V701cc_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1421 - 125 - 1454(49.43% R-3.99[-14.65,6.67]) winrate black , white = 52.49% , 47.51%
+T2,b2000,999 - 135 - 986(50.33% R2.28[-10.55,15.1]) winrate black , white = 51.44% , 48.56%
+T2,b4000,813 - 140 - 857(48.68% R-9.16[-23.14,4.83]) winrate black , white = 52.04% , 47.96%
+T2,b8000,620 - 116 - 624(49.84% R-1.12[-17.31,15.08]) winrate black , white = 52.97% , 47.03%
+// どう条件を調整してもよくならん感じ…。
+
+
+
+- V7.01aaに対してsuper_sortを使う条件をさらに調整。
+  // V7.01bb
+			// depth大きくて指し手の数も多い時だけsuper sortを使うとどう？
+			if (depth >= 15 && endMoves - cur >= 64)
+				super_sort(cur, endMoves , -3000 * depth);
+			else
+				partial_insertion_sort(cur, endMoves, -3000 * depth);
+
+engine1 = YaneuraOuNNUE_V701aa_avx2.exe , eval = suishou6_20220114-fv32
+engine2 = YaneuraOuNNUE_V701bb_avx2.exe , eval = suishou6_20220114-fv32
+T2,b1000,1425 - 144 - 1431(49.89% R-0.73[-11.42,9.96]) winrate black , white = 52.8% , 47.2%
+T2,b2000,1000 - 140 - 1000(50.0% R-0.0[-12.78,12.78]) winrate black , white = 52.65% , 47.35%
+T2,b4000,657 - 117 - 636(50.81% R5.64[-10.25,21.53]) winrate black , white = 50.5% , 49.5%
+
+
 - benchコマンドで sync_endl一つ多かったの修正。
 
 
