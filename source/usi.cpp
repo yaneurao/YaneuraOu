@@ -1074,6 +1074,15 @@ void USI::loop(int argc, char* argv[])
 
 	std_input.parse_args(argc,argv);
 
+	// このファイルがあれば、この内容を実行してやる。
+	const string startup = "startup.txt";
+	vector<string> lines;
+	if (SystemIO::ReadAllLines(startup, lines).is_ok())
+	{
+		for (auto& line : lines)
+			std_input.push(line);
+	}
+
 	do
 	{
 		cmd = std_input.input();
