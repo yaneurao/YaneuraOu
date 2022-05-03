@@ -1705,6 +1705,9 @@ namespace YaneuraouTheCluster
 				// 例 : 7g7f(E100)   = 指し手7g7f 訪問回数100 これはEngineのbestmove返した時にponderとして指定してきた指し手でもある
 				string short_sfen2 = short_sfen + "(" + (engine_ponder?"E":"") + std::to_string(snlist[i].nodes) + ")";
 
+				// これやったほうが良いのか自信がない。比較すべき。
+				// →　やらないほうが良さそう。ponderのほうが価値がある。[2022/05/03]
+#if 0
 				// エンジンが指定してきたponderは、そのエンジンに思考させてあげるべき。
 				// たとえ、その局面をジャストでponderしているエンジンがあったとしても。
 				// (ここ、過去の思考時間等から統計的にこの局面について思考していた分量を算出して、
@@ -1719,6 +1722,7 @@ namespace YaneuraouTheCluster
 					summery += "[" + engine_id + "P]" + short_sfen2;
 					goto Next;
 				}
+#endif
 
 				// 一番近くを探索していたエンジンに割り当てる
 				// すなわち探索中のsfen文字列が一番近いものに割り当てると良い。

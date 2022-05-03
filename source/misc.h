@@ -388,9 +388,10 @@ private:
 #endif
 
 private:
-	// 探索開始時間
+	// 探索開始時刻。
 	TimePoint startTime;
 
+	// reset()かreset_for_ponderhit()が呼び出された時刻。
 	TimePoint startTimeFromPonderhit;
 };
 
