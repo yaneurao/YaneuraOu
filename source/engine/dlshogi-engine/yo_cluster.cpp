@@ -768,6 +768,7 @@ namespace YaneuraouTheCluster
 				send_to_engine(message.command);
 
 				state = EngineState::GO;
+				ponderhit = false;
 				++go_count;
 
 				break;
@@ -811,7 +812,9 @@ namespace YaneuraouTheCluster
 					EngineError("'ponderhit' should be sent when state is 'GO_PONDER'.");
 
 				send_to_engine("ponderhit " + message.command); // "ponderhit XXX"
+
 				state = EngineState::GO;
+				ponderhit = true;
 
 				// ここまでの思考ログをGUIに出力してやる必要がある。
 				// ただしこの出力には時間がかかる可能性があるので(GUI側で詰まる可能性がある)、
@@ -933,11 +936,16 @@ namespace YaneuraouTheCluster
 
 		// [main thread][receive thread]
 		// エンジンが対局中で休憩モード(bestmoveを返したあとなど)に入っているのか？
-		bool is_idle_in_game()       const { return state == EngineState::IDLE_IN_GAME; }
+		bool is_idle_in_game()    const { return state == EngineState::IDLE_IN_GAME; }
 
 		// [main thread][receive thread]
 		// 現在のstateが"isready"の送信待ちの状態か？
 		bool is_waiting_isready() const { return state == EngineState::WAIT_ISREADY; }
+
+		// [main thread][receive thread]
+		// 直前のコマンドはponderhitであるか？
+		// (現在is_state_go()==trueであるとして、送られてきたコマンドが"go"なのか"ponderhit"なのかを区別するのに使う)
+		bool is_ponderhit() const { return ponderhit; }
 
 		// [main thread]
 		// エンジン側から受け取った"bestmove XX ponder YY"を返す。
@@ -1145,6 +1153,7 @@ namespace YaneuraouTheCluster
 			bestmove_string.clear();
 			in_game    = false;
 			go_count   = 0; // 前のgameover以降にgoしてたり、stopが来ずにgameoverが来てる可能性とかがある。
+			ponderhit  = false;
 		}
 
 		// -------------------------------------------------------
@@ -1173,6 +1182,10 @@ namespace YaneuraouTheCluster
 		// 連続して"go ponder"を送った時など、bestmoveを受信する前に次の"go ponder"を送信することがあるので
 		// その時に、前の"go ponder"に対応するbestmoveは無視しないといけないため。
 		atomic<int> go_count;
+
+		// 直前のコマンドはponderhitであるか？
+		// (現在is_state_go()==trueであるとして、送られてきたコマンドが"go"なのか"ponderhit"なのかを区別するのに使う)
+		atomic<bool> ponderhit;
 
 		// "go ponder"時にエンジン側から送られてきた思考ログ。
 		// そのあと、"ponderhit"が送られてきたら、その時点までの思考ログをGUIにそこまでのログを出力するために必要。
@@ -1593,7 +1606,7 @@ namespace YaneuraouTheCluster
 			start_go();
 		}
 
-		// searching_sfen2の"go"での探索を開始する。
+		// searching_sfen2を"go"での探索を開始する。
 		void start_go()
 		{
 			// ここ、局面に関して何らかのassert追加するかも。
@@ -1654,6 +1667,19 @@ namespace YaneuraouTheCluster
 		// same_color  : search_sfenと同じ手番の局面をponderで思考するのか？
 		void search_for_ponder(string search_sfen,  bool same_color)
 		{
+			/*
+			same_color == trueの時は、
+				1つのエンジンは"go"によって現在の局面について思考している。
+				なので、2手以上先の偶数局面(2手先,4手先,…の局面)を選出した時、
+				そこには現在の局面は含まれないことは保証される。
+
+			same_color == falseの時は、
+				相手番であり、"go"で思考しているエンジンは存在しない。
+				なので、奇数局面(1手先、3手先、…の局面)を選出して、
+				それらを空いているエンジンに割り振れば良い。
+			*/
+
+
 			// summeryはGUIに必ず出力してやる。
 			string summery;
 			SfenNodeList snlist;
@@ -1666,7 +1692,7 @@ namespace YaneuraouTheCluster
 
 			// 空いていたエンジンの数
 			size_t num = 0;
-			// 空いていたエンジンの配列
+			// エンジンが空いていたかどうかを示す配列
 			vector<bool> engine_empty;
 
 			for(size_t i = 0 ; i < engines.size() ; ++i)
@@ -1678,8 +1704,15 @@ namespace YaneuraouTheCluster
 				if (is_empty)
 					++num;
 				else
-					summery += "[" + std::to_string(i) + "G]";
-					// 現在の局面を思考中である。
+				{
+					if (engines[i].is_ponderhit())
+						summery += "[" + std::to_string(i) + "H]";
+						// 前回goしていたエンジンの返してきたponderに当たった。
+					else
+						summery += "[" + std::to_string(i) + "G]";
+						// 送られてきた局面をgo ponderしていたエンジンは存在しなかったので、
+						// 現在の局面を前回"go"していたエンジンで新規に思考中である。
+				}
 			}
 
 			// なぜか空いているエンジンがない…。なんで？
@@ -1747,6 +1780,7 @@ namespace YaneuraouTheCluster
 				string short_sfen2 = short_sfen + "(" + (engine_ponder?"E":"") + std::to_string(snlist[i].nodes) + ")";
 
 				// 前回、この局面を探索していた(現在bestmoveを返したのか停止しているエンジンがあれば、それを用いる)
+				// 継続局面ではこれは生じないはずなのだが。
 				for(size_t j = 0; j < engines.size() ; ++j)
 				{
 					if (!engine_empty[j])
@@ -1840,10 +1874,10 @@ namespace YaneuraouTheCluster
 			Next:;
 			}
 
-			// エンジンの指定してきたponderはここで使い切っているはずなのでクリアしておく。
+		OUTPUT_SUMMERY:;
+			// エンジンの指定してきたponderはここまでで使い切っているはずなのでクリアしておく。
 			engine_ponder.clear();
 
-		OUTPUT_SUMMERY:;
 			// summeryは強制出力。
 			send_to_gui("info string " + summery);
 		}
@@ -1943,16 +1977,24 @@ namespace YaneuraouTheCluster
 			Threads.main()->wait_for_search_finished();
 
 			// 探索が完了したので結果を取得する。
+			// 定跡にhitした場合、MultiPVの数だけ整列されて並んでないのか…。そうか…。
+
 			snlist.clear();
 			auto& rm = Threads.main()->rootMoves;
 			for(size_t i = 0 ; i < n && i < rm.size(); ++i)
 			{
+				auto& r = rm[i];
+
 				// "MOVE_WIN"の可能性はあるかも？
-				if (!is_ok(rm[i].pv[0]))
+				if (!is_ok(r.pv[0]))
 					continue;
 
+				// この指し手のpvの更新が終わっているのか
+				bool updated = r.score != -VALUE_INFINITE;
+				Value v = updated ? r.score : r.previousScore;
+
 				// 評価値、u64で表現できないので100で割って1000足しておく。
-				snlist.emplace_back(SfenNode(" " + to_usi_string(rm[i].pv[0]) , rm[i].score/100 + 1000));
+				snlist.emplace_back(SfenNode(" " + to_usi_string(rm[i].pv[0]) , (s64)v / 100 + 1000));
 			}
 		}
 

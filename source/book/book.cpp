@@ -1326,6 +1326,12 @@ namespace Book
 			auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
 			if (it_move != rootMoves.end())
 			{
+				// swapしておかないと同じ指し手が複数rootMoves[]に残ってしまう。
+				// MultiPVで探索してrootMoves自体を取得しようとした時に困る。
+
+				// この意味では、
+				// MultiPVでの探索の時は定跡の上位の指し手をrootMoves[0..N-1]に反映させたほうが良いかも？
+
 				std::swap(rootMoves[0], *it_move);
 
 				// 2手目の指し手も与えないとponder出来ない。
