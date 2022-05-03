@@ -132,7 +132,7 @@ void gameover_handler(const string& cmd);
 //     やねうら王 The Cluster
 // ----------------------------------
 
-#if defined(YANEURAOU_ENGINE_DEEP)
+#if defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE)
 namespace YaneuraouTheCluster
 {
 	// cluster時のUSIメッセージの処理ループ
@@ -1023,7 +1023,7 @@ void usi_cmdexec(Position& pos, StateListPtr& states, string& cmd)
 
 #endif
 
-#if defined(YANEURAOU_ENGINE_DEEP)
+#if defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE)
 		else if (token == "cluster")
 			// cluster時のUSIメッセージの処理ループ
 			YaneuraouTheCluster::cluster_usi_loop(pos, is);

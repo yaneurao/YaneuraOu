@@ -1,6 +1,6 @@
 ﻿#include "../../config.h"
 
-#if defined(YANEURAOU_ENGINE_DEEP)
+#if defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE)
 #if !defined(_WIN32)
 
 // Windows以外の環境は未サポート
@@ -73,14 +73,46 @@ namespace YaneuraouTheCluster
 #include <sstream>
 #include <thread>
 #include <variant>
+
 #include "../../position.h"
 #include "../../thread.h"
 #include "../../usi.h"
-#include "../dlshogi-engine/dlshogi_min.h"
 
 // std::numeric_limits::max()みたいなのを壊さないように。
 #define NOMINMAX
 #include <Windows.h>
+
+
+#if defined(YANEURAOU_ENGINE_DEEP)
+#include "../dlshogi-engine/dlshogi_min.h"
+
+using namespace dlshogi;
+
+#else defined(YANEURAOU_ENGINE_NNUE)
+
+// namespace dlshogiで定義されてるやつのコピペ。
+// これ共通で定義したいので、search:: かどこかに移動すべきかも。
+
+// sfenとnode数を保持する構造体
+struct SfenNode
+{
+	SfenNode(){}
+	SfenNode(const std::string& sfen_, u64 nodes_):
+		sfen(sfen_), nodes(nodes_) {}
+
+	std::string sfen;
+	u64 nodes;
+
+	// sortのための比較演算子
+	bool operator <(const SfenNode& rhs) const
+	{
+		// sort()した時に降順でソートされて欲しい。
+		return nodes > rhs.nodes;
+	}
+};
+typedef std::vector<SfenNode> SfenNodeList;
+
+#endif
 
 // ↓これを↑これより先に書くと、byteがC++17で追加されているから、Windows.hのbyteの定義のところでエラーが出る。
 using namespace std;
@@ -689,8 +721,11 @@ namespace YaneuraouTheCluster
 			case USI_Message::SETOPTION:
 				// 一応、警告だしとく。
 				// "usiok"が返ってきて、ゲーム対局前("usinewgame"が来る前)の状態。
+#if 0
 				if (state != EngineState::WAIT_ISREADY)
 					EngineError("'setoption' should be sent before 'isready'.");
+#endif
+				// →　これ書いてあると自己対局フレームワークがisreadyのあとにsetoption送っていてこのエラーが出る。
 
 				// そのまま転送すれば良い。
 				send_to_engine(message.command);
@@ -777,11 +812,11 @@ namespace YaneuraouTheCluster
 				// 思考の停止
 				stop_thinking();
 
-				// 一応警告出しておく。
-				if (state != EngineState::IDLE_IN_GAME)
-					EngineError("'gameover' should be sent after 'isready'.");
-				state = EngineState::WAIT_ISREADY;
 				send_to_engine("gameover");
+
+				// bestmove受け取っていないのに状態変更するの、ちょっと危ない気がしなくはない。
+				state = EngineState::WAIT_ISREADY;
+
 				break;
 
 			case USI_Message::QUIT:
@@ -790,7 +825,7 @@ namespace YaneuraouTheCluster
 				break;
 
 			default:
-				EngineError("illegal message from ClusterObserver : " + message.to_string());
+				EngineError("Illegal message from ClusterObserver : " + message.to_string());
 				break;
 			}
 		}
@@ -847,7 +882,8 @@ namespace YaneuraouTheCluster
 			else if (state == EngineState::GO)
 			{
 				// 警告を出しておく。
-				error_to_gui("illegal state in stop_thinking() , state = " + to_string(state));
+				//error_to_gui("Illegal state in stop_thinking() , state = " + to_string(state));
+				// →　gameoverのときにstopさせることはあるからおかしくはない。
 
 				send_to_engine("stop");
 				// この場合、bestmoveを待ってから状態を変更してやる必要があるのだが…。
@@ -995,7 +1031,9 @@ namespace YaneuraouTheCluster
 
 					// GO以外でbestmove返ってくるのおかしい。
 					// ただし、gameoverのあとかも知れんが…。
-					StateAssert(EngineState::GO);
+					// てか、bestmove返してないのに"gameover"送ってくる実装がおかしい気もするが…。
+					if (state != EngineState::GO && state != EngineState::WAIT_ISREADY)
+						error_to_gui("Illegal state , bestmove received when state = " + to_string(state));
 
 					// GOで思考していたなら、bestmoveを親クラスに返す必要がある。
 					// これを設定しておけば親クラスが検知してくれる。
@@ -1064,7 +1102,7 @@ namespace YaneuraouTheCluster
 		void StateAssert(EngineState s)
 		{
 			if (state != s)
-				error_to_gui("illegal state : state = " + to_string(s));
+				error_to_gui("StateAssert failed, Illegal state : state = " + to_string(s));
 		}
 
 		// 状態変数のクリア
@@ -1122,7 +1160,11 @@ namespace YaneuraouTheCluster
 
 		// go ponderする局面を決める時にふかうら王で探索するノード数
 		// 3万npsだとしたら、1000で1/30秒。GPUによって調整すべし。
+#if defined(YANEURAOU_ENGINE_DEEP)
 		u64  nodes_limit = 1000;
+#elif defined(YANEURAOU_ENGINE_NNUE)
+		u64  nodes_limit = 10000; // 1スレでも0.01秒未満だと思う。
+#endif
 	};
 
 	class ClusterObserver
@@ -1575,6 +1617,7 @@ namespace YaneuraouTheCluster
 		{
 			// summeryはGUIに必ず出力してやる。
 			string summery;
+			SfenNodeList snlist;
 
 			// --- 空いてるエンジンの数だけ局面を選出する。
 
@@ -1599,13 +1642,14 @@ namespace YaneuraouTheCluster
 			// なぜか空いているエンジンがない…。なんで？
 			if (num == 0)
 			{
-				error_to_gui("search_for_ponder() : No empty engine.");
-				return ;
+				//error_to_gui("search_for_ponder() : No empty engine.");
+				//return;
+			// →　1スレッド実行かも知れないので、これを以てエラーとは言えないのでは。
+
+				goto OUTPUT_SUMMERY;
 			}
 
-			dlshogi::SfenNodeList snlist;
-
-			dl_search(num, snlist, search_sfen, same_color);
+			my_search(num, snlist, search_sfen, same_color);
 
 			// debug用に出力してみる。
 
@@ -1636,7 +1680,7 @@ namespace YaneuraouTheCluster
 			if (!found && !engine_ponder.empty())
 			{
 				// 先頭に追加。
-				snlist.insert(snlist.begin(), dlshogi::SfenNode(engine_ponder,0));
+				snlist.insert(snlist.begin(), SfenNode(engine_ponder,0));
 
 				// 末尾要素を一つremove
 				snlist.resize(snlist.size() - 1);
@@ -1755,17 +1799,22 @@ namespace YaneuraouTheCluster
 			// エンジンの指定してきたponderはここで使い切っているはずなのでクリアしておく。
 			engine_ponder.clear();
 
+		OUTPUT_SUMMERY:;
 			// summeryは強制出力。
 			send_to_gui("info string " + summery);
 		}
 
-		// ノード数固定でふかうら王で探索させる。
+		// これ、ふかうら王なら一回の探索で取得できるが、NNUEだと複数回にわたって取得しないといけないので
+		// 個別に書く。
+
+#if defined(YANEURAOU_ENGINE_DEEP)
+		// ノード数固定で探索エンジンで探索させる。
 		// 訪問回数の上位 n個のノードのsfenが返る。
 		// n           : 上位n個
 		// snlist      : 訪問回数上位のsfen配列
 		// search_sfen : この局面から探索してくれる。
 		// same_color  : search_sfenと同じ手番の局面をponderで思考するのか？
-		void dl_search(size_t n, dlshogi::SfenNodeList& snlist, string search_sfen, bool same_color)
+		void my_search(size_t n, SfenNodeList& snlist, string search_sfen, bool same_color)
 		{
 			// ================================
 			//        Limitsの設定
@@ -1800,8 +1849,110 @@ namespace YaneuraouTheCluster
 			//        探索結果の取得
 			// ================================
 
-			dlshogi::GetTopVisitedNodes(n, snlist, same_color);
+			GetTopVisitedNodes(n, snlist, same_color);
 		}
+#endif
+
+#if defined(YANEURAOU_ENGINE_NNUE)
+		// NNUEエンジンでMultiPVで探索する。
+		// n           : MultiPV
+		// search_sfen : 探索開始局面
+		// snlist      : 探索結果の上位の指し手。最大でn要素返る。
+		void nnue_search(size_t n, SfenNodeList& snlist , const string& search_sfen)
+		{
+			// ================================
+			//        Limitsの設定
+			// ================================
+
+			Search::LimitsType limits = Search::Limits;
+
+			// ノード数制限
+			limits.nodes = options.nodes_limit;
+
+			// 探索中にPVの出力を行わない。
+			limits.silent = true;
+
+			// 入玉ルールも考慮しておかないと。
+			limits.enteringKingRule = EnteringKingRule::EKR_27_POINT;
+
+			// MultiPVの値、無理やり変更してしまう。(本来、このあと元に戻すべきではある)
+			Options["MultiPV"] = std::to_string(n);
+
+			// ここで"go"に相当することをやろうとしているのでTimerはresetされていないと気持ち悪い。
+			Time.reset();
+
+			// ================================
+			//           思考開始
+			// ================================
+
+			// SetupStatesは破壊したくないのでローカルに確保
+			StateListPtr states(new StateList(1));
+
+			// sfen文字列、Positionコマンドのparserで解釈させる。
+			istringstream is(search_sfen);
+
+			Position pos;
+			position_cmd(pos, is, states);
+
+			// 思考部にUSIのgoコマンドが来たと錯覚させて思考させる。
+			Threads.start_thinking(pos, states , limits);
+			Threads.main()->wait_for_search_finished();
+
+			// 探索が完了したので結果を取得する。
+			snlist.clear();
+			auto& rm = Threads.main()->rootMoves;
+			for(size_t i = 0 ; i < n && i < rm.size(); ++i)
+			{
+				// "MOVE_WIN"の可能性はあるかも？
+				if (!is_ok(rm[i].pv[0]))
+					continue;
+
+				// 評価値、u64で表現できないので100で割って1000足しておく。
+				snlist.emplace_back(SfenNode(" " + to_usi_string(rm[i].pv[0]) , rm[i].score/100 + 1000));
+			}
+		}
+
+		// ノード数固定で探索エンジンで探索させる。
+		// 訪問回数の上位 n個のノードのsfenが返る。
+		// n           : 上位n個
+		// snlist      : 訪問回数上位のsfen配列
+		// search_sfen : この局面から探索してくれる。
+		// same_color  : search_sfenと同じ手番の局面をponderで思考するのか？
+		void my_search(size_t n, SfenNodeList& snlist, string search_sfen, bool same_color)
+		{
+			if (!same_color)
+				// 相手番の指し手が欲しいだけなら、1手先の上位n手を返す。
+				nnue_search(n, snlist, search_sfen);
+			else
+			{
+				// 自分手番の指し手が欲しいので、2手先の局面に対して3手ずつ返す。
+				// つまりは、1手先で上位 n / 3 手、その先の上位 3手を返すことにする。
+
+				// 先の手で候補がない時のために2つ多めに列挙。
+				SfenNodeList snlist1;
+				nnue_search( n / 3 + 2 , snlist1 , search_sfen);
+
+				snlist.clear();
+				for(auto& sn : snlist1)
+				{
+					auto search_sfen2 = concat_sfen(search_sfen , sn.sfen);
+					SfenNodeList snlist2;
+					nnue_search( 3 , snlist2 , search_sfen2 );
+
+					for(auto& sn2 : snlist2)
+					{
+						snlist.emplace_back(SfenNode(sn.sfen + sn2.sfen , sn2.nodes));
+
+						// 選定した局面が規定の個数まで達したらその時点で終了。
+						if (snlist.size() >= n)
+							return;
+					}
+				}
+			}
+
+		}
+#endif
+
 
 		// --- private members ---
 
@@ -1946,10 +2097,14 @@ namespace YaneuraouTheCluster
 					observer.send_wait(USI_Message::USI);
 				else if (token == "isready")
 				{
-					observer.send_wait(USI_Message::ISREADY);
-
 					// ふかうら王のエンジン初期化(評価関数の読み込みなど)
 					is_ready();
+					// 先行してエンジンに"isready"コマンド送るべきかと思ったが、
+					// すべてのエンジンから"readyok"が返ってくると自動的にGUIに対して
+					// "readyok"を返答してしまうので、ふかうら王のエンジンの初期化が
+					// 終わっていないことがある。
+
+					observer.send_wait(USI_Message::ISREADY);
 				}
 				else if (token == "setoption")
 					// setoption は普通 isreadyの直前にしか送られてこないので
