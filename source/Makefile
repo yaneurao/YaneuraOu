@@ -435,7 +435,8 @@ ifneq (,$(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)))
 		eval/nnue/features/half_relative_kp.cpp                         \
 		eval/nnue/features/half_kpe9.cpp                                \
 		eval/nnue/features/pe9.cpp                                      \
-		engine/yaneuraou-engine/yaneuraou-search.cpp
+		engine/yaneuraou-engine/yaneuraou-search.cpp                    \
+		engine/dlshogi-engine/yo_cluster.cpp
 
 	ifneq (,$(findstring em++,$(COMPILER)))
 		SOURCES += \

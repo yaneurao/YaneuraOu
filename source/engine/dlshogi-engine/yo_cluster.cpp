@@ -79,7 +79,8 @@ namespace YaneuraouTheCluster
 #include "../../usi.h"
 
 // std::numeric_limits::max()みたいなのを壊さないように。
-#define NOMINMAX
+//#define NOMINMAX
+// → redefineになる環境があるな。std::max()を(std::max)()にように書いて回避することにする。
 #include <Windows.h>
 
 
@@ -88,7 +89,7 @@ namespace YaneuraouTheCluster
 
 using namespace dlshogi;
 
-#else defined(YANEURAOU_ENGINE_NNUE)
+#elif defined(YANEURAOU_ENGINE_NNUE)
 
 // namespace dlshogiで定義されてるやつのコピペ。
 // これ共通で定義したいので、search:: かどこかに移動すべきかも。
@@ -229,7 +230,7 @@ namespace YaneuraouTheCluster
 
 		if (i != s1.size())
 			// cursorが末尾じゃないところで停止しているのでペナルティ
-			i = (size_t)(std::max( (s64)s1.size() - (s64)(s1.size() - i)*3 , (s64)0));
+			i = (size_t)((std::max)( (s64)s1.size() - (s64)(s1.size() - i)*3 , (s64)0));
 
 		return i;
 	}
@@ -1395,6 +1396,9 @@ namespace YaneuraouTheCluster
 							output_number_of_live_engines();
 						}
 						break;
+
+					default:
+						break; // avoid warning
 					}
 				}
 
@@ -1619,6 +1623,10 @@ namespace YaneuraouTheCluster
 			string summery;
 			SfenNodeList snlist;
 
+			// エンジンの指定してきたponderの指し手がponder候補に含まれていたかのフラグ
+			bool found = false;
+			size_t found_i = 0;
+
 			// --- 空いてるエンジンの数だけ局面を選出する。
 
 			// 空いていたエンジンの数
@@ -1653,8 +1661,6 @@ namespace YaneuraouTheCluster
 
 			// debug用に出力してみる。
 
-			bool found = false;
-			size_t found_i = 0;
 			for(size_t i = 0; i < snlist.size() ; ++i)
 			{
 				string sfen = snlist[i].sfen;
@@ -1724,77 +1730,94 @@ namespace YaneuraouTheCluster
 				}
 #endif
 
-				// 一番近くを探索していたエンジンに割り当てる
-				// すなわち探索中のsfen文字列が一番近いものに割り当てると良い。
-				size_t t = numeric_limits<size_t>::max();
-				size_t max_match_length = 0;
+				// ponderの継続をすればいいなら、そうする。
 				for(size_t j = 0; j < engines.size() ; ++j)
 				{
 					if (!engine_empty[j])
 						continue;
 					 
 					auto& engine      = engines[j];
-					auto& engine_sfen = engine.get_searching_sfen();
-
-#if 0
-					DebugMessageCommon("search_sfen = " + search_sfen
-						+ " , sfen[" + std::to_string(i) + "] = " + sfen
-						+ " , engine_sfen[" + std::to_string(j) + "] = " + engine_sfen);
-#endif
-
-					// ドンピシャでこれいま探索しとるで…。go ponderしなおす必要すらない。
-					if (sfen == engine_sfen)
+					auto  engine_sfen = engine.get_searching_sfen();
+					if (sfen == engine_sfen && engine.is_state_go_ponder())
 					{
+						// 現在ponderしているので継続で良い。
 						auto engine_id = std::to_string(engine.get_engine_id());
-						if (engine.is_idle_in_game())
-						{
-							// ただ、同じ局面を探索したあと停止している。
-							// この場合、ponderで再度思考させる。
+						DebugMessageCommon("continue to pondering [" + engine_id +"]: " + sfen);
+						summery += "[" + engine_id + "C]" + short_sfen2;
+						// C = Continue to ponder : Ponderの継続
+						engine_empty[j] = false;
+						goto Next;
+					}
+				}
 
-							DebugMessageCommon("go ponder [" + engine_id + "] : " + sfen);
-							engine.send(Message(USI_Message::GO_PONDER, string() , sfen));
+				// 前回、この局面を探索していた(現在bestmoveを返したのか停止しているエンジンがあれば、それを用いる)
 
-							summery += "[" + engine_id + "P]" + short_sfen2;
-							// P = 前回思考してたと思われるエンジンで Go Ponderした
-						} else {
-							// 現在ponderしているので継続で良い。
-							DebugMessageCommon("continue to pondering [" + engine_id +"]: " + sfen);
-							summery += "[" + engine_id + "C]" + short_sfen2;
-							// C = Continue to ponder : Ponderの継続
-						}
+				// ponderの継続をすればいいなら、そうする。
+				for(size_t j = 0; j < engines.size() ; ++j)
+				{
+					if (!engine_empty[j])
+						continue;
+					 
+					auto& engine      = engines[j];
+					auto  engine_sfen = engine.get_searching_sfen();
+					if (sfen == engine_sfen /*&& engine.is_state_go_ponder()*/)
+					{
+						// ただ、同じ局面を探索したあと停止している。
+						// この場合、ponderで再度思考させる。
+						auto engine_id = std::to_string(engine.get_engine_id());
+						DebugMessageCommon("go ponder [" + engine_id + "] : " + sfen);
+						engine.send(Message(USI_Message::GO_PONDER, string() , sfen));
+
+						summery += "[" + engine_id + "P]" + short_sfen2;
+						// P : Ponderの継続
 
 						engine_empty[j] = false;
 						goto Next;
 					}
+				}
 
-					// なるべく長い文字列が一致したほど、近い局面を探索していると言えると思うので、そのエンジンを使い回す。
-					// また、全く一致しなかった場合、0が返るが、それだとmax_match_lengthの初期値と同じなので + 1足してから比較する。
-					// (max_match_lengthは unsingedなので -1 のような負の値が取れないため)
-					size_t match_length = get_match_length_sfen(engine_sfen , sfen ) + 1;
-					if (match_length > max_match_length)
+				{
+					// 一番近くを探索していたエンジンに割り当てる
+					// すなわち探索中のsfen文字列が一番近いものに割り当てると良い。
+					size_t t = (numeric_limits<size_t>::max)();
+					size_t max_match_length = 0;
+					for(size_t j = 0; j < engines.size() ; ++j)
 					{
-						max_match_length = match_length;
-						t = j;
+						if (!engine_empty[j])
+							continue;
+					 
+						auto& engine      = engines[j];
+						auto  engine_sfen = engine.get_searching_sfen();
+
+						// なるべく長い文字列が一致したほど、近い局面を探索していると言えると思うので、そのエンジンを使い回す。
+						// また、全く一致しなかった場合、0が返るが、それだとmax_match_lengthの初期値と同じなので + 1足してから比較する。
+						// (max_match_lengthは unsingedなので -1 のような負の値が取れないため)
+						size_t match_length = get_match_length_sfen(engine_sfen , sfen ) + 1;
+						if (match_length > max_match_length)
+						{
+							max_match_length = match_length;
+							t = j;
+						}
 					}
-				}
 
-				// 空きがなかった。おかしいなぁ…。
-				if (t == numeric_limits<size_t>::max() )
-				{
-					error_to_gui("no empty engine.");
-					break;
-				}
+					// 空きがなかった。おかしいなぁ…。
+					if (t == (numeric_limits<size_t>::max)() )
+					{
+						error_to_gui("no empty engine.");
+						break;
+					}
 
-				{
-					auto& engine = engines[t];
-					DebugMessageCommon("go ponder [" + std::to_string(engine.get_engine_id()) + "] : " + sfen);
-					engine.send(Message(USI_Message::GO_PONDER, string() , sfen));
+					{
+						auto& engine = engines[t];
+						DebugMessageCommon("go ponder [" + std::to_string(engine.get_engine_id()) + "] : " + sfen);
+						engine.send(Message(USI_Message::GO_PONDER, string() , sfen));
 
-					auto engine_id = std::to_string(engine.get_engine_id());
-					summery += "[" + engine_id + "N]" + short_sfen2;
-					// Nは、新規のgo ponder
+						auto engine_id = std::to_string(engine.get_engine_id());
+						summery += "[" + engine_id + "N]" + short_sfen2;
+						// Nは、新規のgo ponder
 
-					engine_empty[t] = false;
+						engine_empty[t] = false;
+					}
 				}
 
 			Next:;
