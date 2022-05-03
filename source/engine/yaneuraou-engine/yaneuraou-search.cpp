@@ -421,6 +421,12 @@ void MainThread::search()
 	// root nodeにおける自分の手番
 	Color us = rootPos.side_to_move();
 
+	// --- 今回の思考時間の設定。
+	// これは、ponderhitした時にponderhitにパラメーターが付随していれば
+	// 再計算するする必要性があるので、いずれにせよ呼び出しておく必要がある。
+
+	Time.init(Limits, us, rootPos.game_ply());
+
 	// 今回、通常探索をしたかのフラグ(やねうら王独自拡張)
 	// このフラグがtrueなら(定跡にhitしたり1手詰めを発見したりしたので)探索をスキップした。
 	bool search_skipped = true;
@@ -546,10 +552,6 @@ void MainThread::search()
 	// ---------------------
 	//    通常の思考処理
 	// ---------------------
-
-	// --- 今回の思考時間の設定。
-
-	Time.init(Limits, us, rootPos.game_ply());
 
 	// --- 置換表のTTEntryの世代を進める。
 
