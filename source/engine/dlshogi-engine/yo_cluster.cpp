@@ -738,7 +738,6 @@ namespace YaneuraouTheCluster
 			case USI_Message::ISREADY:
 				state = EngineState::WAIT_READYOK;
 				send_to_engine("isready");
-				init_for_think();
 				break;
 
 			case USI_Message::USINEWGAME:
@@ -746,11 +745,19 @@ namespace YaneuraouTheCluster
 				if (state != EngineState::IDLE_IN_GAME)
 					EngineError("'usinewgame' should be sent after 'isready'.");
 				send_to_engine("usinewgame");
+
+				// 対局中である。
+				in_game = true;
+
 				break;
 
 			case USI_Message::GO:
 				// "go ponder"中に次のgoが来ることはありうる。
 				stop_thinking();
+
+				// 対局中ではないので受理しない。
+				if (!is_in_game())
+					return ;
 
 				// エンジン側からbestmove来るまで次のgo送れないのでは…。いや、go ponderなら送れるのか…。
 				if (state != EngineState::IDLE_IN_GAME)
@@ -768,6 +775,10 @@ namespace YaneuraouTheCluster
 			case USI_Message::GO_PONDER:
 				// "go ponder"中に次の"go ponder"が来ることはありうる。
 				stop_thinking();
+
+				// 対局中ではないので受理しない。
+				if (!is_in_game())
+					return ;
 
 				// 本来、エンジン側からbestmove来るまで次のgo ponder送れないが、
 				// ここでは、ignore_bestmoveをインクリメントしておき、この回数だけエンジン側からのbestmoveを
@@ -815,6 +826,7 @@ namespace YaneuraouTheCluster
 			case USI_Message::GAMEOVER:
 				// 思考の停止
 				stop_thinking();
+				in_game = false;
 
 				send_to_engine("gameover");
 
@@ -920,13 +932,14 @@ namespace YaneuraouTheCluster
 		bool is_state_go_ponder() const { return state == EngineState::GO_PONDER; }
 
 		// [main thread][receive thread]
-		// エンジンが対局中のモードに入っているのか？
+		// エンジンが対局中で休憩モード(bestmoveを返したあとなど)に入っているのか？
 		bool is_idle_in_game()       const { return state == EngineState::IDLE_IN_GAME; }
 
 		// [main thread][receive thread]
 		// 現在のstateが"isready"の送信待ちの状態か？
 		bool is_waiting_isready() const { return state == EngineState::WAIT_ISREADY; }
 
+		// [main thread]
 		// エンジン側から受け取った"bestmove XX ponder YY"を返す。
 		// 一度このメソッドを呼び出すと、次以降は(エンジン側からさらに"bestmove XX ponder YY"を受信するまで)空の文字列が返る。
 		// つまりこれは、size = 1 の PC-queueとみなしている。
@@ -937,6 +950,11 @@ namespace YaneuraouTheCluster
 		}
 
 	private:
+		// [receive thread]
+		// エンジンが対局中であるか。
+		// "usinewgame"～"gameover"の間であるか。
+		bool is_in_game() const { return in_game; }
+
 		// メッセージをエンジン側に送信する。
 		void send_to_engine(const string& message)
 		{
@@ -1025,7 +1043,11 @@ namespace YaneuraouTheCluster
 			// "bestmove XX"を受信した。
 			else if (token == "bestmove")
 			{
-				--go_count;
+				if (go_count > 0)
+					--go_count;
+				else
+					error_to_gui("bestmove received when go_count == 0");
+
 				if (go_count > 0)
 				{
 					// bestmoveまでは無視して良かったことが確定したのでこの時点でクリアしてしまう。
@@ -1063,8 +1085,13 @@ namespace YaneuraouTheCluster
 				// "usiok"は全部のエンジンが WAIT_ISREADYになった時に親クラス(Observer)がGUIに送るので状態の変更だけ。
 				change_state(EngineState::WAIT_ISREADY);
 			else if (token == "readyok")
+			{
+				// このタイミングで内部状態の初期化を行う。
+				init_for_think();
+
 				// → "readyok"は全部のエンジンが IDLE_IN_GAMEになった時に親クラス(Observer)がGUIに送るので状態の変更だけ。
 				change_state(EngineState::IDLE_IN_GAME);
+			}
 			// "id"はエンジン起動時にしか来ないはずだが？
 			else if (token == "id")
 			{
@@ -1116,6 +1143,8 @@ namespace YaneuraouTheCluster
 			searching_sfen.clear();
 			think_log.clear();
 			bestmove_string.clear();
+			in_game    = false;
+			go_count   = 0; // 前のgameover以降にgoしてたり、stopが来ずにgameoverが来てる可能性とかがある。
 		}
 
 		// -------------------------------------------------------
@@ -1130,6 +1159,9 @@ namespace YaneuraouTheCluster
 
 		// エンジンに対して何をやっている状態であるのか。
 		EngineState state;
+
+		// 対局中であるか。("usinewgame"～"gameover"の間であるか)
+		bool in_game;
 
 		// 探索中の局面
 		// state == GO or GO_PONDER において探索中の局面。
