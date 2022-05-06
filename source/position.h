@@ -113,7 +113,7 @@ struct StateInfo {
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 
 	// 評価値。(次の局面で評価値を差分計算するときに用いる)
-	// まだ計算されていなければsum.p[2][0]の値はINT_MAX
+	// まだ計算されていなければsum.p[2][0]の値はint_max
 	Eval::EvalSum sum;
 
 #endif
@@ -943,5 +943,6 @@ std::ostream& operator<<(std::ostream& os, const Position& pos);
 
 // depthに応じたZobrist Hashを得る。depthを含めてhash keyを求めたいときに用いる。
 HASH_KEY DepthHash(int depth);
+
 
 #endif // of #ifndef _POSITION_H_

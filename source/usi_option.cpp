@@ -120,10 +120,10 @@ namespace USI {
 		o["MaxMovesToDraw"] << Option(0, 0, 100000);
 
 		// 探索深さ制限。0なら無制限。
-		o["DepthLimit"] << Option(0, 0, INT_MAX);
+		o["DepthLimit"] << Option(0, 0, int_max);
 
 		// 探索ノード制限。0なら無制限。
-		o["NodesLimit"] << Option(0, 0, INT64_MAX);
+		o["NodesLimit"] << Option(0, 0, int64_max);
 
 		// 評価関数フォルダ。これを変更したとき、評価関数を次のisreadyタイミングで読み直す必要がある。
 #if defined(EVAL_EMBEDDING)

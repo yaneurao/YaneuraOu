@@ -610,7 +610,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states , bool
 
 	// 終局(引き分け)になるまでの手数
 	// 引き分けになるまでの手数。(Options["MaxMovesToDraw"]として与えられる。エンジンによってはこのオプションを持たないこともある。)
-	// 0のときは制限なしだが、これをINT_MAXにすると残り手数を計算するときに桁があふれかねないので100000を設定。
+	// 0のときは制限なしだが、これをint_maxにすると残り手数を計算するときに桁があふれかねないので100000を設定。
 
 	int max_game_ply = 0;
 	if (Options.count("MaxMovesToDraw"))

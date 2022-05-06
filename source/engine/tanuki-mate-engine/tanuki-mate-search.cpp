@@ -798,7 +798,7 @@ namespace MateEngine
 			}
 		}
 
-		auto best_num_moves_to_mate = or_node ? INT_MAX : INT_MIN;
+		auto best_num_moves_to_mate = or_node ? int_max : int_min;
 		auto best_move_to_mate = Move::MOVE_NONE;
 		const auto& entry = transposition_table.LookUp(pos, root_color);
 
@@ -832,7 +832,7 @@ namespace MateEngine
 			}
 		}
 
-		if (best_num_moves_to_mate == INT_MAX || best_num_moves_to_mate == INT_MIN) {
+		if (best_num_moves_to_mate == int_max || best_num_moves_to_mate == int_min) {
 			mate_state.num_moves_to_mate = kNotMate;
 			return kNotMate;
 		}

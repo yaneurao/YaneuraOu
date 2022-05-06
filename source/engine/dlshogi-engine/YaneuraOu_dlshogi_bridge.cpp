@@ -38,18 +38,18 @@ void USI::extra_option(USI::OptionsMap& o)
     (*this)["Min_Book_Score"]              = USIOption(-3000, -ScoreInfinite, ScoreInfinite);
     (*this)["USI_Ponder"]                  = USIOption(false);
     (*this)["Stochastic_Ponder"]           = USIOption(true);
-    (*this)["Time_Margin"]                 = USIOption(1000, 0, INT_MAX);
+    (*this)["Time_Margin"]                 = USIOption(1000, 0, int_max);
     (*this)["Mate_Root_Search"]            = USIOption(29, 0, 35);
     (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
-    (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, INT_MAX);
+    (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, int_max);
 #endif
 
 #ifdef MAKE_BOOK
 	// 定跡を生成するときはPV出力は抑制したほうが良さげ。
-    o["PV_Interval"]                 << USI::Option(0, 0, INT_MAX);
-    o["Save_Book_Interval"]          << USI::Option(100, 0, INT_MAX);
+    o["PV_Interval"]                 << USI::Option(0, 0, int_max);
+    o["Save_Book_Interval"]          << USI::Option(100, 0, int_max);
 #else
-    o["PV_Interval"]                 << USI::Option(500, 0, INT_MAX);
+    o["PV_Interval"]                 << USI::Option(500, 0, int_max);
 #endif // !MAKE_BOOK
 
 	o["UCT_NodeLimit"]				 << USI::Option(10000000, 100000, 1000000000); // UCTノードの上限
@@ -158,7 +158,7 @@ void USI::extra_option(USI::OptionsMap& o)
 	o["IntraOpNumThreads"]           << USI::Option(4, 1, 65536);
 #endif
 
-    //(*this)["Const_Playout"]               = USIOption(0, 0, INT_MAX);
+    //(*this)["Const_Playout"]               = USIOption(0, 0, int_max);
 	// →　Playout数固定。これはNodeLimitでできるので不要。
 
 	// → leaf nodeではdf-pnに変更。

@@ -826,7 +826,7 @@ void gen_sfen(Position&, istringstream& is)
 
 	// 探索深さ
 	int search_depth = 3;
-	int search_depth2 = INT_MIN;
+	int search_depth2 = int_min;
 
 	// ランダムムーブを行なう最小plyと最大plyと回数
 	int random_move_minply = 1;
@@ -836,9 +836,9 @@ void gen_sfen(Position&, istringstream& is)
 	// これを例えば3にすると1/3の確率で玉を動かす。
 	int random_move_like_apery = 0;
 	// ランダムムーブの代わりにmultipvで探索してそのなかからランダムに選ぶときはrandom_multi_pv = 1以上の数にする。
-	int random_multi_pv = 0;
-	int random_multi_pv_diff = 32000;
-	int random_multi_pv_depth = INT_MIN;
+	int random_multi_pv       = 0;
+	int random_multi_pv_diff  = 32000;
+	int random_multi_pv_depth = int_min;
 
 	// 書き出す局面のply(初期局面からの手数)の最小、最大。
 	int write_minply = 16;
@@ -918,9 +918,9 @@ void gen_sfen(Position&, istringstream& is)
 #endif
 
 	// search depth2が設定されていないなら、search depthと同じにしておく。
-	if (search_depth2 == INT_MIN)
+	if (search_depth2 == int_min)
 		search_depth2 = search_depth;
-	if (random_multi_pv_depth == INT_MIN)
+	if (random_multi_pv_depth == int_min)
 		random_multi_pv_depth = search_depth;
 
 	if (random_file_name)

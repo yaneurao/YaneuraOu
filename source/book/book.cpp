@@ -338,7 +338,7 @@ namespace Book
 						// ※　定跡DBはsfen文字列順にソートされているので、手数違いのエントリーは連続していると仮定できる。
 
 						if (last_sfen != sfen)
-							last_sfen_ply = INT_MAX;
+							last_sfen_ply = int_max;
 						else if (last_sfen_ply < ply)
 							sfen = "";
 

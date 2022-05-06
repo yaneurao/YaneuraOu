@@ -19,16 +19,21 @@
 #include <iostream>     // iostreamに対する<<使うので仕方ない
 #include <string>       // std::string使うので仕方ない
 #include <algorithm>    // std::max()を使うので仕方ない
-#include <limits>		// INT_MAXがこのheaderで必要なので仕方ない
+#include <limits>		// std::numeric_limitsを使うので仕方ない
 
 // --------------------
 //  型の最小値・最大値
 // --------------------
 
-constexpr int int_max     = (std::numeric_limits<int>::max)();
-constexpr int int_min     = (std::numeric_limits<int>::min)();
-constexpr size_t size_max = (std::numeric_limits<size_t>::max)();
-constexpr size_t size_min = (std::numeric_limits<size_t>::min)();
+// "windows.h"をincludeしていると、maxがマクロによって置換され、そのためstd::max()がコンパイルエラーとなるので、
+// それを回避するために(std::max)() と書くテクニックがある。以下で、(std::...::max)() のように書いてあるのはそのため。
+
+constexpr int     int_max   = (std::numeric_limits<int>    ::max)();
+constexpr int     int_min   = (std::numeric_limits<int>    ::min)();
+constexpr int64_t int64_max = (std::numeric_limits<int64_t>::max)();
+constexpr int64_t int64_min = (std::numeric_limits<int64_t>::min)();
+constexpr size_t  size_max  = (std::numeric_limits<size_t> ::max)();
+constexpr size_t  size_min  = (std::numeric_limits<size_t> ::min)();
 
 // --------------------
 //      手番
@@ -193,8 +198,8 @@ constexpr Rank rank_of(Square sq) { /* return (Rank)(sq % 9); */ /*ASSERT_LV2(is
 // 筋(File)と段(Rank)から、それに対応する升(Square)を返す。
 constexpr Square operator | (File f, Rank r) { Square sq = (Square)(f * 9 + r); /* ASSERT_LV2(is_ok(sq));*/ return sq; }
 
-// ２つの升のfileの差、rankの差のうち大きいほうの距離を返す。sq1,sq2のどちらかが盤外ならINT_MAXが返る。
-constexpr int dist(Square sq1, Square sq2) { return (!is_ok(sq1) || !is_ok(sq2)) ? INT_MAX : std::max(abs(file_of(sq1) - file_of(sq2)), abs(rank_of(sq1) - rank_of(sq2))); }
+// ２つの升のfileの差、rankの差のうち大きいほうの距離を返す。sq1,sq2のどちらかが盤外ならint_maxが返る。
+constexpr int dist(Square sq1, Square sq2) { return (!is_ok(sq1) || !is_ok(sq2)) ? int_max : std::max(abs(file_of(sq1) - file_of(sq2)), abs(rank_of(sq1) - rank_of(sq2))); }
 
 // 移動元、もしくは移動先の升sqを与えたときに、そこが成れるかどうかを判定する。
 constexpr bool canPromote(const Color c, const Square fromOrTo) {
