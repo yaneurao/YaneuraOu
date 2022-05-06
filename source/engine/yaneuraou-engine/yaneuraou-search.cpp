@@ -4006,11 +4006,16 @@ namespace Learner
 	// また引数で指定されたdepth == 0の時、qsearch、0未満の時、evaluateを呼び出すが、
 	// この時、rootMovesは得られない。
 	// 
+	// あと、multiPVで値を取り出したい時、
+	//   pos.this_thread()->rootMoves[N].value
+	// の値は、反復深化での今回のiterationでのupdateされていない場合、previous_scoreを用いないといけない。
+	// →　usi.cppの、読み筋の出力部のコードを読むこと。
+	// 
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
 	// 　また、Threads.stopが来ると探索を中断してしまうので、そのときのPVは正しくない。
 	// 　search()から戻ったあと、Threads.stop == trueなら、その探索結果を用いてはならない。
 	// 　あと、呼び出し前は、Threads.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
-
+	//
 	ValueAndPV search(Position& pos, int depth_, size_t multiPV /* = 1 */, u64 nodesLimit /* = 0 */)
 	{
 		std::vector<Move> pvs;

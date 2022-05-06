@@ -1,5 +1,7 @@
 ﻿#include "../../config.h"
 
+#if defined(USE_YO_CLUSTER)
+
 #if defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE)
 #if !defined(_WIN32)
 
@@ -1219,6 +1221,7 @@ namespace YaneuraouTheCluster
 	class ClusterObserver
 	{
 	public:
+
 		ClusterObserver(const ClusterOptions& options_)
 		{
 			// エンジン生成してからスレッドを開始しないと、エンジンが空で困る。
@@ -1669,7 +1672,7 @@ namespace YaneuraouTheCluster
 		{
 			/*
 			same_color == trueの時は、
-				1つのエンジンは"go"によって現在の局面について思考している。
+				1つのエンジンはすでに"go"によって現在の局面について思考している。
 				なので、2手以上先の偶数局面(2手先,4手先,…の局面)を選出した時、
 				そこには現在の局面は含まれないことは保証される。
 
@@ -1679,6 +1682,30 @@ namespace YaneuraouTheCluster
 				それらを空いているエンジンに割り振れば良い。
 			*/
 
+#if 0
+			// 偶数局面のponderをやめてみる。(比較実験のため)
+			if (same_color)
+				return ;
+#endif
+
+#if 1
+			// 偶数局面であるなら、空きエンジンに現在の局面を思考させてみる。
+			// →　その方がponderが当たった時の利得が高いと考えられる。
+			if (same_color)
+			{
+				for(size_t i = 0 ; i < engines.size() ; ++i)
+				{
+					// 現在ponderしているか、何もしていないエンジンは空きエンジンとみなす。
+					auto& engine = engines[i];
+
+					if (  (engine.is_state_go_ponder() && engines[i].get_searching_sfen() != search_sfen)
+						|| engine.is_idle_in_game()
+						)
+						engine.send(Message(USI_Message::GO_PONDER, string() , search_sfen));
+				}
+				return ;
+			}
+#endif
 
 			// summeryはGUIに必ず出力してやる。
 			string summery;
@@ -1751,6 +1778,7 @@ namespace YaneuraouTheCluster
 			}
 
 			// エンジン側がponderで指定してきた局面が見つからからなかった。
+			// エンジン側がponderで指定してきた局面を先頭に追加する。
 			if (!found && !engine_ponder.empty())
 			{
 				// 先頭に追加。
@@ -1830,7 +1858,7 @@ namespace YaneuraouTheCluster
 				{
 					// 一番近くを探索していたエンジンに割り当てる
 					// すなわち探索中のsfen文字列が一番近いものに割り当てると良い。
-					size_t t = (numeric_limits<size_t>::max)();
+					size_t t = size_max;
 					size_t max_match_length = 0;
 					for(size_t j = 0; j < engines.size() ; ++j)
 					{
@@ -1852,7 +1880,7 @@ namespace YaneuraouTheCluster
 					}
 
 					// 空きがなかった。おかしいなぁ…。
-					if (t == (numeric_limits<size_t>::max)() )
+					if (t == size_max )
 					{
 						error_to_gui("no empty engine.");
 						break;
@@ -2237,3 +2265,5 @@ namespace YaneuraouTheCluster
 
 #endif // !defined(_WIN32)
 #endif //  defined(YANEURAOU_ENGINE_DEEP)
+
+#endif //  defined(USE_YO_CLUSTER)
