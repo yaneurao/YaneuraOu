@@ -157,8 +157,8 @@ namespace USI
 #if defined(__EMSCRIPTEN__)
 		// yaneuraou.wasm
 		// Time.elapsed()が-1を返すことがある
-		// https://github.com/niklasf/stockfish.wasm/issues/5
-		// https://github.com/niklasf/stockfish.wasm/commit/4f591186650ab9729705dc01dec1b2d099cd5e29
+		// https://github.com/lichess-org/stockfish.wasm/issues/5
+		// https://github.com/lichess-org/stockfish.wasm/commit/4f591186650ab9729705dc01dec1b2d099cd5e29
 		elapsed = std::max(elapsed, TimePoint(1));
 #endif
 		const auto& rootMoves = pos.this_thread()->rootMoves;
