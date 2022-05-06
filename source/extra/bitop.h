@@ -41,7 +41,7 @@
 #endif
 
 // ----------------------------
-//      type define(uint)
+//      type define(uint , sint)
 // ----------------------------
 
 typedef  uint8_t  u8;

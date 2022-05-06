@@ -19,7 +19,16 @@
 #include <iostream>     // iostreamに対する<<使うので仕方ない
 #include <string>       // std::string使うので仕方ない
 #include <algorithm>    // std::max()を使うので仕方ない
-#include <climits>		// INT_MAXがこのheaderで必要なので仕方ない
+#include <limits>		// INT_MAXがこのheaderで必要なので仕方ない
+
+// --------------------
+//  型の最小値・最大値
+// --------------------
+
+constexpr int int_max     = (std::numeric_limits<int>::max)();
+constexpr int int_min     = (std::numeric_limits<int>::min)();
+constexpr size_t size_max = (std::numeric_limits<size_t>::max)();
+constexpr size_t size_min = (std::numeric_limits<size_t>::min)();
 
 // --------------------
 //      手番
