@@ -41,7 +41,7 @@ namespace USI {
 		// yaneuraou.wasm
 		// メモリの調整
 		// stockfish.wasmの数値を基本的に使用している
-		constexpr int MaxHashMB = 1024;
+		constexpr int MaxHashMB = 2048;
 #endif
 
 		// 並列探索するときのスレッド数
