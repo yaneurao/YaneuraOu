@@ -73,10 +73,11 @@ void TTEntry::save_(TTEntry::KEY_TYPE key_for_ttentry, Value v, bool pv , Bound 
 // 置換表のサイズを確保しなおす。
 void TranspositionTable::resize(size_t mbSize) {
 
-#if defined(TANUKI_MATE_ENGINE) || defined(YANEURAOU_MATE_ENGINE)
-	// MateEngineではこの置換表は用いないので確保しない。
+#if defined(TANUKI_MATE_ENGINE) || defined(YANEURAOU_MATE_ENGINE) || defined(YANEURAOU_ENGINE_DEEP)
+	// これらのエンジンでは、この置換表は用いないので確保しない。
 	return;
 #endif
+
 	// Optionのoverrideによってスレッド初期化前にハンドラが呼び出された。これは無視する。
 	if (Threads.size() == 0)
 		return;
