@@ -1161,7 +1161,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		const HASH_KEY key = k + h;
 		prefetch(TT.first_entry(key));
 #if defined(USE_EVAL_HASH)
-		Eval::prefetch_evalhash(key);
+		Eval::prefetch_evalhash(hash_key_to_key(key));
 #endif
 
 		put_piece(to, pc);
@@ -1326,7 +1326,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		const HASH_KEY key = k + h;
 		prefetch(TT.first_entry(key));
 #if defined(USE_EVAL_HASH)
-		Eval::prefetch_evalhash(key);
+		Eval::prefetch_evalhash(hash_key_to_key(key));
 #endif
 
 		// put_piece()などを用いたのでupdateする。
