@@ -2,7 +2,247 @@
 やねうら王 更新履歴
 
 
+■　2022/05/07
+
+
+- やねうら王V7.50リリース
+  - WCSC32(第32回世界コンピュータ将棋選手権)出場バージョン。(大会成績 3位)
+  - V7.00から+R70以上強くなった
+  - (HashKeyが)128-bit Edition誕生
+    - mateバグが(天文学的確率でしか)起きない
+  - 思考エンジンのcluster化ができるようになった。
+    - 現在実験中。V8.00で本格稼働。
+
+
+- int64_max , int_64_min導入。
+- INT_MAX , INT_MINが残っていたので修正。
+
+
+
+■　2022/05/06
+
+
+- size_max , size_min などを導入。
+  constexpr int int_max     = (std::numeric_limits<int>::max)();
+  constexpr int int_min     = (std::numeric_limits<int>::min)();
+  constexpr size_t size_max = (std::numeric_limits<size_t>::max)();
+  constexpr size_t size_min = (std::numeric_limits<size_t>::min)();
+
+- yo_cluster、YO_CLUSTERがdefineされていない時は無効化する。
+- yo_cluster、ponderのアルゴリズム変更。
+
+
+■　2022/05/05
+
+
+1T VS cluster-h 1T*2 , node = 100000 (1T)
+T1,b1000,425 - 25 - 380(52.8% R19.44[-0.72,39.6]) winrate black , white = 52.67% , 47.33%
+// CPU負荷率が20%ぐらいしかない。何かやらかしたのか？
+
+1T VS cluster-h 1T*2 , node = 100000 (4T)
+T1,b1000,691 - 60 - 819(45.76% R-29.52[-44.28,-14.77]) winrate black , white = 52.65% , 47.35%
+
+1T VS cluster-h 1T*2 , node = 10000 (1T)
+T1,b1000,780 - 56 - 954(44.98% R-34.98[-48.77,-21.19]) winrate black , white = 50.58% , 49.42%
+
+1T VS cluster-h 1T*2 , node = 1000000 (1T)
+T1,b1000,91 - 7 - 22(80.53% R246.65[179.19,314.11]) winrate black , white = 51.33% , 48.67%
+// おかしい。次の指し手に被っているのか？
+// bestmoveを返したあとにgo ponderさせられているのか？
+
+
+- yo_cluster
+  - cluster nodes 10000→100000(2T)で比較。
+    // cluster-h
+
+// startup.txt
+setoption name BookFile value no_book
+setoption name Threads value 2
+cluster node 100000
+setoption name BookFile value no_book
+setoption name Threads value 1
+
+1T VS cluster-h 1T*3
+
+
+MultiPVで探索する時に、台数増えるとMultiPVの数が増えて、それで
+ponder局面の選出の精度が落ちてレーティングが悪化している可能性があるのか…。
+
+あー、clusterのponder選出のnode数を増やすと、thread 1だとその間、思考スレッドが一つ遊ぶから、
+CPU負荷が変わってきて、勝率に影響を及ぼすのか…。こりゃ計測が大変だわ。
+
+しかし1T VS 2T で 3T×20でCPU消費30%はおかしいのでは…。なんなんだろこれ。
+// わからん。あとで調査しよう。
+
+
+- yo_cluster
+// クラスター部分、もっとモジュール化して、さまざまな編成ができるようにできると理想なのだが。
+
+
+- yo_cluster
+  - ponderhit_countの処理除去
+  // ↓に戻す。
+			// 偶数局面であるなら、空きエンジンに現在の局面を思考させてみる。
+			// →　その方がponderが当たった時の利得が高いと考えられる。
+			if (same_color)
+			{
+				for(size_t i = 0 ; i < engines.size() ; ++i)
+				{
+					// 現在ponderしているか、何もしていないエンジンは空きエンジンとみなす。
+					auto& engine = engines[i];
+
+					if (  (engine.is_state_go_ponder() && engines[i].get_searching_sfen() != search_sfen)
+						|| engine.is_idle_in_game()
+						)
+						engine.send(Message(USI_Message::GO_PONDER, string() , search_sfen));
+				}
+				return ;
+			}
+
+- 最小値・最大値、書いてみたものの、うざいので削除。
+- int_max , size_maxみたいなのだけtype.hに追加。
+
+// windows.hをincludeしていると minとmaxがマクロ定義されているのでstd::max()と書けなくて、(std::max)()のように書くと回避できる。
+// 以下は、そのテクニックを利用したもの。
+
+constexpr size_t u8_max  = (std::numeric_limits<u8 >::max)();
+constexpr size_t u8_min  = (std::numeric_limits<u8 >::min)();
+constexpr size_t s8_max  = (std::numeric_limits<s8 >::max)();
+constexpr size_t s8_min  = (std::numeric_limits<s8 >::min)();
+constexpr size_t u16_max = (std::numeric_limits<u16>::max)();
+constexpr size_t u16_min = (std::numeric_limits<u16>::min)();
+constexpr size_t s16_max = (std::numeric_limits<s16>::max)();
+constexpr size_t s16_min = (std::numeric_limits<s16>::min)();
+constexpr size_t u32_max = (std::numeric_limits<u32>::max)();
+constexpr size_t u32_min = (std::numeric_limits<u32>::min)();
+constexpr size_t s32_max = (std::numeric_limits<s32>::max)();
+constexpr size_t s32_min = (std::numeric_limits<s32>::min)();
+constexpr size_t u64_max = (std::numeric_limits<u64>::max)();
+constexpr size_t u64_min = (std::numeric_limits<u64>::min)();
+constexpr size_t s64_max = (std::numeric_limits<s64>::max)();
+constexpr size_t s64_min = (std::numeric_limits<s64>::min)();
+
+
+- yo_cluster
+  - ponderhit_countの初期化方法、変えた。
+  - ponderhit_countのカウントが間違っていたの修正。
+
+
+- yo_cluster
+  - ENGINE_PER_POSITIONの導入。
+  // ENGINE_PER_POSITION台ずつに同じ局面を割り当てる
+
+> 台数多いと下位のほうはponderが外れるから、外れたところを調べていたengineが
+> 次に参加しても…みたいなところはあるのか…。
+  →　これ、対策してみた。
+    3回思考してからしか予想ponderに参加できないようにした。
+
+    1T VS yo-cluster-e 1T*4
+    T1,b1000,79 - 11 - 80(49.69% R-2.19[-47.38,43.01]) winrate black , white = 58.49% , 41.51%
+
+    →　あかん。これ、デバッグしきれん。いったんrevertするわ。
+
+
+- yo_cluster
+  - 比較のため、偶数ponderでは現在の局面を思考させてみる。
+
+			// 空きエンジンに現在の局面を思考させてみる。
+			if (same_color)
+			{
+				for(size_t i = 0 ; i < engines.size() ; ++i)
+				{
+					// 現在ponderしているか、何もしていないエンジンは空きエンジンとみなす。
+					auto& engine = engines[i];
+
+					if (   engine.is_state_go_ponder()
+						&& engines[i].get_searching_sfen() != search_sfen)
+
+						engine.send(Message(USI_Message::GO_PONDER, string() , search_sfen));
+					else if ( engine.is_idle_in_game())
+						engine.send(Message(USI_Message::GO_PONDER, string() , search_sfen));
+				}
+				return ;
+			}
+    // cluster-f
+
+    →　これが効果あるなら、main engineと同じ局面をN回思考したあとに選出されたponder局面を思考する、みたいな
+      そういうタイプの探索が必要かも知れん。
+
+
+台数多いと下位のほうはponderが外れるから、外れたところを調べていたengineが
+次に参加しても…みたいなところはあるのか…。
+
+
+1T VS yo-cluster-e 1T*2
+T1,b1000,713 - 69 - 818(46.57% R-23.87[-38.5,-9.23]) winrate black , white = 50.16% , 49.84%
+
+1T VS yo-cluster-e 1T*3
+T1,b1000,565 - 48 - 637(47.0% R-20.84[-37.34,-4.33]) winrate black , white = 51.33% , 48.67%
+
+1T VS yo-cluster-e 1T*4
+T1,b1000,130 - 13 - 157(45.3% R-32.78[-66.61,1.05]) winrate black , white = 48.08% , 51.92%
+
+// なんか少しつよなった？
+
+
+- yo_cluster
+  - 比較のため、偶数ponderやめてみる。
+    // cluster-e
+
+			// 偶数局面のponderをやめてみる。(比較実験のため)
+			if (same_color)
+				return ;
+
+台数が増えるほど悪くなる。
+選出したponder局面が当たる確率は台数が増えるほど上がる。
+つまりは、ponder当たった時に、直前に1つ前の局面について思考していないことが
+ロスにつながっているのではないかと考えられる。
+
+1T VS yo-cluster-d 1T*2
+T1,b1000,403 - 26 - 351(53.45% R24.0[3.15,44.85]) winrate black , white = 53.45% , 46.55%
+
+1T VS yo-cluster-d 1T*3
+T1,b1000,307 - 19 - 244(55.72% R39.9[15.41,64.39]) winrate black , white = 53.18% , 46.82%
+
+1T VS yo-cluster-d 1T*4
+T1,b1000,189 - 16 - 165(53.39% R23.59[-6.81,54.0]) winrate black , white = 48.87% , 51.13%
+
+
 ■　2022/05/04
+
+
+- yo_clusterはUSE_YO_CLUSTERをdefineした時だけ有効にする。
+
+
+- yo_cluster 2022/05/04
+  - ponder中の局面(指し手)は必ずGUIに出力する　その2
+
+  例
+    [0:P]7g7f(E100)
+
+    [0:P]
+      0 は、engine id // 0から 台数N - 1
+      そのあと
+       G = Go                 : 局面が送られてきたが、すべてのgo ponderしていた局面から外れたので、
+                                前回goしていたエンジンのponderの指し手を思考してエンジンに、その局面が送られてきたので"go"を送信した。
+       H = ponderHit          : 前回goしていたエンジンのponderの指し手をgo ponderで思考中にその局面が送られてきたので"go"を送信した。
+	   P = Ponder             : 前回この局面を思考してたと思われるエンジンに"go ponder"を送信した。
+	   C = Continue to ponder : Ponderの継続。いま"go ponder"で思考しているエンジンだったので、そのまま"go ponder"し続けてもらうことにした。
+	   N = New ponder         : 新規局面を"go ponder"で思考してもらうことにした。("go ponder"で思考中であったならそれを停止させた上で)
+    7g7f   : 指し手
+    (E100) :
+       E   = goしていたEngineがbestmove XX ponder YYで返してきたponderの指し手YYであるという意味
+       100 = 訪問回数
+  - MultiPVで2番目以降の指し手のrootMoves[i].valueがおかしい件。
+    - おかしくはなかった。
+    - previous_scoreを見ないといけないのだった。
+
+
+
+- yo_cluster
+  - MultiPVで2番目以降の指し手のrootMoves[i].valueがおかしい件。
+    - おかしくはなかった。
+    - previous_scoreを見ないといけないのだった。
 
 
 - 更新履歴、ここまで分。
@@ -20,6 +260,39 @@ go ponder
 ponderhit btime 60000 wtime 60000 binc 1000 winc 1000
 
 // V723
+
+
+
+- yo_cluster
+  - ponder中の局面(指し手)は必ずGUIに出力する　その2
+
+  例
+    [0:P]7g7f(E100)
+
+    [0:P]
+      0 は、engine id // 0から 台数N - 1
+      そのあと
+       G = Go                 : 局面が送られてきたが、すべてのgo ponderしていた局面から外れたので、
+                                前回goしていたエンジンのponderの指し手を思考してエンジンに、その局面が送られてきたので"go"を送信した。
+       H = ponderHit          : 前回goしていたエンジンのponderの指し手をgo ponderで思考中にその局面が送られてきたので"go"を送信した。
+	   P = Ponder             : 前回この局面を思考してたと思われるエンジンに"go ponder"を送信した。
+	   C = Continue to ponder : Ponderの継続。いま"go ponder"で思考しているエンジンだったので、そのまま"go ponder"し続けてもらうことにした。
+	   N = New ponder         : 新規局面を"go ponder"で思考してもらうことにした。("go ponder"で思考中であったならそれを停止させた上で)
+    7g7f   : 指し手
+    (E100) :
+       E   = goしていたEngineがbestmove XX ponder YYで返してきたponderの指し手YYであるという意味
+       100 = 訪問回数
+
+
+
+- yo_cluster
+  - エンジン側、2手前からの継続局面であることを前提にaspiration searchを行うので、
+    継続局面以外を渡すとそこでロスがでるのかもな…。
+
+
+- 定跡のprobe()でhitしたときにMultiPV配列がその通りに並んでいない問題があるな…。
+  まあいいか…。いまこんなややこしいところいじってエンバグしてはかなわん。
+
 
 ■　2022/05/03
 
@@ -58,6 +331,15 @@ ponder当たる確率が増えるが、そのPCに割り当てる行為がロス
 ロスとしてはほぼ一定になるだとか？
 
 // よくわからん。1手2秒でも計測してみる。
+
+1T*1(=ponderあり,cluster-c) VS 1T*2 cluster-d
+T1,b2000,1318 - 101 - 1251(51.3% R9.06[-2.21,20.34]) winrate black , white = 51.58% , 48.42%
+
+1T*1(=ponderあり,cluster-c) VS 1T*3 cluster-d
+T1,b2000,1150 - 61 - 859(57.24% R50.68[37.8,63.56]) winrate black , white = 51.82% , 48.18%
+
+1T*1(=ponderあり,cluster-c) VS 1T*4 cluster-d
+T1,b2000,701 - 61 - 558(55.68% R39.63[23.43,55.84]) winrate black , white = 53.22% , 46.78%
 
 
 // 将棋所での対局
