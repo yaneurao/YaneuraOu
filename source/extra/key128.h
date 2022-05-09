@@ -107,6 +107,13 @@ struct std::hash<Key128> {
 	}
 };
 
+static std::ostream& operator << (std::ostream& os, const Key128& k)
+{
+	// 上位bitから出力する。(数字ってそういうものであるから…)
+	os <<  k.extract64<1>() << ":" << k.extract64<0>();
+	return os;
+}
+
 // 256bit版
 struct alignas(32) Key256
 {
@@ -183,6 +190,13 @@ struct std::hash<Key256> {
 		return (size_t)(k.extract64<0>());
 	}
 };
+
+static std::ostream& operator << (std::ostream& os, const Key256& k)
+{
+	// 上位bitから出力する。(数字ってそういうものであるから…)
+	os <<  k.extract64<3>() << ":" << k.extract64<2>() <<  k.extract64<1>() << ":" << k.extract64<0>();
+	return os;
+}
 
 // HASH_KEYをKeyに変換する。
 static Key hash_key_to_key(const Key     key) { return key               ; }

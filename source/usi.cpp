@@ -988,7 +988,7 @@ void usi_cmdexec(Position& pos, StateListPtr& states, string& cmd)
 		else if (token == "mated") cout << pos.is_mated() << endl;
 
 		// この局面のhash keyの値を出力
-		else if (token == "key") cout << hex << pos.state()->key() << dec << endl;
+		else if (token == "key") cout << hex << pos.state()->hash_key() << dec << endl;
 
 		// 探索の終了を待機するコマンド("stop"は送らずに。goコマンドの終了を待機できて便利。)
 		else if (token == "wait") Threads.main()->wait_for_search_finished();
