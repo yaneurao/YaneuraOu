@@ -14,7 +14,7 @@ namespace dlshogi
 			bool found = false;
 			for (int i = 0; i < child_num; ++i)
 			{
-				auto& uct_child = child[i];
+				auto& uct_child  = child[i];
 				auto& child_node = child_nodes[i];
 				if (uct_child.move == move) {
 					found = true;
@@ -25,7 +25,7 @@ namespace dlshogi
 
 					// 0番目の要素に移動させる。
 					if (i != 0) {
-						child[0] = std::move(uct_child);
+						child[0]       = std::move(uct_child);
 						child_nodes[0] = std::move(child_node);
 					}
 				}

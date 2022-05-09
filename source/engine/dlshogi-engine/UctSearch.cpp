@@ -737,17 +737,6 @@ namespace dlshogi
 	{
 		// nodeはlockされているので、atomicは不要なはず。
 
-		// 訪問回数が多いなら、そう簡単に子ノードは変化しないのでしばらくは前回と同じbest_childを返す。
-		if (current->select_interval)
-		{
-			--current->select_interval;
-			return current->last_best_child;
-		}
-
-		// 訪問回数に応じてチェックの回数を減らす。root付近でのnodeのlock時間を減らす考え。
-		// A100×8とかでnpsが少し改善するかも…。(GeForce RTX 3090×1だとやらないほうがマシレベル…)
-		current->select_interval = (u16)std::min(current->move_count / 16384, (NodeCountType)7);
-
 		auto ds = grp->get_dlsearcher();
 		auto& options = ds->search_options;
 
@@ -802,9 +791,6 @@ namespace dlshogi
 				// 子ノードに一つでも負けがあれば、自ノードを勝ちにできる
 				if (parent != nullptr)
 					parent->SetWin();
-
-				// 勝ちが確定しているため、親からは、この子ノードを選択する
-				current->last_best_child = i;
 				return i;
 			}
 
@@ -879,9 +865,6 @@ namespace dlshogi
 			// for FPU reduction
 			atomic_fetch_add(&current->visited_nnrate, uct_child[max_child].nnrate);
 		}
-
-		// 次に訪問するときのために選択した子のindexを保存しておく。
-		current->last_best_child = max_child;
 
 		return max_child;
 	}

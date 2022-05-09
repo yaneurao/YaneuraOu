@@ -20,14 +20,14 @@ namespace dlshogi
 	// ※　dlshogiのchild_node_t
 	struct ChildNode
 	{
-		ChildNode() : move_count(0), win(0.0f) , nnrate(0.0f) {}
+		ChildNode() : move_count(0), win((WinType)0) , nnrate(0.0f) {}
 
 		ChildNode(Move move)
-			: move(move), move_count(0), win(0.0f), nnrate(0.0f){}
+			: move(move), move_count(0), win((WinType)0), nnrate(0.0f){}
 
 		// ムーブコンストラクタ
 		ChildNode(ChildNode&& o) noexcept
-			: move(o.move), move_count(0), win(0.0f), nnrate(0.0f) {}
+			: move(o.move), move_count(0), win((WinType)o.win), nnrate(o.nnrate) {}
 
 		// ムーブ代入演算子
 		ChildNode& operator=(ChildNode&& o) noexcept {
@@ -41,22 +41,25 @@ namespace dlshogi
 		// --- public variables
 
 		// 指し手(Move)が、SetWin()されているかの判定
-		static bool IsMoveWin(Move m) { return m & VALUE_WIN; }
+		static bool IsMoveWin(Move m)  { return m & VALUE_WIN; }
 		static bool IsMoveLose(Move m) { return m & VALUE_LOSE; }
 		static bool IsMoveDraw(Move m) { return m & VALUE_DRAW; }
 
 		// メモリ節約のため、moveの最上位バイトでWin/Lose/Drawの状態を表す
 		// (32bit型のMoveでは、ここは使っていないはずなので)
-		bool IsWin()  const { return IsMoveWin(move); }
-		void SetWin()  { move = (Move)(move | VALUE_WIN); }
+		bool IsWin () const { return IsMoveWin (move); }
 		bool IsLose() const { return IsMoveLose(move); }
-		void SetLose() { move = (Move)(move | VALUE_LOSE); }
 		bool IsDraw() const { return IsMoveDraw(move); }
+		void SetWin () { move = (Move)(move | VALUE_WIN); }
+		void SetLose() { move = (Move)(move | VALUE_LOSE); }
 		void SetDraw() { move = (Move)(move | VALUE_DRAW); }
 		// →　SetDraw()したときに、win = DRAW_VALUEにしたほうが良くないかな…。
 
 		// 親局面(Node)で、このedgeに至るための指し手
 		Move move;
+
+		// Policy Networkが返してきた、moveが選ばれる確率を正規化したもの。
+		float nnrate;
 
 		// このedgeの訪問回数。
 		// Node::move_countと同じ意味。
@@ -65,9 +68,6 @@ namespace dlshogi
 		// このedgeの勝った回数。Node::winと同じ意味。
 		// ※　このChildNodeの着手moveによる期待勝率 = win / move_count の計算式で算出する。
 		std::atomic<WinType> win;
-
-		// Policy Networkが返してきた、moveが選ばれる確率を正規化したもの。
-		float nnrate;
 	};
 
 	// 局面一つを表現する構造体
@@ -75,7 +75,7 @@ namespace dlshogi
 	struct Node
 	{
 		Node()
-			: move_count(NOT_EXPANDED), win(0), visited_nnrate(0.0f) , child_num(0) , select_interval(0){}
+			: move_count(NOT_EXPANDED), win(0), visited_nnrate(0.0f) , child_num(0){}
 
 		// 子ノード作成
 		Node* CreateChildNode(int i) {
@@ -85,8 +85,8 @@ namespace dlshogi
 		// 子ノード1つのみで初期化する。
 		void CreateSingleChildNode(const Move move)
 		{
-			child_num = 1;
-			child = std::make_unique<ChildNode[]>(1);
+			child_num     = 1;
+			child         = std::make_unique<ChildNode[]>(1);
 			child[0].move = move;
 		}
 
@@ -163,11 +163,6 @@ namespace dlshogi
 		// 展開した子ノード以外はnullptrのまま。
 		std::unique_ptr<std::unique_ptr<Node>[]> child_nodes;
 
-		// SelectMaxUcbChild()の高速化のために前回選択した子ノードのindexを記憶しておく。
-		// 調べる間隔は、select_intervalにする。
-		u16 last_best_child;
-		u16 select_interval;
-
 	private:
 
 		// ExpandNode()の下請け。生成する指し手の種類を指定できる。
@@ -176,13 +171,13 @@ namespace dlshogi
 		{
 			MoveList<T> ml(*pos);
 
-			// 子ノードの数 = 生成された指し手の数
-			child_num = (ChildNumType)ml.size();
-
-			child = std::make_unique<ChildNode[]>(child_num);
+			child = std::make_unique<ChildNode[]>(ml.size());
 			auto* child_node = child.get();
 			for (auto m : ml)
 				(child_node++)->move = m.move;
+
+			// 子ノードの数 = 生成された指し手の数
+			child_num = (ChildNumType)ml.size();
 		}
 	};
 
@@ -314,7 +309,9 @@ namespace dlshogi
 		// 一度にそんなにたくさん積まれないので、そこまで大きなコンテナにはならない。
 	    std::vector<std::unique_ptr<Node>> subtrees_to_gc;
 
+		// gc_threadの停止フラグ。trueになったら、gc_threadはWorker()から抜けて終了する。
 		std::atomic<bool> stop{ false };
+		// GC用のthread
 		std::thread gc_thread;
 
 		// --- やねうら王独自拡張
