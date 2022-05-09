@@ -151,8 +151,8 @@ make -j8 tournament TARGET_CPU=AVX2 COMPILER=g++ YANEURAOU_EDITION=YANEURAOU_ENG
 	・ビルドターゲットはtournament(トーナメントモード用)、evallearn(評価関数の学習用)、normal(普通のもの)、gensfen(教師生成用。現状、非公開)から選びます。
 	詳しくはMakefileのなかを見てください。
 
-例) hash keyを128bitにして、TTClusterSizeを2にして、エンジン名を"YaneuraOu(dev)"にする。(わりとお勧めの設定)
-make -j8 tournament COMPILER=clang++ YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE ENGINE_NAME="YaneuraOu\(dev\)" TARGET_CPU=AVX2 EXTRA_CPPFLAGS="-DHASH_KEY_BITS=128 -DTT_CLUSTER_SIZE=2"
+例) hash keyを128bitにして、TTClusterSizeを4にして、エンジン名を"YaneuraOu(dev)"にする。(わりとお勧めの設定)
+make -j8 tournament COMPILER=clang++ YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE ENGINE_NAME="YaneuraOu\(dev\)" TARGET_CPU=AVX2 EXTRA_CPPFLAGS="-DHASH_KEY_BITS=128 -DTT_CLUSTER_SIZE=4"
 
 
 ■　Ubuntu20.04でmakeコマンド手前まで
