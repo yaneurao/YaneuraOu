@@ -322,6 +322,9 @@
     <ClInclude Include="engine\dlshogi-engine\dlshogi_min.h">
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClInclude>
+    <ClInclude Include="extra\fast_alloc.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -525,6 +528,9 @@
     <ClCompile Include="eval\nnue\features\half_kp_vm.cpp">
       <Filter>リソース ファイル\eval\nnue\features</Filter>
     </ClCompile>
+    <ClCompile Include="extra\fast_alloc.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">
@@ -579,5 +585,7 @@
     <None Include="..\script\bench.py">
       <Filter>script</Filter>
     </None>
+    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime_providers_shared.dll" />
   </ItemGroup>
 </Project>

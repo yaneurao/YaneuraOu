@@ -3,9 +3,14 @@
 #include "position.h"
 #include "search.h"
 #include "thread.h"
-#include "tt.h"
 #include "misc.h"
 #include "testcmd/unit_test.h"
+
+#if defined(YANEURAOU_ENGINE_DEEP)
+#include "extra/fast_alloc.h"
+#else
+#include "tt.h"
+#endif
 
 #if defined(__EMSCRIPTEN__)
 // yaneuraou.wasm
@@ -151,6 +156,11 @@ namespace USI
 	// depth : iteration深さ
 	std::string pv(const Position& pos, Depth depth, Value alpha, Value beta)
 	{
+#if defined(YANEURAOU_ENGINE_DEEP)
+		// ふかうら王では、この関数呼び出さないからまるっと要らない。
+
+		return string();
+#else
 		std::stringstream ss;
 
 		TimePoint elapsed = Time.elapsed() + 1;
@@ -314,6 +324,7 @@ namespace USI
 		}
 
 		return ss.str();
+#endif // defined(YANEURAOU_ENGINE_DEEP)
 	}
 }
 
@@ -441,7 +452,12 @@ void is_ready(bool skipCorruptCheck)
 	// isreadyに対してはreadyokを返すまで次のコマンドが来ないことは約束されているので
 	// このタイミングで各種変数の初期化もしておく。
 
+#if defined(YANEURAOU_ENGINE_DEEP)
+	// ふかうら王では置換表ではなく、memory allocatorに確保する。
+	FAST_ALLOC.memory_alloc(size_t(Options["USI_Hash"]));
+#else
 	TT.resize(size_t(Options["USI_Hash"]));
+#endif
 
 	Search::clear();
 

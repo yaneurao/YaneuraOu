@@ -608,6 +608,14 @@ namespace dlshogi
 			return;
 		}
 
+		// 10MB切ってたら即座に停止する。
+		if (FAST_ALLOC.rest() < 10 * 1024*1024 )
+		{
+			sync_cout << "info string Error! No memory .. stop thinking. " << sync_endl;
+			interrupt();
+			return ;
+		}
+
 		// hashfull
 		// s.current_root->move_count == NOT_EXPANDED  開始まもなくはこれでありうるので、
 		// +1してから比較する。(NOT_EXPANDEDはu32::max()なので+1すると0になる)
