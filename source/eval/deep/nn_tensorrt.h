@@ -58,7 +58,7 @@ namespace Eval::dlshogi
 		virtual Tools::Result load(const std::string& model_path , int gpu_id , int max_batch_size);
 
 		// 推論
-		virtual void forward(const int batch_size, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2);
+		virtual void forward(const int batch_size, PType* p1, PType* p2, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2);
 
 		// 使用可能なデバイス数を取得する。
 		static int get_device_count();
@@ -70,13 +70,15 @@ namespace Eval::dlshogi
 	private:
 
 		// host(GPU)側で確保されたbufferに対するポインタ
+		PType* p1_dev;
+		PType* p2_dev;
 		NN_Input1* x1_dev;
 		NN_Input2* x2_dev;
 		NN_Output_Policy* y1_dev;
 		NN_Output_Value * y2_dev;
 
 		// x1_dev,x2_dev,y1_dev,y2_devをひとまとめにしたもの。
-		std::vector<void*> inputBindings;
+		std::vector<void*> infer_inputBindings;
 
 		// ↑で確保されたメモリを開放する。
 		void release();
@@ -89,9 +91,10 @@ namespace Eval::dlshogi
 		int max_batch_size;
 
 		// build,forwardで必要
-
-		InferUniquePtr<nvinfer1::ICudaEngine> engine;
-		InferUniquePtr<nvinfer1::IExecutionContext> context;
+		u32 unpack_size1;
+		u32 unpack_size2;
+		InferUniquePtr<nvinfer1::ICudaEngine> infer_engine;
+		InferUniquePtr<nvinfer1::IExecutionContext> infer_context;
 		nvinfer1::Dims inputDims1;
 		nvinfer1::Dims inputDims2;
 

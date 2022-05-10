@@ -23,7 +23,7 @@ namespace Eval::dlshogi
 		virtual Tools::Result load(const std::string& model_path , int gpu_id , int batch_size);
 
 		// NNによる推論
-		virtual void forward(const int batch_size, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2);
+		virtual void forward(const int batch_size, PType* p1, PType* p2, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2);
 
 		// 使用可能なデバイス数を取得する。
 		static int get_device_count();

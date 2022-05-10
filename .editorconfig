@@ -10,7 +10,7 @@ charset = utf-8
 end_of_line = lf
 
 # Code files
-[*.{cpp,h,hpp,cs,csx,vb,vbx}]
+[*.{cpp,h,hpp,cs,csx,vb,vbx,cu,cuh}]
 indent_size = 4
 indent_style = tab
 insert_final_newline = true

@@ -94,6 +94,7 @@ COMPILER = clang++
 
 # 標準的なコンパイルオプション (standard compile options)
 CPPFLAGS   = -std=c++17 -fno-exceptions -fno-rtti -Wextra -MMD -MP -fpermissive
+NVCC_CPPFLAGS = -std=c++17 -x cu -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -Xcompiler "-Ofast"
 WCPPFLAGS  =
 LDFLAGS  = $(EXTRA_LDFLAGS)
 LIBS     =
@@ -329,6 +330,7 @@ SOURCES  = \
 	testcmd/normal_test_cmd.cpp                                                \
 	testcmd/benchmark.cpp
 
+CUDA_SOURCES =
 
 #ifneq (,$(findstring evallearn,$@))
 # →これこの時点で$@を取得できないのか…。なんぞこれ。
@@ -378,9 +380,12 @@ ifneq (,$(findstring YANEURAOU_ENGINE_DEEP,$(YANEURAOU_EDITION)))
 
 		ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_TENSOR_RT)
 			CPPFLAGS += -DTENSOR_RT
-			LDFLAGS += -lnvinfer -lnvparsers -lnvonnxparser -lcudnn -lcudart
+			NVCC_CPPFLAGS += -DTENSOR_RT
+			LDFLAGS += -lnvinfer -lnvonnxparser -lcudart
 			# CPPFLAGS += -I/usr/local/cuda/include
 			# LDFLAGS += -L/usr/local/cuda/lib64
+			# LDFLAGS += -L/usr/local/cuda/lib64/stubs
+			CUDA_SOURCES += eval/deep/unpack.cu
 
 		else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_ORT_CPU)
 			CPPFLAGS += -DORT_CPU
@@ -579,19 +584,24 @@ endif
 
 # YANEURAOU_EDITION , CPUターゲット名 などのシンボルをコンパイル時に定義してやる。
 CPPFLAGS += -D$(YANEURAOU_EDITION) -DTARGET_CPU=\"$(TARGET_CPU)\" $(EXTRA_CPPFLAGS)
+NVCC_CPPFLAGS += -D$(YANEURAOU_EDITION) -DTARGET_CPU=\"$(TARGET_CPU)\"
 
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
+CUDA_OBJECTS = $(addprefix $(OBJDIR)/, $(CUDA_SOURCES:.cu=.o))
 DEPENDS  = $(OBJECTS:.o=.d)
 
 all: clean $(TARGET)
 .PHONY : all normal evallearn tournament prof profgen profuse pgo clean
 
-$(TARGET): $(OBJECTS) $(LIBS)
-	$(COMPILER) -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
+$(TARGET): $(OBJECTS) $(CUDA_OBJECTS)
+	$(COMPILER) -o $@ $^ $(LDFLAGS) $(CPPFLAGS) $(LIBS)
 
 $(OBJDIR)/%.o: %.cpp
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
 	$(COMPILER) $(CPPFLAGS) $(INCLUDE) -o $@ -c $<
+
+$(OBJDIR)/%.o: %.cu
+	nvcc $(NVCC_CPPFLAGS) $(INCLUDE) -o $@ $<
 
 # https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
 
@@ -632,6 +642,6 @@ pgo:
 	$(MAKE) profuse
 
 clean:
-	rm -f $(OBJECTS) $(DEPENDS) $(TARGET) ${OBJECTS:.o=.gcda}
+	rm -f $(OBJECTS) $(CUDA_OBJECTS) $(DEPENDS) $(TARGET) ${OBJECTS:.o=.gcda}
 
 -include $(DEPENDS)

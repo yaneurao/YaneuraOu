@@ -38,10 +38,14 @@ namespace dlshogi
 		void Initialize(const std::string& model_path , const int new_thread, const int gpu_id, const int policy_value_batch_maxsize);
 
 		// ニューラルネットのforward() (順方向の伝播 = 推論)を呼び出す。
-		void nn_forward(const int batch_size, Eval::dlshogi::NN_Input1* x1, Eval::dlshogi::NN_Input2* x2, Eval::dlshogi::NN_Output_Policy* y1, Eval::dlshogi::NN_Output_Value* y2)
+		void nn_forward(const int batch_size, PType* p1, PType* p2, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2)
 		{
+#if !defined(UNPACK_CUDA)
+			// 入力特徴量を展開する。GPU側で展開する場合は不要。
+			extract_input_features(batch_size, p1, p2, x1, x2);
+#endif
 			mutex_gpu.lock();
-			nn->forward(batch_size, x1, x2, y1, y2);
+			nn->forward(batch_size, p1, p2, x1, x2, y1, y2);
 			mutex_gpu.unlock();
 		}
 
@@ -168,11 +172,13 @@ namespace dlshogi
 			//#endif
 			policy_value_batch_maxsize(policy_value_batch_maxsize),
 			// df-pn mate solverをleaf nodeで使う。
-			mate_solver(Mate::Dfpn::DfpnSolverType::Node16bitOrdering)			
+			mate_solver(Mate::Dfpn::DfpnSolverType::Node16bitOrdering)
 		{
 			// 推論(NN::forward())のためのメモリを動的に確保する。
 			// GPUを利用する場合は、GPU側のメモリを確保しなければならないので、alloc()は抽象化されている。
 
+			packed_features1 = grp->gpu_memalloc<PType>((policy_value_batch_maxsize * ((int)COLOR_NB * (int)MAX_FEATURES1_NUM * (int)SQ_NB) + 7) >> 3);
+			packed_features2 = grp->gpu_memalloc<PType>((policy_value_batch_maxsize * ((int)MAX_FEATURES2_NUM) + 7) >> 3);
 			features1 = grp->gpu_memalloc<NN_Input1       >(policy_value_batch_maxsize);
 			features2 = grp->gpu_memalloc<NN_Input2       >(policy_value_batch_maxsize);
 			y1        = grp->gpu_memalloc<NN_Output_Policy>(policy_value_batch_maxsize);
@@ -190,9 +196,12 @@ namespace dlshogi
 			grp(o.grp),
 			thread_id(o.thread_id),
 			mt(std::move(o.mt)),
+			packed_features1(o.packed_features1),packed_features2(o.packed_features2),
 			features1(o.features1),features2(o.features2),y1(o.y1),y2(o.y2),
 			mate_solver(std::move(o.mate_solver))
 		{
+			o.packed_features1 = nullptr;
+			o.packed_features2 = nullptr;
 			o.features1 = nullptr;
 			o.features2 = nullptr;
 			o.y1 = nullptr;
@@ -200,9 +209,11 @@ namespace dlshogi
 			policy_value_batch = nullptr;
 		}
 
-		~UctSearcher() { 
+		~UctSearcher() {
 			if (features1) // move counstructorによって解体後でないことをチェック
 			{
+				grp->gpu_memfree<PType           >(packed_features1);
+				grp->gpu_memfree<PType           >(packed_features2);
 				grp->gpu_memfree<NN_Input1       >(features1);
 				grp->gpu_memfree<NN_Input2       >(features2);
 				grp->gpu_memfree<NN_Output_Policy>(y1);
@@ -249,7 +260,7 @@ namespace dlshogi
 		// 返し値 : currentの局面の期待勝率を返すが、以下の特殊な定数を取ることがある。
 		//   QUEUING      : 評価関数を呼び出した。(呼び出しはqueuingされていて、完了はしていない)
 		//   DISCARDED    : 他のスレッドがすでにこのnodeの評価関数の呼び出しをしたあとであったので、何もせずにリターンしたことを示す。
-		// 
+		//
 		float UctSearch(Position* pos, ChildNode* parent, Node* current, NodeVisitor& visitor);
 
 		//  UCBが最大となる子ノードのインデックスを返す関数
@@ -288,6 +299,8 @@ namespace dlshogi
 		int policy_value_batch_maxsize;
 
 		// これは、policy_value_batch_maxsize分、事前に確保されている。
+		Eval::dlshogi::PType* packed_features1;
+		Eval::dlshogi::PType* packed_features2;
 		Eval::dlshogi::NN_Input1* features1;
 		Eval::dlshogi::NN_Input2* features2;
 

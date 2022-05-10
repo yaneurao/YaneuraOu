@@ -3,6 +3,7 @@
 #if defined(YANEURAOU_ENGINE_DEEP) && defined (TENSOR_RT)
 
 #include <regex>
+#include "unpack.cuh"
 //#include "dlshogi_types.h"
 
 namespace {
@@ -81,12 +82,14 @@ namespace Eval::dlshogi
 		// host(GPU側)に同じだけメモリを確保しておいて、CPU側からそこに転送する。
 		set_device(gpu_id);
 
+		checkCudaErrors(cudaMalloc((void**)&p1_dev, sizeof(PType)            * ((max_batch_size * ((int)COLOR_NB * (int)MAX_FEATURES1_NUM * (int)SQ_NB) + 7) >> 3)));
+		checkCudaErrors(cudaMalloc((void**)&p2_dev, sizeof(PType)            * ((max_batch_size * ((int)MAX_FEATURES2_NUM) + 7) >> 3)));
 		checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(NN_Input1)        * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(NN_Input2)        * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&y1_dev, sizeof(NN_Output_Policy) * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&y2_dev, sizeof(NN_Output_Value)  * max_batch_size));
 
-		inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev };
+		infer_inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev };
 
 		return load_model(model_path);
 	}
@@ -94,7 +97,7 @@ namespace Eval::dlshogi
 	void NNTensorRT::release()
 	{
 		// load()でメモリ確保を行った場合、inputBindings.size() == 4のはず。
-		if (inputBindings.size())
+		if (infer_inputBindings.size())
 		{
 			// 安全のため、GPU IDをスレッドと関連付けてから開放する。
 			// ※　これは本来しなくても良いと思うのだが、ドライバー側の実装次第では
@@ -104,11 +107,13 @@ namespace Eval::dlshogi
 			set_device(gpu_id);
 
 			// メモリの開放
+			checkCudaErrors(cudaFree(p1_dev));
+			checkCudaErrors(cudaFree(p2_dev));
 			checkCudaErrors(cudaFree(x1_dev));
 			checkCudaErrors(cudaFree(x2_dev));
 			checkCudaErrors(cudaFree(y1_dev));
 			checkCudaErrors(cudaFree(y2_dev));
-			inputBindings.resize(0);
+			infer_inputBindings.resize(0);
 
 		}
 	}
@@ -231,8 +236,8 @@ namespace Eval::dlshogi
 			FatalError("buildSerializedNetwork");
 		}
 		auto runtime = InferUniquePtr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(gLogger));
-		engine.reset(runtime->deserializeCudaEngine(serializedEngine->data(), serializedEngine->size()));
-		if (!engine)
+		infer_engine.reset(runtime->deserializeCudaEngine(serializedEngine->data(), serializedEngine->size()));
+		if (!infer_engine)
 		{
 			FatalError("deserializeCudaEngine");
 		}
@@ -251,7 +256,7 @@ namespace Eval::dlshogi
 	Tools::Result NNTensorRT::load_model(const string& filename)
 	{
 		// 前に読み込んでいたものがあるなら、それを開放する。
-		engine.reset();
+		infer_engine.reset();
 
 		// シリアライズされたファイルがあるなら、それを代わりに読み込む。
 
@@ -294,15 +299,15 @@ namespace Eval::dlshogi
 		if (result.is_ok())
 		{
 			auto runtime = InferUniquePtr<nvinfer1::IRuntime>(nvinfer1::createInferRuntime(gLogger));
-			engine = InferUniquePtr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(modelPtr.get(), modelSize));
+			infer_engine = InferUniquePtr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(modelPtr.get(), modelSize));
 
 			// ドライバのバージョンが異なるなどが原因で、デシリアライズに失敗することがある。その場合はやりなおす。
-			if (!engine)
+			if (!infer_engine)
 				sync_cout << "info string Warning! TensorRT : Failed to deserialize the model file. filename = " << serialized_filename << sync_endl;
 		}
 
 		// デシリアライズされたファイルがなかったか、デシリアライズに失敗している。
-		if (!engine)
+		if (!infer_engine)
 		{
 			// 初回のみビルドが必要。
 			// シリアライズされたファイルを生成する。
@@ -311,7 +316,7 @@ namespace Eval::dlshogi
 			build(filename);
 
 			// serializing a model
-			auto serializedEngine = InferUniquePtr<nvinfer1::IHostMemory>(engine->serialize());
+			auto serializedEngine = InferUniquePtr<nvinfer1::IHostMemory>(infer_engine->serialize());
 			if (!serializedEngine)
 			{
 				//throw std::runtime_error("Engine serialization failed");
@@ -331,42 +336,39 @@ namespace Eval::dlshogi
 			}
 		}
 
-		context = InferUniquePtr<nvinfer1::IExecutionContext>(engine->createExecutionContext());
-		if (!context)
+		infer_context = InferUniquePtr<nvinfer1::IExecutionContext>(infer_engine->createExecutionContext());
+		if (!infer_context)
 		{
 			//throw std::runtime_error("createExecutionContext");
 				return Tools::ResultCode::FileWriteError;
 		}
 
-		inputDims1 = engine->getBindingDimensions(0);
-		inputDims2 = engine->getBindingDimensions(1);
+		inputDims1 = infer_engine->getBindingDimensions(0);
+		inputDims2 = infer_engine->getBindingDimensions(1);
 
 		return Tools::ResultCode::Ok;
 	}
 
-	void NNTensorRT::forward(const int batch_size, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2)
+	void NNTensorRT::forward(const int batch_size, PType* p1, PType* p2, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2)
 	{
 		inputDims1.d[0] = batch_size;
 		inputDims2.d[0] = batch_size;
-		context->setBindingDimensions(0, inputDims1);
-		context->setBindingDimensions(1, inputDims2);
-
-#if 1
+		infer_context->setBindingDimensions(0, inputDims1);
+		infer_context->setBindingDimensions(1, inputDims2);
+#if defined(UNPACK_CUDA)
+		checkCudaErrors(cudaMemcpyAsync(p1_dev, p1, sizeof(PType) * ((batch_size * ((int)COLOR_NB * (int)MAX_FEATURES1_NUM * (int)SQ_NB) + 7) >> 3), cudaMemcpyHostToDevice, cudaStreamPerThread));
+		checkCudaErrors(cudaMemcpyAsync(p2_dev, p2, sizeof(PType) * ((batch_size * ((int)MAX_FEATURES2_NUM) + 7) >> 3), cudaMemcpyHostToDevice, cudaStreamPerThread));
+		unpack_features1(batch_size, p1_dev, (DType*)x1_dev, cudaStreamPerThread);
+		unpack_features2(batch_size, p2_dev, (DType*)x2_dev, cudaStreamPerThread);
+#else
 		checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(NN_Input1) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
 		checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(NN_Input2) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
-		const bool status = context->enqueue(batch_size, inputBindings.data(), cudaStreamPerThread, nullptr);
+#endif
+		const bool status = infer_context->enqueue(batch_size, infer_inputBindings.data(), cudaStreamPerThread, nullptr);
 		ASSERT_LV3(status);
 		checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(NN_Output_Policy) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread));
 		checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(NN_Output_Value ) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread));
 		checkCudaErrors(cudaStreamSynchronize(cudaStreamPerThread));
-#else
-		checkCudaErrors(cudaMemcpy(x1_dev, x1, sizeof(NN_Input1) * batch_size, cudaMemcpyHostToDevice));
-		checkCudaErrors(cudaMemcpy(x2_dev, x2, sizeof(NN_Input2) * batch_size, cudaMemcpyHostToDevice));
-		const bool status = context->executeV2(inputBindings.data());
-		ASSERT_LV3(status);
-		checkCudaErrors(cudaMemcpy(y1, y1_dev, sizeof(NN_Output_Policy) * batch_size, cudaMemcpyDeviceToHost));
-		checkCudaErrors(cudaMemcpy(y2, y2_dev, sizeof(NN_Output_Value ) * batch_size, cudaMemcpyDeviceToHost));
-#endif
 	}
 
 } // namespace Eval::dlshogi
