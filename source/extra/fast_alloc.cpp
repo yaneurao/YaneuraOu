@@ -22,7 +22,7 @@ void FastAlloc::memory_alloc(size_t mb)
         memory_free();
         // mallocはあとで32byteのalignされたメモリを確保できるやつに書き換える。
 		size_t alloc_size = new_chunks_size*sizeof(MemoryChunk);
-        chunks            = (MemoryChunk*)malloc(alloc_size);
+        chunks            = (MemoryChunk*)largeMemory.alloc(alloc_size, 64, false);
         chunks_size       = new_chunks_size;
 
 		// メモリのclearを通じて、実際にアクセスしておいたほうが
@@ -39,7 +39,7 @@ void FastAlloc::memory_free()
 {
     if (chunks)
     {
-        free(chunks);
+        largeMemory.free();
         chunks = nullptr;
     }
 }

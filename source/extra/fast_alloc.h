@@ -120,6 +120,9 @@ protected:
     std::mutex mutexes[MAX_ALLOC_CHUNK];
     // pool[N]を操作する時には、その直前と、操作完了後までを
     // mutexes[N]によってlockすることによって、pool[N]の操作自体にatomic性を持たせる。
+
+	// ここから最初の巨大メモリを確保する。
+	LargeMemory largeMemory;
 };
 
 // globalになっていて、"USI_Hash"でこれを確保。
