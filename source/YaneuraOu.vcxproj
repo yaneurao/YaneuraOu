@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="..\packages\Microsoft.AI.DirectML.1.8.0\build\Microsoft.AI.DirectML.props" Condition="('$(Configuration)'=='Debug-Deep-ORT-DML' Or '$(Configuration)'=='Release-Deep-ORT-DML') And Exists('..\packages\Microsoft.AI.DirectML.1.8.0\build\Microsoft.AI.DirectML.props')" />
+  <Import Project="..\packages\Microsoft.AI.DirectML.1.8.2\build\Microsoft.AI.DirectML.props" Condition="('$(Configuration)'=='Debug-Deep-ORT-DML' Or '$(Configuration)'=='Release-Deep-ORT-DML') And Exists('..\packages\Microsoft.AI.DirectML.1.8.2\build\Microsoft.AI.DirectML.props')" />
   <Import Project="..\packages\Microsoft.ML.OnnxRuntime.1.11.0\build\native\Microsoft.ML.OnnxRuntime.props" Condition="('$(Configuration)'=='Debug-Deep-ORT-CPU' Or '$(Configuration)'=='Release-Deep-ORT-CPU') And Exists('..\packages\Microsoft.ML.OnnxRuntime.1.11.0\build\native\Microsoft.ML.OnnxRuntime.props')" />
   <Import Project="..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.11.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.props" Condition="('$(Configuration)'=='Debug-Deep-ORT-DML' Or '$(Configuration)'=='Release-Deep-ORT-DML') And Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.11.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.props')" />
   <Import Project="..\packages\Microsoft.ML.OnnxRuntime.Gpu.1.11.0\build\native\Microsoft.ML.OnnxRuntime.Gpu.props" Condition="('$(Configuration)'=='Debug-Deep-ORT-TRT' Or '$(Configuration)'=='Release-Deep-ORT-TRT') And Exists('..\packages\Microsoft.ML.OnnxRuntime.Gpu.1.11.0\build\native\Microsoft.ML.OnnxRuntime.Gpu.props')" />
@@ -368,7 +368,7 @@
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
     <Import Project="props\YaneuraOuEdition-Deep-ORT-DML.props" />
     <Import Project="..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.11.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets" Condition="Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.11.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets')" />
-    <Import Project="..\packages\Microsoft.AI.DirectML.1.8.0\build\Microsoft.AI.DirectML.targets" Condition="Exists('..\packages\Microsoft.AI.DirectML.1.8.0\build\Microsoft.AI.DirectML.targets')" />
+    <Import Project="..\packages\Microsoft.AI.DirectML.1.8.2\build\Microsoft.AI.DirectML.targets" Condition="Exists('..\packages\Microsoft.AI.DirectML.1.8.2\build\Microsoft.AI.DirectML.targets')" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug-Deep-ORT-MKL|x64'" Label="PropertySheets">
     <Import Project="props\YaneuraOu-common.props" />
@@ -404,7 +404,7 @@
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
     <Import Project="props\YaneuraOuEdition-Deep-ORT-DML.props" />
     <Import Project="..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.11.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets" Condition="Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.11.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets')" />
-    <Import Project="..\packages\Microsoft.AI.DirectML.1.8.0\build\Microsoft.AI.DirectML.targets" Condition="Exists('..\packages\Microsoft.AI.DirectML.1.8.0\build\Microsoft.AI.DirectML.targets')" />
+    <Import Project="..\packages\Microsoft.AI.DirectML.1.8.2\build\Microsoft.AI.DirectML.targets" Condition="Exists('..\packages\Microsoft.AI.DirectML.1.8.2\build\Microsoft.AI.DirectML.targets')" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-Deep-ORT-MKL|x64'" Label="PropertySheets">
     <Import Project="props\YaneuraOu-common.props" />
@@ -806,8 +806,8 @@
     <PropertyGroup>
       <ErrorText>このプロジェクトは、このコンピューター上にない NuGet パッケージを参照しています。それらのパッケージをダウンロードするには、[NuGet パッケージの復元] を使用します。詳細については、http://go.microsoft.com/fwlink/?LinkID=322105 を参照してください。見つからないファイルは {0} です。</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\packages\Microsoft.AI.DirectML.1.8.0\build\Microsoft.AI.DirectML.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.AI.DirectML.1.8.0\build\Microsoft.AI.DirectML.props'))" />
-    <Error Condition="!Exists('..\packages\Microsoft.AI.DirectML.1.8.0\build\Microsoft.AI.DirectML.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.AI.DirectML.1.8.0\build\Microsoft.AI.DirectML.targets'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.AI.DirectML.1.8.2\build\Microsoft.AI.DirectML.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.AI.DirectML.1.8.2\build\Microsoft.AI.DirectML.props'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.AI.DirectML.1.8.2\build\Microsoft.AI.DirectML.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.AI.DirectML.1.8.2\build\Microsoft.AI.DirectML.targets'))" />
     <Error Condition="!Exists('..\packages\Microsoft.ML.OnnxRuntime.1.11.0\build\native\Microsoft.ML.OnnxRuntime.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.ML.OnnxRuntime.1.11.0\build\native\Microsoft.ML.OnnxRuntime.props'))" />
     <Error Condition="!Exists('..\packages\Microsoft.ML.OnnxRuntime.1.11.0\build\native\Microsoft.ML.OnnxRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.ML.OnnxRuntime.1.11.0\build\native\Microsoft.ML.OnnxRuntime.targets'))" />
     <Error Condition="!Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.11.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.11.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.props'))" />
