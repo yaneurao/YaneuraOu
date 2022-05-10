@@ -2,6 +2,8 @@
 
 #if defined(USE_FAST_ALLOC)
 
+#include <cstring>				// std::memset()
+
 // globalになっていて、"USI_Hash"でこれを確保。
 // ふかうら王では、ここから使う、的な…。
 FastAlloc FAST_ALLOC;
@@ -31,7 +33,7 @@ void FastAlloc::memory_alloc(size_t mb)
 	}
 
     // いずれにせよ、poolのゼロ初期化は必要。
-    memset(pool, 0, sizeof(pool));
+    std::memset(pool, 0, sizeof(pool));
 }
 
 // 確保した巨大メモリの開放
