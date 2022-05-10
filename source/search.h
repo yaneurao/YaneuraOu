@@ -180,6 +180,7 @@ namespace Search {
 		bool silent;
 
 		// 検討モード用のPVを出力するのか
+		// ※ やねうら王のみ , ふかうら王は未対応。
 		bool consideration_mode;
 
 		// fail low/highのときのPVを出力するのか

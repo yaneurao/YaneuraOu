@@ -128,7 +128,7 @@ void USI::extra_option(USI::OptionsMap & o)
 #endif
 
 	// 検討モード用のPVを出力するモード
-	o["ConsiderationMode"] << Option(false);
+	o["ConsiderationMode"] << Option(true);
 
 	// fail low/highのときにPVを出力するかどうか。
 	o["OutputFailLHPV"] << Option(true);
