@@ -4,6 +4,53 @@
 
 ■　2022/05/11
 
+
+- V7.61
+  - ふかうら王のメモリリークの問題が解決したので。
+
+
+- FastAlloc削除
+	#define USE_FAST_ALLOC
+
+// 高速なmemory allocator
+// これをdefineすると、FastAllocが使えるようになる。
+// 
+// これは、ふかうら王で、
+//   1. メモリを高速にnew/deleteする必要があった。
+//   2. USI_Hashで事前に確保したmemory poolから割り当てたかった。
+// ので開発した。
+//#define USE_FAST_ALLOC
+
+#if defined(USE_FAST_ALLOC)
+	// memory allocatorに確保する場合。
+	FAST_ALLOC.memory_alloc(size_t(Options["USI_Hash"]));
+#endif
+
+#if defined(USE_FAST_ALLOC)
+		// --- use custom memory allocator
+
+		static void* operator new     (std::size_t size) /* throw(std::bad_alloc) */ { return FAST_ALLOC.alloc(size); }
+	    static void* operator new[]   (std::size_t size) /* throw(std::bad_alloc) */ { return FAST_ALLOC.alloc(size); }
+	    static void  operator delete  (void* p         ) /* throw(              ) */ {        FAST_ALLOC.free (p   ); }
+	    static void  operator delete[](void* p         ) /* throw(              ) */ {        FAST_ALLOC.free (p   ); }
+#endif
+
+	bool use_fast_alloc =
+#if defined(USE_FAST_ALLOC)
+		true;
+#else
+		false;
+#endif
+
+	config += o2("USE_FAST_ALLOC"           , use_fast_alloc     );
+
+  #if defined(USE_FAST_ALLOC)
+			<< " hashfull " << FAST_ALLOC.hashfull();
+			// →　専用のメモリアロケーターからメモリを割り当てるようにしたので正確に残り空き容量を出力できる。
+#else
+
+
+
 - ふかうら王、局面が進んだ時のメモリ開放ロジック、間違えていた(気がする)。
   - dlshogiと同じように書いたらメモリちゃんと開放されるようになった。
   - FAST_ALLOC使わないことにする。(従来通りに戻す)
