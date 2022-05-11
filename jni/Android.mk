@@ -55,6 +55,10 @@ YANEURAOU_EDITION := YANEURAOU_ENGINE_NNUE
 #YANEURAOU_EDITION := MATE_ENGINE
 #YANEURAOU_EDITION := USER_ENGINE
 
+# やねうら王のcluster機能を使いたいなら、これもdefineする。(define if you want to use YO-cluster)
+YO_CLUSTER = OFF
+#YO_CLUSTER = ON
+
 # エンジンの表示名 (engine displayname)
 # ("usi"コマンドに対して出力される)
 #ENGINE_NAME :=
@@ -226,8 +230,7 @@ LOCAL_SRC_FILES += \
   ../source/eval/nnue/features/half_relative_kp.cpp                    \
   ../source/eval/nnue/features/half_kpe9.cpp                           \
   ../source/eval/nnue/features/pe9.cpp                                 \
-  ../source/engine/yaneuraou-engine/yaneuraou-search.cpp               \
-  ../source/engine/dlshogi-engine/yo_cluster.cpp
+  ../source/engine/yaneuraou-engine/yaneuraou-search.cpp
 	ifeq ($(EVAL_EMBEDDING),ON)
 		LOCAL_SRC_FILES += \
 			../source/eval/nnue/embedded_nnue.cpp
@@ -252,6 +255,13 @@ endif
 
 ifneq ($(ENGINE_NAME),)
 CPPFLAGS += -DENGINE_NAME_FROM_MAKEFILE=$(ENGINE_NAME)
+endif
+
+# cluster
+ifeq ($(YO_CLUSTER),ON)
+	LOCAL_SRC_FILES += \
+		../source/engine/yo-cluster/yo_cluster.cpp
+	CPPFLAGS += -DUSE_YO_CLUSTER
 endif
 
 # 開発用branch
