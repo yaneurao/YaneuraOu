@@ -19,6 +19,7 @@ jobs:
     strategy:
       matrix:
         edition:
+          - YANEURAOU_ENGINE_DEEP_ORT_CPU
           - YANEURAOU_ENGINE_DEEP_TENSOR_RT
         compiler:
           - g++-10
@@ -116,6 +117,12 @@ jobs:
           sudo ls -R /etc/apt/sources.list.d
         if: ${{ matrix.compiler == 'clang++-15' }}
 
+      - name: install ONNXRUNTIME
+        run: |
+          curl --create-dirs -RLo /home/runner/resource/onnxruntime-linux-x64-1.11.1.tgz https://github.com/microsoft/onnxruntime/releases/download/v1.11.1/onnxruntime-linux-x64-1.11.1.tgz
+          tar xvf /home/runner/resource/onnxruntime-linux-x64-1.11.1.tgz -C /home/runner
+        if: ${{ matrix.edition == 'YANEURAOU_ENGINE_DEEP_ORT_CPU' }}
+
       - name: install CUDA, TensorRT
         # ここではCUDAアプリケーションの開発環境用に、CUDAドライバーを含まない cuda-minimal-build-11-6 をインストールしている。
         # CUDAアプリケーションの実行環境用にセットアップする場合、 cuda-minimal-build-11-6 の代わりに
@@ -130,9 +137,17 @@ jobs:
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
           sudo apt install cuda-minimal-build-11-6 cuda-nvrtc-dev-11-6 libcublas-11-6 libcublas-dev-11-6 libnvinfer-dev libnvinfer-plugin-dev libnvonnxparsers-dev libnvparsers-dev
+          echo "/usr/local/cuda/bin" >> $GITHUB_PATH
+        if: ${{ matrix.edition == 'YANEURAOU_ENGINE_DEEP_TENSOR_RT' }}
 
-      - name: make
+      - name: make YANEURAOU_ENGINE_DEEP_ORT_CPU
+        run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS=-fexceptions EXTRA_CPPFLAGS+=-I/home/runner/onnxruntime-linux-x64-1.11.1/include EXTRA_LDFLAGS=-lonnxruntime EXTRA_LDFLAGS+=-L/home/runner/onnxruntime-linux-x64-1.11.1/lib"
+        if: ${{ matrix.edition == 'YANEURAOU_ENGINE_DEEP_ORT_CPU' }}
+        # ONNXRUNTIME版のビルド済みバイナリ実行時、 `/home/runner/onnxruntime-linux-x64-1.11.1/lib` のディレクトリを環境変数 `LD_LIBRARY_PATH` に追加するか、ライブラリ検索パス(`/lib`, `/usr/lib` など)の下にコピーする必要がある。
+
+      - name: make YANEURAOU_ENGINE_DEEP_TENSOR_RT
         run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS=-I/usr/local/cuda-11.6/include EXTRA_LDFLAGS=-L/usr/local/cuda-11.6/lib64 EXTRA_LDFLAGS+=-L/usr/local/cuda-11.6/lib64/stubs"
+        if: ${{ matrix.edition == 'YANEURAOU_ENGINE_DEEP_TENSOR_RT' }}
 
       - uses: actions/upload-artifact@v2
         with:
