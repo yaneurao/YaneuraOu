@@ -554,7 +554,8 @@ constexpr Piece make_promoted_piece(Piece pc) { return (Piece)(pc | PIECE_PROMOT
 constexpr bool has_long_effect(Piece pc) { return (type_of(pc) == LANCE) || (((pc+1) & 6)==6); }
 
 // Pieceの整合性の検査。assert用。
-constexpr bool is_ok(Piece pc) { return NO_PIECE <= pc && pc < PIECE_NB; }
+// Pieceはuintなので "NO_PIECE <= pc"は意味をなさない比較なのでコメントアウトしてある。(コンパイラの警告がでる)
+constexpr bool is_ok(Piece pc) { return /* NO_PIECE <= pc && */ pc < PIECE_NB; }
 
 // Pieceを綺麗に出力する(USI形式ではない) 先手の駒は大文字、後手の駒は小文字、成り駒は先頭に+がつく。盤面表示に使う。
 // "PRETTY_JP"をdefineしていれば、日本語文字での表示になる。
