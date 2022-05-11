@@ -11,8 +11,6 @@
 #include <iomanip>		// std::setw()
 #include <sstream>		// std::stringstream
 
-#include "../../extra/fast_alloc.h"
-
 namespace dlshogi::UctPrint
 {
 	// ---   print PV   ---
@@ -187,12 +185,7 @@ namespace dlshogi::UctPrint
 		nps << " nps "      << (po_info.nodes_searched * 1000LL / (u64)finish_time)
 			<< " time "     <<  finish_time
 			<< " nodes "    <<  po_info.nodes_searched
-#if defined(USE_FAST_ALLOC)
-			<< " hashfull " << FAST_ALLOC.hashfull();
-			// →　専用のメモリアロケーターからメモリを割り当てるようにしたので正確に残り空き容量を出力できる。
-#else
 			<< " hashfull " << (po_info.current_root->move_count * 1000LL / options.uct_node_limit);
-#endif
 		
 		// MultiPVであれば、現在のnodeで複数の候補手を表示する。
 

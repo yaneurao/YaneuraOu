@@ -408,7 +408,6 @@ ifneq (,$(findstring YANEURAOU_ENGINE_DEEP,$(YANEURAOU_EDITION)))
 		eval/deep/nn.cpp                                                \
 		eval/deep/nn_onnx_runtime.cpp                                   \
 		eval/deep/nn_tensorrt.cpp                                       \
-		extra/fast_alloc.cpp                                            \
 		engine/dlshogi-engine/dlshogi_searcher.cpp                      \
 		engine/dlshogi-engine/PrintInfo.cpp                             \
 		engine/dlshogi-engine/UctSearch.cpp                             \

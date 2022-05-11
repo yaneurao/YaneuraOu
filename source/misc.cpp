@@ -349,13 +349,6 @@ const std::string config_info()
 		false;
 #endif
 
-	bool use_fast_alloc =
-#if defined(USE_FAST_ALLOC)
-		true;
-#else
-		false;
-#endif
-
 	bool use_yo_cluster =
 #if defined(USE_YO_CLUSTER)
 		true;
@@ -372,7 +365,6 @@ const std::string config_info()
 	config += o2("USE_GLOBAL_OPTIONS"       , global_options     );
 	config += o2("EVAL_LEARN"               , eval_learn         );
 	config += o2("USE_MATE_DFPN"            , use_mate_dfpn      );
-	config += o2("USE_FAST_ALLOC"           , use_fast_alloc     );
 	config += o2("USE_YO_CLUSTER"           , use_yo_cluster     );
 	
 	// コンパイラ情報もついでに出力する。

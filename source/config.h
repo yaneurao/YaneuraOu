@@ -203,15 +203,6 @@
 // 速度低下はほぼないはず。
 //#define TT_CLUSTER_SIZE 3
 
-// 高速なmemory allocator
-// これをdefineすると、FastAllocが使えるようになる。
-// 
-// これは、ふかうら王で、
-//   1. メモリを高速にnew/deleteする必要があった。
-//   2. USI_Hashで事前に確保したmemory poolから割り当てたかった。
-// ので開発した。
-//#define USE_FAST_ALLOC
-
 // ---------------------
 //  機械学習関連の設定
 // ---------------------
@@ -512,7 +503,6 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_MATE_DFPN
 	#define USE_PIECE_VALUE
 	#define ENABLE_TEST_CMD
-	#define USE_FAST_ALLOC
 
 	// 勝率の集計を行う型としてdouble型を用いる。
 	#define WIN_TYPE_DOUBLE

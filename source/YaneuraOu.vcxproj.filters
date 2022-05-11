@@ -328,9 +328,6 @@
     <ClInclude Include="engine\dlshogi-engine\dlshogi_min.h">
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClInclude>
-    <ClInclude Include="extra\fast_alloc.h">
-      <Filter>リソース ファイル\extra</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -533,9 +530,6 @@
     </ClCompile>
     <ClCompile Include="engine\yo-cluster\yo_cluster.cpp">
       <Filter>リソース ファイル\engine\yo-cluster</Filter>
-    </ClCompile>
-    <ClCompile Include="extra\fast_alloc.cpp">
-      <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

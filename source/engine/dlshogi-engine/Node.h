@@ -7,7 +7,6 @@
 #include <thread>
 #include "../../position.h"
 #include "dlshogi_types.h"
-#include "../../extra//fast_alloc.h"
 
 namespace dlshogi
 {
@@ -38,15 +37,6 @@ namespace dlshogi
 			nnrate     = (float)o.nnrate;
 			return *this;
 		}
-
-#if defined(USE_FAST_ALLOC)
-		// --- use custom memory allocator
-
-		static void* operator new     (std::size_t size) /* throw(std::bad_alloc) */ { return FAST_ALLOC.alloc(size); }
-	    static void* operator new[]   (std::size_t size) /* throw(std::bad_alloc) */ { return FAST_ALLOC.alloc(size); }
-	    static void  operator delete  (void* p         ) /* throw(              ) */ {        FAST_ALLOC.free (p   ); }
-	    static void  operator delete[](void* p         ) /* throw(              ) */ {        FAST_ALLOC.free (p   ); }
-#endif
 
 		// --- public variables
 
@@ -91,15 +81,6 @@ namespace dlshogi
 		Node* CreateChildNode(int i) {
 			return (child_nodes[i] = std::make_unique<Node>()).get();
 		}
-
-#if defined(USE_FAST_ALLOC)
-		// --- use custom memory allocator
-
-		static void* operator new     (std::size_t size) /* throw(std::bad_alloc) */ { return FAST_ALLOC.alloc(size); }
-	    static void* operator new[]   (std::size_t size) /* throw(std::bad_alloc) */ { return FAST_ALLOC.alloc(size); }
-	    static void  operator delete  (void* p         ) /* throw(              ) */ {        FAST_ALLOC.free (p   ); }
-	    static void  operator delete[](void* p         ) /* throw(              ) */ {        FAST_ALLOC.free (p   ); }
-#endif
 
 		// 子ノード1つのみで初期化する。
 		void CreateSingleChildNode(const Move move)
