@@ -70,11 +70,16 @@ namespace dlshogi
 		// 前回思考した時とは異なるゲーム開始局面であるなら異なるゲームである。
 		// root nodeがまだ生成されていない
 
-		if (!game_root_node || this->game_root_sfen != game_root_sfen)
+		if (game_root_node && this->game_root_sfen != game_root_sfen)
 		{
 			// Nodeを作る/作り直す必要がある
 			DeallocateTree();
 			this->game_root_sfen = game_root_sfen;
+		}
+
+		if (!game_root_node) {
+			game_root_node = std::make_unique<Node>();
+			current_head   = game_root_node.get();
 		}
 
 		// 前回の探索開始局面
@@ -99,12 +104,12 @@ namespace dlshogi
 			
 			// 途中でold_headが見つかったならseen_old_headをtrueに。
 			// ここを超えて進んだなら、前回の探索結果が使える。
-			seen_old_head |= old_head == current_head;
+			seen_old_head |= (old_head == current_head);
 		}
 
 		// 前回の局面が見当たらなかった。
 		// 以前の局面に戻っているのか、新しいゲームであるか。
-		if (!seen_old_head)
+		if (!seen_old_head && current_head != old_head)
 		{
 			// 1手前のNodeがある場合、現局面のNodeは今回のゲームで進行した指し手(1手)以外は
 			// 開放してしまっているので、一つ前のNodeから、現局面のNodeを新しく作り直す必要がある。

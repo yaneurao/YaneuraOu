@@ -453,8 +453,12 @@ void is_ready(bool skipCorruptCheck)
 	// このタイミングで各種変数の初期化もしておく。
 
 #if defined(YANEURAOU_ENGINE_DEEP)
-	// ふかうら王では置換表ではなく、memory allocatorに確保する。
+	// ふかうら王では置換表は用いない。
+#if defined(USE_FAST_ALLOC)
+	// memory allocatorに確保する場合。
 	FAST_ALLOC.memory_alloc(size_t(Options["USI_Hash"]));
+#endif
+
 #else
 	TT.resize(size_t(Options["USI_Hash"]));
 #endif

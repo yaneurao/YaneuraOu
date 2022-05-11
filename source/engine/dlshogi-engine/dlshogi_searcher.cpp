@@ -608,6 +608,7 @@ namespace dlshogi
 			return;
 		}
 
+#if defined(USE_FAST_ALLOC)
 		// 10MB切ってたら即座に停止する。
 		if (FAST_ALLOC.rest() < 10 * 1024*1024 )
 		{
@@ -615,6 +616,7 @@ namespace dlshogi
 			interrupt();
 			return ;
 		}
+#endif
 
 		// hashfull
 		// s.current_root->move_count == NOT_EXPANDED  開始まもなくはこれでありうるので、

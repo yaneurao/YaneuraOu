@@ -39,12 +39,14 @@ namespace dlshogi
 			return *this;
 		}
 
+#if defined(USE_FAST_ALLOC)
 		// --- use custom memory allocator
 
 		static void* operator new     (std::size_t size) /* throw(std::bad_alloc) */ { return FAST_ALLOC.alloc(size); }
 	    static void* operator new[]   (std::size_t size) /* throw(std::bad_alloc) */ { return FAST_ALLOC.alloc(size); }
 	    static void  operator delete  (void* p         ) /* throw(              ) */ {        FAST_ALLOC.free (p   ); }
 	    static void  operator delete[](void* p         ) /* throw(              ) */ {        FAST_ALLOC.free (p   ); }
+#endif
 
 		// --- public variables
 
@@ -90,12 +92,14 @@ namespace dlshogi
 			return (child_nodes[i] = std::make_unique<Node>()).get();
 		}
 
+#if defined(USE_FAST_ALLOC)
 		// --- use custom memory allocator
 
 		static void* operator new     (std::size_t size) /* throw(std::bad_alloc) */ { return FAST_ALLOC.alloc(size); }
 	    static void* operator new[]   (std::size_t size) /* throw(std::bad_alloc) */ { return FAST_ALLOC.alloc(size); }
 	    static void  operator delete  (void* p         ) /* throw(              ) */ {        FAST_ALLOC.free (p   ); }
 	    static void  operator delete[](void* p         ) /* throw(              ) */ {        FAST_ALLOC.free (p   ); }
+#endif
 
 		// 子ノード1つのみで初期化する。
 		void CreateSingleChildNode(const Move move)

@@ -303,6 +303,10 @@ void MainThread::search()
 	// これは、isreadyのあと、goの直前まで変更可能
 	searcher.search_options.multi_pv = (ChildNumType)Options["MultiPV"];
 
+	// "position"コマンドが送られずに"go"がきた。
+	if (game_root_sfen.empty())
+		game_root_sfen = SFEN_HIRATE;
+
 	Move ponderMove;
 	Move move = searcher.UctSearchGenmove(&rootPos, game_root_sfen , moves_from_game_root , ponderMove);
 
