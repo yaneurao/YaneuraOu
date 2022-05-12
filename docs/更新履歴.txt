@@ -4,6 +4,12 @@
 ■　2022/05/12
 
 
+- V7.62
+  - ふかうら王、Softmax_Temperatureをdlshogiに合わせて千分率から百分率で指定するように変更。
+  - ふかうら王、Eval_Coefのデフォルト値を756→285に変更。
+  - Mizarさん、プルリク、なんやかや。
+
+
 - ふかうら王、Softmax_Temperatureをdlshogiに合わせて千分率から百分率で指定するように変更。
 
 
