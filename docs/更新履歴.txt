@@ -1,8 +1,42 @@
 ﻿
 やねうら王 更新履歴
 
+■　2022/05/12
+
+
+- ふかうら王、Softmax_Temperatureをdlshogiに合わせて千分率から百分率で指定するように変更。
+
+
+- ふかうら王、Eval_Coefのデフォルト値を756→285に変更。
+  - cf. dlshogiの評価値のスケール調整 : https://tadaoyamaoka.hatenablog.com/entry/2021/10/19/230601
+
+
+-DORT_NO_EXCEPTIONS #242
+  - Mizarさんのプルリク
+  Makefile経由のonnxruntime使用時、-DORT_NO_EXCEPTIONS コンパイルオプションを指定して例外を抑止する
+  cf. https://onnxruntime.ai/docs/api/c/struct_ort_1_1_exception.html
+  -lonnxruntimeリンカオプションの指定をMakefileに移動  
+
 
 ■　2022/05/11
+
+
+- DeepLearning for Ubuntu Linux ビルドテストの修正・追加 (#241)
+  - Mizarさんのプルリク
+* - actions:make-deep-ubuntu: add cuda path, add ORT_CPU
+* - build.sh: YANEURAOU_ENGINE_DEEP_ORT_CPU
+
+
+- ORT model filename #240
+  - Mizarさんのプルリク
+  - Linux環境でモデルファイル名を渡すための修正。
+
+
+- types.hでコンパイラの警告が出るようになっていたの修正。
+
+
+- Makefile修正 #239
+  - Mizarさんのプルリク
 
 
 - V7.61
