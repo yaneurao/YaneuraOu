@@ -60,7 +60,7 @@ void USI::extra_option(USI::OptionsMap& o)
     o["ReuseSubtree"]                << USI::Option(true);
 
 	// 勝率を評価値に変換する時の定数。
-	o["Eval_Coef"]                   << USI::Option(756, 1, 10000);
+	o["Eval_Coef"]                   << USI::Option(285, 1, 10000);
 
 	// 投了値 : 1000分率で
 	o["Resign_Threshold"]            << USI::Option(0, 0, 1000);
