@@ -1,25 +1,6 @@
 ﻿#include "../../config.h"
 
-#if defined(USE_YO_CLUSTER)
-
-#if defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE)
-#if !defined(_WIN32)
-
-// Windows以外の環境は未サポート
-
-#include <sstream>
-#include "../../position.h"
-
-namespace YaneuraouTheCluster
-{
-	// cluster時のUSIメッセージの処理ループ
-	void cluster_usi_loop(Position& pos, std::istringstream& is)
-	{
-		std::cout << "YaneuraouTheCluster does not work on non-Windows systems now." << std::endl;
-	}
-}
-
-#else
+#if defined(USE_YO_CLUSTER) && (defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE))
 
 // ------------------------------------------------------------------------------------------
 // YaneuraouTheCluster
@@ -79,12 +60,7 @@ namespace YaneuraouTheCluster
 #include "../../position.h"
 #include "../../thread.h"
 #include "../../usi.h"
-
-// std::numeric_limits::max()みたいなのを壊さないように。
-//#define NOMINMAX
-// → redefineになる環境があるな。std::max()を(std::max)()にように書いて回避することにする。
-#include <Windows.h>
-
+#include "ProcessNegotiator.h"
 
 #if defined(YANEURAOU_ENGINE_DEEP)
 #include "../dlshogi-engine/dlshogi_min.h"
@@ -286,248 +262,6 @@ namespace YaneuraouTheCluster
 	};
 
 	// ---------------------------------------
-	//          ProcessNegotiator
-	// ---------------------------------------
-
-	// 子プロセスを実行して、子プロセスの標準入出力をリダイレクトするのをお手伝いするクラス。
-	// 1つの子プロセスのつき、1つのProcessNegotiatorの instance が必要。
-	// 
-	// 親プロセス(このプログラム)の終了時に、子プロセスを自動的に終了させたいが、それは簡単ではない。
-	// アプリケーションが終了するときに、子プロセスを自動的に終了させる方法 : https://qiita.com/kenichiuda/items/3079ab93dae564dd5d17
-	// 親プロセスは必ず quit コマンドか何かで正常に終了させるものとする。
-	struct ProcessNegotiator
-	{
-		// 子プロセスの実行
-		// workingDirectory : エンジンを実行する時の作業ディレクトリ 
-		// app_path         : エンジンの実行ファイルのpath (.batファイルでも可) 絶対pathで。
-		void connect(const string& workingDirectory , const string& app_path)
-		{
-			disconnect();
-			terminated = false;
-
-			ZeroMemory(&pi, sizeof(pi));
-			ZeroMemory(&si, sizeof(si));
-
-			si.cb = sizeof(si);
-			si.hStdInput = child_std_in_read;
-			si.hStdOutput = child_std_out_write;
-			si.dwFlags |= STARTF_USESTDHANDLES;
-
-			// Create the child process
-
-			DebugMessageCommon("workingDirectory = " + workingDirectory + " , " + app_path);
-
-			// 注意 : to_wstring()、encodingの問題があって日本語混じってると駄目。
-
-			bool success = ::CreateProcess(
-				NULL,                                         // ApplicationName
-				(LPWSTR)to_wstring(app_path).c_str(),         // CmdLine
-				NULL,                                         // security attributes
-				NULL,                                         // primary thread security attributes
-				TRUE,                                         // handles are inherited
-				CREATE_NO_WINDOW,                             // creation flags
-				NULL,                                         // use parent's environment
-				(LPWSTR)to_wstring(workingDirectory).c_str(), // ここに作業ディレクトリを指定する。(NULLなら親プロセスと同じ)
-				&si,                                          // STARTUPINFO pointer
-				&pi                                           // receives PROCESS_INFOMATION
-			);
-
-			if (success)
-			{
-				engine_path = app_path;
-
-			} else {
-				terminated = true;
-				engine_path = string();
-			}
-		}
-
-		// 子プロセスへの接続を切断する。
-		void disconnect()
-		{
-			if (pi.hProcess) {
-				if (::WaitForSingleObject(pi.hProcess, 1000) != WAIT_OBJECT_0) {
-					::TerminateProcess(pi.hProcess, 0);
-				}
-				::CloseHandle(pi.hProcess);
-				pi.hProcess = nullptr;
-			}
-			if (pi.hThread)
-			{
-				::CloseHandle(pi.hThread);
-				pi.hThread = nullptr;
-			}
-		}
-
-		// 接続されている子プロセスから1行読み込む。
-		string receive()
-		{
-			// 子プロセスが終了しているなら何もできない。
-			if (terminated)
-				return string();
-
-			auto result = receive_next();
-			if (!result.empty())
-				return result;
-
-			DWORD dwExitCode;
-			::GetExitCodeProcess(pi.hProcess, &dwExitCode);
-			if (dwExitCode != STILL_ACTIVE)
-			{
-				// 切断されているので 空の文字列を返す。
-				terminated = true;
-				return string();
-			}
-
-			// ReadFileは同期的に使いたいが、しかしデータがないときにブロックされるのは困るので
-			// pipeにデータがあるのかどうかを調べてからReadFile()する。
-
-			DWORD dwRead, dwReadTotal, dwLeft;
-			CHAR chBuf[BUF_SIZE];
-
-			// bufferサイズは1文字少なく申告して終端に'\0'を付与してstring化する。
-
-			BOOL success = ::PeekNamedPipe(
-				child_std_out_read, // [in]  handle of named pipe
-				chBuf,              // [out] buffer     
-				BUF_SIZE - 1,       // [in]  buffer size
-				&dwRead,            // [out] bytes read
-				&dwReadTotal,       // [out] total bytes avail
-				&dwLeft             // [out] bytes left this message
-			);
-
-			if (success && dwReadTotal > 0)
-			{
-				success = ::ReadFile(child_std_out_read, chBuf, BUF_SIZE - 1, &dwRead, NULL);
-
-				if (success && dwRead != 0)
-				{
-					chBuf[dwRead] = '\0'; // 終端マークを書いて文字列化する。
-					read_buffer += string(chBuf);
-				}
-			}
-			return receive_next();
-		}
-
-		// 接続されている子プロセス(の標準入力)に1行送る。改行は自動的に付与される。
-		bool send(const string& message)
-		{
-			// すでに切断されているので送信できない。
-			if (terminated)
-				return false;
-
-			string s = message + "\r\n"; // 改行コードの付与
-			DWORD dwWritten;
-			BOOL success = ::WriteFile(child_std_in_write, s.c_str(), DWORD(s.length()), &dwWritten, NULL);
-			
-			return success;
-		}
-
-		// プロセスの終了判定
-		bool is_terminated() const { return terminated; }
-
-		// エンジンの実行path
-		// これはconnectの直後に設定され、そのあとは変更されない。connect以降でしか
-		// このプロパティにはアクセスしないので同期は問題とならない。
-		string get_engine_path() const { return engine_path; }
-
-		ProcessNegotiator() { init(); }
-		virtual ~ProcessNegotiator() { disconnect(); }
-
-		// これcopyされてはかなわんので、copyとmoveを禁止しておく。
-		ProcessNegotiator(const ProcessNegotiator& other)         = delete;
-		ProcessNegotiator&& operator = (const ProcessNegotiator&) = delete;
-
-	protected:
-
-		// 確保している読み書きの行buffer size
-		// 長手数になるかも知れないので…。512手×5byte(指し手)として4096あれば512手まではいけるだろう。
-		static const size_t BUF_SIZE = 4096;
-
-		void init()
-		{
-			terminated = false;
-
-			// disconnectでpi.hProcessにアクセスするので0クリア必須。
-			ZeroMemory(&pi, sizeof(pi));
-
-			// pipeの作成
-
-			SECURITY_ATTRIBUTES saAttr;
-
-			saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
-			saAttr.bInheritHandle = TRUE;
-			saAttr.lpSecurityDescriptor = NULL;
-
-			// エラーメッセージ出力用
-			// 失敗しても継続はしないといけない。
-			// これしかし、通常エラーにはならないので、失敗したら終了していいと思う。
-			// (たぶんメモリ枯渇など)
-			auto ERROR_MES = [&](const string& mes) {
-				sync_cout << mes << sync_endl;
-				Tools::exit();
-			};
-
-			if (!::CreatePipe(&child_std_out_read, &child_std_out_write, &saAttr, 0))
-				ERROR_MES("Error! : CreatePipe : std out");
-
-			if (!::SetHandleInformation(child_std_out_read, HANDLE_FLAG_INHERIT, 0))
-				ERROR_MES("Error! : SetHandleInformation : std out");
-
-			if (!::CreatePipe(&child_std_in_read, &child_std_in_write, &saAttr, 0))
-				ERROR_MES("Error! : CreatePipe : std in");
-
-			if (!::SetHandleInformation(child_std_in_write, HANDLE_FLAG_INHERIT, 0))
-				ERROR_MES("Error! : SetHandleInformation : std in");
-		}
-
-		string receive_next()
-		{
-			// read_bufferから改行までを切り出す
-			auto it = read_buffer.find("\n");
-			if (it == string::npos)
-				return string();
-			// 切り出したいのは"\n"の手前まで(改行コード不要)、このあと"\n"は捨てたいので
-			// it+1から最後までが次回まわし。
-			auto result = read_buffer.substr(0, it);
-			read_buffer = read_buffer.substr(it + 1, read_buffer.size() - it);
-			// "\r\n"かも知れないので"\r"も除去。
-			if (result.size() && result[result.size() - 1] == '\r')
-				result = result.substr(0, result.size() - 1);
-
-			return result;
-		}
-
-		// wstring変換
-		wstring to_wstring(const string& src)
-		{
-			size_t ret;
-			wchar_t *wcs = new wchar_t[src.length() + 1];
-			::mbstowcs_s(&ret, wcs, src.length() + 1, src.c_str(), _TRUNCATE);
-			wstring result = wcs;
-			delete[] wcs;
-			return result;
-		}
-
-		PROCESS_INFORMATION pi;
-		STARTUPINFO si;
-
-		HANDLE child_std_out_read;
-		HANDLE child_std_out_write;
-		HANDLE child_std_in_read;
-		HANDLE child_std_in_write;
-
-		// プロセスが終了したかのフラグ
-		atomic<bool> terminated;
-
-		// 受信バッファ
-		string read_buffer;
-
-		// プロセスのpath
-		string engine_path;
-	};
-
-	// ---------------------------------------
 	//          Message System
 	// ---------------------------------------
 
@@ -674,7 +408,7 @@ namespace YaneuraouTheCluster
 		// エンジンを起動する。
 		// このメソッドは起動直後に、最初に一度だけmain threadから呼び出す。
 		// (これとdisconnect以外のメソッドは observer が生成したスレッドから呼び出される)
-		// path : エンジンの実行ファイルpath ("engines/" 相対)
+		// path : エンジンの実行path。 ("engines/" 相対で指定する)
 		void connect(const string& path, size_t engine_id_)
 		{
 			engine_id = engine_id_;
@@ -682,25 +416,25 @@ namespace YaneuraouTheCluster
 			// エンジンの作業ディレクトリ。これはエンジンを実行するフォルダにしておいてやる。
 			string working_directory = Path::GetDirectoryName(Path::Combine(CommandLine::workingDirectory , "engines/" + path));
 
-			// エンジンのファイル名。
-			string engine_path = Path::Combine("engines/", path);
+			// エンジンのファイル名。(エンジンのworking_directory相対)
+			string engine_name = Path::GetFileName(path);
 
 			// 特殊なコマンドを実行したいなら"engines/"とかつけたら駄目。
 			if (StringExtension::StartsWith(path,"ssh"))
 			{
 				working_directory = Path::GetDirectoryName(Path::Combine(CommandLine::workingDirectory , "engines"));
-				engine_path = path;
+				engine_name = path;
 			}
 
-			neg.connect(working_directory, engine_path);
+			neg.connect(working_directory, engine_name);
 
 			if (is_terminated())
 				// 起動に失敗したくさい。
-				error_to_gui("fail to connect = " + path);
+				error_to_gui("fail to connect = " + engine_name);
 			else
 			{
 				// エンジンが起動したので出力しておく。
-				DebugMessage(": Invoke Engine , engine_path = " + path + " , engine_id = " + std::to_string(engine_id));
+				DebugMessage(": Invoke Engine , engine_path = " + engine_name + " , engine_id = " + std::to_string(engine_id));
 
 				// 起動直後でまだメッセージの受信スレッドが起動していないので例外的にmain threadからchange_state()を
 				// 呼び出しても大丈夫。
@@ -2263,7 +1997,4 @@ namespace YaneuraouTheCluster
 
 } // namespace YaneuraouTheCluster
 
-#endif // !defined(_WIN32)
-#endif //  defined(YANEURAOU_ENGINE_DEEP)
-
-#endif //  defined(USE_YO_CLUSTER)
+#endif // defined(USE_YO_CLUSTER) && (defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE))

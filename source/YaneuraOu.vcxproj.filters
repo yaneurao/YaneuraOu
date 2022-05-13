@@ -328,6 +328,9 @@
     <ClInclude Include="engine\dlshogi-engine\dlshogi_min.h">
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClInclude>
+    <ClInclude Include="engine\yo-cluster\ProcessNegotiator.h">
+      <Filter>リソース ファイル\engine\yo-cluster</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -529,6 +532,9 @@
       <Filter>リソース ファイル\eval\nnue\features</Filter>
     </ClCompile>
     <ClCompile Include="engine\yo-cluster\yo_cluster.cpp">
+      <Filter>リソース ファイル\engine\yo-cluster</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\yo-cluster\ProcessNegotiator.cpp">
       <Filter>リソース ファイル\engine\yo-cluster</Filter>
     </ClCompile>
   </ItemGroup>

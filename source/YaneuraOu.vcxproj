@@ -625,6 +625,7 @@
     <ClInclude Include="engine\dlshogi-engine\PrintInfo.h" />
     <ClInclude Include="engine\dlshogi-engine\UctSearch.h" />
     <ClInclude Include="engine\yaneuraou-engine\yaneuraou-param.h" />
+    <ClInclude Include="engine\yo-cluster\ProcessNegotiator.h" />
     <ClInclude Include="evaluate.h" />
     <ClInclude Include="eval\deep\nn_types.h" />
     <ClInclude Include="eval\deep\nn.h" />
@@ -711,6 +712,7 @@
     <ClCompile Include="engine\user-engine\user-search.cpp" />
     <ClCompile Include="engine\yaneuraou-engine\yaneuraou-search.cpp" />
     <ClCompile Include="engine\yaneuraou-mate-engine\yaneuraou-mate-search.cpp" />
+    <ClCompile Include="engine\yo-cluster\ProcessNegotiator.cpp" />
     <ClCompile Include="engine\yo-cluster\yo_cluster.cpp" />
     <ClCompile Include="eval\deep\nn_types.cpp" />
     <ClCompile Include="eval\deep\nn.cpp" />
