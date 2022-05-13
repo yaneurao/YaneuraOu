@@ -120,7 +120,7 @@ namespace YaneuraouTheCluster
 		{
 			if (file_log_ptr == nullptr)
 				file_log_ptr = fopen("cluster-log.txt","a");
-			fprintf(file_log_ptr , message.c_str());
+			fprintf(file_log_ptr , "%s", (const char*)message.c_str());
 			fprintf(file_log_ptr , "\n");
 			fflush(file_log_ptr);
 			return ;

@@ -487,6 +487,7 @@ endif
 
 ifeq ($(YO_CLUSTER),ON)
 	SOURCES += \
+		engine/yo-cluster/ProcessNegotiator.cpp   \
 		engine/yo-cluster/yo_cluster.cpp
 	CPPFLAGS += -DUSE_YO_CLUSTER
 endif

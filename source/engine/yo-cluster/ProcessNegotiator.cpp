@@ -265,7 +265,7 @@ protected:
 	std::string engine_path;
 };
 
-#elif // defined(_WIN32)
+#else // defined(_WIN32)
 
 // Linux環境である。Linux用の実装を頑張って書いた。
 
@@ -342,9 +342,10 @@ public:
     }
 
     // PIPEに1行を書き込む。
-    void write(std::string mes)
+    bool write(std::string mes)
     {
-        ::write(handles[PIPE_TYPE::WRITE], mes.c_str() , mes.size());
+        ssize_t result = ::write(handles[PIPE_TYPE::WRITE], mes.c_str() , mes.size());
+		return result != (ssize_t)-1;
     }
 
     // PIPEから1行を読み出す。何も読みだせなければ空のstringが返る。
@@ -376,10 +377,13 @@ protected:
     bool opened[2];
 };
 
-class EngineNegotiatorImpl
+class ProcessNegotiatorImpl : public IProcessNegotiator
 {
 public:
-    // workingDirectory : エンジンの作業フォルダ
+	// あとで何とかするかも。(しないかも)
+	void DebugMessageCommon(const std::string& message){}
+
+	// workingDirectory : エンジンの作業フォルダ
     // app_path         : 起動するエンジンのpath。同じフォルダにあるならLinuxの場合、"./YO_engine.out"のように"./"をつけてやる必要があるが、
     //                    同じフォルダにエンジンを配置しないと思うので、そういう仕様だということにしておく。
 	virtual void connect(const std::string& workingDirectory , const std::string& app_path)
@@ -387,7 +391,11 @@ public:
         p2c.create_pipe();
         c2p.create_pipe();
         terminated  = false;
-        engine_path = app_path;
+
+		DebugMessageCommon("workingDirectory = " + workingDirectory + " , " + app_path);
+		string app_path2 = Path::Combine(workingDirectory, app_path);
+
+		engine_path = app_path2;
 
         pid = fork();
         if (pid == 0) {
@@ -462,7 +470,7 @@ public:
 
     // 子プロセスを強制的に終了させる。
     // 本来は"quit"コマンドで終了させるべき。
-    void disconnected()
+    virtual void disconnect()
     {
         if (!terminated && pid)
         {
@@ -479,17 +487,18 @@ public:
 
     // 子プロセスに送信する。
     // ※　これはnon blocking method。
-    void send(const std::string& mes)
+    virtual bool send(const std::string& mes)
     {
         if (!terminated)
             p2c.write(mes + "\r\n");
+		return true;
     }
 
     // 子プロセスから受信する。
     // メッセージがないときは空の文字列が返る。
     // 改行は含まない。
     // ※　これはnon blocking method。
-    std::string receive()
+    virtual std::string receive()
     {
         if (terminated)
             return std::string();
@@ -516,13 +525,22 @@ public:
 
     // 子プロセスが終了したかの判定
     // フラグは、receive()のタイミングで更新される。
-    bool is_terminated() const
+    virtual bool is_terminated() const
     {
         return terminated;
     }
 
-    EngineNegotiatorImpl() : pid(0) , terminated(false) {}
-    ~EngineNegotiatorImpl() { disconnected(); }
+	// エンジンの実行path
+	// これはconnectの直後に設定され、そのあとは変更されない。connect以降でしか
+	// このプロパティにはアクセスしないので同期は問題とならない。
+	virtual std::string get_engine_path() const { return engine_path; }
+
+    ProcessNegotiatorImpl() : pid(0) , terminated(false) {}
+    ~ProcessNegotiatorImpl() { disconnect(); }
+
+	// これcopyされてはかなわんので、copyとmoveを禁止しておく。
+	ProcessNegotiatorImpl(const ProcessNegotiatorImpl& other)         = delete;
+	ProcessNegotiatorImpl&& operator = (const ProcessNegotiatorImpl&) = delete;
 
 protected:
 	std::string receive_next()
