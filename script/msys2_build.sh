@@ -4,7 +4,7 @@
 # ビルド用パッケージの導入
 # $ pacman --needed --noconfirm -Syuu
 # $ pacman --needed --noconfirm -Syuu pactoys
-# $ pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m
+# $ pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m base-devel:
 # MSYS2パッケージの更新、更新出来る項目が無くなるまで繰り返し実行、場合によってはMSYS2の再起動が必要
 # $ pacman -Syuu --noconfirm
 
