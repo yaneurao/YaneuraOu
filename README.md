@@ -45,6 +45,7 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 |AWSでやねうら王を動かす| [AWSでやねうら王](https://github.com/yaneurao/YaneuraOu/wiki/AWSでやねうら王)|中級~開発者|
 |やねうら王学習コマンド|[やねうら王学習コマンド](https://github.com/yaneurao/YaneuraOu/wiki/やねうら王学習コマンド)|開発者|
 |パラメーター自動調整フレームワーク|[パラメーター自動調整フレームワーク](https://github.com/yaneurao/YaneuraOu/wiki/パラメーター自動調整フレームワーク)|開発者|
+|探索部の計測資料|[探索部の計測資料](探索部の計測資料)|開発者|
 |廃止したコマンド・オプションなど| [過去の資料](https://github.com/yaneurao/YaneuraOu/wiki/過去の資料)|開発者|
 
 # 現在進行中のサブプロジェクト
