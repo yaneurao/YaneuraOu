@@ -11,8 +11,6 @@ Global
 		Debug-Deep-ORT-CPU|x86 = Debug-Deep-ORT-CPU|x86
 		Debug-Deep-ORT-DML|x64 = Debug-Deep-ORT-DML|x64
 		Debug-Deep-ORT-DML|x86 = Debug-Deep-ORT-DML|x86
-		Debug-Deep-ORT-MKL|x64 = Debug-Deep-ORT-MKL|x64
-		Debug-Deep-ORT-MKL|x86 = Debug-Deep-ORT-MKL|x86
 		Debug-Deep-ORT-TRT|x64 = Debug-Deep-ORT-TRT|x64
 		Debug-Deep-ORT-TRT|x86 = Debug-Deep-ORT-TRT|x86
 		Debug-Deep-TensorRT|x64 = Debug-Deep-TensorRT|x64
@@ -33,8 +31,6 @@ Global
 		Release-Deep-ORT-CPU|x86 = Release-Deep-ORT-CPU|x86
 		Release-Deep-ORT-DML|x64 = Release-Deep-ORT-DML|x64
 		Release-Deep-ORT-DML|x86 = Release-Deep-ORT-DML|x86
-		Release-Deep-ORT-MKL|x64 = Release-Deep-ORT-MKL|x64
-		Release-Deep-ORT-MKL|x86 = Release-Deep-ORT-MKL|x86
 		Release-Deep-ORT-TRT|x64 = Release-Deep-ORT-TRT|x64
 		Release-Deep-ORT-TRT|x86 = Release-Deep-ORT-TRT|x86
 		Release-Deep-TensorRT|x64 = Release-Deep-TensorRT|x64
@@ -67,9 +63,6 @@ Global
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-DML|x64.ActiveCfg = Debug-Deep-ORT-DML|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-DML|x64.Build.0 = Debug-Deep-ORT-DML|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-DML|x86.ActiveCfg = Debug-Deep-ORT-DML|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-MKL|x64.ActiveCfg = Debug-Deep-ORT-MKL|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-MKL|x64.Build.0 = Debug-Deep-ORT-MKL|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-MKL|x86.ActiveCfg = Debug-Deep-ORT-MKL|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-TRT|x64.ActiveCfg = Debug-Deep-ORT-TRT|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-TRT|x64.Build.0 = Debug-Deep-ORT-TRT|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Debug-Deep-ORT-TRT|x86.ActiveCfg = Debug-Deep-ORT-TRT|x64
@@ -100,9 +93,6 @@ Global
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-ORT-DML|x64.ActiveCfg = Release-Deep-ORT-DML|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-ORT-DML|x64.Build.0 = Release-Deep-ORT-DML|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-ORT-DML|x86.ActiveCfg = Release-Deep-ORT-DML|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-ORT-MKL|x64.ActiveCfg = Release-Deep-ORT-MKL|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-ORT-MKL|x64.Build.0 = Release-Deep-ORT-MKL|x64
-		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-ORT-MKL|x86.ActiveCfg = Release-Deep-ORT-MKL|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-ORT-TRT|x64.ActiveCfg = Release-Deep-ORT-TRT|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-ORT-TRT|x64.Build.0 = Release-Deep-ORT-TRT|x64
 		{28C8605A-4E8E-4F59-99B5-96F545BC7D5E}.Release-Deep-ORT-TRT|x86.ActiveCfg = Release-Deep-ORT-TRT|x64

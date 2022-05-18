@@ -28,10 +28,6 @@ namespace Eval::dlshogi
 		Ort::SessionOptions session_options;
 		session_options.DisableMemPattern();
 		session_options.SetExecutionMode(ORT_SEQUENTIAL);
-#if defined(ORT_MKL)
-		session_options.SetInterOpNumThreads((int)Options["InterOpNumThreads"]);
-		session_options.SetIntraOpNumThreads((int)Options["IntraOpNumThreads"]);
-#endif
 #if defined(ORT_DML)
 		Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_DML(session_options, gpu_id));
 #elif defined(ORT_TRT)
@@ -114,7 +110,7 @@ namespace Eval::dlshogi
 #endif
 		return device_count;
 #else
-		// ORT_CPU, ORT_MKL ではデバイス数を1とする
+		// ORT_CPU ではデバイス数を1とする
 		return 1;
 #endif
 	}

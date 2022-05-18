@@ -419,10 +419,10 @@ public:
             arg[0] = (char*) engine_path.c_str();
             arg[1] = NULL;
 
-            // 子プロセスの場合は、親→子への書き込みはありえないのでcloseする
+            // 子プロセスの場合は、親→子への書き込みは使わないのでcloseする
             p2c.close_pipe(PIPE_TYPE::WRITE);
             
-            // 子プロセスの場合は、子→親の読み込みはありえないのでcloseする
+            // 子プロセスの場合は、子→親の読み込みは使わないのでcloseする
             c2p.close_pipe(PIPE_TYPE::READ);
             
             // 親→子への出力を標準入力として割り当て
@@ -461,7 +461,9 @@ public:
         // std::cout << "pid: " << pid << std::endl;
         int status = 0;
 
+		// 親プロセスでは、親→子の読み込みは使わないので閉じる。
         p2c.close_pipe(PIPE_TYPE::READ );
+		// 親プロセスでは、子→親への書き込みは使わないので閉じる。
         c2p.close_pipe(PIPE_TYPE::WRITE);
 
         // 読み出しをnon blockingに

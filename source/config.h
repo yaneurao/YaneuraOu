@@ -813,8 +813,6 @@ constexpr bool pretty_jp = false;
 			#define EVAL_TYPE_NAME "ORT_CPU-" << EVAL_DEEP
 		#elif defined(ORT_DML)
 			#define EVAL_TYPE_NAME "ORT_DML-" << EVAL_DEEP
-		#elif defined(ORT_MKL)
-			#define EVAL_TYPE_NAME "ORT_MKL-" << EVAL_DEEP
 		#elif defined(ORT_TRT)
 			#define EVAL_TYPE_NAME "ORT_TRT-" << EVAL_DEEP
 		#else

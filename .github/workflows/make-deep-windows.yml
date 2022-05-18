@@ -37,7 +37,6 @@ jobs:
         run: |
           MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-CPU /p:Platform=x64
           MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-DML /p:Platform=x64
-          MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-MKL /p:Platform=x64
           MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-TRT /p:Platform=x64
         working-directory: main
 

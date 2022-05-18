@@ -539,12 +539,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="..\docs\USI拡張コマンド.txt">
-      <Filter>docs</Filter>
-    </Text>
-    <Text Include="..\docs\解説.txt">
-      <Filter>docs</Filter>
-    </Text>
     <Text Include="..\docs\やねうら大定跡.txt">
       <Filter>docs</Filter>
     </Text>

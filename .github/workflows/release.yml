@@ -232,7 +232,6 @@ jobs:
         run: |
           MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-CPU /p:Platform=x64
           MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-DML /p:Platform=x64
-          MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-MKL /p:Platform=x64
           MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-TRT /p:Platform=x64
         working-directory: main
 
@@ -1350,8 +1349,7 @@ jobs:
             - [${{ steps.version.outputs.filename }}-deep-windows.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-deep-windows.7z) (${{ steps.archive_size.outputs.deep_windows_7z }})
               - 7.の実行ファイルWindows版 (AVX2)
                 - ONNX Runtime (ORT) 版の実行には、Visual C++の実行ランタイムが別途必要です。エンジン実行時に「`VCRUNTIME140_1.dll`が見つからないため、コードの実行を続行できません。」のようなエラーが表示される場合、別途 [Microsoft Visual C++ 2015-2022 Redistributable (x64), `VC_redist.x64.exe`](https://aka.ms/vs/17/release/VC_redist.x64.exe) をダウンロード・実行してインストールして下さい。
-                - ORT-CPU : ONNX Runtime (ORT) のデフォルト、CPU向け。（MKL向けの設定を別途適切に行えば、おそらくORT-MKLのが高速）
-                - ORT-MKL : Intel(R) Math Kernel Library (MKL) を使用、CPU向け。
+                - ORT-CPU : ONNX Runtime (ORT) のデフォルト、CPU向け。
                   cf. [ONNX Runtimeを使ってみる その2(性能測定)](https://tadaoyamaoka.hatenablog.com/entry/2020/06/06/190259)
                 - ORT-DML : Windows 10 DirectML (DML) 対応のGPU向け。（対応環境であればおそらくORT-TRT や TensorRTのが高速）
                   cf. [DirectML の概要](https://docs.microsoft.com/ja-jp/windows/win32/direct3d12/dml-intro)

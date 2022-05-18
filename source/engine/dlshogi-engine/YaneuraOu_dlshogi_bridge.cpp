@@ -150,14 +150,6 @@ void USI::extra_option(USI::OptionsMap& o)
 	o["DNN_Batch_Size15"]             << USI::Option(0, 0, 1024);
 	o["DNN_Batch_Size16"]             << USI::Option(0, 0, 1024);
 
-#if defined(ORT_MKL)
-	// nn_onnx_runtime.cpp の NNOnnxRuntime::load() で使用するオプション。
-	// グラフ全体のスレッド数?（default値1）ORT_MKLでは効果が無いかもしれない。
-	o["InterOpNumThreads"]           << USI::Option(1, 1, 65536);
-	// ノード内の実行並列化の際のスレッド数設定（default値4、NNUE等でのThreads相当）
-	o["IntraOpNumThreads"]           << USI::Option(4, 1, 65536);
-#endif
-
     //(*this)["Const_Playout"]               = USIOption(0, 0, int_max);
 	// →　Playout数固定。これはNodeLimitでできるので不要。
 
