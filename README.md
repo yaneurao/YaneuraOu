@@ -67,3 +67,16 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 やねうら王プロジェクトのソースコードはStockfishをそのまま用いている部分が多々あり、Apery/SilentMajorityを参考にしている部分もありますので、やねうら王プロジェクトは、それらのプロジェクトのライセンス(GPLv3)に従うものとします。
 
 「リゼロ評価関数ファイル」については、やねうら王プロジェクトのオリジナルですが、一切の権利は主張しませんのでご自由にお使いください。
+
+# やねうら王プロジェクト関連リンク
+
+やねうら王関連の最新情報がキャッチできる主要なサイトです。
+
+|サイト | リンク|
+|-----|-----|
+|やねうら王公式ブログ | https://yaneuraou.yaneu.com/|
+|やねうら王mini 公式 (解説記事等)| http://yaneuraou.yaneu.com/YaneuraOu_Mini/|
+|やねうら王Twitter | https://twitter.com/yaneuraou|
+|やねうら王公式ちゃんねる(YouTube) | https://www.youtube.com/c/yanechan|
+
+上記のやねうら王公式ブログでは、コンピュータ将棋に関する情報を大量に発信していますので、やねうら王に興味がなくとも、コンピュータ将棋の開発をしたいなら、非常に参考になると思います。
