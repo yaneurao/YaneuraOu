@@ -124,9 +124,9 @@ jobs:
         if: ${{ matrix.edition == 'YANEURAOU_ENGINE_DEEP_ORT_CPU' }}
 
       - name: install CUDA, TensorRT
-        # ここではCUDAアプリケーションの開発環境用に、CUDAドライバーを含まない cuda-minimal-build-11-6 をインストールしている。
-        # CUDAアプリケーションの実行環境用にセットアップする場合、 cuda-minimal-build-11-6 の代わりに
-        # CUDAドライバーを含むメタパッケージ、 cuda-11-6 もしくは cuda をインストールする。
+        # ここではCUDAアプリケーションの開発環境用に、CUDAドライバーを含まない cuda-minimal-build-11-7 をインストールしている。
+        # CUDAアプリケーションの実行環境用にセットアップする場合、 cuda-minimal-build-11-7 の代わりに
+        # CUDAドライバーを含むメタパッケージ、 cuda-11-7 もしくは cuda をインストールする。
         # https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#package-manager-metas
         # https://github.com/NVIDIA/cuda-repo-management/issues/4
         run: |
@@ -136,7 +136,7 @@ jobs:
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install cuda-minimal-build-11-6 cuda-nvrtc-dev-11-6 libcublas-11-6 libcublas-dev-11-6 libnvinfer-dev libnvinfer-plugin-dev libnvonnxparsers-dev libnvparsers-dev
+          sudo apt install cuda-minimal-build-11-7 cuda-nvrtc-dev-11-7 libcublas-11-7 libcublas-dev-11-7 libnvinfer-dev libnvinfer-plugin-dev libnvonnxparsers-dev libnvparsers-dev
           echo "/usr/local/cuda/bin" >> $GITHUB_PATH
         if: ${{ matrix.edition == 'YANEURAOU_ENGINE_DEEP_TENSOR_RT' }}
 
@@ -147,7 +147,7 @@ jobs:
         # ライブラリ検索パス(`/usr/local/lib` など)の下にコピーし、root権限にてldconfigを実行してライブラリキャッシュを更新する。
 
       - name: make YANEURAOU_ENGINE_DEEP_TENSOR_RT
-        run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS=-I/usr/local/cuda-11.6/include EXTRA_LDFLAGS=-L/usr/local/cuda-11.6/lib64 EXTRA_LDFLAGS+=-L/usr/local/cuda-11.6/lib64/stubs"
+        run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS=-I/usr/local/cuda-11.7/include EXTRA_LDFLAGS=-L/usr/local/cuda-11.7/lib64 EXTRA_LDFLAGS+=-L/usr/local/cuda-11.7/lib64/stubs"
         if: ${{ matrix.edition == 'YANEURAOU_ENGINE_DEEP_TENSOR_RT' }}
 
       - uses: actions/upload-artifact@v2
