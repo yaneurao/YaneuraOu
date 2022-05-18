@@ -577,9 +577,6 @@
     <None Include="..\script\engine_invoker5.py">
       <Filter>script</Filter>
     </None>
-    <None Include="..\docs\README2017.md">
-      <Filter>docs</Filter>
-    </None>
     <None Include="Makefile">
       <Filter>リソース ファイル</Filter>
     </None>

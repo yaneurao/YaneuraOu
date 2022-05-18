@@ -1,7 +1,80 @@
 ﻿
 やねうら王 更新履歴
 
+
+■　2022/05/14
+
+
+- yo_cluster for Linux
+  - fprintf()でコンパイル時に警告出ていたの修正。
+  - makefileにProcessNegotiator.cpp追加するの忘れていたの修正。
+  - ProcessNegotiator.cpp、#elseを#elifと書いていたの修正。
+  - Linux用のProcessNegotiator、EngineNegotiatorと書いていたの修正。
+  - Linux用のProcessNegotiatorがコンパイルエラーになっていたの諸々修正。
+  - これでWindows版と同等に動くようになった。
+
+
+■　2022/05/13
+
+
+- ProcessNegotiator、Linux対応。
+  - yo_cluster、これでLinuxでも動くかも。
+  - まだコンパイル＆動作テストはやってない。
+  - 動作テストは明日やる。
+
+
 ■　2022/05/12
+
+
+- ProcessNegotiatorをIProcessNegotiator,ProcessNegotiatorImplに分離。
+
+- EngineNegotiator、copy, move可能に。
+	// これcopyされてはかなわんので、copyとmoveを禁止しておく。
+	EngineNegotiator(const EngineNegotiator& other)         = delete;
+	EngineNegotiator&& operator = (const EngineNegotiator&) = delete;
+
+- fixed_size_vector廃止。
+
+#if 0
+	// 固定長のvector
+	// 
+	// 通常のvectorはコンテナにcopy,moveが可能なことを要求するのだが、それをされたくない。
+	// かと言って、shared_ptrで配列確保するのも嫌。vectorのように使えて欲しい。
+	// 次善策としては、vector<shared_ptr<T>>なんだけど、ことあるごとに .get() とか -> とか書きたくない。
+	template <typename T>
+	class fixed_size_vector
+	{
+	public:
+
+		size_t size() const       { return s; }
+		void   resize(size_t n)   { release(); ptr = new T[n]; s = n; }
+		void   release()          { if (ptr) { delete[] ptr; ptr=nullptr; } }
+
+		T& operator[](size_t n)   { return ptr[n]; }
+
+		typedef T* iterator;
+		typedef const T* const_iterator;
+
+		iterator       begin()       { return ptr    ; }
+		iterator       end  ()       { return ptr + s; }
+		const_iterator begin() const { return ptr    ; }
+		const_iterator end  () const { return ptr + s; }
+
+		~fixed_size_vector()    { release(); }
+
+	private:
+		T*     ptr = nullptr;
+		size_t s   = 0;
+	};
+#endif
+
+
+	// ムーブコンストラクタ
+	ProcessNegotiator(ProcessNegotiator&& o) noexcept : ptr(std::move(o.ptr)){}
+
+	// ムーブ代入演算子
+	ProcessNegotiator& operator=(ProcessNegotiator&& o) noexcept { ptr = std::move(o.ptr); }
+
 
 
 - V7.62
