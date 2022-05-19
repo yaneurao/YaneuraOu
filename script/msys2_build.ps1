@@ -10,7 +10,7 @@
 
 msys2_shell.cmd -msys2 -defterm -no-start -lc 'pacman --needed --noconfirm -Syuu';
 msys2_shell.cmd -msys2 -defterm -no-start -lc 'pacman --needed --noconfirm -Syuu pactoys';
-msys2_shell.cmd -msys2 -defterm -no-start -lc 'pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m';
+msys2_shell.cmd -msys2 -defterm -no-start -lc 'pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m base-devel:';
 
 # MSYS2パッケージの更新、更新出来る項目が無くなるまで繰り返し実行、場合によってはMSYS2の再起動が必要
 #>

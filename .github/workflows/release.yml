@@ -92,7 +92,7 @@ jobs:
           C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu'
           C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu'
           C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu pactoys'
-          C:\msys64\usr\bin\bash.exe -lc 'pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m'
+          C:\msys64\usr\bin\bash.exe -lc 'pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m base-devel:'
           $ErrorActionPreference = 'Stop'
 
       - name: make
@@ -190,7 +190,7 @@ jobs:
           C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu'
           C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu'
           C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu pactoys'
-          C:\msys64\usr\bin\bash.exe -lc 'pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m'
+          C:\msys64\usr\bin\bash.exe -lc 'pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m base-devel:'
           $ErrorActionPreference = 'Stop'
 
       - name: make
@@ -465,7 +465,7 @@ jobs:
           C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu'
           C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu'
           C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu pactoys'
-          C:\msys64\usr\bin\bash.exe -lc 'pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m'
+          C:\msys64\usr\bin\bash.exe -lc 'pacboy --needed --noconfirm -Syuu clang:m lld:m openblas:x openmp:x toolchain:m base-devel:'
           $ErrorActionPreference = 'Stop'
 
       - name: suisho5 embedded_nnue
@@ -1354,26 +1354,33 @@ jobs:
                 - ORT-DML : Windows 10 DirectML (DML) 対応のGPU向け。（対応環境であればおそらくORT-TRT や TensorRTのが高速）
                   cf. [DirectML の概要](https://docs.microsoft.com/ja-jp/windows/win32/direct3d12/dml-intro)
                 - ORT-TRT : NVIDIA TensorRT 対応のGPU向け。CUDA, cuDNN, TensorRT の導入も必要です。
-                  - CUDA (開発環境は 11.6.2)
+                  - CUDA (開発環境は 11.7.0)
                     - [Latest CUDA Toolkit Download](https://developer.nvidia.com/cuda-downloads)
                     - [CUDA Toolkit Archive](https://developer.nvidia.com/cuda-toolkit-archive)
                     - [CUDA Installation Guide for Microsoft Windows (CUDAインストール手順, CUDA 最新版)](https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/index.html)
-                    - CUDA Toolkit 11.6.2 の場合の導入例:
-                      - [Local Installer (2.5GB)](https://developer.download.nvidia.com/compute/cuda/11.6.2/local_installers/cuda_11.6.2_511.65_windows.exe) もしくは [Network Installer (33.6MB)](https://developer.download.nvidia.com/compute/cuda/11.6.2/network_installers/cuda_11.6.2_windows_network.exe) をダウンロード・実行してインストール
-                  - cuDNN (開発環境は [v8.2.4 (Archive)](https://developer.nvidia.com/rdp/cudnn-archive))
-                    - [cuDNN Download](https://developer.nvidia.com/rdp/cudnn-download) (要ログイン)
-                    - (注: Windows版では現状、v8.3.x 系は非推奨。過去のバージョンは [cuDNN Archive](https://developer.nvidia.com/rdp/cudnn-archive) (要ログイン) を参照。)
+                    - CUDA Toolkit 11.7.0 の場合の導入例:
+                      - [Local Installer (2.5GB)](https://developer.download.nvidia.com/compute/cuda/11.7.0/local_installers/cuda_11.7.0_516.01_windows.exe) もしくは [Network Installer (34.7MB)](https://developer.download.nvidia.com/compute/cuda/11.7.0/network_installers/cuda_11.7.0_windows_network.exe) をダウンロード・実行してインストール
+                  - cuDNN (開発環境は v8.4.0)
+                    - [cuDNN Download (最新のバージョン)](https://developer.nvidia.com/rdp/cudnn-download) (要ログイン)
+                    - [cuDNN Archive (過去のバージョン)](https://developer.nvidia.com/rdp/cudnn-archive) (要ログイン)
                     - [Installing cuDNN On Windows (cuDNNインストール手順)](https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#install-windows)
-                    - cuDNN v8.2.4 (`cudnn-11.4-windows-x64-x64-v8.2.4.15.zip`) の場合の導入例:
-                      - ダウンロードした `cudnn-11.4-windows-x64-x64-v8.2.4.15.zip` を右クリック → 「すべて展開」 → 展開時に展開されたファイルを表示する
-                      - `cudnn-11.4-windows-x64-x64-v8.2.4.15/cuda/bin` フォルダ階層を選択して表示
+                    - cuDNN v8.4.0 (`cudnn-windows-x86_64-8.4.0.27_cuda11.6-archive.zip`) の場合の導入例:
+                      - ダウンロードした `cudnn-windows-x86_64-8.4.0.27_cuda11.6-archive.zip` を右クリック → 「すべて展開」 → 展開時に展開されたファイルを表示する
+                      - `cudnn-windows-x86_64-8.4.0.27_cuda11.6-archive/bin` フォルダ階層を選択して表示
                       - `cudnn_adv_infer64_8.dll`, `cudnn_cnn_infer64_8.dll`, `cudnn_ops_infer64_8.dll`, `cudnn64_8.dll` (種類: アプリケーション拡張) の4つのファイルを選択し、`YaneuraOu-Deep-ORT-TRT.exe` と同じフォルダにコピー
-                  - TensorRT (開発環境は 8.2 GA Update 2)
+                  - ZLIB DLL (`zlibwapi.dll`)
+                    - [ZLIB DLL](http://www.winimage.com/zLibDll/zlib123dllx64.zip)
+                    - [NVIDIA cuDNN Documentation - Installing zlib](https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#install-zlib-windows)
+                    - cuDNN v8.4.0 は、動作に `zlibwapi.dll` が必要。
+                      - [ダウンロードした `zlib123dllx64.zip`](http://www.winimage.com/zLibDll/zlib123dllx64.zip) を右クリック → 「すべて展開」 → 展開時に展開されたファイルを表示する
+                      - `zlib123dllx64/dll_x64` フォルダ階層を選択して表示
+                      - `zlibwapi.dll` (種類: アプリケーション拡張) の4つのファイルを選択し、`YaneuraOu-Deep-ORT-TRT.exe` と同じフォルダにコピー
+                  - TensorRT (開発環境は 8.2 GA Update 4)
                     - [NVIDIA TensorRT Download](https://developer.nvidia.com/nvidia-tensorrt-download) (要ログイン)
                     - [Installing TensorRT (TensorRTインストール手順)](https://docs.nvidia.com/deeplearning/tensorrt/install-guide/index.html#installing-zip)
-                    - TensorRT 8.2 GA Update 3 (`TensorRT-8.2.4.2.Windows10.x86_64.cuda-11.4.cudnn8.2.zip`) の場合の導入例:
-                      - ダウンロードした `TensorRT-8.2.4.2.Windows10.x86_64.cuda-11.4.cudnn8.2.zip` を右クリック → 「すべて展開」 → 展開時に展開されたファイルを表示する
-                      - `TensorRT-8.2.4.2/lib` フォルダ階層を選択して表示
+                    - TensorRT 8.2 GA Update 4 (`TensorRT-8.2.5.1.Windows10.x86_64.cuda-11.4.cudnn8.2.zip`) の場合の導入例:
+                      - ダウンロードした `TensorRT-8.2.5.1.Windows10.x86_64.cuda-11.4.cudnn8.2.zip` を右クリック → 「すべて展開」 → 展開時に展開されたファイルを表示する
+                      - `TensorRT-8.2.5.1/lib` フォルダ階層を選択して表示
                       - `nvinfer.dll`, `nvinfer_builder_resource.dll`, `nvinfer_plugin.dll`, `nvonnxparser.dll`, `nvparsers.dll` (種類: アプリケーション拡張) の5つのファイルを選択し、`YaneuraOu-Deep-ORT-TRT.exe` と同じフォルダにコピー
                   - [警告: 以下のような変更があった場合は、古いエンジンやプロファイルのキャッシュファイル(`.engine`, `.profile`)をクリーンアップしてください。](https://onnxruntime.ai/docs/execution-providers/TensorRT-ExecutionProvider.html#environment-variables)
                     - モデルの変更（モデルのトポロジー、opsetのバージョン、演算子などに変更があった場合）
