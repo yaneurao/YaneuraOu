@@ -98,3 +98,8 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 |やねうら王公式ちゃんねる(YouTube) | https://www.youtube.com/c/yanechan|
 
 上記のやねうら王公式ブログでは、コンピュータ将棋に関する情報を大量に発信していますので、やねうら王に興味がなくとも、コンピュータ将棋の開発をしたいなら、非常に参考になると思います。
+
+# 質問箱
+
+やねうら王関連の質問は、以下のブログ記事のコメント欄にお願いします。
+https://yaneuraou.yaneu.com/2022/05/19/yaneuraou-question-box/
