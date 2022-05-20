@@ -26,6 +26,7 @@ jobs:
           - TANUKI_MATE_ENGINE
           - USER_ENGINE
         compiler:
+          - clang++-15
           - clang++-14
           - clang++-12
           - g++-10
