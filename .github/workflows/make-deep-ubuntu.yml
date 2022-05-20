@@ -13,7 +13,7 @@ jobs:
   build-ubuntu:
     # ubuntu-latest = ubuntu-20.04
     # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
-    # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md
+    # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-Readme.md
     runs-on: ubuntu-20.04
 
     strategy:
@@ -77,42 +77,27 @@ jobs:
       - name: install clang-13
         # LLVM APT
         run: |
-          # Remove packages that conflict with clang-13 installation
-          sudo apt remove -y \
-          liblldb-10 libomp-10-dev libomp5-10 lldb-10 python3-lldb-10 \
-          liblldb-11 libomp-11-dev libomp5-11 lldb-11 python3-lldb-11 \
-          liblldb-12 libomp-12-dev libomp5-12 lldb-12 python3-lldb-12
           # install clang-13
           wget https://apt.llvm.org/llvm.sh
-          sudo bash ./llvm.sh 13
+          sudo bash ./llvm.sh 13 all
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
         if: ${{ matrix.compiler == 'clang++-13' }}
       - name: install clang-14
         # LLVM APT
         run: |
-          # Remove packages that conflict with clang-14 installation
-          sudo apt remove -y \
-          liblldb-10 libomp-10-dev libomp5-10 lldb-10 python3-lldb-10 \
-          liblldb-11 libomp-11-dev libomp5-11 lldb-11 python3-lldb-11 \
-          liblldb-12 libomp-12-dev libomp5-12 lldb-12 python3-lldb-12
           # install clang-14
           wget https://apt.llvm.org/llvm.sh
-          sudo bash ./llvm.sh 14
+          sudo bash ./llvm.sh 14 all
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
         if: ${{ matrix.compiler == 'clang++-14' }}
       - name: install clang-15
         # LLVM APT
         run: |
-          # Remove packages that conflict with clang-15 installation
-          sudo apt remove -y \
-          liblldb-10 libomp-10-dev libomp5-10 lldb-10 python3-lldb-10 \
-          liblldb-11 libomp-11-dev libomp5-11 lldb-11 python3-lldb-11 \
-          liblldb-12 libomp-12-dev libomp5-12 lldb-12 python3-lldb-12
           # install clang-15
           wget https://apt.llvm.org/llvm.sh
-          sudo bash ./llvm.sh 15
+          sudo bash ./llvm.sh 15 all
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
         if: ${{ matrix.compiler == 'clang++-15' }}
