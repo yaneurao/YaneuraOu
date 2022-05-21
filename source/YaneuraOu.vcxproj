@@ -737,10 +737,6 @@
     <ClCompile Include="usi_option.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="..\docs\ふかうら王に関する資料.txt" />
-    <Text Include="..\docs\やねうら大定跡.txt" />
-    <Text Include="..\docs\更新履歴.txt" />
-    <Text Include="..\docs\最初に：やねうら王遊び方説明.txt" />
     <Text Include="..\script\readme.txt" />
   </ItemGroup>
   <ItemGroup>
