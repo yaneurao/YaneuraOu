@@ -13,6 +13,7 @@
 // → redefineになる環境があるな。std::max()を(std::max)()にように書いて回避することにする。
 #include <Windows.h>
 
+// ↓これを↑Windows.hより先にやるとWindows.hのinclude中に警告が出るから駄目。
 using namespace std;
 using namespace YaneuraouTheCluster;
 
@@ -275,6 +276,7 @@ protected:
 #include <sys/wait.h> // waitpid
 
 using namespace std;
+using namespace YaneuraouTheCluster;
 
 // Linuxのpipeのwrapper
 
