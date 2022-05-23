@@ -23,9 +23,6 @@
     <Filter Include="script">
       <UniqueIdentifier>{efb5b189-918a-4b2a-ba65-731c674603a7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="docs">
-      <UniqueIdentifier>{8bb34244-8e89-49f6-a303-c043ef5d8647}</UniqueIdentifier>
-    </Filter>
     <Filter Include="リソース ファイル\eval\kppt">
       <UniqueIdentifier>{9199b172-8762-466b-aab3-debc3741c786}</UniqueIdentifier>
     </Filter>
@@ -539,20 +536,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="..\docs\やねうら大定跡.txt">
-      <Filter>docs</Filter>
-    </Text>
-    <Text Include="..\docs\更新履歴.txt">
-      <Filter>docs</Filter>
-    </Text>
     <Text Include="..\script\readme.txt">
       <Filter>script</Filter>
-    </Text>
-    <Text Include="..\docs\最初に：やねうら王遊び方説明.txt">
-      <Filter>docs</Filter>
-    </Text>
-    <Text Include="..\docs\ふかうら王に関する資料.txt">
-      <Filter>docs</Filter>
     </Text>
   </ItemGroup>
   <ItemGroup>

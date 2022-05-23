@@ -4,7 +4,6 @@
 # normal     : 通常使用用
 # evallearn  : 教師局面からの学習用
 # tournament : 大会で使う用
-# gensfen    : 教師生成用(2019年版)
 
 # === ビルドオプション (build options) ===
 
@@ -619,11 +618,6 @@ evallearn:
 # トーナメント用
 tournament:
 	$(MAKE) CPPFLAGS='$(CPPFLAGS) $(LTOFLAGS) -DFOR_TOURNAMENT' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-
-# 教師棋譜生成用(開発用なので非公開) // currently private
-gensfen:
-	$(MAKE) CPPFLAGS='$(CPPFLAGS) $(LTOFLAGS) $(OPENMP) $(BLAS_CPPFLAGS) -DEVAL_LEARN -DGENSFEN2019' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
-
 
 #　とりあえずPGOはAVX2とSSE4.2専用
 prof:

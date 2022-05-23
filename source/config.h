@@ -208,12 +208,9 @@
 // ---------------------
 
 // 評価関数を教師局面から学習させるときに使うときのモード
+// "learn"コマンドが使えるようになる。(教師局面からの評価関数パラメーターの学習ができるようになる。)
+// "gensfen"コマンドも使えるようになる。(教師局面の生成もできるようになる。)
 //#define EVAL_LEARN
-
-
-// 教師生成用の特殊コマンド"gensfen2019"を使えるようにするモード。
-// 教師生成用の探索パラメーターも別途用意するといいかも。
-//#define GENSFEN2019
 
 
 // sfenを256bitにpackする機能、unpackする機能を有効にする。
@@ -686,6 +683,13 @@ constexpr bool pretty_jp = false;
 #define TT_CLUSTER_SIZE 3
 #endif
 
+
+// --- gensfen
+
+// LEARN版では"gensfen"コマンドが使えるようになる。
+#if defined(EVAL_LEARN)
+#define GENSFEN2019
+#endif
 
 // --- lastMove
 
