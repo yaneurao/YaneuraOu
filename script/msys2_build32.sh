@@ -74,7 +74,6 @@ TARGETS=(
   normal
   tournament
   evallearn
-  gensfen
 )
 
 declare -A EDITIONSTR;

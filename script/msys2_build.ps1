@@ -22,98 +22,98 @@ $TGCOMPILERS = @('clang++';'g++';);
     BUILDDIR = 'NNUE';
     EDITION = 'YANEURAOU_ENGINE_NNUE';
     BUILDNAME = 'YaneuraOu_NNUE';
-    TARGET = @('evallearn';'normal';'tournament';'gensfen';);
+    TARGET = @('evallearn';'normal';'tournament';);
   };
   @{
     BUILDDIR = 'NNUE_KPE9';
     EDITION = 'YANEURAOU_ENGINE_NNUE_HALFKPE9';
     BUILDNAME = 'YaneuraOu_NNUE_HalfKPE9';
-    TARGET = @('evallearn';'normal';'tournament';'gensfen';);
+    TARGET = @('evallearn';'normal';'tournament';);
   };
   @{
     BUILDDIR = 'NNUE_HALFKP_VM';
     EDITION = 'YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32';
     BUILDNAME = 'YaneuraOu_NNUE_HalfKP_VM';
-    TARGET = @('evallearn';'normal';'tournament';'gensfen';);
+    TARGET = @('evallearn';'normal';'tournament';);
   };
   @{
     BUILDDIR = 'NNUE_KP256';
     EDITION = 'YANEURAOU_ENGINE_NNUE_KP256';
     BUILDNAME = 'YaneuraOu_NNUE_KP256';
-    TARGET = @('evallearn';'normal';'tournament';'gensfen';);
+    TARGET = @('evallearn';'normal';'tournament';);
   };
   @{
     BUILDDIR = 'KPPT';
     EDITION = 'YANEURAOU_ENGINE_KPPT';
     BUILDNAME = 'YaneuraOu_KPPT';
-    TARGET = @('evallearn';'normal';'tournament';'gensfen';);
+    TARGET = @('evallearn';'normal';'tournament';);
   };
   @{
     BUILDDIR = 'KPP_KKPT';
     EDITION = 'YANEURAOU_ENGINE_KPP_KKPT';
     BUILDNAME = 'YaneuraOu_KPP_KKPT';
-    TARGET = @('evallearn';'normal';'tournament';'gensfen';);
+    TARGET = @('evallearn';'normal';'tournament';);
   };
   @{
     BUILDDIR = 'MaterialLv1';
     EDITION = 'YANEURAOU_ENGINE_MATERIAL';
     BUILDNAME = 'YaneuraOu_MaterialLv1';
-    TARGET = @('normal';'tournament';'gensfen';);
+    TARGET = @('evallearn';'normal';'tournament';);
   };
   @{
     BUILDDIR = 'MaterialLv2';
     EDITION = 'YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=2';
     BUILDNAME = 'YaneuraOu_MaterialLv2';
-    TARGET = @('normal';'tournament';'gensfen';);
+    TARGET = @('evallearn';'normal';'tournament';);
   };
   @{
     BUILDDIR = 'MaterialLv3';
     EDITION = 'YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=3';
     BUILDNAME = 'YaneuraOu_MaterialLv3';
-    TARGET = @('normal';'tournament';'gensfen';);
+    TARGET = @('evallearn';'normal';'tournament';);
   };
   @{
     BUILDDIR = 'MaterialLv4';
     EDITION = 'YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=4';
     BUILDNAME = 'YaneuraOu_MaterialLv4';
-    TARGET = @('normal';'tournament';'gensfen';);
+    TARGET = @('evallearn';'normal';'tournament';);
   };
   @{
     BUILDDIR = 'MaterialLv5';
     EDITION = 'YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=5';
     BUILDNAME = 'YaneuraOu_MaterialLv5';
-    TARGET = @('normal';'tournament';'gensfen';);
+    TARGET = @('evallearn';'normal';'tournament';);
   };
   @{
     BUILDDIR = 'MaterialLv6';
     EDITION = 'YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=6';
     BUILDNAME = 'YaneuraOu_MaterialLv6';
-    TARGET = @('normal';'tournament';'gensfen';);
+    TARGET = @('evallearn';'normal';'tournament';);
   };
   @{
     BUILDDIR = 'MaterialLv7';
     EDITION = 'YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=7';
     BUILDNAME = 'YaneuraOu_MaterialLv7';
-    TARGET = @('normal';'tournament';'gensfen';);
+    TARGET = @('evallearn';'normal';'tournament';);
   };
   @{
     BUILDDIR = 'MaterialLv8';
     EDITION = 'YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=8';
     BUILDNAME = 'YaneuraOu_MaterialLv8';
-    TARGET = @('normal';'tournament';'gensfen';);
+    TARGET = @('evallearn';'normal';'tournament';);
   };
   @{
     BUILDDIR = 'MaterialLv9';
     EDITION = 'YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=9';
     BUILDNAME = 'YaneuraOu_MaterialLv9';
-    TARGET = @('normal';'tournament';'gensfen';);
+    TARGET = @('evallearn';'normal';'tournament';);
   };
 <#
   @{
     BUILDDIR = 'MaterialLv10';
     EDITION = 'YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=10';
     BUILDNAME = 'YaneuraOu_MaterialLv10';
-    TARGET = @('normal';'tournament';'gensfen';);
+    TARGET = @('evallearn';'normal';'tournament';);
   };
 #>
   @{

@@ -78,7 +78,6 @@ TARGETS=(
   normal
   tournament
   evallearn
-  gensfen
 )
 
 ARCHCPUS=(

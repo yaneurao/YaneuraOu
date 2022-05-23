@@ -36,7 +36,6 @@ jobs:
           - g++
         target:
           - "normal,tournament"
-          - gensfen
           - evallearn
         archcpu:
           - "AVX512VNNI,AVXVNNI,AVX512,AVX2,SSE42,SSE41,SSSE3,SSE2,ZEN1,ZEN2,ZEN3"
@@ -45,23 +44,12 @@ jobs:
         exclude:
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
-          - edition: YANEURAOU_ENGINE_MATERIAL*
-            target: evallearn
-          - edition: "YANEURAOU_ENGINE_MATERIAL,YANEURAOU_ENGINE_MATERIAL9"
-            target: evallearn
           - edition: YANEURAOU_MATE_ENGINE
             target: evallearn
           - edition: TANUKI_MATE_ENGINE
             target: evallearn
           - edition: USER_ENGINE
             target: evallearn
-          # 以下のエディションはgensfenに対応しない
-          - edition: YANEURAOU_MATE_ENGINE
-            target: gensfen
-          - edition: TANUKI_MATE_ENGINE
-            target: gensfen
-          - edition: USER_ENGINE
-            target: gensfen
           # 自動ビルドチェックから除外
           # Build check exclude: archcpu ZEN3,AVXVNNI,OTHER
           # `-march=cascadelake`: LLVM8, GCC9 support (AVX512VNNI)
@@ -73,10 +61,8 @@ jobs:
           # https://gcc.gnu.org/pipermail/gcc-patches/2020-October/556110.html
           # https://twitter.com/herumi/status/1318418425295720448
           - archcpu: OTHER
-          # NO_SSEではevallearn,gensfenビルドを除外
+          # NO_SSEではevallearnビルドを除外
           - target: evallearn
-            archcpu: NO_SSE
-          - target: gensfen
             archcpu: NO_SSE
 
     steps:
