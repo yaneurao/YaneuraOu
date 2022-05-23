@@ -1,6 +1,7 @@
 ﻿#include "../../config.h"
 #if defined(USE_YO_CLUSTER) && (defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE))
 
+#include "ClusterCommon.h"
 #include "ProcessNegotiator.h"
 #include "../../misc.h"
 
@@ -13,12 +14,10 @@
 #include <Windows.h>
 
 using namespace std;
+using namespace YaneuraouTheCluster;
 
 struct ProcessNegotiatorImpl : public IProcessNegotiator
 {
-	// あとで何とかするかも。(しないかも)
-	void DebugMessageCommon(const std::string& message){}
-
 	// 子プロセスの実行
 	// workingDirectory : エンジンを実行する時の作業ディレクトリ("engines/"相対で指定)
 	// app_path         : エンジンの実行ファイルのpath (.batファイルでも可) workingDirectory相対で指定。
@@ -139,6 +138,8 @@ struct ProcessNegotiatorImpl : public IProcessNegotiator
 				if (success && dwRead != 0)
 				{
 					chBuf[dwRead] = '\0'; // 終端マークを書いてstringに連結する。
+					// バッファを先行して確保したほうがresize()の発生が少ない
+					read_buffer.reserve(read_buffer.size() + dwRead + 1);
 					read_buffer  += chBuf;
 					total        -= dwRead;
 				}
@@ -360,6 +361,8 @@ public:
                 return s;
             // 末尾に'\0'を付与して文字連結してしまう。
             buf[read_bytes] = '\0';
+			// バッファを先行して確保したほうがresize()の発生が少ない
+			s.reserve(s.size() + (size_t)read_bytes + 1);
             s += buf;
         }
     }
@@ -380,8 +383,6 @@ protected:
 class ProcessNegotiatorImpl : public IProcessNegotiator
 {
 public:
-	// あとで何とかするかも。(しないかも)
-	void DebugMessageCommon(const std::string& message){}
 
 	// workingDirectory : エンジンの作業フォルダ
     // app_path         : 起動するエンジンのpath。同じフォルダにあるならLinuxの場合、"./YO_engine.out"のように"./"をつけてやる必要があるが、
@@ -419,10 +420,10 @@ public:
             arg[0] = (char*) engine_path.c_str();
             arg[1] = NULL;
 
-            // 子プロセスの場合は、親→子への書き込みは使わないのでcloseする
+            // 子プロセスの場合は、親→子への書き込みはありえないのでcloseする
             p2c.close_pipe(PIPE_TYPE::WRITE);
             
-            // 子プロセスの場合は、子→親の読み込みは使わないのでcloseする
+            // 子プロセスの場合は、子→親の読み込みはありえないのでcloseする
             c2p.close_pipe(PIPE_TYPE::READ);
             
             // 親→子への出力を標準入力として割り当て
@@ -461,9 +462,7 @@ public:
         // std::cout << "pid: " << pid << std::endl;
         int status = 0;
 
-		// 親プロセスでは、親→子の読み込みは使わないので閉じる。
         p2c.close_pipe(PIPE_TYPE::READ );
-		// 親プロセスでは、子→親への書き込みは使わないので閉じる。
         c2p.close_pipe(PIPE_TYPE::WRITE);
 
         // 読み出しをnon blockingに
@@ -588,4 +587,4 @@ ProcessNegotiator::ProcessNegotiator()
 	ptr = std::make_unique<ProcessNegotiatorImpl>();
 }
 
-#endif //defined(USE_YO_CLUSTER) && (defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE)) && defined(_WIN32)
+#endif //defined(USE_YO_CLUSTER) && (defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE))

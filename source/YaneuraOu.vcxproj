@@ -459,7 +459,7 @@
     <ClCompile>
       <OpenMPSupport>
       </OpenMPSupport>
-      <PreprocessorDefinitions>USE_AVX2;USE_GENSFEN2018;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -481,7 +481,7 @@
     <ClCompile>
       <OpenMPSupport>
       </OpenMPSupport>
-      <PreprocessorDefinitions>USE_AVX2;USE_GENSFEN2018;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_AVX2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -596,6 +596,8 @@
     <ClInclude Include="engine\dlshogi-engine\PrintInfo.h" />
     <ClInclude Include="engine\dlshogi-engine\UctSearch.h" />
     <ClInclude Include="engine\yaneuraou-engine\yaneuraou-param.h" />
+    <ClInclude Include="engine\yo-cluster\ClusterCommon.h" />
+    <ClInclude Include="engine\yo-cluster\EngineNegotiator.h" />
     <ClInclude Include="engine\yo-cluster\ProcessNegotiator.h" />
     <ClInclude Include="evaluate.h" />
     <ClInclude Include="eval\deep\nn_types.h" />
@@ -683,6 +685,8 @@
     <ClCompile Include="engine\user-engine\user-search.cpp" />
     <ClCompile Include="engine\yaneuraou-engine\yaneuraou-search.cpp" />
     <ClCompile Include="engine\yaneuraou-mate-engine\yaneuraou-mate-search.cpp" />
+    <ClCompile Include="engine\yo-cluster\ClusterCommon.cpp" />
+    <ClCompile Include="engine\yo-cluster\EngineNegotiator.cpp" />
     <ClCompile Include="engine\yo-cluster\ProcessNegotiator.cpp" />
     <ClCompile Include="engine\yo-cluster\yo_cluster.cpp" />
     <ClCompile Include="eval\deep\nn_types.cpp" />
