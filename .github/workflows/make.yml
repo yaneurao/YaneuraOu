@@ -32,7 +32,6 @@ jobs:
           - g++-10
         target:
           - "normal,tournament"
-          - gensfen
           - evallearn
         archcpu:
           - "AVX512,AVX2,SSE42,SSE41,SSSE3,SSE2,OTHER,ZEN2,ZEN1,AVX512VNNI"
@@ -41,23 +40,12 @@ jobs:
         exclude:
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
-          - edition: YANEURAOU_ENGINE_MATERIAL*
-            target: evallearn
-          - edition: "YANEURAOU_ENGINE_MATERIAL,YANEURAOU_ENGINE_MATERIAL9"
-            target: evallearn
           - edition: YANEURAOU_MATE_ENGINE
             target: evallearn
           - edition: TANUKI_MATE_ENGINE
             target: evallearn
           - edition: USER_ENGINE
             target: evallearn
-          # 以下のエディションはgensfenに対応しない
-          - edition: YANEURAOU_MATE_ENGINE
-            target: gensfen
-          - edition: TANUKI_MATE_ENGINE
-            target: gensfen
-          - edition: USER_ENGINE
-            target: gensfen
           # Ubuntu-20.04 g++-10 は archcpu ZEN3,AVXVNNI のサポートを行わない
           # ubuntu-20.04 g++-10 will not support the archcpu ZEN3,AVXVNNI
           # `-march=cascadelake`: LLVM8, GCC9 support (AVX512VNNI)

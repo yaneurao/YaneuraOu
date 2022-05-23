@@ -35,7 +35,6 @@ jobs:
           - i686-w64-mingw32-g++-posix
         target:
           - "normal,tournament"
-          - gensfen
           - evallearn
         archcpu:
           - "AVX512VNNI,AVX512"
@@ -55,33 +54,14 @@ jobs:
             target: evallearn
           - edition: YANEURAOU_ENGINE_NNUE_KP256
             target: evallearn
-          - edition: YANEURAOU_ENGINE_NNUE
-            target: gensfen
-          - edition: YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32
-            target: gensfen
-          - edition: YANEURAOU_ENGINE_NNUE_HALFKPE9
-            target: gensfen
-          - edition: YANEURAOU_ENGINE_NNUE_KP256
-            target: gensfen
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
-          - edition: YANEURAOU_ENGINE_MATERIAL*
-            target: evallearn
-          - edition: "YANEURAOU_ENGINE_MATERIAL,YANEURAOU_ENGINE_MATERIAL9"
-            target: evallearn
           - edition: YANEURAOU_MATE_ENGINE
             target: evallearn
           - edition: TANUKI_MATE_ENGINE
             target: evallearn
           - edition: USER_ENGINE
             target: evallearn
-          # 以下のエディションはgensfenに対応しない
-          - edition: YANEURAOU_MATE_ENGINE
-            target: gensfen
-          - edition: TANUKI_MATE_ENGINE
-            target: gensfen
-          - edition: USER_ENGINE
-            target: gensfen
           # 32bit compiler x 64bit archcpu
           - compiler: i686-w64-mingw32-g++-posix
             archcpu: "AVX512VNNI,AVX512"

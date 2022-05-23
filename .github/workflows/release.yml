@@ -22,7 +22,6 @@ jobs:
           - normal
           - tournament
           - evallearn
-          - gensfen
         archcpu:
           - "ZEN3,ZEN2,ZEN1,AVX512VNNI,AVXVNNI,AVX512,AVX2,SSE42"
           - "SSE41,SSSE3,SSE2,NO_SSE"
@@ -44,11 +43,9 @@ jobs:
             target: normal
           - compiler: g++
             target: tournament
-          # Release target exclude: compiler clang++ evallearn/gensfen
+          # Release target exclude: compiler clang++ evallearn
           - compiler: clang++
             target: evallearn
-          - compiler: clang++
-            target: gensfen
           # Release target exclude: archcpu ZEN3,AVXVNNI,OTHER
           # `-march=cascadelake`: LLVM8, GCC9 support (AVX512VNNI)
           # `-march=alderlake` : LLVM12, GCC11 support (AVX-VNNI)
@@ -59,25 +56,14 @@ jobs:
             archcpu: "SSE41,SSSE3,SSE2,NO_SSE"
           - target: evallearn
             archcpu: "SSE41,SSSE3,SSE2,NO_SSE"
-          - target: gensfen
-            archcpu: "SSE41,SSSE3,SSE2,NO_SSE"
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
-          - edition: YANEURAOU_ENGINE_MATERIAL*
-            target: evallearn
           - edition: YANEURAOU_MATE_ENGINE
             target: evallearn
           - edition: TANUKI_MATE_ENGINE
             target: evallearn
           - edition: USER_ENGINE
             target: evallearn
-          # 以下のエディションはgensfenに対応しない
-          - edition: YANEURAOU_MATE_ENGINE
-            target: gensfen
-          - edition: TANUKI_MATE_ENGINE
-            target: gensfen
-          - edition: USER_ENGINE
-            target: gensfen
           # 以下のエディションは別途build
           - edition: YANEURAOU_ENGINE_MATERIAL*
     steps:
@@ -118,7 +104,7 @@ jobs:
         target:
           - normal
           - tournament
-          - gensfen
+          - evallearn
         archcpu:
           - ZEN3
           - ZEN2
@@ -140,43 +126,26 @@ jobs:
             target: normal
           - compiler: g++
             target: tournament
-          # Release target exclude: compiler clang++ evallearn/gensfen
+          # Release target exclude: compiler clang++ evallearn
           - compiler: clang++
             target: evallearn
-          - compiler: clang++
-            target: gensfen
           # Release target exclude: archcpu 'SSE2,NO_SSE' and target 'tournament,evallearn'
           - target: tournament
             archcpu: SSE2
           - target: evallearn
             archcpu: SSE2
-          - target: gensfen
-            archcpu: SSE2
           - target: tournament
             archcpu: NO_SSE
           - target: evallearn
             archcpu: NO_SSE
-          - target: gensfen
-            archcpu: NO_SSE
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
-          - edition: YANEURAOU_ENGINE_MATERIAL*
-            target: evallearn
-          - edition: "YANEURAOU_ENGINE_MATERIAL,YANEURAOU_ENGINE_MATERIAL9"
-            target: evallearn
           - edition: YANEURAOU_MATE_ENGINE
             target: evallearn
           - edition: TANUKI_MATE_ENGINE
             target: evallearn
           - edition: USER_ENGINE
             target: evallearn
-          # 以下のエディションはgensfenに対応しない
-          - edition: YANEURAOU_MATE_ENGINE
-            target: gensfen
-          - edition: TANUKI_MATE_ENGINE
-            target: gensfen
-          - edition: USER_ENGINE
-            target: gensfen
 
     steps:
       - name: Checkout own repository
@@ -1338,13 +1307,12 @@ jobs:
             - [${{ steps.version.outputs.filename }}-windows.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-windows.7z) (${{ steps.archive_size.outputs.windows_7z }})
               - 1.2.3.5.6.の実行ファイルWindows版 各CPU向け(ZEN3/ZEN2/ZEN1/AVX512VNNI/AVXVNNI/AVX512/AVX2/SSE4.2/SSE4.1/SSSE3/SSE2/32bit環境用)
               - 1.2.3.5.6.のトーナメントWindows版 (ZEN3/ZEN2/ZEN1/AVX512VNNI/AVXVNNI/AVX512/AVX2/SSE4.2)
-              - 1.2.3.の教師生成用実行ファイルWindows版 (ZEN3/ZEN2/ZEN1/AVX512VNNI/AVXVNNI/AVX512/AVX2/SSE4.2)
               - 1.2.3.の学習用実行ファイルWindows版 (ZEN3/ZEN2/ZEN1/AVX512VNNI/AVXVNNI/AVX512/AVX2/SSE4.2)
             - [${{ steps.version.outputs.filename }}-windows-material.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-windows-material.zip) (${{ steps.archive_size.outputs.windows_material_zip }})
             - [${{ steps.version.outputs.filename }}-windows-material.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-windows-material.7z) (${{ steps.archive_size.outputs.windows_material_7z }})
               - 4.の実行ファイルWindows版 各CPU向け(ZEN3/ZEN2/ZEN1/AVX2/SSE4.2/SSE2/32bit環境用)
               - 4.のトーナメントWindows版 (ZEN3/ZEN2/ZEN1/AVX2/SSE4.2)
-              - 4.の教師生成用実行ファイルWindows版 (ZEN3/ZEN2/ZEN1/AVX2/SSE4.2)
+              - 4.の学習用実行ファイルWindows版 (ZEN3/ZEN2/ZEN1/AVX2/SSE4.2)
             - [${{ steps.version.outputs.filename }}-deep-windows.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-deep-windows.zip) (${{ steps.archive_size.outputs.deep_windows_zip }})
             - [${{ steps.version.outputs.filename }}-deep-windows.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-deep-windows.7z) (${{ steps.archive_size.outputs.deep_windows_7z }})
               - 7.の実行ファイルWindows版 (AVX2)
