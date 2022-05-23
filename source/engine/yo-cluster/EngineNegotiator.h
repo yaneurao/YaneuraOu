@@ -10,6 +10,28 @@
 
 namespace YaneuraouTheCluster
 {
+	// EngineNegotiatorの動作モード
+	// 以下のフラグの "|"(bitwise or)で組み合わせて使う。
+	// default値 : SEND_INFO_BEFORE_GAME_0 | SEND_INFO_ON_GO | SEND_BESTMOVE
+	enum EngineMode : int
+	{
+		// USINEWGAME以前で、engine側から送られてきた"info"をGUIに流す。(ただしengine_id()==0のときのみ)
+		SEND_INFO_BEFORE_GAME_0 = 1,
+
+		// USINEWGAME以前で、engine側から送られてきた"info"をGUIに流す。
+		SEND_INFO_BEFORE_GAME_ANY = 2,
+
+		// GO,PONDERHITの時、engine側から送られてきた"info"をGUIに流す。
+		// PONDERHITの場合は、GO PONDERまで遡ってGUIに流す。
+		// GO_PONDERした時点では流さない。(GO_PONDER～PONDERHITで流す)
+		// このフラグが立っていなければ親クラス側で自前で処理するモード。
+		SEND_INFO_ON_GO = 4,
+
+		// エンジン側から"bestmove"が送られて来た時にそれをGUIに流す。
+		// このフラグが立っていなければ親クラス側で自前で処理するモード。
+		SEND_BESTMOVE = 8,
+	};
+
 	// EngineNegotiatorは、
 	// エンジンとやりとりするためのクラス
 	//
@@ -76,6 +98,12 @@ namespace YaneuraouTheCluster
 		// エンジンの状態を取得する。
 		// エンジンの状態は、send() , receive()でしか変化しないから、これで取得中に変化することはない。
 		virtual EngineState get_state() const = 0;
+
+		// エンジンの動作モードを設定する。(default : SEND_BESTMOVE)
+		virtual void set_engine_mode(EngineMode m) = 0;
+
+		// エンジンの動作モードを取得する。
+		virtual EngineMode get_engine_mode() const = 0;
 	};
 
 	// EngineNegotiatorの入れ物。
@@ -93,6 +121,8 @@ namespace YaneuraouTheCluster
 		virtual bool        is_ponderhit() const                                { return ptr->is_ponderhit();            }
 		virtual std::string get_bestmove()                                      { return ptr->get_bestmove();            }
 		virtual EngineState get_state() const                                   { return ptr->get_state();               }
+		virtual void        set_engine_mode(EngineMode m)                       {        ptr->set_engine_mode(m);        }
+		virtual EngineMode  get_engine_mode() const                             { return ptr->get_engine_mode();         }
 
 		EngineNegotiator();
 		EngineNegotiator(EngineNegotiator&&) = default; // default move constructor

@@ -112,8 +112,11 @@ namespace YaneuraouTheCluster
 
 		IDLE_IN_GAME,      // エンジンが対局中の状態。"position"コマンドなど受信できる状態
 
-		GO,                // エンジンが"go"で思考中。 GUI側から"ponderhit"か"stop"が来ると状態はWAIT_BESTMOVEに。
-		GO_PONDER,         // エンジンが"go ponder"中。GUI側から"ponderhit"か"stop"が来ると状態はWAIT_BESTMOVEに。
+		GO,                // エンジンが"go"("go ponder"は含まない)で思考中。
+						   // GUI側から"ponderhit"か"stop"が来ると状態はWAIT_BESTMOVEに。
+		GO_PONDER,         // エンジンが"go ponder"中。
+						   // GUI側から"ponderhit"か"stop"が来ると状態はWAIT_BESTMOVEに。
+
 		QUIT,              // "quit"コマンド送信後。
 	};
 

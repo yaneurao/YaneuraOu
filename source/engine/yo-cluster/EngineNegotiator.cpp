@@ -28,11 +28,15 @@ namespace YaneuraouTheCluster
 
 		EngineNegotiatorImpl()
 		{
-			state     = EngineState::DISCONNECTED;
-			in_game   = false;
-			engine_id = size_max; // 未初期化
-			go_count  = 0;
-			ponderhit = false;
+			state       = EngineState::DISCONNECTED;
+			engine_mode = (EngineMode)
+				( EngineMode::SEND_INFO_BEFORE_GAME_0
+				| EngineMode::SEND_INFO_ON_GO
+				| EngineMode::SEND_BESTMOVE);
+			in_game     = false;
+			engine_id   = size_max; // 未初期化
+			go_count    = 0;
+			ponderhit   = false;
 		}
 
 		// これcopyされてはかなわんので、copyとmoveを禁止しておく。
@@ -301,6 +305,12 @@ namespace YaneuraouTheCluster
 		// エンジンの状態は、send() , receive()でしか変化しないから、これで取得中に変化することはない。
 		virtual EngineState get_state() const { return state; }
 
+		// エンジンの動作モードを設定する。
+		virtual void        set_engine_mode(EngineMode m) {        engine_mode = m; }
+
+		// エンジンの動作モードを取得する。
+		virtual EngineMode  get_engine_mode() const       { return engine_mode;     }
+		
 	private:
 		// -------------------------------------------------------
 		//    private methods
@@ -368,6 +378,10 @@ namespace YaneuraouTheCluster
 		// そこまでの思考ログを出力する。
 		void output_thinklog()
 		{
+			// ログを送信するモードではないなら何もせずに帰る。
+			if (engine_mode & EngineMode::SEND_INFO_ON_GO)
+				return ;
+
 			// "GO_PONDER"が何重にも送られてきている。
 			// まだ直前のGO_PONDERのログがエンジン側から送られてきていない。
 			if (go_count >= 2)
@@ -424,7 +438,7 @@ namespace YaneuraouTheCluster
 					else if (go_count == 1)
 					{
 						if (state == EngineState::GO)
-							send_gui = true;
+							send_gui = engine_mode & EngineMode::SEND_INFO_ON_GO;
 						else // state == EngineState::GO_PONDER
 							think_log.push_back(message);
 					}
@@ -437,7 +451,10 @@ namespace YaneuraouTheCluster
 				else if (state == EngineState::WAIT_USIOK
 					  || state == EngineState::WAIT_READYOK
 					)
-					send_gui = get_engine_id() == 0;
+					send_gui =
+						((engine_mode & EngineMode::SEND_INFO_BEFORE_GAME_0  ) && get_engine_id() == 0)
+					||  ((engine_mode & EngineMode::SEND_INFO_BEFORE_GAME_ANY)                        )
+						;
 				else
 					// usiok/readyok待ちと go ponder , go 以外のタイミングでエンジン側からinfo stringでメッセージが来るのおかしいのでは…。
 					// ただしignore_bestmove > 0なら、bestmove来るまでは無視していいのか…。
@@ -480,7 +497,7 @@ namespace YaneuraouTheCluster
 						// 無視したらあかんやつなのでこのままGUIに投げる。
 						// is_in_game見て、対局中でないならbestmoveを返さないことも考えられるが、
 						// gameoverのあとでも bestmoveは遅れてでも返すべきだと思う。(bestmoveの回数をカウントするような実装系だと)
-						send_gui = true;
+						send_gui = engine_mode & EngineMode::SEND_BESTMOVE;
 
 						// 思考は停止している。
 						change_state(EngineState::IDLE_IN_GAME);
@@ -565,6 +582,9 @@ namespace YaneuraouTheCluster
 		// エンジン側から返ってきた、"bestmove XXX ponder YYY" みたいな文字列。
 		// getter(get_bestmove())で取得したら、なくなる。(clearされる)
 		string bestmove_string;
+
+		// エンジンの動作モード。
+		EngineMode engine_mode;
 	};
 
 	EngineNegotiator::EngineNegotiator()

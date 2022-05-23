@@ -180,6 +180,14 @@ namespace YaneuraouTheCluster
 	//          cluster observer
 	// ---------------------------------------
 
+	// クラスターモード
+	enum class ClusterMode
+	{
+		MultiPonder, // MultiPonder
+		RakkanGougi, // 楽観合議
+		// なんかいろいろ
+	};
+
 	// クラスタリング時のオプション設定
 	struct ClusterOptions
 	{
@@ -195,6 +203,9 @@ namespace YaneuraouTheCluster
 #elif defined(YANEURAOU_ENGINE_NNUE)
 		u64  nodes_limit = 10000; // 1スレでも0.01秒未満だと思う。
 #endif
+
+		// クラスターモード
+		ClusterMode mode;
 	};
 
 	class ClusterObserver
@@ -217,7 +228,6 @@ namespace YaneuraouTheCluster
 			worker_thread.join();
 		}
 
-		// [main thread]
 		// 起動後に一度だけ呼び出すべし。
 		void connect()
 		{
@@ -260,14 +270,14 @@ namespace YaneuraouTheCluster
 				wait_all_engines_wakeup();
 		}
 
-		// [ASYNC] 通信スレッドで受け取ったメッセージをこのClusterObserverに伝える。
+		// 通信スレッドで受け取ったメッセージをこのClusterObserverに伝える。
 		//    waitとついているほうのメソッドは送信し、処理の完了を待機する。
 		void send(USI_Message usi                     )       { send(Message(usi            )); }
 		void send(USI_Message usi, const string& param)       { send(Message(usi, param     )); }
 		void send_wait(USI_Message& usi)                      { send_wait(Message(usi       )); }
 		void send_wait(USI_Message& usi, const string& param) { send_wait(Message(usi, param)); }
 
-		// [ASYNC] Messageを解釈してエンジンに送信する。
+		// Messageを解釈してエンジンに送信する。
 		void send(Message message)
 		{
 			// Observerからengineに対するメッセージ
@@ -277,7 +287,7 @@ namespace YaneuraouTheCluster
 			send_counter++;
 		}
 
-		// [ASNYC] 通信スレッドで受け取ったメッセージをこのSupervisorに伝える。
+		// 通信スレッドで受け取ったメッセージをこのSupervisorに伝える。
 		//   また、そのあとメッセージの処理の完了を待つ。
 		void send_wait(Message message)
 		{
@@ -1131,14 +1141,19 @@ namespace YaneuraouTheCluster
 		// 
 		// 指定できるオプション一覧)
 		// 
-		//   debug    : debug用に通信のやりとりをすべて標準出力に出力する。
-		//   nodes    : go ponderする局面を選ぶために探索するノード数(ふかうら王で探索する)
-		//   skipinfo : "info"文字列はdebugがオンでも出力しない。("info"で画面が流れていくの防止)
-		//   filelog  : このcluster engineのログをfileに書き出す。
-		//
+		//   debug        : debug用に通信のやりとりをすべて標準出力に出力する。
+		//   nodes        : go ponderする局面を選ぶために探索するノード数(ふかうら王で探索する)
+		//   skipinfo     : "info"文字列はdebugがオンでも出力しない。("info"で画面が流れていくの防止)
+		//   filelog      : このcluster engineのログをfileに書き出す。
+		//   mode
+		//     multiponder  : MultiPonderモード
+		//     rakkan_gougi : 楽観合議モード
 		void parse_cluster_param(std::istringstream& is, ClusterOptions& options)
 		{
 			// USIメッセージの処理を開始している。いま何か出力してはまずい。
+
+			// デフォルトのクラスターモードはMultiPonder
+			options.mode == ClusterMode::MultiPonder;
 
 			// USI拡張コマンドの"cluster"コマンドに付随できるオプション
 			// 例)
@@ -1159,6 +1174,16 @@ namespace YaneuraouTheCluster
 
 					else if (token == "filelog")
 						file_log  = true;
+
+					else if (token == "mode")
+					{
+						is >> token;
+						if (token == "multiponder")
+							options.mode = ClusterMode::MultiPonder;
+						else if (token == "rakkan_gougi")
+							options.mode = ClusterMode::RakkanGougi;
+						// ..
+					}
 				}
 			}
 		}
