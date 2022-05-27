@@ -63,6 +63,8 @@
 #include "ClusterCommon.h"
 #include "ProcessNegotiator.h"
 #include "EngineNegotiator.h"
+#include "ClusterObserver.h"
+#include "ClusterStrategy.h"
 
 #if defined(YANEURAOU_ENGINE_DEEP)
 #include "../dlshogi-engine/dlshogi_min.h"
@@ -180,45 +182,23 @@ namespace YaneuraouTheCluster
 	//          cluster observer
 	// ---------------------------------------
 
-	// クラスターモード
-	enum class ClusterMode
-	{
-		MultiPonder, // MultiPonder
-		RakkanGougi, // 楽観合議
-		// なんかいろいろ
-	};
-
-	// クラスタリング時のオプション設定
-	struct ClusterOptions
-	{
-		// すべてのエンジンが起動するのを待つかどうかのフラグ。(1つでも起動しなければ、終了する)
-		//bool wait_all_engines_wakeup = true;
-		// →　これ今回はデフォルトでtrueでないとclusterの処理が煩雑になるので
-		//    前提としてすべて起動していて、すべて生きている、切断されないことをその条件とする。
-
-		// go ponderする局面を決める時にふかうら王で探索するノード数
-		// 3万npsだとしたら、1000で1/30秒。GPUによって調整すべし。
-#if defined(YANEURAOU_ENGINE_DEEP)
-		u64  nodes_limit = 1000;
-#elif defined(YANEURAOU_ENGINE_NNUE)
-		u64  nodes_limit = 10000; // 1スレでも0.01秒未満だと思う。
-#endif
-
-		// クラスターモード
-		ClusterMode mode;
-	};
-
 	class ClusterObserver
 	{
 	public:
 
-		ClusterObserver(const ClusterOptions& options_)
+		ClusterObserver(const ClusterOptions& options_ , unique_ptr<IClusterStrategy>& strategy_)
 		{
 			// エンジン生成してからスレッドを開始しないと、エンジンが空で困る。
 			connect();
 
 			// スレッドを開始する。
-			options       = options_; 
+			options       = options_;
+			strategy      = std::move(strategy_);
+
+			// エンジン接続後のイベントの呼び出し。
+			garbage_engines();
+			strategy->on_connected(StrategyParam(engines,options));
+
 			worker_thread = std::thread([&](){ worker(); });
 		}
 
@@ -272,8 +252,6 @@ namespace YaneuraouTheCluster
 
 		// 通信スレッドで受け取ったメッセージをこのClusterObserverに伝える。
 		//    waitとついているほうのメソッドは送信し、処理の完了を待機する。
-		void send(USI_Message usi                     )       { send(Message(usi            )); }
-		void send(USI_Message usi, const string& param)       { send(Message(usi, param     )); }
 		void send_wait(USI_Message& usi)                      { send_wait(Message(usi       )); }
 		void send_wait(USI_Message& usi, const string& param) { send_wait(Message(usi, param)); }
 
@@ -358,15 +336,12 @@ namespace YaneuraouTheCluster
 
 						break;
 
-					case USI_Message::POSITION:
-						// 最後に受け取った"position"コマンドの内容。
-						// 次の"go"コマンドの時に、この局面について投げてやる。
-						position_string = message.command;
-						break;
-
 					case USI_Message::GO:
-						// "go"コマンド。
-						handle_go_cmd(message);
+
+						// GOコマンドの処理は、Strategyに丸投げ
+						garbage_engines();
+						strategy->on_go_command(StrategyParam(engines,options), message);
+
 						break;
 
 					case USI_Message::STOP:
@@ -442,8 +417,8 @@ namespace YaneuraouTheCluster
 					}
 				}
 
-				// エンジンの死活監視
-				engine_check();
+				// idle時の処理。
+				on_idle();
 			}
 
 			// engine止める必要がある。
@@ -457,6 +432,34 @@ namespace YaneuraouTheCluster
 				if (!engine.is_terminated())
 					num ++;
 			return num;
+		}
+
+		// enginesからterminateしているengineを除外する。
+		void garbage_engines()
+		{
+			// terminateしたengineを除外して、teminateしたengineがない状態を保つ。
+			auto itrNewEnd = std::remove_if(engines.begin(), engines.end(), [](EngineNegotiator& e)->bool { return e.is_terminated(); });
+			engines.erase(itrNewEnd, engines.end());
+
+			if (engines.size() == 0)
+			{
+				// 生きているengineが1つもない。
+				sync_cout << "Error! : No engines." << sync_endl;
+				Tools::exit();
+			}
+		}
+
+		// idle時の処理。
+		void on_idle()
+		{
+			// terminateしているengineがないことを保証する。
+			garbage_engines();
+
+			// idleなので、Strategy::on_idle()を呼び出してやる。
+			strategy->on_idle(StrategyParam(engines,options));
+
+			// エンジンの死活監視
+			//engine_check();
 		}
 
 		// 生きているエンジンが 0 なら終了する。
@@ -477,7 +480,7 @@ namespace YaneuraouTheCluster
 
 				for(auto& engine : engines)
 				{
-					auto bestmove = engine.get_bestmove();
+					auto bestmove = engine.pull_bestmove();
 					if (bestmove.empty())
 						continue;
 
@@ -582,9 +585,11 @@ namespace YaneuraouTheCluster
 				engine.send(message);
 		}
 
+
 		// 親から送られてきた"position"～"go"コマンドに対して処理する。
 		void handle_go_cmd(const Message& message)
 		{
+#if 0
 			searching_sfen2 = strip_command(position_string);
 			our_searching2  = true;
 			go_string       = message.command;
@@ -595,7 +600,8 @@ namespace YaneuraouTheCluster
 				return ;
 			}
 
-			start_go();
+			start_go(); 
+#endif
 		}
 
 		// searching_sfen2を"go"での探索を開始する。
@@ -1059,7 +1065,11 @@ namespace YaneuraouTheCluster
 
 		// --- private members ---
 
+		// クラスターのoptions(設定値)
 		ClusterOptions options;
+
+		// クラスターの戦略
+		unique_ptr<IClusterStrategy> strategy;
 
 		// すべての思考エンジンを表現する。
 		std::vector<EngineNegotiator> engines;
@@ -1084,9 +1094,7 @@ namespace YaneuraouTheCluster
 		// Messageをsendした回数
 		atomic<u64> send_counter = 0;
 
-		// 最後に受け取った"position"コマンド。次に"go"がやってきた時にこの局面に対して思考させる。
-		// "position"を含む。
-		string position_string;
+		// TODO : あとで整理する。
 
 		// 最後に受け取った"go"コマンド。"go"を含む。
 		string go_string;
@@ -1123,12 +1131,13 @@ namespace YaneuraouTheCluster
 		{
 			// clusterのオプション設定
 			ClusterOptions options;
+			unique_ptr<IClusterStrategy> strategy;
 
 			// "cluster"コマンドのパラメーター解析
-			parse_cluster_param(is, options);
+			parse_cluster_param(is, options, strategy);
 
 			// GUIとの通信を行うmain threadのmessage loop
-			message_loop_main(pos, is, options);
+			message_loop_main(pos, is, options, strategy );
 
 			// quitコマンドは受け取っているはず。
 			// ここで終了させないと、cluster engineが単体のengineのように見えない。
@@ -1144,21 +1153,22 @@ namespace YaneuraouTheCluster
 		//   debug        : debug用に通信のやりとりをすべて標準出力に出力する。
 		//   nodes        : go ponderする局面を選ぶために探索するノード数(ふかうら王で探索する)
 		//   skipinfo     : "info"文字列はdebugがオンでも出力しない。("info"で画面が流れていくの防止)
-		//   filelog      : このcluster engineのログをfileに書き出す。
+		//   log          : このcluster engineのログをfileに書き出す。
 		//   mode
-		//     multiponder  : MultiPonderモード
-		//     rakkan_gougi : 楽観合議モード
-		void parse_cluster_param(std::istringstream& is, ClusterOptions& options)
+		//		single       : 単一エンジン、ponderなし
+		//		ponder       : 単一エンジン、ponderあり
+		//		multiponder  : MultiPonderモード
+		//		optimistic   : 楽観合議モード
+		void parse_cluster_param(std::istringstream& is, ClusterOptions& options , unique_ptr<IClusterStrategy>& strategy)
 		{
 			// USIメッセージの処理を開始している。いま何か出力してはまずい。
-
-			// デフォルトのクラスターモードはMultiPonder
-			options.mode == ClusterMode::MultiPonder;
 
 			// USI拡張コマンドの"cluster"コマンドに付随できるオプション
 			// 例)
 			// cluster debug waitall
 			{
+				strategy = make_unique<SingleEngineStrategy>();
+
 				string token;
 				while (is >> token)
 				{
@@ -1172,16 +1182,20 @@ namespace YaneuraouTheCluster
 					else if (token == "skipinfo")
 						skip_info = true;
 
-					else if (token == "filelog")
+					else if (token == "log")
 						file_log  = true;
 
 					else if (token == "mode")
 					{
 						is >> token;
-						if (token == "multiponder")
-							options.mode = ClusterMode::MultiPonder;
-						else if (token == "rakkan_gougi")
-							options.mode = ClusterMode::RakkanGougi;
+						if (token == "single")
+							strategy = std::make_unique<SingleEngineStrategy>();
+						else if (token == "ponder")
+							strategy = std::make_unique<SinglePonderEngineStrategy>();
+						else if (token == "multiponder")
+							strategy = std::make_unique<MultiPonderStrategy>();
+						else if (token == "optimistic")
+							strategy = std::make_unique<OptimisticConsultationStrategy>();
 						// ..
 					}
 				}
@@ -1189,12 +1203,15 @@ namespace YaneuraouTheCluster
 		}
 
 		// "cluster"のメインループ
-		// wait_all : "waitall"(エンジンすべての起動を待つ)が指定されていたか。
-		void message_loop_main(Position& pos, std::istringstream& is, const ClusterOptions& options)
+		// USIプロトコルでGUI側から送られてくるコマンドとほぼ同じコマンドを理解できる。
+		void message_loop_main(Position& pos, std::istringstream& is, const ClusterOptions& options, unique_ptr<IClusterStrategy>& strategy)
 		{
 			// Clusterの監視者
 			// コンストラクタで全エンジンが起動する。
-			ClusterObserver observer(options);
+			ClusterObserver observer(options , strategy);
+
+			// 最後に"position"コマンドで送られてきた文字列("position")も含む。
+			string lastPosition;
 
 			while (true)
 			{
@@ -1211,12 +1228,35 @@ namespace YaneuraouTheCluster
 				if (token.empty())
 					continue;
 
-				if (token == "usi")
+				// ==============================================
+				// だいたいは送られてきたコマンドを
+				// そのままClusterObserverに送れば良いと思う。
+				// ==============================================
+
+				else if (token == "usi")
 					observer.send_wait(USI_Message::USI);
+				else if (token == "setoption")
+					// setoption は普通 isreadyの直前にしか送られてこないので
+					// 何も考えずに エンジンにそのまま投げて問題ない。
+					observer.send(Message(USI_Message::SETOPTION, cmd));
+				else if (token == "position")
+					// USI_Message::POSITIONは存在しない。局面は、GOコマンドに付随する。
+					lastPosition = cmd;
+				else if (token == "go")
+					observer.send(Message(USI_Message::GO       , cmd, lastPosition /* 局面も付随して送ることになっている */));
+				else if (token == "stop")
+					observer.send(Message(USI_Message::STOP     , cmd));
+				else if (token == "usinewgame")
+					observer.send(USI_Message::USINEWGAME);
+				else if (token == "gameover")
+					observer.send(USI_Message::GAMEOVER);
+
+				// ==============================================
 				else if (token == "isready")
 				{
 					// ふかうら王のエンジン初期化(評価関数の読み込みなど)
 					is_ready();
+
 					// 先行してエンジンに"isready"コマンド送るべきかと思ったが、
 					// すべてのエンジンから"readyok"が返ってくると自動的にGUIに対して
 					// "readyok"を返答してしまうので、ふかうら王のエンジンの初期化が
@@ -1224,20 +1264,6 @@ namespace YaneuraouTheCluster
 
 					observer.send_wait(USI_Message::ISREADY);
 				}
-				else if (token == "setoption")
-					// setoption は普通 isreadyの直前にしか送られてこないので
-					// 何も考えずに エンジンにそのまま投げて問題ない。
-					observer.send(USI_Message::SETOPTION, cmd);
-				else if (token == "position")
-					observer.send(USI_Message::POSITION, cmd);
-				else if (token == "go")
-					observer.send(USI_Message::GO      , cmd);
-				else if (token == "stop")
-					observer.send(USI_Message::STOP    , cmd);
-				else if (token == "usinewgame")
-					observer.send(USI_Message::USINEWGAME);
-				else if (token == "gameover")
-					observer.send(USI_Message::GAMEOVER);
 				else if (token == "quit")
 					break;
 				// 拡張コマンド。途中でdebug出力がしたい時に用いる。
@@ -1247,6 +1273,9 @@ namespace YaneuraouTheCluster
 				else if (token == "nodebug")
 					debug_mode = false;
 				else {
+					// "ponderhit"はサポートしていない。
+					// "go ponderも送られてこないものと仮定している。
+					
 					// 知らないコマンドなのでデバッグのためにエラー出力しておく。
 					// 利便性からすると何も考えずにエンジンに送ったほうがいいかも？
 					error_to_gui("Unknown Command : " + token);

@@ -26,10 +26,6 @@ namespace YaneuraouTheCluster
 		// GO_PONDERした時点では流さない。(GO_PONDER～PONDERHITで流す)
 		// このフラグが立っていなければ親クラス側で自前で処理するモード。
 		SEND_INFO_ON_GO = 4,
-
-		// エンジン側から"bestmove"が送られて来た時にそれをGUIに流す。
-		// このフラグが立っていなければ親クラス側で自前で処理するモード。
-		SEND_BESTMOVE = 8,
 	};
 
 	// EngineNegotiatorは、
@@ -93,7 +89,7 @@ namespace YaneuraouTheCluster
 		// エンジン側から受け取った"bestmove XX ponder YY"を返す。
 		// 一度このメソッドを呼び出すと、次以降は(エンジン側からさらに"bestmove XX ponder YY"を受信するまで)空の文字列が返る。
 		// つまりこれは、size = 1 の PC-queueとみなしている。
-		virtual std::string get_bestmove() = 0;
+		virtual std::string pull_bestmove() = 0;
 
 		// エンジンの状態を取得する。
 		// エンジンの状態は、send() , receive()でしか変化しないから、これで取得中に変化することはない。
@@ -119,13 +115,14 @@ namespace YaneuraouTheCluster
 		virtual bool        receive()                                           { return ptr->receive();                 }
 		virtual std::string get_searching_sfen() const                          { return ptr->get_searching_sfen();      }
 		virtual bool        is_ponderhit() const                                { return ptr->is_ponderhit();            }
-		virtual std::string get_bestmove()                                      { return ptr->get_bestmove();            }
+		virtual std::string pull_bestmove()                                     { return ptr->pull_bestmove();           }
 		virtual EngineState get_state() const                                   { return ptr->get_state();               }
 		virtual void        set_engine_mode(EngineMode m)                       {        ptr->set_engine_mode(m);        }
 		virtual EngineMode  get_engine_mode() const                             { return ptr->get_engine_mode();         }
 
 		EngineNegotiator();
-		EngineNegotiator(EngineNegotiator&&) = default; // default move constructor
+		EngineNegotiator& operator=(EngineNegotiator& rhs) { this->ptr = std::move(rhs.ptr); return *this; } // copy constructor
+ 		EngineNegotiator(EngineNegotiator&&) = default; // default move constructor
 		virtual ~EngineNegotiator(){}
 
 		// --- エンジンの状態を判定するhelper property

@@ -41,6 +41,7 @@ namespace YaneuraouTheCluster
 
 	// Message定数
 	// ※　ここに追加したら、to_string(USI_Message usi)のほうを修正すること。
+	// また、POSITIONは存在しない。局面は、GO, GO_PONDERコマンドに付随しているという考え。
 	enum class USI_Message
 	{
 		// 何もない(無効な)メッセージ
@@ -51,7 +52,6 @@ namespace YaneuraouTheCluster
 		SETOPTION,
 		USINEWGAME,
 		GAMEOVER,
-		POSITION,
 		GO,
 		GO_PONDER,
 		PONDERHIT,
@@ -63,8 +63,7 @@ namespace YaneuraouTheCluster
 	// USI_Messageの文字列化
 	extern std::string to_string(USI_Message usi);
 
-	// Supervisorに対して通信スレッドから送信するメッセージ。
-	// SupervisorからObserverに対して送信するメッセージもこのメッセージを用いる。
+	// EngineNegotiatorに対してClusterObserverから送信するメッセージ。
 	// 
 	// エンジン側からresultを返したいことは無いと思うので完了を待つ futureパターンを実装する必要はない。
 	// 単に完了が待てれば良い。また完了は逐次実行なので何番目のMessageまで実行したかをカウントしておけば良いので
@@ -76,8 +75,8 @@ namespace YaneuraouTheCluster
 			: message(message_) , command()                                           {}
 		Message(USI_Message message_, const std::string& command_)
 			: message(message_) , command(command_)                                   {}
-		Message(USI_Message message_, const std::string& command_, const std::string& position_sfen_)
-			: message(message_) , command(command_) , position_sfen(position_sfen_)   {}
+		Message(USI_Message message_, const std::string& command_, const std::string& position_cmd_)
+			: message(message_) , command(command_) , position_cmd(position_cmd_)     {}
 
 		// メッセージ種別。
 		const USI_Message message;
@@ -86,10 +85,10 @@ namespace YaneuraouTheCluster
 		// GUI側から送られてきた1行がそのまま入る。
 		const std::string command;
 
-		// 追加のパラメーター
-		// GO , GO_PONDER に対しては、思考すべき局面のsfen文字列が入る。
-		// (positionコマンドに付随している局面文字列。例 : "startpos moves 7g7f")
-		const std::string position_sfen;
+		// 追加のパラメーター。
+		// message が GO , GO_PONDER の時は、思考すべき局面。
+		// (直前に送られてきたpositionコマンドそのまま。例 : "position startpos moves 7g7f")
+		const std::string position_cmd;
 
 		// このクラスのメンバーを文字列化する
 		std::string to_string() const;
@@ -123,6 +122,25 @@ namespace YaneuraouTheCluster
 	// EngineNegotiatorStateを文字列化する。
 	extern std::string to_string(EngineState state);
 
+	// ---------------------------------------
+	//          ClusterOptions
+	// ---------------------------------------
+
+	// クラスタリング時のオプション設定
+	struct ClusterOptions
+	{
+		// すべてのエンジンが起動するのを待つかどうかのフラグ。(1つでも起動しなければ、終了する)
+		bool wait_all_engines_wakeup = true;
+
+		// go ponderする局面を決める時にふかうら王で探索するノード数
+		// 3万npsだとしたら、1000で1/30秒。GPUによって調整すべし。
+#if defined(YANEURAOU_ENGINE_DEEP)
+		uint64_t  nodes_limit = 1000;
+#elif defined(YANEURAOU_ENGINE_NNUE)
+		uint64_t  nodes_limit = 10000; // 1スレでも0.01秒未満だと思う。
+#endif
+
+	};
 }
 
 #endif // defined(USE_YO_CLUSTER) && (defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE))

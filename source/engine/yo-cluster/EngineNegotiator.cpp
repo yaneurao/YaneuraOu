@@ -32,7 +32,7 @@ namespace YaneuraouTheCluster
 			engine_mode = (EngineMode)
 				( EngineMode::SEND_INFO_BEFORE_GAME_0
 				| EngineMode::SEND_INFO_ON_GO
-				| EngineMode::SEND_BESTMOVE);
+				);
 			in_game     = false;
 			engine_id   = size_max; // 未初期化
 			go_count    = 0;
@@ -137,14 +137,17 @@ namespace YaneuraouTheCluster
 
 				// 対局中ではないので受理しない。
 				if (!is_in_game())
+				{
+					error_to_gui("'go' before usinewgame");
 					return ;
+				}
 
 				// エンジン側からbestmove来るまで次のgo送れないのでは…。いや、go ponderなら送れるのか…。
 				if (state != EngineState::IDLE_IN_GAME)
 					EngineError("'go' should be sent when state is 'IDLE_IN_GAME'.");
 
-				searching_sfen = message.position_sfen;
-				send_to_engine("position " + searching_sfen);
+				// positionコマンドとgoコマンド
+				send_to_engine(message.position_cmd);
 				send_to_engine(message.command);
 
 				state = EngineState::GO;
@@ -159,7 +162,10 @@ namespace YaneuraouTheCluster
 
 				// 対局中ではないので受理しない。
 				if (!is_in_game())
+				{
+					error_to_gui("'go' before usinewgame");
 					return ;
+				}
 
 				// 本来、エンジン側からbestmove来るまで次のgo ponder送れないが、
 				// ここでは、ignore_bestmoveをインクリメントしておき、この回数だけエンジン側からのbestmoveを
@@ -169,8 +175,8 @@ namespace YaneuraouTheCluster
 					)
 					EngineError("'go ponder' should be sent when state is 'IDLE_IN_GAME'.");
 
-				searching_sfen = message.position_sfen;
-				send_to_engine("position " + searching_sfen);
+				// positionコマンドとgo ponderコマンド
+				send_to_engine(message.position_cmd);
 				send_to_engine("go ponder");
 
 				state = EngineState::GO_PONDER;
@@ -214,7 +220,9 @@ namespace YaneuraouTheCluster
 				send_to_engine("gameover");
 
 				// bestmove受け取っていないのに状態変更するの、ちょっと危ない気がしなくはない。
+				// まあ、GUI側は一定時間は無視するのだろうからいいや。
 				state = EngineState::WAIT_ISREADY;
+				bestmove_string.clear();
 
 				break;
 
@@ -295,7 +303,7 @@ namespace YaneuraouTheCluster
 		// エンジン側から受け取った"bestmove XX ponder YY"を返す。
 		// 一度このメソッドを呼び出すと、次以降は(エンジン側からさらに"bestmove XX ponder YY"を受信するまで)空の文字列が返る。
 		// つまりこれは、size = 1 の PC-queueとみなしている。
-		virtual string get_bestmove() {
+		virtual string pull_bestmove() {
 			auto result = bestmove_string;
 			bestmove_string.clear();
 			return result;
@@ -492,12 +500,15 @@ namespace YaneuraouTheCluster
 					// これを設定しておけば親クラスが検知してくれる。
 					if (state == EngineState::GO)
 					{
-						bestmove_string = message;
+						// bestmoveは、常に親クラスの責任においてGUIに送信する。
+						// →　そうしておかないとエンジンが途中で切断された場合、bestmoveをGUIに送信したのかしていないのかが
+						// 　　親クラスがわからない。
+						// ただし、ゲーム中でないなら無視して良いし(遅れてやってきたbestmove)、go_count > 0 なら
+						// なかったことにして良い。(もう次のgoが来て次の局面について考えている)
+						if (go_count == 0 && in_game)
+							bestmove_string = message;
 
-						// 無視したらあかんやつなのでこのままGUIに投げる。
-						// is_in_game見て、対局中でないならbestmoveを返さないことも考えられるが、
-						// gameoverのあとでも bestmoveは遅れてでも返すべきだと思う。(bestmoveの回数をカウントするような実装系だと)
-						send_gui = engine_mode & EngineMode::SEND_BESTMOVE;
+						send_gui = false;
 
 						// 思考は停止している。
 						change_state(EngineState::IDLE_IN_GAME);

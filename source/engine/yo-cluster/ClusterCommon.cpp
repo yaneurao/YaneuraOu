@@ -76,7 +76,7 @@ namespace YaneuraouTheCluster
 
 			"USI","ISREADY","SETOPTION",
 			"USINEWGAME","GAMEOVER",
-			"POSITION","GO","GO_PONDER","PONDERHIT",
+			"GO","GO_PONDER","PONDERHIT",
 
 			"STOP",
 			"QUIT"
@@ -91,10 +91,10 @@ namespace YaneuraouTheCluster
 		if (command.empty())
 			return "Message[" + YaneuraouTheCluster::to_string(message) + "]";
 
-		if (position_sfen.empty())
+		if (position_cmd.empty())
 			return "Message[" + YaneuraouTheCluster::to_string(message) + " : " + command + "]";
 
-		return "Message[" + YaneuraouTheCluster::to_string(message) + " : " + command + "] : " + position_sfen;
+		return "Message[" + YaneuraouTheCluster::to_string(message) + " : " + command + "] : " + position_cmd;
 	}
 
 	// EngineNegotiatorStateを文字列化する。

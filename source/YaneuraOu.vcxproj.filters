@@ -334,6 +334,12 @@
     <ClInclude Include="engine\yo-cluster\ClusterCommon.h">
       <Filter>リソース ファイル\engine\yo-cluster</Filter>
     </ClInclude>
+    <ClInclude Include="engine\yo-cluster\ClusterStrategy.h">
+      <Filter>リソース ファイル\engine\yo-cluster</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\yo-cluster\ClusterObserver.h">
+      <Filter>リソース ファイル\engine\yo-cluster</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -534,7 +540,7 @@
     <ClCompile Include="eval\nnue\features\half_kp_vm.cpp">
       <Filter>リソース ファイル\eval\nnue\features</Filter>
     </ClCompile>
-    <ClCompile Include="engine\yo-cluster\yo_cluster.cpp">
+    <ClCompile Include="engine\yo-cluster\ClusterObserver.cpp">
       <Filter>リソース ファイル\engine\yo-cluster</Filter>
     </ClCompile>
     <ClCompile Include="engine\yo-cluster\ProcessNegotiator.cpp">
@@ -544,6 +550,9 @@
       <Filter>リソース ファイル\engine\yo-cluster</Filter>
     </ClCompile>
     <ClCompile Include="engine\yo-cluster\ClusterCommon.cpp">
+      <Filter>リソース ファイル\engine\yo-cluster</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\yo-cluster\ClusterStrategy.cpp">
       <Filter>リソース ファイル\engine\yo-cluster</Filter>
     </ClCompile>
   </ItemGroup>
