@@ -4,6 +4,7 @@
 
 #include "ClusterCommon.h"
 #include "../../misc.h"
+#include "../../usi.h"
 
 using namespace std;
 
@@ -91,10 +92,10 @@ namespace YaneuraouTheCluster
 		if (command.empty())
 			return "Message[" + YaneuraouTheCluster::to_string(message) + "]";
 
-		if (position_cmd.empty())
+		if (position_sfen.empty())
 			return "Message[" + YaneuraouTheCluster::to_string(message) + " : " + command + "]";
 
-		return "Message[" + YaneuraouTheCluster::to_string(message) + " : " + command + "] : " + position_cmd;
+		return "Message[" + YaneuraouTheCluster::to_string(message) + " : " + command + "] : " + position_sfen;
 	}
 
 	// EngineNegotiatorStateを文字列化する。
@@ -107,6 +108,77 @@ namespace YaneuraouTheCluster
 			"QUIT"
 		};
 		return s[(int)state];
+	}
+
+	// ---------------------------------------
+	//          文字列操作
+	// ---------------------------------------
+
+	// "go XX YY"に対して1つ目のcommand("go")を取り除き、"XX YY"を返す。
+	// コピペミスで"  go XX YY"のように先頭にスペースが入るパターンも正常に"XX YY"にする。
+	std::string strip_command(const std::string& m)
+	{
+		// 現在の注目位置(cursor)
+		size_t i = 0;
+
+		// スペース以外になるまでcursorを進める。(先頭にあるスペースの除去)
+		while (i < m.size() && m[i]==' ')
+			++i;
+
+		// スペースを発見するまで cursorを進める。(トークンの除去)
+		while (i < m.size() && m[i]!=' ')
+			++i;
+
+		// スペース以外になるまでcursorを進める。(次のトークンの発見)
+		while (i < m.size() && m[i]==' ')
+			++i;
+
+		// 現在のcursor位置以降の文字列を返す。
+		return m.substr(i);
+	}
+
+	// sfen文字列("position"で渡されてくる文字列)を連結する。
+	// sfen1 == "startpos" , moves = "7g7f"の時に、
+	// "startpos moves 7g7f"のように連結する。
+	std::string concat_sfen(const std::string&sfen, const std::string& moves)
+	{
+		bool is_startpos = sfen == "startpos";
+		return sfen + (is_startpos ? " moves " : " ") + moves;
+	}
+
+	// sfen文字列("position"で渡されてくる文字列)に、
+	// "bestmove XX ponder YY"の XX と YYの指し手を結合したsfen文字列を作る。
+	// ただし、YYが普通の指し手でない場合("win"とか"resign"とかの場合)、この連結を諦め、空の文字列が返る。
+	std::string concat_bestmove(const std::string&sfen, const std::string& bestmove)
+	{
+		Parser::LineScanner parser(bestmove);
+
+		string token;
+		string best_move;
+		string ponder_move;
+
+		while (!parser.eol())
+		{
+			token = parser.get_text();
+			if (token == "bestmove")
+				best_move = parser.get_text();
+			else if (token == "ponder")
+				ponder_move = parser.get_text();
+		}
+
+		// bestmoveで進めた局面を対局局面とする。
+		if (!is_ok(USI::to_move16(best_move)))
+			return string();
+
+		// さらにponderの指し手が有効手なのであるなら、ここを第一ponderとすべき。
+		if (!is_ok(USI::to_move16(ponder_move)))
+			return string();
+
+		string sfen2;
+		sfen2 = concat_sfen(sfen , best_move);
+		sfen2 = concat_sfen(sfen2, ponder_move);
+
+		return sfen2;
 	}
 
 }

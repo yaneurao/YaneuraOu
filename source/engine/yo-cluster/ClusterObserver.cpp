@@ -13,7 +13,7 @@
 // 
 // ■　用語の説明
 //
-// parent(host)  : このプログラム。ふかうら王を用いて動作する。USIエンジンのふりをする。思考する局面をworkerに割り振る。
+// parent(host)  : このプログラム。ふかうら王/やねうら王NNUEを用いて動作する。USIエンジンのふりをする。思考する局面をworkerに割り振る。
 // worker(guest) : 実際に思考するプログラム。USI対応の思考エンジンであれば何でも良い。実際はsshで接続する。
 //
 // 思考エンジンのリスト)
@@ -42,13 +42,20 @@
 // 起動後 "cluster"というコマンドが入力されることを想定している。
 // 起動時の引数で指定すればいいと思う。
 
-// yane-cluster.bat
-// に
-// YaneuraOuCluster.exe
-// と書いて(↑これが実行ファイル名)、
-//   yane-cluster.bat cluster
-// とすればいいと思う。
-
+// このエンジンの実行ファイルと同じフォルダに
+//   startup.txt
+// を配置して、そこに、例えば次のように書きます。
+// 
+//   setoption name BookFile value no_book
+//   setoption name Threads value 4
+//   cluster log nodes 100000
+//   setoption name BookFile value no_book
+//   setoption name Threads value 32
+//
+//  →　cluster engine側、定跡なしで4スレッド。workerは定跡なしで32スレッド。
+//      clusterの思考ログをファイルに書き出す。次のponder対象局面を探す時の探索ノード数100000。
+//
+//
 // 注意)
 // 本プログラムが不正終了したりquitされる前に終了してしまうと、実行していたworkerのエンジンは実行したままになることがある。
 // その場合は、実行していたエンジンをタスクマネージャーから終了させるなり何なりしなければならない。
@@ -101,37 +108,6 @@ using namespace std;
 
 namespace YaneuraouTheCluster
 {
-	// 構成)
-	//  GUI側 -- host(本プログラム) -- Worker(実際の探索に用いる思考エンジン) ×複数
-	// となっている。
-	//  hostである本プログラムは、guiとやりとりしつつ、それをうまくWorker×複数とやりとりする。
-
-	// ---------------------------------------
-	//          文字列操作
-	// ---------------------------------------
-
-	// "go XX YY"に対して1つ目のcommand("go")を取り除き、"XX YY"を返す。
-	// コピペミスで"  go XX YY"のように先頭にスペースが入るパターンも正常に"XX YY"にする。
-	string strip_command(const string& m)
-	{
-		// 現在の注目位置(cursor)
-		size_t i = 0;
-
-		// スペース以外になるまでcursorを進める。(先頭にあるスペースの除去)
-		while (i < m.size() && m[i]==' ')
-			++i;
-
-		// スペースを発見するまで cursorを進める。(トークンの除去)
-		while (i < m.size() && m[i]!=' ')
-			++i;
-
-		// スペース以外になるまでcursorを進める。(次のトークンの発見)
-		while (i < m.size() && m[i]==' ')
-			++i;
-
-		// 現在のcursor位置以降の文字列を返す。
-		return m.substr(i);
-	}
 
 	// 何文字目まで一致したかを返す。
 	size_t get_match_length(const string& s1, const string& s2)
@@ -166,16 +142,6 @@ namespace YaneuraouTheCluster
 			i = (size_t)((std::max)( (s64)s1.size() - (s64)(s1.size() - i)*3 , (s64)0));
 
 		return i;
-	}
-
-	// sfen文字列("position"で渡されてくる文字列)を連結する。
-	// sfen1 == "startpos" , moves = " 7g7f"の時に、
-	// "startpos moves 7g7f"のように連結する。
-	// 引数のmovesの文字列の先頭にはスペースが入っていること。
-	string concat_sfen(const string&sfen, const string& moves)
-	{
-		bool is_startpos = sfen == "startpos";
-		return sfen + (is_startpos ? " moves" : "") + moves;
 	}
 
 	// ---------------------------------------
@@ -1155,7 +1121,7 @@ namespace YaneuraouTheCluster
 		//   skipinfo     : "info"文字列はdebugがオンでも出力しない。("info"で画面が流れていくの防止)
 		//   log          : このcluster engineのログをfileに書き出す。
 		//   mode
-		//		single       : 単一エンジン、ponderなし
+		//		single       : 単一エンジン、ponderなし(defaultでこれ)
 		//		ponder       : 単一エンジン、ponderあり
 		//		multiponder  : MultiPonderモード
 		//		optimistic   : 楽観合議モード
@@ -1241,7 +1207,8 @@ namespace YaneuraouTheCluster
 					observer.send(Message(USI_Message::SETOPTION, cmd));
 				else if (token == "position")
 					// USI_Message::POSITIONは存在しない。局面は、GOコマンドに付随する。
-					lastPosition = cmd;
+					// "position XXXX ..."の"position"の文字わ剥がして保存する。
+					lastPosition = strip_command(cmd);
 				else if (token == "go")
 					observer.send(Message(USI_Message::GO       , cmd, lastPosition /* 局面も付随して送ることになっている */));
 				else if (token == "stop")

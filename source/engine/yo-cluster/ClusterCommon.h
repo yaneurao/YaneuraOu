@@ -75,8 +75,8 @@ namespace YaneuraouTheCluster
 			: message(message_) , command()                                           {}
 		Message(USI_Message message_, const std::string& command_)
 			: message(message_) , command(command_)                                   {}
-		Message(USI_Message message_, const std::string& command_, const std::string& position_cmd_)
-			: message(message_) , command(command_) , position_cmd(position_cmd_)     {}
+		Message(USI_Message message_, const std::string& command_, const std::string& position_sfen_)
+			: message(message_) , command(command_) , position_sfen(position_sfen_)   {}
 
 		// メッセージ種別。
 		const USI_Message message;
@@ -87,8 +87,8 @@ namespace YaneuraouTheCluster
 
 		// 追加のパラメーター。
 		// message が GO , GO_PONDER の時は、思考すべき局面。
-		// (直前に送られてきたpositionコマンドそのまま。例 : "position startpos moves 7g7f")
-		const std::string position_cmd;
+		// (直前に送られてきたpositionコマンドの"position"の文字列を剥がしたもの。例 : "startpos moves 7g7f")
+		const std::string position_sfen;
 
 		// このクラスのメンバーを文字列化する
 		std::string to_string() const;
@@ -121,6 +121,24 @@ namespace YaneuraouTheCluster
 
 	// EngineNegotiatorStateを文字列化する。
 	extern std::string to_string(EngineState state);
+
+	// ---------------------------------------
+	//          文字列操作
+	// ---------------------------------------
+
+	// "go XX YY"に対して1つ目のcommand("go")を取り除き、"XX YY"を返す。
+	// コピペミスで"  go XX YY"のように先頭にスペースが入るパターンも正常に"XX YY"にする。
+	std::string strip_command(const std::string& m);
+
+	// sfen文字列("position"で渡されてくる文字列)を連結する。
+	// sfen1 == "startpos" , moves = "7g7f"の時に、
+	// "startpos moves 7g7f"のように連結する。
+	std::string concat_sfen(const std::string&sfen, const std::string& moves);
+
+	// sfen文字列("position"で渡されてくる文字列)に、
+	// "bestmove XX ponder YY"の XX と YYの指し手を結合したsfen文字列を作る。
+	// ただし、YYが普通の指し手でない場合("win"とか"resign"とかの場合)、この連結を諦め、空の文字列が返る。
+	std::string concat_bestmove(const std::string&sfen, const std::string& bestmove);
 
 	// ---------------------------------------
 	//          ClusterOptions

@@ -30,7 +30,7 @@ namespace YaneuraouTheCluster
 		{
 			state       = EngineState::DISCONNECTED;
 			engine_mode = (EngineMode)
-				( EngineMode::SEND_INFO_BEFORE_GAME_0
+				( EngineMode::SEND_INFO_BEFORE_GAME
 				| EngineMode::SEND_INFO_ON_GO
 				);
 			in_game     = false;
@@ -147,7 +147,8 @@ namespace YaneuraouTheCluster
 					EngineError("'go' should be sent when state is 'IDLE_IN_GAME'.");
 
 				// positionコマンドとgoコマンド
-				send_to_engine(message.position_cmd);
+				searching_sfen = message.position_sfen;
+				send_to_engine("position " + searching_sfen);
 				send_to_engine(message.command);
 
 				state = EngineState::GO;
@@ -163,7 +164,7 @@ namespace YaneuraouTheCluster
 				// 対局中ではないので受理しない。
 				if (!is_in_game())
 				{
-					error_to_gui("'go' before usinewgame");
+					error_to_gui("'go ponder' before usinewgame");
 					return ;
 				}
 
@@ -176,7 +177,8 @@ namespace YaneuraouTheCluster
 					EngineError("'go ponder' should be sent when state is 'IDLE_IN_GAME'.");
 
 				// positionコマンドとgo ponderコマンド
-				send_to_engine(message.position_cmd);
+				searching_sfen = message.position_sfen;
+				send_to_engine("position " + searching_sfen);
 				send_to_engine("go ponder");
 
 				state = EngineState::GO_PONDER;
@@ -459,10 +461,8 @@ namespace YaneuraouTheCluster
 				else if (state == EngineState::WAIT_USIOK
 					  || state == EngineState::WAIT_READYOK
 					)
-					send_gui =
-						((engine_mode & EngineMode::SEND_INFO_BEFORE_GAME_0  ) && get_engine_id() == 0)
-					||  ((engine_mode & EngineMode::SEND_INFO_BEFORE_GAME_ANY)                        )
-						;
+					send_gui = engine_mode & EngineMode::SEND_INFO_BEFORE_GAME;
+
 				else
 					// usiok/readyok待ちと go ponder , go 以外のタイミングでエンジン側からinfo stringでメッセージが来るのおかしいのでは…。
 					// ただしignore_bestmove > 0なら、bestmove来るまでは無視していいのか…。

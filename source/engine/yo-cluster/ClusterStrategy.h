@@ -33,15 +33,19 @@ namespace YaneuraouTheCluster
 	class SinglePonderEngineStrategy : public IClusterStrategy
 	{
 	public:
-		virtual void on_connected(StrategyParam& param) {}
-		virtual void on_go_command(StrategyParam& param, const Message& command){}
-		virtual void on_idle(StrategyParam& param){}
+		virtual void on_connected(StrategyParam& param);
+		virtual void on_go_command(StrategyParam& param, const Message& command);
+		virtual void on_idle(StrategyParam& param);
+	protected:
+		// 前回の"go"コマンドの時のパラメーター
+		std::string last_go_param;
 	};
 
 	// MultiPonder
 	class MultiPonderStrategy : public IClusterStrategy
 	{
 	public:
+		virtual void on_connected(StrategyParam& param) {}
 		virtual void on_go_command(StrategyParam& param, const Message& command){}
 		virtual void on_idle(StrategyParam& param){}
 	};
@@ -50,6 +54,7 @@ namespace YaneuraouTheCluster
 	class OptimisticConsultationStrategy : public IClusterStrategy
 	{
 	public:
+		virtual void on_connected(StrategyParam& param) {}
 		virtual void on_go_command(StrategyParam& param, const Message& command){}
 		virtual void on_idle(StrategyParam& param){}
 	};
