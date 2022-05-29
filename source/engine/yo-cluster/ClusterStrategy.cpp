@@ -3,6 +3,7 @@
 #if defined(USE_YO_CLUSTER) && (defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE))
 
 #include "../../types.h"
+#include "../../misc.h"
 
 #include "ClusterStrategy.h"
 using namespace std;
@@ -208,8 +209,10 @@ namespace YaneuraouTheCluster
 		// 思考ログが存在しない。そんな馬鹿な…。
 		if (best_engine == size_max)
 		{
+			// こんなことをしてくるエンジンがいると楽観合議できない。
+			// 必ずbestmoveの手前で読み筋と評価値を送ってくれないと駄目。
 			error_to_gui("OptimisticConsultationStrategy::on_idle , No think_log");
-			return;
+			Tools::exit();
 		}
 
 		// ここまでの思考logをまとめてGUIに送信する。

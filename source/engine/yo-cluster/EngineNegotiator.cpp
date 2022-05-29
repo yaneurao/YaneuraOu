@@ -209,9 +209,6 @@ namespace YaneuraouTheCluster
 				// ponderhitのメッセージは先行してエンジンに送ったほうが良い。
 				output_thinklog();
 
-				// 以降は、EngineStateがGOになっているのでエンジン側から送られてきた"info .."は、
-				// 直接GUIに出力されるはず。
-
 				break;
 
 			case USI_Message::GAMEOVER:
@@ -306,7 +303,7 @@ namespace YaneuraouTheCluster
 		// 一度このメソッドを呼び出すと、次以降は(エンジン側からさらに"bestmove XX ponder YY"を受信するまで)空の文字列が返る。
 		// つまりこれは、size = 1 の PC-queueとみなしている。
 		virtual string pull_bestmove() {
-			auto result = std::move(bestmove_string);
+			auto result = bestmove_string;
 			bestmove_string.clear();
 			return result;
 		}
@@ -323,7 +320,7 @@ namespace YaneuraouTheCluster
 		// この関数を呼び出すと、保持していた思考ログはクリアされる。
 		virtual vector<string> pull_thinklog()
 		{
-			auto log = std::move(think_log);
+			auto log = think_log;
 			think_log.clear();
 			return log;
 		}
@@ -406,7 +403,7 @@ namespace YaneuraouTheCluster
 		void output_thinklog()
 		{
 			// ログを送信するモードではないなら何もせずに帰る。
-			if (engine_mode & EngineMode::SEND_INFO_ON_GO)
+			if (!(engine_mode & EngineMode::SEND_INFO_ON_GO))
 				return ;
 
 			// "GO_PONDER"が何重にも送られてきている。
