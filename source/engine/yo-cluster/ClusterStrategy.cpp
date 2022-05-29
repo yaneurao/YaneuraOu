@@ -1,7 +1,10 @@
-﻿#include "ClusterStrategy.h"
+﻿#include "../../config.h"
 
 #if defined(USE_YO_CLUSTER) && (defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE))
 
+#include "../../types.h"
+
+#include "ClusterStrategy.h"
 using namespace std;
 
 namespace YaneuraouTheCluster
@@ -87,8 +90,8 @@ namespace YaneuraouTheCluster
 
 		// いま go ponderで思考している局面と、command.position_sfenが一致するなら、エンジンに"ponderhit"を送ってやれば良い。
 		if (engine.is_state_go_ponder() && engine.get_searching_sfen() == sfen)
-			// 前回の"go"の時に渡された残り時間等のパラメーターをそのままに、"ponderhit XXX .."の形式でエンジン側に送信。
-			engine.send(Message(USI_Message::PONDERHIT, last_go_param));
+			// 今回の"go"の時に渡された残り時間等のパラメーターをそのままに、"ponderhit XXX .."の形式でエンジン側に送信。
+			engine.send(Message(USI_Message::PONDERHIT, strip_command(command.command) ));
 		else
 			// この局面についてponderしていなかったので愚直に"go"コマンドで思考させる。
 			engine.send(command);
@@ -103,26 +106,142 @@ namespace YaneuraouTheCluster
 
 		auto& engine = param.engines[0];
 
-		auto bestmove = engine.pull_bestmove();
-		if (bestmove.empty())
+		auto bestmove_str = engine.pull_bestmove();
+		if (bestmove_str.empty())
 			return ; // 来てない。
 
 		// これこのままGUI側に送信すればGUIに対して"bestmove XX"を返したことになる。
-		send_to_gui(bestmove);
+		send_to_gui(bestmove_str);
 
 		// "bestmove XX ponder YY"の形だと思うので、YYを抽出して、その局面について思考エンジンにGO_PONDERさせる。
 
 		// 探索していた局面は、bestmoveを返したあとも次の"GO","GO_PONDER"が来るまではget_searching_sfen()で取得できることが保証されている。
 		// そこに、XXとYYを追加したsfen文字列を用意して、GO_PONDERする。
-		auto sfen = concat_bestmove( engine.get_searching_sfen() , bestmove);
 
-		// XXかYYが"resign"のような、それによって局面を進められない指し手である場合、
-		// concat_bestmove()の戻り値は 空の文字列になることが保証されている。
-		// この場合、GO_PONDERしてはならない。
-		if (sfen.empty())
+		string bestmove, ponder;
+		parse_bestmove(bestmove_str, bestmove , ponder);
+
+		// XXかYYが"resign"のような、それによって局面を進められない指し手である場合(このとき、空の文字列となる)、
+		// GO_PONDERしてはならない。
+		if (bestmove.empty() || ponder.empty())
 			return ;
 
+		auto sfen = concat_sfen(engine.get_searching_sfen(), bestmove + " " + ponder);
 		engine.send(Message(USI_Message::GO_PONDER, string() , sfen));
+	}
+
+	// ---------------------------------------
+	//     OptimisticConsultationStrategy 
+	// ---------------------------------------
+
+	// SinglePonderStrategyを複数エンジンに対応させて、
+	// goした時に一番良い評価値を返してきたエンジンのbestmoveを採用するように変えたもの。
+
+	void OptimisticConsultationStrategy::on_connected(StrategyParam& param)
+	{
+		for(auto& engine : param.engines)
+			engine.set_engine_mode(EngineMode(
+				// 接続後、対局前までにエンジン側から送られてきた"info ..."を、そのままGUIに流す。
+				EngineMode::SEND_INFO_BEFORE_GAME
+			));
+	}
+
+	void OptimisticConsultationStrategy::on_go_command(StrategyParam& param, const Message& command)
+	{
+		auto& engines = param.engines;
+
+		// goコマンドの対象局面
+		auto  sfen    = command.position_sfen;
+
+		for(auto& engine : engines)
+		{
+			// いま go ponderで思考している局面と、command.position_sfenが一致するなら、エンジンに"ponderhit"を送ってやれば良い。
+			if (engine.is_state_go_ponder() && engine.get_searching_sfen() == sfen)
+				// 今回の"go"の時に渡された残り時間等のパラメーターをそのままに、"ponderhit XXX .."の形式でエンジン側に送信。
+				engine.send(Message(USI_Message::PONDERHIT, strip_command(command.command) ));
+			else
+				// この局面についてponderしていなかったので愚直に"go"コマンドで思考させる。
+				engine.send(command);
+		}
+	}
+
+	void OptimisticConsultationStrategy::on_idle(StrategyParam& param)
+	{
+		// すべてのbestmoveが来てから。
+		auto& engines = param.engines;
+
+		for(auto& engine : engines)
+			if (engine.peek_bestmove().empty())
+				return ; // 来てない。
+
+		// 一番良い評価値を返してきているエンジンを探す。
+
+		size_t best_engine = size_max;
+		int    best_value  = int_min;
+		vector<string> best_log;
+		for(size_t i = 0 ; i < engines.size(); ++i)
+		{
+			auto& engine = engines[i];
+
+			auto log = engine.pull_thinklog();
+			// 末尾からvalueの書いてあるlogを探す。
+			for(size_t j = log.size() ; j != 0 ; j --)
+			{
+				UsiInfo info;
+				parse_usi_info(log[j-1], info);
+
+				if (info.value != VALUE_NONE)
+				{
+					if (info.value > best_value)
+					{
+						best_value  = info.value;
+						best_engine = i;
+						best_log    = log;
+					}
+					// valueが書いてあったのでこのエンジンに関して
+					// ログを調べるのはこれで終わり。
+					break;
+				}
+			}
+		}
+
+		// 思考ログが存在しない。そんな馬鹿な…。
+		if (best_engine == size_max)
+		{
+			error_to_gui("OptimisticConsultationStrategy::on_idle , No think_log");
+			return;
+		}
+
+		// ここまでの思考logをまとめてGUIに送信する。
+		for(auto& line : best_log)
+			send_to_gui(line);
+
+		auto bestmove_str = engines[best_engine].peek_bestmove();
+		// engineすべてからbestmoveを取り除いておく。
+		for(auto& engine : engines)
+			engine.pull_bestmove();
+
+		 // これこのままGUI側に送信すればGUIに対して"bestmove XX"を返したことになる。
+		send_to_gui(bestmove_str);
+
+		// "bestmove XX ponder YY"の形だと思うので、YYを抽出して、その局面について思考エンジンにGO_PONDERさせる。
+
+		// 探索していた局面は、bestmoveを返したあとも次の"GO","GO_PONDER"が来るまではget_searching_sfen()で取得できることが保証されている。
+		// そこに、XXとYYを追加したsfen文字列を用意して、GO_PONDERする。
+
+		string bestmove, ponder;
+		parse_bestmove(bestmove_str, bestmove , ponder);
+
+		// XXかYYが"resign"のような、それによって局面を進められない指し手である場合(このとき、空の文字列となる)、
+		// GO_PONDERしてはならない。
+		if (bestmove.empty() || ponder.empty())
+			return ;
+
+		auto sfen = concat_sfen(engines[0].get_searching_sfen(), bestmove + " " + ponder);
+
+		// すべてのengineのponderを送って、ベストを拾う。
+		for(auto& engine : param.engines)
+			engine.send(Message(USI_Message::GO_PONDER, string() , sfen));
 	}
 
 }

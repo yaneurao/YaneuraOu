@@ -5,6 +5,8 @@
 
 #if defined(USE_YO_CLUSTER) && (defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE))
 
+#include <vector>
+
 #include "ClusterCommon.h"
 #include "ProcessNegotiator.h"
 
@@ -88,6 +90,16 @@ namespace YaneuraouTheCluster
 		// つまりこれは、size = 1 の PC-queueとみなしている。
 		virtual std::string pull_bestmove() = 0;
 
+		// エンジン側から受け取った"bestmove XX ponder YY"を返す。
+		// pull_bestmove()と違って、このクラスの保持しているbestmove_stringは空にならない。
+		virtual std::string peek_bestmove() = 0;
+
+		// 思考ログを取得する。
+		// (エンジン側から送られてきた"info ..."の文字列)
+		// 前回"go","go ponder"されて以降のログ。
+		// この関数を呼び出すと、保持していた思考ログはクリアされる。
+		virtual std::vector<std::string> pull_thinklog() = 0;
+
 		// エンジンの状態を取得する。
 		// エンジンの状態は、send() , receive()でしか変化しないから、これで取得中に変化することはない。
 		virtual EngineState get_state() const = 0;
@@ -113,6 +125,8 @@ namespace YaneuraouTheCluster
 		virtual std::string get_searching_sfen() const                          { return ptr->get_searching_sfen();      }
 		virtual bool        is_ponderhit() const                                { return ptr->is_ponderhit();            }
 		virtual std::string pull_bestmove()                                     { return ptr->pull_bestmove();           }
+		virtual std::string peek_bestmove()                                     { return ptr->peek_bestmove();           }
+		virtual std::vector<std::string> pull_thinklog()                        { return ptr->pull_thinklog();           }
 		virtual EngineState get_state() const                                   { return ptr->get_state();               }
 		virtual void        set_engine_mode(EngineMode m)                       {        ptr->set_engine_mode(m);        }
 		virtual EngineMode  get_engine_mode() const                             { return ptr->get_engine_mode();         }

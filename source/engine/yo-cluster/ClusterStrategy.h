@@ -36,22 +36,22 @@ namespace YaneuraouTheCluster
 		virtual void on_connected(StrategyParam& param);
 		virtual void on_go_command(StrategyParam& param, const Message& command);
 		virtual void on_idle(StrategyParam& param);
-	protected:
-		// 前回の"go"コマンドの時のパラメーター
-		std::string last_go_param;
+	};
+
+	// 楽観合議
+	// 
+	// SinglePonderStrategyを複数エンジンに対応させて、
+	// goした時に一番良い評価値を返してきたエンジンのbestmoveを採用するように変えたもの。
+	class OptimisticConsultationStrategy : public IClusterStrategy
+	{
+	public:
+		virtual void on_connected(StrategyParam& param);
+		virtual void on_go_command(StrategyParam& param, const Message& command);
+		virtual void on_idle(StrategyParam& param);
 	};
 
 	// MultiPonder
 	class MultiPonderStrategy : public IClusterStrategy
-	{
-	public:
-		virtual void on_connected(StrategyParam& param) {}
-		virtual void on_go_command(StrategyParam& param, const Message& command){}
-		virtual void on_idle(StrategyParam& param){}
-	};
-
-	// 楽観合議
-	class OptimisticConsultationStrategy : public IClusterStrategy
 	{
 	public:
 		virtual void on_connected(StrategyParam& param) {}

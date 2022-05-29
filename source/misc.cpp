@@ -1935,6 +1935,15 @@ namespace Parser
 		return result;
 	}
 
+	// 現在のcursor位置から残りの文字列を取得する。
+	// peek_text()した分があるなら、それも先頭にくっつけて返す。
+	std::string LineScanner::get_rest()
+	{
+		return token.empty()
+			? line.substr(pos)
+			: token + " " + line.substr(pos);
+	}
+
 	// 次の文字列を数値化して返す。数値化できない時は引数の値がそのまま返る。
 	s64 LineScanner::get_number(s64 defaultValue)
 	{

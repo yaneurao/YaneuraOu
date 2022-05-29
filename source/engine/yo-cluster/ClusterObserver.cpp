@@ -264,7 +264,8 @@ namespace YaneuraouTheCluster
 					switch(message.message)
 					{
 					case USI_Message::SETOPTION: // ←　これは状態関係なしに送れるコマンドのはずなので送ってしまう。
-						broadcast(message);
+						if (!options.ignore_setoption)
+							broadcast(message);
 						break;
 
 					case USI_Message::USI:
@@ -1116,15 +1117,16 @@ namespace YaneuraouTheCluster
 		// 
 		// 指定できるオプション一覧)
 		// 
-		//   debug        : debug用に通信のやりとりをすべて標準出力に出力する。
-		//   nodes        : go ponderする局面を選ぶために探索するノード数(ふかうら王で探索する)
-		//   skipinfo     : "info"文字列はdebugがオンでも出力しない。("info"で画面が流れていくの防止)
-		//   log          : このcluster engineのログをfileに書き出す。
+		//   debug            : debug用に通信のやりとりをすべて標準出力に出力する。
+		//   nodes            : go ponderする局面を選ぶために探索するノード数(ふかうら王で探索する)
+		//   skipinfo         : "info"文字列はdebugがオンでも出力しない。("info"で画面が流れていくの防止)
+		//   log              : このcluster engineのログをfileに書き出す。
+		//   ignore_setoption : GUI側からのsetoptionコマンドを無視する。(エンジンを個別にそのエンジンオプションを設定したい場合)
 		//   mode
 		//		single       : 単一エンジン、ponderなし(defaultでこれ)
 		//		ponder       : 単一エンジン、ponderあり
-		//		multiponder  : MultiPonderモード
 		//		optimistic   : 楽観合議モード
+		//		multiponder  : MultiPonderモード
 		void parse_cluster_param(std::istringstream& is, ClusterOptions& options , unique_ptr<IClusterStrategy>& strategy)
 		{
 			// USIメッセージの処理を開始している。いま何か出力してはまずい。
@@ -1151,6 +1153,9 @@ namespace YaneuraouTheCluster
 					else if (token == "log")
 						file_log  = true;
 
+					else if (token == "ignore_setoption")
+						options.ignore_setoption = true;
+
 					else if (token == "mode")
 					{
 						is >> token;
@@ -1158,10 +1163,10 @@ namespace YaneuraouTheCluster
 							strategy = std::make_unique<SingleEngineStrategy>();
 						else if (token == "ponder")
 							strategy = std::make_unique<SinglePonderEngineStrategy>();
-						else if (token == "multiponder")
-							strategy = std::make_unique<MultiPonderStrategy>();
 						else if (token == "optimistic")
 							strategy = std::make_unique<OptimisticConsultationStrategy>();
+						else if (token == "multiponder")
+							strategy = std::make_unique<MultiPonderStrategy>();
 						// ..
 					}
 				}

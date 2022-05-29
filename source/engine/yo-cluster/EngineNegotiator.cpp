@@ -306,9 +306,26 @@ namespace YaneuraouTheCluster
 		// 一度このメソッドを呼び出すと、次以降は(エンジン側からさらに"bestmove XX ponder YY"を受信するまで)空の文字列が返る。
 		// つまりこれは、size = 1 の PC-queueとみなしている。
 		virtual string pull_bestmove() {
-			auto result = bestmove_string;
+			auto result = std::move(bestmove_string);
 			bestmove_string.clear();
 			return result;
+		}
+
+		// エンジン側から受け取った"bestmove XX ponder YY"を返す。
+		// pull_bestmove()と違って、このクラスの保持しているbestmove_stringは空にならない。
+		virtual string peek_bestmove() {
+			return bestmove_string;
+		}
+
+		// 思考ログを取得する。
+		// (エンジン側から送られてきた"info ..."の文字列)
+		// 前回"go","go ponder"されて以降のログ。
+		// この関数を呼び出すと、保持していた思考ログはクリアされる。
+		virtual vector<string> pull_thinklog()
+		{
+			auto log = std::move(think_log);
+			think_log.clear();
+			return log;
 		}
 
 		// エンジンの状態を取得する。
@@ -423,16 +440,18 @@ namespace YaneuraouTheCluster
 		}
 
 		// エンジン側から送られてきたメッセージを配る(解読して適切な配達先に渡す)
-		void dispatch_message(const string& message)
+		void dispatch_message(const string& message_)
 		{
 			ASSERT_LV3(state != EngineState::DISCONNECTED);
+
+			// 書き換えたいのでcopyしておく。
+			string message = message_;
 
 			// 受信したメッセージをログ出力しておく。
 			DebugMessage("> " + message);
 
-			istringstream is(message);
-			string token;
-			is >> token;
+			Parser::LineScanner scanner(message);
+			string token = scanner.get_text();
 
 			// GUIに転送するのか？のフラグ
 			bool send_gui = false;
@@ -448,21 +467,30 @@ namespace YaneuraouTheCluster
 					else if (go_count == 1)
 					{
 						if (state == EngineState::GO)
+						{
 							send_gui = engine_mode & EngineMode::SEND_INFO_ON_GO;
+							if (!send_gui)
+								think_log.emplace_back(message);
+						}
 						else // state == EngineState::GO_PONDER
-							think_log.push_back(message);
+							think_log.emplace_back(message);
 					}
 					else
 						;
 						// ignore_bestmove >= 2なら、どうせいま受信したメッセージは捨てることになるのでthink_logに積まない。
 						// 当然ながら出力もしない。
 				}
-				// "usiok", "readyok" 待ちの時は、engine id == 0のメッセージだけをGUIに転送。
+				// "usiok", "readyok" 待ちの時は、engine_modeでそのまま垂れ流し設定になっていれば垂れ流す。
 				else if (state == EngineState::WAIT_USIOK
 					  || state == EngineState::WAIT_READYOK
 					)
+				{
 					send_gui = engine_mode & EngineMode::SEND_INFO_BEFORE_GAME;
-
+					// ただし、どのエンジンから送られてきたかを区別するために、"info string [0] xxx"のように
+					// engine_idを付与したいところではある。
+					if (scanner.get_text() == "string")
+						message = "info string [" + std::to_string(engine_id) + "] " + scanner.get_rest();
+				}
 				else
 					// usiok/readyok待ちと go ponder , go 以外のタイミングでエンジン側からinfo stringでメッセージが来るのおかしいのでは…。
 					// ただしignore_bestmove > 0なら、bestmove来るまでは無視していいのか…。
@@ -533,8 +561,7 @@ namespace YaneuraouTheCluster
 			// "id"はエンジン起動時にしか来ないはずだが？
 			else if (token == "id")
 			{
-				string token2;
-				is >> token2;
+				string token2 = scanner.get_text();
 				// "id author"のタイミングでこのエンジンのinfoを出しておく。
 				// それ以外の"id XXX"は無視する。
 				if (engine_id == 0 && token2 == "author")

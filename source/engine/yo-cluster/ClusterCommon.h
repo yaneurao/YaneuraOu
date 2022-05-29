@@ -6,6 +6,7 @@
 #if defined(USE_YO_CLUSTER) && (defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE))
 
 #include <string>
+#include "../../types.h"
 
 // YO Cluster、共通ヘッダー
 
@@ -135,10 +136,32 @@ namespace YaneuraouTheCluster
 	// "startpos moves 7g7f"のように連結する。
 	std::string concat_sfen(const std::string&sfen, const std::string& moves);
 
-	// sfen文字列("position"で渡されてくる文字列)に、
-	// "bestmove XX ponder YY"の XX と YYの指し手を結合したsfen文字列を作る。
-	// ただし、YYが普通の指し手でない場合("win"とか"resign"とかの場合)、この連結を諦め、空の文字列が返る。
-	std::string concat_bestmove(const std::string&sfen, const std::string& bestmove);
+	// エンジン側が返してくる"bestmove XX ponder YY"の文字列からXXとYYを取り出す。
+	// XX,YYが普通の指し手でない場合("win"とか"resign"とかの場合)、空の文字列を返す。
+	// bestmove_str : [in ] "bestmove XX ponder YY" のような文字列
+	// bestmove     : [out] XXの部分。
+	// ponder       : [out] YYの部分。
+	void parse_bestmove(const std::string& bestmove_str, std::string& bestmove, std::string& ponder);
+
+	// エンジン側から送られてきた"info .."の文字列をparseした結果を格納する構造体。
+	struct UsiInfo
+	{
+		// 評価値
+		// 文字列中に見つからなければVALUE_NONEのまま。
+		Value value = VALUE_NONE;
+
+		// upperboundがついていたのか
+		bool upperbound = false;
+
+		// lowerboundがついていたのか
+		bool lowerbound = false;
+
+		// pv文字列。("7g7f 2c2d"のような指し手文字列)
+		std::string pv;
+	};
+
+	// エンジン側から送られてきた"info .."をparseする。
+	void parse_usi_info(const std::string& usi_info_string, UsiInfo& info);
 
 	// ---------------------------------------
 	//          ClusterOptions
@@ -149,6 +172,12 @@ namespace YaneuraouTheCluster
 	{
 		// すべてのエンジンが起動するのを待つかどうかのフラグ。(1つでも起動しなければ、終了する)
 		bool wait_all_engines_wakeup = true;
+
+		// GUI側から送られてきた"setoption"を無視する。
+		// "cluster ignore_setoption"と指定すると、これがtrueになる。
+		// エンジン設定を個別に"engine_options.txt"を用いて設定する場合、
+		// GUI側から全部のエンジンにbroadcastされると迷惑なのでこのオプションを用意した。
+		bool ignore_setoption = false;
 
 		// go ponderする局面を決める時にふかうら王で探索するノード数
 		// 3万npsだとしたら、1000で1/30秒。GPUによって調整すべし。

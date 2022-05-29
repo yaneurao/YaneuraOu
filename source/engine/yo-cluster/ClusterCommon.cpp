@@ -146,39 +146,106 @@ namespace YaneuraouTheCluster
 		return sfen + (is_startpos ? " moves " : " ") + moves;
 	}
 
-	// sfen文字列("position"で渡されてくる文字列)に、
-	// "bestmove XX ponder YY"の XX と YYの指し手を結合したsfen文字列を作る。
-	// ただし、YYが普通の指し手でない場合("win"とか"resign"とかの場合)、この連結を諦め、空の文字列が返る。
-	std::string concat_bestmove(const std::string&sfen, const std::string& bestmove)
+	// エンジン側が返してくる"bestmove XX ponder YY"の文字列からXXとYYを取り出す。
+	// XX,YYが普通の指し手でない場合("win"とか"resign"とかの場合)、空の文字列を返す。
+	// bestmove_str : [in ] "bestmove XX ponder YY" のような文字列
+	// bestmove     : [out] XXの部分。
+	// ponder       : [out] YYの部分。
+	void parse_bestmove(const std::string& bestmove_str, std::string& bestmove, std::string& ponder)
 	{
-		Parser::LineScanner parser(bestmove);
+		Parser::LineScanner scanner(bestmove_str);
 
 		string token;
-		string best_move;
-		string ponder_move;
-
-		while (!parser.eol())
+		while (!scanner.eol())
 		{
-			token = parser.get_text();
+			token = scanner.get_text();
 			if (token == "bestmove")
-				best_move = parser.get_text();
+				bestmove = scanner.get_text();
 			else if (token == "ponder")
-				ponder_move = parser.get_text();
+				ponder = scanner.get_text();
 		}
 
-		// bestmoveで進めた局面を対局局面とする。
-		if (!is_ok(USI::to_move16(best_move)))
-			return string();
+		// "win"とか"resign"なら空の文字列を返す。
 
-		// さらにponderの指し手が有効手なのであるなら、ここを第一ponderとすべき。
-		if (!is_ok(USI::to_move16(ponder_move)))
-			return string();
+		if (!is_ok(USI::to_move16(bestmove)))
+			bestmove.clear();
 
-		string sfen2;
-		sfen2 = concat_sfen(sfen , best_move);
-		sfen2 = concat_sfen(sfen2, ponder_move);
+		if (!is_ok(USI::to_move16(ponder)))
+			ponder.clear();
+	}
 
-		return sfen2;
+	// エンジン側から送られてきた"info .."をparseする。
+	void parse_usi_info(const std::string& usi_info_string, UsiInfo& info)
+	{
+		Parser::LineScanner scanner(usi_info_string);
+
+		string token;
+		token = scanner.get_text();
+
+		// "info"以外が来るのはおかしい。
+		if (token != "info")
+		{
+			error_to_gui("parse_usi_info failed.");
+			return ;
+		}
+
+		// "info string .."には評価値が付随していないので何もせずに帰る。
+		if (scanner.peek_text() == "string")
+			return ;
+
+		while (!scanner.eol())
+		{
+			token = scanner.get_text();
+			if (token == "score")
+			{
+				token = scanner.get_text();
+
+				// score cp   <x>
+				// score mate <y>
+
+				// のいずれかだと思うので、VALUE型に変換する。
+
+				if (token == "cp")
+				{
+					// cpからValueへのの変換が必要。
+					info.value = Value(scanner.get_number(VALUE_NONE)) * /*PawnValue*/ 90 / 100;
+
+				} else if (token == "mate")
+				{
+					int m = (int)scanner.get_number(0);
+					info.value = (m >= 0)
+						? mate_in ( m)
+						: mated_in(-m);
+
+				} else {
+					// 知らんやつきた。
+					error_to_gui("parse_usi_info , unknown token = " + token);
+					return;
+				}
+
+				token = scanner.peek_text();
+				if (token == "lowerbound")
+				{
+					info.lowerbound = true;
+					scanner.get_text();
+				}
+				else if (token == "upperbound")
+				{
+					info.upperbound = true;
+					scanner.get_text();
+				}
+			}
+			else if (token == "nodes" || token == "time" || token == "depth" || token == "seldetph" || token == "multipv"
+				|| token == "hashfull" || token == "nps")
+				// パラメーターが一つ付随しているはずなので読み飛ばす。
+				token = scanner.get_text();
+			else if (token == "pv")
+			{
+				// PVは残りすべてが読み筋の文字列であることが保証されている。
+				info.pv = scanner.get_rest();
+				break;
+			}
+		}
 	}
 
 }
