@@ -7,6 +7,8 @@
 #elif defined (TENSOR_RT)
 	#include <cuda_runtime.h> // cudaHostAlloc()
 	#include "nn_tensorrt.h"
+#elif defined (COREML)
+    #include "nn_coreml.h"
 #endif
 
 #include "../../misc.h"
@@ -24,6 +26,8 @@ namespace Eval::dlshogi
 		ptr = (void*)new u8[size];
 #elif defined (TENSOR_RT)
 		checkCudaErrors(cudaHostAlloc(&ptr, size, cudaHostAllocPortable));
+#elif defined (COREML)
+		ptr = (void*)new u8[size];
 #endif
 		return ptr;
 	}
@@ -36,6 +40,8 @@ namespace Eval::dlshogi
 		delete[] (u8*)ptr;
 #elif defined (TENSOR_RT)
 		checkCudaErrors(cudaFreeHost(ptr));
+#elif defined (COREML)
+		delete[] (u8*)ptr;
 #endif
 	}
 	
@@ -45,6 +51,8 @@ namespace Eval::dlshogi
 		return NNOnnxRuntime::get_device_count();
 #elif defined(TENSOR_RT)
 		return NNTensorRT::get_device_count();
+#elif defined (COREML)
+		return NNCoreML::get_device_count();
 #endif
 	}
 
@@ -64,6 +72,11 @@ namespace Eval::dlshogi
 		// ファイル名に応じて、他のフォーマットに対応させるはずだったが、
 		// TensorRTの場合、モデルファイル側にその情報があるので
 		// ここで振り分ける必要はなさげ。
+
+#elif defined (COREML)
+
+		nn = std::make_unique<NNCoreML>();
+
 #endif
 
 		sync_cout << "info string Start loading the model file, path = " << model_path << ", gpu_id = " << gpu_id << ", batch_size = " << batch_size << sync_endl;

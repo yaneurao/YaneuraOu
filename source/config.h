@@ -282,6 +282,9 @@
 // ふかうら王でTensorRTを使う時はこちら。
 //#define TENSOR_RT
 
+// ふかうら王でCore MLを使う時はこちら。
+// ※　Mac専用。
+//#define COREML
 
 // ---------------------
 // 探索パラメーターの自動調整用
@@ -825,6 +828,8 @@ constexpr bool pretty_jp = false;
 	#elif defined(TENSOR_RT)
 		#include "NvInferRuntimeCommon.h"
 		#define EVAL_TYPE_NAME "TensorRT" << std::to_string(getInferLibVersion()) << "-" << EVAL_DEEP
+	#elif defined(COREML)
+		#define EVAL_TYPE_NAME "CoreML-" << EVAL_DEEP
 	#endif
 
 #else

@@ -133,6 +133,9 @@ void USI::extra_option(USI::OptionsMap& o)
 #elif defined(ONNXRUNTIME)
 	// CPUを使っていることがあるので、default値、ちょっと少なめにしておく。
 	o["DNN_Batch_Size1"]             << USI::Option(32, 1, 1024);
+#elif defined(COREML)
+	// M1チップで8程度でスループットが飽和する。
+	o["DNN_Batch_Size1"]             << USI::Option(8, 1, 1024);
 #endif
 	o["DNN_Batch_Size2"]             << USI::Option(0, 0, 1024);
 	o["DNN_Batch_Size3"]             << USI::Option(0, 0, 1024);
