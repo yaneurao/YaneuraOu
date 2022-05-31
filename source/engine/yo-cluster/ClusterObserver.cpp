@@ -1104,7 +1104,7 @@ namespace YaneuraouTheCluster
 			parse_cluster_param(is, options, strategy);
 
 			// GUIとの通信を行うmain threadのmessage loop
-			message_loop_main(pos, is, options, strategy );
+			message_loop_main(pos, options, strategy );
 
 			// quitコマンドは受け取っているはず。
 			// ここで終了させないと、cluster engineが単体のengineのように見えない。
@@ -1126,8 +1126,10 @@ namespace YaneuraouTheCluster
 		//		single       : 単一エンジン、ponderなし(defaultでこれ)
 		//		ponder       : 単一エンジン、ponderあり
 		//		optimistic   : 楽観合議モード
-		//		multiponder  : MultiPonderモード
-		void parse_cluster_param(std::istringstream& is, ClusterOptions& options , unique_ptr<IClusterStrategy>& strategy)
+		//			// optimisticを指定した時はさらにその後ろに以下のオプションを指定できる。
+		//			root_split    : root split
+		//			multi_ponder  : MultiPonderモード
+		void parse_cluster_param(istringstream& is_, ClusterOptions& options , unique_ptr<IClusterStrategy>& strategy)
 		{
 			// USIメッセージの処理を開始している。いま何か出力してはまずい。
 
@@ -1135,17 +1137,21 @@ namespace YaneuraouTheCluster
 			// 例)
 			// cluster debug waitall
 			{
+				Parser::LineScanner is(is_.str());
+				is.get_text(); // 先頭に書いてあった"cluster"
+
 				strategy = make_unique<SingleEngineStrategy>();
 
-				string token;
-				while (is >> token)
+				while (!is.eol())
 				{
+					string token = is.get_text();
+
 					// debug mode
 					if (token == "debug")
 						debug_mode = true;
 
 					else if (token == "nodes")
-						is >> options.nodes_limit;
+						options.nodes_limit = is.get_number(1000);
 
 					else if (token == "skipinfo")
 						skip_info = true;
@@ -1158,15 +1164,32 @@ namespace YaneuraouTheCluster
 
 					else if (token == "mode")
 					{
-						is >> token;
+						token = is.get_text();
 						if (token == "single")
 							strategy = std::make_unique<SingleEngineStrategy>();
 						else if (token == "ponder")
 							strategy = std::make_unique<SinglePonderEngineStrategy>();
 						else if (token == "optimistic")
-							strategy = std::make_unique<OptimisticConsultationStrategy>();
-						else if (token == "multiponder")
-							strategy = std::make_unique<MultiPonderStrategy>();
+						{
+							OptimisticOption option = OptimisticOption::None;
+							while (!is.eol())
+							{
+								token = is.peek_text();
+
+								// そこに付与されているオプションをくっつける。
+								if (token == "root_split")
+									option = (OptimisticOption)(option | OptimisticOption::RootSplit);
+								else if (token == "multi_ponder")
+									option = (OptimisticOption)(option | OptimisticOption::MultiPonder);
+								else
+									break; // 見知らぬtokenなのでこの外側のloopで、eolまでparseし続ける。
+
+								// 処理したのでこのtokenを消費する。
+								is.get_text();
+							}
+
+							strategy = std::make_unique<OptimisticConsultationStrategy>(option);
+						}
 						// ..
 					}
 				}
@@ -1175,7 +1198,7 @@ namespace YaneuraouTheCluster
 
 		// "cluster"のメインループ
 		// USIプロトコルでGUI側から送られてくるコマンドとほぼ同じコマンドを理解できる。
-		void message_loop_main(Position& pos, std::istringstream& is, const ClusterOptions& options, unique_ptr<IClusterStrategy>& strategy)
+		void message_loop_main(Position& pos, const ClusterOptions& options, unique_ptr<IClusterStrategy>& strategy)
 		{
 			// Clusterの監視者
 			// コンストラクタで全エンジンが起動する。

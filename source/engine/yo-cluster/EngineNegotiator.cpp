@@ -177,9 +177,12 @@ namespace YaneuraouTheCluster
 					EngineError("'go ponder' should be sent when state is 'IDLE_IN_GAME'.");
 
 				// positionコマンドとgo ponderコマンド
-				searching_sfen = message.position_sfen;
-				send_to_engine("position " + searching_sfen);
-				send_to_engine("go ponder");
+				{
+					searching_sfen = message.position_sfen;
+					send_to_engine("position " + searching_sfen);
+					const string& cmd = message.command.empty() ? "go ponder" : message.command;
+					send_to_engine(cmd);
+				}
 
 				state = EngineState::GO_PONDER;
 				++go_count;

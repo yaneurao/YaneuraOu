@@ -1917,13 +1917,33 @@ namespace Parser
 
 		// assert(token.empty());
 
+		// 解析開始位置から連続するスペースは読み飛ばす。
 		while (!raw_eol())
 		{
+			char c = line[pos];
+			if (c != ' ')
+				break;
+			pos++;
+		}
+
+		while (!raw_eol())
+		{
+			// スペースに遭遇するまで。
 			char c = line[pos++];
 			if (c == ' ')
 				break;
 			token += c;
 		}
+
+		// 次の文字先頭まで解析位置を進めておく。
+		while (!raw_eol())
+		{
+			char c = line[pos];
+			if (c != ' ')
+				break;
+			pos++;
+		}
+
 		return token;
 	}
 

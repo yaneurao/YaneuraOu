@@ -135,6 +135,9 @@ namespace Test
 
 		// --- 各classに対するUnitTest
 
+		// Book namespace
+		tester.run(Book::UnitTest);
+
 		// Bitboard class
 		tester.run(Bitboard::UnitTest);
 		tester.run(Bitboard256::UnitTest);
@@ -150,9 +153,6 @@ namespace Test
 
 		// 指し手生成のテスト
 		//tester.run(MoveGen::UnitTest)
-
-		// Book namespace
-		tester.run(Book::UnitTest);
 
 	}
 

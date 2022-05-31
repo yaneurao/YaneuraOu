@@ -38,6 +38,16 @@ namespace YaneuraouTheCluster
 		virtual void on_idle(StrategyParam& param);
 	};
 
+	// OptimisticConsultationStrategyで使う動作モード
+	// mode = RootSplit | MultiPonder;
+	// のように複数のフラグをbit orを用いて指定する。
+	enum OptimisticOption : int {
+		// "go" , "go ponder"の時にroot splitを行う。
+		None            = 0,
+		RootSplit       = 1,
+		MultiPonder     = 2,
+	};
+
 	// 楽観合議
 	// 
 	// SinglePonderStrategyを複数エンジンに対応させて、
@@ -45,20 +55,22 @@ namespace YaneuraouTheCluster
 	class OptimisticConsultationStrategy : public IClusterStrategy
 	{
 	public:
+		OptimisticConsultationStrategy(OptimisticOption option_) { option = option_; stop_sent = false; }
+
 		virtual void on_connected(StrategyParam& param);
 		virtual void on_go_command(StrategyParam& param, const Message& command);
 		virtual void on_idle(StrategyParam& param);
-	};
 
-	// MultiPonder
-	class MultiPonderStrategy : public IClusterStrategy
-	{
-	public:
-		virtual void on_connected(StrategyParam& param) {}
-		virtual void on_go_command(StrategyParam& param, const Message& command){}
-		virtual void on_idle(StrategyParam& param){}
-	};
+	protected:
+		// sfenを与えて、その局面の合法手を生成して、それをエンジンの数で分割したものを返す。
+		std::vector<std::string> make_search_moves(const std::string& sfen , size_t engine_num);
 
+		// 動作モード。
+		OptimisticOption option;
+
+		// "stop"をエンジンに対して送信したか。
+		bool stop_sent;
+	};
 }
 
 

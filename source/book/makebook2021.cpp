@@ -722,7 +722,7 @@ namespace MakeBook2021 {
 			else {
 				// 棋譜に出現した局面を this->kif_hashに追加する。
 				// (これはコマンド実行時の最初に1度行えば良い)
-				vector<StateInfo> si(1024 /* above MAX_PLY */);
+				deque<StateInfo> si;
 				for (auto kif : kif_sfens)
 					set_root(pos, kif, si, true);
 			}
@@ -1620,7 +1620,7 @@ namespace MakeBook2021 {
 
 			// この行の棋譜の各局面をsfenにして書き出す。
 
-			std::vector<StateInfo> si(1024);
+			std::deque<StateInfo> si;
 			BookTools::feed_position_string(pos, line , si,[&](Position& pos){
 				// 各局面でcallbackがかかるので、sfen化したものを書き出す。
 				auto sfen = pos.sfen();

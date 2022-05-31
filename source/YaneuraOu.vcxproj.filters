@@ -584,7 +584,6 @@
     <None Include="..\.editorconfig" />
     <None Include="..\.gitattributes" />
     <None Include="..\.gitignore" />
-    <None Include="..\README.md" />
     <None Include="..\script\bench.py">
       <Filter>script</Filter>
     </None>

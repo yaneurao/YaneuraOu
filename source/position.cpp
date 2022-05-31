@@ -2419,8 +2419,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 	{
 		auto section2 = tester.section("is_repetition");
 
-		std::vector<StateInfo> sis;
-		sis.reserve(MAX_PLY);
+		std::deque<StateInfo> sis;
 
 		// 4手前の局面に戻っているパターン
 		BookTools::feed_position_string(pos, "startpos moves 5i5h 5a5b 5h5i 5b5a", sis);

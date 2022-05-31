@@ -79,6 +79,28 @@ namespace YaneuraouTheCluster
 		Message(USI_Message message_, const std::string& command_, const std::string& position_sfen_)
 			: message(message_) , command(command_) , position_sfen(position_sfen_)   {}
 
+		/*
+			USI_Messageに対する、commandとposition_sfenの意味について。
+
+				GO        : command = "go btime 0 wtime 0 byoyomi 1000"のような文字列。
+							position_sfen = "startpos moves XX .."のような文字列。
+
+				GO_PONDER : command = "go ponder searchmoves XXX"のような文字列。command が 空の文字列なら、"go ponder"を指定したことになる。 
+							position_sfen = "startpos moves XX .."のような文字列。
+
+				SET_OPTION: command = "setoption name XX value YY"のような文字列。
+							position_sfen 未使用。
+
+				USI       :
+				ISREADY   :
+				USINEWGAME:
+				STOP      :
+				GAMEOVER  :
+				QUIT      :
+							command , position_sfen 未使用 
+		*/
+
+
 		// メッセージ種別。
 		const USI_Message message;
 
