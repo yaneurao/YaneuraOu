@@ -55,8 +55,22 @@ namespace YaneuraouTheCluster
 	class OptimisticConsultationStrategy : public IClusterStrategy
 	{
 	public:
-		OptimisticConsultationStrategy(OptimisticOption option_) { option = option_; stop_sent = false; }
+		virtual void on_connected(StrategyParam& param);
+		virtual void on_go_command(StrategyParam& param, const Message& command);
+		virtual void on_idle(StrategyParam& param);
 
+	protected:
+		// "stop"をエンジンに対して送信したか。
+		bool stop_sent;
+	};
+
+	// RootSplit
+	// 
+	// Rootの指し手をエンジンごとに分割して思考する。
+	// →　弱かったので採用せず。ソースコードの参考用に残しておく。
+	class RootSplitStrategy : public IClusterStrategy
+	{
+	public:
 		virtual void on_connected(StrategyParam& param);
 		virtual void on_go_command(StrategyParam& param, const Message& command);
 		virtual void on_idle(StrategyParam& param);
@@ -65,12 +79,12 @@ namespace YaneuraouTheCluster
 		// sfenを与えて、その局面の合法手を生成して、それをエンジンの数で分割したものを返す。
 		std::vector<std::string> make_search_moves(const std::string& sfen , size_t engine_num);
 
-		// 動作モード。
-		OptimisticOption option;
-
 		// "stop"をエンジンに対して送信したか。
 		bool stop_sent;
 	};
+
+
+	
 }
 
 

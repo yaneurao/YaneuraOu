@@ -815,7 +815,7 @@ namespace MakeBook2021 {
 
 			sync_cout << "root_sfens.size() == " << root_sfens.size() << sync_endl;
 
-			vector<StateInfo> si(1024);
+			deque<StateInfo> si;
 			for (auto root_sfen : root_sfens)
 			{
 				BookTools::feed_position_string(pos, root_sfen, si);
@@ -852,7 +852,7 @@ namespace MakeBook2021 {
 		// いずれでも解釈できるものとする。
 		// 
 		// append_to_kif = trueのとき、その局面のhash keyがkif_hashにappendされる。
-		void set_root(Position& pos, const string& root_sfen, vector<StateInfo>& si , bool append_to_kif = false)
+		void set_root(Position& pos, const string& root_sfen, deque<StateInfo>& si , bool append_to_kif = false)
 		{
 			// append_to_kif == trueならば現在の局面のhash keyを、kif_hashに追加する。
 			auto append_to_kif_hash = [&](Position& pos) {
@@ -898,7 +898,7 @@ namespace MakeBook2021 {
 					for (size_t i = 0; i < search_option.ranged_alpha_beta_loop; ++i)
 					{
 						// 局面の初期化
-						vector<StateInfo> si(1024 /* above MAX_PLY */);
+						deque<StateInfo> si;
 						Position root_pos;
 						set_root(root_pos, root_sfen, si);
 

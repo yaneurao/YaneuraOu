@@ -158,28 +158,15 @@ namespace YaneuraouTheCluster
 		// goコマンドの対象局面
 		auto  sfen    = command.position_sfen;
 
-		// いま go ponderで思考している局面と、command.position_sfenが一致するなら、エンジンに"ponderhit"を送ってやれば良い。
-		// いま、すべてのエンジンが同じ局面について"go ponder"しているはずなので、engines[0]だけ見て判定する。
-		if (engines[0].is_state_go_ponder() && engines[0].get_searching_sfen() == sfen)
+		for(auto& engine : engines)
 		{
-			// 今回の"go"の時に渡された残り時間等のパラメーターをそのままに、"ponderhit XXX .."の形式でエンジン側に送信。
-			for(auto& engine : engines)
+			// いま go ponderで思考している局面と、command.position_sfenが一致するなら、エンジンに"ponderhit"を送ってやれば良い。
+			if (engine.is_state_go_ponder() && engine.get_searching_sfen() == sfen)
+				// 今回の"go"の時に渡された残り時間等のパラメーターをそのままに、"ponderhit XXX .."の形式でエンジン側に送信。
 				engine.send(Message(USI_Message::PONDERHIT, strip_command(command.command) ));
-		}
-		else
-		{
-			// この局面についてponderしていなかったので愚直に"go"コマンドで思考させる。
-			//engine.send(command);
-
-			// → root_splitのためにrootの指し手を分割して、"go"の"searchmoves"として指定する。
-			const auto& sfen = command.position_sfen;
-			auto  moves_list = make_search_moves(sfen, engines.size());
-			for(size_t i = 0; i < engines.size() ; ++i)
-			{
-				auto& engine = engines   [i];
-				auto& moves  = moves_list[i];
-				engine.send(Message(USI_Message::GO, command.command + moves , sfen));
-			}
+			else
+				// この局面についてponderしていなかったので愚直に"go"コマンドで思考させる。
+				engine.send(command);
 		}
 
 		stop_sent = false;
@@ -294,6 +281,162 @@ namespace YaneuraouTheCluster
 		auto sfen = concat_sfen(engines[0].get_searching_sfen(), bestmove + " " + ponder);
 
 		// すべてのengineのponderを送って、ベストを拾う。
+		for(auto& engine : param.engines)
+			engine.send(Message(USI_Message::GO_PONDER, string() , sfen));
+	}
+
+	// ---------------------------------------
+	//     RootSplitStrategy 
+	// ---------------------------------------
+
+	// root局面で指し手を分割するようにしたもの。
+	// →　強くなかったので使っていない。コードの参考用。
+
+	void RootSplitStrategy::on_connected(StrategyParam& param)
+	{
+		for(auto& engine : param.engines)
+			engine.set_engine_mode(EngineMode(
+				// 接続後、対局前までにエンジン側から送られてきた"info ..."を、そのままGUIに流す。
+				EngineMode::SEND_INFO_BEFORE_GAME
+			));
+
+		stop_sent = false;
+	}
+
+	void RootSplitStrategy::on_go_command(StrategyParam& param, const Message& command)
+	{
+		auto& engines = param.engines;
+
+		// goコマンドの対象局面
+		auto  sfen    = command.position_sfen;
+
+		// いま go ponderで思考している局面と、command.position_sfenが一致するなら、エンジンに"ponderhit"を送ってやれば良い。
+		// いま、すべてのエンジンが同じ局面について"go ponder"しているはずなので、engines[0]だけ見て判定する。
+		if (engines[0].is_state_go_ponder() && engines[0].get_searching_sfen() == sfen)
+		{
+			// 今回の"go"の時に渡された残り時間等のパラメーターをそのままに、"ponderhit XXX .."の形式でエンジン側に送信。
+			for(auto& engine : engines)
+				engine.send(Message(USI_Message::PONDERHIT, strip_command(command.command) ));
+		}
+		else
+		{
+			// この局面についてponderしていなかったので愚直に"go"コマンドで思考させる。
+			//engine.send(command);
+
+			// → root_splitのためにrootの指し手を分割して、"go"の"searchmoves"として指定する。
+			const auto& sfen = command.position_sfen;
+			auto  moves_list = make_search_moves(sfen, engines.size());
+			for(size_t i = 0; i < engines.size() ; ++i)
+			{
+				auto& engine = engines   [i];
+				auto& moves  = moves_list[i];
+				engine.send(Message(USI_Message::GO, command.command + moves , sfen));
+			}
+		}
+
+		stop_sent = false;
+	}
+
+	void RootSplitStrategy::on_idle(StrategyParam& param)
+	{
+		// すべてのbestmoveが来てから。
+		// ただし、一番最初にbestmoveを返してきたengineを基準とする。
+		auto& engines = param.engines;
+
+		// bestmoveを返したエンジンの数
+		int bestmove_received = 0;
+		for(auto& engine : engines)
+			if (!engine.peek_bestmove().empty())
+				++bestmove_received;
+
+		// まだすべてのエンジンがbestmoveを返していない。
+		if (bestmove_received < engines.size())
+		{
+			if (bestmove_received > 0)
+			{
+				// 少なくとも1つのエンジンはbestmoveを返したが、
+				// まだ全部のエンジンからbestmoveきてない。
+
+				// stopを送信していないならすべてのengineに"stop"を送信してやる。
+				if (!stop_sent)
+				{
+					for(auto& engine : engines)
+						engine.send(USI_Message::STOP);
+
+					stop_sent = true;
+				}
+			}
+			return ;
+		}
+
+		// 一番良い評価値を返してきているエンジンを探す。
+
+		size_t best_engine = size_max;
+		int    best_value  = int_min;
+		vector<string> best_log;
+		for(size_t i = 0 ; i < engines.size(); ++i)
+		{
+			auto& engine = engines[i];
+
+			auto log = engine.pull_thinklog();
+			// 末尾からvalueの書いてあるlogを探す。
+			for(size_t j = log.size() ; j != 0 ; j --)
+			{
+				UsiInfo info;
+				parse_usi_info(log[j-1], info);
+
+				if (info.value != VALUE_NONE )
+				{
+					if (info.value > best_value)
+					{
+						best_value  = info.value;
+						best_engine = i;
+						best_log    = log;
+					}
+					// valueが書いてあったのでこのエンジンに関して
+					// ログを調べるのはこれで終わり。
+					break;
+				}
+			}
+		}
+
+		// 思考ログが存在しない。そんな馬鹿な…。
+		if (best_engine == size_max)
+		{
+			// こんなことをしてくるエンジンがいると楽観合議できない。
+			// 必ずbestmoveの手前で読み筋と評価値を送ってくれないと駄目。
+			error_to_gui("OptimisticConsultationStrategy::on_idle , No think_log");
+			Tools::exit();
+		}
+
+		// ここまでの思考logをまとめてGUIに送信する。
+		for(auto& line : best_log)
+			send_to_gui(line);
+
+		auto bestmove_str = engines[best_engine].peek_bestmove();
+		// engineすべてからbestmoveを取り除いておく。
+		for(auto& engine : engines)
+			engine.pull_bestmove();
+
+		 // これこのままGUI側に送信すればGUIに対して"bestmove XX"を返したことになる。
+		send_to_gui(bestmove_str);
+
+		// "bestmove XX ponder YY"の形だと思うので、YYを抽出して、その局面について思考エンジンにGO_PONDERさせる。
+
+		// 探索していた局面は、bestmoveを返したあとも次の"GO","GO_PONDER"が来るまではget_searching_sfen()で取得できることが保証されている。
+		// そこに、XXとYYを追加したsfen文字列を用意して、GO_PONDERする。
+
+		string bestmove, ponder;
+		parse_bestmove(bestmove_str, bestmove , ponder);
+
+		// XXかYYが"resign"のような、それによって局面を進められない指し手である場合(このとき、空の文字列となる)、
+		// GO_PONDERしてはならない。
+		if (bestmove.empty() || ponder.empty())
+			return ;
+
+		auto sfen = concat_sfen(engines[0].get_searching_sfen(), bestmove + " " + ponder);
+
+		// すべてのengineのponderを送って、ベストを拾う。
 		auto moves_list = make_search_moves(sfen, engines.size());
 		for(size_t i = 0; i < engines.size() ; ++i)
 		{
@@ -304,37 +447,35 @@ namespace YaneuraouTheCluster
 	}
 
 	// sfenを与えて、その局面の合法手を生成して、それをエンジンの数で分割したものを返す。
-	std::vector<std::string> OptimisticConsultationStrategy::make_search_moves(const std::string& sfen , size_t engine_num)
+	std::vector<std::string> RootSplitStrategy::make_search_moves(const std::string& sfen , size_t engine_num)
 	{
 		vector<string> moves_list;
 		for(size_t i = 0 ; i < engine_num ; ++i)
 			moves_list.emplace_back(string());
 
-		if (option & OptimisticOption::RootSplit)
+		Position pos;
+		std::deque<StateInfo> si;
+		BookTools::feed_position_string(pos, sfen, si, [](Position&){});
+
+		auto ml = MoveList<LEGAL>(pos);
+		if (ml.size() >= engine_num)
 		{
-			Position pos;
-			std::deque<StateInfo> si;
-			BookTools::feed_position_string(pos, sfen, si, [](Position&){});
+			// エンジン数より少ないと1手すら割り当てられない。
 
-			auto ml = MoveList<LEGAL>(pos);
-			if (ml.size() >= engine_num)
+			for(size_t i = 0 ; i < engine_num ; ++i)
+				moves_list[i] = " searchmoves";
+
+			// 生成された順に割り当てていく。
+			for(size_t i = 0; i < ml.size(); ++i)
 			{
-				// エンジン数より少ないと1手すら割り当てられない。
-
-				for(size_t i = 0 ; i < engine_num ; ++i)
-					moves_list[i] = " searchmoves";
-
-				// 生成された順に割り当てていく。
-				for(size_t i = 0; i < ml.size(); ++i)
-				{
-					auto move = ml.at(i);
-					moves_list[i % engine_num] += " " + to_usi_string(move.move);
-				}
+				auto move = ml.at(i);
+				moves_list[i % engine_num] += " " + to_usi_string(move.move);
 			}
 		}
 
 		return moves_list;
 	}
+
 
 }
 

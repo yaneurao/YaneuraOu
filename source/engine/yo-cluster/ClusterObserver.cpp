@@ -1126,9 +1126,7 @@ namespace YaneuraouTheCluster
 		//		single       : 単一エンジン、ponderなし(defaultでこれ)
 		//		ponder       : 単一エンジン、ponderあり
 		//		optimistic   : 楽観合議モード
-		//			// optimisticを指定した時はさらにその後ろに以下のオプションを指定できる。
-		//			root_split    : root split
-		//			multi_ponder  : MultiPonderモード
+		//      root_split   : rootで指し手分割を行うモード →　弱かったので無効化した。
 		void parse_cluster_param(istringstream& is_, ClusterOptions& options , unique_ptr<IClusterStrategy>& strategy)
 		{
 			// USIメッセージの処理を開始している。いま何か出力してはまずい。
@@ -1170,26 +1168,7 @@ namespace YaneuraouTheCluster
 						else if (token == "ponder")
 							strategy = std::make_unique<SinglePonderEngineStrategy>();
 						else if (token == "optimistic")
-						{
-							OptimisticOption option = OptimisticOption::None;
-							while (!is.eol())
-							{
-								token = is.peek_text();
-
-								// そこに付与されているオプションをくっつける。
-								if (token == "root_split")
-									option = (OptimisticOption)(option | OptimisticOption::RootSplit);
-								else if (token == "multi_ponder")
-									option = (OptimisticOption)(option | OptimisticOption::MultiPonder);
-								else
-									break; // 見知らぬtokenなのでこの外側のloopで、eolまでparseし続ける。
-
-								// 処理したのでこのtokenを消費する。
-								is.get_text();
-							}
-
-							strategy = std::make_unique<OptimisticConsultationStrategy>(option);
-						}
+							strategy = std::make_unique<OptimisticConsultationStrategy>();
 						// ..
 					}
 				}
