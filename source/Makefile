@@ -613,10 +613,9 @@ $(OBJDIR)/%.o: %.cpp
 $(OBJDIR)/%.o: %.cu
 	nvcc $(NVCC_CPPFLAGS) $(INCLUDE) -o $@ $<
 
-# Objective-C固有のコンパイルオプションは現在必要ない
 $(OBJDIR)/%.o: %.mm
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
-	$(COMPILER) $(CPPFLAGS) $(INCLUDE) -o $@ -c $<
+	$(COMPILER) $(CPPFLAGS) -fobjc-arc $(INCLUDE) -o $@ -c $<
 
 # https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
 

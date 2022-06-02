@@ -16,6 +16,8 @@ namespace Eval::dlshogi
 	class NNCoreML : public NN
 	{
 	public:
+		virtual ~NNCoreML();
+
 		// モデルファイルの読み込み。
 		virtual Tools::Result load(const std::string& model_path , int gpu_id , int batch_size);
 
