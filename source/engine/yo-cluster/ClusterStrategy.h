@@ -83,6 +83,29 @@ namespace YaneuraouTheCluster
 		bool stop_sent;
 	};
 
+	// GPS将棋のクラスター手法
+	//
+	// これは、次の論文にある手法である。rootでMultiPV 2で探索して、上位2手に1台ずつ割り当て、その他の指し手に1台割り当てる。
+	// この時、計3台である。もっと台数が多い場合は、この上位2手を展開して、その子において同じように3台ずつ割り当てる。
+	// この時、3 + 3 + 1 = 7台である。同様に台数が増えた時は、上位2手を展開していく。
+	// 
+	// 最善手の予測に基づくゲーム木探索の分散並列実行
+	// https://ipsj.ixsq.nii.ac.jp/ej/?action=pages_view_main&active_action=repository_view_main_item_detail&item_id=71329&item_no=1&page_id=13&block_id=8
+	// 
+	class GpsClusterStrategy : public IClusterStrategy
+	{
+	public:
+		virtual void on_connected(StrategyParam& param);
+		virtual void on_go_command(StrategyParam& param, const Message& command);
+		virtual void on_idle(StrategyParam& param);
+
+	protected:
+		// sfenを与えて、その局面の合法手を生成して、それをエンジンの数で分割したものを返す。
+		std::vector<std::string> make_search_moves(const std::string& sfen , size_t engine_num);
+
+		// "stop"をエンジンに対して送信したか。
+		bool stop_sent;
+	};
 
 	
 }

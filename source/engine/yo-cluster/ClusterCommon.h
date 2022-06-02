@@ -6,6 +6,7 @@
 #if defined(USE_YO_CLUSTER) && (defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE))
 
 #include <string>
+#include <vector>
 #include "../../types.h"
 
 // YO Cluster、共通ヘッダー
@@ -210,6 +211,23 @@ namespace YaneuraouTheCluster
 #endif
 
 	};
+
+	// ---------------------------------------
+	//          Search with multi pv
+	// ---------------------------------------
+
+#if defined(YANEURAOU_ENGINE_NNUE)
+
+	typedef std::vector<ExtMove> ExtMoves;
+
+	// 与えられた局面をMultiPVで探索して上位の候補手を返す。
+	// search_sfen : [in ] 探索したい局面のsfen("startpos moves .."みたいな文字列)
+	// multi_pv    : [in ] multi pvの数
+	// nodes_limit : [in ] 探索ノード数
+	// snlist      : [out] 上位の候補手
+	void nnue_search(const std::string& search_sfen , size_t multi_pv , int64_t nodes_limit , ExtMoves& snlist );
+#endif
+
 }
 
 #endif // defined(USE_YO_CLUSTER) && (defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE))

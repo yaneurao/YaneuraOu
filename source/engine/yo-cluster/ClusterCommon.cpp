@@ -5,6 +5,8 @@
 #include "ClusterCommon.h"
 #include "../../misc.h"
 #include "../../usi.h"
+#include "../../search.h"
+#include "../../thread.h"
 
 using namespace std;
 
@@ -248,6 +250,82 @@ namespace YaneuraouTheCluster
 		}
 	}
 
+	// ---------------------------------------
+	//          Search with multi pv
+	// ---------------------------------------
+
+#if defined(YANEURAOU_ENGINE_NNUE)
+
+	// 与えられた局面をMultiPVで探索して上位の候補手を返す。
+	// search_sfen : [in ] 探索したい局面のsfen("startpos moves .."みたいな文字列)
+	// multi_pv    : [in ] multi pvの数
+	// nodes_limit : [in ] 探索ノード数
+	// snlist      : [out] 上位の候補手
+	void nnue_search(const std::string& search_sfen , size_t multi_pv , int64_t nodes_limit , ExtMoves& snlist )
+	{
+		// ================================
+		//        Limitsの設定
+		// ================================
+
+		Search::LimitsType limits = Search::Limits;
+
+		// ノード数制限
+		limits.nodes = nodes_limit;
+
+		// 探索中にPVの出力を行わない。
+		limits.silent = true;
+
+		// 入玉ルールも考慮しておかないと。
+		limits.enteringKingRule = EnteringKingRule::EKR_27_POINT;
+
+		// MultiPVの値、無理やり変更してしまう。(本来、このあと元に戻すべきではある)
+		Options["MultiPV"] = std::to_string(multi_pv);
+
+		// ここで"go"に相当することをやろうとしているのでTimerはresetされていないと気持ち悪い。
+		Time.reset();
+
+		// ================================
+		//           思考開始
+		// ================================
+
+		// SetupStatesは破壊したくないのでローカルに確保
+		StateListPtr states(new StateList(1));
+
+		// sfen文字列、Positionコマンドのparserで解釈させる。
+		istringstream is(search_sfen);
+
+		Position pos;
+		position_cmd(pos, is, states);
+
+		// 思考部にUSIのgoコマンドが来たと錯覚させて思考させる。
+		Threads.start_thinking(pos, states , limits);
+		Threads.main()->wait_for_search_finished();
+
+		// 探索が完了したので結果を取得する。
+		// 定跡にhitした場合、MultiPVの数だけ整列されて並んでないのか…。そうか…。
+
+		snlist.clear();
+		auto& rm = Threads.main()->rootMoves;
+		for(size_t i = 0 ; i < multi_pv && i < rm.size(); ++i)
+		{
+			auto& r = rm[i];
+
+			// "MOVE_WIN"の可能性はあるかも？
+			if (!is_ok(r.pv[0]))
+				continue;
+
+			// この指し手のpvの更新が終わっているのか
+			bool updated = r.score != -VALUE_INFINITE;
+			Value v = updated ? r.score : r.previousScore;
+
+			// 評価値、u64で表現できないので100で割って1000足しておく。
+			ExtMove e;
+			e.value = v;
+			e.move  = r.pv[0];
+			snlist.emplace_back(e);
+		}
+	}
+#endif
 }
 
 #endif
