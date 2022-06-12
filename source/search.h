@@ -107,6 +107,7 @@ namespace Search {
 			silent = bench = consideration_mode = outout_fail_lh_pv = false;
 			pv_interval = 0;
 			generate_all_legal_moves = true;
+			wait_stop = false;
 		}
 
 		// 時間制御を行うのか。
@@ -135,9 +136,11 @@ namespace Search {
 		//		時間制限なしであれば、INT32_MAXが入っている。
 		// perft    : perft(performance test)中であるかのフラグ。非0なら、perft時の深さが入る。
 		// infinite : 思考時間無制限かどうかのフラグ。非0なら無制限。
-		int depth , mate, perft, infinite;
+		int depth, mate, perft, infinite;
 
-		// 今回のgoコマンドでの探索ノード数
+		// 今回のgoコマンドでの指定されていた"nodes"(探索ノード数)の値。
+		// これは、USIプロトコルで規定されているものの将棋所では送ってこない。ShogiGUIはたぶん送ってくる。
+		// goコマンドで"nodes"が指定されていない場合は、"エンジンオプションの"NodesLimit"の値。
 		int64_t nodes;
 
 		// -- やねうら王が将棋用に追加したメンバー
@@ -198,6 +201,12 @@ namespace Search {
 		// Position::pseudo_legal()も、このフラグに応じてどこまでをpseudo-legalとみなすかが変わる。
 		// (このフラグがfalseなら歩の不成は非合法手扱い)
 		bool generate_all_legal_moves;
+
+		// "go"コマンドに"wait_stop"がついていたかのフラグ。
+		// これがついていると、stopが送られてくるまで思考しつづける。
+		// 本来の"bestmove"を返すタイミングになると、"info string time to return bestmove."と出力する。
+		// この機能は、Clusterのworkerで、持時間制御はworker側にさせたいが、思考は継続させたい時に用いる。
+		bool wait_stop;
 
 #if defined(TANUKI_MATE_ENGINE)
 		std::vector<Move16> pv_check;

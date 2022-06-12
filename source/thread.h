@@ -171,7 +171,6 @@ public:
 	// 学習用の実行ファイルでは、スレッドごとに置換表を持ちたい。
 	TranspositionTable tt;
 #endif
-
 };
 
 
@@ -239,6 +238,10 @@ struct MainThread: public Thread
 	std::string last_go_cmd_string;
 	// Stochastic Ponderのために2手前に戻してしまっているかのフラグ
 	bool position_is_dirty = false;
+
+	// goコマンドの"wait_stop"フラグと関連して、↓と出力したかのフラグ。
+	// "info string time to return bestmove."
+	bool time_to_return_bestmove;
 };
 
 

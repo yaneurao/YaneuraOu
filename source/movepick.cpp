@@ -538,7 +538,7 @@ top:
 			return *(cur - 1);
 
 		// 指し手がなくて、depthが0(DEPTH_QS_CHECKS)より深いなら、これで終了
-		// depthが0のときは特別に、王手になる指し手も試す。ただし、他にcaptureの指し手がないなら、王手も試さない。
+		// depthが0のときは特別に、王手になる指し手も試す。
 		if (depth != DEPTH_QS_CHECKS)
 			return MOVE_NONE;
 

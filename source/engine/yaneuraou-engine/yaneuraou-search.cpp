@@ -158,6 +158,17 @@ void init_fv_scale() {
 // "isready"に対して探索パラメーターを動的にファイルから読み込んだりして初期化するための関数。
 void init_param();
 
+// "go"コマンドに"wait_stop"が指定されていて、かつ、いまbestmoveを返す準備ができたので
+// それをGUIに通知して、"stop"が送られてくるのを待つ。
+void output_time_to_return_bestmove()
+{
+	Threads.main()->time_to_return_bestmove = true;
+
+	// ここでPVを出力しておきたいが、rootでのalpha,betaが確定しないので出力できない。
+
+	sync_cout << "info string time to return bestmove." << sync_endl;
+}
+
 // -----------------------
 //   やねうら王2022探索部
 // -----------------------
@@ -632,6 +643,12 @@ SKIP_SEARCH:;
 		}
 	};
 
+	// ここで思考は完了したのでwait_stopの処理。
+	// まだ思考が完了したことを通知していないならば。
+
+	if (Limits.wait_stop && !Threads.main()->time_to_return_bestmove)
+		output_time_to_return_bestmove();
+
 	// 最大depth深さに到達したときに、ここまで実行が到達するが、
 	// まだThreads.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
 	// USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまでbest moveを出力してはならない。
@@ -641,7 +658,7 @@ SKIP_SEARCH:;
 	// "go infinite"に対してはstopが送られてくるまで待つ。
 	// ちなみにStockfishのほう、ここのコードに長らく同期上のバグがあった。
 	// やねうら王のほうは、かなり早くからこの構造で書いていた。最近のStockfishではこの書き方に追随した。
-	while (!Threads.stop && (ponder || Limits.infinite))
+	while (!Threads.stop && (ponder || Limits.infinite || Limits.wait_stop))
 	{
 		//	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
 		// (思考のためには計算資源を使っていないので。)
@@ -3646,6 +3663,10 @@ void MainThread::check_time()
 	if (--callsCnt > 0)
 		return;
 
+	// "stop"待ちなので以降の判定不要。
+	if (Threads.main()->time_to_return_bestmove)
+		return ;
+
 	// Limits.nodesが指定されているときは、そのnodesの0.1%程度になるごとにチェック。
 	// さもなくばデフォルトの値を使う。
 	// このデフォルト値、ある程度小さくしておかないと、通信遅延分のマージンを削ったときに
@@ -3687,7 +3708,18 @@ void MainThread::check_time()
 		|| (Limits.movetime && elapsed >= Limits.movetime)
 		|| (Limits.nodes && Threads.nodes_searched() >= (uint64_t)Limits.nodes)
 		)
-		Threads.stop = true;
+	{
+		if (Limits.wait_stop)
+		{
+			// stopが来るまで待つので、Threads.stopは変化させない。
+			// 代わりに"info string time to return bestmove."と出力する。
+			output_time_to_return_bestmove();
+
+		} else {
+
+			Threads.stop = true;
+		}
+	}
 }
 
 // --- Stockfishの探索のコード、ここまで。
