@@ -93,6 +93,7 @@ namespace Eval::dlshogi
 	// モデルファイルの読み込み。
 	Result NNCoreML::load(const std::string& model_filename , int gpu_id , int batch_size)
 	{
+		fixed_batch_size = batch_size;
 		MLModelConfiguration* config = [MLModelConfiguration new];
 		// 使用デバイス
 		// MLComputeUnitsCPUOnly = 0,
@@ -162,18 +163,23 @@ namespace Eval::dlshogi
 	// NNによる推論
 	void NNCoreML::forward(const int batch_size, PType* p1, PType* p2, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2)
 	{
+		if (batch_size > fixed_batch_size) {
+			sync_cout << "info string batch_size > fixed_batch_size" << sync_endl;
+			Tools::exit();
+		}
 		@autoreleasepool { // Core ML内部で確保されるバッファの解放に必要
 			NSError *error = nil;
 			// 所有権を移さない(プログラマのまま)
 			MLModel* model = (__bridge MLModel*)(this->model);
 
 			// x1: [batch_size, 62 (MAX_FEATURES1_NUM * COLOR_NB), 9, 9], x2: [batch_size, 57 (MAX_FEATURES2_NUM), 9, 9]として与えられたものを、[batch_size, 119, 9, 9]に詰め替える
+			// fixed_batch_sizeに関わらず、意味のある部分だけ更新
 			for (int i = 0; i < batch_size; i++) {
 				memcpy(&input_buf[(sizeof(NN_Input1) + sizeof(NN_Input2)) / sizeof(DType) * i], &x1[i], sizeof(NN_Input1));
 				memcpy(&input_buf[(sizeof(NN_Input1) + sizeof(NN_Input2)) / sizeof(DType) * i + sizeof(NN_Input1) / sizeof(DType)], &x2[i], sizeof(NN_Input2));
 			}
 
-			MLMultiArray *model_input = [[MLMultiArray alloc] initWithDataPointer:input_buf shape:@[[NSNumber numberWithInt:batch_size], @((size_t)COLOR_NB * MAX_FEATURES1_NUM + MAX_FEATURES2_NUM), @9, @9] dataType:MLMultiArrayDataTypeFloat32 strides:@[@(((size_t)COLOR_NB * MAX_FEATURES1_NUM + MAX_FEATURES2_NUM) * 9 * 9), @(9 * 9), @9, @1] deallocator:NULL error:&error];
+			MLMultiArray *model_input = [[MLMultiArray alloc] initWithDataPointer:input_buf shape:@[[NSNumber numberWithInt:fixed_batch_size], @((size_t)COLOR_NB * MAX_FEATURES1_NUM + MAX_FEATURES2_NUM), @9, @9] dataType:MLMultiArrayDataTypeFloat32 strides:@[@(((size_t)COLOR_NB * MAX_FEATURES1_NUM + MAX_FEATURES2_NUM) * 9 * 9), @(9 * 9), @9, @1] deallocator:NULL error:&error];
 			if (error) {
 				sync_cout << [[NSString stringWithFormat:@"info string CoreML inference array allocation failed, %@", error] UTF8String] << sync_endl;
 				Tools::exit();

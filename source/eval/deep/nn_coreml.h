@@ -28,6 +28,7 @@ namespace Eval::dlshogi
 		static int get_device_count();
 
 	private:
+		int fixed_batch_size; // バッチサイズは、常にload()に与えられたもので動作する。動的にバッチサイズを変更すると実行計画の再生成が起こり、極めて遅くなる。
 		void* model; // Objective-Cの型を見せないため
 		DType* input_buf;
 
