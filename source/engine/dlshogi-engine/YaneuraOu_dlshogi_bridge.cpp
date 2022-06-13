@@ -110,7 +110,12 @@ void USI::extra_option(USI::OptionsMap& o)
     o["UCT_Threads14"]                << USI::Option(0, 0, 256);
     o["UCT_Threads15"]                << USI::Option(0, 0, 256);
     o["UCT_Threads16"]                << USI::Option(0, 0, 256);
+#if defined(COREML)
+	// Core MLでは、ONNXではなく独自形式のモデルが必要。
+    o["DNN_Model1"]                  << USI::Option(R"(model.mlmodel)");
+#else
     o["DNN_Model1"]                  << USI::Option(R"(model.onnx)");
+#endif
     o["DNN_Model2"]                  << USI::Option("");
     o["DNN_Model3"]                  << USI::Option("");
     o["DNN_Model4"]                  << USI::Option("");
