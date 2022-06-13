@@ -81,6 +81,9 @@ namespace YaneuraouTheCluster
 
 		// "stop"をエンジンに対して送信したか。
 		bool stop_sent;
+
+		// 現在、GOなのかGO_PONDERなのか、そうでないのか。
+		EngineState state;
 	};
 
 	// GPS将棋のクラスター手法

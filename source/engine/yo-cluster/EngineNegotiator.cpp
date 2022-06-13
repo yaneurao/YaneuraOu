@@ -153,6 +153,7 @@ namespace YaneuraouTheCluster
 
 				state = EngineState::GO;
 				ponderhit = false;
+				time_to_return_bestmove = false;
 				++go_count;
 
 				break;
@@ -185,6 +186,7 @@ namespace YaneuraouTheCluster
 				}
 
 				state = EngineState::GO_PONDER;
+				time_to_return_bestmove = false;
 				++go_count;
 
 				break;
@@ -302,6 +304,9 @@ namespace YaneuraouTheCluster
 		// 送られてきたコマンドが"go"なのか"ponderhit"なのかを区別するのに使う)
 		virtual bool   is_ponderhit() const { return ponderhit; }
 
+		// "info string time to return bestmove"をエンジンから受け取った。
+		virtual bool   received_time_to_return_bestmove() const { return time_to_return_bestmove; }
+
 		// エンジン側から受け取った"bestmove XX ponder YY"を返す。
 		// 一度このメソッドを呼び出すと、次以降は(エンジン側からさらに"bestmove XX ponder YY"を受信するまで)空の文字列が返る。
 		// つまりこれは、size = 1 の PC-queueとみなしている。
@@ -315,6 +320,14 @@ namespace YaneuraouTheCluster
 		// pull_bestmove()と違って、このクラスの保持しているbestmove_stringは空にならない。
 		virtual string peek_bestmove() {
 			return bestmove_string;
+		}
+
+		// 思考ログを取得する。
+		// (エンジン側から送られてきた"info ..."の文字列)
+		// 前回"go","go ponder"されて以降のログ。
+		virtual vector<string>* peek_thinklog()
+		{
+			return &think_log;
 		}
 
 		// 思考ログを取得する。
@@ -466,7 +479,14 @@ namespace YaneuraouTheCluster
 						DebugMessage(": Warning! : Illegal state , state = " + to_string(state) + " , go_count == 0");
 					else if (go_count == 1)
 					{
-						if (state == EngineState::GO)
+						if (StringExtension::Contains(message,"time to return bestmove"))
+						{
+							// これは、フラグを変化させるだけで、このメッセージ自体はなかったことにする。
+
+							send_gui = false;
+							time_to_return_bestmove = true;
+						}
+						else if (state == EngineState::GO)
 						{
 							send_gui = engine_mode & EngineMode::SEND_INFO_ON_GO;
 							if (!send_gui)
@@ -623,6 +643,9 @@ namespace YaneuraouTheCluster
 
 		// エンジンの動作モード。
 		EngineMode engine_mode;
+
+		// "info string time to return bestmove"を受信したのか。
+		bool time_to_return_bestmove;
 	};
 
 	EngineNegotiator::EngineNegotiator()

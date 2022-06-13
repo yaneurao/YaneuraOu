@@ -301,6 +301,7 @@ namespace YaneuraouTheCluster
 			));
 
 		stop_sent = false;
+		state = EngineState::CONNECTED;
 	}
 
 	void RootSplitStrategy::on_go_command(StrategyParam& param, const Message& command)
@@ -328,20 +329,42 @@ namespace YaneuraouTheCluster
 			auto  moves_list = make_search_moves(sfen, engines.size());
 			for(size_t i = 0; i < engines.size() ; ++i)
 			{
-				auto& engine = engines   [i];
-				auto& moves  = moves_list[i];
-				engine.send(Message(USI_Message::GO, command.command + moves , sfen));
+				auto& engine       = engines   [i];
+				auto& search_moves = moves_list[i];
+				engine.send(Message(USI_Message::GO, command.command + " wait_stop" + search_moves , sfen));
+				// return_to_bestmoveが来るまでは待たないと。
 			}
 		}
 
 		stop_sent = false;
+		state = EngineState::GO;
 	}
 
 	void RootSplitStrategy::on_idle(StrategyParam& param)
 	{
+		// GOしてなければ何もする必要がない。
+		if (state != EngineState::GO)
+			return ;
+
 		// すべてのbestmoveが来てから。
 		// ただし、一番最初にbestmoveを返してきたengineを基準とする。
 		auto& engines = param.engines;
+
+		// time_to_return_bestmoveを返したエンジンの数
+		int time_to_return_bestmove = 0;
+		for(auto& engine : engines)
+			if (engine.received_time_to_return_bestmove())
+				++time_to_return_bestmove;
+		// 1つもtime_to_return_bestmoveを返してないなら何もしない。
+		//if (!time_to_return_bestmove)
+		//	return ; 
+
+		// →　全部のエンジンがtime_to_return_bestmoveを返していないと
+		// 候補手が3手しかなくて..2手がmatedでそれが速攻返ってきたときにmatedの指し手を選んで困る。
+		// ただし、この方式だと、bestmoveと2nd bestmoveのvalueの差が大きくて、本来bestmoveだけなら
+		// もっと早くに返せる時に思考時間が長くなって困る。
+		if (time_to_return_bestmove < engines.size())
+			return ;
 
 		// bestmoveを返したエンジンの数
 		int bestmove_received = 0;
@@ -349,36 +372,15 @@ namespace YaneuraouTheCluster
 			if (!engine.peek_bestmove().empty())
 				++bestmove_received;
 
-		// まだすべてのエンジンがbestmoveを返していない。
-		if (bestmove_received < engines.size())
-		{
-			if (bestmove_received > 0)
-			{
-				// 少なくとも1つのエンジンはbestmoveを返したが、
-				// まだ全部のエンジンからbestmoveきてない。
-
-				// stopを送信していないならすべてのengineに"stop"を送信してやる。
-				if (!stop_sent)
-				{
-					for(auto& engine : engines)
-						engine.send(USI_Message::STOP);
-
-					stop_sent = true;
-				}
-			}
-			return ;
-		}
-
 		// 一番良い評価値を返してきているエンジンを探す。
 
 		size_t best_engine = size_max;
 		int    best_value  = int_min;
-		vector<string> best_log;
 		for(size_t i = 0 ; i < engines.size(); ++i)
 		{
 			auto& engine = engines[i];
 
-			auto log = engine.pull_thinklog();
+			auto& log = *engine.peek_thinklog();
 			// 末尾からvalueの書いてあるlogを探す。
 			for(size_t j = log.size() ; j != 0 ; j --)
 			{
@@ -391,23 +393,48 @@ namespace YaneuraouTheCluster
 					{
 						best_value  = info.value;
 						best_engine = i;
-						best_log    = log;
 					}
 					// valueが書いてあったのでこのエンジンに関して
 					// ログを調べるのはこれで終わり。
-					break;
+					goto NEXT;
 				}
 			}
+			// log上にvalueが一つも書いてなかった。こんなエンジンがあったのでは話にならない。
+			return ;
+
+		NEXT:;
+		}
+		// まだベストエンジンが求まっていない。
+		//if (best_engine == size_max)
+		//	return ;
+
+		// ベストを返しているエンジンがまだbestmoveを返せる状態ではない。
+		if (!engines[best_engine].received_time_to_return_bestmove())
+			return ;
+
+		// bestmoveを返せそう。
+		// stopを送信していないならすべてのengineに"stop"を送信してやる。
+		if (!stop_sent)
+		{
+			for(auto& engine : engines)
+				engine.send(USI_Message::STOP);
+
+			stop_sent = true;
+			return ;
 		}
 
-		// 思考ログが存在しない。そんな馬鹿な…。
-		if (best_engine == size_max)
-		{
-			// こんなことをしてくるエンジンがいると楽観合議できない。
-			// 必ずbestmoveの手前で読み筋と評価値を送ってくれないと駄目。
-			error_to_gui("OptimisticConsultationStrategy::on_idle , No think_log");
-			Tools::exit();
-		}
+		// まだすべてのエンジンがbestmoveを返していない。
+		if (bestmove_received < engines.size())
+			return ;
+
+		// 一番良い評価値を返してきているエンジンを探す。
+
+		vector<string> best_log = engines[best_engine].pull_thinklog();
+
+		// 各エンジンの保持しているログのクリア
+		// → これは次のGO_PONDERコマンドで自動的に行われる。
+		//for(auto& engine : engines)
+		//	engine.pull_thinklog();
 
 		// ここまでの思考logをまとめてGUIに送信する。
 		for(auto& line : best_log)
@@ -432,7 +459,11 @@ namespace YaneuraouTheCluster
 		// XXかYYが"resign"のような、それによって局面を進められない指し手である場合(このとき、空の文字列となる)、
 		// GO_PONDERしてはならない。
 		if (bestmove.empty() || ponder.empty())
+		{
+			stop_sent = false;
+			state = EngineState::IDLE_IN_GAME;
 			return ;
+		}
 
 		auto sfen = concat_sfen(engines[0].get_searching_sfen(), bestmove + " " + ponder);
 
@@ -440,10 +471,12 @@ namespace YaneuraouTheCluster
 		auto moves_list = make_search_moves(sfen, engines.size());
 		for(size_t i = 0; i < engines.size() ; ++i)
 		{
-			auto& engine = engines   [i];
-			auto& moves  = moves_list[i];
-			engine.send(Message(USI_Message::GO_PONDER, "go ponder" + moves , sfen));
+			auto& engine       = engines   [i];
+			auto& search_moves = moves_list[i];
+			engine.send(Message(USI_Message::GO_PONDER, "go ponder wait_stop" + search_moves , sfen));
 		}
+		stop_sent = false;
+		state = EngineState::GO_PONDER;
 	}
 
 	// sfenを与えて、その局面の合法手を生成して、それをエンジンの数で分割したものを返す。
@@ -458,9 +491,12 @@ namespace YaneuraouTheCluster
 		BookTools::feed_position_string(pos, sfen, si, [](Position&){});
 
 		auto ml = MoveList<LEGAL>(pos);
-		if (ml.size() >= engine_num)
+		if (ml.size() < engine_num)
 		{
 			// エンジン数より少ないと1手すら割り当てられない。
+			// →　この時は普通の楽観合議で良い。
+
+		} else {
 
 			for(size_t i = 0 ; i < engine_num ; ++i)
 				moves_list[i] = " searchmoves";
@@ -521,7 +557,6 @@ namespace YaneuraouTheCluster
 				engine.send(Message(USI_Message::GO, command.command + moves , sfen));
 			}
 		}
-
 		stop_sent = false;
 	}
 
@@ -575,6 +610,10 @@ namespace YaneuraouTheCluster
 
 				if (info.value != VALUE_NONE )
 				{
+					// 子節点なのでvalueの符号を反転。
+					if (j == 0 || j == 1)
+						info.value = -info.value;
+
 					if (info.value > best_value)
 					{
 						best_value  = info.value;
@@ -656,10 +695,15 @@ namespace YaneuraouTheCluster
 
 
 			for(size_t i = 0 ; i < 2 ; ++i)
-				moves_list[i] = " searchmoves " + to_usi_string(snlist[i].move);
+				//moves_list[i] = " searchmoves " + to_usi_string(snlist[i].move);
+			// →　これ、一手しかないので、
+			// 　　最小思考時間でbestmoveを返してくるエンジンがある。
+			// (やねうら王もそうなっている)　これleafを展開してからでないとまずい。
+				moves_list[i] = " " + to_usi_string(snlist[i].move);
+				// 局面を1手進めて全探索。
 
 			// 残りは3つ目のエンジンに割り当てる。
-			moves_list[2] = "  searchmoves";
+			moves_list[2] = " searchmoves";
 			for(size_t i = 0; i < ml.size(); ++i)
 			{
 				auto move = ml.at(i).move;

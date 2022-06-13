@@ -85,6 +85,9 @@ namespace YaneuraouTheCluster
 		// 送られてきたコマンドが"go"なのか"ponderhit"なのかを区別するのに使う)
 		virtual bool is_ponderhit() const = 0;
 
+		// "info string time to return bestmove"をエンジンから受け取った。
+		virtual bool received_time_to_return_bestmove() const = 0;
+
 		// エンジン側から受け取った"bestmove XX ponder YY"を返す。
 		// 一度このメソッドを呼び出すと、次以降は(エンジン側からさらに"bestmove XX ponder YY"を受信するまで)空の文字列が返る。
 		// つまりこれは、size = 1 の PC-queueとみなしている。
@@ -93,6 +96,11 @@ namespace YaneuraouTheCluster
 		// エンジン側から受け取った"bestmove XX ponder YY"を返す。
 		// pull_bestmove()と違って、このクラスの保持しているbestmove_stringは空にならない。
 		virtual std::string peek_bestmove() = 0;
+
+		// 思考ログを取得する。
+		// (エンジン側から送られてきた"info ..."の文字列)
+		// 前回"go","go ponder"されて以降のログ。
+		virtual std::vector<std::string>* peek_thinklog() = 0;
 
 		// 思考ログを取得する。
 		// (エンジン側から送られてきた"info ..."の文字列)
@@ -116,20 +124,22 @@ namespace YaneuraouTheCluster
 	class EngineNegotiator : public IEngineNegotiator
 	{
 	public:
-		virtual void        connect(const std::string& path, size_t engine_id_) {        ptr->connect(path, engine_id_); }
-		virtual bool        is_terminated() const                               { return ptr->is_terminated();           }
-		virtual bool        is_in_game()    const                               { return ptr->is_in_game();              }
-		virtual size_t      get_engine_id() const                               { return ptr->get_engine_id();           }
-		virtual void        send(Message message)                               {        ptr->send(message);             }
-		virtual bool        receive()                                           { return ptr->receive();                 }
-		virtual std::string get_searching_sfen() const                          { return ptr->get_searching_sfen();      }
-		virtual bool        is_ponderhit() const                                { return ptr->is_ponderhit();            }
-		virtual std::string pull_bestmove()                                     { return ptr->pull_bestmove();           }
-		virtual std::string peek_bestmove()                                     { return ptr->peek_bestmove();           }
-		virtual std::vector<std::string> pull_thinklog()                        { return ptr->pull_thinklog();           }
-		virtual EngineState get_state() const                                   { return ptr->get_state();               }
-		virtual void        set_engine_mode(EngineMode m)                       {        ptr->set_engine_mode(m);        }
-		virtual EngineMode  get_engine_mode() const                             { return ptr->get_engine_mode();         }
+		virtual void        connect(const std::string& path, size_t engine_id_) {        ptr->connect(path, engine_id_);          }
+		virtual bool        is_terminated() const                               { return ptr->is_terminated();                    }
+		virtual bool        is_in_game()    const                               { return ptr->is_in_game();                       }
+		virtual size_t      get_engine_id() const                               { return ptr->get_engine_id();                    }
+		virtual void        send(Message message)                               {        ptr->send(message);                      }
+		virtual bool        receive()                                           { return ptr->receive();                          }
+		virtual std::string get_searching_sfen() const                          { return ptr->get_searching_sfen();               }
+		virtual bool        is_ponderhit() const                                { return ptr->is_ponderhit();                     }
+		virtual bool        received_time_to_return_bestmove() const            { return ptr->received_time_to_return_bestmove(); }
+		virtual std::string pull_bestmove()                                     { return ptr->pull_bestmove();                    }
+		virtual std::string peek_bestmove()                                     { return ptr->peek_bestmove();                    }
+		virtual std::vector<std::string>* peek_thinklog()                       { return ptr->peek_thinklog();                    }
+		virtual std::vector<std::string>  pull_thinklog()                       { return ptr->pull_thinklog();                    }
+		virtual EngineState get_state() const                                   { return ptr->get_state();                        }
+		virtual void        set_engine_mode(EngineMode m)                       {        ptr->set_engine_mode(m);                 }
+		virtual EngineMode  get_engine_mode() const                             { return ptr->get_engine_mode();                  }
 
 		EngineNegotiator();
 		EngineNegotiator& operator=(EngineNegotiator& rhs) { this->ptr = std::move(rhs.ptr); return *this; } // copy constructor
