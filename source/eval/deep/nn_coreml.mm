@@ -41,22 +41,22 @@ API_AVAILABLE(macos(10.15), ios(13.0), watchos(6.0), tvos(13.0)) __attribute__((
 @implementation DlShogiResnetInput
 
 - (instancetype)initWithInput:(MLMultiArray *)input {
-    self = [super init];
-    if (self) {
-        _input = input;
-    }
-    return self;
+	self = [super init];
+	if (self) {
+		_input = input;
+	}
+	return self;
 }
 
 - (NSSet<NSString *> *)featureNames {
-    return [NSSet setWithArray:@[@"input"]];
+	return [NSSet setWithArray:@[@"input"]];
 }
 
 - (nullable MLFeatureValue *)featureValueForName:(NSString *)featureName {
-    if ([featureName isEqualToString:@"input"]) {
-        return [MLFeatureValue featureValueWithMultiArray:_input];
-    }
-    return nil;
+	if ([featureName isEqualToString:@"input"]) {
+		return [MLFeatureValue featureValueWithMultiArray:_input];
+	}
+	return nil;
 }
 
 @end
@@ -64,26 +64,26 @@ API_AVAILABLE(macos(10.15), ios(13.0), watchos(6.0), tvos(13.0)) __attribute__((
 @implementation DlShogiResnetOutput
 
 - (instancetype)initWithOutput_policy:(MLMultiArray *)output_policy output_value:(MLMultiArray *)output_value {
-    self = [super init];
-    if (self) {
-        _output_policy = output_policy;
-        _output_value = output_value;
-    }
-    return self;
+	self = [super init];
+	if (self) {
+		_output_policy = output_policy;
+		_output_value = output_value;
+	}
+	return self;
 }
 
 - (NSSet<NSString *> *)featureNames {
-    return [NSSet setWithArray:@[@"output_policy", @"output_value"]];
+	return [NSSet setWithArray:@[@"output_policy", @"output_value"]];
 }
 
 - (nullable MLFeatureValue *)featureValueForName:(NSString *)featureName {
-    if ([featureName isEqualToString:@"output_policy"]) {
-        return [MLFeatureValue featureValueWithMultiArray:_output_policy];
-    }
-    if ([featureName isEqualToString:@"output_value"]) {
-        return [MLFeatureValue featureValueWithMultiArray:_output_value];
-    }
-    return nil;
+	if ([featureName isEqualToString:@"output_policy"]) {
+		return [MLFeatureValue featureValueWithMultiArray:_output_policy];
+	}
+	if ([featureName isEqualToString:@"output_value"]) {
+		return [MLFeatureValue featureValueWithMultiArray:_output_value];
+	}
+	return nil;
 }
 
 @end
@@ -145,7 +145,7 @@ namespace Eval::dlshogi
 			Tools::exit();
 		}
 
-	    // 所有権をARCからプログラマに移す
+		// 所有権をARCからプログラマに移す
 		this->model = (void*)CFBridgingRetain(model);
 
 		input_buf = new DType[(sizeof(NN_Input1) + sizeof(NN_Input2)) / sizeof(DType) * batch_size];
@@ -201,7 +201,7 @@ namespace Eval::dlshogi
 	}
 
 	NNCoreML::~NNCoreML() {
-	    // 所有権をARCに返す
+		// 所有権をARCに返す
 		MLModel *model = CFBridgingRelease(this->model);
 		// スコープを外れるので解放される
 	}
