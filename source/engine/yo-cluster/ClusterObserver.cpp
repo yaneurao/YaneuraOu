@@ -530,7 +530,10 @@ namespace YaneuraouTheCluster
 		//		single       : 単一エンジン、ponderなし(defaultでこれ)
 		//		ponder       : 単一エンジン、ponderあり
 		//		optimistic   : 楽観合議モード
+		//				→　workerは ConsiderationMode = falseにしてbestmoveを返す直前には必ず評価値を出力するように設定する必要がある。
 		//      root_split   : rootで指し手分割を行うモード
+		//				→　workerは ConsiderationMode = falseにしてbestmoveを返す直前には必ず評価値を出力するように設定する必要がある。
+		//					さらに、workerは goコマンドの"wait_stop"機能に対応している必要がある。(やねうら王NNUEは対応している)
 		//      gps          : GPS将棋のクラスター手法。
 		void parse_cluster_param(istringstream& is_, ClusterOptions& options , unique_ptr<IClusterStrategy>& strategy)
 		{

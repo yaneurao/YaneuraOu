@@ -38,20 +38,22 @@ namespace YaneuraouTheCluster
 		virtual void on_idle(StrategyParam& param);
 	};
 
-	// OptimisticConsultationStrategyで使う動作モード
-	// mode = RootSplit | MultiPonder;
-	// のように複数のフラグをbit orを用いて指定する。
-	enum OptimisticOption : int {
-		// "go" , "go ponder"の時にroot splitを行う。
-		None            = 0,
-		RootSplit       = 1,
-		MultiPonder     = 2,
+	// MultiPonder
+	//
+	// Ponderする時に相手の予想手を複数用意する。
+	class MultiPonderStrategy : public IClusterStrategy
+	{
+	public:
+		virtual void on_connected(StrategyParam& param);
+		virtual void on_go_command(StrategyParam& param, const Message& command);
+		virtual void on_idle(StrategyParam& param);
 	};
 
 	// 楽観合議
 	// 
 	// SinglePonderStrategyを複数エンジンに対応させて、
 	// goした時に一番良い評価値を返してきたエンジンのbestmoveを採用するように変えたもの。
+	// →　workerは ConsiderationMode = falseにしてbestmoveを返す直前には必ず評価値を出力するように設定する必要がある。
 	class OptimisticConsultationStrategy : public IClusterStrategy
 	{
 	public:
@@ -67,7 +69,8 @@ namespace YaneuraouTheCluster
 	// RootSplit
 	// 
 	// Rootの指し手をエンジンごとに分割して思考する。
-	// →　弱かったので採用せず。ソースコードの参考用に残しておく。
+	//	→　workerは ConsiderationMode = falseにしてbestmoveを返す直前には必ず評価値を出力するように設定する必要がある。
+	//		さらに、workerは goコマンドの"wait_stop"機能に対応している必要がある。(やねうら王NNUEは対応している)
 	class RootSplitStrategy : public IClusterStrategy
 	{
 	public:

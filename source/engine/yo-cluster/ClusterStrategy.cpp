@@ -134,6 +134,16 @@ namespace YaneuraouTheCluster
 	}
 
 	// ---------------------------------------
+	//     MultiPonderStrategy 
+	// ---------------------------------------
+
+	// Ponderする時に相手の予想手を複数用意する。
+
+	void MultiPonderStrategy::on_connected(StrategyParam& param){}
+	void MultiPonderStrategy::on_go_command(StrategyParam& param, const Message& command){}
+	void MultiPonderStrategy::on_idle(StrategyParam& param){}
+
+	// ---------------------------------------
 	//     OptimisticConsultationStrategy 
 	// ---------------------------------------
 
@@ -208,12 +218,12 @@ namespace YaneuraouTheCluster
 
 		size_t best_engine = size_max;
 		int    best_value  = int_min;
-		vector<string> best_log;
+		vector<string>* best_log = nullptr;
 		for(size_t i = 0 ; i < engines.size(); ++i)
 		{
 			auto& engine = engines[i];
 
-			auto log = engine.pull_thinklog();
+			auto& log = *engine.peek_thinklog();
 			// 末尾からvalueの書いてあるlogを探す。
 			for(size_t j = log.size() ; j != 0 ; j --)
 			{
@@ -235,7 +245,7 @@ namespace YaneuraouTheCluster
 					{
 						best_value  = info.value;
 						best_engine = i;
-						best_log    = log;
+						best_log    = &log;
 					}
 					// valueが書いてあったのでこのエンジンに関して
 					// ログを調べるのはこれで終わり。
@@ -253,9 +263,14 @@ namespace YaneuraouTheCluster
 			Tools::exit();
 		}
 
-		// ここまでの思考logをまとめてGUIに送信する。
-		for(auto& line : best_log)
-			send_to_gui(line);
+		// ここまでの思考ログをまとめてGUIに送信する。
+		if (best_log != nullptr)
+			for(auto& line : *best_log)
+				send_to_gui(line);
+
+		// 思考ログのクリア
+		for(auto& engine : engines)
+			engine.clear_thinklog();
 
 		auto bestmove_str = engines[best_engine].peek_bestmove();
 		// engineすべてからbestmoveを取り除いておく。
@@ -429,16 +444,16 @@ namespace YaneuraouTheCluster
 
 		// 一番良い評価値を返してきているエンジンを探す。
 
-		vector<string> best_log = engines[best_engine].pull_thinklog();
+		vector<string>* best_log = engines[best_engine].peek_thinklog();
 
-		// 各エンジンの保持しているログのクリア
-		// → これは次のGO_PONDERコマンドで自動的に行われる。
-		//for(auto& engine : engines)
-		//	engine.pull_thinklog();
+		// ここまでの思考ログをまとめてGUIに送信する。
+		if (best_log != nullptr)
+			for(auto& line : *best_log)
+				send_to_gui(line);
 
-		// ここまでの思考logをまとめてGUIに送信する。
-		for(auto& line : best_log)
-			send_to_gui(line);
+		// 思考ログのクリア
+		for(auto& engine : engines)
+			engine.clear_thinklog();
 
 		auto bestmove_str = engines[best_engine].peek_bestmove();
 		// engineすべてからbestmoveを取り除いておく。
@@ -491,10 +506,14 @@ namespace YaneuraouTheCluster
 		BookTools::feed_position_string(pos, sfen, si, [](Position&){});
 
 		auto ml = MoveList<LEGAL>(pos);
-		if (ml.size() < engine_num)
+		if (ml.size() < engine_num * 2)
 		{
 			// エンジン数より少ないと1手すら割り当てられない。
 			// →　この時は普通の楽観合議で良い。
+			// あと、one replyだと(1手しかない場合)、探索によってその指し手が正常に求まらない。
+			// ゆえに、少なくとも2手が割り当たる状況でないならroot splitしない。
+			// →　GPS clusterのように1手先で展開すべきだが、そこでもone replyだと困るわけで…。
+			// きちんとした探索木の分割が必要である。
 
 		} else {
 
@@ -596,12 +615,12 @@ namespace YaneuraouTheCluster
 
 		size_t best_engine = size_max;
 		int    best_value  = int_min;
-		vector<string> best_log;
+		vector<string>* best_log = nullptr;
 		for(size_t i = 0 ; i < engines.size(); ++i)
 		{
 			auto& engine = engines[i];
 
-			auto log = engine.pull_thinklog();
+			auto& log = *engine.peek_thinklog();
 			// 末尾からvalueの書いてあるlogを探す。
 			for(size_t j = log.size() ; j != 0 ; j --)
 			{
@@ -618,7 +637,7 @@ namespace YaneuraouTheCluster
 					{
 						best_value  = info.value;
 						best_engine = i;
-						best_log    = log;
+						best_log    = &log;
 					}
 					// valueが書いてあったのでこのエンジンに関して
 					// ログを調べるのはこれで終わり。
@@ -632,13 +651,18 @@ namespace YaneuraouTheCluster
 		{
 			// こんなことをしてくるエンジンがいると楽観合議できない。
 			// 必ずbestmoveの手前で読み筋と評価値を送ってくれないと駄目。
-			error_to_gui("OptimisticConsultationStrategy::on_idle , No think_log");
+			error_to_gui("GpsClusterStrategy::on_idle , No think_log");
 			Tools::exit();
 		}
 
-		// ここまでの思考logをまとめてGUIに送信する。
-		for(auto& line : best_log)
-			send_to_gui(line);
+		// ここまでの思考ログをまとめてGUIに送信する。
+		if (best_log != nullptr)
+			for(auto& line : *best_log)
+				send_to_gui(line);
+
+		// 思考ログのクリア
+		for(auto& engine : engines)
+			engine.clear_thinklog();
 
 		auto bestmove_str = engines[best_engine].peek_bestmove();
 		// engineすべてからbestmoveを取り除いておく。

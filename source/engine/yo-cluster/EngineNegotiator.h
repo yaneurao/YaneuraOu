@@ -102,11 +102,9 @@ namespace YaneuraouTheCluster
 		// 前回"go","go ponder"されて以降のログ。
 		virtual std::vector<std::string>* peek_thinklog() = 0;
 
-		// 思考ログを取得する。
-		// (エンジン側から送られてきた"info ..."の文字列)
-		// 前回"go","go ponder"されて以降のログ。
+		// 思考ログをクリアする。
 		// この関数を呼び出すと、保持していた思考ログはクリアされる。
-		virtual std::vector<std::string> pull_thinklog() = 0;
+		virtual void clear_thinklog() = 0;
 
 		// エンジンの状態を取得する。
 		// エンジンの状態は、send() , receive()でしか変化しないから、これで取得中に変化することはない。
@@ -136,7 +134,7 @@ namespace YaneuraouTheCluster
 		virtual std::string pull_bestmove()                                     { return ptr->pull_bestmove();                    }
 		virtual std::string peek_bestmove()                                     { return ptr->peek_bestmove();                    }
 		virtual std::vector<std::string>* peek_thinklog()                       { return ptr->peek_thinklog();                    }
-		virtual std::vector<std::string>  pull_thinklog()                       { return ptr->pull_thinklog();                    }
+		virtual void        clear_thinklog()                                    { return ptr->clear_thinklog();                   }
 		virtual EngineState get_state() const                                   { return ptr->get_state();                        }
 		virtual void        set_engine_mode(EngineMode m)                       {        ptr->set_engine_mode(m);                 }
 		virtual EngineMode  get_engine_mode() const                             { return ptr->get_engine_mode();                  }

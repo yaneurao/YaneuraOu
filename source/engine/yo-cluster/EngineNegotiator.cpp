@@ -330,15 +330,11 @@ namespace YaneuraouTheCluster
 			return &think_log;
 		}
 
-		// 思考ログを取得する。
-		// (エンジン側から送られてきた"info ..."の文字列)
-		// 前回"go","go ponder"されて以降のログ。
+		// 思考ログをクリアする。
 		// この関数を呼び出すと、保持していた思考ログはクリアされる。
-		virtual vector<string> pull_thinklog()
+		virtual void clear_thinklog()
 		{
-			auto log = think_log;
 			think_log.clear();
-			return log;
 		}
 
 		// エンジンの状態を取得する。
