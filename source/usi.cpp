@@ -260,10 +260,10 @@ namespace USI
 
 					Move m;
 
-					// MultiPVを考慮して初手は置換表からではなくrootMovesから取得
-					// rootMovesには宣言勝ちも含まれるので注意。
-					if (ply == 0)
-						m = rootMoves[i].pv[0];
+					// まず、rootMoves.pvを辿れるところまで辿る。
+					// rootMoves[i].pv[0]は宣言勝ちの指し手(MOVE_WIN)の可能性があるので注意。
+					if (ply < rootMoves[i].pv.size())
+						m = rootMoves[i].pv[ply];
 					else
 					{
 						// 次の手を置換表から拾う。
@@ -277,6 +277,10 @@ namespace USI
 							break;
 
 						m = pos.to_move(tte->move());
+
+						// leaf nodeはわりと高い確率でMOVE_NONE
+						if (m == MOVE_NONE)
+							break;
 
 						// 置換表にはpsudo_legalではない指し手が含まれるのでそれを弾く。
 						// 宣言勝ちでないならこれが合法手であるかのチェックが必要。
