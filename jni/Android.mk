@@ -263,7 +263,8 @@ ifeq ($(YO_CLUSTER),ON)
 		../source/engine/yo-cluster/ClusterCommon.cpp                      \
 		../source/engine/yo-cluster/EngineNegotiator.cpp                   \
 		../source/engine/yo-cluster/ProcessNegotiator.cpp                  \
-		../source/engine/yo-cluster/yo_cluster.cpp
+		../source/engine/yo-cluster/ClusterObserver.cpp                    \
+		../source/engine/yo-cluster/ClusterStrategy.cpp
 	CPPFLAGS += -DUSE_YO_CLUSTER
 endif
 

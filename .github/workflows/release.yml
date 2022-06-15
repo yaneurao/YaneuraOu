@@ -265,6 +265,7 @@ jobs:
           - "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256"
           - "YANEURAOU_ENGINE_KPPT,YANEURAOU_ENGINE_KPP_KKPT"
           - "YANEURAOU_ENGINE_MATERIAL,YANEURAOU_ENGINE_MATERIAL9"
+          - YANEURAOU_ENGINE_DEEP_COREML
           - "YANEURAOU_MATE_ENGINE,TANUKI_MATE_ENGINE"
           #- USER_ENGINE
         compiler:
@@ -273,13 +274,11 @@ jobs:
         target:
           - "normal,tournament"
         archcpu:
-          #- AVX2
-          #- SSE42
           - APPLEAVX2
           - APPLESSE42
           - APPLEM1
         exclude:
-          # M1 Mac向けは g++-11 ではビルドしない
+          # Mac向けは g++-11 ではビルドしない
           - compiler: g++-11
             archcpu: APPLEAVX2
           - compiler: g++-11
@@ -324,6 +323,7 @@ jobs:
               "YANEURAOU_ENGINE_MATERIAL8": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=8",
               "YANEURAOU_ENGINE_MATERIAL9": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=9",
               "YANEURAOU_ENGINE_MATERIAL10": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=10",
+              "YANEURAOU_ENGINE_DEEP_COREML": "YANEURAOU_ENGINE_DEEP_COREML",
               "YANEURAOU_MATE_ENGINE": "YANEURAOU_MATE_ENGINE",
               "TANUKI_MATE_ENGINE": "TANUKI_MATE_ENGINE",
               "USER_ENGINE": "USER_ENGINE",
@@ -346,6 +346,7 @@ jobs:
               "YANEURAOU_ENGINE_MATERIAL8": "MaterialLv8",
               "YANEURAOU_ENGINE_MATERIAL9": "MaterialLv9",
               "YANEURAOU_ENGINE_MATERIAL10": "MaterialLv10",
+              "YANEURAOU_ENGINE_DEEP_COREML": "FukauraOu_CoreML",
               "YANEURAOU_MATE_ENGINE": "YaneuraOu_MATE",
               "TANUKI_MATE_ENGINE": "tanuki_MATE",
               "USER_ENGINE": "USER",
@@ -368,6 +369,7 @@ jobs:
               "YANEURAOU_ENGINE_MATERIAL8": "YaneuraOu_MaterialLv8",
               "YANEURAOU_ENGINE_MATERIAL9": "YaneuraOu_MaterialLv9",
               "YANEURAOU_ENGINE_MATERIAL10": "YaneuraOu_MaterialLv10",
+              "YANEURAOU_ENGINE_DEEP_COREML": "FukauraOu_CoreML",
               "YANEURAOU_MATE_ENGINE": "YaneuraOu_MATE",
               "TANUKI_MATE_ENGINE": "tanuki_MATE",
               "USER_ENGINE": "user",
@@ -1361,7 +1363,7 @@ jobs:
             - [${{ steps.version.outputs.filename }}-android.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-android.7z) (${{ steps.archive_size.outputs.android_7z }})
               - 1.2.3.4.5.6.の実行ファイルAndroid版 (arm64-v8a/armeabi-v7a/x86_64/x86)
             - [${{ steps.version.outputs.filename }}-macos.tar.xz](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-macos.tar.xz) (${{ steps.archive_size.outputs.macos_tar_xz }})
-              - 1.2.3.4.5.6.の実行ファイルMacOS版 (AVX2/SSE42/APPLEM1) (testing)
+              - 1.2.3.4.5.6.7.の実行ファイルMacOS版 (AVX2/SSE42/APPLEM1) (testing)
             - [${{ steps.version.outputs.filename }}-wasm.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-wasm.zip) (${{ steps.archive_size.outputs.wasm_zip }})
             - [${{ steps.version.outputs.filename }}-wasm.7z](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/${{ steps.version.outputs.filename }}-wasm.7z) (${{ steps.archive_size.outputs.wasm_7z }})
               - 1.2.3.4.5.6.の実行ファイルWebAssembly版 (testing)

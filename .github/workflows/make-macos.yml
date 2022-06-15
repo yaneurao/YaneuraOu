@@ -23,16 +23,15 @@ jobs:
           - "YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32,YANEURAOU_ENGINE_NNUE_HALFKPE9,YANEURAOU_ENGINE_NNUE_KP256"
           - "YANEURAOU_ENGINE_KPPT,YANEURAOU_ENGINE_KPP_KKPT"
           - "YANEURAOU_ENGINE_MATERIAL,YANEURAOU_ENGINE_MATERIAL9"
+          - YANEURAOU_ENGINE_DEEP_COREML
           - "YANEURAOU_MATE_ENGINE,TANUKI_MATE_ENGINE"
           - USER_ENGINE
         compiler:
           - clang++
-          - g++-11
+          #- g++-11
         target:
           - "normal,tournament"
         archcpu:
-          #- AVX2
-          #- SSE42
           - APPLEAVX2
           - APPLESSE42
           - APPLEM1
@@ -81,6 +80,7 @@ jobs:
               "YANEURAOU_ENGINE_MATERIAL8": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=8",
               "YANEURAOU_ENGINE_MATERIAL9": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=9",
               "YANEURAOU_ENGINE_MATERIAL10": "YANEURAOU_ENGINE_MATERIAL MATERIAL_LEVEL=10",
+              "YANEURAOU_ENGINE_DEEP_COREML": "YANEURAOU_ENGINE_DEEP_COREML",
               "YANEURAOU_MATE_ENGINE": "YANEURAOU_MATE_ENGINE",
               "TANUKI_MATE_ENGINE": "TANUKI_MATE_ENGINE",
               "USER_ENGINE": "USER_ENGINE",
@@ -103,6 +103,7 @@ jobs:
               "YANEURAOU_ENGINE_MATERIAL8": "MaterialLv8",
               "YANEURAOU_ENGINE_MATERIAL9": "MaterialLv9",
               "YANEURAOU_ENGINE_MATERIAL10": "MaterialLv10",
+              "YANEURAOU_ENGINE_DEEP_COREML": "FukauraOu_CoreML",
               "YANEURAOU_MATE_ENGINE": "YaneuraOu_MATE",
               "TANUKI_MATE_ENGINE": "tanuki_MATE",
               "USER_ENGINE": "USER",
@@ -125,6 +126,7 @@ jobs:
               "YANEURAOU_ENGINE_MATERIAL8": "YaneuraOu_MaterialLv8",
               "YANEURAOU_ENGINE_MATERIAL9": "YaneuraOu_MaterialLv9",
               "YANEURAOU_ENGINE_MATERIAL10": "YaneuraOu_MaterialLv10",
+              "YANEURAOU_ENGINE_DEEP_COREML": "FukauraOu_CoreML",
               "YANEURAOU_MATE_ENGINE": "YaneuraOu_MATE",
               "TANUKI_MATE_ENGINE": "tanuki_MATE",
               "USER_ENGINE": "user",
