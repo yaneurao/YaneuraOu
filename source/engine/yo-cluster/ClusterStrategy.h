@@ -38,17 +38,6 @@ namespace YaneuraouTheCluster
 		virtual void on_idle(StrategyParam& param);
 	};
 
-	// MultiPonder
-	//
-	// Ponderする時に相手の予想手を複数用意する。
-	class MultiPonderStrategy : public IClusterStrategy
-	{
-	public:
-		virtual void on_connected(StrategyParam& param);
-		virtual void on_go_command(StrategyParam& param, const Message& command);
-		virtual void on_idle(StrategyParam& param);
-	};
-
 	// 楽観合議
 	// 
 	// SinglePonderStrategyを複数エンジンに対応させて、
@@ -58,12 +47,40 @@ namespace YaneuraouTheCluster
 	{
 	public:
 		virtual void on_connected(StrategyParam& param);
+		virtual void on_isready(StrategyParam& param);
 		virtual void on_go_command(StrategyParam& param, const Message& command);
 		virtual void on_idle(StrategyParam& param);
 
 	protected:
 		// "stop"をエンジンに対して送信したか。
 		bool stop_sent;
+	};
+
+	// MultiPonder
+	//
+	// Ponderする時に相手の予想手を複数用意する。
+	class MultiPonderStrategy : public IClusterStrategy
+	{
+	public:
+		virtual void on_connected(StrategyParam& param);
+		virtual void on_isready(StrategyParam& param);
+		virtual void on_go_command(StrategyParam& param, const Message& command);
+		virtual void on_idle(StrategyParam& param);
+	protected:
+		// 余っているエンジンに対して、思考対象局面を複数用意してponderする。
+		// root_sfen         : 現在の基準局面
+		// available_engines : ponderに使うエンジンの番号。(engines[available_engines[i]]を用いる)
+		// same_color        : ponder対象とする局面がroot_sfenの局面と同じ手番なのか。(trueなら2手先、falseなら1手先)
+		// except_move       : ponder対象から除外する指し手
+		void search_and_ponder(std::vector<EngineNegotiator>& engines,
+			const std::string& root_sfen, std::vector<size_t> available_engines, bool same_color, std::string except_move);
+
+		// "stop"をエンジンに対して送信したか。
+		bool stop_sent;
+
+		// 現在思考中のsfen
+		std::string searching_sfen;
+
 	};
 
 	// RootSplit
@@ -75,6 +92,7 @@ namespace YaneuraouTheCluster
 	{
 	public:
 		virtual void on_connected(StrategyParam& param);
+		virtual void on_isready(StrategyParam& param);
 		virtual void on_go_command(StrategyParam& param, const Message& command);
 		virtual void on_idle(StrategyParam& param);
 

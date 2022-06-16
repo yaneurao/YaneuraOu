@@ -40,6 +40,9 @@ namespace YaneuraouTheCluster
 		// エンジンにconnect()した直後に呼び出される。
 		virtual void on_connected(StrategyParam& param) {}
 
+		// GUI側から"isready"が来た時に対して呼び出される。
+		virtual void on_isready(StrategyParam& param) {}
+
 		// GUI側から"go"コマンドが来た時のhandler。
 		// command : GUI側から来たコマンド詳細が格納されている。
 		virtual void on_go_command(StrategyParam& param, const Message& command) {}

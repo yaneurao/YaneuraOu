@@ -134,16 +134,6 @@ namespace YaneuraouTheCluster
 	}
 
 	// ---------------------------------------
-	//     MultiPonderStrategy 
-	// ---------------------------------------
-
-	// Ponderする時に相手の予想手を複数用意する。
-
-	void MultiPonderStrategy::on_connected(StrategyParam& param){}
-	void MultiPonderStrategy::on_go_command(StrategyParam& param, const Message& command){}
-	void MultiPonderStrategy::on_idle(StrategyParam& param){}
-
-	// ---------------------------------------
 	//     OptimisticConsultationStrategy 
 	// ---------------------------------------
 
@@ -157,7 +147,10 @@ namespace YaneuraouTheCluster
 				// 接続後、対局前までにエンジン側から送られてきた"info ..."を、そのままGUIに流す。
 				EngineMode::SEND_INFO_BEFORE_GAME
 			));
+	}
 
+	void OptimisticConsultationStrategy::on_isready(StrategyParam& param)
+	{
 		stop_sent = false;
 	}
 
@@ -301,6 +294,299 @@ namespace YaneuraouTheCluster
 	}
 
 	// ---------------------------------------
+	//     MultiPonderStrategy 
+	// ---------------------------------------
+
+	// Ponderする時に相手の予想手を複数用意する。
+
+	void MultiPonderStrategy::on_connected(StrategyParam& param)
+	{
+		for(auto& engine : param.engines)
+			engine.set_engine_mode(EngineMode(
+				// 接続後、対局前までにエンジン側から送られてきた"info ..."を、そのままGUIに流す。
+				EngineMode::SEND_INFO_BEFORE_GAME
+			));
+	}
+
+	void MultiPonderStrategy::on_isready(StrategyParam& param)
+	{
+		stop_sent = false;
+		searching_sfen.clear();
+	}
+
+	void MultiPonderStrategy::on_go_command(StrategyParam& param, const Message& command)
+	{
+		auto& engines = param.engines;
+
+		// goコマンドの対象局面
+		auto  sfen    = command.position_sfen;
+		// 現在思考中のsfen
+		this->searching_sfen = sfen;
+
+		// ponderhitしたエンジンの数をカウントする。
+		// いま go ponderで思考している局面と、command.position_sfenが一致するなら、エンジンに"ponderhit"を送ってやれば良い。
+		// MultiPonderでも予想手の合法手が少ない時は、複数のエンジンに同じponderの指し手を割り当てるのでこれは複数ある可能性が。
+
+		vector<size_t> ponderhit_engines;
+		vector<size_t> not_ponderhit_engines;
+
+		for(size_t i = 0 ; i < engines.size() ; ++i)
+		{
+			auto& engine = engines[i];
+			if (engine.is_state_go_ponder() && engine.get_searching_sfen() == sfen)
+				ponderhit_engines.push_back(i);
+			else
+				not_ponderhit_engines.push_back(i);
+		}
+
+		// ponderhitしたエンジンに対して、PONDERHITを送信する。
+		if (ponderhit_engines.size())
+		{
+			for(size_t i : ponderhit_engines)
+				engines[i].send(Message(USI_Message::PONDERHIT, strip_command(command.command) ));
+		}
+		else
+			// ponderhitしたエンジンが一つもないのですべてのエンジンで思考する。(合議)
+		{
+			for(auto& engine : engines)
+				engine    .send(Message(USI_Message::GO       , command.command  , sfen ));
+			not_ponderhit_engines.clear();
+		}
+
+		// 空いているエンジンがあるのか？
+		if (not_ponderhit_engines.size())
+		{
+			// エンジンが余っているので、これについて2手先の局面のなかから適当に思考対象局面を用意してponderする。
+			search_and_ponder(engines, sfen, not_ponderhit_engines, true /* same_color */ , string());
+		}
+
+		stop_sent = false;
+	}
+
+	// 余っているエンジンに対して、思考対象局面を複数用意してponderする。
+	// root_sfen         : 現在の基準局面
+	// available_engines : ponderに使うエンジンの番号。(engines[available_engines[i]]を用いる)
+	// same_color        : ponder対象とする局面がroot_sfenの局面と同じ手番なのか。(trueなら2手先、falseなら1手先)
+	// except_move       : ponder対象から除外する指し手
+	void MultiPonderStrategy::search_and_ponder(std::vector<EngineNegotiator>& engines,
+		const std::string& root_sfen, std::vector<size_t> available_engines, bool same_color , std::string except_move )
+	{
+		string sfen = root_sfen;
+
+		// same_colorならまず1手進める。
+		if (same_color)
+		{
+			ExtMoves snlist;
+			nnue_search(sfen , 1 , 10000 , snlist );
+			// 指し手がない。この局面でresign。
+			if (!snlist.size())
+				return ;
+
+			// この指し手で一手進めた局面のsfen文字列を作る。
+			sfen = concat_sfen(sfen , to_usi_string(snlist[0].move));
+		}
+
+		// ここでponderする局面作る。
+		{
+			// 欲しい候補手の数。
+			size_t multi_pv = available_engines.size() + (except_move.empty() ? 0 : 1);
+
+			ExtMoves snlist;
+			nnue_search(sfen , multi_pv , 10000 , snlist );
+			// 指し手がない。この局面でresign。
+			if (!snlist.size())
+				return ;
+
+			if (snlist.size() == 1 && to_usi_string(snlist[0].move) == except_move)
+			{
+				// 割り当て不可能。下手に割り当てると損する可能性があるからやめとく。
+				return ;
+			}
+
+			ASSERT_LV3(snlist.size() <= available_engines.size());
+
+			size_t next_snlist = 0;
+			for(size_t i = 0 ; i < available_engines.size() ; ++i)
+			{
+				auto& engine = engines[available_engines[i]];
+
+				ExtMove move;
+				string move_str;
+
+				do {
+					move = snlist[next_snlist].move;
+					next_snlist = (next_snlist + 1) % snlist.size(); // 足りなければ同じ指し手を2回(以上)割り当てる。
+					move_str = to_usi_string(move);
+				} while (move_str == except_move); // except_moveの指し手は除外する。
+
+				engine.send(Message(USI_Message::GO_PONDER, string() , sfen + " " + move_str));
+			}
+		}
+	}
+
+	void MultiPonderStrategy::on_idle(StrategyParam& param)
+	{
+		// GUI側からのGOコマンドで探索していないなら何もしない。
+		if (searching_sfen.empty())
+			return ;
+
+		// すべてのbestmoveが来てから。
+		// ただし、一番最初にbestmoveを返してきたengineを基準とする。
+		auto& engines = param.engines;
+
+		// bestmoveを返したエンジンの数
+		int bestmove_received = 0;
+		// GUI側から"go"で指定された局面を探索しているエンジンの数。
+		vector<size_t> go_engines;
+		for(size_t i = 0 ; i < engines.size() ; ++i)
+		{
+			auto& engine = engines[i];
+			if (!engine.peek_bestmove().empty())
+				++bestmove_received;
+			if (engine.get_searching_sfen() == searching_sfen)
+				go_engines.push_back(i);
+		}
+
+		// まだすべてのエンジンがbestmoveを返していない。
+		if (bestmove_received < go_engines.size())
+		{
+			if (bestmove_received > 0)
+			{
+				// 少なくとも1つのエンジンはbestmoveを返したが、
+				// まだ(この局面について思考している)全部のエンジンからbestmoveきてない。
+
+				// stopを送信していないならすべてのengineに"stop"を送信してやる。
+				if (!stop_sent)
+				{
+					for(size_t i : go_engines)
+						engines[i].send(USI_Message::STOP);
+
+					stop_sent = true;
+				}
+			}
+			return ;
+		}
+
+		// 一番良い評価値を返してきているエンジンを探す。
+
+		size_t best_engine = size_max;
+		int    best_value  = int_min;
+		vector<string>* best_log = nullptr;
+		for(size_t i : go_engines)
+		{
+			auto& engine = engines[i];
+
+			auto& log = *engine.peek_thinklog();
+			// 末尾からvalueの書いてあるlogを探す。
+			for(size_t j = log.size() ; j != 0 ; j --)
+			{
+				UsiInfo info;
+				parse_usi_info(log[j-1], info);
+
+				if (info.value != VALUE_NONE )
+				{
+					if (info.value > best_value)
+					{
+						best_value  = info.value;
+						best_engine = i;
+						best_log    = &log;
+					}
+					// valueが書いてあったのでこのエンジンに関して
+					// ログを調べるのはこれで終わり。
+					break;
+				}
+			}
+		}
+
+		// 思考ログが存在しない。そんな馬鹿な…。
+		if (best_engine == size_max)
+		{
+			// こんなことをしてくるエンジンがいると楽観合議できない。
+			// 必ずbestmoveの手前で読み筋と評価値を送ってくれないと駄目。
+			error_to_gui("MultiPonderStrategy::on_idle , No think_log");
+			Tools::exit();
+		}
+
+		// ここまでの思考ログをまとめてGUIに送信する。
+		if (best_log != nullptr)
+			for(auto& line : *best_log)
+				send_to_gui(line);
+
+
+		auto bestmove_str = engines[best_engine].peek_bestmove();
+
+		// 思考ログのクリア
+		// engineすべてからbestmoveを取り除いておく。
+		for(size_t i : go_engines)
+		{
+			engines[i].clear_thinklog();
+			engines[i].pull_bestmove();
+		}
+
+		 // これこのままGUI側に送信すればGUIに対して"bestmove XX"を返したことになる。
+		send_to_gui(bestmove_str);
+
+		// "bestmove XX ponder YY"の形だと思うので、YYを抽出して、その局面について思考エンジンにGO_PONDERさせる。
+
+		// 探索していた局面は、bestmoveを返したあとも次の"GO","GO_PONDER"が来るまではget_searching_sfen()で取得できることが保証されている。
+		// そこに、XXとYYを追加したsfen文字列を用意して、GO_PONDERする。
+
+		string bestmove, ponder;
+		parse_bestmove(bestmove_str, bestmove , ponder);
+
+		// XXかYYが"resign"のような、それによって局面を進められない指し手である場合(このとき、空の文字列となる)、
+		// GO_PONDERしてはならない。
+		if (bestmove.empty() || ponder.empty())
+			return ;
+
+		auto sfen = concat_sfen(engines[best_engine].get_searching_sfen(), bestmove + " " + ponder);
+
+		// エンジンの返した局面についてすでにponderをしているのか？
+		bool already_ponder = false;
+		vector<size_t> available_engines;
+		for(size_t i = 0 ; i < engines.size() ; ++i)
+		{
+			auto& engine = engines[i];
+			if (engine.get_searching_sfen() == sfen)
+			{
+				// 見つかったので、余っているエンジンに対して適当な局面を見繕ってponderする。
+				already_ponder = true;
+			}
+			else {
+				available_engines.push_back(i);
+			}
+		}
+
+		auto sfen2 = concat_sfen(engines[best_engine].get_searching_sfen() , bestmove);
+
+		if (already_ponder)
+		{
+			// 残りのエンジンで、それ以外の指し手を予想して思考する。
+			search_and_ponder(engines, sfen2 , available_engines, false , ponder);
+
+		} else {
+
+			// すでにこの局面についてponderしているエンジンがなかった。
+			// 仕方ないので、まず、bestmoveを返したエンジンでponderして、それ以外のエンジンで
+			// それ以外の指し手を予想して思考する。
+
+			engines[best_engine].send(Message(USI_Message::GO_PONDER, string() , sfen));
+
+			available_engines.clear();
+			for(size_t i = 0 ; i < engines.size() ; ++i)
+				if (i != best_engine)
+					available_engines.push_back(i);
+
+			// 残りのエンジンで、それ以外の指し手を予想して思考する。
+			search_and_ponder(engines, sfen2 , available_engines, false , ponder);
+		}
+
+		// 探索中の局面、複数あるので不定。
+		searching_sfen.clear();
+
+	}
+
+	// ---------------------------------------
 	//     RootSplitStrategy 
 	// ---------------------------------------
 
@@ -314,7 +600,10 @@ namespace YaneuraouTheCluster
 				// 接続後、対局前までにエンジン側から送られてきた"info ..."を、そのままGUIに流す。
 				EngineMode::SEND_INFO_BEFORE_GAME
 			));
+	}
 
+	void RootSplitStrategy::on_isready(StrategyParam& param)
+	{
 		stop_sent = false;
 		state = EngineState::CONNECTED;
 	}
