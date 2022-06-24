@@ -962,7 +962,7 @@ inline Bitboard rookFileEffect(Square sq, const Bitboard& occupied)
 		mocc >>= 1;
 
 		// 後手の香の利きと先手の香の利きを合成
-		return Bitboard((em ^ t) & mask | (~mocc & se), 0);
+		return Bitboard(((em ^ t) & mask) | (~mocc & se), 0);
 	}
 	else {
 		// 飛車がp[1]に属する
@@ -979,7 +979,7 @@ inline Bitboard rookFileEffect(Square sq, const Bitboard& occupied)
 		mocc |= mocc >> 4;
 		mocc >>= 1;
 
-		return Bitboard(0, (em ^ t) & mask | (~mocc & se));
+		return Bitboard(0, ((em ^ t) & mask) | (~mocc & se));
 	}
 }
 
