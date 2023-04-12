@@ -2588,7 +2588,7 @@ namespace {
 
 				int deeper =  r >= -1					? 0
 							: moveCount <= 4			? 2
-							: PvNode && depth > 4       ? 1
+							: PvNode					? 1
 							: cutNode && moveCount <= 8 ? 1
 							:							  0;
 
