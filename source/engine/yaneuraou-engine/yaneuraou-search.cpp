@@ -1462,6 +1462,7 @@ namespace {
 
 		// 2手先のkillerの初期化。
 		(ss + 2)->killers[0]	= (ss + 2)->killers[1] = MOVE_NONE;
+		(ss + 2)->cutoffCnt = 0;
 
 		// Update the running average statistics for double extensions
 		ss->doubleExtensions	= (ss - 1)->doubleExtensions;
@@ -2562,6 +2563,9 @@ namespace {
 				if (PvNode)
 					r -= 1 + 15 / ( 3 + depth );
 
+				// Increase reduction if next ply has a lot of fail high else reset count to 0
+				if ((ss + 1)->cutoffCnt > 3 && !PvNode)
+					r++;
 
 				// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
 				// contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？
@@ -2767,6 +2771,7 @@ namespace {
 					}
 					else
 					{
+						ss->cutoffCnt++;
 						// value >= beta なら fail high(beta cut)
 
 						// また、non PVであるなら探索窓の幅が0なのでalphaを更新した時点で、value >= betaが言えて、
@@ -2777,6 +2782,8 @@ namespace {
 					}
 				}
 			}
+			else
+				ss->cutoffCnt = 0;
 
 			// If the move is worse than some previously searched move, remember it to update its stats later
 			// もしその指し手が、以前に探索されたいくつかの指し手より悪い場合は、あとで統計を取る時のために記憶しておく。
