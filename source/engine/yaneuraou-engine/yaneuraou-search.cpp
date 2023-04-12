@@ -3353,10 +3353,20 @@ namespace {
 						update_pv(ss->pv, move, (ss + 1)->pv);
 
 					if (PvNode && value < beta) // Update alpha here!
+					{
 						// alpha値の更新はこのタイミングで良い。
 						// なぜなら、このタイミング以外だと枝刈りされるから。(else以下を読むこと)
 						alpha = value;
 
+						// Reduce other moves if we have found at least one score improvement
+						if (depth > 2
+							&& depth < 7
+							&& beta  <  VALUE_KNOWN_WIN
+							&& alpha > -VALUE_KNOWN_WIN)
+							depth -= 1;
+
+						ASSERT_LV3(depth > 0);
+					}
 					else
 						break; // Fail high
 				}
