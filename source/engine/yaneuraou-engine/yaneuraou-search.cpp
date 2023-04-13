@@ -249,8 +249,8 @@ namespace {
 
 	// Add a small random component to draw evaluations to avoid 3fold-blindness
 	// 引き分け時の評価値VALUE_DRAW(0)の代わりに±1の乱数みたいなのを与える。
-	Value value_draw(Thread* thisThread) {
-		return VALUE_DRAW + Value(2 * (thisThread->nodes & 1) - 1);
+	Value value_draw(const Thread* thisThread) {
+		return VALUE_DRAW - 1 + Value(thisThread->nodes & 0x2);
 	}
 
 	// Skill structure is used to implement strength limit. If we have an uci_elo then
@@ -294,7 +294,7 @@ namespace {
 
 	Value value_to_tt(Value v, int ply);
 	Value value_from_tt(Value v, int ply /*,int r50c */);
-	void update_pv(Move* pv, Move move, Move* childPv);
+	void update_pv(Move* pv, Move move, const Move* childPv);
 	void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus);
 	void update_quiet_stats(const Position& pos, Stack* ss, Move move, int bonus);
 	void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestValue, Value beta, Square prevSq,
@@ -1551,11 +1551,10 @@ namespace {
 
 		if (  !PvNode                  // PV nodeでは置換表の指し手では枝刈りしない(PV nodeはごくわずかしかないので..)
 			&& ss->ttHit               // 置換表の指し手がhitして
-			&& tte->depth() > depth - (thisThread->id() % 2 == 1)   // 置換表に登録されている探索深さのほうが深くて
+			&& tte->depth() > depth - ((int)thisThread->id() & 0x1)   // 置換表に登録されている探索深さのほうが深くて
 									   // ↑ スレッドごとに探索がばらけるように。
 			&& ttValue != VALUE_NONE   // (VALUE_NONEだとすると他スレッドからTTEntryが読みだす直前に破壊された可能性がある)
-			&& (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
-				                : (tte->bound() & BOUND_UPPER))
+			&& (tte->bound() & (ttValue >= beta ? BOUND_LOWER : BOUND_UPPER))
 			// ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
 			// ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
 			// 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
@@ -2040,14 +2039,13 @@ namespace {
 						// if transposition table doesn't have equal or more deep info write probCut data into it
 						// もし置換表が、等しいかより深く探索した情報ではないなら、probCutの情報をそこに書く
 
-						if (! (ss->ttHit
-							&& tte->depth() >= depth - (PARAM_PROBCUT_DEPTH - 1)
+						if (!(ss->ttHit
+							&& tte->depth() >= depth - 3
 							&& ttValue != VALUE_NONE))
 						{
 							ASSERT_LV3(pos.legal_promote(move));
 							tte->save(posKey, value_to_tt(value, ss->ply), ttPv,
-								BOUND_LOWER,
-								depth - (PARAM_PROBCUT_DEPTH - 1), move, ss->staticEval);
+								BOUND_LOWER, depth - 3, move, ss->staticEval);
 						}
 						return value;
 					}
@@ -2552,7 +2550,7 @@ namespace {
 
 				// Decrease reduction for PvNodes based on depth
 				if (PvNode)
-					r -= 1 + 15 / ( 3 + depth );
+					r -= 1 + 15 / (3 + depth);
 
 				// Increase reduction if next ply has a lot of fail high else reset count to 0
 				if ((ss + 1)->cutoffCnt > 3 && !PvNode)
@@ -3028,8 +3026,7 @@ namespace {
 			&& tte->depth() >= ttDepth
 			&& ttValue != VALUE_NONE // Only in case of TT access race
 									 // ↑置換表から取り出したときに他スレッドが値を潰している可能性があるのでこのチェックが必要
-			&& (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
-								: (tte->bound() & BOUND_UPPER)))
+			&& (tte->bound() & (ttValue >= beta ? BOUND_LOWER : BOUND_UPPER)))
 			// ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
 			// ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
 			// 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
@@ -3297,7 +3294,7 @@ namespace {
 			// Continuation history based pruning (~2 Elo)
 			// Continuation historyベースの枝刈り
 			// ※ Stockfish12でqsearch()にも導入された。
-			if (  !capture
+			if (   !capture
 				&& bestValue > VALUE_TB_LOSS_IN_MAX_PLY
 				&& (*contHist[0])[to_sq(move)][pos.moved_piece_after(move)] < CounterMovePruneThreshold
 				&& (*contHist[1])[to_sq(move)][pos.moved_piece_after(move)] < CounterMovePruneThreshold)
@@ -3311,7 +3308,7 @@ namespace {
 			// そこ以降(captureから生成しているのでそこ以降もquietな指し手)も良くないと
 			// 考えるのは理に適っている。
 
-			if (  bestValue > VALUE_TB_LOSS_IN_MAX_PLY
+			if (   bestValue > VALUE_TB_LOSS_IN_MAX_PLY
 				&& quietCheckEvasions > 1
 				&& !capture
 				&& ss->inCheck)
@@ -3487,7 +3484,7 @@ namespace {
 	// PV lineをコピーする。
 	// pv に move(1手) + childPv(複数手,末尾MOVE_NONE)をコピーする。
 	// 番兵として末尾はMOVE_NONEにすることになっている。
-	void update_pv(Move* pv, Move move, Move* childPv) {
+	void update_pv(Move* pv, Move move, const Move* childPv) {
 
 		for (*pv++ = move; childPv && *childPv != MOVE_NONE; )
 			*pv++ = *childPv++;
@@ -3506,21 +3503,20 @@ namespace {
 	void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestValue, Value beta, Square prevSq,
 		Move* quietsSearched, int quietCount, Move* capturesSearched, int captureCount, Depth depth) {
 
-		int bonus1, bonus2;
 		Color us = pos.side_to_move();
 		Thread* thisThread = pos.this_thread();
 		CapturePieceToHistory& captureHistory = thisThread->captureHistory;
 		Piece moved_piece = pos.moved_piece_after(bestMove);
 		PieceType captured = type_of(pos.piece_on(to_sq(bestMove)));
-
-		bonus1 = stat_bonus(depth + 1);
-		bonus2 = bestValue > beta + PawnValue ? bonus1				// larger bonus
-											  : stat_bonus(depth);	// smaller bonus
+		int bonus1 = stat_bonus(depth + 1);
 
 		// Stockfishではcapture_or_promotion()からcapture()に変更された。[2022/3/23]
 		if (!pos.capture(bestMove))
 		{
-	        // Increase stats for the best move in case it was a quiet move
+			int bonus2 = bestValue > beta + PawnValue ? bonus1               // larger bonus
+				: stat_bonus(depth);   // smaller bonus
+
+			// Increase stats for the best move in case it was a quiet move
 			update_quiet_stats(pos, ss, bestMove, bonus2);
 
 			// Decrease stats for all non-best quiet moves
