@@ -10,8 +10,6 @@
 namespace Search {
 
 #if defined(USE_MOVE_PICKER)
-	// countermoves based pruningで使う閾値
-	constexpr int CounterMovePruneThreshold = 0;
 
 	// -----------------------
 	//  探索のときに使うStack

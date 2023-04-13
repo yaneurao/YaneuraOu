@@ -3246,8 +3246,8 @@ namespace {
 			// ※ Stockfish12でqsearch()にも導入された。
 			if (   !capture
 				&& bestValue > VALUE_TB_LOSS_IN_MAX_PLY
-				&& (*contHist[0])[to_sq(move)][pos.moved_piece_after(move)] < CounterMovePruneThreshold
-				&& (*contHist[1])[to_sq(move)][pos.moved_piece_after(move)] < CounterMovePruneThreshold)
+				&& (*contHist[0])[to_sq(move)][pos.moved_piece_after(move)] < 0
+				&& (*contHist[1])[to_sq(move)][pos.moved_piece_after(move)] < 0)
 				continue;
 
 			// movecount pruning for quiet check evasions
