@@ -2587,12 +2587,10 @@ namespace {
 				// are really negative and movecount is low, we allow this move to be searched
 				// deeper than the first move (this may lead to hidden double extensions).
 
-				int deeper =  r >= -1					? 0
-							: moveCount <= 4			? 2
-							: PvNode					? 1
-							: cutNode && moveCount <= 8 ? 1
-							:							  0;
-
+				int deeper = r >= -1 ? 0
+					: moveCount <= 4 ? 2
+					: PvNode || cutNode ? 1
+					: 0;
 				// depth >= 3なのでqsearchは呼ばれないし、かつ、
 				// moveCount > 1 すなわち、このnodeの2手目以降なのでsearch<NonPv>が呼び出されるべき。
 
