@@ -1338,14 +1338,14 @@ namespace {
 		//   cf. Use evaluation trend to adjust futility margin : https://github.com/official-stockfish/Stockfish/commit/65c3bb8586eba11277f8297ef0f55c121772d82c
 		// didLMR				: LMRを行ったのフラグ
 		// priorCapture         : 1つ前の局面は駒を取る指し手か？
-		bool givesCheck, improving, didLMR, priorCapture, singularQuietLMR;
+		bool givesCheck, improving, priorCapture, singularQuietLMR;
 
 		// capture              : moveが駒を捕獲する指し手もしくは歩を成る手であるか
 		// doFullDepthSearch	: LMRのときにfail highが起きるなどしたので元の残り探索深さで探索することを示すフラグ
 		// moveCountPruning		: moveCountによって枝刈りをするかのフラグ(quietの指し手を生成しない)
 		// ttCapture			: 置換表の指し手がcaptureする指し手であるか
 		// pvExact				: PvNodeで置換表にhitして、しかもBOUND_EXACT
-		bool capture, doFullDepthSearch, moveCountPruning, ttCapture;
+		bool capture, moveCountPruning, ttCapture;
 
 		// moveによって移動させる駒
 		Piece movedPiece;
@@ -2460,8 +2460,6 @@ namespace {
 			// 指し手で1手進める
 			pos.do_move(move, st, givesCheck);
 
-			bool doDeeperSearch = false;
-
 			// -----------------------
 			// Step 17. Late moves reduction / extension (LMR, ~98 Elo)
 			// -----------------------
@@ -2558,35 +2556,12 @@ namespace {
 				// ここにその他の枝刈り、何か入れるべき(かも)
 				//
 
-				// If the son is reduced and fails high it will be re-searched at full depth
-				// 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす。
-
-				doFullDepthSearch = value > alpha && d < newDepth;
-				doDeeperSearch = value > (alpha + 78 + 11 * (newDepth - d));
-				didLMR = true;
-			}
-			else
-			{
-				// non PVか、PVでも2手目以降であればfull depth searchを行なう。
-				doFullDepthSearch = !PvNode || moveCount > 1;
-				didLMR = false;
-			}
-
-
-			// -----------------------
-			// Step 18. Full depth search when LMR is skipped or fails high
-			// -----------------------
-
-			// Full depth search。LMRがskipされたか、LMRにおいてfail highを起こしたなら元の探索深さで探索する。
-
-			// ※　静止探索は残り探索深さはdepth = 0として開始されるべきである。(端数があるとややこしいため)
-			if (doFullDepthSearch)
-			{
-				value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth + doDeeperSearch, !cutNode);
-
-				// If the move passed LMR update its stats
-				if (didLMR)
+				// Do full depth search when reduced LMR search fails high
+				if (value > alpha && d < newDepth)
 				{
+					const bool doDeeperSearch = value > (alpha + 78 + 11 * (newDepth - d));
+					value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth + doDeeperSearch, !cutNode);
+
 					int bonus = value > alpha ?  stat_bonus(newDepth)
 											  : -stat_bonus(newDepth);
 
@@ -2595,6 +2570,12 @@ namespace {
 
 					update_continuation_histories(ss, movedPiece, to_sq(move), bonus);
 				}
+			}
+
+			// Step 18. Full depth search when LMR is skipped
+			else if (!PvNode || moveCount > 1)
+			{
+				value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
 			}
 
 			// For PV nodes only, do a full PV search on the first move or after a fail
