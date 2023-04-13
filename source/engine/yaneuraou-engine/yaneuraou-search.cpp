@@ -1004,8 +1004,9 @@ void Thread::search()
 
 			while (true)
 			{
-				// fail highするごとにdepthを下げていく処理
-				Depth adjustedDepth = std::max(1, rootDepth - failedHighCnt - searchAgainCounter);
+				// Adjust the effective depth searched, but ensuring at least one effective increment for every
+				// four searchAgain steps (see issue #2717).
+				Depth adjustedDepth = std::max(1, rootDepth - failedHighCnt - 3 * (searchAgainCounter + 1) / 4);
 				bestValue = ::search<Root>(rootPos, ss, alpha, beta, adjustedDepth, false);
 
 				// それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
