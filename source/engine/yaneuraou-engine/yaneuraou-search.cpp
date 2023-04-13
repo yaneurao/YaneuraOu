@@ -231,7 +231,8 @@ namespace {
 	//   MovePicker::move_next(true)で呼び出されることとなり、QUIETの指し手が生成されずに、whileループを抜けて
 	//   moveCount == 0 かつ、ループを抜けたので合法手がない判定になり、詰みの局面だと錯覚する。
 	constexpr int futility_move_count(bool improving, int depth) {
-		return (3 + depth * depth) / (2 - improving);
+		return improving ? (3 + depth * depth)
+			: (3 + depth * depth) / 2;
 	}
 
 	// History and stats update bonus, based on depth
