@@ -2721,8 +2721,6 @@ namespace {
 					}
 				}
 			}
-			else
-				ss->cutoffCnt = 0;
 
 			// If the move is worse than some previously searched move, remember it to update its stats later
 			// もしその指し手が、以前に探索されたいくつかの指し手より悪い場合は、あとで統計を取る時のために記憶しておく。
