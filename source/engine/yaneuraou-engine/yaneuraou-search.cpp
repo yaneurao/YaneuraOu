@@ -2060,21 +2060,16 @@ namespace {
 			ss->ttPv = ttPv;
 		}
 
-		// -----------------------
-		// Step 11. If the position is not in TT, decrease depth by 2 or 1 depending on node type (~3 Elo)
-		// -----------------------
-
-		// 局面がTTになかったのなら、探索深さを2下げる。
-		// ※　このあとも置換表にヒットしないであろうから、ここを浅めで探索しておく。
-		// (次に他のスレッドがこの局面に来たときには置換表にヒットするのでそのときにここの局面の
-		//   探索が完了しているほうが助かるため)
-		
-		if (   PvNode
-			&& depth >= 3
+		// Step 11. If the position is not in TT, decrease depth by 3.
+		// Use qsearch if depth is equal or below zero (~4 Elo)
+		if (PvNode
 			&& !ttMove)
-			depth -= 2;
+			depth -= 3;
 
-		if (   cutNode
+		if (depth <= 0)
+			return qsearch<PV>(pos, ss, alpha, beta);
+
+		if (cutNode
 			&& depth >= 8
 			&& !ttMove)
 			depth--;
