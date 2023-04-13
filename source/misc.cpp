@@ -495,12 +495,11 @@ void std_aligned_free(void* ptr) {
 // Windows
 #if defined(_WIN32)
 
-static void* aligned_large_pages_alloc_windows(size_t allocSize) {
+static void* aligned_large_pages_alloc_windows([[maybe_unused]] size_t allocSize) {
 
 	// Windows 64bit用専用。
 	// Windows 32bit用ならこの機能は利用できない。
 	#if !defined(_WIN64)
-		(void)allocSize; // suppress unused-parameter compiler warning
 		return nullptr;
 	#else
 
@@ -2219,8 +2218,7 @@ namespace CommandLine {
 	string binaryDirectory;  // path of the executable directory
 	string workingDirectory; // path of the working directory
 
-	void init(int argc, char* argv[]) {
-		(void)argc;
+	void init([[maybe_unused]] int argc, char* argv[]) {
 		string pathSeparator;
 
 		// extract the path+name of the executable binary
