@@ -2524,7 +2524,7 @@ namespace {
 
 				// 【計測資料 18.】cut nodeのときにreductionを増やすかどうか。
 
-				if (cutNode && move != ss->killers[0])
+				if (cutNode)
 					r += 2;
 
 				// Increase reduction if ttMove is a capture (~3 Elo)
